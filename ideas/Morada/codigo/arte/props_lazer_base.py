@@ -571,16 +571,18 @@ def pedestal(forma="redondo", l=1.6, h=1.2, cor="cinza_claro", cor2="cinza", pla
 
 
 def jato(x, y, z, h, r=0.06, espuma=0.1):
-    """Jato d'água vertical: coluna de água, um chuveirinho em sino caindo do alto e uma coroa de espuma clara
-    (lê como borrifo de longe)."""
+    """Jato d'água vertical: coluna de água, coroa de espuma clara no alto e gotas caindo em volta (lê como borrifo
+    de longe)."""
     e = espuma
-    ps = [cil(r, h, x=x, y=y, z=z, r2=r * 0.6, cor=None, mat="agua", seg=8),
-          mb.torno([(r * 0.5, z + h + 0.02), (e * 1.4, z + h - e * 0.3), (e * 2.2, z + h - e * 1.6),
-                    (e * 2.4, z + h - e * 3.2), (e * 2.25, z + h - e * 3.2), (e * 2.0, z + h - e * 1.7),
-                    (e * 1.2, z + h - e * 0.5), (0.0, z + h - 0.02)], x=x, y=y, cor=None, mat="agua", seg=10)]
+    ps = [cil(r, h, x=x, y=y, z=z, r2=r * 0.6, cor=None, mat="agua", seg=8)]
     for k, (dx, dy, dz, rr, cor) in enumerate(((0, 0, 0.1, 1.15, "branco"), (0.7, 0.2, -0.1, 0.8, "azul_bebe"),
                                                 (-0.55, 0.55, -0.15, 0.75, "branco"), (-0.2, -0.7, -0.2, 0.7,
                                                                                         "azul_bebe"),
                                                 (0.3, -0.3, 0.35, 0.6, "branco_gelo"))):
-        ps.append(bola(e * rr, x + dx * e, y + dy * e, z + h + dz * e * 2, cor=cor, sub=1))
+        ps.append(bola(e * rr, x + dx * e, y + dy * e, z + h + dz * e * 2, cor=cor, sub=1 if k == 0 else 0))
+    for k in range(6):  # gotas descendo em arco
+        a = 2 * math.pi * k / 6 + 0.3
+        for j, (rr, dz, tam) in enumerate(((1.7, -0.9, 0.38), (2.5, -2.6, 0.3))):
+            ps.append(bola(e * tam, x + e * rr * math.cos(a + 0.2 * j), y + e * rr * math.sin(a + 0.2 * j),
+                           z + h + dz * e, cor="azul_bebe" if (k + j) % 2 else "branco", sub=0))
     return ps

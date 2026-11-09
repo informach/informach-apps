@@ -137,6 +137,25 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 @media (max-width: 760px) {
   .app.passeando .palco { height: 74vh; }
 }
+/* Elenco: personagens prontos (elenco.json + elenco_sprite.webp) */
+.elenco { display: grid; gap: 8px; padding: 10px; border-radius: 12px; border: 1px solid var(--linha); background: var(--chip);
+  margin: 4px 0 2px; min-width: 0; }
+.elenco[hidden] { display: none; }
+.elenco-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.elenco h2 { font: 600 18px var(--display); margin: 0; }
+.elenco input[type="search"] { font: inherit; font-size: 14px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--linha);
+  background: var(--bg); color: var(--fg); width: 100%; box-sizing: border-box; }
+.elenco-grupos button { font-size: 12.5px; padding: 4px 10px; }
+.elenco-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); grid-auto-rows: max-content; gap: 6px;
+  max-height: 380px; overflow-y: auto; padding: 2px; overscroll-behavior: contain; }
+.elenco-grade button { display: grid; justify-items: center; gap: 2px; padding: 4px 2px 6px; border-radius: 10px; font-size: 11.5px;
+  line-height: 1.15; text-align: center; align-content: start; min-width: 0; }
+.elenco-grade button > span:not(.elenco-img), .elenco-grade button small { max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.elenco-grade button small { color: var(--suave); font-size: 10.5px; }
+.elenco-grade button[aria-pressed="true"] { background: var(--mini); color: var(--fg); border-color: var(--acento);
+  box-shadow: 0 0 0 1px var(--acento) inset; }
+.elenco-img { width: 72px; height: 72px; border-radius: 8px; background-color: var(--mini); background-repeat: no-repeat; display: block; }
 </style>
 
 <div class="app">
@@ -190,6 +209,13 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   "gravidez": 0 a 3 (adulta, plus_f, atletica) }
 Recém-nascido: "cabelo": { "tipo": careca | baixinho | gorro, "cor" }, "manta": cor, "chupeta": true/false.</pre>
       </details>
+    </section>
+    <section class="elenco" id="elenco-bloco" aria-labelledby="elenco-titulo" hidden>
+      <div class="elenco-topo"><h2 id="elenco-titulo">Elenco</h2><span class="nota" id="elenco-conta"></span></div>
+      <p class="nota" style="margin:0">Personagens prontos. Clique para levar o personagem inteiro para o visor.</p>
+      <div class="grupo elenco-grupos" id="elenco-grupos" role="group" aria-label="Grupo do elenco"></div>
+      <input type="search" id="elenco-busca" placeholder="Buscar por nome ou papel" aria-label="Buscar no elenco" autocomplete="off" spellcheck="false">
+      <div class="elenco-grade" id="elenco-grade"></div>
     </section>
     <p class="nota nota-passeio">No passeio, a animação segue o movimento. Roupas, objetos de mão e o resto continuam mudando aqui.</p>
     <p class="rotulo">Sexo</p>
@@ -931,10 +957,16 @@ function aplicarCorRoupa(rid, malhas, cor) {
 // corpo escolhido: o ponto da peça fica no mesmo triângulo da pele, com o deslocamento no referencial do triângulo
 // (proporcional ao tamanho dele), recalculado com as formas de gravidez; os pesos do esqueleto são os da pele embaixo.
 // Chapéus, óculos e cabelos vão para a caixa da cabeça do corpo, presos ao osso Head.
-async function txtGz(url) {
-  const txt = await (await fetch(url)).text();
+function gzB64(txt) {
   const gz = Uint8Array.from(atob(txt.trim()), (ch) => ch.charCodeAt(0));
   return new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+}
+async function txtGz(url) { return gzB64(await (await fetch(url)).text()); }
+// itens novos vêm juntos em itens/_novos.json ({id: texto}, tools/itens_pacote.py); os outros, um arquivo por item
+let PACOTE_ITENS = null;
+function textoItem(id) {
+  PACOTE_ITENS ||= fetch("itens/_novos.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  return PACOTE_ITENS.then((p) => (p[id] ? gzB64(p[id]) : txtGz(`itens/${id}.txt`)));
 }
 let BASE_ITENS = null;
 function baseItens() {
@@ -949,7 +981,7 @@ function baseItens() {
 const _itens = new Map();
 function dadosItem(id) {
   if (!_itens.has(id)) {
-    _itens.set(id, txtGz(`itens/${id}.txt`).then((buf) => {
+    _itens.set(id, textoItem(id).then((buf) => {
       const dv = new DataView(buf);
       const hl = dv.getUint32(4, true);
       const cab = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 8, hl)));
@@ -2813,10 +2845,18 @@ function desenharRecentes(lista = lerLS(LS_RECENTES, [])) {
     el.append(b);
   }
 }
-function baixarPersonagem() {
+async function baixarPersonagem() {
   const p = personagemAtual();
-  const url = URL.createObjectURL(new Blob([JSON.stringify(p, null, 2) + "\n"], { type: "application/json" }));
-  const a = document.createElement("a"); a.href = url; a.download = `personagem_${p.corpo}.json`;
+  const texto = JSON.stringify(p, null, 2) + "\n", nomeArq = `personagem_${p.corpo}.json`;
+  // publicada no claude.ai, a página salva pelo capability "downloads" (o visualizador pede confirmação)
+  const dl = window.claude?.use ? await window.claude.use("downloads").catch(() => null) : null;
+  if (dl) {
+    try { await dl.save({ filename: nomeArq, data: texto }); lembrar(Number($el("semente").value) || null); aviso("Personagem salvo como arquivo JSON."); }
+    catch (e) { aviso(e?.code === "declined" ? "Download cancelado. Você pode copiar o texto em “Ver ou colar o JSON”." : "Não deu para baixar aqui. Use “Ver ou colar o JSON”."); }
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([texto], { type: "application/json" }));
+  const a = document.createElement("a"); a.href = url; a.download = nomeArq;
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
   lembrar(Number($el("semente").value) || null);
@@ -2850,6 +2890,72 @@ function montarFerramentas() {
   $el("btn-limpar").onclick = () => { gravarLS(LS_RECENTES, []); desenharRecentes([]); };
   desenharFiltrosSorteio();
   desenharRecentes();
+}
+
+// ---------------------------------------------------------------- Elenco: personagens prontos
+// elenco.json (morada-art/elenco_folhas.py): { sprite, celula, largura, altura, grupos: { id: rótulo },
+//   personagens: [{ id, nome, grupo, papel, rotulo, faixa, corpo, animacao, animacao_rotulo, veiculo, x, y, personagem }] }
+// "personagem" está no formato de Salvar/Carregar (morada-personagem): clicar aplica o personagem inteiro e, se o corpo tem
+// a animação sugerida na biblioteca, toca ela.
+const ELENCO = { lista: [], grupos: {}, grupo: "todos", busca: "", sprite: "", cel: 128, w: 0, h: 0, atual: null };
+const ELENCO_THUMB = 72; // px da miniatura na grade
+const semAcento = (s) => String(s ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+async function montarElenco() {
+  const bloco = $el("elenco-bloco");
+  try {
+    const j = await (await fetch("elenco.json")).json();
+    Object.assign(ELENCO, { lista: j.personagens || [], grupos: j.grupos || {}, sprite: j.sprite, cel: j.celula, w: j.largura, h: j.altura });
+  } catch { bloco.hidden = true; return; }
+  if (!ELENCO.lista.length) { bloco.hidden = true; return; }
+  bloco.hidden = false;
+  $el("elenco-busca").oninput = (e) => { ELENCO.busca = e.target.value; desenharElenco(); };
+  desenharElenco();
+}
+function elencoFiltrado() {
+  const q = semAcento(ELENCO.busca).trim().split(/\s+/).filter(Boolean);
+  return ELENCO.lista.filter((p) => {
+    if (ELENCO.grupo !== "todos" && p.grupo !== ELENCO.grupo) return false;
+    if (!q.length) return true;
+    const txt = semAcento([p.nome, p.rotulo, p.papel, ELENCO.grupos[p.grupo], IDADES[p.faixa], p.animacao_rotulo, p.veiculo].join(" "));
+    return q.every((w) => txt.includes(w));
+  });
+}
+function desenharElenco() {
+  const conta = (g) => (g === "todos" ? ELENCO.lista.length : ELENCO.lista.filter((p) => p.grupo === g).length);
+  chips($el("elenco-grupos"), [["todos", "Todos"], ...Object.entries(ELENCO.grupos)].map(([k, r]) => [k, `${r} (${conta(k)})`]),
+    ELENCO.grupo, (k) => { ELENCO.grupo = k; desenharElenco(); });
+  const lista = elencoFiltrado(), grade = $el("elenco-grade"), s = ELENCO_THUMB / ELENCO.cel;
+  $el("elenco-conta").textContent = lista.length === ELENCO.lista.length ? `${lista.length} personagens` : `${lista.length} de ${ELENCO.lista.length}`;
+  grade.replaceChildren();
+  for (const p of lista) {
+    const b = document.createElement("button");
+    b.type = "button"; b.dataset.elenco = p.id; b.setAttribute("aria-pressed", String(ELENCO.atual === p.id));
+    b.title = `${p.nome} · ${p.rotulo}${p.animacao_rotulo ? " · " + p.animacao_rotulo : ""}`;
+    const im = document.createElement("span"); im.className = "elenco-img"; im.setAttribute("aria-hidden", "true");
+    im.style.backgroundImage = `url(${ELENCO.sprite})`;
+    im.style.backgroundSize = `${ELENCO.w * s}px ${ELENCO.h * s}px`;
+    im.style.backgroundPosition = `${-p.x * s}px ${-p.y * s}px`;
+    const nome = document.createElement("span"); nome.textContent = p.nome;
+    const papel = document.createElement("small"); papel.textContent = p.rotulo;
+    b.append(im, nome, papel);
+    b.onclick = () => escolherDoElenco(p);
+    grade.append(b);
+  }
+  if (!lista.length) { const v = document.createElement("p"); v.className = "nota"; v.textContent = "Ninguém com essa busca."; grade.append(v); }
+}
+async function escolherDoElenco(p) {
+  try {
+    await aplicarPersonagem(JSON.parse(JSON.stringify(p.personagem)));
+    // ciclistas: se a biblioteca do corpo tem a animação do veículo, ela toca no lugar da de repouso
+    const VEIC = { bicicleta: "resident.bike.ride", skate: "resident.skate.ride", patinete: "resident.scooter.ride" };
+    const v = p.veiculo && VEIC[p.veiculo] && "bib:" + VEIC[p.veiculo];
+    const a = v && atual?.clips[v] ? v : p.animacao && "bib:" + p.animacao;
+    if (a && !passeio.ativo && atual?.clips[a]) { estado.anim = a; aplicarAnim(false); desenharAnims(); }
+    ELENCO.atual = p.id;
+    for (const b of $el("elenco-grade").querySelectorAll("button[data-elenco]")) b.setAttribute("aria-pressed", String(b.dataset.elenco === p.id));
+    aviso(`${p.nome} (${p.rotulo}) no visor.`);
+    lembrar(null);
+  } catch (e) { aviso(e?.message || String(e)); }
 }
 
 // ---------------------------------------------------------------- modo passeio
@@ -3160,7 +3266,7 @@ renderer.setAnimationLoop(() => {
   renderer.render(cena, camera);
 });
 aoMudarTamanho();
-montarFerramentas(); montarControlesPasseio();
+montarFerramentas(); montarControlesPasseio(); montarElenco();
 desenharFiltros(); desenharMinis(); desenharTons();
 mostrar(estado.corpo).catch((e) => { status.textContent = "Não consegui carregar o corpo: " + e.message; });
 </script>

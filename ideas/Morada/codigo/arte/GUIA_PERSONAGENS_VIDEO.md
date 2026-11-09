@@ -31,7 +31,7 @@ em `SP/_video/cartoon_city.mp4` e os quadros de 1 em 1 segundo em `SP/_video/qua
 | Animações | 300+ | 154 (17 categorias) + 39 compostas |
 | Roupas e acessórios | 1.100 | 317 peças com cor livre, 64 cabelos/barbas |
 | Objetos de mão | 100+ | 58 |
-| Personagens prontos | **300** (90 profissionais + 210 casuais) | 109 conjuntos de roupa (sem corpo, cabelo e pele definidos) |
+| Personagens prontos | **300** (90 profissionais + 210 casuais) | **300** no Elenco (`elenco.json`: 90 profissionais em 30 papéis + 210 casuais, com miniatura, folhas e sprite; `elenco_define.py`, `elenco_valida.py`, `elenco_render.py`, `elenco_folhas.py`) e 122 conjuntos de roupa |
 | Bichos de estimação | 13, 65 animações | **24**, até 21 animações cada (+ zoológico e fauna urbana) |
 | Ícones 2D | de tudo | miniatura de cada peça |
 | Ferramenta | Aleatório, salvar, filtros | escolha por imagem; sem aleatório nem salvar |

@@ -60,6 +60,28 @@ com chapéu (1), o cabelo não atravessa a copa.
 
 O catálogo, o encaixe, o formato dos arquivos e como acrescentar uma peça estão em `biblioteca/LEIA_roupas.md`.
 
+Depois desta leva o catálogo tem **361 peças** e **121 conjuntos**: entraram 43 objetos de mão (101 no total: ferramentas,
+limpeza e jardim, serviço, esporte, festa e lazer), cada um com pose de segurar e pegada dos dedos (`pegada` no catálogo),
+e o chapéu de comissária. Na página, os itens novos vêm juntos em `itens/_novos.json` (`codigo/ferramentas/itens_pacote.py`),
+para o artefato publicado não passar do limite de arquivos.
+
+## Elenco
+
+`biblioteca/elenco/`: **300 personagens prontos**, com miniatura e folhas por grupo. São 90 profissionais em 30 papéis
+(ator, arquiteto, ciclista, bombeiro, médico, cabeleireiro, comissária de bordo, policial, professor, garçom e outros) e 210
+casuais (bebês e crianças, jovens, adultos e idosos, com corpos plus, musculoso e atlética e 5 grávidas). Cada um tem nome,
+corpo, pele, cabelo, roupa por parte com cores, às vezes objeto de mão, e a animação de repouso, no mesmo formato de
+"Salvar personagem" da página. Definição em `codigo/arte/elenco.json` (gerada por `elenco_define.py`, conferida por
+`elenco_valida.py`, renderizada por `elenco_render.py` e `elenco_folhas.py`).
+
+## Página de personagens
+
+Além do que já tinha, a página ganhou: **Aleatório** (com semente para repetir, filtros por faixa, sexo e tipo de corpo,
+conjuntos prontos ou peças soltas com cores que combinam), **Salvar e carregar** o personagem em JSON (no artefato, pelo
+download do visualizador), últimos personagens guardados no navegador, **Voltar ao padrão**, **modo passeio** (andar e
+correr com WASD/setas ou joystick no celular, câmera atrás, pés sem deslizar), a grade **Elenco** e as animações de
+bicicleta, skate e patinete com o veículo junto (categoria "Bicicleta, skate e patinete").
+
 ## Bichos de estimação
 
 Treze bichos feitos a partir do Doberman do pacote Apocalypse, com as onze animações dele ajustadas a cada um

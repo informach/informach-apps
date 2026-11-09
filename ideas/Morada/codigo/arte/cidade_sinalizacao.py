@@ -1021,7 +1021,7 @@ def main():
         f(it)
         exporta(cat, it, rotulo, grupo, fixacao, alt, tags)
     validos = set(ids)
-    cat.dados["itens"] = [x for x in cat.dados["itens"] if x["id"] in validos]
+    cat.dados["itens"] = [x for x in cat.dados["itens"] if x["id"] in validos or x["id"].endswith("_pacote")]  # as peças de pacote (id terminado em _pacote) vêm de outro gerador e ficam
     cat.dados["itens"].sort(key=lambda x: ids.index(x["id"]))
     cat.salva()
     print("pecas", len(cat.dados["itens"]), flush=True)

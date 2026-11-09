@@ -1,6 +1,6 @@
 # Cidade
 
-A biblioteca de cidade tem **590 peças em 25 categorias**, todas com miniatura:
+A biblioteca de cidade tem **822 peças em 30 categorias**, todas com miniatura, e **9 cenas de exemplo**:
 
 - **infraestrutura:** 88 peças em 7 categorias;
 - **prédios:** 190 peças em 7 categorias (6 estilos e os arranha-céus), todos com janelas que acendem à noite;
@@ -8,7 +8,9 @@ A biblioteca de cidade tem **590 peças em 25 categorias**, todas com miniatura:
 - **vegetação e mobiliário urbano:** 64 peças;
 - **transportes:** 94 peças (carros, utilitários e trens, barcos e aeronaves);
 - **parque:** 44 peças (brinquedos, áreas e atrações);
-- **vila de fantasia:** 38 peças.
+- **vila de fantasia:** 38 peças;
+- **props:** 181 peças em 4 categorias (rua e telhado, praia, lazer e esporte);
+- **cenário:** 51 peças (terreno, costas, mar, platôs, montanhas, marcos e prédios-marco).
 
 As peças próprias foram feitas aqui tendo como norte as imagens de referência, sem copiá-las. Entram também **96 peças de
 pacotes gratuitos**, com o selo `pacote` (**uso interno, não distribuir**):
@@ -19,7 +21,8 @@ pacotes gratuitos**, com o selo `pacote` (**uso interno, não distribuir**):
 - do Apocalypse: o carro, pinheiro, barricada, defensa, placa e churrasqueira.
 
 Página: `paginas/cidade/cidade.html`. Tem o catálogo por categoria, o visor 3D, a troca de cores, o botão **Noite**,
-as cancelas e comportas que abrem e as vitrines. Os "testes de encaixe" e os "quarteirões" são trechos de cidade
+as cancelas e comportas que abrem, as vitrines e a seção **Cenas de exemplo**, que monta as cenas em 3D (peças repetidas como
+instâncias, carros andando nas rotas, bichos animados, dia e noite com o mar escurecendo). Os "testes de encaixe" e os "quarteirões" são trechos de cidade
 montados com as peças encostadas.
 
 ## Infraestrutura
@@ -100,7 +103,8 @@ lista em `"animacoes": [{"nome", ...}]`. A página toca todas.
 | `piscar` | `periodo`, `suave` | a emissão liga e desliga pela metade do período; com `suave`, tremula sem apagar (chama) |
 | `girar` | `eixo`, `velocidade` (graus/s) | gira em volta da origem. Rodas levam `"roda": 1, "raio"`, e hélices levam `"helice": 1` |
 | `balancar` | `angulo`, `periodo`, `eixo` | oscila em seno (bandeiras, balanços) |
-| `percurso` | `pontos`, `velocidade` (m/s), `atraso` (m), `fechado` | anda pela lista de pontos com a frente (+Z do glTF) na direção do caminho (carrinhos no trilho) |
+| `percurso` | `pontos`, `velocidade` (m/s), `atraso` (m), `fechado` | anda pela lista de pontos com a frente (+Z do glTF) na direção do caminho (carrinhos no trilho). O "em cima" acompanha o trilho sem girar à toa (referenciais que minimizam a rotação), então o carrinho fica de cabeça para baixo no alto do looping; o giro que sobra ao fechar a volta é repartido pelo caminho |
+| `deslizar` | `eixo`, `curso` (m), `periodo`, `perfil` (`queda` ou vaivém) | vaivém em linha reta: a gôndola da torre de queda (sobe devagar, para no alto, despenca e freia), elevadores, jatos de chafariz, gôndola do aquário |
 
 Para um objeto ficar em pé dentro de outro que gira (as cabines da roda-gigante), ele é filho do que gira e gira ao
 contrário.
@@ -163,6 +167,53 @@ cabine que abre. Todas têm assentos, luzes de navegação e janelas que acendem
 - A roda-gigante, o carrossel, as xícaras e o gira-gira giram. O barco viking, os balanços e a gangorra balançam.
 - As lâmpadas, os refletores do palco e o telão piscam ou trocam de imagem.
 - As áreas usam `"quadras": [nx, ny]` (não `lote`, que é dos prédios).
+
+## Props
+
+| Categoria | Peças | O que tem |
+|---|---|---|
+| `props_rua` | 58 | <ul><li>obra e trânsito: cones (um com lâmpada que pisca), cavalete, barreira de água, balizadores (um retrátil), corrente;</li><li>serviços: parquímetro, máquinas de bebidas e lanches, caixa eletrônico com tela que troca, carregador de carro elétrico, bicicletas compartilhadas;</li><li>banca de jornal, chaveiro, banca de frutas, totem com mapa, placa de direção;</li><li>calçada: bebedouro de cachorro, gradil, floreiras, bueiro, boca de lobo, lixeira subterrânea, contêiner de vidro;</li><li>telhado: caixas d'água, parabólicas, antenas, condensadora (hélices giram), exaustor, painel solar, para-raios, chaminé, casa de máquinas, varal;</li><li>fachada: condensadora, toldo, escada de incêndio por andar, lanterna, câmera, interfone, caixa de correio;</li><li>calçadão e ciclovia em peças de 15 m (reta, curva, cruzamento, faixa, verde), laje de ladrilho que vira muro na beira do mar, balaustrada em módulos, banco e lixeira.</li></ul> |
+| `props_praia` | 47 | <ul><li>pisos de 15 m que casam com `orla` e `agua_aberta`: areia, areia com calçadão em ondas, areia até o mar;</li><li>postos de salva-vidas, 5 guarda-sóis (um gira), espreguiçadeiras, cadeira, toalhas, pranchas, boias, castelinho, piscina inflável;</li><li>castelo de areia gigante, quiosques de sucos (coco gigante), de surfe, de açaí (abacaxi gigante) e de coco, carrinho de picolé;</li><li>rede de vôlei, tenda, deque, bandeiras de aviso, biruta, varal de luzes; a espuma da rebentação vai e volta.</li></ul> |
+| `props_lazer` | 43 | <ul><li>portais (zoológico, oriental) e arcos de praça;</li><li>estátuas (leão, cavaleiro, atleta, menina com a casinha) e chafarizes (de lóbulos, piso de jatos, globo que gira, espelho d'água);</li><li>carrinhos de balões, cachorro-quente, algodão-doce e pipoca, quiosque de sorvete;</li><li>palco coberto, tenda estrela, mesa de DJ, caixas de som, varais de lâmpadas de 6, 10 e 15 m, inflável, cama elástica, poste de lanternas chinesas;</li><li>parquinho (balanço, escorregador, gangorra, caixa de areia com foguete, trepa-trepa, gira-gira, casinha), escadas, arquibancada, banco em volta de árvore, mesa coberta e placa de direções.</li></ul> |
+| `props_esporte` | 33 | <ul><li>quadras de basquete (2), campo de futebol, tênis (saibro e piso azul), vôlei de areia e poliesportiva;</li><li>tabelas, traves, torre de refletores de 18 m, placar que troca, arquibancadas reta e curva (um assento por lugar), banco de reservas;</li><li>pista de skate em 7 módulos e academia ao ar livre (6 aparelhos, a bicicleta pedala);</li><li>mesas de pingue-pongue e de xadrez, bebedouro esportivo e bicicletário.</li></ul> |
+
+## Cenário
+
+`cenario` tem 51 peças para montar a ilha e os marcos:
+
+- **Terreno (15 × 15 m):** areia, grama com areia, costa de areia com espuma e água rasa, península (base, faixa e ponta),
+  costa de rocha, mar (1 × 1 e 4 × 4 quadras) e platô de 3,75 m (topo, borda com muro, cantos e rampa de rua). As peças de
+  borda têm reta, canto externo e canto interno; rotação 0 = terra em −Y. O mar fica nas cotas da `agua`.
+- **Montanhas:** cinco tamanhos (16 a 54 m), crista, morro verde e montanha com túnel de rua. Encostadas, viram cordilheira.
+- **Marcos:** observatório (domos giram), estádio com neon, aeroporto com hangar e torre, píer do cruzeiro (acessos, píer e
+  ponta), represa grande em trechos e torres (montagem completa no catálogo) e farol.
+- **Prédios-marco** (com `lote`): delegacia, quartel de bombeiros (portões abrem), prédio do aquário (peixes, algas e
+  gôndola), hospital, lanchonete 24 h, shopping, academia, prédio de tijolo em U, torre com quadra de basquete no telhado,
+  sala de enigmas, torre com telão de rosto sorridente, placa de quebra-cabeça flutuante, praça do cristal e fumaça de
+  churrasqueira.
+
+## Cenas de exemplo
+
+Em `cenas/`: o JSON de cada cena (formato no `codigo/arte/GUIA_CENAS.md`: peças com categoria, id, posição em metros do
+Blender, giro e escala, mais rotas de veículos e bichos com animação) e os renders de dia e de noite.
+
+| Cena | Peças |
+|---|---|
+| Chinatown (praça do cristal no platô, viadutos, calçadão com ciclovia, lanternas) | 550 |
+| Bairro regular e centro (arranha-céus, avenida, viadutos) | 543 |
+| Parque (castelo, parque aquático, montanha-russa, palco, lago, zoológico com bichos, casa na árvore) | 701 |
+| Praia e parque de diversões (dragão, roda-gigante, píer com o navio, props de praia) | 246 |
+| Marina | 373 |
+| Bairro ecológico (platôs com muro de arrimo, túnel, orla) | 512 |
+| Bairro futurista (ponte estaiada, campinho, praça) | 573 |
+| Observatório e represa | 413 |
+| Cidade completa (costa recortada, represa grande, 3 pontes, túneis, estádio, aeroporto, montanhas, carros e bichos) | 16.647 |
+
+- Cada cena de área é um recorte de 12 × 12 quadras da cidade completa, então as ruas casam nas bordas. Um verificador
+  confere que nenhuma peça fica sobre outra que não seja apoio nem sobre a rua.
+- Os carros com `rota` andam pela mão da direita, inclusive subindo os viadutos; os bichos tocam a animação indicada.
+- Gerador: `codigo/arte/cidade_cenas.py` (`layout`, `verifica`, `monta <id>`).
+- Limite: as pontes seguem a grade (0° e 90°); não há peças de rua nem de rampa em diagonal.
 
 ## Vila de fantasia
 
@@ -252,6 +303,10 @@ e pelo teste de quarteirão.
 - **Transportes:** `cidade_carros.py`, `cidade_utilitarios.py`, `cidade_barcos.py` e `cidade_aeronaves.py` (guia
   `GUIA_TRANSPORTE.md`).
 - **Parque:** `cidade_parque_brinquedos.py` e `cidade_parque_areas.py` (guia `GUIA_PARQUE.md`).
+- **Props:** `cidade_props_rua.py`, `cidade_props_praia.py`, `cidade_props_lazer.py` e `cidade_props_esporte.py` (guia
+  `GUIA_PROPS.md`), com os auxiliares `props_<grupo>_*.py`.
+- **Cenário:** `cidade_cenario.py` e os auxiliares `cenario_*.py`.
+- **Cenas:** `cidade_cenas.py` (guia `GUIA_CENAS.md`).
 - **Fantasia:** `cidade_fantasia.py` (`-- <saida> [casas|fantasia|ids]`). Os 4 prédios do Cartoon City vêm de
   `predios_pacote.py`.
 - **Prédios:** o guia é `codigo/arte/GUIA_PREDIOS.md`. Cada estilo tem `predios_<estilo>.py` (e `predios_arranha_ceus.py`),

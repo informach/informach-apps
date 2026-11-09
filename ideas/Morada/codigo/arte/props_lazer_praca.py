@@ -109,21 +109,23 @@ def p_arquibancada(it):
     a0, a1 = 60, 120
     cy = -Ri - nt * d / 2 + 0.3      # centro do arco: a arquibancada fica em volta da origem
     ps, col_ps = [], []
+    ga, gb = 86.5, 93.5   # escadinha do meio (degraus de meia altura) entre ga e gb graus
     for k in range(nt):
         r0, r1 = Ri + k * d, Ri + (k + 1) * d
-        s = _setor(r0, r1 + (0.0 if k == nt - 1 else 0.001), a0, a1, 0.0, h * (k + 1), "concreto", "concreto_escuro")
-        mover(s, 0, cy)
-        ps.append(s)
-        # tábuas do assento (cores alternadas por degrau)
-        for b0, b1 in ((a0 + 1, 86.5), (93.5, a1 - 1)):  # tábuas dos dois lados da escadinha do meio
-            tab = _setor(r0 + 0.04, r0 + 0.42, b0, b1, h * (k + 1), h * (k + 1) + 0.05,
-                         ("laranja", "amarelo", "laranja_claro", "amarelo_escuro")[k], "madeira", n=8)
+        for b0, b1 in ((a0, ga), (gb, a1)):
+            s = _setor(r0, r1 + (0.0 if k == nt - 1 else 0.001), b0, b1, 0.0, h * (k + 1), "concreto",
+                       "concreto_escuro", n=9)
+            mover(s, 0, cy)
+            ps.append(s)
+            tab = _setor(r0 + 0.04, r0 + 0.42, b0 + (1 if b0 == a0 else 0.3), b1 - (1 if b1 == a1 else 0.3),
+                         h * (k + 1), h * (k + 1) + 0.05, ("laranja", "amarelo", "laranja_claro", "amarelo_escuro")[k],
+                         "madeira", n=8)
             mover(tab, 0, cy)
             ps.append(tab)
-    # escadinha no meio (degraus intermediários de meia altura)
     for k in range(nt * 2):
         r = Ri + k * d / 2
-        st = _setor(r, r + d / 2 + 0.002, 87, 93, 0.0, h / 2 * (k + 1), "concreto", "concreto_escuro", n=2)
+        st = _setor(r, r + d / 2 + 0.002, ga + 0.05, gb - 0.05, 0.0, h / 2 * (k + 1), "concreto_escuro", "concreto",
+                    n=2)
         mover(st, 0, cy)
         ps.append(st)
     it.add(mb.junta(ps, "arquibancada"))

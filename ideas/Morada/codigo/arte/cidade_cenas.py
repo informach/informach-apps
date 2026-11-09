@@ -338,11 +338,19 @@ def superficie_local(i, x, y):
         if i == "caminho_parque_rotatoria":
             return "caminho" if math.hypot(x, y) < 6.0 or ax < w or ay < w else "livre"
         return "livre"
-    if i in ("areia",) or i.startswith("grama_areia"):
+    if i in ("areia",) or i.startswith(("grama_areia", "ciclovia", "laje_calcadao", "piso_areia")):
         return "livre"
+    if i == "praca_cristal":
+        return "area"
     if i.startswith(("costa_areia", "costa_rocha")):
         if i.endswith("reta"):
             sv = y
+        elif i.endswith("faixa_base"):
+            sv = min(y, 2 * abs(x) - H)
+        elif i.endswith("faixa"):
+            sv = 2 * abs(x) - H
+        elif i.endswith("ponta"):
+            sv = 2 * math.hypot(x, y + H) - H
         elif i.endswith("canto_ext"):
             sv = math.hypot(x + H, y + H) - H
         elif i.endswith("canto_int"):
@@ -355,43 +363,84 @@ def superficie_local(i, x, y):
     return "area"
 
 
+Z_PLATO = 3.75
+Z_SOB_PLATO = -0.42   # plato_topo rebaixado debaixo de rua/praça apoiada no alto
+
+
+def altura_local(i, x, y):
+    """Altura do chão da peça em (x, y) local: o alto dos platôs fica em 3,75; o resto em 0."""
+    if i == "plato_topo":
+        return Z_PLATO
+    if i == "plato_borda":
+        return Z_PLATO if y > -0.3 else 0.0
+    if i == "plato_canto_ext":
+        return Z_PLATO if (x > -0.3 and y > -0.3) else 0.0
+    if i == "plato_canto_int":
+        return 0.0 if (x < -0.3 and y < -0.3) else Z_PLATO
+    return 0.0
+
+
+def superficie_plato(i, x, y):
+    if i == "plato_topo":
+        return "livre"
+    if i == "plato_borda":
+        return "livre" if (y > 0.4 or y < -1.0) else "muro"
+    if i == "plato_canto_ext":
+        if x > 0.4 and y > 0.4:
+            return "livre"
+        if x < -1.0 or y < -1.0:
+            return "livre"
+        return "muro"
+    if i == "plato_canto_int":
+        if x < -1.0 and y < -1.0:
+            return "livre"
+        if x > 0.4 or y > 0.4:
+            return "livre"
+        return "muro"
+    return "area"
+
+
 class Mapa:
-    """Índice das peças de chão de uma cena: quadra → (peça, índice)."""
+    """Índice das peças de chão de uma cena: quadra → peça. 'chao' é o chão (z = 0), 'topo' o que está apoiado no alto
+    de um platô (rua e praça em z = 3,75) e 'elev' os tabuleiros elevados."""
 
     def __init__(self, pecas):
         self.chao = {}
+        self.topo = {}
         self.elev = {}
         self.dup = []
-        for n, p in enumerate(pecas):
-            k = classe(p["c"], p["i"])
-            if k not in ("tile", "elev"):
-                continue
-            alvo = self.chao if k == "tile" else self.elev
-            for q in cobre(p["c"], p["i"], p["p"][0], p["p"][1], p.get("r", 0)):
-                if q in alvo:
-                    self.dup.append((q, alvo[q], n))
-                alvo[q] = n
         self.pecas = pecas
+        for n in range(len(pecas)):
+            self.inclui(n)
 
     def inclui(self, n):
         p = self.pecas[n]
         k = classe(p["c"], p["i"])
         if k not in ("tile", "elev"):
             return
-        alvo = self.chao if k == "tile" else self.elev
+        alvo = self.elev if k == "elev" else (self.topo if p["p"][2] > 1.0 else self.chao)
         for q in cobre(p["c"], p["i"], p["p"][0], p["p"][1], p.get("r", 0)):
             if q in alvo:
                 self.dup.append((q, alvo[q], n))
             alvo[q] = n
 
-    def sup(self, x, y):
+    def sup3(self, x, y):
+        """(superfície, peça, altura do chão) em (x, y)."""
         q = celula(x, y)
-        n = self.chao.get(q)
+        n = self.topo.get(q)
         if n is None:
-            return None, None
+            n = self.chao.get(q)
+        if n is None:
+            return None, None, 0.0
         p = self.pecas[n]
         lx, ly = rp(x - p["p"][0], y - p["p"][1], -p.get("r", 0))
-        return superficie_local(p["i"], lx, ly), p
+        if p["i"].startswith("plato_"):
+            return superficie_plato(p["i"], lx, ly), p, altura_local(p["i"], lx, ly)
+        return superficie_local(p["i"], lx, ly), p, p["p"][2]
+
+    def sup(self, x, y):
+        s_, p, _ = self.sup3(x, y)
+        return s_, p
 
     def tem_elev(self, x, y):
         return celula(x, y) in self.elev
@@ -490,8 +539,11 @@ def pe_ok(mapa, p, chao):
         if z0 > p["p"][2] + 2.0:
             continue
         for x, y in amostras(poly, 0.6):
-            s, _ = mapa.sup(x, y)
+            s, _, h = mapa.sup3(x, y)
             if s not in chao:
+                return False
+            if p["c"] not in ("barcos",) and abs(h + (Z_ASF if s in ("asfalto", "estacionamento") and
+                                                     classe(p["c"], p["i"]) == "veiculo" else 0.0) - p["p"][2]) > 0.05:
                 return False
             if z1 > p["p"][2] + 5.9 and p["p"][2] < 3 and mapa.tem_elev(x, y):
                 return False
@@ -679,12 +731,14 @@ class Distrito:
 
 
 # linhas e distritos (índices de quadra; a rua de borda fica na linha i0/i1/j0/j1)
-HY_NORTE = [1, 4, 7, 10, 14, 17, 20]
+HY_NORTE = [1, 4, 7, 11, 14, 17, 20]
 HY_SUL = [-12, -9, -6, -3, 1]
 DISTRITOS = [
-    Distrito("chinatown", "china", -25, -9, 1, 20, vx=[-25, -22, -18, -15, -12, -9], hy=[1, 4, 7, 10, 13, 16, 20]),
+    Distrito("chinatown_plato", "china", -25, -18, 2, 9, vx=[-25, -18], hy=[2, 9]),
+    Distrito("chinatown_oeste", "china", -25, -18, 9, 20, vx=[-25, -22, -18], hy=[9, 12, 15, 17, 20]),
+    Distrito("chinatown", "china", -18, -9, 2, 20, vx=[-18, -15, -12, -9], hy=[2, 5, 8, 11, 14, 17, 20]),
     Distrito("centro", "centro", -9, 9, 1, 20, vx=[-9, -6, -3, 0, 3, 6, 9], hy=HY_NORTE),
-    Distrito("leste", "regular", 9, 21, -12, 20, vx=[9, 12, 15, 18, 21], hy=HY_SUL + [4, 7, 10, 14, 17, 20]),
+    Distrito("leste", "regular", 9, 21, -12, 20, vx=[9, 12, 15, 18, 21], hy=HY_SUL + [4, 7, 11, 14, 17, 20]),
     Distrito("sudoeste", "regular", -15, -8, -12, 1, vx=[-15, -12, -8], hy=HY_SUL),
     Distrito("parque", "parque", -8, 3, -9, 1, vx=[-8, 3], hy=[-9, 1]),
     Distrito("sul", "regular", -8, 3, -12, -9, vx=[-8, -5, -1, 3], hy=[-12, -9]),
@@ -697,20 +751,25 @@ DISTRITOS = [
              ilha="eco"),
     Distrito("observatorio", "observatorio", -6, 4, 30, 33, vx=[-6, 4], hy=[30, 33], ilha="observatorio"),
 ]
-AVENIDAS = [((-25, 10), (21, 10)), ((3, -15), (3, 20))]
+AVENIDAS = [((-15, 11), (21, 11)), ((3, -15), (3, 20))]
 # pontes: (quadra do cruzamento na margem A, direção, nº quadras de ponte, peça da ponte)
 PONTES = [((-26, -10), "E", "ponte_estaiada_v"), ((21, 8), "E", "ponte_laco"), ((0, 20), "N", "ponte_estaiada_agulha")]
-VIADUTOS = [((-25, 8), (-9, 8)), ((-9, 12), (9, 12))]  # linha elevada (quadras de rua de borda nas pontas)
+# linhas elevadas (quadras de rua nas pontas) e a linha de rua abaixo por onde os carros voltam (laço na mão)
+VIADUTOS = [((-25, 10), (-18, 10), 9), ((-18, 13), (-9, 13), 11), ((-6, 12), (0, 12), 11), ((0, 12), (9, 12), 11)]
+PLATO_CRISTAL = (-24, -19, 3, 8)        # moldura do platô (6 × 6); anel de rua no alto e rampa ao norte
+RAMPA_PLATO = (-21, 8)                  # rampa do platô (sobe para o sul) ligada à rua j = 9
+CALCADAO = [(i, j) for i in range(-25, -15) for j in (0, 1)]   # ciclovia (j = 1) e laje do calçadão (j = 0)
+TERRACOS = [(35, 36, 5, 7), (44, 45, -1, 0), (41, 42, 9, 10), (38, 39, 12, 13)]   # platôs do bairro ecológico
 # túneis: (quadra de rua, direção para dentro da montanha); a montanha com túnel (3 × 2) fica com a boca nessa rua
 TUNEIS = [((37, 14), "N"), ((-32, -19), "S"), ((-6, 30), "W")]
 # serras: terra de grama com montanhas (i0, i1, j0, j1)
 SERRAS = [(29, 52, 15, 39), (49, 52, -12, 14), (-53, -24, -40, -21), (-53, -51, -24, -4), (-53, -33, 22, 39),
           (-9, -8, 32, 35)]
 SERRAS = [r_ for r_ in SERRAS if r_ != (-53, -33, 22, 39)]
-REPRESA = (-560.0, 400.0, -35.0)   # centro da crista e giro (a água do reservatório fica para +Y local)
+REPRESA = (-610.0, 470.0, -35.0)   # centro da crista e giro (a água do reservatório fica para +Y local)
 # janelas das cenas de área (i0, j0) com 12 × 12 quadras
 JANELAS = {
-    "chinatown": ("Chinatown", (-30, 3)),
+    "chinatown": ("Chinatown", (-26, 0)),
     "centro": ("Bairro regular e centro", (-6, 6)),
     "parque": ("Parque", (-8, -10)),
     "praia": ("Praia e parque de diversões", (1, -32)),
@@ -781,6 +840,7 @@ class Cidade:
             for q in ret_set(i0, i1, j0, j1):
                 urb.add(q)
                 self.estilo.setdefault(q, {"vila_magica": "magico"}.get(nome, nome))
+        urb |= set(CALCADAO)
         self.urb = urb
         G = dilata(urb, 1)
         self.serra = set()
@@ -792,9 +852,7 @@ class Cidade:
         for (a, sentido, ponte) in PONTES:
             cel = self.cel_ponte(a, sentido, ponte)
             G |= set(cel["rampa1"] + cel["rampa2"])
-        L = dilata(G, 2)
-        for r in AREIA_RETS:
-            L |= ret_set(*r)
+        L = self.costa_organica(G)
         mi0, mi1, mj0, mj1 = MARINA_AGUA
         self.marina_agua = ret_set(mi0, mi1, mj0, mj1)
         self.marina_orla = {}
@@ -813,6 +871,95 @@ class Cidade:
         G |= set(self.marina_orla)
         L |= G
         self.G, self.L = G, L
+
+    def costa_organica(self, G):
+        """Terra (areia) em volta da terra firme com largura variável (ruído suave de 1 a 6 quadras), trechos de costa
+        de rocha junto das serras, sem lagoas soltas nem pontas de uma quadra; o mar fica livre sob as pontes, na
+        frente do píer e na marina."""
+        rnd = random.Random("%s|costa" % self.c.semente)
+        i0, i1 = CIDADE_I
+        j0, j1 = CIDADE_J
+        P = 6
+        rede = {(a, b): rnd.random() for a in range(i0 // P - 2, i1 // P + 3) for b in range(j0 // P - 2, j1 // P + 3)}
+
+        def ruido(i, j):
+            fa, fb = i / P, j / P
+            a, b = math.floor(fa), math.floor(fb)
+            u, v = fa - a, fb - b
+            u, v = u * u * (3 - 2 * u), v * v * (3 - 2 * v)
+            return (rede[(a, b)] * (1 - u) * (1 - v) + rede[(a + 1, b)] * u * (1 - v) + rede[(a, b + 1)] * (1 - u) * v +
+                    rede[(a + 1, b + 1)] * u * v)
+
+        def distancia(fonte, lim=8):
+            d = {q: 0 for q in fonte}
+            borda = list(fonte)
+            for k in range(1, lim + 1):
+                nova = []
+                for (i, j) in borda:
+                    for a in (-1, 0, 1):
+                        for b in (-1, 0, 1):
+                            v = (i + a, j + b)
+                            if v not in d and i0 <= v[0] < i1 and j0 <= v[1] < j1:
+                                d[v] = k
+                                nova.append(v)
+                borda = nova
+            return d
+
+        dg = distancia(G)
+        ds = distancia(self.serra)
+        L = set(G)
+        for q, k in dg.items():
+            if k == 0:
+                continue
+            f = ruido(*q)
+            if q in ds and ds[q] <= k and f < 0.33:
+                continue                      # costa de rocha: a serra encosta direto no mar
+            if k <= 1 + int(f * 5.5):
+                L.add(q)
+        for r in AREIA_RETS:
+            L |= ret_set(*r)
+        # mar obrigatório: sob as pontes (com uma quadra de folga dos lados), na frente do píer e na marina
+        mar = set()
+        for (a, sentido, ponte) in PONTES:
+            cel = self.cel_ponte(a, sentido, ponte)
+            dx, dy = DIRS[sentido]
+            for q in cel["ponte"]:
+                for k in (-1, 0, 1):
+                    mar.add((q[0] + dy * k, q[1] + dx * k))
+        jc = AREIA_RETS[0][2]
+        mar |= {(i, j) for i in range(3, 11) for j in range(j0, jc)}
+        mi0, mi1, mj0, mj1 = MARINA_AGUA
+        mar |= ret_set(mi0, mi1, mj0, mj1)
+        rx, ry, _g = REPRESA          # a represa grande fica no mar, com folga
+        mar |= {(i, j) for i in range(i0, i1) for j in range(j0, j1)
+                if math.hypot(Q * i + H - rx, Q * j + H - (ry - 40)) < 185}
+        L -= mar - G
+        fixos = set(G) | {q for r in AREIA_RETS for q in ret_set(*r)}
+        for _ in range(3):
+            # tira pontas soltas (terra com 0 ou 1 vizinho de terra)
+            for q in sorted(L - fixos):
+                n = sum((q[0] + dx, q[1] + dy) in L for dx, dy in DIRS.values())
+                if n <= 1:
+                    L.discard(q)
+            # enche lagoas fechadas (mar que não chega à borda do mapa)
+            fora = set()
+            pilha = [(i, j) for i in range(i0, i1) for j in (j0, j1 - 1)] + [(i, j) for j in range(j0, j1)
+                                                                            for i in (i0, i1 - 1)]
+            pilha = [q for q in pilha if q not in L]
+            fora |= set(pilha)
+            while pilha:
+                q = pilha.pop()
+                for dx, dy in DIRS.values():
+                    v = (q[0] + dx, q[1] + dy)
+                    if i0 <= v[0] < i1 and j0 <= v[1] < j1 and v not in L and v not in fora:
+                        fora.add(v)
+                        pilha.append(v)
+            for i in range(i0, i1):
+                for j in range(j0, j1):
+                    if (i, j) not in L and (i, j) not in fora and (i, j) not in mar:
+                        L.add((i, j))
+        self.mar_fixo = mar
+        return L
 
     def estado_corner(self, ci, cj):
         cels = [(ci - 1, cj - 1), (ci, cj - 1), (ci - 1, cj), (ci, cj)]
@@ -868,7 +1015,13 @@ class Cidade:
                 self.tipo[v] = "esp"
         # viadutos: rampa (2) + tabuleiro + rampa (2), sobre a linha de lotes; as pontas ligam nas ruas de borda
         self.viadutos_cel = []
-        for a, b in VIADUTOS:
+        # rampa do platô da praça do cristal: liga o anel de rua do alto à rua de baixo
+        if B.tem("cenario", "plato_rampa_rua"):
+            q = RAMPA_PLATO
+            rd.liga(q, (q[0], q[1] + 1))
+            rd.especial.add(q)
+            self.tipo[q] = "esp"
+        for a, b, _js in VIADUTOS:
             (i0, j), (i1, _) = a, b
             cels = [(i, j) for i in range(i0 + 1, i1)]
             rd.liga((i0, j), cels[0])
@@ -993,7 +1146,7 @@ class Cidade:
             return ("cenario", "mar", 0, "mar") if B.tem("cenario", "mar") else ("agua", "agua_aberta", 0, "mar")
         if "M" in v:
             terra = {k for k, e in st.items() if e != "M"}
-            pref = "costa_areia"
+            pref = "costa_rocha" if "A" not in v and B.tem("cenario", "costa_rocha_reta") else "costa_areia"
         else:
             terra = {k for k, e in st.items() if e == "G"}
             pref = "grama_areia"
@@ -1005,6 +1158,8 @@ class Cidade:
                 break
         id_ = pref + "_" + base[0]
         tipo = "areia" if pref == "grama_areia" else "costa"
+        if pref == "costa_rocha" and base[0] == "canto_int":
+            pass
         if B.tem("cenario", id_):
             return ("cenario", id_, r, tipo)
         if pref == "grama_areia":
@@ -1016,6 +1171,7 @@ class Cidade:
         i0, i1 = CIDADE_I
         j0, j1 = CIDADE_J
         mar = set()
+        tt = {}
         for i in range(i0, i1):
             for j in range(j0, j1):
                 q = (i, j)
@@ -1032,13 +1188,15 @@ class Cidade:
                 if q in self.marina_orla:
                     self.tipo[q] = "orla"
                     continue  # orla/cais: na marina
-                cat, id_, r, tipo = self.tile_terreno(q)
-                if q not in self.sob_ponte:
-                    self.tipo[q] = tipo
-                if tipo == "mar" and cat == "cenario":
-                    mar.add(q)
-                    continue
-                c.add(cat, id_, x, y, 0, r)
+                tt[q] = self.tile_terreno(q)
+        self.espetos(tt)
+        for q, (cat, id_, r, tipo) in sorted(tt.items()):
+            if q not in self.sob_ponte:
+                self.tipo[q] = tipo
+            if tipo == "mar" and cat == "cenario":
+                mar.add(q)
+                continue
+            c.add(cat, id_, *cc(*q), 0, r)
         # mar em blocos 4 × 4 quando dá
         usados = set()
         tem_grande = B.tem("cenario", "mar_grande")
@@ -1051,6 +1209,34 @@ class Cidade:
                 usados |= {(i + a, j + b) for a in range(4) for b in range(4)}
         for q in sorted(mar - usados):
             c.add("cenario", "mar", *cc(*q), 0, 0)
+
+    def espetos(self, tt):
+        """Pontais de areia: numa costa reta de areia, a peça de começo de faixa, uma ou duas faixas e a ponta."""
+        if not all(B.tem("cenario", i) for i in ("costa_areia_faixa_base", "costa_areia_faixa", "costa_areia_ponta")):
+            return
+        rnd = random.Random("%s|espetos" % self.c.semente)
+        feitos = []
+        reserva = set(self.mar_fixo) | set(self.sob_ponte)
+        for q in sorted(tt):
+            cat, id_, r, tipo = tt[q]
+            if id_ != "costa_areia_reta" or rnd.random() > 0.07:
+                continue
+            d = rot_dir("N", r)
+            f = DIRS[d]
+            u = (-f[1], f[0])
+            n = rnd.choice((2, 2, 3))
+            cels = [(q[0] + f[0] * k, q[1] + f[1] * k) for k in range(1, n + 1)]
+            viz = [(v[0] + u[0] * s_, v[1] + u[1] * s_) for v in cels for s_ in (-1, 1)] + \
+                  [(q[0] + f[0] * (n + 1), q[1] + f[1] * (n + 1))]
+            if not all(tt.get(v, ("", ""))[1] in ("mar",) and v not in reserva for v in cels + viz):
+                continue
+            if any(abs(q[0] - a) + abs(q[1] - b) < 8 for a, b in feitos):
+                continue
+            feitos.append(q)
+            tt[q] = ("cenario", "costa_areia_faixa_base", r, "costa")
+            for k, v in enumerate(cels):
+                tt[v] = ("cenario", "costa_areia_ponta" if k == n - 1 else "costa_areia_faixa", r, "costa")
+        self.n_espetos = len(feitos)
 
     # ------------------------------------------------------------------------------------------ utilidades
     def livre(self, q):
@@ -1374,8 +1560,12 @@ class Cidade:
                     self.piso(q, "palco_festival", tipo="parque", cat="parque_areas", r=0)
                 else:
                     self.piso(q, "piso_grama", tipo="parque")
-                    if ch == "E":
+                    if ch == "E" and b == nb - 1:
                         c.add("parque_brinquedos", "estatua_menina", x, y, 0, 0)
+                    elif ch == "E":
+                        c.add("parque_brinquedos", "castelo_mureta", x, y + 4.0, 0, 0)
+                        c.add("parque_brinquedos", "castelo_cone_telhado", x - 4.6, y - 2.0, 0, 0)
+                        c.add("parque_brinquedos", "castelo_torre_baixa", x + 4.6, y - 2.0, 0, 0)
                     elif ch == "T":
                         c.add("parque_brinquedos", "castelo_portao", x, y - 4.0, 0, 0)
                         c.add("parque_brinquedos", "castelo_torre_alta", x - 4.6, y + 1.5, 0, 0)
@@ -1530,6 +1720,158 @@ class Cidade:
                                           ("parque_areas", "quiosque_algodao_doce", 1)])
                     c.tenta(esc[0], esc[1], cc(*q)[0] + rnd.uniform(-4, 4), cc(*q)[1] + rnd.uniform(-4, 4), 0,
                             rnd.randrange(0, 360, 90))
+
+    def plato_cristal(self):
+        """Praça do cristal no alto de um platô de 6 × 6 quadras com muro de arrimo: moldura de bordas e cantos, o alto
+        (4 × 4) com o anel de rua em z = 3,75, a praça do cristal (2 × 2) no meio e a rampa de rua descendo ao norte."""
+        c = self.c
+        if not all(B.tem("cenario", i) for i in ("plato_topo", "plato_borda", "plato_canto_ext", "plato_rampa_rua",
+                                                  "praca_cristal")):
+            return self.praca_cristal()
+        i0, i1, j0, j1 = PLATO_CRISTAL
+        Z = Z_PLATO
+        for i in range(i0, i1 + 1):
+            for j in range(j0, j1 + 1):
+                q = (i, j)
+                self.tipo[q] = "esp"
+                if q == RAMPA_PLATO:
+                    c.add("cenario", "plato_rampa_rua", *cc(*q), 0, 180)
+                    continue
+                bi, bj = i in (i0, i1), j in (j0, j1)
+                if bi and bj:
+                    g = {(i0, j0): 0, (i1, j0): 90, (i1, j1): 180, (i0, j1): 270}[q]
+                    c.add("cenario", "plato_canto_ext", *cc(*q), 0, g)
+                elif bi or bj:
+                    g = 0 if j == j0 else (180 if j == j1 else (270 if i == i0 else 90))
+                    c.add("cenario", "plato_borda", *cc(*q), 0, g)
+                else:
+                    # o alto fica 42 cm mais baixo: a rua e a praça (laje até −0,40) assentam nele com a calçada
+                    # exatamente em 3,75, na altura do alto das bordas e do fim da rampa
+                    c.add("cenario", "plato_topo", *cc(*q), Z_SOB_PLATO, 0)
+        # anel de rua no alto (4 × 4 menos o miolo 2 × 2)
+        a0, a1, b0, b1 = i0 + 1, i1 - 1, j0 + 1, j1 - 1
+        anel = {}
+        for i in range(a0, a1 + 1):
+            for j in range(b0, b1 + 1):
+                if i in (a0, a1) or j in (b0, b1):
+                    br = {}
+                    for d, (dx, dy) in DIRS.items():
+                        v = (i + dx, j + dy)
+                        if a0 <= v[0] <= a1 and b0 <= v[1] <= b1 and (v[0] in (a0, a1) or v[1] in (b0, b1)):
+                            br[d] = "rua"
+                    if (i, j + 1) == RAMPA_PLATO:
+                        br["N"] = "rua"
+                    anel[(i, j)] = br
+        for q, br in sorted(anel.items()):
+            i_, r = peca_rua(br)
+            if i_ == "rua_cruzamento_t":
+                i_ = "rua_cruzamento_t_faixas"
+            c.add("ruas", i_, *cc(*q), Z, r)
+        cx, cy = self.centro_de([(a0 + 1, b0 + 1), (a0 + 2, b0 + 2)])
+        c.add("cenario", "praca_cristal", cx, cy, Z, 0)
+        self.mapa_local()
+        rnd = c.rnd("plato")
+        # postes, árvores e bancos nas calçadas do anel
+        for q, br in sorted(anel.items()):
+            x, y = cc(*q)
+            for dx, dy in ((-5.0, -5.0), (5.0, 5.0), (-5.0, 5.0), (5.0, -5.0)):
+                if rnd.random() < 0.5:
+                    c.tenta("props_lazer", "poste_lanternas_chinesas", x + dx, y + dy, Z, rnd.choice((0, 90)))
+                else:
+                    esc = c.escolhe(rnd, ARVORES_RUA)
+                    c.tenta(esc[0], esc[1], x + dx, y + dy, Z, rnd.randrange(0, 360, 30))
+        # na grama de baixo, em volta do platô: árvores
+        for i in range(i0, i1 + 1):
+            for j in range(j0, j1 + 1):
+                if (i, j) != RAMPA_PLATO and (i in (i0, i1) or j in (j0, j1)):
+                    x, y = cc(i, j)
+                    ox = -4.5 if i == i0 else (4.5 if i == i1 else 0.0)
+                    oy = -4.5 if j == j0 else (4.5 if j == j1 else 0.0)
+                    esc = c.escolhe(rnd, ARVORES_RUA)
+                    c.tenta(esc[0], esc[1], x + ox + rnd.uniform(-1.5, 1.5), y + oy + rnd.uniform(-1.5, 1.5), 0,
+                            rnd.randrange(0, 360, 30))
+
+    def mapa_local(self):
+        self.c.mapa = Mapa(self.c.pecas)
+
+    def calcadao(self):
+        """Calçadão da praia ao sul de Chinatown: ciclovia (fileira de cima) e a laje de ladrilho com balaustrada do lado
+        da areia, bancos e lixeiras."""
+        c = self.c
+        if not (B.tem("props_rua", "ciclovia_reta") and B.tem("props_rua", "laje_calcadao")):
+            return
+        js = sorted({q[1] for q in CALCADAO})
+        for q in sorted(CALCADAO):
+            self.tipo[q] = "esp"
+            if q[1] == js[-1]:
+                c.add("props_rua", "ciclovia_reta", *cc(*q), 0, 90)
+            else:
+                c.add("props_rua", "laje_calcadao", *cc(*q), 0, 0)
+        self.mapa_local()
+        rnd = c.rnd("calcadao")
+        for q in sorted(CALCADAO):
+            if q[1] != js[0]:
+                continue
+            x, y = cc(*q)
+            c.tenta("props_rua", "balaustrada_15m", x, y - H + 0.4, 0, 0, s=0.99)
+            c.tenta("props_rua", "banco_calcadao", x - 3.5, y - H + 1.6, 0, 180)
+            c.tenta("props_rua", "banco_calcadao", x + 3.5, y - H + 1.6, 0, 180)
+            c.tenta("props_rua", "lixeira_calcadao", x, y - H + 1.4, 0, 0)
+            c.tenta("vegetacao", "palmeira", x + rnd.uniform(-1, 1), y + 2.5, 0, rnd.randrange(0, 360, 30))
+            if q[0] % 2 == 0:
+                c.tenta("mobiliario_urbano", "poste_rua", x + 6.0, y + 5.6, 0, 0)
+
+    def terracos(self):
+        """Platôs com muro de arrimo no bairro ecológico: a quadra inteira sobe 3,75 m e o prédio fica no alto."""
+        c = self.c
+        if not all(B.tem("cenario", i) for i in ("plato_topo", "plato_borda", "plato_canto_ext")):
+            return
+        for k, (i0, i1, j0, j1) in enumerate(TERRACOS):
+            cels = [(i, j) for i in range(i0, i1 + 1) for j in range(j0, j1 + 1)]
+            if not all(self.livre(q) for q in cels):
+                continue
+            for (i, j) in cels:
+                q = (i, j)
+                self.tipo[q] = "esp"
+                bi, bj = i in (i0, i1), j in (j0, j1)
+                if bi and bj:
+                    g = {(i0, j0): 0, (i1, j0): 90, (i1, j1): 180, (i0, j1): 270}[q]
+                    c.add("cenario", "plato_canto_ext", *cc(*q), 0, g)
+                elif bi or bj:
+                    g = 0 if j == j0 else (180 if j == j1 else (270 if i == i0 else 90))
+                    c.add("cenario", "plato_borda", *cc(*q), 0, g)
+                else:
+                    c.add("cenario", "plato_topo", *cc(*q), 0, 0)
+            self.mapa_local()
+            rnd = c.rnd("terraco", k)
+            x0, x1 = Q * i0 + H, Q * i1 + H          # o alto vai do meio da primeira ao meio da última quadra
+            y0, y1 = Q * j0 + H, Q * j1 + H
+            larg, alt = x1 - x0 - 1.6, y1 - y0 - 1.6
+            ops = [("predios_ecologicos", i, 1.0) for i in B.ids("predios_ecologicos") if not i.endswith("_pacote")]
+            rnd.shuffle(ops)
+            feito = False
+            for cat, idd, _ in ops:
+                lo, hi = B.caixa(cat, idd)
+                bw, bd = hi[0] - lo[0], hi[1] - lo[1]
+                for g, (w, d) in ((0, (bw, bd)), (90, (bd, bw))):
+                    if w <= larg and d <= alt and c.uso[(cat, idd)] < 2:
+                        ox, oy = rp(-(lo[0] + hi[0]) / 2, -(lo[1] + hi[1]) / 2, g)
+                        g2 = g + (180 if rnd.random() < 0.5 else 0)
+                        ox, oy = rp(-(lo[0] + hi[0]) / 2, -(lo[1] + hi[1]) / 2, g2)
+                        if c.tenta(cat, idd, (x0 + x1) / 2 + ox, (y0 + y1) / 2 + oy, Z_PLATO, g2, chao=("livre",)):
+                            feito = True
+                            break
+                if feito:
+                    break
+            for t in range(10):
+                esc = c.escolhe(rnd, ARVORES_PARQUE)
+                c.tenta(esc[0], esc[1], rnd.uniform(x0 + 0.8, x1 - 0.8), rnd.uniform(y0 + 0.8, y1 - 0.8), Z_PLATO,
+                        rnd.randrange(0, 360, 30), chao=("livre",))
+            for t in range(6):   # na grama de baixo, junto do muro
+                esc = c.escolhe(rnd, ARBUSTOS)
+                q = cels[rnd.randrange(len(cels))]
+                c.tenta(esc[0], esc[1], cc(*q)[0] + rnd.uniform(-6.5, 6.5), cc(*q)[1] + rnd.uniform(-6.5, 6.5), 0,
+                        rnd.randrange(0, 360, 30), chao=("livre",))
 
     def praca_cristal(self):
         """Praça do cristal no miolo da quadra de 3 × 3 de Chinatown: a peça do cenário se existir; senão o cristal
@@ -1801,8 +2143,49 @@ class Cidade:
                             0 if sy < 0 else 180)
 
     # ------------------------------------------------------------------------------------------ veículos
+    def rotas_viaduto(self):
+        """Carros que sobem a rampa, passam pelo viaduto, descem e voltam pela rua de baixo (laço na mão, à direita)."""
+        c = self.c
+        rnd = c.rnd("rotas_viaduto")
+
+        def lane(q, d):
+            """deslocamento da faixa da direita para quem anda em d na quadra q (rua ou avenida)."""
+            br = self.rede.bracos(q)
+            return 1.9 if "av" in br.values() else 1.85
+
+        for k, (a, b, js) in enumerate(VIADUTOS):
+            (i0, j), (i1, _) = a, b
+            yv = cc(i0, j)[1] - 1.85                 # sentido leste: faixa sul
+            xw, xe = cc(i0, j)[0] + 1.85, cc(i1, j)[0] - 1.85
+            ys = cc(i0, js)[1] + lane((i1, js), "W")
+            pts = [[xw, ys, Z_ASF], [xw, yv, Z_ASF]]
+            xa = Q * (i0 + 1)
+            for t in range(0, 9):                     # rampa oeste (perfil suave das rampas de viaduto)
+                u = t / 8
+                pts.append([xa + 2 * Q * u, yv, 7.5 * u * u * (3 - 2 * u) - 0.1])
+            xb = Q * (i1 - 2)
+            for t in range(0, 9):                     # rampa leste
+                u = t / 8
+                pts.append([xb + 2 * Q * u, yv, 7.5 * (1 - u * u * (3 - 2 * u)) - 0.1])
+            pts += [[xe, yv, Z_ASF], [xe, ys, Z_ASF]]
+            rota = [[round(v, 3) for v in p_] for p_ in pts]
+            frota = ESTILO.get(self.estilo_de(a), ESTILO["regular"])["carros"]
+            for n_ in range(2):
+                esc = c.escolhe(rnd, frota[:12])
+                if not esc:
+                    continue
+                if n_ == 0:   # um começa na subida da rua oeste
+                    ym = round((ys + yv) / 2, 3)
+                    c.tenta(esc[0], esc[1], xw, ym, Z_ASF, 180, chao=("asfalto",),
+                            rota=[[round(xw, 3), ym, Z_ASF]] + rota[1:] + rota[:1], vel=round(rnd.uniform(7, 10), 1))
+                else:         # o outro na volta pela rua de baixo
+                    xm = round((xw + xe) / 2, 3)
+                    c.tenta(esc[0], esc[1], xm, ys, Z_ASF, 270, chao=("asfalto",),
+                            rota=[[xm, round(ys, 3), Z_ASF]] + rota, vel=round(rnd.uniform(7, 10), 1))
+
     def veiculos(self):
         c = self.c
+        self.rotas_viaduto()
         for q, (i_, r) in sorted(self.rua_peca.items()):
             if i_ not in self.RETAS or i_ == "rua_transicao_avenida":
                 continue
@@ -2089,7 +2472,9 @@ class Cidade:
                 self.diversoes(d)
             elif d.estilo == "observatorio":
                 self.observatorio(d)
-        self.praca_cristal()
+        self.plato_cristal()
+        self.calcadao()
+        self.terracos()
         self.vila_magica()
         self.marina()
         self.faltando = []
@@ -2186,7 +2571,13 @@ def verifica(cena, bounds=None, detalhe=False):
     for p in pecas:
         k = classe(p["c"], p["i"])
         if k in ("tile", "elev") and abs(p["p"][2]) > 0.001:
-            prob.append(("chao_fora_do_nivel", p["i"], p["p"]))
+            # só vale o que está apoiado no alto de um platô (rua e praça em z = 3,75 sobre plato_topo)
+            cels = cobre(p["c"], p["i"], p["p"][0], p["p"][1], p.get("r", 0))
+            ok = abs(p["p"][2] - Z_PLATO) < 0.01 and all(
+                q in m.chao and pecas[m.chao[q]]["i"] == "plato_topo" for q in cels)
+            ok = ok or (p["i"] == "plato_topo" and abs(p["p"][2] - Z_SOB_PLATO) < 0.01 and all(q in m.topo for q in cels))
+            if not ok:
+                prob.append(("chao_fora_do_nivel", p["i"], p["p"]))
     # objetos
     objs = [(n, p) for n, p in enumerate(pecas) if classe(p["c"], p["i"]) not in ("tile", "elev")]
     idx = defaultdict(list)
@@ -2221,9 +2612,10 @@ def verifica(cena, bounds=None, detalhe=False):
             if ruins:
                 prob.append(("chao_errado", p["i"], p["p"], sorted(map(str, ruins))))
         # flutuando / enterrado
-        esperado = 0.0
+        s0, _, h0 = m.sup3(p["p"][0], p["p"][1])
+        esperado = h0
         if k == "veiculo":
-            esperado = Z_ELEV if elev else (0.0 if m.sup(p["p"][0], p["p"][1])[0] == "livre" else Z_ASF)
+            esperado = Z_ELEV if elev else (h0 if s0 == "livre" else h0 + Z_ASF)
         elif k == "barco":
             esperado = Z_AGUA
         elif k == "bicho":
@@ -2262,11 +2654,18 @@ def verifica(cena, bounds=None, detalhe=False):
             pts = p["rota"] + [p["rota"][0]]
             k = classe(p["c"], p["i"])
             alvo = ("asfalto",) if k == "veiculo" else ("agua",)
-            for (xa, ya, _), (xb, yb, _) in zip(pts, pts[1:]):
+            for (xa, ya, za), (xb, yb, zb) in zip(pts, pts[1:]):
                 L = math.hypot(xb - xa, yb - ya)
                 for t in range(int(L / 1.0) + 1):
                     u = t / max(1, int(L / 1.0))
-                    s, _ = m.sup(xa + (xb - xa) * u, ya + (yb - ya) * u)
+                    xs, ys, zs = xa + (xb - xa) * u, ya + (yb - ya) * u, za + (zb - za) * u
+                    s, tp = m.sup(xs, ys)
+                    if k == "veiculo" and zs > 0.3:   # subindo a rampa ou no tabuleiro do viaduto
+                        if m.tem_elev(xs, ys) or (tp and tp["i"].startswith("rampa_viaduto")):
+                            continue
+                        s = "fora_do_elevado"
+                    elif k == "veiculo" and tp and tp["i"].startswith("rampa_viaduto"):
+                        continue
                     if s not in alvo:
                         prob.append(("rota_fora", p["i"], p["p"], s))
                         break
@@ -2483,6 +2882,7 @@ def ambiente(cena, noite, luzes, vista=None, res=(1600, 1000), amostras=32):
     bg.inputs[0].default_value = (*mb._lin("#0C1530" if noite else "#A9C4E8"), 1)
     bg.inputs[1].default_value = 0.22 if noite else 0.75
     mb.emissao_janelas(mb.JANELA_FORCA * 1.6 if noite else 0.0)
+    agua_noite(noite)
     for lo in luzes:
         lo.hide_render = not noite
     # mar de fundo (continua a lâmina d'água além da cena)
@@ -2530,6 +2930,34 @@ def ambiente(cena, noite, luzes, vista=None, res=(1600, 1000), amostras=32):
     cam.data.clip_start = 1.0
     cam.data.clip_end = 20000
     return scn
+
+
+_AGUA_DIA = {}
+
+
+def agua_noite(noite):
+    """À noite a lâmina d'água (mar, orla, costa, lago, canal: os materiais "agua" dos GLB) fica azul-marinho quase
+    preta, como na referência noturna; de dia volta ao que veio no GLB. Os GLB não mudam."""
+    import bpy
+    import moveis_base as mb
+    for m in bpy.data.materials:
+        if m.name.split(".")[0] != "agua" or not m.use_nodes:
+            continue
+        b = m.node_tree.nodes.get("Principled BSDF")
+        if not b:
+            continue
+        if m.name not in _AGUA_DIA:
+            _AGUA_DIA[m.name] = (tuple(b.inputs["Base Color"].default_value), b.inputs["Alpha"].default_value,
+                                 b.inputs["Roughness"].default_value)
+        cor, alfa, rug = _AGUA_DIA[m.name]
+        if noite:
+            b.inputs["Base Color"].default_value = (*mb._lin("#0A1530"), 1)
+            b.inputs["Alpha"].default_value = 0.97
+            b.inputs["Roughness"].default_value = 0.12
+        else:
+            b.inputs["Base Color"].default_value = cor
+            b.inputs["Alpha"].default_value = alfa
+            b.inputs["Roughness"].default_value = rug
 
 
 VISTAS_CIDADE = {

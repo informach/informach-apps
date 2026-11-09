@@ -300,6 +300,8 @@ def adesivo_frente(nome, y, x, z, w, h, png, emissao=0.0, tras=False):
 
 
 def roda_malha(r, w, cor_aro="cromo", cor_pneu="borracha", seg=16, faixa_branca=False, dupla=False, calota=None):
+    if dupla:
+        seg = min(seg, 12)
     """Roda com eixo em X, centrada na origem: pneu boleado, aro e calota (dos dois lados)."""
     ps = []
     ws = [(-w * 0.55, w), (w * 0.55, w)] if dupla else [(0.0, w)]
@@ -582,7 +584,30 @@ def kombi(it, cor_baixo, cor_cima, malas=True, cor_rack="grafite"):
 
 
 # ======================================================================================================================
+def ajusta_colisao(it):
+    """Encaixa as caixas de colisão no corpo: as que pegam a largura toda vão até os retrovisores; a de cima sobe
+    até o teto (respiros, pantógrafo); nenhuma passa das pontas da peça."""
+    if not it.colisores:
+        return
+    lo, hi = mb.bbox([o for o in it.partes if o.type == "MESH"])
+    todos = [o for o in it.partes if o.type == "MESH"] + [o for o, _ in it.interativos] + [o for o, _ in it.animados]
+    tlo, thi = mb.bbox(todos)
+    out = []
+    topo = max(c[2] + t[2] for c, t in it.colisores)
+    for (x, y, z), (l, p, a) in it.colisores:
+        if l >= 0.75 * (hi.x - lo.x) - 0.6:
+            x, l = (lo.x + hi.x) / 2, hi.x - lo.x
+        if abs(z + a - topo) < 1e-6 and 0 < hi.z - (z + a) <= 1.0:
+            a = hi.z - z
+        y0, y1 = max(y - p / 2, tlo.y - 0.05), min(y + p / 2, thi.y + 0.05)
+        z0 = max(z, tlo.z)
+        out.append(((round(x, 3), round((y0 + y1) / 2, 3), round(z0, 3)), (round(l, 3), round(y1 - y0, 3),
+                                                                           round(z + a - z0, 3))))
+    it.colisao(out)
+
+
 def exporta(cat, it, rotulo, grupo, tags, extra):
+    ajusta_colisao(it)
     e = dict(extra or {})
     anims = it.lista_animacoes()
     if anims:
@@ -859,7 +884,7 @@ def p_food_truck(it):
         mb.transforma(pano, rot=("Y", 18))
         mb.transforma(pano, loc=(W / 2 + 0.43, 0, z1 + 0.28))
         it.add(pano)
-        bico = mb.cilindro(lw / 2, 0.03, x=W / 2 + 0.86, y=ya + lw / 2, z=z1 + 0.12, cor=cor, eixo="x", seg=10,
+        bico = mb.cilindro(lw / 2, 0.03, x=W / 2 + 0.86, y=ya + lw / 2, z=z1 + 0.12, cor=cor, eixo="x", seg=8,
                            bisel=0.0)
         it.add(bico)
     for y in (y0 - 0.2, y1 + 0.2):
@@ -869,18 +894,18 @@ def p_food_truck(it):
     # teto: casquinha gigante com bola de sorvete, placa SORVETE e alto-falantes
     zt = H
     casq = mb.torno([(0.0, 0.0), (0.12, 0.1), (0.24, 0.32), (0.3, 0.42), (0.36, 0.56), (0.4, 0.72), (0.45, 0.9),
-                     (0.5, 0.95), (0.0, 0.95)], x=0, y=0.6, z=zt + 0.02, cor="caramelo", seg=16)
+                     (0.5, 0.95), (0.0, 0.95)], x=0, y=0.6, z=zt + 0.02, cor="caramelo", seg=12)
     it.add(casq)
     for k in range(4):
         z = zt + 0.25 + k * 0.17
         rk = 0.13 + (z - zt) * 0.38
-        it.add(mb.torno([(rk + 0.03, -0.02), (rk + 0.03, 0.02)], x=0, y=0.6, z=z, cor="madeira_mel", seg=16))
+        it.add(mb.torno([(rk + 0.03, -0.02), (rk + 0.03, 0.02)], x=0, y=0.6, z=z, cor="madeira_mel", seg=12))
     it.add(mb.cilindro(0.18, 0.06, y=0.6, z=zt - 0.02, cor="branco", seg=14))
-    it.add(mb.esfera(0.62, y=0.6, z=zt + 1.42, cor="azul_claro", seg=18, esc=(1, 1, 0.92)))
+    it.add(mb.esfera(0.62, y=0.6, z=zt + 1.42, cor="azul_claro", seg=16, esc=(1, 1, 0.92)))
     it.add(mb.torno([(0.0, 0.0), (0.66, 0.0), (0.62, 0.1), (0.66, 0.2), (0.6, 0.26), (0.0, 0.28)], y=0.6,
-                    z=zt + 0.86, cor="azul_claro", seg=18))
+                    z=zt + 0.86, cor="azul_claro", seg=16))
     rnd = random.Random(3)
-    for k in range(34):
+    for k in range(26):
         th, ph = rnd.uniform(0, 2 * math.pi), rnd.uniform(-0.1, 1.2)
         nv = V((math.cos(th) * math.cos(ph), math.sin(th) * math.cos(ph), math.sin(ph) * 0.92))
         c = V((0, 0.6, zt + 1.42)) + nv * 0.615
@@ -889,7 +914,7 @@ def p_food_truck(it):
         mb.transforma(conf, rot=[("Z", math.degrees(th) + rnd.uniform(-60, 60)), ("X", math.degrees(ph))])
         mb.transforma(conf, loc=tuple(c))
         it.add(conf)
-    it.add(mb.esfera(0.13, y=0.6, z=zt + 2.07, cor="vermelho", seg=12))
+    it.add(mb.esfera(0.13, y=0.6, z=zt + 2.07, cor="vermelho", seg=10))
     it.add(barra([(0, 0.6, zt + 2.17), (0.05, 0.62, zt + 2.32), (0.12, 0.66, zt + 2.38)], 0.015, cor="verde_escuro",
                  n=5))
     # placa SORVETE na frente do teto
@@ -899,7 +924,7 @@ def p_food_truck(it):
     for s in (-1, 1):
         it.add(mb.cilindro(0.035, 0.2, x=s * 0.6, y=yp + 0.02, z=zt - 0.02, cor="cromo", seg=6))
         cone = mb.cilindro(0.06, 0.24, x=s * 0.82, y=-L / 2 + 0.6, z=zt + 0.22, cor="branco", eixo="y", r2=0.13,
-                           seg=12)
+                           seg=10, bisel=0.0)
         it.add(cone, mb.cilindro(0.03, 0.22, x=s * 0.82, y=-L / 2 + 0.75, z=zt, cor="grafite", seg=6))
     porta_traseira_dupla(it, L / 2, W, 0.5, H - 0.18, -W / 2 + 0.14, W / 2 - 0.14, "branco", janela_z=(1.6, H - 0.45),
                          faixas=fx)
@@ -921,7 +946,7 @@ def cabine(it, W, H, y0, Lc, cor, faixas=None, r=0.48, y_roda=None, zb=0.62, por
     poly = [(y0, zb, 0.12)] + arco_roda(yr, r, ra, zb) + [(y0 + Lc, zb, 0.04), (y0 + Lc, H, 0.18),
                                                            (pa[0], pa[1], 0.36), (pb[0], pb[1], 0.1),
                                                            (y0, 1.58, 0.12)]
-    corpo = lataria(poly, W, cor, bisel=0.1, n=4)
+    corpo = lataria(poly, W, cor, bisel=0.1, n=4, seg=2)
     if faixas:
         faixas_cor(corpo, faixas)
     it.add(corpo)
@@ -994,12 +1019,14 @@ def p_caminhao_bau(it):
 
 def alto_falante(x, y, z, r, lado, aro="neon", cor_caixa="grafite"):
     s = lado
-    ps = [mb.cilindro(r + 0.05, 0.06, x=x + s * 0.03, y=y, z=z, cor=cor_caixa, eixo="x", seg=16, bisel=0.015),
-          mb.cilindro(r * 0.86, 0.04, x=x + s * 0.07, y=y, z=z, cor="preto", eixo="x", seg=16, r2=r * 0.5,
+    n = 16 if r > 0.4 else 12
+    ps = [mb.cilindro(r + 0.05, 0.06, x=x + s * 0.03, y=y, z=z, cor=cor_caixa, eixo="x", seg=n, bisel=0.0),
+          mb.cilindro(r * 0.86, 0.04, x=x + s * 0.07, y=y, z=z, cor="preto", eixo="x", seg=n, r2=r * 0.5,
                       bisel=0.0),
-          mb.esfera(r * 0.24, x=x + s * 0.07, y=y, z=z, cor="cromo", seg=10, esc=(0.6, 1, 1))]
+          mb.cilindro(r * 0.24, 0.05, x=x + s * 0.08, y=y, z=z, cor="cromo", eixo="x", seg=8, r2=r * 0.12,
+                      bisel=0.0)]
     anel = mb.torno([(r * 0.92, -0.025), (r * 1.02, -0.025), (r * 1.02, 0.025), (r * 0.92, 0.025)], cor=None,
-                    mat=aro, seg=16)
+                    mat=aro, seg=n)
     mb.transforma(anel, rot=("Y", 90))
     mb.transforma(anel, loc=(x + s * 0.075, y, z))
     ps.append(anel)
@@ -1016,8 +1043,8 @@ def p_caminhao_som(it):
     zb0, zb1 = 0.95, 3.45
     it.add(mb.caixa(W, yb1 - yb0, zb1 - zb0, y=(yb0 + yb1) / 2, z=zb0, cor="azul", bisel=0.08, seg=2))
     it.add(mb.caixa(W + 0.06, yb1 - yb0 - 0.9, zb1 - zb0 - 0.6, y=(yb0 + yb1) / 2 + 0.2, z=zb0 + 0.3, cor="magenta",
-                    bisel=0.06, seg=2))
-    it.add(mb.caixa(W + 0.04, 0.5, 0.75, y=yb0 - 0.05, z=zb1 - 0.15, cor="azul_medio", bisel=0.08, seg=2))
+                    bisel=0.06, seg=1))
+    it.add(mb.caixa(W + 0.04, 0.5, 0.75, y=yb0 - 0.05, z=zb1 - 0.15, cor="azul_medio", bisel=0.08, seg=1))
     for s in (-1, 1):
         xf = s * (W / 2 + 0.03)
         for (y, z, rr_, aro) in ((yb0 + 1.05, 1.75, 0.55, "neon"), (yb1 - 0.95, 1.75, 0.55, "neon_rosa"),
@@ -1025,9 +1052,9 @@ def p_caminhao_som(it):
             it.add(alto_falante(xf, y, z, rr_, s, aro=aro))
         for k in range(4):
             y = (yb0 + yb1) / 2 - 0.75 + k * 0.5
-            it.add(mb.cilindro(0.11, 0.05, x=xf + s * 0.02, y=y, z=zb1 - 0.48, cor="amarelo", eixo="x", seg=12,
-                               bisel=0.01))
-            it.add(mb.cilindro(0.06, 0.05, x=xf + s * 0.045, y=y, z=zb1 - 0.48, cor="grafite_escuro", eixo="x", seg=10,
+            it.add(mb.cilindro(0.11, 0.05, x=xf + s * 0.02, y=y, z=zb1 - 0.48, cor="amarelo", eixo="x", seg=8,
+                               bisel=0.0))
+            it.add(mb.cilindro(0.06, 0.05, x=xf + s * 0.045, y=y, z=zb1 - 0.48, cor="grafite_escuro", eixo="x", seg=8,
                                bisel=0.0))
     it.add(adesivo_lados("equalizador", W + 0.06, (yb0 + yb1) / 2 + 0.05, 2.5, 0.9, 0.42, "equalizador",
                          emissao=1.4))
@@ -1035,11 +1062,10 @@ def p_caminhao_som(it):
     it.add(adesivo_frente("eq_tras", yb1 + 0.006, 0, 2.6, 1.2, 0.6, "equalizador", emissao=1.4, tras=True))
     for s in (-1, 1):
         it.add(mb.caixa(0.7, 0.6, 0.5, x=s * 0.6, y=yb0 + 0.6, z=zb1, cor="grafite", bisel=0.05, seg=2))
-        it.add(alto_falante(s * 0.6, yb0 + 0.3 - 0.075, zb1 + 0.25, 0.18, -1, aro="neon_rosa")
-               if False else [])
-        cone = mb.cilindro(0.2, 0.06, x=s * 0.6, y=yb0 + 0.31, z=zb1 + 0.25, cor="preto", eixo="y", r2=0.1, seg=14)
+        cone = mb.cilindro(0.2, 0.06, x=s * 0.6, y=yb0 + 0.31, z=zb1 + 0.25, cor="preto", eixo="y", r2=0.1, seg=10,
+                           bisel=0.0)
         anel = mb.cilindro(0.23, 0.03, x=s * 0.6, y=yb0 + 0.29, z=zb1 + 0.25, cor=None, mat="neon", eixo="y",
-                           seg=14, bisel=0.0)
+                           seg=10, bisel=0.0)
         it.add(cone, anel)
     porta_traseira_dupla(it, yb1, W, zb0 + 0.1, zb1 - 0.12, -W / 2 + 0.1, W / 2 - 0.1, "azul_medio",
                          janela_z=None)
@@ -1073,9 +1099,9 @@ def p_caminhao_lixo(it):
     cpoly = [(yh + 0.02, 0.85, 0.06), (yc1 - 0.25, 0.85, 0.1), (yc1, 1.45, 0.12), (yc1 - 0.2, 3.05, 0.3),
              (yh + 0.02, 3.28, 0.06)]
     cac = lataria(cpoly, W - 0.05, "verde_medio", bisel=0.08, n=4, nome="cacamba")
-    boca = mb.caixa(W - 0.5, 0.06, 0.5, y=yc1 - 0.05, z=1.05, cor="grafite_escuro", bisel=0.03, seg=1)
+    boca = mb.caixa(W - 0.5, 0.06, 0.5, y=0.0, z=-0.25, cor="grafite_escuro", bisel=0.03, seg=1)
     mb.transforma(boca, rot=("X", -25))
-    mb.transforma(boca, loc=(0, -0.12, 0.18))
+    mb.transforma(boca, loc=(0, yc1 - 0.12, 1.25))
     objs = [cac, boca]
     for s in (-1, 1):
         objs.append(lanterna(s * (W / 2 - 0.2), yc1 - 0.04, 2.6, l=0.14, a=0.28))
@@ -1093,7 +1119,7 @@ def escada(L, larg, z, y_frente, n_degraus, cor="cinza_claro", alt=0.16):
     """Escada deitada (de bombeiros) de y_frente até y_frente + L."""
     ps = []
     for s in (-1, 1):
-        ps.append(mb.caixa(0.07, L, alt, x=s * larg / 2, y=y_frente + L / 2, z=z, cor=cor, bisel=0.02, seg=1))
+        ps.append(mb.caixa(0.07, L, alt, x=s * larg / 2, y=y_frente + L / 2, z=z, cor=cor, bisel=0.015, seg=1))
     for k in range(n_degraus):
         y = y_frente + 0.2 + k * (L - 0.4) / max(1, n_degraus - 1)
         ps.append(mb.caixa(larg, 0.05, 0.04, y=y, z=z + alt * 0.5, cor="metal", bisel=0.0))
@@ -1121,13 +1147,13 @@ def p_bombeiros(it):
     for s in (-1, 1):
         for k, (a, b) in enumerate(comps):
             if k == 1:
-                portinhola_lado(it, s, a, b, 1.0, 2.1, W / 2, "metal_claro", frisos=5, cor_friso="metal")
+                portinhola_lado(it, s, a, b, 1.0, 2.1, W / 2, "metal_claro", frisos=3, cor_friso="metal")
             else:
                 it.add(mb.caixa(0.04, b - a, 1.1, x=s * (W / 2 + 0.005), y=(a + b) / 2, z=1.0, cor="metal_claro",
                                 bisel=0.012, seg=1))
-                for j in range(5):
+                for j in range(3):
                     it.add(mb.caixa(0.012, b - a - 0.06, 0.03, x=s * (W / 2 + 0.026), y=(a + b) / 2,
-                                    z=1.0 + 1.1 * (j + 1) / 6 - 0.015, cor="metal", bisel=0.0))
+                                    z=1.0 + 1.1 * (j + 1) / 4 - 0.015, cor="metal", bisel=0.0))
     it.add(adesivo_lados("bombeiros", W, (yb0 + yb1) / 2 - 0.3, 2.42, 2.6, 0.38, "faixa_bombeiros"))
     it.add(adesivo_lados("bombeiros_cab", W, y0 + 2.0, 1.55, 0.9, 0.13, "testeira_bombeiros"))
     # traseira: degraus e mangueira enrolada
@@ -1138,17 +1164,18 @@ def p_bombeiros(it):
                      cor="cromo", curva=0.06))
         sirene(it, mb.caixa(0.14, 0.14, 0.12, x=s * (W / 2 - 0.1), y=yb1 - 0.1, z=zb1 + 0.08, cor=None,
                             mat="luz_vermelha", bisel=0.04, seg=2), "vermelha", fase=0.4 if s > 0 else 0.0)
-    carretel = mb.cilindro(0.42, 0.9, x=0, y=yb1 - 0.55, z=zb1 + 0.5, cor="amarelo", eixo="x", seg=16, bisel=0.02)
-    it.add(carretel, mb.cilindro(0.47, 0.06, x=-0.48, y=yb1 - 0.55, z=zb1 + 0.5, cor="grafite", eixo="x", seg=16),
-           mb.cilindro(0.47, 0.06, x=0.48, y=yb1 - 0.55, z=zb1 + 0.5, cor="grafite", eixo="x", seg=16))
+    carretel = mb.cilindro(0.42, 0.9, x=0, y=yb1 - 0.55, z=zb1 + 0.5, cor="amarelo", eixo="x", seg=14, bisel=0.0)
+    it.add(carretel, mb.cilindro(0.47, 0.06, x=-0.48, y=yb1 - 0.55, z=zb1 + 0.5, cor="grafite", eixo="x", seg=14,
+                                 bisel=0.0),
+           mb.cilindro(0.47, 0.06, x=0.48, y=yb1 - 0.55, z=zb1 + 0.5, cor="grafite", eixo="x", seg=14, bisel=0.0))
     # escada sobre a plataforma giratória (levanta a frente)
     yp = yb1 - 1.45
     zp = zb1 + 0.08
-    it.add(mb.cilindro(0.75, 0.16, y=yp, z=zb1 + 0.08, cor="grafite", seg=20, bisel=0.03))
+    it.add(mb.cilindro(0.75, 0.16, y=yp, z=zb1 + 0.08, cor="grafite", seg=16, bisel=0.0))
     it.add(mb.caixa(0.95, 0.9, 0.42, y=yp, z=zp + 0.16, cor="vermelho", bisel=0.08, seg=2))
     zpiv = zp + 0.5
-    esc = escada(7.4, 0.86, zpiv - 0.05, yp - 7.2, 18) + escada(6.4, 0.66, zpiv + 0.12, yp - 6.2, 15, cor="metal_claro")
-    esc.append(mb.cilindro(0.1, 1.0, x=0, y=yp, z=zpiv, cor="cromo", eixo="x", seg=10))
+    esc = escada(7.4, 0.86, zpiv - 0.05, yp - 7.2, 12) + escada(6.4, 0.66, zpiv + 0.12, yp - 6.2, 10, cor="metal_claro")
+    esc.append(mb.cilindro(0.1, 1.0, x=0, y=yp, z=zpiv, cor="cromo", eixo="x", seg=8, bisel=0.0))
     it.porta(esc, (0, yp, zpiv), eixo="x", angulo=-38, nome="escada")
     # apoio da escada sobre a cabine
     for s in (-1, 1):
@@ -1162,17 +1189,21 @@ def p_bombeiros(it):
 # ÔNIBUS
 # ======================================================================================================================
 def porta_onibus(it, y0, y1, z0, z1, W, cor_moldura="grafite", folga=0.014, lado=1):
-    """Porta de duas folhas de vidro (lado direito), cada folha abrindo para fora pela borda de fora."""
+    """Porta de duas folhas de vidro (lado direito) deslizantes por fora da lataria: as duas saem um pouco para fora
+    e correm para trás ao longo do lado (a de trás uma largura, a da frente duas e mais para fora, por cima da
+    outra). Abertas, ficam fora do corpo e não passam pela frente do ônibus."""
     s = lado
     ym = (y0 + y1) / 2
+    wf = (y1 - y0) / 2
     for k, (a, b) in enumerate(((y0, ym - 0.006), (ym + 0.006, y1))):
         objs = [mb.caixa(0.035, b - a, z1 - z0, x=s * (W / 2 + folga - 0.0175), y=(a + b) / 2, z=z0, cor=cor_moldura,
                          bisel=0.012, seg=1, nome="folha"),
                 mb.caixa(0.02, b - a - 0.12, z1 - z0 - 0.3, x=s * (W / 2 + folga + 0.006), y=(a + b) / 2, z=z0 + 0.2,
                          cor=None, mat="janela_apagada", bisel=0.0, nome="vidro")]
-        piv = (s * (W / 2 + folga), a if k == 0 else b, (z0 + z1) / 2)
-        ang = -85 if k == 0 else 85
-        it.porta(objs, piv, eixo="z", angulo=ang * s, nome=it.nome("porta_onibus"))
+        fora, curso = (0.24, 2 * wf + 0.04) if k == 0 else (0.11, wf + 0.04)
+        d = V((s * fora / curso, 1.0, 0.0))
+        d.normalize()
+        it.correr(objs, direcao=tuple(d), curso=math.hypot(curso, fora), nome=it.nome("porta_onibus"))
     it.add(mb.caixa(0.012, y1 - y0 - 0.06, z1 - z0 - 0.06, x=s * (W / 2 - 0.002), y=ym, z=z0 + 0.03,
                     cor="grafite_escuro", bisel=0.0, nome="vao"))
     for k in range(2):  # degraus

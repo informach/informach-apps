@@ -478,10 +478,10 @@ def casco(it, **kw):
     return c
 
 
-def borda(c, larg=0.10, alt=0.10, cor="laranja", inset=0.01, u0=0.0):
+def borda(c, larg=0.10, alt=0.10, cor="laranja", inset=0.01, u0=0.0, passo=None):
     """Borda (alheta) boleada em volta do deque, sobre o canto do costado."""
     pts = c.contorno(inset=larg / 2 - inset, u0=u0, fechado=(u0 == 0))
-    pts = simplifica(mb._arredonda_cantos(pts, 0.35, 5), passo=max(0.3, c.L / 24))
+    pts = simplifica(mb._arredonda_cantos(pts, 0.35, 5), passo=passo or max(0.3, c.L / 24))
     m = Malha()
     varre(m, pts, perfil_ret(larg, alt + 0.03, r=min(larg, alt) * 0.45, n=1, b0=-0.03), cor, fechado=False)
     return m.obj("borda", angulo=50)
@@ -951,7 +951,7 @@ def p_iate_cupula(it):
     it.add(leme(c.y(0.05), c.zb(0.05) + 0.12, -0.6, corda=0.4))
     helice(it, (0.55, c.y(0.12), -0.47), r=0.18, nome="helice_bombordo")
     helice(it, (-0.55, c.y(0.12), -0.47), r=0.18, nome="helice_boreste")
-    it.colisao(col_casco(c) + [((0, yc, 1.0), (2.7, yb - ya, 1.55))])
+    it.colisao(col_casco(c) + [((0, yc, 1.0), (2.7, yb - ya, zt_ + 0.5 - 1.0))])
     return c
 
 
@@ -1391,7 +1391,9 @@ def p_pesca(it):
     for u in (0.92, 0.04):
         for sx in (1, -1):
             it.add(cabeco(sx * (c.w(u) - 0.3), c.y(u), c.deque(u, c.w(u) - 0.3) - 0.01, r=0.05))
-    it.colisao(col_casco(c, z_topo=c.zt(0.5) + 0.25) + [((0, yc, 1.2), (2.3, pc + 0.4, 2.4))])
+    cc = col_casco(c, z_topo=c.zt(0.5) + 0.25)
+    cc[0] = (cc[0][0], (c.B + 0.36, cc[0][1][1], cc[0][1][2]))  # defensas penduradas no costado
+    it.colisao(cc + [((0, yc, 1.2), (2.3, pc + 0.4, 2.4))])
 
 
 # ======================================================================================================================
@@ -1402,10 +1404,10 @@ def p_balsa(it):
     nas duas pontas (interativas)."""
     L, B = 22.0, 7.4
     c = casco(it, L=L, B=B, fb0=1.35, fb1=1.55, calado=0.6, popa=0.86, um=0.5, bico=1.7, redondo=0.55, forma=4.0,
-              faixa=0.25, faixa2=0.35, fundo_proa=0.2, raio_popa=1.2, camber=0.03,
+              faixa=0.25, faixa2=0.35, fundo_proa=0.2, raio_popa=1.2, camber=0.03, n=18,
               cores=dict(fundo="vermelho_escuro", faixa="vermelho_escuro", casco="branco", faixa2="azul_medio",
                          deque="cinza_claro"))
-    it.add(borda(c, 0.14, 0.12, cor="azul_medio"))
+    it.add(borda(c, 0.14, 0.12, cor="azul_medio", passo=1.4))
     # salão (andar de baixo) com janelas em toda a volta
     ya, yb = c.y(0.83), c.y(0.12)
     yc = (ya + yb) / 2
@@ -1429,11 +1431,11 @@ def p_balsa(it):
                    seg=5, nx=5, ny=17, cor_fn=cor_salao, topo="laranja_claro", nome="salao"))
     z1 = z0 + 2.4
     # guarda-corpo do deque de cima
-    cont, _ = ret_div(lc - 0.1, pc - 0.1, 1.55, seg=3, nx=3, ny=8, bico=0.25, popa=0.25)
+    cont, _ = ret_div(lc - 0.1, pc - 0.1, 1.55, seg=2, nx=2, ny=6, bico=0.25, popa=0.25)
     cam = [V((x, y + yc, z1)) for x, y in cont]
     gc = [tubo(cam + [cam[0]], 0.025, cor="branco")]
     for k, p in enumerate(cam):
-        if k % 3 == 0:
+        if k % 2 == 0:
             gc.append(mb.cilindro(0.022, 1.0, x=p.x, y=p.y, z=z1, cor="branco", seg=6, bisel=0))
     for q in cam:
         q.z += 1.0
@@ -1443,17 +1445,19 @@ def p_balsa(it):
     for k in range(5):
         yy = yc - 4.0 + k * 2.0
         for sx in (1, -1):
-            it.add(caixa(2.0, 0.5, 0.42, x=sx * 1.5, y=yy, z=z1, cor="azul", bisel=0.05, seg=1))
-            it.add(caixa(2.0, 0.1, 0.45, x=sx * 1.5, y=yy + 0.25, z=z1 + 0.4, cor="azul", bisel=0.04, seg=1))
+            # banco em L (assento + encosto) numa extrusão só
+            perfil = [(-0.25, 0.0), (0.3, 0.0), (0.3, 0.87), (0.2, 0.87), (0.2, 0.42), (-0.25, 0.42)]
+            it.add(mb.extrudado(_ccw(perfil), 2.0, x=sx * 1.5 - 1.0, y=yy, z=z1, cor="azul", bisel=0.0,
+                                plano="yz", liso=False))
     for k, (sx, yy) in enumerate(((1.0, yc - 4.0), (2.0, yc - 4.0), (-1.0, yc - 2.0), (-2.0, yc - 2.0),
                                   (1.5, yc + 0.0), (-1.5, yc + 2.0))):
         it.assento(sx, yy, z1 + 0.42)
     zt_ = z1 + 2.5
     for sx in (1, -1):
         for yy in (yc - 5.0, yc - 1.0, yc + 3.0):
-            it.add(mb.cilindro(0.07, zt_ - z1, x=sx * 2.7, y=yy, z=z1, cor="branco", seg=10, bisel=0))
+            it.add(mb.cilindro(0.07, zt_ - z1, x=sx * 2.7, y=yy, z=z1, cor="branco", seg=8, bisel=0))
     tl = Malha()
-    nl, nc = 10, 12
+    nl, nc = 10, 1
     lt, pt_ = 6.0, 11.0
     grade = []
     for j in range(nc + 1):
@@ -1466,7 +1470,7 @@ def p_balsa(it):
     for j in range(nc):
         for i in range(nl):
             tl.face([grade[j][i], grade[j][i + 1], grade[j + 1][i + 1], grade[j + 1][i]],
-                    "amarelo" if (i // 2) % 2 == 0 else "branco")
+                    "amarelo" if (i // 2) % 2 == 0 else "branco")  # a curva é só em x: 1 faixa em y basta
     it.add(tl.obj("toldo", angulo=60, esp=0.08))
     # cabine de comando no alto (à frente do toldo)
     yk = yc + 4.6
@@ -1482,10 +1486,10 @@ def p_balsa(it):
     it.add(casinha([(zk, 2.6, 1.8, ycmd, 0.5), (zk + 1.2, 2.6, 1.8, ycmd, 0.5), (zk + 2.0, 2.5, 1.7, ycmd, 0.45),
                     (zk + 2.1, 2.3, 1.5, ycmd, 0.4)], seg=4, nx=3, ny=2, cor_fn=cor_cmd, topo="azul_medio",
                    nome="comando"))
-    it.add(mb.cilindro(0.04, 1.2, x=0, y=ycmd, z=zk + 2.1, cor="grafite", seg=8))
+    it.add(mb.cilindro(0.04, 1.2, x=0, y=ycmd, z=zk + 2.1, cor="grafite", seg=8, bisel=0))
     it.add(lampada(0, ycmd, zk + 3.35, r=0.09))
-    it.add(mb.esfera(0.09, x=1.3, y=ycmd, z=zk + 1.9, cor=None, mat="luz_vermelha", seg=10),
-           mb.esfera(0.09, x=-1.3, y=ycmd, z=zk + 1.9, cor=None, mat="neon", seg=10))
+    it.add(mb.esfera(0.09, x=1.3, y=ycmd, z=zk + 1.9, cor=None, mat="luz_vermelha", seg=8),
+           mb.esfera(0.09, x=-1.3, y=ycmd, z=zk + 1.9, cor=None, mat="neon", seg=8))
     it.porta([caixa(0.7, 0.05, 1.8, x=0.6, y=ycmd + 0.92, z=zk + 0.05, cor="azul_medio", bisel=0.03)],
              (0.95, ycmd + 0.9, zk + 0.05), eixo="z", angulo=-100, nome="porta_comando")
     # portas do salão (de correr) nas duas pontas
@@ -1510,7 +1514,8 @@ def p_balsa(it):
     it.add(luzes_navegacao(c, u=0.5, z_extra=0.3, popa=False, r=0.08))
     for u in (0.97, 0.03):
         it.add(lampada(0, c.y(u) + (0.5 if u < 0.5 else -0.4), c.zt(u) + 1.85))
-        it.add(mb.cilindro(0.04, 1.8, x=0, y=c.y(u) + (0.5 if u < 0.5 else -0.4), z=c.zt(u), cor="branco", seg=8))
+        it.add(mb.cilindro(0.04, 1.8, x=0, y=c.y(u) + (0.5 if u < 0.5 else -0.4), z=c.zt(u), cor="branco", seg=8,
+                           bisel=0))
     for u in (0.9, 0.1):
         for sx in (1, -1):
             it.add(cabeco(sx * (c.w(u) - 0.35), c.y(u), c.deque(u, c.w(u) - 0.35), r=0.07))
@@ -1518,7 +1523,7 @@ def p_balsa(it):
     helice(it, (0, c.y(0.06), -0.42), r=0.22, nome="helice_popa")
     helice(it, (0, c.y(0.94), -0.42), r=0.22, nome="helice_proa")
     it.colisao([((0, 0, -0.6), (B, L * 0.8, 2.1)), ((0, 0, -0.3), (B * 0.6, L, 1.9)),
-                ((0, yc, z0), (lc, pc, 2.4))])
+                ((0, yc, z0), (lc, pc, 2.4)), ((0, ycmd, zk), (2.6, 1.8, 2.1))])
 
 
 # ======================================================================================================================
@@ -1629,7 +1634,7 @@ def p_pedalinho(it):
     it.anima(roda, {"anima": "girar", "eixo": "x", "velocidade": 120, "roda": 1, "raio": rr}, "roda_pas",
              pivo=(0, ry, 0.05))
     it.add(mb.esfera(0.035, x=0, y=1.2, z=0.62, cor=None, mat="luz", seg=8))
-    it.colisao([((0, 0, -0.22), (B, L, 1.0)), ((0, -1.0, 0.6), (0.4, 0.5, 1.5))])
+    it.colisao([((0, 0.06, -0.37), (B, 2.84, 1.15)), ((0, -1.05, 0.6), (0.45, 0.65, 1.55))])
 
 
 # ======================================================================================================================

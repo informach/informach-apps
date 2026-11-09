@@ -1,0 +1,3235 @@
+{
+ "categoria": "props_rua",
+ "rotulo": "Props de rua, calçada e telhado",
+ "itens": [
+  {
+   "id": "cone_transito",
+   "rotulo": "Cone de trânsito",
+   "categoria": "props_rua",
+   "grupo": "cone_transito",
+   "fixacao": "chao",
+   "dims": [
+    0.4,
+    0.4,
+    0.76
+   ],
+   "arquivo": "glb/cone_transito.glb",
+   "miniatura": "miniaturas/cone_transito.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.38,
+      -0.0
+     ],
+     "tamanho": [
+      0.4,
+      0.76,
+      0.4
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "laranja",
+    "preto"
+   ],
+   "tris": 692,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "obra",
+    "transito",
+    "rua",
+    "calcada"
+   ]
+  },
+  {
+   "id": "cone_transito_pisca",
+   "rotulo": "Cone de trânsito com lâmpada que pisca",
+   "categoria": "props_rua",
+   "grupo": "cone_transito",
+   "fixacao": "chao",
+   "dims": [
+    0.4,
+    0.4,
+    0.863
+   ],
+   "arquivo": "glb/cone_transito_pisca.glb",
+   "miniatura": "miniaturas/cone_transito_pisca.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.43,
+      0
+     ],
+     "tamanho": [
+      0.4,
+      0.86,
+      0.4
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "grafite",
+    "laranja",
+    "preto"
+   ],
+   "tris": 1168,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "obra",
+    "transito",
+    "rua",
+    "luz",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "lampada_pisca",
+     "anima": "piscar",
+     "periodo": 1.0,
+     "pivo": [
+      0.0,
+      0.8155,
+      -0.0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "cavalete_obra",
+   "rotulo": "Cavalete de obra listrado com lâmpada",
+   "categoria": "props_rua",
+   "grupo": "cavalete_obra",
+   "fixacao": "chao",
+   "dims": [
+    1.5,
+    0.753,
+    1.197
+   ],
+   "arquivo": "glb/cavalete_obra.glb",
+   "miniatura": "miniaturas/cavalete_obra.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.525,
+      0
+     ],
+     "tamanho": [
+      1.4,
+      1.05,
+      0.7
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "grafite",
+    "preto",
+    "vermelho"
+   ],
+   "tris": 1744,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "obra",
+    "transito",
+    "rua",
+    "luz",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "lampada_pisca",
+     "anima": "piscar",
+     "periodo": 1.2,
+     "pivo": [
+      -0.62,
+      1.145,
+      -0.0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "barreira_plastica",
+   "rotulo": "Barreira plástica de água (vermelha)",
+   "categoria": "props_rua",
+   "grupo": "barreira_plastica",
+   "fixacao": "chao",
+   "dims": [
+    1.34,
+    0.554,
+    0.84
+   ],
+   "arquivo": "glb/barreira_plastica.glb",
+   "miniatura": "miniaturas/barreira_plastica.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.42,
+      0
+     ],
+     "tamanho": [
+      1.34,
+      0.84,
+      0.54
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_claro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 2296,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "obra",
+    "transito",
+    "rua",
+    "barreira"
+   ]
+  },
+  {
+   "id": "balizador_fixo",
+   "rotulo": "Balizador de ferro (frade) com faixa amarela",
+   "categoria": "props_rua",
+   "grupo": "balizador",
+   "fixacao": "chao",
+   "dims": [
+    0.28,
+    0.28,
+    0.95
+   ],
+   "arquivo": "glb/balizador_fixo.glb",
+   "miniatura": "miniaturas/balizador_fixo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.46,
+      0
+     ],
+     "tamanho": [
+      0.24,
+      0.92,
+      0.24
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "grafite_escuro",
+    "ouro"
+   ],
+   "tris": 744,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "balizador",
+    "calcada",
+    "rua"
+   ]
+  },
+  {
+   "id": "balizador_retratil",
+   "rotulo": "Balizador retrátil de aço (abaixa)",
+   "categoria": "props_rua",
+   "grupo": "balizador_retratil",
+   "fixacao": "chao",
+   "dims": [
+    0.4,
+    0.4,
+    0.822
+   ],
+   "arquivo": "glb/balizador_retratil.glb",
+   "miniatura": "miniaturas/balizador_retratil.webp",
+   "interativos": [
+    {
+     "interativo": "correr",
+     "direcao": [
+      0.0,
+      -1.0,
+      -0.0
+     ],
+     "curso": 0.78,
+     "nome": "coluna",
+     "pivo": [
+      0.0,
+      0.417,
+      -0.0
+     ]
+    }
+   ],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.415,
+      0
+     ],
+     "tamanho": [
+      0.22,
+      0.83,
+      0.22
+     ]
+    }
+   ],
+   "cores": [
+    "metal",
+    "metal_claro",
+    "metal_escuro",
+    "vermelho"
+   ],
+   "tris": 1908,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "balizador",
+    "calcada",
+    "rua",
+    "interativo",
+    "luz"
+   ]
+  },
+  {
+   "id": "corrente_balizadores",
+   "rotulo": "Corrente de plástico entre dois balizadores",
+   "categoria": "props_rua",
+   "grupo": "corrente_balizadores",
+   "fixacao": "chao",
+   "dims": [
+    2.24,
+    0.34,
+    0.904
+   ],
+   "arquivo": "glb/corrente_balizadores.glb",
+   "miniatura": "miniaturas/corrente_balizadores.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.95,
+      0.45,
+      0
+     ],
+     "tamanho": [
+      0.34,
+      0.9,
+      0.34
+     ]
+    },
+    {
+     "centro": [
+      0.95,
+      0.45,
+      0
+     ],
+     "tamanho": [
+      0.34,
+      0.9,
+      0.34
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "grafite",
+    "preto",
+    "vermelho"
+   ],
+   "tris": 3336,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "balizador",
+    "corrente",
+    "calcada",
+    "rua",
+    "obra"
+   ]
+  },
+  {
+   "id": "parquimetro",
+   "rotulo": "Parquímetro com tela e painel solar",
+   "categoria": "props_rua",
+   "grupo": "parquimetro",
+   "fixacao": "chao",
+   "dims": [
+    0.38,
+    0.3,
+    1.696
+   ],
+   "arquivo": "glb/parquimetro.glb",
+   "miniatura": "miniaturas/parquimetro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.53,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      1.06,
+      0.12
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.37,
+      0
+     ],
+     "tamanho": [
+      0.38,
+      0.62,
+      0.27
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_noite",
+    "branco",
+    "cinza_azulado",
+    "concreto_escuro",
+    "grafite",
+    "preto"
+   ],
+   "tris": 1840,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "parquimetro",
+    "calcada",
+    "rua",
+    "tela"
+   ]
+  },
+  {
+   "id": "maquina_venda_bebidas",
+   "rotulo": "Máquina de bebidas geladas",
+   "categoria": "props_rua",
+   "grupo": "maquina_venda",
+   "fixacao": "chao",
+   "dims": [
+    0.95,
+    0.894,
+    1.88
+   ],
+   "arquivo": "glb/maquina_venda_bebidas.glb",
+   "miniatura": "miniaturas/maquina_venda_bebidas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.94,
+      0
+     ],
+     "tamanho": [
+      0.95,
+      1.88,
+      0.88
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "grafite",
+    "preto",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 2624,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "maquina",
+    "calcada",
+    "luz",
+    "tela"
+   ]
+  },
+  {
+   "id": "maquina_venda_lanches",
+   "rotulo": "Máquina de lanches",
+   "categoria": "props_rua",
+   "grupo": "maquina_venda",
+   "fixacao": "chao",
+   "dims": [
+    0.95,
+    0.894,
+    1.88
+   ],
+   "arquivo": "glb/maquina_venda_lanches.glb",
+   "miniatura": "miniaturas/maquina_venda_lanches.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.94,
+      0
+     ],
+     "tamanho": [
+      0.95,
+      1.88,
+      0.88
+     ]
+    }
+   ],
+   "cores": [
+    "azul_escuro",
+    "azul_medio",
+    "branco_gelo",
+    "grafite",
+    "preto"
+   ],
+   "tris": 2624,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "maquina",
+    "calcada",
+    "luz",
+    "tela"
+   ]
+  },
+  {
+   "id": "caixa_eletronico_rua",
+   "rotulo": "Caixa eletrônico de rua (saque 24 h)",
+   "categoria": "props_rua",
+   "grupo": "caixa_eletronico",
+   "fixacao": "chao",
+   "dims": [
+    1.1,
+    1.115,
+    1.86
+   ],
+   "arquivo": "glb/caixa_eletronico_rua.glb",
+   "miniatura": "miniaturas/caixa_eletronico_rua.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.93,
+      0.08
+     ],
+     "tamanho": [
+      1.1,
+      1.86,
+      1.12
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco_gelo",
+    "cinza_claro",
+    "concreto",
+    "grafite",
+    "preto",
+    "verde",
+    "verde_escuro",
+    "vermelho"
+   ],
+   "tris": 1664,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "caixa_eletronico",
+    "calcada",
+    "luz",
+    "tela",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "tela_troca",
+     "anima": "trocar",
+     "quadros": 3,
+     "periodo": 3,
+     "pivo": [
+      0.0,
+      1.26,
+      0.37
+     ]
+    }
+   ]
+  },
+  {
+   "id": "carregador_carro_eletrico",
+   "rotulo": "Carregador de carro elétrico",
+   "categoria": "props_rua",
+   "grupo": "carregador_eletrico",
+   "fixacao": "chao",
+   "dims": [
+    0.653,
+    0.478,
+    1.67
+   ],
+   "arquivo": "glb/carregador_carro_eletrico.glb",
+   "miniatura": "miniaturas/carregador_carro_eletrico.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.835,
+      0
+     ],
+     "tamanho": [
+      0.62,
+      1.67,
+      0.46
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "concreto",
+    "grafite",
+    "grafite_escuro",
+    "preto",
+    "verde_agua"
+   ],
+   "tris": 2500,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "carregador",
+    "calcada",
+    "carro",
+    "luz",
+    "tela"
+   ]
+  },
+  {
+   "id": "estacao_bicicletas",
+   "rotulo": "Estação de bicicletas compartilhadas (3 bicicletas)",
+   "categoria": "props_rua",
+   "grupo": "estacao_bicicletas",
+   "fixacao": "chao",
+   "dims": [
+    3.33,
+    1.735,
+    1.86
+   ],
+   "arquivo": "glb/estacao_bicicletas.glb",
+   "miniatura": "miniaturas/estacao_bicicletas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.2,
+      0.025,
+      0
+     ],
+     "tamanho": [
+      3.3,
+      0.05,
+      1.5
+     ]
+    },
+    {
+     "centro": [
+      0.4,
+      0.38,
+      -0.5
+     ],
+     "tamanho": [
+      2.6,
+      0.76,
+      0.2
+     ]
+    },
+    {
+     "centro": [
+      -1.2,
+      0.93,
+      -0.45
+     ],
+     "tamanho": [
+      0.48,
+      1.86,
+      0.28
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "cinza_claro",
+    "concreto_escuro",
+    "grafite",
+    "grafite_escuro",
+    "laranja",
+    "preto",
+    "verde",
+    "verde_escuro"
+   ],
+   "tris": 4464,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "bicicleta",
+    "calcada",
+    "rua",
+    "tela",
+    "luz"
+   ]
+  },
+  {
+   "id": "banca_jornal",
+   "rotulo": "Banca de jornal e revistas",
+   "categoria": "props_rua",
+   "grupo": "banca_jornal",
+   "fixacao": "chao",
+   "dims": [
+    3.0,
+    1.98,
+    2.61
+   ],
+   "arquivo": "glb/banca_jornal.glb",
+   "miniatura": "miniaturas/banca_jornal.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_balcao",
+     "centro": [
+      0,
+      1.0,
+      0.52
+     ],
+     "tamanho": [
+      2.3,
+      0.4,
+      0.4
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.305,
+      0
+     ],
+     "tamanho": [
+      2.7,
+      2.61,
+      1.8
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "cinza",
+    "concreto_escuro",
+    "madeira",
+    "metal",
+    "papel",
+    "verde",
+    "verde_escuro",
+    "vermelho"
+   ],
+   "tris": 3036,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "banca",
+    "comercio",
+    "calcada",
+    "luz"
+   ]
+  },
+  {
+   "id": "quiosque_chaveiro",
+   "rotulo": "Quiosque de chaveiro e sapateiro",
+   "categoria": "props_rua",
+   "grupo": "quiosque_chaveiro",
+   "fixacao": "chao",
+   "dims": [
+    2.0,
+    2.006,
+    2.71
+   ],
+   "arquivo": "glb/quiosque_chaveiro.glb",
+   "miniatura": "miniaturas/quiosque_chaveiro.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.7453,
+     "nome": "porta",
+     "pivo": [
+      0.89,
+      0.08,
+      0.34
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_balcao",
+     "centro": [
+      0,
+      1.13,
+      0.78
+     ],
+     "tamanho": [
+      1.6,
+      0.35,
+      0.3
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.215,
+      0
+     ],
+     "tamanho": [
+      1.9,
+      2.43,
+      1.5
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "azul_marinho",
+    "branco",
+    "concreto_escuro",
+    "grafite",
+    "madeira",
+    "madeira_clara",
+    "marrom",
+    "metal_claro",
+    "preto",
+    "vermelho"
+   ],
+   "tris": 3616,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "quiosque",
+    "comercio",
+    "calcada",
+    "interativo",
+    "luz"
+   ]
+  },
+  {
+   "id": "banca_frutas",
+   "rotulo": "Banca de frutas com toldo",
+   "categoria": "props_rua",
+   "grupo": "banca_frutas",
+   "fixacao": "chao",
+   "dims": [
+    2.502,
+    1.407,
+    2.456
+   ],
+   "arquivo": "glb/banca_frutas.glb",
+   "miniatura": "miniaturas/banca_frutas.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_bancada",
+     "centro": [
+      0,
+      0.82,
+      0.33
+     ],
+     "tamanho": [
+      2.0,
+      0.3,
+      0.3
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.625,
+      0
+     ],
+     "tamanho": [
+      2.2,
+      1.25,
+      1.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "branco",
+    "folha",
+    "grafite",
+    "laranja",
+    "madeira",
+    "madeira_clara",
+    "madeira_media",
+    "madeira_mel",
+    "metal",
+    "preto",
+    "roxo",
+    "verde",
+    "verde_claro",
+    "verde_escuro",
+    "verde_lima",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 5698,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "banca",
+    "comercio",
+    "calcada",
+    "feira",
+    "luz"
+   ]
+  },
+  {
+   "id": "totem_informacao_mapa",
+   "rotulo": "Totem de informação com mapa luminoso",
+   "categoria": "props_rua",
+   "grupo": "totem_informacao",
+   "fixacao": "chao",
+   "dims": [
+    1.35,
+    0.5,
+    2.81
+   ],
+   "arquivo": "glb/totem_informacao_mapa.glb",
+   "miniatura": "miniaturas/totem_informacao_mapa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.075,
+      0
+     ],
+     "tamanho": [
+      1.35,
+      2.15,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "azul_escuro",
+    "azul_medio",
+    "branco",
+    "concreto_escuro",
+    "grafite_escuro"
+   ],
+   "tris": 2276,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "totem",
+    "mapa",
+    "calcada",
+    "luz",
+    "tela"
+   ]
+  },
+  {
+   "id": "placa_direcao_setas",
+   "rotulo": "Placa de direção com setas (bairros)",
+   "categoria": "props_rua",
+   "grupo": "placa_direcao",
+   "fixacao": "chao",
+   "dims": [
+    1.864,
+    0.966,
+    3.395
+   ],
+   "arquivo": "glb/placa_direcao_setas.glb",
+   "miniatura": "miniaturas/placa_direcao_setas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.65,
+      0
+     ],
+     "tamanho": [
+      0.15,
+      3.3,
+      0.15
+     ]
+    }
+   ],
+   "cores": [
+    "azul_medio",
+    "concreto_escuro",
+    "grafite",
+    "marrom",
+    "ouro"
+   ],
+   "tris": 2148,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "placa",
+    "direcao",
+    "calcada",
+    "rua"
+   ]
+  },
+  {
+   "id": "bebedouro_cachorro",
+   "rotulo": "Bebedouro de cachorro com pedal",
+   "categoria": "props_rua",
+   "grupo": "bebedouro_cachorro",
+   "fixacao": "chao",
+   "dims": [
+    0.7,
+    0.85,
+    0.91
+   ],
+   "arquivo": "glb/bebedouro_cachorro.glb",
+   "miniatura": "miniaturas/bebedouro_cachorro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.455,
+      -0.12
+     ],
+     "tamanho": [
+      0.4,
+      0.91,
+      0.32
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.08,
+      0.27
+     ],
+     "tamanho": [
+      0.44,
+      0.16,
+      0.44
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "concreto",
+    "cromo",
+    "metal_claro",
+    "turquesa",
+    "turquesa_escuro"
+   ],
+   "tris": 1588,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "bebedouro",
+    "pet",
+    "agua",
+    "calcada",
+    "parque"
+   ]
+  },
+  {
+   "id": "gradil_calcada",
+   "rotulo": "Gradil de calçada (módulo de 2 m)",
+   "categoria": "props_rua",
+   "grupo": "gradil_calcada",
+   "fixacao": "chao",
+   "dims": [
+    2.06,
+    0.12,
+    1.11
+   ],
+   "arquivo": "glb/gradil_calcada.glb",
+   "miniatura": "miniaturas/gradil_calcada.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.55,
+      0
+     ],
+     "tamanho": [
+      2.0,
+      1.1,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "verde_floresta"
+   ],
+   "tris": 2084,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "gradil",
+    "calcada",
+    "modular",
+    "rua"
+   ]
+  },
+  {
+   "id": "floreira_concreto_pequena",
+   "rotulo": "Floreira de concreto pequena",
+   "categoria": "props_rua",
+   "grupo": "floreira_concreto",
+   "fixacao": "chao",
+   "dims": [
+    0.94,
+    0.94,
+    0.985
+   ],
+   "arquivo": "glb/floreira_concreto_pequena.glb",
+   "miniatura": "miniaturas/floreira_concreto_pequena.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.4925,
+      -0.0
+     ],
+     "tamanho": [
+      0.94,
+      0.985,
+      0.94
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "concreto",
+    "concreto_escuro",
+    "folha",
+    "folha_clara",
+    "lilas",
+    "rosa",
+    "terra"
+   ],
+   "tris": 1574,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "floreira",
+    "calcada",
+    "planta"
+   ]
+  },
+  {
+   "id": "floreira_concreto_grande",
+   "rotulo": "Floreira de concreto grande com bancos de ripas",
+   "categoria": "props_rua",
+   "grupo": "floreira_concreto",
+   "fixacao": "chao",
+   "dims": [
+    2.41,
+    1.11,
+    2.27
+   ],
+   "arquivo": "glb/floreira_concreto_grande.glb",
+   "miniatura": "miniaturas/floreira_concreto_grande.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.6,
+      0.46,
+      0.39
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.6,
+      0.46,
+      0.39
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      -0.6,
+      0.46,
+      -0.39
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      0.6,
+      0.46,
+      -0.39
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.23,
+      0
+     ],
+     "tamanho": [
+      2.4,
+      0.46,
+      1.1
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.58,
+      0
+     ],
+     "tamanho": [
+      2.2,
+      0.32,
+      0.38
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "concreto",
+    "concreto_escuro",
+    "folha",
+    "folha_clara",
+    "lilas",
+    "madeira_media",
+    "madeira_mel",
+    "rosa",
+    "terra"
+   ],
+   "tris": 2868,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "floreira",
+    "calcada",
+    "planta",
+    "banco"
+   ]
+  },
+  {
+   "id": "tampa_bueiro",
+   "rotulo": "Tampa de bueiro (decalque)",
+   "categoria": "props_rua",
+   "grupo": "tampa_bueiro",
+   "fixacao": "chao",
+   "dims": [
+    0.84,
+    0.84,
+    0.014
+   ],
+   "arquivo": "glb/tampa_bueiro.glb",
+   "miniatura": "miniaturas/tampa_bueiro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [],
+   "cores": [
+    "concreto_escuro",
+    "grafite",
+    "metal_escuro",
+    "preto"
+   ],
+   "tris": 1532,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "decalque",
+    "rua",
+    "calcada"
+   ]
+  },
+  {
+   "id": "grelha_boca_lobo",
+   "rotulo": "Grelha de boca de lobo (decalque)",
+   "categoria": "props_rua",
+   "grupo": "boca_lobo",
+   "fixacao": "chao",
+   "dims": [
+    1.0,
+    0.45,
+    0.012
+   ],
+   "arquivo": "glb/grelha_boca_lobo.glb",
+   "miniatura": "miniaturas/grelha_boca_lobo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [],
+   "cores": [
+    "grafite",
+    "metal_escuro",
+    "preto"
+   ],
+   "tris": 716,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "decalque",
+    "rua",
+    "drenagem"
+   ]
+  },
+  {
+   "id": "lixeira_subterranea",
+   "rotulo": "Lixeira subterrânea (boca de inox)",
+   "categoria": "props_rua",
+   "grupo": "lixeira_subterranea",
+   "fixacao": "chao",
+   "dims": [
+    1.3,
+    1.3,
+    1.251
+   ],
+   "arquivo": "glb/lixeira_subterranea.glb",
+   "miniatura": "miniaturas/lixeira_subterranea.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.2217,
+     "nome": "aba",
+     "pivo": [
+      0.0,
+      0.98,
+      0.324
+     ]
+    }
+   ],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.575,
+      0
+     ],
+     "tamanho": [
+      0.68,
+      1.15,
+      0.68
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "metal",
+    "metal_claro",
+    "metal_escuro",
+    "preto",
+    "verde_escuro"
+   ],
+   "tris": 1204,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "lixeira",
+    "calcada",
+    "rua",
+    "interativo"
+   ]
+  },
+  {
+   "id": "conteiner_reciclagem_vidro",
+   "rotulo": "Contêiner de reciclagem de vidro (iglu)",
+   "categoria": "props_rua",
+   "grupo": "conteiner_vidro",
+   "fixacao": "chao",
+   "dims": [
+    1.54,
+    1.54,
+    1.834
+   ],
+   "arquivo": "glb/conteiner_reciclagem_vidro.glb",
+   "miniatura": "miniaturas/conteiner_reciclagem_vidro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.75,
+      0
+     ],
+     "tamanho": [
+      1.4,
+      1.5,
+      1.4
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "borracha",
+    "preto",
+    "verde",
+    "verde_escuro"
+   ],
+   "tris": 1848,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "lixeira",
+    "reciclagem",
+    "calcada",
+    "rua"
+   ]
+  },
+  {
+   "id": "caixa_dagua_torre",
+   "rotulo": "Caixa d'água de prédio em torre de metal",
+   "categoria": "props_rua",
+   "grupo": "caixa_dagua_torre",
+   "fixacao": "chao",
+   "dims": [
+    2.14,
+    2.207,
+    5.774
+   ],
+   "arquivo": "glb/caixa_dagua_torre.glb",
+   "miniatura": "miniaturas/caixa_dagua_torre.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.55328,
+      0
+     ],
+     "tamanho": [
+      1.9,
+      3.08,
+      1.9
+     ]
+    },
+    {
+     "centro": [
+      0,
+      4.31328,
+      0
+     ],
+     "tamanho": [
+      2.1,
+      2.6,
+      2.1
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_claro",
+    "concreto_escuro",
+    "metal",
+    "metal_escuro",
+    "verde_lima"
+   ],
+   "tris": 3216,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "telhado",
+    "caixa_dagua",
+    "predio"
+   ]
+  },
+  {
+   "id": "caixa_dagua_fibra",
+   "rotulo": "Caixa d'água de fibra azul (1.000 L)",
+   "categoria": "props_rua",
+   "grupo": "caixa_dagua_fibra",
+   "fixacao": "chao",
+   "dims": [
+    1.599,
+    1.499,
+    1.14
+   ],
+   "arquivo": "glb/caixa_dagua_fibra.glb",
+   "miniatura": "miniaturas/caixa_dagua_fibra.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.56,
+      0
+     ],
+     "tamanho": [
+      1.45,
+      1.12,
+      1.45
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "azul_medio",
+    "branco",
+    "concreto",
+    "vermelho"
+   ],
+   "tris": 2200,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "telhado",
+    "caixa_dagua",
+    "casa"
+   ]
+  },
+  {
+   "id": "antena_parabolica_grande",
+   "rotulo": "Antena parabólica grande",
+   "categoria": "props_rua",
+   "grupo": "antena_parabolica",
+   "fixacao": "chao",
+   "dims": [
+    2.3,
+    1.93,
+    2.672
+   ],
+   "arquivo": "glb/antena_parabolica_grande.glb",
+   "miniatura": "miniaturas/antena_parabolica_grande.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.1,
+      0
+     ],
+     "tamanho": [
+      1.7,
+      0.2,
+      1.7
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.4,
+      0.3
+     ],
+     "tamanho": [
+      2.3,
+      2.2,
+      1.6
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "concreto",
+    "grafite",
+    "metal",
+    "metal_escuro",
+    "vermelho"
+   ],
+   "tris": 2412,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "telhado",
+    "antena"
+   ]
+  },
+  {
+   "id": "antena_parabolica_pequena",
+   "rotulo": "Antena parabólica pequena",
+   "categoria": "props_rua",
+   "grupo": "antena_parabolica",
+   "fixacao": "chao",
+   "dims": [
+    0.859,
+    0.834,
+    1.468
+   ],
+   "arquivo": "glb/antena_parabolica_pequena.glb",
+   "miniatura": "miniaturas/antena_parabolica_pequena.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.73,
+      0
+     ],
+     "tamanho": [
+      0.84,
+      1.46,
+      0.82
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "cinza_claro",
+    "grafite",
+    "metal",
+    "metal_escuro",
+    "vermelho"
+   ],
+   "tris": 2148,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "telhado",
+    "antena",
+    "casa"
+   ]
+  },
+  {
+   "id": "antena_tv_espinha",
+   "rotulo": "Antena de TV espinha de peixe",
+   "categoria": "props_rua",
+   "grupo": "antena_tv",
+   "fixacao": "chao",
+   "dims": [
+    1.053,
+    1.658,
+    2.62
+   ],
+   "arquivo": "glb/antena_tv_espinha.glb",
+   "miniatura": "miniaturas/antena_tv_espinha.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.3,
+      0
+     ],
+     "tamanho": [
+      0.15,
+      2.6,
+      0.15
+     ]
+    }
+   ],
+   "cores": [
+    "metal",
+    "metal_escuro",
+    "preto"
+   ],
+   "tris": 1032,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "telhado",
+    "antena",
+    "casa"
+   ]
+  },
+  {
+   "id": "antena_tv_mastro",
+   "rotulo": "Mastro de antenas de TV com estais",
+   "categoria": "props_rua",
+   "grupo": "antena_tv",
+   "fixacao": "chao",
+   "dims": [
+    1.985,
+    1.73,
+    3.33
+   ],
+   "arquivo": "glb/antena_tv_mastro.glb",
+   "miniatura": "miniaturas/antena_tv_mastro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.675,
+      0
+     ],
+     "tamanho": [
+      0.3,
+      3.35,
+      0.3
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "metal",
+    "metal_escuro",
+    "preto"
+   ],
+   "tris": 1260,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "telhado",
+    "antena",
+    "predio"
+   ]
+  },
+  {
+   "id": "condensadora_parede",
+   "rotulo": "Condensadora de ar-condicionado de parede (hélice gira)",
+   "categoria": "props_rua",
+   "grupo": "condensadora_parede",
+   "fixacao": "parede",
+   "dims": [
+    0.942,
+    0.47,
+    0.635
+   ],
+   "arquivo": "glb/condensadora_parede.glb",
+   "miniatura": "miniaturas/condensadora_parede.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.335,
+      0.26
+     ],
+     "tamanho": [
+      0.86,
+      0.6,
+      0.32
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "branco",
+    "branco_gelo",
+    "cinza_claro",
+    "cinza_medio",
+    "cobre",
+    "grafite",
+    "metal_escuro",
+    "preto"
+   ],
+   "tris": 2844,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "fachada",
+    "ar_condicionado",
+    "animado"
+   ],
+   "altura_instalacao": 2.6,
+   "animacoes": [
+    {
+     "nome": "helice",
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 300,
+     "pivo": [
+      -0.12,
+      0.335,
+      0.385
+     ]
+    }
+   ]
+  },
+  {
+   "id": "condensadora_telhado",
+   "rotulo": "Condensadora grande de telhado (2 hélices giram)",
+   "categoria": "props_rua",
+   "grupo": "condensadora_telhado",
+   "fixacao": "chao",
+   "dims": [
+    1.623,
+    1.059,
+    1.161
+   ],
+   "arquivo": "glb/condensadora_telhado.glb",
+   "miniatura": "miniaturas/condensadora_telhado.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.585,
+      0
+     ],
+     "tamanho": [
+      1.55,
+      1.17,
+      0.85
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "cinza_claro",
+    "cinza_medio",
+    "cobre",
+    "grafite",
+    "metal_escuro",
+    "preto"
+   ],
+   "tris": 3488,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "telhado",
+    "ar_condicionado",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "helice_1",
+     "anima": "girar",
+     "eixo": "y",
+     "velocidade": 280,
+     "pivo": [
+      -0.34,
+      1.09,
+      -0.0
+     ]
+    },
+    {
+     "nome": "helice_2",
+     "anima": "girar",
+     "eixo": "y",
+     "velocidade": -260,
+     "pivo": [
+      0.34,
+      1.09,
+      -0.0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "exaustor_telhado",
+   "rotulo": "Exaustor eólico de telhado (gira)",
+   "categoria": "props_rua",
+   "grupo": "exaustor_telhado",
+   "fixacao": "chao",
+   "dims": [
+    0.72,
+    0.72,
+    0.93
+   ],
+   "arquivo": "glb/exaustor_telhado.glb",
+   "miniatura": "miniaturas/exaustor_telhado.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.475,
+      0
+     ],
+     "tamanho": [
+      0.72,
+      0.95,
+      0.72
+     ]
+    }
+   ],
+   "cores": [
+    "metal",
+    "metal_claro",
+    "metal_escuro"
+   ],
+   "tris": 2272,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "telhado",
+    "ventilacao",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "rotor",
+     "anima": "girar",
+     "eixo": "y",
+     "velocidade": 90,
+     "pivo": [
+      0.0,
+      0.44,
+      -0.0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "painel_solar_telhado",
+   "rotulo": "Painel solar de telhado (6 placas)",
+   "categoria": "props_rua",
+   "grupo": "painel_solar",
+   "fixacao": "chao",
+   "dims": [
+    2.87,
+    2.693,
+    1.6
+   ],
+   "arquivo": "glb/painel_solar_telhado.glb",
+   "miniatura": "miniaturas/painel_solar_telhado.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.78357,
+      0.04492
+     ],
+     "tamanho": [
+      2.9,
+      1.567,
+      2.81
+     ]
+    }
+   ],
+   "cores": [
+    "azul_escuro",
+    "cinza_claro",
+    "metal",
+    "metal_claro",
+    "metal_escuro"
+   ],
+   "tris": 2096,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "telhado",
+    "solar",
+    "energia"
+   ]
+  },
+  {
+   "id": "para_raios",
+   "rotulo": "Para-raios com luz de balizamento (pisca)",
+   "categoria": "props_rua",
+   "grupo": "para_raios",
+   "fixacao": "chao",
+   "dims": [
+    0.4,
+    0.4,
+    3.98
+   ],
+   "arquivo": "glb/para_raios.glb",
+   "miniatura": "miniaturas/para_raios.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.8,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      3.6,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cobre",
+    "grafite",
+    "metal",
+    "metal_escuro",
+    "preto"
+   ],
+   "tris": 1924,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "telhado",
+    "para_raios",
+    "luz",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "balizamento",
+     "anima": "piscar",
+     "periodo": 1.5,
+     "pivo": [
+      0.0,
+      2.83,
+      -0.0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "chamine_tijolo",
+   "rotulo": "Chaminé de tijolo com potes",
+   "categoria": "props_rua",
+   "grupo": "chamine_tijolo",
+   "fixacao": "chao",
+   "dims": [
+    0.86,
+    0.86,
+    2.0
+   ],
+   "arquivo": "glb/chamine_tijolo.glb",
+   "miniatura": "miniaturas/chamine_tijolo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.0,
+      0
+     ],
+     "tamanho": [
+      0.86,
+      2.0,
+      0.86
+     ]
+    }
+   ],
+   "cores": [
+    "concreto",
+    "concreto_escuro",
+    "metal",
+    "preto",
+    "terracota",
+    "terracota_clara",
+    "terracota_escura",
+    "tijolo"
+   ],
+   "tris": 2500,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "telhado",
+    "chamine",
+    "casa"
+   ]
+  },
+  {
+   "id": "casa_maquinas",
+   "rotulo": "Casa de máquinas de telhado",
+   "categoria": "props_rua",
+   "grupo": "casa_maquinas",
+   "fixacao": "chao",
+   "dims": [
+    3.32,
+    3.0,
+    3.5
+   ],
+   "arquivo": "glb/casa_maquinas.glb",
+   "miniatura": "miniaturas/casa_maquinas.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta",
+     "pivo": [
+      -0.44,
+      0.03,
+      1.27
+     ]
+    }
+   ],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.375,
+      0
+     ],
+     "tamanho": [
+      3.0,
+      2.75,
+      2.4
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_azulado",
+    "cinza_claro",
+    "concreto",
+    "concreto_escuro",
+    "grafite",
+    "metal",
+    "metal_claro",
+    "metal_escuro",
+    "preto"
+   ],
+   "tris": 2364,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "telhado",
+    "predio",
+    "interativo",
+    "luz"
+   ]
+  },
+  {
+   "id": "toldo_janela",
+   "rotulo": "Toldo avulso de janela (listrado)",
+   "categoria": "props_rua",
+   "grupo": "toldo_janela",
+   "fixacao": "parede",
+   "dims": [
+    1.46,
+    0.766,
+    0.63
+   ],
+   "arquivo": "glb/toldo_janela.glb",
+   "miniatura": "miniaturas/toldo_janela.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.335,
+      0.383
+     ],
+     "tamanho": [
+      1.46,
+      0.63,
+      0.766
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "metal_escuro",
+    "vermelho"
+   ],
+   "tris": 968,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "fachada",
+    "toldo",
+    "janela"
+   ],
+   "altura_instalacao": 1.9
+  },
+  {
+   "id": "varal_roupas",
+   "rotulo": "Varal de roupas de laje (roupas balançam)",
+   "categoria": "props_rua",
+   "grupo": "varal_roupas",
+   "fixacao": "chao",
+   "dims": [
+    2.9,
+    0.64,
+    1.9
+   ],
+   "arquivo": "glb/varal_roupas.glb",
+   "miniatura": "miniaturas/varal_roupas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -1.3,
+      0.9,
+      0
+     ],
+     "tamanho": [
+      0.3,
+      1.8,
+      0.7
+     ]
+    },
+    {
+     "centro": [
+      1.3,
+      0.9,
+      0
+     ],
+     "tamanho": [
+      0.3,
+      1.8,
+      0.7
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "azul_claro",
+    "azul_escuro",
+    "branco",
+    "concreto",
+    "laranja",
+    "lilas",
+    "madeira_clara",
+    "metal_claro",
+    "rosa",
+    "turquesa",
+    "verde",
+    "vermelho"
+   ],
+   "tris": 2660,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "telhado",
+    "varal",
+    "casa",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "roupas_1",
+     "anima": "balancar",
+     "angulo": 7,
+     "periodo": 2.2,
+     "eixo": "x",
+     "pivo": [
+      0.0,
+      1.72,
+      0.25
+     ]
+    },
+    {
+     "nome": "roupas_2",
+     "anima": "balancar",
+     "angulo": 7,
+     "periodo": 2.5500000000000003,
+     "eixo": "x",
+     "pivo": [
+      0.0,
+      1.72,
+      -0.0
+     ]
+    },
+    {
+     "nome": "roupas_3",
+     "anima": "balancar",
+     "angulo": 7,
+     "periodo": 2.9000000000000004,
+     "eixo": "x",
+     "pivo": [
+      0.0,
+      1.72,
+      -0.25
+     ]
+    }
+   ]
+  },
+  {
+   "id": "escada_incendio_modulo",
+   "rotulo": "Escada de incêndio de fachada (módulo de andar)",
+   "categoria": "props_rua",
+   "grupo": "escada_incendio",
+   "fixacao": "parede",
+   "dims": [
+    3.0,
+    1.1,
+    4.707
+   ],
+   "arquivo": "glb/escada_incendio_modulo.glb",
+   "miniatura": "miniaturas/escada_incendio_modulo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.55,
+      0.55
+     ],
+     "tamanho": [
+      3.0,
+      0.1,
+      1.1
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.1,
+      1.07
+     ],
+     "tamanho": [
+      3.0,
+      1.0,
+      0.06
+     ]
+    }
+   ],
+   "cores": [
+    "ferro",
+    "grafite_escuro"
+   ],
+   "tris": 2860,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "fachada",
+    "escada",
+    "modular",
+    "predio"
+   ],
+   "altura_instalacao": 3.6,
+   "passo_z": 3.2
+  },
+  {
+   "id": "luminaria_fachada",
+   "rotulo": "Luminária de fachada (lanterna, acende à noite)",
+   "categoria": "props_rua",
+   "grupo": "luminaria_fachada",
+   "fixacao": "parede",
+   "dims": [
+    0.17,
+    0.385,
+    0.54
+   ],
+   "arquivo": "glb/luminaria_fachada.glb",
+   "miniatura": "miniaturas/luminaria_fachada.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.27,
+      0.1925
+     ],
+     "tamanho": [
+      0.17,
+      0.54,
+      0.385
+     ]
+    }
+   ],
+   "cores": [
+    "grafite_escuro",
+    "latao"
+   ],
+   "tris": 1048,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "fachada",
+    "luz",
+    "luminaria"
+   ],
+   "altura_instalacao": 2.0
+  },
+  {
+   "id": "camera_seguranca",
+   "rotulo": "Câmera de segurança (vira de um lado para o outro)",
+   "categoria": "props_rua",
+   "grupo": "camera_seguranca",
+   "fixacao": "parede",
+   "dims": [
+    0.14,
+    0.373,
+    0.254
+   ],
+   "arquivo": "glb/camera_seguranca.glb",
+   "miniatura": "miniaturas/camera_seguranca.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.16,
+      0.18
+     ],
+     "tamanho": [
+      0.15,
+      0.22,
+      0.36
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "preto"
+   ],
+   "tris": 1092,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "fachada",
+    "seguranca",
+    "animado"
+   ],
+   "altura_instalacao": 2.8,
+   "animacoes": [
+    {
+     "nome": "camera",
+     "anima": "balancar",
+     "angulo": 35,
+     "periodo": 8,
+     "eixo": "y",
+     "pivo": [
+      0.0,
+      0.12,
+      0.12
+     ]
+    }
+   ]
+  },
+  {
+   "id": "interfone_campainha",
+   "rotulo": "Interfone com campainha",
+   "categoria": "props_rua",
+   "grupo": "interfone",
+   "fixacao": "parede",
+   "dims": [
+    0.19,
+    0.07,
+    0.352
+   ],
+   "arquivo": "glb/interfone_campainha.glb",
+   "miniatura": "miniaturas/interfone_campainha.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.17621,
+      0.03278
+     ],
+     "tamanho": [
+      0.19,
+      0.352,
+      0.07
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "metal",
+    "metal_claro",
+    "papel",
+    "preto"
+   ],
+   "tris": 1404,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "fachada",
+    "interfone",
+    "casa",
+    "predio",
+    "luz"
+   ],
+   "altura_instalacao": 1.15
+  },
+  {
+   "id": "caixa_correio_parede",
+   "rotulo": "Caixa de correio de parede",
+   "categoria": "props_rua",
+   "grupo": "caixa_correio_parede",
+   "fixacao": "parede",
+   "dims": [
+    0.35,
+    0.177,
+    0.45
+   ],
+   "arquivo": "glb/caixa_correio_parede.glb",
+   "miniatura": "miniaturas/caixa_correio_parede.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.6581,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.01,
+      0.144
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_cartas",
+     "centro": [
+      0,
+      0.014,
+      0.07
+     ],
+     "tamanho": [
+      0.29,
+      0.37,
+      0.11
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      0.0785
+     ],
+     "tamanho": [
+      0.35,
+      0.45,
+      0.177
+     ]
+    }
+   ],
+   "cores": [
+    "azul_escuro",
+    "azul_medio",
+    "latao",
+    "preto"
+   ],
+   "tris": 1632,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "fachada",
+    "correio",
+    "casa",
+    "interativo"
+   ],
+   "altura_instalacao": 1.0
+  },
+  {
+   "id": "ciclovia_reta",
+   "rotulo": "Ciclovia reta na calçada (15 m)",
+   "categoria": "props_rua",
+   "grupo": "ciclovia",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.405
+   ],
+   "arquivo": "glb/ciclovia_reta.glb",
+   "miniatura": "miniaturas/ciclovia_reta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "calcada",
+    "concreto",
+    "laranja_escuro"
+   ],
+   "tris": 102,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "ciclovia",
+    "calcada",
+    "modular",
+    "piso"
+   ],
+   "quadras": [
+    1,
+    1
+   ]
+  },
+  {
+   "id": "ciclovia_reta_verde",
+   "rotulo": "Ciclovia verde reta (bairro futurista, 15 m)",
+   "categoria": "props_rua",
+   "grupo": "ciclovia_verde",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.405
+   ],
+   "arquivo": "glb/ciclovia_reta_verde.glb",
+   "miniatura": "miniaturas/ciclovia_reta_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "calcada",
+    "concreto",
+    "verde"
+   ],
+   "tris": 102,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "ciclovia",
+    "calcada",
+    "modular",
+    "piso",
+    "futurista"
+   ],
+   "quadras": [
+    1,
+    1
+   ]
+  },
+  {
+   "id": "ciclovia_curva",
+   "rotulo": "Ciclovia em curva na calçada (15 m)",
+   "categoria": "props_rua",
+   "grupo": "ciclovia",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.405
+   ],
+   "arquivo": "glb/ciclovia_curva.glb",
+   "miniatura": "miniaturas/ciclovia_curva.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "calcada",
+    "concreto",
+    "laranja_escuro"
+   ],
+   "tris": 360,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "ciclovia",
+    "calcada",
+    "modular",
+    "piso"
+   ],
+   "quadras": [
+    1,
+    1
+   ]
+  },
+  {
+   "id": "ciclovia_cruzamento",
+   "rotulo": "Cruzamento de ciclovias (15 m)",
+   "categoria": "props_rua",
+   "grupo": "ciclovia",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.405
+   ],
+   "arquivo": "glb/ciclovia_cruzamento.glb",
+   "miniatura": "miniaturas/ciclovia_cruzamento.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "calcada",
+    "concreto",
+    "laranja_escuro"
+   ],
+   "tris": 160,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "ciclovia",
+    "calcada",
+    "modular",
+    "piso"
+   ],
+   "quadras": [
+    1,
+    1
+   ]
+  },
+  {
+   "id": "ciclovia_faixa_pedestres",
+   "rotulo": "Ciclovia com faixa de pedestres (15 m)",
+   "categoria": "props_rua",
+   "grupo": "ciclovia",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.405
+   ],
+   "arquivo": "glb/ciclovia_faixa_pedestres.glb",
+   "miniatura": "miniaturas/ciclovia_faixa_pedestres.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "calcada",
+    "concreto",
+    "laranja_escuro"
+   ],
+   "tris": 122,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "ciclovia",
+    "calcada",
+    "modular",
+    "piso",
+    "faixa_pedestres"
+   ],
+   "quadras": [
+    1,
+    1
+   ]
+  },
+  {
+   "id": "laje_calcadao",
+   "rotulo": "Laje do calçadão de ladrilho (15 m)",
+   "categoria": "props_rua",
+   "grupo": "calcadao",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    1.902
+   ],
+   "arquivo": "glb/laje_calcadao.glb",
+   "miniatura": "miniaturas/laje_calcadao.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "bege_escuro"
+   ],
+   "tris": 62,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "calcadao",
+    "calcada",
+    "modular",
+    "piso",
+    "orla"
+   ],
+   "quadras": [
+    1,
+    1
+   ]
+  },
+  {
+   "id": "balaustrada_3m",
+   "rotulo": "Balaustrada de pedra clara (módulo de 3 m)",
+   "categoria": "props_rua",
+   "grupo": "balaustrada",
+   "fixacao": "chao",
+   "dims": [
+    3.05,
+    0.52,
+    1.11
+   ],
+   "arquivo": "glb/balaustrada_3m.glb",
+   "miniatura": "miniaturas/balaustrada_3m.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.555,
+      0
+     ],
+     "tamanho": [
+      3.0,
+      1.11,
+      0.42
+     ]
+    }
+   ],
+   "cores": [
+    "bege",
+    "creme",
+    "creme_claro"
+   ],
+   "tris": 2548,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "calcadao",
+    "balaustrada",
+    "modular",
+    "orla",
+    "guarda_corpo"
+   ],
+   "modulo": 3.0
+  },
+  {
+   "id": "balaustrada_15m",
+   "rotulo": "Balaustrada de pedra clara (módulo de 15 m)",
+   "categoria": "props_rua",
+   "grupo": "balaustrada",
+   "fixacao": "chao",
+   "dims": [
+    15.05,
+    0.52,
+    1.11
+   ],
+   "arquivo": "glb/balaustrada_15m.glb",
+   "miniatura": "miniaturas/balaustrada_15m.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.555,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      1.11,
+      0.42
+     ]
+    }
+   ],
+   "cores": [
+    "bege",
+    "creme",
+    "creme_claro"
+   ],
+   "tris": 10692,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "calcadao",
+    "balaustrada",
+    "modular",
+    "orla",
+    "guarda_corpo"
+   ],
+   "modulo": 15.0
+  },
+  {
+   "id": "balaustrada_canto",
+   "rotulo": "Pilar de canto da balaustrada (com vaso)",
+   "categoria": "props_rua",
+   "grupo": "balaustrada",
+   "fixacao": "chao",
+   "dims": [
+    0.6,
+    0.6,
+    1.78
+   ],
+   "arquivo": "glb/balaustrada_canto.glb",
+   "miniatura": "miniaturas/balaustrada_canto.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.555,
+      0
+     ],
+     "tamanho": [
+      0.6,
+      1.11,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "bege",
+    "creme",
+    "creme_claro",
+    "folha",
+    "rosa",
+    "rosa_bebe",
+    "vermelho"
+   ],
+   "tris": 1622,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "calcadao",
+    "balaustrada",
+    "orla"
+   ]
+  },
+  {
+   "id": "balaustrada_terminal",
+   "rotulo": "Pilar terminal da balaustrada (com bola)",
+   "categoria": "props_rua",
+   "grupo": "balaustrada",
+   "fixacao": "chao",
+   "dims": [
+    0.741,
+    0.52,
+    1.44
+   ],
+   "arquivo": "glb/balaustrada_terminal.glb",
+   "miniatura": "miniaturas/balaustrada_terminal.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.1,
+      0.555,
+      0
+     ],
+     "tamanho": [
+      0.7,
+      1.11,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "bege",
+    "creme",
+    "creme_claro"
+   ],
+   "tris": 1844,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "calcadao",
+    "balaustrada",
+    "orla"
+   ]
+  },
+  {
+   "id": "lixeira_calcadao",
+   "rotulo": "Lixeira cilíndrica de calçadão (ripas e pedra)",
+   "categoria": "props_rua",
+   "grupo": "lixeira_calcadao",
+   "fixacao": "chao",
+   "dims": [
+    0.62,
+    0.62,
+    0.94
+   ],
+   "arquivo": "glb/lixeira_calcadao.glb",
+   "miniatura": "miniaturas/lixeira_calcadao.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.47,
+      0
+     ],
+     "tamanho": [
+      0.6,
+      0.94,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "creme_claro",
+    "grafite",
+    "madeira_mel",
+    "preto"
+   ],
+   "tris": 2872,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "lixeira",
+    "calcadao",
+    "orla",
+    "calcada"
+   ]
+  },
+  {
+   "id": "banco_calcadao",
+   "rotulo": "Banco de calçadão com pés de pedra e ripas",
+   "categoria": "props_rua",
+   "grupo": "banco_calcadao",
+   "fixacao": "chao",
+   "dims": [
+    1.95,
+    0.616,
+    0.878
+   ],
+   "arquivo": "glb/banco_calcadao.glb",
+   "miniatura": "miniaturas/banco_calcadao.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.58,
+      0.46,
+      0.08
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.0,
+      0.46,
+      0.08
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.58,
+      0.46,
+      0.08
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.23,
+      0.04
+     ],
+     "tamanho": [
+      1.95,
+      0.46,
+      0.5
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.67,
+      -0.24
+     ],
+     "tamanho": [
+      1.95,
+      0.42,
+      0.14
+     ]
+    }
+   ],
+   "cores": [
+    "creme_claro",
+    "madeira_mel"
+   ],
+   "tris": 1632,
+   "pacote": false,
+   "tags": [
+    "props_rua",
+    "banco",
+    "calcadao",
+    "orla",
+    "calcada"
+   ]
+  }
+ ]
+}

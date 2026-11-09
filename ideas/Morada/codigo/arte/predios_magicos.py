@@ -1744,7 +1744,8 @@ def roda(ids=None):
         cat.exporta(it, rot, grupo=grupo, tags=["predio", ESTILO] + list(tags), extra=extra)
     # mantém no catálogo só as peças desta lista, na ordem dela
     ordem = [p[0] for p in PECAS]
-    cat.dados["itens"] = sorted([i for i in cat.dados["itens"] if i["id"] in ordem], key=lambda i: ordem.index(i["id"]))
+    cat.dados["itens"] = sorted([i for i in cat.dados["itens"] if i["id"] in ordem], key=lambda i: ordem.index(i["id"])) + \
+        [i for i in cat.dados["itens"] if i["id"].endswith("_pacote")]  # as peças de pacote (id terminado em _pacote) vêm de outro gerador e ficam
     cat.salva()
 
 

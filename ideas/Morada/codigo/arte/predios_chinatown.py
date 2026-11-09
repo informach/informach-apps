@@ -1800,14 +1800,15 @@ def main():
             continue
         f(cat)
     # o catálogo fica só com as peças deste gerador (sobras de versões antigas saem, com o GLB e a miniatura)
-    velhos = [x for x in cat.dados["itens"] if x["id"] not in PECAS]
+    velhos = [x for x in cat.dados["itens"] if x["id"] not in PECAS and not x["id"].endswith("_pacote")]
     for x in velhos:
         for arq in (x["arquivo"], x["miniatura"]):
             q = os.path.join(cat.pasta, arq)
             if os.path.exists(q):
                 os.remove(q)
     cat.dados["itens"] = sorted([x for x in cat.dados["itens"] if x["id"] in PECAS],
-                                key=lambda x: list(PECAS).index(x["id"]))
+                                key=lambda x: list(PECAS).index(x["id"])) + \
+        [x for x in cat.dados["itens"] if x["id"].endswith("_pacote")]  # peças de pacote vêm de outro gerador e ficam
     cat.salva()
 
 

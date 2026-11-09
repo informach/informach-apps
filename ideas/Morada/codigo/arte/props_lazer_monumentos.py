@@ -414,7 +414,7 @@ def p_estatua_morada(it):
         x, y = 1.1 * math.cos(a), 1.1 * math.sin(a)
         it.add(cx(0.16, 0.16, 0.1, x=x, y=y, z=0.28, cor="grafite", bisel=0.03),
                cx(0.12, 0.12, 0.02, x=x, y=y, z=0.38, cor=None, mat="luz", bisel=0.005))
-    return {"col": [((0, 0, 0), (2.8, 2.8, 0.34)), ((0, 0, 0), (1.55, 1.55, hp + 2.7 * k))],
+    return {"col": [((0, 0, 0), (2.8, 2.8, 0.34)), ((0, 0, 0), (1.55, 1.55, hp + 2.4 * k))],
             "mini": (0.55, -1.0, 0.35)}
 
 

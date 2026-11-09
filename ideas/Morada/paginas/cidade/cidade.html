@@ -327,7 +327,14 @@ function intensidade(m, n = noite) {
 }
 function aplicaNoite(raizObj, n = noite) {
   raizObj.traverse((o) => {
-    if (!o.isMesh || !tipoMat(o.material)) return;
+    if (!o.isMesh) return;
+    const nm = (o.material.name || "").split(".")[0];
+    if (nm === "agua" || nm.startsWith("agua_")) { // água: azul-marinho quase preto à noite
+      const m = o.material;
+      if (!m.userData.cor0) m.userData.cor0 = m.color.clone();
+      m.color.copy(m.userData.cor0).multiplyScalar(n ? 0.2 : 1);
+    }
+    if (!tipoMat(o.material)) return;
     o.material.emissiveIntensity = intensidade(o.material, n);
   });
 }
@@ -956,7 +963,7 @@ if (CENAS.length) {
     const [L, P] = dados.tamanho || c.tamanho;
     const R = Math.max(30, Math.hypot(L, P) / 2);
     const ctr = V3([...(dados.centro || [0, 0]), 0]);
-    if (dados.camera) { camC.position.copy(V3(dados.camera.posicao)); orbC.target.copy(V3(dados.camera.alvo)); }
+    if (dados.camera) { camC.position.copy(V3(dados.camera.posicao)); orbC.target.copy(V3(dados.camera.alvo)); camC.position.lerp(orbC.target, 0.4); } // a câmera do render fica longe: no visor, mais perto
     else { camC.position.copy(ctr).add(new THREE.Vector3(R * 0.75, R * 0.85, R * 0.95)); orbC.target.copy(ctr); }
     camC.near = Math.max(0.3, R / 3000); camC.far = R * 10 + 500; camC.updateProjectionMatrix();
     orbC.minDistance = 4; orbC.maxDistance = R * 3.5;
