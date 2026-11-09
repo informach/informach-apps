@@ -376,7 +376,7 @@ pre.mermaid svg{max-width:100%;height:auto}
       <span class="tag" style="--soft:var(--tangerine-soft);--c:var(--tangerine)">Arte dos pacotes grátis da ITHappy, adaptada</span>
       <span class="tag" style="--soft:var(--sun-soft);--c:var(--sun)">Dentro da assinatura do Recreio</span>
     </div>
-    <div class="hero-meta"><span>Nome e moeda provisórios</span><span>4 nov 2026</span><span>v4.1: consolidação técnica com o Recreio v2.1</span><span>v4.2 (9 nov): bibliotecas de arte, plano de fechamento, ordem com o Recreio, família compartilhada, sair de casa e várias famílias</span></div>
+    <div class="hero-meta"><span>Nome e moeda provisórios</span><span>4 nov 2026</span><span>v4.1: consolidação técnica com o Recreio v2.1</span><span>v4.2 (9 nov): bibliotecas de arte, plano de fechamento, ordem com o Recreio, família compartilhada, sair de casa, várias famílias e primeiro acesso</span></div>
   </div>
   <figure class="hero-art" style="margin:0"><img src="img/cena_interior.webp" alt="Cena renderizada da casa da família Oliveira: Marcos no sofá, Lia entre a sala e a cozinha, Nina e Theo brincando no tapete" width="1920" height="1200" style="width:100%;height:100%;object-fit:cover;display:block"></figure>
 </section>
@@ -800,6 +800,16 @@ flowchart LR
     <div class="card facet" style="--soft:var(--sun-soft)">
       <h4>Sem internet (depois)</h4>
       <p class="small">"Levar o mundo" fica para uma fase própria: com o mundo parado, a posse passa ao aparelho com prazo, e ninguém mais entra até voltar. Ida e volta acontecem com o mundo em repouso, nunca no meio de uma partida.</p>
+    </div>
+  </div>
+  <div class="grid g2">
+    <div class="card facet" style="--soft:var(--leaf-soft)">
+      <h4>Mundos de cada perfil</h4>
+      <p class="small">Ninguém ganha um mundo automático. Cada perfil cria os próprios mundos, é membro do mundo de outra pessoa, ou as duas coisas. Limite inicial: <b>até 3 mundos criados por perfil</b>, sem contar os mundos de outras pessoas em que ele é membro; o número é ajustado depois de medir o custo. Mundo parado é só dado guardado; o que custa é a hora de mundo aberto.</p>
+    </div>
+    <div class="card facet" style="--soft:var(--sky-soft)">
+      <h4>Primeiro acesso</h4>
+      <p class="small">Se alguém, da mesma assinatura ou de outra, já convidou a pessoa, a primeira tela oferece "Entrar no mundo da Lia". Senão, oferece "Criar meu mundo" já pronto: com um toque nasce o bairro da etapa atual (na prova, a casa simples e o lote vazio), com a política padrão. "Entrar com código" fica sempre à mão. O mundo nunca é criado sem a pessoa pedir.</p>
     </div>
   </div>
   <div class="grid g2">
@@ -1263,6 +1273,7 @@ mundo.avancar(<span class="n">100</span>);            <span class="c">// um tick
       <h3>Seus mundos</h3>
       <ul>
         <li>Uma lista só. Cada mundo mostra a família a que você tem acesso, os moradores e quem está lá agora.</li>
+        <li>No primeiro acesso, a lista vazia vira uma escolha só: "Entrar no mundo da Lia", se houver convite, ou "Criar meu mundo", já pronto. Cada perfil cria até 3 mundos.</li>
         <li>"Jogar" e "Convidar" existem em todo mundo; não há mundo "solo" nem mundo "online".</li>
         <li>Pessoas aparecem como perfil do Recreio (inicial e cor); moradores aparecem pelo retrato.</li>
         <li>O download inicial traz o lote da sua família e os moradores; o resto do bairro vem sob demanda.</li>
@@ -1995,7 +2006,7 @@ flowchart TB
 </section>
 
 </main>
-<footer>Projeto Morada · proposta v4.2 · 9 nov 2026: bibliotecas de arte, plano de fechamento, ordem de implementação com o Recreio (mundos da prova com dois lotes) e família compartilhada de todos (quem está jogando comanda qualquer morador dela; o aceite fica só entre famílias), sair de casa e várias famílias por jogador · v4.1 · 4 nov 2026 · consolidação técnica da v4 com o Recreio v2.1, a partir da segunda revisão externa: servidor autoritativo, política de avanço, preferido com dois direitos, bebês, continuidade do mundo, integração com o Recreio e licenças. Nomes, moeda e números de desempenho são metas a validar na fase 0. Referências técnicas consultadas: <a href="https://docs.colyseus.io/">Colyseus</a>, <a href="https://rapier.rs/docs/user_guides/javascript/character_controller/">Rapier</a>, <a href="https://threejs.org/docs/">Three.js</a>, <a href="https://developer.mozilla.org/pt-BR/docs/Web/API/IndexedDB_API">MDN (IndexedDB, Page Visibility, PWA offline, armazenamento persistente)</a> e a <a href="https://ithappystudios.com/one-time-purchase-licence-agreement/">licença da ITHappy Studios</a>. Elas sustentam capacidades das bibliotecas, não a implementação de outros jogos; esta proposta não é auditoria de código, benchmark nem parecer jurídico. Arte: pacotes gratuitos da ITHappy Studios, adaptados; as imagens são renders de teste.</footer>
+<footer>Projeto Morada · proposta v4.2 · 9 nov 2026: bibliotecas de arte, plano de fechamento, ordem de implementação com o Recreio (mundos da prova com dois lotes) e família compartilhada de todos (quem está jogando comanda qualquer morador dela; o aceite fica só entre famílias), sair de casa, várias famílias por jogador, até 3 mundos criados por perfil e primeiro acesso guiado · v4.1 · 4 nov 2026 · consolidação técnica da v4 com o Recreio v2.1, a partir da segunda revisão externa: servidor autoritativo, política de avanço, preferido com dois direitos, bebês, continuidade do mundo, integração com o Recreio e licenças. Nomes, moeda e números de desempenho são metas a validar na fase 0. Referências técnicas consultadas: <a href="https://docs.colyseus.io/">Colyseus</a>, <a href="https://rapier.rs/docs/user_guides/javascript/character_controller/">Rapier</a>, <a href="https://threejs.org/docs/">Three.js</a>, <a href="https://developer.mozilla.org/pt-BR/docs/Web/API/IndexedDB_API">MDN (IndexedDB, Page Visibility, PWA offline, armazenamento persistente)</a> e a <a href="https://ithappystudios.com/one-time-purchase-licence-agreement/">licença da ITHappy Studios</a>. Elas sustentam capacidades das bibliotecas, não a implementação de outros jogos; esta proposta não é auditoria de código, benchmark nem parecer jurídico. Arte: pacotes gratuitos da ITHappy Studios, adaptados; as imagens são renders de teste.</footer>
 
 <script>
 (function(){
