@@ -986,7 +986,7 @@ def toboagua(ctrl, tipo="canal", cores=("laranja", "vermelho"), listra=3, R=0.62
     else:
         perfil = [(R * math.cos(2 * math.pi * k / 10), R + R * math.sin(2 * math.pi * k / 10)) for k in range(10)]
     cs = list(cores)
-    objs = [pb.varre(P, U, perfil, cs[0], False, True, tampas=False, nome=nome, T=T,
+    objs = [pb.varre(P, U, perfil, cs[0], False, True, tampas=(tipo == "canal"), nome=nome, T=T,
                      cores_aneis=lambda i: cs[(i // listra) % len(cs)])]
     if tipo == "tubo":
         for k in range(0, len(P), 4):
@@ -1027,15 +1027,64 @@ def piscina(cx, cy, rx, ry, k2=0.14, k3=0.08, fase=0.0, n=40):
             for t in [2 * math.pi * k / n for k in range(n)]]
 
 
+def piscina_livre(cx, cy, rx, ry, n=72):
+    """Piscina grande de contorno orgânico com um estreito no meio (onde passa a pontezinha)."""
+    pts = []
+    for k in range(n):
+        t = 2 * math.pi * k / n
+        f = (1 - 0.62 * math.exp(-((t - math.pi / 2) / 0.42) ** 2) - 0.58 * math.exp(-((t - 3 * math.pi / 2) / 0.42) ** 2)
+             + 0.07 * math.sin(4 * t + 0.6) + 0.05 * math.cos(7 * t + 0.5) + 0.04 * math.sin(11 * t))
+        pts.append((cx + rx * f * math.cos(t), cy + ry * f * math.sin(t)))
+    for _ in range(6):  # alisa as reentrâncias (a borda e o deque deslocados não se dobram)
+        pts = [((pts[i - 1][0] + 2 * pts[i][0] + pts[(i + 1) % n][0]) / 4,
+                (pts[i - 1][1] + 2 * pts[i][1] + pts[(i + 1) % n][1]) / 4) for i in range(n)]
+    return pts
+
+
+def passarela(pts, z, larg=2.2, cor="laranja_claro"):
+    """Passarela elevada sinuosa (deque com guarda-corpo de vidro e corrimão) por uma linha 2D."""
+    P, _ = pb.catmull([V((x, y, z)) for x, y in pts], False, 6)
+    P, _ = pb.reamostra(P, False, 0.8)
+    T = pb.tangentes(P, False)
+    U = [Z] * len(P)
+    h = larg / 2
+    objs = [pb.varre(P, U, [(-h, -0.38), (h, -0.38), (h, 0.0), (-h, 0.0)], cor, False, tampas=True, nome="passarela",
+                     liso=False, T=T)]
+    mb.pinta_onde(objs[0], "laranja", lambda c, n: n.z < 0.5)
+    for sg in (-1, 1):
+        Pl = [p + t.cross(Z) * (sg * (h - 0.05)) for p, t in zip(P, T)]
+        v_ = pb.varre(Pl, U, [(-0.02, 0.05), (0.02, 0.05), (0.02, 0.95), (-0.02, 0.95)], None, False, nome="vidro",
+                      liso=False, T=T)
+        mb.pinta(v_, None, mat="vidro")
+        objs.append(v_)
+        objs.append(pb.varre([p + V((0, 0, 1.0)) for p in Pl], U, pb.circulo_perfil(0.045, 5), "cinza_claro", False,
+                             nome="corrimao", T=T))
+    L = pb.comprimentos(P, False)
+    s_ = 1.5
+    while s_ < L[-1] - 0.5:
+        j = 0
+        while j < len(L) - 2 and L[j + 1] < s_:
+            j += 1
+        p, t = P[j], T[j]
+        lado = t.cross(Z)
+        for sg in (-1, 1):
+            q = p + lado * (sg * 0.75)
+            objs.append(mb.cilindro(0.14, z - 0.38 - 0.25, x=q.x, y=q.y, z=0.25, cor="cinza", seg=8, bisel=0.0,
+                                    tampas=False, nome="pilar"))
+        objs.append(pb.barra(p + lado * 0.75 + V((0, 0, -2.2 - 0.38)), p - lado * 0.75 + V((0, 0, -0.45)), 0.07, "cinza",
+                             5, nome="mao_francesa"))
+        s_ += 3.4
+    return objs, P
+
+
 def parque_aquatico(it):
     S = 30.0
     h = S / 2
     zd = 0.25  # piso do deque
     deque = pb.contorno_ret(0, 0, 13.8, 13.3, 3.0, 8)
-    lagoa = piscina(3.2, -0.2, 6.6, 4.5, 0.16, 0.07, 0.4)
-    kids = piscina(-8.8, -7.4, 3.3, 2.5, 0.12, 0.05, 1.0, n=32)
-    chuva = piscina(8.1, -10.1, 3.6, 1.9, 0.08, 0.04, 0.0, n=32)
-    pools = [lagoa, kids, chuva]
+    grande = piscina_livre(1.6, -2.4, 10.4, 7.0)
+    kids = piscina(-10.2, -9.3, 2.4, 1.8, 0.1, 0.04, 1.0, n=24)
+    pools = [grande, kids]
     it.add(pb.laje_furos(cb.quadrado(-h, -h, h, h), [deque], 0.0, cb.Z_FUNDO, "grama", nome="grama"))
     for c in (-7.5, 7.5):  # entradas da frente e do fundo no meio das quadras
         for (y0, y1) in ((-13.3, -h), (13.3, h)):
@@ -1048,35 +1097,57 @@ def parque_aquatico(it):
         it.add(pb.plano(pc, 0.1, None, mat="agua", nome="agua"))
         it.add(pb.anel_extrudado(pb.desloca_contorno(pc, 0.32), pc, zd - 0.02, zd + 0.06, "branco", bisel=0.03,
                                  seg_bisel=1, nome="borda"))
-        it.add(pb.anel_plano(pb.desloca_contorno(pc, 1.7), pb.desloca_contorno(pc, 0.3), zd + 0.003 + 0.001 * i,
-                             "rosa_bebe", nome="faixa_rosa"))
-        it.add(pb.anel_plano(pb.desloca_contorno(pc, 1.85), pb.desloca_contorno(pc, 1.7), zd + 0.003 + 0.001 * i,
+        larg = 1.35 if i == 0 else 1.1
+        it.add(pb.anel_plano(pb.desloca_contorno(pc, larg), pb.desloca_contorno(pc, 0.3), zd + 0.003 + 0.001 * i,
+                             "rosa_bebe", nome="deque_rosa"))
+        it.add(pb.anel_plano(pb.desloca_contorno(pc, larg + 0.15), pb.desloca_contorno(pc, larg), zd + 0.003 + 0.001 * i,
                              "rosa", nome="filete"))
-    # torre de três deques em trevo, com coluna, escada em caracol e guarda-corpo de vidro
-    T0 = V((-8.4, 6.2, 0))
-    decks = [(4.2, 0.0), (7.6, -math.pi / 3), (11.0, 0.0)]
-    torre = [mb.cilindro(0.62, 12.4 - zd, x=T0.x, y=T0.y, z=zd, cor="branco", seg=14, bisel=0.04, nome="coluna"),
-             mb.cilindro(0.85, 0.3, x=T0.x, y=T0.y, z=12.3, cor="laranja", seg=14, bisel=0.06)]
+    # pontezinha amarela no estreito
+    yb0, yb1, xb = -5.6, 1.0, 1.6
+    pts = [(xb, yb0 + (yb1 - yb0) * k / 10, zd + 0.06 + 0.7 * math.sin(math.pi * k / 10)) for k in range(11)]
+    P = [V(p) for p in pts]
+    T = pb.tangentes(P, False)
+    pon = [pb.varre(P, [Z] * len(P), [(-0.8, -0.12), (0.8, -0.12), (0.8, 0.0), (-0.8, 0.0)], "amarelo", False,
+                    tampas=True, nome="ponte", liso=False, T=T)]
+    for sg in (-1, 1):
+        Pl = [p + V((sg * 0.75, 0, 0)) for p in P]
+        pon.append(pb.tubo([p + V((0, 0, 0.85)) for p in Pl], 0.045, "amarelo_escuro", 6, nome="corrimao_ponte"))
+        for p in Pl[1:-1:2]:
+            pon.append(mb.cilindro(0.04, 0.85, x=p.x, y=p.y, z=p.z, cor="amarelo_escuro", seg=6, bisel=0.0))
+    for k in range(1, 10):
+        p = P[k]
+        pon.append(mb.caixa(1.6, 0.05, 0.02, x=p.x, y=p.y, z=p.z, cor="amarelo_escuro", bisel=0.0, liso=False))
+    it.add(pon)
+    # ponto de ondas (anéis brancos na água)
+    for r_ in (0.6, 1.3, 2.0):
+        it.add(pb.anel_plano([(8.0 + (r_ + 0.12) * math.cos(a), -3.4 + (r_ + 0.12) * math.sin(a)) for a in
+                              [2 * math.pi * k / 24 for k in range(24)]],
+                             [(8.0 + r_ * math.cos(a), -3.4 + r_ * math.sin(a)) for a in [2 * math.pi * k / 24 for k in range(24)]],
+                             0.105, "branco", nome="onda"))
+    # torre de quatro deques em trevo, largos e baixos, com escada em caracol e guarda-corpo de vidro
+    T0 = V((-9.0, 7.6, 0))
+    decks = [(2.6, 0.0), (5.0, -math.pi / 3), (7.4, 0.0), (9.8, -math.pi / 3)]
+    abertos = {2.6: (), 5.0: (math.radians(240),), 7.4: (math.radians(-60),), 9.8: (0.0,)}
+    torre = [mb.cilindro(0.62, 10.6 - zd, x=T0.x, y=T0.y, z=zd, cor="branco", seg=14, bisel=0.0, nome="coluna"),
+             mb.cilindro(0.85, 0.3, x=T0.x, y=T0.y, z=10.5, cor="laranja", seg=14, bisel=0.05)]
     pernas = set()
     for zz, rot in decks:
-        tv = trevo(T0.x, T0.y, 3.0, 0.9, rot)
+        tv = trevo(T0.x, T0.y, 3.3, 1.0, rot, n=36)
         furo = [(T0.x + 1.7 * math.cos(2 * math.pi * k / 36), T0.y + 1.7 * math.sin(2 * math.pi * k / 36))
                 for k in range(36)]
-        dk = pb.anel_extrudado(tv, furo, zz - 0.42, zz, "laranja_claro", bisel=0.08, seg_bisel=1, nome="deque_torre")
+        dk = pb.anel_extrudado(tv, furo, zz - 0.4, zz, "laranja_claro", bisel=0.08, seg_bisel=1, nome="deque_torre")
         mb.pinta_onde(dk, "laranja", lambda c, n: n.z < 0.5)
         torre.append(dk)
-        # guarda-corpo: vidro + corrimão, com aberturas nas pontas dos lóbulos usadas
-        aberto = {4.2: (0.0, math.radians(240)), 7.6: (math.radians(-60),), 11.0: (0.0,)}[zz]
         trechos, cur = [], []
-        for k in range(49):
-            t = 2 * math.pi * k / 48
-            dt = min(abs((t - a + math.pi) % (2 * math.pi) - math.pi) for a in aberto)
-            if dt < math.radians(13):
+        for k in range(37):
+            t = 2 * math.pi * k / 36
+            dt = min([abs((t - a + math.pi) % (2 * math.pi) - math.pi) for a in abertos[zz]] + [9])
+            if dt < math.radians(14):
                 if len(cur) > 1:
                     trechos.append(cur)
                 cur = []
                 continue
-            r = 3.0 + 0.9 * math.cos(3 * (t - rot)) - 0.08
+            r = 3.3 + 1.0 * math.cos(3 * (t - rot)) - 0.08
             cur.append((T0.x + r * math.cos(t), T0.y + r * math.sin(t)))
         if len(cur) > 1:
             trechos.append(cur)
@@ -1086,121 +1157,77 @@ def parque_aquatico(it):
                            False, nome="vidro", liso=False)
             mb.pinta(vid, None, mat="vidro")
             torre.append(vid)
-            torre.append(pb.tubo([p + V((0, 0, 1.0)) for p in P3], 0.045, "cinza_claro", 6, nome="corrimao"))
+            torre.append(pb.tubo([p + V((0, 0, 1.0)) for p in P3], 0.045, "cinza_claro", 5, nome="corrimao"))
         for k in range(3):
-            a = rot + 2 * math.pi * k / 3
-            pernas.add((round(a % (2 * math.pi), 3), zz))
-    for a, zz in sorted(pernas):
-        x, y = T0.x + 2.75 * math.cos(a), T0.y + 2.75 * math.sin(a)
+            pernas.add((round((rot + 2 * math.pi * k / 3) % (2 * math.pi), 3), zz))
+    for a in sorted({p[0] for p in pernas}):
         alto = max(z for aa, z in pernas if abs(aa - a) < 1e-3)
-        torre.append(mb.cilindro(0.16, alto - 0.42 - zd, x=x, y=y, z=zd, cor="cinza", seg=8, bisel=0.0, nome="perna"))
-    pernas_feitas = set()
-    torre = [o for o in torre if o is not None]
-    # escada em caracol (degraus amarelos)
-    nd = 44
+        x, y = T0.x + 3.1 * math.cos(a), T0.y + 3.1 * math.sin(a)
+        torre.append(mb.cilindro(0.16, alto - 0.4 - zd, x=x, y=y, z=zd, cor="cinza", seg=8, bisel=0.0, tampas=False,
+                                 nome="perna"))
+    nd = 40
     for k in range(nd):
-        a = 2 * math.pi * k / 13.0
-        zz = zd + (11.0 - zd) * (k + 1) / nd
+        a = 2 * math.pi * k / 12.0
+        zz = zd + (9.8 - zd) * (k + 1) / nd
         st = mb.caixa(0.95, 0.42, 0.07, x=1.12, z=-0.07, cor="amarelo", bisel=0.0, liso=False, nome="degrau")
         mb.transforma(st, rot=("Z", math.degrees(a)))
         mb.transforma(st, loc=(T0.x, T0.y, zz))
         torre.append(st)
-    hel = [(T0.x + 1.62 * math.cos(2 * math.pi * k / 13.0 * nd / 60), T0.y + 1.62 * math.sin(2 * math.pi * k / 13.0 * nd / 60),
-            zd + 0.9 + (11.0 - zd) * k / 60) for k in range(61)]
-    torre.append(pb.tubo(hel, 0.04, "cinza_claro", 5, nome="corrimao_escada"))
     it.add(torre)
-    # passarela até a plataforma do toboágua grande
-    A_, B_ = V((-4.75, 6.2, 11.0)), V((5.2, 9.0, 11.0))
-    d = (B_ - A_)
-    L = d.length
-    t = d.normalized()
-    ld = V((-t.y, t.x, 0))
-    pas = [pb.caixa_eixos((A_ + B_) / 2 - V((0, 0, 0.2)), t, ld, Z, (L, 2.0, 0.4), "laranja_claro", nome="passarela")]
-    mb.pinta_onde(pas[0], "laranja", lambda c, n: n.z < 0.5)
-    for sg in (-1, 1):
-        p0, p1 = A_ + ld * (sg * 0.95), B_ + ld * (sg * 0.95)
-        v_ = pb.varre([p0, p1], [Z, Z], [(-0.025, 0.05), (0.025, 0.05), (0.025, 0.95), (-0.025, 0.95)], None, False,
-                      nome="vidro", liso=False)
-        mb.pinta(v_, None, mat="vidro")
-        pas.append(v_)
-        pas.append(pb.tubo([p0 + V((0, 0, 1.0)), p1 + V((0, 0, 1.0))], 0.045, "cinza_claro", 6))
-    for f in (0.3, 0.65):
-        p = A_ + d * f
-        pas.append(mb.cilindro(0.16, 11.0 - 0.4 - zd, x=p.x, y=p.y, z=zd, cor="cinza", seg=8, bisel=0.0))
-    plat_c = V((6.6, 9.4, 0))
-    plat = pb.contorno_ret(plat_c.x, plat_c.y, 1.7, 1.5, 0.8, 4)
-    pk = mb.extrudado(mb._ccw(plat), 0.4, z=10.6, cor="laranja_claro", bisel=0.06, seg=1, nome="plataforma")
-    mb.pinta_onde(pk, "laranja", lambda c, n: n.z < 0.5)
-    pas.append(pk)
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            pas.append(mb.cilindro(0.15, 10.6 - zd, x=plat_c.x + sx * 1.3, y=plat_c.y + sy * 1.1, z=zd, cor="cinza",
-                                   seg=8, bisel=0.0))
-    pas.append(pb.grade([(plat_c.x - 1.6, plat_c.y + 1.45, 11.0), (plat_c.x + 1.6, plat_c.y + 1.45, 11.0)],
-                        alt=1.0, passo=0.8, cor="cinza_claro", r=0.04))
-    pas.append(pb.placa_estampa("toboagua.png", ((A_.x + B_.x) / 2 + ld.x * -1.05, (A_.y + B_.y) / 2 + ld.y * -1.05, 10.2),
-                                4.4, 1.1, frente=(-ld.x, -ld.y, 0), emissao=1.4, nome="letreiro"))
+    # passarela elevada e sinuosa, do deque de cima para os fundos e para a direita
+    tip = (T0.x + 4.15, T0.y)
+    linha = [tip, (-2.2, 9.6), (2.2, 10.9), (6.6, 10.4), (10.2, 8.4), (11.9, 5.2)]
+    pas, PP = passarela(linha, 9.8)
     it.add(pas)
+    fim = PP[-1]
+    it.add(mb.extrudado(mb._ccw(pb.contorno_ret(fim.x + 0.1, fim.y - 0.6, 1.5, 1.4, 0.6, 3)), 0.38, z=9.395,
+                        cor="laranja_claro", bisel=0.05, seg=1, nome="plataforma"))
+    meio = PP[len(PP) // 2]
+    tmeio = (PP[len(PP) // 2 + 1] - PP[len(PP) // 2 - 1]).normalized()
+    fr = tmeio.cross(Z)  # para a direita de quem anda: lado de fora (fundos)
+    it.add(pb.placa_estampa("toboagua.png", (meio.x - fr.x * 1.2, meio.y - fr.y * 1.2, 9.05), 4.4, 1.1,
+                            frente=(-fr.x, -fr.y, 0), emissao=1.4, nome="letreiro"))
     # toboáguas
-    # 1) grande, aberto, laranja e vermelho: da plataforma, contorna a lateral e cai na piscina da frente
-    c1 = [(7.6, 9.6, 10.9), (10.4, 9.9, 10.1), (12.3, 7.6, 9.0), (12.7, 3.0, 7.4), (12.4, -2.6, 5.5), (11.4, -6.6, 3.7),
-          (9.9, -8.9, 2.2), (8.0, -9.9, 1.0), (6.4, -10.1, 0.55)]
+    # 1) grande, aberto, laranja e vermelho: do fim da passarela, rente ao lado direito num arco largo e baixo
+    c1 = [(fim.x + 0.2, fim.y - 1.6, 9.5), (12.2, 1.0, 8.4), (12.4, -3.0, 6.8), (12.0, -7.0, 5.0), (10.5, -10.0, 3.4),
+          (7.8, -11.5, 2.0), (4.9, -11.2, 1.0), (3.8, -9.4, 0.5)]
     o1, P1 = toboagua(c1, "canal", ("laranja", "vermelho"), 3, R=0.7, nome="toboagua_grande")
     it.add(o1)
-    # 2) espiral azul aberta, do deque do meio para a lagoa
-    st = (T0.x + 3.55 * math.cos(-math.pi / 3), T0.y + 3.55 * math.sin(-math.pi / 3), 7.6)
-    c2 = [st] + pb.helice((-3.9, 1.0), 2.3, 7.0, 1.6, 130, 1.45, sentido=1, passo=1.2) + [(-1.4, -1.0, 0.55)]
-    o2, P2 = toboagua(c2, "canal", ("azul", "azul_medio"), 4, R=0.62, nome="toboagua_azul")
-    it.add(o2)
-    # 3) tubo roxo e rosa, do primeiro deque para a piscina infantil
-    st3 = (T0.x + 3.5 * math.cos(math.radians(240)), T0.y + 3.5 * math.sin(math.radians(240)), 4.2)
-    c3 = [st3] + pb.helice((-11.2, -0.9), 1.7, 3.7, 1.3, 75, 1.2, sentido=-1, passo=1.0) + [(-10.0, -4.7, 0.55)]
-    o3, P3 = toboagua(c3, "tubo", ("roxo", "rosa"), 2, R=0.58, nome="toboagua_roxo")
-    it.add(o3)
-    # 4) tubo verde com argolas amarelas, da plataforma para a lagoa
-    c4 = [(6.1, 7.9, 10.9)] + pb.helice((6.3, 5.5), 1.9, 10.2, 1.4, 95, 2.1, sentido=1, passo=1.0) + [(4.6, 3.2, 0.55)]
+    # 2) tubo verde com argolas amarelas, do meio da passarela para a piscina
+    pv = PP[int(len(PP) * 0.72)]
+    c4 = [(pv.x - 0.2, pv.y - 1.3, 9.6)] + pb.helice((6.9, 6.0), 1.9, 9.0, 1.4, 100, 2.0, sentido=1, passo=1.0) + \
+        [(6.0, 3.3, 0.55)]
     o4, P4 = toboagua(c4, "tubo", ("verde_claro",), 1, R=0.58, nome="toboagua_verde")
     it.add(o4)
     T4, U4 = pb.quadros_inclinados(P4)
     for k in range(3, len(P4) - 2, 5):
         it.add(anel_cor(P4, U4, T4, k, 0.58, "amarelo"))
-    # 5) pista reta de três raias coloridas (do primeiro deque para a lagoa)
-    a5, b5 = V((-4.95, 6.2, 4.2)), V((2.6, 3.4, 0.5))
-    for j, (off, cor) in enumerate(((-0.78, "vermelho"), (0.0, "amarelo"), (0.78, "azul_celeste"))):
-        dd = (b5 - a5)
-        tt = V((dd.x, dd.y, 0)).normalized()
-        lad = V((-tt.y, tt.x, 0))
-        pts = []
-        for k in range(15):
-            f = k / 14
-            p = a5 + dd * f + lad * off
-            p.z = a5.z + (b5.z - a5.z) * f - 0.45 * math.sin(math.pi * 2 * f) * (1 - f) * (f > 0.15)
-            pts.append(tuple(p))
-        o5, _ = toboagua(pts, "canal", (cor, "branco"), 6, R=0.38, suportes=2.4, nome="raia")
-        it.add(o5)
-    # ondinhas brancas onde os toboáguas caem
-    for x, y in ((6.0, -10.1), (-1.0, -1.2), (-9.9, -5.2), (4.3, 2.9), (3.0, 3.2)):
-        it.add(pb.anel_plano([(x + 0.9 * math.cos(a), y + 0.9 * math.sin(a)) for a in [2 * math.pi * k / 16 for k in range(16)]],
-                             [(x + 0.75 * math.cos(a), y + 0.75 * math.sin(a)) for a in [2 * math.pi * k / 16 for k in range(16)]],
-                             0.105, "branco", nome="onda"))
-    # cogumelo de água na piscina infantil, escorregador baixinho
-    kp = []
-    kp.append(mb.cilindro(0.18, 1.4, x=-8.2, y=-7.9, z=-0.3, cor="branco", seg=10, bisel=0.0))
-    kp.append(mb.torno([(0, 0), (1.2, 0), (1.15, 0.2), (0.8, 0.5), (0, 0.62)], x=-8.2, y=-7.9, z=1.1, cor="vermelho",
-                       seg=16))
-    for k in range(6):
-        a = 2 * math.pi * k / 6
-        kp.append(pb.bola(-8.2 + 0.7 * math.cos(a), -7.9 + 0.7 * math.sin(a), 1.5, 0.14, "branco", sub=0,
+    # 3) espiral azul aberta, do terceiro deque para a piscina
+    st = (T0.x + 3.95 * math.cos(-math.pi / 3), T0.y + 3.95 * math.sin(-math.pi / 3), 7.4)
+    c2 = [st] + pb.helice((-3.6, 2.6), 2.2, 6.8, 1.4, 120, 1.5, sentido=1, passo=1.2) + [(-2.4, 0.2, 0.55)]
+    o2, P2 = toboagua(c2, "canal", ("azul", "azul_medio"), 4, R=0.62, nome="toboagua_azul")
+    it.add(o2)
+    # 4) tubo roxo e rosa, do segundo deque para a piscininha infantil
+    st3 = (T0.x + 3.95 * math.cos(math.radians(240)), T0.y + 3.95 * math.sin(math.radians(240)), 5.0)
+    c3 = [st3] + pb.helice((-11.6, -0.6), 1.7, 4.4, 1.2, 70, 1.3, sentido=-1, passo=1.0) + [(-10.6, -7.6, 0.55)]
+    o3, P3 = toboagua(c3, "tubo", ("roxo", "rosa"), 2, R=0.58, nome="toboagua_roxo")
+    it.add(o3)
+    # cogumelo de água na piscininha
+    kp = [mb.cilindro(0.16, 1.2, x=-10.6, y=-9.6, z=-0.3, cor="branco", seg=8, bisel=0.0),
+          mb.torno([(0, 0), (1.0, 0), (0.95, 0.18), (0.66, 0.42), (0, 0.52)], x=-10.6, y=-9.6, z=0.9, cor="vermelho",
+                   seg=14)]
+    for k in range(5):
+        a = 2 * math.pi * k / 5
+        kp.append(pb.bola(-10.6 + 0.58 * math.cos(a), -9.6 + 0.58 * math.sin(a), 1.25, 0.12, "branco", sub=0,
                           esc=(1, 1, 0.5)))
     it.add(kp)
-    # espreguiçadeiras (assentos), guarda-sóis, cadeira do salva-vidas, arbustos e postes
+    # espreguiçadeiras (assentos), guarda-sóis, salva-vidas, arbustos e postes
     n_esp = 0
-    for (x, y, ang, cor) in ((-3.6, -10.6, 90, "azul_celeste"), (-1.9, -10.6, 90, "amarelo"), (-0.2, -10.6, 90, "rosa"),
-                             (11.6, 2.6, 180, "verde_agua"), (11.6, 0.9, 180, "laranja_claro"),
-                             (-12.0, -1.8, 0, "lilas")):
+    for (x, y, ang, cor) in ((-6.4, -12.3, 90, "azul_celeste"), (-4.7, -12.3, 90, "amarelo"), (-3.0, -12.3, 90, "rosa"),
+                             (-12.3, -4.0, 0, "verde_agua"), (-12.3, -6.0, 0, "laranja_claro"), (9.4, 6.4, 180, "lilas")):
         objs = [mb.caixa(0.7, 1.9, 0.08, z=0.3, cor="branco", bisel=0.02, seg=1),
                 mb.caixa(0.62, 1.2, 0.1, y=0.32, z=0.38, cor=cor, bisel=0.04, seg=1)]
-        enc = mb.caixa(0.62, 0.7, 0.1, y=0, z=0, cor=cor, bisel=0.04, seg=1)
+        enc = mb.caixa(0.62, 0.7, 0.1, cor=cor, bisel=0.04, seg=1)
         mb.transforma(enc, rot=("X", 40))
         mb.transforma(enc, loc=(0, -0.62, 0.48))
         objs.append(enc)
@@ -1213,36 +1240,36 @@ def parque_aquatico(it):
         it.add(objs)
         n_esp += 1
         it.slot(f"assento_{n_esp}", (x, y, zd + 0.48), (0.5, 0.5, 0.9))
-    for (x, y, c1_, c2_) in ((-2.8, -12.0, "vermelho", "branco"), (11.9, 4.6, "azul", "branco"),
-                             (-12.4, -4.0, "amarelo", "laranja")):
+    for (x, y, c1_, c2_) in ((-1.4, -12.4, "vermelho", "branco"), (-12.4, -2.2, "amarelo", "laranja"),
+                             (10.6, 7.6, "azul", "branco")):
         gs = [mb.cilindro(0.04, 2.3, x=x, y=y, z=zd, cor="branco", seg=6, bisel=0.0)]
         for k in range(8):
             a0_, a1_ = 2 * math.pi * k / 8, 2 * math.pi * (k + 1) / 8
             bm = bmesh.new()
             q = [bm.verts.new((x, y, zd + 2.65)), bm.verts.new((x + 1.25 * math.cos(a0_), y + 1.25 * math.sin(a0_), zd + 2.15)),
                  bm.verts.new((x + 1.25 * math.cos(a1_), y + 1.25 * math.sin(a1_), zd + 2.15))]
-            f = bm.faces.new(q)
+            bm.faces.new(q)
             o_ = pb.obj("guarda_sol", bm, c1_ if k % 2 == 0 else c2_, liso=False)
             if o_.data.polygons[0].normal.z < 0:
                 o_.data.flip_normals()
             gs.append(o_)
         it.add(gs)
     sv = [mb.caixa(0.08, 0.08, 1.8, x=x, y=y, z=zd, cor="branco", bisel=0.0, liso=False)
-          for x in (11.7, 12.3) for y in (-6.2, -5.6)]
-    sv.append(mb.caixa(0.8, 0.8, 0.1, x=12.0, y=-5.9, z=zd + 1.8, cor="vermelho", bisel=0.03, seg=1))
-    sv.append(mb.caixa(0.8, 0.1, 0.6, x=12.0, y=-5.55, z=zd + 1.9, cor="vermelho", bisel=0.03, seg=1))
-    sv.append(mb.cilindro(0.03, 1.2, x=12.0, y=-5.5, z=zd + 2.4, cor="branco", seg=5, bisel=0.0))
+          for x in (-5.6, -5.0) for y in (-9.6, -9.0)]
+    sv.append(mb.caixa(0.8, 0.8, 0.1, x=-5.3, y=-9.3, z=zd + 1.8, cor="vermelho", bisel=0.03, seg=1))
+    sv.append(mb.caixa(0.8, 0.1, 0.6, x=-5.3, y=-8.95, z=zd + 1.9, cor="vermelho", bisel=0.03, seg=1))
     it.add(sv)
     luzes = []
     for x, y in ((-13.0, -12.5), (13.0, -12.5), (13.0, 12.5), (-13.0, 12.5)):
         e, l_ = pb.poste_parque(x, y, z=zd, alt=4.2, bracos=2, ang=math.radians(45))
         it.add(e)
         luzes += l_
-    for x, y in ((-1.0, 11.6), (1.5, 12.0), (-13.4, 10.4), (12.8, -0.8)):
+    for x, y in ((-3.4, 12.2), (12.4, -12.0), (-13.2, 2.6)):
         it.add(pb.arbusto(x, y, 0.6, "folha", z=zd), pb.arbusto(x + 0.7, y - 0.3, 0.4, "folha_clara", z=zd))
     for x, y in ((-14.0, -14.0), (14.0, -14.0), (14.0, 14.0), (-14.0, 14.0)):
         it.add(pb.arvore(x, y, alt=3.2, r=0.75))
     it.add(luzes)
     it.colisao([((0, 0, cb.Z_FUNDO), (S, S, -cb.Z_FUNDO)), ((0, 0, 0), (27.6, 26.6, zd)),
-                ((T0.x, T0.y, zd), (1.4, 1.4, 12.2)), ((T0.x, T0.y, 3.78), (7.4, 7.4, 0.42)),
-                ((T0.x, T0.y, 7.18), (7.4, 7.4, 0.42)), ((T0.x, T0.y, 10.58), (7.4, 7.4, 0.42))])
+                ((T0.x, T0.y, zd), (1.4, 1.4, 10.5)), ((T0.x, T0.y, 2.2), (8.4, 8.4, 0.4)),
+                ((T0.x, T0.y, 4.6), (8.4, 8.4, 0.4)), ((T0.x, T0.y, 7.0), (8.4, 8.4, 0.4)),
+                ((T0.x, T0.y, 9.4), (8.4, 8.4, 0.4)), ((4.0, 9.0, 9.42), (14.0, 4.0, 0.38))])
