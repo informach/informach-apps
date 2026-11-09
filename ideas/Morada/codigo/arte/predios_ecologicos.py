@@ -2004,7 +2004,8 @@ def gera(saida, sel):
         cat.exporta(it, rot, grupo=grupo, tags=["predio", ESTILO] + tags,
                     extra={"lote": lote, "andares": andares, "estilo": ESTILO})
     ids = [p[0] for p in PECAS]
-    cat.dados["itens"] = sorted([x for x in cat.dados["itens"] if x["id"] in ids], key=lambda x: ids.index(x["id"]))
+    cat.dados["itens"] = sorted([x for x in cat.dados["itens"] if x["id"] in ids], key=lambda x: ids.index(x["id"])) + \
+        [x for x in cat.dados["itens"] if x["id"].endswith("_pacote")]  # as peças de pacote (id terminado em _pacote) vêm de outro gerador e ficam
     cat.salva()
 
 

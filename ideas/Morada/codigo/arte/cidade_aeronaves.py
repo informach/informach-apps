@@ -90,6 +90,22 @@ class Aero(mb.Item):
         bpy.context.view_layer.update()
         return corpo
 
+    def ajusta_colisao(self):
+        """Apara as caixas de colisão na caixa real da malha (nada de colisão passando da peça)."""
+        if not self.colisores:
+            return
+        bpy.context.view_layer.update()
+        objs = self.partes + [o for o, _ in self.anims] + [o for o, _ in self.interativos]
+        lo, hi = mb.bbox([o for o in objs if o.type == "MESH"])
+        novas = []
+        for (x, y, z), (l, p, a) in self.colisores:
+            x0, x1 = max(x - l / 2, lo.x), min(x + l / 2, hi.x)
+            y0, y1 = max(y - p / 2, lo.y), min(y + p / 2, hi.y)
+            z0, z1 = max(z, lo.z), min(z + a, hi.z)
+            if x1 - x0 > 0.05 and y1 - y0 > 0.05 and z1 - z0 > 0.05:
+                novas.append((((x0 + x1) / 2, (y0 + y1) / 2, z0), (x1 - x0, y1 - y0, z1 - z0)))
+        self.colisores = novas
+
     def lista_anim(self):
         return [dict(nome=ob.name, pivo=mb._gl(ob.location), **d) for ob, d in self.anims]
 
@@ -720,7 +736,8 @@ def dirigivel_arco_iris(it):
     # luzes de navegação nas pontas dos lemes laterais e farol piscante embaixo da gôndola
     it.add(aeronaves_luz((8.05, 14.9 + dy, zc), 0.2, "luz_vermelha"), aeronaves_luz((-8.05, 14.9 + dy, zc), 0.2, "luz"))
     it.add(aeronaves_luz((0, 14.9 + dy, zc + 8.05), 0.2, "luz"))
-    it.pisca([aeronaves_luz((0, -0.5, 0.02), 0.16, "luz_vermelha")], (0, -0.5, 0.02), "farol_piscante")
+    zf = g.ponto(3.0, -math.pi / 2).z
+    it.pisca([aeronaves_luz((0, 3.0, zf), 0.16, "luz_vermelha")], (0, 3.0, zf), "farol_piscante")
     for k, (x, y) in enumerate(((-0.45, -2.1), (0.45, -2.1), (-0.45, -0.9), (0.45, -0.9))):
         it.assento(["assento_piloto", "assento_copiloto", "assento_1", "assento_2"][k], x, y, 0.35)
     it.colisao([((0, -0.2, 0), (2.5, 7.4, 2.4)), ((0, 0, zc - R), (2 * R, L, 2 * R)),
@@ -765,7 +782,7 @@ def dirigivel_laranja_roxo(it):
                   "helice_motor_" + ("esq" if lado > 0 else "dir"))
     it.add(aeronaves_luz((2.45, 1.25, 1.35), 0.14, "luz_vermelha"), aeronaves_luz((-2.45, 1.25, 1.35), 0.14, "luz"))
     it.add(aeronaves_luz((0, L / 2 + 0.05, zc), 0.2, "luz"))
-    it.pisca([aeronaves_luz((0, 0.6, 0.03), 0.16, "luz_vermelha")], (0, 0.6, 0.03), "farol_piscante")
+    it.pisca([aeronaves_luz((0, 2.72, 0.42), 0.16, "luz_vermelha")], (0, 2.72, 0.42), "farol_piscante")
     for k, (x, y) in enumerate(((-0.55, -1.6), (0.55, -1.6), (-0.55, -0.3), (0.55, -0.3))):
         it.assento(["assento_piloto", "assento_copiloto", "assento_1", "assento_2"][k], x, y, 0.45)
     it.colisao([((0, 0, 0), (3.4, 5.8, 2.7)), ((0, 0, zc - R), (2 * R, L, 2 * R)),
@@ -896,8 +913,7 @@ def aviao_passageiros(it, L, cor_asa, cor_barriga, cor_motor, motores, faixas_ca
                           raio=0.13)
     mac = mb.caixa(0.06, 0.22, 0.05, x=fus.ponto(yd + 0.3, fic, 0.07).x, y=yd + 0.3, z=fus.ponto(yd, fic).z,
                    cor="cinza_medio", bisel=0.02)
-    p0 = fus.ponto(yd - ly / 2, fic, 0.04)
-    it.porta([folha, vid, mac], (p0.x, yd - ly / 2, zc), eixo="z", angulo=-100, nome="porta_cabine")
+    it.correr([folha, vid, mac], direcao=(0.42, 1.0, 0.0), curso=1.3, nome="porta_cabine")
     # luzes de navegação, farol piscante e farol de pouso
     tip_z = za + env * tg
     it.add(aeronaves_luz((env + 0.42, yle + 7.75, tip_z), 0.2, "luz_vermelha"),
@@ -1607,6 +1623,7 @@ def main():
         mb.limpa()
         it = Aero(id_)
         f(it)
+        it.ajusta_colisao()
         extra = {"voa": True, "tipo": tipo, "animacoes": it.lista_anim(), "altitude": [30, 80]}
         if id_ == "hidroaviao_turquesa":
             extra.update({"pousa_agua": True, "linha_dagua": 0.3})
