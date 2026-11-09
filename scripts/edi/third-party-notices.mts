@@ -83,6 +83,10 @@ export async function writeThirdPartyNotices(appId: string, resourcesDirectory: 
     sections.push(
       "FFmpeg and FFprobe are separately distributed native programs under GPLv3. Their licenses, complete corresponding source and rebuild instructions are installed in native-media/ beside this file; see native-media/README.md and native-media/Corresponding-Source.tar.xz.",
     );
+  if (appId === "edisvg")
+    sections.push(
+      "Bundled pipeline fonts (EdiAula's set, embedded in projects when a pipeline runs) retain their SIL Open Font License 1.1. Their embedded copyright and reserved-name statements, original-file checksums and complete license text are installed in fonts/LICENSES.txt beside this file.",
+    );
   if (appId === "ediaula")
     sections.push(
       "Bundled export fonts retain their SIL Open Font License 1.1. Their embedded copyright and reserved-name statements, original-file checksums and complete license text are installed in fonts/LICENSES.txt beside this file.",

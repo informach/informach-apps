@@ -104,6 +104,8 @@ export async function verifySvgNativePipelineJourney(
     // the native verification keeps out of reach on purpose: there the run stops, saying why.
     assert.match(said, /Preparar a narração na préviaPronto/, said);
     assert.match(said, /Aplicar as paletas de texto e das imagensPronto/, said);
+    // The fonts come from EdiAula's bundle through the main process (Baloo 2 and Nunito).
+    assert.match(said, /Incorporar as fontes de título e corpoPronto/, said);
     assert.match(said, /Pedir o rascunho da animação ao assistenteFalhou: /, said);
     await dialog.getByRole("button", { name: "Fechar pipelines" }).click();
     // The draft step opened the assistant panel: closed for the next journeys.
@@ -201,6 +203,7 @@ export async function verifySvgNativePipelineJourney(
       .waitFor({ timeout: 180_000 });
     const demoSaid = (await pipelines.textContent()) ?? "";
     assert.match(demoSaid, /Preparar o vídeo da demonstraçãoPronto/, demoSaid);
+    assert.match(demoSaid, /Incorporar as fontes de título e corpoPronto/, demoSaid);
     assert.match(demoSaid, /Demonstração 1280×720: 2 cliques gravados no trecho\./, demoSaid);
     assert.match(
       demoSaid,

@@ -18,8 +18,9 @@ arquivo editável; guarde-o para futuras revisões.
 
 ## Pipelines (receitas)
 
-Uma receita guarda um trabalho que se repete: o tipo, as instruções para o assistente e a paleta
-de texto. Ao rodar, você escolhe só o que muda naquela vez: os arquivos e o roteiro do trecho.
+Uma receita guarda um trabalho que se repete: o tipo, as instruções para o assistente, a paleta
+de texto e as fontes de título e de corpo. Ao rodar, você escolhe só o que muda naquela vez: os
+arquivos e o roteiro do trecho (a paleta e as fontes também podem mudar só daquela vez).
 Abra por **Arquivo → Pipelines…** (Ctrl+Shift+P), pelo botão **▶ Pipelines** da barra lateral ou
 pela paleta de comandos.
 
@@ -44,6 +45,30 @@ Uma receita da pessoa não volta depois de excluída, então o botão pede um se
     - **Gravação do EdiAula:** o `<id>-cursor.json` ao lado do vídeo dá os cliques reais, já na
       escala do vídeo e no quadro da animação.
     - **Outro vídeo:** o assistente decide pelos quadros.
+
+**O roteiro.** Texto entre [colchetes] é anotação, como no "Na tela" do EdiAula (o que acontece
+na tela, uma indicação): fica fora da busca no áudio e das frases da narração. Um colchete aberto
+sem fechar conta como texto. Um roteiro só de anotações não roda.
+
+**A paleta de texto.** **Cores de uma imagem…** troca a paleta pelas cores mais usadas de uma
+imagem (PNG, JPEG, WebP, GIF ou BMP, até 50 MB), até seis, bem distintas entre si. A ordem segue o
+uso das receitas: a mais clara primeiro (a cor principal, o fundo do balão), a mais escura em
+seguida (o contorno) e a mais viva por último (o destaque da seta). A imagem é lida na janela e não
+fica guardada; as cores podem ser ajustadas depois uma a uma.
+
+**As fontes.** O título e o corpo escolhem entre as famílias que vêm com o EdiAula (as mesmas das
+legendas e anotações das aulas, todas SIL Open Font License 1.1). O padrão é Baloo 2 no título e
+Nunito no corpo; uma receita guardada antes das fontes passa a usar esse padrão. A etapa
+**Incorporar as fontes de título e corpo** põe no projeto, como fontes incorporadas com o aviso de
+licença, o título em negrito (700) e o corpo em regular (400) e negrito (700), no peso mais perto
+que a família tiver (a Bebas Neue, por exemplo, só tem 400). Assim a animação sai igual em qualquer
+computador e em toda exportação. O assistente recebe os recursos e aplica a fonte em cada texto que
+cria; o balão da demonstração já vem no negrito do corpo.
+- O instalador do EdiSVG leva a pasta de fontes do EdiAula e a lista dela
+  (`resources/fonts` e `fonts/fonts.json` ao lado do aplicativo), com o `LICENSES.txt`. Em
+  desenvolvimento, as fontes são lidas de `apps/ediaula/resources`.
+- A janela pede uma fonte só por família e peso da lista; o processo principal recusa o resto
+  (`src/main/pipelineFonts.ts`).
 
 **Como o trecho é achado.**
 1. As palavras ditas vêm das transcrições da aula do EdiAula, nas faixas que soam. Se for um

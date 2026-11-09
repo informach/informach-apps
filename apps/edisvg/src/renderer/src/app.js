@@ -17,6 +17,7 @@ import {
 } from "./toolbar.js";
 import "./toolbar.css";
 import { flattenScene } from "../../shared/scene.js";
+import { completeAssetImport, prepareAssetImport } from "./asset-import";
 import {
   clearNarration,
   markNarrationNow,
@@ -2139,16 +2140,31 @@ function openPipelines() {
         setReferenceVideo({ artboardId: state.activeArtboardId, ...value });
         render();
       },
-      addArtboards: (items) => {
+      addArtboards: (items, fontAssetId) => {
         sameRunSession();
         const keep = state.activeArtboardId;
-        const commands = items.map((item) => ({
-          type: "artboard",
-          operation: "import",
-          id: `artboard-${crypto.randomUUID()}`,
-          name: item.name,
-          scene: importSvg(item.svg),
-        }));
+        const font = fontAssetId
+          ? state.assets.find((asset) => asset.id === fontAssetId && asset.kind === "font")
+          : undefined;
+        if (fontAssetId && !font) throw new Error("A fonte do corpo não está no projeto.");
+        const commands = items.map((item) => {
+          const scene = importSvg(item.svg);
+          // The texts of the elements (the balloon's) in the body font, as set-font does.
+          if (font)
+            for (const { node } of flattenScene(scene))
+              if (node.tag === "text") {
+                node.fontAssetId = font.id;
+                node.attrs["font-weight"] = String(font.weight);
+                node.attrs["font-style"] = font.italic ? "italic" : "normal";
+              }
+          return {
+            type: "artboard",
+            operation: "import",
+            id: `artboard-${crypto.randomUUID()}`,
+            name: item.name,
+            scene,
+          };
+        });
         transact(commands);
         bindActiveArtboard(state, keep);
         render();
@@ -2158,6 +2174,31 @@ function openPipelines() {
           width: command.scene.viewBox[2],
           height: command.scene.viewBox[3],
         }));
+      },
+      embedFonts: async (fonts) => {
+        sameRunSession();
+        const signal = new AbortController().signal;
+        const assets = [];
+        for (const font of fonts) {
+          const prepared = await prepareAssetImport(
+            font.bytes,
+            `${font.family} ${font.weight}`,
+            signal,
+          );
+          if (prepared.kind !== "font") throw new Error(`${font.name} não é uma fonte.`);
+          // The bundle's fonts are SIL Open Font License 1.1: embedding and redistributing them
+          // is what the license allows, and its text goes with each one.
+          assets.push(
+            await completeAssetImport(prepared, signal, {
+              rightsConfirmed: true,
+              licenseNotice: font.notice,
+            }),
+          );
+        }
+        sameRunSession();
+        transact(assets.map((asset) => ({ type: "asset", operation: "put", value: asset })));
+        render();
+        return assets.map((asset) => asset.id);
       },
       stopAssistant: () => void window.desktop?.aiStop(),
       assistantBusy: () => assistant.isBusy(),

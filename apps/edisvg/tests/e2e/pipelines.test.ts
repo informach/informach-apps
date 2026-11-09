@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { crc32, deflateSync } from "node:zlib";
 import { chromium } from "playwright";
 import { parseProject } from "../../src/shared/project";
 import { rendererServer } from "../rendererServer";
@@ -38,6 +39,48 @@ function wav(seconds: number): number[] {
   return [...data];
 }
 
+/** A PNG of RGBA rows, as a picture the person picks for the palette. */
+function png(width: number, rows: number[][]): Buffer {
+  const chunk = (type: string, data: Buffer) => {
+    const body = Buffer.concat([Buffer.from(type, "latin1"), data]);
+    const out = Buffer.alloc(body.length + 8);
+    out.writeUInt32BE(data.length, 0);
+    body.copy(out, 4);
+    out.writeUInt32BE(crc32(body), body.length + 4);
+    return out;
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(rows.length, 4);
+  header.set([8, 6, 0, 0, 0], 8);
+  const raw = Buffer.concat(rows.map((row) => Buffer.from([0, ...row])));
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    chunk("IHDR", header),
+    chunk("IDAT", deflateSync(raw)),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+/** EdiAula's fonts, as the main process hands them to a run (the files the installer copies). */
+const FONT_FILES: Record<string, string> = {
+  "Baloo 2 700": "Baloo2-700.ttf",
+  "Bebas Neue 400": "BebasNeue-400.ttf",
+  "Nunito 400": "Nunito-400.ttf",
+  "Nunito 700": "Nunito-700.ttf",
+};
+const FONTS = Object.fromEntries(
+  Object.entries(FONT_FILES).map(([key, file]) => [
+    key,
+    {
+      name: file,
+      base64: readFileSync(
+        new URL(`../../../ediaula/resources/fonts/${file}`, import.meta.url),
+      ).toString("base64"),
+    },
+  ]),
+);
+
 /**
  * The desktop bridge of the pipelines, faked in the page: recipes kept in memory, file dialogs
  * answered with tokens, the picked studio project read back. A string, so tsx adds nothing to it.
@@ -58,6 +101,23 @@ const fakeDesktop = (project: string) => `
       pipelinesRead: async () => structuredClone(store),
       pipelinesWrite: async (value) => { window.__pipelineWrites++; store = structuredClone(value); return structuredClone(store); },
       pipelinePick: async (kind) => files[kind] ?? null,
+      pipelineFonts: async () => [
+        { family: "Baloo 2", group: "Infantil", weights: [400, 600, 700, 800] },
+        { family: "Nunito", group: "Arredondada", weights: [400, 600, 700, 800, 900] },
+        { family: "Bebas Neue", group: "Títulos", weights: [400] },
+      ],
+      pipelineFont: async (family, weight) => {
+        const font = ${JSON.stringify(FONTS)}[family + " " + weight];
+        if (!font) throw new Error("A fonte " + family + " não vem com o EdiSVG.");
+        window.__fontsAsked = [...(window.__fontsAsked ?? []), family + " " + weight];
+        return {
+          family,
+          weight,
+          name: font.name,
+          bytes: Uint8Array.from(atob(font.base64), (c) => c.charCodeAt(0)),
+          notice: "Copyright The Authors. SIL Open Font License 1.1.",
+        };
+      },
       pipelineReadProject: async (token) => {
         if (token !== "file-projeto-0001") throw new Error("token");
         return ${JSON.stringify(project)};
@@ -142,11 +202,15 @@ test("pipelines: the ready recipes, edit and duplicate, and a run that imports t
     await dialog.getByRole("button", { name: "Escolher…" }).click();
     await dialog.getByRole("button", { name: "Escolher áudio…" }).click();
     await dialog.getByText("aula-inteira.mp3").waitFor();
+    // What is in [brackets] is a note: only the rest is looked for in the audio.
     await dialog
       .getByLabel("Roteiro do trecho (só a parte desta cena)")
       .fill(
-        "O personagem precisa encontrar a chave antes de chegar ao farol. Quando ele pegar a chave, o aviso muda.",
+        "[mostrar o farol] O personagem precisa encontrar a chave antes de chegar ao farol. [pausa]\nQuando ele pegar a chave, [a chave brilha] o aviso muda.",
       );
+    // The recipe's fonts come chosen: Baloo 2 for titles, Nunito for the body.
+    assert.equal(await dialog.getByLabel("Título").inputValue(), "Baloo 2");
+    assert.equal(await dialog.getByLabel("Corpo").inputValue(), "Nunito");
     await page.screenshot({ path: "test-results/pipelines-run.png" });
     const beforeRun = await page.evaluate(() => localStorage.getItem("edisvg-project"));
     await run.click();
@@ -155,6 +219,12 @@ test("pipelines: the ready recipes, edit and duplicate, and a run that imports t
     // Everything up to the draft is done; the draft needs the desktop assistant (Claude Code or
     // Codex), which a browser page does not have: the run stops there and says so.
     assert.match(said, /Aplicar as paletas de texto e das imagensPronto/, said);
+    assert.match(said, /Incorporar as fontes de título e corpoPronto/, said);
+    assert.match(
+      said,
+      /Fontes Baloo 2 nos títulos e Nunito no corpo, incorporadas ao projeto\./,
+      said,
+    );
     assert.match(
       said,
       /Pedir o rascunho da animação ao assistenteFalhou: O assistente precisa do aplicativo desktop\./,
@@ -165,6 +235,22 @@ test("pipelines: the ready recipes, edit and duplicate, and a run that imports t
       JSON.parse((await page.evaluate(() => localStorage.getItem("edisvg-project"))) ?? "null"),
     );
     assert.equal(project.artboards.at(-1)?.name, "Cena · A Chave do Farol");
+    // The title's bold and the body's regular and bold, embedded with their notice.
+    assert.deepEqual(await page.evaluate("window.__fontsAsked"), [
+      "Baloo 2 700",
+      "Nunito 400",
+      "Nunito 700",
+    ]);
+    const fonts = project.assets.filter((asset) => asset.kind === "font");
+    assert.deepEqual(
+      fonts.map((font) => [font.name, font.weight]),
+      [
+        ["Baloo 2 700", 700],
+        ["Nunito 400", 400],
+        ["Nunito 700", 700],
+      ],
+    );
+    assert.ok(fonts.every((font) => font.licenseNotice.includes("SIL Open Font License")));
     // The stretch of the lesson: "O personagem" at 2:15.98 to "muda." at 2:24.9, with breath.
     await dialog.getByText(/Trecho achado na aula de 2:15 a 2:24, com 2 frases\./).waitFor();
     const cut = (await page.evaluate("window.__narration")) as [number, number];
@@ -254,6 +340,29 @@ test("pipelines: the screen demonstration gets its layer artboard, the video und
       .fill(
         "O personagem precisa encontrar a chave antes de chegar ao farol. Quando ele pegar a chave, o aviso muda.",
       );
+    // The palette from a picture: mostly white, then navy, a muted green and a little pure red.
+    const white = [255, 255, 255, 255];
+    const navy = [16, 32, 64, 255];
+    const green = [60, 140, 80, 255];
+    const red = [255, 0, 0, 255];
+    await dialog.getByLabel("Imagem para a paleta de texto desta vez").setInputFiles({
+      name: "referencia.png",
+      mimeType: "image/png",
+      buffer: png(4, [
+        [...white, ...white, ...white, ...white],
+        [...white, ...white, ...white, ...white],
+        [...navy, ...navy, ...navy, ...navy],
+        [...green, ...green, ...red, ...red],
+      ]),
+    });
+    await dialog.getByText("#3c8c50").waitFor();
+    assert.deepEqual(await dialog.locator(".pipeline-swatch code").allTextContents(), [
+      "#ffffff",
+      "#102040",
+      "#3c8c50",
+      "#ff0000",
+    ]);
+    await dialog.getByLabel("Título").selectOption("Bebas Neue");
     const beforeRun = await page.evaluate(() => localStorage.getItem("edisvg-project"));
     await dialog.getByRole("button", { name: "Rodar pipeline" }).click();
     await dialog.getByText(/^(Pipeline concluído\.|O pipeline parou\.)$/).waitFor();
@@ -284,8 +393,23 @@ test("pipelines: the screen demonstration gets its layer artboard, the video und
       ["Destaque", 320, 200],
       ["Clique", 120, 120],
     ]);
-    // The layer's palette is the text palette of the recipe.
-    assert.deepEqual(project.artboards.at(-5)?.scene.palette, ["#ffffff", "#1f2a44", "#ffb547"]);
+    // The layer's palette is the one taken from the picture; the arrow takes its accent.
+    assert.deepEqual(project.artboards.at(-5)?.scene.palette, [
+      "#ffffff",
+      "#102040",
+      "#3c8c50",
+      "#ff0000",
+    ]);
+    assert.match(JSON.stringify(project.artboards.at(-4)?.scene), /#ff0000/);
+    // Bebas Neue has one weight: the title takes it. The balloon's text is in the body's bold.
+    assert.deepEqual(await page.evaluate("window.__fontsAsked"), [
+      "Bebas Neue 400",
+      "Nunito 400",
+      "Nunito 700",
+    ]);
+    const bold = project.assets.find((asset) => asset.name === "Nunito 700");
+    const balloon = JSON.stringify(project.artboards.at(-3)?.scene);
+    assert.ok(bold && balloon.includes(`"fontAssetId":"${bold.id}"`), balloon.slice(0, 400));
     await dialog.getByRole("button", { name: "Fechar pipelines" }).click();
     // The layer's artboard stays open, with the video under it and the narration over the timeline.
     await page

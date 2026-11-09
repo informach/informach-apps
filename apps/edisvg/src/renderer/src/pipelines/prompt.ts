@@ -21,6 +21,20 @@ export interface DraftBoard {
   height: number;
 }
 
+/** A font of the run, embedded in the project as a font asset. */
+export interface DraftFont {
+  family: string;
+  weight: number;
+  assetId: string;
+}
+
+/** The fonts of the run: the titles', the body's, and the body's bold for emphasis. */
+export interface DraftFonts {
+  title: DraftFont;
+  body: DraftFont;
+  bodyBold: DraftFont;
+}
+
 export interface DraftFacts {
   recipe: Pick<Recipe, "name" | "kind" | "style">;
   /** The artboard the animation is in (the scene, or the one open for a screen demo). */
@@ -30,6 +44,8 @@ export interface DraftFacts {
   /** Artboards of the imported images, usable as component instances. */
   images: DraftBoard[];
   textPalette: string[];
+  /** The fonts embedded for the run (null: none, the texts keep the system's). */
+  fonts: DraftFonts | null;
   imagePalette: string[];
   /** Where the narration starts in the lesson (seconds), for the report. */
   lessonStart: number;
@@ -102,11 +118,20 @@ export function draftRequest(f: DraftFacts): string {
     `- Textos: ${f.textPalette.join(", ")} (a primeira é a principal).`,
     `- Das imagens: ${f.imagePalette.length ? f.imagePalette.join(", ") : "(nenhuma)"}.`,
     "",
+    ...(f.fonts
+      ? [
+          "## Fontes (já incorporadas ao projeto)",
+          `- Títulos: ${f.fonts.title.family} ${f.fonts.title.weight}, recurso [${f.fonts.title.assetId}].`,
+          `- Corpo: ${f.fonts.body.family} ${f.fonts.body.weight}, recurso [${f.fonts.body.assetId}]; destaque no corpo: ${f.fonts.bodyBold.family} ${f.fonts.bodyBold.weight}, recurso [${f.fonts.bodyBold.assetId}].`,
+          "- Logo depois de criar cada texto, aplique a fonte dele com edit_document: {type:'asset',operation:'set-font',targetId:<id do texto>,assetId:<recurso>}. Título é o texto principal e maior da cena; o resto é corpo.",
+          "",
+        ]
+      : []),
     "## Regras",
     "- Use get_overview e get_objects para ver a cena antes de editar; edite só pelas ferramentas do EdiSVG.",
     `- Anime só a animação [${f.clip.id}], na prancheta [${f.artboard.id}]. Não edite as pranchetas das imagens.`,
     "- Cada ação acontece dentro dos quadros da frase que ela ilustra: entra no começo da frase (até uns 6 quadros antes) e termina antes da frase seguinte.",
-    "- Textos curtos (as palavras-chave da frase), nas cores de texto, legíveis no tamanho da prancheta.",
+    `- Textos curtos (as palavras-chave da frase), nas cores de texto${f.fonts ? " e nas fontes acima" : ""}, legíveis no tamanho da prancheta.`,
     "- Para mostrar uma imagem que ainda não está na cena, crie uma instância da prancheta dela.",
     "- Não apague nem mova o que veio do projeto além do que a animação pede; o rascunho é revisado pela pessoa.",
     "- Ao terminar, responda com uma linha por frase dizendo o que acontece nela.",

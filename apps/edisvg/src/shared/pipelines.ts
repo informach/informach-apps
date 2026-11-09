@@ -17,6 +17,19 @@ export const RECIPE_KIND_LABELS: Record<RecipeKind, string> = {
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;
+
+/** A font family of the bundle (EdiAula's resources/fonts.json), by its name. */
+const familyName = z
+  .string()
+  .trim()
+  .min(1)
+  .max(80)
+  .regex(/^[\p{L}\p{N} ._-]+$/u);
+export const fontPairSchema = z.strictObject({ title: familyName, body: familyName });
+export type FontPair = z.infer<typeof fontPairSchema>;
+/** The fonts of a recipe that names none, and of the ready ones: Baloo 2 and Nunito. */
+export const DEFAULT_FONTS: FontPair = { title: "Baloo 2", body: "Nunito" };
+
 export const recipeSchema = z.strictObject({
   id: z.string().regex(/^recipe-[\w-]{1,80}$/),
   name: z.string().trim().min(1).max(80),
@@ -25,6 +38,8 @@ export const recipeSchema = z.strictObject({
   style: z.string().max(4000),
   /** Colours for the texts of the animation, in order of use (the first is the main one). */
   textPalette: z.array(z.string().regex(HEX)).min(1).max(12),
+  /** Fonts of the titles and of the body text (a recipe saved before them takes the defaults). */
+  fonts: fontPairSchema.default(DEFAULT_FONTS),
 });
 export type Recipe = z.infer<typeof recipeSchema>;
 
@@ -50,6 +65,7 @@ export const BUILT_IN_RECIPES: readonly Recipe[] = [
     style:
       "Anime a Cena para ilustrar o que a narração diz, no tempo de cada frase. Personagens e objetos entram quando são citados (deslizando ou crescendo), saem quando o assunto muda, e o que está sendo explicado ganha destaque (um leve aumento ou um pulinho). Textos curtos, só com as palavras-chave da frase, aparecem junto dela, nas cores da paleta de texto, e somem com ela. Movimentos suaves, nada piscando e nada acontecendo fora do tempo da fala.",
     textPalette: ["#ffffff", "#143d35", "#ffb547"],
+    fonts: DEFAULT_FONTS,
   },
   {
     id: "recipe-demonstracao",
@@ -58,6 +74,7 @@ export const BUILT_IN_RECIPES: readonly Recipe[] = [
     style:
       'Por cima do vídeo da demonstração, guie o olhar no tempo da fala: uma seta aponta onde a professora clica ou mexe, um destaque contorna a área que está sendo explicada e balões curtos repetem o passo ("Clique em Programação"). Textos de ênfase só nas palavras importantes, nas cores da paleta de texto. Uma indicação por vez, entrando um pouco antes da ação e saindo quando o passo termina, sem nunca cobrir o que está sendo mostrado.',
     textPalette: ["#ffffff", "#1f2a44", "#ffb547"],
+    fonts: DEFAULT_FONTS,
   },
 ];
 
@@ -182,11 +199,25 @@ export const RECIPE_INPUTS: Record<
 export const runInputsSchema = z.strictObject({
   recipeId: z.string().regex(/^recipe-[\w-]{1,80}$/),
   files: z.partialRecord(z.enum(["project", "video", "audio"]), pickedFileSchema),
-  /** The script of this stretch only, as written. */
+  /** The script of this stretch only, as written (what is in [brackets] is not said). */
   script: z.string().trim().min(1).max(20000),
   textPalette: z.array(z.string().regex(HEX)).min(1).max(12),
+  fonts: fontPairSchema,
 });
 export type RunInputs = z.infer<typeof runInputsSchema>;
+
+/**
+ * What the script says aloud. Text in [brackets] is a note (an action on the screen, a direction,
+ * as in EdiAula's "Na tela") and is never looked for in the audio. A bracket left open is text.
+ */
+export function spokenScript(script: string): string {
+  return script
+    .replace(/\[[^[\]]*\]/g, " ")
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/ +([.,;:!?…])/g, "$1")
+    .replace(/ *\n */g, "\n")
+    .trim();
+}
 
 /** What is missing before a run can start, in the person's words (empty: ready). */
 export function missingInputs(recipe: Recipe, inputs: Partial<RunInputs>): string[] {
@@ -195,7 +226,38 @@ export function missingInputs(recipe: Recipe, inputs: Partial<RunInputs>): strin
     const file = inputs.files?.[input.key];
     if (!file || !input.accepts.includes(file.kind)) out.push(input.label);
   }
-  if (!inputs.script?.trim()) out.push("Roteiro do trecho");
+  if (!spokenScript(inputs.script ?? "")) out.push("Roteiro do trecho (fora dos colchetes)");
   if (!inputs.textPalette?.length) out.push("Paleta de texto");
   return out;
+}
+
+/* ---------- Fonts of the bundle ---------- */
+
+/** A family as the main process offers it (from EdiAula's resources/fonts.json). */
+export const bundledFamilySchema = z.object({
+  family: familyName,
+  group: z.string().max(80),
+  weights: z.array(z.number().int().min(100).max(1000)).min(1).max(12),
+});
+export type BundledFamily = z.infer<typeof bundledFamilySchema>;
+
+/** A font file of the bundle as the main process hands it over, with its license notice. */
+export interface BundledFont {
+  family: string;
+  weight: number;
+  name: string;
+  bytes: Uint8Array;
+  notice: string;
+}
+
+/** The weight of `weights` nearest to `wanted` (a tie goes to the heavier one). */
+export function nearestWeight(weights: readonly number[], wanted: number): number {
+  let best = weights[0];
+  if (best === undefined) throw new Error("A família não tem pesos.");
+  for (const weight of weights) {
+    const d = Math.abs(weight - wanted);
+    const bestD = Math.abs(best - wanted);
+    if (d < bestD || (d === bestD && weight > best)) best = weight;
+  }
+  return best;
 }

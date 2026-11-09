@@ -89,6 +89,13 @@ export function installerConfiguration(rawId: unknown, rawVersion: unknown): Con
             { from: resolve("apps/ediaula/resources/rnnoise"), to: "rnnoise" },
           ]
         : []),
+      // The pipelines' title and body fonts are EdiAula's bundle, with its list and licenses.
+      ...(appId === "edisvg"
+        ? [
+            { from: resolve("apps/ediaula/resources/fonts"), to: "fonts" },
+            { from: resolve("apps/ediaula/resources/fonts.json"), to: "fonts/fonts.json" },
+          ]
+        : []),
     ],
     beforePack: async () => {
       if (hasNativeMedia(appId)) await verifyNativeMediaBundle();

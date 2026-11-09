@@ -219,3 +219,13 @@ dialog.pipelines-dialog > .help-content {
 .scene-artboard.has-reference > .scene-artwork {
   position: relative;
 }
+.pipeline-fonts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.pipeline-fonts label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

@@ -2,16 +2,20 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { suggestedNameSchema } from "../main/exportPayload";
 import { elementSvgs } from "../renderer/src/pipelines/elements";
+import { paletteFromPixels } from "../renderer/src/pipelines/imagePalette";
 import { draftRequest } from "../renderer/src/pipelines/prompt";
-import { failureText, runPipeline } from "../renderer/src/pipelines/runner";
+import { failureText, runPipeline, stepsFor } from "../renderer/src/pipelines/runner";
 import { paletteOf } from "../renderer/src/szProjectImport";
 import {
   BUILT_IN_RECIPES,
+  type BundledFont,
+  DEFAULT_FONTS,
   duplicateRecipe,
   emptyRecipeStore,
   listRecipes,
   MAX_RECIPES,
   missingInputs,
+  nearestWeight,
   originalRecipe,
   parseRecipeStore,
   type RunInputs,
@@ -19,6 +23,7 @@ import {
   restoreRecipe,
   salvageRecipeStore,
   saveRecipe,
+  spokenScript,
 } from "./pipelines";
 
 test("the two ready recipes come first; an edit is kept over the original and Voltar brings it back", () => {
@@ -111,7 +116,7 @@ test("a run says what is missing, by the recipe's kind", () => {
   assert.deepEqual(missingInputs(scene, { textPalette: ["#ffffff"] }), [
     "Projeto do Estúdio (.szproject.json)",
     "Áudio da aula (arquivo ou aula do EdiAula)",
-    "Roteiro do trecho",
+    "Roteiro do trecho (fora dos colchetes)",
   ]);
   const audio = { token: "file-abcdefgh", name: "aula.mp3", kind: "audio" as const, size: 1 };
   assert.deepEqual(
@@ -135,6 +140,7 @@ test("the runner goes step by step, stops at a failure and at Cancelar", async (
     files: {},
     script: "Uma frase.",
     textPalette: ["#ffffff"],
+    fonts: DEFAULT_FONTS,
   };
   const deps = (signal: AbortSignal) => ({
     editor: {
@@ -160,9 +166,14 @@ test("the runner goes step by step, stops at a failure and at Cancelar", async (
       }),
       setReferenceVideo: () => undefined,
       addArtboards: () => [],
+      embedFonts: async () => [],
     },
     bridge: {
       pipelineReadProject: async () => "",
+      pipelineFonts: async () => [],
+      pipelineFont: async () => {
+        throw new Error("sem fontes");
+      },
       pipelineWords: async () => [],
       pipelineNarration: async () => new Uint8Array(),
       pipelineCancel: async () => undefined,
@@ -252,6 +263,11 @@ test("the assistant gets the recipe, where to work, each sentence's frames, the 
     ],
     images: [{ id: "artboard-heroi", name: "aventureiro", width: 64, height: 64 }],
     textPalette: ["#ffffff", "#143d35"],
+    fonts: {
+      title: { family: "Baloo 2", weight: 700, assetId: "asset-titulo" },
+      body: { family: "Nunito", weight: 400, assetId: "asset-corpo" },
+      bodyBold: { family: "Nunito", weight: 700, assetId: "asset-negrito" },
+    },
     imagePalette: ["#46536e"],
     lessonStart: 135.6,
   });
@@ -263,6 +279,10 @@ test("the assistant gets the recipe, where to work, each sentence's frames, the 
   assert.match(text, /- aventureiro \[artboard-heroi\] 64×64/);
   assert.match(text, /Textos: #ffffff, #143d35 \(a primeira é a principal\)/);
   assert.match(text, /Não edite as pranchetas das imagens/);
+  assert.match(text, /Títulos: Baloo 2 700, recurso \[asset-titulo\]/);
+  assert.match(text, /Corpo: Nunito 400, recurso \[asset-corpo\]; destaque no corpo: Nunito 700/);
+  assert.match(text, /operation:'set-font'/);
+  assert.match(text, /nas cores de texto e nas fontes acima/);
 });
 
 test("the images' palette: the colours most shapes paint with, as #rrggbb", () => {
@@ -301,6 +321,7 @@ test("for a screen demonstration the assistant also gets the video, the clicks, 
     lines: [{ text: "Abra a aba de programação.", from: 12, to: 90 }],
     images: [],
     textPalette: ["#ffffff", "#1f2a44", "#ffb547"],
+    fonts: null,
     imagePalette: [],
     lessonStart: 70,
     demo: {
@@ -324,6 +345,7 @@ test("for a screen demonstration the assistant also gets the video, the clicks, 
     lines: [{ text: "Clique em salvar.", from: 0, to: 50 }],
     images: [],
     textPalette: ["#ffffff"],
+    fonts: null,
     imagePalette: [],
     lessonStart: 0,
     demo: {
@@ -334,4 +356,172 @@ test("for a screen demonstration the assistant also gets the video, the clicks, 
     },
   });
   assert.match(without, /O vídeo não tem cursor salvo: veja os quadros anexados/);
+});
+
+test("what is in [brackets] is a note, never looked for in the audio", () => {
+  assert.equal(
+    spokenScript("Clique em Salvar [mostrar o botão]. [pausa]\nPronto, [sorrir] está salvo!"),
+    "Clique em Salvar.\nPronto, está salvo!",
+  );
+  // A bracket left open is text, as written.
+  assert.equal(spokenScript("Veja [o mapa"), "Veja [o mapa");
+  const scene = BUILT_IN_RECIPES[0];
+  assert.ok(scene);
+  assert.deepEqual(
+    missingInputs(scene, { script: "[só anotação]", textPalette: ["#ffffff"] }).at(-1),
+    "Roteiro do trecho (fora dos colchetes)",
+  );
+});
+
+test("a recipe saved before the fonts reads with Baloo 2 and Nunito", () => {
+  const { textPalette, name, style, kind } = BUILT_IN_RECIPES[1] ?? {};
+  const { store, complete } = salvageRecipeStore({
+    version: 1,
+    recipes: [{ id: "recipe-antiga", name, kind, style, textPalette }],
+    hidden: [],
+  });
+  assert.equal(complete, true);
+  assert.deepEqual(store.recipes[0]?.fonts, { title: "Baloo 2", body: "Nunito" });
+  assert.deepEqual(DEFAULT_FONTS, { title: "Baloo 2", body: "Nunito" });
+});
+
+test("each font takes the nearest weight its family has", () => {
+  assert.equal(nearestWeight([400, 600, 700, 800], 700), 700);
+  assert.equal(nearestWeight([400], 700), 400);
+  assert.equal(nearestWeight([400, 700], 400), 400);
+  // A tie goes to the heavier weight.
+  assert.equal(nearestWeight([600, 800], 700), 800);
+  assert.throws(() => nearestWeight([], 400));
+});
+
+test("a picture gives its colours: lightest first, darkest second, the most vivid last", () => {
+  const pixels: number[] = [];
+  const paint = (rgb: [number, number, number], n: number, alpha = 255) => {
+    for (let i = 0; i < n; i++) pixels.push(...rgb, alpha);
+  };
+  paint([20, 30, 60], 50); // navy, the most used
+  paint([250, 250, 245], 40); // near white
+  paint([90, 140, 100], 30); // muted green
+  paint([255, 60, 40], 20); // vivid red
+  paint([252, 251, 246], 30); // the same white, a step away
+  paint([0, 255, 0], 500, 0); // transparent: never counts
+  assert.deepEqual(paletteFromPixels(pixels), ["#fbfaf5", "#141e3c", "#5a8c64", "#ff3c28"]);
+  assert.deepEqual(paletteFromPixels([10, 10, 10, 255, 240, 240, 240, 255]), [
+    "#0a0a0a",
+    "#f0f0f0",
+  ]);
+  assert.deepEqual(paletteFromPixels([0, 0, 0, 0]), []);
+});
+
+test("the fonts step embeds the title's bold and the body's regular and bold; the balloon takes the body's bold", async () => {
+  const demo = BUILT_IN_RECIPES[1];
+  assert.ok(demo);
+  const asked: string[] = [];
+  const embedded: string[] = [];
+  let balloonFont: string | undefined;
+  let request = "";
+  const font = (family: string, weight: number): BundledFont => ({
+    family,
+    weight,
+    name: `${family.replace(/ /g, "")}-${weight}.ttf`,
+    bytes: new Uint8Array([weight % 256]),
+    notice: "SIL Open Font License 1.1",
+  });
+  const steps = stepsFor("screen-demo").filter((step) =>
+    ["fonts", "elements", "draft"].includes(step.id),
+  );
+  const result = await runPipeline(
+    demo,
+    {
+      recipeId: demo.id,
+      files: {},
+      script: "x",
+      textPalette: ["#ffffff", "#1f2a44", "#ffb547"],
+      fonts: { title: "Bebas Neue", body: "Nunito" },
+    },
+    steps,
+    {
+      editor: {
+        importStudioProject: () => ({
+          summary: "",
+          sceneArtboardId: null,
+          imagePalette: [],
+          boards: [],
+        }),
+        openNarration: async () => ({ clipId: "animation-x", fps: 30, frames: 1 }),
+        activeArtboard: () => ({ id: "artboard-x", name: "D", width: 1280, height: 720 }),
+        setPalette: () => undefined,
+        askAssistant: async (text) => {
+          request = text;
+          return { text: "", stopped: false, edits: 1 };
+        },
+        stopAssistant: () => undefined,
+        beginRun: () => undefined,
+        assistantBusy: () => false,
+        endRun: () => undefined,
+        openDemoArtboard: () => ({ id: "artboard-d", name: "D", width: 1280, height: 720 }),
+        setReferenceVideo: () => undefined,
+        addArtboards: (_items, fontAssetId) => {
+          balloonFont = fontAssetId;
+          return [];
+        },
+        embedFonts: async (fonts) => {
+          embedded.push(...fonts.map((f) => f.name));
+          return fonts.map((f) => `asset-${f.family.replace(/ /g, "")}-${f.weight}`);
+        },
+      },
+      bridge: {
+        pipelineReadProject: async () => "",
+        pipelineFonts: async () => [
+          { family: "Bebas Neue", group: "Títulos", weights: [400] },
+          { family: "Nunito", group: "Arredondada", weights: [400, 600, 700, 800, 900] },
+        ],
+        pipelineFont: async (family, weight) => {
+          asked.push(`${family} ${weight}`);
+          return font(family, weight);
+        },
+        pipelineWords: async () => [],
+        pipelineNarration: async () => new Uint8Array(),
+        pipelineCancel: async () => undefined,
+        onPipelineProgress: () => () => undefined,
+        pipelineVideoFacts: async () => ({ width: 1, height: 1, duration: 1, clicks: null }),
+        pipelineVideoPreview: async () => new Uint8Array(),
+        pipelineVideoFrames: async () => [],
+      },
+      signal: new AbortController().signal,
+    },
+    () => undefined,
+  );
+  // The draft stops without a narration; the fonts and the elements came before it.
+  assert.equal(result.ok, false);
+  assert.equal(request, "");
+  assert.deepEqual(asked, ["Bebas Neue 400", "Nunito 400", "Nunito 700"]);
+  assert.deepEqual(embedded, ["BebasNeue-400.ttf", "Nunito-400.ttf", "Nunito-700.ttf"]);
+  assert.equal(balloonFont, "asset-Nunito-700");
+  assert.deepEqual(result.report, [
+    "Fontes Bebas Neue nos títulos e Nunito no corpo, incorporadas ao projeto.",
+  ]);
+
+  // A family that does not come with EdiSVG stops the step, naming it.
+  const missing = await runPipeline(
+    demo,
+    {
+      recipeId: demo.id,
+      files: {},
+      script: "x",
+      textPalette: ["#ffffff"],
+      fonts: { title: "Comic Sans", body: "Nunito" },
+    },
+    steps.slice(0, 1),
+    {
+      editor: {} as never,
+      bridge: { pipelineFonts: async () => [] } as never,
+      signal: new AbortController().signal,
+    },
+    (_id, state) => {
+      if (state.status === "failed") asked.push(state.message);
+    },
+  );
+  assert.equal(missing.ok, false);
+  assert.equal(asked.at(-1), "A fonte Comic Sans não vem com o EdiSVG: escolha outra.");
 });

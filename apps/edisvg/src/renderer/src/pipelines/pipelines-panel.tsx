@@ -2,8 +2,11 @@ import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import {
+  type BundledFamily,
+  DEFAULT_FONTS,
   duplicateRecipe,
   emptyRecipeStore,
+  type FontPair,
   isBuiltIn,
   listRecipes,
   missingInputs,
@@ -21,6 +24,7 @@ import {
   runInputsSchema,
   saveRecipe,
 } from "../../../shared/pipelines";
+import { paletteFromImage } from "./imagePalette";
 import {
   failureText,
   type PipelineBridge,
@@ -54,15 +58,36 @@ type View =
 
 const newRecipeId = () => `recipe-${crypto.randomUUID()}`;
 
+/** The biggest picture the palette reads colours from. */
+const IMAGE_BYTES = 50 * 1024 * 1024;
+
 function Palette({
   colors,
   onChange,
   label,
+  report,
 }: {
   colors: string[];
   onChange(colors: string[]): void;
   label: string;
+  report(message: string): void;
 }) {
+  const picture = useRef<HTMLInputElement>(null);
+  const [reading, setReading] = useState(false);
+  const fromImage = async (file: File) => {
+    if (file.size > IMAGE_BYTES) {
+      report("A imagem passa de 50 MB.");
+      return;
+    }
+    setReading(true);
+    try {
+      onChange(await paletteFromImage(file));
+    } catch (error) {
+      report(failureText(error));
+    } finally {
+      setReading(false);
+    }
+  };
   return (
     <fieldset className="pipeline-palette">
       <legend>{label}</legend>
@@ -95,7 +120,93 @@ function Palette({
             + Cor
           </button>
         )}
+        <button
+          type="button"
+          disabled={reading}
+          title="Troca a paleta pelas cores principais de uma imagem: a mais clara primeiro, a mais escura em seguida e a mais viva por último."
+          onClick={() => picture.current?.click()}
+        >
+          {reading ? "Lendo a imagem…" : "Cores de uma imagem…"}
+        </button>
+        <input
+          ref={picture}
+          type="file"
+          hidden
+          aria-label={`Imagem para a ${label.toLowerCase()}`}
+          accept="image/png,image/jpeg,image/webp,image/gif,image/bmp"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            // The same picture can be chosen again after editing the colours.
+            event.target.value = "";
+            if (file) void fromImage(file);
+          }}
+        />
       </div>
+    </fieldset>
+  );
+}
+
+/** The families of a select: the bundle's, by group, and the chosen one even if it is not there. */
+function FamilyOptions({ families, current }: { families: BundledFamily[]; current: string }) {
+  const groups = [...new Set(families.map((f) => f.group))];
+  return (
+    <>
+      {!families.some((f) => f.family === current) && <option value={current}>{current}</option>}
+      {groups.map((group) => (
+        <optgroup key={group} label={group}>
+          {families
+            .filter((f) => f.group === group)
+            .map((f) => (
+              <option key={f.family} value={f.family}>
+                {f.family}
+              </option>
+            ))}
+        </optgroup>
+      ))}
+    </>
+  );
+}
+
+/** The fonts of titles and body text, from the fonts that come with EdiSVG (EdiAula's). */
+function Fonts({
+  fonts,
+  families,
+  onChange,
+  label,
+  disabled = false,
+}: {
+  fonts: FontPair;
+  families: BundledFamily[];
+  onChange(fonts: FontPair): void;
+  label: string;
+  disabled?: boolean;
+}) {
+  const id = useId();
+  return (
+    <fieldset className="pipeline-palette pipeline-fonts">
+      <legend>{label}</legend>
+      <label htmlFor={`${id}-title`}>
+        Título
+        <select
+          id={`${id}-title`}
+          value={fonts.title}
+          disabled={disabled}
+          onChange={(event) => onChange({ ...fonts, title: event.target.value })}
+        >
+          <FamilyOptions families={families} current={fonts.title} />
+        </select>
+      </label>
+      <label htmlFor={`${id}-body`}>
+        Corpo
+        <select
+          id={`${id}-body`}
+          value={fonts.body}
+          disabled={disabled}
+          onChange={(event) => onChange({ ...fonts, body: event.target.value })}
+        >
+          <FamilyOptions families={families} current={fonts.body} />
+        </select>
+      </label>
     </fieldset>
   );
 }
@@ -103,11 +214,15 @@ function Palette({
 function RecipeEditor({
   recipe,
   isNew,
+  families,
+  report,
   onSave,
   onCancel,
 }: {
   recipe: Recipe;
   isNew: boolean;
+  families: BundledFamily[];
+  report(message: string): void;
   onSave(recipe: Recipe): void;
   onCancel(): void;
 }) {
@@ -154,7 +269,14 @@ function RecipeEditor({
         <Palette
           label="Paleta de texto padrão"
           colors={draft.textPalette}
+          report={report}
           onChange={(textPalette) => setDraft({ ...draft, textPalette })}
+        />
+        <Fonts
+          label="Fontes padrão"
+          fonts={draft.fonts}
+          families={families}
+          onChange={(fonts) => setDraft({ ...draft, fonts })}
         />
       </div>
       <div className="dialog-footer">
@@ -193,6 +315,7 @@ const STEP_TEXT: Record<StepState["status"], string> = {
 
 function RunForm({
   recipe,
+  families,
   desktop,
   editor,
   report,
@@ -200,6 +323,7 @@ function RunForm({
   setBusy,
 }: {
   recipe: Recipe;
+  families: BundledFamily[];
   desktop: PipelinesDesktop;
   editor: PipelineEditor;
   report(message: string): void;
@@ -210,6 +334,7 @@ function RunForm({
   const [files, setFiles] = useState<RunInputs["files"]>({});
   const [script, setScript] = useState("");
   const [palette, setPalette] = useState(recipe.textPalette);
+  const [fonts, setFonts] = useState(recipe.fonts);
   const [states, setStates] = useState<Record<string, StepState>>({});
   const [running, setRunning] = useState(false);
   const [outcome, setOutcome] = useState<{ ok: boolean; report: string[] } | null>(null);
@@ -223,7 +348,7 @@ function RunForm({
     [],
   );
   const steps = stepsFor(recipe.kind);
-  const inputs = { recipeId: recipe.id, files, script, textPalette: palette };
+  const inputs = { recipeId: recipe.id, files, script, textPalette: palette, fonts };
   const missing = missingInputs(recipe, inputs);
   const pick = async (key: keyof RunInputs["files"], kind: PickedFile["kind"]) => {
     try {
@@ -309,7 +434,23 @@ function RunForm({
             onChange={(event) => setScript(event.target.value)}
           />
         </label>
-        <Palette label="Paleta de texto desta vez" colors={palette} onChange={setPalette} />
+        <p className="micro">
+          Texto entre [colchetes] é anotação (o que acontece na tela, uma indicação) e fica fora da
+          busca no áudio.
+        </p>
+        <Palette
+          label="Paleta de texto desta vez"
+          colors={palette}
+          report={report}
+          onChange={setPalette}
+        />
+        <Fonts
+          label="Fontes desta vez"
+          fonts={fonts}
+          families={families}
+          disabled={running}
+          onChange={setFonts}
+        />
         {steps.length > 0 && (
           <ol className="pipeline-steps" aria-label="Etapas">
             {steps.map((step) => {
@@ -370,6 +511,20 @@ function PipelinesPanel({ desktop, editor, report, close, setBusy }: Props) {
   };
   const [store, setStore] = useState<RecipeStore | null>(null);
   const [view, setView] = useState<View>({ name: "list" });
+  /** The fonts that come with EdiSVG (EdiAula's), for titles and body text. */
+  const [families, setFamilies] = useState<BundledFamily[]>([]);
+  useEffect(() => {
+    let live = true;
+    desktop
+      .pipelineFonts()
+      .then((value) => {
+        if (live) setFamilies(value);
+      })
+      .catch((error: unknown) => report(failureText(error)));
+    return () => {
+      live = false;
+    };
+  }, [desktop, report]);
   /** The user recipe whose Excluir was pressed once (a second press removes it). */
   const [confirming, setConfirming] = useState<string | null>(null);
   // The store as last saved, and the saves in order: two quick changes never undo each other.
@@ -436,6 +591,8 @@ function PipelinesPanel({ desktop, editor, report, close, setBusy }: Props) {
         <RecipeEditor
           recipe={view.recipe}
           isNew={view.isNew}
+          families={families}
+          report={report}
           onCancel={() => setView({ name: "list" })}
           onSave={(recipe) => {
             persist((current) => saveRecipe(current, recipe));
@@ -445,6 +602,7 @@ function PipelinesPanel({ desktop, editor, report, close, setBusy }: Props) {
       ) : view.name === "run" ? (
         <RunForm
           recipe={view.recipe}
+          families={families}
           desktop={desktop}
           editor={editor}
           report={report}
@@ -456,8 +614,8 @@ function PipelinesPanel({ desktop, editor, report, close, setBusy }: Props) {
           <div className="help-content pipeline-body">
             <p>
               Uma receita guarda o que se repete: o tipo de trabalho, as instruções para o
-              assistente e a paleta de texto. Ao rodar, você escolhe só os arquivos e o roteiro
-              desta vez.
+              assistente, a paleta de texto e as fontes. Ao rodar, você escolhe só os arquivos e o
+              roteiro desta vez.
             </p>
             <ul className="pipeline-list">
               {listRecipes(store).map((recipe) => (
@@ -547,6 +705,7 @@ function PipelinesPanel({ desktop, editor, report, close, setBusy }: Props) {
                     kind: "game-scene",
                     style: "",
                     textPalette: ["#ffffff"],
+                    fonts: DEFAULT_FONTS,
                   },
                 })
               }

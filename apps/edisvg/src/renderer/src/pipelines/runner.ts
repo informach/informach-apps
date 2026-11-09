@@ -1,7 +1,15 @@
 import { findScriptPiece, type HeardWord, type ScriptPiece } from "@informach/edi-speech/piece";
-import type { Recipe, RecipeKind, RunInputs } from "../../../shared/pipelines";
+import {
+  type BundledFamily,
+  type BundledFont,
+  nearestWeight,
+  type Recipe,
+  type RecipeKind,
+  type RunInputs,
+  spokenScript,
+} from "../../../shared/pipelines";
 import { elementSvgs } from "./elements";
-import { type DraftBoard, draftRequest } from "./prompt";
+import { type DraftBoard, type DraftFonts, draftRequest } from "./prompt";
 
 /**
  * Runs a recipe: its steps in order, each reporting progress, all stopped by Cancelar. A step that
@@ -32,8 +40,16 @@ export interface PipelineEditor {
   openDemoArtboard(value: { name: string; width: number; height: number }): DraftBoard;
   /** The demonstration video under the open artboard, from `offset` seconds of the animation. */
   setReferenceVideo(value: { bytes: Uint8Array; offset: number; duration: number }): void;
-  /** Artboards from SVG (the ready elements), keeping the open one open. */
-  addArtboards(items: { name: string; svg: string }[]): DraftBoard[];
+  /**
+   * Artboards from SVG (the ready elements), keeping the open one open; their texts take the font
+   * `fontAssetId` when given.
+   */
+  addArtboards(items: { name: string; svg: string }[], fontAssetId?: string): DraftBoard[];
+  /**
+   * Embeds fonts of the bundle in the project (their license notice with them); returns the asset
+   * of each, in order. A font already in the project is not added twice.
+   */
+  embedFonts(fonts: BundledFont[]): Promise<string[]>;
   /** Stops the assistant's reply (Cancelar). */
   stopAssistant(): void;
   /** The assistant is writing a reply (a run then waits: it would edit the file meanwhile). */
@@ -64,6 +80,8 @@ export interface VideoFacts {
 
 export interface PipelineBridge {
   pipelineReadProject(token: string): Promise<string>;
+  pipelineFonts(): Promise<BundledFamily[]>;
+  pipelineFont(family: string, weight: number): Promise<BundledFont>;
   pipelineVideoFacts(token: string): Promise<VideoFacts>;
   pipelineVideoPreview(token: string, seconds: number, jobId: string): Promise<Uint8Array>;
   pipelineVideoFrames(
@@ -181,7 +199,9 @@ const findPiece: PipelineStep = {
       }
     });
     ctx.progress(0.95, "Procurando o roteiro");
-    const piece: ScriptPiece = findScriptPiece(words, ctx.inputs.script);
+    const spoken = spokenScript(ctx.inputs.script);
+    if (!spoken) throw new Error("O roteiro só tem texto entre colchetes: nada para ouvir.");
+    const piece: ScriptPiece = findScriptPiece(words, spoken);
     ctx.results.piece = piece;
     ctx.report.push(
       `Trecho achado na aula de ${clock(piece.start)} a ${clock(piece.end)}, com ${piece.lines.length} ${piece.lines.length === 1 ? "frase" : "frases"}.`,
@@ -273,12 +293,61 @@ const prepareVideo: PipelineStep = {
   },
 };
 
-/** The ready arrow, balloon, highlight and click mark, in the run's text palette. */
+/**
+ * The fonts of the run in the project: the title's (bold) and the body's (regular, and bold for
+ * emphasis), each the nearest weight the family has. They go in as fonts of the project, so the
+ * animation looks the same on any computer and in every export.
+ */
+const embedFonts: PipelineStep = {
+  id: "fonts",
+  label: "Incorporar as fontes de título e corpo",
+  async run(ctx) {
+    ctx.progress(0.1, "Lendo as fontes");
+    const families = await ctx.bridge.pipelineFonts();
+    const weightsOf = (family: string) => {
+      const found = families.find((item) => item.family === family);
+      if (!found) throw new Error(`A fonte ${family} não vem com o EdiSVG: escolha outra.`);
+      return found.weights;
+    };
+    const { title, body } = ctx.inputs.fonts;
+    const wanted = [
+      { family: title, weight: nearestWeight(weightsOf(title), 700) },
+      { family: body, weight: nearestWeight(weightsOf(body), 400) },
+      { family: body, weight: nearestWeight(weightsOf(body), 700) },
+    ];
+    const files: BundledFont[] = [];
+    for (const font of wanted) {
+      ctx.signal.throwIfAborted();
+      files.push(await ctx.bridge.pipelineFont(font.family, font.weight));
+    }
+    ctx.signal.throwIfAborted();
+    ctx.progress(0.6, "Incorporando ao projeto");
+    const [titleId, bodyId, boldId] = await ctx.editor.embedFonts(files);
+    if (!titleId || !bodyId || !boldId) throw new Error("As fontes não entraram no projeto.");
+    const fonts: DraftFonts = {
+      title: { family: title, weight: files[0]?.weight ?? 700, assetId: titleId },
+      body: { family: body, weight: files[1]?.weight ?? 400, assetId: bodyId },
+      bodyBold: { family: body, weight: files[2]?.weight ?? 700, assetId: boldId },
+    };
+    ctx.results.fonts = fonts;
+    ctx.report.push(
+      title === body
+        ? `Fonte ${title} nos títulos e no corpo, incorporada ao projeto.`
+        : `Fontes ${title} nos títulos e ${body} no corpo, incorporadas ao projeto.`,
+    );
+  },
+};
+
+/** The ready arrow, balloon, highlight and click mark, in the run's text palette and body font. */
 const addElements: PipelineStep = {
   id: "elements",
   label: "Criar os elementos prontos (seta, balão, destaque e clique)",
   async run(ctx) {
-    ctx.results.elements = ctx.editor.addArtboards(elementSvgs(ctx.inputs.textPalette));
+    const fonts = ctx.results.fonts as DraftFonts | undefined;
+    ctx.results.elements = ctx.editor.addArtboards(
+      elementSvgs(ctx.inputs.textPalette),
+      fonts?.bodyBold.assetId,
+    );
   },
 };
 
@@ -345,6 +414,7 @@ const draftWithAssistant: PipelineStep = {
       lines: piece.lines.map((l) => ({ text: l.text, from: frame(l.start), to: frame(l.end) })),
       images: (ctx.results.images as DraftBoard[] | undefined) ?? [],
       textPalette: ctx.inputs.textPalette,
+      fonts: (ctx.results.fonts as DraftFonts | undefined) ?? null,
       imagePalette: (ctx.results.imagePalette as string[] | undefined) ?? [],
       lessonStart,
       ...(demo ? { demo } : {}),
@@ -379,12 +449,20 @@ const draftWithAssistant: PipelineStep = {
 /** The steps of each kind of recipe, in order. */
 export function stepsFor(kind: RecipeKind): PipelineStep[] {
   if (kind === "game-scene")
-    return [importProject, findPiece, prepareNarration, applyPalettes, draftWithAssistant];
+    return [
+      importProject,
+      findPiece,
+      prepareNarration,
+      applyPalettes,
+      embedFonts,
+      draftWithAssistant,
+    ];
   return [
     findPiece,
     prepareVideo,
     prepareNarration,
     applyPalettes,
+    embedFonts,
     addElements,
     draftWithAssistant,
   ];

@@ -27,6 +27,7 @@ import {
   pipelineVideoPreview,
   pipelineWords,
 } from "./pipelineEngine.ts";
+import { pipelineFont, pipelineFonts } from "./pipelineFonts.ts";
 import {
   pickPipelineFile,
   readPickedProject,
@@ -38,6 +39,21 @@ import { createRecoveryStore } from "./recoveryStore.ts";
 import { smoke } from "./smoke.js";
 
 app.setPath("userData", join(app.getPath("appData"), "edisvg"));
+
+/** EdiAula's fonts: beside the app when installed, in EdiAula's folder in development. */
+const fontSource = () => {
+  /** @type {import("./pipelineFonts.ts").FontSource} */
+  const source = app.isPackaged
+    ? {
+        dir: join(process.resourcesPath, "fonts"),
+        manifest: join(process.resourcesPath, "fonts", "fonts.json"),
+      }
+    : {
+        dir: join(app.getAppPath(), "..", "ediaula", "resources", "fonts"),
+        manifest: join(app.getAppPath(), "..", "ediaula", "resources", "fonts.json"),
+      };
+  return source;
+};
 if (!app.isPackaged && process.env.EDISVG_USER_DATA)
   app.setPath("userData", process.env.EDISVG_USER_DATA);
 app.setAppUserModelId("br.com.informach.edisvg");
@@ -413,6 +429,8 @@ else {
         pickPipelineFile(win, kind, folderFor(kind === "lesson" ? "documents" : "downloads")),
       );
       handle("pipeline:read-project", (token) => readPickedProject(token));
+      handle("pipeline:fonts", () => pipelineFonts(fontSource()));
+      handle("pipeline:font", (family, weight) => pipelineFont(fontSource(), family, weight));
       handle("pipeline:words", (token, kind, jobId) => {
         if (typeof jobId !== "string" || !/^[\w-]{1,64}$/.test(jobId))
           throw new Error("Identificador de tarefa inválido.");
