@@ -74,10 +74,17 @@ test("a recording of EdiAula: its cursor file beside it, the clicks in the video
     { t: 1.25, x: 100, y: 50 },
     { t: 3.5, x: 500, y: 200 },
   ]);
-  // A video from elsewhere has no cursor beside it.
-  const other = join(dir, "outro.mp4");
+  // A video from elsewhere has no cursor beside it; "aula-final" is no "<id>-<id>-" name.
+  const other = join(dir, "aula-final.mp4");
   await writeFile(other, "");
+  await writeFile(join(dir, "aula-cursor.json"), "{}");
   assert.equal(findCursorFile(other), null);
+  // A take folder of EdiAula (Gravações/<data>) keeps tela.mp4 and cursor.json.
+  const take = join(dir, "Gravacoes", "2026-11-08 10-00");
+  await mkdir(take, { recursive: true });
+  await writeFile(join(take, "tela.mp4"), "");
+  await writeFile(join(take, "cursor.json"), "{}");
+  assert.equal(findCursorFile(join(take, "tela.mp4")), join(take, "cursor.json"));
 
   // The light copy for the preview: the first 4 s, 540 high, without sound.
   const preview = join(dir, "previa.mp4");

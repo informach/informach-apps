@@ -351,6 +351,10 @@ export function setupAssistant(editor) {
       editor.notify("Interrompa a IA antes de criar um projeto.");
       return;
     }
+    if (editor.pipelineRunning?.()) {
+      editor.notify("Espere o pipeline terminar, ou cancele, antes de criar um projeto.");
+      return;
+    }
     try {
       const value = await bridge.projectNew();
       if (value) {
@@ -367,6 +371,10 @@ export function setupAssistant(editor) {
   async function openProject() {
     if (busy) {
       editor.notify("Interrompa a resposta da IA antes de abrir outro projeto.");
+      return;
+    }
+    if (editor.pipelineRunning?.()) {
+      editor.notify("Espere o pipeline terminar, ou cancele, antes de abrir outro projeto.");
       return;
     }
     try {

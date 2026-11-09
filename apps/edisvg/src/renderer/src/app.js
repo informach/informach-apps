@@ -18,6 +18,7 @@ import {
 import "./toolbar.css";
 import { flattenScene } from "../../shared/scene.js";
 import {
+  clearNarration,
   markNarrationNow,
   mountNarrationBar,
   narrationExportName,
@@ -25,7 +26,12 @@ import {
   syncNarration,
 } from "./pipelines/narration";
 import { mountPipelines } from "./pipelines/pipelines-panel";
-import { mountReferenceVideo, setReferenceVideo, syncReferenceVideo } from "./pipelines/reference";
+import {
+  clearReferenceVideo,
+  mountReferenceVideo,
+  setReferenceVideo,
+  syncReferenceVideo,
+} from "./pipelines/reference";
 import { bindScene, sceneCanvas, sceneInspector, sceneSidebar } from "./sceneEditor.js";
 import { importSvg } from "./svgImport.js";
 import {
@@ -1252,6 +1258,9 @@ function openingArtboardId(project) {
 }
 function applyProject(value, resetSession = true) {
   const project = parseProject(value);
+  // The narration and the demonstration video of a run belong to the file it ran on.
+  clearNarration();
+  clearReferenceVideo();
   state.tool = "select";
   if (project.artboards.length) {
     state.view = "design";
@@ -1306,7 +1315,11 @@ function applyProject(value, resetSession = true) {
 }
 function save(record = true) {
   const project = snapshot(state);
-  if (record && projectHistory.commit(contentSnapshot(project))) state.revision++;
+  if (record && projectHistory.commit(contentSnapshot(project))) {
+    state.revision++;
+    // A pipeline run is one undo step, kept so as it goes (the mark is never evicted).
+    if (pipelineRun) projectHistory.squash(pipelineRun.mark);
+  }
   try {
     localStorage.setItem("edisvg-project", JSON.stringify(project));
     localSaveStatus = "Cópia local atualizada";
@@ -2022,8 +2035,16 @@ async function openNarration(value) {
  * #clip-dialog with it), which would close the dialog in the middle of the run.
  */
 let disposePipelines = null;
-/** The history point before the pipeline run in progress (one undo step for the whole run). */
-let pipelineMark = null;
+/**
+ * The pipeline run in progress: the history point before it (one undo step for the whole run)
+ * and the project session it runs on (another file opened meanwhile is never edited by it).
+ */
+let pipelineRun = null;
+/** Every edit a run makes goes through here: refused when the file changed under the run. */
+function sameRunSession() {
+  if (pipelineRun && state.sessionId !== pipelineRun.session)
+    throw new Error("Outro projeto foi aberto durante o pipeline: ele parou sem editar o novo.");
+}
 function openPipelines() {
   let dialog = document.querySelector("#pipelines-dialog");
   if (!(dialog instanceof HTMLDialogElement)) {
@@ -2040,8 +2061,14 @@ function openPipelines() {
   disposePipelines = mountPipelines(dialog, {
     desktop: window.desktop,
     editor: {
-      importStudioProject: (source) => applyGameProject(source),
-      openNarration: (value) => openNarration(value),
+      importStudioProject: (source) => {
+        sameRunSession();
+        return applyGameProject(source);
+      },
+      openNarration: (value) => {
+        sameRunSession();
+        return openNarration(value);
+      },
       activeArtboard: () => {
         const board = state.artboards.find((item) => item.id === state.activeArtboardId);
         if (!board) throw new Error("Nenhuma prancheta aberta.");
@@ -2053,11 +2080,16 @@ function openPipelines() {
         };
       },
       setPalette: (colors) => {
+        sameRunSession();
         transact([{ type: "appearance", operation: "palette", colors }]);
         render();
       },
-      askAssistant: (text, shown, images) => assistant.runTurn(text, shown, images),
+      askAssistant: (text, shown, images) => {
+        sameRunSession();
+        return assistant.runTurn(text, shown, images);
+      },
       openDemoArtboard: (value) => {
+        sameRunSession();
         const id = `artboard-${crypto.randomUUID()}`;
         transact([
           {
@@ -2076,10 +2108,12 @@ function openPipelines() {
         return { id, name: value.name, width: value.width, height: value.height };
       },
       setReferenceVideo: (value) => {
+        sameRunSession();
         setReferenceVideo({ artboardId: state.activeArtboardId, ...value });
         render();
       },
       addArtboards: (items) => {
+        sameRunSession();
         const keep = state.activeArtboardId;
         const commands = items.map((item) => ({
           type: "artboard",
@@ -2101,11 +2135,14 @@ function openPipelines() {
       stopAssistant: () => void window.desktop?.aiStop(),
       // A run is one undo step: the edits since the mark are joined at its end.
       beginRun: () => {
-        pipelineMark = projectHistory.mark();
+        pipelineRun = { mark: projectHistory.mark(), session: state.sessionId };
       },
       endRun: () => {
-        if (pipelineMark && projectHistory.squash(pipelineMark)) refreshHistoryControls();
-        pipelineMark = null;
+        const run = pipelineRun;
+        pipelineRun = null;
+        // Only on the file the run started on (another file has its own history).
+        if (run && run.session === state.sessionId && projectHistory.squash(run.mark))
+          refreshHistoryControls();
       },
     },
     report: notify,
@@ -2492,7 +2529,14 @@ function openExport() {
                 subdivisions: lottieSettings?.subdivisions ?? 1,
               }
             : {}),
-          ...(rasterSettings ? { raster: rasterSettings.options } : {}),
+          ...(rasterSettings
+            ? {
+                raster:
+                  currentFormat() === "alpha-webm"
+                    ? { ...rasterSettings.options, background: "transparent" }
+                    : rasterSettings.options,
+              }
+            : {}),
           ...(currentFormat() === "player-web" ? playerWebControls.read() : {}),
         },
         {
@@ -2764,6 +2808,8 @@ const assistant = setupAssistant({
   importSvg: importArtwork,
   importGameProject: () => importGameProject(),
   openPipelines: () => openPipelines(),
+  /** A pipeline is running: opening or creating another file waits (assistant.js). */
+  pipelineRunning: () => !!pipelineRun,
   fileStatus: updateFileStatus,
   restore(value) {
     applyProject(value);

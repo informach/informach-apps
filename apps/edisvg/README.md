@@ -69,7 +69,7 @@ duplicadas ou excluídas e restauradas. **+ Nova receita** cria uma do zero.
   que era antes de rodar (`history.mark`/`squash`).
 
 **Exportar para a aula.** Ao exportar em vídeo a animação de uma narração, o nome sugerido traz
-onde o trecho começa na aula, por exemplo "Narração · Cena animada do jogo (começa em 2m15s)".
+onde o trecho começa na aula, por exemplo "Narração · Cena animada do jogo (começa em 2m15,7s)", com décimos para não perder a sincronia.
 Assim fica fácil pôr o vídeo no EdiAula sobre a narração original. O vídeo sai sem som.
 
 Para a demonstração, use **Camada transparente · WebM**.

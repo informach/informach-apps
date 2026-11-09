@@ -166,13 +166,15 @@ export function markNarrationNow(root: ParentNode, seconds: number): void {
 
 /**
  * The name a video of the narration's animation is saved with: the animation's name and where it
- * starts in the lesson ("Narração · Cena animada do jogo (começa em 2m15s)"), to place it in
+ * starts in the lesson ("Narração · Cena animada do jogo (começa em 2m15,7s)"), to place it in
  * EdiAula over the narration. Undefined for any other animation.
  */
 export function narrationExportName(clipId: string | undefined): string | undefined {
   if (!current || clipId !== current.clipId) return undefined;
-  // "2m15s": a colon is not allowed in a Windows file name.
-  const at = Math.floor(current.lessonStart);
-  const label = `${Math.floor(at / 60)}m${(at % 60).toString().padStart(2, "0")}s`;
+  // "2m15,7s": a colon is not allowed in a Windows file name; tenths keep the sync.
+  const tenths = Math.floor(current.lessonStart * 10);
+  const minutes = Math.floor(tenths / 600);
+  const seconds = ((tenths % 600) / 10).toFixed(1).replace(".", ",").padStart(4, "0");
+  const label = `${minutes}m${seconds}s`;
   return `${current.name} (começa em ${label})`.replace(/[<>:"/\\|?*]/g, "-").slice(0, 120);
 }

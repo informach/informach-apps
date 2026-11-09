@@ -63,13 +63,20 @@ export interface VideoFacts {
 export interface PipelineBridge {
   pipelineReadProject(token: string): Promise<string>;
   pipelineVideoFacts(token: string): Promise<VideoFacts>;
-  pipelineVideoPreview(token: string, seconds: number): Promise<Uint8Array>;
+  pipelineVideoPreview(token: string, seconds: number, jobId: string): Promise<Uint8Array>;
   pipelineVideoFrames(
     token: string,
     times: number[],
+    jobId: string,
   ): Promise<{ mediaType: "image/jpeg"; data: string }[]>;
   pipelineWords(token: string, kind: string, jobId: string): Promise<HeardWord[]>;
-  pipelineNarration(token: string, kind: string, start: number, end: number): Promise<Uint8Array>;
+  pipelineNarration(
+    token: string,
+    kind: string,
+    start: number,
+    end: number,
+    jobId: string,
+  ): Promise<Uint8Array>;
   pipelineCancel(jobId: string): Promise<void>;
   onPipelineProgress(callback: (event: { jobId: string; ratio: number }) => void): () => void;
 }
@@ -119,6 +126,23 @@ const importProject: PipelineStep = {
   },
 };
 
+/**
+ * Runs a main-process job of a step: Cancelar stops it there (the transcription, FFmpeg), and
+ * what comes back after Cancelar is not used.
+ */
+async function job<T>(ctx: StepContext, run: (jobId: string) => Promise<T>): Promise<T> {
+  ctx.signal.throwIfAborted();
+  const jobId = `pipeline-${crypto.randomUUID()}`;
+  const cancel = () => void ctx.bridge.pipelineCancel(jobId);
+  ctx.signal.addEventListener("abort", cancel, { once: true });
+  try {
+    return await run(jobId);
+  } finally {
+    ctx.signal.removeEventListener("abort", cancel);
+    ctx.signal.throwIfAborted();
+  }
+}
+
 const clock = (s: number) =>
   `${Math.floor(s / 60)}:${Math.floor(s % 60)
     .toString()
@@ -135,24 +159,20 @@ const findPiece: PipelineStep = {
   async run(ctx) {
     const audio = ctx.inputs.files.audio;
     if (!audio) throw new Error("Escolha o áudio da aula.");
-    const jobId = `pipeline-${crypto.randomUUID()}`;
-    const stop = ctx.bridge.onPipelineProgress((event) => {
-      if (event.jobId === jobId) ctx.progress(event.ratio * 0.9, "Transcrevendo o áudio");
+    ctx.progress(
+      0,
+      audio.kind === "lesson" ? "Lendo as transcrições da aula" : "Transcrevendo o áudio",
+    );
+    const words: HeardWord[] = await job(ctx, async (jobId) => {
+      const stop = ctx.bridge.onPipelineProgress((event) => {
+        if (event.jobId === jobId) ctx.progress(event.ratio * 0.9, "Transcrevendo o áudio");
+      });
+      try {
+        return await ctx.bridge.pipelineWords(audio.token, audio.kind, jobId);
+      } finally {
+        stop();
+      }
     });
-    const cancel = () => void ctx.bridge.pipelineCancel(jobId);
-    ctx.signal.addEventListener("abort", cancel, { once: true });
-    let words: HeardWord[];
-    try {
-      ctx.progress(
-        0,
-        audio.kind === "lesson" ? "Lendo as transcrições da aula" : "Transcrevendo o áudio",
-      );
-      words = await ctx.bridge.pipelineWords(audio.token, audio.kind, jobId);
-    } finally {
-      stop();
-      ctx.signal.removeEventListener("abort", cancel);
-    }
-    ctx.signal.throwIfAborted();
     ctx.progress(0.95, "Procurando o roteiro");
     const piece: ScriptPiece = findScriptPiece(words, ctx.inputs.script);
     ctx.results.piece = piece;
@@ -177,8 +197,9 @@ const prepareNarration: PipelineStep = {
     const start = Math.max(0, piece.start - LEAD);
     const end = piece.end + TAIL;
     ctx.progress(0.2, "Cortando o áudio do trecho");
-    const bytes = await ctx.bridge.pipelineNarration(audio.token, audio.kind, start, end);
-    ctx.signal.throwIfAborted();
+    const bytes = await job(ctx, (jobId) =>
+      ctx.bridge.pipelineNarration(audio.token, audio.kind, start, end, jobId),
+    );
     ctx.progress(0.7, "Criando a animação");
     const clip = await ctx.editor.openNarration({
       name: ctx.recipe.name,
@@ -226,8 +247,9 @@ const prepareVideo: PipelineStep = {
       height: facts.height,
     });
     ctx.progress(0.4, "Preparando a prévia do vídeo");
-    const bytes = await ctx.bridge.pipelineVideoPreview(file.token, duration);
-    ctx.signal.throwIfAborted();
+    const bytes = await job(ctx, (jobId) =>
+      ctx.bridge.pipelineVideoPreview(file.token, duration, jobId),
+    );
     ctx.editor.setReferenceVideo({ bytes, offset, duration });
     const video: DemoVideo = { name: file.name, facts, offset, duration };
     ctx.results.video = video;
@@ -291,7 +313,9 @@ const draftWithAssistant: PipelineStep = {
       const file = ctx.inputs.files.video;
       if (file && times.length) {
         ctx.progress(0.02, "Tirando quadros do vídeo");
-        images = await ctx.bridge.pipelineVideoFrames(file.token, times);
+        images = await job(ctx, (jobId) =>
+          ctx.bridge.pipelineVideoFrames(file.token, times, jobId),
+        );
       }
       demo = {
         video: { name: video.name, width: video.facts.width, height: video.facts.height },
@@ -318,6 +342,8 @@ const draftWithAssistant: PipelineStep = {
       lessonStart,
       ...(demo ? { demo } : {}),
     });
+    // Cancelar while the frames were taken: the assistant is never asked.
+    ctx.signal.throwIfAborted();
     const stop = () => ctx.editor.stopAssistant();
     ctx.signal.addEventListener("abort", stop, { once: true });
     try {

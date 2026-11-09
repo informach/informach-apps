@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,6 +8,7 @@ import { after, before, test } from "node:test";
 import { promisify } from "node:util";
 import {
   cutNarrationArgs,
+  existingTranscript,
   lessonWords,
   mixNarrationArgs,
   type VoiceClip,
@@ -105,6 +106,7 @@ test("an EdiAula lesson: words on the lesson's clock, only from what sounds, at 
       tracks: [
         { id: "voz", muted: false },
         { id: "calada", muted: true },
+        { id: "trilha", music: true },
       ],
       clips: [
         // Source 0–10 at lesson 100, then source 10–20 at twice the speed from lesson 110.
@@ -112,6 +114,17 @@ test("an EdiAula lesson: words on the lesson's clock, only from what sounds, at 
         { assetId: "v", trackId: "voz", start: 110, in: 10, duration: 5, speed: 2, volume: 1 },
         // The same voice on a muted track: not heard, so not its words.
         { assetId: "m", trackId: "calada", start: 0, in: 0, duration: 20, volume: 1 },
+        // On the music track, and silenced for another voice: no one speaking, as in EdiAula.
+        { assetId: "m", trackId: "trilha", start: 0, in: 0, duration: 20, volume: 1 },
+        {
+          assetId: "m",
+          trackId: "voz",
+          start: 200,
+          in: 0,
+          duration: 20,
+          volume: 1,
+          mutedFor: { by: "personagem" },
+        },
       ],
     }),
   );
@@ -155,6 +168,19 @@ test("an audio file: the stretch is cut to a small mono WAV for the preview", as
   ]);
   assert.equal(stdout.trim(), "pcm_s16le,22050,1");
   assert.throws(() => cutNarrationArgs(lessonAudio, 5, 5, out), /Trecho de narração inválido/);
+});
+
+test("a transcript EdiAula made of the file is read, whatever glossary it used", async () => {
+  const cache = join(dir, "cache-aula");
+  await mkdir(cache, { recursive: true });
+  assert.equal(existingTranscript(cache), null);
+  await writeFile(join(cache, "transcript-large-v3-turbo-pt-1a2b3c4d-vad-b1.json"), "{}");
+  await writeFile(join(cache, "transcript-small-en-b1.json"), "{}");
+  await writeFile(join(cache, "speech16k-temp.wav"), "");
+  assert.equal(
+    existingTranscript(cache),
+    join(cache, "transcript-large-v3-turbo-pt-1a2b3c4d-vad-b1.json"),
+  );
 });
 
 test("a voice clip at an unusual speed chains tempo stages", () => {

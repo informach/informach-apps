@@ -15,13 +15,14 @@ contextBridge.exposeInMainWorld("desktop", {
   pipelinePick: (kind) => ipcRenderer.invoke("pipeline:pick", kind),
   pipelineReadProject: (token) => ipcRenderer.invoke("pipeline:read-project", token),
   pipelineWords: (token, kind, jobId) => ipcRenderer.invoke("pipeline:words", token, kind, jobId),
-  pipelineNarration: (token, kind, start, end) =>
-    ipcRenderer.invoke("pipeline:narration", token, kind, start, end),
+  pipelineNarration: (token, kind, start, end, jobId) =>
+    ipcRenderer.invoke("pipeline:narration", token, kind, start, end, jobId),
   pipelineCancel: (jobId) => ipcRenderer.invoke("pipeline:cancel", jobId),
   pipelineVideoFacts: (token) => ipcRenderer.invoke("pipeline:video-facts", token),
-  pipelineVideoPreview: (token, seconds) =>
-    ipcRenderer.invoke("pipeline:video-preview", token, seconds),
-  pipelineVideoFrames: (token, times) => ipcRenderer.invoke("pipeline:video-frames", token, times),
+  pipelineVideoPreview: (token, seconds, jobId) =>
+    ipcRenderer.invoke("pipeline:video-preview", token, seconds, jobId),
+  pipelineVideoFrames: (token, times, jobId) =>
+    ipcRenderer.invoke("pipeline:video-frames", token, times, jobId),
   exportAlphaWebm: (input) => ipcRenderer.invoke("export:alpha-webm", input),
   onPipelineProgress: (callback) => subscribe("pipeline:progress", callback),
   importAsset: () => ipcRenderer.invoke("asset:import"),

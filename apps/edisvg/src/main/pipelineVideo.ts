@@ -21,8 +21,16 @@ export interface RecordedClick {
 export function findCursorFile(video: string): string | null {
   const dir = dirname(video);
   const stem = basename(video, extname(video));
-  const id = stem.split("-")[0] ?? stem;
-  for (const name of [`${id}-cursor.json`, `${stem}-cursor.json`, `${stem}.cursor.json`]) {
+  // "<id>-<id>-tela": the media folder of an EdiAula lesson keeps "<id>-cursor.json".
+  const packaged = /^([a-z0-9]{6,})-\1-/i.exec(stem)?.[1];
+  const names = [
+    ...(packaged ? [`${packaged}-cursor.json`] : []),
+    `${stem}-cursor.json`,
+    `${stem}.cursor.json`,
+    // A take folder (Gravações/<data>/tela.mp4) keeps its cursor as cursor.json.
+    "cursor.json",
+  ];
+  for (const name of names) {
     const path = join(dir, name);
     if (existsSync(path)) return path;
   }

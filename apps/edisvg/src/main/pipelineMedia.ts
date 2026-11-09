@@ -1,4 +1,6 @@
+import { readdirSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { HeardWord } from "@informach/edi-speech/piece";
 import { z } from "zod";
 
@@ -20,7 +22,16 @@ const lessonSchema = z.looseObject({
       hasAudio: z.boolean().optional(),
     }),
   ),
-  tracks: z.array(z.looseObject({ id: z.string(), muted: z.boolean().optional() })),
+  tracks: z.array(
+    z.looseObject({
+      id: z.string(),
+      name: z.string().optional(),
+      muted: z.boolean().optional(),
+      music: z.boolean().optional(),
+      sfx: z.boolean().optional(),
+      clicks: z.boolean().optional(),
+    }),
+  ),
   clips: z.array(
     z.looseObject({
       assetId: z.string(),
@@ -30,7 +41,7 @@ const lessonSchema = z.looseObject({
       duration: z.number().positive(),
       speed: z.number().positive().nullish(),
       volume: z.number().nullish(),
-      muted: z.boolean().nullish(),
+      mutedFor: z.unknown().optional(),
     }),
   ),
 });
@@ -70,15 +81,26 @@ export async function lessonWords(
   const parsed = lessonSchema.safeParse(JSON.parse(await readFile(lessonPath, "utf8")));
   if (!parsed.success) throw new Error("O arquivo não é uma aula do EdiAula que dê para ler.");
   const lesson = parsed.data;
-  const muted = new Set(lesson.tracks.filter((t) => t.muted).map((t) => t.id));
+  // Not someone speaking, as EdiAula decides (shared/audio.ts): a muted, music, sound effects
+  // or clicks track.
+  const muted = new Set(
+    lesson.tracks
+      .filter(
+        (t) =>
+          t.muted || t.music || t.clicks || t.sfx || (t.name ?? "").startsWith("Efeitos sonoros"),
+      )
+      .map((t) => t.id),
+  );
   const assets = new Map(lesson.assets.map((a) => [a.id, a]));
   const transcripts = new Map<string, z.infer<typeof transcriptSchema>["words"]>();
   const words: HeardWord[] = [];
   const voices: VoiceClip[] = [];
   for (const clip of lesson.clips) {
     const asset = assets.get(clip.assetId);
-    if (!asset?.transcript || asset.transcriptStatus !== "ready") continue;
-    if (muted.has(clip.trackId) || clip.muted || (clip.volume ?? 1) <= 0) continue;
+    if (!asset?.transcript || asset.transcriptStatus !== "ready" || asset.hasAudio === false)
+      continue;
+    // A clip silenced while another voice speaks (mutedFor) is not heard either.
+    if (muted.has(clip.trackId) || clip.mutedFor || (clip.volume ?? 1) <= 0) continue;
     let heard = transcripts.get(asset.transcript);
     if (!heard) {
       try {
@@ -228,4 +250,19 @@ export function mixNarrationArgs(
     "[mix]",
     ...pcmOut(out),
   ];
+}
+
+/**
+ * A Portuguese transcript EdiAula already made of this file (with or without its glossary terms,
+ * with or without voice detection), the newest one; null when there is none.
+ */
+export function existingTranscript(dir: string): string | null {
+  let best: { path: string; at: number } | null = null;
+  for (const name of readdirSync(dir)) {
+    if (!/^transcript-.+-pt(?:-[0-9a-f]{8})?(?:-vad)?-b1\.json$/.test(name)) continue;
+    const path = join(dir, name);
+    const at = statSync(path).mtimeMs;
+    if (!best || at > best.at) best = { path, at };
+  }
+  return best?.path ?? null;
 }

@@ -420,14 +420,16 @@ else {
           win?.webContents.send("pipeline:progress", { jobId, ratio }),
         );
       });
-      handle("pipeline:narration", (token, kind, start, end) =>
-        pipelineNarration(token, kind, Number(start), Number(end)),
+      handle("pipeline:narration", (token, kind, start, end, jobId) =>
+        pipelineNarration(token, kind, Number(start), Number(end), jobId),
       );
       handle("pipeline:video-facts", (token) => pipelineVideoFacts(token));
-      handle("pipeline:video-preview", (token, seconds) =>
-        pipelineVideoPreview(token, Number(seconds)),
+      handle("pipeline:video-preview", (token, seconds, jobId) =>
+        pipelineVideoPreview(token, Number(seconds), jobId),
       );
-      handle("pipeline:video-frames", (token, times) => pipelineVideoFrames(token, times));
+      handle("pipeline:video-frames", (token, times, jobId) =>
+        pipelineVideoFrames(token, times, jobId),
+      );
       handle("export:alpha-webm", async (input) => {
         if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
         return exportAlphaWebm(win, input, folderFor("documents"), () => desktop.assertAccess());

@@ -42,6 +42,8 @@ interface Props {
   editor: PipelineEditor;
   report(message: string): void;
   close(): void;
+  /** Tells the dialog a run is going (it then refuses to close). */
+  setBusy(busy: boolean): void;
 }
 
 type View =
@@ -194,12 +196,14 @@ function RunForm({
   editor,
   report,
   onBack,
+  setBusy,
 }: {
   recipe: Recipe;
   desktop: PipelinesDesktop;
   editor: PipelineEditor;
   report(message: string): void;
   onBack(): void;
+  setBusy(busy: boolean): void;
 }) {
   const id = useId();
   const [files, setFiles] = useState<RunInputs["files"]>({});
@@ -234,6 +238,7 @@ function RunForm({
     const abort = new AbortController();
     control.current = abort;
     setRunning(true);
+    setBusy(true);
     setOutcome(null);
     editor.beginRun();
     try {
@@ -251,6 +256,7 @@ function RunForm({
       // Whatever the run did (also when it stopped) is undone by one Ctrl+Z.
       editor.endRun();
       if (live.current) setRunning(false);
+      setBusy(false);
       control.current = null;
     }
   };
@@ -350,7 +356,12 @@ function RunForm({
   );
 }
 
-function PipelinesPanel({ desktop, editor, report, close }: Props) {
+function PipelinesPanel({ desktop, editor, report, close, setBusy }: Props) {
+  const [running, setRunning] = useState(false);
+  const busy = (value: boolean) => {
+    setRunning(value);
+    setBusy(value);
+  };
   const [store, setStore] = useState<RecipeStore | null>(null);
   const [view, setView] = useState<View>({ name: "list" });
   useEffect(() => {
@@ -385,7 +396,13 @@ function PipelinesPanel({ desktop, editor, report, close }: Props) {
     <>
       <div className="dialog-heading">
         <h2>{title}</h2>
-        <button type="button" aria-label="Fechar pipelines" onClick={close}>
+        <button
+          type="button"
+          aria-label="Fechar pipelines"
+          title={running ? "Cancele o pipeline para fechar" : undefined}
+          disabled={running}
+          onClick={close}
+        >
           ×
         </button>
       </div>
@@ -410,6 +427,7 @@ function PipelinesPanel({ desktop, editor, report, close }: Props) {
           editor={editor}
           report={report}
           onBack={() => setView({ name: "list" })}
+          setBusy={busy}
         />
       ) : (
         <>
@@ -502,7 +520,7 @@ function PipelinesPanel({ desktop, editor, report, close }: Props) {
   );
 }
 
-export function mountPipelines(dialog: HTMLDialogElement, props: Omit<Props, "close">) {
+export function mountPipelines(dialog: HTMLDialogElement, props: Omit<Props, "close" | "setBusy">) {
   dialog.setAttribute("aria-label", "Pipelines");
   dialog.classList.add("pipelines-dialog");
   let live = true;
@@ -515,7 +533,10 @@ export function mountPipelines(dialog: HTMLDialogElement, props: Omit<Props, "cl
     dialog.removeEventListener("cancel", cancelEvent);
     root.unmount();
   };
+  let busy = false;
   const close = () => {
+    // A run in progress is stopped with Cancelar, never by closing the dialog under it.
+    if (busy) return;
     dispose();
     dialog.close();
   };
@@ -524,7 +545,17 @@ export function mountPipelines(dialog: HTMLDialogElement, props: Omit<Props, "cl
     close();
   };
   dialog.addEventListener("cancel", cancelEvent);
-  flushSync(() => root.render(<PipelinesPanel {...props} close={close} />));
+  flushSync(() =>
+    root.render(
+      <PipelinesPanel
+        {...props}
+        close={close}
+        setBusy={(value) => {
+          busy = value;
+        }}
+      />,
+    ),
+  );
   dialog.showModal();
   return dispose;
 }

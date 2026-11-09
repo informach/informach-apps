@@ -181,13 +181,13 @@ export function planSzProjectImport(
   const skipped: string[] = [];
   for (const asset of project.assets) {
     if (asset.kind !== "image") continue;
-    const svg = svgOfDataUrl(asset.dataUrl);
-    if (svg === null) {
-      skipped.push(`${asset.name} (não é SVG)`);
-      continue;
-    }
     let scene: ImportedScene;
     try {
+      const svg = svgOfDataUrl(asset.dataUrl);
+      if (svg === null) {
+        skipped.push(`${asset.name} (não é SVG)`);
+        continue;
+      }
       scene = toScene(svg);
     } catch (error) {
       skipped.push(

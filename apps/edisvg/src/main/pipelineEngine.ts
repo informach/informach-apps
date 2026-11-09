@@ -9,7 +9,12 @@ import type { HeardWord } from "@informach/edi-speech/piece";
 import { app, type BrowserWindow, dialog } from "electron";
 import { unzipSync } from "fflate";
 import { suggestedNameSchema } from "./exportPayload.ts";
-import { cutNarrationArgs, lessonWords, mixNarrationArgs } from "./pipelineMedia.ts";
+import {
+  cutNarrationArgs,
+  existingTranscript,
+  lessonWords,
+  mixNarrationArgs,
+} from "./pipelineMedia.ts";
 import { pickedPath } from "./pipelines.ts";
 import {
   alphaWebmArgs,
@@ -28,6 +33,20 @@ import {
 
 const developmentRequire = createRequire(import.meta.url);
 let engine: ReturnType<typeof build> | null = null;
+
+/** The running jobs of the pipelines: Cancelar aborts the signal every step of the job hears. */
+const jobs = new Map<string, AbortController>();
+function jobSignal(jobId: string): AbortSignal {
+  const control = new AbortController();
+  jobs.get(jobId)?.abort();
+  jobs.set(jobId, control);
+  return control.signal;
+}
+const endJob = (jobId: string, signal: AbortSignal): void => {
+  if (jobs.get(jobId)?.signal === signal) jobs.delete(jobId);
+};
+const validJobId = (jobId: unknown): jobId is string =>
+  typeof jobId === "string" && /^[\w-]{1,64}$/.test(jobId);
 
 function build() {
   const paths = resolveNativeMedia({
@@ -53,21 +72,22 @@ function build() {
     root: () => join(ediaula, "whisper"),
     ffmpeg: () => paths.ffmpeg,
     run: (bin, args, opts) => media.run(bin, args, opts),
-    // EdiAula's cache folder for the file (same key): its transcript is found there.
-    cacheDir: (path) => {
-      const st = statSync(path);
-      const key = createHash("sha1")
-        .update(`${path}|${st.size}|${st.mtimeMs}`)
-        .digest("hex")
-        .slice(0, 16);
-      const dir = join(ediaula, "cache", key);
-      mkdirSync(dir, { recursive: true });
-      return dir;
-    },
+    cacheDir: (path) => cacheDirOf(path),
     // Only the recommendation of which engine to install looks at it; EdiAula installs it.
     gpu: async () => false,
   });
-  return { paths, media, whisper };
+  /** EdiAula's cache folder for the file (same key as EdiAula): its transcript is found there. */
+  function cacheDirOf(path: string): string {
+    const st = statSync(path);
+    const key = createHash("sha1")
+      .update(`${path}|${st.size}|${st.mtimeMs}`)
+      .digest("hex")
+      .slice(0, 16);
+    const dir = join(ediaula, "cache", key);
+    mkdirSync(dir, { recursive: true });
+    return dir;
+  }
+  return { paths, media, whisper, cacheDirOf };
 }
 
 const machine = () => {
@@ -87,19 +107,30 @@ export async function pipelineWords(
 ): Promise<HeardWord[]> {
   if (kind === "lesson") return (await lessonWords(pickedPath(token, "lesson"))).words;
   const path = pickedPath(token, "audio");
-  const { media, whisper } = machine();
+  const { media, whisper, cacheDirOf } = machine();
+  const read = async (file: string) =>
+    (
+      JSON.parse(await readFile(file, "utf8")) as { words: (HeardWord & { dropped?: string })[] }
+    ).words.filter((w) => !w.dropped);
+  // Transcribed in EdiAula already (its glossary changes the file name): read, not heard again.
+  const known = existingTranscript(cacheDirOf(path));
+  if (known) return read(known);
   const status = await whisper.engineStatus();
   if (!status.bin || !status.model)
     throw new Error(
       "A transcrição ainda não está instalada. Instale o motor e um modelo no EdiAula (painel Transcrição): o EdiSVG usa os mesmos.",
     );
-  const facts = await media.probe(path);
-  if (!facts.duration) throw new Error("Não consegui ler a duração do áudio.");
-  const out = await whisper.transcribe(jobId, path, facts.duration, "pt", [], onProgress);
-  const transcript = JSON.parse(await readFile(out, "utf8")) as {
-    words: (HeardWord & { dropped?: string })[];
-  };
-  return transcript.words.filter((w) => !w.dropped);
+  const signal = jobSignal(jobId);
+  try {
+    const facts = await media.probe(path, signal);
+    if (!facts.duration) throw new Error("Não consegui ler a duração do áudio.");
+    // The signal reaches every part of the transcription: Cancelar stops it whole (and never
+    // treats the stop as a broken voice-detection model, which lives in EdiAula's folder).
+    const out = await whisper.transcribe(jobId, path, facts.duration, "pt", [], onProgress, signal);
+    return read(out);
+  } finally {
+    endJob(jobId, signal);
+  }
 }
 
 /** The narration of [start, end) of the picked audio, as WAV bytes for the preview. */
@@ -108,8 +139,10 @@ export async function pipelineNarration(
   kind: unknown,
   start: number,
   end: number,
+  jobId: unknown,
 ): Promise<Uint8Array> {
   if (!Number.isFinite(start) || !Number.isFinite(end)) throw new Error("Trecho inválido.");
+  if (!validJobId(jobId)) throw new Error("Identificador de tarefa inválido.");
   const { paths, media } = machine();
   const dir = join(app.getPath("temp"), "edisvg-narration");
   mkdirSync(dir, { recursive: true });
@@ -119,9 +152,11 @@ export async function pipelineNarration(
       const { voices } = await lessonWords(pickedPath(token, "lesson"));
       const args = mixNarrationArgs(voices, start, end, out);
       if (!args) throw new Error("Nenhuma voz soa nesse trecho da aula.");
-      await media.run(paths.ffmpeg, args);
+      await media.run(paths.ffmpeg, args, { jobId });
     } else
-      await media.run(paths.ffmpeg, cutNarrationArgs(pickedPath(token, "audio"), start, end, out));
+      await media.run(paths.ffmpeg, cutNarrationArgs(pickedPath(token, "audio"), start, end, out), {
+        jobId,
+      });
     return new Uint8Array(await readFile(out));
   } finally {
     await rm(out, { force: true });
@@ -130,6 +165,8 @@ export async function pipelineNarration(
 
 /** Stops the transcription (or FFmpeg run) of a job. */
 export function cancelPipelineJob(jobId: string): void {
+  jobs.get(jobId)?.abort();
+  jobs.delete(jobId);
   if (!engine) return;
   engine.whisper.cancelWhisper(jobId);
   engine.media.cancel(jobId);
@@ -156,13 +193,18 @@ export async function pipelineVideoFacts(token: unknown): Promise<{
 }
 
 /** The first `seconds` of the demonstration as a light MP4 (bytes) for the preview. */
-export async function pipelineVideoPreview(token: unknown, seconds: number): Promise<Uint8Array> {
+export async function pipelineVideoPreview(
+  token: unknown,
+  seconds: number,
+  jobId: unknown,
+): Promise<Uint8Array> {
+  if (!validJobId(jobId)) throw new Error("Identificador de tarefa inválido.");
   const path = pickedPath(token, "video");
   const { paths, media } = machine();
   const dir = await mkdtemp(join(app.getPath("temp"), "edisvg-demo-"));
   try {
     const out = join(dir, "previa.mp4");
-    await media.run(paths.ffmpeg, previewArgs(path, seconds, out));
+    await media.run(paths.ffmpeg, previewArgs(path, seconds, out), { jobId });
     return new Uint8Array(await readFile(out));
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -173,9 +215,11 @@ export async function pipelineVideoPreview(token: unknown, seconds: number): Pro
 export async function pipelineVideoFrames(
   token: unknown,
   times: unknown,
+  jobId: unknown,
 ): Promise<{ mediaType: "image/jpeg"; data: string }[]> {
   if (!Array.isArray(times) || times.length > 4 || !times.every((t) => Number.isFinite(t)))
     throw new Error("Quadros pedidos inválidos.");
+  if (!validJobId(jobId)) throw new Error("Identificador de tarefa inválido.");
   const path = pickedPath(token, "video");
   const { paths, media } = machine();
   const dir = await mkdtemp(join(app.getPath("temp"), "edisvg-frames-"));
@@ -183,7 +227,7 @@ export async function pipelineVideoFrames(
     const out: { mediaType: "image/jpeg"; data: string }[] = [];
     for (const [index, at] of (times as number[]).entries()) {
       const file = join(dir, `quadro-${index}.jpg`);
-      await media.run(paths.ffmpeg, frameArgs(path, at, file));
+      await media.run(paths.ffmpeg, frameArgs(path, at, file), { jobId });
       out.push({ mediaType: "image/jpeg", data: (await readFile(file)).toString("base64") });
     }
     return out;
@@ -216,6 +260,8 @@ export async function exportAlphaWebm(
     fps: number;
     frames: number;
   };
+  if (!Number.isInteger(frames) || frames < 1 || frames > 100_000)
+    throw new Error("Sequência de quadros inválida.");
   const name = suggestedNameSchema.safeParse(value.name).data ?? "camada";
   const { paths, media } = machine();
   const dir = await mkdtemp(join(app.getPath("temp"), "edisvg-alpha-"));
