@@ -1,0 +1,119 @@
+{
+ "id": "notas",
+ "rotulo": "Notas musicais",
+ "grupo": "indicadores",
+ "usos": [
+  "tocar música",
+  "cantar",
+  "rádio",
+  "ninar"
+ ],
+ "folha": {
+  "arquivo": "notas_folha.png",
+  "colunas": 4,
+  "linhas": 2,
+  "quadros": 8,
+  "quadro_px": 128,
+  "modo": "variante",
+  "fps": 0
+ },
+ "emissao": {
+  "taxa": 1.4,
+  "rajada": 0,
+  "max": 8,
+  "forma": {
+   "tipo": "disco",
+   "raio": 0.15
+  },
+  "deslocamento": [
+   0,
+   0.25,
+   0
+  ],
+  "ancora": "cabeca",
+  "repete": 0
+ },
+ "particula": {
+  "vida": [
+   1.8,
+   2.4
+  ],
+  "velocidade": {
+   "direcao": [
+    0,
+    1,
+    0
+   ],
+   "min": 0.22,
+   "max": 0.32,
+   "abertura": 22
+  },
+  "gravidade": 0,
+  "arrasto": 0.3,
+  "tamanho": [
+   [
+    0,
+    0.02
+   ],
+   [
+    0.12,
+    0.18
+   ],
+   [
+    0.85,
+    0.17
+   ],
+   [
+    1,
+    0.0
+   ]
+  ],
+  "cor": [
+   [
+    0,
+    "#FFFFFF",
+    1
+   ],
+   [
+    1,
+    "#FFFFFF",
+    1
+   ]
+  ],
+  "rotacao": {
+   "inicial": [
+    -12,
+    12
+   ],
+   "velocidade": [
+    -25,
+    25
+   ]
+  },
+  "balanco": {
+   "amplitude": 0.06,
+   "frequencia": 0.9
+  }
+ },
+ "render": {
+  "mistura": "normal",
+  "orientacao": "camera",
+  "luz_propria": true,
+  "noite": 0.9
+ },
+ "glb": {
+  "arquivo": "notas.glb",
+  "laco": 2.4,
+  "animacao": "laco",
+  "triangulos": 1752,
+  "bytes": 62480,
+  "extras": [
+   {
+    "efeito": "notas",
+    "laco": 2.4,
+    "ancora": "cabeca",
+    "luz_propria": true
+   }
+  ]
+ }
+}

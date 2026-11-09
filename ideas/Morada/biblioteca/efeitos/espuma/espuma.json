@@ -1,0 +1,110 @@
+{
+ "id": "espuma",
+ "rotulo": "Espuma",
+ "grupo": "água e limpeza",
+ "usos": [
+  "banho",
+  "banheira",
+  "louça na pia"
+ ],
+ "folha": {
+  "arquivo": "espuma_folha.png",
+  "colunas": 4,
+  "linhas": 4,
+  "quadros": 16,
+  "quadro_px": 128,
+  "modo": "vida",
+  "fps": 12
+ },
+ "emissao": {
+  "taxa": 9,
+  "rajada": 0,
+  "max": 48,
+  "forma": {
+   "tipo": "disco",
+   "raio": 0.4
+  },
+  "deslocamento": [
+   0,
+   0.02,
+   0
+  ],
+  "ancora": "superficie",
+  "repete": 0
+ },
+ "particula": {
+  "vida": [
+   1.6,
+   2.6
+  ],
+  "velocidade": {
+   "direcao": [
+    0,
+    1,
+    0
+   ],
+   "min": 0.02,
+   "max": 0.08,
+   "abertura": 30
+  },
+  "gravidade": 0,
+  "arrasto": 1.5,
+  "tamanho": [
+   [
+    0,
+    0.16
+   ],
+   [
+    0.3,
+    0.26
+   ],
+   [
+    1,
+    0.28
+   ]
+  ],
+  "cor": [
+   [
+    0,
+    "#FFFFFF",
+    1
+   ],
+   [
+    1,
+    "#FFFFFF",
+    1
+   ]
+  ],
+  "rotacao": {
+   "inicial": [
+    0,
+    360
+   ],
+   "velocidade": [
+    -10,
+    10
+   ]
+  }
+ },
+ "render": {
+  "mistura": "normal",
+  "orientacao": "camera",
+  "luz_propria": false,
+  "noite": 0.6
+ },
+ "glb": {
+  "arquivo": "espuma.glb",
+  "laco": 3.0,
+  "animacao": "laco",
+  "triangulos": 3064,
+  "bytes": 93828,
+  "extras": [
+   {
+    "efeito": "espuma",
+    "laco": 3.0,
+    "ancora": "superficie",
+    "luz_propria": false
+   }
+  ]
+ }
+}

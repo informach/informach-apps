@@ -1,0 +1,107 @@
+{
+ "id": "suor",
+ "rotulo": "Gotas de suor",
+ "grupo": "indicadores",
+ "usos": [
+  "tenso",
+  "malhando",
+  "calor",
+  "correndo"
+ ],
+ "folha": {
+  "arquivo": "suor_folha.png",
+  "colunas": 4,
+  "linhas": 2,
+  "quadros": 8,
+  "quadro_px": 128,
+  "modo": "vida",
+  "fps": 0
+ },
+ "emissao": {
+  "taxa": 2.6,
+  "rajada": 0,
+  "max": 8,
+  "forma": {
+   "tipo": "anel",
+   "raio": 0.11
+  },
+  "deslocamento": [
+   0,
+   0.04,
+   0.06
+  ],
+  "ancora": "cabeca",
+  "repete": 0
+ },
+ "particula": {
+  "vida": [
+   0.9,
+   1.1
+  ],
+  "velocidade": {
+   "direcao": [
+    0,
+    -1,
+    0
+   ],
+   "min": 0.0,
+   "max": 0.05,
+   "abertura": 30
+  },
+  "gravidade": 0.6,
+  "arrasto": 0,
+  "tamanho": [
+   [
+    0,
+    0.1
+   ],
+   [
+    1,
+    0.11
+   ]
+  ],
+  "cor": [
+   [
+    0,
+    "#FFFFFF",
+    1
+   ],
+   [
+    1,
+    "#FFFFFF",
+    1
+   ]
+  ],
+  "rotacao": {
+   "inicial": [
+    -15,
+    15
+   ],
+   "velocidade": [
+    0,
+    0
+   ]
+  }
+ },
+ "render": {
+  "mistura": "normal",
+  "orientacao": "camera",
+  "luz_propria": false,
+  "noite": 0.8
+ },
+ "glb": {
+  "arquivo": "suor.glb",
+  "laco": 1.4,
+  "animacao": "laco",
+  "triangulos": 864,
+  "bytes": 21896,
+  "extras": [
+   {
+    "efeito": "suor",
+    "laco": 1.4,
+    "ancora": "cabeca",
+    "luz_propria": false
+   }
+  ]
+ }
+}

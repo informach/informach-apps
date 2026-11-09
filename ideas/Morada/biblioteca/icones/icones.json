@@ -1,0 +1,1263 @@
+{
+ "versao": 1,
+ "estilo": {
+  "caixa": 128,
+  "contorno": "#2C313A",
+  "traco_ficha": 6,
+  "traco_desenho": 4.5,
+  "paleta": "CORES de moveis_base.py"
+ },
+ "categorias": [
+  {
+   "id": "necessidades",
+   "rotulo": "Necessidades",
+   "total": 9
+  },
+  {
+   "id": "humores",
+   "rotulo": "Humores",
+   "total": 14
+  },
+  {
+   "id": "interacoes",
+   "rotulo": "Interações",
+   "total": 34
+  },
+  {
+   "id": "interface",
+   "rotulo": "Interface",
+   "total": 20
+  },
+  {
+   "id": "marcador",
+   "rotulo": "Marcador",
+   "total": 4
+  }
+ ],
+ "estados_barra": [
+  {
+   "id": "otimo",
+   "rotulo": "ótimo",
+   "cor": "#4EB35F",
+   "nivel_exemplo": 1.0
+  },
+  {
+   "id": "bom",
+   "rotulo": "bom",
+   "cor": "#B7DC5B",
+   "nivel_exemplo": 0.75
+  },
+  {
+   "id": "medio",
+   "rotulo": "médio",
+   "cor": "#FFD340",
+   "nivel_exemplo": 0.5
+  },
+  {
+   "id": "baixo",
+   "rotulo": "baixo",
+   "cor": "#F98B37",
+   "nivel_exemplo": 0.28
+  },
+  {
+   "id": "critico",
+   "rotulo": "crítico",
+   "cor": "#E5484D",
+   "nivel_exemplo": 0.1
+  }
+ ],
+ "humor_geral": [
+  {
+   "id": "otimo",
+   "rotulo": "humor ótimo",
+   "cor": "#4EB35F"
+  },
+  {
+   "id": "bom",
+   "rotulo": "humor bom",
+   "cor": "#FFD340"
+  },
+  {
+   "id": "ruim",
+   "rotulo": "humor ruim",
+   "cor": "#F98B37"
+  },
+  {
+   "id": "pessimo",
+   "rotulo": "humor péssimo",
+   "cor": "#E5484D"
+  }
+ ],
+ "grupos_interacao": {
+  "social": "#F27FA2",
+  "corpo": "#F98B37",
+  "sono": "#2664C4",
+  "banho": "#50B3F0",
+  "banheiro": "#2CB7C2",
+  "casa": "#4EB35F",
+  "trabalho": "#3087E0",
+  "lazer": "#A340C4",
+  "bicho": "#D69652",
+  "bebe": "#BAA1EB"
+ },
+ "menu_radial_exemplo": [
+  "conversar",
+  "abracar",
+  "beijar",
+  "cumprimentar",
+  "telefonar",
+  "carinho_bicho",
+  "brincar",
+  "namorar"
+ ],
+ "icones": [
+  {
+   "id": "fome",
+   "rotulo": "Fome",
+   "categoria": "necessidades",
+   "svg": "svg/necessidades/fome.svg",
+   "png": {
+    "64": "png/64/necessidades/fome.png",
+    "128": "png/128/necessidades/fome.png",
+    "256": "png/256/necessidades/fome.png"
+   },
+   "tags": "comida comer refeição",
+   "origem": "documento",
+   "cor": "#F98B37"
+  },
+  {
+   "id": "energia",
+   "rotulo": "Energia",
+   "categoria": "necessidades",
+   "svg": "svg/necessidades/energia.svg",
+   "png": {
+    "64": "png/64/necessidades/energia.png",
+    "128": "png/128/necessidades/energia.png",
+    "256": "png/256/necessidades/energia.png"
+   },
+   "tags": "cansaço sono raio",
+   "origem": "documento",
+   "cor": "#2664C4"
+  },
+  {
+   "id": "bexiga",
+   "rotulo": "Bexiga (banheiro)",
+   "categoria": "necessidades",
+   "svg": "svg/necessidades/bexiga.svg",
+   "png": {
+    "64": "png/64/necessidades/bexiga.png",
+    "128": "png/128/necessidades/bexiga.png",
+    "256": "png/256/necessidades/bexiga.png"
+   },
+   "tags": "banheiro xixi vaso",
+   "origem": "documento",
+   "cor": "#2CB7C2"
+  },
+  {
+   "id": "higiene",
+   "rotulo": "Higiene",
+   "categoria": "necessidades",
+   "svg": "svg/necessidades/higiene.svg",
+   "png": {
+    "64": "png/64/necessidades/higiene.png",
+    "128": "png/128/necessidades/higiene.png",
+    "256": "png/256/necessidades/higiene.png"
+   },
+   "tags": "banho sabonete limpo",
+   "origem": "documento",
+   "cor": "#50B3F0"
+  },
+  {
+   "id": "social",
+   "rotulo": "Social",
+   "categoria": "necessidades",
+   "svg": "svg/necessidades/social.svg",
+   "png": {
+    "64": "png/64/necessidades/social.png",
+    "128": "png/128/necessidades/social.png",
+    "256": "png/256/necessidades/social.png"
+   },
+   "tags": "amigos conversa pessoas",
+   "origem": "documento",
+   "cor": "#F27FA2"
+  },
+  {
+   "id": "diversao",
+   "rotulo": "Diversão",
+   "categoria": "necessidades",
+   "svg": "svg/necessidades/diversao.svg",
+   "png": {
+    "64": "png/64/necessidades/diversao.png",
+    "128": "png/128/necessidades/diversao.png",
+    "256": "png/256/necessidades/diversao.png"
+   },
+   "tags": "lazer festa balão",
+   "origem": "documento",
+   "cor": "#A340C4"
+  },
+  {
+   "id": "conforto",
+   "rotulo": "Conforto (bebês)",
+   "categoria": "necessidades",
+   "svg": "svg/necessidades/conforto.svg",
+   "png": {
+    "64": "png/64/necessidades/conforto.png",
+    "128": "png/128/necessidades/conforto.png",
+    "256": "png/256/necessidades/conforto.png"
+   },
+   "tags": "bebê almofada",
+   "origem": "documento: bebês",
+   "cor": "#BAA1EB"
+  },
+  {
+   "id": "fralda",
+   "rotulo": "Fralda (bebês)",
+   "categoria": "necessidades",
+   "svg": "svg/necessidades/fralda.svg",
+   "png": {
+    "64": "png/64/necessidades/fralda.png",
+    "128": "png/128/necessidades/fralda.png",
+    "256": "png/256/necessidades/fralda.png"
+   },
+   "tags": "bebê troca",
+   "origem": "documento: bebês",
+   "cor": "#5DCFB1"
+  },
+  {
+   "id": "vinculo",
+   "rotulo": "Vínculo (bebês)",
+   "categoria": "necessidades",
+   "svg": "svg/necessidades/vinculo.svg",
+   "png": {
+    "64": "png/64/necessidades/vinculo.png",
+    "128": "png/128/necessidades/vinculo.png",
+    "256": "png/256/necessidades/vinculo.png"
+   },
+   "tags": "bebê carinho coração",
+   "origem": "documento: bebês",
+   "cor": "#F4807B"
+  },
+  {
+   "id": "alegre",
+   "rotulo": "Alegre (feliz)",
+   "categoria": "humores",
+   "svg": "svg/humores/alegre.svg",
+   "png": {
+    "64": "png/64/humores/alegre.png",
+    "128": "png/128/humores/alegre.png",
+    "256": "png/256/humores/alegre.png"
+   },
+   "tags": "",
+   "origem": "documento",
+   "cor": "#FFD340"
+  },
+  {
+   "id": "tranquilo",
+   "rotulo": "Tranquilo",
+   "categoria": "humores",
+   "svg": "svg/humores/tranquilo.svg",
+   "png": {
+    "64": "png/64/humores/tranquilo.png",
+    "128": "png/128/humores/tranquilo.png",
+    "256": "png/256/humores/tranquilo.png"
+   },
+   "tags": "",
+   "origem": "documento",
+   "cor": "#AAE5CA"
+  },
+  {
+   "id": "focado",
+   "rotulo": "Focado",
+   "categoria": "humores",
+   "svg": "svg/humores/focado.svg",
+   "png": {
+    "64": "png/64/humores/focado.png",
+    "128": "png/128/humores/focado.png",
+    "256": "png/256/humores/focado.png"
+   },
+   "tags": "",
+   "origem": "documento",
+   "cor": "#50B3F0"
+  },
+  {
+   "id": "inspirado",
+   "rotulo": "Inspirado",
+   "categoria": "humores",
+   "svg": "svg/humores/inspirado.svg",
+   "png": {
+    "64": "png/64/humores/inspirado.png",
+    "128": "png/128/humores/inspirado.png",
+    "256": "png/256/humores/inspirado.png"
+   },
+   "tags": "",
+   "origem": "documento",
+   "cor": "#FFBA74"
+  },
+  {
+   "id": "triste",
+   "rotulo": "Triste",
+   "categoria": "humores",
+   "svg": "svg/humores/triste.svg",
+   "png": {
+    "64": "png/64/humores/triste.png",
+    "128": "png/128/humores/triste.png",
+    "256": "png/256/humores/triste.png"
+   },
+   "tags": "",
+   "origem": "documento",
+   "cor": "#90CBF5"
+  },
+  {
+   "id": "irritado",
+   "rotulo": "Irritado (bravo)",
+   "categoria": "humores",
+   "svg": "svg/humores/irritado.svg",
+   "png": {
+    "64": "png/64/humores/irritado.png",
+    "128": "png/128/humores/irritado.png",
+    "256": "png/256/humores/irritado.png"
+   },
+   "tags": "",
+   "origem": "documento",
+   "cor": "#E5484D"
+  },
+  {
+   "id": "tenso",
+   "rotulo": "Tenso",
+   "categoria": "humores",
+   "svg": "svg/humores/tenso.svg",
+   "png": {
+    "64": "png/64/humores/tenso.png",
+    "128": "png/128/humores/tenso.png",
+    "256": "png/256/humores/tenso.png"
+   },
+   "tags": "",
+   "origem": "documento",
+   "cor": "#BAA1EB"
+  },
+  {
+   "id": "envergonhado",
+   "rotulo": "Envergonhado",
+   "categoria": "humores",
+   "svg": "svg/humores/envergonhado.svg",
+   "png": {
+    "64": "png/64/humores/envergonhado.png",
+    "128": "png/128/humores/envergonhado.png",
+    "256": "png/256/humores/envergonhado.png"
+   },
+   "tags": "",
+   "origem": "documento",
+   "cor": "#F27FA2"
+  },
+  {
+   "id": "apaixonado",
+   "rotulo": "Apaixonado",
+   "categoria": "humores",
+   "svg": "svg/humores/apaixonado.svg",
+   "png": {
+    "64": "png/64/humores/apaixonado.png",
+    "128": "png/128/humores/apaixonado.png",
+    "256": "png/256/humores/apaixonado.png"
+   },
+   "tags": "",
+   "origem": "documento",
+   "cor": "#F7B7C9"
+  },
+  {
+   "id": "entediado",
+   "rotulo": "Entediado",
+   "categoria": "humores",
+   "svg": "svg/humores/entediado.svg",
+   "png": {
+    "64": "png/64/humores/entediado.png",
+    "128": "png/128/humores/entediado.png",
+    "256": "png/256/humores/entediado.png"
+   },
+   "tags": "",
+   "origem": "pedido",
+   "cor": "#CBD0D7"
+  },
+  {
+   "id": "confiante",
+   "rotulo": "Confiante",
+   "categoria": "humores",
+   "svg": "svg/humores/confiante.svg",
+   "png": {
+    "64": "png/64/humores/confiante.png",
+    "128": "png/128/humores/confiante.png",
+    "256": "png/256/humores/confiante.png"
+   },
+   "tags": "",
+   "origem": "pedido",
+   "cor": "#8FD07B"
+  },
+  {
+   "id": "com_sono",
+   "rotulo": "Com sono",
+   "categoria": "humores",
+   "svg": "svg/humores/com_sono.svg",
+   "png": {
+    "64": "png/64/humores/com_sono.png",
+    "128": "png/128/humores/com_sono.png",
+    "256": "png/256/humores/com_sono.png"
+   },
+   "tags": "",
+   "origem": "pedido",
+   "cor": "#6D87A9"
+  },
+  {
+   "id": "brincalhao",
+   "rotulo": "Brincalhão",
+   "categoria": "humores",
+   "svg": "svg/humores/brincalhao.svg",
+   "png": {
+    "64": "png/64/humores/brincalhao.png",
+    "128": "png/128/humores/brincalhao.png",
+    "256": "png/256/humores/brincalhao.png"
+   },
+   "tags": "",
+   "origem": "pedido",
+   "cor": "#F98B37"
+  },
+  {
+   "id": "enjoado",
+   "rotulo": "Enjoado",
+   "categoria": "humores",
+   "svg": "svg/humores/enjoado.svg",
+   "png": {
+    "64": "png/64/humores/enjoado.png",
+    "128": "png/128/humores/enjoado.png",
+    "256": "png/256/humores/enjoado.png"
+   },
+   "tags": "",
+   "origem": "pedido",
+   "cor": "#B7DC5B"
+  },
+  {
+   "id": "conversar",
+   "rotulo": "Conversar",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/conversar.svg",
+   "png": {
+    "64": "png/64/interacoes/conversar.png",
+    "128": "png/128/interacoes/conversar.png",
+    "256": "png/256/interacoes/conversar.png"
+   },
+   "tags": "falar papo",
+   "origem": "pedido",
+   "grupo": "social",
+   "cor": "#F27FA2"
+  },
+  {
+   "id": "abracar",
+   "rotulo": "Abraçar",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/abracar.svg",
+   "png": {
+    "64": "png/64/interacoes/abracar.png",
+    "128": "png/128/interacoes/abracar.png",
+    "256": "png/256/interacoes/abracar.png"
+   },
+   "tags": "abraço carinho",
+   "origem": "pedido",
+   "grupo": "social",
+   "cor": "#F27FA2"
+  },
+  {
+   "id": "beijar",
+   "rotulo": "Beijar",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/beijar.svg",
+   "png": {
+    "64": "png/64/interacoes/beijar.png",
+    "128": "png/128/interacoes/beijar.png",
+    "256": "png/256/interacoes/beijar.png"
+   },
+   "tags": "beijo romance",
+   "origem": "pedido",
+   "grupo": "social",
+   "cor": "#F27FA2"
+  },
+  {
+   "id": "namorar",
+   "rotulo": "Namorar",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/namorar.svg",
+   "png": {
+    "64": "png/64/interacoes/namorar.png",
+    "128": "png/128/interacoes/namorar.png",
+    "256": "png/256/interacoes/namorar.png"
+   },
+   "tags": "romance amor cama",
+   "origem": "documento",
+   "grupo": "social",
+   "cor": "#F27FA2"
+  },
+  {
+   "id": "cumprimentar",
+   "rotulo": "Apertar a mão",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/cumprimentar.svg",
+   "png": {
+    "64": "png/64/interacoes/cumprimentar.png",
+    "128": "png/128/interacoes/cumprimentar.png",
+    "256": "png/256/interacoes/cumprimentar.png"
+   },
+   "tags": "aperto de mão oi",
+   "origem": "documento",
+   "grupo": "social",
+   "cor": "#F27FA2"
+  },
+  {
+   "id": "telefonar",
+   "rotulo": "Telefonar",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/telefonar.svg",
+   "png": {
+    "64": "png/64/interacoes/telefonar.png",
+    "128": "png/128/interacoes/telefonar.png",
+    "256": "png/256/interacoes/telefonar.png"
+   },
+   "tags": "celular ligar",
+   "origem": "documento",
+   "grupo": "social",
+   "cor": "#F27FA2"
+  },
+  {
+   "id": "comer",
+   "rotulo": "Comer",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/comer.svg",
+   "png": {
+    "64": "png/64/interacoes/comer.png",
+    "128": "png/128/interacoes/comer.png",
+    "256": "png/256/interacoes/comer.png"
+   },
+   "tags": "refeição prato",
+   "origem": "pedido",
+   "grupo": "corpo",
+   "cor": "#F98B37"
+  },
+  {
+   "id": "lanche",
+   "rotulo": "Fazer um lanche",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/lanche.svg",
+   "png": {
+    "64": "png/64/interacoes/lanche.png",
+    "128": "png/128/interacoes/lanche.png",
+    "256": "png/256/interacoes/lanche.png"
+   },
+   "tags": "fruta maçã geladeira",
+   "origem": "documento",
+   "grupo": "corpo",
+   "cor": "#F98B37"
+  },
+  {
+   "id": "dormir",
+   "rotulo": "Dormir",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/dormir.svg",
+   "png": {
+    "64": "png/64/interacoes/dormir.png",
+    "128": "png/128/interacoes/dormir.png",
+    "256": "png/256/interacoes/dormir.png"
+   },
+   "tags": "cama sono",
+   "origem": "pedido",
+   "grupo": "sono",
+   "cor": "#2664C4"
+  },
+  {
+   "id": "cochilar",
+   "rotulo": "Cochilar",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/cochilar.svg",
+   "png": {
+    "64": "png/64/interacoes/cochilar.png",
+    "128": "png/128/interacoes/cochilar.png",
+    "256": "png/256/interacoes/cochilar.png"
+   },
+   "tags": "sofá soneca",
+   "origem": "documento",
+   "grupo": "sono",
+   "cor": "#2664C4"
+  },
+  {
+   "id": "sentar",
+   "rotulo": "Sentar",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/sentar.svg",
+   "png": {
+    "64": "png/64/interacoes/sentar.png",
+    "128": "png/128/interacoes/sentar.png",
+    "256": "png/256/interacoes/sentar.png"
+   },
+   "tags": "cadeira",
+   "origem": "documento",
+   "grupo": "corpo",
+   "cor": "#F98B37"
+  },
+  {
+   "id": "tomar_banho",
+   "rotulo": "Tomar banho",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/tomar_banho.svg",
+   "png": {
+    "64": "png/64/interacoes/tomar_banho.png",
+    "128": "png/128/interacoes/tomar_banho.png",
+    "256": "png/256/interacoes/tomar_banho.png"
+   },
+   "tags": "chuveiro higiene",
+   "origem": "pedido",
+   "grupo": "banho",
+   "cor": "#50B3F0"
+  },
+  {
+   "id": "usar_banheiro",
+   "rotulo": "Usar o banheiro",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/usar_banheiro.svg",
+   "png": {
+    "64": "png/64/interacoes/usar_banheiro.png",
+    "128": "png/128/interacoes/usar_banheiro.png",
+    "256": "png/256/interacoes/usar_banheiro.png"
+   },
+   "tags": "privada papel bexiga",
+   "origem": "pedido",
+   "grupo": "banheiro",
+   "cor": "#2CB7C2"
+  },
+  {
+   "id": "cozinhar",
+   "rotulo": "Cozinhar",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/cozinhar.svg",
+   "png": {
+    "64": "png/64/interacoes/cozinhar.png",
+    "128": "png/128/interacoes/cozinhar.png",
+    "256": "png/256/interacoes/cozinhar.png"
+   },
+   "tags": "fogão panela",
+   "origem": "pedido",
+   "grupo": "casa",
+   "cor": "#4EB35F"
+  },
+  {
+   "id": "limpar",
+   "rotulo": "Limpar",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/limpar.svg",
+   "png": {
+    "64": "png/64/interacoes/limpar.png",
+    "128": "png/128/interacoes/limpar.png",
+    "256": "png/256/interacoes/limpar.png"
+   },
+   "tags": "vassoura faxina",
+   "origem": "pedido",
+   "grupo": "casa",
+   "cor": "#4EB35F"
+  },
+  {
+   "id": "abrir_porta",
+   "rotulo": "Abrir a porta",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/abrir_porta.svg",
+   "png": {
+    "64": "png/64/interacoes/abrir_porta.png",
+    "128": "png/128/interacoes/abrir_porta.png",
+    "256": "png/256/interacoes/abrir_porta.png"
+   },
+   "tags": "entrar sair",
+   "origem": "documento",
+   "grupo": "casa",
+   "cor": "#4EB35F"
+  },
+  {
+   "id": "trancar_porta",
+   "rotulo": "Trancar a porta",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/trancar_porta.svg",
+   "png": {
+    "64": "png/64/interacoes/trancar_porta.png",
+    "128": "png/128/interacoes/trancar_porta.png",
+    "256": "png/256/interacoes/trancar_porta.png"
+   },
+   "tags": "cadeado privacidade",
+   "origem": "documento",
+   "grupo": "casa",
+   "cor": "#4EB35F"
+  },
+  {
+   "id": "trabalhar",
+   "rotulo": "Trabalhar",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/trabalhar.svg",
+   "png": {
+    "64": "png/64/interacoes/trabalhar.png",
+    "128": "png/128/interacoes/trabalhar.png",
+    "256": "png/256/interacoes/trabalhar.png"
+   },
+   "tags": "emprego maleta",
+   "origem": "pedido",
+   "grupo": "trabalho",
+   "cor": "#3087E0"
+  },
+  {
+   "id": "trabalhar_de_casa",
+   "rotulo": "Trabalhar de casa",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/trabalhar_de_casa.svg",
+   "png": {
+    "64": "png/64/interacoes/trabalhar_de_casa.png",
+    "128": "png/128/interacoes/trabalhar_de_casa.png",
+    "256": "png/256/interacoes/trabalhar_de_casa.png"
+   },
+   "tags": "computador notebook",
+   "origem": "documento",
+   "grupo": "trabalho",
+   "cor": "#3087E0"
+  },
+  {
+   "id": "estudar",
+   "rotulo": "Estudar",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/estudar.svg",
+   "png": {
+    "64": "png/64/interacoes/estudar.png",
+    "128": "png/128/interacoes/estudar.png",
+    "256": "png/256/interacoes/estudar.png"
+   },
+   "tags": "escola livro",
+   "origem": "pedido",
+   "grupo": "trabalho",
+   "cor": "#3087E0"
+  },
+  {
+   "id": "dever_de_casa",
+   "rotulo": "Dever de casa",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/dever_de_casa.svg",
+   "png": {
+    "64": "png/64/interacoes/dever_de_casa.png",
+    "128": "png/128/interacoes/dever_de_casa.png",
+    "256": "png/256/interacoes/dever_de_casa.png"
+   },
+   "tags": "escola caderno lápis",
+   "origem": "documento",
+   "grupo": "trabalho",
+   "cor": "#3087E0"
+  },
+  {
+   "id": "assistir_tv",
+   "rotulo": "Assistir TV",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/assistir_tv.svg",
+   "png": {
+    "64": "png/64/interacoes/assistir_tv.png",
+    "128": "png/128/interacoes/assistir_tv.png",
+    "256": "png/256/interacoes/assistir_tv.png"
+   },
+   "tags": "televisão",
+   "origem": "pedido",
+   "grupo": "lazer",
+   "cor": "#A340C4"
+  },
+  {
+   "id": "jogar",
+   "rotulo": "Jogar",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/jogar.svg",
+   "png": {
+    "64": "png/64/interacoes/jogar.png",
+    "128": "png/128/interacoes/jogar.png",
+    "256": "png/256/interacoes/jogar.png"
+   },
+   "tags": "videogame controle",
+   "origem": "pedido",
+   "grupo": "lazer",
+   "cor": "#A340C4"
+  },
+  {
+   "id": "ler",
+   "rotulo": "Ler",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/ler.svg",
+   "png": {
+    "64": "png/64/interacoes/ler.png",
+    "128": "png/128/interacoes/ler.png",
+    "256": "png/256/interacoes/ler.png"
+   },
+   "tags": "livro",
+   "origem": "pedido",
+   "grupo": "lazer",
+   "cor": "#A340C4"
+  },
+  {
+   "id": "brincar",
+   "rotulo": "Brincar",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/brincar.svg",
+   "png": {
+    "64": "png/64/interacoes/brincar.png",
+    "128": "png/128/interacoes/brincar.png",
+    "256": "png/256/interacoes/brincar.png"
+   },
+   "tags": "bola criança",
+   "origem": "pedido",
+   "grupo": "lazer",
+   "cor": "#A340C4"
+  },
+  {
+   "id": "carinho_bicho",
+   "rotulo": "Fazer carinho no bicho",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/carinho_bicho.svg",
+   "png": {
+    "64": "png/64/interacoes/carinho_bicho.png",
+    "128": "png/128/interacoes/carinho_bicho.png",
+    "256": "png/256/interacoes/carinho_bicho.png"
+   },
+   "tags": "cachorro gato pata",
+   "origem": "pedido",
+   "grupo": "bicho",
+   "cor": "#D69652"
+  },
+  {
+   "id": "passear",
+   "rotulo": "Passear",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/passear.svg",
+   "png": {
+    "64": "png/64/interacoes/passear.png",
+    "128": "png/128/interacoes/passear.png",
+    "256": "png/256/interacoes/passear.png"
+   },
+   "tags": "andar rua",
+   "origem": "pedido",
+   "grupo": "lazer",
+   "cor": "#A340C4"
+  },
+  {
+   "id": "comprar",
+   "rotulo": "Comprar",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/comprar.svg",
+   "png": {
+    "64": "png/64/interacoes/comprar.png",
+    "128": "png/128/interacoes/comprar.png",
+    "256": "png/256/interacoes/comprar.png"
+   },
+   "tags": "loja sacola",
+   "origem": "pedido",
+   "grupo": "lazer",
+   "cor": "#A340C4"
+  },
+  {
+   "id": "pegar_no_colo",
+   "rotulo": "Pegar no colo",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/pegar_no_colo.svg",
+   "png": {
+    "64": "png/64/interacoes/pegar_no_colo.png",
+    "128": "png/128/interacoes/pegar_no_colo.png",
+    "256": "png/256/interacoes/pegar_no_colo.png"
+   },
+   "tags": "bebê colo",
+   "origem": "documento",
+   "grupo": "bebe",
+   "cor": "#BAA1EB"
+  },
+  {
+   "id": "ninar",
+   "rotulo": "Ninar",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/ninar.svg",
+   "png": {
+    "64": "png/64/interacoes/ninar.png",
+    "128": "png/128/interacoes/ninar.png",
+    "256": "png/256/interacoes/ninar.png"
+   },
+   "tags": "bebê lua canção",
+   "origem": "documento",
+   "grupo": "bebe",
+   "cor": "#BAA1EB"
+  },
+  {
+   "id": "dar_mamadeira",
+   "rotulo": "Dar mamadeira",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/dar_mamadeira.svg",
+   "png": {
+    "64": "png/64/interacoes/dar_mamadeira.png",
+    "128": "png/128/interacoes/dar_mamadeira.png",
+    "256": "png/256/interacoes/dar_mamadeira.png"
+   },
+   "tags": "bebê mamar leite",
+   "origem": "documento",
+   "grupo": "bebe",
+   "cor": "#BAA1EB"
+  },
+  {
+   "id": "trocar_fralda",
+   "rotulo": "Trocar a fralda",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/trocar_fralda.svg",
+   "png": {
+    "64": "png/64/interacoes/trocar_fralda.png",
+    "128": "png/128/interacoes/trocar_fralda.png",
+    "256": "png/256/interacoes/trocar_fralda.png"
+   },
+   "tags": "bebê fralda",
+   "origem": "documento",
+   "grupo": "bebe",
+   "cor": "#BAA1EB"
+  },
+  {
+   "id": "por_no_berco",
+   "rotulo": "Pôr no berço",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/por_no_berco.svg",
+   "png": {
+    "64": "png/64/interacoes/por_no_berco.png",
+    "128": "png/128/interacoes/por_no_berco.png",
+    "256": "png/256/interacoes/por_no_berco.png"
+   },
+   "tags": "bebê berço dormir",
+   "origem": "documento",
+   "grupo": "bebe",
+   "cor": "#BAA1EB"
+  },
+  {
+   "id": "dar_banho_bebe",
+   "rotulo": "Dar banho no bebê",
+   "categoria": "interacoes",
+   "svg": "svg/interacoes/dar_banho_bebe.svg",
+   "png": {
+    "64": "png/64/interacoes/dar_banho_bebe.png",
+    "128": "png/128/interacoes/dar_banho_bebe.png",
+    "256": "png/256/interacoes/dar_banho_bebe.png"
+   },
+   "tags": "bebê banheira patinho",
+   "origem": "documento",
+   "grupo": "bebe",
+   "cor": "#BAA1EB"
+  },
+  {
+   "id": "dinheiro",
+   "rotulo": "Dinheiro (moeda)",
+   "categoria": "interface",
+   "svg": "svg/interface/dinheiro.svg",
+   "png": {
+    "64": "png/64/interface/dinheiro.png",
+    "128": "png/128/interface/dinheiro.png",
+    "256": "png/256/interface/dinheiro.png"
+   },
+   "tags": "moeda M$ saldo",
+   "origem": "pedido"
+  },
+  {
+   "id": "relogio",
+   "rotulo": "Relógio",
+   "categoria": "interface",
+   "svg": "svg/interface/relogio.svg",
+   "png": {
+    "64": "png/64/interface/relogio.png",
+    "128": "png/128/interface/relogio.png",
+    "256": "png/256/interface/relogio.png"
+   },
+   "tags": "hora tempo",
+   "origem": "pedido"
+  },
+  {
+   "id": "pausar",
+   "rotulo": "Pausar",
+   "categoria": "interface",
+   "svg": "svg/interface/pausar.svg",
+   "png": {
+    "64": "png/64/interface/pausar.png",
+    "128": "png/128/interface/pausar.png",
+    "256": "png/256/interface/pausar.png"
+   },
+   "tags": "pausa tempo",
+   "origem": "documento"
+  },
+  {
+   "id": "vel_1",
+   "rotulo": "Velocidade 1×",
+   "categoria": "interface",
+   "svg": "svg/interface/vel_1.svg",
+   "png": {
+    "64": "png/64/interface/vel_1.png",
+    "128": "png/128/interface/vel_1.png",
+    "256": "png/256/interface/vel_1.png"
+   },
+   "tags": "velocidade normal tempo",
+   "origem": "documento"
+  },
+  {
+   "id": "vel_2",
+   "rotulo": "Velocidade 2×",
+   "categoria": "interface",
+   "svg": "svg/interface/vel_2.svg",
+   "png": {
+    "64": "png/64/interface/vel_2.png",
+    "128": "png/128/interface/vel_2.png",
+    "256": "png/256/interface/vel_2.png"
+   },
+   "tags": "velocidade rápido tempo",
+   "origem": "documento"
+  },
+  {
+   "id": "vel_3",
+   "rotulo": "Velocidade 3×",
+   "categoria": "interface",
+   "svg": "svg/interface/vel_3.svg",
+   "png": {
+    "64": "png/64/interface/vel_3.png",
+    "128": "png/128/interface/vel_3.png",
+    "256": "png/256/interface/vel_3.png"
+   },
+   "tags": "velocidade muito rápido tempo",
+   "origem": "documento"
+  },
+  {
+   "id": "viver",
+   "rotulo": "Viver",
+   "categoria": "interface",
+   "svg": "svg/interface/viver.svg",
+   "png": {
+    "64": "png/64/interface/viver.png",
+    "128": "png/128/interface/viver.png",
+    "256": "png/256/interface/viver.png"
+   },
+   "tags": "modo viver casa",
+   "origem": "documento"
+  },
+  {
+   "id": "construir",
+   "rotulo": "Construir",
+   "categoria": "interface",
+   "svg": "svg/interface/construir.svg",
+   "png": {
+    "64": "png/64/interface/construir.png",
+    "128": "png/128/interface/construir.png",
+    "256": "png/256/interface/construir.png"
+   },
+   "tags": "obra parede martelo",
+   "origem": "pedido"
+  },
+  {
+   "id": "comprar_modo",
+   "rotulo": "Comprar (modo)",
+   "categoria": "interface",
+   "svg": "svg/interface/comprar_modo.svg",
+   "png": {
+    "64": "png/64/interface/comprar_modo.png",
+    "128": "png/128/interface/comprar_modo.png",
+    "256": "png/256/interface/comprar_modo.png"
+   },
+   "tags": "móveis loja etiqueta",
+   "origem": "pedido"
+  },
+  {
+   "id": "familia",
+   "rotulo": "Família",
+   "categoria": "interface",
+   "svg": "svg/interface/familia.svg",
+   "png": {
+    "64": "png/64/interface/familia.png",
+    "128": "png/128/interface/familia.png",
+    "256": "png/256/interface/familia.png"
+   },
+   "tags": "moradores retratos",
+   "origem": "pedido"
+  },
+  {
+   "id": "servicos",
+   "rotulo": "Serviços",
+   "categoria": "interface",
+   "svg": "svg/interface/servicos.svg",
+   "png": {
+    "64": "png/64/interface/servicos.png",
+    "128": "png/128/interface/servicos.png",
+    "256": "png/256/interface/servicos.png"
+   },
+   "tags": "contrato diarista babá",
+   "origem": "documento"
+  },
+  {
+   "id": "relacionamento",
+   "rotulo": "Relacionamento",
+   "categoria": "interface",
+   "svg": "svg/interface/relacionamento.svg",
+   "png": {
+    "64": "png/64/interface/relacionamento.png",
+    "128": "png/128/interface/relacionamento.png",
+    "256": "png/256/interface/relacionamento.png"
+   },
+   "tags": "amizade romance",
+   "origem": "pedido"
+  },
+  {
+   "id": "habilidade",
+   "rotulo": "Habilidade",
+   "categoria": "interface",
+   "svg": "svg/interface/habilidade.svg",
+   "png": {
+    "64": "png/64/interface/habilidade.png",
+    "128": "png/128/interface/habilidade.png",
+    "256": "png/256/interface/habilidade.png"
+   },
+   "tags": "medalha nível",
+   "origem": "pedido"
+  },
+  {
+   "id": "carreira",
+   "rotulo": "Carreira",
+   "categoria": "interface",
+   "svg": "svg/interface/carreira.svg",
+   "png": {
+    "64": "png/64/interface/carreira.png",
+    "128": "png/128/interface/carreira.png",
+    "256": "png/256/interface/carreira.png"
+   },
+   "tags": "emprego promoção",
+   "origem": "pedido"
+  },
+  {
+   "id": "convidar",
+   "rotulo": "Convidar",
+   "categoria": "interface",
+   "svg": "svg/interface/convidar.svg",
+   "png": {
+    "64": "png/64/interface/convidar.png",
+    "128": "png/128/interface/convidar.png",
+    "256": "png/256/interface/convidar.png"
+   },
+   "tags": "convite pessoa",
+   "origem": "documento"
+  },
+  {
+   "id": "mundos",
+   "rotulo": "Seus mundos",
+   "categoria": "interface",
+   "svg": "svg/interface/mundos.svg",
+   "png": {
+    "64": "png/64/interface/mundos.png",
+    "128": "png/128/interface/mundos.png",
+    "256": "png/256/interface/mundos.png"
+   },
+   "tags": "bairro casas",
+   "origem": "documento"
+  },
+  {
+   "id": "salvar",
+   "rotulo": "Salvo",
+   "categoria": "interface",
+   "svg": "svg/interface/salvar.svg",
+   "png": {
+    "64": "png/64/interface/salvar.png",
+    "128": "png/128/interface/salvar.png",
+    "256": "png/256/interface/salvar.png"
+   },
+   "tags": "nuvem salvo",
+   "origem": "documento"
+  },
+  {
+   "id": "configuracoes",
+   "rotulo": "Configurações",
+   "categoria": "interface",
+   "svg": "svg/interface/configuracoes.svg",
+   "png": {
+    "64": "png/64/interface/configuracoes.png",
+    "128": "png/128/interface/configuracoes.png",
+    "256": "png/256/interface/configuracoes.png"
+   },
+   "tags": "opções engrenagem",
+   "origem": "pedido"
+  },
+  {
+   "id": "camera",
+   "rotulo": "Câmera",
+   "categoria": "interface",
+   "svg": "svg/interface/camera.svg",
+   "png": {
+    "64": "png/64/interface/camera.png",
+    "128": "png/128/interface/camera.png",
+    "256": "png/256/interface/camera.png"
+   },
+   "tags": "vista foto",
+   "origem": "pedido"
+  },
+  {
+   "id": "voltar",
+   "rotulo": "Voltar",
+   "categoria": "interface",
+   "svg": "svg/interface/voltar.svg",
+   "png": {
+    "64": "png/64/interface/voltar.png",
+    "128": "png/128/interface/voltar.png",
+    "256": "png/256/interface/voltar.png"
+   },
+   "tags": "retornar",
+   "origem": "pedido"
+  },
+  {
+   "id": "marcador_otimo",
+   "rotulo": "Marcador ótimo",
+   "categoria": "marcador",
+   "svg": "svg/marcador/marcador_otimo.svg",
+   "png": {
+    "64": "png/64/marcador/marcador_otimo.png",
+    "128": "png/128/marcador/marcador_otimo.png",
+    "256": "png/256/marcador/marcador_otimo.png"
+   },
+   "tags": "",
+   "cor": "#4EB35F",
+   "humor_geral": "otimo"
+  },
+  {
+   "id": "marcador_bom",
+   "rotulo": "Marcador bom",
+   "categoria": "marcador",
+   "svg": "svg/marcador/marcador_bom.svg",
+   "png": {
+    "64": "png/64/marcador/marcador_bom.png",
+    "128": "png/128/marcador/marcador_bom.png",
+    "256": "png/256/marcador/marcador_bom.png"
+   },
+   "tags": "",
+   "cor": "#FFD340",
+   "humor_geral": "bom"
+  },
+  {
+   "id": "marcador_ruim",
+   "rotulo": "Marcador ruim",
+   "categoria": "marcador",
+   "svg": "svg/marcador/marcador_ruim.svg",
+   "png": {
+    "64": "png/64/marcador/marcador_ruim.png",
+    "128": "png/128/marcador/marcador_ruim.png",
+    "256": "png/256/marcador/marcador_ruim.png"
+   },
+   "tags": "",
+   "cor": "#F98B37",
+   "humor_geral": "ruim"
+  },
+  {
+   "id": "marcador_pessimo",
+   "rotulo": "Marcador péssimo",
+   "categoria": "marcador",
+   "svg": "svg/marcador/marcador_pessimo.svg",
+   "png": {
+    "64": "png/64/marcador/marcador_pessimo.png",
+    "128": "png/128/marcador/marcador_pessimo.png",
+    "256": "png/256/marcador/marcador_pessimo.png"
+   },
+   "tags": "",
+   "cor": "#E5484D",
+   "humor_geral": "pessimo"
+  }
+ ]
+}

@@ -1,0 +1,125 @@
+{
+ "id": "vapor",
+ "rotulo": "Vapor",
+ "grupo": "água e limpeza",
+ "usos": [
+  "chuveiro",
+  "panela",
+  "café",
+  "chaleira"
+ ],
+ "folha": {
+  "arquivo": "vapor_folha.png",
+  "colunas": 4,
+  "linhas": 4,
+  "quadros": 16,
+  "quadro_px": 128,
+  "modo": "vida",
+  "fps": 12
+ },
+ "emissao": {
+  "taxa": 5,
+  "rajada": 0,
+  "max": 30,
+  "forma": {
+   "tipo": "disco",
+   "raio": 0.06
+  },
+  "deslocamento": [
+   0,
+   0.02,
+   0
+  ],
+  "ancora": "boca",
+  "repete": 0
+ },
+ "particula": {
+  "vida": [
+   1.8,
+   2.6
+  ],
+  "velocidade": {
+   "direcao": [
+    0,
+    1,
+    0
+   ],
+   "min": 0.18,
+   "max": 0.3,
+   "abertura": 14
+  },
+  "gravidade": -0.03,
+  "arrasto": 0.5,
+  "tamanho": [
+   [
+    0,
+    0.1
+   ],
+   [
+    0.5,
+    0.26
+   ],
+   [
+    1,
+    0.38
+   ]
+  ],
+  "cor": [
+   [
+    0,
+    "#FFFFFF",
+    0
+   ],
+   [
+    0.15,
+    "#FFFFFF",
+    0.8
+   ],
+   [
+    0.7,
+    "#F2F5F8",
+    0.5
+   ],
+   [
+    1,
+    "#ECF0F4",
+    0
+   ]
+  ],
+  "rotacao": {
+   "inicial": [
+    -20,
+    20
+   ],
+   "velocidade": [
+    -15,
+    15
+   ]
+  },
+  "balanco": {
+   "amplitude": 0.03,
+   "frequencia": 0.5
+  }
+ },
+ "render": {
+  "mistura": "normal",
+  "orientacao": "camera",
+  "luz_propria": false,
+  "noite": 0.55
+ },
+ "glb": {
+  "arquivo": "vapor.glb",
+  "laco": 2.4,
+  "animacao": "laco",
+  "triangulos": 5040,
+  "bytes": 134740,
+  "extras": [
+   {
+    "efeito": "vapor",
+    "laco": 2.4,
+    "ancora": "boca",
+    "luz_propria": false
+   }
+  ]
+ }
+}

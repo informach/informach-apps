@@ -1,0 +1,115 @@
+{
+ "id": "bolhas",
+ "rotulo": "Bolhas",
+ "grupo": "água e limpeza",
+ "usos": [
+  "banho",
+  "louça",
+  "brincadeira"
+ ],
+ "folha": {
+  "arquivo": "bolhas_folha.png",
+  "colunas": 4,
+  "linhas": 4,
+  "quadros": 16,
+  "quadro_px": 128,
+  "modo": "vida",
+  "fps": 12
+ },
+ "emissao": {
+  "taxa": 4,
+  "rajada": 0,
+  "max": 24,
+  "forma": {
+   "tipo": "disco",
+   "raio": 0.3
+  },
+  "deslocamento": [
+   0,
+   0.05,
+   0
+  ],
+  "ancora": "superficie",
+  "repete": 0
+ },
+ "particula": {
+  "vida": [
+   2.2,
+   3.4
+  ],
+  "velocidade": {
+   "direcao": [
+    0,
+    1,
+    0
+   ],
+   "min": 0.15,
+   "max": 0.3,
+   "abertura": 25
+  },
+  "gravidade": -0.02,
+  "arrasto": 0.4,
+  "tamanho": [
+   [
+    0,
+    0.09
+   ],
+   [
+    1,
+    0.16
+   ]
+  ],
+  "cor": [
+   [
+    0,
+    "#FFFFFF",
+    0
+   ],
+   [
+    0.08,
+    "#FFFFFF",
+    1
+   ],
+   [
+    1,
+    "#FFFFFF",
+    1
+   ]
+  ],
+  "rotacao": {
+   "inicial": [
+    0,
+    0
+   ],
+   "velocidade": [
+    0,
+    0
+   ]
+  },
+  "balanco": {
+   "amplitude": 0.04,
+   "frequencia": 0.8
+  }
+ },
+ "render": {
+  "mistura": "normal",
+  "orientacao": "camera",
+  "luz_propria": false,
+  "noite": 0.7
+ },
+ "glb": {
+  "arquivo": "bolhas.glb",
+  "laco": 3.0,
+  "animacao": "laco",
+  "triangulos": 2816,
+  "bytes": 72588,
+  "extras": [
+   {
+    "efeito": "bolhas",
+    "laco": 3.0,
+    "ancora": "superficie",
+    "luz_propria": false
+   }
+  ]
+ }
+}

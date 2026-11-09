@@ -1,0 +1,169 @@
+{
+ "id": "fumaca",
+ "rotulo": "Fumaça",
+ "grupo": "fogo e fumaça",
+ "usos": [
+  "fogão queimando (escura)",
+  "churrasqueira (clara)"
+ ],
+ "folha": {
+  "arquivo": "fumaca_folha.png",
+  "colunas": 4,
+  "linhas": 4,
+  "quadros": 16,
+  "quadro_px": 128,
+  "modo": "vida",
+  "fps": 10
+ },
+ "emissao": {
+  "taxa": 4,
+  "rajada": 0,
+  "max": 30,
+  "forma": {
+   "tipo": "disco",
+   "raio": 0.1
+  },
+  "deslocamento": [
+   0,
+   0.05,
+   0
+  ],
+  "ancora": "boca",
+  "repete": 0
+ },
+ "particula": {
+  "vida": [
+   2.4,
+   3.4
+  ],
+  "velocidade": {
+   "direcao": [
+    0,
+    1,
+    0
+   ],
+   "min": 0.25,
+   "max": 0.4,
+   "abertura": 16
+  },
+  "gravidade": -0.04,
+  "arrasto": 0.35,
+  "tamanho": [
+   [
+    0,
+    0.15
+   ],
+   [
+    0.5,
+    0.4
+   ],
+   [
+    1,
+    0.62
+   ]
+  ],
+  "cor": [
+   [
+    0,
+    "#76808C",
+    0
+   ],
+   [
+    0.12,
+    "#5E6C7D",
+    0.9
+   ],
+   [
+    0.7,
+    "#9CA4AF",
+    0.55
+   ],
+   [
+    1,
+    "#CBD0D7",
+    0
+   ]
+  ],
+  "rotacao": {
+   "inicial": [
+    0,
+    360
+   ],
+   "velocidade": [
+    -20,
+    20
+   ]
+  },
+  "balanco": {
+   "amplitude": 0.05,
+   "frequencia": 0.3
+  }
+ },
+ "render": {
+  "mistura": "normal",
+  "orientacao": "camera",
+  "luz_propria": false,
+  "noite": 0.5
+ },
+ "variantes": {
+  "queimando": [
+   [
+    0,
+    "#2C313A",
+    0
+   ],
+   [
+    0.12,
+    "#1E2127",
+    0.97
+   ],
+   [
+    0.7,
+    "#2C313A",
+    0.75
+   ],
+   [
+    1,
+    "#404752",
+    0
+   ]
+  ],
+  "churrasqueira": [
+   [
+    0,
+    "#CBD0D7",
+    0
+   ],
+   [
+    0.12,
+    "#ECF0F4",
+    0.8
+   ],
+   [
+    0.7,
+    "#CBD0D7",
+    0.45
+   ],
+   [
+    1,
+    "#F7F7F4",
+    0
+   ]
+  ]
+ },
+ "glb": {
+  "arquivo": "fumaca.glb",
+  "laco": 3.2,
+  "animacao": "laco",
+  "triangulos": 5760,
+  "bytes": 164004,
+  "extras": [
+   {
+    "efeito": "fumaca",
+    "laco": 3.2,
+    "ancora": "boca",
+    "luz_propria": false
+   }
+  ]
+ }
+}

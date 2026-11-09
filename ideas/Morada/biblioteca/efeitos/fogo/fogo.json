@@ -1,0 +1,125 @@
+{
+ "id": "fogo",
+ "rotulo": "Fogo pequeno",
+ "grupo": "fogo e fumaça",
+ "usos": [
+  "fogão pegando fogo",
+  "panela esquecida"
+ ],
+ "folha": {
+  "arquivo": "fogo_folha.png",
+  "colunas": 4,
+  "linhas": 4,
+  "quadros": 16,
+  "quadro_px": 128,
+  "modo": "vida",
+  "fps": 16
+ },
+ "emissao": {
+  "taxa": 16,
+  "rajada": 0,
+  "max": 30,
+  "forma": {
+   "tipo": "disco",
+   "raio": 0.12
+  },
+  "deslocamento": [
+   0,
+   0,
+   0
+  ],
+  "ancora": "tampo",
+  "repete": 0
+ },
+ "particula": {
+  "vida": [
+   0.55,
+   0.85
+  ],
+  "velocidade": {
+   "direcao": [
+    0,
+    1,
+    0
+   ],
+   "min": 0.25,
+   "max": 0.45,
+   "abertura": 10
+  },
+  "gravidade": -0.4,
+  "arrasto": 0.6,
+  "tamanho": [
+   [
+    0,
+    0.16
+   ],
+   [
+    0.4,
+    0.24
+   ],
+   [
+    1,
+    0.12
+   ]
+  ],
+  "cor": [
+   [
+    0,
+    "#FFFFFF",
+    1
+   ],
+   [
+    0.85,
+    "#FFFFFF",
+    1
+   ],
+   [
+    1,
+    "#FFFFFF",
+    0
+   ]
+  ],
+  "rotacao": {
+   "inicial": [
+    -8,
+    8
+   ],
+   "velocidade": [
+    0,
+    0
+   ]
+  }
+ },
+ "render": {
+  "mistura": "normal",
+  "orientacao": "camera_y",
+  "luz_propria": true,
+  "noite": 1.0,
+  "luz": {
+   "cor": "#FF9A3C",
+   "intensidade": 1.6,
+   "alcance": 2.5,
+   "tremula": true
+  }
+ },
+ "glb": {
+  "arquivo": "fogo.glb",
+  "laco": 1.0,
+  "animacao": "laco",
+  "triangulos": 4464,
+  "bytes": 86072,
+  "extras": [
+   {
+    "anima": "piscar",
+    "periodo": 0.45,
+    "suave": true
+   },
+   {
+    "efeito": "fogo",
+    "laco": 1.0,
+    "ancora": "tampo",
+    "luz_propria": true
+   }
+  ]
+ }
+}

@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ícones do Morada</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: catálogo de ícones (busca, categoria, tamanho e fundo), as barras de necessidade, o menu radial de
+   interações para clicar e o marcador do morador em 3D com as cores do humor. */
+:root {
+  --papel: #EEF2F6; --painel: #FFFFFF; --tinta: #18212E; --suave: #5A6779; --linha: #D5DCE5;
+  --azul: #2E63D9; --azul-suave: #E3EBFB; --palco: #22355A; --sobre-palco: #DCE6F5;
+  --fundo-claro: #FFFFFF; --fundo-dia: #9CC6E8; --fundo-noite: #16213A;
+  --f-titulo: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --f-texto: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-medida: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --papel: #121823; --painel: #1A2230; --tinta: #E6ECF4; --suave: #9AA8BA; --linha: #2C3748;
+  --azul: #7FA3F2; --azul-suave: #22304A; --palco: #1B2B49; --sobre-palco: #DCE6F5; --fundo-claro: #222C3C; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --papel: #121823; --painel: #1A2230; --tinta: #E6ECF4; --suave: #9AA8BA; --linha: #2C3748;
+  --azul: #7FA3F2; --azul-suave: #22304A; --palco: #1B2B49; --sobre-palco: #DCE6F5; --fundo-claro: #222C3C; color-scheme: dark }
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+body { background: var(--papel); color: var(--tinta); font-family: var(--f-texto); font-size: 15px; line-height: 1.5; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 18px 32px }
+.largura { max-width: 1400px; margin: 0 auto }
+.topo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px; margin-bottom: 14px }
+h1 { font-family: var(--f-titulo); font-stretch: 78%; font-weight: 800; font-size: clamp(1.6rem, 3vw, 2.3rem); margin: 0 }
+h2 { font-family: var(--f-titulo); font-stretch: 85%; font-weight: 750; font-size: 1.3rem; margin: 0 0 4px }
+.topo p, .nota { color: var(--suave); margin: 0; max-width: 72ch }
+.nota { font-size: .86rem }
+section { margin-top: 26px }
+.barra-ferr { position: sticky; top: 0; z-index: 2; background: var(--papel); padding: 10px 0; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; border-bottom: 1px solid var(--linha) }
+@media (max-width: 700px) { .barra-ferr { position: static } }
+.busca { flex: 1 1 220px; min-width: 0; font: 500 .95rem var(--f-texto); color: var(--tinta); background: var(--painel); border: 1px solid var(--linha); border-radius: 8px; padding: 7px 11px }
+.busca:focus-visible { outline: 2px solid var(--azul); outline-offset: 1px }
+.grupo { display: flex; flex-wrap: wrap; gap: 6px; align-items: center }
+.grupo > span { font-family: var(--f-titulo); font-stretch: 85%; font-weight: 700; font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--suave); margin-right: 2px }
+.chip { font: 500 .84rem var(--f-texto); color: var(--tinta); background: transparent; border: 1px solid var(--linha); border-radius: 999px; padding: 4px 11px; cursor: pointer }
+.chip small { font-family: var(--f-medida); color: var(--suave); margin-left: 4px }
+.chip[aria-pressed="true"] { background: var(--azul); border-color: var(--azul); color: #FFFFFF }
+.chip[aria-pressed="true"] small { color: #E3EBFB }
+.chip:focus-visible, .ic:focus-visible, .rb:focus-visible, #radial-alvo:focus-visible { outline: 2px solid var(--azul); outline-offset: 2px }
+.grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--cel, 120px), 1fr)); gap: 10px; margin-top: 12px; border-radius: 10px; padding: 12px; background: var(--fundo); }
+.grade[data-fundo="claro"] { --fundo: var(--fundo-claro) } .grade[data-fundo="dia"] { --fundo: var(--fundo-dia) } .grade[data-fundo="noite"] { --fundo: var(--fundo-noite) }
+.ic { border: 0; background: transparent; padding: 6px 2px; border-radius: 8px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; color: inherit; font: inherit; min-width: 0 }
+.ic:hover { background: #8881 }
+.ic svg, .ic .png { width: var(--tam); height: var(--tam); display: block; flex: none }
+.ic .png { background-repeat: no-repeat; image-rendering: auto }
+.ic b { font-weight: 500; font-size: .8rem; line-height: 1.2; text-align: center; overflow-wrap: anywhere; color: var(--rot) }
+.ic code { font-family: var(--f-medida); font-size: .66rem; color: var(--rot2) }
+.grade[data-fundo="claro"] { --rot: var(--tinta); --rot2: var(--suave) }
+.grade[data-fundo="dia"] { --rot: #18212E; --rot2: #33435A }
+.grade[data-fundo="noite"] { --rot: #E6ECF4; --rot2: #9AA8BA }
+.cat-t { grid-column: 1 / -1; font-family: var(--f-titulo); font-stretch: 85%; font-weight: 700; font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--rot2); margin: 4px 0 -4px }
+.vazio { grid-column: 1 / -1; color: var(--rot2); padding: 20px 0; text-align: center }
+.detalhe { display: flex; gap: 14px; align-items: center; background: var(--painel); border: 1px solid var(--linha); border-radius: 10px; padding: 12px; margin-top: 12px; flex-wrap: wrap }
+.detalhe svg { width: 96px; height: 96px; flex: none }
+.detalhe dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; margin: 0; font-size: .84rem; min-width: 0; flex: 1 1 260px }
+.detalhe dt { color: var(--suave) } .detalhe dd { margin: 0; font-family: var(--f-medida); font-size: .76rem; overflow-wrap: anywhere }
+.cartao { background: var(--painel); border: 1px solid var(--linha); border-radius: 10px; padding: 14px }
+.necs { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px 18px; margin-top: 12px }
+.nec { display: flex; align-items: center; gap: 10px; min-width: 0 }
+.nec svg { width: 48px; height: 48px; flex: none }
+.nec .trilho { flex: 1; height: 20px; border-radius: 10px; background: #404752; border: 3px solid #2C313A; overflow: hidden; position: relative; min-width: 60px }
+.nec .cheio { position: absolute; inset: 0 auto 0 0; border-radius: 7px; transition: width .3s, background-color .3s }
+.nec .cheio::after { content: ""; position: absolute; left: 6px; right: 6px; top: 2px; height: 4px; border-radius: 2px; background: #fff8 }
+.nec span { font-family: var(--f-medida); font-size: .74rem; color: var(--suave); width: 54px; flex: none }
+.estados { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-top: 10px; align-items: center }
+.estados figure { margin: 0; display: flex; align-items: center; gap: 8px; font-size: .82rem; color: var(--suave) }
+.estados img { width: 120px; height: auto }
+.duas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; margin-top: 12px }
+@media (max-width: 900px) { .duas { grid-template-columns: minmax(0, 1fr) } }
+.radial { position: relative; aspect-ratio: 1; max-width: 520px; width: 100%; margin: 0 auto; border-radius: 12px; background: radial-gradient(circle at 50% 60%, #CFE3EE, #9CC6E8); overflow: hidden; touch-action: manipulation }
+#radial-alvo { position: absolute; left: 50%; top: 50%; translate: -50% -50%; width: 30%; aspect-ratio: .62; border: 0; padding: 0; background: transparent; cursor: pointer }
+#radial-alvo svg { width: 100%; height: 100% }
+#radial-menu { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .2s }
+#radial-menu.aberto { pointer-events: auto; opacity: 1 }
+#radial-menu .anel { position: absolute; left: 50%; top: 50%; width: 76%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; border: 9cqw solid #FBF2DCdd; box-shadow: 0 0 0 3px #2C313A, inset 0 0 0 3px #2C313A; container-type: inline-size }
+.radial { container-type: inline-size }
+#radial-menu .anel { border-width: 11cqw }
+.rb { position: absolute; width: 17%; aspect-ratio: 1; translate: -50% -50%; border: 0; padding: 0; background: transparent; cursor: pointer; transition: scale .15s, translate .25s }
+.rb svg { width: 100%; height: 100%; display: block }
+#radial-menu:not(.aberto) .rb { scale: .3 }
+.rb:hover, .rb:focus-visible { scale: 1.16 }
+#radial-rotulo { display: table; margin: 10px auto 0; background: #2C313A; color: #FFF; font: 600 .9rem var(--f-texto); border-radius: 999px; padding: 5px 14px; white-space: nowrap }
+.figura { width: 100%; height: auto; display: block; border-radius: 10px; border: 1px solid var(--linha); background: #FFF }
+.palco { position: relative; background: var(--palco); border-radius: 10px; overflow: hidden; aspect-ratio: 4 / 3; touch-action: none }
+.palco canvas { width: 100%; height: 100%; display: block }
+.legenda { position: absolute; left: 12px; bottom: 10px; font-family: var(--f-medida); font-size: .75rem; color: var(--sobre-palco); pointer-events: none }
+.botoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px }
+.marc2d { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px }
+.marc2d svg { width: 56px; height: 56px }
+ul.razoes { margin: 8px 0 0; padding-left: 20px; font-size: .9rem } ul.razoes li { margin: 3px 0 }
+@media (prefers-reduced-motion: reduce) { .rb, #radial-menu { transition: none } }
+</style>
+</head>
+<body>
+<div id="simbolos" hidden></div>
+<div class="largura">
+<header class="topo">
+  <h1>Ícones do Morada</h1>
+  <p id="resumo">Carregando…</p>
+</header>
+
+<div class="barra-ferr" role="toolbar" aria-label="Filtros dos ícones">
+  <input class="busca" id="busca" type="search" placeholder="Buscar ícone (nome, id ou palavra)" aria-label="Buscar ícone">
+  <div class="grupo" id="cats" aria-label="Categoria"></div>
+  <div class="grupo" aria-label="Tamanho"><span>Tamanho</span>
+    <button class="chip" type="button" data-tam="64" aria-pressed="false">64</button>
+    <button class="chip" type="button" data-tam="128" aria-pressed="true">128</button>
+    <button class="chip" type="button" data-tam="256" aria-pressed="false">256</button>
+  </div>
+  <div class="grupo" aria-label="Fundo"><span>Fundo</span>
+    <button class="chip" type="button" data-fundo="claro" aria-pressed="true">Claro</button>
+    <button class="chip" type="button" data-fundo="dia" aria-pressed="false">Cena de dia</button>
+    <button class="chip" type="button" data-fundo="noite" aria-pressed="false">Cena de noite</button>
+  </div>
+  <div class="grupo" aria-label="Formato"><span>Formato</span>
+    <button class="chip" type="button" data-fmt="svg" aria-pressed="true">SVG</button>
+    <button class="chip" type="button" data-fmt="png" aria-pressed="false">PNG do sprite</button>
+  </div>
+</div>
+<div class="detalhe" id="detalhe" hidden></div>
+<div class="grade" id="grade" data-fundo="claro"></div>
+
+<section>
+  <h2>Necessidades e a barra de 5 estados</h2>
+  <p class="nota">As necessidades do documento (fome, energia, bexiga, higiene, social e diversão) e as dos bebês (conforto, fralda e vínculo). A barra muda de cor em 5 estados conforme o nível. Arraste para ver.</p>
+  <div class="cartao" style="margin-top:10px">
+    <label class="nota" for="nivel">Nível de todas: <b id="nivel-v">70%</b></label>
+    <input id="nivel" type="range" min="0" max="100" value="70" style="width:100%">
+    <div class="necs" id="necs"></div>
+    <div class="estados" id="estados"></div>
+  </div>
+</section>
+
+<section id="secao-radial">
+  <h2>Menu radial de interações</h2>
+  <p class="nota">Clique no morador para abrir o menu; passe o mouse (ou toque) num botão para ver o nome. O desenho é nosso: anel creme, botões redondos com a cor do grupo e a etiqueta em forma de casinha no meio.</p>
+  <div class="duas">
+    <div>
+    <div class="radial" id="radial">
+      <button id="radial-alvo" type="button" aria-label="Abrir o menu de interações com Marcos"></button>
+      <div id="radial-menu" role="menu" aria-label="Interações"><div class="anel"></div></div>
+    </div>
+    <div id="radial-rotulo" role="status">Clique no morador</div>
+    </div>
+    <div>
+      <img class="figura" src="menu_radial.png" alt="Exemplo estático do menu radial com oito interações em volta da etiqueta de Marcos" loading="lazy">
+      <p class="nota" style="margin-top:8px">menu_radial.svg e .png: o mesmo menu como imagem, para referência de layout (rótulos para fora do anel, a fatia apontada realçada em amarelo).</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Marcador do morador escolhido</h2>
+  <p class="nota">A casinha gira e flutua sobre a cabeça de quem você dirige. A cor segue o humor geral: verde (ótimo), amarelo (bom), laranja (ruim) e vermelho (péssimo).</p>
+  <div class="duas">
+    <div>
+      <div class="palco" id="palco-marcador"><canvas id="tela-marcador" aria-label="Marcador 3D girando"></canvas><div class="legenda" id="leg-marcador"></div></div>
+      <div class="botoes" id="humores"></div>
+      <div class="botoes"><button class="chip" type="button" id="marcador-noite" aria-pressed="false">Noite</button></div>
+    </div>
+    <div class="cartao">
+      <img class="figura" src="marcador/propostas.png" alt="As três propostas de marcador: casinha, chave-casa e estrela-lar" loading="lazy">
+      <p style="margin:10px 0 0"><b>Escolhida: a casinha.</b></p>
+      <ul class="razoes">
+        <li>É o nome do jogo em forma de desenho: Morada é casa.</li>
+        <li>A silhueta (telhado, chaminé e paredes) se lê de qualquer lado enquanto gira; a chave fica fina de perfil e a estrela some no meio de tantas outras estrelas de jogo.</li>
+        <li>Tem base reta e telhado em cima: nada de losango com ponta para baixo, longe do marcador da série original.</li>
+        <li>A porta e a janela creme dão contraste com qualquer cor de humor, de dia e de noite.</li>
+      </ul>
+      <div class="marc2d" id="marc2d"></div>
+    </div>
+  </div>
+</section>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+const $ = (id) => document.getElementById(id);
+// o visualizador do artefato não serve .glb: cada modelo vai junto como <arquivo>.glb.txt (base64)
+async function bufGlb(url) {
+  const r = await fetch(url + ".txt");
+  if (!r.ok) throw new Error(url);
+  return Uint8Array.from(atob((await r.text()).trim()), (c) => c.charCodeAt(0)).buffer;
+}
+
+const [DADOS, SVG, SPRITE] = await Promise.all([fetch("icones.json").then((r) => r.json()), fetch("sprite/icones.svg").then((r) => r.text()),
+  fetch("sprite/icones.json").then((r) => r.json())]);
+$("simbolos").innerHTML = SVG;
+const ICONES = DADOS.icones;
+const POR_ID = Object.fromEntries(ICONES.map((i) => [i.id, i]));
+const CATS = DADOS.categorias;
+const usa = (id, extra = "") => `<svg viewBox="0 0 128 128" ${extra} aria-hidden="true"><use href="#ico-${id}"/></svg>`;
+$("resumo").textContent = `${ICONES.length} ícones desenhados aqui, no mesmo traço: ${CATS.map((c) => `${c.total} de ${c.rotulo.toLowerCase()}`).join(", ")}. Cada um em SVG e em PNG de 64, 128 e 256 px, mais o sprite único com índice em JSON.`;
+
+// ---------------------------------------------------------------- grade
+let cat = "todas", tam = 128, fundo = "claro", fmt = "svg";
+$("cats").innerHTML = `<span>Categoria</span>` + [["todas", "Todas", ICONES.length], ...CATS.map((c) => [c.id, c.rotulo, c.total])]
+  .map(([k, r, n]) => `<button class="chip" type="button" data-cat="${k}" aria-pressed="${k === "todas"}">${r}<small>${n}</small></button>`).join("");
+const sem = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+function desenha() {
+  const q = sem($("busca").value.trim());
+  const g = $("grade");
+  g.style.setProperty("--tam", tam + "px");
+  g.style.setProperty("--cel", Math.max(110, tam + 24) + "px");
+  g.dataset.fundo = fundo;
+  let html = "", total = 0;
+  for (const c of CATS) {
+    if (cat !== "todas" && cat !== c.id) continue;
+    const lista = ICONES.filter((i) => i.categoria === c.id && (!q || sem(`${i.rotulo} ${i.id} ${i.tags || ""} ${i.grupo || ""}`).includes(q)));
+    if (!lista.length) continue;
+    html += `<div class="cat-t">${c.rotulo} (${lista.length})</div>`;
+    for (const i of lista) {
+      total++;
+      let img;
+      if (fmt === "png") {
+        const s = SPRITE.icones[i.id], base = tam <= 64 ? 64 : 128, k = tam / base;
+        img = `<span class="png" role="img" aria-label="${i.rotulo}" style="background-image:url(sprite/icones_${base}.png);background-size:${SPRITE.colunas * base * k}px ${SPRITE.linhas * base * k}px;background-position:${-s.col * base * k}px ${-s.lin * base * k}px"></span>`;
+      } else img = usa(i.id);
+      html += `<button class="ic" type="button" data-id="${i.id}" title="${i.rotulo}">${img}<b>${i.rotulo}</b><code>${i.id}</code></button>`;
+    }
+  }
+  g.innerHTML = html || `<div class="vazio">Nenhum ícone com “${$("busca").value}”.</div>`;
+}
+function liga(sel, fn) {
+  document.querySelectorAll(sel).forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll(sel).forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    fn(b); desenha();
+  }));
+}
+liga("[data-cat]", (b) => cat = b.dataset.cat);
+liga("[data-tam]", (b) => tam = +b.dataset.tam);
+liga("[data-fundo]", (b) => fundo = b.dataset.fundo);
+liga("[data-fmt]", (b) => fmt = b.dataset.fmt);
+$("busca").addEventListener("input", desenha);
+$("grade").addEventListener("click", (ev) => {
+  const b = ev.target.closest("[data-id]"); if (!b) return;
+  const i = POR_ID[b.dataset.id];
+  const d = $("detalhe");
+  d.hidden = false;
+  d.innerHTML = usa(i.id) + `<dl><dt>Ícone</dt><dd>${i.rotulo}</dd><dt>id</dt><dd>${i.id}</dd><dt>Categoria</dt><dd>${i.categoria}${i.grupo ? " · grupo " + i.grupo : ""}</dd>
+    ${i.origem ? `<dt>Origem</dt><dd>${i.origem === "pedido" ? "lista pedida" : i.origem}</dd>` : ""}<dt>SVG</dt><dd>${i.svg}</dd><dt>PNG</dt><dd>${Object.values(i.png).join(" · ")}</dd>
+    <dt>Sprite</dt><dd>coluna ${SPRITE.icones[i.id].col}, linha ${SPRITE.icones[i.id].lin} · símbolo #ico-${i.id}</dd></dl>`;
+});
+desenha();
+
+// ---------------------------------------------------------------- necessidades
+const ESTADOS = DADOS.estados_barra; // ótimo, bom, médio, baixo, crítico
+const necs = ICONES.filter((i) => i.categoria === "necessidades");
+$("necs").innerHTML = necs.map((i) => `<div class="nec">${usa(i.id)}<div class="trilho"><div class="cheio" data-n="${i.id}"></div></div><span data-r="${i.id}"></span></div>`).join("");
+$("estados").innerHTML = ESTADOS.map((e) => `<figure><img src="barras/barra_${e.id}.png" alt="Barra no estado ${e.rotulo}" width="120" height="21">${e.rotulo}</figure>`).join("");
+function estadoDe(v) { return v >= 0.8 ? ESTADOS[0] : v >= 0.6 ? ESTADOS[1] : v >= 0.4 ? ESTADOS[2] : v >= 0.2 ? ESTADOS[3] : ESTADOS[4]; }
+function nivel() {
+  const base = +$("nivel").value / 100;
+  $("nivel-v").textContent = Math.round(base * 100) + "%";
+  necs.forEach((i, k) => {
+    const v = Math.max(0, Math.min(1, base + Math.sin(k * 2.3) * 0.12));
+    const e = estadoDe(v);
+    const el = document.querySelector(`[data-n="${i.id}"]`);
+    el.style.width = Math.max(8, v * 100) + "%"; el.style.backgroundColor = e.cor;
+    document.querySelector(`[data-r="${i.id}"]`).textContent = e.rotulo;
+  });
+}
+$("nivel").addEventListener("input", nivel);
+nivel();
+
+// ---------------------------------------------------------------- menu radial
+const MENU = DADOS.menu_radial_exemplo;
+$("radial-alvo").innerHTML = `<svg viewBox="0 0 100 160" aria-hidden="true">
+  <g transform="translate(26 0) scale(.375)">${document.querySelector("#ico-marcador_otimo").innerHTML}</g>
+  <ellipse cx="50" cy="152" rx="30" ry="6" fill="#2C313A" opacity=".2"/>
+  <path d="M22 150 V112 Q22 92 50 92 Q78 92 78 112 V150 Z" fill="#3087E0" stroke="#2C313A" stroke-width="3.5"/>
+  <circle cx="50" cy="74" r="20" fill="#FBC6A2" stroke="#2C313A" stroke-width="3.5"/>
+  <path d="M30 70 Q30 52 50 52 Q70 52 70 70 Q62 60 50 62 Q38 60 30 70 Z" fill="#6D4329" stroke="#2C313A" stroke-width="3"/>
+  <circle cx="43" cy="76" r="2.6" fill="#2C313A"/><circle cx="57" cy="76" r="2.6" fill="#2C313A"/>
+  <path d="M44 84 Q50 89 56 84" fill="none" stroke="#2C313A" stroke-width="2.6" stroke-linecap="round"/></svg>`;
+const menu = $("radial-menu");
+MENU.forEach((id, k) => {
+  const a = -Math.PI / 2 + k * 2 * Math.PI / MENU.length;
+  const b = document.createElement("button");
+  b.className = "rb"; b.type = "button"; b.dataset.id = id; b.setAttribute("role", "menuitem"); b.setAttribute("aria-label", POR_ID[id].rotulo);
+  b.style.left = (50 + 38 * Math.cos(a)) + "%"; b.style.top = (50 + 38 * Math.sin(a)) + "%";
+  b.innerHTML = usa(id);
+  b.addEventListener("mouseenter", () => $("radial-rotulo").textContent = POR_ID[id].rotulo);
+  b.addEventListener("focus", () => $("radial-rotulo").textContent = POR_ID[id].rotulo);
+  b.addEventListener("click", () => { $("radial-rotulo").textContent = `Marcos vai: ${POR_ID[id].rotulo.toLowerCase()}`; fecha(); });
+  menu.append(b);
+});
+function abre() { menu.classList.add("aberto"); $("radial-rotulo").textContent = "Escolha uma interação"; }
+function fecha() { menu.classList.remove("aberto"); }
+$("radial-alvo").addEventListener("click", () => menu.classList.contains("aberto") ? fecha() : abre());
+menu.addEventListener("click", (ev) => { if (ev.target === menu) fecha(); });
+
+// ---------------------------------------------------------------- marcador 3D
+const HUMORES = DADOS.humor_geral;
+$("humores").innerHTML = HUMORES.map((h, k) => `<button class="chip" type="button" data-humor="${h.id}" aria-pressed="${k === 0}">
+  <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${h.cor};border:2px solid #2C313A;vertical-align:-1px;margin-right:6px"></span>${h.rotulo}</button>`).join("");
+$("marc2d").innerHTML = HUMORES.map((h) => usa("marcador_" + h.id, `role="img" aria-label="Marcador 2D, ${h.rotulo}"`)).join("");
+const tela = $("tela-marcador");
+const renderer = new THREE.WebGLRenderer({ canvas: tela, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const cena = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 4 / 3, 0.05, 50);
+camera.position.set(0.0, 1.95, 2.3);
+camera.lookAt(0, 1.55, 0);
+const ceu = new THREE.HemisphereLight("#E4F0FF", "#5B6B4A", 1.3);
+const sol = new THREE.DirectionalLight("#FFF6E8", 2.2);
+sol.position.set(2, 4, 3);
+cena.add(ceu, sol);
+// cabeça de exemplo (só para dar a altura e a escala)
+const cab = new THREE.Group();
+const pele = new THREE.MeshStandardMaterial({ color: "#FBC6A2", roughness: .8 });
+const cabeca = new THREE.Mesh(new THREE.SphereGeometry(0.13, 32, 20), pele); cabeca.position.y = 1.55;
+const cabelo = new THREE.Mesh(new THREE.SphereGeometry(0.135, 32, 20, 0, Math.PI * 2, 0, Math.PI * 0.45), new THREE.MeshStandardMaterial({ color: "#6D4329", roughness: .9 }));
+cabelo.position.y = 1.57;
+const corpo = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.5, 8, 20), new THREE.MeshStandardMaterial({ color: "#3087E0", roughness: .8 }));
+corpo.position.y = 1.03;
+cab.add(cabeca, cabelo, corpo);
+cena.add(cab);
+const chao = new THREE.Mesh(new THREE.CircleGeometry(3, 48).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: "#E7D7BE", roughness: 1 }));
+cena.add(chao);
+let mixer = null, mats = {}, noite = false, humor = HUMORES[0].id, cores = null;
+bufGlb("marcador/marcador.glb").then((buf) => new GLTFLoader().parse(buf, "", (g) => {
+  const m = g.scene;
+  m.position.y = 1.78; // acima da cabeça
+  cena.add(m);
+  cores = m.getObjectByName("marcador").userData.cores_humor;
+  m.traverse((o) => { if (o.isMesh) mats[o.material.name] = o.material; });
+  mixer = new THREE.AnimationMixer(m);
+  mixer.clipAction(g.animations.find((a) => a.name === "laco") || g.animations[0]).play();
+  pinta();
+  pronto = true;
+}));
+let pronto = false;
+function pinta() {
+  if (!cores) return;
+  const c = cores[humor];
+  if (mats.marcador_corpo) { mats.marcador_corpo.color.set(c.corpo); mats.marcador_corpo.emissive.set(c.corpo); mats.marcador_corpo.emissiveIntensity = noite ? 0.55 : 0.3; }
+  if (mats.marcador_telhado) { mats.marcador_telhado.color.set(c.telhado); mats.marcador_telhado.emissive.set(c.telhado); mats.marcador_telhado.emissiveIntensity = noite ? 0.45 : 0.25; }
+  if (mats.marcador_detalhe) mats.marcador_detalhe.emissiveIntensity = noite ? 0.5 : 0.3;
+  const h = HUMORES.find((x) => x.id === humor);
+  $("leg-marcador").textContent = `${h.rotulo} · ${noite ? "noite" : "dia"} · gira 90°/s e flutua 2,5 cm`;
+}
+function luz() {
+  cena.background = new THREE.Color(noite ? "#0E1830" : "#9CC6E8");
+  ceu.intensity = noite ? 0.5 : 1.3; ceu.color.set(noite ? "#5F78C0" : "#E4F0FF");
+  sol.intensity = noite ? 0.3 : 2.2; sol.color.set(noite ? "#9FB4FF" : "#FFF6E8");
+  chao.material.color.set(noite ? "#3A3550" : "#E7D7BE");
+  $("marcador-noite").setAttribute("aria-pressed", String(noite)); $("marcador-noite").textContent = noite ? "Dia" : "Noite";
+  pinta();
+}
+document.querySelectorAll("[data-humor]").forEach((b) => b.addEventListener("click", () => {
+  humor = b.dataset.humor;
+  document.querySelectorAll("[data-humor]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  pinta();
+}));
+$("marcador-noite").addEventListener("click", () => { noite = !noite; luz(); });
+function redimensiona() {
+  const r = tela.parentElement.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix();
+}
+new ResizeObserver(redimensiona).observe(tela.parentElement);
+luz();
+const relogio = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(relogio.getDelta(), 0.05);
+  if (mixer) mixer.update(dt);
+  renderer.render(cena, camera);
+});
+window.__morada = { pronto: () => pronto };
+</script>
+</body>
+</html>

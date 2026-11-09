@@ -1,0 +1,116 @@
+{
+ "id": "confete",
+ "rotulo": "Confete",
+ "grupo": "indicadores",
+ "usos": [
+  "aniversário",
+  "promoção",
+  "formatura",
+  "casamento"
+ ],
+ "folha": {
+  "arquivo": "confete_folha.png",
+  "colunas": 4,
+  "linhas": 6,
+  "quadros": 24,
+  "quadro_px": 128,
+  "modo": "variante_laco",
+  "fps": 12
+ },
+ "emissao": {
+  "taxa": 0,
+  "rajada": 70,
+  "repete": 3.0,
+  "max": 140,
+  "forma": {
+   "tipo": "disco",
+   "raio": 0.2
+  },
+  "deslocamento": [
+   0,
+   1.0,
+   0
+  ],
+  "ancora": "chao"
+ },
+ "particula": {
+  "vida": [
+   2.2,
+   3.0
+  ],
+  "velocidade": {
+   "direcao": [
+    0,
+    1,
+    0
+   ],
+   "min": 2.4,
+   "max": 3.4,
+   "abertura": 38
+  },
+  "gravidade": 3.2,
+  "arrasto": 1.4,
+  "tamanho": [
+   [
+    0,
+    0.12
+   ],
+   [
+    1,
+    0.12
+   ]
+  ],
+  "cor": [
+   [
+    0,
+    "#FFFFFF",
+    1
+   ],
+   [
+    0.8,
+    "#FFFFFF",
+    1
+   ],
+   [
+    1,
+    "#FFFFFF",
+    0
+   ]
+  ],
+  "rotacao": {
+   "inicial": [
+    0,
+    360
+   ],
+   "velocidade": [
+    -300,
+    300
+   ]
+  },
+  "balanco": {
+   "amplitude": 0.08,
+   "frequencia": 1.2
+  }
+ },
+ "render": {
+  "mistura": "normal",
+  "orientacao": "camera",
+  "luz_propria": true,
+  "noite": 0.9
+ },
+ "glb": {
+  "arquivo": "confete.glb",
+  "laco": 3.0,
+  "animacao": "laco",
+  "triangulos": 5744,
+  "bytes": 409344,
+  "extras": [
+   {
+    "efeito": "confete",
+    "laco": 3.0,
+    "ancora": "chao",
+    "luz_propria": true
+   }
+  ]
+ }
+}

@@ -1,0 +1,117 @@
+{
+ "id": "zzz",
+ "rotulo": "Zzz de sono",
+ "grupo": "indicadores",
+ "usos": [
+  "dormir",
+  "cochilar",
+  "com sono"
+ ],
+ "folha": {
+  "arquivo": "zzz_folha.png",
+  "colunas": 2,
+  "linhas": 2,
+  "quadros": 4,
+  "quadro_px": 128,
+  "modo": "laco",
+  "fps": 6
+ },
+ "emissao": {
+  "taxa": 0.9,
+  "rajada": 0,
+  "max": 5,
+  "forma": {
+   "tipo": "ponto"
+  },
+  "deslocamento": [
+   0.12,
+   0.2,
+   0
+  ],
+  "ancora": "cabeca",
+  "repete": 0
+ },
+ "particula": {
+  "vida": [
+   2.2,
+   2.6
+  ],
+  "velocidade": {
+   "direcao": [
+    0.45,
+    1,
+    0
+   ],
+   "min": 0.18,
+   "max": 0.22,
+   "abertura": 6
+  },
+  "gravidade": 0,
+  "arrasto": 0,
+  "tamanho": [
+   [
+    0,
+    0.03
+   ],
+   [
+    0.15,
+    0.12
+   ],
+   [
+    0.85,
+    0.24
+   ],
+   [
+    1,
+    0.0
+   ]
+  ],
+  "cor": [
+   [
+    0,
+    "#FFFFFF",
+    1
+   ],
+   [
+    1,
+    "#FFFFFF",
+    1
+   ]
+  ],
+  "rotacao": {
+   "inicial": [
+    -10,
+    10
+   ],
+   "velocidade": [
+    0,
+    0
+   ]
+  },
+  "balanco": {
+   "amplitude": 0.03,
+   "frequencia": 0.6
+  }
+ },
+ "render": {
+  "mistura": "normal",
+  "orientacao": "camera",
+  "luz_propria": true,
+  "noite": 0.9
+ },
+ "glb": {
+  "arquivo": "zzz.glb",
+  "laco": 2.7,
+  "animacao": "laco",
+  "triangulos": 696,
+  "bytes": 36388,
+  "extras": [
+   {
+    "efeito": "zzz",
+    "laco": 2.7,
+    "ancora": "cabeca",
+    "luz_propria": true
+   }
+  ]
+ }
+}

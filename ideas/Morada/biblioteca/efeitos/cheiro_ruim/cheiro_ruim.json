@@ -1,0 +1,117 @@
+{
+ "id": "cheiro_ruim",
+ "rotulo": "Cheiro ruim",
+ "grupo": "sujeira",
+ "usos": [
+  "lixo",
+  "comida estragada",
+  "morador sem banho",
+  "fralda"
+ ],
+ "folha": {
+  "arquivo": "cheiro_ruim_folha.png",
+  "colunas": 4,
+  "linhas": 4,
+  "quadros": 16,
+  "quadro_px": 128,
+  "modo": "vida",
+  "fps": 10
+ },
+ "emissao": {
+  "taxa": 1.4,
+  "rajada": 0,
+  "max": 8,
+  "forma": {
+   "tipo": "disco",
+   "raio": 0.12
+  },
+  "deslocamento": [
+   0,
+   0.1,
+   0
+  ],
+  "ancora": "topo",
+  "repete": 0
+ },
+ "particula": {
+  "vida": [
+   1.8,
+   2.4
+  ],
+  "velocidade": {
+   "direcao": [
+    0,
+    1,
+    0
+   ],
+   "min": 0.12,
+   "max": 0.2,
+   "abertura": 12
+  },
+  "gravidade": 0,
+  "arrasto": 0.2,
+  "tamanho": [
+   [
+    0,
+    0.3
+   ],
+   [
+    1,
+    0.38
+   ]
+  ],
+  "cor": [
+   [
+    0,
+    "#FFFFFF",
+    0
+   ],
+   [
+    0.15,
+    "#FFFFFF",
+    1
+   ],
+   [
+    0.8,
+    "#FFFFFF",
+    1
+   ],
+   [
+    1,
+    "#FFFFFF",
+    0
+   ]
+  ],
+  "rotacao": {
+   "inicial": [
+    -8,
+    8
+   ],
+   "velocidade": [
+    0,
+    0
+   ]
+  }
+ },
+ "render": {
+  "mistura": "normal",
+  "orientacao": "camera_y",
+  "luz_propria": false,
+  "noite": 0.85
+ },
+ "glb": {
+  "arquivo": "cheiro_ruim.glb",
+  "laco": 2.4,
+  "animacao": "laco",
+  "triangulos": 1440,
+  "bytes": 47408,
+  "extras": [
+   {
+    "efeito": "cheiro_ruim",
+    "laco": 2.4,
+    "ancora": "topo",
+    "luz_propria": false
+   }
+  ]
+ }
+}
