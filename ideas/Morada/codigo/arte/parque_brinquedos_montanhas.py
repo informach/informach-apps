@@ -133,6 +133,58 @@ def espinho(p, n, h, r, cor="terracota_escura"):
     return orienta(o, p, n)
 
 
+def cabeca_tunel(c, semi, ang_f, ang_t, cor, n=28, passo=9.5):
+    """Cabeça elipsoidal com os polos no eixo Y: abre a boca em volta do polo da frente (ang_f graus a partir de −Y) e a
+    nuca em volta do polo de trás (ang_t), ligadas por um túnel por dentro (por onde o trilho passa). Devolve (objeto,
+    aro da boca, aro da nuca)."""
+    import bmesh
+    a, b, cc = semi
+    nseg = max(1, round((ang_t - ang_f) / passo))
+    angs = [ang_f + (ang_t - ang_f) * k / nseg for k in range(nseg + 1)]
+
+    def anel(phi):
+        f = math.radians(phi)
+        return [V((c.x + a * math.sin(f) * math.cos(t), c.y - b * math.cos(f), c.z + cc * math.sin(f) * math.sin(t)))
+                for t in [2 * math.pi * k / n for k in range(n)]]
+
+    bm = bmesh.new()
+    aneis = [[bm.verts.new(p) for p in anel(phi)] for phi in angs]
+    fr, tr = aneis[0], aneis[-1]
+    yf, yt = fr[0].co.y, tr[0].co.y
+    rf = (a * math.sin(math.radians(ang_f)), cc * math.sin(math.radians(ang_f)))
+    rt = (a * math.sin(math.radians(ang_t)), cc * math.sin(math.radians(ang_t)))
+    tun = [fr]
+    m = 6
+    for k in range(1, m):
+        f = k / m
+        aperto = 1 - 0.08 * math.sin(math.pi * f)
+        rx = (rf[0] * (1 - f) + rt[0] * f) * aperto
+        rz = (rf[1] * (1 - f) + rt[1] * f) * aperto
+        y = yf + (yt - yf) * f
+        tun.append([bm.verts.new((c.x + rx * math.cos(t), y, c.z + rz * math.sin(t)))
+                    for t in [2 * math.pi * j / n for j in range(n)]])
+    tun.append(tr)
+    for A, B in zip(aneis, aneis[1:]):
+        for i in range(n):
+            j = (i + 1) % n
+            bm.faces.new((A[i], A[j], B[j], B[i]))
+    marca = []
+    for k, (A, B) in enumerate(zip(tun, tun[1:])):
+        for i in range(n):
+            j = (i + 1) % n
+            marca.append((bm.faces.new((A[j], A[i], B[i], B[j])), k))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    bm.faces.index_update()
+    idx_boca = [f_.index for f_, k in marca if k == 0]
+    idx_fundo = [f_.index for f_, k in marca if k > 0]
+    aro_f = [v.co.copy() for v in fr]
+    aro_t = [v.co.copy() for v in tr]
+    ob = pb.obj("cabeca", bm, cor, liso=True, angulo=50)
+    mb.pinta(ob, "vinho", idx_boca)
+    mb.pinta(ob, "chocolate", idx_fundo)
+    return ob, aro_f, aro_t
+
+
 def dragao():
     ob = []
     cor, escura, clara = "terracota", "terracota_escura", "terracota_clara"
@@ -153,48 +205,44 @@ def dragao():
     barriga = mb.torno(perfil, cor=clara, seg=18, esc=(1, 0.4), nome="barriga")
     mb.transforma(barriga, loc=(0, -1.55, 0.05))
     ob.append(barriga)
-    # cabeça
-    H0, HS = V((0, -0.5, 8.75)), (3.75, 3.25, 3.4)
-    ob.append(mb.esfera(1.0, cor=cor, esc=HS, seg=26, nome="cabeca"))
-    mb.transforma(ob[-1], loc=H0)
-    # focinho com a boca aberta (o trilho entra por ela)
-    foc = mb.superelipsoide(3.1, 2.0, 2.6, x=0, y=-3.1, z=5.8, cor=cor, e=0.75, e_v=0.7, nu=20, nv=10,
-                            nome="focinho")
-    ob.append(foc)
-    boca_c = V((0, -3.98, 6.9))
-    labio = mb.torno([(1.0 + 0.17 * math.cos(math.radians(a)), 0.17 * math.sin(math.radians(a)))
-                      for a in range(-90, 271, 45)], cor=cor, seg=18, esc=(1.0, 0.84), nome="labio")
-    mb.transforma(labio, rot=("X", 90))
-    mb.transforma(labio, loc=boca_c)
-    ob.append(labio)
-    ob.append(mb.esfera(1.0, x=boca_c.x, y=boca_c.y + 0.08, z=boca_c.z, cor="vinho", esc=(1.0, 0.25, 0.84), seg=20,
-                        nome="boca"))
-    ob.append(mb.superelipsoide(0.95, 1.0, 0.24, x=0, y=-4.12, z=6.18, cor="rosa", e=0.6, e_v=0.6, nu=16, nv=8,
-                                  nome="lingua"))
+    # cabeçona com a boca escancarada na frente e um túnel por dentro até a nuca (o trilho atravessa)
+    H0, HS = V((0, -0.4, 7.2)), (3.9, 3.4, 3.6)
+    cab, aro_f, aro_t = cabeca_tunel(H0, HS, 25, 157, cor, n=26)
+    ob.append(cab)
+    ob.append(pb.tubo(aro_f, 0.24, cor, 5, fechado=True, nome="labio"))      # lábios em volta da boca
+    ob.append(pb.tubo(aro_t, 0.16, escura, 6, fechado=True, nome="borda_nuca"))
+    yb, zb, rx, rz = aro_f[0].y, H0.z, HS[0] * math.sin(math.radians(25)), HS[2] * math.sin(math.radians(25))
+    for dx, h in ((-0.62, 0.42), (-0.22, 0.36), (0.22, 0.36), (0.62, 0.42)):  # dentinhos de cima, na beira da boca
+        zt = zb + rz * math.sqrt(max(0.0, 1 - (dx / rx) ** 2)) + 0.02
+        d_ = mb.torno([(0, 0), (0.19, 0.02), (0.15, h * 0.6), (0.06, h * 0.95), (0, h)], cor="branco", seg=8)
+        mb.transforma(d_, rot=("X", 180))
+        mb.transforma(d_, loc=(dx, yb + 0.12, zt))
+        ob.append(d_)
+    lng = mb.superelipsoide(1.5, 2.2, 0.32, cor="vermelho", e=0.55, e_v=0.6, nu=14, nv=6, nome="lingua")
+    mb.transforma(lng, rot=("X", 8))
+    mb.transforma(lng, loc=(0, yb + 0.55, zb - rz + 0.02))
+    ob.append(lng)
+    # olhos enormes no alto da cara (olhando para cima), brilhos, bochechas e narinas
     for sx in (-1, 1):
-        dente = mb.cilindro(0.12, 0.26, r2=0.03, cor="branco", seg=8, bisel=0.0)
-        mb.transforma(dente, loc=(sx * 0.42, -4.02, 7.55), rot=("X", 180))
-        ob.append(dente)
-    # olhos, brilhos, bochechas
+        p, n = sobre_elipsoide(H0, HS, (sx * 0.42, -0.66, 0.5))
+        ob.append(orienta(mb.esfera(1.15, cor="branco", esc=(1.0, 1.05, 0.42), seg=14), p, n, 0.2))
+        p2 = p + n * 0.14 + V((-sx * 0.06, 0, 0.06))
+        ob.append(orienta(mb.esfera(0.82, cor="preto", esc=(1.0, 1.1, 0.4), seg=12), p2, n, 0.0))
+        ob.append(pb.bola(p2.x - sx * 0.22, p2.y - 0.24, p2.z + 0.3, 0.24, "branco", sub=1))
+        ob.append(pb.bola(p2.x + sx * 0.24, p2.y - 0.26, p2.z - 0.22, 0.11, "branco", sub=1))
+        p, n = sobre_elipsoide(H0, HS, (sx * 0.72, -0.56, -0.12))
+        ob.append(orienta(pb.bola(0, 0, 0, 0.8, "salmao", sub=2, esc=(1.0, 0.85, 0.22)), p, n, 0.08))
+        p, n = sobre_elipsoide(H0, HS, (sx * 0.15, -0.88, 0.47))
+        ob.append(orienta(pb.bola(0, 0, 0, 0.12, "vinho", sub=1, esc=(1.3, 0.9, 0.5)), p, n, 0.03))
+    # espinhos: crista no alto da cabeça, dois de cada lado e fileira nas costas e na cauda
+    for dy, dz, h, r in ((-0.35, 1.0, 1.25, 0.6), (0.05, 1.0, 1.45, 0.66), (0.45, 0.9, 1.35, 0.62),
+                         (0.8, 0.6, 1.1, 0.55)):
+        p, n = sobre_elipsoide(H0, HS, (0, dy, dz))
+        ob.append(espinho(p, (n + V((0, 0.35, 0))).normalized(), h, r, escura))
     for sx in (-1, 1):
-        p, n = sobre_elipsoide(H0, HS, (sx * 0.46, -0.78, 0.26))
-        ob.append(orienta(mb.esfera(1.0, cor="branco", esc=(1.0, 1.0, 0.45), seg=14), p, n, 0.18))
-        p2 = p + n * 0.12 + V((-sx * 0.08, 0, -0.02))
-        ob.append(orienta(mb.esfera(0.68, cor="preto", esc=(1.0, 1.08, 0.4), seg=12), p2, n, 0.0))
-        ob.append(pb.bola(p2.x - sx * 0.18, p2.y - 0.22, p2.z + 0.24, 0.2, "branco", sub=1))
-        ob.append(pb.bola(p2.x + sx * 0.2, p2.y - 0.24, p2.z - 0.18, 0.1, "branco", sub=1))
-        p, n = sobre_elipsoide(H0, HS, (sx * 0.72, -0.6, -0.36))
-        ob.append(orienta(pb.bola(0, 0, 0, 0.78, "salmao", sub=2, esc=(1.0, 0.85, 0.22)), p, n, 0.08))
-    # espinhos: coroa na cabeça e fileira nas costas e na cauda
-    for k in range(7):
-        f = -1 + 2 * k / 6
-        d = V((f * 0.92, 0.3 + 0.25 * (1 - abs(f)), 0.88 - 0.3 * abs(f)))
-        p, n = sobre_elipsoide(H0, HS, d)
-        h = 1.35 - 0.5 * abs(f)
-        ob.append(espinho(p, (n + V((0, 0.3, 0.1))).normalized(), h, 0.62 - 0.16 * abs(f), escura))
-    for f in (-0.45, 0.45):  # dois atrás, na nuca
-        p, n = sobre_elipsoide(H0, HS, (f, 0.9, 0.1))
-        ob.append(espinho(p, (n + V((0, 0.1, 0.25))).normalized(), 1.0, 0.5, escura))
+        for dy, dz in ((-0.05, 0.75), (0.45, 0.6)):
+            p, n = sobre_elipsoide(H0, HS, (sx * 0.62, dy, dz))
+            ob.append(espinho(p, (n + V((0, 0.3, 0.2))).normalized(), 0.95, 0.46, escura))
     tor = [(0.0, 0.0), (0.12, 1.9), (0.8, 2.6), (1.9, 2.9), (3.1, 2.78), (4.2, 2.35), (5.2, 1.8), (5.95, 1.35)]
 
     def r_tor(z):
@@ -219,16 +267,16 @@ def dragao():
         ob.append(orienta(pb.bola(0, 0, 0, 0.3, "marrom", sub=1, esc=(1.2, 1, 0.45)), V((sx * 2.25, -3.92, 0.6)),
                           V((0, -1, 0.28)).normalized()))
         # braços com mãozinhas
-        ob.append(pb.tubo([(sx * 2.25, -0.4, 4.7), (sx * 2.3, -1.4, 4.0), (sx * 1.7, -2.3, 3.4)], 0.62, cor, 10,
-                          escalas=[1.0, 0.9, 0.82], suave=4, nome="braco"))
-        ob.append(pb.bola(sx * 1.6, -2.45, 3.3, 0.62, cor, sub=2, esc=(1, 0.9, 0.85)))
+        ob.append(pb.tubo([(sx * 2.4, -0.5, 4.3), (sx * 2.65, -1.25, 3.4), (sx * 2.35, -1.75, 2.75)], 0.6, cor, 10,
+                          escalas=[1.0, 0.9, 0.82], suave=4, nome="braco"))     # patinhas para baixo
+        ob.append(pb.bola(sx * 2.3, -1.85, 2.6, 0.6, cor, sub=2, esc=(1, 0.95, 0.9)))
         for k in range(3):
             g = mb.cilindro(0.1, 0.24, r2=0.02, cor="creme", seg=6, bisel=0.0)
-            orienta(g, V((sx * 1.6 + (k - 1) * 0.24, -2.95, 3.12)), V((0, -1, -0.3)).normalized())
+            orienta(g, V((sx * 2.3 + (k - 1) * 0.24, -2.35, 2.35)), V((0, -0.7, -0.7)).normalized())
             ob.append(g)
     # cauda enrolada ao lado direito
     pts = [(1.0, 2.4, 0.7), (3.0, 2.9, 0.45), (4.5, 1.4, 0.38), (4.6, -0.8, 0.4), (3.7, -2.3, 0.6), (2.9, -2.6, 1.2)]
-    ob.append(pb.tubo(pts, 1.0, cor, 12, escalas=[1.0, 0.82, 0.62, 0.45, 0.3, 0.14], suave=5, nome="cauda"))
+    ob.append(pb.tubo(pts, 1.0, cor, 10, escalas=[1.0, 0.82, 0.62, 0.45, 0.3, 0.14], suave=5, nome="cauda"))
     for p_, d_, h in (((3.1, 3.4, 1.15), (0.1, 0.6, 1), 0.7), ((4.6, 1.9, 0.9), (0.6, 0.2, 1), 0.6),
                       ((4.9, -0.5, 0.75), (0.7, -0.1, 1), 0.5), ((4.0, -2.3, 0.95), (0.4, -0.4, 1), 0.35)):
         ob.append(espinho(V(p_), V(d_).normalized(), h, h * 0.42, escura))
@@ -236,25 +284,23 @@ def dragao():
     for sx in (-1, 1):
         cont = [(0, -0.2), (0.6, 1.1), (1.7, 2.4), (3.1, 3.4), (4.3, 3.7), (4.1, 2.9), (3.8, 2.0), (3.35, 2.25),
                 (3.0, 1.35), (2.45, 1.55), (2.0, 0.55), (1.45, 0.75), (0.9, -0.35)]
-        asa = mb.extrudado(mb._ccw(cont), 0.18, cor=cor, bisel=0.06, seg=2, plano="xz", nome="asa")
+        cont = [(x * 1.3, z * 1.3) for x, z in cont]
+        asa = mb.extrudado(mb._ccw(cont), 0.2, cor=cor, bisel=0.06, seg=2, plano="xz", nome="asa")
         mb.transforma(asa, loc=(0, -0.09, 0))
         u = V((sx * 0.92, 0.38, 0.0)).normalized()
         v = V((0, 0.3, 1)).normalized()
         v = (v - u * v.dot(u)).normalized()
         w = v.cross(u).normalized()
-        base = V((sx * 1.2, 2.3, 4.7))
+        base = V((sx * 1.6, 2.5, 4.5))
         M = Matrix(((u.x, w.x, v.x, base.x), (u.y, w.y, v.y, base.y), (u.z, w.z, v.z, base.z), (0, 0, 0, 1)))
         asa.data.transform(M)
         ob.append(asa)
         w_ = v.cross(u).normalized()
         for a_, b_ in ((4.3, 3.7), (3.8, 2.0), (3.0, 1.35), (2.0, 0.55)):
-            ob.append(pb.barra(base + v * 0.05 - w_ * 0.1, base + u * a_ + v * b_ - w_ * 0.1, 0.12, escura, 6,
-                               nome="osso"))
-        pt = base + u * 4.3 + v * 3.7 - w_ * 0.1
+            ob.append(pb.barra(base + v * 0.05 - w_ * 0.12, base + (u * a_ + v * b_) * 1.3 - w_ * 0.12, 0.13, escura,
+                               6, nome="osso"))
+        pt = base + (u * 4.3 + v * 3.7) * 1.3 - w_ * 0.12
         ob.append(pb.bola(pt.x, pt.y, pt.z, 0.2, escura, sub=1))
-    # narinas
-    for sx in (-1, 1):
-        ob.append(mb.esfera(0.12, x=sx * 0.5, y=-3.95, z=8.05, cor="vinho", esc=(1.2, 0.6, 0.8), seg=8))
     return ob
 
 
@@ -405,8 +451,8 @@ def rota_dragao():
     r.curva(3.0, -90)
     r.reta(9.0, 9.2)                        # sobe até a boca do dragão
     r.curva(3.5, -90)
-    r.reta(7.0)                             # entra pela boca e sai pela nuca
-    r.reta(3.2, 8.3)
+    r.reta(8.7)                             # entra pela boca e sai pela nuca (reto e plano dentro da cabeça)
+    r.reta(1.5, 8.6)
     r.curva(3.0, 90)
     r.reta(4.0, DZ_D[0])                    # queda para o looping
     r.curva(2.5, 90, dz=DZ_D[1])            # curva subindo: desfaz metade da torção do looping
@@ -525,25 +571,67 @@ def pedra(x, y, z, l, p, a, cor, semente, rot=None):
 # ======================================================================================================================
 # Montanha-russa azul com loopings (2 × 2 quadras: 30 × 30 m)
 # ======================================================================================================================
+DZ_A2 = (2.6, -3.8, 0.0)       # curvas que desfazem a torção dos loopings da azul (ajustadas pelo fechamento)
+
+
 def rota_azul():
-    """Subida reta na lateral, queda reta, dois loopings em pé, lombada; curvas planas."""
+    """Traçado que serpenteia pela praça: estação na frente, subida na lateral direita, dois loopings grandes nos
+    fundos, meia-volta, morros de camelo no meio, looping menor à direita, volta por cima da curva da frente e
+    passagem baixa e longa até a estação."""
     zs = Z_EST_AZUL
-    r = pb.Rota(-3.6, -11.3, zs, 0)
+    r = pb.Rota(-6.0, -10.5, zs, 0)
     r.reta(6.0)                             # estação
-    r.reta(6.1, zs + 0.1)
+    r.reta(8.0, 1.2)                        # passagem baixa da frente
+    r.curva(4.0, 90)
+    r.reta(11.5, 13.0)                      # subida pela direita
     r.curva(3.0, 90)
-    r.reta(14.3, 17.2)                      # subida
-    r.curva(3.0, 90, dz=DZ_A[0])            # curvas subindo desfazem a torção dos loopings
-    r.reta(11.5, 1.9)                       # queda
-    r.looping(4.6, 2.6, n=24)
-    r.reta(4.0, 1.2)
-    r.curva(3.0, 90, dz=DZ_A[1])
-    r.reta(1.8)
-    r.looping(4.0, 2.4, n=22)
-    r.reta(9.2, zs - DZ_A[2], lombada=2.2)  # lombada
-    r.curva(3.7, 90, dz=DZ_A[2])
-    r.reta(0.3, zs)
+    r.reta(5.5, 2.0)                        # queda
+    r.reta(4.0)                             # trecho baixo: passa por baixo do looping
+    r.looping(4.0, 2.0, n=28)               # looping grande, fundos à direita
+    r.reta(8.8)
+    r.looping(3.8, 2.0, n=28)               # looping grande, fundos à esquerda
+    r.curva(3.5, 180, dz=DZ_A2[0])          # meia-volta à esquerda (subindo um pouco: desfaz a torção)
+    r.reta(11.8, 1.8, lombada=3.6)          # morros de camelo
+    r.reta(1.0)
+    r.looping(2.8, 4.0, n=24)               # looping menor, à direita
+    r.reta(1.0)
+    r.reta(2.5, 4.6)
+    r.curva(3.2, -180, dz=DZ_A2[1])         # volta por cima da curva da frente
+    r.reta(13.0, 1.1)                       # passagem baixa e longa
+    r.curva(2.45, 180, dz=zs - 1.1)         # chega na estação
     return r.fecha()
+
+
+def suporte_azul(topo, t, u, lado, tripe=False):
+    """Pilar branco da montanha azul: em A (duas pernas abertas para os lados) ou em tripé quando é alto, com a
+    braçadeira azul prendendo o trilho no topo."""
+    h = topo.z
+    objs = [pb.caixa_eixos(topo + u * 0.04, lado, t, u, (0.55, 0.45, 0.32), "azul_medio", nome="bracadeira")]
+    ab = 0.45 + 0.2 * h
+    if h > 6.0 or tripe:
+        ab = 0.6 + 0.22 * h
+        fr = V((t.x, t.y, 0))
+        fr = fr.normalized() if fr.length > 0.1 else V((-lado.y, lado.x, 0))
+        for ang in (90, 210, 330):
+            a = math.radians(ang)
+            d = lado * math.cos(a) + fr * math.sin(a)
+            pe = V((topo.x, topo.y, 0)) + d * ab
+            lim = 14.2  # pés dentro do lote
+            k = min([1.0] + [(lim - abs(c0)) / max(1e-6, abs(c1 - c0)) for c0, c1 in ((topo.x, pe.x), (topo.y, pe.y))
+                             if abs(c1) > lim])
+            pe = V((topo.x, topo.y, 0)) + d * (ab * max(0.3, k))
+            objs.append(pb.barra(pe + V((0, 0, -0.05)), topo - V((0, 0, 0.1)), 0.15, "branco", 8, nome="perna"))
+            objs.append(mb.caixa(0.55, 0.55, 0.28, x=pe.x, y=pe.y, z=-0.06, cor="concreto_escuro", bisel=0.0,
+                                 liso=False, nome="sapata"))
+        zm = h * 0.45
+        f = 1 - zm / h
+        anel = [V((topo.x, topo.y, zm)) + (lado * math.cos(math.radians(g)) + fr * math.sin(math.radians(g))) * ab * f
+                for g in (90, 210, 330)]
+        for a_, b_ in zip(anel, anel[1:] + anel[:1]):
+            objs.append(pb.barra(a_, b_, 0.09, "branco", 6, nome="travessa"))
+    else:
+        objs += pb.pilar_a(topo - V((0, 0, 0.1)), lado, 0.0, ab, r=0.15, cor="branco")
+    return objs
 
 
 def montanha_azul(it):
@@ -551,14 +639,14 @@ def montanha_azul(it):
     h = S / 2
     it.add(cb.laje(cb.quadrado(-h, -h, h, h), 0.0, "grama", nome="grama"))
     # praça de ladrilho rosado com juntas em grade, borda de concreto e entradas no meio das bordas
-    pr = pb.contorno_ret(0, 0, 13.6, 13.2, 6.0, 10)
+    pr = pb.contorno_ret(0, 0, 13.6, 13.2, 9.0, 12)  # praça quase oval
     it.add(pb.plano(pr, 0.003, "piso_rosado", nome="praca"))
     it.add(pb.anel_extrudado(pb.desloca_contorno(pr, 0.22), pr, -0.05, 0.035, "concreto", nome="borda"))
     juntas = []
     for k in range(-21, 22):
         c = k * 0.6
         for eixo in (0, 1):
-            lim = _corta_ret(c, 13.6, 13.2, 6.0, eixo)
+            lim = _corta_ret(c, 13.6, 13.2, 9.0, eixo)
             if lim:
                 a, b = lim
                 if eixo == 0:
@@ -570,81 +658,51 @@ def montanha_azul(it):
     it.add(mb.junta(juntas, "juntas"))
     # entradas no meio de cada quadra das bordas (casam com o piso_grama_caminho das vizinhas)
     for c in (-7.5, 7.5):
-        for (x0, y0, x1, y1) in ((c, -13.3, c, -h), (c, 13.3, c, h), (-13.7, c, -h, c), (13.7, c, h, c)):
-            it.add(pb.caminho_reto(x0, y0, x1, y1))
+        lim_y = _corta_ret(c, 13.6, 13.2, 9.0, 0)[1] - 1.6  # começa dentro da praça (cobre a borda curva)
+        lim_x = _corta_ret(c, 13.6, 13.2, 9.0, 1)[1] - 1.6
+        for (x0, y0, x1, y1) in ((c, -lim_y, c, -h), (c, lim_y, c, h), (-lim_x, c, -h, c), (lim_x, c, h, c)):
+            it.add(pb.caminho_reto(x0, y0, x1, y1, z=0.004))
     tr = pb.Trilho(rota_azul(), inclina=1.2)
     it.add(tr.malha(bitola=0.9, cor_trilho="azul", cor_espinha="azul_medio", cor_dormente="azul_medio", r_espinha=0.13,
-                    prof_espinha=0.38, passo_dormente=0.9, neon="neon"))
-    # pilares em A brancos com capitel azul; nos loopings, um pilar alto no topo
-    n = int(tr.tot / 4.6)
-    feitos = []
+                    prof_espinha=0.38, passo_dormente=1.0, neon="neon", neon_alt=0.025))
+    # pilares brancos em A (baixos) e em tripé (altos), com braçadeira azul prendendo o trilho; nos loopings, um
+    # pilar de cada lado do círculo (no meio da altura) e um embaixo
+    n = int(tr.tot / 4.2)
     for k in range(n):
-        s = k * tr.tot / n + 0.8
-        p, t, u, tg = tr.em(s)
-        if tg is not None:
-            continue
+        s_ = k * tr.tot / n + 0.8
+        p, t, u, tg = tr.em(s_)
         base = p - u * 0.4
-        if base.z < 0.35:
+        if tg is not None or base.z < 0.45 or abs(t.z) > 0.8:
             continue
         lado = V((-t.y, t.x, 0))
         if lado.length < 0.2:
             continue
-        ab = 0.35 + 0.16 * base.z
-        it.add(pb.pilar_a(base, lado, 0.0, ab, r=0.11, cor="branco"))
-        it.add(pb.caixa_eixos(base + u * 0.02, lado.normalized(), t, u, (0.5, 0.42, 0.3), "azul_medio", nome="capitel"))
-        feitos.append(base)
-    # topo dos loopings: procura o ponto mais alto de cada trecho com tag
-    s_top = []
-    ultimo = None
-    melhor = None
-    for i in range(tr.n):
-        if tr.tag[i] is not None:
-            if melhor is None or tr.P[i].z > tr.P[melhor].z:
-                melhor = i
-        elif melhor is not None:
-            s_top.append(melhor)
-            melhor = None
-    for i in s_top:
-        p, t, u = tr.P[i], tr.T[i], tr.U[i]
-        topo = p + u * -0.0 + V((0, 0, 0.32))
-        lado = V((-t.y, t.x, 0)).normalized()
-        it.add(pb.pilar_a(topo + V((0, 0, 0.12)), lado, 0.0, 3.6, r=0.13, cor="branco"))
-        it.add(mb.caixa(0.6, 0.6, 0.3, x=topo.x, y=topo.y, z=topo.z, cor="azul_medio", bisel=0.05))
-    est, luz_est = estacao(-3.4, 2.2, -11.3, 1, 0.0, Z_EST_AZUL + 0.35, cor_teto="azul_celeste", cor_sob="azul_medio",
+        it.add(suporte_azul(base, t, u, lado.normalized()))
+    for i in range(1, tr.n - 1):  # lados dos loopings: onde o trilho está em pé (vertical) e subindo/descendo
+        if tr.tag[i] is None or tr.tag[i - 1] is None:
+            continue
+        if abs(tr.T[i].z) > 0.995 and abs(tr.T[i - 1].z) <= 0.995 and abs(tr.U[i].z) < 0.2:
+            p, t, u = tr.P[i], tr.T[i], tr.U[i]
+            base = p - u * 0.4
+            lado = V((-u.y, u.x, 0)).normalized() if V((u.x, u.y)).length > 0.1 else V((1, 0, 0))
+            it.add(suporte_azul(base, t, u, lado, tripe=True))
+    est, luz_est = estacao(-6.0, 0.0, -10.5, -1, 0.0, Z_EST_AZUL + 0.35, cor_teto="azul_celeste", cor_sob="azul_medio",
                            letreiro="loopings.png")
     it.add(est)
     luzes = list(luz_est)
-    # fila de espera com grades e postes de parque
-    for x, y in ((-12.6, -12.4), (12.6, -12.4), (-12.6, 12.4), (12.6, 12.4)):
+    for x, y in ((-11.6, -10.6), (11.6, -10.6), (-11.6, 10.6), (11.6, 10.6)):
         e, l_ = pb.poste_parque(x, y, alt=4.4, bracos=2, ang=math.radians(45 if x * y > 0 else -45))
         it.add(e)
         luzes += l_
-    # canteiro redondo no meio da praça, com árvore e flores, e bancos
-    it.add(pb.anel_extrudado(mb.circulo(2.6, 28), mb.circulo(2.35, 28), -0.05, 0.4, "concreto", bisel=0.04,
-                             seg_bisel=1, nome="canteiro"))
-    it.add(pb.plano(mb.circulo(2.36, 28), 0.36, "grama", nome="canteiro_grama"))
-    it.add(pb.arvore(0.3, 0.2, z=0.36, alt=4.2, r=1.4))
-    for k in range(8):
-        a = 2 * math.pi * k / 8
-        it.add(pb.arbusto(1.75 * math.cos(a), 1.75 * math.sin(a), 0.32, ("rosa", "amarelo", "lilas", "branco")[k % 4],
-                          z=0.36))
-    for x, y, ang in ((4.2, 0.0, 90), (-4.2, 0.0, 90), (0.0, 4.0, 0)):
-        bc = [mb.caixa(1.8, 0.45, 0.08, z=0.42, cor="madeira_mel", bisel=0.02, seg=1),
-              mb.caixa(1.8, 0.08, 0.4, y=0.22, z=0.55, cor="madeira_mel", bisel=0.02, seg=1)]
-        for sx in (-1, 1):
-            bc.append(mb.caixa(0.08, 0.45, 0.42, x=sx * 0.75, cor="grafite", bisel=0.01, seg=1))
-        for o in bc:
-            mb.transforma(o, rot=("Z", ang))
-            mb.transforma(o, loc=(x, y, 0.0))
-        it.add(bc)
-    for x, y in ((-3.0, -6.0), (4.5, -5.0), (5.0, 5.5), (-5.0, 6.5)):
-        it.add(pb.arbusto(x, y, 0.6, "folha"), pb.arbusto(x + 0.8, y + 0.4, 0.4, "folha_clara"))
     for x, y in ((-13.8, -13.8), (13.8, -13.8), (-13.8, 13.8), (13.8, 13.8)):
         it.add(pb.arvore(x, y, alt=3.6, r=1.0))
     it.add(luzes)
     trem(it, tr, 4, 2.3, s0=6.0, vel=7.0, cores=dict(cor="amarelo", faixa="azul_marinho", assento="azul_celeste",
                                                      rodas="branco"))
-    it.colisao([((0, 0, cb.Z_FUNDO), (S, S, -cb.Z_FUNDO)), ((-0.6, -9.6, 0), (5.6, 1.6, Z_EST_AZUL + 0.35))])
+    # colisão: chão, estação, a subida (pilares em tripé) e os três loopings com os pilares deles
+    it.colisao([((0, 0, cb.Z_FUNDO), (S, S, -cb.Z_FUNDO)), ((-3.0, -11.5, 0), (6.4, 1.6, Z_EST_AZUL + 0.35)),
+                ((12.0, -0.75, 0), (2.4, 11.5, 13.2)), ((-0.5, 7.0, 0), (8.6, 3.0, 10.2)),
+                ((-9.3, 5.0, 0), (8.0, 3.0, 9.8)), ((3.5, -1.0, 0), (6.2, 5.0, 7.6))])
     return tr
 
 

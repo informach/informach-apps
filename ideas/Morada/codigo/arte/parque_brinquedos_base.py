@@ -168,8 +168,15 @@ def laje_furos(contorno, furos, z_topo, z_fundo, cor, cor_furo=None, nome="laje"
         aneis.append(vs)
         for i in range(len(vs)):
             arestas.append(bm.edges.new((vs[i], vs[(i + 1) % len(vs)])))
-    bmesh.ops.triangle_fill(bm, use_beauty=True, use_dissolve=False, edges=arestas, normal=(0, 0, 1))
-    for f in bm.faces:
+    from mathutils.geometry import tessellate_polygon
+    todos = [v for anel in aneis for v in anel]
+    tris = tessellate_polygon([[v.co.copy() for v in anel] for anel in aneis])  # topo com os furos, sem falhas
+    for t in tris:
+        try:
+            f = bm.faces.new([todos[i] for i in t])
+        except ValueError:
+            continue
+        f.normal_update()
         if f.normal.z < 0:
             f.normal_flip()
     paredes_furo = []
@@ -528,10 +535,10 @@ def looping(inicio, direcao, R, w, n=24):
         x = max(0.0, min(1.0, x))
         return x * x * (3 - 2 * x)
 
-    jan = 0.75  # o desvio lateral acontece só no alto (trilho de cabeça para baixo, quase plano): sem torção
+    jan = 0.85  # o desvio lateral fica só embaixo (entrada e saída): o resto do looping é um círculo redondo, em pé
     for k in range(n + 1):
         th = 2 * math.pi * k / n
-        dd = lat * (w * sm((th - (math.pi - jan)) / (2 * jan)))
+        dd = lat * (w * (0.5 * sm(th / jan) + 0.5 * sm((th - (2 * math.pi - jan)) / jan)))
         p = p0 + d * (R * math.sin(th)) + Z * (R * (1 - math.cos(th))) + dd
         c = p0 + Z * R + dd
         out.append((tuple(p), tuple(c)))
@@ -681,7 +688,7 @@ class Trilho:
         return idx
 
     def malha(self, bitola=0.9, r_trilho=0.085, cor_trilho="magenta", cor_espinha="vinho", cor_dormente="vinho",
-              r_espinha=0.15, prof_espinha=0.42, passo_dormente=1.6, lados=6, espinha=True, neon=None):
+              r_espinha=0.15, prof_espinha=0.42, passo_dormente=1.6, lados=6, espinha=True, neon=None, neon_alt=0.05):
         idx = self.amostras_geo()
         P = [self.P[i] for i in idx]
         U = [self.U[i] for i in idx]
@@ -696,7 +703,7 @@ class Trilho:
         if neon:  # filete luminoso dos dois lados da espinha (contorno do brinquedo à noite)
             for sg in (-1, 1):
                 Pn = [p - u * (prof_espinha - 0.02) + t.cross(u) * (sg * (r_espinha + 0.03)) for p, t, u in zip(P, T, U)]
-                tn = varre(Pn, U, [(0.0, -0.05), (0.0, 0.05)], None, True, perfil_fechado=False, nome="neon", T=T,
+                tn = varre(Pn, U, [(0.0, -neon_alt), (0.0, neon_alt)], None, True, perfil_fechado=False, nome="neon", T=T,
                            liso=False)
                 mb.pinta(tn, None, mat=neon)
                 objs.append(tn)
@@ -840,7 +847,7 @@ def desloca_contorno(pts, d):
         n2 = V((t2.y, -t2.x))
         m = (n1 + n2)
         m = m.normalized() if m.length > 1e-6 else n1
-        k = d / max(0.3, m.dot(n1))
+        k = d / max(0.75, m.dot(n1))  # canto muito fechado: limita a quina (sem cruzar o contorno)
         out.append((b.x + m.x * k, b.y + m.y * k))
     return out
 
@@ -920,17 +927,19 @@ def _ret_linha(a, b, larg):
 
 
 def anel_plano(fora, dentro, z, cor, nome="anel"):
+    """Faixa plana entre dois contornos (mesmo número de pontos). Cada face fica com a normal para cima, mesmo onde o
+    contorno deslocado se dobra numa reentrância."""
     n = len(fora)
     bm = bmesh.new()
     F = [bm.verts.new((p[0], p[1], z)) for p in fora]
     D = [bm.verts.new((p[0], p[1], z)) for p in dentro]
     for i in range(n):
         j = (i + 1) % n
-        bm.faces.new((F[i], F[j], D[j], D[i]))
-    ob = obj(nome, bm, cor, liso=False)
-    if sum(p.normal.z for p in ob.data.polygons) < 0:
-        ob.data.flip_normals()
-    return ob
+        f = bm.faces.new((F[i], F[j], D[j], D[i]))
+        f.normal_update()
+        if f.normal.z < 0:
+            f.normal_flip()
+    return obj_cru(nome, bm, cor, liso=False)
 
 
 def plano(pts, z, cor, mat="atlas", nome="plano"):
