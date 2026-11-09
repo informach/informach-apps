@@ -26,6 +26,7 @@ daqui e publica as páginas de novo (com links novos).
 | Efeitos do Morada · https://claude.ai/artifact/Y8i7bkVcD1ZGAKQ8HDqVJC | `paginas/efeitos/` |
 | Ícones do Morada · https://claude.ai/artifact/3Myz9iSnkYwWZx2agMewC6 | `paginas/icones/` |
 | Sons do Morada · https://claude.ai/artifact/G9d9TiHH2h7C4SsxquL8me | `paginas/sons/` (os sons em `biblioteca/sons/`) |
+| Jogos da biblioteca Morada (35 ideias de jogo) · https://claude.ai/artifact/4Gd7zFyajT5yfBn5Zku3Hx | `paginas/jogos_possiveis.html` |
 
 Outras pastas:
 
