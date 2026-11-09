@@ -178,6 +178,53 @@ test("no gravador cada pedaço do Na tela aparece quando a voz chega na frase de
   );
 });
 
+test("a citação ouvida um pouco diferente fica na fala dela, não numa fala igual mais adiante", () => {
+  // Cadê Todo Mundo, aula 1, parte 4 (09/11/2026): a voz disse "toque em um esconderijo" na
+  // primeira fala, e a última repete "no seu jogo! Toque num esconderijo" palavra por palavra.
+  // Antes a primeira citação caía na última fala, e todas as seguintes ficavam sem lugar.
+  const [part] = parseScript(`# Roteiro
+
+## Parte 4. Faça alguém aparecer
+
+**Na tela:** No "Aqui no seu jogo, toque num esconderijo", [tocar prévia arbusto]. No "Tá vendo?", [apontar prévia arbusto]. No "Clique no 50", [abrir campo "50"]. No "Agora vamos testar no seu jogo", [tocar prévia pedras].
+
+**Fala para ElevenLabs:**
+
+\`\`\`text
+Aqui no seu jogo, toque num esconderijo. Tá vendo? Nada acontece.
+
+Clique no 50 e troque por 0.
+
+Agora vamos testar no seu jogo! Toque num esconderijo.
+\`\`\`
+`).sections;
+  const heard = [
+    "Aqui no seu jogo, toque em um esconderijo, está vendo? Nada acontece.",
+    "Clique no 50 e troque por 0.",
+    "Agora vamos testar no seu jogo! Toque num esconderijo.",
+  ]
+    .join(" ")
+    .split(/\s+/);
+  const words = heard.map((text, k) => ({
+    key: `w${k}`,
+    clipId: "c",
+    assetId: "a",
+    start: 1 + k * 0.5,
+    end: 1 + k * 0.5 + 0.4,
+    text,
+  }));
+  const cues = screenCueTimes(part, alignSection(part, words).lines, words);
+  const quoted = cues.filter((c) => c.cue !== undefined);
+  assert.deepEqual(
+    quoted.map((c) => c.missed),
+    [undefined, undefined, undefined, undefined],
+  );
+  const said = quoted.map((c) => c.said ?? -1);
+  assert.equal(said[0], 1, "a primeira citação fica no começo da voz");
+  assert.ok(said[1] < said[2] && said[2] < said[3], "as seguintes, em ordem");
+  assert.equal(said[3], words.find((w) => w.text === "Agora")?.start);
+});
+
 test("o guia do gravador acha cada fala de todas as partes na voz, e onde já há tela gravada", () => {
   const doc = parseScript(SCRIPT);
   const spoken = doc.sections

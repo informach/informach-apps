@@ -1,6 +1,6 @@
 import type { TimelineWord } from "./cleanup.ts";
 import { clipEnd } from "./clipTime.ts";
-import { findPhrase, joinStretches } from "./phrase.ts";
+import { findPhrase, joinStretches, tokens } from "./phrase.ts";
 import type { ScriptDoc, ScriptSection } from "./script.ts";
 import { alignSection, type LineMatch } from "./scriptAlign.ts";
 import type { Project } from "./types.ts";
@@ -61,15 +61,24 @@ export function screenCueTimes(
     let saidAt = at;
     let saidEnd: number | undefined;
     let from = Math.max(0, at - 1);
+    const heard = words.map((w) => ({ text: w.text, start: w.start, end: w.end ?? w.start }));
     for (const [k, cue] of item.cues.entries()) {
       saidEnd = undefined;
       let missed: string | undefined;
       if (cue.anchor) {
-        const found = findPhrase(
-          words.map((w) => ({ text: w.text, start: w.start, end: w.end ?? w.start })),
-          cue.anchor,
-          { from, to: partEnd, loose: true },
-        );
+        // Looked for first in the line of the script that says it: a quote heard a bit
+        // differently there ("toque em um" for "toque num") must not land on a later line that
+        // repeats it word for word, which would push every quote after it out of the voice.
+        const own = lineSaying(section, lines, cue.anchor, from);
+        const found =
+          (own &&
+            findPhrase(heard, cue.anchor, {
+              from: Math.max(from, own.start - 1),
+              to: own.end + 1,
+              loose: true,
+              misses: Math.ceil(tokens(cue.anchor).length / 3),
+            })) ||
+          findPhrase(heard, cue.anchor, { from, to: partEnd, loose: true });
         if (found) {
           t = Math.max(0, found.start - LEAD);
           saidAt = found.start;
@@ -89,6 +98,29 @@ export function screenCueTimes(
     }
   });
   return out;
+}
+
+/**
+ * The first line said, not ending before `from`, whose script text holds the quote word for word,
+ * with its times in the voice. Null when no line holds it (a quote of a direction written apart).
+ */
+function lineSaying(
+  section: ScriptSection,
+  lines: readonly LineMatch[],
+  quote: string,
+  from: number,
+): { start: number; end: number } | null {
+  const wanted = tokens(quote);
+  if (!wanted.length) return null;
+  for (const line of lines) {
+    if (line.start === undefined || line.end === undefined || line.end < from) continue;
+    const item = section.items[line.item];
+    if (item?.kind !== "speech") continue;
+    const text = tokens(item.text);
+    for (let i = 0; i + wanted.length <= text.length; i++)
+      if (wanted.every((w, k) => text[i + k] === w)) return { start: line.start, end: line.end };
+  }
+  return null;
 }
 
 /** A line of the script where the voice says it, and the part of the script it is in. */
