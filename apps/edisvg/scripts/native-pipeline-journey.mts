@@ -66,11 +66,22 @@ export async function verifySvgNativePipelineJourney(
         return next ? { canceled: false, filePaths: [next] } : { canceled: true, filePaths: [] };
       });
     }, paths);
+  const answerSave = (path: string) =>
+    application.evaluate(({ dialog }, file) => {
+      const holder = globalThis as unknown as { __originalSave?: typeof dialog.showSaveDialog };
+      holder.__originalSave ??= dialog.showSaveDialog;
+      Reflect.set(dialog, "showSaveDialog", async () => ({ canceled: false, filePath: file }));
+    }, path);
   const restore = () =>
     application.evaluate(({ dialog }) => {
-      const holder = globalThis as unknown as { __originalOpen?: typeof dialog.showOpenDialog };
+      const holder = globalThis as unknown as {
+        __originalOpen?: typeof dialog.showOpenDialog;
+        __originalSave?: typeof dialog.showSaveDialog;
+      };
       if (holder.__originalOpen) Reflect.set(dialog, "showOpenDialog", holder.__originalOpen);
+      if (holder.__originalSave) Reflect.set(dialog, "showSaveDialog", holder.__originalSave);
       holder.__originalOpen = undefined;
+      holder.__originalSave = undefined;
     });
 
   const runScene = async (audioButton: "Escolher aula…" | "Escolher áudio…", script: string) => {
@@ -142,6 +153,105 @@ export async function verifySvgNativePipelineJourney(
       assert.match(heard, /Trecho achado na aula de 0:10 a 0:1\d, com 1 frase\./);
       console.log("Verified the game scene pipeline transcribing an audio file: edisvg");
     }
+
+    // The screen demonstration: a recording of EdiAula, its cursor beside it, under the layer.
+    const demoVideo = join(root, "apipelinedemo-apipelinedemo-tela.mp4");
+    await run(ffmpeg, [
+      "-y",
+      "-v",
+      "error",
+      "-f",
+      "lavfi",
+      "-i",
+      "testsrc2=size=1280x720:rate=30:duration=30",
+      "-pix_fmt",
+      "yuv420p",
+      demoVideo,
+    ]);
+    await writeFile(
+      join(root, "apipelinedemo-cursor.json"),
+      JSON.stringify({
+        version: 2,
+        width: 1280,
+        height: 720,
+        clicks: [
+          [2, 640, 80, 0, 0.05],
+          [6, 200, 600, 0, 0.05],
+        ],
+      }),
+    );
+    await answer([demoVideo, lesson]);
+    await editor.locator('[data-action="pipelines"]').first().click();
+    const pipelines = editor.getByRole("dialog", { name: "Pipelines" });
+    await pipelines
+      .locator("li", { hasText: "Demonstração passo a passo" })
+      .getByRole("button", { name: "Rodar" })
+      .click();
+    await pipelines.getByRole("button", { name: "Escolher…" }).click();
+    await pipelines.getByText("apipelinedemo-apipelinedemo-tela.mp4").waitFor();
+    await pipelines.getByRole("button", { name: "Escolher aula…" }).click();
+    await pipelines
+      .getByLabel("Roteiro do trecho (só a parte desta cena)")
+      .fill(
+        "O personagem precisa encontrar a chave antes de chegar ao farol. Quando ele pegar a chave, o aviso muda.",
+      );
+    await pipelines.getByRole("button", { name: "Rodar pipeline" }).click();
+    await pipelines
+      .getByText(/^(Pipeline concluído\.|O pipeline parou\.)$/)
+      .waitFor({ timeout: 180_000 });
+    const demoSaid = (await pipelines.textContent()) ?? "";
+    assert.match(demoSaid, /Preparar o vídeo da demonstraçãoPronto/, demoSaid);
+    assert.match(demoSaid, /Demonstração 1280×720: 2 cliques gravados no trecho\./, demoSaid);
+    assert.match(
+      demoSaid,
+      /Criar os elementos prontos \(seta, balão, destaque e clique\)Pronto/,
+      demoSaid,
+    );
+    await pipelines.getByRole("button", { name: "Fechar pipelines" }).click();
+    const closeDemoAssistant = editor.getByRole("button", { name: "Fechar assistente" });
+    if (await closeDemoAssistant.isVisible()) await closeDemoAssistant.click();
+    // The demonstration plays under the layer (the light H.264 copy decodes in Electron).
+    await editor.evaluate(
+      () =>
+        new Promise<void>((done, fail) => {
+          const video = document.querySelector<HTMLVideoElement>("video[data-reference]");
+          if (!video) return fail(new Error("no reference video"));
+          if (video.readyState >= 2) return done();
+          setTimeout(() => fail(new Error("reference video did not load in 15 s")), 15_000);
+          video.addEventListener("loadeddata", () => done(), { once: true });
+          video.addEventListener("error", () => fail(new Error("reference video did not decode")), {
+            once: true,
+          });
+        }),
+    );
+    await editor.screenshot({ path: screenshot.replace(/\.png$/, "-demonstracao.png") });
+    // The transparent layer: the narration's animation as WebM with alpha, named for the lesson.
+    const layer = join(root, "pipeline-camada.webm");
+    await answerSave(layer);
+    await editor.locator('[data-action="export"]').click();
+    await editor.locator('[name="format"][value="alpha-webm"]').check();
+    await editor.getByLabel("Largura da exportação").fill("640");
+    await editor.getByLabel("Largura da exportação").press("Tab");
+    await editor.getByLabel("Confirmar conversão em imagens").check();
+    const animationOnly = editor.getByLabel("Confirmar exportação somente da timeline");
+    if (await animationOnly.isVisible()) await animationOnly.check();
+    await editor.locator("#download").click();
+    await editor.locator("#export-dialog").waitFor({ state: "hidden", timeout: 240_000 });
+    const ffprobe = resolve(".cache/edi-native-media/windows-x64/bin/ffprobe.exe");
+    const { stdout } = await run(ffprobe, [
+      "-v",
+      "error",
+      "-show_entries",
+      "stream=codec_name:stream_tags=alpha_mode",
+      "-of",
+      "csv=p=0",
+      layer,
+    ]);
+    assert.match(stdout.trim(), /^vp9,1$/, `layer stream: ${stdout}`);
+    console.log(
+      "Verified the screen demonstration pipeline and its transparent layer under Electron: edisvg",
+    );
+
     // Undone back to the project as it was: the next journeys start from the same document.
     for (let step = 0; step < 20; step++) {
       if ((await editor.evaluate(() => localStorage.getItem("edisvg-project"))) === before) break;

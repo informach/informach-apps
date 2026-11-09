@@ -154,7 +154,7 @@ export function buildExport(state, options, demoSvg = "", runtimeSource = "") {
 export async function exportProject(state, request, task = {}) {
   // The suggested file name only goes to the Save dialog: each format checks its own options
   // strictly (React refuses a key it does not know).
-  const { suggestedName, ...options } = request;
+  const { suggestedName, deliver, ...options } = request;
   const captured = {
     ...snapshot(state),
     activeClipId: state.activeClipId,
@@ -215,6 +215,15 @@ export async function exportProject(state, request, task = {}) {
               licenses,
             )
           : buildExport(captured, options, demo, runtimeSource);
+  // The transparent layer: the PNG frames go to the main process, which encodes and saves.
+  if (deliver === "alpha-webm") {
+    if (!globalThis.window?.desktop)
+      throw new Error("A camada transparente precisa do aplicativo desktop.");
+    return window.desktop.exportAlphaWebm({
+      bytes: content,
+      ...(suggestedName ? { name: suggestedName } : {}),
+    });
+  }
   return saveExport(
     { content, extension, type, name: suggestedName },
     { signal: task.signal, binaryMedia: raster },

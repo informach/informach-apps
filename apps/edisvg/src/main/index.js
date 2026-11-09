@@ -18,7 +18,15 @@ import { readBoundedText, SVG_BYTES, SZPROJECT_BYTES } from "./boundedText.ts";
 import { createEngineRunner, MCP_PORT, MCP_SERVER, providerClient } from "./engines.js";
 import { parseExportPayload } from "./exportPayload";
 import { startMcpServer } from "./mcpServer.js";
-import { cancelPipelineJob, pipelineNarration, pipelineWords } from "./pipelineEngine.ts";
+import {
+  cancelPipelineJob,
+  exportAlphaWebm,
+  pipelineNarration,
+  pipelineVideoFacts,
+  pipelineVideoFrames,
+  pipelineVideoPreview,
+  pipelineWords,
+} from "./pipelineEngine.ts";
 import {
   pickPipelineFile,
   readPickedProject,
@@ -415,6 +423,15 @@ else {
       handle("pipeline:narration", (token, kind, start, end) =>
         pipelineNarration(token, kind, Number(start), Number(end)),
       );
+      handle("pipeline:video-facts", (token) => pipelineVideoFacts(token));
+      handle("pipeline:video-preview", (token, seconds) =>
+        pipelineVideoPreview(token, Number(seconds)),
+      );
+      handle("pipeline:video-frames", (token, times) => pipelineVideoFrames(token, times));
+      handle("export:alpha-webm", async (input) => {
+        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+        return exportAlphaWebm(win, input, folderFor("documents"), () => desktop.assertAccess());
+      });
       handle("pipeline:cancel", (jobId) => {
         if (typeof jobId === "string") cancelPipelineJob(jobId);
       });

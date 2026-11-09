@@ -227,7 +227,7 @@ export function setupAssistant(editor) {
    * ends, with its text, whether it was stopped and how many edits it made. The panel shows
    * `shown` in place of the long request.
    */
-  async function runTurn(text, shown) {
+  async function runTurn(text, shown, images = []) {
     if (!bridge) throw new Error("O assistente precisa do aplicativo desktop.");
     if (busy) throw new Error("O assistente está respondendo outra mensagem. Espere ou pare.");
     if (panel.hidden) toggle();
@@ -236,7 +236,12 @@ export function setupAssistant(editor) {
     const finished = new Promise((resolve, reject) => {
       turnWaiter = { resolve, reject };
     });
-    await submit(text, [], shown);
+    // Frames to look at (a demonstration): shown like attached references.
+    const attached = images.map((image) => ({
+      ...image,
+      url: `data:${image.mediaType};base64,${image.data}`,
+    }));
+    await submit(text, attached, shown);
     return finished;
   }
   /** Sends a message (the person's, or a pipeline's with `shown` displayed instead). */

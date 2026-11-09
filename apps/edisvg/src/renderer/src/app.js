@@ -25,6 +25,7 @@ import {
   syncNarration,
 } from "./pipelines/narration";
 import { mountPipelines } from "./pipelines/pipelines-panel";
+import { mountReferenceVideo, setReferenceVideo, syncReferenceVideo } from "./pipelines/reference";
 import { bindScene, sceneCanvas, sceneInspector, sceneSidebar } from "./sceneEditor.js";
 import { importSvg } from "./svgImport.js";
 import {
@@ -1028,6 +1029,8 @@ function render() {
     // The first frame inside the sentence (rounding could land just before it).
     (seconds) => seek(Math.ceil(seconds * currentAnimation().fps - 1e-6)),
   );
+  // A screen demonstration's video, under the artboard of its transparent layer.
+  mountReferenceVideo(document, state.activeArtboardId);
   refreshHistoryControls();
   scheduleTick();
   if (workspaceWarning && workspaceWarning !== reportedWorkspaceWarning) {
@@ -1614,6 +1617,7 @@ function updatePose() {
     state.frame / a.fps,
   );
   markNarrationNow(document, state.frame / a.fps);
+  syncReferenceVideo(state.activeArtboardId, state.playing, state.frame / a.fps);
 }
 function action(id) {
   if (["commands", "object", "animation", "view"].includes(id))
@@ -2052,7 +2056,48 @@ function openPipelines() {
         transact([{ type: "appearance", operation: "palette", colors }]);
         render();
       },
-      askAssistant: (text, shown) => assistant.runTurn(text, shown),
+      askAssistant: (text, shown, images) => assistant.runTurn(text, shown, images),
+      openDemoArtboard: (value) => {
+        const id = `artboard-${crypto.randomUUID()}`;
+        transact([
+          {
+            type: "artboard",
+            operation: "create",
+            id,
+            name: value.name,
+            width: value.width,
+            height: value.height,
+          },
+        ]);
+        bindActiveArtboard(state, id);
+        chooseObject(state, null);
+        state.view = "design";
+        render();
+        return { id, name: value.name, width: value.width, height: value.height };
+      },
+      setReferenceVideo: (value) => {
+        setReferenceVideo({ artboardId: state.activeArtboardId, ...value });
+        render();
+      },
+      addArtboards: (items) => {
+        const keep = state.activeArtboardId;
+        const commands = items.map((item) => ({
+          type: "artboard",
+          operation: "import",
+          id: `artboard-${crypto.randomUUID()}`,
+          name: item.name,
+          scene: importSvg(item.svg),
+        }));
+        transact(commands);
+        bindActiveArtboard(state, keep);
+        render();
+        return commands.map((command) => ({
+          id: command.id,
+          name: command.name,
+          width: command.scene.viewBox[2],
+          height: command.scene.viewBox[3],
+        }));
+      },
       stopAssistant: () => void window.desktop?.aiStop(),
       // A run is one undo step: the edits since the mark are joined at its end.
       beginRun: () => {
@@ -2274,9 +2319,15 @@ function openExport() {
       "vídeo",
       "Vídeo opaco com cor de fundo, sem áudio, codificado neste computador.",
     ],
+    [
+      "alpha-webm",
+      "Camada transparente · WebM",
+      "vídeo",
+      "Só a animação, sem fundo (VP9 com transparência), para pôr numa faixa acima de um vídeo no EdiAula.",
+    ],
   ]
     .map(([v, n, b, desc], i) => {
-      const needsClip = v === "lottie" || RASTER_FORMATS.includes(v);
+      const needsClip = v === "lottie" || v === "alpha-webm" || RASTER_FORMATS.includes(v);
       const unsupported = (hasEffects && ["html", "svg"].includes(v)) || (needsClip && !clip);
       const reason =
         needsClip && !clip
@@ -2304,7 +2355,8 @@ function openExport() {
     d.querySelector("#download").disabled =
       preparing ||
       (currentFormat() === "lottie" && !lottieControls?.read().ready) ||
-      (RASTER_FORMATS.includes(currentFormat()) && !rasterControls?.read()?.ready);
+      ((RASTER_FORMATS.includes(currentFormat()) || currentFormat() === "alpha-webm") &&
+        !rasterControls?.read()?.ready);
   };
   const lottieControls =
     clip && exportBoard
@@ -2327,7 +2379,8 @@ function openExport() {
   }
   const syncBehaviorSettings = () => {
     const format = d.querySelector('input[name="format"]:checked').value;
-    const raster = RASTER_FORMATS.includes(format);
+    // The transparent layer is made from the PNG sequence (frames with alpha), then encoded.
+    const raster = RASTER_FORMATS.includes(format) || format === "alpha-webm";
     playerWebControls.setEnabled(format === "player-web");
     behaviorSettings.querySelector("#export-machine").closest("label").hidden =
       format === "player-web";
@@ -2345,7 +2398,7 @@ function openExport() {
       !losesInteraction ||
       ["interactive-html", "react", "json", "lottie", "player-web"].includes(format);
     lottieControls?.setEnabled(format === "lottie");
-    rasterControls?.setFormat(raster ? format : null);
+    rasterControls?.setFormat(raster ? (format === "alpha-webm" ? "png-sequence" : format) : null);
     d.querySelector("#reduced").disabled = format === "lottie" || raster;
     d.querySelector("#offscreen").disabled = format === "lottie" || raster;
     d.querySelector("#reduced").closest("label").hidden = format === "lottie" || raster;
@@ -2409,13 +2462,18 @@ function openExport() {
     b.textContent = "Preparando…";
     try {
       const lottieSettings = lottieControls?.read();
-      const rasterSettings = RASTER_FORMATS.includes(currentFormat())
-        ? rasterControls?.read()
-        : null;
+      const rasterSettings =
+        RASTER_FORMATS.includes(currentFormat()) || currentFormat() === "alpha-webm"
+          ? rasterControls?.read()
+          : null;
       const exportResult = await exportProject(
         { ...exportSnapshot, activeArtboardId: exportBoard?.id, activeClipId: clip?.id },
         {
-          format: $('input[name="format"]:checked').value,
+          format:
+            currentFormat() === "alpha-webm"
+              ? "png-sequence"
+              : $('input[name="format"]:checked').value,
+          ...(currentFormat() === "alpha-webm" ? { deliver: "alpha-webm" } : {}),
           // A pipeline's animation is saved as itself, with where it starts in the lesson.
           suggestedName: narrationExportName(clip?.id),
           alt: $("#alt-text").value,
@@ -2463,7 +2521,10 @@ function openExport() {
         for (const radio of d.querySelectorAll('input[name="format"]')) {
           if (
             (hasEffects && ["html", "svg"].includes(radio.value)) ||
-            ((radio.value === "lottie" || RASTER_FORMATS.includes(radio.value)) && !clip)
+            ((radio.value === "lottie" ||
+              radio.value === "alpha-webm" ||
+              RASTER_FORMATS.includes(radio.value)) &&
+              !clip)
           )
             radio.disabled = true;
         }

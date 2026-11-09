@@ -71,6 +71,23 @@ const fakeDesktop = (project: string) => `
         return new Uint8Array(${JSON.stringify(wav(9))});
       },
       pipelineCancel: async () => undefined,
+      pipelineVideoFacts: async (token) => {
+        if (token !== "file-video-00001") throw new Error("video");
+        // The demonstration starts with the stretch: a click 1 s and another 5 s into it.
+        return { width: 1280, height: 720, duration: 30, clicks: [
+          { t: 1, x: 640, y: 80 },
+          { t: 5, x: 200, y: 600 },
+          { t: 25, x: 10, y: 10 },
+        ] };
+      },
+      pipelineVideoPreview: async (token, seconds) => {
+        window.__preview = seconds;
+        return new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112]);
+      },
+      pipelineVideoFrames: async (token, times) => {
+        window.__frames = times;
+        return times.map(() => ({ mediaType: "image/jpeg", data: "AAAA" }));
+      },
       onPipelineProgress: () => () => undefined,
     };
   })();`;
@@ -191,6 +208,81 @@ test("pipelines: the ready recipes, edit and duplicate, and a run that imports t
     assert.deepEqual(scene?.scene.palette?.slice(0, 3), ["#ffffff", "#143d35", "#ffb547"]);
     assert.ok(scene?.scene.palette?.includes("#00ff00"));
     // The whole run, stopped or not, is one undo step.
+    await page.locator('[data-action="undo"]').first().click();
+    assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), beforeRun);
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+});
+
+test("pipelines: the screen demonstration gets its layer artboard, the video under it and the ready elements", {
+  timeout: 90000,
+}, async () => {
+  const server = await rendererServer(),
+    channel = process.env.EDISVG_TEST_BROWSER_CHANNEL,
+    browser = await chromium.launch(channel ? { channel } : {});
+  try {
+    const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } }),
+      errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(server.url);
+    await page.locator(".scene-artwork>svg").waitFor();
+    await page.evaluate(fakeDesktop(JSON.stringify(game)));
+    await page.locator('[data-action="pipelines"]').first().click();
+    const dialog = page.getByRole("dialog", { name: "Pipelines" });
+    await dialog
+      .locator("li", { hasText: "Demonstração passo a passo" })
+      .getByRole("button", { name: "Rodar" })
+      .click();
+    await dialog.getByRole("button", { name: "Escolher…" }).click();
+    await dialog.getByRole("button", { name: "Escolher áudio…" }).click();
+    await dialog
+      .getByLabel("Roteiro do trecho (só a parte desta cena)")
+      .fill(
+        "O personagem precisa encontrar a chave antes de chegar ao farol. Quando ele pegar a chave, o aviso muda.",
+      );
+    const beforeRun = await page.evaluate(() => localStorage.getItem("edisvg-project"));
+    await dialog.getByRole("button", { name: "Rodar pipeline" }).click();
+    await dialog.getByText(/^(Pipeline concluído\.|O pipeline parou\.)$/).waitFor();
+    const said = (await dialog.textContent()) ?? "";
+    assert.match(said, /Preparar o vídeo da demonstraçãoPronto/, said);
+    assert.match(said, /Criar os elementos prontos \(seta, balão, destaque e clique\)Pronto/, said);
+    assert.match(said, /Demonstração 1280×720: 2 cliques gravados no trecho\./, said);
+    assert.match(
+      said,
+      /Pedir o rascunho da animação ao assistenteFalhou: O assistente precisa do aplicativo desktop\./,
+      said,
+    );
+    // The video of the stretch: "O personagem" (2:15.98) to "muda." (2:24.9) and the breath after.
+    const seconds = (await page.evaluate("window.__preview")) as number;
+    assert.ok(Math.abs(seconds - (144.9 + 0.8 - 135.98)) < 0.4, `preview of ${seconds} s`);
+    const project = parseProject(
+      JSON.parse((await page.evaluate(() => localStorage.getItem("edisvg-project"))) ?? "null"),
+    );
+    const names = project.artboards.map((board) => [
+      board.name,
+      board.scene.viewBox[2],
+      board.scene.viewBox[3],
+    ]);
+    assert.deepEqual(names.slice(-5), [
+      ["Demonstração · demo.mp4", 1280, 720],
+      ["Seta", 240, 120],
+      ["Balão", 520, 220],
+      ["Destaque", 320, 200],
+      ["Clique", 120, 120],
+    ]);
+    // The layer's palette is the text palette of the recipe.
+    assert.deepEqual(project.artboards.at(-5)?.scene.palette, ["#ffffff", "#1f2a44", "#ffb547"]);
+    await dialog.getByRole("button", { name: "Fechar pipelines" }).click();
+    // The layer's artboard stays open, with the video under it and the narration over the timeline.
+    await page
+      .locator(".scene-artboard.has-reference video[data-reference]")
+      .waitFor({ state: "attached" });
+    await page.locator(".narration-bar").waitFor();
+    await page.screenshot({ path: "test-results/pipelines-demo.png" });
+    // The whole run is one undo step.
     await page.locator('[data-action="undo"]').first().click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), beforeRun);
     assert.deepEqual(errors, []);

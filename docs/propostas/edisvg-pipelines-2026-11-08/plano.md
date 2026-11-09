@@ -59,5 +59,5 @@ duas receitas prontas. Plano aprovado em 08/11/2026, com todos os lotes e um com
 | 2. Receitas | feito | |
 | 3. Parte comum | feito | |
 | 4. Receita 1 | feito | |
-| 5. Receita 2 | em andamento | |
-| 6. Review final | | |
+| 5. Receita 2 | feito | |
+| 6. Review final | em andamento | |

@@ -103,6 +103,14 @@ test("the runner goes step by step, stops at a failure and at Cancelar", async (
       stopAssistant: () => undefined,
       beginRun: () => undefined,
       endRun: () => undefined,
+      openDemoArtboard: () => ({
+        id: "artboard-d",
+        name: "Demonstração",
+        width: 1920,
+        height: 1080,
+      }),
+      setReferenceVideo: () => undefined,
+      addArtboards: () => [],
     },
     bridge: {
       pipelineReadProject: async () => "",
@@ -110,6 +118,9 @@ test("the runner goes step by step, stops at a failure and at Cancelar", async (
       pipelineNarration: async () => new Uint8Array(),
       pipelineCancel: async () => undefined,
       onPipelineProgress: () => () => undefined,
+      pipelineVideoFacts: async () => ({ width: 1920, height: 1080, duration: 10, clicks: null }),
+      pipelineVideoPreview: async () => new Uint8Array(),
+      pipelineVideoFrames: async () => [],
     },
     signal,
   });
@@ -231,4 +242,47 @@ test("a suggested export name is a plain Windows file name", () => {
   );
   for (const bad of ["a/b", "a\b", "c:x", "nome.", ".oculto", "xy", ""])
     assert.equal(suggestedNameSchema.safeParse(bad).success, false, JSON.stringify(bad));
+});
+
+test("for a screen demonstration the assistant also gets the video, the clicks, the frames and the elements", () => {
+  const text = draftRequest({
+    recipe: { name: "Demonstração passo a passo", kind: "screen-demo", style: "Setas amarelas." },
+    artboard: { id: "artboard-demo", name: "Demonstração · tela.mp4", width: 1920, height: 1080 },
+    clip: { id: "animation-d", fps: 30, frames: 240 },
+    lines: [{ text: "Abra a aba de programação.", from: 12, to: 90 }],
+    images: [],
+    textPalette: ["#ffffff", "#1f2a44", "#ffb547"],
+    imagePalette: [],
+    lessonStart: 70,
+    demo: {
+      video: { name: "tela.mp4", width: 1920, height: 1080 },
+      clicks: [{ frame: 40, x: 812, y: 96 }],
+      elements: [{ id: "artboard-seta", name: "Seta", width: 240, height: 120 }],
+      attached: [{ frame: 21, text: "Abra a aba de programação." }],
+    },
+  });
+  assert.match(text, /O vídeo "tela\.mp4" \(1920×1080\) fica por baixo desta prancheta/);
+  assert.match(text, /camada transparente sobre o vídeo no EdiAula: não desenhe fundo/);
+  assert.match(text, /Cliques gravados \(quadro: x, y\): 40: 812, 96\./);
+  assert.match(text, /Quadros anexados, na ordem: quadro 21 \("Abra a aba de programação\."\)/);
+  assert.match(text, /- Seta \[artboard-seta\] 240×120/);
+  // A demonstration has no studio images: that section is left out.
+  assert.doesNotMatch(text, /Imagens do projeto/);
+  const without = draftRequest({
+    recipe: { name: "Demonstração passo a passo", kind: "screen-demo", style: "" },
+    artboard: { id: "artboard-demo", name: "D", width: 1280, height: 720 },
+    clip: { id: "animation-d", fps: 30, frames: 60 },
+    lines: [{ text: "Clique em salvar.", from: 0, to: 50 }],
+    images: [],
+    textPalette: ["#ffffff"],
+    imagePalette: [],
+    lessonStart: 0,
+    demo: {
+      video: { name: "outro.mp4", width: 1280, height: 720 },
+      clicks: null,
+      elements: [],
+      attached: [],
+    },
+  });
+  assert.match(without, /O vídeo não tem cursor salvo: veja os quadros anexados/);
 });

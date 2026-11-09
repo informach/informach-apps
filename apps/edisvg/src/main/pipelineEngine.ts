@@ -1,14 +1,24 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync, statSync } from "node:fs";
-import { readFile, rm } from "node:fs/promises";
+import { copyFile, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import { NativeMedia, resolveNativeMedia } from "@informach/edi-desktop/native-media";
 import { createWhisper } from "@informach/edi-speech/node/whisper";
 import type { HeardWord } from "@informach/edi-speech/piece";
-import { app } from "electron";
+import { app, type BrowserWindow, dialog } from "electron";
+import { unzipSync } from "fflate";
+import { suggestedNameSchema } from "./exportPayload.ts";
 import { cutNarrationArgs, lessonWords, mixNarrationArgs } from "./pipelineMedia.ts";
 import { pickedPath } from "./pipelines.ts";
+import {
+  alphaWebmArgs,
+  findCursorFile,
+  frameArgs,
+  previewArgs,
+  type RecordedClick,
+  readClicks,
+} from "./pipelineVideo.ts";
 
 /**
  * What the pipelines need from the machine: the suite's FFmpeg, and the transcription engine of
@@ -123,4 +133,111 @@ export function cancelPipelineJob(jobId: string): void {
   if (!engine) return;
   engine.whisper.cancelWhisper(jobId);
   engine.media.cancel(jobId);
+}
+
+/** What a run needs to know about the demonstration video, and the clicks saved with it. */
+export async function pipelineVideoFacts(token: unknown): Promise<{
+  width: number;
+  height: number;
+  duration: number;
+  clicks: RecordedClick[] | null;
+}> {
+  const path = pickedPath(token, "video");
+  const facts = await machine().media.probe(path);
+  if (!facts.hasVideo || !facts.width || !facts.height)
+    throw new Error("O arquivo não tem imagem de vídeo.");
+  const cursor = findCursorFile(path);
+  return {
+    width: facts.width,
+    height: facts.height,
+    duration: facts.duration,
+    clicks: cursor ? await readClicks(cursor, facts) : null,
+  };
+}
+
+/** The first `seconds` of the demonstration as a light MP4 (bytes) for the preview. */
+export async function pipelineVideoPreview(token: unknown, seconds: number): Promise<Uint8Array> {
+  const path = pickedPath(token, "video");
+  const { paths, media } = machine();
+  const dir = await mkdtemp(join(app.getPath("temp"), "edisvg-demo-"));
+  try {
+    const out = join(dir, "previa.mp4");
+    await media.run(paths.ffmpeg, previewArgs(path, seconds, out));
+    return new Uint8Array(await readFile(out));
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+/** Frames of the demonstration at `times` (seconds), as JPEG for the assistant. */
+export async function pipelineVideoFrames(
+  token: unknown,
+  times: unknown,
+): Promise<{ mediaType: "image/jpeg"; data: string }[]> {
+  if (!Array.isArray(times) || times.length > 4 || !times.every((t) => Number.isFinite(t)))
+    throw new Error("Quadros pedidos inválidos.");
+  const path = pickedPath(token, "video");
+  const { paths, media } = machine();
+  const dir = await mkdtemp(join(app.getPath("temp"), "edisvg-frames-"));
+  try {
+    const out: { mediaType: "image/jpeg"; data: string }[] = [];
+    for (const [index, at] of (times as number[]).entries()) {
+      const file = join(dir, `quadro-${index}.jpg`);
+      await media.run(paths.ffmpeg, frameArgs(path, at, file));
+      out.push({ mediaType: "image/jpeg", data: (await readFile(file)).toString("base64") });
+    }
+    return out;
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+/** Bounded: a transparent layer is a PNG sequence of at most this many bytes. */
+const ALPHA_ZIP_BYTES = 512 * 1024 ** 2;
+
+/**
+ * The transparent layer: the PNG sequence (ZIP, as the PNG export makes it) encoded as WebM with
+ * alpha, then saved where the person chooses. Returns whether it was saved.
+ */
+export async function exportAlphaWebm(
+  win: BrowserWindow,
+  input: unknown,
+  defaultFolder: string | undefined,
+  /** The suite's access check, before anything is written (as every export). */
+  assertAccess: () => void,
+): Promise<{ saved: boolean }> {
+  const value = input as { bytes?: unknown; name?: unknown };
+  if (!(value?.bytes instanceof Uint8Array) || value.bytes.byteLength > ALPHA_ZIP_BYTES)
+    throw new Error("Sequência de quadros inválida.");
+  const files = unzipSync(value.bytes);
+  const manifest = files["sequence.json"];
+  if (!manifest) throw new Error("A sequência não tem o manifesto.");
+  const { fps, frames } = JSON.parse(new TextDecoder().decode(manifest)) as {
+    fps: number;
+    frames: number;
+  };
+  const name = suggestedNameSchema.safeParse(value.name).data ?? "camada";
+  const { paths, media } = machine();
+  const dir = await mkdtemp(join(app.getPath("temp"), "edisvg-alpha-"));
+  try {
+    for (let index = 0; index < frames; index++) {
+      const file = `quadro-${String(index).padStart(5, "0")}.png`;
+      const bytes = files[file];
+      if (!bytes) throw new Error(`Falta o quadro ${index} na sequência.`);
+      await writeFile(join(dir, file), bytes);
+    }
+    const out = join(dir, "camada.webm");
+    await media.run(paths.ffmpeg, alphaWebmArgs(dir, fps, out));
+    const { canceled, filePath } = await dialog.showSaveDialog(win, {
+      defaultPath: join(defaultFolder ?? "", `${name}.webm`),
+      properties: ["dontAddToRecent"],
+      filters: [{ name: "Camada transparente (WebM)", extensions: ["webm"] }],
+    });
+    if (canceled || !filePath) return { saved: false };
+    assertAccess();
+    await copyFile(out, filePath);
+    return { saved: true };
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 }

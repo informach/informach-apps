@@ -18,6 +18,11 @@ contextBridge.exposeInMainWorld("desktop", {
   pipelineNarration: (token, kind, start, end) =>
     ipcRenderer.invoke("pipeline:narration", token, kind, start, end),
   pipelineCancel: (jobId) => ipcRenderer.invoke("pipeline:cancel", jobId),
+  pipelineVideoFacts: (token) => ipcRenderer.invoke("pipeline:video-facts", token),
+  pipelineVideoPreview: (token, seconds) =>
+    ipcRenderer.invoke("pipeline:video-preview", token, seconds),
+  pipelineVideoFrames: (token, times) => ipcRenderer.invoke("pipeline:video-frames", token, times),
+  exportAlphaWebm: (input) => ipcRenderer.invoke("export:alpha-webm", input),
   onPipelineProgress: (callback) => subscribe("pipeline:progress", callback),
   importAsset: () => ipcRenderer.invoke("asset:import"),
   projectOpen: () => ipcRenderer.invoke("project:open"),

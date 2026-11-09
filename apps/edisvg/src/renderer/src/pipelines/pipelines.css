@@ -198,3 +198,20 @@ dialog.pipelines-dialog > .help-content {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* The demonstration video under the transparent layer's artboard (pipelines/reference.ts). */
+.scene-artboard.has-reference {
+  position: relative;
+  background: #000;
+}
+.reference-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+}
+.scene-artboard.has-reference > .scene-artwork {
+  position: relative;
+}

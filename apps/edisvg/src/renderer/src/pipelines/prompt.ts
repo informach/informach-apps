@@ -33,6 +33,16 @@ export interface DraftFacts {
   imagePalette: string[];
   /** Where the narration starts in the lesson (seconds), for the report. */
   lessonStart: number;
+  /** The screen demonstration under the layer (the "Demonstração passo a passo" recipe). */
+  demo?: {
+    video: { name: string; width: number; height: number };
+    /** Clicks saved with the recording, on the animation's frames and the artboard's pixels. */
+    clicks: { frame: number; x: number; y: number }[] | null;
+    /** Artboards of the ready elements (arrow, balloon, highlight, click). */
+    elements: DraftBoard[];
+    /** Frames of the video attached to this request, in order. */
+    attached: { frame: number; text: string }[];
+  };
 }
 
 const clock = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
@@ -44,6 +54,29 @@ export function draftRequest(f: DraftFacts): string {
   const images = f.images.length
     ? f.images.map((b) => `- ${b.name} [${b.id}] ${b.width}×${b.height}`).join("\n")
     : "(nenhuma)";
+  const demo = f.demo
+    ? [
+        "",
+        "## A demonstração por baixo",
+        `- O vídeo "${f.demo.video.name}" (${f.demo.video.width}×${f.demo.video.height}) fica por baixo desta prancheta, do mesmo tamanho: um ponto (x, y) da prancheta é o mesmo pixel do vídeo. Ele começa junto com a primeira frase.`,
+        "- Esta prancheta vira uma camada transparente sobre o vídeo no EdiAula: não desenhe fundo, nem nada que cubra a área que está sendo mostrada.",
+        f.demo.clicks?.length
+          ? `- Cliques gravados (quadro: x, y): ${f.demo.clicks
+              .slice(0, 60)
+              .map((c) => `${c.frame}: ${c.x}, ${c.y}`)
+              .join(
+                "; ",
+              )}${f.demo.clicks.length > 60 ? "; …" : ""}. Use-os para apontar setas e destaques onde a professora clica.`
+          : "- O vídeo não tem cursor salvo: veja os quadros anexados para saber onde ela mexe.",
+        f.demo.attached.length
+          ? `- Quadros anexados, na ordem: ${f.demo.attached.map((a) => `quadro ${a.frame} ("${a.text.slice(0, 60)}")`).join("; ")}.`
+          : "",
+        "",
+        "## Elementos prontos (pranchetas para usar como instâncias de componente)",
+        f.demo.elements.map((b) => `- ${b.name} [${b.id}] ${b.width}×${b.height}`).join("\n") ||
+          "(nenhum)",
+      ].filter((line) => line !== "")
+    : [];
   return [
     `Pipeline "${f.recipe.name}". Monte o rascunho da animação desta cena, sincronizado com a narração.`,
     "",
@@ -57,8 +90,13 @@ export function draftRequest(f: DraftFacts): string {
     "## A narração, frase por frase",
     lines,
     "",
-    "## Imagens do projeto (pranchetas que podem entrar na cena como instâncias de componente)",
-    images,
+    ...(f.demo
+      ? []
+      : [
+          "## Imagens do projeto (pranchetas que podem entrar na cena como instâncias de componente)",
+          images,
+        ]),
+    ...demo,
     "",
     "## Cores",
     `- Textos: ${f.textPalette.join(", ")} (a primeira é a principal).`,

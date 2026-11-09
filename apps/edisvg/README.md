@@ -33,7 +33,15 @@ duplicadas ou excluídas e restauradas. **+ Nova receita** cria uma do zero.
     e o tempo de cada frase, e abre uma animação do tamanho do trecho, com a narração tocando
     junto.
 - **Demonstração passo a passo**
-  - Recebe o vídeo gravado na tela, o áudio e o roteiro, e faz o mesmo com a narração.
+  - Recebe o vídeo gravado na tela, o áudio e o roteiro. O vídeo começa junto com o trecho.
+  - Cria uma prancheta do tamanho do vídeo, a camada transparente, com o vídeo por baixo na
+    prévia. Ele toca e para com a animação, e nunca entra na exportação.
+  - Cria os elementos prontos (seta, balão, destaque e clique) nas cores da paleta de texto.
+  - Pede o rascunho ao assistente. Ele recebe a narração, os cliques gravados e até quatro quadros
+    do vídeo para olhar:
+    - **Gravação do EdiAula:** o `<id>-cursor.json` ao lado do vídeo dá os cliques reais, já na
+      escala do vídeo e no quadro da animação.
+    - **Outro vídeo:** o assistente decide pelos quadros.
 
 **Como o trecho é achado.**
 1. As palavras ditas vêm das transcrições da aula do EdiAula, nas faixas que soam. Se for um
@@ -63,6 +71,11 @@ duplicadas ou excluídas e restauradas. **+ Nova receita** cria uma do zero.
 **Exportar para a aula.** Ao exportar em vídeo a animação de uma narração, o nome sugerido traz
 onde o trecho começa na aula, por exemplo "Narração · Cena animada do jogo (começa em 2m15s)".
 Assim fica fácil pôr o vídeo no EdiAula sobre a narração original. O vídeo sai sem som.
+
+Para a demonstração, use **Camada transparente · WebM**.
+- A janela desenha a animação como sequência PNG com transparência.
+- O processo principal codifica em VP9 com alfa (`yuva420p`), com o FFmpeg da suíte.
+- O arquivo vai numa faixa acima do vídeo no EdiAula, que já reconhece vídeo com transparência.
 
 **A narração na prévia.** Uma barra acima da linha do tempo mostra as frases do trecho sobre a
 forma de onda, com a frase atual acesa. Clicar numa frase leva a agulha até ela. O áudio toca com
