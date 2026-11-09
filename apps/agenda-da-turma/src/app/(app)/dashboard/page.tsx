@@ -19,6 +19,7 @@ import { FirstStepsSection } from "@/features/onboarding/components/first-steps-
 import { WelcomeFlash } from "@/features/onboarding/components/welcome-flash";
 import { ChildFilter, FilteredByChild } from "@/features/students/components/child-filter";
 import { listStudentProfilesForUser } from "@/features/students/service";
+import { shortChildNames } from "@/features/students/utils";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = {
@@ -154,6 +155,7 @@ export default async function DashboardPage({ searchParams }: Props) {
             <RoutineSection
               userId={user.id}
               profileFilter={profileFilter}
+              childNames={shortChildNames(profiles)}
               evening={evening}
               header={header}
               pills={evening ? null : pills}

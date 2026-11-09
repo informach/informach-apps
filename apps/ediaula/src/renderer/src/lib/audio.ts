@@ -1,4 +1,4 @@
-import { duckingOf, speechSpans } from "@shared/audio";
+import { duckingOf, needsSpeech, speechSpans } from "@shared/audio";
 import { captionWords } from "@shared/captions";
 import type { Project } from "@shared/types";
 import { useEffect, useState } from "react";
@@ -14,13 +14,10 @@ export async function projectSpeech(p: Project): Promise<[number, number][]> {
   return speechSpans(p, captionWords(p, transcripts), new Set(transcripts.keys()), ramp, hold);
 }
 
-/** Speech spans, only computed when the project has a music track. */
+/** Speech spans, only computed when something steps aside for the voice (needsSpeech). */
 export function useSpeechSpans(project: Project | null): [number, number][] {
   const [spans, setSpans] = useState<[number, number][]>([]);
-  // Needed by the music and by the automatic clicks (both step aside for the voice).
-  const hasMusic =
-    !!project?.tracks.some((t) => t.music || t.clicks) ||
-    !!project?.assets.some((a) => a.cursorFx?.clickSound);
+  const hasMusic = !!project && needsSpeech(project);
   useEffect(() => {
     let alive = true;
     if (!project || !hasMusic) return setSpans([]);

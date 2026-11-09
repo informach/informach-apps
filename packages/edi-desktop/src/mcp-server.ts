@@ -127,9 +127,10 @@ function buildServer<Name extends string>(
           data: image.data,
           mimeType: image.mime,
         }));
+        // Text and pictures only, never structuredContent: a client that finds it gives the
+        // model that alone, and the text is the whole answer.
         return {
           content: [{ type: "text" as const, text: r.text }, ...images],
-          ...(r.structured ? { structuredContent: r.structured } : {}),
           isError: !r.ok,
         };
       },

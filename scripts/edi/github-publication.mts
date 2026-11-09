@@ -11,6 +11,8 @@ import {
 } from "../../packages/edi-contracts/src/index";
 
 const execute = promisify(execFile);
+// One installer per desktop app plus the signed suite manifest.
+const SUITE_ASSET_COUNT = EDI_DESKTOP_APPS.length + 1;
 type Command = (args: string[]) => Promise<string>;
 const releaseSchema = z.object({
   draft: z.boolean(),
@@ -69,8 +71,10 @@ export async function publishGithubRelease(
 ) {
   const repository = githubRepositorySchema.parse(options.repository);
   const version = releaseVersionSchema.parse(options.version);
-  if (!/^[a-f0-9]{40}$/.test(options.sourceCommit) || options.files.length !== 7)
-    throw new Error("Publication requires a pinned source and exactly seven suite assets");
+  if (!/^[a-f0-9]{40}$/.test(options.sourceCommit) || options.files.length !== SUITE_ASSET_COUNT)
+    throw new Error(
+      "Publication requires a pinned source and exactly one asset per suite app plus the manifest",
+    );
   const tag = `edi-v${version}`;
   const beta = version.includes("-beta.");
   const provenance = `<!-- edi-source:${options.sourceCommit} -->`;
@@ -80,11 +84,14 @@ export async function publishGithubRelease(
     "edi-release.json",
   ]);
   const actualNames = options.files.map((file) => basename(file));
-  if (new Set(actualNames).size !== 7 || actualNames.some((name) => !expectedNames.has(name)))
-    throw new Error("Publication requires the six canonical installers and signed suite manifest");
+  if (
+    new Set(actualNames).size !== SUITE_ASSET_COUNT ||
+    actualNames.some((name) => !expectedNames.has(name))
+  )
+    throw new Error("Publication requires the canonical installers and signed suite manifest");
   const expected = await Promise.all(options.files.map(sha256));
   const sameAssets = (release: z.infer<typeof releaseSchema>) =>
-    release.assets.length === 7 &&
+    release.assets.length === SUITE_ASSET_COUNT &&
     expected.every((item) =>
       release.assets.some(
         (asset) =>

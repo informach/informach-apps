@@ -66,6 +66,10 @@ async function main(prompt) {
     apiKey: !!process.env.ANTHROPIC_API_KEY,
     resume: resume ?? null,
     personal: args.includes('forced_login_method="chatgpt"'),
+    system: args.includes("--append-system-prompt")
+      ? args[args.indexOf("--append-system-prompt") + 1]
+      : null,
+    autoMemoryOff: process.env.CLAUDE_CODE_DISABLE_AUTO_MEMORY === "1",
     tool: null,
   };
   if (prompt.includes("CHAME")) {

@@ -1,0 +1,878 @@
+{
+ "corpo": "adolescente_m",
+ "altura": 1.602,
+ "correcoes": {
+  "resident.phone.talk": {
+   "telefone": 145,
+   "dedos": {
+    "Left": "telefone"
+   }
+  },
+  "resident.crouch.enter": {
+   "chao": {
+    "quadros": 123,
+    "afundava_cm": 9.8
+   }
+  },
+  "resident.crouch.exit": {
+   "chao": {
+    "quadros": 38,
+    "afundava_cm": 3.6
+   },
+   "antebraco": {
+    "quadros": 16,
+    "entrava_cm": 1.5
+   }
+  },
+  "resident.crouch.idle": {
+   "chao": {
+    "quadros": 76,
+    "afundava_cm": 3.8
+   }
+  },
+  "resident.dance.hiphop": {
+   "chao": {
+    "quadros": 191,
+    "afundava_cm": 4.5
+   }
+  },
+  "resident.dance.samba": {
+   "chao": {
+    "quadros": 324,
+    "afundava_cm": 4.1
+   }
+  },
+  "resident.dance.silly": {
+   "chao": {
+    "quadros": 164,
+    "afundava_cm": 3.6
+   }
+  },
+  "resident.door.open_in": {
+   "chao": {
+    "quadros": 186,
+    "afundava_cm": 2.6
+   },
+   "antebraco": {
+    "quadros": 45,
+    "entrava_cm": 2.1
+   }
+  },
+  "resident.door.open_out": {
+   "chao": {
+    "quadros": 124,
+    "afundava_cm": 2.7
+   }
+  },
+  "resident.emote.excited": {
+   "chao": {
+    "quadros": 198,
+    "afundava_cm": 2.5
+   }
+  },
+  "resident.emote.scared": {
+   "chao": {
+    "quadros": 601,
+    "afundava_cm": 2.2
+   }
+  },
+  "resident.emote.thinking": {
+   "chao": {
+    "quadros": 128,
+    "afundava_cm": 3.3
+   },
+   "antebraco": {
+    "quadros": 33,
+    "entrava_cm": 1.1
+   }
+  },
+  "resident.fit.pushup": {
+   "chao": {
+    "quadros": 47,
+    "afundava_cm": 9.1
+   }
+  },
+  "resident.garden.plant": {
+   "chao": {
+    "quadros": 166,
+    "afundava_cm": 14.2
+   }
+  },
+  "resident.garden.pull": {
+   "chao": {
+    "quadros": 143,
+    "afundava_cm": 12.1
+   }
+  },
+  "resident.handshake": {
+   "chao": {
+    "quadros": 132,
+    "afundava_cm": 1.9
+   }
+  },
+  "resident.handshake.partner": {
+   "chao": {
+    "quadros": 132,
+    "afundava_cm": 1.6
+   }
+  },
+  "resident.hang.enter": {
+   "chao": {
+    "quadros": 23,
+    "afundava_cm": 2.0
+   }
+  },
+  "resident.idle.bored": {
+   "chao": {
+    "quadros": 311,
+    "afundava_cm": 3.4
+   }
+  },
+  "resident.idle.happy": {
+   "chao": {
+    "quadros": 89,
+    "afundava_cm": 1.7
+   }
+  },
+  "resident.jog": {
+   "chao": {
+    "quadros": 78,
+    "afundava_cm": 4.5
+   },
+   "antebraco": {
+    "quadros": 47,
+    "entrava_cm": 1.5
+   }
+  },
+  "resident.play.ball_kick": {
+   "chao": {
+    "quadros": 38,
+    "afundava_cm": 2.2
+   }
+  },
+  "resident.play.jump_rope": {
+   "chao": {
+    "quadros": 78,
+    "afundava_cm": 2.5
+   },
+   "dedos": {
+    "Left": "corda",
+    "Right": "corda"
+   }
+  },
+  "resident.push.loop": {
+   "chao": {
+    "quadros": 81,
+    "afundava_cm": 4.4
+   }
+  },
+  "resident.push.start": {
+   "chao": {
+    "quadros": 143,
+    "afundava_cm": 4.2
+   }
+  },
+  "resident.push.stop": {
+   "chao": {
+    "quadros": 79,
+    "afundava_cm": 4.9
+   }
+  },
+  "resident.run.normal": {
+   "chao": {
+    "quadros": 22,
+    "afundava_cm": 3.7
+   }
+  },
+  "resident.throw": {
+   "chao": {
+    "quadros": 67,
+    "afundava_cm": 1.8
+   }
+  },
+  "resident.turn.left": {
+   "chao": {
+    "quadros": 29,
+    "afundava_cm": 1.7
+   }
+  },
+  "resident.turn.right": {
+   "chao": {
+    "quadros": 29,
+    "afundava_cm": 1.7
+   }
+  },
+  "resident.walk.happy": {
+   "chao": {
+    "quadros": 34,
+    "afundava_cm": 4.8
+   }
+  },
+  "resident.walk.normal": {
+   "chao": {
+    "quadros": 26,
+    "afundava_cm": 1.5
+   }
+  },
+  "resident.walk.sad": {
+   "chao": {
+    "quadros": 45,
+    "afundava_cm": 2.3
+   }
+  },
+  "resident.lie.enter": {
+   "antebraco": {
+    "quadros": 49,
+    "entrava_cm": 1.5
+   }
+  },
+  "resident.sit.laugh": {
+   "antebraco": {
+    "quadros": 169,
+    "entrava_cm": 4.2
+   }
+  },
+  "resident.text": {
+   "antebraco": {
+    "quadros": 533,
+    "entrava_cm": 1.9
+   }
+  },
+  "resident.yawn": {
+   "antebraco": {
+    "quadros": 101,
+    "entrava_cm": 3.7
+   }
+  },
+  "resident.sit.floor.crossed": {
+   "chao": {
+    "quadros": 240,
+    "afundava_cm": 1.7
+   }
+  },
+  "resident.device.use": {
+   "antebraco": {
+    "quadros": 557,
+    "entrava_cm": 3.8
+   }
+  },
+  "resident.read.sit": {
+   "antebraco": {
+    "quadros": 240,
+    "entrava_cm": 9.5
+   }
+  },
+  "resident.read.stand": {
+   "antebraco": {
+    "quadros": 240,
+    "entrava_cm": 9.6
+   }
+  },
+  "resident.drink.stand": {
+   "dedos": {
+    "Left": "copo"
+   }
+  },
+  "resident.drink.sit": {
+   "dedos": {
+    "Left": "copo"
+   }
+  },
+  "resident.carry.box.idle": {
+   "dedos": {
+    "Left": "concha",
+    "Right": "concha"
+   }
+  },
+  "resident.garden.water": {
+   "dedos": {
+    "Right": "copo"
+   }
+  },
+  "resident.garden.dig": {
+   "dedos": {
+    "Left": "punho",
+    "Right": "punho"
+   }
+  },
+  "resident.music.guitar": {
+   "dedos": {
+    "Left": "copo",
+    "Right": "pinca"
+   }
+  },
+  "resident.play.videogame": {
+   "dedos": {
+    "Left": "controle",
+    "Right": "controle"
+   }
+  },
+  "resident.fit.curl": {
+   "dedos": {
+    "Left": "corda",
+    "Right": "corda"
+   }
+  },
+  "resident.desk.write": {
+   "dedos": {
+    "Right": "pinca"
+   }
+  },
+  "resident.stretch": {
+   "dedos": {
+    "Left": "concha"
+   }
+  },
+  "resident.bike.idle": {
+   "chao": {
+    "quadros": 180,
+    "afundava_cm": 3.1
+   }
+  },
+  "resident.scooter.ride": {
+   "chao": {
+    "quadros": 34,
+    "afundava_cm": 2.7
+   }
+  },
+  "resident.skate.ride": {
+   "chao": {
+    "quadros": 28,
+    "afundava_cm": 2.5
+   }
+  }
+ },
+ "apoios": {
+  "resident.desk.point": {
+   "tipo": "assento",
+   "altura": 0.393,
+   "x": 0.016,
+   "y": -0.115
+  },
+  "resident.desk.type": {
+   "tipo": "assento",
+   "altura": 0.361,
+   "x": 0.003,
+   "y": -0.123
+  },
+  "resident.desk.write": {
+   "tipo": "assento",
+   "altura": 0.414,
+   "x": 0.03,
+   "y": -0.232
+  },
+  "resident.lie.enter": {
+   "tipo": "cama",
+   "altura": 0.557,
+   "x": 0.007,
+   "y": 0.495
+  },
+  "resident.lie.idle": {
+   "tipo": "cama",
+   "altura": 0.833,
+   "x": -0.001,
+   "y": 0.144
+  },
+  "resident.sit.angry": {
+   "tipo": "assento",
+   "altura": 0.386,
+   "x": 0.008,
+   "y": -0.112
+  },
+  "resident.sit.chair.enter": {
+   "tipo": "assento",
+   "altura": 0.361,
+   "x": 0.005,
+   "y": 0.298
+  },
+  "resident.sit.chair.exit": {
+   "tipo": "assento",
+   "altura": 0.361,
+   "x": 0.001,
+   "y": -0.123
+  },
+  "resident.sit.chair.idle": {
+   "tipo": "assento",
+   "altura": 0.387,
+   "x": 0.003,
+   "y": -0.113
+  },
+  "resident.sit.clap": {
+   "tipo": "assento",
+   "altura": 0.385,
+   "x": 0.002,
+   "y": -0.11
+  },
+  "resident.sit.laugh": {
+   "tipo": "assento",
+   "altura": 0.376,
+   "x": -0.004,
+   "y": -0.095
+  },
+  "resident.sit.talk": {
+   "tipo": "assento",
+   "altura": 0.361,
+   "x": -0.011,
+   "y": -0.12
+  },
+  "resident.sleep.idle": {
+   "tipo": "cama",
+   "altura": 0.822,
+   "x": 0.001,
+   "y": 0.144
+  },
+  "resident.drink.sit": {
+   "tipo": "assento",
+   "altura": 0.387,
+   "x": 0.003,
+   "y": -0.113
+  },
+  "resident.eat.sit": {
+   "tipo": "assento",
+   "altura": 0.387,
+   "x": 0.003,
+   "y": -0.113,
+   "mesa": {
+    "topo": 0.611,
+    "frente": 0.201,
+    "x": 0.002
+   }
+  },
+  "resident.read.sit": {
+   "tipo": "entre_maos",
+   "objeto": "livro",
+   "tam": [
+    0.238,
+    0.023,
+    0.174
+   ]
+  },
+  "resident.sit.floor.crossed": {
+   "tipo": "assento",
+   "altura": 0.055,
+   "x": -0.001,
+   "y": -0.112
+  },
+  "resident.sit.sofa.relaxed": {
+   "tipo": "assento",
+   "altura": 0.387,
+   "x": 0.003,
+   "y": -0.114
+  },
+  "resident.sleep.exit": {
+   "tipo": "cama",
+   "altura": 0.557,
+   "x": 0.007,
+   "y": 0.495
+  },
+  "resident.wash": {
+   "tipo": "pia",
+   "topo": 0.812,
+   "frente": 0.159,
+   "x": -0.001,
+   "largura": 1.007
+  },
+  "resident.carry.box.walk": {
+   "tipo": "entre_maos",
+   "objeto": "caixa",
+   "tam": [
+    0.275,
+    0.238,
+    0.275
+   ]
+  },
+  "resident.care.hold_idle": {
+   "tipo": "entre_maos",
+   "objeto": "bebe",
+   "tam": [
+    0.412,
+    0.119,
+    0.128
+   ]
+  },
+  "resident.care.rock": {
+   "tipo": "entre_maos",
+   "objeto": "bebe",
+   "tam": [
+    0.412,
+    0.119,
+    0.128
+   ]
+  },
+  "resident.device.use": {
+   "tipo": "entre_maos",
+   "objeto": "tablet",
+   "tam": [
+    0.201,
+    0.012,
+    0.146
+   ]
+  },
+  "resident.read.stand": {
+   "tipo": "entre_maos",
+   "objeto": "livro",
+   "tam": [
+    0.238,
+    0.023,
+    0.174
+   ]
+  },
+  "resident.kitchen.stir": {
+   "tipo": "bancada",
+   "topo": 0.867,
+   "frente": 0.186,
+   "x": -0.001,
+   "largura": 1.007
+  },
+  "resident.kitchen.chop": {
+   "tipo": "bancada",
+   "topo": 0.867,
+   "frente": 0.168,
+   "x": -0.001,
+   "largura": 1.007
+  },
+  "resident.clean.sweep": {
+   "tipo": "cabo",
+   "objeto": "vassoura"
+  },
+  "resident.clean.mop": {
+   "tipo": "cabo",
+   "objeto": "rodo"
+  },
+  "resident.clean.wipe": {
+   "tipo": "bancada",
+   "topo": 0.675,
+   "frente": 0.214,
+   "x": -0.001,
+   "largura": 1.007
+  },
+  "resident.clean.vacuum": {
+   "tipo": "cabo",
+   "objeto": "aspirador"
+  },
+  "resident.laundry.fold": {
+   "tipo": "bancada",
+   "topo": 0.739,
+   "frente": 0.186,
+   "x": -0.001,
+   "largura": 1.007
+  },
+  "resident.push.start": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.641,
+    0.687,
+    0.503
+   ]
+  },
+  "resident.push.loop": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.641,
+    0.687,
+    0.503
+   ]
+  },
+  "resident.push.stop": {
+   "tipo": "entre_maos",
+   "objeto": "caixote",
+   "tam": [
+    0.641,
+    0.687,
+    0.503
+   ]
+  },
+  "resident.bike.ride": {
+   "tipo": "bicicleta",
+   "veiculo": [
+    "bicicleta_amarela",
+    "bicicleta_azul"
+   ],
+   "escala": 0.833,
+   "fixacao": "Root",
+   "origem": {
+    "x": 0.0,
+    "altura": 0.0,
+    "frente": 0.194
+   },
+   "gira_graus": 0.0,
+   "inclina_graus": 0.0,
+   "selim": {
+    "x": 0.0,
+    "altura": 0.85,
+    "frente": 0.028
+   },
+   "guidao": {
+    "esq": {
+     "x": 0.258,
+     "altura": 0.908,
+     "frente": 0.419
+    },
+    "dir": {
+     "x": -0.258,
+     "altura": 0.908,
+     "frente": 0.419
+    }
+   },
+   "pedivela": {
+    "eixo": {
+     "x": 0.0,
+     "altura": 0.25,
+     "frente": 0.194
+    },
+    "raio": 0.128,
+    "pedal_x": 0.125,
+    "ciclo_s": 1.0,
+    "angulo_inicial_graus": 0.0,
+    "sentido": "pedal direito embaixo no quadro 1, indo para trás"
+   },
+   "velocidade_m_s": 3.83,
+   "rodas_rad_s": 13.53
+  },
+  "resident.bike.idle": {
+   "tipo": "bicicleta",
+   "veiculo": [
+    "bicicleta_amarela",
+    "bicicleta_azul"
+   ],
+   "escala": 0.833,
+   "fixacao": "Root",
+   "origem": {
+    "x": 0.0,
+    "altura": 0.0,
+    "frente": 0.194
+   },
+   "gira_graus": 0.0,
+   "inclina_graus": 14.0,
+   "selim": {
+    "x": 0.206,
+    "altura": 0.824,
+    "frente": 0.028
+   },
+   "guidao": {
+    "esq": {
+     "x": 0.47,
+     "altura": 0.819,
+     "frente": 0.419
+    },
+    "dir": {
+     "x": -0.031,
+     "altura": 0.943,
+     "frente": 0.419
+    }
+   },
+   "pedivela": {
+    "eixo": {
+     "x": 0.06,
+     "altura": 0.242,
+     "frente": 0.194
+    },
+    "raio": 0.128,
+    "pedal_x": 0.125,
+    "angulo_graus": 235.0
+   },
+   "velocidade_m_s": 0.0,
+   "pe_no_chao": "esquerdo"
+  },
+  "resident.skate.ride": {
+   "tipo": "skate",
+   "veiculo": [
+    "skate_laranja"
+   ],
+   "escala": 0.915,
+   "fixacao": "Root",
+   "origem": {
+    "x": 0.0,
+    "altura": 0.0,
+    "frente": 0.027
+   },
+   "gira_graus": 90.0,
+   "nota": "de lado, pé esquerdo na frente: anda para a esquerda do personagem; o skate gira 90° em torno do eixo vertical (a frente dele aponta para +x)",
+   "shape": {
+    "altura": 0.092,
+    "comprimento": 0.751,
+    "largura": 0.201
+   },
+   "pes": {
+    "esq": {
+     "x": 0.165,
+     "altura": 0.092,
+     "frente": 0.027
+    },
+    "dir": {
+     "x": -0.165,
+     "altura": 0.092,
+     "frente": 0.027
+    }
+   },
+   "velocidade_m_s": 3.0,
+   "direcao": "+x (esquerda do personagem)",
+   "ciclo_s": 4.0,
+   "impulso_s": [
+    2.7,
+    3.35
+   ],
+   "rodas_rad_s": 102.4
+  },
+  "resident.skate.idle": {
+   "tipo": "skate",
+   "veiculo": [
+    "skate_laranja"
+   ],
+   "escala": 0.915,
+   "fixacao": "Root",
+   "origem": {
+    "x": 0.0,
+    "altura": 0.0,
+    "frente": 0.027
+   },
+   "gira_graus": 90.0,
+   "nota": "de lado, pé esquerdo na frente: anda para a esquerda do personagem; o skate gira 90° em torno do eixo vertical (a frente dele aponta para +x)",
+   "shape": {
+    "altura": 0.092,
+    "comprimento": 0.751,
+    "largura": 0.201
+   },
+   "pes": {
+    "esq": {
+     "x": 0.165,
+     "altura": 0.092,
+     "frente": 0.027
+    },
+    "dir": {
+     "x": -0.165,
+     "altura": 0.092,
+     "frente": 0.027
+    }
+   },
+   "velocidade_m_s": 0.0,
+   "direcao": "+x (esquerda do personagem)"
+  },
+  "resident.scooter.ride": {
+   "tipo": "patinete",
+   "veiculo": null,
+   "medidas": "reais (a cidade não tem patinete de empurrar)",
+   "escala": 0.915,
+   "fixacao": "Root",
+   "origem": {
+    "x": 0.0,
+    "altura": 0.0,
+    "frente": 0.055
+   },
+   "gira_graus": 0.0,
+   "plataforma": {
+    "altura": 0.092,
+    "largura": 0.119,
+    "comprimento": 0.458
+   },
+   "coluna": {
+    "x": 0.0,
+    "altura": 0.0,
+    "frente": 0.33
+   },
+   "guidao": {
+    "altura": 0.913,
+    "largura": 0.384,
+    "esq": {
+     "x": 0.192,
+     "altura": 0.913,
+     "frente": 0.311
+    },
+    "dir": {
+     "x": -0.192,
+     "altura": 0.913,
+     "frente": 0.311
+    }
+   },
+   "rodas": {
+    "raio": 0.092,
+    "dianteira": {
+     "x": 0.0,
+     "altura": 0.092,
+     "frente": 0.384
+    },
+    "traseira": {
+     "x": 0.0,
+     "altura": 0.092,
+     "frente": -0.22
+    }
+   },
+   "velocidade_m_s": 3.0,
+   "direcao": "frente (−y do Blender, +z do glTF)",
+   "ciclo_s": 3.0,
+   "impulso_s": [
+    1.45,
+    2.3
+   ],
+   "rodas_rad_s": 32.8
+  },
+  "resident.scooter.idle": {
+   "tipo": "patinete",
+   "veiculo": null,
+   "medidas": "reais (a cidade não tem patinete de empurrar)",
+   "escala": 0.915,
+   "fixacao": "Root",
+   "origem": {
+    "x": 0.0,
+    "altura": 0.0,
+    "frente": 0.055
+   },
+   "gira_graus": 0.0,
+   "plataforma": {
+    "altura": 0.092,
+    "largura": 0.119,
+    "comprimento": 0.458
+   },
+   "coluna": {
+    "x": 0.0,
+    "altura": 0.0,
+    "frente": 0.33
+   },
+   "guidao": {
+    "altura": 0.913,
+    "largura": 0.384,
+    "esq": {
+     "x": 0.192,
+     "altura": 0.913,
+     "frente": 0.311
+    },
+    "dir": {
+     "x": -0.192,
+     "altura": 0.913,
+     "frente": 0.311
+    }
+   },
+   "rodas": {
+    "raio": 0.092,
+    "dianteira": {
+     "x": 0.0,
+     "altura": 0.092,
+     "frente": 0.384
+    },
+    "traseira": {
+     "x": 0.0,
+     "altura": 0.092,
+     "frente": -0.22
+    }
+   },
+   "velocidade_m_s": 0.0,
+   "direcao": "frente (−y do Blender, +z do glTF)"
+  },
+  "resident.photo.take": {
+   "tipo": "entre_maos",
+   "objeto": "camera",
+   "tam": [
+    0.119,
+    0.073,
+    0.073
+   ]
+  },
+  "resident.selfie": {
+   "tipo": "objeto_mao",
+   "objeto": "celular",
+   "mao": "direita"
+  }
+ }
+}

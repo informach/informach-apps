@@ -1,0 +1,928 @@
+{
+ "categoria": "livros",
+ "rotulo": "Livros e papéis",
+ "itens": [
+  {
+   "id": "livros_fileira_grande",
+   "rotulo": "Fileira de livros grande",
+   "categoria": "livros",
+   "grupo": "livros_fileira_grande",
+   "fixacao": "apoio",
+   "dims": [
+    0.445,
+    0.176,
+    0.27
+   ],
+   "arquivo": "glb/livros_fileira_grande.glb",
+   "miniatura": "miniaturas/livros_fileira_grande.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.135,
+      -0.0
+     ],
+     "tamanho": [
+      0.445,
+      0.27,
+      0.176
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "azul_celeste",
+    "laranja",
+    "marrom",
+    "marrom_escuro",
+    "papel",
+    "rosa",
+    "rosa_bebe",
+    "turquesa",
+    "verde",
+    "verde_agua",
+    "verde_claro",
+    "verde_lima"
+   ],
+   "tris": 4256,
+   "pacote": false,
+   "tags": [
+    "livros",
+    "estante",
+    "decoracao"
+   ]
+  },
+  {
+   "id": "livros_fileira_media",
+   "rotulo": "Fileira de livros média",
+   "categoria": "livros",
+   "grupo": "livros_fileira_media",
+   "fixacao": "apoio",
+   "dims": [
+    0.228,
+    0.15,
+    0.235
+   ],
+   "arquivo": "glb/livros_fileira_media.glb",
+   "miniatura": "miniaturas/livros_fileira_media.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1175,
+      -0.0
+     ],
+     "tamanho": [
+      0.228,
+      0.235,
+      0.15
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_celeste",
+    "cinza",
+    "grafite",
+    "lilas",
+    "papel",
+    "roxo",
+    "verde_claro",
+    "verde_lima",
+    "vermelho_claro"
+   ],
+   "tris": 3000,
+   "pacote": false,
+   "tags": [
+    "livros",
+    "estante"
+   ]
+  },
+  {
+   "id": "livros_fileira_pequena",
+   "rotulo": "Quatro livros em pé",
+   "categoria": "livros",
+   "grupo": "livros_fileira_pequena",
+   "fixacao": "apoio",
+   "dims": [
+    0.144,
+    0.159,
+    0.225
+   ],
+   "arquivo": "glb/livros_fileira_pequena.glb",
+   "miniatura": "miniaturas/livros_fileira_pequena.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1125,
+      -0.0
+     ],
+     "tamanho": [
+      0.144,
+      0.225,
+      0.159
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "papel",
+    "rosa",
+    "turquesa",
+    "verde_lima",
+    "vermelho"
+   ],
+   "tris": 1632,
+   "pacote": false,
+   "tags": [
+    "livros",
+    "estante"
+   ]
+  },
+  {
+   "id": "livros_fileira_escada",
+   "rotulo": "Fileira de livros com um tombado",
+   "categoria": "livros",
+   "grupo": "livros_fileira_escada",
+   "fixacao": "apoio",
+   "dims": [
+    0.359,
+    0.189,
+    0.28
+   ],
+   "arquivo": "glb/livros_fileira_escada.glb",
+   "miniatura": "miniaturas/livros_fileira_escada.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.14,
+      -0.0
+     ],
+     "tamanho": [
+      0.359,
+      0.28,
+      0.189
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_celeste",
+    "marrom",
+    "menta",
+    "papel",
+    "rosa_bebe",
+    "salmao",
+    "verde",
+    "verde_agua",
+    "verde_escuro",
+    "verde_medio"
+   ],
+   "tris": 3264,
+   "pacote": false,
+   "tags": [
+    "livros",
+    "estante"
+   ]
+  },
+  {
+   "id": "livros_pilha_dois",
+   "rotulo": "Dois livros empilhados",
+   "categoria": "livros",
+   "grupo": "livros_pilha_dois",
+   "fixacao": "apoio",
+   "dims": [
+    0.245,
+    0.175,
+    0.076
+   ],
+   "arquivo": "glb/livros_pilha_dois.glb",
+   "miniatura": "miniaturas/livros_pilha_dois.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03775,
+      -0.0
+     ],
+     "tamanho": [
+      0.245,
+      0.076,
+      0.175
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_escuro",
+    "papel",
+    "verde"
+   ],
+   "tris": 928,
+   "pacote": false,
+   "tags": [
+    "livros",
+    "mesa"
+   ]
+  },
+  {
+   "id": "livros_pilha_cinco",
+   "rotulo": "Pilha de cinco livros",
+   "categoria": "livros",
+   "grupo": "livros_pilha_cinco",
+   "fixacao": "apoio",
+   "dims": [
+    0.263,
+    0.192,
+    0.164
+   ],
+   "arquivo": "glb/livros_pilha_cinco.glb",
+   "miniatura": "miniaturas/livros_pilha_cinco.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.082,
+      -0.0
+     ],
+     "tamanho": [
+      0.263,
+      0.164,
+      0.192
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_acinzentado",
+    "azul_claro",
+    "papel",
+    "roxo",
+    "verde_agua"
+   ],
+   "tris": 1832,
+   "pacote": false,
+   "tags": [
+    "livros",
+    "mesa"
+   ]
+  },
+  {
+   "id": "livros_pilha_tres",
+   "rotulo": "Três livros empilhados",
+   "categoria": "livros",
+   "grupo": "livros_pilha_tres",
+   "fixacao": "apoio",
+   "dims": [
+    0.259,
+    0.185,
+    0.093
+   ],
+   "arquivo": "glb/livros_pilha_tres.glb",
+   "miniatura": "miniaturas/livros_pilha_tres.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0465,
+      -0.0
+     ],
+     "tamanho": [
+      0.259,
+      0.093,
+      0.185
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "marrom",
+    "marrom_escuro",
+    "papel",
+    "vermelho"
+   ],
+   "tris": 1208,
+   "pacote": false,
+   "tags": [
+    "livros",
+    "mesa"
+   ]
+  },
+  {
+   "id": "livro_fechado_marrom",
+   "rotulo": "Livro fechado com etiqueta",
+   "categoria": "livros",
+   "grupo": "livro_fechado",
+   "fixacao": "apoio",
+   "dims": [
+    0.22,
+    0.154,
+    0.036
+   ],
+   "arquivo": "glb/livro_fechado_marrom.glb",
+   "miniatura": "miniaturas/livro_fechado_marrom.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0181,
+      -0.0
+     ],
+     "tamanho": [
+      0.22,
+      0.036,
+      0.154
+     ]
+    }
+   ],
+   "cores": [
+    "creme_claro",
+    "marrom_claro",
+    "papel"
+   ],
+   "tris": 404,
+   "pacote": false,
+   "tags": [
+    "livros",
+    "mesa"
+   ]
+  },
+  {
+   "id": "livro_aberto",
+   "rotulo": "Livro aberto",
+   "categoria": "livros",
+   "grupo": "livro_aberto",
+   "fixacao": "apoio",
+   "dims": [
+    0.316,
+    0.271,
+    0.032
+   ],
+   "arquivo": "glb/livro_aberto.glb",
+   "miniatura": "miniaturas/livro_aberto.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.01587,
+      -0.0
+     ],
+     "tamanho": [
+      0.316,
+      0.032,
+      0.271
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "cinza_claro",
+    "papel",
+    "papel_amarelado",
+    "vermelho"
+   ],
+   "tris": 1388,
+   "pacote": false,
+   "tags": [
+    "livros",
+    "mesa",
+    "leitura"
+   ]
+  },
+  {
+   "id": "revistas_par",
+   "rotulo": "Duas revistas",
+   "categoria": "livros",
+   "grupo": "revistas",
+   "fixacao": "apoio",
+   "dims": [
+    0.268,
+    0.309,
+    0.014
+   ],
+   "arquivo": "glb/revistas_par.glb",
+   "miniatura": "miniaturas/revistas_par.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0071,
+      -0.0
+     ],
+     "tamanho": [
+      0.268,
+      0.014,
+      0.309
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "turquesa",
+    "vermelho"
+   ],
+   "tris": 304,
+   "pacote": false,
+   "tags": [
+    "livros",
+    "mesa",
+    "papel"
+   ]
+  },
+  {
+   "id": "revista_listrada",
+   "rotulo": "Revista listrada",
+   "categoria": "livros",
+   "grupo": "revistas",
+   "fixacao": "apoio",
+   "dims": [
+    0.2,
+    0.27,
+    0.007
+   ],
+   "arquivo": "glb/revista_listrada.glb",
+   "miniatura": "miniaturas/revista_listrada.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0035,
+      -0.0
+     ],
+     "tamanho": [
+      0.2,
+      0.007,
+      0.27
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "azul_celeste",
+    "verde_claro"
+   ],
+   "tris": 204,
+   "pacote": false,
+   "tags": [
+    "livros",
+    "mesa",
+    "papel"
+   ]
+  },
+  {
+   "id": "livros_fileira_pacote",
+   "rotulo": "Fileira de livros (pacote)",
+   "categoria": "livros",
+   "grupo": "livros_fileira_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.558,
+    0.183,
+    0.256
+   ],
+   "arquivo": "glb/livros_fileira_pacote.glb",
+   "miniatura": "miniaturas/livros_fileira_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.12791,
+      -0.0
+     ],
+     "tamanho": [
+      0.558,
+      0.256,
+      0.183
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "brasa",
+    "cinza_claro",
+    "creme",
+    "fogo",
+    "laranja",
+    "laranja_claro",
+    "madeira_escura",
+    "madeira_media",
+    "marrom",
+    "marrom_claro",
+    "metal_claro",
+    "pessego",
+    "pinus",
+    "rosa",
+    "rosa_bebe",
+    "tecido_cinza",
+    "turquesa",
+    "turquesa_escuro",
+    "verde_agua",
+    "verde_claro",
+    "verde_lima",
+    "verde_medio",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 1714,
+   "pacote": true,
+   "tags": [
+    "livros",
+    "estante"
+   ]
+  },
+  {
+   "id": "livros_pilha_pacote",
+   "rotulo": "Pilha de livros (pacote)",
+   "categoria": "livros",
+   "grupo": "livros_pilha_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.197,
+    0.273,
+    0.119
+   ],
+   "arquivo": "glb/livros_pilha_pacote.glb",
+   "miniatura": "miniaturas/livros_pilha_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.05933,
+      -0.0
+     ],
+     "tamanho": [
+      0.197,
+      0.119,
+      0.273
+     ]
+    }
+   ],
+   "cores": [
+    "fogo",
+    "laranja_escuro",
+    "marrom",
+    "pessego",
+    "turquesa_claro",
+    "vermelho"
+   ],
+   "tris": 624,
+   "pacote": true,
+   "tags": [
+    "livros",
+    "mesa"
+   ]
+  },
+  {
+   "id": "papeis_pacote",
+   "rotulo": "Folhas soltas (pacote)",
+   "categoria": "livros",
+   "grupo": "papeis",
+   "fixacao": "apoio",
+   "dims": [
+    0.285,
+    0.256,
+    0.011
+   ],
+   "arquivo": "glb/papeis_pacote.glb",
+   "miniatura": "miniaturas/papeis_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00556,
+      -0.0
+     ],
+     "tamanho": [
+      0.285,
+      0.011,
+      0.256
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "bege",
+    "creme"
+   ],
+   "tris": 56,
+   "pacote": true,
+   "tags": [
+    "livros",
+    "mesa",
+    "papel"
+   ]
+  },
+  {
+   "id": "papel_pacote",
+   "rotulo": "Folha de papel (pacote)",
+   "categoria": "livros",
+   "grupo": "papeis",
+   "fixacao": "apoio",
+   "dims": [
+    0.224,
+    0.31,
+    0.02
+   ],
+   "arquivo": "glb/papel_pacote.glb",
+   "miniatura": "miniaturas/papel_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00987,
+      -0.0
+     ],
+     "tamanho": [
+      0.224,
+      0.02,
+      0.31
+     ]
+    }
+   ],
+   "cores": [
+    "creme"
+   ],
+   "tris": 28,
+   "pacote": true,
+   "tags": [
+    "livros",
+    "mesa",
+    "papel"
+   ]
+  },
+  {
+   "id": "caderno_rosa",
+   "rotulo": "Caderno rosa",
+   "categoria": "livros",
+   "grupo": "caderno",
+   "fixacao": "apoio",
+   "dims": [
+    0.181,
+    0.24,
+    0.014
+   ],
+   "arquivo": "glb/caderno_rosa.glb",
+   "miniatura": "miniaturas/caderno_rosa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00675,
+      -0.0
+     ],
+     "tamanho": [
+      0.181,
+      0.014,
+      0.24
+     ]
+    }
+   ],
+   "cores": [
+    "papel",
+    "rosa",
+    "rosa_claro",
+    "rosa_escuro"
+   ],
+   "tris": 436,
+   "pacote": false,
+   "tags": [
+    "livros",
+    "mesa",
+    "papel"
+   ]
+  },
+  {
+   "id": "livro_xadrez_pacote",
+   "rotulo": "Livro de xadrez deitado",
+   "categoria": "livros",
+   "grupo": "livro_xadrez_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.211,
+    0.258,
+    0.059
+   ],
+   "arquivo": "glb/livro_xadrez_pacote.glb",
+   "miniatura": "miniaturas/livro_xadrez_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.02959,
+      -0.0
+     ],
+     "tamanho": [
+      0.211,
+      0.059,
+      0.258
+     ]
+    }
+   ],
+   "cores": [
+    "calcada",
+    "piso_rosado"
+   ],
+   "tris": 330,
+   "pacote": true,
+   "tags": [
+    "livro",
+    "xadrez",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "livros_em_pe_xadrez_pacote",
+   "rotulo": "Livros coloridos em pé",
+   "categoria": "livros",
+   "grupo": "livros_em_pe_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.337,
+    0.254,
+    0.323
+   ],
+   "arquivo": "glb/livros_em_pe_xadrez_pacote.glb",
+   "miniatura": "miniaturas/livros_em_pe_xadrez_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.16135,
+      -0.0
+     ],
+     "tamanho": [
+      0.337,
+      0.323,
+      0.254
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "branco_gelo",
+    "calcada",
+    "fogo",
+    "laranja_claro",
+    "menta",
+    "mostarda",
+    "rosa",
+    "rosa_bebe",
+    "turquesa",
+    "turquesa_escuro",
+    "verde",
+    "verde_claro",
+    "verde_escuro",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 730,
+   "pacote": true,
+   "tags": [
+    "livros",
+    "estante",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "livros_em_pe_2_xadrez_pacote",
+   "rotulo": "Livros coloridos em pé (verdes e azuis)",
+   "categoria": "livros",
+   "grupo": "livros_em_pe_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.355,
+    0.224,
+    0.317
+   ],
+   "arquivo": "glb/livros_em_pe_2_xadrez_pacote.glb",
+   "miniatura": "miniaturas/livros_em_pe_2_xadrez_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.15863,
+      -0.0
+     ],
+     "tamanho": [
+      0.355,
+      0.317,
+      0.224
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "fogo",
+    "laranja_claro",
+    "mostarda",
+    "terracota_escura",
+    "tijolo",
+    "turquesa",
+    "turquesa_escuro",
+    "verde_agua",
+    "verde_claro",
+    "verde_escuro",
+    "verde_floresta",
+    "verde_lima",
+    "verde_medio"
+   ],
+   "tris": 1044,
+   "pacote": true,
+   "tags": [
+    "livros",
+    "estante",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "livro_cassino_pacote",
+   "rotulo": "Livro \"How to win at the casino\"",
+   "categoria": "livros",
+   "grupo": "livro_cassino_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.179,
+    0.256,
+    0.041
+   ],
+   "arquivo": "glb/livro_cassino_pacote.glb",
+   "miniatura": "miniaturas/livro_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0203,
+      -0.0
+     ],
+     "tamanho": [
+      0.179,
+      0.041,
+      0.256
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "carvao",
+    "concreto_escuro",
+    "tecido_cinza",
+    "vermelho"
+   ],
+   "tris": 279,
+   "pacote": true,
+   "tags": [
+    "livro",
+    "cassino",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  }
+ ]
+}

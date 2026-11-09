@@ -72,6 +72,8 @@ jobs:
 
       - run: pnpm --filter @informach/bora-treinar test:integration
 
+      - run: pnpm --filter @informach/dia-de-estrela test:integration
+
       - run: pnpm --filter @informach/cozya eval
         env:
           EVAL_PREFLIGHT: "1"
@@ -98,6 +100,8 @@ jobs:
 
       - run: pnpm --filter @informach/bora-treinar e2e
 
+      - run: pnpm --filter @informach/dia-de-estrela e2e
+
       - run: pnpm build
         env:
           BETTER_AUTH_URL: https://ci.example.com
@@ -115,6 +119,10 @@ jobs:
           BORA_INDIVIDUAL_ANNUAL_PRICE: price_ci_bora_individual_annual
           BORA_FAMILY_MONTHLY_PRICE: price_ci_bora_family_monthly
           BORA_FAMILY_ANNUAL_PRICE: price_ci_bora_family_annual
+          ESTRELA_FAMILY_MONTHLY_PRICE: price_ci_estrela_family_monthly
+          ESTRELA_FAMILY_ANNUAL_PRICE: price_ci_estrela_family_annual
+          VAPID_PUBLIC_KEY: ci-build-placeholder-vapid-public
+          VAPID_PRIVATE_KEY: ci-build-placeholder-vapid-private
           SENTRY_DSN: https://public@ci.example.com/1
           NEXT_PUBLIC_SENTRY_DSN: https://public@ci.example.com/1
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
@@ -136,6 +144,15 @@ jobs:
         with:
           name: bora-treinar-verification-${{ github.run_attempt }}
           path: apps/bora-treinar/tmp/verification/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Preserve Dia de Estrela failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dia-de-estrela-verification-${{ github.run_attempt }}
+          path: apps/dia-de-estrela/tmp/verification/
           if-no-files-found: ignore
           retention-days: 7
 

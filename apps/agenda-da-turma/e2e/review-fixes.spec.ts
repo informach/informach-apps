@@ -204,7 +204,7 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
       const addSheet = page.getByRole("dialog", { name: "O que chegou?" });
       // A criança filtrada já vem escolhida no topo da folha.
       await expect(
-        addSheet.getByRole("button", { name: "Criança A navegador", exact: true }),
+        addSheet.getByRole("button", { name: "Criança A", exact: true }),
       ).toHaveAttribute("aria-pressed", "true");
       // "Foto" abre a câmera da própria folha, como no canvas; os outros três
       // caminhos são links para a tela do recado ou para o formulário.
@@ -513,7 +513,7 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
 
     // The actual parse endpoint replays this extraction; no AI provider call.
     await page.goto("/recados/novo");
-    await page.getByRole("button", { name: "Criança B navegador", exact: true }).click();
+    await page.getByRole("button", { name: "Criança B", exact: true }).click();
     await page.getByLabel("Cole a mensagem ou publicação").fill(text);
     const [replayedExtraction] = await Promise.all([
       page.waitForResponse(
@@ -640,7 +640,7 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
         buffer: Buffer.from(photoBase64, "base64"),
       });
     await expect(
-      page.getByRole("heading", { name: "Foto para Criança A navegador", level: 1 }),
+      page.getByRole("heading", { name: "Foto para Criança A", level: 1 }),
     ).toBeVisible();
     await expect(page.locator("#notice-source")).toHaveValue("notebook");
     await expect(page.getByRole("img", { name: "Foto selecionada para leitura" })).toBeVisible();

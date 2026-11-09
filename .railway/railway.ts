@@ -36,6 +36,13 @@ const REGION = "us-west2";
 const ADMIN_LAUNCHED = true;
 /** Cron de conciliação do Edi rodando desde 17/10/2026, 20:09 UTC (apps/edi/PRODUCAO.md). */
 const EDI_RECONCILE_ACTIVE = true;
+/**
+ * Dia de Estrela: serviço e cron descritos abaixo, mas fora do projeto até o
+ * lançamento autorizado (apps/dia-de-estrela/PRODUCAO.md). Em `false` nada é
+ * criado. Depois do primeiro apply com `true`, esta constante passa a valer
+ * como as de cima: voltar para `false` apagaria o serviço e o cron.
+ */
+const ESTRELA_LAUNCHED = false;
 
 // Imagens dos crons sem build, fixadas por digest: uma tag trocada no registro
 // não muda o que roda com o CRON_SECRET de cada app. Para atualizar, conferir o
@@ -360,6 +367,8 @@ export default defineRailway((ctx) => {
       BORA_FAMILY_MONTHLY_PRICE: preserve(),
       BORA_INDIVIDUAL_ANNUAL_PRICE: preserve(),
       BORA_INDIVIDUAL_MONTHLY_PRICE: preserve(),
+      // chave do hash do e-mail no teste de 7 dias; mesmo valor do BETTER_AUTH_SECRET de 06/11/2026
+      BORA_TRIAL_KEY: preserve(),
       CRON_SECRET: preserve(),
       DATABASE_URL: preserve(),
       EMAIL_SANDBOX_MODE: preserve(),
@@ -380,6 +389,57 @@ export default defineRailway((ctx) => {
       STRIPE_PORTAL_CONFIGURATION_ID: preserve(),
       STRIPE_SECRET_KEY: preserve(),
       STRIPE_WEBHOOK_SECRET: preserve(),
+    },
+  });
+
+  // Dia de Estrela: sem IA. VAPID_* liga o push dos alertas aos pais.
+  // Provisionamento pendente em apps/dia-de-estrela/PRODUCAO.md.
+  const diaDeEstrela = service("@informach/dia-de-estrela", {
+    source: main,
+    build: {
+      builder: "RAILPACK",
+      buildCommand: standaloneNext("dia-de-estrela").buildCommand,
+      watchPatterns: [
+        "/apps/dia-de-estrela/**",
+        ...packages("auth", "billing", "config", "db", "emails", "ui"),
+        ...WORKSPACE_FILES,
+      ],
+    },
+    start: standaloneNext("dia-de-estrela").startCommand,
+    healthcheck: "/api/ready",
+    healthcheckTimeout: 30,
+    replicas: { [REGION]: 1 },
+    deploy: { restartPolicyMaxRetries: 3 },
+    domains: ["dia-de-estrela.informach.com.br"],
+    networking: { privateNetworkEndpoint: "informachdia-de-estrela" },
+    env: {
+      RAILPACK_NODE_VERSION: NODE_VERSION,
+      BETTER_AUTH_SECRET: preserve(),
+      BETTER_AUTH_URL: preserve(),
+      CRON_SECRET: preserve(),
+      DATABASE_URL: preserve(),
+      EMAIL_SANDBOX_MODE: preserve(),
+      ESTRELA_FAMILY_ANNUAL_PRICE: preserve(),
+      ESTRELA_FAMILY_MONTHLY_PRICE: preserve(),
+      LOG_LEVEL: preserve(),
+      NEXT_PUBLIC_APP_URL: preserve(),
+      NEXT_PUBLIC_SENTRY_DSN: preserve(),
+      NODE_ENV: preserve(),
+      NPM_CONFIG_PRODUCTION: preserve(),
+      REDIS_URL: preserve(),
+      SENDGRID_API_KEY: preserve(),
+      SENDGRID_FROM: preserve(),
+      SENDGRID_WEBHOOK_PUBLIC_KEY: preserve(),
+      SENTRY_AUTH_TOKEN: preserve(),
+      SENTRY_DSN: preserve(),
+      SENTRY_ORG: preserve(),
+      SENTRY_PROJECT: preserve(),
+      STRIPE_MODE: preserve(),
+      STRIPE_PORTAL_CONFIGURATION_ID: preserve(),
+      STRIPE_SECRET_KEY: preserve(),
+      STRIPE_WEBHOOK_SECRET: preserve(),
+      VAPID_PRIVATE_KEY: preserve(),
+      VAPID_PUBLIC_KEY: preserve(),
     },
   });
 
@@ -637,6 +697,30 @@ export default defineRailway((ctx) => {
     },
   });
 
+  // Dia de Estrela, de 5 em 5 minutos, em dois crons: os alertas "não marcou"
+  // aos pais (sensíveis ao horário) e a manutenção da cobrança, que pode demorar
+  // e não pode atrasar os alertas.
+  const estrelaEnv = {
+    APP_ORIGIN: preserve(),
+    CRON_SECRET: preserve(),
+    SENTRY_DSN: preserve(),
+    SENTRY_ENVELOPE_URL: preserve(),
+  };
+  const estrelaAlertas = service("cron-dia-de-estrela-alertas", {
+    source: image(CURL_IMAGE),
+    start: shellScript("apps/dia-de-estrela/scripts/alertas-cron.sh"),
+    replicas: { [REGION]: 1 },
+    deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
+    env: estrelaEnv,
+  });
+  const estrelaBilling = service("cron-dia-de-estrela-billing", {
+    source: image(CURL_IMAGE),
+    start: shellScript("apps/dia-de-estrela/scripts/maintenance-cron.sh"),
+    replicas: { [REGION]: 1 },
+    deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
+    env: estrelaEnv,
+  });
+
   // Lembretes de treino e resumo semanal do Bora Treinar, de hora em hora: o
   // app decide quem recebe pela hora local de cada família.
   const boraLembretes = service("cron-bora-treinar-lembretes", {
@@ -680,6 +764,7 @@ export default defineRailway((ctx) => {
       agenda,
       missaoSaber,
       boraTreinar,
+      ...(ESTRELA_LAUNCHED ? [diaDeEstrela] : []),
       site,
       admin,
       ...adminCrons,
@@ -691,6 +776,7 @@ export default defineRailway((ctx) => {
       missaoWeeklyReport,
       boraBilling,
       boraLembretes,
+      ...(ESTRELA_LAUNCHED ? [estrelaAlertas, estrelaBilling] : []),
       ediReconcile,
     ],
   });

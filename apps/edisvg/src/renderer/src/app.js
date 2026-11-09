@@ -17,8 +17,29 @@ import {
 } from "./toolbar.js";
 import "./toolbar.css";
 import { flattenScene } from "../../shared/scene.js";
+import {
+  clearNarration,
+  markNarrationNow,
+  mountNarrationBar,
+  narrationExportName,
+  setNarration,
+  syncNarration,
+} from "./pipelines/narration";
+import { mountPipelines } from "./pipelines/pipelines-panel";
+import {
+  clearReferenceVideo,
+  mountReferenceVideo,
+  setReferenceVideo,
+  syncReferenceVideo,
+} from "./pipelines/reference";
 import { bindScene, sceneCanvas, sceneInspector, sceneSidebar } from "./sceneEditor.js";
 import { importSvg } from "./svgImport.js";
+import {
+  isSzProjectName,
+  parseSzProject,
+  planSzProjectImport,
+  SZPROJECT_BYTES,
+} from "./szProjectImport";
 import "./sceneEditor.css";
 import "./resourceControls.css";
 import "./paint-controls.css";
@@ -1006,6 +1027,16 @@ function render() {
     }
   }
   updatePose();
+  // The narration of a pipeline run, over the timeline of its animation.
+  mountNarrationBar(
+    document,
+    state.view === "animate" ? state.activeClipId : null,
+    state.frame / currentAnimation().fps,
+    // The first frame inside the sentence (rounding could land just before it).
+    (seconds) => seek(Math.ceil(seconds * currentAnimation().fps - 1e-6)),
+  );
+  // A screen demonstration's video, under the artboard of its transparent layer.
+  mountReferenceVideo(document, state.activeArtboardId);
   refreshHistoryControls();
   scheduleTick();
   if (workspaceWarning && workspaceWarning !== reportedWorkspaceWarning) {
@@ -1227,6 +1258,12 @@ function openingArtboardId(project) {
 }
 function applyProject(value, resetSession = true) {
   const project = parseProject(value);
+  // The narration and the demonstration video of a run belong to the file it ran on: another
+  // file drops them, an undo or redo in the same file (resetSession false) keeps them.
+  if (resetSession) {
+    clearNarration();
+    clearReferenceVideo();
+  }
   state.tool = "select";
   if (project.artboards.length) {
     state.view = "design";
@@ -1281,7 +1318,10 @@ function applyProject(value, resetSession = true) {
 }
 function save(record = true) {
   const project = snapshot(state);
-  if (record && projectHistory.commit(contentSnapshot(project))) state.revision++;
+  // A pipeline run is one undo step, kept so as it goes: commit joins it to the mark before the
+  // history limits apply, and never evicts the mark (history.js).
+  if (record && projectHistory.commit(contentSnapshot(project), pipelineRun?.mark))
+    state.revision++;
   try {
     localStorage.setItem("edisvg-project", JSON.stringify(project));
     localSaveStatus = "Cópia local atualizada";
@@ -1321,6 +1361,11 @@ function refreshHistoryControls() {
   if (indicator) indicator.textContent = localSaveStatus;
 }
 function travelHistory(direction) {
+  // During a run the whole run so far is one step: an undo would drop all of it, not the last edit.
+  if (pipelineRun) {
+    notify("Espere o pipeline terminar, ou cancele, para desfazer ou refazer.");
+    return false;
+  }
   const project = projectHistory[direction]();
   if (!project) return false;
   const context = {
@@ -1585,6 +1630,14 @@ function updatePose() {
   if ($("#playhead-head") && $("#playhead")?.dataset.timelineWidth)
     $("#playhead-head").style.left =
       `${(Number($("#playhead").dataset.timelineWidth) * state.frame) / a.frames}px`;
+  // A pipeline's narration plays with its animation and lights the sentence being said.
+  syncNarration(
+    state.view === "animate" ? state.activeClipId : null,
+    state.playing,
+    state.frame / a.fps,
+  );
+  markNarrationNow(document, state.frame / a.fps);
+  syncReferenceVideo(state.activeArtboardId, state.playing, state.frame / a.fps);
 }
 function action(id) {
   if (["commands", "object", "animation", "view"].includes(id))
@@ -1709,6 +1762,8 @@ function action(id) {
   }
   if (id === "edit-demo") return editDemo();
   if (id === "import-svg") return importArtwork();
+  if (id === "import-game") return importGameProject();
+  if (id === "pipelines") return openPipelines();
   if (state.scene && id === "add-shape") {
     try {
       changeScene("add", "rect");
@@ -1858,7 +1913,14 @@ async function editDemo() {
     notify(error.message);
   }
 }
+/** Imports by the menu or by dropping a file wait for a run: they would land in its single step. */
+function refusedDuringRun() {
+  if (!pipelineRun) return false;
+  notify("Espere o pipeline terminar, ou cancele, antes de importar.");
+  return true;
+}
 function importArtwork(initial) {
+  if (refusedDuringRun()) return;
   const dialog = document.querySelector("#clip-dialog");
   if (!(dialog instanceof HTMLDialogElement) || dialog.open) return;
   disposeSvgImport?.();
@@ -1885,10 +1947,264 @@ function importArtwork(initial) {
     },
   });
 }
+/**
+ * A game studio project (.szproject.json): every SVG image an artboard and one more, "Cena",
+ * with the game's starting picture built from them (szProjectImport.ts). One edit: Ctrl+Z undoes
+ * the whole import. `value` comes from the file dialog when absent.
+ */
+async function importGameProject(value) {
+  if (refusedDuringRun()) return;
+  const session = state.sessionId;
+  try {
+    const file = value ?? (window.desktop ? await window.desktop.importGameProject() : null);
+    if (!file) return;
+    if (state.sessionId !== session) {
+      notify("O projeto foi substituído; nenhuma importação foi aplicada.");
+      return;
+    }
+    const result = applyGameProject(file.source);
+    notify(
+      `Projeto do Estúdio importado. ${result.summary} ${
+        result.parts === 1 ? "Ctrl+Z desfaz tudo." : `Ctrl+Z desfaz em ${result.parts} passos.`
+      }`,
+    );
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Não foi possível importar o projeto.");
+  }
+}
+/**
+ * Applies a studio project to the open file and opens its scene; throws when nothing comes in.
+ * Used by the import and by the pipelines.
+ */
+function applyGameProject(source) {
+  const plan = planSzProjectImport(parseSzProject(source), (svg) => importSvg(svg));
+  // A transaction takes 100 commands: a bigger project goes in parts, the scene (which uses
+  // the images) in the last one.
+  const parts = [];
+  for (let at = 0; at < plan.commands.length; at += 100)
+    parts.push(plan.commands.slice(at, at + 100));
+  // Whole or nothing, and one undo step (a pipeline run already joins its edits as it goes).
+  const mark = projectHistory.mark();
+  try {
+    for (const part of parts) transact(part);
+  } catch (error) {
+    // The parts already in go back (a run's own step is undone whole by the person).
+    if (!pipelineRun && projectHistory.mark() !== mark) {
+      projectHistory.squash(mark);
+      travelHistory("undo");
+    }
+    throw error;
+  }
+  if (!pipelineRun && projectHistory.squash(mark)) refreshHistoryControls();
+  if (plan.sceneArtboardId) bindActiveArtboard(state, plan.sceneArtboardId);
+  chooseObject(state, null);
+  state.view = "design";
+  state.playing = false;
+  state.frame = 0;
+  render();
+  return {
+    summary: plan.summary,
+    sceneArtboardId: plan.sceneArtboardId,
+    parts: parts.length,
+    imagePalette: plan.imagePalette,
+    boards: plan.commands
+      .filter((command) => command.id !== plan.sceneArtboardId)
+      .map((command) => ({
+        id: command.id,
+        name: command.name,
+        width: command.scene.viewBox[2],
+        height: command.scene.viewBox[3],
+      })),
+  };
+}
+/**
+ * A pipeline's narration: a new animation as long as it, opened, with the narration playing in
+ * the preview (a reference, never exported). One edit (the animation) for the history.
+ */
+async function openNarration(value) {
+  const fps = 30;
+  const frames = Math.max(1, Math.ceil(value.duration * fps));
+  const id = `animation-${crypto.randomUUID()}`;
+  transact([
+    {
+      type: "motion",
+      command: {
+        type: "create-animation",
+        animation: {
+          id,
+          name: `Narração · ${value.name}`.slice(0, 120),
+          fps,
+          frames,
+          mode: "once",
+          tracks: [],
+        },
+      },
+    },
+  ]);
+  await setNarration({
+    clipId: id,
+    name: `Narração · ${value.name}`.slice(0, 120),
+    bytes: value.bytes,
+    duration: value.duration,
+    lessonStart: value.lessonStart,
+    lines: value.lines,
+  });
+  state.activeClipId = id;
+  state.view = "animate";
+  state.frame = 0;
+  state.playing = false;
+  render();
+  return { clipId: id, fps, frames };
+}
+/**
+ * Arquivo → Pipelines…: the recipes, and running one on the open file. Its dialog lives outside
+ * the editor's markup: a run edits the document, and every render rebuilds that markup (the
+ * #clip-dialog with it), which would close the dialog in the middle of the run.
+ */
+let disposePipelines = null;
+/**
+ * The pipeline run in progress: the history point before it (one undo step for the whole run)
+ * and the project session it runs on (another file opened meanwhile is never edited by it).
+ */
+let pipelineRun = null;
+/** Every edit a run makes goes through here: refused when the file changed under the run. */
+function sameRunSession() {
+  if (pipelineRun && state.sessionId !== pipelineRun.session)
+    throw new Error("Outro projeto foi aberto durante o pipeline: ele parou sem editar o novo.");
+}
+function openPipelines() {
+  let dialog = document.querySelector("#pipelines-dialog");
+  if (!(dialog instanceof HTMLDialogElement)) {
+    dialog = document.createElement("dialog");
+    dialog.id = "pipelines-dialog";
+    document.body.append(dialog);
+  }
+  if (dialog.open || document.querySelector("dialog[open]")) return;
+  if (!window.desktop) {
+    notify("Os pipelines precisam do aplicativo desktop (escolher arquivos e guardar receitas).");
+    return;
+  }
+  disposePipelines?.();
+  disposePipelines = mountPipelines(dialog, {
+    desktop: window.desktop,
+    editor: {
+      importStudioProject: (source) => {
+        sameRunSession();
+        return applyGameProject(source);
+      },
+      openNarration: (value) => {
+        sameRunSession();
+        return openNarration(value);
+      },
+      activeArtboard: () => {
+        const board = state.artboards.find((item) => item.id === state.activeArtboardId);
+        if (!board) throw new Error("Nenhuma prancheta aberta.");
+        return {
+          id: board.id,
+          name: board.name,
+          width: board.scene.viewBox[2],
+          height: board.scene.viewBox[3],
+        };
+      },
+      setPalette: (colors) => {
+        sameRunSession();
+        transact([{ type: "appearance", operation: "palette", colors }]);
+        render();
+      },
+      askAssistant: (text, shown, images) => {
+        sameRunSession();
+        return assistant.runTurn(text, shown, images);
+      },
+      openDemoArtboard: (value) => {
+        sameRunSession();
+        const id = `artboard-${crypto.randomUUID()}`;
+        transact([
+          {
+            type: "artboard",
+            operation: "create",
+            id,
+            name: value.name,
+            width: value.width,
+            height: value.height,
+          },
+        ]);
+        bindActiveArtboard(state, id);
+        chooseObject(state, null);
+        state.view = "design";
+        render();
+        return { id, name: value.name, width: value.width, height: value.height };
+      },
+      setReferenceVideo: (value) => {
+        sameRunSession();
+        setReferenceVideo({ artboardId: state.activeArtboardId, ...value });
+        render();
+      },
+      addArtboards: (items) => {
+        sameRunSession();
+        const keep = state.activeArtboardId;
+        const commands = items.map((item) => ({
+          type: "artboard",
+          operation: "import",
+          id: `artboard-${crypto.randomUUID()}`,
+          name: item.name,
+          scene: importSvg(item.svg),
+        }));
+        transact(commands);
+        bindActiveArtboard(state, keep);
+        render();
+        return commands.map((command) => ({
+          id: command.id,
+          name: command.name,
+          width: command.scene.viewBox[2],
+          height: command.scene.viewBox[3],
+        }));
+      },
+      stopAssistant: () => void window.desktop?.aiStop(),
+      assistantBusy: () => assistant.isBusy(),
+      // A run is one undo step: the edits since the mark are joined at its end.
+      beginRun: () => {
+        pipelineRun = { mark: projectHistory.mark(), session: state.sessionId };
+      },
+      endRun: () => {
+        const run = pipelineRun;
+        pipelineRun = null;
+        // Only on the file the run started on (another file has its own history).
+        if (run && run.session === state.sessionId && projectHistory.squash(run.mark))
+          refreshHistoryControls();
+      },
+    },
+    report: notify,
+  });
+}
+/** A dropped .szproject.json: read in the window (the dialog path reads it in main). */
+async function readGameProjectFile(file) {
+  if (file.size > SZPROJECT_BYTES) throw new Error("O projeto do Estúdio passa de 30 MB.");
+  let source;
+  try {
+    source = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer());
+  } catch {
+    throw new Error("O arquivo não é um projeto do Estúdio: o texto não está em UTF-8.");
+  }
+  return { source, name: file.name };
+}
 bindSvgIngress(
   (source, name) => importArtwork({ source, name }),
   (file) => {
     const session = state.sessionId;
+    if (isSzProjectName(file.name)) {
+      void readGameProjectFile(file)
+        .then((value) => {
+          if (state.sessionId !== session) {
+            notify("O projeto foi substituído; nenhuma importação foi aplicada.");
+            return;
+          }
+          return importGameProject(value);
+        })
+        .catch((error) =>
+          notify(error instanceof Error ? error.message : "Não foi possível ler o projeto."),
+        );
+      return;
+    }
     void readSvgFile(file)
       .then((value) => {
         if (state.sessionId !== session) {
@@ -2071,9 +2387,15 @@ function openExport() {
       "vídeo",
       "Vídeo opaco com cor de fundo, sem áudio, codificado neste computador.",
     ],
+    [
+      "alpha-webm",
+      "Camada transparente · WebM",
+      "vídeo",
+      "Só a animação, sem fundo (VP9 com transparência), para pôr numa faixa acima de um vídeo no EdiAula.",
+    ],
   ]
     .map(([v, n, b, desc], i) => {
-      const needsClip = v === "lottie" || RASTER_FORMATS.includes(v);
+      const needsClip = v === "lottie" || v === "alpha-webm" || RASTER_FORMATS.includes(v);
       const unsupported = (hasEffects && ["html", "svg"].includes(v)) || (needsClip && !clip);
       const reason =
         needsClip && !clip
@@ -2101,7 +2423,8 @@ function openExport() {
     d.querySelector("#download").disabled =
       preparing ||
       (currentFormat() === "lottie" && !lottieControls?.read().ready) ||
-      (RASTER_FORMATS.includes(currentFormat()) && !rasterControls?.read()?.ready);
+      ((RASTER_FORMATS.includes(currentFormat()) || currentFormat() === "alpha-webm") &&
+        !rasterControls?.read()?.ready);
   };
   const lottieControls =
     clip && exportBoard
@@ -2124,7 +2447,8 @@ function openExport() {
   }
   const syncBehaviorSettings = () => {
     const format = d.querySelector('input[name="format"]:checked').value;
-    const raster = RASTER_FORMATS.includes(format);
+    // The transparent layer is made from the PNG sequence (frames with alpha), then encoded.
+    const raster = RASTER_FORMATS.includes(format) || format === "alpha-webm";
     playerWebControls.setEnabled(format === "player-web");
     behaviorSettings.querySelector("#export-machine").closest("label").hidden =
       format === "player-web";
@@ -2142,7 +2466,7 @@ function openExport() {
       !losesInteraction ||
       ["interactive-html", "react", "json", "lottie", "player-web"].includes(format);
     lottieControls?.setEnabled(format === "lottie");
-    rasterControls?.setFormat(raster ? format : null);
+    rasterControls?.setFormat(raster ? (format === "alpha-webm" ? "png-sequence" : format) : null);
     d.querySelector("#reduced").disabled = format === "lottie" || raster;
     d.querySelector("#offscreen").disabled = format === "lottie" || raster;
     d.querySelector("#reduced").closest("label").hidden = format === "lottie" || raster;
@@ -2206,13 +2530,20 @@ function openExport() {
     b.textContent = "Preparando…";
     try {
       const lottieSettings = lottieControls?.read();
-      const rasterSettings = RASTER_FORMATS.includes(currentFormat())
-        ? rasterControls?.read()
-        : null;
+      const rasterSettings =
+        RASTER_FORMATS.includes(currentFormat()) || currentFormat() === "alpha-webm"
+          ? rasterControls?.read()
+          : null;
       const exportResult = await exportProject(
         { ...exportSnapshot, activeArtboardId: exportBoard?.id, activeClipId: clip?.id },
         {
-          format: $('input[name="format"]:checked').value,
+          format:
+            currentFormat() === "alpha-webm"
+              ? "png-sequence"
+              : $('input[name="format"]:checked').value,
+          ...(currentFormat() === "alpha-webm" ? { deliver: "alpha-webm" } : {}),
+          // A pipeline's animation is saved as itself, with where it starts in the lesson.
+          suggestedName: narrationExportName(clip?.id),
           alt: $("#alt-text").value,
           reduced: $("#reduced").checked,
           offscreen: $("#offscreen").checked,
@@ -2229,7 +2560,14 @@ function openExport() {
                 subdivisions: lottieSettings?.subdivisions ?? 1,
               }
             : {}),
-          ...(rasterSettings ? { raster: rasterSettings.options } : {}),
+          ...(rasterSettings
+            ? {
+                raster:
+                  currentFormat() === "alpha-webm"
+                    ? { ...rasterSettings.options, background: "transparent" }
+                    : rasterSettings.options,
+              }
+            : {}),
           ...(currentFormat() === "player-web" ? playerWebControls.read() : {}),
         },
         {
@@ -2258,7 +2596,10 @@ function openExport() {
         for (const radio of d.querySelectorAll('input[name="format"]')) {
           if (
             (hasEffects && ["html", "svg"].includes(radio.value)) ||
-            ((radio.value === "lottie" || RASTER_FORMATS.includes(radio.value)) && !clip)
+            ((radio.value === "lottie" ||
+              radio.value === "alpha-webm" ||
+              RASTER_FORMATS.includes(radio.value)) &&
+              !clip)
           )
             radio.disabled = true;
         }
@@ -2496,6 +2837,10 @@ const assistant = setupAssistant({
     ],
   }),
   importSvg: importArtwork,
+  importGameProject: () => importGameProject(),
+  openPipelines: () => openPipelines(),
+  /** A pipeline is running: opening or creating another file waits (assistant.js). */
+  pipelineRunning: () => !!pipelineRun,
   fileStatus: updateFileStatus,
   restore(value) {
     applyProject(value);

@@ -113,6 +113,7 @@ import { cancelKey, detectScreenColor, grabFrame, renderKeyed } from "./keying.t
 import { getLearning, recordLearning } from "./learning.ts";
 import { lessonFile } from "./lessonFile.ts";
 import { libraryFile, listLibrary, saveLibrary } from "./library.ts";
+import { insideFolder, isDevicePath, linkedFilesDetail } from "./linkedFiles.ts";
 import { measureLoudness } from "./loudness.ts";
 import { CHECK_CLIENT } from "./mcpGuard.ts";
 import { startMcpServer } from "./mcpServer.ts";
@@ -130,6 +131,7 @@ import {
   projectJson,
   projectsDir,
   recentProjects,
+  remember,
   removeRecent,
   renameProject,
   restoreBackup,
@@ -683,13 +685,16 @@ function registerIpc(): void {
   });
   ipcMain.handle("dialog:export", async (_e, defaultName: string) => {
     const audio = /\.mp3$/i.test(defaultName);
+    const gif = /\.gif$/i.test(defaultName);
     const r = await dialog.showSaveDialog(win!, {
-      title: audio ? "Exportar áudio" : "Exportar vídeo",
-      defaultPath: join(app.getPath(audio ? "music" : "videos"), defaultName),
+      title: audio ? "Exportar áudio" : gif ? "Exportar GIF animado" : "Exportar vídeo",
+      defaultPath: join(app.getPath(audio ? "music" : gif ? "pictures" : "videos"), defaultName),
       filters: [
         audio
           ? { name: "Áudio MP3", extensions: ["mp3"] }
-          : { name: "Vídeo MP4", extensions: ["mp4"] },
+          : gif
+            ? { name: "GIF animado", extensions: ["gif"] }
+            : { name: "Vídeo MP4", extensions: ["mp4"] },
       ],
     });
     return r.canceled ? null : r.filePath;
@@ -1007,17 +1012,19 @@ function registerIpc(): void {
     for (const plan of project.guided?.plans ?? [])
       if (plan.audio) references.push(plan.audio.path);
     const linked = [...new Set(references)];
+    if (linked.some(isDevicePath)) throw new Error("Caminho de mídia inválido.");
     // A package just opened (and confirmed) points only inside its own folder: no second question.
     const fresh = freshPackages.delete(path);
-    const own = `${dirname(path).toLowerCase()}\\`;
-    const allInside = linked.every((p) => p.toLowerCase().startsWith(own));
+    const allInside = linked.every((p) => insideFolder(p, dirname(path)));
     if (linked.length) {
       if (!(fresh && allInside)) {
         const answer = await dialog.showMessageBox(win!, {
           type: "question",
           title: "Arquivos vinculados ao projeto",
           message: `Permitir acesso aos ${linked.length} arquivos usados por este projeto?`,
-          detail: `${linked.slice(0, 20).join("\n")}\n\nAutorize somente projetos confiáveis. Arquivos de rede podem exigir autenticação do Windows no servidor indicado.`,
+          // Every network computer named and every file outside the folder counted: none hides
+          // behind the first ones listed (src/main/linkedFiles.ts).
+          detail: `${linkedFilesDetail(linked, dirname(path))}\n\nAutorize somente projetos confiáveis.`,
           buttons: ["Permitir arquivos vinculados", "Cancelar"],
           defaultId: 1,
           cancelId: 1,
@@ -1046,6 +1053,9 @@ function registerIpc(): void {
           if (/^[0-9a-f]{16}\.png$/.test(name)) await desktopFiles.grantRead(join(folder, name));
       }
     }
+    // In the recent list only now: its thumbnail is granted from there without asking again
+    // (project:recent), so a lesson whose files were refused never gets there.
+    await remember(path, project);
     return project;
   });
   ipcMain.handle("project:recent", () => recentProjects());

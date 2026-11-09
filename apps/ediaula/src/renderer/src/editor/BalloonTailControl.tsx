@@ -1,14 +1,11 @@
-import { balloonPath, defaultOutline, freeBalloonTip } from "@shared/annotation";
-import { animAt, clipLayout } from "@shared/compose";
-import { transformAt } from "@shared/keyframes";
-import { clipEnd } from "@shared/timeline";
+import { BALLOON_TAIL, balloonPath, defaultOutline, freeBalloonTip } from "@shared/annotation";
 import type { Asset, Clip, Project } from "@shared/types";
-import { zoomAffine, zoomsOver } from "@shared/zoomLayer";
 import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { updateAnnotation } from "@/lib/annotations";
 import { mediaUrl } from "@/lib/media";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
+import { annotationOnStage } from "./annotationOnStage";
 
 export function BalloonTailControl({
   clip,
@@ -36,26 +33,15 @@ export function BalloonTailControl({
   );
   const a = clip.annotation!;
   const g = a.balloonGeometry;
-  const trackIndex = project.tracks.findIndex((t) => t.id === clip.trackId);
-  const lay = clipLayout({ transform: transformAt(clip, time) }, asset, project.settings);
-  const w = project.settings.width * scale;
-  const h = project.settings.height * scale;
-  const motion = animAt(clip, time);
-  const z = zoomAffine(zoomsOver(project, trackIndex, time), w, h);
-  const density = (lay.full.w / asset.width) * scale * motion.scale * z.s;
-  const pivotX = (lay.visible.x + lay.visible.w / 2) * scale;
-  const pivotY = (lay.visible.y + lay.visible.h / 2) * scale;
-  const x = z.s * (pivotX + motion.dx * w + (lay.full.x * scale - pivotX) * motion.scale) + z.tx;
-  const y = z.s * (pivotY + motion.dy * h + (lay.full.y * scale - pivotY) * motion.scale) + z.ty;
-  if (
-    time < clip.start ||
-    time >= clipEnd(clip) ||
-    project.tracks[trackIndex]?.hidden ||
-    project.tracks[trackIndex]?.locked ||
-    motion.opacity < 0.1 ||
-    density < 0.001
-  )
-    return null;
+  const {
+    x,
+    y,
+    density,
+    width: w,
+    height: h,
+    editable,
+  } = annotationOnStage(clip, asset, project, scale, time);
+  if (!editable) return null;
   const refresh = async (): Promise<void> => {
     setSaving(true);
     try {
@@ -86,9 +72,11 @@ export function BalloonTailControl({
   const ty = body.y + tip.y * body.h;
   const unit = (project.settings.height / 1080) * 2 * density;
   const begin = (e: PointerEvent<HTMLButtonElement>): void => {
+    // A press on the handle never reaches the stage (which would deselect the balloon), even
+    // while the previous drag is still being drawn.
+    e.stopPropagation();
     if (e.button !== 0 || saving) return;
     e.preventDefault();
-    e.stopPropagation();
     playback.pause();
     const stage = e.currentTarget.parentElement!.getBoundingClientRect();
     const pointer = e.pointerId;
@@ -174,7 +162,7 @@ export function BalloonTailControl({
               body.w,
               body.h,
               16 * unit,
-              26 * unit,
+              BALLOON_TAIL * unit,
               freeBalloonTip(draft).tail,
               { x: tx, y: ty },
             )}
@@ -197,7 +185,7 @@ export function BalloonTailControl({
         type="button"
         className="balloon-tail-handle"
         style={{ left: tx, top: ty }}
-        disabled={saving}
+        aria-disabled={saving}
         title="Arraste a ponta para mudar a direção e o comprimento. Esc cancela."
         aria-label="Mover ponta do balão"
         onPointerDown={begin}

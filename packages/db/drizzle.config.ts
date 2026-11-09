@@ -28,6 +28,7 @@ export default defineConfig({
     "edi",
     "ops",
     "bora_treinar",
+    "dia_de_estrela",
   ],
   dbCredentials: {
     url: databaseUrl,

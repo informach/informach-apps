@@ -6,6 +6,7 @@ const {
   globalShortcut,
   dialog,
   clipboard,
+  ClipboardItem,
   nativeImage,
   session,
   protocol,
@@ -1411,9 +1412,9 @@ async function initialize() {
   });
   handle("ocr:edit", ["editor"], (input) => library.editOcr(input));
   handle("ocr:delete", ["editor"], (id) => library.deleteOcr(id));
-  handle("ocr:copy-text", ["editor"], (text) => {
+  handle("ocr:copy-text", ["editor"], async (text) => {
     if (typeof text !== "string" || text.length > 2_000_000) throw new Error("Texto inválido.");
-    clipboard.writeText(text);
+    await clipboard.writeText(text);
     return true;
   });
   handle("library:recover", ["editor"], async (id) => {
@@ -1467,8 +1468,12 @@ async function initialize() {
       bytes: new Uint8Array(await fs.readFile(file)),
     });
   });
-  handle("image:copy", ["editor"], (data) => {
-    clipboard.writeImage(nativeImage.createFromBuffer(pngBytes(data)));
+  // Electron 44's clipboard is the W3C one: the PNG goes out as an image/png ClipboardItem.
+  handle("image:copy", ["editor"], async (data) => {
+    const png = pngBytes(data);
+    await clipboard.write([
+      new ClipboardItem({ "image/png": new Blob([new Uint8Array(png)], { type: "image/png" }) }),
+    ]);
     return true;
   });
   handle("image:import-object", ["editor"], async () => {
@@ -1487,8 +1492,13 @@ async function initialize() {
     });
     return nativeImage.createFromBuffer(pngBytes(image.toDataURL())).toDataURL();
   });
-  handle("image:paste", ["editor"], () => {
-    const image = clipboard.readImage();
+  handle("image:paste", ["editor"], async () => {
+    const item = (await clipboard.read()).find((entry) => entry.types.includes("image/png"));
+    if (!item) throw new Error("A área de transferência não contém imagem.");
+    const blob = await item.getType("image/png");
+    if (!blob.size || blob.size > 150_000_000)
+      throw new Error("A imagem da área de transferência é inválida ou maior que 150 MB.");
+    const image = nativeImage.createFromBuffer(Buffer.from(await blob.arrayBuffer()));
     if (image.isEmpty()) throw new Error("A área de transferência não contém imagem.");
     return nativeImage.createFromBuffer(pngBytes(image.toDataURL())).toDataURL();
   });

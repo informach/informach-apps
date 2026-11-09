@@ -227,7 +227,9 @@ export function RoutineView(props: Props) {
                   >
                     <StudentAvatar name={child.profileName} size="sheet" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-[17px] font-bold">{child.profileName}</p>
+                      <p className="break-words text-[17px] font-bold leading-snug">
+                        {child.profileName}
+                      </p>
                       {child.subjects.length ? (
                         <p className="text-[13px] font-medium text-muted-foreground">
                           {joinWords(child.subjects)}
@@ -341,7 +343,9 @@ export function RoutineView(props: Props) {
                   {backpack
                     .filter((child) => child.items.length)
                     .map((child) => (
-                      <p key={child.profileId}>{backpackLine(child)}</p>
+                      <p key={child.profileId} className="break-words">
+                        {backpackLine(child)}
+                      </p>
                     ))}
                 </div>
               </div>

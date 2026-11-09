@@ -2,13 +2,12 @@ import { PRODUCTS } from "@informach/config";
 import { Camera, Dumbbell, Smartphone, Tv, Users } from "lucide-react";
 import Link from "next/link";
 import { Brand } from "@/components/brand";
+import { ofertas, reais } from "@/features/billing/ofertas";
+import { TRIAL_DAYS } from "@/features/teste/regras";
 import { EXERCISES } from "@/features/treino/catalog/catalog";
 import { WORKOUTS } from "@/features/treino/catalog/workouts";
 import { Instructor3D } from "@/features/treino/instructor/instructor-3d";
 import { getCurrentUser } from "@/lib/auth";
-
-const brl = (cents: number) =>
-  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const RECURSOS = [
   {
@@ -24,20 +23,23 @@ const RECURSOS = [
   },
   {
     icon: Users,
-    titulo: "Cada um no seu nível",
-    texto: "Perfis para a família toda, com trilhas que sobem quando a meta é batida duas vezes.",
+    titulo: "No seu ritmo",
+    texto:
+      "O treino do dia escolhido para você, níveis que sobem e descem com você, e um perfil para cada pessoa da casa.",
   },
   {
     icon: Tv,
-    titulo: "Treino na TV",
+    titulo: "No celular, no tablet ou na TV",
     texto:
-      "Abra na TV ou no computador e use o celular, no chão, como câmera. Dá para usar o controle remoto.",
+      "Treine onde tiver. Na TV, o celular no chão vira a câmera. Dá para contar pela voz e usar o controle remoto.",
   },
 ];
 
 export default async function Landing() {
   const user = await getCurrentUser();
-  const planos = PRODUCTS.filter((p) => p.app === "bora-treinar" && p.interval === "month");
+  const planos = ofertas(PRODUCTS.filter((p) => p.app === "bora-treinar"));
+  // quem já tem conta abre o app; quem não tem começa pelo cadastro (antes caía na aba Entrar)
+  const comecar = user ? "/perfis" : "/entrar?modo=criar";
   return (
     <div className="screen landing">
       <header className="topbar">
@@ -56,15 +58,21 @@ export default async function Landing() {
               mode="cadence"
               view="front"
             />
-            <span className="eyebrow">Calistenia guiada em família</span>
+            <span className="eyebrow">Calistenia guiada, no seu ritmo</span>
             <h1>Bora treinar em casa, sem equipamento.</h1>
             <div className="meta">
               <span>{WORKOUTS.length} treinos prontos</span>
               <span>do aquecimento ao HIIT</span>
             </div>
-            <Link href={user ? "/perfis" : "/entrar"} className="btn big" data-autofocus>
-              Começar de graça
+            <Link href={comecar} className="btn big" data-autofocus>
+              {user ? "Abrir o app" : `Testar ${TRIAL_DAYS} dias grátis`}
             </Link>
+            {!user && (
+              <span className="hero-nota">
+                Sem cartão: a câmera, os {WORKOUTS.length} treinos e os níveis liberados por{" "}
+                {TRIAL_DAYS} dias. Depois, o grátis continua.
+              </span>
+            )}
           </div>
           <div className="stat-stack">
             {RECURSOS.map((r) => (
@@ -80,29 +88,34 @@ export default async function Landing() {
 
         <div className="section-title">
           <h2>Planos</h2>
-          <span className="muted">o Primeiro treino é grátis, sem cartão</span>
+          <span className="muted">{TRIAL_DAYS} dias com tudo liberado, sem cartão</span>
         </div>
         <div className="grid plans">
           <div className="card plan">
             <span className="muted">Gratuito · um perfil</span>
             <p className="num plan-price">R$ 0</p>
             <p className="muted">
-              Primeiro treino, biblioteca com o instrutor 3D e prática de cada exercício contando à
-              mão.
+              O Primeiro treino e o Aquecimento, a biblioteca com o instrutor 3D e a prática de cada
+              exercício contando à mão ou pela voz.
             </p>
           </div>
-          {planos.map((p) => (
-            <div className="card plan" key={p.id}>
+          {planos.map((o) => (
+            <div className="card plan" key={o.tier}>
               <span className="muted">
-                {p.tier === "family" ? "Família · até quatro perfis" : "Individual · um perfil"}
+                {o.tier === "family" ? "Família · até quatro perfis" : "Individual · para você"}
               </span>
               <p className="num plan-price">
-                {brl(p.listPrice?.amountCents ?? 0)}
+                {reais(o.mensal.centavos)}
                 <small>/mês</small>
               </p>
               <p className="muted">
-                Todos os treinos, contagem pela câmera, celular como câmera da TV, níveis, treinos
-                montados por vocês e desafios em família.
+                ou {reais(o.anual.porMes)}/mês no anual ({reais(o.anual.centavos)} por ano
+                {o.anual.mesesGratis ? `, ${o.anual.mesesGratis} meses grátis` : ""})
+              </p>
+              <p className="muted">
+                {o.tier === "family"
+                  ? "A mesma assinatura para a casa: até quatro perfis, cada um com o seu treino, os seus níveis e o seu histórico."
+                  : "Todos os treinos, contagem pela câmera e pela voz, celular como câmera da TV, níveis e treinos montados por você."}
               </p>
             </div>
           ))}
@@ -115,9 +128,9 @@ export default async function Landing() {
         </div>
         <div className="card">
           <p>
-            A câmera é processada no próprio aparelho: o vídeo nunca é enviado. Os perfis guardam só
-            um apelido e uma cor. Treinos, níveis e recordes ficam na conta da família para aparecer
-            em qualquer aparelho.
+            A câmera é processada no próprio aparelho: o vídeo nunca é enviado. Os perfis guardam um
+            apelido, uma cor e o jeito de treinar; nada de idade, peso ou foto. Treinos, níveis e
+            recordes ficam na conta para aparecer em qualquer aparelho.
           </p>
         </div>
         <p className="muted footer-links">

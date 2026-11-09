@@ -50,6 +50,21 @@ export const EDI_TOOLS = [
     windowsAppId: "br.com.informach.edisvg",
     description: "Anime ilustrações vetoriais",
     projectExtensions: ["edisvg"],
+    // The pipelines transcribe the lesson audio and cut the narration (and, for the screen
+    // demo, encode the transparent layer) with the suite's FFmpeg.
+    nativeMedia: { testScript: "test:media-native" },
+  },
+  {
+    id: "ediplayer",
+    name: "EdiPlayer",
+    sourceFolder: "EDIPLAYER",
+    windowsAppId: "br.com.informach.ediplayer",
+    description: "Assista e corte vídeos",
+    projectExtensions: [],
+    nativeMedia: { testScript: "test:media-native" },
+    // First suite version that knows this tool: older clients refuse a lease naming an
+    // unknown tool, so the server leaves it out of their leases.
+    since: "0.5.0",
   },
 ] as const;
 
@@ -58,6 +73,30 @@ export type EdiToolId = (typeof EDI_TOOLS)[number]["id"];
 export function isEdiToolId(value: string): value is EdiToolId {
   return EDI_TOOLS.some((tool) => tool.id === value);
 }
+
+// Portuguese copy derived from the catalog, so pages and descriptions follow new tools.
+const COUNT_WORDS: readonly string[] = [
+  "nenhuma",
+  "uma",
+  "duas",
+  "três",
+  "quatro",
+  "cinco",
+  "seis",
+  "sete",
+  "oito",
+  "nove",
+  "dez",
+];
+
+/** Number of tools in Portuguese words, feminine like "ferramentas" ("seis"). */
+export const EDI_TOOL_COUNT_WORD = COUNT_WORDS[EDI_TOOLS.length] ?? String(EDI_TOOLS.length);
+
+/** Tool names as a Portuguese list: "EdiAula, EdiCaptura, … e EdiPlayer". */
+export const EDI_TOOL_NAME_LIST = (() => {
+  const names = EDI_TOOLS.map((tool) => tool.name);
+  return names.length > 1 ? `${names.slice(0, -1).join(", ")} e ${names.at(-1)}` : (names[0] ?? "");
+})();
 
 export const EDI_HUB = {
   id: "edi-hub",

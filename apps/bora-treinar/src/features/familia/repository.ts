@@ -9,6 +9,7 @@ import {
   boraProfiles,
   emailUnsubscribes,
 } from "@informach/db/schema";
+import type { Intensidade } from "@/features/treino/catalog/workouts";
 import type { ProgressMap } from "@/features/treino/engine/progression";
 import { assertAllowed } from "@/lib/errors";
 
@@ -35,6 +36,10 @@ export function listProfiles(userId: string) {
       name: boraProfiles.name,
       color: boraProfiles.color,
       accessEnabled: boraProfiles.accessEnabled,
+      intensity: sql<Intensidade>`${boraProfiles.intensity}`,
+      weeklyGoal: boraProfiles.weeklyGoal,
+      minutesPref: boraProfiles.minutesPref,
+      onboardedAt: boraProfiles.onboardedAt,
     })
     .from(boraProfiles)
     .where(eq(boraProfiles.userId, userId))
@@ -92,13 +97,35 @@ export async function deleteProfile(userId: string, id: string) {
   assertAllowed(deleted.length, "PROFILE", "Perfil não encontrado.");
 }
 
+/**
+ * Trava o perfil até o fim da transação. Quem lê e regrava o progresso (salvar um treino, aceitar
+ * um avanço) passa por aqui antes: dois envios ao mesmo tempo (a fila offline em duas abas, a TV e
+ * o celular) liam o mesmo progresso e um apagava a sequência do outro.
+ */
+export async function lockProfile(
+  tx: Tx,
+  profileId: string,
+): Promise<{ intensity: Intensidade; weeklyGoal: number }> {
+  const rows = await tx.execute<{ intensity: string; weekly_goal: number }>(
+    sql`SELECT intensity, weekly_goal FROM ${boraProfiles} WHERE id = ${profileId} FOR UPDATE`,
+  );
+  const intensity = rows[0]?.intensity;
+  return {
+    intensity: intensity === "leve" || intensity === "forte" ? intensity : "normal",
+    weeklyGoal: Number(rows[0]?.weekly_goal ?? 3),
+  };
+}
+
 export async function progressOf(profileId: string, tx: Tx | typeof db = db): Promise<ProgressMap> {
   const rows = await tx
     .select()
     .from(boraChainProgress)
     .where(eq(boraChainProgress.profileId, profileId));
   return Object.fromEntries(
-    rows.map((r) => [r.chainId, { level: r.level, bonus: r.bonus, streak: r.streak }]),
+    rows.map((r) => [
+      r.chainId,
+      { level: r.level, bonus: r.bonus, streak: r.streak, struggle: r.struggle },
+    ]),
   );
 }
 
@@ -109,6 +136,7 @@ export async function saveProgress(profileId: string, progress: ProgressMap, tx:
     level: st.level,
     bonus: st.bonus,
     streak: st.streak,
+    struggle: st.struggle ?? 0,
   }));
   if (!rows.length) return;
   await tx
@@ -120,9 +148,26 @@ export async function saveProgress(profileId: string, progress: ProgressMap, tx:
         level: sql`excluded.level`,
         bonus: sql`excluded.bonus`,
         streak: sql`excluded.streak`,
+        struggle: sql`excluded.struggle`,
         updatedAt: sql`now()`,
       },
     });
+}
+
+/**
+ * Grava o fuso da família. Com `soSePadrao`, só troca se ele ainda for o padrão (o primeiro
+ * perfil traz o fuso do navegador, mas não desfaz uma escolha feita em Conta).
+ */
+export async function setTimezone(userId: string, fuso: string, soSePadrao = false) {
+  await ensureFamily(userId);
+  await db
+    .update(boraFamilies)
+    .set({ timezone: fuso })
+    .where(
+      soSePadrao
+        ? and(eq(boraFamilies.userId, userId), eq(boraFamilies.timezone, "America/Sao_Paulo"))
+        : eq(boraFamilies.userId, userId),
+    );
 }
 
 const CATEGORIAS = ["bora.reminder", "bora.weekly-summary"] as const;
@@ -134,7 +179,7 @@ const CATEGORIAS = ["bora.reminder", "bora.weekly-summary"] as const;
  */
 export async function setPreferences(
   userId: string,
-  prefs: { reminderDays: number; reminderHour: number; weeklySummary: boolean },
+  prefs: { reminderDays: number; reminderHour: number; weeklySummary: boolean; timezone?: string },
 ) {
   await db.transaction(async (tx) => {
     await ensureFamily(userId, tx);

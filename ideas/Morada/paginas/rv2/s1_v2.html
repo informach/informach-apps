@@ -1,0 +1,170 @@
+<header class="top">
+  <div class="top-in">
+    <a class="brand" href="#inicio" aria-label="Recreio, início">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect x="1.5" y="6" width="23" height="14" rx="4" fill="#FFC233"/><circle cx="1.5" cy="13" r="3" fill="var(--surface)"/><circle cx="24.5" cy="13" r="3" fill="var(--surface)"/><path d="M17 7.5v11" stroke="#161A33" stroke-width="1.6" stroke-dasharray="1.6 1.6"/><path d="M8 10.5l4 2.5-4 2.5z" fill="#161A33"/></svg>
+      Recreio
+    </a>
+    <nav class="nav" aria-label="Seções">
+      <a href="#analise">Análise</a><a href="#posicionamento">Posicionamento</a><a href="#fronteiras">Fronteiras</a><a href="#jornadas">Jornadas</a><a href="#identidade">Identidade</a><a href="#protecao">Proteção</a><a href="#planos">Planos</a><a href="#economia">Economia</a><a href="#catalogo">Catálogo</a><a href="#sdk">SDK</a><a href="#espacos">Mundos e saves</a><a href="#social">Social</a><a href="#offline">Offline</a><a href="#arquitetura">Arquitetura</a><a href="#seguranca">Segurança</a><a href="#telas">Telas</a><a href="#metricas">Métricas</a><a href="#roteiro">Roteiro</a><a href="#aceite">Aceite</a><a href="#decisoes">Decisões</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section id="inicio" class="hero">
+  <div style="display:grid;gap:20px;min-width:0">
+    <span class="eyebrow" style="--c:var(--coral)">Proposta de produto e arquitetura · v2</span>
+    <h1>Recreio<span class="dot">.</span></h1>
+    <p class="tagline">Seu lugar de jogar. Diferentes jogos, infinitas histórias para criar.</p>
+    <p>A plataforma de jogos da Informach por assinatura. Uma assinatura dá acesso a todos os jogos publicados, cada pessoa tem o próprio perfil e o próprio progresso, e dá para jogar sozinho, com a família ou com amigos. O primeiro jogo é o Morada.</p>
+    <div class="chips">
+      <span class="tag" style="--soft:var(--sun-soft);--c:var(--sun-ink)">Individual ou Família, preços em validação</span>
+      <span class="tag" style="--soft:var(--sea-soft);--c:var(--sea)">Um perfil por pessoa, com login próprio</span>
+      <span class="tag" style="--soft:var(--coral-soft);--c:var(--coral)">Proteção infantil aplicada no servidor</span>
+      <span class="tag" style="--soft:var(--sky-soft);--c:var(--sky)">Um mundo, quantas pessoas estiverem</span>
+      <span class="tag" style="--soft:var(--grape-soft);--c:var(--grape)">Sem compra avulsa, anúncio ou caixa de recompensa</span>
+    </div>
+    <div class="hero-meta"><span>recreio.informach.com.br</span><span>4 nov 2026</span><span>Reescrita a partir da revisão externa (v2) e do Morada v4</span></div>
+  </div>
+  <div class="shelf" aria-label="A estante no lançamento: o Morada jogável e o próximo jogo em produção">
+    <div class="cover">
+      <img src="img/cena_rua_entardecer.webp" alt="Cena do Morada: a casa da família Oliveira ao entardecer, com dois moradores no caminho da porta" width="1920" height="1200">
+      <span class="badge">Acesso antecipado</span>
+      <div class="cap"><b>Morada</b><small>Simulador de vida em 3D. Sozinho ou acompanhado, no mesmo mundo.</small></div>
+    </div>
+    <div class="next">
+      <div><span>Em produção</span><b>Próximo jogo</b><span>Entra na estante quando estiver jogável, sem compra extra para quem assina.</span></div>
+      <div style="border-style:solid;background:var(--surface)"><span>Hoje no Recreio</span><b>1 jogo, de verdade</b><span>Sem cartas de "em breve" fingindo catálogo.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ANÁLISE -->
+<section id="analise">
+  <div class="sec-head">
+    <span class="eyebrow" style="--c:var(--coral)">Análise da revisão</span>
+    <h2>A revisão acerta na estrutura, mas ainda trata o Morada solo e o multiplayer como dois jogos</h2>
+    <p class="lead">Li a proposta estratégica de 25 seções, o resumo executivo e o texto que os acompanha, e cruzei com o Recreio v1, com o Morada v4 que acabamos de reescrever e com o que já existe no monorepo. Seis correções da revisão entram como estão. Em dez pontos ela precisa de ajuste, alguns porque contradizem o Morada v4, outros porque a lei ou o repositório já respondem melhor.</p>
+  </div>
+
+  <h3>O que entra como a revisão propõe</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Ponto</th><th>Problema na v1</th><th>Decisão nesta versão</th></tr></thead>
+      <tbody>
+        <tr><td><b>Identidade</b></td><td>Conta pagante e perfil de jogador quase se confundem</td><td>Cinco objetos separados: conta, assinatura, grupo, perfil e sessão de aparelho. O jogo só conhece o perfil.</td></tr>
+        <tr><td><b>Família</b></td><td>Todos entram com o OTP do titular</td><td>Cada perfil entra sozinho: adultos com login próprio, menores por aparelho pareado pelo responsável.</td></tr>
+        <tr><td><b>Saves</b></td><td>Tudo é save por perfil, inclusive mundos com várias pessoas</td><td>Mundos têm membros e continuidade próprios; ninguém perde um mundo porque outra pessoa cancelou.</td></tr>
+        <tr><td><b>Multiplayer</b></td><td>Convite existe, ciclo de vida da sessão não</td><td>Presença, convite, entrada, reconexão e saída como serviços comuns, com as regras de jogo no jogo.</td></tr>
+        <tr><td><b>Monetização</b></td><td>Preços tratados como finais</td><td>Os quatro valores viram hipótese configurável, validada por custo e por teste com pessoas antes de cobrar.</td></tr>
+        <tr><td><b>Segurança</b></td><td>Proteção infantil depende de um campo <code>infantil</code></td><td>Proteção por padrão, vínculo de responsável e regras verificadas no servidor em cada ação.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout" style="--soft:var(--sky-soft)">
+    <b class="t">A regra que organiza tudo</b>
+    <p>O Recreio não sabe como funciona a família do Morada, e o Morada não sabe como funciona a cobrança do Recreio. A plataforma cuida de quem a pessoa é, do que ela pode acessar e de onde o estado do jogo fica guardado. O jogo cuida do que acontece dentro dele. É isso que deixa o segundo jogo entrar sem refazer conta, assinatura, perfis, amigos, conquistas e armazenamento.</p>
+  </div>
+
+  <h3>Onde a revisão precisa de ajuste</h3>
+  <div class="diff">
+    <div><div><span class="lab">A revisão diz</span><h4>Save solo por perfil, mundo multiplayer por mundo</h4><p class="small">§8.1, §8.6, §11, §15.4 e §15.5 mantêm "solo" e "compartilhado" como coisas diferentes. Publicar um solo como multiplayer cria uma cópia com outro ID, e a página do Morada tem "Novo mundo solo" e "Meus mundos compartilhados".</p></div><div><span class="lab">Esta versão</span><h4>Um tipo só: o mundo, com quantos membros tiver</h4><p class="small">Isso é exatamente o que o Morada v4 eliminou: um mundo só, sem modos, sem cópia nem ramificação. Para o Recreio, jogar sozinho é um mundo com um membro. Quando alguém entra, o mundo ganha um membro; nada é copiado. O Recreio oferece mundos com membros e posse exclusiva de execução para qualquer jogo (<a href="#espacos">Mundos e saves</a>).</p></div></div>
+    <div><div><span class="lab">A revisão diz</span><h4>O custo cresce com as horas de multiplayer, e o Família deve custar como quatro pessoas no servidor</h4><p class="small">§14.1 assume servidor sempre que há sessão online.</p></div><div><span class="lab">Esta versão</span><h4>Servidor só quando duas ou mais pessoas estão no mesmo mundo ao mesmo tempo</h4><p class="small">No Morada v4, com uma pessoa presente, a simulação roda no navegador. Quatro pessoas da família jogando cada uma no seu mundo custam quase só armazenamento. O indicador que manda no preço é "horas de mundo com 2+ presentes" (<a href="#economia">Economia</a>).</p></div></div>
+    <div><div><span class="lab">A revisão diz</span><h4>Login próprio para adulto do grupo fica para a evolução (P2)</h4></div><div><span class="lab">Esta versão</span><h4>Entra no MVP, e o perfil adulto é da pessoa</h4><p class="small">A Agenda da Turma já tem adulto convidado com identidade própria. Usar o mesmo padrão evita que quatro pessoas dividam o OTP do titular. E se um adulto sai do grupo, leva o perfil, os mundos e as conquistas para uma assinatura própria.</p></div></div>
+    <div><div><span class="lab">A revisão diz</span><h4>Aferir faixa etária "quando legalmente aplicável e proporcional"</h4></div><div><span class="lab">Esta versão</span><h4>A lei veda a autodeclaração como único mecanismo</h4><p class="small">O ECA Digital pede verificação de idade confiável onde o conteúdo não é adequado a todas as idades. Desenho: o titular é um adulto verificado por um meio a escolher com o jurídico, e as faixas dos menores são definidas por esse responsável verificado. Há questionamento no STF e a ANPD ainda detalha os mecanismos, então a escolha precisa ser revista antes do lançamento.</p></div></div>
+    <div><div><span class="lab">A revisão diz</span><h4>Autoclassificação e sistema IARC, conforme aplicável</h4></div><div><span class="lab">Esta versão</span><h4>O IARC não está disponível para o Recreio</h4><p class="small">O questionário IARC só é acessado por lojas que o licenciaram. O Recreio não é uma delas, então cada título passa pela autoclassificação junto ao Ministério da Justiça, e o "12" do Morada continua provisório até lá.</p></div></div>
+    <div><div><span class="lab">A revisão diz</span><h4>Sem moeda premium, anúncios ou loja</h4></div><div><span class="lab">Esta versão</span><h4>E nunca caixa de recompensa ou pagar para acelerar</h4><p class="small">O art. 20 do ECA Digital proíbe caixas de recompensa em jogos de provável acesso por crianças e adolescentes. No Recreio isso vira princípio de catálogo, para todos os jogos e todos os perfis.</p></div></div>
+    <div><div><span class="lab">A revisão diz</span><h4>Teste de 48 h só se provar valor; comparar com 7 dias</h4></div><div><span class="lab">Esta versão</span><h4>Concordo, e o teste longo é barato</h4><p class="small">Como o mundo com uma pessoa roda no navegador, um teste de 7 dias custa pouco em servidor. O experimento compara 48 h e 7 dias pelo momento de ativação que o Morada define, não por cliques em "Jogar".</p></div></div>
+    <div><div><span class="lab">A revisão diz</span><h4>Offline só depois, como projeto separado</h4></div><div><span class="lab">Esta versão</span><h4>Depois, mas já desenhado</h4><p class="small">O Morada v4 define "levar o mundo" como posse exclusiva: enquanto alguém está com o mundo offline, ninguém mais o executa, então não há conflito de histórias. O Recreio entrega a posse e uma licença offline assinada, no mesmo princípio das licenças Ed25519 da suíte Edi.</p></div></div>
+    <div><div><span class="lab">A revisão diz</span><h4>Um painel interno novo para operação e moderação</h4></div><div><span class="lab">Esta versão</span><h4>Operação no Bastidores; moderação com ações auditadas</h4><p class="small">O monorepo já tem o Bastidores, com 2FA, leitura sem escrita e auditoria. A operação do Recreio entra lá. Moderação precisa agir (suspender perfil, remover convite); essas ações passam por rotas auditadas do próprio Recreio, sem abrir escrita genérica no Bastidores.</p></div></div>
+    <div><div><span class="lab">A revisão diz</span><h4>"Sim" para os personagens do Morada</h4></div><div><span class="lab">Esta versão</span><h4>Moradores</h4><p class="small">"Sim" é o nome dos personagens de outro jogo. Em texto, telas e código usamos morador (<code>Resident</code>), família do Morada (<code>Household</code>) e grupo da assinatura (<code>SubscriptionGroup</code>).</p></div></div>
+  </div>
+</section>
+
+<!-- POSICIONAMENTO -->
+<section id="posicionamento">
+  <div class="sec-head">
+    <span class="eyebrow" style="--c:var(--sun-ink)">Posicionamento</span>
+    <h2>Um lugar para jogar, construir, descobrir e viver histórias, sozinho ou com quem você gosta</h2>
+  </div>
+  <div class="grid g2">
+    <div class="prose">
+      <p>O Recreio é a plataforma de jogos da Informach. Com uma única assinatura, você tem acesso a todos os nossos jogos disponíveis, sem precisar comprar cada título separadamente.</p>
+      <p>Cada pessoa tem seu próprio perfil, suas conquistas e seu progresso, e continua de onde parou em outro aparelho compatível. Para as famílias, o Recreio oferece perfis individuais, proteção para os menores e a possibilidade de jogar juntos, cada um do seu jeito.</p>
+      <p><b>Nossa primeira grande experiência é o Morada.</b> Um simulador de vida em que você cria moradores, constrói casas, forma famílias e acompanha histórias que atravessam gerações. Você pode controlar a família inteira sozinho ou convidar outras pessoas para o mesmo mundo, sem perder nada da simulação.</p>
+      <p>E o Recreio não termina no Morada. Conforme novos jogos da Informach forem lançados, eles passam a integrar a plataforma, sem compras individuais adicionais para quem já assina.</p>
+    </div>
+    <div class="grid" style="align-content:start">
+      <div class="callout"><b class="t">Enquanto houver um jogo só</b><p>"Comece pelo Morada. Os próximos jogos da Informach entram no Recreio quando estiverem prontos, sem compra individual adicional." Sem "jogos ilimitados", sem datas que a produção não sustenta.</p></div>
+      <div class="card">
+        <h4>O que o Recreio não é</h4>
+        <ul class="list small">
+          <li>Uma loja: só a Informach publica, sem compra por título nem repasse.</li>
+          <li>Uma rede social: amigos existem para jogar junto, com contato restrito por padrão.</li>
+          <li>Uma tela de entrada do Morada: o segundo jogo prova a plataforma.</li>
+          <li>Um lugar de compras dentro do jogo: sem moeda, sem caixa de recompensa, sem anúncio.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <h3>Princípios</h3>
+  <div class="grid g3">
+    <div class="card"><h4>O jogo é o protagonista</h4><p class="small">O Recreio some durante a partida e volta quando é preciso: sair com segurança, convidar, ajuda.</p></div>
+    <div class="card"><h4>Acesso não é propriedade</h4><p class="small">A assinatura dá direito de entrar. Mundos, moradores e saves de outras pessoas não passam a ser de quem paga.</p></div>
+    <div class="card"><h4>Uma conta paga, cada perfil é alguém</h4><p class="small">Cada perfil tem identidade, progresso e restrições próprias, e entra sem a senha de ninguém.</p></div>
+    <div class="card"><h4>Proteção é regra de servidor</h4><p class="small">Esconder um botão não protege. Toda restrição de perfil e de mundo é checada onde a ação acontece.</p></div>
+    <div class="card"><h4>Um modelo para qualquer número de pessoas</h4><p class="small">Saves e mundos não mudam de tipo quando alguém entra ou sai. O Morada é um mundo; quem está presente muda.</p></div>
+    <div class="card"><h4>Infraestrutura proporcional</h4><p class="small">Servidor só quando há mais de uma pessoa no mesmo mundo; mundo vazio hiberna.</p></div>
+    <div class="card"><h4>SDK pequeno</h4><p class="small">Serve jogos 2D, 3D, sozinhos ou em grupo, sem impor motor, rede nem o modelo do Morada.</p></div>
+    <div class="card"><h4>Números são hipóteses até serem medidos</h4><p class="small">Preço, teste, capacidade por mundo e desempenho só viram promessa depois de medição.</p></div>
+    <div class="card"><h4>Nada de compra dentro do jogo</h4><p class="small">Nenhum jogo do Recreio tem moeda premium, caixa de recompensa, anúncio ou pagar para acelerar.</p></div>
+  </div>
+</section>
+
+<!-- FRONTEIRAS -->
+<section id="fronteiras">
+  <div class="sec-head">
+    <span class="eyebrow" style="--c:var(--sky)">Fronteiras</span>
+    <h2>Quem é dono de cada conceito</h2>
+    <p class="lead">A palavra "família" tem dois sentidos aqui. No Recreio, é o grupo de perfis coberto por uma assinatura Família. No Morada, é a família dos moradores dentro do jogo. Um perfil controla vários moradores, e um mundo do Morada junta perfis de assinaturas diferentes.</p>
+  </div>
+  <div class="grid g2">
+    <div class="card"><h3>O Recreio faz</h3><ul class="list small">
+      <li>Conta do titular, perfis, aparelhos e sessões.</li>
+      <li>Assinatura, teste, planos, direitos de acesso e histórico de cobrança.</li>
+      <li>Catálogo, página de cada jogo, versões e compatibilidade.</li>
+      <li>Abertura segura dos jogos: ingresso curto, sessão renovável, encerramento.</li>
+      <li>Dados de perfil por jogo e mundos com membros, posse de execução, fotografias e diário de eventos guardados de forma opaca.</li>
+      <li>Amigos, presença, convites, bloqueios e denúncias.</li>
+      <li>Conquistas, "continuar jogando", novidades e suporte.</li>
+      <li>Supervisão do responsável, privacidade, auditoria e operação.</li>
+    </ul></div>
+    <div class="card"><h3>Cada jogo faz</h3><ul class="list small">
+      <li>Regras, simulação, objetos, progressão e criação de mundos.</li>
+      <li>Autoridade sobre o próprio estado e as ações internas, inclusive entre várias pessoas.</li>
+      <li>O conteúdo do mundo, num formato que o Recreio guarda sem precisar entender.</li>
+      <li>Quem controla o quê dentro do mundo (no Morada: famílias, moradores, lotes, construção).</li>
+      <li>Metadados para o catálogo: classificação, interações, aparelhos, capacidades.</li>
+      <li>Interface e comandos do jogo, apoiados pelo SDK.</li>
+    </ul></div>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Conceito</th><th>Dono</th><th>Regra</th></tr></thead>
+      <tbody>
+        <tr><td>Conta pagante e cobrança</td><td>Recreio</td><td>O jogo nunca chama a Stripe nem lê tabelas de assinatura.</td></tr>
+        <tr><td>Perfil (pessoa que joga)</td><td>Recreio</td><td><code>profileId</code> é a única identidade que o jogo recebe.</td></tr>
+        <tr><td>Grupo da assinatura</td><td>Recreio</td><td>Até quatro perfis cobertos no Família. Não é a família do Morada.</td></tr>
+        <tr><td>Mundo: existência, membros, responsável, posse e guarda</td><td>Recreio</td><td>Serviço genérico, igual para qualquer jogo e qualquer número de membros.</td></tr>
+        <tr><td>Mundo: conteúdo e regras internas</td><td>Jogo</td><td>No Morada: relógio, bairro, lotes, famílias, moradores, memórias.</td></tr>
+        <tr><td>Família do Morada e moradores</td><td>Morada</td><td>Um morador não é um perfil. Um perfil dirige vários moradores, um de cada vez.</td></tr>
+        <tr><td>Direito de abrir o jogo</td><td>Recreio</td><td>Vem da assinatura, do teste e das regras de proteção do perfil.</td></tr>
+        <tr><td>Direito de entrar num mundo</td><td>Recreio e jogo</td><td>Precisa de acesso válido, ser membro e a política de conteúdo do mundo ser compatível com o perfil.</td></tr>
+        <tr><td>Direito de dirigir moradores, construir, gastar</td><td>Morada</td><td>Permissões de família dentro do mundo, revogáveis.</td></tr>
+        <tr><td>Amizade entre perfis</td><td>Recreio</td><td>Não cria vínculo entre moradores nem dá poder dentro de mundo algum.</td></tr>
+        <tr><td>Casamento, filhos, mudança de moradores</td><td>Morada</td><td>Não mexem em cobrança, grupo nem responsáveis reais.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>

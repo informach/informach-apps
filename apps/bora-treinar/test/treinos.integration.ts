@@ -7,6 +7,7 @@ import { getAccess } from "@/features/billing/service";
 import {
   createProfile,
   getFamily,
+  listProfiles,
   progressOf,
   setPreferences,
   unsubscribedCategories,
@@ -24,17 +25,31 @@ import {
   entrarComCodigo,
   lerCredencial,
 } from "@/features/pareamento/servidor";
-import { achievementsOf, sessionsOf } from "@/features/sessoes/repository";
+import {
+  achievementsOf,
+  melhoresAnteriores,
+  sessionsOf,
+  sessoesDoGrupo,
+} from "@/features/sessoes/repository";
 import type { SessionInput } from "@/features/sessoes/schema";
-import { acceptSuggestion, saveSession } from "@/features/sessoes/service";
+import { acceptSuggestion, saveGroupSession, saveSession } from "@/features/sessoes/service";
+import { reivindicarTeste } from "@/features/teste/repository";
+import { comecarTeste } from "@/features/teste/service";
 import { pendingSuggestions } from "@/features/treino/engine/progression";
-import { relogioLocal } from "@/lib/datas";
+import { inicioDaSemana, inicioDoDiaLocal, relogioLocal, somarDias } from "@/lib/datas";
 import { emails } from "@/lib/emails";
 
+const SP = "America/Sao_Paulo";
 const owner = randomUUID();
 let customerId = "";
 let subscriptionId = "";
-const family: Access = { paid: true, tier: "family", profileLimit: 4 };
+const family: Access = {
+  subscribed: true,
+  unlocked: true,
+  trial: { active: false, endsAt: null, started: false },
+  tier: "family",
+  profileLimit: 4,
+};
 const profiles: string[] = [];
 
 const sessao = (profileId: string, extra: Partial<SessionInput> = {}): SessionInput => ({
@@ -103,7 +118,12 @@ afterAll(async () => {
 describe("plano Família e perfis", () => {
   it("a assinatura ativa dá o plano Família com quatro perfis", async () => {
     const access = await getAccess(owner);
-    expect(access).toMatchObject({ paid: true, tier: "family", profileLimit: 4 });
+    expect(access).toMatchObject({
+      subscribed: true,
+      unlocked: true,
+      tier: "family",
+      profileLimit: 4,
+    });
   });
 
   it("cria até o limite, mesmo com pedidos simultâneos", async () => {
@@ -141,6 +161,37 @@ describe("treinos salvos", () => {
     await expect(acceptSuggestion(family, profiles, profileId, "pernas")).rejects.toThrow(
       "já foi aplicado",
     );
+  });
+
+  it("a meta é a do servidor, e o 'como foi' e o 'parar' ficam gravados", async () => {
+    const profileId = profiles[2] ?? "";
+    // o aparelho manda meta 3 (adulterada): vale a planejada (10), e 5 repetições não batem
+    const baixa = sessao(profileId, {
+      logs: sessao(profileId).logs.map((l) => ({ ...l, target: 3, reps: 5 })),
+      feeling: "dificil",
+    });
+    await saveSession(owner, family, profiles, baixa, "America/Sao_Paulo");
+    const [gravada] = await sessionsOf(profileId);
+    expect(gravada?.logs[0]?.target).toBe(10);
+    expect(gravada?.feeling).toBe("dificil");
+    expect((await progressOf(profileId)).pernas).toMatchObject({ streak: 0, struggle: 2 });
+    // 1 de 3 séries, encerrado antes: guarda a marca e não pesa a trilha
+    const parou = sessao(profileId, { logs: sessao(profileId).logs.slice(0, 1), endedEarly: true });
+    await saveSession(owner, family, profiles, parou, "America/Sao_Paulo");
+    const ultima = (await sessionsOf(profileId)).at(-1);
+    expect(ultima?.endedEarly).toBe(true);
+    expect((await progressOf(profileId)).pernas).toMatchObject({ struggle: 2 });
+    // 1 de 3 séries sem parar: a série que faltou é meta não batida e o peso chega a 3
+    await saveSession(
+      owner,
+      family,
+      profiles,
+      sessao(profileId, { logs: sessao(profileId).logs.slice(0, 1) }),
+      "America/Sao_Paulo",
+    );
+    const [descer] = pendingSuggestions(await progressOf(profileId));
+    expect(descer).toBeUndefined(); // nível 0, sem bônus: não há para onde descer
+    expect((await progressOf(profileId)).pernas?.struggle).toBe(3);
   });
 
   it("o plano gratuito recusa treino da assinatura e contagem pela câmera", async () => {
@@ -198,7 +249,7 @@ describe("pareamento celular ↔ TV", () => {
 });
 
 describe("lembrete de treino", () => {
-  it("sai na hora escolhida só se ninguém treinou hoje, uma vez por dia", async () => {
+  it("sai na hora escolhida para quem ainda não treinou hoje, uma vez por dia", async () => {
     const agora = relogioLocal(new Date(), "America/Sao_Paulo");
     await setPreferences(owner, {
       reminderDays: 127,
@@ -207,9 +258,219 @@ describe("lembrete de treino", () => {
     });
     expect((await getFamily(owner))?.reminderDays).toBe(127);
     expect([...(await unsubscribedCategories(owner))]).toEqual(["bora.weekly-summary"]);
-    // já treinou hoje (sessões acima): nenhum lembrete
+    // o primeiro e o terceiro perfis já treinaram hoje (sessões acima); o segundo e o quarto, não:
+    // o lembrete lista só os dois que faltam, com a meta da semana (3 dias, o padrão)
+    const nomes = new Map((await listProfiles(owner)).map((p) => [p.id, p.name]));
+    const nome = (i: number) => nomes.get(profiles[i] ?? "") ?? "?";
     const antes = emails.getOutbox?.().length ?? 0;
     await rodarLembretes();
-    expect((emails.getOutbox?.().length ?? 0) - antes).toBe(0);
+    const novos = (emails.getOutbox?.() ?? []).slice(antes);
+    expect(novos).toHaveLength(1);
+    expect(novos[0]?.text).toContain(`${nome(1)}: 0 de 3 dias nesta semana.`);
+    expect(novos[0]?.text).toContain(`${nome(3)}: 0 de 3 dias nesta semana.`);
+    expect(novos[0]?.text).not.toContain(`${nome(0)}:`);
+    expect(novos[0]?.text).not.toContain(`${nome(2)}:`);
+    // a chave da mensagem (família + dia) segura o segundo envio
+    await rodarLembretes();
+    expect((emails.getOutbox?.().length ?? 0) - antes).toBe(1);
+  });
+});
+
+describe("resumo da semana", () => {
+  it("traz a meta da semana de cada perfil e sai uma vez por semana", async () => {
+    await setPreferences(owner, { reminderDays: 0, reminderHour: 18, weeklySummary: true });
+    // segunda que vem, 9h em São Paulo: o resumo é desta semana, com as sessões acima
+    const segunda = inicioDoDiaLocal(somarDias(inicioDaSemana(Date.now(), SP), 7), SP);
+    const agora = new Date(segunda.getTime() + 9 * 3_600_000);
+    const nomes = new Map((await listProfiles(owner)).map((p) => [p.id, p.name]));
+    const antes = emails.getOutbox?.().length ?? 0;
+    await rodarLembretes(agora);
+    const novos = (emails.getOutbox?.() ?? []).slice(antes);
+    expect(novos.map((e) => e.category)).toEqual(["bora.weekly-summary"]);
+    expect(novos[0]?.text).toContain(nomes.get(profiles[0] ?? ""));
+    expect(novos[0]?.text).toContain("Meta da semana: 1 de 3 dias.");
+    await rodarLembretes(agora);
+    expect((emails.getOutbox?.().length ?? 0) - antes).toBe(1);
+  });
+});
+
+describe("teste de 7 dias, sem cartão", () => {
+  const conta = (id: string, email: string) =>
+    db.insert(users).values({ id, email, name: "Teste", emailVerified: true });
+
+  it("libera tudo, com quatro perfis, sem ser assinatura", async () => {
+    const id = randomUUID();
+    const email = `${id}@example.test`;
+    await conta(id, email);
+    try {
+      expect((await getAccess(id)).unlocked).toBe(false);
+      expect((await comecarTeste({ id, email, emailVerified: true })).ok).toBe(true);
+      const access = await getAccess(id);
+      expect(access).toMatchObject({ subscribed: false, unlocked: true, profileLimit: 4 });
+      expect(access.trial.active).toBe(true);
+      // pedir de novo na mesma conta não recomeça nem falha
+      expect((await comecarTeste({ id, email, emailVerified: true })).ok).toBe(true);
+    } finally {
+      await db.delete(users).where(eq(users.id, id));
+    }
+  });
+
+  it("é um por e-mail, mesmo apagando a conta e criando outra", async () => {
+    const email = `${randomUUID()}@example.test`;
+    const primeira = randomUUID();
+    await conta(primeira, email);
+    expect((await comecarTeste({ id: primeira, email, emailVerified: true })).ok).toBe(true);
+    await db.delete(users).where(eq(users.id, primeira));
+    const segunda = randomUUID();
+    await conta(segunda, email.toUpperCase());
+    try {
+      expect(
+        await comecarTeste({ id: segunda, email: email.toUpperCase(), emailVerified: true }),
+      ).toEqual({
+        ok: false,
+        code: "TRIAL_USED",
+      });
+      expect((await getAccess(segunda)).unlocked).toBe(false);
+    } finally {
+      await db.delete(users).where(eq(users.id, segunda));
+    }
+  });
+
+  it("um pedido feito com a chave antiga continua valendo depois da chave própria", async () => {
+    const primeira = randomUUID();
+    const segunda = randomUUID();
+    await conta(primeira, `${primeira}@example.test`);
+    await conta(segunda, `${segunda}@example.test`);
+    try {
+      // a primeira conta pediu quando só existia a chave antiga
+      expect(await reivindicarTeste(primeira, ["hash-antigo"])).toBeInstanceOf(Date);
+      // com a chave nova, o mesmo e-mail chega com dois hashes: o antigo ainda segura o pedido
+      expect(await reivindicarTeste(segunda, ["hash-novo", "hash-antigo"])).toBeNull();
+      // e a dona do pedido continua com o mesmo início
+      expect(await reivindicarTeste(primeira, ["hash-novo", "hash-antigo"])).toBeInstanceOf(Date);
+    } finally {
+      await db.delete(users).where(eq(users.id, primeira));
+      await db.delete(users).where(eq(users.id, segunda));
+    }
+  });
+
+  it("e-mail não confirmado não começa o teste", async () => {
+    expect(
+      await comecarTeste({ id: randomUUID(), email: "x@example.test", emailVerified: false }),
+    ).toEqual({ ok: false, code: "VERIFY" });
+  });
+});
+
+describe("pagamento atrasado", () => {
+  it("segue liberado por 7 dias depois do fim do período, e depois não", async () => {
+    const id = randomUUID();
+    await db
+      .insert(users)
+      .values({ id, email: `${id}@example.test`, name: "Atraso", emailVerified: true });
+    const [cliente] = await db
+      .insert(customers)
+      .values({
+        provider: "stripe",
+        providerCustomerId: `cus_atraso_${id}`,
+        subjectType: "user",
+        subjectId: id,
+        app: "bora-treinar",
+        email: `${id}@example.test`,
+      })
+      .returning();
+    if (!cliente) throw new Error("cliente");
+    const [assinatura] = await db
+      .insert(subscriptions)
+      .values({
+        customerId: cliente.id,
+        provider: "stripe",
+        providerSubscriptionId: `sub_atraso_${id}`,
+        productId: "bora_family_monthly",
+        providerPriceId: "price_bora_fixture",
+        status: "past_due",
+        currentPeriodStart: new Date(Date.now() - 32 * 86_400_000),
+        currentPeriodEnd: new Date(Date.now() - 2 * 86_400_000),
+      })
+      .returning();
+    if (!assinatura) throw new Error("assinatura");
+    try {
+      expect(await getAccess(id)).toMatchObject({
+        subscribed: true,
+        unlocked: true,
+        profileLimit: 4,
+        pagamentoAtrasado: true,
+      });
+      await db
+        .update(subscriptions)
+        .set({ currentPeriodEnd: new Date(Date.now() - 8 * 86_400_000) })
+        .where(eq(subscriptions.id, assinatura.id));
+      expect((await getAccess(id)).unlocked).toBe(false);
+    } finally {
+      await db.delete(subscriptions).where(eq(subscriptions.id, assinatura.id));
+      await db.delete(customers).where(eq(customers.id, cliente.id));
+      await db.delete(users).where(eq(users.id, id));
+    }
+  });
+});
+
+describe("treinar junto", () => {
+  it("grava um treino por perfil, com o mesmo grupo, e recusa treino que não é de séries", async () => {
+    const [a = "", , , d = ""] = profiles;
+    const groupId = randomUUID();
+    const grupo = {
+      groupId,
+      sessoes: [d, a].map((profileId) => ({ ...sessao(profileId), groupId })),
+    };
+    const r = await saveGroupSession(owner, family, profiles, grupo, "America/Sao_Paulo");
+    expect(r.sessoes).toHaveLength(2);
+    const salvas = await sessoesDoGrupo(owner, groupId);
+    expect(salvas.map((s) => s.profileId).sort()).toEqual([a, d].sort());
+    expect(salvas.every((s) => s.groupId === groupId)).toBe(true);
+    // reenviar o mesmo grupo (fila offline) não duplica
+    await saveGroupSession(owner, family, profiles, grupo, "America/Sao_Paulo");
+    expect(await sessoesDoGrupo(owner, groupId)).toHaveLength(2);
+    // AMRAP tem um relógio só: não vale para treinar junto
+    const outro = randomUUID();
+    await expect(
+      saveGroupSession(
+        owner,
+        family,
+        profiles,
+        {
+          groupId: outro,
+          sessoes: [a, d].map((profileId) => ({
+            ...sessao(profileId),
+            workoutRef: "catalogo:amrap-8",
+            groupId: outro,
+          })),
+        },
+        "America/Sao_Paulo",
+      ),
+    ).rejects.toThrow("só com treino de séries");
+    // um treino do grupo não entra sozinho
+    await expect(
+      saveSession(owner, family, profiles, { ...sessao(a), groupId: outro }, "America/Sao_Paulo"),
+    ).rejects.toThrow("vai junto com o grupo");
+  });
+});
+
+describe("recordes de treino que chega atrasado", () => {
+  it("compara só com os treinos feitos antes dele", async () => {
+    const profileId = profiles[3] ?? "";
+    const dia = 86_400_000;
+    const com = (reps: number, diasAtras: number) =>
+      sessao(profileId, {
+        startedAt: Date.now() - diasAtras * dia,
+        logs: sessao(profileId).logs.map((l) => ({ ...l, reps })),
+      });
+    await saveSession(owner, family, profiles, com(8, 30), "America/Sao_Paulo");
+    await saveSession(owner, family, profiles, com(20, 10), "America/Sao_Paulo");
+    // um treino feito há 20 dias, que só agora saiu da fila offline
+    const melhores = await melhoresAnteriores(
+      profileId,
+      randomUUID(),
+      new Date(Date.now() - 20 * dia),
+    );
+    expect(melhores.get("agachamento")?.bestSet).toBe(8);
   });
 });

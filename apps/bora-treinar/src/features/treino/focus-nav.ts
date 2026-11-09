@@ -61,15 +61,26 @@ export function moveFocus(dir: Dir) {
 export function installFocusNav(onBack: () => void) {
   const handler = (e: KeyboardEvent) => {
     const t = e.target as HTMLElement;
-    const typing = t.tagName === "INPUT" || t.tagName === "TEXTAREA";
+    const typing =
+      t.tagName === "INPUT" ||
+      t.tagName === "TEXTAREA" ||
+      t.tagName === "SELECT" ||
+      t.isContentEditable;
+    // Em select, número e área de texto as setas mudam o valor ou o cursor: não são navegação.
+    // Num campo de texto de uma linha, cima e baixo continuam levando ao campo vizinho.
+    const setasDoCampo =
+      t.tagName === "SELECT" ||
+      t.tagName === "TEXTAREA" ||
+      (t instanceof HTMLInputElement && ["number", "range", "date", "time"].includes(t.type));
     if (
       e.key.startsWith("Arrow") &&
+      !setasDoCampo &&
       !(typing && (e.key === "ArrowLeft" || e.key === "ArrowRight"))
     ) {
       e.preventDefault();
       moveFocus(e.key as Dir);
     } else if (
-      (BACK_KEYS.has(e.key) && !(typing && e.key === "Backspace")) ||
+      (BACK_KEYS.has(e.key) && !(typing && (e.key === "Backspace" || e.key === "Escape"))) ||
       BACK_CODES.has(e.keyCode)
     ) {
       e.preventDefault();

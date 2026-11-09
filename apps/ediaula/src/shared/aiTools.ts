@@ -43,6 +43,10 @@ const ANNOTATION_KINDS = [
   "lowerthird",
 ] as const;
 
+/** Kinds of memory the chat keeps (main/aiMemory.ts). */
+export const MEMORY_TYPES = ["user", "feedback", "project", "reference"] as const;
+export type MemoryType = (typeof MEMORY_TYPES)[number];
+
 export const AI_TOOLS = {
   export_editing_template: {
     title: "Salvar modelo de edição em Markdown",
@@ -284,11 +288,16 @@ export const AI_TOOLS = {
     title: "Exportar o vídeo",
     permission: "write",
     description:
-      "Puts an export of the open lesson in the export queue and returns its id. preset: youtube, hotmart, draft, reels or audio. formats: what else goes beside the video, among captions (.srt and .vtt), thumbnail (.jpg), translations (the translated captions that are up to date) and platform (<aula>.plataforma.json for the course platform); by default captions, thumbnail, translations and, when the lesson has publishing data, platform. range exports only that stretch (timeline seconds), with captions and thumbnail only: translations and the platform package describe the whole lesson and are refused for a stretch. The check before exporting runs first: with problems, the person is asked whether to export anyway. The person always picks the destination in a dialog; you never choose it. Follow it with get_export_status.",
+      'Puts an export of the open lesson in the export queue and returns its id. preset: youtube, hotmart, draft, reels, gif or audio; gif is an animated GIF (480p, 15 frames per second, no sound, looping), meant for a short range, and nothing goes beside it (formats are ignored). formats: what else goes beside the video, among captions (.srt and .vtt), thumbnail (.jpg), translations (the translated captions that are up to date) and platform (<aula>.plataforma.json for the course platform); by default captions, thumbnail, translations and, when the lesson has publishing data, platform. range exports only that stretch (timeline seconds), with captions and thumbnail only: translations and the platform package describe the whole lesson and are refused for a stretch. Several parts at once, instead of range: split: "clips" with track_id makes one part per clip or group of clips of that track (the pieces the cleanup cut from one recording are one part; on a track of recordings a b-roll goes with the part before it, the first part starts at 0:00 and each runs until the next begins). The person picks one folder for every part; each file is "<lesson title> - Parte N", and when some are already there the person is asked once whether to replace them all or add a suffix. All parts go into the queue at once, each with its own id; they follow the preset and formats like a single stretch (captions and thumbnail, never translations nor the platform package). The check before exporting runs first: with problems, the person is asked whether to export anyway. The person always picks the destination in a dialog; you never choose it. Follow it with get_export_status.',
     input: z.object({
       preset: z.enum(EXPORT_PRESET_IDS),
       formats: z.array(z.enum(EXPORT_FORMATS)).max(4).optional(),
       range: z.object({ from: z.number().min(0), to: z.number().min(0) }).optional(),
+      split: z
+        .enum(["clips"])
+        .optional()
+        .describe("One part per clip or group of clips of track_id"),
+      track_id: z.string().optional().describe('The track split: "clips" goes by'),
     }),
   },
   get_export_status: {
@@ -403,7 +412,7 @@ export const AI_TOOLS = {
     title: "Remover faixa vazia",
     permission: "write",
     description:
-      "Removes an empty track. A track with clips is refused and the answer says how many it has (move or delete them first); a locked one too. One undo step.",
+      'Removes an empty track. A track with clips is refused and the answer says how many it has (move or delete them first); a locked one too. Removing the track "Cliques" also turns the automatic click sound off on every recording (as set_click_sound with enabled false). One undo step.',
     input: z.object({
       track_id: z.string(),
       revision: z
@@ -798,7 +807,7 @@ export const AI_TOOLS = {
     title: "Velocidade do clipe",
     permission: "write",
     description:
-      "Changes the playback speed of video or sound clips (clip_ids from get_overview): 2 = twice as fast (the clip gets shorter), 0.5 = half speed (longer), 1 = normal; 0.25 to 8. The voice keeps its pitch. ripple (default true) moves what follows on the same track by the difference, so nothing is covered and no gap is left. Pictures, annotations and zoom layers have no speed. Undoable.",
+      "Changes the playback speed of video or sound clips (clip_ids from get_overview): 2 = twice as fast (the clip gets shorter), 0.5 = half speed (longer), 1 = normal; 0.25 to 8. The voice keeps its pitch. By default (ripple false) the other clips stay where they are: faster leaves a gap after the clip (the person may fill it), slower uses the free room after it and pushes what follows on its track only by what does not fit, never covering anything. ripple true moves what follows on the same track by the whole difference (no gap left); use it only when the person asks to close the gap. Pictures, annotations and zoom layers have no speed. Undoable.",
     input: z.object({
       clip_ids: z.array(z.string()).min(1),
       speed: z.number().min(0.25).max(8),
@@ -944,6 +953,37 @@ export const AI_TOOLS = {
         .optional(),
     }),
   },
+  remember: {
+    title: "Lembrar uma preferência",
+    permission: "write",
+    description:
+      'Saves a durable preference the person asked you to remember ("lembre que ao exportar eu quero só o MP4") in the EdiAula memory, which every later turn of this chat reads. One memory per subject: when one on the same subject exists (see the memory in your instructions or list_memories), send its name to update it instead of adding another. name: kebab-case, e.g. ediaula-export-mp4-only. type: user (who the person is), feedback (how they want the work done), project (an ongoing goal or constraint) or reference (where something is). body: the preference in a few lines; for feedback and project, add a "Why:" line and a "How to apply:" line. Keep durable preferences only, never details of a single lesson. Available only in the chat inside EdiAula.',
+    input: z.object({
+      name: z.string().min(1).max(200).describe("kebab-case id, e.g. ediaula-export-mp4-only"),
+      description: z.string().min(1).max(300).describe("One line saying what the memory is"),
+      type: z.enum(MEMORY_TYPES),
+      body: z.string().min(1).max(20_000),
+      title: z
+        .string()
+        .max(80)
+        .optional()
+        .describe("Short title for the index (default: from the name)"),
+    }),
+  },
+  forget: {
+    title: "Esquecer uma preferência",
+    permission: "write",
+    description:
+      "Deletes a memory saved with remember, by its name, when the person asks to forget it. Available only in the chat inside EdiAula.",
+    input: z.object({ name: z.string().min(1).max(200) }),
+  },
+  list_memories: {
+    title: "Ver as preferências lembradas",
+    permission: "read",
+    description:
+      "Lists the memories saved with remember (name, type and description); with name, returns that memory whole. Available only in the chat inside EdiAula.",
+    input: z.object({ name: z.string().max(200).optional() }),
+  },
   list_projects: {
     title: "Listar projetos",
     permission: "read",
@@ -1021,6 +1061,15 @@ export function callPermission(name: AiToolName, input: unknown): ToolPermission
 
 export const isAiToolName = (name: string): name is AiToolName => Object.hasOwn(AI_TOOLS, name);
 
+/**
+ * The chat's memory (main/aiMemory.ts): run by the main process, never by the editor, and
+ * offered only to the chat inside EdiAula, whose turns read it back.
+ */
+export const MEMORY_TOOLS = new Set(["remember", "forget", "list_memories"] as const);
+export type MemoryToolName = typeof MEMORY_TOOLS extends Set<infer N> ? N : never;
+export const isMemoryTool = (name: AiToolName): name is MemoryToolName =>
+  (MEMORY_TOOLS as ReadonlySet<string>).has(name);
+
 /** Tools never run inside a turn of the chat inside EdiAula (they would change the open lesson). */
 export const PANEL_FORBIDDEN = new Set<AiToolName>(["open_project", "create_project"]);
 
@@ -1077,7 +1126,7 @@ How editing works:
 - Protected passages (listed in get_overview) can never be cut; if a requested cut hits one, tell the user and let them decide.
 - Specific requests ("corte a frase X") are applied directly. Broad edits (clean the whole lesson, remove retakes, tighten pacing) go through a proposal the user reviews: propose_cuts, propose_off_script, or apply_cleanup in its default "propose" mode. Use apply_cleanup with mode "apply" only when the person explicitly asks to cut without reviewing.
 - Sound: list_library lists the project media and the sound effects (Portuguese tags). add_clip puts one item at a time without ripple; add_sound_effects puts several short effects at once (a draft by default), at moments that matter (a success, a publish, a celebration, an annotation coming in), never over speech and never piled up. set_click_sound turns on the automatic click of the screen recordings (track "Cliques").
-- Tracks: get_overview starts with what the person selected ("Seleção: faixa [id] …; clipes […]"). add_track creates an empty track above or below the selected track (or track_id); move_track, rename_track, remove_track (empty ones only) and set_track (lock, mute, hide) change tracks; no clip moves.
+- Tracks: get_overview starts with what the person selected ("Seleção: faixa [id] …; clipes […]") and lists every track with its id. Any track_id also takes the label the timeline shows (F1 is the bottom track) or the exact name of one track. add_track creates an empty track above or below the selected track (or track_id); move_track, rename_track, remove_track (empty ones only) and set_track (lock, mute, hide) change tracks; no clip moves.
 - Voices: never two at once. set_voice_rule (on by default) silences the teacher while a character (Dedé, Debinha…) speaks and fades her avatar away; set_voice_role fixes whose voice a media or track is; set_volume sets a clip's volume, whole or in a stretch. check_before_export flags two voices together as an error.
 - Edges of a clip: set_crop cuts a strip off any side (a line at the edge of an avatar with the background removed) without moving or resizing it; get_overview shows each clip's crop and get_frame's boxes are the part left.
 - Timing on one track: split_clip divides a single clip, move_clips moves clips in time without ripple (one shift for all, or "moves" with a shift per clip), align_track_to splits a track joined without pauses (an avatar rendered from the whole narration) and puts each piece at the start of its clip in a reference track. None of them touches other tracks; cut_ranges and cut_text cut every track together.

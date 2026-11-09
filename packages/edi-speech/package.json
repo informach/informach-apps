@@ -1,0 +1,33 @@
+{
+  "name": "@informach/edi-speech",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Transcrição local (Whisper) e alinhamento de roteiro em português das ferramentas Edi",
+  "exports": {
+    "./types": "./src/types.ts",
+    "./words": "./src/words.ts",
+    "./ptSpeech": "./src/ptSpeech.ts",
+    "./glossary": "./src/glossary.ts",
+    "./script": "./src/script.ts",
+    "./scriptAlign": "./src/scriptAlign.ts",
+    "./whisperArgs": "./src/whisperArgs.ts",
+    "./whisperParse": "./src/whisperParse.ts",
+    "./lexicon": "./src/lexicon/index.ts",
+    "./node/download": "./src/node/download.ts",
+    "./node/installCheck": "./src/node/installCheck.ts",
+    "./node/whisperAssets": "./src/node/whisperAssets.ts",
+    "./node/whisperManifest": "./src/node/whisperManifest.ts",
+    "./node/whisper": "./src/node/whisper.ts",
+    "./piece": "./src/piece.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

@@ -6,21 +6,26 @@
 # Usado pelo Hub de desenvolvimento e, com -Avisar, pelos atalhos de cada ferramenta: sem o
 # Hub aberto, uma falha aparece numa caixa de mensagem.
 #
-# Códigos de saída: 0 fechou normalmente, 2 a ferramenta já estava aberta, outro valor falhou.
+# Com -Reiniciar, uma ferramenta já aberta é fechada pelo caminho normal e aberta de novo com o
+# código atual. Pelo atalho (-Avisar), se a ferramenta aberta está com código antigo, a caixa de
+# mensagem oferece isso.
+#
+# Códigos de saída: 0 fechou normalmente, 2 a ferramenta já estava aberta, 3 não fechou para
+# reiniciar, outro valor falhou.
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet("ediaula", "edicaptura", "edifoto", "edipdf", "edisvg")]
+  [ValidateSet("ediaula", "edicaptura", "edifoto", "edipdf", "edisvg", "ediplayer")]
   [string]$Ferramenta,
   [switch]$Avisar,
   # Repassa --oculto: o EdiCaptura com a bandeja ligada abre escondido, esperando o Print Screen
   # (usado pelo atalho da pasta Inicializar do Windows).
-  [switch]$Oculto
+  [switch]$Oculto,
+  [switch]$Reiniciar
 )
 . (Join-Path $PSScriptRoot "comum.ps1")
 $ErrorActionPreference = "Stop"
 New-Item -ItemType Directory -Force $EdiRegistros | Out-Null
 $registro = Get-EdiRegistro $Ferramenta
-[IO.File]::WriteAllText($registro, "")
 function Registrar([string]$Mensagem) {
   [IO.File]::AppendAllText($registro, "[hub] $Mensagem`r`n")
 }
@@ -29,15 +34,41 @@ function Executar([string]$Comando) {
   & cmd.exe /d /c "$Comando >> `"$registro`" 2>&1"
   $LASTEXITCODE
 }
+# O registro começa vazio a cada abertura. Enquanto a ferramenta está aberta, ele é dela (o cmd
+# que a abriu o mantém em uso): depois de fechá-la, espera a liberação.
+function Reiniciar-Registro {
+  $limite = (Get-Date).AddSeconds(15)
+  while ($true) {
+    try { [IO.File]::WriteAllText($registro, ""); return }
+    catch [System.IO.IOException] {
+      if ((Get-Date) -gt $limite) { throw }
+      Start-Sleep -Milliseconds 250
+    }
+  }
+}
 
 Set-Location $EdiRepo
 $codigo = 1
+$nome = ($EdiFerramentas | Where-Object Id -eq $Ferramenta).Nome
 try {
+  $mudou = if (Get-EdiAberta $Ferramenta) { Get-EdiDesatualizada $Ferramenta } else { $null }
+  if ($mudou -and $Avisar -and -not $Reiniciar) {
+    Add-Type -AssemblyName System.Windows.Forms
+    $resposta = [System.Windows.Forms.MessageBox]::Show(
+      "$nome está aberto com o código de antes da última mudança ($mudou).`r`n`r`nFechar e abrir de novo com o código atual? Se houver trabalho sem salvar, salve antes.",
+      "Edi (desenvolvimento)", "YesNo", "Question")
+    $Reiniciar = $resposta -eq "Yes"
+  }
+  $fechada = $false
+  if ($Reiniciar -and (Get-EdiAberta $Ferramenta)) { $fechada = Close-EdiFerramenta $Ferramenta }
   if (Get-EdiAberta $Ferramenta) {
-    Registrar "a ferramenta já está aberta"
-    $codigo = 2
+    # Ainda aberta: 3 se o pedido para fechar não bastou, 2 se não houve pedido. O registro
+    # continua sendo o da execução aberta.
+    $codigo = if ($Reiniciar) { 3 } else { 2 }
   }
   else {
+    Reiniciar-Registro
+    if ($fechada) { Registrar "fechada para abrir de novo com o código atual" }
     # Uma instalação por vez, mesmo com duas ferramentas abrindo juntas.
     $exclusao = New-Object System.Threading.Mutex($false, "Local\EdiHubDesenvolvimentoInstalacao")
     [void]$exclusao.WaitOne()
@@ -70,8 +101,12 @@ catch {
 
 if ($Avisar -and $codigo -ne 0) {
   Add-Type -AssemblyName System.Windows.Forms
-  $nome = ($EdiFerramentas | Where-Object Id -eq $Ferramenta).Nome
-  if ($codigo -eq 2) {
+  if ($codigo -eq 3) {
+    [void][System.Windows.Forms.MessageBox]::Show(
+      "$nome não fechou (talvez esteja pedindo para salvar). Feche pela janela ou pela bandeja e abra de novo.",
+      "Edi (desenvolvimento)", "OK", "Warning")
+  }
+  elseif ($codigo -eq 2) {
     [void][System.Windows.Forms.MessageBox]::Show("$nome já está aberto.", "Edi (desenvolvimento)")
   }
   else {

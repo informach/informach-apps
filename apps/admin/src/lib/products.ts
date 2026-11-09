@@ -10,6 +10,7 @@ export const PRODUCT_KEYS = [
   "agenda-da-turma",
   "missao-saber",
   "bora-treinar",
+  "dia-de-estrela",
   "edi",
 ] as const;
 export type ProductKey = (typeof PRODUCT_KEYS)[number];
@@ -47,6 +48,12 @@ export const PRODUCTS: Record<ProductKey, ProductInfo> = {
     domain: APPS.boraTreinar.domain,
     mark: { background: "#0B0D10", foreground: "#C8FF2E" },
   },
+  "dia-de-estrela": {
+    key: "dia-de-estrela",
+    name: APPS.diaDeEstrela.name,
+    domain: APPS.diaDeEstrela.domain,
+    mark: { background: "#2462B0", foreground: "#FFC22E" },
+  },
   edi: {
     key: "edi",
     name: APPS.edi.name,
@@ -74,6 +81,7 @@ export const SERVICE_KEYS = [
   "agenda-da-turma",
   "missao-saber",
   "bora-treinar",
+  "dia-de-estrela",
   "edi",
 ] as const;
 export type ServiceKey = (typeof SERVICE_KEYS)[number];
@@ -129,6 +137,14 @@ export const SERVICES: Record<ServiceKey, ServiceInfo> = {
     readyPath: "/api/ready",
     healthPath: "/api/health",
   },
+  "dia-de-estrela": {
+    key: "dia-de-estrela",
+    name: PRODUCTS["dia-de-estrela"].name,
+    railwayService: "@informach/dia-de-estrela",
+    defaultOrigin: `https://${PRODUCTS["dia-de-estrela"].domain}`,
+    readyPath: "/api/ready",
+    healthPath: "/api/health",
+  },
   edi: {
     key: "edi",
     name: PRODUCTS.edi.name,
@@ -169,6 +185,7 @@ const APP_PHRASES: Record<string, string> = {
   [PRODUCTS["agenda-da-turma"].name]: `na ${PRODUCTS["agenda-da-turma"].name}`,
   [PRODUCTS["missao-saber"].name]: `na ${PRODUCTS["missao-saber"].name}`,
   [PRODUCTS["bora-treinar"].name]: `no ${PRODUCTS["bora-treinar"].name}`,
+  [PRODUCTS["dia-de-estrela"].name]: `no ${PRODUCTS["dia-de-estrela"].name}`,
   [PRODUCTS.edi.name]: `na ${PRODUCTS.edi.name}`,
   Bastidores: "no Bastidores",
 };
@@ -183,6 +200,7 @@ const REDIS_SESSION_PRODUCTS: ProductKey[] = [
   "agenda-da-turma",
   "missao-saber",
   "bora-treinar",
+  "dia-de-estrela",
 ];
 
 /**

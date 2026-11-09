@@ -116,6 +116,7 @@ export const cursorFxSchema = z.looseObject({
   clickVolume: z.number().min(0).max(1).optional(),
   clickSoundKind: z.enum(SOUND_EFFECT_IDS).optional(),
   clickInclude: z.array(z.enum(CLICK_KINDS)).max(CLICK_KINDS.length).optional(),
+  clickRemoved: z.array(time).max(20000).optional(),
   ranges: z
     .array(
       z.looseObject({
@@ -838,6 +839,7 @@ export const exportSpecSchema = z
     platform: platformInput.optional(),
     thumbnailAt: time.optional(),
     audioOnly: z.boolean().optional(),
+    gif: z.strictObject({ fps: z.int().min(1).max(30) }).optional(),
     vertical: z.enum(["blur", "crop"]).optional(),
     cursors: z
       .record(
@@ -892,6 +894,10 @@ export const exportSpecSchema = z
   .refine((spec) => spec.videoBitrate > 0 || spec.audioOnly === true, {
     message: "Video exports need a bitrate",
     path: ["videoBitrate"],
+  })
+  .refine((spec) => !spec.gif || (!spec.audioOnly && !spec.stems), {
+    message: "A GIF has no sound",
+    path: ["gif"],
   })
   .refine((spec) => !spec.range || spec.range.to > spec.range.from, {
     message: "The range must end after it starts",

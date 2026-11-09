@@ -160,7 +160,12 @@ export function projectJson(text: unknown): unknown {
 }
 
 /** The recent list is a convenience: failing to update it never fails a save or an open. */
-async function remember(path: string, project: Project): Promise<void> {
+/**
+ * Puts an opened lesson in the recent list. Called only once the person allowed its linked files
+ * (index.ts, project:open): the list hands its thumbnail to Home without asking again, so a
+ * lesson whose files were refused never gets there.
+ */
+export async function remember(path: string, project: Project): Promise<void> {
   try {
     await touchRecent(path, project);
   } catch (err) {
@@ -188,9 +193,7 @@ export async function openProject(path: string): Promise<Project> {
   if ((await stat(path)).size > MAX_PROJECT_BYTES) throw new Error(TOO_LARGE);
   const content = await readFile(path, "utf8");
   if (Buffer.byteLength(content) > MAX_PROJECT_BYTES) throw new Error(TOO_LARGE);
-  const project = normalizeProject(projectSchema.parse(JSON.parse(content)));
-  await remember(path, project);
-  return project;
+  return normalizeProject(projectSchema.parse(JSON.parse(content)));
 }
 
 async function readRecent(): Promise<RecentEntry[]> {

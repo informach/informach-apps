@@ -4,6 +4,7 @@ import {
   and,
   DatabaseLockBusyError,
   db,
+  desc,
   eq,
   inArray,
   ne,
@@ -84,6 +85,11 @@ export async function withBillingLifecycle<T>(userId: string, operation: () => P
 export function withBillingLifecycleWait<T>(userId: string, operation: () => Promise<T>) {
   return withDatabaseLockWait(`bora:billing:${userId}`, operation);
 }
+/** Todos os perfis voltam a valer (desfaz a escolha feita para um plano menor). */
+export async function enableAllProfiles(userId: string) {
+  await db.update(boraProfiles).set({ accessEnabled: true }).where(eq(boraProfiles.userId, userId));
+}
+
 export async function retainProfilesForSmallerPlan(
   userId: string,
   retainedProfileIds: string[],
@@ -120,6 +126,30 @@ export async function retainProfilesForSmallerPlan(
     return selected;
   });
 }
+/**
+ * A assinatura com o pagamento atrasado (past_due), para a tolerância de 7 dias contados do fim do
+ * período pago. Sem ela os perfis das crianças sumiam no mesmo instante em que um cartão recusava.
+ * Fica aqui, e não em `PRO_STATUSES` do pacote de cobrança, porque é uma decisão deste app.
+ */
+export async function pastDueSubscription(userId: string) {
+  const [row] = await db
+    .select({ subscription: subscriptions })
+    .from(subscriptions)
+    .innerJoin(customers, eq(subscriptions.customerId, customers.id))
+    .where(
+      and(
+        eq(customers.provider, "stripe"),
+        eq(customers.subjectType, "user"),
+        eq(customers.subjectId, userId),
+        eq(customers.app, "bora-treinar"),
+        eq(subscriptions.status, "past_due"),
+      ),
+    )
+    .orderBy(desc(subscriptions.currentPeriodEnd))
+    .limit(1);
+  return row?.subscription ?? null;
+}
+
 export async function entitlement(userId: string) {
   return getProSubscription(
     { db, provider: "stripe", app: "bora-treinar" },

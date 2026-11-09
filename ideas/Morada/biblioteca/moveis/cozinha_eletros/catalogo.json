@@ -1,0 +1,10906 @@
+{
+ "categoria": "cozinha_eletros",
+ "rotulo": "Cozinha: eletros e utensílios",
+ "itens": [
+  {
+   "id": "geladeira_duplex_cinza",
+   "rotulo": "Geladeira duplex lado a lado (cinza-azulada)",
+   "categoria": "cozinha_eletros",
+   "grupo": "geladeira_duplex",
+   "fixacao": "chao",
+   "dims": [
+    0.92,
+    0.754,
+    1.78
+   ],
+   "arquivo": "glb/geladeira_duplex_cinza.glb",
+   "miniatura": "miniaturas/geladeira_duplex_cinza.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.35,
+     "nome": "gaveta_freezer",
+     "pivo": [
+      -0.2365,
+      0.098,
+      0.205
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.35,
+     "nome": "gaveta_legumes_1",
+     "pivo": [
+      0.1865,
+      0.098,
+      0.205
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.35,
+     "nome": "gaveta_legumes_2",
+     "pivo": [
+      0.1865,
+      0.288,
+      0.205
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_freezer",
+     "pivo": [
+      -0.46,
+      0.0,
+      0.322
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_geladeira",
+     "pivo": [
+      0.46,
+      0.0,
+      0.322
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_freezer",
+     "centro": [
+      -0.2365,
+      0.106,
+      -0.047
+     ],
+     "tamanho": [
+      0.307,
+      0.182,
+      0.484
+     ],
+     "em": "gaveta_freezer"
+    },
+    {
+     "nome": "slot_freezer_1",
+     "centro": [
+      -0.2365,
+      0.343,
+      -0.05
+     ],
+     "tamanho": [
+      0.323,
+      0.34,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_freezer_2",
+     "centro": [
+      -0.2365,
+      0.713,
+      -0.05
+     ],
+     "tamanho": [
+      0.323,
+      0.35,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_freezer_3",
+     "centro": [
+      -0.2365,
+      1.093,
+      -0.05
+     ],
+     "tamanho": [
+      0.323,
+      0.62,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_gaveta_legumes_1",
+     "centro": [
+      0.1865,
+      0.106,
+      -0.047
+     ],
+     "tamanho": [
+      0.407,
+      0.152,
+      0.484
+     ],
+     "em": "gaveta_legumes_1"
+    },
+    {
+     "nome": "slot_gaveta_legumes_2",
+     "centro": [
+      0.1865,
+      0.296,
+      -0.047
+     ],
+     "tamanho": [
+      0.407,
+      0.152,
+      0.484
+     ],
+     "em": "gaveta_legumes_2"
+    },
+    {
+     "nome": "slot_geladeira_1",
+     "centro": [
+      0.1865,
+      0.493,
+      -0.05
+     ],
+     "tamanho": [
+      0.423,
+      0.32,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_2",
+     "centro": [
+      0.1865,
+      0.843,
+      -0.05
+     ],
+     "tamanho": [
+      0.423,
+      0.32,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_3",
+     "centro": [
+      0.1865,
+      1.193,
+      -0.05
+     ],
+     "tamanho": [
+      0.423,
+      0.51,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_freezer_prateleira_1",
+     "centro": [
+      -0.2375,
+      0.402,
+      0.259
+     ],
+     "tamanho": [
+      0.295,
+      0.12,
+      0.05
+     ],
+     "em": "porta_freezer"
+    },
+    {
+     "nome": "slot_porta_freezer_prateleira_2",
+     "centro": [
+      -0.2375,
+      0.802,
+      0.259
+     ],
+     "tamanho": [
+      0.295,
+      0.12,
+      0.05
+     ],
+     "em": "porta_freezer"
+    },
+    {
+     "nome": "slot_porta_freezer_prateleira_3",
+     "centro": [
+      -0.2375,
+      1.202,
+      0.259
+     ],
+     "tamanho": [
+      0.295,
+      0.12,
+      0.05
+     ],
+     "em": "porta_freezer"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_1",
+     "centro": [
+      0.1875,
+      0.402,
+      0.259
+     ],
+     "tamanho": [
+      0.395,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_2",
+     "centro": [
+      0.1875,
+      0.802,
+      0.259
+     ],
+     "tamanho": [
+      0.395,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_3",
+     "centro": [
+      0.1875,
+      1.202,
+      0.259
+     ],
+     "tamanho": [
+      0.395,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.89,
+      -0.03
+     ],
+     "tamanho": [
+      0.92,
+      1.78,
+      0.64
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "grafite",
+    "grafite_escuro"
+   ],
+   "tris": 11024,
+   "pacote": false,
+   "tags": [
+    "geladeira",
+    "duplex",
+    "portas",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "geladeira_duplex_branca",
+   "rotulo": "Geladeira duplex lado a lado (branca)",
+   "categoria": "cozinha_eletros",
+   "grupo": "geladeira_duplex",
+   "fixacao": "chao",
+   "dims": [
+    0.92,
+    0.754,
+    1.78
+   ],
+   "arquivo": "glb/geladeira_duplex_branca.glb",
+   "miniatura": "miniaturas/geladeira_duplex_branca.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.35,
+     "nome": "gaveta_freezer",
+     "pivo": [
+      -0.2365,
+      0.098,
+      0.205
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.35,
+     "nome": "gaveta_legumes_1",
+     "pivo": [
+      0.1865,
+      0.098,
+      0.205
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.35,
+     "nome": "gaveta_legumes_2",
+     "pivo": [
+      0.1865,
+      0.288,
+      0.205
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_freezer",
+     "pivo": [
+      -0.46,
+      0.0,
+      0.322
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_geladeira",
+     "pivo": [
+      0.46,
+      0.0,
+      0.322
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_freezer",
+     "centro": [
+      -0.2365,
+      0.106,
+      -0.047
+     ],
+     "tamanho": [
+      0.307,
+      0.182,
+      0.484
+     ],
+     "em": "gaveta_freezer"
+    },
+    {
+     "nome": "slot_freezer_1",
+     "centro": [
+      -0.2365,
+      0.343,
+      -0.05
+     ],
+     "tamanho": [
+      0.323,
+      0.34,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_freezer_2",
+     "centro": [
+      -0.2365,
+      0.713,
+      -0.05
+     ],
+     "tamanho": [
+      0.323,
+      0.35,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_freezer_3",
+     "centro": [
+      -0.2365,
+      1.093,
+      -0.05
+     ],
+     "tamanho": [
+      0.323,
+      0.62,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_gaveta_legumes_1",
+     "centro": [
+      0.1865,
+      0.106,
+      -0.047
+     ],
+     "tamanho": [
+      0.407,
+      0.152,
+      0.484
+     ],
+     "em": "gaveta_legumes_1"
+    },
+    {
+     "nome": "slot_gaveta_legumes_2",
+     "centro": [
+      0.1865,
+      0.296,
+      -0.047
+     ],
+     "tamanho": [
+      0.407,
+      0.152,
+      0.484
+     ],
+     "em": "gaveta_legumes_2"
+    },
+    {
+     "nome": "slot_geladeira_1",
+     "centro": [
+      0.1865,
+      0.493,
+      -0.05
+     ],
+     "tamanho": [
+      0.423,
+      0.32,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_2",
+     "centro": [
+      0.1865,
+      0.843,
+      -0.05
+     ],
+     "tamanho": [
+      0.423,
+      0.32,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_3",
+     "centro": [
+      0.1865,
+      1.193,
+      -0.05
+     ],
+     "tamanho": [
+      0.423,
+      0.51,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_freezer_prateleira_1",
+     "centro": [
+      -0.2375,
+      0.402,
+      0.259
+     ],
+     "tamanho": [
+      0.295,
+      0.12,
+      0.05
+     ],
+     "em": "porta_freezer"
+    },
+    {
+     "nome": "slot_porta_freezer_prateleira_2",
+     "centro": [
+      -0.2375,
+      0.802,
+      0.259
+     ],
+     "tamanho": [
+      0.295,
+      0.12,
+      0.05
+     ],
+     "em": "porta_freezer"
+    },
+    {
+     "nome": "slot_porta_freezer_prateleira_3",
+     "centro": [
+      -0.2375,
+      1.202,
+      0.259
+     ],
+     "tamanho": [
+      0.295,
+      0.12,
+      0.05
+     ],
+     "em": "porta_freezer"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_1",
+     "centro": [
+      0.1875,
+      0.402,
+      0.259
+     ],
+     "tamanho": [
+      0.395,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_2",
+     "centro": [
+      0.1875,
+      0.802,
+      0.259
+     ],
+     "tamanho": [
+      0.395,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_3",
+     "centro": [
+      0.1875,
+      1.202,
+      0.259
+     ],
+     "tamanho": [
+      0.395,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.89,
+      -0.03
+     ],
+     "tamanho": [
+      0.92,
+      1.78,
+      0.64
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_medio",
+    "grafite",
+    "grafite_escuro",
+    "porcelana",
+    "turquesa"
+   ],
+   "tris": 11024,
+   "pacote": false,
+   "tags": [
+    "geladeira",
+    "duplex",
+    "portas",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "geladeira_duplex_grafite",
+   "rotulo": "Geladeira duplex lado a lado (grafite)",
+   "categoria": "cozinha_eletros",
+   "grupo": "geladeira_duplex",
+   "fixacao": "chao",
+   "dims": [
+    0.92,
+    0.754,
+    1.78
+   ],
+   "arquivo": "glb/geladeira_duplex_grafite.glb",
+   "miniatura": "miniaturas/geladeira_duplex_grafite.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.35,
+     "nome": "gaveta_freezer",
+     "pivo": [
+      -0.2365,
+      0.098,
+      0.205
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.35,
+     "nome": "gaveta_legumes_1",
+     "pivo": [
+      0.1865,
+      0.098,
+      0.205
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.35,
+     "nome": "gaveta_legumes_2",
+     "pivo": [
+      0.1865,
+      0.288,
+      0.205
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_freezer",
+     "pivo": [
+      -0.46,
+      0.0,
+      0.322
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_geladeira",
+     "pivo": [
+      0.46,
+      0.0,
+      0.322
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_freezer",
+     "centro": [
+      -0.2365,
+      0.106,
+      -0.047
+     ],
+     "tamanho": [
+      0.307,
+      0.182,
+      0.484
+     ],
+     "em": "gaveta_freezer"
+    },
+    {
+     "nome": "slot_freezer_1",
+     "centro": [
+      -0.2365,
+      0.343,
+      -0.05
+     ],
+     "tamanho": [
+      0.323,
+      0.34,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_freezer_2",
+     "centro": [
+      -0.2365,
+      0.713,
+      -0.05
+     ],
+     "tamanho": [
+      0.323,
+      0.35,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_freezer_3",
+     "centro": [
+      -0.2365,
+      1.093,
+      -0.05
+     ],
+     "tamanho": [
+      0.323,
+      0.62,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_gaveta_legumes_1",
+     "centro": [
+      0.1865,
+      0.106,
+      -0.047
+     ],
+     "tamanho": [
+      0.407,
+      0.152,
+      0.484
+     ],
+     "em": "gaveta_legumes_1"
+    },
+    {
+     "nome": "slot_gaveta_legumes_2",
+     "centro": [
+      0.1865,
+      0.296,
+      -0.047
+     ],
+     "tamanho": [
+      0.407,
+      0.152,
+      0.484
+     ],
+     "em": "gaveta_legumes_2"
+    },
+    {
+     "nome": "slot_geladeira_1",
+     "centro": [
+      0.1865,
+      0.493,
+      -0.05
+     ],
+     "tamanho": [
+      0.423,
+      0.32,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_2",
+     "centro": [
+      0.1865,
+      0.843,
+      -0.05
+     ],
+     "tamanho": [
+      0.423,
+      0.32,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_3",
+     "centro": [
+      0.1865,
+      1.193,
+      -0.05
+     ],
+     "tamanho": [
+      0.423,
+      0.51,
+      0.49
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_freezer_prateleira_1",
+     "centro": [
+      -0.2375,
+      0.402,
+      0.259
+     ],
+     "tamanho": [
+      0.295,
+      0.12,
+      0.05
+     ],
+     "em": "porta_freezer"
+    },
+    {
+     "nome": "slot_porta_freezer_prateleira_2",
+     "centro": [
+      -0.2375,
+      0.802,
+      0.259
+     ],
+     "tamanho": [
+      0.295,
+      0.12,
+      0.05
+     ],
+     "em": "porta_freezer"
+    },
+    {
+     "nome": "slot_porta_freezer_prateleira_3",
+     "centro": [
+      -0.2375,
+      1.202,
+      0.259
+     ],
+     "tamanho": [
+      0.295,
+      0.12,
+      0.05
+     ],
+     "em": "porta_freezer"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_1",
+     "centro": [
+      0.1875,
+      0.402,
+      0.259
+     ],
+     "tamanho": [
+      0.395,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_2",
+     "centro": [
+      0.1875,
+      0.802,
+      0.259
+     ],
+     "tamanho": [
+      0.395,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_3",
+     "centro": [
+      0.1875,
+      1.202,
+      0.259
+     ],
+     "tamanho": [
+      0.395,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.89,
+      -0.03
+     ],
+     "tamanho": [
+      0.92,
+      1.78,
+      0.64
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_claro",
+    "cinza_medio",
+    "grafite",
+    "grafite_escuro",
+    "laranja",
+    "metal_claro",
+    "preto"
+   ],
+   "tris": 11024,
+   "pacote": false,
+   "tags": [
+    "geladeira",
+    "duplex",
+    "portas",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "geladeira_duas_portas_lilas",
+   "rotulo": "Geladeira de duas portas (lilás)",
+   "categoria": "cozinha_eletros",
+   "grupo": "geladeira_duas_portas",
+   "fixacao": "chao",
+   "dims": [
+    0.66,
+    0.724,
+    1.76
+   ],
+   "arquivo": "glb/geladeira_duas_portas_lilas.glb",
+   "miniatura": "miniaturas/geladeira_duas_portas_lilas.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3325,
+     "nome": "gaveta_freezer",
+     "pivo": [
+      0.0,
+      0.083,
+      0.1875
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3325,
+     "nome": "gaveta_legumes",
+     "pivo": [
+      0.0,
+      0.656,
+      0.1875
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_freezer",
+     "pivo": [
+      -0.33,
+      0.0,
+      0.302
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_geladeira",
+     "pivo": [
+      -0.33,
+      0.0,
+      0.302
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_freezer",
+     "centro": [
+      0.0,
+      0.091,
+      -0.052
+     ],
+     "tamanho": [
+      0.532,
+      0.222,
+      0.459
+     ],
+     "em": "gaveta_freezer"
+    },
+    {
+     "nome": "slot_freezer_1",
+     "centro": [
+      0.0,
+      0.378,
+      -0.055
+     ],
+     "tamanho": [
+      0.548,
+      0.195,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_gaveta_legumes",
+     "centro": [
+      0.0,
+      0.664,
+      -0.052
+     ],
+     "tamanho": [
+      0.532,
+      0.162,
+      0.459
+     ],
+     "em": "gaveta_legumes"
+    },
+    {
+     "nome": "slot_geladeira_1",
+     "centro": [
+      0.0,
+      0.873,
+      -0.055
+     ],
+     "tamanho": [
+      0.548,
+      0.25,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_2",
+     "centro": [
+      0.0,
+      1.153,
+      -0.055
+     ],
+     "tamanho": [
+      0.548,
+      0.25,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_3",
+     "centro": [
+      0.0,
+      1.433,
+      -0.055
+     ],
+     "tamanho": [
+      0.548,
+      0.265,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_freezer_prateleira_1",
+     "centro": [
+      0.0,
+      0.288,
+      0.2365
+     ],
+     "tamanho": [
+      0.53,
+      0.12,
+      0.05
+     ],
+     "em": "porta_freezer"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_1",
+     "centro": [
+      0.0,
+      0.828,
+      0.2365
+     ],
+     "tamanho": [
+      0.53,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_2",
+     "centro": [
+      0.0,
+      1.128,
+      0.2365
+     ],
+     "tamanho": [
+      0.53,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_3",
+     "centro": [
+      0.0,
+      1.428,
+      0.2365
+     ],
+     "tamanho": [
+      0.53,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.88,
+      -0.0325
+     ],
+     "tamanho": [
+      0.66,
+      1.76,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "grafite",
+    "lilas",
+    "lilas_claro",
+    "roxo"
+   ],
+   "tris": 7040,
+   "pacote": false,
+   "tags": [
+    "geladeira",
+    "duas portas",
+    "freezer embaixo",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "geladeira_duas_portas_azul",
+   "rotulo": "Geladeira de duas portas (azul)",
+   "categoria": "cozinha_eletros",
+   "grupo": "geladeira_duas_portas",
+   "fixacao": "chao",
+   "dims": [
+    0.66,
+    0.724,
+    1.76
+   ],
+   "arquivo": "glb/geladeira_duas_portas_azul.glb",
+   "miniatura": "miniaturas/geladeira_duas_portas_azul.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3325,
+     "nome": "gaveta_freezer",
+     "pivo": [
+      0.0,
+      0.083,
+      0.1875
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3325,
+     "nome": "gaveta_legumes",
+     "pivo": [
+      0.0,
+      0.656,
+      0.1875
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_freezer",
+     "pivo": [
+      -0.33,
+      0.0,
+      0.302
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_geladeira",
+     "pivo": [
+      -0.33,
+      0.0,
+      0.302
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_freezer",
+     "centro": [
+      0.0,
+      0.091,
+      -0.052
+     ],
+     "tamanho": [
+      0.532,
+      0.222,
+      0.459
+     ],
+     "em": "gaveta_freezer"
+    },
+    {
+     "nome": "slot_freezer_1",
+     "centro": [
+      0.0,
+      0.378,
+      -0.055
+     ],
+     "tamanho": [
+      0.548,
+      0.195,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_gaveta_legumes",
+     "centro": [
+      0.0,
+      0.664,
+      -0.052
+     ],
+     "tamanho": [
+      0.532,
+      0.162,
+      0.459
+     ],
+     "em": "gaveta_legumes"
+    },
+    {
+     "nome": "slot_geladeira_1",
+     "centro": [
+      0.0,
+      0.873,
+      -0.055
+     ],
+     "tamanho": [
+      0.548,
+      0.25,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_2",
+     "centro": [
+      0.0,
+      1.153,
+      -0.055
+     ],
+     "tamanho": [
+      0.548,
+      0.25,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_3",
+     "centro": [
+      0.0,
+      1.433,
+      -0.055
+     ],
+     "tamanho": [
+      0.548,
+      0.265,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_freezer_prateleira_1",
+     "centro": [
+      0.0,
+      0.288,
+      0.2365
+     ],
+     "tamanho": [
+      0.53,
+      0.12,
+      0.05
+     ],
+     "em": "porta_freezer"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_1",
+     "centro": [
+      0.0,
+      0.828,
+      0.2365
+     ],
+     "tamanho": [
+      0.53,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_2",
+     "centro": [
+      0.0,
+      1.128,
+      0.2365
+     ],
+     "tamanho": [
+      0.53,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_3",
+     "centro": [
+      0.0,
+      1.428,
+      0.2365
+     ],
+     "tamanho": [
+      0.53,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.88,
+      -0.0325
+     ],
+     "tamanho": [
+      0.66,
+      1.76,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul_bebe",
+    "azul_claro",
+    "azul_medio",
+    "branco_gelo",
+    "grafite"
+   ],
+   "tris": 7040,
+   "pacote": false,
+   "tags": [
+    "geladeira",
+    "duas portas",
+    "freezer embaixo",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "geladeira_duas_portas_menta",
+   "rotulo": "Geladeira de duas portas (menta)",
+   "categoria": "cozinha_eletros",
+   "grupo": "geladeira_duas_portas",
+   "fixacao": "chao",
+   "dims": [
+    0.66,
+    0.724,
+    1.76
+   ],
+   "arquivo": "glb/geladeira_duas_portas_menta.glb",
+   "miniatura": "miniaturas/geladeira_duas_portas_menta.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3325,
+     "nome": "gaveta_freezer",
+     "pivo": [
+      0.0,
+      0.083,
+      0.1875
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3325,
+     "nome": "gaveta_legumes",
+     "pivo": [
+      0.0,
+      0.656,
+      0.1875
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_freezer",
+     "pivo": [
+      -0.33,
+      0.0,
+      0.302
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta_geladeira",
+     "pivo": [
+      -0.33,
+      0.0,
+      0.302
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_freezer",
+     "centro": [
+      0.0,
+      0.091,
+      -0.052
+     ],
+     "tamanho": [
+      0.532,
+      0.222,
+      0.459
+     ],
+     "em": "gaveta_freezer"
+    },
+    {
+     "nome": "slot_freezer_1",
+     "centro": [
+      0.0,
+      0.378,
+      -0.055
+     ],
+     "tamanho": [
+      0.548,
+      0.195,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_gaveta_legumes",
+     "centro": [
+      0.0,
+      0.664,
+      -0.052
+     ],
+     "tamanho": [
+      0.532,
+      0.162,
+      0.459
+     ],
+     "em": "gaveta_legumes"
+    },
+    {
+     "nome": "slot_geladeira_1",
+     "centro": [
+      0.0,
+      0.873,
+      -0.055
+     ],
+     "tamanho": [
+      0.548,
+      0.25,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_2",
+     "centro": [
+      0.0,
+      1.153,
+      -0.055
+     ],
+     "tamanho": [
+      0.548,
+      0.25,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_3",
+     "centro": [
+      0.0,
+      1.433,
+      -0.055
+     ],
+     "tamanho": [
+      0.548,
+      0.265,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_freezer_prateleira_1",
+     "centro": [
+      0.0,
+      0.288,
+      0.2365
+     ],
+     "tamanho": [
+      0.53,
+      0.12,
+      0.05
+     ],
+     "em": "porta_freezer"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_1",
+     "centro": [
+      0.0,
+      0.828,
+      0.2365
+     ],
+     "tamanho": [
+      0.53,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_2",
+     "centro": [
+      0.0,
+      1.128,
+      0.2365
+     ],
+     "tamanho": [
+      0.53,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_3",
+     "centro": [
+      0.0,
+      1.428,
+      0.2365
+     ],
+     "tamanho": [
+      0.53,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.88,
+      -0.0325
+     ],
+     "tamanho": [
+      0.66,
+      1.76,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "grafite",
+    "menta",
+    "verde_claro",
+    "verde_medio"
+   ],
+   "tris": 7040,
+   "pacote": false,
+   "tags": [
+    "geladeira",
+    "duas portas",
+    "freezer embaixo",
+    "gavetas"
+   ]
+  },
+  {
+   "id": "geladeira_retro_pes_rosa",
+   "rotulo": "Geladeira retrô com pés (rosa)",
+   "categoria": "cozinha_eletros",
+   "grupo": "geladeira_retro_pes",
+   "fixacao": "chao",
+   "dims": [
+    0.64,
+    0.722,
+    1.72
+   ],
+   "arquivo": "glb/geladeira_retro_pes_rosa.glb",
+   "miniatura": "miniaturas/geladeira_retro_pes_rosa.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3325,
+     "nome": "gaveta_legumes",
+     "pivo": [
+      0.0,
+      0.133,
+      0.19
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_congelador",
+     "pivo": [
+      0.32,
+      0.0,
+      0.302
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_geladeira",
+     "pivo": [
+      0.32,
+      0.0,
+      0.302
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_legumes",
+     "centro": [
+      0.0,
+      0.141,
+      -0.0495
+     ],
+     "tamanho": [
+      0.51,
+      0.142,
+      0.459
+     ],
+     "em": "gaveta_legumes"
+    },
+    {
+     "nome": "slot_geladeira_1",
+     "centro": [
+      0.0,
+      0.336,
+      -0.0525
+     ],
+     "tamanho": [
+      0.536,
+      0.25,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_2",
+     "centro": [
+      0.0,
+      0.616,
+      -0.0525
+     ],
+     "tamanho": [
+      0.536,
+      0.25,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_3",
+     "centro": [
+      0.0,
+      0.896,
+      -0.0525
+     ],
+     "tamanho": [
+      0.536,
+      0.27,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_congelador_1",
+     "centro": [
+      0.0,
+      1.416,
+      -0.0525
+     ],
+     "tamanho": [
+      0.536,
+      0.25,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_congelador_fundo",
+     "centro": [
+      0,
+      1.22,
+      -0.0525
+     ],
+     "tamanho": [
+      0.536,
+      0.17,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_1",
+     "centro": [
+      0.0,
+      0.238,
+      0.239
+     ],
+     "tamanho": [
+      0.516,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_2",
+     "centro": [
+      0.0,
+      0.538,
+      0.239
+     ],
+     "tamanho": [
+      0.516,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_3",
+     "centro": [
+      0.0,
+      0.838,
+      0.239
+     ],
+     "tamanho": [
+      0.516,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.86,
+      -0.03
+     ],
+     "tamanho": [
+      0.64,
+      1.72,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "laranja",
+    "lilas",
+    "rosa",
+    "rosa_claro"
+   ],
+   "tris": 7212,
+   "pacote": false,
+   "tags": [
+    "geladeira",
+    "retrô",
+    "pés",
+    "duas portas"
+   ]
+  },
+  {
+   "id": "geladeira_retro_pes_azul",
+   "rotulo": "Geladeira retrô com pés (azul-bebê)",
+   "categoria": "cozinha_eletros",
+   "grupo": "geladeira_retro_pes",
+   "fixacao": "chao",
+   "dims": [
+    0.64,
+    0.722,
+    1.72
+   ],
+   "arquivo": "glb/geladeira_retro_pes_azul.glb",
+   "miniatura": "miniaturas/geladeira_retro_pes_azul.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3325,
+     "nome": "gaveta_legumes",
+     "pivo": [
+      0.0,
+      0.133,
+      0.19
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_congelador",
+     "pivo": [
+      0.32,
+      0.0,
+      0.302
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_geladeira",
+     "pivo": [
+      0.32,
+      0.0,
+      0.302
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_legumes",
+     "centro": [
+      0.0,
+      0.141,
+      -0.0495
+     ],
+     "tamanho": [
+      0.51,
+      0.142,
+      0.459
+     ],
+     "em": "gaveta_legumes"
+    },
+    {
+     "nome": "slot_geladeira_1",
+     "centro": [
+      0.0,
+      0.336,
+      -0.0525
+     ],
+     "tamanho": [
+      0.536,
+      0.25,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_2",
+     "centro": [
+      0.0,
+      0.616,
+      -0.0525
+     ],
+     "tamanho": [
+      0.536,
+      0.25,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_3",
+     "centro": [
+      0.0,
+      0.896,
+      -0.0525
+     ],
+     "tamanho": [
+      0.536,
+      0.27,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_congelador_1",
+     "centro": [
+      0.0,
+      1.416,
+      -0.0525
+     ],
+     "tamanho": [
+      0.536,
+      0.25,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_congelador_fundo",
+     "centro": [
+      0,
+      1.22,
+      -0.0525
+     ],
+     "tamanho": [
+      0.536,
+      0.17,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_1",
+     "centro": [
+      0.0,
+      0.238,
+      0.239
+     ],
+     "tamanho": [
+      0.516,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_2",
+     "centro": [
+      0.0,
+      0.538,
+      0.239
+     ],
+     "tamanho": [
+      0.516,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_3",
+     "centro": [
+      0.0,
+      0.838,
+      0.239
+     ],
+     "tamanho": [
+      0.516,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.86,
+      -0.03
+     ],
+     "tamanho": [
+      0.64,
+      1.72,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_bebe",
+    "azul_celeste",
+    "madeira_mel",
+    "porcelana_azul"
+   ],
+   "tris": 7212,
+   "pacote": false,
+   "tags": [
+    "geladeira",
+    "retrô",
+    "pés",
+    "duas portas"
+   ]
+  },
+  {
+   "id": "geladeira_retro_pes_creme",
+   "rotulo": "Geladeira retrô com pés (creme)",
+   "categoria": "cozinha_eletros",
+   "grupo": "geladeira_retro_pes",
+   "fixacao": "chao",
+   "dims": [
+    0.64,
+    0.722,
+    1.72
+   ],
+   "arquivo": "glb/geladeira_retro_pes_creme.glb",
+   "miniatura": "miniaturas/geladeira_retro_pes_creme.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3325,
+     "nome": "gaveta_legumes",
+     "pivo": [
+      0.0,
+      0.133,
+      0.19
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_congelador",
+     "pivo": [
+      0.32,
+      0.0,
+      0.302
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_geladeira",
+     "pivo": [
+      0.32,
+      0.0,
+      0.302
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_gaveta_legumes",
+     "centro": [
+      0.0,
+      0.141,
+      -0.0495
+     ],
+     "tamanho": [
+      0.51,
+      0.142,
+      0.459
+     ],
+     "em": "gaveta_legumes"
+    },
+    {
+     "nome": "slot_geladeira_1",
+     "centro": [
+      0.0,
+      0.336,
+      -0.0525
+     ],
+     "tamanho": [
+      0.536,
+      0.25,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_2",
+     "centro": [
+      0.0,
+      0.616,
+      -0.0525
+     ],
+     "tamanho": [
+      0.536,
+      0.25,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_3",
+     "centro": [
+      0.0,
+      0.896,
+      -0.0525
+     ],
+     "tamanho": [
+      0.536,
+      0.27,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_congelador_1",
+     "centro": [
+      0.0,
+      1.416,
+      -0.0525
+     ],
+     "tamanho": [
+      0.536,
+      0.25,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_congelador_fundo",
+     "centro": [
+      0,
+      1.22,
+      -0.0525
+     ],
+     "tamanho": [
+      0.536,
+      0.17,
+      0.465
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_1",
+     "centro": [
+      0.0,
+      0.238,
+      0.239
+     ],
+     "tamanho": [
+      0.516,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_2",
+     "centro": [
+      0.0,
+      0.538,
+      0.239
+     ],
+     "tamanho": [
+      0.516,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_3",
+     "centro": [
+      0.0,
+      0.838,
+      0.239
+     ],
+     "tamanho": [
+      0.516,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.86,
+      -0.03
+     ],
+     "tamanho": [
+      0.64,
+      1.72,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "creme_claro",
+    "madeira",
+    "terracota_clara",
+    "verde_agua"
+   ],
+   "tris": 7212,
+   "pacote": false,
+   "tags": [
+    "geladeira",
+    "retrô",
+    "pés",
+    "duas portas"
+   ]
+  },
+  {
+   "id": "geladeira_retro_redonda_amarela",
+   "rotulo": "Geladeira retrô arredondada (amarela)",
+   "categoria": "cozinha_eletros",
+   "grupo": "geladeira_retro_redonda",
+   "fixacao": "chao",
+   "dims": [
+    0.694,
+    0.711,
+    1.74
+   ],
+   "arquivo": "glb/geladeira_retro_redonda_amarela.glb",
+   "miniatura": "miniaturas/geladeira_retro_redonda_amarela.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_congelador",
+     "pivo": [
+      0.33,
+      0.0,
+      0.292
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_geladeira",
+     "pivo": [
+      0.33,
+      0.0,
+      0.292
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_geladeira_1",
+     "centro": [
+      0.0,
+      0.098,
+      -0.0625
+     ],
+     "tamanho": [
+      0.536,
+      0.258,
+      0.44
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_2",
+     "centro": [
+      0.0,
+      0.386,
+      -0.0625
+     ],
+     "tamanho": [
+      0.536,
+      0.27,
+      0.44
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_3",
+     "centro": [
+      0.0,
+      0.686,
+      -0.0625
+     ],
+     "tamanho": [
+      0.536,
+      0.4,
+      0.44
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_congelador_1",
+     "centro": [
+      0.0,
+      1.156,
+      -0.0625
+     ],
+     "tamanho": [
+      0.456,
+      0.46,
+      0.44
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_congelador_prateleira_1",
+     "centro": [
+      0.0,
+      1.248,
+      0.224
+     ],
+     "tamanho": [
+      0.436,
+      0.12,
+      0.045
+     ],
+     "em": "porta_congelador"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_1",
+     "centro": [
+      0.0,
+      0.278,
+      0.224
+     ],
+     "tamanho": [
+      0.476,
+      0.12,
+      0.045
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_2",
+     "centro": [
+      0.0,
+      0.578,
+      0.224
+     ],
+     "tamanho": [
+      0.476,
+      0.12,
+      0.045
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_3",
+     "centro": [
+      0.0,
+      0.878,
+      0.224
+     ],
+     "tamanho": [
+      0.476,
+      0.12,
+      0.045
+     ],
+     "em": "porta_geladeira"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.87,
+      -0.0345
+     ],
+     "tamanho": [
+      0.66,
+      1.74,
+      0.586
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "cinza_claro",
+    "grafite",
+    "rosa_claro",
+    "roxo"
+   ],
+   "tris": 8352,
+   "pacote": false,
+   "tags": [
+    "geladeira",
+    "retrô",
+    "arredondada",
+    "duas portas"
+   ]
+  },
+  {
+   "id": "geladeira_retro_redonda_turquesa",
+   "rotulo": "Geladeira retrô arredondada (turquesa)",
+   "categoria": "cozinha_eletros",
+   "grupo": "geladeira_retro_redonda",
+   "fixacao": "chao",
+   "dims": [
+    0.694,
+    0.711,
+    1.74
+   ],
+   "arquivo": "glb/geladeira_retro_redonda_turquesa.glb",
+   "miniatura": "miniaturas/geladeira_retro_redonda_turquesa.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_congelador",
+     "pivo": [
+      0.33,
+      0.0,
+      0.292
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_geladeira",
+     "pivo": [
+      0.33,
+      0.0,
+      0.292
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_geladeira_1",
+     "centro": [
+      0.0,
+      0.098,
+      -0.0625
+     ],
+     "tamanho": [
+      0.536,
+      0.258,
+      0.44
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_2",
+     "centro": [
+      0.0,
+      0.386,
+      -0.0625
+     ],
+     "tamanho": [
+      0.536,
+      0.27,
+      0.44
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_3",
+     "centro": [
+      0.0,
+      0.686,
+      -0.0625
+     ],
+     "tamanho": [
+      0.536,
+      0.4,
+      0.44
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_congelador_1",
+     "centro": [
+      0.0,
+      1.156,
+      -0.0625
+     ],
+     "tamanho": [
+      0.456,
+      0.46,
+      0.44
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_congelador_prateleira_1",
+     "centro": [
+      0.0,
+      1.248,
+      0.224
+     ],
+     "tamanho": [
+      0.436,
+      0.12,
+      0.045
+     ],
+     "em": "porta_congelador"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_1",
+     "centro": [
+      0.0,
+      0.278,
+      0.224
+     ],
+     "tamanho": [
+      0.476,
+      0.12,
+      0.045
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_2",
+     "centro": [
+      0.0,
+      0.578,
+      0.224
+     ],
+     "tamanho": [
+      0.476,
+      0.12,
+      0.045
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_3",
+     "centro": [
+      0.0,
+      0.878,
+      0.224
+     ],
+     "tamanho": [
+      0.476,
+      0.12,
+      0.045
+     ],
+     "em": "porta_geladeira"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.87,
+      -0.0345
+     ],
+     "tamanho": [
+      0.66,
+      1.74,
+      0.586
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_claro",
+    "grafite",
+    "laranja",
+    "porcelana_azul",
+    "turquesa"
+   ],
+   "tris": 8352,
+   "pacote": false,
+   "tags": [
+    "geladeira",
+    "retrô",
+    "arredondada",
+    "duas portas"
+   ]
+  },
+  {
+   "id": "geladeira_retro_redonda_laranja",
+   "rotulo": "Geladeira retrô arredondada (laranja)",
+   "categoria": "cozinha_eletros",
+   "grupo": "geladeira_retro_redonda",
+   "fixacao": "chao",
+   "dims": [
+    0.694,
+    0.711,
+    1.74
+   ],
+   "arquivo": "glb/geladeira_retro_redonda_laranja.glb",
+   "miniatura": "miniaturas/geladeira_retro_redonda_laranja.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_congelador",
+     "pivo": [
+      0.33,
+      0.0,
+      0.292
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_geladeira",
+     "pivo": [
+      0.33,
+      0.0,
+      0.292
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_geladeira_1",
+     "centro": [
+      0.0,
+      0.098,
+      -0.0625
+     ],
+     "tamanho": [
+      0.536,
+      0.258,
+      0.44
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_2",
+     "centro": [
+      0.0,
+      0.386,
+      -0.0625
+     ],
+     "tamanho": [
+      0.536,
+      0.27,
+      0.44
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_3",
+     "centro": [
+      0.0,
+      0.686,
+      -0.0625
+     ],
+     "tamanho": [
+      0.536,
+      0.4,
+      0.44
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_congelador_1",
+     "centro": [
+      0.0,
+      1.156,
+      -0.0625
+     ],
+     "tamanho": [
+      0.456,
+      0.46,
+      0.44
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_congelador_prateleira_1",
+     "centro": [
+      0.0,
+      1.248,
+      0.224
+     ],
+     "tamanho": [
+      0.436,
+      0.12,
+      0.045
+     ],
+     "em": "porta_congelador"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_1",
+     "centro": [
+      0.0,
+      0.278,
+      0.224
+     ],
+     "tamanho": [
+      0.476,
+      0.12,
+      0.045
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_2",
+     "centro": [
+      0.0,
+      0.578,
+      0.224
+     ],
+     "tamanho": [
+      0.476,
+      0.12,
+      0.045
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_3",
+     "centro": [
+      0.0,
+      0.878,
+      0.224
+     ],
+     "tamanho": [
+      0.476,
+      0.12,
+      0.045
+     ],
+     "em": "porta_geladeira"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.87,
+      -0.0345
+     ],
+     "tamanho": [
+      0.66,
+      1.74,
+      0.586
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "cinza_claro",
+    "creme_claro",
+    "grafite",
+    "laranja"
+   ],
+   "tris": 8352,
+   "pacote": false,
+   "tags": [
+    "geladeira",
+    "retrô",
+    "arredondada",
+    "duas portas"
+   ]
+  },
+  {
+   "id": "geladeira_retro_uma_porta_vermelha",
+   "rotulo": "Geladeira retrô de uma porta (vermelha)",
+   "categoria": "cozinha_eletros",
+   "grupo": "geladeira_retro_uma_porta",
+   "fixacao": "chao",
+   "dims": [
+    0.68,
+    0.762,
+    1.72
+   ],
+   "arquivo": "glb/geladeira_retro_uma_porta_vermelha.glb",
+   "miniatura": "miniaturas/geladeira_retro_uma_porta_vermelha.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.329,
+     "nome": "gaveta_legumes",
+     "pivo": [
+      0.0,
+      0.088,
+      0.18
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_geladeira",
+     "pivo": [
+      0.34,
+      0.0,
+      0.302
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_congelador",
+     "centro": [
+      0,
+      1.327,
+      -0.06
+     ],
+     "tamanho": [
+      0.466,
+      0.17,
+      0.44
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_gaveta_legumes",
+     "centro": [
+      0.0,
+      0.096,
+      -0.057
+     ],
+     "tamanho": [
+      0.54,
+      0.152,
+      0.454
+     ],
+     "em": "gaveta_legumes"
+    },
+    {
+     "nome": "slot_geladeira_1",
+     "centro": [
+      0.0,
+      0.303,
+      -0.06
+     ],
+     "tamanho": [
+      0.566,
+      0.27,
+      0.46
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_2",
+     "centro": [
+      0.0,
+      0.603,
+      -0.06
+     ],
+     "tamanho": [
+      0.566,
+      0.27,
+      0.46
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_3",
+     "centro": [
+      0.0,
+      0.903,
+      -0.06
+     ],
+     "tamanho": [
+      0.566,
+      0.39,
+      0.46
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_1",
+     "centro": [
+      0.0,
+      0.288,
+      0.234
+     ],
+     "tamanho": [
+      0.526,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_2",
+     "centro": [
+      0.0,
+      0.638,
+      0.234
+     ],
+     "tamanho": [
+      0.526,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_3",
+     "centro": [
+      0.0,
+      0.988,
+      0.234
+     ],
+     "tamanho": [
+      0.526,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_4",
+     "centro": [
+      0.0,
+      1.288,
+      0.234
+     ],
+     "tamanho": [
+      0.526,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.86,
+      -0.035
+     ],
+     "tamanho": [
+      0.68,
+      1.72,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "cinza_claro",
+    "grafite",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 7192,
+   "pacote": false,
+   "tags": [
+    "geladeira",
+    "retrô",
+    "uma porta"
+   ]
+  },
+  {
+   "id": "geladeira_retro_uma_porta_celeste",
+   "rotulo": "Geladeira retrô de uma porta (azul-celeste)",
+   "categoria": "cozinha_eletros",
+   "grupo": "geladeira_retro_uma_porta",
+   "fixacao": "chao",
+   "dims": [
+    0.68,
+    0.762,
+    1.72
+   ],
+   "arquivo": "glb/geladeira_retro_uma_porta_celeste.glb",
+   "miniatura": "miniaturas/geladeira_retro_uma_porta_celeste.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.329,
+     "nome": "gaveta_legumes",
+     "pivo": [
+      0.0,
+      0.088,
+      0.18
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_geladeira",
+     "pivo": [
+      0.34,
+      0.0,
+      0.302
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_congelador",
+     "centro": [
+      0,
+      1.327,
+      -0.06
+     ],
+     "tamanho": [
+      0.466,
+      0.17,
+      0.44
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_gaveta_legumes",
+     "centro": [
+      0.0,
+      0.096,
+      -0.057
+     ],
+     "tamanho": [
+      0.54,
+      0.152,
+      0.454
+     ],
+     "em": "gaveta_legumes"
+    },
+    {
+     "nome": "slot_geladeira_1",
+     "centro": [
+      0.0,
+      0.303,
+      -0.06
+     ],
+     "tamanho": [
+      0.566,
+      0.27,
+      0.46
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_2",
+     "centro": [
+      0.0,
+      0.603,
+      -0.06
+     ],
+     "tamanho": [
+      0.566,
+      0.27,
+      0.46
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_3",
+     "centro": [
+      0.0,
+      0.903,
+      -0.06
+     ],
+     "tamanho": [
+      0.566,
+      0.39,
+      0.46
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_1",
+     "centro": [
+      0.0,
+      0.288,
+      0.234
+     ],
+     "tamanho": [
+      0.526,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_2",
+     "centro": [
+      0.0,
+      0.638,
+      0.234
+     ],
+     "tamanho": [
+      0.526,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_3",
+     "centro": [
+      0.0,
+      0.988,
+      0.234
+     ],
+     "tamanho": [
+      0.526,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_4",
+     "centro": [
+      0.0,
+      1.288,
+      0.234
+     ],
+     "tamanho": [
+      0.526,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.86,
+      -0.035
+     ],
+     "tamanho": [
+      0.68,
+      1.72,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul_bebe",
+    "azul_celeste",
+    "branco_gelo",
+    "cinza_claro",
+    "grafite"
+   ],
+   "tris": 7192,
+   "pacote": false,
+   "tags": [
+    "geladeira",
+    "retrô",
+    "uma porta"
+   ]
+  },
+  {
+   "id": "geladeira_retro_uma_porta_verde",
+   "rotulo": "Geladeira retrô de uma porta (verde)",
+   "categoria": "cozinha_eletros",
+   "grupo": "geladeira_retro_uma_porta",
+   "fixacao": "chao",
+   "dims": [
+    0.68,
+    0.762,
+    1.72
+   ],
+   "arquivo": "glb/geladeira_retro_uma_porta_verde.glb",
+   "miniatura": "miniaturas/geladeira_retro_uma_porta_verde.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.329,
+     "nome": "gaveta_legumes",
+     "pivo": [
+      0.0,
+      0.088,
+      0.18
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_geladeira",
+     "pivo": [
+      0.34,
+      0.0,
+      0.302
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_congelador",
+     "centro": [
+      0,
+      1.327,
+      -0.06
+     ],
+     "tamanho": [
+      0.466,
+      0.17,
+      0.44
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_gaveta_legumes",
+     "centro": [
+      0.0,
+      0.096,
+      -0.057
+     ],
+     "tamanho": [
+      0.54,
+      0.152,
+      0.454
+     ],
+     "em": "gaveta_legumes"
+    },
+    {
+     "nome": "slot_geladeira_1",
+     "centro": [
+      0.0,
+      0.303,
+      -0.06
+     ],
+     "tamanho": [
+      0.566,
+      0.27,
+      0.46
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_2",
+     "centro": [
+      0.0,
+      0.603,
+      -0.06
+     ],
+     "tamanho": [
+      0.566,
+      0.27,
+      0.46
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_geladeira_3",
+     "centro": [
+      0.0,
+      0.903,
+      -0.06
+     ],
+     "tamanho": [
+      0.566,
+      0.39,
+      0.46
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_1",
+     "centro": [
+      0.0,
+      0.288,
+      0.234
+     ],
+     "tamanho": [
+      0.526,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_2",
+     "centro": [
+      0.0,
+      0.638,
+      0.234
+     ],
+     "tamanho": [
+      0.526,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_3",
+     "centro": [
+      0.0,
+      0.988,
+      0.234
+     ],
+     "tamanho": [
+      0.526,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    },
+    {
+     "nome": "slot_porta_geladeira_prateleira_4",
+     "centro": [
+      0.0,
+      1.288,
+      0.234
+     ],
+     "tamanho": [
+      0.526,
+      0.12,
+      0.05
+     ],
+     "em": "porta_geladeira"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.86,
+      -0.035
+     ],
+     "tamanho": [
+      0.68,
+      1.72,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "cinza_claro",
+    "grafite",
+    "menta",
+    "verde_claro"
+   ],
+   "tris": 7192,
+   "pacote": false,
+   "tags": [
+    "geladeira",
+    "retrô",
+    "uma porta"
+   ]
+  },
+  {
+   "id": "frigobar_redondo_creme",
+   "rotulo": "Frigobar arredondado (creme)",
+   "categoria": "cozinha_eletros",
+   "grupo": "frigobar_redondo",
+   "fixacao": "chao",
+   "dims": [
+    0.5,
+    0.626,
+    0.85
+   ],
+   "arquivo": "glb/frigobar_redondo_creme.glb",
+   "miniatura": "miniaturas/frigobar_redondo_creme.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta",
+     "pivo": [
+      0.25,
+      0.0,
+      0.252
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_fundo",
+     "centro": [
+      0,
+      0.075,
+      -0.0525
+     ],
+     "tamanho": [
+      0.26,
+      0.28,
+      0.37
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_1",
+     "centro": [
+      0.0,
+      0.401,
+      -0.0525
+     ],
+     "tamanho": [
+      0.34,
+      0.385,
+      0.37
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_prateleira_1",
+     "centro": [
+      0,
+      0.142,
+      0.1865
+     ],
+     "tamanho": [
+      0.32,
+      0.11,
+      0.045
+     ],
+     "em": "porta"
+    },
+    {
+     "nome": "slot_porta_prateleira_2",
+     "centro": [
+      0,
+      0.442,
+      0.1865
+     ],
+     "tamanho": [
+      0.32,
+      0.11,
+      0.045
+     ],
+     "em": "porta"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.425,
+      -0.0375
+     ],
+     "tamanho": [
+      0.5,
+      0.85,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "cinza_claro",
+    "creme",
+    "creme_claro"
+   ],
+   "tris": 7182,
+   "pacote": false,
+   "tags": [
+    "frigobar",
+    "arredondado",
+    "pequeno"
+   ]
+  },
+  {
+   "id": "frigobar_redondo_rosa",
+   "rotulo": "Frigobar arredondado (rosa)",
+   "categoria": "cozinha_eletros",
+   "grupo": "frigobar_redondo",
+   "fixacao": "chao",
+   "dims": [
+    0.5,
+    0.626,
+    0.85
+   ],
+   "arquivo": "glb/frigobar_redondo_rosa.glb",
+   "miniatura": "miniaturas/frigobar_redondo_rosa.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta",
+     "pivo": [
+      0.25,
+      0.0,
+      0.252
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_fundo",
+     "centro": [
+      0,
+      0.075,
+      -0.0525
+     ],
+     "tamanho": [
+      0.26,
+      0.28,
+      0.37
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_1",
+     "centro": [
+      0.0,
+      0.401,
+      -0.0525
+     ],
+     "tamanho": [
+      0.34,
+      0.385,
+      0.37
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_prateleira_1",
+     "centro": [
+      0,
+      0.142,
+      0.1865
+     ],
+     "tamanho": [
+      0.32,
+      0.11,
+      0.045
+     ],
+     "em": "porta"
+    },
+    {
+     "nome": "slot_porta_prateleira_2",
+     "centro": [
+      0,
+      0.442,
+      0.1865
+     ],
+     "tamanho": [
+      0.32,
+      0.11,
+      0.045
+     ],
+     "em": "porta"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.425,
+      -0.0375
+     ],
+     "tamanho": [
+      0.5,
+      0.85,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "cinza_claro",
+    "rosa_bebe",
+    "rosa_claro",
+    "rosa_escuro"
+   ],
+   "tris": 7182,
+   "pacote": false,
+   "tags": [
+    "frigobar",
+    "arredondado",
+    "pequeno"
+   ]
+  },
+  {
+   "id": "frigobar_redondo_azul",
+   "rotulo": "Frigobar arredondado (azul-bebê)",
+   "categoria": "cozinha_eletros",
+   "grupo": "frigobar_redondo",
+   "fixacao": "chao",
+   "dims": [
+    0.5,
+    0.626,
+    0.85
+   ],
+   "arquivo": "glb/frigobar_redondo_azul.glb",
+   "miniatura": "miniaturas/frigobar_redondo_azul.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta",
+     "pivo": [
+      0.25,
+      0.0,
+      0.252
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_fundo",
+     "centro": [
+      0,
+      0.075,
+      -0.0525
+     ],
+     "tamanho": [
+      0.26,
+      0.28,
+      0.37
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_1",
+     "centro": [
+      0.0,
+      0.401,
+      -0.0525
+     ],
+     "tamanho": [
+      0.34,
+      0.385,
+      0.37
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_prateleira_1",
+     "centro": [
+      0,
+      0.142,
+      0.1865
+     ],
+     "tamanho": [
+      0.32,
+      0.11,
+      0.045
+     ],
+     "em": "porta"
+    },
+    {
+     "nome": "slot_porta_prateleira_2",
+     "centro": [
+      0,
+      0.442,
+      0.1865
+     ],
+     "tamanho": [
+      0.32,
+      0.11,
+      0.045
+     ],
+     "em": "porta"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.425,
+      -0.0375
+     ],
+     "tamanho": [
+      0.5,
+      0.85,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_bebe",
+    "branco_gelo",
+    "cinza_claro",
+    "porcelana_azul"
+   ],
+   "tris": 7182,
+   "pacote": false,
+   "tags": [
+    "frigobar",
+    "arredondado",
+    "pequeno"
+   ]
+  },
+  {
+   "id": "frigobar_bicolor_amarelo",
+   "rotulo": "Frigobar bicolor (amarelo e verde)",
+   "categoria": "cozinha_eletros",
+   "grupo": "frigobar_bicolor",
+   "fixacao": "chao",
+   "dims": [
+    0.48,
+    0.583,
+    0.85
+   ],
+   "arquivo": "glb/frigobar_bicolor_amarelo.glb",
+   "miniatura": "miniaturas/frigobar_bicolor_amarelo.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta",
+     "pivo": [
+      0.215,
+      0.0,
+      0.252
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_fundo",
+     "centro": [
+      0,
+      0.068,
+      -0.0375
+     ],
+     "tamanho": [
+      0.38,
+      0.3,
+      0.38
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_1",
+     "centro": [
+      0.0,
+      0.406,
+      -0.0375
+     ],
+     "tamanho": [
+      0.38,
+      0.2,
+      0.38
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_2",
+     "centro": [
+      0.0,
+      0.636,
+      -0.0375
+     ],
+     "tamanho": [
+      0.38,
+      0.16,
+      0.38
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_prateleira_1",
+     "centro": [
+      0,
+      0.147,
+      0.2035
+     ],
+     "tamanho": [
+      0.32,
+      0.1,
+      0.04
+     ],
+     "em": "porta"
+    },
+    {
+     "nome": "slot_porta_prateleira_2",
+     "centro": [
+      0,
+      0.447,
+      0.2035
+     ],
+     "tamanho": [
+      0.32,
+      0.1,
+      0.04
+     ],
+     "em": "porta"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.425,
+      -0.0225
+     ],
+     "tamanho": [
+      0.48,
+      0.85,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_claro",
+    "branco_gelo",
+    "grafite",
+    "verde_agua"
+   ],
+   "tris": 4444,
+   "pacote": false,
+   "tags": [
+    "frigobar",
+    "duas cores",
+    "pequeno"
+   ]
+  },
+  {
+   "id": "frigobar_bicolor_laranja",
+   "rotulo": "Frigobar bicolor (laranja e azul)",
+   "categoria": "cozinha_eletros",
+   "grupo": "frigobar_bicolor",
+   "fixacao": "chao",
+   "dims": [
+    0.48,
+    0.583,
+    0.85
+   ],
+   "arquivo": "glb/frigobar_bicolor_laranja.glb",
+   "miniatura": "miniaturas/frigobar_bicolor_laranja.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta",
+     "pivo": [
+      0.215,
+      0.0,
+      0.252
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_fundo",
+     "centro": [
+      0,
+      0.068,
+      -0.0375
+     ],
+     "tamanho": [
+      0.38,
+      0.3,
+      0.38
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_1",
+     "centro": [
+      0.0,
+      0.406,
+      -0.0375
+     ],
+     "tamanho": [
+      0.38,
+      0.2,
+      0.38
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_2",
+     "centro": [
+      0.0,
+      0.636,
+      -0.0375
+     ],
+     "tamanho": [
+      0.38,
+      0.16,
+      0.38
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_prateleira_1",
+     "centro": [
+      0,
+      0.147,
+      0.2035
+     ],
+     "tamanho": [
+      0.32,
+      0.1,
+      0.04
+     ],
+     "em": "porta"
+    },
+    {
+     "nome": "slot_porta_prateleira_2",
+     "centro": [
+      0,
+      0.447,
+      0.2035
+     ],
+     "tamanho": [
+      0.32,
+      0.1,
+      0.04
+     ],
+     "em": "porta"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.425,
+      -0.0225
+     ],
+     "tamanho": [
+      0.48,
+      0.85,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "branco_gelo",
+    "grafite",
+    "laranja_claro"
+   ],
+   "tris": 4444,
+   "pacote": false,
+   "tags": [
+    "frigobar",
+    "duas cores",
+    "pequeno"
+   ]
+  },
+  {
+   "id": "frigobar_bicolor_rosa",
+   "rotulo": "Frigobar bicolor (rosa e lilás)",
+   "categoria": "cozinha_eletros",
+   "grupo": "frigobar_bicolor",
+   "fixacao": "chao",
+   "dims": [
+    0.48,
+    0.583,
+    0.85
+   ],
+   "arquivo": "glb/frigobar_bicolor_rosa.glb",
+   "miniatura": "miniaturas/frigobar_bicolor_rosa.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta",
+     "pivo": [
+      0.215,
+      0.0,
+      0.252
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_fundo",
+     "centro": [
+      0,
+      0.068,
+      -0.0375
+     ],
+     "tamanho": [
+      0.38,
+      0.3,
+      0.38
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_1",
+     "centro": [
+      0.0,
+      0.406,
+      -0.0375
+     ],
+     "tamanho": [
+      0.38,
+      0.2,
+      0.38
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_2",
+     "centro": [
+      0.0,
+      0.636,
+      -0.0375
+     ],
+     "tamanho": [
+      0.38,
+      0.16,
+      0.38
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_porta_prateleira_1",
+     "centro": [
+      0,
+      0.147,
+      0.2035
+     ],
+     "tamanho": [
+      0.32,
+      0.1,
+      0.04
+     ],
+     "em": "porta"
+    },
+    {
+     "nome": "slot_porta_prateleira_2",
+     "centro": [
+      0,
+      0.447,
+      0.2035
+     ],
+     "tamanho": [
+      0.32,
+      0.1,
+      0.04
+     ],
+     "em": "porta"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.425,
+      -0.0225
+     ],
+     "tamanho": [
+      0.48,
+      0.85,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "grafite",
+    "lilas",
+    "rosa",
+    "rosa_claro",
+    "roxo"
+   ],
+   "tris": 4444,
+   "pacote": false,
+   "tags": [
+    "frigobar",
+    "duas cores",
+    "pequeno"
+   ]
+  },
+  {
+   "id": "geladeira_retro_pacote",
+   "rotulo": "Geladeira retrô rosa (pacote)",
+   "categoria": "cozinha_eletros",
+   "grupo": "geladeira_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.762,
+    0.782,
+    1.75
+   ],
+   "arquivo": "glb/geladeira_retro_pacote.glb",
+   "miniatura": "miniaturas/geladeira_retro_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_congelador",
+     "pivo": [
+      0.3802,
+      0.0,
+      0.41628
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.8326,
+     "nome": "porta_geladeira",
+     "pivo": [
+      0.3807,
+      0.0,
+      0.41628
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_prateleira_1",
+     "centro": [
+      0,
+      0.15,
+      -0.1028
+     ],
+     "tamanho": [
+      0.642,
+      0.22,
+      0.406
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_2",
+     "centro": [
+      0,
+      0.44,
+      -0.1028
+     ],
+     "tamanho": [
+      0.642,
+      0.35,
+      0.406
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_3",
+     "centro": [
+      0,
+      0.86,
+      -0.1028
+     ],
+     "tamanho": [
+      0.642,
+      0.24,
+      0.406
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_prateleira_4",
+     "centro": [
+      0,
+      1.26,
+      -0.1028
+     ],
+     "tamanho": [
+      0.642,
+      0.38,
+      0.406
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      0.875,
+      -0.0728
+     ],
+     "tamanho": [
+      0.762,
+      1.75,
+      0.526
+     ]
+    }
+   ],
+   "cores": [
+    "colchao",
+    "laranja_claro",
+    "rosa_claro",
+    "salmao",
+    "vermelho_claro"
+   ],
+   "tris": 1686,
+   "pacote": true,
+   "tags": [
+    "geladeira",
+    "retrô",
+    "pacote"
+   ]
+  },
+  {
+   "id": "coifa_piramide_grafite",
+   "rotulo": "Coifa de pirâmide (grafite)",
+   "categoria": "cozinha_eletros",
+   "grupo": "coifa_piramide",
+   "fixacao": "parede",
+   "dims": [
+    0.9,
+    0.5,
+    0.989
+   ],
+   "arquivo": "glb/coifa_piramide_grafite.glb",
+   "miniatura": "miniaturas/coifa_piramide_grafite.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.4955,
+      0.25
+     ],
+     "tamanho": [
+      0.9,
+      0.989,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_medio",
+    "grafite",
+    "grafite_escuro"
+   ],
+   "tris": 1924,
+   "pacote": false,
+   "tags": [
+    "coifa",
+    "exaustor",
+    "pirâmide"
+   ],
+   "altura_instalacao": 1.55
+  },
+  {
+   "id": "coifa_piramide_inox",
+   "rotulo": "Coifa de pirâmide (inox)",
+   "categoria": "cozinha_eletros",
+   "grupo": "coifa_piramide",
+   "fixacao": "parede",
+   "dims": [
+    0.9,
+    0.5,
+    0.989
+   ],
+   "arquivo": "glb/coifa_piramide_inox.glb",
+   "miniatura": "miniaturas/coifa_piramide_inox.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.4955,
+      0.25
+     ],
+     "tamanho": [
+      0.9,
+      0.989,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite_escuro"
+   ],
+   "tris": 1924,
+   "pacote": false,
+   "tags": [
+    "coifa",
+    "exaustor",
+    "pirâmide"
+   ],
+   "altura_instalacao": 1.55
+  },
+  {
+   "id": "coifa_piramide_creme",
+   "rotulo": "Coifa de pirâmide (creme)",
+   "categoria": "cozinha_eletros",
+   "grupo": "coifa_piramide",
+   "fixacao": "parede",
+   "dims": [
+    0.9,
+    0.5,
+    0.989
+   ],
+   "arquivo": "glb/coifa_piramide_creme.glb",
+   "miniatura": "miniaturas/coifa_piramide_creme.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.4955,
+      0.25
+     ],
+     "tamanho": [
+      0.9,
+      0.989,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "bege_escuro",
+    "creme",
+    "grafite_escuro",
+    "madeira_mel"
+   ],
+   "tris": 1924,
+   "pacote": false,
+   "tags": [
+    "coifa",
+    "exaustor",
+    "pirâmide"
+   ],
+   "altura_instalacao": 1.55
+  },
+  {
+   "id": "coifa_quadrada_tijolo",
+   "rotulo": "Coifa quadrada rústica (tijolo)",
+   "categoria": "cozinha_eletros",
+   "grupo": "coifa_quadrada",
+   "fixacao": "parede",
+   "dims": [
+    0.86,
+    0.5,
+    0.989
+   ],
+   "arquivo": "glb/coifa_quadrada_tijolo.glb",
+   "miniatura": "miniaturas/coifa_quadrada_tijolo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.4955,
+      0.25
+     ],
+     "tamanho": [
+      0.86,
+      0.989,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "chocolate",
+    "terracota_escura",
+    "tijolo"
+   ],
+   "tris": 2176,
+   "pacote": false,
+   "tags": [
+    "coifa",
+    "exaustor",
+    "pirâmide",
+    "rústica"
+   ],
+   "altura_instalacao": 1.55
+  },
+  {
+   "id": "coifa_quadrada_verde",
+   "rotulo": "Coifa quadrada rústica (verde-oliva)",
+   "categoria": "cozinha_eletros",
+   "grupo": "coifa_quadrada",
+   "fixacao": "parede",
+   "dims": [
+    0.86,
+    0.5,
+    0.989
+   ],
+   "arquivo": "glb/coifa_quadrada_verde.glb",
+   "miniatura": "miniaturas/coifa_quadrada_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.4955,
+      0.25
+     ],
+     "tamanho": [
+      0.86,
+      0.989,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "chocolate",
+    "madeira_escura",
+    "verde_oliva"
+   ],
+   "tris": 2176,
+   "pacote": false,
+   "tags": [
+    "coifa",
+    "exaustor",
+    "pirâmide",
+    "rústica"
+   ],
+   "altura_instalacao": 1.55
+  },
+  {
+   "id": "coifa_conica_preta",
+   "rotulo": "Coifa cônica (preta com faixa amarela)",
+   "categoria": "cozinha_eletros",
+   "grupo": "coifa_conica",
+   "fixacao": "parede",
+   "dims": [
+    0.812,
+    0.812,
+    0.994
+   ],
+   "arquivo": "glb/coifa_conica_preta.glb",
+   "miniatura": "miniaturas/coifa_conica_preta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.498,
+      0.406
+     ],
+     "tamanho": [
+      0.812,
+      0.994,
+      0.812
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "grafite_escuro",
+    "preto"
+   ],
+   "tris": 2052,
+   "pacote": false,
+   "tags": [
+    "coifa",
+    "exaustor",
+    "cônica"
+   ],
+   "altura_instalacao": 1.55
+  },
+  {
+   "id": "coifa_conica_branca",
+   "rotulo": "Coifa cônica (branca com faixa vermelha)",
+   "categoria": "cozinha_eletros",
+   "grupo": "coifa_conica",
+   "fixacao": "parede",
+   "dims": [
+    0.812,
+    0.812,
+    0.994
+   ],
+   "arquivo": "glb/coifa_conica_branca.glb",
+   "miniatura": "miniaturas/coifa_conica_branca.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.498,
+      0.406
+     ],
+     "tamanho": [
+      0.812,
+      0.994,
+      0.812
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "grafite_escuro",
+    "vermelho"
+   ],
+   "tris": 2052,
+   "pacote": false,
+   "tags": [
+    "coifa",
+    "exaustor",
+    "cônica"
+   ],
+   "altura_instalacao": 1.55
+  },
+  {
+   "id": "coifa_t_azul",
+   "rotulo": "Coifa em T (azul-acinzentada)",
+   "categoria": "cozinha_eletros",
+   "grupo": "coifa_t",
+   "fixacao": "parede",
+   "dims": [
+    0.9,
+    0.508,
+    0.989
+   ],
+   "arquivo": "glb/coifa_t_azul.glb",
+   "miniatura": "miniaturas/coifa_t_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.4955,
+      0.254
+     ],
+     "tamanho": [
+      0.9,
+      0.989,
+      0.508
+     ]
+    }
+   ],
+   "cores": [
+    "azul_acinzentado",
+    "branco",
+    "cinza_azulado",
+    "cinza_medio",
+    "grafite"
+   ],
+   "tris": 1996,
+   "pacote": false,
+   "tags": [
+    "coifa",
+    "exaustor",
+    "moderna"
+   ],
+   "altura_instalacao": 1.55
+  },
+  {
+   "id": "coifa_t_branca",
+   "rotulo": "Coifa em T (branca)",
+   "categoria": "cozinha_eletros",
+   "grupo": "coifa_t",
+   "fixacao": "parede",
+   "dims": [
+    0.9,
+    0.508,
+    0.989
+   ],
+   "arquivo": "glb/coifa_t_branca.glb",
+   "miniatura": "miniaturas/coifa_t_branca.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.4955,
+      0.254
+     ],
+     "tamanho": [
+      0.9,
+      0.989,
+      0.508
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "cinza_claro",
+    "cinza_medio",
+    "grafite"
+   ],
+   "tris": 1996,
+   "pacote": false,
+   "tags": [
+    "coifa",
+    "exaustor",
+    "moderna"
+   ],
+   "altura_instalacao": 1.55
+  },
+  {
+   "id": "coifa_t_inclinada_preta",
+   "rotulo": "Coifa em T inclinada (preta)",
+   "categoria": "cozinha_eletros",
+   "grupo": "coifa_t_inclinada",
+   "fixacao": "parede",
+   "dims": [
+    0.9,
+    0.5,
+    0.989
+   ],
+   "arquivo": "glb/coifa_t_inclinada_preta.glb",
+   "miniatura": "miniaturas/coifa_t_inclinada_preta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.4955,
+      0.25
+     ],
+     "tamanho": [
+      0.9,
+      0.989,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_medio",
+    "grafite_escuro",
+    "preto"
+   ],
+   "tris": 2176,
+   "pacote": false,
+   "tags": [
+    "coifa",
+    "exaustor",
+    "moderna"
+   ],
+   "altura_instalacao": 1.55
+  },
+  {
+   "id": "coifa_t_inclinada_inox",
+   "rotulo": "Coifa em T inclinada (inox)",
+   "categoria": "cozinha_eletros",
+   "grupo": "coifa_t_inclinada",
+   "fixacao": "parede",
+   "dims": [
+    0.9,
+    0.5,
+    0.989
+   ],
+   "arquivo": "glb/coifa_t_inclinada_inox.glb",
+   "miniatura": "miniaturas/coifa_t_inclinada_inox.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.4955,
+      0.25
+     ],
+     "tamanho": [
+      0.9,
+      0.989,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_medio",
+    "grafite_escuro",
+    "metal",
+    "metal_claro"
+   ],
+   "tris": 2176,
+   "pacote": false,
+   "tags": [
+    "coifa",
+    "exaustor",
+    "moderna"
+   ],
+   "altura_instalacao": 1.55
+  },
+  {
+   "id": "coifa_tubo_azul",
+   "rotulo": "Coifa com tubo curvo (azul-acinzentada)",
+   "categoria": "cozinha_eletros",
+   "grupo": "coifa_tubo",
+   "fixacao": "parede",
+   "dims": [
+    0.66,
+    0.66,
+    1.014
+   ],
+   "arquivo": "glb/coifa_tubo_azul.glb",
+   "miniatura": "miniaturas/coifa_tubo_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.508,
+      0.33
+     ],
+     "tamanho": [
+      0.66,
+      1.014,
+      0.66
+     ]
+    }
+   ],
+   "cores": [
+    "azul_acinzentado",
+    "cinza_azulado"
+   ],
+   "tris": 3668,
+   "pacote": false,
+   "tags": [
+    "coifa",
+    "exaustor",
+    "industrial"
+   ],
+   "altura_instalacao": 1.55
+  },
+  {
+   "id": "coifa_tubo_cobre",
+   "rotulo": "Coifa com tubo curvo (cobre)",
+   "categoria": "cozinha_eletros",
+   "grupo": "coifa_tubo",
+   "fixacao": "parede",
+   "dims": [
+    0.66,
+    0.66,
+    1.014
+   ],
+   "arquivo": "glb/coifa_tubo_cobre.glb",
+   "miniatura": "miniaturas/coifa_tubo_cobre.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.508,
+      0.33
+     ],
+     "tamanho": [
+      0.66,
+      1.014,
+      0.66
+     ]
+    }
+   ],
+   "cores": [
+    "cobre",
+    "terracota_escura"
+   ],
+   "tris": 3668,
+   "pacote": false,
+   "tags": [
+    "coifa",
+    "exaustor",
+    "industrial"
+   ],
+   "altura_instalacao": 1.55
+  },
+  {
+   "id": "micro_ondas_rosa",
+   "rotulo": "Micro-ondas de teclas (rosa)",
+   "categoria": "cozinha_eletros",
+   "grupo": "micro_ondas_teclas",
+   "fixacao": "apoio",
+   "dims": [
+    0.48,
+    0.397,
+    0.302
+   ],
+   "arquivo": "glb/micro_ondas_rosa.glb",
+   "miniatura": "miniaturas/micro_ondas_rosa.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta",
+     "pivo": [
+      -0.234,
+      0.0,
+      0.182
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_prato",
+     "centro": [
+      -0.055,
+      0.059,
+      -0.005
+     ],
+     "tamanho": [
+      0.22,
+      0.19,
+      0.22
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.151,
+      0.005
+     ],
+     "tamanho": [
+      0.48,
+      0.302,
+      0.37
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "rosa",
+    "rosa_claro"
+   ],
+   "tris": 5780,
+   "pacote": false,
+   "tags": [
+    "micro-ondas",
+    "eletro",
+    "porta"
+   ]
+  },
+  {
+   "id": "micro_ondas_branco",
+   "rotulo": "Micro-ondas de teclas (branco)",
+   "categoria": "cozinha_eletros",
+   "grupo": "micro_ondas_teclas",
+   "fixacao": "apoio",
+   "dims": [
+    0.48,
+    0.397,
+    0.302
+   ],
+   "arquivo": "glb/micro_ondas_branco.glb",
+   "miniatura": "miniaturas/micro_ondas_branco.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta",
+     "pivo": [
+      -0.234,
+      0.0,
+      0.182
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_prato",
+     "centro": [
+      -0.055,
+      0.059,
+      -0.005
+     ],
+     "tamanho": [
+      0.22,
+      0.19,
+      0.22
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.151,
+      0.005
+     ],
+     "tamanho": [
+      0.48,
+      0.302,
+      0.37
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_medio"
+   ],
+   "tris": 5780,
+   "pacote": false,
+   "tags": [
+    "micro-ondas",
+    "eletro",
+    "porta"
+   ]
+  },
+  {
+   "id": "micro_ondas_lilas",
+   "rotulo": "Micro-ondas de teclas (lilás)",
+   "categoria": "cozinha_eletros",
+   "grupo": "micro_ondas_teclas",
+   "fixacao": "apoio",
+   "dims": [
+    0.48,
+    0.397,
+    0.302
+   ],
+   "arquivo": "glb/micro_ondas_lilas.glb",
+   "miniatura": "miniaturas/micro_ondas_lilas.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta",
+     "pivo": [
+      -0.234,
+      0.0,
+      0.182
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_prato",
+     "centro": [
+      -0.055,
+      0.059,
+      -0.005
+     ],
+     "tamanho": [
+      0.22,
+      0.19,
+      0.22
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.151,
+      0.005
+     ],
+     "tamanho": [
+      0.48,
+      0.302,
+      0.37
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "lilas_claro",
+    "roxo"
+   ],
+   "tris": 5780,
+   "pacote": false,
+   "tags": [
+    "micro-ondas",
+    "eletro",
+    "porta"
+   ]
+  },
+  {
+   "id": "micro_ondas_retro_azul",
+   "rotulo": "Micro-ondas retrô (azul e mostarda)",
+   "categoria": "cozinha_eletros",
+   "grupo": "micro_ondas_retro",
+   "fixacao": "apoio",
+   "dims": [
+    0.46,
+    0.355,
+    0.298
+   ],
+   "arquivo": "glb/micro_ondas_retro_azul.glb",
+   "miniatura": "miniaturas/micro_ondas_retro_azul.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta",
+     "pivo": [
+      -0.222,
+      0.0,
+      0.171
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_prato",
+     "centro": [
+      -0.05,
+      0.0675,
+      -0.005
+     ],
+     "tamanho": [
+      0.2,
+      0.175,
+      0.2
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.149,
+      0.006
+     ],
+     "tamanho": [
+      0.46,
+      0.298,
+      0.352
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "marrom",
+    "mostarda",
+    "porcelana_azul"
+   ],
+   "tris": 4864,
+   "pacote": false,
+   "tags": [
+    "micro-ondas",
+    "eletro",
+    "retrô",
+    "porta"
+   ]
+  },
+  {
+   "id": "micro_ondas_retro_menta",
+   "rotulo": "Micro-ondas retrô (menta e laranja)",
+   "categoria": "cozinha_eletros",
+   "grupo": "micro_ondas_retro",
+   "fixacao": "apoio",
+   "dims": [
+    0.46,
+    0.355,
+    0.298
+   ],
+   "arquivo": "glb/micro_ondas_retro_menta.glb",
+   "miniatura": "miniaturas/micro_ondas_retro_menta.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta",
+     "pivo": [
+      -0.222,
+      0.0,
+      0.171
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_prato",
+     "centro": [
+      -0.05,
+      0.0675,
+      -0.005
+     ],
+     "tamanho": [
+      0.2,
+      0.175,
+      0.2
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.149,
+      0.006
+     ],
+     "tamanho": [
+      0.46,
+      0.298,
+      0.352
+     ]
+    }
+   ],
+   "cores": [
+    "creme_claro",
+    "laranja",
+    "marrom",
+    "menta"
+   ],
+   "tris": 4864,
+   "pacote": false,
+   "tags": [
+    "micro-ondas",
+    "eletro",
+    "retrô",
+    "porta"
+   ]
+  },
+  {
+   "id": "micro_ondas_retro_creme",
+   "rotulo": "Micro-ondas retrô (creme e vermelho)",
+   "categoria": "cozinha_eletros",
+   "grupo": "micro_ondas_retro",
+   "fixacao": "apoio",
+   "dims": [
+    0.46,
+    0.355,
+    0.298
+   ],
+   "arquivo": "glb/micro_ondas_retro_creme.glb",
+   "miniatura": "miniaturas/micro_ondas_retro_creme.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta",
+     "pivo": [
+      -0.222,
+      0.0,
+      0.171
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_prato",
+     "centro": [
+      -0.05,
+      0.0675,
+      -0.005
+     ],
+     "tamanho": [
+      0.2,
+      0.175,
+      0.2
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.149,
+      0.006
+     ],
+     "tamanho": [
+      0.46,
+      0.298,
+      0.352
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "creme_claro",
+    "marrom",
+    "vermelho"
+   ],
+   "tris": 4864,
+   "pacote": false,
+   "tags": [
+    "micro-ondas",
+    "eletro",
+    "retrô",
+    "porta"
+   ]
+  },
+  {
+   "id": "micro_ondas_pacote",
+   "rotulo": "Micro-ondas rosa (pacote)",
+   "categoria": "cozinha_eletros",
+   "grupo": "micro_ondas_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.429,
+    0.328,
+    0.322
+   ],
+   "arquivo": "glb/micro_ondas_pacote.glb",
+   "miniatura": "miniaturas/micro_ondas_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "porta",
+     "pivo": [
+      -0.21323,
+      0.0,
+      0.13468
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_prato",
+     "centro": [
+      -0.06,
+      0.035,
+      -0.0
+     ],
+     "tamanho": [
+      0.24,
+      0.2,
+      0.22
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.00123,
+      0.16094,
+      0.01903
+     ],
+     "tamanho": [
+      0.429,
+      0.322,
+      0.328
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "rosa",
+    "rosa_claro"
+   ],
+   "tris": 712,
+   "pacote": true,
+   "tags": [
+    "micro-ondas",
+    "eletro",
+    "pacote"
+   ]
+  },
+  {
+   "id": "panela_arroz_azul",
+   "rotulo": "Panela elétrica de arroz (azul)",
+   "categoria": "cozinha_eletros",
+   "grupo": "panela_arroz",
+   "fixacao": "apoio",
+   "dims": [
+    0.27,
+    0.271,
+    0.302
+   ],
+   "arquivo": "glb/panela_arroz_azul.glb",
+   "miniatura": "miniaturas/panela_arroz_azul.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.6581,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.192,
+      -0.122
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_panela",
+     "centro": [
+      0,
+      0.058,
+      0
+     ],
+     "tamanho": [
+      0.17,
+      0.12,
+      0.17
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.093,
+      0.0005
+     ],
+     "tamanho": [
+      0.27,
+      0.186,
+      0.271
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "cromo",
+    "grafite",
+    "laranja",
+    "rosa_bebe",
+    "rosa_escuro"
+   ],
+   "tris": 5908,
+   "pacote": false,
+   "tags": [
+    "panela de arroz",
+    "eletro",
+    "tampa"
+   ]
+  },
+  {
+   "id": "panela_arroz_verde",
+   "rotulo": "Panela elétrica de arroz (verde)",
+   "categoria": "cozinha_eletros",
+   "grupo": "panela_arroz",
+   "fixacao": "apoio",
+   "dims": [
+    0.27,
+    0.271,
+    0.302
+   ],
+   "arquivo": "glb/panela_arroz_verde.glb",
+   "miniatura": "miniaturas/panela_arroz_verde.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.6581,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.192,
+      -0.122
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_panela",
+     "centro": [
+      0,
+      0.058,
+      0
+     ],
+     "tamanho": [
+      0.17,
+      0.12,
+      0.17
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.093,
+      0.0005
+     ],
+     "tamanho": [
+      0.27,
+      0.186,
+      0.271
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "branco",
+    "cromo",
+    "grafite",
+    "rosa_escuro",
+    "verde_claro",
+    "verde_medio"
+   ],
+   "tris": 5908,
+   "pacote": false,
+   "tags": [
+    "panela de arroz",
+    "eletro",
+    "tampa"
+   ]
+  },
+  {
+   "id": "panela_arroz_branca",
+   "rotulo": "Panela elétrica de arroz (branca)",
+   "categoria": "cozinha_eletros",
+   "grupo": "panela_arroz",
+   "fixacao": "apoio",
+   "dims": [
+    0.27,
+    0.271,
+    0.302
+   ],
+   "arquivo": "glb/panela_arroz_branca.glb",
+   "miniatura": "miniaturas/panela_arroz_branca.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.6581,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.192,
+      -0.122
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_panela",
+     "centro": [
+      0,
+      0.058,
+      0
+     ],
+     "tamanho": [
+      0.17,
+      0.12,
+      0.17
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.093,
+      0.0005
+     ],
+     "tamanho": [
+      0.27,
+      0.186,
+      0.271
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cromo",
+    "grafite",
+    "rosa_escuro",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 5908,
+   "pacote": false,
+   "tags": [
+    "panela de arroz",
+    "eletro",
+    "tampa"
+   ]
+  },
+  {
+   "id": "cafeteira_expresso_vermelha",
+   "rotulo": "Cafeteira expresso (vermelha)",
+   "categoria": "cozinha_eletros",
+   "grupo": "cafeteira_expresso",
+   "fixacao": "apoio",
+   "dims": [
+    0.322,
+    0.374,
+    0.36
+   ],
+   "arquivo": "glb/cafeteira_expresso_vermelha.glb",
+   "miniatura": "miniaturas/cafeteira_expresso_vermelha.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_xicara",
+     "centro": [
+      0,
+      0.05,
+      0.06
+     ],
+     "tamanho": [
+      0.14,
+      0.13,
+      0.12
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.009,
+      0.18,
+      0.037
+     ],
+     "tamanho": [
+      0.322,
+      0.36,
+      0.374
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_claro",
+    "grafite",
+    "preto",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 5568,
+   "pacote": false,
+   "tags": [
+    "cafeteira",
+    "expresso",
+    "eletro"
+   ]
+  },
+  {
+   "id": "cafeteira_expresso_turquesa",
+   "rotulo": "Cafeteira expresso (turquesa)",
+   "categoria": "cozinha_eletros",
+   "grupo": "cafeteira_expresso",
+   "fixacao": "apoio",
+   "dims": [
+    0.322,
+    0.374,
+    0.36
+   ],
+   "arquivo": "glb/cafeteira_expresso_turquesa.glb",
+   "miniatura": "miniaturas/cafeteira_expresso_turquesa.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_xicara",
+     "centro": [
+      0,
+      0.05,
+      0.06
+     ],
+     "tamanho": [
+      0.14,
+      0.13,
+      0.12
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.009,
+      0.18,
+      0.037
+     ],
+     "tamanho": [
+      0.322,
+      0.36,
+      0.374
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_claro",
+    "grafite",
+    "preto",
+    "turquesa",
+    "vermelho_escuro"
+   ],
+   "tris": 5568,
+   "pacote": false,
+   "tags": [
+    "cafeteira",
+    "expresso",
+    "eletro"
+   ]
+  },
+  {
+   "id": "cafeteira_expresso_creme",
+   "rotulo": "Cafeteira expresso (creme)",
+   "categoria": "cozinha_eletros",
+   "grupo": "cafeteira_expresso",
+   "fixacao": "apoio",
+   "dims": [
+    0.322,
+    0.374,
+    0.36
+   ],
+   "arquivo": "glb/cafeteira_expresso_creme.glb",
+   "miniatura": "miniaturas/cafeteira_expresso_creme.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_xicara",
+     "centro": [
+      0,
+      0.05,
+      0.06
+     ],
+     "tamanho": [
+      0.14,
+      0.13,
+      0.12
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      -0.009,
+      0.18,
+      0.037
+     ],
+     "tamanho": [
+      0.322,
+      0.36,
+      0.374
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_claro",
+    "creme",
+    "marrom",
+    "preto",
+    "vermelho_escuro"
+   ],
+   "tris": 5568,
+   "pacote": false,
+   "tags": [
+    "cafeteira",
+    "expresso",
+    "eletro"
+   ]
+  },
+  {
+   "id": "cafeteira_capsula_salmao",
+   "rotulo": "Cafeteira de cápsula (salmão)",
+   "categoria": "cozinha_eletros",
+   "grupo": "cafeteira_expresso_compacta",
+   "fixacao": "apoio",
+   "dims": [
+    0.2,
+    0.333,
+    0.326
+   ],
+   "arquivo": "glb/cafeteira_capsula_salmao.glb",
+   "miniatura": "miniaturas/cafeteira_capsula_salmao.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_xicara",
+     "centro": [
+      0,
+      0.042,
+      0.08
+     ],
+     "tamanho": [
+      0.12,
+      0.11,
+      0.1
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.163,
+      0.0265
+     ],
+     "tamanho": [
+      0.2,
+      0.326,
+      0.333
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_claro",
+    "laranja",
+    "metal",
+    "salmao"
+   ],
+   "tris": 2124,
+   "pacote": false,
+   "tags": [
+    "cafeteira",
+    "cápsula",
+    "eletro"
+   ]
+  },
+  {
+   "id": "cafeteira_capsula_amarela",
+   "rotulo": "Cafeteira de cápsula (amarela)",
+   "categoria": "cozinha_eletros",
+   "grupo": "cafeteira_expresso_compacta",
+   "fixacao": "apoio",
+   "dims": [
+    0.2,
+    0.333,
+    0.326
+   ],
+   "arquivo": "glb/cafeteira_capsula_amarela.glb",
+   "miniatura": "miniaturas/cafeteira_capsula_amarela.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_xicara",
+     "centro": [
+      0,
+      0.042,
+      0.08
+     ],
+     "tamanho": [
+      0.12,
+      0.11,
+      0.1
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.163,
+      0.0265
+     ],
+     "tamanho": [
+      0.2,
+      0.326,
+      0.333
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "branco",
+    "cinza_claro",
+    "metal"
+   ],
+   "tris": 2124,
+   "pacote": false,
+   "tags": [
+    "cafeteira",
+    "cápsula",
+    "eletro"
+   ]
+  },
+  {
+   "id": "lava_loucas_branca",
+   "rotulo": "Lava-louças (branca)",
+   "categoria": "cozinha_eletros",
+   "grupo": "lava_loucas",
+   "fixacao": "chao",
+   "dims": [
+    0.598,
+    0.648,
+    0.85
+   ],
+   "arquivo": "glb/lava_loucas_branca.glb",
+   "miniatura": "miniaturas/lava_loucas_branca.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3525,
+     "nome": "cesto_baixo",
+     "pivo": [
+      0.0,
+      0.2,
+      0.24
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3525,
+     "nome": "cesto_cima",
+     "pivo": [
+      0.0,
+      0.51,
+      0.24
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.5708,
+     "nome": "porta",
+     "pivo": [
+      0.0,
+      0.102,
+      0.292
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_cesto_baixo",
+     "centro": [
+      0.0,
+      0.208,
+      0.003
+     ],
+     "tamanho": [
+      0.482,
+      0.192,
+      0.454
+     ],
+     "em": "cesto_baixo"
+    },
+    {
+     "nome": "slot_cesto_cima",
+     "centro": [
+      0.0,
+      0.518,
+      0.003
+     ],
+     "tamanho": [
+      0.482,
+      0.142,
+      0.454
+     ],
+     "em": "cesto_cima"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.425,
+      -0.01
+     ],
+     "tamanho": [
+      0.598,
+      0.85,
+      0.56
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "cinza",
+    "cinza_claro",
+    "grafite",
+    "metal",
+    "metal_claro"
+   ],
+   "tris": 6492,
+   "pacote": false,
+   "tags": [
+    "lava-louças",
+    "eletro",
+    "porta",
+    "cestos"
+   ]
+  },
+  {
+   "id": "lava_loucas_inox",
+   "rotulo": "Lava-louças (inox)",
+   "categoria": "cozinha_eletros",
+   "grupo": "lava_loucas",
+   "fixacao": "chao",
+   "dims": [
+    0.598,
+    0.648,
+    0.85
+   ],
+   "arquivo": "glb/lava_loucas_inox.glb",
+   "miniatura": "miniaturas/lava_loucas_inox.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3525,
+     "nome": "cesto_baixo",
+     "pivo": [
+      0.0,
+      0.2,
+      0.24
+     ]
+    },
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.3525,
+     "nome": "cesto_cima",
+     "pivo": [
+      0.0,
+      0.51,
+      0.24
+     ]
+    },
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.5708,
+     "nome": "porta",
+     "pivo": [
+      0.0,
+      0.102,
+      0.292
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_cesto_baixo",
+     "centro": [
+      0.0,
+      0.208,
+      0.003
+     ],
+     "tamanho": [
+      0.482,
+      0.192,
+      0.454
+     ],
+     "em": "cesto_baixo"
+    },
+    {
+     "nome": "slot_cesto_cima",
+     "centro": [
+      0.0,
+      0.518,
+      0.003
+     ],
+     "tamanho": [
+      0.482,
+      0.142,
+      0.454
+     ],
+     "em": "cesto_cima"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.425,
+      -0.01
+     ],
+     "tamanho": [
+      0.598,
+      0.85,
+      0.56
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "grafite",
+    "metal",
+    "metal_claro",
+    "preto"
+   ],
+   "tris": 6492,
+   "pacote": false,
+   "tags": [
+    "lava-louças",
+    "eletro",
+    "porta",
+    "cestos"
+   ]
+  },
+  {
+   "id": "forno_eletrico_vermelho",
+   "rotulo": "Forno elétrico de bancada (vermelho)",
+   "categoria": "cozinha_eletros",
+   "grupo": "forno_eletrico",
+   "fixacao": "apoio",
+   "dims": [
+    0.5,
+    0.428,
+    0.32
+   ],
+   "arquivo": "glb/forno_eletrico_vermelho.glb",
+   "miniatura": "miniaturas/forno_eletrico_vermelho.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.5359,
+     "nome": "porta",
+     "pivo": [
+      -0.05,
+      0.028,
+      0.19
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_grade",
+     "centro": [
+      -0.05,
+      0.124,
+      -0.004
+     ],
+     "tamanho": [
+      0.31,
+      0.12,
+      0.28
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.16,
+      0.004
+     ],
+     "tamanho": [
+      0.5,
+      0.32,
+      0.388
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_claro",
+    "grafite",
+    "laranja_escuro",
+    "metal",
+    "metal_claro",
+    "vermelho"
+   ],
+   "tris": 5836,
+   "pacote": false,
+   "tags": [
+    "forno",
+    "eletro",
+    "porta"
+   ]
+  },
+  {
+   "id": "forno_eletrico_creme",
+   "rotulo": "Forno elétrico de bancada (creme)",
+   "categoria": "cozinha_eletros",
+   "grupo": "forno_eletrico",
+   "fixacao": "apoio",
+   "dims": [
+    0.5,
+    0.428,
+    0.32
+   ],
+   "arquivo": "glb/forno_eletrico_creme.glb",
+   "miniatura": "miniaturas/forno_eletrico_creme.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": 1.5359,
+     "nome": "porta",
+     "pivo": [
+      -0.05,
+      0.028,
+      0.19
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_grade",
+     "centro": [
+      -0.05,
+      0.124,
+      -0.004
+     ],
+     "tamanho": [
+      0.31,
+      0.12,
+      0.28
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.16,
+      0.004
+     ],
+     "tamanho": [
+      0.5,
+      0.32,
+      0.388
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_claro",
+    "creme",
+    "grafite",
+    "laranja_escuro",
+    "marrom",
+    "metal",
+    "metal_claro"
+   ],
+   "tris": 5836,
+   "pacote": false,
+   "tags": [
+    "forno",
+    "eletro",
+    "porta"
+   ]
+  },
+  {
+   "id": "air_fryer_preta",
+   "rotulo": "Air fryer (preta)",
+   "categoria": "cozinha_eletros",
+   "grupo": "air_fryer",
+   "fixacao": "apoio",
+   "dims": [
+    0.29,
+    0.448,
+    0.36
+   ],
+   "arquivo": "glb/air_fryer_preta.glb",
+   "miniatura": "miniaturas/air_fryer_preta.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.2,
+     "nome": "cesto",
+     "pivo": [
+      0.0,
+      0.049,
+      0.17
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_cesto",
+     "centro": [
+      0.0,
+      0.057,
+      0.038
+     ],
+     "tamanho": [
+      0.204,
+      0.137,
+      0.244
+     ],
+     "em": "cesto"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.18,
+      -0.0
+     ],
+     "tamanho": [
+      0.29,
+      0.36,
+      0.34
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "grafite",
+    "grafite_escuro",
+    "laranja",
+    "preto",
+    "tela_azul"
+   ],
+   "tris": 5564,
+   "pacote": false,
+   "tags": [
+    "air fryer",
+    "fritadeira",
+    "eletro",
+    "gaveta"
+   ]
+  },
+  {
+   "id": "air_fryer_branca",
+   "rotulo": "Air fryer (branca)",
+   "categoria": "cozinha_eletros",
+   "grupo": "air_fryer",
+   "fixacao": "apoio",
+   "dims": [
+    0.29,
+    0.448,
+    0.36
+   ],
+   "arquivo": "glb/air_fryer_branca.glb",
+   "miniatura": "miniaturas/air_fryer_branca.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.2,
+     "nome": "cesto",
+     "pivo": [
+      0.0,
+      0.049,
+      0.17
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_cesto",
+     "centro": [
+      0.0,
+      0.057,
+      0.038
+     ],
+     "tamanho": [
+      0.204,
+      0.137,
+      0.244
+     ],
+     "em": "cesto"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.18,
+      -0.0
+     ],
+     "tamanho": [
+      0.29,
+      0.36,
+      0.34
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "brasa",
+    "cinza_claro",
+    "grafite_escuro",
+    "tela_azul",
+    "turquesa"
+   ],
+   "tris": 5564,
+   "pacote": false,
+   "tags": [
+    "air fryer",
+    "fritadeira",
+    "eletro",
+    "gaveta"
+   ]
+  },
+  {
+   "id": "air_fryer_menta",
+   "rotulo": "Air fryer (menta)",
+   "categoria": "cozinha_eletros",
+   "grupo": "air_fryer",
+   "fixacao": "apoio",
+   "dims": [
+    0.29,
+    0.448,
+    0.36
+   ],
+   "arquivo": "glb/air_fryer_menta.glb",
+   "miniatura": "miniaturas/air_fryer_menta.webp",
+   "interativos": [
+    {
+     "interativo": "gaveta",
+     "direcao": [
+      0,
+      0,
+      1
+     ],
+     "curso": 0.2,
+     "nome": "cesto",
+     "pivo": [
+      0.0,
+      0.049,
+      0.17
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_cesto",
+     "centro": [
+      0.0,
+      0.057,
+      0.038
+     ],
+     "tamanho": [
+      0.204,
+      0.137,
+      0.244
+     ],
+     "em": "cesto"
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.18,
+      -0.0
+     ],
+     "tamanho": [
+      0.29,
+      0.36,
+      0.34
+     ]
+    }
+   ],
+   "cores": [
+    "brasa",
+    "grafite_escuro",
+    "menta",
+    "rosa",
+    "tela_azul",
+    "verde_agua"
+   ],
+   "tris": 5564,
+   "pacote": false,
+   "tags": [
+    "air fryer",
+    "fritadeira",
+    "eletro",
+    "gaveta"
+   ]
+  },
+  {
+   "id": "sanduicheira_vermelha",
+   "rotulo": "Sanduicheira (vermelha)",
+   "categoria": "cozinha_eletros",
+   "grupo": "sanduicheira",
+   "fixacao": "apoio",
+   "dims": [
+    0.25,
+    0.294,
+    0.108
+   ],
+   "arquivo": "glb/sanduicheira_vermelha.glb",
+   "miniatura": "miniaturas/sanduicheira_vermelha.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.3963,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.056,
+      -0.125
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_chapa",
+     "centro": [
+      0,
+      0.056,
+      0
+     ],
+     "tamanho": [
+      0.18,
+      0.04,
+      0.19
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0305,
+      0.009
+     ],
+     "tamanho": [
+      0.25,
+      0.061,
+      0.288
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "grafite_escuro",
+    "verde",
+    "vermelho"
+   ],
+   "tris": 4340,
+   "pacote": false,
+   "tags": [
+    "sanduicheira",
+    "eletro",
+    "tampa"
+   ]
+  },
+  {
+   "id": "sanduicheira_amarela",
+   "rotulo": "Sanduicheira (amarela)",
+   "categoria": "cozinha_eletros",
+   "grupo": "sanduicheira",
+   "fixacao": "apoio",
+   "dims": [
+    0.25,
+    0.294,
+    0.108
+   ],
+   "arquivo": "glb/sanduicheira_amarela.glb",
+   "miniatura": "miniaturas/sanduicheira_amarela.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.3963,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.056,
+      -0.125
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_chapa",
+     "centro": [
+      0,
+      0.056,
+      0
+     ],
+     "tamanho": [
+      0.18,
+      0.04,
+      0.19
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0305,
+      0.009
+     ],
+     "tamanho": [
+      0.25,
+      0.061,
+      0.288
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "grafite",
+    "grafite_escuro",
+    "verde"
+   ],
+   "tris": 4340,
+   "pacote": false,
+   "tags": [
+    "sanduicheira",
+    "eletro",
+    "tampa"
+   ]
+  },
+  {
+   "id": "cafeteira_filtro_preta",
+   "rotulo": "Cafeteira elétrica de filtro (preta)",
+   "categoria": "cozinha_eletros",
+   "grupo": "cafeteira_filtro",
+   "fixacao": "apoio",
+   "dims": [
+    0.234,
+    0.267,
+    0.38
+   ],
+   "arquivo": "glb/cafeteira_filtro_preta.glb",
+   "miniatura": "miniaturas/cafeteira_filtro_preta.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.4835,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.365,
+      -0.1
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_reservatorio",
+     "centro": [
+      0,
+      0.3,
+      -0.05
+     ],
+     "tamanho": [
+      0.12,
+      0.05,
+      0.12
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.017,
+      0.18,
+      0.0035
+     ],
+     "tamanho": [
+      0.234,
+      0.36,
+      0.267
+     ]
+    }
+   ],
+   "cores": [
+    "chocolate",
+    "grafite_escuro",
+    "preto",
+    "vermelho"
+   ],
+   "tris": 3476,
+   "pacote": false,
+   "tags": [
+    "cafeteira",
+    "filtro",
+    "eletro",
+    "tampa"
+   ]
+  },
+  {
+   "id": "cafeteira_filtro_azul",
+   "rotulo": "Cafeteira elétrica de filtro (azul)",
+   "categoria": "cozinha_eletros",
+   "grupo": "cafeteira_filtro",
+   "fixacao": "apoio",
+   "dims": [
+    0.234,
+    0.267,
+    0.38
+   ],
+   "arquivo": "glb/cafeteira_filtro_azul.glb",
+   "miniatura": "miniaturas/cafeteira_filtro_azul.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.4835,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.365,
+      -0.1
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_reservatorio",
+     "centro": [
+      0,
+      0.3,
+      -0.05
+     ],
+     "tamanho": [
+      0.12,
+      0.05,
+      0.12
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.017,
+      0.18,
+      0.0035
+     ],
+     "tamanho": [
+      0.234,
+      0.36,
+      0.267
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "chocolate",
+    "grafite_escuro"
+   ],
+   "tris": 3476,
+   "pacote": false,
+   "tags": [
+    "cafeteira",
+    "filtro",
+    "eletro",
+    "tampa"
+   ]
+  },
+  {
+   "id": "torradeira_vermelha",
+   "rotulo": "Torradeira (vermelha)",
+   "categoria": "cozinha_eletros",
+   "grupo": "torradeira",
+   "fixacao": "apoio",
+   "dims": [
+    0.282,
+    0.195,
+    0.206
+   ],
+   "arquivo": "glb/torradeira_vermelha.glb",
+   "miniatura": "miniaturas/torradeira_vermelha.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_fenda_1",
+     "centro": [
+      -0.042,
+      0.06,
+      0
+     ],
+     "tamanho": [
+      0.026,
+      0.14,
+      0.11
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_fenda_2",
+     "centro": [
+      0.042,
+      0.06,
+      0
+     ],
+     "tamanho": [
+      0.026,
+      0.14,
+      0.11
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.103,
+      0.0115
+     ],
+     "tamanho": [
+      0.282,
+      0.206,
+      0.195
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_claro",
+    "grafite",
+    "grafite_escuro",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 2308,
+   "pacote": false,
+   "tags": [
+    "torradeira",
+    "eletro"
+   ]
+  },
+  {
+   "id": "torradeira_turquesa",
+   "rotulo": "Torradeira (turquesa)",
+   "categoria": "cozinha_eletros",
+   "grupo": "torradeira",
+   "fixacao": "apoio",
+   "dims": [
+    0.282,
+    0.195,
+    0.206
+   ],
+   "arquivo": "glb/torradeira_turquesa.glb",
+   "miniatura": "miniaturas/torradeira_turquesa.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_fenda_1",
+     "centro": [
+      -0.042,
+      0.06,
+      0
+     ],
+     "tamanho": [
+      0.026,
+      0.14,
+      0.11
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_fenda_2",
+     "centro": [
+      0.042,
+      0.06,
+      0
+     ],
+     "tamanho": [
+      0.026,
+      0.14,
+      0.11
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.103,
+      0.0115
+     ],
+     "tamanho": [
+      0.282,
+      0.206,
+      0.195
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_claro",
+    "grafite",
+    "grafite_escuro",
+    "turquesa",
+    "vermelho_claro"
+   ],
+   "tris": 2308,
+   "pacote": false,
+   "tags": [
+    "torradeira",
+    "eletro"
+   ]
+  },
+  {
+   "id": "torradeira_amarela",
+   "rotulo": "Torradeira (amarela)",
+   "categoria": "cozinha_eletros",
+   "grupo": "torradeira",
+   "fixacao": "apoio",
+   "dims": [
+    0.282,
+    0.195,
+    0.206
+   ],
+   "arquivo": "glb/torradeira_amarela.glb",
+   "miniatura": "miniaturas/torradeira_amarela.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_fenda_1",
+     "centro": [
+      -0.042,
+      0.06,
+      0
+     ],
+     "tamanho": [
+      0.026,
+      0.14,
+      0.11
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_fenda_2",
+     "centro": [
+      0.042,
+      0.06,
+      0
+     ],
+     "tamanho": [
+      0.026,
+      0.14,
+      0.11
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.103,
+      0.0115
+     ],
+     "tamanho": [
+      0.282,
+      0.206,
+      0.195
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "cinza_claro",
+    "grafite",
+    "grafite_escuro",
+    "laranja"
+   ],
+   "tris": 2308,
+   "pacote": false,
+   "tags": [
+    "torradeira",
+    "eletro"
+   ]
+  },
+  {
+   "id": "chaleira_eletrica_azul",
+   "rotulo": "Chaleira elétrica (azul e roxa)",
+   "categoria": "cozinha_eletros",
+   "grupo": "chaleira_eletrica",
+   "fixacao": "apoio",
+   "dims": [
+    0.263,
+    0.2,
+    0.26
+   ],
+   "arquivo": "glb/chaleira_eletrica_azul.glb",
+   "miniatura": "miniaturas/chaleira_eletrica_azul.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      0,
+      -1
+     ],
+     "angulo": 1.6581,
+     "nome": "tampa",
+     "pivo": [
+      0.082,
+      0.232,
+      -0.0
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_agua",
+     "centro": [
+      0,
+      0.038,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      0.17,
+      0.12
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.01667,
+      0.11578,
+      -0.0
+     ],
+     "tamanho": [
+      0.263,
+      0.232,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "cinza",
+    "roxo"
+   ],
+   "tris": 2912,
+   "pacote": false,
+   "tags": [
+    "chaleira",
+    "elétrica",
+    "eletro",
+    "tampa"
+   ]
+  },
+  {
+   "id": "chaleira_eletrica_rosa",
+   "rotulo": "Chaleira elétrica (rosa e verde-água)",
+   "categoria": "cozinha_eletros",
+   "grupo": "chaleira_eletrica",
+   "fixacao": "apoio",
+   "dims": [
+    0.263,
+    0.2,
+    0.26
+   ],
+   "arquivo": "glb/chaleira_eletrica_rosa.glb",
+   "miniatura": "miniaturas/chaleira_eletrica_rosa.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      0,
+      -1
+     ],
+     "angulo": 1.6581,
+     "nome": "tampa",
+     "pivo": [
+      0.082,
+      0.232,
+      -0.0
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_agua",
+     "centro": [
+      0,
+      0.038,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      0.17,
+      0.12
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.01667,
+      0.11578,
+      -0.0
+     ],
+     "tamanho": [
+      0.263,
+      0.232,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "rosa_bebe",
+    "verde_agua"
+   ],
+   "tris": 2912,
+   "pacote": false,
+   "tags": [
+    "chaleira",
+    "elétrica",
+    "eletro",
+    "tampa"
+   ]
+  },
+  {
+   "id": "liquidificador_roxo",
+   "rotulo": "Liquidificador (roxo)",
+   "categoria": "cozinha_eletros",
+   "grupo": "liquidificador",
+   "fixacao": "apoio",
+   "dims": [
+    0.218,
+    0.175,
+    0.404
+   ],
+   "arquivo": "glb/liquidificador_roxo.glb",
+   "miniatura": "miniaturas/liquidificador_roxo.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_copo",
+     "centro": [
+      0,
+      0.13,
+      0
+     ],
+     "tamanho": [
+      0.1,
+      0.2,
+      0.1
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.02299,
+      0.202,
+      0.00157
+     ],
+     "tamanho": [
+      0.218,
+      0.404,
+      0.175
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_claro",
+    "grafite",
+    "lilas",
+    "metal",
+    "roxo"
+   ],
+   "tris": 2472,
+   "pacote": false,
+   "tags": [
+    "liquidificador",
+    "eletro"
+   ]
+  },
+  {
+   "id": "liquidificador_vermelho",
+   "rotulo": "Liquidificador (vermelho)",
+   "categoria": "cozinha_eletros",
+   "grupo": "liquidificador",
+   "fixacao": "apoio",
+   "dims": [
+    0.218,
+    0.175,
+    0.404
+   ],
+   "arquivo": "glb/liquidificador_vermelho.glb",
+   "miniatura": "miniaturas/liquidificador_vermelho.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_copo",
+     "centro": [
+      0,
+      0.13,
+      0
+     ],
+     "tamanho": [
+      0.1,
+      0.2,
+      0.1
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.02299,
+      0.202,
+      0.00157
+     ],
+     "tamanho": [
+      0.218,
+      0.404,
+      0.175
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_claro",
+    "grafite",
+    "metal",
+    "vermelho"
+   ],
+   "tris": 2472,
+   "pacote": false,
+   "tags": [
+    "liquidificador",
+    "eletro"
+   ]
+  },
+  {
+   "id": "batedeira_planetaria_turquesa",
+   "rotulo": "Batedeira planetária (turquesa)",
+   "categoria": "cozinha_eletros",
+   "grupo": "batedeira_planetaria",
+   "fixacao": "apoio",
+   "dims": [
+    0.22,
+    0.34,
+    0.36
+   ],
+   "arquivo": "glb/batedeira_planetaria_turquesa.glb",
+   "miniatura": "miniaturas/batedeira_planetaria_turquesa.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_tigela",
+     "centro": [
+      0,
+      0.04,
+      0.07
+     ],
+     "tamanho": [
+      0.14,
+      0.1,
+      0.14
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.18,
+      -0.0
+     ],
+     "tamanho": [
+      0.22,
+      0.36,
+      0.34
+     ]
+    }
+   ],
+   "cores": [
+    "metal",
+    "rosa_bebe",
+    "turquesa",
+    "vermelho"
+   ],
+   "tris": 4774,
+   "pacote": false,
+   "tags": [
+    "batedeira",
+    "planetária",
+    "eletro"
+   ]
+  },
+  {
+   "id": "batedeira_planetaria_amarela",
+   "rotulo": "Batedeira planetária (amarela)",
+   "categoria": "cozinha_eletros",
+   "grupo": "batedeira_planetaria",
+   "fixacao": "apoio",
+   "dims": [
+    0.22,
+    0.34,
+    0.36
+   ],
+   "arquivo": "glb/batedeira_planetaria_amarela.glb",
+   "miniatura": "miniaturas/batedeira_planetaria_amarela.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_tigela",
+     "centro": [
+      0,
+      0.04,
+      0.07
+     ],
+     "tamanho": [
+      0.14,
+      0.1,
+      0.14
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.18,
+      -0.0
+     ],
+     "tamanho": [
+      0.22,
+      0.36,
+      0.34
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "azul_claro",
+    "metal"
+   ],
+   "tris": 4774,
+   "pacote": false,
+   "tags": [
+    "batedeira",
+    "planetária",
+    "eletro"
+   ]
+  },
+  {
+   "id": "batedeira_planetaria_rosa",
+   "rotulo": "Batedeira planetária (rosa)",
+   "categoria": "cozinha_eletros",
+   "grupo": "batedeira_planetaria",
+   "fixacao": "apoio",
+   "dims": [
+    0.22,
+    0.34,
+    0.36
+   ],
+   "arquivo": "glb/batedeira_planetaria_rosa.glb",
+   "miniatura": "miniaturas/batedeira_planetaria_rosa.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_tigela",
+     "centro": [
+      0,
+      0.04,
+      0.07
+     ],
+     "tamanho": [
+      0.14,
+      0.1,
+      0.14
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.18,
+      -0.0
+     ],
+     "tamanho": [
+      0.22,
+      0.36,
+      0.34
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "metal",
+    "rosa",
+    "roxo"
+   ],
+   "tris": 4774,
+   "pacote": false,
+   "tags": [
+    "batedeira",
+    "planetária",
+    "eletro"
+   ]
+  },
+  {
+   "id": "batedeira_mao_azul",
+   "rotulo": "Batedeira de mão (azul)",
+   "categoria": "cozinha_eletros",
+   "grupo": "batedeira_mao",
+   "fixacao": "apoio",
+   "dims": [
+    0.085,
+    0.074,
+    0.296
+   ],
+   "arquivo": "glb/batedeira_mao_azul.glb",
+   "miniatura": "miniaturas/batedeira_mao_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.14798,
+      0.002
+     ],
+     "tamanho": [
+      0.085,
+      0.296,
+      0.074
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "metal",
+    "verde_lima",
+    "vermelho"
+   ],
+   "tris": 3856,
+   "pacote": false,
+   "tags": [
+    "batedeira",
+    "de mão",
+    "eletro"
+   ]
+  },
+  {
+   "id": "batedeira_mao_laranja",
+   "rotulo": "Batedeira de mão (laranja)",
+   "categoria": "cozinha_eletros",
+   "grupo": "batedeira_mao",
+   "fixacao": "apoio",
+   "dims": [
+    0.085,
+    0.074,
+    0.296
+   ],
+   "arquivo": "glb/batedeira_mao_laranja.glb",
+   "miniatura": "miniaturas/batedeira_mao_laranja.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.14798,
+      0.002
+     ],
+     "tamanho": [
+      0.085,
+      0.296,
+      0.074
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "laranja",
+    "metal",
+    "verde"
+   ],
+   "tris": 3856,
+   "pacote": false,
+   "tags": [
+    "batedeira",
+    "de mão",
+    "eletro"
+   ]
+  },
+  {
+   "id": "balanca_cozinha_vermelha",
+   "rotulo": "Balança de cozinha (vermelha)",
+   "categoria": "cozinha_eletros",
+   "grupo": "balanca_cozinha",
+   "fixacao": "apoio",
+   "dims": [
+    0.2,
+    0.2,
+    0.153
+   ],
+   "arquivo": "glb/balanca_cozinha_vermelha.glb",
+   "miniatura": "miniaturas/balanca_cozinha_vermelha.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_prato",
+     "centro": [
+      0,
+      0.11,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      0.08,
+      0.12
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.07661,
+      -0.0
+     ],
+     "tamanho": [
+      0.2,
+      0.153,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "grafite",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 2316,
+   "pacote": false,
+   "tags": [
+    "balança",
+    "utensílio"
+   ]
+  },
+  {
+   "id": "balanca_cozinha_verde",
+   "rotulo": "Balança de cozinha (verde-água)",
+   "categoria": "cozinha_eletros",
+   "grupo": "balanca_cozinha",
+   "fixacao": "apoio",
+   "dims": [
+    0.2,
+    0.2,
+    0.153
+   ],
+   "arquivo": "glb/balanca_cozinha_verde.glb",
+   "miniatura": "miniaturas/balanca_cozinha_verde.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_prato",
+     "centro": [
+      0,
+      0.11,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      0.08,
+      0.12
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.07661,
+      -0.0
+     ],
+     "tamanho": [
+      0.2,
+      0.153,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "grafite",
+    "rosa_claro",
+    "verde_agua",
+    "vermelho_escuro"
+   ],
+   "tris": 2316,
+   "pacote": false,
+   "tags": [
+    "balança",
+    "utensílio"
+   ]
+  },
+  {
+   "id": "bule_cafe_amarelo",
+   "rotulo": "Bule de café (amarelo)",
+   "categoria": "cozinha_eletros",
+   "grupo": "bule_cafe",
+   "fixacao": "apoio",
+   "dims": [
+    0.181,
+    0.144,
+    0.196
+   ],
+   "arquivo": "glb/bule_cafe_amarelo.glb",
+   "miniatura": "miniaturas/bule_cafe_amarelo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0185,
+      0.098,
+      -0.0
+     ],
+     "tamanho": [
+      0.181,
+      0.196,
+      0.144
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "marrom"
+   ],
+   "tris": 1880,
+   "pacote": false,
+   "tags": [
+    "bule",
+    "café",
+    "louça"
+   ]
+  },
+  {
+   "id": "bule_cafe_vidro",
+   "rotulo": "Bule de café de vidro",
+   "categoria": "cozinha_eletros",
+   "grupo": "bule_cafe",
+   "fixacao": "apoio",
+   "dims": [
+    0.181,
+    0.144,
+    0.196
+   ],
+   "arquivo": "glb/bule_cafe_vidro.glb",
+   "miniatura": "miniaturas/bule_cafe_vidro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0185,
+      0.098,
+      -0.0
+     ],
+     "tamanho": [
+      0.181,
+      0.196,
+      0.144
+     ]
+    }
+   ],
+   "cores": [
+    "chocolate",
+    "preto"
+   ],
+   "tris": 2048,
+   "pacote": false,
+   "tags": [
+    "bule",
+    "café",
+    "louça"
+   ]
+  },
+  {
+   "id": "chaleira_azul",
+   "rotulo": "Chaleira (azul-acinzentada)",
+   "categoria": "cozinha_eletros",
+   "grupo": "chaleira",
+   "fixacao": "apoio",
+   "dims": [
+    0.252,
+    0.2,
+    0.226
+   ],
+   "arquivo": "glb/chaleira_azul.glb",
+   "miniatura": "miniaturas/chaleira_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.02582,
+      0.113,
+      -0.0
+     ],
+     "tamanho": [
+      0.252,
+      0.226,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_acinzentado"
+   ],
+   "tris": 1192,
+   "pacote": false,
+   "tags": [
+    "chaleira",
+    "fogão",
+    "louça"
+   ]
+  },
+  {
+   "id": "chaleira_vermelha",
+   "rotulo": "Chaleira (vermelha)",
+   "categoria": "cozinha_eletros",
+   "grupo": "chaleira",
+   "fixacao": "apoio",
+   "dims": [
+    0.252,
+    0.2,
+    0.226
+   ],
+   "arquivo": "glb/chaleira_vermelha.glb",
+   "miniatura": "miniaturas/chaleira_vermelha.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.02582,
+      0.113,
+      -0.0
+     ],
+     "tamanho": [
+      0.252,
+      0.226,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "preto",
+    "vermelho"
+   ],
+   "tris": 1192,
+   "pacote": false,
+   "tags": [
+    "chaleira",
+    "fogão",
+    "louça"
+   ]
+  },
+  {
+   "id": "panela_pressao_inox",
+   "rotulo": "Panela de pressão (inox)",
+   "categoria": "cozinha_eletros",
+   "grupo": "panela_pressao",
+   "fixacao": "apoio",
+   "dims": [
+    0.54,
+    0.232,
+    0.224
+   ],
+   "arquivo": "glb/panela_pressao_inox.glb",
+   "miniatura": "miniaturas/panela_pressao_inox.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.04,
+      0.112,
+      -0.0
+     ],
+     "tamanho": [
+      0.54,
+      0.224,
+      0.232
+     ]
+    }
+   ],
+   "cores": [
+    "metal_claro",
+    "preto",
+    "vermelho"
+   ],
+   "tris": 1524,
+   "pacote": false,
+   "tags": [
+    "panela",
+    "pressão",
+    "fogão"
+   ]
+  },
+  {
+   "id": "panela_pressao_vermelha",
+   "rotulo": "Panela de pressão (vermelha)",
+   "categoria": "cozinha_eletros",
+   "grupo": "panela_pressao",
+   "fixacao": "apoio",
+   "dims": [
+    0.54,
+    0.232,
+    0.224
+   ],
+   "arquivo": "glb/panela_pressao_vermelha.glb",
+   "miniatura": "miniaturas/panela_pressao_vermelha.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.04,
+      0.112,
+      -0.0
+     ],
+     "tamanho": [
+      0.54,
+      0.224,
+      0.232
+     ]
+    }
+   ],
+   "cores": [
+    "preto",
+    "vermelho"
+   ],
+   "tris": 1524,
+   "pacote": false,
+   "tags": [
+    "panela",
+    "pressão",
+    "fogão"
+   ]
+  },
+  {
+   "id": "filtro_barro",
+   "rotulo": "Filtro de barro",
+   "categoria": "cozinha_eletros",
+   "grupo": "filtro_barro",
+   "fixacao": "apoio",
+   "dims": [
+    0.282,
+    0.322,
+    0.584
+   ],
+   "arquivo": "glb/filtro_barro.glb",
+   "miniatura": "miniaturas/filtro_barro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.292,
+      0.02013
+     ],
+     "tamanho": [
+      0.282,
+      0.584,
+      0.322
+     ]
+    }
+   ],
+   "cores": [
+    "cromo",
+    "terracota",
+    "terracota_escura"
+   ],
+   "tris": 3548,
+   "pacote": false,
+   "tags": [
+    "filtro de água",
+    "barro",
+    "utensílio"
+   ]
+  },
+  {
+   "id": "filtro_barro_creme",
+   "rotulo": "Filtro de cerâmica (creme e azul)",
+   "categoria": "cozinha_eletros",
+   "grupo": "filtro_barro",
+   "fixacao": "apoio",
+   "dims": [
+    0.282,
+    0.322,
+    0.584
+   ],
+   "arquivo": "glb/filtro_barro_creme.glb",
+   "miniatura": "miniaturas/filtro_barro_creme.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.292,
+      0.02013
+     ],
+     "tamanho": [
+      0.282,
+      0.584,
+      0.322
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "branco",
+    "creme"
+   ],
+   "tris": 3548,
+   "pacote": false,
+   "tags": [
+    "filtro de água",
+    "barro",
+    "utensílio"
+   ]
+  },
+  {
+   "id": "lixeira_pedal_inox",
+   "rotulo": "Lixeira de pedal (inox)",
+   "categoria": "cozinha_eletros",
+   "grupo": "lixeira_pedal",
+   "fixacao": "chao",
+   "dims": [
+    0.3,
+    0.352,
+    0.454
+   ],
+   "arquivo": "glb/lixeira_pedal_inox.glb",
+   "miniatura": "miniaturas/lixeira_pedal_inox.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.4835,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.4,
+      -0.15
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.008,
+      0
+     ],
+     "tamanho": [
+      0.18,
+      0.36,
+      0.18
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.2,
+      0.019
+     ],
+     "tamanho": [
+      0.298,
+      0.4,
+      0.352
+     ]
+    }
+   ],
+   "cores": [
+    "metal_claro",
+    "preto"
+   ],
+   "tris": 2104,
+   "pacote": false,
+   "tags": [
+    "lixeira",
+    "pedal",
+    "tampa"
+   ]
+  },
+  {
+   "id": "lixeira_pedal_vermelha",
+   "rotulo": "Lixeira de pedal (vermelha)",
+   "categoria": "cozinha_eletros",
+   "grupo": "lixeira_pedal",
+   "fixacao": "chao",
+   "dims": [
+    0.3,
+    0.352,
+    0.454
+   ],
+   "arquivo": "glb/lixeira_pedal_vermelha.glb",
+   "miniatura": "miniaturas/lixeira_pedal_vermelha.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.4835,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.4,
+      -0.15
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.008,
+      0
+     ],
+     "tamanho": [
+      0.18,
+      0.36,
+      0.18
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.2,
+      0.019
+     ],
+     "tamanho": [
+      0.298,
+      0.4,
+      0.352
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "vermelho"
+   ],
+   "tris": 2104,
+   "pacote": false,
+   "tags": [
+    "lixeira",
+    "pedal",
+    "tampa"
+   ]
+  },
+  {
+   "id": "barra_utensilios",
+   "rotulo": "Barra com utensílios pendurados",
+   "categoria": "cozinha_eletros",
+   "grupo": "barra_utensilios",
+   "fixacao": "parede",
+   "dims": [
+    0.495,
+    0.099,
+    0.298
+   ],
+   "arquivo": "glb/barra_utensilios.glb",
+   "miniatura": "miniaturas/barra_utensilios.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.14908,
+      0.04966
+     ],
+     "tamanho": [
+      0.495,
+      0.298,
+      0.099
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "cinza_claro",
+    "laranja_escuro",
+    "lilas",
+    "metal",
+    "roxo"
+   ],
+   "tris": 6520,
+   "pacote": false,
+   "tags": [
+    "utensílios",
+    "barra",
+    "ganchos",
+    "parede"
+   ],
+   "altura_instalacao": 1.15
+  },
+  {
+   "id": "escorredor_pratos",
+   "rotulo": "Escorredor de pratos",
+   "categoria": "cozinha_eletros",
+   "grupo": "escorredor_pratos",
+   "fixacao": "apoio",
+   "dims": [
+    0.404,
+    0.224,
+    0.22
+   ],
+   "arquivo": "glb/escorredor_pratos.glb",
+   "miniatura": "miniaturas/escorredor_pratos.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_pratos",
+     "centro": [
+      0,
+      0.035,
+      0
+     ],
+     "tamanho": [
+      0.34,
+      0.15,
+      0.17
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.11,
+      0
+     ],
+     "tamanho": [
+      0.41,
+      0.22,
+      0.23
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "laranja",
+    "turquesa"
+   ],
+   "tris": 2880,
+   "pacote": false,
+   "tags": [
+    "escorredor",
+    "pratos",
+    "louça"
+   ]
+  },
+  {
+   "id": "espatula_vazada",
+   "rotulo": "Espátula vazada",
+   "categoria": "cozinha_eletros",
+   "grupo": "utensilio_espatula_vazada",
+   "fixacao": "apoio",
+   "dims": [
+    0.06,
+    0.25,
+    0.017
+   ],
+   "arquivo": "glb/espatula_vazada.glb",
+   "miniatura": "miniaturas/espatula_vazada.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0085,
+      -0.0
+     ],
+     "tamanho": [
+      0.06,
+      0.017,
+      0.25
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "cinza_claro",
+    "grafite"
+   ],
+   "tris": 948,
+   "pacote": false,
+   "tags": [
+    "utensílio",
+    "espatula vazada"
+   ]
+  },
+  {
+   "id": "espatula_lisa",
+   "rotulo": "Espátula lisa",
+   "categoria": "cozinha_eletros",
+   "grupo": "utensilio_espatula",
+   "fixacao": "apoio",
+   "dims": [
+    0.06,
+    0.25,
+    0.017
+   ],
+   "arquivo": "glb/espatula_lisa.glb",
+   "miniatura": "miniaturas/espatula_lisa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0085,
+      -0.0
+     ],
+     "tamanho": [
+      0.06,
+      0.017,
+      0.25
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_claro",
+    "grafite",
+    "vermelho"
+   ],
+   "tris": 720,
+   "pacote": false,
+   "tags": [
+    "utensílio",
+    "espatula"
+   ]
+  },
+  {
+   "id": "concha",
+   "rotulo": "Concha",
+   "categoria": "cozinha_eletros",
+   "grupo": "utensilio_concha",
+   "fixacao": "apoio",
+   "dims": [
+    0.08,
+    0.239,
+    0.076
+   ],
+   "arquivo": "glb/concha.glb",
+   "miniatura": "miniaturas/concha.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03804,
+      -0.0
+     ],
+     "tamanho": [
+      0.08,
+      0.076,
+      0.239
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "cinza_claro",
+    "grafite"
+   ],
+   "tris": 680,
+   "pacote": false,
+   "tags": [
+    "utensílio",
+    "concha"
+   ]
+  },
+  {
+   "id": "garfo_cozinha",
+   "rotulo": "Garfo de cozinha",
+   "categoria": "cozinha_eletros",
+   "grupo": "utensilio_garfo",
+   "fixacao": "apoio",
+   "dims": [
+    0.05,
+    0.245,
+    0.017
+   ],
+   "arquivo": "glb/garfo_cozinha.glb",
+   "miniatura": "miniaturas/garfo_cozinha.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0085,
+      -0.0
+     ],
+     "tamanho": [
+      0.05,
+      0.017,
+      0.245
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "cinza_claro",
+    "grafite"
+   ],
+   "tris": 772,
+   "pacote": false,
+   "tags": [
+    "utensílio",
+    "garfo"
+   ]
+  },
+  {
+   "id": "batedor_arame",
+   "rotulo": "Batedor de arame",
+   "categoria": "cozinha_eletros",
+   "grupo": "utensilio_batedor",
+   "fixacao": "apoio",
+   "dims": [
+    0.052,
+    0.254,
+    0.046
+   ],
+   "arquivo": "glb/batedor_arame.glb",
+   "miniatura": "miniaturas/batedor_arame.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.02319,
+      -0.0
+     ],
+     "tamanho": [
+      0.052,
+      0.046,
+      0.254
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "cinza_claro",
+    "grafite"
+   ],
+   "tris": 1132,
+   "pacote": false,
+   "tags": [
+    "utensílio",
+    "batedor"
+   ]
+  },
+  {
+   "id": "colher_pau",
+   "rotulo": "Colher de pau",
+   "categoria": "cozinha_eletros",
+   "grupo": "utensilio_colher_pau",
+   "fixacao": "apoio",
+   "dims": [
+    0.056,
+    0.235,
+    0.018
+   ],
+   "arquivo": "glb/colher_pau.glb",
+   "miniatura": "miniaturas/colher_pau.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00898,
+      -0.0
+     ],
+     "tamanho": [
+      0.056,
+      0.018,
+      0.235
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "laranja_escuro"
+   ],
+   "tris": 448,
+   "pacote": false,
+   "tags": [
+    "utensílio",
+    "colher pau"
+   ]
+  },
+  {
+   "id": "porta_utensilios",
+   "rotulo": "Pote com utensílios",
+   "categoria": "cozinha_eletros",
+   "grupo": "porta_utensilios",
+   "fixacao": "apoio",
+   "dims": [
+    0.157,
+    0.113,
+    0.27
+   ],
+   "arquivo": "glb/porta_utensilios.glb",
+   "miniatura": "miniaturas/porta_utensilios.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.00285,
+      0.13402,
+      -0.0
+     ],
+     "tamanho": [
+      0.157,
+      0.27,
+      0.113
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "branco",
+    "grafite",
+    "madeira_mel",
+    "metal",
+    "preto",
+    "vermelho"
+   ],
+   "tris": 3024,
+   "pacote": false,
+   "tags": [
+    "utensílios",
+    "pote"
+   ]
+  },
+  {
+   "id": "porta_temperos",
+   "rotulo": "Porta-temperos",
+   "categoria": "cozinha_eletros",
+   "grupo": "porta_temperos",
+   "fixacao": "apoio",
+   "dims": [
+    0.2,
+    0.07,
+    0.095
+   ],
+   "arquivo": "glb/porta_temperos.glb",
+   "miniatura": "miniaturas/porta_temperos.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0475,
+      -0.0
+     ],
+     "tamanho": [
+      0.2,
+      0.095,
+      0.07
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "laranja",
+    "roxo",
+    "verde",
+    "vermelho"
+   ],
+   "tris": 3204,
+   "pacote": false,
+   "tags": [
+    "temperos",
+    "utensílio"
+   ]
+  },
+  {
+   "id": "moedor_pimenta_laranja",
+   "rotulo": "Moedor de pimenta (laranja)",
+   "categoria": "cozinha_eletros",
+   "grupo": "moedor_pimenta",
+   "fixacao": "apoio",
+   "dims": [
+    0.064,
+    0.064,
+    0.18
+   ],
+   "arquivo": "glb/moedor_pimenta_laranja.glb",
+   "miniatura": "miniaturas/moedor_pimenta_laranja.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.09,
+      -0.0
+     ],
+     "tamanho": [
+      0.064,
+      0.18,
+      0.064
+     ]
+    }
+   ],
+   "cores": [
+    "laranja",
+    "vermelho"
+   ],
+   "tris": 1724,
+   "pacote": false,
+   "tags": [
+    "moedor",
+    "pimenta",
+    "utensílio"
+   ]
+  },
+  {
+   "id": "moedor_pimenta_madeira",
+   "rotulo": "Moedor de pimenta (madeira)",
+   "categoria": "cozinha_eletros",
+   "grupo": "moedor_pimenta",
+   "fixacao": "apoio",
+   "dims": [
+    0.064,
+    0.064,
+    0.18
+   ],
+   "arquivo": "glb/moedor_pimenta_madeira.glb",
+   "miniatura": "miniaturas/moedor_pimenta_madeira.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.09,
+      -0.0
+     ],
+     "tamanho": [
+      0.064,
+      0.18,
+      0.064
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_escura",
+    "ouro"
+   ],
+   "tris": 1724,
+   "pacote": false,
+   "tags": [
+    "moedor",
+    "pimenta",
+    "utensílio"
+   ]
+  },
+  {
+   "id": "tabua_corte_furo",
+   "rotulo": "Tábua de corte com furo (laranja)",
+   "categoria": "cozinha_eletros",
+   "grupo": "tabua_corte_furo",
+   "fixacao": "apoio",
+   "dims": [
+    0.26,
+    0.34,
+    0.022
+   ],
+   "arquivo": "glb/tabua_corte_furo.glb",
+   "miniatura": "miniaturas/tabua_corte_furo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.011,
+      -0.0
+     ],
+     "tamanho": [
+      0.26,
+      0.022,
+      0.34
+     ]
+    }
+   ],
+   "cores": [
+    "laranja"
+   ],
+   "tris": 672,
+   "pacote": false,
+   "tags": [
+    "tábua",
+    "corte",
+    "utensílio"
+   ]
+  },
+  {
+   "id": "tabua_corte_redonda",
+   "rotulo": "Tábua de corte redonda",
+   "categoria": "cozinha_eletros",
+   "grupo": "tabua_corte_redonda",
+   "fixacao": "apoio",
+   "dims": [
+    0.26,
+    0.39,
+    0.022
+   ],
+   "arquivo": "glb/tabua_corte_redonda.glb",
+   "miniatura": "miniaturas/tabua_corte_redonda.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.01075,
+      -0.0
+     ],
+     "tamanho": [
+      0.26,
+      0.022,
+      0.39
+     ]
+    }
+   ],
+   "cores": [
+    "madeira",
+    "madeira_mel"
+   ],
+   "tris": 1680,
+   "pacote": false,
+   "tags": [
+    "tábua",
+    "corte",
+    "utensílio"
+   ]
+  },
+  {
+   "id": "tabua_corte_pacote",
+   "rotulo": "Tábua de corte com cabo (pacote)",
+   "categoria": "cozinha_eletros",
+   "grupo": "tabua_corte_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.247,
+    0.459,
+    0.035
+   ],
+   "arquivo": "glb/tabua_corte_pacote.glb",
+   "miniatura": "miniaturas/tabua_corte_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.01752,
+      -0.0
+     ],
+     "tamanho": [
+      0.247,
+      0.035,
+      0.459
+     ]
+    }
+   ],
+   "cores": [
+    "laranja_claro",
+    "terracota_clara"
+   ],
+   "tris": 1046,
+   "pacote": true,
+   "tags": [
+    "tábua",
+    "corte",
+    "pacote"
+   ]
+  },
+  {
+   "id": "rolo_massa_marmore",
+   "rotulo": "Rolo de massa de mármore",
+   "categoria": "cozinha_eletros",
+   "grupo": "rolo_massa",
+   "fixacao": "apoio",
+   "dims": [
+    0.43,
+    0.064,
+    0.064
+   ],
+   "arquivo": "glb/rolo_massa_marmore.glb",
+   "miniatura": "miniaturas/rolo_massa_marmore.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.032,
+      -0.0
+     ],
+     "tamanho": [
+      0.43,
+      0.064,
+      0.064
+     ]
+    }
+   ],
+   "cores": [
+    "branco_gelo",
+    "madeira_mel"
+   ],
+   "tris": 772,
+   "pacote": false,
+   "tags": [
+    "rolo",
+    "massa",
+    "utensílio"
+   ]
+  },
+  {
+   "id": "rolo_massa_pacote",
+   "rotulo": "Rolo de massa (pacote)",
+   "categoria": "cozinha_eletros",
+   "grupo": "rolo_massa_pacote",
+   "fixacao": "apoio",
+   "dims": [
+    0.389,
+    0.107,
+    0.107
+   ],
+   "arquivo": "glb/rolo_massa_pacote.glb",
+   "miniatura": "miniaturas/rolo_massa_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.05328,
+      -0.0
+     ],
+     "tamanho": [
+      0.389,
+      0.107,
+      0.107
+     ]
+    }
+   ],
+   "cores": [
+    "laranja_claro",
+    "terracota",
+    "terracota_clara"
+   ],
+   "tris": 560,
+   "pacote": true,
+   "tags": [
+    "rolo",
+    "massa",
+    "pacote"
+   ]
+  },
+  {
+   "id": "pote_barro_pequeno",
+   "rotulo": "Pote de barro pequeno",
+   "categoria": "cozinha_eletros",
+   "grupo": "pote_barro",
+   "fixacao": "apoio",
+   "dims": [
+    0.088,
+    0.088,
+    0.071
+   ],
+   "arquivo": "glb/pote_barro_pequeno.glb",
+   "miniatura": "miniaturas/pote_barro_pequeno.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.0048,
+      0
+     ],
+     "tamanho": [
+      0.048,
+      0.056,
+      0.048
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0354,
+      -0.0
+     ],
+     "tamanho": [
+      0.088,
+      0.071,
+      0.088
+     ]
+    }
+   ],
+   "cores": [
+    "tijolo"
+   ],
+   "tris": 728,
+   "pacote": false,
+   "tags": [
+    "pote",
+    "barro",
+    "louça"
+   ]
+  },
+  {
+   "id": "pote_barro_grande",
+   "rotulo": "Pote de barro grande",
+   "categoria": "cozinha_eletros",
+   "grupo": "pote_barro_grande",
+   "fixacao": "apoio",
+   "dims": [
+    0.176,
+    0.176,
+    0.142
+   ],
+   "arquivo": "glb/pote_barro_grande.glb",
+   "miniatura": "miniaturas/pote_barro_grande.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.0096,
+      0
+     ],
+     "tamanho": [
+      0.096,
+      0.112,
+      0.096
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.07079,
+      -0.0
+     ],
+     "tamanho": [
+      0.176,
+      0.142,
+      0.176
+     ]
+    }
+   ],
+   "cores": [
+    "terracota_escura"
+   ],
+   "tris": 728,
+   "pacote": false,
+   "tags": [
+    "pote",
+    "barro",
+    "louça"
+   ]
+  },
+  {
+   "id": "garrafa_leite",
+   "rotulo": "Garrafa de leite",
+   "categoria": "cozinha_eletros",
+   "grupo": "garrafa_leite",
+   "fixacao": "apoio",
+   "dims": [
+    0.076,
+    0.076,
+    0.217
+   ],
+   "arquivo": "glb/garrafa_leite.glb",
+   "miniatura": "miniaturas/garrafa_leite.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1085,
+      -0.0
+     ],
+     "tamanho": [
+      0.076,
+      0.217,
+      0.076
+     ]
+    }
+   ],
+   "cores": [
+    "creme_claro",
+    "laranja"
+   ],
+   "tris": 448,
+   "pacote": false,
+   "tags": [
+    "garrafa",
+    "leite",
+    "louça"
+   ]
+  },
+  {
+   "id": "prato_raso",
+   "rotulo": "Prato raso",
+   "categoria": "cozinha_eletros",
+   "grupo": "prato",
+   "fixacao": "apoio",
+   "dims": [
+    0.26,
+    0.26,
+    0.03
+   ],
+   "arquivo": "glb/prato_raso.glb",
+   "miniatura": "miniaturas/prato_raso.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_prato",
+     "centro": [
+      0,
+      0.008,
+      0
+     ],
+     "tamanho": [
+      0.14,
+      0.05,
+      0.14
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.01514,
+      -0.0
+     ],
+     "tamanho": [
+      0.26,
+      0.03,
+      0.26
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "louca"
+   ],
+   "tris": 1600,
+   "pacote": false,
+   "tags": [
+    "prato",
+    "louça"
+   ]
+  },
+  {
+   "id": "prato_fundo",
+   "rotulo": "Prato fundo",
+   "categoria": "cozinha_eletros",
+   "grupo": "prato_fundo",
+   "fixacao": "apoio",
+   "dims": [
+    0.23,
+    0.23,
+    0.051
+   ],
+   "arquivo": "glb/prato_fundo.glb",
+   "miniatura": "miniaturas/prato_fundo.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_prato",
+     "centro": [
+      0,
+      0.008,
+      0
+     ],
+     "tamanho": [
+      0.1,
+      0.05,
+      0.1
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.02552,
+      -0.0
+     ],
+     "tamanho": [
+      0.23,
+      0.051,
+      0.23
+     ]
+    }
+   ],
+   "cores": [
+    "creme_claro"
+   ],
+   "tris": 704,
+   "pacote": false,
+   "tags": [
+    "prato",
+    "louça"
+   ]
+  },
+  {
+   "id": "tigela_terracota",
+   "rotulo": "Tigela (terracota)",
+   "categoria": "cozinha_eletros",
+   "grupo": "tigela",
+   "fixacao": "apoio",
+   "dims": [
+    0.216,
+    0.216,
+    0.085
+   ],
+   "arquivo": "glb/tigela_terracota.glb",
+   "miniatura": "miniaturas/tigela_terracota.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.008,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      0.07,
+      0.12
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.04248,
+      -0.0
+     ],
+     "tamanho": [
+      0.216,
+      0.085,
+      0.216
+     ]
+    }
+   ],
+   "cores": [
+    "terracota"
+   ],
+   "tris": 704,
+   "pacote": false,
+   "tags": [
+    "tigela",
+    "louça"
+   ]
+  },
+  {
+   "id": "tigela_azul",
+   "rotulo": "Tigela (azul)",
+   "categoria": "cozinha_eletros",
+   "grupo": "tigela",
+   "fixacao": "apoio",
+   "dims": [
+    0.216,
+    0.216,
+    0.085
+   ],
+   "arquivo": "glb/tigela_azul.glb",
+   "miniatura": "miniaturas/tigela_azul.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.008,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      0.07,
+      0.12
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.04248,
+      -0.0
+     ],
+     "tamanho": [
+      0.216,
+      0.085,
+      0.216
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "branco"
+   ],
+   "tris": 1600,
+   "pacote": false,
+   "tags": [
+    "tigela",
+    "louça"
+   ]
+  },
+  {
+   "id": "panelas_empilhadas",
+   "rotulo": "Panelas de barro empilhadas",
+   "categoria": "cozinha_eletros",
+   "grupo": "panelas_empilhadas",
+   "fixacao": "apoio",
+   "dims": [
+    0.212,
+    0.212,
+    0.115
+   ],
+   "arquivo": "glb/panelas_empilhadas.glb",
+   "miniatura": "miniaturas/panelas_empilhadas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.05744,
+      -0.0
+     ],
+     "tamanho": [
+      0.212,
+      0.115,
+      0.212
+     ]
+    }
+   ],
+   "cores": [
+    "carvao",
+    "chocolate"
+   ],
+   "tris": 2112,
+   "pacote": false,
+   "tags": [
+    "panelas",
+    "barro",
+    "louça"
+   ]
+  },
+  {
+   "id": "cacarola_azul",
+   "rotulo": "Caçarola com tampa (azul)",
+   "categoria": "cozinha_eletros",
+   "grupo": "cacarola",
+   "fixacao": "apoio",
+   "dims": [
+    0.31,
+    0.236,
+    0.185
+   ],
+   "arquivo": "glb/cacarola_azul.glb",
+   "miniatura": "miniaturas/cacarola_azul.webp",
+   "interativos": [
+    {
+     "interativo": "correr",
+     "direcao": [
+      0.0,
+      1.0,
+      -0.0
+     ],
+     "curso": 0.12,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.1525,
+      -0.0
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.005,
+      0
+     ],
+     "tamanho": [
+      0.15,
+      0.11,
+      0.15
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.06092,
+      -0.0
+     ],
+     "tamanho": [
+      0.31,
+      0.122,
+      0.224
+     ]
+    }
+   ],
+   "cores": [
+    "azul_acinzentado",
+    "verde_lima"
+   ],
+   "tris": 3584,
+   "pacote": false,
+   "tags": [
+    "panela",
+    "caçarola",
+    "tampa"
+   ]
+  },
+  {
+   "id": "cacarola_vermelha",
+   "rotulo": "Caçarola com tampa (vermelha)",
+   "categoria": "cozinha_eletros",
+   "grupo": "cacarola",
+   "fixacao": "apoio",
+   "dims": [
+    0.31,
+    0.236,
+    0.185
+   ],
+   "arquivo": "glb/cacarola_vermelha.glb",
+   "miniatura": "miniaturas/cacarola_vermelha.webp",
+   "interativos": [
+    {
+     "interativo": "correr",
+     "direcao": [
+      0.0,
+      1.0,
+      -0.0
+     ],
+     "curso": 0.12,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.1525,
+      -0.0
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.005,
+      0
+     ],
+     "tamanho": [
+      0.15,
+      0.11,
+      0.15
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.06092,
+      -0.0
+     ],
+     "tamanho": [
+      0.31,
+      0.122,
+      0.224
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "vermelho"
+   ],
+   "tris": 3584,
+   "pacote": false,
+   "tags": [
+    "panela",
+    "caçarola",
+    "tampa"
+   ]
+  },
+  {
+   "id": "panela_cabo_azul",
+   "rotulo": "Panela com cabo (azul)",
+   "categoria": "cozinha_eletros",
+   "grupo": "panela_cabo",
+   "fixacao": "apoio",
+   "dims": [
+    0.327,
+    0.164,
+    0.105
+   ],
+   "arquivo": "glb/panela_cabo_azul.glb",
+   "miniatura": "miniaturas/panela_cabo_azul.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.005,
+      0
+     ],
+     "tamanho": [
+      0.11,
+      0.09,
+      0.11
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0815,
+      0.0525,
+      -0.0
+     ],
+     "tamanho": [
+      0.327,
+      0.105,
+      0.164
+     ]
+    }
+   ],
+   "cores": [
+    "azul_acinzentado",
+    "verde_lima"
+   ],
+   "tris": 824,
+   "pacote": false,
+   "tags": [
+    "panela",
+    "cabo",
+    "fogão"
+   ]
+  },
+  {
+   "id": "panela_cabo_cobre",
+   "rotulo": "Panela com cabo (cobre)",
+   "categoria": "cozinha_eletros",
+   "grupo": "panela_cabo",
+   "fixacao": "apoio",
+   "dims": [
+    0.327,
+    0.164,
+    0.105
+   ],
+   "arquivo": "glb/panela_cabo_cobre.glb",
+   "miniatura": "miniaturas/panela_cabo_cobre.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.005,
+      0
+     ],
+     "tamanho": [
+      0.11,
+      0.09,
+      0.11
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0815,
+      0.0525,
+      -0.0
+     ],
+     "tamanho": [
+      0.327,
+      0.105,
+      0.164
+     ]
+    }
+   ],
+   "cores": [
+    "cobre",
+    "preto"
+   ],
+   "tris": 824,
+   "pacote": false,
+   "tags": [
+    "panela",
+    "cabo",
+    "fogão"
+   ]
+  },
+  {
+   "id": "frigideira_azul",
+   "rotulo": "Frigideira (azul)",
+   "categoria": "cozinha_eletros",
+   "grupo": "frigideira",
+   "fixacao": "apoio",
+   "dims": [
+    0.409,
+    0.24,
+    0.087
+   ],
+   "arquivo": "glb/frigideira_azul.glb",
+   "miniatura": "miniaturas/frigideira_azul.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.005,
+      0
+     ],
+     "tamanho": [
+      0.16,
+      0.05,
+      0.16
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0845,
+      0.04363,
+      -0.0
+     ],
+     "tamanho": [
+      0.409,
+      0.087,
+      0.24
+     ]
+    }
+   ],
+   "cores": [
+    "azul_acinzentado",
+    "verde_lima"
+   ],
+   "tris": 824,
+   "pacote": false,
+   "tags": [
+    "frigideira",
+    "fogão"
+   ]
+  },
+  {
+   "id": "frigideira_preta",
+   "rotulo": "Frigideira (preta)",
+   "categoria": "cozinha_eletros",
+   "grupo": "frigideira",
+   "fixacao": "apoio",
+   "dims": [
+    0.409,
+    0.24,
+    0.087
+   ],
+   "arquivo": "glb/frigideira_preta.glb",
+   "miniatura": "miniaturas/frigideira_preta.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.005,
+      0
+     ],
+     "tamanho": [
+      0.16,
+      0.05,
+      0.16
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0845,
+      0.04363,
+      -0.0
+     ],
+     "tamanho": [
+      0.409,
+      0.087,
+      0.24
+     ]
+    }
+   ],
+   "cores": [
+    "grafite_escuro",
+    "madeira"
+   ],
+   "tris": 824,
+   "pacote": false,
+   "tags": [
+    "frigideira",
+    "fogão"
+   ]
+  },
+  {
+   "id": "caneca_branca",
+   "rotulo": "Caneca (branca)",
+   "categoria": "cozinha_eletros",
+   "grupo": "caneca",
+   "fixacao": "apoio",
+   "dims": [
+    0.12,
+    0.082,
+    0.102
+   ],
+   "arquivo": "glb/caneca_branca.glb",
+   "miniatura": "miniaturas/caneca_branca.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.004,
+      0
+     ],
+     "tamanho": [
+      0.05,
+      0.09,
+      0.05
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.01865,
+      0.0509,
+      -0.0
+     ],
+     "tamanho": [
+      0.12,
+      0.102,
+      0.082
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "vermelho"
+   ],
+   "tris": 1540,
+   "pacote": false,
+   "tags": [
+    "caneca",
+    "louça"
+   ]
+  },
+  {
+   "id": "caneca_amarela",
+   "rotulo": "Caneca (amarela)",
+   "categoria": "cozinha_eletros",
+   "grupo": "caneca",
+   "fixacao": "apoio",
+   "dims": [
+    0.12,
+    0.082,
+    0.102
+   ],
+   "arquivo": "glb/caneca_amarela.glb",
+   "miniatura": "miniaturas/caneca_amarela.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.004,
+      0
+     ],
+     "tamanho": [
+      0.05,
+      0.09,
+      0.05
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.01865,
+      0.0509,
+      -0.0
+     ],
+     "tamanho": [
+      0.12,
+      0.102,
+      0.082
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "laranja"
+   ],
+   "tris": 1540,
+   "pacote": false,
+   "tags": [
+    "caneca",
+    "louça"
+   ]
+  },
+  {
+   "id": "caneca_azul",
+   "rotulo": "Caneca (azul)",
+   "categoria": "cozinha_eletros",
+   "grupo": "caneca",
+   "fixacao": "apoio",
+   "dims": [
+    0.12,
+    0.082,
+    0.102
+   ],
+   "arquivo": "glb/caneca_azul.glb",
+   "miniatura": "miniaturas/caneca_azul.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.004,
+      0
+     ],
+     "tamanho": [
+      0.05,
+      0.09,
+      0.05
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.01865,
+      0.0509,
+      -0.0
+     ],
+     "tamanho": [
+      0.12,
+      0.102,
+      0.082
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "azul_medio"
+   ],
+   "tris": 1540,
+   "pacote": false,
+   "tags": [
+    "caneca",
+    "louça"
+   ]
+  },
+  {
+   "id": "copo_vidro",
+   "rotulo": "Copo de vidro",
+   "categoria": "cozinha_eletros",
+   "grupo": "copo",
+   "fixacao": "apoio",
+   "dims": [
+    0.074,
+    0.074,
+    0.111
+   ],
+   "arquivo": "glb/copo_vidro.glb",
+   "miniatura": "miniaturas/copo_vidro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.05559,
+      -0.0
+     ],
+     "tamanho": [
+      0.074,
+      0.111,
+      0.074
+     ]
+    }
+   ],
+   "cores": [],
+   "tris": 336,
+   "pacote": false,
+   "tags": [
+    "copo",
+    "louça"
+   ]
+  },
+  {
+   "id": "copo_colorido",
+   "rotulo": "Copo colorido",
+   "categoria": "cozinha_eletros",
+   "grupo": "copo_colorido",
+   "fixacao": "apoio",
+   "dims": [
+    0.074,
+    0.074,
+    0.111
+   ],
+   "arquivo": "glb/copo_colorido.glb",
+   "miniatura": "miniaturas/copo_colorido.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.05571,
+      -0.0
+     ],
+     "tamanho": [
+      0.074,
+      0.111,
+      0.074
+     ]
+    }
+   ],
+   "cores": [
+    "verde_agua"
+   ],
+   "tris": 336,
+   "pacote": false,
+   "tags": [
+    "copo",
+    "louça"
+   ]
+  },
+  {
+   "id": "xicara_pires_azul",
+   "rotulo": "Xícara com pires (azul)",
+   "categoria": "cozinha_eletros",
+   "grupo": "xicara_pires",
+   "fixacao": "apoio",
+   "dims": [
+    0.15,
+    0.15,
+    0.07
+   ],
+   "arquivo": "glb/xicara_pires_azul.glb",
+   "miniatura": "miniaturas/xicara_pires_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03496,
+      -0.0
+     ],
+     "tamanho": [
+      0.15,
+      0.07,
+      0.15
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "branco"
+   ],
+   "tris": 2044,
+   "pacote": false,
+   "tags": [
+    "xícara",
+    "pires",
+    "louça"
+   ]
+  },
+  {
+   "id": "xicara_pires_rosa",
+   "rotulo": "Xícara com pires (rosa)",
+   "categoria": "cozinha_eletros",
+   "grupo": "xicara_pires",
+   "fixacao": "apoio",
+   "dims": [
+    0.15,
+    0.15,
+    0.07
+   ],
+   "arquivo": "glb/xicara_pires_rosa.glb",
+   "miniatura": "miniaturas/xicara_pires_rosa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.03496,
+      -0.0
+     ],
+     "tamanho": [
+      0.15,
+      0.07,
+      0.15
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "rosa"
+   ],
+   "tris": 2044,
+   "pacote": false,
+   "tags": [
+    "xícara",
+    "pires",
+    "louça"
+   ]
+  },
+  {
+   "id": "garfo",
+   "rotulo": "Garfo",
+   "categoria": "cozinha_eletros",
+   "grupo": "talher_garfo",
+   "fixacao": "apoio",
+   "dims": [
+    0.182,
+    0.026,
+    0.011
+   ],
+   "arquivo": "glb/garfo.glb",
+   "miniatura": "miniaturas/garfo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0055,
+      -0.0
+     ],
+     "tamanho": [
+      0.182,
+      0.011,
+      0.026
+     ]
+    }
+   ],
+   "cores": [
+    "cromo",
+    "turquesa"
+   ],
+   "tris": 1280,
+   "pacote": false,
+   "tags": [
+    "talher",
+    "garfo"
+   ]
+  },
+  {
+   "id": "faca",
+   "rotulo": "Faca",
+   "categoria": "cozinha_eletros",
+   "grupo": "talher_faca",
+   "fixacao": "apoio",
+   "dims": [
+    0.195,
+    0.02,
+    0.011
+   ],
+   "arquivo": "glb/faca.glb",
+   "miniatura": "miniaturas/faca.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0055,
+      -0.0
+     ],
+     "tamanho": [
+      0.195,
+      0.011,
+      0.02
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "cromo"
+   ],
+   "tris": 672,
+   "pacote": false,
+   "tags": [
+    "talher",
+    "faca"
+   ]
+  },
+  {
+   "id": "colher",
+   "rotulo": "Colher",
+   "categoria": "cozinha_eletros",
+   "grupo": "talher_colher",
+   "fixacao": "apoio",
+   "dims": [
+    0.18,
+    0.036,
+    0.013
+   ],
+   "arquivo": "glb/colher.glb",
+   "miniatura": "miniaturas/colher.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.00672,
+      -0.0
+     ],
+     "tamanho": [
+      0.18,
+      0.013,
+      0.036
+     ]
+    }
+   ],
+   "cores": [
+    "cromo",
+    "rosa"
+   ],
+   "tris": 692,
+   "pacote": false,
+   "tags": [
+    "talher",
+    "colher"
+   ]
+  },
+  {
+   "id": "jarra_vidro",
+   "rotulo": "Jarra de vidro com suco",
+   "categoria": "cozinha_eletros",
+   "grupo": "jarra",
+   "fixacao": "apoio",
+   "dims": [
+    0.215,
+    0.14,
+    0.204
+   ],
+   "arquivo": "glb/jarra_vidro.glb",
+   "miniatura": "miniaturas/jarra_vidro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0175,
+      0.102,
+      -0.0
+     ],
+     "tamanho": [
+      0.215,
+      0.204,
+      0.14
+     ]
+    }
+   ],
+   "cores": [
+    "laranja"
+   ],
+   "tris": 2052,
+   "pacote": false,
+   "tags": [
+    "jarra",
+    "louça"
+   ]
+  },
+  {
+   "id": "jarra_ceramica",
+   "rotulo": "Jarra de cerâmica (azul)",
+   "categoria": "cozinha_eletros",
+   "grupo": "jarra",
+   "fixacao": "apoio",
+   "dims": [
+    0.215,
+    0.14,
+    0.204
+   ],
+   "arquivo": "glb/jarra_ceramica.glb",
+   "miniatura": "miniaturas/jarra_ceramica.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0175,
+      0.102,
+      -0.0
+     ],
+     "tamanho": [
+      0.215,
+      0.204,
+      0.14
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste"
+   ],
+   "tris": 1940,
+   "pacote": false,
+   "tags": [
+    "jarra",
+    "louça"
+   ]
+  },
+  {
+   "id": "fruteira",
+   "rotulo": "Fruteira com frutas",
+   "categoria": "cozinha_eletros",
+   "grupo": "fruteira",
+   "fixacao": "apoio",
+   "dims": [
+    0.28,
+    0.28,
+    0.167
+   ],
+   "arquivo": "glb/fruteira.glb",
+   "miniatura": "miniaturas/fruteira.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.08366,
+      -0.0
+     ],
+     "tamanho": [
+      0.28,
+      0.167,
+      0.28
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "laranja",
+    "marrom",
+    "verde_lima",
+    "vermelho"
+   ],
+   "tris": 2484,
+   "pacote": false,
+   "tags": [
+    "fruteira",
+    "frutas",
+    "louça"
+   ]
+  },
+  {
+   "id": "assadeira_metal",
+   "rotulo": "Assadeira de metal",
+   "categoria": "cozinha_eletros",
+   "grupo": "assadeira",
+   "fixacao": "apoio",
+   "dims": [
+    0.41,
+    0.24,
+    0.055
+   ],
+   "arquivo": "glb/assadeira_metal.glb",
+   "miniatura": "miniaturas/assadeira_metal.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.005,
+      0
+     ],
+     "tamanho": [
+      0.32,
+      0.05,
+      0.2
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0275,
+      -0.0
+     ],
+     "tamanho": [
+      0.41,
+      0.055,
+      0.24
+     ]
+    }
+   ],
+   "cores": [
+    "metal_claro"
+   ],
+   "tris": 1404,
+   "pacote": false,
+   "tags": [
+    "assadeira",
+    "forno"
+   ]
+  },
+  {
+   "id": "assadeira_vidro",
+   "rotulo": "Refratário de vidro",
+   "categoria": "cozinha_eletros",
+   "grupo": "assadeira",
+   "fixacao": "apoio",
+   "dims": [
+    0.41,
+    0.24,
+    0.055
+   ],
+   "arquivo": "glb/assadeira_vidro.glb",
+   "miniatura": "miniaturas/assadeira_vidro.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_dentro",
+     "centro": [
+      0,
+      0.005,
+      0
+     ],
+     "tamanho": [
+      0.32,
+      0.05,
+      0.2
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.0275,
+      -0.0
+     ],
+     "tamanho": [
+      0.41,
+      0.055,
+      0.24
+     ]
+    }
+   ],
+   "cores": [],
+   "tris": 1404,
+   "pacote": false,
+   "tags": [
+    "assadeira",
+    "forno"
+   ]
+  },
+  {
+   "id": "forma_bolo",
+   "rotulo": "Forma de bolo",
+   "categoria": "cozinha_eletros",
+   "grupo": "forma_bolo",
+   "fixacao": "apoio",
+   "dims": [
+    0.256,
+    0.256,
+    0.082
+   ],
+   "arquivo": "glb/forma_bolo.glb",
+   "miniatura": "miniaturas/forma_bolo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.041,
+      -0.0
+     ],
+     "tamanho": [
+      0.256,
+      0.082,
+      0.256
+     ]
+    }
+   ],
+   "cores": [
+    "metal_claro"
+   ],
+   "tris": 1408,
+   "pacote": false,
+   "tags": [
+    "forma",
+    "bolo",
+    "forno"
+   ]
+  },
+  {
+   "id": "grill_bancada_vermelho",
+   "rotulo": "Grill elétrico de bancada (vermelho)",
+   "categoria": "cozinha_eletros",
+   "grupo": "grill_bancada",
+   "fixacao": "apoio",
+   "dims": [
+    0.514,
+    0.319,
+    0.172
+   ],
+   "arquivo": "glb/grill_bancada_vermelho.glb",
+   "miniatura": "miniaturas/grill_bancada_vermelho.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.3963,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.112,
+      -0.13
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_chapa",
+     "centro": [
+      0,
+      0.12,
+      0
+     ],
+     "tamanho": [
+      0.32,
+      0.05,
+      0.2
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.059,
+      0.0005
+     ],
+     "tamanho": [
+      0.514,
+      0.118,
+      0.301
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "cromo",
+    "ferro",
+    "grafite",
+    "preto",
+    "vermelho"
+   ],
+   "tris": 4554,
+   "pacote": false,
+   "tags": [
+    "grill",
+    "eletro",
+    "tampa"
+   ]
+  },
+  {
+   "id": "grill_bancada_grafite",
+   "rotulo": "Grill elétrico de bancada (grafite)",
+   "categoria": "cozinha_eletros",
+   "grupo": "grill_bancada",
+   "fixacao": "apoio",
+   "dims": [
+    0.514,
+    0.319,
+    0.172
+   ],
+   "arquivo": "glb/grill_bancada_grafite.glb",
+   "miniatura": "miniaturas/grill_bancada_grafite.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.3963,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.112,
+      -0.13
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_chapa",
+     "centro": [
+      0,
+      0.12,
+      0
+     ],
+     "tamanho": [
+      0.32,
+      0.05,
+      0.2
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.059,
+      0.0005
+     ],
+     "tamanho": [
+      0.514,
+      0.118,
+      0.301
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "cromo",
+    "ferro",
+    "grafite",
+    "laranja",
+    "preto",
+    "vermelho"
+   ],
+   "tris": 4554,
+   "pacote": false,
+   "tags": [
+    "grill",
+    "eletro",
+    "tampa"
+   ]
+  },
+  {
+   "id": "churrasqueira_bola_preta",
+   "rotulo": "Churrasqueira de bola com tampa",
+   "categoria": "cozinha_eletros",
+   "grupo": "churrasqueira_bola",
+   "fixacao": "chao",
+   "dims": [
+    0.654,
+    0.673,
+    0.944
+   ],
+   "arquivo": "glb/churrasqueira_bola_preta.glb",
+   "miniatura": "miniaturas/churrasqueira_bola_preta.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.6581,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.664,
+      -0.295
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_grelha",
+     "centro": [
+      0,
+      0.644,
+      0
+     ],
+     "tamanho": [
+      0.319,
+      0.15,
+      0.319
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.64,
+      0
+     ],
+     "tamanho": [
+      0.58,
+      0.54,
+      0.58
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.185,
+      0
+     ],
+     "tamanho": [
+      0.7,
+      0.37,
+      0.7
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "cromo",
+    "madeira",
+    "metal",
+    "preto"
+   ],
+   "tris": 3732,
+   "pacote": false,
+   "tags": [
+    "grill",
+    "churrasqueira",
+    "externa",
+    "tampa"
+   ]
+  },
+  {
+   "id": "saleiro",
+   "rotulo": "Saleiro",
+   "categoria": "cozinha_eletros",
+   "grupo": "saleiro_pimenteiro",
+   "fixacao": "apoio",
+   "dims": [
+    0.054,
+    0.054,
+    0.089
+   ],
+   "arquivo": "glb/saleiro.glb",
+   "miniatura": "miniaturas/saleiro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.04425,
+      -0.0
+     ],
+     "tamanho": [
+      0.054,
+      0.089,
+      0.054
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cromo",
+    "preto"
+   ],
+   "tris": 604,
+   "pacote": false,
+   "tags": [
+    "saleiro",
+    "tempero"
+   ]
+  },
+  {
+   "id": "pimenteiro",
+   "rotulo": "Pimenteiro",
+   "categoria": "cozinha_eletros",
+   "grupo": "saleiro_pimenteiro",
+   "fixacao": "apoio",
+   "dims": [
+    0.054,
+    0.054,
+    0.089
+   ],
+   "arquivo": "glb/pimenteiro.glb",
+   "miniatura": "miniaturas/pimenteiro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.04425,
+      -0.0
+     ],
+     "tamanho": [
+      0.054,
+      0.089,
+      0.054
+     ]
+    }
+   ],
+   "cores": [
+    "carvao",
+    "preto"
+   ],
+   "tris": 604,
+   "pacote": false,
+   "tags": [
+    "pimenteiro",
+    "tempero"
+   ]
+  },
+  {
+   "id": "saleiro_pimenteiro_bandeja",
+   "rotulo": "Saleiro e pimenteiro na bandeja",
+   "categoria": "cozinha_eletros",
+   "grupo": "saleiro_pimenteiro",
+   "fixacao": "apoio",
+   "dims": [
+    0.15,
+    0.08,
+    0.101
+   ],
+   "arquivo": "glb/saleiro_pimenteiro_bandeja.glb",
+   "miniatura": "miniaturas/saleiro_pimenteiro_bandeja.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.05025,
+      -0.0
+     ],
+     "tamanho": [
+      0.15,
+      0.101,
+      0.08
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "carvao",
+    "cromo",
+    "madeira",
+    "madeira_clara",
+    "preto"
+   ],
+   "tris": 1904,
+   "pacote": false,
+   "tags": [
+    "saleiro",
+    "pimenteiro",
+    "tempero"
+   ]
+  }
+ ]
+}

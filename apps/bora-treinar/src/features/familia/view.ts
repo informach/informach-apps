@@ -22,13 +22,17 @@ export const familyView = cache(async (userId: string) => {
   ]);
   const allowed = new Set(allowedProfileIds(profiles, access.profileLimit));
   const plan: Access = {
-    paid: access.paid,
+    subscribed: access.subscribed,
+    unlocked: access.unlocked,
+    trial: access.trial,
     tier: access.tier as Tier,
     profileLimit: access.profileLimit,
   };
   return {
     access: plan,
     subscription: access.subscription,
+    /** pagamento atrasado, ainda liberado pela tolerância de 7 dias */
+    pagamentoAtrasado: access.pagamentoAtrasado,
     family,
     profiles: profiles.map((p) => ({ ...p, allowed: allowed.has(p.id) })) as ProfileView[],
   };

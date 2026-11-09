@@ -11,6 +11,8 @@ import {
   customers,
   ediDevices,
   ediEntitlements,
+  estrelaFamilies,
+  estrelaGuardians,
   missaoFamilies,
   missaoReports,
   users,
@@ -57,8 +59,8 @@ export async function signupsPerDay(since: Date): Promise<DayCount[]> {
 /**
  * Contas presentes em dois produtos ou mais. Presença é ter dado próprio do
  * produto (perfil do Cozya, criança ou convite na Agenda, família na Missão ou
- * no Bora Treinar, computador ou direito na Suíte Edi) ou um cadastro de
- * cobrança nele.
+ * no Bora Treinar, família ou segundo responsável no Dia de Estrela, computador
+ * ou direito na Suíte Edi) ou um cadastro de cobrança nele.
  */
 export function multiProductAccounts(): Promise<number> {
   return memo("overview:multi-product", 5 * 60_000, async () => {
@@ -71,6 +73,8 @@ export function multiProductAccounts(): Promise<number> {
           union select ${agendaFamilyMembers.userId}, 'agenda-da-turma' from ${agendaFamilyMembers}
           union select ${missaoFamilies.userId}, 'missao-saber' from ${missaoFamilies}
           union select ${boraFamilies.userId}, 'bora-treinar' from ${boraFamilies}
+          union select ${estrelaFamilies.userId}, 'dia-de-estrela' from ${estrelaFamilies}
+          union select ${estrelaGuardians.userId}, 'dia-de-estrela' from ${estrelaGuardians}
           union select ${ediDevices.userId}, 'edi' from ${ediDevices}
           union select ${ediEntitlements.userId}, 'edi' from ${ediEntitlements}
           union select ${customers.subjectId}, ${customers.app} from ${customers}

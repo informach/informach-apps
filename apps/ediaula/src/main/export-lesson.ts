@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { basename, dirname, extname } from "node:path";
 import { withStagedFiles } from "@informach/edi-desktop/files";
+import { exportExtension } from "../shared/exportPresets.ts";
 import { PACKAGE_SUFFIX } from "../shared/platformPackage.ts";
 import { exportSpecSchema, projectSchema } from "../shared/project-schema.ts";
 import { subRip } from "../shared/webvtt.ts";
@@ -17,29 +18,29 @@ export async function exportLesson(rawProject: unknown, rawSpec: unknown, deps: 
   const project = projectSchema.parse(rawProject);
   const spec = exportSpecSchema.parse(rawSpec);
   const primary = await deps.assertWrite(spec.outPath);
-  if (extname(primary).toLowerCase() !== (spec.audioOnly ? ".mp3" : ".mp4"))
-    throw new Error("Escolha um destino MP4 para vídeo ou MP3 para áudio.");
+  if (extname(primary).toLowerCase() !== `.${exportExtension(spec)}`)
+    throw new Error("Escolha um destino MP4 para vídeo, GIF para GIF animado ou MP3 para áudio.");
+  // A GIF goes out alone: no captions, thumbnail, translations nor package beside it.
+  const alone = !!spec.audioOnly || !!spec.gif;
   // The staging folder goes beside the destination: the app looks there for leftovers of a crash.
   await deps.rememberFolder?.(dirname(primary));
   const base = primary.slice(0, -extname(primary).length);
   // "aula.en.mp4" beside "aula.mp4" would write its captions over the English translation of
   // that video (aula.en.srt): the name is refused.
   const lang = /\.([a-z]{2,3}(?:-[a-z]{2,4})?)$/i.exec(base);
-  if (lang && !spec.audioOnly && existsSync(`${base.slice(0, -lang[0].length)}.mp4`))
+  if (lang && !alone && existsSync(`${base.slice(0, -lang[0].length)}.mp4`))
     throw new Error(
       `O nome ${basename(primary)} se confunde com as legendas traduzidas (${lang[1]}) de ${basename(base.slice(0, -lang[0].length))}.mp4 nesta pasta. Escolha outro nome.`,
     );
   // Caption files only when there is text to put in them.
-  const cues = !!spec.captionCues && subRip(spec.captionCues) !== null;
+  const cues = !spec.gif && !!spec.captionCues && subRip(spec.captionCues) !== null;
   const captions = cues ? await deps.assertRelatedExport(primary, `${base}.srt`) : undefined;
   const subtitles = cues ? await deps.assertRelatedExport(primary, `${base}.vtt`) : undefined;
   const thumbnail =
-    spec.thumbnail && !spec.audioOnly
-      ? await deps.assertRelatedExport(primary, `${base}.jpg`)
-      : undefined;
+    spec.thumbnail && !alone ? await deps.assertRelatedExport(primary, `${base}.jpg`) : undefined;
   // Translated captions beside the video: <aula>.<lang>.srt and .vtt (shared/captionTranslate.ts).
   const translations: { lang: string; srt: string; vtt: string }[] = [];
-  for (const t of spec.translations ?? []) {
+  for (const t of spec.gif ? [] : (spec.translations ?? [])) {
     if (subRip(t.cues) === null) continue;
     translations.push({
       lang: t.lang,
@@ -49,7 +50,7 @@ export async function exportLesson(rawProject: unknown, rawSpec: unknown, deps: 
   }
   // The package for the platform (shared/platformPackage.ts), only for a video.
   const platform =
-    spec.platform && !spec.audioOnly
+    spec.platform && !alone
       ? await deps.assertRelatedExport(primary, `${base}${PACKAGE_SUFFIX}`)
       : undefined;
   // The voice and the music, as picked (dialog:stems made these two files writable).

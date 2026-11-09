@@ -133,6 +133,21 @@ export const ROUTINES: readonly RoutineDefinition[] = [
     intervalMinutes: 60,
     schedule: "de hora em hora",
   },
+  // Dia de Estrela: `cron-dia-de-estrela-alertas` e `cron-dia-de-estrela-billing`.
+  {
+    app: "dia-de-estrela",
+    job: "alertas",
+    label: "Alertas aos pais e limpeza do Dia de Estrela",
+    intervalMinutes: 5,
+    schedule: "a cada 5 minutos",
+  },
+  {
+    app: "dia-de-estrela",
+    job: "billing",
+    label: "Manutenção da cobrança do Dia de Estrela",
+    intervalMinutes: 5,
+    schedule: "a cada 5 minutos",
+  },
   {
     app: "edi",
     job: "reconcile",

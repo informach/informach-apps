@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { balloonPath, freeBalloonTip, preserveBalloonBody } from "../src/shared/annotation.ts";
+import {
+  balloonPath,
+  freeBalloonTip,
+  preserveBalloonBody,
+  textBoxLayout,
+} from "../src/shared/annotation.ts";
 
 test("free balloon tip chooses all four sides and retains the requested length", () => {
   for (const [point, side] of [
@@ -58,4 +63,28 @@ test("extending a tail preserves body position and size at every keyframe scale"
     );
     assert.equal(next.t, 4);
   }
+});
+
+test("the text typed on a balloon is laid out like the picture draws it", () => {
+  const balloon = textBoxLayout({ kind: "balloon", color: "#12140A", fontSize: 40, width: 380 });
+  assert.equal(balloon.fontSize, 40);
+  assert.equal(balloon.lineHeight, 52);
+  assert.equal(balloon.maxWidth, 380);
+  assert.equal(balloon.align, "center");
+  assert.equal(balloon.wraps, true);
+  // White inside (the balloon's default) takes the dark ink; a dark inside takes white letters.
+  assert.equal(balloon.fill, "#FFFFFF");
+  assert.equal(balloon.textColor, "#12140A");
+  const dark = textBoxLayout({
+    kind: "balloon",
+    color: "#12140A",
+    fill: "#3D6BFF",
+    ink: "#222222",
+  });
+  assert.equal(dark.textColor, "#FFFFFF");
+  assert.equal(textBoxLayout({ kind: "balloon", color: "#000000", layout: "left" }).align, "left");
+  // Labels never wrap and sit tighter; notes are filled with their color.
+  const label = textBoxLayout({ kind: "label", color: "#12140A" });
+  assert.deepEqual([label.wraps, label.padX, label.padY, label.align], [false, 20, 12, "left"]);
+  assert.equal(textBoxLayout({ kind: "note", color: "#C8F031" }).textColor, "#12140A");
 });

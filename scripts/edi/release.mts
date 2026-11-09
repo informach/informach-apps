@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { build, Platform } from "electron-builder";
 import { EDI_DESKTOP_APPS } from "../../packages/config/src/edi-tools";
 import {
+  assertCompleteRelease,
   buildArtifactSchema,
   compareReleaseVersions,
   desktopAppIdSchema,
@@ -207,6 +208,7 @@ async function publish() {
     notes: note,
     artifacts,
   });
+  assertCompleteRelease(manifest);
   const signed = signRelease(manifest, keyId, privateKey);
   verifyRelease(signed, { [keyId]: expectedPublic });
   const current = await fetchPublicRelease({

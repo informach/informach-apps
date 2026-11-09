@@ -4,6 +4,8 @@ import {
   AI_TOOLS,
   type AiToolName,
   isAiToolName,
+  isMemoryTool,
+  type MemoryToolName,
   PANEL_FORBIDDEN,
   writesDraft,
 } from "@shared/aiTools";
@@ -40,13 +42,21 @@ import { rangeProject } from "@shared/courseSplit";
 import { type CourseTemplate, parseCourseTemplate } from "@shared/courseTemplate";
 import { type CursorFx, DEFAULT_CURSOR_FX } from "@shared/cursor";
 import { buildEditingTemplate } from "@shared/editingTemplate";
-import { exportName, presetSpec, runExportVideo } from "@shared/exportPresets";
+import {
+  checkParts,
+  type PartRange,
+  partFiles,
+  runExportParts,
+  trackParts,
+} from "@shared/exportParts";
+import { type ExportPresetId, exportName, presetSpec, runExportVideo } from "@shared/exportPresets";
 import { GAIN_MAX_DB, GAIN_MIN_DB } from "@shared/gain";
 import { formatGlossary } from "@shared/glossary";
 import type { HistoryEntry } from "@shared/history";
 import { CATEGORY_LABEL, type LibraryMedia } from "@shared/library";
 import { chaptersOf, hasChapterMarkers } from "@shared/markers";
 import { plural } from "@shared/plural";
+import type { Finding } from "@shared/preflight";
 import { PREPARE_LABEL, PREPARE_STEPS, type PrepareStep, resumeStep } from "@shared/prepare";
 import { screenDirections } from "@shared/screenDirections";
 import { sectionLabel } from "@shared/script";
@@ -74,12 +84,14 @@ import {
   removeEmptyTrack,
   renameTrack,
   setTrackFlags,
+  withTrackIds,
 } from "@shared/trackOps";
 import { DEFAULT_TRANSITION, previousClip } from "@shared/transitions";
 import type {
   AiToolCall,
   Asset,
   Clip,
+  ExportSpec,
   Project,
   ToolImage,
   Transcript,
@@ -125,7 +137,7 @@ import { endAiCall, startAiCall, updateAiCall } from "./aiActivity";
 import { addAnnotation, addCard, addImageOverlay, updateAnnotation } from "./annotations";
 import { type CleanupOverrides, cleanupPlan } from "./cleanupPlan";
 import { loadClickEvents } from "./clickSounds";
-import { askConfirm } from "./confirm";
+import { askChoice, askConfirm } from "./confirm";
 import { applyTemplateParts, courseTemplate } from "./courseTemplate";
 import { hasPlatformData, makeQuiz, quizItemTime, translateLesson } from "./delivery";
 import { frameForAi } from "./frame";
@@ -159,12 +171,10 @@ export interface ToolOutcome {
   text: string;
   /** Pictures for the model, after the text (get_frame). */
   images?: ToolImage[];
-  /** The same facts as data for MCP clients (get_overview's selection). */
-  structured?: Record<string, unknown>;
 }
 
 /** A handler's answer: its text, or its text with pictures. */
-type Answer = string | { text: string; images?: ToolImage[]; structured?: Record<string, unknown> };
+type Answer = string | { text: string; images?: ToolImage[] };
 
 /** m:ss.s — compact and unambiguous for the model. */
 const t = (s: number): string => {
@@ -647,13 +657,19 @@ function audioOfClip(c: Clip, ctx: RoleContext, silence: readonly [number, numbe
  * through `commit`. Refused, with nothing done, when none can be placed.
  */
 function substitute(p: Project, ids: string[], commit: Commit): string {
+  const planned = substitutionPlan(p, ids);
+  committedOrFail(commit((q) => (q === p ? planned.project : placeSubstitutions(q, ids).project)));
+  return planned.message;
+}
+
+/** The lesson with the rows of the kids table placed, and the answer; refused when none fits. */
+function substitutionPlan(p: Project, ids: string[]): { project: Project; message: string } {
   const r = placeSubstitutions(p, ids);
   if (!r.placed.length)
     throw new ToolError(
       `Nada foi colocado: ${r.problems.map((x) => `${x.id}: ${x.why}`).join("; ")}.`,
     );
-  committedOrFail(commit((q) => (q === p ? r.project : placeSubstitutions(q, ids).project)));
-  return [
+  const message = [
     `${plural(r.placed.length, "fala de personagem colocada", "falas de personagem colocadas")} sobre a fala da professora, sem procurar pausa e sem mover nada:`,
     ...r.placed.map(
       (x) =>
@@ -663,6 +679,96 @@ function substitute(p: Project, ids: string[], commit: Commit): string {
     r.ruleOff
       ? 'Atenção: a regra "personagem silencia a professora" está desligada nesta aula, então as duas vozes vão se sobrepor. Ligue com set_voice_rule.'
       : "A professora fica calada e o avatar dela sai enquanto o personagem fala (set_voice_rule).",
+  ].join("\n");
+  return { project: r.project, message };
+}
+
+/**
+ * export_video with several parts (shared/exportParts.ts): one folder picked by the person, the
+ * files named "<aula> - Parte N", one question when some are already there, and each part in the
+ * queue as a stretch of the lesson (as `range` exports one), with captions and thumbnail only.
+ */
+async function exportParts(
+  p: Project,
+  parts: readonly PartRange[],
+  opts: {
+    preset: ExportPresetId;
+    spec: Omit<ExportSpec, "outPath">;
+    vertical: boolean;
+    wanted: ReadonlySet<string>;
+    check: () => Promise<readonly Finding[]>;
+    confirm: (problems: readonly string[]) => Promise<boolean>;
+  },
+  progress: (step: string) => void,
+  signal: AbortSignal,
+): Promise<string> {
+  const files = partFiles(parts, p.name, opts.preset, opts.vertical);
+  let folder = "";
+  const result = await runExportParts(
+    {
+      check: opts.check,
+      confirm: opts.confirm,
+      pickFolder: async () => {
+        progress("Esperando você escolher a pasta das partes");
+        const picked = await window.api.pickFolder(`Onde salvar as ${parts.length} partes`);
+        // Cancelled while the dialog was open: nothing goes into the queue.
+        signal.throwIfAborted();
+        folder = picked ?? "";
+        return picked;
+      },
+      exists: (paths) => window.api.exists(paths),
+      queued: () =>
+        new Set(
+          useExportQueue
+            .getState()
+            .items.filter((i) => ["waiting", "preparing", "exporting"].includes(i.state))
+            .map((i) => i.spec.outPath.toLowerCase()),
+        ),
+      ask: async (names) => {
+        const answer = await askChoice(
+          {
+            title: "Alguns arquivos já estão na pasta",
+            message: `${names.length === 1 ? "Um arquivo" : `${names.length} arquivos`} das ${parts.length} partes já ${names.length === 1 ? "está" : "estão"} em ${folder}. Substituir todos, ou dar aos novos um sufixo, como (2)?`,
+            items: names,
+            confirm: "Substituir todos",
+            other: "Acrescentar sufixo",
+            cancel: "Não exportar",
+          },
+          signal,
+        );
+        signal.throwIfAborted();
+        return answer === "confirm" ? "replace" : answer === "other" ? "suffix" : null;
+      },
+      enqueue: (part, outPath) => {
+        signal.throwIfAborted();
+        const id = newId("export");
+        exportQueue.add({
+          id,
+          project: rangeProject(p, part.from, part.to),
+          spec: { ...opts.spec, outPath },
+          captions: opts.wanted.has("captions"),
+          extras: { translations: false, platform: false },
+        });
+        return id;
+      },
+    },
+    parts,
+    files,
+  );
+  if (!result.ok) throw new ToolError(result.text);
+  const name = (path: string): string => path.slice(path.lastIndexOf("\\") + 1);
+  return [
+    `${plural(result.parts.length, "parte na fila", "partes na fila")}, na pasta escolhida pela pessoa (${result.folder})${result.confirmed ? ", exportando apesar dos problemas, como a pessoa confirmou" : ""}:`,
+    ...result.parts.map(
+      (x, i) => `- Parte ${i + 1} · ${t(x.from)}–${t(x.to)} · id ${x.id} · ${name(x.outPath)}`,
+    ),
+    ...(result.replaced.length
+      ? [`Substituídos, como a pessoa pediu: ${result.replaced.map(name).join(", ")}.`]
+      : []),
+    ...(result.suffixed.length
+      ? [`Com sufixo, porque o nome já existia: ${result.suffixed.map(name).join(", ")}.`]
+      : []),
+    "As partes saem sem legendas traduzidas nem pacote da plataforma. Acompanhe cada uma com get_export_status.",
   ].join("\n");
 }
 
@@ -733,8 +839,9 @@ function annotationStyle(
   return out;
 }
 
+/** The memory tools run in the main process (main/aiMemory.ts), never here. */
 const handlers: {
-  [K in AiToolName]: (
+  [K in Exclude<AiToolName, MemoryToolName>]: (
     input: import("zod").infer<(typeof AI_TOOLS)[K]["input"]>,
     ctx: ToolContext,
   ) => Promise<Answer>;
@@ -846,11 +953,9 @@ const handlers: {
         `Glossário do curso (entre parênteses, como o nome sai na transcrição): ${formatGlossary(glossary)}`,
       );
     lines.push(revisionLine());
-    const picked = selectionOf(p);
-    return {
-      text: lines.join("\n"),
-      structured: { selection: { track_id: picked.trackId, clip_ids: picked.clipIds } },
-    };
+    // Text only, the selection on its first line: a client given a structured copy reads that
+    // alone, and the assistant once saw only {"selection": ...}, never the tracks.
+    return lines.join("\n");
   },
 
   async get_transcript({ from, to, with_word_times, summary }) {
@@ -1131,24 +1236,42 @@ const handlers: {
     return `${r.translated ? `${plural(r.translated, "legenda traduzida", "legendas traduzidas")} agora para "${lang}"` : `As legendas em "${lang}" já estavam em dia`}; ${r.count} no total guardadas na aula. Saem como .${lang}.srt e .${lang}.vtt ao lado do vídeo na exportação; se a aula mudar depois, chame de novo: só as que mudaram são traduzidas.`;
   },
 
-  async export_video({ preset, formats, range }, { progress, signal }) {
+  async export_video({ preset, formats, range, split, track_id }, { progress, signal }) {
     const p = requireProject();
     const info = useApp.getState().info;
+    if (range && split) throw new ToolError("Use range ou split, não os dois. Nada foi exportado.");
+    if (split && !track_id)
+      throw new ToolError(
+        'split: "clips" precisa de track_id, a faixa que divide as partes (ids de get_overview). Nada foi exportado.',
+      );
+    if (track_id && !split)
+      throw new ToolError('track_id só vale com split: "clips". Nada foi exportado.');
     if (range && range.to <= range.from + 0.5)
       throw new ToolError(
         "O trecho para exportar precisa ter mais de meio segundo (to depois de from).",
       );
+    // Several parts at once: one per clip or group of clips of the track.
+    let parts: PartRange[] | null = null;
+    if (split && track_id) {
+      const r = trackParts(p, track_id);
+      if (!r.ok) throw new ToolError(r.error);
+      parts = r.parts;
+    }
+    if (parts) {
+      const valid = checkParts(parts, projectDuration(p));
+      if (!valid.ok) throw new ToolError(valid.error);
+    }
     // A stretch is not the lesson: its translations and the platform package would describe
     // the whole lesson (chapters, quiz, captions of other times), so they do not go with it.
     const whole = (formats ?? []).filter((f) => f === "translations" || f === "platform");
-    if (range && whole.length)
+    if ((range || parts) && whole.length)
       throw new ToolError(
-        `Um trecho sai sem ${whole.map((f) => (f === "platform" ? "o pacote da plataforma" : "as legendas traduzidas")).join(" e ")}: eles descrevem a aula inteira. Peça sem esses formatos ou exporte a aula toda.`,
+        `${parts ? "As partes saem" : "Um trecho sai"} sem ${whole.map((f) => (f === "platform" ? "o pacote da plataforma" : "as legendas traduzidas")).join(" e ")}: eles descrevem a aula inteira. Peça sem esses formatos ou exporte a aula toda.`,
       );
     const project = range ? rangeProject(p, range.from, range.to) : p;
     const wanted = new Set(
       formats ??
-        (range
+        (range || parts
           ? ["captions", "thumbnail"]
           : [
               "captions",
@@ -1163,22 +1286,32 @@ const handlers: {
     });
     progress("Conferindo a aula antes de exportar");
     const vertical = !!spec.vertical;
+    const check = async () =>
+      (await checkLesson(p, useProject.getState().revision, { srt: wanted.has("captions") }))
+        .findings;
+    const confirm = (problems: readonly string[]) =>
+      askConfirm(
+        {
+          title: "A IA quer exportar com problemas",
+          message: `A verificação antes de exportar achou ${problems.length === 1 ? "um problema" : `${problems.length} problemas`}:`,
+          items: [...problems],
+          confirm: "Exportar assim mesmo",
+          cancel: "Não exportar",
+        },
+        signal,
+      );
+    if (parts)
+      return exportParts(
+        p,
+        parts,
+        { preset, spec, vertical, wanted, check, confirm },
+        progress,
+        signal,
+      );
     const result = await runExportVideo(
       {
-        check: async () =>
-          (await checkLesson(p, useProject.getState().revision, { srt: wanted.has("captions") }))
-            .findings,
-        confirm: (problems) =>
-          askConfirm(
-            {
-              title: "A IA quer exportar com problemas",
-              message: `A verificação antes de exportar achou ${problems.length === 1 ? "um problema" : `${problems.length} problemas`}:`,
-              items: [...problems],
-              confirm: "Exportar assim mesmo",
-              cancel: "Não exportar",
-            },
-            signal,
-          ),
+        check,
+        confirm,
         pickPath: async (name) => {
           progress("Esperando você escolher onde salvar");
           const path = await window.api.pickExportPath(name);
@@ -1408,11 +1541,22 @@ const handlers: {
       const lines = insert_ids.filter((id) => !subs.includes(id));
       if (subs.length) {
         // Both kinds in one undo step: the rows over the teacher's lines, then the avatar lines.
+        // The avatar lines are planned on the lesson with the rows in it: their plan gives the
+        // clips and tracks of the whole lesson, so planned without the rows it would drop them.
         const one = batched(commit);
-        const first = substitute(basisOf(commit) ?? p, subs, one.commit);
+        const base = basisOf(commit) ?? p;
+        const rows = substitutionPlan(base, subs);
+        committedOrFail(
+          one.commit((q) => (q === base ? rows.project : placeSubstitutions(q, subs).project)),
+        );
+        const first = rows.message;
         let rest = "";
         if (lines.length) {
-          const r = await placeInserts(lines, one.commit, draft ? shownProject : undefined);
+          const lesson = draft ? shownProject : () => useProject.getState().project;
+          const r = await placeInserts(lines, one.commit, () => {
+            const now = lesson();
+            return now === base ? rows.project : now && placeSubstitutions(now, subs).project;
+          });
           if (!r.ok)
             throw new ToolError(`${first}
 ${r.message}`);
@@ -1505,7 +1649,11 @@ ${r.message}`);
       }),
     );
     if (useProject.getState().selectedTrack === track_id) useProject.getState().selectTrack(null);
-    return trackAnswer(`Faixa vazia ${r.track.name} [${track_id}] removida.`);
+    return trackAnswer(
+      r.track.clicks
+        ? `Faixa ${r.track.name} [${track_id}] removida e o clique automático desligado em todas as gravações.`
+        : `Faixa vazia ${r.track.name} [${track_id}] removida.`,
+    );
   },
 
   async set_track({ track_id, locked, muted, hidden, revision }, { commit }) {
@@ -2303,7 +2451,7 @@ ${r.message}`);
     requireNoStructuralDraft();
     const target = editableClips(p, clip_ids);
     const still = p.clips.filter((c) => target.ids.includes(c.id) && !hasSpeed(p, c));
-    const n = applySpeed(target.ids, speed, ripple ?? true, commit);
+    const n = applySpeed(target.ids, speed, ripple ?? false, commit);
     if (!n)
       throw new ToolError(
         "Esses clipes não têm velocidade (imagens, anotações e camadas de zoom) ou estão em faixas travadas.",
@@ -2669,10 +2817,16 @@ ${r.message}`);
 export async function runAiTool(call: AiToolCall): Promise<ToolOutcome> {
   const { name, source } = call;
   if (!isAiToolName(name)) return { ok: false, text: `Ferramenta desconhecida: ${name}` };
+  if (isMemoryTool(name)) return { ok: false, text: "A memória do chat não passa pelo editor." };
   const tool = AI_TOOLS[name];
-  const parsed = tool.input.safeParse(call.input ?? {});
-  if (!parsed.success) return { ok: false, text: `Parâmetros inválidos: ${parsed.error.message}` };
+  const checked = tool.input.safeParse(call.input ?? {});
+  if (!checked.success)
+    return { ok: false, text: `Parâmetros inválidos: ${checked.error.message}` };
   const state = useProject.getState();
+  // A track named as the timeline shows it ("F1") or by its name works like its id.
+  const parsed = {
+    data: state.project ? withTrackIds(state.project.tracks, checked.data) : checked.data,
+  };
   if (call.projectId && state.project?.id !== call.projectId)
     return {
       ok: false,

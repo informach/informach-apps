@@ -1,5 +1,6 @@
 import { Skeleton } from "@informach/ui/components/skeleton";
 import type { ReactNode } from "react";
+import { withShortChildName } from "@/features/students/utils";
 import { listSubjectKits } from "@/features/subject-kits/service";
 import { getRoutineSnapshot } from "@/features/unified-activities/service";
 import { listFamilyCompletionDays } from "../repository";
@@ -17,8 +18,14 @@ export async function RoutineSection({
   school,
   shared,
   commitment,
+  childNames,
 }: {
   userId: string;
+  /**
+   * O nome curto de cada criança da casa (`shortChildNames`), trocado aqui, na
+   * entrada: os cards, a mochila e as frases de resumo mostram o curto.
+   */
+  childNames: ReadonlyMap<string, string>;
   profileFilter: string | null;
   /** Depois das 18h a página vira a mochila de amanhã. */
   evening: boolean;
@@ -39,6 +46,13 @@ export async function RoutineSection({
   ]);
   // "Levar sempre" acompanha a mochila nos dois arranjos da página: de dia
   // dentro de "Amanhã", à noite como a própria página.
+  const short = <T extends { profileId: string; profileName: string }>(item: T) =>
+    withShortChildName(item, childNames);
+  const buckets = {
+    attention: snapshot.buckets.attention.map((entry) => ({ ...entry, item: short(entry.item) })),
+    tomorrow: snapshot.buckets.tomorrow.map((entry) => ({ ...entry, item: short(entry.item) })),
+    week: snapshot.buckets.week.map((entry) => ({ ...entry, item: short(entry.item) })),
+  };
   const tomorrowKits = Object.fromEntries(
     await listSubjectKits(
       userId,
@@ -55,8 +69,8 @@ export async function RoutineSection({
   return (
     <RoutineView
       todayIso={snapshot.todayIso}
-      buckets={snapshot.buckets}
-      tomorrowSchedule={tomorrowSchedule}
+      buckets={buckets}
+      tomorrowSchedule={tomorrowSchedule.map(short)}
       tomorrowKits={tomorrowKits}
       evening={evening}
       doneToday={snapshot.doneToday}

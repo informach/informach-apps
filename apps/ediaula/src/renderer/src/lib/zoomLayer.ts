@@ -1,3 +1,4 @@
+import { dropSpot } from "@shared/dropSpot";
 import { newId, newTrackName, placeClips } from "@shared/timeline";
 import type { Asset, Clip, Track } from "@shared/types";
 import { DEFAULT_ZOOM_LAYER, editLayer, type ZoomLayer } from "@shared/zoomLayer";
@@ -24,12 +25,23 @@ export function blankPicture(): Promise<string> {
   return blank;
 }
 
+/** The "Adicionar camada de zoom" button of the Zoom panel dragged to the timeline. */
+export const ZOOM_MIME = "application/x-ediaula-zoom";
+
 /**
  * Adds a zoom layer at the playhead (or `at`) on a new track on top of everything, so every track
- * zooms. Dragging it to a lower track leaves the tracks above it alone. One undo step.
+ * zooms. Dragging it to a lower track leaves the tracks above it alone. `trackId` glues it to that
+ * track (the next step of a zoom); `dropOn` is a track it was dropped on in the timeline, where it
+ * goes as an annotation does (shared/dropSpot.ts). One undo step.
  */
 export async function addZoomLayer(
-  opts: { at?: number; duration?: number; zoom?: Partial<ZoomLayer>; trackId?: string } = {},
+  opts: {
+    at?: number;
+    duration?: number;
+    zoom?: Partial<ZoomLayer>;
+    trackId?: string;
+    dropOn?: string;
+  } = {},
   commit: Commit = personCommit,
 ): Promise<string | null> {
   const p = useProject.getState().project;
@@ -52,8 +64,15 @@ export async function addZoomLayer(
   };
   const start = Math.max(0, opts.at ?? usePlayback.getState().time);
   const id = newId("c");
+  const wanted = opts.duration ?? 4;
   commit((q) => {
-    const existing = opts.trackId ? q.tracks.find((t) => t.id === opts.trackId) : undefined;
+    // Dropped on a track: there (shortened to the gap, or above a clip it fell on).
+    const spot = opts.dropOn ? dropSpot(q, opts.dropOn, start, wanted) : null;
+    const existing = spot
+      ? spot.track
+      : opts.trackId
+        ? q.tracks.find((t) => t.id === opts.trackId)
+        : undefined;
     const track: Track = existing ?? {
       id: newId("t"),
       kind: "video",
@@ -68,13 +87,13 @@ export async function addZoomLayer(
       trackId: track.id,
       start,
       in: 0,
-      duration: opts.duration ?? 4,
+      duration: spot?.duration ?? wanted,
       volume: 1,
       zoomLayer: { ...DEFAULT_ZOOM_LAYER, ...opts.zoom },
     };
     return {
       ...q,
-      tracks: existing ? q.tracks : [track, ...q.tracks],
+      tracks: spot ? spot.tracks : existing ? q.tracks : [track, ...q.tracks],
       assets: [...q.assets, asset],
       clips: placeClips(q.clips, [clip]),
     };

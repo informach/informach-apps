@@ -22,8 +22,9 @@ describe("Edi suite commercial catalog", () => {
       ),
     ).toBe(true);
   });
-  it("registers all five tools with unique Windows identities", () => {
-    expect(EDI_TOOLS).toHaveLength(5);
-    expect(new Set(EDI_TOOLS.map((tool) => tool.windowsAppId)).size).toBe(5);
+  it("registers every tool with a unique id, source folder and Windows identity", () => {
+    expect(EDI_TOOLS.length).toBeGreaterThan(0);
+    for (const key of ["id", "sourceFolder", "windowsAppId"] as const)
+      expect(new Set(EDI_TOOLS.map((tool) => tool[key])).size).toBe(EDI_TOOLS.length);
   });
 });

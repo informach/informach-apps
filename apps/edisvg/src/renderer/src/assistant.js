@@ -215,11 +215,39 @@ export function setupAssistant(editor) {
       find("textarea").focus();
       return;
     }
-    history.push({ role: "user", text, images });
-    message(text, "user", images);
     pending = [];
     renderPending();
     find("textarea").value = "";
+    await submit(text, images);
+  };
+  /** A pipeline's turn, when one is waiting for the reply (runTurn). */
+  let turnWaiter = null;
+  /**
+   * Asks the assistant in a new conversation (a pipeline's request) and resolves when the reply
+   * ends, with its text, whether it was stopped and how many edits it made. The panel shows
+   * `shown` in place of the long request.
+   */
+  async function runTurn(text, shown, images = []) {
+    if (!bridge) throw new Error("O assistente precisa do aplicativo desktop.");
+    if (busy) throw new Error("O assistente está respondendo outra mensagem. Espere ou pare.");
+    if (panel.hidden) toggle();
+    clearHistory();
+    messages.replaceChildren();
+    const finished = new Promise((resolve, reject) => {
+      turnWaiter = { resolve, reject };
+    });
+    // Frames to look at (a demonstration): shown like attached references.
+    const attached = images.map((image) => ({
+      ...image,
+      url: `data:${image.mediaType};base64,${image.data}`,
+    }));
+    await submit(text, attached, shown);
+    return finished;
+  }
+  /** Sends a message (the person's, or a pipeline's with `shown` displayed instead). */
+  async function submit(text, images, shown = text) {
+    history.push({ role: "user", text, images });
+    message(shown, "user", images);
     response = message("", "assistant");
     response.hidden = true;
     currentText = "";
@@ -256,8 +284,10 @@ export function setupAssistant(editor) {
       response.hidden = false;
       endActivity();
       setBusy(false);
+      turnWaiter?.reject(error);
+      turnWaiter = null;
     }
-  };
+  }
   if (bridge) {
     bridge.onAssistantEvent((event) => {
       if (event.type === "text") {
@@ -276,6 +306,7 @@ export function setupAssistant(editor) {
       }
       if (event.type === "error") message(event.text, "error");
       if (event.type === "done") {
+        const turn = { text: currentText, stopped: !!event.stopped, edits };
         if (currentText) history.push({ role: "assistant", text: currentText });
         if (response && !response.textContent && !(edits && !event.stopped))
           response.textContent = event.stopped
@@ -285,12 +316,20 @@ export function setupAssistant(editor) {
         if (activity) activity.hidden = false;
         endActivity();
         setBusy(false);
+        turnWaiter?.resolve(turn);
+        turnWaiter = null;
       }
       messages.scrollTop = messages.scrollHeight;
     });
     bridge.handleAiTools(async ({ name, input }) => {
       if (name === "get_overview") return { ok: true, text: JSON.stringify(editor.overview()) };
       if (name === "undo" || name === "redo") {
+        // In a pipeline run the run so far is one step: undoing it would drop all of it.
+        if (editor.pipelineRunning?.())
+          return {
+            ok: false,
+            text: "Durante o pipeline o histórico fica travado: corrija com uma nova edição.",
+          };
         const changed = editor[name]();
         if (changed) edits++;
         return {
@@ -305,6 +344,8 @@ export function setupAssistant(editor) {
     bridge.onCommand((command) => {
       if (command === "new") void createNew();
       else if (command === "import-svg") void editor.importSvg();
+      else if (command === "import-game") void editor.importGameProject();
+      else if (command === "pipelines") editor.openPipelines();
       else if (command === "assistant") toggle();
       else if (command === "open") void openProject();
       else if (command === "save" || command === "save-as") void saveProject(command === "save-as");
@@ -314,6 +355,10 @@ export function setupAssistant(editor) {
   async function createNew() {
     if (busy) {
       editor.notify("Interrompa a IA antes de criar um projeto.");
+      return;
+    }
+    if (editor.pipelineRunning?.()) {
+      editor.notify("Espere o pipeline terminar, ou cancele, antes de criar um projeto.");
       return;
     }
     try {
@@ -332,6 +377,10 @@ export function setupAssistant(editor) {
   async function openProject() {
     if (busy) {
       editor.notify("Interrompa a resposta da IA antes de abrir outro projeto.");
+      return;
+    }
+    if (editor.pipelineRunning?.()) {
+      editor.notify("Espere o pipeline terminar, ou cancele, antes de abrir outro projeto.");
       return;
     }
     try {
@@ -400,5 +449,5 @@ export function setupAssistant(editor) {
     d.querySelector("[data-close-file]").onclick = () => d.close();
     d.showModal();
   }
-  return { toggle, fileMenu };
+  return { toggle, fileMenu, runTurn, isBusy: () => busy };
 }

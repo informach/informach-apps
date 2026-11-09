@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, open, readdir, readFile, rename, rm, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { z } from "zod";
+import { exportExtension } from "../../shared/exportPresets.ts";
 import { exportSpecSchema, projectSchema } from "../../shared/project-schema.ts";
 import type { ExportSpec } from "../../shared/types.ts";
 
@@ -12,7 +13,7 @@ import type { ExportSpec } from "../../shared/types.ts";
  * contents, so one already kept is not written again) and userData/export-queue.json lists them
  * in order: the renderer sends and receives one text per item, and a queue of several long
  * lessons never travels or is checked as one huge text. Only files the person had chosen are kept: the
- * destination selected in the save dialog (an .mp4, or an .mp3 for a podcast) and media that was
+ * destination selected in the save dialog (an .mp4, a .gif, or an .mp3 for a podcast) and media that was
  * readable when the item was saved. They are allowed again when the queue is read back; an item
  * whose folder or media is gone comes back with the reason it cannot be resumed, and nothing of it
  * is allowed.
@@ -46,9 +47,9 @@ export type SavedItem = Item & { blocked?: string };
 
 const PENDING = new Set(["waiting", "preparing", "exporting"]);
 
-/** The only files an export writes as its main output: the video, or the podcast's sound. */
-const outputAllowed = (spec: Pick<ExportSpec, "outPath" | "audioOnly">): boolean =>
-  (spec.audioOnly ? /\.mp3$/i : /\.mp4$/i).test(spec.outPath);
+/** The only files an export writes as its main output: the video, the GIF or the podcast's sound. */
+const outputAllowed = (spec: Pick<ExportSpec, "outPath" | "audioOnly" | "gif">): boolean =>
+  spec.outPath.toLowerCase().endsWith(`.${exportExtension(spec)}`);
 
 /** Media and generated files an item reads. */
 function pathsOf(item: Item): string[] {
@@ -221,7 +222,7 @@ export async function loadQueue(file: string, access: QueueAccess): Promise<stri
   const items: SavedItem[] = [];
   for (const item of saved) {
     if (!outputAllowed(item.spec)) {
-      items.push({ ...item, blocked: "O destino guardado não é um arquivo .mp4 nem .mp3." });
+      items.push({ ...item, blocked: "O destino guardado não é um arquivo .mp4, .gif nem .mp3." });
       continue;
     }
     const reason = await gone(item);

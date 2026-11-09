@@ -367,7 +367,7 @@ export function registerLibraryIpc(ctx: Context) {
     z.tuple([]).parse(args);
     const exported = await finalExport.validated();
     ctx.assertAccess();
-    clipboard.writeText(exported.file);
+    await clipboard.writeText(exported.file);
     return exported.file;
   });
   ctx.handle("file:copy-final", ["editor"], (...args) => {

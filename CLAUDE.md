@@ -14,9 +14,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `cozya` (port 3002) — single-user (no organizations), Sentry, Vitest + Playwright.
   - `missao-saber` (port 3005) — single-user com perfis familiares, preparação autoral para olimpíadas escolares, Sentry, Vitest + Playwright. Auth, billing, banco, e-mails e UI vêm dos packages compartilhados.
   - `bora-treinar` (port 3007) — guided bodyweight training for families: 3D instructor, on-device camera rep counting (MediaPipe), family profiles (up to 4 on the Family plan), levels, weekly challenges, custom workout editor, e-mail reminders and weekly summary, phone-as-camera pairing for the TV. Same architecture as Missão Saber (single-user with family profiles, Redis sessions with cookie cache off, Sentry, Vitest + Playwright); no AI and no credits. Its build downloads the MediaPipe model and WASM into `public/mediapipe`. Operation in `apps/bora-treinar/PRODUCAO.md`.
+  - `dia-de-estrela` (port 3008) — visual routine for children (designed for autism/ADHD, sold to any family): step-by-step read aloud, transition and "it's time" reminders on the child's device, stars, daily chest, reward shop and goal, parent approval per task, parent alerts by web push. Child devices are paired by a one-time code (Missão Saber's model, several children per device, "Quem está usando?"); the parent area on the child's device opens with a PIN (scrypt, attempt limit, 10 min). Free: 1 child; Família: up to 4, second guardian, push, recorded voice, custom rewards, goal photo. Single-user with family profiles, Redis sessions with cookie cache off, Tailwind + `@informach/ui`, Sentry, Vitest + Playwright (desktop, phone and tablet). Not launched yet: `ESTRELA_LAUNCHED = false` in `.railway/railway.ts`; operation in `apps/dia-de-estrela/PRODUCAO.md`.
   - `informach-site` (port 3004): landing institucional pública (`informach.com.br`). Sem auth/billing/db/AI; só Next, `@informach/ui` e `@informach/config` (preços do catálogo e contato público). Hospeda Termos e Privacidade guarda-chuva da holding (Stripe Customer Portal aponta pra cá).
   - `edi` (port 3006) — suite portal, subscriptions and desktop licensing; follows the existing Railway setup at `edi.informach.com.br`, with deployment still pending as documented in `apps/edi/PRODUCAO.md`.
-  - `edi-hub`, `ediaula`, `edicaptura`, `edifoto`, `edipdf`, `edisvg` — Electron suite under integration. Preserve existing interfaces; completing missing editor features is outside the integration scope. Read `docs/arquitetura-desktop.md` and the Edi implementation record before changes.
+  - `edi-hub`, `ediaula`, `edicaptura`, `edifoto`, `edipdf`, `edisvg`, `ediplayer` — Electron suite under integration (`ediplayer`, a video player with lossless cut, join and convert, was born in this repo). Preserve existing interfaces; completing missing editor features is outside the integration scope. Read `docs/arquitetura-desktop.md` and the Edi implementation record before changes.
 - **Packages** (`packages/`, scope `@informach/*`): `db`, `auth`, `billing`, `emails`, `ai-core`, `config`, `ui`, `edi-contracts`, `edi-desktop`, `edi-licensing`, `edi-releases`. All consumed as TypeScript source — none have a build step.
 
 Per-package deep guides exist and should be consulted before non-trivial changes:
@@ -29,6 +30,7 @@ Per-package deep guides exist and should be consulted before non-trivial changes
 - `apps/informach-site/CLAUDE.md`
 - `apps/missao-saber/README.md` and `apps/missao-saber/PRODUCAO.md`
 - `apps/bora-treinar/CLAUDE.md`, `apps/bora-treinar/README.md` and `apps/bora-treinar/PRODUCAO.md`
+- `apps/dia-de-estrela/CLAUDE.md`, `apps/dia-de-estrela/README.md` and `apps/dia-de-estrela/PRODUCAO.md`
 - `apps/admin/CLAUDE.md` and `apps/admin/PRODUCAO.md`
 - `apps/edi/PRODUCAO.md`
 
@@ -42,7 +44,7 @@ Cross-cutting docs in `docs/`: `arquitetura-monorepo.md`, `arquitetura-apps.md`,
 - `pnpm db:generate` / `pnpm db:studio` / `pnpm db:push` — delegated to `@informach/db` (Drizzle Kit); never use `db:push` in production. `pnpm db:migrate` runs Drizzle migrations, the task backfill and Mastra storage initialization, as defined in root `package.json`.
 
 ### Per app
-- `pnpm dev:admin` | `pnpm dev:agenda-da-turma` | `pnpm dev:cozya` | `pnpm dev:missao-saber` | `pnpm dev:bora-treinar` | `pnpm dev:informach-site` | `pnpm dev:edi`
+- `pnpm dev:admin` | `pnpm dev:agenda-da-turma` | `pnpm dev:cozya` | `pnpm dev:missao-saber` | `pnpm dev:bora-treinar` | `pnpm dev:dia-de-estrela` | `pnpm dev:informach-site` | `pnpm dev:edi`
 - `pnpm build:<app>` | `pnpm start:<app>`
 - Edi desktop tools: `pnpm --filter @informach/<tool> dev` stops at the suite access window. To open a tool licensed for manual testing (no portal/account/subscription, Windows only): `pnpm edi:open <tool>` — see `docs/desenvolvimento-edi.md` §5. For daily work on the development build with the real profiles and Documents (never removed) use `pnpm edi:work <tool>`; `pnpm edi:work:instalar` creates the desktop/Start menu shortcuts of the development Hub on any dev machine.
 

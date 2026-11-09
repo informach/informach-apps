@@ -540,6 +540,27 @@
       "when": 1793451715186,
       "tag": "0076_bora_treinar",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1793967654501,
+      "tag": "0077_bora_proposta",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1793971110768,
+      "tag": "0078_dia_de_estrela",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1793973408544,
+      "tag": "0079_edi_player",
+      "breakpoints": true
     }
   ]
 }

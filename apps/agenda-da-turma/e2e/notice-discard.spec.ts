@@ -116,7 +116,7 @@ test("discarding a draft persists: trash in the review, and discard from the das
     await expect(page.getByText("Recado descartado.")).toBeVisible();
     await expect(page).toHaveURL(/\/recados\/novo$/);
     await expect(
-      page.getByRole("heading", { name: "Recado para Criança navegador", exact: true }),
+      page.getByRole("heading", { name: "Recado para Criança", exact: true }),
     ).toBeVisible();
     expect(await statusOf(draft.id)).toBe("discarded");
     await page.goto("/dashboard");
@@ -142,7 +142,7 @@ test("discarding a draft persists: trash in the review, and discard from the das
       page.getByText("Aquele recado não está mais esperando conferência", { exact: false }),
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Recado para Criança navegador", exact: true }),
+      page.getByRole("heading", { name: "Recado para Criança", exact: true }),
     ).toBeVisible();
 
     // O card do dashboard tem saída própria.

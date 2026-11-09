@@ -151,7 +151,10 @@ export function buildExport(state, options, demoSvg = "", runtimeSource = "") {
   };
 }
 
-export async function exportProject(state, options, task = {}) {
+export async function exportProject(state, request, task = {}) {
+  // The suggested file name only goes to the Save dialog: each format checks its own options
+  // strictly (React refuses a key it does not know).
+  const { suggestedName, deliver, ...options } = request;
   const captured = {
     ...snapshot(state),
     activeClipId: state.activeClipId,
@@ -212,7 +215,19 @@ export async function exportProject(state, options, task = {}) {
               licenses,
             )
           : buildExport(captured, options, demo, runtimeSource);
-  return saveExport({ content, extension, type }, { signal: task.signal, binaryMedia: raster });
+  // The transparent layer: the PNG frames go to the main process, which encodes and saves.
+  if (deliver === "alpha-webm") {
+    if (!globalThis.window?.desktop)
+      throw new Error("A camada transparente precisa do aplicativo desktop.");
+    return window.desktop.exportAlphaWebm({
+      bytes: content,
+      ...(suggestedName ? { name: suggestedName } : {}),
+    });
+  }
+  return saveExport(
+    { content, extension, type, name: suggestedName },
+    { signal: task.signal, binaryMedia: raster },
+  );
 }
 
 export async function exportWebPlayer(signal) {
@@ -221,12 +236,20 @@ export async function exportWebPlayer(signal) {
 }
 
 /** The same native Save boundary serves all formats, including the reusable player. */
-export function saveExport({ content, extension, type }, { signal, binaryMedia = false } = {}) {
+export function saveExport(
+  { content, extension, type, name },
+  { signal, binaryMedia = false } = {},
+) {
   if (signal?.aborted) throw new DOMException("Operação cancelada.", "AbortError");
   if (globalThis.window?.desktop) {
     // Images and video cross IPC as bytes; bounded library/component ZIPs use base64.
     if (binaryMedia)
-      return window.desktop.exportFile({ extension, bytes: content, encoding: "binary" });
+      return window.desktop.exportFile({
+        extension,
+        bytes: content,
+        encoding: "binary",
+        ...(name ? { name } : {}),
+      });
     if (content instanceof Uint8Array) {
       let binary = "";
       for (let offset = 0; offset < content.length; offset += 32768)

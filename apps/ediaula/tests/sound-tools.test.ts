@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { clickEvents, clickMoments, FAST_GAP } from "../src/shared/clickEvents.ts";
+import { clickEvents, clickMarks, clickMoments, FAST_GAP } from "../src/shared/clickEvents.ts";
 import { CURSOR_EFFECT_DEFAULTS, DEFAULT_CURSOR_FX } from "../src/shared/cursor.ts";
 import { preflight } from "../src/shared/preflight.ts";
+import { cursorFxSchema } from "../src/shared/project-schema.ts";
 import { findSoundEffect, SOUND_EFFECTS } from "../src/shared/soundEffects.ts";
 import {
   CROWD_COUNT,
@@ -11,7 +12,9 @@ import {
   placeWithoutRipple,
   safeOverSpeech,
   withClicksTrack,
+  withoutClickSound,
 } from "../src/shared/soundPlacement.ts";
+import { removeEmptyTrack } from "../src/shared/trackOps.ts";
 import type { Asset, Clip, Project, Track } from "../src/shared/types.ts";
 
 const asset = (id: string, kind: Asset["kind"], extra: Partial<Asset> = {}): Asset => ({
@@ -137,6 +140,93 @@ test("clicks: set_click_sound's track is added once, at the bottom", () => {
     ],
   );
   assert.equal(withClicksTrack(once), once);
+});
+
+test("clicks: removing the track Cliques deletes them, stretches included; the rest stays", () => {
+  const stretched = asset("tela2", "video", {
+    cursor: "C:/aula/tela2-cursor.json",
+    cursorFx: {
+      ...DEFAULT_CURSOR_FX,
+      ranges: [
+        { id: "r1", start: 0, end: 5, fx: { clickSound: true } },
+        { id: "r2", start: 6, end: 9, fx: { clickSound: true, halo: true } },
+        { id: "r3", start: 10, end: 12, fx: { magnifier: true } },
+      ],
+    },
+  });
+  const p = withClicksTrack(
+    lesson(
+      [screen, stretched],
+      [track("v", "video")],
+      [clip("a", "tela", "v", 0, 10), clip("b", "tela2", "v", 10, 10)],
+    ),
+  );
+  const data = new Map([
+    ["tela", { clicks: [press(2)], typing: [] }],
+    ["tela2", { clicks: [press(1), press(7)], typing: [] }],
+  ]);
+  assert.equal(clickEvents(p, data).length, 3);
+  // Taking only the track away (what the X did before) left all three sounding, unseen.
+  const trackOnly = { ...p, tracks: p.tracks.filter((t) => !t.clicks) };
+  assert.equal(clickEvents(trackOnly, data).length, 3);
+
+  const id = p.tracks.find((t) => t.clicks)?.id as string;
+  const removed = removeEmptyTrack(p, id);
+  assert.ok(removed.ok);
+  assert.deepEqual(removed.project, withoutClickSound(p));
+  assert.equal(clickEvents(removed.project, data).length, 0);
+  assert.deepEqual(
+    removed.project.tracks.map((t) => t.id),
+    ["v"],
+  );
+  assert.deepEqual(removed.project.clips, p.clips);
+  const after = removed.project.assets.find((a) => a.id === "tela2")?.cursorFx;
+  // The stretch that only turned the click on is gone; the others keep their other effects.
+  assert.deepEqual(after?.ranges, [
+    { id: "r2", start: 6, end: 9, fx: { halo: true } },
+    { id: "r3", start: 10, end: 12, fx: { magnifier: true } },
+  ]);
+  assert.equal(after?.clicks, true, "the ripple on the clicks is not the sound");
+  // Turning the sound on again brings the track back.
+  assert.ok(withClicksTrack(removed.project).tracks.some((t) => t.clicks));
+});
+
+test("clicks: one removed by its tick stays silent through cuts and speed; the others sound", () => {
+  // Source 0–10 at 1x from 0, source 20–30 at 2x from 10.
+  const clips = [
+    clip("a", "tela", "v", 0, 10),
+    clip("b", "tela", "v", 10, 5, { in: 20, speed: 2 }),
+  ];
+  const data = new Map([["tela", { clicks: [press(2), press(6), press(24)], typing: [] }]]);
+  const p = lesson([screen], [track("v", "video")], clips);
+  const marks = clickMarks(p, data);
+  assert.deepEqual(
+    marks.map((m) => [m.at, m.assetId, m.source]),
+    [
+      [2, "tela", 2],
+      [6, "tela", 6],
+      [12, "tela", 24],
+    ],
+  );
+  // What the export gets carries nothing else (main/soundTrack.ts takes a strict list).
+  assert.deepEqual(Object.keys(clickEvents(p, data)[0]).sort(), ["at", "sound", "volume"]);
+
+  const removed = asset("tela", "video", {
+    cursor: screen.cursor,
+    cursorFx: { ...DEFAULT_CURSOR_FX, clickSound: true, clickRemoved: [24] },
+  });
+  const q = lesson([removed], [track("v", "video")], clips);
+  assert.deepEqual(
+    clickEvents(q, data).map((e) => e.at),
+    [2, 6],
+  );
+  // The same moment after the clip moved and changed speed: still silent.
+  const moved = { ...q, clips: [clips[0], { ...clips[1], start: 30, speed: 4, duration: 2.5 }] };
+  assert.deepEqual(
+    clickEvents(moved, data).map((e) => e.at),
+    [2, 6],
+  );
+  assert.ok(cursorFxSchema.safeParse(removed.cursorFx).success, "saved and opened again");
 });
 
 // ---- Library ----
@@ -282,4 +372,18 @@ test("get_frame: the boxes are the part left after the crop, around the same cen
   assert.equal(cut.box.height, whole.box.height);
   const center = (b: { x: number; width: number }) => b.x + b.width / 2;
   assert.ok(Math.abs(center(cut.box) - center(whole.box)) < 0.002, "same center");
+});
+
+test("placing: a magnetic track asked for is not used, as it would pack the clip away from `at`", () => {
+  const p = base();
+  const magnetic = {
+    ...p,
+    tracks: p.tracks.map((t) => (t.id === "v2" ? { ...t, magnetic: true } : t)),
+  };
+  // 4:20 on v2 is empty, but v2 is magnetic: the clip goes to v (free there) and the answer says why.
+  const r = placeWithoutRipple(magnetic, p.assets[0], 260, { trackId: "v2", in: 10, out: 15 });
+  assert.ok(r.ok);
+  assert.equal(r.trackId, "v");
+  assert.match(r.note, /v2 é magnética/);
+  assert.equal(r.project.clips.find((c) => c.id === r.clipId)?.start, 260);
 });

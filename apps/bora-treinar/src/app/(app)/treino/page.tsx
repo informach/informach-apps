@@ -28,6 +28,7 @@ export default async function Treino({
       levels={levels}
       cameraAllowed={canCountWithCamera(access)}
       editHref={ref.kind === "meu" ? `/meus-treinos/${ref.id}` : undefined}
+      perfil={{ name: profile.name, color: profile.color, intensity: profile.intensity }}
     />
   );
 }

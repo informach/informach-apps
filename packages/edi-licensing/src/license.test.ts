@@ -1,4 +1,5 @@
 import { generateKeyPairSync, randomUUID } from "node:crypto";
+import { EDI_TOOLS } from "@informach/config/edi-tools";
 import { MAX_LEASE_SECONDS } from "@informach/edi-contracts";
 import { verifyLicense } from "@informach/edi-contracts/verify";
 import { describe, expect, it } from "vitest";
@@ -51,7 +52,22 @@ describe("signed offline licenses", () => {
     expect(result.valid).toBe(true);
     if (!result.valid) throw new Error("Expected valid lease");
     expect(result.claims.exp - result.claims.iat).toBe(MAX_LEASE_SECONDS);
-    expect(result.claims.tools).toHaveLength(5);
+    expect(result.claims.tools).toEqual(EDI_TOOLS.map((tool) => tool.id));
+  });
+  it("names only the tools the requesting client knows", () => {
+    const old = verifyLicense(
+      signer({ ...binding, now, paidThrough, clientVersion: "0.4.2" }),
+      context,
+    );
+    if (!old.valid) throw new Error("Expected valid lease");
+    expect(old.claims.tools).not.toContain("ediplayer");
+    expect(old.claims.tools).toContain("edipdf");
+    const fresh = verifyLicense(
+      signer({ ...binding, now, paidThrough, clientVersion: "0.5.0" }),
+      context,
+    );
+    if (!fresh.valid) throw new Error("Expected valid lease");
+    expect(fresh.claims.tools).toContain("ediplayer");
   });
   it("never extends past the paid end, including clock tolerance", () => {
     const end = new Date(now.getTime() + 60000);

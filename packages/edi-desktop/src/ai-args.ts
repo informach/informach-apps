@@ -224,6 +224,14 @@ const PROVIDER_CREDENTIALS = new Set<string>(PROVIDER_CREDENTIAL_ENV);
 export const CLAUDE_NO_CONNECTORS = { ENABLE_CLAUDEAI_MCP_SERVERS: "false" } as const;
 
 /**
+ * Claude Code's own auto memory turned off: it is kept per git root (a stray C:\.git puts every
+ * folder of the drive on the person's global memory) and its instructions say to write with
+ * tools the panel does not have. An application that keeps its own memory for the assistant
+ * (AssistantEnginesConfig.memory) turns it off, so what the panel reads is what it writes.
+ */
+export const CLAUDE_NO_AUTO_MEMORY = { CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1" } as const;
+
+/**
  * The environment of a client process. Codex gets only what it needs (`minimal`); Claude Code
  * keeps the person's variables (its own login may use them) without the application's, and
  * without the claude.ai connectors (`claude`). `personalOnly` also leaves out API keys and other

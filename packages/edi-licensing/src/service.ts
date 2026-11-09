@@ -313,6 +313,7 @@ export function createDesktopLicenseService(config: {
           activationId: current.activation.id,
           revision: current.activation.revision,
           minimumClientVersion,
+          clientVersion: input.clientVersion,
           now,
           paidThrough: decision.paidThrough,
         });

@@ -1,4 +1,5 @@
 import { focusOnMount } from "@informach/edi-desktop/renderer";
+import type { Annotation, AnnotationKind } from "@shared/annotation";
 import {
   audibleClips,
   cutTargets,
@@ -79,6 +80,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { actions } from "@/lib/actions";
+import { ANNOTATION_MIME, addAnnotation } from "@/lib/annotations";
 import { useClickEvents } from "@/lib/clickSounds";
 import { useFilmstrips } from "@/lib/filmstrip";
 import { rulerLabel, timecode } from "@/lib/format";
@@ -94,6 +96,7 @@ import { speedLabel } from "@/lib/speed";
 import { timelineView, zoomBy, zoomToFit } from "@/lib/timelineView";
 import { useTranscripts } from "@/lib/transcripts";
 import { selectJunction, setTransition, TRANSITION_DRAG } from "@/lib/transitions";
+import { addZoomLayer, ZOOM_MIME } from "@/lib/zoomLayer";
 import { useApp, ZOOM_MAX, ZOOM_MIN } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import {
@@ -177,6 +180,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
   // The track picked by its header (the AI reads it as the selected track).
   const selectedTrack = useProject((s) => s.selectedTrack);
   const junction = useApp((s) => s.junction);
+  const pickedClick = useApp((s) => s.pickedClick);
   const zoom = useApp((s) => s.zoom);
   const tool = useApp((s) => s.tool);
   const snapping = useApp((s) => s.snapping);
@@ -442,6 +446,9 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     const targets = cutTargets(project);
     let result: Clip[] | null = null;
     let ripplePlan: RippleTrim | null = null;
+    // Where the edge was asked to go and what held it, said on release (a silent stop looked
+    // like the drag did not work).
+    let held: "neighbour" | "source" | null = null;
     listen(
       (ev) => {
         const s = snapAt(index, xToTime(ev.clientX));
@@ -461,8 +468,18 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
           });
           return;
         }
+        const wanted = t;
         t = edge === "start" ? Math.max(t, lower) : Math.min(t, upper);
         const trimmed = trimClip(clip, edge, t, asset);
+        // More than a few pixels short of the pointer, outward: a neighbour or the media's end.
+        const reached = edge === "start" ? trimmed.start : clipEnd(trimmed);
+        const short = edge === "start" ? reached - wanted : wanted - reached;
+        held =
+          short * zoom <= 6
+            ? null
+            : Math.abs(reached - (edge === "start" ? lower : upper)) < 1e-6
+              ? "neighbour"
+              : "source";
         // The clips of its group with the same edge there follow (Alt trims this one alone).
         result = alone
           ? project.clips.map((c) => (c.id === trimmed.id ? trimmed : c))
@@ -484,6 +501,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
       },
       () => {
         setPreview(null);
+        if (held) heldEdgeHint(edge, held, asset);
         const next = result;
         // The lesson changed under the drag (an AI edit): only a plain trim of this clip is
         // still meaningful; a ripple would move clips that are no longer where they were.
@@ -519,6 +537,12 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
 
   const [menu, setMenu] = useState<{ x: number; y: number; clipId: string } | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
+  /** The right-click menu of a tick on the track "Cliques". */
+  const [clickMenu, setClickMenu] = useState<{
+    x: number;
+    y: number;
+    click: { assetId: string; source: number };
+  } | null>(null);
   const [trackMenu, setTrackMenu] = useState<{ x: number; y: number; trackId: string } | null>(
     null,
   );
@@ -674,6 +698,8 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
   };
 
   const acceptsDrop = (e: React.DragEvent): boolean =>
+    e.dataTransfer.types.includes(ANNOTATION_MIME) ||
+    e.dataTransfer.types.includes(ZOOM_MIME) ||
     e.dataTransfer.types.includes(ASSET_MIME) ||
     e.dataTransfer.types.includes(SOUND_MIME) ||
     e.dataTransfer.types.includes("Files");
@@ -690,6 +716,23 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     const time = dropTime(e.clientX);
     // Ctrl + drop inserts, pushing what comes after on every unlocked track.
     const insert = e.ctrlKey;
+    // An annotation of the panel goes on this track at this time (shared/dropSpot.ts).
+    const annotation = e.dataTransfer.getData(ANNOTATION_MIME);
+    if (annotation) {
+      const { kind, spec } = JSON.parse(annotation) as {
+        kind: AnnotationKind;
+        spec?: Partial<Annotation>;
+      };
+      if (await addAnnotation(kind, spec ?? {}, { at: time, trackId: track.id }))
+        useApp.getState().set({ sideTab: "properties" });
+      return;
+    }
+    // A zoom layer of the Zoom panel, the same way: it zooms the tracks below where it lands.
+    if (e.dataTransfer.types.includes(ZOOM_MIME)) {
+      if (await addZoomLayer({ at: time, dropOn: track.id }))
+        useApp.getState().set({ sideTab: "properties" });
+      return;
+    }
     // A sound effect of the library goes exactly where it was dropped, never as the voice.
     const sound = e.dataTransfer.getData(SOUND_MIME);
     if (isSoundEffectId(sound)) {
@@ -747,7 +790,10 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
       },
       () => {
         setMarquee(null);
-        if (!moved && !additive) useProject.getState().select([]);
+        if (!moved && !additive) {
+          useProject.getState().select([]);
+          useApp.getState().set({ pickedClick: null });
+        }
       },
     );
   };
@@ -1021,15 +1067,44 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
                     !t.muted &&
                     clickTicks
                       .filter((e) => e.at >= visibleFrom && e.at <= visibleTo)
-                      .map((e, i) => (
-                        <span
-                          // biome-ignore lint/suspicious/noArrayIndexKey: ticks have no identity of their own
-                          key={i}
-                          className="click-tick"
-                          style={{ left: e.at * zoom }}
-                          title={`Clique automático em ${timecode(e.at, project.settings.fps)}`}
-                        />
-                      ))}
+                      .map((e) => {
+                        const picked =
+                          pickedClick?.assetId === e.assetId &&
+                          Math.abs(pickedClick.source - e.source) < 1e-6;
+                        const pick = (): void => {
+                          useProject.getState().select([]);
+                          useApp
+                            .getState()
+                            .set({ pickedClick: { assetId: e.assetId, source: e.source } });
+                        };
+                        return (
+                          <button
+                            type="button"
+                            key={`${e.assetId}:${e.source}:${e.at}`}
+                            className={`click-tick ${picked ? "is-picked" : ""}`}
+                            style={{ left: e.at * zoom }}
+                            aria-pressed={picked}
+                            disabled={t.locked}
+                            title={`Clique automático em ${timecode(e.at, project.settings.fps)}. Clique para selecionar e aperte Delete para remover só este.`}
+                            onPointerDown={(ev) => {
+                              if (ev.button !== 0) return;
+                              // A tick is not the background: no marquee, nothing else unselected.
+                              ev.stopPropagation();
+                              pick();
+                            }}
+                            onContextMenu={(ev) => {
+                              ev.preventDefault();
+                              ev.stopPropagation();
+                              pick();
+                              setClickMenu({
+                                x: ev.clientX,
+                                y: ev.clientY,
+                                click: { assetId: e.assetId, source: e.source },
+                              });
+                            }}
+                          />
+                        );
+                      })}
                 </div>
               );
             })}
@@ -1272,6 +1347,21 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
         </div>
       </div>
       {menu && <ClipMenu x={menu.x} y={menu.y} clipId={menu.clipId} onClose={closeMenu} />}
+      {clickMenu && (
+        <ContextMenu
+          x={clickMenu.x}
+          y={clickMenu.y}
+          onClose={() => setClickMenu(null)}
+          items={[
+            {
+              icon: Trash2,
+              label: "Remover este clique",
+              hint: "Só este clique fica em silêncio; os outros continuam (Ctrl+Z desfaz)",
+              onSelect: () => actions.removeClick(clickMenu.click),
+            },
+          ]}
+        />
+      )}
       {trackMenu && (
         <ContextMenu
           x={trackMenu.x}
@@ -1336,6 +1426,17 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
               hint: "Enquanto esta faixa toca, as outras abaixam (como a música abaixa para a voz)",
               onSelect: () => actions.toggleSpotlight(trackMenu.trackId),
             },
+            ...(tracks.find((t) => t.id === trackMenu.trackId)?.clicks
+              ? [
+                  { separator: true, label: "" },
+                  {
+                    icon: Trash2,
+                    label: "Remover os cliques automáticos",
+                    hint: "Desliga o som de clique de todas as gravações e tira esta faixa (Ctrl+Z desfaz)",
+                    onSelect: () => actions.removeTrack(trackMenu.trackId),
+                  },
+                ]
+              : []),
             { separator: true, label: "" },
             {
               icon: FoldHorizontal,
@@ -1503,6 +1604,24 @@ function scaleTracks(k: number): void {
   }));
 }
 
+/** Says why a dragged edge stopped short of the pointer, and how to go further. */
+function heldEdgeHint(
+  edge: "start" | "end",
+  by: "neighbour" | "source",
+  asset: Asset | undefined,
+): void {
+  const media = asset?.kind === "audio" ? "O áudio" : "O vídeo";
+  const text =
+    by === "neighbour"
+      ? edge === "end"
+        ? "A borda parou no próximo clipe da faixa. Para alongar empurrando o que vem depois, arraste segurando Shift."
+        : "A borda parou no clipe anterior da faixa. Para alongar abrindo espaço, arraste segurando Shift."
+      : edge === "end"
+        ? `${media} de origem acaba aqui. Para continuar depois do fim, use "Estender quadro…" no botão direito do clipe: o último quadro fica parado.`
+        : `Aqui é o começo do ${asset?.kind === "audio" ? "áudio" : "vídeo"} de origem: não há nada antes para mostrar.`;
+  useApp.getState().toast(text, "info");
+}
+
 function TrackHeader({
   track,
   label,
@@ -1616,12 +1735,16 @@ function TrackHeader({
           onClick={() => actions.updateTrack(track.id, { locked: !track.locked })}
         />
       </span>
-      {empty && (
+      {(empty || track.clicks) && (
         // Over the corner, outside the row: it never takes the room of the track's name.
         <IconButton
           icon={X}
           size={11}
-          label="Remover faixa vazia"
+          label={
+            track.clicks
+              ? "Remover os cliques automáticos (desliga o som de clique das gravações)"
+              : "Remover faixa vazia"
+          }
           className="track-remove"
           onClick={() => actions.removeTrack(track.id)}
         />

@@ -1,0 +1,584 @@
+{
+ "_leia": "Catálogo de cabelos, barbas e bigodes. Lido por corpos.py (gera os corpos), tools/adiciona_cabelo.py (encaixa um item novo nos corpos que já existem) e pela página (nomes dos botões). Para um cabelo novo: acrescente um item aqui e rode adiciona_cabelo.py. 'tipo': cabelo (um por vez) ou rosto (barba e bigode: um por vez, empurrado para fora do rosto se afundar). 'arquivo' é relativo à pasta dos pacotes (ideias/); 'corpo_origem' é o corpo do personagem de onde a peça vem (a cabeça dele serve de régua para o encaixe); 'pecas' são juntadas numa malha só; 'so' (opcional) limita a um grupo de corpos.",
+ "grupos": {
+  "homens_adultos": [
+   "adulto",
+   "plus_m",
+   "musculoso",
+   "alto_magro",
+   "idoso"
+  ]
+ },
+ "originais": {
+  "m": "cabelo_xadrez1",
+  "f": "cabelo_caixa",
+  "fm": "cabelo_caixa",
+  "p": "cabelo_plus"
+ },
+ "gerados": {
+  "cabelo_raspado": "Raspado",
+  "careca": "Careca",
+  "nenhum": "Sem barba"
+ },
+ "itens": [
+  {
+   "id": "cabelo_xadrez1",
+   "tipo": "cabelo",
+   "rotulo": "Topete de lado",
+   "arquivo": "Chess_Pack/Chess_Pack_Free_fbx/Chess_Pack_Free_fbx/Characters/Chess_Player_01.fbx",
+   "corpo_origem": "ChessPlayer_01",
+   "pecas": [
+    "ChessPlayer_Hair_01"
+   ]
+  },
+  {
+   "id": "cabelo_plus",
+   "tipo": "cabelo",
+   "rotulo": "Topete curto",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/75.fbx",
+   "corpo_origem": "PlusSize_Male_Body_75",
+   "pecas": [
+    "PlusSize_Male_Hairstyle_75"
+   ]
+  },
+  {
+   "id": "cabelo_caixa",
+   "tipo": "cabelo",
+   "rotulo": "Chanel de lado",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/1_Cashier.fbx",
+   "corpo_origem": "Adult_Female_Cashier_Body",
+   "pecas": [
+    "Adult_Female_Cashier_Hairstyle"
+   ]
+  },
+  {
+   "id": "cabelo_lenhador",
+   "tipo": "cabelo",
+   "rotulo": "Topete alto",
+   "arquivo": "Apocalypse/Apocalypse_Free_fbx/Apocalypse_Free_fbx/Characters/Adult_Woodcutter.fbx",
+   "corpo_origem": "Adult_Male_Body",
+   "pecas": [
+    "Hairstyle_Single_Male"
+   ]
+  },
+  {
+   "id": "cabelo_seguranca",
+   "tipo": "cabelo",
+   "rotulo": "Curto",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/18_Security.fbx",
+   "corpo_origem": "Adult_Male__Security_Body",
+   "pecas": [
+    "Adult_Male_Security_Hairstyle"
+   ]
+  },
+  {
+   "id": "cabelo_xadrez2",
+   "tipo": "cabelo",
+   "rotulo": "Repicado",
+   "arquivo": "Chess_Pack/Chess_Pack_Free_fbx/Chess_Pack_Free_fbx/Characters/Chess_Player_02.fbx",
+   "corpo_origem": "ChessPlayer_02",
+   "pecas": [
+    "ChessPlayer_Hair_02"
+   ]
+  },
+  {
+   "id": "cabelo_criativo10",
+   "tipo": "cabelo",
+   "rotulo": "Cacheado",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Hairstyle_male_010"
+   ]
+  },
+  {
+   "id": "cabelo_criativo12",
+   "tipo": "cabelo",
+   "rotulo": "Franja de lado",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Hairstyle_male_012"
+   ]
+  },
+  {
+   "id": "cabelo_noel",
+   "tipo": "cabelo",
+   "rotulo": "Comprido",
+   "arquivo": "Christmas_Pack/Christmas_Pack_Free_fbx/Separate_assets_fbx/Santa.fbx",
+   "corpo_origem": "Santa_Body_01",
+   "pecas": [
+    "Santa_Hair_001"
+   ]
+  },
+  {
+   "id": "cabelo_showgirl",
+   "tipo": "cabelo",
+   "rotulo": "Chanel com franja",
+   "arquivo": "Casino/Casino_Free_fbx/Casino_Free_fbx/Casino_Free_Characters_fbx/20_Showgirl.fbx",
+   "corpo_origem": "Adult_Female_Showgirl_Body",
+   "pecas": [
+    "Adult_Female_Showgirl_Hairstyle"
+   ]
+  },
+  {
+   "id": "cabelo_sobrevivente",
+   "tipo": "cabelo",
+   "rotulo": "Liso no meio",
+   "arquivo": "Apocalypse/Apocalypse_Free_fbx/Apocalypse_Free_fbx/Characters/Adult_Survivor.fbx",
+   "corpo_origem": "Adult_Female_Body",
+   "pecas": [
+    "Hairstyle_Famale"
+   ]
+  },
+  {
+   "id": "barba",
+   "tipo": "rosto",
+   "rotulo": "Barba",
+   "so": "homens_adultos",
+   "arquivo": "Apocalypse/Apocalypse_Free_fbx/Apocalypse_Free_fbx/Characters/Adult_Woodcutter.fbx",
+   "corpo_origem": "Adult_Male_Body",
+   "pecas": [
+    "Beard_Male"
+   ]
+  },
+  {
+   "id": "barba_2",
+   "tipo": "rosto",
+   "rotulo": "Barba cheia",
+   "so": "homens_adultos",
+   "arquivo": "Christmas_Pack/Christmas_Pack_Free_fbx/Separate_assets_fbx/Santa.fbx",
+   "corpo_origem": "Santa_Body_01",
+   "pecas": [
+    "Santa_Beard_001",
+    "Santa_Mustache_001"
+   ]
+  },
+  {
+   "id": "bigode_1",
+   "tipo": "rosto",
+   "rotulo": "Bigode de pontas",
+   "so": "homens_adultos",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Moustache_001"
+   ]
+  },
+  {
+   "id": "bigode_2",
+   "tipo": "rosto",
+   "rotulo": "Bigode",
+   "so": "homens_adultos",
+   "arquivo": "Creative_Characters/Creative_Characters_Free_fbx/Creative_Character_free.fbx",
+   "corpo_origem": "Body_010",
+   "pecas": [
+    "Moustache_002"
+   ]
+  },
+  {
+   "id": "cabelo_xadrez1_comprido",
+   "base": "cabelo_xadrez1",
+   "rotulo": "Topete de lado (comprido)",
+   "forma": {
+    "comprido": 2.3
+   }
+  },
+  {
+   "id": "cabelo_xadrez1_volume",
+   "base": "cabelo_xadrez1",
+   "rotulo": "Topete de lado (volumoso)",
+   "forma": {
+    "volume": 1.12
+   }
+  },
+  {
+   "id": "cabelo_xadrez1_chapeu",
+   "base": "cabelo_xadrez1",
+   "rotulo": "Topete de lado (para chapéu)",
+   "forma": {
+    "achatado": true
+   }
+  },
+  {
+   "id": "cabelo_plus_comprido",
+   "base": "cabelo_plus",
+   "rotulo": "Topete curto (comprido)",
+   "forma": {
+    "comprido": 2.3
+   }
+  },
+  {
+   "id": "cabelo_plus_volume",
+   "base": "cabelo_plus",
+   "rotulo": "Topete curto (volumoso)",
+   "forma": {
+    "volume": 1.12
+   }
+  },
+  {
+   "id": "cabelo_plus_chapeu",
+   "base": "cabelo_plus",
+   "rotulo": "Topete curto (para chapéu)",
+   "forma": {
+    "achatado": true
+   }
+  },
+  {
+   "id": "cabelo_caixa_comprido",
+   "base": "cabelo_caixa",
+   "rotulo": "Chanel de lado (comprido)",
+   "forma": {
+    "comprido": 2.3
+   }
+  },
+  {
+   "id": "cabelo_caixa_volume",
+   "base": "cabelo_caixa",
+   "rotulo": "Chanel de lado (volumoso)",
+   "forma": {
+    "volume": 1.12
+   }
+  },
+  {
+   "id": "cabelo_caixa_chapeu",
+   "base": "cabelo_caixa",
+   "rotulo": "Chanel de lado (para chapéu)",
+   "forma": {
+    "achatado": true
+   }
+  },
+  {
+   "id": "cabelo_lenhador_comprido",
+   "base": "cabelo_lenhador",
+   "rotulo": "Topete alto (comprido)",
+   "forma": {
+    "comprido": 2.3
+   }
+  },
+  {
+   "id": "cabelo_lenhador_volume",
+   "base": "cabelo_lenhador",
+   "rotulo": "Topete alto (volumoso)",
+   "forma": {
+    "volume": 1.12
+   }
+  },
+  {
+   "id": "cabelo_lenhador_chapeu",
+   "base": "cabelo_lenhador",
+   "rotulo": "Topete alto (para chapéu)",
+   "forma": {
+    "achatado": true
+   }
+  },
+  {
+   "id": "cabelo_seguranca_comprido",
+   "base": "cabelo_seguranca",
+   "rotulo": "Curto (comprido)",
+   "forma": {
+    "comprido": 2.3
+   }
+  },
+  {
+   "id": "cabelo_seguranca_volume",
+   "base": "cabelo_seguranca",
+   "rotulo": "Curto (volumoso)",
+   "forma": {
+    "volume": 1.12
+   }
+  },
+  {
+   "id": "cabelo_seguranca_chapeu",
+   "base": "cabelo_seguranca",
+   "rotulo": "Curto (para chapéu)",
+   "forma": {
+    "achatado": true
+   }
+  },
+  {
+   "id": "cabelo_xadrez2_comprido",
+   "base": "cabelo_xadrez2",
+   "rotulo": "Repicado (comprido)",
+   "forma": {
+    "comprido": 2.3
+   }
+  },
+  {
+   "id": "cabelo_xadrez2_volume",
+   "base": "cabelo_xadrez2",
+   "rotulo": "Repicado (volumoso)",
+   "forma": {
+    "volume": 1.12
+   }
+  },
+  {
+   "id": "cabelo_xadrez2_chapeu",
+   "base": "cabelo_xadrez2",
+   "rotulo": "Repicado (para chapéu)",
+   "forma": {
+    "achatado": true
+   }
+  },
+  {
+   "id": "cabelo_criativo10_comprido",
+   "base": "cabelo_criativo10",
+   "rotulo": "Cacheado (comprido)",
+   "forma": {
+    "comprido": 2.3
+   }
+  },
+  {
+   "id": "cabelo_criativo10_volume",
+   "base": "cabelo_criativo10",
+   "rotulo": "Cacheado (volumoso)",
+   "forma": {
+    "volume": 1.12
+   }
+  },
+  {
+   "id": "cabelo_criativo10_chapeu",
+   "base": "cabelo_criativo10",
+   "rotulo": "Cacheado (para chapéu)",
+   "forma": {
+    "achatado": true
+   }
+  },
+  {
+   "id": "cabelo_criativo12_comprido",
+   "base": "cabelo_criativo12",
+   "rotulo": "Franja de lado (comprido)",
+   "forma": {
+    "comprido": 2.3
+   }
+  },
+  {
+   "id": "cabelo_criativo12_volume",
+   "base": "cabelo_criativo12",
+   "rotulo": "Franja de lado (volumoso)",
+   "forma": {
+    "volume": 1.12
+   }
+  },
+  {
+   "id": "cabelo_criativo12_chapeu",
+   "base": "cabelo_criativo12",
+   "rotulo": "Franja de lado (para chapéu)",
+   "forma": {
+    "achatado": true
+   }
+  },
+  {
+   "id": "cabelo_noel_chapeu",
+   "base": "cabelo_noel",
+   "rotulo": "Comprido (para chapéu)",
+   "forma": {
+    "achatado": true
+   }
+  },
+  {
+   "id": "cabelo_showgirl_comprido",
+   "base": "cabelo_showgirl",
+   "rotulo": "Chanel com franja (comprido)",
+   "forma": {
+    "comprido": 2.3
+   }
+  },
+  {
+   "id": "cabelo_showgirl_volume",
+   "base": "cabelo_showgirl",
+   "rotulo": "Chanel com franja (volumoso)",
+   "forma": {
+    "volume": 1.12
+   }
+  },
+  {
+   "id": "cabelo_showgirl_chapeu",
+   "base": "cabelo_showgirl",
+   "rotulo": "Chanel com franja (para chapéu)",
+   "forma": {
+    "achatado": true
+   }
+  },
+  {
+   "id": "cabelo_sobrevivente_comprido",
+   "base": "cabelo_sobrevivente",
+   "rotulo": "Liso no meio (comprido)",
+   "forma": {
+    "comprido": 2.3
+   }
+  },
+  {
+   "id": "cabelo_sobrevivente_volume",
+   "base": "cabelo_sobrevivente",
+   "rotulo": "Liso no meio (volumoso)",
+   "forma": {
+    "volume": 1.12
+   }
+  },
+  {
+   "id": "cabelo_sobrevivente_chapeu",
+   "base": "cabelo_sobrevivente",
+   "rotulo": "Liso no meio (para chapéu)",
+   "forma": {
+    "achatado": true
+   }
+  },
+  {
+   "id": "barba_rente",
+   "base": "barba",
+   "rotulo": "Barba rente",
+   "forma": {
+    "rente": 0.93
+   }
+  },
+  {
+   "id": "cavanhaque",
+   "base": "barba",
+   "rotulo": "Cavanhaque",
+   "forma": {
+    "corta_lados": 0.45
+   }
+  },
+  {
+   "id": "barba_2_curta",
+   "base": "barba_2",
+   "rotulo": "Barba cheia curta",
+   "forma": {
+    "rente": 0.9
+   }
+  },
+  {
+   "id": "rabo_cavalo",
+   "base": "cabelo_criativo12",
+   "forma": {
+    "achatado": true,
+    "rabo": 1.1
+   },
+   "rotulo": "Rabo de cavalo"
+  },
+  {
+   "id": "rabo_curto",
+   "base": "cabelo_seguranca",
+   "forma": {
+    "rabo": 0.75
+   },
+   "rotulo": "Rabo curto"
+  },
+  {
+   "id": "coque",
+   "base": "cabelo_seguranca",
+   "forma": {
+    "coque": 0.15
+   },
+   "rotulo": "Coque"
+  },
+  {
+   "id": "coque_franja",
+   "base": "cabelo_criativo12",
+   "forma": {
+    "achatado": true,
+    "coque": 0.17
+   },
+   "rotulo": "Coque com franja"
+  },
+  {
+   "id": "trancas",
+   "base": "cabelo_criativo12",
+   "forma": {
+    "achatado": true,
+    "trancas": 1.7
+   },
+   "rotulo": "Duas tranças"
+  },
+  {
+   "id": "maria_chiquinha",
+   "base": "cabelo_seguranca",
+   "forma": {
+    "trancas": 1.0
+   },
+   "rotulo": "Maria-chiquinha"
+  },
+  {
+   "id": "afro",
+   "base": "cabelo_criativo10",
+   "forma": {
+    "volume": 1.4
+   },
+   "rotulo": "Black power"
+  },
+  {
+   "id": "afro_curto",
+   "base": "cabelo_criativo10",
+   "forma": {
+    "volume": 1.2
+   },
+   "rotulo": "Cacheado volumoso curto"
+  },
+  {
+   "id": "moicano",
+   "base": "cabelo_lenhador",
+   "forma": {
+    "crista": 0.22,
+    "so_crista": true,
+    "largura": 0.075
+   },
+   "rotulo": "Moicano"
+  },
+  {
+   "id": "topete_moicano",
+   "base": "cabelo_lenhador",
+   "forma": {
+    "crista": 0.12,
+    "so_crista": true,
+    "largura": 0.06
+   },
+   "rotulo": "Moicano baixo"
+  },
+  {
+   "id": "espetado",
+   "base": "cabelo_seguranca",
+   "forma": {
+    "espetos": 0.17,
+    "n": 30
+   },
+   "rotulo": "Espetado"
+  },
+  {
+   "id": "espetado_alto",
+   "base": "cabelo_xadrez2",
+   "forma": {
+    "espetos": 0.26,
+    "n": 24
+   },
+   "rotulo": "Espetado alto"
+  },
+  {
+   "id": "coque_duplo",
+   "base": "cabelo_criativo12",
+   "forma": {
+    "achatado": true,
+    "coque_duplo": 0.13
+   },
+   "rotulo": "Coque duplo"
+  },
+  {
+   "id": "rabo_alto",
+   "base": "cabelo_seguranca",
+   "forma": {
+    "rabo": 1.0,
+    "rabo_altura": 0.95
+   },
+   "rotulo": "Rabo alto"
+  },
+  {
+   "id": "afro_coque",
+   "base": "cabelo_criativo10",
+   "forma": {
+    "volume": 1.15,
+    "coque": 0.2
+   },
+   "rotulo": "Cacheado com coque"
+  }
+ ]
+}

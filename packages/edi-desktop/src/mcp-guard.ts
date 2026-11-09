@@ -15,8 +15,6 @@ export interface ToolOutcome {
   text: string;
   /** Pictures for the model, after the text. */
   images?: { mime: "image/png" | "image/jpeg"; data: string }[];
-  /** The same facts as data, for clients that read it (MCP structuredContent). */
-  structured?: Record<string, unknown>;
 }
 
 /**

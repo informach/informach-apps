@@ -638,6 +638,68 @@ test("a part that cannot be removed after `finalized` is only a warning: the tak
   );
 });
 
+test("a file that comes out short is dropped: the take keeps its parts and points at them", async () => {
+  const dir = join(recorder.recordingsDir(), "2026-10-18 09-30-00-short");
+  await mkdir(dir, { recursive: true });
+  await run(FFMPEG, [
+    "-y",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "sine=frequency=440:sample_rate=48000:duration=2",
+    "-c:a",
+    "aac",
+    ...FRAGMENTED_MP4,
+    "-f",
+    "mp4",
+    join(dir, "microfone-0.m4a"),
+  ]);
+  const q = qpc();
+  await writeFile(
+    join(dir, JOURNAL_FILE),
+    `${[
+      {
+        k: "begin",
+        v: 1,
+        at: Date.now(),
+        qpc: q - 100,
+        fps: 30,
+        monitor: null,
+        region: null,
+        encoder: null,
+        sources: { screen: false, microphone: "Mic", camera: null, system: false, keys: false },
+      },
+      { k: "first", src: "mic", part: 0, qpc: q, file: "microfone-0.m4a" },
+      { k: "stop", qpc: q + 5000 },
+    ]
+      .map((l) => JSON.stringify(l))
+      .join("\n")}\n`,
+  );
+  const removed: string[] = [];
+  const result = await finalizeTake({
+    dir,
+    // The aligned microphone comes out half a second long (a join that stopped early).
+    held: async () => 0.5,
+    remove: async (path) => {
+      removed.push(path);
+    },
+  });
+  assert.equal(result.microphone, undefined, "the short file is not the take's microphone");
+  assert.equal(result.microphoneParts?.[0]?.path, join(dir, "microfone-0.m4a"));
+  assert.match(result.warnings?.join(" ") ?? "", /O som do microfone ficou com 0\.50 s.*partes/);
+  assert.deepEqual(removed, [], "no part is removed");
+  assert.equal(existsSync(join(dir, "microfone-0.m4a")), true);
+  assert.equal(existsSync(join(dir, "microfone.m4a")), false, "the short file is gone");
+  // Recovering the take gives the same parts, never the short file.
+  assert.deepEqual(
+    (await recorder.recoverOrphan(dir)).microphoneParts?.map((p) => p.path),
+    [join(dir, "microfone-0.m4a")],
+  );
+  await rm(dir, { recursive: true, force: true });
+});
+
 /** First moment (s) a decoded stream goes over `limit`: luma of 16×16 frames, or 8 kHz samples. */
 async function onset(path: string, kind: "video" | "audio"): Promise<number> {
   const chunks: Buffer[] = [];

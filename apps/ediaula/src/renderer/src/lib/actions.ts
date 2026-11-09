@@ -1,5 +1,7 @@
 import { closeCommonGaps, cutTargets } from "@shared/cleanup";
+import { isRemovedClick } from "@shared/clickEvents";
 import { type ReframeMode, reframeProject } from "@shared/compose";
+import { DEFAULT_CURSOR_FX } from "@shared/cursor";
 import {
   detachAudio,
   detachProblem,
@@ -12,6 +14,7 @@ import { magneticBlockers, magneticSlot } from "@shared/magnetic";
 import { addMarker, type Marker, stepMarker } from "@shared/markers";
 import { insertClips } from "@shared/ripple";
 import { isSfxTrack, SOUND_TRACK } from "@shared/sfxTrack";
+import { withoutClickSound } from "@shared/soundPlacement";
 import {
   clipEnd,
   clipsFrom,
@@ -450,10 +453,59 @@ export const actions = {
 
   removeTrack(id: string): void {
     if (waitForDraft("remover a faixa")) return;
+    const clicks = !!useProject.getState().project?.tracks.some((t) => t.id === id && t.clicks);
+    useProject.getState().commit((p) => {
+      const next = { ...p, clips: p.clips.filter((c) => c.trackId !== id) };
+      // The track "Cliques" goes with its clicks: left alone they would sound with no track.
+      return clicks
+        ? withoutClickSound(next)
+        : { ...next, tracks: p.tracks.filter((t) => t.id !== id) };
+    });
+    if (useProject.getState().selectedTrack === id) useProject.getState().selectTrack(null);
+    if (clicks)
+      useApp
+        .getState()
+        .toast(
+          "Cliques automáticos removidos: o som de clique das gravações foi desligado (Ctrl+Z desfaz).",
+          "success",
+        );
+  },
+
+  /**
+   * Removes one automatic click (picked on the track "Cliques"): that moment of its recording
+   * stays silent, the other clicks go on. One undo step.
+   */
+  removeClick(click: { assetId: string; source: number }): void {
+    const { project, commit } = useProject.getState();
+    if (!project) return;
+    if (project.tracks.some((t) => t.clicks && t.locked)) {
+      useApp
+        .getState()
+        .toast("A faixa Cliques está travada: destrave para remover um clique.", "info");
+      return;
+    }
+    const ok = commit((p) => ({
+      ...p,
+      assets: p.assets.map((a) => {
+        if (a.id !== click.assetId) return a;
+        const fx = { ...DEFAULT_CURSOR_FX, ...a.cursorFx };
+        if (isRemovedClick(fx, click.source)) return a;
+        const clickRemoved = [...(fx.clickRemoved ?? []), click.source].sort((x, y) => x - y);
+        return { ...a, cursorFx: { ...fx, clickRemoved } };
+      }),
+    }));
+    if (ok) useApp.getState().set({ pickedClick: null });
+  },
+
+  /** The clicks removed one by one from this recording sound again. One undo step. */
+  restoreClicks(assetId: string): void {
     useProject.getState().commit((p) => ({
       ...p,
-      tracks: p.tracks.filter((t) => t.id !== id),
-      clips: p.clips.filter((c) => c.trackId !== id),
+      assets: p.assets.map((a) =>
+        a.id === assetId && a.cursorFx?.clickRemoved
+          ? { ...a, cursorFx: { ...a.cursorFx, clickRemoved: undefined } }
+          : a,
+      ),
     }));
   },
 

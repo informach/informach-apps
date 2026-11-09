@@ -19,16 +19,32 @@ const mediaSignatures: Record<string, (bytes: Uint8Array) => boolean> = {
   mp4: (bytes) => String.fromCharCode(...bytes.subarray(4, 8)) === "ftyp",
   webm: (bytes) => bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3,
 };
+/** A file name the editor suggests (no folder, no reserved characters); the person can change it. */
+export const suggestedNameSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(120)
+  // No folder separators, reserved characters or control characters (Windows names).
+  .refine(
+    (name) =>
+      ![...name].some((c) => c.charCodeAt(0) < 32 || '<>:"/\\|?*'.includes(c)) &&
+      !name.startsWith(".") &&
+      !name.endsWith("."),
+    "Nome inválido.",
+  );
 const mediaSchema = z.strictObject({
   extension: z.enum(["png.zip", "gif", "mp4", "webm"]),
   bytes: z.instanceof(Uint8Array),
   encoding: z.literal("binary"),
+  name: suggestedNameSchema.optional(),
 });
 /** IPC only writes after a native Save dialog; it never trusts a client path.
  * Bound encoded/decoded sizes before allocating and require canonical base64. */
 export function parseExportPayload(input: unknown): {
   extension: string;
   content: string | Buffer;
+  name?: string;
 } {
   if (typeof input === "object" && input !== null && "bytes" in input) {
     const media = mediaSchema.parse(input, { jitless: true });
@@ -36,7 +52,11 @@ export function parseExportPayload(input: unknown): {
       throw new Error("Imagem ou vídeo exportado vazio ou excessivo.");
     if (!mediaSignatures[media.extension]?.(media.bytes))
       throw new Error("Conteúdo não corresponde ao formato exportado.");
-    return { extension: media.extension, content: Buffer.from(media.bytes) };
+    return {
+      extension: media.extension,
+      content: Buffer.from(media.bytes),
+      ...(media.name ? { name: media.name } : {}),
+    };
   }
   if (
     typeof input !== "object" ||

@@ -1,3 +1,5 @@
+import { EDI_TOOL_COUNT_WORD } from "./edi-tools";
+
 export type ProductId = string;
 
 export type ProductKind = "subscription" | "credit_pack";
@@ -56,8 +58,7 @@ export const PRODUCTS: readonly Product[] = [
     app: "edi",
     kind: "subscription",
     name: "Suíte Edi",
-    description:
-      "Cinco ferramentas criativas, até dois dispositivos e atualizações. Consumo pago de IA não incluído.",
+    description: `${EDI_TOOL_COUNT_WORD.charAt(0).toUpperCase()}${EDI_TOOL_COUNT_WORD.slice(1)} ferramentas criativas, até dois dispositivos e atualizações. Consumo pago de IA não incluído.`,
     tier: "suite",
     interval: "month",
     stripePriceId: { dev: "", prod: "" },
@@ -138,7 +139,7 @@ export const PRODUCTS: readonly Product[] = [
     kind: "subscription",
     name: "Bora Treinar Individual",
     description:
-      "Calistenia guiada com instrutor 3D, contagem pela câmera e progressão para um perfil.",
+      "Calistenia guiada com instrutor 3D, contagem pela câmera e pela voz, celular como câmera da TV, níveis, editor de treinos e desafio da semana, para um perfil.",
     tier: "individual",
     interval: "month",
     stripePriceId: {
@@ -153,7 +154,7 @@ export const PRODUCTS: readonly Product[] = [
     kind: "subscription",
     name: "Bora Treinar Individual anual",
     description:
-      "Calistenia guiada com instrutor 3D, contagem pela câmera e progressão para um perfil, por um ano.",
+      "Calistenia guiada com instrutor 3D, contagem pela câmera e pela voz, celular como câmera da TV, níveis, editor de treinos e desafio da semana, para um perfil, por um ano.",
     tier: "individual",
     interval: "year",
     stripePriceId: {
@@ -191,6 +192,38 @@ export const PRODUCTS: readonly Product[] = [
       prod: "price_1UWcabCvOctqao3086Cnz1Ju",
     },
     listPrice: { amountCents: 34900, currency: "BRL" },
+  },
+  // Dia de Estrela: o plano gratuito tem 1 criança e não é um produto. Os IDs
+  // do Stripe ficam como `price_TODO_*` até o provisionamento (PRODUCAO.md do app).
+  {
+    id: "estrela_family_monthly",
+    app: "dia-de-estrela",
+    kind: "subscription",
+    name: "Dia de Estrela Família",
+    description:
+      "Rotina visual com lembretes, passo a passo e estrelas para até quatro crianças, com alertas no celular dos pais, loja de recompensas e voz dos pais.",
+    tier: "family",
+    interval: "month",
+    stripePriceId: {
+      dev: "price_TODO_estrela_family_monthly",
+      prod: "price_TODO_estrela_family_monthly",
+    },
+    listPrice: { amountCents: 2490, currency: "BRL" },
+  },
+  {
+    id: "estrela_family_annual",
+    app: "dia-de-estrela",
+    kind: "subscription",
+    name: "Dia de Estrela Família anual",
+    description:
+      "Rotina visual com lembretes, passo a passo e estrelas para até quatro crianças, com alertas no celular dos pais, loja de recompensas e voz dos pais, por um ano.",
+    tier: "family",
+    interval: "year",
+    stripePriceId: {
+      dev: "price_TODO_estrela_family_annual",
+      prod: "price_TODO_estrela_family_annual",
+    },
+    listPrice: { amountCents: 24900, currency: "BRL" },
   },
   {
     id: "cozya_pro_monthly",

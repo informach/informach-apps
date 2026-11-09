@@ -23,6 +23,8 @@ const sourceCommit = "a".repeat(40);
 const provenance = `<!-- edi-source:${sourceCommit} -->`;
 /** Listing re-reads before giving up, in milliseconds. */
 const backoff = [1000, 2000, 4000, 8000, 15000];
+/** One installer per desktop app plus the signed manifest. */
+const assetCount = EDI_DESKTOP_APPS.length + 1;
 async function fixture() {
   const directory = await mkdtemp(join(tmpdir(), "edi-publication-"));
   onTestFinished(() => rm(directory, { recursive: true, force: true }));
@@ -73,7 +75,7 @@ async function fixture() {
         }
         if (
           state.release?.draft &&
-          state.release.assets.length === 7 &&
+          state.release.assets.length === assetCount &&
           state.staleAssetReads > 0
         ) {
           state.staleAssetReads--;
@@ -154,7 +156,7 @@ describe("atomic GitHub suite publication", () => {
     await expect(publishGithubRelease(options, command)).rejects.toThrow("Not Found");
     expect(state.release).toBeNull();
   });
-  it("publishes exactly six installers and the manifest, with remote digest confirmation", async () => {
+  it("publishes one installer per suite app and the manifest, with remote digest confirmation", async () => {
     const { options, state, command, wait } = await fixture();
     expect(await publishGithubRelease(options, command, wait)).toEqual({ reused: false });
     expect(state.release?.draft).toBe(false);
@@ -174,8 +176,9 @@ describe("atomic GitHub suite publication", () => {
     state.failAt = 0;
     await publishGithubRelease(options, command, wait);
     expect(state.release?.draft).toBe(false);
-    expect(state.release?.assets).toHaveLength(7);
-    expect(state.uploads).toBe(8);
+    expect(state.release?.assets).toHaveLength(assetCount);
+    // Every asset once, plus the attempt interrupted at the fourth upload.
+    expect(state.uploads).toBe(assetCount + 1);
     expect(state.creates).toBe(1);
   });
   it("never overwrites a conflicting asset already in a draft", async () => {
@@ -224,7 +227,10 @@ describe("atomic GitHub suite publication", () => {
       "Incomplete or altered",
     );
     await expect(
-      publishGithubRelease({ ...options, files: Array(7).fill(options.files[0]) }, command),
+      publishGithubRelease(
+        { ...options, files: Array(assetCount).fill(options.files[0]) },
+        command,
+      ),
     ).rejects.toThrow("canonical installers");
     expect(state.edits).toBe(0);
   });
@@ -261,7 +267,7 @@ describe("atomic GitHub suite publication", () => {
     expect(await publishGithubRelease(options, command, wait)).toEqual({ reused: false });
     expect(waits).toEqual([...backoff, 1000, 2000]);
     expect(state.release?.draft).toBe(false);
-    expect(state.uploads).toBe(7);
+    expect(state.uploads).toBe(assetCount);
   });
   it("stops before uploading when the created draft never appears in the listing", async () => {
     const { options, state, command, wait, waits } = await fixture();
@@ -304,7 +310,7 @@ describe("atomic GitHub suite publication", () => {
     expect(await publishGithubRelease(options, command, wait)).toEqual({ reused: false });
     expect(waits).toEqual([1000, 2000]);
     expect(state.creates).toBe(0);
-    expect(state.uploads).toBe(7);
+    expect(state.uploads).toBe(assetCount);
     expect(state.release.draft).toBe(false);
   });
   it("waits for every uploaded asset to reach the listing before publishing", async () => {
@@ -315,7 +321,7 @@ describe("atomic GitHub suite publication", () => {
     expect(state.edits).toBe(1);
     expect(state.release?.draft).toBe(false);
   });
-  it("keeps the draft unpublished when the listing never shows all seven assets", async () => {
+  it("keeps the draft unpublished when the listing never shows every suite asset", async () => {
     const { options, state, command, wait, waits } = await fixture();
     state.staleAssetReads = Number.POSITIVE_INFINITY;
     await expect(publishGithubRelease(options, command, wait)).rejects.toThrow(

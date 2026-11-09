@@ -16,6 +16,7 @@ import {
   verifyPdfNativeRestart,
 } from "../../apps/edipdf/scripts/native-journey.mts";
 import { closePdfNativeFixture } from "../../apps/edipdf/scripts/native-process.mts";
+import { verifyPlayerNativeJourney } from "../../apps/ediplayer/scripts/native-journey.mts";
 import { EDI_DESKTOP_APPS, EDI_TOOLS } from "../../packages/config/src/edi-tools.ts";
 import { desktopAppIdSchema, leaseClaimsSchema } from "../../packages/edi-contracts/src/index.ts";
 import type { VaultData } from "../../packages/edi-desktop/src/vault";
@@ -327,6 +328,7 @@ try {
           EDIFOTO_USER_DATA: userData,
           EDIPDF_USER_DATA: userData,
           EDISVG_USER_DATA: userData,
+          EDIPLAYER_USER_DATA: userData,
           EDICAPTURA_TEST_PROFILE: userData,
         },
       }),
@@ -429,6 +431,10 @@ try {
         await verifyNativeDialog(editor, "Novo…", "Novo documento");
         await seedLease(application, 300);
         await verifyFotoNativeJourney(editor, application, root, results);
+      }
+      if (id === "ediplayer") {
+        await seedLease(application, 300);
+        await verifyPlayerNativeJourney(editor, application, root, results);
       }
       if (id === "ediaula") {
         const sentinel = join(userData, "documents", "unselected.mp4");
@@ -846,6 +852,15 @@ try {
           console.log(
             "Verified native binary React ZIP Save/Cancel, unchanged document and preserved original project",
           );
+          const pipelineJourney = await import(
+            new URL("../../apps/edisvg/scripts/native-pipeline-journey.mts", import.meta.url).href
+          );
+          await pipelineJourney.verifySvgNativePipelineJourney(
+            editor,
+            application,
+            root,
+            join(results, "edisvg-pipeline.png"),
+          );
           const lottieJourney = await import(
             new URL("../../apps/edisvg/scripts/native-lottie-journey.mts", import.meta.url).href
           );
@@ -966,6 +981,8 @@ try {
           edipdf: ["api", "signatures", "list"],
           edisvg: ["desktop", "projectNew"],
           edicaptura: ["edi", "monitors"],
+          // Read-only probe of the player bridge; no native dialog if it were allowed.
+          ediplayer: ["api", "queue"],
         };
         await verifyDeniedBridge(editor, operations[id]);
         if (modalName) {

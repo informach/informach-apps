@@ -1,4 +1,5 @@
 "use client";
+import { EDI_TOOL_COUNT_WORD } from "@informach/config/edi-tools";
 import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -10,7 +11,7 @@ const HEADINGS: Record<Mode, { title: string; lede: string }> = {
   login: { title: "Bom te ver de novo.", lede: "A mesma conta vale no site e no Edi Hub." },
   signup: {
     title: "Comece pela sua conta.",
-    lede: "Uma conta para as cinco ferramentas. Depois você escolhe o plano.",
+    lede: `Uma conta para as ${EDI_TOOL_COUNT_WORD} ferramentas. Depois você escolhe o plano.`,
   },
   verify: {
     title: "Confirme seu e-mail.",

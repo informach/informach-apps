@@ -12,7 +12,8 @@ export interface Desafio {
 export interface SessaoDaSemana {
   profileId: string;
   durationSeconds: number;
-  logs: { exerciseId: string; reps: number }[];
+  /** `holdSeconds` só entra na regra do que conta como treino (`contaComoTreino`). */
+  logs: { exerciseId: string; reps: number; holdSeconds?: number }[];
 }
 
 /** Quanto uma sessão soma para a meta do desafio. */
@@ -31,7 +32,10 @@ export function contribuicao(desafio: Desafio, sessao: SessaoDaSemana) {
   }
 }
 
-/** Placar da semana: soma da família e a parte de cada perfil, do maior para o menor. */
+/**
+ * Soma da família e quanto cada perfil somou, na ordem da família: o desafio é cooperativo,
+ * então ninguém é ordenado do maior para o menor (a parte de cada um mora em `regras.ts`).
+ */
 export function placar(
   desafio: Desafio,
   sessoes: SessaoDaSemana[],
@@ -41,9 +45,7 @@ export function placar(
   for (const s of sessoes)
     if (porPerfil.has(s.profileId))
       porPerfil.set(s.profileId, (porPerfil.get(s.profileId) ?? 0) + contribuicao(desafio, s));
-  const linhas = perfis
-    .map((p) => ({ ...p, valor: Math.floor(porPerfil.get(p.id) ?? 0) }))
-    .sort((a, b) => b.valor - a.valor);
+  const linhas = perfis.map((p) => ({ ...p, valor: Math.floor(porPerfil.get(p.id) ?? 0) }));
   const total = linhas.reduce((t, l) => t + l.valor, 0);
   return {
     total,
@@ -53,12 +55,14 @@ export function placar(
   };
 }
 
-export function descreverDesafio(desafio: Desafio) {
+/** A meta em português; `pessoal` tira o "juntos" do desafio da família. */
+export function descreverDesafio(desafio: Desafio, { pessoal = false } = {}) {
+  const juntos = pessoal ? " na semana" : " juntos";
   switch (desafio.metric) {
     case "repeticoes":
-      return `${desafio.target} repetições juntos`;
+      return `${desafio.target} repetições${juntos}`;
     case "minutos":
-      return `${desafio.target} minutos de treino juntos`;
+      return `${desafio.target} minutos de treino${juntos}`;
     case "treinos":
       return `${desafio.target} treinos na semana`;
     case "exercicio":

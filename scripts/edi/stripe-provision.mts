@@ -70,8 +70,8 @@ export async function provisionEdiStripe(options: {
       product = await stripe.products.create(
         {
           name: "Suíte Edi",
-          description:
-            "Cinco ferramentas criativas, até dois dispositivos e atualizações. Consumo pago de IA não incluído.",
+          // Same copy as the monthly catalog entry, derived from the tool count.
+          description: PRODUCTS.find((entry) => entry.id === "edi_suite_monthly")?.description,
           metadata: { app: "edi", catalog: marker },
         },
         { idempotencyKey: `${marker}:product` },

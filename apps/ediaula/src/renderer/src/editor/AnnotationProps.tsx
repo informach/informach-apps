@@ -19,14 +19,16 @@ import {
   withoutStroke,
 } from "@shared/drawing";
 import { plural } from "@shared/plural";
+import { clipEnd } from "@shared/timeline";
 import type { Clip } from "@shared/types";
-import { MessageSquareText, PenLine, X } from "lucide-react";
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { MessageSquareText, PenLine, Type, X } from "lucide-react";
+import { type ReactNode, useEffect, useState } from "react";
 import { updateAnnotation } from "@/lib/annotations";
 import { changeDrawing } from "@/lib/drawing";
 import { annotationStyle } from "@/lib/sharedLibrary";
 import { useApp } from "@/state/app";
-import { registerDraft, useProject } from "@/state/project";
+import { playback, usePlayback } from "@/state/playback";
+import { useProject } from "@/state/project";
 import { Slider } from "./ClipVisual";
 import { FontPicker } from "./FontPicker";
 import { FavoriteStyle, RevealRow } from "./LookSections";
@@ -94,45 +96,6 @@ function Chips<T extends string | number>({
       ))}
     </div>
   );
-}
-
-/**
- * A text field of the annotation, written on blur and also when the section goes away (another
- * clip selected, the panel closed): an unmounted field never gets its blur. While something is
- * typed and not written yet it is a draft of the project (registerDraft), so leaving the
- * project or closing the window writes it first.
- */
-function useAnnotationText(
-  clipId: string,
-  key: "text" | "kicker" | "subtitle",
-  saved: string,
-): [string, (value: string) => void, () => void] {
-  const [value, setValue] = useState(saved);
-  const draft = useRef<string | null>(null);
-  const forget = useRef<(() => void) | null>(null);
-  const savedRef = useRef(saved);
-  useLayoutEffect(() => {
-    savedRef.current = saved;
-    draft.current = null;
-    forget.current?.();
-    forget.current = null;
-    setValue(saved);
-  }, [saved]);
-  const commit = useRef((): void => {
-    const typed = draft.current;
-    draft.current = null;
-    forget.current?.();
-    forget.current = null;
-    if (typed !== null && typed !== savedRef.current)
-      void updateAnnotation(clipId, { [key]: typed });
-  });
-  useEffect(() => () => commit.current(), []);
-  const change = (next: string): void => {
-    draft.current = next;
-    forget.current ??= registerDraft(commit.current);
-    setValue(next);
-  };
-  return [value, change, commit.current];
 }
 
 /**
@@ -234,20 +197,73 @@ const STROKE_LABEL: Record<DrawingTool, string> = {
   arrow: "Seta",
 };
 
+/** The texts of each kind, as the buttons that open them on the preview name them. */
+const TYPED_TEXTS: Partial<Record<Annotation["kind"], [TextKey, string][]>> = {
+  lowerthird: [
+    ["text", "Nome"],
+    ["subtitle", "Linha de baixo"],
+  ],
+  card: [
+    ["kicker", "Linha de cima"],
+    ["text", "Título"],
+    ["subtitle", "Linha de baixo"],
+  ],
+};
+type TextKey = "text" | "kicker" | "subtitle";
+
+/**
+ * The text is typed on the preview, over the annotation (editor/AnnotationTextEditor.tsx), not
+ * here: these buttons open it there, bringing the playhead into the clip when it is elsewhere.
+ */
+function TypedTexts({ clip }: { clip: Clip }): ReactNode {
+  const a = clip.annotation!;
+  const track = useProject((s) => s.project?.tracks.find((t) => t.id === clip.trackId));
+  const blocked = track?.locked
+    ? "A faixa está travada."
+    : track?.hidden
+      ? "A faixa está oculta."
+      : "";
+  const open = (key: TextKey): void => {
+    // The playhead where the annotation is all there: past its entrance, before its exit.
+    const t = usePlayback.getState().time;
+    const from = clip.start + (clip.fadeIn ?? 0) + 0.05;
+    const to = clipEnd(clip) - (clip.fadeOut ?? 0) - 0.05;
+    const shown = from <= to ? Math.max(from, Math.min(to, t)) : clip.start + clip.duration / 2;
+    if (Math.abs(shown - t) > 1e-3) playback.seek(shown);
+    useApp.getState().set({ textEdit: { id: clip.id, at: null, key } });
+  };
+  const texts = TYPED_TEXTS[a.kind] ?? [["text", "Editar texto"] as [TextKey, string]];
+  return (
+    <>
+      <p className="props-hint muted">
+        {blocked ||
+          "Clique duas vezes no texto, na prévia, para escrever direto nele (Esc cancela)."}
+      </p>
+      <div className="chip-row">
+        {texts.map(([key, label]) => (
+          <button
+            type="button"
+            key={key}
+            className="chip"
+            disabled={!!blocked}
+            title={(key === "text" ? a.text : a[key]) || "Ainda vazio"}
+            onClick={() => open(key)}
+          >
+            <Type size={12} /> {label}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
 /** Editing an annotation redraws its picture; each change is one undo step. */
 export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
   const a = clip.annotation!;
   const set = (c: Partial<Annotation>): void => {
     void updateAnnotation(clip.id, c);
   };
-  const [text, setText, saveText] = useAnnotationText(clip.id, "text", a.text ?? "");
   const hasText = TEXT_KINDS.has(a.kind);
-  const [kicker, setKicker, saveKicker] = useAnnotationText(clip.id, "kicker", a.kicker ?? "");
-  const [subtitle, setSubtitle, saveSubtitle] = useAnnotationText(
-    clip.id,
-    "subtitle",
-    a.subtitle ?? "",
-  );
   const fullFrame = a.kind === "card" || (a.kind === "panel" && (a.boxWidth ?? 0) >= 1920);
   const ol = a.outline ?? defaultOutline(a);
   const setOutline = (c: Partial<Outline>): void => {
@@ -288,63 +304,16 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
           />
         </div>
         <RevealRow clip={clip} annotation={a} />
-        {hasText &&
-          (a.kind === "step" ? (
-            <input
-              className="input"
-              value={text}
-              maxLength={3}
-              onChange={(e) => setText(e.target.value)}
-              onBlur={saveText}
-            />
-          ) : (
-            <textarea
-              className="input ann-text"
-              rows={a.kind === "label" ? 1 : 3}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onBlur={saveText}
-              onKeyDown={(e) =>
-                e.key === "Enter" && e.ctrlKey && (e.currentTarget as HTMLTextAreaElement).blur()
-              }
-              placeholder="Texto"
-              style={a.fontFamily ? { fontFamily: `"${a.fontFamily}"` } : undefined}
-            />
-          ))}
-        {a.kind === "lowerthird" && (
-          <input
-            className="input"
-            placeholder="Linha de baixo"
-            value={subtitle}
-            onChange={(e) => setSubtitle(e.target.value)}
-            onBlur={saveSubtitle}
-          />
-        )}
+        {hasText && <TypedTexts clip={clip} />}
         {a.kind === "card" && (
-          <>
-            <Chips
-              value={a.layout ?? "left"}
-              options={[
-                ["left", "À esquerda"],
-                ["center", "Centralizado"],
-              ]}
-              onPick={(layout) => set({ layout })}
-            />
-            <input
-              className="input"
-              placeholder="Linha de cima (curso)"
-              value={kicker}
-              onChange={(e) => setKicker(e.target.value)}
-              onBlur={saveKicker}
-            />
-            <input
-              className="input"
-              placeholder="Linha de baixo"
-              value={subtitle}
-              onChange={(e) => setSubtitle(e.target.value)}
-              onBlur={saveSubtitle}
-            />
-          </>
+          <Chips
+            value={a.layout ?? "left"}
+            options={[
+              ["left", "À esquerda"],
+              ["center", "Centralizado"],
+            ]}
+            onPick={(layout) => set({ layout })}
+          />
         )}
         {hasText && (
           <FontPicker value={a.fontFamily} onChange={(fontFamily) => set({ fontFamily })} />

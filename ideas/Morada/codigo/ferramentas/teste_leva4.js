@@ -1,0 +1,25 @@
+// Leva 4: guarda-chuva aberto e pau de selfie com a pose do braço; objeto troca de mão ao acenar; arrastão. Sem erros.
+const {chromium}=require('playwright');
+(async()=>{const b=await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader']});
+const p=await b.newPage({viewport:{width:1300,height:900}});const errs=[];p.on('pageerror',e=>errs.push(e.message));p.on('console',m=>{if(m.type()==='error')errs.push(m.text())});
+await p.goto('http://localhost:8765/teste_local.html');
+const espera = async () => { await p.waitForFunction(()=>/animações/.test(document.getElementById('bib-status').textContent),undefined,{timeout:240000}); await p.waitForTimeout(1200); };
+const shot = async (n, ms=4500) => { await p.waitForTimeout(ms); console.log('foto', n, JSON.stringify(errs.slice(-2))); await p.locator('#palco').screenshot({path:`${process.argv[2]}/${n}.png`}); };
+const conj = async (nome) => { const v = await p.$eval('#roupa-conjunto', (s, n) => [...s.options].find(o => o.text === n)?.value, nome); await p.selectOption('#roupa-conjunto', v); };
+const escolhe = async (chave, rotulo) => { await p.click(`button[aria-controls="grade-${chave}"]`); await p.click(`#grade-${chave} button[title="${rotulo}"]`); };
+const anim = async (k) => { await p.click(`button[data-k="${k}"]`); };
+await espera();
+await p.click('#sexo button[data-k="f"]'); await espera();
+await conj("Dia de chuva"); await shot('l4_chuva');
+await anim('bib:resident.walk.normal'); await shot('l4_chuva_andando');
+await conj("Passeio de sol"); await shot('l4_colorido_andando');
+await anim('bib:resident.idle.neutral'); await conj("Selfie"); await shot('l4_selfie');
+await conj("Café"); await anim('bib:resident.wave'); await shot('l4_tchau_cafe', 2500); await shot('l4_tchau_cafe2', 1200);
+await escolhe('roupa-mao_esq', 'Bolsa'); await shot('l4_tchau_bolsa', 2500);
+await anim('bib:resident.point'); await shot('l4_apontando', 2500);
+await anim('bib:resident.phone.talk'); await shot('l4_telefone', 2500);
+await anim('bib:resident.idle.neutral'); await shot('l4_parado_volta', 2500);
+await conj("Roqueira de arrastão"); await shot('l4_arrastao');
+await conj("Festa à fantasia: coelho"); await shot('l4_coelho');
+await p.click('#gravidez button[data-k="3"]'); await espera(); await conj("Dia de chuva"); await anim('bib:resident.walk.normal'); await shot('l4_g3_chuva');
+console.log('erros', JSON.stringify(errs.slice(0,8))); await b.close();})();

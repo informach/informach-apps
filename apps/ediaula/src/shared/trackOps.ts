@@ -1,4 +1,5 @@
 import { newId } from "./clipTime.ts";
+import { withoutClickSound } from "./soundPlacement.ts";
 import { moveTrack, newTrackName } from "./timeline.ts";
 import type { Project, Track } from "./types.ts";
 
@@ -97,7 +98,10 @@ export function removeEmptyTrack(p: Project, id: string): TrackResult {
     );
   return {
     ok: true,
-    project: { ...p, tracks: p.tracks.filter((t) => t.id !== id) },
+    // The track "Cliques" goes with the clicks it shows: the click sound is turned off.
+    project: track.clicks
+      ? withoutClickSound(p)
+      : { ...p, tracks: p.tracks.filter((t) => t.id !== id) },
     track,
     index: p.tracks.indexOf(track),
   };
@@ -118,4 +122,39 @@ export function setTrackFlags(
     track: changed,
     index: p.tracks.indexOf(track),
   };
+}
+
+/**
+ * The id of the track `ref` names: its id, else the label the timeline shows ("F1" is the bottom
+ * track) or the exact name of one track ("Narração"). Unknown or ambiguous: `ref` as it came, so
+ * the tool refuses it with its usual message.
+ */
+export function trackIdOf(tracks: readonly Track[], ref: string): string {
+  if (tracks.some((t) => t.id === ref)) return ref;
+  const label = /^f\s*(\d+)$/i.exec(ref.trim());
+  if (label) {
+    const index = tracks.length - Number(label[1]);
+    const track = index >= 0 ? tracks[index] : undefined;
+    if (track) return track.id;
+  }
+  const name = ref.trim().toLocaleLowerCase("pt-BR");
+  const named = tracks.filter((t) => t.name.trim().toLocaleLowerCase("pt-BR") === name);
+  return named.length === 1 ? (named[0] as Track).id : ref;
+}
+
+const TRACK_KEYS = new Set(["track_id", "track", "reference_track_id"]);
+
+/** A tool's input with every track reference (track_id, track, reference_track_id) as an id. */
+export function withTrackIds<T>(tracks: readonly Track[], input: T): T {
+  const visit = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(visit);
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(
+      Object.entries(value).map(([key, v]) => [
+        key,
+        TRACK_KEYS.has(key) && typeof v === "string" ? trackIdOf(tracks, v) : visit(v),
+      ]),
+    );
+  };
+  return visit(input) as T;
 }

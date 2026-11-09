@@ -5,6 +5,7 @@ import { access } from "node:fs/promises";
 import { createServer } from "node:net";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
+import { EDI_TOOL_COUNT_WORD } from "../../packages/config/src/edi-tools.ts";
 
 const database = new URL(process.env.DATABASE_URL ?? "");
 if (
@@ -154,9 +155,11 @@ try {
           ?.replaceAll("&amp;", "&") ?? null;
       assert.ok(!page.includes("account-grid"), "Anonymous response must contain no account UI");
       assert.ok(
-        !["Suas cinco ferramentas", "conectados", "Seus arquivos ficam com você"].some((text) =>
-          page.includes(text),
-        ),
+        ![
+          `Suas ${EDI_TOOL_COUNT_WORD} ferramentas`,
+          "conectados",
+          "Seus arquivos ficam com você",
+        ].some((text) => page.includes(text)),
         "Anonymous account response must contain no account content",
       );
     }

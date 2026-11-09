@@ -1,3 +1,10 @@
+import {
+  FUSO_PADRAO,
+  inicioDaSemana,
+  inicioDoDiaLocal,
+  sequenciaDeDias,
+  somarDias,
+} from "@/lib/datas";
 import type { SetLog } from "./runner";
 
 export interface SessionLike {
@@ -6,23 +13,17 @@ export interface SessionLike {
   logs: SetLog[];
 }
 
-const DAY = 86_400_000;
-export const dayKey = (t: number) => {
-  const d = new Date(t);
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-};
-
-/** Dias seguidos com treino, terminando hoje ou ontem. */
-export function streakDays(sessions: SessionLike[], now = Date.now()) {
-  const days = new Set(sessions.map((s) => dayKey(s.startedAt)));
-  let d = dayKey(now);
-  if (!days.has(d)) d -= DAY;
-  let n = 0;
-  while (days.has(d)) {
-    n++;
-    d = dayKey(d - DAY / 2);
-  }
-  return n;
+/**
+ * Dias seguidos com treino, terminando hoje ou ontem, no fuso da família. Com o fuso explícito o
+ * servidor (UTC) e o navegador chegam ao mesmo número; antes cada um usava o próprio relógio, e um
+ * treino entre 21h e meia-noite dava números diferentes e erro de hidratação.
+ */
+export function streakDays(sessions: SessionLike[], now = Date.now(), fuso = FUSO_PADRAO) {
+  return sequenciaDeDias(
+    sessions.map((s) => s.startedAt),
+    now,
+    fuso,
+  );
 }
 
 export interface ExerciseRecord {
@@ -73,12 +74,18 @@ export function newRecords(previous: SessionLike[], logs: SetLog[]) {
     .map(([exerciseId, v]) => ({ exerciseId, ...v }));
 }
 
-/** Repetições por semana nas últimas `weeks` semanas (mais antiga primeiro). */
-export function weeklyReps(sessions: SessionLike[], weeks = 8, now = Date.now()) {
-  const start = dayKey(now) - ((new Date(now).getDay() + 6) % 7) * DAY; // segunda-feira
+/** Repetições por semana nas últimas `weeks` semanas (mais antiga primeiro), no fuso da família. */
+export function weeklyReps(
+  sessions: SessionLike[],
+  weeks = 8,
+  now = Date.now(),
+  fuso = FUSO_PADRAO,
+) {
+  const segunda = inicioDaSemana(now, fuso);
   return Array.from({ length: weeks }, (_, i) => {
-    const from = start - (weeks - 1 - i) * 7 * DAY;
-    const to = from + 7 * DAY;
+    const dia = somarDias(segunda, -(weeks - 1 - i) * 7);
+    const from = inicioDoDiaLocal(dia, fuso).getTime();
+    const to = inicioDoDiaLocal(somarDias(dia, 7), fuso).getTime();
     const inWeek = sessions.filter((s) => s.startedAt >= from && s.startedAt < to);
     return {
       from,

@@ -1,0 +1,515 @@
+{
+ "altura": 3.0,
+ "espessura": 0.15,
+ "mureta": 1.0,
+ "chao": 4.0,
+ "grade": 0.5,
+ "escala_textura": {
+  "piso": 2.0,
+  "parede": 3.0
+ },
+ "chaos": [
+  {
+   "id": "chao_4m",
+   "rotulo": "Chão 4 × 4 m",
+   "tam": [
+    4.0,
+    4.0
+   ],
+   "arquivo": "pecas/chao_4m.txt",
+   "materiais": [
+    "piso",
+    "borda"
+   ]
+  }
+ ],
+ "paredes": [
+  {
+   "id": "parede_4m",
+   "rotulo": "Parede lisa 4 m",
+   "grupo": "lisa",
+   "comp": 4.0,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/parede_4m.txt",
+   "vaos": [],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "parede_2m",
+   "rotulo": "Parede lisa 2 m",
+   "grupo": "lisa",
+   "comp": 2.0,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/parede_2m.txt",
+   "vaos": [],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "parede_1m",
+   "rotulo": "Parede lisa 1 m",
+   "grupo": "lisa",
+   "comp": 1.0,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/parede_1m.txt",
+   "vaos": [],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "parede_0_5m",
+   "rotulo": "Inserto estreito 0,5 m",
+   "grupo": "insercao",
+   "comp": 0.5,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/parede_0_5m.txt",
+   "vaos": [],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "parede_0_25m",
+   "rotulo": "Painel de ajuste 0,25 m",
+   "grupo": "insercao",
+   "comp": 0.25,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/parede_0_25m.txt",
+   "vaos": [],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "pilar",
+   "rotulo": "Pilar de canto",
+   "grupo": "insercao",
+   "comp": 0.16999999999999998,
+   "centrada": true,
+   "alt": 3.0,
+   "arquivo": "pecas/pilar.txt",
+   "vaos": [],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "mureta_2m",
+   "rotulo": "Mureta 2 m",
+   "grupo": "lisa",
+   "comp": 2.0,
+   "centrada": false,
+   "alt": 1.0,
+   "arquivo": "pecas/mureta_2m.txt",
+   "vaos": [],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "mureta_1m",
+   "rotulo": "Mureta 1 m",
+   "grupo": "lisa",
+   "comp": 1.0,
+   "centrada": false,
+   "alt": 1.0,
+   "arquivo": "pecas/mureta_1m.txt",
+   "vaos": [],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "porta_2m",
+   "rotulo": "Parede com porta 2 m",
+   "grupo": "porta",
+   "comp": 2.0,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/porta_2m.txt",
+   "vaos": [
+    {
+     "tipo": "ret",
+     "cx": 1.0,
+     "larg": 0.9,
+     "peitoril": 0.0,
+     "alt": 2.1
+    }
+   ],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "porta_lateral_2m",
+   "rotulo": "Porta no canto 2 m",
+   "grupo": "porta",
+   "comp": 2.0,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/porta_lateral_2m.txt",
+   "vaos": [
+    {
+     "tipo": "ret",
+     "cx": 0.65,
+     "larg": 0.9,
+     "peitoril": 0.0,
+     "alt": 2.1
+    }
+   ],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "porta_1m",
+   "rotulo": "Porta 1 m",
+   "grupo": "porta",
+   "comp": 1.0,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/porta_1m.txt",
+   "vaos": [
+    {
+     "tipo": "ret",
+     "cx": 0.5,
+     "larg": 0.9,
+     "peitoril": 0.0,
+     "alt": 2.1
+    }
+   ],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "porta_dupla_2m",
+   "rotulo": "Porta dupla 2 m",
+   "grupo": "porta",
+   "comp": 2.0,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/porta_dupla_2m.txt",
+   "vaos": [
+    {
+     "tipo": "ret",
+     "cx": 1.0,
+     "larg": 1.6,
+     "peitoril": 0.0,
+     "alt": 2.1
+    }
+   ],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "passagem_2m",
+   "rotulo": "Passagem 2 m",
+   "grupo": "porta",
+   "comp": 2.0,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/passagem_2m.txt",
+   "vaos": [
+    {
+     "tipo": "ret",
+     "cx": 1.0,
+     "larg": 1.2,
+     "peitoril": 0.0,
+     "alt": 2.3
+    }
+   ],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "arco_2m",
+   "rotulo": "Arco 2 m",
+   "grupo": "arco",
+   "comp": 2.0,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/arco_2m.txt",
+   "vaos": [
+    {
+     "tipo": "arco",
+     "cx": 1.0,
+     "larg": 1.2,
+     "peitoril": 0.0,
+     "alt": 2.4
+    }
+   ],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "arco_largo_4m",
+   "rotulo": "Arco largo 4 m",
+   "grupo": "arco",
+   "comp": 4.0,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/arco_largo_4m.txt",
+   "vaos": [
+    {
+     "tipo": "arco",
+     "cx": 2.0,
+     "larg": 2.4,
+     "peitoril": 0.0,
+     "alt": 2.6
+    }
+   ],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "janela_2m",
+   "rotulo": "Parede com janela 2 m",
+   "grupo": "janela",
+   "comp": 2.0,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/janela_2m.txt",
+   "vaos": [
+    {
+     "tipo": "ret",
+     "cx": 1.0,
+     "larg": 1.2,
+     "peitoril": 0.9,
+     "alt": 1.1
+    }
+   ],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "janela_larga_2m",
+   "rotulo": "Janela larga 2 m",
+   "grupo": "janela",
+   "comp": 2.0,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/janela_larga_2m.txt",
+   "vaos": [
+    {
+     "tipo": "ret",
+     "cx": 1.0,
+     "larg": 1.6,
+     "peitoril": 1.1,
+     "alt": 0.8
+    }
+   ],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "janela_arco_2m",
+   "rotulo": "Janela em arco 2 m",
+   "grupo": "janela",
+   "comp": 2.0,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/janela_arco_2m.txt",
+   "vaos": [
+    {
+     "tipo": "arco_janela",
+     "cx": 1.0,
+     "larg": 0.8,
+     "peitoril": 1.0,
+     "alt": 1.2
+    }
+   ],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "janela_quadrada_1m",
+   "rotulo": "Janela quadrada 1 m",
+   "grupo": "janela",
+   "comp": 1.0,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/janela_quadrada_1m.txt",
+   "vaos": [
+    {
+     "tipo": "ret",
+     "cx": 0.5,
+     "larg": 0.6,
+     "peitoril": 1.2,
+     "alt": 0.6
+    }
+   ],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  },
+  {
+   "id": "janela_dupla_4m",
+   "rotulo": "Duas janelas 4 m",
+   "grupo": "janela",
+   "comp": 4.0,
+   "centrada": false,
+   "alt": 3.0,
+   "arquivo": "pecas/janela_dupla_4m.txt",
+   "vaos": [
+    {
+     "tipo": "ret",
+     "cx": 1.0,
+     "larg": 1.2,
+     "peitoril": 0.9,
+     "alt": 1.1
+    },
+    {
+     "tipo": "ret",
+     "cx": 3.0,
+     "larg": 1.2,
+     "peitoril": 0.9,
+     "alt": 1.1
+    }
+   ],
+   "materiais": [
+    "face_a",
+    "face_b",
+    "borda"
+   ]
+  }
+ ],
+ "encaixes": [
+  {
+   "id": "porta_arco_natal",
+   "rotulo": "Porta em arco (Natal)",
+   "vao": {
+    "peca": "arco_2m",
+    "indice": 0
+   },
+   "arquivo": "pecas/porta_arco_natal.txt",
+   "pacote": true
+  },
+  {
+   "id": "janela_arco_natal",
+   "rotulo": "Janela em arco (Natal)",
+   "vao": {
+    "peca": "janela_arco_2m",
+    "indice": 0
+   },
+   "arquivo": "pecas/janela_arco_natal.txt",
+   "pacote": true
+  },
+  {
+   "id": "janela_quadrada_natal",
+   "rotulo": "Janela quadrada (Natal)",
+   "vao": {
+    "peca": "janela_2m",
+    "indice": 0
+   },
+   "arquivo": "pecas/janela_quadrada_natal.txt",
+   "pacote": true
+  },
+  {
+   "id": "janela_redonda_natal",
+   "rotulo": "Janela redonda (Natal)",
+   "vao": {
+    "peca": "janela_quadrada_1m",
+    "indice": 0
+   },
+   "arquivo": "pecas/janela_redonda_natal.txt",
+   "pacote": true
+  }
+ ],
+ "lambris": [
+  {
+   "id": "lambri_0_5m",
+   "rotulo": "Lambri 0,5 m",
+   "comp": 0.5,
+   "alt": 0.85,
+   "arquivo": "pecas/lambri_0_5m.txt",
+   "materiais": [
+    "lambri"
+   ]
+  },
+  {
+   "id": "lambri_1m",
+   "rotulo": "Lambri 1 m",
+   "comp": 1.0,
+   "alt": 0.85,
+   "arquivo": "pecas/lambri_1m.txt",
+   "materiais": [
+    "lambri"
+   ]
+  },
+  {
+   "id": "lambri_2m",
+   "rotulo": "Lambri 2 m",
+   "comp": 2.0,
+   "alt": 0.85,
+   "arquivo": "pecas/lambri_2m.txt",
+   "materiais": [
+    "lambri"
+   ]
+  },
+  {
+   "id": "lambri_4m",
+   "rotulo": "Lambri 4 m",
+   "comp": 4.0,
+   "alt": 0.85,
+   "arquivo": "pecas/lambri_4m.txt",
+   "materiais": [
+    "lambri"
+   ]
+  }
+ ]
+}

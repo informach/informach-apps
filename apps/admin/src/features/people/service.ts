@@ -469,8 +469,8 @@ function safeId(value: string | null): string | null {
   return value && ID_PATTERN.test(value) ? value : null;
 }
 
-/** Nomes masculinos da casa: "no Cozya", "no Bora Treinar"; os outros são femininos. */
-const MASCULINE: ReadonlySet<ProductKey> = new Set(["cozya", "bora-treinar"]);
+/** Nomes masculinos da casa: "no Cozya", "no Bora Treinar", "no Dia de Estrela"; os outros são femininos. */
+const MASCULINE: ReadonlySet<ProductKey> = new Set(["cozya", "bora-treinar", "dia-de-estrela"]);
 
 /** "no Cozya", "na Agenda da Turma". */
 export function productIn(app: ProductKey): string {
@@ -544,6 +544,27 @@ const SIMPLE: Record<string, string> = {
   "bora.preferences_updated": "Mudou os lembretes e o resumo semanal no Bora Treinar",
   "bora.pairing_started": "Gerou um código para usar o celular como câmera no Bora Treinar",
   "bora.pairing_connected": "Conectou o celular como câmera no Bora Treinar",
+  "bora.trial_started": "Começou o teste de 7 dias do Bora Treinar",
+  "estrela.child_created": "Cadastrou uma criança no Dia de Estrela",
+  "estrela.child_updated": "Atualizou o perfil de uma criança no Dia de Estrela",
+  "estrela.child_deleted": "Apagou o perfil de uma criança no Dia de Estrela",
+  "estrela.settings_updated": "Mudou os ajustes da família no Dia de Estrela",
+  "estrela.pin_set": "Definiu o PIN da área dos pais no Dia de Estrela",
+  "estrela.pin_unlocked": "Abriu a área dos pais com o PIN no Dia de Estrela",
+  "estrela.pin_locked":
+    "O PIN dos pais travou num aparelho do Dia de Estrela depois de cinco erros",
+  "estrela.device_code_issued":
+    "Gerou um código para conectar o aparelho da criança no Dia de Estrela",
+  "estrela.device_connected": "Conectou o aparelho de uma criança no Dia de Estrela",
+  "estrela.device_revoked": "Desconectou o aparelho de uma criança no Dia de Estrela",
+  "estrela.guardian_invited": "Convidou um segundo responsável no Dia de Estrela",
+  "estrela.guardian_joined": "Entrou como segundo responsável numa família no Dia de Estrela",
+  "estrela.guardian_removed": "Tirou o segundo responsável da família no Dia de Estrela",
+  "estrela.completion_undone": "Desfez uma tarefa marcada no Dia de Estrela",
+  "estrela.bonus_given": "Deu estrelas de bônus a uma criança no Dia de Estrela",
+  "estrela.redemption_resolved": "Respondeu a um pedido da loja de recompensas no Dia de Estrela",
+  "estrela.voice_saved": "Gravou a voz de uma tarefa no Dia de Estrela",
+  "estrela.goal_photo_saved": "Salvou a foto da meta de uma criança no Dia de Estrela",
 };
 
 /** Quem agiu e não existe mais em `core.users`. */

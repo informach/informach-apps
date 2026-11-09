@@ -11,6 +11,23 @@ import { Button, Chip, IconButton, Modal, Toggle } from "@/ui";
 const toSlider = (s: number): number => Math.log2(s);
 const fromSlider = (v: number): number => Math.round(2 ** v * 100) / 100;
 
+/** The person's last choice of "Mover o que vem depois" (off unless they turned it on). */
+const RIPPLE_KEY = "ediaula.speedRipple";
+function storedRipple(): boolean {
+  try {
+    return localStorage.getItem(RIPPLE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function storeRipple(on: boolean): void {
+  try {
+    localStorage.setItem(RIPPLE_KEY, on ? "1" : "0");
+  } catch {
+    // Not remembered this time: the dialog opens with the others staying put.
+  }
+}
+
 /** Clip speed (opened from the clip's right-click menu or its properties): presets or any value, before/after lengths. */
 export function SpeedDialog(): ReactNode {
   const ids = useApp((s) => s.speedClips);
@@ -28,10 +45,13 @@ export function SpeedDialog(): ReactNode {
         )
       : [];
   const [speed, setSpeed] = useState(() => commonSpeed(clips) ?? 1);
-  const [ripple, setRipple] = useState(true);
+  // Off by default: the other clips stay where they are, and the room left can be filled by hand.
+  const [ripple, setRipple] = useState(storedRipple);
   const [target, setTarget] = useState<string | null>(null);
   if (!project || !ids) return null;
   const before = clips.reduce((t, c) => t + c.duration, 0);
+  // A magnetic track keeps its clips together whatever is chosen here (shared/magnetic.ts).
+  const magnetic = project.tracks.some((t) => t.magnetic && clips.some((c) => c.trackId === t.id));
   const after = clips.reduce((t, c) => t + (c.duration * clipSpeed(c)) / speed, 0);
   const seconds = target === null ? after : parseDuration(target);
   const requestedSpeed = seconds === null ? null : speedForDuration(clips, seconds);
@@ -130,17 +150,30 @@ export function SpeedDialog(): ReactNode {
               {clips.length > 1 && <span className="muted"> ({clips.length} clipes)</span>}
             </p>
             <div className="speed-ripple">
-              <Toggle on={ripple} onChange={setRipple} label="Mover o que vem depois" />
+              <Toggle
+                on={ripple}
+                onChange={(on) => {
+                  setRipple(on);
+                  storeRipple(on);
+                }}
+                label="Mover o que vem depois"
+              />
               <span>
                 Mover o que vem depois na faixa
                 <span className="muted">
                   {" "}
                   {ripple
-                    ? "(sem buracos e sem cobrir nada)"
-                    : "(mais lento cobre o que vem depois; mais rápido deixa um espaço)"}
+                    ? "(fecha o espaço: o que vem depois anda junto)"
+                    : "(desligado, os outros clipes ficam onde estão: mais rápido deixa um espaço vazio; mais lento usa o espaço livre e só empurra o que não couber, sem cobrir nada)"}
                 </span>
               </span>
             </div>
+            {magnetic && (
+              <p className="muted">
+                A faixa é magnética: os clipes dela continuam encostados uns nos outros. Para deixar
+                um espaço, desligue a faixa magnética no menu da faixa.
+              </p>
+            )}
           </>
         )}
         <div className="modal-actions">

@@ -1,12 +1,15 @@
 "use client";
 import { Award, Download, Lock } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { fmtTime } from "@/components/avatar";
 import { TopNav } from "@/components/top-nav";
+import { Cadeado } from "@/features/billing/planos";
 import type { Conquista } from "@/features/conquistas/catalogo";
 import { CHAINS, exerciseById } from "../catalog/catalog";
 import { type ProgressMap, pendingSuggestions, SESSIONS_TO_ADVANCE } from "../engine/progression";
-import { records, type SessionLike, streakDays, weeklyReps } from "../engine/stats";
+import { records, type SessionLike, weeklyReps } from "../engine/stats";
+import { SugestoesDeNivel } from "./sugestoes";
 
 const dateFmt = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "short" });
 const dayFmt = new Intl.DateTimeFormat("pt-BR", {
@@ -57,6 +60,30 @@ type Sessao = SessionLike & {
   mode: "camera" | "manual" | "pareado";
 };
 
+/** Uma semana contra a meta (as 8 últimas, da mais antiga à atual). */
+export interface SemanaResumida {
+  inicio: number;
+  dias: number;
+  cumprida: boolean;
+}
+
+const DIA = 86_400_000;
+
+/** O que a câmera viu nos últimos 7 dias: repetições contadas, parciais e os avisos mais comuns. */
+function tecnica(sessions: Sessao[], agora: number) {
+  const recentes = sessions.filter((x) => x.mode !== "manual" && agora - x.startedAt < 7 * DIA);
+  const logs = recentes.flatMap((x) => x.logs);
+  const avisos = new Map<string, number>();
+  for (const l of logs)
+    for (const [k, n] of Object.entries(l.issues)) avisos.set(k, (avisos.get(k) ?? 0) + n);
+  return {
+    treinos: recentes.length,
+    reps: logs.reduce((t, l) => t + l.reps, 0),
+    parciais: logs.reduce((t, l) => t + l.partials, 0),
+    avisos: [...avisos].sort((a, b) => b[1] - a[1]).slice(0, 3),
+  };
+}
+
 export function ProgressScreen({
   profile,
   sessions,
@@ -65,19 +92,33 @@ export function ProgressScreen({
   allAchievements,
   paid,
   historyLimit,
+  fuso,
+  meta,
+  semanas,
+  seguidas,
+  desafio,
 }: {
-  profile: { name: string; color: string };
+  profile: { id: string; name: string; color: string };
   sessions: Sessao[];
   progress: ProgressMap;
   achievements: string[];
   allAchievements: Conquista[];
   paid: boolean;
   historyLimit: number;
+  fuso: string;
+  /** dias por semana do perfil */
+  meta: number;
+  semanas: SemanaResumida[];
+  seguidas: number;
+  /** cartão do desafio da semana (pessoal e, se houver, o da família) */
+  desafio?: ReactNode;
 }) {
   const recs = records(sessions);
   const totalReps = sessions.reduce((t, s) => t + s.logs.reduce((u, l) => u + l.reps, 0), 0);
   const minutes = Math.round(sessions.reduce((t, s) => t + s.duration, 0) / 60);
-  const pending = new Set(pendingSuggestions(progress).map((s) => s.chainId));
+  const sugestoes = pendingSuggestions(progress);
+  const pending = new Map(sugestoes.map((s) => [s.chainId, s]));
+  const tec = tecnica(sessions, Date.now());
   const history = [...sessions].reverse();
 
   return (
@@ -98,21 +139,73 @@ export function ProgressScreen({
             <span className="value num">{minutes}</span>
           </div>
           <div className="stat">
-            <span className="label">Sequência</span>
+            <span className="label">Semanas cumpridas</span>
             <span className="value num">
-              {streakDays(sessions)}
-              <small>dias</small>
+              {seguidas}
+              <small>{seguidas === 1 ? " seguida" : " seguidas"}</small>
             </span>
           </div>
         </div>
+
+        <div className="section-title">
+          <h2>Suas semanas</h2>
+          <span className="muted">
+            meta de {meta} {meta === 1 ? "dia" : "dias"} por semana
+          </span>
+        </div>
+        <div
+          className="card semanas"
+          role="img"
+          aria-label={`Semanas: ${semanas.map((w) => `${dateFmt.format(w.inicio)} ${w.dias} de ${meta}`).join(", ")}`}
+        >
+          {semanas.map((w, i) => (
+            <div className={`semana ${w.cumprida ? "ok" : ""}`} key={w.inicio}>
+              <strong className="num">{w.dias}</strong>
+              <span className="tick">
+                {i === semanas.length - 1 ? "Esta" : dateFmt.format(w.inicio)}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {desafio}
 
         <div className="section-title">
           <h2>Repetições por semana</h2>
           <span className="muted">últimas 8 semanas</span>
         </div>
         <div className="card">
-          <WeeklyChart weeks={weeklyReps(sessions, 8)} />
+          <WeeklyChart weeks={weeklyReps(sessions, 8, Date.now(), fuso)} />
         </div>
+
+        {tec.treinos > 0 && (
+          <>
+            <div className="section-title">
+              <h2>Técnica pela câmera</h2>
+              <span className="muted">últimos 7 dias</span>
+            </div>
+            <div className="card">
+              <div className="record-row">
+                <span>Repetições contadas pela câmera</span>
+                <span className="value">{tec.reps}</span>
+              </div>
+              <div className="record-row">
+                <span>Quase lá (parciais, não contaram)</span>
+                <span className="value">{tec.parciais}</span>
+              </div>
+              {tec.avisos.length ? (
+                tec.avisos.map(([cue, n]) => (
+                  <div className="record-row" key={cue}>
+                    <span>{cue}</span>
+                    <span className="value">{n}×</span>
+                  </div>
+                ))
+              ) : (
+                <p className="muted spaced">Nenhum aviso de forma. Técnica limpa!</p>
+              )}
+            </div>
+          </>
+        )}
 
         <div className="section-title">
           <h2>Conquistas</h2>
@@ -162,6 +255,7 @@ export function ProgressScreen({
           <h2>Níveis</h2>
           {!paid && <span className="muted">subir de nível é da assinatura</span>}
         </div>
+        <SugestoesDeNivel profileId={profile.id} sugestoes={sugestoes} permitido={paid} />
         <div className="levels">
           {CHAINS.map((c) => {
             const st = progress[c.id] ?? { level: 0, bonus: 0, streak: 0 };
@@ -171,11 +265,13 @@ export function ProgressScreen({
                 <span className="muted">{c.name}</span>
                 <h3 className="level-name">{exerciseById(c.levels[level] ?? "").name}</h3>
                 <span className="muted">
-                  {pending.has(c.id)
-                    ? "Pronto para evoluir: aceite no resumo do próximo treino"
-                    : st.streak > 0
-                      ? `${st.streak} de ${SESSIONS_TO_ADVANCE} sessões para evoluir`
-                      : "Bata a meta em todas as séries"}
+                  {pending.get(c.id)?.type === "down"
+                    ? "Pesou nas últimas vezes: dá para ajustar a meta acima"
+                    : pending.has(c.id)
+                      ? "Pronto para subir: aceite acima"
+                      : st.streak > 0
+                        ? `${st.streak} de ${SESSIONS_TO_ADVANCE} sessões para evoluir`
+                        : "Bata a meta em todas as séries"}
                 </span>
                 <div className="track">
                   {c.levels.map((l, i) => (
@@ -208,9 +304,9 @@ export function ProgressScreen({
               </Link>
             ))}
             {!paid && history.length > historyLimit && (
-              <Link className="history-row" href="/conta">
+              <Cadeado motivo="historico" className="history-row">
                 <Lock size={16} /> Ver o histórico completo com a assinatura
-              </Link>
+              </Cadeado>
             )}
           </div>
         ) : (

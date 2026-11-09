@@ -12,6 +12,7 @@ import type { AssistantEvent } from "../shared/types.ts";
 import { callTool } from "./aiBridge.ts";
 import { decryptKey, readStored, storedEffort } from "./aiSettings.ts";
 import { withRecap } from "./conversations.ts";
+import { memory } from "./memory.ts";
 import { runToolRound, STOPPED } from "./toolRound.ts";
 
 const SYSTEM = `${EDITOR_GUIDE}
@@ -101,6 +102,8 @@ export async function sendMessage(
   const { model } = resolveModel(stored.model);
   const request = buildRequest(model, effortOverride ?? storedEffort(stored));
   const client = new Anthropic({ apiKey });
+  // The chat's memory as it is now (a memory that cannot be read is left out of this turn).
+  const system = `${SYSTEM}\n\n${await memory.prompt().catch(() => "")}`.trimEnd();
   const known = conversations.get(conversationId);
   const messages = known ?? [];
   conversations.set(conversationId, messages);
@@ -122,7 +125,7 @@ export async function sendMessage(
         {
           ...request,
           max_tokens: 64000,
-          system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
+          system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
           tools,
           messages,
           // Caches the conversation so each tool round only pays for the new turn.

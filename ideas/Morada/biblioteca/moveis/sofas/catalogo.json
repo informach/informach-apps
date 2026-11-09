@@ -1,0 +1,1618 @@
+{
+ "categoria": "sofas",
+ "rotulo": "Sofás e espreguiçadeiras",
+ "itens": [
+  {
+   "id": "sofa_encosto_inteiro_roxo",
+   "rotulo": "Sofá de três lugares com encosto inteiro (roxo)",
+   "categoria": "sofas",
+   "grupo": "sofa_encosto_inteiro",
+   "fixacao": "chao",
+   "dims": [
+    2.116,
+    0.9,
+    0.86
+   ],
+   "arquivo": "glb/sofa_encosto_inteiro_roxo.glb",
+   "miniatura": "miniaturas/sofa_encosto_inteiro_roxo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.43,
+      -0.0
+     ],
+     "tamanho": [
+      2.116,
+      0.86,
+      0.9
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "madeira_escura",
+    "roxo"
+   ],
+   "tris": 6944,
+   "pacote": false,
+   "tags": [
+    "3 lugares",
+    "almofadas"
+   ]
+  },
+  {
+   "id": "sofa_encosto_inteiro_verde_agua",
+   "rotulo": "Sofá de três lugares com encosto inteiro (verde-água)",
+   "categoria": "sofas",
+   "grupo": "sofa_encosto_inteiro",
+   "fixacao": "chao",
+   "dims": [
+    2.116,
+    0.9,
+    0.86
+   ],
+   "arquivo": "glb/sofa_encosto_inteiro_verde_agua.glb",
+   "miniatura": "miniaturas/sofa_encosto_inteiro_verde_agua.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.43,
+      -0.0
+     ],
+     "tamanho": [
+      2.116,
+      0.86,
+      0.9
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "madeira_escura",
+    "verde_agua"
+   ],
+   "tris": 6944,
+   "pacote": false,
+   "tags": [
+    "3 lugares",
+    "almofadas"
+   ]
+  },
+  {
+   "id": "sofa_classico_azul_celeste",
+   "rotulo": "Sofá clássico de três lugares (azul-celeste)",
+   "categoria": "sofas",
+   "grupo": "sofa_classico",
+   "fixacao": "chao",
+   "dims": [
+    2.05,
+    0.9,
+    0.871
+   ],
+   "arquivo": "glb/sofa_classico_azul_celeste.glb",
+   "miniatura": "miniaturas/sofa_classico_azul_celeste.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.43536,
+      -0.0
+     ],
+     "tamanho": [
+      2.05,
+      0.871,
+      0.9
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "madeira_mel"
+   ],
+   "tris": 6782,
+   "pacote": false,
+   "tags": [
+    "3 lugares",
+    "almofadas"
+   ]
+  },
+  {
+   "id": "sofa_classico_mostarda",
+   "rotulo": "Sofá clássico de três lugares (mostarda)",
+   "categoria": "sofas",
+   "grupo": "sofa_classico",
+   "fixacao": "chao",
+   "dims": [
+    2.05,
+    0.9,
+    0.871
+   ],
+   "arquivo": "glb/sofa_classico_mostarda.glb",
+   "miniatura": "miniaturas/sofa_classico_mostarda.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.43536,
+      -0.0
+     ],
+     "tamanho": [
+      2.05,
+      0.871,
+      0.9
+     ]
+    }
+   ],
+   "cores": [
+    "azul_marinho",
+    "madeira_escura",
+    "mostarda"
+   ],
+   "tris": 7502,
+   "pacote": false,
+   "tags": [
+    "3 lugares",
+    "almofadas"
+   ]
+  },
+  {
+   "id": "sofa_moldura_laranja",
+   "rotulo": "Sofá de moldura alta (laranja)",
+   "categoria": "sofas",
+   "grupo": "sofa_moldura",
+   "fixacao": "chao",
+   "dims": [
+    1.85,
+    0.87,
+    0.922
+   ],
+   "arquivo": "glb/sofa_moldura_laranja.glb",
+   "miniatura": "miniaturas/sofa_moldura_laranja.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.45913,
+      -0.005
+     ],
+     "tamanho": [
+      1.85,
+      0.922,
+      0.87
+     ]
+    }
+   ],
+   "cores": [
+    "laranja",
+    "madeira_escura"
+   ],
+   "tris": 5565,
+   "pacote": false,
+   "tags": [
+    "2 lugares",
+    "almofadas"
+   ]
+  },
+  {
+   "id": "sofa_moldura_turquesa_escuro",
+   "rotulo": "Sofá de moldura alta (turquesa-escuro)",
+   "categoria": "sofas",
+   "grupo": "sofa_moldura",
+   "fixacao": "chao",
+   "dims": [
+    1.85,
+    0.87,
+    0.922
+   ],
+   "arquivo": "glb/sofa_moldura_turquesa_escuro.glb",
+   "miniatura": "miniaturas/sofa_moldura_turquesa_escuro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.45913,
+      -0.005
+     ],
+     "tamanho": [
+      1.85,
+      0.922,
+      0.87
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_mel",
+    "turquesa_escuro"
+   ],
+   "tris": 5565,
+   "pacote": false,
+   "tags": [
+    "2 lugares",
+    "almofadas"
+   ]
+  },
+  {
+   "id": "sofa_base_madeira_verde",
+   "rotulo": "Sofá de dois lugares com base de madeira (verde)",
+   "categoria": "sofas",
+   "grupo": "sofa_base_madeira",
+   "fixacao": "chao",
+   "dims": [
+    1.62,
+    0.87,
+    0.931
+   ],
+   "arquivo": "glb/sofa_base_madeira_verde.glb",
+   "miniatura": "miniaturas/sofa_base_madeira_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.46557,
+      -0.005
+     ],
+     "tamanho": [
+      1.62,
+      0.931,
+      0.87
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_media",
+    "verde"
+   ],
+   "tris": 5188,
+   "pacote": false,
+   "tags": [
+    "2 lugares",
+    "madeira"
+   ]
+  },
+  {
+   "id": "sofa_base_madeira_azul_marinho",
+   "rotulo": "Sofá de dois lugares com base de madeira (azul-marinho)",
+   "categoria": "sofas",
+   "grupo": "sofa_base_madeira",
+   "fixacao": "chao",
+   "dims": [
+    1.62,
+    0.87,
+    0.931
+   ],
+   "arquivo": "glb/sofa_base_madeira_azul_marinho.glb",
+   "miniatura": "miniaturas/sofa_base_madeira_azul_marinho.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.46557,
+      -0.005
+     ],
+     "tamanho": [
+      1.62,
+      0.931,
+      0.87
+     ]
+    }
+   ],
+   "cores": [
+    "azul_marinho",
+    "madeira_mel",
+    "mostarda"
+   ],
+   "tris": 5548,
+   "pacote": false,
+   "tags": [
+    "2 lugares",
+    "madeira"
+   ]
+  },
+  {
+   "id": "namoradeira_curva_rosa",
+   "rotulo": "Namoradeira curva (rosa)",
+   "categoria": "sofas",
+   "grupo": "namoradeira_curva",
+   "fixacao": "chao",
+   "dims": [
+    1.55,
+    0.86,
+    0.859
+   ],
+   "arquivo": "glb/namoradeira_curva_rosa.glb",
+   "miniatura": "miniaturas/namoradeira_curva_rosa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.42733,
+      -4e-05
+     ],
+     "tamanho": [
+      1.55,
+      0.859,
+      0.86
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_escura",
+    "rosa"
+   ],
+   "tris": 4152,
+   "pacote": false,
+   "tags": [
+    "2 lugares",
+    "namoradeira"
+   ]
+  },
+  {
+   "id": "namoradeira_curva_turquesa",
+   "rotulo": "Namoradeira curva (turquesa)",
+   "categoria": "sofas",
+   "grupo": "namoradeira_curva",
+   "fixacao": "chao",
+   "dims": [
+    1.55,
+    0.86,
+    0.859
+   ],
+   "arquivo": "glb/namoradeira_curva_turquesa.glb",
+   "miniatura": "miniaturas/namoradeira_curva_turquesa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.42733,
+      -4e-05
+     ],
+     "tamanho": [
+      1.55,
+      0.859,
+      0.86
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_mel",
+    "turquesa"
+   ],
+   "tris": 4152,
+   "pacote": false,
+   "tags": [
+    "2 lugares",
+    "namoradeira"
+   ]
+  },
+  {
+   "id": "namoradeira_concha_lilas",
+   "rotulo": "Namoradeira concha (lilás)",
+   "categoria": "sofas",
+   "grupo": "namoradeira_concha",
+   "fixacao": "chao",
+   "dims": [
+    1.6,
+    0.86,
+    0.8
+   ],
+   "arquivo": "glb/namoradeira_concha_lilas.glb",
+   "miniatura": "miniaturas/namoradeira_concha_lilas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.4,
+      -5e-05
+     ],
+     "tamanho": [
+      1.6,
+      0.8,
+      0.86
+     ]
+    }
+   ],
+   "cores": [
+    "lilas",
+    "madeira_mel"
+   ],
+   "tris": 3569,
+   "pacote": false,
+   "tags": [
+    "2 lugares",
+    "namoradeira"
+   ]
+  },
+  {
+   "id": "namoradeira_concha_verde_claro",
+   "rotulo": "Namoradeira concha (verde-claro)",
+   "categoria": "sofas",
+   "grupo": "namoradeira_concha",
+   "fixacao": "chao",
+   "dims": [
+    1.6,
+    0.86,
+    0.8
+   ],
+   "arquivo": "glb/namoradeira_concha_verde_claro.glb",
+   "miniatura": "miniaturas/namoradeira_concha_verde_claro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.4,
+      -5e-05
+     ],
+     "tamanho": [
+      1.6,
+      0.8,
+      0.86
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_escura",
+    "verde_claro"
+   ],
+   "tris": 3569,
+   "pacote": false,
+   "tags": [
+    "2 lugares",
+    "namoradeira"
+   ]
+  },
+  {
+   "id": "sofa_classico_dois_lugares_coral",
+   "rotulo": "Sofá clássico de dois lugares (coral)",
+   "categoria": "sofas",
+   "grupo": "sofa_classico_dois_lugares",
+   "fixacao": "chao",
+   "dims": [
+    1.55,
+    0.9,
+    0.871
+   ],
+   "arquivo": "glb/sofa_classico_dois_lugares_coral.glb",
+   "miniatura": "miniaturas/sofa_classico_dois_lugares_coral.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.43536,
+      -0.0
+     ],
+     "tamanho": [
+      1.55,
+      0.871,
+      0.9
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "madeira_escura",
+    "vermelho_claro"
+   ],
+   "tris": 6440,
+   "pacote": false,
+   "tags": [
+    "2 lugares",
+    "almofadas"
+   ]
+  },
+  {
+   "id": "sofa_u_modular_marrom",
+   "rotulo": "Sofá em U modular (marrom)",
+   "categoria": "sofas",
+   "grupo": "sofa_u_modular",
+   "fixacao": "chao",
+   "dims": [
+    3.56,
+    2.76,
+    0.82
+   ],
+   "arquivo": "glb/sofa_u_modular_marrom.glb",
+   "miniatura": "miniaturas/sofa_u_modular_marrom.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.41,
+      -0.92
+     ],
+     "tamanho": [
+      3.56,
+      0.82,
+      0.92
+     ]
+    },
+    {
+     "centro": [
+      -1.32,
+      0.41,
+      0.46
+     ],
+     "tamanho": [
+      0.92,
+      0.82,
+      1.84
+     ]
+    },
+    {
+     "centro": [
+      1.14,
+      0.225,
+      -0.035
+     ],
+     "tamanho": [
+      0.8,
+      0.45,
+      0.85
+     ]
+    }
+   ],
+   "cores": [
+    "marrom",
+    "marrom_escuro"
+   ],
+   "tris": 12188,
+   "pacote": false,
+   "tags": [
+    "canto",
+    "modular",
+    "U"
+   ]
+  },
+  {
+   "id": "sofa_u_modular_cinza_azulado",
+   "rotulo": "Sofá em U modular (cinza-azulado)",
+   "categoria": "sofas",
+   "grupo": "sofa_u_modular",
+   "fixacao": "chao",
+   "dims": [
+    3.56,
+    2.76,
+    0.82
+   ],
+   "arquivo": "glb/sofa_u_modular_cinza_azulado.glb",
+   "miniatura": "miniaturas/sofa_u_modular_cinza_azulado.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.41,
+      -0.92
+     ],
+     "tamanho": [
+      3.56,
+      0.82,
+      0.92
+     ]
+    },
+    {
+     "centro": [
+      -1.32,
+      0.41,
+      0.46
+     ],
+     "tamanho": [
+      0.92,
+      0.82,
+      1.84
+     ]
+    },
+    {
+     "centro": [
+      1.14,
+      0.225,
+      -0.035
+     ],
+     "tamanho": [
+      0.8,
+      0.45,
+      0.85
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_azulado",
+    "grafite"
+   ],
+   "tris": 12188,
+   "pacote": false,
+   "tags": [
+    "canto",
+    "modular",
+    "U"
+   ]
+  },
+  {
+   "id": "sofa_chaise_amarelo",
+   "rotulo": "Sofá com chaise (amarelo)",
+   "categoria": "sofas",
+   "grupo": "sofa_chaise",
+   "fixacao": "chao",
+   "dims": [
+    2.31,
+    1.61,
+    0.871
+   ],
+   "arquivo": "glb/sofa_chaise_amarelo.glb",
+   "miniatura": "miniaturas/sofa_chaise_amarelo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.005,
+      0.41,
+      -0.355
+     ],
+     "tamanho": [
+      2.3,
+      0.82,
+      0.9
+     ]
+    },
+    {
+     "centro": [
+      -0.745,
+      0.225,
+      0.445
+     ],
+     "tamanho": [
+      0.8,
+      0.45,
+      0.7
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "madeira_mel"
+   ],
+   "tris": 8055,
+   "pacote": false,
+   "tags": [
+    "chaise",
+    "3 lugares",
+    "canto"
+   ]
+  },
+  {
+   "id": "sofa_chaise_rosa_bebe",
+   "rotulo": "Sofá com chaise (rosa-bebê)",
+   "categoria": "sofas",
+   "grupo": "sofa_chaise",
+   "fixacao": "chao",
+   "dims": [
+    2.31,
+    1.61,
+    0.871
+   ],
+   "arquivo": "glb/sofa_chaise_rosa_bebe.glb",
+   "miniatura": "miniaturas/sofa_chaise_rosa_bebe.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.005,
+      0.41,
+      -0.355
+     ],
+     "tamanho": [
+      2.3,
+      0.82,
+      0.9
+     ]
+    },
+    {
+     "centro": [
+      -0.745,
+      0.225,
+      0.445
+     ],
+     "tamanho": [
+      0.8,
+      0.45,
+      0.7
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "madeira_escura",
+    "rosa_bebe"
+   ],
+   "tris": 8415,
+   "pacote": false,
+   "tags": [
+    "chaise",
+    "3 lugares",
+    "canto"
+   ]
+  },
+  {
+   "id": "diva_rolo_laranja",
+   "rotulo": "Divã com rolo na cabeceira (laranja)",
+   "categoria": "sofas",
+   "grupo": "diva_rolo",
+   "fixacao": "chao",
+   "dims": [
+    1.9,
+    0.76,
+    0.67
+   ],
+   "arquivo": "glb/diva_rolo_laranja.glb",
+   "miniatura": "miniaturas/diva_rolo_laranja.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.335,
+      -0.0
+     ],
+     "tamanho": [
+      1.9,
+      0.67,
+      0.76
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "laranja"
+   ],
+   "tris": 3026,
+   "pacote": false,
+   "tags": [
+    "diva"
+   ]
+  },
+  {
+   "id": "diva_rolo_menta",
+   "rotulo": "Divã com rolo na cabeceira (menta)",
+   "categoria": "sofas",
+   "grupo": "diva_rolo",
+   "fixacao": "chao",
+   "dims": [
+    1.9,
+    0.76,
+    0.67
+   ],
+   "arquivo": "glb/diva_rolo_menta.glb",
+   "miniatura": "miniaturas/diva_rolo_menta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.335,
+      -0.0
+     ],
+     "tamanho": [
+      1.9,
+      0.67,
+      0.76
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_clara",
+    "menta"
+   ],
+   "tris": 3026,
+   "pacote": false,
+   "tags": [
+    "diva"
+   ]
+  },
+  {
+   "id": "diva_braco_azul",
+   "rotulo": "Divã com braço enrolado (azul)",
+   "categoria": "sofas",
+   "grupo": "diva_braco",
+   "fixacao": "chao",
+   "dims": [
+    1.898,
+    0.84,
+    0.715
+   ],
+   "arquivo": "glb/diva_braco_azul.glb",
+   "miniatura": "miniaturas/diva_braco_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.034,
+      0.3575,
+      -0.0
+     ],
+     "tamanho": [
+      1.898,
+      0.715,
+      0.84
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "madeira_mel"
+   ],
+   "tris": 5138,
+   "pacote": false,
+   "tags": [
+    "diva",
+    "braco"
+   ]
+  },
+  {
+   "id": "chaise_longue_vermelha",
+   "rotulo": "Chaise longue (vermelha)",
+   "categoria": "sofas",
+   "grupo": "chaise_longue",
+   "fixacao": "chao",
+   "dims": [
+    1.75,
+    0.76,
+    0.921
+   ],
+   "arquivo": "glb/chaise_longue_vermelha.glb",
+   "miniatura": "miniaturas/chaise_longue_vermelha.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.4583,
+      -0.0
+     ],
+     "tamanho": [
+      1.75,
+      0.921,
+      0.76
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_clara",
+    "vermelho"
+   ],
+   "tris": 2942,
+   "pacote": false,
+   "tags": [
+    "chaise",
+    "diva"
+   ]
+  },
+  {
+   "id": "chaise_longue_roxa",
+   "rotulo": "Chaise longue (roxa)",
+   "categoria": "sofas",
+   "grupo": "chaise_longue",
+   "fixacao": "chao",
+   "dims": [
+    1.75,
+    0.76,
+    0.921
+   ],
+   "arquivo": "glb/chaise_longue_roxa.glb",
+   "miniatura": "miniaturas/chaise_longue_roxa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.4583,
+      -0.0
+     ],
+     "tamanho": [
+      1.75,
+      0.921,
+      0.76
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_escura",
+    "roxo"
+   ],
+   "tris": 2942,
+   "pacote": false,
+   "tags": [
+    "chaise",
+    "diva"
+   ]
+  },
+  {
+   "id": "diva_madeira_cinza",
+   "rotulo": "Divã com estrutura de madeira (cinza)",
+   "categoria": "sofas",
+   "grupo": "diva_madeira",
+   "fixacao": "chao",
+   "dims": [
+    2.158,
+    0.8,
+    0.775
+   ],
+   "arquivo": "glb/diva_madeira_cinza.glb",
+   "miniatura": "miniaturas/diva_madeira_cinza.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.06394,
+      0.38743,
+      -0.0
+     ],
+     "tamanho": [
+      2.158,
+      0.775,
+      0.8
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_claro",
+    "madeira_media"
+   ],
+   "tris": 3812,
+   "pacote": false,
+   "tags": [
+    "diva",
+    "madeira"
+   ]
+  },
+  {
+   "id": "espreguicadeira_curva_tijolo",
+   "rotulo": "Espreguiçadeira de ripas curva (tijolo)",
+   "categoria": "sofas",
+   "grupo": "espreguicadeira_curva",
+   "fixacao": "chao",
+   "dims": [
+    0.729,
+    1.907,
+    1.017
+   ],
+   "arquivo": "glb/espreguicadeira_curva_tijolo.glb",
+   "miniatura": "miniaturas/espreguicadeira_curva_tijolo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.2,
+      0.33
+     ],
+     "tamanho": [
+      0.72,
+      0.4,
+      1.26
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.5,
+      -0.61
+     ],
+     "tamanho": [
+      0.72,
+      1.0,
+      0.62
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "tijolo"
+   ],
+   "tris": 6884,
+   "pacote": false,
+   "tags": [
+    "espreguicadeira",
+    "madeira",
+    "area externa"
+   ]
+  },
+  {
+   "id": "espreguicadeira_curva_madeira",
+   "rotulo": "Espreguiçadeira de ripas curva (madeira)",
+   "categoria": "sofas",
+   "grupo": "espreguicadeira_curva",
+   "fixacao": "chao",
+   "dims": [
+    0.729,
+    1.907,
+    1.017
+   ],
+   "arquivo": "glb/espreguicadeira_curva_madeira.glb",
+   "miniatura": "miniaturas/espreguicadeira_curva_madeira.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.2,
+      0.33
+     ],
+     "tamanho": [
+      0.72,
+      0.4,
+      1.26
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.5,
+      -0.61
+     ],
+     "tamanho": [
+      0.72,
+      1.0,
+      0.62
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "madeira_mel"
+   ],
+   "tris": 6884,
+   "pacote": false,
+   "tags": [
+    "espreguicadeira",
+    "madeira",
+    "area externa"
+   ]
+  },
+  {
+   "id": "espreguicadeira_dobravel_violeta",
+   "rotulo": "Espreguiçadeira dobrável de lona (violeta)",
+   "categoria": "sofas",
+   "grupo": "espreguicadeira_dobravel",
+   "fixacao": "chao",
+   "dims": [
+    0.678,
+    1.772,
+    0.943
+   ],
+   "arquivo": "glb/espreguicadeira_dobravel_violeta.glb",
+   "miniatura": "miniaturas/espreguicadeira_dobravel_violeta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.19,
+      0.385
+     ],
+     "tamanho": [
+      0.66,
+      0.38,
+      1.17
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.47,
+      -0.51
+     ],
+     "tamanho": [
+      0.66,
+      0.94,
+      0.62
+     ]
+    }
+   ],
+   "cores": [
+    "borracha",
+    "verde_escuro",
+    "violeta"
+   ],
+   "tris": 2636,
+   "pacote": false,
+   "tags": [
+    "espreguicadeira",
+    "dobravel",
+    "area externa"
+   ]
+  },
+  {
+   "id": "espreguicadeira_dobravel_laranja",
+   "rotulo": "Espreguiçadeira dobrável de lona (laranja)",
+   "categoria": "sofas",
+   "grupo": "espreguicadeira_dobravel",
+   "fixacao": "chao",
+   "dims": [
+    0.678,
+    1.772,
+    0.943
+   ],
+   "arquivo": "glb/espreguicadeira_dobravel_laranja.glb",
+   "miniatura": "miniaturas/espreguicadeira_dobravel_laranja.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.19,
+      0.385
+     ],
+     "tamanho": [
+      0.66,
+      0.38,
+      1.17
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.47,
+      -0.51
+     ],
+     "tamanho": [
+      0.66,
+      0.94,
+      0.62
+     ]
+    }
+   ],
+   "cores": [
+    "azul_marinho",
+    "borracha",
+    "laranja"
+   ],
+   "tris": 2636,
+   "pacote": false,
+   "tags": [
+    "espreguicadeira",
+    "dobravel",
+    "area externa"
+   ]
+  },
+  {
+   "id": "espreguicadeira_reclinavel_pinus",
+   "rotulo": "Espreguiçadeira reclinável de ripas (pinho)",
+   "categoria": "sofas",
+   "grupo": "espreguicadeira_reclinavel",
+   "fixacao": "chao",
+   "dims": [
+    0.66,
+    1.9,
+    0.971
+   ],
+   "arquivo": "glb/espreguicadeira_reclinavel_pinus.glb",
+   "miniatura": "miniaturas/espreguicadeira_reclinavel_pinus.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.165,
+      -0.0
+     ],
+     "tamanho": [
+      0.66,
+      0.33,
+      1.9
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.49232,
+      -0.51011
+     ],
+     "tamanho": [
+      0.66,
+      0.985,
+      0.52
+     ]
+    }
+   ],
+   "cores": [
+    "pinus"
+   ],
+   "tris": 6864,
+   "pacote": false,
+   "tags": [
+    "espreguicadeira",
+    "madeira",
+    "area externa",
+    "ripas"
+   ]
+  },
+  {
+   "id": "espreguicadeira_reclinavel_branca",
+   "rotulo": "Espreguiçadeira reclinável de ripas (branca)",
+   "categoria": "sofas",
+   "grupo": "espreguicadeira_reclinavel",
+   "fixacao": "chao",
+   "dims": [
+    0.66,
+    1.9,
+    0.971
+   ],
+   "arquivo": "glb/espreguicadeira_reclinavel_branca.glb",
+   "miniatura": "miniaturas/espreguicadeira_reclinavel_branca.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.165,
+      -0.0
+     ],
+     "tamanho": [
+      0.66,
+      0.33,
+      1.9
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.49232,
+      -0.51011
+     ],
+     "tamanho": [
+      0.66,
+      0.985,
+      0.52
+     ]
+    }
+   ],
+   "cores": [
+    "branco"
+   ],
+   "tris": 6864,
+   "pacote": false,
+   "tags": [
+    "espreguicadeira",
+    "madeira",
+    "area externa",
+    "ripas"
+   ]
+  },
+  {
+   "id": "sofa_tres_lugares_azul_pacote",
+   "rotulo": "Sofá de três lugares azul (pacote)",
+   "categoria": "sofas",
+   "grupo": "sofa_tres_lugares_pacote",
+   "fixacao": "chao",
+   "dims": [
+    2.212,
+    0.765,
+    0.862
+   ],
+   "arquivo": "glb/sofa_tres_lugares_azul_pacote.glb",
+   "miniatura": "miniaturas/sofa_tres_lugares_azul_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.43107,
+      -0.0
+     ],
+     "tamanho": [
+      2.212,
+      0.862,
+      0.765
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "laranja_claro"
+   ],
+   "tris": 3204,
+   "pacote": true,
+   "tags": [
+    "pacote"
+   ]
+  },
+  {
+   "id": "sofa_curvo_rosa_pacote",
+   "rotulo": "Sofá curvo rosa (pacote)",
+   "categoria": "sofas",
+   "grupo": "sofa_curvo_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.561,
+    0.746,
+    0.771
+   ],
+   "arquivo": "glb/sofa_curvo_rosa_pacote.glb",
+   "miniatura": "miniaturas/sofa_curvo_rosa_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.38528,
+      -0.0
+     ],
+     "tamanho": [
+      1.561,
+      0.771,
+      0.746
+     ]
+    }
+   ],
+   "cores": [
+    "marrom",
+    "rosa"
+   ],
+   "tris": 2204,
+   "pacote": true,
+   "tags": [
+    "pacote"
+   ]
+  },
+  {
+   "id": "sofa_canto_l_cinza",
+   "rotulo": "Sofá de canto em L com chaise (cinza)",
+   "categoria": "sofas",
+   "grupo": "sofa_canto_l",
+   "fixacao": "chao",
+   "dims": [
+    3.63,
+    2.81,
+    0.851
+   ],
+   "arquivo": "glb/sofa_canto_l_cinza.glb",
+   "miniatura": "miniaturas/sofa_canto_l_cinza.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.4,
+      -0.93
+     ],
+     "tamanho": [
+      3.63,
+      0.8,
+      0.95
+     ]
+    },
+    {
+     "centro": [
+      1.34,
+      0.4,
+      0.475
+     ],
+     "tamanho": [
+      0.95,
+      0.8,
+      1.86
+     ]
+    },
+    {
+     "centro": [
+      -1.295,
+      0.28,
+      -0.08
+     ],
+     "tamanho": [
+      1.04,
+      0.56,
+      0.75
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "cinza_medio",
+    "tecido_cinza"
+   ],
+   "tris": 14292,
+   "pacote": false,
+   "tags": [
+    "canto",
+    "L",
+    "chaise"
+   ]
+  },
+  {
+   "id": "sofa_canto_l_bege",
+   "rotulo": "Sofá de canto em L com chaise (bege)",
+   "categoria": "sofas",
+   "grupo": "sofa_canto_l",
+   "fixacao": "chao",
+   "dims": [
+    3.63,
+    2.81,
+    0.851
+   ],
+   "arquivo": "glb/sofa_canto_l_bege.glb",
+   "miniatura": "miniaturas/sofa_canto_l_bege.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.4,
+      -0.93
+     ],
+     "tamanho": [
+      3.63,
+      0.8,
+      0.95
+     ]
+    },
+    {
+     "centro": [
+      1.34,
+      0.4,
+      0.475
+     ],
+     "tamanho": [
+      0.95,
+      0.8,
+      1.86
+     ]
+    },
+    {
+     "centro": [
+      -1.295,
+      0.28,
+      -0.08
+     ],
+     "tamanho": [
+      1.04,
+      0.56,
+      0.75
+     ]
+    }
+   ],
+   "cores": [
+    "bege",
+    "madeira_escura",
+    "verde_agua"
+   ],
+   "tris": 14292,
+   "pacote": false,
+   "tags": [
+    "canto",
+    "L",
+    "chaise"
+   ]
+  },
+  {
+   "id": "sofa_capitone_vermelho_cassino_pacote",
+   "rotulo": "Sofá capitonê de dois lugares (vermelho)",
+   "categoria": "sofas",
+   "grupo": "sofa_capitone_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.717,
+    0.86,
+    0.892
+   ],
+   "arquivo": "glb/sofa_capitone_vermelho_cassino_pacote.glb",
+   "miniatura": "miniaturas/sofa_capitone_vermelho_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.22,
+      -0.0
+     ],
+     "tamanho": [
+      1.717,
+      0.44,
+      0.86
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.66599,
+      -0.2936
+     ],
+     "tamanho": [
+      1.715,
+      0.452,
+      0.272
+     ]
+    },
+    {
+     "centro": [
+      -0.57722,
+      0.60146,
+      0.14192
+     ],
+     "tamanho": [
+      0.562,
+      0.323,
+      0.576
+     ]
+    },
+    {
+     "centro": [
+      0.57722,
+      0.60146,
+      0.14192
+     ],
+     "tamanho": [
+      0.562,
+      0.323,
+      0.576
+     ]
+    }
+   ],
+   "cores": [
+    "couro",
+    "madeira_escura",
+    "marrom",
+    "vermelho_escuro"
+   ],
+   "tris": 1066,
+   "pacote": true,
+   "tags": [
+    "sofa",
+    "estofado",
+    "capitone",
+    "sala",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  }
+ ]
+}

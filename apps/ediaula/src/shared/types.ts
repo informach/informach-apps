@@ -1,3 +1,10 @@
+import type {
+  EngineStatus,
+  Transcript,
+  WhisperModelInfo,
+  WhisperVariant,
+  Word,
+} from "@informach/edi-speech/types";
 import type { Effort } from "./aiModels.ts";
 import type { StoredProposal } from "./anchors.ts";
 import type { Annotation } from "./annotation.ts";
@@ -322,57 +329,14 @@ export interface ProtectedRange {
   label: string;
 }
 
-/** A spoken word, in seconds of the source file. `text` keeps attached punctuation. */
-export interface Word {
-  start: number;
-  end: number;
-  text: string;
-  /** Recognition confidence, 0..1. */
-  p: number;
-  /** Index in the transcript as recognized, once corrections removed or joined words before it. */
-  i?: number;
-  /** What whisper heard, when the glossary changed the text. */
-  heard?: string;
-  /** Indexes (as recognized) of the words the glossary joined into this one. */
-  joined?: number[];
-  /** Set aside by the hallucination filter (shared/whisperParse.ts); hidden until restored. */
-  dropped?: "silence" | "credit" | "signoff";
-}
-
-export interface Transcript {
-  version: 1;
-  model: string;
-  language: string;
-  duration: number;
-  words: Word[];
-  /** Silent stretches of the source audio, [start, end] in seconds. */
-  silences: [number, number][];
-  /** Speech stretches the VAD kept, [start, end] in source seconds (absent without VAD). */
-  speech?: [number, number][];
-  /** As read (shared/wordEdits.ts): hand corrections that found no word to apply to. */
-  lostEdits?: number;
-}
-
-export type WhisperVariant = "cuda" | "cpu";
-
-export interface WhisperModelInfo {
-  name: string;
-  path: string;
-  size: number;
-  /** Not one of the models EdiAula downloads and checks (C:\whisper-cpp, or another file). */
-  unchecked?: boolean;
-}
-
-export interface EngineStatus {
-  bin: string | null;
-  variant: WhisperVariant | null;
-  model: WhisperModelInfo | null;
-  models: WhisperModelInfo[];
-  /** An NVIDIA GPU is available, so the CUDA build is recommended. */
-  gpu: boolean;
-  /** The person chose to list models EdiAula cannot check (C:\whisper-cpp). */
-  externalModels: boolean;
-}
+// The speech types live in @informach/edi-speech (shared with EdiSVG).
+export type {
+  EngineStatus,
+  Transcript,
+  WhisperModelInfo,
+  WhisperVariant,
+  Word,
+} from "@informach/edi-speech/types";
 
 export type TrackKind = "video" | "audio";
 
@@ -680,6 +644,12 @@ export interface ExportSpec {
   fontsDir?: string;
   /** Podcast: only the mixed sound, as MP3. */
   audioOnly?: boolean;
+  /**
+   * Animated GIF: the picture of width × height, without sound, looping, at `fps` frames per
+   * second (fewer than the lesson's: the picture is rendered as a video and turned into a GIF
+   * with its own palette). Nothing goes beside it (captions, thumbnail, package).
+   */
+  gif?: { fps: number };
   /** Reels/Shorts: width × height is the vertical frame; the lesson goes over a blurred copy of itself ('blur') or is cropped to fill it ('crop'). */
   vertical?: "blur" | "crop";
   /** Pre-rendered pointer of screen recordings, by asset id (see shared/cursor.ts). */
@@ -1390,7 +1360,6 @@ export interface EdiAulaApi {
       ok: boolean;
       text: string;
       images?: ToolImage[];
-      structured?: Record<string, unknown>;
     }>,
   ): () => void;
 }

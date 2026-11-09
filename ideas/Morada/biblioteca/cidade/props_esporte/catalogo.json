@@ -1,0 +1,3122 @@
+{
+ "categoria": "props_esporte",
+ "rotulo": "Props: esporte",
+ "itens": [
+  {
+   "id": "quadra_basquete",
+   "rotulo": "Quadra de basquete (laranja e vermelha)",
+   "categoria": "props_esporte",
+   "grupo": "quadra_basquete",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.411
+   ],
+   "arquivo": "glb/quadra_basquete.glb",
+   "miniatura": "miniaturas/quadra_basquete.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "concreto",
+    "grafite_escuro",
+    "laranja",
+    "laranja_claro",
+    "verde_escuro",
+    "vermelho"
+   ],
+   "tris": 628,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "quadra",
+    "modular",
+    "basquete",
+    "1x1"
+   ],
+   "quadras": [
+    1,
+    1
+   ]
+  },
+  {
+   "id": "quadra_basquete_azul",
+   "rotulo": "Quadra de basquete (azul e amarela)",
+   "categoria": "props_esporte",
+   "grupo": "quadra_basquete",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    0.411
+   ],
+   "arquivo": "glb/quadra_basquete_azul.glb",
+   "miniatura": "miniaturas/quadra_basquete_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "azul_escuro",
+    "branco",
+    "concreto",
+    "grafite_escuro",
+    "laranja"
+   ],
+   "tris": 628,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "quadra",
+    "modular",
+    "basquete",
+    "1x1"
+   ],
+   "quadras": [
+    1,
+    1
+   ]
+  },
+  {
+   "id": "campo_futebol",
+   "rotulo": "Campo de futebol society (2 × 1)",
+   "categoria": "props_esporte",
+   "grupo": "campo_futebol",
+   "fixacao": "chao",
+   "dims": [
+    30.0,
+    15.0,
+    1.6
+   ],
+   "arquivo": "glb/campo_futebol.glb",
+   "miniatura": "miniaturas/campo_futebol.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      0.4,
+      15.0
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "concreto",
+    "grama",
+    "grama_escura",
+    "vermelho"
+   ],
+   "tris": 446,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "quadra",
+    "modular",
+    "futebol",
+    "grama",
+    "2x1"
+   ],
+   "quadras": [
+    2,
+    1
+   ]
+  },
+  {
+   "id": "quadra_tenis_saibro",
+   "rotulo": "Quadra de tênis de saibro com rede e cadeira de juiz (2 × 1)",
+   "categoria": "props_esporte",
+   "grupo": "quadra_tenis",
+   "fixacao": "chao",
+   "dims": [
+    30.0,
+    15.0,
+    2.75
+   ],
+   "arquivo": "glb/quadra_tenis_saibro.glb",
+   "miniatura": "miniaturas/quadra_tenis_saibro.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0,
+      1.87,
+      7.035
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -2.6,
+      0.47,
+      6.985
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      2.6,
+      0.47,
+      6.985
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      0.4,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.15,
+      7.035
+     ],
+     "tamanho": [
+      0.8,
+      2.3,
+      0.8
+     ]
+    },
+    {
+     "centro": [
+      -14.4,
+      0.625,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      1.25,
+      13.3
+     ]
+    },
+    {
+     "centro": [
+      14.4,
+      0.625,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      1.25,
+      13.3
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_claro",
+    "concreto_escuro",
+    "grafite",
+    "madeira_mel",
+    "terracota",
+    "terracota_clara",
+    "verde_escuro"
+   ],
+   "tris": 4864,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "quadra",
+    "modular",
+    "tenis",
+    "saibro",
+    "rede",
+    "2x1"
+   ],
+   "quadras": [
+    2,
+    1
+   ]
+  },
+  {
+   "id": "quadra_tenis_rapida",
+   "rotulo": "Quadra de tênis rápida (azul) com rede e cadeira de juiz (2 × 1)",
+   "categoria": "props_esporte",
+   "grupo": "quadra_tenis",
+   "fixacao": "chao",
+   "dims": [
+    30.0,
+    15.0,
+    2.75
+   ],
+   "arquivo": "glb/quadra_tenis_rapida.glb",
+   "miniatura": "miniaturas/quadra_tenis_rapida.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0,
+      1.87,
+      7.035
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -2.6,
+      0.47,
+      6.985
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      2.6,
+      0.47,
+      6.985
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      0.4,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.15,
+      7.035
+     ],
+     "tamanho": [
+      0.8,
+      2.3,
+      0.8
+     ]
+    },
+    {
+     "centro": [
+      -14.4,
+      0.625,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      1.25,
+      13.3
+     ]
+    },
+    {
+     "centro": [
+      14.4,
+      0.625,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      1.25,
+      13.3
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_marinho",
+    "branco",
+    "cinza_claro",
+    "concreto_escuro",
+    "grafite",
+    "madeira_mel",
+    "verde_escuro",
+    "verde_medio"
+   ],
+   "tris": 4864,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "quadra",
+    "modular",
+    "tenis",
+    "rede",
+    "2x1"
+   ],
+   "quadras": [
+    2,
+    1
+   ]
+  },
+  {
+   "id": "quadra_volei_areia",
+   "rotulo": "Quadra de vôlei de areia com rede",
+   "categoria": "props_esporte",
+   "grupo": "quadra_volei_areia",
+   "fixacao": "chao",
+   "dims": [
+    15.0,
+    15.0,
+    3.63
+   ],
+   "arquivo": "glb/quadra_volei_areia.glb",
+   "miniatura": "miniaturas/quadra_volei_areia.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      15.0,
+      0.4,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.25,
+      4.0
+     ],
+     "tamanho": [
+      0.2,
+      2.5,
+      0.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.25,
+      -4.0
+     ],
+     "tamanho": [
+      0.2,
+      2.5,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "areia",
+    "azul",
+    "azul_escuro",
+    "bege",
+    "branco",
+    "concreto_escuro",
+    "grafite_escuro",
+    "madeira_mel",
+    "metal_escuro",
+    "vermelho"
+   ],
+   "tris": 3370,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "quadra",
+    "modular",
+    "volei",
+    "areia",
+    "praia",
+    "rede",
+    "1x1"
+   ],
+   "quadras": [
+    1,
+    1
+   ]
+  },
+  {
+   "id": "quadra_poliesportiva",
+   "rotulo": "Quadra poliesportiva com gols e tabelas (2 × 1)",
+   "categoria": "props_esporte",
+   "grupo": "quadra_poliesportiva",
+   "fixacao": "chao",
+   "dims": [
+    30.0,
+    15.0,
+    4.38
+   ],
+   "arquivo": "glb/quadra_poliesportiva.glb",
+   "miniatura": "miniaturas/quadra_poliesportiva.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      -0.2,
+      0
+     ],
+     "tamanho": [
+      30.0,
+      0.4,
+      15.0
+     ]
+    },
+    {
+     "centro": [
+      -13.95,
+      1.75,
+      0
+     ],
+     "tamanho": [
+      1.3,
+      3.5,
+      3.2
+     ]
+    },
+    {
+     "centro": [
+      13.95,
+      1.75,
+      0
+     ],
+     "tamanho": [
+      1.3,
+      3.5,
+      3.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_medio",
+    "branco",
+    "cinza_claro",
+    "cinza_medio",
+    "concreto",
+    "concreto_escuro",
+    "grafite",
+    "laranja",
+    "verde_medio",
+    "vermelho"
+   ],
+   "tris": 11562,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "quadra",
+    "modular",
+    "futsal",
+    "basquete",
+    "volei",
+    "2x1"
+   ],
+   "quadras": [
+    2,
+    1
+   ]
+  },
+  {
+   "id": "tabela_basquete",
+   "rotulo": "Tabela de basquete portátil com rede",
+   "categoria": "props_esporte",
+   "grupo": "tabela_basquete",
+   "fixacao": "chao",
+   "dims": [
+    1.86,
+    2.514,
+    3.98
+   ],
+   "arquivo": "glb/tabela_basquete.glb",
+   "miniatura": "miniaturas/tabela_basquete.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.225,
+      -0.55
+     ],
+     "tamanho": [
+      1.1,
+      0.45,
+      1.3
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.7,
+      -0.15
+     ],
+     "tamanho": [
+      0.3,
+      2.5,
+      0.5
+     ]
+    },
+    {
+     "centro": [
+      0,
+      3.4,
+      0.7
+     ],
+     "tamanho": [
+      1.9,
+      1.1,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "borracha",
+    "branco",
+    "cinza_azulado",
+    "grafite",
+    "grafite_escuro",
+    "laranja"
+   ],
+   "tris": 3583,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "basquete",
+    "tabela"
+   ]
+  },
+  {
+   "id": "tabela_basquete_rua",
+   "rotulo": "Tabela de basquete de rua (poste curvo, rede de corrente)",
+   "categoria": "props_esporte",
+   "grupo": "tabela_basquete",
+   "fixacao": "chao",
+   "dims": [
+    1.56,
+    1.874,
+    3.88
+   ],
+   "arquivo": "glb/tabela_basquete_rua.glb",
+   "miniatura": "miniaturas/tabela_basquete_rua.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.5,
+      -0.6
+     ],
+     "tamanho": [
+      0.6,
+      3.0,
+      0.6
+     ]
+    },
+    {
+     "centro": [
+      0,
+      3.25,
+      0.35
+     ],
+     "tamanho": [
+      1.6,
+      1.1,
+      0.8
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_escuro",
+    "branco",
+    "concreto",
+    "grafite",
+    "metal_claro",
+    "vermelho"
+   ],
+   "tris": 3052,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "basquete",
+    "tabela",
+    "rua"
+   ]
+  },
+  {
+   "id": "trave_gol",
+   "rotulo": "Trave de gol com rede (society)",
+   "categoria": "props_esporte",
+   "grupo": "trave_gol",
+   "fixacao": "chao",
+   "dims": [
+    4.11,
+    1.28,
+    2.055
+   ],
+   "arquivo": "glb/trave_gol.glb",
+   "miniatura": "miniaturas/trave_gol.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -2.0,
+      1.025,
+      0
+     ],
+     "tamanho": [
+      0.14,
+      2.05,
+      1.3
+     ]
+    },
+    {
+     "centro": [
+      2.0,
+      1.025,
+      0
+     ],
+     "tamanho": [
+      0.14,
+      2.05,
+      1.3
+     ]
+    },
+    {
+     "centro": [
+      0,
+      2.01,
+      0.6
+     ],
+     "tamanho": [
+      4.1,
+      0.12,
+      0.14
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.06,
+      -0.6
+     ],
+     "tamanho": [
+      4.1,
+      0.12,
+      0.1
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_claro"
+   ],
+   "tris": 868,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "futebol",
+    "gol",
+    "rede"
+   ]
+  },
+  {
+   "id": "trave_gol_futsal",
+   "rotulo": "Trave de gol de futsal listrada com rede",
+   "categoria": "props_esporte",
+   "grupo": "trave_gol",
+   "fixacao": "chao",
+   "dims": [
+    3.104,
+    0.974,
+    2.052
+   ],
+   "arquivo": "glb/trave_gol_futsal.glb",
+   "miniatura": "miniaturas/trave_gol_futsal.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -1.5,
+      1.025,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      2.05,
+      1.0
+     ]
+    },
+    {
+     "centro": [
+      1.5,
+      1.025,
+      0
+     ],
+     "tamanho": [
+      0.12,
+      2.05,
+      1.0
+     ]
+    },
+    {
+     "centro": [
+      0,
+      2.01,
+      0.45
+     ],
+     "tamanho": [
+      3.1,
+      0.12,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "cinza_claro",
+    "vermelho"
+   ],
+   "tris": 2664,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "futsal",
+    "gol",
+    "rede"
+   ]
+  },
+  {
+   "id": "torre_refletores",
+   "rotulo": "Torre de refletores de estádio",
+   "categoria": "props_esporte",
+   "grupo": "torre_refletores",
+   "fixacao": "chao",
+   "dims": [
+    4.6,
+    2.224,
+    18.67
+   ],
+   "arquivo": "glb/torre_refletores.glb",
+   "miniatura": "miniaturas/torre_refletores.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.31,
+      0
+     ],
+     "tamanho": [
+      1.4,
+      0.62,
+      1.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      8.1,
+      0
+     ],
+     "tamanho": [
+      0.7,
+      15.0,
+      0.7
+     ]
+    },
+    {
+     "centro": [
+      0,
+      17.1,
+      -0.0
+     ],
+     "tamanho": [
+      4.6,
+      3.0,
+      2.0
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "concreto",
+    "concreto_escuro",
+    "grafite",
+    "metal_escuro"
+   ],
+   "tris": 6684,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "estadio",
+    "luz",
+    "poste"
+   ]
+  },
+  {
+   "id": "placar_eletronico",
+   "rotulo": "Placar eletrônico (troca o placar)",
+   "categoria": "props_esporte",
+   "grupo": "placar_eletronico",
+   "fixacao": "chao",
+   "dims": [
+    4.7,
+    0.77,
+    6.37
+   ],
+   "arquivo": "glb/placar_eletronico.glb",
+   "miniatura": "miniaturas/placar_eletronico.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -1.6,
+      1.6,
+      0
+     ],
+     "tamanho": [
+      0.7,
+      3.2,
+      0.7
+     ]
+    },
+    {
+     "centro": [
+      1.6,
+      1.6,
+      0
+     ],
+     "tamanho": [
+      0.7,
+      3.2,
+      0.7
+     ]
+    },
+    {
+     "centro": [
+      0,
+      4.8,
+      0
+     ],
+     "tamanho": [
+      4.7,
+      3.2,
+      0.65
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_escuro",
+    "concreto_escuro",
+    "grafite_escuro",
+    "metal_escuro"
+   ],
+   "tris": 2968,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "placar",
+    "led",
+    "animado",
+    "letreiro"
+   ],
+   "animacoes": [
+    {
+     "nome": "tela_placar",
+     "anima": "trocar",
+     "quadros": 4,
+     "periodo": 4,
+     "pivo": [
+      0.0,
+      4.3,
+      0.305
+     ]
+    }
+   ]
+  },
+  {
+   "id": "arquibancada_reta",
+   "rotulo": "Arquibancada reta (módulo de 24 lugares)",
+   "categoria": "props_esporte",
+   "grupo": "arquibancada",
+   "fixacao": "chao",
+   "dims": [
+    3.3,
+    3.2,
+    2.706
+   ],
+   "arquivo": "glb/arquibancada_reta.glb",
+   "miniatura": "miniaturas/arquibancada_reta.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -1.375,
+      0.49,
+      1.22
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.825,
+      0.49,
+      1.22
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      -0.275,
+      0.49,
+      1.22
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      0.275,
+      0.49,
+      1.22
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_5",
+     "centro": [
+      0.825,
+      0.49,
+      1.22
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_6",
+     "centro": [
+      1.375,
+      0.49,
+      1.22
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_7",
+     "centro": [
+      -1.375,
+      0.91,
+      0.42
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_8",
+     "centro": [
+      -0.825,
+      0.91,
+      0.42
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_9",
+     "centro": [
+      -0.275,
+      0.91,
+      0.42
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_10",
+     "centro": [
+      0.275,
+      0.91,
+      0.42
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_11",
+     "centro": [
+      0.825,
+      0.91,
+      0.42
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_12",
+     "centro": [
+      1.375,
+      0.91,
+      0.42
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_13",
+     "centro": [
+      -1.375,
+      1.33,
+      -0.38
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_14",
+     "centro": [
+      -0.825,
+      1.33,
+      -0.38
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_15",
+     "centro": [
+      -0.275,
+      1.33,
+      -0.38
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_16",
+     "centro": [
+      0.275,
+      1.33,
+      -0.38
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_17",
+     "centro": [
+      0.825,
+      1.33,
+      -0.38
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_18",
+     "centro": [
+      1.375,
+      1.33,
+      -0.38
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_19",
+     "centro": [
+      -1.375,
+      1.75,
+      -1.18
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_20",
+     "centro": [
+      -0.825,
+      1.75,
+      -1.18
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_21",
+     "centro": [
+      -0.275,
+      1.75,
+      -1.18
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_22",
+     "centro": [
+      0.275,
+      1.75,
+      -1.18
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_23",
+     "centro": [
+      0.825,
+      1.75,
+      -1.18
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_24",
+     "centro": [
+      1.375,
+      1.75,
+      -1.18
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.84,
+      0
+     ],
+     "tamanho": [
+      3.3,
+      1.68,
+      3.2
+     ]
+    },
+    {
+     "centro": [
+      0,
+      2.205,
+      -1.52
+     ],
+     "tamanho": [
+      3.3,
+      1.05,
+      0.1
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "azul_medio",
+    "concreto",
+    "concreto_escuro",
+    "metal_claro"
+   ],
+   "tris": 2512,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "arquibancada",
+    "assentos",
+    "modular"
+   ],
+   "modular": true
+  },
+  {
+   "id": "arquibancada_curva",
+   "rotulo": "Arquibancada curva (módulo de 30°)",
+   "categoria": "props_esporte",
+   "grupo": "arquibancada",
+   "fixacao": "chao",
+   "dims": [
+    4.771,
+    3.4,
+    2.706
+   ],
+   "arquivo": "glb/arquibancada_curva.glb",
+   "miniatura": "miniaturas/arquibancada_curva.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      1.38521,
+      0.49,
+      1.25191
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.83537,
+      0.49,
+      1.15496
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.27916,
+      0.49,
+      1.1063
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      -0.27916,
+      0.49,
+      1.1063
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_5",
+     "centro": [
+      -0.83537,
+      0.49,
+      1.15496
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_6",
+     "centro": [
+      -1.38521,
+      0.49,
+      1.25191
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_7",
+     "centro": [
+      1.55837,
+      0.91,
+      0.47088
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_8",
+     "centro": [
+      0.93979,
+      0.91,
+      0.3618
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_9",
+     "centro": [
+      0.31406,
+      0.91,
+      0.30706
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_10",
+     "centro": [
+      -0.31406,
+      0.91,
+      0.30706
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_11",
+     "centro": [
+      -0.93979,
+      0.91,
+      0.3618
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_12",
+     "centro": [
+      -1.55837,
+      0.91,
+      0.47088
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_13",
+     "centro": [
+      1.78017,
+      1.33,
+      -0.29922
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_14",
+     "centro": [
+      1.19234,
+      1.33,
+      -0.41044
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_15",
+     "centro": [
+      0.59784,
+      1.33,
+      -0.47742
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_16",
+     "centro": [
+      0.0,
+      1.33,
+      -0.49979
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_17",
+     "centro": [
+      -0.59784,
+      1.33,
+      -0.47742
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_18",
+     "centro": [
+      -1.19234,
+      1.33,
+      -0.41044
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_19",
+     "centro": [
+      -1.78017,
+      1.33,
+      -0.29922
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_20",
+     "centro": [
+      1.99827,
+      1.75,
+      -1.06991
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_21",
+     "centro": [
+      1.43348,
+      1.75,
+      -1.18225
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_22",
+     "centro": [
+      0.86255,
+      1.75,
+      -1.25742
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_23",
+     "centro": [
+      0.28793,
+      1.75,
+      -1.29508
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_24",
+     "centro": [
+      -0.28793,
+      1.75,
+      -1.29508
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_25",
+     "centro": [
+      -0.86255,
+      1.75,
+      -1.25742
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_26",
+     "centro": [
+      -1.43348,
+      1.75,
+      -1.18225
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_27",
+     "centro": [
+      -1.99827,
+      1.75,
+      -1.06991
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.504,
+      0.6
+     ],
+     "tamanho": [
+      4.171,
+      1.008,
+      1.87
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.84,
+      -0.69979
+     ],
+     "tamanho": [
+      4.571,
+      1.68,
+      1.9
+     ]
+    },
+    {
+     "centro": [
+      0,
+      2.205,
+      -1.59979
+     ],
+     "tamanho": [
+      4.571,
+      1.05,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "concreto",
+    "concreto_escuro",
+    "laranja",
+    "metal_claro",
+    "vermelho"
+   ],
+   "tris": 4692,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "arquibancada",
+    "assentos",
+    "modular",
+    "curva"
+   ],
+   "modular": true,
+   "setor_graus": 30.0
+  },
+  {
+   "id": "banco_reservas_coberto",
+   "rotulo": "Banco de reservas coberto",
+   "categoria": "props_esporte",
+   "grupo": "banco_reservas",
+   "fixacao": "chao",
+   "dims": [
+    3.8,
+    1.5,
+    2.22
+   ],
+   "arquivo": "glb/banco_reservas_coberto.glb",
+   "miniatura": "miniaturas/banco_reservas_coberto.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -1.5,
+      0.54,
+      -0.1
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.9,
+      0.54,
+      -0.1
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      -0.3,
+      0.54,
+      -0.1
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      0.3,
+      0.54,
+      -0.1
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_5",
+     "centro": [
+      0.9,
+      0.54,
+      -0.1
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_6",
+     "centro": [
+      1.5,
+      0.54,
+      -0.1
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.03,
+      0
+     ],
+     "tamanho": [
+      3.8,
+      0.06,
+      1.5
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.48,
+      -0.35
+     ],
+     "tamanho": [
+      3.6,
+      0.96,
+      0.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.25,
+      -0.2
+     ],
+     "tamanho": [
+      3.6,
+      0.5,
+      0.5
+     ]
+    },
+    {
+     "centro": [
+      0,
+      2.05,
+      0
+     ],
+     "tamanho": [
+      3.6,
+      0.3,
+      1.3
+     ]
+    }
+   ],
+   "cores": [
+    "azul_escuro",
+    "branco",
+    "concreto",
+    "cromo",
+    "vermelho"
+   ],
+   "tris": 4076,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "banco",
+    "assentos"
+   ]
+  },
+  {
+   "id": "skate_half_pipe",
+   "rotulo": "Half-pipe grande",
+   "categoria": "props_esporte",
+   "grupo": "skate_half_pipe",
+   "fixacao": "chao",
+   "dims": [
+    12.109,
+    6.272,
+    3.609
+   ],
+   "arquivo": "glb/skate_half_pipe.glb",
+   "miniatura": "miniaturas/skate_half_pipe.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -5.25442,
+      1.78953,
+      0
+     ],
+     "tamanho": [
+      1.6,
+      3.579,
+      6.0
+     ]
+    },
+    {
+     "centro": [
+      5.25442,
+      1.78953,
+      0
+     ],
+     "tamanho": [
+      1.6,
+      3.579,
+      6.0
+     ]
+    }
+   ],
+   "cores": [
+    "azul_acinzentado",
+    "cinza_claro",
+    "laranja",
+    "laranja_escuro",
+    "metal_claro",
+    "pessego"
+   ],
+   "tris": 4132,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "skate",
+    "rampa",
+    "modular",
+    "half_pipe"
+   ],
+   "colisao_malha": [
+    "colisao_rampa"
+   ],
+   "skate": "half_pipe"
+  },
+  {
+   "id": "skate_quarter_pipe",
+   "rotulo": "Quarter-pipe",
+   "categoria": "props_esporte",
+   "grupo": "skate_quarter_pipe",
+   "fixacao": "chao",
+   "dims": [
+    4.0,
+    3.451,
+    2.53
+   ],
+   "arquivo": "glb/skate_quarter_pipe.glb",
+   "miniatura": "miniaturas/skate_quarter_pipe.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      1.25209,
+      -0.9563
+     ],
+     "tamanho": [
+      4.0,
+      2.504,
+      1.2
+     ]
+    }
+   ],
+   "cores": [
+    "azul_acinzentado",
+    "cinza_claro",
+    "laranja",
+    "laranja_escuro",
+    "metal_claro",
+    "pessego"
+   ],
+   "tris": 2000,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "skate",
+    "rampa",
+    "modular",
+    "quarter_pipe"
+   ],
+   "colisao_malha": [
+    "colisao_rampa"
+   ],
+   "skate": "quarter_pipe"
+  },
+  {
+   "id": "skate_funbox",
+   "rotulo": "Funbox (pirâmide) com corrimão",
+   "categoria": "props_esporte",
+   "grupo": "skate_funbox",
+   "fixacao": "chao",
+   "dims": [
+    5.1,
+    5.1,
+    1.139
+   ],
+   "arquivo": "glb/skate_funbox.glb",
+   "miniatura": "miniaturas/skate_funbox.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.395,
+      0
+     ],
+     "tamanho": [
+      1.8,
+      0.79,
+      1.8
+     ]
+    }
+   ],
+   "cores": [
+    "concreto_escuro",
+    "cromo",
+    "laranja",
+    "laranja_claro",
+    "metal_claro",
+    "pessego"
+   ],
+   "tris": 1252,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "skate",
+    "rampa",
+    "modular",
+    "funbox",
+    "piramide"
+   ],
+   "colisao_malha": [
+    "colisao_funbox"
+   ],
+   "skate": "funbox"
+  },
+  {
+   "id": "skate_rampa_salto",
+   "rotulo": "Rampa de salto (kicker)",
+   "categoria": "props_esporte",
+   "grupo": "skate_rampa_salto",
+   "fixacao": "chao",
+   "dims": [
+    1.62,
+    1.99,
+    0.721
+   ],
+   "arquivo": "glb/skate_rampa_salto.glb",
+   "miniatura": "miniaturas/skate_rampa_salto.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.36056,
+      0.00513
+     ],
+     "tamanho": [
+      1.62,
+      0.721,
+      1.99
+     ]
+    }
+   ],
+   "cores": [
+    "azul_acinzentado",
+    "laranja",
+    "laranja_escuro",
+    "metal_claro",
+    "pessego"
+   ],
+   "tris": 896,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "skate",
+    "rampa",
+    "modular",
+    "kicker"
+   ],
+   "colisao_malha": [
+    "colisao_kicker"
+   ],
+   "skate": "kicker"
+  },
+  {
+   "id": "skate_corrimao",
+   "rotulo": "Corrimão de skate",
+   "categoria": "props_esporte",
+   "grupo": "skate_obstaculo",
+   "fixacao": "chao",
+   "dims": [
+    3.065,
+    0.5,
+    0.394
+   ],
+   "arquivo": "glb/skate_corrimao.glb",
+   "miniatura": "miniaturas/skate_corrimao.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.2,
+      0
+     ],
+     "tamanho": [
+      3.1,
+      0.4,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "cromo",
+    "grafite",
+    "laranja"
+   ],
+   "tris": 1380,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "skate",
+    "rampa",
+    "modular",
+    "corrimao"
+   ],
+   "skate": "corrimao"
+  },
+  {
+   "id": "skate_banco",
+   "rotulo": "Banco de skate (ledge)",
+   "categoria": "props_esporte",
+   "grupo": "skate_obstaculo",
+   "fixacao": "chao",
+   "dims": [
+    2.9,
+    0.7,
+    0.452
+   ],
+   "arquivo": "glb/skate_banco.glb",
+   "miniatura": "miniaturas/skate_banco.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.225,
+      0
+     ],
+     "tamanho": [
+      2.9,
+      0.45,
+      0.7
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "concreto",
+    "concreto_escuro",
+    "metal_claro",
+    "turquesa"
+   ],
+   "tris": 840,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "skate",
+    "rampa",
+    "modular",
+    "banco",
+    "ledge"
+   ],
+   "skate": "banco"
+  },
+  {
+   "id": "skate_caixote",
+   "rotulo": "Caixote de skate",
+   "categoria": "props_esporte",
+   "grupo": "skate_obstaculo",
+   "fixacao": "chao",
+   "dims": [
+    1.804,
+    1.207,
+    0.315
+   ],
+   "arquivo": "glb/skate_caixote.glb",
+   "miniatura": "miniaturas/skate_caixote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.16,
+      0
+     ],
+     "tamanho": [
+      1.8,
+      0.32,
+      1.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "madeira",
+    "madeira_clara",
+    "metal_claro"
+   ],
+   "tris": 1232,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "skate",
+    "rampa",
+    "modular",
+    "caixote"
+   ],
+   "skate": "caixote"
+  },
+  {
+   "id": "academia_barras",
+   "rotulo": "Barras fixas (academia ao ar livre)",
+   "categoria": "props_esporte",
+   "grupo": "academia",
+   "fixacao": "chao",
+   "dims": [
+    3.586,
+    0.286,
+    2.619
+   ],
+   "arquivo": "glb/academia_barras.glb",
+   "miniatura": "miniaturas/academia_barras.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -1.65,
+      0.975,
+      0
+     ],
+     "tamanho": [
+      0.16,
+      1.95,
+      0.16
+     ]
+    },
+    {
+     "centro": [
+      -0.55,
+      1.125,
+      0
+     ],
+     "tamanho": [
+      0.16,
+      2.25,
+      0.16
+     ]
+    },
+    {
+     "centro": [
+      0.55,
+      1.275,
+      0
+     ],
+     "tamanho": [
+      0.16,
+      2.55,
+      0.16
+     ]
+    },
+    {
+     "centro": [
+      1.65,
+      1.275,
+      0
+     ],
+     "tamanho": [
+      0.16,
+      2.55,
+      0.16
+     ]
+    }
+   ],
+   "cores": [
+    "azul_medio",
+    "concreto",
+    "cromo",
+    "laranja"
+   ],
+   "tris": 3252,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "academia",
+    "praca",
+    "barras"
+   ]
+  },
+  {
+   "id": "academia_paralelas",
+   "rotulo": "Barras paralelas (academia ao ar livre)",
+   "categoria": "props_esporte",
+   "grupo": "academia",
+   "fixacao": "chao",
+   "dims": [
+    2.5,
+    0.8,
+    1.24
+   ],
+   "arquivo": "glb/academia_paralelas.glb",
+   "miniatura": "miniaturas/academia_paralelas.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.625,
+      0
+     ],
+     "tamanho": [
+      2.6,
+      1.25,
+      0.7
+     ]
+    }
+   ],
+   "cores": [
+    "azul_medio",
+    "concreto",
+    "laranja",
+    "vermelho"
+   ],
+   "tris": 2432,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "academia",
+    "praca",
+    "paralelas"
+   ]
+  },
+  {
+   "id": "academia_abdominal",
+   "rotulo": "Banco de abdominal (academia ao ar livre)",
+   "categoria": "props_esporte",
+   "grupo": "academia",
+   "fixacao": "chao",
+   "dims": [
+    1.553,
+    0.64,
+    1.112
+   ],
+   "arquivo": "glb/academia_abdominal.glb",
+   "miniatura": "miniaturas/academia_abdominal.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0,
+      0.7,
+      0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.425,
+      0
+     ],
+     "tamanho": [
+      1.5,
+      0.85,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul_medio",
+    "concreto",
+    "cromo",
+    "grafite",
+    "laranja",
+    "vermelho"
+   ],
+   "tris": 1556,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "academia",
+    "praca",
+    "abdominal"
+   ]
+  },
+  {
+   "id": "academia_bicicleta",
+   "rotulo": "Bicicleta ergométrica (academia ao ar livre)",
+   "categoria": "props_esporte",
+   "grupo": "academia",
+   "fixacao": "chao",
+   "dims": [
+    0.76,
+    1.21,
+    1.15
+   ],
+   "arquivo": "glb/academia_bicicleta.glb",
+   "miniatura": "miniaturas/academia_bicicleta.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0,
+      0.9,
+      -0.32
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.55,
+      -0.03
+     ],
+     "tamanho": [
+      0.75,
+      1.1,
+      1.25
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_medio",
+    "concreto",
+    "cromo",
+    "grafite",
+    "laranja",
+    "preto",
+    "vermelho"
+   ],
+   "tris": 2660,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "academia",
+    "praca",
+    "bicicleta",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "pedivela",
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 160,
+     "pivo": [
+      0.0,
+      0.32,
+      -0.1
+     ]
+    }
+   ]
+  },
+  {
+   "id": "academia_caminhada",
+   "rotulo": "Simulador de caminhada (academia ao ar livre)",
+   "categoria": "props_esporte",
+   "grupo": "academia",
+   "fixacao": "chao",
+   "dims": [
+    0.72,
+    0.78,
+    1.625
+   ],
+   "arquivo": "glb/academia_caminhada.glb",
+   "miniatura": "miniaturas/academia_caminhada.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0,
+      0.2,
+      0.05
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.8,
+      -0.05
+     ],
+     "tamanho": [
+      0.75,
+      1.6,
+      0.7
+     ]
+    }
+   ],
+   "cores": [
+    "azul_medio",
+    "concreto",
+    "cromo",
+    "laranja",
+    "vermelho"
+   ],
+   "tris": 1764,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "academia",
+    "praca",
+    "caminhada",
+    "animado"
+   ],
+   "animacoes": [
+    {
+     "nome": "perna_esq",
+     "anima": "balancar",
+     "eixo": "x",
+     "angulo": 22,
+     "periodo": 2.2,
+     "pivo": [
+      -0.2,
+      1.25,
+      -0.0
+     ]
+    },
+    {
+     "nome": "perna_dir",
+     "anima": "balancar",
+     "eixo": "x",
+     "angulo": -22,
+     "periodo": 2.2,
+     "pivo": [
+      0.2,
+      1.25,
+      -0.0
+     ]
+    }
+   ]
+  },
+  {
+   "id": "academia_flexao",
+   "rotulo": "Estação de flexão (academia ao ar livre)",
+   "categoria": "props_esporte",
+   "grupo": "academia",
+   "fixacao": "chao",
+   "dims": [
+    2.7,
+    1.3,
+    0.625
+   ],
+   "arquivo": "glb/academia_flexao.glb",
+   "miniatura": "miniaturas/academia_flexao.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.3,
+      0
+     ],
+     "tamanho": [
+      2.7,
+      0.6,
+      1.3
+     ]
+    }
+   ],
+   "cores": [
+    "azul_medio",
+    "concreto",
+    "laranja",
+    "verde_escuro",
+    "verde_medio",
+    "vermelho"
+   ],
+   "tris": 3632,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "academia",
+    "praca",
+    "flexao"
+   ]
+  },
+  {
+   "id": "mesa_pingue_pongue",
+   "rotulo": "Mesa de pingue-pongue de concreto",
+   "categoria": "props_esporte",
+   "grupo": "mesa_pingue_pongue",
+   "fixacao": "chao",
+   "dims": [
+    2.82,
+    1.715,
+    0.935
+   ],
+   "arquivo": "glb/mesa_pingue_pongue.glb",
+   "miniatura": "miniaturas/mesa_pingue_pongue.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.465,
+      0
+     ],
+     "tamanho": [
+      2.84,
+      0.93,
+      1.725
+     ]
+    }
+   ],
+   "cores": [
+    "azul_medio",
+    "branco",
+    "concreto",
+    "concreto_escuro",
+    "cromo",
+    "grafite_escuro",
+    "metal_escuro"
+   ],
+   "tris": 1824,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "praca",
+    "mesa"
+   ]
+  },
+  {
+   "id": "mesa_xadrez_praca",
+   "rotulo": "Mesa de xadrez de praça com bancos",
+   "categoria": "props_esporte",
+   "grupo": "mesa_xadrez",
+   "fixacao": "chao",
+   "dims": [
+    1.96,
+    1.96,
+    0.838
+   ],
+   "arquivo": "glb/mesa_xadrez_praca.glb",
+   "miniatura": "miniaturas/mesa_xadrez_praca.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0,
+      0.445,
+      0.78
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0,
+      0.445,
+      -0.78
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      -0.78,
+      0.445,
+      0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      0.78,
+      0.445,
+      0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_tabuleiro",
+     "centro": [
+      0,
+      0.742,
+      0
+     ],
+     "tamanho": [
+      0.56,
+      0.12,
+      0.56
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.37,
+      0
+     ],
+     "tamanho": [
+      0.86,
+      0.74,
+      0.86
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.225,
+      0.78
+     ],
+     "tamanho": [
+      0.4,
+      0.45,
+      0.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.225,
+      -0.78
+     ],
+     "tamanho": [
+      0.4,
+      0.45,
+      0.4
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.225,
+      0
+     ],
+     "tamanho": [
+      1.96,
+      0.45,
+      0.4
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "concreto",
+    "concreto_escuro",
+    "creme",
+    "grafite",
+    "madeira_mel",
+    "preto"
+   ],
+   "tris": 3118,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "praca",
+    "mesa",
+    "xadrez",
+    "assentos"
+   ]
+  },
+  {
+   "id": "bebedouro_esportivo",
+   "rotulo": "Bebedouro esportivo com enchedor de garrafa",
+   "categoria": "props_esporte",
+   "grupo": "bebedouro_esportivo",
+   "fixacao": "chao",
+   "dims": [
+    0.89,
+    0.76,
+    1.21
+   ],
+   "arquivo": "glb/bebedouro_esportivo.glb",
+   "miniatura": "miniaturas/bebedouro_esportivo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.56,
+      0
+     ],
+     "tamanho": [
+      0.56,
+      1.12,
+      0.48
+     ]
+    },
+    {
+     "centro": [
+      0.42,
+      0.43,
+      0
+     ],
+     "tamanho": [
+      0.4,
+      0.86,
+      0.38
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_celeste",
+    "azul_escuro",
+    "branco",
+    "concreto_escuro",
+    "cromo",
+    "grafite_escuro",
+    "metal",
+    "metal_escuro",
+    "vermelho"
+   ],
+   "tris": 2948,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "praca",
+    "agua",
+    "luz"
+   ]
+  },
+  {
+   "id": "bicicletario_clube",
+   "rotulo": "Bicicletário de clube coberto",
+   "categoria": "props_esporte",
+   "grupo": "bicicletario_clube",
+   "fixacao": "chao",
+   "dims": [
+    5.6,
+    2.212,
+    2.487
+   ],
+   "arquivo": "glb/bicicletario_clube.glb",
+   "miniatura": "miniaturas/bicicletario_clube.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.4,
+      0
+     ],
+     "tamanho": [
+      4.8,
+      0.8,
+      1.0
+     ]
+    },
+    {
+     "centro": [
+      -2.35,
+      1.2,
+      -0.85
+     ],
+     "tamanho": [
+      0.15,
+      2.4,
+      0.15
+     ]
+    },
+    {
+     "centro": [
+      2.35,
+      1.2,
+      -0.85
+     ],
+     "tamanho": [
+      0.15,
+      2.4,
+      0.15
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "branco",
+    "concreto",
+    "grafite",
+    "turquesa",
+    "turquesa_claro",
+    "turquesa_escuro"
+   ],
+   "tris": 3136,
+   "pacote": false,
+   "tags": [
+    "esporte",
+    "clube",
+    "bicicleta",
+    "luz"
+   ]
+  }
+ ]
+}

@@ -1,5 +1,6 @@
 import { cn } from "@informach/ui/lib/utils";
 import Link from "next/link";
+import { shortChildNames } from "../utils";
 import { StudentAvatar } from "./student-avatar";
 
 /**
@@ -9,6 +10,9 @@ import { StudentAvatar } from "./student-avatar";
  * `hrefFor` monta o endereço de cada pílula, porque cada tela guarda os
  * próprios parâmetros. `plain` tira o avatar: é a versão do computador, ao
  * lado da data, como na prancha de Hoje no computador.
+ *
+ * A pílula leva o nome curto (`shortChildNames`): com o nome inteiro, três
+ * crianças viravam três linhas e a do computador passava por cima da data.
  */
 export function ChildFilter({
   profiles,
@@ -22,6 +26,7 @@ export function ChildFilter({
   plain?: boolean;
 }) {
   if (profiles.length < 2) return null;
+  const short = shortChildNames(profiles);
   return (
     <nav
       aria-label="Filtrar por criança"
@@ -44,17 +49,18 @@ export function ChildFilter({
         <Link
           key={p.id}
           href={hrefFor(p.id)}
+          title={p.name}
           aria-current={current === p.id ? "page" : undefined}
           className={cn(
-            "inline-flex min-h-10 relative after:absolute after:inset-x-0 after:-inset-y-0.5 after:content-[''] items-center gap-2 rounded-full text-sm font-bold",
+            "inline-flex min-w-0 max-w-full min-h-10 relative after:absolute after:inset-x-0 after:-inset-y-0.5 after:content-[''] items-center gap-2 rounded-full text-sm font-bold",
             plain ? "px-3.5" : "pl-1.5 pr-3.5",
             current === p.id
               ? "bg-foreground text-background"
               : "border border-foreground/15 bg-background hover:bg-muted",
           )}
         >
-          {plain ? null : <StudentAvatar name={p.name} size="pill" />}
-          {p.name}
+          {plain ? null : <StudentAvatar name={p.name} size="pill" className="shrink-0" />}
+          <span className="truncate">{short.get(p.id)}</span>
         </Link>
       ))}
     </nav>
@@ -80,7 +86,7 @@ export function FilteredByChild({
   if (!child || profiles.length < 2) return null;
   return (
     <p className="flex flex-wrap items-center gap-x-1.5 text-sm font-semibold text-muted-foreground">
-      <span>Só de {child.name}</span>
+      <span>Só de {shortChildNames(profiles).get(child.id)}</span>
       <span aria-hidden>·</span>
       <Link
         href={clearHref}

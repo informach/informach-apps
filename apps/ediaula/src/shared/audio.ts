@@ -20,6 +20,18 @@ export interface Ducking {
 
 export const DUCKING: Ducking = { depth: 0.25, ramp: 0.35, hold: 0.8 };
 
+/**
+ * Whether the mix steps aside for the voice: the music and the automatic clicks (a "Cliques"
+ * track, or a recording with the click sound on, whole or in a stretch) are lowered while
+ * someone speaks. The preview, the export and the loudness measure all ask this, so the three
+ * lower them under the same words.
+ */
+export const needsSpeech = (p: Pick<Project, "tracks" | "assets">): boolean =>
+  p.tracks.some((t) => t.music || t.clicks) ||
+  p.assets.some(
+    (a) => !!a.cursorFx?.clickSound || !!a.cursorFx?.ranges?.some((r) => r.fx.clickSound),
+  );
+
 /** The project's ducking (Áudio panel), each value falling back to the default. */
 export function duckingOf(project: Pick<Project, "audio">): Ducking {
   const d = project.audio?.ducking;

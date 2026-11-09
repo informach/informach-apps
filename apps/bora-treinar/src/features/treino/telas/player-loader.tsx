@@ -7,6 +7,15 @@ export const PlayerLoader = dynamic<PlayerProps>(
   () => import("./player").then((m) => m.PlayerScreen),
   {
     ssr: false,
-    loading: () => <div className="player" />,
+    // o pacote do instrutor 3D e da câmera demora no celular: uma tela preta parecia travada
+    loading: () => (
+      <div className="player">
+        <div className="overlay-msg static" role="status">
+          <div>
+            <h2>Preparando o treino…</h2>
+          </div>
+        </div>
+      </div>
+    ),
   },
 );

@@ -20,6 +20,11 @@ export const APPS = {
     name: "Bora Treinar",
     domain: "bora-treinar.informach.com.br",
   },
+  diaDeEstrela: {
+    slug: "dia-de-estrela",
+    name: "Dia de Estrela",
+    domain: "dia-de-estrela.informach.com.br",
+  },
   agendaDaTurma: {
     slug: "agenda-da-turma",
     name: "Agenda da Turma",

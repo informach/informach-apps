@@ -1,0 +1,67 @@
+[
+ {
+  "id": "estimacao",
+  "rotulo": "Estimação",
+  "bichos": [
+   "doberman",
+   "doberman_marrom",
+   "labrador",
+   "rottweiler",
+   "salsicha",
+   "salsicha_marrom",
+   "spitz",
+   "lulu",
+   "lulu_rosa",
+   "lulu_azul",
+   "golden",
+   "pastor",
+   "husky",
+   "poodle",
+   "buldogue",
+   "caramelo",
+   "gato",
+   "gato_frajola",
+   "gato_laranja",
+   "gato_rosa",
+   "gato_branco",
+   "siames",
+   "gato_malhado",
+   "border_collie"
+  ]
+ },
+ {
+  "id": "zoologico",
+  "rotulo": "Zoológico",
+  "bichos": [
+   "girafa",
+   "bisao",
+   "elefante",
+   "hipopotamo",
+   "urso",
+   "canguru",
+   "crocodilo",
+   "tigre",
+   "leao",
+   "zebra",
+   "cervo",
+   "urso_polar"
+  ]
+ },
+ {
+  "id": "urbano",
+  "rotulo": "Fauna urbana",
+  "bichos": [
+   "pombo",
+   "pombo_claro",
+   "galinha",
+   "pato",
+   "gaivota",
+   "pardal",
+   "pinguim",
+   "esquilo",
+   "coelho",
+   "rato",
+   "jabuti"
+  ]
+ }
+]

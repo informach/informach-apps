@@ -3,7 +3,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import type { Asset, Clip, Project, Track } from "../src/shared/types.ts";
+import { parseScript, speechItems } from "../src/shared/script.ts";
+import type { Asset, Clip, Project, Track, Transcript, Word } from "../src/shared/types.ts";
 
 /*
  * The AI tools as the editor runs them (renderer/src/lib/aiTools.ts runAiTool), on the real
@@ -1020,6 +1021,109 @@ test("vozes: place_insert com a linha da tabela kids põe o Dedé sobre a fala d
   assert.equal(many.ok, true, many.text);
 });
 
+/**
+ * Seção 4 do roteiro do Farol (o mesmo de tests/inserts.test.ts): a narração da professora, com
+ * uma pausa longa onde a F1P4-D01 cabe, o vídeo da Debinha com as falas dela e uma linha da
+ * tabela kids (o Dedé no lugar das primeiras palavras da professora).
+ */
+function farolComKids(): { project: Project; files: Map<string, Transcript> } {
+  const text = readFileSync(new URL("./fixtures/roteiro-farol-dia1.md", import.meta.url), "utf8");
+  const items = speechItems(parseScript(text).sections[3]);
+  const say = (text: string, from: number): Word[] =>
+    text
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((w, i) => ({ text: w, start: from + i * 0.4, end: from + i * 0.4 + 0.3, p: 0.9 }));
+  const transcriptOf = (words: Word[], duration: number): Transcript => ({
+    version: 1,
+    model: "m",
+    language: "pt",
+    duration,
+    words,
+    silences: [],
+  });
+  const words: Word[] = [];
+  let at = 0;
+  items.forEach((item, k) => {
+    if (item.avatar) return;
+    words.push(...say(item.text, at));
+    at = words[words.length - 1].end + (items[k + 1]?.insertId === "F1P4-D01" ? 6 : 0.8);
+  });
+  const debinha = items.filter((i) => i.avatar).flatMap((item, k) => say(item.text, 1 + k * 6));
+  const project: Project = {
+    ...lesson("farol"),
+    script: { text, section: 3, confirmed: true },
+    assets: [
+      asset("tela", "video", { duration: 600 }),
+      asset("voz", "audio", { duration: 600, transcript: "voz.json", transcriptStatus: "ready" }),
+      asset("deb", "video", {
+        duration: 20,
+        width: 1080,
+        height: 1920,
+        transcript: "deb.json",
+        transcriptStatus: "ready",
+      }),
+      asset("dede", "video", { name: "Dedé", duration: 5 }),
+    ],
+    tracks: [track("v1", "video", { name: "Tela" }), track("a1", "audio", { name: "Voz" })],
+    clips: [
+      { id: "cv", assetId: "tela", trackId: "v1", start: 0, in: 0, duration: at, volume: 1 },
+      { id: "ca", assetId: "voz", trackId: "a1", start: 0, in: 0, duration: at, volume: 1 },
+    ],
+    kids: {
+      videos: ["dede"],
+      pieces: [
+        {
+          id: "video-d1-andar-K1",
+          character: "Dedé",
+          assetId: "dede",
+          in: 0,
+          out: 1.2,
+          voice: { assetId: "voz", from: 0, to: 1.1 },
+        },
+      ],
+    },
+  };
+  return {
+    project,
+    files: new Map([
+      ["voz.json", transcriptOf(words, at)],
+      ["deb.json", transcriptOf(debinha, 20)],
+    ]),
+  };
+}
+
+test("vozes: place_inserts com uma linha kids e uma fala do avatar coloca as duas, num passo", async () => {
+  const { project, files } = farolComKids();
+  const fetchBefore = globalThis.fetch;
+  globalThis.fetch = (async (url: string) => {
+    const name = decodeURIComponent(String(url).replace("media://local/", ""));
+    const t = files.get(name);
+    return { ok: !!t, status: t ? 200 : 404, json: async () => t };
+  }) as typeof fetch;
+  try {
+    open(project);
+    const steps = history();
+    const r = await call("place_inserts", {
+      insert_ids: ["video-d1-andar-K1", "F1P4-D01"],
+      mode: "apply",
+    });
+    assert.equal(r.ok, true, r.text);
+    assert.equal(history(), steps + 1, "um passo só");
+    const dede = now().clips.filter((c) => c.assetId === "dede");
+    const deb = now().clips.filter((c) => c.assetId === "deb");
+    assert.equal(dede.length, 1, "a linha kids continua na aula");
+    assert.equal(deb.length, 1, "a fala do avatar entrou");
+    assert.ok(
+      now().tracks.some((t) => t.id === dede[0].trackId),
+      "a faixa do Dedé existe",
+    );
+    assert.match(r.text, new RegExp(`Dedé \\[${dede[0].id}\\]`), "o id dito é o que ficou");
+  } finally {
+    globalThis.fetch = fetchBefore;
+  }
+});
+
 /** A Aula02 com as faixas na ordem do editor: Faixa 6, 5, 4 (avatar), 3 (tela, travada), áudios. */
 function aula02Faixas(): Project {
   const p = aula02Vozes();
@@ -1047,7 +1151,9 @@ test("faixas: com a Faixa 4 selecionada, add_track abaixo e acima; get_overview 
   assert.match(none.text, /Nenhuma faixa selecionada/);
   const first = await call("get_overview", {});
   assert.match(first.text, /^Seleção: nenhuma\n/);
-  assert.deepEqual(first.structured, { selection: { track_id: null, clip_ids: [] } });
+  // The tracks come in the same answer, never in a structured copy that a client reads alone.
+  assert.match(first.text, /\nFaixas:\n/);
+  assert.equal("structured" in first, false);
 
   useProject.getState().selectTrack("tw8hjtowq0mpy");
   const steps = history();
@@ -1070,9 +1176,7 @@ test("faixas: com a Faixa 4 selecionada, add_track abaixo e acima; get_overview 
   assert.match(overview.text, /^Seleção: faixa \[tw8hjtowq0mpy\] Faixa 4\n/);
   assert.match(overview.text, new RegExp(`\\[${id2}\\] F6 Faixa 8: vazia`));
   assert.match(overview.text, new RegExp(`\\[${id}\\] F4 Faixa 7: vazia`));
-  assert.deepEqual(overview.structured, {
-    selection: { track_id: "tw8hjtowq0mpy", clip_ids: [] },
-  });
+  assert.equal("structured" in overview, false);
 
   // Só clipes selecionados: a faixa é a do primeiro clipe.
   useProject.getState().select(["prof2", "pag1"]);
@@ -1134,4 +1238,82 @@ test("faixas: move_track, rename_track, remove_track (só vazia), set_track; rev
   assert.equal(side.ok, true, side.text);
   assert.equal((await call("undo", { steps: 5 })).ok, true);
   assert.deepEqual(now().tracks, original.tracks);
+});
+
+test('export_video com split "clips": uma pasta, "Parte 1" a "Parte N", todas na fila de uma vez', async () => {
+  const { useExportQueue } = await import("../src/renderer/src/state/exportQueue.ts");
+  const { exportQueue } = await import("../src/renderer/src/state/exportQueue.ts");
+  // Duas gravações de tela cortadas pela limpeza na faixa v; a fila não começa a exportar aqui.
+  const rec = (id: string) => asset(id, "video", { recording: { id, role: "screen" } });
+  open(
+    lesson("p1", {
+      name: "Aula02 gravação automática",
+      assets: [rec("t1"), rec("t2"), asset("mic", "audio")],
+      clips: [
+        { id: "a", assetId: "t1", trackId: "v", start: 0, in: 0, duration: 20, volume: 1 },
+        { id: "b", assetId: "t1", trackId: "v", start: 20, in: 25, duration: 10, volume: 1 },
+        { id: "c", assetId: "t2", trackId: "v", start: 31, in: 0, duration: 29, volume: 1 },
+        { id: "m", assetId: "mic", trackId: "a", start: 0, in: 0, duration: 60, volume: 1 },
+      ],
+    }),
+  );
+  exportQueue.hold(true);
+  const folders: string[] = [];
+  Object.assign(api, {
+    pickFolder: async (title: string) => {
+      folders.push(title);
+      return "D:\\Partes";
+    },
+    exists: async (paths: string[]) => paths.map(() => false),
+    // The queue keeps what it has for the next time the app opens.
+    exportQueue: { save: async () => {} },
+  });
+  try {
+    const before = useExportQueue.getState().items.length;
+    const r = await call("export_video", {
+      preset: "draft",
+      formats: ["captions"],
+      split: "clips",
+      track_id: "v",
+    });
+    assert.equal(r.ok, true, r.text);
+    assert.deepEqual(folders, ["Onde salvar as 2 partes"], "uma janela de pasta só");
+    const items = useExportQueue.getState().items.slice(before);
+    assert.deepEqual(
+      items.map((i) => i.spec.outPath),
+      [
+        "D:\\Partes\\Aula02 gravação automática - Parte 1.mp4",
+        "D:\\Partes\\Aula02 gravação automática - Parte 2.mp4",
+      ],
+    );
+    // Cada parte é o seu trecho da aula: 0–31 s e 31–60 s.
+    assert.deepEqual(
+      items.map((i) => Math.round(Math.max(...i.project.clips.map((c) => c.start + c.duration)))),
+      [31, 29],
+    );
+    assert.ok(items.every((i) => i.extras?.platform === false && i.extras?.translations === false));
+    assert.match(r.text, /2 partes na fila/);
+    const status = await call("get_export_status", {});
+    assert.match(status.text, /Parte 1\.mp4[\s\S]*Parte 2\.mp4/);
+    // Pedidos que não fazem sentido são recusados antes de qualquer janela.
+    const both = await call("export_video", {
+      preset: "draft",
+      range: { from: 0, to: 5 },
+      split: "clips",
+      track_id: "v",
+    });
+    assert.equal(both.ok, false);
+    const platform = await call("export_video", {
+      preset: "draft",
+      formats: ["platform"],
+      split: "clips",
+      track_id: "v",
+    });
+    assert.equal(platform.ok, false);
+    assert.match(platform.text, /As partes saem sem o pacote da plataforma/);
+    assert.deepEqual(folders.length, 1);
+  } finally {
+    for (const i of useExportQueue.getState().items) exportQueue.remove(i.id);
+    exportQueue.hold(false);
+  }
 });

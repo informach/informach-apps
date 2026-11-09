@@ -1,5 +1,5 @@
 import { INFORMACH_CONTACT } from "@informach/config/contact";
-import { EDI_TOOLS } from "@informach/config/edi-tools";
+import { EDI_TOOL_COUNT_WORD, EDI_TOOLS } from "@informach/config/edi-tools";
 import Link from "next/link";
 import { ToolIcon, toolStyle } from "../components/site/brand";
 import { SiteFooter } from "../components/site/footer";
@@ -48,14 +48,16 @@ export default function Home() {
         <section className="mat" aria-labelledby="titulo">
           <div className="container hero">
             <div className="hero__copy">
-              <span className="eyebrow">Suíte Edi · 5 ferramentas para Windows</span>
+              <span className="eyebrow">
+                Suíte Edi · {EDI_TOOLS.length} ferramentas para Windows
+              </span>
               <h1 id="titulo" className="display-1">
                 Tudo o que sua aula precisa, numa <span className="tape">bancada</span> só.
               </h1>
               <p className="lede">
                 Grave a tela com teleprompter, edite o vídeo pelo texto da fala, explique com
-                prints, crie a capa, organize o PDF e anime o mascote. Uma assinatura, e seus
-                arquivos continuam no seu computador.
+                prints, crie a capa, organize o PDF, anime o mascote e corte os vídeos para
+                divulgar. Uma assinatura, e seus arquivos continuam no seu computador.
               </p>
               <div className="hero__actions">
                 {billingOpen ? (
@@ -112,11 +114,12 @@ export default function Home() {
           <div className="section-head">
             <span className="eyebrow">Do roteiro à entrega</span>
             <h2 id="jornada" className="display-2">
-              Uma aula passa por cinco mesas. Agora elas ficam lado a lado.
+              Uma aula passa por {EDI_TOOL_COUNT_WORD} mesas. Agora elas ficam lado a lado.
             </h2>
             <p className="lede">
-              Você não precisa mais de cinco programas, cinco contas e cinco jeitos de salvar. Cada
-              ferramenta cuida de uma etapa e todas se instalam e se atualizam pelo mesmo lugar.
+              Você não precisa mais de um programa, uma conta e um jeito de salvar para cada etapa.
+              Cada ferramenta cuida de uma etapa e todas se instalam e se atualizam pelo mesmo
+              lugar.
             </p>
           </div>
           <ol className="journey">
@@ -134,7 +137,7 @@ export default function Home() {
         </section>
 
         <div id="ferramentas" className="container">
-          <h2 className="visually-hidden">As cinco ferramentas</h2>
+          <h2 className="visually-hidden">As {EDI_TOOL_COUNT_WORD} ferramentas</h2>
           {TOOL_FEATURES.map((feature, index) => {
             const Illustration = TOOL_ILLUSTRATIONS[feature.tool];
             return (
@@ -272,7 +275,7 @@ export default function Home() {
               <h3 className="display-4">
                 {billingOpen ? "Assine e crie sua conta" : "Crie sua conta"}
               </h3>
-              <p>Uma conta só para as cinco ferramentas, no site e no Edi Hub.</p>
+              <p>Uma conta só para as {EDI_TOOL_COUNT_WORD} ferramentas, no site e no Edi Hub.</p>
             </li>
             <li className="step">
               <span className="step__number">02</span>

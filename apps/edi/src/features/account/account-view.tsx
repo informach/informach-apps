@@ -1,6 +1,6 @@
 "use client";
 import { INFORMACH_CONTACT } from "@informach/config/contact";
-import { EDI_TOOLS } from "@informach/config/edi-tools";
+import { EDI_TOOL_COUNT_WORD, EDI_TOOL_NAME_LIST, EDI_TOOLS } from "@informach/config/edi-tools";
 import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -130,7 +130,7 @@ export function AccountView({
       <section className="panel panel--mat mat" aria-labelledby="ferramentas">
         <div className="panel__intro">
           <h2 id="ferramentas" className="display-3">
-            Suas cinco ferramentas
+            {`Suas ${EDI_TOOL_COUNT_WORD} ferramentas`}
           </h2>
           <p>Elas são instaladas, abertas e atualizadas pelo Edi Hub, no seu computador.</p>
           <Link className="button button--primary" href="/downloads">
@@ -260,7 +260,7 @@ function PlanPicker({
         {returning ? "Volte para a bancada" : "Suíte Edi completa"}
       </h2>
       <p className="muted">
-        As mesmas cinco ferramentas nos dois planos. Muda só a forma de pagar.
+        {`As mesmas ${EDI_TOOL_COUNT_WORD} ferramentas nos dois planos. Muda só a forma de pagar.`}
       </p>
       {!billingReady && (
         <p className="notice notice--warn">
@@ -347,7 +347,7 @@ function PlanPicker({
       <ul className="check-list small">
         <li>
           <CheckIcon size={16} />
-          EdiAula, EdiCaptura, EdiFoto, EdiPDF e EdiSVG
+          {EDI_TOOL_NAME_LIST}
         </li>
         <li>
           <CheckIcon size={16} />

@@ -7,6 +7,7 @@ import { createInterface } from "node:readline";
 import { type McpScope, mintRunToken, redactMcpCredentials } from "./access.ts";
 import {
   actionName,
+  CLAUDE_NO_AUTO_MEMORY,
   CODEX_DISABLED_FEATURES,
   claudeArgs,
   claudeBilledOnApi,
@@ -63,6 +64,15 @@ export interface AssistantEnginesConfig {
   server: McpServerRef;
   /** The editor's guide and the panel's instructions (Claude's system prompt; Codex's first message). */
   systemPrompt: string;
+  /**
+   * The application's own memory for the assistant (durable preferences the person asked it to
+   * keep), read before each turn and added to the system prompt. Codex keeps its first message
+   * for the whole thread, so a later turn carries the memory again when it changed. With it,
+   * Claude Code's auto memory is off for the panel's runs (CLAUDE_NO_AUTO_MEMORY). Keep it to a
+   * few kilobytes: Claude Code receives it on the command line, and a turn whose command line
+   * would pass Windows' limit runs without it.
+   */
+  memory?(): Promise<string>;
   /** Empty working folder: no project files, no CLAUDE.md, nothing for the agent to read. */
   workspace(): string;
   /** Title of a tool for the panel, from its bare name. */
@@ -107,6 +117,15 @@ const RUN_TTL_MS = 30 * 60_000;
 const RUN_RENEW_MS = 10 * 60_000;
 const ONE_SHOT_MS = 10 * 60_000;
 const DEFAULT_SCOPES: readonly McpScope[] = ["read", "propose", "write"];
+/** Windows refuses a command line past 32,767 characters; this leaves room to spare. */
+const COMMAND_LINE_MAX = 30_000;
+
+/** Length of the Windows command line for these arguments, counting quotes and escapes. */
+export const commandLineLength = (command: string, args: readonly string[]): number =>
+  [command, ...args].reduce(
+    (total, arg) => total + arg.length + 3 + (arg.match(/["\\]/g)?.length ?? 0),
+    0,
+  );
 
 const shortText = (t: string): string => {
   const line = t.split("\n").find((l) => l.trim()) ?? "";
@@ -170,6 +189,21 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
   const warn = (event: string, err: unknown): void =>
     (config.warn ?? ((e, d) => console.warn(`[edi] ${e}`, d)))(event, errorText(err));
   const key = (engine: EngineKind, conversationId: string): string => `${engine}:${conversationId}`;
+  /** The application's memory as it is now; empty without one, or when it cannot be read. */
+  const readMemory = async (): Promise<string> => {
+    if (!config.memory) return "";
+    try {
+      return await config.memory();
+    } catch (err) {
+      warn("memory_unreadable", err);
+      return "";
+    }
+  };
+  /** The guide, with the memory. */
+  const withMemory = (memory: string): string =>
+    memory ? `${config.systemPrompt}\n\n${memory}` : config.systemPrompt;
+  /** The memory each conversation's Codex thread last received. */
+  const codexMemory = new Map<string, string>();
   const toolTitle = (name: string): string => {
     const prefix = `mcp__${server.name}__`;
     const bare = name.startsWith(prefix)
@@ -316,16 +350,25 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
     const text = resume ? request.text : await firstMessage(conversationId, request.text);
     const images = request.images ?? [];
     const prompt = images.length ? claudeImageMessage(text, images) : text;
+    // Read before the run's token exists: nothing is awaited between minting it and the spawn.
+    const memory = await readMemory();
+    const argsWith = (systemPrompt: string): string[] =>
+      claudeArgs({
+        server,
+        resume,
+        input: images.length ? "stream-json" : "text",
+        model: request.model,
+        effort: request.effort,
+        mcpConfig: claudeMcpConfig(request.url, server),
+        systemPrompt,
+      });
+    let args = argsWith(withMemory(memory));
+    if (memory && commandLineLength(launch.command, [...launch.args, ...args]) > COMMAND_LINE_MAX) {
+      // Past Windows' limit no turn would start, not even one to forget memories.
+      warn("memory_too_long", `${memory.length} characters`);
+      args = argsWith(config.systemPrompt);
+    }
     const token = runToken(request.grantProject ?? conversationId);
-    const args = claudeArgs({
-      server,
-      resume,
-      input: images.length ? "stream-json" : "text",
-      model: request.model,
-      effort: request.effort,
-      mcpConfig: claudeMcpConfig(request.url, server),
-      systemPrompt: config.systemPrompt,
-    });
     let failed = false;
     const env = engineEnv(process.env, {
       minimal: false,
@@ -334,6 +377,7 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
       claude: true,
       personalOnly: config.personalOnly,
     });
+    if (config.memory) Object.assign(env, CLAUDE_NO_AUTO_MEMORY);
     // With ANTHROPIC_API_KEY set, the turn is charged on the API, not on the subscription.
     const onApi = claudeBilledOnApi(env);
     await startRun({
@@ -531,10 +575,19 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
     thread: string | undefined,
   ): Promise<void> {
     const { conversationId, emit } = request;
-    // Codex has no separate system prompt in exec mode: the guide goes with the first message.
-    const prompt = thread
-      ? request.text
-      : `${config.systemPrompt}\n\n---\n\n${await firstMessage(conversationId, request.text)}`;
+    // Codex has no separate system prompt in exec mode: the guide goes with the first message,
+    // and the memory again with a later one when it changed since.
+    const memory = await readMemory();
+    const remembered = codexMemory.get(conversationId);
+    codexMemory.set(conversationId, memory);
+    const update = memory
+      ? `The application's memory now reads as below; it replaces any memory given earlier in this conversation.\n\n${memory}`
+      : "The application's memory could not be read for this turn.";
+    const prompt = !thread
+      ? `${withMemory(memory)}\n\n---\n\n${await firstMessage(conversationId, request.text)}`
+      : config.memory && memory !== remembered
+        ? `${update}\n\n---\n\n${request.text}`
+        : request.text;
     const disabledFeatures = await codexFeatures(launch);
     request.check?.();
     // Codex reads attached images from files: a folder of their own, gone when the run ends.

@@ -2,8 +2,14 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { guarded } from "../src/main/mcpGuard.ts";
 import { AI_TOOLS, callPermission } from "../src/shared/aiTools.ts";
-import { exportName, presetSpec, runExportVideo } from "../src/shared/exportPresets.ts";
+import {
+  exportExtension,
+  exportName,
+  presetSpec,
+  runExportVideo,
+} from "../src/shared/exportPresets.ts";
 import type { Finding } from "../src/shared/preflight.ts";
+import { exportSpecSchema } from "../src/shared/project-schema.ts";
 
 const problem: Finding = { severity: "error", kind: "media-missing", message: "Falta a tela." };
 const warning: Finding = { severity: "warn", kind: "duration", message: "Aula longa." };
@@ -141,4 +147,21 @@ test("presets give the frame, bitrate and quality of the export dialog", () => {
   assert.deepEqual([audio.audioOnly, audio.videoBitrate], [true, 0]);
   assert.equal(exportName('Aula: "1"/2', "audio", false), "Aula 12.mp3");
   assert.equal(exportName("Aula", "reels", true), "Aula (vertical).mp4");
+  // The GIF: 480p of a wide lesson, 15 frames per second, no sound to level, nothing beside it.
+  const gif = presetSpec("gif", wide, { encoder: "x264" });
+  assert.deepEqual(
+    [gif.width, gif.height, gif.gif, gif.normalizeLoudness, gif.thumbnail],
+    [854, 480, { fps: 15 }, false, undefined],
+  );
+  assert.equal(exportName("Aula", "gif", false), "Aula.gif");
+  assert.equal(exportExtension(gif), "gif");
+  // A GIF has no sound: the schema refuses it with the podcast or the stems.
+  const valid = { ...gif, outPath: "C:saidaaula.gif" };
+  assert.equal(exportSpecSchema.safeParse(valid).success, true);
+  assert.equal(exportSpecSchema.safeParse({ ...valid, audioOnly: true }).success, false);
+  assert.equal(
+    exportSpecSchema.safeParse({ ...valid, stems: { voice: "C:\v.wav", music: "C:m.wav" } })
+      .success,
+    false,
+  );
 });

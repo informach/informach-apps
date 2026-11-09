@@ -160,7 +160,9 @@ p {
   place-items: center;
   font-family: var(--head);
   font-weight: 800;
-  color: #fff;
+  /* texto escuro: o branco reprovava nas cores claras dos perfis (laranja ~1,8:1, verde-água ~2,2:1);
+     o escuro passa de 5:1 em todas, inclusive no azul */
+  color: var(--on-accent);
   flex: none;
 }
 
@@ -1216,13 +1218,7 @@ button.card:focus-visible {
   color: var(--muted);
   white-space: nowrap;
 }
-.history-row {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--line);
-}
+/* .history-row mora em bora.css (estava duplicada aqui, com outro espaçamento) */
 .empty {
   text-align: center;
   padding: 3rem 1rem;

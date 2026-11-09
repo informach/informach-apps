@@ -6,6 +6,7 @@ import Link from "next/link";
 import { TurmaInviteButton } from "@/features/turmas/components/turma-invite-button";
 import { SHEET_LINK } from "@/features/unified-activities/components/activity-list";
 import type { StudentProfileWithActiveTurma } from "../types";
+import { shortChildNames } from "../utils";
 import { NewStudentButton } from "./new-student-button";
 import { StudentCard } from "./student-card";
 
@@ -81,6 +82,7 @@ export function StudentsSection({
     );
   }
 
+  const shortNames = shortChildNames(profiles);
   return (
     <div className="space-y-3">
       {profiles.map((profile) => (
@@ -88,6 +90,7 @@ export function StudentsSection({
           currentUserId={currentUserId}
           key={profile.id}
           profile={profile}
+          shortName={shortNames.get(profile.id) ?? profile.name}
           extras={extrasByProfile[profile.id] ?? null}
           isPro={isPro}
           currentCount={currentCount}

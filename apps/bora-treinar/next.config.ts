@@ -43,12 +43,14 @@ const config: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          // A câmera conta repetições no próprio aparelho; tela cheia e tela
-          // acesa servem ao player na TV. Nada além disso.
+          // A câmera conta repetições no próprio aparelho e o microfone serve
+          // à contagem pela voz; tela cheia e tela acesa servem ao player na
+          // TV. Nada além disso. `microphone=()` proibia o microfone na origem
+          // inteira: o navegador negava sem perguntar e a voz nunca ligava.
           {
             key: "Permissions-Policy",
             value:
-              "camera=(self), microphone=(), geolocation=(), fullscreen=(self), screen-wake-lock=(self)",
+              "camera=(self), microphone=(self), geolocation=(), fullscreen=(self), screen-wake-lock=(self)",
           },
           ...(process.env.NODE_ENV === "production"
             ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }]

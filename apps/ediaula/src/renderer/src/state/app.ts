@@ -71,6 +71,8 @@ interface AppStore {
   textCut: [number, number] | null;
   /** The cut selected on the timeline (id of the clip that starts there), for transitions. */
   junction: string | null;
+  /** The automatic click picked on the track "Cliques" (Delete removes that one alone). */
+  pickedClick: { assetId: string; source: number } | null;
   /** The interval marked on the timeline ruler (narrate, record again, delete on every track). */
   interval: { start: number; end: number } | null;
   /**
@@ -85,6 +87,15 @@ interface AppStore {
    * preview its focus rectangle, like a zoom layer's.
    */
   recordingZoom: { assetId: string; zoomId: string } | null;
+  /**
+   * The text of an annotation being typed on the preview (editor/AnnotationTextEditor.tsx): its
+   * clip, where it was double-clicked (stage pixels) or which of its texts the panel asked for.
+   */
+  textEdit: {
+    id: string;
+    at: { x: number; y: number } | null;
+    key?: "text" | "kicker" | "subtitle";
+  } | null;
   set(partial: Partial<AppStore>): void;
   startJob(id: string, label: string): void;
   endJob(id: string): void;
@@ -116,10 +127,12 @@ export const useApp = create<AppStore>((set, get) => ({
   cleanupMarks: [],
   textCut: null,
   junction: null,
+  pickedClick: null,
   interval: null,
   solo: [],
   cursorRange: null,
   recordingZoom: null,
+  textEdit: null,
   set: (partial) => set(partial),
   startJob: (id, label) => set({ jobs: { ...get().jobs, [id]: { id, label, ratio: 0 } } }),
   endJob: (id) => {

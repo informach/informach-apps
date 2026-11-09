@@ -1,0 +1,93 @@
+{
+ "corpo": "bebe_m",
+ "altura": 0.655,
+ "correcoes": {
+  "resident.baby.crawl": {
+   "cabeca_chao_graus": 45.0,
+   "chao": {
+    "quadros": 55,
+    "afundava_cm": 7.6
+   }
+  },
+  "resident.baby.sit": {
+   "chao": {
+    "quadros": 327,
+    "afundava_cm": 2.5
+   }
+  },
+  "resident.baby.cry": {
+   "antebraco": {
+    "quadros": 37,
+    "entrava_cm": 1.3
+   }
+  },
+  "resident.lie.idle": {
+   "antebraco": {
+    "quadros": 65,
+    "entrava_cm": 2.1
+   }
+  },
+  "resident.sit.clap": {
+   "antebraco": {
+    "quadros": 97,
+    "entrava_cm": 1.3
+   }
+  },
+  "resident.sit.legs_swing": {
+   "antebraco": {
+    "quadros": 64,
+    "entrava_cm": 1.3
+   }
+  },
+  "resident.sleep.idle": {
+   "antebraco": {
+    "quadros": 52,
+    "entrava_cm": 2.2
+   }
+  },
+  "resident.baby.cry_sit": {
+   "antebraco": {
+    "quadros": 41,
+    "entrava_cm": 2.3
+   }
+  }
+ },
+ "apoios": {
+  "resident.baby.sit": {
+   "tipo": "assento",
+   "altura": 0.028,
+   "x": -0.008,
+   "y": -0.076
+  },
+  "resident.lie.idle": {
+   "tipo": "cama",
+   "altura": 0.284,
+   "x": 0.002,
+   "y": 0.028
+  },
+  "resident.sit.clap": {
+   "tipo": "assento",
+   "altura": 0.125,
+   "x": 0.002,
+   "y": -0.068
+  },
+  "resident.sit.legs_swing": {
+   "tipo": "assento",
+   "altura": 0.24,
+   "x": 0.002,
+   "y": -0.078
+  },
+  "resident.sleep.idle": {
+   "tipo": "cama",
+   "altura": 0.282,
+   "x": 0.0,
+   "y": 0.03
+  },
+  "resident.baby.cry_sit": {
+   "tipo": "assento",
+   "altura": 0.052,
+   "x": -0.008,
+   "y": -0.077
+  }
+ }
+}

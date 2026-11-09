@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 import { exerciseById, type View } from "../catalog/catalog";
-import { type InstructorMode, InstructorScene } from "./instructor-scene";
+import { type InstructorMode, type InstructorQuality, InstructorScene } from "./instructor-scene";
 
 export interface InstructorProps {
   exerciseId?: string;
@@ -9,6 +9,12 @@ export interface InstructorProps {
   view?: View;
   followDepth?: number;
   paused?: boolean;
+  /**
+   * Padrão "alta". "baixa" tira antialias, sombras, pixel ratio alto e limita a ~30 fps
+   * (veja `aparelhoFraco` em `instructor-3d.tsx`). O antialias segue o valor da
+   * montagem; trocas depois ajustam o resto sem recriar a cena.
+   */
+  qualidade?: InstructorQuality;
   className?: string;
 }
 
@@ -19,16 +25,19 @@ export function Instructor({
   view,
   followDepth,
   paused,
+  qualidade,
   className,
 }: InstructorProps) {
   const host = useRef<HTMLDivElement>(null);
   const scene = useRef<InstructorScene | null>(null);
+  // a qualidade da montagem decide o antialias; mudanças depois vão por setQuality
+  const qualidadeInicial = useRef(qualidade);
 
   useEffect(() => {
     if (!host.current) return;
     let s: InstructorScene;
     try {
-      s = new InstructorScene(host.current);
+      s = new InstructorScene(host.current, { qualidade: qualidadeInicial.current });
     } catch {
       // sem WebGL (TV antiga, navegador sem aceleração): o treino segue sem o boneco
       return;
@@ -57,6 +66,7 @@ export function Instructor({
   }, [exerciseId, view, mode]);
 
   useEffect(() => scene.current?.setPaused(!!paused), [paused]);
+  useEffect(() => scene.current?.setQuality(qualidade ?? "alta"), [qualidade]);
   useEffect(() => {
     if (followDepth !== undefined) scene.current?.setFollowDepth(followDepth);
   }, [followDepth]);

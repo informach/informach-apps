@@ -15,6 +15,7 @@ import { handleAiHttpError } from "@/features/ai/_http-errors";
 import { todayLocalIso } from "@/features/dashboard/date";
 import { formatClockTime, longDayLabel, shortDayLabel } from "@/features/dashboard/day-labels";
 import { createStudentProfileAction } from "@/features/students/actions";
+import { shortChildNames } from "@/features/students/utils";
 import type { SubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
 import { catchActionResult } from "@/lib/action-result";
@@ -418,6 +419,7 @@ export function CaptureForm({
 
   const profileName = (pid: string) => profiles.find((p) => p.id === pid)?.name ?? "";
   const childName = profileName(profileId);
+  const shortProfileNames = shortChildNames(profiles);
 
   /**
    * Muda toda vez que a revisão acaba (salvou, voltou ao recado, descartou). O
@@ -864,14 +866,17 @@ export function CaptureForm({
       {error}
     </p>
   );
+  // O título da barra leva o nome curto: com o inteiro, "Mensagem para Maria
+  // Eduarda…" virava "Mensagem p…" no celular.
+  const titleName = shortProfileNames.get(profileId) ?? childName;
   const formTitle =
     primary === "foto"
-      ? `Foto para ${childName}`
+      ? `Foto para ${titleName}`
       : primary === "colar"
-        ? `Mensagem para ${childName}`
+        ? `Mensagem para ${titleName}`
         : primary === "falar"
-          ? `Falar o recado de ${childName}`
-          : `Recado para ${childName}`;
+          ? `Falar o recado de ${titleName}`
+          : `Recado para ${titleName}`;
   const textIsPrimary = primary !== "foto";
   const draftNames = joinNames(
     [...new Set(drafts.map((d) => d.value.profileId))].map(profileName).filter(Boolean),
@@ -1052,14 +1057,15 @@ export function CaptureForm({
               type="button"
               aria-pressed={on}
               onClick={() => setProfileId(p.id)}
+              title={p.name}
               className={cn(
-                "inline-flex min-h-10 relative after:absolute after:inset-x-0 after:-inset-y-0.5 after:content-[''] items-center rounded-full px-4 text-sm font-bold",
+                "relative inline-flex min-h-10 min-w-0 max-w-full items-center rounded-full px-4 text-sm font-bold after:absolute after:inset-x-0 after:-inset-y-0.5 after:content-['']",
                 on
                   ? "bg-foreground text-background"
                   : "border border-foreground/20 bg-background hover:bg-muted",
               )}
             >
-              {p.name}
+              <span className="truncate">{shortProfileNames.get(p.id)}</span>
             </button>
           );
         })}
@@ -1273,10 +1279,10 @@ export function CaptureForm({
             >
               Cancelar
             </Link>
-            <h1 id="capture-title" className="truncate text-base font-bold">
+            <h1 id="capture-title" className="min-w-0 truncate text-base font-bold">
               {formTitle}
             </h1>
-            <span className="w-[84px] shrink-0" aria-hidden />
+            <span className="w-3 shrink-0 sm:w-[84px]" aria-hidden />
           </div>
           {childPills}
 

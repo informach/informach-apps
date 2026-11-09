@@ -28,6 +28,11 @@ export function ConfirmDialog(): ReactNode {
           <Button variant="primary" autoFocus onClick={() => answer(false)}>
             {question.cancel}
           </Button>
+          {question.other ? (
+            <Button variant="ghost" onClick={() => answer("other")}>
+              {question.other}
+            </Button>
+          ) : null}
           <Button variant="ghost" onClick={() => answer(true)}>
             {question.confirm}
           </Button>

@@ -1,0 +1,356 @@
+{
+ "categoria": "pufes",
+ "rotulo": "Pufes",
+ "itens": [
+  {
+   "id": "pufe_cubo_azul",
+   "rotulo": "Pufe cubo macio (azul)",
+   "categoria": "pufes",
+   "grupo": "pufe_cubo",
+   "fixacao": "chao",
+   "dims": [
+    0.46,
+    0.46,
+    0.42
+   ],
+   "arquivo": "glb/pufe_cubo_azul.glb",
+   "miniatura": "miniaturas/pufe_cubo_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.21,
+      -0.0
+     ],
+     "tamanho": [
+      0.46,
+      0.42,
+      0.46
+     ]
+    }
+   ],
+   "cores": [
+    "azul_medio"
+   ],
+   "tris": 840,
+   "pacote": false,
+   "tags": [
+    "pufe"
+   ]
+  },
+  {
+   "id": "pufe_tambor_amarelo_verde",
+   "rotulo": "Pufe tambor com pés (amarelo e verde)",
+   "categoria": "pufes",
+   "grupo": "pufe_tambor",
+   "fixacao": "chao",
+   "dims": [
+    0.43,
+    0.43,
+    0.42
+   ],
+   "arquivo": "glb/pufe_tambor_amarelo_verde.glb",
+   "miniatura": "miniaturas/pufe_tambor_amarelo_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.21,
+      -0.0
+     ],
+     "tamanho": [
+      0.43,
+      0.42,
+      0.43
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "madeira_clara",
+    "verde"
+   ],
+   "tris": 1836,
+   "pacote": false,
+   "tags": [
+    "pufe",
+    "madeira"
+   ]
+  },
+  {
+   "id": "pufe_cilindro_vermelho",
+   "rotulo": "Pufe cilindro (vermelho e amarelo)",
+   "categoria": "pufes",
+   "grupo": "pufe_cilindro",
+   "fixacao": "chao",
+   "dims": [
+    0.4,
+    0.4,
+    0.42
+   ],
+   "arquivo": "glb/pufe_cilindro_vermelho.glb",
+   "miniatura": "miniaturas/pufe_cilindro_vermelho.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.21,
+      -0.0
+     ],
+     "tamanho": [
+      0.4,
+      0.42,
+      0.4
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "vermelho_escuro"
+   ],
+   "tris": 1212,
+   "pacote": false,
+   "tags": [
+    "pufe"
+   ]
+  },
+  {
+   "id": "pufe_banco_turquesa",
+   "rotulo": "Pufe banco comprido (turquesa)",
+   "categoria": "pufes",
+   "grupo": "pufe_banco",
+   "fixacao": "chao",
+   "dims": [
+    1.0,
+    0.42,
+    0.415
+   ],
+   "arquivo": "glb/pufe_banco_turquesa.glb",
+   "miniatura": "miniaturas/pufe_banco_turquesa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.2075,
+      -0.0
+     ],
+     "tamanho": [
+      1.0,
+      0.415,
+      0.42
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_escura",
+    "turquesa"
+   ],
+   "tris": 916,
+   "pacote": false,
+   "tags": [
+    "pufe",
+    "banco"
+   ]
+  },
+  {
+   "id": "pufe_quadrado_pes_verde",
+   "rotulo": "Pufe quadrado com pés (verde)",
+   "categoria": "pufes",
+   "grupo": "pufe_quadrado_pes",
+   "fixacao": "chao",
+   "dims": [
+    0.44,
+    0.44,
+    0.452
+   ],
+   "arquivo": "glb/pufe_quadrado_pes_verde.glb",
+   "miniatura": "miniaturas/pufe_quadrado_pes_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.22408,
+      -0.0
+     ],
+     "tamanho": [
+      0.44,
+      0.452,
+      0.44
+     ]
+    }
+   ],
+   "cores": [
+    "metal_claro",
+    "verde_medio"
+   ],
+   "tris": 1384,
+   "pacote": false,
+   "tags": [
+    "pufe"
+   ]
+  },
+  {
+   "id": "pufe_redondo_mostarda",
+   "rotulo": "Pufe redondo capitonê (mostarda)",
+   "categoria": "pufes",
+   "grupo": "pufe_redondo",
+   "fixacao": "chao",
+   "dims": [
+    0.66,
+    0.66,
+    0.335
+   ],
+   "arquivo": "glb/pufe_redondo_mostarda.glb",
+   "miniatura": "miniaturas/pufe_redondo_mostarda.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1675,
+      -0.0
+     ],
+     "tamanho": [
+      0.66,
+      0.335,
+      0.66
+     ]
+    }
+   ],
+   "cores": [
+    "laranja_escuro",
+    "mostarda"
+   ],
+   "tris": 808,
+   "pacote": false,
+   "tags": [
+    "pufe"
+   ]
+  },
+  {
+   "id": "pufe_pera_vermelho",
+   "rotulo": "Pufe-pera (vermelho)",
+   "categoria": "pufes",
+   "grupo": "pufe_pera",
+   "fixacao": "chao",
+   "dims": [
+    0.89,
+    0.891,
+    0.683
+   ],
+   "arquivo": "glb/pufe_pera_vermelho.glb",
+   "miniatura": "miniaturas/pufe_pera_vermelho.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0021,
+      0.34129,
+      5e-05
+     ],
+     "tamanho": [
+      0.89,
+      0.683,
+      0.891
+     ]
+    }
+   ],
+   "cores": [
+    "vermelho"
+   ],
+   "tris": 640,
+   "pacote": false,
+   "tags": [
+    "pufe",
+    "puff"
+   ]
+  },
+  {
+   "id": "pufe_bau_lilas",
+   "rotulo": "Pufe-baú com tampa (lilás)",
+   "categoria": "pufes",
+   "grupo": "pufe_bau",
+   "fixacao": "chao",
+   "dims": [
+    0.732,
+    0.452,
+    0.567
+   ],
+   "arquivo": "glb/pufe_bau_lilas.glb",
+   "miniatura": "miniaturas/pufe_bau_lilas.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      1,
+      0,
+      0
+     ],
+     "angulo": -1.8326,
+     "nome": "tampa",
+     "pivo": [
+      0.0,
+      0.442,
+      -0.22
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_bau",
+     "centro": [
+      0,
+      0.08,
+      0
+     ],
+     "tamanho": [
+      0.64,
+      0.35,
+      0.36
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.22,
+      -0.0
+     ],
+     "tamanho": [
+      0.72,
+      0.44,
+      0.44
+     ]
+    }
+   ],
+   "cores": [
+    "creme",
+    "lilas",
+    "madeira_mel",
+    "roxo",
+    "roxo_escuro"
+   ],
+   "tris": 2632,
+   "pacote": false,
+   "tags": [
+    "pufe",
+    "bau",
+    "guarda-volumes"
+   ]
+  }
+ ]
+}

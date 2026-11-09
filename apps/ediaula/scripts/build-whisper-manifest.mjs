@@ -1,4 +1,4 @@
-// Builds src/main/whisperManifest.ts: the SHA-256 and size of every file inside the pinned
+// Builds packages/edi-speech/src/node/whisperManifest.ts: the SHA-256 and size of every file inside the pinned
 // whisper.cpp engine zips (src/main/whisperAssets.ts). Each zip is downloaded, checked against
 // the digest GitHub publishes for it and only then extracted and hashed, so the list comes from
 // the official release. EdiAula uses it to check an engine already installed before downloads
@@ -17,7 +17,8 @@ import { promisify } from "node:util";
 import { WHISPER_ASSETS } from "../src/main/whisperAssets.ts";
 
 const app = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const out = join(app, "src", "main", "whisperManifest.ts");
+// The manifest lives in @informach/edi-speech, shared with EdiSVG.
+const out = join(app, "..", "..", "packages", "edi-speech", "src", "node", "whisperManifest.ts");
 const work = process.argv[2];
 if (!work) throw new Error("usage: node scripts/build-whisper-manifest.mjs <empty work folder>");
 

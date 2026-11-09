@@ -63,6 +63,37 @@ export const viewOf = (c: Pick<Clip, "zoomLayer">): View => ({
   cy: c.zoomLayer!.y,
 });
 
+/** A corner of the zoom box in the preview: n/s and w/e. */
+export type FocusCorner = "nw" | "ne" | "sw" | "se";
+
+/** Most a zoom box (layer or recording) goes in. */
+export const MAX_FOCUS_SCALE = 5;
+
+/**
+ * The zoom after a corner of its box is dragged to (`px`, `py`), fractions of the frame: the
+ * opposite corner stays put, as in Camtasia, and the box keeps the frame's shape (a zoom goes in
+ * as much across as down). The box stays inside the frame and between `min` and
+ * MAX_FOCUS_SCALE. `focus` is the box as shown (its center already kept inside the frame).
+ */
+export function resizeFocus(
+  focus: { scale: number; x: number; y: number },
+  corner: FocusCorner,
+  px: number,
+  py: number,
+  min = 1,
+): { scale: number; x: number; y: number } {
+  const sx = corner.endsWith("e") ? 1 : -1;
+  const sy = corner.startsWith("s") ? 1 : -1;
+  const half = 0.5 / focus.scale;
+  const ax = focus.x - sx * half;
+  const ay = focus.y - sy * half;
+  // Room from the fixed corner to the frame's edge, on the side being dragged.
+  const room = Math.min(sx > 0 ? 1 - ax : ax, sy > 0 ? 1 - ay : ay, 1 / min);
+  const wanted = Math.max(sx * (px - ax), sy * (py - ay));
+  const size = Math.min(room, Math.max(1 / MAX_FOCUS_SCALE, wanted));
+  return { scale: 1 / size, x: ax + (sx * size) / 2, y: ay + (sy * size) / 2 };
+}
+
 /**
  * The layer after an edit by hand. A piece of a longer layer keeps that layer's curve, but a way
  * in or out set on the piece happens at the piece's own edge, so that edge of the curve moves

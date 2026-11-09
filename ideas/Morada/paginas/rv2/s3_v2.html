@@ -1,0 +1,337 @@
+
+<!-- ECONOMIA -->
+<section id="economia">
+  <div class="sec-head">
+    <span class="eyebrow" style="--c:var(--sea)">Economia da assinatura</span>
+    <h2>O que paga a conta é quanto tempo as pessoas jogam juntas, não quantas pessoas assinam</h2>
+    <p class="lead">No Morada v4, um mundo com uma pessoa presente roda no navegador dela. O servidor só entra quando duas ou mais pessoas estão no mesmo mundo ao mesmo tempo. Então um Família em que cada um joga no próprio mundo custa quase só armazenamento, e um Individual que passa as noites com cinco amigos custa mais. O preço precisa ser testado contra essa distribuição real.</p>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>As contas</h3>
+      <p class="small"><b>Margem de contribuição</b> = receita − taxas de pagamento − tributos − custo variável de jogo (horas de mundo no servidor, transferência, armazenamento) − suporte e moderação variáveis.</p>
+      <p class="small"><b>Resultado</b> = margem de contribuição − infraestrutura fixa − equipe − aquisição.</p>
+      <p class="small muted">Receita depois da Stripe não é lucro. Sem custos medidos de servidor, CDN, armazenamento, suporte e tributos, não dá para afirmar que R$ 127,90 cobre uma família.</p>
+    </div>
+    <div class="tbl" style="align-self:start">
+      <table style="min-width:0">
+        <thead><tr><th>Cobrança</th><th class="num">Bruto</th><th class="num">Taxas*</th><th class="num">Restante*</th></tr></thead>
+        <tbody>
+          <tr><td>Individual mensal</td><td class="num">R$ 59,90</td><td class="num">R$ 3,20</td><td class="num">R$ 56,70</td></tr>
+          <tr><td>Família mensal</td><td class="num">R$ 127,90</td><td class="num">R$ 6,39</td><td class="num">R$ 121,51</td></tr>
+          <tr><td>Individual anual</td><td class="num">R$ 599,00</td><td class="num">R$ 28,48</td><td class="num">R$ 570,52</td></tr>
+          <tr><td>Família anual</td><td class="num">R$ 1.279,00</td><td class="num">R$ 60,38</td><td class="num">R$ 1.218,62</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <p class="caption">*Conta ilustrativa: 3,99% + R$ 0,39 por cobrança com cartão nacional, mais 0,7% do Billing. A taxa de cartão é a mais citada para o Brasil; o percentual do Billing aparece em fontes sobre o modelo geral e precisa ser confirmado na conta da Informach. Antes de tributos, servidor e suporte.</p>
+
+  <h3>Simulador de margem por assinatura</h3>
+  <div class="calc">
+    <form id="calc" aria-label="Simulador de margem">
+      <label for="c-plano">Plano<select id="c-plano"><option value="i">Individual mensal · R$ 59,90</option><option value="f" selected>Família mensal · R$ 127,90</option><option value="ia">Individual anual · R$ 599 ÷ 12</option><option value="fa">Família anual · R$ 1.279 ÷ 12</option></select></label>
+      <label for="c-trib">Tributos sobre a receita (%)<span>Exemplo; depende do regime da empresa</span><input id="c-trib" type="number" min="0" max="40" step="0.5" value="10"></label>
+      <label for="c-horas">Horas por mês com 2+ pessoas no mesmo mundo<span>Só essas usam servidor; somadas por mundo, não por pessoa</span><input id="c-horas" type="number" min="0" max="400" step="1" value="30"></label>
+      <label for="c-hora">Custo por hora de mundo no servidor (R$)<span>Exemplo a medir no Marco 0, com 2, 4 e 8 pessoas</span><input id="c-hora" type="number" min="0" max="20" step="0.01" value="0.12"></label>
+      <label for="c-gb">Armazenamento de mundos e dados (GB)<span>Fotografias, diário de eventos e backups</span><input id="c-gb" type="number" min="0" max="100" step="0.1" value="1.5"></label>
+      <label for="c-sup">Suporte e moderação por conta por mês (R$)<span>Exemplo</span><input id="c-sup" type="number" min="0" max="50" step="0.1" value="3"></label>
+    </form>
+    <div class="out" aria-live="polite">
+      <span class="small muted">Margem de contribuição por mês (exemplo)</span>
+      <div class="tot" id="o-tot">R$ 0,00</div>
+      <div class="small" id="o-pct">0% da receita</div>
+      <div class="meter" aria-hidden="true" style="margin:10px 0 6px"><i id="m-tx" style="background:var(--muted)"></i><i id="m-tr" style="background:var(--grape)"></i><i id="m-sv" style="background:var(--coral)"></i><i id="m-su" style="background:var(--sun)"></i><i id="m-mg" style="background:var(--sea)"></i></div>
+      <div class="row"><span>Receita do mês</span><b id="o-rec">–</b></div>
+      <div class="row"><span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--muted)"></i> Taxas de pagamento</span><span id="o-tx">–</span></div>
+      <div class="row"><span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--grape)"></i> Tributos</span><span id="o-tr">–</span></div>
+      <div class="row"><span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--coral)"></i> Servidor e armazenamento</span><span id="o-sv">–</span></div>
+      <div class="row"><span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--sun)"></i> Suporte e moderação</span><span id="o-su">–</span></div>
+      <p class="small muted" style="margin-top:8px">Todos os valores de custo são exemplos para mostrar a conta. O armazenamento usa R$ 0,15 por GB por mês. Os números reais saem do Marco 0 e do beta.</p>
+    </div>
+  </div>
+  <div class="grid g2">
+    <div class="tbl">
+      <table style="min-width:0">
+        <thead><tr><th>Indicador</th><th>Por que importa</th></tr></thead>
+        <tbody>
+          <tr><td>Horas de mundo com 2+ presentes por assinatura</td><td>É o que gera custo de servidor</td></tr>
+          <tr><td>Custo por hora de mundo, por número de presentes</td><td>Mostra se juntar pessoas num processo compensa</td></tr>
+          <tr><td>Fração das horas jogadas que é compartilhada</td><td>Separa quem joga sozinho de quem joga junto</td></tr>
+          <tr><td>Perfis ativos por grupo Família</td><td>Dimensiona o valor percebido do plano</td></tr>
+          <tr><td>Custo por GB guardado</td><td>Diário de eventos cresce em silêncio</td></tr>
+          <tr><td>Margem de contribuição por plano</td><td>Mostra se o preço se sustenta</td></tr>
+          <tr><td>LTV/CAC</td><td>Evita comprar aquisição sem retenção</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>"Jogue à vontade", com limites que não atrapalham</h3>
+      <p class="small">A promessa é não cobrar por hora de jogo nem por pausar, dormir ou acelerar. Não é servidor ilimitado. Ficam publicados, desde o início, limites técnicos que uma sessão normal nunca encontra: mundos por perfil, membros por mundo (medido, não os 12 da v1), tamanho guardado por mundo e mundos abertos no servidor ao mesmo tempo por grupo.</p>
+      <h3 style="margin-top:6px">Quando cobrar</h3>
+      <p class="small">Cobrar o acesso antecipado só quando o Morada já entrega valor contínuo, os recursos atuais estão descritos com clareza, os mundos não se perdem e há suporte a incidentes. Ter checkout pronto não é critério.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CATÁLOGO -->
+<section id="catalogo">
+  <div class="sec-head">
+    <span class="eyebrow" style="--c:var(--grape)">Catálogo</span>
+    <h2>Cada jogo tem página de verdade, e o catálogo separa o que o jogo suporta do que o perfil pode usar</h2>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Três fontes, um catálogo</h3>
+      <ul class="list small">
+        <li><b>Manifesto no código</b> (<code>packages/config/src/jogos.ts</code>): ID imutável, rota, versão do SDK, capacidades, classificação, aparelhos. Muda por deploy.</li>
+        <li><b>Configuração de operação</b>, no banco e auditada: manutenção, liberação gradual, aviso de incidente, quem vê títulos em teste fechado.</li>
+        <li><b>Conteúdo editorial</b>: descrição, imagens, vídeo, notas da versão.</li>
+      </ul>
+      <p class="small">O servidor combina as três numa ordem fixa e entrega o catálogo efetivo para as telas. É uma saída única, não três catálogos.</p>
+      <p class="small"><b>Estados:</b> <code>em_breve</code> · <code>alfa_fechado</code> · <code>beta_fechado</code> · <code>acesso_antecipado</code> · <code>lancado</code> · <code>manutencao</code> · <code>aposentado</code>. Estado de publicação não é direito de abrir.</p>
+      <p class="small"><b>A página do jogo mostra:</b> o que é, imagens e vídeo reais, classificação e descritores, "sozinho ou acompanhado", quantas pessoas por mundo, aparelhos e requisitos, acessibilidade, idiomas, estado e problemas conhecidos.</p>
+    </div>
+    <div style="display:grid;gap:8px;min-width:0">
+      <div class="code-head"><span>packages/config/src/jogos.ts</span><span>manifesto</span></div>
+<pre><span class="k">export interface</span> GameManifest {
+  id: <span class="s">"morada"</span>;                       <span class="c">// imutável</span>
+  sdk: <span class="s">"^1.0"</span>;
+  versao: <span class="s">"0.4.0"</span>;
+  estado: EstadoDoJogo;
+  aparelhos: (<span class="s">"computador"</span> | <span class="s">"tablet"</span> | <span class="s">"celular"</span>)[];
+  capacidades: {
+    mundos: { membrosMax: <span class="n">number</span> };       <span class="c">// medido; 1 = só sozinho</span>
+    posse: (<span class="s">"navegador"</span> | <span class="s">"servidor"</span> | <span class="s">"offline"</span>)[];
+    dadosDePerfil: <span class="n">boolean</span>;
+    conquistas: <span class="n">boolean</span>;
+    textoLivre: <span class="n">boolean</span>;
+    conteudoDeUsuario: <span class="n">boolean</span>;
+  };
+  classificacao: {
+    faixa: <span class="s">"em_analise"</span> | <span class="s">"L"</span> | <span class="s">"10"</span> | <span class="s">"12"</span> | <span class="s">"14"</span> | <span class="s">"16"</span> | <span class="s">"18"</span>;
+    descritores: <span class="n">string</span>[];
+    interacoes: <span class="n">string</span>[];               <span class="c">// "interação entre usuários"...</span>
+  };
+  politicasDeMundo?: { id: <span class="n">string</span>; faixaMinima: Faixa }[];
+}</pre>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Como um jogo novo entra</h3>
+    <ol class="list small">
+      <li>Manifesto como <code>em_breve</code>, com página honesta e "me avise".</li>
+      <li>Cliente do jogo como package TypeScript carregado sob demanda; servidor próprio só se o jogo precisar.</li>
+      <li>Integração pelo SDK: ingresso, perfil, dados, mundos, conquistas, presença.</li>
+      <li>Checklist do Recreio: carga inicial, desempenho por aparelho, perfis menores, política de mundo, encerramento quando o acesso cai, autoclassificação feita.</li>
+      <li>Estado <code>acesso_antecipado</code> ou <code>lancado</code>. Quem assina já pode jogar, sem nova integração de cobrança.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- SDK -->
+<section id="sdk">
+  <div class="sec-head">
+    <span class="eyebrow" style="--c:var(--sky)">SDK do Recreio</span>
+    <h2>O jogo recebe um ingresso, não acesso ao banco</h2>
+    <p class="lead">O SDK não impõe React, Three.js, WebSocket nem o modelo do Morada. Serve para um jogo 2D de uma pessoa e para um mundo 3D compartilhado, e no futuro para um jogo de computador.</p>
+  </div>
+  <div class="grid g2">
+    <div style="display:grid;gap:8px;min-width:0">
+      <div class="code-head"><span>@informach/recreio · cliente</span><span>proposta de contrato</span></div>
+<pre><span class="k">interface</span> RecreioGameContext {
+  perfil: { profileId: <span class="n">string</span>; apelido: <span class="n">string</span>; avatar: <span class="n">string</span> };
+  politica: {                     <span class="c">// para a interface; o servidor checa de novo</span>
+    multiplayer: <span class="n">boolean</span>; textoLivre: <span class="n">boolean</span>;
+    faixa: Faixa; versao: <span class="n">number</span>;
+  };
+  sessao: {
+    expiraEm: <span class="n">string</span>;
+    aoMudarAcesso(cb: (e: MudancaDeAcesso) =&gt; <span class="n">void</span>): () =&gt; <span class="n">void</span>;
+    sair(): Promise&lt;<span class="n">void</span>&gt;;           <span class="c">// pede checkpoint antes</span>
+  };
+  dados: {                        <span class="c">// ProfileData: do perfil, por jogo</span>
+    ler(chave: <span class="n">string</span>): Promise&lt;Envelope | <span class="n">null</span>&gt;;
+    gravar(chave: <span class="n">string</span>, d: Uint8Array, revisao?: <span class="n">number</span>): Promise&lt;<span class="n">number</span>&gt;;
+  };
+  mundos: {                       <span class="c">// GameSpace: 1 ou mais membros</span>
+    listar(): Promise&lt;ResumoDeMundo[]&gt;;
+    criar(opcoes: NovoMundo): Promise&lt;MundoRef&gt;;
+    abrir(id: <span class="n">string</span>): Promise&lt;MundoAberto&gt;; <span class="c">// posse, fotografia, diário</span>
+    convidar(id: <span class="n">string</span>): Promise&lt;<span class="n">void</span>&gt;;
+  };
+  presenca(atividade: <span class="n">string</span>): Promise&lt;<span class="n">void</span>&gt;;
+  conquista(id: <span class="n">string</span>, chaveIdem: <span class="n">string</span>): Promise&lt;<span class="n">void</span>&gt;;
+}</pre>
+    </div>
+    <div class="grid" style="align-content:start">
+      <div class="stub">
+        <div class="main">
+          <h3>Ingresso de abertura</h3>
+          <p class="small">Uso único, audiência do jogo, escopo do perfil, válido por 30 a 60 segundos. Trocado por uma sessão de jogo na inicialização.</p>
+          <p class="small"><b>Carrega:</b> <code>sub</code> (profileId), <code>aud</code> (jogo), <code>sid</code>, escopos, versão da política, <code>exp</code>, <code>kid</code>, <code>jti</code>. <b>Nunca:</b> e-mail, idade exata, dados de cobrança.</p>
+        </div>
+        <div class="side"><span class="small muted">vale por</span><span class="big">60 s</span><span class="small muted">uma vez</span></div>
+      </div>
+      <div class="stub">
+        <div class="main">
+          <h3>Sessão de jogo</h3>
+          <p class="small">Renovada em silêncio enquanto acesso, sessão e política valem. O servidor do jogo confere a assinatura com a chave pública, a audiência, o prazo e a revogação, e checa de novo o direito de entrar no mundo.</p>
+        </div>
+        <div class="side"><span class="small muted">vale por</span><span class="big">15 min</span><span class="small muted">renovável</span></div>
+      </div>
+      <div class="card">
+        <h4>Ciclo que todo jogo implementa</h4>
+        <p class="small mono" style="font-family:var(--f-mono);font-size:12.5px">preparar → iniciar → checkpoint → suspender → retomar → sair · aoMudarAcesso</p>
+        <p class="small">Se o checkpoint falha, o jogo diz que há progresso não sincronizado e oferece tentar de novo. Nunca diz "tudo salvo" só porque a pessoa clicou em sair.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MUNDOS E SAVES -->
+<section id="espacos">
+  <div class="sec-head">
+    <span class="eyebrow" style="--c:var(--coral)">Mundos e saves</span>
+    <h2>Jogar sozinho é um mundo com um membro</h2>
+    <p class="lead">Esta é a correção central em relação à revisão. Um mundo não muda de tipo quando alguém entra ou sai, e nunca é copiado para "virar multiplayer". O Recreio oferece um serviço de mundos para qualquer jogo: quem é membro, quem responde por ele, onde ele está rodando agora e onde ficam as fotografias e o diário de eventos. O conteúdo é do jogo, guardado sem o Recreio precisar entendê-lo.</p>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Tipo</th><th>Exemplo</th><th>De quem é</th><th>Quem acessa</th></tr></thead>
+      <tbody>
+        <tr><td><b>Mundo</b> (<code>GameSpace</code>)</td><td>Bairro Ipê, com Lia, Bruno e Clara; o mundo da Mel, só com ela</td><td>Do próprio mundo, com um responsável</td><td>Membros, pelas regras do jogo</td></tr>
+        <tr><td><b>Dados do perfil</b> (<code>ProfileData</code>)</td><td>Configurações do Morada da Lia; progresso de um jogo que não tem mundo</td><td>Do perfil</td><td>Só o perfil</td></tr>
+        <tr><td><b>Preferências</b></td><td>Idioma, controles, acessibilidade</td><td>Do perfil, no Recreio</td><td>O perfil; o responsável, no caso de menor</td></tr>
+        <tr><td><b>Progresso social</b></td><td>Conquistas, amigos, presença</td><td>Do perfil, no Recreio</td><td>Pelas regras de privacidade</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="grid g2">
+    <div style="display:grid;gap:8px;min-width:0">
+      <div class="code-head"><span>recreio · modelo de mundo</span><span>igual para todo jogo</span></div>
+<pre>GameSpace
+ ├─ spaceId                 <span class="c">// imutável, opaco para quem convida</span>
+ ├─ gameId = <span class="s">"morada"</span>
+ ├─ responsavel: profileId   <span class="c">// pode transferir, com aceite</span>
+ ├─ politicaDeConteudo       <span class="c">// "todas_as_idades" | "completo"...</span>
+ ├─ estado: ativo | hibernado | arquivado | excluido
+ ├─ schemaVersion, revisao
+ ├─ SpaceMember[profileId, papel, estado]
+ │    papel: responsavel | coadmin | membro | visitante
+ │    estado: ativo | sem_acesso | afastado
+ ├─ SpaceLease               <span class="c">// posse: um executor por vez</span>
+ │    onde: navegador | servidor | offline
+ │    sessao, token de cerca, expiraEm
+ └─ fotografias + diário de eventos (armazenamento de objetos)
+
+<span class="c">// Dentro do conteúdo, só o Morada entende:</span>
+<span class="c">// famílias, moradores, lotes, quem dirige quem.</span></pre>
+    </div>
+    <div class="grid" style="align-content:start">
+      <div class="card" style="border:2px solid var(--coral)">
+        <h3>Posse: um lugar executa o mundo de cada vez</h3>
+        <p class="small">É o mecanismo de "onde o mundo roda" do Morada v4, oferecido pelo Recreio para qualquer jogo:</p>
+        <ul class="list small">
+          <li><b>Navegador:</b> com uma pessoa presente, a sessão dela recebe a posse, executa no Web Worker e grava fotografias e eventos com o token de cerca.</li>
+          <li><b>Servidor:</b> quando um segundo membro entra, o Recreio pede checkpoint ao navegador, recolhe a posse e entrega ao servidor do jogo, em segundos. Quando sobra uma pessoa, a posse pode voltar ao navegador.</li>
+          <li><b>Offline:</b> "levar o mundo" é uma posse longa e exclusiva. Os outros membros veem "Lia levou o mundo até sexta, 18h" e entram depois que ela devolver.</li>
+        </ul>
+        <p class="small">Toda escrita leva o token da posse atual. Um executor antigo que volta depois de uma queda é recusado, então dois lugares nunca escrevem o mesmo mundo.</p>
+      </div>
+    </div>
+  </div>
+  <div class="grid g3">
+    <div class="card">
+      <h4>Responsável e continuidade</h4>
+      <ul class="list small">
+        <li>O responsável configura e convida, mas não apaga dados de outros membros sem o fluxo próprio.</li>
+        <li>Coadministrador mantém o mundo se o responsável se afasta.</li>
+        <li>Membro sem acesso não entra; seus moradores seguem as regras de ausência do jogo.</li>
+        <li>Sem nenhum membro com acesso, o mundo hiberna e depois é arquivado, nunca apagado na hora.</li>
+        <li>Transferir a responsabilidade é um aceite, não uma cópia.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Guarda e recuperação</h4>
+      <ul class="list small">
+        <li>Fotografias comprimidas e diário de eventos em armazenamento de objetos privado; o Postgres guarda só referência, tamanho, checksum e revisão.</li>
+        <li>No navegador, cópia local em IndexedDB enquanto a posse é dele.</li>
+        <li>Piso de 5 fotografias por mundo mais um ponto antigo para incidentes, dentro da retenção.</li>
+        <li>Eventos idempotentes; dinheiro e fatos irreversíveis gravados em transação.</li>
+        <li>Migração de schema <code>n → n+1</code> testada com mundos reais anonimizados.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Conflitos</h4>
+      <ul class="list small">
+        <li><b>Mundo:</b> a posse com token de cerca impede duas versões; não existe "versão do tablet" de um mundo.</li>
+        <li><b>Dados do perfil:</b> gravação com revisão esperada. Se o tablet tenta gravar por cima de uma versão mais nova, o jogo mostra as duas e guarda ambas.</li>
+        <li><b>Exclusão de conta:</b> dados pessoais saem; mundos com outros membros ficam, com os moradores dela tratados pela política do jogo.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- SOCIAL -->
+<section id="social">
+  <div class="sec-head">
+    <span class="eyebrow" style="--c:var(--grape)">Amigos, presença e convites</span>
+    <h2>Serviços comuns a todo jogo, com as regras de cada jogo no próprio jogo</h2>
+  </div>
+  <div class="grid g2">
+    <div class="card"><h3>O Recreio cuida</h3><ul class="list small">
+      <li>Amizades e pedidos, por código curto; sem busca pública de menores.</li>
+      <li>Presença: online, só amigos ou invisível. Sem mostrar nome do mundo, bairro ou relações para quem não é membro.</li>
+      <li>Convite com prazo, destinatário, jogo e referência opaca ao mundo.</li>
+      <li>Bloquear, silenciar, denunciar, remover contato.</li>
+      <li>Entrada segura, reconexão e prevenção de sessão duplicada.</li>
+    </ul></div>
+    <div class="card"><h3>O Morada cuida</h3><ul class="list small">
+      <li>Como a pessoa participa: dividir a família, morar ao lado ou visitar.</li>
+      <li>Reserva de moradores, preferidos e consentimento.</li>
+      <li>Tempo do mundo e pedidos de velocidade.</li>
+      <li>Construção junta e travas por região.</li>
+      <li>Rotina protegida de quem sai.</li>
+    </ul></div>
+  </div>
+  <div class="card">
+    <h3>Um convite, do clique ao mundo</h3>
+    <ol class="list small">
+      <li>Lia toca em "Convidar" no Morada ou no Recreio.</li>
+      <li>O Recreio confere amizade, bloqueios, faixa e política do perfil de Clara, e se a política de conteúdo do Bairro Ipê é compatível com ela.</li>
+      <li>Emite o convite com prazo e uso limitado.</li>
+      <li>Clara aceita e recebe o ingresso de abertura do Morada.</li>
+      <li>O servidor do Morada confere de novo a entrada, a lotação e a forma de participar escolhida por Lia.</li>
+      <li>O Recreio registra Clara como membro do mundo; nada de save, posse ou progresso muda de dono.</li>
+    </ol>
+    <p class="small"><b>O que nunca acontece:</b> um código copiado levar um perfil bloqueado, ou um menor sem autorização, para dentro de um mundo. Ser amigo não dá poder de entrar em casa de morador, construir, dirigir crianças do jogo ou mexer em dinheiro; isso é sempre do Morada.</p>
+  </div>
+</section>
+
+<!-- OFFLINE -->
+<section id="offline">
+  <div class="sec-head">
+    <span class="eyebrow" style="--c:var(--sun-ink)">Offline</span>
+    <h2>No lançamento, conexão para entrar; depois, levar o mundo com uma licença com prazo</h2>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Etapa</th><th>Como funciona</th><th>Por quê</th></tr></thead>
+      <tbody>
+        <tr><td><b>Lançamento</b></td><td>O mundo roda no navegador, mas abrir o jogo exige conexão para o ingresso. Uma queda no meio da partida não interrompe quem está sozinho; ao voltar, os eventos sobem.</td><td>Mais simples de proteger e de dar suporte</td></tr>
+        <tr><td><b>Levar o mundo</b></td><td>Com conexão, Lia pede a posse offline. Recebe uma licença assinada (Ed25519, como na suíte Edi) válida até o menor entre o fim do período pago e o prazo máximo, a definir, com assets e mundo no aparelho.</td><td>Posse exclusiva: nenhum conflito de história</td></tr>
+        <tr><td><b>Computador</b></td><td>Se houver jogo que precise de instalação: um app do Recreio no molde do Edi Hub, com a mesma licença e distribuição assinada.</td><td>Só quando um jogo justificar</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h4>Limites que a tela explica</h4>
+    <ul class="list small">
+      <li>Offline não tem amigos, convites nem chat. Para menores, isso também garante que nenhuma regra de contato dependa de um servidor inacessível.</li>
+      <li>O relógio do aparelho pode ser manipulado; a licença guarda o último horário visto e recusa voltar no tempo, e o prazo máximo é curto.</li>
+      <li>Limpar os dados do navegador apaga a cópia local. Enquanto a posse não volta, o mundo fica na última fotografia que subiu, e a tela diz isso antes de levar.</li>
+      <li>Revogar não é instantâneo offline; vale até o fim da licença, que é conhecido.</li>
+    </ul>
+  </div>
+</section>

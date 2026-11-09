@@ -14,10 +14,25 @@ import { app, BrowserWindow, dialog, Menu } from "electron";
 import { newProject, parseProject } from "../shared/project.js";
 import { createBridge } from "./aiBridge.js";
 import { readBoundedBytes } from "./boundedBytes";
-import { readBoundedText, SVG_BYTES } from "./boundedText.ts";
+import { readBoundedText, SVG_BYTES, SZPROJECT_BYTES } from "./boundedText.ts";
 import { createEngineRunner, MCP_PORT, MCP_SERVER, providerClient } from "./engines.js";
 import { parseExportPayload } from "./exportPayload";
 import { startMcpServer } from "./mcpServer.js";
+import {
+  cancelPipelineJob,
+  exportAlphaWebm,
+  pipelineNarration,
+  pipelineVideoFacts,
+  pipelineVideoFrames,
+  pipelineVideoPreview,
+  pipelineWords,
+} from "./pipelineEngine.ts";
+import {
+  pickPipelineFile,
+  readPickedProject,
+  readRecipeStore,
+  writeRecipeStore,
+} from "./pipelines.ts";
 import { createProjectFiles } from "./projectFiles.js";
 import { createRecoveryStore } from "./recoveryStore.ts";
 import { smoke } from "./smoke.js";
@@ -64,6 +79,16 @@ function trusted(event) {
   )
     throw new Error("Origem IPC não autorizada.");
 }
+/** A folder to open a dialog in: the one asked, else Documents, else home (some profiles lack them). */
+function folderFor(name) {
+  for (const candidate of [name, "documents", "home"])
+    try {
+      return app.getPath(candidate);
+    } catch {
+      // Not defined for this profile: the next one.
+    }
+  return undefined;
+}
 function handle(name, callback) {
   ipcMain.handle(name, async (event, ...args) => {
     trusted(event);
@@ -85,6 +110,15 @@ function menu() {
             label: "Importar SVG…",
             accelerator: "CmdOrCtrl+I",
             click: () => win.webContents.send("app:command", "import-svg"),
+          },
+          {
+            label: "Importar projeto do Estúdio…",
+            click: () => win.webContents.send("app:command", "import-game"),
+          },
+          {
+            label: "Pipelines…",
+            accelerator: "CmdOrCtrl+Shift+P",
+            click: () => win.webContents.send("app:command", "pipelines"),
           },
           {
             label: "Abrir projeto…",
@@ -359,6 +393,50 @@ else {
         const source = await readBoundedText(result.filePaths[0], SVG_BYTES);
         return source;
       });
+      handle("game:import", async () => {
+        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+        const result = await dialog.showOpenDialog(win, {
+          defaultPath: folderFor("downloads"),
+          filters: [{ name: "Projeto do Estúdio (.szproject.json)", extensions: ["json"] }],
+          properties: ["openFile", "dontAddToRecent"],
+        });
+        if (result.canceled) return null;
+        const path = result.filePaths[0];
+        return {
+          source: await readBoundedText(path, SZPROJECT_BYTES),
+          name: basename(path),
+        };
+      });
+      handle("pipelines:read", () => readRecipeStore(app.getPath("userData")));
+      handle("pipelines:write", (value) => writeRecipeStore(app.getPath("userData"), value));
+      handle("pipeline:pick", (kind) =>
+        pickPipelineFile(win, kind, folderFor(kind === "lesson" ? "documents" : "downloads")),
+      );
+      handle("pipeline:read-project", (token) => readPickedProject(token));
+      handle("pipeline:words", (token, kind, jobId) => {
+        if (typeof jobId !== "string" || !/^[\w-]{1,64}$/.test(jobId))
+          throw new Error("Identificador de tarefa inválido.");
+        return pipelineWords(token, kind, jobId, (ratio) =>
+          win?.webContents.send("pipeline:progress", { jobId, ratio }),
+        );
+      });
+      handle("pipeline:narration", (token, kind, start, end, jobId) =>
+        pipelineNarration(token, kind, Number(start), Number(end), jobId),
+      );
+      handle("pipeline:video-facts", (token) => pipelineVideoFacts(token));
+      handle("pipeline:video-preview", (token, seconds, jobId) =>
+        pipelineVideoPreview(token, Number(seconds), jobId),
+      );
+      handle("pipeline:video-frames", (token, times, jobId) =>
+        pipelineVideoFrames(token, times, jobId),
+      );
+      handle("export:alpha-webm", async (input) => {
+        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+        return exportAlphaWebm(win, input, folderFor("documents"), () => desktop.assertAccess());
+      });
+      handle("pipeline:cancel", (jobId) => {
+        if (typeof jobId === "string") cancelPipelineJob(jobId);
+      });
       handle("asset:import", async () => {
         if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
         const result = await dialog.showOpenDialog(win, {
@@ -391,7 +469,10 @@ else {
         if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
         const exported = parseExportPayload(payload);
         const { canceled, filePath } = await dialog.showSaveDialog(win, {
-          defaultPath: join(app.getPath("documents"), `projeto.${exported.extension}`),
+          defaultPath: join(
+            folderFor("documents") ?? "",
+            `${exported.name ?? "projeto"}.${exported.extension}`,
+          ),
           properties: ["dontAddToRecent"],
           filters: [
             { name: "Exportação EdiSVG", extensions: [exported.extension.split(".").pop()] },

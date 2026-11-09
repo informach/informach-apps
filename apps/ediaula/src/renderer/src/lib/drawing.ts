@@ -86,7 +86,7 @@ function tipKey(p: PointerSource | undefined, d: Drawing, t: number): string {
   if (!p || !boardAt(d, t)) return "";
   const { state, fx } = pointerAt(p, t);
   if (fx.hidden) return "";
-  const { ranges: _ranges, path: _path, pathEdits: _edits, ...look } = fx;
+  const { ranges: _ranges, path: _path, pathEdits: _edits, clickRemoved: _removed, ...look } = fx;
   return `${state.x.toFixed(1)},${state.y.toFixed(1)},${state.index},${state.alpha.toFixed(2)},${JSON.stringify(look)}`;
 }
 

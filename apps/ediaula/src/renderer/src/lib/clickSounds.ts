@@ -1,5 +1,5 @@
 import type { SoundEvent } from "@shared/autoSounds";
-import { clickEvents } from "@shared/clickEvents";
+import { type ClickMark, clickEvents, clickMarks } from "@shared/clickEvents";
 import type { CursorData } from "@shared/cursorData";
 import type { Project } from "@shared/types";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -43,8 +43,11 @@ export async function loadClickEvents(p: Project): Promise<SoundEvent[]> {
   return clickEvents(p, await loadClickCursors(p));
 }
 
-/** The automatic clicks of `p`, kept up to date with it (the pointer data is read once). */
-export function useClickEvents(p: Project | null): SoundEvent[] {
+/**
+ * The automatic clicks of `p`, kept up to date with it (the pointer data is read once), each with
+ * its recording and source second so a tick of the timeline can remove it.
+ */
+export function useClickEvents(p: Project | null): ClickMark[] {
   const key = p
     ? sounding(p)
         .map((a) => `${a.id}:${a.cursor}`)
@@ -70,7 +73,7 @@ export function useClickEvents(p: Project | null): SoundEvent[] {
     };
   }, [key]);
   return useMemo(
-    () => (p && key && cursors.key === key ? clickEvents(p, cursors.map) : []),
+    () => (p && key && cursors.key === key ? clickMarks(p, cursors.map) : []),
     [p, key, cursors],
   );
 }

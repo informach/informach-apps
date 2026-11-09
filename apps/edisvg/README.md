@@ -16,6 +16,129 @@ instalado uma vez por aplicativo, sem Electron, conta ou serviço do editor. O f
 exclusivo do Sistema Zero e não está publicado no npm. O projeto `.edisvg` continua sendo o
 arquivo editável; guarde-o para futuras revisões.
 
+## Pipelines (receitas)
+
+Uma receita guarda um trabalho que se repete: o tipo, as instruções para o assistente e a paleta
+de texto. Ao rodar, você escolhe só o que muda naquela vez: os arquivos e o roteiro do trecho.
+Abra por **Arquivo → Pipelines…** (Ctrl+Shift+P), pelo botão **▶ Pipelines** da barra lateral ou
+pela paleta de comandos.
+
+Duas receitas vêm prontas. Elas podem ser editadas ("Voltar ao original" desfaz a edição),
+duplicadas ou excluídas e restauradas. **+ Nova receita** cria uma do zero (até 100 receitas).
+Uma receita da pessoa não volta depois de excluída, então o botão pede um segundo clique
+("Excluir de vez?").
+
+- **Cena animada do jogo**
+  - Recebe um projeto do Estúdio, o áudio da aula inteira (um arquivo, ou uma aula do EdiAula) e
+    o roteiro só desta cena.
+  - Importa as imagens (como em "Importar um projeto do Estúdio", abaixo), acha o trecho no áudio
+    e o tempo de cada frase, e abre uma animação do tamanho do trecho, com a narração tocando
+    junto.
+- **Demonstração passo a passo**
+  - Recebe o vídeo gravado na tela, o áudio e o roteiro. O vídeo começa junto com o trecho.
+  - Cria uma prancheta do tamanho do vídeo, a camada transparente, com o vídeo por baixo na
+    prévia. Ele toca e para com a animação, e nunca entra na exportação.
+  - Cria os elementos prontos (seta, balão, destaque e clique) nas cores da paleta de texto.
+  - Pede o rascunho ao assistente. Ele recebe a narração, os cliques gravados e até quatro quadros
+    do vídeo para olhar:
+    - **Gravação do EdiAula:** o `<id>-cursor.json` ao lado do vídeo dá os cliques reais, já na
+      escala do vídeo e no quadro da animação.
+    - **Outro vídeo:** o assistente decide pelos quadros.
+
+**Como o trecho é achado.**
+1. As palavras ditas vêm das transcrições da aula do EdiAula, nas faixas que soam. Se for um
+   arquivo de áudio, ele é transcrito na hora com o motor e os modelos do EdiAula, e uma
+   transcrição já feita no EdiAula é reaproveitada.
+2. O roteiro é procurado pela janela da aula com mais palavras dele, e cada frase é alinhada só
+   ali (`@informach/edi-speech/piece`).
+3. Uma frase que não aparece no áudio para o pipeline, que diz qual é. Nenhum tempo é chutado.
+
+**O rascunho pelo assistente (Cena animada do jogo).**
+- Depois da narração, a paleta da Cena recebe as cores de texto (a primeira é a principal) e as
+  oito cores mais usadas nas imagens. O seletor de cor já as oferece.
+- O assistente, o Claude Code ou o Codex escolhido no painel Assistente, recebe numa conversa
+  nova um pedido montado pelo pipeline (`pipelines/prompt.ts`):
+  - as instruções da receita;
+  - a prancheta e a animação onde trabalhar;
+  - cada frase com o quadro de início e de fim;
+  - as pranchetas das imagens, que podem entrar como componentes;
+  - as cores e as regras de trabalho.
+- Ele anima pelas ferramentas do EdiSVG e termina dizendo o que acontece em cada frase. Essa
+  resposta vai para o relatório do pipeline.
+- Se o assistente não estiver conectado, for interrompido ou não fizer nenhuma edição, o pipeline
+  para nessa etapa e diz por quê.
+- A execução inteira, até onde chegou, é **um passo de desfazer**: um Ctrl+Z volta o projeto ao
+  que era antes de rodar. Cada edição da execução é juntada à marca no próprio `commit`, antes dos
+  limites do histórico, e a marca nunca é descartada por eles (`history.js`).
+- Enquanto roda, nada mais mexe no projeto: o pipeline não começa com o assistente respondendo;
+  desfazer, refazer, importar, abrir e criar projeto esperam; e o painel não fecha (a parada é
+  por Cancelar).
+
+**Exportar para a aula.** Ao exportar em vídeo a animação de uma narração, o nome sugerido traz
+onde o trecho começa na aula, por exemplo "Narração · Cena animada do jogo (começa em 2m15,7s)", com décimos para não perder a sincronia.
+Assim fica fácil pôr o vídeo no EdiAula sobre a narração original. O vídeo sai sem som.
+
+Para a demonstração, use **Camada transparente · WebM**.
+- A janela desenha a animação como sequência PNG com transparência.
+- O processo principal codifica em VP9 com alfa (`yuva420p`), com o FFmpeg da suíte.
+- O arquivo vai numa faixa acima do vídeo no EdiAula, que já reconhece vídeo com transparência.
+
+**A narração na prévia.** Uma barra acima da linha do tempo mostra as frases do trecho sobre a
+forma de onda, com a frase atual acesa. Clicar numa frase leva a agulha até ela. O áudio toca com
+a animação e para com ela.
+
+A narração é só referência: não entra no projeto nem nas exportações, e dura enquanto o arquivo
+está aberto, inclusive depois de desfazer e refazer (rodar de novo a substitui; abrir outro
+projeto a descarta). O áudio do trecho é cortado do arquivo ou mixado das vozes
+da aula, num WAV mono pequeno.
+
+**Onde fica cada coisa.**
+- As receitas ficam em `userData/pipelines.json`. Se parte do arquivo não for lida (uma receita
+  de uma versão mais nova, uma edição à mão), só essa parte fica de fora, e uma cópia do arquivo
+  inteiro fica ao lado, em `pipelines.json.bak`, antes da próxima gravação.
+- O FFmpeg só recebe arquivos deste computador (`-protocol_whitelist file,pipe`). Um caminho de
+  dentro de uma aula que aponte para a internet ou para uma pasta de rede é ignorado.
+- Um arquivo escolhido para o pipeline fica só no processo principal, que dá à janela um token.
+  Assim, as etapas pesadas só abrem o que a pessoa escolheu.
+
+Plano e decisões: [pipelines no EdiSVG](../../docs/propostas/edisvg-pipelines-2026-11-08/plano.md).
+
+**Testes.**
+- Unitários: o modelo e o executor.
+- e2e: o painel no editor compilado, com a ponte falsa.
+- `test:media-native`: o corte e a mixagem com o FFmpeg da suíte.
+- Jornada nativa (`scripts/native-pipeline-journey.mts`): a receita da Cena com uma aula do
+  EdiAula no Electron. Com `EDISVG_PIPELINE_WHISPER=1`, também um áudio transcrito.
+
+## Importar um projeto do Estúdio (`.szproject.json`)
+
+Para montar motion das aulas com a arte dos jogos do Estúdio, use **Arquivo → Importar projeto
+do Estúdio…** ou o botão **↥ Importar projeto do Estúdio** na barra lateral, ou arraste o
+`.szproject.json` para a tela. Funciona com projetos no formato 2, com a extensão game-2d.
+
+O que é criado:
+- **Uma prancheta por imagem SVG** do projeto, inclusive as que o jogo não usa. Num projeto como "A
+  Chave do Farol", entram cenários, personagens, chaves, faróis acesos e apagados e barcos. Cada
+  uma é editável e pode ser reutilizada como componente.
+- **A prancheta "Cena"**, com o começo do jogo ampliado 3 vezes (480×360 vira 1440×1080). Ela
+  traz a cor do palco, o cenário e os sprites onde começam, na ordem em que o jogo os desenha, além
+  das caixas coloridas e dos textos com o valor inicial. Os sprites de imagem são instâncias das
+  pranchetas acima: trocar o aventureiro pela marinheira é trocar a prancheta da instância.
+
+A cena vem do programa estruturado do projeto (`ir`). O JavaScript do jogo nunca é executado nem
+lido.
+
+O que fica de fora e é avisado no resumo:
+- **Movimento e regras.** Eventos, controles, velocidades e o que muda a cada quadro ficam para
+  animar no EdiSVG.
+- **Imagens que não são SVG.** Por exemplo, um PNG enviado ao Estúdio não é importado e aparece
+  no resumo.
+
+A importação é uma edição só, que Ctrl+Z desfaz inteira, e é tudo ou nada: projetos com mais de
+99 imagens vão em partes, e se uma parte falhar as anteriores são desfeitas. Nomes, textos, tamanho
+do palco e posições ficam dentro dos limites do editor, para o projeto não ser recusado no meio. Código em `src/renderer/src/szProjectImport.ts`. Testes em
+`tests/e2e/szproject-import.test.ts`, que confere a cena por pixels no navegador.
+
 ## Recursos em evolução
 
 ### Fontes WOFF/coleções e imagens na Lottie — incremento 5.36

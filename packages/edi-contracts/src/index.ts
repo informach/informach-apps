@@ -1,4 +1,4 @@
-import { EDI_TOOLS } from "@informach/config/edi-tools";
+import { EDI_DESKTOP_APPS, EDI_HUB, EDI_TOOLS } from "@informach/config/edi-tools";
 import { z } from "zod";
 
 export const MAX_LEASE_SECONDS = 72 * 60 * 60;
@@ -16,14 +16,14 @@ export const releaseVersionSchema = z
   );
 
 export const toolIdSchema = z.enum(EDI_TOOLS.map((tool) => tool.id));
-export const desktopAppIdSchema = z.enum([
-  "edi-hub",
-  "ediaula",
-  "edicaptura",
-  "edifoto",
-  "edipdf",
-  "edisvg",
-]);
+/**
+ * An app or tool id as it travels in leases and release manifests. Readers accept ids a later
+ * suite adds (an installed client must keep working when a new tool appears); each consumer
+ * still looks up only its own id. What a release must contain is checked where it is built
+ * (`assertCompleteRelease`), and what a lease grants is decided by the server per client version.
+ */
+export const suiteIdSchema = z.string().regex(/^[a-z][a-z0-9-]{1,39}$/);
+export const desktopAppIdSchema = z.enum(EDI_DESKTOP_APPS.map((app) => app.id));
 export const environmentSchema = z.enum(["development", "production"]);
 export const channelSchema = z.enum(["stable", "beta"]);
 export const keyThumbprintSchema = z.string().regex(/^[a-f0-9]{64}$/);
@@ -45,9 +45,9 @@ export const leaseClaimsSchema = z
     revision: z.int().nonnegative(),
     minimumClientVersion: releaseVersionSchema,
     tools: z
-      .array(toolIdSchema)
+      .array(suiteIdSchema)
       .min(1)
-      .max(5)
+      .max(64)
       .refine((tools) => new Set(tools).size === tools.length),
     iat: z.int().positive(),
     nbf: z.int().positive(),
@@ -115,7 +115,7 @@ export const licenseResponseSchema = z.discriminatedUnion("status", [
 export type LicenseResponse = z.infer<typeof licenseResponseSchema>;
 
 export const artifactSchema = z.strictObject({
-  appId: desktopAppIdSchema,
+  appId: suiteIdSchema,
   platform: z.literal("win32"),
   arch: z.literal("x64"),
   url: z.url().refine((url) => new URL(url).protocol === "https:"),
@@ -130,15 +130,28 @@ export const releaseManifestSchema = z
     publishedAt: z.iso.datetime(),
     sourceCommit: z.string().regex(/^[a-f0-9]{40}$/),
     notes: z.string().max(10000),
-    artifacts: z.array(artifactSchema).length(6),
+    artifacts: z.array(artifactSchema).min(1).max(64),
   })
   .refine(
     (release) =>
-      new Set(release.artifacts.map((artifact) => artifact.appId)).size === 6 &&
+      new Set(release.artifacts.map((artifact) => artifact.appId)).size ===
+        release.artifacts.length &&
+      release.artifacts.some((artifact) => artifact.appId === EDI_HUB.id) &&
       (release.channel === "beta") === release.version.includes("-beta."),
-    { message: "Release must contain all six unique apps in the correct channel" },
+    { message: "Release must carry the Hub and each app once, in the correct channel" },
   );
 export type ReleaseManifest = z.infer<typeof releaseManifestSchema>;
+
+/**
+ * The release this build publishes carries exactly the apps of its catalog. Only the publisher
+ * checks this: readers accept a release with fewer (older) or more (newer) apps.
+ */
+export function assertCompleteRelease(manifest: ReleaseManifest): void {
+  const ids = manifest.artifacts.map((artifact) => artifact.appId).sort();
+  const expected = EDI_DESKTOP_APPS.map((app) => app.id).sort();
+  if (ids.length !== expected.length || ids.some((id, i) => id !== expected.at(i)))
+    throw new Error(`The release must contain exactly: ${expected.join(", ")}`);
+}
 export type DesktopAppId = z.infer<typeof desktopAppIdSchema>;
 export const buildArtifactSchema = z.strictObject({
   version: releaseVersionSchema,
@@ -218,15 +231,19 @@ export const signedInstallationSchema = z.strictObject({
 });
 export type SignedInstallation = z.infer<typeof signedInstallationSchema>;
 
-export function releaseArtifactUrl(
-  repository: string,
-  version: string,
-  appId: DesktopAppId,
-): string {
+export function releaseArtifactUrl(repository: string, version: string, appId: string): string {
   githubRepositorySchema.parse(repository);
   releaseVersionSchema.parse(version);
-  desktopAppIdSchema.parse(appId);
+  // Any app id: a later suite's artifacts keep their checked URL identity.
+  suiteIdSchema.parse(appId);
   return `https://github.com/${repository}/releases/download/edi-v${version}/${appId}-${version}-win-x64.exe`;
+}
+
+/** Tools a client of `clientVersion` knows: a lease must not name one it would refuse. */
+export function toolsForClient(clientVersion: string): string[] {
+  return EDI_TOOLS.filter(
+    (tool) => !("since" in tool) || compareReleaseVersions(clientVersion, tool.since) >= 0,
+  ).map((tool) => tool.id);
 }
 
 /** Compare only canonical suite versions; numeric components never lose precision. */

@@ -1,0 +1,1266 @@
+{
+ "categoria": "plantas",
+ "rotulo": "Plantas",
+ "itens": [
+  {
+   "id": "planta_palmeira_areca",
+   "rotulo": "Palmeira-areca em vaso listrado",
+   "categoria": "plantas",
+   "grupo": "palmeira_areca",
+   "fixacao": "chao",
+   "dims": [
+    1.699,
+    1.675,
+    1.513
+   ],
+   "arquivo": "glb/planta_palmeira_areca.glb",
+   "miniatura": "miniaturas/planta_palmeira_areca.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.19,
+      0
+     ],
+     "tamanho": [
+      0.44,
+      0.38,
+      0.44
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.88,
+      0
+     ],
+     "tamanho": [
+      0.5,
+      1.0,
+      0.5
+     ]
+    }
+   ],
+   "cores": [
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "terra",
+    "terracota",
+    "terracota_clara"
+   ],
+   "tris": 9392,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "grande",
+    "sala"
+   ]
+  },
+  {
+   "id": "planta_costela_de_adao",
+   "rotulo": "Costela-de-adão em vaso de pés",
+   "categoria": "plantas",
+   "grupo": "costela_de_adao",
+   "fixacao": "chao",
+   "dims": [
+    1.273,
+    1.259,
+    1.23
+   ],
+   "arquivo": "glb/planta_costela_de_adao.glb",
+   "miniatura": "miniaturas/planta_costela_de_adao.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.21,
+      0
+     ],
+     "tamanho": [
+      0.32,
+      0.42,
+      0.32
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.795,
+      0
+     ],
+     "tamanho": [
+      0.6,
+      0.75,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "madeira_clara",
+    "terra",
+    "verde_medio",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 9200,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "grande",
+    "sala"
+   ]
+  },
+  {
+   "id": "planta_arvore_pompons",
+   "rotulo": "Árvore de pompons em vaso azul",
+   "categoria": "plantas",
+   "grupo": "arvore_pompons",
+   "fixacao": "chao",
+   "dims": [
+    1.02,
+    0.53,
+    1.644
+   ],
+   "arquivo": "glb/planta_arvore_pompons.glb",
+   "miniatura": "miniaturas/planta_arvore_pompons.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.135,
+      0
+     ],
+     "tamanho": [
+      0.54,
+      0.27,
+      0.54
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.945,
+      0
+     ],
+     "tamanho": [
+      0.9,
+      1.35,
+      0.4
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "laranja",
+    "laranja_escuro",
+    "terracota_escura"
+   ],
+   "tris": 8496,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "grande",
+    "sala"
+   ]
+  },
+  {
+   "id": "planta_palmeira_tres_troncos",
+   "rotulo": "Palmeira de três troncos",
+   "categoria": "plantas",
+   "grupo": "palmeira_tres_troncos",
+   "fixacao": "chao",
+   "dims": [
+    0.984,
+    0.921,
+    2.172
+   ],
+   "arquivo": "glb/planta_palmeira_tres_troncos.glb",
+   "miniatura": "miniaturas/planta_palmeira_tres_troncos.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.165,
+      0
+     ],
+     "tamanho": [
+      0.42,
+      0.33,
+      0.42
+     ]
+    },
+    {
+     "centro": [
+      0,
+      1.08,
+      0
+     ],
+     "tamanho": [
+      0.45,
+      1.5,
+      0.45
+     ]
+    }
+   ],
+   "cores": [
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "marrom",
+    "marrom_escuro",
+    "terra",
+    "terracota",
+    "terracota_escura"
+   ],
+   "tris": 7952,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "grande",
+    "sala",
+    "varanda"
+   ]
+  },
+  {
+   "id": "planta_espada_suporte",
+   "rotulo": "Espada-de-são-jorge alta no suporte",
+   "categoria": "plantas",
+   "grupo": "espada_suporte",
+   "fixacao": "chao",
+   "dims": [
+    0.592,
+    0.894,
+    1.305
+   ],
+   "arquivo": "glb/planta_espada_suporte.glb",
+   "miniatura": "miniaturas/planta_espada_suporte.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.225,
+      0
+     ],
+     "tamanho": [
+      0.38,
+      0.45,
+      0.38
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.875,
+      0
+     ],
+     "tamanho": [
+      0.4,
+      0.85,
+      0.4
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "grafite",
+    "terra"
+   ],
+   "tris": 6068,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "grande",
+    "sala"
+   ]
+  },
+  {
+   "id": "planta_espada_listrada",
+   "rotulo": "Espada-de-são-jorge listrada",
+   "categoria": "plantas",
+   "grupo": "espada_listrada",
+   "fixacao": "apoio",
+   "dims": [
+    0.263,
+    0.294,
+    0.535
+   ],
+   "arquivo": "glb/planta_espada_listrada.glb",
+   "miniatura": "miniaturas/planta_espada_listrada.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.275,
+      0
+     ],
+     "tamanho": [
+      0.26,
+      0.55,
+      0.26
+     ]
+    }
+   ],
+   "cores": [
+    "folha_clara",
+    "porcelana",
+    "terra",
+    "verde_escuro",
+    "verde_medio"
+   ],
+   "tris": 4416,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "media",
+    "mesa"
+   ]
+  },
+  {
+   "id": "planta_flores_vaso_ceramica",
+   "rotulo": "Flores no vaso de cerâmica",
+   "categoria": "plantas",
+   "grupo": "flores_ceramica",
+   "fixacao": "apoio",
+   "dims": [
+    0.188,
+    0.14,
+    0.474
+   ],
+   "arquivo": "glb/planta_flores_vaso_ceramica.glb",
+   "miniatura": "miniaturas/planta_flores_vaso_ceramica.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.00845,
+      0.2371,
+      0.00684
+     ],
+     "tamanho": [
+      0.188,
+      0.474,
+      0.14
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_claro",
+    "amarelo_escuro",
+    "azul_claro",
+    "folha",
+    "folha_escura",
+    "laranja",
+    "marrom",
+    "marrom_claro",
+    "rosa_claro",
+    "terra",
+    "verde_medio",
+    "vermelho"
+   ],
+   "tris": 2440,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "flores",
+    "mesa"
+   ]
+  },
+  {
+   "id": "planta_jiboia",
+   "rotulo": "Jiboia em vaso turquesa",
+   "categoria": "plantas",
+   "grupo": "jiboia",
+   "fixacao": "apoio",
+   "dims": [
+    0.43,
+    0.403,
+    0.38
+   ],
+   "arquivo": "glb/planta_jiboia.glb",
+   "miniatura": "miniaturas/planta_jiboia.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.01371,
+      0.19019,
+      -0.00879
+     ],
+     "tamanho": [
+      0.43,
+      0.38,
+      0.403
+     ]
+    }
+   ],
+   "cores": [
+    "folha",
+    "folha_clara",
+    "terra",
+    "turquesa",
+    "turquesa_escuro",
+    "verde_lima"
+   ],
+   "tris": 6226,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "media",
+    "mesa",
+    "estante"
+   ]
+  },
+  {
+   "id": "planta_flores_vaso_vidro",
+   "rotulo": "Flores no vaso de vidro",
+   "categoria": "plantas",
+   "grupo": "flores_vidro",
+   "fixacao": "apoio",
+   "dims": [
+    0.172,
+    0.152,
+    0.482
+   ],
+   "arquivo": "glb/planta_flores_vaso_vidro.glb",
+   "miniatura": "miniaturas/planta_flores_vaso_vidro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0038,
+      0.24122,
+      0.00969
+     ],
+     "tamanho": [
+      0.172,
+      0.482,
+      0.152
+     ]
+    }
+   ],
+   "cores": [
+    "agua",
+    "amarelo",
+    "azul_celeste",
+    "branco",
+    "folha",
+    "laranja",
+    "laranja_claro",
+    "verde_medio",
+    "vermelho",
+    "violeta"
+   ],
+   "tris": 2698,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "flores",
+    "mesa"
+   ]
+  },
+  {
+   "id": "planta_flores_vaso_amarelo",
+   "rotulo": "Flores rosa no vaso amarelo",
+   "categoria": "plantas",
+   "grupo": "flores_amarelo",
+   "fixacao": "apoio",
+   "dims": [
+    0.147,
+    0.155,
+    0.413
+   ],
+   "arquivo": "glb/planta_flores_vaso_amarelo.glb",
+   "miniatura": "miniaturas/planta_flores_vaso_amarelo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.00181,
+      0.20656,
+      0.003
+     ],
+     "tamanho": [
+      0.147,
+      0.413,
+      0.155
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "folha",
+    "laranja",
+    "rosa",
+    "rosa_escuro",
+    "terra",
+    "verde_medio"
+   ],
+   "tris": 3518,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "flores",
+    "mesa"
+   ]
+  },
+  {
+   "id": "planta_flores_vaso_turquesa",
+   "rotulo": "Lírios no vaso turquesa",
+   "categoria": "plantas",
+   "grupo": "flores_turquesa",
+   "fixacao": "apoio",
+   "dims": [
+    0.193,
+    0.146,
+    0.466
+   ],
+   "arquivo": "glb/planta_flores_vaso_turquesa.glb",
+   "miniatura": "miniaturas/planta_flores_vaso_turquesa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.00094,
+      0.23276,
+      0.00624
+     ],
+     "tamanho": [
+      0.193,
+      0.466,
+      0.146
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_claro",
+    "folha",
+    "laranja",
+    "magenta",
+    "rosa",
+    "rosa_escuro",
+    "terra",
+    "turquesa_escuro",
+    "verde_medio"
+   ],
+   "tris": 3398,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "flores",
+    "mesa"
+   ]
+  },
+  {
+   "id": "planta_zamioculca",
+   "rotulo": "Zamioculca em vaso amarelo",
+   "categoria": "plantas",
+   "grupo": "zamioculca",
+   "fixacao": "apoio",
+   "dims": [
+    0.344,
+    0.509,
+    0.64
+   ],
+   "arquivo": "glb/planta_zamioculca.glb",
+   "miniatura": "miniaturas/planta_zamioculca.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.02586,
+      0.31999,
+      0.0045
+     ],
+     "tamanho": [
+      0.344,
+      0.64,
+      0.509
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "terra",
+    "verde_escuro",
+    "verde_medio"
+   ],
+   "tris": 5708,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "media",
+    "mesa"
+   ]
+  },
+  {
+   "id": "planta_samambaia_anfora",
+   "rotulo": "Samambaia na ânfora",
+   "categoria": "plantas",
+   "grupo": "samambaia_anfora",
+   "fixacao": "chao",
+   "dims": [
+    1.21,
+    1.231,
+    0.833
+   ],
+   "arquivo": "glb/planta_samambaia_anfora.glb",
+   "miniatura": "miniaturas/planta_samambaia_anfora.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0,
+      0.265,
+      0
+     ],
+     "tamanho": [
+      0.3,
+      0.53,
+      0.3
+     ]
+    },
+    {
+     "centro": [
+      0,
+      0.73,
+      0
+     ],
+     "tamanho": [
+      0.6,
+      0.4,
+      0.6
+     ]
+    }
+   ],
+   "cores": [
+    "folha",
+    "folha_escura",
+    "grafite_escuro",
+    "terra",
+    "terracota",
+    "terracota_escura"
+   ],
+   "tris": 10084,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "grande",
+    "sala",
+    "varanda"
+   ]
+  },
+  {
+   "id": "planta_mini_cacto",
+   "rotulo": "Cactinho bola",
+   "categoria": "plantas",
+   "grupo": "mini_cacto",
+   "fixacao": "apoio",
+   "dims": [
+    0.089,
+    0.089,
+    0.11
+   ],
+   "arquivo": "glb/planta_mini_cacto.glb",
+   "miniatura": "miniaturas/planta_mini_cacto.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.05494,
+      -0.0
+     ],
+     "tamanho": [
+      0.089,
+      0.11,
+      0.089
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "branco",
+    "creme_claro",
+    "rosa_claro",
+    "terra",
+    "verde"
+   ],
+   "tris": 1448,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "mini",
+    "mesa",
+    "suculenta"
+   ]
+  },
+  {
+   "id": "planta_mini_cacto_flor",
+   "rotulo": "Cacto com flores",
+   "categoria": "plantas",
+   "grupo": "mini_cacto_flor",
+   "fixacao": "apoio",
+   "dims": [
+    0.08,
+    0.08,
+    0.172
+   ],
+   "arquivo": "glb/planta_mini_cacto_flor.glb",
+   "miniatura": "miniaturas/planta_mini_cacto_flor.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.08589,
+      -0.0
+     ],
+     "tamanho": [
+      0.08,
+      0.172,
+      0.08
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "creme_claro",
+    "terra",
+    "terracota",
+    "verde_medio",
+    "vermelho"
+   ],
+   "tris": 1536,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "mini",
+    "mesa",
+    "suculenta"
+   ]
+  },
+  {
+   "id": "planta_mini_suculenta",
+   "rotulo": "Suculenta",
+   "categoria": "plantas",
+   "grupo": "mini_suculenta",
+   "fixacao": "apoio",
+   "dims": [
+    0.099,
+    0.101,
+    0.081
+   ],
+   "arquivo": "glb/planta_mini_suculenta.glb",
+   "miniatura": "miniaturas/planta_mini_suculenta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.00257,
+      0.0407,
+      -0.0
+     ],
+     "tamanho": [
+      0.099,
+      0.081,
+      0.101
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "menta",
+    "terra",
+    "verde_claro",
+    "verde_medio"
+   ],
+   "tris": 1416,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "mini",
+    "mesa",
+    "suculenta"
+   ]
+  },
+  {
+   "id": "planta_mini_babosa",
+   "rotulo": "Babosa",
+   "categoria": "plantas",
+   "grupo": "mini_babosa",
+   "fixacao": "apoio",
+   "dims": [
+    0.12,
+    0.132,
+    0.193
+   ],
+   "arquivo": "glb/planta_mini_babosa.glb",
+   "miniatura": "miniaturas/planta_mini_babosa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.00659,
+      0.09671,
+      0.01692
+     ],
+     "tamanho": [
+      0.12,
+      0.193,
+      0.132
+     ]
+    }
+   ],
+   "cores": [
+    "terra",
+    "terracota",
+    "terracota_escura",
+    "verde_agua",
+    "verde_escuro",
+    "verde_medio"
+   ],
+   "tris": 848,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "mini",
+    "mesa",
+    "suculenta"
+   ]
+  },
+  {
+   "id": "planta_mini_tulipa",
+   "rotulo": "Tulipa no vasinho",
+   "categoria": "plantas",
+   "grupo": "mini_tulipa",
+   "fixacao": "apoio",
+   "dims": [
+    0.124,
+    0.081,
+    0.215
+   ],
+   "arquivo": "glb/planta_mini_tulipa.glb",
+   "miniatura": "miniaturas/planta_mini_tulipa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.00155,
+      0.10731,
+      -0.0
+     ],
+     "tamanho": [
+      0.124,
+      0.215,
+      0.081
+     ]
+    }
+   ],
+   "cores": [
+    "bege",
+    "creme_claro",
+    "folha",
+    "terra",
+    "verde_medio",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 1478,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "mini",
+    "mesa",
+    "flores"
+   ]
+  },
+  {
+   "id": "planta_mini_violeta",
+   "rotulo": "Violeta no vasinho",
+   "categoria": "plantas",
+   "grupo": "mini_violeta",
+   "fixacao": "apoio",
+   "dims": [
+    0.119,
+    0.115,
+    0.141
+   ],
+   "arquivo": "glb/planta_mini_violeta.glb",
+   "miniatura": "miniaturas/planta_mini_violeta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.00058,
+      0.07071,
+      0.00047
+     ],
+     "tamanho": [
+      0.119,
+      0.141,
+      0.115
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "folha",
+    "lilas",
+    "marrom",
+    "roxo_escuro",
+    "terra",
+    "verde_medio",
+    "violeta"
+   ],
+   "tris": 1490,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "mini",
+    "mesa",
+    "flores"
+   ]
+  },
+  {
+   "id": "planta_mini_pileia",
+   "rotulo": "Pileia no vasinho",
+   "categoria": "plantas",
+   "grupo": "mini_pileia",
+   "fixacao": "apoio",
+   "dims": [
+    0.107,
+    0.106,
+    0.148
+   ],
+   "arquivo": "glb/planta_mini_pileia.glb",
+   "miniatura": "miniaturas/planta_mini_pileia.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.00186,
+      0.07405,
+      -0.00582
+     ],
+     "tamanho": [
+      0.107,
+      0.148,
+      0.106
+     ]
+    }
+   ],
+   "cores": [
+    "folha",
+    "folha_escura",
+    "terra",
+    "terracota_clara",
+    "verde_medio"
+   ],
+   "tris": 1336,
+   "pacote": false,
+   "tags": [
+    "planta",
+    "mini",
+    "mesa"
+   ]
+  },
+  {
+   "id": "planta_florzinha_pacote",
+   "rotulo": "Florzinha no vaso",
+   "categoria": "plantas",
+   "grupo": "plants_05",
+   "fixacao": "apoio",
+   "dims": [
+    0.135,
+    0.124,
+    0.24
+   ],
+   "arquivo": "glb/planta_florzinha_pacote.glb",
+   "miniatura": "miniaturas/planta_florzinha_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.00079,
+      0.12016,
+      0.0
+     ],
+     "tamanho": [
+      0.135,
+      0.24,
+      0.124
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "folha_clara",
+    "laranja",
+    "rosa",
+    "rosa_escuro",
+    "salmao",
+    "terracota_clara",
+    "tijolo",
+    "verde_lima",
+    "verde_oliva"
+   ],
+   "tris": 1366,
+   "pacote": true,
+   "tags": [
+    "planta",
+    "mini",
+    "mesa",
+    "flores"
+   ]
+  },
+  {
+   "id": "planta_galhos_redondos_pacote",
+   "rotulo": "Galhos de folhas redondas",
+   "categoria": "plantas",
+   "grupo": "plants_15",
+   "fixacao": "apoio",
+   "dims": [
+    0.283,
+    0.171,
+    0.639
+   ],
+   "arquivo": "glb/planta_galhos_redondos_pacote.glb",
+   "miniatura": "miniaturas/planta_galhos_redondos_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.01415,
+      0.31949,
+      0.00593
+     ],
+     "tamanho": [
+      0.283,
+      0.639,
+      0.171
+     ]
+    }
+   ],
+   "cores": [
+    "cinzas",
+    "folha",
+    "folha_escura",
+    "madeira_escura",
+    "marrom",
+    "terra",
+    "turquesa_escuro",
+    "verde",
+    "verde_claro",
+    "verde_escuro",
+    "vermelho_escuro"
+   ],
+   "tris": 2978,
+   "pacote": true,
+   "tags": [
+    "planta",
+    "media",
+    "mesa"
+   ]
+  },
+  {
+   "id": "planta_ave_do_paraiso_pacote",
+   "rotulo": "Ave-do-paraíso",
+   "categoria": "plantas",
+   "grupo": "plants_19",
+   "fixacao": "chao",
+   "dims": [
+    0.765,
+    0.596,
+    1.787
+   ],
+   "arquivo": "glb/planta_ave_do_paraiso_pacote.glb",
+   "miniatura": "miniaturas/planta_ave_do_paraiso_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.05775,
+      0.89374,
+      0.07543
+     ],
+     "tamanho": [
+      0.765,
+      1.787,
+      0.596
+     ]
+    }
+   ],
+   "cores": [
+    "cinzas",
+    "couro",
+    "folha",
+    "folha_escura",
+    "madeira_escura",
+    "madeira_media",
+    "marrom",
+    "marrom_claro",
+    "nogueira",
+    "terra",
+    "verde",
+    "verde_floresta",
+    "verde_medio"
+   ],
+   "tris": 5842,
+   "pacote": true,
+   "tags": [
+    "planta",
+    "grande",
+    "sala"
+   ]
+  },
+  {
+   "id": "planta_costela_adao_vaso_pe_pacote",
+   "rotulo": "Costela-de-adão no vaso com pés",
+   "categoria": "plantas",
+   "grupo": "planta_costela_adao_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.144,
+    1.271,
+    2.37
+   ],
+   "arquivo": "glb/planta_costela_adao_vaso_pe_pacote.glb",
+   "miniatura": "miniaturas/planta_costela_adao_vaso_pe_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.18498,
+      -0.0
+     ],
+     "tamanho": [
+      1.144,
+      2.37,
+      1.271
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "brasa",
+    "cinzas",
+    "dormente",
+    "folha",
+    "folha_clara",
+    "folha_escura",
+    "grama_escura",
+    "metal_escuro",
+    "terracota_escura",
+    "verde",
+    "verde_escuro",
+    "verde_floresta",
+    "verde_lima",
+    "verde_medio"
+   ],
+   "tris": 6000,
+   "pacote": true,
+   "tags": [
+    "planta",
+    "grande",
+    "vaso",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "planta_palmeira_vaso_cassino_pacote",
+   "rotulo": "Palmeira no vaso de barro",
+   "categoria": "plantas",
+   "grupo": "planta_palmeira_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.758,
+    1.744,
+    2.356
+   ],
+   "arquivo": "glb/planta_palmeira_vaso_cassino_pacote.glb",
+   "miniatura": "miniaturas/planta_palmeira_vaso_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.1779,
+      -0.0
+     ],
+     "tamanho": [
+      1.758,
+      2.356,
+      1.744
+     ]
+    }
+   ],
+   "cores": [
+    "cobre",
+    "folha_clara",
+    "grama_escura",
+    "madeira_escura",
+    "madeira_rosada",
+    "marrom",
+    "marrom_escuro",
+    "nogueira",
+    "terra",
+    "terracota",
+    "terracota_escura"
+   ],
+   "tris": 1918,
+   "pacote": true,
+   "tags": [
+    "planta",
+    "grande",
+    "vaso",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  }
+ ]
+}

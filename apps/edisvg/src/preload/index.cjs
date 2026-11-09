@@ -9,6 +9,22 @@ contextBridge.exposeInMainWorld("desktop", {
   projectInitialize: (legacy) => ipcRenderer.invoke("project:initialize", legacy),
   projectNew: () => ipcRenderer.invoke("project:new"),
   importSvg: () => ipcRenderer.invoke("svg:import"),
+  importGameProject: () => ipcRenderer.invoke("game:import"),
+  pipelinesRead: () => ipcRenderer.invoke("pipelines:read"),
+  pipelinesWrite: (store) => ipcRenderer.invoke("pipelines:write", store),
+  pipelinePick: (kind) => ipcRenderer.invoke("pipeline:pick", kind),
+  pipelineReadProject: (token) => ipcRenderer.invoke("pipeline:read-project", token),
+  pipelineWords: (token, kind, jobId) => ipcRenderer.invoke("pipeline:words", token, kind, jobId),
+  pipelineNarration: (token, kind, start, end, jobId) =>
+    ipcRenderer.invoke("pipeline:narration", token, kind, start, end, jobId),
+  pipelineCancel: (jobId) => ipcRenderer.invoke("pipeline:cancel", jobId),
+  pipelineVideoFacts: (token) => ipcRenderer.invoke("pipeline:video-facts", token),
+  pipelineVideoPreview: (token, seconds, jobId) =>
+    ipcRenderer.invoke("pipeline:video-preview", token, seconds, jobId),
+  pipelineVideoFrames: (token, times, jobId) =>
+    ipcRenderer.invoke("pipeline:video-frames", token, times, jobId),
+  exportAlphaWebm: (input) => ipcRenderer.invoke("export:alpha-webm", input),
+  onPipelineProgress: (callback) => subscribe("pipeline:progress", callback),
   importAsset: () => ipcRenderer.invoke("asset:import"),
   projectOpen: () => ipcRenderer.invoke("project:open"),
   projectSave: (project, as = false) => ipcRenderer.invoke("project:save", project, as),

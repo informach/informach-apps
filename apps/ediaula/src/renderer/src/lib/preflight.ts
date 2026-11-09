@@ -1,3 +1,4 @@
+import { needsSpeech } from "@shared/audio";
 import { buildCues, captionWords, cueLayout } from "@shared/captions";
 import { speechIntervals, timelineWords } from "@shared/cleanup";
 import { type Finding, type Loudness, preflight } from "@shared/preflight";
@@ -54,7 +55,7 @@ export async function measureLoudness(): Promise<MeasuredLoudness> {
     await ensureTreated();
     const { project, revision } = useProject.getState();
     if (!project) throw new Error("Nenhum projeto aberto.");
-    const speech = project.tracks.some((t) => t.music) ? await projectSpeech(project) : undefined;
+    const speech = needsSpeech(project) ? await projectSpeech(project) : undefined;
     const value = await window.api.measureLoudness(
       jobId,
       JSON.stringify(applyVoiceRule(project)),

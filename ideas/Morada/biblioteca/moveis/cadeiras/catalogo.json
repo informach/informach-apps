@@ -1,0 +1,3339 @@
+{
+ "categoria": "cadeiras",
+ "rotulo": "Cadeiras, poltronas e banquetas",
+ "itens": [
+  {
+   "id": "poltrona_quadrada_azul_pacote",
+   "rotulo": "Poltrona quadrada (azul)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_quadrada_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.002,
+    0.765,
+    0.7
+   ],
+   "arquivo": "glb/poltrona_quadrada_azul_pacote.glb",
+   "miniatura": "miniaturas/poltrona_quadrada_azul_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.21,
+      -0.0
+     ],
+     "tamanho": [
+      1.002,
+      0.42,
+      0.765
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.56,
+      -0.2825
+     ],
+     "tamanho": [
+      1.002,
+      0.28,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_celeste",
+    "laranja_claro",
+    "terracota_clara"
+   ],
+   "tris": 1356,
+   "pacote": true,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala"
+   ]
+  },
+  {
+   "id": "poltrona_alta_vermelha_pacote",
+   "rotulo": "Poltrona alta (vermelha e laranja)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_alta_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.01,
+    0.938,
+    1.051
+   ],
+   "arquivo": "glb/poltrona_alta_vermelha_pacote.glb",
+   "miniatura": "miniaturas/poltrona_alta_vermelha_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      -0.0
+     ],
+     "tamanho": [
+      1.01,
+      0.45,
+      0.938
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.75065,
+      -0.3689
+     ],
+     "tamanho": [
+      1.01,
+      0.601,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "laranja_claro",
+    "terracota_clara",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 1902,
+   "pacote": true,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala"
+   ]
+  },
+  {
+   "id": "poltrona_base_madeira_verde",
+   "rotulo": "Poltrona com base de madeira (verde)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_base_madeira",
+   "fixacao": "chao",
+   "dims": [
+    0.8,
+    0.8,
+    0.813
+   ],
+   "arquivo": "glb/poltrona_base_madeira_verde.glb",
+   "miniatura": "miniaturas/poltrona_base_madeira_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.215,
+      -0.0
+     ],
+     "tamanho": [
+      0.8,
+      0.43,
+      0.8
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.62085,
+      -0.3
+     ],
+     "tamanho": [
+      0.8,
+      0.382,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_escura",
+    "madeira_media",
+    "verde",
+    "verde_claro"
+   ],
+   "tris": 5315,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala"
+   ]
+  },
+  {
+   "id": "poltrona_base_madeira_mostarda",
+   "rotulo": "Poltrona com base de madeira (mostarda)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_base_madeira",
+   "fixacao": "chao",
+   "dims": [
+    0.8,
+    0.8,
+    0.813
+   ],
+   "arquivo": "glb/poltrona_base_madeira_mostarda.glb",
+   "miniatura": "miniaturas/poltrona_base_madeira_mostarda.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.215,
+      -0.0
+     ],
+     "tamanho": [
+      0.8,
+      0.43,
+      0.8
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.62085,
+      -0.3
+     ],
+     "tamanho": [
+      0.8,
+      0.382,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "madeira_clara",
+    "madeira_media",
+    "mostarda"
+   ],
+   "tris": 5315,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala"
+   ]
+  },
+  {
+   "id": "poltrona_concha_rosa",
+   "rotulo": "Poltrona concha (rosa)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_concha",
+   "fixacao": "chao",
+   "dims": [
+    0.975,
+    0.815,
+    0.759
+   ],
+   "arquivo": "glb/poltrona_concha_rosa.glb",
+   "miniatura": "miniaturas/poltrona_concha_rosa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      -0.0
+     ],
+     "tamanho": [
+      0.975,
+      0.45,
+      0.815
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.6037,
+      -0.2974
+     ],
+     "tamanho": [
+      0.975,
+      0.307,
+      0.22
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_media",
+    "rosa",
+    "rosa_bebe"
+   ],
+   "tris": 5752,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala",
+    "pés palito"
+   ]
+  },
+  {
+   "id": "poltrona_barril_azul",
+   "rotulo": "Poltrona barril (azul)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_barril",
+   "fixacao": "chao",
+   "dims": [
+    0.78,
+    0.73,
+    0.639
+   ],
+   "arquivo": "glb/poltrona_barril_azul.glb",
+   "miniatura": "miniaturas/poltrona_barril_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      -0.0
+     ],
+     "tamanho": [
+      0.78,
+      0.45,
+      0.73
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.54405,
+      -0.265
+     ],
+     "tamanho": [
+      0.78,
+      0.188,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_medio",
+    "madeira_clara"
+   ],
+   "tris": 3458,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala",
+    "pés palito"
+   ]
+  },
+  {
+   "id": "poltrona_barril_verde_agua",
+   "rotulo": "Poltrona barril (verde-água)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_barril",
+   "fixacao": "chao",
+   "dims": [
+    0.78,
+    0.73,
+    0.639
+   ],
+   "arquivo": "glb/poltrona_barril_verde_agua.glb",
+   "miniatura": "miniaturas/poltrona_barril_verde_agua.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      -0.0
+     ],
+     "tamanho": [
+      0.78,
+      0.45,
+      0.73
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.54405,
+      -0.265
+     ],
+     "tamanho": [
+      0.78,
+      0.188,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_media",
+    "turquesa",
+    "verde_agua"
+   ],
+   "tris": 3458,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala",
+    "pés palito"
+   ]
+  },
+  {
+   "id": "poltrona_alca_amarela",
+   "rotulo": "Poltrona com braços em alça (amarela)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_alca",
+   "fixacao": "chao",
+   "dims": [
+    0.656,
+    0.735,
+    0.923
+   ],
+   "arquivo": "glb/poltrona_alca_amarela.glb",
+   "miniatura": "miniaturas/poltrona_alca_amarela.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.23,
+      -0.0
+     ],
+     "tamanho": [
+      0.656,
+      0.46,
+      0.735
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.6924,
+      -0.2676
+     ],
+     "tamanho": [
+      0.656,
+      0.465,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "laranja"
+   ],
+   "tris": 2672,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala"
+   ]
+  },
+  {
+   "id": "poltrona_larga_roxa",
+   "rotulo": "Poltrona larga (roxa)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_larga",
+   "fixacao": "chao",
+   "dims": [
+    1.0,
+    0.86,
+    0.82
+   ],
+   "arquivo": "glb/poltrona_larga_roxa.glb",
+   "miniatura": "miniaturas/poltrona_larga_roxa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      -0.0
+     ],
+     "tamanho": [
+      1.0,
+      0.45,
+      0.86
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.635,
+      -0.31
+     ],
+     "tamanho": [
+      1.0,
+      0.37,
+      0.24
+     ]
+    }
+   ],
+   "cores": [
+    "lilas",
+    "roxo",
+    "roxo_escuro"
+   ],
+   "tris": 6543,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala"
+   ]
+  },
+  {
+   "id": "poltrona_palito_madeira_cinza",
+   "rotulo": "Poltrona de madeira com almofadas (cinza)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_palito_madeira",
+   "fixacao": "chao",
+   "dims": [
+    0.645,
+    0.794,
+    0.867
+   ],
+   "arquivo": "glb/poltrona_palito_madeira_cinza.glb",
+   "miniatura": "miniaturas/poltrona_palito_madeira_cinza.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      0.0
+     ],
+     "tamanho": [
+      0.645,
+      0.45,
+      0.794
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.65835,
+      -0.2972
+     ],
+     "tamanho": [
+      0.645,
+      0.417,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "madeira_mel"
+   ],
+   "tris": 3900,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala",
+    "madeira"
+   ]
+  },
+  {
+   "id": "poltrona_ferradura_verde",
+   "rotulo": "Poltrona ferradura (verde e turquesa)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_ferradura",
+   "fixacao": "chao",
+   "dims": [
+    0.837,
+    0.779,
+    0.763
+   ],
+   "arquivo": "glb/poltrona_ferradura_verde.glb",
+   "miniatura": "miniaturas/poltrona_ferradura_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      0.0
+     ],
+     "tamanho": [
+      0.837,
+      0.45,
+      0.779
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.60485,
+      -0.2797
+     ],
+     "tamanho": [
+      0.837,
+      0.31,
+      0.22
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_escura",
+    "turquesa_escuro",
+    "verde"
+   ],
+   "tris": 6348,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala",
+    "pés palito"
+   ]
+  },
+  {
+   "id": "poltrona_clube_terracota",
+   "rotulo": "Poltrona clube (terracota)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_clube",
+   "fixacao": "chao",
+   "dims": [
+    0.88,
+    0.82,
+    0.87
+   ],
+   "arquivo": "glb/poltrona_clube_terracota.glb",
+   "miniatura": "miniaturas/poltrona_clube_terracota.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      -0.0
+     ],
+     "tamanho": [
+      0.88,
+      0.45,
+      0.82
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.66,
+      -0.3
+     ],
+     "tamanho": [
+      0.88,
+      0.42,
+      0.22
+     ]
+    }
+   ],
+   "cores": [
+    "chocolate",
+    "terracota",
+    "terracota_escura"
+   ],
+   "tris": 5324,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala",
+    "couro"
+   ]
+  },
+  {
+   "id": "poltrona_casulo_laranja",
+   "rotulo": "Poltrona casulo (laranja)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_casulo",
+   "fixacao": "chao",
+   "dims": [
+    0.8,
+    0.79,
+    0.736
+   ],
+   "arquivo": "glb/poltrona_casulo_laranja.glb",
+   "miniatura": "miniaturas/poltrona_casulo_laranja.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      0.0
+     ],
+     "tamanho": [
+      0.8,
+      0.45,
+      0.79
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.593,
+      -0.285
+     ],
+     "tamanho": [
+      0.8,
+      0.286,
+      0.22
+     ]
+    }
+   ],
+   "cores": [
+    "laranja",
+    "laranja_claro"
+   ],
+   "tris": 5300,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala"
+   ]
+  },
+  {
+   "id": "poltrona_casulo_rosa",
+   "rotulo": "Poltrona casulo (rosa)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_casulo",
+   "fixacao": "chao",
+   "dims": [
+    0.8,
+    0.79,
+    0.736
+   ],
+   "arquivo": "glb/poltrona_casulo_rosa.glb",
+   "miniatura": "miniaturas/poltrona_casulo_rosa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      0.0
+     ],
+     "tamanho": [
+      0.8,
+      0.45,
+      0.79
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.593,
+      -0.285
+     ],
+     "tamanho": [
+      0.8,
+      0.286,
+      0.22
+     ]
+    }
+   ],
+   "cores": [
+    "rosa",
+    "rosa_bebe"
+   ],
+   "tris": 5300,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala"
+   ]
+  },
+  {
+   "id": "poltrona_sem_bracos_lima",
+   "rotulo": "Poltrona sem braços (verde-lima)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_sem_bracos",
+   "fixacao": "chao",
+   "dims": [
+    0.7,
+    0.74,
+    0.757
+   ],
+   "arquivo": "glb/poltrona_sem_bracos_lima.glb",
+   "miniatura": "miniaturas/poltrona_sem_bracos_lima.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      -0.0
+     ],
+     "tamanho": [
+      0.7,
+      0.45,
+      0.74
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.60335,
+      -0.27
+     ],
+     "tamanho": [
+      0.7,
+      0.307,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_clara",
+    "verde_lima"
+   ],
+   "tris": 3384,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala",
+    "madeira"
+   ]
+  },
+  {
+   "id": "poltrona_caixa_violeta",
+   "rotulo": "Poltrona caixa (violeta)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_caixa",
+   "fixacao": "chao",
+   "dims": [
+    0.86,
+    0.78,
+    0.757
+   ],
+   "arquivo": "glb/poltrona_caixa_violeta.glb",
+   "miniatura": "miniaturas/poltrona_caixa_violeta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      -0.0
+     ],
+     "tamanho": [
+      0.86,
+      0.45,
+      0.78
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.6036,
+      -0.29
+     ],
+     "tamanho": [
+      0.86,
+      0.307,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "roxo",
+    "vermelho",
+    "violeta"
+   ],
+   "tris": 5172,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala"
+   ]
+  },
+  {
+   "id": "poltrona_orelha_turquesa",
+   "rotulo": "Poltrona de orelhas (turquesa e vermelha)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_orelha",
+   "fixacao": "chao",
+   "dims": [
+    0.9,
+    0.8,
+    0.98
+   ],
+   "arquivo": "glb/poltrona_orelha_turquesa.glb",
+   "miniatura": "miniaturas/poltrona_orelha_turquesa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.22,
+      -0.0
+     ],
+     "tamanho": [
+      0.9,
+      0.44,
+      0.8
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.71,
+      -0.3
+     ],
+     "tamanho": [
+      0.9,
+      0.54,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "turquesa",
+    "vermelho"
+   ],
+   "tris": 5901,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala"
+   ]
+  },
+  {
+   "id": "poltrona_bracos_acolchoados_cinza",
+   "rotulo": "Poltrona com braços acolchoados (cinza)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_bracos_acolchoados",
+   "fixacao": "chao",
+   "dims": [
+    0.675,
+    0.728,
+    0.888
+   ],
+   "arquivo": "glb/poltrona_bracos_acolchoados_cinza.glb",
+   "miniatura": "miniaturas/poltrona_bracos_acolchoados_cinza.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      0.0
+     ],
+     "tamanho": [
+      0.675,
+      0.45,
+      0.728
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.668,
+      -0.2642
+     ],
+     "tamanho": [
+      0.675,
+      0.436,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_claro",
+    "madeira_mel"
+   ],
+   "tris": 5168,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala",
+    "madeira"
+   ]
+  },
+  {
+   "id": "poltrona_grande_pessego",
+   "rotulo": "Poltrona grande (pêssego)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_grande",
+   "fixacao": "chao",
+   "dims": [
+    0.94,
+    0.895,
+    0.915
+   ],
+   "arquivo": "glb/poltrona_grande_pessego.glb",
+   "miniatura": "miniaturas/poltrona_grande_pessego.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.23,
+      -0.0
+     ],
+     "tamanho": [
+      0.94,
+      0.46,
+      0.895
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.6875,
+      -0.3225
+     ],
+     "tamanho": [
+      0.94,
+      0.455,
+      0.25
+     ]
+    }
+   ],
+   "cores": [
+    "laranja_claro",
+    "pessego",
+    "terracota_clara"
+   ],
+   "tris": 5812,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala"
+   ]
+  },
+  {
+   "id": "poltrona_capitone_couro",
+   "rotulo": "Poltrona capitonê (couro)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_capitone",
+   "fixacao": "chao",
+   "dims": [
+    0.94,
+    0.912,
+    0.908
+   ],
+   "arquivo": "glb/poltrona_capitone_couro.glb",
+   "miniatura": "miniaturas/poltrona_capitone_couro.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      -0.0
+     ],
+     "tamanho": [
+      0.94,
+      0.45,
+      0.912
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.6791,
+      -0.3358
+     ],
+     "tamanho": [
+      0.94,
+      0.458,
+      0.24
+     ]
+    }
+   ],
+   "cores": [
+    "couro",
+    "laranja"
+   ],
+   "tris": 8004,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala",
+    "couro"
+   ]
+  },
+  {
+   "id": "cadeira_torneada_verde",
+   "rotulo": "Cadeira estofada com pés torneados (verde)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_torneada",
+   "fixacao": "chao",
+   "dims": [
+    0.62,
+    0.58,
+    0.78
+   ],
+   "arquivo": "glb/cadeira_torneada_verde.glb",
+   "miniatura": "miniaturas/cadeira_torneada_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      -0.0
+     ],
+     "tamanho": [
+      0.62,
+      0.45,
+      0.58
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.615,
+      -0.19
+     ],
+     "tamanho": [
+      0.62,
+      0.33,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "madeira",
+    "verde_medio"
+   ],
+   "tris": 7188,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "estofado",
+    "madeira",
+    "pés torneados"
+   ]
+  },
+  {
+   "id": "cadeira_balanco_estofada_verde",
+   "rotulo": "Cadeira de balanço estofada (verde)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_balanco_estofada",
+   "fixacao": "chao",
+   "dims": [
+    0.611,
+    0.92,
+    0.96
+   ],
+   "arquivo": "glb/cadeira_balanco_estofada_verde.glb",
+   "miniatura": "miniaturas/cadeira_balanco_estofada_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.23,
+      -0.0
+     ],
+     "tamanho": [
+      0.611,
+      0.46,
+      0.92
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.7099,
+      -0.35
+     ],
+     "tamanho": [
+      0.611,
+      0.5,
+      0.22
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_media",
+    "verde"
+   ],
+   "tris": 4756,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "balanço",
+    "estofado",
+    "madeira"
+   ]
+  },
+  {
+   "id": "cadeira_balanco_madeira",
+   "rotulo": "Cadeira de balanço de madeira",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_balanco_madeira",
+   "fixacao": "chao",
+   "dims": [
+    0.585,
+    0.96,
+    1.04
+   ],
+   "arquivo": "glb/cadeira_balanco_madeira.glb",
+   "miniatura": "miniaturas/cadeira_balanco_madeira.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.23,
+      -0.0
+     ],
+     "tamanho": [
+      0.585,
+      0.46,
+      0.96
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.75005,
+      -0.37
+     ],
+     "tamanho": [
+      0.585,
+      0.58,
+      0.22
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_mel",
+    "marrom"
+   ],
+   "tris": 5704,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "balanço",
+    "madeira",
+    "varanda"
+   ]
+  },
+  {
+   "id": "cadeira_escritorio_rosa_pacote",
+   "rotulo": "Cadeira de escritório (rosa)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_escritorio_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.75,
+    0.732,
+    1.045
+   ],
+   "arquivo": "glb/cadeira_escritorio_rosa_pacote.glb",
+   "miniatura": "miniaturas/cadeira_escritorio_rosa_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.25,
+      -0.0
+     ],
+     "tamanho": [
+      0.75,
+      0.5,
+      0.732
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.77275,
+      -0.2912
+     ],
+     "tamanho": [
+      0.75,
+      0.545,
+      0.15
+     ]
+    }
+   ],
+   "cores": [
+    "ameixa",
+    "borracha",
+    "cinza",
+    "cinza_azulado",
+    "ferro",
+    "grafite",
+    "magenta",
+    "rosa_escuro"
+   ],
+   "tris": 2890,
+   "pacote": true,
+   "tags": [
+    "cadeira",
+    "escritório",
+    "rodízios",
+    "giratória"
+   ]
+  },
+  {
+   "id": "cadeira_escritorio_executiva_azul",
+   "rotulo": "Cadeira de escritório executiva (azul)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_escritorio_executiva",
+   "fixacao": "chao",
+   "dims": [
+    0.626,
+    0.777,
+    1.25
+   ],
+   "arquivo": "glb/cadeira_escritorio_executiva_azul.glb",
+   "miniatura": "miniaturas/cadeira_escritorio_executiva_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      0.235,
+      0.0
+     ],
+     "tamanho": [
+      0.626,
+      0.47,
+      0.777
+     ]
+    },
+    {
+     "centro": [
+      -0.0,
+      0.8598,
+      -0.2887
+     ],
+     "tamanho": [
+      0.626,
+      0.78,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "vermelho"
+   ],
+   "tris": 8104,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "escritório",
+    "rodízios",
+    "giratória"
+   ]
+  },
+  {
+   "id": "cadeira_gamer_laranja",
+   "rotulo": "Cadeira gamer (laranja)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_gamer",
+   "fixacao": "chao",
+   "dims": [
+    0.685,
+    0.844,
+    1.326
+   ],
+   "arquivo": "glb/cadeira_gamer_laranja.glb",
+   "miniatura": "miniaturas/cadeira_gamer_laranja.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.235,
+      -0.0
+     ],
+     "tamanho": [
+      0.685,
+      0.47,
+      0.844
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.898,
+      -0.3222
+     ],
+     "tamanho": [
+      0.685,
+      0.856,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "cinza",
+    "cromo",
+    "grafite",
+    "laranja",
+    "marrom",
+    "preto",
+    "terracota"
+   ],
+   "tris": 10796,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "escritório",
+    "rodízios",
+    "giratória",
+    "gamer"
+   ]
+  },
+  {
+   "id": "cadeira_presidente_preta",
+   "rotulo": "Cadeira presidente (couro preto)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_presidente",
+   "fixacao": "chao",
+   "dims": [
+    0.75,
+    0.786,
+    1.157
+   ],
+   "arquivo": "glb/cadeira_presidente_preta.glb",
+   "miniatura": "miniaturas/cadeira_presidente_preta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.235,
+      -0.0
+     ],
+     "tamanho": [
+      0.75,
+      0.47,
+      0.786
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.8134,
+      -0.2832
+     ],
+     "tamanho": [
+      0.75,
+      0.687,
+      0.22
+     ]
+    }
+   ],
+   "cores": [
+    "chocolate",
+    "cinza",
+    "couro_preto",
+    "cromo",
+    "ferro"
+   ],
+   "tris": 8420,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "escritório",
+    "rodízios",
+    "giratória",
+    "couro"
+   ]
+  },
+  {
+   "id": "cadeira_escritorio_simples_turquesa",
+   "rotulo": "Cadeira de escritório simples (turquesa)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_escritorio_simples",
+   "fixacao": "chao",
+   "dims": [
+    0.588,
+    0.603,
+    0.878
+   ],
+   "arquivo": "glb/cadeira_escritorio_simples_turquesa.glb",
+   "miniatura": "miniaturas/cadeira_escritorio_simples_turquesa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      0.23,
+      0.0
+     ],
+     "tamanho": [
+      0.588,
+      0.46,
+      0.603
+     ]
+    },
+    {
+     "centro": [
+      -0.0,
+      0.6692,
+      -0.2265
+     ],
+     "tamanho": [
+      0.588,
+      0.418,
+      0.15
+     ]
+    }
+   ],
+   "cores": [
+    "cinza",
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "turquesa"
+   ],
+   "tris": 5884,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "escritório",
+    "rodízios",
+    "giratória"
+   ]
+  },
+  {
+   "id": "cadeira_escritorio_simples_lima",
+   "rotulo": "Cadeira de escritório simples (verde-lima)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_escritorio_simples",
+   "fixacao": "chao",
+   "dims": [
+    0.588,
+    0.603,
+    0.878
+   ],
+   "arquivo": "glb/cadeira_escritorio_simples_lima.glb",
+   "miniatura": "miniaturas/cadeira_escritorio_simples_lima.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      0.23,
+      0.0
+     ],
+     "tamanho": [
+      0.588,
+      0.46,
+      0.603
+     ]
+    },
+    {
+     "centro": [
+      -0.0,
+      0.6692,
+      -0.2265
+     ],
+     "tamanho": [
+      0.588,
+      0.418,
+      0.15
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_claro",
+    "cromo",
+    "grafite",
+    "metal",
+    "verde_lima"
+   ],
+   "tris": 5884,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "escritório",
+    "rodízios",
+    "giratória"
+   ]
+  },
+  {
+   "id": "banqueta_madeira_aro_pacote",
+   "rotulo": "Banqueta de madeira com aro",
+   "categoria": "cadeiras",
+   "grupo": "banqueta_madeira_aro_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.455,
+    0.455,
+    0.6
+   ],
+   "arquivo": "glb/banqueta_madeira_aro_pacote.glb",
+   "miniatura": "miniaturas/banqueta_madeira_aro_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.3,
+      -0.0
+     ],
+     "tamanho": [
+      0.455,
+      0.6,
+      0.455
+     ]
+    }
+   ],
+   "cores": [
+    "laranja_claro",
+    "terracota_clara"
+   ],
+   "tris": 852,
+   "pacote": true,
+   "tags": [
+    "banqueta",
+    "cozinha",
+    "madeira"
+   ]
+  },
+  {
+   "id": "banqueta_bar_giratoria_vermelha",
+   "rotulo": "Banqueta de bar giratória (vermelha)",
+   "categoria": "cadeiras",
+   "grupo": "banqueta_bar_giratoria",
+   "fixacao": "chao",
+   "dims": [
+    0.41,
+    0.41,
+    0.771
+   ],
+   "arquivo": "glb/banqueta_bar_giratoria_vermelha.glb",
+   "miniatura": "miniaturas/banqueta_bar_giratoria_vermelha.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.385,
+      -0.0
+     ],
+     "tamanho": [
+      0.41,
+      0.77,
+      0.41
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_claro",
+    "cromo",
+    "vermelho"
+   ],
+   "tris": 5176,
+   "pacote": false,
+   "tags": [
+    "banqueta",
+    "cozinha",
+    "bar",
+    "giratória"
+   ]
+  },
+  {
+   "id": "banqueta_bar_encosto_rosa",
+   "rotulo": "Banqueta de bar com encosto (rosa)",
+   "categoria": "cadeiras",
+   "grupo": "banqueta_bar_encosto",
+   "fixacao": "chao",
+   "dims": [
+    0.418,
+    0.459,
+    1.116
+   ],
+   "arquivo": "glb/banqueta_bar_encosto_rosa.glb",
+   "miniatura": "miniaturas/banqueta_bar_encosto_rosa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.375,
+      0.0
+     ],
+     "tamanho": [
+      0.418,
+      0.75,
+      0.459
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.9325,
+      -0.1796
+     ],
+     "tamanho": [
+      0.418,
+      0.365,
+      0.1
+     ]
+    }
+   ],
+   "cores": [
+    "magenta",
+    "rosa_escuro"
+   ],
+   "tris": 2016,
+   "pacote": false,
+   "tags": [
+    "banqueta",
+    "cozinha",
+    "bar",
+    "encosto"
+   ]
+  },
+  {
+   "id": "banqueta_bar_quadrada_verde",
+   "rotulo": "Banqueta de bar quadrada (verde)",
+   "categoria": "cadeiras",
+   "grupo": "banqueta_bar_quadrada",
+   "fixacao": "chao",
+   "dims": [
+    0.4,
+    0.4,
+    0.755
+   ],
+   "arquivo": "glb/banqueta_bar_quadrada_verde.glb",
+   "miniatura": "miniaturas/banqueta_bar_quadrada_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.3775,
+      -0.0
+     ],
+     "tamanho": [
+      0.4,
+      0.755,
+      0.4
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "verde_medio"
+   ],
+   "tris": 2420,
+   "pacote": false,
+   "tags": [
+    "banqueta",
+    "cozinha",
+    "bar",
+    "metal"
+   ]
+  },
+  {
+   "id": "banqueta_industrial_madeira",
+   "rotulo": "Banqueta industrial de rosca",
+   "categoria": "cadeiras",
+   "grupo": "banqueta_industrial",
+   "fixacao": "chao",
+   "dims": [
+    0.381,
+    0.381,
+    0.688
+   ],
+   "arquivo": "glb/banqueta_industrial_madeira.glb",
+   "miniatura": "miniaturas/banqueta_industrial_madeira.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -0.0,
+      0.3425,
+      -0.0
+     ],
+     "tamanho": [
+      0.381,
+      0.685,
+      0.381
+     ]
+    }
+   ],
+   "cores": [
+    "grafite",
+    "madeira_media",
+    "metal"
+   ],
+   "tris": 6096,
+   "pacote": false,
+   "tags": [
+    "banqueta",
+    "cozinha",
+    "metal",
+    "madeira"
+   ]
+  },
+  {
+   "id": "banqueta_cozinha_encosto_madeira",
+   "rotulo": "Banqueta de cozinha com encosto",
+   "categoria": "cadeiras",
+   "grupo": "banqueta_cozinha_encosto",
+   "fixacao": "chao",
+   "dims": [
+    0.42,
+    0.451,
+    0.982
+   ],
+   "arquivo": "glb/banqueta_cozinha_encosto_madeira.glb",
+   "miniatura": "miniaturas/banqueta_cozinha_encosto_madeira.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.33,
+      0.0
+     ],
+     "tamanho": [
+      0.42,
+      0.66,
+      0.451
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.8205,
+      -0.1755
+     ],
+     "tamanho": [
+      0.42,
+      0.321,
+      0.1
+     ]
+    }
+   ],
+   "cores": [
+    "madeira",
+    "madeira_mel"
+   ],
+   "tris": 1492,
+   "pacote": false,
+   "tags": [
+    "banqueta",
+    "cozinha",
+    "madeira",
+    "encosto"
+   ]
+  },
+  {
+   "id": "cadeira_alta_bebe",
+   "rotulo": "Cadeira alta de bebê com bandeja",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_alta_bebe",
+   "fixacao": "chao",
+   "dims": [
+    0.588,
+    0.754,
+    0.962
+   ],
+   "arquivo": "glb/cadeira_alta_bebe.glb",
+   "miniatura": "miniaturas/cadeira_alta_bebe.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.41,
+      -0.0
+     ],
+     "tamanho": [
+      0.588,
+      0.82,
+      0.754
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.8909,
+      -0.317
+     ],
+     "tamanho": [
+      0.588,
+      0.142,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "azul_claro",
+    "borracha",
+    "branco",
+    "madeira_clara",
+    "menta"
+   ],
+   "tris": 7424,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "bebê",
+    "infantil",
+    "cozinha",
+    "bandeja"
+   ]
+  },
+  {
+   "id": "cadeira_cozinha_madeira",
+   "rotulo": "Cadeira de cozinha de madeira (palitos)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_cozinha_madeira",
+   "fixacao": "chao",
+   "dims": [
+    0.44,
+    0.474,
+    0.976
+   ],
+   "arquivo": "glb/cadeira_cozinha_madeira.glb",
+   "miniatura": "miniaturas/cadeira_cozinha_madeira.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      0.0
+     ],
+     "tamanho": [
+      0.44,
+      0.45,
+      0.474
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.712,
+      -0.177
+     ],
+     "tamanho": [
+      0.44,
+      0.524,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_clara",
+    "madeira_mel"
+   ],
+   "tris": 2520,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "cozinha",
+    "madeira",
+    "pés torneados"
+   ]
+  },
+  {
+   "id": "cadeira_cozinha_ripas_menta",
+   "rotulo": "Cadeira de cozinha de ripas (menta)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_cozinha_ripas",
+   "fixacao": "chao",
+   "dims": [
+    0.44,
+    0.472,
+    0.936
+   ],
+   "arquivo": "glb/cadeira_cozinha_ripas_menta.glb",
+   "miniatura": "miniaturas/cadeira_cozinha_ripas_menta.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      0.0
+     ],
+     "tamanho": [
+      0.44,
+      0.45,
+      0.472
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.6931,
+      -0.1762
+     ],
+     "tamanho": [
+      0.44,
+      0.486,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_clara",
+    "menta"
+   ],
+   "tris": 3008,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "cozinha",
+    "madeira"
+   ]
+  },
+  {
+   "id": "cadeira_jantar_estofada_cinza",
+   "rotulo": "Cadeira de jantar estofada (cinza)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_jantar_estofada",
+   "fixacao": "chao",
+   "dims": [
+    0.48,
+    0.523,
+    0.872
+   ],
+   "arquivo": "glb/cadeira_jantar_estofada_cinza.glb",
+   "miniatura": "miniaturas/cadeira_jantar_estofada_cinza.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.2325,
+      -0.0
+     ],
+     "tamanho": [
+      0.48,
+      0.465,
+      0.523
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.6682,
+      -0.2016
+     ],
+     "tamanho": [
+      0.48,
+      0.406,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "cinza_claro",
+    "madeira_clara"
+   ],
+   "tris": 2648,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "jantar",
+    "estofado"
+   ]
+  },
+  {
+   "id": "cadeira_jantar_alta_amarela",
+   "rotulo": "Cadeira de jantar de encosto alto (amarela)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_jantar_alta",
+   "fixacao": "chao",
+   "dims": [
+    0.46,
+    0.528,
+    1.039
+   ],
+   "arquivo": "glb/cadeira_jantar_alta_amarela.glb",
+   "miniatura": "miniaturas/cadeira_jantar_alta_amarela.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.23,
+      0.0
+     ],
+     "tamanho": [
+      0.46,
+      0.46,
+      0.528
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.74935,
+      -0.204
+     ],
+     "tamanho": [
+      0.46,
+      0.579,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "vermelho"
+   ],
+   "tris": 2136,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "jantar",
+    "estofado"
+   ]
+  },
+  {
+   "id": "cadeira_cafe_tubo_azul",
+   "rotulo": "Cadeira de tubo com braços (azul e verde)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_cafe_tubo",
+   "fixacao": "chao",
+   "dims": [
+    0.5,
+    0.495,
+    0.81
+   ],
+   "arquivo": "glb/cadeira_cafe_tubo_azul.glb",
+   "miniatura": "miniaturas/cadeira_cafe_tubo_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.23,
+      -0.0
+     ],
+     "tamanho": [
+      0.5,
+      0.46,
+      0.495
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.63475,
+      -0.1976
+     ],
+     "tamanho": [
+      0.5,
+      0.349,
+      0.1
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "verde_lima"
+   ],
+   "tris": 2016,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "jantar",
+    "metal"
+   ]
+  },
+  {
+   "id": "cadeira_bistro_laranja",
+   "rotulo": "Cadeira bistrô de assento redondo (laranja)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_bistro",
+   "fixacao": "chao",
+   "dims": [
+    0.42,
+    0.425,
+    0.727
+   ],
+   "arquivo": "glb/cadeira_bistro_laranja.glb",
+   "miniatura": "miniaturas/cadeira_bistro_laranja.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      0.0
+     ],
+     "tamanho": [
+      0.42,
+      0.45,
+      0.425
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.5875,
+      -0.1625
+     ],
+     "tamanho": [
+      0.42,
+      0.275,
+      0.1
+     ]
+    }
+   ],
+   "cores": [
+    "laranja_claro"
+   ],
+   "tris": 2120,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "cozinha",
+    "madeira"
+   ]
+  },
+  {
+   "id": "banqueta_estofada_verde",
+   "rotulo": "Banqueta estofada (verde)",
+   "categoria": "cadeiras",
+   "grupo": "banqueta_estofada",
+   "fixacao": "chao",
+   "dims": [
+    0.5,
+    0.38,
+    0.454
+   ],
+   "arquivo": "glb/banqueta_estofada_verde.glb",
+   "miniatura": "miniaturas/banqueta_estofada_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      -0.0
+     ],
+     "tamanho": [
+      0.5,
+      0.45,
+      0.38
+     ]
+    }
+   ],
+   "cores": [
+    "laranja",
+    "verde_medio"
+   ],
+   "tris": 1668,
+   "pacote": false,
+   "tags": [
+    "banqueta",
+    "estofado",
+    "quarto"
+   ]
+  },
+  {
+   "id": "cadeira_jardim_plastico_branca",
+   "rotulo": "Cadeira de plástico de jardim (branca)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_jardim_plastico",
+   "fixacao": "chao",
+   "dims": [
+    0.525,
+    0.577,
+    0.906
+   ],
+   "arquivo": "glb/cadeira_jardim_plastico_branca.glb",
+   "miniatura": "miniaturas/cadeira_jardim_plastico_branca.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.22,
+      -0.0
+     ],
+     "tamanho": [
+      0.525,
+      0.44,
+      0.577
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.67205,
+      -0.2286
+     ],
+     "tamanho": [
+      0.525,
+      0.464,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "plastico_branco"
+   ],
+   "tris": 4484,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "jardim",
+    "plástico",
+    "varanda"
+   ]
+  },
+  {
+   "id": "cadeira_jardim_plastico_verde",
+   "rotulo": "Cadeira de plástico de jardim (verde)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_jardim_plastico",
+   "fixacao": "chao",
+   "dims": [
+    0.525,
+    0.577,
+    0.906
+   ],
+   "arquivo": "glb/cadeira_jardim_plastico_verde.glb",
+   "miniatura": "miniaturas/cadeira_jardim_plastico_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.22,
+      -0.0
+     ],
+     "tamanho": [
+      0.525,
+      0.44,
+      0.577
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.67205,
+      -0.2286
+     ],
+     "tamanho": [
+      0.525,
+      0.464,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "verde"
+   ],
+   "tris": 4484,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "jardim",
+    "plástico",
+    "varanda"
+   ]
+  },
+  {
+   "id": "cadeira_dobravel_amarela",
+   "rotulo": "Cadeira dobrável (amarela)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_dobravel",
+   "fixacao": "chao",
+   "dims": [
+    0.46,
+    0.512,
+    0.871
+   ],
+   "arquivo": "glb/cadeira_dobravel_amarela.glb",
+   "miniatura": "miniaturas/cadeira_dobravel_amarela.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.235,
+      -0.0
+     ],
+     "tamanho": [
+      0.46,
+      0.47,
+      0.512
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.6703,
+      -0.196
+     ],
+     "tamanho": [
+      0.46,
+      0.401,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "borracha",
+    "cromo",
+    "metal_escuro"
+   ],
+   "tris": 2800,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "dobrável"
+   ]
+  },
+  {
+   "id": "cadeira_dobravel_azul",
+   "rotulo": "Cadeira dobrável (azul)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_dobravel",
+   "fixacao": "chao",
+   "dims": [
+    0.46,
+    0.512,
+    0.871
+   ],
+   "arquivo": "glb/cadeira_dobravel_azul.glb",
+   "miniatura": "miniaturas/cadeira_dobravel_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.235,
+      -0.0
+     ],
+     "tamanho": [
+      0.46,
+      0.47,
+      0.512
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.6703,
+      -0.196
+     ],
+     "tamanho": [
+      0.46,
+      0.401,
+      0.12
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "borracha",
+    "cromo",
+    "metal_escuro"
+   ],
+   "tris": 2800,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "dobrável"
+   ]
+  },
+  {
+   "id": "cadeira_dobravel_fechada_amarela",
+   "rotulo": "Cadeira dobrável fechada (amarela)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_dobravel_fechada",
+   "fixacao": "chao",
+   "dims": [
+    0.46,
+    0.131,
+    0.875
+   ],
+   "arquivo": "glb/cadeira_dobravel_fechada_amarela.glb",
+   "miniatura": "miniaturas/cadeira_dobravel_fechada_amarela.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.44,
+      -0.0
+     ],
+     "tamanho": [
+      0.46,
+      0.88,
+      0.131
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "borracha",
+    "cromo",
+    "metal_escuro"
+   ],
+   "tris": 2800,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "dobrável",
+    "fechada"
+   ]
+  },
+  {
+   "id": "cadeira_dobravel_madeira",
+   "rotulo": "Cadeira dobrável de ripas",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_dobravel_madeira",
+   "fixacao": "chao",
+   "dims": [
+    0.475,
+    0.616,
+    0.87
+   ],
+   "arquivo": "glb/cadeira_dobravel_madeira.glb",
+   "miniatura": "miniaturas/cadeira_dobravel_madeira.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.22,
+      -0.0
+     ],
+     "tamanho": [
+      0.475,
+      0.44,
+      0.616
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.6531,
+      -0.2378
+     ],
+     "tamanho": [
+      0.475,
+      0.426,
+      0.14
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_escura",
+    "terracota_clara"
+   ],
+   "tris": 3992,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "dobrável",
+    "madeira",
+    "jardim"
+   ]
+  },
+  {
+   "id": "cadeira_dobravel_madeira_fechada",
+   "rotulo": "Cadeira dobrável de ripas (fechada)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_dobravel_madeira_fechada",
+   "fixacao": "chao",
+   "dims": [
+    0.475,
+    0.119,
+    0.9
+   ],
+   "arquivo": "glb/cadeira_dobravel_madeira_fechada.glb",
+   "miniatura": "miniaturas/cadeira_dobravel_madeira_fechada.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.45,
+      -0.0
+     ],
+     "tamanho": [
+      0.475,
+      0.9,
+      0.119
+     ]
+    }
+   ],
+   "cores": [
+    "madeira_escura",
+    "terracota_clara"
+   ],
+   "tris": 3428,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "dobrável",
+    "madeira",
+    "jardim",
+    "fechada"
+   ]
+  },
+  {
+   "id": "banqueta_carretel_vermelha",
+   "rotulo": "Banqueta carretel (vermelha)",
+   "categoria": "cadeiras",
+   "grupo": "banqueta_carretel",
+   "fixacao": "chao",
+   "dims": [
+    0.344,
+    0.344,
+    0.456
+   ],
+   "arquivo": "glb/banqueta_carretel_vermelha.glb",
+   "miniatura": "miniaturas/banqueta_carretel_vermelha.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.228,
+      -0.0
+     ],
+     "tamanho": [
+      0.344,
+      0.456,
+      0.344
+     ]
+    }
+   ],
+   "cores": [
+    "vermelho"
+   ],
+   "tris": 960,
+   "pacote": false,
+   "tags": [
+    "banqueta",
+    "plástico"
+   ]
+  },
+  {
+   "id": "banquinho_tres_pes_laranja",
+   "rotulo": "Banquinho de três pés",
+   "categoria": "cadeiras",
+   "grupo": "banquinho_tres_pes",
+   "fixacao": "chao",
+   "dims": [
+    0.31,
+    0.314,
+    0.307
+   ],
+   "arquivo": "glb/banquinho_tres_pes_laranja.glb",
+   "miniatura": "miniaturas/banquinho_tres_pes_laranja.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1525,
+      -0.0
+     ],
+     "tamanho": [
+      0.31,
+      0.305,
+      0.314
+     ]
+    }
+   ],
+   "cores": [
+    "laranja_claro"
+   ],
+   "tris": 872,
+   "pacote": false,
+   "tags": [
+    "banquinho",
+    "madeira"
+   ]
+  },
+  {
+   "id": "banquinho_cubo_azul",
+   "rotulo": "Banquinho infantil quadrado (azul)",
+   "categoria": "cadeiras",
+   "grupo": "banquinho_cubo",
+   "fixacao": "chao",
+   "dims": [
+    0.34,
+    0.34,
+    0.36
+   ],
+   "arquivo": "glb/banquinho_cubo_azul.glb",
+   "miniatura": "miniaturas/banquinho_cubo_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.18,
+      -0.0
+     ],
+     "tamanho": [
+      0.34,
+      0.36,
+      0.34
+     ]
+    }
+   ],
+   "cores": [
+    "azul"
+   ],
+   "tris": 3864,
+   "pacote": false,
+   "tags": [
+    "infantil",
+    "banquinho"
+   ]
+  },
+  {
+   "id": "banquinho_cogumelo_amarelo",
+   "rotulo": "Banquinho cogumelo (amarelo)",
+   "categoria": "cadeiras",
+   "grupo": "banquinho_cogumelo",
+   "fixacao": "chao",
+   "dims": [
+    0.27,
+    0.27,
+    0.226
+   ],
+   "arquivo": "glb/banquinho_cogumelo_amarelo.glb",
+   "miniatura": "miniaturas/banquinho_cogumelo_amarelo.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1125,
+      -0.0
+     ],
+     "tamanho": [
+      0.27,
+      0.225,
+      0.27
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo"
+   ],
+   "tris": 1856,
+   "pacote": false,
+   "tags": [
+    "infantil",
+    "banquinho"
+   ]
+  },
+  {
+   "id": "banquinho_degrau_rosa",
+   "rotulo": "Banquinho degrau de plástico (rosa)",
+   "categoria": "cadeiras",
+   "grupo": "banquinho_degrau",
+   "fixacao": "chao",
+   "dims": [
+    0.41,
+    0.31,
+    0.233
+   ],
+   "arquivo": "glb/banquinho_degrau_rosa.glb",
+   "miniatura": "miniaturas/banquinho_degrau_rosa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.115,
+      -0.0
+     ],
+     "tamanho": [
+      0.41,
+      0.23,
+      0.31
+     ]
+    }
+   ],
+   "cores": [
+    "rosa",
+    "rosa_escuro"
+   ],
+   "tris": 4700,
+   "pacote": false,
+   "tags": [
+    "infantil",
+    "banquinho",
+    "banheiro"
+   ]
+  },
+  {
+   "id": "banqueta_degrau_roxa",
+   "rotulo": "Banqueta degrau (roxa)",
+   "categoria": "cadeiras",
+   "grupo": "banqueta_degrau",
+   "fixacao": "chao",
+   "dims": [
+    0.42,
+    0.42,
+    0.453
+   ],
+   "arquivo": "glb/banqueta_degrau_roxa.glb",
+   "miniatura": "miniaturas/banqueta_degrau_roxa.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.225,
+      -0.0
+     ],
+     "tamanho": [
+      0.42,
+      0.45,
+      0.42
+     ]
+    }
+   ],
+   "cores": [
+    "roxo"
+   ],
+   "tris": 1880,
+   "pacote": false,
+   "tags": [
+    "banqueta",
+    "cozinha"
+   ]
+  },
+  {
+   "id": "cadeirinha_infantil_verde",
+   "rotulo": "Cadeirinha infantil (verde)",
+   "categoria": "cadeiras",
+   "grupo": "cadeirinha_infantil",
+   "fixacao": "chao",
+   "dims": [
+    0.33,
+    0.323,
+    0.579
+   ],
+   "arquivo": "glb/cadeirinha_infantil_verde.glb",
+   "miniatura": "miniaturas/cadeirinha_infantil_verde.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1525,
+      0.0
+     ],
+     "tamanho": [
+      0.33,
+      0.305,
+      0.323
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.44215,
+      -0.1217
+     ],
+     "tamanho": [
+      0.33,
+      0.274,
+      0.08
+     ]
+    }
+   ],
+   "cores": [
+    "verde"
+   ],
+   "tris": 2536,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "infantil"
+   ]
+  },
+  {
+   "id": "poltrona_infantil_balanco_azul",
+   "rotulo": "Poltroninha infantil de balanço (azul)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_infantil_balanco",
+   "fixacao": "chao",
+   "dims": [
+    0.465,
+    0.62,
+    0.499
+   ],
+   "arquivo": "glb/poltrona_infantil_balanco_azul.glb",
+   "miniatura": "miniaturas/poltrona_infantil_balanco_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.1075,
+      -0.0
+     ],
+     "tamanho": [
+      0.465,
+      0.215,
+      0.62
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.35675,
+      -0.24
+     ],
+     "tamanho": [
+      0.465,
+      0.283,
+      0.14
+     ]
+    }
+   ],
+   "cores": [
+    "azul_celeste",
+    "laranja"
+   ],
+   "tris": 6188,
+   "pacote": false,
+   "tags": [
+    "poltrona",
+    "infantil",
+    "balanço"
+   ]
+  },
+  {
+   "id": "cadeira_ajoelhar_azul",
+   "rotulo": "Cadeira ergonômica de ajoelhar",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_ajoelhar",
+   "fixacao": "chao",
+   "dims": [
+    0.45,
+    0.65,
+    0.641
+   ],
+   "arquivo": "glb/cadeira_ajoelhar_azul.glb",
+   "miniatura": "miniaturas/cadeira_ajoelhar_azul.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.31,
+      -0.0
+     ],
+     "tamanho": [
+      0.45,
+      0.62,
+      0.65
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "cinza_claro"
+   ],
+   "tris": 2976,
+   "pacote": false,
+   "tags": [
+    "cadeira",
+    "escritório",
+    "ergonômica"
+   ]
+  },
+  {
+   "id": "poltrona_leitura_xadrez_pacote",
+   "rotulo": "Poltrona de leitura com almofada",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_leitura_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.933,
+    0.864,
+    0.919
+   ],
+   "arquivo": "glb/poltrona_leitura_xadrez_pacote.glb",
+   "miniatura": "miniaturas/poltrona_leitura_xadrez_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.215,
+      -0.0
+     ],
+     "tamanho": [
+      0.933,
+      0.43,
+      0.864
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.67447,
+      -0.29399
+     ],
+     "tamanho": [
+      0.933,
+      0.489,
+      0.276
+     ]
+    },
+    {
+     "centro": [
+      -0.28531,
+      0.58349,
+      0.13086
+     ],
+     "tamanho": [
+      0.32,
+      0.307,
+      0.56
+     ]
+    },
+    {
+     "centro": [
+      0.28877,
+      0.61317,
+      0.13084
+     ],
+     "tamanho": [
+      0.313,
+      0.366,
+      0.56
+     ]
+    }
+   ],
+   "cores": [
+    "branco",
+    "branco_gelo",
+    "cromo",
+    "madeira_cinza",
+    "marrom_claro",
+    "marrom_escuro",
+    "nogueira",
+    "piso_rosado",
+    "plastico_branco",
+    "porcelana"
+   ],
+   "tris": 642,
+   "pacote": true,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "sala",
+    "pacote"
+   ],
+   "pacote_origem": "Chess Pack"
+  },
+  {
+   "id": "poltrona_capitone_vermelha_cassino_pacote",
+   "rotulo": "Poltrona capitonê (vermelha)",
+   "categoria": "cadeiras",
+   "grupo": "poltrona_capitone_pacote",
+   "fixacao": "chao",
+   "dims": [
+    1.047,
+    0.854,
+    0.866
+   ],
+   "arquivo": "glb/poltrona_capitone_vermelha_cassino_pacote.glb",
+   "miniatura": "miniaturas/poltrona_capitone_vermelha_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.215,
+      -0.0
+     ],
+     "tamanho": [
+      1.047,
+      0.43,
+      0.854
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.64793,
+      -0.29711
+     ],
+     "tamanho": [
+      1.047,
+      0.436,
+      0.26
+     ]
+    },
+    {
+     "centro": [
+      -0.35593,
+      0.55811,
+      0.14639
+     ],
+     "tamanho": [
+      0.333,
+      0.256,
+      0.56
+     ]
+    },
+    {
+     "centro": [
+      0.35593,
+      0.55811,
+      0.14639
+     ],
+     "tamanho": [
+      0.333,
+      0.256,
+      0.56
+     ]
+    }
+   ],
+   "cores": [
+    "marrom",
+    "marrom_claro",
+    "terra",
+    "vermelho_escuro"
+   ],
+   "tris": 676,
+   "pacote": true,
+   "tags": [
+    "poltrona",
+    "estofado",
+    "capitone",
+    "sala",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "cadeira_alta_cassino_pacote",
+   "rotulo": "Cadeira alta giratória (vermelha)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_alta_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.633,
+    0.786,
+    1.099
+   ],
+   "arquivo": "glb/cadeira_alta_cassino_pacote.glb",
+   "miniatura": "miniaturas/cadeira_alta_cassino_pacote.webp",
+   "interativos": [],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.285,
+      -0.0
+     ],
+     "tamanho": [
+      0.633,
+      0.57,
+      0.786
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      0.83465,
+      -0.29319
+     ],
+     "tamanho": [
+      0.633,
+      0.529,
+      0.2
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto",
+    "asfalto_claro",
+    "carvao",
+    "concreto_escuro",
+    "couro_preto",
+    "grafite",
+    "metal_escuro",
+    "trilho",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 832,
+   "pacote": true,
+   "tags": [
+    "cadeira",
+    "alta",
+    "bar",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  },
+  {
+   "id": "cadeira_escritorio_preta_cassino_pacote",
+   "rotulo": "Cadeira de escritório giratória (preta)",
+   "categoria": "cadeiras",
+   "grupo": "cadeira_escritorio_cassino_pacote",
+   "fixacao": "chao",
+   "dims": [
+    0.643,
+    0.65,
+    1.018
+   ],
+   "arquivo": "glb/cadeira_escritorio_preta_cassino_pacote.glb",
+   "miniatura": "miniaturas/cadeira_escritorio_preta_cassino_pacote.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": 1.5708,
+     "nome": "giro_assento",
+     "pivo": [
+      1e-05,
+      0.30151,
+      0.01664
+     ]
+    }
+   ],
+   "slots": [],
+   "colisao": [
+    {
+     "centro": [
+      -1e-05,
+      0.225,
+      -0.00832
+     ],
+     "tamanho": [
+      0.643,
+      0.45,
+      0.667
+     ]
+    },
+    {
+     "centro": [
+      -1e-05,
+      0.58327,
+      -0.27112
+     ],
+     "tamanho": [
+      0.432,
+      0.267,
+      0.141
+     ]
+    }
+   ],
+   "cores": [
+    "asfalto_claro",
+    "borracha",
+    "concreto",
+    "ferro",
+    "preto"
+   ],
+   "tris": 858,
+   "pacote": true,
+   "tags": [
+    "cadeira",
+    "escritorio",
+    "rodinhas",
+    "giratoria",
+    "pacote"
+   ],
+   "pacote_origem": "Casino"
+  }
+ ]
+}

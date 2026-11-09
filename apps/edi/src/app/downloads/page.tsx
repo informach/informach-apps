@@ -1,3 +1,4 @@
+import { EDI_TOOL_COUNT_WORD } from "@informach/config/edi-tools";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Suspense } from "react";
@@ -33,8 +34,8 @@ export default async function DownloadsPage() {
               Comece pelo Edi Hub.
             </h1>
             <p className="lede">
-              O Hub instala as cinco ferramentas, mantém tudo atualizado e conecta a sua assinatura.
-              Você baixa um arquivo e o resto acontece por lá.
+              O Hub instala as {EDI_TOOL_COUNT_WORD} ferramentas, mantém tudo atualizado e conecta a
+              sua assinatura. Você baixa um arquivo e o resto acontece por lá.
             </p>
           </div>
           <Suspense

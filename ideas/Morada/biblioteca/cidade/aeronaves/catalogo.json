@@ -1,0 +1,2756 @@
+{
+ "categoria": "aeronaves",
+ "rotulo": "Aeronaves",
+ "itens": [
+  {
+   "id": "dirigivel_arco_iris",
+   "rotulo": "Dirigível em gomos arco-íris",
+   "categoria": "aeronaves",
+   "grupo": "dirigivel_arco_iris",
+   "fixacao": "chao",
+   "dims": [
+    16.49,
+    29.05,
+    17.2
+   ],
+   "arquivo": "glb/dirigivel_arco_iris.glb",
+   "miniatura": "miniaturas/dirigivel_arco_iris.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_piloto",
+     "centro": [
+      -0.45,
+      0.35,
+      2.1
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_copiloto",
+     "centro": [
+      0.45,
+      0.35,
+      2.1
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.45,
+      0.35,
+      0.9
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.45,
+      0.35,
+      0.9
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.2,
+      0.2
+     ],
+     "tamanho": [
+      2.5,
+      2.4,
+      7.4
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      8.95,
+      -0.0
+     ],
+     "tamanho": [
+      14.0,
+      14.0,
+      27.0
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      8.875,
+      -10.9
+     ],
+     "tamanho": [
+      16.49,
+      16.65,
+      6.0
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul",
+    "azul_marinho",
+    "cinza_claro",
+    "laranja",
+    "laranja_escuro",
+    "lilas",
+    "rosa_claro",
+    "rosa_escuro",
+    "roxo",
+    "verde"
+   ],
+   "tris": 5848,
+   "pacote": false,
+   "tags": [
+    "dirigivel",
+    "gomos",
+    "helice"
+   ],
+   "voa": true,
+   "tipo": "dirigivel",
+   "animacoes": [
+    {
+     "nome": "helice_nariz",
+     "pivo": [
+      0.0,
+      8.95,
+      13.9
+     ],
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 720,
+     "helice": 1
+    },
+    {
+     "nome": "helice_cauda",
+     "pivo": [
+      0.0,
+      8.95,
+      -13.85
+     ],
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 720,
+     "helice": 1
+    },
+    {
+     "nome": "helice_gondola",
+     "pivo": [
+      0.0,
+      1.36,
+      -3.85
+     ],
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 720,
+     "helice": 1
+    },
+    {
+     "nome": "farol_piscante",
+     "pivo": [
+      0.0,
+      0.652,
+      -3.0
+     ],
+     "anima": "piscar",
+     "periodo": 1.2
+    }
+   ],
+   "altitude": [
+    30,
+    80
+   ]
+  },
+  {
+   "id": "dirigivel_laranja_roxo",
+   "rotulo": "Dirigível gorducho laranja e roxo",
+   "categoria": "aeronaves",
+   "grupo": "dirigivel_gorducho",
+   "fixacao": "chao",
+   "dims": [
+    16.514,
+    23.583,
+    17.854
+   ],
+   "arquivo": "glb/dirigivel_laranja_roxo.glb",
+   "miniatura": "miniaturas/dirigivel_laranja_roxo.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_piloto",
+     "centro": [
+      -0.55,
+      0.45,
+      1.6
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_copiloto",
+     "centro": [
+      0.55,
+      0.45,
+      1.6
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.55,
+      0.45,
+      0.3
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.55,
+      0.45,
+      0.3
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.35,
+      -0.0
+     ],
+     "tamanho": [
+      3.4,
+      2.7,
+      5.8
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      9.8,
+      -0.0
+     ],
+     "tamanho": [
+      16.0,
+      16.0,
+      22.0
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      9.8,
+      -7.96637
+     ],
+     "tamanho": [
+      15.2,
+      15.2,
+      6.933
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_marinho",
+    "azul_medio",
+    "cinza_claro",
+    "laranja",
+    "lilas",
+    "rosa",
+    "roxo",
+    "turquesa",
+    "verde_lima"
+   ],
+   "tris": 6588,
+   "pacote": false,
+   "tags": [
+    "dirigivel",
+    "gomos",
+    "helice"
+   ],
+   "voa": true,
+   "tipo": "dirigivel",
+   "animacoes": [
+    {
+     "nome": "helice_nariz",
+     "pivo": [
+      0.0,
+      9.8,
+      11.45
+     ],
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 720,
+     "helice": 1
+    },
+    {
+     "nome": "helice_motor_esq",
+     "pivo": [
+      2.45,
+      1.35,
+      1.0
+     ],
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 720,
+     "helice": 1
+    },
+    {
+     "nome": "helice_motor_dir",
+     "pivo": [
+      -2.45,
+      1.35,
+      1.0
+     ],
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 720,
+     "helice": 1
+    },
+    {
+     "nome": "farol_piscante",
+     "pivo": [
+      0.0,
+      0.42,
+      -2.72
+     ],
+     "anima": "piscar",
+     "periodo": 1.2
+    }
+   ],
+   "altitude": [
+    30,
+    80
+   ]
+  },
+  {
+   "id": "aviao_passageiros_azul",
+   "rotulo": "Avião de passageiros branco e azul",
+   "categoria": "aeronaves",
+   "grupo": "aviao_quadrimotor",
+   "fixacao": "chao",
+   "dims": [
+    32.23,
+    34.811,
+    12.182
+   ],
+   "arquivo": "glb/aviao_passageiros_azul.glb",
+   "miniatura": "miniaturas/aviao_passageiros_azul.webp",
+   "interativos": [
+    {
+     "interativo": "correr",
+     "direcao": [
+      0.38723,
+      0.0,
+      -0.92198
+     ],
+     "curso": 1.3,
+     "nome": "porta_cabine",
+     "pivo": [
+      2.27606,
+      3.95828,
+      9.6
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_piloto",
+     "centro": [
+      0.55,
+      2.85,
+      13.8
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_copiloto",
+     "centro": [
+      -0.55,
+      2.85,
+      13.8
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.8,
+      2.65,
+      7.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.8,
+      2.65,
+      7.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.8,
+      2.65,
+      2.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      -0.8,
+      2.65,
+      2.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_5",
+     "centro": [
+      0.8,
+      2.65,
+      -3.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_6",
+     "centro": [
+      -0.8,
+      2.65,
+      -3.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      3.35,
+      -0.2
+     ],
+     "tamanho": [
+      4.9,
+      6.7,
+      34.4
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      3.65304,
+      -1.2
+     ],
+     "tamanho": [
+      32.0,
+      6.106,
+      9.6
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      8.54084,
+      -14.30537
+     ],
+     "tamanho": [
+      12.6,
+      7.282,
+      7.011
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_marinho",
+    "borracha",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "grafite",
+    "metal",
+    "metal_escuro"
+   ],
+   "tris": 8636,
+   "pacote": false,
+   "tags": [
+    "aviao",
+    "passageiros",
+    "turbina"
+   ],
+   "voa": true,
+   "tipo": "aviao",
+   "animacoes": [
+    {
+     "nome": "fan_motor_esq_5",
+     "pivo": [
+      5.6,
+      1.68994,
+      3.13871
+     ],
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 900,
+     "helice": 1
+    },
+    {
+     "nome": "fan_motor_dir_5",
+     "pivo": [
+      -5.6,
+      1.68994,
+      3.13871
+     ],
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 900,
+     "helice": 1
+    },
+    {
+     "nome": "fan_motor_esq_10",
+     "pivo": [
+      10.2,
+      2.09238,
+      1.00194
+     ],
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 900,
+     "helice": 1
+    },
+    {
+     "nome": "fan_motor_dir_10",
+     "pivo": [
+      -10.2,
+      2.09238,
+      1.00194
+     ],
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 900,
+     "helice": 1
+    },
+    {
+     "nome": "roda_nariz",
+     "pivo": [
+      0.0,
+      0.42,
+      13.3
+     ],
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.42
+    },
+    {
+     "nome": "roda_esq",
+     "pivo": [
+      2.2,
+      0.55,
+      -1.4
+     ],
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.55
+    },
+    {
+     "nome": "roda_dir",
+     "pivo": [
+      -2.2,
+      0.55,
+      -1.4
+     ],
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.55
+    },
+    {
+     "nome": "farol_piscante",
+     "pivo": [
+      0.0,
+      6.76,
+      2.0
+     ],
+     "anima": "piscar",
+     "periodo": 1.2
+    }
+   ],
+   "altitude": [
+    30,
+    80
+   ]
+  },
+  {
+   "id": "aviao_passageiros_magenta",
+   "rotulo": "Avião de passageiros branco e magenta",
+   "categoria": "aeronaves",
+   "grupo": "aviao_bimotor",
+   "fixacao": "chao",
+   "dims": [
+    29.63,
+    31.811,
+    12.182
+   ],
+   "arquivo": "glb/aviao_passageiros_magenta.glb",
+   "miniatura": "miniaturas/aviao_passageiros_magenta.webp",
+   "interativos": [
+    {
+     "interativo": "correr",
+     "direcao": [
+      0.38723,
+      0.0,
+      -0.92198
+     ],
+     "curso": 1.3,
+     "nome": "porta_cabine",
+     "pivo": [
+      2.27606,
+      3.95828,
+      8.1
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_piloto",
+     "centro": [
+      0.55,
+      2.85,
+      12.3
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_copiloto",
+     "centro": [
+      -0.55,
+      2.85,
+      12.3
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.8,
+      2.65,
+      7.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.8,
+      2.65,
+      7.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      0.8,
+      2.65,
+      2.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      -0.8,
+      2.65,
+      2.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_5",
+     "centro": [
+      0.8,
+      2.65,
+      -3.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_6",
+     "centro": [
+      -0.8,
+      2.65,
+      -3.0
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      3.35,
+      -0.2
+     ],
+     "tamanho": [
+      4.9,
+      6.7,
+      31.4
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      3.59617,
+      -1.2
+     ],
+     "tamanho": [
+      29.4,
+      5.992,
+      9.6
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      8.54084,
+      -12.80537
+     ],
+     "tamanho": [
+      12.6,
+      7.282,
+      7.011
+     ]
+    }
+   ],
+   "cores": [
+    "azul_marinho",
+    "borracha",
+    "branco",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "grafite",
+    "magenta",
+    "metal",
+    "metal_escuro",
+    "roxo"
+   ],
+   "tris": 7536,
+   "pacote": false,
+   "tags": [
+    "aviao",
+    "passageiros",
+    "turbina"
+   ],
+   "voa": true,
+   "tipo": "aviao",
+   "animacoes": [
+    {
+     "nome": "fan_motor_esq_6",
+     "pivo": [
+      6.2,
+      1.49243,
+      2.49844
+     ],
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 900,
+     "helice": 1
+    },
+    {
+     "nome": "fan_motor_dir_6",
+     "pivo": [
+      -6.2,
+      1.49243,
+      2.49844
+     ],
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 900,
+     "helice": 1
+    },
+    {
+     "nome": "roda_nariz",
+     "pivo": [
+      0.0,
+      0.42,
+      11.8
+     ],
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.42
+    },
+    {
+     "nome": "roda_esq",
+     "pivo": [
+      2.2,
+      0.55,
+      -1.4
+     ],
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.55
+    },
+    {
+     "nome": "roda_dir",
+     "pivo": [
+      -2.2,
+      0.55,
+      -1.4
+     ],
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.55
+    },
+    {
+     "nome": "farol_piscante",
+     "pivo": [
+      0.0,
+      6.76,
+      2.0
+     ],
+     "anima": "piscar",
+     "periodo": 1.2
+    }
+   ],
+   "altitude": [
+    30,
+    80
+   ]
+  },
+  {
+   "id": "helicoptero_vermelho",
+   "rotulo": "Helicóptero vermelho",
+   "categoria": "aeronaves",
+   "grupo": "helicoptero_rodas",
+   "fixacao": "chao",
+   "dims": [
+    7.579,
+    10.473,
+    4.874
+   ],
+   "arquivo": "glb/helicoptero_vermelho.glb",
+   "miniatura": "miniaturas/helicoptero_vermelho.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.7453,
+     "nome": "porta_cabine",
+     "pivo": [
+      1.24713,
+      2.0975,
+      1.175
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_piloto",
+     "centro": [
+      0.45,
+      0.99375,
+      1.75
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_copiloto",
+     "centro": [
+      -0.45,
+      0.99375,
+      1.75
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.45,
+      0.99375,
+      0.35
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.45,
+      0.99375,
+      0.35
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      2.16,
+      0.55
+     ],
+     "tamanho": [
+      2.5,
+      4.32,
+      5.3
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      3.4,
+      -4.6
+     ],
+     "tamanho": [
+      2.6,
+      2.9,
+      4.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul_marinho",
+    "borracha",
+    "cinza",
+    "cinza_claro",
+    "grafite",
+    "grafite_escuro",
+    "vermelho"
+   ],
+   "tris": 6752,
+   "pacote": false,
+   "tags": [
+    "helicoptero",
+    "rotor"
+   ],
+   "voa": true,
+   "tipo": "helicoptero",
+   "animacoes": [
+    {
+     "nome": "rotor_principal",
+     "pivo": [
+      0.0,
+      4.52,
+      -0.25
+     ],
+     "anima": "girar",
+     "eixo": "y",
+     "velocidade": 720,
+     "helice": 1
+    },
+    {
+     "nome": "rotor_cauda",
+     "pivo": [
+      0.32,
+      4.0,
+      -6.45
+     ],
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 1440,
+     "helice": 1
+    },
+    {
+     "nome": "roda_frente",
+     "pivo": [
+      0.0,
+      0.22,
+      2.15
+     ],
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.22
+    },
+    {
+     "nome": "rodas_tras",
+     "pivo": [
+      0.0,
+      0.22,
+      -0.6
+     ],
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.22
+    },
+    {
+     "nome": "farol_piscante",
+     "pivo": [
+      0.0,
+      4.75,
+      -6.5
+     ],
+     "anima": "piscar",
+     "periodo": 1.2
+    }
+   ],
+   "altitude": [
+    30,
+    80
+   ]
+  },
+  {
+   "id": "helicoptero_verde",
+   "rotulo": "Helicóptero verde com esquis",
+   "categoria": "aeronaves",
+   "grupo": "helicoptero_esquis",
+   "fixacao": "chao",
+   "dims": [
+    7.579,
+    10.473,
+    4.874
+   ],
+   "arquivo": "glb/helicoptero_verde.glb",
+   "miniatura": "miniaturas/helicoptero_verde.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.7453,
+     "nome": "porta_cabine",
+     "pivo": [
+      1.24713,
+      2.0975,
+      1.175
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_piloto",
+     "centro": [
+      0.45,
+      0.99375,
+      1.75
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_copiloto",
+     "centro": [
+      -0.45,
+      0.99375,
+      1.75
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.45,
+      0.99375,
+      0.35
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.45,
+      0.99375,
+      0.35
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      2.16,
+      0.55
+     ],
+     "tamanho": [
+      2.5,
+      4.32,
+      5.3
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      3.4,
+      -4.6
+     ],
+     "tamanho": [
+      2.6,
+      2.9,
+      4.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul_marinho",
+    "branco",
+    "cinza",
+    "grafite",
+    "grafite_escuro",
+    "verde_medio"
+   ],
+   "tris": 6620,
+   "pacote": false,
+   "tags": [
+    "helicoptero",
+    "rotor"
+   ],
+   "voa": true,
+   "tipo": "helicoptero",
+   "animacoes": [
+    {
+     "nome": "rotor_principal",
+     "pivo": [
+      0.0,
+      4.52,
+      -0.25
+     ],
+     "anima": "girar",
+     "eixo": "y",
+     "velocidade": 720,
+     "helice": 1
+    },
+    {
+     "nome": "rotor_cauda",
+     "pivo": [
+      0.32,
+      4.0,
+      -6.45
+     ],
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 1440,
+     "helice": 1
+    },
+    {
+     "nome": "farol_piscante",
+     "pivo": [
+      0.0,
+      4.75,
+      -6.5
+     ],
+     "anima": "piscar",
+     "periodo": 1.2
+    }
+   ],
+   "altitude": [
+    30,
+    80
+   ]
+  },
+  {
+   "id": "balao_listrado_amarelo_azul",
+   "rotulo": "Balão listrado amarelo e azul",
+   "categoria": "aeronaves",
+   "grupo": "balao_listrado",
+   "fixacao": "chao",
+   "dims": [
+    13.65,
+    13.65,
+    18.62
+   ],
+   "arquivo": "glb/balao_listrado_amarelo_azul.glb",
+   "miniatura": "miniaturas/balao_listrado_amarelo_azul.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.39,
+      0.08,
+      0.39
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.39,
+      0.08,
+      0.39
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      -0.39,
+      0.08,
+      -0.39
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      0.39,
+      0.08,
+      -0.39
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.525,
+      -0.0
+     ],
+     "tamanho": [
+      1.5,
+      1.05,
+      1.5
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      11.51,
+      -0.0
+     ],
+     "tamanho": [
+      13.4,
+      14.22,
+      13.4
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "azul_celeste",
+    "azul_medio",
+    "bege",
+    "bege_escuro",
+    "cobre",
+    "creme_claro",
+    "grafite_escuro",
+    "metal",
+    "metal_escuro",
+    "rosa_escuro",
+    "vermelho"
+   ],
+   "tris": 4464,
+   "pacote": false,
+   "tags": [
+    "balao",
+    "gomos",
+    "cesta"
+   ],
+   "voa": true,
+   "tipo": "balao",
+   "animacoes": [
+    {
+     "nome": "chama_macarico",
+     "pivo": [
+      0.0,
+      2.97,
+      -0.0
+     ],
+     "anima": "piscar",
+     "periodo": 1.6,
+     "suave": 1
+    }
+   ],
+   "altitude": [
+    30,
+    80
+   ]
+  },
+  {
+   "id": "balao_listrado_vermelho_branco",
+   "rotulo": "Balão listrado vermelho e branco",
+   "categoria": "aeronaves",
+   "grupo": "balao_listrado",
+   "fixacao": "chao",
+   "dims": [
+    13.65,
+    13.65,
+    18.62
+   ],
+   "arquivo": "glb/balao_listrado_vermelho_branco.glb",
+   "miniatura": "miniaturas/balao_listrado_vermelho_branco.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.39,
+      0.08,
+      0.39
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.39,
+      0.08,
+      0.39
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      -0.39,
+      0.08,
+      -0.39
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      0.39,
+      0.08,
+      -0.39
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.525,
+      -0.0
+     ],
+     "tamanho": [
+      1.5,
+      1.05,
+      1.5
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      11.51,
+      -0.0
+     ],
+     "tamanho": [
+      13.4,
+      14.22,
+      13.4
+     ]
+    }
+   ],
+   "cores": [
+    "bege",
+    "bege_escuro",
+    "branco",
+    "cobre",
+    "couro",
+    "grafite_escuro",
+    "madeira",
+    "metal",
+    "metal_escuro",
+    "vermelho",
+    "vermelho_claro"
+   ],
+   "tris": 4464,
+   "pacote": false,
+   "tags": [
+    "balao",
+    "gomos",
+    "cesta"
+   ],
+   "voa": true,
+   "tipo": "balao",
+   "animacoes": [
+    {
+     "nome": "chama_macarico",
+     "pivo": [
+      0.0,
+      2.97,
+      -0.0
+     ],
+     "anima": "piscar",
+     "periodo": 1.6,
+     "suave": 1
+    }
+   ],
+   "altitude": [
+    30,
+    80
+   ]
+  },
+  {
+   "id": "balao_polvo_pirata",
+   "rotulo": "Balão polvo pirata",
+   "categoria": "aeronaves",
+   "grupo": "balao_polvo_pirata",
+   "fixacao": "chao",
+   "dims": [
+    15.032,
+    15.032,
+    19.574
+   ],
+   "arquivo": "glb/balao_polvo_pirata.glb",
+   "miniatura": "miniaturas/balao_polvo_pirata.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.27,
+      0.1,
+      0.27
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.27,
+      0.1,
+      0.27
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      -0.27,
+      0.1,
+      -0.27
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      0.27,
+      0.1,
+      -0.27
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.525,
+      -0.0
+     ],
+     "tamanho": [
+      1.7,
+      1.05,
+      1.7
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      12.487,
+      -0.0
+     ],
+     "tamanho": [
+      14.6,
+      14.174,
+      14.6
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      3.3,
+      -0.0
+     ],
+     "tamanho": [
+      9.6,
+      4.2,
+      9.6
+     ]
+    }
+   ],
+   "cores": [
+    "azul_bebe",
+    "azul_claro",
+    "azul_medio",
+    "bege",
+    "branco",
+    "cinza",
+    "cobre",
+    "grafite_escuro",
+    "madeira_media",
+    "marrom_escuro",
+    "metal",
+    "metal_escuro",
+    "ouro",
+    "preto",
+    "terracota",
+    "vermelho",
+    "violeta"
+   ],
+   "tris": 8808,
+   "pacote": false,
+   "tags": [
+    "balao",
+    "tematico",
+    "cesta"
+   ],
+   "voa": true,
+   "tipo": "balao",
+   "animacoes": [
+    {
+     "nome": "chama_macarico",
+     "pivo": [
+      0.0,
+      2.97,
+      -0.0
+     ],
+     "anima": "piscar",
+     "periodo": 1.6,
+     "suave": 1
+    }
+   ],
+   "altitude": [
+    30,
+    80
+   ]
+  },
+  {
+   "id": "balao_lua_estrelas",
+   "rotulo": "Balão lua com estrelas",
+   "categoria": "aeronaves",
+   "grupo": "balao_lua_estrelas",
+   "fixacao": "chao",
+   "dims": [
+    15.476,
+    15.084,
+    20.483
+   ],
+   "arquivo": "glb/balao_lua_estrelas.glb",
+   "miniatura": "miniaturas/balao_lua_estrelas.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.27,
+      0.1,
+      0.27
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.27,
+      0.1,
+      0.27
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      -0.27,
+      0.1,
+      -0.27
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      0.27,
+      0.1,
+      -0.27
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.525,
+      -0.0
+     ],
+     "tamanho": [
+      1.7,
+      1.05,
+      1.7
+     ]
+    },
+    {
+     "centro": [
+      -0.104,
+      12.55,
+      0.13942
+     ],
+     "tamanho": [
+      15.392,
+      14.7,
+      15.084
+     ]
+    }
+   ],
+   "cores": [
+    "azul",
+    "azul_medio",
+    "cobre",
+    "grafite_escuro",
+    "lilas",
+    "lilas_claro",
+    "madeira_clara",
+    "madeira_media",
+    "marrom_escuro",
+    "metal",
+    "metal_escuro",
+    "ouro",
+    "pessego",
+    "salmao"
+   ],
+   "tris": 5210,
+   "pacote": false,
+   "tags": [
+    "balao",
+    "tematico",
+    "cesta"
+   ],
+   "voa": true,
+   "tipo": "balao",
+   "animacoes": [
+    {
+     "nome": "chama_macarico",
+     "pivo": [
+      0.0,
+      2.97,
+      -0.0
+     ],
+     "anima": "piscar",
+     "periodo": 1.6,
+     "suave": 1
+    }
+   ],
+   "altitude": [
+    30,
+    80
+   ]
+  },
+  {
+   "id": "balao_dragao_roxo",
+   "rotulo": "Balão dragão roxo",
+   "categoria": "aeronaves",
+   "grupo": "balao_dragao",
+   "fixacao": "chao",
+   "dims": [
+    25.92,
+    17.34,
+    20.475
+   ],
+   "arquivo": "glb/balao_dragao_roxo.glb",
+   "miniatura": "miniaturas/balao_dragao_roxo.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.44,
+      0.08,
+      0.44
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.44,
+      0.08,
+      0.44
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      -0.44,
+      0.08,
+      -0.44
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      0.44,
+      0.08,
+      -0.44
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.525,
+      -0.0
+     ],
+     "tamanho": [
+      1.6,
+      1.05,
+      1.6
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      12.8874,
+      0.90586
+     ],
+     "tamanho": [
+      14.8,
+      15.175,
+      16.888
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      12.3,
+      -1.6
+     ],
+     "tamanho": [
+      25.92,
+      7.4,
+      3.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo_escuro",
+    "azul_bebe",
+    "branco",
+    "cobre",
+    "grafite_escuro",
+    "lilas_claro",
+    "madeira",
+    "madeira_clara",
+    "marrom",
+    "marrom_escuro",
+    "metal",
+    "metal_escuro",
+    "preto",
+    "rosa",
+    "rosa_bebe",
+    "rosa_claro",
+    "roxo",
+    "roxo_escuro",
+    "terracota",
+    "vermelho",
+    "vermelho_escuro"
+   ],
+   "tris": 8380,
+   "pacote": false,
+   "tags": [
+    "balao",
+    "tematico",
+    "cesta"
+   ],
+   "voa": true,
+   "tipo": "balao",
+   "animacoes": [
+    {
+     "nome": "chama_macarico",
+     "pivo": [
+      0.0,
+      2.97,
+      -0.0
+     ],
+     "anima": "piscar",
+     "periodo": 1.6,
+     "suave": 1
+    }
+   ],
+   "altitude": [
+    30,
+    80
+   ]
+  },
+  {
+   "id": "aviao_teco_teco_amarelo",
+   "rotulo": "Avião pequeno de hélice (teco-teco)",
+   "categoria": "aeronaves",
+   "grupo": "aviao_teco_teco",
+   "fixacao": "chao",
+   "dims": [
+    11.435,
+    8.822,
+    3.76
+   ],
+   "arquivo": "glb/aviao_teco_teco_amarelo.glb",
+   "miniatura": "miniaturas/aviao_teco_teco_amarelo.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.6581,
+     "nome": "porta_cabine",
+     "pivo": [
+      0.75722,
+      1.95125,
+      1.725
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_piloto",
+     "centro": [
+      0.3,
+      1.2525,
+      1.75
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_copiloto",
+     "centro": [
+      -0.3,
+      1.2525,
+      1.75
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.3,
+      1.2825,
+      0.7
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.3,
+      1.2825,
+      0.7
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.615,
+      0.2
+     ],
+     "tamanho": [
+      2.7,
+      3.23,
+      8.5
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      2.98,
+      1.4
+     ],
+     "tamanho": [
+      11.4,
+      0.6,
+      1.8
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      2.88,
+      -3.4
+     ],
+     "tamanho": [
+      3.6,
+      1.76,
+      1.8
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_marinho",
+    "borracha",
+    "cinza",
+    "cinza_claro",
+    "cinza_medio",
+    "grafite",
+    "grafite_escuro",
+    "vermelho"
+   ],
+   "tris": 4644,
+   "pacote": false,
+   "tags": [
+    "aviao",
+    "helice"
+   ],
+   "voa": true,
+   "tipo": "aviao",
+   "animacoes": [
+    {
+     "nome": "helice",
+     "pivo": [
+      0.0,
+      1.72,
+      4.08
+     ],
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 720,
+     "helice": 1
+    },
+    {
+     "nome": "rodas_principais",
+     "pivo": [
+      0.0,
+      0.3,
+      1.0
+     ],
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.3
+    },
+    {
+     "nome": "roda_frente",
+     "pivo": [
+      0.0,
+      0.24,
+      3.35
+     ],
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.24
+    },
+    {
+     "nome": "farol_piscante",
+     "pivo": [
+      0.0,
+      3.68,
+      -3.65
+     ],
+     "anima": "piscar",
+     "periodo": 1.2
+    }
+   ],
+   "altitude": [
+    30,
+    80
+   ]
+  },
+  {
+   "id": "hidroaviao_turquesa",
+   "rotulo": "Hidroavião com flutuadores",
+   "categoria": "aeronaves",
+   "grupo": "hidroaviao",
+   "fixacao": "chao",
+   "dims": [
+    13.779,
+    11.027,
+    5.74
+   ],
+   "arquivo": "glb/hidroaviao_turquesa.glb",
+   "miniatura": "miniaturas/hidroaviao_turquesa.webp",
+   "interativos": [
+    {
+     "interativo": "porta",
+     "eixo": [
+      0,
+      1,
+      0
+     ],
+     "angulo": -1.6581,
+     "nome": "porta_cabine",
+     "pivo": [
+      0.93784,
+      3.48906,
+      2.15625
+     ]
+    }
+   ],
+   "slots": [
+    {
+     "nome": "slot_assento_piloto",
+     "centro": [
+      0.375,
+      2.61563,
+      2.1875
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_copiloto",
+     "centro": [
+      -0.375,
+      2.61563,
+      2.1875
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0.375,
+      2.64562,
+      0.875
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      -0.375,
+      2.64562,
+      0.875
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.50476,
+      0.1
+     ],
+     "tamanho": [
+      4.4,
+      0.99,
+      9.8
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      3.04375,
+      -0.0
+     ],
+     "tamanho": [
+      1.9,
+      4.088,
+      10.6
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      4.7875,
+      1.7
+     ],
+     "tamanho": [
+      13.7,
+      0.75,
+      2.2
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      4.75,
+      -4.3
+     ],
+     "tamanho": [
+      4.4,
+      1.9,
+      2.2
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_marinho",
+    "branco",
+    "cinza_claro",
+    "cinza_medio",
+    "grafite",
+    "grafite_escuro",
+    "turquesa_escuro"
+   ],
+   "tris": 4084,
+   "pacote": false,
+   "tags": [
+    "aviao",
+    "helice",
+    "agua"
+   ],
+   "voa": true,
+   "tipo": "aviao",
+   "animacoes": [
+    {
+     "nome": "helice",
+     "pivo": [
+      0.0,
+      3.2,
+      5.1
+     ],
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 720,
+     "helice": 1
+    },
+    {
+     "nome": "farol_piscante",
+     "pivo": [
+      0.0,
+      5.65,
+      -4.5625
+     ],
+     "anima": "piscar",
+     "periodo": 1.2
+    }
+   ],
+   "altitude": [
+    30,
+    80
+   ],
+   "pousa_agua": true,
+   "linha_dagua": 0.3
+  },
+  {
+   "id": "ultraleve_trike_arco_iris",
+   "rotulo": "Ultraleve de asa-delta arco-íris",
+   "categoria": "aeronaves",
+   "grupo": "ultraleve",
+   "fixacao": "chao",
+   "dims": [
+    10.376,
+    3.795,
+    3.78
+   ],
+   "arquivo": "glb/ultraleve_trike_arco_iris.glb",
+   "miniatura": "miniaturas/ultraleve_trike_arco_iris.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_piloto",
+     "centro": [
+      0,
+      1.2,
+      0.45
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      0,
+      1.3,
+      -0.3
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      1.05,
+      0.1
+     ],
+     "tamanho": [
+      2.1,
+      2.1,
+      3.1
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      3.49,
+      0.59757
+     ],
+     "tamanho": [
+      10.376,
+      0.58,
+      3.395
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "azul_celeste",
+    "borracha",
+    "cinza",
+    "cinza_claro",
+    "grafite",
+    "grafite_escuro",
+    "laranja",
+    "madeira",
+    "roxo",
+    "verde",
+    "vermelho"
+   ],
+   "tris": 3016,
+   "pacote": false,
+   "tags": [
+    "ultraleve",
+    "helice",
+    "asa_delta"
+   ],
+   "voa": true,
+   "tipo": "ultraleve",
+   "animacoes": [
+    {
+     "nome": "helice",
+     "pivo": [
+      0.0,
+      1.25,
+      -1.3
+     ],
+     "anima": "girar",
+     "eixo": "z",
+     "velocidade": 720,
+     "helice": 1
+    },
+    {
+     "nome": "roda_frente",
+     "pivo": [
+      0.0,
+      0.25,
+      1.45
+     ],
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.25
+    },
+    {
+     "nome": "rodas_tras",
+     "pivo": [
+      0.0,
+      0.25,
+      -0.55
+     ],
+     "anima": "girar",
+     "eixo": "x",
+     "velocidade": 240,
+     "roda": 1,
+     "raio": 0.25
+    },
+    {
+     "nome": "farol_piscante",
+     "pivo": [
+      0.0,
+      3.71,
+      -0.15
+     ],
+     "anima": "piscar",
+     "periodo": 1.2
+    }
+   ],
+   "altitude": [
+    30,
+    80
+   ]
+  },
+  {
+   "id": "balao_abelha",
+   "rotulo": "Balão abelha",
+   "categoria": "aeronaves",
+   "grupo": "balao_abelha",
+   "fixacao": "chao",
+   "dims": [
+    19.578,
+    14.7,
+    22.45
+   ],
+   "arquivo": "glb/balao_abelha.glb",
+   "miniatura": "miniaturas/balao_abelha.webp",
+   "interativos": [],
+   "slots": [
+    {
+     "nome": "slot_assento_1",
+     "centro": [
+      -0.39,
+      0.08,
+      0.39
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_2",
+     "centro": [
+      0.39,
+      0.08,
+      0.39
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_3",
+     "centro": [
+      -0.39,
+      0.08,
+      -0.39
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    },
+    {
+     "nome": "slot_assento_4",
+     "centro": [
+      0.39,
+      0.08,
+      -0.39
+     ],
+     "tamanho": [
+      0.5,
+      0.9,
+      0.5
+     ],
+     "em": null
+    }
+   ],
+   "colisao": [
+    {
+     "centro": [
+      0.0,
+      0.525,
+      -0.0
+     ],
+     "tamanho": [
+      1.5,
+      1.05,
+      1.5
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      13.575,
+      -0.0
+     ],
+     "tamanho": [
+      14.2,
+      17.55,
+      14.2
+     ]
+    },
+    {
+     "centro": [
+      0.0,
+      13.0,
+      -3.4
+     ],
+     "tamanho": [
+      19.578,
+      6.0,
+      2.6
+     ]
+    }
+   ],
+   "cores": [
+    "amarelo",
+    "amarelo_escuro",
+    "bege",
+    "bege_escuro",
+    "branco",
+    "cobre",
+    "grafite_escuro",
+    "metal",
+    "metal_escuro",
+    "preto",
+    "rosa",
+    "vermelho"
+   ],
+   "tris": 8312,
+   "pacote": false,
+   "tags": [
+    "balao",
+    "tematico",
+    "cesta"
+   ],
+   "voa": true,
+   "tipo": "balao",
+   "animacoes": [
+    {
+     "nome": "chama_macarico",
+     "pivo": [
+      0.0,
+      2.97,
+      -0.0
+     ],
+     "anima": "piscar",
+     "periodo": 1.6,
+     "suave": 1
+    }
+   ],
+   "altitude": [
+    30,
+    80
+   ]
+  }
+ ]
+}
