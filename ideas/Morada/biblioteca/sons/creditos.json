@@ -1,0 +1,581 @@
+{
+ "observacao": "Arquivos de terceiros usados na biblioteca de sons do Morada. Só CC0 (domínio público). Tudo o que não está aqui foi sintetizado por código (sons_*.py).",
+ "arquivos": {
+  "interface-sounds/x/Audio__maximize_006.ogg": {
+   "id": "interface-sounds/x/Audio__maximize_006.ogg",
+   "fonte": "OpenGameArt.org",
+   "titulo": "Interface Sounds",
+   "url": "https://opengameart.org/content/interface-sounds",
+   "autor": "Kenney",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "Audio__maximize_006.ogg",
+   "pacote": [
+    "kenney_interfaceSounds.zip"
+   ],
+   "tipo_conferido": "audio/ogg",
+   "usado_em": [
+    "interface/abrir_painel_kenney"
+   ]
+  },
+  "interface-sounds/x/Audio__minimize_006.ogg": {
+   "id": "interface-sounds/x/Audio__minimize_006.ogg",
+   "fonte": "OpenGameArt.org",
+   "titulo": "Interface Sounds",
+   "url": "https://opengameart.org/content/interface-sounds",
+   "autor": "Kenney",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "Audio__minimize_006.ogg",
+   "pacote": [
+    "kenney_interfaceSounds.zip"
+   ],
+   "tipo_conferido": "audio/ogg",
+   "usado_em": [
+    "interface/fechar_painel_kenney"
+   ]
+  },
+  "interface-sounds/x/Audio__confirmation_002.ogg": {
+   "id": "interface-sounds/x/Audio__confirmation_002.ogg",
+   "fonte": "OpenGameArt.org",
+   "titulo": "Interface Sounds",
+   "url": "https://opengameart.org/content/interface-sounds",
+   "autor": "Kenney",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "Audio__confirmation_002.ogg",
+   "pacote": [
+    "kenney_interfaceSounds.zip"
+   ],
+   "tipo_conferido": "audio/ogg",
+   "usado_em": [
+    "interface/confirmar_kenney"
+   ]
+  },
+  "interface-sounds/x/Audio__error_006.ogg": {
+   "id": "interface-sounds/x/Audio__error_006.ogg",
+   "fonte": "OpenGameArt.org",
+   "titulo": "Interface Sounds",
+   "url": "https://opengameart.org/content/interface-sounds",
+   "autor": "Kenney",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "Audio__error_006.ogg",
+   "pacote": [
+    "kenney_interfaceSounds.zip"
+   ],
+   "tipo_conferido": "audio/ogg",
+   "usado_em": [
+    "interface/erro_kenney"
+   ]
+  },
+  "interface-sounds/x/Audio__drop_002.ogg": {
+   "id": "interface-sounds/x/Audio__drop_002.ogg",
+   "fonte": "OpenGameArt.org",
+   "titulo": "Interface Sounds",
+   "url": "https://opengameart.org/content/interface-sounds",
+   "autor": "Kenney",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "Audio__drop_002.ogg",
+   "pacote": [
+    "kenney_interfaceSounds.zip"
+   ],
+   "tipo_conferido": "audio/ogg",
+   "usado_em": [
+    "interface/construir_por_kenney"
+   ]
+  },
+  "54-casino-sound-effects-cards-dice-chips/x/Audio__chips-stack-3.ogg": {
+   "id": "54-casino-sound-effects-cards-dice-chips/x/Audio__chips-stack-3.ogg",
+   "fonte": "OpenGameArt.org",
+   "titulo": "54 Casino sound effects (cards, dice, chips)",
+   "url": "https://opengameart.org/content/54-casino-sound-effects-cards-dice-chips",
+   "autor": "Kenney",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "Audio__chips-stack-3.ogg",
+   "pacote": [
+    "kenney_casino-audio.zip"
+   ],
+   "tipo_conferido": "audio/ogg",
+   "usado_em": [
+    "interface/dinheiro_fichas_kenney"
+   ]
+  },
+  "100-cc0-sfx/x/toilet_02.ogg": {
+   "id": "100-cc0-sfx/x/toilet_02.ogg",
+   "fonte": "OpenGameArt.org",
+   "titulo": "100 CC0 SFX",
+   "url": "https://opengameart.org/content/100-cc0-sfx",
+   "autor": "rubberduck",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "toilet_02.ogg",
+   "pacote": [
+    "100-CC0-SFX_0.zip"
+   ],
+   "tipo_conferido": "audio/ogg",
+   "usado_em": [
+    "casa/descarga_gravada"
+   ]
+  },
+  "100-cc0-sfx/x/microwave_door_open.ogg": {
+   "id": "100-cc0-sfx/x/microwave_door_open.ogg",
+   "fonte": "OpenGameArt.org",
+   "titulo": "100 CC0 SFX",
+   "url": "https://opengameart.org/content/100-cc0-sfx",
+   "autor": "rubberduck",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "microwave_door_open.ogg",
+   "pacote": [
+    "100-CC0-SFX_0.zip"
+   ],
+   "tipo_conferido": "audio/ogg",
+   "usado_em": [
+    "casa/micro_ondas_porta_abrir"
+   ]
+  },
+  "100-cc0-sfx/x/microwave_door_close.ogg": {
+   "id": "100-cc0-sfx/x/microwave_door_close.ogg",
+   "fonte": "OpenGameArt.org",
+   "titulo": "100 CC0 SFX",
+   "url": "https://opengameart.org/content/100-cc0-sfx",
+   "autor": "rubberduck",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "microwave_door_close.ogg",
+   "pacote": [
+    "100-CC0-SFX_0.zip"
+   ],
+   "tipo_conferido": "audio/ogg",
+   "usado_em": [
+    "casa/micro_ondas_porta_fechar"
+   ]
+  },
+  "general-household-sound-effects/fryingpan01.wav": {
+   "id": "general-household-sound-effects/fryingpan01.wav",
+   "fonte": "OpenGameArt.org",
+   "titulo": "General Household Sound Effects",
+   "url": "https://opengameart.org/content/general-household-sound-effects",
+   "autor": "bretbernhoft",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "fryingpan01.wav",
+   "pacote": [
+    "airconditioner01.wav",
+    "airconditioner02.wav",
+    "airconditioner03.wav",
+    "airconditioner04.wav",
+    "airfryer01.wav",
+    "airfryer02.wav",
+    "airfryer03.wav",
+    "boilingwater01.wav",
+    "boilingwater02.wav",
+    "boilingwater03.wav",
+    "clangingglass01.wav",
+    "clangingglass02.wav",
+    "computerfans01.wav",
+    "computerfans02.wav",
+    "computerfans03.wav",
+    "computerfans04.wav",
+    "crunchingpapertowels01.wav",
+    "electriccanopener01.wav",
+    "forkonplate01.wav",
+    "fryingpan01.wav",
+    "hepafilter01.wav",
+    "hepafilter02.wav",
+    "industrialblower01.wav",
+    "kitchencuttingboard01.wav",
+    "kitchensink01.wav",
+    "kitchensink02.wav",
+    "kitchensink03.wav",
+    "kitchensink04.wav",
+    "kitchenstovefan01.wav",
+    "microwave01.wav",
+    "microwave02.wav",
+    "microwave03.wav",
+    "mouseclicking01.wav",
+    "mouseclicking02.wav",
+    "poppingbubbles01.wav",
+    "shakingcoffeegrounds01.wav",
+    "sharpeningknives01.wav",
+    "vacuumcleaner01.wav",
+    "washer01.wav"
+   ],
+   "tipo_conferido": "audio/x-wav",
+   "trechos_usados": [
+    "32.8s a 43.8s"
+   ],
+   "usado_em": [
+    "casa/fritar_gravado_laco"
+   ]
+  },
+  "general-household-sound-effects/boilingwater01.wav": {
+   "id": "general-household-sound-effects/boilingwater01.wav",
+   "fonte": "OpenGameArt.org",
+   "titulo": "General Household Sound Effects",
+   "url": "https://opengameart.org/content/general-household-sound-effects",
+   "autor": "bretbernhoft",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "boilingwater01.wav",
+   "pacote": [
+    "airconditioner01.wav",
+    "airconditioner02.wav",
+    "airconditioner03.wav",
+    "airconditioner04.wav",
+    "airfryer01.wav",
+    "airfryer02.wav",
+    "airfryer03.wav",
+    "boilingwater01.wav",
+    "boilingwater02.wav",
+    "boilingwater03.wav",
+    "clangingglass01.wav",
+    "clangingglass02.wav",
+    "computerfans01.wav",
+    "computerfans02.wav",
+    "computerfans03.wav",
+    "computerfans04.wav",
+    "crunchingpapertowels01.wav",
+    "electriccanopener01.wav",
+    "forkonplate01.wav",
+    "fryingpan01.wav",
+    "hepafilter01.wav",
+    "hepafilter02.wav",
+    "industrialblower01.wav",
+    "kitchencuttingboard01.wav",
+    "kitchensink01.wav",
+    "kitchensink02.wav",
+    "kitchensink03.wav",
+    "kitchensink04.wav",
+    "kitchenstovefan01.wav",
+    "microwave01.wav",
+    "microwave02.wav",
+    "microwave03.wav",
+    "mouseclicking01.wav",
+    "mouseclicking02.wav",
+    "poppingbubbles01.wav",
+    "shakingcoffeegrounds01.wav",
+    "sharpeningknives01.wav",
+    "vacuumcleaner01.wav",
+    "washer01.wav"
+   ],
+   "tipo_conferido": "audio/x-wav",
+   "trechos_usados": [
+    "93.2s a 104.2s"
+   ],
+   "usado_em": [
+    "casa/ferver_gravado_laco"
+   ]
+  },
+  "50-rpg-sound-effects/x/OGG__doorOpen_1.ogg": {
+   "id": "50-rpg-sound-effects/x/OGG__doorOpen_1.ogg",
+   "fonte": "OpenGameArt.org",
+   "titulo": "50 RPG sound effects",
+   "url": "https://opengameart.org/content/50-rpg-sound-effects",
+   "autor": "Kenney",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "OGG__doorOpen_1.ogg",
+   "pacote": [
+    "RPGsounds_Kenney.zip"
+   ],
+   "tipo_conferido": "audio/ogg",
+   "usado_em": [
+    "casa/porta_abrir_kenney"
+   ]
+  },
+  "50-rpg-sound-effects/x/OGG__doorClose_1.ogg": {
+   "id": "50-rpg-sound-effects/x/OGG__doorClose_1.ogg",
+   "fonte": "OpenGameArt.org",
+   "titulo": "50 RPG sound effects",
+   "url": "https://opengameart.org/content/50-rpg-sound-effects",
+   "autor": "Kenney",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "OGG__doorClose_1.ogg",
+   "pacote": [
+    "RPGsounds_Kenney.zip"
+   ],
+   "tipo_conferido": "audio/ogg",
+   "usado_em": [
+    "casa/porta_fechar_kenney"
+   ]
+  },
+  "doorbell/doorbell.wav": {
+   "id": "doorbell/doorbell.wav",
+   "fonte": "OpenGameArt.org",
+   "titulo": "Doorbell",
+   "url": "https://opengameart.org/content/doorbell",
+   "autor": "frosty ham",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "doorbell.wav",
+   "pacote": [
+    "doorbell.flac",
+    "doorbell.mid",
+    "doorbell.wav"
+   ],
+   "tipo_conferido": "audio/x-wav",
+   "usado_em": [
+    "casa/campainha_beepbox"
+   ]
+  },
+  "general-household-sound-effects/vacuumcleaner01.wav": {
+   "id": "general-household-sound-effects/vacuumcleaner01.wav",
+   "fonte": "OpenGameArt.org",
+   "titulo": "General Household Sound Effects",
+   "url": "https://opengameart.org/content/general-household-sound-effects",
+   "autor": "bretbernhoft",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "vacuumcleaner01.wav",
+   "pacote": [
+    "airconditioner01.wav",
+    "airconditioner02.wav",
+    "airconditioner03.wav",
+    "airconditioner04.wav",
+    "airfryer01.wav",
+    "airfryer02.wav",
+    "airfryer03.wav",
+    "boilingwater01.wav",
+    "boilingwater02.wav",
+    "boilingwater03.wav",
+    "clangingglass01.wav",
+    "clangingglass02.wav",
+    "computerfans01.wav",
+    "computerfans02.wav",
+    "computerfans03.wav",
+    "computerfans04.wav",
+    "crunchingpapertowels01.wav",
+    "electriccanopener01.wav",
+    "forkonplate01.wav",
+    "fryingpan01.wav",
+    "hepafilter01.wav",
+    "hepafilter02.wav",
+    "industrialblower01.wav",
+    "kitchencuttingboard01.wav",
+    "kitchensink01.wav",
+    "kitchensink02.wav",
+    "kitchensink03.wav",
+    "kitchensink04.wav",
+    "kitchenstovefan01.wav",
+    "microwave01.wav",
+    "microwave02.wav",
+    "microwave03.wav",
+    "mouseclicking01.wav",
+    "mouseclicking02.wav",
+    "poppingbubbles01.wav",
+    "shakingcoffeegrounds01.wav",
+    "sharpeningknives01.wav",
+    "vacuumcleaner01.wav",
+    "washer01.wav"
+   ],
+   "tipo_conferido": "audio/x-wav",
+   "trechos_usados": [
+    "18.2s a 27.2s"
+   ],
+   "usado_em": [
+    "casa/aspirador_gravado_laco"
+   ]
+  },
+  "dog-sounds/x/Dog__Dog.wav": {
+   "id": "dog-sounds/x/Dog__Dog.wav",
+   "fonte": "OpenGameArt.org",
+   "titulo": "Dog sounds",
+   "url": "https://opengameart.org/content/dog-sounds",
+   "autor": "pauliuw",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "Dog__Dog.wav",
+   "pacote": [
+    "dog.7z"
+   ],
+   "tipo_conferido": "audio/x-wav",
+   "usado_em": [
+    "bichos/latido_medio_1",
+    "bichos/latido_medio_2",
+    "bichos/latido_medio_3"
+   ]
+  },
+  "dog-sounds/x/Dog__Dog_1.wav": {
+   "id": "dog-sounds/x/Dog__Dog_1.wav",
+   "fonte": "OpenGameArt.org",
+   "titulo": "Dog sounds",
+   "url": "https://opengameart.org/content/dog-sounds",
+   "autor": "pauliuw",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "Dog__Dog_1.wav",
+   "pacote": [
+    "dog.7z"
+   ],
+   "tipo_conferido": "audio/x-wav",
+   "usado_em": [
+    "bichos/latido_grande_1",
+    "bichos/latido_pequeno_1",
+    "bichos/latido_pequeno_2",
+    "bichos/latido_pequeno_3"
+   ]
+  },
+  "dog-sounds/x/Dog__Dog_2.wav": {
+   "id": "dog-sounds/x/Dog__Dog_2.wav",
+   "fonte": "OpenGameArt.org",
+   "titulo": "Dog sounds",
+   "url": "https://opengameart.org/content/dog-sounds",
+   "autor": "pauliuw",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "Dog__Dog_2.wav",
+   "pacote": [
+    "dog.7z"
+   ],
+   "tipo_conferido": "audio/x-wav",
+   "usado_em": [
+    "bichos/latido_grande_2",
+    "bichos/latido_grande_3"
+   ]
+  },
+  "dog-sounds/x/Dog__Sad_Dog.wav": {
+   "id": "dog-sounds/x/Dog__Sad_Dog.wav",
+   "fonte": "OpenGameArt.org",
+   "titulo": "Dog sounds",
+   "url": "https://opengameart.org/content/dog-sounds",
+   "autor": "pauliuw",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "Dog__Sad_Dog.wav",
+   "pacote": [
+    "dog.7z"
+   ],
+   "tipo_conferido": "audio/x-wav",
+   "usado_em": [
+    "bichos/cachorro_choro"
+   ]
+  },
+  "cat-purr-meow/cat_softmew.wav": {
+   "id": "cat-purr-meow/cat_softmew.wav",
+   "fonte": "OpenGameArt.org",
+   "titulo": "Cat Purr & Meow",
+   "url": "https://opengameart.org/content/cat-purr-meow",
+   "autor": "Kerzoven",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "cat_softmew.wav",
+   "pacote": [
+    "cat_mewfood.wav",
+    "cat_mewpurr.wav",
+    "cat_mewpurr2.wav",
+    "cat_purractive_loop.wav",
+    "cat_purrsleepy_loop.wav",
+    "cat_softmew.wav"
+   ],
+   "tipo_conferido": "audio/x-wav",
+   "usado_em": [
+    "bichos/miado_1"
+   ]
+  },
+  "cat-purr-meow/cat_mewfood.wav": {
+   "id": "cat-purr-meow/cat_mewfood.wav",
+   "fonte": "OpenGameArt.org",
+   "titulo": "Cat Purr & Meow",
+   "url": "https://opengameart.org/content/cat-purr-meow",
+   "autor": "Kerzoven",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "cat_mewfood.wav",
+   "pacote": [
+    "cat_mewfood.wav",
+    "cat_mewpurr.wav",
+    "cat_mewpurr2.wav",
+    "cat_purractive_loop.wav",
+    "cat_purrsleepy_loop.wav",
+    "cat_softmew.wav"
+   ],
+   "tipo_conferido": "audio/x-wav",
+   "usado_em": [
+    "bichos/miado_2"
+   ]
+  },
+  "meow/Meow.ogg": {
+   "id": "meow/Meow.ogg",
+   "fonte": "OpenGameArt.org",
+   "titulo": "Meow",
+   "url": "https://opengameart.org/content/meow",
+   "autor": "IgnasD",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "Meow.ogg",
+   "pacote": [
+    "Meow.ogg"
+   ],
+   "tipo_conferido": "audio/ogg",
+   "usado_em": [
+    "bichos/miado_3"
+   ]
+  },
+  "cat-purr-meow/cat_mewpurr.wav": {
+   "id": "cat-purr-meow/cat_mewpurr.wav",
+   "fonte": "OpenGameArt.org",
+   "titulo": "Cat Purr & Meow",
+   "url": "https://opengameart.org/content/cat-purr-meow",
+   "autor": "Kerzoven",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "cat_mewpurr.wav",
+   "pacote": [
+    "cat_mewfood.wav",
+    "cat_mewpurr.wav",
+    "cat_mewpurr2.wav",
+    "cat_purractive_loop.wav",
+    "cat_purrsleepy_loop.wav",
+    "cat_softmew.wav"
+   ],
+   "tipo_conferido": "audio/x-wav",
+   "usado_em": [
+    "bichos/miado_ronron"
+   ]
+  },
+  "cat-purr-meow/cat_purractive_loop.wav": {
+   "id": "cat-purr-meow/cat_purractive_loop.wav",
+   "fonte": "OpenGameArt.org",
+   "titulo": "Cat Purr & Meow",
+   "url": "https://opengameart.org/content/cat-purr-meow",
+   "autor": "Kerzoven",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "cat_purractive_loop.wav",
+   "pacote": [
+    "cat_mewfood.wav",
+    "cat_mewpurr.wav",
+    "cat_mewpurr2.wav",
+    "cat_purractive_loop.wav",
+    "cat_purrsleepy_loop.wav",
+    "cat_softmew.wav"
+   ],
+   "tipo_conferido": "audio/x-wav",
+   "usado_em": [
+    "bichos/ronronar_laco"
+   ]
+  },
+  "ambient-bird-sounds/birds-isaiah658_0.ogg": {
+   "id": "ambient-bird-sounds/birds-isaiah658_0.ogg",
+   "fonte": "OpenGameArt.org",
+   "titulo": "Ambient Bird Sounds",
+   "url": "https://opengameart.org/content/ambient-bird-sounds",
+   "autor": "isaiah658",
+   "licenca": "CC0 1.0 (domínio público)",
+   "licenca_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+   "arquivo_original": "birds-isaiah658_0.ogg",
+   "pacote": [
+    "birds-isaiah658_0.ogg"
+   ],
+   "tipo_conferido": "audio/ogg",
+   "usado_em": [
+    "bichos/passaros_gravados"
+   ]
+  }
+ }
+}
