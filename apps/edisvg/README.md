@@ -24,7 +24,9 @@ Abra por **Arquivo → Pipelines…** (Ctrl+Shift+P), pelo botão **▶ Pipeline
 pela paleta de comandos.
 
 Duas receitas vêm prontas. Elas podem ser editadas ("Voltar ao original" desfaz a edição),
-duplicadas ou excluídas e restauradas. **+ Nova receita** cria uma do zero.
+duplicadas ou excluídas e restauradas. **+ Nova receita** cria uma do zero (até 100 receitas).
+Uma receita da pessoa não volta depois de excluída, então o botão pede um segundo clique
+("Excluir de vez?").
 
 - **Cena animada do jogo**
   - Recebe um projeto do Estúdio, o áudio da aula inteira (um arquivo, ou uma aula do EdiAula) e
@@ -66,7 +68,11 @@ duplicadas ou excluídas e restauradas. **+ Nova receita** cria uma do zero.
 - Se o assistente não estiver conectado, for interrompido ou não fizer nenhuma edição, o pipeline
   para nessa etapa e diz por quê.
 - A execução inteira, até onde chegou, é **um passo de desfazer**: um Ctrl+Z volta o projeto ao
-  que era antes de rodar (`history.mark`/`squash`).
+  que era antes de rodar. Cada edição da execução é juntada à marca no próprio `commit`, antes dos
+  limites do histórico, e a marca nunca é descartada por eles (`history.js`).
+- Enquanto roda, nada mais mexe no projeto: o pipeline não começa com o assistente respondendo;
+  desfazer, refazer, importar, abrir e criar projeto esperam; e o painel não fecha (a parada é
+  por Cancelar).
 
 **Exportar para a aula.** Ao exportar em vídeo a animação de uma narração, o nome sugerido traz
 onde o trecho começa na aula, por exemplo "Narração · Cena animada do jogo (começa em 2m15,7s)", com décimos para não perder a sincronia.
@@ -82,11 +88,16 @@ forma de onda, com a frase atual acesa. Clicar numa frase leva a agulha até ela
 a animação e para com ela.
 
 A narração é só referência: não entra no projeto nem nas exportações, e dura enquanto o arquivo
-está aberto (rodar de novo a substitui). O áudio do trecho é cortado do arquivo ou mixado das vozes
+está aberto, inclusive depois de desfazer e refazer (rodar de novo a substitui; abrir outro
+projeto a descarta). O áudio do trecho é cortado do arquivo ou mixado das vozes
 da aula, num WAV mono pequeno.
 
 **Onde fica cada coisa.**
-- As receitas ficam em `userData/pipelines.json`.
+- As receitas ficam em `userData/pipelines.json`. Se parte do arquivo não for lida (uma receita
+  de uma versão mais nova, uma edição à mão), só essa parte fica de fora, e uma cópia do arquivo
+  inteiro fica ao lado, em `pipelines.json.bak`, antes da próxima gravação.
+- O FFmpeg só recebe arquivos deste computador (`-protocol_whitelist file,pipe`). Um caminho de
+  dentro de uma aula que aponte para a internet ou para uma pasta de rede é ignorado.
 - Um arquivo escolhido para o pipeline fica só no processo principal, que dá à janela um token.
   Assim, as etapas pesadas só abrem o que a pessoa escolheu.
 
@@ -123,8 +134,9 @@ O que fica de fora e é avisado no resumo:
 - **Imagens que não são SVG.** Por exemplo, um PNG enviado ao Estúdio não é importado e aparece
   no resumo.
 
-A importação é uma edição só, que Ctrl+Z desfaz inteira; projetos com mais de 99 imagens vão em
-partes. Código em `src/renderer/src/szProjectImport.ts`. Testes em
+A importação é uma edição só, que Ctrl+Z desfaz inteira, e é tudo ou nada: projetos com mais de
+99 imagens vão em partes, e se uma parte falhar as anteriores são desfeitas. Nomes, textos, tamanho
+do palco e posições ficam dentro dos limites do editor, para o projeto não ser recusado no meio. Código em `src/renderer/src/szProjectImport.ts`. Testes em
 `tests/e2e/szproject-import.test.ts`, que confere a cena por pixels no navegador.
 
 ## Recursos em evolução

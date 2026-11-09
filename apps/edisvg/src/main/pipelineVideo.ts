@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { basename, dirname, extname, join } from "node:path";
 import { z } from "zod";
+import { fileInput } from "./pipelineMedia.ts";
 
 /**
  * The screen demonstration of a pipeline run, on the main process: the clicks saved with a
@@ -84,8 +85,7 @@ export function previewArgs(video: string, seconds: number, out: string): string
     "error",
     "-t",
     seconds.toFixed(3),
-    "-i",
-    video,
+    ...fileInput(video),
     "-an",
     "-vf",
     "scale=-2:540",
@@ -111,8 +111,7 @@ export function frameArgs(video: string, at: number, out: string): string[] {
     "error",
     "-ss",
     Math.max(0, at).toFixed(3),
-    "-i",
-    video,
+    ...fileInput(video),
     "-frames:v",
     "1",
     "-vf",

@@ -75,13 +75,19 @@ export function listRecipes(store: RecipeStore): Recipe[] {
 export const originalRecipe = (id: string): Recipe | undefined =>
   BUILT_IN_RECIPES.find((r) => r.id === id);
 
+/** How many recipes the profile keeps (recipeStoreSchema). */
+export const MAX_RECIPES = 100;
+
 export function saveRecipe(store: RecipeStore, recipe: Recipe): RecipeStore {
   const value = recipeSchema.parse(recipe);
   const original = originalRecipe(value.id);
   // A ready recipe saved exactly as it came is not kept: the original is used.
   const same = original && JSON.stringify(original) === JSON.stringify(value);
   const others = store.recipes.filter((r) => r.id !== value.id);
-  return { ...store, recipes: same ? others : [...others, value] };
+  const recipes = same ? others : [...others, value];
+  if (recipes.length > MAX_RECIPES)
+    throw new Error(`O limite é de ${MAX_RECIPES} receitas: exclua uma antes de criar outra.`);
+  return { ...store, recipes };
 }
 
 export function removeRecipe(store: RecipeStore, id: string): RecipeStore {
@@ -108,11 +114,35 @@ export function duplicateRecipe(store: RecipeStore, id: string, newId: string): 
   return saveRecipe(store, { ...source, id: newId, name });
 }
 
-/** A stored file as the main process can read it, or the store as it was when unreadable. */
-export function parseRecipeStore(raw: unknown): RecipeStore {
+/**
+ * A stored file as the main process can read it. What does not fit (a recipe of a newer EdiSVG,
+ * a hand edit) is left out one recipe at a time, never the whole file; `complete` says whether
+ * everything was kept (if not, main keeps a copy of the file before it is written again).
+ */
+export function salvageRecipeStore(raw: unknown): { store: RecipeStore; complete: boolean } {
   const parsed = recipeStoreSchema.safeParse(raw);
-  return parsed.success ? parsed.data : emptyRecipeStore();
+  if (parsed.success) return { store: parsed.data, complete: true };
+  const value = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  // Extra fields of a newer version are dropped; a recipe that still does not fit is left out.
+  const loose = z.object(recipeSchema.shape);
+  const seen = new Set<string>();
+  const recipes: Recipe[] = [];
+  for (const item of Array.isArray(value.recipes) ? value.recipes : []) {
+    const recipe = loose.safeParse(item);
+    if (!recipe.success || seen.has(recipe.data.id) || recipes.length >= MAX_RECIPES) continue;
+    seen.add(recipe.data.id);
+    recipes.push(recipe.data);
+  }
+  const id = z.string().regex(/^recipe-[\w-]{1,80}$/);
+  const hidden = [
+    ...new Set(
+      (Array.isArray(value.hidden) ? value.hidden : []).filter((h) => id.safeParse(h).success),
+    ),
+  ].slice(0, 20) as string[];
+  return { store: { version: 1, recipes, hidden }, complete: false };
 }
+
+export const parseRecipeStore = (raw: unknown): RecipeStore => salvageRecipeStore(raw).store;
 
 /* ---------- Inputs of a run ---------- */
 

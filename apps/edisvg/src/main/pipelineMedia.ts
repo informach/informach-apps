@@ -1,6 +1,6 @@
 import { readdirSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import type { HeardWord } from "@informach/edi-speech/piece";
 import { z } from "zod";
 
@@ -58,6 +58,20 @@ const transcriptSchema = z.looseObject({
   ),
 });
 
+/**
+ * A path from inside a lesson (the person picked the lesson, not what it points to): a file on
+ * this computer only. A URL or a network share would have FFmpeg reach out of the machine.
+ */
+const localPath = (path: string): boolean => isAbsolute(path) && !/^[\\/]{2}/.test(path);
+
+/** Inputs of FFmpeg are files only (as the suite's probe and frame): never a URL. */
+export const fileInput = (path: string): string[] => [
+  "-protocol_whitelist",
+  "file,pipe",
+  "-i",
+  path,
+];
+
 /** A clip whose voice is heard in the lesson: its file and where it plays. */
 export interface VoiceClip {
   path: string;
@@ -78,7 +92,13 @@ export interface VoiceClip {
 export async function lessonWords(
   lessonPath: string,
 ): Promise<{ words: HeardWord[]; voices: VoiceClip[] }> {
-  const parsed = lessonSchema.safeParse(JSON.parse(await readFile(lessonPath, "utf8")));
+  let raw: unknown;
+  try {
+    raw = JSON.parse(await readFile(lessonPath, "utf8"));
+  } catch {
+    raw = null;
+  }
+  const parsed = lessonSchema.safeParse(raw);
   if (!parsed.success) throw new Error("O arquivo não é uma aula do EdiAula que dê para ler.");
   const lesson = parsed.data;
   // Not someone speaking, as EdiAula decides (shared/audio.ts): a muted, music, sound effects
@@ -99,6 +119,7 @@ export async function lessonWords(
     const asset = assets.get(clip.assetId);
     if (!asset?.transcript || asset.transcriptStatus !== "ready" || asset.hasAudio === false)
       continue;
+    if (!localPath(asset.path) || !localPath(asset.transcript)) continue;
     // A clip silenced while another voice speaks (mutedFor) is not heard either.
     if (muted.has(clip.trackId) || clip.mutedFor || (clip.volume ?? 1) <= 0) continue;
     let heard = transcripts.get(asset.transcript);
@@ -173,8 +194,7 @@ export function cutNarrationArgs(
     Math.max(0, start).toFixed(3),
     "-to",
     end.toFixed(3),
-    "-i",
-    source,
+    ...fileInput(source),
     "-vn",
     ...pcmOut(out),
   ];
@@ -217,8 +237,8 @@ export function mixNarrationArgs(
     if (to - from < 0.02) continue;
     const srcFrom = v.in + (from - v.start) * v.speed;
     const srcTo = v.in + (to - v.start) * v.speed;
-    const index = inputs.length / 2;
-    inputs.push("-i", v.path);
+    const index = chains.length;
+    inputs.push(...fileInput(v.path));
     const delay = Math.round((from - start) * 1000);
     chains.push(
       `[${index}:a]${[
@@ -258,7 +278,14 @@ export function mixNarrationArgs(
  */
 export function existingTranscript(dir: string): string | null {
   let best: { path: string; at: number } | null = null;
-  for (const name of readdirSync(dir)) {
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    // EdiAula never opened this file (or is not installed): nothing made yet.
+    return null;
+  }
+  for (const name of names) {
     if (!/^transcript-.+-pt(?:-[0-9a-f]{8})?(?:-vad)?-b1\.json$/.test(name)) continue;
     const path = join(dir, name);
     const at = statSync(path).mtimeMs;

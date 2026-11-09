@@ -46,6 +46,10 @@ dialog.pipelines-dialog > .help-content {
   gap: 6px;
   flex-shrink: 0;
 }
+.pipeline-actions button.danger {
+  color: #ff7a7a;
+  border-color: #ff7a7a;
+}
 .pipeline-recipe-line {
   margin: 0;
   color: var(--muted);

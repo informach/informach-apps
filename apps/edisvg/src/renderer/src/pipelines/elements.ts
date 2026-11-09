@@ -13,7 +13,9 @@ export interface ElementSvg {
 export function elementSvgs(palette: readonly string[]): ElementSvg[] {
   const light = palette[0] ?? "#ffffff";
   const dark = palette[1] ?? "#1f2a44";
-  const accent = palette.at(-1) ?? "#ffb547";
+  // The accent is a colour of its own: with one or two colours the last one is the text's, and an
+  // arrow in the balloon's colour would disappear on it.
+  const accent = (palette.length >= 3 ? palette.at(-1) : undefined) ?? "#ffb547";
   return [
     {
       name: "Seta",

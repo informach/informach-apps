@@ -117,3 +117,20 @@ test("a pipeline run is one undo step: squash joins every edit since the mark", 
   // Nothing edited since the mark: nothing to join.
   assert.equal(again.squash(again.mark()), false);
 });
+
+test("a run joined as it goes keeps its mark under the byte budget and the step limit", () => {
+  // Each checkpoint near 400 bytes; a budget of 1,000 holds two of them, never three.
+  const big = (v) => ({ v, fill: "x".repeat(380) });
+  const h = createHistory(big(0), 3, 1_000);
+  h.commit(big(1));
+  const mark = h.mark();
+  for (let v = 2; v <= 8; v++) h.commit(big(v), mark);
+  // One undo returns to the state before the run, however many edits it made.
+  assert.deepEqual(h.undo(), big(1));
+  assert.deepEqual(h.redo(), big(8));
+  // Without a mark the same edits evict as before.
+  const plain = createHistory(big(0), 3, 1_000);
+  for (let v = 1; v <= 8; v++) plain.commit(big(v));
+  assert.deepEqual(plain.undo(), big(7));
+  assert.equal(plain.undo(), null);
+});

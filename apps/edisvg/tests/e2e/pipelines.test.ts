@@ -207,6 +207,17 @@ test("pipelines: the ready recipes, edit and duplicate, and a run that imports t
     ).artboards.at(-1);
     assert.deepEqual(scene?.scene.palette?.slice(0, 3), ["#ffffff", "#143d35", "#ffb547"]);
     assert.ok(scene?.scene.palette?.includes("#00ff00"));
+    // An edit after the run is undone alone, and the narration stays with the file.
+    const afterRun = await page.evaluate(() => localStorage.getItem("edisvg-project"));
+    await page.locator("[data-layer-name]").first().click();
+    // The click opens the layer's name for editing: the shortcut goes to the canvas, not to it.
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await page.keyboard.press("Control+d");
+    assert.notEqual(await page.evaluate(() => localStorage.getItem("edisvg-project")), afterRun);
+    await page.locator('[data-action="undo"]').first().click();
+    assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), afterRun);
+    await page.locator(".narration-bar").waitFor({ timeout: 2_000 });
+    assert.equal(await page.locator("audio[data-narration]").count(), 1);
     // The whole run, stopped or not, is one undo step.
     await page.locator('[data-action="undo"]').first().click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), beforeRun);

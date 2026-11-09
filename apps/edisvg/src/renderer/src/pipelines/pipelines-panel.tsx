@@ -22,6 +22,7 @@ import {
   saveRecipe,
 } from "../../../shared/pipelines";
 import {
+  failureText,
   type PipelineBridge,
   type PipelineEditor,
   runPipeline,
@@ -229,12 +230,17 @@ function RunForm({
       const file = await desktop.pipelinePick(kind);
       if (file && live.current) setFiles((current) => ({ ...current, [key]: file }));
     } catch (error) {
-      report(error instanceof Error ? error.message : "Não foi possível escolher o arquivo.");
+      report(failureText(error));
     }
   };
   const start = async () => {
     const parsed = runInputsSchema.safeParse(inputs);
     if (!parsed.success || missing.length) return;
+    // A reply the assistant is writing would land on the file in the middle of the run.
+    if (editor.assistantBusy()) {
+      report("Espere o assistente terminar a resposta, ou interrompa, antes de rodar o pipeline.");
+      return;
+    }
     const abort = new AbortController();
     control.current = abort;
     setRunning(true);
@@ -364,25 +370,41 @@ function PipelinesPanel({ desktop, editor, report, close, setBusy }: Props) {
   };
   const [store, setStore] = useState<RecipeStore | null>(null);
   const [view, setView] = useState<View>({ name: "list" });
+  /** The user recipe whose Excluir was pressed once (a second press removes it). */
+  const [confirming, setConfirming] = useState<string | null>(null);
+  // The store as last saved, and the saves in order: two quick changes never undo each other.
+  const saved = useRef<RecipeStore | null>(null);
+  const saving = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
     let live = true;
     desktop
       .pipelinesRead()
-      .then((value) => live && setStore(value))
+      .then((value) => {
+        if (!live) return;
+        saved.current = value;
+        setStore(value);
+      })
       .catch((error: unknown) => {
-        report(error instanceof Error ? error.message : "Não foi possível ler as receitas.");
+        report(failureText(error));
         if (live) setStore(emptyRecipeStore());
       });
     return () => {
       live = false;
     };
   }, [desktop, report]);
-  const persist = async (next: RecipeStore) => {
-    try {
-      setStore(await desktop.pipelinesWrite(next));
-    } catch (error) {
-      report(error instanceof Error ? error.message : "Não foi possível salvar as receitas.");
-    }
+  const persist = (change: (current: RecipeStore) => RecipeStore) => {
+    saving.current = saving.current.then(async () => {
+      const current = saved.current;
+      // The recipes could not be read: nothing is written over the file.
+      if (!current) return;
+      try {
+        const next = await desktop.pipelinesWrite(change(current));
+        saved.current = next;
+        setStore(next);
+      } catch (error) {
+        report(failureText(error));
+      }
+    });
   };
   const title =
     view.name === "list"
@@ -416,7 +438,7 @@ function PipelinesPanel({ desktop, editor, report, close, setBusy }: Props) {
           isNew={view.isNew}
           onCancel={() => setView({ name: "list" })}
           onSave={(recipe) => {
-            void persist(saveRecipe(store, recipe));
+            persist((current) => saveRecipe(current, recipe));
             setView({ name: "list" });
           }}
         />
@@ -463,16 +485,34 @@ function PipelinesPanel({ desktop, editor, report, close, setBusy }: Props) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => void persist(duplicateRecipe(store, recipe.id, newRecipeId()))}
+                      onClick={() => {
+                        const id = newRecipeId();
+                        persist((current) => duplicateRecipe(current, recipe.id, id));
+                      }}
                     >
                       Duplicar
                     </button>
                     <button
                       type="button"
-                      aria-label={`Excluir ${recipe.name}`}
-                      onClick={() => void persist(removeRecipe(store, recipe.id))}
+                      aria-label={
+                        confirming === recipe.id
+                          ? `Confirmar a exclusão de ${recipe.name}`
+                          : `Excluir ${recipe.name}`
+                      }
+                      className={confirming === recipe.id ? "danger" : undefined}
+                      onBlur={() => setConfirming((id) => (id === recipe.id ? null : id))}
+                      onClick={() => {
+                        // A ready recipe comes back with Restaurar; one of the person's own does
+                        // not, so it asks once more.
+                        if (!isBuiltIn(recipe.id) && confirming !== recipe.id) {
+                          setConfirming(recipe.id);
+                          return;
+                        }
+                        setConfirming(null);
+                        persist((current) => removeRecipe(current, recipe.id));
+                      }}
                     >
-                      Excluir
+                      {confirming === recipe.id ? "Excluir de vez?" : "Excluir"}
                     </button>
                   </div>
                 </li>
@@ -485,7 +525,7 @@ function PipelinesPanel({ desktop, editor, report, close, setBusy }: Props) {
                   <button
                     key={id}
                     type="button"
-                    onClick={() => void persist(restoreRecipe(store, id))}
+                    onClick={() => persist((current) => restoreRecipe(current, id))}
                   >
                     Restaurar {originalRecipe(id)?.name ?? id}
                   </button>
@@ -531,6 +571,8 @@ export function mountPipelines(dialog: HTMLDialogElement, props: Omit<Props, "cl
     dialog.removeAttribute("aria-label");
     dialog.classList.remove("pipelines-dialog");
     dialog.removeEventListener("cancel", cancelEvent);
+    dialog.removeEventListener("close", closeEvent);
+    dialog.removeAttribute("closedby");
     root.unmount();
   };
   let busy = false;
@@ -544,7 +586,14 @@ export function mountPipelines(dialog: HTMLDialogElement, props: Omit<Props, "cl
     event.preventDefault();
     close();
   };
+  // Chromium lets a repeated Esc close a modal even when "cancel" is prevented: while a run goes
+  // the dialog takes no close request at all, and if it closes anyway it opens again.
+  const closeEvent = () => {
+    if (busy) dialog.showModal();
+    else dispose();
+  };
   dialog.addEventListener("cancel", cancelEvent);
+  dialog.addEventListener("close", closeEvent);
   flushSync(() =>
     root.render(
       <PipelinesPanel
@@ -552,6 +601,7 @@ export function mountPipelines(dialog: HTMLDialogElement, props: Omit<Props, "cl
         close={close}
         setBusy={(value) => {
           busy = value;
+          dialog.setAttribute("closedby", value ? "none" : "closerequest");
         }}
       />,
     ),

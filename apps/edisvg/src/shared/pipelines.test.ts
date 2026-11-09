@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { suggestedNameSchema } from "../main/exportPayload";
+import { elementSvgs } from "../renderer/src/pipelines/elements";
 import { draftRequest } from "../renderer/src/pipelines/prompt";
 import { failureText, runPipeline } from "../renderer/src/pipelines/runner";
 import { paletteOf } from "../renderer/src/szProjectImport";
@@ -9,11 +10,14 @@ import {
   duplicateRecipe,
   emptyRecipeStore,
   listRecipes,
+  MAX_RECIPES,
   missingInputs,
+  originalRecipe,
   parseRecipeStore,
   type RunInputs,
   removeRecipe,
   restoreRecipe,
+  salvageRecipeStore,
   saveRecipe,
 } from "./pipelines";
 
@@ -57,6 +61,50 @@ test("a duplicate is the person's own recipe, with a free name, after the ready 
   assert.equal(parseRecipeStore(JSON.parse(JSON.stringify(store))).recipes.length, 2);
 });
 
+test("a store that does not fit whole loses only what does not fit, and says so", () => {
+  const mine = { ...BUILT_IN_RECIPES[1], id: "recipe-minha-1", name: "Minha" };
+  const { store, complete } = salvageRecipeStore({
+    version: 2,
+    recipes: [
+      // A field of a newer EdiSVG: the recipe stays, without it.
+      { ...mine, voice: "feminina" },
+      // A kind this EdiSVG does not know: only this one is left out.
+      { ...mine, id: "recipe-outra", kind: "karaoke" },
+      { ...mine, name: "Repetida" },
+    ],
+    hidden: ["recipe-cena-do-jogo", "não é id", "recipe-cena-do-jogo"],
+  });
+  assert.equal(complete, false);
+  assert.deepEqual(store.recipes, [mine]);
+  assert.deepEqual(store.hidden, ["recipe-cena-do-jogo"]);
+  assert.equal(salvageRecipeStore(JSON.parse(JSON.stringify(store))).complete, true);
+});
+
+test("saving past the limit of recipes says so in Portuguese", () => {
+  const demo = originalRecipe("recipe-demonstracao");
+  assert.ok(demo);
+  let store = emptyRecipeStore();
+  for (let n = 1; n <= MAX_RECIPES; n++)
+    store = saveRecipe(store, { ...demo, id: `recipe-n-${n}`, name: `R ${n}` });
+  assert.throws(
+    () => saveRecipe(store, { ...demo, id: "recipe-mais-uma", name: "Mais" }),
+    /limite é de 100 receitas/,
+  );
+  // Editing one already saved still works at the limit.
+  assert.equal(
+    saveRecipe(store, { ...demo, id: "recipe-n-1", name: "Outra" }).recipes.length,
+    MAX_RECIPES,
+  );
+});
+
+test("the ready elements keep an accent of their own when the palette is short", () => {
+  const accentOf = (palette: string[]) =>
+    elementSvgs(palette)[0]?.svg.match(/stroke="(#[0-9a-f]{6})"/i)?.[1];
+  assert.equal(accentOf(["#ffffff"]), "#ffb547");
+  assert.equal(accentOf(["#ffffff", "#000000"]), "#ffb547");
+  assert.equal(accentOf(["#ffffff", "#000000", "#ff0000"]), "#ff0000");
+});
+
 test("a run says what is missing, by the recipe's kind", () => {
   const [scene, demo] = BUILT_IN_RECIPES;
   if (!scene || !demo) throw new Error("missing ready recipes");
@@ -92,7 +140,7 @@ test("the runner goes step by step, stops at a failure and at Cancelar", async (
     editor: {
       importStudioProject: () => ({
         summary: "",
-        sceneArtboardId: null,
+        sceneArtboardId: "artboard-cena",
         imagePalette: [],
         boards: [],
       }),
@@ -102,6 +150,7 @@ test("the runner goes step by step, stops at a failure and at Cancelar", async (
       askAssistant: async () => ({ text: "", stopped: false, edits: 1 }),
       stopAssistant: () => undefined,
       beginRun: () => undefined,
+      assistantBusy: () => false,
       endRun: () => undefined,
       openDemoArtboard: () => ({
         id: "artboard-d",

@@ -132,6 +132,16 @@ export function svgOfDataUrl(url: string): string | null {
 
 const num = (value: unknown, fallback = 0): number =>
   typeof value === "number" && Number.isFinite(value) ? value : fallback;
+/** Within the editor's limits (a scene that passes them is never refused halfway). */
+const within = (value: number, low: number, high: number): number =>
+  Math.min(high, Math.max(low, value));
+/** Names of artboards and layers: 120 characters at most (artboards.ts, scene.js). */
+const nameOf = (text: string): string => text.slice(0, 120);
+/** The stage, scaled, stays under the 100,000 of an artboard. */
+const STAGE_MAX = Math.floor(99_999 / 3);
+/** Positions and sizes inside the scene, as transforms and instances take them. */
+const POSITION_MAX = 10_000;
+const SIZE_MAX = 100_000;
 const str = (value: unknown): string | null => (typeof value === "string" ? value : null);
 const COLOR = /^#[0-9a-f]{3,8}$|^[a-z]{3,20}$/i;
 const color = (value: unknown, fallback: string): string => {
@@ -155,6 +165,15 @@ const transform = (x: number, y: number) => ({
   sy: 1,
   opacity: 100,
 });
+
+/** A position in the scene, inside what a transform takes. */
+const place = (x: number, y: number) =>
+  transform(within(x, -POSITION_MAX, POSITION_MAX), within(y, -POSITION_MAX, POSITION_MAX));
+/** The game's stage size (480×360 when absent), inside what an artboard takes once scaled. */
+const stageWidth = (stage: Record<string, unknown> | undefined): number =>
+  within(num(stage?.width, 480), 1, STAGE_MAX);
+const stageHeight = (stage: Record<string, unknown> | undefined): number =>
+  within(num(stage?.height, 360), 1, STAGE_MAX);
 
 interface Sprite {
   varName: string;
@@ -190,8 +209,10 @@ export function planSzProjectImport(
       }
       scene = toScene(svg);
     } catch (error) {
+      // The import's own reasons are in Portuguese; anything else (a malformed data URL, bytes
+      // that are not UTF-8) is just an incompatible SVG.
       skipped.push(
-        `${asset.name} (${error instanceof Error ? error.message : "SVG incompatível"})`,
+        `${asset.name} (${error instanceof Error && error.name === "SvgImportError" ? error.message : "SVG incompatível"})`,
       );
       continue;
     }
@@ -199,7 +220,7 @@ export function planSzProjectImport(
     const width = num(scene.viewBox[2], asset.width ?? 1);
     const height = num(scene.viewBox[3], asset.height ?? 1);
     boards.set(asset.name, { id, width, height });
-    commands.push({ type: "artboard", operation: "import", id, name: asset.name, scene });
+    commands.push({ type: "artboard", operation: "import", id, name: nameOf(asset.name), scene });
   }
 
   const behavior = project.ir?.behavior;
@@ -212,8 +233,8 @@ export function planSzProjectImport(
   const missing = new Set<string>();
   if (stage) {
     const k = SCENE_SCALE;
-    const width = num(stage.width, 480) * k;
-    const height = num(stage.height, 360) * k;
+    const width = stageWidth(stage) * k;
+    const height = stageHeight(stage) * k;
     const nodes: unknown[] = [
       {
         id: `node-${crypto.randomUUID()}`,
@@ -253,14 +274,14 @@ export function planSzProjectImport(
         attrs: {},
         text: "",
         children: [],
-        transform: transform(x, y),
+        transform: place(x, y),
         visible: true,
         locked: false,
         instance: {
           artboardId: board.id,
           animationId: null,
-          width: w,
-          height: h,
+          width: within(w, 1, SIZE_MAX),
+          height: within(h, 1, SIZE_MAX),
           fit: "stretch",
           speed: 1,
           offsetSeconds: 0,
@@ -270,13 +291,20 @@ export function planSzProjectImport(
     };
     for (const part of sceneParts) {
       if (part.kind === "backdrop") {
-        const node = instanceNode(`Cenário · ${part.image}`, part.image, 0, 0, width, height);
+        const node = instanceNode(
+          nameOf(`Cenário · ${part.image}`),
+          part.image,
+          0,
+          0,
+          width,
+          height,
+        );
         if (node) nodes.push(node);
       } else if (part.kind === "sprite") {
         const s = part.sprite;
         if (s.image) {
           const node = instanceNode(
-            `${s.varName} · ${s.image}`,
+            nameOf(`${s.varName} · ${s.image}`),
             s.image,
             s.x * k,
             s.y * k,
@@ -287,38 +315,38 @@ export function planSzProjectImport(
         } else
           nodes.push({
             id: `node-${crypto.randomUUID()}`,
-            name: s.varName,
+            name: nameOf(s.varName),
             tag: "rect",
             attrs: {
               x: "0",
               y: "0",
-              width: String(s.w * k),
-              height: String(s.h * k),
+              width: String(within(s.w * k, 0, SIZE_MAX)),
+              height: String(within(s.h * k, 0, SIZE_MAX)),
               fill: s.color ?? "#000000",
             },
             text: "",
             children: [],
-            transform: transform(s.x * k, s.y * k),
+            transform: place(s.x * k, s.y * k),
             visible: true,
             locked: false,
           });
       } else
         nodes.push({
           id: `node-${crypto.randomUUID()}`,
-          name: part.name,
+          name: nameOf(part.name),
           tag: "text",
           attrs: {
             x: "0",
             y: "0",
             fill: part.color,
-            "font-size": String(part.size * k),
+            "font-size": String(within(part.size * k, 1, 10_000)),
             "font-family": "Arial",
             "text-anchor":
               part.align === "center" ? "middle" : part.align === "right" ? "end" : "start",
           },
-          text: part.text,
+          text: part.text.slice(0, 10_000),
           children: [],
-          transform: transform(part.x * k, part.y * k),
+          transform: place(part.x * k, part.y * k),
           visible: true,
           locked: false,
         });
@@ -341,7 +369,7 @@ export function planSzProjectImport(
   const lines = [
     `${images} ${images === 1 ? "imagem virou prancheta" : "imagens viraram pranchetas"}${
       sceneArtboardId
-        ? `, e a "Cena" (${num(stage?.width, 480) * SCENE_SCALE}×${num(stage?.height, 360) * SCENE_SCALE}) monta o começo do jogo com elas`
+        ? `, e a "Cena" (${stageWidth(stage) * SCENE_SCALE}×${stageHeight(stage) * SCENE_SCALE}) monta o começo do jogo com elas`
         : ""
     }.`,
   ];
@@ -350,8 +378,8 @@ export function planSzProjectImport(
       p.kind === "sprite" &&
       // Only what is in the scene: a sprite whose image did not come is said below.
       !(p.sprite.image && missing.has(p.sprite.image)) &&
-      (p.sprite.x >= num(stage?.width, 480) ||
-        p.sprite.y >= num(stage?.height, 360) ||
+      (p.sprite.x >= stageWidth(stage) ||
+        p.sprite.y >= stageHeight(stage) ||
         p.sprite.x + p.sprite.w <= 0 ||
         p.sprite.y + p.sprite.h <= 0),
   );

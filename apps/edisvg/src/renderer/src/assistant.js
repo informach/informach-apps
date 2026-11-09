@@ -324,6 +324,12 @@ export function setupAssistant(editor) {
     bridge.handleAiTools(async ({ name, input }) => {
       if (name === "get_overview") return { ok: true, text: JSON.stringify(editor.overview()) };
       if (name === "undo" || name === "redo") {
+        // In a pipeline run the run so far is one step: undoing it would drop all of it.
+        if (editor.pipelineRunning?.())
+          return {
+            ok: false,
+            text: "Durante o pipeline o histórico fica travado: corrija com uma nova edição.",
+          };
         const changed = editor[name]();
         if (changed) edits++;
         return {
@@ -443,5 +449,5 @@ export function setupAssistant(editor) {
     d.querySelector("[data-close-file]").onclick = () => d.close();
     d.showModal();
   }
-  return { toggle, fileMenu, runTurn };
+  return { toggle, fileMenu, runTurn, isBusy: () => busy };
 }

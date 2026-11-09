@@ -35,6 +35,44 @@ da correção.
 - **Velocidade de clipe:** conta igual à do EdiAula.
 - **Extração do EdiAula:** os arquivos movidos são idênticos, fora as asserções `!` e os imports. O `createWhisper` mantém o comportamento.
 
+## Segunda rodada (09/11/2026)
+
+Depois do lote 6, dois agentes independentes, só leitura, revisaram de novo os sete commits: um o
+processo principal e o `@informach/edi-speech`, outro o renderer. Cada achado foi conferido no
+código; três deles mostraram que correções da primeira rodada (#3, #4 e #11) estavam incompletas.
+
+| # | Achado | Correção | Teste |
+| --- | --- | --- | --- |
+| 12 | Qualquer Ctrl+Z ou Ctrl+Y apagava a narração e o vídeo de referência: a correção #11 os descartava em `applyProject`, que o desfazer também usa. | Só abrir ou criar outro projeto os descarta. | e2e (edição depois da execução, Ctrl+Z, a narração continua) |
+| 13 | Desfazer durante a execução (Ctrl+Z, menu Editar, ferramenta `undo` do assistente no rascunho) voltava tudo o que a execução já tinha feito. | Desfazer e refazer esperam a execução; o assistente recebe a explicação. | leitura |
+| 14 | A marca ainda podia ser descartada pelo limite de 32 MB: o descarte acontecia no `commit`, antes da junção. | `commit(next, joinTo)` junta os passos à marca antes dos limites, e os limites nunca descartam a marca. | `history.test.js` (orçamento pequeno) |
+| 15 | Uma execução podia se misturar a outras edições: começar com o assistente respondendo, ou importar SVG ou projeto do Estúdio pelo menu no meio. | O pipeline não começa com o assistente ocupado; as importações esperam a execução. | leitura |
+| 16 | No Chromium, um segundo Esc fecha o diálogo mesmo com o `cancel` impedido, e a execução continuava escondida. | Durante a execução o diálogo fica com `closedby="none"`; se fechar mesmo assim, ele abre de novo. | leitura |
+| 17 | Projeto do Estúdio com nomes de mais de 120 caracteres, textos longos, palco fora do limite ou posições enormes era recusado no meio, com as partes anteriores já aplicadas e mensagens em inglês do navegador. | Nomes, textos, palco, posições e tamanhos ficam dentro dos limites do editor. A importação em partes é tudo ou nada, num passo de desfazer, e os erros saem em português. | leitura |
+| 18 | A receita da Cena num projeto sem palco animava uma prancheta de imagem. | A etapa para e explica. | leitura |
+| 19 | Gravações seguidas de receitas podiam desfazer uma à outra; o limite de 100 aparecia como erro técnico; excluir uma receita da pessoa não pedia confirmação. | As gravações vão em fila, sobre a última gravada. O limite é dito em português, e excluir uma receita da pessoa pede um segundo clique. | unitário (limite) |
+| 20 | Com uma ou duas cores de texto, seta, destaque e clique saíam na cor do balão. | O destaque só vem da paleta quando ela tem três cores ou mais. | unitário |
+| 21 | Um Cancelar que chegava antes do registro da tarefa (lendo a aula, as transcrições ou o motor) se perdia, e a transcrição ou a mixagem rodava inteira. | A tarefa registra o sinal na primeira linha. O sinal chega a toda execução do FFmpeg, e é conferido entre as etapas. | jornada nativa |
+| 22 | Mensagens do FFmpeg (em inglês, com caminhos), JSON inválido e arquivo sumido chegavam à pessoa. | Mensagens em português dizendo o que não deu para fazer; a voz da aula que mudou de lugar é dita pelo nome. | leitura |
+| 23 | Um `pipelines.json` com uma receita de uma versão mais nova era lido como vazio, e a próxima gravação apagava todas as receitas da pessoa. | Leitura receita a receita, e uma cópia `pipelines.json.bak` antes de gravar o que foi lido. | unitário |
+| 24 | Caminhos de dentro de uma aula iam ao FFmpeg sem restrição: uma URL ou uma pasta de rede faria a máquina sair para a rede. | O FFmpeg só aceita arquivo local (`-protocol_whitelist file,pipe`), e caminhos da aula que não sejam locais são ignorados. | `test:media-native` |
+| 25 | Um quadro pedido depois da última imagem do vídeo (som mais longo que a imagem) parava o rascunho com ENOENT. | O quadro que não sai é pulado. | leitura |
+| 26 | A camada transparente descompactava o ZIP inteiro de forma síncrona no processo principal, sem limite do tamanho descompactado e sem validar o FPS. A cópia final podia deixar meio arquivo sobre um existente. | Descompactação assíncrona, só do manifesto e dos quadros, até 1 GB; FPS validado; cópia ao lado e troca no fim. | jornada nativa |
+| 27 | Procurar uma transcrição criava a pasta de cache do EdiAula mesmo sem o EdiAula instalado. | A pasta só é criada quando uma transcrição grava nela. | leitura |
+
+Ficou como limite: o EdiSVG e o EdiAula gravando `whisper/settings.json` ao mesmo tempo podem
+perder a escolha de modelo de um deles (muito improvável).
+
+Verificações da segunda rodada:
+- EdiSVG: 326 testes unitários e 144 e2e, rodados sobre o build novo (o e2e lê `out/renderer`,
+  então `pnpm build` vem antes);
+- `test:media-native`: 6, com o FFmpeg da suíte;
+- verificação nativa com `EDISVG_PIPELINE_WHISPER=1`: as três jornadas dos pipelines e todas as
+  anteriores, com transcrição real a partir de um cache limpo;
+- typecheck e Biome sem erros.
+
+O `@informach/edi-speech` e o EdiAula não mudaram nesta rodada.
+
 ## Limites que ficam
 
 - A exportação da camada transparente não pode ser cancelada no meio da codificação: o diálogo de salvar aparece no fim.

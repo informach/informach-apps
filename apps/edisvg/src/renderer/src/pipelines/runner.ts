@@ -36,6 +36,8 @@ export interface PipelineEditor {
   addArtboards(items: { name: string; svg: string }[]): DraftBoard[];
   /** Stops the assistant's reply (Cancelar). */
   stopAssistant(): void;
+  /** The assistant is writing a reply (a run then waits: it would edit the file meanwhile). */
+  assistantBusy(): boolean;
   /** A run starts: every edit until endRun becomes one undo step. */
   beginRun(): void;
   endRun(): void;
@@ -119,6 +121,11 @@ const importProject: PipelineStep = {
     ctx.signal.throwIfAborted();
     ctx.progress(0.5, "Montando as pranchetas");
     const result = ctx.editor.importStudioProject(source);
+    // Without the game's stage there is no Cena to animate: the draft would go into an image.
+    if (!result.sceneArtboardId)
+      throw new Error(
+        "O projeto não tem a cena do jogo 2D (o palco): as imagens foram importadas, mas não há Cena para animar.",
+      );
     ctx.results.sceneArtboardId = result.sceneArtboardId;
     ctx.results.imagePalette = result.imagePalette;
     ctx.results.images = result.boards;

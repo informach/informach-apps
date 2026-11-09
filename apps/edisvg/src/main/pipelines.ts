@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readFile, stat } from "node:fs/promises";
+import { copyFile, readFile, stat } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { atomicWrite } from "@informach/edi-desktop/files";
 import { type BrowserWindow, dialog } from "electron";
@@ -8,6 +8,7 @@ import {
   parseRecipeStore,
   type RecipeStore,
   recipeStoreSchema,
+  salvageRecipeStore,
 } from "../shared/pipelines";
 import { readBoundedText, SZPROJECT_BYTES } from "./boundedText.ts";
 
@@ -21,12 +22,25 @@ import { readBoundedText, SZPROJECT_BYTES } from "./boundedText.ts";
 const storeFile = (userData: string): string => join(userData, "pipelines.json");
 
 export async function readRecipeStore(userData: string): Promise<RecipeStore> {
+  const file = storeFile(userData);
+  let text: string;
   try {
-    return parseRecipeStore(JSON.parse(await readFile(storeFile(userData), "utf8")));
+    text = await readFile(file, "utf8");
   } catch {
-    // Missing or unreadable: the ready recipes alone.
+    // No file yet: the ready recipes alone.
     return parseRecipeStore(undefined);
   }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    raw = undefined;
+  }
+  const { store, complete } = salvageRecipeStore(raw);
+  // Part of the file did not fit: a copy stays beside it (pipelines.json.bak) before the next
+  // save writes only what was read, so the person's recipes are never lost silently.
+  if (!complete) await copyFile(file, `${file}.bak`).catch(() => undefined);
+  return store;
 }
 
 export async function writeRecipeStore(userData: string, value: unknown): Promise<RecipeStore> {

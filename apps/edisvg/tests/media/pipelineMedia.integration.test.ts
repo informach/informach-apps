@@ -102,6 +102,19 @@ test("an EdiAula lesson: words on the lesson's clock, only from what sounds, at 
       assets: [
         { id: "v", path: voice, transcript, transcriptStatus: "ready", hasAudio: true },
         { id: "m", path: voice, transcript, transcriptStatus: "ready", hasAudio: true },
+        // A lesson points anywhere: a URL or a network share is never read nor given to FFmpeg.
+        {
+          id: "url",
+          path: "https://exemplo.invalid/voz.wav",
+          transcript,
+          transcriptStatus: "ready",
+        },
+        {
+          id: "rede",
+          path: voice,
+          transcript: "\\\\servidor\\aula\\t.json",
+          transcriptStatus: "ready",
+        },
       ],
       tracks: [
         { id: "voz", muted: false },
@@ -114,6 +127,8 @@ test("an EdiAula lesson: words on the lesson's clock, only from what sounds, at 
         { assetId: "v", trackId: "voz", start: 110, in: 10, duration: 5, speed: 2, volume: 1 },
         // The same voice on a muted track: not heard, so not its words.
         { assetId: "m", trackId: "calada", start: 0, in: 0, duration: 20, volume: 1 },
+        { assetId: "url", trackId: "voz", start: 300, in: 0, duration: 20, volume: 1 },
+        { assetId: "rede", trackId: "voz", start: 400, in: 0, duration: 20, volume: 1 },
         // On the music track, and silenced for another voice: no one speaking, as in EdiAula.
         { assetId: "m", trackId: "trilha", start: 0, in: 0, duration: 20, volume: 1 },
         {

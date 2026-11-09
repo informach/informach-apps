@@ -1258,9 +1258,12 @@ function openingArtboardId(project) {
 }
 function applyProject(value, resetSession = true) {
   const project = parseProject(value);
-  // The narration and the demonstration video of a run belong to the file it ran on.
-  clearNarration();
-  clearReferenceVideo();
+  // The narration and the demonstration video of a run belong to the file it ran on: another
+  // file drops them, an undo or redo in the same file (resetSession false) keeps them.
+  if (resetSession) {
+    clearNarration();
+    clearReferenceVideo();
+  }
   state.tool = "select";
   if (project.artboards.length) {
     state.view = "design";
@@ -1315,11 +1318,10 @@ function applyProject(value, resetSession = true) {
 }
 function save(record = true) {
   const project = snapshot(state);
-  if (record && projectHistory.commit(contentSnapshot(project))) {
+  // A pipeline run is one undo step, kept so as it goes: commit joins it to the mark before the
+  // history limits apply, and never evicts the mark (history.js).
+  if (record && projectHistory.commit(contentSnapshot(project), pipelineRun?.mark))
     state.revision++;
-    // A pipeline run is one undo step, kept so as it goes (the mark is never evicted).
-    if (pipelineRun) projectHistory.squash(pipelineRun.mark);
-  }
   try {
     localStorage.setItem("edisvg-project", JSON.stringify(project));
     localSaveStatus = "Cópia local atualizada";
@@ -1359,6 +1361,11 @@ function refreshHistoryControls() {
   if (indicator) indicator.textContent = localSaveStatus;
 }
 function travelHistory(direction) {
+  // During a run the whole run so far is one step: an undo would drop all of it, not the last edit.
+  if (pipelineRun) {
+    notify("Espere o pipeline terminar, ou cancele, para desfazer ou refazer.");
+    return false;
+  }
   const project = projectHistory[direction]();
   if (!project) return false;
   const context = {
@@ -1906,7 +1913,14 @@ async function editDemo() {
     notify(error.message);
   }
 }
+/** Imports by the menu or by dropping a file wait for a run: they would land in its single step. */
+function refusedDuringRun() {
+  if (!pipelineRun) return false;
+  notify("Espere o pipeline terminar, ou cancele, antes de importar.");
+  return true;
+}
 function importArtwork(initial) {
+  if (refusedDuringRun()) return;
   const dialog = document.querySelector("#clip-dialog");
   if (!(dialog instanceof HTMLDialogElement) || dialog.open) return;
   disposeSvgImport?.();
@@ -1939,6 +1953,7 @@ function importArtwork(initial) {
  * the whole import. `value` comes from the file dialog when absent.
  */
 async function importGameProject(value) {
+  if (refusedDuringRun()) return;
   const session = state.sessionId;
   try {
     const file = value ?? (window.desktop ? await window.desktop.importGameProject() : null);
@@ -1968,7 +1983,19 @@ function applyGameProject(source) {
   const parts = [];
   for (let at = 0; at < plan.commands.length; at += 100)
     parts.push(plan.commands.slice(at, at + 100));
-  for (const part of parts) transact(part);
+  // Whole or nothing, and one undo step (a pipeline run already joins its edits as it goes).
+  const mark = projectHistory.mark();
+  try {
+    for (const part of parts) transact(part);
+  } catch (error) {
+    // The parts already in go back (a run's own step is undone whole by the person).
+    if (!pipelineRun && projectHistory.mark() !== mark) {
+      projectHistory.squash(mark);
+      travelHistory("undo");
+    }
+    throw error;
+  }
+  if (!pipelineRun && projectHistory.squash(mark)) refreshHistoryControls();
   if (plan.sceneArtboardId) bindActiveArtboard(state, plan.sceneArtboardId);
   chooseObject(state, null);
   state.view = "design";
@@ -2133,6 +2160,7 @@ function openPipelines() {
         }));
       },
       stopAssistant: () => void window.desktop?.aiStop(),
+      assistantBusy: () => assistant.isBusy(),
       // A run is one undo step: the edits since the mark are joined at its end.
       beginRun: () => {
         pipelineRun = { mark: projectHistory.mark(), session: state.sessionId };
@@ -2151,10 +2179,13 @@ function openPipelines() {
 /** A dropped .szproject.json: read in the window (the dialog path reads it in main). */
 async function readGameProjectFile(file) {
   if (file.size > SZPROJECT_BYTES) throw new Error("O projeto do Estúdio passa de 30 MB.");
-  return {
-    source: new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer()),
-    name: file.name,
-  };
+  let source;
+  try {
+    source = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer());
+  } catch {
+    throw new Error("O arquivo não é um projeto do Estúdio: o texto não está em UTF-8.");
+  }
+  return { source, name: file.name };
 }
 bindSvgIngress(
   (source, name) => importArtwork({ source, name }),
