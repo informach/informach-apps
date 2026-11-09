@@ -376,7 +376,7 @@ pre.mermaid svg{max-width:100%;height:auto}
       <span class="tag" style="--soft:var(--tangerine-soft);--c:var(--tangerine)">Arte dos pacotes grátis da ITHappy, adaptada</span>
       <span class="tag" style="--soft:var(--sun-soft);--c:var(--sun)">Dentro da assinatura do Recreio</span>
     </div>
-    <div class="hero-meta"><span>Nome e moeda provisórios</span><span>4 nov 2026</span><span>v4.1: consolidação técnica com o Recreio v2.1</span><span>v4.2 (9 nov): bibliotecas de arte, plano de fechamento, ordem com o Recreio, família compartilhada, sair de casa, várias famílias e primeiro acesso</span></div>
+    <div class="hero-meta"><span>Nome e moeda provisórios</span><span>4 nov 2026</span><span>v4.1: consolidação técnica com o Recreio v2.1</span><span>v4.2 (9 nov): bibliotecas de arte, plano de fechamento, ordem com o Recreio, família compartilhada, sair de casa, várias famílias, primeiro acesso e convites</span></div>
   </div>
   <figure class="hero-art" style="margin:0"><img src="img/cena_interior.webp" alt="Cena renderizada da casa da família Oliveira: Marcos no sofá, Lia entre a sala e a cozinha, Nina e Theo brincando no tapete" width="1920" height="1200" style="width:100%;height:100%;object-fit:cover;display:block"></figure>
 </section>
@@ -585,7 +585,7 @@ flowchart LR
         <span class="tag" style="--soft:var(--teal-soft);--c:var(--teal)">Decorar</span>
         <span class="tag" style="--soft:var(--sun-soft);--c:var(--sun)">Gastar até um limite</span>
         <span class="tag" style="--soft:var(--sun-soft);--c:var(--sun)">Gerir finanças</span>
-        <span class="tag" style="--soft:var(--berry-soft);--c:var(--berry)">Convidar moradores</span>
+        <span class="tag" style="--soft:var(--berry-soft);--c:var(--berry)">Chamar alguém para morar na casa</span>
         <span class="tag" style="--soft:var(--berry-soft);--c:var(--berry)">Autorizar mudança</span>
         <span class="tag" style="--soft:var(--leaf-soft);--c:var(--leaf)">Gerir serviços</span>
         <span class="tag" style="--soft:var(--leaf-soft);--c:var(--leaf)">Gerir o mundo</span>
@@ -1388,6 +1388,7 @@ mundo.avancar(<span class="n">100</span>);            <span class="c">// um tick
       <h3>Convidar</h3>
       <ul>
         <li>O convite pergunta como a pessoa vai participar, não "crie seu avatar".</li>
+        <li>Quem convida: responsável e coadministradores; membros conforme a opção "Membros podem convidar" do mundo (padrão: com aprovação, e o convite fica esperando o responsável).</li>
         <li>Permissões escolhidas na hora e revogáveis depois. O convite avisa que, na família compartilhada, quem estiver jogando pode comandar todos, inclusive o morador de quem entra.</li>
         <li>Perfis infantis só recebem convites aprovados pelo titular da conta deles.</li>
         <li>O jogo continua atrás do convite; quem convida não sai do mundo.</li>
@@ -1686,11 +1687,12 @@ mundo.avancar(<span class="n">100</span>);            <span class="c">// um tick
         <tbody>
           <tr><td><b>Responsável</b></td><td>Configurar o mundo, convidar, nomear coadministradores, mudar a política de avanço com acordo</td><td>Um coadministrador assume; sem nenhum, a responsabilidade passa por aceite a outro membro</td></tr>
           <tr><td><b>Coadministrador</b></td><td>Manter o mundo, convidar, remover visitantes</td><td>Perde o papel enquanto estiver sem acesso</td></tr>
-          <tr><td><b>Membro</b></td><td>Entrar e agir nas famílias a que tem acesso</td><td>Não entra. Família só dele segue a política do mundo; família compartilhada continua com os outros membros</td></tr>
+          <tr><td><b>Membro</b></td><td>Entrar e agir nas famílias a que tem acesso; convidar conforme a opção "Membros podem convidar" do mundo</td><td>Não entra. Família só dele segue a política do mundo; família compartilhada continua com os outros membros</td></tr>
           <tr><td><b>Visitante</b></td><td>Circular e conversar, por uma visita com prazo (padrão: até o anfitrião sair, no máximo 24 h), revogável; não é membro</td><td>A visita acaba; voltar pede novo convite</td></tr>
         </tbody>
       </table>
     </div>
+    <p class="caption">Cada mundo tem a opção <b>"Membros podem convidar"</b>, escolhida por quem cuida dele: <b>não</b> (só responsável e coadministradores convidam), <b>com aprovação</b> (padrão: o membro escolhe a pessoa e a forma, dividir a família dele, morar ao lado ou visitar, e o convite só sai depois que o responsável ou um coadministrador aprovar) ou <b>sim</b> (o membro convida direto, mas só para a família dele ou para visitar; família nova em lote livre continua pedindo o responsável). Perfil de criança só convida ou recebe convite de outra assinatura com a aprovação do titular da conta, em qualquer opção. A permissão de família "Chamar alguém para morar na casa" trata de trazer um personagem do bairro para a família, não de convidar pessoas.</p>
     <p class="small" style="margin-top:10px">Se Lia criou o Bairro Ipê e cancela, Bruno e Clara continuam jogando. Sem nenhum membro com acesso, o mundo hiberna e depois é arquivado pela política de retenção, nunca apagado na hora. Se Lia pedir a exclusão da conta, os dados pessoais dela saem e nada do mundo é apagado em cascata. A autoria dela no diário de eventos vira "ex-membro", textos livres que ela escreveu (como nomes) são revistos, e os moradores ficam como conteúdo do mundo, sem vínculo com o perfil dela; ela pode pedir antes para levar a própria família embora. Essa última regra passa pela revisão jurídica do Recreio.</p>
   </div>
   <div class="card facet" style="--soft:var(--sun-soft)">
@@ -2006,7 +2008,7 @@ flowchart TB
 </section>
 
 </main>
-<footer>Projeto Morada · proposta v4.2 · 9 nov 2026: bibliotecas de arte, plano de fechamento, ordem de implementação com o Recreio (mundos da prova com dois lotes) e família compartilhada de todos (quem está jogando comanda qualquer morador dela; o aceite fica só entre famílias), sair de casa, várias famílias por jogador, até 3 mundos criados por perfil e primeiro acesso guiado · v4.1 · 4 nov 2026 · consolidação técnica da v4 com o Recreio v2.1, a partir da segunda revisão externa: servidor autoritativo, política de avanço, preferido com dois direitos, bebês, continuidade do mundo, integração com o Recreio e licenças. Nomes, moeda e números de desempenho são metas a validar na fase 0. Referências técnicas consultadas: <a href="https://docs.colyseus.io/">Colyseus</a>, <a href="https://rapier.rs/docs/user_guides/javascript/character_controller/">Rapier</a>, <a href="https://threejs.org/docs/">Three.js</a>, <a href="https://developer.mozilla.org/pt-BR/docs/Web/API/IndexedDB_API">MDN (IndexedDB, Page Visibility, PWA offline, armazenamento persistente)</a> e a <a href="https://ithappystudios.com/one-time-purchase-licence-agreement/">licença da ITHappy Studios</a>. Elas sustentam capacidades das bibliotecas, não a implementação de outros jogos; esta proposta não é auditoria de código, benchmark nem parecer jurídico. Arte: pacotes gratuitos da ITHappy Studios, adaptados; as imagens são renders de teste.</footer>
+<footer>Projeto Morada · proposta v4.2 · 9 nov 2026: bibliotecas de arte, plano de fechamento, ordem de implementação com o Recreio (mundos da prova com dois lotes) e família compartilhada de todos (quem está jogando comanda qualquer morador dela; o aceite fica só entre famílias), sair de casa, várias famílias por jogador, até 3 mundos criados por perfil, primeiro acesso guiado e quem pode convidar · v4.1 · 4 nov 2026 · consolidação técnica da v4 com o Recreio v2.1, a partir da segunda revisão externa: servidor autoritativo, política de avanço, preferido com dois direitos, bebês, continuidade do mundo, integração com o Recreio e licenças. Nomes, moeda e números de desempenho são metas a validar na fase 0. Referências técnicas consultadas: <a href="https://docs.colyseus.io/">Colyseus</a>, <a href="https://rapier.rs/docs/user_guides/javascript/character_controller/">Rapier</a>, <a href="https://threejs.org/docs/">Three.js</a>, <a href="https://developer.mozilla.org/pt-BR/docs/Web/API/IndexedDB_API">MDN (IndexedDB, Page Visibility, PWA offline, armazenamento persistente)</a> e a <a href="https://ithappystudios.com/one-time-purchase-licence-agreement/">licença da ITHappy Studios</a>. Elas sustentam capacidades das bibliotecas, não a implementação de outros jogos; esta proposta não é auditoria de código, benchmark nem parecer jurídico. Arte: pacotes gratuitos da ITHappy Studios, adaptados; as imagens são renders de teste.</footer>
 
 <script>
 (function(){
