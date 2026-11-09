@@ -655,6 +655,7 @@ export const projectSchema = z
         confirmed: z.boolean().optional(),
       })
       .optional(),
+    partOf: z.looseObject({ lesson: id, section: z.int().nonnegative() }).optional(),
     cleanup: z
       .looseObject({
         kept: z.array(z.string().min(1).max(300)).max(20000),

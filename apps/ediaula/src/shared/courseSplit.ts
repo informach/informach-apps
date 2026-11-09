@@ -136,7 +136,6 @@ export function sectionProject(
   now = Date.now(),
 ): Project {
   const part = rangeProject(project, range.start, range.end);
-  const section = doc.sections[range.section];
   const { publish: _publish, ...rest } = part;
   return {
     ...rest,
@@ -144,14 +143,28 @@ export function sectionProject(
     name,
     createdAt: now,
     updatedAt: now,
-    ...(project.script
-      ? { script: { text: project.script.text, section: range.section, confirmed: true } }
-      : {}),
-    ...(section?.videoId || section?.videoTitle
+    ...sectionFields(project, doc, range.section),
+  };
+}
+
+/**
+ * The script with `section` chosen and confirmed, and the section's video id and title for the
+ * platform: what a project of one section of the lesson carries (a stretch of a long recording,
+ * or a part recorded on its own).
+ */
+function sectionFields(
+  lesson: Pick<Project, "script">,
+  doc: ScriptDoc,
+  section: number,
+): Pick<Project, "script" | "publish"> {
+  const s = doc.sections[section];
+  return {
+    ...(lesson.script ? { script: { text: lesson.script.text, section, confirmed: true } } : {}),
+    ...(s?.videoId || s?.videoTitle
       ? {
           publish: {
-            ...(section.videoId ? { videoId: section.videoId } : {}),
-            ...(section.videoTitle ? { title: section.videoTitle } : {}),
+            ...(s.videoId ? { videoId: s.videoId } : {}),
+            ...(s.videoTitle ? { title: s.videoTitle } : {}),
           },
         }
       : {}),
@@ -171,29 +184,15 @@ export function partProjectName(lesson: string, doc: ScriptDoc, section: number)
 }
 
 /**
- * Part `section`'s project, from the empty one just created for it: the whole script of the
- * lesson with that section chosen and confirmed (the recorder takes its lines and "Na tela" from
- * it), and the section's video id and title for the platform. Nothing of the lesson's timeline
- * comes along: each part is recorded in its own project.
+ * What part `section`'s project is made with: the whole script of the lesson with that section
+ * chosen and confirmed (the recorder takes its lines and "Na tela" from it), the section's video
+ * id and title, and `partOf`, which marks it as a part (its script panel does not offer to make
+ * parts again). Nothing of the lesson's timeline comes along: each part is recorded on its own.
  */
-export function partProject(
-  created: Project,
-  lesson: Pick<Project, "script">,
+export function partProjectFields(
+  lesson: Pick<Project, "id" | "script">,
   doc: ScriptDoc,
   section: number,
-): Project {
-  const s = doc.sections[section];
-  return {
-    ...created,
-    ...(lesson.script ? { script: { text: lesson.script.text, section, confirmed: true } } : {}),
-    ...(s?.videoId || s?.videoTitle
-      ? {
-          publish: {
-            ...created.publish,
-            ...(s.videoId ? { videoId: s.videoId } : {}),
-            ...(s.videoTitle ? { title: s.videoTitle } : {}),
-          },
-        }
-      : {}),
-  };
+): Pick<Project, "script" | "publish" | "partOf"> {
+  return { ...sectionFields(lesson, doc, section), partOf: { lesson: lesson.id, section } };
 }

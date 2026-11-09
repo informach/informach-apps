@@ -8,6 +8,7 @@ import {
   Check,
   ClipboardPaste,
   FileText,
+  FolderPlus,
   HelpCircle,
   Layers,
   Loader,
@@ -139,21 +140,19 @@ export function ScriptPanel(): ReactNode {
     if (!yes) return;
     setBusy("parts");
     try {
-      const { made, existing } = await projectPerPart(project, doc);
-      const already = existing.length
-        ? ` ${existing.length === 1 ? "Uma parte já tinha projeto" : `${existing.length} partes já tinham projeto`} e ficou como estava.`
+      const { made, existing, failed } = await projectPerPart(project, doc);
+      const news =
+        made.length === 1
+          ? "Projeto de uma parte criado. Ele está na tela inicial."
+          : made.length
+            ? `Projetos de ${made.length} partes criados. Eles estão na tela inicial.`
+            : "";
+      const old = existing.length
+        ? ` ${existing.length === 1 ? "Uma parte já tinha" : `${existing.length} partes já tinham`} projeto e ficou como estava.`
         : "";
-      toast(
-        made.length
-          ? `${made.length === 1 ? "Um projeto criado" : `${made.length} projetos criados`}, um por parte. Eles estão na tela inicial.${already}`
-          : `Todas as partes já têm projeto.${already}`,
-        "success",
-      );
-    } catch (err) {
-      toast(
-        `Os projetos das partes não foram criados: ${err instanceof Error ? err.message : String(err)}`,
-        "error",
-      );
+      if (failed)
+        toast(`${news ? `${news} ` : ""}A parte seguinte não foi criada: ${failed}`, "error");
+      else toast(news ? `${news}${old}` : "Todas as partes já têm projeto.", "success");
     } finally {
       setBusy(null);
     }
@@ -334,11 +333,11 @@ export function ScriptPanel(): ReactNode {
       </div>
 
       <div className="script-foot">
-        {doc.sections.length > 1 && (
+        {doc.sections.length > 1 && !project.partOf && (
           <Button
             size="sm"
             variant="ghost"
-            icon={busy === "parts" ? Loader : Layers}
+            icon={busy === "parts" ? Loader : FolderPlus}
             disabled={busy !== null}
             title="Cria um projeto para cada parte do roteiro, com a parte já escolhida: cada parte é gravada, editada e empacotada sozinha"
             onClick={() => void perPart()}

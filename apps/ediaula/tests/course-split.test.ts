@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { TimelineWord } from "../src/shared/cleanup.ts";
 import {
-  partProject,
+  partProjectFields,
   partProjectName,
   rangeProject,
   sectionProject,
@@ -190,27 +190,18 @@ test("um projeto por parte: nome da aula e da parte, roteiro inteiro com a parte
   assert.ok(doc);
   assert.equal(partProjectName(" DPJ Aula01 ", doc, 0), "DPJ Aula01 · Parte 1. A Chave do Farol");
   assert.equal(partProjectName("DPJ Aula01", doc, 2), "DPJ Aula01 · Parte 3. O desafio final");
-  const created = {
-    version: 1,
-    id: "p-novo",
-    name: "DPJ Aula01 · Parte 2. Blocos de repetição",
-    course: "Desafio",
-    createdAt: 1,
-    updatedAt: 1,
-    settings: { width: 1920, height: 1080, fps: 30, sampleRate: 48000 },
-    assets: [],
-    tracks: [],
-    clips: [],
-  } as unknown as Project;
-  const lesson = { script: { text: SCRIPT, section: 0, confirmed: false } };
-  const part = partProject(created, lesson, doc, 1);
-  assert.deepEqual(part.script, { text: SCRIPT, section: 1, confirmed: true });
-  assert.deepEqual(part.publish, { videoId: "F1P1-V02", title: "Blocos de repetição" });
-  // O projeto da parte é o que acabou de ser criado: nada da linha do tempo da aula vem junto.
-  assert.equal(part.id, "p-novo");
-  assert.deepEqual(part.clips, []);
+  const lesson = { id: "p-aula", script: { text: SCRIPT, section: 0, confirmed: false } };
+  assert.deepEqual(partProjectFields(lesson, doc, 1), {
+    script: { text: SCRIPT, section: 1, confirmed: true },
+    publish: { videoId: "F1P1-V02", title: "Blocos de repetição" },
+    // A marca de parte: o painel Roteiro do projeto da parte não oferece criar partes de novo.
+    partOf: { lesson: "p-aula", section: 1 },
+  });
   // Parte sem vídeo nomeado: sem publish.
-  assert.equal(partProject(created, lesson, doc, 2).publish, undefined);
-  // Aula sem roteiro: o projeto fica como foi criado.
-  assert.equal(partProject(created, {}, doc, 1).script, undefined);
+  assert.equal(partProjectFields(lesson, doc, 2).publish, undefined);
+  // Aula sem roteiro: só a marca de parte.
+  assert.deepEqual(partProjectFields({ id: "p-aula" }, doc, 1), {
+    publish: { videoId: "F1P1-V02", title: "Blocos de repetição" },
+    partOf: { lesson: "p-aula", section: 1 },
+  });
 });

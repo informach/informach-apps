@@ -1816,8 +1816,10 @@ a criança vê e não salva nada. A primeira gravação, Cadê Todo Mundo Aula 1
 4. **Um projeto por parte** (desde 09/11/2026). **Novo projeto** com o nome da aula e o curso; no painel
    **Roteiro**, cole o roteiro da aula (**Usar roteiro**) e clique em **Um projeto por parte**. Sai um
    projeto para cada parte, "<aula> · Parte N. <título>", com o roteiro inteiro e a parte já escolhida;
-   pedir de novo só cria os que faltam. Cada parte é gravada, editada e empacotada sozinha. O projeto
-   da aula, onde o roteiro foi colado, só serve para criar os outros.
+   pedir de novo só cria os que faltam (vale o arquivo na pasta de projetos). Cada parte é gravada,
+   editada e empacotada sozinha. O projeto da aula, onde o roteiro foi colado, só serve para criar os
+   outros: os planos guiados que ele tenha não vão para as partes, e o projeto de uma parte não oferece
+   criar partes de novo.
 5. **Para cada parte**, no projeto dela, nesta ordem:
    1. Confira no painel **Roteiro** que a seção escolhida é a da parte (é dela que o gravador tira as
       falas e o **Na tela**).

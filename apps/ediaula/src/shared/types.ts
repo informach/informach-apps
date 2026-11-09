@@ -490,6 +490,11 @@ export interface Project {
   /** Guided recording plans of this lesson and how their takes ended (shared/guidedPlan.ts). */
   guided?: GuidedStore;
   /**
+   * A project of one part of a lesson ("Um projeto por parte", shared/courseSplit.ts): the id of
+   * the lesson's project it came from and the section of the script it records.
+   */
+  partOf?: { lesson: string; section: number };
+  /**
    * A lesson started from its course's template (shared/courseTemplate.ts startingLesson): when
    * the first media reaches the timeline, the opening and closing cards go in and the music bed
    * (already in the library) is laid to the end of the lesson; then this is gone. While it is
@@ -1236,6 +1241,17 @@ export interface EdiAulaApi {
     settings: ProjectSettings,
     fileName?: string,
   ): Promise<{ path: string; project: Project }>;
+  /**
+   * "Um projeto por parte": a part's project, made in one go with its script, publish and
+   * `partOf`; when a project file of that name is already in the projects folder, nothing is made
+   * and `existing` says so (the part already has its project).
+   */
+  createPartProject(
+    name: string,
+    course: string | undefined,
+    settings: ProjectSettings,
+    fields: Pick<Project, "script" | "publish" | "partOf">,
+  ): Promise<{ path: string; project: Project } | { existing: true }>;
   /** The project as JSON text (JSON.stringify in the page, so only a string crosses to the
    *  preload and to the main process): a single IPC value however long the lesson is. */
   saveProject(path: string, projectJson: string): Promise<void>;

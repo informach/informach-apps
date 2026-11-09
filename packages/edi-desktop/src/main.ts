@@ -327,6 +327,7 @@ export function createEdiDesktop(options: {
     "dialog:document",
     "dialog:open",
     "project:create",
+    "project:createPart",
     "project:recent",
     "recent:list",
     "app:pending",

@@ -123,11 +123,13 @@ import { estimatePackage, inspectPackage, packProject, unpackProject } from "./p
 import { cancelPersonKey, registerPersonKey } from "./personKey.ts";
 import { exportVoice, locateVideo, VOICE_EXPORT_FOLDER } from "./presenterVideo.ts";
 import {
+  createPartProject,
   createProject,
   duplicateProject,
   listBackups,
   openProject,
   PROJECT_EXT,
+  partFields,
   projectJson,
   projectsDir,
   recentProjects,
@@ -954,6 +956,16 @@ function registerIpc(): void {
     "project:create",
     (_e, name: string, course: string | undefined, settings: ProjectSettings, fileName: unknown) =>
       createProject(name, course, settings, z.string().min(1).max(200).optional().parse(fileName)),
+  );
+  ipcMain.handle(
+    "project:createPart",
+    (_e, name: unknown, course: unknown, settings: ProjectSettings, fields: unknown) =>
+      createPartProject(
+        z.string().min(1).max(300).parse(name),
+        z.string().max(300).optional().parse(course),
+        settings,
+        partFields(fields),
+      ),
   );
   // Only lesson files the person chose (src/main/lessonFile.ts).
   ipcMain.handle("project:save", async (_e, rawPath: unknown, text: unknown) =>

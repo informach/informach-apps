@@ -47,6 +47,56 @@ const safeName = (name: string): string =>
     .trim()
     .slice(0, 80) || "Aula sem nome";
 
+/**
+ * "Um projeto por parte": the part's project made in one go (one save, already with its script
+ * and `partOf`), so a failure never leaves an empty project with the part's name. The check is
+ * the file in the projects folder, not the recent list (which is capped and loses entries the
+ * person removes): a project file of that name already there means the part has its project.
+ */
+export async function createPartProject(
+  name: string,
+  course: string | undefined,
+  settings: ProjectSettings,
+  fields: Pick<Project, "script" | "publish" | "partOf">,
+): Promise<{ path: string; project: Project } | { existing: true }> {
+  const path = join(projectsDir(), `${safeName(name)}.${PROJECT_EXT}`);
+  if (existsSync(path)) return { existing: true };
+  const now = Date.now();
+  const project: Project = {
+    version: 1,
+    id: newId("p"),
+    name: name.trim() || "Aula sem nome",
+    course: course?.trim() || undefined,
+    createdAt: now,
+    updatedAt: now,
+    settings: projectSettingsSchema.parse(settings),
+    assets: [],
+    tracks: defaultTracks(),
+    clips: [],
+    ...(fields.script ? { script: fields.script } : {}),
+    ...(fields.publish ? { publish: fields.publish } : {}),
+    ...(fields.partOf ? { partOf: fields.partOf } : {}),
+  };
+  await saveProject(path, project);
+  return { path, project };
+}
+
+/** The fields a part's project may be made with, checked as the project schema checks them. */
+export function partFields(raw: unknown): Pick<Project, "script" | "publish" | "partOf"> {
+  const fields = z
+    .object({
+      script: z.unknown().optional(),
+      publish: z.unknown().optional(),
+      partOf: z.unknown(),
+    })
+    .parse(raw);
+  const checked = projectSchema
+    .pick({ script: true, publish: true, partOf: true })
+    .parse({ script: fields.script, publish: fields.publish, partOf: fields.partOf });
+  if (!checked.partOf) throw new Error("O projeto da parte precisa dizer de que aula ele é.");
+  return checked as Pick<Project, "script" | "publish" | "partOf">;
+}
+
 export async function createProject(
   name: string,
   course: string | undefined,

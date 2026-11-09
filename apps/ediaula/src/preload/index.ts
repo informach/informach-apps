@@ -210,6 +210,8 @@ const api: EdiAulaApi = {
   exists: (paths) => ipcRenderer.invoke("fs:exists", paths),
   createProject: (name, course, settings, fileName) =>
     ipcRenderer.invoke("project:create", name, course, settings, fileName),
+  createPartProject: (name, course, settings, fields) =>
+    ipcRenderer.invoke("project:createPart", name, course, settings, fields),
   saveProject: (path, projectJson) => ipcRenderer.invoke("project:save", path, projectJson),
   openProject: (path) => ipcRenderer.invoke("project:open", path),
   recentProjects: () => ipcRenderer.invoke("project:recent"),
