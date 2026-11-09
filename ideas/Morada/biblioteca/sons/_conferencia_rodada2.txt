@@ -1,0 +1,7 @@
+rodada 2: 737 sons, 0 com algo fora (o único que sobrou, interface/dinheiro_moedas_kenney a -17,15 LUFS, foi retirado da biblioteca)
+  [ambientes] 8 arquivos, 6.0 min; LUFS -16.2 a -16.0; pico real máx -1.59 dBTP; 8 laços, salto na emenda máx 0.504× o p99 das diferenças
+  [bichos] 36 arquivos, 1.0 min; LUFS -16.4 a -15.9; pico real máx -1.26 dBTP; 2 laços, salto na emenda máx 0.089× o p99 das diferenças
+  [casa] 67 arquivos, 3.1 min; LUFS -17.0 a -15.9; pico real máx -1.30 dBTP; 20 laços, salto na emenda máx 0.794× o p99 das diferenças
+  [interface] 30 arquivos, 0.3 min; LUFS -17.1 a -15.8; pico real máx -1.38 dBTP; 0 laços, salto na emenda máx 0.000× o p99 das diferenças
+  [musica] 21 arquivos, 10.6 min; LUFS -20.0 a -20.0; pico real máx -3.84 dBTP; 7 laços, salto na emenda máx 0.430× o p99 das diferenças
+  [voz] 576 arquivos, 16.4 min; LUFS -16.9 a -15.8; pico real máx -1.36 dBTP; 0 laços, salto na emenda máx 0.000× o p99 das diferenças
