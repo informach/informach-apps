@@ -376,7 +376,7 @@ pre.mermaid svg{max-width:100%;height:auto}
       <span class="tag" style="--soft:var(--tangerine-soft);--c:var(--tangerine)">Arte dos pacotes grátis da ITHappy, adaptada</span>
       <span class="tag" style="--soft:var(--sun-soft);--c:var(--sun)">Dentro da assinatura do Recreio</span>
     </div>
-    <div class="hero-meta"><span>Nome e moeda provisórios</span><span>4 nov 2026</span><span>v4.1: consolidação técnica com o Recreio v2.1</span><span>v4.2 (9 nov): bibliotecas de arte, plano de fechamento, ordem com o Recreio e família compartilhada</span></div>
+    <div class="hero-meta"><span>Nome e moeda provisórios</span><span>4 nov 2026</span><span>v4.1: consolidação técnica com o Recreio v2.1</span><span>v4.2 (9 nov): bibliotecas de arte, plano de fechamento, ordem com o Recreio, família compartilhada, sair de casa e várias famílias</span></div>
   </div>
   <figure class="hero-art" style="margin:0"><img src="img/cena_interior.webp" alt="Cena renderizada da casa da família Oliveira: Marcos no sofá, Lia entre a sala e a cozinha, Nina e Theo brincando no tapete" width="1920" height="1200" style="width:100%;height:100%;object-fit:cover;display:block"></figure>
 </section>
@@ -645,6 +645,30 @@ flowchart LR
         <li><b>Separar:</b> quem fica, quem sai, dependentes, lote e fundo; envolvendo outra família, cada passo pede o aceite dela.</li>
         <li>Filhos com pais em casas diferentes mantêm o parentesco; no começo, comandar segue a casa onde moram. Guarda compartilhada vem depois.</li>
         <li>Limite por família: 8 moradores no protótipo, a testar. Não confundir com as 12 pessoas por mundo.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="grid g2">
+    <div class="card facet" style="--soft:var(--leaf-soft)">
+      <h3>Sair de casa e montar a própria família</h3>
+      <ul class="small" style="margin:0;padding-left:18px;display:grid;gap:6px">
+        <li><b>Quem:</b> moradores adultos ou idosos. Adolescente e criança, não.</li>
+        <li><b>De onde vem:</b> de quem está jogando, ou do próprio morador, que pela personalidade, idade e relações passa a querer morar sozinho. Numa família com jogador, o desejo vira um pedido e a família decide; ele nunca sai sozinho. Numa família sem nenhum jogador, como os vizinhos da cidade, pode sair por conta própria.</li>
+        <li><b>Ajuda para começar:</b> a família decide quanto dar do fundo comum, num valor único e, se quiser, numa mesada por algumas semanas. Decide quem tem a permissão de gerir finanças. A carteira do morador vai com ele.</li>
+        <li><b>O que vai junto:</b> a família escolhe os objetos que ele leva, como a cama e o armário do quarto; o resto fica.</li>
+        <li><b>A casa nova:</b> um lote ou imóvel livre do bairro, alugado ou comprado. Na primeira etapa, é o papel do lote vazio de cada mundo.</li>
+        <li><b>O que não muda:</b> continua filho e irmão, com relações e memórias; visita e é visitado; pode casar ou trazer alguém para morar depois.</li>
+        <li><b>Quem joga com a família nova:</b> por padrão, quem tinha acesso à família de origem, para continuar acompanhando o filho. Dá para passar a família nova a outra pessoa do mundo.</li>
+      </ul>
+    </div>
+    <div class="card facet" style="--soft:var(--sky-soft)">
+      <h3>Jogar com várias famílias</h3>
+      <ul class="small" style="margin:0;padding-left:18px;display:grid;gap:6px">
+        <li><b>Uma família ativa por vez.</b> O botão "Trocar de família" mostra as famílias do mundo a que você tem acesso; escolher outra leva a câmera até a casa dela, na hora, porque é o mesmo mundo.</li>
+        <li><b>A família que você deixou</b> fica ausente se ninguém mais estiver nela e segue a política do mundo. Na vida em suspenso (padrão), espera você: cuida de si, mas não envelhece, e dá para passar um mês de jogo com outra família e encontrá-la como estava. No bairro em sincronia, segue a vida enquanto você está longe.</li>
+        <li><b>Num mundo só seu</b>, você cria famílias em lotes diferentes e alterna entre elas, com histórias que se cruzam: os filhos de uma namoram os da outra, os vizinhos viram amigos.</li>
+        <li><b>Limites:</b> os lotes do mundo e até 8 moradores por família, a testar.</li>
+        <li>Trocar de família não muda acesso nem permissões: só qual família está ativa na sua interface.</li>
       </ul>
     </div>
   </div>
@@ -1846,7 +1870,7 @@ flowchart TB
         <tr><td><b>1 · Uma casa que funciona</b></td><td>Criar de 1 a 4 moradores, retratos, necessidades, 20 a 30 interações, paredes e móveis, salvar, hibernar e voltar</td><td>Uma pessoa administra todos os moradores por 7 dias de jogo</td></tr>
         <tr><td><b>2 · Família completa</b></td><td>Relações, namoro com NPC, morar junto, gravidez ou adoção, bebê com cuidados, envelhecimento, mudança simples</td><td>Um casal tem um filho, o filho é cuidado desde o nascimento e cresce sem perder identidade</td></tr>
         <tr><td><b>3 · Mais gente na casa</b></td><td>Convite com aviso de família compartilhada, reservas, permissões, relógio dos presentes, política de avanço, reconexão</td><td>Duas pessoas comandam a mesma família; o filho nunca tem dois controladores; quem volta encontra a família como a política prometeu</td></tr>
-        <tr><td><b>4 · Vizinhos</b></td><td>Famílias separadas, visitas, casamento entre casas, unir e separar, mudar de lote, papéis do mundo e continuidade</td><td>Duas pessoas casam seus moradores sem perder nada; o mundo segue quando a responsável cancela</td></tr>
+        <tr><td><b>4 · Vizinhos</b></td><td>Famílias separadas, visitas, casamento entre casas, unir e separar, mudar de lote, sair de casa com ajuda da família, trocar de família ativa, papéis do mundo e continuidade</td><td>Duas pessoas casam seus moradores sem perder nada; o mundo segue quando a responsável cancela</td></tr>
         <tr><td><b>5 · Escola e trabalho</b></td><td>Escola, empregos, habilidades, contas, histórias do bairro</td><td>Semanas de jogo coerentes, com trabalho e escola</td></tr>
         <tr><td><b>6 · Serviços e conteúdo</b></td><td>Serviços contratados com agenda, catálogo maior (pacotes pagos com receita), casas prontas, acessibilidade, otimização</td><td>Beta privado no hardware-alvo</td></tr>
         <tr><td><b>7 · Lançamento no Recreio</b></td><td>Primeiros passos, backups, operação, suporte, moderação, autoclassificação, licenças confirmadas</td><td>Uma família de fora assina, joga e convida um amigo sem ajuda do time</td></tr>
@@ -1905,6 +1929,8 @@ flowchart TB
         <tr><td>Filhos</td><td>Moradores próprios, com parentesco, comandáveis por quem tem acesso à família; sem dono</td></tr>
         <tr><td>NPC que vem morar</td><td>Vira morador comandável da família</td></tr>
         <tr><td>Casar e morar junto</td><td>Decisões separadas</td></tr>
+        <tr><td>Sair de casa</td><td>Adulto pode sair e montar a própria família; a família decide a ajuda do fundo e o que ele leva; parentesco e relações ficam</td></tr>
+        <tr><td>Várias famílias</td><td>Um jogador pode ter várias famílias no mundo e alterna entre elas; uma ativa por vez, as outras seguem a política do mundo</td></tr>
         <tr><td>Gravidez</td><td>Não explícita, persistente, com aceites e adoção</td></tr>
         <tr><td>Envelhecimento</td><td>Configurável por mundo; família com alguém presente envelhece inteira; famílias ausentes seguem a política de avanço</td></tr>
         <tr><td>Morte</td><td>Desligada por padrão</td></tr>
@@ -1969,7 +1995,7 @@ flowchart TB
 </section>
 
 </main>
-<footer>Projeto Morada · proposta v4.2 · 9 nov 2026: bibliotecas de arte, plano de fechamento, ordem de implementação com o Recreio (mundos da prova com dois lotes) e família compartilhada de todos (quem está jogando comanda qualquer morador dela; o aceite fica só entre famílias) · v4.1 · 4 nov 2026 · consolidação técnica da v4 com o Recreio v2.1, a partir da segunda revisão externa: servidor autoritativo, política de avanço, preferido com dois direitos, bebês, continuidade do mundo, integração com o Recreio e licenças. Nomes, moeda e números de desempenho são metas a validar na fase 0. Referências técnicas consultadas: <a href="https://docs.colyseus.io/">Colyseus</a>, <a href="https://rapier.rs/docs/user_guides/javascript/character_controller/">Rapier</a>, <a href="https://threejs.org/docs/">Three.js</a>, <a href="https://developer.mozilla.org/pt-BR/docs/Web/API/IndexedDB_API">MDN (IndexedDB, Page Visibility, PWA offline, armazenamento persistente)</a> e a <a href="https://ithappystudios.com/one-time-purchase-licence-agreement/">licença da ITHappy Studios</a>. Elas sustentam capacidades das bibliotecas, não a implementação de outros jogos; esta proposta não é auditoria de código, benchmark nem parecer jurídico. Arte: pacotes gratuitos da ITHappy Studios, adaptados; as imagens são renders de teste.</footer>
+<footer>Projeto Morada · proposta v4.2 · 9 nov 2026: bibliotecas de arte, plano de fechamento, ordem de implementação com o Recreio (mundos da prova com dois lotes) e família compartilhada de todos (quem está jogando comanda qualquer morador dela; o aceite fica só entre famílias), sair de casa e várias famílias por jogador · v4.1 · 4 nov 2026 · consolidação técnica da v4 com o Recreio v2.1, a partir da segunda revisão externa: servidor autoritativo, política de avanço, preferido com dois direitos, bebês, continuidade do mundo, integração com o Recreio e licenças. Nomes, moeda e números de desempenho são metas a validar na fase 0. Referências técnicas consultadas: <a href="https://docs.colyseus.io/">Colyseus</a>, <a href="https://rapier.rs/docs/user_guides/javascript/character_controller/">Rapier</a>, <a href="https://threejs.org/docs/">Three.js</a>, <a href="https://developer.mozilla.org/pt-BR/docs/Web/API/IndexedDB_API">MDN (IndexedDB, Page Visibility, PWA offline, armazenamento persistente)</a> e a <a href="https://ithappystudios.com/one-time-purchase-licence-agreement/">licença da ITHappy Studios</a>. Elas sustentam capacidades das bibliotecas, não a implementação de outros jogos; esta proposta não é auditoria de código, benchmark nem parecer jurídico. Arte: pacotes gratuitos da ITHappy Studios, adaptados; as imagens são renders de teste.</footer>
 
 <script>
 (function(){
