@@ -235,6 +235,7 @@ function RunForm({
     control.current = abort;
     setRunning(true);
     setOutcome(null);
+    editor.beginRun();
     try {
       const result = await runPipeline(
         recipe,
@@ -247,6 +248,8 @@ function RunForm({
       );
       if (live.current) setOutcome({ ok: result.ok, report: result.report });
     } finally {
+      // Whatever the run did (also when it stopped) is undone by one Ctrl+Z.
+      editor.endRun();
       if (live.current) setRunning(false);
       control.current = null;
     }

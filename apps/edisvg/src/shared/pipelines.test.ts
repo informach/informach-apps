@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { suggestedNameSchema } from "../main/exportPayload";
+import { draftRequest } from "../renderer/src/pipelines/prompt";
 import { failureText, runPipeline } from "../renderer/src/pipelines/runner";
+import { paletteOf } from "../renderer/src/szProjectImport";
 import {
   BUILT_IN_RECIPES,
   duplicateRecipe,
@@ -87,8 +90,19 @@ test("the runner goes step by step, stops at a failure and at Cancelar", async (
   };
   const deps = (signal: AbortSignal) => ({
     editor: {
-      importStudioProject: () => ({ summary: "", sceneArtboardId: null }),
+      importStudioProject: () => ({
+        summary: "",
+        sceneArtboardId: null,
+        imagePalette: [],
+        boards: [],
+      }),
       openNarration: async () => ({ clipId: "animation-x", fps: 30, frames: 1 }),
+      activeArtboard: () => ({ id: "artboard-x", name: "Cena", width: 1440, height: 1080 }),
+      setPalette: () => undefined,
+      askAssistant: async () => ({ text: "", stopped: false, edits: 1 }),
+      stopAssistant: () => undefined,
+      beginRun: () => undefined,
+      endRun: () => undefined,
     },
     bridge: {
       pipelineReadProject: async () => "",
@@ -165,4 +179,56 @@ test("a failure from the main process is said without Electron's wrapper", () =>
     "Não achei esse roteiro no áudio.",
   );
   assert.equal(failureText("x"), "A etapa falhou.");
+});
+
+test("the assistant gets the recipe, where to work, each sentence's frames, the images and the colours", () => {
+  const text = draftRequest({
+    recipe: { name: "Cena animada do jogo", kind: "game-scene", style: "Entradas suaves." },
+    artboard: { id: "artboard-cena", name: "Cena · A Chave do Farol", width: 1440, height: 1080 },
+    clip: { id: "animation-n", fps: 30, frames: 300 },
+    lines: [
+      { text: "O personagem precisa encontrar a chave.", from: 12, to: 120 },
+      { text: "Quando ele pegar a chave, o aviso muda.", from: 186, to: 280 },
+    ],
+    images: [{ id: "artboard-heroi", name: "aventureiro", width: 64, height: 64 }],
+    textPalette: ["#ffffff", "#143d35"],
+    imagePalette: ["#46536e"],
+    lessonStart: 135.6,
+  });
+  assert.match(text, /Entradas suaves\./);
+  assert.match(text, /"Cena · A Chave do Farol" \[artboard-cena\], 1440×1080/);
+  assert.match(text, /\[animation-n\], 30 FPS, 300 quadros .* em 2:15\.6 da aula/);
+  assert.match(text, /1\. Quadros 12–120: "O personagem precisa encontrar a chave\."/);
+  assert.match(text, /2\. Quadros 186–280:/);
+  assert.match(text, /- aventureiro \[artboard-heroi\] 64×64/);
+  assert.match(text, /Textos: #ffffff, #143d35 \(a primeira é a principal\)/);
+  assert.match(text, /Não edite as pranchetas das imagens/);
+});
+
+test("the images' palette: the colours most shapes paint with, as #rrggbb", () => {
+  const shape = (attrs: Record<string, string>, children: unknown[] = []) => ({ attrs, children });
+  const palette = paletteOf(
+    [
+      {
+        viewBox: [0, 0, 10, 10],
+        nodes: [
+          shape({ fill: "#FFF" }),
+          shape({ fill: "#ffffff", stroke: "#123456" }),
+          shape({ fill: "none" }, [shape({ fill: "#123456" }), shape({ fill: "url(#g)" })]),
+        ],
+      },
+      { viewBox: [0, 0, 10, 10], nodes: [shape({ fill: "#abcdef" }), shape({ fill: "#ffffff" })] },
+    ],
+    2,
+  );
+  assert.deepEqual(palette, ["#ffffff", "#123456"]);
+});
+
+test("a suggested export name is a plain Windows file name", () => {
+  assert.equal(
+    suggestedNameSchema.parse("Narração · Cena animada do jogo (começa em 2m15s)"),
+    "Narração · Cena animada do jogo (começa em 2m15s)",
+  );
+  for (const bad of ["a/b", "a\b", "c:x", "nome.", ".oculto", "xy", ""])
+    assert.equal(suggestedNameSchema.safeParse(bad).success, false, JSON.stringify(bad));
 });

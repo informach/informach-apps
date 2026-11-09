@@ -131,10 +131,18 @@ test("pipelines: the ready recipes, edit and duplicate, and a run that imports t
         "O personagem precisa encontrar a chave antes de chegar ao farol. Quando ele pegar a chave, o aviso muda.",
       );
     await page.screenshot({ path: "test-results/pipelines-run.png" });
+    const beforeRun = await page.evaluate(() => localStorage.getItem("edisvg-project"));
     await run.click();
     await dialog.getByText(/^(Pipeline concluído\.|O pipeline parou\.)$/).waitFor();
     const said = (await dialog.textContent()) ?? "";
-    assert.ok(said.includes("Pipeline concluído."), said);
+    // Everything up to the draft is done; the draft needs the desktop assistant (Claude Code or
+    // Codex), which a browser page does not have: the run stops there and says so.
+    assert.match(said, /Aplicar as paletas de texto e das imagensPronto/, said);
+    assert.match(
+      said,
+      /Pedir o rascunho da animação ao assistenteFalhou: O assistente precisa do aplicativo desktop\./,
+      said,
+    );
     await dialog.getByText(/3 imagens viraram pranchetas/).waitFor();
     const project = parseProject(
       JSON.parse((await page.evaluate(() => localStorage.getItem("edisvg-project"))) ?? "null"),
@@ -176,6 +184,15 @@ test("pipelines: the ready recipes, edit and duplicate, and a run that imports t
     );
     assert.ok(Math.abs(loaded - 9) < 0.1, `narration of ${loaded} s`);
     await page.screenshot({ path: "test-results/pipelines-narration.png" });
+    // The Cena's palette: the text colours, then the images' (the fixture paints #00ff00, #ff0000).
+    const scene = parseProject(
+      JSON.parse((await page.evaluate(() => localStorage.getItem("edisvg-project"))) ?? "null"),
+    ).artboards.at(-1);
+    assert.deepEqual(scene?.scene.palette?.slice(0, 3), ["#ffffff", "#143d35", "#ffb547"]);
+    assert.ok(scene?.scene.palette?.includes("#00ff00"));
+    // The whole run, stopped or not, is one undo step.
+    await page.locator('[data-action="undo"]').first().click();
+    assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), beforeRun);
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

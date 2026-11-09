@@ -43,6 +43,27 @@ duplicadas ou excluídas e restauradas. **+ Nova receita** cria uma do zero.
    ali (`@informach/edi-speech/piece`).
 3. Uma frase que não aparece no áudio para o pipeline, que diz qual é. Nenhum tempo é chutado.
 
+**O rascunho pelo assistente (Cena animada do jogo).**
+- Depois da narração, a paleta da Cena recebe as cores de texto (a primeira é a principal) e as
+  oito cores mais usadas nas imagens. O seletor de cor já as oferece.
+- O assistente, o Claude Code ou o Codex escolhido no painel Assistente, recebe numa conversa
+  nova um pedido montado pelo pipeline (`pipelines/prompt.ts`):
+  - as instruções da receita;
+  - a prancheta e a animação onde trabalhar;
+  - cada frase com o quadro de início e de fim;
+  - as pranchetas das imagens, que podem entrar como componentes;
+  - as cores e as regras de trabalho.
+- Ele anima pelas ferramentas do EdiSVG e termina dizendo o que acontece em cada frase. Essa
+  resposta vai para o relatório do pipeline.
+- Se o assistente não estiver conectado, for interrompido ou não fizer nenhuma edição, o pipeline
+  para nessa etapa e diz por quê.
+- A execução inteira, até onde chegou, é **um passo de desfazer**: um Ctrl+Z volta o projeto ao
+  que era antes de rodar (`history.mark`/`squash`).
+
+**Exportar para a aula.** Ao exportar em vídeo a animação de uma narração, o nome sugerido traz
+onde o trecho começa na aula, por exemplo "Narração · Cena animada do jogo (começa em 2m15s)".
+Assim fica fácil pôr o vídeo no EdiAula sobre a narração original. O vídeo sai sem som.
+
 **A narração na prévia.** Uma barra acima da linha do tempo mostra as frases do trecho sobre a
 forma de onda, com a frase atual acesa. Clicar numa frase leva a agulha até ela. O áudio toca com
 a animação e para com ela.

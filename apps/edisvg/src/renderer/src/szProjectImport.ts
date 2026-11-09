@@ -63,6 +63,39 @@ export interface SzImportPlan {
   sceneArtboardId: string | null;
   /** What came in, and what did not: said to the person after the import. */
   summary: string;
+  /** The colours the images use most, most used first (#rrggbb, at most IMAGE_PALETTE_SIZE). */
+  imagePalette: string[];
+}
+
+/** How many colours of the images go into the scene's palette. */
+export const IMAGE_PALETTE_SIZE = 8;
+
+/** #abc and #aabbcc as #aabbcc in lower case; anything else (none, url(), names) is skipped. */
+function hexColor(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const text = value.trim().toLowerCase();
+  if (/^#[0-9a-f]{6}$/.test(text)) return text;
+  if (/^#[0-9a-f]{3}$/.test(text)) return `#${[...text.slice(1)].map((c) => c + c).join("")}`;
+  return null;
+}
+
+/** The colours of imported scenes, by how many shapes paint with them (fill and stroke). */
+export function paletteOf(scenes: readonly ImportedScene[], size = IMAGE_PALETTE_SIZE): string[] {
+  const counts = new Map<string, number>();
+  const visit = (node: unknown): void => {
+    if (!node || typeof node !== "object") return;
+    const { attrs, children } = node as { attrs?: Record<string, unknown>; children?: unknown[] };
+    for (const key of ["fill", "stroke"]) {
+      const color = hexColor(attrs?.[key]);
+      if (color) counts.set(color, (counts.get(color) ?? 0) + 1);
+    }
+    for (const child of children ?? []) visit(child);
+  };
+  for (const scene of scenes) for (const node of scene.nodes) visit(node);
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, size)
+    .map(([color]) => color);
 }
 
 export class SzProjectError extends Error {
@@ -331,7 +364,10 @@ export function planSzProjectImport(
   const motion = motionLeftOut(start, loops, events);
   if (motion.length)
     lines.push(`Fica para animar no EdiSVG (não vem do jogo): ${motion.join(", ")}.`);
-  return { commands, sceneArtboardId, summary: lines.join(" ") };
+  const imagePalette = paletteOf(
+    commands.filter((c) => c.id !== sceneArtboardId).map((c) => c.scene as ImportedScene),
+  );
+  return { commands, sceneArtboardId, summary: lines.join(" "), imagePalette };
 }
 
 type ScenePart =

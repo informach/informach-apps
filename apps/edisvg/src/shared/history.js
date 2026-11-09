@@ -120,6 +120,22 @@ export function createHistory(initial, limit = 100, byteBudget = 32_000_000) {
       current = future.pop();
       return copy(current);
     },
+    /** The point to come back to in one step (a pipeline run): see squash. */
+    mark() {
+      return current;
+    },
+    /**
+     * Makes every edit since `mark` one undo step: the checkpoints in between go away, so undo
+     * returns to the marked point directly. Nothing happens when the mark is no longer in the
+     * past (undone past it, or evicted by the limit). Returns whether steps were joined.
+     */
+    squash(mark) {
+      const at = past.indexOf(mark);
+      if (at < 0) return false;
+      const dropped = past.splice(at + 1);
+      for (const entry of dropped) release(entry);
+      return dropped.length > 0;
+    },
     reset(next) {
       const entry = retain(checkpoint(next));
       for (const previous of [current, ...past, ...future]) release(previous);

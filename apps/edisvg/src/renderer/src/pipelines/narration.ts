@@ -13,8 +13,9 @@ export interface NarrationLine {
 }
 
 export interface Narration {
-  /** The animation it plays with. */
+  /** The animation it plays with, and its name. */
   clipId: string;
+  name: string;
   url: string;
   duration: number;
   /** Lesson second the narration starts at (for the export's name and the report). */
@@ -161,4 +162,17 @@ export function markNarrationNow(root: ParentNode, seconds: number): void {
   const label = bar.querySelector(".narration-now");
   const text = index >= 0 ? (current.lines[index]?.text ?? "") : "";
   if (label && label.textContent !== text) label.textContent = text;
+}
+
+/**
+ * The name a video of the narration's animation is saved with: the animation's name and where it
+ * starts in the lesson ("Narração · Cena animada do jogo (começa em 2m15s)"), to place it in
+ * EdiAula over the narration. Undefined for any other animation.
+ */
+export function narrationExportName(clipId: string | undefined): string | undefined {
+  if (!current || clipId !== current.clipId) return undefined;
+  // "2m15s": a colon is not allowed in a Windows file name.
+  const at = Math.floor(current.lessonStart);
+  const label = `${Math.floor(at / 60)}m${(at % 60).toString().padStart(2, "0")}s`;
+  return `${current.name} (começa em ${label})`.replace(/[<>:"/\\|?*]/g, "-").slice(0, 120);
 }

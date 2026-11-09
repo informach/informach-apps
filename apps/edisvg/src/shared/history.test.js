@@ -94,3 +94,26 @@ test("history bounds retained UTF-8 snapshot bytes, not only the number of edits
   assert.deepEqual(h.redo(), { value: "í".repeat(10) });
   assert.throws(() => createHistory({}, 0));
 });
+
+test("a pipeline run is one undo step: squash joins every edit since the mark", () => {
+  const h = createHistory({ v: 0 });
+  h.commit({ v: 1 });
+  const mark = h.mark();
+  h.commit({ v: 2 });
+  h.commit({ v: 3 });
+  h.commit({ v: 4 });
+  assert.equal(h.squash(mark), true);
+  // One undo goes back to the state before the run; redo brings the run back whole.
+  assert.deepEqual(h.undo(), { v: 1 });
+  assert.deepEqual(h.redo(), { v: 4 });
+  assert.deepEqual(h.undo(), { v: 1 });
+  assert.deepEqual(h.undo(), { v: 0 });
+  // A mark undone past (it is no longer behind the present) joins nothing.
+  const again = createHistory({ v: 0 });
+  const early = again.mark();
+  again.commit({ v: 1 });
+  again.undo();
+  assert.equal(again.squash(early), false);
+  // Nothing edited since the mark: nothing to join.
+  assert.equal(again.squash(again.mark()), false);
+});

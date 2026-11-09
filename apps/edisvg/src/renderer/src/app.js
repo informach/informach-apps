@@ -20,6 +20,7 @@ import { flattenScene } from "../../shared/scene.js";
 import {
   markNarrationNow,
   mountNarrationBar,
+  narrationExportName,
   setNarration,
   syncNarration,
 } from "./pipelines/narration";
@@ -1957,7 +1958,20 @@ function applyGameProject(source) {
   state.playing = false;
   state.frame = 0;
   render();
-  return { summary: plan.summary, sceneArtboardId: plan.sceneArtboardId, parts: parts.length };
+  return {
+    summary: plan.summary,
+    sceneArtboardId: plan.sceneArtboardId,
+    parts: parts.length,
+    imagePalette: plan.imagePalette,
+    boards: plan.commands
+      .filter((command) => command.id !== plan.sceneArtboardId)
+      .map((command) => ({
+        id: command.id,
+        name: command.name,
+        width: command.scene.viewBox[2],
+        height: command.scene.viewBox[3],
+      })),
+  };
 }
 /**
  * A pipeline's narration: a new animation as long as it, opened, with the narration playing in
@@ -1985,6 +1999,7 @@ async function openNarration(value) {
   ]);
   await setNarration({
     clipId: id,
+    name: `Narração · ${value.name}`.slice(0, 120),
     bytes: value.bytes,
     duration: value.duration,
     lessonStart: value.lessonStart,
@@ -2003,6 +2018,8 @@ async function openNarration(value) {
  * #clip-dialog with it), which would close the dialog in the middle of the run.
  */
 let disposePipelines = null;
+/** The history point before the pipeline run in progress (one undo step for the whole run). */
+let pipelineMark = null;
 function openPipelines() {
   let dialog = document.querySelector("#pipelines-dialog");
   if (!(dialog instanceof HTMLDialogElement)) {
@@ -2021,6 +2038,30 @@ function openPipelines() {
     editor: {
       importStudioProject: (source) => applyGameProject(source),
       openNarration: (value) => openNarration(value),
+      activeArtboard: () => {
+        const board = state.artboards.find((item) => item.id === state.activeArtboardId);
+        if (!board) throw new Error("Nenhuma prancheta aberta.");
+        return {
+          id: board.id,
+          name: board.name,
+          width: board.scene.viewBox[2],
+          height: board.scene.viewBox[3],
+        };
+      },
+      setPalette: (colors) => {
+        transact([{ type: "appearance", operation: "palette", colors }]);
+        render();
+      },
+      askAssistant: (text, shown) => assistant.runTurn(text, shown),
+      stopAssistant: () => void window.desktop?.aiStop(),
+      // A run is one undo step: the edits since the mark are joined at its end.
+      beginRun: () => {
+        pipelineMark = projectHistory.mark();
+      },
+      endRun: () => {
+        if (pipelineMark && projectHistory.squash(pipelineMark)) refreshHistoryControls();
+        pipelineMark = null;
+      },
     },
     report: notify,
   });
@@ -2375,6 +2416,8 @@ function openExport() {
         { ...exportSnapshot, activeArtboardId: exportBoard?.id, activeClipId: clip?.id },
         {
           format: $('input[name="format"]:checked').value,
+          // A pipeline's animation is saved as itself, with where it starts in the lesson.
+          suggestedName: narrationExportName(clip?.id),
           alt: $("#alt-text").value,
           reduced: $("#reduced").checked,
           offscreen: $("#offscreen").checked,

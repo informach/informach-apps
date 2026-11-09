@@ -89,8 +89,15 @@ export async function verifySvgNativePipelineJourney(
       .getByText(/^(Pipeline concluído\.|O pipeline parou\.)$/)
       .waitFor({ timeout: 180_000 });
     const said = (await dialog.textContent()) ?? "";
-    assert.ok(said.includes("Pipeline concluído."), said);
+    // Up to the narration the run is the app's own; the draft needs Claude Code or Codex, which
+    // the native verification keeps out of reach on purpose: there the run stops, saying why.
+    assert.match(said, /Preparar a narração na préviaPronto/, said);
+    assert.match(said, /Aplicar as paletas de texto e das imagensPronto/, said);
+    assert.match(said, /Pedir o rascunho da animação ao assistenteFalhou: /, said);
     await dialog.getByRole("button", { name: "Fechar pipelines" }).click();
+    // The draft step opened the assistant panel: closed for the next journeys.
+    const closeAssistant = editor.getByRole("button", { name: "Fechar assistente" });
+    if (await closeAssistant.isVisible()) await closeAssistant.click();
     return said;
   };
 
@@ -139,7 +146,10 @@ export async function verifySvgNativePipelineJourney(
     for (let step = 0; step < 20; step++) {
       if ((await editor.evaluate(() => localStorage.getItem("edisvg-project"))) === before) break;
       // The keyboard: in the narrow native layout the menu's Desfazer button is hidden.
-      await editor.locator(".scene-artwork").first().click({ position: { x: 2, y: 2 } });
+      await editor
+        .locator(".scene-artwork")
+        .first()
+        .click({ position: { x: 2, y: 2 } });
       await editor.keyboard.press("Control+z");
     }
     assert.equal(

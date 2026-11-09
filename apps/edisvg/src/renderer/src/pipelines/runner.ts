@@ -1,5 +1,6 @@
 import { findScriptPiece, type HeardWord, type ScriptPiece } from "@informach/edi-speech/piece";
 import type { Recipe, RecipeKind, RunInputs } from "../../../shared/pipelines";
+import { type DraftBoard, draftRequest } from "./prompt";
 
 /**
  * Runs a recipe: its steps in order, each reporting progress, all stopped by Cancelar. A step that
@@ -10,7 +11,26 @@ import type { Recipe, RecipeKind, RunInputs } from "../../../shared/pipelines";
 /** What the editor offers the steps (app.js builds it). */
 export interface PipelineEditor {
   /** Imports a studio project into the open file (one edit); returns what came in. */
-  importStudioProject(source: string): { summary: string; sceneArtboardId: string | null };
+  importStudioProject(source: string): {
+    summary: string;
+    sceneArtboardId: string | null;
+    imagePalette: string[];
+    boards: DraftBoard[];
+  };
+  /** The artboard open in the editor. */
+  activeArtboard(): DraftBoard;
+  /** Sets the palette of the open artboard (the colour picker offers it). */
+  setPalette(colors: string[]): void;
+  /** Asks the assistant in a new conversation; resolves when its reply ends. */
+  askAssistant(
+    text: string,
+    shown: string,
+  ): Promise<{ text: string; stopped: boolean; edits: number }>;
+  /** Stops the assistant's reply (Cancelar). */
+  stopAssistant(): void;
+  /** A run starts: every edit until endRun becomes one undo step. */
+  beginRun(): void;
+  endRun(): void;
   /**
    * Opens an animation as long as the narration (in the open artboard) and plays the narration
    * with it in the preview; returns the animation.
@@ -72,6 +92,8 @@ const importProject: PipelineStep = {
     ctx.progress(0.5, "Montando as pranchetas");
     const result = ctx.editor.importStudioProject(source);
     ctx.results.sceneArtboardId = result.sceneArtboardId;
+    ctx.results.imagePalette = result.imagePalette;
+    ctx.results.images = result.boards;
     ctx.report.push(result.summary);
   },
 };
@@ -149,9 +171,70 @@ const prepareNarration: PipelineStep = {
   },
 };
 
+/** The palette of the open artboard: the text colours first, then the images' (no repeats). */
+const applyPalettes: PipelineStep = {
+  id: "palettes",
+  label: "Aplicar as paletas de texto e das imagens",
+  async run(ctx) {
+    const images = (ctx.results.imagePalette as string[] | undefined) ?? [];
+    const colors = [
+      ...new Set([...ctx.inputs.textPalette, ...images].map((c) => c.toLowerCase())),
+    ].slice(0, 64);
+    ctx.editor.setPalette(colors);
+    ctx.results.palette = colors;
+  },
+};
+
+/** The draft: the assistant animates the scene, each action in the time of its sentence. */
+const draftWithAssistant: PipelineStep = {
+  id: "draft",
+  label: "Pedir o rascunho da animação ao assistente",
+  async run(ctx) {
+    const clip = ctx.results.clip as { clipId: string; fps: number; frames: number } | undefined;
+    const piece = ctx.results.piece as ScriptPiece | undefined;
+    const lessonStart = ctx.results.lessonStart as number | undefined;
+    if (!clip || !piece || lessonStart === undefined)
+      throw new Error("A narração não foi preparada.");
+    const frame = (seconds: number) =>
+      Math.max(0, Math.min(clip.frames, Math.round((seconds - lessonStart) * clip.fps)));
+    const request = draftRequest({
+      recipe: ctx.recipe,
+      artboard: ctx.editor.activeArtboard(),
+      clip: { id: clip.clipId, fps: clip.fps, frames: clip.frames },
+      lines: piece.lines.map((l) => ({ text: l.text, from: frame(l.start), to: frame(l.end) })),
+      images: (ctx.results.images as DraftBoard[] | undefined) ?? [],
+      textPalette: ctx.inputs.textPalette,
+      imagePalette: (ctx.results.imagePalette as string[] | undefined) ?? [],
+      lessonStart,
+    });
+    const stop = () => ctx.editor.stopAssistant();
+    ctx.signal.addEventListener("abort", stop, { once: true });
+    try {
+      ctx.progress(0.05, "O assistente está animando");
+      const turn = await ctx.editor.askAssistant(
+        request,
+        `Pipeline "${ctx.recipe.name}": montar o rascunho da animação (${piece.lines.length} ${piece.lines.length === 1 ? "frase" : "frases"}, tempos e imagens enviados).`,
+      );
+      ctx.signal.throwIfAborted();
+      if (turn.stopped) throw new Error("O assistente foi interrompido antes de terminar.");
+      if (!turn.edits)
+        throw new Error(
+          `O assistente não alterou o projeto${turn.text.trim() ? `: ${turn.text.trim().slice(0, 300)}` : "."} Veja o painel Assistente.`,
+        );
+      ctx.report.push(
+        `O assistente fez ${turn.edits} ${turn.edits === 1 ? "alteração" : "alterações"} no rascunho.`,
+      );
+      if (turn.text.trim()) ctx.report.push(turn.text.trim().slice(0, 2000));
+    } finally {
+      ctx.signal.removeEventListener("abort", stop);
+    }
+  },
+};
+
 /** The steps of each kind of recipe, in order. */
 export function stepsFor(kind: RecipeKind): PipelineStep[] {
-  if (kind === "game-scene") return [importProject, findPiece, prepareNarration];
+  if (kind === "game-scene")
+    return [importProject, findPiece, prepareNarration, applyPalettes, draftWithAssistant];
   return [findPiece, prepareNarration];
 }
 

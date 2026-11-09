@@ -215,11 +215,34 @@ export function setupAssistant(editor) {
       find("textarea").focus();
       return;
     }
-    history.push({ role: "user", text, images });
-    message(text, "user", images);
     pending = [];
     renderPending();
     find("textarea").value = "";
+    await submit(text, images);
+  };
+  /** A pipeline's turn, when one is waiting for the reply (runTurn). */
+  let turnWaiter = null;
+  /**
+   * Asks the assistant in a new conversation (a pipeline's request) and resolves when the reply
+   * ends, with its text, whether it was stopped and how many edits it made. The panel shows
+   * `shown` in place of the long request.
+   */
+  async function runTurn(text, shown) {
+    if (!bridge) throw new Error("O assistente precisa do aplicativo desktop.");
+    if (busy) throw new Error("O assistente está respondendo outra mensagem. Espere ou pare.");
+    if (panel.hidden) toggle();
+    clearHistory();
+    messages.replaceChildren();
+    const finished = new Promise((resolve, reject) => {
+      turnWaiter = { resolve, reject };
+    });
+    await submit(text, [], shown);
+    return finished;
+  }
+  /** Sends a message (the person's, or a pipeline's with `shown` displayed instead). */
+  async function submit(text, images, shown = text) {
+    history.push({ role: "user", text, images });
+    message(shown, "user", images);
     response = message("", "assistant");
     response.hidden = true;
     currentText = "";
@@ -256,8 +279,10 @@ export function setupAssistant(editor) {
       response.hidden = false;
       endActivity();
       setBusy(false);
+      turnWaiter?.reject(error);
+      turnWaiter = null;
     }
-  };
+  }
   if (bridge) {
     bridge.onAssistantEvent((event) => {
       if (event.type === "text") {
@@ -276,6 +301,7 @@ export function setupAssistant(editor) {
       }
       if (event.type === "error") message(event.text, "error");
       if (event.type === "done") {
+        const turn = { text: currentText, stopped: !!event.stopped, edits };
         if (currentText) history.push({ role: "assistant", text: currentText });
         if (response && !response.textContent && !(edits && !event.stopped))
           response.textContent = event.stopped
@@ -285,6 +311,8 @@ export function setupAssistant(editor) {
         if (activity) activity.hidden = false;
         endActivity();
         setBusy(false);
+        turnWaiter?.resolve(turn);
+        turnWaiter = null;
       }
       messages.scrollTop = messages.scrollHeight;
     });
@@ -402,5 +430,5 @@ export function setupAssistant(editor) {
     d.querySelector("[data-close-file]").onclick = () => d.close();
     d.showModal();
   }
-  return { toggle, fileMenu };
+  return { toggle, fileMenu, runTurn };
 }

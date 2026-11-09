@@ -450,7 +450,10 @@ else {
         if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
         const exported = parseExportPayload(payload);
         const { canceled, filePath } = await dialog.showSaveDialog(win, {
-          defaultPath: join(app.getPath("documents"), `projeto.${exported.extension}`),
+          defaultPath: join(
+            folderFor("documents") ?? "",
+            `${exported.name ?? "projeto"}.${exported.extension}`,
+          ),
           properties: ["dontAddToRecent"],
           filters: [
             { name: "Exportação EdiSVG", extensions: [exported.extension.split(".").pop()] },
