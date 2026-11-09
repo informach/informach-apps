@@ -1,4 +1,5 @@
-<title>Morada: Pisos e Paredes</title>
+<meta charset="utf-8">
+<title>Morada: Construção</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -51,13 +52,15 @@ h1 { font-family: var(--f-titulo); font-stretch: 78%; font-weight: 800; font-siz
 .subgrupo { font-size: .8rem; color: var(--suave); margin: 8px 0 4px }
 .cor-livre { display: flex; align-items: center; gap: 8px; font-size: .86rem }
 .cor-livre input { width: 38px; height: 30px; border: 1px solid var(--linha); border-radius: 6px; background: none; padding: 2px }
-.pecas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-height: 300px; overflow: auto }
+.pecas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-height: 340px; overflow: auto }
 .peca { text-align: left; border: 1px solid var(--linha); border-radius: 8px; background: transparent; color: var(--tinta); padding: 6px 8px; cursor: pointer; font: 500 .84rem var(--f-texto) }
 .peca { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 2px 8px; align-items: center }
 .peca img { grid-row: span 2; width: 44px; height: 44px; object-fit: contain; background: var(--azul-suave); border-radius: 6px }
 .peca small { display: block; font-family: var(--f-medida); font-size: .7rem; color: var(--suave) }
 .peca[aria-pressed="true"] { border-color: var(--azul); background: var(--azul-suave) }
 .alterna { display: flex; align-items: center; gap: 8px; font-size: .88rem }
+.filtro { width: 100%; font: 400 .86rem var(--f-texto); color: var(--tinta); background: transparent; border: 1px solid var(--linha); border-radius: 8px; padding: 6px 10px; margin-bottom: 6px }
+#opcoes:empty { display: none }
 .nota { font-size: .8rem; color: var(--suave); margin: 0 }
 .vitrine { max-width: 1400px; margin: 22px auto 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px }
 @media (max-width: 700px) { .vitrine { grid-template-columns: minmax(0, 1fr) } }
@@ -68,9 +71,9 @@ h2 { font-family: var(--f-titulo); font-stretch: 80%; font-weight: 750; font-siz
 </style>
 
 <header class="topo">
-  <h1>Pisos, paredes, portas e janelas</h1>
-  <p>Chão de 4 × 4 m, 20 peças de parede, 38 janelas e 57 portas, batentes e acabamentos que encaixam nos vãos. Escolha uma superfície e troque a textura ou a cor.</p>
-  <span class="medidas">grade 0,50 m · parede 3,00 × 0,15 m · porta 0,90 × 2,10 m</span>
+  <h1>Construção: da parede ao telhado</h1>
+  <p>Chão, paredes, portas e janelas, e agora o que falta para a casa inteira: telhados de cinco tipos, segundo andar e escadas, fundação, varanda, cercas e portões, piscina, garagem aberta e o lote. Monte, troque texturas e veja de dia e de noite.</p>
+  <span class="medidas">grade 0,50 m · parede 3,00 × 0,15 m · andar 3,20 m · beiral 0,50 m · lote 15 × 15 m</span>
 </header>
 
 <main class="mesa">
@@ -85,8 +88,10 @@ h2 { font-family: var(--f-titulo); font-stretch: 80%; font-weight: 750; font-siz
       <p class="rotulo">Mostrar</p>
       <div class="chips" id="modos"></div>
     </div>
+    <div class="chips" id="opcoes"></div>
     <div id="bloco-pecas" hidden>
       <p class="rotulo">Peça</p>
+      <input type="search" id="filtro" class="filtro" placeholder="Filtrar (ex.: beiral, v6, i75, cerca)" aria-label="Filtrar peças">
       <div class="pecas" id="pecas"></div>
     </div>
     <div>
@@ -99,16 +104,24 @@ h2 { font-family: var(--f-titulo); font-stretch: 80%; font-weight: 750; font-siz
       <label class="cor-livre" for="cor"><input type="color" id="cor" value="#5B95E5"> Cor lisa (qualquer cor)</label>
     </div>
     <label class="alterna" for="lambri"><input type="checkbox" id="lambri" checked> Lambri branco na parte de baixo</label>
-    <p class="nota">PAC = textura ou encaixe dos pacotes gratuitos (uso interno). Uma imagem de piso cobre 2 × 2 m; uma de parede, 3 × 3 m (a parede inteira).</p>
+    <p class="nota">PAC = textura ou peça dos pacotes gratuitos (uso interno). Piso e telha: a imagem cobre 2 × 2 m; parede: 3 × 3 m. A telha repete a cada 0,5 m na horizontal, então a emenda das peças some.</p>
   </aside>
 </main>
 
 <h2>Vitrine (render no Blender)</h2>
 <section class="vitrine">
+  <figure><img src="vitrine/lote_dia.jpg" alt="Lote de 30 por 15 metros com casa de dois andares, varanda, piscina, garagem aberta e cerca, de dia" loading="lazy"><figcaption>O lote de exemplo: casa de dois andares com varanda, telhado de duas águas, cerca com portões, piscina e garagem aberta.</figcaption></figure>
+  <figure><img src="vitrine/lote_noite.jpg" alt="O mesmo lote à noite, com as luzes da varanda, do jardim, da garagem e da piscina acesas" loading="lazy"><figcaption>O mesmo lote à noite: arandelas e plafons da varanda, balizadores, garagem e a luz da piscina.</figcaption></figure>
+  <figure><img src="vitrine/encaixe_dia.jpg" alt="Seis casas de teste: retangular, em L e em T, de um e de dois andares, e uma fileira com mansarda, meia-água e platibanda" loading="lazy"><figcaption>Testes de encaixe: retangular, L e T de 1 e 2 andares (cima) e mansarda, meia-água e platibanda (embaixo).</figcaption></figure>
+  <figure><img src="vitrine/encaixe_noite.jpg" alt="As casas de teste à noite" loading="lazy"><figcaption>Os testes de encaixe à noite.</figcaption></figure>
+  <figure><img src="vitrine/vit_telhados_dia.jpg" alt="Peças de telhado: corpo de duas águas, empenas, oitões, pontas de quatro águas, cantos em L, encontros em T, beirais, cumeeiras, meia-água e mansarda" loading="lazy"><figcaption>Telhados: as peças de um vão em três inclinações, beirais e cantos, cumeeira, meia-água, mansarda e platibanda.</figcaption></figure>
+  <figure><img src="vitrine/vit_acesso_dia.jpg" alt="Fundação, degraus, rampas, patamares, decks, colunas, vigas, sacadas, alpendres e luzes" loading="lazy"><figcaption>Fundação e acesso: socos, degraus, rampas, decks, colunas, vigas, sacadas, alpendres e luzes.</figcaption></figure>
+  <figure><img src="vitrine/vit_andares_dia.jpg" alt="Lajes com aberturas, cintas, escadas reta, em L, em U e caracol, e guarda-corpos" loading="lazy"><figcaption>Segundo andar: lajes (com as aberturas de escada), cinta, as seis escadas e os guarda-corpos.</figcaption></figure>
+  <figure><img src="vitrine/vit_cercas_dia.jpg" alt="Cercas de madeira, ripada, de metal, mureta com grade e muro, com cantos, fins e portões" loading="lazy"><figcaption>Cercas em módulos de 1 e 2 m com canto e fim, portões de pedestre e de garagem.</figcaption></figure>
+  <figure><img src="vitrine/vit_quintal_dia.jpg" alt="Células da piscina, prainha, escadinha, trampolim, garagens abertas, caminho de pedras e os lotes" loading="lazy"><figcaption>Quintal: a piscina em células de 1 m, garagens abertas, caminho de pedras e os lotes.</figcaption></figure>
   <figure><img src="vitrine/comodos.jpg" alt="Dois cômodos montados com as peças: um azul com xadrez verde e quarto amarelo, outro de tijolo com madeira, listras verdes e quarto de nuvens" loading="lazy"><figcaption>Dois cômodos de 8 × 8 m montados só com as peças, as texturas e as janelas e a porta dos pacotes.</figcaption></figure>
   <figure><img src="vitrine/janelas.jpg" alt="As janelas em branco, preto e madeira: largas, em arco e quadradas, com várias grades" loading="lazy"><figcaption>Janelas: 12 desenhos em branco, preto e madeira, mais o óculo redondo.</figcaption></figure>
   <figure><img src="vitrine/portas.jpg" alt="As portas em branco, preto e madeira, as portas duplas, os batentes e os lambris" loading="lazy"><figcaption>Portas: 10 desenhos e 3 duplas em três cores, batentes, lambris e cantoneiras.</figcaption></figure>
-  <figure><img src="vitrine/pecas.jpg" alt="As 20 peças de parede em azul com acabamento branco" loading="lazy"><figcaption>As 20 peças de parede: lisas, insertos, muretas, portas, passagem, arcos e janelas.</figcaption></figure>
 </section>
 
 <script type="importmap">
@@ -120,13 +133,26 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
-const [CAT, TEX, PLANTAS, PJ] = await Promise.all(["construcao.json", "texturas.json", "plantas.json", "portas_janelas.json"].map((f) => fetch(f).then((r) => r.json())));
+const [CAT, TEX, PLANTAS, PJ, CASAS] = await Promise.all(["construcao.json", "texturas.json", "plantas.json", "portas_janelas.json", "casas.json"].map((f) => fetch(f).then((r) => r.json())));
+const MINI = await fetch("pacote_miniaturas.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+const imgMini = (u) => MINI[u] || u;
+const PECAS_IND = await fetch("pecas_pacotes/indice.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+const PACOTES = {};
+async function pecaTxt(arq) {
+  const n = PECAS_IND[arq];
+  if (!n) return (await fetch(arq)).text();
+  PACOTES[n] ??= fetch(n).then((r) => r.json());
+  return (await PACOTES[n])[arq];
+}
+(function trocaMini(o) { if (Array.isArray(o)) o.forEach(trocaMini); else if (o && typeof o === "object") for (const k in o) { if (k === "mini" && typeof o[k] === "string") o[k] = imgMini(o[k]); else trocaMini(o[k]); } })(TEX);
 const PJ_ITENS = [...PJ.janelas, ...PJ.portas, ...PJ.batentes, ...PJ.lambris, ...PJ.cantos];
 const PJ_POR_ID = Object.fromEntries(PJ_ITENS.map((x) => [x.id, x]));
+const SECOES_NOVAS = [["telhados", "Telhados"], ["andares", "Segundo andar"], ["acesso", "Fundação e acesso"], ["cercas", "Cercas e portões"], ["quintal", "Piscina e quintal"], ["lotes", "Lote"]];
+const ITENS = [...CAT.chaos, ...CAT.paredes, ...CAT.lambris, ...CAT.encaixes, ...SECOES_NOVAS.flatMap(([s]) => CAT[s] ?? [])];
+const ITEM_POR_ID = Object.fromEntries(ITENS.map((x) => [x.id, x]));
 // desenhos (sem a cor): cada um existe em branca, preta e madeira (o óculo em branca e preta)
 const DESENHOS = [];
-for (const [grupo, lista, pre] of [["Janelas", PJ.janelas, "janela_"], ["Portas", PJ.portas, "porta_"], ["Batentes", PJ.batentes, "batente_"],
-  ["Lambris coloridos", PJ.lambris, "lambri_"], ["Cantoneiras", PJ.cantos, "canto_"]]) {
+for (const [grupo, lista] of [["Janelas", PJ.janelas], ["Portas", PJ.portas], ["Batentes", PJ.batentes], ["Lambris coloridos", PJ.lambris], ["Cantoneiras", PJ.cantos]]) {
   const vistos = new Set();
   for (const x of lista) {
     const base = x.id.slice(0, x.id.lastIndexOf("_"));
@@ -135,38 +161,61 @@ for (const [grupo, lista, pre] of [["Janelas", PJ.janelas, "janela_"], ["Portas"
     DESENHOS.push({ base, grupo, rotulo: x.rotulo.replace(/ \((branca|preta|madeira)\)$/, ""), cores: lista.filter((y) => y.id.startsWith(base + "_") && y.id.slice(base.length + 1).match(/^(branca|preta|madeira)$/)).map((y) => y.cor) });
   }
 }
-const TEXS = Object.fromEntries([...TEX.piso, ...TEX.parede].map((t) => [t.id, t]));
-const GRUPOS = { madeira: "Madeira", ceramica: "Cerâmica", degrade: "Degradê", papel: "Papel de parede", tijolo: "Tijolo", listras: "Listras", pacote: "Dos pacotes" };
+const TEXS = Object.fromEntries([...TEX.piso, ...TEX.parede, ...(TEX.telhado ?? [])].map((t) => [t.id, t]));
+const GRUPOS = { madeira: "Madeira", ceramica: "Cerâmica", degrade: "Degradê", papel: "Papel de parede", tijolo: "Tijolo", listras: "Listras", pacote: "Dos pacotes", ardosia: "Ardósia", metalica: "Metálica" };
 const ESP = CAT.espessura;
+// tipo de textura de cada material que troca (o resto vem pronto no GLB)
+const TIPO_MAT = { face_a: "parede", face_b: "parede", piso: "piso", telha: "telhado", pastilha: "piso" };
+const NOME_MAT = { face_a: "Dentro", face_b: "Fora", piso: "Piso", telha: "Telhado", pastilha: "Piscina" };
 
 // ---------------------------------------------------------------- cena
 const tela = document.getElementById("tela");
-const renderer = new THREE.WebGLRenderer({ canvas: tela, antialias: true });
+const renderer = new THREE.WebGLRenderer({ canvas: tela, antialias: true, stencil: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const cena = new THREE.Scene();
-cena.background = new THREE.Color("#22355A");
-cena.fog = new THREE.Fog("#22355A", 30, 90);
-const camera = new THREE.PerspectiveCamera(40, 1, 0.3, 200);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.3, 400);
 const orbita = new OrbitControls(camera, tela);
 orbita.enableDamping = true;
 orbita.maxPolarAngle = Math.PI * 0.49;
-cena.add(new THREE.HemisphereLight("#DCE7FF", "#2A3550", 1.2));
+const hemi = new THREE.HemisphereLight("#DCE7FF", "#2A3550", 1.2);
+cena.add(hemi);
 const sol = new THREE.DirectionalLight("#FFFFFF", 2.2);
 sol.position.set(-8, 16, 10);
 sol.castShadow = true;
 sol.shadow.mapSize.set(2048, 2048);
-Object.assign(sol.shadow.camera, { left: -14, right: 14, top: 14, bottom: -14, near: 1, far: 60 });
 sol.shadow.bias = -0.0004;
 cena.add(sol, sol.target);
-const fundo = new THREE.Mesh(new THREE.CircleGeometry(200, 64).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: "#22355A", roughness: 1 }));
-fundo.position.y = -0.045;
+const fundo = new THREE.Mesh(new THREE.CircleGeometry(300, 64).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: "#22355A", roughness: 1 }));
 fundo.receiveShadow = true;
 cena.add(fundo);
 const grupo = new THREE.Group();
 cena.add(grupo);
+const luzesNoite = new THREE.Group();
+cena.add(luzesNoite);
+
+function ambiente() {
+  const casa = estado.modo === "lote" || estado.modo === "encaixe";
+  const noite = casa && estado.noite;
+  const ceu = !casa ? "#22355A" : noite ? "#101A30" : "#A9C6EE";
+  cena.background = new THREE.Color(ceu);
+  cena.fog = new THREE.Fog(ceu, casa ? 70 : 30, casa ? 220 : 90);
+  fundo.material.color.set(!casa ? "#22355A" : noite ? "#1E3A2A" : "#7FBF5A");
+  fundo.position.y = estado.modo === "lote" ? -0.405 : casa ? -0.012 : -0.045;
+  hemi.intensity = noite ? 0.25 : 1.2;
+  hemi.color.set(noite ? "#7F95C8" : "#DCE7FF");
+  sol.intensity = noite ? 0.25 : 2.2;
+  sol.color.set(noite ? "#9FB4FF" : "#FFFFFF");
+  const r = casa ? 34 : 14;
+  Object.assign(sol.shadow.camera, { left: -r, right: r, top: r, bottom: -r, near: 1, far: 140 });
+  sol.shadow.camera.updateProjectionMatrix();
+  sol.position.set(estado.centro.x - 18, 34, estado.centro.z + 22);
+  sol.target.position.copy(estado.centro);
+  for (const m of materiaisLuz) m.emissiveIntensity = noite ? 3.2 : 0.5;
+  luzesNoite.visible = noite;
+}
 
 function redimensiona() {
   const r = tela.parentElement.getBoundingClientRect();
@@ -179,14 +228,20 @@ new ResizeObserver(redimensiona).observe(tela.parentElement);
 // ---------------------------------------------------------------- peças (GLB → gzip → base64)
 const loader = new GLTFLoader();
 const _fontes = new Map();
+const materiaisLuz = new Set();
 async function fonte(id) {
   if (!_fontes.has(id)) _fontes.set(id, (async () => {
-    const p = [...CAT.chaos, ...CAT.paredes, ...CAT.lambris, ...CAT.encaixes].find((x) => x.id === id) ?? PJ_POR_ID[id];
-    const txt = await (await fetch(p.arquivo)).text();
+    const p = ITEM_POR_ID[id] ?? PJ_POR_ID[id];
+    const txt = await pecaTxt(p.arquivo);
     const gz = Uint8Array.from(atob(txt.trim()), (c) => c.charCodeAt(0));
     const buf = await new Response(new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
     const g = await new Promise((ok, erro) => loader.parse(buf, "", ok, erro));
-    g.scene.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    g.scene.traverse((o) => {
+      if (o.userData?.colisao) o.visible = false;
+      if (!o.isMesh) return;
+      o.castShadow = true; o.receiveShadow = true;
+      for (const m of [o.material].flat()) if (m.name === "luz") materiaisLuz.add(m);
+    });
     return g.scene;
   })());
   return _fontes.get(id);
@@ -214,25 +269,47 @@ function material(chave, valor) {
     if (valor.startsWith("#")) { m.map = null; m.color.set(valor); }
     else { m.map = textura(valor); m.color.set("#FFFFFF"); }
     m.needsUpdate = true;
+    const cum = cumeeiras.get(chave);  // a cumeeira acompanha a telha: a cor média dela, mais escura
+    if (cum) cum.color.set(corCumeeira(valor));
   }
   return m;
 }
+const cumeeiras = new Map();
+function corCumeeira(valor) {
+  const c = new THREE.Color(valor.startsWith("#") ? valor : TEXS[valor]?.media ?? "#a84a2a");
+  return c.multiplyScalar(0.78);
+}
+function materialCumeeira(chave) {
+  if (!cumeeiras.has(chave)) cumeeiras.set(chave, new THREE.MeshStandardMaterial({ roughness: 0.55, color: corCumeeira(material(chave).userData.valor ?? "#a84a2a") }));
+  return cumeeiras.get(chave);
+}
 const BORDA = new THREE.MeshStandardMaterial({ color: "#F2F3F2", roughness: 0.6 });
 
-async function coloca(id, x, y, ang, mats) {
+async function coloca(id, x, y, ang, mats, z = 0, escZ = null) {
   // Blender (z para cima) → three (y para cima): (x, y, z) → (x, z, −y); giro em z ↔ giro em y
   const f = await fonte(id);
   const o = f.clone(true);
-  o.position.set(x, 0, -y);
+  o.position.set(x, z, -y);
   o.rotation.y = THREE.MathUtils.degToRad(ang);
+  if (escZ) o.scale.y = escZ;
   if (mats) o.traverse((m) => {
     if (!m.isMesh) return;
     const nomes = Array.isArray(m.material) ? m.material : [m.material];
     const novos = nomes.map((mt) => mats[mt.name] ?? (mt.name.startsWith("cor_") && mats.cor ? mats.cor : null) ?? (mt.name === "borda" ? BORDA : mt));
     m.material = Array.isArray(m.material) ? novos : novos[0];
   });
+  o.traverse((n) => { if (n.userData?.interativo) n.userData.base = { p: n.position.clone(), q: n.quaternion.clone() }; });
   grupo.add(o);
   return o;
+}
+function abreInterativos(f) {
+  grupo.traverse((n) => {
+    const d = n.userData;
+    if (!d?.interativo || !d.base) return;
+    n.position.copy(d.base.p); n.quaternion.copy(d.base.q);
+    if (d.interativo === "porta") n.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(...d.eixo).normalize(), d.angulo * f));
+    else if (d.direcao) n.position.add(new THREE.Vector3(...d.direcao).multiplyScalar(d.curso * f));
+  });
 }
 
 // ---------------------------------------------------------------- montagem de uma planta (a mesma regra do Blender)
@@ -285,8 +362,52 @@ async function monta(planta, lambri) {
   await Promise.all(tarefas);
 }
 
+// ---------------------------------------------------------------- casas montadas peça por peça (construcao_casas.py)
+// cada peça traz os materiais que trocam e a textura de cada um; a superfície é (papel do material, textura original)
+function chaveSup(mat, tex) { return `c:${mat}:${tex}`; }
+async function montaCasa(dados) {
+  const tarefas = [];
+  for (const q of dados.pecas) {
+    let mats;
+    if (q.m) {
+      mats = {};
+      for (const [mat, tex] of Object.entries(q.m)) {
+        if (mat === "cumeeira") continue;
+        const ch = chaveSup(mat, tex);
+        mats[mat] = material(ch, estado.valores[ch] ?? tex);
+        if (mat === "telha") mats.cumeeira = materialCumeeira(ch);
+      }
+    }
+    tarefas.push(coloca(q.id, q.p[0], q.p[1], q.g, mats, q.p[2], q.ez ?? null));
+  }
+  await Promise.all(tarefas);
+  luzesNoite.clear();
+  for (const [x, y, z] of dados.luzes ?? []) {
+    const l = new THREE.PointLight("#FFD08A", 9, 9, 1.6);
+    l.position.set(x, z, -y);
+    luzesNoite.add(l);
+  }
+  if (dados.recorte) recortaGramado(dados.recorte);
+}
+function recortaGramado([x0, y0, x1, y1]) {
+  // o gramado do lote é um objeto à parte ("recortavel"): o motor recorta a piscina nele. Aqui, um molde no stencil
+  const molde = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, y1 - y0).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, stencilWrite: true, stencilRef: 1, stencilZPass: THREE.ReplaceStencilOp }));
+  molde.position.set((x0 + x1) / 2, 0.003, -(y0 + y1) / 2);
+  molde.renderOrder = -1;
+  grupo.add(molde);
+  grupo.traverse((o) => {
+    if (!o.isMesh) return;
+    let p = o, rec = false;
+    while (p) { if (p.userData?.recortavel) rec = true; p = p.parent; }
+    if (!rec) return;
+    o.material = [o.material].flat().map((m) => { const c = m.clone(); Object.assign(c, { stencilWrite: true, stencilRef: 1, stencilFunc: THREE.NotEqualStencilFunc }); return c; });
+    if (o.material.length === 1) o.material = o.material[0];
+  });
+}
+
 // ---------------------------------------------------------------- estado e interface
-const estado = { modo: "A", peca: "porta_2m", sup: "chao", valores: {}, lambri: true, corPj: "branca" };
+const estado = { modo: "lote", peca: "telhado_canto_l_v8_i50", sup: null, valores: {}, lambri: true, corPj: "branca", noite: false, aberto: false, filtro: "", centro: new THREE.Vector3() };
 const HEX_PJ = Object.fromEntries(Object.entries(PJ.cores).map(([k, v]) => [k, v.hex]));
 const ehDesenho = (id) => DESENHOS.some((d) => d.base === id);
 function idPj(base) {
@@ -294,69 +415,97 @@ function idPj(base) {
   const cor = d.cores.includes(estado.corPj) ? estado.corPj : d.cores[0];
   return `${base}_${cor}`;
 }
-const NOMES_SUP = { chao: "Chão" };
+const MODOS = [["lote", "Casa no lote"], ["encaixe", "Testes de encaixe"], ["A", "Cômodo azul"], ["B", "Cômodo de tijolo"], ["peca", "Peça avulsa"]];
+function rotuloTex(id) { return TEXS[id]?.rotulo.replace(/^Degradê |^Papel |^Listras |^Tijolo /, "") ?? id; }
 function superficiesDoModo() {
   if (estado.modo === "peca") {
-    const ehChao = estado.peca === "chao_4m";
     if (ehDesenho(estado.peca)) {
       const d = DESENHOS.find((x) => x.base === estado.peca);
       const comParede = d.grupo === "Janelas" || d.grupo === "Portas" || d.grupo === "Batentes";
       return [["pj", "Cor da peça", "pj"], ...(comParede ? [["peca_a", "Face de dentro", "parede"], ["peca_b", "Face de fora", "parede"]] : [])];
     }
-    return ehChao ? [["chao", "Chão", "piso"]] : estado.peca.startsWith("lambri") ? [] : [["peca_a", "Face de dentro", "parede"], ["peca_b", "Face de fora", "parede"]];
+    const it = ITEM_POR_ID[estado.peca];
+    if (estado.peca.startsWith("chao") || estado.peca.startsWith("laje")) return [["chao", "Piso", "piso"]];
+    if (it?.materiais && !CAT.paredes.includes(it)) {
+      const lista = [];
+      for (const m of it.materiais) if (TIPO_MAT[m]) lista.push(["p:" + m, NOME_MAT[m], TIPO_MAT[m]]);
+      return lista;
+    }
+    return estado.peca.startsWith("lambri") ? [] : [["peca_a", "Face de dentro", "parede"], ["peca_b", "Face de fora", "parede"]];
+  }
+  if (estado.modo === "lote" || estado.modo === "encaixe") {
+    const vistos = new Map();
+    for (const q of CASAS[estado.modo].pecas) for (const [mat, tex] of Object.entries(q.m ?? {})) if (TIPO_MAT[mat]) vistos.set(chaveSup(mat, tex), [mat, tex]);
+    const ordem = ["telha", "face_b", "face_a", "piso", "pastilha"];
+    return [...vistos].sort((a, b) => ordem.indexOf(a[1][0]) - ordem.indexOf(b[1][0])).map(([ch, [mat, tex]]) => [ch, `${NOME_MAT[mat]} · ${rotuloTex(tex)}`, TIPO_MAT[mat]]);
   }
   const pl = PLANTAS[estado.modo], lista = [["chao", "Chão", "piso"]], vistos = new Set();
-  for (const t of pl.paredes) for (const [tex, papel] of [[t.dentro, "dentro"], [t.fora, "fora"]]) {
+  for (const t of pl.paredes) for (const [tex] of [[t.dentro], [t.fora]]) {
     if (vistos.has(tex)) continue;
     vistos.add(tex);
     const fora = pl.paredes.some((q) => q.fora === tex && !pl.paredes.some((r) => r.dentro === tex));
-    lista.push(["s:" + tex, (fora ? "Lado de fora · " : "Dentro · ") + TEXS[tex].rotulo.replace(/^Degradê |^Papel |^Listras |^Tijolo /, ""), "parede"]);
+    lista.push(["s:" + tex, (fora ? "Lado de fora · " : "Dentro · ") + rotuloTex(tex), "parede"]);
   }
   return lista;
 }
 function valorDe(chave) {
   return superficie.get(chave)?.userData.valor ?? estado.valores[chave];
 }
+function chip(rotulo, ativo, acao) {
+  const b = document.createElement("button");
+  b.className = "chip"; b.type = "button"; b.textContent = rotulo; b.setAttribute("aria-pressed", String(ativo));
+  b.onclick = acao;
+  return b;
+}
 function desenhaModos() {
-  const el = document.getElementById("modos");
-  el.replaceChildren(...[["A", "Cômodo azul"], ["B", "Cômodo de tijolo"], ["peca", "Peça avulsa"]].map(([k, r]) => {
-    const b = document.createElement("button");
-    b.className = "chip"; b.type = "button"; b.textContent = r; b.setAttribute("aria-pressed", String(estado.modo === k));
-    b.onclick = () => { estado.modo = k; estado.sup = superficiesDoModo()[0]?.[0] ?? null; atualiza(true); };
-    return b;
-  }));
+  document.getElementById("modos").replaceChildren(...MODOS.map(([k, r]) => chip(r, estado.modo === k, () => { estado.modo = k; estado.sup = superficiesDoModo()[0]?.[0] ?? null; atualiza(true); })));
+  const casa = estado.modo === "lote" || estado.modo === "encaixe";
+  const temInterativo = casa || (estado.modo === "peca" && (ITEM_POR_ID[estado.peca]?.interativos ?? []).length > 0);
+  const op = [];
+  if (casa) op.push(chip(estado.noite ? "Noite" : "Dia", estado.noite, () => { estado.noite = !estado.noite; ambiente(); desenhaModos(); }));
+  if (temInterativo) op.push(chip(estado.aberto ? "Portões abertos" : "Abrir portões e portas", estado.aberto, () => { estado.aberto = !estado.aberto; abreInterativos(estado.aberto ? 0.85 : 0); desenhaModos(); }));
+  document.getElementById("opcoes").replaceChildren(...op);
   document.getElementById("bloco-pecas").hidden = estado.modo !== "peca";
+  document.querySelector(".alterna").hidden = !(estado.modo === "A" || estado.modo === "B");
 }
 function medidas(p) {
   const f = (n) => n.toFixed(2).replace(".", ",");
   if (p.tam) return `${f(p.tam[0])} × ${f(p.tam[1])} m`;
+  if (p.dims && !p.vaos) return `${f(p.dims[0])} × ${f(p.dims[1])} × ${f(p.dims[2])} m`;
   const v = (p.vaos || []).map((q) => `vão ${f(q.larg)} × ${f(q.alt)}${q.peitoril ? " a " + f(q.peitoril) : ""}`).join(" · ");
   return `${f(p.comp)} × ${f(p.alt)} m${v ? " · " + v : ""}`;
 }
-function desenhaPecas() {
-  const todas = [...CAT.chaos, ...CAT.paredes, ...CAT.lambris, ...CAT.encaixes];
-  const extras = DESENHOS.map((d) => ({ id: d.base, rotulo: d.rotulo, desenho: d }));
-  const el = document.getElementById("pecas");
-  const titulo = (txt) => { const h = document.createElement("p"); h.className = "subgrupo"; h.style.gridColumn = "1 / -1"; h.textContent = txt; return h; };
-  const botoesPj = [];
-  let grupoAtual = null;
-  for (const e of extras) {
-    if (e.desenho.grupo !== grupoAtual) { grupoAtual = e.desenho.grupo; botoesPj.push(titulo(grupoAtual)); }
-    const b = document.createElement("button");
-    b.className = "peca"; b.type = "button"; b.setAttribute("aria-pressed", String(estado.peca === e.id));
-    const it = PJ_POR_ID[idPj(e.id)];
-    b.innerHTML = `<img src="miniaturas/${idPj(e.id)}.webp" alt="" loading="lazy"><span>${e.rotulo}</span><small>${it.vao ? "vão da " + it.vao.peca.replace(/_/g, " ") : it.comp ? String(it.comp).replace(".", ",") + " m" : e.desenho.cores.length + " cores"}</small>`;
-    b.onclick = () => { estado.peca = e.id; estado.sup = "pj"; atualiza(true); };
-    botoesPj.push(b);
-  }
-  el.replaceChildren(titulo("Chão e paredes"), ...todas.map((p) => {
-    const b = document.createElement("button");
-    b.className = "peca"; b.type = "button"; b.setAttribute("aria-pressed", String(estado.peca === p.id));
-    b.innerHTML = `<img src="miniaturas/${p.id}.webp" alt="" loading="lazy"><span>${p.rotulo}${p.pacote ? " <span class=\"medidas\">PAC</span>" : ""}</span><small>${p.vao ? "encaixa em " + p.vao.peca.replace(/_/g, " ") : medidas(p)}</small>`;
-    b.onclick = () => { estado.peca = p.id; estado.sup = superficiesDoModo()[0]?.[0] ?? null; atualiza(true); };
-    return b;
-  }), ...botoesPj);
+function botaoPeca(p, mini, sub) {
+  const b = document.createElement("button");
+  b.className = "peca"; b.type = "button"; b.setAttribute("aria-pressed", String(estado.peca === p.id));
+  b.innerHTML = `<img src="${imgMini(`miniaturas/${mini}.webp`)}" alt="" loading="lazy"><span>${p.rotulo}${p.pacote ? " <span class=\"medidas\">PAC</span>" : ""}</span><small>${sub}</small>`;
+  b.onclick = () => { estado.peca = p.id; estado.aberto = false; estado.sup = superficiesDoModo()[0]?.[0] ?? null; atualiza(true); };
+  return b;
 }
+function desenhaPecas() {
+  const el = document.getElementById("pecas");
+  const fil = estado.filtro.trim().toLowerCase();
+  const passa = (p) => !fil || p.id.includes(fil) || p.rotulo.toLowerCase().includes(fil);
+  const titulo = (txt) => { const h = document.createElement("p"); h.className = "subgrupo"; h.style.gridColumn = "1 / -1"; h.textContent = txt; return h; };
+  const filhos = [];
+  const base = [...CAT.chaos, ...CAT.paredes, ...CAT.lambris, ...CAT.encaixes].filter(passa);
+  if (base.length) filhos.push(titulo("Chão e paredes"), ...base.map((p) => botaoPeca(p, p.id, p.vao ? "encaixa em " + p.vao.peca.replace(/_/g, " ") : medidas(p))));
+  for (const [s, rot] of SECOES_NOVAS) {
+    const lista = (CAT[s] ?? []).filter(passa);
+    if (lista.length) filhos.push(titulo(rot), ...lista.map((p) => botaoPeca(p, p.id, medidas(p))));
+  }
+  let grupoAtual = null;
+  for (const d of DESENHOS) {
+    if (fil && !d.base.includes(fil) && !d.rotulo.toLowerCase().includes(fil)) continue;
+    if (d.grupo !== grupoAtual) { grupoAtual = d.grupo; filhos.push(titulo(grupoAtual)); }
+    const it = PJ_POR_ID[idPj(d.base)];
+    const b = botaoPeca({ id: d.base, rotulo: d.rotulo }, idPj(d.base), it.vao ? "vão da " + it.vao.peca.replace(/_/g, " ") : it.comp ? String(it.comp).replace(".", ",") + " m" : d.cores.length + " cores");
+    b.onclick = () => { estado.peca = d.base; estado.sup = "pj"; atualiza(true); };
+    filhos.push(b);
+  }
+  el.replaceChildren(...filhos);
+}
+document.getElementById("filtro").addEventListener("input", (e) => { estado.filtro = e.target.value; desenhaPecas(); });
 function desenhaSuperficies() {
   const lista = superficiesDoModo();
   document.getElementById("superficies").replaceChildren(...lista.map(([ch, rot]) => {
@@ -364,7 +513,7 @@ function desenhaSuperficies() {
     b.className = "chip superficie"; b.type = "button"; b.setAttribute("aria-pressed", String(estado.sup === ch));
     const v = valorDe(ch), bol = document.createElement("span");
     bol.className = "bolinha";
-    if (v) bol.style.background = v.startsWith("#") ? v : `center / cover url(${TEXS[v].mini})`;
+    if (v) bol.style.background = v.startsWith("#") ? v : `center / cover url(${TEXS[v]?.mini})`;
     b.append(bol, document.createTextNode(rot));
     b.onclick = () => { estado.sup = ch; desenhaSuperficies(); desenhaAmostras(); };
     return b;
@@ -373,7 +522,7 @@ function desenhaSuperficies() {
 function desenhaAmostras() {
   const tipo = superficiesDoModo().find(([c]) => c === estado.sup)?.[2];
   const el = document.getElementById("amostras");
-  document.getElementById("rotulo-amostras").textContent = tipo === "piso" ? "Texturas de piso" : tipo === "parede" ? "Texturas de parede" : "Texturas";
+  document.getElementById("rotulo-amostras").textContent = { piso: "Texturas de piso", parede: "Texturas de parede", telhado: "Telhas" }[tipo] ?? "Texturas";
   if (!tipo) { el.replaceChildren(); return; }
   if (tipo === "pj") {
     document.getElementById("rotulo-amostras").textContent = "Cores";
@@ -389,7 +538,7 @@ function desenhaAmostras() {
     el.replaceChildren(grade);
     return;
   }
-  const lista = TEX[tipo], atual = valorDe(estado.sup);
+  const lista = TEX[tipo] ?? [], atual = valorDe(estado.sup);
   const grupos = [...new Set(lista.map((t) => t.grupo))];
   el.replaceChildren(...grupos.flatMap((g) => {
     const tit = document.createElement("p"); tit.className = "subgrupo"; tit.textContent = GRUPOS[g] ?? g;
@@ -422,8 +571,12 @@ function legenda() {
       el.innerHTML = `<b>${DESENHOS.find((x) => x.base === estado.peca).rotulo}</b><span>${it.vao ? "no vão da " + it.vao.peca.replace(/_/g, " ") : ""}</span><span>arraste para girar</span>`;
       return;
     }
-    const p = [...CAT.chaos, ...CAT.paredes, ...CAT.lambris, ...CAT.encaixes].find((x) => x.id === estado.peca);
-    el.innerHTML = `<b>${p.rotulo}</b><span>${p.vao ? "encaixe do pacote" : medidas(p)}</span>`;
+    const p = ITEM_POR_ID[estado.peca];
+    el.innerHTML = `<b>${p.rotulo}</b><span>${p.vao && !p.vao.toFixed ? "encaixe do pacote" : medidas(p)}</span>${p.tris ? `<span>${p.tris} triângulos</span>` : ""}`;
+  } else if (estado.modo === "lote") {
+    el.innerHTML = `<b>Casa no lote</b><span>lote de 30 × 15 m · casa de 2 andares (10 × 8 m) · telhado de duas águas 50 %</span><span>arraste para girar · role para aproximar</span>`;
+  } else if (estado.modo === "encaixe") {
+    el.innerHTML = `<b>Testes de encaixe</b><span>retangular, L e T de 1 e 2 andares · mansarda, meia-água e platibanda</span><span>arraste para girar</span>`;
   } else {
     el.innerHTML = `<b>${estado.modo === "A" ? "Cômodo azul" : "Cômodo de tijolo"}</b><span>8,00 × 8,00 m · 4 placas de chão</span><span>arraste para girar · role para aproximar</span>`;
   }
@@ -450,15 +603,24 @@ async function atualiza(enquadra) {
       if (it.batente) await coloca(it.batente.replace(/_(branca|preta|madeira)$/, "_" + it.cor), 0, 0, 0, mpj);
     } else await coloca(it.id, 0, 0, 0, mpj);
   } else if (estado.modo === "peca") {
-    const p = estado.peca;
-    const mats = p === "chao_4m" ? { piso: material("chao", valorDe("chao") ?? "madeira_pinus") }
-      : { face_a: material("peca_a", valorDe("peca_a") ?? "degrade_gelo"), face_b: material("peca_b", valorDe("peca_b") ?? "degrade_azul"),
-          lambri: material("lambri", "#F3F3F1") };
+    const p = estado.peca, it = ITEM_POR_ID[p];
+    let mats;
+    if (p.startsWith("chao") || p.startsWith("laje")) mats = { piso: material("chao", valorDe("chao") ?? "madeira_pinus") };
+    else if (it?.materiais && !CAT.paredes.includes(it)) {
+      mats = {};
+      for (const m of it.materiais) if (TIPO_MAT[m]) {
+        const padrao = it.texturas_padrao?.[m] ?? { face_a: "degrade_gelo", face_b: "degrade_azul", piso: "madeira_pinus", telha: "telha_ceramica", pastilha: "piscina" }[m];
+        mats[m] = material("p:" + m, valorDe("p:" + m) ?? padrao);
+        if (m === "telha") mats.cumeeira = materialCumeeira("p:telha");
+      }
+    } else mats = { face_a: material("peca_a", valorDe("peca_a") ?? "degrade_gelo"), face_b: material("peca_b", valorDe("peca_b") ?? "degrade_azul"), lambri: material("lambri", "#F3F3F1") };
     const enc = CAT.encaixes.find((e) => e.id === p);
-    if (enc) { await coloca(enc.vao.peca, 0, 0, 0, { face_a: material("peca_a", valorDe("peca_a") ?? "degrade_gelo"), face_b: material("peca_b", valorDe("peca_b") ?? "degrade_azul") }); }
+    if (enc) await coloca(enc.vao.peca, 0, 0, 0, { face_a: material("peca_a", valorDe("peca_a") ?? "degrade_gelo"), face_b: material("peca_b", valorDe("peca_b") ?? "degrade_azul") });
     await coloca(p, 0, 0, 0, mats);
     const pc = CAT.paredes.find((q) => q.id === p);  // peça avulsa: as cantoneiras das pontas
     if (pc && !pc.centrada) for (const xx of [0, pc.comp]) await coloca("pilar", xx, 0, 0).then((o) => { o.scale.y = (pc.alt + 0.004) / (CAT.altura + 0.004); });
+  } else if (estado.modo === "lote" || estado.modo === "encaixe") {
+    await montaCasa(CASAS[estado.modo]);
   } else {
     await monta(PLANTAS[estado.modo], estado.lambri);
   }
@@ -466,15 +628,19 @@ async function atualiza(enquadra) {
   for (const o of antigos) grupo.remove(o);
   desenhaSuperficies();
   document.getElementById("carregando").hidden = true;
+  const caixa = new THREE.Box3().setFromObject(grupo), c = caixa.getCenter(new THREE.Vector3()), r = caixa.getSize(new THREE.Vector3()).length();
+  estado.centro.copy(c);
+  ambiente();
+  if (estado.aberto) abreInterativos(0.85);
   if (enquadra) {
-    const caixa = new THREE.Box3().setFromObject(grupo), c = caixa.getCenter(new THREE.Vector3()), r = caixa.getSize(new THREE.Vector3()).length();
     orbita.target.copy(c);
-    const dir = estado.modo === "peca" ? new THREE.Vector3(0.55, 0.45, 1) : new THREE.Vector3(-0.45, 1.05, 0.95);
-    camera.position.copy(c).add(dir.normalize().multiplyScalar(r * (estado.modo === "peca" ? 1.25 : 1.05)));
+    const casa = estado.modo === "lote" || estado.modo === "encaixe";
+    const dir = estado.modo === "peca" ? new THREE.Vector3(0.55, 0.45, 1) : casa ? new THREE.Vector3(-0.5, 0.75, 1) : new THREE.Vector3(-0.45, 1.05, 0.95);
+    camera.position.copy(c).add(dir.normalize().multiplyScalar(r * (estado.modo === "peca" ? 1.25 : casa ? 0.85 : 1.05)));
     orbita.update();
   }
 }
-estado.sup = "chao";
+estado.sup = superficiesDoModo()[0]?.[0] ?? null;
 redimensiona();
 await atualiza(true);
 renderer.setAnimationLoop(() => { orbita.update(); renderer.render(cena, camera); });

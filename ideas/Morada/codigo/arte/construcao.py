@@ -373,6 +373,14 @@ def main():
         catalogo["encaixes"].append({"id": enc["id"], "rotulo": enc["rotulo"], "vao": {"peca": enc["vao"][0], "indice": enc["vao"][1]},
                                      "arquivo": f"pecas/{enc['id']}.glb", "pacote": True})
         print("encaixe", enc["id"], flush=True)
+    antigo = os.path.join(saida, "construcao.json")  # mantém o que construcao_casa.py pôs (telhados, andares, ...)
+    if os.path.exists(antigo):
+        velho = json.load(open(antigo))
+        for k, v in velho.items():
+            if k not in catalogo:
+                catalogo[k] = v
+        feitos = {p["id"] for p in catalogo["chaos"]}
+        catalogo["chaos"] += [p for p in velho.get("chaos", []) if p["id"] not in feitos]
     json.dump(catalogo, open(os.path.join(saida, "construcao.json"), "w"), ensure_ascii=False, indent=1)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(saida, "construcao.blend"), compress=True)
     print("fim", len(catalogo["paredes"]), "paredes", len(catalogo["encaixes"]), "encaixes")

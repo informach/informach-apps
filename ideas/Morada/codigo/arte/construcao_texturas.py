@@ -4,7 +4,8 @@ vitrine de pisos e paredes como norte (não são cópias), mais as aproveitadas 
 Escala (a mesma em todas, para trocar uma pela outra sem mexer no UV das peças):
   - piso: a imagem cobre 2 × 2 m (o chão de 4 × 4 m repete 2 vezes em cada direção);
   - parede: a imagem cobre 3 m de largura × 3 m de altura (a parede inteira: o degradê e a faixa das frutas acompanham
-    a altura da parede; na horizontal todas emendam).
+    a altura da parede; na horizontal todas emendam);
+  - telhado: a imagem cobre 2 × 2 m e o desenho repete a cada 0,5 m na horizontal (emenda entre peças de 0,5 e 1 m).
 
 Uso: python3 -I construcao_texturas.py <saida>   (grava <saida>/<id>.png, 1024 px, e texturas.json)
 """
@@ -376,6 +377,125 @@ def tabuas_do_pacote(seed=11):
     return suave(img, 0.6)
 
 
+
+# ------------------------------------------------------------------ telhado
+# A imagem cobre 2 × 2 m (como o piso). Na horizontal o desenho repete a cada 0,5 m (256 px): as peças de telhado têm
+# 0,5 ou 1 m e o UV recomeça em cada uma, então a emenda some. Na vertical (ao longo da água) a imagem repete a cada
+# 2 m e o UV parte da linha do beiral em todas as peças. "Para baixo" na imagem é "água abaixo".
+P_TELHA = S // 4  # 256 px = 0,5 m
+
+
+def telha_ceramica(base, claro, escuro, n_lin=6, seed=51):
+    """Telha capa-canal de desenho animado: colunas de 0,25 m com a capa abaulada (luz no meio), o canal escuro entre
+    elas e a borda de baixo de cada fiada arredondada, com a sombra na fiada de baixo."""
+    rng = np.random.default_rng(seed)
+    larg = S / 8  # 0,25 m
+    alt = S / n_lin
+    lin = np.floor(yy / alt).astype(int)
+    col = np.floor(xx / larg).astype(int)
+    lx = (xx % larg) / larg  # 0..1 na coluna
+    ly = (yy % alt) / alt  # 0 em cima, 1 embaixo da fiada
+    tons = {(a, b): rng.uniform(0.95, 1.05) for a in range(n_lin) for b in range(2)}
+    tom = np.vectorize(lambda a, b: tons[(a, b)])(lin % n_lin, col % 2)
+    b_, c_, e_ = hexa(base), hexa(claro), hexa(escuro)
+    capa = np.cos((lx - 0.5) * math.pi) ** 0.8  # 1 no meio, 0 na junta
+    img = mistura(e_[None, None, :], b_[None, None, :], np.clip(capa * 1.25, 0, 1)[..., None])
+    brilho = np.exp(-((lx - 0.38) / 0.12) ** 2) * 0.55 * (1 - ly * 0.4)
+    img = mistura(img, c_[None, None, :], brilho[..., None])
+    # borda arredondada de baixo: a ponta da telha avança em arco; abaixo dela, a sombra na fiada seguinte
+    arco = 0.86 + 0.10 * np.cos((lx - 0.5) * math.pi)
+    sombra = np.clip(1 - np.abs(ly - arco) / 0.05, 0, 1) * (ly < arco + 0.06)
+    ponta = (ly > arco) & (ly < arco + 0.035)
+    img = img * (1 - 0.35 * sombra[..., None])
+    img[ponta] = img[ponta] * 0.6 + e_ * 0.4
+    sob = np.clip(1 - ly / 0.18, 0, 1) * 0.28  # topo da fiada: fica sob a de cima, mais escuro
+    img = img * (1 - sob[..., None])
+    img = img * tom[..., None]
+    return suave(img, 0.7)
+
+
+def ardosia(cores, junta, larg_m=0.25, alt_m=0.2, seed=52, escamas=False):
+    """Ardósia em placas desencontradas (meia placa por fiada) ou em escamas (a ponta de baixo redonda)."""
+    rng = np.random.default_rng(seed)
+    px = S / 2.0
+    larg = larg_m * px
+    n_lin = int(round(2.0 / alt_m))
+    alt = S / n_lin
+    lin = np.floor(yy / alt).astype(int)
+    xo = xx + (lin % 2) * larg / 2
+    col = np.floor(xo / larg).astype(int)
+    lx = (xo % larg) / larg
+    ly = (yy % alt) / alt
+    cores = [hexa(c) for c in cores]
+    per = int(round(0.5 / larg_m))  # colunas por período de 0,5 m
+    tons = {(a, b): cores[rng.integers(len(cores))] * rng.uniform(0.97, 1.03) for a in range(n_lin) for b in range(per)}
+    img = np.zeros((S, S, 3))
+    for (a, b), cor in tons.items():
+        img[(lin == a) & (col % per == b)] = cor
+    if escamas:
+        # escama: a ponta de baixo é um semicírculo; acima dele aparece a escama da fiada de cima (vizinha meia volta)
+        r = 0.5
+        dentro = (lx - 0.5) ** 2 + (np.maximum(ly - (1 - r * larg / alt), 0) * alt / larg) ** 2 <= r ** 2
+        fora = ~dentro
+        lin2 = lin + 1
+        xo2 = xx + (lin2 % 2) * larg / 2
+        col2 = np.floor(xo2 / larg).astype(int)
+        for (a, b), cor in tons.items():
+            sel = fora & ((lin2 % n_lin) == a) & (col2 % per == b)
+            img[sel] = cor
+        d = np.abs(np.sqrt((lx - 0.5) ** 2 + (np.maximum(ly - (1 - r * larg / alt), 0) * alt / larg) ** 2) - r) * larg
+        borda_t = np.clip(1 - (d - 1.2) / 1.2, 0, 1) * (ly > 0.3)
+        img = mistura(img, hexa(junta)[None, None, :], borda_t[..., None])
+        luz = np.clip(1 - ly, 0, 1) * 0.10
+        img *= (1 + luz[..., None])
+    else:
+        dx = np.minimum(lx, 1 - lx) * larg
+        dy = np.minimum(ly, 1 - ly) * alt
+        j = np.clip(1 - (np.minimum(dx, dy * 1.4) - 1.6) / 1.2, 0, 1)
+        luz = (0.5 - ly) * 0.16 + np.clip(1 - ly / 0.12, 0, 1) * 0.06
+        img *= (1 + luz[..., None])
+        img = mistura(img, hexa(junta)[None, None, :], j[..., None])
+        sombra = np.clip(1 - (1 - ly) / 0.10, 0, 1) * 0.18  # a borda de baixo faz sombra na de baixo
+        img *= (1 - sombra[..., None])
+    return suave(img, 0.6)
+
+
+def metalica(base, claro, escuro, passo_m=0.25):
+    """Telha metálica de junta em pé: painéis lisos com uma nervura saltada a cada 0,25 m (luz de um lado, sombra do
+    outro) e um brilho suave na horizontal."""
+    px = S / 2.0
+    passo = passo_m * px
+    lx = (xx % passo) / passo
+    b_, c_, e_ = hexa(base), hexa(claro), hexa(escuro)
+    img = np.zeros((S, S, 3)) + b_
+    nerv = np.exp(-((lx - 0.0) / 0.035) ** 2) + np.exp(-((lx - 1.0) / 0.035) ** 2)
+    lado_luz = np.exp(-((lx - 0.05) / 0.03) ** 2)
+    lado_sombra = np.exp(-((lx - 0.95) / 0.03) ** 2)
+    img = mistura(img, c_[None, None, :], np.clip(nerv * 0.9 + lado_luz * 0.6, 0, 1)[..., None])
+    img = mistura(img, e_[None, None, :], np.clip(lado_sombra * 0.7, 0, 1)[..., None])
+    meio = np.exp(-((lx - 0.5) / 0.22) ** 2) * 0.06
+    img *= (1 + meio[..., None])
+    n = ruido(4, 61) - 0.5
+    img *= (1 + n[..., None] * 0.03)
+    return suave(img, 0.6)
+
+
+def waffle_do_pacote():
+    im = do_pacote("waffle.png", "telhado", 2.0)
+    return im
+
+
+TELHADO = [
+    ("telha_ceramica", "Telha cerâmica", "ceramica", lambda: telha_ceramica("#D9673A", "#F59A62", "#8E3A1F")),
+    ("telha_ceramica_vermelha", "Telha cerâmica vermelha", "ceramica", lambda: telha_ceramica("#B8402E", "#E06A50", "#6E2318", seed=53)),
+    ("telha_ardosia", "Ardósia cinza", "ardosia", lambda: ardosia(["#647690", "#6A7C95", "#5F718A", "#6F819A"], "#3A4656")),
+    ("telha_ardosia_escamas", "Ardósia em escamas", "ardosia", lambda: ardosia(["#5E8AD8", "#6490DC", "#5A85D2", "#6894DE"], "#33508F", larg_m=0.25, alt_m=0.18, seed=54, escamas=True)),
+    ("telha_metalica_vermelha", "Metálica vermelha", "metalica", lambda: metalica("#C8463C", "#F07C70", "#8A2A24")),
+    ("telha_metalica_azul", "Metálica azul", "metalica", lambda: metalica("#3F78C9", "#7EAEEE", "#244C8A")),
+    ("telha_metalica_cinza", "Metálica cinza", "metalica", lambda: metalica("#A3ADB8", "#DDE3EA", "#6E7782")),
+]
+
+
 # ------------------------------------------------------------------ catálogo
 PISO = [
     # madeira (6)
@@ -435,16 +555,21 @@ DO_PACOTE = [
     ("piso", "pedra_cidade", "Piso de pedra (Cidade)", "pacote", lambda: do_pacote("Tiles_2.png", "piso", 2.0)),
     ("piso", "tabuas_escuras", "Tábuas escuras (Xadrez)", "pacote", lambda: tabuas_do_pacote()),
     ("parede", "biscoito", "Biscoito (Natal)", "pacote", lambda: do_pacote("Cookie.png", "parede", 3.0)),
+    ("telhado", "waffle_natal", "Waffle (Natal)", "pacote", lambda: waffle_do_pacote()),
 ]
 
 
 def main():
     saida = sys.argv[1]
     os.makedirs(saida, exist_ok=True)
-    cat = {"piso": [], "parede": [], "escala_m": {"piso": 2.0, "parede": 3.0}}
-    todos = [("piso",) + x for x in PISO] + [("parede",) + x for x in PAREDE] + DO_PACOTE
+    cat = {"piso": [], "parede": [], "telhado": [], "escala_m": {"piso": 2.0, "parede": 3.0, "telhado": 2.0}}
+    todos = [("piso",) + x for x in PISO] + [("parede",) + x for x in PAREDE] + [("telhado",) + x for x in TELHADO] + DO_PACOTE
+    so = set(sys.argv[2].split(",")) if len(sys.argv) > 2 else None  # só estas (as outras ficam como estão)
     for uso, id_, rot, grupo, fn in todos:
-        img = fn()
+        if so is not None and id_ not in so and os.path.exists(os.path.join(saida, id_ + ".png")):
+            img = np.array(Image.open(os.path.join(saida, id_ + ".png")).convert("RGB")).astype(float)
+        else:
+            img = fn()
         if img is None:
             print("sem", id_)
             continue

@@ -169,3 +169,37 @@ janelas (`portas_janelas.blend` e `.json`).
 A primeira gera as texturas, a segunda as peças, os GLB, o `construcao.blend` e o `construcao.json`, a terceira os
 renders da vitrine (`comodos.png` e `pecas.png`), a quarta as miniaturas (PNG de 256 px, que viram `miniaturas/<id>.webp` de 192 px) e a quinta empacota para a página. A variável `AMOSTRAS=16` faz uma
 prévia rápida dos renders.
+
+## Casa inteira: telhados, segundo andar, fundação, cercas, quintal e lote (9 nov 2026)
+
+264 peças novas (geradas por `codigo/arte/construcao_casa.py`; receitas de casas em `codigo/arte/construcao_casas.py`),
+todas com miniatura e colisão; escadas, rampas e degraus têm malha de colisão. Interativos usam as mesmas chaves dos
+móveis (`porta`, `correr`). A mais pesada tem cerca de 4,6 mil triângulos. Exemplos: `casas_encaixe.png` e `lote.png`.
+
+- **Telhados (143):** duas águas, quatro águas, L, T, meia-água e mansarda, para vãos de 4, 6 e 8 m (meia-água 2, 4 e
+  6 m) em 3 inclinações (i25, i50, i75): corpos de 1 m e 0,5 m, empenas, oitões, pontas, cantos, beirais (externo e
+  interno), cumeeira, rufos e paredes de complemento. 7 telhas novas (cerâmica, cerâmica vermelha, ardósia, ardósia em
+  escamas, metálica vermelha, azul e cinza) e o waffle do pacote de Natal.
+- **Segundo andar (31):** lajes 4×4, 4×2 e 2×2, lajes com abertura para escada reta, L, U e caracol (`escada_em` diz
+  onde fica a escada), cintas, escadas com corrimão e guarda-corpos de vidro, metal e madeira.
+- **Fundação e acesso (44):** soco de 0,30, 0,45 e 0,60 m, degraus, rampa de 7,5 %, patamar, deck, colunas, vigas,
+  sacadas, alpendres e luzes externas.
+- **Cercas (27):** madeira, ripada, metal, mureta com grade e muro, com canto e fim; portões de pedestre, basculante e de
+  correr; cerca de doce do pacote de Natal (`_pacote`).
+- **Quintal (14):** piscina em células de 1 m (miolo, borda, borda com luz, canto, degraus, prainha), escadinha,
+  trampolim, garagens abertas 3×6 e 6×6 e caminho de pedras.
+- **Lote (3):** lotes de 15×15 e 30×15 (origem no meio, frente em −y, calçada de 2 m, gramado `recortavel` para a
+  piscina) e caixa de correio.
+
+**Regras de encaixe** (também em `construcao.json → casa`): piso do andar n em z = h + 3,2·n (h = fundação); telhados
+com origem no topo das paredes (z = h + 3,2·n + 3); contorno anti-horário, canto convexo com a peça de canto girada
+para o lado que sai e côncavo com o canto interno girado para o lado que chega; beiral 0,5 m para fora da grade; L e T
+exigem o mesmo vão nas duas alas; piscina com fundo em −1,40, água em −0,10 e borda em +0,03; área construível do lote
+de x = −X + 1,5 a X − 1,5 e y de −3,5 a 6,0.
+
+**Medido:** cerca de 1 milhão de raios nas emendas de telhados, fachadas e piscina, com zero fresta e degrau máximo de
+0,01 mm. **Limites:** L e T só com vãos iguais; sem piscina em L; mansarda só de duas águas; degraus de entrada com
+1,5 m de largura.
+
+Na página (`paginas/construcao/`), as peças e as miniaturas vão em pacotes (`pecas_pacotes/`,
+`pacote_miniaturas.json`) para a página publicada caber no limite de arquivos; os GLB estão aqui em `pecas/`.

@@ -178,7 +178,7 @@
    "rotulo": "Degradê mostarda",
    "grupo": "degrade",
    "arquivo": "texturas/degrade_mostarda.jpg",
-   "media": "#d7b34b",
+   "media": "#d6b24a",
    "mini": "mini/degrade_mostarda.jpg"
   },
   {
@@ -186,7 +186,7 @@
    "rotulo": "Degradê gelo",
    "grupo": "degrade",
    "arquivo": "texturas/degrade_gelo.jpg",
-   "media": "#e0e0e1",
+   "media": "#dfe0e1",
    "mini": "mini/degrade_gelo.jpg"
   },
   {
@@ -194,7 +194,7 @@
    "rotulo": "Degradê vermelho",
    "grupo": "degrade",
    "arquivo": "texturas/degrade_vermelho.jpg",
-   "media": "#d14c47",
+   "media": "#d04b47",
    "mini": "mini/degrade_vermelho.jpg"
   },
   {
@@ -202,7 +202,7 @@
    "rotulo": "Degradê roxo",
    "grupo": "degrade",
    "arquivo": "texturas/degrade_roxo.jpg",
-   "media": "#8652ca",
+   "media": "#8551c9",
    "mini": "mini/degrade_roxo.jpg"
   },
   {
@@ -210,7 +210,7 @@
    "rotulo": "Degradê verde",
    "grupo": "degrade",
    "arquivo": "texturas/degrade_verde.jpg",
-   "media": "#54c24b",
+   "media": "#53c14a",
    "mini": "mini/degrade_verde.jpg"
   },
   {
@@ -218,7 +218,7 @@
    "rotulo": "Degradê azul",
    "grupo": "degrade",
    "arquivo": "texturas/degrade_azul.jpg",
-   "media": "#467ed7",
+   "media": "#457dd6",
    "mini": "mini/degrade_azul.jpg"
   },
   {
@@ -375,8 +375,76 @@
    "mini": "mini/biscoito.jpg"
   }
  ],
+ "telhado": [
+  {
+   "id": "telha_ceramica",
+   "rotulo": "Telha cerâmica",
+   "grupo": "ceramica",
+   "arquivo": "texturas/telha_ceramica.jpg",
+   "media": "#c25d35",
+   "mini": "mini/telha_ceramica.jpg"
+  },
+  {
+   "id": "telha_ceramica_vermelha",
+   "rotulo": "Telha cerâmica vermelha",
+   "grupo": "ceramica",
+   "arquivo": "texturas/telha_ceramica_vermelha.jpg",
+   "media": "#a33a29",
+   "mini": "mini/telha_ceramica_vermelha.jpg"
+  },
+  {
+   "id": "telha_ardosia",
+   "rotulo": "Ardósia cinza",
+   "grupo": "ardosia",
+   "arquivo": "texturas/telha_ardosia.jpg",
+   "media": "#63758d",
+   "mini": "mini/telha_ardosia.jpg"
+  },
+  {
+   "id": "telha_ardosia_escamas",
+   "rotulo": "Ardósia em escamas",
+   "grupo": "ardosia",
+   "arquivo": "texturas/telha_ardosia_escamas.jpg",
+   "media": "#6390e0",
+   "mini": "mini/telha_ardosia_escamas.jpg"
+  },
+  {
+   "id": "telha_metalica_vermelha",
+   "rotulo": "Metálica vermelha",
+   "grupo": "metalica",
+   "arquivo": "texturas/telha_metalica_vermelha.jpg",
+   "media": "#cd4a40",
+   "mini": "mini/telha_metalica_vermelha.jpg"
+  },
+  {
+   "id": "telha_metalica_azul",
+   "rotulo": "Metálica azul",
+   "grupo": "metalica",
+   "arquivo": "texturas/telha_metalica_azul.jpg",
+   "media": "#447dce",
+   "mini": "mini/telha_metalica_azul.jpg"
+  },
+  {
+   "id": "telha_metalica_cinza",
+   "rotulo": "Metálica cinza",
+   "grupo": "metalica",
+   "arquivo": "texturas/telha_metalica_cinza.jpg",
+   "media": "#a9b3be",
+   "mini": "mini/telha_metalica_cinza.jpg"
+  },
+  {
+   "id": "waffle_natal",
+   "rotulo": "Waffle (Natal)",
+   "grupo": "pacote",
+   "arquivo": "texturas/waffle_natal.jpg",
+   "media": "#dd7421",
+   "pacote": true,
+   "mini": "mini/waffle_natal.jpg"
+  }
+ ],
  "escala_m": {
   "piso": 2.0,
-  "parede": 3.0
+  "parede": 3.0,
+  "telhado": 2.0
  }
 }

@@ -157,42 +157,42 @@
    "rotulo": "Degradê mostarda",
    "grupo": "degrade",
    "arquivo": "degrade_mostarda.png",
-   "media": "#d7b34b"
+   "media": "#d6b24a"
   },
   {
    "id": "degrade_gelo",
    "rotulo": "Degradê gelo",
    "grupo": "degrade",
    "arquivo": "degrade_gelo.png",
-   "media": "#e0e0e1"
+   "media": "#dfe0e1"
   },
   {
    "id": "degrade_vermelho",
    "rotulo": "Degradê vermelho",
    "grupo": "degrade",
    "arquivo": "degrade_vermelho.png",
-   "media": "#d14c47"
+   "media": "#d04b47"
   },
   {
    "id": "degrade_roxo",
    "rotulo": "Degradê roxo",
    "grupo": "degrade",
    "arquivo": "degrade_roxo.png",
-   "media": "#8652ca"
+   "media": "#8551c9"
   },
   {
    "id": "degrade_verde",
    "rotulo": "Degradê verde",
    "grupo": "degrade",
    "arquivo": "degrade_verde.png",
-   "media": "#54c24b"
+   "media": "#53c14a"
   },
   {
    "id": "degrade_azul",
    "rotulo": "Degradê azul",
    "grupo": "degrade",
    "arquivo": "degrade_azul.png",
-   "media": "#467ed7"
+   "media": "#457dd6"
   },
   {
    "id": "papel_confete",
@@ -329,8 +329,68 @@
    "pacote": true
   }
  ],
+ "telhado": [
+  {
+   "id": "telha_ceramica",
+   "rotulo": "Telha cerâmica",
+   "grupo": "ceramica",
+   "arquivo": "telha_ceramica.png",
+   "media": "#c25d35"
+  },
+  {
+   "id": "telha_ceramica_vermelha",
+   "rotulo": "Telha cerâmica vermelha",
+   "grupo": "ceramica",
+   "arquivo": "telha_ceramica_vermelha.png",
+   "media": "#a33a29"
+  },
+  {
+   "id": "telha_ardosia",
+   "rotulo": "Ardósia cinza",
+   "grupo": "ardosia",
+   "arquivo": "telha_ardosia.png",
+   "media": "#63758d"
+  },
+  {
+   "id": "telha_ardosia_escamas",
+   "rotulo": "Ardósia em escamas",
+   "grupo": "ardosia",
+   "arquivo": "telha_ardosia_escamas.png",
+   "media": "#6390e0"
+  },
+  {
+   "id": "telha_metalica_vermelha",
+   "rotulo": "Metálica vermelha",
+   "grupo": "metalica",
+   "arquivo": "telha_metalica_vermelha.png",
+   "media": "#cd4a40"
+  },
+  {
+   "id": "telha_metalica_azul",
+   "rotulo": "Metálica azul",
+   "grupo": "metalica",
+   "arquivo": "telha_metalica_azul.png",
+   "media": "#447dce"
+  },
+  {
+   "id": "telha_metalica_cinza",
+   "rotulo": "Metálica cinza",
+   "grupo": "metalica",
+   "arquivo": "telha_metalica_cinza.png",
+   "media": "#a9b3be"
+  },
+  {
+   "id": "waffle_natal",
+   "rotulo": "Waffle (Natal)",
+   "grupo": "pacote",
+   "arquivo": "waffle_natal.png",
+   "media": "#dd7421",
+   "pacote": true
+  }
+ ],
  "escala_m": {
   "piso": 2.0,
-  "parede": 3.0
+  "parede": 3.0,
+  "telhado": 2.0
  }
 }

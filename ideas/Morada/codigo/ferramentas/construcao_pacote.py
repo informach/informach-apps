@@ -1,5 +1,6 @@
 """Empacota a biblioteca de construção para a página: peças (GLB → gzip → base64 .txt), texturas em JPG (1024 e
-miniatura de 160), a miniatura de cada item, as plantas de exemplo (plantas.json) e as imagens da vitrine. Uso: python construcao_pacote.py <SP>"""
+miniatura de 160), a miniatura de cada item, as plantas de exemplo (plantas.json), as casas montadas (casas.json: o
+lote de exemplo e os testes de encaixe, peça por peça) e as imagens da vitrine. Uso: python construcao_pacote.py <SP>"""
 import base64, gzip, json, os, shutil, sys
 from PIL import Image
 SP = sys.argv[1]
@@ -7,8 +8,9 @@ C = os.path.join(SP, "construcao"); V = os.path.join(SP, "construcao_viewer")
 for d in ("pecas", "texturas", "mini", "vitrine", "miniaturas"):
     os.makedirs(os.path.join(V, d), exist_ok=True)
 cat = json.load(open(os.path.join(C, "construcao.json")))
-for grupo in ("chaos", "paredes", "lambris", "encaixes"):
-    for p in cat[grupo]:
+GRUPOS = ("chaos", "paredes", "lambris", "encaixes", "telhados", "andares", "acesso", "cercas", "quintal", "lotes")
+for grupo in GRUPOS:
+    for p in cat.get(grupo, []):
         dados = open(os.path.join(C, p["arquivo"]), "rb").read()
         open(os.path.join(V, "pecas", p["id"] + ".txt"), "w").write(base64.b64encode(gzip.compress(dados, 9)).decode())
         p["arquivo"] = "pecas/" + p["id"] + ".txt"
@@ -23,8 +25,8 @@ if os.path.exists(fpj):  # portas, janelas, batentes, lambris coloridos e canton
             p["arquivo"] = "pecas/" + p["id"] + ".txt"
     json.dump(pj, open(os.path.join(V, "portas_janelas.json"), "w"), ensure_ascii=False, indent=1)
 tex = json.load(open(os.path.join(C, "texturas", "texturas.json")))
-for uso in ("piso", "parede"):
-    for t in tex[uso]:
+for uso in ("piso", "parede", "telhado"):
+    for t in tex.get(uso, []):
         im = Image.open(os.path.join(C, "texturas", t["arquivo"])).convert("RGB")
         im.save(os.path.join(V, "texturas", t["id"] + ".jpg"), quality=88, optimize=True)
         im.resize((160, 160), Image.LANCZOS).save(os.path.join(V, "mini", t["id"] + ".jpg"), quality=86, optimize=True)
@@ -45,8 +47,21 @@ for n in ("comodos", "pecas", "janelas", "portas"):
     f = os.path.join(C, "render", n + ".png")
     if os.path.exists(f):
         Image.open(f).convert("RGB").save(os.path.join(V, "vitrine", n + ".jpg"), quality=86, optimize=True)
+# casas montadas peça por peça (construcao_casas.py) e as vitrines delas
+T = os.path.join(C, "casas_teste")
+casas = {}
+for q in ("lote", "encaixe"):
+    f = os.path.join(T, "casas_" + q + ".json")
+    if os.path.exists(f):
+        casas[q] = json.load(open(f))
+json.dump(casas, open(os.path.join(V, "casas.json"), "w"), ensure_ascii=False, separators=(",", ":"))
+for n in ("lote_dia", "lote_noite", "encaixe_dia", "encaixe_noite", "vit_telhados_dia", "vit_telhados_noite",
+          "vit_andares_dia", "vit_acesso_dia", "vit_acesso_noite", "vit_cercas_dia", "vit_quintal_dia", "vit_quintal_noite"):
+    f = os.path.join(T, n + ".png")
+    if os.path.exists(f):
+        Image.open(f).convert("RGB").save(os.path.join(V, "vitrine", n + ".jpg"), quality=86, optimize=True)
 # miniatura de cada item (obrigatória): construcao/miniaturas/<id>.webp, feita por miniaturas_construcao.py
-ids = [p["id"] for g in ("chaos", "paredes", "lambris", "encaixes") for p in cat[g]]
+ids = [p["id"] for g in GRUPOS for p in cat.get(g, [])]
 if os.path.exists(fpj):
     ids += [p["id"] for g in ("janelas", "portas", "batentes", "lambris", "cantos") for p in pj[g]]
 faltam = [i for i in ids if not os.path.exists(os.path.join(C, "miniaturas", i + ".webp"))]
