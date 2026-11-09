@@ -1,5 +1,13 @@
 # Continuar o Morada em outra conta
 
+Divisão combinada: **a implementação do Recreio e do Morada (código) pode ser feita em outra conta**;
+**a produção de arte no Blender continua na conta original**, que segue salvando tudo nesta pasta. Quem
+implementa lê as propostas e consome a `biblioteca/`; quem faz arte não mexe em `apps/` nem `packages/`.
+
+Para a implementação, comece pelas propostas (`paginas/recreio.html` e `paginas/morada.html`, seção
+"Ordem"), pelo índice `docs/estado-do-repositorio.md` e pelas regras do `AGENTS.md` da raiz. As decisões de
+regra de jogo mais recentes estão nas seções Controle, Tempo, Vida e Onde roda do Morada.
+
 As páginas publicadas (artefatos) ficam na conta que as publicou e só ela pode atualizá-las.
 **Tudo o que elas mostram está neste repositório**, então outra conta continua o trabalho a partir
 daqui e publica as páginas de novo (com links novos).
