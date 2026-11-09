@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { TimelineWord } from "../src/shared/cleanup.ts";
-import { rangeProject, sectionProject, splitBySections } from "../src/shared/courseSplit.ts";
+import {
+  partProject,
+  partProjectName,
+  rangeProject,
+  sectionProject,
+  splitBySections,
+} from "../src/shared/courseSplit.ts";
 import { parseScript } from "../src/shared/script.ts";
 import type { Asset, Project } from "../src/shared/types.ts";
 
@@ -177,4 +183,34 @@ test("sectionProject is a lesson of its own with the section confirmed and its v
   assert.deepEqual(p.publish, { videoId: "F1P1-V02", title: "Blocos de repetição" });
   assert.equal(p.createdAt, 1000);
   assert.ok(p.clips.every((c) => c.start >= 0 && c.start + c.duration <= 50 + 1e-6));
+});
+
+test("um projeto por parte: nome da aula e da parte, roteiro inteiro com a parte escolhida", () => {
+  const doc = parseScript(SCRIPT);
+  assert.ok(doc);
+  assert.equal(partProjectName(" DPJ Aula01 ", doc, 0), "DPJ Aula01 · Parte 1. A Chave do Farol");
+  assert.equal(partProjectName("DPJ Aula01", doc, 2), "DPJ Aula01 · Parte 3. O desafio final");
+  const created = {
+    version: 1,
+    id: "p-novo",
+    name: "DPJ Aula01 · Parte 2. Blocos de repetição",
+    course: "Desafio",
+    createdAt: 1,
+    updatedAt: 1,
+    settings: { width: 1920, height: 1080, fps: 30, sampleRate: 48000 },
+    assets: [],
+    tracks: [],
+    clips: [],
+  } as unknown as Project;
+  const lesson = { script: { text: SCRIPT, section: 0, confirmed: false } };
+  const part = partProject(created, lesson, doc, 1);
+  assert.deepEqual(part.script, { text: SCRIPT, section: 1, confirmed: true });
+  assert.deepEqual(part.publish, { videoId: "F1P1-V02", title: "Blocos de repetição" });
+  // O projeto da parte é o que acabou de ser criado: nada da linha do tempo da aula vem junto.
+  assert.equal(part.id, "p-novo");
+  assert.deepEqual(part.clips, []);
+  // Parte sem vídeo nomeado: sem publish.
+  assert.equal(partProject(created, lesson, doc, 2).publish, undefined);
+  // Aula sem roteiro: o projeto fica como foi criado.
+  assert.equal(partProject(created, {}, doc, 1).script, undefined);
 });

@@ -157,3 +157,43 @@ export function sectionProject(
       : {}),
   };
 }
+
+/**
+ * "Um projeto por parte": the lesson recorded part by part, each part in a project of its own
+ * (and packed on its own), instead of every part on one timeline. The name of part `section`'s
+ * project: the lesson's name and the part, as the script heading numbers and names it.
+ */
+export function partProjectName(lesson: string, doc: ScriptDoc, section: number): string {
+  const s = doc.sections[section];
+  const number = s?.number ?? String(section + 1);
+  const title = (s?.videoTitle || s?.title || "").trim();
+  return `${lesson.trim()} · Parte ${number}${title ? `. ${title}` : ""}`;
+}
+
+/**
+ * Part `section`'s project, from the empty one just created for it: the whole script of the
+ * lesson with that section chosen and confirmed (the recorder takes its lines and "Na tela" from
+ * it), and the section's video id and title for the platform. Nothing of the lesson's timeline
+ * comes along: each part is recorded in its own project.
+ */
+export function partProject(
+  created: Project,
+  lesson: Pick<Project, "script">,
+  doc: ScriptDoc,
+  section: number,
+): Project {
+  const s = doc.sections[section];
+  return {
+    ...created,
+    ...(lesson.script ? { script: { text: lesson.script.text, section, confirmed: true } } : {}),
+    ...(s?.videoId || s?.videoTitle
+      ? {
+          publish: {
+            ...created.publish,
+            ...(s.videoId ? { videoId: s.videoId } : {}),
+            ...(s.videoTitle ? { title: s.videoTitle } : {}),
+          },
+        }
+      : {}),
+  };
+}

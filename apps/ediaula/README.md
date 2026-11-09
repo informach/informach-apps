@@ -1678,7 +1678,9 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   ali. O vídeo de cada parte começa junto com a voz (antes só pelo que a mão precisa numa frase logo no
   primeiro segundo) e termina com ela: o que ainda acontece depois da voz entra acelerado antes do fim. Na
   timeline, cada parte entra 2 s depois do fim da anterior (`PART_GAP`): o espaço vazio mostra, na edição,
-  onde uma parte termina e a outra começa, e **Fechar lacunas** junta tudo quando a edição quiser. A tomada
+  onde uma parte termina e a outra começa, e **Fechar lacunas** junta tudo quando a edição quiser. Com
+  **Um projeto por parte** (o jeito de gravar as aulas do Sistema Zero desde 09/11/2026), cada take começa no
+  início da timeline do projeto da sua parte. A tomada
   que continua uma interrompida vai para o lugar exato dela, sem espaço.
 - A narração importada entra numa faixa própria, alinhada ao vídeo. Na tela, o microfone fica desligado (use
   fones); o áudio do PC é opcional e não grava a narração de novo, porque deixa de fora o som da janela do gravador.
@@ -1723,10 +1725,14 @@ a criança vê e não salva nada. A primeira gravação, Cadê Todo Mundo Aula 1
    JWT_JWKS_URL=<gateway público>/auth/.well-known/jwks.json npx next start -p 3010` (as variáveis do serviço
    entram sem aparecer; só o gateway e o JWKS trocam pelo endereço público, porque a rede interna do Railway
    não chega ao computador).
-4. **O projeto.** **Novo projeto** com o nome da aula e o curso. Painel **Roteiro**: cole o roteiro da aula
-   (**Usar roteiro**).
-5. **Para cada parte**, nesta ordem:
-   1. No painel **Roteiro**, escolha a **Seção N** (é dela que o gravador tira as falas e o **Na tela**).
+4. **Um projeto por parte** (desde 09/11/2026). **Novo projeto** com o nome da aula e o curso; no painel
+   **Roteiro**, cole o roteiro da aula (**Usar roteiro**) e clique em **Um projeto por parte**. Sai um
+   projeto para cada parte, "<aula> · Parte N. <título>", com o roteiro inteiro e a parte já escolhida;
+   pedir de novo só cria os que faltam. Cada parte é gravada, editada e empacotada sozinha. O projeto
+   da aula, onde o roteiro foi colado, só serve para criar os outros.
+5. **Para cada parte**, no projeto dela, nesta ordem:
+   1. Confira no painel **Roteiro** que a seção escolhida é a da parte (é dela que o gravador tira as
+      falas e o **Na tela**).
    2. **Gravar tela** › **Modo de gravação: Guiado por plano**. **Criar um plano** (ou **Novo plano**),
       **Renomear** para "Parte N", **Onde acontece: Na janela da aula**, **Tamanho 1920 × 1080**,
       **Quadros 30**.
@@ -1740,13 +1746,14 @@ a criança vê e não salva nada. A primeira gravação, Cadê Todo Mundo Aula 1
       **Na tela** e gere de novo. O que passa do fim da voz não sai: entra acelerado logo depois dela.
    6. **Verificar plano.** Precisa terminar com "Todas as etapas funcionaram na página". Os trechos que vão
       passar do tempo da fala entram acelerados (tela sem voz), e está certo assim.
-   7. **Gravar** (ou **F9**). O gravador fecha sozinho no fim, e o take entra no projeto depois do anterior,
-      com a narração numa faixa própria, o som da página na faixa **Som da página** e um lembrete em
+   7. **Gravar** (ou **F9**). O gravador fecha sozinho no fim, e o take entra no projeto da parte, no
+      começo da timeline, com a narração numa faixa própria, o som da página na faixa **Som da página** e um lembrete em
       cada `[na edição: …]`.
 6. **Conferir.** Assista: a página ocupa a tela inteira, os gestos caem nas frases, os trechos acelerados ficam
-   sob a fala. Uma parte com problema: tire os clipes dela, corrija (roteiro, palco ou plano) e grave de novo
-   só aquela parte. Para gravar a aula toda de novo, limpe a timeline e remova da biblioteca (**Mídia**) as
-   gravações que ficaram sem uso, para o projeto não acumular takes velhos; os planos continuam no projeto.
+   sob a fala. Uma parte com problema: no projeto dela, limpe a timeline, remova da biblioteca (**Mídia**) as
+   gravações que ficaram sem uso, corrija (roteiro, palco ou plano) e grave de novo; as outras partes não mudam.
+7. **Empacotar.** Em cada projeto de parte, **Arquivo › Empacotar para outra pessoa (com as mídias)**: um pacote
+   por parte.
 
 ### Teste de fumaça da gravação guiada
 

@@ -20,7 +20,9 @@ import {
   Wand2,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { askConfirm } from "@/lib/confirm";
 import { duration as fmtDuration } from "@/lib/format";
+import { projectPerPart } from "@/lib/partProjects";
 import { openRetake } from "@/lib/retake";
 import {
   insertedClip,
@@ -125,6 +127,36 @@ export function ScriptPanel(): ReactNode {
     const r = await openRetake();
     setBusy(null);
     toast(r.message, r.ok ? "info" : "error");
+  };
+  // "Um projeto por parte": each part recorded, edited and packed in a project of its own.
+  const perPart = async (): Promise<void> => {
+    const yes = await askConfirm({
+      title: "Um projeto por parte",
+      message: `Criar um projeto para cada uma das ${doc.sections.length} partes deste roteiro? Cada um leva o roteiro com a sua parte já escolhida, para gravar, editar e empacotar a parte sozinha. Este projeto não muda.`,
+      confirm: "Criar os projetos",
+      cancel: "Agora não",
+    });
+    if (!yes) return;
+    setBusy("parts");
+    try {
+      const { made, existing } = await projectPerPart(project, doc);
+      const already = existing.length
+        ? ` ${existing.length === 1 ? "Uma parte já tinha projeto" : `${existing.length} partes já tinham projeto`} e ficou como estava.`
+        : "";
+      toast(
+        made.length
+          ? `${made.length === 1 ? "Um projeto criado" : `${made.length} projetos criados`}, um por parte. Eles estão na tela inicial.${already}`
+          : `Todas as partes já têm projeto.${already}`,
+        "success",
+      );
+    } catch (err) {
+      toast(
+        `Os projetos das partes não foram criados: ${err instanceof Error ? err.message : String(err)}`,
+        "error",
+      );
+    } finally {
+      setBusy(null);
+    }
   };
   const placeAll = async (): Promise<void> => {
     setBusy("all");
@@ -302,6 +334,18 @@ export function ScriptPanel(): ReactNode {
       </div>
 
       <div className="script-foot">
+        {doc.sections.length > 1 && (
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={busy === "parts" ? Loader : Layers}
+            disabled={busy !== null}
+            title="Cria um projeto para cada parte do roteiro, com a parte já escolhida: cada parte é gravada, editada e empacotada sozinha"
+            onClick={() => void perPart()}
+          >
+            Um projeto por parte
+          </Button>
+        )}
         {doc.sections.length > 1 && (
           <Button
             size="sm"
