@@ -1,3 +1,4 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Projeto Morada</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -354,7 +355,7 @@ pre.mermaid svg{max-width:100%;height:auto}
       Morada
     </a>
     <nav class="nav" aria-label="Seções">
-      <a href="#ideia">Ideia</a><a href="#mundo">Um mundo</a><a href="#regras">Regras</a><a href="#dominio">Quem é quem</a><a href="#controle">Controle</a><a href="#vida">Vida</a><a href="#autonomia">Autonomia</a><a href="#tempo">Tempo</a><a href="#onde">Onde roda</a><a href="#casa">Casa</a><a href="#servicos">Serviços</a><a href="#trabalho">Trabalho</a><a href="#personagens">Personagens</a><a href="#arte">Arte</a><a href="#telas">Telas</a><a href="#seguranca">Convivência</a><a href="#recreio">Recreio</a><a href="#tecnica">Técnica</a><a href="#desempenho">Desempenho</a><a href="#plano">Plano</a><a href="#riscos">Riscos</a>
+      <a href="#ideia">Ideia</a><a href="#mundo">Um mundo</a><a href="#regras">Regras</a><a href="#dominio">Quem é quem</a><a href="#controle">Controle</a><a href="#vida">Vida</a><a href="#autonomia">Autonomia</a><a href="#tempo">Tempo</a><a href="#onde">Onde roda</a><a href="#casa">Casa</a><a href="#servicos">Serviços</a><a href="#trabalho">Trabalho</a><a href="#personagens">Personagens</a><a href="#arte">Arte</a><a href="#bibliotecas">Bibliotecas</a><a href="#telas">Telas</a><a href="#seguranca">Convivência</a><a href="#recreio">Recreio</a><a href="#tecnica">Técnica</a><a href="#desempenho">Desempenho</a><a href="#plano">Plano</a><a href="#riscos">Riscos</a>
     </nav>
   </div>
 </header>
@@ -375,7 +376,7 @@ pre.mermaid svg{max-width:100%;height:auto}
       <span class="tag" style="--soft:var(--tangerine-soft);--c:var(--tangerine)">Arte dos pacotes grátis da ITHappy, adaptada</span>
       <span class="tag" style="--soft:var(--sun-soft);--c:var(--sun)">Dentro da assinatura do Recreio</span>
     </div>
-    <div class="hero-meta"><span>Nome e moeda provisórios</span><span>4 nov 2026</span><span>v4.1: consolidação técnica com o Recreio v2.1</span></div>
+    <div class="hero-meta"><span>Nome e moeda provisórios</span><span>4 nov 2026</span><span>v4.1: consolidação técnica com o Recreio v2.1</span><span>v4.2 (9 nov): bibliotecas de arte e plano de fechamento</span></div>
   </div>
   <figure class="hero-art" style="margin:0"><img src="img/cena_interior.webp" alt="Cena renderizada da casa da família Oliveira: Marcos no sofá, Lia entre a sala e a cozinha, Nina e Theo brincando no tapete" width="1920" height="1200" style="width:100%;height:100%;object-fit:cover;display:block"></figure>
 </section>
@@ -1009,19 +1010,21 @@ mundo.avancar(<span class="n">100</span>);            <span class="c">// um tick
 <section id="personagens">
   <div class="sec-head">
     <span class="eyebrow" style="--c:var(--berry)">Personagens</span>
-    <h2>17 tipos de corpo, tom de pele livre e dez expressões, já feitos a partir dos pacotes grátis</h2>
+    <h2>19 tipos de corpo, tom de pele livre, doze expressões e um elenco de 300 moradores prontos</h2>
     <p class="lead">Todos os humanos dos pacotes grátis da ITHappy têm o mesmo esqueleto de 44 ossos, então corpos, roupas, rostos e animações se combinam. Os corpos que o pacote não traz saem dos que ele traz, por script no Blender, sem modelar do zero.</p>
   </div>
-  <figure class="fig"><img src="img/corpos.webp" alt="Prancha com os 17 tipos de corpo lado a lado, de adultos a bebês" loading="lazy" width="1600" height="1416"><figcaption>Os 17 corpos na mesma escala. Adulto, adulta e plus-size masculino vêm do pacote; os outros são derivados deles. Os bebês têm o mesmo corpo para meninos e meninas e mudam no rosto e no cabelo.</figcaption></figure>
+  <figure class="fig"><img src="img/corpos.webp" alt="Prancha com os 17 tipos de corpo lado a lado, de adultos a bebês" loading="lazy" width="1600" height="1416"><figcaption>Prancha de 4 de novembro, com os 17 corpos daquela data na mesma escala (depois entraram o recém-nascido menino e menina, com manta). Adulto, adulta e plus-size masculino vêm do pacote; os outros são derivados deles. Os bebês têm o mesmo corpo para meninos e meninas e mudam no rosto e no cabelo.</figcaption></figure>
   <div class="tbl">
     <table>
       <thead><tr><th>Fase</th><th>Corpos</th><th>Como foram feitos</th></tr></thead>
       <tbody>
+        <tr><td><b>Recém-nascido</b></td><td>Menino e menina, com manta</td><td>Só expressões do rosto; vai no colo, no berço e no carrinho</td></tr>
         <tr><td><b>Bebê de colo</b></td><td>Menino e menina, com chupeta azul ou rosa (do Creative Characters)</td><td>Proporções por osso a partir do adulto; rosto mais redondo, olhos maiores</td></tr>
         <tr><td><b>Criança pequena</b></td><td>Menino e menina, de 2 a 3 anos</td><td>Idem</td></tr>
         <tr><td><b>Criança</b> e <b>adolescente</b></td><td>Masculino e feminino</td><td>Escala por osso, cabeça proporcionalmente maior na criança</td></tr>
         <tr><td><b>Adulto</b></td><td>Adulto, adulta, plus-size masculino e feminino, musculoso, atlética, alto e magro</td><td>Três do pacote; plus-size feminina com a diferença medida entre o adulto e o plus-size do próprio pacote</td></tr>
         <tr><td><b>Idoso</b></td><td>Idoso e idosa</td><td>Escala por osso, postura levemente curvada, cabelo grisalho</td></tr>
+        <tr><td><b>Gravidez</b></td><td>Adulta, plus-size feminina e atlética</td><td>Barriga em 3 estágios (formas no corpo), biblioteca de animações com postura de grávida e as roupas acompanhando a barriga</td></tr>
       </tbody>
     </table>
   </div>
@@ -1029,7 +1032,8 @@ mundo.avancar(<span class="n">100</span>);            <span class="c">// um tick
   <div class="grid g3">
     <div class="card facet"><h4>Tom de pele</h4><p class="small">A pele usa uma faixa só da paleta e o tom é uma cor que a multiplica: quatro tons de referência e qualquer outro. Nos tons escuros, olhos e sobrancelhas escurecem junto para manter o contraste.</p></div>
     <div class="card facet"><h4>Criar a família</h4><p class="small">Criar um ou mais moradores, relações entre eles, fase de vida, traços, aparência, casa e orçamento. Dá para começar com um morador só, sem obrigar.</p></div>
-    <div class="card facet"><h4>Roupas e cabelos</h4><p class="small">Próxima etapa. Os pacotes grátis têm pouca roupa, sobretudo feminina: trocar peças entre corpos do mesmo tipo, adaptar cortes e estampas por script, recolorir pela paleta. Cabelos novos do zero ficam para os pacotes pagos.</p></div>
+    <div class="card facet"><h4>Roupas, cabelos e objetos</h4><p class="small">Feito: 361 peças em todos os corpos (as dos pacotes, variações por corte e peças geradas aqui), todas com cor livre; 64 cabelos, barbas e bigodes; 101 objetos de mão com pose de segurar e pegada dos dedos; 121 conjuntos prontos. Com chapéu, o cabelo não atravessa; sentado, a bolsa vai para o chão.</p></div>
+    <div class="card facet"><h4>Elenco</h4><p class="small">300 moradores prontos, com nome, corpo, pele, cabelo, roupa e objeto: 90 profissionais em 30 papéis e 210 casuais, de bebês a idosos. Na página: aleatório com semente, salvar e carregar em JSON e modo passeio.</p></div>
   </div>
   <p class="caption">Página de teste com corpos, tons, expressões e animações: <a href="https://claude.ai/artifact/Uw3fipkYR7aSq3dZFmZiMd">Tipos de corpo do Morada</a>.</p>
 </section>
@@ -1049,7 +1053,9 @@ mundo.avancar(<span class="n">100</span>);            <span class="c">// um tick
         <tr><td><b>Cute Furniture, Christmas, Chess, Casino</b></td><td>Cerca de 150 objetos de casa: camas, banheiro, cozinha, sala, escritório</td><td>Paredes e telhado de biscoito do Natal</td></tr>
         <tr><td><b>Claw Machine</b></td><td>16 bichinhos de pelúcia para quartos de criança</td><td>A máquina de prêmios</td></tr>
         <tr><td><b>Cartoon City</b></td><td>Ruas, calçadas, semáforos, carros, ponto de ônibus</td><td>Prédios sem interior</td></tr>
-        <tr><td><b>Animals, Fantasy, Weapons</b></td><td>Nada</td><td>Estilo diferente e textura com marca d'água</td></tr>
+        <tr><td><b>Animals</b></td><td>Base dos 47 bichos (estimação, zoológico e fauna urbana), com formas, cores e peças novas</td><td>Os modelos como vieram</td></tr>
+        <tr><td><b>Fantasy</b></td><td>A vila de fantasia e as casinhas mágicas da cidade</td><td>Nada</td></tr>
+        <tr><td><b>Weapons</b></td><td>Só o taco de beisebol e o de hóquei</td><td>Todas as armas</td></tr>
       </tbody>
     </table>
   </div>
@@ -1082,6 +1088,46 @@ mundo.avancar(<span class="n">100</span>);            <span class="c">// um tick
     <div class="card facet"><h4>Pipeline</h4><p class="small">Pacotes grátis → scripts do Blender (corpos, tons, expressões, chupeta, paleta) → Mixamo por grupo de corpo → biblioteca de animações → GLB otimizado (meshopt, KTX2, manifesto).</p></div>
     <div class="card facet"><h4>Rosto</h4><p class="small">Expressão escolhida pelo humor; piscar e falar como versões das próprias peças do rosto que o jogo alterna.</p></div>
     <div class="card facet"><h4>Arquivos</h4><p class="small">Os originais nunca vão para o jogo, só GLBs empacotados, sem opção de exportar. Os corpos derivados já foram enviados ao Mixamo para gerar animações; esse envio a um serviço externo precisa de confirmação por escrito da ITHappy antes de as animações irem para uma versão pública.</p></div>
+  </div>
+</section>
+
+<!-- BIBLIOTECAS -->
+<section id="bibliotecas">
+  <div class="sec-head">
+    <span class="eyebrow" style="--c:var(--leaf)">Bibliotecas de arte</span>
+    <h2>A arte do jogo já existe em bibliotecas prontas, com página de teste; falta fechar o que o jogo pede</h2>
+    <p class="lead">Tudo sai de geradores no Blender, em escala real e com a frente para −Y. Cada peça é um GLB com cor pela paleta, colisão, miniatura e os extras de animação que a página já toca. As peças de pacote levam o selo <code>pacote</code> (uso interno). Código, catálogos e LEIA ficam em <code>ideas/Morada</code>.</p>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Biblioteca</th><th>O que tem</th><th>Página</th></tr></thead>
+      <tbody>
+        <tr><td><b>Personagens</b></td><td>19 corpos, 12 expressões, 163 animações (39 compostas aqui, entre elas bicicleta, skate e patinete), 361 peças de roupa, 64 cabelos, 101 objetos de mão e 300 moradores prontos</td><td><a href="https://claude.ai/artifact/Uw3fipkYR7aSq3dZFmZiMd">Tipos de corpo</a></td></tr>
+        <tr><td><b>Móveis</b></td><td>1.152 móveis em 22 categorias, com portas e gavetas que abrem, espaços para objetos e luzes</td><td><a href="https://claude.ai/artifact/Ls2y2VfaXdQrSyZgB8VDxL">Móveis do Morada</a></td></tr>
+        <tr><td><b>Construção</b></td><td>Chão, paredes, portas, janelas, arcos, lambris e texturas de piso e de parede</td><td><a href="https://claude.ai/artifact/2ywaXf6AwJeRKWSECzBYcZ">Pisos e Paredes</a></td></tr>
+        <tr><td><b>Cidade</b></td><td>822 peças em 30 categorias (ruas, pontes, água, prédios em 6 estilos, arranha-céus, sinalização, vegetação, mobiliário, parque, transportes, props e cenário) e 9 cenas de exemplo: uma por área e a cidade completa</td><td><a href="https://claude.ai/artifact/2PPokNr1moA9yp76ZvvZ4k">Cidade do Morada</a></td></tr>
+        <tr><td><b>Bichos</b></td><td>47 bichos (24 de estimação, 12 do zoológico e 11 da fauna urbana) com 714 animações</td><td><a href="https://claude.ai/artifact/Jmqybk3QQhGu7HKRmSkKmA">Bichos do Morada</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Fechamento antes de começar o jogo</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Frente</th><th>O que entra</th><th>Situação</th></tr></thead>
+      <tbody>
+        <tr><td><b>1. Usar os móveis</b></td><td>Inventário que cruza cada móvel com a sua animação. Entram chuveiro, banheira, vaso, escovar os dentes, trocar de roupa, TV, computador, geladeira, fogão e forno, louça, deitar no sofá, ler na cama, brinquedos, instrumentos, lareira e fliperama</td><td>Em produção</td></tr>
+        <tr><td><b>2. Modo construir</b></td><td>Telhados (duas e quatro águas, plano, cantos para casas em L e em T), escadas e segundo andar, fundação, varanda e sacada, cercas e portões, piscina de quintal e terreno do lote de 15 e 30 m</td><td>Em produção</td></tr>
+        <tr><td><b>3. Casas prontas</b></td><td>10 a 20 lotes montados e mobiliados: casinha inicial, apartamento, casa de família e mansão</td><td>Depois do modo construir</td></tr>
+        <tr><td><b>4. Pessoas e bichos</b></td><td>Fazer carinho, dar comida, jogar a bola, pegar no colo e dar banho, com a reação do bicho</td><td>Em produção, junto com a frente 1</td></tr>
+        <tr><td><b>5. Fala, efeitos e ícones</b></td><td>Formas de boca para a fala inventada; espuma, vapor, sujeira, moscas, brilho e balões; ícones de necessidades, humores e interações; marcador próprio sobre a cabeça</td><td>Efeitos, ícones e marcador em produção; a fala vem depois da frente 1</td></tr>
+        <tr><td><b>6. Desempenho</b></td><td>Versões leves (LOD) de personagens, prédios e árvores, para a cidade aguentar muita gente na tela</td><td>Por último</td></tr>
+        <tr><td><b>Sons e música</b></td><td>Interface, ações da casa, bichos, ambientes da cidade, voz inventada gerada ao vivo e músicas. Só entram sons sintetizados aqui ou CC0 com crédito</td><td>Em produção</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="grid g2">
+    <div class="card facet" style="--soft:var(--leaf-soft)"><h4>Já decidido neste documento</h4><p class="small"><b>Motor:</b> o jogo roda no navegador, com Three.js e React no cliente. A simulação roda em Node no servidor e num Web Worker, para testes e, depois, para o modo offline. Os GLB das bibliotecas já estão no formato do jogo. <b>Design:</b> necessidades, humor, personalidade, relações, carreiras, fases de vida, autonomia, tempo, casa e serviços estão nas seções acima.</p></div>
+    <div class="card facet" style="--soft:var(--sun-soft)"><h4>Conferência de cada entrega</h4><p class="small">Cada frente entrega folhas de conferência: o personagem com o móvel real, os encaixes medidos e comparações lado a lado com as referências. Tudo passa por revisão antes de entrar, e o que não bate volta para ajuste.</p></div>
   </div>
 </section>
 
@@ -1839,7 +1885,9 @@ flowchart TB
         <tr><td>Tempo</td><td>Decidido pelos presentes, com unanimidade no começo, dentro da política de avanço do mundo (padrão: vida em suspenso)</td></tr>
         <tr><td>Fundo da família</td><td>Cada um escolhe quanto do salário vai para ele</td></tr>
         <tr><td>Pessoas por mundo / moradores por família</td><td>12 / 8, sujeitos a teste</td></tr>
-        <tr><td>Arte</td><td>Pacotes grátis na primeira versão; pagos com receita, personagens primeiro</td></tr>
+        <tr><td>Motor</td><td>Navegador: Three.js e React no cliente; simulação autoritativa em Node no servidor e em Web Worker</td></tr>
+        <tr><td>Arte</td><td>Pacotes grátis na primeira versão; pagos com receita, personagens primeiro. Bibliotecas de personagens, móveis, construção, cidade e bichos prontas; fechamento em andamento</td></tr>
+        <tr><td>Som</td><td>Efeitos sintetizados ou CC0 com crédito, voz inventada gerada ao vivo, músicas próprias ou CC0</td></tr>
         <tr><td>Negócio</td><td>Assinatura do Recreio, sem moeda premium</td></tr>
       </tbody>
     </table>
@@ -1895,7 +1943,7 @@ flowchart TB
 </section>
 
 </main>
-<footer>Projeto Morada · proposta v4.1 · 4 nov 2026 · consolidação técnica da v4 com o Recreio v2.1, a partir da segunda revisão externa: servidor autoritativo, política de avanço, preferido com dois direitos, bebês, continuidade do mundo, integração com o Recreio e licenças. Nomes, moeda e números de desempenho são metas a validar na fase 0. Referências técnicas consultadas: <a href="https://docs.colyseus.io/">Colyseus</a>, <a href="https://rapier.rs/docs/user_guides/javascript/character_controller/">Rapier</a>, <a href="https://threejs.org/docs/">Three.js</a>, <a href="https://developer.mozilla.org/pt-BR/docs/Web/API/IndexedDB_API">MDN (IndexedDB, Page Visibility, PWA offline, armazenamento persistente)</a> e a <a href="https://ithappystudios.com/one-time-purchase-licence-agreement/">licença da ITHappy Studios</a>. Elas sustentam capacidades das bibliotecas, não a implementação de outros jogos; esta proposta não é auditoria de código, benchmark nem parecer jurídico. Arte: pacotes gratuitos da ITHappy Studios, adaptados; as imagens são renders de teste.</footer>
+<footer>Projeto Morada · proposta v4.2 · 9 nov 2026: bibliotecas de arte e plano de fechamento · v4.1 · 4 nov 2026 · consolidação técnica da v4 com o Recreio v2.1, a partir da segunda revisão externa: servidor autoritativo, política de avanço, preferido com dois direitos, bebês, continuidade do mundo, integração com o Recreio e licenças. Nomes, moeda e números de desempenho são metas a validar na fase 0. Referências técnicas consultadas: <a href="https://docs.colyseus.io/">Colyseus</a>, <a href="https://rapier.rs/docs/user_guides/javascript/character_controller/">Rapier</a>, <a href="https://threejs.org/docs/">Three.js</a>, <a href="https://developer.mozilla.org/pt-BR/docs/Web/API/IndexedDB_API">MDN (IndexedDB, Page Visibility, PWA offline, armazenamento persistente)</a> e a <a href="https://ithappystudios.com/one-time-purchase-licence-agreement/">licença da ITHappy Studios</a>. Elas sustentam capacidades das bibliotecas, não a implementação de outros jogos; esta proposta não é auditoria de código, benchmark nem parecer jurídico. Arte: pacotes gratuitos da ITHappy Studios, adaptados; as imagens são renders de teste.</footer>
 
 <script>
 (function(){
@@ -1984,3 +2032,82 @@ flowchart TB
   renderAll();
 })();
 </script>
+
+<!--claude-mermaid-runtime-begin:3477-->
+<style>.mermaid-diagram{margin-block:4px}.mermaid-diagram svg{display:block;margin:0 auto;max-width:100%;height:auto}</style>
+<script src="/_runtime/mermaid-11.16.1.min.js"></script>
+<script>(function(){
+var CFG={"palettes":{"light":{"surface":"#f4efe4","text":"#42392e","line":"#8a7f6d","border":"#7a6c52","bg":"#fffdf8"},"dark":{"surface":"#262b34","text":"#f2f3f5","line":"#a8adb8","border":"#9aa4b8","bg":"#1f232b"}}};
+if(typeof mermaid==='undefined')return;
+var pres=Array.prototype.slice.call(document.querySelectorAll('pre.mermaid')).filter(function(p){if(p.hasAttribute('data-claude-mermaid-claimed'))return false;p.setAttribute('data-claude-mermaid-claimed','1');return true;});
+if(!pres.length)return;
+var mq=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)'):null;
+var root=document.documentElement;
+var items=pres.map(function(pre){
+var mount=document.createElement('div');mount.className='mermaid-diagram';
+return {pre:pre,mount:mount,src:pre.textContent||''};
+});
+var seq=0;
+var renderGen=0;
+var lastKey='';
+function pageBg(fallback){
+var els=[document.body,document.documentElement];
+for(var i=0;i<els.length;i++){
+var c=els[i]&&getComputedStyle(els[i]).backgroundColor;
+if(c&&c!=='transparent'&&c!=='rgba(0, 0, 0, 0)')return c;
+}
+return fallback;
+}
+function render(){
+var theme=root.getAttribute('data-theme');
+var dark=theme==='dark'||(!!(mq&&mq.matches)&&theme!=='light');
+var pal=dark?CFG.palettes.dark:CFG.palettes.light;
+var bg=pageBg(pal.bg);
+var key=(dark?'d':'l')+'|'+bg;
+if(key===lastKey)return;
+lastKey=key;
+var gen=++renderGen;
+var font=getComputedStyle(document.body).fontFamily||'sans-serif';
+var nat={useMaxWidth:false};
+mermaid.initialize({
+startOnLoad:false,securityLevel:'strict',theme:'base',
+flowchart:nat,sequence:nat,er:nat,state:nat,class:nat,pie:nat,
+gantt:nat,journey:nat,timeline:nat,gitGraph:nat,mindmap:nat,xyChart:nat,
+quadrantChart:nat,sankey:nat,c4:nat,requirement:nat,block:nat,
+packet:nat,kanban:nat,architecture:nat,radar:nat,
+themeVariables:{background:bg,mainBkg:pal.surface,primaryColor:pal.surface,
+primaryTextColor:pal.text,lineColor:pal.line,primaryBorderColor:pal.border,
+nodeBorder:pal.border,clusterBorder:pal.border,edgeLabelBackground:bg,
+clusterBkg:'rgba(127,127,127,0.07)',titleColor:pal.text,
+darkMode:dark,rowOdd:bg,rowEven:'rgba(127,127,127,0.07)',
+attributeBackgroundColorOdd:bg,attributeBackgroundColorEven:'rgba(127,127,127,0.07)',
+fontSize:'16px',fontFamily:font},
+themeCSS:'.node rect, .node circle, .node polygon, .node path, .cluster rect { stroke-width: 2px; }'
+});
+items.forEach(function(it){
+var id='claude-mermaid-'+seq++;
+mermaid.render(id,it.src).then(function(r){
+if(gen!==renderGen)return;
+var prev=it.pre.previousElementSibling;
+if(prev&&prev.className==='mermaid-diagram'&&prev!==it.mount)return;
+it.mount.innerHTML=r.svg;
+if(!it.mount.parentNode)it.pre.parentNode.insertBefore(it.mount,it.pre);
+it.pre.style.display='none';
+},function(){
+var scratch=document.getElementById(id);
+if(scratch)scratch.parentNode.removeChild(scratch);
+scratch=document.getElementById('d'+id);
+if(scratch)scratch.parentNode.removeChild(scratch);
+if(gen!==renderGen)return;
+if(it.mount.parentNode)it.mount.parentNode.removeChild(it.mount);
+it.pre.style.display='';
+});
+});
+}
+render();
+if(mq&&mq.addEventListener)mq.addEventListener('change',render);
+if(typeof MutationObserver!=='undefined')new MutationObserver(render).observe(root,{attributes:true,attributeFilter:['data-theme']});
+})();</script>
+<!--claude-mermaid-runtime-end-->
+
+</body></html>
