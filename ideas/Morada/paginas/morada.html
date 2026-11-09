@@ -355,7 +355,7 @@ pre.mermaid svg{max-width:100%;height:auto}
       Morada
     </a>
     <nav class="nav" aria-label="Seções">
-      <a href="#ideia">Ideia</a><a href="#mundo">Um mundo</a><a href="#regras">Regras</a><a href="#dominio">Quem é quem</a><a href="#controle">Controle</a><a href="#vida">Vida</a><a href="#autonomia">Autonomia</a><a href="#tempo">Tempo</a><a href="#onde">Onde roda</a><a href="#casa">Casa</a><a href="#servicos">Serviços</a><a href="#trabalho">Trabalho</a><a href="#personagens">Personagens</a><a href="#arte">Arte</a><a href="#bibliotecas">Bibliotecas</a><a href="#telas">Telas</a><a href="#seguranca">Convivência</a><a href="#recreio">Recreio</a><a href="#tecnica">Técnica</a><a href="#desempenho">Desempenho</a><a href="#plano">Plano</a><a href="#riscos">Riscos</a>
+      <a href="#ideia">Ideia</a><a href="#mundo">Um mundo</a><a href="#regras">Regras</a><a href="#dominio">Quem é quem</a><a href="#controle">Controle</a><a href="#vida">Vida</a><a href="#autonomia">Autonomia</a><a href="#tempo">Tempo</a><a href="#onde">Onde roda</a><a href="#casa">Casa</a><a href="#servicos">Serviços</a><a href="#trabalho">Trabalho</a><a href="#personagens">Personagens</a><a href="#arte">Arte</a><a href="#bibliotecas">Bibliotecas</a><a href="#telas">Telas</a><a href="#seguranca">Convivência</a><a href="#recreio">Recreio</a><a href="#tecnica">Técnica</a><a href="#desempenho">Desempenho</a><a href="#ordem">Ordem</a><a href="#plano">Plano</a><a href="#riscos">Riscos</a>
     </nav>
   </div>
 </header>
@@ -376,7 +376,7 @@ pre.mermaid svg{max-width:100%;height:auto}
       <span class="tag" style="--soft:var(--tangerine-soft);--c:var(--tangerine)">Arte dos pacotes grátis da ITHappy, adaptada</span>
       <span class="tag" style="--soft:var(--sun-soft);--c:var(--sun)">Dentro da assinatura do Recreio</span>
     </div>
-    <div class="hero-meta"><span>Nome e moeda provisórios</span><span>4 nov 2026</span><span>v4.1: consolidação técnica com o Recreio v2.1</span><span>v4.2 (9 nov): bibliotecas de arte e plano de fechamento</span></div>
+    <div class="hero-meta"><span>Nome e moeda provisórios</span><span>4 nov 2026</span><span>v4.1: consolidação técnica com o Recreio v2.1</span><span>v4.2 (9 nov): bibliotecas de arte, plano de fechamento e ordem com o Recreio</span></div>
   </div>
   <figure class="hero-art" style="margin:0"><img src="img/cena_interior.webp" alt="Cena renderizada da casa da família Oliveira: Marcos no sofá, Lia entre a sala e a cozinha, Nina e Theo brincando no tapete" width="1920" height="1200" style="width:100%;height:100%;object-fit:cover;display:block"></figure>
 </section>
@@ -1798,6 +1798,35 @@ flowchart TB
 </section>
 
 <!-- PLANO -->
+<section id="ordem">
+  <div class="sec-head">
+    <span class="eyebrow" style="--c:var(--grape)">Ordem com o Recreio</span>
+    <h2>Os dois juntos na prova, depois o Morada na frente</h2>
+    <p class="lead">O Morada roda dentro do Recreio: login, perfis, ingresso, mundos com membros e cobrança vêm de lá. A primeira etapa faz o mínimo dos dois ao mesmo tempo, porque o teste decisivo precisa de duas contas no mesmo mundo. Depois o Recreio para e o Morada vai na frente até ficar divertido.</p>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Etapa</th><th>Morada</th><th>Recreio</th><th>Sai quando</th></tr></thead>
+      <tbody>
+        <tr><td><b>1 · Prova juntos</b></td><td>Fase 0, o teste decisivo: família, casamento com NPC, bebê, amigo entrando e queda sem aviso, com servidor autoritativo</td><td>Mínimo do Marco 0: login de perfil, escolher perfil, ingresso, mundo com membros de duas contas e posse da instância, reaproveitando os pacotes de login, cobrança e banco</td><td>Duas contas diferentes jogam a mesma família, uma cai, a outra continua, e tudo volta depois de derrubar a instância</td></tr>
+        <tr><td><b>2 · A diversão</b></td><td>Fases 1 e 2, jogando sozinho: uma casa que funciona e a família completa</td><td>Parado. Só corrige o que a etapa 1 deixou</td><td>Uma pessoa joga 7 dias de jogo e quer continuar; o filho nasce e cresce sendo a mesma pessoa</td></tr>
+        <tr><td><b>3 · Jogar junto com segurança</b></td><td>Fases 3 e 4: mais gente na casa e vizinhos</td><td>Marco 1: pareamento, faixas, convites, visitas, supervisão, denúncia</td><td>Quatro perfis de um grupo e uma família de outra assinatura jogam com as regras certas</td></tr>
+        <tr><td><b>4 · Beta</b></td><td>Fases 5 e 6: escola, trabalho, serviços, casas prontas, otimização</td><td>Marco 2: teste grátis, custo real por plano, cobrança em modo de teste</td><td>Famílias convidadas voltam sozinhas ao mesmo mundo e a margem dos dois planos é conhecida</td></tr>
+        <tr><td><b>5 · Lançamento</b></td><td>Fase 7: primeiros passos, operação, suporte</td><td>Marco 3: cobrança real, termos, exportação e exclusão</td><td>Uma família de fora assina, joga e convida um amigo sem ajuda do time</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="grid g2">
+    <div class="card"><h4>Ajustes desta ordem</h4><ul class="small" style="margin:0;padding-left:18px;display:grid;gap:6px">
+      <li><b>Desde já, em paralelo:</b> confirmação por escrito da licença ITHappy para uso dos pacotes no jogo, e a conversa jurídica sobre faixas de idade, verificação, autoclassificação e cobrança. Nenhum dos dois espera código.</li>
+      <li><b>Jogo de prova 2D:</b> sai do Marco 1 e vai para depois do beta do Morada. Provar o SDK com um segundo jogo antes de o primeiro ser divertido tira tempo da etapa que decide o projeto.</li>
+      <li><b>Porta:</b> <code>apps/recreio</code> usa a 3009; a 3008 é do Dia de Estrela.</li>
+    </ul></div>
+    <div class="card" style="background:var(--teal-soft)"><h4>Mundos da etapa 1: quase vazios, descritos como dados</h4>
+      <p class="small">Na prova, cada mundo é um bairro pequeno com dois lotes: um com uma casa simples pronta, para a família entrar e jogar logo, e um vazio, para construir e, mais tarde, receber uma família vizinha. O mundo é um arquivo de dados (bairro, lotes, tamanho, casa inicial), não uma cena montada à mão. Assim os mundos de verdade são montados depois com a biblioteca da cidade e as casas prontas, sem mudar o servidor nem o formato salvo.</p></div>
+  </div>
+</section>
+
 <section id="plano">
   <div class="sec-head">
     <span class="eyebrow" style="--c:var(--sky)">Plano</span>
@@ -1943,7 +1972,7 @@ flowchart TB
 </section>
 
 </main>
-<footer>Projeto Morada · proposta v4.2 · 9 nov 2026: bibliotecas de arte e plano de fechamento · v4.1 · 4 nov 2026 · consolidação técnica da v4 com o Recreio v2.1, a partir da segunda revisão externa: servidor autoritativo, política de avanço, preferido com dois direitos, bebês, continuidade do mundo, integração com o Recreio e licenças. Nomes, moeda e números de desempenho são metas a validar na fase 0. Referências técnicas consultadas: <a href="https://docs.colyseus.io/">Colyseus</a>, <a href="https://rapier.rs/docs/user_guides/javascript/character_controller/">Rapier</a>, <a href="https://threejs.org/docs/">Three.js</a>, <a href="https://developer.mozilla.org/pt-BR/docs/Web/API/IndexedDB_API">MDN (IndexedDB, Page Visibility, PWA offline, armazenamento persistente)</a> e a <a href="https://ithappystudios.com/one-time-purchase-licence-agreement/">licença da ITHappy Studios</a>. Elas sustentam capacidades das bibliotecas, não a implementação de outros jogos; esta proposta não é auditoria de código, benchmark nem parecer jurídico. Arte: pacotes gratuitos da ITHappy Studios, adaptados; as imagens são renders de teste.</footer>
+<footer>Projeto Morada · proposta v4.2 · 9 nov 2026: bibliotecas de arte, plano de fechamento e ordem de implementação com o Recreio (mundos da prova com dois lotes) · v4.1 · 4 nov 2026 · consolidação técnica da v4 com o Recreio v2.1, a partir da segunda revisão externa: servidor autoritativo, política de avanço, preferido com dois direitos, bebês, continuidade do mundo, integração com o Recreio e licenças. Nomes, moeda e números de desempenho são metas a validar na fase 0. Referências técnicas consultadas: <a href="https://docs.colyseus.io/">Colyseus</a>, <a href="https://rapier.rs/docs/user_guides/javascript/character_controller/">Rapier</a>, <a href="https://threejs.org/docs/">Three.js</a>, <a href="https://developer.mozilla.org/pt-BR/docs/Web/API/IndexedDB_API">MDN (IndexedDB, Page Visibility, PWA offline, armazenamento persistente)</a> e a <a href="https://ithappystudios.com/one-time-purchase-licence-agreement/">licença da ITHappy Studios</a>. Elas sustentam capacidades das bibliotecas, não a implementação de outros jogos; esta proposta não é auditoria de código, benchmark nem parecer jurídico. Arte: pacotes gratuitos da ITHappy Studios, adaptados; as imagens são renders de teste.</footer>
 
 <script>
 (function(){

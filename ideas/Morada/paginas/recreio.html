@@ -1,3 +1,4 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Projeto Recreio</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -236,7 +237,7 @@ canvas.qr{display:block;background:#fff;border-radius:12px;padding:0;image-rende
       Recreio
     </a>
     <nav class="nav" aria-label="Seções">
-      <a href="#analise">Análise</a><a href="#posicionamento">Posicionamento</a><a href="#fronteiras">Fronteiras</a><a href="#jornadas">Jornadas</a><a href="#identidade">Identidade</a><a href="#protecao">Proteção</a><a href="#planos">Planos</a><a href="#economia">Economia</a><a href="#catalogo">Catálogo</a><a href="#sdk">SDK</a><a href="#espacos">Mundos e saves</a><a href="#social">Social</a><a href="#offline">Offline</a><a href="#arquitetura">Arquitetura</a><a href="#seguranca">Segurança</a><a href="#telas">Telas</a><a href="#metricas">Métricas</a><a href="#roteiro">Roteiro</a><a href="#aceite">Aceite</a><a href="#decisoes">Decisões</a>
+      <a href="#analise">Análise</a><a href="#posicionamento">Posicionamento</a><a href="#fronteiras">Fronteiras</a><a href="#jornadas">Jornadas</a><a href="#identidade">Identidade</a><a href="#protecao">Proteção</a><a href="#planos">Planos</a><a href="#economia">Economia</a><a href="#catalogo">Catálogo</a><a href="#sdk">SDK</a><a href="#espacos">Mundos e saves</a><a href="#social">Social</a><a href="#offline">Offline</a><a href="#arquitetura">Arquitetura</a><a href="#seguranca">Segurança</a><a href="#telas">Telas</a><a href="#metricas">Métricas</a><a href="#ordem">Ordem</a><a href="#roteiro">Roteiro</a><a href="#aceite">Aceite</a><a href="#decisoes">Decisões</a>
     </nav>
   </div>
 </header>
@@ -245,7 +246,7 @@ canvas.qr{display:block;background:#fff;border-radius:12px;padding:0;image-rende
 
 <section id="inicio" class="hero">
   <div style="display:grid;gap:20px;min-width:0">
-    <span class="eyebrow" style="--c:var(--coral)">Proposta de produto e arquitetura · v2.1</span>
+    <span class="eyebrow" style="--c:var(--coral)">Proposta de produto e arquitetura · v2.2</span>
     <h1>Recreio<span class="dot">.</span></h1>
     <p class="tagline">Seu lugar de jogar. Diferentes jogos, infinitas histórias para criar.</p>
     <p>A plataforma de jogos da Informach por assinatura. Uma assinatura dá acesso a todos os jogos publicados, cada pessoa tem o próprio perfil e o próprio progresso, e dá para jogar sozinho, com a família ou com amigos. O primeiro jogo é o Morada.</p>
@@ -256,7 +257,7 @@ canvas.qr{display:block;background:#fff;border-radius:12px;padding:0;image-rende
       <span class="tag" style="--soft:var(--sky-soft);--c:var(--sky)">Um mundo, quantas pessoas estiverem</span>
       <span class="tag" style="--soft:var(--grape-soft);--c:var(--grape)">Sem compra avulsa, anúncio ou caixa de recompensa</span>
     </div>
-    <div class="hero-meta"><span>recreio.informach.com.br</span><span>4 nov 2026</span><span>v2.1: consolidada com o Morada v4.1</span></div>
+    <div class="hero-meta"><span>recreio.informach.com.br</span><span>4 nov 2026</span><span>v2.1: consolidada com o Morada v4.1</span><span>v2.2 (9 nov): ordem de implementação com o Morada</span></div>
   </div>
   <div class="shelf" aria-label="A estante no lançamento: o Morada jogável e o próximo jogo em produção">
     <div class="cover">
@@ -328,7 +329,7 @@ canvas.qr{display:block;background:#fff;border-radius:12px;padding:0;image-rende
         <tr><td><b>Visitante permanente</b></td><td class="k-ok">Aceito</td><td>Visita é separada de membro, com prazo e revogação.</td></tr>
         <tr><td><b>Limites de menores sem conexão</b></td><td class="k-mid">Em parte</td><td>No lançamento não existe jogo sem conexão. Para o offline futuro: desligado para menores por padrão, com tempo e horários na licença.</td></tr>
         <tr><td><b>Portabilidade</b></td><td class="k-ok">Aceito</td><td>Acesso, exportação e exclusão passam a ser condição do lançamento pago, não melhoria posterior.</td></tr>
-        <tr><td><b>SDK provado com outro jogo</b></td><td class="k-ok">Aceito</td><td>Jogo de prova 2D interno no Marco 1, sem mundos nem servidor.</td></tr>
+        <tr><td><b>SDK provado com outro jogo</b></td><td class="k-ok">Aceito</td><td>Jogo de prova 2D interno, sem mundos nem servidor, depois do beta do Morada (v2.2; antes estava no Marco 1).</td></tr>
         <tr><td><b>Ordem do roteiro</b></td><td class="k-mid">Em parte</td><td>O Marco 0 já provava o ciclo de duas contas num mundo. Os marcos foram reagrupados em cinco, com portal mínimo no Marco 0.</td></tr>
       </tbody>
     </table>
@@ -1020,7 +1021,7 @@ flowchart LR
     <table>
       <thead><tr><th>Caminho</th><th>Papel</th></tr></thead>
       <tbody>
-        <tr><td><code>apps/recreio</code></td><td>Next.js, porta 3008: página pública, login, perfis, pareamento, estante, conta, supervisão, amigos, rotas <code>/jogar/*</code>, API do SDK, webhooks e jobs. <code>/api/ready</code> segura o deploy se o banco estiver atrás.</td></tr>
+        <tr><td><code>apps/recreio</code></td><td>Next.js, porta 3009 (a 3008 é do Dia de Estrela): página pública, login, perfis, pareamento, estante, conta, supervisão, amigos, rotas <code>/jogar/*</code>, API do SDK, webhooks e jobs. <code>/api/ready</code> segura o deploy se o banco estiver atrás.</td></tr>
         <tr><td><code>packages/recreio</code></td><td>Domínio (política de acesso, faixas, mundos, posse) e o cliente do SDK, num package só no começo. Separar só quando o segundo jogo pedir.</td></tr>
         <tr><td><code>packages/jogo-morada</code></td><td>Cliente do Morada (Three.js + React), carregado sob demanda pela rota do Recreio; nunca entra no bundle do portal.</td></tr>
         <tr><td><code>packages/morada-sim</code></td><td>Simulação do Morada, executada com autoridade no servidor e reaproveitada no navegador para testes e, depois, para o offline.</td></tr>
@@ -1422,6 +1423,36 @@ flowchart LR
   <p class="caption">Metas como quadros por segundo e tamanho de download são do Morada, medidas por aparelho, e não entram em marketing antes de validadas. Métricas de menores ficam em agregados, sem publicidade nem rastreamento.</p>
 </section>
 
+<!-- ORDEM -->
+<section id="ordem">
+  <div class="sec-head">
+    <span class="eyebrow" style="--c:var(--grape)">Ordem de implementação</span>
+    <h2>Os dois juntos na prova, depois o Morada na frente</h2>
+    <p class="lead">O Morada só existe dentro do Recreio, e o Recreio só tem valor com um jogo bom. Por isso a primeira etapa constrói o mínimo dos dois ao mesmo tempo, para provar juntos o que é mais arriscado. Depois o Recreio para e o Morada vai na frente até ficar divertido; o Recreio volta quando o jogo precisar de família, convites e cobrança.</p>
+  </div>
+  <div class="tbl">
+    <table>
+      <thead><tr><th>Etapa</th><th>Morada</th><th>Recreio</th><th>Sai quando</th></tr></thead>
+      <tbody>
+        <tr><td><b>1 · Prova juntos</b></td><td>Fase 0, o teste decisivo: família, casamento com NPC, bebê, amigo entrando e queda sem aviso, com servidor autoritativo</td><td>Mínimo do Marco 0: login de perfil, escolher perfil, ingresso, mundo com membros de duas contas e posse da instância, reaproveitando os pacotes de login, cobrança e banco</td><td>Duas contas diferentes jogam a mesma família, uma cai, a outra continua, e tudo volta depois de derrubar a instância</td></tr>
+        <tr><td><b>2 · A diversão</b></td><td>Fases 1 e 2, jogando sozinho: uma casa que funciona e a família completa</td><td>Parado. Só corrige o que a etapa 1 deixou</td><td>Uma pessoa joga 7 dias de jogo e quer continuar; o filho nasce e cresce sendo a mesma pessoa</td></tr>
+        <tr><td><b>3 · Jogar junto com segurança</b></td><td>Fases 3 e 4: mais gente na casa e vizinhos</td><td>Marco 1: pareamento, faixas, convites, visitas, supervisão, denúncia</td><td>Quatro perfis de um grupo e uma família de outra assinatura jogam com as regras certas</td></tr>
+        <tr><td><b>4 · Beta</b></td><td>Fases 5 e 6: escola, trabalho, serviços, casas prontas, otimização</td><td>Marco 2: teste grátis, custo real por plano, cobrança em modo de teste</td><td>Famílias convidadas voltam sozinhas ao mesmo mundo e a margem dos dois planos é conhecida</td></tr>
+        <tr><td><b>5 · Lançamento</b></td><td>Fase 7: primeiros passos, operação, suporte</td><td>Marco 3: cobrança real, termos, exportação e exclusão</td><td>Uma família de fora assina, joga e convida um amigo sem ajuda do time</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="grid g2">
+    <div class="card"><h4>Ajustes desta ordem</h4><ul class="small" style="margin:0;padding-left:18px;display:grid;gap:6px">
+      <li><b>Desde já, em paralelo:</b> confirmação por escrito da licença ITHappy para uso dos pacotes no jogo, e a conversa jurídica sobre faixas de idade, verificação, autoclassificação e cobrança. Nenhum dos dois espera código.</li>
+      <li><b>Jogo de prova 2D:</b> sai do Marco 1 e vai para depois do beta do Morada. Provar o SDK com um segundo jogo antes de o primeiro ser divertido tira tempo da etapa que decide o projeto.</li>
+      <li><b>Porta:</b> <code>apps/recreio</code> usa a 3009; a 3008 é do Dia de Estrela.</li>
+    </ul></div>
+    <div class="callout" style="--soft:var(--sea-soft)"><b class="t">Mundos da etapa 1: quase vazios, descritos como dados</b>
+      <p class="small">Na prova, cada mundo é um bairro pequeno com dois lotes: um com uma casa simples pronta, para a família entrar e jogar logo, e um vazio, para construir e, mais tarde, receber uma família vizinha. O mundo é um arquivo de dados (bairro, lotes, tamanho, casa inicial), não uma cena montada à mão. Assim os mundos de verdade são montados depois com a biblioteca da cidade e as casas prontas, sem mudar o servidor nem o formato salvo.</p></div>
+  </div>
+</section>
+
 <!-- ROTEIRO -->
 <section id="roteiro">
   <div class="sec-head">
@@ -1431,10 +1462,10 @@ flowchart LR
   </div>
   <div class="road">
     <div class="mark" style="--c:var(--coral)"><span class="n">MARCO 0 · FUNDAMENTO</span><h4>Duas contas, um mundo, tudo recuperável</h4><ul><li>Login de perfil em dois aparelhos sem dividir OTP; portal mínimo: entrar, escolher perfil, abrir o jogo</li><li>Ingresso emitido e conferido pelo Morada</li><li>Mundo com membros de duas contas e permissões de família separadas</li><li>Servidor autoritativo com vários mundos por instância, checkpoint, hibernação e retomada após falha</li><li>Custo por hora de mundo com 1, 2, 4 e 8 pessoas</li><li>Conversa jurídica inicial: faixas, verificação, classificação, cobrança</li></ul><div class="gate">Sai quando: Lia convida Bruno, de outra assinatura, os dois dirigem a mesma família, um sai, o outro continua, e tudo fica salvo, autorizado e recuperável depois de derrubar a instância.</div></div>
-    <div class="mark" style="--c:var(--sea)"><span class="n">MARCO 1 · FAMÍLIA</span><h4>Experiência familiar completa, fechada</h4><ul><li>Pareamento, perfis independentes, faixas e limites de sessão</li><li>Convites de membro e visitas com prazo</li><li>Supervisão, políticas de mundo, denúncia</li><li>Recuperação de mundos testada por restauração</li><li>Jogo de prova 2D interno, só com perfil, dados de perfil e conquistas, sem mundos nem servidor</li></ul><div class="gate">Sai quando: quatro perfis de um grupo jogam com as regras certas, e o jogo de prova roda pelo mesmo SDK sem nada do Morada.</div></div>
+    <div class="mark" style="--c:var(--sea)"><span class="n">MARCO 1 · FAMÍLIA</span><h4>Experiência familiar completa, fechada</h4><ul><li>Pareamento, perfis independentes, faixas e limites de sessão</li><li>Convites de membro e visitas com prazo</li><li>Supervisão, políticas de mundo, denúncia</li><li>Recuperação de mundos testada por restauração</li></ul><div class="gate">Sai quando: quatro perfis de um grupo jogam com as regras certas.</div></div>
     <div class="mark" style="--c:var(--grape)"><span class="n">MARCO 2 · NEGÓCIO</span><h4>Beta com famílias convidadas</h4><ul><li>Experimento de teste: 48 h × 7 dias, medido pela ativação</li><li>Custo real por plano e por hora de mundo</li><li>Valor percebido e intenção de assinar</li><li>Cobrança em modo de teste, mudanças de plano, reconciliação</li></ul><div class="gate">Sai quando: famílias criam a própria família no Morada, voltam ao mesmo mundo sem ajuda, e a margem dos dois planos é conhecida.</div></div>
     <div class="mark" style="--c:var(--sun-ink)"><span class="n">MARCO 3 · LANÇAMENTO</span><h4>Acesso antecipado pago ao Morada</h4><ul><li>Cobrança real, termos próprios, classificação confirmada, licenças dos assets confirmadas</li><li>Suporte, moderação, monitoramento, status</li><li>Backups e restauração testados</li><li>Pedidos de acesso, exportação e exclusão atendidos, respeitando mundos compartilhados</li></ul><div class="gate">Sai quando: compra, renovação, cancelamento, recuperação de conta, denúncia, exportação, exclusão e restauração testadas de ponta a ponta.</div></div>
-    <div class="mark" style="--c:var(--sky)"><span class="n">MARCO 4 · EXPANSÃO</span><h4>Segundo jogo e o que a demanda pedir</h4><ul><li>Segundo jogo público pelo mesmo SDK</li><li>Estante para vários jogos</li><li>Levar o mundo offline, com validação no servidor</li><li>App de computador se um jogo pedir</li></ul><div class="gate">Sai quando: o jogo novo entra sem mudar identidade nem cobrança; offline testado com rede caindo, relógio mexido e dados apagados.</div></div>
+    <div class="mark" style="--c:var(--sky)"><span class="n">MARCO 4 · EXPANSÃO</span><h4>Segundo jogo e o que a demanda pedir</h4><ul><li>Jogo de prova 2D interno, só com perfil, dados de perfil e conquistas, depois do beta do Morada: prova que o SDK roda sem nada do Morada</li><li>Segundo jogo público pelo mesmo SDK</li><li>Estante para vários jogos</li><li>Levar o mundo offline, com validação no servidor</li><li>App de computador se um jogo pedir</li></ul><div class="gate">Sai quando: o jogo novo entra sem mudar identidade nem cobrança; offline testado com rede caindo, relógio mexido e dados apagados.</div></div>
   </div>
   <div class="grid g2">
     <div class="card"><h4>P0: antes de qualquer usuário externo</h4><p class="small">Modelo de domínio sem IDs confundidos · login de perfil e pareamento · função única de acesso · ingresso e sessão · mundos com membros, visitas e posse · mundos sem exclusão em cascata · dados de perfil com revisão · faixas e políticas de menores no servidor · logs mínimos e backup.</p></div>
@@ -1518,7 +1549,7 @@ flowchart LR
 
 </main>
 <footer>
-  <span>Projeto Recreio · proposta v2.1 · 4 nov 2026 · reescrita a partir da revisão externa (proposta estratégica e resumo executivo v2), do Recreio v1 (2 nov 2026) e do Morada v4.1. Preços, prazos e capacidades são hipóteses até serem medidos. Não substitui revisão jurídica, contábil nem cotação de infraestrutura.</span>
+  <span>Projeto Recreio · proposta v2.2 · 9 nov 2026: ordem de implementação com o Morada, jogo de prova 2D depois do beta, porta 3009, mundos da prova com dois lotes · v2.1 · 4 nov 2026 · reescrita a partir da revisão externa (proposta estratégica e resumo executivo v2), do Recreio v1 (2 nov 2026) e do Morada v4.1. Preços, prazos e capacidades são hipóteses até serem medidos. Não substitui revisão jurídica, contábil nem cotação de infraestrutura.</span>
   <span>Referências consultadas:</span>
   <ol>
     <li><a href="https://www2.camara.leg.br/legin/fed/lei/2025/lei-15211-17-setembro-2025-797997-normaatualizada-pl.html">Lei 15.211/2025 (ECA Digital), texto na Câmara</a></li>
@@ -1618,3 +1649,82 @@ flowchart LR
   calc();
 })();
 </script>
+
+<!--claude-mermaid-runtime-begin:3477-->
+<style>.mermaid-diagram{margin-block:4px}.mermaid-diagram svg{display:block;margin:0 auto;max-width:100%;height:auto}</style>
+<script src="/_runtime/mermaid-11.16.1.min.js"></script>
+<script>(function(){
+var CFG={"palettes":{"light":{"surface":"#f4efe4","text":"#42392e","line":"#8a7f6d","border":"#7a6c52","bg":"#fffdf8"},"dark":{"surface":"#262b34","text":"#f2f3f5","line":"#a8adb8","border":"#9aa4b8","bg":"#1f232b"}}};
+if(typeof mermaid==='undefined')return;
+var pres=Array.prototype.slice.call(document.querySelectorAll('pre.mermaid')).filter(function(p){if(p.hasAttribute('data-claude-mermaid-claimed'))return false;p.setAttribute('data-claude-mermaid-claimed','1');return true;});
+if(!pres.length)return;
+var mq=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)'):null;
+var root=document.documentElement;
+var items=pres.map(function(pre){
+var mount=document.createElement('div');mount.className='mermaid-diagram';
+return {pre:pre,mount:mount,src:pre.textContent||''};
+});
+var seq=0;
+var renderGen=0;
+var lastKey='';
+function pageBg(fallback){
+var els=[document.body,document.documentElement];
+for(var i=0;i<els.length;i++){
+var c=els[i]&&getComputedStyle(els[i]).backgroundColor;
+if(c&&c!=='transparent'&&c!=='rgba(0, 0, 0, 0)')return c;
+}
+return fallback;
+}
+function render(){
+var theme=root.getAttribute('data-theme');
+var dark=theme==='dark'||(!!(mq&&mq.matches)&&theme!=='light');
+var pal=dark?CFG.palettes.dark:CFG.palettes.light;
+var bg=pageBg(pal.bg);
+var key=(dark?'d':'l')+'|'+bg;
+if(key===lastKey)return;
+lastKey=key;
+var gen=++renderGen;
+var font=getComputedStyle(document.body).fontFamily||'sans-serif';
+var nat={useMaxWidth:false};
+mermaid.initialize({
+startOnLoad:false,securityLevel:'strict',theme:'base',
+flowchart:nat,sequence:nat,er:nat,state:nat,class:nat,pie:nat,
+gantt:nat,journey:nat,timeline:nat,gitGraph:nat,mindmap:nat,xyChart:nat,
+quadrantChart:nat,sankey:nat,c4:nat,requirement:nat,block:nat,
+packet:nat,kanban:nat,architecture:nat,radar:nat,
+themeVariables:{background:bg,mainBkg:pal.surface,primaryColor:pal.surface,
+primaryTextColor:pal.text,lineColor:pal.line,primaryBorderColor:pal.border,
+nodeBorder:pal.border,clusterBorder:pal.border,edgeLabelBackground:bg,
+clusterBkg:'rgba(127,127,127,0.07)',titleColor:pal.text,
+darkMode:dark,rowOdd:bg,rowEven:'rgba(127,127,127,0.07)',
+attributeBackgroundColorOdd:bg,attributeBackgroundColorEven:'rgba(127,127,127,0.07)',
+fontSize:'16px',fontFamily:font},
+themeCSS:'.node rect, .node circle, .node polygon, .node path, .cluster rect { stroke-width: 2px; }'
+});
+items.forEach(function(it){
+var id='claude-mermaid-'+seq++;
+mermaid.render(id,it.src).then(function(r){
+if(gen!==renderGen)return;
+var prev=it.pre.previousElementSibling;
+if(prev&&prev.className==='mermaid-diagram'&&prev!==it.mount)return;
+it.mount.innerHTML=r.svg;
+if(!it.mount.parentNode)it.pre.parentNode.insertBefore(it.mount,it.pre);
+it.pre.style.display='none';
+},function(){
+var scratch=document.getElementById(id);
+if(scratch)scratch.parentNode.removeChild(scratch);
+scratch=document.getElementById('d'+id);
+if(scratch)scratch.parentNode.removeChild(scratch);
+if(gen!==renderGen)return;
+if(it.mount.parentNode)it.mount.parentNode.removeChild(it.mount);
+it.pre.style.display='';
+});
+});
+}
+render();
+if(mq&&mq.addEventListener)mq.addEventListener('change',render);
+if(typeof MutationObserver!=='undefined')new MutationObserver(render).observe(root,{attributes:true,attributeFilter:['data-theme']});
+})();</script>
+<!--claude-mermaid-runtime-end-->
+
+</body></html>
