@@ -19,7 +19,7 @@ const bridge = (project: string) => `
   };`;
 
 type Driven = {
-  __event: (event: { type: string; text?: string; stopped?: boolean }) => void;
+  __event: (event: { type: string; text?: string; detail?: string; stopped?: boolean }) => void;
   __tool: (call: { name: string; input: unknown }) => Promise<unknown>;
 };
 
@@ -33,6 +33,8 @@ test("O assistente mostra o que está fazendo em palavras e resume as alteraçõ
     const page = await browser.newPage({ viewport: { width: 1400, height: 950 } }),
       errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    // The line counts the time of a long stretch: the test moves the clock by hand.
+    await page.clock.install();
     await page.addInitScript(bridge(JSON.stringify(newProject())));
     await page.goto(server.url);
     await page.locator('[data-action="assistant"]').click();
@@ -51,6 +53,25 @@ test("O assistente mostra o que está fazendo em palavras e resume as alteraçõ
     await page.evaluate(() =>
       (window as never as Driven).__tool({ name: "get_overview", input: {} }),
     );
+    // Between the tools: what the model writes and how much, and how long it has been at it.
+    await page.evaluate(() =>
+      (window as never as Driven).__event({
+        type: "activity",
+        text: "Escrevendo as alterações",
+        detail: "13 KB",
+      }),
+    );
+    assert.equal(await activity.textContent(), "Escrevendo as alterações (13 KB)…");
+    await page.clock.runFor(65_000);
+    await page.evaluate(() =>
+      (window as never as Driven).__event({
+        type: "activity",
+        text: "Escrevendo as alterações",
+        detail: "21 KB",
+      }),
+    );
+    // The size grows within the same stretch: the time goes on counting from its start.
+    assert.equal(await activity.textContent(), "Escrevendo as alterações (21 KB)… 1:05");
     await page.evaluate(() =>
       (window as never as Driven).__event({ type: "tool", text: "Renomeando o projeto" }),
     );

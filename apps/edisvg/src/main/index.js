@@ -15,12 +15,25 @@ import { newProject, parseProject } from "../shared/project.js";
 import { createBridge } from "./aiBridge.js";
 import { readBoundedBytes } from "./boundedBytes";
 import { readBoundedText, SVG_BYTES, SZPROJECT_BYTES } from "./boundedText.ts";
+import { readDesignKit } from "./designKit.ts";
 import { createEngineRunner, MCP_PORT, MCP_SERVER, providerClient } from "./engines.js";
 import { parseExportPayload } from "./exportPayload";
+import {
+  cancelDelivery,
+  DELIVERY_FOLDER,
+  deliveryFrame,
+  finishDelivery,
+  startDelivery,
+  writeDelivery,
+} from "./lessonDelivery.ts";
 import { startMcpServer } from "./mcpServer.js";
 import {
   cancelPipelineJob,
+  ediaulaData,
   exportAlphaWebm,
+  ffmpegPath,
+  pipelineLessonScript,
+  pipelineLessonVideo,
   pipelineNarration,
   pipelineVideoFacts,
   pipelineVideoFrames,
@@ -28,6 +41,7 @@ import {
   pipelineWords,
 } from "./pipelineEngine.ts";
 import { pipelineFont, pipelineFonts } from "./pipelineFonts.ts";
+import { loadReferences, saveReference } from "./pipelineReferences.ts";
 import {
   pickPipelineFile,
   readPickedProject,
@@ -130,6 +144,14 @@ function menu() {
           {
             label: "Importar projeto do Estúdio…",
             click: () => win.webContents.send("app:command", "import-game"),
+          },
+          {
+            label: "Importar kit de design (.zip)…",
+            click: () => win.webContents.send("app:command", "import-kit"),
+          },
+          {
+            label: "Enviar animações para a aula…",
+            click: () => win.webContents.send("app:command", "lesson-send"),
           },
           {
             label: "Pipelines…",
@@ -423,12 +445,28 @@ else {
           name: basename(path),
         };
       });
+      // A kit is a ZIP someone made or sent: Downloads, like the other packages.
+      handle("kit:import", async () => {
+        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+        const result = await dialog.showOpenDialog(win, {
+          defaultPath: folderFor("downloads"),
+          filters: [{ name: "Kit de design (.zip)", extensions: ["zip"] }],
+          properties: ["openFile", "dontAddToRecent"],
+        });
+        if (result.canceled) return null;
+        return readDesignKit(result.filePaths[0]);
+      });
       handle("pipelines:read", () => readRecipeStore(app.getPath("userData")));
       handle("pipelines:write", (value) => writeRecipeStore(app.getPath("userData"), value));
-      handle("pipeline:pick", (kind) =>
-        pickPipelineFile(win, kind, folderFor(kind === "lesson" ? "documents" : "downloads")),
-      );
+      // The lesson comes as a package someone sent (a ZIP): Downloads, like the other files.
+      handle("pipeline:pick", (kind) => pickPipelineFile(win, kind, folderFor("downloads")));
       handle("pipeline:read-project", (token) => readPickedProject(token));
+      // The narration and the demonstration video of a run, kept by project for the next opening.
+      const references = () => join(app.getPath("userData"), "pipeline-references");
+      handle("pipeline:reference-save", (projectId, kind, bytes, meta) =>
+        saveReference(references(), projectId, kind, bytes, meta),
+      );
+      handle("pipeline:references", (projectId) => loadReferences(references(), projectId));
       handle("pipeline:fonts", () => pipelineFonts(fontSource()));
       handle("pipeline:font", (family, weight) => pipelineFont(fontSource(), family, weight));
       handle("pipeline:words", (token, kind, jobId) => {
@@ -447,6 +485,20 @@ else {
       );
       handle("pipeline:video-frames", (token, times, jobId) =>
         pipelineVideoFrames(token, times, jobId),
+      );
+      handle("pipeline:lesson-script", (token) => pipelineLessonScript(token));
+      // The lesson's animations, sent to EdiAula's folder for that lesson (lessonDelivery.ts).
+      const inbox = () => join(ediaulaData(), DELIVERY_FOLDER);
+      handle("lesson-send:start", (spec) => {
+        desktop.assertAccess();
+        return startDelivery(ffmpegPath(), inbox(), spec);
+      });
+      handle("lesson-send:frame", (id, bytes) => deliveryFrame(id, bytes));
+      handle("lesson-send:finish", (id) => finishDelivery(id));
+      handle("lesson-send:cancel", (id) => cancelDelivery(id));
+      handle("lesson-send:manifest", (manifest) => writeDelivery(inbox(), manifest));
+      handle("pipeline:lesson-video", (token, from, to, jobId) =>
+        pipelineLessonVideo(token, from, to, jobId),
       );
       handle("export:alpha-webm", async (input) => {
         if (!initialized) throw new Error("Aguarde a recuperação do projeto.");

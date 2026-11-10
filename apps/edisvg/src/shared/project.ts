@@ -27,12 +27,13 @@ import { validateComponentGraph } from "./componentGraph";
 import { validateDrawOrders } from "./drawOrders";
 import { type Guide, guidesSchema } from "./guides";
 import { artboardIdSchema } from "./identities";
+import { type LessonClip, lessonClipsSchema } from "./lessonClips";
 import { rigObjects } from "./rigObjects";
 import { flattenScene, validateScene } from "./scene.js";
 import type { Scene, SceneNode } from "./sceneTypes";
 import { compiledVertexRig, parseVertexClips, type VertexClip } from "./vertexKeys";
 
-export const PROJECT_VERSION = 25;
+export const PROJECT_VERSION = 26;
 const presetSchema = z.enum(["Parado", "Acenar", "Pular"]);
 type Preset = z.infer<typeof presetSchema>;
 const modeSchema = z.enum(["loop", "ping-pong", "once"]);
@@ -89,6 +90,7 @@ const artboardSchema = z.strictObject({
   audio: z.unknown().optional(),
   vertexClips: z.unknown().optional(),
   guides: z.unknown().optional(),
+  lessonClips: z.unknown().optional(),
 });
 const currentSchema = previousSchema.omit({ version: true, scene: true }).extend({
   version: z.union([
@@ -112,6 +114,7 @@ const currentSchema = previousSchema.omit({ version: true, scene: true }).extend
     z.literal(22),
     z.literal(23),
     z.literal(24),
+    z.literal(25),
     z.literal(PROJECT_VERSION),
   ]),
   artboards: z.array(artboardSchema).max(100),
@@ -130,6 +133,8 @@ export interface Artboard {
   vertexClips?: VertexClip[];
   /** Ruler guides, editor-only (project v25). */
   guides?: Guide[];
+  /** The EdiAula lesson stretch each of its pipeline animations is (project v26). */
+  lessonClips?: LessonClip[];
 }
 export interface Project {
   version: typeof PROJECT_VERSION;
@@ -180,6 +185,7 @@ export function parseProject(input: unknown): Project {
       22,
       23,
       24,
+      25,
       PROJECT_VERSION,
     ].includes(header.data.version)
   )
@@ -386,6 +392,14 @@ export function parseProject(input: unknown): Project {
       if (raw.guides !== undefined) {
         if (header.data.version < 25) throw new Error("Guias requerem projeto v25.");
         board.guides = guidesSchema.parse(raw.guides);
+      }
+      if (raw.lessonClips !== undefined) {
+        if (header.data.version < 26) throw new Error("Trechos da aula requerem projeto v26.");
+        const clips = lessonClipsSchema.parse(raw.lessonClips);
+        const animations = new Set(motion.animations.map((animation) => animation.id));
+        if (clips.some((clip) => !animations.has(clip.clipId)))
+          throw new Error("Trecho da aula aponta para uma animação inexistente.");
+        board.lessonClips = clips;
       }
       if (raw.vertexClips !== undefined) {
         if (header.data.version < 25) throw new Error("Animação de vértices requer projeto v25.");

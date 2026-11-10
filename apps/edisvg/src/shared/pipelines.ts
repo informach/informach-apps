@@ -173,28 +173,45 @@ export const pickedFileSchema = z.strictObject({
 });
 export type PickedFile = z.infer<typeof pickedFileSchema>;
 
+/** An input of a run: what it is, and the kinds of file that answer it. */
+export interface RecipeInput {
+  key: "project" | "video" | "audio";
+  label: string;
+  accepts: PickedFile["kind"][];
+  /**
+   * Not asked when the audio is a lesson package: the package brings it (the screen recorded
+   * with the lesson). The text says so in place of the button.
+   */
+  inLesson?: string;
+}
+
+/** The audio of a run: a file, or EdiAula's package of the lesson (narration and screen). */
+const LESSON_AUDIO: RecipeInput = {
+  key: "audio",
+  label: "Áudio da aula (arquivo ou pacote da aula do EdiAula)",
+  accepts: ["audio", "lesson"],
+};
+
 /** What a recipe asks for when it runs, by kind (the palette comes from the recipe, editable). */
-export const RECIPE_INPUTS: Record<
-  RecipeKind,
-  readonly { key: "project" | "video" | "audio"; label: string; accepts: PickedFile["kind"][] }[]
-> = {
+export const RECIPE_INPUTS: Record<RecipeKind, readonly RecipeInput[]> = {
   "game-scene": [
     { key: "project", label: "Projeto do Estúdio (.szproject.json)", accepts: ["szproject"] },
-    {
-      key: "audio",
-      label: "Áudio da aula (arquivo ou aula do EdiAula)",
-      accepts: ["audio", "lesson"],
-    },
+    LESSON_AUDIO,
   ],
   "screen-demo": [
-    { key: "video", label: "Vídeo da demonstração", accepts: ["video"] },
+    LESSON_AUDIO,
     {
-      key: "audio",
-      label: "Áudio da aula (arquivo ou aula do EdiAula)",
-      accepts: ["audio", "lesson"],
+      key: "video",
+      label: "Vídeo da demonstração",
+      accepts: ["video"],
+      inLesson: "Vem do pacote da aula: a tela gravada no trecho do roteiro.",
     },
   ],
 };
+
+/** Whether the run takes `input` from the lesson package chosen as its audio. */
+export const fromLesson = (input: RecipeInput, files: RunInputs["files"] | undefined): boolean =>
+  !!input.inLesson && files?.audio?.kind === "lesson";
 
 export const runInputsSchema = z.strictObject({
   recipeId: z.string().regex(/^recipe-[\w-]{1,80}$/),
@@ -203,6 +220,18 @@ export const runInputsSchema = z.strictObject({
   script: z.string().trim().min(1).max(20000),
   textPalette: z.array(z.string().regex(HEX)).min(1).max(12),
   fonts: fontPairSchema,
+  /**
+   * The EdiAula lesson the audio comes from (a package): its id, the section of its script, and
+   * the phrases picked from it (empty when the roteiro was written by hand). The run records the
+   * stretch its animation is (lessonClips.ts).
+   */
+  lesson: z
+    .strictObject({
+      id: z.string().regex(/^[\w-]{1,100}$/),
+      section: z.int().min(0).max(10_000),
+      phrases: z.array(z.string().min(1).max(2_000)).max(2_000),
+    })
+    .optional(),
 });
 export type RunInputs = z.infer<typeof runInputsSchema>;
 
@@ -223,6 +252,7 @@ export function spokenScript(script: string): string {
 export function missingInputs(recipe: Recipe, inputs: Partial<RunInputs>): string[] {
   const out: string[] = [];
   for (const input of RECIPE_INPUTS[recipe.kind]) {
+    if (fromLesson(input, inputs.files)) continue;
     const file = inputs.files?.[input.key];
     if (!file || !input.accepts.includes(file.kind)) out.push(input.label);
   }

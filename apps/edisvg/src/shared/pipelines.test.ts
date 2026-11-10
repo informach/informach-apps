@@ -4,7 +4,16 @@ import { suggestedNameSchema } from "../main/exportPayload";
 import { elementSvgs } from "../renderer/src/pipelines/elements";
 import { paletteFromPixels } from "../renderer/src/pipelines/imagePalette";
 import { draftRequest } from "../renderer/src/pipelines/prompt";
-import { failureText, runPipeline, stepsFor } from "../renderer/src/pipelines/runner";
+import {
+  clock,
+  failureText,
+  type PipelineBridge,
+  type PipelineEditor,
+  type PipelineStep,
+  runPipeline,
+  type StepState,
+  stepsFor,
+} from "../renderer/src/pipelines/runner";
 import { paletteOf } from "../renderer/src/szProjectImport";
 import {
   BUILT_IN_RECIPES,
@@ -12,12 +21,14 @@ import {
   DEFAULT_FONTS,
   duplicateRecipe,
   emptyRecipeStore,
+  fromLesson,
   listRecipes,
   MAX_RECIPES,
   missingInputs,
   nearestWeight,
   originalRecipe,
   parseRecipeStore,
+  RECIPE_INPUTS,
   type RunInputs,
   removeRecipe,
   restoreRecipe,
@@ -115,7 +126,7 @@ test("a run says what is missing, by the recipe's kind", () => {
   if (!scene || !demo) throw new Error("missing ready recipes");
   assert.deepEqual(missingInputs(scene, { textPalette: ["#ffffff"] }), [
     "Projeto do Estúdio (.szproject.json)",
-    "Áudio da aula (arquivo ou aula do EdiAula)",
+    "Áudio da aula (arquivo ou pacote da aula do EdiAula)",
     "Roteiro do trecho (fora dos colchetes)",
   ]);
   const audio = { token: "file-abcdefgh", name: "aula.mp3", kind: "audio" as const, size: 1 };
@@ -123,13 +134,73 @@ test("a run says what is missing, by the recipe's kind", () => {
     missingInputs(demo, { files: { audio }, script: "Abra a aba.", textPalette: ["#fff000"] }),
     ["Vídeo da demonstração"],
   );
-  // A lesson of EdiAula is also an audio source.
-  const lesson = { ...audio, kind: "lesson" as const, name: "Aula 3.ediaula" };
-  const video = { ...audio, kind: "video" as const, name: "demo.mp4" };
+  // EdiAula's package of the lesson is also an audio source, and brings the screen with it.
+  const lesson = { ...audio, kind: "lesson" as const, name: "Aula 3.zip" };
   assert.deepEqual(
-    missingInputs(demo, { files: { audio: lesson, video }, script: "x", textPalette: ["#000000"] }),
+    missingInputs(demo, { files: { audio: lesson }, script: "x", textPalette: ["#000000"] }),
     [],
   );
+  const [audioInput, videoInput] = RECIPE_INPUTS["screen-demo"];
+  if (!audioInput || !videoInput) throw new Error("inputs");
+  assert.equal(fromLesson(videoInput, { audio: lesson }), true);
+  assert.equal(fromLesson(videoInput, { audio }), false);
+  assert.equal(fromLesson(audioInput, { audio: lesson }), false);
+});
+
+/** An editor and a main process that do nothing, for running steps; `editor` replaces parts. */
+const stubDeps = (
+  signal: AbortSignal,
+  editor: Partial<PipelineEditor> = {},
+  bridge: Partial<PipelineBridge> = {},
+) => ({
+  editor: {
+    importStudioProject: () => ({
+      summary: "",
+      sceneArtboardId: "artboard-cena",
+      imagePalette: [],
+      boards: [],
+    }),
+    openNarration: async () => ({ clipId: "animation-x", fps: 30, frames: 1 }),
+    activeArtboard: () => ({ id: "artboard-x", name: "Cena", width: 1440, height: 1080 }),
+    designKit: () => ({ boards: [], palette: [] }),
+    markLessonClip: () => undefined,
+    lessonClips: () => [],
+    setPalette: () => undefined,
+    askAssistant: async () => ({ text: "", stopped: false, edits: 1 }),
+    stopAssistant: () => undefined,
+    beginRun: () => undefined,
+    assistantBusy: () => false,
+    endRun: () => undefined,
+    openDemoArtboard: () => ({
+      id: "artboard-d",
+      name: "Demonstração",
+      width: 1920,
+      height: 1080,
+    }),
+    setReferenceVideo: () => undefined,
+    addArtboards: () => [],
+    embedFonts: async () => [],
+    ...editor,
+  },
+  bridge: {
+    pipelineReadProject: async () => "",
+    pipelineFonts: async () => [],
+    pipelineFont: async () => {
+      throw new Error("sem fontes");
+    },
+    pipelineWords: async () => [],
+    pipelineNarration: async () => new Uint8Array(),
+    pipelineCancel: async () => undefined,
+    onPipelineProgress: () => () => undefined,
+    pipelineVideoFacts: async () => ({ width: 1920, height: 1080, duration: 10, clicks: null }),
+    pipelineVideoPreview: async () => new Uint8Array(),
+    pipelineVideoFrames: async () => [],
+    pipelineLessonVideo: async () => {
+      throw new Error("sem pacote");
+    },
+    ...bridge,
+  },
+  signal,
 });
 
 test("the runner goes step by step, stops at a failure and at Cancelar", async () => {
@@ -142,48 +213,7 @@ test("the runner goes step by step, stops at a failure and at Cancelar", async (
     textPalette: ["#ffffff"],
     fonts: DEFAULT_FONTS,
   };
-  const deps = (signal: AbortSignal) => ({
-    editor: {
-      importStudioProject: () => ({
-        summary: "",
-        sceneArtboardId: "artboard-cena",
-        imagePalette: [],
-        boards: [],
-      }),
-      openNarration: async () => ({ clipId: "animation-x", fps: 30, frames: 1 }),
-      activeArtboard: () => ({ id: "artboard-x", name: "Cena", width: 1440, height: 1080 }),
-      setPalette: () => undefined,
-      askAssistant: async () => ({ text: "", stopped: false, edits: 1 }),
-      stopAssistant: () => undefined,
-      beginRun: () => undefined,
-      assistantBusy: () => false,
-      endRun: () => undefined,
-      openDemoArtboard: () => ({
-        id: "artboard-d",
-        name: "Demonstração",
-        width: 1920,
-        height: 1080,
-      }),
-      setReferenceVideo: () => undefined,
-      addArtboards: () => [],
-      embedFonts: async () => [],
-    },
-    bridge: {
-      pipelineReadProject: async () => "",
-      pipelineFonts: async () => [],
-      pipelineFont: async () => {
-        throw new Error("sem fontes");
-      },
-      pipelineWords: async () => [],
-      pipelineNarration: async () => new Uint8Array(),
-      pipelineCancel: async () => undefined,
-      onPipelineProgress: () => () => undefined,
-      pipelineVideoFacts: async () => ({ width: 1920, height: 1080, duration: 10, clicks: null }),
-      pipelineVideoPreview: async () => new Uint8Array(),
-      pipelineVideoFrames: async () => [],
-    },
-    signal,
-  });
+  const deps = (signal: AbortSignal) => stubDeps(signal);
   const log: string[] = [];
   const failed = await runPipeline(
     recipe,
@@ -236,6 +266,209 @@ test("the runner goes step by step, stops at a failure and at Cancelar", async (
   assert.deepEqual(states.slice(2), ["x:running", "x:cancelled", "y:cancelled"]);
 });
 
+test("while the assistant drafts, the step says what it is doing; a turn ended by an error fails", async () => {
+  const recipe = BUILT_IN_RECIPES[0];
+  const draft = stepsFor("game-scene").at(-1);
+  if (!recipe || !draft) throw new Error("missing ready recipe");
+  const inputs: RunInputs = {
+    recipeId: recipe.id,
+    files: {},
+    script: "Oi.",
+    textPalette: ["#ffffff"],
+    fonts: DEFAULT_FONTS,
+  };
+  // What the earlier steps hand the draft: the narration's animation and the sentences.
+  const narrated: PipelineStep = {
+    id: "narration",
+    label: "Narração",
+    run: async (ctx) => {
+      ctx.results.clip = { clipId: "animation-x", fps: 30, frames: 90 };
+      ctx.results.piece = {
+        start: 0,
+        end: 3,
+        coverage: 1,
+        lines: [{ text: "Oi.", start: 0, end: 3 }],
+      };
+      ctx.results.lessonStart = 0;
+    },
+  };
+  const draftWith = async (turn: Awaited<ReturnType<PipelineEditor["askAssistant"]>>) => {
+    const states: StepState[] = [];
+    const outcome = await runPipeline(
+      recipe,
+      inputs,
+      [narrated, draft],
+      stubDeps(new AbortController().signal, {
+        askAssistant: async (_text, _shown, _images, onActivity) => {
+          onActivity?.({
+            text: "Escrevendo as alterações",
+            detail: "13 KB",
+            edits: 2,
+            elapsed: 125_000,
+          });
+          return turn;
+        },
+      }),
+      (id, state) => {
+        if (id === draft.id) states.push(state);
+      },
+    );
+    return { outcome, states };
+  };
+
+  const finished = await draftWith({ text: "", stopped: false, edits: 3 });
+  assert.equal(finished.outcome.ok, true);
+  // No percentage: how far the assistant is cannot be known, what it does and for how long can.
+  assert.deepEqual(finished.states.slice(2, 4), [
+    { status: "running", detail: "O assistente está animando" },
+    {
+      status: "running",
+      detail: "Assistente: Escrevendo as alterações (13 KB) · 2 alterações · 2:05",
+    },
+  ]);
+
+  const cut = await draftWith({
+    text: "",
+    stopped: false,
+    edits: 4,
+    error: "A IA demorou demais para responder.",
+  });
+  assert.equal(cut.outcome.ok, false);
+  assert.deepEqual(cut.states.at(-1), {
+    status: "failed",
+    message:
+      "A IA demorou demais para responder. As 4 alterações feitas até ali ficaram no projeto.",
+  });
+});
+
+test("with a lesson package, the demonstration's video is the screen of the stretch, made from it", async () => {
+  const demo = BUILT_IN_RECIPES[1];
+  const steps = stepsFor("screen-demo");
+  const video = steps.find((s) => s.id === "video");
+  if (!demo || !video) throw new Error("missing ready recipe");
+  const lesson = {
+    token: "file-pacote-0001",
+    name: "Aula 3.zip",
+    kind: "lesson" as const,
+    size: 9,
+  };
+  const made = {
+    token: "file-tela-000001",
+    name: "Tela da aula (2:15 a 2:25)",
+    kind: "video" as const,
+    size: 9,
+  };
+  const asked: unknown[] = [];
+  const located: PipelineStep = {
+    id: "find-piece",
+    label: "Trecho",
+    run: async (ctx) => {
+      ctx.results.piece = { start: 135.98, end: 144.9, coverage: 1, lines: [] };
+    },
+  };
+  const outcome = await runPipeline(
+    demo,
+    {
+      recipeId: demo.id,
+      files: { audio: lesson },
+      script: "Abra a aba.",
+      textPalette: ["#ffffff"],
+      fonts: DEFAULT_FONTS,
+    },
+    [located, video],
+    stubDeps(
+      new AbortController().signal,
+      {},
+      {
+        pipelineLessonVideo: async (token, from, to) => {
+          asked.push(["lesson-video", token, from, Number(to.toFixed(2))]);
+          return made;
+        },
+        pipelineVideoFacts: async (token) => {
+          asked.push(["facts", token]);
+          return { width: 1920, height: 1080, duration: 9.72, clicks: [{ t: 1, x: 10, y: 20 }] };
+        },
+        pipelineVideoPreview: async (token) => {
+          asked.push(["preview", token]);
+          return new Uint8Array();
+        },
+      },
+    ),
+    () => undefined,
+  );
+  assert.equal(outcome.ok, true);
+  // From the first sentence to the breath after the last; then read as any picked video.
+  assert.deepEqual(asked, [
+    ["lesson-video", "file-pacote-0001", 135.98, 145.7],
+    ["facts", "file-tela-000001"],
+    ["preview", "file-tela-000001"],
+  ]);
+  assert.equal((outcome.results.video as { token: string }).token, "file-tela-000001");
+  assert.match(outcome.report.join("\n"), /Demonstração 1920×1080: 1 clique gravado no trecho\./);
+});
+
+test("a run on a lesson package records on its artboard the stretch and phrases its animation is", async () => {
+  const scene = BUILT_IN_RECIPES[0];
+  const narration = stepsFor("game-scene").find((s) => s.id === "narration");
+  if (!scene || !narration) throw new Error("missing ready recipe");
+  const lesson = {
+    token: "file-pacote-0001",
+    name: "Aula 3.zip",
+    kind: "lesson" as const,
+    size: 9,
+  };
+  const located: PipelineStep = {
+    id: "find-piece",
+    label: "Trecho",
+    run: async (ctx) => {
+      ctx.results.piece = { start: 135.98, end: 144.9, coverage: 1, lines: [] };
+    },
+  };
+  const marked: unknown[] = [];
+  const inputs = {
+    recipeId: scene.id,
+    files: { audio: lesson },
+    script: "Tá vendo?",
+    textPalette: ["#ffffff"],
+    fonts: DEFAULT_FONTS,
+    lesson: { id: "pgte1jhfsnary", section: 5, phrases: ["Tá vendo?"] },
+  };
+  const deps = stubDeps(new AbortController().signal, {
+    openNarration: async () => ({ clipId: "animation-cena", fps: 30, frames: 300 }),
+    markLessonClip: (value) => marked.push(value),
+  });
+  const outcome = await runPipeline(scene, inputs, [located, narration], deps, () => undefined);
+  assert.equal(outcome.ok, true);
+  assert.deepEqual(marked, [
+    {
+      clipId: "animation-cena",
+      kind: "game-scene",
+      lessonId: "pgte1jhfsnary",
+      section: 5,
+      start: 135.98 - 0.4,
+      end: 144.9 + 0.8,
+      phrases: ["Tá vendo?"],
+    },
+  ]);
+  // An audio file is no lesson: nothing to record.
+  marked.length = 0;
+  const file = { ...lesson, kind: "audio" as const, name: "aula.mp3" };
+  await runPipeline(
+    scene,
+    { ...inputs, files: { audio: file } },
+    [located, narration],
+    deps,
+    () => undefined,
+  );
+  assert.deepEqual(marked, []);
+});
+
+test("a duration reads as minutes and seconds", () => {
+  assert.equal(clock(0), "0:00");
+  assert.equal(clock(65.4), "1:05");
+  assert.equal(clock(40 * 60), "40:00");
+});
+
 test("a failure from the main process is said without Electron's wrapper", () => {
   assert.equal(
     failureText(
@@ -283,6 +516,41 @@ test("the assistant gets the recipe, where to work, each sentence's frames, the 
   assert.match(text, /Corpo: Nunito 400, recurso \[asset-corpo\]; destaque no corpo: Nunito 700/);
   assert.match(text, /operation:'set-font'/);
   assert.match(text, /nas cores de texto e nas fontes acima/);
+});
+
+test("with a design kit in the project, the assistant gets its pieces and colours, and how to change their texts", () => {
+  const facts = {
+    recipe: { name: "Cena animada do jogo", kind: "game-scene" as const, style: "" },
+    artboard: { id: "artboard-cena", name: "Cena", width: 1440, height: 1080 },
+    clip: { id: "animation-n", fps: 30, frames: 300 },
+    lines: [{ text: "Olá.", from: 0, to: 30 }],
+    images: [],
+    textPalette: ["#ffffff"],
+    fonts: null,
+    imagePalette: [],
+    lessonStart: 0,
+  };
+  const text = draftRequest({
+    ...facts,
+    kit: {
+      boards: [
+        { id: "artboard-dica", name: "Kit · baloes · balao-dica-amarelo", width: 420, height: 88 },
+        { id: "artboard-zappy", name: "Kit · personagens · zappy-feliz", width: 512, height: 512 },
+      ],
+      palette: ["#fff3c4", "#1b5cf3"],
+    },
+  });
+  assert.match(text, /## Kit de design do projeto/);
+  assert.match(text, /- Kit · baloes · balao-dica-amarelo \[artboard-dica\] 420×88/);
+  assert.match(text, /- Kit · personagens · zappy-feliz \[artboard-zappy\] 512×512/);
+  assert.match(text, /Cores do kit: #fff3c4, #1b5cf3\./);
+  assert.match(text, /substituições \(overrides\)\. Não edite as pranchetas do kit/);
+  // No kit, no section.
+  assert.doesNotMatch(draftRequest(facts), /Kit de design/);
+  assert.doesNotMatch(
+    draftRequest({ ...facts, kit: { boards: [], palette: [] } }),
+    /Kit de design/,
+  );
 });
 
 test("the images' palette: the colours most shapes paint with, as #rrggbb", () => {
@@ -450,6 +718,9 @@ test("the fonts step embeds the title's bold and the body's regular and bold; th
         }),
         openNarration: async () => ({ clipId: "animation-x", fps: 30, frames: 1 }),
         activeArtboard: () => ({ id: "artboard-x", name: "D", width: 1280, height: 720 }),
+        designKit: () => ({ boards: [], palette: [] }),
+        markLessonClip: () => undefined,
+        lessonClips: () => [],
         setPalette: () => undefined,
         askAssistant: async (text) => {
           request = text;
@@ -487,6 +758,9 @@ test("the fonts step embeds the title's bold and the body's regular and bold; th
         pipelineVideoFacts: async () => ({ width: 1, height: 1, duration: 1, clicks: null }),
         pipelineVideoPreview: async () => new Uint8Array(),
         pipelineVideoFrames: async () => [],
+        pipelineLessonVideo: async () => {
+          throw new Error("sem pacote");
+        },
       },
       signal: new AbortController().signal,
     },

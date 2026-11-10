@@ -3,6 +3,7 @@ import { execFile } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
+import { strToU8, zipSync } from "fflate";
 import type { ElectronApplication, Page } from "playwright";
 import { game } from "../tests/szprojectFixture.ts";
 
@@ -10,8 +11,9 @@ const run = promisify(execFile);
 
 /**
  * The game scene recipe under Electron, end to end in the main process: the picked studio project
- * is read, the picked EdiAula lesson gives its words on its clock, the narration of the stretch is
- * mixed by the suite's FFmpeg, and the scene animation opens with the narration over its timeline.
+ * is read, the picked package of an EdiAula lesson is unpacked and gives its words on its clock,
+ * the narration of the stretch is mixed by the suite's FFmpeg, and the scene animation opens with
+ * the narration over its timeline. The screen demonstration takes its video from the same package.
  * The file dialogs are answered in the main process and given back afterwards (the next journeys
  * answer real Windows dialogs). With EDISVG_PIPELINE_WHISPER=1 an audio file is also transcribed
  * by EdiAula's engine (installed on that machine; never in CI).
@@ -38,20 +40,104 @@ export async function verifySvgNativePipelineJourney(
     "sine=frequency=220:duration=160",
     voice,
   ]);
-  const transcript = join(root, "pipeline-voz-transcricao.json");
-  await writeFile(
-    transcript,
-    JSON.stringify({ words: words.map((w) => ({ ...w, start: w.start + 120, end: w.end + 120 })) }),
-  );
-  const lesson = join(root, "pipeline-aula.ediaula");
+  const transcript = JSON.stringify({
+    words: words.map((w) => ({ ...w, start: w.start + 120, end: w.end + 120 })),
+  });
+  // The screen of a guided take, from lesson 134 s: the stretch (135.98–145.7) shows its
+  // seconds 1.98–11.7, where the cursor data has two clicks.
+  const screen = join(root, "pipeline-tela.mp4");
+  await run(ffmpeg, [
+    "-y",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "testsrc2=size=1280x720:rate=30:duration=30",
+    "-pix_fmt",
+    "yuv420p",
+    screen,
+  ]);
+  const cursor = JSON.stringify({
+    version: 2,
+    width: 1280,
+    height: 720,
+    clicks: [
+      [4, 640, 80, 0, 0.05],
+      [8, 200, 600, 0, 0.05],
+      [20, 10, 10, 0, 0.05],
+    ],
+  });
+  // EdiAula's package of the lesson (Arquivo › Empacotar a aula): stored, paths under media/.
+  const lesson = join(root, "pipeline-aula.zip");
   await writeFile(
     lesson,
-    JSON.stringify({
-      version: 1,
-      assets: [{ id: "voz", path: voice, transcript, transcriptStatus: "ready", hasAudio: true }],
-      tracks: [{ id: "narracao", muted: false }],
-      clips: [{ assetId: "voz", trackId: "narracao", start: 0, in: 0, duration: 160, volume: 1 }],
-    }),
+    zipSync(
+      {
+        "aula.ediaula": strToU8(
+          JSON.stringify({
+            version: 1,
+            // The script of this lesson (one section): its phrases are offered to the run.
+            script: {
+              text: [
+                "## Parte 1. A chave",
+                "",
+                '**Na tela:** No "O personagem", apontar o personagem [apontar jogo 53 173].',
+                "",
+                "**Fala para ElevenLabs:**",
+                "",
+                "```text",
+                "O personagem precisa encontrar a chave antes de chegar ao farol. Quando ele pegar a chave, o aviso muda.",
+                "```",
+              ].join("\n"),
+            },
+            assets: [
+              {
+                id: "voz",
+                path: "media/voz-narracao.wav",
+                transcript: "media/voz-transcricao.json",
+                transcriptStatus: "ready",
+                hasAudio: true,
+                recording: { role: "narration" },
+              },
+              {
+                id: "pagina",
+                path: "media/pagina-som-da-pagina.wav",
+                hasAudio: true,
+                recording: { role: "system" },
+              },
+              {
+                id: "tela",
+                path: "media/tela-tela.mp4",
+                cursor: "media/tela-cursor.json",
+                hasVideo: true,
+                hasAudio: false,
+                width: 1280,
+                height: 720,
+                fps: 30,
+                recording: { role: "screen" },
+              },
+            ],
+            tracks: [
+              { id: "video", kind: "video" },
+              { id: "narracao", kind: "audio", name: "Narração guiada" },
+              { id: "pagina", kind: "audio", name: "Som da página" },
+            ],
+            clips: [
+              { assetId: "voz", trackId: "narracao", start: 0, in: 0, duration: 160, volume: 1 },
+              { assetId: "pagina", trackId: "pagina", start: 0, in: 0, duration: 160, volume: 1 },
+              { assetId: "tela", trackId: "video", start: 134, in: 0, duration: 30, volume: 1 },
+            ],
+          }),
+        ),
+        "media/voz-narracao.wav": new Uint8Array(await readFile(voice)),
+        "media/voz-transcricao.json": strToU8(transcript),
+        "media/pagina-som-da-pagina.wav": new Uint8Array(await readFile(voice)),
+        "media/tela-tela.mp4": new Uint8Array(await readFile(screen)),
+        "media/tela-cursor.json": strToU8(cursor),
+      },
+      { level: 0 },
+    ),
   );
   const project = join(root, "pipeline-projeto.szproject.json");
   await writeFile(project, JSON.stringify(game));
@@ -84,7 +170,10 @@ export async function verifySvgNativePipelineJourney(
       holder.__originalSave = undefined;
     });
 
-  const runScene = async (audioButton: "Escolher aula…" | "Escolher áudio…", script: string) => {
+  const runScene = async (
+    audioButton: "Escolher aula…" | "Escolher áudio…",
+    script: string | null,
+  ) => {
     await editor.locator('[data-action="pipelines"]').first().click();
     const dialog = editor.getByRole("dialog", { name: "Pipelines" });
     await dialog
@@ -94,7 +183,13 @@ export async function verifySvgNativePipelineJourney(
     await dialog.getByRole("button", { name: "Escolher…" }).click();
     await dialog.getByText("pipeline-projeto.szproject.json").waitFor();
     await dialog.getByRole("button", { name: audioButton }).click();
-    await dialog.getByLabel("Roteiro do trecho (só a parte desta cena)").fill(script);
+    if (script === null)
+      // The lesson's script, read from the package by the main process: every phrase picked.
+      await dialog
+        .getByRole("group", { name: "Roteiro da aula · Seção 1 · A chave" })
+        .getByText("2 de 2 frases nesta animação.", { exact: false })
+        .waitFor();
+    else await dialog.getByLabel("Roteiro do trecho (só a parte desta cena)").fill(script);
     await dialog.getByRole("button", { name: "Rodar pipeline" }).click();
     await dialog
       .getByText(/^(Pipeline concluído\.|O pipeline parou\.)$/)
@@ -117,10 +212,7 @@ export async function verifySvgNativePipelineJourney(
   const before = await editor.evaluate(() => localStorage.getItem("edisvg-project"));
   try {
     await answer([project, lesson]);
-    const said = await runScene(
-      "Escolher aula…",
-      "O personagem precisa encontrar a chave antes de chegar ao farol. Quando ele pegar a chave, o aviso muda.",
-    );
+    const said = await runScene("Escolher aula…", null);
     assert.match(said, /Trecho achado na aula de 2:15 a 2:24, com 2 frases\./);
     const bar = editor.locator(".narration-bar");
     await bar.waitFor();
@@ -156,47 +248,23 @@ export async function verifySvgNativePipelineJourney(
       console.log("Verified the game scene pipeline transcribing an audio file: edisvg");
     }
 
-    // The screen demonstration: a recording of EdiAula, its cursor beside it, under the layer.
-    const demoVideo = join(root, "apipelinedemo-apipelinedemo-tela.mp4");
-    await run(ffmpeg, [
-      "-y",
-      "-v",
-      "error",
-      "-f",
-      "lavfi",
-      "-i",
-      "testsrc2=size=1280x720:rate=30:duration=30",
-      "-pix_fmt",
-      "yuv420p",
-      demoVideo,
-    ]);
-    await writeFile(
-      join(root, "apipelinedemo-cursor.json"),
-      JSON.stringify({
-        version: 2,
-        width: 1280,
-        height: 720,
-        clicks: [
-          [2, 640, 80, 0, 0.05],
-          [6, 200, 600, 0, 0.05],
-        ],
-      }),
-    );
-    await answer([demoVideo, lesson]);
+    // The screen demonstration: the same package brings the screen, cut to the stretch by the
+    // suite's FFmpeg, with its clicks, under the layer.
+    await answer([lesson]);
     await editor.locator('[data-action="pipelines"]').first().click();
     const pipelines = editor.getByRole("dialog", { name: "Pipelines" });
     await pipelines
       .locator("li", { hasText: "Demonstração passo a passo" })
       .getByRole("button", { name: "Rodar" })
       .click();
-    await pipelines.getByRole("button", { name: "Escolher…" }).click();
-    await pipelines.getByText("apipelinedemo-apipelinedemo-tela.mp4").waitFor();
     await pipelines.getByRole("button", { name: "Escolher aula…" }).click();
     await pipelines
-      .getByLabel("Roteiro do trecho (só a parte desta cena)")
-      .fill(
-        "O personagem precisa encontrar a chave antes de chegar ao farol. Quando ele pegar a chave, o aviso muda.",
-      );
+      .getByText("Vem do pacote da aula: a tela gravada no trecho do roteiro.")
+      .waitFor();
+    await pipelines
+      .getByRole("group", { name: "Roteiro da aula · Seção 1 · A chave" })
+      .getByText("2 de 2 frases nesta animação.", { exact: false })
+      .waitFor();
     await pipelines.getByRole("button", { name: "Rodar pipeline" }).click();
     await pipelines
       .getByText(/^(Pipeline concluído\.|O pipeline parou\.)$/)

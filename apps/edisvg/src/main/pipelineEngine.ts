@@ -8,21 +8,30 @@ import { createWhisper } from "@informach/edi-speech/node/whisper";
 import type { HeardWord } from "@informach/edi-speech/piece";
 import { app, type BrowserWindow, dialog } from "electron";
 import { type UnzipOptions, type Unzipped, unzip } from "fflate";
+import type { PickedFile } from "../shared/pipelines";
 import { suggestedNameSchema } from "./exportPayload.ts";
+import { type PackageLesson, packageLesson, unpackLesson } from "./lessonPackage.ts";
 import {
   cutNarrationArgs,
   existingTranscript,
+  type HearVoices,
+  lessonVoices,
   lessonWords,
   mixNarrationArgs,
+  type TranscriptWord,
 } from "./pipelineMedia.ts";
-import { pickedPath } from "./pipelines.ts";
+import { forgetPickedFile, pickedPath, registerPickedFile } from "./pipelines.ts";
 import {
   alphaWebmArgs,
   findCursorFile,
   frameArgs,
+  lessonScreen,
   previewArgs,
   type RecordedClick,
   readClicks,
+  stretchClicks,
+  stretchCursorFile,
+  stretchVideoArgs,
 } from "./pipelineVideo.ts";
 
 /**
@@ -79,6 +88,16 @@ async function ffmpeg(
   }
 }
 
+/** EdiAula's profile folder; in development a test can point it elsewhere (as EDISVG_USER_DATA). */
+export function ediaulaData(): string {
+  return !app.isPackaged && process.env.EDISVG_EDIAULA_DATA
+    ? process.env.EDISVG_EDIAULA_DATA
+    : join(app.getPath("appData"), "ediaula");
+}
+
+/** The suite's FFmpeg (the one every pipeline step runs). */
+export const ffmpegPath = (): string => machine().paths.ffmpeg;
+
 function build() {
   const paths = resolveNativeMedia({
     packaged: app.isPackaged,
@@ -94,11 +113,7 @@ function build() {
     exclusiveJobIds: false,
     cancelledMessage: "Cancelado",
   });
-  // EdiAula's profile folder; in development a test can point it elsewhere (as EDISVG_USER_DATA).
-  const ediaula =
-    !app.isPackaged && process.env.EDISVG_EDIAULA_DATA
-      ? process.env.EDISVG_EDIAULA_DATA
-      : join(app.getPath("appData"), "ediaula");
+  const ediaula = ediaulaData();
   const whisper = createWhisper({
     root: () => join(ediaula, "whisper"),
     ffmpeg: () => paths.ffmpeg,
@@ -135,8 +150,75 @@ const machine = () => {
 };
 
 /**
- * The words of the audio a run picked: a lesson's transcripts on its clock, or a file transcribed
- * now (Portuguese) with EdiAula's engine. Progress goes to `onProgress` (0..1).
+ * The lesson inside a picked package, unpacked once per file (the same ZIP picked twice shares
+ * one unpacking, never two into the same folder at once). A folder pruned since (unpackLesson
+ * keeps the newest few) or a failed or stopped unpacking is unpacked again by the next step.
+ */
+const lessons = new Map<string, Promise<string>>();
+async function lessonOf(token: unknown, signal: AbortSignal): Promise<string> {
+  const zip = pickedPath(token, "lesson");
+  const key = zip.toLowerCase();
+  const cached = lessons.get(key);
+  if (cached) {
+    const path = await cached.catch(() => null);
+    if (path && existsSync(path)) return path;
+    if (lessons.get(key) === cached) lessons.delete(key);
+  }
+  let lesson = lessons.get(key);
+  if (!lesson) {
+    const made = unpackLesson(zip, join(app.getPath("userData"), "pipeline-lessons"), signal);
+    lessons.set(key, made);
+    made.catch(() => {
+      if (lessons.get(key) === made) lessons.delete(key);
+    });
+    lesson = made;
+  }
+  return lesson;
+}
+
+/**
+ * The words of an audio (or video) file: the transcript EdiAula made of it, or the file
+ * transcribed now (Portuguese) with EdiAula's engine, then kept where EdiAula keeps it.
+ */
+async function transcribeFile(
+  path: string,
+  jobId: string,
+  signal: AbortSignal,
+  onProgress: (ratio: number) => void,
+): Promise<TranscriptWord[]> {
+  const { media, whisper, cacheDirOf } = machine();
+  const read = async (file: string) => {
+    let words: unknown;
+    try {
+      words = (JSON.parse(await readFile(file, "utf8")) as { words?: unknown }).words;
+    } catch {
+      words = null;
+    }
+    if (!Array.isArray(words))
+      throw new Error("A transcrição do áudio não pôde ser lida. Transcreva de novo no EdiAula.");
+    return (words as TranscriptWord[]).filter((w) => !w.dropped);
+  };
+  // Transcribed in EdiAula already (its glossary changes the file name): read, not heard again.
+  const known = existingTranscript(cacheDirOf(path, false));
+  if (known) return read(known);
+  const status = await whisper.engineStatus();
+  signal.throwIfAborted();
+  if (!status.bin || !status.model)
+    throw new Error(
+      "A transcrição ainda não está instalada. Instale o motor e um modelo no EdiAula (painel Transcrição): o EdiSVG usa os mesmos.",
+    );
+  const facts = await media.probe(path, signal);
+  if (!facts.duration) throw new Error("Não consegui ler a duração do áudio.");
+  // The signal reaches every part of the transcription: Cancelar stops it whole (and never
+  // treats the stop as a broken voice-detection model, which lives in EdiAula's folder).
+  const out = await whisper.transcribe(jobId, path, facts.duration, "pt", [], onProgress, signal);
+  return read(out);
+}
+
+/**
+ * The words of the audio a run picked: a lesson package's voice on the lesson's clock (its
+ * transcripts, and the voice files without one transcribed now), or an audio file transcribed now
+ * (Portuguese) with EdiAula's engine. Progress goes to `onProgress` (0..1).
  */
 export async function pipelineWords(
   token: unknown,
@@ -145,35 +227,31 @@ export async function pipelineWords(
   onProgress: (ratio: number) => void,
 ): Promise<HeardWord[]> {
   return withJob(jobId, async (signal) => {
-    if (kind === "lesson") return (await lessonWords(pickedPath(token, "lesson"))).words;
-    const path = pickedPath(token, "audio");
-    const { media, whisper, cacheDirOf } = machine();
-    const read = async (file: string) => {
-      let words: unknown;
-      try {
-        words = (JSON.parse(await readFile(file, "utf8")) as { words?: unknown }).words;
-      } catch {
-        words = null;
-      }
-      if (!Array.isArray(words))
-        throw new Error("A transcrição do áudio não pôde ser lida. Transcreva de novo no EdiAula.");
-      return (words as (HeardWord & { dropped?: string })[]).filter((w) => !w.dropped);
-    };
-    // Transcribed in EdiAula already (its glossary changes the file name): read, not heard again.
-    const known = existingTranscript(cacheDirOf(path, false));
-    if (known) return read(known);
-    const status = await whisper.engineStatus();
-    signal.throwIfAborted();
-    if (!status.bin || !status.model)
-      throw new Error(
-        "A transcrição ainda não está instalada. Instale o motor e um modelo no EdiAula (painel Transcrição): o EdiSVG usa os mesmos.",
-      );
-    const facts = await media.probe(path, signal);
-    if (!facts.duration) throw new Error("Não consegui ler a duração do áudio.");
-    // The signal reaches every part of the transcription: Cancelar stops it whole (and never
-    // treats the stop as a broken voice-detection model, which lives in EdiAula's folder).
-    const out = await whisper.transcribe(jobId, path, facts.duration, "pt", [], onProgress, signal);
-    return read(out);
+    if (kind === "lesson") {
+      const lesson = await lessonOf(token, signal);
+      // Each voice file of the lesson without a transcript, in turn: the progress is of all.
+      const hear: HearVoices = async (paths) => {
+        const heard = new Map<string, TranscriptWord[]>();
+        // A voice of the lesson the package did not bring: said by name before anything is heard.
+        const gone = paths.find((path) => !existsSync(path));
+        if (gone)
+          throw new Error(
+            `A voz ${basename(gone)} não está no pacote da aula. Empacote a aula de novo no EdiAula.`,
+          );
+        for (const [index, path] of paths.entries()) {
+          signal.throwIfAborted();
+          heard.set(
+            path,
+            await transcribeFile(path, jobId, signal, (ratio) =>
+              onProgress((index + ratio) / paths.length),
+            ),
+          );
+        }
+        return heard;
+      };
+      return (await lessonWords(lesson, hear)).words;
+    }
+    return transcribeFile(pickedPath(token, "audio"), jobId, signal, onProgress);
   });
 }
 
@@ -193,7 +271,7 @@ export async function pipelineNarration(
     const out = join(dir, `${randomUUID()}.wav`);
     try {
       if (kind === "lesson") {
-        const { voices } = await lessonWords(pickedPath(token, "lesson"));
+        const voices = await lessonVoices(await lessonOf(token, signal));
         signal.throwIfAborted();
         // A voice of this stretch whose file moved: said by name, not as FFmpeg's error.
         const gone = voices.find(
@@ -203,7 +281,7 @@ export async function pipelineNarration(
         );
         if (gone)
           throw new Error(
-            `A aula usa uma voz que não está mais no lugar (${basename(gone.path)}). Abra a aula no EdiAula para reencontrar a mídia.`,
+            `A voz ${basename(gone.path)} não está no pacote da aula. Empacote a aula de novo no EdiAula.`,
           );
         const args = mixNarrationArgs(voices, start, end, out);
         if (!args) throw new Error("Nenhuma voz soa nesse trecho da aula.");
@@ -218,6 +296,72 @@ export async function pipelineNarration(
       return new Uint8Array(await readFile(out));
     } finally {
       await rm(out, { force: true });
+    }
+  });
+}
+
+const clockText = (s: number) =>
+  `${Math.floor(s / 60)}:${Math.floor(s % 60)
+    .toString()
+    .padStart(2, "0")}`;
+
+/** The screen video made for the current run, and its cursor data: one at a time. */
+let stretch: { token: string; files: string[] } | null = null;
+let stretchDirClean = false;
+async function dropStretch(): Promise<void> {
+  if (!stretch) return;
+  forgetPickedFile(stretch.token);
+  for (const file of stretch.files) await rm(file, { force: true });
+  stretch = null;
+}
+
+/** The lesson of a picked package: its id and script (its phrases are offered before a run). */
+export function pipelineLessonScript(token: unknown): Promise<PackageLesson> {
+  return packageLesson(pickedPath(token, "lesson"));
+}
+
+/**
+ * The screen of [from, to) of a lesson package as a video of its own, with the clicks of the
+ * stretch beside it: handed to the window as a picked video, so the demonstration's steps read
+ * it as one (facts, preview, frames).
+ */
+export async function pipelineLessonVideo(
+  token: unknown,
+  from: unknown,
+  to: unknown,
+  jobId: unknown,
+): Promise<PickedFile> {
+  if (typeof from !== "number" || typeof to !== "number" || !Number.isFinite(from + to))
+    throw new Error("Trecho inválido.");
+  if (!validJobId(jobId)) throw new Error("Identificador de tarefa inválido.");
+  return withJob(jobId, async (signal) => {
+    const lesson = await lessonOf(token, signal);
+    const start = Math.max(0, from);
+    const screen = await lessonScreen(lesson, start, to);
+    const dir = join(app.getPath("temp"), "edisvg-lesson-screen");
+    // What an earlier session left behind (closed in the middle of a run) goes first.
+    if (!stretchDirClean) {
+      await rm(dir, { recursive: true, force: true });
+      stretchDirClean = true;
+    }
+    await dropStretch();
+    mkdirSync(dir, { recursive: true });
+    const out = join(dir, `${randomUUID()}.mp4`);
+    const cursor = stretchCursorFile(out, screen, await stretchClicks(screen));
+    try {
+      await ffmpeg(stretchVideoArgs(screen, out), jobId, signal, "montar o vídeo da tela da aula");
+      await writeFile(cursor.path, cursor.text);
+      const file = await registerPickedFile(
+        out,
+        "video",
+        `Tela da aula (${clockText(start)} a ${clockText(to)})`,
+      );
+      stretch = { token: file.token, files: [out, cursor.path] };
+      return file;
+    } catch (error) {
+      await rm(out, { force: true });
+      await rm(cursor.path, { force: true });
+      throw error;
     }
   });
 }

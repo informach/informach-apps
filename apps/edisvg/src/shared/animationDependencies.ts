@@ -1,6 +1,7 @@
 import type { MotionCommand } from "@informach/edi-motion";
 import { rigCost } from "@informach/edi-motion/rig";
 import { applyBehavior } from "./behavior";
+import { dropLessonClips } from "./lessonClips";
 import type { Project } from "./project";
 import { applyRig } from "./rig";
 
@@ -33,6 +34,8 @@ export function applyAnimationDependencies(
     return { board, clip, events, eventIds, audio };
   });
   for (const { board, clip, events, eventIds, audio } of plans) {
+    // A lesson stretch names one animation: a copy is not that stretch, a deleted one has none.
+    if (command.type === "delete-animation") dropLessonClips(board, command.animationId);
     // Vertex keys belong to their animation, like its rig channels.
     const vertexClips = board.vertexClips?.filter(
       (value) => value.animationId === command.animationId,

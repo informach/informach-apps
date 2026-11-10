@@ -22,7 +22,14 @@ export type EngineEvent =
   | { type: "error"; message: string }
   | { type: "quota"; level: "ok" | "warn" | "blocked"; text: string }
   /** What the turn used: US$ from the API prices, estimated by Claude Code, unknown for Codex. */
-  | { type: "usage"; tokens: number; usd?: number; estimated?: boolean };
+  | { type: "usage"; tokens: number; usd?: number; estimated?: boolean }
+  /**
+   * What the model is doing between the events above, sent only when the application asks for it
+   * (AssistantEnginesConfig.activity): thinking, or writing the input of a tool (`chars` of it so
+   * far, repeated about once a second while it grows).
+   */
+  | { type: "activity"; phase: "thinking" }
+  | { type: "activity"; phase: "writing"; name: string; title: string; chars: number };
 
 /**
  * Ends a process and every process it started. The npm and bun launchers of Claude Code and
@@ -88,7 +95,20 @@ export interface RunSpec {
   /** Ends the run with `timeoutMessage` after this long. */
   timeoutMs?: number;
   timeoutMessage?: string;
+  /**
+   * Ends the run with `idleMessage` when the program prints nothing for this long, on its output
+   * or its errors (Claude Code says on stderr that it is retrying the API). Only for a program
+   * that reports while it works (Claude Code with partial messages, about every second).
+   */
+  idleMs?: number;
+  idleMessage?: string;
 }
+
+/** The default message of a run ended for silence. */
+const idleText = (ms: number): string => {
+  const minutes = Math.max(1, Math.round(ms / 60_000));
+  return `A IA parou de dar sinal por ${minutes} ${minutes === 1 ? "minuto" : "minutos"} e foi interrompida.`;
+};
 
 const running = new Map<string, { stop: () => void }>();
 
@@ -101,6 +121,7 @@ export function startRun(spec: RunSpec, spawn: typeof nodeSpawn = nodeSpawn): Pr
     let stderr = "";
     let child: ChildProcess | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    let idle: ReturnType<typeof setTimeout> | undefined;
     const cleanup = (): void => {
       if (cleaned) return;
       cleaned = true;
@@ -110,6 +131,7 @@ export function startRun(spec: RunSpec, spawn: typeof nodeSpawn = nodeSpawn): Pr
       if (finished) return;
       finished = true;
       clearTimeout(timer);
+      clearTimeout(idle);
       if (running.get(spec.conversationId)?.stop === stop) running.delete(spec.conversationId);
       cleanup();
       try {
@@ -150,6 +172,17 @@ export function startRun(spec: RunSpec, spawn: typeof nodeSpawn = nodeSpawn): Pr
         });
         stop();
       }, spec.timeoutMs);
+    /** Starts the silence over: at the start, and whenever the program prints anything. */
+    const heard = (): void => {
+      const ms = spec.idleMs;
+      if (!ms || finished) return;
+      clearTimeout(idle);
+      idle = setTimeout(() => {
+        spec.emit({ type: "error", message: spec.idleMessage ?? idleText(ms) });
+        stop();
+      }, ms);
+    };
+    heard();
     proc.on("error", (err) => {
       spec.emit({ type: "error", message: `Não foi possível iniciar: ${errorText(err)}` });
       // A program that never started has no "close" to wait for.
@@ -157,11 +190,13 @@ export function startRun(spec: RunSpec, spawn: typeof nodeSpawn = nodeSpawn): Pr
     });
     proc.on("close", (code) => finish(code));
     proc.stderr?.on("data", (d: Buffer) => {
+      heard();
       const text = stderr + d.toString();
       stderr = (spec.redact ? spec.redact(text) : text).slice(-6000);
     });
     if (proc.stdout)
       createInterface({ input: proc.stdout }).on("line", (line) => {
+        heard();
         if (finished || !line.startsWith("{")) return;
         let json: unknown;
         try {

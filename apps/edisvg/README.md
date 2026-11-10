@@ -30,25 +30,87 @@ Uma receita da pessoa não volta depois de excluída, então o botão pede um se
 ("Excluir de vez?").
 
 - **Cena animada do jogo**
-  - Recebe um projeto do Estúdio, o áudio da aula inteira (um arquivo, ou uma aula do EdiAula) e
-    o roteiro só desta cena.
+  - Recebe um projeto do Estúdio, o áudio da aula inteira (um arquivo, ou o pacote da aula do
+    EdiAula) e o roteiro só desta cena.
   - Importa as imagens (como em "Importar um projeto do Estúdio", abaixo), acha o trecho no áudio
     e o tempo de cada frase, e abre uma animação do tamanho do trecho, com a narração tocando
     junto.
 - **Demonstração passo a passo**
-  - Recebe o vídeo gravado na tela, o áudio e o roteiro. O vídeo começa junto com o trecho.
+  - Recebe o áudio, o vídeo da tela e o roteiro. Com o pacote da aula, o vídeo não é pedido: a
+    tela vem do pacote, já no trecho do roteiro (veja abaixo). Um vídeo escolhido à parte começa
+    junto com o trecho.
   - Cria uma prancheta do tamanho do vídeo, a camada transparente, com o vídeo por baixo na
     prévia. Ele toca e para com a animação, e nunca entra na exportação.
   - Cria os elementos prontos (seta, balão, destaque e clique) nas cores da paleta de texto.
   - Pede o rascunho ao assistente. Ele recebe a narração, os cliques gravados e até quatro quadros
     do vídeo para olhar:
-    - **Gravação do EdiAula:** o `<id>-cursor.json` ao lado do vídeo dá os cliques reais, já na
-      escala do vídeo e no quadro da animação.
+    - **Pacote da aula, ou gravação do EdiAula:** os dados do cursor da tomada dão os cliques
+      reais, já na escala do vídeo e no quadro da animação.
     - **Outro vídeo:** o assistente decide pelos quadros.
+
+**O pacote da aula.** "Escolher aula…" pede o ZIP que o EdiAula gera em **Arquivo › Empacotar a
+aula**: o arquivo que chega de quem gravou. O `.ediaula` solto não é aceito. Do pacote saem só os
+arquivos que a execução usa (`src/main/lessonPackage.ts`):
+- a narração que soa na linha do tempo, com a transcrição quando o pacote traz uma;
+- as gravações de tela com os dados do cursor.
+
+Ficam de fora o som da página das tomadas guiadas, que não é fala, e o que não está na linha do
+tempo. O leitor do ZIP é o mesmo do EdiAula (`@informach/edi-desktop/zip-read`) e aceita o pacote
+guardado como o EdiAula grava ou comprimido de novo por outro programa. Um nome que sai de
+`media/` nunca é escrito. A pasta fica em `pipeline-lessons` no perfil do EdiSVG, uma por
+caminho, tamanho e data do ZIP: rodar de novo com o mesmo pacote não extrai outra vez, e ficam
+só as três mais recentes.
+- **A narração sem transcrição** (o pacote não leva as do EdiAula, por exemplo) é transcrita na hora
+  com o motor e os modelos do EdiAula, arquivo por arquivo, e a transcrição fica no cache do EdiAula
+  para a próxima vez.
+- **A tela do trecho** é montada pelo FFmpeg da suíte a partir da linha do tempo da aula
+  (`lessonScreen` e `stretchVideoArgs` em `src/main/pipelineVideo.ts`):
+  - cada corte vem da sua tomada, a partir do segundo certo e na velocidade do clipe;
+  - onde duas gravações se sobrepõem, vale a faixa de cima;
+  - onde não há gravação, fica preto;
+  - uma gravação de outro tamanho entra com tarja.
+  Os cliques de cada tomada vão para o tempo e a escala do vídeo montado. Ele vale só para aquela
+  execução (pasta temporária, trocado na próxima).
 
 **O roteiro.** Texto entre [colchetes] é anotação, como no "Na tela" do EdiAula (o que acontece
 na tela, uma indicação): fica fora da busca no áudio e das frases da narração. Um colchete aberto
 sem fechar conta como texto. Um roteiro só de anotações não roda.
+
+**O roteiro que vem com a aula.** Com o pacote da aula, o roteiro não é colado. O EdiSVG lê a
+aula sem extrair o pacote (`packageLesson` em `src/main/lessonPackage.ts`): o id dela e o
+roteiro que o EdiAula guarda. Depois mostra as frases da seção da aula (`src/shared/lessonScript.ts`):
+- Cada frase falada é uma linha. Você desmarca as que não entram nesta animação.
+- As indicações "Na tela" aparecem entre as frases. Elas entram como anotação antes da primeira
+  frase marcada depois delas.
+- **Escrever à mão** troca a lista pela caixa de texto, já com as frases marcadas.
+- Uma aula sem roteiro com falas, ou um arquivo de áudio, volta à caixa de texto.
+
+As frases são as mesmas que o pipeline procura no áudio: com o roteiro real do desafio do dia 1
+(Parte 6), saem as 24 frases da demonstração rodada antes, na mesma ordem.
+
+**Uma aula, vários trechos.** Uma seção pode misturar os dois tipos: uma cena em tela inteira
+num trecho e demonstrações sobre a tela em outros. Cada execução com o pacote da aula grava, na
+prancheta em que trabalhou, o trecho que a animação dela é (`src/shared/lessonClips.ts`, projeto
+v26):
+- o que fica gravado: a animação, o tipo (cena ou demonstração), o id da aula, a seção, os
+  segundos da aula e as frases;
+- na próxima execução da mesma aula, as frases já animadas aparecem com "Já animada:" e o tipo,
+  e começam desmarcadas: a lista abre com o trecho que falta;
+- duplicar a prancheta não leva os trechos, e apagar a animação apaga o dela.
+
+**Enviar animações para a aula** (Arquivo, ou a paleta de comandos) manda cada animação desses
+trechos para o EdiAula:
+- A cena vai em MP4, sobre preto, e a demonstração em WebM com transparência (VP9 com alfa).
+  Os dois saem no tamanho da prancheta e no FPS da animação.
+- Os quadros são desenhados um a um e vão direto para o FFmpeg da suíte
+  (`src/renderer/src/pipelines/lessonSend.ts` e `src/main/lessonDelivery.ts`), então um trecho
+  longo não precisa caber na memória, como numa exportação comum. Em 1080p, o VP9 com
+  transparência codifica perto de 44 quadros por segundo.
+- Os vídeos vão para `recebidos/<id da aula>/` no perfil do EdiAula, com `envio.json` gravado
+  por último. O EdiSVG não grava a aula: quem coloca as animações nela é o EdiAula (veja o
+  README do EdiAula).
+- Cancelar para entre quadros e não deixa vídeo pela metade. Os vídeos de envios anteriores
+  ficam, porque a aula pode estar usando.
 
 **A paleta de texto.** **Cores de uma imagem…** troca a paleta pelas cores mais usadas de uma
 imagem (PNG, JPEG, WebP, GIF ou BMP, até 50 MB), até seis, bem distintas entre si. A ordem segue o
@@ -71,9 +133,11 @@ cria; o balão da demonstração já vem no negrito do corpo.
   (`src/main/pipelineFonts.ts`).
 
 **Como o trecho é achado.**
-1. As palavras ditas vêm das transcrições da aula do EdiAula, nas faixas que soam. Se for um
-   arquivo de áudio, ele é transcrito na hora com o motor e os modelos do EdiAula, e uma
-   transcrição já feita no EdiAula é reaproveitada.
+1. As palavras ditas vêm da narração do pacote da aula, nas faixas que soam: da transcrição que o
+   pacote trouxer, ou transcritas na hora. Se for um arquivo de áudio, ele é transcrito na hora
+   com o motor e os modelos do EdiAula. Uma transcrição já feita daquele arquivo é reaproveitada
+   (no cache do EdiAula, pela chave de caminho, tamanho e data): a do EdiAula, para um arquivo de
+   áudio; a de uma execução anterior, para a narração de um pacote já extraído.
 2. O roteiro é procurado pela janela da aula com mais palavras dele, e cada frase é alinhada só
    ali (`@informach/edi-speech/piece`).
 3. Uma frase que não aparece no áudio para o pipeline, que diz qual é. Nenhum tempo é chutado.
@@ -90,8 +154,18 @@ cria; o balão da demonstração já vem no negrito do corpo.
   - as cores e as regras de trabalho.
 - Ele anima pelas ferramentas do EdiSVG e termina dizendo o que acontece em cada frase. Essa
   resposta vai para o relatório do pipeline.
-- Se o assistente não estiver conectado, for interrompido ou não fizer nenhuma edição, o pipeline
-  para nessa etapa e diz por quê.
+- Uma cena com muitas frases leva vários minutos. O modelo pode pensar por 3 minutos e levar 1 a 2
+  para escrever uma edição grande, sem texto e sem ferramenta nesse meio-tempo. Por isso a etapa
+  não mostra porcentagem. Ela diz o que o assistente está fazendo, quantas alterações já fez e há
+  quanto tempo roda, por exemplo "Assistente: Escrevendo as alterações (13 KB) · 2 alterações ·
+  6:12". O painel Assistente mostra a mesma atividade e o tempo dela ("Pensando… 2:14"). Os dados
+  vêm do evento `activity` do `@informach/edi-desktop` (`src/main/engines.js`).
+- O pedido do pipeline tem prazo de 40 minutos; uma mensagem do painel continua com 10. O Claude
+  Code dá sinal mais ou menos a cada segundo enquanto trabalha, então 5 minutos calado significam
+  que travou, e ele é encerrado antes do prazo.
+- Se o assistente não estiver conectado, for interrompido, terminar por erro (prazo, silêncio,
+  falha do cliente) ou não fizer nenhuma edição, o pipeline para nessa etapa e diz por quê. As
+  alterações que ele já tinha feito ficam no projeto, e a mensagem diz quantas.
 - A execução inteira, até onde chegou, é **um passo de desfazer**: um Ctrl+Z volta o projeto ao
   que era antes de rodar. Cada edição da execução é juntada à marca no próprio `commit`, antes dos
   limites do histórico, e a marca nunca é descartada por eles (`history.js`).
@@ -112,10 +186,19 @@ Para a demonstração, use **Camada transparente · WebM**.
 forma de onda, com a frase atual acesa. Clicar numa frase leva a agulha até ela. O áudio toca com
 a animação e para com ela.
 
-A narração é só referência: não entra no projeto nem nas exportações, e dura enquanto o arquivo
-está aberto, inclusive depois de desfazer e refazer (rodar de novo a substitui; abrir outro
-projeto a descarta). O áudio do trecho é cortado do arquivo ou mixado das vozes
-da aula, num WAV mono pequeno.
+A narração e o vídeo da demonstração são só referência: não entram no projeto nem nas
+exportações. O áudio do trecho é cortado do arquivo ou mixado das vozes da aula, num WAV mono
+pequeno. Cada execução tem os seus: a narração fica com a animação dela, e o vídeo com a
+prancheta dele. Assim, várias execuções no mesmo projeto (uma cena e duas demonstrações, por
+exemplo) mantêm cada uma a sua. Eles continuam depois de desfazer e refazer.
+
+Ficam guardados neste computador, pelo id do projeto, em `pipeline-references` no perfil do
+EdiSVG (`src/main/pipelineReferences.ts`), um arquivo por animação ou prancheta:
+- Fechar o projeto e abrir de novo traz cada narração com a sua animação e cada vídeo por baixo
+  da sua prancheta, se elas ainda estiverem no projeto.
+- Ficam os 12 projetos abertos ou rodados por último, e em cada um as 24 execuções mais recentes
+  de cada tipo. O formato de antes (uma narração e um vídeo por projeto) ainda é lido.
+- Em outro computador, o projeto abre sem eles: é preciso rodar a receita de novo.
 
 **Onde fica cada coisa.**
 - As receitas ficam em `userData/pipelines.json`. Se parte do arquivo não for lida (uma receita
@@ -163,6 +246,56 @@ A importação é uma edição só, que Ctrl+Z desfaz inteira, e é tudo ou nada
 99 imagens vão em partes, e se uma parte falhar as anteriores são desfeitas. Nomes, textos, tamanho
 do palco e posições ficam dentro dos limites do editor, para o projeto não ser recusado no meio. Código em `src/renderer/src/szProjectImport.ts`. Testes em
 `tests/e2e/szproject-import.test.ts`, que confere a cena por pixels no navegador.
+
+## Importar um kit de design (`.zip`)
+
+Um kit de design é um ZIP com as peças da arte das aulas: balões, etiquetas, botões, ícones e uma
+folha de paleta em SVG, e personagens, ilustrações e logo em PNG, em pastas. Use **Arquivo →
+Importar kit de design (.zip)…**, o botão **↥ Importar kit de design** na barra lateral ou a
+paleta de comandos.
+
+O que é criado:
+- **Uma prancheta por SVG e por PNG**, com o nome "Kit · pasta · arquivo" (por exemplo,
+  "Kit · baloes · balao-dica-amarelo"). Cada uma pode entrar numa cena como componente.
+  - O SVG é importado como em **Importar SVG**.
+  - O PNG vira um recurso de imagem e uma prancheta do tamanho dele, mostrando a imagem inteira.
+    Um PNG fora do perfil é convertido para sRGB de 8 bits, como na aba Recursos. O resumo avisa.
+- **A paleta.** A folha de paleta é um SVG do kit chamado `paleta…`, `palette…`, `cores…` ou
+  `colors…`. Nela, cada cor escrita como texto (`#1b5cf3`) leva o nome do texto anterior. Sem
+  folha, entram as 12 cores mais usadas nas peças. As cores vão para a paleta de cada prancheta
+  do kit e da prancheta aberta (até 64).
+- **As fontes.** Cada texto dos SVGs usa a primeira família do seu `font-family` que o EdiSVG tem
+  (as do EdiAula, as mesmas dos pipelines), no peso mais perto. Essas fontes entram no projeto com
+  o aviso da SIL Open Font License 1.1. Uma família que o EdiSVG não tem fica com a fonte do
+  sistema, e o resumo diz qual é.
+
+Um projeto guarda até 100 pranchetas. Antes de importar, o diálogo mostra as pastas do kit, com
+quantas pranchetas cada uma vira e quantas ainda cabem no projeto:
+- Abre com as pastas que cabem marcadas, deixando de fora primeiro as maiores. Num kit com 47
+  ícones, os ícones ficam desmarcados.
+- O botão de importar só libera quando a escolha cabe. O resto pode ir para outro projeto.
+
+Ficam de fora, e aparecem no resumo:
+- outros arquivos (texto, fontes, PDF);
+- um SVG acima de 1,5 MB ou um PNG acima de 4 MB;
+- um SVG que a importação recusa, com o motivo.
+
+O kit pode ter até 600 arquivos e 200 MB. O ZIP é lido no processo principal
+(`src/main/designKit.ts`, com `readZipEntry` de `@informach/edi-desktop/zip-read`), sem gravar
+nada no disco.
+
+A importação é uma edição só, que Ctrl+Z desfaz inteira, e a prancheta aberta continua aberta.
+
+Nos pipelines, o rascunho pelo assistente recebe as pranchetas "Kit · …" do projeto e as cores do
+kit, com a instrução de preferir essas peças a desenhar outras. Para trocar o texto de uma peça, o
+assistente muda o texto na instância (substituições), sem editar a prancheta do kit. Uma prancheta
+renomeada sem o "Kit · " deixa de ser oferecida.
+
+Código em `src/renderer/src/designKitImport.ts` (o plano) e `kit-import-panel.tsx` (o diálogo).
+Testes:
+- unitários do plano e da leitura do ZIP;
+- `tests/e2e/design-kit-import.test.ts`: o diálogo, o limite, as fontes, a paleta e o Ctrl+Z no
+  editor compilado.
 
 ## Recursos em evolução
 

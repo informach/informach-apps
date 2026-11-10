@@ -140,6 +140,70 @@ describe("a run of a client", () => {
     expect(await gone(grandchild)).toBe(true);
   });
 
+  it.skipIf(notWindows)("ends a run whose program goes silent", async () => {
+    const events: EngineEvent[] = [];
+    let grandchild = 0;
+    const started = Date.now();
+    await startRun({
+      conversationId: "c-idle",
+      launch,
+      args: [],
+      env,
+      cwd: import.meta.dirname,
+      prompt: "oi",
+      emit: (e) => events.push(e),
+      onLine: (json) => {
+        grandchild = probeOf(json).grandchild;
+      },
+      onExit: () => {},
+      cleanup: () => {},
+      idleMs: 1000,
+      idleMessage: "Sem sinal.",
+      timeoutMs: 20_000,
+    });
+    expect(events).toContainEqual({ type: "error", message: "Sem sinal." });
+    expect(Date.now() - started, "ended by the silence, not the time limit").toBeLessThan(10_000);
+    expect(events.filter((e) => e.type === "done")).toHaveLength(1);
+    expect(await gone(grandchild)).toBe(true);
+  });
+
+  it.skipIf(notWindows)(
+    "keeps a run that keeps printing until its time limit",
+    {
+      timeout: 15_000,
+    },
+    async () => {
+      // On its output (thinking) or only on its errors (retrying the API): not silent either way.
+      for (const tick of ["--tick", "--tick-stderr"]) await keepsPrinting(tick);
+    },
+  );
+
+  async function keepsPrinting(tick: string) {
+    const events: EngineEvent[] = [];
+    let grandchild = 0;
+    await startRun({
+      conversationId: `c-ticking${tick}`,
+      launch,
+      args: [tick],
+      env,
+      cwd: import.meta.dirname,
+      prompt: "oi",
+      emit: (e) => events.push(e),
+      onLine: (json) => {
+        if (json.type === "probe") grandchild = probeOf(json).grandchild;
+      },
+      onExit: () => {},
+      cleanup: () => {},
+      idleMs: 800,
+      idleMessage: "Sem sinal.",
+      timeoutMs: 2500,
+      timeoutMessage: "Tempo limite atingido.",
+    });
+    expect(events).toContainEqual({ type: "error", message: "Tempo limite atingido." });
+    expect(events).not.toContainEqual({ type: "error", message: "Sem sinal." });
+    expect(await gone(grandchild)).toBe(true);
+  }
+
   it("ends the turn once, with an error, when the program cannot start", async () => {
     const events: EngineEvent[] = [];
     let cleaned = 0;

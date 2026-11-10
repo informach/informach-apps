@@ -7,6 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { configureDesktopAccess } from "./access.ts";
 import {
+  claudeActivity,
   commandLineLength,
   createAssistantEngines,
   type EngineKind,
@@ -116,6 +117,7 @@ const engines = (
     personalOnly?: boolean;
     memory?: () => Promise<string>;
     warn?: (event: string, detail: string) => void;
+    activity?: boolean;
   } = {},
 ) =>
   createAssistantEngines({
@@ -138,6 +140,55 @@ const tokenWorks = async (token: string | null): Promise<boolean> =>
       body: "{}",
     })
   ).status !== 403;
+
+describe("what Claude Code is doing between the text and the tools", () => {
+  const tool = {
+    name: (raw: string) => raw.replace("mcp__ed__", ""),
+    title: (n: string) => `T:${n}`,
+  };
+
+  it("tells thinking once per stretch and writing at its start, then about once a second", () => {
+    const events: EngineEvent[] = [];
+    let clock = 0;
+    const follow = claudeActivity((e) => events.push(e), tool, { now: () => clock });
+    follow({ type: "message_start" });
+    follow({ type: "content_block_start", content_block: { type: "thinking" } });
+    follow({ type: "content_block_delta", delta: { type: "thinking_delta" } });
+    follow({
+      type: "content_block_start",
+      content_block: { type: "tool_use", name: "mcp__ed__edit" },
+    });
+    follow({
+      type: "content_block_delta",
+      delta: { type: "input_json_delta", partial_json: '{"a"' },
+    });
+    clock = 1200;
+    follow({
+      type: "content_block_delta",
+      delta: { type: "input_json_delta", partial_json: ":1}" },
+    });
+    clock = 1500;
+    follow({
+      type: "content_block_delta",
+      delta: { type: "input_json_delta", partial_json: "  " },
+    });
+    follow({ type: "message_start" });
+    expect(events).toEqual([
+      { type: "activity", phase: "thinking" },
+      { type: "activity", phase: "writing", name: "edit", title: "T:edit", chars: 0 },
+      { type: "activity", phase: "writing", name: "edit", title: "T:edit", chars: 7 },
+      { type: "activity", phase: "thinking" },
+    ]);
+  });
+
+  it("does not count a text reply as writing", () => {
+    const events: EngineEvent[] = [];
+    const follow = claudeActivity((e) => events.push(e), tool, { now: () => 5000 });
+    follow({ type: "content_block_start", content_block: { type: "text" } });
+    follow({ type: "content_block_delta", delta: { type: "input_json_delta", partial_json: "x" } });
+    expect(events).toEqual([]);
+  });
+});
 
 describe.skipIf(notWindows)("the panel's turns", () => {
   it("reads the application's memory before each turn and turns Claude Code's own off", async () => {
@@ -218,10 +269,29 @@ describe.skipIf(notWindows)("the panel's turns", () => {
     expect(t.events.some((e) => e.type === "quota" && e.level === "warn")).toBe(true);
     expect(t.done()).toBe(1);
     expect(await tokenWorks(report.token), "revoked when the run ended").toBe(false);
+    expect(
+      t.events.some((e) => e.type === "activity"),
+      "only when asked",
+    ).toBe(false);
 
     const next = turn();
     await ai.runClaudeCode({ conversationId: "c1", text: "de novo", url, emit: next.emit });
     expect(next.report()).toMatchObject({ resume: "sessao-1", prompt: "de novo" });
+  });
+
+  it("tells the thinking and the writing of a tool when the application asks", async () => {
+    const t = turn();
+    await engines({ activity: true }).runClaudeCode({
+      conversationId: "c-activity",
+      text: "CHAME",
+      url,
+      emit: t.emit,
+    });
+    expect(t.events.filter((e) => e.type === "activity")).toEqual([
+      { type: "activity", phase: "thinking" },
+      { type: "activity", phase: "writing", name: "read_doc", title: "Ler documento", chars: 0 },
+    ]);
+    expect(t.done()).toBe(1);
   });
 
   it("starts over, with the recap, when a kept session is gone on the client's side", async () => {

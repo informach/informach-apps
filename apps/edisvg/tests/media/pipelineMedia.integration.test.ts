@@ -13,6 +13,7 @@ import {
   mixNarrationArgs,
   type VoiceClip,
 } from "../../src/main/pipelineMedia";
+import { lessonScreen, stretchVideoArgs } from "../../src/main/pipelineVideo";
 
 const run = promisify(execFile);
 const require = createRequire(import.meta.url);
@@ -154,7 +155,9 @@ test("an EdiAula lesson: words on the lesson's clock, only from what sounds, at 
       ["arraste.", 111.5],
     ],
   );
-  assert.equal(voices.length, 2);
+  // The voice whose transcript is on a network share still sounds (its audio is a file here):
+  // it plays in the narration, but its words are not read.
+  assert.equal(voices.length, 3);
 
   // The narration of lesson 101–113: the first clip from its second 1, the sped-up one after it.
   const out = join(dir, "narracao-trecho.wav");
@@ -196,6 +199,135 @@ test("a transcript EdiAula made of the file is read, whatever glossary it used",
     existingTranscript(cache),
     join(cache, "transcript-large-v3-turbo-pt-1a2b3c4d-vad-b1.json"),
   );
+});
+
+test("a lesson package's voice without a transcript is heard; the page's sound is not speech", async () => {
+  const voice = await tone("pacote-narracao.wav", 10, 440);
+  const page = await tone("pacote-som-da-pagina.wav", 10, 880);
+  const lesson = join(dir, "pacote.ediaula");
+  await writeFile(
+    lesson,
+    JSON.stringify({
+      assets: [
+        { id: "n", path: voice, hasAudio: true, recording: { role: "narration" } },
+        { id: "p", path: page, hasAudio: true, recording: { role: "system" } },
+      ],
+      tracks: [{ id: "narracao" }, { id: "pagina", name: "Som da página" }],
+      clips: [
+        { assetId: "n", trackId: "narracao", start: 60, in: 2, duration: 8 },
+        { assetId: "p", trackId: "pagina", start: 60, in: 0, duration: 10 },
+      ],
+    }),
+  );
+  const asked: string[][] = [];
+  const { words, voices } = await lessonWords(lesson, async (paths) => {
+    asked.push([...paths]);
+    return new Map([
+      [
+        voice,
+        [
+          { text: "Antes", start: 1, end: 1.5 },
+          { text: "Abra", start: 3, end: 3.4, p: 0.8 },
+          { text: "aqui.", start: 3.5, end: 3.9, dropped: "repeat" },
+        ],
+      ],
+    ]);
+  });
+  assert.deepEqual(asked, [[voice]], "only the narration is heard");
+  // Source second 3 of a clip from second 2 at lesson 60; before the clip's in, not heard.
+  assert.deepEqual(words, [{ text: "Abra", start: 61, end: 61.4, p: 0.8 }]);
+  assert.deepEqual(
+    voices.map((v) => v.path),
+    [voice],
+  );
+  await assert.rejects(
+    lessonWords(lesson, async () => new Map()),
+    /Não ouvi fala nas faixas de voz da aula/,
+  );
+});
+
+/** The colour of one pixel of `file` at `at` seconds, as [r, g, b]. */
+async function pixel(file: string, at: number, x: number, y: number): Promise<number[]> {
+  const { stdout } = await run(
+    ffmpeg,
+    [
+      "-v",
+      "error",
+      "-ss",
+      String(at),
+      "-i",
+      file,
+      "-frames:v",
+      "1",
+      "-vf",
+      // 2×2: a 1×1 crop of 4:2:0 video cannot keep its colour.
+      `crop=2:2:${x}:${y},format=rgb24`,
+      "-f",
+      "rawvideo",
+      "-pix_fmt",
+      "rgb24",
+      "-",
+    ],
+    { encoding: "buffer" },
+  );
+  return [...stdout.subarray(0, 3)];
+}
+
+/** A plain colour video of `seconds` at `size` into `name`. */
+async function colourVideo(name: string, color: string, size: string, seconds: number) {
+  const out = join(dir, name);
+  await run(ffmpeg, [
+    "-y",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    `color=c=${color}:s=${size}:r=30:d=${seconds}`,
+    "-pix_fmt",
+    "yuv420p",
+    out,
+  ]);
+  return out;
+}
+
+test("the screen of a lesson's stretch is one video with its cuts, gaps and speed", async () => {
+  const red = await colourVideo("tela-vermelha.mp4", "red", "320x180", 12);
+  const blue = await colourVideo("tela-azul.mp4", "blue", "180x180", 10);
+  const lesson = join(dir, "tela.ediaula");
+  await writeFile(
+    lesson,
+    JSON.stringify({
+      settings: { fps: 30 },
+      assets: [
+        { id: "r", path: red, width: 320, height: 180, recording: { role: "screen" } },
+        { id: "b", path: blue, width: 180, height: 180, recording: { role: "screen" } },
+      ],
+      tracks: [{ id: "v" }],
+      clips: [
+        { assetId: "r", trackId: "v", start: 0, in: 0, duration: 4 },
+        { assetId: "r", trackId: "v", start: 4, in: 6, duration: 2 },
+        // Nothing at 6–7; then a square recording at twice the speed.
+        { assetId: "b", trackId: "v", start: 7, in: 0, duration: 4, speed: 2 },
+      ],
+    }),
+  );
+  const screen = await lessonScreen(lesson, 1, 10);
+  const out = join(dir, "trecho-da-tela.mp4");
+  await run(ffmpeg, stretchVideoArgs(screen, out));
+  assert.ok(Math.abs((await duration(out)) - 9) < 0.1, `9 s long, not ${await duration(out)}`);
+  const near = (got: number[], want: number[]) =>
+    got.every((v, i) => Math.abs(v - (want[i] ?? 0)) < 40);
+  const at = async (t: number, x: number, want: number[]) => {
+    const got = await pixel(out, t, x, 90);
+    assert.ok(near(got, want), `${t} s, x ${x}: ${got}`);
+  };
+  await at(0.5, 160, [255, 0, 0]);
+  await at(4, 160, [255, 0, 0]);
+  await at(5.5, 160, [0, 0, 0]);
+  // The square recording centred, black at the sides.
+  await at(7.5, 160, [0, 0, 255]);
+  await at(7.5, 10, [0, 0, 0]);
 });
 
 test("a voice clip at an unusual speed chains tempo stages", () => {

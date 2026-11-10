@@ -48,6 +48,16 @@ export function editorCommands(available: Availability, tools: EditorCommand[]):
       label: "Importar projeto do Estúdio (.szproject.json)",
       group: "Arquivo",
     },
+    {
+      id: "import-kit",
+      label: "Importar kit de design (.zip)",
+      group: "Arquivo",
+    },
+    {
+      id: "lesson-send",
+      label: "Enviar animações para a aula (EdiAula)",
+      group: "Arquivo",
+    },
     { id: "export", label: "Exportar projeto ou animação", group: "Arquivo" },
     { id: "machine", label: "Editar máquinas de estados", group: "Exibir" },
     {

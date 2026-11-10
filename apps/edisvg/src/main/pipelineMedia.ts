@@ -20,6 +20,8 @@ const lessonSchema = z.looseObject({
       transcript: z.string().optional(),
       transcriptStatus: z.string().optional(),
       hasAudio: z.boolean().optional(),
+      /** What a recording made it: "narration", "mic", "screen", "system" (the page's sound). */
+      recording: z.looseObject({ role: z.string().optional() }).optional(),
     }),
   ),
   tracks: z.array(
@@ -84,14 +86,22 @@ export interface VoiceClip {
   speed: number;
 }
 
+/** The words of a transcript, as EdiAula writes them (a word set aside has `dropped`). */
+export type TranscriptWord = z.infer<typeof transcriptSchema>["words"][number];
+
 /**
- * Every word heard in an EdiAula lesson, on the lesson's clock, from the transcripts of the clips
- * that sound (track and clip not muted, volume above zero), and those clips. Words the
- * transcription set aside (hallucinations) are left out.
+ * Hears the voice files that have no transcript (the run transcribes them): the words of each
+ * path, on the file's own clock.
  */
-export async function lessonWords(
-  lessonPath: string,
-): Promise<{ words: HeardWord[]; voices: VoiceClip[] }> {
+export type HearVoices = (
+  paths: readonly string[],
+) => Promise<ReadonlyMap<string, readonly TranscriptWord[]>>;
+
+type Lesson = z.infer<typeof lessonSchema>;
+type LessonAsset = Lesson["assets"][number];
+type LessonClip = Lesson["clips"][number];
+
+async function readLesson(lessonPath: string): Promise<Lesson> {
   let raw: unknown;
   try {
     raw = JSON.parse(await readFile(lessonPath, "utf8"));
@@ -100,41 +110,119 @@ export async function lessonWords(
   }
   const parsed = lessonSchema.safeParse(raw);
   if (!parsed.success) throw new Error("O arquivo não é uma aula do EdiAula que dê para ler.");
-  const lesson = parsed.data;
-  // Not someone speaking, as EdiAula decides (shared/audio.ts): a muted, music, sound effects
-  // or clicks track.
-  const muted = new Set(
-    lesson.tracks
+  return parsed.data;
+}
+
+/**
+ * The clips someone is heard speaking in, in the lesson's order: track and clip not muted, volume
+ * above zero, a file of this computer with sound. Not someone speaking, as EdiAula decides
+ * (shared/audio.ts): a muted, music, sound effects or clicks track; a clip silenced while another
+ * voice speaks (mutedFor); and the page's sound or the screen of a recording.
+ */
+/** The tracks whose sound is not the voice: muted, music, clicks and sound effects. */
+export function silentTracks(
+  tracks: readonly {
+    id: string;
+    muted?: boolean;
+    music?: unknown;
+    clicks?: unknown;
+    sfx?: unknown;
+    name?: string;
+  }[],
+): Set<string> {
+  return new Set(
+    tracks
       .filter(
         (t) =>
           t.muted || t.music || t.clicks || t.sfx || (t.name ?? "").startsWith("Efeitos sonoros"),
       )
       .map((t) => t.id),
   );
+}
+
+/**
+ * Whether a clip of the lesson is voice that sounds: a media with sound (not the page's sound of a
+ * guided take, nor a screen recording), on a track of voice, not muted. The run hears these and
+ * mixes them; a package gives out the media of these (lessonPackage.ts) and of the screen.
+ */
+export const soundsAsVoice = (
+  clip: { trackId: string; mutedFor?: unknown; volume?: number | null },
+  asset: { hasAudio?: boolean; recording?: { role?: string } },
+  silent: ReadonlySet<string>,
+): boolean =>
+  asset.hasAudio !== false &&
+  asset.recording?.role !== "system" &&
+  asset.recording?.role !== "screen" &&
+  !silent.has(clip.trackId) &&
+  !clip.mutedFor &&
+  (clip.volume ?? 1) > 0;
+
+function soundingClips(lesson: Lesson): { clip: LessonClip; asset: LessonAsset }[] {
+  const silent = silentTracks(lesson.tracks);
   const assets = new Map(lesson.assets.map((a) => [a.id, a]));
-  const transcripts = new Map<string, z.infer<typeof transcriptSchema>["words"]>();
-  const words: HeardWord[] = [];
-  const voices: VoiceClip[] = [];
+  const out: { clip: LessonClip; asset: LessonAsset }[] = [];
   for (const clip of lesson.clips) {
     const asset = assets.get(clip.assetId);
-    if (!asset?.transcript || asset.transcriptStatus !== "ready" || asset.hasAudio === false)
-      continue;
-    if (!localPath(asset.path) || !localPath(asset.transcript)) continue;
-    // A clip silenced while another voice speaks (mutedFor) is not heard either.
-    if (muted.has(clip.trackId) || clip.mutedFor || (clip.volume ?? 1) <= 0) continue;
-    let heard = transcripts.get(asset.transcript);
-    if (!heard) {
-      try {
-        const read = transcriptSchema.safeParse(
-          JSON.parse(await readFile(asset.transcript, "utf8")),
-        );
-        heard = read.success ? read.data.words : [];
-      } catch {
-        // A transcript that is gone: this clip's words are not known.
-        heard = [];
-      }
-      transcripts.set(asset.transcript, heard);
-    }
+    if (!asset || !localPath(asset.path) || !soundsAsVoice(clip, asset, silent)) continue;
+    out.push({ clip, asset });
+  }
+  return out;
+}
+
+const voiceOf = (clip: LessonClip, asset: LessonAsset): VoiceClip => ({
+  path: asset.path,
+  start: clip.start,
+  in: clip.in,
+  duration: clip.duration,
+  speed: clip.speed ?? 1,
+});
+
+/** The clips of an EdiAula lesson where someone is heard, for the narration of a stretch. */
+export async function lessonVoices(lessonPath: string): Promise<VoiceClip[]> {
+  return soundingClips(await readLesson(lessonPath)).map(({ clip, asset }) => voiceOf(clip, asset));
+}
+
+/** The words of a transcript file of this computer; null when it cannot be read. */
+async function transcriptWords(path: string): Promise<TranscriptWord[] | null> {
+  if (!localPath(path)) return null;
+  try {
+    const read = transcriptSchema.safeParse(JSON.parse(await readFile(path, "utf8")));
+    return read.success ? read.data.words : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Every word heard in an EdiAula lesson, on the lesson's clock, and the clips they come from. The
+ * words of a clip are its file's transcript when the lesson has one ready; a file without one is
+ * given to `hear` (all of them in one call), or left without words when there is no `hear`.
+ * Words the transcription set aside (hallucinations) are left out.
+ */
+export async function lessonWords(
+  lessonPath: string,
+  hear?: HearVoices,
+): Promise<{ words: HeardWord[]; voices: VoiceClip[] }> {
+  const sounding = soundingClips(await readLesson(lessonPath));
+  // By asset: two media of the lesson may share a file with transcripts of their own.
+  const known = new Map<string, readonly TranscriptWord[] | null>();
+  for (const { asset } of sounding) {
+    if (known.has(asset.id)) continue;
+    known.set(
+      asset.id,
+      asset.transcript && asset.transcriptStatus === "ready"
+        ? await transcriptWords(asset.transcript)
+        : null,
+    );
+  }
+  // A file is heard once, whatever number of media point at it.
+  const unheard = [
+    ...new Set(sounding.filter(({ asset }) => !known.get(asset.id)).map(({ asset }) => asset.path)),
+  ];
+  const heardFiles = hear && unheard.length ? await hear(unheard) : new Map();
+  const words: HeardWord[] = [];
+  for (const { clip, asset } of sounding) {
+    const heard = known.get(asset.id) ?? heardFiles.get(asset.path) ?? [];
     const speed = clip.speed ?? 1;
     const to = clip.in + clip.duration * speed;
     for (const w of heard) {
@@ -146,20 +234,15 @@ export async function lessonWords(
         p: w.p ?? 1,
       });
     }
-    voices.push({
-      path: asset.path,
-      start: clip.start,
-      in: clip.in,
-      duration: clip.duration,
-      speed,
-    });
   }
   words.sort((a, b) => a.start - b.start);
   if (!words.length)
     throw new Error(
-      "A aula não tem transcrição nas faixas que soam. Transcreva a narração no EdiAula e tente de novo.",
+      hear
+        ? "Não ouvi fala nas faixas de voz da aula. Confira no EdiAula se a narração está na aula."
+        : "A aula não tem transcrição nas faixas que soam. Transcreva a narração no EdiAula e tente de novo.",
     );
-  return { words, voices };
+  return { words, voices: sounding.map(({ clip, asset }) => voiceOf(clip, asset)) };
 }
 
 /** The narration plays in the preview from a small mono WAV (any player decodes it). */

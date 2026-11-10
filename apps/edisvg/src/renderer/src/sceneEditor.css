@@ -963,3 +963,54 @@ body.artboard-scrubbing * {
 .canvas-toolbar button[aria-pressed="true"] {
   color: var(--mint);
 }
+/* Arquivo › Importar kit de design (kit-import-panel.tsx). */
+dialog.kit-dialog {
+  display: flex;
+  flex-direction: column;
+}
+dialog.kit-dialog:not([open]) {
+  display: none;
+}
+dialog.kit-dialog > .help-content {
+  min-height: 0;
+  overflow-y: auto;
+}
+.kit-folders {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.kit-folders label {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.kit-folders small {
+  display: block;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.kit-over {
+  color: var(--danger, #ff8a80);
+}
+.kit-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+.kit-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+.kit-swatches i {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+}

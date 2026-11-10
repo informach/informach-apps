@@ -81,6 +81,29 @@ const FONTS = Object.fromEntries(
   ]),
 );
 
+/** EdiAula's script of the lesson (Sistema Zero format): the lighthouse narration is part 2. */
+const LESSON_SCRIPT = [
+  "# Roteiro de produção · A Chave do Farol",
+  "",
+  "## Parte 1. Abertura",
+  "",
+  "**Fala para ElevenLabs:**",
+  "",
+  "```text",
+  "Oi! Vamos começar.",
+  "```",
+  "",
+  "## Parte 2. A chave",
+  "",
+  '**Na tela:** No "O personagem", apontar o personagem [apontar jogo 53 173].',
+  "",
+  "**Fala para ElevenLabs:**",
+  "",
+  "```text",
+  "[warm voice] Olá de novo, turma. O personagem precisa encontrar a chave antes de chegar ao farol. Quando ele pegar a chave, o aviso muda.",
+  "```",
+].join("\n");
+
 /**
  * The desktop bridge of the pipelines, faked in the page: recipes kept in memory, file dialogs
  * answered with tokens, the picked studio project read back. A string, so tsx adds nothing to it.
@@ -91,7 +114,7 @@ const fakeDesktop = (project: string) => `
     const files = {
       szproject: { token: "file-projeto-0001", name: "projeto-final.szproject.json", kind: "szproject", size: 2000 },
       audio: { token: "file-audio-00001", name: "aula-inteira.mp3", kind: "audio", size: 9000 },
-      lesson: { token: "file-aula-000001", name: "Aula 3.ediaula", kind: "lesson", size: 900 },
+      lesson: { token: "file-aula-000001", name: "Aula 3.zip", kind: "lesson", size: 900 },
       video: { token: "file-video-00001", name: "demo.mp4", kind: "video", size: 9000 },
     };
     window.__pipelineWrites = 0;
@@ -123,8 +146,16 @@ const fakeDesktop = (project: string) => `
         return ${JSON.stringify(project)};
       },
       pipelineWords: async (token, kind) => {
-        if (token !== "file-audio-00001" || kind !== "audio") throw new Error("audio");
+        const audio = token === "file-audio-00001" && kind === "audio";
+        const lesson = token === "file-aula-000001" && kind === "lesson";
+        if (!audio && !lesson) throw new Error("audio");
         return ${JSON.stringify(LESSON_WORDS)};
+      },
+      // The screen of the stretch, made from the lesson package: read as a picked video.
+      pipelineLessonVideo: async (token, from, to) => {
+        if (token !== "file-aula-000001") throw new Error("pacote");
+        window.__lessonVideo = [from, to];
+        return { token: "file-video-00001", name: "Tela da aula (2:15 a 2:25)", kind: "video", size: 9000 };
       },
       pipelineNarration: async (token, kind, start, end) => {
         window.__narration = [start, end];
@@ -149,6 +180,31 @@ const fakeDesktop = (project: string) => `
         return times.map(() => ({ mediaType: "image/jpeg", data: "AAAA" }));
       },
       onPipelineProgress: () => () => undefined,
+      // The package's script: this lesson is its second part (lessonPackage.ts packageScript).
+      pipelineLessonScript: async (token) => {
+        if (token !== "file-aula-000001") throw new Error("pacote");
+        return { id: "aula-3-farol", script: { text: ${JSON.stringify(LESSON_SCRIPT)}, section: 1 } };
+      },
+      // Sending the lesson's animations to EdiAula (lessonDelivery.ts): what arrives is counted.
+      lessonSendStart: async (spec) => {
+        window.__send = { spec, frames: 0, sizes: new Set(), opaque: 0 };
+        return "entrega-1";
+      },
+      lessonSendFrame: async (id, bytes) => {
+        if (id !== "entrega-1") throw new Error("envio");
+        window.__send.frames++;
+        window.__send.sizes.add(bytes.length);
+        for (let i = 3; i < bytes.length; i += 4) if (bytes[i]) window.__send.opaque++;
+      },
+      lessonSendFinish: async () => window.__send.spec.clipId + "-1731000000000.webm",
+      lessonSendCancel: async () => undefined,
+      lessonSendManifest: async (manifest) => {
+        window.__manifest = manifest;
+      },
+      // What the main process keeps for the next opening (pipelineReferences.ts).
+      pipelineReferenceSave: async (projectId, kind, bytes, meta) => {
+        window.__kept = [...(window.__kept ?? []), { projectId, kind, meta, bytes: [...bytes] }];
+      },
     };
   })();`;
 
@@ -417,9 +473,277 @@ test("pipelines: the screen demonstration gets its layer artboard, the video und
       .waitFor({ state: "attached" });
     await page.locator(".narration-bar").waitFor();
     await page.screenshot({ path: "test-results/pipelines-demo.png" });
-    // The whole run is one undo step.
+
+    // The video and the narration are kept by project, with the artboard and animation they go with.
+    type Kept = {
+      projectId: string;
+      kind: "narration" | "video";
+      meta: Record<string, unknown>;
+      bytes: number[];
+    };
+    const keptNow = async () => (await page.evaluate("window.__kept")) as Kept[];
+    const first = await keptNow();
+    const layer = project.artboards.at(-5);
+    assert.deepEqual(
+      first.map((k) => [k.kind, k.projectId]),
+      [
+        ["video", project.id],
+        ["narration", project.id],
+      ],
+    );
+    const firstVideo = first.find((k) => k.kind === "video");
+    const firstNarration = first.find((k) => k.kind === "narration");
+    assert.equal(firstVideo?.meta.artboardId, layer?.id);
+    assert.ok(
+      project.motion.animations.some((clip) => clip.id === firstNarration?.meta.clipId),
+      JSON.stringify(firstNarration?.meta),
+    );
+    assert.deepEqual(Object.keys(firstNarration?.meta ?? {}).sort(), [
+      "clipId",
+      "duration",
+      "lessonStart",
+      "lines",
+      "name",
+    ]);
+
+    // A second stretch of the same lesson, in the same file: each run keeps its own narration and
+    // video (a lesson mixes a full-screen scene and demonstrations over the screen).
+    const afterFirst = await page.evaluate(() => localStorage.getItem("edisvg-project"));
+    await page.locator('[data-action="pipelines"]').first().click();
+    await dialog
+      .locator("li", { hasText: "Demonstração passo a passo" })
+      .getByRole("button", { name: "Rodar" })
+      .click();
+    await dialog.getByRole("button", { name: "Escolher…" }).click();
+    await dialog.getByRole("button", { name: "Escolher áudio…" }).click();
+    await dialog
+      .getByLabel("Roteiro do trecho (só a parte desta cena)")
+      .fill("Quando ele pegar a chave, o aviso muda.");
+    await dialog.getByRole("button", { name: "Rodar pipeline" }).click();
+    await dialog.getByText(/^(Pipeline concluído\.|O pipeline parou\.)$/).waitFor();
+    await dialog.getByRole("button", { name: "Fechar pipelines" }).click();
+    const both = parseProject(
+      JSON.parse((await page.evaluate(() => localStorage.getItem("edisvg-project"))) ?? "null"),
+    );
+    const layers = both.artboards.filter((board) => board.name === "Demonstração · demo.mp4");
+    assert.equal(layers.length, 2);
+    const kept = await keptNow();
+    const keptVideos = kept.filter((k) => k.kind === "video");
+    const keptNarrations = kept.filter((k) => k.kind === "narration");
+    assert.deepEqual(
+      keptVideos.map((k) => k.meta.artboardId),
+      layers.map((board) => board.id),
+    );
+    assert.equal(new Set(keptNarrations.map((k) => k.meta.clipId)).size, 2);
+    // Both narrations stay in the editor, each with its animation.
+    assert.equal(await page.locator("audio[data-narration]").count(), 2);
+    await page.getByRole("button", { name: "Artboards" }).click();
+    await page.getByText("Demonstração · demo.mp4", { exact: true }).first().click();
+    await page
+      .locator(".scene-artboard.has-reference video[data-reference]")
+      .waitFor({ state: "attached" });
+
+    // Closed and opened again: the editor starts with the file, and both come back under it.
+    const reopened = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+    reopened.on("pageerror", (error) => errors.push(error.message));
+    // A string, not a function: tsx would wrap a function with helpers the page does not have.
+    await reopened.addInitScript(`
+      (() => {
+        const saved = ${JSON.stringify(both)};
+        const references = ${JSON.stringify(kept)};
+        const stored = (value) => ({ ...value.meta, bytes: new Uint8Array(value.bytes) });
+        const of = (kind) => references.filter((r) => r.kind === kind).map(stored);
+        window.desktop = {
+          projectInitialize: async () => ({
+            project: saved,
+            status: { name: "Aula 3.edisvg", path: null, dirty: false },
+            recovered: false,
+          }),
+          projectChanged: async () => ({ name: "Aula 3.edisvg", path: null, dirty: false }),
+          pipelineReferences: async (projectId) =>
+            projectId === saved.id
+              ? { narrations: of("narration"), videos: of("video") }
+              : { narrations: [], videos: [] },
+          aiStatus: async () => ({ available: false, clients: [] }),
+          handleAiTools: () => () => undefined,
+          onAssistantEvent: () => () => undefined,
+          onCommand: () => () => undefined,
+        };
+      })();`);
+    await reopened.goto(server.url);
+    await reopened.locator("audio[data-narration]").nth(1).waitFor({ state: "attached" });
+    // On each layer's artboard, its own video is under it again.
+    await reopened.getByRole("button", { name: "Artboards" }).click();
+    for (const index of [0, 1]) {
+      await reopened.getByText("Demonstração · demo.mp4", { exact: true }).nth(index).click();
+      await reopened
+        .locator(".scene-artboard.has-reference video[data-reference]")
+        .waitFor({ state: "attached" });
+    }
+    await reopened.close();
+
+    // Each run is one undo step.
+    await page.locator('[data-action="undo"]').first().click();
+    assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), afterFirst);
     await page.locator('[data-action="undo"]').first().click();
     assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), beforeRun);
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+});
+
+test("pipelines: with the lesson package the demonstration takes its screen from it", {
+  timeout: 90000,
+}, async () => {
+  const server = await rendererServer(),
+    channel = process.env.EDISVG_TEST_BROWSER_CHANNEL,
+    browser = await chromium.launch(channel ? { channel } : {});
+  try {
+    const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } }),
+      errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(server.url);
+    await page.locator(".scene-artwork>svg").waitFor();
+    await page.evaluate(fakeDesktop(JSON.stringify(game)));
+    await page.locator('[data-action="pipelines"]').first().click();
+    const dialog = page.getByRole("dialog", { name: "Pipelines" });
+    await dialog
+      .locator("li", { hasText: "Demonstração passo a passo" })
+      .getByRole("button", { name: "Rodar" })
+      .click();
+    // Before the package, the video is asked for; with it, the package brings the screen.
+    await dialog.getByRole("button", { name: "Escolher…" }).waitFor();
+    await dialog.getByRole("button", { name: "Escolher aula…" }).click();
+    await dialog.getByText("Aula 3.zip (pacote da aula do EdiAula)").waitFor();
+    await dialog.getByText("Vem do pacote da aula: a tela gravada no trecho do roteiro.").waitFor();
+    assert.equal(await dialog.getByRole("button", { name: "Escolher…" }).count(), 0);
+    // The roteiro comes with the lesson: its section's phrases, all picked, nothing to paste.
+    const phrases = dialog.getByRole("group", { name: "Roteiro da aula · Seção 2 · A chave" });
+    await phrases.getByText("3 de 3 frases nesta animação.", { exact: false }).waitFor();
+    assert.equal(await dialog.getByLabel("Roteiro do trecho (só a parte desta cena)").count(), 0);
+    await phrases.getByText(/^Na tela: No "O personagem", apontar o personagem/).waitFor();
+    // "Olá de novo, turma." is not in this stretch of the audio: left out of the animation.
+    await phrases.getByRole("checkbox", { name: "Olá de novo, turma." }).uncheck();
+    await phrases.getByText("2 de 3 frases nesta animação.", { exact: false }).waitFor();
+    await page.screenshot({ path: "test-results/pipelines-lesson-phrases.png" });
+    await dialog.getByRole("button", { name: "Rodar pipeline" }).click();
+    await dialog.getByText(/^(Pipeline concluído\.|O pipeline parou\.)$/).waitFor();
+    const said = (await dialog.textContent()) ?? "";
+    assert.match(said, /Preparar o vídeo da demonstraçãoPronto/, said);
+    assert.match(said, /Demonstração 1280×720: 2 cliques gravados no trecho\./, said);
+    // The screen from "O personagem" (2:15.98) to the breath after "muda." (2:24.9 + 0.8).
+    const [from, to] = (await page.evaluate("window.__lessonVideo")) as number[];
+    assert.ok(
+      Math.abs((from ?? 0) - 135.98) < 0.3 && Math.abs((to ?? 0) - 145.7) < 0.3,
+      `${from}–${to}`,
+    );
+    const project = parseProject(
+      JSON.parse((await page.evaluate(() => localStorage.getItem("edisvg-project"))) ?? "null"),
+    );
+    assert.ok(
+      project.artboards.some((board) => board.name === "Demonstração · Tela da aula (2:15 a 2:25)"),
+    );
+    // "Escrever à mão": the phrases picked, with the direction as an annotation, to edit.
+    await phrases.getByRole("button", { name: "Escrever à mão" }).click();
+    assert.equal(
+      await dialog.getByLabel("Roteiro do trecho (só a parte desta cena)").inputValue(),
+      '[Na tela: No "O personagem", apontar o personagem (apontar jogo 53 173).] O personagem precisa encontrar a chave antes de chegar ao farol.\nQuando ele pegar a chave, o aviso muda.',
+    );
+    // The run recorded, on the layer it made, the stretch of the lesson its animation is.
+    const layer = project.artboards.find(
+      (board) => board.name === "Demonstração · Tela da aula (2:15 a 2:25)",
+    );
+    const stretch = layer?.lessonClips?.[0];
+    assert.equal(layer?.lessonClips?.length, 1);
+    assert.deepEqual(
+      stretch && {
+        ...stretch,
+        start: Number(stretch.start.toFixed(2)),
+        end: Number(stretch.end.toFixed(2)),
+      },
+      {
+        clipId: project.motion.animations.at(-1)?.id,
+        kind: "screen-demo",
+        lessonId: "aula-3-farol",
+        section: 1,
+        start: 135.58,
+        end: 145.56,
+        phrases: [
+          "O personagem precisa encontrar a chave antes de chegar ao farol.",
+          "Quando ele pegar a chave, o aviso muda.",
+        ],
+      },
+    );
+
+    // The next run of the same lesson shows what is done, and starts with the rest picked.
+    await dialog.getByRole("button", { name: "Voltar" }).click();
+    await dialog
+      .locator("li", { hasText: "Cena animada do jogo" })
+      .getByRole("button", { name: "Rodar" })
+      .click();
+    await dialog.getByRole("button", { name: "Escolher aula…" }).click();
+    const next = dialog.getByRole("group", { name: "Roteiro da aula · Seção 2 · A chave" });
+    await next
+      .getByText("1 de 3 frases nesta animação · 2 já animadas neste projeto", { exact: false })
+      .waitFor();
+    assert.equal(
+      await next.getByRole("checkbox", { name: "Olá de novo, turma." }).isChecked(),
+      true,
+    );
+    assert.equal(await next.getByText("Já animada: demonstração sobre a tela").count(), 2);
+    await page.screenshot({ path: "test-results/pipelines-lesson-done.png" });
+    await dialog.getByRole("button", { name: "Fechar pipelines" }).click();
+
+    // Arquivo › Enviar animações para a aula: the demonstration, drawn frame by frame, goes to
+    // EdiAula as a transparent layer at its second of the lesson.
+    await page.keyboard.press("Control+k");
+    await page.getByLabel("Buscar comando", { exact: true }).fill("Enviar animações");
+    await page.getByLabel("Buscar comando", { exact: true }).press("Enter");
+    const send = page.getByRole("dialog", { name: "Enviar animações para a aula" });
+    await send.getByText("2:15–2:25", { exact: false }).waitFor();
+    await send.getByText("Sobre a tela (transparente)", { exact: false }).waitFor();
+    await send.getByRole("button", { name: "Enviar para o EdiAula" }).click();
+    await send.getByText(/^1 animação enviada\./).waitFor({ timeout: 60_000 });
+    const clip = project.motion.animations.at(-1);
+    const delivered = (await page.evaluate(
+      "({ ...window.__send, sizes: [...window.__send.sizes] })",
+    )) as {
+      spec: Record<string, unknown>;
+      frames: number;
+      sizes: number[];
+      opaque: number;
+    };
+    assert.deepEqual(delivered.spec, {
+      lessonId: "aula-3-farol",
+      clipId: clip?.id,
+      kind: "screen-demo",
+      width: 1280,
+      height: 720,
+      fps: 30,
+      frames: clip?.frames,
+    });
+    assert.equal(delivered.frames, clip?.frames);
+    assert.deepEqual(delivered.sizes, [1280 * 720 * 4]);
+    // The layer has nothing drawn yet (the assistant needs the desktop): every pixel transparent.
+    assert.equal(delivered.opaque, 0);
+    const manifest = (await page.evaluate("window.__manifest")) as {
+      lessonId: string;
+      items: { clipId: string; kind: string; file: string; start: number; duration: number }[];
+    };
+    assert.equal(manifest.lessonId, "aula-3-farol");
+    assert.deepEqual(
+      manifest.items.map((item) => [
+        item.clipId,
+        item.kind,
+        item.file,
+        Number(item.start.toFixed(2)),
+      ]),
+      [[clip?.id, "screen-demo", `${clip?.id}-1731000000000.webm`, 135.58]],
+    );
+    assert.ok(Math.abs((manifest.items[0]?.duration ?? 0) - (clip?.frames ?? 0) / 30) < 1e-9);
+    await page.screenshot({ path: "test-results/lesson-send.png" });
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

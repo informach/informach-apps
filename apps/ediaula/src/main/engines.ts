@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createAssistantEngines } from "@informach/edi-desktop/ai-clients";
+import { createAssistantEngines, type EngineEvent } from "@informach/edi-desktop/ai-clients";
 import { app } from "electron";
 import { AI_TOOLS, EDITOR_GUIDE, isAiToolName } from "../shared/aiTools.ts";
 import type { AssistantEvent } from "../shared/types.ts";
@@ -15,6 +15,13 @@ import { memory } from "./memory.ts";
  */
 
 type Emit = (e: AssistantEvent) => void;
+
+/** The run's events for the panel; the model's activity between tools is not asked for here. */
+const panel =
+  (emit: Emit) =>
+  (event: EngineEvent): void => {
+    if (event.type !== "activity") emit(event);
+  };
 
 const PANEL_PROMPT = `You are the assistant in EdiAula's side panel. The user sees the editor next to this chat and watches your edits happen live. Use the ediaula tools to inspect and change the open project; don't ask the user to do things you can do with a tool. Keep answers short, in Brazilian Portuguese: what you did, what changed, and the time saved.`;
 
@@ -65,14 +72,22 @@ export const runClaudeCode = (
   effort: string,
   emit: Emit,
 ): Promise<void> =>
-  engines.runClaudeCode({ conversationId, text, url: mcpUrl(port), model, effort, emit });
+  engines.runClaudeCode({
+    conversationId,
+    text,
+    url: mcpUrl(port),
+    model,
+    effort,
+    emit: panel(emit),
+  });
 
 export const runCodex = (
   conversationId: string,
   text: string,
   port: number,
   emit: Emit,
-): Promise<void> => engines.runCodex({ conversationId, text, url: mcpUrl(port), emit });
+): Promise<void> =>
+  engines.runCodex({ conversationId, text, url: mcpUrl(port), emit: panel(emit) });
 
 /**
  * Checks whether the installed Codex stays inside the editor's tools: asked to call get_overview

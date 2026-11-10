@@ -82,6 +82,23 @@ export async function readAttachment(file: File): Promise<Attachment> {
   };
 }
 
+/**
+ * A frame the main process took of a video (a pipeline's demonstration: base64, as IPC hands it)
+ * as an attachment: its bytes, as every image goes back to the main process, and a data: URL for
+ * the thumbnail (revoking it does nothing).
+ */
+export function frameAttachment(
+  frame: { mediaType: ImageType; data: string },
+  name: string,
+): Attachment {
+  return {
+    mediaType: frame.mediaType,
+    data: Uint8Array.from(atob(frame.data), (c) => c.charCodeAt(0)),
+    url: `data:${frame.mediaType};base64,${frame.data}`,
+    name,
+  };
+}
+
 /** The image files of a paste or a drop. */
 export function imageFiles(list: DataTransfer | null) {
   return [...(list?.files ?? [])].filter((file) => file.type.startsWith("image/"));

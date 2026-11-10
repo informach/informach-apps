@@ -229,3 +229,55 @@ dialog.pipelines-dialog > .help-content {
   align-items: center;
   gap: 6px;
 }
+/* The lesson's script as phrases to pick (LessonPhrases). */
+.pipeline-phrases {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.pipeline-phrases ol {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  display: grid;
+  gap: 4px;
+}
+.pipeline-phrases label {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.pipeline-direction {
+  color: var(--muted);
+  font-size: 0.85em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.pipeline-phrase-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pipeline-done {
+  display: block;
+  color: var(--muted);
+}
+/* Arquivo › Enviar animações para a aula (lesson-send-panel.tsx). */
+.lesson-send-items {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+  padding-left: 20px;
+}
+.lesson-send-items small {
+  display: block;
+  color: var(--muted);
+}
+.lesson-send-status {
+  overflow-wrap: anywhere;
+}

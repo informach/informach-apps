@@ -2,7 +2,10 @@
  * The narration of a pipeline run in the editor: the stretch of the lesson's audio plays in the
  * preview with the animation it belongs to, and a bar over the timeline shows its sentences (the
  * current one lit; a click goes to it) over the waveform. It is a reference: never part of the
- * project's exports. It lasts while the file is open (a new run replaces it).
+ * project's exports. A file holds one per animation (a lesson may have a full-screen scene and a
+ * demonstration over the screen, each with its stretch of the narration); a run again for the same
+ * animation replaces its own. They are kept on this computer by project
+ * (src/main/pipelineReferences.ts), so the file opened again brings them back.
  */
 
 export interface NarrationLine {
@@ -24,8 +27,9 @@ export interface Narration {
   peaks: number[];
 }
 
-let current: Narration | null = null;
-let audio: HTMLAudioElement | null = null;
+/** The narrations of the open file, by animation, each with its audio element. */
+const parts = new Map<string, { narration: Narration; audio: HTMLAudioElement }>();
+const of = (clipId: string | null | undefined) => (clipId ? parts.get(clipId) : undefined);
 
 /** Peaks of the WAV for the bar (one per pixel column, 0..1); empty when it cannot be decoded. */
 async function peaksOf(bytes: Uint8Array, columns = 600): Promise<number[]> {
@@ -48,31 +52,52 @@ async function peaksOf(bytes: Uint8Array, columns = 600): Promise<number[]> {
   }
 }
 
+/**
+ * The narration of an animation: added, or replacing the one that animation had. `live` is asked
+ * after the peaks are read: when it says no (another file opened meanwhile), nothing is added and
+ * the narrations of the file now open are left alone (null).
+ */
 export async function setNarration(
   value: Omit<Narration, "url" | "peaks"> & { bytes: Uint8Array },
-): Promise<Narration> {
-  clearNarration();
+  live: () => boolean = () => true,
+): Promise<Narration | null> {
+  dropNarration(value.clipId);
   const url = URL.createObjectURL(new Blob([value.bytes.slice().buffer], { type: "audio/wav" }));
   const { bytes, ...rest } = value;
-  current = { ...rest, url, peaks: await peaksOf(bytes) };
-  audio = new Audio(url);
+  const narration: Narration = { ...rest, url, peaks: await peaksOf(bytes) };
+  if (!live()) {
+    URL.revokeObjectURL(url);
+    return null;
+  }
+  // Another narration set for the same animation while the peaks were read: that one goes too.
+  dropNarration(value.clipId);
+  const audio = new Audio(url);
   audio.preload = "auto";
   // In the page (hidden), outside the markup the editor rebuilds: one element per narration.
   audio.hidden = true;
   audio.dataset.narration = "";
   document.body.append(audio);
-  return current;
+  parts.set(narration.clipId, { narration, audio });
+  return narration;
 }
 
+/** Takes away the narration of one animation. */
+export function dropNarration(clipId: string): void {
+  const part = parts.get(clipId);
+  if (!part) return;
+  part.audio.pause();
+  part.audio.remove();
+  URL.revokeObjectURL(part.narration.url);
+  parts.delete(clipId);
+}
+
+/** Takes away every narration (another file opened). */
 export function clearNarration(): void {
-  audio?.pause();
-  audio?.remove();
-  audio = null;
-  if (current) URL.revokeObjectURL(current.url);
-  current = null;
+  for (const clipId of [...parts.keys()]) dropNarration(clipId);
 }
 
-export const narration = (): Narration | null => current;
+export const narration = (clipId: string | null | undefined): Narration | null =>
+  of(clipId)?.narration ?? null;
 
 /**
  * Keeps the audio with the animation: playing from `seconds` while it plays (corrected when it
@@ -83,16 +108,17 @@ export function syncNarration(
   playing: boolean,
   seconds: number,
 ): void {
-  if (!current || !audio) return;
-  const mine = activeClipId === current.clipId;
-  if (!mine || !playing || seconds >= current.duration) {
-    if (!audio.paused) audio.pause();
-    if (mine && Math.abs(audio.currentTime - seconds) > 0.05)
-      audio.currentTime = Math.max(0, Math.min(current.duration, seconds));
-    return;
+  for (const [clipId, { narration: current, audio }] of parts) {
+    const mine = activeClipId === clipId;
+    if (!mine || !playing || seconds >= current.duration) {
+      if (!audio.paused) audio.pause();
+      if (mine && Math.abs(audio.currentTime - seconds) > 0.05)
+        audio.currentTime = Math.max(0, Math.min(current.duration, seconds));
+      continue;
+    }
+    if (Math.abs(audio.currentTime - seconds) > 0.15) audio.currentTime = seconds;
+    if (audio.paused) void audio.play().catch(() => undefined);
   }
-  if (Math.abs(audio.currentTime - seconds) > 0.15) audio.currentTime = seconds;
-  if (audio.paused) void audio.play().catch(() => undefined);
 }
 
 const escapeHtml = (text: string) =>
@@ -113,10 +139,10 @@ export function mountNarrationBar(
   seek: (seconds: number) => void,
 ): void {
   root.querySelector(".narration-bar")?.remove();
-  if (!current || activeClipId !== current.clipId) return;
+  const n = of(activeClipId)?.narration;
+  if (!n) return;
   const body = root.querySelector(".timeline .timeline-body");
   if (!body) return;
-  const n = current;
   const bar = document.createElement("div");
   bar.className = "narration-bar";
   const pct = (s: number) => `${((s / n.duration) * 100).toFixed(3)}%`;
@@ -152,7 +178,12 @@ export function mountNarrationBar(
 }
 
 /** Lights the sentence at `seconds` in the bar (each frame, without rebuilding it). */
-export function markNarrationNow(root: ParentNode, seconds: number): void {
+export function markNarrationNow(
+  root: ParentNode,
+  activeClipId: string | null,
+  seconds: number,
+): void {
+  const current = of(activeClipId)?.narration;
   if (!current) return;
   const bar = root.querySelector(".narration-bar");
   if (!bar) return;
@@ -170,7 +201,8 @@ export function markNarrationNow(root: ParentNode, seconds: number): void {
  * EdiAula over the narration. Undefined for any other animation.
  */
 export function narrationExportName(clipId: string | undefined): string | undefined {
-  if (!current || clipId !== current.clipId) return undefined;
+  const current = of(clipId)?.narration;
+  if (!current) return undefined;
   // "2m15,7s": a colon is not allowed in a Windows file name; tenths keep the sync.
   const tenths = Math.floor(current.lessonStart * 10);
   const minutes = Math.floor(tenths / 600);

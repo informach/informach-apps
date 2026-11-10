@@ -656,6 +656,7 @@ export const projectSchema = z
       })
       .optional(),
     partOf: z.looseObject({ lesson: id, section: z.int().nonnegative() }).optional(),
+    origin: id.optional(),
     cleanup: z
       .looseObject({
         kept: z.array(z.string().min(1).max(300)).max(20000),

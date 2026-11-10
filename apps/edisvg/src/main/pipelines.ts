@@ -57,7 +57,8 @@ const FILTERS: Record<PickedFile["kind"], Electron.FileFilter[]> = {
       extensions: ["mp3", "wav", "m4a", "aac", "ogg", "flac", "mp4", "mov", "webm", "mkv"],
     },
   ],
-  lesson: [{ name: "Aula do EdiAula (.ediaula)", extensions: ["ediaula"] }],
+  // EdiAula's package (Arquivo › Empacotar a aula): the lesson with its narration and screen.
+  lesson: [{ name: "Pacote da aula do EdiAula (.zip)", extensions: ["zip"] }],
   video: [{ name: "Vídeo", extensions: ["mp4", "mov", "webm", "mkv", "avi"] }],
 };
 
@@ -77,9 +78,26 @@ export async function pickPipelineFile(
   });
   const path = result.filePaths[0];
   if (result.canceled || !path) return null;
+  return registerPickedFile(path, kind, basename(path));
+}
+
+/**
+ * A file the main process made for the run (the screen of a lesson's stretch), handed to the
+ * window as if picked: the steps read it with its token like any other.
+ */
+export async function registerPickedFile(
+  path: string,
+  kind: PickedFile["kind"],
+  name: string,
+): Promise<PickedFile> {
   const token = `file-${randomUUID()}`;
   picked.set(token, { path, kind });
-  return { token, name: basename(path), kind, size: (await stat(path)).size };
+  return { token, name: name.slice(0, 260), kind, size: (await stat(path)).size };
+}
+
+/** Forgets a made file's token (its file is gone). */
+export function forgetPickedFile(token: string): void {
+  picked.delete(token);
 }
 
 /** The path behind a token, if it was picked as `kind` in this session. */

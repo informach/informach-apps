@@ -1,12 +1,15 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
+import type { LessonClip } from "../../../shared/lessonClips";
+import { type LessonScript, lessonScript, pickedScript } from "../../../shared/lessonScript";
 import {
   type BundledFamily,
   DEFAULT_FONTS,
   duplicateRecipe,
   emptyRecipeStore,
   type FontPair,
+  fromLesson,
   isBuiltIn,
   listRecipes,
   missingInputs,
@@ -40,6 +43,123 @@ export interface PipelinesDesktop extends PipelineBridge {
   pipelinesRead(): Promise<RecipeStore>;
   pipelinesWrite(store: RecipeStore): Promise<RecipeStore>;
   pipelinePick(kind: PickedFile["kind"]): Promise<PickedFile | null>;
+  /** The lesson of a picked package: its id and script (lessonPackage.ts packageLesson). */
+  pipelineLessonScript(token: string): Promise<{
+    id: string | null;
+    script: { text: string; section: number } | null;
+  }>;
+}
+
+/** The phrases of the picked lesson's script, and which of them this run animates. */
+interface LessonPick {
+  script: LessonScript;
+  picked: ReadonlySet<number>;
+}
+
+/** The lesson the audio comes from: its id in EdiAula and the section of its script. */
+interface LessonRef {
+  id: string;
+  section: number;
+}
+
+/** Short names of the kinds, for the phrases already animated. */
+const DONE_LABELS: Record<RecipeKind, string> = {
+  "game-scene": "cena em tela inteira",
+  "screen-demo": "demonstração sobre a tela",
+};
+
+/** The kinds of animation each phrase of the lesson's section already has in the project. */
+function donePhrases(
+  clips: readonly LessonClip[],
+  lesson: LessonRef | null,
+): ReadonlyMap<string, RecipeKind[]> {
+  const out = new Map<string, RecipeKind[]>();
+  if (!lesson) return out;
+  for (const clip of clips) {
+    if (clip.lessonId !== lesson.id || clip.section !== lesson.section) continue;
+    for (const phrase of clip.phrases) {
+      const kinds = out.get(phrase) ?? [];
+      if (!kinds.includes(clip.kind)) kinds.push(clip.kind);
+      out.set(phrase, kinds);
+    }
+  }
+  return out;
+}
+
+/** The lesson's script as phrases to pick: a direction shows before the phrases it goes with. */
+function LessonPhrases({
+  lesson,
+  done,
+  disabled,
+  onChange,
+  onHand,
+}: {
+  lesson: LessonPick;
+  done: ReadonlyMap<string, RecipeKind[]>;
+  disabled: boolean;
+  onChange(picked: ReadonlySet<number>): void;
+  onHand(): void;
+}) {
+  const all = () => new Set(Array.from({ length: lesson.script.phrases }, (_, i) => i));
+  const animated = lesson.script.rows.filter(
+    (row) => row.kind === "phrase" && done.has(row.text),
+  ).length;
+  return (
+    <fieldset className="pipeline-phrases" disabled={disabled}>
+      <legend>Roteiro da aula · {lesson.script.title}</legend>
+      <p className="micro">
+        {lesson.picked.size} de {lesson.script.phrases} frases nesta animação
+        {animated
+          ? ` · ${animated} já ${animated === 1 ? "animada" : "animadas"} neste projeto`
+          : ""}
+        . As indicações "Na tela" vão junto, como anotação.
+      </p>
+      <div className="pipeline-phrase-actions">
+        <button type="button" onClick={() => onChange(all())}>
+          Marcar todas
+        </button>
+        <button type="button" onClick={() => onChange(new Set())}>
+          Desmarcar todas
+        </button>
+        <button type="button" onClick={onHand}>
+          Escrever à mão
+        </button>
+      </div>
+      <ol>
+        {lesson.script.rows.map((row, i) =>
+          row.kind === "screen" ? (
+            // biome-ignore lint/suspicious/noArrayIndexKey: the rows are fixed for this lesson.
+            <li key={`tela-${i}`} className="pipeline-direction" title={row.text}>
+              Na tela: {row.text}
+            </li>
+          ) : (
+            <li key={`frase-${row.index}`}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={lesson.picked.has(row.index)}
+                  onChange={(event) => {
+                    const next = new Set(lesson.picked);
+                    if (event.target.checked) next.add(row.index);
+                    else next.delete(row.index);
+                    onChange(next);
+                  }}
+                />
+                <span>
+                  {row.text}
+                  {done.has(row.text) && (
+                    <small className="pipeline-done">
+                      Já animada: {(done.get(row.text) ?? []).map((k) => DONE_LABELS[k]).join(", ")}
+                    </small>
+                  )}
+                </span>
+              </label>
+            </li>
+          ),
+        )}
+      </ol>
+    </fieldset>
+  );
 }
 
 interface Props {
@@ -303,7 +423,7 @@ function RecipeEditor({
 }
 
 const fileLabel = (file: PickedFile) =>
-  `${file.name}${file.kind === "lesson" ? " (aula do EdiAula)" : ""}`;
+  `${file.name}${file.kind === "lesson" ? " (pacote da aula do EdiAula)" : ""}`;
 
 const STEP_TEXT: Record<StepState["status"], string> = {
   waiting: "Aguardando",
@@ -332,7 +452,14 @@ function RunForm({
 }) {
   const id = useId();
   const [files, setFiles] = useState<RunInputs["files"]>({});
-  const [script, setScript] = useState("");
+  const [typed, setScript] = useState("");
+  // The lesson's own script, as phrases to pick; null for an audio file, a lesson without a
+  // script, or after "Escrever à mão" (the typed roteiro then starts from the phrases picked).
+  const [lesson, setLesson] = useState<LessonPick | null>(null);
+  const [lessonRef, setLessonRef] = useState<LessonRef | null>(null);
+  const script = lesson ? pickedScript(lesson.script, lesson.picked) : typed;
+  // What this project already animated of the lesson's section (each run records its phrases).
+  const done = donePhrases(editor.lessonClips(), lessonRef);
   const [palette, setPalette] = useState(recipe.textPalette);
   const [fonts, setFonts] = useState(recipe.fonts);
   const [states, setStates] = useState<Record<string, StepState>>({});
@@ -348,12 +475,55 @@ function RunForm({
     [],
   );
   const steps = stepsFor(recipe.kind);
-  const inputs = { recipeId: recipe.id, files, script, textPalette: palette, fonts };
+  const inputs = {
+    recipeId: recipe.id,
+    files,
+    script,
+    textPalette: palette,
+    fonts,
+    ...(lessonRef
+      ? {
+          lesson: {
+            ...lessonRef,
+            phrases: lesson
+              ? lesson.script.rows.flatMap((row) =>
+                  row.kind === "phrase" && lesson.picked.has(row.index) ? [row.text] : [],
+                )
+              : [],
+          },
+        }
+      : {}),
+  };
   const missing = missingInputs(recipe, inputs);
   const pick = async (key: keyof RunInputs["files"], kind: PickedFile["kind"]) => {
     try {
       const file = await desktop.pipelinePick(kind);
-      if (file && live.current) setFiles((current) => ({ ...current, [key]: file }));
+      if (!file || !live.current) return;
+      setFiles((current) => ({ ...current, [key]: file }));
+      if (key !== "audio") return;
+      // The lesson's script comes with it: its phrases, all picked, instead of pasting them.
+      setLesson(null);
+      setLessonRef(null);
+      if (file.kind !== "lesson") return;
+      const found = await desktop.pipelineLessonScript(file.token);
+      const parsed = found.script ? lessonScript(found.script.text, found.script.section) : null;
+      if (!live.current) return;
+      const ref = found.id ? { id: found.id, section: found.script?.section ?? 0 } : null;
+      setLessonRef(ref);
+      if (!parsed) {
+        report("A aula não tem roteiro com falas: escreva o roteiro do trecho.");
+        return;
+      }
+      // The phrases this project has not animated yet start picked: the next stretch.
+      const already = donePhrases(editor.lessonClips(), ref);
+      setLesson({
+        script: parsed,
+        picked: new Set(
+          parsed.rows.flatMap((row) =>
+            row.kind === "phrase" && !already.has(row.text) ? [row.index] : [],
+          ),
+        ),
+      });
     } catch (error) {
       report(failureText(error));
     }
@@ -399,6 +569,15 @@ function RunForm({
         </p>
         {RECIPE_INPUTS[recipe.kind].map((input) => {
           const file = files[input.key];
+          if (fromLesson(input, files))
+            return (
+              <div key={input.key} className="pipeline-input">
+                <span>{input.label}</span>
+                <div className="pipeline-input-row">
+                  <span className="pipeline-file">{input.inLesson}</span>
+                </div>
+              </div>
+            );
           return (
             <div key={input.key} className="pipeline-input">
               <span>{input.label}</span>
@@ -422,22 +601,37 @@ function RunForm({
             </div>
           );
         })}
-        <label className="scene-field" htmlFor={`${id}-script`}>
-          Roteiro do trecho (só a parte desta cena)
-          <textarea
-            id={`${id}-script`}
-            rows={8}
-            maxLength={20000}
+        {lesson ? (
+          <LessonPhrases
+            lesson={lesson}
+            done={done}
             disabled={running}
-            value={script}
-            placeholder="Cole aqui o que é narrado nesta cena."
-            onChange={(event) => setScript(event.target.value)}
+            onChange={(picked) => setLesson({ ...lesson, picked })}
+            onHand={() => {
+              setScript(pickedScript(lesson.script, lesson.picked));
+              setLesson(null);
+            }}
           />
-        </label>
-        <p className="micro">
-          Texto entre [colchetes] é anotação (o que acontece na tela, uma indicação) e fica fora da
-          busca no áudio.
-        </p>
+        ) : (
+          <>
+            <label className="scene-field" htmlFor={`${id}-script`}>
+              Roteiro do trecho (só a parte desta cena)
+              <textarea
+                id={`${id}-script`}
+                rows={8}
+                maxLength={20000}
+                disabled={running}
+                value={typed}
+                placeholder="Cole aqui o que é narrado nesta cena."
+                onChange={(event) => setScript(event.target.value)}
+              />
+            </label>
+            <p className="micro">
+              Texto entre [colchetes] é anotação (o que acontece na tela, uma indicação) e fica fora
+              da busca no áudio.
+            </p>
+          </>
+        )}
         <Palette
           label="Paleta de texto desta vez"
           colors={palette}
@@ -460,7 +654,7 @@ function RunForm({
                   <span>{step.label}</span>
                   <span className="pipeline-step-state">
                     {state.status === "running"
-                      ? `${state.detail ?? STEP_TEXT.running} · ${Math.round(state.ratio * 100)}%`
+                      ? `${state.detail ?? STEP_TEXT.running}${state.ratio === undefined ? "" : ` · ${Math.round(state.ratio * 100)}%`}`
                       : state.status === "failed"
                         ? `${STEP_TEXT.failed}: ${state.message}`
                         : STEP_TEXT[state.status]}

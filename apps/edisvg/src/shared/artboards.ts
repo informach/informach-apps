@@ -85,6 +85,8 @@ export function applyArtboardCommand(document: Document, command: ArtboardComman
       remapped = new Map<string, string>();
     copy.id = command.newId;
     copy.name = command.name;
+    // The lesson stretches name the original's animations: the copy is not those stretches.
+    delete copy.lessonClips;
     for (const { node } of flattenScene(copy.scene)) {
       const next = `node-${crypto.randomUUID()}`;
       remapped.set(node.id, next);

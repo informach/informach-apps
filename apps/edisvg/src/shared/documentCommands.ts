@@ -25,6 +25,7 @@ import { applyComponent } from "./components";
 import { applyComposition, compositionCommandSchema } from "./composition";
 import { applyGuides, guidesCommandSchema } from "./guides";
 import { applyLayout, layoutCommandSchema } from "./layout";
+import { applyLessonClip, lessonClipCommandSchema } from "./lessonClips";
 import { applyPathEdit, pathEditSchema } from "./pathOperations";
 import { artboardScene, parseProject } from "./project.js";
 import { serializeProject } from "./projectPolicy";
@@ -141,6 +142,7 @@ const commandSchema = z.union([
   animationKeysCommandSchema,
   vertexKeysCommandSchema,
   guidesCommandSchema,
+  lessonClipCommandSchema,
   z.strictObject({ type: z.literal("motion"), command: motionCommandSchema }),
 ]);
 export const documentTransactionSchema = z.strictObject({
@@ -289,6 +291,14 @@ export function executeDocumentTransaction(context: Context, rawRequest: unknown
       const board = project.artboards.find((board) => board.scene === scene);
       if (!board) throw new Error("Selecione uma prancheta para editar guias.");
       applyGuides(board, command);
+    } else if (command.type === "lesson-clip") {
+      const board = project.artboards.find((board) => board.scene === scene);
+      if (!board) throw new Error("Selecione uma prancheta para marcar o trecho da aula.");
+      applyLessonClip(
+        board,
+        new Set(project.motion.animations.map((animation) => animation.id)),
+        command,
+      );
     } else {
       const operation = command.command;
       const objects = project.artboards.flatMap((board) => flattenScene(board.scene));

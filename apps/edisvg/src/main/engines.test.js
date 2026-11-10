@@ -31,12 +31,46 @@ test("run events reach the panel in its own shape", () => {
     text: "Login",
   });
   assert.equal(panelEvent({ type: "quota", level: "ok", text: "ok" }), null);
+  // A notice: the turn goes on, and a pipeline does not take it for a failure.
   assert.deepEqual(panelEvent({ type: "quota", level: "blocked", text: "Limite" }), {
-    type: "error",
+    type: "notice",
     text: "Limite",
   });
   assert.equal(panelEvent({ type: "usage", tokens: 3 }), null);
   assert.equal(panelEvent({ type: "done" }), null);
+});
+
+test("between the tools the panel says whether the model thinks or writes, and how much", () => {
+  assert.deepEqual(panelEvent({ type: "activity", phase: "thinking" }), {
+    type: "activity",
+    text: "Pensando",
+  });
+  const writing = (name, chars) =>
+    panelEvent({ type: "activity", phase: "writing", name, title: toolActivity(name), chars });
+  assert.deepEqual(writing("edit_document", 0), {
+    type: "activity",
+    text: "Escrevendo as alterações",
+  });
+  assert.deepEqual(writing("edit_document", 13_500), {
+    type: "activity",
+    text: "Escrevendo as alterações",
+    detail: "13 KB",
+  });
+  assert.deepEqual(writing("get_objects", 20), { type: "activity", text: "Examinando os objetos" });
+});
+
+test("a pipeline's request must say it is long with a boolean", async () => {
+  const workspace = await mkdtemp(join(tmpdir(), "edisvg-ai-"));
+  try {
+    const runner = createEngineRunner(workspace, "http://127.0.0.1:47322/mcp", () => {});
+    await assert.rejects(
+      runner.send({ provider: "claude", prompt: "oi", long: "sim" }),
+      /inválido/,
+    );
+    assert.equal(runner.busy(), false);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
 });
 
 test("the panel says what a tool does in words, never its name", () => {

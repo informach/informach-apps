@@ -1,21 +1,46 @@
 import { findScriptPiece, type HeardWord, type ScriptPiece } from "@informach/edi-speech/piece";
+import type { LessonClip } from "../../../shared/lessonClips";
 import {
   type BundledFamily,
   type BundledFont,
   nearestWeight,
+  type PickedFile,
   type Recipe,
   type RecipeKind,
   type RunInputs,
   spokenScript,
 } from "../../../shared/pipelines";
 import { elementSvgs } from "./elements";
-import { type DraftBoard, type DraftFonts, draftRequest } from "./prompt";
+import { type DraftBoard, type DraftFonts, type DraftKit, draftRequest } from "./prompt";
 
 /**
  * Runs a recipe: its steps in order, each reporting progress, all stopped by Cancelar. A step that
  * fails stops the run and says why; what earlier steps did stays (the editor undoes it). Steps
  * hand their results to the next ones through `results`.
  */
+
+/** What the assistant is doing during a pipeline's request (the assistant panel tells it). */
+export interface AssistantActivity {
+  /** In words: "Pensando", "Escrevendo as alterações"… */
+  text: string;
+  /** How much of it so far ("13 KB"), or empty. */
+  detail: string;
+  /** Edits applied to the project so far. */
+  edits: number;
+  /** Milliseconds since the request was sent. */
+  elapsed: number;
+}
+
+/** The draft step's line while the assistant works: what it is doing, its edits and the time. */
+export function assistantLine(activity: AssistantActivity): string {
+  const doing = activity.text
+    ? `${activity.text}${activity.detail ? ` (${activity.detail})` : ""}`
+    : "Trabalhando";
+  const made = activity.edits
+    ? ` · ${activity.edits} ${activity.edits === 1 ? "alteração" : "alterações"}`
+    : "";
+  return `Assistente: ${doing}${made} · ${clock(activity.elapsed / 1000)}`;
+}
 
 /** What the editor offers the steps (app.js builds it). */
 export interface PipelineEditor {
@@ -28,14 +53,27 @@ export interface PipelineEditor {
   };
   /** The artboard open in the editor. */
   activeArtboard(): DraftBoard;
+  /**
+   * The design kit of the project (Arquivo › Importar kit de design): its "Kit · …" artboards and
+   * its colours. Empty when no kit was imported.
+   */
+  designKit(): DraftKit;
+  /** Records on the open artboard the lesson stretch an animation of a run is (lessonClips.ts). */
+  markLessonClip(value: LessonClip): void;
+  /** The lesson stretches recorded in the project whose animation is still there. */
+  lessonClips(): LessonClip[];
   /** Sets the palette of the open artboard (the colour picker offers it). */
   setPalette(colors: string[]): void;
-  /** Asks the assistant in a new conversation (with frames to look at); resolves when it ends. */
+  /**
+   * Asks the assistant in a new conversation (with frames to look at); resolves when it ends,
+   * with the error that ended it, if any. `onActivity` hears what it is doing about every second.
+   */
   askAssistant(
     text: string,
     shown: string,
     images?: { mediaType: string; data: string }[],
-  ): Promise<{ text: string; stopped: boolean; edits: number }>;
+    onActivity?: (activity: AssistantActivity) => void,
+  ): Promise<{ text: string; stopped: boolean; edits: number; error?: string }>;
   /** A new artboard of this size, opened (the transparent layer of a demonstration). */
   openDemoArtboard(value: { name: string; width: number; height: number }): DraftBoard;
   /** The demonstration video under the open artboard, from `offset` seconds of the animation. */
@@ -89,6 +127,11 @@ export interface PipelineBridge {
     times: number[],
     jobId: string,
   ): Promise<{ mediaType: "image/jpeg"; data: string }[]>;
+  /**
+   * The screen of [from, to) of a lesson package as a video of its own (the timeline's cuts, the
+   * clicks beside it), handed back as a picked video.
+   */
+  pipelineLessonVideo(token: string, from: number, to: number, jobId: string): Promise<PickedFile>;
   pipelineWords(token: string, kind: string, jobId: string): Promise<HeardWord[]>;
   pipelineNarration(
     token: string,
@@ -109,6 +152,8 @@ export interface StepContext {
   signal: AbortSignal;
   /** 0..1 of this step, with an optional detail ("Transcrevendo 40%"). */
   progress(ratio: number, detail?: string): void;
+  /** What the step is doing when it cannot say how far it is (the assistant's draft). */
+  status(detail: string): void;
   /** Results of earlier steps, by name. */
   results: Record<string, unknown>;
   /** Lines of the final report. */
@@ -123,7 +168,8 @@ export interface PipelineStep {
 
 export type StepState =
   | { status: "waiting" }
-  | { status: "running"; ratio: number; detail?: string }
+  /** Without `ratio` when the step cannot say how far it is. */
+  | { status: "running"; ratio?: number; detail?: string }
   | { status: "done" }
   | { status: "failed"; message: string }
   | { status: "cancelled" };
@@ -168,7 +214,8 @@ async function job<T>(ctx: StepContext, run: (jobId: string) => Promise<T>): Pro
   }
 }
 
-const clock = (s: number) =>
+/** Seconds as minutes and seconds ("6:05"). */
+export const clock = (s: number) =>
   `${Math.floor(s / 60)}:${Math.floor(s % 60)
     .toString()
     .padStart(2, "0")}`;
@@ -184,13 +231,16 @@ const findPiece: PipelineStep = {
   async run(ctx) {
     const audio = ctx.inputs.files.audio;
     if (!audio) throw new Error("Escolha o áudio da aula.");
-    ctx.progress(
-      0,
-      audio.kind === "lesson" ? "Lendo as transcrições da aula" : "Transcrevendo o áudio",
-    );
+    const lesson = audio.kind === "lesson";
+    ctx.progress(0, lesson ? "Abrindo o pacote da aula" : "Transcrevendo o áudio");
     const words: HeardWord[] = await job(ctx, async (jobId) => {
+      // A package without transcripts has its narration transcribed now.
       const stop = ctx.bridge.onPipelineProgress((event) => {
-        if (event.jobId === jobId) ctx.progress(event.ratio * 0.9, "Transcrevendo o áudio");
+        if (event.jobId === jobId)
+          ctx.progress(
+            event.ratio * 0.9,
+            lesson ? "Transcrevendo a narração da aula" : "Transcrevendo o áudio",
+          );
       });
       try {
         return await ctx.bridge.pipelineWords(audio.token, audio.kind, jobId);
@@ -237,11 +287,26 @@ const prepareNarration: PipelineStep = {
     });
     ctx.results.clip = clip;
     ctx.results.lessonStart = start;
+    // The stretch of the lesson this animation is, on the artboard it is made in: the next run
+    // sees these phrases done, and the animation goes back to the lesson at these seconds.
+    const lesson = ctx.inputs.lesson;
+    if (lesson && audio.kind === "lesson")
+      ctx.editor.markLessonClip({
+        clipId: clip.clipId,
+        kind: ctx.recipe.kind,
+        lessonId: lesson.id,
+        section: lesson.section,
+        start,
+        end,
+        phrases: lesson.phrases,
+      });
   },
 };
 
 /** The demonstration's state for the next steps. */
 interface DemoVideo {
+  /** The video the frames come from: the one picked, or the screen made from the package. */
+  token: string;
   name: string;
   facts: VideoFacts;
   /** Animation second the video starts at (the breath before the first sentence). */
@@ -252,15 +317,25 @@ interface DemoVideo {
 
 /**
  * The screen demonstration: an artboard of the video's size (the transparent layer), the video
- * under it in the preview from the moment the stretch starts, and the clicks saved with it.
+ * under it in the preview from the moment the stretch starts, and the clicks saved with it. With a
+ * lesson package the video is the screen of the stretch, made from the package's recordings with
+ * the cuts of the lesson; a picked video starts where the stretch does.
  */
 const prepareVideo: PipelineStep = {
   id: "video",
   label: "Preparar o vídeo da demonstração",
   async run(ctx) {
-    const file = ctx.inputs.files.video;
+    const audio = ctx.inputs.files.audio;
     const piece = ctx.results.piece as ScriptPiece | undefined;
-    if (!file || !piece) throw new Error("Escolha o vídeo da demonstração.");
+    if (!piece) throw new Error("O trecho do roteiro não foi achado.");
+    let file = ctx.inputs.files.video;
+    if (audio?.kind === "lesson") {
+      ctx.progress(0.05, "Montando a tela do trecho com os cortes da aula");
+      file = await job(ctx, (jobId) =>
+        ctx.bridge.pipelineLessonVideo(audio.token, piece.start, piece.end + TAIL, jobId),
+      );
+    }
+    if (!file) throw new Error("Escolha o vídeo da demonstração.");
     ctx.progress(0.1, "Lendo o vídeo");
     const facts = await ctx.bridge.pipelineVideoFacts(file.token);
     const offset = piece.start - Math.max(0, piece.start - LEAD);
@@ -278,7 +353,7 @@ const prepareVideo: PipelineStep = {
       ctx.bridge.pipelineVideoPreview(file.token, duration, jobId),
     );
     ctx.editor.setReferenceVideo({ bytes, offset, duration });
-    const video: DemoVideo = { name: file.name, facts, offset, duration };
+    const video: DemoVideo = { token: file.token, name: file.name, facts, offset, duration };
     ctx.results.video = video;
     const clicks = facts.clicks?.filter((c) => c.t <= duration).length ?? 0;
     ctx.report.push(
@@ -386,11 +461,10 @@ const draftWithAssistant: PipelineStep = {
       const times = pickedLines.map((l) =>
         Math.max(0, Math.min(video.duration - 0.1, l.start - piece.start + 0.3)),
       );
-      const file = ctx.inputs.files.video;
-      if (file && times.length) {
+      if (times.length) {
         ctx.progress(0.02, "Tirando quadros do vídeo");
         images = await job(ctx, (jobId) =>
-          ctx.bridge.pipelineVideoFrames(file.token, times, jobId),
+          ctx.bridge.pipelineVideoFrames(video.token, times, jobId),
         );
       }
       demo = {
@@ -416,6 +490,7 @@ const draftWithAssistant: PipelineStep = {
       textPalette: ctx.inputs.textPalette,
       fonts: (ctx.results.fonts as DraftFonts | undefined) ?? null,
       imagePalette: (ctx.results.imagePalette as string[] | undefined) ?? [],
+      kit: ctx.editor.designKit(),
       lessonStart,
       ...(demo ? { demo } : {}),
     });
@@ -424,14 +499,23 @@ const draftWithAssistant: PipelineStep = {
     const stop = () => ctx.editor.stopAssistant();
     ctx.signal.addEventListener("abort", stop, { once: true });
     try {
-      ctx.progress(0.05, "O assistente está animando");
+      // How far the assistant is cannot be known: the line says what it is doing and for how long.
+      ctx.status("O assistente está animando");
       const turn = await ctx.editor.askAssistant(
         request,
         `Pipeline "${ctx.recipe.name}": montar o rascunho da animação (${piece.lines.length} ${piece.lines.length === 1 ? "frase" : "frases"}, tempos e imagens enviados).`,
         images,
+        (activity) => ctx.status(assistantLine(activity)),
       );
       ctx.signal.throwIfAborted();
       if (turn.stopped) throw new Error("O assistente foi interrompido antes de terminar.");
+      // Ended by a time limit or a failing client: what it did so far is not a finished draft.
+      if (turn.error)
+        throw new Error(
+          turn.edits
+            ? `${turn.error} As ${turn.edits === 1 ? "1 alteração feita" : `${turn.edits} alterações feitas`} até ali ficaram no projeto.`
+            : turn.error,
+        );
       if (!turn.edits)
         throw new Error(
           `O assistente não alterou o projeto${turn.text.trim() ? `: ${turn.text.trim().slice(0, 300)}` : "."} Veja o painel Assistente.`,
@@ -513,6 +597,7 @@ export async function runPipeline(
             ratio: Math.max(0, Math.min(1, ratio)),
             ...(detail ? { detail } : {}),
           }),
+        status: (detail) => onState(step.id, { status: "running", detail }),
       });
       onState(step.id, { status: "done" });
     } catch (error) {

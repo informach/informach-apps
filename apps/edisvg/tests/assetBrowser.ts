@@ -5,6 +5,13 @@ export {
   createVisualSvgPlayerAsync,
 } from "@informach/edi-motion/runtime";
 export { completeAssetImport, prepareAssetImport } from "../src/renderer/src/asset-import";
+export {
+  choosePlan,
+  imageScene,
+  kitFonts,
+  planDesignKit,
+  setKitFonts,
+} from "../src/renderer/src/designKitImport";
 export { bindSvgIngress, readSvgFile } from "../src/renderer/src/svg-import-input";
 export { importSvg, inspectSvgImport } from "../src/renderer/src/svgImport.js";
 export { parseSzProject, planSzProjectImport } from "../src/renderer/src/szProjectImport";

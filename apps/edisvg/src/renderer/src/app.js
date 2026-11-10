@@ -16,8 +16,22 @@ import {
   toolShortcut,
 } from "./toolbar.js";
 import "./toolbar.css";
+import { isKitBoardName } from "../../shared/designKit";
 import { flattenScene } from "../../shared/scene.js";
 import { completeAssetImport, prepareAssetImport } from "./asset-import";
+import {
+  choosePlan,
+  defaultFolders,
+  imageScene,
+  kitFonts,
+  kitGroups,
+  kitSummary,
+  mergedPalette,
+  planDesignKit,
+  setKitFonts,
+} from "./designKitImport";
+import { mountKitImport } from "./kit-import-panel";
+import { mountLessonSend } from "./pipelines/lesson-send-panel";
 import {
   clearNarration,
   markNarrationNow,
@@ -1314,8 +1328,50 @@ function applyProject(value, resetSession = true) {
       workspaceWarning =
         "Preferências locais incompatíveis ou inacessíveis. O projeto foi preservado e o contexto padrão será usado.";
     }
+    void restoreReferences(project.id, state.sessionId);
   }
   for (const [name, mode] of Object.entries(project.modes)) animations[name].mode = mode;
+}
+/**
+ * Keeps the narration or the demonstration video of a run on this computer, by project
+ * (src/main/pipelineReferences.ts): closing the file and opening it again brings them back.
+ */
+function keepReference(kind, bytes, meta) {
+  const keep = window.desktop?.pipelineReferenceSave;
+  if (!keep) return;
+  void keep(state.id, kind, bytes, meta).catch((error) =>
+    notify(
+      `${kind === "video" ? "O vídeo da demonstração" : "A narração"} não foi guardado para quando o projeto for aberto de novo: ${error instanceof Error ? error.message : "erro ao gravar"}.`,
+    ),
+  );
+}
+/**
+ * The narrations and videos the runs left for this project, each back with the animation or
+ * artboard it belongs to (when that is still in it).
+ */
+async function restoreReferences(projectId, session) {
+  const load = window.desktop?.pipelineReferences;
+  if (!load) return;
+  let stored;
+  try {
+    stored = await load(projectId);
+  } catch {
+    return;
+  }
+  if (state.sessionId !== session) return;
+  let restored = false;
+  for (const narration of stored.narrations) {
+    if (!state.motion.animations.some((clip) => clip.id === narration.clipId)) continue;
+    // Another file opened while the peaks were read: its own narrations stay, this one is not added.
+    if (!(await setNarration(narration, () => state.sessionId === session))) return;
+    restored = true;
+  }
+  for (const video of stored.videos) {
+    if (!state.artboards.some((board) => board.id === video.artboardId)) continue;
+    setReferenceVideo(video);
+    restored = true;
+  }
+  if (restored) render();
 }
 function save(record = true) {
   const project = snapshot(state);
@@ -1637,7 +1693,7 @@ function updatePose() {
     state.playing,
     state.frame / a.fps,
   );
-  markNarrationNow(document, state.frame / a.fps);
+  markNarrationNow(document, state.activeClipId, state.frame / a.fps);
   syncReferenceVideo(state.activeArtboardId, state.playing, state.frame / a.fps);
 }
 function action(id) {
@@ -1764,6 +1820,8 @@ function action(id) {
   if (id === "edit-demo") return editDemo();
   if (id === "import-svg") return importArtwork();
   if (id === "import-game") return importGameProject();
+  if (id === "import-kit") return importDesignKit();
+  if (id === "lesson-send") return openLessonSend();
   if (id === "pipelines") return openPipelines();
   if (state.scene && id === "add-shape") {
     try {
@@ -1974,6 +2032,202 @@ async function importGameProject(value) {
   }
 }
 /**
+ * A font of EdiSVG's bundle (EdiAula's, SIL Open Font License 1.1) as a font asset of the project,
+ * its license notice with it: embedding and redistributing it is what the license allows.
+ */
+async function bundledFontAsset(font, signal) {
+  const prepared = await prepareAssetImport(font.bytes, `${font.family} ${font.weight}`, signal);
+  if (prepared.kind !== "font") throw new Error(`${font.name} não é uma fonte.`);
+  return completeAssetImport(prepared, signal, {
+    rightsConfirmed: true,
+    licenseNotice: font.notice,
+  });
+}
+/** A project holds 100 artboards (project.ts). */
+const ARTBOARD_LIMIT = 100;
+let disposeKitImport = null;
+let disposeLessonSend = null;
+/**
+ * Arquivo › Enviar animações para a aula: the animations the pipelines made of lesson stretches,
+ * to EdiAula (pipelines/lessonSend.ts). Its dialog lives outside the editor's markup, as the
+ * pipelines' does: a render while it sends would close it.
+ */
+function openLessonSend() {
+  if (refusedDuringRun()) return;
+  if (!window.desktop) {
+    notify("Enviar para a aula precisa do aplicativo desktop.");
+    return;
+  }
+  let dialog = document.querySelector("#lesson-send-dialog");
+  if (!(dialog instanceof HTMLDialogElement)) {
+    dialog = document.createElement("dialog");
+    dialog.id = "lesson-send-dialog";
+    document.body.append(dialog);
+  }
+  if (dialog.open || document.querySelector("dialog[open]")) return;
+  disposeLessonSend?.();
+  disposeLessonSend = mountLessonSend(dialog, {
+    project: snapshot(state),
+    bridge: window.desktop,
+    report: notify,
+    setBusy: () => undefined,
+  });
+}
+/**
+ * Arquivo › Importar kit de design: a ZIP of SVGs and PNGs as "Kit · pasta · arquivo" artboards,
+ * with the kit's palette and fonts (designKitImport.ts). The person chooses the folders first, as
+ * a project holds 100 artboards. One edit: Ctrl+Z undoes the whole import.
+ */
+async function importDesignKit() {
+  if (refusedDuringRun()) return;
+  if (!window.desktop) {
+    notify("Importar um kit de design precisa do aplicativo desktop.");
+    return;
+  }
+  const session = state.sessionId;
+  try {
+    const kit = await window.desktop.importDesignKit();
+    if (!kit) return;
+    const plan = planDesignKit(kit, (svg) => importSvg(svg));
+    // Without the bundle (a broken install) the kit still comes in, its texts in the system's font.
+    const families = await window.desktop.pipelineFonts().catch(() => []);
+    const needs = kitFonts(
+      plan.boards.map((board) => board.scene),
+      families,
+    );
+    if (state.sessionId !== session) {
+      notify("O projeto foi substituído; nenhuma importação foi aplicada.");
+      return;
+    }
+    let dialog = document.querySelector("#kit-dialog");
+    if (!(dialog instanceof HTMLDialogElement)) {
+      dialog = document.createElement("dialog");
+      dialog.id = "kit-dialog";
+      document.body.append(dialog);
+    }
+    if (dialog.open) return;
+    const groups = kitGroups(plan);
+    const room = Math.max(0, ARTBOARD_LIMIT - state.artboards.length);
+    disposeKitImport?.();
+    disposeKitImport = mountKitImport(dialog, {
+      name: plan.name,
+      groups,
+      chosen: defaultFolders(groups, room),
+      room,
+      palette: plan.palette,
+      sheet: plan.sheet,
+      fonts: [...new Set(needs.wanted.map((font) => font.family))],
+      missingFonts: needs.missing,
+      apply: (folders) => {
+        disposeKitImport = null;
+        void applyDesignKit(choosePlan(plan, folders), families, session).catch((error) =>
+          notify(error instanceof Error ? error.message : "Não foi possível importar o kit."),
+        );
+      },
+    });
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Não foi possível importar o kit.");
+  }
+}
+async function applyDesignKit(plan, families, session) {
+  if (refusedDuringRun()) return;
+  notify(`Importando o kit "${plan.name}"…`);
+  const signal = new AbortController().signal;
+  const scenes = plan.boards.map((board) => board.scene);
+  const needs = kitFonts(scenes, families);
+  const fonts = [];
+  for (const want of needs.wanted) {
+    const asset = await bundledFontAsset(
+      await window.desktop.pipelineFont(want.family, want.weight),
+      signal,
+    );
+    fonts.push({ ...want, assetId: asset.id, italic: asset.italic, asset });
+  }
+  const texts = setKitFonts(scenes, families, fonts);
+  const left = [...plan.left];
+  const images = [];
+  let normalized = 0;
+  for (const image of plan.images) {
+    try {
+      const prepared = await prepareAssetImport(image.png, image.file, signal);
+      if (prepared.kind !== "ready" || prepared.asset.kind !== "image")
+        throw new Error("não é uma imagem PNG");
+      if (prepared.conversion) normalized++;
+      images.push({ name: image.name, asset: await completeAssetImport(prepared, signal) });
+    } catch (error) {
+      left.push(`${image.path} (${error instanceof Error ? error.message : "PNG ilegível"})`);
+    }
+  }
+  if (state.sessionId !== session) {
+    notify("O projeto foi substituído; nenhuma importação foi aplicada.");
+    return;
+  }
+  if (refusedDuringRun()) return;
+  const boards = [
+    ...plan.boards.map((board) => ({ name: board.name, scene: board.scene })),
+    ...images.map((image) => ({ name: image.name, scene: imageScene(image.asset) })),
+  ];
+  if (!boards.length)
+    throw new Error(`Nada do kit pôde ser importado. Ficaram de fora: ${left.join("; ")}.`);
+  if (state.artboards.length + boards.length > ARTBOARD_LIMIT)
+    throw new Error(
+      `O projeto tem ${state.artboards.length} pranchetas e o kit traria ${boards.length}: passa de ${ARTBOARD_LIMIT}. Escolha menos pastas.`,
+    );
+  const colors = plan.palette.map((item) => item.color);
+  const assets = [
+    ...new Map(
+      [...fonts.map((font) => font.asset), ...images.map((image) => image.asset)].map((asset) => [
+        asset.id,
+        asset,
+      ]),
+    ).values(),
+  ];
+  const commands = [
+    ...assets.map((asset) => ({ type: "asset", operation: "put", value: asset })),
+    ...boards.map((board) => ({
+      type: "artboard",
+      operation: "import",
+      id: `artboard-${crypto.randomUUID()}`,
+      name: board.name,
+      scene: colors.length ? { ...board.scene, palette: colors } : board.scene,
+    })),
+  ];
+  const keep = state.activeArtboardId;
+  const mark = projectHistory.mark();
+  try {
+    for (let at = 0; at < commands.length; at += 100) transact(commands.slice(at, at + 100));
+    // The open artboard keeps its place, and its palette offers the kit's colours too.
+    bindActiveArtboard(state, keep);
+    const own = state.scene?.palette ?? [];
+    const palette = mergedPalette(own, plan.palette);
+    if (state.scene && palette.length !== own.length)
+      transact([{ type: "appearance", operation: "palette", colors: palette }]);
+  } catch (error) {
+    if (projectHistory.mark() !== mark) {
+      projectHistory.squash(mark);
+      travelHistory("undo");
+    }
+    throw error;
+  }
+  if (projectHistory.squash(mark)) refreshHistoryControls();
+  bindActiveArtboard(state, keep);
+  render();
+  notify(
+    kitSummary({
+      name: plan.name,
+      svgs: plan.boards.length,
+      images: images.length,
+      palette: plan.palette,
+      sheet: plan.sheet,
+      fonts: fonts.map((font) => `${font.family} ${font.weight}`),
+      texts,
+      missingFonts: needs.missing,
+      normalized,
+      left,
+    }),
+  );
+}
+/**
  * Applies a studio project to the open file and opens its scene; throws when nothing comes in.
  * Used by the import and by the pipelines.
  */
@@ -2042,14 +2296,15 @@ async function openNarration(value) {
       },
     },
   ]);
-  await setNarration({
+  const narration = {
     clipId: id,
     name: `Narração · ${value.name}`.slice(0, 120),
-    bytes: value.bytes,
     duration: value.duration,
     lessonStart: value.lessonStart,
-    lines: value.lines,
-  });
+    lines: value.lines.map((line) => ({ text: line.text, start: line.start, end: line.end })),
+  };
+  await setNarration({ ...narration, bytes: value.bytes });
+  keepReference("narration", value.bytes, narration);
   state.activeClipId = id;
   state.view = "animate";
   state.frame = 0;
@@ -2107,14 +2362,36 @@ function openPipelines() {
           height: board.scene.viewBox[3],
         };
       },
+      markLessonClip: (value) => {
+        sameRunSession();
+        transact([{ type: "lesson-clip", value }]);
+      },
+      lessonClips: () => {
+        const clips = new Set(state.motion.animations.map((animation) => animation.id));
+        return state.artboards.flatMap((board) =>
+          (board.lessonClips ?? []).filter((clip) => clips.has(clip.clipId)),
+        );
+      },
+      designKit: () => {
+        const boards = state.artboards.filter((board) => isKitBoardName(board.name));
+        return {
+          boards: boards.map((board) => ({
+            id: board.id,
+            name: board.name,
+            width: board.scene.viewBox[2],
+            height: board.scene.viewBox[3],
+          })),
+          palette: boards[0]?.scene.palette ?? [],
+        };
+      },
       setPalette: (colors) => {
         sameRunSession();
         transact([{ type: "appearance", operation: "palette", colors }]);
         render();
       },
-      askAssistant: (text, shown, images) => {
+      askAssistant: (text, shown, images, onActivity) => {
         sameRunSession();
-        return assistant.runTurn(text, shown, images);
+        return assistant.runTurn(text, shown, images, onActivity);
       },
       openDemoArtboard: (value) => {
         sameRunSession();
@@ -2138,6 +2415,11 @@ function openPipelines() {
       setReferenceVideo: (value) => {
         sameRunSession();
         setReferenceVideo({ artboardId: state.activeArtboardId, ...value });
+        keepReference("video", value.bytes, {
+          artboardId: state.activeArtboardId,
+          offset: value.offset,
+          duration: value.duration,
+        });
         render();
       },
       addArtboards: (items, fontAssetId) => {
@@ -2179,22 +2461,7 @@ function openPipelines() {
         sameRunSession();
         const signal = new AbortController().signal;
         const assets = [];
-        for (const font of fonts) {
-          const prepared = await prepareAssetImport(
-            font.bytes,
-            `${font.family} ${font.weight}`,
-            signal,
-          );
-          if (prepared.kind !== "font") throw new Error(`${font.name} não é uma fonte.`);
-          // The bundle's fonts are SIL Open Font License 1.1: embedding and redistributing them
-          // is what the license allows, and its text goes with each one.
-          assets.push(
-            await completeAssetImport(prepared, signal, {
-              rightsConfirmed: true,
-              licenseNotice: font.notice,
-            }),
-          );
-        }
+        for (const font of fonts) assets.push(await bundledFontAsset(font, signal));
         sameRunSession();
         transact(assets.map((asset) => ({ type: "asset", operation: "put", value: asset })));
         render();
@@ -2879,6 +3146,8 @@ const assistant = setupAssistant({
   }),
   importSvg: importArtwork,
   importGameProject: () => importGameProject(),
+  importDesignKit: () => importDesignKit(),
+  openLessonSend: () => openLessonSend(),
   openPipelines: () => openPipelines(),
   /** A pipeline is running: opening or creating another file waits (assistant.js). */
   pipelineRunning: () => !!pipelineRun,

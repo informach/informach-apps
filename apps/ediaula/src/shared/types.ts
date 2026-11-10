@@ -495,6 +495,11 @@ export interface Project {
    */
   partOf?: { lesson: string; section: number };
   /**
+   * The id of the lesson this one was unpacked from (Abrir pacote gives a new id): what EdiSVG
+   * read from the package names that lesson, and its animations come back under that id.
+   */
+  origin?: string;
+  /**
    * A lesson started from its course's template (shared/courseTemplate.ts startingLesson): when
    * the first media reaches the timeline, the opening and closing cards go in and the music bed
    * (already in the library) is laid to the end of the lesson; then this is gone. While it is
@@ -902,6 +907,10 @@ export interface EdiAulaApi {
    */
   relinkFolder(wanted: RelinkWanted[], token?: string): Promise<RelinkSearch>;
   probe(path: string): Promise<ProbeResult>;
+  /** The newest send of EdiSVG's animations for these lesson ids not put in yet (or null). */
+  edisvgReceived(ids: string[]): Promise<import("./edisvgAnimations.ts").ReceivedAnimations | null>;
+  /** Records that the lesson took (or declined) that send. */
+  edisvgPlaced(lessonId: string, sentAt: number): Promise<void>;
   thumbnail(path: string, kind: AssetKind, duration: number): Promise<string>;
   waveform(path: string): Promise<string>;
   /** Where a screen recording stands still: the path of its motion file (main/ffmpeg.ts). */

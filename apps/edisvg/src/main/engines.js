@@ -1,11 +1,13 @@
 import { mkdir } from "node:fs/promises";
 import { checkTurnImages, createAssistantEngines } from "@informach/edi-desktop/ai-clients";
-import { EDITOR_GUIDE, toolActivity } from "../shared/aiTools.js";
+import { EDITOR_GUIDE, toolActivity, toolPermission } from "../shared/aiTools.js";
 
 /**
  * The assistant panel through the person's own Claude Code or Codex
  * (@informach/edi-desktop/ai-clients): the message goes on standard input, each run has its own
- * token, Codex is stopped if it acts outside the editor and every run ends in 10 minutes. The
+ * token and Codex is stopped if it acts outside the editor. A message ends in 10 minutes and a
+ * pipeline's request (a whole scene to animate) in 40; a Claude Code run that goes 5 minutes
+ * without a sign is ended before that, since it reports about every second while it works. The
  * panel sends the recent conversation with each message, so no session is kept by the clients.
  */
 
@@ -18,6 +20,9 @@ export const PROVIDERS = { claude: "claude-code", codex: "codex" };
 
 const CONVERSATION = "edisvg";
 const TIMEOUT_MS = 10 * 60_000;
+/** A pipeline's request: the assistant animates a whole scene, often past 10 minutes. */
+export const LONG_TIMEOUT_MS = 40 * 60_000;
+const IDLE_MS = 5 * 60_000;
 
 /** A client id from the panel, or an error. */
 export function providerClient(provider) {
@@ -46,6 +51,21 @@ export function panelImages(images) {
   );
 }
 
+/**
+ * What the model is doing between the tools, in words: thinking, or writing a tool's input (an
+ * edit of a whole animation takes minutes to write, so its size so far shows it is moving).
+ */
+function activityEvent(event) {
+  if (event.phase === "thinking") return { type: "activity", text: "Pensando" };
+  const text =
+    toolPermission(event.name) === "write"
+      ? "Escrevendo as alterações"
+      : event.title || "Consultando o projeto";
+  return event.chars >= 1024
+    ? { type: "activity", text, detail: `${Math.round(event.chars / 1024)} KB` }
+    : { type: "activity", text };
+}
+
 /** An event of a run in the shape the panel reads ({type, text}); null when it shows nothing. */
 export function panelEvent(event) {
   switch (event.type) {
@@ -53,11 +73,14 @@ export function panelEvent(event) {
       return { type: "text", text: event.delta };
     case "tool":
       return event.status === "running" ? { type: "tool", text: event.title || event.name } : null;
+    case "activity":
+      return activityEvent(event);
     case "error":
       return { type: "error", text: event.message };
     case "quota":
-      // Near or at the subscription limit, or billed on an API key: the person should know.
-      return event.level === "ok" ? null : { type: "error", text: event.text };
+      // Near or at the subscription limit, or billed on an API key: the person should know. A
+      // notice, not an error: the turn goes on (its failure, if any, comes as an error).
+      return event.level === "ok" ? null : { type: "notice", text: event.text };
     default:
       return null;
   }
@@ -75,6 +98,8 @@ export function createEngineRunner(workspace, url, emit, launchOptions = {}) {
     launchOptions: () => launchOptions,
     sessions: false,
     timeoutMs: TIMEOUT_MS,
+    idleTimeoutMs: IDLE_MS,
+    activity: true,
   });
   return {
     busy: () => busy,
@@ -83,12 +108,14 @@ export function createEngineRunner(workspace, url, emit, launchOptions = {}) {
       stopping = true;
       engines.stop(CONVERSATION);
     },
-    async send({ provider, prompt, model = "", images } = {}) {
+    /** `long`: a pipeline's request, with LONG_TIMEOUT_MS in place of the message's limit. */
+    async send({ provider, prompt, model = "", images, long = false } = {}) {
       if (busy) throw new Error("Aguarde ou interrompa a resposta atual.");
       if (typeof prompt !== "string" || !prompt.trim() || prompt.length > 32000)
         throw new Error("Mensagem inválida ou longa demais.");
       if (typeof model !== "string" || !/^[\w.:-]{0,120}$/.test(model))
         throw new Error("Modelo inválido.");
+      if (typeof long !== "boolean") throw new Error("Pedido inválido.");
       const client = providerClient(provider);
       const attached = panelImages(images);
       await mkdir(workspace, { recursive: true });
@@ -100,6 +127,7 @@ export function createEngineRunner(workspace, url, emit, launchOptions = {}) {
         url,
         model: model || undefined,
         images: attached,
+        ...(long ? { timeoutMs: LONG_TIMEOUT_MS } : {}),
         // The panel's own "done" says whether the person stopped the run.
         emit: (event) => {
           const shown = panelEvent(event);

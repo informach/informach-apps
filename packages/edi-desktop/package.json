@@ -23,7 +23,8 @@
     "./windows-capture": "./src/windows-capture.ts",
     "./native-media": "./src/native-media.ts",
     "./media-range": "./src/media-range.ts",
-    "./audio": "./src/audio.ts"
+    "./audio": "./src/audio.ts",
+    "./zip-read": "./src/zip-read.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

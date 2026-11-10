@@ -1,6 +1,28 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { fittedSize, IMAGE_LIMIT, IMAGE_SIDE, referenceImages } from "./assistantImages";
+import { panelImages } from "../../main/engines.js";
+import {
+  fittedSize,
+  frameAttachment,
+  IMAGE_LIMIT,
+  IMAGE_SIDE,
+  referenceImages,
+} from "./assistantImages";
+
+test("a pipeline's video frames (base64 from the main process) go back as bytes it accepts", () => {
+  // The start of a JPEG, as the frames step returns it.
+  const jpeg = Uint8Array.from([
+    0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 0xff, 0xd9,
+  ]);
+  const frame = { mediaType: "image/jpeg" as const, data: Buffer.from(jpeg).toString("base64") };
+  const attached = frameAttachment(frame, "Quadro 1 do vídeo");
+  assert.deepEqual(attached.data, jpeg);
+  assert.equal(attached.url, `data:image/jpeg;base64,${frame.data}`);
+  // What ai:send checks: before, the base64 text itself went and was refused ("Imagens inválidas").
+  const sent = referenceImages([{ images: [attached] }]);
+  assert.deepEqual(panelImages(sent)[0]?.data, jpeg);
+  assert.throws(() => panelImages([frame]), /Imagens inválidas/);
+});
 
 test("large reference images shrink to the side the engines look at, small ones stay", () => {
   assert.deepEqual(fittedSize(800, 600), { width: 800, height: 600, scaled: false });

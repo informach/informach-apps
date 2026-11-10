@@ -37,11 +37,14 @@ const engines = createAssistantEngines({
   warn: (event, detail) => console.warn(`[edifoto] ${event}`, detail),
 });
 
-/** The panel shows text, tools, quota and errors; the use of tokens is not shown in EdiFoto. */
+/**
+ * The panel shows text, tools, quota and errors; the use of tokens is not shown in EdiFoto, and
+ * the model's activity between tools is not asked for (no `activity` in the configuration).
+ */
 const panel =
   (emit: Emit) =>
   (event: EngineEvent): void => {
-    if (event.type !== "usage") emit(event);
+    if (event.type !== "usage" && event.type !== "activity") emit(event);
   };
 
 export const stopEngineRun = (conversationId: string): boolean => engines.stop(conversationId);

@@ -21,6 +21,12 @@ export interface DraftBoard {
   height: number;
 }
 
+/** The design kit imported into the project: its pieces (artboards) and its colours. */
+export interface DraftKit {
+  boards: DraftBoard[];
+  palette: string[];
+}
+
 /** A font of the run, embedded in the project as a font asset. */
 export interface DraftFont {
   family: string;
@@ -47,6 +53,8 @@ export interface DraftFacts {
   /** The fonts embedded for the run (null: none, the texts keep the system's). */
   fonts: DraftFonts | null;
   imagePalette: string[];
+  /** The project's design kit, when one was imported. */
+  kit?: DraftKit;
   /** Where the narration starts in the lesson (seconds), for the report. */
   lessonStart: number;
   /** The screen demonstration under the layer (the "Demonstração passo a passo" recipe). */
@@ -93,6 +101,16 @@ export function draftRequest(f: DraftFacts): string {
           "(nenhum)",
       ].filter((line) => line !== "")
     : [];
+  const kit = f.kit?.boards.length
+    ? [
+        "## Kit de design do projeto (pranchetas para usar como instâncias de componente)",
+        f.kit.boards.map((b) => `- ${b.name} [${b.id}] ${b.width}×${b.height}`).join("\n"),
+        ...(f.kit.palette.length ? [`- Cores do kit: ${f.kit.palette.join(", ")}.`] : []),
+        "- Prefira as peças do kit (balões, etiquetas, botões, ícones, personagens) a desenhar as suas, e as cores dele nos textos e formas novos.",
+        "- Para trocar o texto de uma peça, ache o id do texto na prancheta dela (get_objects) e mude-o na instância, pelas substituições (overrides). Não edite as pranchetas do kit.",
+        "",
+      ]
+    : [];
   return [
     `Pipeline "${f.recipe.name}". Monte o rascunho da animação desta cena, sincronizado com a narração.`,
     "",
@@ -114,6 +132,7 @@ export function draftRequest(f: DraftFacts): string {
         ]),
     ...demo,
     "",
+    ...kit,
     "## Cores",
     `- Textos: ${f.textPalette.join(", ")} (a primeira é a principal).`,
     `- Das imagens: ${f.imagePalette.length ? f.imagePalette.join(", ") : "(nenhuma)"}.`,

@@ -1177,6 +1177,28 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   `perspective` com a mesma curva (testado ponto a ponto).
 - IA: `auto_zoom` e `set_cursor`.
 
+## Animações do EdiSVG
+
+O EdiSVG anima trechos da aula a partir do pacote dela: uma cena em tela inteira ou uma
+demonstração transparente por cima da gravação de tela. Em **Arquivo › Enviar animações para a
+aula**, ele grava cada animação em `%APPDATA%\ediaula\recebidos\<id da aula>\` (MP4 para a cena,
+WebM com transparência para a demonstração), com `envio.json` por último. O EdiSVG nunca grava a
+aula. Do lado do EdiAula:
+- **A oferta.** Ao abrir a aula, e cada vez que a janela volta para a frente (depois de enviar no
+  EdiSVG), uma barra avisa "O EdiSVG mandou N animações para esta aula" (`EdisvgOffer.tsx`,
+  `src/renderer/src/lib/edisvgOffer.ts`).
+- **Colocar na aula.** Cada vídeo entra na faixa **Animações do EdiSVG**, criada logo acima da
+  faixa da gravação de tela (ou no topo das imagens, se a aula não tem gravação de tela), no
+  segundo da aula em que o trecho começa. É uma edição só, que Ctrl+Z desfaz. Uma animação
+  enviada de novo troca a anterior: clipe e mídia (`src/shared/edisvgAnimations.ts`).
+- **Agora não.** Aquele envio não volta a ser oferecido. Um envio novo do EdiSVG é. O que a aula
+  já tomou fica em `colocado.json`, ao lado do envio (`src/main/edisvgInbox.ts`).
+- **O id da aula.** O EdiSVG lê o id do pacote. Abrir o pacote no EdiAula cria uma aula com id
+  novo, mas ela guarda o id de origem (`origin`, `src/main/package.ts`). Assim os envios para o
+  pacote chegam à aula aberta dele, e também à aula original.
+- **Leitura dos vídeos.** O processo principal libera a leitura de cada vídeo do envio antes da
+  prévia, como faz com qualquer mídia importada.
+
 ## Anotações, memes e animações
 
 - **Anotações** (barra lateral › Anotações): seta, balão de fala, nota, rótulo, título, destaque e número de

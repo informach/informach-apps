@@ -1,5 +1,6 @@
 import { toolPermission } from "../../shared/aiTools.js";
 import {
+  frameAttachment,
   IMAGE_LIMIT,
   IMAGE_TYPES,
   imageFiles,
@@ -8,6 +9,7 @@ import {
   revokeAttachments,
 } from "./assistantImages.ts";
 import "./fileDialog.css";
+import { clock } from "./pipelines/runner";
 export function setupAssistant(editor) {
   const bridge = window.desktop,
     history = [];
@@ -40,15 +42,47 @@ export function setupAssistant(editor) {
     currentText = "",
     activity = null,
     edits = 0;
+  /**
+   * What the assistant is doing now (`detail`: how much it wrote), since when, and since when the
+   * reply began. A model can think or write an edit for minutes: the line counts the time, so it
+   * never looks stuck.
+   */
+  let doing = "",
+    doingDetail = "",
+    doingSince = 0,
+    turnStart = 0,
+    ticker = 0;
+  /** Starts a new stretch only when the activity changes, not when its size grows. */
+  function setDoing(text, detail = "") {
+    if (text !== doing) doingSince = Date.now();
+    doing = text;
+    doingDetail = detail;
+  }
+  function paintActivity() {
+    if (!activity?.classList.contains("is-working")) return;
+    const waited = Date.now() - doingSince;
+    activity.textContent = `${doing}${doingDetail ? ` (${doingDetail})` : ""}…${waited >= 5000 ? ` ${clock(waited / 1000)}` : ""}`;
+  }
   /** The one line of a reply that says what the assistant is doing, in words. */
-  function showActivity(text) {
+  function showActivity(text, detail = "") {
     if (!activity) {
       activity = document.createElement("div");
       activity.className = "chat-activity";
       messages.append(activity);
     }
+    setDoing(text, detail);
     activity.classList.add("is-working");
-    activity.textContent = `${text}…`;
+    paintActivity();
+    reportTurn();
+  }
+  /** A pipeline waiting for the reply hears what the assistant is doing (runTurn). */
+  function reportTurn() {
+    turnWaiter?.onActivity?.({
+      text: doing,
+      detail: doingDetail,
+      edits,
+      elapsed: Date.now() - turnStart,
+    });
   }
   /** At the end of a reply the line says how many edits were applied, or goes away. */
   function endActivity() {
@@ -61,6 +95,7 @@ export function setupAssistant(editor) {
     } else activity?.remove();
     activity = null;
     edits = 0;
+    doing = "";
   }
   /** Images attached to the message being written. */
   let pending = [];
@@ -128,6 +163,13 @@ export function setupAssistant(editor) {
   }
   function setBusy(value) {
     busy = value;
+    clearInterval(ticker);
+    ticker = value
+      ? setInterval(() => {
+          paintActivity();
+          reportTurn();
+        }, 1000)
+      : 0;
     find("[type=submit]").disabled = value || !bridge;
     find("[data-stop]").disabled = !value;
     find("[data-reset]").disabled = value;
@@ -220,37 +262,42 @@ export function setupAssistant(editor) {
     find("textarea").value = "";
     await submit(text, images);
   };
-  /** A pipeline's turn, when one is waiting for the reply (runTurn). */
+  /**
+   * A pipeline's turn, when one is waiting for the reply (runTurn), with what went wrong in it:
+   * a turn ended by an error (a time limit, the client failing) is not a finished draft.
+   */
   let turnWaiter = null;
   /**
-   * Asks the assistant in a new conversation (a pipeline's request) and resolves when the reply
-   * ends, with its text, whether it was stopped and how many edits it made. The panel shows
-   * `shown` in place of the long request.
+   * Asks the assistant in a new conversation (a pipeline's request, with the longer time limit)
+   * and resolves when the reply ends, with its text, whether it was stopped, how many edits it
+   * made and the error that ended it, if any. The panel shows `shown` in place of the long
+   * request; `onActivity` hears what the assistant is doing about every second.
    */
-  async function runTurn(text, shown, images = []) {
+  async function runTurn(text, shown, images = [], onActivity) {
     if (!bridge) throw new Error("O assistente precisa do aplicativo desktop.");
     if (busy) throw new Error("O assistente está respondendo outra mensagem. Espere ou pare.");
     if (panel.hidden) toggle();
     clearHistory();
     messages.replaceChildren();
     const finished = new Promise((resolve, reject) => {
-      turnWaiter = { resolve, reject };
+      turnWaiter = { resolve, reject, onActivity, error: "" };
     });
-    // Frames to look at (a demonstration): shown like attached references.
-    const attached = images.map((image) => ({
-      ...image,
-      url: `data:${image.mediaType};base64,${image.data}`,
-    }));
-    await submit(text, attached, shown);
+    // Frames to look at (a demonstration): shown like attached references, and sent as bytes,
+    // as the main process takes every image (the frames come from it in base64).
+    const attached = images.map((image, index) =>
+      frameAttachment(image, `Quadro ${index + 1} do vídeo`),
+    );
+    await submit(text, attached, shown, true);
     return finished;
   }
   /** Sends a message (the person's, or a pipeline's with `shown` displayed instead). */
-  async function submit(text, images, shown = text) {
+  async function submit(text, images, shown = text, long = false) {
     history.push({ role: "user", text, images });
     message(shown, "user", images);
     response = message("", "assistant");
     response.hidden = true;
     currentText = "";
+    turnStart = Date.now();
     showActivity("Pensando");
     setBusy(true);
     try {
@@ -277,6 +324,7 @@ export function setupAssistant(editor) {
         model: model.value.trim(),
         prompt,
         images: referenceImages(recent),
+        long,
       });
     } catch (error) {
       response.textContent = error.message;
@@ -292,6 +340,7 @@ export function setupAssistant(editor) {
     bridge.onAssistantEvent((event) => {
       if (event.type === "text") {
         currentText += event.text;
+        setDoing("Escrevendo a resposta");
         if (response) {
           response.textContent = currentText;
           response.hidden = false;
@@ -299,14 +348,23 @@ export function setupAssistant(editor) {
           if (activity) activity.hidden = true;
         }
       }
-      if (event.type === "tool") {
-        showActivity(event.text);
+      if (event.type === "tool" || event.type === "activity") {
+        showActivity(event.text, event.detail);
         activity.hidden = false;
         messages.append(activity);
       }
-      if (event.type === "error") message(event.text, "error");
+      if (event.type === "notice") message(event.text, "error");
+      if (event.type === "error") {
+        message(event.text, "error");
+        if (turnWaiter) turnWaiter.error = event.text;
+      }
       if (event.type === "done") {
-        const turn = { text: currentText, stopped: !!event.stopped, edits };
+        const turn = {
+          text: currentText,
+          stopped: !!event.stopped,
+          edits,
+          ...(turnWaiter?.error ? { error: turnWaiter.error } : {}),
+        };
         if (currentText) history.push({ role: "assistant", text: currentText });
         if (response && !response.textContent && !(edits && !event.stopped))
           response.textContent = event.stopped
@@ -345,6 +403,8 @@ export function setupAssistant(editor) {
       if (command === "new") void createNew();
       else if (command === "import-svg") void editor.importSvg();
       else if (command === "import-game") void editor.importGameProject();
+      else if (command === "import-kit") void editor.importDesignKit();
+      else if (command === "lesson-send") editor.openLessonSend();
       else if (command === "pipelines") editor.openPipelines();
       else if (command === "assistant") toggle();
       else if (command === "open") void openProject();
