@@ -68,6 +68,7 @@ import { forgetConversation, loadChat, saveChat } from "./conversations.ts";
 import { getCourseTemplate, localMusicPath, saveCourseTemplate } from "./courseTemplates.ts";
 import { registerCursorSprites } from "./cursorSprite.ts";
 import { registerDrawingVideos } from "./drawingVideo.ts";
+import { edisvgExecutable, handOffLesson, openEdisvg } from "./edisvgHandoff.ts";
 import { markPlaced, readReceived } from "./edisvgInbox.ts";
 import {
   codexSelfTest,
@@ -713,6 +714,29 @@ function registerIpc(): void {
   ipcMain.handle("edisvg:placed", (_e, lessonId: unknown, sentAt: unknown) =>
     markPlaced(app.getPath("userData"), lessonId, sentAt),
   );
+  // "Animar no EdiSVG" (edisvgHandoff.ts): the lesson packed for EdiSVG's pipelines, which open.
+  ipcMain.handle("edisvg:animate", async (_e, rawJob: unknown, project: unknown) => {
+    const jobId = jobIdSchema.parse(rawJob);
+    const parsed = projectSchema.parse(projectJson(project));
+    await handOffLesson(app.getPath("userData"), parsed, (out) =>
+      processingJob(jobId, "segment", (signal) =>
+        packProject(
+          parsed,
+          out,
+          desktopFiles.assertRead,
+          (ratio) => sendProgress({ id: jobId, ratio }),
+          signal,
+          FFMPEG,
+          { onlyUsed: true },
+        ),
+      ),
+    );
+    // In development EdiSVG runs from the repository (pnpm edi:work edisvg): opened by hand.
+    const exe = app.isPackaged
+      ? edisvgExecutable(process.env.LOCALAPPDATA ?? app.getPath("appData"))
+      : null;
+    return { opened: exe ? await openEdisvg(exe) : false };
+  });
   ipcMain.handle("media:thumb", (_e, path: string, kind: AssetKind, duration: number) =>
     thumbnail(path, kind, duration),
   );

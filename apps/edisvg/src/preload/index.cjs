@@ -32,6 +32,7 @@ contextBridge.exposeInMainWorld("desktop", {
   lessonSendFinish: (id) => ipcRenderer.invoke("lesson-send:finish", id),
   lessonSendCancel: (id) => ipcRenderer.invoke("lesson-send:cancel", id),
   lessonSendManifest: (manifest) => ipcRenderer.invoke("lesson-send:manifest", manifest),
+  lessonRequestTake: () => ipcRenderer.invoke("lesson-request:take"),
   pipelineLessonVideo: (token, from, to, jobId) =>
     ipcRenderer.invoke("pipeline:lesson-video", token, from, to, jobId),
   pipelineReferenceSave: (projectId, kind, bytes, meta) =>

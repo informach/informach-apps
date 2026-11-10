@@ -37,6 +37,25 @@ export const receivedManifestSchema = z.looseObject({
     .max(200),
 });
 
+/**
+ * The other way, "Animar no EdiSVG" (main/edisvgHandoff.ts): the lesson packed for EdiSVG's
+ * pipelines in this profile's `para-o-edisvg/`, with `pedido.json` written last. EdiSVG reads it
+ * (apps/edisvg/src/main/lessonRequest.ts) and opens the pipelines with the lesson chosen.
+ */
+export const HANDOFF_FOLDER = "para-o-edisvg";
+export const HANDOFF_REQUEST = "pedido.json";
+export const handoffRequestSchema = z.strictObject({
+  version: z.literal(1),
+  lessonId,
+  /** The lesson's name, for EdiSVG to say which lesson came. */
+  name: z.string().min(1).max(200),
+  /** The package, a file of the folder. */
+  file: z.string().regex(/^aula-[\w-]{1,100}-\d{13}\.zip$/),
+  /** When it was sent (ms): EdiSVG opens a request once. */
+  sentAt: z.number().int().positive(),
+});
+export type HandoffRequest = z.infer<typeof handoffRequestSchema>;
+
 /** An animation sent for the open lesson, with the full path of its video. */
 export interface ReceivedAnimation {
   clipId: string;

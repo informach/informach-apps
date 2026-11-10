@@ -299,7 +299,16 @@ Continuam pendentes: remover as várias seções do EdiAula e o botão "Animar n
 
 Em 10/11, antes de remover as várias seções, a conferência das aulas do titular mudou a decisão. Quase todas as aulas em `Documents\EdiAula\Projetos` têm um roteiro de várias partes num vídeo só: a DPJ Aula01, por exemplo, tem 10 minutos com as Partes 1 a 6 e a Parte 6 escolhida. A gravação guiada, os pedaços da voz e o "Na tela" já tratam essas partes como uma aula. Cortar o roteiro na seção escolhida apagaria as outras partes. O "Um projeto por parte", de 09/11, é o jeito documentado de gravar as aulas do Sistema Zero. O titular decidiu remover só o **Lote por curso**: "Dividir por seção", o diálogo, a barra de aprovação e `splitBySections`/`sectionProject`. O roteiro com várias partes, a escolha da parte e o "Um projeto por parte" continuam. O que sobrou de `shared/courseSplit.ts` (o trecho como aula, usado por `export_video`, e os campos do projeto de parte) foi para `shared/lessonParts.ts`, com o teste em `tests/lesson-parts.test.ts`. No mesmo dia, o `teste.edisvg` do titular ganhou o registro do trecho da demonstração (Parte 6, 24 frases), e as duas aulas DPJ Aula01 abertas do pacote ganharam o id de origem `pgte1jhfsnary`.
 
-Continua pendente o botão "Animar no EdiSVG".
+Ainda em 10/11, entrou o botão **Animar no EdiSVG** no EdiAula (barra de cima e menu Arquivo):
+- **No EdiAula:** a aula é salva e empacotada como em "Empacotar a aula", só com as mídias da timeline, em `para-o-edisvg/` no perfil do EdiAula, com `pedido.json` por último (`src/main/edisvgHandoff.ts`). Fica só o pacote mais novo. Com o EdiSVG instalado pelo Hub, o EdiAula o abre; já aberto, ele vem para a frente. No desenvolvimento, o EdiSVG é aberto à mão.
+- **No EdiSVG:** ao abrir e a cada volta da janela para a frente, ele pega o pedido uma vez (`src/main/lessonRequest.ts`), e os pipelines abrem com a aula já escolhida em cada receita.
+
+Verificação:
+- **EdiAula:** testes do pedido (pacote antes do pedido, falha sem resto, só o pacote mais novo, id recusado antes de empacotar).
+- **EdiSVG:** testes do pedido (uma vez só, pacote ausente ou fora da pasta), o e2e dos pipelines com a aula entregue, os 371 unitários e as jornadas nativas.
+- **Entre os dois:** com a DPJ Aula01 real, o código do EdiAula empacotou 851 MB em 27 s, e o do EdiSVG pegou o pedido uma vez e leu a aula `pifnvgomyinhw`, Seção 6, com as 24 frases.
+
+Ainda não testado: o clique nos dois aplicativos abertos, e o EdiSVG aberto pelo EdiAula numa instalação do Hub.
 
 A revisão completa do diff, antes do commit de 09/11, achou 10 problemas, todos corrigidos:
 - **Leitor de ZIP:** um descritor ficava aberto quando a entrada era recusada.

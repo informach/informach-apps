@@ -26,6 +26,7 @@ import {
   startDelivery,
   writeDelivery,
 } from "./lessonDelivery.ts";
+import { takeLessonRequest } from "./lessonRequest.ts";
 import { startMcpServer } from "./mcpServer.js";
 import {
   cancelPipelineJob,
@@ -46,6 +47,7 @@ import {
   pickPipelineFile,
   readPickedProject,
   readRecipeStore,
+  registerPickedFile,
   writeRecipeStore,
 } from "./pipelines.ts";
 import { createProjectFiles } from "./projectFiles.js";
@@ -497,6 +499,16 @@ else {
       handle("lesson-send:finish", (id) => finishDelivery(id));
       handle("lesson-send:cancel", (id) => cancelDelivery(id));
       handle("lesson-send:manifest", (manifest) => writeDelivery(inbox(), manifest));
+      // A lesson EdiAula sent with "Animar no EdiSVG" (lessonRequest.ts), taken once: the window
+      // gets it as a picked package and opens the pipelines with it.
+      handle("lesson-request:take", async () => {
+        const request = await takeLessonRequest(ediaulaData(), app.getPath("userData"));
+        if (!request) return null;
+        return {
+          name: request.name,
+          file: await registerPickedFile(request.path, "lesson", `${request.name}.zip`),
+        };
+      });
       handle("pipeline:lesson-video", (token, from, to, jobId) =>
         pipelineLessonVideo(token, from, to, jobId),
       );

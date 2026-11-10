@@ -50,6 +50,14 @@ dialog.pipelines-dialog > .help-content {
   color: #ff7a7a;
   border-color: #ff7a7a;
 }
+/* A lesson EdiAula sent ("Animar no EdiSVG"): it comes chosen in every run. */
+.pipeline-handed {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--mint) 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--mint) 10%, transparent);
+}
 .pipeline-recipe-line {
   margin: 0;
   color: var(--muted);

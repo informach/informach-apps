@@ -54,6 +54,7 @@ const api: EdiAulaApi = {
   probe: (path) => ipcRenderer.invoke("media:probe", path),
   edisvgReceived: (ids) => ipcRenderer.invoke("edisvg:received", ids),
   edisvgPlaced: (lessonId, sentAt) => ipcRenderer.invoke("edisvg:placed", lessonId, sentAt),
+  edisvgAnimate: (jobId, projectJson) => ipcRenderer.invoke("edisvg:animate", jobId, projectJson),
   thumbnail: (path, kind, duration) => ipcRenderer.invoke("media:thumb", path, kind, duration),
   waveform: (path) => ipcRenderer.invoke("media:waveform", path),
   motion: (jobId, path, input, duration) =>

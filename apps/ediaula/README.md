@@ -1195,6 +1195,17 @@ aula. Do lado do EdiAula:
 - **Leitura dos vídeos.** O processo principal libera a leitura de cada vídeo do envio antes da
   prévia, como faz com qualquer mídia importada.
 
+**Animar no EdiSVG** (botão da barra de cima, ou Arquivo › Animar no EdiSVG) leva a aula aberta
+aos pipelines do EdiSVG, sem passar pela pasta de Downloads:
+- A aula é salva e empacotada como em **Empacotar a aula**, só com as mídias da timeline, em
+  `%APPDATA%\ediaula\para-o-edisvg\`, com `pedido.json` gravado por último
+  (`src/main/edisvgHandoff.ts`). Fica só o pacote mais novo. A DPJ Aula01 (10 minutos, com os vídeos
+  do apresentador) sai com 851 MB, em 27 s.
+- Com o EdiSVG instalado pelo Hub, o EdiAula o abre (ou o traz para a frente, se já estava
+  aberto). No desenvolvimento, abra o EdiSVG com `pnpm edi:work edisvg`: o pedido espera por ele.
+- No EdiSVG, os pipelines abrem com a aula já escolhida em cada receita e as frases do roteiro
+  para marcar. A animação volta por **Enviar animações para a aula**, na faixa acima.
+
 ## Anotações, memes e animações
 
 - **Anotações** (barra lateral › Anotações): seta, balão de fala, nota, rótulo, título, destaque e número de

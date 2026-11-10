@@ -1,9 +1,11 @@
 import { placeAnimations, type ReceivedAnimations, receivingIds } from "@shared/edisvgAnimations";
+import { newId } from "@shared/timeline";
 import type { Asset } from "@shared/types";
 import { create } from "zustand";
 import { useApp } from "@/state/app";
 import { useProject } from "@/state/project";
 import { mediaPictures, preparePlayback, probeMedia } from "./importMedia";
+import { cleanError } from "./transcripts";
 
 /**
  * The animations EdiSVG sent for the open lesson (shared/edisvgAnimations.ts), offered in a bar
@@ -84,6 +86,42 @@ export async function placeEdisvgAnimations(): Promise<void> {
     );
   } finally {
     useEdisvgOffer.setState({ placing: false });
+  }
+}
+
+/** Whether the lesson is being packed for EdiSVG (one at a time). */
+export const useAnimating = create<{ busy: boolean }>(() => ({ busy: false }));
+
+/**
+ * "Animar no EdiSVG": the lesson, saved first, goes to EdiSVG's pipelines as its package
+ * (main/edisvgHandoff.ts), and EdiSVG opens with it chosen. The animation comes back to this
+ * lesson by EdiSVG's "Enviar animações para a aula", offered in the bar above.
+ */
+export async function animateInEdisvg(): Promise<void> {
+  const { startJob, endJob, toast } = useApp.getState();
+  if (useAnimating.getState().busy || !useProject.getState().project) return;
+  useAnimating.setState({ busy: true });
+  const jobId = newId("edisvg");
+  try {
+    if (!(await useProject.getState().saveNow())) {
+      toast("Salve a aula antes de mandar para o EdiSVG.", "error");
+      return;
+    }
+    const p = useProject.getState().project;
+    if (!p) return;
+    startJob(jobId, `Preparando para o EdiSVG: ${p.name}`);
+    const { opened } = await window.api.edisvgAnimate(jobId, JSON.stringify(p));
+    toast(
+      opened
+        ? "A aula foi para o EdiSVG: os pipelines abrem lá com ela escolhida."
+        : "A aula está esperando no EdiSVG: abra o EdiSVG (ou volte para ele) e os pipelines abrem com ela escolhida.",
+      "success",
+    );
+  } catch (err) {
+    toast(`A aula não foi para o EdiSVG: ${cleanError(err)}`, "error");
+  } finally {
+    endJob(jobId);
+    useAnimating.setState({ busy: false });
   }
 }
 

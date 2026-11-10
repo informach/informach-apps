@@ -162,9 +162,17 @@ function LessonPhrases({
   );
 }
 
+/** A lesson EdiAula sent with "Animar no EdiSVG" (main/lessonRequest.ts), as a picked package. */
+interface HandedLesson {
+  name: string;
+  file: PickedFile;
+}
+
 interface Props {
   desktop: PipelinesDesktop;
   editor: PipelineEditor;
+  /** The lesson EdiAula sent: every run starts with it chosen. */
+  handed?: HandedLesson;
   report(message: string): void;
   close(): void;
   /** Tells the dialog a run is going (it then refuses to close). */
@@ -441,11 +449,13 @@ function RunForm({
   report,
   onBack,
   setBusy,
+  handed,
 }: {
   recipe: Recipe;
   families: BundledFamily[];
   desktop: PipelinesDesktop;
   editor: PipelineEditor;
+  handed?: HandedLesson;
   report(message: string): void;
   onBack(): void;
   setBusy(busy: boolean): void;
@@ -495,39 +505,54 @@ function RunForm({
       : {}),
   };
   const missing = missingInputs(recipe, inputs);
+  /** Takes `file` as the input `key`; a lesson package brings its script's phrases. */
+  const choose = async (key: keyof RunInputs["files"], file: PickedFile) => {
+    setFiles((current) => ({ ...current, [key]: file }));
+    if (key !== "audio") return;
+    // The lesson's script comes with it: its phrases, all picked, instead of pasting them.
+    setLesson(null);
+    setLessonRef(null);
+    if (file.kind !== "lesson") return;
+    const found = await desktop.pipelineLessonScript(file.token);
+    const parsed = found.script ? lessonScript(found.script.text, found.script.section) : null;
+    if (!live.current) return;
+    const ref = found.id ? { id: found.id, section: found.script?.section ?? 0 } : null;
+    setLessonRef(ref);
+    if (!parsed) {
+      report("A aula não tem roteiro com falas: escreva o roteiro do trecho.");
+      return;
+    }
+    // The phrases this project has not animated yet start picked: the next stretch.
+    const already = donePhrases(editor.lessonClips(), ref);
+    setLesson({
+      script: parsed,
+      picked: new Set(
+        parsed.rows.flatMap((row) =>
+          row.kind === "phrase" && !already.has(row.text) ? [row.index] : [],
+        ),
+      ),
+    });
+  };
   const pick = async (key: keyof RunInputs["files"], kind: PickedFile["kind"]) => {
     try {
       const file = await desktop.pipelinePick(kind);
       if (!file || !live.current) return;
-      setFiles((current) => ({ ...current, [key]: file }));
-      if (key !== "audio") return;
-      // The lesson's script comes with it: its phrases, all picked, instead of pasting them.
-      setLesson(null);
-      setLessonRef(null);
-      if (file.kind !== "lesson") return;
-      const found = await desktop.pipelineLessonScript(file.token);
-      const parsed = found.script ? lessonScript(found.script.text, found.script.section) : null;
-      if (!live.current) return;
-      const ref = found.id ? { id: found.id, section: found.script?.section ?? 0 } : null;
-      setLessonRef(ref);
-      if (!parsed) {
-        report("A aula não tem roteiro com falas: escreva o roteiro do trecho.");
-        return;
-      }
-      // The phrases this project has not animated yet start picked: the next stretch.
-      const already = donePhrases(editor.lessonClips(), ref);
-      setLesson({
-        script: parsed,
-        picked: new Set(
-          parsed.rows.flatMap((row) =>
-            row.kind === "phrase" && !already.has(row.text) ? [row.index] : [],
-          ),
-        ),
-      });
+      await choose(key, file);
     } catch (error) {
       report(failureText(error));
     }
   };
+  // The lesson EdiAula sent comes chosen, once, when the run form opens.
+  const handedAtStart = useRef(handed);
+  const chooseAtStart = useRef(choose);
+  useEffect(() => {
+    const lesson = handedAtStart.current;
+    const input = RECIPE_INPUTS[recipe.kind].find((item) => item.accepts.includes("lesson"));
+    if (!lesson || !input) return;
+    chooseAtStart.current(input.key, lesson.file).catch((error: unknown) => {
+      if (live.current) report(failureText(error));
+    });
+  }, [recipe.kind, report]);
   const start = async () => {
     const parsed = runInputsSchema.safeParse(inputs);
     if (!parsed.success || missing.length) return;
@@ -697,7 +722,7 @@ function RunForm({
   );
 }
 
-function PipelinesPanel({ desktop, editor, report, close, setBusy }: Props) {
+function PipelinesPanel({ desktop, editor, handed, report, close, setBusy }: Props) {
   const [running, setRunning] = useState(false);
   const busy = (value: boolean) => {
     setRunning(value);
@@ -802,10 +827,17 @@ function PipelinesPanel({ desktop, editor, report, close, setBusy }: Props) {
           report={report}
           onBack={() => setView({ name: "list" })}
           setBusy={busy}
+          {...(handed ? { handed } : {})}
         />
       ) : (
         <>
           <div className="help-content pipeline-body">
+            {handed && (
+              <p className="pipeline-handed" role="status">
+                <strong>{handed.name}</strong> chegou do EdiAula. Escolha a receita: a aula já vem
+                escolhida, com as frases do roteiro.
+              </p>
+            )}
             <p>
               Uma receita guarda o que se repete: o tipo de trabalho, as instruções para o
               assistente, a paleta de texto e as fontes. Ao rodar, você escolhe só os arquivos e o

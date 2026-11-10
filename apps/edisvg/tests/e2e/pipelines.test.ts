@@ -751,6 +751,69 @@ test("pipelines: with the lesson package the demonstration takes its screen from
   }
 });
 
+test("pipelines: a lesson EdiAula sends with Animar no EdiSVG opens them with it chosen, once", {
+  timeout: 90000,
+}, async () => {
+  const server = await rendererServer(),
+    channel = process.env.EDISVG_TEST_BROWSER_CHANNEL,
+    browser = await chromium.launch(channel ? { channel } : {});
+  try {
+    const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } }),
+      errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(server.url);
+    await page.locator(".scene-artwork>svg").waitFor();
+    await page.evaluate(fakeDesktop(JSON.stringify(game)));
+    // The request EdiAula left (lessonRequest.ts): the main process hands it over once.
+    await page.evaluate(() => {
+      const w = window as unknown as {
+        __taken: number;
+        desktop: Record<string, unknown>;
+      };
+      w.__taken = 0;
+      w.desktop.lessonRequestTake = async () =>
+        w.__taken++
+          ? null
+          : {
+              name: "Aula 3",
+              file: { token: "file-aula-000001", name: "Aula 3.zip", kind: "lesson", size: 900 },
+            };
+    });
+    // The window comes back to the front after the click in EdiAula.
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    const dialog = page.getByRole("dialog", { name: "Pipelines" });
+    await dialog.getByRole("status").getByText("Aula 3").waitFor();
+    await dialog
+      .locator("li", { hasText: "Demonstração passo a passo" })
+      .getByRole("button", { name: "Rodar" })
+      .click();
+    // The run starts with the lesson chosen and its phrases offered, nothing picked by hand.
+    await dialog.getByText("Aula 3.zip (pacote da aula do EdiAula)").waitFor();
+    await dialog
+      .getByRole("group", { name: "Roteiro da aula · Seção 2 · A chave" })
+      .getByText("3 de 3 frases nesta animação.", { exact: false })
+      .waitFor();
+    await page.screenshot({ path: "test-results/pipelines-handed-lesson.png" });
+    // Back to the list and into the other recipe: the same lesson comes chosen there too.
+    await dialog.getByRole("button", { name: "Voltar", exact: true }).click();
+    await dialog
+      .locator("li", { hasText: "Cena animada do jogo" })
+      .getByRole("button", { name: "Rodar" })
+      .click();
+    await dialog.getByText("Aula 3.zip (pacote da aula do EdiAula)").waitFor();
+    await dialog.getByRole("button", { name: "Fechar pipelines" }).click();
+    // Taken once: coming back to the front again opens nothing.
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await page.waitForTimeout(300);
+    assert.equal(await dialog.count(), 0);
+    assert.equal(await page.evaluate("window.__taken"), 2);
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+});
+
 declare global {
   interface Window {
     desktop?: {

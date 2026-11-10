@@ -98,6 +98,15 @@ v26):
   e começam desmarcadas: a lista abre com o trecho que falta;
 - duplicar a prancheta não leva os trechos, e apagar a animação apaga o dela.
 
+**A aula vinda do EdiAula.** O botão **Animar no EdiSVG** do EdiAula empacota a aula em
+`para-o-edisvg/`, no perfil do EdiAula, com `pedido.json` por último, e abre o EdiSVG. O EdiSVG
+procura o pedido ao abrir e cada vez que a janela volta para a frente (`src/main/lessonRequest.ts`):
+- só pega o pedido quando não há diálogo aberto nem pipeline rodando; senão, pega na próxima vez;
+- cada pedido abre uma vez só (o último aberto fica em `pedido-do-ediaula.json`, no perfil do
+  EdiSVG);
+- os pipelines abrem com um aviso de qual aula chegou, e cada receita rodada começa com o pacote
+  escolhido como áudio da aula, com as frases do roteiro.
+
 **Enviar animações para a aula** (Arquivo, ou a paleta de comandos) manda cada animação desses
 trechos para o EdiAula:
 - A cena vai em MP4, sobre preto, e a demonstração em WebM com transparência (VP9 com alfa).

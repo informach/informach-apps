@@ -1,10 +1,19 @@
 import { explainSaveError, saveErrorDetail, saveErrorShort } from "@shared/saveError";
-import { CircleDot, FolderOpen, GraduationCap, Settings, Upload, Wand2 } from "lucide-react";
+import {
+  CircleDot,
+  FolderOpen,
+  GraduationCap,
+  PenTool,
+  Settings,
+  Upload,
+  Wand2,
+} from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { actions } from "@/lib/actions";
 import { copySelection, cutSelection, paste } from "@/lib/clipboard";
 import { askPasteProps, copyProps } from "@/lib/clipProps";
 import { saveCourseTemplateFromLesson } from "@/lib/courseTemplate";
+import { animateInEdisvg, useAnimating } from "@/lib/edisvgOffer";
 import { exportCurrentFrame, openPackagedLesson, packLesson } from "@/lib/exportExtras";
 import { openPrepare } from "@/lib/prepare";
 import { duplicateLesson } from "@/lib/projectFiles";
@@ -39,6 +48,7 @@ export function TopBar(): ReactNode {
   const path = useProject((s) => s.path);
   const interval = useApp((s) => s.interval);
   const set = useApp((s) => s.set);
+  const animating = useAnimating((s) => s.busy);
   const [dialog, setDialog] = useState<"rename" | "backups" | null>(null);
 
   const openOther = async (): Promise<void> => {
@@ -109,6 +119,11 @@ export function TopBar(): ReactNode {
                   onSelect: packLesson,
                 },
                 { label: "Abrir aula empacotada…", onSelect: () => void openPackagedLesson() },
+                {
+                  label: "Animar no EdiSVG",
+                  disabled: !project?.clips.length || animating,
+                  onSelect: () => void animateInEdisvg(),
+                },
                 { separator: true, label: "" },
                 {
                   label: "Importar voz…",
@@ -317,6 +332,15 @@ export function TopBar(): ReactNode {
             title="Transcrever, cortar, encaixar, dar zoom, anotar, legendar e verificar, etapa por etapa"
           >
             Preparar aula
+          </Button>
+          <Button
+            variant="secondary"
+            icon={PenTool}
+            onClick={() => void animateInEdisvg()}
+            disabled={!project?.clips.length || animating}
+            title="Leva esta aula aos pipelines do EdiSVG, com o roteiro e a tela, para animar um trecho; a animação volta para cá"
+          >
+            Animar no EdiSVG
           </Button>
           <Button
             variant="secondary"

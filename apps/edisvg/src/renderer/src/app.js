@@ -2328,7 +2328,11 @@ function sameRunSession() {
   if (pipelineRun && state.sessionId !== pipelineRun.session)
     throw new Error("Outro projeto foi aberto durante o pipeline: ele parou sem editar o novo.");
 }
-function openPipelines() {
+/**
+ * @param {{ name: string, file: import("../../shared/pipelines").PickedFile } | undefined} handed
+ *   A lesson EdiAula sent ("Animar no EdiSVG"): every recipe run starts with it chosen.
+ */
+function openPipelines(handed = undefined) {
   let dialog = document.querySelector("#pipelines-dialog");
   if (!(dialog instanceof HTMLDialogElement)) {
     dialog = document.createElement("dialog");
@@ -2343,6 +2347,7 @@ function openPipelines() {
   disposePipelines?.();
   disposePipelines = mountPipelines(dialog, {
     desktop: window.desktop,
+    ...(handed ? { handed } : {}),
     editor: {
       importStudioProject: (source) => {
         sameRunSession();
@@ -2484,6 +2489,29 @@ function openPipelines() {
     report: notify,
   });
 }
+/**
+ * A lesson EdiAula sent with "Animar no EdiSVG" (main/lessonRequest.ts): looked for when the
+ * editor opens and when the window comes back to the front, and taken only when nothing else is
+ * open (a dialog, a run), so it never lands on top of other work: the next time it is taken.
+ */
+let takingLesson = false;
+async function takeLessonRequest() {
+  if (takingLesson || !window.desktop?.lessonRequestTake) return;
+  if (pipelineRun || document.querySelector("dialog[open]") || $("#app").inert) return;
+  takingLesson = true;
+  try {
+    const request = await window.desktop.lessonRequestTake();
+    if (!request) return;
+    openPipelines(request);
+    if (!document.querySelector("#pipelines-dialog[open]"))
+      notify(`A aula "${request.name}" chegou do EdiAula: abra os pipelines para animá-la.`);
+  } catch (error) {
+    notify(`A aula do EdiAula não abriu nos pipelines: ${error.message}`);
+  } finally {
+    takingLesson = false;
+  }
+}
+window.addEventListener("focus", () => void takeLessonRequest());
 /** A dropped .szproject.json: read in the window (the dialog path reads it in main). */
 async function readGameProjectFile(file) {
   if (file.size > SZPROJECT_BYTES) throw new Error("O projeto do Estúdio passa de 30 MB.");
@@ -3422,6 +3450,7 @@ async function initialize() {
     render();
     save(false);
     scheduleTick();
+    void takeLessonRequest();
   } catch (error) {
     render();
     document.querySelector("#app").inert = true;
