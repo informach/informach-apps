@@ -1,4 +1,4 @@
-import { partProjectFields, partProjectName } from "@shared/courseSplit";
+import { partProjectFields, partProjectName } from "@shared/lessonParts";
 import type { ScriptDoc } from "@shared/script";
 import type { Project } from "@shared/types";
 

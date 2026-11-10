@@ -264,7 +264,7 @@ Passaram os testes do EdiSVG (357 unitários e 13 e2e, incluindo o novo `design-
 Ainda em 09/11, o titular fechou um projeto da demonstração, abriu de novo, e o vídeo da aula não estava mais por baixo da camada. Isso estava previsto desde a receita: a narração e o vídeo eram referências só da sessão, fora do projeto. Agora os dois ficam guardados no perfil do EdiSVG, pelo id do projeto (`pipeline-references`, últimos 12 projetos). Ao abrir o projeto, voltam com a animação e a prancheta deles. Continuam fora do arquivo `.edisvg` e das exportações, então em outro computador é preciso rodar a receita de novo. O e2e da demonstração agora reabre o projeto num editor novo e confere o vídeo e a narração de volta. Não foi conferido no aplicativo com o projeto do titular. Projetos rodados antes desta correção não têm o que restaurar: é preciso rodar a receita uma vez.
 
 Ainda em 09/11, o titular decidiu integrar EdiAula e EdiSVG, para não carregar os mesmos arquivos nos dois. As decisões:
-- o EdiAula passa a trabalhar com uma seção do roteiro por vez, e o que existe para várias seções (roteiro do curso inteiro, escolha da seção, "Lote por curso") será removido de vez;
+- o EdiAula passa a trabalhar com uma seção do roteiro por vez, e o que existe para várias seções (roteiro do curso inteiro, escolha da seção, "Lote por curso") será removido de vez (revisto em 10/11: sai só o "Lote por curso", veja abaixo);
 - no EdiSVG, as frases da seção são escolhidas numa lista;
 - a animação volta ao EdiAula numa faixa própria, acima da gravação de tela.
 
@@ -296,6 +296,10 @@ Ainda não testado:
 - o tempo de um envio longo, que em 1080p deve ficar perto de alguns minutos.
 
 Continuam pendentes: remover as várias seções do EdiAula e o botão "Animar no EdiSVG".
+
+Em 10/11, antes de remover as várias seções, a conferência das aulas do titular mudou a decisão. Quase todas as aulas em `Documents\EdiAula\Projetos` têm um roteiro de várias partes num vídeo só: a DPJ Aula01, por exemplo, tem 10 minutos com as Partes 1 a 6 e a Parte 6 escolhida. A gravação guiada, os pedaços da voz e o "Na tela" já tratam essas partes como uma aula. Cortar o roteiro na seção escolhida apagaria as outras partes. O "Um projeto por parte", de 09/11, é o jeito documentado de gravar as aulas do Sistema Zero. O titular decidiu remover só o **Lote por curso**: "Dividir por seção", o diálogo, a barra de aprovação e `splitBySections`/`sectionProject`. O roteiro com várias partes, a escolha da parte e o "Um projeto por parte" continuam. O que sobrou de `shared/courseSplit.ts` (o trecho como aula, usado por `export_video`, e os campos do projeto de parte) foi para `shared/lessonParts.ts`, com o teste em `tests/lesson-parts.test.ts`. No mesmo dia, o `teste.edisvg` do titular ganhou o registro do trecho da demonstração (Parte 6, 24 frases), e as duas aulas DPJ Aula01 abertas do pacote ganharam o id de origem `pgte1jhfsnary`.
+
+Continua pendente o botão "Animar no EdiSVG".
 
 A revisão completa do diff, antes do commit de 09/11, achou 10 problemas, todos corrigidos:
 - **Leitor de ZIP:** um descritor ficava aberto quando a entrada era recusada.

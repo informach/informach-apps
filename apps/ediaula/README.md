@@ -552,7 +552,7 @@ o código do vídeo do roteiro (`F1P1-V01`), o quiz, a miniatura e as legendas t
   - Na "Aula02 gravação automática", `split: "clips"` na faixa da tela dá 5 partes: 0:00–0:30.7, 0:30.7–1:21.0,
     1:21.0–3:59.1, 3:59.1–6:41.6 e 6:41.6–7:49.2 (`tests/export-parts.test.ts`).
 
-## Regravar falas, narração pelo roteiro e lote por curso
+## Regravar falas e narração pelo roteiro
 
 - **Regravar falas** (aba Roteiro): com a seção confirmada, as falas da professora que faltam na aula ou estão pela
   metade (menos de 40% e menos de 80% das palavras achadas) abrem o gravador em **Só voz** com o teleprompter só
@@ -571,12 +571,8 @@ o código do vídeo do roteiro (`F1P1-V01`), o quiz, a miniatura e as legendas t
   microfone salvo nas opções do gravador já vem escolhido. A tomada passa pelo mesmo tratamento de voz da gravação
   (Áudio › Voz) e entra na faixa "Narração" que já existe quando ela está livre no intervalo, sem passar por cima de
   outra tomada (`insertNarration`, `narrationTrack` em `src/shared/narration.ts`).
-- **Dividir por seção** (aba Roteiro, com a gravação transcrita): uma gravação longa com várias seções do roteiro vira
-  uma proposta de trechos, um por seção achada, com a divisa no meio da pausa entre elas. **Produzir todas** cria um
-  projeto por seção com as mesmas mídias, a seção confirmada e o código do vídeo dela. A barra do lote, acima da
-  timeline, é a fila de aprovação: abra cada aula, prepare, e **Aprovar e exportar** põe a aula como ela está na fila
-  de exportação, na pasta escolhida uma vez para o lote. Dois nomes iguais ganham um número ("Aula (2).mp4"), e um
-  vídeo que já está na pasta só é gravado por cima se você confirmar.
+- O **Lote por curso** (**Dividir por seção**, que transformava uma gravação longa em uma aula por seção, com a barra
+  de aprovação) foi removido em 10/11/2026: cada parte é gravada no seu projeto (**Um projeto por parte**).
 
 ## Aprender com a aula anterior
 

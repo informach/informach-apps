@@ -16,7 +16,6 @@ import {
   Monitor,
   Scissors,
   Sparkles,
-  SquareSplitHorizontal,
   Trash2,
   Wand2,
 } from "lucide-react";
@@ -39,7 +38,6 @@ import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { Button } from "@/ui";
-import { CourseSplitDialog } from "./CourseSplitDialog";
 
 const percent = (share: number): string => `${Math.round(share * 100)}%`;
 
@@ -52,7 +50,6 @@ export function ScriptPanel(): ReactNode {
   const view = useScriptView(project, transcripts);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const [splitting, setSplitting] = useState(false);
   const toast = useApp((s) => s.toast);
   if (!project) return null;
 
@@ -345,22 +342,6 @@ export function ScriptPanel(): ReactNode {
             Um projeto por parte
           </Button>
         )}
-        {doc.sections.length > 1 && (
-          <Button
-            size="sm"
-            variant="ghost"
-            icon={SquareSplitHorizontal}
-            disabled={!transcribed}
-            title={
-              transcribed
-                ? "Uma gravação longa com várias seções vira uma aula por seção"
-                : "Transcreva a gravação para achar as seções"
-            }
-            onClick={() => setSplitting(true)}
-          >
-            Dividir por seção
-          </Button>
-        )}
         <Button
           size="sm"
           variant="ghost"
@@ -372,7 +353,6 @@ export function ScriptPanel(): ReactNode {
           Tirar roteiro
         </Button>
       </div>
-      {splitting && <CourseSplitDialog close={() => setSplitting(false)} />}
     </div>
   );
 }

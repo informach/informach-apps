@@ -38,7 +38,6 @@ import {
   SHADOW_PRESETS,
   type Shadow,
 } from "@shared/compose";
-import { rangeProject } from "@shared/courseSplit";
 import { type CourseTemplate, parseCourseTemplate } from "@shared/courseTemplate";
 import { type CursorFx, DEFAULT_CURSOR_FX } from "@shared/cursor";
 import { buildEditingTemplate } from "@shared/editingTemplate";
@@ -53,6 +52,7 @@ import { type ExportPresetId, exportName, presetSpec, runExportVideo } from "@sh
 import { GAIN_MAX_DB, GAIN_MIN_DB } from "@shared/gain";
 import { formatGlossary } from "@shared/glossary";
 import type { HistoryEntry } from "@shared/history";
+import { rangeProject } from "@shared/lessonParts";
 import { CATEGORY_LABEL, type LibraryMedia } from "@shared/library";
 import { chaptersOf, hasChapterMarkers } from "@shared/markers";
 import { plural } from "@shared/plural";

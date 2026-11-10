@@ -490,7 +490,7 @@ export interface Project {
   /** Guided recording plans of this lesson and how their takes ended (shared/guidedPlan.ts). */
   guided?: GuidedStore;
   /**
-   * A project of one part of a lesson ("Um projeto por parte", shared/courseSplit.ts): the id of
+   * A project of one part of a lesson ("Um projeto por parte", shared/lessonParts.ts): the id of
    * the lesson's project it came from and the section of the script it records.
    */
   partOf?: { lesson: string; section: number };

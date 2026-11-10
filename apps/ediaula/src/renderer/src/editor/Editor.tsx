@@ -16,7 +16,6 @@ import { exportsPending } from "@/state/exportQueue";
 import { playback } from "@/state/playback";
 import { hasUnsavedWork, useProject } from "@/state/project";
 import { AnnotationsPanel } from "./AnnotationsPanel";
-import { BatchBar } from "./BatchBar";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { CursorPathDialog } from "./CursorPathDialog";
 import { EdisvgOffer } from "./EdisvgOffer";
@@ -414,7 +413,6 @@ export function Editor(): ReactNode {
         onPointerDown={startResize}
         title="Arraste para redimensionar a timeline"
       />
-      <BatchBar />
       <PrepareOffer />
       <EdisvgOffer />
       <ReviewBar />
