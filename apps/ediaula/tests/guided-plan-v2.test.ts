@@ -785,7 +785,8 @@ test("a platform's action: its gestures in order, the first on the phrase, the r
     runGuided(plan, page, videoClock(sim.frames, controller.signal), controller.signal),
   );
   assert.deepEqual(page.asked, ["ampliar jogo"]);
-  assert.equal(page.idles, 1);
+  // The page is no longer busy before each gesture, the first one too.
+  assert.equal(page.idles, 2);
   const clicks = page.events.filter((e) => e.op === "left-1");
   assert.deepEqual(
     clicks.map((c) => [c.x, c.y]),
@@ -810,6 +811,35 @@ test("a platform's action: its gestures in order, the first on the phrase, the r
     ),
     /janela da aula/,
   );
+});
+
+test("a platform's action: a page still busy from answering holds the first gesture too", async () => {
+  const sim = simulation(30);
+  class BridgePage extends FakePage {
+    /** The clicks already made each time the page was asked whether it is busy. */
+    clicksAtIdle: number[] = [];
+    async platform(_action: string, id: string) {
+      // Answering brings the game back next to the blocks: it loads while the hand goes.
+      return [
+        { id: `${id}-1`, speech: "", at: 0, action: "click" as const, target: on("Começar") },
+      ];
+    }
+    async idle() {
+      this.clicksAtIdle.push(this.events.filter((e) => e.op === "left-1").length);
+    }
+  }
+  const page = new BridgePage(sim.frames, sim.sleep, points);
+  const plan = webPlan([
+    { id: "a", at: 2, speech: "Teste", action: "platform", platform: "tocar prévia 240 300" },
+  ]);
+  const controller = new AbortController();
+  sim.frames.start();
+  await sim.drive(
+    runGuided(plan, page, videoClock(sim.frames, controller.signal), controller.signal),
+  );
+  // Asked before the only gesture, not just between gestures.
+  assert.deepEqual(page.clicksAtIdle, [0]);
+  assert.equal(page.events.filter((e) => e.op === "left-1").length, 1);
 });
 
 test("a platform's action that continues: the page is asked again after the gestures before it", async () => {
@@ -851,7 +881,7 @@ test("a platform's action that continues: the page is asked again after the gest
   );
   assert.deepEqual(page.asked, ["trocar campo", "escolher"]);
   // A gesture that waits long (the check on the server) waits that long for the busy page too.
-  assert.deepEqual(page.idles, [8, 180]);
+  assert.deepEqual(page.idles, [8, 8, 180]);
   assert.deepEqual(
     page.events.filter((e) => e.op === "left-1").map((c) => [c.x, c.y]),
     [
