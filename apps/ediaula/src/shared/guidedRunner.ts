@@ -205,6 +205,26 @@ const round = (v: number): number => Math.round(v * 1000) / 1000;
 /** Seconds to watch a gesture of a platform's action before the next one. */
 const GESTURE_AFTER = 0.4;
 
+/** An action this much after its narration second still counts as on its word. */
+const ON_TIME = 0.5;
+
+/** The gestures that do what a phrase says (a scroll or a wait only gets the page ready). */
+const ACTS = new Set<GuidedStepV2["action"]>([
+  "click",
+  "rightClick",
+  "doubleClick",
+  "type",
+  "key",
+  "hold",
+  "drag",
+  "point",
+  "hover",
+]);
+
+/** The page asks the same action again ("continuar" with the step's own text). */
+const isAgain = (g: GuidedStepV2 | undefined, own: string): boolean =>
+  g?.action === "platform" && (g.platform ?? "").trim() === own;
+
 export async function runGuided(
   plan: GuidedPlanV2,
   driver: GuidedDriver,
@@ -233,33 +253,70 @@ export async function runGuided(
     if (lapsing) marks.push(takeClock.time());
   };
   /**
-   * Video second the last click, tap, drag, typing or key began. A lapse never starts before
-   * it: sped up, the stretch before an action already done would bring it earlier than its
-   * word in the narration ("clique em jogador" clicked on "Então").
+   * Video second the last click, tap, drag, typing or key began on its word (not after the
+   * narration second it was due). A lapse never starts before it: sped up, the stretch before an
+   * action done on time would bring it earlier than its word ("clique em jogador" clicked on
+   * "Então").
    */
-  let acted = Number.NEGATIVE_INFINITY;
+  let onTime = Number.NEGATIVE_INFINITY;
+  /**
+   * The actions done late since then: video second and the narration second each may not come
+   * before. A lapse may take them in, sped up, but never brings one before its own second.
+   */
+  let lateActs: { at: number; due: number }[] = [];
   /** Video second the last lapse ended: a stretch is never sped up twice. */
   let lapsed = Number.NEGATIVE_INFINITY;
   /**
-   * The run is past `due`: what was recorded since the last action goes in sped up, from the
-   * latest moment that leaves it at least LAPSE_FLOOR seconds of narration, so the run is back
-   * on its second (as much as that stretch allows; the rest stays late, never early).
+   * The run is past `due`: what was recorded since the last action on its word goes in sped up,
+   * so the run is back on its second (as much as that stretch allows; the rest stays late, never
+   * early). Actions already late inside it are stops on the way: the stretch before each goes in
+   * sped up just enough for it to fall on its own word (never before), and the one after it
+   * catches up the rest. One step late no longer makes every step after it late ("clique em
+   * escolhido", then "Clique no 50"). Each piece starts at the latest moment that leaves it at
+   * least LAPSE_FLOOR seconds of narration.
    */
   const settle = (due: number, step: number): void => {
-    const over = clock.time() - due;
-    if (!lapsing || over < LAPSE_MIN) return;
+    if (!lapsing || clock.time() - due < LAPSE_MIN) return;
     const now = takeClock.time();
-    const floor = Math.max(acted, lapsed);
-    const starts = [...marks, floor]
-      .filter((m) => Number.isFinite(m) && m >= floor && m < now)
-      .sort((a, b) => a - b);
+    const floor = Math.max(onTime, lapsed);
+    const inside = (m: number): boolean => Number.isFinite(m) && m >= floor && m < now;
+    const starts = [...marks, ...lateActs.map((a) => a.at), floor].filter(inside);
     if (!starts.length) return;
-    const from = [...starts].reverse().find((m) => now - m - over >= LAPSE_FLOOR) ?? starts[0];
-    const narration = Math.max(LAPSE_FLOOR, now - from - over);
-    if (now - from - narration < LAPSE_MIN) return;
-    options.log?.lapse?.(round(from), round(now), round(narration), step);
-    shift += now - from - narration;
+    const late = lateActs.filter((a) => inside(a.at)).sort((a, b) => a.at - b.at);
+    let sped = false;
+    /** Sped up from `begin` so `end` falls on narration second `endDue`, or as close as it can. */
+    const piece = (begin: number, end: number, endDue: number): void => {
+      if (end <= begin) return;
+      const start = begin - shift;
+      // The piece's speed, and the late action it would bring before its word, if any: then
+      // that one is a stop, the piece before it lands it on its word and the one after goes on.
+      const ratio = Math.max(0, endDue - start) / (end - begin);
+      const binding = late
+        .filter((a) => a.at > begin && a.at < end && a.due - start > (a.at - begin) * ratio)
+        .sort((a, b) => (b.due - start) / (b.at - begin) - (a.due - start) / (a.at - begin))[0];
+      if (binding) {
+        piece(begin, binding.at, binding.due);
+        piece(binding.at, end, endDue);
+        return;
+      }
+      // Video seconds to take out for `end` to fall on its narration second.
+      const remove = end - begin - Math.max(0, endDue - start);
+      if (remove < LAPSE_MIN) return;
+      const from =
+        starts
+          .filter((m) => m >= begin && m < end)
+          .sort((a, b) => b - a)
+          .find((m) => end - m - remove >= LAPSE_FLOOR) ?? begin;
+      const narration = Math.min(end - from, Math.max(LAPSE_FLOOR, end - from - remove));
+      if (end - from - narration < LAPSE_MIN) return;
+      options.log?.lapse?.(round(from), round(end), round(narration), step);
+      shift += end - from - narration;
+      sped = true;
+    };
+    piece(Math.min(...starts), now, due);
+    if (!sped) return;
     lapsed = now;
+    lateActs = [];
   };
   const check = (): void => {
     if (signal.aborted) throw new Error(STOPPED);
@@ -276,9 +333,12 @@ export async function runGuided(
     clock.wait(clock.holds ? from + (i + 1) * interval : clock.time() + span(interval));
   const log = options.log;
   /** Interactions go in the log on the video's seconds, as every other line of it does. */
-  const logAct = (kind: GuidedInteraction, from: number, until: number, index: number): void => {
-    acted = Math.max(acted, from + shift);
-    log?.act(kind, from + shift, until + shift, index);
+  const logAct = (kind: GuidedInteraction, from: number, until: number, s: PlannedStep): void => {
+    // On its word: at most ON_TIME after the narration second it was due.
+    const due = s.due ?? s.actAt;
+    if (from <= due + ON_TIME) onTime = Math.max(onTime, from + shift);
+    else lateActs.push({ at: from + shift, due });
+    log?.act(kind, from + shift, until + shift, s.index);
   };
 
   const runStep = async (s: PlannedStep, next: number): Promise<void> => {
@@ -408,7 +468,7 @@ export async function runGuided(
           step.action === "rightClick" ? "right" : "left",
           step.action === "doubleClick" ? 2 : 1,
         );
-        logAct(step.action === "type" ? "click" : step.action, at, clock.time(), s.index);
+        logAct(step.action === "type" ? "click" : step.action, at, clock.time(), s);
         if (step.action !== "type") break;
         // Replacing what the field has: everything selected first, as a person would.
         if (step.replace) {
@@ -424,7 +484,7 @@ export async function runGuided(
           await driver.text(char);
           await beat(typing, i++, TYPE_INTERVAL);
         }
-        logAct("type", typing, clock.time(), s.index);
+        logAct("type", typing, clock.time(), s);
         break;
       }
       case "key": {
@@ -434,7 +494,7 @@ export async function runGuided(
         await clock.wait(0);
         late(s.actAt + 0.5, "A validação do alvo atrasou. Revise a etapa antes de continuar.");
         await driver.key(chord);
-        logAct("key", at, clock.time(), s.index);
+        logAct("key", at, clock.time(), s);
         break;
       }
       case "hold": {
@@ -454,7 +514,7 @@ export async function runGuided(
             // Stopped or failed while held: the key never stays down after the run.
             await driver.keyUp(chord);
           }
-          logAct("key", at, clock.time(), s.index);
+          logAct("key", at, clock.time(), s);
           break;
         }
         const p = point ?? (await driver.sample());
@@ -466,7 +526,7 @@ export async function runGuided(
           throw cause;
         }
         await driver.release(p);
-        logAct("hold", at, clock.time(), s.index);
+        logAct("hold", at, clock.time(), s);
         break;
       }
       case "drag": {
@@ -483,7 +543,7 @@ export async function runGuided(
           if (held) await letGo(driver, cause);
           throw cause;
         }
-        logAct("drag", at, clock.time(), s.index);
+        logAct("drag", at, clock.time(), s);
         break;
       }
       case "scroll": {
@@ -519,7 +579,7 @@ export async function runGuided(
             await beat(started, i, WHEEL_INTERVAL);
           }
         }
-        logAct("wheel", at, clock.time(), s.index);
+        logAct("wheel", at, clock.time(), s);
         break;
       }
       case "wait": {
@@ -552,12 +612,23 @@ export async function runGuided(
   ): Promise<void> => {
     const ask = driver.platform;
     if (!ask) throw new Error("A ação da plataforma só funciona na janela da aula.");
-    await clock.wait(Math.max(0, s.moveAt - 0.25));
-    clock.hold(s.moveAt, "locate");
+    // Asked by the time the phrase starts too: gestures that prepare the action go with it.
+    const askAt = Math.min(s.moveAt, s.speechAt);
+    await clock.wait(Math.max(0, askAt - 0.25));
+    clock.hold(Math.max(0, askAt), "locate");
     const gestures = await ask.call(driver, s.step.platform ?? "", s.step.id, timeout);
     clock.release();
     const idle = driver.idle;
     let asked = 1;
+    const own = (s.step.platform ?? "").trim();
+    /**
+     * Gestures before the page asks the same action again bring its target into view (the list
+     * rolled to the option, the area dragged to the field): they start with the phrase ("desça
+     * até o fim da lista"), and the gesture after them still acts on the words quoted
+     * ("escolhido"). Until that one is done, `onWords` holds.
+     */
+    const prepares = gestures.length > 1 && isAgain(gestures[1], own);
+    let onWords = true;
     for (let k = 0; k < gestures.length; k++) {
       const given = gestures[k];
       // The page busy before a gesture that waits long (the check of a project on the server)
@@ -578,7 +649,21 @@ export async function runGuided(
       const length = actionLength(gesture, plan);
       const last = k === gestures.length - 1;
       let planned: PlannedStep;
-      if (k === 0) {
+      if (k === 0 && prepares) {
+        // Preparing, the hand leaves when the phrase starts and acts as soon as it is there.
+        const moveAt = Math.max(clock.time() + 0.05, s.speechAt);
+        const actAt = moveAt + (moves ? move + Math.min(dwell, 0.3) : 0);
+        planned = {
+          step: gesture,
+          index: s.index,
+          moves,
+          moveAt,
+          arriveAt: moves ? moveAt + move : actAt,
+          speechAt: actAt,
+          actAt,
+          endAt: actAt + GESTURE_AFTER + length,
+        };
+      } else if (k === 0) {
         planned = {
           ...s,
           step: gesture,
@@ -586,9 +671,13 @@ export async function runGuided(
           ...(moves ? {} : { moveAt: s.actAt, arriveAt: s.actAt }),
           endAt: s.actAt + (last ? after : GESTURE_AFTER) + length,
         };
+        onWords = false;
       } else {
-        const moveAt = clock.time() + 0.25;
-        const actAt = moves ? moveAt + move + dwell : moveAt;
+        const reach = moves ? move + dwell : 0;
+        // The gesture the preparing ones were for acts on the words quoted, never before them.
+        const main = onWords && ACTS.has(gesture.action);
+        const moveAt = Math.max(clock.time() + 0.25, main ? s.actAt - reach : 0);
+        const actAt = moveAt + reach;
         planned = {
           step: gesture,
           index: s.index,
@@ -598,7 +687,10 @@ export async function runGuided(
           speechAt: actAt,
           actAt,
           endAt: actAt + (last ? after : GESTURE_AFTER) + length,
+          // Never sped up to before the step's own words.
+          due: s.actAt,
         };
+        if (main) onWords = false;
       }
       await runStep(planned, last ? next : planned.endAt);
     }

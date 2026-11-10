@@ -81,20 +81,27 @@ export async function createPartProject(
   return { path, project };
 }
 
-/** The fields a part's project may be made with, checked as the project schema checks them. */
+/**
+ * The fields a part's project may be made with. Only their shape is checked here: the whole
+ * project, with them, goes through the project schema when it is saved (saveProject), and that
+ * schema has refinements, so it cannot be narrowed with `.pick()`.
+ */
 export function partFields(raw: unknown): Pick<Project, "script" | "publish" | "partOf"> {
-  const fields = z
+  return z
     .object({
-      script: z.unknown().optional(),
-      publish: z.unknown().optional(),
-      partOf: z.unknown(),
+      script: z
+        .object({
+          text: z.string().min(1),
+          section: z.int().nonnegative(),
+          confirmed: z.boolean().optional(),
+        })
+        .optional(),
+      publish: z
+        .object({ videoId: z.string().max(200).optional(), title: z.string().optional() })
+        .optional(),
+      partOf: z.object({ lesson: z.string().min(1).max(200), section: z.int().nonnegative() }),
     })
     .parse(raw);
-  const checked = projectSchema
-    .pick({ script: true, publish: true, partOf: true })
-    .parse({ script: fields.script, publish: fields.publish, partOf: fields.partOf });
-  if (!checked.partOf) throw new Error("O projeto da parte precisa dizer de que aula ele é.");
-  return checked as Pick<Project, "script" | "publish" | "partOf">;
 }
 
 export async function createProject(
