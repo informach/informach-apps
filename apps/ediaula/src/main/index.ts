@@ -3,7 +3,7 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import { mkdtemp, readdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import { availableParallelism } from "node:os";
-import { basename, dirname, extname, join } from "node:path";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import {
   createClientGrant,
@@ -68,7 +68,14 @@ import { forgetConversation, loadChat, saveChat } from "./conversations.ts";
 import { getCourseTemplate, localMusicPath, saveCourseTemplate } from "./courseTemplates.ts";
 import { registerCursorSprites } from "./cursorSprite.ts";
 import { registerDrawingVideos } from "./drawingVideo.ts";
-import { edisvgExecutable, handOffLesson, openEdisvg } from "./edisvgHandoff.ts";
+import {
+  canOpenEdisvg,
+  edisvgLauncher,
+  handOffLesson,
+  launchEnvironment,
+  lessonProject,
+  openEdisvg,
+} from "./edisvgHandoff.ts";
 import { markPlaced, readReceived } from "./edisvgInbox.ts";
 import {
   codexSelfTest,
@@ -715,10 +722,18 @@ function registerIpc(): void {
     markPlaced(app.getPath("userData"), lessonId, sentAt),
   );
   // "Animar no EdiSVG" (edisvgHandoff.ts): the lesson packed for EdiSVG's pipelines, which open.
-  ipcMain.handle("edisvg:animate", async (_e, rawJob: unknown, project: unknown) => {
+  ipcMain.handle("edisvg:animate", async (_e, rawJob: unknown, project: unknown, path: unknown) => {
     const jobId = jobIdSchema.parse(rawJob);
     const parsed = projectSchema.parse(projectJson(project));
-    await handOffLesson(app.getPath("userData"), parsed, (out) =>
+    // The lesson's own EdiSVG project goes beside the saved lesson.
+    const lessonPath = typeof path === "string" && existsSync(path) ? path : undefined;
+    const edisvgProject = lessonPath ? lessonProject(lessonPath) : undefined;
+    const lesson = {
+      id: parsed.id,
+      name: parsed.name,
+      ...(edisvgProject ? { project: edisvgProject } : {}),
+    };
+    await handOffLesson(app.getPath("userData"), lesson, (out) =>
       processingJob(jobId, "segment", (signal) =>
         packProject(
           parsed,
@@ -731,11 +746,17 @@ function registerIpc(): void {
         ),
       ),
     );
-    // In development EdiSVG runs from the repository (pnpm edi:work edisvg): opened by hand.
-    const exe = app.isPackaged
-      ? edisvgExecutable(process.env.LOCALAPPDATA ?? app.getPath("appData"))
-      : null;
-    return { opened: exe ? await openEdisvg(exe) : false };
+    const opened =
+      canOpenEdisvg(app.isPackaged, app.getPath("userData"), app.getPath("appData")) &&
+      (await openEdisvg({
+        ...edisvgLauncher(
+          app.isPackaged,
+          process.env.LOCALAPPDATA ?? app.getPath("appData"),
+          resolve(app.getAppPath(), "..", ".."),
+        ),
+        env: launchEnvironment(process.env),
+      }));
+    return { opened, ...(edisvgProject ? { project: edisvgProject } : {}) };
   });
   ipcMain.handle("media:thumb", (_e, path: string, kind: AssetKind, duration: number) =>
     thumbnail(path, kind, duration),

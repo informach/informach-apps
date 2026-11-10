@@ -99,12 +99,30 @@ v26):
 - duplicar a prancheta não leva os trechos, e apagar a animação apaga o dela.
 
 **A aula vinda do EdiAula.** O botão **Animar no EdiSVG** do EdiAula empacota a aula em
-`para-o-edisvg/`, no perfil do EdiAula, com `pedido.json` por último, e abre o EdiSVG. O EdiSVG
-procura o pedido ao abrir e cada vez que a janela volta para a frente (`src/main/lessonRequest.ts`):
-- só pega o pedido quando não há diálogo aberto nem pipeline rodando; senão, pega na próxima vez;
-- cada pedido abre uma vez só (o último aberto fica em `pedido-do-ediaula.json`, no perfil do
-  EdiSVG);
-- os pipelines abrem com um aviso de qual aula chegou, e cada receita rodada começa com o pacote
+`para-o-edisvg/`, no perfil do EdiAula, com `pedido.json` por último, e abre o EdiSVG
+(`src/main/lessonRequest.ts`):
+- **Encontrar o pedido.** Só o processo principal procura, a cada 2 s. Enquanto um pedido
+  espera, ele avisa a janela a cada procura, e a traz para a frente uma vez por pedido. A janela
+  também procura uma vez ao abrir. No primeiro uso real, em 10/11, o aviso de foco da janela, de
+  que a versão anterior dependia, não chegou e a aula não abriu.
+- **A cópia do pacote.** O EdiSVG guarda o seu próprio arquivo de cada pacote que pega, em
+  `pacotes-do-ediaula/` no perfil dele (um hard link: instantâneo e sem espaço a mais; uma cópia
+  quando o link não dá). A limpeza do EdiAula nunca apaga um pacote que os pipelines estão lendo.
+  Ficam os dois mais novos e os que uma execução desta sessão usa (`keepPackage`).
+- **O projeto da aula.** O pedido diz qual `.edisvg` é o da aula: ao lado da aula, com o nome
+  dela. Se ele existe, o EdiSVG o abre; senão, cria um projeto novo com o nome da aula e salva
+  ali. Já aberto, ele fica como está, com o que não foi salvo. Outro projeto com alterações
+  pergunta antes, como ao abrir um arquivo. O projeto em branco do EdiSVG recém-aberto dá lugar
+  sem perguntar (`openOrCreate` em `src/main/projectFiles.js`). Até a janela assumir o projeto da
+  aula, uma alteração do projeto anterior que chegue atrasada é deixada de fora, nunca gravada no
+  arquivo da aula.
+- **Quando pega.** Só sem outro diálogo aberto, sem pipeline rodando e sem o assistente
+  escrevendo; senão, pega na próxima procura. Pipelines abertos na lista de receitas dão lugar à
+  aula nova; com uma receita sendo preparada (arquivos, frases), eles ficam, e um aviso diz para
+  fechá-los.
+- Cada pedido abre uma vez só (o último aberto fica em `pedido-do-ediaula.json`, no perfil do
+  EdiSVG).
+- Os pipelines abrem com um aviso de qual aula chegou, e cada receita rodada começa com o pacote
   escolhido como áudio da aula, com as frases do roteiro.
 
 **Enviar animações para a aula** (Arquivo, ou a paleta de comandos) manda cada animação desses

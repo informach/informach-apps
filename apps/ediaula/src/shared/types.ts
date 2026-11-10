@@ -913,10 +913,15 @@ export interface EdiAulaApi {
   edisvgPlaced(lessonId: string, sentAt: number): Promise<void>;
   /**
    * "Animar no EdiSVG": packs the lesson for EdiSVG's pipelines (progress on `jobId`) and opens
-   * EdiSVG; `opened` is false when it could not be opened from here (it reads the lesson when
-   * the person opens it).
+   * EdiSVG, which opens the lesson's project (`project`, beside the saved lesson at
+   * `lessonPath`); `opened` is false when it could not be opened from here (it reads the lesson
+   * when the person opens it).
    */
-  edisvgAnimate(jobId: string, projectJson: string): Promise<{ opened: boolean }>;
+  edisvgAnimate(
+    jobId: string,
+    projectJson: string,
+    lessonPath: string | null,
+  ): Promise<{ opened: boolean; project?: string }>;
   thumbnail(path: string, kind: AssetKind, duration: number): Promise<string>;
   waveform(path: string): Promise<string>;
   /** Where a screen recording stands still: the path of its motion file (main/ffmpeg.ts). */

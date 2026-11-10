@@ -2490,28 +2490,61 @@ function openPipelines(handed = undefined) {
   });
 }
 /**
- * A lesson EdiAula sent with "Animar no EdiSVG" (main/lessonRequest.ts): looked for when the
- * editor opens and when the window comes back to the front, and taken only when nothing else is
- * open (a dialog, a run), so it never lands on top of other work: the next time it is taken.
+ * A lesson EdiAula sent with "Animar no EdiSVG" (main/lessonRequest.ts). The main process looks
+ * for it every 2 s and, while one waits, says so here (onLessonRequest); the window also looks
+ * once when the editor opens. Taking it opens the lesson's project (beside the lesson, made the
+ * first time) and, over it, the pipelines with the lesson chosen. Only the pipelines' list gives
+ * way to it: another dialog, pipelines with a recipe being set up, a run or the assistant
+ * writing leave it waiting, with one message saying what to close.
  */
 let takingLesson = false;
-async function takeLessonRequest() {
+let toldWaiting = 0;
+function lessonInTheWay() {
+  if (pipelineRun || assistant.isBusy() || $("#app").inert) return "busy";
+  const pipelines = document.querySelector("#pipelines-dialog[open]");
+  const others = [...document.querySelectorAll("dialog[open]")].filter((d) => d !== pipelines);
+  if (others.length) return "dialog";
+  // Pipelines on their list hold nothing; a recipe being set up (files, phrases) is kept.
+  if (pipelines && !pipelines.querySelector(".pipeline-list")) return "pipelines";
+  return null;
+}
+async function takeLessonRequest(waiting = null) {
   if (takingLesson || !window.desktop?.lessonRequestTake) return;
-  if (pipelineRun || document.querySelector("dialog[open]") || $("#app").inert) return;
+  const blocked = lessonInTheWay();
+  if (blocked) {
+    if (waiting && blocked !== "busy" && toldWaiting !== waiting.sentAt) {
+      toldWaiting = waiting.sentAt;
+      notify(
+        `A aula "${waiting.name}" chegou do EdiAula: ${blocked === "pipelines" ? "feche os pipelines" : "feche a janela aberta"} para abri-la.`,
+      );
+    }
+    return;
+  }
   takingLesson = true;
   try {
     const request = await window.desktop.lessonRequestTake();
     if (!request) return;
+    const pipelines = document.querySelector("#pipelines-dialog[open]");
+    // The dialog says it closed a moment later: the old pipelines go before the new ones mount.
+    if (pipelines)
+      await new Promise((resolve) => {
+        pipelines.addEventListener("close", resolve, { once: true });
+        pipelines.close();
+      });
+    if (request.opened && !request.opened.same)
+      assistant.adoptProject(request.opened, `Projeto da aula: ${request.opened.status.name}.`);
+    else if (request.problem) notify(request.problem);
     openPipelines(request);
+    // Taken once: when another dialog opened meanwhile the pipelines do not, and the person is told.
     if (!document.querySelector("#pipelines-dialog[open]"))
       notify(`A aula "${request.name}" chegou do EdiAula: abra os pipelines para animá-la.`);
   } catch (error) {
-    notify(`A aula do EdiAula não abriu nos pipelines: ${error.message}`);
+    notify(`A aula do EdiAula não abriu: ${error.message}`);
   } finally {
     takingLesson = false;
   }
 }
-window.addEventListener("focus", () => void takeLessonRequest());
+window.desktop?.onLessonRequest?.((waiting) => void takeLessonRequest(waiting));
 /** A dropped .szproject.json: read in the window (the dialog path reads it in main). */
 async function readGameProjectFile(file) {
   if (file.size > SZPROJECT_BYTES) throw new Error("O projeto do Estúdio passa de 30 MB.");

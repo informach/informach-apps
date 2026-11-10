@@ -308,7 +308,33 @@ Verificação:
 - **EdiSVG:** testes do pedido (uma vez só, pacote ausente ou fora da pasta), o e2e dos pipelines com a aula entregue, os 371 unitários e as jornadas nativas.
 - **Entre os dois:** com a DPJ Aula01 real, o código do EdiAula empacotou 851 MB em 27 s, e o do EdiSVG pegou o pedido uma vez e leu a aula `pifnvgomyinhw`, Seção 6, com as 24 frases.
 
-Ainda não testado: o clique nos dois aplicativos abertos, e o EdiSVG aberto pelo EdiAula numa instalação do Hub.
+No primeiro uso real, ainda em 10/11, a aula não abriu no EdiSVG. O pedido estava gravado e a leitura funcionava: disparado à mão o aviso de foco, os pipelines abriram com a aula. O que falhou foi o gatilho, porque o aviso de foco da janela não chegou, ou chegou com um diálogo aberto. Agora o EdiSVG também procura o pedido a cada 3 s enquanto a janela está na frente, com e2e sem aviso de foco. As jornadas nativas passaram de novo, com um pedido real na pasta do EdiAula.
+
+Ainda em 10/11, o titular pediu que o botão abrisse o EdiSVG já com o projeto. Ele escolheu um `.edisvg` por aula. O que mudou:
+- **O projeto da aula:** fica ao lado do arquivo da aula, com o mesmo nome. O EdiSVG o cria na primeira vez e o abre nas seguintes, com os pipelines por cima (`openOrCreate` em `projectFiles.js`).
+- **O EdiSVG já aberto:** o processo principal dele vigia o pedido a cada 2 s e se traz para a frente quando chega um.
+- **O EdiSVG fechado:** o EdiAula o abre. Instalado, pelo `.exe`. No desenvolvimento, pelo `scripts/edi/hub-dev/abrir.ps1`, que com o EdiSVG aberto sai em 0,4 s sem compilar.
+- **A cópia do pacote:** o segundo clique do titular tinha apagado o pacote que os pipelines abertos usavam. Agora o EdiSVG guarda o seu próprio arquivo de cada pacote que pega (hard link em `pacotes-do-ediaula/`), e o EdiAula volta a guardar só o mais novo.
+- **O projeto em branco:** o do EdiSVG recém-aberto dá lugar sem a pergunta de alterações não salvas.
+
+Verificação:
+- **EdiAula:** 1123 testes, com 15 pulados.
+- **EdiSVG:** 373 unitários, os 4 e2e de pipelines (projeto da aula aberto e pipelines parados trocados) e as jornadas nativas.
+
+A revisão completa antes do commit achou 9 problemas, todos corrigidos:
+- **Teste que falharia na CI em Linux:** usava um caminho `C:\…`, que lá não é absoluto.
+- **Aula pega sem abrir:** se outro diálogo abrisse no meio, a aula era pega sem aviso. O aviso voltou.
+- **Troca do projeto:** o processo principal troca para o projeto da aula antes de a janela assumi-lo. Uma alteração atrasada do projeto anterior podia ser gravada no arquivo da aula, e agora é deixada de fora.
+- **Limpeza dos pacotes:** a limpeza no EdiAula podia apagar o pacote em uso. O EdiSVG passou a guardar o seu.
+- **Duas procuras pelo mesmo pedido:** ficou só a do processo principal, que repete o aviso enquanto o pedido espera.
+- **Lançador do desenvolvimento:** abria o EdiSVG também para um EdiAula de perfil descartável e passava adiante o ambiente do Electron. Agora só abre no perfil real, com o ambiente limpo.
+- **Pipelines em preparação:** eram fechados sem perguntar. Agora ficam, com um aviso.
+- **Código repetido** no assistente.
+- **Aviso do Biome** num teste.
+
+Ainda não testado:
+- o clique com os dois aplicativos recém-reabertos com este código;
+- o EdiSVG aberto pelo EdiAula numa instalação do Hub.
 
 A revisão completa do diff, antes do commit de 09/11, achou 10 problemas, todos corrigidos:
 - **Leitor de ZIP:** um descritor ficava aberto quando a entrada era recusada.

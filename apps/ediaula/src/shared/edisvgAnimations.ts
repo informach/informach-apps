@@ -53,6 +53,8 @@ export const handoffRequestSchema = z.strictObject({
   file: z.string().regex(/^aula-[\w-]{1,100}-\d{13}\.zip$/),
   /** When it was sent (ms): EdiSVG opens a request once. */
   sentAt: z.number().int().positive(),
+  /** The lesson's EdiSVG project, beside the lesson: EdiSVG opens it, or makes it there. */
+  project: z.string().min(1).max(1000).optional(),
 });
 export type HandoffRequest = z.infer<typeof handoffRequestSchema>;
 

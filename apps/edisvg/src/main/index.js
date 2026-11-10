@@ -26,7 +26,7 @@ import {
   startDelivery,
   writeDelivery,
 } from "./lessonDelivery.ts";
-import { takeLessonRequest } from "./lessonRequest.ts";
+import { keepPackage, lessonRequestWaiting, takeLessonRequest } from "./lessonRequest.ts";
 import { startMcpServer } from "./mcpServer.js";
 import {
   cancelPipelineJob,
@@ -44,6 +44,7 @@ import {
 import { pipelineFont, pipelineFonts } from "./pipelineFonts.ts";
 import { loadReferences, saveReference } from "./pipelineReferences.ts";
 import {
+  isPickedPath,
   pickPipelineFile,
   readPickedProject,
   readRecipeStore,
@@ -214,6 +215,42 @@ function menu() {
     ]),
   );
 }
+/**
+ * Brings the window to the front: a second launch, or a lesson EdiAula sent while EdiSVG was
+ * open behind it. On Windows a window behind another program only blinks on the taskbar when it
+ * asks for focus, unless it is put on top for a moment.
+ */
+function bringToFront() {
+  if (!win || win.isDestroyed()) return;
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.setAlwaysOnTop(true);
+  win.focus();
+  win.setAlwaysOnTop(false);
+}
+
+/**
+ * A lesson EdiAula sends ("Animar no EdiSVG"): looked for every 2 s, the one look there is.
+ * While one waits the window is told at every look (it takes it as soon as nothing is in the
+ * way: lesson-request:take opens the lesson's project and the pipelines), and it comes to the
+ * front once for each request.
+ */
+let broughtFor = 0;
+const REQUEST_LOOK_MS = 2000;
+setInterval(() => {
+  if (!win || win.isDestroyed() || !initialized) return;
+  void lessonRequestWaiting(ediaulaData(), app.getPath("userData"))
+    .then((waiting) => {
+      if (!waiting || !win || win.isDestroyed()) return;
+      if (waiting.sentAt !== broughtFor) {
+        broughtFor = waiting.sentAt;
+        bringToFront();
+      }
+      win.webContents.send("lesson-request:waiting", waiting);
+    })
+    .catch(() => undefined);
+}, REQUEST_LOOK_MS).unref();
+
 async function createWindow() {
   allowClose = false;
   win = new BrowserWindow({
@@ -269,12 +306,7 @@ async function createWindow() {
 }
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
-  app.on("second-instance", () => {
-    if (win) {
-      if (win.isMinimized()) win.restore();
-      win.focus();
-    }
-  });
+  app.on("second-instance", () => bringToFront());
   app
     .whenReady()
     .then(async () => {
@@ -499,14 +531,29 @@ else {
       handle("lesson-send:finish", (id) => finishDelivery(id));
       handle("lesson-send:cancel", (id) => cancelDelivery(id));
       handle("lesson-send:manifest", (manifest) => writeDelivery(inbox(), manifest));
-      // A lesson EdiAula sent with "Animar no EdiSVG" (lessonRequest.ts), taken once: the window
-      // gets it as a picked package and opens the pipelines with it.
+      // A lesson EdiAula sent with "Animar no EdiSVG" (lessonRequest.ts), taken once: its
+      // project (beside the lesson) is opened, or made the first time, and the window gets the
+      // package as a picked file to open the pipelines with. With a file operation or the AI
+      // going it waits for the next look.
       handle("lesson-request:take", async () => {
+        if (!initialized || files.isBusy() || runner.busy()) return null;
         const request = await takeLessonRequest(ediaulaData(), app.getPath("userData"));
         if (!request) return null;
+        let opened = null,
+          problem = null;
+        if (request.project)
+          try {
+            opened = await files.openOrCreate(request.project, request.name);
+            if (!opened) problem = "O projeto da aula não foi aberto: o atual continua aberto.";
+          } catch (error) {
+            problem = `O projeto da aula não abriu: ${error.message}`;
+          }
+        const kept = await keepPackage(request.path, app.getPath("userData"), isPickedPath);
         return {
           name: request.name,
-          file: await registerPickedFile(request.path, "lesson", `${request.name}.zip`),
+          file: await registerPickedFile(kept, "lesson", `${request.name}.zip`),
+          ...(opened ? { opened } : {}),
+          ...(problem ? { problem } : {}),
         };
       });
       handle("pipeline:lesson-video", (token, from, to, jobId) =>

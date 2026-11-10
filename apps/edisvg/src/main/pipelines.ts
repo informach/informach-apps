@@ -95,6 +95,12 @@ export async function registerPickedFile(
   return { token, name: name.slice(0, 260), kind, size: (await stat(path)).size };
 }
 
+/** Whether a file is the one behind a token of this session (a run may still read it). */
+export function isPickedPath(path: string): boolean {
+  for (const entry of picked.values()) if (entry.path === path) return true;
+  return false;
+}
+
 /** Forgets a made file's token (its file is gone). */
 export function forgetPickedFile(token: string): void {
   picked.delete(token);

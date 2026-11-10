@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { crc32, deflateSync } from "node:zlib";
 import { chromium } from "playwright";
-import { parseProject } from "../../src/shared/project";
+import { newProject, parseProject } from "../../src/shared/project";
 import { rendererServer } from "../rendererServer";
 import { game } from "../szprojectFixture";
 
@@ -751,7 +751,7 @@ test("pipelines: with the lesson package the demonstration takes its screen from
   }
 });
 
-test("pipelines: a lesson EdiAula sends with Animar no EdiSVG opens them with it chosen, once", {
+test("pipelines: a lesson EdiAula sends with Animar no EdiSVG opens its project and them, once", {
   timeout: 90000,
 }, async () => {
   const server = await rendererServer(),
@@ -761,28 +761,68 @@ test("pipelines: a lesson EdiAula sends with Animar no EdiSVG opens them with it
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } }),
       errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    // The main process says a request waits through onLessonRequest, subscribed when the editor
+    // starts: the bridge is there from the start, the rest of it comes after loading.
+    // A string, so tsx adds nothing to it (as fakeDesktop).
+    await page.addInitScript(`
+      (() => {
+        const project = ${JSON.stringify(newProject())};
+        window.desktop = {
+          projectInitialize: async () => ({
+            project,
+            status: { name: "Sem arquivo", path: null, dirty: false },
+            recovered: false,
+          }),
+          projectChanged: async () => ({ name: "Sem arquivo", path: null, dirty: false }),
+          lessonRequestTake: async () => null,
+          onLessonRequest: (callback) => {
+            window.__lessonWaiting = callback;
+            return () => undefined;
+          },
+          aiStatus: async () => ({ available: false, clients: [] }),
+          handleAiTools: () => () => undefined,
+          onAssistantEvent: () => () => undefined,
+          onCommand: () => () => undefined,
+        };
+      })();`);
     await page.goto(server.url);
     await page.locator(".scene-artwork>svg").waitFor();
+    const subscribed = await page.evaluate("typeof window.__lessonWaiting");
+    assert.equal(subscribed, "function");
     await page.evaluate(fakeDesktop(JSON.stringify(game)));
-    // The request EdiAula left (lessonRequest.ts): the main process hands it over once.
-    await page.evaluate(() => {
-      const w = window as unknown as {
-        __taken: number;
-        desktop: Record<string, unknown>;
-      };
+    // The request EdiAula left (lessonRequest.ts): the main process hands it over once, with
+    // the lesson's own project, which it opened (or made) beside the lesson.
+    const lessonFile = { ...newProject(), name: "Aula 3" };
+    await page.evaluate((project) => {
+      const w = window as unknown as { __taken: number; desktop: Record<string, unknown> };
       w.__taken = 0;
-      w.desktop.lessonRequestTake = async () =>
-        w.__taken++
-          ? null
-          : {
-              name: "Aula 3",
-              file: { token: "file-aula-000001", name: "Aula 3.zip", kind: "lesson", size: 900 },
-            };
-    });
-    // The window comes back to the front after the click in EdiAula.
-    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+      const status = { path: "C:\\Aulas\\Aula 3.edisvg", name: "Aula 3.edisvg", dirty: false };
+      w.desktop.lessonRequestTake = async () => {
+        if (w.__taken++) return null;
+        // From here on the main process answers for the lesson's file, as files.openOrCreate set.
+        w.desktop.projectChanged = async () => status;
+        return {
+          name: "Aula 3",
+          file: { token: "file-aula-000001", name: "Aula 3.zip", kind: "lesson", size: 900 },
+          opened: { project, status },
+        };
+      };
+    }, lessonFile);
+    const waiting = (sentAt: number, name: string) =>
+      page.evaluate(
+        ([at, lesson]) =>
+          (window as unknown as { __lessonWaiting(w: unknown): void }).__lessonWaiting({
+            sentAt: at,
+            name: lesson,
+          }),
+        [sentAt, name] as const,
+      );
+    await waiting(1, "Aula 3");
     const dialog = page.getByRole("dialog", { name: "Pipelines" });
     await dialog.getByRole("status").getByText("Aula 3").waitFor();
+    // The lesson's project is the open one, under the pipelines.
+    assert.equal(await page.locator(".project>span").textContent(), "/ Aula 3.edisvg");
+    assert.equal(await page.evaluate(() => document.title.split(" — ")[0]), "Aula 3.edisvg");
     await dialog
       .locator("li", { hasText: "Demonstração passo a passo" })
       .getByRole("button", { name: "Rodar" })
@@ -801,12 +841,36 @@ test("pipelines: a lesson EdiAula sends with Animar no EdiSVG opens them with it
       .getByRole("button", { name: "Rodar" })
       .click();
     await dialog.getByText("Aula 3.zip (pacote da aula do EdiAula)").waitFor();
+
+    // A new click in EdiAula while a recipe is being set up: it is kept, and the person is told
+    // once what to close; the request waits.
+    await page.evaluate(() => {
+      const w = window as unknown as { __given: number; desktop: Record<string, unknown> };
+      w.__given = 0;
+      w.desktop.lessonRequestTake = async () =>
+        w.__given++
+          ? null
+          : {
+              name: "Aula 4",
+              file: { token: "file-aula-000001", name: "Aula 4.zip", kind: "lesson", size: 900 },
+            };
+    });
+    await waiting(2, "Aula 4");
+    await page
+      .locator("#toast", { hasText: 'A aula "Aula 4" chegou do EdiAula: feche os pipelines' })
+      .waitFor();
+    assert.equal(await page.evaluate("window.__given"), 0);
+    await dialog.getByText("Aula 3.zip (pacote da aula do EdiAula)").waitFor();
+    // Back on the list, the pipelines hold nothing: the next word from the main process opens it.
+    await dialog.getByRole("button", { name: "Voltar", exact: true }).click();
+    await waiting(2, "Aula 4");
+    await dialog.getByRole("status").getByText("Aula 4").waitFor();
+    assert.equal(await page.evaluate("window.__given"), 1);
+    // Taken once: another word for the same request opens nothing more.
     await dialog.getByRole("button", { name: "Fechar pipelines" }).click();
-    // Taken once: coming back to the front again opens nothing.
-    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await waiting(2, "Aula 4");
     await page.waitForTimeout(300);
     assert.equal(await dialog.count(), 0);
-    assert.equal(await page.evaluate("window.__taken"), 2);
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

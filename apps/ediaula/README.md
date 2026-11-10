@@ -1195,14 +1195,22 @@ aula. Do lado do EdiAula:
 - **Leitura dos vídeos.** O processo principal libera a leitura de cada vídeo do envio antes da
   prévia, como faz com qualquer mídia importada.
 
-**Animar no EdiSVG** (botão da barra de cima, ou Arquivo › Animar no EdiSVG) leva a aula aberta
-aos pipelines do EdiSVG, sem passar pela pasta de Downloads:
+**Animar no EdiSVG** (botão da barra de cima, ou Arquivo › Animar no EdiSVG) abre o EdiSVG já
+com o projeto da aula e os pipelines, sem passar pela pasta de Downloads:
 - A aula é salva e empacotada como em **Empacotar a aula**, só com as mídias da timeline, em
   `%APPDATA%\ediaula\para-o-edisvg\`, com `pedido.json` gravado por último
-  (`src/main/edisvgHandoff.ts`). Fica só o pacote mais novo. A DPJ Aula01 (10 minutos, com os vídeos
-  do apresentador) sai com 851 MB, em 27 s.
-- Com o EdiSVG instalado pelo Hub, o EdiAula o abre (ou o traz para a frente, se já estava
-  aberto). No desenvolvimento, abra o EdiSVG com `pnpm edi:work edisvg`: o pedido espera por ele.
+  (`src/main/edisvgHandoff.ts`). Fica só o pacote mais novo: o EdiSVG guarda o seu próprio
+  arquivo de cada pacote que pega. A DPJ Aula01 (10 minutos, com os vídeos do apresentador) sai
+  com 851 MB, em 27 s.
+- **O projeto da aula.** Cada aula tem o seu `.edisvg`, ao lado do arquivo da aula e com o mesmo
+  nome (`Aula.ediaula` → `Aula.edisvg`). O EdiSVG o cria na primeira vez, com o nome da aula, e
+  o abre nas seguintes.
+- **Abrir o EdiSVG.** Instalado pelo Hub, o EdiAula abre o EdiSVG. No desenvolvimento, ele roda
+  o script dos atalhos do Hub de desenvolvimento (`scripts/edi/hub-dev/abrir.ps1`, que chama
+  `pnpm edi:work edisvg`), com o registro em `.cache\edi-work\registros\edisvg.log`, e só quando
+  o EdiAula está no perfil real (`pnpm edi:work`): o de um `edi:open` ou `pnpm dev` é
+  descartável, e nenhum EdiSVG lê o pedido dele. O EdiSVG começa sem as variáveis do Electron e
+  da licença de desenvolvimento do EdiAula. Já aberto, ele vem para a frente sozinho.
 - No EdiSVG, os pipelines abrem com a aula já escolhida em cada receita e as frases do roteiro
   para marcar. A animação volta por **Enviar animações para a aula**, na faixa acima.
 

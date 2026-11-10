@@ -281,3 +281,55 @@ test("restored work is detached and remains recoverable when a save fails", asyn
     await rm(directory, { recursive: true });
   }
 });
+
+test("the project of a lesson is made beside it the first time, and opened the next ones", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "edisvg-aula-"));
+  try {
+    const target = join(directory, "DPJ Aula01.edisvg");
+    let asked = 0;
+    const files = createProjectFiles({
+      chooseOpen: async () => null,
+      chooseSave: async () => null,
+      confirm: async () => {
+        asked++;
+        return "discard";
+      },
+    });
+    // EdiSVG just opened: a blank project, never edited, gives way without a question.
+    await files.recover(newProject(), { persist: false });
+    // First time: a new project with the lesson's name, saved there, nothing unsaved.
+    const made = await files.openOrCreate(target, " DPJ Aula01 · Parte 6 ");
+    assert.equal(made.project.name, "DPJ Aula01 · Parte 6");
+    assert.equal(made.status.path, target);
+    assert.equal(made.status.dirty, false);
+    assert.equal(JSON.parse(await readFile(target, "utf8")).name, "DPJ Aula01 · Parte 6");
+    // Already open: it stays as it is, unsaved work included.
+    await files.changed({ ...made.project, name: "Com alterações" });
+    const same = await files.openOrCreate(target, "DPJ Aula01 · Parte 6");
+    assert.equal(same.same, true);
+    assert.equal(same.project.name, "Com alterações");
+    assert.equal(asked, 0);
+    // Another lesson's project opens after the unsaved-work question.
+    const other = join(directory, "Outra.edisvg");
+    await writeFile(other, JSON.stringify({ ...newProject(), name: "Outra" }));
+    const opened = await files.openOrCreate(other, "Outra aula");
+    assert.equal(asked, 1);
+    assert.equal(opened.project.name, "Outra");
+    assert.equal(opened.status.path, other);
+    // Back to the first: opened from its file, as it was saved.
+    const again = await files.openOrCreate(target, "DPJ Aula01 · Parte 6");
+    assert.equal(again.project.name, "DPJ Aula01 · Parte 6");
+    // An edit of the project open before, sent before the window took the lesson's: left out,
+    // never written under the lesson's file. The window's first edit of it is taken.
+    await files.changed({ ...opened.project, name: "Outra, atrasada" });
+    assert.equal(files.status().dirty, false);
+    await files.save();
+    assert.equal(JSON.parse(await readFile(target, "utf8")).name, "DPJ Aula01 · Parte 6");
+    await files.changed({ ...again.project, name: "Parte 6 editada" });
+    await files.changed({ ...opened.project, name: "Outra de novo" });
+    assert.equal((await files.save()).saved, true);
+    assert.equal(JSON.parse(await readFile(target, "utf8")).name, "Outra de novo");
+  } finally {
+    await rm(directory, { recursive: true });
+  }
+});

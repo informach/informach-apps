@@ -107,14 +107,16 @@ export async function animateInEdisvg(): Promise<void> {
       toast("Salve a aula antes de mandar para o EdiSVG.", "error");
       return;
     }
-    const p = useProject.getState().project;
+    const { project: p, path } = useProject.getState();
     if (!p) return;
     startJob(jobId, `Preparando para o EdiSVG: ${p.name}`);
-    const { opened } = await window.api.edisvgAnimate(jobId, JSON.stringify(p));
+    const { opened, project } = await window.api.edisvgAnimate(jobId, JSON.stringify(p), path);
+    const file = project?.split(/[\\/]/).pop();
+    const where = file ? ` no projeto ${file}` : "";
     toast(
       opened
-        ? "A aula foi para o EdiSVG: os pipelines abrem lá com ela escolhida."
-        : "A aula está esperando no EdiSVG: abra o EdiSVG (ou volte para ele) e os pipelines abrem com ela escolhida.",
+        ? `A aula foi para o EdiSVG: ele abre${where}, com os pipelines e a aula escolhida.`
+        : `A aula está esperando no EdiSVG: abra o EdiSVG e ele abre${where}, com os pipelines e a aula escolhida.`,
       "success",
     );
   } catch (err) {

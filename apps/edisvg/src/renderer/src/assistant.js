@@ -423,13 +423,7 @@ export function setupAssistant(editor) {
     }
     try {
       const value = await bridge.projectNew();
-      if (value) {
-        clearHistory();
-        messages.replaceChildren();
-        editor.restore(value.project);
-        editor.fileStatus(value.status);
-        editor.notify("Novo projeto criado.");
-      }
+      if (value) adoptProject(value, "Novo projeto criado.");
     } catch (error) {
       editor.notify(error.message);
     }
@@ -445,13 +439,7 @@ export function setupAssistant(editor) {
     }
     try {
       const value = await bridge.projectOpen();
-      if (value) {
-        clearHistory();
-        messages.replaceChildren();
-        editor.restore(value.project);
-        editor.fileStatus(value.status);
-        editor.notify("Projeto aberto.");
-      }
+      if (value) adoptProject(value, "Projeto aberto.");
     } catch (error) {
       editor.notify(error.message);
     }
@@ -509,5 +497,16 @@ export function setupAssistant(editor) {
     d.querySelector("[data-close-file]").onclick = () => d.close();
     d.showModal();
   }
-  return { toggle, fileMenu, runTurn, isBusy: () => busy };
+  /**
+   * A project the main process made the open one (Novo, Abrir, or the project of a lesson from
+   * EdiAula): a new conversation over it.
+   */
+  function adoptProject(value, message) {
+    clearHistory();
+    messages.replaceChildren();
+    editor.restore(value.project);
+    editor.fileStatus(value.status);
+    if (message) editor.notify(message);
+  }
+  return { toggle, fileMenu, runTurn, adoptProject, isBusy: () => busy };
 }
