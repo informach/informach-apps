@@ -105,3 +105,16 @@ Preflight somente de leitura em 10/11: o inventário MCP confirmou novamente 28 
 ### Ensaio dos serviços em conjunto
 
 `pnpm compasso:test:closure` cria PostgreSQL/Redis descartáveis e executa, em série, as rotas reais de avaliação, preparação e execução dos cinco apps e da Conta. A mesma pessoa sintética aparece em quatro apps; outra família serve de controle de preservação. A configuração confere `/api/ready`, credenciais de cron, repetição, ordem dos recibos e preservação da identidade global. Não envia e-mail nem chama IA/Stripe. Os identificadores transitórios ficam no diretório próprio do runner; `COMPASSO_CLOSURE_STAGE` e `COMPASSO_CLOSURE_FIXTURE` são variáveis exclusivas desse ensaio, não variáveis de produção. Plano e evidências em [encerramento integrado](../../docs/propostas/assinatura-web-2026-11-09/encerramento-integrado.md). A execução de 10/11 passou as 22 etapas, com PostgreSQL e Redis descartáveis removidos. O ensaio não inclui cobrança Stripe nem restauração de backup.
+
+## Ferramentas do corte (11/11/2026)
+
+Todas ficam em `scripts/compasso/`. As de leitura não escrevem nada; as que escrevem pedem confirmação explícita por argumento.
+
+| Comando | O que faz | Escreve? |
+| --- | --- | --- |
+| `STRIPE_SECRET_KEY=... pnpm exec tsx scripts/compasso/stripe-provision.mts --mode dev\|prod` | Confere o catálogo Compasso no Stripe (produto, mensal, anual, três recargas, portal só com pagamento e comprovantes) e diz o que faltaria criar | Não |
+| o mesmo com `--apply [--webhook-url https://conta.informach.com.br/api/webhooks/stripe --secrets-output <arquivo fora do repositório>]` | Cria o que falta, de forma idempotente, e devolve os IDs públicos para `COMPASSO_*_PRICE` e `STRIPE_PORTAL_CONFIGURATION_ID`; o segredo do webhook vai só para o arquivo indicado | Sim, no Stripe do modo escolhido |
+| `railway run --service Postgres --environment production -- pnpm exec tsx scripts/compasso/titular-reconciliation.mts --stripe-env <arquivo> --stripe-key <nome>` | Concilia, por titular pseudonimizado, cada contrato local com o Stripe (situação, fim do período, faturas pagas contra períodos locais, faturas abertas, estornos, contestações, pagamentos em liquidação, Checkouts abertos, agendas, eventos pendentes) e as carteiras; termina com código 2 e a lista `blocking` se houver divergência | Não (banco em transação read-only; Stripe só GET) |
+| `railway run --service Postgres --environment production -- pnpm compasso:rehearse:restore [--keep]` | Dump real (PostgreSQL 18), restauração em container descartável com os mesmos papéis, comparação de contagens, donos e privilégios, sequência completa do migrator na cópia com tempo medido, conferência de usuários, contratos, extrato e clientes do Dia de Estrela, e segunda rodada para provar que nada duplica | Não na origem; apaga o dump ao final |
+
+Em 11/11 o catálogo de teste foi criado com `--mode dev --apply` (produto `prod_VbuWNVAWXYBYLH`, portal `bpc_1UaghZCvOctqao30chCRlFJg`) e a repetição não propôs mudanças. O live continua sem catálogo e só deve ser criado pela titular, com o comando acima.

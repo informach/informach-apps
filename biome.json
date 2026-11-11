@@ -78,7 +78,9 @@
     {
       "includes": [
         "scripts/compasso/financial-inventory.mjs",
-        "scripts/compasso/stripe-inventory.mts"
+        "scripts/compasso/stripe-inventory.mts",
+        "scripts/compasso/titular-reconciliation.mts",
+        "scripts/compasso/production-restore-rehearsal.mjs"
       ],
       "linter": { "rules": { "suspicious": { "noUndeclaredEnvVars": "off" } } }
     },

@@ -18,6 +18,7 @@
     "compasso:test:ui": "node scripts/compasso/integration.mjs --ui-only",
     "compasso:test:closure": "node scripts/compasso/integration.mjs --closure-system-only --redis",
     "compasso:test:restore": "pnpm --filter @informach/family exec tsx scripts/restore-rehearsal.ts",
+    "compasso:rehearse:restore": "node scripts/compasso/production-restore-rehearsal.mjs",
     "compasso:test:stripe-plans": "tsx scripts/compasso/stripe-plan-homologation.mts",
     "compasso:test:stripe-future": "tsx scripts/compasso/stripe-future-homologation.mts",
     "compasso:test:stripe-existing-payer": "tsx scripts/compasso/stripe-existing-payer-homologation.mts",
