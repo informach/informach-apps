@@ -961,6 +961,9 @@ describe("Managed checkout kept by the legacy app while its contract lives", () 
       },
     );
     await reconcileLegacyCancellation(deps, f.payer.userId, receipt.id);
+    // The other adult's contract must be settled too, or the family terms
+    // stop at it before ever reaching the checkout under test.
+    await f.contribute(f.contributor, "none");
     const account = await openCompassoAccount(db, f.payer.userId, f.group.id);
     return { f, account, find, sessionId };
   }
