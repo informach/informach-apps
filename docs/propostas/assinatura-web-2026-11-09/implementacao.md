@@ -867,7 +867,7 @@ A integração do Missão Saber com PostgreSQL e Redis descartáveis também pas
 
 O conjunto compartilhado `pnpm compasso:test:integration` passou em banco descartável: family 52 testes/11 arquivos, billing 79/14, account 31/4, Edi 7/1 e auth 30/5 (`.codex-compasso-shared-regression.log`). Essa rodada precede a proteção comercial e a migration 0151; os gates específicos posteriores devem ser consultados para elas.
 
-## Dois pagantes na mesma família — 11/11/2026
+## Dois pagantes na mesma família, 11/11/2026
 
 Branch `feat/compasso-corte`, criada da `main` local (`437116ab`) e integrada à `origin/main` (`68d1b95e`, cinco commits de EdiAula/EdiSVG; conflito só em `docs/arquitetura-packages.md`). Nada foi enviado ao remoto nem aplicado em produção.
 
@@ -893,7 +893,7 @@ Branch `feat/compasso-corte`, criada da `main` local (`437116ab`) e integrada à
 
 **Ainda não feito.** Matriz de navegador da Conta com dois adultos; homologação em produção com os contratos reais; ensaio conjunto de encerramento com coordenação e intenção futura pendentes (`compasso:test:closure`).
 
-## Conciliação somente de leitura em produção e Checkout gerenciado — 11/11/2026
+## Conciliação somente de leitura em produção e Checkout gerenciado, 11/11/2026
 
 Às 19:10 UTC, `scripts/compasso/titular-reconciliation.mts` rodou contra produção com o banco em transação read-only e o Stripe live só por GET (`.cache/compasso-corte/titular-reconciliation-3.json`, com pseudônimos). Produção está com 80 migrations aplicadas (até a 0079). Resultado:
 
@@ -905,7 +905,7 @@ Branch `feat/compasso-corte`, criada da `main` local (`437116ab`) e integrada à
 
 **Bloqueio encontrado e corrigido.** Havia 3 intenções de Checkout antigas no banco (Missão Saber 1, Bora Treinar 2). A leitura do Stripe mostrou as três sessões concluídas, pagas e ligadas às assinaturas atuais: nos apps com checkout gerenciado a intenção fica guardada enquanto a assinatura vive, por desenho. As barreiras do Compasso (`readLegacyFutureTerms`, `assertLegacySubscriptionsSettled`, encerramento e prévia de saída) tratavam qualquer intenção como "Checkout antigo não resolvido", então os titulares reais não conseguiriam programar a continuidade nem encerrar a conta. Os testes não pegaram porque usavam contratos do Cozya. A correção usa prova, não inferência: a 0162 (aditiva, gerada) cria `billing.legacy_checkout_resolutions`; ao atualizar os fatos de um contrato antigo, a Conta lê a sessão guardada e só registra a prova quando o Stripe mostra a sessão concluída e ligada exatamente àquele contrato. As barreiras passam a ignorar apenas intenções com prova. Testes de integração cobrem a prova e a recusa quando a sessão aponta para outra assinatura.
 
-## CI do PR #35 — 11/11/2026
+## CI do PR #35, 11/11/2026
 
 O commit `f432ae7e` da branch `feat/compasso-corte` passou em todos os workflows remotos: CI (run 43112803276, inclusive integração e E2E dos apps e o build de todos os serviços), Edi database integration, Edi native verification e Edi Windows installer upgrades. Duas falhas foram corrigidas na raiz no caminho:
 
