@@ -1,0 +1,197 @@
+@import "tailwindcss" source(none);
+@import "@informach/ui/styles.css";
+
+@source "../**/*.{ts,tsx}";
+@source "../../../../packages/ui/src/**/*.{ts,tsx}";
+
+/* ============================================================
+   RECREIO: tom editorial escuro, em que a capa do jogo faz o
+   trabalho visual. Amarelo só na ação principal; coral, mar e
+   céu em doses pequenas. Contraste medido em src/app/tema.test.ts.
+   ============================================================ */
+
+:root {
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-jakarta), ui-serif, serif;
+  --font-display: var(--font-bricolage), var(--font-jakarta), ui-sans-serif, sans-serif;
+
+  /* paleta da proposta (telas do Recreio) */
+  --rc-fundo: #0f1226;
+  --rc-painel: #181c3a;
+  --rc-painel-2: #222850;
+  --rc-linha: #2e3560;
+  /* borda de campo e de botão vazado: precisa de 3:1 sobre o fundo e o painel */
+  --rc-linha-forte: #6a75bd;
+  --rc-tinta: #eef0ff;
+  --rc-tinta-suave: #a3a9cc;
+  --rc-sol: #ffc233;
+  --rc-sol-texto: #2a1c00;
+  --rc-coral: #ff7a76;
+  --rc-mar: #3fd0c3;
+  --rc-ceu: #86a4ff;
+
+  /* os componentes de @informach/ui leem estes nomes */
+  --background: var(--rc-fundo);
+  --foreground: var(--rc-tinta);
+  --card: var(--rc-painel);
+  --card-foreground: var(--rc-tinta);
+  --popover: var(--rc-painel);
+  --popover-foreground: var(--rc-tinta);
+  --primary: var(--rc-sol);
+  --primary-foreground: var(--rc-sol-texto);
+  --secondary: var(--rc-painel-2);
+  --secondary-foreground: var(--rc-tinta);
+  --muted: var(--rc-painel-2);
+  --muted-foreground: var(--rc-tinta-suave);
+  --accent: var(--rc-painel-2);
+  --accent-foreground: var(--rc-tinta);
+  --destructive: var(--rc-coral);
+  --destructive-foreground: var(--rc-fundo);
+  --border: var(--rc-linha);
+  --input: var(--rc-linha-forte);
+  --ring: var(--rc-ceu);
+  --radius: 0.875rem;
+  color-scheme: dark;
+}
+
+@theme {
+  --color-fundo: var(--rc-fundo);
+  --color-painel: var(--rc-painel);
+  --color-painel-2: var(--rc-painel-2);
+  --color-linha: var(--rc-linha);
+  --color-linha-forte: var(--rc-linha-forte);
+  --color-tinta: var(--rc-tinta);
+  --color-tinta-suave: var(--rc-tinta-suave);
+  --color-sol: var(--rc-sol);
+  --color-sol-texto: var(--rc-sol-texto);
+  --color-coral: var(--rc-coral);
+  --color-mar: var(--rc-mar);
+  --color-ceu: var(--rc-ceu);
+  --font-display: var(--font-bricolage), var(--font-jakarta), ui-sans-serif, sans-serif;
+  --radius-controle: 0.875rem;
+  --radius-card: 1.25rem;
+}
+
+html,
+body {
+  background: var(--rc-fundo);
+  color: var(--rc-tinta);
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+  /* um clarão frio no canto, para o fundo não ficar chapado */
+  background-image: radial-gradient(
+    60rem 32rem at 88% -8rem,
+    color-mix(in srgb, var(--rc-ceu) 16%, transparent),
+    transparent 70%
+  );
+  background-repeat: no-repeat;
+}
+
+.skip {
+  position: absolute;
+  left: -999px;
+  top: 8px;
+  z-index: 100;
+  background: var(--rc-tinta);
+  color: var(--rc-fundo);
+  padding: 8px 14px;
+  border-radius: 12px;
+}
+.skip:focus {
+  left: 8px;
+}
+
+:focus-visible {
+  outline: 3px solid var(--rc-ceu);
+  outline-offset: 2px;
+}
+
+@layer components {
+  /* Botão do portal. */
+  .rb {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    padding: 0 1.1rem;
+    border-radius: var(--radius-controle);
+    border: 0;
+    font-weight: 700;
+    font-size: 0.95rem;
+    line-height: 1;
+    cursor: pointer;
+    text-decoration: none;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      transform 0.08s ease;
+  }
+  .rb:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .rb:disabled {
+    cursor: default;
+    opacity: 0.55;
+  }
+  .rb-lg {
+    min-height: 3.25rem;
+    padding: 0 1.5rem;
+    font-size: 1.05rem;
+  }
+  .rb-sol {
+    background: var(--rc-sol);
+    color: var(--rc-sol-texto);
+  }
+  .rb-sol:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--rc-sol) 88%, white);
+  }
+  .rb-vazado {
+    background: transparent;
+    color: var(--rc-tinta);
+    border: 1.5px solid var(--rc-linha-forte);
+  }
+  .rb-vazado:hover:not(:disabled) {
+    background: var(--rc-painel-2);
+  }
+
+  .painel {
+    background: var(--rc-painel);
+    border: 1px solid var(--rc-linha);
+    border-radius: var(--radius-card);
+  }
+
+  /* Etiqueta pequena em caixa alta (estado do jogo, fase do produto). */
+  .etiqueta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    background: var(--rc-painel-2);
+    color: var(--rc-tinta);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .etiqueta-sol {
+    background: var(--rc-sol);
+    color: var(--rc-sol-texto);
+  }
+}
+
+/* Quem pede menos movimento: sem animação nem transição. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: preferência do sistema vence a animação do componente */
+    animation: none !important;
+    /* biome-ignore lint/complexity/noImportantStyles: preferência do sistema vence a animação do componente */
+    transition: none !important;
+  }
+}

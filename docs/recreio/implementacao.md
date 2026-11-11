@@ -40,6 +40,7 @@ Fecham o que as propostas deixaram em aberto. Mudam só com registro aqui.
 8. **Tabelas em inglês**, como todo o `packages/db`; textos, URLs e API do SDK em português.
 9. **Uma constante `RECREIO_LAUNCHED = false`** no `.railway/railway.ts` segura os dois serviços e o cron.
 10. **O servidor do jogo fala com o Recreio por HTTP**, nunca pelas tabelas. O empacotador de arte fica neste repositório como código, e não no `artes-3d`, para o contrato do manifesto e o empacotador andarem na mesma versão.
+11. **O app se chama `@informach/recreio-app`** no workspace, porque `@informach/recreio` é o package de domínio e contratos, como a proposta prescreve. Os scripts da raiz seguem o padrão curto (`dev:recreio`, `build:recreio`, `start:recreio`).
 
 ## Suposições adotadas
 
@@ -61,7 +62,7 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 | Lote | Entrega | Estado |
 | --- | --- | --- |
 | P0 | `packages/recreio` (`.`, `./contrato`, `./emissor`, `./host`, `./testing`), `packages/config/src/jogos.ts` | feito |
-| P1 | Esqueleto do `apps/recreio` e registros no monorepo | a fazer |
+| P1 | Esqueleto do `apps/recreio` e registros no monorepo | feito |
 | P2 | Schema `recreio`, migração, grupos, perfis, sessão de aparelho | a fazer |
 | P3 | Carregador de acesso, concessões, scripts `conceder` e `revogar` | a fazer |
 | P4 | Ingresso, sessão, renovação, JWKS, cliente do SDK | a fazer |
@@ -114,6 +115,21 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 - `pnpm exec biome check packages/recreio packages/config`: limpo.
 
 A suíte de conformidade (`@informach/recreio/testing/conformidade`) é a mesma que a implementação real da API das instâncias terá de passar no lote P6.
+
+### P1 (11/11/2026)
+
+- `pnpm --filter @informach/recreio-app typecheck`: sem erros. `pnpm --filter @informach/recreio-app test`: 51 testes em 5 arquivos (ambiente, destino seguro, telemetria, catálogo da estante, contraste do tema). `pnpm exec biome check apps/recreio packages/config package.json turbo.json`: limpo.
+- `pnpm build:recreio` com as variáveis do CI: build concluído, com as rotas `/`, `/entrar`, `/estante`, `/conta`, `/termos`, `/privacidade`, `/api/auth/[...all]`, `/api/health`, `/api/ready` e `/api/email/unsubscribe`.
+- Consumidores do `packages/config` (`config`, `admin`, `billing`, `informach-site`): typecheck limpo; testes de `config` (3), `admin` (180) e `billing` (205) passaram. Nenhum deles precisou de ajuste.
+- App rodando na porta 3009 contra um Postgres descartável, com e-mail em sandbox: cadastro, confirmação por código, entrada por OTP, código errado recusado, `/estante` e `/conta` protegidas, saída, 404 próprio e CSP sem erro de console, por HTTP e em navegador (Chromium).
+- **Não exercitado**: sessões no Redis (prefixo `recreio:auth:`) e `/api/ready` respondendo 200, porque não havia Redis na máquina; envio real pelo SendGrid; o bundle de produção servido por `next start`.
+
+O que o P1 deixa para os próximos lotes:
+
+- O cadastro em `/entrar` é aberto mesmo com `RECREIO_ACCESS_MODE=fechado`: a variável só muda textos. A barreira de verdade é `decidirAcesso`, no lote P3.
+- Produção exige e-mail em modo real, mas ainda não há rota de webhook do SendGrid; quando ela entrar, volta a exigência de `SENDGRID_WEBHOOK_PUBLIC_KEY`.
+- A exclusão de conta pelo Recreio está desligada até existirem as regras de sucessão do mundo.
+- `/termos` e `/privacidade` são textos curtos de alfa e precisam da revisão do titular antes de qualquer publicação.
 
 ## Pendências fora da frente
 
