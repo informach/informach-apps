@@ -1,0 +1,28 @@
+{
+  "name": "@informach/morada-sim",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./conteudo": "./src/conteudo/index.ts",
+    "./formatos": "./src/formatos/index.ts",
+    "./testes": "./src/testes/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.testes.json",
+    "test": "vitest run",
+    "test:longa": "vitest run --config vitest.longa.config.ts"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "fast-check": "4.10.2",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

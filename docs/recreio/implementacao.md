@@ -74,12 +74,12 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 
 | Lote | Entrega | Estado |
 | --- | --- | --- |
-| J0 | Modelo: ids, tipos, formatos, invariantes | a fazer |
-| J1 | Núcleo determinístico: relógio, sorteio, comandos, fatos, fotografia | a fazer |
-| J2 | Conteúdo, casa da prova, navegação, necessidades, autonomia | a fazer |
-| J3 | Relações, casamento, gravidez, nascimento, cuidado, fases, políticas de tempo | a fazer |
-| J4 | Sessões, reserva de controle, permissões, visão e mudanças | a fazer |
-| J5 | Persistência e recuperação contra a plataforma falsa | a fazer |
+| J0 | Modelo: ids, tipos, formatos, invariantes | feito |
+| J1 | Núcleo determinístico: relógio, sorteio, comandos, fatos, fotografia | feito |
+| J2 | Conteúdo, casa da prova, navegação, necessidades, autonomia | feito |
+| J3 | Relações, casamento, gravidez, nascimento, cuidado, fases, políticas de tempo | feito |
+| J4 | Sessões, reserva de controle, permissões, visão e mudanças | feito |
+| J5 | Persistência e recuperação contra a plataforma falsa | em curso: fotografia, restauração e reaplicação dos fatos feitas na simulação; falta ligar à plataforma no servidor |
 | J6 | `apps/morada-server` | a fazer |
 | J7 | Quedas injetadas e gerador de carga | a fazer |
 | J8 | Cliente com cena procedural e HUD | a fazer |
@@ -123,6 +123,28 @@ A suíte de conformidade (`@informach/recreio/testing/conformidade`) é a mesma 
 - Consumidores do `packages/config` (`config`, `admin`, `billing`, `informach-site`): typecheck limpo; testes de `config` (3), `admin` (180) e `billing` (205) passaram. Nenhum deles precisou de ajuste.
 - App rodando na porta 3009 contra um Postgres descartável, com e-mail em sandbox: cadastro, confirmação por código, entrada por OTP, código errado recusado, `/estante` e `/conta` protegidas, saída, 404 próprio e CSP sem erro de console, por HTTP e em navegador (Chromium).
 - **Não exercitado**: sessões no Redis (prefixo `recreio:auth:`) e `/api/ready` respondendo 200, porque não havia Redis na máquina; envio real pelo SendGrid; o bundle de produção servido por `next start`.
+
+### J0 a J4 e a parte de simulação do J5 (11/11/2026)
+
+- `pnpm --filter @informach/morada-sim typecheck` (as duas configurações: a da simulação, sem DOM nem Node, e a dos testes): sem erros. `pnpm exec biome check packages/morada-sim`: limpo.
+- `pnpm --filter @informach/morada-sim test`: 98 testes em 11 arquivos, 139 s nesta máquina. O que cada arquivo prova está no [guia do package](../../packages/morada-sim/README.md).
+- Os cinco passos do teste decisivo passam **na simulação**: família de quatro autônoma e selecionável; casamento com um morador do bairro, que entra na família com o mesmo id, habilidades e relações; bebê que nasce uma vez, aparece entre os moradores da família, é cuidado e passa por duas fases sendo a mesma pessoa; segundo jogador dirigindo outro morador; queda sem aviso com a fila intacta. Falta repetir com servidor e dois clientes de verdade (J6 e J7).
+- Dos testes inegociáveis do Morada, cobertos na simulação: 1 a 6, 9 (parto uma vez só, nos três pontos de queda), 11 (vida em suspenso), 12 (velocidade só com acordo) e 15 (ids trocados).
+- Medida de custo, sem rede: de 0,07 a 0,10 ms por tick para o mundo da prova (seis moradores, 54 objetos), ou cerca de 1 ms de CPU por segundo de mundo aberto. É medida de bancada desta máquina, não a medição de custo do Marco 0.
+
+Defeitos que os testes acharam e foram corrigidos antes do commit:
+
+- A casa inicial da biblioteca tem cama para dois; com quatro moradores, dois desmaiavam de sono toda noite. A casa da prova passou a ser a Casa Mansarda (quatro camas, um andar), com berço.
+- A criança pequena ficava sem energia: a soneca dela era descartada por um custo de caminho medido de dentro do berço.
+- A sensação de uma necessidade crítica tinha o prazo renovado sem marcar a mudança, e os campos lentos da replicação só saíam em ticks múltiplos de dez, o que falhava com o mundo acelerado. Achado pelos roteiros aleatórios.
+- Um comando de cuidado recusado cancelava antes as ações do cuidador. Agora a conferência vem antes de qualquer mudança, e os roteiros aleatórios testam que comando recusado não muda o mundo.
+
+Decisões tomadas ao implementar:
+
+- A casa e o catálogo da prova são gerados a partir de `casas_prontas.json` do repositório de arte (só ids e medidas, sem peças de pacote). O gerador é o embrião do importador de casas prontas do lote D3.
+- Cada ponto de uso tem a vaga e uma lista de acessos; a navegação escolhe o primeiro alcançável em cada casa.
+- Um voto de velocidade que ainda espera os outros é aceito e fica à vista; não é uma recusa.
+- Os nomes dos clipes de animação nas interações são provisórios até o empacotador conferir a lista contra a biblioteca (lote X2).
 
 O que o P1 deixa para os próximos lotes:
 

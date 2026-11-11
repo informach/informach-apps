@@ -1,0 +1,114 @@
+{
+  "formato": "morada.bairro",
+  "versao": 1,
+  "id": "bairro_prova",
+  "nome": "Bairro da Prova",
+  "tamanho": [40000, 25000],
+  "lotes": [
+    {
+      "ref": "lote_1",
+      "origem": [2500, 5000],
+      "tamanho": [15000, 15000],
+      "entrada": [6000, 2500],
+      "imovel": { "modelo": "casa_prova@1", "posicao": [7500, 7500] }
+    },
+    {
+      "ref": "lote_2",
+      "origem": [22500, 5000],
+      "tamanho": [15000, 15000],
+      "entrada": [7500, 2500],
+      "imovel": null
+    }
+  ],
+  "familias": [
+    {
+      "ref": "familia_ipe",
+      "nome": "Ipê",
+      "lote": "lote_1",
+      "fundo": 500000,
+      "moradores": [
+        {
+          "ref": "lia",
+          "nome": "Lia",
+          "fase": "adulto",
+          "linha": "f",
+          "pele": 13008984,
+          "cabelo": "coque_alto",
+          "roupa": "casual_vestido",
+          "tracos": ["carinhosa", "caseira"],
+          "habilidades": { "cozinhar": 2 }
+        },
+        {
+          "ref": "marcos",
+          "nome": "Marcos",
+          "fase": "adulto",
+          "linha": "m",
+          "pele": 9136452,
+          "cabelo": "curto_lateral",
+          "roupa": "casual_camiseta",
+          "tracos": ["extrovertido"],
+          "habilidades": { "carisma": 1 }
+        },
+        {
+          "ref": "nina",
+          "nome": "Nina",
+          "fase": "crianca",
+          "linha": "f",
+          "pele": 11897418,
+          "cabelo": "trancas",
+          "roupa": "infantil_macacao",
+          "tracos": ["curiosa"]
+        },
+        {
+          "ref": "vo_ana",
+          "nome": "Vó Ana",
+          "fase": "idoso",
+          "linha": "f",
+          "pele": 14725500,
+          "cabelo": "coque_baixo",
+          "roupa": "casual_cardiga",
+          "tracos": ["tranquila", "carinhosa"],
+          "habilidades": { "cozinhar": 4, "cuidar": 3 }
+        }
+      ]
+    }
+  ],
+  "avulsos": [
+    {
+      "ref": "duda",
+      "nome": "Duda",
+      "fase": "adulto",
+      "linha": "f",
+      "pele": 8018223,
+      "cabelo": "black_power",
+      "roupa": "casual_jaqueta",
+      "tracos": ["extrovertida", "criativa"],
+      "habilidades": { "criatividade": 3, "carisma": 2 }
+    },
+    {
+      "ref": "caio",
+      "nome": "Caio",
+      "fase": "adulto",
+      "linha": "m",
+      "pele": 12161662,
+      "cabelo": "rabo_de_cavalo",
+      "roupa": "casual_camisa",
+      "tracos": ["tranquilo"],
+      "habilidades": { "logica": 2 }
+    }
+  ],
+  "relacoes": [
+    { "a": "lia", "b": "nina", "amizade": 800000, "confianca": 900000, "parentesco": "genitor" },
+    { "a": "vo_ana", "b": "lia", "amizade": 750000, "confianca": 900000, "parentesco": "genitor" },
+    { "a": "lia", "b": "marcos", "amizade": 600000, "confianca": 700000, "parentesco": "irmaos" },
+    {
+      "a": "vo_ana",
+      "b": "marcos",
+      "amizade": 700000,
+      "confianca": 850000,
+      "parentesco": "genitor"
+    },
+    { "a": "duda", "b": "caio", "amizade": 650000, "confianca": 700000, "parentesco": "irmaos" },
+    { "a": "marcos", "b": "duda", "amizade": 300000, "romance": 150000, "confianca": 300000 }
+  ]
+}
