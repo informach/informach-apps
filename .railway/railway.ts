@@ -154,7 +154,9 @@ export default defineRailway((ctx) => {
     startCommand:
       '/bin/sh -c "rm -rf $RAILWAY_VOLUME_MOUNT_PATH/lost+found/ && exec docker-entrypoint.sh redis-server --requirepass $REDIS_PASSWORD --save 60 1 --dir $RAILWAY_VOLUME_MOUNT_PATH"',
   };
-  Redis.networking = { privateNetworkEndpoint: "redis", tcpProxies: { "6379": {} } };
+  // Private network only. Production has no public Redis proxy (checked on
+  // 11/11/2026); declaring one here would make the next apply expose it.
+  Redis.networking = { privateNetworkEndpoint: "redis" };
   const volumeAlerts = { usage: { "80": {}, "95": {}, "100": {} } };
   const postgresVolume = volume("postgres-volume", {
     alerts: volumeAlerts,
