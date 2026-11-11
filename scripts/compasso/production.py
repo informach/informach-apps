@@ -26,6 +26,8 @@ ENVIRONMENT = "174b2cb0-e1cd-410c-8764-d913e3af18d3"
 CONTA = "@informach/conta"
 ESTRELA = "@informach/dia-de-estrela"
 ESTRELA_ORIGIN = "https://dia-de-estrela.informach.com.br"
+# Public DSN of the `conta` project; it only allows sending events.
+CONTA_SENTRY_DSN = "https://b3e3f387c83b51b75369affa328c21a9@o174250.ingest.us.sentry.io/4512414773805056"
 # A service already running in production with the same Postgres, Redis,
 # SendGrid, Sentry organization and live Stripe account.
 DONOR = "@informach/missao-saber"
@@ -107,6 +109,8 @@ def conta_values(stripe):
         "STRIPE_MODE": "prod",
         "STRIPE_SECRET_KEY": donor["STRIPE_SECRET_KEY"],
         "STRIPE_PORTAL_CONFIGURATION_ID": stripe["portalConfigurationId"],
+        # Operational failures of the Conta, sent without SDK (src/lib/observability.ts).
+        "SENTRY_DSN": CONTA_SENTRY_DSN,
     }
     values.update(prices)
     return values

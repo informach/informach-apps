@@ -514,6 +514,8 @@ export default defineRailway((ctx) => {
       COMPASSO_CREDITS_100_PRICE: preserve(),
       COMPASSO_CREDITS_300_PRICE: preserve(),
       COMPASSO_CREDITS_1000_PRICE: preserve(),
+      // Operational failures only, sent to the `conta` project without SDK.
+      SENTRY_DSN: preserve(),
       ...legacyPriceReferences,
     },
   });
