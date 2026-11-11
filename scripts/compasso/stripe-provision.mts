@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { isAbsolute, relative, resolve, sep } from "node:path";
@@ -81,6 +83,45 @@ export async function provisionCompassoStripe(options: {
   const expectedProducts = PRODUCTS.filter((entry) => entry.app === "compasso");
   assert.equal(expectedProducts.length, 5, "The approved Compasso catalog has five prices");
   const changes: string[] = [];
+  // Shown on Checkout, invoices and the portal. Dia de Estrela is left out of
+  // the copy until the owner decides to announce it.
+  const description =
+    "Os apps web da Informach para a família numa assinatura só: Cozya, Agenda da Turma, Missão Saber e Bora Treinar. Até dois adultos e quatro dependentes, 200 créditos de IA por mês compartilhados entre os apps e recargas de créditos sem vencimento.";
+  const image = readFileSync(new URL("./assets/compasso-produto.png", import.meta.url));
+  const imageHash = createHash("sha256").update(image).digest("hex").slice(0, 16);
+  async function uploadImage() {
+    const form = new FormData();
+    form.set("purpose", "business_icon");
+    form.set("file", new Blob([image], { type: "image/png" }), "compasso.png");
+    form.set("file_link_data[create]", "true");
+    form.set("file_link_data[metadata][app]", "compasso");
+    const response = await fetch("https://files.stripe.com/v1/files", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${options.secretKey}`,
+        "Stripe-Version": STRIPE_API_VERSION,
+        "Idempotency-Key": `${marker}:image:${options.mode}:${imageHash}`,
+      },
+      body: form,
+      signal: AbortSignal.timeout(30000),
+    });
+    const file = (await response.json()) as { links?: { data?: { url?: string }[] } };
+    if (!response.ok) throw new Error(`Stripe image upload failed with ${response.status}`);
+    const url = file.links?.data?.[0]?.url;
+    assert.ok(url, "Stripe did not return a public link for the product image");
+    const check = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    assert.ok(
+      check.ok && check.headers.get("content-type")?.startsWith("image/"),
+      "Stripe product image is not publicly readable",
+    );
+    return url;
+  }
+  const nickname = (entry: (typeof expectedProducts)[number]) =>
+    entry.kind === "credit_pack"
+      ? `Compasso, ${entry.creditAmount} créditos`
+      : entry.interval === "year"
+        ? "Compasso anual"
+        : "Compasso mensal";
   const found = [];
   for await (const candidate of stripe.products.list({ limit: 100 }))
     if (candidate.metadata.app === "compasso") found.push(candidate);
@@ -92,14 +133,27 @@ export async function provisionCompassoStripe(options: {
       product = await stripe.products.create(
         {
           name: "Compasso",
-          description: expectedProducts.find((entry) => entry.id === "compasso_monthly")
-            ?.description,
-          metadata: { app: "compasso", catalog: marker },
+          description,
+          metadata: { app: "compasso", catalog: marker, image: imageHash },
         },
         { idempotencyKey: `${marker}:product` },
       );
   }
   if (product) assert.ok(product.active, "The existing Compasso product is inactive");
+  if (
+    product &&
+    (product.description !== description ||
+      product.metadata.image !== imageHash ||
+      product.images.length !== 1)
+  ) {
+    changes.push("update_compasso_product_copy_and_image");
+    if (options.apply)
+      product = await stripe.products.update(product.id, {
+        description,
+        images: [await uploadImage()],
+        metadata: { ...product.metadata, image: imageHash },
+      });
+  }
   const prices: Record<string, string> = {};
   for (const expected of expectedProducts) {
     assert.ok(expected.listPrice);
@@ -122,11 +176,17 @@ export async function provisionCompassoStripe(options: {
               ? { recurring: { interval: expected.interval } }
               : {}),
             lookup_key: lookupKey,
+            nickname: nickname(expected),
             metadata: { app: "compasso", catalog: marker, product_id: expected.id },
           },
           { idempotencyKey: `${marker}:price:${expected.id}` },
         );
       }
+    }
+    if (price && price.nickname !== nickname(expected)) {
+      changes.push(`name_${expected.id}_price`);
+      if (options.apply)
+        price = await stripe.prices.update(price.id, { nickname: nickname(expected) });
     }
     if (price) {
       assert.equal(price.product, product?.id);

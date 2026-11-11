@@ -130,3 +130,21 @@ Em 11/11 o catálogo de teste foi criado com `--mode dev --apply` (produto `prod
 7. `COMPASSO_BILLING_ENABLED=true`. É exigido pelo aceite dos contratos antigos e pela programação da continuidade, não só pela venda. Não há clientes externos; nas famílias com contrato antigo, a barreira impede assinatura nova sobreposta.
 8. Os titulares formam a família e cada um aceita o próprio contrato; o pagante prepara a continuidade e, se o outro adulto trouxer período maior, decide o adiamento. Conferir no Stripe a renovação antiga encerrada e a primeira cobrança na maior data paga.
 9. Compra pequena real pela titular para homologar Checkout, webhook, crédito e extrato.
+
+### Stripe provisionado em 11/11/2026
+
+Pelo `stripe-provision.mts` (chaves de `apps/cozya/.env.local`), com imagem (`scripts/compasso/assets/compasso-produto.png`, gerada por `render-product-image.mjs` com as cores e fontes da Conta) e descrição no produto, e nome em cada preço. A repetição em cada modo não propôs mudanças. Identificadores públicos:
+
+| | Teste | Live |
+| --- | --- | --- |
+| Produto | `prod_VbuWNVAWXYBYLH` | `prod_Vbv4cDs8jAVMTK` |
+| `COMPASSO_MONTHLY_PRICE` | `price_1UaghWCvOctqao30ccAoLIzl` | `price_1UahEoCvOctqao30HrybLpYb` |
+| `COMPASSO_ANNUAL_PRICE` | `price_1UaghWCvOctqao30emluGoyE` | `price_1UahEpCvOctqao307xEPUHW1` |
+| `COMPASSO_CREDITS_100_PRICE` | `price_1UaghXCvOctqao30EmZqVLFv` | `price_1UahEpCvOctqao30quv7ERoj` |
+| `COMPASSO_CREDITS_300_PRICE` | `price_1UaghXCvOctqao30e5QjPI8K` | `price_1UahEqCvOctqao30JzaeBzd4` |
+| `COMPASSO_CREDITS_1000_PRICE` | `price_1UaghYCvOctqao304Ut51QDZ` | `price_1UahEqCvOctqao30hqKP0G2G` |
+| `STRIPE_PORTAL_CONFIGURATION_ID` | `bpc_1UaghZCvOctqao30chCRlFJg` | `bpc_1UahErCvOctqao30woyLoMe6` |
+
+O webhook live da Conta ainda não existe: cadastrar com `--webhook-url https://conta.informach.com.br/api/webhooks/stripe --secrets-output <arquivo fora do repositório>` só depois de a Conta responder `/api/ready`, porque um endpoint fora do ar acumula falhas de entrega e pode ser desativado pelo Stripe.
+
+Sentry: projetos `conta` e `dia-de-estrela` criados em 11/11/2026 na organização `informach-nucleo-de-aprendizag`.
