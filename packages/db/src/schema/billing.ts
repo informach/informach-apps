@@ -384,6 +384,26 @@ export const legacyContractObservations = billing.table(
   (t) => [index("legacy_contract_observation_attempt_idx").on(t.refreshAttemptedAt)],
 );
 
+/** Provider proof that a managed checkout of a historical contract completed
+ * and created exactly that contract. Managed-checkout apps keep their intent
+ * row for the whole life of the subscription, so the row alone is not an
+ * unresolved checkout; only this proof lets the Compasso barriers ignore it. */
+export const legacyCheckoutResolutions = billing.table(
+  "legacy_checkout_resolutions",
+  {
+    providerSessionId: text("provider_session_id").primaryKey(),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "restrict" }),
+    subscriptionId: uuid("subscription_id")
+      .notNull()
+      .references(() => subscriptions.id, { onDelete: "restrict" }),
+    checkoutIntentId: uuid("checkout_intent_id").notNull(),
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("legacy_checkout_resolution_customer_idx").on(t.customerId)],
+);
+
 /** A provider observation contradicted a previously stored payment period.
  * Retained after resolution; timestamps are not provider payment facts. */
 export const legacyPaymentEvidenceReviews = billing.table(

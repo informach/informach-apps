@@ -118,3 +118,15 @@ Todas ficam em `scripts/compasso/`. As de leitura não escrevem nada; as que esc
 | `railway run --service Postgres --environment production -- pnpm compasso:rehearse:restore [--keep]` | Dump real (PostgreSQL 18), restauração em container descartável com os mesmos papéis, comparação de contagens, donos e privilégios, sequência completa do migrator na cópia com tempo medido, conferência de usuários, contratos, extrato e clientes do Dia de Estrela, e segunda rodada para provar que nada duplica | Não na origem; apaga o dump ao final |
 
 Em 11/11 o catálogo de teste foi criado com `--mode dev --apply` (produto `prod_VbuWNVAWXYBYLH`, portal `bpc_1UaghZCvOctqao30chCRlFJg`) e a repetição não propôs mudanças. O live continua sem catálogo e só deve ser criado pela titular, com o comando acima.
+
+## Sequência do corte (revista em 11/11/2026)
+
+1. Conciliação por titular sem bloqueios (`titular-reconciliation.mts`), restauração do backup real aprovada (`pnpm compasso:rehearse:restore`), CI verde e plano Railway só com adições.
+2. Catálogo live criado pela titular (`stripe-provision.mts --mode prod --apply` com o webhook da Conta) e segredos gravados nos serviços novos.
+3. `railway config apply` e merge na `main`, com aprovação da titular. O migrator aplica de 0080 a 0162 de uma vez; `/api/ready` segura cada app.
+4. `setup:oauth` da Conta, conferência de `/api/ready` e `/api/health`, crons em `ops.job_runs`, Sentry.
+5. Entrada compartilhada, família, perfis e aparelhos nos cinco apps, ainda com `COMPASSO_BILLING_ENABLED=false`.
+6. Nova conciliação por titular, agora com o schema novo: a comparação de faturas pagas com períodos locais precisa fechar depois da primeira leitura do provedor de cada contrato.
+7. `COMPASSO_BILLING_ENABLED=true`. É exigido pelo aceite dos contratos antigos e pela programação da continuidade, não só pela venda. Não há clientes externos; nas famílias com contrato antigo, a barreira impede assinatura nova sobreposta.
+8. Os titulares formam a família e cada um aceita o próprio contrato; o pagante prepara a continuidade e, se o outro adulto trouxer período maior, decide o adiamento. Conferir no Stripe a renovação antiga encerrada e a primeira cobrança na maior data paga.
+9. Compra pequena real pela titular para homologar Checkout, webhook, crédito e extrato.

@@ -155,7 +155,8 @@ export async function lockBillingClosureScope(
     (exists (select 1 from billing.subscriptions s join ${customers} on ${customers.id} = s.customer_id
       where ${personalWebCustomerCondition(actor.userId)} and ${customers.app} <> 'compasso' and
        (s.status not in ('canceled', 'incomplete_expired') or s.pending_product_id is not null or s.pending_price_id is not null))
-     or exists (select 1 from billing.checkout_intents c join ${customers} on ${customers.id} = c.customer_id where ${personalWebCustomerCondition(actor.userId)} and ${customers.app} <> 'compasso')
+     or exists (select 1 from billing.checkout_intents c join ${customers} on ${customers.id} = c.customer_id where ${personalWebCustomerCondition(actor.userId)} and ${customers.app} <> 'compasso'
+       and not exists (select 1 from billing.legacy_checkout_resolutions r where r.provider_session_id = c.provider_session_id and r.customer_id = c.customer_id))
      or exists (select 1 from billing.one_time_payments p join ${customers} on ${customers.id} = p.customer_id where ${personalWebCustomerCondition(actor.userId)} and ${customers.app} <> 'compasso' and p.status = 'pending')
      or exists (select 1 from billing.legacy_payment_evidence_reviews r join billing.subscriptions s on s.id = r.subscription_id
        join ${customers} on ${customers.id} = s.customer_id where ${personalWebCustomerCondition(actor.userId)} and r.resolved_at is null)

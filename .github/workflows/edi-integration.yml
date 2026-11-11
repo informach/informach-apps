@@ -47,8 +47,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Apply the complete migration history to the disposable database
         run: pnpm --filter @informach/db db:migrate
+      # The Compasso auth suites run in ci.yml with their own disposable fixture;
+      # this database is scoped to the Edi desktop contracts.
       - name: Verify desktop OAuth, device transactions and billing concurrency
-        run: pnpm --workspace-concurrency=1 --filter @informach/auth --filter @informach/edi-licensing --filter @informach/edi test:integration
+        run: |
+          pnpm --filter @informach/auth exec vitest run --config vitest.integration.config.ts src/desktop-oauth.integration.ts
+          pnpm --workspace-concurrency=1 --filter @informach/edi-licensing --filter @informach/edi test:integration
       - name: Build the actual standalone portal and OAuth deployment command
         run: pnpm build:edi
       - name: Verify standalone assets, authentication, OAuth and disabled billing over HTTP

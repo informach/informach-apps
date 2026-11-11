@@ -11,6 +11,7 @@ import {
   users,
 } from "@informach/db/schema";
 import { notInArray } from "drizzle-orm";
+import { unresolvedCheckoutIntent } from "./legacy-checkout";
 import {
   activePersonalWebReservations,
   eligiblePersonalBillingActor,
@@ -94,6 +95,7 @@ export async function* inspectBillingDeparture(
       .where(
         and(
           personalWebCustomerCondition(actorId),
+          unresolvedCheckoutIntent,
           before ? lt(checkoutIntents.id, before) : undefined,
         ),
       )

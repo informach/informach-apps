@@ -903,3 +903,95 @@ describe("Two payers: privacy of each adult's records", () => {
     expect(JSON.stringify(payer)).not.toContain(f.contributor.sub.id);
   });
 });
+
+describe("Managed checkout kept by the legacy app while its contract lives", () => {
+  async function withCheckout(subscriptionForSession: (adult: Adult) => string) {
+    const f = await family(20, 50);
+    const [customer] = await db
+      .select()
+      .from(schema.customers)
+      .where(eq(schema.customers.id, f.payer.sub.customerId));
+    if (!customer) throw new Error("Missing payer customer");
+    const [intent] = await db
+      .insert(schema.checkoutIntents)
+      .values({
+        customerId: customer.id,
+        userId: f.payer.userId,
+        productId: "cozya_annual",
+        request: {
+          priceId: "price_legacy",
+          successUrl: "https://example.test/ok",
+          cancelUrl: "https://example.test/cancel",
+          expiresAt: Math.floor(Date.now() / 1000) - 3600,
+        },
+        requestStarted: true,
+        providerSessionId: `cs_${randomUUID()}`,
+      })
+      .returning();
+    if (!intent?.providerSessionId) throw new Error("Missing checkout intent");
+    const sessionId = intent.providerSessionId;
+    const find = vi.fn(async (customerId: string, intentId: string, session?: string | null) => {
+      if (
+        customerId !== customer.providerCustomerId ||
+        intentId !== intent.id ||
+        session !== sessionId
+      )
+        throw new Error("Checkout does not belong to this intent");
+      return {
+        id: sessionId,
+        url: null,
+        status: "complete" as const,
+        subscriptionId: subscriptionForSession(f.payer),
+      };
+    });
+    const deps = {
+      ...f.deps,
+      providerClient: { ...f.deps.providerClient, findCheckoutSession: find },
+    };
+    const input = { groupId: f.group.id, subscriptionId: f.payer.sub.id };
+    const preview = await prepareLegacyContractAcceptance(deps, f.payer.userId, input);
+    const receipt = await confirmRecentLegacyContractAcceptance(
+      deps,
+      f.payer.userId,
+      f.payer.sessionId,
+      {
+        ...input,
+        revision: preview.revision,
+        coordination: "none",
+      },
+    );
+    await reconcileLegacyCancellation(deps, f.payer.userId, receipt.id);
+    const account = await openCompassoAccount(db, f.payer.userId, f.group.id);
+    return { f, account, find, sessionId };
+  }
+
+  it("ignores the intent only with provider proof that it created this contract", async () => {
+    const { f, account, find, sessionId } = await withCheckout(
+      (payer) => payer.sub.providerSubscriptionId,
+    );
+    expect(find).toHaveBeenCalled();
+    expect(
+      await db
+        .select({ subscriptionId: schema.legacyCheckoutResolutions.subscriptionId })
+        .from(schema.legacyCheckoutResolutions)
+        .where(eq(schema.legacyCheckoutResolutions.providerSessionId, sessionId)),
+    ).toEqual([{ subscriptionId: f.payer.sub.id }]);
+    const terms = await db.transaction((tx) =>
+      readLegacyFutureTerms(tx, f.payer.userId, account.id),
+    );
+    expect(terms.paidThrough).toEqual(f.payer.end);
+  });
+
+  it("keeps blocking a checkout that the provider ties to another subscription", async () => {
+    const { f, account, sessionId } = await withCheckout(() => `sub_${randomUUID()}`);
+    expect(
+      await db
+        .select()
+        .from(schema.legacyCheckoutResolutions)
+        .where(eq(schema.legacyCheckoutResolutions.providerSessionId, sessionId)),
+    ).toEqual([]);
+    await expect(
+      db.transaction((tx) => readLegacyFutureTerms(tx, f.payer.userId, account.id)),
+    ).rejects.toThrow("Historical checkout requires reconciliation");
+  });
+});

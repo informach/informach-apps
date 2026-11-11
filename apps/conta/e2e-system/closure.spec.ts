@@ -22,6 +22,8 @@ import {
   familyAppProfiles,
   familyMembers,
   familyPeople,
+  legacyBillingCoordinations,
+  legacyFutureIntents,
   missaoNotes,
   missaoProfiles,
   missaoSessions,
@@ -233,6 +235,35 @@ test(`real closure ${stage} through ${process.env.COMPASSO_TEST_APP}`, async ({ 
     const owner = await subject(),
       other = await subject();
     const account = await openCompassoAccount(db, owner.actorId, owner.groupId);
+    // Billing commitments the closure must end without any provider call: a
+    // prepared future contract whose schedule was never attempted and a
+    // deferral request the payer never answered.
+    const startsAt = new Date(Math.ceil((Date.now() + 30 * 86_400_000) / 1000) * 1000);
+    await db.insert(legacyFutureIntents).values({
+      accountId: account.id,
+      payerUserId: owner.actorId,
+      requestKey: randomUUID(),
+      productId: "compasso_monthly",
+      providerPriceId: "price_closure_fixture",
+      amountCents: 4990,
+      interval: "month",
+      paidThrough: startsAt,
+      startsAt,
+      termsRevision: "a".repeat(64),
+      setupExpiresAt: new Date(Date.now() + 3_600_000),
+      setupProtocolVersion: 1,
+      scheduleProtocolVersion: 1,
+      state: "setup_ready",
+      setupSessionId: `cs_closure_${randomUUID()}`,
+      paymentMethodId: "pm_closure_fixture",
+    });
+    await db.insert(legacyBillingCoordinations).values({
+      accountId: account.id,
+      groupId: owner.groupId,
+      payerUserId: owner.actorId,
+      contributorUserId: other.actorId,
+      policyVersion: "compasso-coordination-2026-11-11-v1",
+    });
     await save(
       {
         owner,
@@ -299,6 +330,23 @@ test(`real closure ${stage} through ${process.env.COMPASSO_TEST_APP}`, async ({ 
       (await db.select().from(collectionAccounts).where(eq(collectionAccounts.id, f.accountId)))[0]
         ?.closedAt,
     ).not.toBeNull();
+    expect(
+      (
+        await db
+          .select({ state: legacyFutureIntents.state })
+          .from(legacyFutureIntents)
+          .where(eq(legacyFutureIntents.accountId, f.accountId))
+      ).map((row) => row.state),
+    ).toEqual(["canceled"]);
+    expect(
+      await db
+        .select({
+          state: legacyBillingCoordinations.state,
+          reason: legacyBillingCoordinations.reason,
+        })
+        .from(legacyBillingCoordinations)
+        .where(eq(legacyBillingCoordinations.accountId, f.accountId)),
+    ).toEqual([{ state: "canceled", reason: "payer_closure" }]);
     expect(
       (
         await db

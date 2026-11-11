@@ -1135,6 +1135,13 @@
       "when": 1794420511051,
       "tag": "0161_condemned_lockjaw",
       "breakpoints": true
+    },
+    {
+      "idx": 162,
+      "version": "7",
+      "when": 1794424373853,
+      "tag": "0162_military_dexter_bennett",
+      "breakpoints": true
     }
   ]
 }

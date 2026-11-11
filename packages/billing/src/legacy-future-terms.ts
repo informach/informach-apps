@@ -18,6 +18,7 @@ import { lockFamilyMembership } from "@informach/family/context";
 import { and, asc, eq, gt, inArray, isNull, like, or, sql } from "drizzle-orm";
 import { hasPendingCompassoReview } from "./collection-jobs";
 import { BillingError } from "./errors";
+import { unresolvedCheckoutIntent } from "./legacy-checkout";
 import {
   LEGACY_CONTRACT_POLICY_VERSION,
   LEGACY_OBSERVATION_MAX_AGE_MS,
@@ -123,7 +124,7 @@ export async function readLegacyFutureTerms(tx: Tx, actorId: string, accountId: 
     .from(familyMigrationSources)
     .innerJoin(customers, owner)
     .innerJoin(checkoutIntents, eq(checkoutIntents.customerId, customers.id))
-    .where(scope)
+    .where(and(scope, unresolvedCheckoutIntent))
     .limit(1);
   if (checkout) throw new BillingError("Historical checkout requires reconciliation");
   const payloadCustomer = sql<

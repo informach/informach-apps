@@ -2,7 +2,9 @@ import type { Product } from "@informach/config";
 import { getAppCollection } from "@informach/config/collections";
 import type { Database } from "@informach/db";
 import {
+  checkoutIntents,
   customers,
+  legacyCheckoutResolutions,
   legacyContractObservations,
   legacyPaymentEvidenceReviews,
   subscriptions,
@@ -21,7 +23,8 @@ type Deps = {
   db: Database;
   app: string;
   products: readonly Product[];
-  providerClient: Pick<BillingProviderClient, "readSubscriptionPaymentFacts">;
+  providerClient: Pick<BillingProviderClient, "readSubscriptionPaymentFacts"> &
+    Partial<Pick<BillingProviderClient, "findCheckoutSession">>;
 };
 
 /** Reads external facts before opening the transaction. Canceled historical
@@ -74,6 +77,25 @@ export async function refreshCompassoLegacySubscriptionFunding(
     snapshot.end <= snapshot.start
   )
     throw new BillingError("Legacy subscription snapshot does not belong to the contract");
+  // Managed-checkout apps keep the intent while the subscription lives. Prove
+  // with the provider that it completed into this very contract; anything
+  // else stays an unresolved checkout for the Compasso barriers.
+  const [intent] = await deps.db
+    .select()
+    .from(checkoutIntents)
+    .where(eq(checkoutIntents.customerId, record.customer.id));
+  const find = deps.providerClient.findCheckoutSession;
+  const checkout =
+    intent?.requestStarted && intent.providerSessionId && find
+      ? await find(record.customer.providerCustomerId, intent.id, intent.providerSessionId)
+      : null;
+  const resolvedCheckout =
+    intent?.providerSessionId &&
+    checkout?.id === intent.providerSessionId &&
+    checkout.status === "complete" &&
+    checkout.subscriptionId === record.subscription.providerSubscriptionId
+      ? { intentId: intent.id, sessionId: intent.providerSessionId }
+      : null;
   const result = await deps.db.transaction(async (tx) => {
     // Historical financial event ingestion takes the source wallet before any
     // family lock. Take it before the subscription too, so a concurrent family
@@ -150,6 +172,26 @@ export async function refreshCompassoLegacySubscriptionFunding(
         },
         setWhere: lt(legacyContractObservations.observedAt, snapshot.observedAt),
       });
+    if (resolvedCheckout) {
+      const [current] = await tx
+        .select({ id: checkoutIntents.id, sessionId: checkoutIntents.providerSessionId })
+        .from(checkoutIntents)
+        .where(eq(checkoutIntents.customerId, record.customer.id));
+      if (
+        current?.id === resolvedCheckout.intentId &&
+        current.sessionId === resolvedCheckout.sessionId
+      )
+        await tx
+          .insert(legacyCheckoutResolutions)
+          .values({
+            providerSessionId: resolvedCheckout.sessionId,
+            customerId: record.customer.id,
+            subscriptionId: locked.id,
+            checkoutIntentId: resolvedCheckout.intentId,
+            observedAt: snapshot.observedAt,
+          })
+          .onConflictDoNothing();
+    }
     await tx
       .update(legacyPaymentEvidenceReviews)
       .set({ resolvedAt: snapshot.observedAt })

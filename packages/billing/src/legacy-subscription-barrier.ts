@@ -12,6 +12,7 @@ import {
 } from "@informach/db/schema";
 import { and, eq, gt, inArray, notInArray, or, sql } from "drizzle-orm";
 import { LegacySubscriptionPendingError } from "./errors";
+import { unresolvedCheckoutIntent } from "./legacy-checkout";
 
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
@@ -105,7 +106,7 @@ export async function assertLegacySubscriptionsSettled(tx: Transaction, groupId:
     .from(familyMigrationSources)
     .innerJoin(customers, legacyCustomer)
     .innerJoin(checkoutIntents, eq(checkoutIntents.customerId, customers.id))
-    .where(source)
+    .where(and(source, unresolvedCheckoutIntent))
     .limit(1);
   if (checkout) throw new LegacySubscriptionPendingError();
 }
