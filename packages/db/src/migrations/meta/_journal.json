@@ -1128,6 +1128,13 @@
       "when": 1794415482910,
       "tag": "0160_next_shockwave",
       "breakpoints": true
+    },
+    {
+      "idx": 161,
+      "version": "7",
+      "when": 1794420511051,
+      "tag": "0161_condemned_lockjaw",
+      "breakpoints": true
     }
   ]
 }

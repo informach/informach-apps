@@ -469,6 +469,174 @@ export const legacyFutureIntents = billing.table(
   ],
 );
 
+/** One adult brought a historical contract to a family whose payer already has
+ * a Compasso commitment. The contributor's own receipt stays in
+ * `legacy_contract_acceptances`; this row carries only what the payer must
+ * approve: moving the payer's own next charge to the contributed paid-through
+ * date. The attempt is recorded before the provider is called. */
+export const legacyBillingCoordinations = billing.table(
+  "legacy_billing_coordinations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => collectionAccounts.id, { onDelete: "restrict" }),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => familyGroups.id, { onDelete: "restrict" }),
+    payerUserId: text("payer_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    contributorUserId: text("contributor_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    policyVersion: text("policy_version").notNull(),
+    state: text("state").notNull().default("open"),
+    kind: text("kind"),
+    subscriptionId: uuid("subscription_id").references(() => subscriptions.id, {
+      onDelete: "restrict",
+    }),
+    futureIntentId: uuid("future_intent_id").references(() => legacyFutureIntents.id, {
+      onDelete: "restrict",
+    }),
+    providerPriceId: text("provider_price_id"),
+    amountCents: integer("amount_cents"),
+    interval: text("interval"),
+    fromChargeAt: timestamp("from_charge_at", { withTimezone: true }),
+    contributedPaidThrough: timestamp("contributed_paid_through", { withTimezone: true }),
+    deferUntil: timestamp("defer_until", { withTimezone: true }),
+    offerRevision: text("offer_revision"),
+    effectProtocolVersion: integer("effect_protocol_version").notNull().default(1),
+    effectAttemptedAt: timestamp("effect_attempted_at", { withTimezone: true }),
+    effectConfirmedAt: timestamp("effect_confirmed_at", { withTimezone: true }),
+    settledAt: timestamp("settled_at", { withTimezone: true }),
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("legacy_billing_coordination_active_account")
+      .on(t.accountId)
+      .where(sql`${t.state} in ('open', 'payer_accepted', 'applying', 'applied', 'review')`),
+    index("legacy_billing_coordination_group_idx").on(t.groupId),
+    index("legacy_billing_coordination_payer_idx").on(t.payerUserId),
+    index("legacy_billing_coordination_contributor_idx").on(t.contributorUserId),
+    index("legacy_billing_coordination_recovery_idx")
+      .on(t.updatedAt)
+      .where(sql`${t.state} in ('open', 'payer_accepted', 'applying', 'applied', 'review')`),
+    check(
+      "legacy_billing_coordination_state",
+      sql`${t.state} in ('open', 'payer_accepted', 'applying', 'applied', 'review', 'settled', 'no_effect', 'declined', 'lapsed', 'invalidated', 'canceled')`,
+    ),
+    check(
+      "legacy_billing_coordination_kind",
+      sql`(${t.kind} is null and ${t.subscriptionId} is null and ${t.futureIntentId} is null) or (${t.kind} = 'subscription_trial' and ${t.subscriptionId} is not null and ${t.futureIntentId} is null) or (${t.kind} = 'schedule_start' and ${t.futureIntentId} is not null and ${t.subscriptionId} is null)`,
+    ),
+    check(
+      "legacy_billing_coordination_offer",
+      sql`${t.state} not in ('payer_accepted', 'applying', 'applied', 'settled') or (${t.kind} is not null and ${t.providerPriceId} is not null and ${t.amountCents} is not null and ${t.interval} is not null and ${t.fromChargeAt} is not null and ${t.contributedPaidThrough} is not null and ${t.deferUntil} is not null and ${t.offerRevision} is not null)`,
+    ),
+    check(
+      "legacy_billing_coordination_attempt",
+      sql`${t.state} not in ('applying', 'applied', 'settled') or ${t.effectAttemptedAt} is not null`,
+    ),
+    check(
+      "legacy_billing_coordination_confirmation",
+      sql`${t.state} not in ('applied', 'settled') or ${t.effectConfirmedAt} is not null`,
+    ),
+    check(
+      "legacy_billing_coordination_settlement",
+      sql`${t.state} <> 'settled' or ${t.settledAt} is not null`,
+    ),
+    check(
+      "legacy_billing_coordination_dates",
+      sql`${t.deferUntil} is null or (${t.deferUntil} > ${t.fromChargeAt} and ${t.deferUntil} >= ${t.contributedPaidThrough})`,
+    ),
+    check(
+      "legacy_billing_coordination_amount",
+      sql`${t.amountCents} is null or ${t.amountCents} > 0`,
+    ),
+    check(
+      "legacy_billing_coordination_interval",
+      sql`${t.interval} is null or ${t.interval} in ('month', 'year')`,
+    ),
+    check("legacy_billing_coordination_protocol", sql`${t.effectProtocolVersion} in (1)`),
+    check(
+      "legacy_billing_coordination_revision",
+      sql`${t.offerRevision} is null or ${t.offerRevision} ~ '^[0-9a-f]{64}$'`,
+    ),
+  ],
+);
+
+/** Historical contracts whose accepted paid periods feed one coordination. */
+export const legacyBillingCoordinationContracts = billing.table(
+  "legacy_billing_coordination_contracts",
+  {
+    coordinationId: uuid("coordination_id")
+      .notNull()
+      .references(() => legacyBillingCoordinations.id, { onDelete: "restrict" }),
+    acceptanceId: uuid("acceptance_id")
+      .notNull()
+      .references(() => legacyContractAcceptances.id, { onDelete: "restrict" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.coordinationId, t.acceptanceId] }),
+    index("legacy_billing_coordination_contract_acceptance_idx").on(t.acceptanceId),
+  ],
+);
+
+/** Insert-only receipts. Each row is what one person saw and decided; `terms`
+ * holds only the facts shown to that person, never the other payer's. */
+export const legacyBillingConsents = billing.table(
+  "legacy_billing_consents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    role: text("role").notNull(),
+    decision: text("decision").notNull(),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => familyGroups.id, { onDelete: "restrict" }),
+    coordinationId: uuid("coordination_id")
+      .notNull()
+      .references(() => legacyBillingCoordinations.id, { onDelete: "restrict" }),
+    acceptanceId: uuid("acceptance_id").references(() => legacyContractAcceptances.id, {
+      onDelete: "restrict",
+    }),
+    policyVersion: text("policy_version").notNull(),
+    termsRevision: text("terms_revision").notNull(),
+    terms: jsonb("terms").$type<Record<string, unknown>>().notNull(),
+    requestKey: uuid("request_key").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("legacy_billing_consent_request_uniq").on(t.userId, t.requestKey),
+    uniqueIndex("legacy_billing_consent_payer_decision_uniq")
+      .on(t.coordinationId, t.decision, t.termsRevision)
+      .where(sql`${t.role} = 'payer'`),
+    uniqueIndex("legacy_billing_consent_contributor_uniq")
+      .on(t.coordinationId, t.acceptanceId)
+      .where(sql`${t.role} = 'contributor'`),
+    index("legacy_billing_consent_user_idx").on(t.userId, t.createdAt),
+    check("legacy_billing_consent_role", sql`${t.role} in ('contributor', 'payer')`),
+    check(
+      "legacy_billing_consent_decision",
+      sql`${t.decision} in ('accepted', 'declined', 'resumed')`,
+    ),
+    check(
+      "legacy_billing_consent_contributor_scope",
+      sql`(${t.role} = 'contributor') = (${t.acceptanceId} is not null)`,
+    ),
+    check(
+      "legacy_billing_consent_contributor_decision",
+      sql`${t.role} <> 'contributor' or ${t.decision} = 'accepted'`,
+    ),
+    check("legacy_billing_consent_revision", sql`${t.termsRevision} ~ '^[0-9a-f]{64}$'`),
+  ],
+);
+
 export const oneTimePayments = billing.table(
   "one_time_payments",
   {

@@ -67,7 +67,11 @@ export function createStripeFutureContractProvider(config: {
     }
     return found ?? null;
   }
-  function verifySchedule(schedule: Stripe.SubscriptionSchedule, input: FutureInput) {
+  function verifySchedule(
+    schedule: Stripe.SubscriptionSchedule,
+    input: FutureInput,
+    alternativeStart?: number,
+  ) {
     const phase = schedule.phases[0];
     if (
       schedule.livemode !== live ||
@@ -75,7 +79,8 @@ export function createStripeFutureContractProvider(config: {
       schedule.metadata?.compasso_future_intent !== input.intentId ||
       schedule.end_behavior !== "release" ||
       schedule.phases.length !== 1 ||
-      phase?.start_date !== input.startsAt ||
+      (phase?.start_date !== input.startsAt && phase?.start_date !== alternativeStart) ||
+      phase === undefined ||
       phase.items.length !== 1 ||
       phase.items[0]?.quantity !== 1 ||
       objectId(phase.items[0]?.price) !== input.priceId ||
@@ -237,6 +242,72 @@ export function createStripeFutureContractProvider(config: {
       );
       verifySchedule(schedule, input);
       return { id: schedule.id, status: schedule.status };
+    },
+    /** Moves the first charge of a schedule that has not started to a later
+     * date, in place. `input` carries the terms currently recorded for the
+     * intent; the schedule is never canceled and recreated, so there is no
+     * window without a schedule and a started subscription cannot be canceled
+     * by a late request. A lost response is recognized by the new start date
+     * together with the coordination marker. */
+    async moveScheduleStart(
+      input: FutureInput,
+      move: { scheduleId: string; coordinationId: string; newStartsAt: number },
+    ) {
+      validateFuture(input);
+      if (
+        !move.coordinationId ||
+        !Number.isSafeInteger(move.newStartsAt) ||
+        move.newStartsAt <= input.startsAt
+      )
+        throw new BillingError("Invalid future schedule move");
+      const marker = "compasso_future_coordination";
+      const current = verifySchedule(
+        await stripe.subscriptionSchedules.retrieve(move.scheduleId),
+        input,
+        move.newStartsAt,
+      );
+      if (current.id !== move.scheduleId)
+        throw new BillingError("Future schedule identity conflicts");
+      if (current.status !== "not_started")
+        return { id: current.id, status: current.status, moved: false };
+      const start = current.phases[0]?.start_date;
+      if (start === move.newStartsAt) {
+        if (current.metadata?.[marker] !== move.coordinationId)
+          throw new BillingError("Future schedule was moved by another coordination");
+        return { id: current.id, status: current.status, moved: true };
+      }
+      if (current.metadata?.[marker])
+        throw new BillingError("Future schedule already carries another coordination");
+      if (input.startsAt < Math.floor(Date.now() / 1000) + 900)
+        throw new BillingError("Future subscription start is too close to move safely");
+      const updated = await stripe.subscriptionSchedules.update(
+        move.scheduleId,
+        {
+          end_behavior: "release",
+          proration_behavior: "none",
+          phases: [
+            {
+              start_date: move.newStartsAt,
+              items: [{ price: input.priceId, quantity: 1 }],
+              duration: { interval: input.interval, interval_count: 1 },
+              proration_behavior: "none",
+              metadata: { compasso_future_intent: input.intentId },
+            },
+          ],
+          metadata: { compasso_future_intent: input.intentId, [marker]: move.coordinationId },
+        },
+        {
+          idempotencyKey: `compasso:future:${input.intentId}:move:${move.coordinationId}`,
+        },
+      );
+      verifySchedule(updated, { ...input, startsAt: move.newStartsAt });
+      if (
+        updated.id !== move.scheduleId ||
+        updated.status !== "not_started" ||
+        updated.metadata?.[marker] !== move.coordinationId
+      )
+        throw new BillingError("Provider did not confirm the future schedule move");
+      return { id: updated.id, status: updated.status, moved: true };
     },
     async cancelSchedule(input: FutureInput, scheduleId: string) {
       const current = verifySchedule(

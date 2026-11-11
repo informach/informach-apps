@@ -371,7 +371,7 @@ describe("Historical subscription funding after wallet conversion", () => {
       source: "review",
     });
   });
-  it("refuses a legacy acceptance that would bypass an existing family payer or Compasso billing", async () => {
+  it("never records a legacy acceptance that bypasses the committed family payer", async () => {
     const f = await fixture();
     const other = await fixture();
     const family = createFamilyService({ db });
@@ -424,16 +424,28 @@ describe("Historical subscription funding after wallet conversion", () => {
     });
     const input = { groupId: f.group.id, subscriptionId: f.sub.id };
     const preview = await previewLegacyContractAcceptance(db, f.userId, input);
+    // The payer already pays Compasso: the contract can only enter through the
+    // coordination the adult was shown (legacy-coordination.integration.ts).
+    expect(preview.coordination).toBe("payer_decides");
     await expect(
       acceptLegacyContract(db, f.userId, { ...input, revision: preview.revision }),
-    ).rejects.toThrow("Existing Compasso billing");
+    ).rejects.toThrow("Review the updated contract preview");
+    // The other adult is no longer locked out by the payer's account, but an
+    // acceptance still needs that adult's own reconciled paid period.
     await expect(
       acceptLegacyContract(db, other.userId, {
         groupId: f.group.id,
         subscriptionId: other.sub.id,
         revision: "unused",
+        coordination: "payer_decides",
       }),
-    ).rejects.toThrow("family payer must approve");
+    ).rejects.toThrow("Historical paid period requires reconciliation");
+    expect(
+      await db
+        .select({ id: schema.legacyBillingCoordinations.id })
+        .from(schema.legacyBillingCoordinations)
+        .where(eq(schema.legacyBillingCoordinations.accountId, account.id)),
+    ).toEqual([]);
   });
   it("fails closed when an acceptance points at another subscription's paid period", async () => {
     const f = await fixture();

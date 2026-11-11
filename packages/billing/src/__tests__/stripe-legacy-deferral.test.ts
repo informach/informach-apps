@@ -82,6 +82,7 @@ function fixture() {
     disputed: false,
   };
   let pendingInvoice = false;
+  let invoiceAfterUpdate: number | null = null;
   let lostResponse = false;
   let updateCalls = 0;
   const list = (data: unknown[]) => ({ object: "list", data, has_more: false, url: "/v1/fixture" });
@@ -123,9 +124,11 @@ function fixture() {
       body = list(
         requested === "paid"
           ? [invoice]
-          : pendingInvoice && requested === "open"
-            ? [{ id: "in_open" }]
-            : [],
+          : requested === "open" && updateCalls > 0 && invoiceAfterUpdate !== null
+            ? [{ id: "in_after", amount_due: invoiceAfterUpdate }]
+            : pendingInvoice && requested === "open"
+              ? [{ id: "in_open" }]
+              : [],
       );
     } else if (url.pathname === "/v1/invoice_payments")
       body = list([
@@ -161,6 +164,9 @@ function fixture() {
     pending: () => {
       pendingInvoice = true;
     },
+    invoiceAfterUpdate: (amountDue: number) => {
+      invoiceAfterUpdate = amountDue;
+    },
     writes: () => updateCalls,
   };
 }
@@ -189,5 +195,46 @@ describe("Stripe existing subscription deferral", () => {
     pending.pending();
     await expect(pending.provider.defer(pending.input)).rejects.toThrow("invoice");
     expect(pending.writes()).toBe(0);
+  });
+  it("keeps a safety margin before the renewal and the provider trial limit", async () => {
+    const close = fixture();
+    const now = Math.floor(Date.now() / 1000);
+    const item = close.sub.items.data[0];
+    if (!item) throw new Error("Missing fixture subscription item");
+    close.input.expectedPeriodEnd = now + 600;
+    item.current_period_end = close.input.expectedPeriodEnd;
+    close.line.period.end = close.input.expectedPeriodEnd;
+    await expect(close.provider.defer(close.input)).rejects.toThrow("changed before deferral");
+    expect(close.writes()).toBe(0);
+    const far = fixture();
+    far.input.deferUntil = now + 731 * 86400;
+    await expect(far.provider.defer(far.input)).rejects.toThrow("changed before deferral");
+    expect(far.writes()).toBe(0);
+  });
+  it("classifies the provider state without mutating it", async () => {
+    const f = fixture();
+    await expect(f.provider.classify(f.input)).resolves.toBe("not_deferred");
+    await f.provider.defer(f.input);
+    await expect(f.provider.classify(f.input)).resolves.toBe("deferred");
+    await expect(f.provider.classify({ ...f.input, intentId: "another_intent" })).resolves.toBe(
+      "conflict",
+    );
+    await expect(f.provider.classify({ ...f.input, priceId: "price_other" })).resolves.toBe(
+      "conflict",
+    );
+    expect(f.writes()).toBe(1);
+  });
+  it("reports a charge drafted during the update and tolerates the zero trial invoice", async () => {
+    const charged = fixture();
+    charged.invoiceAfterUpdate(4990);
+    await expect(charged.provider.defer(charged.input)).rejects.toThrow("charge requiring");
+    expect(charged.writes()).toBe(1);
+    await expect(charged.provider.classify(charged.input)).resolves.toBe("deferred");
+    const zero = fixture();
+    zero.invoiceAfterUpdate(0);
+    await expect(zero.provider.defer(zero.input)).resolves.toEqual({
+      status: "deferred",
+      until: zero.input.deferUntil,
+    });
   });
 });

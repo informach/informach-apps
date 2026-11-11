@@ -65,6 +65,17 @@ export async function activeLegacyFutureIntent(db: Database, actorId: string, ac
   return intent ?? null;
 }
 
+/** Terms and revision of the payer's future contract inside the caller's
+ * transaction. Exported for the coordination that moves an accepted start. */
+export function readLegacyFutureIntentTerms(
+  tx: Tx,
+  deps: Dependencies,
+  actorId: string,
+  input: z.infer<typeof inputSchema>,
+) {
+  return preview(tx, deps, actorId, input);
+}
+
 async function preview(
   tx: Tx,
   deps: Dependencies,

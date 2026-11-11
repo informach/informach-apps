@@ -8,15 +8,12 @@ import type { Product } from "@informach/config";
 import { getAppCollection } from "@informach/config/collections";
 import { type Database, withDatabaseLocksWait } from "@informach/db";
 import {
-  checkoutIntents,
-  collectionAccounts,
   customers,
   familyEvents,
   familyMigrationSources,
   legacyContractAcceptancePeriods,
   legacyContractAcceptances,
   legacyContractObservations,
-  legacyFutureIntents,
   subscriptionPaymentPeriods,
   subscriptions,
   webhookEvents,
@@ -30,11 +27,14 @@ import {
   LEGACY_CONTRACT_POLICY_VERSION,
   LEGACY_OBSERVATION_MAX_AGE_MS,
 } from "./legacy-contract-policy";
+import { attachLegacyCoordination } from "./legacy-coordination";
+import { type LegacyCoordinationMode, readContributorMode } from "./legacy-coordination-terms";
 import type { BillingProviderClient } from "./providers/types";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 const POLICY = LEGACY_CONTRACT_POLICY_VERSION;
 type Input = { groupId: string; subscriptionId: string };
+type Confirmation = Input & { revision: string; coordination?: LegacyCoordinationMode };
 type Dependencies = {
   db: Database;
   products: readonly Product[];
@@ -86,7 +86,7 @@ export async function prepareLegacyContractAcceptance(
 export async function confirmLegacyContractAcceptance(
   deps: Dependencies,
   actorId: string,
-  input: Input & { revision: string },
+  input: Confirmation,
 ) {
   const current = await prepareLegacyContractAcceptance(deps, actorId, input);
   if (current.revision !== input.revision)
@@ -99,7 +99,7 @@ export async function confirmRecentLegacyContractAcceptance(
   deps: Dependencies,
   actorId: string,
   sessionId: string,
-  input: Input & { revision: string },
+  input: Confirmation,
 ) {
   if (!sessionId) throw new BillingError("Recent central authentication is required");
   return withDatabaseLocksWait([webCommercialLockKey(actorId)], async () => {
@@ -219,6 +219,10 @@ async function inspect(tx: Tx, actorId: string, groupId: string, subscriptionId:
     priceId: observation.providerPriceId,
     currentEnd: observation.periodEnd,
     cancelAtPeriodEnd: observation.cancelAtPeriodEnd,
+    // Shown to the adult and required again at acceptance. Deliberately kept
+    // out of the revision: the receipt's revision must stay comparable while
+    // the old renewal is ended, whatever the payer does meanwhile.
+    coordination: (await readContributorMode(tx, groupId, actorId)).mode,
   };
 }
 
@@ -359,7 +363,15 @@ export function previewLegacyContractAcceptance(
 export function acceptLegacyContract(
   db: Database,
   actorId: string,
-  input: { groupId: string; subscriptionId: string; revision: string; sessionId?: string },
+  input: {
+    groupId: string;
+    subscriptionId: string;
+    revision: string;
+    sessionId?: string;
+    /** The coordination mode the adult saw in the preview. Without it only a
+     * direct acceptance is admitted. */
+    coordination?: LegacyCoordinationMode;
+  },
 ) {
   return db.transaction(async (tx) => {
     await lockFamilyMembership(tx, actorId, input.groupId);
@@ -384,84 +396,21 @@ export function acceptLegacyContract(
     }
     const existing = await existingReceipt();
     if (existing) return existing;
-    const [account] = await tx
-      .select()
-      .from(collectionAccounts)
-      .where(
-        and(
-          eq(collectionAccounts.groupId, input.groupId),
-          eq(collectionAccounts.collection, "compasso"),
-          isNull(collectionAccounts.closedAt),
-        ),
-      );
-    if (account && account.payerUserId !== actorId)
-      throw new BillingError("The family payer must approve this historical contract");
-    {
-      const ownCustomer = and(
-        eq(customers.app, "compasso"),
-        eq(customers.subjectType, "billing_account"),
-        eq(collectionAccounts.groupId, input.groupId),
-        eq(collectionAccounts.collection, "compasso"),
-      );
-      const [current] = await tx
-        .select({ id: subscriptions.id })
-        .from(subscriptions)
-        .innerJoin(customers, eq(customers.id, subscriptions.customerId))
-        .innerJoin(collectionAccounts, sql`${collectionAccounts.id}::text = ${customers.subjectId}`)
-        .where(
-          and(
-            ownCustomer,
-            or(
-              sql`${subscriptions.status} not in ('canceled', 'incomplete_expired')`,
-              and(
-                eq(subscriptions.status, "canceled"),
-                gt(subscriptions.currentPeriodEnd, sql`clock_timestamp()`),
-              ),
-            ),
-          ),
-        )
-        .limit(1);
-      const [checkout] = await tx
-        .select({ id: checkoutIntents.id })
-        .from(checkoutIntents)
-        .innerJoin(customers, eq(customers.id, checkoutIntents.customerId))
-        .innerJoin(collectionAccounts, sql`${collectionAccounts.id}::text = ${customers.subjectId}`)
-        .where(ownCustomer)
-        .limit(1);
-      const [paid] = await tx
-        .select({ id: subscriptionPaymentPeriods.id })
-        .from(subscriptionPaymentPeriods)
-        .innerJoin(subscriptions, eq(subscriptions.id, subscriptionPaymentPeriods.subscriptionId))
-        .innerJoin(customers, eq(customers.id, subscriptions.customerId))
-        .innerJoin(collectionAccounts, sql`${collectionAccounts.id}::text = ${customers.subjectId}`)
-        .where(
-          and(
-            ownCustomer,
-            gt(subscriptionPaymentPeriods.periodEnd, sql`clock_timestamp()`),
-            eq(subscriptionPaymentPeriods.fullyRefunded, false),
-            eq(subscriptionPaymentPeriods.disputed, false),
-          ),
-        )
-        .limit(1);
-      const [future] = await tx
-        .select({ id: legacyFutureIntents.id })
-        .from(legacyFutureIntents)
-        .innerJoin(collectionAccounts, eq(collectionAccounts.id, legacyFutureIntents.accountId))
-        .where(
-          and(
-            eq(collectionAccounts.groupId, input.groupId),
-            eq(collectionAccounts.collection, "compasso"),
-            sql`${legacyFutureIntents.state} in ('setup_pending', 'setup_ready', 'scheduling', 'scheduled', 'review')`,
-          ),
-        )
-        .limit(1);
-      if (current || checkout || paid || future)
-        throw new BillingError("Existing Compasso billing requires coordinated migration");
-    }
+    // Each adult accepts only their own contract. When the family's payer has
+    // no Compasso commitment yet, the contribution is recorded directly and the
+    // payer's future terms aggregate it. When the payer is already committed,
+    // the contribution opens a coordination that only the payer can answer.
+    // Anything still in flight on the payer's side must settle first.
+    const { mode, commitment } = await readContributorMode(tx, input.groupId, actorId);
+    if (mode === "wait")
+      throw new BillingError("Existing Compasso billing requires coordinated migration");
     const preview = await inspect(tx, actorId, input.groupId, input.subscriptionId);
     const concurrent = await existingReceipt();
     if (concurrent) return concurrent;
-    if (preview.revision !== input.revision)
+    if (
+      preview.revision !== input.revision ||
+      (input.coordination === undefined ? mode !== "none" : input.coordination !== mode)
+    )
       throw new BillingError("Review the updated contract preview");
     const [receipt] = await tx
       .insert(legacyContractAcceptances)
@@ -485,6 +434,26 @@ export function acceptLegacyContract(
       event: "billing.legacy_contract_accepted",
       targetId: receipt.id,
     });
+    if (commitment.mode === "payer_decides")
+      await attachLegacyCoordination(tx, {
+        accountId: commitment.account.id,
+        groupId: input.groupId,
+        payerUserId: commitment.account.payerUserId,
+        contributorUserId: actorId,
+        acceptanceId: receipt.id,
+        acceptedRevision: input.revision,
+        // Only what this adult saw about their own contract.
+        terms: {
+          subscriptionId: input.subscriptionId,
+          paidThrough: preview.periods
+            .map((period) => period.end)
+            .reduce((latest, end) => (end > latest ? end : latest))
+            .toISOString(),
+          periodIds: preview.periods.map((period) => period.id),
+          refund: "none",
+          payerChargeDate: "depends_on_payer_approval",
+        },
+      });
     return receipt;
   });
 }
