@@ -1,10 +1,14 @@
 # Estado do trabalho no repositório
 
-Atualizado em 06/11/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
+Atualizado em 11/11/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
 
-## Recreio e Morada: propostas prontas, implementação ainda não começou (09/11/2026)
+## Recreio e Morada: implementação começada, lote P0 feito (11/11/2026)
 
-Recreio (plataforma de jogos por assinatura) e Morada (simulador de vida em família, o primeiro jogo) estão só em proposta; não há código de nenhum dos dois em `apps/` ou `packages/`. As propostas, a arte (bibliotecas em Blender) e os guias ficam no repositório **privado** `informach/artes-3d` (até 9 nov 2026 eram `ideas/Morada` aqui; saíram porque a licença das peças de pacote e da Mixamo proíbe distribuí-las soltas, e este repositório está público por enquanto). Lá: propostas em `paginas/recreio.html` (v2.2) e `paginas/morada.html` (v4.2), cuja seção "Ordem" define as 5 etapas, começando pela prova conjunta (Fase 0 do Morada + Marco 0 mínimo do Recreio, com mundos de dois lotes descritos como dados), e o ponto de partida `CONTINUAR.md`. `apps/recreio` usará a porta 3009. A implementação pode ser feita a partir de outra conta. **Não versionar aqui peças de pacote, animações da Mixamo nem a biblioteca de arte**: o jogo as consome do repositório privado e elas só entram no build final.
+Recreio (plataforma de jogos por assinatura) e Morada (simulador de vida em família, o primeiro jogo) saíram da proposta. A frente cobre as **etapas 1 e 2** das propostas (a prova conjunta e a diversão jogando sozinho), no branch `feat/recreio`, em worktree próprio, sem push nem deploy. Plano, decisões, suposições, lotes e verificações no [registro da frente](recreio/implementacao.md).
+
+Feito e verificado localmente: `packages/recreio` (domínio, contratos, tokens Ed25519, plataforma em memória e a suíte de conformidade da API das instâncias; guia em [`packages/recreio/README.md`](../packages/recreio/README.md)) e o catálogo de jogos em `packages/config/src/jogos.ts`. Ainda não existe `apps/recreio`, banco, servidor nem cliente do jogo. Próximo passo: lote P1 (esqueleto do app na porta 3009) e lote J0 (modelo da simulação).
+
+As propostas, a arte e os guias continuam no repositório **privado** `informach/artes-3d`: `paginas/recreio.html` (v2.2), `paginas/morada.html` (v4.4) e `CONTINUAR.md`. **Não versionar aqui peças de pacote, animações da Mixamo nem a biblioteca de arte**: o jogo as lê de um clone do `artes-3d` fora deste repositório e elas só entram no build final. Este repositório está público no GitHub e o histórico ainda guarda os arquivos da antiga pasta `ideas/`; a pendência está no registro da frente.
 
 ## EdiPlayer, sexta ferramenta da suíte Edi (06/11/2026)
 
