@@ -19,14 +19,11 @@ import { StudentAvatar } from "./student-avatar";
 import { StudentFormDialog } from "./student-form-dialog";
 
 type Props = {
-  currentUserId: string;
   profile: StudentProfileWithActiveTurma;
   /** O nome curto, para o botão da vez da criança (`shortChildNames`). */
   shortName: string;
   /** "Natação às terças e sábados": no lugar da escola, quando a criança tem extras. */
   extras?: string | null;
-  isPro: boolean;
-  currentCount: number;
 };
 
 const ghost =
@@ -40,20 +37,14 @@ const ghost =
  * Entregar o telefone é ação de todo dia, não configuração: fica à vista, e
  * não dentro do menu de três pontinhos junto de "Excluir". Vale para o titular
  * e para o segundo adulto: quem tem acesso à criança pode passar o aparelho
- * para ela. O horário e as extras são da conta de quem cadastrou (a turma é do
- * titular, ver o guia do app), então o adulto convidado vê as atividades.
+ * para ela conforme as concessões atuais. Horário e extras seguem o mesmo
+ * recorte de leitura e escrita da criança.
  */
-export function StudentCard({
-  profile,
-  shortName,
-  extras = null,
-  isPro,
-  currentCount,
-  currentUserId,
-}: Props) {
+export function StudentCard({ profile, shortName, extras = null }: Props) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const isOwner = profile.userId === currentUserId;
+  const canEdit = profile.canWrite;
+  const canRemove = profile.canManage;
 
   const age = profile.birthDate ? getAgeFromBirthDate(profile.birthDate) : null;
   const facts = [
@@ -87,7 +78,7 @@ export function StudentCard({
               ) : null}
             </p>
           </div>
-          {isOwner ? (
+          {canEdit || canRemove ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -107,11 +98,12 @@ export function StudentCard({
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+                <DropdownMenuItem disabled={!canEdit} onSelect={() => setEditOpen(true)}>
                   <Pencil className="mr-2 size-4" aria-hidden />
                   Editar
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  disabled={!canRemove}
                   onSelect={() => setDeleteOpen(true)}
                   className="text-destructive-ink focus:text-destructive-ink"
                 >
@@ -131,7 +123,7 @@ export function StudentCard({
           <span className="truncate">A vez de {shortName}</span>
         </Link>
 
-        {isOwner ? (
+        {canEdit ? (
           <div className="grid grid-cols-2 gap-2">
             <Link
               href={
@@ -154,15 +146,9 @@ export function StudentCard({
         )}
       </article>
 
-      {isOwner ? (
+      {canEdit || canRemove ? (
         <>
-          <StudentFormDialog
-            open={editOpen}
-            onOpenChange={setEditOpen}
-            isPro={isPro}
-            currentCount={currentCount}
-            profile={profile}
-          />
+          <StudentFormDialog open={editOpen} onOpenChange={setEditOpen} profile={profile} />
           <DeleteStudentDialog
             open={deleteOpen}
             onOpenChange={setDeleteOpen}

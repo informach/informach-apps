@@ -4,7 +4,11 @@ import { z } from "zod";
 import { CHAINS } from "@/features/treino/catalog/catalog";
 import { runAction, verifiedUser } from "@/lib/action";
 import { FUSO_PADRAO } from "@/lib/datas";
+import { assertAllowed } from "@/lib/errors";
+import { familyState } from "../familia/state";
 import { familyView } from "../familia/view";
+import { legacyQueueCandidatesSchema, trainingContextSchema } from "./context";
+import { recoverableLegacyQueue } from "./legacy-queue-repository";
 import { groupInputSchema, sessionInputSchema } from "./schema";
 import { acceptSuggestion, saveGroupSession, saveSession } from "./service";
 
@@ -19,15 +23,16 @@ function revalidarTelasDoTreino() {
 }
 
 /** Grava o treino que o player acabou de concluir (ou que estava na fila sem rede). */
-export async function saveSessionAction(input: unknown) {
+export async function saveSessionAction(rawContext: unknown, input: unknown) {
   return runAction(async () => {
     const session = sessionInputSchema.parse(input);
     const user = await verifiedUser();
-    const view = await familyView(user.id);
+    const scope = trainingContextSchema.parse(rawContext);
+    assertAllowed(user.id === scope.actorId, "AUTH", "Entre na conta que iniciou este treino.");
+    const view = await familyState(user.id, scope.familyGroupId);
     const result = await saveSession(
       user.id,
-      view.access,
-      view.profiles.filter((p) => p.allowed).map((p) => p.id),
+      view.group.id,
       session,
       view.family?.timezone ?? FUSO_PADRAO,
     );
@@ -37,15 +42,16 @@ export async function saveSessionAction(input: unknown) {
 }
 
 /** Treinar junto: grava o treino de cada perfil do grupo, todos ou nenhum. */
-export async function saveGroupAction(input: unknown) {
+export async function saveGroupAction(rawContext: unknown, input: unknown) {
   return runAction(async () => {
     const grupo = groupInputSchema.parse(input);
     const user = await verifiedUser();
-    const view = await familyView(user.id);
+    const scope = trainingContextSchema.parse(rawContext);
+    assertAllowed(user.id === scope.actorId, "AUTH", "Entre na conta que iniciou este treino.");
+    const view = await familyState(user.id, scope.familyGroupId);
     const result = await saveGroupSession(
       user.id,
-      view.access,
-      view.profiles.filter((p) => p.allowed).map((p) => p.id),
+      view.group.id,
       grupo,
       view.family?.timezone ?? FUSO_PADRAO,
     );
@@ -61,12 +67,18 @@ export async function acceptSuggestionAction(profileId: string, chainId: string)
     const chain = z.enum(CHAINS.map((c) => c.id) as [string, ...string[]]).parse(chainId);
     const user = await verifiedUser();
     const view = await familyView(user.id);
-    await acceptSuggestion(
-      view.access,
-      view.profiles.filter((p) => p.allowed).map((p) => p.id),
-      id,
-      chain,
-    );
+    await acceptSuggestion(user.id, view.group.id, id, chain);
     revalidarTelasDoTreino();
+  });
+}
+
+/** Reclaims only imported profiles owned by this actor; names and browser order are irrelevant. */
+export async function recoverLegacyQueueAction(rawContext: unknown, rawCandidates: unknown) {
+  return runAction(async () => {
+    const scope = trainingContextSchema.parse(rawContext);
+    const candidates = legacyQueueCandidatesSchema.parse(rawCandidates);
+    const actor = await verifiedUser();
+    assertAllowed(actor.id === scope.actorId, "AUTH", "Entre na conta que iniciou este treino.");
+    return recoverableLegacyQueue(scope, candidates);
   });
 }

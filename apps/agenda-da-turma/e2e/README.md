@@ -1,38 +1,18 @@
-# E2E — Agenda da Turma
+# Navegador da Agenda da Turma
 
-Playwright cobre os fluxos de auth (signup → verify por OTP → sign-in por senha/OTP) usando o sandbox de email do `@informach/emails` em vez do SendGrid real.
+O comando do app usa o runner compartilhado em `scripts/compasso/app-e2e.mjs`. Ele cria PostgreSQL e Redis descartáveis, aplica as migrations, registra os clientes OAuth e compila a central (3011) e a Agenda (3001) em diretórios próprios. O Playwright usa `apps/conta/playwright.apps.config.ts`, em computador e celular, sem reaproveitar serviços dessas portas. As integrações externas recebem apenas configuração sintética.
 
-## Pré-requisitos
-
-1. Postgres rodando (`docker compose up -d` na raiz).
-2. Migrations aplicadas: `pnpm db:migrate`.
-3. `.env.local` com no mínimo:
-   - `DATABASE_URL`
-   - `BETTER_AUTH_SECRET` (qualquer string ≥ 32 chars)
-   - `BETTER_AUTH_URL=http://localhost:3001`
-   - `NEXT_PUBLIC_APP_URL=http://localhost:3001`
-   - `SENDGRID_API_KEY=test` (não usado em sandbox, mas exigido pelo `env.ts`)
-   - `SENDGRID_FROM=test@example.com`
-   - `EMAIL_SANDBOX_MODE=sandbox`
-   - `EMAIL_SANDBOX_DIR=./tmp/integration_emails`
-   - `CRON_SECRET` (qualquer string ≥ 32 chars)
-4. Browsers do Playwright: `pnpm e2e:install` (uma vez).
-
-## Comandos
-
-```bash
-pnpm e2e            # headless
-pnpm e2e:ui         # interactive UI
+```powershell
+pnpm --filter @informach/agenda-da-turma e2e:install
+pnpm --filter @informach/agenda-da-turma e2e
+# Uma jornada, mantendo o isolamento completo:
+$env:COMPASSO_BROWSER_GREP='offline queue:'
+pnpm --filter @informach/agenda-da-turma e2e
+Remove-Item Env:COMPASSO_BROWSER_GREP
 ```
 
-A `playwright.config.ts` sobe o Next automaticamente (`webServer`) com env de sandbox e `E2E_RELAX_AUTH_RATE_LIMITS=1`. Para rodar contra um server já em pé, use `E2E_SKIP_WEBSERVER=1 pnpm e2e` e garanta que o processo já esteja com `EMAIL_SANDBOX_MODE=sandbox`, `E2E_RELAX_AUTH_RATE_LIMITS=1`, `BETTER_AUTH_URL` e `NEXT_PUBLIC_APP_URL` apontando para a mesma URL do teste.
+Não precisa aplicar migrations ou configurar `.env.local` para o ensaio. O runner é dono da base e dos artefatos que cria e os remove no fim, inclusive em falha. Nunca limpe usuários de um banco compartilhado para preparar o teste. As fixtures usam identidades sintéticas e os serviços reais de família; o acesso ao app passa pelo login central e pela troca OAuth. Cadastro, códigos de e-mail e proteção da conta pertencem à suite da central e do package auth, enquanto a matriz SSO confere os endpoints locais aposentados.
 
-Se `3001` estiver ocupado, rode com `E2E_BASE_URL=http://localhost:3002 pnpm e2e`; o `webServer` sobe o Next na porta informada pela URL.
+As jornadas cobrem ativação de crianças existentes, contexto familiar, concessões, recados, filtros, calendário, modo criança, fila offline e navegação comercial. Saídas de IA já persistidas são fixtures; não há chamada real a provedor ou cobrança real. Evidências por rodada e pendências ficam em `docs/propostas/assinatura-web-2026-11-09/implementacao.md`.
 
-## Como funciona o sandbox de email
-
-Quando `EMAIL_SANDBOX_MODE=sandbox`, o `@informach/emails` grava cada email em `./tmp/integration_emails/<delivery-id>.json` (+ `.html`) em vez de chamar o SendGrid. A fixture `e2e/fixtures/email.ts` faz polling do diretório, casa por `to + category` e extrai URLs ou códigos OTP de 6 dígitos via regex.
-
-## Limpeza entre runs
-
-A suíte usa emails únicos com timestamp (`agenda-signup-<ts>@e2e.local`) — não há colisão por conta da `unique` em `users.email`. Se quiser zerar tudo, `truncate core.users cascade;` ou recriar o banco. O diretório `./tmp/integration_emails` pode ser apagado livremente entre runs.
+Traces e capturas ficam em `apps/conta/test-results/compasso-apps/agenda-da-turma`. Abrir uma falha com `pnpm --filter @informach/conta exec playwright show-trace <caminho-do-trace.zip>`. A fixture de banco se encerra quando a execução termina; o trace não requer reabrir o app.

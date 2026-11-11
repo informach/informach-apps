@@ -6,10 +6,14 @@ import {
   postgres,
   preserve,
   project,
+  type ReferencableServiceNode,
   redis,
   service,
   volume,
 } from "railway/iac";
+import { getCollectionApps } from "../packages/config/src/collections";
+import { getAppUrl } from "../packages/config/src/domains";
+import { getProductPriceVariableNames } from "../packages/config/src/products";
 
 // Infraestrutura do projeto informach-apps no Railway, ambiente production.
 // Este arquivo descreve o projeto inteiro: o que sair daqui é apagado no próximo
@@ -43,6 +47,9 @@ const EDI_RECONCILE_ACTIVE = true;
  * como as de cima: voltar para `false` apagaria o serviço e o cron.
  */
 const ESTRELA_LAUNCHED = false;
+/** Preparation only. Enable with the reviewed Compasso cutover; never revert
+ * after provisioning, since false would remove the central service and jobs. */
+const COMPASSO_LAUNCHED = false;
 
 // Imagens dos crons sem build, fixadas por digest: uma tag trocada no registro
 // não muda o que roda com o CRON_SECRET de cada app. Para atualizar, conferir o
@@ -69,6 +76,8 @@ const WORKSPACE_FILES = [
 function packages(...names: string[]): string[] {
   return names.map((name) => `/packages/${name}/**`);
 }
+
+const WEB_ACCOUNT_PACKAGES = ["account", "family", "edi-contracts", "edi-licensing"];
 
 // Next.js com `output: "standalone"`: o build copia public/ e .next/static para
 // dentro do standalone, e o start roda o server.js gerado.
@@ -129,6 +138,9 @@ export default defineRailway((ctx) => {
   if (ctx.projectId !== PROJECT_ID || ctx.environmentId !== PRODUCTION_ID) {
     throw new Error("Este arquivo descreve apenas informach-apps / production");
   }
+  if (COMPASSO_LAUNCHED && !ESTRELA_LAUNCHED) {
+    throw new Error("Compasso requires workers for every catalog app, including Dia de Estrela");
+  }
 
   const main = github(REPOSITORY, { branch: "main", checkSuites: false, rootDirectory: "/" });
 
@@ -188,6 +200,7 @@ export default defineRailway((ctx) => {
       buildCommand: standaloneNext("cozya").buildCommand,
       watchPatterns: [
         "/apps/cozya/**",
+        ...packages(...WEB_ACCOUNT_PACKAGES),
         ...packages("ai-core", "auth", "billing", "config", "db", "emails", "ui"),
         ...WORKSPACE_FILES,
       ],
@@ -237,6 +250,7 @@ export default defineRailway((ctx) => {
       buildCommand: standaloneNext("agenda-da-turma").buildCommand,
       watchPatterns: [
         "/apps/agenda-da-turma/**",
+        ...packages(...WEB_ACCOUNT_PACKAGES),
         ...packages("ai-core", "auth", "billing", "config", "db", "emails", "ui"),
         ...WORKSPACE_FILES,
       ],
@@ -287,14 +301,15 @@ export default defineRailway((ctx) => {
     source: main,
     build: {
       builder: "RAILPACK",
-      buildCommand: "pnpm install --frozen-lockfile --prod=false && pnpm build:missao-saber",
+      buildCommand: standaloneNext("missao-saber").buildCommand,
       watchPatterns: [
         "/apps/missao-saber/**",
+        ...packages(...WEB_ACCOUNT_PACKAGES),
         ...packages("auth", "billing", "config", "db", "emails", "ui"),
         ...WORKSPACE_FILES,
       ],
     },
-    start: "pnpm start:missao-saber",
+    start: standaloneNext("missao-saber").startCommand,
     healthcheck: "/api/ready",
     healthcheckTimeout: 60,
     replicas: { [REGION]: 1 },
@@ -348,6 +363,7 @@ export default defineRailway((ctx) => {
       buildCommand: standaloneNext("bora-treinar").buildCommand,
       watchPatterns: [
         "/apps/bora-treinar/**",
+        ...packages(...WEB_ACCOUNT_PACKAGES),
         ...packages("auth", "billing", "config", "db", "emails", "ui"),
         ...WORKSPACE_FILES,
       ],
@@ -401,6 +417,7 @@ export default defineRailway((ctx) => {
       buildCommand: standaloneNext("dia-de-estrela").buildCommand,
       watchPatterns: [
         "/apps/dia-de-estrela/**",
+        ...packages(...WEB_ACCOUNT_PACKAGES),
         ...packages("auth", "billing", "config", "db", "emails", "ui"),
         ...WORKSPACE_FILES,
       ],
@@ -442,6 +459,94 @@ export default defineRailway((ctx) => {
       VAPID_PUBLIC_KEY: preserve(),
     },
   });
+
+  // New resources remain outside the graph until the cutover is reviewed.
+  // preserve() does not provision missing secrets: provision and verify them
+  // before enabling the service. The billing switch stays false for homologation.
+  const compassoAppServices = new Map<string, ReferencableServiceNode>([
+    ["cozya", cozya],
+    ["agenda-da-turma", agenda],
+    ["missao-saber", missaoSaber],
+    ["bora-treinar", boraTreinar],
+    ["dia-de-estrela", diaDeEstrela],
+  ]);
+  const legacyPriceReferences = Object.fromEntries(
+    getCollectionApps("compasso").flatMap((app) => {
+      const appService = compassoAppServices.get(app.slug);
+      if (!appService) throw new Error(`Missing Compasso service for ${app.slug}`);
+      return getProductPriceVariableNames([app.slug]).map((name) => {
+        if (!Object.hasOwn(appService.variables ?? {}, name))
+          throw new Error(`Missing price variable ${name} in ${app.slug}`);
+        return [name, appService.env[name]];
+      });
+    }),
+  );
+  const conta = service("@informach/conta", {
+    source: main,
+    build: {
+      builder: "RAILPACK",
+      buildCommand: "pnpm install --frozen-lockfile --prod=false && pnpm build:conta",
+      watchPatterns: [
+        "/apps/conta/**",
+        ...packages(...WEB_ACCOUNT_PACKAGES, "auth", "billing", "config", "db", "emails"),
+        ...WORKSPACE_FILES,
+      ],
+    },
+    start: "pnpm start:conta",
+    healthcheck: "/api/ready",
+    healthcheckTimeout: 30,
+    replicas: { [REGION]: 1 },
+    deploy: { restartPolicyMaxRetries: 3 },
+    domains: ["conta.informach.com.br"],
+    networking: { privateNetworkEndpoint: "informachconta" },
+    env: {
+      NODE_ENV: "production",
+      RAILPACK_NODE_VERSION: NODE_VERSION,
+      NEXT_PUBLIC_APP_URL: getAppUrl("conta", "production"),
+      DATABASE_URL: Postgres.env.DATABASE_URL,
+      EMAIL_SANDBOX_MODE: "live",
+      SENDGRID_FROM: "Minha conta <nao-responda@informach.com.br>",
+      SENDGRID_API_KEY: cozya.env.SENDGRID_API_KEY,
+      BETTER_AUTH_SECRET: preserve(),
+      COMPASSO_TRIAL_HASH_SECRET: preserve(),
+      CRON_SECRET: preserve(),
+      COMPASSO_BILLING_ENABLED: preserve(),
+      STRIPE_MODE: preserve(),
+      STRIPE_SECRET_KEY: preserve(),
+      STRIPE_WEBHOOK_SECRET: preserve(),
+      STRIPE_PORTAL_CONFIGURATION_ID: preserve(),
+      COMPASSO_MONTHLY_PRICE: preserve(),
+      COMPASSO_ANNUAL_PRICE: preserve(),
+      COMPASSO_CREDITS_100_PRICE: preserve(),
+      COMPASSO_CREDITS_300_PRICE: preserve(),
+      COMPASSO_CREDITS_1000_PRICE: preserve(),
+      ...legacyPriceReferences,
+    },
+  });
+  const accountDepartureCrons = getCollectionApps("compasso").map((app) => {
+    const appService = compassoAppServices.get(app.slug);
+    if (!appService) throw new Error(`Missing Compasso worker service for ${app.slug}`);
+    return service(`cron-${app.slug}-account-departure`, {
+      source: image(CURL_IMAGE),
+      start:
+        'sh -ec \'curl --fail --silent --show-error --connect-timeout 10 --max-time 300 --request POST --header "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/jobs/account-departure"\'',
+      replicas: { [REGION]: 1 },
+      deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
+      env: { CRON_SECRET: appService.env.CRON_SECRET, APP_URL: getAppUrl(app.slug, "production") },
+    });
+  });
+  const contaCrons = [
+    { job: "billing", schedule: "* * * * *", timeout: 300 },
+    { job: "account-maintenance", schedule: "*/5 * * * *", timeout: 300 },
+  ].map(({ job, schedule, timeout }) =>
+    service(`cron-conta-${job}`, {
+      source: image(CURL_IMAGE),
+      start: `sh -ec 'curl --fail --silent --show-error --connect-timeout 10 --max-time ${timeout} --request POST --header "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/jobs/${job}"'`,
+      replicas: { [REGION]: 1 },
+      deploy: { cronSchedule: schedule, restartPolicyType: "NEVER" },
+      env: { CRON_SECRET: conta.env.CRON_SECRET, APP_URL: getAppUrl("conta", "production") },
+    }),
+  );
 
   const site = service("@informach/informach-site", {
     source: main,
@@ -765,6 +870,7 @@ export default defineRailway((ctx) => {
       missaoSaber,
       boraTreinar,
       ...(ESTRELA_LAUNCHED ? [diaDeEstrela] : []),
+      ...(COMPASSO_LAUNCHED ? [conta, ...contaCrons, ...accountDepartureCrons] : []),
       site,
       admin,
       ...adminCrons,

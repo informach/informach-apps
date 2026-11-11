@@ -1,0 +1,2 @@
+ALTER TABLE "billing"."webhook_events" ADD COLUMN "provider_customer_id" text;--> statement-breakpoint
+CREATE INDEX "webhook_events_pending_customer_idx" ON "billing"."webhook_events" USING btree ("app","provider_customer_id") WHERE "billing"."webhook_events"."processed_at" IS NULL;

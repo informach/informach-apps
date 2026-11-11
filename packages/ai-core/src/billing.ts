@@ -47,7 +47,7 @@ export type CostEstimate = {
 };
 
 export type CostActual = {
-  /** Credits to actually debit on commit. May be smaller, equal or larger than the estimate. */
+  /** Credits to actually debit on commit. Must not exceed the accepted reservation ceiling. */
   actualAmount: number;
 };
 
@@ -103,10 +103,8 @@ export type WithCreditsResult<TResult> = {
  *   3a. on success: computeActualCost(result) → commitReservation(actualAmount)
  *   3b. on error:   releaseReservation(reason: "llm_error" | "timeout")
  *
- * The owner of the saldo is determined by the app:
- *   - apps with organizations enabled (e.g., agenda-da-turma) typically pass
- *     `{ type: "organization", id: activeOrgId }`.
- *   - single-user apps (e.g., cozya) pass `{ type: "user", id: user.id }`.
+ * Compasso apps pass `{ type: "family", id: groupId }` and an authenticated
+ * wallet adapter binding the actor, application and authorized person.
  *
  * Errors from `call()` and `computeActualCost()` propagate to the caller AFTER
  * the reservation is released (so the saldo is freed). Errors from
@@ -147,6 +145,8 @@ export async function withCredits<TResult>(
   try {
     actual = await input.computeActualCost(result);
     assertPositiveInteger(actual.actualAmount, "actualAmount");
+    if (actual.actualAmount > estimate.estimatedAmount)
+      throw new CreditValidationError("Actual credits exceed the accepted reservation ceiling");
   } catch (err) {
     // Computing the actual cost failed — release the reservation and surface the error.
     await safeRelease(input.billing, reservation.id, "validation_failed");

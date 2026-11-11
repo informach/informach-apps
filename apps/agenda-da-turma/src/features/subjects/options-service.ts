@@ -1,6 +1,7 @@
 import "server-only";
 
 import { listAccessibleProfiles } from "@/features/family/access";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { listActiveProfileSubjectsForProfiles } from "@/features/profile-subjects/repository";
 import { listMembershipsForProfiles } from "@/features/turmas/repository";
 import type { AgendaClassDay } from "./class-days";
@@ -36,15 +37,15 @@ export type SubjectOptionsByProfile = Record<string, SubjectOption[]>;
  * gravação; isto aqui só decide o que aparece na lista.
  */
 export async function listSubjectOptionsByProfile(
-  userId: string,
+  actor: AgendaAuthority,
 ): Promise<SubjectOptionsByProfile> {
-  const profiles = await listAccessibleProfiles(userId);
+  const profiles = await listAccessibleProfiles(actor);
   if (profiles.length === 0) return {};
 
   const profileIds = profiles.map((p) => p.id);
   const [memberships, extras] = await Promise.all([
-    listMembershipsForProfiles(profileIds),
-    listActiveProfileSubjectsForProfiles(profileIds),
+    listMembershipsForProfiles(actor, profileIds),
+    listActiveProfileSubjectsForProfiles(actor, profileIds),
   ]);
 
   const membershipKeys = new Set(memberships.map((m) => `${m.profileId}:${m.turmaId}`));
@@ -58,8 +59,10 @@ export async function listSubjectOptionsByProfile(
   const distinctTurmaIds = [...new Set(turmaIdByProfile.values())];
   const optionsByTurma = new Map<string, SubjectOption[]>();
   if (distinctTurmaIds.length > 0) {
-    const perTurma = await Promise.all(distinctTurmaIds.map((id) => listSubjectsForTurma(id)));
-    const withSlots = await attachAlternatingSlots(perTurma.flat());
+    const perTurma = await Promise.all(
+      distinctTurmaIds.map((id) => listSubjectsForTurma(actor, id)),
+    );
+    const withSlots = await attachAlternatingSlots(actor, perTurma.flat());
     for (const [index, turmaId] of distinctTurmaIds.entries()) {
       const ids = new Set(perTurma[index]?.map((s) => s.id));
       optionsByTurma.set(

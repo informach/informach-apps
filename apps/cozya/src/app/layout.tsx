@@ -46,7 +46,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body suppressHydrationWarning>
         <ThemeProvider nonce={nonce}>
           {children}
-          <Toaster />
+          <Toaster mobileOffset={{ bottom: "calc(92px + env(safe-area-inset-bottom))" }} />
         </ThemeProvider>
       </body>
     </html>

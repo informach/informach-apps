@@ -7,7 +7,6 @@ import { useState } from "react";
 import { StudentFormDialog } from "./student-form-dialog";
 
 type Props = {
-  isPro: boolean;
   currentCount: number;
   limit: number;
   variant?: "default" | "secondary";
@@ -21,7 +20,6 @@ type Props = {
 };
 
 export function NewStudentButton({
-  isPro,
   currentCount,
   limit,
   variant = "default",
@@ -34,14 +32,7 @@ export function NewStudentButton({
   const hydrated = useHydrated();
   const limitReached = currentCount >= limit;
 
-  const dialog = (
-    <StudentFormDialog
-      open={open}
-      onOpenChange={setOpen}
-      isPro={isPro}
-      currentCount={currentCount}
-    />
-  );
+  const dialog = <StudentFormDialog open={open} onOpenChange={setOpen} />;
 
   if (appearance === "dashed")
     return (
@@ -49,7 +40,7 @@ export function NewStudentButton({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          disabled={!hydrated}
+          disabled={!hydrated || limitReached}
           className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl border-[1.5px] border-dashed border-foreground/30 text-[15px] font-bold hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Plus className="size-[18px]" aria-hidden />
@@ -69,11 +60,10 @@ export function NewStudentButton({
         size={size}
         onClick={() => setOpen(true)}
         className={fullWidth ? "w-full" : undefined}
+        disabled={!hydrated || limitReached}
         title={
           limitReached
-            ? isPro
-              ? `Já são ${limit} crianças, o máximo do Pro.`
-              : `O plano grátis tem ${limit} criança. No Pro cabem até três.`
+            ? `A cobertura atual permite ${limit} criança(s). Confira o plano na Minha conta.`
             : undefined
         }
       >

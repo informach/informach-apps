@@ -2,9 +2,6 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
-import { relogioDa } from "@/domain/relogio";
-import { criancaPodeMarcar, tarefasDoDia } from "@/domain/rotina";
-import { canCreateCustomRewards } from "@/features/acesso/policy";
 import { deviceCookieOptions } from "@/features/aparelho/http";
 import {
   conferirPin,
@@ -18,14 +15,18 @@ import {
   clearAttempts,
   consumeAttempt,
   endDevice,
+  getPinChallenge,
   privateHash,
 } from "@/features/aparelho/repository";
-import { getDeviceIdentity, pinUnlock, requireChild } from "@/features/aparelho/server";
-import { completeTask, dayState } from "@/features/estrelas/repository";
-import { getFamily } from "@/features/familia/repository";
+import {
+  childAuthority,
+  getDeviceIdentity,
+  pinUnlock,
+  requireChild,
+} from "@/features/aparelho/server";
+import { completeTask } from "@/features/estrelas/repository";
 import { logReminder } from "@/features/lembretes/repository";
 import { requestRedemption } from "@/features/loja/repository";
-import { getTask, listTasks } from "@/features/rotina/repository";
 import { avisarFamilia } from "@/features/tempo-real/bus";
 import { runAction } from "@/lib/action";
 import { env } from "@/lib/env";
@@ -40,7 +41,7 @@ export async function escolherCriancaAction(raw: unknown) {
     const device = await getDeviceIdentity();
     assertAllowed(device, "DEVICE", "Peça aos pais para conectar este aparelho de novo.");
     assertAllowed(device.childIds.includes(childId), "CHILD", "Criança não encontrada.");
-    const { allowed } = await childOfDevice(device.ownerId, childId);
+    const { allowed } = await childOfDevice(childAuthority(device, childId), childId);
     assertAllowed(
       allowed,
       "PLAN",
@@ -62,28 +63,8 @@ export async function marcarTarefaAction(input: unknown) {
       .object({ childId: z.string().uuid(), taskId: z.string().uuid() })
       .parse(input);
     const device = await requireChild(childId);
-    const { family, allowed } = await childOfDevice(device.ownerId, childId);
-    assertAllowed(allowed, "PLAN", "Essa criança está fora do plano atual.");
-    const relogio = relogioDa(Date.now(), family.timezone);
-    const tarefas = tarefasDoDia(await listTasks(device.ownerId, [childId]), relogio.diaDaSemana);
-    const { completions } = await dayState([childId], relogio.data);
-    const feitas = new Set(completions.map((c) => c.taskId));
-    const tarefa = tarefas.find((t) => t.id === taskId);
-    assertAllowed(tarefa, "NOT_TODAY", "Essa tarefa não é de hoje.");
-    assertAllowed(
-      criancaPodeMarcar(tarefa, tarefas, feitas, relogio),
-      "NOT_YET",
-      "Ainda não é a vez dessa tarefa. Faça uma de cada vez!",
-    );
-    const result = await completeTask({
-      ownerId: device.ownerId,
-      childId,
-      taskId,
-      date: relogio.data,
-      diaDaSemana: relogio.diaDaSemana,
-      markedBy: "child",
-    });
-    await avisarFamilia(device.ownerId, "conclusao");
+    const result = await completeTask({ actor: device.actor, childId, taskId });
+    await avisarFamilia(device.familyGroupId, "conclusao");
     revalidatePath("/crianca", "layout");
     return { pending: result.pending, stars: result.stars, chest: result.chest };
   });
@@ -100,12 +81,8 @@ export async function registrarLembreteAction(input: unknown) {
       })
       .parse(input);
     const device = await requireChild(childId);
-    const tarefa = await getTask(device.ownerId, taskId);
-    assertAllowed(tarefa && tarefa.childId === childId, "NOT_FOUND", "Tarefa não encontrada.");
-    const family = await getFamily(device.ownerId);
-    assertAllowed(family, "NOT_FOUND", "Família não encontrada.");
-    await logReminder(childId, taskId, relogioDa(Date.now(), family.timezone).data, tipo);
-    await avisarFamilia(device.ownerId, "lembrete");
+    await logReminder(device.actor, childId, taskId, tipo);
+    await avisarFamilia(device.familyGroupId, "lembrete");
   });
 }
 
@@ -116,12 +93,8 @@ export async function pedirRecompensaAction(input: unknown) {
       .object({ childId: z.string().uuid(), rewardId: z.string().uuid() })
       .parse(input);
     const device = await requireChild(childId);
-    const { allowed, access } = await childOfDevice(device.ownerId, childId);
-    assertAllowed(allowed, "PLAN", "Essa criança está fora do plano atual.");
-    const pedido = await requestRedemption(device.ownerId, childId, rewardId, {
-      customAllowed: canCreateCustomRewards({ ...access, tier: access.paid ? "family" : "free" }),
-    });
-    await avisarFamilia(device.ownerId, "loja");
+    const pedido = await requestRedemption(device.actor, childId, rewardId);
+    await avisarFamilia(device.familyGroupId, "loja");
     revalidatePath("/crianca", "layout");
     return pedido;
   });
@@ -143,14 +116,14 @@ export async function desbloquearPinAction(raw: unknown) {
       PIN_JANELA_MS,
       "Muitas tentativas. O PIN fica travado por 15 minutos neste aparelho.",
     );
-    const family = await getFamily(device.ownerId);
+    const family = await getPinChallenge(device);
     if (!(await conferirPin(pin, family?.pinHash))) {
       const restam = PIN_TENTATIVAS - (tentativa?.attempts ?? PIN_TENTATIVAS);
       // Uma vez por trava: no erro que a fecha, não a cada toque durante ela.
       if (restam <= 0)
         audit({
           eventType: "estrela.pin_locked",
-          actorId: device.ownerId,
+          actorId: device.userId,
           payload: { deviceId: device.deviceId },
         });
       throw new AppError(
@@ -160,8 +133,13 @@ export async function desbloquearPinAction(raw: unknown) {
           : "PIN errado. O PIN fica travado por 15 minutos neste aparelho.",
       );
     }
+    assertAllowed(family?.pinHash, "PIN", "Configure o PIN na área da família.");
     await clearAttempts(chave);
-    const { valor } = emitirDesbloqueio(env.BETTER_AUTH_SECRET, device.deviceId);
+    const { valor } = emitirDesbloqueio(
+      env.BETTER_AUTH_SECRET,
+      device.deviceId,
+      family.pinGeneration,
+    );
     (await cookies()).set(UNLOCK_COOKIE, valor, {
       httpOnly: true,
       sameSite: "strict",
@@ -171,7 +149,7 @@ export async function desbloquearPinAction(raw: unknown) {
     });
     audit({
       eventType: "estrela.pin_unlocked",
-      actorId: device.ownerId,
+      actorId: device.userId,
       payload: { deviceId: device.deviceId },
     });
     return { destination: "/inicio" };
@@ -197,10 +175,10 @@ export async function desconectarEsteAparelhoAction() {
     jar.delete(UNLOCK_COOKIE);
     audit({
       eventType: "estrela.device_revoked",
-      actorId: device.ownerId,
+      actorId: device.userId,
       payload: { deviceId: device.deviceId, via: "pin" },
     });
-    await avisarFamilia(device.ownerId, "aparelhos");
+    await avisarFamilia(device.familyGroupId, "aparelhos");
     return { destination: "/conectar" };
   });
 }

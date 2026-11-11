@@ -2,13 +2,14 @@ import Link from "next/link";
 import { CabecalhoPagina, Etiqueta } from "@/components/ui/pagina";
 import { NovaCompeticao } from "@/features/competition/components/nova-competicao";
 import { competitionSetup } from "@/features/competition/service";
+import { parentAuthority } from "@/features/family/context";
 import { requirePageUser } from "@/lib/auth";
 
 export const metadata = { title: "Nova competição" };
 
 export default async function Nova() {
   const user = await requirePageUser();
-  const { perfis } = await competitionSetup(user.id);
+  const { perfis } = await competitionSetup(await parentAuthority(user.id));
   return (
     <div className="mx-auto max-w-4xl">
       <CabecalhoPagina

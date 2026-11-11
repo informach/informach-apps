@@ -15,7 +15,7 @@ export async function experimentAction(input: unknown) {
       })
       .parse(input);
     return saveExperiment(
-      (await requireStudyProfile(data.profileId)).userId,
+      await requireStudyProfile(data.profileId),
       data.profileId,
       data.state,
       data.revision,

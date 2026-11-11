@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { jsonUtf8, withAiRouteGuards } from "@/features/ai/_shared";
+import { aiFailure, jsonUtf8, withAiRouteGuards } from "@/features/ai/_shared";
 import { parseSubjectsFromImage } from "@/features/ai/parse-subjects-image-service";
+import { aiCostAcceptanceSchema } from "@/features/notices/schemas";
 import { logger } from "@/lib/logger";
 import { RequestBodyTooLargeError, readJsonWithSizeLimit } from "@/lib/request-size";
 
@@ -15,6 +16,8 @@ const MAX_DATA_URL_CHARS = 8_000_000;
 const MAX_IMAGE_REQUEST_BYTES = MAX_DATA_URL_CHARS + 1024;
 
 const requestSchema = z.object({
+  profileId: z.string().uuid(),
+  acceptedCost: aiCostAcceptanceSchema,
   imageDataUrl: z
     .string()
     .max(MAX_DATA_URL_CHARS)
@@ -22,31 +25,28 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: Request): Promise<Response> {
-  const guard = await withAiRouteGuards({ errorScope: "agenda.parse_image" });
+  const guard = await withAiRouteGuards({ request, errorScope: "agenda.parse_image" });
   if (!guard.ok) return guard.response;
   const { userId } = guard;
 
-  let imageDataUrl: string;
+  let input: z.infer<typeof requestSchema>;
   try {
     const json = await readJsonWithSizeLimit(request, MAX_IMAGE_REQUEST_BYTES);
     const parsed = requestSchema.safeParse(json);
     if (!parsed.success) {
       return jsonUtf8({ code: "INVALID_IMAGE" }, { status: 400 });
     }
-    imageDataUrl = parsed.data.imageDataUrl;
+    input = parsed.data;
   } catch (err) {
     if (err instanceof RequestBodyTooLargeError) {
       return jsonUtf8({ code: "IMAGE_TOO_LARGE" }, { status: 413 });
     }
-    logger.warn(
-      { userId, error: err instanceof Error ? err.message : String(err) },
-      "agenda.parse_image.parse_failed",
-    );
+    logger.warn({ userId, error: "AI_REQUEST_FAILED" }, "agenda.parse_image.parse_failed");
     return jsonUtf8({ code: "INVALID_IMAGE" }, { status: 400 });
   }
 
   try {
-    const result = await parseSubjectsFromImage({ userId, imageDataUrl });
+    const result = await parseSubjectsFromImage({ actor: guard.actor, ...input });
     if (!result.isValidInput) {
       return jsonUtf8({
         isValidInput: false,
@@ -58,10 +58,7 @@ export async function POST(request: Request): Promise<Response> {
       subjects: result.subjects,
     });
   } catch (err) {
-    logger.error(
-      { userId, error: err instanceof Error ? err.message : String(err) },
-      "agenda.parse_image.failed",
-    );
-    return jsonUtf8({ code: "PARSE_FAILED" }, { status: 502 });
+    logger.error({ userId, error: "AI_REQUEST_FAILED" }, "agenda.parse_image.failed");
+    return aiFailure(err, "PARSE_FAILED");
   }
 }

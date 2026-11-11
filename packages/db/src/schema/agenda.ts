@@ -14,6 +14,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "./core";
+import { familyAppProfiles, familyGroups } from "./family";
 
 // Dias da semana em que uma matéria ocorre. v1 cobre só Seg-Sex (escolas
 // brasileiras tipicamente não têm aula sábado/domingo). Se um dia chegar
@@ -135,23 +136,20 @@ export const agendaTurmas = agenda.table(
   ],
 );
 
-export const agendaStudentProfiles = agenda.table(
-  "student_profiles",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    name: text("name").notNull(),
-    birthDate: date("birth_date"),
-    activeTurmaId: uuid("active_turma_id").references((): AnyPgColumn => agendaTurmas.id, {
-      onDelete: "set null",
-    }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => [index("agenda_student_profiles_user_created_idx").on(t.userId, t.createdAt)],
-);
+export const agendaStudentProfiles = agenda.table("student_profiles", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  /** Canonical identity and permission boundary; school history keeps its native ID. */
+  familyProfileId: uuid("family_profile_id")
+    .notNull()
+    .references(() => familyAppProfiles.id, { onDelete: "restrict" })
+    .unique(),
+  birthDate: date("birth_date"),
+  activeTurmaId: uuid("active_turma_id").references((): AnyPgColumn => agendaTurmas.id, {
+    onDelete: "set null",
+  }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
 
 export const agendaTurmaMembers = agenda.table(
   "turma_members",
@@ -163,6 +161,9 @@ export const agendaTurmaMembers = agenda.table(
     studentProfileId: uuid("student_profile_id")
       .notNull()
       .references(() => agendaStudentProfiles.id, { onDelete: "cascade" }),
+    enrolledByUserId: text("enrolled_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
@@ -260,6 +261,9 @@ export const agendaActivities = agenda.table(
   "activities",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    familyGroupId: uuid("family_group_id").references(() => familyGroups.id, {
+      onDelete: "restrict",
+    }),
     turmaId: uuid("turma_id")
       .notNull()
       .references(() => agendaTurmas.id, { onDelete: "cascade" }),
@@ -306,6 +310,11 @@ export const agendaActivityAcceptances = agenda.table(
   "activity_acceptances",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    familyGroupId: uuid("family_group_id")
+      .notNull()
+      .references(() => familyGroups.id, {
+        onDelete: "cascade",
+      }),
     activityId: uuid("activity_id")
       .notNull()
       .references(() => agendaActivities.id, { onDelete: "cascade" }),
@@ -316,7 +325,11 @@ export const agendaActivityAcceptances = agenda.table(
     respondedAt: timestamp("responded_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex("agenda_activity_acceptances_unique_idx").on(t.activityId, t.userId),
+    uniqueIndex("agenda_activity_acceptances_unique_idx").on(
+      t.activityId,
+      t.userId,
+      t.familyGroupId,
+    ),
     index("agenda_activity_acceptances_user_idx").on(t.userId, t.accepted),
   ],
 );

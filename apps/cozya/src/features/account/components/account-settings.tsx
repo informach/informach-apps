@@ -1,4 +1,5 @@
 "use client";
+import { getAppUrl } from "@informach/config/domains";
 import { Button } from "@informach/ui/components/button";
 import { Input } from "@informach/ui/components/input";
 import { Label } from "@informach/ui/components/label";
@@ -7,24 +8,21 @@ import { Textarea } from "@informach/ui/components/textarea";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { catchActionResult, isActionRejected } from "@/features/recipes/components/action-errors";
-import { authClient } from "@/lib/auth-client";
+import { ssoEnvironment } from "@/lib/auth-client";
 import { clearDataAction, saveProfileAction } from "../actions";
 
 export function AccountSettings({
   email,
   initialSize,
   initialPreferences,
-  hasOtherSubscriptions,
 }: {
   email: string;
   initialSize: number;
   initialPreferences: string;
-  hasOtherSubscriptions: boolean;
 }) {
   const [householdSize, setSize] = useState(initialSize);
   const [preferences, setPreferences] = useState(initialPreferences);
   const [confirmation, setConfirmation] = useState("");
-  const [deleteConfirmed, setDeleteConfirmed] = useState(false);
   const [pending, startTransition] = useTransition();
   return (
     <div className="space-y-8">
@@ -128,17 +126,8 @@ export function AccountSettings({
                   toast.error("Entre novamente para confirmar sua identidade", {
                     action: {
                       label: "Entrar",
-                      onClick: async () => {
-                        try {
-                          const result = await authClient.signOut();
-                          if (result.error) {
-                            toast.error("Não foi possível encerrar a sessão. Tente novamente.");
-                            return;
-                          }
-                          window.location.href = "/login?next=%2Fsettings%2Faccount";
-                        } catch {
-                          toast.error("Não foi possível encerrar a sessão. Tente novamente.");
-                        }
+                      onClick: () => {
+                        window.location.href = "/login?reautenticar=1&next=%2Fsettings%2Faccount";
                       },
                     },
                   });
@@ -162,48 +151,14 @@ export function AccountSettings({
           Apagar meus dados do Cozya
         </Button>
       </section>
-      <section className="space-y-4 rounded-2xl border p-5">
-        <h2 className="text-xl font-semibold">Excluir a conta Informach</h2>
+      <section className="space-y-3 rounded-2xl border p-5">
+        <h2 className="text-xl font-semibold">Sua conta compartilhada</h2>
         <p className="text-sm text-muted-foreground">
-          A conta é compartilhada entre os apps Informach. A exclusão remove o acesso e os dados
-          vinculados em todos eles e encerra a assinatura do Cozya. Registros financeiros sujeitos a
-          retenção permanecem.
+          Nome, e-mail, senha, segurança e exclusão da conta compartilhada são gerenciados na
+          central da conta.
         </p>
-        {hasOtherSubscriptions && (
-          <p className="text-sm">
-            Há assinaturas em outros apps. Encerre-as nas configurações desses apps antes de excluir
-            a conta compartilhada.
-          </p>
-        )}
-        <label htmlFor="delete-account-confirm" className="flex items-start gap-3 text-sm">
-          <input
-            id="delete-account-confirm"
-            type="checkbox"
-            className="mt-1 size-4"
-            checked={deleteConfirmed}
-            onChange={(e) => setDeleteConfirmed(e.target.checked)}
-          />
-          Entendo que a exclusão afeta todos os apps Informach.
-        </label>
-        <Button
-          variant="destructive"
-          disabled={pending || !deleteConfirmed || hasOtherSubscriptions}
-          onClick={() =>
-            startTransition(async () => {
-              try {
-                const result = await authClient.deleteUser({ callbackURL: "/" });
-                if (result.error)
-                  toast.error("Não foi possível solicitar a exclusão", {
-                    description: result.error.message,
-                  });
-                else toast.success("Confira seu e-mail para confirmar a exclusão da conta.");
-              } catch {
-                toast.error("A solicitação não foi concluída. Tente novamente.");
-              }
-            })
-          }
-        >
-          Solicitar exclusão por e-mail
+        <Button variant="outline" asChild>
+          <a href={getAppUrl("conta", ssoEnvironment)}>Gerenciar minha conta compartilhada</a>
         </Button>
       </section>
     </div>

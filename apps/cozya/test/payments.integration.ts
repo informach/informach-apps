@@ -7,11 +7,29 @@ import {
 } from "@informach/billing";
 import { PRODUCTS } from "@informach/config";
 import { db, eq } from "@informach/db";
-import { cozyaProfiles, creditLedger, subscriptions, users } from "@informach/db/schema";
+import {
+  cozyaProfiles,
+  creditLedger,
+  familyMigrationSources,
+  subscriptions,
+  users,
+} from "@informach/db/schema";
+import { createFamilyService } from "@informach/family";
 import { describe, expect, it, vi } from "vitest";
 import { POST as stripeWebhook } from "@/app/api/webhooks/stripe/route";
+import { readKitchenAccess } from "@/features/billing/access-repository";
 import { billing } from "@/features/billing/service";
-import { getKitchenAccess, startKitchenTrial } from "@/features/kitchen/access";
+import { registerPaidInvoice, registerPaidPack } from "./fixtures/stripe-settlement";
+
+vi.mock("@informach/billing/providers/stripe", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@informach/billing/providers/stripe")>();
+  const { settlementClient } = await import("./fixtures/stripe-settlement");
+  return {
+    ...original,
+    createStripeProvider: (config: Parameters<typeof original.createStripeProvider>[0]) =>
+      original.createStripeProvider({ ...config, client: settlementClient }),
+  };
+});
 
 const catalog = PRODUCTS.filter((product) => product.app === "cozya");
 const unsupported = async (): Promise<never> => {
@@ -197,7 +215,21 @@ describe("payment compatibility with the kitchen trial", () => {
       };
       await db.insert(users).values(user);
       const owner = { type: "user" as const, id: user.id };
-      expect((await startKitchenTrial(user)).ok).toBe(true);
+      const familyGroupId = (
+        await createFamilyService({ db }).createGroup(user.id, "Família legada fictícia")
+      ).id;
+      const actor = { userId: user.id, familyGroupId };
+      await db
+        .insert(familyMigrationSources)
+        .values({ app: "cozya", sourceOwnerId: user.id, groupId: familyGroupId });
+      await db.insert(cozyaProfiles).values({ userId: user.id, trialStartedAt: new Date() });
+      await billing.grantBonusCredits({
+        owner,
+        amount: 3,
+        reason: "promo",
+        expiresAt: new Date(Date.now() + 14 * 86400000),
+        stripeEventId: `legacy_fixture_${user.id}`,
+      });
       expect((await billing.getBalance(owner)).available).toBe(3);
       expect(await billing.hasProSubscription(owner)).toBe(false);
       await expect(
@@ -227,6 +259,9 @@ describe("payment compatibility with the kitchen trial", () => {
         email: user.email,
       });
       const now = Math.floor(Date.now() / 1000);
+      // The annual fixture includes an elapsed month so the due drip anchor
+      // below belongs to a verified paid year, rather than predating its invoice.
+      const periodStart = days === 365 ? now - 31 * 86400 : now;
       const subscription = {
         id: `sub_review_${randomUUID()}`,
         customer: customer.providerCustomerId,
@@ -235,8 +270,8 @@ describe("payment compatibility with the kitchen trial", () => {
           data: [
             {
               price: { id: product.stripePriceId.dev },
-              current_period_start: now,
-              current_period_end: now + days * 86400,
+              current_period_start: periodStart,
+              current_period_end: periodStart + days * 86400,
             },
           ],
         },
@@ -250,7 +285,7 @@ describe("payment compatibility with the kitchen trial", () => {
       });
       expect(await billing.hasProSubscription(owner)).toBe(false);
       await deliver("customer.subscription.created", subscription);
-      expect(await getKitchenAccess(user.id)).toMatchObject({
+      expect(await readKitchenAccess(actor)).toMatchObject({
         isPro: true,
         canPlan: true,
         canUseAi: true,
@@ -268,6 +303,7 @@ describe("payment compatibility with the kitchen trial", () => {
         currency: "brl",
       };
       const invoiceEvent = `evt_review_${randomUUID()}`;
+      registerPaidInvoice(subscription, invoice);
       await deliver("invoice.paid", invoice, invoiceEvent);
       expect((await billing.getBalance(owner)).available).toBe(53);
       expect((await deliver("invoice.paid", invoice, invoiceEvent)).deduped).toBe(true);
@@ -291,11 +327,16 @@ describe("payment compatibility with the kitchen trial", () => {
         expect((await billing.grantPendingMonthlyBonusCredits()).totalCredits).toBe(50);
         expect((await billing.grantPendingMonthlyBonusCredits()).totalCredits).toBe(0);
       } else {
-        await deliver("invoice.paid", {
+        const renewal = {
           ...invoice,
           id: `in_review_${randomUUID()}`,
           billing_reason: "subscription_cycle",
+        };
+        registerPaidInvoice(subscription, renewal, {
+          start: now + days * 86400,
+          end: now + 2 * days * 86400,
         });
+        await deliver("invoice.paid", renewal);
       }
       expect((await billing.getBalance(owner)).available).toBe(103);
       await checkoutBilling.createCreditPackCheckout({
@@ -322,6 +363,7 @@ describe("payment compatibility with the kitchen trial", () => {
           subject_id: user.id,
         },
       };
+      registerPaidPack(payment);
       await deliver("payment_intent.succeeded", payment, paymentEvent);
       await deliver("payment_intent.succeeded", payment, paymentEvent);
       expect((await billing.getBalance(owner)).available).toBe(113);
@@ -344,15 +386,19 @@ describe("payment compatibility with the kitchen trial", () => {
         .update(cozyaProfiles)
         .set({ trialStartedAt: new Date(Date.now() - 15 * 86400000) })
         .where(eq(cozyaProfiles.userId, user.id));
-      expect(await getKitchenAccess(user.id)).toMatchObject({
+      expect(await readKitchenAccess(actor)).toMatchObject({
         isPro: false,
         canPlan: false,
-        canUseAi: false,
+        canUseAi: true,
       });
       await deliver("customer.subscription.updated", subscription);
       // A generic subscription update can arrive while Stripe still has an
       // unpaid invoice. It must not restore paid access before payment succeeds.
       expect(await billing.hasProSubscription(owner)).toBe(false);
+      registerPaidInvoice(subscription, failedInvoice, {
+        start: now + 2 * days * 86400,
+        end: now + 3 * days * 86400,
+      });
       await deliver("invoice.paid", failedInvoice);
       const expectedAfterRecovery = days === 365 ? 113 : 163;
       expect((await billing.getBalance(owner)).available).toBe(expectedAfterRecovery);

@@ -3,7 +3,8 @@ import { db, eq, inArray } from "@informach/db";
 import { missaoAttempts, missaoProfiles, missaoSessions, users } from "@informach/db/schema";
 import { afterAll, describe, expect, it } from "vitest";
 import { schoolYear } from "@/features/family/school-year";
-import { answer, begin, createProfile, dashboard, sessionView } from "@/features/learning/service";
+import { answer, begin, dashboard, sessionView } from "@/features/learning/service";
+import { fixtureAuthority, prepareStudent } from "./family-fixture";
 
 const owners: string[] = [];
 async function family() {
@@ -15,7 +16,7 @@ async function family() {
     name: "Revisão pedagógica",
     emailVerified: true,
   });
-  const profile = await createProfile(owner, {
+  const profile = await prepareStudent(await fixtureAuthority(owner), {
     nickname: "Sol",
     grade: 6,
     avatar: "cometa",
@@ -26,23 +27,27 @@ async function family() {
 }
 
 afterAll(async () => {
-  if (owners.length) await db.delete(users).where(inArray(users.id, owners));
+  if (owners.length)
+    await db
+      .update(users)
+      .set({ banned: true, emailVerified: false })
+      .where(inArray(users.id, owners));
 });
 
 describe("revisão 16: continuidade e condições da avaliação", () => {
   it("retoma a missão compartilhada na virada do ano antes de iniciar outra sessão", async () => {
     const { owner, profile } = await family();
-    const session = await begin(owner, {
+    const session = await begin(await fixtureAuthority(owner), {
       profileId: profile.id,
       lessonId: "fracoes-1",
       mode: "mission",
       requestKey: randomUUID(),
     });
-    const before = await sessionView(owner, session.id);
+    const before = await sessionView(await fixtureAuthority(owner), session.id);
     const first = before.lesson.items[0];
     const second = before.lesson.items[1];
     if (!first || !second) throw new Error("Missing fraction activities");
-    await answer(owner, {
+    await answer(await fixtureAuthority(owner), {
       sessionId: session.id,
       itemId: first.id,
       answer: "__skip__",
@@ -52,7 +57,7 @@ describe("revisão 16: continuidade e condições da avaliação", () => {
       .update(missaoProfiles)
       .set({ gradeYear: schoolYear() - 1 })
       .where(eq(missaoProfiles.id, profile.id));
-    const panel = await dashboard(owner, profile.id);
+    const panel = await dashboard(await fixtureAuthority(owner), profile.id);
     expect(panel.course?.id).toBe("canguru-b");
     expect(panel.paused?.id).toBe(session.id);
     // Merely rendering the new school year has not changed the stored course.
@@ -61,10 +66,10 @@ describe("revisão 16: continuidade e condições da avaliação", () => {
       .from(missaoProfiles)
       .where(eq(missaoProfiles.id, profile.id));
     expect(stored?.courseId).toBe("canguru-e");
-    const resumed = await sessionView(owner, session.id);
+    const resumed = await sessionView(await fixtureAuthority(owner), session.id);
     expect(resumed.saved).toHaveLength(1);
     expect(resumed.lesson).toEqual(before.lesson);
-    const continued = await answer(owner, {
+    const continued = await answer(await fixtureAuthority(owner), {
       sessionId: session.id,
       itemId: second.id,
       answer: "__skip__",
@@ -78,13 +83,13 @@ describe("revisão 16: continuidade e condições da avaliação", () => {
     "persiste apoio com a resposta %s sem depender da marca separada",
     async (position) => {
       const { owner, profile } = await family();
-      const session = await begin(owner, {
+      const session = await begin(await fixtureAuthority(owner), {
         profileId: profile.id,
         lessonId: "diagnostic:canguru-e",
         mode: "diagnostic",
         requestKey: randomUUID(),
       });
-      let view = await sessionView(owner, session.id);
+      let view = await sessionView(await fixtureAuthority(owner), session.id);
       expect(view.readingSupport).toBe(false);
       // The separate reading marker never reached the server. The answer carries
       // the fact that audio was used, even if it is the final answer of the session.
@@ -95,7 +100,7 @@ describe("revisão 16: continuidade e condições da avaliação", () => {
         requestKey: randomUUID(),
         readingSupport: index === (position === "first" ? 0 : items.length - 1),
       }));
-      for (const input of inputs) view = await answer(owner, input);
+      for (const input of inputs) view = await answer(await fixtureAuthority(owner), input);
       expect(view.completed).toBe(true);
       expect(view.readingSupport).toBe(true);
       const [persisted] = await db
@@ -107,7 +112,10 @@ describe("revisão 16: continuidade e condições da avaliação", () => {
       const last = inputs.at(-1);
       if (!last) throw new Error("Missing final answer");
       // Retrying the response cannot add an attempt or erase a support declaration.
-      expect((await answer(owner, { ...last, readingSupport: false })).readingSupport).toBe(true);
+      expect(
+        (await answer(await fixtureAuthority(owner), { ...last, readingSupport: false }))
+          .readingSupport,
+      ).toBe(true);
       const attempts = await db
         .select()
         .from(missaoAttempts)

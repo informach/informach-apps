@@ -20,7 +20,6 @@ import { DueChip } from "./due-chip";
 
 type Props = {
   entry: ActivityOverviewItem;
-  currentUserId: string;
   /** Nos buckets da rotina o item some ao ser concluído, com colapso animado. */
   optimisticHideWhenDone?: boolean;
   /** À noite, dentro da mochila de cada criança, a linha não leva o chip do dia. */
@@ -76,13 +75,12 @@ function firstDoneMessage() {
  */
 export function UnifiedActivityCard({
   entry,
-  currentUserId,
   optimisticHideWhenDone = false,
   hideChip = false,
   hideProfile = false,
   onStatusSuccess,
 }: Props) {
-  const view = toActivityView(entry, currentUserId);
+  const view = toActivityView(entry);
   const [error, setError] = useState("");
   const queueOwner = useQueueOwner();
   // Em Hoje a linha concluída sai da lista no refresh, e o "Desfazer" do aviso
@@ -114,7 +112,7 @@ export function UnifiedActivityCard({
               version: version ?? view.toggle.version,
               status: next,
               title: view.title,
-              userId: queueOwner,
+              actor: queueOwner,
             })
           : Promise.resolve({ ok: false as const, error: { code: "NOT_FOUND" } }),
       onSuccess: (previousStatus, nextStatus) => {

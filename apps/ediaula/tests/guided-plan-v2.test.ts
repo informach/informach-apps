@@ -606,11 +606,93 @@ test("a click already done never goes in sped up: no action shows before its wor
     const due = schedule.steps[i].actAt;
     // Never before its second of the narration; late only by what the page took.
     assert.ok(at >= due - 1 / 30 - 0.01, `click ${i + 1} at ${at}, due ${due}`);
-    // No lapse covers a click (one may end right on it, to the millisecond it is written in).
-    assert.ok(
-      !lapses.some((l) => click.t > l.from + 0.01 && click.t < l.to - 0.01),
-      `click ${i + 1}`,
-    );
+    // A lapse covers a click only when it was already late for its word (09/11/2026: sped up
+    // with what came after it, it comes closer to its word, so the delay does not carry on).
+    const covered = lapses.some((l) => click.t > l.from + 0.01 && click.t < l.to - 0.01);
+    if (covered) {
+      const before =
+        click.t -
+        lapses
+          .filter((l) => l.to <= click.t)
+          .reduce((sum, l) => sum + (l.to - l.from - l.narration), 0);
+      assert.ok(before > due + 0.5, `click ${i + 1} was on its word and went in sped up`);
+    }
+  }
+});
+
+test("a platform's action that prepares: the list rolls with the phrase, the click on its word, and no delay carries on", async () => {
+  // Cadê Todo Mundo, aula 1, parte 4 (09/11/2026): "desça até o fim da lista que abre e clique
+  // em escolhido". The roll waited for "escolhido", the click and the click outside the block came
+  // seconds after it, and "Clique no 50" and "troque por 0" came 4 to 5 seconds after their words.
+  const sim = simulation(30);
+  class BridgePage extends FakePage {
+    asked = 0;
+    async platform(action: string, id: string) {
+      this.asked++;
+      return this.asked === 1
+        ? [
+            {
+              id: `${id}-1`,
+              speech: "",
+              at: 0,
+              action: "scroll" as const,
+              delta: { x: 0, y: 300 },
+              target: on("Nome"),
+            },
+            { id: `${id}-2`, speech: "", at: 0, action: "platform" as const, platform: action },
+          ]
+        : [
+            // The option, then the hand clicks outside the block (twice, to take its time).
+            { id: `${id}-3`, speech: "", at: 0, action: "click" as const, target: on("Próxima") },
+            { id: `${id}-4`, speech: "", at: 0, action: "click" as const, target: on("Começar") },
+            { id: `${id}-5`, speech: "", at: 0, action: "click" as const, target: on("Nome") },
+          ];
+    }
+    async idle() {}
+  }
+  const page = new BridgePage(sim.frames, sim.sleep, points);
+  const plan = webPlan([
+    {
+      id: "a",
+      at: 4,
+      speechAt: 0.5,
+      speech: "desça até o fim da lista e clique em escolhido",
+      action: "platform",
+      platform: 'escolher "escolhido"',
+    },
+    { id: "b", at: 6, speech: "Clique no 50", action: "click", target: on("Próxima") },
+    { id: "c", at: 7.5, speech: "troque por 0", action: "click", target: on("Começar") },
+  ]);
+  const schedule = schedulePlan(plan);
+  const [a, b, c] = schedule.steps;
+  const controller = new AbortController();
+  const lapses: GuidedLapse[] = [];
+  sim.frames.start();
+  await sim.drive(
+    runGuided(plan, page, videoClock(sim.frames, controller.signal), controller.signal, {
+      log: {
+        step: () => undefined,
+        act: () => undefined,
+        lapse: (from, to, narration, step) => lapses.push({ from, to, narration, step }),
+      },
+    }),
+  );
+  const wheel = page.events.find((e) => e.op.startsWith("wheel"));
+  assert.ok(wheel);
+  // The list rolls with the phrase, before the words quoted.
+  assert.ok(alignedAt(lapses, wheel.t) < a.actAt - 1, `rolled at ${wheel.t}`);
+  const clicks = page.events.filter((e) => e.op === "left-1");
+  assert.equal(clicks.length, 5);
+  const at = (i: number) => alignedAt(lapses, clicks[i].t);
+  // The option on "escolhido", never before it.
+  assert.ok(at(0) >= a.actAt - 1 / 30 - 0.01 && at(0) <= a.actAt + 0.1, `option at ${at(0)}`);
+  // The next two steps on their words, never before them.
+  for (const [i, due] of [
+    [3, b.actAt],
+    [4, c.actAt],
+  ]) {
+    assert.ok(at(i) >= due - 1 / 30 - 0.01, `click ${i + 1} at ${at(i)}, before ${due}`);
+    assert.ok(at(i) <= due + 0.1, `click ${i + 1} at ${at(i)}, late for ${due}`);
   }
 });
 
@@ -703,7 +785,8 @@ test("a platform's action: its gestures in order, the first on the phrase, the r
     runGuided(plan, page, videoClock(sim.frames, controller.signal), controller.signal),
   );
   assert.deepEqual(page.asked, ["ampliar jogo"]);
-  assert.equal(page.idles, 1);
+  // The page is no longer busy before each gesture, the first one too.
+  assert.equal(page.idles, 2);
   const clicks = page.events.filter((e) => e.op === "left-1");
   assert.deepEqual(
     clicks.map((c) => [c.x, c.y]),
@@ -728,6 +811,35 @@ test("a platform's action: its gestures in order, the first on the phrase, the r
     ),
     /janela da aula/,
   );
+});
+
+test("a platform's action: a page still busy from answering holds the first gesture too", async () => {
+  const sim = simulation(30);
+  class BridgePage extends FakePage {
+    /** The clicks already made each time the page was asked whether it is busy. */
+    clicksAtIdle: number[] = [];
+    async platform(_action: string, id: string) {
+      // Answering brings the game back next to the blocks: it loads while the hand goes.
+      return [
+        { id: `${id}-1`, speech: "", at: 0, action: "click" as const, target: on("Começar") },
+      ];
+    }
+    async idle() {
+      this.clicksAtIdle.push(this.events.filter((e) => e.op === "left-1").length);
+    }
+  }
+  const page = new BridgePage(sim.frames, sim.sleep, points);
+  const plan = webPlan([
+    { id: "a", at: 2, speech: "Teste", action: "platform", platform: "tocar prévia 240 300" },
+  ]);
+  const controller = new AbortController();
+  sim.frames.start();
+  await sim.drive(
+    runGuided(plan, page, videoClock(sim.frames, controller.signal), controller.signal),
+  );
+  // Asked before the only gesture, not just between gestures.
+  assert.deepEqual(page.clicksAtIdle, [0]);
+  assert.equal(page.events.filter((e) => e.op === "left-1").length, 1);
 });
 
 test("a platform's action that continues: the page is asked again after the gestures before it", async () => {
@@ -769,7 +881,7 @@ test("a platform's action that continues: the page is asked again after the gest
   );
   assert.deepEqual(page.asked, ["trocar campo", "escolher"]);
   // A gesture that waits long (the check on the server) waits that long for the busy page too.
-  assert.deepEqual(page.idles, [8, 180]);
+  assert.deepEqual(page.idles, [8, 8, 180]);
   assert.deepEqual(
     page.events.filter((e) => e.op === "left-1").map((c) => [c.x, c.y]),
     [

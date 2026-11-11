@@ -7,8 +7,11 @@ import { laboratoryReport } from "../labs/runtime/family-report";
 import { repeatedDifficulties, skillStates, weeklyEvidence } from "../learning/engine";
 import { weeklyNarrative } from "../learning/relato";
 import { getProfiles, history, listFamiliesForWeeklyReport } from "../learning/repository";
+import type { ParentAuthority } from "./authority";
+import { familyService } from "./context-repository";
 import { weekStart } from "./desafio";
 import { type BlocoResumo, ResumoSemanalEmail } from "./resumo-semanal-email";
+import { type WeeklyReceipt, weeklySnapshot } from "./weekly-repository";
 
 /**
  * Resumo semanal por e-mail para o responsável.
@@ -29,6 +32,7 @@ export type ResumoDeFamilia = {
   assunto: string;
   texto: string;
   html: string;
+  receipts: WeeklyReceipt[];
 };
 
 /** Monta o resumo de uma família. Devolve `null` quando não há o que contar. */
@@ -39,43 +43,52 @@ export async function buildWeeklySummary(
   now: Date,
   unsubscribeUrl?: string,
 ): Promise<ResumoDeFamilia | null> {
-  const profiles = await getProfiles(userId);
-  if (!profiles.length) return null;
   const blocos: BlocoResumo[] = [];
-  for (const profile of profiles) {
-    const { evidence, reflections } = await history(userId, profile.id);
-    const states = skillStates(evidence);
-    const course = resolvedCourse(profile);
-    const nextSkill = course?.skills.find(
-      (skillId) => states.find((state) => state.skillId === skillId)?.level !== "independent",
+  const receipts: WeeklyReceipt[] = [];
+  for (const group of await familyService.listGroups(userId)) {
+    const actor: ParentAuthority = { kind: "parent", userId, familyGroupId: group.id };
+    const students = await weeklySnapshot(actor);
+    const profiles = (await getProfiles(actor)).filter((profile) =>
+      students.some((student) => student.id === profile.id),
     );
-    const repeated = repeatedDifficulties(evidence, now);
-    const narrative = weeklyNarrative({
-      nickname: profile.nickname,
-      evidence,
-      weekly: weeklyEvidence(evidence, now),
-      states,
-      repeatedDifficulties: repeated,
-      nextSkillId: nextSkill,
-      reflections: reflections.length,
-      now,
-      skillNames,
-    });
-    blocos.push({
-      id: profile.id,
-      nome: profile.nickname,
-      linhas: [
-        ...narrative.linhas,
-        ...(
-          await laboratoryReport(userId, profile.id, new Date(`${weekStart(now)}T00:00:00-03:00`))
-        ).map(
-          (entry) =>
-            `Laboratório: ${entry.title}. ${entry.status}. ${entry.summary} Isso não altera a evidência de autonomia.`,
-        ),
-      ],
-      apoio: homeSupportFor(nextSkill ?? repeated[0]?.skillId ?? "") ?? [],
-    });
+    if (!profiles.length) continue;
+    receipts.push({ actor, students });
+    for (const profile of profiles) {
+      const { evidence, reflections } = await history(actor, profile.id);
+      const states = skillStates(evidence);
+      const course = resolvedCourse(profile);
+      const nextSkill = course?.skills.find(
+        (skillId) => states.find((state) => state.skillId === skillId)?.level !== "independent",
+      );
+      const repeated = repeatedDifficulties(evidence, now);
+      const narrative = weeklyNarrative({
+        nickname: profile.nickname,
+        evidence,
+        weekly: weeklyEvidence(evidence, now),
+        states,
+        repeatedDifficulties: repeated,
+        nextSkillId: nextSkill,
+        reflections: reflections.length,
+        now,
+        skillNames,
+      });
+      blocos.push({
+        id: profile.id,
+        nome: profile.nickname,
+        linhas: [
+          ...narrative.linhas,
+          ...(
+            await laboratoryReport(actor, profile.id, new Date(`${weekStart(now)}T00:00:00-03:00`))
+          ).map(
+            (entry) =>
+              `Laboratório: ${entry.title}. ${entry.status}. ${entry.summary} Isso não altera a evidência de autonomia.`,
+          ),
+        ],
+        apoio: homeSupportFor(nextSkill ?? repeated[0]?.skillId ?? "") ?? [],
+      });
+    }
   }
+  if (!blocos.length) return null;
   const semana = weekStart(now);
   const assunto = "Missão Saber · o que aconteceu nesta semana";
   const rodape =
@@ -96,7 +109,7 @@ export async function buildWeeklySummary(
   const { html } = await renderEmailElement(
     createElement(ResumoSemanalEmail, { blocos, appUrl, unsubscribeUrl }),
   );
-  return { userId, email, semana, assunto, texto, html };
+  return { userId, email, semana, assunto, texto, html, receipts };
 }
 
 export async function weeklySummaryRecipients(

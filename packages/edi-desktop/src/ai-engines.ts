@@ -91,6 +91,14 @@ export interface AssistantEnginesConfig {
   scopes?: readonly McpScope[];
   /** Ends a turn after this long (no limit by default: the token is renewed while it runs). */
   timeoutMs?: number;
+  /**
+   * Ends a Claude Code turn that printed nothing for this long. Claude Code reports about every
+   * second while it thinks and writes, so silence means it is stuck. Codex says nothing while it
+   * reasons, so its turns keep only `timeoutMs`.
+   */
+  idleTimeoutMs?: number;
+  /** Sends `activity` events: what the model is doing between the text and the tools. */
+  activity?: boolean;
   /** Where a problem with the kept sessions is told (no personal data). */
   warn?(event: string, detail: string): void;
 }
@@ -110,6 +118,61 @@ export interface TurnRequest {
   check?(): void;
   /** Reference images of this message (checked by checkTurnImages before the program starts). */
   images?: readonly TurnImage[];
+  /** This turn's limit, in place of the configuration's (a long job asked by the application). */
+  timeoutMs?: number;
+}
+
+/** A stream event of Claude Code (`--include-partial-messages`), as far as the panel reads it. */
+interface ClaudeStreamEvent {
+  type?: string;
+  delta?: { type?: string; text?: string; partial_json?: string };
+  content_block?: { type?: string; name?: string };
+}
+
+/**
+ * Follows what Claude Code is doing between the text and the tools: thinking (a new message, or
+ * a thinking block) and writing a tool's input. Writing is told when it starts and then at most
+ * every `everyMs` while it grows, so a large edit shows it is moving without flooding the panel.
+ */
+export function claudeActivity(
+  emit: (e: EngineEvent) => void,
+  tool: { name(raw: string): string; title(name: string): string },
+  options: { everyMs?: number; now?: () => number } = {},
+): (event: ClaudeStreamEvent) => void {
+  const everyMs = options.everyMs ?? 1000;
+  const now = options.now ?? Date.now;
+  let phase: "thinking" | "writing" | "text" | null = null;
+  let name = "";
+  let chars = 0;
+  let toldAt = 0;
+  const writing = (): void => {
+    toldAt = now();
+    emit({ type: "activity", phase: "writing", name, title: tool.title(name), chars });
+  };
+  return (event) => {
+    const block = event.content_block?.type;
+    if (
+      event.type === "message_start" ||
+      (event.type === "content_block_start" && block === "thinking")
+    ) {
+      if (phase !== "thinking") emit({ type: "activity", phase: "thinking" });
+      phase = "thinking";
+    } else if (event.type === "content_block_start" && block === "tool_use") {
+      phase = "writing";
+      name = tool.name(event.content_block?.name ?? "");
+      chars = 0;
+      writing();
+    } else if (event.type === "content_block_start" && block === "text") {
+      phase = "text";
+    } else if (
+      event.type === "content_block_delta" &&
+      event.delta?.type === "input_json_delta" &&
+      phase === "writing"
+    ) {
+      chars += event.delta.partial_json?.length ?? 0;
+      if (now() - toldAt >= everyMs) writing();
+    }
+  };
 }
 
 /** A run's token lasts this long, renewed while the run goes on, and is revoked when it ends. */
@@ -204,13 +267,14 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
     memory ? `${config.systemPrompt}\n\n${memory}` : config.systemPrompt;
   /** The memory each conversation's Codex thread last received. */
   const codexMemory = new Map<string, string>();
-  const toolTitle = (name: string): string => {
+  /** A tool's name without the server's prefix, as the application names it. */
+  const bareName = (name: string): string => {
     const prefix = `mcp__${server.name}__`;
-    const bare = name.startsWith(prefix)
+    return name.startsWith(prefix)
       ? name.slice(prefix.length)
       : name.replace(new RegExp(`^${server.name}[./]`), "");
-    return config.toolTitle(bare);
   };
+  const toolTitle = (name: string): string => config.toolTitle(bareName(name));
 
   /** The engine's session of the conversation: in memory, or kept from an earlier run. */
   async function sessionOf(engine: EngineKind, conversationId: string) {
@@ -380,6 +444,9 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
     if (config.memory) Object.assign(env, CLAUDE_NO_AUTO_MEMORY);
     // With ANTHROPIC_API_KEY set, the turn is charged on the API, not on the subscription.
     const onApi = claudeBilledOnApi(env);
+    const activity = config.activity
+      ? claudeActivity(emit, { name: bareName, title: config.toolTitle })
+      : undefined;
     await startRun({
       conversationId,
       launch,
@@ -390,7 +457,8 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
       emit,
       cleanup: token.end,
       redact: redactMcpCredentials,
-      timeoutMs: config.timeoutMs,
+      timeoutMs: request.timeoutMs ?? config.timeoutMs,
+      idleMs: config.idleTimeoutMs,
       onLine: (ev) => {
         switch (ev.type) {
           case "system":
@@ -420,9 +488,10 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
             }
             break;
           case "stream_event": {
-            const e = ev.event as { type?: string; delta?: { type?: string; text?: string } };
+            const e = ev.event as ClaudeStreamEvent | undefined;
             if (e?.type === "content_block_delta" && e.delta?.type === "text_delta" && e.delta.text)
               emit({ type: "text", delta: e.delta.text });
+            else if (e && activity) activity(e);
             break;
           }
           case "assistant":
@@ -638,7 +707,7 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
       emit,
       cleanup,
       redact: redactMcpCredentials,
-      timeoutMs: config.timeoutMs,
+      timeoutMs: request.timeoutMs ?? config.timeoutMs,
       onLine: (ev, stop) => {
         const forbidden = codexGuard(ev, server.name);
         if (forbidden) {
@@ -670,7 +739,9 @@ export function createAssistantEngines(config: AssistantEnginesConfig) {
             if (item?.type === "agent_message" && item.id && item.text) {
               const delta = messageDelta(shown, item.id, item.text);
               if (delta) emit({ type: "text", delta });
-            } else if (item?.type === "mcp_tool_call" && item.id)
+            } else if (item?.type === "reasoning" && config.activity)
+              emit({ type: "activity", phase: "thinking" });
+            else if (item?.type === "mcp_tool_call" && item.id)
               emit({
                 type: "tool",
                 id: item.id,

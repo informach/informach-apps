@@ -1,4 +1,4 @@
-import { PRODUCTS } from "@informach/config";
+import { COMPASSO_POLICY } from "@informach/config/collections";
 import { INFORMACH_CONTACT } from "@informach/config/contact";
 import { BellRing, Footprints, Gift, ShieldCheck, Smartphone, Volume2 } from "lucide-react";
 import Link from "next/link";
@@ -45,9 +45,8 @@ const recursos = [
 
 export default async function Inicio() {
   const [user, device] = await Promise.all([getCurrentUser(), getDeviceIdentity()]);
-  const mensal =
-    PRODUCTS.find((p) => p.id === "estrela_family_monthly")?.listPrice?.amountCents ?? 0;
-  const anual = PRODUCTS.find((p) => p.id === "estrela_family_annual")?.listPrice?.amountCents ?? 0;
+  const mensal = COMPASSO_POLICY.monthlyAmountCents;
+  const anual = COMPASSO_POLICY.annualAmountCents;
   return (
     <div className="min-h-dvh bg-creme">
       <header className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-5 sm:px-8">
@@ -138,14 +137,20 @@ export default async function Inicio() {
               </p>
             </div>
             <div className="cartao border-estrela p-6">
-              <h3 className="font-display text-2xl font-extrabold">Família</h3>
+              <h3 className="font-display text-2xl font-extrabold">Compasso</h3>
               <p className="font-display text-3xl font-extrabold">
                 {brl(mensal)}/mês{" "}
                 <span className="text-lg text-tinta-suave">ou {brl(anual)}/ano</span>
               </p>
               <p className="mt-2 font-semibold text-tinta-suave">
-                Até 4 crianças, segundo responsável, alertas no celular dos pais, voz dos pais nos
-                lembretes, loja com recompensas próprias e foto da meta.
+                Uma assinatura para os aplicativos web do Compasso, com até{" "}
+                {COMPASSO_POLICY.capacity.adults} adultos e {COMPASSO_POLICY.capacity.dependents}{" "}
+                dependentes. Aqui, libera alertas no celular, voz dos pais, recompensas próprias e
+                foto da meta. Teste por {COMPASSO_POLICY.trialDays} dias sem cartão.
+              </p>
+              <p className="mt-2 font-semibold text-tinta-suave">
+                As permissões de cada criança são escolhidas na Minha conta. Recreio, Morada e Suíte
+                Edi são separados.
               </p>
             </div>
           </div>

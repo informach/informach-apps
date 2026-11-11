@@ -2,6 +2,14 @@ import "server-only";
 
 import { and, count, type Database, db, desc, eq, sql } from "@informach/db";
 import { type CozyaIngredient, cozyaCookingSessions, cozyaRecipes } from "@informach/db/schema";
+import { requireFamilyCondition } from "@informach/family";
+import {
+  activeCozyaUserCondition,
+  withActiveCozyaUser,
+} from "@/features/account/participation-repository";
+import { cozyaAccessInTransaction } from "@/features/billing/access-repository";
+import type { CozyaAuthority } from "@/features/family/authority";
+import { FREE_RECIPE_LIMIT } from "./limits";
 import type { Recipe, RecipeListPage, RecipeSummary } from "./types";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -36,28 +44,46 @@ export type RecipeListOptions = {
 const DEFAULT_RECIPE_PAGE_SIZE = 50;
 const MAX_RECIPE_PAGE_SIZE = 100;
 
+/** The family's coverage and this user's recipe limit are checked in the write transaction. */
+export async function insertRecipeForAccess(
+  actor: CozyaAuthority,
+  payload: NewRecipePayload,
+): Promise<InsertWithinLimitResult> {
+  return db.transaction((tx) => insertRecipeForAccessInTransaction(tx, actor, payload));
+}
+
+export async function insertRecipeForAccessInTransaction(
+  tx: Tx,
+  actor: CozyaAuthority,
+  payload: NewRecipePayload,
+): Promise<InsertWithinLimitResult> {
+  requireFamilyCondition(actor.userId === payload.userId);
+  const access = await cozyaAccessInTransaction(tx, actor);
+  await lockRecipeLimitForUser(tx, actor.userId);
+  const current = await countRecipesByUserWithClient(tx, actor.userId);
+  if (!access.enabled && current >= FREE_RECIPE_LIMIT) return { ok: false, current };
+  return { ok: true, recipe: await insertRecipeWithClient(tx, payload) };
+}
+
 export async function insertRecipe(payload: NewRecipePayload): Promise<Recipe> {
-  return insertRecipeWithClient(db, payload);
+  return withActiveCozyaUser(payload.userId, (tx) => insertRecipeWithClient(tx, payload));
 }
 
 export async function insertRecipeWithinFreeLimit(
   payload: NewRecipePayload,
   limit: number,
 ): Promise<InsertWithinLimitResult> {
-  return db.transaction(
-    async (tx) => {
-      await lockRecipeLimitForUser(tx, payload.userId);
+  return withActiveCozyaUser(payload.userId, async (tx) => {
+    await lockRecipeLimitForUser(tx, payload.userId);
 
-      const current = await countRecipesByUserWithClient(tx, payload.userId);
-      if (current >= limit) {
-        return { ok: false as const, current };
-      }
+    const current = await countRecipesByUserWithClient(tx, payload.userId);
+    if (current >= limit) {
+      return { ok: false as const, current };
+    }
 
-      const recipe = await insertRecipeWithClient(tx, payload);
-      return { ok: true as const, recipe };
-    },
-    { isolationLevel: "read committed" },
-  );
+    const recipe = await insertRecipeWithClient(tx, payload);
+    return { ok: true as const, recipe };
+  });
 }
 
 async function insertRecipeWithClient(
@@ -132,7 +158,7 @@ export async function findRecipeByIdForUser(userId: string, id: string): Promise
   const [row] = await db
     .select()
     .from(cozyaRecipes)
-    .where(and(eq(cozyaRecipes.userId, userId), eq(cozyaRecipes.id, id)))
+    .where(and(activeCozyaUserCondition(cozyaRecipes.userId, userId), eq(cozyaRecipes.id, id)))
     .limit(1);
   return row ?? null;
 }
@@ -170,24 +196,28 @@ export async function updateRecipeForUser(
       .map(({ column, value }) => sql`${column} IS DISTINCT FROM ${value}`),
     sql` OR `,
   );
-  const [row] = await db
-    .update(cozyaRecipes)
-    .set({
-      ...payload,
-      updatedAt: now,
-      contentUpdatedAt: sql`CASE WHEN ${contentChanged} THEN ${now.toISOString()}::timestamptz ELSE ${cozyaRecipes.contentUpdatedAt} END`,
-    })
-    .where(and(eq(cozyaRecipes.userId, userId), eq(cozyaRecipes.id, id)))
-    .returning();
-  return row ?? null;
+  return withActiveCozyaUser(userId, async (tx) => {
+    const [row] = await tx
+      .update(cozyaRecipes)
+      .set({
+        ...payload,
+        updatedAt: now,
+        contentUpdatedAt: sql`CASE WHEN ${contentChanged} THEN ${now.toISOString()}::timestamptz ELSE ${cozyaRecipes.contentUpdatedAt} END`,
+      })
+      .where(and(activeCozyaUserCondition(cozyaRecipes.userId, userId), eq(cozyaRecipes.id, id)))
+      .returning();
+    return row ?? null;
+  });
 }
 
 export async function deleteRecipeForUser(userId: string, id: string): Promise<boolean> {
-  const rows = await db
-    .delete(cozyaRecipes)
-    .where(and(eq(cozyaRecipes.userId, userId), eq(cozyaRecipes.id, id)))
-    .returning({ id: cozyaRecipes.id });
-  return rows.length > 0;
+  return withActiveCozyaUser(userId, async (tx) => {
+    const rows = await tx
+      .delete(cozyaRecipes)
+      .where(and(activeCozyaUserCondition(cozyaRecipes.userId, userId), eq(cozyaRecipes.id, id)))
+      .returning({ id: cozyaRecipes.id });
+    return rows.length > 0;
+  });
 }
 
 export async function setRecipeFavoriteForUser(
@@ -195,12 +225,14 @@ export async function setRecipeFavoriteForUser(
   id: string,
   isFavorite: boolean,
 ): Promise<Recipe | null> {
-  const [row] = await db
-    .update(cozyaRecipes)
-    .set({ isFavorite, updatedAt: new Date() })
-    .where(and(eq(cozyaRecipes.userId, userId), eq(cozyaRecipes.id, id)))
-    .returning();
-  return row ?? null;
+  return withActiveCozyaUser(userId, async (tx) => {
+    const [row] = await tx
+      .update(cozyaRecipes)
+      .set({ isFavorite, updatedAt: new Date() })
+      .where(and(activeCozyaUserCondition(cozyaRecipes.userId, userId), eq(cozyaRecipes.id, id)))
+      .returning();
+    return row ?? null;
+  });
 }
 
 export async function countRecipesByUser(userId: string): Promise<number> {
@@ -211,7 +243,7 @@ async function countRecipesByUserWithClient(client: DbClient, userId: string): P
   const [row] = await client
     .select({ count: count() })
     .from(cozyaRecipes)
-    .where(eq(cozyaRecipes.userId, userId));
+    .where(activeCozyaUserCondition(cozyaRecipes.userId, userId));
   return Number(row?.count ?? 0);
 }
 
@@ -219,7 +251,9 @@ export async function countFavoritesByUser(userId: string): Promise<number> {
   const [row] = await db
     .select({ count: count() })
     .from(cozyaRecipes)
-    .where(and(eq(cozyaRecipes.userId, userId), eq(cozyaRecipes.isFavorite, true)));
+    .where(
+      and(activeCozyaUserCondition(cozyaRecipes.userId, userId), eq(cozyaRecipes.isFavorite, true)),
+    );
   return Number(row?.count ?? 0);
 }
 
@@ -254,8 +288,9 @@ function recipesWhereClause(userId: string, search: string | undefined, filter?:
   const byFilter = filterClause(filter);
   if (tokens.length === 0)
     return byFilter
-      ? (and(eq(cozyaRecipes.userId, userId), byFilter) ?? eq(cozyaRecipes.userId, userId))
-      : eq(cozyaRecipes.userId, userId);
+      ? (and(activeCozyaUserCondition(cozyaRecipes.userId, userId), byFilter) ??
+          activeCozyaUserCondition(cozyaRecipes.userId, userId))
+      : activeCozyaUserCondition(cozyaRecipes.userId, userId);
 
   // Each word must appear in the name or in the ingredients: "frango" finds the strogonoff.
   const tokenClauses = tokens.map((token) => {
@@ -263,11 +298,11 @@ function recipesWhereClause(userId: string, search: string | undefined, filter?:
     return sql`(cozya.unaccent_immutable(${cozyaRecipes.name}) ilike cozya.unaccent_immutable(${pattern}) escape ${"\\"} or cozya.unaccent_immutable(${cozyaRecipes.ingredients}) ilike cozya.unaccent_immutable(${pattern}) escape ${"\\"})`;
   });
   const clause = and(
-    eq(cozyaRecipes.userId, userId),
+    activeCozyaUserCondition(cozyaRecipes.userId, userId),
     ...tokenClauses,
     ...(byFilter ? [byFilter] : []),
   );
-  if (!clause) return eq(cozyaRecipes.userId, userId);
+  if (!clause) return activeCozyaUserCondition(cozyaRecipes.userId, userId);
   return clause;
 }
 

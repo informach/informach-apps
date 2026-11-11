@@ -8,9 +8,9 @@ export const metadata = { title: "Entrar" };
 export default async function Entrar({
   searchParams,
 }: {
-  searchParams: Promise<{ confirmar?: string; next?: string }>;
+  searchParams: Promise<{ next?: string; reautenticar?: string }>;
 }) {
-  const { confirmar, next } = await searchParams;
+  const { next, reautenticar } = await searchParams;
   return (
     <main
       id="conteudo"
@@ -38,15 +38,7 @@ export default async function Entrar({
         <p className="mb-6 text-sm font-semibold text-tinta-suave">
           O plano gratuito tem uma criança e já inclui a rotina completa. Sem cartão.
         </p>
-        <AuthForm
-          next={safeDestination(next ?? null)}
-          initialMode={confirmar ? "verify" : "login"}
-          initialMessage={
-            confirmar
-              ? "Confirme o e-mail: digite o e-mail e o código de seis dígitos que enviamos."
-              : ""
-          }
-        />
+        <AuthForm next={safeDestination(next ?? null)} reauthenticate={reautenticar === "1"} />
       </section>
     </main>
   );

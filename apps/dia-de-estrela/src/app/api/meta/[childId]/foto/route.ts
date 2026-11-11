@@ -13,9 +13,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ chi
   if (!parsed.success) return new Response("Not found", { status: 404 });
   const quem = await requestFamily();
   if (!quem) return new Response("Unauthorized", { status: 401 });
-  if (quem.childIds && !quem.childIds.includes(parsed.data))
-    return new Response("Not found", { status: 404 });
-  const foto = await goalPhoto(quem.ownerId, parsed.data);
+  const foto = await goalPhoto(quem, parsed.data);
   if (!foto) return new Response("Not found", { status: 404 });
   return new Response(new Uint8Array(foto.data), {
     headers: {

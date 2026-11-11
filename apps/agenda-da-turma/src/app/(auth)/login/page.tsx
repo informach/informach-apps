@@ -1,40 +1,30 @@
+import { webAppDestination, webSsoEnvironment } from "@informach/auth/web-sso-contract";
+import { WebSsoEntry } from "@informach/auth/web-sso-entry";
+import type { Route } from "next";
 import { redirect } from "next/navigation";
-import { LoginForm } from "@/features/onboarding/components/login-form";
 import { getCurrentUserServer } from "@/lib/auth";
-import { safeInternalPath } from "@/lib/url";
+import { env } from "@/lib/env";
 
-export const metadata = {
-  title: "Entrar",
-};
-
+export const metadata = { title: "Entrar" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<{ next?: string; reautenticar?: string }>;
 }) {
   const params = await searchParams;
-  const requested = paramValue(params.next);
-  const nextPath = safeInternalPath(requested, "/dashboard");
-  const defaultEmail = safeEmailHint(paramValue(params.email));
-  const user = await getCurrentUserServer();
-
-  if (user) redirect(nextPath);
-
-  // "Criar conta" só leva o destino que veio na URL (um convite, a oferta do
-  // Pro). O padrão de quem entra é Hoje, e mandá-lo ao cadastro faria a conta
-  // nova pular a criança e o primeiro recado (ver `afterVerification`).
-  const signupHref = requested ? `/signup?next=${encodeURIComponent(nextPath)}` : "/signup";
-
-  return <LoginForm nextPath={nextPath} signupHref={signupHref} defaultEmail={defaultEmail} />;
-}
-
-function paramValue(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-const SAFE_EMAIL_HINT = /^[^\s<>"]{1,254}@[^\s<>"]{1,254}$/;
-
-function safeEmailHint(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  return SAFE_EMAIL_HINT.test(value) ? value : undefined;
+  const next = webAppDestination(params.next, "/dashboard");
+  const reauthenticate = params.reautenticar === "1";
+  if ((await getCurrentUserServer()) && !reauthenticate) redirect(next as Route);
+  return (
+    <section className="mx-auto max-w-md rounded-2xl border bg-card p-6 shadow-sm">
+      <h1 className="mb-4 text-2xl font-semibold">Sua conta compartilhada</h1>
+      <WebSsoEntry
+        app="agenda-da-turma"
+        environment={webSsoEnvironment("agenda-da-turma", env.NEXT_PUBLIC_APP_URL)}
+        next={next}
+        reauthenticate={reauthenticate}
+        buttonClassName="mt-4 min-h-11 w-full rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground"
+      />
+    </section>
+  );
 }

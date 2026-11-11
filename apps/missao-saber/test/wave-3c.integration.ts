@@ -3,7 +3,8 @@ import { db } from "@informach/db";
 import { users } from "@informach/db/schema";
 import { beforeAll, describe, expect, it } from "vitest";
 import { assessment, coursesForGrade, findCourse } from "@/features/content/catalog";
-import { begin, createProfile, dashboard } from "@/features/learning/service";
+import { begin, dashboard } from "@/features/learning/service";
+import { fixtureAuthority, prepareStudent } from "./family-fixture";
 
 const owner = randomUUID();
 
@@ -20,7 +21,7 @@ describe("onda 3c em PostgreSQL isolado: OLITEF N3", () => {
   it("oferece a OLITEF N3 no ensino médio e abre a primeira unidade sem assinatura", async () => {
     for (const grade of [10, 11, 12])
       expect(coursesForGrade(grade).map((course) => course.id)).toContain("olitef-n3");
-    const profile = await createProfile(owner, {
+    const profile = await prepareStudent(await fixtureAuthority(owner), {
       nickname: "Caê",
       grade: 10,
       birthMonth: null,
@@ -28,8 +29,10 @@ describe("onda 3c em PostgreSQL isolado: OLITEF N3", () => {
       courseId: "olitef-n3",
       consent: true,
     });
-    expect((await dashboard(owner, profile.id)).course?.id).toBe("olitef-n3");
-    const sessao = await begin(owner, {
+    expect((await dashboard(await fixtureAuthority(owner), profile.id)).course?.id).toBe(
+      "olitef-n3",
+    );
+    const sessao = await begin(await fixtureAuthority(owner), {
       profileId: profile.id,
       lessonId: "modelos-financeiros-1",
       mode: "mission",

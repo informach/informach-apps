@@ -26,8 +26,8 @@ export async function recoverCheckout(deps: Deps, customer: Customer, intent: In
     mode: "subscription",
     customerId: customer.providerCustomerId,
     metadata: {
-      subject_type: "user",
-      subject_id: intent.userId,
+      subject_type: customer.subjectType,
+      subject_id: customer.subjectId,
       product_id: intent.productId,
       checkout_intent_id: intent.id,
     },
@@ -47,10 +47,17 @@ export async function managedSubscriptionCheckout(
   customer: Customer,
   productId: string,
   input: Pick<ProviderCheckoutInput, "priceId" | "successUrl" | "cancelUrl" | "trialDays">,
+  actorId?: string | null,
 ) {
   const prepare = deps.providerClient.prepareSubscriptionCheckout;
-  if (!prepare || !deps.providerClient.findCheckoutSession || customer.subjectType !== "user")
-    throw new BillingError("Managed checkout requires a user and a compatible provider");
+  if (
+    !prepare ||
+    !deps.providerClient.findCheckoutSession ||
+    customer.subjectType === "organization"
+  )
+    throw new BillingError("Managed checkout requires an adult payer and a compatible provider");
+  const payerId = customer.subjectType === "user" ? customer.subjectId : actorId;
+  if (!payerId) throw new BillingError("Managed checkout requires an authenticated payer");
   let [intent] = await deps.db
     .select()
     .from(checkoutIntents)
@@ -85,7 +92,7 @@ export async function managedSubscriptionCheckout(
       .insert(checkoutIntents)
       .values({
         customerId: customer.id,
-        userId: customer.subjectId,
+        userId: payerId,
         productId,
         request,
       })
@@ -100,7 +107,7 @@ export async function managedSubscriptionCheckout(
     .set({ requestStarted: true })
     .where(eq(checkoutIntents.id, intent.id));
   const state = await recoverCheckout(deps, customer, intent);
-  if (!state || state.status !== "open" || !state.url) throw new CheckoutPendingError();
+  if (state?.status !== "open" || !state.url) throw new CheckoutPendingError();
   return { id: state.id, url: state.url };
 }
 

@@ -3,18 +3,22 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { runBillableAgentCall } from "@informach/ai-core";
 import { err, ok } from "@informach/auth/server-actions";
+import { InsufficientCreditsError } from "@informach/billing";
+import { FamilyError } from "@informach/family";
 import type { z } from "zod";
 import { agentRunRecorder } from "@/ai/agent-run-recorder";
 import { AGENDA_MODELS } from "@/ai/models";
 import { generateNoticeExtraction } from "@/ai/notices/extract";
+import { actualNoticeCredits, assertCostAcceptance, noticeCostQuote } from "@/features/ai/costs";
+import { agendaAiBilling } from "@/features/ai/wallet-repository";
 import { todayLocalIso } from "@/features/dashboard/date";
 import { findAccessibleProfile } from "@/features/family/access";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { recordProductEvent } from "@/features/metrics/events";
 import { findClosestSubject } from "@/features/subjects/match-subject";
 import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { listTurmasForUser } from "@/features/turmas/repository";
 import { formatTurmaShort } from "@/features/turmas/utils";
-import { billing } from "@/lib/billing";
 import { env } from "@/lib/env";
 import { prepareNoticeAttachment } from "./attachment";
 import { visibleDraftActions, withActionIds } from "./drafts";
@@ -27,17 +31,24 @@ import {
 } from "./parse-repository";
 import { getNoticeSource, listNoticeApplications } from "./repository";
 import { type parseNoticeSchema, type StoredExtraction, storedExtractionSchema } from "./schemas";
-import { grantNoticeTrialCredits } from "./trial";
 
 const FEATURE = "agenda.notices.parse";
 
-export async function parseNotice(userId: string, input: z.infer<typeof parseNoticeSchema>) {
-  const profile = await findAccessibleProfile(userId, input.profileId);
-  if (!profile) return err({ code: "INVALID_PROFILE" } as const);
+export async function parseNotice(
+  actor: AgendaAuthority,
+  input: z.infer<typeof parseNoticeSchema>,
+) {
+  const { userId } = actor;
+  const quote = noticeCostQuote(input);
+  try {
+    assertCostAcceptance(input.acceptedCost, quote);
+  } catch {
+    return err({ code: "AI_PRICE_CHANGED" } as const);
+  }
+  const profile = await findAccessibleProfile(actor, input.profileId);
+  if (!profile?.canWrite || !profile.canUseAi) return err({ code: "INVALID_PROFILE" } as const);
   if (!(await isNoticeUserVerified(userId))) return err({ code: "VERIFY_EMAIL" } as const);
   if (!env.OPENROUTER_API_KEY) return err({ code: "AI_DISABLED" } as const);
-  const ownerId = profile.userId;
-  const isPro = await billing.hasProSubscription({ type: "user", id: ownerId });
   let attachment: Awaited<ReturnType<typeof prepareNoticeAttachment>>;
   try {
     attachment = await prepareNoticeAttachment(input.attachment);
@@ -61,26 +72,23 @@ export async function parseNotice(userId: string, input: z.infer<typeof parseNot
     .digest("hex");
   const now = new Date();
   const reserved = await reserveNoticeParse({
-    userId,
-    ownerId,
-    profileId: profile.id,
-    isPro,
+    actor,
     input,
     attachment,
     contentHash,
     now,
-    trialDailyBudget: env.AGENDA_TRIAL_DAILY_BUDGET,
   });
   if (!reserved.ok) return reserved;
   const { notice, replay } = reserved.value;
   if (replay) {
-    if (!(await getNoticeSource(userId, notice.id))) return err({ code: "NOT_FOUND" } as const);
+    if (!(await getNoticeSource(actor, notice.id))) return err({ code: "NOT_FOUND" } as const);
     return ok({
       noticeId: notice.id,
       extraction: visibleDraftActions(storedExtractionSchema.parse(notice.parsedResult)),
       alreadyConfirmed: notice.status === "confirmed",
-      appliedProfileIds: (await listNoticeApplications(userId, notice.id)).map((a) => a.profileId),
+      appliedProfileIds: (await listNoticeApplications(actor, notice.id)).map((a) => a.profileId),
       sourceProfileIds: notice.sourceProfileIds,
+      sharedWithinFamily: notice.sharedWithinFamily,
       replay: true,
     });
   }
@@ -96,26 +104,22 @@ export async function parseNotice(userId: string, input: z.infer<typeof parseNot
     // pré-seleciona. Não entra no contentHash de propósito — um replay devolve
     // as pistas da leitura anterior, e o construtor de rascunho as resolve
     // contra a lista atual, então matéria cadastrada depois ainda casa.
-    const subjectOptions = (await listSubjectOptionsByProfile(userId))[profile.id] ?? [];
+    const subjectOptions = (await listSubjectOptionsByProfile(actor))[profile.id] ?? [];
     const subjectNames = subjectOptions.map((subject) => subject.name);
     const currentYear = todayLocalIso(now).slice(0, 4);
     // Série da criança escolhida e das outras da casa, sem nome de ninguém: a
     // leitura avisa quando o documento é claramente de outra turma.
     //
-    // Pelo `ownerId`, não por quem está importando: um segundo adulto convidado
-    // não é dono de perfil nenhum, e a lista voltaria vazia para ele.
-    // E pela turma ATIVA de cada criança: `listTurmasForUser` traz também as de
-    // anos anteriores, então pegar a primeira mandava a turma de 2025 e fazia
-    // a leitura avisar "outra série" em todo documento correto.
-    const turmas = await listTurmasForUser(ownerId);
+    // Only currently readable classroom metadata enters the prompt.
+    const turmas = await listTurmasForUser(actor);
     const activeTurma = turmas.find((t) => t.id === profile.activeTurmaId) ?? null;
-    const otherTurmaLabels = turmas
-      .filter((t) => t.id !== profile.activeTurmaId && t.members.some((m) => m.isActive))
-      .map((t) => formatTurmaShort(t));
-    if (!isPro) await grantNoticeTrialCredits(ownerId, "base");
+    const { billing, owner } = await agendaAiBilling(actor, input.profileId);
     const out = await runBillableAgentCall<{ extraction: StoredExtraction; usage?: unknown }>({
       billing,
-      owner: { type: "user", id: ownerId },
+      owner,
+      estimateCost: () => ({ estimatedAmount: quote.maxCredits }),
+      computeActualCost: (result) => ({ actualAmount: actualNoticeCredits(result.usage) }),
+      reserveMetadata: { tariff: quote.version, maxCredits: quote.maxCredits },
       app: "agenda-da-turma",
       feature: FEATURE,
       model: AGENDA_MODELS[FEATURE],
@@ -133,14 +137,14 @@ export async function parseNotice(userId: string, input: z.infer<typeof parseNot
             subjectNames,
             currentYear,
             turmaLabel: activeTurma ? formatTurmaShort(activeTurma) : null,
-            otherTurmaLabels,
+            otherTurmaLabels: [],
           });
           if (!extraction.actions.length) throw new Error("NO_ACTIONS");
           // Cada ação ganha id aqui, antes de existir em qualquer lugar: é por
           // ele que a lixeira da revisão chega ao servidor.
           const stored = withActionIds(extraction);
           // Persist the output before debit. Recovery checks the reservation after an interrupted request.
-          await persistNoticeExtraction(notice.id, runId, stored);
+          await persistNoticeExtraction(actor, notice.id, runId, stored);
           return { extraction: stored, usage };
         } catch (error) {
           throw new Error(
@@ -171,13 +175,14 @@ export async function parseNotice(userId: string, input: z.infer<typeof parseNot
         event: "subject_hint_unmatched",
         count: hinted.length - matched,
       });
-    if (!(await getNoticeSource(userId, notice.id))) return err({ code: "NOT_FOUND" } as const);
+    if (!(await getNoticeSource(actor, notice.id))) return err({ code: "NOT_FOUND" } as const);
     return ok({
       noticeId: notice.id,
       extraction: visibleDraftActions(out.result.extraction),
       alreadyConfirmed: false,
       appliedProfileIds: [],
       sourceProfileIds: null,
+      sharedWithinFamily: false,
       replay: false,
     });
   } catch (error) {
@@ -185,7 +190,13 @@ export async function parseNotice(userId: string, input: z.infer<typeof parseNot
     if (notice.billingRunId && (await isNoticeRunCommitted(notice.billingRunId)))
       return err({ code: "PROCESSING" } as const);
     const code =
-      error instanceof Error && error.message === "NO_ACTIONS" ? "NO_ACTIONS" : "PARSE_FAILED";
+      error instanceof InsufficientCreditsError
+        ? "INSUFFICIENT_CREDITS"
+        : error instanceof FamilyError
+          ? "INVALID_PROFILE"
+          : error instanceof Error && error.message === "NO_ACTIONS"
+            ? "NO_ACTIONS"
+            : "PARSE_FAILED";
     if (!(await finishNoticeParse(notice.id, notice.billingRunId, "failed", code)))
       return err({ code: "PROCESSING" } as const);
     await recordProductEvent(userId, { event: "notice_failed", source: input.source });

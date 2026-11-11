@@ -1,5 +1,8 @@
 import "server-only";
 import { UnauthorizedError } from "@informach/auth";
+import { isRecentWebAuthentication } from "@informach/auth/web-sessions";
+import { FamilyError } from "@informach/family";
+import { unstable_rethrow } from "next/navigation";
 import { ZodError } from "zod";
 import { getSession, requireUser } from "./auth";
 import { AppError, assertAllowed } from "./errors";
@@ -14,7 +17,13 @@ export async function recentParent() {
   const user = await verifiedUser();
   const session = await getSession();
   assertAllowed(
-    session && Date.now() - new Date(session.session.createdAt).getTime() < 10 * 60_000,
+    session &&
+      (await isRecentWebAuthentication({
+        userId: user.id,
+        sessionId: session.session.id,
+        app: "bora-treinar",
+        maxAgeSeconds: 600,
+      })),
     "REAUTH",
     "Para proteger a área da família, entre novamente com seu e-mail. A confirmação vale por dez minutos.",
   );
@@ -25,9 +34,11 @@ export async function runAction<T>(operation: () => Promise<T>): Promise<ActionR
   try {
     return { ok: true, data: await operation() };
   } catch (error) {
+    unstable_rethrow(error);
     if (error instanceof UnauthorizedError)
       return { ok: false, error: "Entre novamente para continuar.", code: "AUTH" };
-    if (error instanceof AppError) return { ok: false, error: error.message, code: error.code };
+    if (error instanceof AppError || error instanceof FamilyError)
+      return { ok: false, error: error.message, code: error.code };
     if (error instanceof ZodError)
       return { ok: false, error: "Confira os campos e tente novamente.", code: "INPUT" };
     const incident = crypto.randomUUID();

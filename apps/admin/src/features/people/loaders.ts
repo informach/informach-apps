@@ -301,14 +301,14 @@ export async function loadFicha(id: string, staff: Staff) {
             ? "1 tarefa feita"
             : `${completions} tarefas feitas`,
       );
-      if (usage.estrela.hasGuardian) facts.push("Tem um segundo responsável na família");
+      if (usage.estrela.hasGuardian) facts.push("Compartilha uma família com outro adulto");
     }
     if (usage.estrela.guardianIn > 0)
-      facts.push("É o segundo responsável na família de outra pessoa");
+      facts.push("Participa de uma família sem administrar o grupo");
     add("dia-de-estrela", {
       facts,
       notes: [
-        "Das crianças, só a contagem. Nome, tarefas, metas, recompensas, voz e foto ficam fora.",
+        "Contagens dos perfis aos quais a conta tem leitura; tarefas feitas não indicam qual adulto agiu. Nome, tarefas, metas, recompensas, voz e foto ficam fora.",
       ],
     });
   }

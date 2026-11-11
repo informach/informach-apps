@@ -89,8 +89,22 @@ describe("situação das rotinas", () => {
     const edi = routine("edi", "reconcile");
     expect(edi.pausedNote).toBeUndefined();
     expect(routineState(edi, null, now)).toBe("never");
-    // Hoje todos os crons do catálogo estão ligados no Railway.
-    expect(ROUTINES.filter((item) => item.pausedNote)).toEqual([]);
+    expect(ROUTINES.filter((item) => item.app === "edi" && item.pausedNote)).toEqual([]);
+  });
+
+  it("mantém os jobs Compasso preparados visíveis e não oculta falhas depois da primeira execução", () => {
+    const prepared = ROUTINES.filter((item) => item.pausedNote);
+    expect(prepared).toHaveLength(7);
+    expect(prepared.filter((item) => item.job === "account-departure")).toHaveLength(5);
+    expect(prepared.filter((item) => item.app === "conta").map((item) => item.job)).toEqual([
+      "account-maintenance",
+      "billing",
+    ]);
+    for (const item of prepared) {
+      expect(routineState(item, null, now)).toBe("paused");
+      expect(routineState(item, run(0, { ok: false }), now)).toBe("failed");
+      expect(routineState(item, run(20), now)).toBe("late");
+    }
   });
 
   it("escreve a falha e o resumo em português, sem texto livre", () => {

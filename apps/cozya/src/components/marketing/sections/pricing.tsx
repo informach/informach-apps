@@ -3,8 +3,8 @@ import Link from "next/link";
 import {
   ANNUAL_SAVINGS,
   ANNUAL_SAVINGS_PCT,
+  MONTHLY_CREDITS,
   PRICING,
-  PRO_MONTHLY_CREDITS,
   WHOLE_PRICES,
 } from "@/features/billing/plans-content";
 import { TRIAL_CREDITS, TRIAL_DAYS } from "@/features/kitchen/trial";
@@ -15,7 +15,8 @@ const PRO = [
   "Lista do mercado somada, com despensa",
   "Modo cozinha e repetir a semana",
   "Receitas sem limite",
-  `${PRO_MONTHLY_CREDITS} créditos de IA por mês, também no anual. Cada receita trazida, encontrada ou adaptada usa 1.`,
+  `${MONTHLY_CREDITS} créditos de IA por mês, compartilhados entre os apps, sem acumular`,
+  `Todos os apps do Compasso, para até ${COMPASSO_POLICY.capacity.adults} adultos e ${COMPASSO_POLICY.capacity.dependents} dependentes`,
 ];
 
 const FREE = [
@@ -31,14 +32,14 @@ const CYCLES = [
     price: WHOLE_PRICES.annual,
     period: "por ano",
     note: `Equivale a ${PRICING.annual.price} por mês. Você economiza ${ANNUAL_SAVINGS} em relação a 12 mensalidades.`,
-    cta: "Assinar o Pro anual",
+    cta: "Conhecer o Compasso anual",
   },
   {
     value: "mensal",
     price: WHOLE_PRICES.monthly,
     period: "por mês",
     note: "Cobrado todo mês. Cancele pela conta quando quiser.",
-    cta: "Assinar o Pro mensal",
+    cta: "Conhecer o Compasso mensal",
   },
 ] as const;
 
@@ -67,29 +68,33 @@ export function Pricing() {
         </div>
         <ol className="pricing-steps">
           <li>
-            <span>Na primeira semana</span>
+            <span>Ative na Minha conta</span>
             <strong>{TRIAL_DAYS} dias para planejar</strong>
             <p>
-              Semana, lista, modo cozinha e {TRIAL_CREDITS} créditos de IA, com até{" "}
-              {FREE_RECIPE_LIMIT} receitas. Sem cartão.
+              Teste compartilhado do Compasso, com receitas sem limite e {TRIAL_CREDITS} créditos de
+              IA para todos os apps. Sem cartão e sem renovação automática.
             </p>
           </li>
           <li>
             <span>Depois de {TRIAL_DAYS} dias</span>
             <strong>Sem assinar, vira Free</strong>
-            <p>Suas receitas, o preparo e as listas ficam. Novas semanas e a IA ficam no Pro.</p>
+            <p>
+              Suas receitas, o preparo e as listas ficam. As recargas de IA continuam disponíveis.
+            </p>
           </li>
           <li>
             <span>Quando quiser</span>
-            <strong>Assina o Pro</strong>
-            <p>E cancela pela conta quando quiser. O Pro vai até o fim do período pago.</p>
+            <strong>Assine o Compasso</strong>
+            <p>
+              Uma assinatura para os apps web incluídos. Cancele pela Minha conta quando quiser.
+            </p>
           </li>
         </ol>
         <div className="pricing-grid">
           {/* Native radios switch the cycle, so the offer also works without JavaScript. */}
           <article className="landing-plan landing-plan-pro" aria-labelledby="pro-title">
             <div className="plan-head">
-              <h3 id="pro-title">Cozya Pro</h3>
+              <h3 id="pro-title">Compasso</h3>
               <fieldset className="plan-cycle">
                 <legend className="sr-only">Ciclo de cobrança</legend>
                 <label>
@@ -140,10 +145,14 @@ export function Pricing() {
           </article>
         </div>
         <p className="pricing-credit-note">
-          Ditar uma busca também usa 1 crédito, e se a IA não conseguir, o crédito volta. Escrever
-          do seu jeito, planejar, montar a lista e cozinhar não usam créditos.
+          O custo da IA aparece antes de cada uso; fotos e operações maiores podem consumir mais.
+          Recargas não vencem. Escrever, planejar, montar a lista e cozinhar não usam créditos. Suas
+          receitas continuam pessoais, mesmo com a assinatura compartilhada. Recreio, Morada e Suíte
+          Edi são separados.
         </p>
       </div>
     </section>
   );
 }
+
+import { COMPASSO_POLICY } from "@informach/config/collections";

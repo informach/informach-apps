@@ -15,6 +15,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "./core";
+import { familyAppProfiles, familyGroups } from "./family";
 
 export const diaDeEstrela = pgSchema("dia_de_estrela");
 const time = (name: string) => timestamp(name, { withTimezone: true }).defaultNow().notNull();
@@ -28,15 +29,16 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
 export type EstrelaStep = { text: string; detail?: string };
 
 /**
- * A família é a conta do titular (1:1 com `core.users`). Guarda o fuso, o PIN
- * da área dos pais (só o hash `scrypt`) e os ajustes que valem para a casa.
+ * Household settings belong to the canonical group. The original creator is historical only.
  */
 export const estrelaFamilies = diaDeEstrela.table(
   "families",
   {
-    userId: text("user_id")
+    familyGroupId: uuid("family_group_id")
       .primaryKey()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => familyGroups.id, { onDelete: "restrict" }),
+    pinGeneration: uuid("pin_generation").defaultRandom().notNull(),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
     timezone: text("timezone").notNull().default("America/Sao_Paulo"),
     /** `scrypt$<sal>$<hash>`; nulo até o primeiro uso terminar. */
     pinHash: text("pin_hash"),
@@ -67,61 +69,18 @@ export const estrelaChildren = diaDeEstrela.table(
   "children",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id")
+    /** Canonical identity; the native child ID and all history stay stable. */
+    familyProfileId: uuid("family_profile_id")
       .notNull()
-      .references(() => estrelaFamilies.userId, { onDelete: "cascade" }),
-    name: text("name").notNull(),
-    color: text("color").notNull(),
+      .references(() => familyAppProfiles.id, { onDelete: "restrict" })
+      .unique(),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
     position: integer("position").notNull().default(0),
     /** Criança escolhida para continuar ativa quando o plano comporta menos crianças. */
     accessEnabled: boolean("access_enabled").notNull().default(true),
     createdAt: time("created_at"),
   },
-  (t) => [
-    index("estrela_children_owner").on(t.userId, t.position),
-    check("estrela_children_name", sql`char_length(${t.name}) between 1 and 24`),
-    check("estrela_children_color", sql`${t.color} ~ '^#[0-9A-F]{6}$'`),
-  ],
-);
-
-/** Segundo responsável: uma pessoa por família, vê e cuida de todas as crianças. */
-export const estrelaGuardians = diaDeEstrela.table(
-  "guardians",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    ownerUserId: text("owner_user_id")
-      .notNull()
-      .references(() => estrelaFamilies.userId, { onDelete: "cascade" }),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    createdAt: time("created_at"),
-  },
-  (t) => [
-    uniqueIndex("estrela_guardians_one_per_family").on(t.ownerUserId),
-    uniqueIndex("estrela_guardians_one_family").on(t.userId),
-    check("estrela_guardians_not_owner", sql`${t.ownerUserId} <> ${t.userId}`),
-  ],
-);
-
-export const estrelaGuardianInvitations = diaDeEstrela.table(
-  "guardian_invitations",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    ownerUserId: text("owner_user_id")
-      .notNull()
-      .references(() => estrelaFamilies.userId, { onDelete: "cascade" }),
-    email: text("email").notNull(),
-    tokenHash: text("token_hash").notNull(),
-    expiresAt: moment("expires_at").notNull(),
-    acceptedAt: moment("accepted_at"),
-    revokedAt: moment("revoked_at"),
-    createdAt: time("created_at"),
-  },
-  (t) => [
-    uniqueIndex("estrela_invitation_token").on(t.tokenHash),
-    index("estrela_invitation_owner").on(t.ownerUserId),
-  ],
+  (t) => [index("estrela_children_owner").on(t.userId, t.position)],
 );
 
 /** Aparelho da criança pareado à família. O token fica só como hash. */
@@ -129,10 +88,14 @@ export const estrelaDevices = diaDeEstrela.table(
   "devices",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    familyGroupId: uuid("family_group_id")
+      .notNull()
+      .references(() => familyGroups.id, { onDelete: "restrict" }),
     userId: text("user_id")
       .notNull()
-      .references(() => estrelaFamilies.userId, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "cascade" }),
     tokenHash: text("token_hash").notNull(),
+    webParticipationRevision: integer("web_participation_revision").notNull().default(0),
     label: text("label").notNull(),
     expiresAt: moment("expires_at").notNull(),
     connectedAt: moment("connected_at"),
@@ -144,12 +107,16 @@ export const estrelaDevices = diaDeEstrela.table(
     uniqueIndex("estrela_device_token").on(t.tokenHash),
     index("estrela_device_owner").on(t.userId),
     check("estrela_device_label", sql`char_length(${t.label}) between 2 and 60`),
+    check("estrela_device_web_revision", sql`${t.webParticipationRevision} >= 0`),
   ],
 );
 
 export const estrelaDeviceChildren = diaDeEstrela.table(
   "device_children",
   {
+    delegationKey: uuid("delegation_key").notNull(),
+    readGrantId: uuid("read_grant_id").notNull(),
+    writeGrantId: uuid("write_grant_id").notNull(),
     deviceId: uuid("device_id")
       .notNull()
       .references(() => estrelaDevices.id, { onDelete: "cascade" }),
@@ -298,9 +265,10 @@ export const estrelaRewards = diaDeEstrela.table(
   "rewards",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id")
+    familyGroupId: uuid("family_group_id")
       .notNull()
-      .references(() => estrelaFamilies.userId, { onDelete: "cascade" }),
+      .references(() => familyGroups.id, { onDelete: "restrict" }),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
     kind: text("kind", { enum: ["money", "custom"] }).notNull(),
     name: text("name").notNull(),
     icon: text("icon").notNull(),
@@ -440,6 +408,7 @@ export const estrelaNotificationDeliveries = diaDeEstrela.table(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     messageKey: text("message_key").notNull(),
+    webParticipationRevision: integer("web_participation_revision").notNull().default(0),
     status: text("status", { enum: ["processing", "sent", "failed"] })
       .notNull()
       .default("processing"),
@@ -448,5 +417,8 @@ export const estrelaNotificationDeliveries = diaDeEstrela.table(
     sentAt: moment("sent_at"),
     createdAt: time("created_at"),
   },
-  (t) => [uniqueIndex("estrela_delivery_once").on(t.userId, t.messageKey)],
+  (t) => [
+    uniqueIndex("estrela_delivery_once").on(t.userId, t.messageKey),
+    check("estrela_delivery_web_revision", sql`${t.webParticipationRevision} >= 0`),
+  ],
 );

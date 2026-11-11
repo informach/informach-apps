@@ -1,23 +1,18 @@
 import "server-only";
 import { and, count, eq, gte, inArray, lt, sql } from "@informach/db";
 import {
-  agendaFamilyMembers,
-  agendaStudentProfiles,
   agentRuns,
   events as auditEvents,
-  boraFamilies,
   cozyaProfiles,
   creditReservations,
   customers,
   ediDevices,
   ediEntitlements,
-  estrelaFamilies,
-  estrelaGuardians,
-  missaoFamilies,
   missaoReports,
   users,
 } from "@informach/db/schema";
 import { readDb } from "@/lib/read-db";
+import { familyPresence } from "../people/family-metadata";
 import type { DayCount } from "./logic";
 import { memo } from "./memo";
 
@@ -69,12 +64,10 @@ export function multiProductAccounts(): Promise<number> {
         select presence.user_id
         from (
           select ${cozyaProfiles.userId} as user_id, 'cozya' as product from ${cozyaProfiles}
-          union select ${agendaStudentProfiles.userId}, 'agenda-da-turma' from ${agendaStudentProfiles}
-          union select ${agendaFamilyMembers.userId}, 'agenda-da-turma' from ${agendaFamilyMembers}
-          union select ${missaoFamilies.userId}, 'missao-saber' from ${missaoFamilies}
-          union select ${boraFamilies.userId}, 'bora-treinar' from ${boraFamilies}
-          union select ${estrelaFamilies.userId}, 'dia-de-estrela' from ${estrelaFamilies}
-          union select ${estrelaGuardians.userId}, 'dia-de-estrela' from ${estrelaGuardians}
+          union select user_id, 'agenda-da-turma' from (${familyPresence("agenda-da-turma")}) agenda_presence
+          union select user_id, 'missao-saber' from (${familyPresence("missao-saber")}) missao_presence
+          union select user_id, 'bora-treinar' from (${familyPresence("bora-treinar")}) bora_presence
+          union select user_id, 'dia-de-estrela' from (${familyPresence("dia-de-estrela")}) estrela_presence
           union select ${ediDevices.userId}, 'edi' from ${ediDevices}
           union select ${ediEntitlements.userId}, 'edi' from ${ediEntitlements}
           union select ${customers.subjectId}, ${customers.app} from ${customers}

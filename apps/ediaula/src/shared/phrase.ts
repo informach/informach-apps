@@ -85,6 +85,11 @@ export interface PhraseOptions {
    * direction acts on.
    */
   loose?: boolean;
+  /**
+   * With `loose`, how many words may be heard otherwise instead of one in four: for a search
+   * already held to the stretch where the phrase must be (the line of the script that says it).
+   */
+  misses?: number;
 }
 
 /**
@@ -152,7 +157,7 @@ export function findPhrase(
   // The fewest words heard otherwise first: a place that says them all always wins.
   for (
     let misses = 1;
-    !found.length && opts.loose && misses <= looseMisses(wanted.length);
+    !found.length && opts.loose && misses <= (opts.misses ?? looseMisses(wanted.length));
     misses++
   )
     found = places(misses);

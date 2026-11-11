@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
+import { getAppUrl } from "@informach/config/domains";
 import { db, eq } from "@informach/db";
 import {
   customers,
@@ -9,7 +10,7 @@ import {
   users,
 } from "@informach/db/schema";
 import { expect, type Page, test } from "@playwright/test";
-import { enterStudy, prepareProfile, startMission } from "./family-helpers";
+import { enterStudy, prepareProfile, registerParent, startMission } from "./family-helpers";
 
 async function profile(page: Page, baseURL: string | undefined, nickname: string) {
   if (!baseURL) throw new Error("Missing isolated app URL");
@@ -22,17 +23,7 @@ async function profile(page: Page, baseURL: string | undefined, nickname: string
     "x-real-ip": `198.18.${client[0]}.${client[1]}`,
   };
   await page.setExtraHTTPHeaders({ "x-real-ip": headers["x-real-ip"] });
-  const signup = await page.request.post("/api/auth/sign-up/email", {
-    headers,
-    data: { email, password, name: "Revisão da experiência" },
-  });
-  expect(signup.ok(), await signup.text()).toBe(true);
-  await db.update(users).set({ emailVerified: true }).where(eq(users.email, email));
-  const login = await page.request.post("/api/auth/sign-in/email", {
-    headers,
-    data: { email, password },
-  });
-  expect(login.ok(), await login.text()).toBe(true);
+  await registerParent(page, email, password);
   await prepareProfile(page, nickname, "6", "olitef-n1");
   await enterStudy(page, nickname);
   return { email };
@@ -144,29 +135,34 @@ test("recuperação de senha informa o limite em vez de prometer um código", as
   baseURL,
 }) => {
   if (!baseURL) throw new Error("Missing isolated app URL");
+  const central = getAppUrl("conta", "development");
   const headers = {
-    origin: baseURL,
-    "x-real-ip": test.info().project.name === "mobile" ? "192.0.2.34" : "192.0.2.33",
+    origin: central,
+    "x-real-ip": test.info().project.name.endsWith("mobile") ? "192.0.2.34" : "192.0.2.33",
   };
-  await page.context().setExtraHTTPHeaders(headers);
+  await page.context().setExtraHTTPHeaders({ "x-real-ip": headers["x-real-ip"] });
   const email = `limit-${randomUUID()}@example.test`;
   for (let attempt = 0; attempt < 3; attempt++) {
-    const response = await page.request.post("/api/auth/email-otp/request-password-reset", {
-      headers,
-      data: { email },
-    });
+    const response = await page.request.post(
+      `${central}/api/auth/email-otp/request-password-reset`,
+      {
+        headers,
+        data: { email },
+      },
+    );
     expect(response.ok(), await response.text()).toBe(true);
   }
   await page.goto("/entrar");
-  await page.getByLabel("E-mail do responsável", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Esqueci minha senha" }).click();
+  await page.getByRole("button", { name: "Continuar com minha conta", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`^${central}/entrar`));
+  await page.getByLabel("E-mail", { exact: true }).fill(email);
   const rejected = page.waitForResponse((response) =>
     response.url().endsWith("/email-otp/request-password-reset"),
   );
-  await page.getByRole("button", { name: "Enviar código de recuperação" }).click();
+  await page.getByRole("button", { name: "Esqueci minha senha" }).click();
   expect((await rejected).status()).toBe(429);
   await expect(page.getByRole("status")).toContainText("Muitas tentativas");
-  await expect(page.getByLabel("Código de seis dígitos")).toHaveCount(0);
+  await expect(page.getByLabel("Código recebido")).toHaveCount(0);
 });
 
 test("caderno guarda contexto, permite editar, buscar, arquivar e restaurar", async ({

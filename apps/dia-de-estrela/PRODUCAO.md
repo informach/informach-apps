@@ -4,6 +4,14 @@
 
 Destino previsto: `https://dia-de-estrela.informach.com.br`, no projeto Railway `informach-apps`, ambiente `production`, com o PostgreSQL e o Redis compartilhados.
 
+## Frente Compasso (10/11/2026)
+
+A branch em implementação substitui a venda individual pelo Compasso e o login local pela central. **Não provisionar o antigo produto Família nem usar a sequência histórica abaixo para lançar esta branch.** Catálogo e operação comercial atuais estão em [Minha conta](../conta/PRODUCAO.md); os adapters antigos ficam temporariamente apenas para conciliar contratos anteriores até a conclusão financeira. O app ainda exige essas variáveis no validador enquanto essa retirada está pendente.
+
+O contrato de dados exige as migrations até `0116`; `/api/ready` não deve ser contornado. `0115` aborta proveniência conflitante e preserva históricos/credenciais válidas; `0116` remove convites locais e identidade duplicada. Há ensaio histórico isolado, mas não há ensaio de corte em produção. Sessões web são vinculadas à central; Redis continua para pub/sub e jobs. O cursor dos alertas passa a `dia-de-estrela:jobs:alertas:group-cursor`.
+
+Gates e pendências de lançamento no [registro Compasso](../../docs/propostas/assinatura-web-2026-11-09/implementacao.md). A seção seguinte descreve a preparação anterior à decisão Compasso, preservada como histórico operacional; ela não autoriza criar produtos ou serviços.
+
 ## Serviços previstos
 
 | Recurso | Configuração | Estado |

@@ -90,54 +90,83 @@ function barramento(): Barramento | null {
   return global.__estrelaBus ?? null;
 }
 
-const canalDa = (ownerId: string) => `dia-de-estrela:familia:${ownerId}`;
+const canalDa = (familyGroupId: string) => `dia-de-estrela:familia:${familyGroupId}`;
 
 /** Avisa as telas abertas da família. Nunca derruba a operação que já foi gravada. */
-export async function avisarFamilia(ownerId: string, mudanca: Mudanca) {
+export async function avisarFamilia(familyGroupId: string, mudanca: Mudanca) {
   try {
-    await barramento()?.publicar(canalDa(ownerId), mudanca);
+    await barramento()?.publicar(canalDa(familyGroupId), mudanca);
   } catch {
     // As telas também se atualizam sozinhas de tempos em tempos.
   }
 }
 
-/** Resposta SSE com batimento a cada 15 s; fecha a assinatura quando o cliente sai. */
-export function fluxoDaFamilia(ownerId: string, sinal: AbortSignal) {
+/** Rechecks live session/delegation before every signal and heartbeat. */
+export function fluxoDaFamilia(
+  familyGroupId: string,
+  sinal: AbortSignal,
+  authorized: () => Promise<boolean>,
+) {
   const bus = barramento();
   if (!bus) return new Response("Indisponível", { status: 503 });
-  const codificador = new TextEncoder();
-  let encerrar: () => void = () => {};
-  const corpo = new ReadableStream<Uint8Array>({
-    start(controle) {
-      const enviar = (texto: string) => {
+  const encoder = new TextEncoder();
+  let close: () => void = () => {};
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      let closed = false;
+      let checking = false;
+      let unsubscribe: () => void = () => {};
+      let heartbeat: ReturnType<typeof setInterval> | undefined;
+      let lifetime: ReturnType<typeof setTimeout> | undefined;
+      const abort = () => close();
+      close = () => {
+        if (closed) return;
+        closed = true;
+        if (heartbeat) clearInterval(heartbeat);
+        if (lifetime) clearTimeout(lifetime);
+        unsubscribe();
+        sinal.removeEventListener("abort", abort);
         try {
-          controle.enqueue(codificador.encode(texto));
+          controller.close();
         } catch {
-          encerrar();
+          /* Client already closed. */
         }
       };
-      enviar("retry: 5000\n\n");
-      const desassinar = bus.assinar(canalDa(ownerId), (m) => enviar(`data: ${m}\n\n`));
-      const batimento = setInterval(() => enviar(": ping\n\n"), 15_000);
-      let encerrado = false;
-      encerrar = () => {
-        if (encerrado) return;
-        encerrado = true;
-        clearInterval(batimento);
-        desassinar();
+      const send = async (text: string) => {
+        // All signals cause a refresh; coalesce while authorization is in flight.
+        if (closed || checking) return;
+        checking = true;
         try {
-          controle.close();
+          if (!(await authorized())) {
+            close();
+            return;
+          }
+          if (!closed) controller.enqueue(encoder.encode(text));
         } catch {
-          // já fechado
+          close();
+        } finally {
+          checking = false;
         }
       };
-      sinal.addEventListener("abort", () => encerrar(), { once: true });
+      sinal.addEventListener("abort", abort, { once: true });
+      if (sinal.aborted) {
+        close();
+        return;
+      }
+      unsubscribe = bus.assinar(canalDa(familyGroupId), (message) => {
+        void send(`data: ${message}\n\n`);
+      });
+      heartbeat = setInterval(() => {
+        void send(": ping\n\n");
+      }, 15_000);
+      lifetime = setTimeout(close, 5 * 60_000);
+      void send("retry: 5000\n\n");
     },
     cancel() {
-      encerrar();
+      close();
     },
   });
-  return new Response(corpo, {
+  return new Response(body, {
     headers: {
       "Content-Type": "text/event-stream; charset=utf-8",
       "Cache-Control": "no-store, no-transform",

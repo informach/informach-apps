@@ -49,9 +49,18 @@
     "subject": "Seu código de verificação para {appName}",
     "preheader": "Use o código abaixo para confirmar seu email no {appName}.",
     "title": "Confirme seu email",
-    "body": "Obrigado por se cadastrar no <strong>{appName}</strong>.",
-    "instruction": "Use o código abaixo na tela de cadastro para confirmar seu email.",
+    "body": "Você solicitou a confirmação deste endereço no <strong>{appName}</strong>.",
+    "instruction": "Use o código abaixo na tela em que solicitou a confirmação do email.",
     "otpLabel": "Seu código",
+    "expiresIn": "O código expira em {minutes} minutos. Se não foi você que solicitou, ignore este email."
+  },
+  "changeEmailOtp": {
+    "subject": "Confirme seu novo email em {appName}",
+    "preheader": "Conclua a troca de email que você iniciou no {appName}.",
+    "title": "Confirme o novo email",
+    "body": "Você solicitou usar este endereço na sua conta do <strong>{appName}</strong>.",
+    "instruction": "Digite o código na tela de troca de email. A alteração só acontece após essa confirmação.",
+    "otpLabel": "Código de confirmação",
     "expiresIn": "O código expira em {minutes} minutos. Se não foi você que solicitou, ignore este email."
   },
   "signInEmailOtp": {
@@ -156,12 +165,16 @@
     "cta": "Reativar assinatura"
   },
   "creditsPurchased": {
-    "subject": "{appName} — créditos adicionados",
-    "preheader": "{creditAmount} créditos foram adicionados à sua conta.",
-    "title": "Créditos adicionados",
-    "body": "Adicionamos <strong>{creditAmount} créditos</strong> à sua conta no {appName}.",
-    "instruction": "Seu novo saldo é de <strong>{balanceAfter} créditos</strong>. Eles ficam disponíveis imediatamente para uso.",
-    "cta": "Ver dashboard"
+    "subject": "{appName} — compra de créditos",
+    "preheader": "Registramos sua compra de {creditAmount} créditos.",
+    "title": "Compra de créditos registrada",
+    "body": "Registramos uma compra de <strong>{creditAmount} créditos</strong> no {appName}.",
+    "instruction": "O saldo registrado neste momento é de <strong>{balanceAfter} créditos</strong>.",
+    "conversion": "Esta compra de {sourceCredits} créditos no {sourceName} foi convertida em {convertedCredits} créditos Compasso, conforme a transferência da sua carteira. Os créditos seguem para a família escolhida nessa transferência.",
+    "underReview": "O pagamento está em análise. Os créditos dessa compra aguardam a conclusão da conferência para ficar disponíveis.",
+    "refunded": "Já foi registrado um estorno correspondente a {refundedCredits} créditos desta compra.",
+    "statement": "Consulte o extrato na sua conta para conferir disponibilidade, validade e movimentações posteriores.",
+    "cta": "Ver minha conta"
   },
   "billingCreditsWarning": {
     "subject": "{appName} — {remaining} de {total} créditos restantes",

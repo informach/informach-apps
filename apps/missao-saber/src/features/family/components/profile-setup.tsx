@@ -1,14 +1,16 @@
 "use client";
+import { getAppUrl } from "@informach/config/domains";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { BotaoChapa } from "@/components/ui/botao-chapa";
 import { createProfileAction } from "@/features/learning/actions";
+import { ssoEnvironment } from "@/lib/auth-client";
 import { useServerAction } from "@/lib/use-server-action";
 
 const draftSchema = z.object({
-  nickname: z.string().max(24),
+  personId: z.union([z.string().uuid(), z.literal("")]),
   grade: z.number().int().min(2).max(12).nullable(),
   courseId: z.string().max(40),
   consent: z.boolean(),
@@ -20,14 +22,18 @@ export function ProfileSetup({
   courses,
   grades,
   ownerId,
+  familyGroupId,
+  people,
 }: {
   courses: { id: string; label: string; grades: number[]; description: string }[];
   grades: { value: number; label: string }[];
   ownerId: string;
+  familyGroupId: string;
+  people: { id: string; name: string }[];
 }) {
-  const key = `missao-setup:${ownerId}`;
+  const key = `missao-setup:v2:${ownerId}:${familyGroupId}`;
   const [draft, setDraft] = useState<Draft>({
-    nickname: "",
+    personId: "",
     grade: null,
     courseId: "",
     consent: false,
@@ -43,12 +49,13 @@ export function ProfileSetup({
     try {
       const saved = sessionStorage.getItem(key);
       const parsed = saved ? draftSchema.safeParse(JSON.parse(saved)) : null;
-      if (parsed?.success) setDraft(parsed.data);
+      if (parsed?.success && people.some((person) => person.id === parsed.data.personId))
+        setDraft(parsed.data);
     } catch {
       /* The form remains usable when browser draft storage is unavailable. */
     }
     setLoaded(true);
-  }, [key]);
+  }, [key, people]);
   useEffect(() => {
     if (!loaded) return;
     try {
@@ -91,11 +98,10 @@ export function ProfileSetup({
           start(async () => {
             try {
               const result = await createProfileAction({
-                nickname: draft.nickname,
+                personId: draft.personId,
                 grade: draft.grade,
                 courseId: draft.courseId,
                 consent: draft.consent,
-                avatar: "cometa",
                 birthMonth: null,
               });
               if (!result.ok) {
@@ -118,25 +124,40 @@ export function ProfileSetup({
         }}
       >
         <h2 ref={title} tabIndex={-1} className="text-2xl font-bold text-tinta">
-          {draft.step === 1 ? "Quem vai estudar?" : `Um começo para ${draft.nickname}`}
+          {draft.step === 1
+            ? "Quem vai estudar?"
+            : `Um começo para ${people.find((person) => person.id === draft.personId)?.name ?? "o estudante"}`}
         </h2>
         {draft.step === 1 ? (
           <>
             <div>
-              <label htmlFor="setup-nickname" className="block text-sm font-semibold">
-                Apelido do estudante
+              <label htmlFor="setup-person" className="block text-sm font-semibold">
+                Pessoa da família
               </label>
-              <input
-                id="setup-nickname"
-                value={draft.nickname}
-                onChange={(event) => setDraft({ ...draft, nickname: event.target.value })}
-                minLength={2}
-                maxLength={24}
+              <select
+                id="setup-person"
+                value={draft.personId}
+                disabled={!loaded || pending}
                 required
-                autoComplete="off"
-                placeholder="Sem nome completo"
+                onChange={(event) => setDraft({ ...draft, personId: event.target.value })}
                 className="mt-2 min-h-12 w-full rounded-controle border border-input bg-background px-3"
-              />
+              >
+                <option value="" disabled>
+                  Escolha quem vai estudar
+                </option>
+                {people.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-2 text-sm text-tinta-suave">
+                A pessoa é a mesma nos outros apps.{" "}
+                <a className="underline" href={getAppUrl("conta", ssoEnvironment)}>
+                  Cadastrar ou gerenciar pessoas na Minha conta
+                </a>
+                .
+              </p>
             </div>
             <div>
               <label htmlFor="setup-grade" className="block text-sm font-semibold">
@@ -166,8 +187,8 @@ export function ProfileSetup({
                 ))}
               </select>
               <p className="mt-2 text-sm text-tinta-suave">
-                Usamos o ano para mostrar atividades adequadas. Avatar e outras preferências podem
-                ser escolhidos depois.
+                Usamos o ano para mostrar atividades adequadas. Nome e avatar são gerenciados na
+                Minha conta.
               </p>
             </div>
             <label className="flex items-start gap-3 text-sm leading-relaxed">
@@ -187,7 +208,12 @@ export function ProfileSetup({
                 .
               </span>
             </label>
-            <BotaoChapa type="submit">Continuar para a trilha</BotaoChapa>
+            <BotaoChapa
+              type="submit"
+              disabled={!loaded || !people.some((person) => person.id === draft.personId)}
+            >
+              Continuar para a trilha
+            </BotaoChapa>
           </>
         ) : (
           <>
@@ -228,7 +254,9 @@ export function ProfileSetup({
             <div className="flex flex-wrap gap-3">
               <BotaoChapa
                 type="submit"
-                disabled={pending || !eligible.some((course) => course.id === draft.courseId)}
+                disabled={
+                  !loaded || pending || !eligible.some((course) => course.id === draft.courseId)
+                }
               >
                 {pending ? "Criando perfil…" : "Criar perfil"}
               </BotaoChapa>

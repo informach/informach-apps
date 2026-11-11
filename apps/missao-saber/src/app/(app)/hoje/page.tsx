@@ -234,8 +234,7 @@ export default async function Today({
         </section>
       )}
 
-      {/* Desafio da família: barra única, somada. A criança vê a meta da casa,
-          nunca a posição dela em relação aos irmãos. */}
+      {/* The device sees only the selected student's contribution to the family goal. */}
       {desafio?.goal ? (
         <Chapa tom="lima" className="mt-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -247,8 +246,8 @@ export default async function Today({
             </span>
           </div>
           <p className="mt-2.5 text-sm text-tinta">
-            Estratégias diferentes resolvidas sem pistas por toda a casa nesta semana. Cada
-            descoberta nova soma na mesma barra.
+            Esta barra mostra suas estratégias diferentes resolvidas sem pistas nesta semana. Cada
+            descoberta sua contribui para a meta da família.
           </p>
           <BarraProgresso
             feitos={desafio.progress}

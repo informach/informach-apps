@@ -160,23 +160,23 @@ test("public copy, offer, FAQ and signup links work without JavaScript", async (
     // The cycle is a pair of native radios: the annual price shows first and the monthly one is
     // a tap away, without JavaScript.
     const pro = page.locator(".landing-plan-pro");
-    await expect(pro.locator('[data-cycle="anual"] .plan-price')).toHaveText(/R\$\s*149\s*por ano/);
+    await expect(pro.locator('[data-cycle="anual"] .plan-price')).toHaveText(/R\$\s*499\s*por ano/);
     await expect(
-      page.getByRole("link", { name: "Assinar o Pro anual", exact: true }),
+      page.getByRole("link", { name: "Conhecer o Compasso anual", exact: true }),
     ).toHaveAttribute("href", "/signup?plan=pro&cycle=anual");
-    await expect(page.getByRole("link", { name: "Assinar o Pro mensal", exact: true })).toHaveCount(
-      0,
-    );
+    await expect(
+      page.getByRole("link", { name: "Conhecer o Compasso mensal", exact: true }),
+    ).toHaveCount(0);
     await pro.getByText("Mensal", { exact: true }).click();
     await expect(pro.locator('[data-cycle="mensal"] .plan-price')).toHaveText(
-      /R\$\s*14,90\s*por mês/,
+      /R\$\s*49,90\s*por mês/,
     );
     await expect(
-      page.getByRole("link", { name: "Assinar o Pro mensal", exact: true }),
+      page.getByRole("link", { name: "Conhecer o Compasso mensal", exact: true }),
     ).toHaveAttribute("href", "/signup?plan=pro&cycle=mensal");
-    await expect(page.getByRole("link", { name: "Assinar o Pro anual", exact: true })).toHaveCount(
-      0,
-    );
+    await expect(
+      page.getByRole("link", { name: "Conhecer o Compasso anual", exact: true }),
+    ).toHaveCount(0);
     // Who makes it: the same photo and words as the Informach site, and the Instagram direct.
     const founders = page.locator("#quem-faz");
     await expect(founders.getByRole("heading", { level: 2 })).toHaveText(
@@ -193,7 +193,9 @@ test("public copy, offer, FAQ and signup links work without JavaScript", async (
       .filter({ hasText: "Preciso de cartão para experimentar?" });
     await faq.locator("summary").click();
     await expect(faq.locator("p")).toBeVisible();
-    await expect(faq.locator("p")).toContainText("3 créditos de IA para o período");
+    await expect(faq.locator("p")).toContainText(
+      "20 créditos de IA compartilhados entre os apps da família",
+    );
     const image = await page.locator('meta[property="og:image"]').getAttribute("content");
     expect(image).toBe(`${baseURL}/marketing/cozya-social.png`);
     const response = await page.request.get(image ?? "");
@@ -201,7 +203,7 @@ test("public copy, offer, FAQ and signup links work without JavaScript", async (
     expect(response.headers()["content-type"]).toContain("image/png");
     // The development server may compile the signup route for the first time here.
     await page.locator("#primeiro-convite a").click({ timeout: 60000 });
-    await expect(page).toHaveURL(/\/signup$/);
+    await expect(page).toHaveURL(/\/login\?next=%2Fhoje$/);
   } finally {
     await context.close();
   }

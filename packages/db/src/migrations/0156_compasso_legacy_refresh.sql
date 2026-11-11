@@ -1,0 +1,2 @@
+ALTER TABLE "billing"."legacy_contract_observations" ADD COLUMN "refresh_attempted_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "legacy_contract_observation_attempt_idx" ON "billing"."legacy_contract_observations" USING btree ("refresh_attempted_at");

@@ -68,6 +68,7 @@ import { forgetConversation, loadChat, saveChat } from "./conversations.ts";
 import { getCourseTemplate, localMusicPath, saveCourseTemplate } from "./courseTemplates.ts";
 import { registerCursorSprites } from "./cursorSprite.ts";
 import { registerDrawingVideos } from "./drawingVideo.ts";
+import { markPlaced, readReceived } from "./edisvgInbox.ts";
 import {
   codexSelfTest,
   resetEngineSession,
@@ -703,6 +704,15 @@ function registerIpc(): void {
   });
 
   ipcMain.handle("media:probe", (_e, path: string) => probe(path));
+  // The animations EdiSVG sent for the open lesson (edisvgInbox.ts): its videos may be read.
+  ipcMain.handle("edisvg:received", async (_e, ids: unknown) => {
+    const received = await readReceived(app.getPath("userData"), ids);
+    if (received) for (const item of received.items) await desktopFiles.grantRead(item.path);
+    return received;
+  });
+  ipcMain.handle("edisvg:placed", (_e, lessonId: unknown, sentAt: unknown) =>
+    markPlaced(app.getPath("userData"), lessonId, sentAt),
+  );
   ipcMain.handle("media:thumb", (_e, path: string, kind: AssetKind, duration: number) =>
     thumbnail(path, kind, duration),
   );

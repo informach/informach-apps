@@ -74,7 +74,7 @@ function Row({
   label: string;
   children: ReactNode;
   /** Atalho para o formulário, quando a linha é a coisa que mais se troca. */
-  editHref?: string;
+  editHref?: `/atividades/${string}?editar=1`;
   editLabel?: string;
 }) {
   return (
@@ -145,7 +145,7 @@ export function ActivityRead({
     task.grade && task.classLetter
       ? `${task.grade.replace(/[^0-9]/g, "")}º ano ${task.classLetter}`
       : null;
-  const editHref = canEdit && !canceled ? `/atividades/${task.id}?editar=1` : undefined;
+  const editHref = canEdit && !canceled ? (`/atividades/${task.id}?editar=1` as const) : undefined;
   const when = task.dueAt
     ? [task.time ? `às ${formatClockTime(task.time)}` : null, task.location]
         .filter(Boolean)

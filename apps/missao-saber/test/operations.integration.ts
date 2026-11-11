@@ -15,9 +15,10 @@ import {
 } from "@informach/db/schema";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { POST as sendgridWebhook } from "@/app/api/webhooks/sendgrid/route";
+import { getLearningAccess } from "@/features/billing/access-repository";
 import { maintainBilling } from "@/features/billing/maintenance";
 import { withBillingLifecycle } from "@/features/billing/repository";
-import { billing, getAccess, handleBillingEvent } from "@/features/billing/service";
+import { billing, handleBillingEvent } from "@/features/billing/service";
 import { findLesson } from "@/features/content/catalog";
 import { contentHash } from "@/features/content/version";
 import {
@@ -31,9 +32,9 @@ import {
   getProfiles,
   startSession,
 } from "@/features/learning/repository";
-import { createProfile } from "@/features/learning/service";
 import { emails } from "@/lib/emails";
 import { env } from "@/lib/env";
+import { fixtureAuthority, prepareStudent } from "./family-fixture";
 
 const owner = randomUUID();
 const email = `operations-${owner}@example.test`;
@@ -50,7 +51,7 @@ afterAll(async () => {
 });
 beforeAll(async () => {
   await db.insert(users).values({ id: owner, name: "Operations test", email, emailVerified: true });
-  profileId = (await createProfile(owner, profileInput)).id;
+  profileId = (await prepareStudent(await fixtureAuthority(owner), profileInput)).id;
 });
 describe("operational boundaries on isolated PostgreSQL", () => {
   it("runs more lifecycle callers than the query pool size without starving their queries", async () => {
@@ -120,7 +121,7 @@ describe("operational boundaries on isolated PostgreSQL", () => {
       note: "Suspended before repository insert",
     });
     await expect(
-      startSession(owner, profileId, lesson, "mission", randomUUID()),
+      startSession(await fixtureAuthority(owner), profileId, lesson, "mission", randomUUID()),
     ).rejects.toMatchObject({ code: "WITHDRAWN" });
   });
   it("retains signed SendGrid category/user metadata across the route and records the right unsubscribe", async () => {
@@ -369,9 +370,9 @@ describe("operational boundaries on isolated PostgreSQL", () => {
         },
         { type: "user", id: owner },
       );
-      await clearFamily(owner);
+      await clearFamily(await fixtureAuthority(owner));
     });
-    expect(await getProfiles(owner)).toEqual([]);
+    expect(await getProfiles(await fixtureAuthority(owner))).toEqual([]);
     for (const id of [`sub_${owner}`, unprojected]) {
       expect(
         await handleBillingEvent({
@@ -391,10 +392,10 @@ describe("operational boundaries on isolated PostgreSQL", () => {
         }),
       ).toMatchObject({ reason: "subscription_closed" });
     }
-    expect((await getAccess(owner)).paid).toBe(false);
-    await createProfile(owner, profileInput);
-    expect((await getAccess(owner)).paid).toBe(false);
-    expect(await getProfiles(owner)).toHaveLength(1);
+    expect((await getLearningAccess(await fixtureAuthority(owner))).paid).toBe(false);
+    await prepareStudent(await fixtureAuthority(owner), profileInput);
+    expect((await getLearningAccess(await fixtureAuthority(owner))).paid).toBe(false);
+    expect(await getProfiles(await fixtureAuthority(owner))).toHaveLength(1);
     expect(
       await handleBillingEvent({
         id: `evt_${randomUUID()}`,

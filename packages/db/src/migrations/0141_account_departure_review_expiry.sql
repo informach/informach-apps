@@ -1,0 +1,1 @@
+CREATE INDEX "account_departure_review_expired" ON "account"."departure_reviews" USING btree ("expires_at","id");

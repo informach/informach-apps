@@ -178,8 +178,8 @@ export function RecipeFormDialog({
         }
         if (result.error.code === "PLAN_LIMIT_REACHED") {
           toast.error(`O Free guarda até ${result.error.limit} receitas.`, {
-            description: "Para guardar mais, assine o Pro. As que você já tem continuam aqui.",
-            action: { label: "Conhecer o Pro", onClick: () => router.push("/upgrade") },
+            description: "Para guardar mais, assine o Compasso. As que você já tem continuam aqui.",
+            action: { label: "Conhecer o Compasso", onClick: () => router.push("/upgrade") },
           });
           return;
         }
@@ -235,11 +235,11 @@ export function RecipeFormDialog({
                   O Free guarda até {FREE_RECIPE_LIMIT} receitas.
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Para guardar mais, assine o Pro. As receitas que você já tem continuam aqui.
+                  Para guardar mais, assine o Compasso. As receitas que você já tem continuam aqui.
                 </p>
               </div>
               <Button asChild>
-                <Link href="/upgrade">Conhecer o Pro</Link>
+                <Link href="/upgrade">Conhecer o Compasso</Link>
               </Button>
             </div>
             <DialogFooter>
@@ -514,7 +514,7 @@ export function RecipeFormDialog({
               </DialogFooter>
               {isAiDraft && (
                 <p className="text-center text-xs text-muted-foreground">
-                  1 crédito usado. Organizada com IA: confira as medidas com{" "}
+                  Organizada com IA: confira as medidas com{" "}
                   {CHECK_AGAINST[defaultValues?.creationMethod ?? ""] ?? "a fonte"}.
                 </p>
               )}

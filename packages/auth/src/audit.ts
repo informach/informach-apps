@@ -5,6 +5,12 @@ import type { AuthAuditEvent, ObservabilityHooks } from "./observability";
 export type AuditEventType =
   | "user.created"
   | "user.email_changed"
+  | "user.data_export_started"
+  | "user.data_export_completed"
+  | "user.closure_reviewed"
+  | "user.web_participation_changed"
+  | "user.web_closure_changed"
+  | "user.web_closure_step_completed"
   | "user.password_changed"
   | "user.role_changed"
   | "user.banned"

@@ -2,9 +2,12 @@ import path from "node:path";
 import { config as loadEnv } from "dotenv";
 import { defineConfig } from "vitest/config";
 
-loadEnv({ path: path.resolve(__dirname, ".env.local") });
-loadEnv({ path: path.resolve(__dirname, "../../.env") });
-const liveAi = process.env.COZYA_LIVE_AI_SMOKE === "1";
+const compassoFixture = process.env.COMPASSO_ISOLATED_DATABASE === "1";
+if (!compassoFixture) {
+  loadEnv({ path: path.resolve(import.meta.dirname, ".env.local") });
+  loadEnv({ path: path.resolve(import.meta.dirname, "../../.env") });
+}
+const liveAi = !compassoFixture && process.env.COZYA_LIVE_AI_SMOKE === "1";
 if (liveAi && !process.env.OPENROUTER_API_KEY) throw new Error("Live AI smoke requires an API key");
 if (
   !process.env.DATABASE_URL ||
@@ -12,8 +15,9 @@ if (
 )
   throw new Error("Integration tests require an explicitly local PostgreSQL database");
 if (
-  process.env.COZYA_ISOLATED_INTEGRATION !== "1" ||
-  !new URL(process.env.DATABASE_URL).pathname.startsWith("/cozya_review_")
+  !compassoFixture &&
+  (process.env.COZYA_ISOLATED_INTEGRATION !== "1" ||
+    !new URL(process.env.DATABASE_URL).pathname.startsWith("/cozya_review_"))
 )
   throw new Error(
     "Use pnpm test:integration to create an isolated database before running this suite",
@@ -28,13 +32,13 @@ Object.assign(process.env, {
   OPENROUTER_API_KEY: liveAi ? process.env.OPENROUTER_API_KEY : "sk-or-integration-disabled",
   SENTRY_DSN: "",
   NEXT_PUBLIC_SENTRY_DSN: "",
-  REDIS_URL: "redis://localhost:6379/12",
+  REDIS_URL: compassoFixture ? (process.env.REDIS_URL ?? "") : "redis://localhost:6379/12",
 });
 export default defineConfig({
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
-      "server-only": path.resolve(__dirname, "./test/server-only-stub.ts"),
+      "@": path.resolve(import.meta.dirname, "./src"),
+      "server-only": path.resolve(import.meta.dirname, "./test/server-only-stub.ts"),
     },
   },
   test: {

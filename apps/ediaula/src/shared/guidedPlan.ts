@@ -704,6 +704,11 @@ export interface PlannedStep {
   /** The step moves the pointer to a target first. */
   moves: boolean;
   /**
+   * Narration second its action may never come before, when not `actAt`: the gestures a
+   * platform's action does after its first one share the step's (shared/guidedRunner.ts).
+   */
+  due?: number;
+  /**
    * Lesson window: seconds the step before it still lasts when this one starts. The run does
    * them one after the other, and what does not fit goes in sped up ("Tela sem voz").
    */

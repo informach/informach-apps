@@ -24,8 +24,8 @@ export default async function Inicio() {
   const agora = Date.now();
   const [sessions, progress, workouts, desafio] = await Promise.all([
     // o bastante para as semanas cumpridas (até ~10 semanas seguidas) e a semana atual
-    sessionsOf(profile.id, { since: new Date(agora - 120 * 86_400_000) }),
-    progressOf(profile.id),
+    sessionsOf(user.id, profile.id, { since: new Date(agora - 120 * 86_400_000) }),
+    progressOf(user.id, profile.id),
     workoutCards(user.id, access),
     dadosDoDesafio(user.id, profile.id, fuso, access),
   ]);

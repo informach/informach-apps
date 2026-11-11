@@ -2,8 +2,8 @@ import "server-only";
 
 import { createMastra } from "@informach/ai-core/mastra";
 import { getOpenRouter } from "@/lib/openrouter";
-import { withModelFallbacks } from "./fallbacks";
 import { COZYA_MODELS } from "./models";
+import { cozyaModelPolicy } from "./provider-policy";
 import { createRecipeParserAgent } from "./recipe-parser/agent";
 import { createRecipeRefinerAgent } from "./recipe-refiner/agent";
 
@@ -25,10 +25,8 @@ let cached: Mastra | null = null;
  * (separate flow in features/ai/transcribe-service.ts) uses the same gateway
  * via OpenAI-compatible /audio/transcriptions endpoint.
  *
- * Fallback routing: each agent receives `extraBody.models` derived from
- * `withModelFallbacks(primary)`. When the primary is unavailable (provider
- * down, quota), OpenRouter falls through to the next model in the list and
- * bills only the model that actually answered. See `apps/cozya/src/ai/fallbacks.ts`.
+ * Quotes are bound to the selected model. Provider routing enforces the reviewed
+ * token price ceiling; no more expensive model is substituted after acceptance.
  */
 export function getMastra(): Mastra {
   if (cached) return cached;
@@ -42,17 +40,17 @@ export function getMastra(): Mastra {
   const refineModel = COZYA_MODELS["cozya.recipe.refine_conversational"];
 
   const recipeParser = createRecipeParserAgent({
-    model: openrouter(textModel, withModelFallbacks(textModel)),
+    model: openrouter(textModel, cozyaModelPolicy(textModel)),
   });
 
   const recipeParserVision = createRecipeParserAgent({
     id: "recipeParserVision",
     name: "recipeParserVision",
-    model: openrouter(visionModel, withModelFallbacks(visionModel)),
+    model: openrouter(visionModel, cozyaModelPolicy(visionModel)),
   });
 
   const recipeRefiner = createRecipeRefinerAgent({
-    model: openrouter(refineModel, withModelFallbacks(refineModel)),
+    model: openrouter(refineModel, cozyaModelPolicy(refineModel)),
   });
 
   cached = createMastra({

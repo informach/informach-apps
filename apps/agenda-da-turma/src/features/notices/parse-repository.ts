@@ -1,7 +1,8 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { err, ok } from "@informach/auth/server-actions";
-import { and, count, db, eq, inArray, sql } from "@informach/db";
+import { lockActiveWebParticipation } from "@informach/auth/web-participation";
+import { and, count, db, eq, sql } from "@informach/db";
 import {
   agendaNotices,
   agendaProductEvents,
@@ -9,155 +10,118 @@ import {
   users,
 } from "@informach/db/schema";
 import type { z } from "zod";
+import type { AgendaAuthority } from "@/features/family/authority";
+import { lockAgendaProfiles } from "@/features/family/scope";
+import { lockAgendaUse } from "@/features/family/use-repository";
 import type { prepareNoticeAttachment } from "./attachment";
-import { FREE_NOTICE_TRIAL, TRIAL_COUNTED_STATUSES } from "./trial-reserve";
-
-export { FREE_NOTICE_TRIAL };
-
 import { ensureStoredActionIds, restoreDiscardedActions } from "./drafts";
-import {
-  noticeExtractionSchema,
-  type parseNoticeSchema,
-  type StoredExtraction,
-  storedExtractionSchema,
-} from "./schemas";
+import { sourceAccessCondition } from "./repository";
+import { type parseNoticeSchema, type StoredExtraction, storedExtractionSchema } from "./schemas";
 
 const PROCESSING_LEASE_MS = 10 * 60_000;
 export async function reserveNoticeParse({
-  userId,
-  ownerId,
-  profileId,
-  isPro,
+  actor,
   input,
   attachment,
   contentHash,
   now,
-  trialDailyBudget,
 }: {
-  userId: string;
-  ownerId: string;
-  profileId: string;
-  isPro: boolean;
+  actor: AgendaAuthority;
   input: z.infer<typeof parseNoticeSchema>;
   attachment: Awaited<ReturnType<typeof prepareNoticeAttachment>>;
   contentHash: string;
   now: Date;
-  trialDailyBudget: number;
 }) {
   return db.transaction(async (tx) => {
-    // One global admission lock makes the daily trial budget enforceable across accounts.
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('agenda:notice-admission'))`);
-    const expired = await tx
+    // Family lock serializes admissions with grant revocation and reassociation.
+    // It is released before wallet → family reservation; never invert that order.
+    await lockAgendaUse(tx, actor, [input.profileId], "use_ai");
+    await lockAgendaProfiles(tx, actor, [input.profileId], "write");
+    const webParticipationRevision = await lockActiveWebParticipation(tx, actor.userId);
+    let [existing] = await tx
       .select()
       .from(agendaNotices)
       .where(
         and(
-          eq(agendaNotices.ownerUserId, ownerId),
-          eq(agendaNotices.status, "processing"),
-          sql`${agendaNotices.updatedAt} < ${new Date(now.valueOf() - PROCESSING_LEASE_MS).toISOString()}::timestamptz`,
+          eq(agendaNotices.familyGroupId, actor.familyGroupId),
+          eq(agendaNotices.contentHash, contentHash),
         ),
       )
       .for("update");
-    for (const stale of expired) {
-      const [reservation] = stale.billingRunId
-        ? await tx
-            .select()
-            .from(creditReservations)
-            .where(eq(creditReservations.id, stale.billingRunId))
-        : [];
-      const recoverable =
-        reservation?.status === "committed" &&
-        noticeExtractionSchema.safeParse(stale.parsedResult).success;
-      await tx
-        .update(agendaNotices)
-        .set({ status: recoverable ? "ready" : "failed", updatedAt: now })
-        .where(eq(agendaNotices.id, stale.id));
-    }
-    const [existing] = await tx
-      .select()
-      .from(agendaNotices)
-      .where(
-        and(eq(agendaNotices.ownerUserId, ownerId), eq(agendaNotices.contentHash, contentHash)),
-      )
-      .for("update");
-    if (existing?.status === "confirmed") return ok({ notice: existing, replay: true });
-    if (existing?.status === "ready" || existing?.status === "discarded") {
-      // A leitura já foi paga: devolve o rascunho inteiro, inclusive o que a
-      // família tinha descartado, sem nova cobrança. `parsed_result` ilegível
-      // cai no parse novo, abaixo, como qualquer outra linha não recuperável.
-      const stored = storedExtractionSchema.safeParse(existing.parsedResult);
-      // Quem não pode retomar este rascunho não o ressuscita. Sem isto, um
-      // segundo adulto que importasse o mesmo conteúdo devolvia ao titular um
-      // recado que ele tinha descartado — e ainda assim recebia NOT_FOUND na
-      // checagem de acesso logo depois, sem entender o que causou a volta.
-      const canResume = ownerId === userId || existing.createdByUserId === userId;
-      // Descartado por outra pessoa da casa: devolver o replay levava a tela a
-      // um rascunho sem nenhuma ação visível — nada acontecia ao tocar "ler
-      // recado", sem erro e sem explicação. Quem não pode retomar precisa saber
-      // que o recado existe e foi descartado, não ver uma tela muda.
-      if (!canResume && existing.status === "discarded")
-        return err({ code: "NOTICE_DISCARDED" } as const);
-      if (stored.success && !canResume) return ok({ notice: existing, replay: true });
-      if (stored.success) {
-        const ids = ensureStoredActionIds(stored.data);
-        const restored = restoreDiscardedActions(ids.extraction);
-        if (!ids.changed && !restored.changed && existing.status === "ready")
-          return ok({ notice: existing, replay: true });
-        const [notice] = await tx
+    if (existing) {
+      const [accessible] = await tx
+        .select({ id: agendaNotices.id })
+        .from(agendaNotices)
+        .where(and(eq(agendaNotices.id, existing.id), sourceAccessCondition(actor)));
+      if (!accessible) return err({ code: "NOT_FOUND" } as const);
+      if (
+        existing.status === "processing" &&
+        existing.updatedAt.valueOf() < now.valueOf() - PROCESSING_LEASE_MS
+      ) {
+        const [reservation] = existing.billingRunId
+          ? await tx
+              .select()
+              .from(creditReservations)
+              .where(
+                and(
+                  eq(creditReservations.id, existing.billingRunId),
+                  eq(creditReservations.app, "compasso"),
+                  eq(creditReservations.ownerType, "family"),
+                  eq(creditReservations.ownerId, actor.familyGroupId),
+                ),
+              )
+          : [];
+        // A pending reservation may still settle. Never replace its run id.
+        if (reservation?.status === "active" && reservation.expiresAt > now)
+          return err({ code: "PROCESSING" } as const);
+        const recovered =
+          reservation?.status === "committed" &&
+          storedExtractionSchema.safeParse(existing.parsedResult).success;
+        if (reservation?.status === "committed" && !recovered)
+          return err({ code: "RECOVERY_REQUIRED" } as const);
+        [existing] = await tx
           .update(agendaNotices)
-          .set({ parsedResult: restored.extraction, status: "ready", updatedAt: now })
+          .set({ status: recovered ? "ready" : "failed", updatedAt: now })
           .where(eq(agendaNotices.id, existing.id))
           .returning();
-        if (!notice) throw new Error("Notice replay failed");
-        return ok({ notice, replay: true });
       }
+      if (existing?.status === "confirmed") return ok({ notice: existing, replay: true });
+      if (existing?.status === "ready" || existing?.status === "discarded") {
+        const stored = storedExtractionSchema.safeParse(existing.parsedResult);
+        if (stored.success) {
+          const restored = restoreDiscardedActions(ensureStoredActionIds(stored.data).extraction);
+          const [notice] = await tx
+            .update(agendaNotices)
+            .set({ parsedResult: restored.extraction, status: "ready", updatedAt: now })
+            .where(eq(agendaNotices.id, existing.id))
+            .returning();
+          if (!notice) throw new Error("Notice replay failed");
+          return ok({ notice, replay: true });
+        }
+        // A charged but corrupt result requires recovery, not a second debit.
+        return err({ code: "RECOVERY_REQUIRED" } as const);
+      }
+      if (existing?.status === "processing") return err({ code: "PROCESSING" } as const);
     }
-    if (existing?.status === "processing") return err({ code: "PROCESSING" } as const);
-    const since = new Date(now.valueOf() - 24 * 60 * 60_000);
+    const since = new Date(now.valueOf() - 86400_000);
     const [attempts] = await tx
       .select({ value: count() })
       .from(agendaProductEvents)
       .where(
         and(
-          eq(agendaProductEvents.userId, userId),
+          eq(agendaProductEvents.userId, actor.userId),
           eq(agendaProductEvents.event, "notice_attempt"),
           sql`${agendaProductEvents.createdAt} >= ${since.toISOString()}::timestamptz`,
         ),
       );
-    if ((attempts?.value ?? 0) >= (isPro ? 70 : 10)) return err({ code: "DAILY_LIMIT" } as const);
-    if (!isPro) {
-      const [budget] = await tx
-        .select({ value: count() })
-        .from(agendaProductEvents)
-        .where(
-          and(
-            eq(agendaProductEvents.event, "trial_started"),
-            sql`${agendaProductEvents.createdAt} >= ${since.toISOString()}::timestamptz`,
-          ),
-        );
-      if ((budget?.value ?? 0) >= trialDailyBudget) return err({ code: "TRIAL_BUSY" } as const);
-      const [used] = await tx
-        .select({ value: count() })
-        .from(agendaNotices)
-        .where(
-          and(
-            eq(agendaNotices.ownerUserId, ownerId),
-            eq(agendaNotices.isTrial, true),
-            inArray(agendaNotices.status, [...TRIAL_COUNTED_STATUSES]),
-          ),
-        );
-      if ((used?.value ?? 0) >= FREE_NOTICE_TRIAL) return err({ code: "TRIAL_ENDED" } as const);
-      await tx
-        .insert(agendaProductEvents)
-        .values({ userId, event: "trial_started", source: input.source });
-    }
+    if ((attempts?.value ?? 0) >= 70) return err({ code: "DAILY_LIMIT" } as const);
     await tx
       .insert(agendaProductEvents)
-      .values({ userId, event: "notice_attempt", source: input.source });
+      .values({ userId: actor.userId, event: "notice_attempt", source: input.source });
     const data = {
-      ownerUserId: ownerId,
-      captureProfileId: profileId,
-      createdByUserId: userId,
+      familyGroupId: actor.familyGroupId,
+      captureProfileId: input.profileId,
+      createdByUserId: actor.userId,
       source: input.source,
       sourceUrl: input.sourceUrl,
       publishedAt: input.publishedAt,
@@ -168,11 +132,13 @@ export async function reserveNoticeParse({
       attachmentData: attachment?.originalData ?? null,
       attachmentExpiresAt: attachment ? new Date(now.valueOf() + 30 * 86400_000) : null,
       status: "processing" as const,
-      isTrial: !isPro,
+      isTrial: false,
       updatedAt: now,
       parsedResult: null,
+      sourceProfileIds: null,
       failureCode: null,
       billingRunId: randomUUID(),
+      webParticipationRevision,
     };
     const [notice] = existing
       ? await tx
@@ -193,22 +159,44 @@ export async function isNoticeUserVerified(userId: string) {
   return Boolean(user?.verified);
 }
 export async function persistNoticeExtraction(
+  actor: AgendaAuthority,
   id: string,
   runId: string,
   extraction: StoredExtraction,
 ) {
-  const [saved] = await db
-    .update(agendaNotices)
-    .set({ parsedResult: extraction })
-    .where(
-      and(
-        eq(agendaNotices.id, id),
-        eq(agendaNotices.billingRunId, runId),
-        eq(agendaNotices.status, "processing"),
-      ),
-    )
-    .returning({ id: agendaNotices.id });
-  if (!saved) throw new Error("Notice was removed before extraction could be saved");
+  return db.transaction(async (tx) => {
+    const condition = and(
+      eq(agendaNotices.id, id),
+      eq(agendaNotices.billingRunId, runId),
+      eq(agendaNotices.status, "processing"),
+      eq(agendaNotices.createdByUserId, actor.userId),
+      eq(agendaNotices.familyGroupId, actor.familyGroupId),
+    );
+    // Observe identifiers only before taking canonical family/participation locks.
+    const [source] = await tx
+      .select({
+        profileId: agendaNotices.captureProfileId,
+        revision: agendaNotices.webParticipationRevision,
+      })
+      .from(agendaNotices)
+      .where(condition);
+    if (!source?.profileId) throw new Error("Notice attempt is no longer available");
+    await lockAgendaUse(tx, actor, [source.profileId], "use_ai");
+    await lockAgendaProfiles(tx, actor, [source.profileId], "write");
+    await lockActiveWebParticipation(tx, actor.userId, source.revision);
+    const [saved] = await tx
+      .update(agendaNotices)
+      .set({ parsedResult: extraction })
+      .where(
+        and(
+          condition,
+          eq(agendaNotices.captureProfileId, source.profileId),
+          eq(agendaNotices.webParticipationRevision, source.revision),
+        ),
+      )
+      .returning({ id: agendaNotices.id });
+    if (!saved) throw new Error("Notice attempt changed before extraction could be saved");
+  });
 }
 export async function finishNoticeParse(
   id: string,

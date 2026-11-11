@@ -14,6 +14,13 @@
     "lint": "biome lint .",
     "format": "biome format --write .",
     "test": "turbo test --concurrency=1 && pnpm edi:test:tooling",
+    "compasso:test:integration": "node scripts/compasso/integration.mjs",
+    "compasso:test:ui": "node scripts/compasso/integration.mjs --ui-only",
+    "compasso:test:closure": "node scripts/compasso/integration.mjs --closure-system-only --redis",
+    "compasso:test:restore": "pnpm --filter @informach/family exec tsx scripts/restore-rehearsal.ts",
+    "compasso:test:stripe-plans": "tsx scripts/compasso/stripe-plan-homologation.mts",
+    "compasso:test:stripe-future": "tsx scripts/compasso/stripe-future-homologation.mts",
+    "compasso:test:stripe-existing-payer": "tsx scripts/compasso/stripe-existing-payer-homologation.mts",
     "dev:admin": "pnpm --filter @informach/admin dev",
     "build:admin": "turbo build --filter=@informach/admin",
     "start:admin": "pnpm --filter @informach/admin start",
@@ -61,7 +68,10 @@
     "edi:work:instalar": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/edi/hub-dev/instalar.ps1",
     "edi:test:native": "node scripts/edi/test-native.mts",
     "edi:test:pdf-view": "node apps/edipdf/scripts/probe-view-restart.mts",
-    "edi:test:visual": "node scripts/edi/visual-ediaula.mts"
+    "edi:test:visual": "node scripts/edi/visual-ediaula.mts",
+    "dev:conta": "pnpm --filter @informach/conta dev",
+    "build:conta": "turbo build --filter=@informach/conta",
+    "start:conta": "pnpm --filter @informach/conta start"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BackButton } from "@/components/app-shell/back-button";
+import { agendaAuthority } from "@/features/family/context";
 import { listStudentProfilesForUser } from "@/features/students/service";
 import { JoinByLinkPanel } from "@/features/turmas/components/join-by-link-panel";
 import { findTurmaForInvite } from "@/features/turmas/service";
@@ -22,11 +23,12 @@ export default async function JoinTurmaByLinkPage({
   searchParams: Promise<{ codigo?: string }>;
 }) {
   const user = await requireUserServer();
+  const actor = await agendaAuthority(user.id);
   const params = await searchParams;
   const code = (params.codigo ?? "").trim().toUpperCase();
   const [turma, profiles] = await Promise.all([
     code ? findTurmaForInvite(code) : Promise.resolve(null),
-    listStudentProfilesForUser(user.id),
+    listStudentProfilesForUser(actor),
   ]);
 
   return (

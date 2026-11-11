@@ -90,6 +90,19 @@ async function main(prompt) {
     const body = await response.json();
     report.tool = body.result.content[0].text;
     if (claude) {
+      // What Claude Code streams before the tool: a message that thinks, then writes the input.
+      const stream = (event) => out({ type: "stream_event", event });
+      stream({ type: "message_start" });
+      stream({ type: "content_block_start", content_block: { type: "thinking" } });
+      stream({ type: "content_block_delta", delta: { type: "thinking_delta", thinking: "" } });
+      stream({
+        type: "content_block_start",
+        content_block: { type: "tool_use", name: `mcp__${server}__read_doc` },
+      });
+      stream({
+        type: "content_block_delta",
+        delta: { type: "input_json_delta", partial_json: "{}" },
+      });
       out({
         type: "assistant",
         message: { content: [{ type: "tool_use", id: "t1", name: `mcp__${server}__read_doc` }] },

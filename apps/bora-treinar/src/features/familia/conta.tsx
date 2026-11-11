@@ -1,173 +1,13 @@
 "use client";
+import { getAppUrl } from "@informach/config/domains";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { Motivo } from "@/features/billing/ofertas";
 import { usePlanos } from "@/features/billing/planos";
-import { authClient } from "@/lib/auth-client";
+import { authClient, ssoEnvironment } from "@/lib/auth-client";
 import { FUSOS_DO_BRASIL } from "@/lib/datas";
 import { useServerAction } from "@/lib/use-server-action";
-import {
-  changePlanAction,
-  checkoutAction,
-  clearAction,
-  forgetProfileAction,
-  portalAction,
-  preferencesAction,
-  reactivateAction,
-} from "./actions";
-
-export function BillingButton({
-  productId,
-  disabled,
-  primary,
-  children,
-}: {
-  productId?: string;
-  disabled?: boolean;
-  primary?: boolean;
-  children: React.ReactNode;
-}) {
-  const [pending, start] = useServerAction();
-  const [message, setMessage] = useState("");
-  return (
-    <div>
-      <button
-        type="button"
-        className={`btn ${primary ? "primary" : ""}`}
-        disabled={pending || disabled}
-        onClick={() =>
-          start(async () => {
-            try {
-              const result = productId ? await checkoutAction(productId) : await portalAction();
-              if (result.ok) window.location.assign(result.data.url);
-              else setMessage(result.error);
-            } catch {
-              setMessage(
-                "Não foi possível abrir o pagamento. Confira sua assinatura e tente de novo.",
-              );
-            }
-          })
-        }
-      >
-        {pending ? "Abrindo…" : children}
-      </button>
-      <p role="status" className="form-message">
-        {message}
-      </p>
-    </div>
-  );
-}
-
-type PlanOption = {
-  id: string;
-  label: string;
-  timing: "immediate" | "schedule_at_period_end";
-  requiresRetainedProfile: boolean;
-};
-
-export function PlanChangeControls({
-  options,
-  profiles,
-  cancelAtPeriodEnd,
-  hasPendingChange,
-}: {
-  options: PlanOption[];
-  profiles: { id: string; name: string; accessEnabled: boolean }[];
-  cancelAtPeriodEnd: boolean;
-  hasPendingChange: boolean;
-}) {
-  const router = useRouter();
-  const [retained, setRetained] = useState(
-    profiles.find((p) => p.accessEnabled)?.id ?? profiles[0]?.id ?? "",
-  );
-  const [message, setMessage] = useState("");
-  const [pending, start] = useServerAction();
-  const needsChoice = options.some((o) => o.requiresRetainedProfile) && profiles.length > 1;
-  return (
-    <div className="card">
-      <strong>Alterar a assinatura</strong>
-      {(cancelAtPeriodEnd || hasPendingChange) && (
-        <p className="muted spaced">
-          {cancelAtPeriodEnd
-            ? "Há uma alteração agendada. Para escolher outro plano, primeiro mantenha a assinatura atual."
-            : "A confirmação da alteração anterior ficou pendente. Você pode tentar de novo ou manter a assinatura atual."}
-        </p>
-      )}
-      {needsChoice && (
-        <label className="spaced block">
-          <span className="muted">Perfil que continua ativo num plano Individual</span>
-          <select
-            className="field"
-            value={retained}
-            onChange={(e) => setRetained(e.target.value)}
-            disabled={pending}
-          >
-            {profiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-          <span className="muted small">
-            Os outros perfis e seus históricos ficam guardados e voltam quando o plano permitir.
-          </span>
-        </label>
-      )}
-      <div className="row spaced">
-        {options.map((o) => (
-          <button
-            type="button"
-            key={o.id}
-            className="btn ghost"
-            disabled={pending}
-            onClick={() =>
-              start(async () => {
-                const result = await changePlanAction(
-                  o.id,
-                  o.requiresRetainedProfile && profiles.length > 0 ? retained : undefined,
-                );
-                if (!result.ok) return setMessage(result.error);
-                if (result.data.url) return window.location.assign(result.data.url);
-                setMessage(
-                  result.data.effective === "now"
-                    ? "Plano alterado."
-                    : "Alteração agendada para o fim do período já pago.",
-                );
-                router.refresh();
-              })
-            }
-          >
-            {o.label}
-            {o.timing === "schedule_at_period_end" ? " no fim do período" : " agora"}
-          </button>
-        ))}
-        {(cancelAtPeriodEnd || hasPendingChange) && (
-          <button
-            type="button"
-            className="btn ghost"
-            disabled={pending}
-            onClick={() =>
-              start(async () => {
-                const result = await reactivateAction();
-                setMessage(result.ok ? "A assinatura continua ativa." : result.error);
-                if (result.ok) router.refresh();
-              })
-            }
-          >
-            Manter assinatura atual
-          </button>
-        )}
-      </div>
-      <p className="muted small spaced">
-        Trocas para anual e aumentos de perfis são cobrados com ajuste proporcional agora. Reduções
-        e trocas de anual para mensal entram no fim do período pago.
-      </p>
-      <p role="status" className="form-message">
-        {message}
-      </p>
-    </div>
-  );
-}
+import { forgetProfileAction, preferencesAction } from "./actions";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const HORAS = Array.from({ length: 24 }, (_, h) => h);
@@ -313,18 +153,7 @@ export function AbrirPlanosAoChegar({ motivo }: { motivo: Motivo }) {
   return null;
 }
 
-export function PrivacyControls({
-  outrasAssinaturas,
-  outroAppComDados,
-}: {
-  outrasAssinaturas: boolean;
-  outroAppComDados: string | null;
-}) {
-  const router = useRouter();
-  const [confirmation, setConfirmation] = useState("");
-  const [excluir, setExcluir] = useState(false);
-  const [message, setMessage] = useState("");
-  const [pending, start] = useServerAction();
+export function PrivacyControls() {
   return (
     <>
       <div className="row">
@@ -332,84 +161,22 @@ export function PrivacyControls({
           Exportar dados em JSON
         </a>
       </div>
-      <details className="card danger spaced">
-        <summary>Encerrar o Bora Treinar e apagar os dados de treino</summary>
-        <p className="muted spaced">
-          Cancela agora a assinatura deste app e apaga perfis, treinos, níveis, desafios e
-          preferências. Exporte antes se quiser uma cópia. A conta Informach e os outros apps
-          continuam. Registros financeiros seguem a retenção própria.
+      <section className="card spaced">
+        <h3>Histórico de cada pessoa</h3>
+        <p>
+          A exclusão de um perfil remove somente seus treinos e dados do Bora. A pessoa e os
+          históricos dos outros apps continuam na família. Essa ação exige permissão para gerenciar
+          o perfil.
         </p>
-        <label className="spaced block">
-          <span className="muted">Digite ENCERRAR E APAGAR</span>
-          <input
-            className="field"
-            value={confirmation}
-            onChange={(e) => setConfirmation(e.target.value)}
-            autoComplete="off"
-          />
-        </label>
-        <button
-          type="button"
-          className="btn danger spaced"
-          disabled={pending || confirmation !== "ENCERRAR E APAGAR"}
-          onClick={() =>
-            start(async () => {
-              const result = await clearAction(confirmation);
-              setMessage(
-                result.ok ? "Assinatura encerrada e dados de treino apagados." : result.error,
-              );
-              if (result.ok) {
-                setConfirmation("");
-                router.refresh();
-              }
-            })
-          }
-        >
-          Confirmar encerramento
-        </button>
-      </details>
-      <details className="card danger spaced">
-        <summary>Excluir a conta Informach</summary>
-        <p className="muted spaced">
-          A conta é a mesma no Cozya, na Agenda da Turma e no Missão Saber. A exclusão apaga a conta
-          e os dados do Bora Treinar depois da confirmação por e-mail.
-        </p>
-        {outrasAssinaturas && (
-          <p className="warn spaced">
-            Há assinatura ativa em outro app Informach. Encerre-a por lá antes de excluir a conta.
-          </p>
-        )}
-        {!outrasAssinaturas && outroAppComDados && (
-          <p className="warn spaced">
-            Sua conta também tem dados no {outroAppComDados}. Peça a exclusão por lá: ela apaga os
-            dados daquele app e a conta compartilhada.
-          </p>
-        )}
-        <label className="check spaced">
-          <input type="checkbox" checked={excluir} onChange={(e) => setExcluir(e.target.checked)} />
-          Entendo que a exclusão vale para todos os apps Informach.
-        </label>
-        <button
-          type="button"
-          className="btn danger spaced"
-          disabled={pending || !excluir || outrasAssinaturas || !!outroAppComDados}
-          onClick={() =>
-            start(async () => {
-              const result = await authClient.deleteUser({ callbackURL: "/" });
-              setMessage(
-                result.error
-                  ? "Não foi possível solicitar a exclusão agora."
-                  : "Enviamos um e-mail para confirmar a exclusão da conta.",
-              );
-            })
-          }
-        >
-          Solicitar exclusão por e-mail
-        </button>
-      </details>
-      <p role="status" className="form-message">
-        {message}
-      </p>
+        <a className="btn ghost spaced" href="/perfis">
+          Gerenciar perfis de treino
+        </a>
+      </section>
+      <section className="card spaced">
+        <h3>Sua conta compartilhada</h3>
+        <p>Nome, e-mail, senha, segurança e os dados da conta são gerenciados na central.</p>
+        <a href={getAppUrl("conta", ssoEnvironment)}>Gerenciar minha conta</a>
+      </section>
     </>
   );
 }

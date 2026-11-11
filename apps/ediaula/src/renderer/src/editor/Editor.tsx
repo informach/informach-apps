@@ -19,6 +19,7 @@ import { AnnotationsPanel } from "./AnnotationsPanel";
 import { BatchBar } from "./BatchBar";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { CursorPathDialog } from "./CursorPathDialog";
+import { EdisvgOffer } from "./EdisvgOffer";
 import { ExportDialog } from "./ExportDialog";
 import { ExtendFrameDialog } from "./ExtendFrameDialog";
 import { LessonFlowPanel } from "./LessonFlowPanel";
@@ -415,6 +416,7 @@ export function Editor(): ReactNode {
       />
       <BatchBar />
       <PrepareOffer />
+      <EdisvgOffer />
       <ReviewBar />
       <PresenterDialogs />
       <ConfirmDialog />

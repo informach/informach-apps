@@ -9,15 +9,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@informach/ui/components/dialog";
-import { toast } from "@informach/ui/components/sonner";
 import { cn } from "@informach/ui/lib/utils";
 import { Camera, ClipboardPaste, Mic, Pencil, Search, X } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { type ReactNode, useState, useTransition } from "react";
-import { startTrialAction } from "@/features/kitchen/actions";
-import { TRIAL_CREDITS, TRIAL_DAYS } from "@/features/kitchen/trial";
-import { catchActionResult } from "./action-errors";
+import { type ReactNode, useState } from "react";
 
 type Method = "image" | "text" | "voice" | "prompt" | "manual";
 
@@ -25,8 +20,6 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   canUseAi: boolean;
-  /** No trial yet: tapping a paid method first activates the 14 free days. */
-  trialAvailable: boolean;
   credits: number | null;
   hasRecentPreviews: boolean;
   onPick: (method: Method) => void;
@@ -74,13 +67,10 @@ export function NewRecipeMethodDialog({
   open,
   onOpenChange,
   canUseAi,
-  trialAvailable,
   credits,
   hasRecentPreviews,
   onPick,
 }: Props) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
   const [blocked, setBlocked] = useState(false);
 
   const choose = (method: Method, ai: boolean) => {
@@ -88,22 +78,7 @@ export function NewRecipeMethodDialog({
       onPick(method);
       return;
     }
-    if (!trialAvailable) {
-      setBlocked(true);
-      return;
-    }
-    startTransition(async () => {
-      const result = await catchActionResult(() => startTrialAction({}));
-      if (!result.ok) {
-        setBlocked(true);
-        return;
-      }
-      toast.success(
-        `Seus ${TRIAL_DAYS} dias grátis começaram. Você tem ${TRIAL_CREDITS} créditos de IA.`,
-      );
-      router.refresh();
-      onPick(method);
-    });
+    setBlocked(true);
   };
 
   return (
@@ -140,7 +115,6 @@ export function NewRecipeMethodDialog({
             <li key={method}>
               <button
                 type="button"
-                disabled={pending}
                 onClick={() => choose(method, ai)}
                 className={cn(
                   "flex min-h-[68px] w-full items-center gap-3.5 rounded-2xl border bg-card px-3.5 py-2.5 text-left outline-none transition-colors hover:border-input focus-visible:ring-2 focus-visible:ring-ring",
@@ -165,7 +139,7 @@ export function NewRecipeMethodDialog({
                     ai ? "text-muted-foreground" : "text-sage-ink",
                   )}
                 >
-                  {ai ? "1 crédito" : "sem crédito"}
+                  {ai ? "ver custo" : "sem crédito"}
                 </span>
               </button>
             </li>
@@ -174,21 +148,20 @@ export function NewRecipeMethodDialog({
 
         {blocked ? (
           <div role="alert" className="space-y-3 rounded-2xl bg-muted p-4">
-            <p className="font-bold">A ajuda da IA faz parte do Pro.</p>
+            <p className="font-bold">A ajuda da IA faz parte do Compasso.</p>
             <p className="text-sm text-muted-foreground">
-              Este e-mail já usou o teste grátis. Escrever do seu jeito continua sem crédito.
+              Confira o acesso e os créditos da família na Minha conta. Escrever do seu jeito
+              continua sem crédito.
             </p>
             <Button asChild className="min-h-11">
-              <Link href="/upgrade">Conhecer o Pro</Link>
+              <Link href="/contexto">Escolher família</Link>
             </Button>
           </div>
         ) : (
           <p className="rounded-2xl bg-muted p-3.5 text-sm leading-relaxed">
             {canUseAi
               ? `${credits !== null ? `Você tem ${credits} ${credits === 1 ? "crédito" : "créditos"} de IA. ` : ""}O crédito só é usado quando a IA entrega uma receita; se ela não conseguir, ele volta.`
-              : trialAvailable
-                ? `Os ${TRIAL_DAYS} dias grátis incluem ${TRIAL_CREDITS} créditos de IA, um por receita. Tocar numa opção com crédito começa o teste. Sem cartão.`
-                : "Escrever do seu jeito não usa crédito."}
+              : "Escolha a família que fornece seus créditos. Escrever do seu jeito não usa crédito."}
           </p>
         )}
 

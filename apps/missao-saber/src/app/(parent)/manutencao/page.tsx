@@ -148,7 +148,7 @@ export default async function ContentMaintenance({
                   </Badge>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Perfil: {report.profileNickname ?? "contexto anterior à versão atual"} · sessão{" "}
+                  Relato do estudante · sessão{" "}
                   {report.sessionId ? report.sessionId.slice(0, 8) : "não registrada"}
                 </p>
                 <p className="mt-1.5 text-sm">{report.detail || "Sem comentário adicional."}</p>

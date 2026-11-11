@@ -42,7 +42,7 @@ export type ActivityView = {
   version: number;
   /** O conteúdo foi editado depois de salvo (concluir e reabrir não contam). */
   editedAfterSave: boolean;
-  detailHref: string;
+  detailHref: `/atividades/${string}`;
   /** Ausente quando cancelada: não se alterna o que foi cancelado. */
   toggle: { id: string; version: number } | null;
   /** A atividade de turma que esta tarefa executa, quando há uma. */
@@ -56,7 +56,7 @@ function formatTurmaContext(grade: string, classLetter: string, year: number): s
   return `${gradeNumber}º ano ${classLetter} · ${year}`;
 }
 
-export function toActivityView(entry: ActivityOverviewItem, currentUserId: string): ActivityView {
+export function toActivityView(entry: ActivityOverviewItem): ActivityView {
   const item = entry.item;
   const canceled = item.status === "canceled";
 
@@ -102,8 +102,8 @@ export function toActivityView(entry: ActivityOverviewItem, currentUserId: strin
     version: item.version,
     editedAfterSave: item.editedAfterSave,
     detailHref: `/atividades/${item.id}`,
-    toggle: canceled ? null : { id: item.id, version: item.version },
+    toggle: canceled || !item.canWrite ? null : { id: item.id, version: item.version },
     sharedActivityId: item.sharedActivityId,
-    manage: !canceled && item.createdByUserId === currentUserId ? { id: item.id } : null,
+    manage: !canceled && item.canWrite ? { id: item.id } : null,
   };
 }

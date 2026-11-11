@@ -1,5 +1,7 @@
 # Operação do Bora Treinar
 
+> Migração Compasso em implementação (10/11/2026): este documento conserva a implantação anterior. O código desta branch usa conta/SSO central, pessoas e concessões canônicas, cobertura por família e teste central de 14 dias. Não reprovisionar os produtos Individual/Família para novas vendas. Preços/portal/webhooks anteriores ainda atendem reconciliação de contratos legados até o fechamento financeiro; a retirada de variáveis exige concluir essa etapa e atualizar o validador. [Registro de execução](../../docs/propostas/assinatura-web-2026-11-09/implementacao.md) e [operação da central](../conta/PRODUCAO.md). Nenhum deploy Compasso foi realizado nesta execução.
+
 **Provisionado em 31/10/2026.** O código chegou à `main` com o merge `d5db8c1a`, e o migrator aplicou o schema `bora_treinar` às 13:08 UTC. Stripe (teste e produção), Sentry e Railway foram provisionados no mesmo dia, pelos scripts `scripts/provision-stripe.mjs` e `scripts/production.py`. Este registro guarda datas e identificadores reais, nunca segredos.
 
 Destino: `https://bora-treinar.informach.com.br`, no projeto Railway `informach-apps`, ambiente `production`, com o PostgreSQL e o Redis compartilhados.

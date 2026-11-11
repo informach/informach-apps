@@ -1,6 +1,6 @@
 import { cn } from "@informach/ui/lib/utils";
 import Link from "next/link";
-import { FREE_TRIAL_READS } from "@/features/billing/plans-content";
+import { TRIAL_CREDITS, TRIAL_DAYS } from "@/features/billing/plans-content";
 import { H2, SEC, WRAP } from "../landing-ui";
 
 /** O fecho da prancha: o bloco azul com a pergunta e o botão branco. */
@@ -22,7 +22,8 @@ export function FinalCta() {
             Organizar esse recado
           </Link>
           <p className="text-base text-primary-foreground/85">
-            Os {FREE_TRIAL_READS} primeiros recados são por nossa conta. Sem cartão.
+            Teste o Compasso por {TRIAL_DAYS} dias, com {TRIAL_CREDITS} créditos de IA
+            compartilhados. Sem cartão.
           </p>
         </div>
       </div>

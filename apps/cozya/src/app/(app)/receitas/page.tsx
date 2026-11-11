@@ -1,6 +1,6 @@
 import { listRecentPreviewCount } from "@/features/ai/previews";
+import { getCozyaAiBalance } from "@/features/ai/wallet-repository";
 import { getIsProForUser } from "@/features/billing/server-cache";
-import { billing } from "@/features/billing/service";
 import { getKitchenAccess } from "@/features/kitchen/access";
 import { StarterCollection } from "@/features/kitchen/components/starter-collection";
 import { weekStart } from "@/features/kitchen/dates";
@@ -45,9 +45,7 @@ export default async function RecipesPage({
     getWeekMeals(user.id, weekStart()),
     listRecentPreviewCount(user.id),
   ]);
-  const credits = access.canUseAi
-    ? (await billing.getBalance({ type: "user", id: user.id })).available
-    : null;
+  const credits = access.canUseAi ? (await getCozyaAiBalance(access.actor)).available : null;
 
   return (
     <main className="mx-auto w-full max-w-[1200px] space-y-3.5 px-5 py-5 md:space-y-6 md:px-10 md:py-10">
@@ -66,7 +64,6 @@ export default async function RecipesPage({
         page={recipesPage.page}
         hasNextPage={recipesPage.hasNextPage}
         canUseAi={access.canUseAi}
-        trialAvailable={!access.isPro && !access.profile?.trialStartedAt}
         weekRecipeIds={meals.flatMap((meal) => (meal.recipeId ? [meal.recipeId] : []))}
         credits={credits}
         hasRecentPreviews={previews > 0}
