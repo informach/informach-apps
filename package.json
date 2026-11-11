@@ -21,6 +21,7 @@
     "compasso:test:stripe-plans": "tsx scripts/compasso/stripe-plan-homologation.mts",
     "compasso:test:stripe-future": "tsx scripts/compasso/stripe-future-homologation.mts",
     "compasso:test:stripe-existing-payer": "tsx scripts/compasso/stripe-existing-payer-homologation.mts",
+    "compasso:test:stripe-coordination": "tsx scripts/compasso/stripe-coordination-homologation.mts",
     "dev:admin": "pnpm --filter @informach/admin dev",
     "build:admin": "turbo build --filter=@informach/admin",
     "start:admin": "pnpm --filter @informach/admin start",
