@@ -1,6 +1,6 @@
 import "server-only";
 import { redis } from "@/lib/redis";
-import { schemaReady } from "./repository";
+import { databaseReady, schemaReady } from "./repository";
 
 /**
  * O portão de deploy. Alcançar o banco não basta: o migrator é um service
@@ -10,7 +10,7 @@ import { schemaReady } from "./repository";
  * porque a pergunta é "atrás", nunca "diferente".
  */
 export async function checkReadiness() {
-  const [cache, schema] = await Promise.all([redis?.ping(), schemaReady()]);
+  const [, cache, schema] = await Promise.all([databaseReady(), redis?.ping(), schemaReady()]);
   if (cache !== "PONG") throw new Error("Dependency unavailable");
   if (!schema.ok) throw new Error(`Schema ${schema.reason}: esperado ${schema.expected}`);
 }

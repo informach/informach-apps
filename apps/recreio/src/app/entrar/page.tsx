@@ -9,9 +9,9 @@ export const metadata = { title: "Entrar" };
 export default async function Entrar({
   searchParams,
 }: {
-  searchParams: Promise<{ confirmar?: string; next?: string }>;
+  searchParams: Promise<{ confirmar?: string; encerrada?: string; next?: string }>;
 }) {
-  const { confirmar, next } = await searchParams;
+  const { confirmar, encerrada, next } = await searchParams;
   const fechado = env.RECREIO_ACCESS_MODE === "fechado";
   return (
     <main
@@ -45,7 +45,9 @@ export default async function Entrar({
           initialMessage={
             confirmar
               ? "Confirme o e-mail: digite o e-mail e o código de seis dígitos que enviamos."
-              : ""
+              : encerrada
+                ? "A sessão neste aparelho foi encerrada. Entre de novo para continuar."
+                : ""
           }
         />
       </section>

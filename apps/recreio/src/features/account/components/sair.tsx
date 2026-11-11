@@ -1,9 +1,12 @@
 "use client";
 import { LogOut } from "lucide-react";
 import { useState } from "react";
-import { authClient } from "@/lib/auth-client";
 
-/** Sai da conta neste navegador e volta para a página pública. */
+/**
+ * Sai da conta neste navegador e volta para a página pública. O pedido vai
+ * para o servidor do portal, que encerra a sessão deste aparelho junto com o
+ * login.
+ */
 export function Sair() {
   const [pendente, setPendente] = useState(false);
   const [erro, setErro] = useState("");
@@ -11,8 +14,8 @@ export function Sair() {
     setPendente(true);
     setErro("");
     try {
-      const resultado = await authClient.signOut();
-      if (!resultado.error) {
+      const resposta = await fetch("/api/conta/sair", { method: "POST" });
+      if (resposta.ok) {
         // Fica "Saindo…" até a página pública carregar.
         window.location.replace("/");
         return;

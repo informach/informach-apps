@@ -17,6 +17,7 @@ const config: NextConfig = {
   turbopack: { root: path.resolve(__dirname, "../..") },
   transpilePackages: [
     "@informach/auth",
+    "@informach/billing",
     "@informach/config",
     "@informach/db",
     "@informach/emails",

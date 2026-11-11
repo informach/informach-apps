@@ -3,9 +3,10 @@ import type { CartaoDeJogo } from "../catalogo";
 
 /**
  * Cartão de um jogo na estante. Nesta fase nenhum jogo abre: o cartão diz em
- * que pé o jogo está e, com o acesso fechado, que a entrada é por convite.
+ * que pé o jogo está. Quem pode jogar é dito acima da estante, pelo estado do
+ * acesso; o cartão não repete.
  */
-export function CartaoDoJogo({ jogo, fechado }: { jogo: CartaoDeJogo; fechado: boolean }) {
+export function CartaoDoJogo({ jogo }: { jogo: CartaoDeJogo }) {
   return (
     <article className="painel flex flex-col overflow-hidden">
       <div className="relative aspect-[5/3] bg-painel-2">
@@ -17,7 +18,6 @@ export function CartaoDoJogo({ jogo, fechado }: { jogo: CartaoDeJogo; fechado: b
         <p className="text-tinta-suave">
           Estamos preparando o {jogo.nome}. Ainda não dá para jogar por aqui.
         </p>
-        {fechado && <p className="font-semibold text-tinta">Acesso por convite da equipe.</p>}
         <p className="mt-auto pt-2 text-sm text-tinta-suave">Feito para {jogo.aparelhos}.</p>
       </div>
     </article>

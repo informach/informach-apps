@@ -41,7 +41,7 @@ Eventos de billing devem registrar o ator quando a ação veio de usuário auten
 ## Observabilidade
 
 - Sentry/APM deve receber `payloadKeys`, `eventType`, `actorId` e erro sanitizado, não o payload completo.
-- Falha de persistência do audit permanece best-effort e deve ser reportada via `observability.onAuditPersistenceFailure`. A exceção é opcional e explícita: `logAuditEventStrict` (em `@informach/auth`) reporta do mesmo jeito e lança `AuditPersistenceError`, para quem não pode mostrar o dado nem concluir a ação sem o rastro. Hoje só o Bastidores usa.
+- Falha de persistência do audit permanece best-effort e deve ser reportada via `observability.onAuditPersistenceFailure`. A exceção é opcional e explícita: `logAuditEventStrict` (em `@informach/auth`) reporta do mesmo jeito e lança `AuditPersistenceError`, para quem não pode mostrar o dado nem concluir a ação sem o rastro. Hoje usam o Bastidores e os scripts de concessão do Recreio.
 - Novo evento exige atualizar a union `AuditEventType`, a union do package emissor quando existir, docs e testes de wiring.
 
 ## Eventos do Missão Saber
@@ -80,6 +80,21 @@ Eventos `estrela.*` registram o que os adultos fizeram na família do app `dia-d
 - `estrela.voice_saved` (`{ taskId, via }`) e `estrela.goal_photo_saved` (`{ childId, via }`): o arquivo nunca entra no evento.
 
 Finalidade: investigar mudanças na conta da família e atender suporte. O Bastidores mostra a frase do evento e os nomes dos campos, nunca os valores.
+
+## Eventos do Recreio
+
+Eventos `recreio.*` registram o que aconteceu com os perfis e com o direito de jogar no app `recreio`, com payload mínimo de IDs, nomes de campo e classificadores. O perfil é o que os jogos conhecem de uma pessoa: nunca gravar apelido, avatar, e-mail, IP, nome de aparelho, ingresso, token de sessão, chave ou qualquer texto livre.
+
+- `recreio.profile_created`: `{ profileId, kind }`, com `kind` igual a `adult` ou `minor`. O ator é a conta que criou o perfil.
+- `recreio.profile_updated`: `{ profileId, fields }`, onde `fields` lista só os nomes dos campos alterados (por exemplo `nickname` e `avatar`), nunca os valores. Ainda não há emissor: entra com a edição do perfil, e a lista de campos é registrada aqui junto com ele.
+- `recreio.entitlement_granted`: `{ entitlementId, groupId, targetId, tier, days, reasonCode }`, com `tier` igual a `individual` ou `family`, `days` o número de dias concedidos e `targetId` a conta titular do grupo.
+- `recreio.entitlement_revoked`: `{ entitlementId, groupId, targetId, reasonCode }`.
+
+`reasonCode` é um código curto e fechado (letras minúsculas, números e `_`, até 40 caracteres, conferido pelo script e pelo banco), não uma explicação escrita: quem concede escolhe o código, e a conversa com a pessoa fica fora do evento. Todos levam também `app: "recreio"`.
+
+As concessões são gravadas pelos scripts `conceder` e `revogar` de `apps/recreio`, sem conta de equipe por trás: o ator é nulo e o evento entra pela forma estrita (`logAuditEventStrict`), na mesma transação da linha em `recreio.entitlements`. Se o evento não grava, a concessão ou a revogação também não ficam. `recreio.profile_created` segue a forma padrão dos apps, sem derrubar a criação do perfil se a auditoria falhar.
+
+Finalidade: saber quem recebeu o direito de jogar, por quanto tempo e por qual motivo, e atender suporte. Sessões de jogo e mundos ganham eventos próprios nos lotes seguintes da frente; registrar aqui os campos junto com o emissor.
 
 ## Eventos da Agenda da Turma
 

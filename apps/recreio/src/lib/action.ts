@@ -1,5 +1,6 @@
 import "server-only";
 import { UnauthorizedError } from "@informach/auth";
+import { ehErroDoRecreio } from "@informach/recreio";
 import { ZodError } from "zod";
 import { requireUser } from "./auth";
 import { AppError, assertAllowed } from "./errors";
@@ -19,6 +20,10 @@ export async function runAction<T>(operation: () => Promise<T>): Promise<ActionR
     if (error instanceof UnauthorizedError)
       return { ok: false, error: "Entre novamente para continuar.", code: "AUTH" };
     if (error instanceof AppError) return { ok: false, error: error.message, code: error.code };
+    if (ehErroDoRecreio(error, "NAO_AUTENTICADO"))
+      return { ok: false, error: "Entre novamente para continuar.", code: "AUTH" };
+    if (ehErroDoRecreio(error, "SEM_PERFIL"))
+      return { ok: false, error: "Escolha quem vai jogar para continuar.", code: "SEM_PERFIL" };
     if (error instanceof ZodError)
       return { ok: false, error: "Confira os campos e tente novamente.", code: "INPUT" };
     const incident = crypto.randomUUID();

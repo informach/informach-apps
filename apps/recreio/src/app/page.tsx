@@ -19,7 +19,7 @@ const hoje = [
   {
     Icone: Hammer,
     titulo: "Ainda não dá para jogar",
-    texto: "Perfis, mundos e o jogo em si estão em construção.",
+    texto: "Os mundos e o jogo em si estão em construção.",
   },
 ];
 

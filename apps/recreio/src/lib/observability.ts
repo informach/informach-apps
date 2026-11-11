@@ -1,4 +1,4 @@
-import type { ObservabilityHooks } from "@informach/auth";
+import type { AuditEventType, ObservabilityHooks } from "@informach/auth";
 import type { EmailAuditEvent } from "@informach/emails";
 import * as Sentry from "@sentry/nextjs";
 import { logger } from "./logger";
@@ -20,10 +20,18 @@ export const packageLogger = {
 };
 
 /**
- * Por enquanto só os eventos de e-mail passam por aqui. Os eventos de domínio
- * do Recreio entram junto com as funcionalidades que os emitem.
+ * Eventos de domínio do Recreio. Só ids, nomes de campo e classificadores,
+ * nunca o apelido, o e-mail, o IP ou um token: ver docs/audit-payload-policy.md.
+ * As concessões não passam por aqui: os scripts gravam o evento na mesma
+ * transação da linha.
  */
-export function audit(event: EmailAuditEvent) {
+export type RecreioAuditEvent = {
+  eventType: Extract<AuditEventType, `recreio.${string}`>;
+  actorId: string;
+  payload: Record<string, unknown>;
+};
+
+export function audit(event: EmailAuditEvent | RecreioAuditEvent) {
   // Lazy import avoids the auth -> email -> audit initialization cycle.
   void import("@informach/auth")
     .then(({ logAuditEvent }) =>

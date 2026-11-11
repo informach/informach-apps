@@ -74,6 +74,8 @@ jobs:
 
       - run: pnpm --filter @informach/dia-de-estrela test:integration
 
+      - run: pnpm --filter @informach/recreio-app test:integration
+
       - run: pnpm --filter @informach/cozya eval
         env:
           EVAL_PREFLIGHT: "1"

@@ -11,3 +11,4 @@ export * from "./edi";
 export * from "./missao-saber";
 export * from "./oauth";
 export * from "./ops";
+export * from "./recreio";

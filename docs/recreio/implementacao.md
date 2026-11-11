@@ -63,8 +63,8 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 | --- | --- | --- |
 | P0 | `packages/recreio` (`.`, `./contrato`, `./emissor`, `./host`, `./testing`), `packages/config/src/jogos.ts` | feito |
 | P1 | Esqueleto do `apps/recreio` e registros no monorepo | feito |
-| P2 | Schema `recreio`, migração, grupos, perfis, sessão de aparelho | a fazer |
-| P3 | Carregador de acesso, concessões, scripts `conceder` e `revogar` | a fazer |
+| P2 | Schema `recreio`, migração, grupos, perfis, sessão de aparelho | feito |
+| P3 | Carregador de acesso, concessões, scripts `conceder` e `revogar` | feito |
 | P4 | Ingresso, sessão, renovação, JWKS, cliente do SDK | a fazer |
 | P5 | Mundos, membros, convite | a fazer |
 | P6 | Posse, API das instâncias, armazenamento | a fazer |
@@ -123,6 +123,24 @@ A suíte de conformidade (`@informach/recreio/testing/conformidade`) é a mesma 
 - Consumidores do `packages/config` (`config`, `admin`, `billing`, `informach-site`): typecheck limpo; testes de `config` (3), `admin` (180) e `billing` (205) passaram. Nenhum deles precisou de ajuste.
 - App rodando na porta 3009 contra um Postgres descartável, com e-mail em sandbox: cadastro, confirmação por código, entrada por OTP, código errado recusado, `/estante` e `/conta` protegidas, saída, 404 próprio e CSP sem erro de console, por HTTP e em navegador (Chromium).
 - **Não exercitado**: sessões no Redis (prefixo `recreio:auth:`) e `/api/ready` respondendo 200, porque não havia Redis na máquina; envio real pelo SendGrid; o bundle de produção servido por `next start`.
+
+### P2 e P3 (11/11/2026)
+
+- Migração `0080_recreio` gerada pelo Drizzle, sem edição à mão, com o schema inteiro da etapa 1 (14 tabelas e a sequência `game_session_end_seq`). Um segundo `pnpm db:generate` não propõe mudança. **Ainda não aplicada em nenhum banco além dos descartáveis de teste.**
+- `pnpm --filter @informach/recreio-app typecheck`: sem erros. `test`: 74 testes em 9 arquivos. `test:integration`: 45 testes em 3 arquivos, contra um banco descartável criado, migrado e apagado pela execução (Postgres embutido do repositório, sem Redis). `pnpm exec biome check apps/recreio packages/db packages/auth`: limpo. `pnpm build:recreio` com as variáveis do CI: concluído.
+- Typecheck de `db`, `auth`, `admin`, `dia-de-estrela`, `bora-treinar`, `billing`, `emails`, `missao-saber`, `cozya`, `agenda-da-turma`, `edi` e `edi-licensing`: limpo. Testes unitários de `auth` (261), `admin` (180), `dia-de-estrela` (87), `bora-treinar` (246), `billing` (205) e `db` (18) passaram.
+- A integração cobre: um perfil por conta sob concorrência; id de outra conta recusado como "não encontrado", igual a um perfil que não existe; perfil ativo que deixa de valer é descartado; concessão dá `ATIVO` com o limite do plano, vencida dá `ENCERRADO`, revogada dá `REVOGADO`; segunda concessão viva recusada; concessão e evento de auditoria gravam ou falham juntos; apagar uma conta deixa o mundo, o membro (com perfil nulo), a posse, a fotografia e o diário; os índices únicos recusam a segunda sessão de jogo aberta por perfil e a segunda posse aberta por mundo.
+- Jornada em navegador (Chromium, banco descartável): cadastro, código, `/comecar`, barreira do modo fechado, concessão, `/conta`, `/perfis`, revogação, saída, saída de outra origem recusada.
+- **Não exercitado**: sessões no Redis; o bundle de produção servido por `next start`; o Postgres 16 do CI (o embutido é 18.4); as suítes inteiras do repositório (`pnpm check`, `pnpm test`).
+
+O que estes lotes fixam para os próximos:
+
+- Encerrar uma sessão de jogo grava `ended_at`, `end_reason` e `ended_seq` no mesmo comando; a sequência é entregue antes do commit, então quem lê o cursor precisa serializar os encerramentos ou ler com folga (P4 e P6).
+- Sair por outro caminho que não `/api/conta/sair` (expiração, revogação pelo Bastidores) não marca `revoked_at`: a linha só fica inalcançável. A renovação da sessão de jogo tem de passar por `atorAtual()`.
+- Ordem de trava: criação de perfil e concessão travam primeiro a linha da conta em `core.users`. Mundos e posse seguem a mesma ordem.
+- Um id de conta é um UUID válido e passa no esquema de `PerfilId`; a separação é imposta pelos tipos com marca e, em execução, pela consulta, que não encontra o perfil.
+- No Bastidores os eventos `recreio.*` aparecem com o texto genérico até o lote X3.
+- `/privacidade` e a linha da página inicial foram atualizadas para dizer que o Recreio guarda perfis; continuam pedindo a revisão do titular.
 
 ### J0 a J4 e a parte de simulação do J5 (11/11/2026)
 

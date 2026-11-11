@@ -18,9 +18,12 @@ export default function Privacidade() {
       </p>
       <h2>O que guardamos hoje</h2>
       <p>
-        Só os dados da conta Informach: nome, e-mail, credenciais de autenticação e registros de
-        segurança, como sessões e tentativas de acesso. Nesta fase o Recreio não guarda perfis,
-        mundos nem dados de jogo, e não há cobrança.
+        Os dados da conta Informach: nome, e-mail, credenciais de autenticação e registros de
+        segurança, como sessões e tentativas de acesso. Do Recreio em si, guardamos o seu perfil (o
+        apelido e o avatar que você escolheu), em que aparelho ele está em uso e, quando a equipe
+        libera os jogos para você, o registro dessa liberação. Os jogos recebem só o perfil, nunca o
+        seu e-mail. Nesta fase o Recreio ainda não guarda mundos nem dados de jogo, e não há
+        cobrança.
       </p>
       <h2>Para que usamos</h2>
       <p>
@@ -36,15 +39,15 @@ export default function Privacidade() {
       </p>
       <h2>Seus controles</h2>
       <p>
-        Em Conta você vê o e-mail e sai da conta. A exclusão ainda não é feita pelo portal: peça
-        pelo direct do Instagram. Pelo mesmo canal você pode pedir confirmação e acesso aos dados,
-        correção, portabilidade, anonimização, bloqueio ou eliminação quando cabível, nos termos da
-        LGPD.
+        Em Conta você vê o e-mail, o perfil e a situação do acesso, e sai da conta. A exclusão ainda
+        não é feita pelo portal: peça pelo direct do Instagram. Pelo mesmo canal você pode pedir
+        confirmação e acesso aos dados, correção, portabilidade, anonimização, bloqueio ou
+        eliminação quando cabível, nos termos da LGPD.
       </p>
       <h2>Quando o Recreio crescer</h2>
       <p>
-        Perfis, mundos e assinatura trazem dados novos. Esta página será atualizada antes de eles
-        existirem.
+        Mundos, dados de jogo e assinatura trazem dados novos. Esta página será atualizada antes de
+        eles existirem.
       </p>
       <p>
         Consulte também a{" "}
