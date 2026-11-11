@@ -11,12 +11,17 @@ contextBridge.exposeInMainWorld("desktop", {
   importSvg: () => ipcRenderer.invoke("svg:import"),
   importGameProject: () => ipcRenderer.invoke("game:import"),
   importDesignKit: () => ipcRenderer.invoke("kit:import"),
+  importBoards: () => ipcRenderer.invoke("boards:import"),
   pipelinesRead: () => ipcRenderer.invoke("pipelines:read"),
   pipelinesWrite: (store) => ipcRenderer.invoke("pipelines:write", store),
   pipelinePick: (kind) => ipcRenderer.invoke("pipeline:pick", kind),
   pipelineReadProject: (token) => ipcRenderer.invoke("pipeline:read-project", token),
   pipelineFonts: () => ipcRenderer.invoke("pipeline:fonts"),
   pipelineFont: (family, weight) => ipcRenderer.invoke("pipeline:font", family, weight),
+  fontLibrary: () => ipcRenderer.invoke("fonts:library"),
+  libraryFont: (id) => ipcRenderer.invoke("fonts:library-font", id),
+  fontPreference: () => ipcRenderer.invoke("fonts:preference"),
+  setFontPreference: (value) => ipcRenderer.invoke("fonts:set-preference", value),
   pipelineWords: (token, kind, jobId) => ipcRenderer.invoke("pipeline:words", token, kind, jobId),
   pipelineNarration: (token, kind, start, end, jobId) =>
     ipcRenderer.invoke("pipeline:narration", token, kind, start, end, jobId),
@@ -27,16 +32,24 @@ contextBridge.exposeInMainWorld("desktop", {
   pipelineVideoFrames: (token, times, jobId) =>
     ipcRenderer.invoke("pipeline:video-frames", token, times, jobId),
   pipelineLessonScript: (token) => ipcRenderer.invoke("pipeline:lesson-script", token),
-  lessonSendStart: (spec) => ipcRenderer.invoke("lesson-send:start", spec),
-  lessonSendFrame: (id, bytes) => ipcRenderer.invoke("lesson-send:frame", id, bytes),
-  lessonSendFinish: (id) => ipcRenderer.invoke("lesson-send:finish", id),
-  lessonSendCancel: (id) => ipcRenderer.invoke("lesson-send:cancel", id),
-  lessonSendManifest: (manifest) => ipcRenderer.invoke("lesson-send:manifest", manifest),
-  lessonRequestTake: () => ipcRenderer.invoke("lesson-request:take"),
-  onLessonRequest: (callback) => {
-    const listener = (_event, waiting) => callback(waiting);
-    ipcRenderer.on("lesson-request:waiting", listener);
-    return () => ipcRenderer.removeListener("lesson-request:waiting", listener);
+  // Other Edi tools' requests and the renders of linked animations (packages/edi-link).
+  linkNext: () => ipcRenderer.invoke("link:next"),
+  linkOpenProject: (id) => ipcRenderer.invoke("link:open-project", id),
+  linkOpenFile: () => ipcRenderer.invoke("link:open-file"),
+  linkDone: (id) => ipcRenderer.invoke("link:done", id),
+  linkList: () => ipcRenderer.invoke("link:list"),
+  linkLessonFile: (animationId) => ipcRenderer.invoke("link:lesson-file", animationId),
+  linkRegister: (projectId, input) => ipcRenderer.invoke("link:register", projectId, input),
+  linkError: (projectId, animationId, message) =>
+    ipcRenderer.invoke("link:error", projectId, animationId, message),
+  linkRenderStart: (projectId, spec) => ipcRenderer.invoke("link:render-start", projectId, spec),
+  linkRenderFrame: (id, bytes) => ipcRenderer.invoke("link:render-frame", id, bytes),
+  linkRenderFinish: (id) => ipcRenderer.invoke("link:render-finish", id),
+  linkRenderCancel: (id) => ipcRenderer.invoke("link:render-cancel", id),
+  onLinkWaiting: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on("link:waiting", listener);
+    return () => ipcRenderer.removeListener("link:waiting", listener);
   },
   pipelineLessonVideo: (token, from, to, jobId) =>
     ipcRenderer.invoke("pipeline:lesson-video", token, from, to, jobId),

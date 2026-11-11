@@ -162,7 +162,7 @@ function LessonPhrases({
   );
 }
 
-/** A lesson EdiAula sent with "Animar no EdiSVG" (main/lessonRequest.ts), as a picked package. */
+/** A lesson given to the pipelines already chosen (a picked file of this session). */
 interface HandedLesson {
   name: string;
   file: PickedFile;
@@ -834,8 +834,8 @@ function PipelinesPanel({ desktop, editor, handed, report, close, setBusy }: Pro
           <div className="help-content pipeline-body">
             {handed && (
               <p className="pipeline-handed" role="status">
-                <strong>{handed.name}</strong> chegou do EdiAula. Escolha a receita: a aula já vem
-                escolhida, com as frases do roteiro.
+                Aula <strong>{handed.name}</strong>: escolha a receita, a aula já vem escolhida com
+                as frases do roteiro. O resultado vai para a animação vinculada a ela.
               </p>
             )}
             <p>

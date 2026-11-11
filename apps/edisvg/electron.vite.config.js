@@ -7,7 +7,7 @@ export default defineConfig({
   ...ediBuildOptions({
     mainEntry: "src/main/index.js",
     preloadEntry: "src/preload/index.cjs",
-    bundledPackages: ["@informach/edi-motion", "@informach/edi-speech"],
+    bundledPackages: ["@informach/edi-motion", "@informach/edi-speech", "@informach/edi-link"],
   }),
   renderer: {
     plugins: [

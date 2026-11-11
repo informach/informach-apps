@@ -20,6 +20,9 @@ import {
   rangeHeaders,
   rangeNotSatisfiable,
 } from "@informach/edi-desktop/media-range";
+import { assetLinkSchema } from "@informach/edi-link/contract";
+import { canOpenTool, launchEnvironment, openTool, toolLauncher } from "@informach/edi-link/launch";
+import { requestsDir, writeRequest } from "@informach/edi-link/node";
 import {
   app,
   BrowserWindow,
@@ -69,14 +72,11 @@ import { getCourseTemplate, localMusicPath, saveCourseTemplate } from "./courseT
 import { registerCursorSprites } from "./cursorSprite.ts";
 import { registerDrawingVideos } from "./drawingVideo.ts";
 import {
-  canOpenEdisvg,
-  edisvgLauncher,
-  handOffLesson,
-  launchEnvironment,
-  lessonProject,
-  openEdisvg,
-} from "./edisvgHandoff.ts";
-import { markPlaced, readReceived } from "./edisvgInbox.ts";
+  createRendersWatcher,
+  lessonLinkProject,
+  linkState,
+  readEdisvgSummary,
+} from "./edisvgLink.ts";
 import {
   codexSelfTest,
   resetEngineSession,
@@ -333,6 +333,10 @@ async function serveMedia(request: Request): Promise<Response> {
 }
 
 let win: BrowserWindow | null = null;
+/** The renders folders of the projects the open lesson links to (edisvgLink.ts). */
+const rendersWatcher = createRendersWatcher((project) => {
+  if (win && !win.isDestroyed()) win.webContents.send("link:changed", project);
+});
 const exportJobs = new Map<string, { cancelled: boolean; cancellation: AbortController }>();
 
 /** Segments and sounds of past exports, reused while they still show the same thing. */
@@ -712,52 +716,111 @@ function registerIpc(): void {
   });
 
   ipcMain.handle("media:probe", (_e, path: string) => probe(path));
-  // The animations EdiSVG sent for the open lesson (edisvgInbox.ts): its videos may be read.
-  ipcMain.handle("edisvg:received", async (_e, ids: unknown) => {
-    const received = await readReceived(app.getPath("userData"), ids);
-    if (received) for (const item of received.items) await desktopFiles.grantRead(item.path);
-    return received;
-  });
-  ipcMain.handle("edisvg:placed", (_e, lessonId: unknown, sentAt: unknown) =>
-    markPlaced(app.getPath("userData"), lessonId, sentAt),
-  );
-  // "Animar no EdiSVG" (edisvgHandoff.ts): the lesson packed for EdiSVG's pipelines, which open.
-  ipcMain.handle("edisvg:animate", async (_e, rawJob: unknown, project: unknown, path: unknown) => {
-    const jobId = jobIdSchema.parse(rawJob);
-    const parsed = projectSchema.parse(projectJson(project));
-    // The lesson's own EdiSVG project goes beside the saved lesson.
-    const lessonPath = typeof path === "string" && existsSync(path) ? path : undefined;
-    const edisvgProject = lessonPath ? lessonProject(lessonPath) : undefined;
-    const lesson = {
-      id: parsed.id,
-      name: parsed.name,
-      ...(edisvgProject ? { project: edisvgProject } : {}),
-    };
-    await handOffLesson(app.getPath("userData"), lesson, (out) =>
-      processingJob(jobId, "segment", (signal) =>
-        packProject(
-          parsed,
-          out,
-          desktopFiles.assertRead,
-          (ratio) => sendProgress({ id: jobId, ratio }),
-          signal,
-          FFMPEG,
-          { onlyUsed: true },
-        ),
+  // The link with EdiSVG (packages/edi-link, edisvgLink.ts): a request left in EdiSVG's profile
+  // and EdiSVG opened (or brought to the front); the renders of the linked projects watched,
+  // each render granted for reading as the lesson takes it.
+  const edisvgRequests = () => requestsDir(app.getPath("appData"), "edisvg");
+  const openEdisvg = async (): Promise<boolean> =>
+    canOpenTool(app.isPackaged, app.getPath("userData"), app.getPath("appData"), "ediaula") &&
+    (await openTool({
+      ...toolLauncher(
+        { id: "edisvg", name: "EdiSVG" },
+        {
+          packaged: app.isPackaged,
+          localAppData: process.env.LOCALAPPDATA ?? app.getPath("appData"),
+          repository: resolve(app.getAppPath(), "..", ".."),
+        },
       ),
-    );
-    const opened =
-      canOpenEdisvg(app.isPackaged, app.getPath("userData"), app.getPath("appData")) &&
-      (await openEdisvg({
-        ...edisvgLauncher(
-          app.isPackaged,
-          process.env.LOCALAPPDATA ?? app.getPath("appData"),
-          resolve(app.getAppPath(), "..", ".."),
-        ),
-        env: launchEnvironment(process.env),
-      }));
-    return { opened, ...(edisvgProject ? { project: edisvgProject } : {}) };
+      env: launchEnvironment(process.env),
+    }));
+  const lessonFileOf = (raw: unknown): string => {
+    const path = z.string().min(3).max(32768).parse(raw);
+    if (!existsSync(path) || !lessonLinkProject(path))
+      throw new Error("Salve a aula antes de criar uma animação do EdiSVG.");
+    return path;
+  };
+  const grantedState = async (project: string) => {
+    const state = await linkState(project);
+    for (const item of state.items)
+      if (item.renderPath) await desktopFiles.grantRead(item.renderPath);
+    return state;
+  };
+  ipcMain.handle("link:create", async (_e, rawLesson: unknown, rawSpec: unknown) => {
+    const lessonPath = lessonFileOf(rawLesson);
+    const spec = z
+      .object({
+        name: z.string().trim().min(1).max(120),
+        width: z.int().min(16).max(3840),
+        height: z.int().min(16).max(3840),
+        fps: z.int().min(1).max(60),
+        duration: z.number().min(0.1).max(1200),
+      })
+      .parse(rawSpec);
+    const project = lessonLinkProject(lessonPath) as string;
+    const request = await writeRequest(edisvgRequests(), {
+      type: "create",
+      from: "ediaula",
+      project,
+      ...spec,
+      // Its pipelines read the lesson's voice and screen straight from the lesson file.
+      lesson: lessonPath,
+    });
+    return { requestId: request.id, project, opened: await openEdisvg() };
   });
+  ipcMain.handle("link:edit", async (_e, rawLink: unknown) => {
+    const link = assetLinkSchema.parse(rawLink);
+    if (!link.animationId) throw new Error("A animação ainda não chegou do EdiSVG.");
+    await writeRequest(edisvgRequests(), {
+      type: "open",
+      from: "ediaula",
+      project: link.project,
+      animationId: link.animationId,
+    });
+    return { opened: await openEdisvg() };
+  });
+  ipcMain.handle("link:import-pick", async () => {
+    const r = await openDialog({
+      title: "Importar animação do EdiSVG",
+      properties: ["openFile"],
+      filters: [{ name: "Projeto do EdiSVG", extensions: ["edisvg"] }],
+    });
+    const project = r.canceled ? undefined : r.filePaths[0];
+    if (!project) return null;
+    const summary = await readEdisvgSummary(project);
+    const linked = await linkState(project);
+    return {
+      project,
+      name: summary.name ?? basename(project),
+      animations: (summary.motion?.animations ?? []).map((a) => ({
+        id: a.id,
+        name: a.name,
+        duration: a.fps > 0 ? Math.max(1, a.frames) / a.fps : 0,
+        linked: linked.items.some((i) => i.animationId === a.id),
+      })),
+    };
+  });
+  ipcMain.handle("link:link", async (_e, rawProject: unknown, rawAnimation: unknown) => {
+    const { project, animationId } = assetLinkSchema
+      .pick({ project: true, animationId: true })
+      .required()
+      .parse({ project: rawProject, animationId: rawAnimation });
+    if (!existsSync(project)) throw new Error("O projeto do EdiSVG não foi encontrado.");
+    const request = await writeRequest(edisvgRequests(), {
+      type: "link",
+      from: "ediaula",
+      project,
+      animationId,
+    });
+    return { requestId: request.id, opened: await openEdisvg() };
+  });
+  ipcMain.handle("link:watch", async (_e, rawProjects: unknown) => {
+    const projects = z.array(assetLinkSchema.shape.project).max(200).parse(rawProjects);
+    rendersWatcher.set(projects);
+    return Promise.all(projects.map((project) => grantedState(project)));
+  });
+  ipcMain.handle("link:state", (_e, rawProject: unknown) =>
+    grantedState(assetLinkSchema.shape.project.parse(rawProject)),
+  );
   ipcMain.handle("media:thumb", (_e, path: string, kind: AssetKind, duration: number) =>
     thumbnail(path, kind, duration),
   );

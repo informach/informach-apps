@@ -21,6 +21,7 @@
     "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
     "@informach/edi-desktop": "workspace:*",
     "@informach/edi-speech": "workspace:*",
+    "@informach/edi-link": "workspace:*",
     "@mediapipe/tasks-vision": "1.0.1",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "lucide-react": "^1.58.0",

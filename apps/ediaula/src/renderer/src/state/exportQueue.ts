@@ -22,6 +22,7 @@ import { ensureCursorSprites } from "@/lib/cursorRender";
 import { exportTranslations, platformInput } from "@/lib/delivery";
 import { keyIsCurrent, renderKeyFile } from "@/lib/keying";
 import { timelineKeys } from "@/lib/keysOnScreen";
+import { refreshMissing } from "@/lib/relink";
 import { ensureRevealSprites } from "@/lib/reveal";
 import { loadAssetTranscript } from "@/lib/transcripts";
 import { useApp } from "./app";
@@ -128,9 +129,17 @@ export const exportQueue = new ExportQueue(
     useApp.getState().startJob(id, `Exportando: ${project.name}`);
     try {
       const used = new Set(project.clips.map((c) => c.assetId));
-      const missing = project.assets.filter((a) => used.has(a.id) && a.missing);
-      if (missing.length)
-        throw new Error(`Mídias ausentes: ${missing.map((a) => a.name).join(", ")}`);
+      // Looked for on disk now: the mark made when the lesson opened misses a file renamed or
+      // removed since then, and the export would stop on it halfway.
+      const usedAssets = project.assets.filter((a) => used.has(a.id));
+      const found = await window.api.exists(usedAssets.map((a) => a.path));
+      const missing = usedAssets.filter((a, i) => a.missing || !found[i]);
+      if (missing.length) {
+        void refreshMissing().catch(() => undefined);
+        throw new Error(
+          `Mídias ausentes: ${missing.map((a) => a.name).join(", ")}. Reconecte-as na Biblioteca (Reconectar) e exporte de novo.`,
+        );
+      }
       // Exporting without the cursor is the person's explicit choice in the export dialog,
       // which hands over the lesson without that cursor data (shared/preflight.ts).
       const noCursor = project.assets.filter((a) => used.has(a.id) && a.cursorMissing);

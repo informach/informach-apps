@@ -8,6 +8,7 @@ import {
   Group,
   PaintBucket,
   Paintbrush,
+  PenTool,
   Scissors,
   SplitSquareHorizontal,
   Trash2,
@@ -18,6 +19,7 @@ import type { ReactNode } from "react";
 import { actions } from "@/lib/actions";
 import { copySelection, cutSelection, paste } from "@/lib/clipboard";
 import { askPasteProps, copiedProps, copyProps } from "@/lib/clipProps";
+import { editInEdisvg, useLinkStatus } from "@/lib/edisvgLink";
 import { hasSpeed, speedLabel } from "@/lib/speed";
 import { applyLapse } from "@/lib/timelapse";
 import { useApp } from "@/state/app";
@@ -43,6 +45,7 @@ export function ClipMenu({
 }): ReactNode {
   const project = useProject((s) => s.project);
   const selection = useProject((s) => s.selection);
+  const linkProjects = useLinkStatus((s) => s.projects);
   const clip = project?.clips.find((c) => c.id === clipId);
   if (!project || !clip) return null;
   const ids = selection.includes(clipId) ? selection : [clipId];
@@ -52,6 +55,10 @@ export function ClipMenu({
   );
   const locked = !!project.tracks.find((t) => t.id === clip.trackId)?.locked;
   const space = clip.timelapse ? spaceOf(clip.timelapse) : 0;
+  const linked = project.assets.find((a) => a.id === clip.assetId)?.link;
+  // Where the linked project stands (lib/edisvgLink.ts): moved away, or its last render failed.
+  const linkStatus = linked ? linkProjects.get(linked.project.toLowerCase()) : undefined;
+  const linkError = linked?.animationId ? linkStatus?.errors.get(linked.animationId) : undefined;
   const speed = clipSpeed(clip);
 
   return (
@@ -60,6 +67,25 @@ export function ClipMenu({
       y={y}
       onClose={onClose}
       items={[
+        ...(linked
+          ? [
+              {
+                icon: PenTool,
+                label: "Editar no EdiSVG",
+                disabled: !linked.animationId || linkStatus?.exists === false,
+                hint:
+                  linkStatus?.exists === false
+                    ? "O projeto do EdiSVG não foi encontrado: o clipe mostra o último render"
+                    : linkError
+                      ? `O último render no EdiSVG falhou: ${linkError}`
+                      : linked.animationId
+                        ? "Abre esta animação no EdiSVG: cada salvar lá atualiza o clipe aqui"
+                        : "A animação ainda não chegou do EdiSVG",
+                onSelect: () => void editInEdisvg(clip.assetId),
+              },
+              { separator: true, label: "" },
+            ]
+          : []),
         ...(clip.timelapse
           ? [
               {

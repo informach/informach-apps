@@ -13,7 +13,7 @@ import { actions } from "@/lib/actions";
 import { copySelection, cutSelection, paste } from "@/lib/clipboard";
 import { askPasteProps, copyProps } from "@/lib/clipProps";
 import { saveCourseTemplateFromLesson } from "@/lib/courseTemplate";
-import { animateInEdisvg, useAnimating } from "@/lib/edisvgOffer";
+import { importEdisvgAnimation, newEdisvgAnimation } from "@/lib/edisvgLink";
 import { exportCurrentFrame, openPackagedLesson, packLesson } from "@/lib/exportExtras";
 import { openPrepare } from "@/lib/prepare";
 import { duplicateLesson } from "@/lib/projectFiles";
@@ -48,7 +48,6 @@ export function TopBar(): ReactNode {
   const path = useProject((s) => s.path);
   const interval = useApp((s) => s.interval);
   const set = useApp((s) => s.set);
-  const animating = useAnimating((s) => s.busy);
   const [dialog, setDialog] = useState<"rename" | "backups" | null>(null);
 
   const openOther = async (): Promise<void> => {
@@ -119,10 +118,16 @@ export function TopBar(): ReactNode {
                   onSelect: packLesson,
                 },
                 { label: "Abrir aula empacotada…", onSelect: () => void openPackagedLesson() },
+                { separator: true, label: "" },
                 {
-                  label: "Animar no EdiSVG",
-                  disabled: !project?.clips.length || animating,
-                  onSelect: () => void animateInEdisvg(),
+                  label: "Nova animação do EdiSVG",
+                  disabled: !project,
+                  onSelect: () => void newEdisvgAnimation(),
+                },
+                {
+                  label: "Importar animação do EdiSVG…",
+                  disabled: !project,
+                  onSelect: () => void importEdisvgAnimation(),
                 },
                 { separator: true, label: "" },
                 {
@@ -336,11 +341,11 @@ export function TopBar(): ReactNode {
           <Button
             variant="secondary"
             icon={PenTool}
-            onClick={() => void animateInEdisvg()}
-            disabled={!project?.clips.length || animating}
-            title="Leva esta aula aos pipelines do EdiSVG, com o roteiro e a tela, para animar um trecho; a animação volta para cá"
+            onClick={() => void newEdisvgAnimation()}
+            disabled={!project}
+            title="Cria no EdiSVG uma animação do trecho marcado na régua (ou de 5 s a partir do cursor), vinculada: cada salvar lá atualiza o clipe aqui"
           >
-            Animar no EdiSVG
+            Nova animação
           </Button>
           <Button
             variant="secondary"

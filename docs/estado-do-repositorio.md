@@ -336,6 +336,60 @@ Ainda não testado:
 - o clique com os dois aplicativos recém-reabertos com este código;
 - o EdiSVG aberto pelo EdiAula numa instalação do Hub.
 
+Ainda em 10/11, o titular achou o fluxo confuso e sem funcionar direito, e pediu uma integração como a da Adobe: editar no outro aplicativo e a timeline se atualizar sozinha, com cada aplicativo funcionando sozinho também. O fluxo de pacote, pedido por pasta, envio e oferta foi **substituído por um vínculo**. Saíram o "Animar no EdiSVG", o pacote ZIP por clique, o "Enviar animações para a aula", `recebidos/`, `para-o-edisvg/` e a barra de oferta.
+
+Decisões do titular:
+- o EdiSVG renderiza ao salvar;
+- o EdiSVG agora e o EdiFoto depois;
+- substituir o fluxo antigo;
+- um `.edisvg` por aula.
+
+Como ficou:
+- **Contrato:** `packages/edi-link`, um pacote novo. Pedidos por arquivo em `pedidos/` no perfil da ferramenta pedida; renders na pasta `<projeto> · renders`, ao lado do projeto, com `vinculos.json` por último e o hash no nome de cada arquivo. Regras em `docs/arquitetura-desktop.md` §6.
+- **No EdiAula:**
+  - **Nova animação do EdiSVG** (trecho da régua, ou 5 s do cursor) põe na hora um clipe provisório na faixa acima da tela, pede a animação no `Aula.edisvg` ao lado da aula e abre o EdiSVG;
+  - **Editar no EdiSVG**, no menu do clipe;
+  - **Importar animação do EdiSVG…**;
+  - a pasta de renders é vigiada, e o render novo troca o asset em todo o histórico, sem passo de desfazer;
+  - o clipe inteiro acompanha a duração; o cortado mantém o corte.
+- **No EdiSVG:**
+  - pedidos lidos ao abrir e por `fs.watch`;
+  - `EdiSVG.exe <arquivo>` abre o arquivo;
+  - ao salvar, renderiza só as animações vinculadas que mudaram, com hash do documento compilado, WebM VP9 com alfa direto para o FFmpeg, em segundo plano e com andamento.
+- **Pipelines:** aceitam o próprio `.ediaula`, sem ZIP. Numa animação vinculada vazia, a aula vem escolhida, a narração vai para ela, e o clipe vai para o segundo das palavras.
+
+Verificação:
+- **`edi-link`:** 7 testes.
+- **EdiSVG:** 370 unitários, os e2e do vínculo e do pipeline na animação vinculada, e os 10 de mídia, incluindo o render real com alfa.
+- **EdiAula:** testes novos de vínculo e de mídia vinculada.
+
+Fica para medir com os dois aplicativos abertos: o tempo do salvar até a aula atualizar.
+
+Ainda em 10/11, o titular achou as cores do EdiAula limitadas e pediu um seletor com contagotas. Toda fileira de cores (anotações, fundo, bordas, sombras, cursor, quadro) ganhou, depois da paleta, a cor própria em uso, **Mais cores** e o **contagotas** (`EyeDropper` do Chromium, qualquer pixel da tela). "Mais cores" abre um seletor completo (`editor/ColorPicker.tsx`): quadrado de saturação e brilho, matiz, hexadecimal, contagotas, paleta e as 10 cores recentes (`lib/colors.ts`, guardadas no computador). Nada muda até Aplicar, então cada cor é um passo de desfazer. A cor do fundo removido e a cor de uma legenda usam o mesmo seletor no lugar do seletor nativo. As contas de hex e HSV do EdiSVG foram para `@informach/edi-desktop/color`, usadas pelos dois. Verificado num navegador com o componente de verdade e um contagotas simulado; o contagotas real do Windows não foi testado no app.
+
+Ainda em 10/11, o titular quis importar um SVG para a prancheta aberta do EdiSVG, que só criava prancheta nova. A revisão da importação ganhou **Colocar na prancheta aberta**: a arte entra como um grupo selecionado, centralizado e reduzido para caber em 90% da prancheta (operação `place` de `artboard` em `src/shared/artboards.ts`), num Ctrl+Z. Teste unitário em `artboards.test.ts` e e2e em `tests/e2e/svg-ingress.test.ts`; conferido também com o logo do titular no editor construído. Os SVGs do Illustrator do titular (`PackLogo`) eram recusados pelo `<style>` com classes, `data-name` e `<tspan>`: foram feitas cópias `-edisvg.svg` ao lado dos originais, com as classes viradas atributos, iguais pixel a pixel. Ler `<style>` com classes simples no importador fica como melhoria possível.
+
+Ainda em 10/11, para pôr o mascote animado (outro `.edisvg`) na capa, o EdiSVG ganhou **Importar pranchetas de outro projeto…** (`src/shared/projectImport.ts`, comando `project-import` da transação, diálogo `boards-import-panel.tsx`, IPC `boards:import`). Vêm as pranchetas escolhidas, as que elas usam como componente, as animações que mexem nelas (só essas trilhas), rig, lógica, layout, áudio e recursos. Ids que já existem no projeto ganham outros em todas as citações, e nomes repetidos ganham número. Tudo num Ctrl+Z. Verificado com 4 testes unitários, um e2e e os projetos reais do titular (`saudacao` com rig, `baú` com máquina de estados, `celebrando` na própria cópia, com todos os ids colidindo): todas as importações passaram na validação do projeto e compilaram. Depois, o personagem entra na cena como componente com a animação dele.
+
+Ainda em 10/11, o titular não conseguia aplicar Baloo 2 nem Nunito num texto do EdiSVG, nem pela interface nem pelo MCP. A causa era um caminho que faltava, não um defeito pontual. As fontes estão no app como TTF estáticos com OFL (`apps/ediaula/resources/fonts`, que o instalador copia), mas só os pipelines e o kit de design as punham no projeto. O seletor de texto listava só o catálogo, vazio num projeto novo. Nenhuma ferramenta MCP adicionava uma fonte do app, e gravar `font-family` não incorpora a fonte.
+
+O que entrou (projeto v27):
+- **Biblioteca de fontes:** cada face tem um id estável (`baloo-2-800`, `nunito-400`). No painel de texto, as fontes aparecem em "Do EdiSVG" e entram no catálogo e no texto na hora (nos textos selecionados), num passo de desfazer, sem duplicar e com o aviso OFL no recurso.
+- **Fontes padrão do projeto:** `defaults.fonts` guarda a de título e a de corpo. Um texto novo nasce com a de título, e os botões Título e Corpo ficam no painel.
+- **Arquivo › Fontes do projeto…:** escolhe o padrão do projeto, aplica o padrão a todos os textos (peso 600 ou mais recebe a de título) e define o padrão para projetos novos. Até a pessoa mudar, vale Baloo 2 800 e Nunito 400, guardado em `fontes-padrao.json` no perfil.
+- **Projeto novo:** já nasce com as duas fontes no catálogo.
+- **MCP:**
+  - `get_font_library`;
+  - `add-library-font`;
+  - `set-font` com `libraryFontId`;
+  - os comandos `fonts` `set-defaults` e `apply-defaults`;
+  - `fontDefaults` no `get_overview`.
+
+Verificação:
+- **Testes com as fontes reais:** cobertura pt-BR sem faltas, aviso OFL, migração v26 → v27, projeto novo ainda "em branco".
+- **e2e:** painel de texto com desfazer e refazer, diálogo, HTML exportado e quadro de vídeo desenhados com Baloo 2 e Nunito, e não com a fonte de fallback (conferido também na captura).
+- **Ainda não testado:** a janela Electron com o projeto do titular. Detalhes no [README](../apps/edisvg/README.md#fontes-do-edisvg-e-fontes-padrão-do-projeto-projeto-v27).
+
 A revisão completa do diff, antes do commit de 09/11, achou 10 problemas, todos corrigidos:
 - **Leitor de ZIP:** um descritor ficava aberto quando a entrada era recusada.
 - **Narrações:** a restauração de um arquivo antigo apagava as do arquivo aberto em seguida.

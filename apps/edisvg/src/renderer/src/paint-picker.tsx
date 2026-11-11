@@ -1,5 +1,5 @@
+import { type HsvColor, hexToHsv, hsvToHex, normalizeHex } from "@informach/edi-desktop/color";
 import { type CSSProperties, type PointerEvent, useEffect, useRef, useState } from "react";
-import { type HsvColor, hexToHsv, hsvToHex, normalizeHex } from "./paint-color";
 
 declare global {
   interface Window {

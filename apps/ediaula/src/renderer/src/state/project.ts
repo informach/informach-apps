@@ -95,6 +95,12 @@ interface ProjectStore {
   /** The media file (or its cursor data) was found elsewhere: the new place replaces the old
    *  one in the whole history. */
   relinkAsset(id: string, changes: RelinkChanges): void;
+  /**
+   * A change of the lesson's media that is not an edit (a linked animation's newer render):
+   * applied to the lesson and to every step of undo and redo, so undoing never brings the old
+   * picture back. Not an undo step itself.
+   */
+  rewriteMedia(fn: (p: Project) => Project): void;
   /** Ctrl+Z: one step, or the whole AI turn on top. */
   undo(): void;
   redo(): void;
@@ -280,6 +286,12 @@ export const useProject = create<ProjectStore>((set, get) => {
       if (!project || !old) return;
       const relink = (p: Project): Project => relinkIn(p, old, changes);
       set({ project: relink(project), past: past.map(relink), future: future.map(relink) });
+    },
+
+    rewriteMedia: (fn) => {
+      const { project, past, future } = get();
+      if (!project) return;
+      set({ project: fn(project), past: past.map(fn), future: future.map(fn) });
     },
 
     undo: () => {

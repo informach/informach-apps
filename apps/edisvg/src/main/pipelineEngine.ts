@@ -157,6 +157,8 @@ const machine = () => {
 const lessons = new Map<string, Promise<string>>();
 async function lessonOf(token: unknown, signal: AbortSignal): Promise<string> {
   const zip = pickedPath(token, "lesson");
+  // A lesson file of this computer: its media are where it says, nothing to unpack.
+  if (/\.ediaula$/i.test(zip)) return zip;
   const key = zip.toLowerCase();
   const cached = lessons.get(key);
   if (cached) {

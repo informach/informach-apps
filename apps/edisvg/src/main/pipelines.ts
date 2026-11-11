@@ -57,8 +57,9 @@ const FILTERS: Record<PickedFile["kind"], Electron.FileFilter[]> = {
       extensions: ["mp3", "wav", "m4a", "aac", "ogg", "flac", "mp4", "mov", "webm", "mkv"],
     },
   ],
-  // EdiAula's package (Arquivo › Empacotar a aula): the lesson with its narration and screen.
-  lesson: [{ name: "Pacote da aula do EdiAula (.zip)", extensions: ["zip"] }],
+  // An EdiAula lesson (the .ediaula, its media where they are on this computer) or its package
+  // (Arquivo › Empacotar a aula, a .zip from another computer).
+  lesson: [{ name: "Aula do EdiAula (.ediaula ou pacote .zip)", extensions: ["ediaula", "zip"] }],
   video: [{ name: "Vídeo", extensions: ["mp4", "mov", "webm", "mkv", "avi"] }],
 };
 
@@ -93,12 +94,6 @@ export async function registerPickedFile(
   const token = `file-${randomUUID()}`;
   picked.set(token, { path, kind });
   return { token, name: name.slice(0, 260), kind, size: (await stat(path)).size };
-}
-
-/** Whether a file is the one behind a token of this session (a run may still read it). */
-export function isPickedPath(path: string): boolean {
-  for (const entry of picked.values()) if (entry.path === path) return true;
-  return false;
 }
 
 /** Forgets a made file's token (its file is gone). */

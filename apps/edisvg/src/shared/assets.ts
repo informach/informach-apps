@@ -7,6 +7,7 @@ import {
   resolveFontStack,
 } from "@informach/edi-motion/assets";
 import { z } from "zod";
+import { libraryFontIdSchema } from "./fontLibrary";
 import type { Project } from "./project";
 import { flattenScene } from "./scene.js";
 import type { Scene } from "./sceneTypes";
@@ -15,9 +16,16 @@ export const assetCommandSchema = z.discriminatedUnion("operation", [
   z.strictObject({
     type: z.literal("asset"),
     operation: z.literal("set-font"),
-    assetId: assetIdSchema.nullable(),
+    assetId: assetIdSchema.nullable().optional(),
+    /** A font of EdiSVG's library in place of assetId: the editor adds it to the catalog first. */
+    libraryFontId: libraryFontIdSchema.optional(),
     fontFallbackIds: fontFallbackIdsSchema.optional(),
     targetId: z.string().regex(/^node-[\w-]{1,100}$/),
+  }),
+  z.strictObject({
+    type: z.literal("asset"),
+    operation: z.literal("add-library-font"),
+    fontId: libraryFontIdSchema,
   }),
   z.strictObject({ type: z.literal("asset"), operation: z.literal("put"), value: z.unknown() }),
   z.strictObject({
@@ -42,6 +50,11 @@ export function applyAsset(
   scene: Scene | null,
   command: z.infer<typeof assetCommandSchema>,
 ): string | undefined {
+  if (
+    command.operation === "add-library-font" ||
+    ("libraryFontId" in command && command.libraryFontId)
+  )
+    throw new Error("Fonte da biblioteca não resolvida: use edit_document pelo editor.");
   if (command.operation === "put") {
     const asset = parseAsset(command.value),
       existing = project.assets.find((value) => value.id === asset.id);
@@ -53,6 +66,7 @@ export function applyAsset(
     if (entry?.node.tag !== "text") throw new Error("Selecione um texto local.");
     if (entry.locked)
       throw new Error("Desbloqueie o texto e seus grupos antes de alterar a fonte.");
+    if (command.assetId === undefined) throw new Error("set-font requer assetId ou libraryFontId.");
     if (command.assetId === null) {
       if (command.fontFallbackIds?.length) throw new Error("Fallback requer fonte principal.");
       delete entry.node.fontAssetId;
@@ -70,6 +84,8 @@ export function applyAsset(
       if (entry.node.fontAssetId !== font.id) {
         entry.node.attrs["font-weight"] = String(font.weight);
         entry.node.attrs["font-style"] = font.italic ? "italic" : "normal";
+        // The family the text names, should the embedded font not load.
+        entry.node.attrs["font-family"] = font.family;
       }
       entry.node.fontAssetId = font.id;
       if (fallback?.length) entry.node.fontFallbackIds = [...fallback];
@@ -84,6 +100,10 @@ export function applyAsset(
     return;
   }
   if (command.operation === "remove") {
+    if (project.defaults && Object.values(project.defaults.fonts).includes(asset.id))
+      throw new Error(
+        "Esta fonte é uma das fontes padrão do projeto. Escolha outra em Fontes do projeto antes de excluí-la.",
+      );
     if (
       project.artboards.some(
         (board) =>

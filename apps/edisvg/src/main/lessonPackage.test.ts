@@ -208,3 +208,21 @@ test("the package's lesson is read without unpacking: its id, its script and thi
   await writeFile(notLesson, zipSync({ "aula.ediaula": bytes("[1]") }));
   await assert.rejects(packageLesson(notLesson), /não é uma aula do EdiAula/);
 });
+
+test("a lesson file of this computer (.ediaula) is read as it is: no package, nothing unpacked", async () => {
+  const file = join(dir, "DPJ Aula01.ediaula");
+  await writeFile(
+    file,
+    JSON.stringify({
+      ...lesson,
+      id: "pifnvgomyinhw",
+      script: { text: "## Parte 6. Na tela\n\nOi.", section: 5 },
+    }),
+  );
+  assert.deepEqual(await packageLesson(file), {
+    id: "pifnvgomyinhw",
+    script: { text: "## Parte 6. Na tela\n\nOi.", section: 5 },
+  });
+  await writeFile(join(dir, "quebrada.ediaula"), "{");
+  await assert.rejects(packageLesson(join(dir, "quebrada.ediaula")), /não é uma aula do EdiAula/);
+});

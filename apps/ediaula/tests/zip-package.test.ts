@@ -148,9 +148,8 @@ test("a lesson packed with its media opens on another folder with its paths ther
   assert.notEqual(second.folder, folder);
   assert.notEqual(opened.id, "p");
   assert.notEqual(second.project.id, opened.id);
-  // Each copy remembers the lesson it came from: EdiSVG's animations for it come back by that id.
-  assert.equal(opened.origin, "p");
-  assert.equal(second.project.origin, "p");
+  // No origin is recorded any more: EdiSVG animations come back by their link, not the lesson id.
+  assert.equal(opened.origin, undefined);
 });
 
 test("a take's media goes in the package with its pauses black and silent, the words said there out", {

@@ -36,7 +36,7 @@ export function editorCommands(available: Availability, tools: EditorCommand[]):
       shortcut: "Ctrl/Cmd+Shift+Z",
       reason: available.redo ? undefined : "Nenhuma edição para refazer.",
     },
-    { id: "import-svg", label: "Importar SVG em nova prancheta", group: "Arquivo" },
+    { id: "import-svg", label: "Importar SVG (prancheta aberta ou nova)", group: "Arquivo" },
     {
       id: "pipelines",
       label: "Pipelines (receitas)",
@@ -49,13 +49,18 @@ export function editorCommands(available: Availability, tools: EditorCommand[]):
       group: "Arquivo",
     },
     {
-      id: "import-kit",
-      label: "Importar kit de design (.zip)",
+      id: "fonts",
+      label: "Fontes do projeto (padrão de título e corpo)",
       group: "Arquivo",
     },
     {
-      id: "lesson-send",
-      label: "Enviar animações para a aula (EdiAula)",
+      id: "import-boards",
+      label: "Importar pranchetas de outro projeto (.edisvg)",
+      group: "Arquivo",
+    },
+    {
+      id: "import-kit",
+      label: "Importar kit de design (.zip)",
       group: "Arquivo",
     },
     { id: "export", label: "Exportar projeto ou animação", group: "Arquivo" },

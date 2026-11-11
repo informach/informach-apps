@@ -238,6 +238,17 @@ export interface PackageLesson {
  * script's phrases before it starts, and records which lesson its animation is a stretch of.
  */
 export async function packageLesson(zipPath: string): Promise<PackageLesson> {
+  // A lesson file of this computer: read as it is.
+  if (/\.ediaula$/i.test(zipPath)) {
+    if ((await stat(zipPath)).size > LESSON_BYTES) throw new Error("A aula é grande demais.");
+    let raw: unknown;
+    try {
+      raw = JSON.parse(await readFile(zipPath, "utf8"));
+    } catch {
+      raw = null;
+    }
+    return lessonOfRaw(raw, "A aula escolhida não é uma aula do EdiAula que dê para ler.");
+  }
   let entries: ZipDirectoryEntry[];
   try {
     entries = await zipDirectory(zipPath, MAX_ENTRIES);
@@ -258,9 +269,13 @@ export async function packageLesson(zipPath: string): Promise<PackageLesson> {
   } catch {
     raw = null;
   }
+  return lessonOfRaw(raw, "A aula do pacote não é uma aula do EdiAula que dê para ler.");
+}
+
+/** The id and script of a lesson read as JSON (from a package, or the lesson file itself). */
+function lessonOfRaw(raw: unknown, refusal: string): PackageLesson {
   const parsed = scriptSchema.safeParse(raw);
-  if (!parsed.success)
-    throw new Error("A aula do pacote não é uma aula do EdiAula que dê para ler.");
+  if (!parsed.success) throw new Error(refusal);
   const { id, script } = parsed.data;
   return {
     id: id && /^[\w-]{1,100}$/.test(id) ? id : null,

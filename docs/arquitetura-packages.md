@@ -279,8 +279,9 @@ Contratos fixos:
 
 Packages da suíte Edi, consumidos pelos apps Electron e incluídos no build de cada um. Regras de fronteira, distribuição e instaladores em [`arquitetura-desktop.md`](./arquitetura-desktop.md).
 
-- `edi-contracts`: contratos públicos puros. `edi-desktop`: integração local (main, preload, mídia, captura Windows). `edi-licensing`: regras do servidor. `edi-releases`: catálogo público assinado.
+- `edi-contracts`: contratos públicos puros. `edi-desktop`: integração local (main, preload, mídia, captura Windows) e utilidades puras dos renderers, como as contas de cor dos seletores (`./color`). `edi-licensing`: regras do servidor. `edi-releases`: catálogo público assinado.
 - `edi-motion`: modelo e avaliador das animações do EdiSVG.
+- `edi-link`: o vínculo entre ferramentas (como Premiere e After Effects): o contrato dos pedidos de uma ferramenta para outra e dos renders das mídias vinculadas (`/contract`, sem disco), a leitura e escrita deles (`/node`) e o jeito de abrir outra ferramenta (`/launch`). Hoje EdiAula ↔ EdiSVG. Ver [`packages/edi-link/README.md`](../packages/edi-link/README.md).
 - `edi-ocr`: OCR local com Tesseract. Root neutro (schema, limites, estados, geometria, plano de blocos), `/worker` e `/canvas` no renderer, `/search`, `/sensitive` e `/assets` (Node, no build: copia worker, núcleos, modelos e licenças para o app). Modelos e licenças ficam em `packages/edi-ocr/resources`. Ver [`packages/edi-ocr/README.md`](../packages/edi-ocr/README.md).
 - `edi-native`: fontes C# comuns dos helpers Win32 (`csharp/`) e o build Node (`/build`, `/sources`) que compila o helper de cada app com o `csc` do .NET Framework. Não roda no Electron; o app usa o executável de `resources/native`. Ver [`packages/edi-native/README.md`](../packages/edi-native/README.md).
 

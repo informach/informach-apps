@@ -1,5 +1,6 @@
+import { existsSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   connectClient,
@@ -9,28 +10,41 @@ import {
 } from "@informach/edi-desktop/ai-clients";
 import { atomicWrite } from "@informach/edi-desktop/files";
 import { createEdiDesktop, desktopIpc as ipcMain } from "@informach/edi-desktop/main";
+import { REQUESTS_FOLDER } from "@informach/edi-link/contract";
 import { ASSET_BYTES } from "@informach/edi-motion/assets";
 import { app, BrowserWindow, dialog, Menu } from "electron";
 import { newProject, parseProject } from "../shared/project.js";
 import { createBridge } from "./aiBridge.js";
 import { readBoundedBytes } from "./boundedBytes";
-import { readBoundedText, SVG_BYTES, SZPROJECT_BYTES } from "./boundedText.ts";
+import {
+  PROJECT_BYTES,
+  parseJsonText,
+  readBoundedText,
+  SVG_BYTES,
+  SZPROJECT_BYTES,
+} from "./boundedText.ts";
 import { readDesignKit } from "./designKit.ts";
 import { createEngineRunner, MCP_PORT, MCP_SERVER, providerClient } from "./engines.js";
 import { parseExportPayload } from "./exportPayload";
 import {
-  cancelDelivery,
-  DELIVERY_FOLDER,
-  deliveryFrame,
-  finishDelivery,
-  startDelivery,
-  writeDelivery,
-} from "./lessonDelivery.ts";
-import { keepPackage, lessonRequestWaiting, takeLessonRequest } from "./lessonRequest.ts";
+  createFontPreference,
+  libraryFont,
+  libraryFonts,
+  withDefaultFonts,
+} from "./fontLibrary.ts";
+import {
+  cancelRender,
+  finishRender,
+  linkedAnimations,
+  markLinkError,
+  registerLink,
+  renderFrame,
+  startRender,
+} from "./linkRender.ts";
+import { createLinkInbox } from "./linkRequests.ts";
 import { startMcpServer } from "./mcpServer.js";
 import {
   cancelPipelineJob,
-  ediaulaData,
   exportAlphaWebm,
   ffmpegPath,
   pipelineLessonScript,
@@ -44,7 +58,6 @@ import {
 import { pipelineFont, pipelineFonts } from "./pipelineFonts.ts";
 import { loadReferences, saveReference } from "./pipelineReferences.ts";
 import {
-  isPickedPath,
   pickPipelineFile,
   readPickedProject,
   readRecipeStore,
@@ -93,7 +106,13 @@ let win,
   mcp,
   runner,
   files,
+  linkInbox,
   mcpError = "";
+/** A .edisvg given on the command line (Abrir com, or another tool), opened once the editor is. */
+const projectArgument = (argv) =>
+  argv.slice(1).find((a) => !a.startsWith("-") && /\.edisvg$/i.test(a) && existsSync(a)) ?? null;
+let pendingProject = projectArgument(process.argv),
+  takenProject = null;
 let allowClose = false,
   checkingClose = false,
   initialized = false,
@@ -149,12 +168,16 @@ function menu() {
             click: () => win.webContents.send("app:command", "import-game"),
           },
           {
-            label: "Importar kit de design (.zip)…",
-            click: () => win.webContents.send("app:command", "import-kit"),
+            label: "Fontes do projeto…",
+            click: () => win.webContents.send("app:command", "fonts"),
           },
           {
-            label: "Enviar animações para a aula…",
-            click: () => win.webContents.send("app:command", "lesson-send"),
+            label: "Importar pranchetas de outro projeto…",
+            click: () => win.webContents.send("app:command", "import-boards"),
+          },
+          {
+            label: "Importar kit de design (.zip)…",
+            click: () => win.webContents.send("app:command", "import-kit"),
           },
           {
             label: "Pipelines…",
@@ -216,9 +239,9 @@ function menu() {
   );
 }
 /**
- * Brings the window to the front: a second launch, or a lesson EdiAula sent while EdiSVG was
- * open behind it. On Windows a window behind another program only blinks on the taskbar when it
- * asks for focus, unless it is put on top for a moment.
+ * Brings the window to the front: a second launch, or a request of another tool while EdiSVG
+ * was open behind it. On Windows a window behind another program only blinks on the taskbar
+ * when it asks for focus, unless it is put on top for a moment.
  */
 function bringToFront() {
   if (!win || win.isDestroyed()) return;
@@ -228,28 +251,6 @@ function bringToFront() {
   win.focus();
   win.setAlwaysOnTop(false);
 }
-
-/**
- * A lesson EdiAula sends ("Animar no EdiSVG"): looked for every 2 s, the one look there is.
- * While one waits the window is told at every look (it takes it as soon as nothing is in the
- * way: lesson-request:take opens the lesson's project and the pipelines), and it comes to the
- * front once for each request.
- */
-let broughtFor = 0;
-const REQUEST_LOOK_MS = 2000;
-setInterval(() => {
-  if (!win || win.isDestroyed() || !initialized) return;
-  void lessonRequestWaiting(ediaulaData(), app.getPath("userData"))
-    .then((waiting) => {
-      if (!waiting || !win || win.isDestroyed()) return;
-      if (waiting.sentAt !== broughtFor) {
-        broughtFor = waiting.sentAt;
-        bringToFront();
-      }
-      win.webContents.send("lesson-request:waiting", waiting);
-    })
-    .catch(() => undefined);
-}, REQUEST_LOOK_MS).unref();
 
 async function createWindow() {
   allowClose = false;
@@ -306,7 +307,14 @@ async function createWindow() {
 }
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
-  app.on("second-instance", () => bringToFront());
+  app.on("second-instance", (_event, argv) => {
+    bringToFront();
+    const project = projectArgument(argv);
+    if (project) {
+      pendingProject = project;
+      win?.webContents.send("link:waiting");
+    }
+  });
   app
     .whenReady()
     .then(async () => {
@@ -378,7 +386,14 @@ else {
         join(app.getPath("userData"), "recovery-v1.json"),
         parseProject,
       );
+      const fontPreference = createFontPreference(
+        join(app.getPath("userData"), "fontes-padrao.json"),
+      );
+      /** A new project, born with the person's default fonts (Baloo 2 and Nunito until changed). */
+      const blankProject = async () =>
+        withDefaultFonts(newProject(), fontSource(), await fontPreference.read());
       files = createProjectFiles({
+        blank: blankProject,
         checkpoint: (project) => recovery.save(project),
         onDiscard: () =>
           win.webContents.executeJavaScript("localStorage.removeItem('edisvg-project')"),
@@ -438,7 +453,9 @@ else {
               project = null;
             }
           }
-          const result = await files.recover(project ?? newProject(), { persist: false });
+          const result = await files.recover(project ?? (await blankProject()), {
+            persist: false,
+          });
           initialized = true;
           return { ...result, recovered: !!project };
         } finally {
@@ -479,6 +496,19 @@ else {
           name: basename(path),
         };
       });
+      // Another EdiSVG project, read (never opened) for its artboards to come into this one.
+      handle("boards:import", async () => {
+        if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
+        const result = await dialog.showOpenDialog(win, {
+          defaultPath: files.status().path ? dirname(files.status().path) : folderFor("documents"),
+          filters: [{ name: "Projeto EdiSVG (.edisvg)", extensions: ["edisvg"] }],
+          properties: ["openFile", "dontAddToRecent"],
+        });
+        if (result.canceled) return null;
+        const path = result.filePaths[0];
+        const project = parseProject(parseJsonText(await readBoundedText(path, PROJECT_BYTES)));
+        return { name: basename(path, ".edisvg"), project };
+      });
       // A kit is a ZIP someone made or sent: Downloads, like the other packages.
       handle("kit:import", async () => {
         if (!initialized) throw new Error("Aguarde a recuperação do projeto.");
@@ -502,6 +532,11 @@ else {
       );
       handle("pipeline:references", (projectId) => loadReferences(references(), projectId));
       handle("pipeline:fonts", () => pipelineFonts(fontSource()));
+      // The font library: its faces, one face's file by id, the defaults for new projects.
+      handle("fonts:library", () => libraryFonts(fontSource()));
+      handle("fonts:library-font", (id) => libraryFont(fontSource(), id));
+      handle("fonts:preference", () => fontPreference.read());
+      handle("fonts:set-preference", (value) => fontPreference.write(value));
       handle("pipeline:font", (family, weight) => pipelineFont(fontSource(), family, weight));
       handle("pipeline:words", (token, kind, jobId) => {
         if (typeof jobId !== "string" || !/^[\w-]{1,64}$/.test(jobId))
@@ -521,41 +556,81 @@ else {
         pipelineVideoFrames(token, times, jobId),
       );
       handle("pipeline:lesson-script", (token) => pipelineLessonScript(token));
-      // The lesson's animations, sent to EdiAula's folder for that lesson (lessonDelivery.ts).
-      const inbox = () => join(ediaulaData(), DELIVERY_FOLDER);
-      handle("lesson-send:start", (spec) => {
+      // Other Edi tools' requests and the renders of linked animations (packages/edi-link):
+      // the requests come by file (linkRequests.ts) and the window takes them one at a time;
+      // a linked animation renders into `<project> · renders` at every save that changed it
+      // (linkRender.ts). The project's path is always the main process's, never the window's.
+      linkInbox = await createLinkInbox(join(app.getPath("userData"), REQUESTS_FOLDER), () => {
+        if (win && !win.isDestroyed()) win.webContents.send("link:waiting");
+      });
+      const linkedPath = () => {
+        const path = files.status().path;
+        if (!path) throw new Error("Salve o projeto em arquivo antes de vincular animações.");
+        return path;
+      };
+      // The window's project must be the one open here: a render or link of a project left
+      // meanwhile never writes into the manifest of the file open now.
+      const projectIdOf = (value) => {
+        if (typeof value !== "string" || !/^[\w-]{1,200}$/.test(value))
+          throw new Error("Projeto inválido.");
+        if (value !== files.projectId()) throw new Error("O projeto aberto mudou.");
+        return value;
+      };
+      handle("link:next", async () => {
+        // Busy: the window looks again in a moment (null would mean nothing waits).
+        if (!initialized || files.isBusy() || runner.busy()) return { type: "wait" };
+        // A file given on the command line first: it is what the person just opened.
+        if (pendingProject) {
+          takenProject = pendingProject;
+          pendingProject = null;
+          bringToFront();
+          return { type: "file", name: basename(takenProject) };
+        }
+        const request = await linkInbox.next();
+        if (request) bringToFront();
+        return request;
+      });
+      handle("link:open-project", async (id) => {
+        if (!initialized) throw new Error("A recuperação precisa terminar antes.");
+        if (runner.busy()) throw new Error("Interrompa a IA antes de abrir outro projeto.");
+        const request = linkInbox.taken(id);
+        return files.openLinked(request.project, request.type === "create" ? request.name : null);
+      });
+      handle("link:open-file", async () => {
+        if (!initialized) throw new Error("A recuperação precisa terminar antes.");
+        if (runner.busy()) throw new Error("Interrompa a IA antes de abrir outro projeto.");
+        const path = takenProject;
+        takenProject = null;
+        if (!path || !existsSync(path)) throw new Error("Projeto não encontrado.");
+        return files.openLinked(path, null);
+      });
+      handle("link:done", (id) => linkInbox.done(id));
+      handle("link:list", async () => {
+        const path = files.status().path;
+        return path ? linkedAnimations(path) : [];
+      });
+      // The lesson a linked animation is for, as a picked file of the pipelines (they read its
+      // voice and screen straight from the lesson, no package).
+      handle("link:lesson-file", async (animationId) => {
+        const path = files.status().path;
+        if (!path) return null;
+        const item = (await linkedAnimations(path)).find((i) => i.animationId === animationId);
+        if (!item?.lesson || !existsSync(item.lesson)) return null;
+        return registerPickedFile(item.lesson, "lesson", basename(item.lesson));
+      });
+      handle("link:register", (projectId, input) =>
+        registerLink(linkedPath(), projectIdOf(projectId), input),
+      );
+      handle("link:error", (projectId, animationId, message) =>
+        markLinkError(linkedPath(), projectIdOf(projectId), animationId, message),
+      );
+      handle("link:render-start", (projectId, spec) => {
         desktop.assertAccess();
-        return startDelivery(ffmpegPath(), inbox(), spec);
+        return startRender(ffmpegPath(), linkedPath(), projectIdOf(projectId), spec);
       });
-      handle("lesson-send:frame", (id, bytes) => deliveryFrame(id, bytes));
-      handle("lesson-send:finish", (id) => finishDelivery(id));
-      handle("lesson-send:cancel", (id) => cancelDelivery(id));
-      handle("lesson-send:manifest", (manifest) => writeDelivery(inbox(), manifest));
-      // A lesson EdiAula sent with "Animar no EdiSVG" (lessonRequest.ts), taken once: its
-      // project (beside the lesson) is opened, or made the first time, and the window gets the
-      // package as a picked file to open the pipelines with. With a file operation or the AI
-      // going it waits for the next look.
-      handle("lesson-request:take", async () => {
-        if (!initialized || files.isBusy() || runner.busy()) return null;
-        const request = await takeLessonRequest(ediaulaData(), app.getPath("userData"));
-        if (!request) return null;
-        let opened = null,
-          problem = null;
-        if (request.project)
-          try {
-            opened = await files.openOrCreate(request.project, request.name);
-            if (!opened) problem = "O projeto da aula não foi aberto: o atual continua aberto.";
-          } catch (error) {
-            problem = `O projeto da aula não abriu: ${error.message}`;
-          }
-        const kept = await keepPackage(request.path, app.getPath("userData"), isPickedPath);
-        return {
-          name: request.name,
-          file: await registerPickedFile(kept, "lesson", `${request.name}.zip`),
-          ...(opened ? { opened } : {}),
-          ...(problem ? { problem } : {}),
-        };
-      });
+      handle("link:render-frame", (id, bytes) => renderFrame(id, bytes));
+      handle("link:render-finish", (id) => finishRender(id));
+      handle("link:render-cancel", (id) => cancelRender(id));
       handle("pipeline:lesson-video", (token, from, to, jobId) =>
         pipelineLessonVideo(token, from, to, jobId),
       );

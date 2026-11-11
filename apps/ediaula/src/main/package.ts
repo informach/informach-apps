@@ -353,8 +353,6 @@ export async function unpackProject(
     const project: Project = {
       ...unpacked,
       id,
-      // EdiSVG reads the package's id: its animations for this lesson come back under it.
-      origin: stored.id,
       ...(unpacked.proposals
         ? { proposals: unpacked.proposals.map((x) => ({ ...x, projectId: id })) }
         : {}),

@@ -404,7 +404,8 @@ export function setupAssistant(editor) {
       else if (command === "import-svg") void editor.importSvg();
       else if (command === "import-game") void editor.importGameProject();
       else if (command === "import-kit") void editor.importDesignKit();
-      else if (command === "lesson-send") editor.openLessonSend();
+      else if (command === "import-boards") void editor.importBoards();
+      else if (command === "fonts") void editor.openFonts();
       else if (command === "pipelines") editor.openPipelines();
       else if (command === "assistant") toggle();
       else if (command === "open") void openProject();
@@ -448,9 +449,14 @@ export function setupAssistant(editor) {
     try {
       const result = await bridge.projectSave(editor.snapshot(), as);
       editor.fileStatus(result);
-      if (result.saved) editor.notify(result.warning ?? "Projeto salvo em arquivo.");
+      if (result.saved) {
+        editor.notify(result.warning ?? "Projeto salvo em arquivo.");
+        editor.afterSave?.();
+      }
+      return result;
     } catch (error) {
       editor.notify(error.message);
+      return null;
     }
   }
   window.ediSuite?.onRecovery(async () => {
@@ -507,6 +513,15 @@ export function setupAssistant(editor) {
     editor.restore(value.project);
     editor.fileStatus(value.status);
     if (message) editor.notify(message);
+    // A project opened with linked animations renders what changed since (a save on close).
+    editor.afterSave?.();
   }
-  return { toggle, fileMenu, runTurn, adoptProject, isBusy: () => busy };
+  return {
+    toggle,
+    fileMenu,
+    runTurn,
+    adoptProject,
+    save: (as = false) => saveProject(as),
+    isBusy: () => busy,
+  };
 }

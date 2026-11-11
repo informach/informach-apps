@@ -23,6 +23,14 @@ export const artboardCommandSchema = z.discriminatedUnion("operation", [
   }),
   z.strictObject({
     type: z.literal("artboard"),
+    operation: z.literal("place"),
+    id,
+    groupId: z.string().regex(/^node-[\w-]{1,100}$/),
+    name,
+    scene: z.unknown(),
+  }),
+  z.strictObject({
+    type: z.literal("artboard"),
     operation: z.literal("create"),
     id,
     name,
@@ -70,6 +78,10 @@ export function applyArtboardCommand(document: Document, command: ArtboardComman
   if (!board) throw new Error("Prancheta não encontrada.");
   if (command.operation === "set-default") {
     document.defaultArtboardId = board.id;
+    return board.id;
+  }
+  if (command.operation === "place") {
+    board.scene.nodes.push(placedGroup(board, command.groupId, command.name, command.scene));
     return board.id;
   }
   if (command.operation === "update") {
@@ -175,6 +187,40 @@ export function applyArtboardCommand(document: Document, command: ArtboardComman
   if (!fallback) throw new Error("Prancheta de fallback ausente.");
   if (document.defaultArtboardId === board.id) document.defaultArtboardId = fallback.id;
   return fallback.id;
+}
+/** How much of the artboard an imported SVG may take, at most (it is never enlarged). */
+const PLACE_FIT = 0.9;
+/**
+ * An imported SVG as one group on top of an existing artboard: its own viewBox centered on the
+ * artboard and scaled down to fit, by the group's transform, so its objects keep their
+ * coordinates and stay editable.
+ */
+function placedGroup(board: Artboard, groupId: string, name: string, input: unknown) {
+  const placed = importScene(input),
+    taken = new Set(flattenScene(board.scene).map(({ node }) => node.id));
+  if (taken.has(groupId) || flattenScene(placed).some(({ node }) => taken.has(node.id)))
+    throw new Error("Este SVG já foi colocado nesta prancheta. Importe o arquivo de novo.");
+  const [vx, vy, vw, vh] = placed.viewBox,
+    [x, y, w, h] = board.scene.viewBox,
+    scale = Math.min(1, (w * PLACE_FIT) / vw, (h * PLACE_FIT) / vh);
+  return {
+    id: groupId,
+    name,
+    tag: "g" as const,
+    attrs: {},
+    text: "",
+    children: placed.nodes,
+    transform: {
+      x: x + (w - vw * scale) / 2 - vx * scale,
+      y: y + (h - vh * scale) / 2 - vy * scale,
+      rotation: 0,
+      sx: scale,
+      sy: scale,
+      opacity: 100,
+    },
+    visible: true,
+    locked: false,
+  };
 }
 function importScene(input: unknown) {
   const scene = validateScene(input, { strict: true });

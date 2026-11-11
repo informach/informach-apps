@@ -36,7 +36,7 @@ import { useProject } from "@/state/project";
 import { Button, Toggle } from "@/ui";
 import { KeyDialog } from "./KeyDialog";
 import { AutoSoundToggle } from "./SoundEffects";
-import { Swatches } from "./Swatches";
+import { ColorButton, Swatches } from "./Swatches";
 
 const pct = (v: number): string => `${Math.round(v * 100)}%`;
 
@@ -483,13 +483,11 @@ export function KeySection({ asset }: { asset: Asset }): ReactNode {
       ) : (
         <>
           <div className="key-color-row">
-            <label className="key-swatch" style={{ background: key.color }} title="Cor do fundo">
-              <input
-                type="color"
-                value={key.color}
-                onChange={(e) => set({ color: e.target.value.toUpperCase() })}
-              />
-            </label>
+            <ColorButton
+              value={key.color}
+              title="Cor do fundo"
+              onPick={(color) => set({ color })}
+            />
             <span className="mono">{key.color}</span>
             <span className="spacer" />
             <Button

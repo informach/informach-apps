@@ -7,6 +7,7 @@ import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { useCues } from "./CaptionOverlay";
 import { Slider } from "./ClipVisual";
+import { ColorButton } from "./Swatches";
 
 const POSITIONS: [CueStyle["position"], string][] = [
   ["bottom", "Embaixo"],
@@ -119,13 +120,6 @@ function CueStyleEditor({
   base: typeof DEFAULT_CAPTION_STYLE;
 }): ReactNode {
   const color = own?.color ?? "#FFFFFF";
-  // The native change event fires once, when the picker closes: one undo step per color.
-  const listen = (el: HTMLInputElement | null): (() => void) | undefined => {
-    if (!el) return;
-    const commit = (): void => setCueStyle(cueKey, { color: el.value.toUpperCase() });
-    el.addEventListener("change", commit);
-    return () => el.removeEventListener("change", commit);
-  };
   return (
     <div className="cue-style">
       <div className="chip-row">
@@ -150,9 +144,11 @@ function CueStyleEditor({
         onCommit={(v) => setCueStyle(cueKey, { size: v === base.size ? undefined : v })}
       />
       <div className="key-color-row">
-        <label className="key-swatch" style={{ background: color }} title="Cor do texto">
-          <input ref={listen} key={color} type="color" defaultValue={color} />
-        </label>
+        <ColorButton
+          value={color}
+          title="Cor do texto"
+          onPick={(hex) => setCueStyle(cueKey, { color: hex })}
+        />
         <span className="mono">{own?.color ?? "padrão"}</span>
         <span className="spacer" />
         <button

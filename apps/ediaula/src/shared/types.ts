@@ -190,6 +190,11 @@ export interface Asset {
   /** The picture has its own transparency (WebM with alpha, ProRes 4444, PNG): it is decoded
    *  keeping it, and previewed from the original or a VP9 proxy with alpha. */
   alpha?: boolean;
+  /**
+   * Linked to another tool's file (shared/linkedMedia.ts): an EdiSVG animation whose picture is
+   * the render EdiSVG makes at every save; a newer render updates this asset in place.
+   */
+  link?: import("@informach/edi-link/contract").AssetLink;
 }
 
 /**
@@ -495,8 +500,8 @@ export interface Project {
    */
   partOf?: { lesson: string; section: number };
   /**
-   * The id of the lesson this one was unpacked from (Abrir pacote gives a new id): what EdiSVG
-   * read from the package names that lesson, and its animations come back under that id.
+   * The id of the lesson this one was unpacked from, in lessons opened from a package between
+   * 09/11 and 10/11/2026 (for the EdiSVG send that the link replaced). Kept as read, unused.
    */
   origin?: string;
   /**
@@ -841,6 +846,13 @@ export interface AiToolCall {
   client?: string;
 }
 
+/** A linked project's animations as the lesson reads them (main/edisvgLink.ts linkState). */
+export interface LinkProjectState {
+  project: string;
+  exists: boolean;
+  items: (import("@informach/edi-link/contract").LinkedAnimation & { renderPath?: string })[];
+}
+
 export interface EdiAulaApi {
   /** One frame of a media file, cut and scaled for the AI (get_frame), as PNG bytes. */
   frameImage(
@@ -907,21 +919,32 @@ export interface EdiAulaApi {
    */
   relinkFolder(wanted: RelinkWanted[], token?: string): Promise<RelinkSearch>;
   probe(path: string): Promise<ProbeResult>;
-  /** The newest send of EdiSVG's animations for these lesson ids not put in yet (or null). */
-  edisvgReceived(ids: string[]): Promise<import("./edisvgAnimations.ts").ReceivedAnimations | null>;
-  /** Records that the lesson took (or declined) that send. */
-  edisvgPlaced(lessonId: string, sentAt: number): Promise<void>;
   /**
-   * "Animar no EdiSVG": packs the lesson for EdiSVG's pipelines (progress on `jobId`) and opens
-   * EdiSVG, which opens the lesson's project (`project`, beside the saved lesson at
-   * `lessonPath`); `opened` is false when it could not be opened from here (it reads the lesson
-   * when the person opens it).
+   * "Nova animação do EdiSVG" (packages/edi-link): asks EdiSVG for a new animation in the
+   * lesson's project (`<lesson>.edisvg`, beside the saved lesson at `lessonPath`), the size,
+   * rate and length given, and opens EdiSVG. `opened` is false when it could not be opened from
+   * here (the request waits for EdiSVG).
    */
-  edisvgAnimate(
-    jobId: string,
-    projectJson: string,
-    lessonPath: string | null,
-  ): Promise<{ opened: boolean; project?: string }>;
+  linkCreate(
+    lessonPath: string,
+    spec: { name: string; width: number; height: number; fps: number; duration: number },
+  ): Promise<{ requestId: string; project: string; opened: boolean }>;
+  /** "Editar no EdiSVG": opens the linked animation there. */
+  linkEdit(link: import("@informach/edi-link/contract").AssetLink): Promise<{ opened: boolean }>;
+  /** Picks a .edisvg and lists its animations, to link one (null when nothing was picked). */
+  linkImportPick(): Promise<{
+    project: string;
+    name: string;
+    animations: { id: string; name: string; duration: number; linked: boolean }[];
+  } | null>;
+  /** Links an animation of `project` (it renders at every save there) and opens EdiSVG. */
+  linkLink(project: string, animationId: string): Promise<{ requestId: string; opened: boolean }>;
+  /** Watches these projects' renders (the lesson's links); returns their linked animations. */
+  linkWatch(projects: string[]): Promise<LinkProjectState[]>;
+  /** A project's linked animations now, each render readable. */
+  linkState(project: string): Promise<LinkProjectState>;
+  /** A linked project's renders changed (a save in EdiSVG). */
+  onLinkChanged(cb: (project: string) => void): () => void;
   thumbnail(path: string, kind: AssetKind, duration: number): Promise<string>;
   waveform(path: string): Promise<string>;
   /** Where a screen recording stands still: the path of its motion file (main/ffmpeg.ts). */

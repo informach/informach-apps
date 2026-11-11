@@ -251,3 +251,119 @@ test("importing a scene is atomic and preserves existing artboards, clocks and r
   );
   assert.equal(project.artboards.length, 1);
 });
+test("placing an SVG on the open artboard adds one centered group, scaled down to fit", () => {
+  const project = newProject(),
+    board = project.artboards[0];
+  assert.ok(board);
+  const existing = editScene(board.scene, null, "add", "rect");
+  assert.ok(existing);
+  const [, , width, height] = board.scene.viewBox;
+  const sessionId = crypto.randomUUID();
+  // A wide logo, as Illustrator exports it: its viewBox does not start at the origin.
+  const logo = {
+    viewBox: [100, 50, width * 2, 200],
+    nodes: [
+      {
+        id: "node-logo-part",
+        tag: "rect",
+        name: "Parte",
+        attrs: { x: "100", y: "50", width: String(width * 2), height: "200" },
+        text: "",
+        transform: { x: 0, y: 0, rotation: 0, sx: 1, sy: 1, opacity: 100 },
+        children: [],
+        visible: true,
+        locked: false,
+      },
+    ],
+  };
+  const place = (groupId: string) =>
+    executeDocumentTransaction(
+      { project, sessionId, revision: 0 },
+      {
+        projectId: project.id,
+        sessionId,
+        revision: 0,
+        artboardId: board.id,
+        commands: [
+          {
+            type: "artboard",
+            operation: "place",
+            id: board.id,
+            groupId,
+            name: "Logo",
+            scene: logo,
+          },
+        ],
+      },
+    );
+  const result = place("node-logo");
+  assert.equal(result.selectedArtboard, board.id);
+  assert.equal(result.project.artboards.length, 1);
+  const nodes = result.project.artboards[0]?.scene.nodes ?? [];
+  assert.equal(nodes.length, 2);
+  assert.equal(nodes[0]?.id, existing);
+  const group = nodes[1];
+  assert.ok(group);
+  assert.equal(group.tag, "g");
+  assert.equal(group.name, "Logo");
+  assert.deepEqual(
+    group.children.map((child) => child.id),
+    ["node-logo-part"],
+  );
+  // 90% of the artboard's width; the viewBox's own corner lands where the centering puts it.
+  const scale = (width * 0.9) / (width * 2);
+  assert.equal(group.transform.sx, scale);
+  assert.equal(group.transform.sy, scale);
+  const left = group.transform.x + 100 * scale,
+    top = group.transform.y + 50 * scale;
+  assert.ok(Math.abs(left - width * 0.05) < 1e-9);
+  assert.ok(Math.abs(top - (height - 200 * scale) / 2) < 1e-9);
+  // The project given in stays as it was (undo keeps it).
+  assert.equal(project.artboards[0]?.scene.nodes.length, 1);
+  // A small SVG is not enlarged.
+  const small = executeDocumentTransaction(
+    { project, sessionId, revision: 0 },
+    {
+      projectId: project.id,
+      sessionId,
+      revision: 0,
+      artboardId: board.id,
+      commands: [
+        {
+          type: "artboard",
+          operation: "place",
+          id: board.id,
+          groupId: "node-small",
+          name: "Ícone",
+          scene: { ...logo, viewBox: [0, 0, 32, 32] },
+        },
+      ],
+    },
+  );
+  assert.equal(small.project.artboards[0]?.scene.nodes[1]?.transform.sx, 1);
+  // The same objects twice on one artboard are refused, with nothing changed.
+  assert.throws(
+    () =>
+      executeDocumentTransaction(
+        { project: result.project, sessionId, revision: result.revision },
+        {
+          projectId: project.id,
+          sessionId,
+          revision: result.revision,
+          artboardId: board.id,
+          commands: [
+            {
+              type: "artboard",
+              operation: "place",
+              id: board.id,
+              groupId: "node-logo-2",
+              name: "Logo",
+              scene: logo,
+            },
+          ],
+        },
+      ),
+    /já foi colocado/,
+  );
+  assert.equal(place("node-logo").project.artboards[0]?.scene.nodes.length, 2);
+});

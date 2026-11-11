@@ -8,10 +8,22 @@ import { PROJECT_BYTES, parseJsonText, readBoundedText } from "./boundedText.ts"
 
 export { atomicWrite };
 
-/** A project as "Novo" makes it, never edited (its id aside): nothing in it to ask about. */
-const blankContent = JSON.stringify({ ...contentSnapshot(newProject()), id: null });
-const isBlank = (project) =>
-  JSON.stringify({ ...contentSnapshot(project), id: null }) === blankContent;
+/**
+ * A project as "Novo" makes it, never edited (its id aside): nothing in it to ask about. Its
+ * default fonts (the person's choice, fontLibrary.ts) are part of how it is born, not an edit.
+ */
+const blankKey = (project) => {
+  const content = contentSnapshot(project);
+  const fonts = new Set(Object.values(project.defaults?.fonts ?? {}));
+  return JSON.stringify({
+    ...content,
+    id: null,
+    defaults: undefined,
+    assets: content.assets.filter((asset) => !fonts.has(asset.id)),
+  });
+};
+const blankContent = blankKey(newProject());
+const isBlank = (project) => blankKey(project) === blankContent;
 
 export function createProjectFiles({
   chooseSave,
@@ -23,6 +35,8 @@ export function createProjectFiles({
   read = (path) => readBoundedText(path, PROJECT_BYTES),
   exists = (path) => existsSync(path),
   backup = (path, text, version) => atomicWrite(`${path}.v${version}.${randomUUID()}.bak`, text),
+  /** A new project, with the person's default fonts (index.js). */
+  blank = async () => newProject(),
 }) {
   let path = null,
     draft = null,
@@ -30,8 +44,9 @@ export function createProjectFiles({
     busy = false,
     diskText = null,
     sourceVersion = null,
-    // The id of the lesson's project the main process switched to on its own (openOrCreate),
-    // until the window sends an edit of it: edits of the project before are left out meanwhile.
+    // The id of the project the main process switched to on its own (openLinked, for a request
+    // of another tool), until the window sends an edit of it: edits of the project before are
+    // left out meanwhile.
     adopting = null;
   const encoded = () => JSON.stringify(draft ? contentSnapshot(draft) : null);
   function status() {
@@ -42,9 +57,10 @@ export function createProjectFiles({
     };
   }
   /**
-   * An edit of the window. After the main process switched to a lesson's project on its own, an
-   * edit with another id is of the project open before, sent before the window took the new one
-   * (a project keeps its id while open): it is left out, never written under the lesson's file.
+   * An edit of the window. After the main process switched to a project on its own (a request
+   * of another tool), an edit with another id is of the project open before, sent before the
+   * window took the new one (a project keeps its id while open): it is left out, never written
+   * under the new file.
    */
   async function changed(project) {
     const next = parseProject(project);
@@ -154,10 +170,12 @@ export function createProjectFiles({
         return { project: structuredClone(draft), status: status() };
       }),
     isBusy: () => busy,
+    /** The open project's id (stable while it is open). */
+    projectId: () => draft?.id ?? null,
     new: () =>
       exclusive(async () => {
         if (!(await guard())) return null;
-        const project = newProject();
+        const project = await blank();
         await checkpoint(project);
         draft = project;
         saved = null;
@@ -175,12 +193,15 @@ export function createProjectFiles({
         return load(selected);
       }),
     /**
-     * The project of a lesson ("Animar no EdiSVG" in EdiAula): the file at `target` opened, or,
-     * the first time, a new project named after the lesson saved there. Already open, it stays as
-     * it is (`same`), unsaved work included. Null when the person keeps the open project. An
-     * untouched blank project (EdiSVG just opened) gives way without the unsaved-work question.
+     * The project another tool's request names (packages/edi-link), or a file given on the
+     * command line: the file at `target` opened or, with `create` (a name), a new project made
+     * and saved there when there is none. Already open, it stays as it is (`same`), unsaved work
+     * included. Null when the person keeps the open project. An untouched blank project (EdiSVG
+     * just opened) gives way without the unsaved-work question.
+     * @param {string} target
+     * @param {string | null} [create]
      */
-    openOrCreate: (target, name) =>
+    openLinked: (target, create = null) =>
       exclusive(async () => {
         if (path && path.toLowerCase() === target.toLowerCase())
           return { project: structuredClone(draft), status: status(), same: true };
@@ -189,9 +210,11 @@ export function createProjectFiles({
           if (opened) adopting = opened.project.id ?? null;
           return opened;
         }
+        if (create === null) throw new Error(`O projeto ${basename(target)} não foi encontrado.`);
+        const name = create;
         if (!blankDraft() && !(await guard())) return null;
         const project = parseProject({
-          ...newProject(),
+          ...(await blank()),
           name: name.trim().slice(0, 120) || "Aula",
         });
         const content = serializeProject(project);

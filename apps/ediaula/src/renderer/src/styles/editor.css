@@ -1122,3 +1122,23 @@
 .kids-lines li.is-found strong {
   color: var(--accent);
 }
+
+/* Importar animação do EdiSVG (EdisvgLinks.tsx) */
+.link-import-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.link-import-list label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--panel-2);
+}

@@ -33,6 +33,34 @@ const cursorMove = (a: Asset, companions: Record<string, string>): { cursor?: st
 
 /** Marks media whose files (or cursor data) disappeared, redraws missing pictures, resumes
  *  proxies interrupted by closing the app and looks for transparency not probed before. */
+/**
+ * Looks for the lesson's media files again and only updates their missing marks (the window
+ * came back, the export dialog opened): what checkAssets does when a lesson opens, without
+ * starting again work that may be running.
+ */
+export async function refreshMissing(): Promise<void> {
+  const project = useProject.getState().project;
+  if (!project?.assets.length) return;
+  const cursors = project.assets.filter((a) => a.cursor);
+  const exists = await window.api.exists([
+    ...project.assets.map((a) => a.path),
+    ...cursors.map((a) => a.cursor as string),
+  ]);
+  const now = useProject.getState().project;
+  if (now?.id !== project.id) return;
+  const cursorFound = new Map(cursors.map((a, i) => [a.id, exists[project.assets.length + i]]));
+  const { patchAsset } = useProject.getState();
+  project.assets.forEach((a, i) => {
+    const missing = !exists[i];
+    const cursorMissing = cursorFound.get(a.id) === false;
+    const current = now.assets.find((b) => b.id === a.id);
+    // Relinked meanwhile: the new place is not judged by the old one.
+    if (!current || current.path !== a.path || current.cursor !== a.cursor) return;
+    if (!!current.missing !== missing || !!current.cursorMissing !== cursorMissing)
+      patchAsset(a.id, { missing, cursorMissing });
+  });
+}
+
 export async function checkAssets(): Promise<void> {
   const project = useProject.getState().project;
   if (!project?.assets.length) return;

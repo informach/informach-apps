@@ -134,6 +134,12 @@ Formatos de projeto terão versão, validação, limites e política explícita 
 
 Histórico, estado pendente, autosave e recuperação deverão usar o mesmo modelo de documento. Abrir, fechar, atualizar ou trocar de conta respeitará alterações não salvas. Arquivos de usuário ficarão fora do diretório de instalação; uninstall e atualização não os removerão.
 
+**Vínculo entre ferramentas** (`packages/edi-link`, desde 10/11/2026). Uma ferramenta pede algo a outra só por arquivo, nunca por um processo chamando o outro, e cada uma continua inteira sozinha:
+- **O pedido:** vai para `pedidos/` no perfil da ferramenta pedida, um arquivo gravado inteiro. Ela lê ao abrir, vigia a pasta enquanto aberta e apaga o pedido ao atendê-lo. A ferramenta que pede só abre a outra: instalada, pelo executável; no desenvolvimento, pelo script do Hub de desenvolvimento, e só no perfil real.
+- **O resultado:** fica ao lado do documento de origem (`<projeto> · renders`), com o manifesto gravado por último. O nome de cada arquivo leva o hash do conteúdo, e quem usa o resultado vigia essa pasta.
+- **Sem associações de arquivo:** nada registra extensões no instalador (foram retiradas porque o electron-builder sobrescreve o padrão sem backup). Abrir pela linha de comando continua valendo para "Abrir com".
+- **Hoje:** EdiAula ↔ EdiSVG (animação vinculada). O EdiFoto entra pelo mesmo contrato.
+
 Testes usarão perfis e cópias isolados. Não registrar tokens, prompts, documentos, áudio, imagens ou caminhos pessoais na telemetria. Conteúdo só será enviado a um provedor externo quando o fluxo informar e autorizar esse envio.
 
 ## 7 Interface e estado

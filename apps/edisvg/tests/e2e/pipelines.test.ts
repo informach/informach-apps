@@ -185,22 +185,6 @@ const fakeDesktop = (project: string) => `
         if (token !== "file-aula-000001") throw new Error("pacote");
         return { id: "aula-3-farol", script: { text: ${JSON.stringify(LESSON_SCRIPT)}, section: 1 } };
       },
-      // Sending the lesson's animations to EdiAula (lessonDelivery.ts): what arrives is counted.
-      lessonSendStart: async (spec) => {
-        window.__send = { spec, frames: 0, sizes: new Set(), opaque: 0 };
-        return "entrega-1";
-      },
-      lessonSendFrame: async (id, bytes) => {
-        if (id !== "entrega-1") throw new Error("envio");
-        window.__send.frames++;
-        window.__send.sizes.add(bytes.length);
-        for (let i = 3; i < bytes.length; i += 4) if (bytes[i]) window.__send.opaque++;
-      },
-      lessonSendFinish: async () => window.__send.spec.clipId + "-1731000000000.webm",
-      lessonSendCancel: async () => undefined,
-      lessonSendManifest: async (manifest) => {
-        window.__manifest = manifest;
-      },
       // What the main process keeps for the next opening (pipelineReferences.ts).
       pipelineReferenceSave: async (projectId, kind, bytes, meta) => {
         window.__kept = [...(window.__kept ?? []), { projectId, kind, meta, bytes: [...bytes] }];
@@ -696,54 +680,6 @@ test("pipelines: with the lesson package the demonstration takes its screen from
     await page.screenshot({ path: "test-results/pipelines-lesson-done.png" });
     await dialog.getByRole("button", { name: "Fechar pipelines" }).click();
 
-    // Arquivo › Enviar animações para a aula: the demonstration, drawn frame by frame, goes to
-    // EdiAula as a transparent layer at its second of the lesson.
-    await page.keyboard.press("Control+k");
-    await page.getByLabel("Buscar comando", { exact: true }).fill("Enviar animações");
-    await page.getByLabel("Buscar comando", { exact: true }).press("Enter");
-    const send = page.getByRole("dialog", { name: "Enviar animações para a aula" });
-    await send.getByText("2:15–2:25", { exact: false }).waitFor();
-    await send.getByText("Sobre a tela (transparente)", { exact: false }).waitFor();
-    await send.getByRole("button", { name: "Enviar para o EdiAula" }).click();
-    await send.getByText(/^1 animação enviada\./).waitFor({ timeout: 60_000 });
-    const clip = project.motion.animations.at(-1);
-    const delivered = (await page.evaluate(
-      "({ ...window.__send, sizes: [...window.__send.sizes] })",
-    )) as {
-      spec: Record<string, unknown>;
-      frames: number;
-      sizes: number[];
-      opaque: number;
-    };
-    assert.deepEqual(delivered.spec, {
-      lessonId: "aula-3-farol",
-      clipId: clip?.id,
-      kind: "screen-demo",
-      width: 1280,
-      height: 720,
-      fps: 30,
-      frames: clip?.frames,
-    });
-    assert.equal(delivered.frames, clip?.frames);
-    assert.deepEqual(delivered.sizes, [1280 * 720 * 4]);
-    // The layer has nothing drawn yet (the assistant needs the desktop): every pixel transparent.
-    assert.equal(delivered.opaque, 0);
-    const manifest = (await page.evaluate("window.__manifest")) as {
-      lessonId: string;
-      items: { clipId: string; kind: string; file: string; start: number; duration: number }[];
-    };
-    assert.equal(manifest.lessonId, "aula-3-farol");
-    assert.deepEqual(
-      manifest.items.map((item) => [
-        item.clipId,
-        item.kind,
-        item.file,
-        Number(item.start.toFixed(2)),
-      ]),
-      [[clip?.id, "screen-demo", `${clip?.id}-1731000000000.webm`, 135.58]],
-    );
-    assert.ok(Math.abs((manifest.items[0]?.duration ?? 0) - (clip?.frames ?? 0) / 30) < 1e-9);
-    await page.screenshot({ path: "test-results/lesson-send.png" });
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();
@@ -751,7 +687,7 @@ test("pipelines: with the lesson package the demonstration takes its screen from
   }
 });
 
-test("pipelines: a lesson EdiAula sends with Animar no EdiSVG opens its project and them, once", {
+test("pipelines: on an animation EdiAula asked for, the lesson comes chosen and the run fills that animation", {
   timeout: 90000,
 }, async () => {
   const server = await rendererServer(),
@@ -761,22 +697,17 @@ test("pipelines: a lesson EdiAula sends with Animar no EdiSVG opens its project 
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } }),
       errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    // The main process says a request waits through onLessonRequest, subscribed when the editor
-    // starts: the bridge is there from the start, the rest of it comes after loading.
-    // A string, so tsx adds nothing to it (as fakeDesktop).
+    // The bridge at the start: the editor subscribes to the requests of other tools when it
+    // starts. A string, so tsx adds nothing to it.
     await page.addInitScript(`
       (() => {
         const project = ${JSON.stringify(newProject())};
+        const status = { name: "Aula 3.edisvg", path: "C:\\\\Aulas\\\\Aula 3.edisvg", dirty: false };
         window.desktop = {
-          projectInitialize: async () => ({
-            project,
-            status: { name: "Sem arquivo", path: null, dirty: false },
-            recovered: false,
-          }),
-          projectChanged: async () => ({ name: "Sem arquivo", path: null, dirty: false }),
-          lessonRequestTake: async () => null,
-          onLessonRequest: (callback) => {
-            window.__lessonWaiting = callback;
+          projectInitialize: async () => ({ project, status, recovered: false }),
+          projectChanged: async () => status,
+          onLinkWaiting: (callback) => {
+            window.__linkWaiting = callback;
             return () => undefined;
           },
           aiStatus: async () => ({ available: false, clients: [] }),
@@ -787,90 +718,102 @@ test("pipelines: a lesson EdiAula sends with Animar no EdiSVG opens its project 
       })();`);
     await page.goto(server.url);
     await page.locator(".scene-artwork>svg").waitFor();
-    const subscribed = await page.evaluate("typeof window.__lessonWaiting");
-    assert.equal(subscribed, "function");
     await page.evaluate(fakeDesktop(JSON.stringify(game)));
-    // The request EdiAula left (lessonRequest.ts): the main process hands it over once, with
-    // the lesson's own project, which it opened (or made) beside the lesson.
-    const lessonFile = { ...newProject(), name: "Aula 3" };
-    await page.evaluate((project) => {
-      const w = window as unknown as { __taken: number; desktop: Record<string, unknown> };
-      w.__taken = 0;
-      const status = { path: "C:\\Aulas\\Aula 3.edisvg", name: "Aula 3.edisvg", dirty: false };
-      w.desktop.lessonRequestTake = async () => {
-        if (w.__taken++) return null;
-        // From here on the main process answers for the lesson's file, as files.openOrCreate set.
-        w.desktop.projectChanged = async () => status;
-        return {
-          name: "Aula 3",
-          file: { token: "file-aula-000001", name: "Aula 3.zip", kind: "lesson", size: 900 },
-          opened: { project, status },
-        };
-      };
-    }, lessonFile);
-    const waiting = (sentAt: number, name: string) =>
-      page.evaluate(
-        ([at, lesson]) =>
-          (window as unknown as { __lessonWaiting(w: unknown): void }).__lessonWaiting({
-            sentAt: at,
-            name: lesson,
+    // The link: a request to make the animation, the manifest of the project's links, and the
+    // lesson file EdiAula named (the .ediaula, read by the run as the package is).
+    // A string, so tsx adds nothing to it.
+    await page.evaluate(`
+      (() => {
+        window.__items = [];
+        window.__registered = [];
+        window.__requests = [
+          {
+            version: 1,
+            id: "pedido-0001",
+            from: "ediaula",
+            type: "create",
+            project: "C:\\\\Aulas\\\\Aula 3.edisvg",
+            name: "Parte 2",
+            width: 1280,
+            height: 720,
+            fps: 30,
+            duration: 10,
+            lesson: "C:\\\\Aulas\\\\Aula 3.ediaula",
+          },
+        ];
+        const status = { name: "Aula 3.edisvg", path: "C:\\\\Aulas\\\\Aula 3.edisvg", dirty: false };
+        Object.assign(window.desktop, {
+          projectChanged: async () => status,
+          projectSave: async () => ({ saved: true, ...status }),
+          linkNext: async () => window.__requests.shift() ?? null,
+          linkOpenProject: async () => ({ same: true, project: null, status }),
+          linkDone: async () => undefined,
+          linkList: async () => structuredClone(window.__items),
+          linkRegister: async (projectId, input) => {
+            window.__registered.push(input);
+            const before = window.__items.find((i) => i.animationId === input.animationId);
+            const item = { ...before, ...input, updatedAt: 1 };
+            window.__items = [...window.__items.filter((i) => i !== before), item];
+            return item;
+          },
+          linkLessonFile: async () => ({
+            token: "file-aula-000001",
+            name: "Aula 3.ediaula",
+            kind: "lesson",
+            size: 900,
           }),
-        [sentAt, name] as const,
-      );
-    await waiting(1, "Aula 3");
+        });
+        window.__linkWaiting();
+      })();`);
+    await page.waitForFunction(
+      () => (window as unknown as { __registered: unknown[] }).__registered.length === 1,
+    );
+    const made = (await page.evaluate("window.__registered[0]")) as {
+      animationId: string;
+      artboardId: string;
+      lesson: string;
+    };
+    assert.equal(made.lesson, "C:\\Aulas\\Aula 3.ediaula");
+
+    // The pipelines open on that animation: the lesson already chosen.
+    await page.locator('[data-action="pipelines"]').first().click();
     const dialog = page.getByRole("dialog", { name: "Pipelines" });
     await dialog.getByRole("status").getByText("Aula 3").waitFor();
-    // The lesson's project is the open one, under the pipelines.
-    assert.equal(await page.locator(".project>span").textContent(), "/ Aula 3.edisvg");
-    assert.equal(await page.evaluate(() => document.title.split(" — ")[0]), "Aula 3.edisvg");
     await dialog
       .locator("li", { hasText: "Demonstração passo a passo" })
       .getByRole("button", { name: "Rodar" })
       .click();
-    // The run starts with the lesson chosen and its phrases offered, nothing picked by hand.
-    await dialog.getByText("Aula 3.zip (pacote da aula do EdiAula)").waitFor();
-    await dialog
-      .getByRole("group", { name: "Roteiro da aula · Seção 2 · A chave" })
-      .getByText("3 de 3 frases nesta animação.", { exact: false })
-      .waitFor();
-    await page.screenshot({ path: "test-results/pipelines-handed-lesson.png" });
-    // Back to the list and into the other recipe: the same lesson comes chosen there too.
-    await dialog.getByRole("button", { name: "Voltar", exact: true }).click();
-    await dialog
-      .locator("li", { hasText: "Cena animada do jogo" })
-      .getByRole("button", { name: "Rodar" })
-      .click();
-    await dialog.getByText("Aula 3.zip (pacote da aula do EdiAula)").waitFor();
-
-    // A new click in EdiAula while a recipe is being set up: it is kept, and the person is told
-    // once what to close; the request waits.
-    await page.evaluate(() => {
-      const w = window as unknown as { __given: number; desktop: Record<string, unknown> };
-      w.__given = 0;
-      w.desktop.lessonRequestTake = async () =>
-        w.__given++
-          ? null
-          : {
-              name: "Aula 4",
-              file: { token: "file-aula-000001", name: "Aula 4.zip", kind: "lesson", size: 900 },
-            };
-    });
-    await waiting(2, "Aula 4");
-    await page
-      .locator("#toast", { hasText: 'A aula "Aula 4" chegou do EdiAula: feche os pipelines' })
-      .waitFor();
-    assert.equal(await page.evaluate("window.__given"), 0);
-    await dialog.getByText("Aula 3.zip (pacote da aula do EdiAula)").waitFor();
-    // Back on the list, the pipelines hold nothing: the next word from the main process opens it.
-    await dialog.getByRole("button", { name: "Voltar", exact: true }).click();
-    await waiting(2, "Aula 4");
-    await dialog.getByRole("status").getByText("Aula 4").waitFor();
-    assert.equal(await page.evaluate("window.__given"), 1);
-    // Taken once: another word for the same request opens nothing more.
+    await dialog.getByText("Aula 3.ediaula (pacote da aula do EdiAula)").waitFor();
+    const phrases = dialog.getByRole("group", { name: "Roteiro da aula · Seção 2 · A chave" });
+    await phrases.getByRole("checkbox", { name: "Olá de novo, turma." }).uncheck();
+    await dialog.getByRole("button", { name: "Rodar pipeline" }).click();
+    await dialog.getByText(/^(Pipeline concluído\.|O pipeline parou\.)$/).waitFor();
     await dialog.getByRole("button", { name: "Fechar pipelines" }).click();
-    await waiting(2, "Aula 4");
-    await page.waitForTimeout(300);
-    assert.equal(await dialog.count(), 0);
+
+    // The run's narration went into the linked animation (no other one was made), the link now
+    // draws on the run's layer at the stretch's second, and the empty artboard it came with went.
+    await page.waitForFunction(
+      () => (window as unknown as { __registered: unknown[] }).__registered.length === 2,
+    );
+    const relinked = (await page.evaluate("window.__registered[1]")) as {
+      animationId: string;
+      artboardId: string;
+      start: number;
+    };
+    const project = parseProject(
+      JSON.parse((await page.evaluate(() => localStorage.getItem("edisvg-project"))) ?? "null"),
+    );
+    assert.equal(relinked.animationId, made.animationId);
+    const layer = project.artboards.find((b) => b.id === relinked.artboardId);
+    assert.equal(layer?.name, "Demonstração · Tela da aula (2:15 a 2:25)");
+    assert.equal(Number(relinked.start.toFixed(2)), 135.58);
+    assert.equal(
+      project.artboards.some((b) => b.id === made.artboardId),
+      false,
+    );
+    assert.equal(project.motion.animations.filter((a) => a.name.startsWith("Narração")).length, 0);
+    const animation = project.motion.animations.find((a) => a.id === made.animationId);
+    assert.ok((animation?.frames ?? 0) > 200, `${animation?.frames}`);
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

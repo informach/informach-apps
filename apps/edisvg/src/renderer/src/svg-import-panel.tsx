@@ -13,6 +13,8 @@ interface Props {
   initial?: Source;
   native?: () => Promise<string | null>;
   apply(scene: Scene, name: string): void;
+  /** Puts the art on the open artboard, as one group; absent without an open artboard. */
+  place?: { board: string; apply(scene: Scene, name: string): void };
   report(message: string): void;
   isLive(): boolean;
   cancel(): void;
@@ -24,6 +26,7 @@ function ImportPanel({
   initialDraft,
   native,
   apply,
+  place,
   report,
   isLive,
   cancel,
@@ -53,7 +56,10 @@ function ImportPanel({
       </div>
       <div className="help-content">
         <p>
-          O arquivo entra em uma nova prancheta. A arte e as animações anteriores são preservadas.
+          {place
+            ? `Coloque a arte na prancheta aberta (${place.board}), como um grupo centralizado, ou numa prancheta nova.`
+            : "O arquivo entra em uma nova prancheta."}{" "}
+          A arte e as animações anteriores são preservadas.
         </p>
         <label className="scene-field" htmlFor={id}>
           Arquivo SVG
@@ -94,7 +100,7 @@ function ImportPanel({
         {draft && (
           <>
             <label className="scene-field">
-              Nome da nova prancheta
+              {place ? "Nome do grupo ou da nova prancheta" : "Nome da nova prancheta"}
               <input
                 name="imported-artboard-name"
                 autoComplete="off"
@@ -143,7 +149,7 @@ function ImportPanel({
         </button>
         <button
           type="button"
-          className="primary"
+          className={place ? undefined : "primary"}
           disabled={busy || !draft?.scene || !draft.name.trim()}
           onClick={() => {
             if (draft?.scene)
@@ -156,6 +162,23 @@ function ImportPanel({
         >
           Importar nova prancheta
         </button>
+        {place && (
+          <button
+            type="button"
+            className="primary"
+            disabled={busy || !draft?.scene || !draft.name.trim()}
+            onClick={() => {
+              if (draft?.scene)
+                try {
+                  place.apply(draft.scene, draft.name.trim());
+                } catch (error) {
+                  report(error instanceof Error ? error.message : "Não foi possível importar.");
+                }
+            }}
+          >
+            Colocar na prancheta aberta
+          </button>
+        )}
       </div>
     </>
   );

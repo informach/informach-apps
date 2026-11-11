@@ -98,46 +98,10 @@ v26):
   e começam desmarcadas: a lista abre com o trecho que falta;
 - duplicar a prancheta não leva os trechos, e apagar a animação apaga o dela.
 
-**A aula vinda do EdiAula.** O botão **Animar no EdiSVG** do EdiAula empacota a aula em
-`para-o-edisvg/`, no perfil do EdiAula, com `pedido.json` por último, e abre o EdiSVG
-(`src/main/lessonRequest.ts`):
-- **Encontrar o pedido.** Só o processo principal procura, a cada 2 s. Enquanto um pedido
-  espera, ele avisa a janela a cada procura, e a traz para a frente uma vez por pedido. A janela
-  também procura uma vez ao abrir. No primeiro uso real, em 10/11, o aviso de foco da janela, de
-  que a versão anterior dependia, não chegou e a aula não abriu.
-- **A cópia do pacote.** O EdiSVG guarda o seu próprio arquivo de cada pacote que pega, em
-  `pacotes-do-ediaula/` no perfil dele (um hard link: instantâneo e sem espaço a mais; uma cópia
-  quando o link não dá). A limpeza do EdiAula nunca apaga um pacote que os pipelines estão lendo.
-  Ficam os dois mais novos e os que uma execução desta sessão usa (`keepPackage`).
-- **O projeto da aula.** O pedido diz qual `.edisvg` é o da aula: ao lado da aula, com o nome
-  dela. Se ele existe, o EdiSVG o abre; senão, cria um projeto novo com o nome da aula e salva
-  ali. Já aberto, ele fica como está, com o que não foi salvo. Outro projeto com alterações
-  pergunta antes, como ao abrir um arquivo. O projeto em branco do EdiSVG recém-aberto dá lugar
-  sem perguntar (`openOrCreate` em `src/main/projectFiles.js`). Até a janela assumir o projeto da
-  aula, uma alteração do projeto anterior que chegue atrasada é deixada de fora, nunca gravada no
-  arquivo da aula.
-- **Quando pega.** Só sem outro diálogo aberto, sem pipeline rodando e sem o assistente
-  escrevendo; senão, pega na próxima procura. Pipelines abertos na lista de receitas dão lugar à
-  aula nova; com uma receita sendo preparada (arquivos, frases), eles ficam, e um aviso diz para
-  fechá-los.
-- Cada pedido abre uma vez só (o último aberto fica em `pedido-do-ediaula.json`, no perfil do
-  EdiSVG).
-- Os pipelines abrem com um aviso de qual aula chegou, e cada receita rodada começa com o pacote
-  escolhido como áudio da aula, com as frases do roteiro.
-
-**Enviar animações para a aula** (Arquivo, ou a paleta de comandos) manda cada animação desses
-trechos para o EdiAula:
-- A cena vai em MP4, sobre preto, e a demonstração em WebM com transparência (VP9 com alfa).
-  Os dois saem no tamanho da prancheta e no FPS da animação.
-- Os quadros são desenhados um a um e vão direto para o FFmpeg da suíte
-  (`src/renderer/src/pipelines/lessonSend.ts` e `src/main/lessonDelivery.ts`), então um trecho
-  longo não precisa caber na memória, como numa exportação comum. Em 1080p, o VP9 com
-  transparência codifica perto de 44 quadros por segundo.
-- Os vídeos vão para `recebidos/<id da aula>/` no perfil do EdiAula, com `envio.json` gravado
-  por último. O EdiSVG não grava a aula: quem coloca as animações nela é o EdiAula (veja o
-  README do EdiAula).
-- Cancelar para entre quadros e não deixa vídeo pela metade. Os vídeos de envios anteriores
-  ficam, porque a aula pode estar usando.
+**A aula direto do arquivo.** Além do pacote ZIP, "Escolher aula…" aceita o próprio arquivo da
+aula (`.ediaula`). As mídias dele já estão neste computador, então nada é extraído, e a aula é
+lida como está (`lessonOf` em `src/main/pipelineEngine.ts`, `packageLesson` em
+`src/main/lessonPackage.ts`).
 
 **A paleta de texto.** **Cores de uma imagem…** troca a paleta pelas cores mais usadas de uma
 imagem (PNG, JPEG, WebP, GIF ou BMP, até 50 MB), até seis, bem distintas entre si. A ordem segue o
@@ -244,6 +208,191 @@ Plano e decisões: [pipelines no EdiSVG](../../docs/propostas/edisvg-pipelines-2
 - `test:media-native`: o corte e a mixagem com o FFmpeg da suíte.
 - Jornada nativa (`scripts/native-pipeline-journey.mts`): a receita da Cena com uma aula do
   EdiAula no Electron. Com `EDISVG_PIPELINE_WHISPER=1`, também um áudio transcrito.
+
+## Animações vinculadas a uma aula do EdiAula
+
+Uma animação pode ser um clipe de uma aula do EdiAula, como uma composição do After Effects no
+Premiere: o EdiAula pede a animação, abre ela aqui, e cada salvar no EdiSVG atualiza o clipe lá.
+O EdiSVG continua inteiro sozinho (abrir, pipelines, exportar), e uma animação sem vínculo nunca
+renderiza ao salvar. O contrato fica em `packages/edi-link`.
+
+**Os pedidos de outra ferramenta** (`src/main/linkRequests.ts`):
+- **Onde chegam:** `pedidos/` no perfil do EdiSVG, um arquivo por pedido, gravado inteiro.
+- **Quando são lidos:** ao abrir o EdiSVG, e depois pela vigia da pasta (`fs.watch`, sem
+  sondagem). O EdiSVG vem para a frente quando chega um.
+- **Quando a janela atende:** um por vez, quando nada está no caminho (outro diálogo, um
+  pipeline rodando, o assistente escrevendo). Se algo estiver, ela tenta de novo logo depois.
+- **Os tipos:**
+  - `create`: prancheta do tamanho da aula e animação da duração do trecho, salvas no projeto
+    da aula;
+  - `link`: vincula uma animação que já existe;
+  - `open`: abre a animação para editar.
+- **O projeto:**
+  - o do pedido é aberto, ou criado no caminho na primeira vez (`openLinked` em
+    `src/main/projectFiles.js`);
+  - outro projeto com alterações pergunta antes;
+  - o projeto em branco do EdiSVG recém-aberto dá lugar sem perguntar;
+  - até a janela assumir o projeto novo, uma alteração atrasada do anterior é deixada de fora.
+- **Linha de comando:** `EdiSVG.exe <arquivo.edisvg>` (ou "Abrir com") abre o arquivo, também
+  com o EdiSVG já aberto.
+
+**O render ao salvar** (`src/renderer/src/links/renderLinks.ts`, `src/main/linkRender.ts`):
+- **Onde ficam:**
+  - os renders vão para a pasta `<projeto> · renders`, ao lado do projeto;
+  - `vinculos.json` lista cada animação vinculada: a prancheta, o nome, a aula dela e o render
+    atual;
+  - o manifesto é gravado depois do vídeo.
+- **Quando renderiza:** depois de cada salvar, e ao abrir um projeto. Uma animação renderiza só
+  quando o hash do documento compilado dela mudou (com tamanho, FPS e quadros). Salvar sem mexer
+  nela não renderiza nada.
+- **Como desenha:** quadro a quadro pelo mesmo desenhista das exportações, com fundo
+  transparente, e direto para o FFmpeg da suíte (VP9 com alfa, WebM), sem precisar caber na
+  memória.
+- **Sem travar o trabalho:** roda em segundo plano, com o andamento ao lado do nome do arquivo
+  ("Renderizando para a aula · quadro x de y"). Um salvar novo para o render e recomeça.
+- **Os arquivos:** o arquivo leva o hash no nome. Ficam o render atual e o anterior de cada
+  animação; uma animação apagada fica com o aviso no manifesto, e o último render continua.
+
+**Pipelines numa animação vinculada:**
+- Abertos com uma animação vinculada ainda vazia escolhida (a que o EdiAula acabou de pedir),
+  os pipelines já trazem a aula dela, direto do `.ediaula`.
+- A narração da execução vai para essa animação, e o vínculo passa para a prancheta da
+  execução. A prancheta vazia de antes sai, no mesmo passo de desfazer.
+- O segundo da aula em que as palavras estão fica no vínculo, e o EdiAula põe o clipe ali.
+
+## Importar SVG na prancheta aberta ou numa nova
+
+**Arquivo → Importar SVG…** (Ctrl+I), o botão **↥ Importar SVG** ou arrastar um `.svg` para a
+janela abrem a revisão da importação. Sem erros, ela oferece dois destinos:
+- **Colocar na prancheta aberta:** a arte entra como um grupo no topo da prancheta aberta, com o
+  nome escolhido, e fica selecionada. O `viewBox` do SVG vai para o centro da prancheta e é reduzido
+  para caber em 90% dela, pela transformação do grupo, sem nunca aumentar. Os objetos guardam as
+  próprias coordenadas e continuam editáveis um a um. Um Ctrl+Z desfaz tudo (operação `place` em
+  `src/shared/artboards.ts`).
+- **Importar nova prancheta:** a arte vira uma prancheta nova, do tamanho do `viewBox`.
+
+As pranchetas e animações que já existem não mudam nos dois casos. SVG exportado do Illustrator
+com o bloco `<style>` (classes `.cls-1`…), `data-name` ou `<tspan>` ainda é recusado pela revisão:
+exporte com "Atributos de apresentação" ou converta as classes em atributos antes.
+
+## Importar pranchetas de outro projeto (`.edisvg`)
+
+Para pôr numa cena um personagem animado que está em outro arquivo, use **Arquivo → Importar
+pranchetas de outro projeto…** ou o botão **↥ Importar pranchetas de outro projeto** na barra
+lateral, e escolha o `.edisvg`. O outro arquivo só é lido.
+
+- **O diálogo** lista as pranchetas dele, com tamanho, as animações que mexem nelas e as pranchetas
+  que vêm junto por serem componentes delas. As que têm animação já vêm marcadas.
+- **O que entra com cada prancheta:**
+  - as pranchetas que ela mostra como componente;
+  - as animações que mexem nela, só com as trilhas e a ordem de desenho dos objetos dela (uma
+    animação que mexia também em outras pranchetas vem sem essas partes);
+  - o rig, a lógica, o layout, as chaves de vértices e o áudio dela;
+  - as imagens, fontes e sons que ela usa. Um recurso que o projeto já tem não se repete, porque o
+    recurso é identificado pelo conteúdo.
+- **Fica de fora:** o registro do trecho do EdiAula (`lessonClips`), que é do outro projeto.
+- **Nomes e identificadores:** um nome que já existe ganha um número ("Acenar 2"). Um
+  identificador que já existe neste projeto ganha outro, em todo lugar onde é citado. É o caso
+  de projetos copiados do mesmo arquivo, ou feitos pelo assistente, que repetem ids como
+  `artboard-main`. Nada do que já está no projeto muda, e importar a mesma prancheta duas vezes
+  faz duas cópias independentes.
+- **Limites:** 100 pranchetas e 100 animações por projeto. Uma importação que passaria disso é
+  recusada inteira. Ctrl+Z desfaz a importação inteira.
+
+Para o personagem entrar animado na cena, abra a prancheta da cena e use **Artboards › Reutilizar
+outra prancheta como componente**, escolhendo a prancheta importada e, em **Animação da
+instância**, a animação dela.
+
+Código em `src/shared/projectImport.ts` (o comando `project-import` da transação) e
+`src/renderer/src/boards-import-panel.tsx`. Testes em `src/shared/projectImport.test.ts` e
+`tests/e2e/boards-import.test.ts`.
+
+## Fontes do EdiSVG e fontes padrão do projeto (projeto v27)
+
+O EdiSVG traz uma biblioteca de fontes: os TTF estáticos do EdiAula, os mesmos das legendas,
+todos sob a SIL Open Font License 1.1. São Baloo 2 (400 a 800), Nunito (400 a 900), Plus Jakarta
+Sans, Inter, Fredoka, Poppins, Montserrat e outras. O instalador copia a pasta
+`apps/ediaula/resources/fonts` e o `fonts.json` para o lado do app. Cada face tem um id estável,
+como `baloo-2-800` e `nunito-400`.
+
+**No painel de texto.** "Fonte incorporada" mostra duas seções:
+- **Do projeto:** as fontes que já estão no catálogo.
+- **Do EdiSVG:** as da biblioteca que ainda não estão.
+
+Ao escolher uma, a fonte entra no catálogo e vai para o texto na hora, junto com o conteúdo
+digitado no painel. Tudo é um passo só de desfazer. Com vários textos selecionados, a fonte vai
+para todos. A mesma fonte escolhida de novo é o mesmo recurso, porque o catálogo é endereçado
+pelo conteúdo do arquivo e não guarda cópias.
+
+O aviso da licença entra no recurso e pode ser lido em Recursos (ou com `get_asset_notice`). Como a
+OFL permite incorporar e redistribuir, as fontes da biblioteca não pedem a confirmação de direitos
+que um arquivo importado pede.
+
+Os botões **Título** e **Corpo** trocam o texto entre as duas fontes padrão do projeto. Os erros
+aparecem embaixo do formulário.
+
+**Fontes padrão.** Cada projeto pode ter duas fontes padrão, em `defaults.fonts`:
+- `heading`: a de títulos e números;
+- `body`: a dos textos de apoio.
+
+Cada uma é um `assetId` de fonte do catálogo, ou `null`.
+
+Um texto novo nasce com a fonte de título, seja feito pela ferramenta Texto ou pelo assistente.
+A exceção é o texto criado já com uma família própria.
+
+Uma fonte padrão não pode sair do catálogo enquanto for padrão.
+
+Arquivo › **Fontes do projeto…** (também na paleta de comandos e no painel de texto) tem três
+partes:
+- **Fontes padrão deste projeto:** escolhe as duas e salva com desfazer.
+- **Aplicar fontes padrão a todos os textos:** em todas as pranchetas, um texto de peso 600 ou
+  mais recebe a fonte de título e os outros recebem a de corpo. Textos bloqueados ficam como
+  estão. Serve para projetos antigos.
+- **Para projetos novos:** a preferência fica em `%APPDATA%\edisvg\fontes-padrao.json`. Até a
+  pessoa mudar, vale Baloo 2 ExtraBold (800) no título e Nunito Regular (400) no corpo.
+
+Um projeto novo nasce com as fontes padrão no catálogo, cerca de 540 KB das duas fontes. Isso vale
+para o **Novo**, para a primeira abertura e para o projeto que uma aula cria. O projeto continua
+contando como "em branco": ele dá lugar a outro arquivo sem perguntar.
+
+Sem a pasta de fontes (uma instalação quebrada), o projeto nasce sem padrão.
+
+O catálogo inteiro tem limite de 4 MB. Cada peso da Baloo 2 tem cerca de 420 KB.
+
+**Formato.** `defaults` é do projeto v27. Arquivos v1–v26 abrem como antes: migram sem padrão e o
+backup é feito no primeiro salvamento. Um v26 que traga `defaults` é recusado.
+
+As fontes da biblioteca são recursos de fonte comuns. Testar, HTML, React, SVG e os quadros de
+vídeo, PNG e GIF as incorporam como qualquer fonte do catálogo.
+
+**Pelo MCP.**
+- `get_font_library` (paginada, sem bytes) lista id, família, peso, estilo, formato e licença, e
+  o padrão para projetos novos.
+- Em `edit_document`, `{type:'asset', operation:'add-library-font', fontId}` põe a fonte no
+  catálogo. O resultado traz `libraryFonts: [{fontId, assetId}]`, e repetir o comando não
+  duplica a fonte.
+- `set-font` aceita `libraryFontId` no lugar de `assetId`, na mesma transação.
+- `{type:'fonts', operation:'set-defaults', heading?, body?}` muda o padrão do projeto.
+  `headingLibraryFontId` e `bodyLibraryFontId` aceitam fontes da biblioteca.
+- `{type:'fonts', operation:'apply-defaults', role:'auto'|'heading'|'body', targetIds?}` aplica o
+  padrão.
+- `get_overview` devolve `fontDefaults`.
+
+O editor carrega os bytes da fonte antes da transação e troca cada fonte da biblioteca por um
+`asset put` seguido do comando com o `assetId`. A transação continua atômica e presa à revisão
+inspecionada.
+
+Código:
+- `src/shared/fontLibrary.ts`: ids, ficha e resolução dos comandos;
+- `src/shared/fontDefaults.ts`: padrão, comandos `fonts` e papel por peso;
+- `src/main/fontLibrary.ts`: arquivos, preferência e projeto novo;
+- `src/renderer/src/text-panel.tsx` e `src/renderer/src/fonts-panel.tsx`.
+
+Testes:
+- `src/main/fontLibrary.test.ts`, com as fontes reais: cobertura pt-BR sem faltas na Baloo 2 800
+  e na Nunito 400, aviso OFL, migração v26 → v27 e projeto novo em branco;
+- `tests/e2e/library-fonts.test.ts`: painel de texto com desfazer e refazer, diálogo, HTML
+  exportado e quadro de vídeo desenhados com as fontes, e não com a fonte de fallback.
 
 ## Importar um projeto do Estúdio (`.szproject.json`)
 

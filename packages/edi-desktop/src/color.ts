@@ -1,3 +1,5 @@
+/** Hex and HSV conversions for the color pickers of the suite's tools (EdiSVG, EdiAula). */
+
 export interface HsvColor {
   hue: number;
   saturation: number;

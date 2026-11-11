@@ -298,26 +298,26 @@ test("the project of a lesson is made beside it the first time, and opened the n
     // EdiSVG just opened: a blank project, never edited, gives way without a question.
     await files.recover(newProject(), { persist: false });
     // First time: a new project with the lesson's name, saved there, nothing unsaved.
-    const made = await files.openOrCreate(target, " DPJ Aula01 · Parte 6 ");
+    const made = await files.openLinked(target, " DPJ Aula01 · Parte 6 ");
     assert.equal(made.project.name, "DPJ Aula01 · Parte 6");
     assert.equal(made.status.path, target);
     assert.equal(made.status.dirty, false);
     assert.equal(JSON.parse(await readFile(target, "utf8")).name, "DPJ Aula01 · Parte 6");
     // Already open: it stays as it is, unsaved work included.
     await files.changed({ ...made.project, name: "Com alterações" });
-    const same = await files.openOrCreate(target, "DPJ Aula01 · Parte 6");
+    const same = await files.openLinked(target, "DPJ Aula01 · Parte 6");
     assert.equal(same.same, true);
     assert.equal(same.project.name, "Com alterações");
     assert.equal(asked, 0);
     // Another lesson's project opens after the unsaved-work question.
     const other = join(directory, "Outra.edisvg");
     await writeFile(other, JSON.stringify({ ...newProject(), name: "Outra" }));
-    const opened = await files.openOrCreate(other, "Outra aula");
+    const opened = await files.openLinked(other, "Outra aula");
     assert.equal(asked, 1);
     assert.equal(opened.project.name, "Outra");
     assert.equal(opened.status.path, other);
     // Back to the first: opened from its file, as it was saved.
-    const again = await files.openOrCreate(target, "DPJ Aula01 · Parte 6");
+    const again = await files.openLinked(target, "DPJ Aula01 · Parte 6");
     assert.equal(again.project.name, "DPJ Aula01 · Parte 6");
     // An edit of the project open before, sent before the window took the lesson's: left out,
     // never written under the lesson's file. The window's first edit of it is taken.
