@@ -564,6 +564,7 @@ Detalhes operacionais em `apps/cozya/CLAUDE.md` §2-7.
 | Sub-path | Conteúdo | Quem importa |
 |---|---|---|
 | `@informach/billing` | `createBillingService`, `BillingService`, types, errors, `STRIPE_SIGNATURE_HEADER` | `apps/<app>/src/lib/billing.ts`, server actions, RSC |
+| `@informach/billing/access` | `PRO_STATUSES`, `getProSubscription`, `hasProSubscription` (raw), sem carregar o restante do package | módulos que também entram em componentes de cliente (a raiz chega ao `postgres` pelas travas de coordenação) |
 | `@informach/billing/checkout` | `createSubscriptionCheckout`, `createCreditPackCheckout` (raw) | raramente — service já expõe |
 | `@informach/billing/credits` | `getBalance`, `reserveCredits`, `commitReservation`, `releaseReservation`, `consumeCredits`, `getCreditHistory`, `grantBonusCredits`, `refundCredits` (raw) | `@informach/ai-core/billing` (wrapper) |
 | `@informach/billing/portal` | `createPortalSession` (raw) | raramente |
