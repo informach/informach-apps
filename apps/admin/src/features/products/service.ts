@@ -342,7 +342,7 @@ export async function getProductView(
         { value: formatNumber(estrela.accounts), label: "contas que usam o Dia de Estrela" },
         {
           value: formatNumber(estrela.active),
-          label: "famílias com tarefa feita nos últimos 7 dias",
+          label: "contas que entraram nos últimos 7 dias",
         },
         { ...proPair, label: proPair.label.replace("assinantes Pro", "famílias assinantes") },
         { value: formatNumber(estrela.children), label: "perfis de criança" },
@@ -354,7 +354,7 @@ export async function getProductView(
         { label: "Marcadas pela criança", value: formatNumber(estrela.completions.child ?? 0) },
         { label: "Marcadas pelos pais", value: formatNumber(estrela.completions.adult ?? 0) },
         { label: "Aparelhos das crianças conectados agora", value: formatNumber(estrela.devices) },
-        { label: "Famílias com segundo responsável", value: formatNumber(estrela.guardians) },
+        { label: "Famílias com mais de um adulto", value: formatNumber(estrela.guardians) },
       ],
       ai: "O Dia de Estrela não usa IA.",
       note: "Nomes das crianças, tarefas, metas, recompensas, vozes e fotos nunca aparecem aqui: só quantas tarefas foram feitas.",

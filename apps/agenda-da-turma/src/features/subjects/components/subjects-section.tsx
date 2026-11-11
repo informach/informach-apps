@@ -20,13 +20,7 @@ type Props = {
   turmaId: string;
   currentUserId: string;
   canCreateSubject: boolean;
-  /**
-   * Quando true, os botões de IA (voz/imagem) ficam clicáveis. Quando false,
-   * permanecem visíveis mas desabilitados com badge "Pro" — mesmo padrão do
-   * `ExportPdfButton` do dashboard. Server-side guard em `withAiRouteGuards`
-   * é defesa em camadas.
-   */
-  isPro: boolean;
+  aiProfiles: Array<{ id: string; name: string }>;
 };
 
 export function SubjectsSection({
@@ -34,8 +28,11 @@ export function SubjectsSection({
   turmaId,
   currentUserId,
   canCreateSubject,
-  isPro,
+  aiProfiles,
 }: Props) {
+  const [selectedProfileId, setSelectedProfileId] = useState<string>("");
+  const aiProfileId = aiProfiles.find((p) => p.id === selectedProfileId)?.id ?? aiProfiles[0]?.id;
+  const canUseAi = !!aiProfileId;
   const [createOpen, setCreateOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
@@ -52,6 +49,24 @@ export function SubjectsSection({
 
   return (
     <div className="space-y-4">
+      {aiProfiles.length ? (
+        <label className="flex flex-wrap items-center gap-2 text-sm">
+          Usar IA para
+          <select
+            aria-label="Criança para usar IA"
+            value={aiProfileId}
+            onChange={(e) => setSelectedProfileId(e.target.value)}
+            className="rounded-lg border bg-background p-2"
+          >
+            {aiProfiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <span className="text-muted-foreground">Créditos compartilhados da família</span>
+        </label>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
           {subjects.length === 0
@@ -68,13 +83,13 @@ export function SubjectsSection({
               type="button"
               variant="outline"
               onClick={() => setVoiceOpen(true)}
-              disabled={!isPro}
+              disabled={!canUseAi}
             >
               <Mic className="mr-2 size-4" aria-hidden />
               Por voz
-              {!isPro ? (
+              {!canUseAi ? (
                 <Badge variant="secondary" className="ml-2">
-                  Pro
+                  Permissão de IA
                 </Badge>
               ) : null}
             </Button>
@@ -82,13 +97,13 @@ export function SubjectsSection({
               type="button"
               variant="outline"
               onClick={() => setImageOpen(true)}
-              disabled={!isPro}
+              disabled={!canUseAi}
             >
               <Camera className="mr-2 size-4" aria-hidden />
               Por imagem
-              {!isPro ? (
+              {!canUseAi ? (
                 <Badge variant="secondary" className="ml-2">
-                  Pro
+                  Permissão de IA
                 </Badge>
               ) : null}
             </Button>
@@ -124,6 +139,7 @@ export function SubjectsSection({
               subject={subject}
               turmaId={turmaId}
               currentUserId={currentUserId}
+              canContribute={canCreateSubject}
               turmaSubjects={subjects}
             />
           ))}
@@ -138,14 +154,16 @@ export function SubjectsSection({
             turmaId={turmaId}
             turmaSubjects={subjects}
           />
-          {isPro ? (
+          {aiProfileId ? (
             <>
               <SubjectsVoiceDialog
+                profileId={aiProfileId}
                 open={voiceOpen}
                 onOpenChange={setVoiceOpen}
                 onParsed={handleParsed}
               />
               <SubjectsImageDialog
+                profileId={aiProfileId}
                 open={imageOpen}
                 onOpenChange={setImageOpen}
                 onParsed={handleParsed}

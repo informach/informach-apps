@@ -7,18 +7,27 @@ import {
   emailUnsubscribes,
   users,
 } from "@informach/db/schema";
+import { assertFamilyMembership, lockFamilyMembership } from "@informach/family/context";
 import type { z } from "zod";
+import { agendaAccessInTransaction } from "@/features/billing/access-repository";
+import type { AgendaAuthority } from "@/features/family/authority";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   type notificationPreferencesSchema,
   type pushSubscriptionSchema,
 } from "./schemas";
 
-export async function readNotificationPreferences(userId: string) {
+export async function readNotificationPreferences(actor: AgendaAuthority) {
+  await assertFamilyMembership(db, actor.userId, actor.familyGroupId);
   const [row] = await db
     .select()
     .from(agendaNotificationPreferences)
-    .where(eq(agendaNotificationPreferences.userId, userId));
+    .where(
+      and(
+        eq(agendaNotificationPreferences.userId, actor.userId),
+        eq(agendaNotificationPreferences.familyGroupId, actor.familyGroupId),
+      ),
+    );
   return row
     ? {
         emailEnabled: row.emailEnabled,
@@ -34,39 +43,53 @@ export async function readNotificationPreferences(userId: string) {
     : DEFAULT_NOTIFICATION_PREFERENCES;
 }
 export async function writeNotificationPreferences(
-  userId: string,
+  actor: AgendaAuthority,
   input: z.infer<typeof notificationPreferencesSchema>,
-  canEnable: boolean,
-) {
-  const current = await readNotificationPreferences(userId);
-  const enabling =
-    (!current.emailEnabled && input.emailEnabled) || (!current.pushEnabled && input.pushEnabled);
-  if (enabling && !canEnable) return err({ code: "PRO_REQUIRED" } as const);
-  const [user] = await db
-    .select({ verified: users.emailVerified })
-    .from(users)
-    .where(eq(users.id, userId));
-  if (enabling && !user?.verified) return err({ code: "VERIFY_EMAIL" } as const);
-  if (!current.emailEnabled && input.emailEnabled)
-    await db
-      .delete(emailUnsubscribes)
-      .where(
-        and(eq(emailUnsubscribes.userId, userId), eq(emailUnsubscribes.category, "agenda.routine")),
-      );
-  await db
-    .insert(agendaNotificationPreferences)
-    .values({ userId, ...input })
-    .onConflictDoUpdate({
-      target: agendaNotificationPreferences.userId,
-      set: { ...input, updatedAt: new Date() },
-    });
-  return ok({ saved: true });
-}
-export async function insertPushSubscription(
-  userId: string,
-  input: z.infer<typeof pushSubscriptionSchema>,
 ) {
   return db.transaction(async (tx) => {
+    await lockFamilyMembership(tx, actor.userId, actor.familyGroupId);
+    if (
+      (input.emailEnabled || input.pushEnabled) &&
+      !(await agendaAccessInTransaction(tx, actor)).enabled
+    )
+      return err({ code: "PRO_REQUIRED" } as const);
+    const [current] = await tx
+      .select()
+      .from(agendaNotificationPreferences)
+      .where(
+        and(
+          eq(agendaNotificationPreferences.userId, actor.userId),
+          eq(agendaNotificationPreferences.familyGroupId, actor.familyGroupId),
+        ),
+      );
+    if (!current?.emailEnabled && input.emailEnabled)
+      await tx
+        .delete(emailUnsubscribes)
+        .where(
+          and(
+            eq(emailUnsubscribes.userId, actor.userId),
+            eq(emailUnsubscribes.category, "agenda.routine"),
+          ),
+        );
+    await tx
+      .insert(agendaNotificationPreferences)
+      .values({ userId: actor.userId, familyGroupId: actor.familyGroupId, ...input })
+      .onConflictDoUpdate({
+        target: [agendaNotificationPreferences.familyGroupId, agendaNotificationPreferences.userId],
+        set: { ...input, updatedAt: new Date() },
+      });
+    return ok({ saved: true });
+  });
+}
+export async function insertPushSubscription(
+  actor: AgendaAuthority,
+  input: z.infer<typeof pushSubscriptionSchema>,
+) {
+  const userId = actor.userId;
+  return db.transaction(async (tx) => {
+    await lockFamilyMembership(tx, userId, actor.familyGroupId);
+    if (!(await agendaAccessInTransaction(tx, actor)).enabled)
+      return err({ code: "PRO_REQUIRED" } as const);
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`agenda:push:${userId}`}))`);
     const [user] = await tx
       .select({ verified: users.emailVerified })

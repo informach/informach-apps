@@ -1,4 +1,5 @@
 import "server-only";
+import { prepareVisionImage } from "@informach/ai-core/vision-image";
 import { PDFDocument } from "pdf-lib";
 import type { z } from "zod";
 import type { parseNoticeSchema } from "./schemas";
@@ -42,19 +43,16 @@ export async function prepareNoticeAttachment(
       name: attachment.name,
     };
   }
-  const valid =
-    type === "image/png"
-      ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-      : type === "image/jpeg"
-        ? bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255
-        : type === "image/webp" &&
-          bytes.subarray(0, 4).toString() === "RIFF" &&
-          bytes.subarray(8, 12).toString() === "WEBP";
-  if (!valid) throw new Error("INVALID_ATTACHMENT");
+  let dataUrl: string;
+  try {
+    dataUrl = await prepareVisionImage(attachment.dataUrl);
+  } catch {
+    throw new Error("INVALID_ATTACHMENT");
+  }
   return {
     type,
     originalData: base64,
-    dataUrl: attachment.dataUrl,
+    dataUrl,
     pages: [],
     name: attachment.name,
   };

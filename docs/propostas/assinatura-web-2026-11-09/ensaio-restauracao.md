@@ -1,0 +1,14 @@
+# Ensaio de backup e restauração do corte Compasso
+
+Preparação local em 10/11/2026. O ensaio verificará um backup lógico antes da migração de identidades e a restauração em banco vazio, usando apenas dados sintéticos. A origem e o destino serão bancos separados no mesmo PostgreSQL descartável em container local; não serão acessados Railway, Stripe ou arquivos de ambiente reais.
+
+1. Criar um PostgreSQL isolado com identificador aleatório, sem volumes persistentes ou bind de arquivos, acessível somente em loopback. Aplicar o prefixo imutável de migrations até 0079 e registrar perfis antigos dos quatro apps, histórico, permissões e saldo anterior.
+2. Criar arquivo no formato custom de `pg_dump`, restaurar em outro banco vazio com `pg_restore --exit-on-error` e comparar registros da origem e destino antes de avançar. Arquivo e bancos existem apenas no container próprio.
+3. Aplicar as migrations reais restantes aos dois bancos independentemente. Comparar IDs nativos, dados, permissões e saldos, verificando os vínculos canônicos por origem e a separação de homônimos sem exigir UUIDs gerados iguais entre execuções.
+4. Confirmar saída zero e remover somente o container identificado e seus volumes anônimos próprios, após encerrar conexões. Documentar versões e limites observados.
+
+O ensaio atual usa `postgres:18-alpine`; uma consulta somente de leitura em 10/11 identificou PostgreSQL 18 em produção. Antes do corte real, confirmar novamente a versão efetiva, usar utilitários compatíveis e testar o backup real em destino separado; um cliente `pg_dump` não exporta servidor de versão principal superior à sua ([documentação PostgreSQL](https://www.postgresql.org/docs/current/app-pgdump.html)). Uma restauração do banco não desfaz cancelamentos, pagamentos ou outros efeitos externos; após esses efeitos, é necessária conciliação e correção para a frente, sem reabrir saldos ou descartar recibos.
+
+Execução local aprovada em 10/11: `pnpm compasso:test:restore`, exit 0, log `.codex-compasso-restore-0079.log`. O banco 0079 foi semeado, salvo, restaurado e ambos migraram até o journal vigente. IDs nativos, quatro pessoas homônimas distintas, histórico de treino, receita, concessão de leitura e 17 créditos promocionais com validade UTC foram preservados. O container próprio foi removido; não havia outros containers com seu label. `pnpm --filter @informach/family typecheck` passou com o script incluído. O dump usou `--no-owner --no-acl`: papéis e privilégios do PostgreSQL não foram ensaiados, e precisam de plano próprio no ambiente real. O ensaio local não prova que o backup real está acessível ou restaurável.
+
+Repetição posterior com servidor e `pg_dump` 18 e journal até 0151: exit 0 em `.codex-compasso-pg18-restore.log`; typecheck em `.codex-compasso-pg18-restore-types.log`. O container identificado do ensaio foi removido. A execução anterior usou PostgreSQL 16 e permanece como histórico, sem comprovar o backup real.

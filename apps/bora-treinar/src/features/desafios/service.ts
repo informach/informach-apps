@@ -1,7 +1,6 @@
 import "server-only";
 import { type Access, canUseChallenges } from "@/features/acesso/policy";
-import { allowedProfileIds } from "@/features/familia/profile-access";
-import { listProfiles } from "@/features/familia/repository";
+import { enabledTrainerIds, listProfiles } from "@/features/familia/repository";
 import { volumeDaFamiliaDesde } from "@/features/sessoes/repository";
 import { inicioDaSemana, inicioDoDiaLocal, relogioLocal, somarDias } from "@/lib/datas";
 import { AppError } from "@/lib/errors";
@@ -72,16 +71,20 @@ export async function dadosDoDesafio(
   agora: Date = new Date(),
 ): Promise<DadosDoDesafio> {
   if (!canUseChallenges(access)) return { liberado: false };
-  const perfis = await listProfiles(userId);
-  const liberados = new Set(allowedProfileIds(perfis, access.profileLimit));
+  const allProfiles = await listProfiles(userId);
+  const chosen = allProfiles.find((p) => p.id === profileId);
+  if (!chosen) throw new AppError("NOT_FOUND", "Perfil não encontrado.");
+  const groupId = chosen.groupId;
+  const perfis = allProfiles.filter((p) => p.groupId === groupId);
+  const liberados = new Set(await enabledTrainerIds(userId, groupId, access.profileLimit));
   const perfil = perfis.find((p) => p.id === profileId && liberados.has(p.id));
   if (!perfil) throw new AppError("NOT_FOUND", "Perfil não encontrado.");
 
   const semana = inicioDaSemana(agora, fuso);
   const inicioHistorico = somarDias(semana, -7 * SEMANAS_DE_HISTORICO);
   const [sessoes, registrosPessoais] = await Promise.all([
-    volumeDaFamiliaDesde(userId, inicioDoDiaLocal(inicioHistorico, fuso)),
-    challengesBetween(userId, profileId, inicioHistorico, somarDias(semana, 7)),
+    volumeDaFamiliaDesde(userId, groupId, inicioDoDiaLocal(inicioHistorico, fuso)),
+    challengesBetween(userId, groupId, profileId, inicioHistorico, somarDias(semana, 7)),
   ]);
   const daFamilia: SessaoComSemana[] = sessoes
     .filter((s) => liberados.has(s.profileId))
@@ -102,17 +105,27 @@ export async function dadosDoDesafio(
     perfil.intensity,
   );
   let pessoais = registrosPessoais;
-  if (faltam.length) {
-    await createMissingProfileChallenges(userId, profileId, faltam);
+  if (faltam.length && perfil.canWrite) {
+    await createMissingProfileChallenges(userId, groupId, profileId, faltam);
     // relê: se outra tela criou a semana antes, vale o que ela gravou
-    pessoais = await challengesBetween(userId, profileId, inicioHistorico, somarDias(semana, 7));
-  }
+    pessoais = await challengesBetween(
+      userId,
+      groupId,
+      profileId,
+      inicioHistorico,
+      somarDias(semana, 7),
+    );
+  } else if (faltam.length)
+    pessoais = [
+      ...registrosPessoais,
+      ...faltam.map(({ weekStart, desafio }) => ({ weekStart, ...desafio })),
+    ].sort((a, b) => a.weekStart.localeCompare(b.weekStart));
   const atual = pessoais.find((r) => r.weekStart === semana);
   if (!atual) throw new Error("Desafio pessoal da semana não foi criado.");
 
   const [familiaAtual, registrosDaFamilia] = await Promise.all([
-    challengeOf(userId, semana),
-    challengesBetween(userId, null, inicioHistorico, semana),
+    challengeOf(userId, groupId, semana),
+    challengesBetween(userId, groupId, null, inicioHistorico, semana),
   ]);
   const perfisLiberados = perfis.filter((p) => liberados.has(p.id));
 

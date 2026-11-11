@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "@informach/db";
-import { emailUnsubscribes, missaoFamilies, missaoProfiles, users } from "@informach/db/schema";
+import { emailUnsubscribes, missaoFamilies, users } from "@informach/db/schema";
 import { beforeAll, describe, expect, it } from "vitest";
 import { buildWeeklySummary } from "@/features/family/resumo-semanal";
 import {
@@ -8,6 +8,7 @@ import {
   setWeeklyReportEmail,
   weeklyReportUnsubscribed,
 } from "@/features/learning/repository";
+import { seedStudent } from "./family-fixture";
 
 const assinante = randomUUID();
 const cancelou = randomUUID();
@@ -24,7 +25,7 @@ beforeAll(async () => {
     { userId: cancelou, consentVersion: "test" },
     { userId: semPerfil, consentVersion: "test" },
   ]);
-  await db.insert(missaoProfiles).values({
+  await seedStudent({
     userId: assinante,
     nickname: "Sol",
     grade: 6,

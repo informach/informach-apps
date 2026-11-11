@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { StudyAuthority } from "../family/authority";
 
 export const STUDY_COOKIE = "ms-study";
 export const PROFILE_COOKIE = "ms-profile";
@@ -9,19 +10,16 @@ export const studyDeviceSchema = z.object({
   profileIds: z
     .array(z.string().uuid())
     .min(1)
-    .max(3)
+    .max(6)
     .refine((ids) => new Set(ids).size === ids.length),
   label: z.string().trim().min(2).max(60),
   remember: z.boolean().default(false),
 });
 export type StudyDeviceInput = z.infer<typeof studyDeviceSchema>;
-export type StudyIdentity = {
-  deviceId: string;
+export type StudyIdentity = StudyAuthority & {
   remember: boolean;
   expiresAt: Date;
-  userId: string;
   profileIds: string[];
-  profileId: string;
 };
 
 export function studyLifetimeMs(remember: boolean) {

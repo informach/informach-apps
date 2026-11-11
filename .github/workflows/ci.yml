@@ -64,7 +64,13 @@ jobs:
 
       - run: pnpm test
 
+      - run: node --test scripts/compasso/postgres-fixture.test.mjs
+
+      - run: pnpm compasso:test:integration
+
       - run: pnpm db:migrate
+
+      - run: pnpm --filter @informach/agenda-da-turma test:integration
 
       - run: pnpm --filter @informach/cozya test:integration
 
@@ -102,7 +108,8 @@ jobs:
 
       - run: pnpm --filter @informach/dia-de-estrela e2e
 
-      - run: pnpm build
+      # Cada consumidor SSO precisa incorporar sua própria origem do catálogo.
+      - run: pnpm exec tsx scripts/compasso/build-ci.mts
         env:
           BETTER_AUTH_URL: https://ci.example.com
           NEXT_PUBLIC_APP_URL: https://ci.example.com
@@ -129,12 +136,27 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
+      - run: pnpm build:conta
+        env:
+          NEXT_PUBLIC_APP_URL: https://conta.informach.com.br
+          COMPASSO_TRIAL_HASH_SECRET: ci-build-placeholder-not-a-real-secret-yyyy
+          COMPASSO_BILLING_ENABLED: "true"
+          COMPASSO_MONTHLY_PRICE: price_ci_compasso_monthly
+          COMPASSO_ANNUAL_PRICE: price_ci_compasso_annual
+          COMPASSO_CREDITS_100_PRICE: price_ci_compasso_credits_100
+          COMPASSO_CREDITS_300_PRICE: price_ci_compasso_credits_300
+          COMPASSO_CREDITS_1000_PRICE: price_ci_compasso_credits_1000
+          EMAIL_SANDBOX_MODE: live
+          STRIPE_SECRET_KEY: sk_live_ci_build_placeholder
+          STRIPE_MODE: prod
+          STRIPE_PORTAL_CONFIGURATION_ID: bpc_ci_build_placeholder
+
       - name: Preserve Missao Saber failure evidence
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: missao-saber-verification-${{ github.run_attempt }}
-          path: apps/missao-saber/tmp/verification/
+          path: apps/conta/test-results/compasso-apps/missao-saber/
           if-no-files-found: ignore
           retention-days: 7
 
@@ -143,7 +165,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bora-treinar-verification-${{ github.run_attempt }}
-          path: apps/bora-treinar/tmp/verification/
+          path: apps/conta/test-results/compasso-apps/bora-treinar/
           if-no-files-found: ignore
           retention-days: 7
 
@@ -152,7 +174,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dia-de-estrela-verification-${{ github.run_attempt }}
-          path: apps/dia-de-estrela/tmp/verification/
+          path: apps/conta/test-results/compasso-apps/dia-de-estrela/
           if-no-files-found: ignore
           retention-days: 7
 
@@ -167,5 +189,7 @@ jobs:
           path: |
             apps/agenda-da-turma/test-results/
             apps/cozya/test-results/
+            apps/conta/test-results/compasso-apps/cozya/
+            apps/conta/test-results/compasso-apps/agenda-da-turma/
           if-no-files-found: ignore
           retention-days: 7

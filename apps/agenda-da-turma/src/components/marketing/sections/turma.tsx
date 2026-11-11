@@ -34,13 +34,15 @@ export function Turma() {
             cada casa.
           </p>
           <ul className="flex flex-wrap gap-3">
-            {["Receber é grátis", "Mandar para a turma é do Pro", "A turma entra por um link"].map(
-              (item) => (
-                <li key={item} className={TAG}>
-                  {item}
-                </li>
-              ),
-            )}
+            {[
+              "Receber é grátis",
+              "Mandar para a turma está no Compasso",
+              "A turma entra por um link",
+            ].map((item) => (
+              <li key={item} className={TAG}>
+                {item}
+              </li>
+            ))}
           </ul>
         </div>
         <div className="flex w-full max-w-[460px] flex-col gap-3.5 justify-self-center">

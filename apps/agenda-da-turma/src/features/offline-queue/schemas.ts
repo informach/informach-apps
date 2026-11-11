@@ -18,6 +18,8 @@ export const QUEUED_STATUSES = ["pending", "done"] as const;
  * obrigatório: a fila não dispensa a concorrência otimista, ela a leva junto.
  */
 export const taskStatusBodySchema = z.object({
+  userId: z.string().min(1).max(200),
+  familyGroupId: z.uuid(),
   version: z.number().int().positive(),
   status: z.enum(QUEUED_STATUSES),
 });

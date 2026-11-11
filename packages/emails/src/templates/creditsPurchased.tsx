@@ -7,7 +7,10 @@ export type CreditsPurchasedEmailProps = {
   /** Number of credits added by this purchase. */
   creditAmount: number;
   /** Total available credits AFTER this purchase. */
-  balanceAfter: number;
+  balanceAfter?: number;
+  /** A converted receipt never exposes another family's current wallet balance. */
+  conversion?: { sourceName: string; sourceCredits: number };
+  settlement?: { refundedCredits: number; underReview: boolean };
   dashboardUrl: string;
   unsubscribeUrl?: string;
   unsubscribeMailto?: string;
@@ -26,6 +29,8 @@ export function CreditsPurchasedEmail({
   appName,
   creditAmount,
   balanceAfter,
+  conversion,
+  settlement,
   dashboardUrl,
   unsubscribeUrl,
   unsubscribeMailto,
@@ -34,7 +39,6 @@ export function CreditsPurchasedEmail({
 }: CreditsPurchasedEmailProps) {
   const t = getTranslator("creditsPurchased", locale);
   const creditAmountStr = formatNumber(creditAmount, locale);
-  const balanceAfterStr = formatNumber(balanceAfter, locale);
 
   return (
     <EmailLayout
@@ -53,12 +57,30 @@ export function CreditsPurchasedEmail({
           strong: (chunks) => <strong>{chunks}</strong>,
         })}
       </Text>
-      <Text style={paragraphStyle}>
-        {t.rich("instruction", {
-          balanceAfter: balanceAfterStr,
-          strong: (chunks) => <strong>{chunks}</strong>,
-        })}
-      </Text>
+      {conversion && (
+        <Text style={paragraphStyle}>
+          {t("conversion", {
+            sourceName: conversion.sourceName,
+            sourceCredits: formatNumber(conversion.sourceCredits, locale),
+            convertedCredits: creditAmountStr,
+          })}
+        </Text>
+      )}
+      {settlement?.underReview && <Text style={paragraphStyle}>{t("underReview")}</Text>}
+      {!!settlement?.refundedCredits && (
+        <Text style={paragraphStyle}>
+          {t("refunded", { refundedCredits: formatNumber(settlement.refundedCredits, locale) })}
+        </Text>
+      )}
+      {balanceAfter !== undefined && (
+        <Text style={paragraphStyle}>
+          {t.rich("instruction", {
+            balanceAfter: formatNumber(balanceAfter, locale),
+            strong: (chunks) => <strong>{chunks}</strong>,
+          })}
+        </Text>
+      )}
+      <Text style={paragraphStyle}>{t("statement")}</Text>
     </EmailLayout>
   );
 }

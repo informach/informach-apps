@@ -1,6 +1,9 @@
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
+  check,
+  foreignKey,
   index,
   integer,
   pgSchema,
@@ -8,6 +11,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 export const core = pgSchema("core");
@@ -25,10 +29,37 @@ export const users = core.table(
     banReason: text("ban_reason"),
     banExpiresAt: timestamp("ban_expires_at", { withTimezone: true }),
     twoFactorEnabled: boolean("two_factor_enabled").default(false).notNull(),
+    // The account central has its own issuer/secret; Bastidores keeps its existing factor.
+    webTwoFactorEnabled: boolean("web_two_factor_enabled").default(false).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [index("users_role_idx").on(t.role)],
+);
+
+/** Web participation is separate from the shared identity and independent products. */
+export const webParticipations = core.table(
+  "web_participations",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "restrict" }),
+    state: text("state", { enum: ["active", "frozen", "closed"] })
+      .notNull()
+      .default("active"),
+    revision: integer("revision").notNull().default(0),
+    operationId: uuid("operation_id"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    check("web_participation_revision", sql`${t.revision} >= 0`),
+    check("web_participation_state", sql`${t.state} in ('active', 'frozen', 'closed')`),
+    check(
+      "web_participation_operation",
+      sql`(${t.revision} = 0 and ${t.state} = 'active' and ${t.operationId} is null)
+        or (${t.revision} > 0 and ${t.operationId} is not null)`,
+    ),
+  ],
 );
 
 export const sessions = core.table(
@@ -45,6 +76,8 @@ export const sessions = core.table(
     activeOrganizationId: text("active_organization_id"),
     activeTeamId: text("active_team_id"),
     role: text("role"),
+    originApp: text("origin_app"),
+    parentSessionId: text("parent_session_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -52,6 +85,25 @@ export const sessions = core.table(
     index("sessions_user_id_idx").on(t.userId),
     index("sessions_expires_at_idx").on(t.expiresAt),
     index("sessions_active_organization_id_idx").on(t.activeOrganizationId),
+    index("sessions_parent_idx").on(t.parentSessionId),
+    uniqueIndex("sessions_id_user_uniq").on(t.id, t.userId),
+    foreignKey({
+      name: "sessions_parent_owner_fk",
+      columns: [t.parentSessionId, t.userId],
+      foreignColumns: [t.id, t.userId],
+    }).onDelete("cascade"),
+    check(
+      "sessions_parent_not_self",
+      sql`${t.parentSessionId} is null or ${t.parentSessionId} <> ${t.id}`,
+    ),
+    check(
+      "sessions_web_lineage",
+      sql`(
+      (${t.originApp} is null and ${t.parentSessionId} is null)
+      or (${t.originApp} = 'conta' and ${t.parentSessionId} is null)
+      or (${t.originApp} is not null and length(${t.originApp}) > 0 and ${t.originApp} <> 'conta' and ${t.parentSessionId} is not null)
+    )`,
+    ),
   ],
 );
 
@@ -175,6 +227,22 @@ export const twoFactors = core.table(
     lockedUntil: timestamp("locked_until", { withTimezone: true }),
   },
   (t) => [index("two_factors_user_id_idx").on(t.userId)],
+);
+
+export const webTwoFactors = core.table(
+  "web_two_factors",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    secret: text("secret").notNull(),
+    backupCodes: text("backup_codes").notNull(),
+    verified: boolean("verified").notNull().default(false),
+    failedVerificationCount: integer("failed_verification_count").notNull().default(0),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("web_two_factors_user_id_uniq").on(t.userId)],
 );
 
 export const invitations = core.table(

@@ -1,5 +1,6 @@
 "use client";
 
+import { prepareSpeechAudio } from "@informach/ai-core/speech-audio";
 import { Button } from "@informach/ui/components/button";
 import {
   Dialog,
@@ -14,9 +15,11 @@ import { SpeechInput } from "@informach/ui/components/speech-input";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { handleAiHttpError } from "@/features/ai/_http-errors";
+import { SPEECH_COST, SUBJECT_TEXT_COST } from "@/features/ai/costs";
 import type { ParsedSubjectInput } from "./subjects-batch-confirm-dialog";
 
 type Props = {
+  profileId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onParsed: (subjects: ParsedSubjectInput[]) => void;
@@ -27,7 +30,7 @@ type Stage = "idle" | "transcribing" | "parsing" | "not_subjects";
 const TRANSCRIBE_ENDPOINT = "/api/ai/transcribe";
 const PARSE_ENDPOINT = "/api/ai/subjects/parse-voice";
 
-export function SubjectsVoiceDialog({ open, onOpenChange, onParsed }: Props) {
+export function SubjectsVoiceDialog({ profileId, open, onOpenChange, onParsed }: Props) {
   const [stage, setStage] = useState<Stage>("idle");
   const [notSubjectsReason, setNotSubjectsReason] = useState<string>("");
 
@@ -46,7 +49,9 @@ export function SubjectsVoiceDialog({ open, onOpenChange, onParsed }: Props) {
     setStage("transcribing");
 
     const transcribeForm = new FormData();
-    transcribeForm.append("audio", blob, "subjects.webm");
+    transcribeForm.append("audio", await prepareSpeechAudio(blob), "subjects.wav");
+    transcribeForm.append("profileId", profileId);
+    transcribeForm.append("acceptedCost", JSON.stringify(SPEECH_COST));
     const tRes = await fetch(TRANSCRIBE_ENDPOINT, {
       method: "POST",
       body: transcribeForm,
@@ -74,7 +79,7 @@ export function SubjectsVoiceDialog({ open, onOpenChange, onParsed }: Props) {
     const pRes = await fetch(PARSE_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transcript }),
+      body: JSON.stringify({ transcript, profileId, acceptedCost: SUBJECT_TEXT_COST }),
     });
     if (!handleAiHttpError(pRes)) {
       setStage("idle");
@@ -121,7 +126,10 @@ export function SubjectsVoiceDialog({ open, onOpenChange, onParsed }: Props) {
           <DialogDescription>
             Toque no microfone e fale a lista de matérias da turma. Pode incluir o professor se
             quiser (ex.: "Matemática com Prof. Carla, Português, Ciências com Prof. Roberto"). Você
-            terá até 2 minutos para falar.
+            terá até 2 minutos para falar. A transcrição custa 1 crédito por minuto iniciado, até{" "}
+            {SPEECH_COST.maxCredits} créditos e a organização da lista até{" "}
+            {SUBJECT_TEXT_COST.maxCredits}, do saldo compartilhado. Cada etapa concluída é cobrada
+            pelo consumo; falhas liberam a reserva da etapa.
           </DialogDescription>
         </DialogHeader>
 

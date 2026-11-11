@@ -1,4 +1,6 @@
 import path from "node:path";
+import { visionImageTracingIncludes } from "@informach/ai-core/vision-image-build";
+import { isolatedNextOptions } from "@informach/config/next-testing";
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
@@ -52,13 +54,18 @@ const productionOnlyHeaders = isProd
 const nextConfig: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),
+  outputFileTracingIncludes: visionImageTracingIncludes("../.."),
+  // Bound build-time module copies on shared developer/CI hosts. Runtime is unchanged.
+  experimental: { cpus: 2 },
   transpilePackages: [
+    "@informach/account",
     "@informach/ai-core",
     "@informach/auth",
     "@informach/billing",
     "@informach/config",
     "@informach/db",
     "@informach/emails",
+    "@informach/family",
     "@informach/ui",
   ],
   typedRoutes: true,
@@ -106,6 +113,7 @@ const nextConfig: NextConfig = {
       { source: "/turmas", destination: "/familia/turmas", permanent: false },
     ];
   },
+  ...isolatedNextOptions(),
 };
 
 const hasSentrySourceMapConfig = Boolean(

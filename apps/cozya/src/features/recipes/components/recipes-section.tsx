@@ -32,14 +32,17 @@ type Props = {
   page: number;
   hasNextPage: boolean;
   canUseAi: boolean;
-  trialAvailable: boolean;
   weekRecipeIds: string[];
   credits: number | null;
   hasRecentPreviews: boolean;
   openBring: boolean;
 };
 
-function buildHref(query: string, filter: RecipeFilter | null, page: number): string {
+function buildHref(
+  query: string,
+  filter: RecipeFilter | null,
+  page: number,
+): `/receitas${"" | `?${string}`}` {
   const params = new URLSearchParams();
   if (query) params.set("q", query);
   if (filter) params.set("filtro", filter);
@@ -57,7 +60,6 @@ export function RecipesSection({
   page,
   hasNextPage,
   canUseAi,
-  trialAvailable,
   weekRecipeIds,
   credits,
   hasRecentPreviews,
@@ -67,7 +69,6 @@ export function RecipesSection({
     <NewRecipeButton
       isPro={isPro}
       canUseAi={canUseAi}
-      trialAvailable={trialAvailable}
       currentCount={currentCount}
       credits={credits}
       hasRecentPreviews={hasRecentPreviews}
@@ -92,12 +93,7 @@ export function RecipesSection({
   return (
     <div className="space-y-4">
       {bring}
-      <SearchBar
-        canUseAi={canUseAi}
-        trialAvailable={trialAvailable}
-        initialQuery={query}
-        filter={filter}
-      />
+      <SearchBar canUseAi={canUseAi} initialQuery={query} filter={filter} />
       <nav aria-label="Filtros" className="flex flex-wrap gap-2">
         {FILTERS.map((item) => {
           const active = item.value === filter;
@@ -223,12 +219,10 @@ function Pagination({
 
 function SearchBar({
   canUseAi,
-  trialAvailable,
   initialQuery,
   filter,
 }: {
   canUseAi: boolean;
-  trialAvailable: boolean;
   initialQuery: string;
   filter: RecipeFilter | null;
 }) {
@@ -287,11 +281,7 @@ function SearchBar({
         autoComplete="off"
       />
       <div className="absolute top-1/2 right-1.5 -translate-y-1/2">
-        <RecipeVoiceSearch
-          isPro={canUseAi}
-          trialAvailable={trialAvailable}
-          onTranscribed={onTranscribed}
-        />
+        <RecipeVoiceSearch canUseAi={canUseAi} onTranscribed={onTranscribed} />
       </div>
     </div>
   );

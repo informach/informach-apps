@@ -42,7 +42,7 @@ export default async function Rotinas({
     sp.periodo === "manha" || sp.periodo === "tarde" || sp.periodo === "noite"
       ? sp.periodo
       : periodoDe(hhmm);
-  const todas = await listTasks(ctx.ownerId, [crianca.id]);
+  const todas = await listTasks(ctx.actor, [crianca.id]);
   const tarefas = todas.filter((t) => periodoDe(t.time) === periodo);
   const contagem = (p: Periodo) => todas.filter((t) => periodoDe(t.time) === p).length;
   const link = (mudar: { crianca?: string; periodo?: string }) =>
@@ -128,30 +128,34 @@ export default async function Rotinas({
         )}
       </ul>
 
-      <Link
-        href={`/rotinas/tarefa?crianca=${crianca.id}&periodo=${periodo}`}
-        className="b3 b3-ceu w-full normal-case tracking-normal"
-      >
-        <Plus className="size-5" aria-hidden="true" /> Adicionar tarefa
-      </Link>
+      {crianca.canWrite && crianca.allowed && (
+        <>
+          <Link
+            href={`/rotinas/tarefa?crianca=${crianca.id}&periodo=${periodo}`}
+            className="b3 b3-ceu w-full normal-case tracking-normal"
+          >
+            <Plus className="size-5" aria-hidden="true" /> Adicionar tarefa
+          </Link>
 
-      <section className="mt-2">
-        <h2 className="text-xs font-extrabold tracking-[0.12em] text-tinta-suave">
-          MODELOS PRONTOS
-        </h2>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {MODELOS.map((m) => (
-            <AplicarModelo
-              key={m.id}
-              childId={crianca.id}
-              childName={crianca.name}
-              templateId={m.id}
-              nome={m.name}
-              quantas={m.tasks.length}
-            />
-          ))}
-        </div>
-      </section>
+          <section className="mt-2">
+            <h2 className="text-xs font-extrabold tracking-[0.12em] text-tinta-suave">
+              MODELOS PRONTOS
+            </h2>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {MODELOS.map((m) => (
+                <AplicarModelo
+                  key={m.id}
+                  childId={crianca.id}
+                  childName={crianca.name}
+                  templateId={m.id}
+                  nome={m.name}
+                  quantas={m.tasks.length}
+                />
+              ))}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }

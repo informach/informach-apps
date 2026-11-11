@@ -1,5 +1,6 @@
+import { selectedFamilyContext } from "@/features/familia/context";
 import { familyExport } from "@/features/familia/repository";
-import { familyOfAdult } from "@/features/familia/view";
+import { recentParent, runAction } from "@/lib/action";
 import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -8,9 +9,18 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getCurrentUser();
   if (!user?.emailVerified) return new Response("Entre na conta para exportar.", { status: 401 });
-  const { ownerId, role } = await familyOfAdult(user.id);
-  if (role !== "owner") return new Response("Só o titular exporta os dados.", { status: 403 });
-  const d = await familyExport(ownerId);
+  const family = await selectedFamilyContext(user.id);
+  if (!family) return new Response("Escolha uma família.", { status: 403 });
+  const result = await runAction(async () => {
+    await recentParent();
+    return familyExport({ kind: "adult", userId: user.id, familyGroupId: family.id });
+  });
+  if (!result.ok) return Response.json(result, { status: 403 });
+  const d = result.data;
+  const goals = d.goalRows.map((goal) => ({
+    ...goal,
+    photo: goal.photo?.toString("base64") ?? null,
+  }));
   const corpo = {
     app: "dia-de-estrela",
     exportedAt: new Date().toISOString(),
@@ -36,10 +46,12 @@ export async function GET() {
       stars: d.ledgerRows
         .filter((l) => l.childId === c.id)
         .map((l) => ({ kind: l.kind, stars: l.stars, label: l.label, createdAt: l.createdAt })),
-      goal: d.goalRows.find((g) => g.childId === c.id) ?? null,
+      goal: goals.find((g) => g.childId === c.id) ?? null,
       requests: d.redemptionRows.filter((r) => r.childId === c.id),
     })),
     rewards: d.rewardRows,
+    completions: d.completions,
+    voices: d.voices.map((voice) => ({ ...voice, data: voice.data.toString("base64") })),
   };
   return new Response(JSON.stringify(corpo, null, 2), {
     headers: {

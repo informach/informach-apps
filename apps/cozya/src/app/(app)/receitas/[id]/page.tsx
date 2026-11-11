@@ -52,7 +52,6 @@ export default async function RecipePage({
           <RefineRecipeDialog
             recipe={recipe}
             canUseAi={access.canUseAi}
-            trialAvailable={!access.isPro && !access.profile?.trialStartedAt}
             isPro={isPro}
             currentCount={recipeCount}
           />

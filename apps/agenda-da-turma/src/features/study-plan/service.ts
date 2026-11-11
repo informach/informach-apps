@@ -1,13 +1,14 @@
 import "server-only";
 import { err, ok } from "@informach/auth/server-actions";
+import { FamilyError } from "@informach/family";
 import type { z } from "zod";
 import { addDaysIso, parseLocalIso, todayLocalIso } from "@/features/dashboard/date";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { recordProductEvent } from "@/features/metrics/events";
 import { getNoticeAction } from "@/features/notices/repository";
 import { actionFingerprint } from "@/features/notices/write-repository";
 import { ESTIMATE_PRESETS } from "@/features/unified-activities/estimate";
 import { summarizeDayLoad } from "@/features/unified-activities/load";
-import { billing } from "@/lib/billing";
 import { planStudySessions } from "./plan";
 import {
   cancelStudySessions,
@@ -28,8 +29,8 @@ function daysBetween(fromIso: string, toIso: string): number {
   return Math.max(0, Math.round((to - from) / 86_400_000));
 }
 
-export async function listStudySessions(userId: string, taskId: string) {
-  return findStudySessions(userId, taskId);
+export async function listStudySessions(actor: AgendaAuthority, taskId: string) {
+  return findStudySessions(actor, taskId);
 }
 
 /**
@@ -38,12 +39,12 @@ export async function listStudySessions(userId: string, taskId: string) {
  * a tela mostrou (a não ser que a semana tenha mudado no meio).
  */
 async function planDays(
-  userId: string,
+  actor: AgendaAuthority,
   task: { id: string; profileId: string; dueAt: string },
   sessions: number,
   todayIso: string,
 ) {
-  const window = await findLoadUntilExam(userId, {
+  const window = await findLoadUntilExam(actor, {
     profileId: task.profileId,
     taskId: task.id,
     fromIso: todayIso,
@@ -85,11 +86,11 @@ export type StudyPlanProposal = {
  * com "Colocar na rotina" ou escolhe outro número em "Outro jeito".
  */
 export async function proposeStudyPlan(
-  userId: string,
+  actor: AgendaAuthority,
   task: { id: string; profileId: string; dueAt: string; estimatedMinutes: number | null },
 ): Promise<StudyPlanProposal | null> {
   const todayIso = todayLocalIso();
-  const { days, window } = await planDays(userId, task, PROPOSED_SESSIONS, todayIso);
+  const { days, window } = await planDays(actor, task, PROPOSED_SESSIONS, todayIso);
   if (!days.length) return null;
   const chosen = new Set(days);
   let avoided: StudyPlanProposal["avoided"] = null;
@@ -109,8 +110,11 @@ export async function proposeStudyPlan(
   return { days, minutesEach: minutesEach ?? PROPOSED_MINUTES, avoided };
 }
 
-export async function createStudyPlan(userId: string, input: z.infer<typeof studyPlanSchema>) {
-  const exam = await getNoticeAction(userId, input.taskId);
+async function createStudyPlanInternal(
+  actor: AgendaAuthority,
+  input: z.infer<typeof studyPlanSchema>,
+) {
+  const exam = await getNoticeAction(actor, input.taskId);
   if (!exam) return err({ code: "NOT_FOUND" } as const);
   const task = exam.action;
   if (!task.dueAt || task.status === "canceled") return err({ code: "NOT_PLANNABLE" } as const);
@@ -119,20 +123,19 @@ export async function createStudyPlan(userId: string, input: z.infer<typeof stud
 
   const todayIso = todayLocalIso();
   const { days } = await planDays(
-    userId,
+    actor,
     { id: task.id, profileId: task.profileId, dueAt: task.dueAt },
     input.sessions,
     todayIso,
   );
   if (!days.length) return err({ code: "NO_TIME_LEFT" } as const);
 
-  const isPro = await billing.hasProSubscription({ type: "user", id: exam.ownerUserId });
   const examLabel = task.dueAt.split("-").reverse().join("/");
   const sessions: NewStudySession[] = days.map((dueAt, index) => {
     const title = `Estudar para ${task.title} (${index + 1}/${days.length})`;
     return {
       profileId: task.profileId,
-      createdByUserId: userId,
+      createdByUserId: actor.userId,
       studyForTaskId: task.id,
       type: "study" as const,
       subjectId: task.subjectId,
@@ -147,25 +150,23 @@ export async function createStudyPlan(userId: string, input: z.infer<typeof stud
       fingerprint: actionFingerprint({ title, dueAt, type: "study" }),
     };
   });
-  const result = await replaceStudyPlan(exam.ownerUserId, task.id, sessions, isPro);
+  const result = await replaceStudyPlan(actor, task.id, task.version, sessions);
+  if ("conflict" in result) return err({ code: "VERSION_CONFLICT" } as const);
   if (!("created" in result))
     return err({
       code: "ACTIVITY_LIMIT_REACHED",
       current: result.current,
       limit: result.limit,
     } as const);
-  await recordProductEvent(userId, { event: "study_plan_created", count: result.created });
+  await recordProductEvent(actor.userId, { event: "study_plan_created", count: result.created });
   return ok({ sessions: result.created });
 }
 
-export async function removeStudyPlan(
-  userId: string,
+async function removeStudyPlanInternal(
+  actor: AgendaAuthority,
   input: z.infer<typeof removeStudyPlanSchema>,
 ) {
-  const sessions = await findStudySessions(userId, input.taskId);
-  const canceled = await cancelStudySessions(
-    sessions.filter((session) => session.status === "pending").map((session) => session.id),
-  );
+  const canceled = await cancelStudySessions(actor, input.taskId);
   return ok({ canceled });
 }
 
@@ -174,4 +175,28 @@ export function studyPlanRange(days: string[]) {
   const first = days[0];
   const last = days[days.length - 1];
   return first && last ? { first, last, nextDay: addDaysIso(last, 1) } : null;
+}
+
+async function guarded<T>(work: () => Promise<T>) {
+  try {
+    return await work();
+  } catch (error) {
+    if (error instanceof FamilyError)
+      return err({
+        code:
+          error.code === "CAPACITY_EXCEEDED"
+            ? ("PROFILE_LIMIT_REACHED" as const)
+            : ("NOT_FOUND" as const),
+      });
+    throw error;
+  }
+}
+export function createStudyPlan(actor: AgendaAuthority, input: z.infer<typeof studyPlanSchema>) {
+  return guarded(() => createStudyPlanInternal(actor, input));
+}
+export function removeStudyPlan(
+  actor: AgendaAuthority,
+  input: z.infer<typeof removeStudyPlanSchema>,
+) {
+  return guarded(() => removeStudyPlanInternal(actor, input));
 }

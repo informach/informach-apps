@@ -19,6 +19,7 @@ const campo =
   "h-12 w-full rounded-xl border-2 border-linha-forte bg-white px-3 font-bold text-tinta placeholder:font-semibold placeholder:text-tinta-suave";
 
 type CriancaCofrinho = {
+  canWrite: boolean;
   id: string;
   name: string;
   color: string;
@@ -191,7 +192,7 @@ export function CofrinhoDaCrianca({
             </div>
           ) : (
             <p className="rounded-xl bg-uva-clara p-3 text-sm font-bold text-uva-escura">
-              Foto da meta é do plano Família.{" "}
+              Foto da meta é do Compasso.{" "}
               <Link href="/ajustes#plano" className="underline">
                 Ver planos
               </Link>
@@ -202,7 +203,7 @@ export function CofrinhoDaCrianca({
               <button
                 type="button"
                 className="bp bp-perigo"
-                disabled={pendente}
+                disabled={pendente || !c.canWrite}
                 onClick={() =>
                   rodar(
                     () => removerMetaAction(c.id),
@@ -262,7 +263,7 @@ export function CofrinhoDaCrianca({
           <button
             type="button"
             className="bp bp-ceu"
-            disabled={pendente}
+            disabled={pendente || !c.canWrite}
             onClick={() =>
               rodar(
                 () => darBonusAction({ childId: c.id, stars: bonus, reason: motivo }),
@@ -295,10 +296,12 @@ export function LojaDaFamilia({
   itens,
   starsPerReal,
   podeItensProprios,
+  podeGerenciar,
 }: {
   itens: Item[];
   starsPerReal: number;
   podeItensProprios: boolean;
+  podeGerenciar: boolean;
 }) {
   const ids = useId();
   const [novo, setNovo] = useState<"custom" | "money" | null>(null);
@@ -332,7 +335,7 @@ export function LojaDaFamilia({
               type="button"
               aria-label={`Tirar ${i.name} da loja`}
               className="grid size-10 place-items-center text-tinta-suave"
-              disabled={pendente}
+              disabled={pendente || !podeGerenciar}
               onClick={() => rodar(() => tirarRecompensaAction(i.id))}
             >
               <Trash2 className="size-4" aria-hidden="true" />
@@ -342,7 +345,11 @@ export function LojaDaFamilia({
         {!itens.length && <li className="py-3 font-bold text-tinta-suave">A loja está vazia.</li>}
       </ul>
 
-      {novo === null ? (
+      {!podeGerenciar ? (
+        <p className="mt-3 text-sm font-semibold text-tinta-suave">
+          Os itens da loja são gerenciados por um administrador da família.
+        </p>
+      ) : novo === null ? (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button type="button" className="bp bp-claro" onClick={() => setNovo("money")}>
             <Plus className="size-4" aria-hidden="true" /> Dinheiro
@@ -352,13 +359,13 @@ export function LojaDaFamilia({
             className="bp bp-ceu"
             onClick={() => setNovo("custom")}
             disabled={!podeItensProprios}
-            title={podeItensProprios ? undefined : "Itens próprios são do plano Família"}
+            title={podeItensProprios ? undefined : "Itens próprios são do Compasso"}
           >
             <Plus className="size-4" aria-hidden="true" /> Outro item
           </button>
           {!podeItensProprios && (
             <p className="col-span-2 text-sm font-bold text-uva-escura">
-              Tempo de tela, passeio, escolher o jantar… são do plano Família.{" "}
+              Tempo de tela, passeio, escolher o jantar… são do Compasso.{" "}
               <Link href="/ajustes#plano" className="underline">
                 Ver planos
               </Link>

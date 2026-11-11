@@ -1,4 +1,5 @@
 import "server-only";
+import { err, ok } from "@informach/auth/server-actions";
 import { and, db, eq, inArray, sql } from "@informach/db";
 import {
   agendaProfileSubjects,
@@ -7,9 +8,17 @@ import {
   agendaSubjects,
   agendaTurmaMembers,
 } from "@informach/db/schema";
+import type { FamilyTransaction } from "@informach/family";
 import { accessibleProfileCondition } from "@/features/family/access";
+import type { AgendaAuthority } from "@/features/family/authority";
+import { atomicAgendaResult } from "@/features/family/transaction-repository";
+import { lockAgendaUse } from "@/features/family/use-repository";
+import {
+  assertTaskSchoolContexts,
+  lockTaskSchoolContexts,
+} from "@/features/turmas/transaction-repository";
 
-export async function findSubjectKits(userId: string, profileIds: string[]) {
+export async function findSubjectKits(actor: AgendaAuthority, profileIds: string[]) {
   if (!profileIds.length) return [];
   return (
     db
@@ -25,18 +34,19 @@ export async function findSubjectKits(userId: string, profileIds: string[]) {
       // hoje só passa as próprias crianças, mas a garantia não pode depender de
       // quem chama.
       .where(
-        and(inArray(agendaSubjectKits.profileId, profileIds), accessibleProfileCondition(userId)),
+        and(inArray(agendaSubjectKits.profileId, profileIds), accessibleProfileCondition(actor)),
       )
   );
 }
 
 /** A matéria é da turma em que a criança participa AGORA, ou extracurricular dela. */
-export async function subjectBelongsToProfile(
+async function subjectBelongsToProfile(
+  tx: FamilyTransaction,
   profileId: string,
   input: { subjectId: string | null; profileSubjectId: string | null },
 ) {
   if (input.subjectId) {
-    const [row] = await db
+    const [row] = await tx
       .select({ id: agendaSubjects.id })
       .from(agendaSubjects)
       .innerJoin(agendaTurmaMembers, eq(agendaTurmaMembers.turmaId, agendaSubjects.turmaId))
@@ -54,7 +64,7 @@ export async function subjectBelongsToProfile(
     return Boolean(row);
   }
   if (!input.profileSubjectId) return false;
-  const [row] = await db
+  const [row] = await tx
     .select({ id: agendaProfileSubjects.id })
     .from(agendaProfileSubjects)
     .where(
@@ -79,30 +89,42 @@ export async function subjectBelongsToProfile(
  * duas (CHECK `agenda_subject_kit_target_check`), e um índice único comum sobre
  * colunas anuláveis não impede duplicata no Postgres.
  */
-export async function upsertSubjectKit(input: {
-  profileId: string;
-  subjectId: string | null;
-  profileSubjectId: string | null;
-  items: string[];
-}) {
-  const values = { ...input, updatedAt: new Date() };
-  if (input.subjectId) {
-    await db
+export async function upsertSubjectKit(
+  actor: AgendaAuthority,
+  input: {
+    profileId: string;
+    subjectId: string | null;
+    profileSubjectId: string | null;
+    items: string[];
+  },
+) {
+  return atomicAgendaResult(async (tx) => {
+    const dependencies = { subjectIds: input.subjectId ? [input.subjectId] : [] };
+    const schoolLocks = await lockTaskSchoolContexts(tx, dependencies);
+    await lockAgendaUse(tx, actor, [input.profileId]);
+    await assertTaskSchoolContexts(tx, schoolLocks, dependencies);
+    if (!(await subjectBelongsToProfile(tx, input.profileId, input)))
+      return err({ code: "INVALID_SUBJECT" } as const);
+    const values = { ...input, updatedAt: new Date() };
+    if (input.subjectId) {
+      await tx
+        .insert(agendaSubjectKits)
+        .values(values)
+        .onConflictDoUpdate({
+          target: [agendaSubjectKits.profileId, agendaSubjectKits.subjectId],
+          targetWhere: sql`${agendaSubjectKits.subjectId} IS NOT NULL`,
+          set: { items: input.items, updatedAt: values.updatedAt },
+        });
+      return ok({ items: input.items });
+    }
+    await tx
       .insert(agendaSubjectKits)
       .values(values)
       .onConflictDoUpdate({
-        target: [agendaSubjectKits.profileId, agendaSubjectKits.subjectId],
-        targetWhere: sql`${agendaSubjectKits.subjectId} IS NOT NULL`,
+        target: [agendaSubjectKits.profileId, agendaSubjectKits.profileSubjectId],
+        targetWhere: sql`${agendaSubjectKits.profileSubjectId} IS NOT NULL`,
         set: { items: input.items, updatedAt: values.updatedAt },
       });
-    return;
-  }
-  await db
-    .insert(agendaSubjectKits)
-    .values(values)
-    .onConflictDoUpdate({
-      target: [agendaSubjectKits.profileId, agendaSubjectKits.profileSubjectId],
-      targetWhere: sql`${agendaSubjectKits.profileSubjectId} IS NOT NULL`,
-      set: { items: input.items, updatedAt: values.updatedAt },
-    });
+    return ok({ items: input.items });
+  });
 }

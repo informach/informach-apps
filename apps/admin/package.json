@@ -23,6 +23,7 @@
     "@informach/db": "workspace:*",
     "@informach/edi-licensing": "workspace:*",
     "@informach/emails": "workspace:*",
+    "@informach/family": "workspace:*",
     "@informach/ui": "workspace:*",
     "@sentry/nextjs": "10.76.2",
     "ioredis": "^5.11.1",

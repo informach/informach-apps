@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { createPostgresStore } from "@informach/ai-core/mastra";
+import { startCompassoTrial } from "@informach/billing/compasso";
+import { createCompassoWallet } from "@informach/billing/credits";
+import { PRODUCTS } from "@informach/config/products";
 import { and, db, eq, inArray } from "@informach/db";
 import {
   cozyaAiOperations,
@@ -11,15 +14,14 @@ import {
   creditReservations,
   users,
 } from "@informach/db/schema";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createFamilyService } from "@informach/family";
+import { beforeAll, describe, expect, it } from "vitest";
 import { purgeLegacyCozyaAi } from "@/features/account/legacy-ai";
 import { clearCozyaData, exportCozyaData } from "@/features/account/repository";
-import { runAiOperation } from "@/features/ai/idempotency";
-import { currentAiOperationId } from "@/features/ai/operation-context";
 import { getRecentRecipePreviews } from "@/features/ai/previews";
 import { recoverInterruptedAiOperation } from "@/features/ai/recovery";
+import { readKitchenAccess } from "@/features/billing/access-repository";
 import { billing } from "@/features/billing/service";
-import { getKitchenAccess, startKitchenTrial } from "@/features/kitchen/access";
 import { recordProductEvent } from "@/features/kitchen/events";
 import { getKitchenMetrics } from "@/features/kitchen/metrics";
 import {
@@ -69,35 +71,47 @@ const recipeInput = {
   isFavorite: false,
   creationMethod: "manual" as const,
 };
+const family = createFamilyService({ db });
+const firstActor = { userId: first.id, familyGroupId: "" };
+const secondActor = { userId: second.id, familyGroupId: "" };
+const sharedWallet = createCompassoWallet({ db, products: PRODUCTS });
+const trialConfig = { db, trialHashSecret: "synthetic-cozya-trial-secret-at-least-32-chars" };
+async function legacyCreditFixture(userId: string) {
+  await billing.grantBonusCredits({
+    owner: { type: "user", id: userId },
+    amount: 3,
+    reason: "promo",
+    expiresAt: new Date(Date.now() + 14 * 86400000),
+    stripeEventId: `legacy_fixture_${userId}`,
+  });
+}
 let recipeId = "";
 
 beforeAll(async () => {
   await db.insert(users).values([first, second]);
+  firstActor.familyGroupId = (await family.createGroup(first.id, "Família A fictícia")).id;
+  secondActor.familyGroupId = (await family.createGroup(second.id, "Família B fictícia")).id;
+  await startCompassoTrial(trialConfig, second.id, secondActor.familyGroupId);
+  await db.insert(cozyaProfiles).values({ userId: first.id, trialStartedAt: new Date() });
+  // Existing balances are fixtures for the legacy reconciliation tests below.
+  await legacyCreditFixture(first.id);
   recipeId = (await insertRecipe({ userId: first.id, ...recipeInput })).id;
 });
-afterAll(async () => {
-  // Only exact synthetic IDs created by this file; no broad environment cleanup.
-  await db
-    .delete(creditLedger)
-    .where(and(eq(creditLedger.app, "cozya"), inArray(creditLedger.ownerId, ids)));
-  await db
-    .delete(creditReservations)
-    .where(and(eq(creditReservations.app, "cozya"), inArray(creditReservations.ownerId, ids)));
-  await db.delete(cozyaTrialClaims).where(inArray(cozyaTrialClaims.userId, ids));
-  await db.delete(users).where(inArray(users.id, ids));
-});
+// The isolated runner removes this entire database, including canonical family/financial facts.
 
 describe("local PostgreSQL: household lifecycle", () => {
-  it("grants exactly three trial credits under concurrent activation", async () => {
-    const results = await Promise.all(Array.from({ length: 8 }, () => startKitchenTrial(first)));
-    expect(results.every((result) => result.ok)).toBe(true);
-    const balance = await billing.getBalance({ type: "user", id: first.id });
-    expect(balance.available).toBe(3);
-    expect((await getKitchenAccess(first.id)).canPlan).toBe(true);
-    expect(await startKitchenTrial({ ...second, emailVerified: false })).toMatchObject({
-      ok: false,
-      code: "VERIFY_EMAIL",
-    });
+  it("reads one central trial and its shared credits under concurrent activation", async () => {
+    await Promise.all(
+      Array.from({ length: 8 }, () =>
+        startCompassoTrial(trialConfig, first.id, firstActor.familyGroupId),
+      ),
+    );
+    expect(
+      (await sharedWallet.getBalance({ actorId: first.id, groupId: firstActor.familyGroupId }))
+        .available,
+    ).toBe(20);
+    expect((await readKitchenAccess(firstActor)).canPlan).toBe(true);
+    expect((await billing.getBalance({ type: "user", id: first.id })).available).toBe(3);
   });
   it("enforces the free recipe limit with 20 concurrent writers", async () => {
     const results = await Promise.all(
@@ -113,7 +127,7 @@ describe("local PostgreSQL: household lifecycle", () => {
   });
   it("isolates meals and shopping, combines portions, and preserves checked state only when quantities match", async () => {
     expect(
-      await saveMeal(second.id, {
+      await saveMeal(secondActor, {
         day: mealWeek,
         slot: "dinner",
         recipeId,
@@ -124,7 +138,7 @@ describe("local PostgreSQL: household lifecycle", () => {
     ).toBe(false);
     for (const day of ["2027-02-01", "2027-02-02", "2027-02-03"])
       expect(
-        await saveMeal(first.id, {
+        await saveMeal(firstActor, {
           day,
           slot: "dinner",
           recipeId,
@@ -134,7 +148,7 @@ describe("local PostgreSQL: household lifecycle", () => {
         }),
       ).toBe(true);
     expect((await getWeekMeals(first.id, mealWeek))[0]?.lunchboxServings).toBe(1);
-    await generateShoppingList(first.id, mealWeek);
+    await generateShoppingList(firstActor, mealWeek);
     let list = await getShoppingList(first.id, mealWeek);
     expect(list?.stale).toBe(false);
     const eggs = list?.items.find((item) => item.name === "Ovos");
@@ -143,10 +157,10 @@ describe("local PostgreSQL: household lifecycle", () => {
     expect(await getShoppingList(second.id, mealWeek)).toBeNull();
     expect(await setShoppingItemState(second.id, eggs.id, "bought")).toHaveLength(0);
     await setShoppingItemState(first.id, eggs.id, "have");
-    await generateShoppingList(first.id, mealWeek);
+    await generateShoppingList(firstActor, mealWeek);
     list = await getShoppingList(first.id, mealWeek);
     expect(list?.items.find((item) => item.name === "Ovos")?.state).toBe("have");
-    await saveMeal(first.id, {
+    await saveMeal(firstActor, {
       day: mealWeek,
       slot: "dinner",
       recipeId,
@@ -156,7 +170,7 @@ describe("local PostgreSQL: household lifecycle", () => {
     });
     // The list notices that the week changed before anyone regenerates it.
     expect((await getShoppingList(first.id, mealWeek))?.stale).toBe(true);
-    await generateShoppingList(first.id, mealWeek);
+    await generateShoppingList(firstActor, mealWeek);
     list = await getShoppingList(first.id, mealWeek);
     expect(list?.stale).toBe(false);
     expect(list?.items.find((item) => item.name === "Ovos")).toMatchObject({
@@ -183,7 +197,7 @@ describe("local PostgreSQL: household lifecycle", () => {
       ["2027-04-05", seasoned.id],
       ["2027-04-06", plain.id],
     ] as const)
-      await saveMeal(first.id, {
+      await saveMeal(firstActor, {
         day,
         slot: "dinner",
         recipeId: id,
@@ -191,7 +205,7 @@ describe("local PostgreSQL: household lifecycle", () => {
         servings: 2,
         lunchboxServings: 0,
       });
-    await generateShoppingList(first.id, pantryWeek);
+    await generateShoppingList(firstActor, pantryWeek);
     const items = (await getShoppingList(first.id, pantryWeek))?.items ?? [];
     expect(items.filter((item) => item.name === "Sal")).toHaveLength(1);
     expect(items.find((item) => item.name === "Sal")).toMatchObject({
@@ -207,7 +221,7 @@ describe("local PostgreSQL: household lifecycle", () => {
     const oil = items.find((item) => item.name === "Óleo");
     expect(oil).toMatchObject({ category: "despensa", state: "have" });
     await setShoppingItemState(first.id, oil?.id ?? "", "todo");
-    await saveMeal(first.id, {
+    await saveMeal(firstActor, {
       day: "2027-04-05",
       slot: "dinner",
       recipeId: seasoned.id,
@@ -215,7 +229,7 @@ describe("local PostgreSQL: household lifecycle", () => {
       servings: 4,
       lunchboxServings: 0,
     });
-    await generateShoppingList(first.id, pantryWeek);
+    await generateShoppingList(firstActor, pantryWeek);
     const after = (await getShoppingList(first.id, pantryWeek))?.items ?? [];
     expect(after.find((item) => item.name === "Óleo")?.amount).not.toBe(oil?.amount);
     expect(after.find((item) => item.name === "Óleo")).toMatchObject({ state: "todo" });
@@ -233,7 +247,7 @@ describe("local PostgreSQL: household lifecycle", () => {
     const stew = await recipe("Ensopado de teste", "2 cebolas\n500 g de carne");
     const pie = await recipe("Torta de teste", "1 cebola\n3 ovos");
     const plan = (day: string, slot: "lunch" | "dinner", id: string, servings = 4, lunchbox = 0) =>
-      saveMeal(first.id, {
+      saveMeal(firstActor, {
         day,
         slot,
         recipeId: id,
@@ -248,7 +262,7 @@ describe("local PostgreSQL: household lifecycle", () => {
     // Tuesday's lunch sets two lunchboxes aside; Wednesday's dinner is the stew.
     await plan("2027-03-02", "lunch", soup.id, 6, 2);
     await plan("2027-03-03", "dinner", stew.id);
-    await generateShoppingList(first.id, week);
+    await generateShoppingList(firstActor, week);
     // "1 cebola picada" and "2 cebolas" are one line on the list.
     const onions = (await getShoppingList(first.id, week))?.items.filter((item) =>
       item.name.startsWith("Cebola"),
@@ -278,7 +292,7 @@ describe("local PostgreSQL: household lifecycle", () => {
     today = await getTodayData(first.id, now);
     expect(today.next?.label).toBe("Torta de teste");
     expect(today.nextOnList).toBe("not-on-list");
-    await generateShoppingList(first.id, week);
+    await generateShoppingList(firstActor, week);
     expect((await getTodayData(first.id, now)).nextOnList).toBe("missing");
     await markAll("have");
     expect((await getTodayData(first.id, now)).nextOnList).toBe("complete");
@@ -290,7 +304,7 @@ describe("local PostgreSQL: household lifecycle", () => {
     await db.delete(cozyaRecipes).where(inArray(cozyaRecipes.id, [soup.id, stew.id, pie.id]));
   });
   it("repeats a week without overwriting existing meals", async () => {
-    await saveMeal(first.id, {
+    await saveMeal(firstActor, {
       day: "2027-02-08",
       slot: "dinner",
       recipeId: null,
@@ -298,8 +312,8 @@ describe("local PostgreSQL: household lifecycle", () => {
       servings: 2,
       lunchboxServings: 0,
     });
-    expect(await repeatWeek(first.id, "2027-02-08")).toBe(2);
-    expect(await repeatWeek(first.id, "2027-02-08")).toBe(0);
+    expect(await repeatWeek(firstActor, "2027-02-08")).toBe(2);
+    expect(await repeatWeek(firstActor, "2027-02-08")).toBe(0);
     expect((await getWeekMeals(first.id, "2027-02-08"))[0]?.label).toBe("Jantar fora");
   });
   it("summarizes only what the household did during the trial, for its own account only", async () => {
@@ -340,7 +354,7 @@ describe("local PostgreSQL: household lifecycle", () => {
     expect(await removeShoppingExtra(second.id, extra.id)).toHaveLength(0);
     expect(await removeShoppingExtra(first.id, list.items[0].id)).toHaveLength(0);
     expect(await removeShoppingExtra(first.id, extra.id)).toHaveLength(1);
-    await generateShoppingList(first.id, mealWeek);
+    await generateShoppingList(firstActor, mealWeek);
     expect(
       (await getShoppingList(first.id, mealWeek))?.items.some((item) => item.name === "Café"),
     ).toBe(false);
@@ -425,30 +439,6 @@ describe("local PostgreSQL: household lifecycle", () => {
     });
     await updateCookingSession(first.id, { recipeId, operation: { type: "reset" } });
     expect((await getCookingSession(first.id, recipeId))?.note).toBe("Menos sal na próxima.");
-  });
-  it("runs one task for simultaneous retries, replays its result, and blocks another owner or changed payload", async () => {
-    const key = randomUUID();
-    const request = () =>
-      new Request("https://cozya.test/api/ai/recipes/parse-text", {
-        headers: { "Idempotency-Key": key },
-      });
-    let calls = 0;
-    const task = async () => {
-      calls++;
-      expect(currentAiOperationId()).toBe(key);
-      return Response.json({ example: "preview" });
-    };
-    const responses = await Promise.all(
-      Array.from({ length: 6 }, () => runAiOperation(request(), first.id, "same recipe", task)),
-    );
-    expect(calls).toBe(1);
-    expect(responses.some((response) => response.status === 200)).toBe(true);
-    expect(await (await runAiOperation(request(), first.id, "same recipe", task)).json()).toEqual({
-      example: "preview",
-    });
-    expect((await runAiOperation(request(), second.id, "same recipe", task)).status).toBe(409);
-    expect((await runAiOperation(request(), first.id, "different recipe", task)).status).toBe(409);
-    expect(calls).toBe(1);
   });
   it("exports only owned data and queries aggregate metrics without recipe content", async () => {
     const data = await exportCozyaData(first.id);
@@ -559,15 +549,17 @@ describe("local PostgreSQL: household lifecycle", () => {
     expect((await billing.getBalance(owner)).available).toBe(before);
   });
   it("clears kitchen data without restarting the trial or touching the other household", async () => {
-    const before = (await getKitchenAccess(first.id)).trialEndsAt;
+    const before = (await readKitchenAccess(firstActor)).trialEndsAt;
     await clearCozyaData(first.id);
     expect(await countRecipesByUser(first.id)).toBe(0);
     expect(await countRecipesByUser(second.id)).toBe(15);
     expect(await getShoppingList(first.id, mealWeek)).toBeNull();
-    expect((await getKitchenAccess(first.id)).trialEndsAt).toEqual(before);
-    expect(
-      await db.select().from(cozyaAiOperations).where(eq(cozyaAiOperations.userId, first.id)),
-    ).toHaveLength(0);
+    expect((await readKitchenAccess(firstActor)).trialEndsAt).toEqual(before);
+    const retired = await db
+      .select()
+      .from(cozyaAiOperations)
+      .where(eq(cozyaAiOperations.userId, first.id));
+    expect(retired.every((row) => row.response === null && row.statusCode === 410)).toBe(true);
     expect(
       await db.select().from(cozyaProfiles).where(eq(cozyaProfiles.userId, first.id)),
     ).toHaveLength(1);
@@ -583,7 +575,7 @@ describe("local PostgreSQL: household lifecycle", () => {
       emailVerified: true,
     };
     await db.insert(users).values(user);
-    await startKitchenTrial(user);
+    await legacyCreditFixture(user.id);
     const recipe = await insertRecipe({ userId: user.id, ...recipeInput });
     const id = randomUUID();
     await db.insert(cozyaAiOperations).values({
@@ -615,9 +607,9 @@ describe("local PostgreSQL: household lifecycle", () => {
     await clearCozyaData(user.id);
     expect((await billing.getBalance(owner)).available).toBe(3);
     expect((await exportCozyaData(user.id)).recipes).toHaveLength(0);
-    expect(
-      await db.select().from(cozyaAiOperations).where(eq(cozyaAiOperations.id, id)),
-    ).toHaveLength(0);
+    expect(await db.select().from(cozyaAiOperations).where(eq(cozyaAiOperations.id, id))).toEqual([
+      expect.objectContaining({ id, response: null, statusCode: 410 }),
+    ]);
   });
   it("deletes legacy culinary threads and their messages while preserving another app's thread", async () => {
     const store = createPostgresStore({

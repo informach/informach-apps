@@ -10,21 +10,19 @@ import {
   estrelaReminderStates as reminders,
   estrelaTasks as tasks,
 } from "@informach/db/schema";
-import { aconteceNo } from "@/domain/rotina";
+import { relogioDa } from "@/domain/relogio";
+import { aconteceNo, criancaPodeMarcar, tarefasDoDia } from "@/domain/rotina";
 import { assertAllowed } from "@/lib/errors";
+import type { EstrelaAuthority, ParentAuthority } from "../familia/authority";
 import type { Tx } from "../familia/repository";
+import { childAccessCondition, lockChildAccess } from "../familia/scope";
+import { assertParent, lockChildUse } from "../familia/use-repository";
 
 export type CompletionRow = typeof completions.$inferSelect;
 
-/** Trava a criança: saldo, pedidos e conclusões dela mudam um de cada vez. */
-async function lockChild(tx: Tx, ownerId: string, childId: string) {
-  const [child] = await tx
-    .select({ id: children.id, name: children.name })
-    .from(children)
-    .where(and(eq(children.id, childId), eq(children.userId, ownerId)))
-    .for("update");
-  assertAllowed(child, "NOT_FOUND", "Criança não encontrada.");
-  return child;
+/** Every writer uses the canonical household/device/child lock order. */
+async function lockChild(tx: Tx, actor: EstrelaAuthority, childId: string) {
+  await lockChildAccess(tx, actor, [childId], "write");
 }
 
 async function balanceIn(tx: Tx | typeof db, childId: string) {
@@ -42,17 +40,23 @@ async function balanceIn(tx: Tx | typeof db, childId: string) {
 }
 
 /** Saldo e estrelas guardadas em pedidos, de várias crianças de uma vez. */
-export async function balances(childIds: string[]) {
+export async function balances(actor: EstrelaAuthority, childIds: string[]) {
   if (!childIds.length) return new Map<string, { saldo: number; guardadas: number }>();
   const saldos = await db
     .select({ childId: ledger.childId, saldo: sql<number>`sum(${ledger.stars})::int` })
     .from(ledger)
-    .where(inArray(ledger.childId, childIds))
+    .where(and(inArray(ledger.childId, childIds), childAccessCondition(actor, ledger.childId)))
     .groupBy(ledger.childId);
   const pedidos = await db
     .select({ childId: redemptions.childId, total: sql<number>`sum(${redemptions.stars})::int` })
     .from(redemptions)
-    .where(and(inArray(redemptions.childId, childIds), eq(redemptions.status, "pending")))
+    .where(
+      and(
+        inArray(redemptions.childId, childIds),
+        childAccessCondition(actor, redemptions.childId),
+        eq(redemptions.status, "pending"),
+      ),
+    )
     .groupBy(redemptions.childId);
   return new Map(
     childIds.map((id) => [
@@ -66,62 +70,69 @@ export async function balances(childIds: string[]) {
 }
 
 /** Conclusões e estado dos lembretes de um dia, para as crianças pedidas. */
-export async function dayState(childIds: string[], date: string) {
+export async function dayState(actor: EstrelaAuthority, childIds: string[], date: string) {
   if (!childIds.length) return { completions: [], reminders: [] };
   const [done, states] = await Promise.all([
     db
       .select()
       .from(completions)
-      .where(and(inArray(completions.childId, childIds), eq(completions.date, date))),
+      .where(
+        and(
+          inArray(completions.childId, childIds),
+          childAccessCondition(actor, completions.childId),
+          eq(completions.date, date),
+        ),
+      ),
     db
       .select()
       .from(reminders)
-      .where(and(inArray(reminders.childId, childIds), eq(reminders.date, date))),
+      .where(
+        and(
+          inArray(reminders.childId, childIds),
+          childAccessCondition(actor, reminders.childId),
+          eq(reminders.date, date),
+        ),
+      ),
   ]);
   return { completions: done, reminders: states };
 }
 
-export type CompleteInput = {
-  ownerId: string;
-  childId: string;
-  taskId: string;
-  date: string;
-  diaDaSemana: number;
-  markedBy: "child" | "adult";
-};
-
-/**
- * Marca a tarefa feita no dia local. Pela criança, uma tarefa com "precisa do
- * ok" fica pendente; pelo adulto, já entra aprovada. Se o dia ficou completo,
- * o baú abre (uma vez por dia, idempotente pela chave da origem).
- */
-export async function completeTask(input: CompleteInput) {
+export type CompleteInput = { actor: EstrelaAuthority; childId: string; taskId: string };
+/** The server's current household day and queue are evaluated after authorization/plan locks. */
+export async function completeTask({ actor, childId, taskId }: CompleteInput) {
   return db.transaction(async (tx) => {
-    await lockChild(tx, input.ownerId, input.childId);
-    const [task] = await tx
-      .select({
-        id: tasks.id,
-        title: tasks.title,
-        stars: tasks.stars,
-        days: tasks.days,
-        requiresApproval: tasks.requiresApproval,
-      })
-      .from(tasks)
-      .where(and(eq(tasks.id, input.taskId), eq(tasks.childId, input.childId)));
-    assertAllowed(task, "NOT_FOUND", "Tarefa não encontrada.");
-    assertAllowed(
-      aconteceNo(task.days, input.diaDaSemana),
-      "NOT_TODAY",
-      "Essa tarefa não é de hoje.",
-    );
-    const pending = input.markedBy === "child" && task.requiresApproval;
+    await lockChildUse(tx, actor, [childId]);
+    const [family] = await tx
+      .select({ timezone: families.timezone })
+      .from(families)
+      .where(eq(families.familyGroupId, actor.familyGroupId));
+    assertAllowed(family, "NOT_FOUND", "Família não encontrada.");
+    const clock = relogioDa(Date.now(), family.timezone);
+    const all = await tx.select().from(tasks).where(eq(tasks.childId, childId));
+    const today = tarefasDoDia(all, clock.diaDaSemana);
+    const task = today.find((t) => t.id === taskId);
+    assertAllowed(task, "NOT_TODAY", "Essa tarefa não é de hoje.");
+    const done = await tx
+      .select({ taskId: completions.taskId })
+      .from(completions)
+      .where(and(eq(completions.childId, childId), eq(completions.date, clock.data)));
+    const marked = new Set(done.map((c) => c.taskId));
+    assertAllowed(!marked.has(taskId), "ALREADY_DONE", "Essa tarefa já foi marcada hoje.");
+    if (actor.kind === "child")
+      assertAllowed(
+        criancaPodeMarcar(task, today, marked, clock),
+        "NOT_YET",
+        "Ainda não é a vez dessa tarefa. Faça uma de cada vez!",
+      );
+    const markedBy = actor.kind === "child" ? "child" : "adult";
+    const pending = markedBy === "child" && task.requiresApproval;
     const [completion] = await tx
       .insert(completions)
       .values({
-        childId: input.childId,
-        taskId: task.id,
-        date: input.date,
-        markedBy: input.markedBy,
+        childId,
+        taskId,
+        date: clock.data,
+        markedBy,
         status: pending ? "pending" : "approved",
         stars: task.stars,
         approvedAt: pending ? null : new Date(),
@@ -131,7 +142,7 @@ export async function completeTask(input: CompleteInput) {
     assertAllowed(completion, "ALREADY_DONE", "Essa tarefa já foi marcada hoje.");
     if (!pending)
       await tx.insert(ledger).values({
-        childId: input.childId,
+        childId,
         kind: "task",
         stars: task.stars,
         label: task.title,
@@ -139,10 +150,10 @@ export async function completeTask(input: CompleteInput) {
       });
     const chest = await openChestIfDone(
       tx,
-      input.ownerId,
-      input.childId,
-      input.date,
-      input.diaDaSemana,
+      actor.familyGroupId,
+      childId,
+      clock.data,
+      clock.diaDaSemana,
     );
     return { completion, pending, stars: task.stars, chest };
   });
@@ -154,7 +165,7 @@ export async function completeTask(input: CompleteInput) {
  */
 async function openChestIfDone(
   tx: Tx,
-  ownerId: string,
+  familyGroupId: string,
   childId: string,
   date: string,
   diaDaSemana: number,
@@ -174,7 +185,7 @@ async function openChestIfDone(
   const [family] = await tx
     .select({ chestBonus: families.chestBonus })
     .from(families)
-    .where(eq(families.userId, ownerId));
+    .where(eq(families.familyGroupId, familyGroupId));
   const bonus = family?.chestBonus ?? 0;
   if (bonus <= 0) return { stars: 0 };
   const [row] = await tx
@@ -192,7 +203,7 @@ async function openChestIfDone(
 }
 
 /** Conclusão de uma criança da família, com o título da tarefa. */
-async function completionOf(tx: Tx, ownerId: string, completionId: string) {
+async function completionOf(tx: Tx, actor: ParentAuthority, completionId: string) {
   const [row] = await tx
     .select({
       id: completions.id,
@@ -204,7 +215,7 @@ async function completionOf(tx: Tx, ownerId: string, completionId: string) {
     .from(completions)
     .innerJoin(children, eq(completions.childId, children.id))
     .innerJoin(tasks, eq(completions.taskId, tasks.id))
-    .where(and(eq(completions.id, completionId), eq(children.userId, ownerId)));
+    .where(and(eq(completions.id, completionId), childAccessCondition(actor, children.id)));
   assertAllowed(row, "NOT_FOUND", "Esta tarefa não está mais marcada.");
   return row;
 }
@@ -215,15 +226,16 @@ async function completionOf(tx: Tx, ownerId: string, completionId: string) {
  * desfazer e marcar ao mesmo tempo decidem sobre o estado já gravado, e não
  * sobre uma leitura velha (aprovar uma conclusão que acabou de ser desfeita).
  */
-async function lockedCompletion(tx: Tx, ownerId: string, completionId: string) {
-  const antes = await completionOf(tx, ownerId, completionId);
-  await lockChild(tx, ownerId, antes.childId);
-  return completionOf(tx, ownerId, completionId);
+async function lockedCompletion(tx: Tx, actor: ParentAuthority, completionId: string) {
+  const antes = await completionOf(tx, actor, completionId);
+  await lockChild(tx, actor, antes.childId);
+  return completionOf(tx, actor, completionId);
 }
 
-export async function approveCompletion(ownerId: string, completionId: string) {
+export async function approveCompletion(actor: ParentAuthority, completionId: string) {
+  assertParent(actor);
   return db.transaction(async (tx) => {
-    const c = await lockedCompletion(tx, ownerId, completionId);
+    const c = await lockedCompletion(tx, actor, completionId);
     assertAllowed(c.status === "pending", "ALREADY", "Essa tarefa já foi aprovada.");
     await tx
       .update(completions)
@@ -248,9 +260,10 @@ export async function approveCompletion(ownerId: string, completionId: string) {
  * histórico: a conclusão e as estrelas dela saem. Recusa se o saldo ficaria
  * menor do que já foi trocado na loja.
  */
-export async function undoCompletion(ownerId: string, completionId: string) {
+export async function undoCompletion(actor: ParentAuthority, completionId: string) {
+  assertParent(actor);
   return db.transaction(async (tx) => {
-    const c = await lockedCompletion(tx, ownerId, completionId);
+    const c = await lockedCompletion(tx, actor, completionId);
     if (c.status === "approved") {
       const { saldo, guardadas } = await balanceIn(tx, c.childId);
       assertAllowed(
@@ -265,9 +278,20 @@ export async function undoCompletion(ownerId: string, completionId: string) {
   });
 }
 
-export async function giveBonus(ownerId: string, childId: string, stars: number, label: string) {
+export async function giveBonus(
+  actor: ParentAuthority,
+  childId: string,
+  stars: number,
+  label: string,
+) {
+  assertParent(actor);
+  assertAllowed(
+    Number.isSafeInteger(stars) && stars >= 1 && stars <= 50 && label.length <= 80,
+    "INPUT",
+    "Confira o bônus.",
+  );
   return db.transaction(async (tx) => {
-    await lockChild(tx, ownerId, childId);
+    await lockChildUse(tx, actor, [childId]);
     await tx.insert(ledger).values({
       childId,
       kind: "bonus",
@@ -279,7 +303,7 @@ export async function giveBonus(ownerId: string, childId: string, stars: number,
 }
 
 /** Conclusões esperando o ok dos pais, de todas as crianças da família. */
-export async function pendingApprovals(ownerId: string) {
+export async function pendingApprovals(actor: ParentAuthority) {
   return db
     .select({
       id: completions.id,
@@ -294,11 +318,11 @@ export async function pendingApprovals(ownerId: string) {
     .from(completions)
     .innerJoin(children, eq(completions.childId, children.id))
     .innerJoin(tasks, eq(completions.taskId, tasks.id))
-    .where(and(eq(children.userId, ownerId), eq(completions.status, "pending")))
+    .where(and(childAccessCondition(actor, children.id), eq(completions.status, "pending")))
     .orderBy(completions.completedAt);
 }
 
-export async function history(childId: string, limit = 12) {
+export async function history(actor: EstrelaAuthority, childId: string, limit = 12) {
   return db
     .select({
       id: ledger.id,
@@ -308,19 +332,20 @@ export async function history(childId: string, limit = 12) {
       createdAt: ledger.createdAt,
     })
     .from(ledger)
-    .where(eq(ledger.childId, childId))
+    .where(and(eq(ledger.childId, childId), childAccessCondition(actor, ledger.childId)))
     .orderBy(desc(ledger.createdAt))
     .limit(limit);
 }
 
 /** Estrelas ganhas (tarefas, bônus, baú) nos últimos 7 dias, para prever a meta. */
-export async function earnedLastWeek(childId: string, now = new Date()) {
+export async function earnedLastWeek(actor: EstrelaAuthority, childId: string, now = new Date()) {
   const [row] = await db
     .select({ total: sql<number>`coalesce(sum(${ledger.stars}), 0)::int` })
     .from(ledger)
     .where(
       and(
         eq(ledger.childId, childId),
+        childAccessCondition(actor, ledger.childId),
         gt(ledger.stars, 0),
         gte(ledger.createdAt, new Date(now.getTime() - 7 * 86_400_000)),
       ),

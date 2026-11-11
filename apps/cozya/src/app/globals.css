@@ -135,6 +135,22 @@
   letter-spacing: -0.03em;
 }
 
+/* Informational notices must not capture a tap intended for the page beneath.
+   Explicit toast controls remain interactive (e.g. a sign-in action). */
+[data-sonner-toaster] [data-sonner-toast] {
+  pointer-events: none;
+}
+
+[data-sonner-toaster] [data-sonner-toast] :is(button, a) {
+  pointer-events: auto;
+}
+
+@media (width < 48rem) {
+  html {
+    scroll-padding-bottom: calc(92px + env(safe-area-inset-bottom));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

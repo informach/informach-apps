@@ -3,7 +3,7 @@ import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
 import { createStudentProfileInputSchema, updateStudentProfileInputSchema } from "./schemas";
 
 const validBase = {
-  name: "Helena",
+  personId: "5c82420f-4ac7-42c7-b6fd-9d65c5af86f5",
   birthDate: "2017-03-15",
 };
 
@@ -13,22 +13,13 @@ describe("createStudentProfileInputSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("trims the name", () => {
-    const result = createStudentProfileInputSchema.parse({ ...validBase, name: "  Helena  " });
-    expect(result.name).toBe("Helena");
-  });
-
-  it("rejects empty name", () => {
-    const result = createStudentProfileInputSchema.safeParse({ ...validBase, name: "   " });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects name longer than 80 characters", () => {
-    const result = createStudentProfileInputSchema.safeParse({
-      ...validBase,
-      name: "a".repeat(81),
-    });
-    expect(result.success).toBe(false);
+  it("requires a canonical person and refuses a second identity", () => {
+    expect(
+      createStudentProfileInputSchema.safeParse({ ...validBase, personId: "name-as-id" }).success,
+    ).toBe(false);
+    expect(
+      createStudentProfileInputSchema.safeParse({ ...validBase, name: "Helena" }).success,
+    ).toBe(false);
   });
 
   it("rejects malformed birth date", () => {
@@ -76,13 +67,16 @@ describe("createStudentProfileInputSchema", () => {
 
 describe("updateStudentProfileInputSchema", () => {
   it("requires a uuid id", () => {
-    const result = updateStudentProfileInputSchema.safeParse({ ...validBase, id: "not-a-uuid" });
+    const result = updateStudentProfileInputSchema.safeParse({
+      birthDate: validBase.birthDate,
+      id: "not-a-uuid",
+    });
     expect(result.success).toBe(false);
   });
 
   it("accepts a valid uuid id", () => {
     const result = updateStudentProfileInputSchema.safeParse({
-      ...validBase,
+      birthDate: validBase.birthDate,
       id: "5c82420f-4ac7-42c7-b6fd-9d65c5af86f5",
     });
     expect(result.success).toBe(true);

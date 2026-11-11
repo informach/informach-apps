@@ -8,11 +8,13 @@
   "exports": {
     ".": "./src/index.ts",
     "./apps": "./src/apps.ts",
+    "./collections": "./src/collections.ts",
     "./products": "./src/products.ts",
     "./domains": "./src/domains.ts",
     "./edi-tools": "./src/edi-tools.ts",
     "./edi-brand": "./src/edi-brand.ts",
-    "./contact": "./src/contact.ts"
+    "./contact": "./src/contact.ts",
+    "./next-testing": "./src/next-testing.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

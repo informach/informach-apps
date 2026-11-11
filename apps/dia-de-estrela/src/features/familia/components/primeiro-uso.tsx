@@ -1,9 +1,9 @@
 "use client";
-import { Check, Plus, X } from "lucide-react";
+import { Check } from "lucide-react";
 import { useId, useState } from "react";
 import { Erro, useAcao } from "@/components/acao";
 import { Lumi } from "@/components/desenhos";
-import { CORES_CRIANCA } from "@/domain/modelos";
+
 import { comecarAction } from "../actions";
 
 const campo =
@@ -13,18 +13,21 @@ const campo =
 export function PrimeiroUso({
   limite,
   modelos,
+  pessoas,
+  contaUrl,
 }: {
   limite: number;
+  pessoas: { id: string; name: string; color: string }[];
+  contaUrl: string;
   modelos: { id: string; name: string; tarefas: string[] }[];
 }) {
   const ids = useId();
   const [passo, setPasso] = useState(0);
-  const [nomes, setNomes] = useState<string[]>([""]);
+  const [personIds, setPersonIds] = useState<string[]>([]);
   const [escolhidos, setEscolhidos] = useState<string[]>(modelos.map((m) => m.id));
   const [pin, setPin] = useState("");
   const [pin2, setPin2] = useState("");
   const { pendente, erro, setErro, rodar } = useAcao();
-  const validos = nomes.map((n) => n.trim()).filter(Boolean);
 
   function concluir() {
     if (pin !== pin2) {
@@ -34,10 +37,7 @@ export function PrimeiroUso({
     rodar(
       () =>
         comecarAction({
-          children: validos.map((name, i) => ({
-            name,
-            color: CORES_CRIANCA[i % CORES_CRIANCA.length],
-          })),
+          personIds,
           templateIds: escolhidos,
           pin,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Sao_Paulo",
@@ -59,60 +59,53 @@ export function PrimeiroUso({
           <div>
             <h1 className="font-display text-3xl font-extrabold">Quem vai usar?</h1>
             <p className="font-semibold text-tinta-suave">
-              Cada criança tem a sua rotina, as suas estrelas e o seu cofrinho. Só o apelido basta.
+              Escolha as crianças da sua família. Cada uma terá sua rotina, suas estrelas e seu
+              cofrinho.
             </p>
           </div>
-          {nomes.map((nome, i) => (
-            <div key={`crianca-${i.toString()}`} className="flex items-center gap-3">
-              <span
-                className="grid size-12 shrink-0 place-items-center rounded-full font-display text-xl font-extrabold text-white"
-                style={{ background: CORES_CRIANCA[i % CORES_CRIANCA.length] }}
-              >
-                {(nome.trim() || "?").charAt(0).toUpperCase()}
-              </span>
-              <label className="sr-only" htmlFor={`${ids}-${i}`}>
-                Nome da criança {i + 1}
-              </label>
-              <input
-                id={`${ids}-${i}`}
-                className={campo}
-                maxLength={24}
-                value={nome}
-                placeholder={`Nome da criança ${i + 1}`}
-                onChange={(e) => setNomes(nomes.map((x, j) => (j === i ? e.target.value : x)))}
-              />
-              {nomes.length > 1 && (
-                <button
-                  type="button"
-                  aria-label="Tirar"
-                  className="grid size-11 shrink-0 place-items-center text-tinta-suave"
-                  onClick={() => setNomes(nomes.filter((_, j) => j !== i))}
-                >
-                  <X className="size-5" aria-hidden="true" />
-                </button>
-              )}
-            </div>
-          ))}
-          {nomes.length < limite ? (
-            <button
-              type="button"
-              className="bp bp-claro self-start"
-              onClick={() => setNomes([...nomes, ""])}
+          {pessoas.map((pessoa) => (
+            <label
+              key={pessoa.id}
+              className="flex cursor-pointer items-center gap-3 rounded-2xl border-2 border-linha-forte p-4 font-bold"
             >
-              <Plus className="size-4" aria-hidden="true" /> Mais uma criança
-            </button>
-          ) : (
-            limite === 1 && (
-              <p className="rounded-xl bg-uva-clara p-3 text-sm font-bold text-uva-escura">
-                O plano gratuito tem uma criança. Depois, em Ajustes, o plano Família libera até
-                quatro.
-              </p>
-            )
+              <input
+                type="checkbox"
+                className="size-5"
+                checked={personIds.includes(pessoa.id)}
+                disabled={!personIds.includes(pessoa.id) && personIds.length >= limite}
+                onChange={(e) =>
+                  setPersonIds(
+                    e.target.checked
+                      ? [...personIds, pessoa.id]
+                      : personIds.filter((id) => id !== pessoa.id),
+                  )
+                }
+              />
+              <span
+                className="size-8 rounded-full"
+                style={{ background: pessoa.color }}
+                aria-hidden="true"
+              />
+              {pessoa.name}
+            </label>
+          ))}
+          {!pessoas.length && (
+            <p className="rounded-xl bg-ceu-claro p-3 font-semibold">
+              Cadastre uma criança na Minha conta para começar. Ao voltar, escolha a mesma pessoa
+              aqui.
+            </p>
           )}
+          <a className="bp bp-claro" href={contaUrl}>
+            Cadastrar ou revisar pessoas na Minha conta
+          </a>
+          <p className="text-sm font-semibold text-tinta-suave">
+            Você pode ativar até {limite} {limite === 1 ? "criança" : "crianças"} com o acesso
+            atual.
+          </p>
           <button
             type="button"
             className="b3 b3-ceu b3-lg"
-            disabled={!validos.length}
+            disabled={!personIds.length}
             onClick={() => setPasso(1)}
           >
             Continuar

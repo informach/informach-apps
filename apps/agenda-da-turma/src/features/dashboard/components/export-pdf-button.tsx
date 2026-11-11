@@ -71,7 +71,7 @@ export function ExportPdfButton({ isPro, profileFilter, anchorIso, className }: 
         <Printer className="size-4" aria-hidden />
       )}
       Imprimir a semana
-      {!isPro ? <Badge variant="secondary">Pro</Badge> : null}
+      {!isPro ? <Badge variant="secondary">Compasso</Badge> : null}
     </Button>
   );
 }

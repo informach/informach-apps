@@ -6,7 +6,9 @@ import {
 } from "@informach/db/schema";
 import { and, eq } from "drizzle-orm";
 import { type BillingEmailDeps, sendBillingEmail } from "./../billing-emails";
+import { resolveCreditOwner } from "../collection-accounts";
 import { grantBonusCredits } from "./../credits/grant";
+import { grantCalendarSubscriptionCredits } from "../credits/subscription-grants";
 import { type Logger, safeLog } from "./../logger";
 import type { BillingProviderClient } from "./../providers";
 import type {
@@ -144,6 +146,16 @@ export async function handleInvoicePaid(
     });
     return { processed: false, reason: "no_bonus_for_product" };
   }
+  if (product.creditSchedule === "calendar_month") {
+    const result = await grantCalendarSubscriptionCredits(deps, {
+      subscriptionId: local.id,
+      invoiceId: invoice.id,
+    });
+    return {
+      processed: result.granted,
+      reason: result.granted ? "calendar_window_granted" : "calendar_window_not_due",
+    };
+  }
 
   // Annual plans pay once a year but should drip credits monthly. Instead of
   // granting 12× the bonus up front (or worse, only 1× a year):
@@ -164,7 +176,10 @@ export async function handleInvoicePaid(
           onAudit: deps.onAudit,
         },
         {
-          owner: { type: local.subjectType, id: local.subjectId },
+          owner: await resolveCreditOwner(deps.db, deps.app, {
+            type: local.subjectType,
+            id: local.subjectId,
+          }),
           amount: bonus,
           reason: "subscription_monthly",
           expiresAt: new Date(Date.now() + MONTHLY_BONUS_TTL_DAYS * 86_400_000),
@@ -251,7 +266,10 @@ export async function handleInvoicePaid(
       onAudit: deps.onAudit,
     },
     {
-      owner: { type: local.subjectType, id: local.subjectId },
+      owner: await resolveCreditOwner(deps.db, deps.app, {
+        type: local.subjectType,
+        id: local.subjectId,
+      }),
       amount: bonus,
       reason: "subscription_monthly",
       expiresAt: new Date(Date.now() + MONTHLY_BONUS_TTL_DAYS * 86_400_000),
@@ -451,7 +469,7 @@ async function applyInvoiceBillingState(
   });
 }
 
-function extractSubscriptionId(invoice: StripeInvoiceLike): string | null {
+export function extractSubscriptionId(invoice: StripeInvoiceLike): string | null {
   const ref = invoice.parent?.subscription_details?.subscription;
   if (!ref) return null;
   return typeof ref === "string" ? ref : ref.id;

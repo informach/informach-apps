@@ -42,7 +42,8 @@ export function selectedChild(childIds: string[], chosen: string | undefined) {
 
 export type DeviceIdentity = {
   deviceId: string;
-  ownerId: string;
+  userId: string;
+  familyGroupId: string;
   childIds: string[];
   childId: string | undefined;
   expiresAt: Date;

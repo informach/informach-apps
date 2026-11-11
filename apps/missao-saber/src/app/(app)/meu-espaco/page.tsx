@@ -22,8 +22,8 @@ export default async function MeuEspacoPage() {
   const data = await currentDashboard();
   const [descobertas, ultimoSimulado] = data.profile
     ? await Promise.all([
-        countNotes(data.userId, data.profile.id),
-        lastExamDate(data.userId, data.profile.id),
+        countNotes(data.authority, data.profile.id),
+        lastExamDate(data.authority, data.profile.id),
       ])
     : [0, null];
   const ultimoPercurso = data.recent[0];

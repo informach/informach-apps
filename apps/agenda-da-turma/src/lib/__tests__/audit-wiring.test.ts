@@ -38,6 +38,9 @@ const mocks = vi.hoisted(() => ({
 }));
 
 type AuthConfig = {
+  webSso?: { role: string; app: string };
+  accountDeletion?: unknown;
+  secondaryStorage?: unknown;
   observability?: {
     onAuditEvent?: unknown;
     onAuditPersistenceFailure?: unknown;
@@ -118,8 +121,8 @@ vi.mock("@sentry/nextjs", () => ({
 function stubEnv(): void {
   vi.stubEnv("DATABASE_URL", "postgresql://user:pass@localhost:5432/app");
   vi.stubEnv("BETTER_AUTH_SECRET", "0123456789abcdef0123456789abcdef");
-  vi.stubEnv("BETTER_AUTH_URL", "https://agenda.example.com");
-  vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://agenda.example.com");
+  vi.stubEnv("BETTER_AUTH_URL", "https://agenda-da-turma.informach.com.br");
+  vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://agenda-da-turma.informach.com.br");
   vi.stubEnv("SENDGRID_API_KEY", "SG.test");
   vi.stubEnv("SENDGRID_FROM", "noreply@agenda.example.com");
   vi.stubEnv("EMAIL_SANDBOX_MODE", "memory");
@@ -147,6 +150,12 @@ describe("audit wiring", () => {
     const authConfig = createAuthCalls[0]?.[0];
     expect(authConfig?.observability?.onAuditEvent).toBeTypeOf("function");
     expect(authConfig?.observability?.onAuditPersistenceFailure).toBeTypeOf("function");
+
+    expect(authConfig?.webSso).toMatchObject({ role: "client", app: "agenda-da-turma" });
+    expect(authConfig?.secondaryStorage).toBeUndefined();
+    expect(authConfig?.accountDeletion).toBeUndefined();
+    expect(mocks.createBillingService).not.toHaveBeenCalled();
+    await import("@/features/billing/service");
 
     const createBillingServiceCalls = mocks.createBillingService.mock.calls as unknown as Array<
       [AuditHookConfig]

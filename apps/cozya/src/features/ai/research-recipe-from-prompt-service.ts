@@ -1,20 +1,19 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { runRecordedAiCall, withCredits } from "@informach/ai-core";
-import { COZYA_PRICING_SEED } from "@informach/billing/seeds";
+import { runRecordedAiCall } from "@informach/ai-core";
 import { generateText } from "ai";
 import { getMastra } from "@/ai";
 import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
-import { withModelFallbacks } from "@/ai/fallbacks";
 import { COZYA_MODELS } from "@/ai/models";
-import { recipeParserSchema } from "@/ai/recipe-parser/schema";
-import { billing } from "@/features/billing/service";
+import { cozyaModelPolicy } from "@/ai/provider-policy";
 import { getOpenRouter } from "@/lib/openrouter";
+import { COZYA_AI_COSTS, COZYA_AI_LIMITS, modelUsageUsd, usdToCredits } from "./costs";
 import { NoRecipeResultError } from "./errors";
-import { currentAiOperationId } from "./operation-context";
+import { assertTextBudget, recipeGenerationOptions } from "./generation-budget";
 import { validateRecipeOutput } from "./recipe-output";
 import { buildResearchPrompt } from "./research-recipe-prompt";
 import { providerCostMetadata } from "./usage-metadata";
+import { runCozyaAiWorkflow } from "./workflow";
 
 export type ResearchRecipeFromPromptInput = { userId: string; prompt: string };
 export type ResearchRecipeFromPromptResult = ReturnType<typeof validateRecipeOutput>;
@@ -23,28 +22,27 @@ const FEATURE = "cozya.recipe.generate_from_prompt" as const;
 export async function researchRecipeFromPrompt(
   input: ResearchRecipeFromPromptInput,
 ): Promise<ResearchRecipeFromPromptResult> {
-  const model = COZYA_MODELS[FEATURE];
-  const pricing = COZYA_PRICING_SEED.find((row) => row.feature === FEATURE && row.model === model);
-  if (!pricing?.flatCost) throw new Error("Missing recipe research flat pricing");
-  const out = await withCredits({
-    billing,
-    runId: currentAiOperationId(),
-    owner: { type: "user", id: input.userId },
-    app: "cozya",
+  assertTextBudget(input.prompt, 2000);
+  return runCozyaAiWorkflow({
+    userId: input.userId,
     feature: FEATURE,
-    model,
-    estimateCost: () => ({ estimatedAmount: pricing.flatCost ?? 1 }),
-    computeActualCost: () => ({ actualAmount: pricing.flatCost ?? 1 }),
-    call: ({ reservation }) => researchRecipeWithinReservation(input, reservation.id),
+    agent: "recipeResearcher",
+    quote: COZYA_AI_COSTS.research,
+    parseResult: validateRecipeOutput,
+    call: async (runId) => {
+      const output = await researchRecipeWithinReservation(input, runId);
+      return { value: output.value, actualCredits: usdToCredits(output.tariffUsd) };
+    },
   });
-  return out.result;
 }
 
 /** Internal stages share the caller's reservation, also when the input is audio. */
 export async function researchRecipeWithinReservation(
   input: ResearchRecipeFromPromptInput,
   reservationId: string,
-): Promise<ResearchRecipeFromPromptResult> {
+) {
+  assertTextBudget(input.prompt, 2000);
+  assertTextBudget(buildResearchPrompt(input.prompt), COZYA_AI_LIMITS.textBytes);
   const openrouter = getOpenRouter();
   const model = COZYA_MODELS[FEATURE];
   const { result: research } = await runRecordedAiCall({
@@ -64,8 +62,8 @@ export async function researchRecipeWithinReservation(
     call: () =>
       generateText({
         model: openrouter(model, {
-          ...withModelFallbacks(model),
-          extraBody: { ...withModelFallbacks(model).extraBody, max_tool_calls: 1 },
+          ...cozyaModelPolicy(model),
+          extraBody: { max_tool_calls: 1 },
         }),
         tools: {
           web_search: openrouter.tools.webSearch({
@@ -74,7 +72,7 @@ export async function researchRecipeWithinReservation(
             searchPrompt: `Receita completa que corresponda exatamente a: ${input.prompt}. Confira todos os ingredientes, cobertura e características pedidos antes de escolher a fonte.`,
           }),
         },
-        maxOutputTokens: 2200,
+        maxOutputTokens: COZYA_AI_LIMITS.researchOutputTokens,
         maxRetries: 0,
         abortSignal: AbortSignal.timeout(90000),
         prompt: buildResearchPrompt(input.prompt),
@@ -85,11 +83,16 @@ export async function researchRecipeWithinReservation(
     (entry) => entry.sourceType === "url" && entry.url === sourceUrl,
   );
   // No citations, no trustworthy source association. Never charge a search miss.
-  if (!source || source.sourceType !== "url" || research.text.trim().startsWith("NAO_ENCONTRADA")) {
+  if (source?.sourceType !== "url" || research.text.trim().startsWith("NAO_ENCONTRADA")) {
     throw new NoRecipeResultError(
       "Não encontrei uma receita com fonte verificável. Tente um pedido mais específico. Nenhum crédito foi consumido.",
     );
   }
+  const parseText = JSON.stringify({
+    pedidoOriginal: input.prompt,
+    conteudoDaFonte: research.text,
+  });
+  assertTextBudget(parseText, COZYA_AI_LIMITS.researchResultBytes);
   const parseRunId = randomUUID();
   const { result: response } = await runRecordedAiCall({
     recorder,
@@ -108,21 +111,17 @@ export async function researchRecipeWithinReservation(
     getUsage: (result) => result.usage,
     getSuccessMetadata: (result) => providerCostMetadata(result.providerMetadata, result.usage),
     call: () =>
-      getMastra()
-        .getAgent("recipeParser")
-        .generate(
-          JSON.stringify({ pedidoOriginal: input.prompt, conteudoDaFonte: research.text }),
-          {
-            runId: parseRunId,
-            abortSignal: AbortSignal.timeout(90000),
-            modelSettings: { maxOutputTokens: 3500, temperature: 0 },
-            structuredOutput: { schema: recipeParserSchema, errorStrategy: "strict" },
-          },
-        ),
+      getMastra().getAgent("recipeParser").generate(parseText, recipeGenerationOptions(parseRunId)),
   });
   return {
-    ...validateRecipeOutput(response.object),
-    sourceUrl: source.url,
-    sourceName: (source.title || new URL(source.url).hostname).slice(0, 200),
+    value: {
+      ...validateRecipeOutput(response.object),
+      sourceUrl: source.url,
+      sourceName: (source.title || new URL(source.url).hostname).slice(0, 200),
+    },
+    tariffUsd:
+      modelUsageUsd(model, research.usage) +
+      COZYA_AI_LIMITS.searchUsd +
+      modelUsageUsd(COZYA_MODELS["cozya.recipe.extract_from_text"], response.usage),
   };
 }

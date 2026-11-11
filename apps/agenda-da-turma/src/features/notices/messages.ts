@@ -1,10 +1,8 @@
-import { DICTATION_NOTE, PRO_READS_PER_MONTH } from "@/features/billing/plans-content";
-import { FREE_NOTICE_TRIAL } from "./trial-reserve";
-
 export function noticeErrorMessage(code: string) {
   const messages: Record<string, string> = {
+    CONTEXT_CHANGED: "A família selecionada mudou. Reabra esta tela antes de salvar.",
     INVALID_SOURCE_SCOPE:
-      "Marque todas as crianças de que o recado fala, ou deixe o recado só com você.",
+      "Confira e marque todas as crianças de que o recado fala, inclusive quando o original ficar só com você.",
     POSSIBLE_CORRECTIONS:
       "Já existe uma atividade parecida com outra data. Confira se este recado corrige a anterior ou se é uma atividade nova.",
     INVALID_CORRECTION:
@@ -19,18 +17,16 @@ export function noticeErrorMessage(code: string) {
     PROCESSING:
       "A Agenda ainda está lendo este recado. Espere um pouco e abra de novo. Mandar outra vez não gasta outra leitura.",
     DAILY_LIMIT: "Chegou o limite de leituras de hoje. Amanhã dá para mandar de novo.",
-    TRIAL_BUSY:
-      "As leituras grátis de hoje acabaram para todo mundo. Tente amanhã ou escreva a atividade.",
-    // Os números saem do catálogo e da franquia: escritos aqui, ficavam velhos
-    // na primeira mudança de plano.
-    TRIAL_ENDED: `Os ${FREE_NOTICE_TRIAL} recados de teste acabaram. No Pro, a Agenda lê ${PRO_READS_PER_MONTH} recados por mês (${DICTATION_NOTE}).`,
+    PARSE_FAILED: "Não consegui ler o recado. Tente de novo em instantes, ou escreva a atividade.",
     NO_ACTIONS:
       "Não achei nenhuma atividade clara neste recado. Confira o conteúdo ou escreva a atividade. Essa tentativa não gastou leitura.",
-    PARSE_FAILED: "Não consegui ler o recado. Tente de novo em instantes, ou escreva a atividade.",
-    VOICE_TRIAL_SPENT:
-      "O ditado de teste acabou. As leituras que restam ficam guardadas para seus recados: mande foto ou mensagem, ou escreva a atividade.",
     INSUFFICIENT_CREDITS:
-      "As leituras acabaram. Escreva a atividade, ou veja o Pro e os pacotes de leituras.",
+      "O saldo compartilhado não cobre esta leitura. Veja os créditos em Minha conta, ou escreva a atividade sem IA.",
+    AI_PRICE_CHANGED:
+      "O custo foi atualizado. Atualize a página e confira o valor antes de enviar novamente.",
+    RECOVERY_REQUIRED:
+      "Esta leitura já foi cobrada e precisa de recuperação. Entre em contato pelo suporte em Minha conta; não será feita outra cobrança.",
+    AUDIO_TOO_LONG: "Grave um áudio de até dois minutos.",
     TRANSCRIBE_FAILED:
       "Não consegui transcrever o áudio. Tente de novo, falando mais perto do microfone.",
     NOT_READY: "A Agenda ainda está lendo este recado.",
@@ -43,14 +39,14 @@ export function noticeErrorMessage(code: string) {
     ALREADY_CANCELED:
       "Esta atividade foi cancelada e o histórico ficou guardado. Se ela voltou a valer, cadastre-a de novo. Assim quem recebeu entende o que aconteceu.",
     SHARE_REQUIRES_PRO:
-      "Mandar para a turma faz parte do Pro. Dá para salvar só para a sua família agora.",
+      "Mandar para a turma faz parte do Compasso. Dá para salvar só para a sua família agora.",
     SHARE_NOT_YOURS:
       "Quem mandou esta atividade para a turma foi outra família. Você pode cancelar a sua cópia, mas não tirar da turma.",
     SHARE_ALREADY_ACCEPTED:
       "Outras famílias já receberam esta atividade. Para tirar da turma, cancele a atividade. Assim elas entendem o que aconteceu.",
     SHARED_REQUIRES_SCHOOL_FIELDS:
       "Você mandou esta atividade para a turma, e a turma inteira lê o que você salvar aqui. Mantenha a matéria e a data, ou crie uma atividade só da sua família.",
-    PRO_REQUIRED: "Lembretes personalizados e repetição semanal fazem parte do Pro.",
+    PRO_REQUIRED: "Lembretes personalizados e repetição semanal fazem parte do Compasso.",
     ACTIVITY_LIMIT_REACHED:
       "O plano grátis tem até 20 atividades em aberto. Marque algumas como feitas para abrir espaço; o histórico fica guardado.",
     DUPLICATE_IN_REVIEW: "Há duas atividades iguais para a mesma criança. Tire uma delas.",

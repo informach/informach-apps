@@ -51,6 +51,12 @@ Ninguém bane conta owner ou admin pela tela, nem muda o próprio papel. A casa 
 - Cada rotina `/api/jobs/*` dos apps grava a execução em `ops.job_runs` por `recordJobRun`, só com números e booleanos do resultado.
 - Avisos por e-mail: o aviso de queda (`admin.alert`) é operacional e chega mesmo para quem se descadastrou (só bounce ou denúncia de spam param a entrega), por isso sai sem link de descadastro no rodapé; o resumo da semana (`admin.weekly-summary`) obedece ao descadastro. Envio pulado não conta como enviado: a vigia reporta ao Sentry (`alert.delivery_skipped`) e, se o aviso não chegou a ninguém, a passada conta como falha em Operação. A resposta do link de descadastro diz exatamente isso, por categoria (`src/lib/unsubscribe-message.ts`).
 
+## Fixtures do Compasso
+
+O catálogo de e-mails inclui `auth.change-email-otp`, apresentado como confirmação da troca de e-mail. O Bastidores lê somente categoria e situação; não ler códigos, assunto, corpo ou endereços de destino para mostrar essa operação.
+
+`demo-seed` cria pessoas e ativações de Bora, Missão e Dia de Estrela pelo serviço `@informach/family`. Os contratos finais não aceitam nome/cor no perfil nativo. O console consulta apenas metadados e contagens via `readDb()`: a presença de Dia de Estrela vem do vínculo familiar atual; os perfis e totais da ficha respeitam as concessões de leitura da conta, sem atribuir o trabalho da criança ao adulto. A atividade semanal do Dia mede entradas da conta, separada da contagem global de tarefas. O teste de privacidade inclui `family.ts` e proíbe ler nomes/cores/avatares centrais. Compatibilidade operacional das sessões e métricas financeiras permanece na frente Compasso antes do corte.
+
 ## Desenvolvimento
 
 ```bash
@@ -70,3 +76,7 @@ Registrados nas revisões de 17/10/2026, sem correção por enquanto:
 - **Cancelar e assinar de novo em 24 horas conta como troca.** O movimento das assinaturas em Dinheiro trata uma assinatura nova que nasce até um dia antes ou depois do fim da antiga, no mesmo cliente de cobrança, como troca de plano (`REPLACEMENT_WINDOW_MS` em `src/features/money/logic.ts`): quem cancelou e assinou de novo nesse intervalo não aparece como cancelamento nem como assinatura nova.
 - **`ownerEmails()` inclui owner banido.** Os avisos de queda e o resumo da semana vão para toda conta com papel owner, sem conferir o banimento. Hoje um owner não é banido pela tela (a regra exige rebaixar antes), mas um banimento direto no banco ainda receberia os e-mails.
 - **Trocar a senha em outro produto não encerra a sessão do Bastidores.** A senha mora em `core.accounts`, compartilhada. O reset feito no próprio Bastidores apaga as sessões do Postgres (`revokeSessionsOnPasswordReset`), mas a troca feita em Cozya, Agenda, Missão, Bora Treinar ou Dia de Estrela só mexe nas sessões daquele app, e a sessão aberta no Bastidores continua até as 12 horas acabarem ou alguém usar "Encerrar sessões".
+
+### Agenda no Compasso (10/11/2026, em migração)
+
+Presença e contagens de adultos usam participação familiar e concessão atual de leitura de uma ativação Agenda. O criador histórico e as tabelas familiares locais não autorizam nem contam acesso. A ficha conta somente perfis legíveis, adultos com acesso nas famílias administradas e famílias acompanhadas como membro; os totais de perfis do produto preservam o histórico. Nomes, rotina e conteúdo da família continuam proibidos. Verificação em `family-metadata.integration.test.ts`, pela conexão read-only; estado de gates no registro Compasso. Métricas comerciais ainda aguardam o corte financeiro compartilhado.

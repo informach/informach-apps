@@ -13,7 +13,6 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { count, db, eq } from "@informach/db";
 import {
   accounts,
-  agendaFamilyMembers,
   agendaProductEvents,
   agendaStudentProfiles,
   agentRuns,
@@ -31,9 +30,9 @@ import {
   emailDeliveries,
   estrelaChildren,
   estrelaCompletions,
+  estrelaDeviceChildren,
   estrelaDevices,
   estrelaFamilies,
-  estrelaGuardians,
   estrelaTasks,
   events,
   jobRuns,
@@ -47,6 +46,8 @@ import {
   users,
   webhookEvents,
 } from "@informach/db/schema";
+import { createFamilyService } from "@informach/family";
+import { captureProfileDelegations } from "@informach/family/delegation";
 import { hashPassword } from "better-auth/crypto";
 
 const HOUR = 3_600_000;
@@ -484,14 +485,42 @@ async function main() {
       occurredAt: ago(2 * DAY),
     },
   ]);
-  await db.insert(agendaStudentProfiles).values([
-    { userId: "demo-marina", name: "SEGREDO-NOME-CRIANCA" },
-    { userId: "demo-bruno", name: "SEGREDO-NOME-CRIANCA-2" },
-  ]);
-  await db
-    .insert(agendaFamilyMembers)
-    .values({ ownerUserId: "demo-marina", userId: "demo-elisa" })
-    .onConflictDoNothing();
+  const family = createFamilyService({ db });
+  for (const [userId, name] of [
+    ["demo-marina", "SEGREDO-NOME-CRIANCA"],
+    ["demo-bruno", "SEGREDO-NOME-CRIANCA-2"],
+  ]) {
+    if (!userId || !name) throw new Error("Invalid demo school identity");
+    const group = await family.createGroup(userId, "Família fictícia Agenda");
+    const person = await family.createPerson(userId, {
+      groupId: group.id,
+      kind: "dependent",
+      displayName: name,
+    });
+    await family.activateProfile(
+      userId,
+      { groupId: group.id, personId: person.id, app: "agenda-da-turma" },
+      async (tx, familyProfileId) => {
+        await tx.insert(agendaStudentProfiles).values({ familyProfileId });
+      },
+    );
+    if (userId === "demo-marina") {
+      const [guest] = await db
+        .select({ email: users.email })
+        .from(users)
+        .where(eq(users.id, "demo-elisa"));
+      if (!guest) throw new Error("Missing demo Agenda guest");
+      const invite = await family.createInvitation(userId, group.id, guest.email);
+      await family.acceptInvitation("demo-elisa", invite.token);
+      await family.grantAccess(userId, {
+        groupId: group.id,
+        personId: person.id,
+        app: "agenda-da-turma",
+        userId: "demo-elisa",
+        action: "read",
+      });
+    }
+  }
   await db.insert(agendaProductEvents).values({
     userId: "demo-marina",
     event: "notice_read",
@@ -503,17 +532,36 @@ async function main() {
     .insert(missaoFamilies)
     .values({ userId: "demo-ana", consentVersion: "2026-09" })
     .onConflictDoNothing();
-  const [profile] = await db
-    .insert(missaoProfiles)
-    .values({
-      userId: "demo-ana",
-      nickname: "SEGREDO-APELIDO",
-      grade: 5,
-      gradeYear: 2026,
-      avatar: "fox",
-      courseId: "obmep",
-    })
-    .returning({ id: missaoProfiles.id });
+  const schoolGroup = await family.createGroup("demo-ana", "Família de demonstração");
+  const schoolPerson = await family.createPerson("demo-ana", {
+    groupId: schoolGroup.id,
+    kind: "dependent",
+    displayName: "SEGREDO-APELIDO",
+    avatar: "fox",
+  });
+  const schoolActivation = await family.activateProfile(
+    "demo-ana",
+    {
+      groupId: schoolGroup.id,
+      personId: schoolPerson.id,
+      app: "missao-saber",
+    },
+    async (tx, familyProfileId) => {
+      const [profile] = await tx
+        .insert(missaoProfiles)
+        .values({
+          familyProfileId,
+          userId: "demo-ana",
+          grade: 5,
+          gradeYear: 2026,
+          courseId: "obmep",
+        })
+        .returning({ id: missaoProfiles.id });
+      if (!profile) throw new Error("Missing synthetic school profile");
+      return profile;
+    },
+  );
+  const profile = schoolActivation.value;
   if (profile) {
     const [session] = await db
       .insert(missaoSessions)
@@ -540,10 +588,30 @@ async function main() {
     });
   }
   await db.insert(boraFamilies).values({ userId: "demo-joao" }).onConflictDoNothing();
-  const [trainingProfile] = await db
-    .insert(boraProfiles)
-    .values({ userId: "demo-joao", name: "SEGREDO-APELIDO", color: "#C8FF2E" })
-    .returning({ id: boraProfiles.id });
+  const trainingGroup = await family.createGroup("demo-joao", "Família de demonstração");
+  const trainingPerson = await family.createPerson("demo-joao", {
+    groupId: trainingGroup.id,
+    kind: "dependent",
+    displayName: "SEGREDO-APELIDO",
+    color: "#C8FF2E",
+  });
+  const trainingActivation = await family.activateProfile(
+    "demo-joao",
+    {
+      groupId: trainingGroup.id,
+      personId: trainingPerson.id,
+      app: "bora-treinar",
+    },
+    async (tx, familyProfileId) => {
+      const [profile] = await tx
+        .insert(boraProfiles)
+        .values({ userId: "demo-joao", familyProfileId })
+        .returning({ id: boraProfiles.id });
+      if (!profile) throw new Error("Missing synthetic training profile");
+      return profile;
+    },
+  );
+  const trainingProfile = trainingActivation.value;
   if (trainingProfile) {
     await db.insert(boraSessions).values({
       id: randomUUID(),
@@ -556,18 +624,49 @@ async function main() {
       mode: "camera",
     });
   }
+  const starGroup = await family.createGroup("demo-gabi", "Família de demonstração");
+  const starPerson = await family.createPerson("demo-gabi", {
+    groupId: starGroup.id,
+    kind: "dependent",
+    displayName: "SEGREDO-CRIANCA",
+    color: "#FFC22E",
+  });
+  // Use the actual synthetic account address, never a production recipient.
+  const [starGuest] = await db
+    .select({ email: users.email })
+    .from(users)
+    .where(eq(users.id, "demo-hugo"));
+  if (!starGuest) throw new Error("Missing demo guest");
+  const actualInvite = await family.createInvitation("demo-gabi", starGroup.id, starGuest.email);
+  await family.acceptInvitation("demo-hugo", actualInvite.token);
   await db
     .insert(estrelaFamilies)
-    .values({ userId: "demo-gabi", onboardedAt: ago(1 * DAY) })
-    .onConflictDoNothing();
-  await db
-    .insert(estrelaGuardians)
-    .values({ ownerUserId: "demo-gabi", userId: "demo-hugo" })
-    .onConflictDoNothing();
-  const [star] = await db
-    .insert(estrelaChildren)
-    .values({ userId: "demo-gabi", name: "SEGREDO-CRIANCA", color: "#FFC22E" })
-    .returning({ id: estrelaChildren.id });
+    .values({ familyGroupId: starGroup.id, userId: "demo-gabi", onboardedAt: ago(DAY) });
+  const starActivation = await family.activateProfile(
+    "demo-gabi",
+    {
+      groupId: starGroup.id,
+      personId: starPerson.id,
+      app: "dia-de-estrela",
+    },
+    async (tx, familyProfileId) => {
+      const [row] = await tx
+        .insert(estrelaChildren)
+        .values({ familyProfileId, userId: "demo-gabi" })
+        .returning({ id: estrelaChildren.id });
+      if (!row) throw new Error("Missing synthetic child");
+      return row;
+    },
+  );
+  for (const action of ["read", "write"] as const)
+    await family.grantAccess("demo-gabi", {
+      groupId: starGroup.id,
+      personId: starPerson.id,
+      app: "dia-de-estrela",
+      userId: "demo-hugo",
+      action,
+    });
+  const star = starActivation.value;
   if (star) {
     const [task] = await db
       .insert(estrelaTasks)
@@ -592,13 +691,36 @@ async function main() {
         status: "approved",
         stars: 3,
       });
-    await db.insert(estrelaDevices).values({
-      userId: "demo-gabi",
-      tokenHash: randomBytes(32).toString("hex"),
-      label: "SEGREDO-APARELHO",
-      expiresAt: ahead(300 * DAY),
-      connectedAt: ago(1 * DAY),
-      lastSeenAt: ago(1 * HOUR),
+    await db.transaction(async (tx) => {
+      const claims = await captureProfileDelegations(
+        tx,
+        "demo-gabi",
+        "dia-de-estrela",
+        starGroup.id,
+        [starActivation.profileId],
+      );
+      const claim = claims[0];
+      if (!claim) throw new Error("Missing synthetic delegation");
+      const [tablet] = await tx
+        .insert(estrelaDevices)
+        .values({
+          userId: "demo-gabi",
+          familyGroupId: starGroup.id,
+          tokenHash: randomBytes(32).toString("hex"),
+          label: "SEGREDO-APARELHO",
+          expiresAt: ahead(300 * DAY),
+          connectedAt: ago(DAY),
+          lastSeenAt: ago(HOUR),
+        })
+        .returning({ id: estrelaDevices.id });
+      if (!tablet) throw new Error("Missing synthetic tablet");
+      await tx.insert(estrelaDeviceChildren).values({
+        deviceId: tablet.id,
+        childId: star.id,
+        delegationKey: claim.delegationKey,
+        readGrantId: claim.readGrantId,
+        writeGrantId: claim.writeGrantId,
+      });
     });
   }
   const [device] = await db

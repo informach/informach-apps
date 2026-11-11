@@ -18,6 +18,7 @@ export default defineConfig({
   schema: "./src/schema/index.ts",
   out: "./src/migrations",
   schemaFilter: [
+    "account",
     "core",
     "agenda",
     "cozya",
@@ -29,6 +30,7 @@ export default defineConfig({
     "ops",
     "bora_treinar",
     "dia_de_estrela",
+    "family",
   ],
   dbCredentials: {
     url: databaseUrl,

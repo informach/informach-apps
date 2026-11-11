@@ -4,12 +4,14 @@ import { BottomNav } from "@/components/app-shell/bottom-nav";
 import { OfflineBanner } from "@/components/app-shell/offline-banner";
 import { ServiceWorkerRegistrar } from "@/components/app-shell/service-worker";
 import { getShellData } from "@/components/app-shell/shell-data";
+import { agendaAuthority } from "@/features/family/context";
 import { OfflineQueueFlusher } from "@/features/offline-queue/components/offline-queue-flusher";
 import { QueueOwnerProvider } from "@/features/offline-queue/owner";
 import { redirectIfUnauthenticated } from "@/lib/auth";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await redirectIfUnauthenticated();
+  const actor = await agendaAuthority(user.id);
 
   return (
     // Fundo do app com a tinta de 5% (ver ELEVAÇÃO em `globals.css`). Era
@@ -18,7 +20,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     // `QueueOwnerProvider` envolve o shell inteiro: a fila de gravações vive no
     // IndexedDB da origem, e sem saber de quem ela é, uma conclusão feita antes
     // do logout subiria com a sessão de quem entrasse depois neste aparelho.
-    <QueueOwnerProvider userId={user.id}>
+    <QueueOwnerProvider key={`${actor.userId}:${actor.familyGroupId}`} actor={actor}>
       <div className="flex min-h-dvh flex-col bg-app-ground">
         <ServiceWorkerRegistrar />
         <OfflineQueueFlusher />

@@ -1,27 +1,21 @@
 import { randomUUID } from "node:crypto";
-import { seedAgendaCreditPricing } from "@informach/billing/seeds";
 import { and, db, eq, inArray } from "@informach/db";
 import {
   agendaActivities,
   agendaActivityRevisions,
-  agendaCities,
   agendaNotices,
   agendaNotificationDeliveries,
   agendaNotificationPreferences,
-  agendaProductEvents,
   agendaProfileSubjects,
-  agendaSchools,
   agendaSubjects,
   agendaTasks,
   agendaTurmas,
-  customers,
+  collectionTrials,
   emailDeliveries,
-  subscriptions,
   users,
 } from "@informach/db/schema";
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { cleanAgendaAccount } from "@/features/account/cleanup";
-import { prepareAgendaAccountDeletion } from "@/features/account/deletion";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { z } from "zod";
 import { countPendingActivities } from "@/features/activities/pending-limit";
 import { respondSharedActivity } from "@/features/activities/service";
 import {
@@ -31,16 +25,20 @@ import {
 } from "@/features/calendar-feed/service";
 import { todayLocalIso } from "@/features/dashboard/date";
 import { listAccessibleProfiles } from "@/features/family/access";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
-import {
-  acceptFamilyInvitation,
-  createFamilyInvitation,
-  revokeFamilyAccess,
-} from "@/features/family/service";
 import { getNoticeAction, getNoticeSource, listNoticeActions } from "@/features/notices/repository";
-import type { NoticeActionInput } from "@/features/notices/schemas";
+import { confirmNoticeSchema, type NoticeActionInput } from "@/features/notices/schemas";
+import { joinTurmaByCode } from "@/features/turmas/service";
+import { agendaFixture, family, schoolFixture } from "./compasso-fixture";
+
+const joinPrivateGroup = (actor: AgendaAuthority, profileId: string, code: string | null) => {
+  if (!code) throw new Error("Missing class code");
+  return joinTurmaByCode(actor, { profileId, code });
+};
+
 import {
-  confirmNotice,
+  confirmNotice as confirmNoticeService,
   setNoticeActionStatus,
   shareSavedWithTurma,
   updateNoticeAction,
@@ -50,11 +48,7 @@ import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/features/notifications/schem
 import { saveNotificationPreferences } from "@/features/notifications/service";
 import { createProfileSubjectActivity } from "@/features/profile-subject-activities/service";
 import { createStudentProfile, listStudentProfilesForUser } from "@/features/students/service";
-import {
-  joinPrivateGroup,
-  removeGroupAdult,
-  rotateGroupCode,
-} from "@/features/turmas/group-access";
+import { removeGroupAdult, rotateGroupCode } from "@/features/turmas/group-access";
 import { createOrJoinTurma, listTurmasForCurrentUser } from "@/features/turmas/service";
 import { listTasksInDateRange } from "@/features/unified-activities/task-repository";
 import { emails } from "@/lib/emails";
@@ -64,7 +58,22 @@ function value<T>(result: { ok: true; value: T } | { ok: false; error: unknown }
   return result.value;
 }
 let owner: string, guest: string, other: string, child: string, sibling: string, otherChild: string;
-let school: string, group: string, subject: string, customer: string, subscription: string;
+let school: string, group: string, subject: string;
+let ownerActor: AgendaAuthority, guestActor: AgendaAuthority, otherActor: AgendaAuthority;
+let childPerson: string;
+function confirmNotice(actor: AgendaAuthority, input: z.input<typeof confirmNoticeSchema>) {
+  return confirmNoticeService(
+    actor,
+    confirmNoticeSchema.parse({
+      sourceReviewed: true,
+      shareOriginal: !!input.sourceProfileIds,
+      ...input,
+      sourceProfileIds: input.sourceProfileIds ?? [
+        ...new Set(input.actions.map((a) => a.profileId)),
+      ],
+    }),
+  );
+}
 const date = todayLocalIso();
 function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error("Missing fixture row");
@@ -75,7 +84,7 @@ type Task = typeof agendaTasks.$inferSelect;
 /** Uma prova publicada na turma, pelo formulário único. */
 async function sharedExam(title: string, dueAt = date): Promise<Task> {
   const created = value(
-    await confirmNotice(owner, {
+    await confirmNotice(ownerActor, {
       noticeId: null,
       allowDuplicates: true,
       actions: [
@@ -116,80 +125,66 @@ const action = (title = "Providência sintética", profileId = child): NoticeAct
   shareWithTurma: false,
 });
 async function invite() {
-  const invitation = value(
-    await createFamilyInvitation(owner, { email: `${guest}@e2e.local`, profileIds: [child] }),
+  const invitation = await family.createInvitation(
+    owner,
+    ownerActor.familyGroupId,
+    `${guest}@example.test`,
   );
-  const token = new URL(invitation.url).searchParams.get("token");
-  if (!token) throw new Error("Invitation token missing");
-  return { invitation, token };
+  return { invitation, token: invitation.token };
+}
+async function acceptFamilyInvitation(userId: string, token: string) {
+  try {
+    await family.acceptInvitation(userId, token);
+    for (const action of ["read", "write", "use_ai"] as const)
+      await family.grantAccess(owner, {
+        groupId: ownerActor.familyGroupId,
+        personId: childPerson,
+        app: "agenda-da-turma",
+        userId,
+        action,
+      });
+    return { ok: true as const, value: { id: userId } };
+  } catch (error) {
+    return { ok: false as const, error };
+  }
+}
+async function revokeFamilyAccess(userId: string, memberId: string) {
+  await family.revokeMember(userId, ownerActor.familyGroupId, memberId);
+  return { ok: true as const, value: true };
 }
 async function downgrade() {
   await db
-    .update(subscriptions)
-    .set({ status: "canceled", canceledAt: new Date() })
-    .where(eq(subscriptions.id, subscription));
+    .update(collectionTrials)
+    .set({
+      startsAt: new Date(Date.now() - 15 * 86400000),
+      endsAt: new Date(Date.now() - 86400000),
+    })
+    .where(eq(collectionTrials.groupId, ownerActor.familyGroupId));
 }
-
-beforeAll(async () => {
-  await seedAgendaCreditPricing(db);
-});
 beforeEach(async () => {
-  owner = `routine-test-${randomUUID()}`;
-  guest = `routine-test-${randomUUID()}`;
-  other = `routine-test-${randomUUID()}`;
-  await db.insert(users).values(
-    [owner, guest, other].map((id) => ({
-      id,
-      name: "Adulto fictício",
-      email: `${id}@e2e.local`,
-      emailVerified: true,
-    })),
-  );
-  const [billingCustomer] = await db
-    .insert(customers)
-    .values({
-      provider: "stripe",
-      providerCustomerId: `test-${owner}`,
-      subjectType: "user",
-      subjectId: owner,
-      app: "agenda-da-turma",
-      email: `${owner}@e2e.local`,
-    })
-    .returning();
-  if (!billingCustomer) throw new Error("Customer missing");
-  customer = billingCustomer.id;
-  const [billingSubscription] = await db
-    .insert(subscriptions)
-    .values({
-      customerId: customer,
-      provider: "stripe",
-      providerSubscriptionId: `test-${owner}`,
-      productId: "agenda_da_turma_pro_monthly",
-      providerPriceId: "price_synthetic",
-      status: "active",
-      currentPeriodStart: new Date(Date.now() - 86400_000),
-      currentPeriodEnd: new Date(Date.now() + 30 * 86400_000),
-    })
-    .returning();
-  if (!billingSubscription) throw new Error("Subscription missing");
-  subscription = billingSubscription.id;
-  child = value(
-    await createStudentProfile(owner, { name: "Criança A fictícia", birthDate: null }),
-  ).id;
+  const f = await agendaFixture(true),
+    otherFamily = await agendaFixture(true);
+  owner = f.owner;
+  guest = f.visitor.userId;
+  other = otherFamily.owner;
+  ownerActor = f.actor;
+  guestActor = f.visitor;
+  otherActor = otherFamily.actor;
+  child = f.profile.id;
+  childPerson = f.target.personId;
+  otherChild = otherFamily.profile.id;
+  await family.revokeMember(owner, ownerActor.familyGroupId, guest);
+  const second = await family.createPerson(owner, {
+    groupId: ownerActor.familyGroupId,
+    kind: "dependent",
+    displayName: "Sibling",
+  });
   sibling = value(
-    await createStudentProfile(owner, { name: "Criança B fictícia", birthDate: null }),
+    await createStudentProfile(ownerActor, { personId: second.id, birthDate: null }),
   ).id;
-  otherChild = value(
-    await createStudentProfile(other, { name: "Criança C fictícia", birthDate: null }),
-  ).id;
-  const [city] = await db.select({ id: agendaCities.ibgeCode }).from(agendaCities).limit(1);
-  if (!city) throw new Error("Local reference cities must be seeded");
-  school = `test-${randomUUID()}`;
-  await db
-    .insert(agendaSchools)
-    .values({ inepCode: school, cityIbgeCode: city.id, name: "Escola fictícia de integração" });
+  school = await schoolFixture();
   group = value(
-    await createOrJoinTurma(owner, {
+    await createOrJoinTurma(ownerActor, {
       profileId: child,
       schoolInepCode: school,
       grade: "4ano",
@@ -202,29 +197,16 @@ beforeEach(async () => {
     .insert(agendaSubjects)
     .values({ turmaId: group, name: "Matéria sintética", createdByUserId: owner })
     .returning();
-  if (!discipline) throw new Error("Subject missing");
-  subject = discipline.id;
+  subject = required(discipline).id;
+  await db.update(agendaNotificationPreferences).set({ emailEnabled: false, pushEnabled: false });
   emails.clearOutbox();
 });
-afterEach(async () => {
-  if (!owner) return;
-  const ids = [owner, guest, other];
-  await db.delete(agendaTurmas).where(eq(agendaTurmas.schoolInepCode, school));
-  await db.delete(agendaSchools).where(eq(agendaSchools.inepCode, school));
-  await db.delete(agendaProductEvents).where(inArray(agendaProductEvents.userId, ids));
-  await db.delete(emailDeliveries).where(inArray(emailDeliveries.userId, ids));
-  await db.delete(users).where(inArray(users.id, ids));
-  if (customer) {
-    await db.delete(subscriptions).where(eq(subscriptions.customerId, customer));
-    await db.delete(customers).where(eq(customers.id, customer));
-  }
-  emails.clearOutbox();
-});
+afterEach(() => emails.clearOutbox());
 
 describe("private groups and shared activities", () => {
   it("does not join a different family by knowing public class data; rotated codes and removal revoke access", async () => {
     const copied = value(
-      await createOrJoinTurma(other, {
+      await createOrJoinTurma(otherActor, {
         profileId: otherChild,
         schoolInepCode: school,
         grade: "4ano",
@@ -237,26 +219,35 @@ describe("private groups and shared activities", () => {
     const [ownGroup] = await db.select().from(agendaTurmas).where(eq(agendaTurmas.id, group));
     if (!ownGroup) throw new Error("Missing group");
     const rotated = value(await rotateGroupCode(owner, group));
-    expect(await joinPrivateGroup(other, otherChild, ownGroup.code)).toBeNull();
-    expect(await joinPrivateGroup(other, otherChild, rotated.code)).toMatchObject({ id: group });
+    expect(await joinPrivateGroup(otherActor, otherChild, ownGroup.code)).toMatchObject({
+      ok: false,
+      error: { code: "TURMA_NOT_FOUND" },
+    });
+    expect(await joinPrivateGroup(otherActor, otherChild, rotated.code)).toMatchObject({
+      ok: true,
+      value: { turma: { id: group } },
+    });
     const created = await sharedExam("Prova compartilhada");
     value(
-      await respondSharedActivity(other, {
+      await respondSharedActivity(otherActor, {
         activityId: created.sharedActivityId ?? "",
         accepted: true,
       }),
     );
     expect(
-      (await listTasksInDateRange(other, range)).map((task) => task.sharedActivityId),
+      (await listTasksInDateRange(otherActor, range)).map((task) => task.sharedActivityId),
     ).toContain(created.sharedActivityId);
-    expect(await countPendingActivities(db, other)).toBe(0);
+    expect(await countPendingActivities(db, otherActor)).toBe(0);
     value(await removeGroupAdult(owner, group, other));
-    expect(await listTasksInDateRange(other, range)).toEqual([]);
-    expect(await joinPrivateGroup(other, otherChild, rotated.code)).toBeNull();
+    expect(await listTasksInDateRange(otherActor, range)).toEqual([]);
+    expect(await joinPrivateGroup(otherActor, otherChild, rotated.code)).toMatchObject({
+      ok: false,
+      error: { code: "TURMA_NOT_FOUND" },
+    });
     // Depois da revogação a matéria deixa de ser oferecível: a criança não
     // participa mais daquela turma, e é isso que a gravação confere.
     expect(
-      await confirmNotice(other, {
+      await confirmNotice(otherActor, {
         noticeId: null,
         allowDuplicates: true,
         actions: [
@@ -270,29 +261,29 @@ describe("private groups and shared activities", () => {
       }),
     ).toMatchObject({ ok: false, error: { code: "INVALID_SUBJECT" } });
   });
-  it("preserves recipient completion through correction, downgrade and creator deletion", async () => {
+  it("preserves recipient completion through correction and downgrade, and blocks unsafe global deletion", async () => {
     const code = value(await rotateGroupCode(owner, group)).code;
-    await joinPrivateGroup(other, otherChild, code);
+    await joinPrivateGroup(otherActor, otherChild, code);
     const created = await sharedExam("Prova compartilhada");
     value(
-      await respondSharedActivity(other, {
+      await respondSharedActivity(otherActor, {
         activityId: created.sharedActivityId ?? "",
         accepted: true,
       }),
     );
     // A conclusão é da tarefa da família que recebeu — a mesma alternância de
     // qualquer outra atividade desde a convergência.
-    const [received] = await listTasksInDateRange(other, range);
+    const [received] = await listTasksInDateRange(otherActor, range);
     if (!received) throw new Error("Missing received task");
     value(
-      await setNoticeActionStatus(other, {
+      await setNoticeActionStatus(otherActor, {
         id: received.id,
         version: received.version,
         status: "done",
       }),
     );
     value(
-      await updateNoticeAction(owner, {
+      await updateNoticeAction(ownerActor, {
         id: created.id,
         version: created.version,
         action: {
@@ -311,7 +302,7 @@ describe("private groups and shared activities", () => {
       .where(eq(agendaActivities.id, created.sharedActivityId ?? ""));
     expect(publishedActivity).toMatchObject({ title: "Prova remarcada", version: 2 });
     expect(
-      await updateNoticeAction(owner, {
+      await updateNoticeAction(ownerActor, {
         id: created.id,
         version: created.version,
         action: {
@@ -325,15 +316,14 @@ describe("private groups and shared activities", () => {
       }),
     ).toMatchObject({ ok: false, error: { code: "VERSION_CONFLICT" } });
     await downgrade();
-    expect((await listTasksInDateRange(other, range))[0]).toMatchObject({
+    expect((await listTasksInDateRange(otherActor, range))[0]).toMatchObject({
       title: "Prova remarcada",
       status: "done",
       version: 3,
     });
-    await cleanAgendaAccount(owner);
-    await db.delete(users).where(eq(users.id, owner));
-    expect((await listTasksInDateRange(other, range))[0]).toMatchObject({
-      createdByUserId: null,
+    await expect(db.delete(users).where(eq(users.id, owner))).rejects.toThrow();
+    expect((await listTasksInDateRange(otherActor, range))[0]).toMatchObject({
+      createdByUserId: owner,
       status: "done",
       title: "Prova remarcada",
     });
@@ -343,7 +333,7 @@ describe("private groups and shared activities", () => {
       const [n] = await db
         .insert(agendaNotices)
         .values({
-          ownerUserId: owner,
+          familyGroupId: ownerActor.familyGroupId,
           createdByUserId: owner,
           captureProfileId: child,
           source: "teams",
@@ -354,7 +344,7 @@ describe("private groups and shared activities", () => {
         .returning();
       if (!n) throw new Error("Notice missing");
       // A captura manda a caixa da turma desmarcada: a pergunta vem no "Pronto".
-      return confirmNotice(owner, {
+      return confirmNotice(ownerActor, {
         noticeId: n.id,
         allowDuplicates: false,
         actions: [
@@ -397,7 +387,7 @@ describe("private groups and shared activities", () => {
     // O "Pronto" do recado pergunta "Mandar para a turma?" e manda os ids que
     // acabaram de entrar; a gravação é a mesma da edição.
     const saved = value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         noticeId: null,
         allowDuplicates: true,
         actions: [
@@ -413,11 +403,11 @@ describe("private groups and shared activities", () => {
     );
     expect(saved.indices).toEqual([0, 1]);
     // Outra família não publica o que não acessa.
-    expect(value(await shareSavedWithTurma(other, { ids: saved.ids }))).toEqual({
+    expect(value(await shareSavedWithTurma(otherActor, { ids: saved.ids }))).toEqual({
       shared: 0,
       skipped: 2,
     });
-    expect(value(await shareSavedWithTurma(owner, { ids: saved.ids }))).toEqual({
+    expect(value(await shareSavedWithTurma(ownerActor, { ids: saved.ids }))).toEqual({
       shared: 1,
       skipped: 1,
     });
@@ -435,25 +425,25 @@ describe("private groups and shared activities", () => {
         .where(eq(agendaActivityRevisions.taskId, saved.ids[0] ?? "")),
     ).toEqual([]);
     // Mandar de novo não publica duas vezes.
-    expect(value(await shareSavedWithTurma(owner, { ids: saved.ids }))).toEqual({
+    expect(value(await shareSavedWithTurma(ownerActor, { ids: saved.ids }))).toEqual({
       shared: 0,
       skipped: 2,
     });
   });
   it("publishes cancellation and revision to an existing private calendar link", async () => {
-    await joinPrivateGroup(other, otherChild, value(await rotateGroupCode(owner, group)).code);
+    await joinPrivateGroup(otherActor, otherChild, value(await rotateGroupCode(owner, group)).code);
     const created = await sharedExam("Prova cancelada");
     value(
-      await respondSharedActivity(other, {
+      await respondSharedActivity(otherActor, {
         activityId: created.sharedActivityId ?? "",
         accepted: true,
       }),
     );
-    const url = value(await createCalendarFeed(owner)).url;
+    const url = value(await createCalendarFeed(ownerActor)).url;
     const token = url.split("/").at(-1) ?? "";
     expect(await readCalendarFeed(token)).toContain("Prova cancelada");
     value(
-      await setNoticeActionStatus(owner, {
+      await setNoticeActionStatus(ownerActor, {
         id: created.id,
         version: created.version,
         status: "canceled",
@@ -461,7 +451,7 @@ describe("private groups and shared activities", () => {
     );
     expect(await readCalendarFeed(token)).toContain("STATUS:CANCELLED");
     expect(await readCalendarFeed(token)).toContain("SEQUENCE:2");
-    await revokeCalendarFeeds(owner);
+    await revokeCalendarFeeds(ownerActor);
     expect(await readCalendarFeed(token)).toBeNull();
   });
 });
@@ -473,18 +463,18 @@ describe("o segundo adulto e as turmas", () => {
 
     // A tela de Crianças é escopada por criança acessível: o convidado vê a
     // filha de quem o convidou.
-    expect((await listStudentProfilesForUser(guest)).map((p) => p.id)).toEqual([child]);
+    expect((await listStudentProfilesForUser(guestActor)).map((p) => p.id)).toEqual([child]);
 
     // A de Turmas é escopada por conta, de propósito: a turma é espaço
     // compartilhado com outras famílias, e o card entrega o código, que é
     // credencial para vincular qualquer criança àquela sala. Quem consentiu
     // com o cuidado de uma filha não consentiu com isso.
-    expect(await listTurmasForCurrentUser(guest)).toEqual([]);
+    expect(await listTurmasForCurrentUser(guestActor)).toMatchObject([{ id: group, code: null }]);
 
     // E as duas portas que a tela oferecia continuam fechadas para ele — por
     // isso a tela precisa dizer isso, em vez de convidar.
     expect(
-      await createOrJoinTurma(guest, {
+      await createOrJoinTurma(guestActor, {
         profileId: child,
         schoolInepCode: school,
         grade: "5ano",
@@ -494,7 +484,9 @@ describe("o segundo adulto e as turmas", () => {
       }),
     ).toMatchObject({ ok: false, error: { code: "PROFILE_NOT_FOUND" } });
     const [turma] = await db.select().from(agendaTurmas).where(eq(agendaTurmas.id, group));
-    expect(await joinPrivateGroup(guest, child, required(turma).code)).toBeNull();
+    expect(await joinPrivateGroup(guestActor, child, required(turma).code)).toMatchObject({
+      ok: false,
+    });
   });
 });
 
@@ -503,11 +495,11 @@ describe("family permissions and action lifecycle", () => {
     const { token } = await invite();
     expect((await acceptFamilyInvitation(other, token)).ok).toBe(false);
     const member = value(await acceptFamilyInvitation(guest, token));
-    expect((await acceptFamilyInvitation(guest, token)).ok).toBe(false);
-    expect((await listAccessibleProfiles(guest)).map((p) => p.id)).toEqual([child]);
-    expect((await getFamilyEntitlements(guest)).proProfileIds).toEqual([child]);
+    expect((await acceptFamilyInvitation(guest, token)).ok).toBe(true);
+    expect((await listAccessibleProfiles(guestActor)).map((p) => p.id)).toEqual([child]);
+    expect((await getFamilyEntitlements(guestActor)).proProfileIds).toEqual([child]);
     const created = value(
-      await confirmNotice(guest, {
+      await confirmNotice(guestActor, {
         noticeId: null,
         actions: [{ ...action(), assignedToUserId: guest }],
         allowDuplicates: false,
@@ -517,34 +509,36 @@ describe("family permissions and action lifecycle", () => {
     if (!id) throw new Error("Action missing");
     expect(
       (
-        await confirmNotice(guest, {
+        await confirmNotice(guestActor, {
           noticeId: null,
           actions: [action("Outra criança", sibling)],
           allowDuplicates: false,
         })
       ).ok,
     ).toBe(false);
-    value(await setNoticeActionStatus(guest, { id, version: 1, status: "done" }));
-    expect((await getNoticeAction(owner, id))?.action.status).toBe("done");
-    expect(await updateNoticeAction(owner, { id, version: 1, action: action() })).toMatchObject({
+    value(await setNoticeActionStatus(guestActor, { id, version: 1, status: "done" }));
+    expect((await getNoticeAction(ownerActor, id))?.action.status).toBe("done");
+    expect(
+      await updateNoticeAction(ownerActor, { id, version: 1, action: action() }),
+    ).toMatchObject({
       ok: false,
       error: { code: "VERSION_CONFLICT" },
     });
     await downgrade();
-    expect((await getNoticeAction(guest, id))?.action.status).toBe("done");
+    expect((await getNoticeAction(guestActor, id))?.action.status).toBe("done");
     value(await revokeFamilyAccess(owner, member.id));
-    expect(await getNoticeAction(guest, id)).toBeNull();
-    expect((await setNoticeActionStatus(guest, { id, version: 2, status: "pending" })).ok).toBe(
-      false,
-    );
-    expect((await getNoticeAction(owner, id))?.action.assignedToUserId).toBeNull();
+    expect(await getNoticeAction(guestActor, id)).toBeNull();
+    expect(
+      (await setNoticeActionStatus(guestActor, { id, version: 2, status: "pending" })).ok,
+    ).toBe(false);
+    expect((await getNoticeAction(ownerActor, id))?.action.assignedToUserId).toBeNull();
   });
   it("só a edição do conteúdo conta como mudança depois de salva, e a versão nova volta", async () => {
     // O card dizia "Mudou depois de salva" a partir de `version > 1`, e concluir
     // e reabrir também sobem a versão. E o "Desfazer" precisa da versão nova
     // na resposta, ou esbarra em conflito.
     const created = value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         noticeId: null,
         allowDuplicates: true,
         actions: [action("Mudou ou não mudou")],
@@ -552,13 +546,16 @@ describe("family permissions and action lifecycle", () => {
     );
     const id = required(created.ids[0]);
     const edited = async () =>
-      (await listTasksInDateRange(owner, range)).find((task) => task.id === id)?.editedAfterSave;
+      (await listTasksInDateRange(ownerActor, range)).find((task) => task.id === id)
+        ?.editedAfterSave;
     expect(await edited()).toBe(false);
-    const done = value(await setNoticeActionStatus(owner, { id, version: 1, status: "done" }));
+    const done = value(await setNoticeActionStatus(ownerActor, { id, version: 1, status: "done" }));
     expect(done).toMatchObject({ id, version: 2 });
-    value(await setNoticeActionStatus(owner, { id, version: 2, status: "pending" }));
+    value(await setNoticeActionStatus(ownerActor, { id, version: 2, status: "pending" }));
     expect(await edited()).toBe(false);
-    value(await updateNoticeAction(owner, { id, version: 3, action: action("Mudou de verdade") }));
+    value(
+      await updateNoticeAction(ownerActor, { id, version: 3, action: action("Mudou de verdade") }),
+    );
     expect(await edited()).toBe(true);
   });
   it("prevents replay duplication and hides mixed-child original documents from a scoped guest", async () => {
@@ -567,7 +564,7 @@ describe("family permissions and action lifecycle", () => {
     const [notice] = await db
       .insert(agendaNotices)
       .values({
-        ownerUserId: owner,
+        familyGroupId: ownerActor.familyGroupId,
         createdByUserId: owner,
         captureProfileId: child,
         source: "teams",
@@ -582,31 +579,41 @@ describe("family permissions and action lifecycle", () => {
       actions: [action("Autorização A"), action("Autorização B", sibling)],
       allowDuplicates: false,
     };
-    value(await confirmNotice(owner, payload));
-    expect(value(await confirmNotice(owner, payload)).alreadyConfirmed).toBe(true);
-    expect(await listNoticeActions(owner)).toHaveLength(2);
-    expect(await getNoticeSource(guest, notice.id)).toBeNull();
-    expect((await listNoticeActions(guest)).map((r) => r.action.title)).toEqual(["Autorização A"]);
-    expect(await getNoticeSource(other, notice.id)).toBeNull();
+    value(await confirmNotice(ownerActor, payload));
+    expect(value(await confirmNotice(ownerActor, payload)).alreadyConfirmed).toBe(true);
+    expect(await listNoticeActions(ownerActor)).toHaveLength(2);
+    expect(await getNoticeSource(guestActor, notice.id)).toBeNull();
+    expect((await listNoticeActions(guestActor)).map((r) => r.action.title)).toEqual([
+      "Autorização A",
+    ]);
+    expect(await getNoticeSource(otherActor, notice.id)).toBeNull();
   });
   it("detects duplicates and creates only one next occurrence after repeated completion", async () => {
     const weekly = { ...action("Treino semanal"), recurrence: "weekly" as const };
     const created = value(
-      await confirmNotice(owner, { noticeId: null, actions: [weekly], allowDuplicates: false }),
+      await confirmNotice(ownerActor, {
+        noticeId: null,
+        actions: [weekly],
+        allowDuplicates: false,
+      }),
     );
     expect(
-      await confirmNotice(owner, { noticeId: null, actions: [weekly], allowDuplicates: false }),
+      await confirmNotice(ownerActor, {
+        noticeId: null,
+        actions: [weekly],
+        allowDuplicates: false,
+      }),
     ).toMatchObject({ ok: false, error: { code: "POSSIBLE_DUPLICATES" } });
     const id = created.ids[0];
     if (!id) throw new Error("Action missing");
-    value(await setNoticeActionStatus(owner, { id, version: 1, status: "done" }));
-    value(await setNoticeActionStatus(owner, { id, version: 2, status: "pending" }));
-    value(await setNoticeActionStatus(owner, { id, version: 3, status: "done" }));
-    expect(await listNoticeActions(owner, { includeFinished: true })).toHaveLength(2);
+    value(await setNoticeActionStatus(ownerActor, { id, version: 1, status: "done" }));
+    value(await setNoticeActionStatus(ownerActor, { id, version: 2, status: "pending" }));
+    value(await setNoticeActionStatus(ownerActor, { id, version: 3, status: "done" }));
+    expect(await listNoticeActions(ownerActor, { includeFinished: true })).toHaveLength(2);
   });
   it("uses one pending quota under concurrent school, extra and notice creation; completion frees a slot", async () => {
     value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         noticeId: null,
         actions: Array.from({ length: 19 }, (_, i) => action(`Pendência ${i}`)),
         allowDuplicates: false,
@@ -619,19 +626,19 @@ describe("family permissions and action lifecycle", () => {
     if (!extra) throw new Error("Extra missing");
     await downgrade();
     const results = await Promise.all([
-      confirmNotice(owner, {
+      confirmNotice(ownerActor, {
         noticeId: null,
         actions: [action("Último recado")],
         allowDuplicates: false,
       }),
-      confirmNotice(owner, {
+      confirmNotice(ownerActor, {
         noticeId: null,
         allowDuplicates: true,
         actions: [
           { ...action("Última tarefa"), type: "task", subjectId: subject, dateOrigin: "school" },
         ],
       }),
-      createProfileSubjectActivity(owner, {
+      createProfileSubjectActivity(ownerActor, {
         profileSubjectId: extra.id,
         type: "task",
         title: "Última extra",
@@ -639,35 +646,46 @@ describe("family permissions and action lifecycle", () => {
       }),
     ]);
     expect(results.filter((result) => result.ok)).toHaveLength(1);
-    expect(await countPendingActivities(db, owner)).toBe(20);
-    const [first] = await listNoticeActions(owner);
+    expect(await countPendingActivities(db, ownerActor)).toBe(20);
+    const [first] = await listNoticeActions(ownerActor);
     if (!first) throw new Error("Action missing");
-    value(await setNoticeActionStatus(owner, { id: first.action.id, version: 1, status: "done" }));
-    expect(await countPendingActivities(db, owner)).toBe(19);
     value(
-      await confirmNotice(owner, {
+      await setNoticeActionStatus(ownerActor, { id: first.action.id, version: 1, status: "done" }),
+    );
+    expect(await countPendingActivities(db, ownerActor)).toBe(19);
+    value(
+      await confirmNotice(ownerActor, {
         noticeId: null,
         actions: [action("Novo espaço")],
         allowDuplicates: false,
       }),
     );
     expect(
-      (await setNoticeActionStatus(owner, { id: first.action.id, version: 2, status: "pending" }))
-        .ok,
+      (
+        await setNoticeActionStatus(ownerActor, {
+          id: first.action.id,
+          version: 2,
+          status: "pending",
+        })
+      ).ok,
     ).toBe(false);
-    expect((await getNoticeAction(owner, first.action.id))?.action.status).toBe("done");
+    expect((await getNoticeAction(ownerActor, first.action.id))?.action.status).toBe("done");
   });
 });
 
 describe("routine delivery", () => {
   it("pages through recipients and expires stored attachments even with no eligible message", async () => {
-    await db
-      .insert(agendaNotificationPreferences)
-      .values([owner, guest, other].map((userId) => ({ userId, emailEnabled: true })));
+    await db.insert(agendaNotificationPreferences).values(
+      [ownerActor, guestActor, otherActor].map((actor) => ({
+        userId: actor.userId,
+        familyGroupId: actor.familyGroupId,
+        emailEnabled: true,
+      })),
+    );
     const [notice] = await db
       .insert(agendaNotices)
       .values({
-        ownerUserId: owner,
+        familyGroupId: ownerActor.familyGroupId,
         createdByUserId: owner,
         captureProfileId: child,
         source: "teams",
@@ -682,7 +700,7 @@ describe("routine delivery", () => {
     let hasMore = true;
     for (let i = 0; i < 30 && hasMore; i++) {
       const batch = await deliverRoutineNotifications(new Date(`${date}T12:00:00-03:00`), {
-        afterUserId: cursor,
+        afterPreferenceId: cursor,
         limit: 1,
       });
       cursor = batch.cursor;
@@ -693,7 +711,11 @@ describe("routine delivery", () => {
       }
     }
     expect(hasMore).toBe(false);
-    expect([owner, guest, other].every((id) => completed.has(id))).toBe(true);
+    const expected = await db
+      .select({ id: agendaNotificationPreferences.id })
+      .from(agendaNotificationPreferences)
+      .where(inArray(agendaNotificationPreferences.userId, [owner, guest, other]));
+    expect(expected.every((p) => completed.has(p.id))).toBe(true);
     const [expired] = await db
       .select()
       .from(agendaNotices)
@@ -703,7 +725,7 @@ describe("routine delivery", () => {
   it("requires consent, sends once, avoids stored child content, and does not send a canceled reminder", async () => {
     const now = new Date(`${date}T19:00:00-03:00`);
     const created = value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         noticeId: null,
         actions: [{ ...action("Autorização do passeio"), reminderAt: now.toISOString() }],
         allowDuplicates: false,
@@ -714,7 +736,7 @@ describe("routine delivery", () => {
     await deliverRoutineNotifications(now);
     expect(emails.getOutbox()).toHaveLength(0);
     value(
-      await saveNotificationPreferences(owner, {
+      await saveNotificationPreferences(ownerActor, {
         ...DEFAULT_NOTIFICATION_PREFERENCES,
         emailEnabled: true,
         // O resumo da semana tem teste próprio; aqui ele só não pode somar um
@@ -722,11 +744,11 @@ describe("routine delivery", () => {
         weeklyDigestEnabled: false,
       }),
     );
-    value(await setNoticeActionStatus(owner, { id, version: 1, status: "canceled" }));
+    value(await setNoticeActionStatus(ownerActor, { id, version: 1, status: "canceled" }));
     await deliverRoutineNotifications(now);
     expect(emails.getOutbox()).toHaveLength(0);
     value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         noticeId: null,
         actions: [action("Separar material")],
         allowDuplicates: false,
@@ -752,43 +774,12 @@ describe("routine delivery", () => {
 });
 
 describe("family drafts and subscription transitions", () => {
-  it("preserves the shared identity and Agenda plan when another app still has an active subscription", async () => {
-    const [otherCustomer] = await db
-      .insert(customers)
-      .values({
-        app: "cozya",
-        provider: "stripe",
-        providerCustomerId: `other-${owner}`,
-        subjectType: "user",
-        subjectId: owner,
-        email: `${owner}@e2e.local`,
-      })
-      .returning();
-    if (!otherCustomer) throw new Error("Missing cross-app fixture");
-    try {
-      await db.insert(subscriptions).values({
-        customerId: otherCustomer.id,
-        provider: "stripe",
-        providerSubscriptionId: `other-${owner}`,
-        providerPriceId: "price_synthetic",
-        productId: "cozya_pro_monthly",
-        status: "active",
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(Date.now() + 86400_000),
-      });
-      await expect(prepareAgendaAccountDeletion(owner)).rejects.toThrow("outros apps Informach");
-      expect(await db.select({ id: users.id }).from(users).where(eq(users.id, owner))).toHaveLength(
-        1,
-      );
-      const [agendaPlan] = await db
-        .select()
-        .from(subscriptions)
-        .where(eq(subscriptions.id, subscription));
-      expect(agendaPlan?.status).toBe("active");
-    } finally {
-      await db.delete(subscriptions).where(eq(subscriptions.customerId, otherCustomer.id));
-      await db.delete(customers).where(eq(customers.id, otherCustomer.id));
-    }
+  it("blocks deleting a shared identity while the household still depends on it", async () => {
+    await expect(db.delete(users).where(eq(users.id, owner))).rejects.toThrow();
+    expect(await db.select({ id: users.id }).from(users).where(eq(users.id, owner))).toHaveLength(
+      1,
+    );
+    expect((await getFamilyEntitlements(ownerActor)).enabled).toBe(true);
   });
   it("lets a caregiver finish their own draft while preventing access to a sibling", async () => {
     const { token } = await invite();
@@ -796,7 +787,7 @@ describe("family drafts and subscription transitions", () => {
     const [notice] = await db
       .insert(agendaNotices)
       .values({
-        ownerUserId: owner,
+        familyGroupId: ownerActor.familyGroupId,
         createdByUserId: guest,
         captureProfileId: child,
         source: "batista",
@@ -806,20 +797,20 @@ describe("family drafts and subscription transitions", () => {
       .returning();
     if (!notice) throw new Error("Missing draft");
     expect(
-      await confirmNotice(guest, {
+      await confirmNotice(guestActor, {
         noticeId: notice.id,
         actions: [action("Sem permissão", sibling)],
         allowDuplicates: false,
       }),
-    ).toMatchObject({ ok: false, error: { code: "INVALID_PROFILE" } });
+    ).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
     value(
-      await confirmNotice(guest, {
+      await confirmNotice(guestActor, {
         noticeId: notice.id,
         actions: [{ ...action("Conferir autorização"), assignedToUserId: guest }],
         allowDuplicates: false,
       }),
     );
-    expect(await listNoticeActions(owner)).toHaveLength(1);
+    expect(await listNoticeActions(ownerActor)).toHaveLength(1);
   });
   it("allows ordinary corrections after downgrade, but prevents adding paid automation", async () => {
     const paidAction = {
@@ -828,26 +819,30 @@ describe("family drafts and subscription transitions", () => {
       reminderAt: new Date(`${date}T19:00:00-03:00`).toISOString(),
     };
     const created = value(
-      await confirmNotice(owner, { noticeId: null, actions: [paidAction], allowDuplicates: false }),
+      await confirmNotice(ownerActor, {
+        noticeId: null,
+        actions: [paidAction],
+        allowDuplicates: false,
+      }),
     );
     const id = created.ids[0];
     if (!id) throw new Error("Missing action");
     await downgrade();
     value(
-      await updateNoticeAction(owner, {
+      await updateNoticeAction(ownerActor, {
         id,
         version: 1,
         action: { ...paidAction, title: "Material corrigido" },
       }),
     );
     expect(
-      await updateNoticeAction(owner, {
+      await updateNoticeAction(ownerActor, {
         id,
         version: 2,
         action: { ...paidAction, reminderAt: new Date(Date.now() + 86400_000).toISOString() },
       }),
     ).toMatchObject({ ok: false, error: { code: "PRO_REQUIRED" } });
-    value(await setNoticeActionStatus(owner, { id, version: 2, status: "done" }));
-    expect(await listNoticeActions(owner, { includeFinished: true })).toHaveLength(1);
+    value(await setNoticeActionStatus(ownerActor, { id, version: 2, status: "done" }));
+    expect(await listNoticeActions(ownerActor, { includeFinished: true })).toHaveLength(1);
   });
 });

@@ -1,3 +1,4 @@
+import { COMPASSO_POLICY } from "./collections";
 import { EDI_TOOL_COUNT_WORD } from "./edi-tools";
 
 export type ProductId = string;
@@ -31,10 +32,14 @@ export type Product = {
    * Expire at the end of the billing cycle (~31 days).
    */
   bonusCreditsPerMonth?: number;
+  /** Calendar windows anchored to the paid period, rather than the legacy 30-day drip. */
+  creditSchedule?: "calendar_month";
   /** Number of credits granted on a one-time credit pack purchase. */
   creditAmount?: number;
   /** Stripe Price ID, mapped per environment. */
   stripePriceId: ProductPriceMap;
+  /** Deployment variable for this product's price; shared by its app and the account migration. */
+  stripePriceEnvironmentVariable?: string;
   /**
    * Display-only price shown in the UI (cards, plan picker, checkout previews).
    * Stripe remains the source of truth for actual charging — this value must
@@ -53,6 +58,53 @@ export type Product = {
 // - 50 créditos/mês ≈ R$ 1,00 de custo de IA → margem bruta ~93%
 // - Free: sem IA (só cadastro manual com limite de receitas)
 export const PRODUCTS: readonly Product[] = [
+  {
+    id: "compasso_monthly",
+    stripePriceEnvironmentVariable: "COMPASSO_MONTHLY_PRICE",
+    app: "compasso",
+    kind: "subscription",
+    name: "Compasso",
+    description: "Aplicativos web para até dois adultos e quatro dependentes.",
+    tier: "family",
+    interval: "month",
+    bonusCreditsPerMonth: COMPASSO_POLICY.ai.monthlyCredits,
+    creditSchedule: "calendar_month",
+    stripePriceId: { dev: "", prod: "" },
+    listPrice: {
+      amountCents: COMPASSO_POLICY.monthlyAmountCents,
+      currency: COMPASSO_POLICY.currency,
+    },
+  },
+  {
+    id: "compasso_annual",
+    stripePriceEnvironmentVariable: "COMPASSO_ANNUAL_PRICE",
+    app: "compasso",
+    kind: "subscription",
+    name: "Compasso anual",
+    description: "Acesso anual aos aplicativos web para até dois adultos e quatro dependentes.",
+    tier: "family",
+    interval: "year",
+    bonusCreditsPerMonth: COMPASSO_POLICY.ai.monthlyCredits,
+    creditSchedule: "calendar_month",
+    stripePriceId: { dev: "", prod: "" },
+    listPrice: {
+      amountCents: COMPASSO_POLICY.annualAmountCents,
+      currency: COMPASSO_POLICY.currency,
+    },
+  },
+  ...COMPASSO_POLICY.ai.packs.map(
+    (pack): Product => ({
+      id: pack.id,
+      stripePriceEnvironmentVariable: `COMPASSO_CREDITS_${pack.credits}_PRICE`,
+      app: "compasso",
+      kind: "credit_pack",
+      name: `${pack.credits} créditos Compasso`,
+      description: "Créditos compartilhados entre os apps do Compasso, sem vencimento.",
+      creditAmount: pack.credits,
+      stripePriceId: { dev: "", prod: "" },
+      listPrice: { amountCents: pack.amountCents, currency: COMPASSO_POLICY.currency },
+    }),
+  ),
   {
     id: "edi_suite_monthly",
     app: "edi",
@@ -78,6 +130,7 @@ export const PRODUCTS: readonly Product[] = [
   },
   {
     id: "missao_individual_monthly",
+    stripePriceEnvironmentVariable: "MISSAO_INDIVIDUAL_MONTHLY_PRICE",
     app: "missao-saber",
     kind: "subscription",
     name: "Missão Saber Individual",
@@ -92,6 +145,7 @@ export const PRODUCTS: readonly Product[] = [
   },
   {
     id: "missao_individual_annual",
+    stripePriceEnvironmentVariable: "MISSAO_INDIVIDUAL_ANNUAL_PRICE",
     app: "missao-saber",
     kind: "subscription",
     name: "Missão Saber Individual anual",
@@ -106,6 +160,7 @@ export const PRODUCTS: readonly Product[] = [
   },
   {
     id: "missao_family_monthly",
+    stripePriceEnvironmentVariable: "MISSAO_FAMILY_MONTHLY_PRICE",
     app: "missao-saber",
     kind: "subscription",
     name: "Missão Saber Família",
@@ -120,6 +175,7 @@ export const PRODUCTS: readonly Product[] = [
   },
   {
     id: "missao_family_annual",
+    stripePriceEnvironmentVariable: "MISSAO_FAMILY_ANNUAL_PRICE",
     app: "missao-saber",
     kind: "subscription",
     name: "Missão Saber Família anual",
@@ -135,6 +191,7 @@ export const PRODUCTS: readonly Product[] = [
   },
   {
     id: "bora_individual_monthly",
+    stripePriceEnvironmentVariable: "BORA_INDIVIDUAL_MONTHLY_PRICE",
     app: "bora-treinar",
     kind: "subscription",
     name: "Bora Treinar Individual",
@@ -150,6 +207,7 @@ export const PRODUCTS: readonly Product[] = [
   },
   {
     id: "bora_individual_annual",
+    stripePriceEnvironmentVariable: "BORA_INDIVIDUAL_ANNUAL_PRICE",
     app: "bora-treinar",
     kind: "subscription",
     name: "Bora Treinar Individual anual",
@@ -165,6 +223,7 @@ export const PRODUCTS: readonly Product[] = [
   },
   {
     id: "bora_family_monthly",
+    stripePriceEnvironmentVariable: "BORA_FAMILY_MONTHLY_PRICE",
     app: "bora-treinar",
     kind: "subscription",
     name: "Bora Treinar Família",
@@ -180,6 +239,7 @@ export const PRODUCTS: readonly Product[] = [
   },
   {
     id: "bora_family_annual",
+    stripePriceEnvironmentVariable: "BORA_FAMILY_ANNUAL_PRICE",
     app: "bora-treinar",
     kind: "subscription",
     name: "Bora Treinar Família anual",
@@ -197,6 +257,7 @@ export const PRODUCTS: readonly Product[] = [
   // do Stripe ficam como `price_TODO_*` até o provisionamento (PRODUCAO.md do app).
   {
     id: "estrela_family_monthly",
+    stripePriceEnvironmentVariable: "ESTRELA_FAMILY_MONTHLY_PRICE",
     app: "dia-de-estrela",
     kind: "subscription",
     name: "Dia de Estrela Família",
@@ -212,6 +273,7 @@ export const PRODUCTS: readonly Product[] = [
   },
   {
     id: "estrela_family_annual",
+    stripePriceEnvironmentVariable: "ESTRELA_FAMILY_ANNUAL_PRICE",
     app: "dia-de-estrela",
     kind: "subscription",
     name: "Dia de Estrela Família anual",
@@ -393,6 +455,42 @@ export function isStripePriceIdConfigured(priceId: string): boolean {
   return (
     STRIPE_PRICE_ID_PATTERN.test(priceId) && !priceId.startsWith(STRIPE_PRICE_ID_PLACEHOLDER_PREFIX)
   );
+}
+
+export function getProductPriceVariableNames(apps: readonly string[]): string[] {
+  return [
+    ...new Set(
+      PRODUCTS.filter((product) => apps.includes(product.app)).flatMap((product) =>
+        product.stripePriceEnvironmentVariable ? [product.stripePriceEnvironmentVariable] : [],
+      ),
+    ),
+  ].sort();
+}
+
+/** Only deployment IDs may change. Commercial policy and the other Stripe mode
+ * remain in the immutable catalog; irrelevant environment keys are ignored. */
+export function getConfiguredProducts(
+  app: string,
+  mode: StripeMode,
+  variables: Readonly<Record<string, unknown>>,
+): Product[] {
+  return PRODUCTS.filter((product) => product.app === app).map((product) => {
+    const name = product.stripePriceEnvironmentVariable;
+    const value = name ? variables[name] : undefined;
+    if (
+      value !== undefined &&
+      value !== "" &&
+      (typeof value !== "string" || !isStripePriceIdConfigured(value))
+    )
+      throw new Error(`Invalid configured price for ${product.id}`);
+    return {
+      ...product,
+      stripePriceId: {
+        ...product.stripePriceId,
+        [mode]: typeof value === "string" && value ? value : product.stripePriceId[mode],
+      },
+    };
+  });
 }
 
 export function findProduct(productId: ProductId): Product | undefined {

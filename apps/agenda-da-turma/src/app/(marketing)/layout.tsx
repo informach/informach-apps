@@ -1,14 +1,14 @@
-import { Caveat } from "next/font/google";
+import localFont from "next/font/local";
 import type { ReactNode } from "react";
 import styles from "@/components/marketing/sales.module.css";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
 
 // A letra de mão do cartaz de provas, só na ilustração do topo da página.
-const caveat = Caveat({
+const caveat = localFont({
+  src: "../fonts/caveat-variable.woff2",
   variable: "--font-caveat",
-  subsets: ["latin"],
-  weight: ["500"],
+  weight: "400 700",
   display: "swap",
 });
 

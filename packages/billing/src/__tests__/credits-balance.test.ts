@@ -34,6 +34,13 @@ describe("getBalance", () => {
               createdAt: "2026-04-26T00:00:00Z",
               expiresAt: null,
             },
+            {
+              id: "reservation",
+              amount: -2,
+              entryType: "consumption",
+              createdAt: "2026-04-27T00:00:00Z",
+              expiresAt: null,
+            },
           ],
           reserved: "2",
           as_of: "2026-05-01T00:00:00Z",
@@ -44,7 +51,7 @@ describe("getBalance", () => {
       total: 30,
       reserved: 2,
       available: 28,
-      expiringSoon: { amount: 30, firstExpiresAt: new Date("2026-05-05T00:00:00Z") },
+      expiringSoon: { amount: 28, firstExpiresAt: new Date("2026-05-05T00:00:00Z") },
     });
     expect(calls.filter((c) => c.mode === "execute")).toHaveLength(1);
   });

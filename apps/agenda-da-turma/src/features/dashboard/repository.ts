@@ -3,6 +3,7 @@ import "server-only";
 import { db, sql } from "@informach/db";
 import { agendaStudentProfiles, agendaTasks } from "@informach/db/schema";
 import { accessibleProfileCondition } from "@/features/family/access";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { APP_TIME_ZONE, addDaysIso, todayLocalIso } from "./date";
 import { STREAK_LOOKBACK_DAYS } from "./streak";
 
@@ -17,7 +18,7 @@ import { STREAK_LOOKBACK_DAYS } from "./streak";
  * O recorte por criança que o resto da rotina aceita transformaria o número num
  * placar entre irmãos, que é justamente o que a regra do app proíbe.
  */
-export async function listFamilyCompletionDays(userId: string): Promise<string[]> {
+export async function listFamilyCompletionDays(actor: AgendaAuthority): Promise<string[]> {
   const sinceIso = addDaysIso(todayLocalIso(), -STREAK_LOOKBACK_DAYS);
   const rows = await db.execute<{ day: string }>(sql`
     SELECT DISTINCT
@@ -27,7 +28,7 @@ export async function listFamilyCompletionDays(userId: string): Promise<string[]
       to_char(${agendaTasks.completedAt} AT TIME ZONE ${APP_TIME_ZONE}, 'YYYY-MM-DD') AS day
     FROM ${agendaTasks}
     INNER JOIN ${agendaStudentProfiles} ON ${agendaStudentProfiles.id} = ${agendaTasks.profileId}
-    WHERE ${accessibleProfileCondition(userId)}
+    WHERE ${accessibleProfileCondition(actor)}
       AND ${agendaTasks.status} = 'done'
       -- Comparacao sobre a coluna crua, e nao sobre uma expressao dela: com a
       -- conversao do lado esquerdo o predicado nao e sargavel e nenhum indice

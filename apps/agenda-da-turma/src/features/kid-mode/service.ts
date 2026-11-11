@@ -2,6 +2,7 @@ import "server-only";
 import { addDaysIso } from "@/features/dashboard/date";
 import { nextSchoolDayIso } from "@/features/dashboard/day-labels";
 import { findAccessibleProfile } from "@/features/family/access";
+import type { AgendaAuthority } from "@/features/family/authority";
 import type { ActivityOverviewItem } from "@/features/unified-activities/overview-types";
 import { getRoutineSnapshot } from "@/features/unified-activities/service";
 import { splitKidTurn } from "./turn";
@@ -33,13 +34,13 @@ export type KidModeSnapshot = {
  * responde 404, sem dizer qual dos dois.
  */
 export async function getKidModeSnapshot(
-  userId: string,
+  actor: AgendaAuthority,
   profileId: string,
 ): Promise<KidModeSnapshot | null> {
-  const profile = await findAccessibleProfile(userId, profileId);
+  const profile = await findAccessibleProfile(actor, profileId);
   if (!profile) return null;
 
-  const snapshot = await getRoutineSnapshot(userId, { profileFilter: profile.id });
+  const snapshot = await getRoutineSnapshot(actor, { profileFilter: profile.id });
   const nextSchoolDay = nextSchoolDayIso(snapshot.todayIso);
   return {
     profile: { id: profile.id, name: profile.name },

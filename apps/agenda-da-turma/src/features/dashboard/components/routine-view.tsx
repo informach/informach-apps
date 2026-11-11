@@ -39,7 +39,6 @@ type Props = {
   /** Dias seguidos em que a casa cuidou de alguma coisa. Nunca por criança. */
   streakDays: number;
   streakCountsToday: boolean;
-  currentUserId: string;
   profileFilter: string | null;
   /** A saudação e a data (`TodayHeader`), com as pílulas ao lado no computador. */
   header: ReactNode;
@@ -90,7 +89,6 @@ export function RoutineView(props: Props) {
     tomorrowSchedule,
     tomorrowKits,
     evening,
-    currentUserId,
     profileFilter,
     doneToday: initialDoneToday,
     streakDays,
@@ -134,7 +132,6 @@ export function RoutineView(props: Props) {
     <li key={entry.key}>
       <UnifiedActivityCard
         entry={entry}
-        currentUserId={currentUserId}
         optimisticHideWhenDone
         hideChip={!chip}
         hideProfile={!profile}
@@ -193,7 +190,8 @@ export function RoutineView(props: Props) {
       .filter((subject) => subject.source === "extra")
       .map((subject) => subject.name.toLowerCase()),
   );
-  const weekHref = `/calendario?date=${upcomingWeekAnchorIso(todayIso)}${profileFilter ? `&perfil=${profileFilter}` : ""}`;
+  const weekHref =
+    `/calendario?date=${upcomingWeekAnchorIso(todayIso)}${profileFilter ? `&perfil=${profileFilter}` : ""}` as const;
   const fullDayName = firstFull ? weekdayLong(firstFull.iso) : "";
   const fullDayPhrase = firstFull
     ? `${fullDayName} está ${isWeekend(firstFull.iso) ? "cheio" : "cheia"}`

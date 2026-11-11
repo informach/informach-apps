@@ -31,7 +31,9 @@ export const schema = z.object({
 
 export function validateEnvironment(input: NodeJS.ProcessEnv) {
   // Report names only: Zod issues can otherwise expose rejected secret values.
-  const parsed = schema.safeParse(input);
+  const parsed = schema.safeParse(
+    Object.fromEntries(Object.entries(input).filter(([, value]) => value !== "")),
+  );
   if (!parsed.success)
     throw new Error(
       `Invalid environment: ${parsed.error.issues.map((issue) => issue.path.join(".")).join(", ")}`,

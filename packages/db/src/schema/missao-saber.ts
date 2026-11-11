@@ -14,6 +14,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "./core";
+import { familyAccessGrants, familyAppProfiles, familyGroups } from "./family";
 
 export const missaoSaber = pgSchema("missao_saber");
 const time = (name: string) => timestamp(name, { withTimezone: true }).defaultNow().notNull();
@@ -24,8 +25,9 @@ export const missaoFamilies = missaoSaber.table(
     userId: text("user_id")
       .primaryKey()
       .references(() => users.id, { onDelete: "cascade" }),
-    consentVersion: text("consent_version").notNull(),
-    consentAt: time("consent_at"),
+    // Preferences may exist for a granted adult who has not submitted school-data consent.
+    consentVersion: text("consent_version"),
+    consentAt: timestamp("consent_at", { withTimezone: true }),
     dailyMinutes: integer("daily_minutes").notNull().default(10),
     /**
      * Resumo semanal por e-mail para o responsável. Opt-in explícito e desligado
@@ -51,16 +53,17 @@ export const missaoFamilies = missaoSaber.table(
 export const missaoFamilyChallenges = missaoSaber.table(
   "family_challenges",
   {
-    userId: text("user_id")
+    familyGroupId: uuid("family_group_id")
       .notNull()
-      .references(() => missaoFamilies.userId, { onDelete: "cascade" }),
+      .references(() => familyGroups.id, { onDelete: "restrict" }),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
     /** Segunda-feira local de São Paulo, em data pura. */
     weekStart: date("week_start").notNull(),
     goal: integer("goal").notNull(),
     createdAt: time("created_at"),
   },
   (t) => [
-    primaryKey({ columns: [t.userId, t.weekStart] }),
+    primaryKey({ columns: [t.familyGroupId, t.weekStart] }),
     check("missao_family_challenge_goal", sql`${t.goal} between 4 and 40`),
   ],
 );
@@ -69,17 +72,18 @@ export const missaoProfiles = missaoSaber.table(
   "profiles",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id")
+    /** Canonical activation; native IDs and school history remain stable. */
+    familyProfileId: uuid("family_profile_id")
       .notNull()
-      .references(() => missaoFamilies.userId, { onDelete: "cascade" }),
-    nickname: text("nickname").notNull(),
+      .references(() => familyAppProfiles.id, { onDelete: "restrict" })
+      .unique(),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
     /** Ano escolar confirmado pelo responsável: 1 a 9 fundamental, 10 a 12 ensino médio. */
     grade: integer("grade").notNull(),
     /** Ano civil a que `grade` se refere; o ano efetivo avança a cada virada. */
     gradeYear: integer("grade_year").notNull().default(sql`(extract(year from now()))::int`),
     /** Mês e ano de nascimento (dia 1), opcional; só para sugerir o ano escolar. */
     birthMonth: date("birth_month"),
-    avatar: text("avatar").notNull().default("cometa"),
     courseId: text("course_id").notNull(),
     accessEnabled: boolean("access_enabled").notNull().default(true),
     createdAt: time("created_at"),
@@ -96,10 +100,16 @@ export const missaoStudyDevices = missaoSaber.table(
   "study_devices",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    familyGroupId: uuid("family_group_id")
+      .notNull()
+      .references(() => familyGroups.id, {
+        onDelete: "restrict",
+      }),
     userId: text("user_id")
       .notNull()
-      .references(() => missaoFamilies.userId, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "cascade" }),
     tokenHash: text("token_hash").notNull(),
+    webParticipationRevision: integer("web_participation_revision").notNull().default(0),
     label: text("label").notNull(),
     remember: boolean("remember").notNull().default(false),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
@@ -110,8 +120,10 @@ export const missaoStudyDevices = missaoSaber.table(
   (t) => [
     uniqueIndex("missao_study_token_hash").on(t.tokenHash),
     index("missao_study_device_owner").on(t.userId),
+    index("missao_study_device_family").on(t.familyGroupId, t.userId),
     index("missao_study_device_expiry").on(t.expiresAt),
     check("missao_study_label_length", sql`length(${t.label}) between 2 and 60`),
+    check("missao_study_web_revision", sql`${t.webParticipationRevision} >= 0`),
   ],
 );
 
@@ -124,6 +136,17 @@ export const missaoStudyDeviceProfiles = missaoSaber.table(
     profileId: uuid("profile_id")
       .notNull()
       .references(() => missaoProfiles.id, { onDelete: "cascade" }),
+    delegationKey: uuid("delegation_key").notNull(),
+    readGrantId: uuid("read_grant_id")
+      .notNull()
+      .references(() => familyAccessGrants.id, {
+        onDelete: "cascade",
+      }),
+    writeGrantId: uuid("write_grant_id")
+      .notNull()
+      .references(() => familyAccessGrants.id, {
+        onDelete: "cascade",
+      }),
   },
   (t) => [
     primaryKey({ columns: [t.deviceId, t.profileId] }),
@@ -386,9 +409,10 @@ export const missaoCompetitions = missaoSaber.table(
   "competitions",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id")
+    familyGroupId: uuid("family_group_id")
       .notNull()
-      .references(() => missaoFamilies.userId, { onDelete: "cascade" }),
+      .references(() => familyGroups.id, { onDelete: "restrict" }),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
     title: text("title").notNull(),
     area: text("area", { enum: ["matematica", "financeira"] }).notNull(),
     /** Quantidades por competidor. */
@@ -407,8 +431,8 @@ export const missaoCompetitions = missaoSaber.table(
     finishedAt: timestamp("finished_at", { withTimezone: true }),
   },
   (t) => [
-    uniqueIndex("missao_competition_request").on(t.userId, t.requestKey),
-    index("missao_competitions_owner").on(t.userId, t.createdAt),
+    uniqueIndex("missao_competition_group_request").on(t.familyGroupId, t.requestKey),
+    index("missao_competitions_family").on(t.familyGroupId, t.createdAt),
     check("missao_competition_title", sql`length(${t.title}) between 2 and 60`),
     check(
       "missao_competition_counts",

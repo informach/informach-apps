@@ -7,25 +7,43 @@ import {
   agendaTasks,
   agendaTurmas,
 } from "@informach/db/schema";
+import { familyMembershipCondition } from "@informach/family/access";
+import { lockFamilyMembership } from "@informach/family/context";
 import { accessibleProfileCondition } from "@/features/family/access";
+import type { AgendaAuthority } from "@/features/family/authority";
+import { activeMembershipCondition } from "@/features/turmas/access";
 
-export async function isFirstStepsDismissed(userId: string): Promise<boolean> {
+export async function isFirstStepsDismissed(actor: AgendaAuthority): Promise<boolean> {
   const [row] = await db
     .select({ dismissedAt: agendaFamilySettings.firstStepsDismissedAt })
     .from(agendaFamilySettings)
-    .where(eq(agendaFamilySettings.userId, userId));
+    .where(
+      and(
+        eq(agendaFamilySettings.userId, actor.userId),
+        eq(agendaFamilySettings.familyGroupId, actor.familyGroupId),
+        familyMembershipCondition(actor.userId, agendaFamilySettings.familyGroupId),
+      ),
+    );
   return Boolean(row?.dismissedAt);
 }
 
-export async function dismissFirstSteps(userId: string): Promise<void> {
-  const now = new Date();
-  await db
-    .insert(agendaFamilySettings)
-    .values({ userId, firstStepsDismissedAt: now, updatedAt: now })
-    .onConflictDoUpdate({
-      target: agendaFamilySettings.userId,
-      set: { firstStepsDismissedAt: now, updatedAt: now },
-    });
+export async function dismissFirstSteps(actor: AgendaAuthority): Promise<void> {
+  await db.transaction(async (tx) => {
+    await lockFamilyMembership(tx, actor.userId, actor.familyGroupId);
+    const now = new Date();
+    await tx
+      .insert(agendaFamilySettings)
+      .values({
+        userId: actor.userId,
+        familyGroupId: actor.familyGroupId,
+        firstStepsDismissedAt: now,
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: [agendaFamilySettings.familyGroupId, agendaFamilySettings.userId],
+        set: { firstStepsDismissedAt: now, updatedAt: now },
+      });
+  });
 }
 
 /**
@@ -42,7 +60,7 @@ export async function dismissFirstSteps(userId: string): Promise<void> {
  * promete.
  */
 export async function listTurmasNeedingScheduleForUser(
-  userId: string,
+  actor: AgendaAuthority,
 ): Promise<Array<{ turmaId: string }>> {
   return db
     .selectDistinct({ turmaId: agendaTurmas.id })
@@ -50,7 +68,9 @@ export async function listTurmasNeedingScheduleForUser(
     .innerJoin(agendaTurmas, eq(agendaTurmas.id, agendaStudentProfiles.activeTurmaId))
     .where(
       and(
-        accessibleProfileCondition(userId),
+        accessibleProfileCondition(actor),
+        accessibleProfileCondition(actor, "write"),
+        activeMembershipCondition(),
         sql`NOT EXISTS (
           SELECT 1 FROM ${agendaSubjects}
           WHERE ${agendaSubjects.turmaId} = ${agendaTurmas.id}
@@ -61,12 +81,12 @@ export async function listTurmasNeedingScheduleForUser(
 }
 
 /** A família já tem alguma atividade, de qualquer origem. É um sim/não: `limit(1)`. */
-export async function hasAnyActivity(userId: string): Promise<boolean> {
+export async function hasAnyActivity(actor: AgendaAuthority): Promise<boolean> {
   const [row] = await db
     .select({ id: agendaTasks.id })
     .from(agendaTasks)
     .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
-    .where(accessibleProfileCondition(userId))
+    .where(accessibleProfileCondition(actor))
     .limit(1);
   return Boolean(row);
 }

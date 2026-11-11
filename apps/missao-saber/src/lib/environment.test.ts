@@ -33,6 +33,17 @@ const production: NodeJS.ProcessEnv = {
   MISSAO_FAMILY_ANNUAL_PRICE: "price_4",
 };
 describe("deployment environment", () => {
+  it("treats empty optional variables as unset, while preserving required provider validation", () => {
+    const local = validateEnvironment({
+      ...base,
+      REDIS_URL: "",
+      SENTRY_DSN: "",
+      NEXT_PUBLIC_SENTRY_DSN: "",
+    });
+    expect(local.REDIS_URL).toBeUndefined();
+    expect(local.SENTRY_DSN).toBeUndefined();
+    expect(() => validateEnvironment({ ...base, DATABASE_URL: "" })).toThrow("DATABASE_URL");
+  });
   it("allows local production builds with Stripe test and requires matching key modes", () => {
     expect(validateEnvironment(base).STRIPE_MODE).toBe("dev");
     expect(() => validateEnvironment({ ...base, STRIPE_SECRET_KEY: "sk_live_fixture" })).toThrow(

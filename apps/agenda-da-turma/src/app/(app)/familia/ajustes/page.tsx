@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { CalendarFeedPanel } from "@/features/calendar-feed/components/feed-panel";
-import { hasCalendarFeed } from "@/features/calendar-feed/service";
+import { getCalendarFeedState } from "@/features/calendar-feed/service";
 import { FamilyHeader } from "@/features/family/components/family-tabs";
+import { agendaAuthority } from "@/features/family/context";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { NotificationPreferencesPanel } from "@/features/notifications/components/preferences-panel";
 import { getNotificationPreferences } from "@/features/notifications/service";
@@ -12,10 +13,11 @@ export const metadata = { title: "Ajustes da família" };
 
 export default async function FamilySettingsPage() {
   const user = await requireUserServer();
+  const actor = await agendaAuthority(user.id);
   const [preferences, entitlement, feedActive] = await Promise.all([
-    getNotificationPreferences(user.id),
-    getFamilyEntitlements(user.id),
-    hasCalendarFeed(user.id),
+    getNotificationPreferences(actor),
+    getFamilyEntitlements(actor),
+    getCalendarFeedState(actor),
   ]);
 
   return (
@@ -25,11 +27,19 @@ export default async function FamilySettingsPage() {
         subtitle="Quando e como receber aviso, e onde a agenda aparece."
       />
       <NotificationPreferencesPanel
+        key={actor.familyGroupId}
+        familyGroupId={actor.familyGroupId}
         initial={preferences}
         enabled={entitlement.enabled}
         publicKey={env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY ? env.VAPID_PUBLIC_KEY : null}
       />
-      <CalendarFeedPanel active={feedActive} enabled={entitlement.enabled} />
+      <CalendarFeedPanel
+        key={actor.familyGroupId}
+        familyGroupId={actor.familyGroupId}
+        active={!!feedActive}
+        expiresAt={feedActive?.expiresAt?.toISOString() ?? null}
+        enabled={entitlement.enabled}
+      />
       <Link href="/settings/account" className="block text-sm text-primary-ink underline">
         Dados e exclusão da conta
       </Link>

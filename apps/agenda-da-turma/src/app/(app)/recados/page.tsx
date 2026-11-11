@@ -6,6 +6,7 @@ import { BackButton } from "@/components/app-shell/back-button";
 import { todayLocalIso } from "@/features/dashboard/date";
 import { shortDayLabel } from "@/features/dashboard/day-labels";
 import { listAccessibleProfiles } from "@/features/family/access";
+import { agendaAuthority } from "@/features/family/context";
 import { DiscardDraftButton } from "@/features/notices/components/discard-draft-button";
 import { listNoticeOriginals, listReadyNotices } from "@/features/notices/repository";
 import { SOURCE_LABELS } from "@/features/notices/schemas";
@@ -19,6 +20,7 @@ export default async function NoticesPage({
   searchParams: Promise<{ historico?: string; perfil?: string; pagina?: string }>;
 }) {
   const user = await requireUserServer();
+  const actor = await agendaAuthority(user.id);
   const params = await searchParams;
   const profileId = z.string().uuid().catch("").parse(params.perfil);
   // Keep bookmarks to the former action history useful after moving the queue.
@@ -26,13 +28,13 @@ export default async function NoticesPage({
     redirect(`/atividades?situacao=all${profileId ? `&perfil=${profileId}` : ""}`);
   const page = z.coerce.number().int().min(1).max(10000).catch(1).parse(params.pagina);
   const [rows, drafts, profiles] = await Promise.all([
-    listNoticeOriginals(user.id, { page, profileId: profileId || undefined }),
-    listReadyNotices(user.id),
-    listAccessibleProfiles(user.id),
+    listNoticeOriginals(actor, { page, profileId: profileId || undefined }),
+    listReadyNotices(actor),
+    listAccessibleProfiles(actor),
   ]);
   const shortNames = shortChildNames(profiles);
   const href = (nextPage: number, child = profileId) =>
-    `/recados?${new URLSearchParams({ pagina: String(nextPage), ...(child ? { perfil: child } : {}) })}`;
+    `/recados?${new URLSearchParams({ pagina: String(nextPage), ...(child ? { perfil: child } : {}) })}` as const;
   return (
     <main className="mx-auto max-w-4xl space-y-6 px-4 py-8 pb-28 sm:px-8">
       <header className="flex items-start gap-2">

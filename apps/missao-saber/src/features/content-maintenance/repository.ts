@@ -2,7 +2,6 @@ import "server-only";
 import { and, db, desc, eq, inArray, sql } from "@informach/db";
 import {
   missaoContentControls,
-  missaoProfiles,
   missaoReports,
   missaoReportUpdates,
   missaoSessions,
@@ -40,7 +39,6 @@ export async function contentReports(status: "pending" | "resolved" = "pending",
       id: missaoReports.id,
       userId: missaoReports.userId,
       profileId: missaoReports.profileId,
-      profileNickname: missaoProfiles.nickname,
       sessionId: missaoReports.sessionId,
       lessonId: missaoReports.lessonId,
       version: missaoReports.version,
@@ -54,7 +52,6 @@ export async function contentReports(status: "pending" | "resolved" = "pending",
       snapshot: missaoSessions.snapshot,
     })
     .from(missaoReports)
-    .leftJoin(missaoProfiles, eq(missaoProfiles.id, missaoReports.profileId))
     .leftJoin(missaoSessions, eq(missaoSessions.id, missaoReports.sessionId))
     .where(
       status === "resolved"

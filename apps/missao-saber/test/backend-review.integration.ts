@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { db, eq } from "@informach/db";
-import { emailDeliveries, missaoFamilies, missaoProfiles, users } from "@informach/db/schema";
+import { emailDeliveries, missaoFamilies, users } from "@informach/db/schema";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/jobs/weekly-report/route";
 import * as summary from "@/features/family/resumo-semanal";
 import { setWeeklyReportEmail } from "@/features/learning/repository";
 import { emails } from "@/lib/emails";
 import { env } from "@/lib/env";
+import { seedStudent } from "./family-fixture";
 
 const owner = randomUUID();
 const recipient = `${owner}@example.test`;
@@ -19,7 +20,7 @@ beforeAll(async () => {
     emailVerified: true,
   });
   await db.insert(missaoFamilies).values({ userId: owner, consentVersion: "test" });
-  await db.insert(missaoProfiles).values({
+  await seedStudent({
     userId: owner,
     nickname: "Sol",
     grade: 6,
@@ -40,7 +41,7 @@ afterEach(async () => {
 });
 
 afterAll(async () => {
-  await db.delete(users).where(eq(users.id, owner));
+  await db.update(users).set({ banned: true, emailVerified: false }).where(eq(users.id, owner));
 });
 
 function request() {

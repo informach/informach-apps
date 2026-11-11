@@ -7,8 +7,10 @@
       "!**/.next",
       "!**/.next-e2e*",
       "!**/.next-isolated-*",
+      "!**/.next-compasso-*",
+      "!.superpowers/sdd",
       "!.firecrawl",
-      "!.cache",
+      "!**/.cache",
       "!apps/*/tmp",
       "!**/dist",
       "!**/out",
@@ -73,6 +75,13 @@
     }
   },
   "overrides": [
+    {
+      "includes": [
+        "scripts/compasso/financial-inventory.mjs",
+        "scripts/compasso/stripe-inventory.mts"
+      ],
+      "linter": { "rules": { "suspicious": { "noUndeclaredEnvVars": "off" } } }
+    },
     {
       "includes": ["apps/edifoto/src/renderer/src/engine/compositor.ts"],
       "linter": {

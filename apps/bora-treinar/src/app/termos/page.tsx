@@ -1,6 +1,8 @@
+import { COMPASSO_POLICY } from "@informach/config/collections";
 import { INFORMACH_CONTACT } from "@informach/config/contact";
 import Link from "next/link";
 import { Brand } from "@/components/brand";
+import { reais } from "@/features/billing/ofertas";
 import { getCurrentUser } from "@/lib/auth";
 
 export const metadata = { title: "Termos" };
@@ -18,13 +20,13 @@ export default async function Termos() {
         </Link>
       </header>
       <main id="conteudo" className="scroll narrow prosa">
-        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 31/10/2026</span>
+        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 09/11/2026</span>
         <h1>Termos do Bora Treinar.</h1>
         <p>
           O Bora Treinar é oferecido pela Informach Núcleo de Aprendizagem Ltda, CNPJ
           43.588.758/0001-03. O serviço é contratado por um titular maior de 18 anos. Os perfis de
-          quem treina ficam vinculados a essa conta, e o titular acompanha o uso adequado à idade de
-          cada pessoa.
+          treino são ativados a partir das pessoas da família compartilhada. O adulto responsável
+          acompanha o uso adequado à idade e concede acesso aos perfis de forma explícita.
         </p>
         <h2>O serviço</h2>
         <p>
@@ -45,18 +47,22 @@ export default async function Termos() {
         </p>
         <h2>Assinatura</h2>
         <p>
-          Individual: R$ 24,90 mensais ou R$ 249 anuais para um perfil. Família: R$ 34,90 mensais ou
-          R$ 349 anuais para até quatro perfis. No anual, o total é cobrado de uma vez. O checkout
-          apresenta o plano, o valor e a recorrência antes da confirmação. A assinatura se renova
-          automaticamente no ciclo escolhido até ser cancelada.
+          O acesso completo integra o Compasso: {reais(COMPASSO_POLICY.monthlyAmountCents)} por mês
+          ou {reais(COMPASSO_POLICY.annualAmountCents)} por ano, para até{" "}
+          {COMPASSO_POLICY.capacity.adults} adultos e {COMPASSO_POLICY.capacity.dependents}{" "}
+          dependentes. O total anual é cobrado de uma vez. O checkout apresenta valor e recorrência
+          antes da confirmação; a assinatura se renova até ser cancelada.
         </p>
         <p>
-          O portal de cobrança permite consultar pagamentos, atualizar o meio de pagamento e
-          solicitar cancelamento. O cancelamento interrompe a próxima renovação e mantém o acesso
-          até o fim do período pago. Mudanças que aumentam a capacidade ou antecipam um ciclo podem
-          gerar cobrança proporcional imediata, mostrada antes da confirmação. Reduções são
-          agendadas para o fim do período; ao passar de Família para Individual, o titular escolhe
-          qual perfil continua ativo. Os demais históricos ficam guardados.
+          O teste do Compasso dura {COMPASSO_POLICY.trialDays} dias, sem cartão, para famílias
+          elegíveis. Ao terminar sem assinatura, o acesso volta às funcionalidades gratuitas,
+          preservando os históricos. O Bora Treinar não usa créditos de IA.
+        </p>
+        <p>
+          A Minha conta reúne a gestão do Compasso. O cancelamento impede a próxima renovação e
+          preserva o período já pago. Trocas entre mensal e anual entram no fim do período vigente.
+          Contratos anteriores do Bora mantêm sua cobertura durante a transição e continuam
+          disponíveis para consulta e cancelamento.
         </p>
         <h2>Uso adequado</h2>
         <p>

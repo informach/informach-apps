@@ -29,7 +29,9 @@ export const schema = z.object({
 
 export function validateEnvironment(input: NodeJS.ProcessEnv) {
   // Report names only: Zod issues can otherwise expose rejected secret values.
-  const parsed = schema.safeParse(input);
+  const parsed = schema.safeParse(
+    Object.fromEntries(Object.entries(input).filter(([, value]) => value !== "")),
+  );
   if (!parsed.success)
     throw new Error(
       `Invalid environment: ${parsed.error.issues.map((issue) => issue.path.join(".")).join(", ")}`,
@@ -44,7 +46,7 @@ export function validateEnvironment(input: NodeJS.ProcessEnv) {
   if (!!value.VAPID_PUBLIC_KEY !== !!value.VAPID_PRIVATE_KEY)
     throw new Error("Push requires both VAPID keys or neither.");
   if (input.RAILWAY_ENVIRONMENT_ID || (value.NODE_ENV === "production" && !local)) {
-    if (input.ESTRELA_ISOLATED_TEST === "1")
+    if (input.COMPASSO_ISOLATED_DATABASE === "1")
       throw new Error("Isolated tests cannot run on a deployed service.");
     if (
       appUrl.protocol !== "https:" ||

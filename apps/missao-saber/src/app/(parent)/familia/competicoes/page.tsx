@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LinkChapa } from "@/components/ui/botao-chapa";
 import { CabecalhoPagina, Etiqueta } from "@/components/ui/pagina";
 import { listCompetitions } from "@/features/competition/service";
+import { parentAuthority } from "@/features/family/context";
 import { requirePageUser } from "@/lib/auth";
 
 export const metadata = { title: "Competições em família" };
@@ -10,7 +11,7 @@ const segundosTexto = (s: number) => (s % 60 === 0 ? `${s / 60} min` : `${s} s`)
 
 export default async function Competicoes() {
   const user = await requirePageUser();
-  const lista = await listCompetitions(user.id);
+  const lista = await listCompetitions(await parentAuthority(user.id));
   const abertas = lista.filter((c) => c.status !== "finished");
   const encerradas = lista.filter((c) => c.status === "finished");
   return (

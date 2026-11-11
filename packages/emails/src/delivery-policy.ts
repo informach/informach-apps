@@ -3,6 +3,7 @@ import { emailDeliveries, emailSuppressions, emailUnsubscribes, users } from "@i
 import { and, eq, inArray } from "drizzle-orm";
 
 export type DeliveryBlockReason =
+  | { kind: "access-revoked" }
   | { kind: "suppressed"; reason: string }
   | { kind: "unsubscribed"; userId: string; category: string };
 
@@ -19,6 +20,7 @@ export function shouldRespectUnsubscribe(category: string): boolean {
 }
 
 export function describeDeliveryBlockReason(block: DeliveryBlockReason): string {
+  if (block.kind === "access-revoked") return "content access revoked";
   if (block.kind === "suppressed") {
     return `recipient suppressed: ${block.reason}`;
   }
@@ -93,7 +95,13 @@ export async function markDeliveryBlocked(
       lastError: describeDeliveryBlockReason(block),
       updatedAt: new Date(),
     })
-    .where(and(eq(emailDeliveries.id, deliveryId), inArray(emailDeliveries.status, statuses)))
+    .where(
+      and(
+        eq(emailDeliveries.id, deliveryId),
+        inArray(emailDeliveries.status, statuses),
+        eq(emailDeliveries.providerAccepted, false),
+      ),
+    )
     .returning({ id: emailDeliveries.id });
 
   return updated.length > 0;

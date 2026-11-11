@@ -10,6 +10,10 @@
 
 ## Campos permitidos
 
+`user.web_participation_changed` registra somente `scope`, `state`, `operationId` e `revision`, com ator no campo próprio, na transação que altera a participação e revoga sessões web. Não incluir resultados das avaliações, dados dos apps, tokens ou nomes de aparelhos. É evidência da transição técnica; o pedido autorizado e a conclusão de limpeza pertencem ao coordenador de encerramento.
+
+`user.web_closure_changed` registra `scope`, `operationId` e `state`. `user.web_closure_step_completed` registra `scope`, `operationId`, `domain` e `phase`, na mesma transação do recibo e dos efeitos PostgreSQL. O ator usa o campo próprio. Planos, nomes, conteúdo, tokens de posse e erros de provedores não entram na auditoria. Uma etapa concluída não equivale a encerramento completo; apenas o estado final persistido confirma a operação.
+
 Preferir sempre identificadores e estado transacional:
 
 - IDs internos: `userId`, `organizationId`, `sessionId`, `subscriptionId`, `invoiceId`, `deliveryId`, `messageKey`.
@@ -33,6 +37,12 @@ Eventos `email.*` devem usar `emailHash` (SHA-256 do email normalizado) e `email
 Use email bruto apenas nos eventos de auth em que a identidade da conta é o próprio objeto auditado, e mantenha o payload pequeno.
 
 ## Billing
+
+### Transações de identidade familiar
+
+`family.events` é o registro transacional estrito das mudanças do domínio familiar. Aceita somente `event`, `groupId`, `personId`, `actorId`, `targetId` e horário; não possui payload JSON livre. Eventos de pessoa, associação, concessão/revogação, integrante, convite e transferência de administração são inseridos na mesma transação do efeito; falha impede a alteração. Não incluir nome, cor, avatar, e-mail, código de convite ou conteúdo dos apps. IDs de origem ficam em `family.migration_sources`/`app_profiles.source_key`, não em mensagens de erro públicas. Aplica-se a retenção padrão de segurança acima; anonimização exige fluxo explícito, não deleção de eventos pela UI. Esse contrato complementa `audit.events`, sem emitir uma cópia assíncrona como condição de sucesso.
+
+Reservas e extrato Compasso registram escopo comercial, app consumidor, ator adulto, pessoa quando aplicável e `runId`. `effectiveAt` é a data de aceitação da reserva para a apropriação do saldo; `createdAt` continua indicando quando o débito foi registrado. Expiração da franquia durante uma execução aceita não deve deslocar o débito para uma compra posterior.
 
 Eventos de billing devem registrar o ator quando a ação veio de usuário autenticado e usar payloads transacionais. `billing.checkout_started` deve incluir `checkoutSessionId`, `productId`, `subjectType`, `subjectId` e `mode`; compras de créditos podem incluir `creditAmount`. Motivos de cancelamento devem vir de enum controlado, não de texto livre.
 

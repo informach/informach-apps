@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CabecalhoPagina, Etiqueta } from "@/components/ui/pagina";
 import { familyCourseChoices, familyGradeChoices } from "@/features/family/choices";
 import { ProfileSetup } from "@/features/family/components/profile-setup";
+import { availableStudents } from "@/features/family/student-service";
 import { familyDashboard } from "@/features/family/view";
 import { requirePageUser } from "@/lib/auth";
 
@@ -33,7 +34,13 @@ export default async function PrepareProfile() {
         titulo="Vamos preparar o primeiro estudo."
         apoio="Depois, você poderá acompanhar as descobertas pelo seu painel."
       />
-      <ProfileSetup courses={familyCourseChoices} grades={familyGradeChoices} ownerId={user.id} />
+      <ProfileSetup
+        courses={familyCourseChoices}
+        grades={familyGradeChoices}
+        ownerId={user.id}
+        familyGroupId={data.authority.familyGroupId}
+        people={await availableStudents(data.authority)}
+      />
     </>
   );
 }

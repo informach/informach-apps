@@ -1,6 +1,4 @@
 import { createHash, randomUUID } from "node:crypto";
-import { readdir, readFile } from "node:fs/promises";
-import path from "node:path";
 import { db, eq } from "@informach/db";
 import { customers, missaoAttempts, missaoSessions, subscriptions } from "@informach/db/schema";
 import { expect, type Page, test } from "@playwright/test";
@@ -10,51 +8,22 @@ import {
   openStudy,
   parentLogin,
   prepareProfile,
+  registerParent,
   startMission,
 } from "./family-helpers";
 
-async function verificationCode(email: string) {
-  const directory = process.env.EMAIL_SANDBOX_DIR;
-  if (!directory) throw new Error("Missing sandbox");
-  let code = "";
-  await expect
-    .poll(
-      async () => {
-        const files = await readdir(directory);
-        for (const file of files.filter((f) => f.endsWith(".json"))) {
-          const message = JSON.parse(await readFile(path.join(directory, file), "utf8"));
-          if (message.to === email && message.category === "auth.verify-email-otp")
-            code = message.text?.match(/\b\d{6}\b/)?.[0] ?? "";
-        }
-        return code.length;
-      },
-      { timeout: 10000 },
-    )
-    .toBe(6);
-  return code;
-}
 async function criarPerfil(page: Page, apelido: string) {
   await prepareProfile(page, apelido);
   const shared = (await page.getByLabel(/Permitir trocar entre/).count()) > 0;
   await enterStudy(page, apelido, shared);
 }
 
-/** Cadastra um responsável, confirma o e-mail e cria o primeiro perfil (6º ano, OLITEF). */
+/** Uses central authentication and activates the first school profile (6º ano, OLITEF). */
 async function criarContaComPerfil(page: Page, apelido: string) {
   const client = createHash("sha256").update(test.info().testId).digest();
   await page.setExtraHTTPHeaders({ "x-real-ip": `198.22.${client[0]}.${client[1]}` });
   const email = `missao-${randomUUID()}@example.test`;
-  await page.goto("/entrar");
-  await page.getByRole("button", { name: "Criar conta", exact: true }).click();
-  await page.getByLabel("Como podemos chamar o responsável?").fill("Responsável do piloto");
-  await page.getByLabel("E-mail do responsável", { exact: true }).fill(email);
-  await page.getByLabel("Senha", { exact: true }).fill("Missao-Teste-2026-Local!");
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Criar conta do responsável" }).click();
-  await expect(page.getByLabel("Código de seis dígitos")).toBeVisible();
-  await page.getByLabel("Código de seis dígitos").fill(await verificationCode(email));
-  await page.getByRole("button", { name: "Confirmar e-mail", exact: true }).click();
-  await expect(page).toHaveURL(/\/familia$/);
+  await registerParent(page, email);
   await criarPerfil(page, apelido);
   await expect(page.getByRole("heading", { name: `Olá, ${apelido}.` })).toBeVisible();
   return email;
@@ -87,7 +56,7 @@ test("public exploration is useful without an account and bars preserve scale", 
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1),
   ).toBe(true);
 });
-test("parent signup, verified profile, learning, saved lab, report and profile switch", async ({
+test("central parent login, verified profile, learning, saved lab, report and profile switch", async ({
   browser,
   page,
 }) => {
@@ -197,7 +166,10 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
   );
   expect(payload.reports).toHaveLength(1);
   await page.goto("/familia/conta");
-  await expect(page.getByRole("button", { name: "Escolher mensal" }).first()).toBeDisabled();
+  await expect(
+    page.getByRole("link", { name: /Compasso.*Minha conta|Minha conta.*Compasso/ }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Escolher mensal" })).toHaveCount(0);
   const userId = payload.profiles[0].userId;
   // Fill more than one history page using complete, versioned snapshots. The
   // older pause must still be reachable from Today and the paginated history.
@@ -302,7 +274,7 @@ test("parent signup, verified profile, learning, saved lab, report and profile s
   await expect(
     page.getByText("Na fração, separe os números com /", { exact: false }),
   ).toBeVisible();
-  await numericResponse.fill(test.info().project.name === "mobile" ? "1 / 2" : "0,5");
+  await numericResponse.fill(test.info().project.name.endsWith("mobile") ? "1 / 2" : "0,5");
   await page.getByRole("button", { name: "Conferir minha ideia" }).click();
   await expect(page.getByText("Isso! Agora, veja por quê.", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Continuar", exact: true }).click();

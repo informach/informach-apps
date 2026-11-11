@@ -4,7 +4,8 @@ import { missaoProfiles, users } from "@informach/db/schema";
 import { beforeAll, describe, expect, it } from "vitest";
 import { coursesForGrade } from "@/features/content/catalog";
 import { schoolYear } from "@/features/family/school-year";
-import { begin, createProfile, dashboard } from "@/features/learning/service";
+import { begin, dashboard } from "@/features/learning/service";
+import { fixtureAuthority, prepareStudent } from "./family-fixture";
 
 const owner = randomUUID();
 
@@ -23,7 +24,7 @@ describe("onda 3b em PostgreSQL isolado: Canguru S", () => {
       expect.arrayContaining(["canguru-s", "obmep-n3"]),
     );
     expect(coursesForGrade(12).map((course) => course.id)).not.toContain("canguru-j");
-    const profile = await createProfile(owner, {
+    const profile = await prepareStudent(await fixtureAuthority(owner), {
       nickname: "Iara",
       grade: 11,
       birthMonth: null,
@@ -36,10 +37,10 @@ describe("onda 3b em PostgreSQL isolado: Canguru S", () => {
       .update(missaoProfiles)
       .set({ gradeYear: schoolYear() - 1 })
       .where(eq(missaoProfiles.id, profile.id));
-    const painel = await dashboard(owner, profile.id);
+    const painel = await dashboard(await fixtureAuthority(owner), profile.id);
     expect(painel.profile?.grade).toBe(12);
     expect(painel.courseTransition?.to?.id).toBe("canguru-s");
-    const sessao = await begin(owner, {
+    const sessao = await begin(await fixtureAuthority(owner), {
       profileId: profile.id,
       lessonId: "equacoes-em-1",
       mode: "mission",
