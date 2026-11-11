@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { crc32, deflateSync } from "node:zlib";
 import { chromium } from "playwright";
-import { parseProject } from "../../src/shared/project";
+import { newProject, parseProject } from "../../src/shared/project";
 import { rendererServer } from "../rendererServer";
 import { game } from "../szprojectFixture";
 
@@ -184,22 +184,6 @@ const fakeDesktop = (project: string) => `
       pipelineLessonScript: async (token) => {
         if (token !== "file-aula-000001") throw new Error("pacote");
         return { id: "aula-3-farol", script: { text: ${JSON.stringify(LESSON_SCRIPT)}, section: 1 } };
-      },
-      // Sending the lesson's animations to EdiAula (lessonDelivery.ts): what arrives is counted.
-      lessonSendStart: async (spec) => {
-        window.__send = { spec, frames: 0, sizes: new Set(), opaque: 0 };
-        return "entrega-1";
-      },
-      lessonSendFrame: async (id, bytes) => {
-        if (id !== "entrega-1") throw new Error("envio");
-        window.__send.frames++;
-        window.__send.sizes.add(bytes.length);
-        for (let i = 3; i < bytes.length; i += 4) if (bytes[i]) window.__send.opaque++;
-      },
-      lessonSendFinish: async () => window.__send.spec.clipId + "-1731000000000.webm",
-      lessonSendCancel: async () => undefined,
-      lessonSendManifest: async (manifest) => {
-        window.__manifest = manifest;
       },
       // What the main process keeps for the next opening (pipelineReferences.ts).
       pipelineReferenceSave: async (projectId, kind, bytes, meta) => {
@@ -696,54 +680,140 @@ test("pipelines: with the lesson package the demonstration takes its screen from
     await page.screenshot({ path: "test-results/pipelines-lesson-done.png" });
     await dialog.getByRole("button", { name: "Fechar pipelines" }).click();
 
-    // Arquivo › Enviar animações para a aula: the demonstration, drawn frame by frame, goes to
-    // EdiAula as a transparent layer at its second of the lesson.
-    await page.keyboard.press("Control+k");
-    await page.getByLabel("Buscar comando", { exact: true }).fill("Enviar animações");
-    await page.getByLabel("Buscar comando", { exact: true }).press("Enter");
-    const send = page.getByRole("dialog", { name: "Enviar animações para a aula" });
-    await send.getByText("2:15–2:25", { exact: false }).waitFor();
-    await send.getByText("Sobre a tela (transparente)", { exact: false }).waitFor();
-    await send.getByRole("button", { name: "Enviar para o EdiAula" }).click();
-    await send.getByText(/^1 animação enviada\./).waitFor({ timeout: 60_000 });
-    const clip = project.motion.animations.at(-1);
-    const delivered = (await page.evaluate(
-      "({ ...window.__send, sizes: [...window.__send.sizes] })",
-    )) as {
-      spec: Record<string, unknown>;
-      frames: number;
-      sizes: number[];
-      opaque: number;
-    };
-    assert.deepEqual(delivered.spec, {
-      lessonId: "aula-3-farol",
-      clipId: clip?.id,
-      kind: "screen-demo",
-      width: 1280,
-      height: 720,
-      fps: 30,
-      frames: clip?.frames,
-    });
-    assert.equal(delivered.frames, clip?.frames);
-    assert.deepEqual(delivered.sizes, [1280 * 720 * 4]);
-    // The layer has nothing drawn yet (the assistant needs the desktop): every pixel transparent.
-    assert.equal(delivered.opaque, 0);
-    const manifest = (await page.evaluate("window.__manifest")) as {
-      lessonId: string;
-      items: { clipId: string; kind: string; file: string; start: number; duration: number }[];
-    };
-    assert.equal(manifest.lessonId, "aula-3-farol");
-    assert.deepEqual(
-      manifest.items.map((item) => [
-        item.clipId,
-        item.kind,
-        item.file,
-        Number(item.start.toFixed(2)),
-      ]),
-      [[clip?.id, "screen-demo", `${clip?.id}-1731000000000.webm`, 135.58]],
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+});
+
+test("pipelines: on an animation EdiAula asked for, the lesson comes chosen and the run fills that animation", {
+  timeout: 90000,
+}, async () => {
+  const server = await rendererServer(),
+    channel = process.env.EDISVG_TEST_BROWSER_CHANNEL,
+    browser = await chromium.launch(channel ? { channel } : {});
+  try {
+    const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } }),
+      errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    // The bridge at the start: the editor subscribes to the requests of other tools when it
+    // starts. A string, so tsx adds nothing to it.
+    await page.addInitScript(`
+      (() => {
+        const project = ${JSON.stringify(newProject())};
+        const status = { name: "Aula 3.edisvg", path: "C:\\\\Aulas\\\\Aula 3.edisvg", dirty: false };
+        window.desktop = {
+          projectInitialize: async () => ({ project, status, recovered: false }),
+          projectChanged: async () => status,
+          onLinkWaiting: (callback) => {
+            window.__linkWaiting = callback;
+            return () => undefined;
+          },
+          aiStatus: async () => ({ available: false, clients: [] }),
+          handleAiTools: () => () => undefined,
+          onAssistantEvent: () => () => undefined,
+          onCommand: () => () => undefined,
+        };
+      })();`);
+    await page.goto(server.url);
+    await page.locator(".scene-artwork>svg").waitFor();
+    await page.evaluate(fakeDesktop(JSON.stringify(game)));
+    // The link: a request to make the animation, the manifest of the project's links, and the
+    // lesson file EdiAula named (the .ediaula, read by the run as the package is).
+    // A string, so tsx adds nothing to it.
+    await page.evaluate(`
+      (() => {
+        window.__items = [];
+        window.__registered = [];
+        window.__requests = [
+          {
+            version: 1,
+            id: "pedido-0001",
+            from: "ediaula",
+            type: "create",
+            project: "C:\\\\Aulas\\\\Aula 3.edisvg",
+            name: "Parte 2",
+            width: 1280,
+            height: 720,
+            fps: 30,
+            duration: 10,
+            lesson: "C:\\\\Aulas\\\\Aula 3.ediaula",
+          },
+        ];
+        const status = { name: "Aula 3.edisvg", path: "C:\\\\Aulas\\\\Aula 3.edisvg", dirty: false };
+        Object.assign(window.desktop, {
+          projectChanged: async () => status,
+          projectSave: async () => ({ saved: true, ...status }),
+          linkNext: async () => window.__requests.shift() ?? null,
+          linkOpenProject: async () => ({ same: true, project: null, status }),
+          linkDone: async () => undefined,
+          linkList: async () => structuredClone(window.__items),
+          linkRegister: async (projectId, input) => {
+            window.__registered.push(input);
+            const before = window.__items.find((i) => i.animationId === input.animationId);
+            const item = { ...before, ...input, updatedAt: 1 };
+            window.__items = [...window.__items.filter((i) => i !== before), item];
+            return item;
+          },
+          linkLessonFile: async () => ({
+            token: "file-aula-000001",
+            name: "Aula 3.ediaula",
+            kind: "lesson",
+            size: 900,
+          }),
+        });
+        window.__linkWaiting();
+      })();`);
+    await page.waitForFunction(
+      () => (window as unknown as { __registered: unknown[] }).__registered.length === 1,
     );
-    assert.ok(Math.abs((manifest.items[0]?.duration ?? 0) - (clip?.frames ?? 0) / 30) < 1e-9);
-    await page.screenshot({ path: "test-results/lesson-send.png" });
+    const made = (await page.evaluate("window.__registered[0]")) as {
+      animationId: string;
+      artboardId: string;
+      lesson: string;
+    };
+    assert.equal(made.lesson, "C:\\Aulas\\Aula 3.ediaula");
+
+    // The pipelines open on that animation: the lesson already chosen.
+    await page.locator('[data-action="pipelines"]').first().click();
+    const dialog = page.getByRole("dialog", { name: "Pipelines" });
+    await dialog.getByRole("status").getByText("Aula 3").waitFor();
+    await dialog
+      .locator("li", { hasText: "Demonstração passo a passo" })
+      .getByRole("button", { name: "Rodar" })
+      .click();
+    await dialog.getByText("Aula 3.ediaula (pacote da aula do EdiAula)").waitFor();
+    const phrases = dialog.getByRole("group", { name: "Roteiro da aula · Seção 2 · A chave" });
+    await phrases.getByRole("checkbox", { name: "Olá de novo, turma." }).uncheck();
+    await dialog.getByRole("button", { name: "Rodar pipeline" }).click();
+    await dialog.getByText(/^(Pipeline concluído\.|O pipeline parou\.)$/).waitFor();
+    await dialog.getByRole("button", { name: "Fechar pipelines" }).click();
+
+    // The run's narration went into the linked animation (no other one was made), the link now
+    // draws on the run's layer at the stretch's second, and the empty artboard it came with went.
+    await page.waitForFunction(
+      () => (window as unknown as { __registered: unknown[] }).__registered.length === 2,
+    );
+    const relinked = (await page.evaluate("window.__registered[1]")) as {
+      animationId: string;
+      artboardId: string;
+      start: number;
+    };
+    const project = parseProject(
+      JSON.parse((await page.evaluate(() => localStorage.getItem("edisvg-project"))) ?? "null"),
+    );
+    assert.equal(relinked.animationId, made.animationId);
+    const layer = project.artboards.find((b) => b.id === relinked.artboardId);
+    assert.equal(layer?.name, "Demonstração · Tela da aula (2:15 a 2:25)");
+    assert.equal(Number(relinked.start.toFixed(2)), 135.58);
+    assert.equal(
+      project.artboards.some((b) => b.id === made.artboardId),
+      false,
+    );
+    assert.equal(project.motion.animations.filter((a) => a.name.startsWith("Narração")).length, 0);
+    const animation = project.motion.animations.find((a) => a.id === made.animationId);
+    assert.ok((animation?.frames ?? 0) > 200, `${animation?.frames}`);
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

@@ -50,6 +50,14 @@ dialog.pipelines-dialog > .help-content {
   color: #ff7a7a;
   border-color: #ff7a7a;
 }
+/* The lesson of a linked animation (packages/edi-link): it comes chosen in every run. */
+.pipeline-handed {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, var(--mint) 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--mint) 10%, transparent);
+}
 .pipeline-recipe-line {
   margin: 0;
   color: var(--muted);
@@ -266,18 +274,4 @@ dialog.pipelines-dialog > .help-content {
 .pipeline-done {
   display: block;
   color: var(--muted);
-}
-/* Arquivo › Enviar animações para a aula (lesson-send-panel.tsx). */
-.lesson-send-items {
-  display: grid;
-  gap: 6px;
-  margin: 10px 0;
-  padding-left: 20px;
-}
-.lesson-send-items small {
-  display: block;
-  color: var(--muted);
-}
-.lesson-send-status {
-  overflow-wrap: anywhere;
 }

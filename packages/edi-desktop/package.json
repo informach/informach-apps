@@ -23,6 +23,7 @@
     "./windows-capture": "./src/windows-capture.ts",
     "./native-media": "./src/native-media.ts",
     "./media-range": "./src/media-range.ts",
+    "./color": "./src/color.ts",
     "./audio": "./src/audio.ts",
     "./zip-read": "./src/zip-read.ts"
   },

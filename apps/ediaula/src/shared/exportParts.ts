@@ -7,7 +7,7 @@ import type { Clip, Project } from "./types.ts";
  * export_video with several parts at once (`split: "clips"` on a track): the parts
  * of a track, their file names ("<aula> - Parte 1.mp4"), one folder for all of them and one
  * question when some files are already there. Each part is then exported as a stretch of the
- * lesson (courseSplit.ts rangeProject), as export_video with `range` does.
+ * lesson (lessonParts.ts rangeProject), as export_video with `range` does.
  */
 
 /** One part, in timeline seconds. */

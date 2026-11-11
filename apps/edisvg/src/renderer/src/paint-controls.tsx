@@ -1,3 +1,4 @@
+import { normalizeHex } from "@informach/edi-desktop/color";
 import {
   PAINT_LAYER_LIMIT,
   type PaintLayer,
@@ -10,7 +11,6 @@ import { inheritedAppearance, inheritedGradients } from "../../shared/appearance
 import type { Scene, SceneNode } from "../../shared/sceneTypes";
 import { formatInput } from "./form-values";
 import { ScrubField } from "./inspector-field";
-import { normalizeHex } from "./paint-color";
 import { PaintPicker } from "./paint-picker";
 import { PathEffects, type TrimEffectsHost, withoutLayerTrim } from "./path-effects";
 

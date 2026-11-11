@@ -1,13 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { TimelineWord } from "../src/shared/cleanup.ts";
-import {
-  partProjectFields,
-  partProjectName,
-  rangeProject,
-  sectionProject,
-  splitBySections,
-} from "../src/shared/courseSplit.ts";
+import { partProjectFields, partProjectName, rangeProject } from "../src/shared/lessonParts.ts";
 import { parseScript } from "../src/shared/script.ts";
 import type { Asset, Project } from "../src/shared/types.ts";
 
@@ -28,63 +21,6 @@ const SCRIPT = `# Roteiro
 **Professora:**
 > "Monte sozinho a sequência que acende o farol antes de o barco bater nas pedras."
 `;
-
-let n = 0;
-/** The words of `text` said from `start`, 0.4 s each. */
-function said(text: string, start: number): TimelineWord[] {
-  return text
-    .replace(/[".]/g, "")
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((w, i) => ({
-      key: `rec:${n++}`,
-      clipId: "c",
-      text: w,
-      start: start + i * 0.4,
-      end: start + i * 0.4 + 0.35,
-      p: 0.9,
-    }));
-}
-
-test("splitBySections finds each section in a long recording, borders in the pauses between", () => {
-  const doc = parseScript(SCRIPT);
-  const lines = doc.sections.map((s) =>
-    s.items.flatMap((i) => (i.kind === "speech" ? [i.text] : [])),
-  );
-  // Section 1 from 2 s, section 2 from 40 s, section 3 from 80 s (with some chatter between).
-  const words = [
-    ...said(lines[0][0], 2),
-    ...said(lines[0][1], 10),
-    ...said("pronto vamos para a próxima parte", 25),
-    ...said(lines[1][0], 40),
-    ...said(lines[1][1], 50),
-    ...said(lines[2][0], 80),
-  ];
-  const ranges = splitBySections(doc, words, { duration: 100 });
-  assert.deepEqual(
-    ranges.map((r) => r.section),
-    [0, 1, 2],
-  );
-  assert.equal(ranges[0].start, 0);
-  assert.equal(ranges.at(-1)?.end, 100);
-  // Contiguous: each stretch starts where the one before ends, inside the pause between them.
-  for (let i = 1; i < ranges.length; i++) assert.equal(ranges[i].start, ranges[i - 1].end);
-  assert.ok(ranges[0].end > 14 && ranges[0].end < 40, `${ranges[0].end}`);
-  assert.ok(ranges[1].end > 56 && ranges[1].end < 80, `${ranges[1].end}`);
-  assert.match(ranges[1].label, /Seção 2/);
-  assert.ok(ranges.every((r) => r.coverage > 0.8));
-});
-
-test("a section barely said is not proposed as a lesson", () => {
-  const doc = parseScript(SCRIPT);
-  const first = doc.sections[0].items.flatMap((i) => (i.kind === "speech" ? [i.text] : []));
-  const words = [...said(first[0], 0), ...said(first[1], 8), ...said("o barco", 30)];
-  const ranges = splitBySections(doc, words);
-  assert.deepEqual(
-    ranges.map((r) => r.section),
-    [0],
-  );
-});
 
 const asset = (id: string): Asset => ({
   id,
@@ -165,24 +101,6 @@ test("rangeProject keeps the stretch, cut at its borders and moved to 0:00", () 
   assert.equal(part.reviewedSeams, undefined);
   assert.equal(part.exportedAt, undefined);
   assert.deepEqual(part.publish, { title: "Tudo" });
-});
-
-test("sectionProject is a lesson of its own with the section confirmed and its video id", () => {
-  const doc = parseScript(SCRIPT);
-  const p = sectionProject(
-    lesson(),
-    doc,
-    { section: 1, label: "Seção 2", start: 30, end: 80, coverage: 1 },
-    "Aula 2",
-    1000,
-  );
-  assert.notEqual(p.id, "longa");
-  assert.equal(p.name, "Aula 2");
-  assert.equal(p.course, "Sistema Zero");
-  assert.deepEqual(p.script, { text: SCRIPT, section: 1, confirmed: true });
-  assert.deepEqual(p.publish, { videoId: "F1P1-V02", title: "Blocos de repetição" });
-  assert.equal(p.createdAt, 1000);
-  assert.ok(p.clips.every((c) => c.start >= 0 && c.start + c.duration <= 50 + 1e-6));
 });
 
 test("um projeto por parte: nome da aula e da parte, roteiro inteiro com a parte escolhida", () => {

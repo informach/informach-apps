@@ -1,3 +1,4 @@
+import { assetLinkSchema } from "@informach/edi-link/contract";
 import { z } from "zod";
 import {
   CUT_CATEGORIES,
@@ -352,6 +353,7 @@ const asset = z.looseObject({
     .max(20000)
     .optional(),
   alpha: z.boolean().optional(),
+  link: assetLinkSchema.optional(),
 });
 const voiceMaster = z.looseObject({
   id,

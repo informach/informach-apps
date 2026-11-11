@@ -43,7 +43,7 @@ import {
   type MeasuredLoudness,
   measureLoudness,
 } from "@/lib/preflight";
-import { needsRelink, reconnectMissing } from "@/lib/relink";
+import { needsRelink, reconnectMissing, refreshMissing } from "@/lib/relink";
 import { cleanError } from "@/lib/transcripts";
 import { useApp } from "@/state/app";
 import { exportQueue, useExportQueue } from "@/state/exportQueue";
@@ -169,6 +169,11 @@ export function ExportDialog(): ReactNode {
   const toFind = missing.filter(needsRelink).length;
 
   useEffect(() => playback.pause(), []);
+  // A file renamed or removed while the lesson was open shows up here, before exporting, with
+  // Reconectar instead of a failed export.
+  useEffect(() => {
+    void refreshMissing().catch(() => undefined);
+  }, []);
 
   // The check before exporting, made again whenever the lesson or a choice here changes. A
   // volume measured on another revision of the lesson no longer counts.

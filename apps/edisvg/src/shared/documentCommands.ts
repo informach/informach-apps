@@ -23,11 +23,13 @@ import { applyBehavior, behaviorCommandSchema } from "./behavior";
 import { componentCommandSchema } from "./componentContracts";
 import { applyComponent } from "./components";
 import { applyComposition, compositionCommandSchema } from "./composition";
+import { applyFonts, defaultFonts, fontsCommandSchema, setTextFont } from "./fontDefaults";
 import { applyGuides, guidesCommandSchema } from "./guides";
 import { applyLayout, layoutCommandSchema } from "./layout";
 import { applyLessonClip, lessonClipCommandSchema } from "./lessonClips";
 import { applyPathEdit, pathEditSchema } from "./pathOperations";
 import { artboardScene, parseProject } from "./project.js";
+import { importArtboards } from "./projectImport";
 import { serializeProject } from "./projectPolicy";
 import { applyRig, rigCommandSchema } from "./rig";
 import { editScene, flattenScene } from "./scene.js";
@@ -143,7 +145,17 @@ const commandSchema = z.union([
   vertexKeysCommandSchema,
   guidesCommandSchema,
   lessonClipCommandSchema,
+  fontsCommandSchema,
   z.strictObject({ type: z.literal("motion"), command: motionCommandSchema }),
+  // Artboards of another project (the whole project read from its file), with their animations.
+  z.strictObject({
+    type: z.literal("project-import"),
+    source: z.unknown(),
+    artboardIds: z
+      .array(z.string().regex(/^artboard-[\w-]{1,100}$/))
+      .min(1)
+      .max(100),
+  }),
 ]);
 export const documentTransactionSchema = z.strictObject({
   projectId: z.string().min(1).max(120),
@@ -204,6 +216,8 @@ export function executeDocumentTransaction(context: Context, rawRequest: unknown
     } else if (command.type === "asset") {
       selected = applyAsset(project, scene, command);
       selectedIds = selected ? [selected] : undefined;
+    } else if (command.type === "fonts") {
+      applyFonts(project, scene, command);
     } else if (command.type === "rig") {
       const board = project.artboards.find((board) => board.scene === scene);
       if (!board) throw new Error("Selecione uma prancheta para editar rig.");
@@ -244,6 +258,12 @@ export function executeDocumentTransaction(context: Context, rawRequest: unknown
       selectedIds = undefined;
       if (!scene) throw new Error("Selecione uma prancheta.");
       selected = applyComponent(scene, command);
+    } else if (command.type === "project-import") {
+      const done = importArtboards(project, parseProject(command.source), command.artboardIds);
+      selectedIds = [];
+      selected = null;
+      selectedArtboard = done.artboardIds[0];
+      scene = artboardScene(project, selectedArtboard);
     } else if (command.type === "artboard") {
       selectedIds = [];
       selectedArtboard = applyArtboardCommand(project, command);
@@ -280,6 +300,19 @@ export function executeDocumentTransaction(context: Context, rawRequest: unknown
           command.operation,
           "value" in command ? command.value : undefined,
         );
+        // A new text is born in the project's title font, unless it names its own family.
+        const heading = defaultFonts(project).heading;
+        if (
+          command.operation === "add" &&
+          heading &&
+          (command.value === "text" ||
+            (typeof command.value === "object" &&
+              command.value.tag === "text" &&
+              command.value.attrs["font-family"] === undefined))
+        ) {
+          const added = flattenScene(scene).find(({ node }) => node.id === selected)?.node;
+          if (added?.tag === "text") setTextFont(added, heading);
+        }
       }
     } else if (command.type === "animation-keys") {
       applyAnimationKeys(project, command.command);

@@ -5,6 +5,7 @@ import { askPasteProps, copyProps } from "@/lib/clipProps";
 import { useEditTimer } from "@/lib/editTimer";
 import { importMedia } from "@/lib/importMedia";
 import { confirmLeave } from "@/lib/leaveGuard";
+import { refreshMissing } from "@/lib/relink";
 // Sound of J, K, L backwards, frame steps and scrubbing (it plugs into the playback clock).
 import "@/lib/scrub";
 import { speechStep } from "@/lib/speechNav";
@@ -16,10 +17,9 @@ import { exportsPending } from "@/state/exportQueue";
 import { playback } from "@/state/playback";
 import { hasUnsavedWork, useProject } from "@/state/project";
 import { AnnotationsPanel } from "./AnnotationsPanel";
-import { BatchBar } from "./BatchBar";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { CursorPathDialog } from "./CursorPathDialog";
-import { EdisvgOffer } from "./EdisvgOffer";
+import { EdisvgLinks } from "./EdisvgLinks";
 import { ExportDialog } from "./ExportDialog";
 import { ExtendFrameDialog } from "./ExtendFrameDialog";
 import { LessonFlowPanel } from "./LessonFlowPanel";
@@ -332,6 +332,15 @@ export function Editor(): ReactNode {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // Coming back to the window (a file renamed or removed in the Explorer, a new render of an
+  // animation) the media of the lesson are looked for again, so a missing one is marked in the
+  // library instead of failing the preview or the export.
+  useEffect(() => {
+    const onFocus = (): void => void refreshMissing().catch(() => undefined);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
+
   useEffect(() => {
     window.addEventListener("keydown", handleKey);
     window.addEventListener("keyup", handleKeyUp);
@@ -414,9 +423,8 @@ export function Editor(): ReactNode {
         onPointerDown={startResize}
         title="Arraste para redimensionar a timeline"
       />
-      <BatchBar />
       <PrepareOffer />
-      <EdisvgOffer />
+      <EdisvgLinks />
       <ReviewBar />
       <PresenterDialogs />
       <ConfirmDialog />

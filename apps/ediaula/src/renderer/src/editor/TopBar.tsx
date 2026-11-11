@@ -1,10 +1,19 @@
 import { explainSaveError, saveErrorDetail, saveErrorShort } from "@shared/saveError";
-import { CircleDot, FolderOpen, GraduationCap, Settings, Upload, Wand2 } from "lucide-react";
+import {
+  CircleDot,
+  FolderOpen,
+  GraduationCap,
+  PenTool,
+  Settings,
+  Upload,
+  Wand2,
+} from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { actions } from "@/lib/actions";
 import { copySelection, cutSelection, paste } from "@/lib/clipboard";
 import { askPasteProps, copyProps } from "@/lib/clipProps";
 import { saveCourseTemplateFromLesson } from "@/lib/courseTemplate";
+import { importEdisvgAnimation, newEdisvgAnimation } from "@/lib/edisvgLink";
 import { exportCurrentFrame, openPackagedLesson, packLesson } from "@/lib/exportExtras";
 import { openPrepare } from "@/lib/prepare";
 import { duplicateLesson } from "@/lib/projectFiles";
@@ -109,6 +118,17 @@ export function TopBar(): ReactNode {
                   onSelect: packLesson,
                 },
                 { label: "Abrir aula empacotada…", onSelect: () => void openPackagedLesson() },
+                { separator: true, label: "" },
+                {
+                  label: "Nova animação do EdiSVG",
+                  disabled: !project,
+                  onSelect: () => void newEdisvgAnimation(),
+                },
+                {
+                  label: "Importar animação do EdiSVG…",
+                  disabled: !project,
+                  onSelect: () => void importEdisvgAnimation(),
+                },
                 { separator: true, label: "" },
                 {
                   label: "Importar voz…",
@@ -317,6 +337,15 @@ export function TopBar(): ReactNode {
             title="Transcrever, cortar, encaixar, dar zoom, anotar, legendar e verificar, etapa por etapa"
           >
             Preparar aula
+          </Button>
+          <Button
+            variant="secondary"
+            icon={PenTool}
+            onClick={() => void newEdisvgAnimation()}
+            disabled={!project}
+            title="Cria no EdiSVG uma animação do trecho marcado na régua (ou de 5 s a partir do cursor), vinculada: cada salvar lá atualiza o clipe aqui"
+          >
+            Nova animação
           </Button>
           <Button
             variant="secondary"

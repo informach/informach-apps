@@ -691,8 +691,7 @@
   justify-content: space-between;
   gap: 10px;
 }
-.translate-body,
-.split-body {
+.translate-body {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -703,74 +702,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-/* Split a recording by section (CourseSplitDialog.tsx) and the batch bar (BatchBar.tsx) */
-.split-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 360px;
-  overflow-y: auto;
-}
-.split-list li {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: var(--panel-2);
-}
-.split-list li.is-off {
-  opacity: 0.5;
-}
-.split-list label {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.split-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.batch-bar {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 12px;
-  border-top: 1px solid #9b7bff55;
-  background: #17142a;
-  font-size: 12px;
-}
-.batch-steps {
-  display: flex;
-  gap: 4px;
-}
-.batch-step {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--line);
-  color: var(--text-2);
-  font-size: 11px;
-}
-.batch-step.is-open {
-  border-color: var(--violet);
-  color: var(--text-1);
-}
-.batch-step.is-done {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
 }
 
 /* A question to the person (ConfirmDialog.tsx) */

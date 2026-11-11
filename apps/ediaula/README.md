@@ -552,7 +552,7 @@ o código do vídeo do roteiro (`F1P1-V01`), o quiz, a miniatura e as legendas t
   - Na "Aula02 gravação automática", `split: "clips"` na faixa da tela dá 5 partes: 0:00–0:30.7, 0:30.7–1:21.0,
     1:21.0–3:59.1, 3:59.1–6:41.6 e 6:41.6–7:49.2 (`tests/export-parts.test.ts`).
 
-## Regravar falas, narração pelo roteiro e lote por curso
+## Regravar falas e narração pelo roteiro
 
 - **Regravar falas** (aba Roteiro): com a seção confirmada, as falas da professora que faltam na aula ou estão pela
   metade (menos de 40% e menos de 80% das palavras achadas) abrem o gravador em **Só voz** com o teleprompter só
@@ -571,12 +571,8 @@ o código do vídeo do roteiro (`F1P1-V01`), o quiz, a miniatura e as legendas t
   microfone salvo nas opções do gravador já vem escolhido. A tomada passa pelo mesmo tratamento de voz da gravação
   (Áudio › Voz) e entra na faixa "Narração" que já existe quando ela está livre no intervalo, sem passar por cima de
   outra tomada (`insertNarration`, `narrationTrack` em `src/shared/narration.ts`).
-- **Dividir por seção** (aba Roteiro, com a gravação transcrita): uma gravação longa com várias seções do roteiro vira
-  uma proposta de trechos, um por seção achada, com a divisa no meio da pausa entre elas. **Produzir todas** cria um
-  projeto por seção com as mesmas mídias, a seção confirmada e o código do vídeo dela. A barra do lote, acima da
-  timeline, é a fila de aprovação: abra cada aula, prepare, e **Aprovar e exportar** põe a aula como ela está na fila
-  de exportação, na pasta escolhida uma vez para o lote. Dois nomes iguais ganham um número ("Aula (2).mp4"), e um
-  vídeo que já está na pasta só é gravado por cima se você confirmar.
+- O **Lote por curso** (**Dividir por seção**, que transformava uma gravação longa em uma aula por seção, com a barra
+  de aprovação) foi removido em 10/11/2026: cada parte é gravada no seu projeto (**Um projeto por parte**).
 
 ## Aprender com a aula anterior
 
@@ -1177,27 +1173,56 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
   `perspective` com a mesma curva (testado ponto a ponto).
 - IA: `auto_zoom` e `set_cursor`.
 
-## Animações do EdiSVG
+## Animações do EdiSVG (vínculo)
 
-O EdiSVG anima trechos da aula a partir do pacote dela: uma cena em tela inteira ou uma
-demonstração transparente por cima da gravação de tela. Em **Arquivo › Enviar animações para a
-aula**, ele grava cada animação em `%APPDATA%\ediaula\recebidos\<id da aula>\` (MP4 para a cena,
-WebM com transparência para a demonstração), com `envio.json` por último. O EdiSVG nunca grava a
-aula. Do lado do EdiAula:
-- **A oferta.** Ao abrir a aula, e cada vez que a janela volta para a frente (depois de enviar no
-  EdiSVG), uma barra avisa "O EdiSVG mandou N animações para esta aula" (`EdisvgOffer.tsx`,
-  `src/renderer/src/lib/edisvgOffer.ts`).
-- **Colocar na aula.** Cada vídeo entra na faixa **Animações do EdiSVG**, criada logo acima da
-  faixa da gravação de tela (ou no topo das imagens, se a aula não tem gravação de tela), no
-  segundo da aula em que o trecho começa. É uma edição só, que Ctrl+Z desfaz. Uma animação
-  enviada de novo troca a anterior: clipe e mídia (`src/shared/edisvgAnimations.ts`).
-- **Agora não.** Aquele envio não volta a ser oferecido. Um envio novo do EdiSVG é. O que a aula
-  já tomou fica em `colocado.json`, ao lado do envio (`src/main/edisvgInbox.ts`).
-- **O id da aula.** O EdiSVG lê o id do pacote. Abrir o pacote no EdiAula cria uma aula com id
-  novo, mas ela guarda o id de origem (`origin`, `src/main/package.ts`). Assim os envios para o
-  pacote chegam à aula aberta dele, e também à aula original.
-- **Leitura dos vídeos.** O processo principal libera a leitura de cada vídeo do envio antes da
-  prévia, como faz com qualquer mídia importada.
+Uma animação do EdiSVG é um clipe da aula, vinculado ao projeto dela como o Premiere vincula uma
+composição do After Effects. Ao salvar no EdiSVG, o clipe se atualiza sozinho. Cada aplicativo
+continua funcionando sozinho; o contrato entre eles está em `packages/edi-link`.
+
+**Como usar:**
+- **Nova animação do EdiSVG** (botão **Nova animação** na barra de cima, ou Arquivo):
+  - vale para o trecho marcado na régua, ou para 5 s a partir do cursor;
+  - entra na hora um clipe provisório ("aguardando o EdiSVG") na faixa **Animações do EdiSVG**,
+    logo acima da gravação de tela;
+  - o EdiSVG abre (ou vem para a frente) no projeto da aula, com uma prancheta do tamanho da aula e
+    uma animação da duração do trecho;
+  - anime à mão ou com os pipelines (a aula já vem escolhida) e salve: o clipe passa a mostrar a
+    animação.
+- **Editar no EdiSVG** (botão direito no clipe): abre a mesma animação lá. Cada salvar atualiza o
+  clipe aqui.
+- **Importar animação do EdiSVG…** (Arquivo): escolhe qualquer `.edisvg` e uma das animações dele.
+  Ela entra no cursor, vinculada do mesmo jeito.
+
+**Onde ficam os arquivos:**
+- **O projeto da aula:** `Aula.edisvg`, ao lado do `Aula.ediaula`, com uma prancheta e uma animação
+  por clipe.
+- **Os renders:** a pasta `Aula · renders`, ao lado do projeto. Cada animação vinculada é um WebM
+  com transparência (`<animação>-<hash>.webm`), e `vinculos.json` lista o render atual de cada
+  uma. O EdiSVG renderiza ao salvar, só as animações vinculadas que mudaram.
+
+**Como o EdiAula atualiza o clipe** (`src/main/edisvgLink.ts`, `src/shared/linkedMedia.ts`,
+`src/renderer/src/lib/edisvgLink.ts`):
+- **Quando olha:** vigia a pasta de renders de cada projeto vinculado, sem sondagem, e olha também
+  ao abrir a aula e ao voltar para a janela.
+- **Ao chegar um render novo:**
+  - o asset passa a tocar o arquivo novo, com o hash no nome, então nenhum cache mostra a
+    imagem velha;
+  - a troca vale para todo o histórico, sem virar passo de desfazer: desfazer nunca traz a
+    imagem antiga de volta.
+- **O tamanho do clipe:**
+  - um clipe que mostrava a animação inteira acompanha a duração nova;
+  - um clipe cortado mantém o corte e só para no fim da animação.
+- **Com o pipeline:** quando o pipeline pôs a animação nas palavras da aula, o clipe inteiro vai
+  para aquele segundo uma vez. Depois disso, onde você o puser, fica.
+- **Projeto movido ou apagado:** o clipe continua tocando o último render.
+
+**Abrir o EdiSVG:**
+- Instalado pelo Hub, o EdiAula abre o EdiSVG; se ele já estava aberto, vem para a frente.
+- No desenvolvimento, o EdiAula roda o script dos atalhos do Hub de desenvolvimento
+  (`scripts/edi/hub-dev/abrir.ps1`, que chama `pnpm edi:work edisvg`), só quando ele mesmo está
+  no perfil real (`pnpm edi:work`).
+- O pedido vai por arquivo para `%APPDATA%\edisvg\pedidos\`: chega ao EdiSVG do mesmo jeito,
+  aberto antes ou depois.
 
 ## Anotações, memes e animações
 
@@ -1338,7 +1363,13 @@ aula. Do lado do EdiAula:
   valem para todos os projetos). Dá para colar uma lista de cores ("Fundo $bg · #E9EEF6", uma por linha).
 - Cada cor tem nome e observação, e cada paleta diz o **papel** de cada cor: fundo escuro, claro, tinta, destaque,
   atenção, principal, sucesso, alerta, criativo. Anotações, templates, cartelas e a borda da câmera nascem nas
-  cores desses papéis, e as bolinhas de cor do app mostram só a paleta da aula.
+  cores desses papéis, e as bolinhas de cor do app mostram a paleta da aula primeiro.
+- **Qualquer outra cor:** depois da paleta, cada fileira de cores tem a cor própria em uso, **Mais cores**
+  (o arco-íris) e o **contagotas**, que pega a cor de qualquer ponto da tela, também fora do EdiAula
+  (Esc cancela). "Mais cores" abre o seletor completo: quadrado de saturação e brilho, matiz, hexadecimal,
+  contagotas, a paleta e as 10 cores usadas por último (guardadas neste computador). Nada muda até
+  **Aplicar** (ou Enter), num Ctrl+Z só; Esc fecha sem mudar. A cor do fundo removido e a cor de uma legenda
+  usam o mesmo seletor (`editor/ColorPicker.tsx`, `lib/colors.ts`).
 - **Recolorir o que já está na aula**: cada cor que tem papel em alguma paleta vai para o mesmo papel na nova
   (anotações redesenhadas, bordas, sombras, cor da palavra na legenda), num único Ctrl+Z. Cores escolhidas à
   mão fora das paletas ficam como estão (`shared/palettes.ts`).

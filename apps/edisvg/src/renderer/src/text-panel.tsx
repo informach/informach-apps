@@ -1,8 +1,33 @@
-import { type Asset, assertTextCoverage, resolveFontStack } from "@informach/edi-motion/assets";
+import {
+  type Asset,
+  assertTextCoverage,
+  type FontAsset,
+  resolveFontStack,
+} from "@informach/edi-motion/assets";
 import { useId, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { type LibraryFont, weightName } from "../../shared/fontLibrary";
 import type { Scene, SceneNode } from "../../shared/sceneTypes";
 import { textPathFromShape, textPathSources } from "../../shared/textPath";
+
+/** A font the text panel puts on the selected texts: a project font, a library one, or none. */
+export type FontChoice = { assetId: string } | { libraryFontId: string } | null;
+
+export interface TextFonts {
+  /** EdiSVG's library (empty without the desktop app). */
+  library: LibraryFont[];
+  /** The project's default fonts. */
+  heading: FontAsset | null;
+  body: FontAsset | null;
+  /** How many texts the selection has (the font goes on all of them). */
+  targets: number;
+  /** Puts the font on the selected texts, with the content typed here, in one undo step. */
+  apply(choice: FontChoice, text: string): Promise<void>;
+  /** Puts the project's title or body font on the selected texts. */
+  applyRole(role: "heading" | "body"): void;
+  /** Opens Fontes do projeto. */
+  open(): void;
+}
 
 interface Props {
   scene: Scene;
@@ -10,8 +35,13 @@ interface Props {
   locked: boolean;
   execute(commands: unknown[]): void;
   assets: Asset[];
+  fonts?: TextFonts;
 }
-function TextPanel({ scene, node, locked, execute, assets }: Props) {
+
+const fontLabel = (font: { family: string; weight: number; italic?: boolean }) =>
+  `${font.family} ${weightName(font.weight)}${font.italic ? " Itálico" : ""}`;
+
+function TextPanel({ scene, node, locked, execute, assets, fonts: library }: Props) {
   const id = useId(),
     [error, setError] = useState(""),
     [text, setText] = useState(node.text),
@@ -20,7 +50,19 @@ function TextPanel({ scene, node, locked, execute, assets }: Props) {
       (node.fontFallbackIds ?? []).map((assetId, key) => ({ key, assetId })),
     ),
     nextKey = useRef(fallback.length),
+    [busy, setBusy] = useState(false),
     fonts = assets.filter((asset) => asset.kind === "font"),
+    // A library face already in the catalog shows once, as the project's.
+    offered = (library?.library ?? []).filter(
+      (font) =>
+        !fonts.some(
+          (asset) =>
+            asset.kind === "font" &&
+            asset.family === font.family &&
+            asset.weight === font.weight &&
+            !asset.italic,
+        ),
+    ),
     coverage = useMemo(() => {
       if (!primary) return "Fonte do sistema: disponibilidade e cobertura dependem do consumidor.";
       try {
@@ -115,21 +157,90 @@ function TextPanel({ scene, node, locked, execute, assets }: Props) {
             <select
               name="fontAssetId"
               value={primary}
+              disabled={busy}
               aria-describedby={`${id}-coverage`}
               onChange={(event) => {
                 const value = event.target.value;
+                if (library) {
+                  // The font goes on the text(s) at once, one undo step.
+                  setBusy(true);
+                  setError("");
+                  library
+                    .apply(
+                      value.startsWith("library:")
+                        ? { libraryFontId: value.slice("library:".length) }
+                        : value
+                          ? { assetId: value }
+                          : null,
+                      text,
+                    )
+                    .catch((reason: unknown) =>
+                      setError(
+                        reason instanceof Error ? reason.message : "A fonte não foi aplicada.",
+                      ),
+                    )
+                    .finally(() => setBusy(false));
+                  return;
+                }
                 setPrimary(value);
                 setFallback((rows) => (value ? rows.filter((row) => row.assetId !== value) : []));
               }}
             >
               <option value="">Usar fonte do sistema</option>
-              {fonts.map((asset) => (
-                <option key={asset.id} value={asset.id}>
-                  {asset.name}
-                </option>
-              ))}
+              {fonts.length > 0 && (
+                <optgroup label="Do projeto">
+                  {fonts.map((asset) => (
+                    <option key={asset.id} value={asset.id}>
+                      {asset.kind === "font" ? fontLabel(asset) : asset.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {offered.length > 0 && (
+                <optgroup label="Do EdiSVG">
+                  {offered.map((font) => (
+                    <option key={font.id} value={`library:${font.id}`}>
+                      {fontLabel(font)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </label>
+          {library && (
+            <div className="font-roles">
+              <button
+                type="button"
+                disabled={!library.heading || busy}
+                title={
+                  library.heading
+                    ? `Fonte de título do projeto: ${fontLabel(library.heading)}`
+                    : "O projeto não tem fonte de título"
+                }
+                onClick={() => library.applyRole("heading")}
+              >
+                Título{library.heading ? ` · ${fontLabel(library.heading)}` : ""}
+              </button>
+              <button
+                type="button"
+                disabled={!library.body || busy}
+                title={
+                  library.body
+                    ? `Fonte de corpo do projeto: ${fontLabel(library.body)}`
+                    : "O projeto não tem fonte de corpo"
+                }
+                onClick={() => library.applyRole("body")}
+              >
+                Corpo{library.body ? ` · ${fontLabel(library.body)}` : ""}
+              </button>
+              <button type="button" onClick={library.open}>
+                Fontes do projeto…
+              </button>
+              {library.targets > 1 && (
+                <p className="micro">A fonte vai para os {library.targets} textos selecionados.</p>
+              )}
+            </div>
+          )}
           {primary && (
             <fieldset className="font-stack-fields">
               <legend>Fontes alternativas — em ordem</legend>

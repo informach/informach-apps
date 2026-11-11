@@ -307,3 +307,49 @@ test("built SVG drop opens review without editing, blocks file drops in fields/d
     await server.close();
   }
 });
+
+test("an SVG placed on the open artboard becomes one selected group there, undone in one step", {
+  timeout: 60000,
+}, async () => {
+  const server = await rendererServer(),
+    channel = process.env.EDISVG_TEST_BROWSER_CHANNEL,
+    browser = await chromium.launch(channel ? { channel } : {});
+  try {
+    const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } }),
+      errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("dialog", (dialog) => dialog.accept());
+    await page.goto(server.url);
+    await page.locator(".scene-artwork>svg").waitFor();
+    const before = await page.evaluate(() => localStorage.getItem("edisvg-project"));
+    assert.ok(before);
+    const start = parseProject(JSON.parse(before));
+    await page.locator('[data-action="import-svg"]').first().click();
+    const dialog = page.getByRole("dialog", { name: "Importar SVG", exact: true });
+    await dialog.getByLabel("Arquivo SVG", { exact: true }).setInputFiles({
+      name: "Logo.svg",
+      mimeType: "image/svg+xml",
+      buffer: Buffer.from(source),
+    });
+    await dialog.getByRole("button", { name: "Colocar na prancheta aberta", exact: true }).click();
+    await dialog.waitFor({ state: "hidden" });
+    const placed = await page.evaluate(() => localStorage.getItem("edisvg-project"));
+    assert.ok(placed && placed !== before);
+    const project = parseProject(JSON.parse(placed));
+    assert.equal(project.artboards.length, start.artboards.length);
+    const board = project.artboards.find((item) => item.id === project.defaultArtboardId);
+    const was = start.artboards.find((item) => item.id === start.defaultArtboardId);
+    assert.ok(board && was);
+    assert.equal(board.scene.nodes.length, was.scene.nodes.length + 1);
+    const group = board.scene.nodes.at(-1);
+    assert.equal(group?.tag, "g");
+    assert.equal(group?.name, "Logo");
+    assert.equal(group?.children[0]?.tag, "path");
+    await page.locator('[data-action="undo"]').click();
+    assert.equal(await page.evaluate(() => localStorage.getItem("edisvg-project")), before);
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+});

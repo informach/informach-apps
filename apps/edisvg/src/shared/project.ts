@@ -25,6 +25,7 @@ import {
 import { z } from "zod";
 import { validateComponentGraph } from "./componentGraph";
 import { validateDrawOrders } from "./drawOrders";
+import { fontDefaultsSchema, type ProjectDefaults, validateFontDefaults } from "./fontDefaults";
 import { type Guide, guidesSchema } from "./guides";
 import { artboardIdSchema } from "./identities";
 import { type LessonClip, lessonClipsSchema } from "./lessonClips";
@@ -33,7 +34,7 @@ import { flattenScene, validateScene } from "./scene.js";
 import type { Scene, SceneNode } from "./sceneTypes";
 import { compiledVertexRig, parseVertexClips, type VertexClip } from "./vertexKeys";
 
-export const PROJECT_VERSION = 26;
+export const PROJECT_VERSION = 27;
 const presetSchema = z.enum(["Parado", "Acenar", "Pular"]);
 type Preset = z.infer<typeof presetSchema>;
 const modeSchema = z.enum(["loop", "ping-pong", "once"]);
@@ -115,11 +116,13 @@ const currentSchema = previousSchema.omit({ version: true, scene: true }).extend
     z.literal(23),
     z.literal(24),
     z.literal(25),
+    z.literal(26),
     z.literal(PROJECT_VERSION),
   ]),
   artboards: z.array(artboardSchema).max(100),
   defaultArtboardId: artboardIdSchema.nullable(),
   assets: z.unknown().optional(),
+  defaults: z.unknown().optional(),
 });
 export interface Artboard {
   id: string;
@@ -150,6 +153,8 @@ export interface Project {
   defaultArtboardId: string | null;
   motion: Motion;
   assets: Asset[];
+  /** The default fonts (project v27); absent, the project has none. */
+  defaults?: ProjectDefaults;
 }
 
 export function validateTransform(input: unknown): Partial<Transform> {
@@ -186,6 +191,7 @@ export function parseProject(input: unknown): Project {
       23,
       24,
       25,
+      26,
       PROJECT_VERSION,
     ].includes(header.data.version)
   )
@@ -204,6 +210,12 @@ export function parseProject(input: unknown): Project {
   const value = result.data;
   const assets = parseAssetCatalog("assets" in value ? (value.assets ?? []) : []);
   const resourceMap = new Map(assets.map((asset) => [asset.id, asset]));
+  let defaults: ProjectDefaults | undefined;
+  if ("defaults" in value && value.defaults !== undefined) {
+    if (header.data.version < 27) throw new Error("Fontes padrão requerem projeto v27.");
+    defaults = fontDefaultsSchema.parse(value.defaults);
+    validateFontDefaults(defaults, assets);
+  }
   const artboards: Artboard[] = [];
   const budget = { count: 0, attributes: 0, vertices: 0, textSize: 0, sources: 0 };
   if ("artboards" in value) {
@@ -448,6 +460,7 @@ export function parseProject(input: unknown): Project {
     defaultArtboardId,
     motion,
     assets,
+    ...(defaults ? { defaults } : {}),
   };
   let totalTracks = motion.animations.reduce((sum, clip) => sum + clip.tracks.length, 0),
     totalKeys = motion.animations.reduce(
@@ -514,6 +527,7 @@ interface SnapshotState {
   artboards?: Artboard[];
   defaultArtboardId?: string | null;
   assets?: Asset[];
+  defaults?: ProjectDefaults;
 }
 export function snapshot(state: SnapshotState): Project {
   return parseProject({
@@ -534,6 +548,7 @@ export function snapshot(state: SnapshotState): Project {
           artboards: state.artboards,
           defaultArtboardId: state.defaultArtboardId ?? null,
           assets: state.assets ?? [],
+          ...(state.defaults ? { defaults: state.defaults } : {}),
         }
       : { scene: state.scene }),
     motion: state.motion,

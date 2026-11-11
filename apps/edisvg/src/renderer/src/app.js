@@ -19,6 +19,7 @@ import "./toolbar.css";
 import { isKitBoardName } from "../../shared/designKit";
 import { flattenScene } from "../../shared/scene.js";
 import { completeAssetImport, prepareAssetImport } from "./asset-import";
+import { mountBoardsImport } from "./boards-import-panel";
 import {
   choosePlan,
   defaultFolders,
@@ -31,7 +32,7 @@ import {
   setKitFonts,
 } from "./designKitImport";
 import { mountKitImport } from "./kit-import-panel";
-import { mountLessonSend } from "./pipelines/lesson-send-panel";
+import { createLinkRenderer } from "./links/renderLinks";
 import {
   clearNarration,
   markNarrationNow,
@@ -85,7 +86,14 @@ import { inspectAssetNotice, inspectAssets } from "../../shared/assetInspection"
 import { inspectAudio, inspectAudioValue } from "../../shared/audioInspection";
 import { inspectBehavior, inspectBehaviorValue } from "../../shared/behaviorInspection";
 import { executeDocumentTransaction } from "../../shared/documentCommands.ts";
+import { defaultFonts } from "../../shared/fontDefaults";
 import { inspectFontCoverage } from "../../shared/fontInspection";
+import {
+  inspectFontLibrary,
+  libraryFontAsset,
+  libraryFontsNamed,
+  resolveLibraryFonts,
+} from "../../shared/fontLibrary";
 import { createHistory } from "../../shared/history.js";
 import { compileInteractiveArtboard } from "../../shared/interactive";
 import {
@@ -100,6 +108,7 @@ import {
   snapshot,
   validateTransform,
 } from "../../shared/project.js";
+import { importableArtboards } from "../../shared/projectImport";
 import { inspectRig, inspectRigValue } from "../../shared/rigInspection";
 import { mountAppearancePanel } from "./appearance-panel";
 import { mountArtboardInspector } from "./artboard-inspector.tsx";
@@ -119,6 +128,7 @@ import { mountDrawOrderPanel } from "./draw-order-panel";
 import { createGestureEffectPreview } from "./effectGesturePreview";
 import { mountEffectsPanel } from "./effects-panel";
 import { createFontCatalogOwner } from "./fontCatalog";
+import { mountFontsPanel } from "./fonts-panel";
 import { formatInput } from "./form-values";
 import { mountImagePanel } from "./image-panel";
 import { mountInstanceInspector } from "./instance-inspector.tsx";
@@ -225,6 +235,7 @@ function transact(commands, request) {
 function acceptDocumentResult(result) {
   if (!result.changed) return result;
   Object.assign(state, result.project);
+  state.defaults = result.project.defaults;
   bindActiveArtboard(state, result.selectedArtboard ?? state.activeArtboardId);
   const existingIds = new Set(flattenScene(state.scene).map(({ node }) => node.id));
   if (result.selected !== undefined)
@@ -496,7 +507,7 @@ function render() {
   synchronizePathEditing(state);
   const authoredMachine = Boolean(state.scene && state.view === "machine");
   $("#app").innerHTML =
-    `<header class="topbar"><div class="brand"><span class="mark">⌁</span>EdiSVG <small class="app-version">${packageInfo.version}</small></div><nav class="menus">${button("file", "Arquivo")}${button("undo", "↶ Desfazer")}${button("redo", "↷ Refazer")}${button("object", "Objeto")}${button("animation", "Animação")}${button("view", "Exibir")}${button("help", "Ajuda")}</nav><div class="modes">${button("design", "◇ Design", state.view === "design" ? "active" : "")}${button("animate", "◷ Animar", state.view === "animate" ? "active" : "")}${state.scene ? button("machine", "◈ Estados", authoredMachine ? "active" : "") : ""}</div><span class="project">${state.scene ? "Projeto" : "Mascote"} ${escapeHtml(state.name)} <span title="${escapeHtml(fileStatus.path || "Projeto ainda sem arquivo")}">/ ${escapeHtml(fileStatus.name)}${fileStatus.dirty ? " •" : ""}</span><i class="saved" title="${escapeHtml(localSaveStatus)}"></i></span><div class="top-actions">${button("test", "▷ <span>Testar</span>")}${button("assistant", "✧ <span>Assistente</span>")}${button("export", "↗ Exportar", "primary")}</div></header><main class="workspace ${state.view === "machine" ? "machine-workspace" : ""}">${toolbar(state)}${authoredMachine ? '<aside class="sidebar" data-behavior-sidebar></aside>' : state.scene ? sceneSidebar(state) : state.view === "machine" ? machineSidebar() : hierarchy()}<section class="center">${authoredMachine ? '<div data-behavior-canvas style="height:100%"></div>' : state.scene ? sceneCanvas(state) : state.view === "machine" ? machineCanvas() : canvas()}</section><aside class="inspector">${authoredMachine ? "<div data-behavior-inspector></div>" : state.scene ? sceneInspector(state) : state.view === "machine" ? machineInspector() : inspector()}</aside></main>${authoredMachine ? '<footer class="statusbar"><span class="live-dot"></span> Lógica editável da prancheta <span class="push">Estados · Dados · Eventos</span></footer>' : state.view === "machine" ? '<footer class="statusbar"><span class="live-dot"></span> Máquina de estados · Interação <span class="push">3 estados · 4 listeners</span></footer>' : timeline()}<dialog id="export-dialog"></dialog><dialog id="help-dialog"></dialog><dialog id="clip-dialog"></dialog>`;
+    `<header class="topbar"><div class="brand"><span class="mark">⌁</span>EdiSVG <small class="app-version">${packageInfo.version}</small></div><nav class="menus">${button("file", "Arquivo")}${button("undo", "↶ Desfazer")}${button("redo", "↷ Refazer")}${button("object", "Objeto")}${button("animation", "Animação")}${button("view", "Exibir")}${button("help", "Ajuda")}</nav><div class="modes">${button("design", "◇ Design", state.view === "design" ? "active" : "")}${button("animate", "◷ Animar", state.view === "animate" ? "active" : "")}${state.scene ? button("machine", "◈ Estados", authoredMachine ? "active" : "") : ""}</div><span class="project">${state.scene ? "Projeto" : "Mascote"} ${escapeHtml(state.name)} <span title="${escapeHtml(fileStatus.path || "Projeto ainda sem arquivo")}">/ ${escapeHtml(fileStatus.name)}${fileStatus.dirty ? " •" : ""}</span><i class="saved" title="${escapeHtml(localSaveStatus)}"></i></span><span class="link-status" data-link-status aria-live="polite">${escapeHtml(linkStatusText())}</span><div class="top-actions">${button("test", "▷ <span>Testar</span>")}${button("assistant", "✧ <span>Assistente</span>")}${button("export", "↗ Exportar", "primary")}</div></header><main class="workspace ${state.view === "machine" ? "machine-workspace" : ""}">${toolbar(state)}${authoredMachine ? '<aside class="sidebar" data-behavior-sidebar></aside>' : state.scene ? sceneSidebar(state) : state.view === "machine" ? machineSidebar() : hierarchy()}<section class="center">${authoredMachine ? '<div data-behavior-canvas style="height:100%"></div>' : state.scene ? sceneCanvas(state) : state.view === "machine" ? machineCanvas() : canvas()}</section><aside class="inspector">${authoredMachine ? "<div data-behavior-inspector></div>" : state.scene ? sceneInspector(state) : state.view === "machine" ? machineInspector() : inspector()}</aside></main>${authoredMachine ? '<footer class="statusbar"><span class="live-dot"></span> Lógica editável da prancheta <span class="push">Estados · Dados · Eventos</span></footer>' : state.view === "machine" ? '<footer class="statusbar"><span class="live-dot"></span> Máquina de estados · Interação <span class="push">3 estados · 4 listeners</span></footer>' : timeline()}<dialog id="export-dialog"></dialog><dialog id="help-dialog"></dialog><dialog id="clip-dialog"></dialog>`;
   bind();
   for (const action of ["test", "export"]) {
     const control = document.querySelector(`[data-action="${action}"]`);
@@ -755,7 +766,21 @@ function render() {
           : undefined,
     };
     if (appearanceHost) disposeAppearancePanel = mountAppearancePanel(appearanceHost, props);
-    if (textHost) disposeTextPanel = mountTextPanel(textHost, props);
+    if (textHost) {
+      const fonts = defaultFonts(state);
+      disposeTextPanel = mountTextPanel(textHost, {
+        ...props,
+        fonts: {
+          library: textPanelLibrary(),
+          heading: fonts.heading,
+          body: fonts.body,
+          targets: Math.max(1, selectedTexts().length),
+          apply: (choice, text) => applyTextFont(instanceNode, choice, text),
+          applyRole: (role) => applyTextRole(instanceNode, role),
+          open: () => void openFonts(),
+        },
+      });
+    }
     if (imageHost) disposeImagePanel = mountImagePanel(imageHost, props);
     if (effectsHost) disposeEffectsPanel = mountEffectsPanel(effectsHost, props);
     if (semanticsHost) disposeSemanticsPanel = mountSemanticsPanel(semanticsHost, props);
@@ -1295,6 +1320,7 @@ function applyProject(value, resetSession = true) {
     frame: 0,
     playing: false,
   });
+  state.defaults = project.defaults;
   bindActiveArtboard(state, resetSession ? openingArtboardId(project) : state.activeArtboardId);
   if (resetSession) {
     Object.assign(state, {
@@ -1821,8 +1847,9 @@ function action(id) {
   if (id === "import-svg") return importArtwork();
   if (id === "import-game") return importGameProject();
   if (id === "import-kit") return importDesignKit();
-  if (id === "lesson-send") return openLessonSend();
-  if (id === "pipelines") return openPipelines();
+  if (id === "import-boards") return importBoards();
+  if (id === "fonts") return openFonts();
+  if (id === "pipelines") return void openPipelinesForLink();
   if (state.scene && id === "add-shape") {
     try {
       changeScene("add", "rect");
@@ -1983,6 +2010,7 @@ function importArtwork(initial) {
   const dialog = document.querySelector("#clip-dialog");
   if (!(dialog instanceof HTMLDialogElement) || dialog.open) return;
   disposeSvgImport?.();
+  const board = state.artboards.find((item) => item.id === state.activeArtboardId);
   disposeSvgImport = mountSvgImport(dialog, {
     initial,
     native: window.desktop ? () => window.desktop.importSvg() : undefined,
@@ -2003,6 +2031,21 @@ function importArtwork(initial) {
       state.frame = 0;
       render();
       notify("SVG importado em nova prancheta; as anteriores e suas animações foram preservadas.");
+    },
+    place: board && {
+      board: board.name,
+      apply(scene, name) {
+        const groupId = `node-${crypto.randomUUID()}`;
+        const result = transact([
+          { type: "artboard", operation: "place", id: board.id, groupId, name, scene },
+        ]);
+        if (!result.changed) return;
+        chooseObject(state, groupId);
+        state.view = "design";
+        state.playing = false;
+        render();
+        notify(`SVG colocado em "${board.name}" como o grupo "${name}". Ctrl+Z desfaz.`);
+      },
     },
   });
 }
@@ -2043,36 +2086,184 @@ async function bundledFontAsset(font, signal) {
     licenseNotice: font.notice,
   });
 }
+/**
+ * EdiSVG's font library (fontLibrary.ts): its faces, read once, and each face as the asset it
+ * becomes in a project, built once per session (the file never changes while EdiSVG runs).
+ */
+let fontLibraryList = null;
+const libraryAssets = new Map();
+function loadFontLibrary() {
+  if (!window.desktop?.fontLibrary)
+    return Promise.reject(new Error("As fontes do EdiSVG precisam do aplicativo desktop."));
+  fontLibraryList ??= window.desktop.fontLibrary().catch((error) => {
+    fontLibraryList = null;
+    throw error;
+  });
+  return fontLibraryList;
+}
+function loadLibraryFont(id) {
+  let asset = libraryAssets.get(id);
+  if (!asset) {
+    if (!window.desktop?.libraryFont)
+      return Promise.reject(new Error("As fontes do EdiSVG precisam do aplicativo desktop."));
+    asset = window.desktop
+      .libraryFont(id)
+      .then((font) => libraryFontAsset(font))
+      .catch((error) => {
+        libraryAssets.delete(id);
+        throw error;
+      });
+    libraryAssets.set(id, asset);
+  }
+  return asset;
+}
+/**
+ * A transaction whose commands name library fonts (add-library-font, set-font with
+ * libraryFontId, set-defaults with *LibraryFontId) as ordinary commands: each font an asset put
+ * before its first use, in the same transaction. `added` says which asset each font became.
+ */
+async function withLibraryFonts(request) {
+  const ids = libraryFontsNamed(request.commands);
+  if (!ids.length) return { request, added: [] };
+  const fonts = new Map(await Promise.all(ids.map(async (id) => [id, await loadLibraryFont(id)])));
+  const resolved = resolveLibraryFonts(request.commands, fonts);
+  return { request: { ...request, commands: resolved.commands }, added: resolved.added };
+}
+/** The open session's request for `commands`, after the library fonts they name are loaded. */
+async function transactFonts(commands) {
+  const session = state.sessionId;
+  const { request } = await withLibraryFonts({ commands });
+  if (state.sessionId !== session) throw new Error("O projeto foi substituído; nada foi alterado.");
+  if (refusedDuringRun()) throw new Error("Espere o pipeline terminar para mudar as fontes.");
+  const result = transact(request.commands);
+  render();
+  return result;
+}
+/** The texts of the selection, for the text panel's font (the panel shows the last one). */
+function selectedTexts() {
+  const texts = new Set(
+    flattenScene(state.scene)
+      .filter(({ node }) => node.tag === "text")
+      .map(({ node }) => node.id),
+  );
+  return selectionIds(state).filter((id) => texts.has(id));
+}
+/** Text panel: a font on the selected texts, with the content typed in the panel, one undo step. */
+async function applyTextFont(node, choice, text) {
+  const targets = selectedTexts();
+  if (!targets.includes(node.id)) targets.push(node.id);
+  await transactFonts([
+    ...targets.map((targetId) => ({
+      type: "asset",
+      operation: "set-font",
+      targetId,
+      ...(choice === null
+        ? { assetId: null }
+        : "libraryFontId" in choice
+          ? { libraryFontId: choice.libraryFontId }
+          : { assetId: choice.assetId }),
+    })),
+    ...(text !== node.text
+      ? [{ type: "scene", operation: "text", targetId: node.id, value: text }]
+      : []),
+  ]);
+}
+function applyTextRole(node, role) {
+  const targets = selectedTexts();
+  if (!targets.includes(node.id)) targets.push(node.id);
+  try {
+    transact([{ type: "fonts", operation: "apply-defaults", role, targetIds: targets }]);
+    render();
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "A fonte não foi aplicada.");
+  }
+}
+let fontLibraryForPanel = [];
+/** The library for the text panel: read once, then the panels have it on their next render. */
+function textPanelLibrary() {
+  if (!fontLibraryForPanel.length && window.desktop?.fontLibrary)
+    void loadFontLibrary().then(
+      (list) => {
+        if (fontLibraryForPanel.length) return;
+        fontLibraryForPanel = list;
+        render();
+      },
+      () => {},
+    );
+  return fontLibraryForPanel;
+}
+let disposeFontsPanel = null;
+/** Fontes do projeto: the project's defaults, the defaults for new projects, apply to all. */
+async function openFonts() {
+  if (refusedDuringRun()) return;
+  let library = [];
+  let preference = null;
+  if (window.desktop?.fontLibrary) {
+    try {
+      [library, preference] = await Promise.all([
+        loadFontLibrary(),
+        window.desktop.fontPreference(),
+      ]);
+    } catch (error) {
+      notify(
+        `As fontes do EdiSVG não foram encontradas: ${error instanceof Error ? error.message : "erro"}. As fontes do projeto continuam disponíveis.`,
+      );
+    }
+  }
+  let dialog = document.querySelector("#kit-dialog");
+  if (!(dialog instanceof HTMLDialogElement)) {
+    dialog = document.createElement("dialog");
+    dialog.id = "kit-dialog";
+    document.body.append(dialog);
+  }
+  if (dialog.open) return;
+  const fonts = defaultFonts(state);
+  const role = (choice) =>
+    choice.startsWith("library:")
+      ? { library: choice.slice("library:".length) }
+      : choice.startsWith("asset:")
+        ? { asset: choice.slice("asset:".length) }
+        : null;
+  disposeFontsPanel?.();
+  disposeFontsPanel = mountFontsPanel(dialog, {
+    projectFonts: state.assets.filter((asset) => asset.kind === "font"),
+    heading: fonts.heading,
+    body: fonts.body,
+    library,
+    preference,
+    async setDefaults(headingChoice, bodyChoice) {
+      const heading = role(headingChoice);
+      const body = role(bodyChoice);
+      const result = await transactFonts([
+        {
+          type: "fonts",
+          operation: "set-defaults",
+          ...(heading?.library
+            ? { headingLibraryFontId: heading.library }
+            : { heading: heading?.asset ?? null }),
+          ...(body?.library ? { bodyLibraryFontId: body.library } : { body: body?.asset ?? null }),
+        },
+      ]);
+      return result.changed
+        ? "Fontes padrão do projeto salvas. Ctrl+Z desfaz."
+        : "As fontes padrão já eram essas.";
+    },
+    applyAll() {
+      const result = transact([{ type: "fonts", operation: "apply-defaults", role: "auto" }]);
+      render();
+      return result.changed
+        ? "Fontes padrão aplicadas aos textos. Ctrl+Z desfaz."
+        : "Os textos já estavam com as fontes padrão.";
+    },
+    async setPreference(value) {
+      await window.desktop.setFontPreference(value);
+      return "Os projetos novos vão nascer com essas fontes.";
+    },
+  });
+}
 /** A project holds 100 artboards (project.ts). */
 const ARTBOARD_LIMIT = 100;
 let disposeKitImport = null;
-let disposeLessonSend = null;
-/**
- * Arquivo › Enviar animações para a aula: the animations the pipelines made of lesson stretches,
- * to EdiAula (pipelines/lessonSend.ts). Its dialog lives outside the editor's markup, as the
- * pipelines' does: a render while it sends would close it.
- */
-function openLessonSend() {
-  if (refusedDuringRun()) return;
-  if (!window.desktop) {
-    notify("Enviar para a aula precisa do aplicativo desktop.");
-    return;
-  }
-  let dialog = document.querySelector("#lesson-send-dialog");
-  if (!(dialog instanceof HTMLDialogElement)) {
-    dialog = document.createElement("dialog");
-    dialog.id = "lesson-send-dialog";
-    document.body.append(dialog);
-  }
-  if (dialog.open || document.querySelector("dialog[open]")) return;
-  disposeLessonSend?.();
-  disposeLessonSend = mountLessonSend(dialog, {
-    project: snapshot(state),
-    bridge: window.desktop,
-    report: notify,
-    setBusy: () => undefined,
-  });
-}
 /**
  * Arquivo › Importar kit de design: a ZIP of SVGs and PNGs as "Kit · pasta · arquivo" artboards,
  * with the kit's palette and fonts (designKitImport.ts). The person chooses the folders first, as
@@ -2127,6 +2318,74 @@ async function importDesignKit() {
     });
   } catch (error) {
     notify(error instanceof Error ? error.message : "Não foi possível importar o kit.");
+  }
+}
+/**
+ * Arquivo › Importar pranchetas de outro projeto: artboards of another .edisvg come in with their
+ * animations, rig, logic, assets and the artboards their components show (projectImport.ts),
+ * in one undo step. The other file is only read.
+ */
+let disposeBoardsImport = null;
+async function importBoards() {
+  if (refusedDuringRun()) return;
+  if (!window.desktop) {
+    notify("Importar pranchetas de outro projeto precisa do aplicativo desktop.");
+    return;
+  }
+  const session = state.sessionId;
+  try {
+    const picked = await window.desktop.importBoards();
+    if (!picked) return;
+    if (state.sessionId !== session) {
+      notify("O projeto foi substituído; nenhuma importação foi aplicada.");
+      return;
+    }
+    let dialog = document.querySelector("#kit-dialog");
+    if (!(dialog instanceof HTMLDialogElement)) {
+      dialog = document.createElement("dialog");
+      dialog.id = "kit-dialog";
+      document.body.append(dialog);
+    }
+    if (dialog.open) return;
+    disposeBoardsImport?.();
+    disposeBoardsImport = mountBoardsImport(dialog, {
+      name: picked.name,
+      boards: importableArtboards(picked.project),
+      room: Math.max(0, ARTBOARD_LIMIT - state.artboards.length),
+      apply: (artboardIds) => {
+        disposeBoardsImport = null;
+        if (state.sessionId !== session) {
+          notify("O projeto foi substituído; nenhuma importação foi aplicada.");
+          return;
+        }
+        if (refusedDuringRun()) return;
+        try {
+          const before = {
+            boards: state.artboards.length,
+            animations: state.motion.animations.length,
+            assets: state.assets.length,
+          };
+          const result = transact([
+            { type: "project-import", source: picked.project, artboardIds },
+          ]);
+          if (!result.changed) return;
+          state.view = "design";
+          state.playing = false;
+          state.frame = 0;
+          render();
+          const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+          notify(
+            `De ${picked.name}: ${count(state.artboards.length - before.boards, "prancheta", "pranchetas")}, ${count(state.motion.animations.length - before.animations, "animação", "animações")} e ${count(state.assets.length - before.assets, "recurso", "recursos")}. Ctrl+Z desfaz.`,
+          );
+        } catch (error) {
+          notify(
+            error instanceof Error ? error.message : "Não foi possível importar as pranchetas.",
+          );
+        }
+      },
+    });
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Não foi possível ler o projeto.");
   }
 }
 async function applyDesignKit(plan, families, session) {
@@ -2274,28 +2533,53 @@ function applyGameProject(source) {
 }
 /**
  * A pipeline's narration: a new animation as long as it, opened, with the narration playing in
- * the preview (a reference, never exported). One edit (the animation) for the history.
+ * the preview (a reference, never exported). One edit (the animation) for the history. With a
+ * linked animation still empty as the run's target (an EdiAula "Nova animação"), that animation
+ * takes the narration instead, keeping its link: the lesson's clip becomes the run's result.
  */
 async function openNarration(value) {
   const fps = 30;
   const frames = Math.max(1, Math.ceil(value.duration * fps));
-  const id = `animation-${crypto.randomUUID()}`;
-  transact([
-    {
-      type: "motion",
-      command: {
-        type: "create-animation",
-        animation: {
-          id,
-          name: `Narração · ${value.name}`.slice(0, 120),
+  const target = pipelineTarget
+    ? state.motion.animations.find(
+        (a) => a.id === pipelineTarget.animationId && a.tracks.length === 0,
+      )
+    : null;
+  const id = target?.id ?? `animation-${crypto.randomUUID()}`;
+  if (target) {
+    pipelineTarget.used = true;
+    // The artboard the run works in (the demonstration's layer, the studio's scene).
+    pipelineTarget.board = state.activeArtboardId;
+    transact([
+      {
+        type: "motion",
+        command: {
+          type: "update-animation",
+          animationId: id,
+          name: target.name,
           fps,
           frames,
           mode: "once",
-          tracks: [],
         },
       },
-    },
-  ]);
+    ]);
+  } else
+    transact([
+      {
+        type: "motion",
+        command: {
+          type: "create-animation",
+          animation: {
+            id,
+            name: `Narração · ${value.name}`.slice(0, 120),
+            fps,
+            frames,
+            mode: "once",
+            tracks: [],
+          },
+        },
+      },
+    ]);
   const narration = {
     clipId: id,
     name: `Narração · ${value.name}`.slice(0, 120),
@@ -2319,6 +2603,38 @@ async function openNarration(value) {
  */
 let disposePipelines = null;
 /**
+ * The linked animation the pipelines fill (packages/edi-link), when they open on one still empty
+ * (EdiAula's "Nova animação"): its lesson comes chosen, the run's narration goes into it and the
+ * link follows the run's artboard. Null for a run of its own.
+ */
+let pipelineTarget = null;
+async function openPipelinesForLink() {
+  // Already open, or a run going: the run's target stays as it is.
+  if (document.querySelector("dialog[open]")) return;
+  if (pipelineRun) return openPipelines();
+  let handed;
+  pipelineTarget = null;
+  try {
+    const animation = state.motion.animations.find((a) => a.id === state.activeClipId);
+    if (window.desktop?.linkList && animation && animation.tracks.length === 0) {
+      const item = (await window.desktop.linkList()).find((i) => i.animationId === animation.id);
+      if (item) {
+        pipelineTarget = {
+          animationId: item.animationId,
+          artboardId: item.artboardId,
+          name: item.name,
+          used: false,
+        };
+        const file = item.lesson ? await window.desktop.linkLessonFile(item.animationId) : null;
+        if (file) handed = { name: file.name.replace(/\.ediaula$/i, ""), file };
+      }
+    }
+  } catch (error) {
+    notify(error.message);
+  }
+  openPipelines(handed);
+}
+/**
  * The pipeline run in progress: the history point before it (one undo step for the whole run)
  * and the project session it runs on (another file opened meanwhile is never edited by it).
  */
@@ -2328,7 +2644,11 @@ function sameRunSession() {
   if (pipelineRun && state.sessionId !== pipelineRun.session)
     throw new Error("Outro projeto foi aberto durante o pipeline: ele parou sem editar o novo.");
 }
-function openPipelines() {
+/**
+ * @param {{ name: string, file: import("../../shared/pipelines").PickedFile } | undefined} handed
+ *   The lesson of a linked animation (packages/edi-link): every recipe run starts with it chosen.
+ */
+function openPipelines(handed = undefined) {
   let dialog = document.querySelector("#pipelines-dialog");
   if (!(dialog instanceof HTMLDialogElement)) {
     dialog = document.createElement("dialog");
@@ -2343,6 +2663,7 @@ function openPipelines() {
   disposePipelines?.();
   disposePipelines = mountPipelines(dialog, {
     desktop: window.desktop,
+    ...(handed ? { handed } : {}),
     editor: {
       importStudioProject: (source) => {
         sameRunSession();
@@ -2365,6 +2686,11 @@ function openPipelines() {
       markLessonClip: (value) => {
         sameRunSession();
         transact([{ type: "lesson-clip", value }]);
+        // The linked animation the run made: the lesson's clip goes where these words are.
+        if (pipelineTarget?.used && value.clipId === pipelineTarget.animationId) {
+          pipelineTarget.start = value.start;
+          pipelineTarget.board = state.activeArtboardId;
+        }
       },
       lessonClips: () => {
         const clips = new Set(state.motion.animations.map((animation) => animation.id));
@@ -2475,15 +2801,227 @@ function openPipelines() {
       },
       endRun: () => {
         const run = pipelineRun;
+        const target =
+          pipelineTarget?.used && run?.session === state.sessionId ? pipelineTarget : null;
+        // The linked animation the run filled now draws on the artboard the run made (the
+        // demonstration's layer, the studio's scene); the empty one it was made with goes, in
+        // the same undo step as the run.
+        if (target) {
+          pipelineTarget = null;
+          const old = state.artboards.find((b) => b.id === target.artboardId);
+          if (old && old.id !== target.board && !old.scene.nodes.length)
+            try {
+              transact([{ type: "artboard", operation: "delete", id: old.id }]);
+            } catch {
+              // An artboard another part of the project still uses stays.
+            }
+        }
         pipelineRun = null;
         // Only on the file the run started on (another file has its own history).
         if (run && run.session === state.sessionId && projectHistory.squash(run.mark))
           refreshHistoryControls();
+        if (target)
+          void window.desktop
+            ?.linkRegister(state.id, {
+              animationId: target.animationId,
+              artboardId: target.board ?? state.activeArtboardId,
+              name: target.name,
+              ...(target.start !== undefined ? { start: target.start } : {}),
+            })
+            .then(() =>
+              notify(`"${target.name}" está pronta para a aula: salve para atualizá-la lá.`),
+            )
+            .catch((error) => notify(error.message));
       },
     },
     report: notify,
   });
 }
+/**
+ * The linked animations of the project (packages/edi-link): after every save, and when a
+ * project opens, each one whose picture changed renders for the tool that placed it
+ * (links/renderLinks.ts), in the background, the progress beside the file's name.
+ */
+let linkProgress = null;
+const linkRenderer = window.desktop?.linkList
+  ? createLinkRenderer(
+      window.desktop,
+      (progress) => {
+        linkProgress = progress;
+        const el = document.querySelector("[data-link-status]");
+        if (el) el.textContent = linkStatusText();
+      },
+      notify,
+    )
+  : null;
+function linkStatusText() {
+  if (!linkProgress) return "";
+  const { name, index, count, frame, frames } = linkProgress;
+  return `Renderizando para a aula${count > 1 ? ` (${index + 1} de ${count})` : ""} · ${name} · quadro ${frame} de ${frames}`;
+}
+function renderLinkedAnimations() {
+  if (linkRenderer && state.artboards?.length) void linkRenderer.run(snapshot(state));
+}
+/** The artboard an animation draws on: where the objects of its tracks are. */
+function artboardOfAnimation(animation) {
+  const targets = new Set(animation.tracks.map((track) => track.targetId));
+  const board = state.artboards.find((candidate) =>
+    flattenScene(candidate.scene).some(({ node }) => targets.has(node.id)),
+  );
+  return board?.id ?? state.activeArtboardId;
+}
+
+/**
+ * Requests of other Edi tools (packages/edi-link: EdiAula's "Nova animação do EdiSVG", "Editar
+ * no EdiSVG", "Importar animação do EdiSVG") and a .edisvg given on the command line. The main
+ * process reads them from this profile's `pedidos/` and says one came (onLinkWaiting); the
+ * window takes them one at a time when nothing is in the way (a dialog, a pipeline, the
+ * assistant writing), trying again a moment later while something is.
+ */
+let takingLinks = false;
+/** A request came while others were being taken: look again when they are done. */
+let linkAgain = false;
+let linkRetry = null;
+const linkInTheWay = () =>
+  !!pipelineRun ||
+  assistant.isBusy() ||
+  $("#app").inert ||
+  !!document.querySelector("dialog[open]");
+function retryLinkRequests() {
+  clearTimeout(linkRetry);
+  linkRetry = setTimeout(() => void takeLinkRequests(true), 1500);
+}
+async function takeLinkRequests(signalled = false) {
+  if (!window.desktop?.linkNext) return;
+  if (takingLinks) {
+    if (signalled) linkAgain = true;
+    return;
+  }
+  if (linkInTheWay()) {
+    if (signalled) retryLinkRequests();
+    return;
+  }
+  takingLinks = true;
+  linkAgain = false;
+  try {
+    for (;;) {
+      const request = await window.desktop.linkNext();
+      if (!request) break;
+      // The main process is busy (a file operation, the AI): the request waits for the next look.
+      if (request.type === "wait") {
+        retryLinkRequests();
+        break;
+      }
+      await handleLinkRequest(request);
+      if (linkInTheWay()) {
+        retryLinkRequests();
+        break;
+      }
+    }
+  } catch (error) {
+    notify(error.message);
+  } finally {
+    takingLinks = false;
+    if (linkAgain) {
+      linkAgain = false;
+      void takeLinkRequests(true);
+    }
+  }
+}
+async function handleLinkRequest(request) {
+  if (request.type === "file") {
+    try {
+      const opened = await window.desktop.linkOpenFile();
+      if (opened && !opened.same)
+        assistant.adoptProject(opened, `Projeto aberto: ${opened.status.name}.`);
+    } catch (error) {
+      notify(error.message);
+    }
+    return;
+  }
+  try {
+    const wasDirty = fileStatus.dirty;
+    const opened = await window.desktop.linkOpenProject(request.id);
+    if (!opened) {
+      notify("O pedido do EdiAula foi deixado de lado: o projeto aberto continua.");
+      return;
+    }
+    if (!opened.same) assistant.adoptProject(opened, null);
+    if (request.type === "create") {
+      const artboardId = `artboard-${crypto.randomUUID()}`;
+      const animationId = `animation-${crypto.randomUUID()}`;
+      const frames = Math.max(1, Math.round(request.duration * request.fps));
+      transact([
+        {
+          type: "artboard",
+          operation: "create",
+          id: artboardId,
+          name: request.name,
+          width: request.width,
+          height: request.height,
+        },
+        {
+          type: "motion",
+          command: {
+            type: "create-animation",
+            animation: {
+              id: animationId,
+              name: request.name,
+              fps: request.fps,
+              frames,
+              mode: "once",
+              tracks: [],
+            },
+          },
+        },
+      ]);
+      selectArtboard(artboardId);
+      selectClip(animationId);
+      await window.desktop.linkRegister(state.id, {
+        animationId,
+        artboardId,
+        name: request.name,
+        requestId: request.id,
+        ...(request.lesson ? { lesson: request.lesson } : {}),
+      });
+      // Saved, so the lesson's project holds it: a project with other unsaved work waits for the
+      // person's own save.
+      if (opened.same && wasDirty)
+        notify(`Nova animação "${request.name}": salve o projeto para a aula recebê-la.`);
+      else {
+        await assistant.save();
+        notify(
+          `Nova animação para a aula: "${request.name}". Anime à mão ou com os pipelines (a aula já vem escolhida) e salve: a aula se atualiza.`,
+        );
+      }
+      return;
+    }
+    const animation = state.motion.animations.find((a) => a.id === request.animationId);
+    if (!animation) throw new Error("A animação pedida não está neste projeto.");
+    const linked = (await window.desktop.linkList()).find((i) => i.animationId === animation.id);
+    const artboardId =
+      linked && state.artboards.some((b) => b.id === linked.artboardId)
+        ? linked.artboardId
+        : artboardOfAnimation(animation);
+    selectArtboard(artboardId);
+    selectClip(animation.id);
+    if (request.type === "link") {
+      await window.desktop.linkRegister(state.id, {
+        animationId: animation.id,
+        artboardId,
+        name: animation.name.slice(0, 200) || "Animação",
+        requestId: request.id,
+      });
+      renderLinkedAnimations();
+      notify(`"${animation.name}" está vinculada à aula: cada salvar a atualiza lá.`);
+    } else notify(`Editando "${animation.name}" para a aula: salve para atualizá-la lá.`);
+  } catch (error) {
+    notify(`O pedido do EdiAula não foi atendido: ${error.message}`);
+  } finally {
+    await window.desktop.linkDone(request.id).catch(() => undefined);
+  }
+}
+window.desktop?.onLinkWaiting?.(() => void takeLinkRequests(true));
 /** A dropped .szproject.json: read in the window (the dialog path reads it in main). */
 async function readGameProjectFile(file) {
   if (file.size > SZPROJECT_BYTES) throw new Error("O projeto do Estúdio passa de 30 MB.");
@@ -3121,6 +3659,13 @@ const assistant = setupAssistant({
       : null,
     frame: Math.floor(state.frame),
     selected: state.selected,
+    // The project's default fonts (a new text takes the title one); change with fonts set-defaults.
+    fontDefaults: Object.fromEntries(
+      Object.entries(defaultFonts(state)).map(([role, font]) => [
+        role,
+        font ? { assetId: font.id, family: font.family, weight: font.weight } : null,
+      ]),
+    ),
     capabilities: [
       "transformação global",
       "animações predefinidas",
@@ -3147,8 +3692,11 @@ const assistant = setupAssistant({
   importSvg: importArtwork,
   importGameProject: () => importGameProject(),
   importDesignKit: () => importDesignKit(),
-  openLessonSend: () => openLessonSend(),
-  openPipelines: () => openPipelines(),
+  importBoards: () => importBoards(),
+  openFonts: () => openFonts(),
+  /** After a save (and when a project is taken): the linked animations render what changed. */
+  afterSave: () => renderLinkedAnimations(),
+  openPipelines: () => void openPipelinesForLink(),
   /** A pipeline is running: opening or creating another file waits (assistant.js). */
   pipelineRunning: () => !!pipelineRun,
   fileStatus: updateFileStatus,
@@ -3209,6 +3757,12 @@ const assistant = setupAssistant({
       };
     }
     if (name === "get_assets") return inspectAssets(state.assets, input);
+    if (name === "get_font_library")
+      return inspectFontLibrary(
+        await loadFontLibrary(),
+        input,
+        await window.desktop.fontPreference(),
+      );
     if (name === "get_font_coverage")
       return {
         projectId: state.id,
@@ -3263,15 +3817,18 @@ const assistant = setupAssistant({
       };
     }
     if (name === "edit_document") {
-      const result = input.commands.some((command) => command.type === "vector-boolean")
-        ? await transactHeavy(null, input)
-        : transact(null, input);
+      // Library fonts load first; the transaction still checks the inspected revision.
+      const { request, added } = await withLibraryFonts(input);
+      const result = request.commands.some((command) => command.type === "vector-boolean")
+        ? await transactHeavy(null, request)
+        : transact(null, request);
       render();
       return {
         changed: result.changed,
         revision: state.revision,
         projectId: state.id,
         sessionId: state.sessionId,
+        ...(added.length ? { libraryFonts: added } : {}),
       };
     }
     if (name === "get_rig" || name === "get_rig_value") {
@@ -3422,6 +3979,7 @@ async function initialize() {
     render();
     save(false);
     scheduleTick();
+    void takeLinkRequests(true);
   } catch (error) {
     render();
     document.querySelector("#app").inert = true;

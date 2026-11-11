@@ -276,7 +276,7 @@ Passaram os testes do EdiSVG (357 unitários e 13 e2e, incluindo o novo `design-
 Ainda em 09/11, o titular fechou um projeto da demonstração, abriu de novo, e o vídeo da aula não estava mais por baixo da camada. Isso estava previsto desde a receita: a narração e o vídeo eram referências só da sessão, fora do projeto. Agora os dois ficam guardados no perfil do EdiSVG, pelo id do projeto (`pipeline-references`, últimos 12 projetos). Ao abrir o projeto, voltam com a animação e a prancheta deles. Continuam fora do arquivo `.edisvg` e das exportações, então em outro computador é preciso rodar a receita de novo. O e2e da demonstração agora reabre o projeto num editor novo e confere o vídeo e a narração de volta. Não foi conferido no aplicativo com o projeto do titular. Projetos rodados antes desta correção não têm o que restaurar: é preciso rodar a receita uma vez.
 
 Ainda em 09/11, o titular decidiu integrar EdiAula e EdiSVG, para não carregar os mesmos arquivos nos dois. As decisões:
-- o EdiAula passa a trabalhar com uma seção do roteiro por vez, e o que existe para várias seções (roteiro do curso inteiro, escolha da seção, "Lote por curso") será removido de vez;
+- o EdiAula passa a trabalhar com uma seção do roteiro por vez, e o que existe para várias seções (roteiro do curso inteiro, escolha da seção, "Lote por curso") será removido de vez (revisto em 10/11: sai só o "Lote por curso", veja abaixo);
 - no EdiSVG, as frases da seção são escolhidas numa lista;
 - a animação volta ao EdiAula numa faixa própria, acima da gravação de tela.
 
@@ -308,6 +308,99 @@ Ainda não testado:
 - o tempo de um envio longo, que em 1080p deve ficar perto de alguns minutos.
 
 Continuam pendentes: remover as várias seções do EdiAula e o botão "Animar no EdiSVG".
+
+Em 10/11, antes de remover as várias seções, a conferência das aulas do titular mudou a decisão. Quase todas as aulas em `Documents\EdiAula\Projetos` têm um roteiro de várias partes num vídeo só: a DPJ Aula01, por exemplo, tem 10 minutos com as Partes 1 a 6 e a Parte 6 escolhida. A gravação guiada, os pedaços da voz e o "Na tela" já tratam essas partes como uma aula. Cortar o roteiro na seção escolhida apagaria as outras partes. O "Um projeto por parte", de 09/11, é o jeito documentado de gravar as aulas do Sistema Zero. O titular decidiu remover só o **Lote por curso**: "Dividir por seção", o diálogo, a barra de aprovação e `splitBySections`/`sectionProject`. O roteiro com várias partes, a escolha da parte e o "Um projeto por parte" continuam. O que sobrou de `shared/courseSplit.ts` (o trecho como aula, usado por `export_video`, e os campos do projeto de parte) foi para `shared/lessonParts.ts`, com o teste em `tests/lesson-parts.test.ts`. No mesmo dia, o `teste.edisvg` do titular ganhou o registro do trecho da demonstração (Parte 6, 24 frases), e as duas aulas DPJ Aula01 abertas do pacote ganharam o id de origem `pgte1jhfsnary`.
+
+Ainda em 10/11, entrou o botão **Animar no EdiSVG** no EdiAula (barra de cima e menu Arquivo):
+- **No EdiAula:** a aula é salva e empacotada como em "Empacotar a aula", só com as mídias da timeline, em `para-o-edisvg/` no perfil do EdiAula, com `pedido.json` por último (`src/main/edisvgHandoff.ts`). Fica só o pacote mais novo. Com o EdiSVG instalado pelo Hub, o EdiAula o abre; já aberto, ele vem para a frente. No desenvolvimento, o EdiSVG é aberto à mão.
+- **No EdiSVG:** ao abrir e a cada volta da janela para a frente, ele pega o pedido uma vez (`src/main/lessonRequest.ts`), e os pipelines abrem com a aula já escolhida em cada receita.
+
+Verificação:
+- **EdiAula:** testes do pedido (pacote antes do pedido, falha sem resto, só o pacote mais novo, id recusado antes de empacotar).
+- **EdiSVG:** testes do pedido (uma vez só, pacote ausente ou fora da pasta), o e2e dos pipelines com a aula entregue, os 371 unitários e as jornadas nativas.
+- **Entre os dois:** com a DPJ Aula01 real, o código do EdiAula empacotou 851 MB em 27 s, e o do EdiSVG pegou o pedido uma vez e leu a aula `pifnvgomyinhw`, Seção 6, com as 24 frases.
+
+No primeiro uso real, ainda em 10/11, a aula não abriu no EdiSVG. O pedido estava gravado e a leitura funcionava: disparado à mão o aviso de foco, os pipelines abriram com a aula. O que falhou foi o gatilho, porque o aviso de foco da janela não chegou, ou chegou com um diálogo aberto. Agora o EdiSVG também procura o pedido a cada 3 s enquanto a janela está na frente, com e2e sem aviso de foco. As jornadas nativas passaram de novo, com um pedido real na pasta do EdiAula.
+
+Ainda em 10/11, o titular pediu que o botão abrisse o EdiSVG já com o projeto. Ele escolheu um `.edisvg` por aula. O que mudou:
+- **O projeto da aula:** fica ao lado do arquivo da aula, com o mesmo nome. O EdiSVG o cria na primeira vez e o abre nas seguintes, com os pipelines por cima (`openOrCreate` em `projectFiles.js`).
+- **O EdiSVG já aberto:** o processo principal dele vigia o pedido a cada 2 s e se traz para a frente quando chega um.
+- **O EdiSVG fechado:** o EdiAula o abre. Instalado, pelo `.exe`. No desenvolvimento, pelo `scripts/edi/hub-dev/abrir.ps1`, que com o EdiSVG aberto sai em 0,4 s sem compilar.
+- **A cópia do pacote:** o segundo clique do titular tinha apagado o pacote que os pipelines abertos usavam. Agora o EdiSVG guarda o seu próprio arquivo de cada pacote que pega (hard link em `pacotes-do-ediaula/`), e o EdiAula volta a guardar só o mais novo.
+- **O projeto em branco:** o do EdiSVG recém-aberto dá lugar sem a pergunta de alterações não salvas.
+
+Verificação:
+- **EdiAula:** 1123 testes, com 15 pulados.
+- **EdiSVG:** 373 unitários, os 4 e2e de pipelines (projeto da aula aberto e pipelines parados trocados) e as jornadas nativas.
+
+A revisão completa antes do commit achou 9 problemas, todos corrigidos:
+- **Teste que falharia na CI em Linux:** usava um caminho `C:\…`, que lá não é absoluto.
+- **Aula pega sem abrir:** se outro diálogo abrisse no meio, a aula era pega sem aviso. O aviso voltou.
+- **Troca do projeto:** o processo principal troca para o projeto da aula antes de a janela assumi-lo. Uma alteração atrasada do projeto anterior podia ser gravada no arquivo da aula, e agora é deixada de fora.
+- **Limpeza dos pacotes:** a limpeza no EdiAula podia apagar o pacote em uso. O EdiSVG passou a guardar o seu.
+- **Duas procuras pelo mesmo pedido:** ficou só a do processo principal, que repete o aviso enquanto o pedido espera.
+- **Lançador do desenvolvimento:** abria o EdiSVG também para um EdiAula de perfil descartável e passava adiante o ambiente do Electron. Agora só abre no perfil real, com o ambiente limpo.
+- **Pipelines em preparação:** eram fechados sem perguntar. Agora ficam, com um aviso.
+- **Código repetido** no assistente.
+- **Aviso do Biome** num teste.
+
+Ainda não testado:
+- o clique com os dois aplicativos recém-reabertos com este código;
+- o EdiSVG aberto pelo EdiAula numa instalação do Hub.
+
+Ainda em 10/11, o titular achou o fluxo confuso e sem funcionar direito, e pediu uma integração como a da Adobe: editar no outro aplicativo e a timeline se atualizar sozinha, com cada aplicativo funcionando sozinho também. O fluxo de pacote, pedido por pasta, envio e oferta foi **substituído por um vínculo**. Saíram o "Animar no EdiSVG", o pacote ZIP por clique, o "Enviar animações para a aula", `recebidos/`, `para-o-edisvg/` e a barra de oferta.
+
+Decisões do titular:
+- o EdiSVG renderiza ao salvar;
+- o EdiSVG agora e o EdiFoto depois;
+- substituir o fluxo antigo;
+- um `.edisvg` por aula.
+
+Como ficou:
+- **Contrato:** `packages/edi-link`, um pacote novo. Pedidos por arquivo em `pedidos/` no perfil da ferramenta pedida; renders na pasta `<projeto> · renders`, ao lado do projeto, com `vinculos.json` por último e o hash no nome de cada arquivo. Regras em `docs/arquitetura-desktop.md` §6.
+- **No EdiAula:**
+  - **Nova animação do EdiSVG** (trecho da régua, ou 5 s do cursor) põe na hora um clipe provisório na faixa acima da tela, pede a animação no `Aula.edisvg` ao lado da aula e abre o EdiSVG;
+  - **Editar no EdiSVG**, no menu do clipe;
+  - **Importar animação do EdiSVG…**;
+  - a pasta de renders é vigiada, e o render novo troca o asset em todo o histórico, sem passo de desfazer;
+  - o clipe inteiro acompanha a duração; o cortado mantém o corte.
+- **No EdiSVG:**
+  - pedidos lidos ao abrir e por `fs.watch`;
+  - `EdiSVG.exe <arquivo>` abre o arquivo;
+  - ao salvar, renderiza só as animações vinculadas que mudaram, com hash do documento compilado, WebM VP9 com alfa direto para o FFmpeg, em segundo plano e com andamento.
+- **Pipelines:** aceitam o próprio `.ediaula`, sem ZIP. Numa animação vinculada vazia, a aula vem escolhida, a narração vai para ela, e o clipe vai para o segundo das palavras.
+
+Verificação:
+- **`edi-link`:** 7 testes.
+- **EdiSVG:** 370 unitários, os e2e do vínculo e do pipeline na animação vinculada, e os 10 de mídia, incluindo o render real com alfa.
+- **EdiAula:** testes novos de vínculo e de mídia vinculada.
+
+Fica para medir com os dois aplicativos abertos: o tempo do salvar até a aula atualizar.
+
+Ainda em 10/11, o titular achou as cores do EdiAula limitadas e pediu um seletor com contagotas. Toda fileira de cores (anotações, fundo, bordas, sombras, cursor, quadro) ganhou, depois da paleta, a cor própria em uso, **Mais cores** e o **contagotas** (`EyeDropper` do Chromium, qualquer pixel da tela). "Mais cores" abre um seletor completo (`editor/ColorPicker.tsx`): quadrado de saturação e brilho, matiz, hexadecimal, contagotas, paleta e as 10 cores recentes (`lib/colors.ts`, guardadas no computador). Nada muda até Aplicar, então cada cor é um passo de desfazer. A cor do fundo removido e a cor de uma legenda usam o mesmo seletor no lugar do seletor nativo. As contas de hex e HSV do EdiSVG foram para `@informach/edi-desktop/color`, usadas pelos dois. Verificado num navegador com o componente de verdade e um contagotas simulado; o contagotas real do Windows não foi testado no app.
+
+Ainda em 10/11, o titular quis importar um SVG para a prancheta aberta do EdiSVG, que só criava prancheta nova. A revisão da importação ganhou **Colocar na prancheta aberta**: a arte entra como um grupo selecionado, centralizado e reduzido para caber em 90% da prancheta (operação `place` de `artboard` em `src/shared/artboards.ts`), num Ctrl+Z. Teste unitário em `artboards.test.ts` e e2e em `tests/e2e/svg-ingress.test.ts`; conferido também com o logo do titular no editor construído. Os SVGs do Illustrator do titular (`PackLogo`) eram recusados pelo `<style>` com classes, `data-name` e `<tspan>`: foram feitas cópias `-edisvg.svg` ao lado dos originais, com as classes viradas atributos, iguais pixel a pixel. Ler `<style>` com classes simples no importador fica como melhoria possível.
+
+Ainda em 10/11, para pôr o mascote animado (outro `.edisvg`) na capa, o EdiSVG ganhou **Importar pranchetas de outro projeto…** (`src/shared/projectImport.ts`, comando `project-import` da transação, diálogo `boards-import-panel.tsx`, IPC `boards:import`). Vêm as pranchetas escolhidas, as que elas usam como componente, as animações que mexem nelas (só essas trilhas), rig, lógica, layout, áudio e recursos. Ids que já existem no projeto ganham outros em todas as citações, e nomes repetidos ganham número. Tudo num Ctrl+Z. Verificado com 4 testes unitários, um e2e e os projetos reais do titular (`saudacao` com rig, `baú` com máquina de estados, `celebrando` na própria cópia, com todos os ids colidindo): todas as importações passaram na validação do projeto e compilaram. Depois, o personagem entra na cena como componente com a animação dele.
+
+Ainda em 10/11, o titular não conseguia aplicar Baloo 2 nem Nunito num texto do EdiSVG, nem pela interface nem pelo MCP. A causa era um caminho que faltava, não um defeito pontual. As fontes estão no app como TTF estáticos com OFL (`apps/ediaula/resources/fonts`, que o instalador copia), mas só os pipelines e o kit de design as punham no projeto. O seletor de texto listava só o catálogo, vazio num projeto novo. Nenhuma ferramenta MCP adicionava uma fonte do app, e gravar `font-family` não incorpora a fonte.
+
+O que entrou (projeto v27):
+- **Biblioteca de fontes:** cada face tem um id estável (`baloo-2-800`, `nunito-400`). No painel de texto, as fontes aparecem em "Do EdiSVG" e entram no catálogo e no texto na hora (nos textos selecionados), num passo de desfazer, sem duplicar e com o aviso OFL no recurso.
+- **Fontes padrão do projeto:** `defaults.fonts` guarda a de título e a de corpo. Um texto novo nasce com a de título, e os botões Título e Corpo ficam no painel.
+- **Arquivo › Fontes do projeto…:** escolhe o padrão do projeto, aplica o padrão a todos os textos (peso 600 ou mais recebe a de título) e define o padrão para projetos novos. Até a pessoa mudar, vale Baloo 2 800 e Nunito 400, guardado em `fontes-padrao.json` no perfil.
+- **Projeto novo:** já nasce com as duas fontes no catálogo.
+- **MCP:**
+  - `get_font_library`;
+  - `add-library-font`;
+  - `set-font` com `libraryFontId`;
+  - os comandos `fonts` `set-defaults` e `apply-defaults`;
+  - `fontDefaults` no `get_overview`.
+
+Verificação:
+- **Testes com as fontes reais:** cobertura pt-BR sem faltas, aviso OFL, migração v26 → v27, projeto novo ainda "em branco".
+- **e2e:** painel de texto com desfazer e refazer, diálogo, HTML exportado e quadro de vídeo desenhados com Baloo 2 e Nunito, e não com a fonte de fallback (conferido também na captura).
+- **Ainda não testado:** a janela Electron com o projeto do titular. Detalhes no [README](../apps/edisvg/README.md#fontes-do-edisvg-e-fontes-padrão-do-projeto-projeto-v27).
 
 A revisão completa do diff, antes do commit de 09/11, achou 10 problemas, todos corrigidos:
 - **Leitor de ZIP:** um descritor ficava aberto quando a entrada era recusada.
