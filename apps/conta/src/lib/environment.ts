@@ -3,6 +3,9 @@ import { getProductPriceVariableNames } from "@informach/config";
 import { getCollectionApps } from "@informach/config/collections";
 import { z } from "zod";
 
+/** Secret or restricted key of the configured mode; production services use restricted keys. */
+const stripeKeyMatchesMode = (key: string, mode: "dev" | "prod") =>
+  (mode === "prod" ? /^(sk|rk)_live_/ : /^(sk|rk)_test_/).test(key);
 const priceId = z.union([z.literal(""), z.string().regex(/^price_[A-Za-z0-9_]+$/)]).default("");
 
 const schema = z
@@ -34,10 +37,7 @@ const schema = z
     CRON_SECRET: z.union([z.literal(""), z.string().min(32)]).default(""),
   })
   .superRefine((env, ctx) => {
-    if (
-      env.STRIPE_SECRET_KEY &&
-      !env.STRIPE_SECRET_KEY.startsWith(env.STRIPE_MODE === "prod" ? "sk_live_" : "sk_test_")
-    )
+    if (env.STRIPE_SECRET_KEY && !stripeKeyMatchesMode(env.STRIPE_SECRET_KEY, env.STRIPE_MODE))
       ctx.addIssue({
         code: "custom",
         path: ["STRIPE_SECRET_KEY"],
@@ -62,7 +62,7 @@ const schema = z
       });
     if (env.COMPASSO_BILLING_ENABLED) {
       if (
-        !env.STRIPE_SECRET_KEY.startsWith(env.STRIPE_MODE === "prod" ? "sk_live_" : "sk_test_") ||
+        !stripeKeyMatchesMode(env.STRIPE_SECRET_KEY, env.STRIPE_MODE) ||
         !env.STRIPE_WEBHOOK_SECRET.startsWith("whsec_") ||
         !env.STRIPE_PORTAL_CONFIGURATION_ID.startsWith("bpc_") ||
         env.CRON_SECRET.length < 32

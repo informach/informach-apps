@@ -90,6 +90,21 @@ describe("account deployment configuration", () => {
         STRIPE_SECRET_KEY: "sk_live_synthetic_fixture",
       }),
     ).toThrow();
+    // Restricted keys, as the production services use, follow the same mode rule.
+    expect(
+      readAccountEnvironment({
+        ...local,
+        STRIPE_SECRET_KEY: "rk_test_synthetic_fixture",
+        STRIPE_WEBHOOK_SECRET: "whsec_synthetic_fixture",
+      }),
+    ).toMatchObject({ STRIPE_SECRET_KEY: "rk_test_synthetic_fixture" });
+    expect(() =>
+      readAccountEnvironment({
+        ...local,
+        STRIPE_MODE: "dev",
+        STRIPE_SECRET_KEY: "rk_live_synthetic_fixture",
+      }),
+    ).toThrow();
     expect(() =>
       readAccountEnvironment({
         ...local,
