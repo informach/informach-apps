@@ -126,8 +126,6 @@ jobs:
           BORA_INDIVIDUAL_ANNUAL_PRICE: price_ci_bora_individual_annual
           BORA_FAMILY_MONTHLY_PRICE: price_ci_bora_family_monthly
           BORA_FAMILY_ANNUAL_PRICE: price_ci_bora_family_annual
-          ESTRELA_FAMILY_MONTHLY_PRICE: price_ci_estrela_family_monthly
-          ESTRELA_FAMILY_ANNUAL_PRICE: price_ci_estrela_family_annual
           VAPID_PUBLIC_KEY: ci-build-placeholder-vapid-public
           VAPID_PRIVATE_KEY: ci-build-placeholder-vapid-private
           SENTRY_DSN: https://public@ci.example.com/1

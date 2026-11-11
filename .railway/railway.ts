@@ -436,8 +436,6 @@ export default defineRailway((ctx) => {
       CRON_SECRET: preserve(),
       DATABASE_URL: preserve(),
       EMAIL_SANDBOX_MODE: preserve(),
-      ESTRELA_FAMILY_ANNUAL_PRICE: preserve(),
-      ESTRELA_FAMILY_MONTHLY_PRICE: preserve(),
       LOG_LEVEL: preserve(),
       NEXT_PUBLIC_APP_URL: preserve(),
       NEXT_PUBLIC_SENTRY_DSN: preserve(),
@@ -451,10 +449,6 @@ export default defineRailway((ctx) => {
       SENTRY_DSN: preserve(),
       SENTRY_ORG: preserve(),
       SENTRY_PROJECT: preserve(),
-      STRIPE_MODE: preserve(),
-      STRIPE_PORTAL_CONFIGURATION_ID: preserve(),
-      STRIPE_SECRET_KEY: preserve(),
-      STRIPE_WEBHOOK_SECRET: preserve(),
       VAPID_PRIVATE_KEY: preserve(),
       VAPID_PUBLIC_KEY: preserve(),
     },
@@ -526,13 +520,17 @@ export default defineRailway((ctx) => {
   const accountDepartureCrons = getCollectionApps("compasso").map((app) => {
     const appService = compassoAppServices.get(app.slug);
     if (!appService) throw new Error(`Missing Compasso worker service for ${app.slug}`);
+    // Each worker authenticates with its own app's secret, never a shared one.
+    const cronSecret = appService.env.CRON_SECRET;
+    if (!Object.hasOwn(appService.variables ?? {}, "CRON_SECRET") || cronSecret === undefined)
+      throw new Error(`Missing CRON_SECRET in ${app.slug}`);
     return service(`cron-${app.slug}-account-departure`, {
       source: image(CURL_IMAGE),
       start:
         'sh -ec \'curl --fail --silent --show-error --connect-timeout 10 --max-time 300 --request POST --header "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/jobs/account-departure"\'',
       replicas: { [REGION]: 1 },
       deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
-      env: { CRON_SECRET: appService.env.CRON_SECRET, APP_URL: getAppUrl(app.slug, "production") },
+      env: { CRON_SECRET: cronSecret, APP_URL: getAppUrl(app.slug, "production") },
     });
   });
   const contaCrons = [
@@ -802,9 +800,9 @@ export default defineRailway((ctx) => {
     },
   });
 
-  // Dia de Estrela, de 5 em 5 minutos, em dois crons: os alertas "não marcou"
-  // aos pais (sensíveis ao horário) e a manutenção da cobrança, que pode demorar
-  // e não pode atrasar os alertas.
+  // Dia de Estrela, de 5 em 5 minutos: os alertas "não marcou" aos pais. O app
+  // não tem cobrança própria (só o Compasso); a avaliação e o encerramento de
+  // conta usam o cron-dia-de-estrela-account-departure do Compasso.
   const estrelaEnv = {
     APP_ORIGIN: preserve(),
     CRON_SECRET: preserve(),
@@ -818,14 +816,6 @@ export default defineRailway((ctx) => {
     deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
     env: estrelaEnv,
   });
-  const estrelaBilling = service("cron-dia-de-estrela-billing", {
-    source: image(CURL_IMAGE),
-    start: shellScript("apps/dia-de-estrela/scripts/maintenance-cron.sh"),
-    replicas: { [REGION]: 1 },
-    deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
-    env: estrelaEnv,
-  });
-
   // Lembretes de treino e resumo semanal do Bora Treinar, de hora em hora: o
   // app decide quem recebe pela hora local de cada família.
   const boraLembretes = service("cron-bora-treinar-lembretes", {
@@ -882,7 +872,7 @@ export default defineRailway((ctx) => {
       missaoWeeklyReport,
       boraBilling,
       boraLembretes,
-      ...(ESTRELA_LAUNCHED ? [estrelaAlertas, estrelaBilling] : []),
+      ...(ESTRELA_LAUNCHED ? [estrelaAlertas] : []),
       ediReconcile,
     ],
   });

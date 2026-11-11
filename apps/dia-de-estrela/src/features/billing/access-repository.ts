@@ -1,12 +1,8 @@
 import "server-only";
-import { getProSubscription } from "@informach/billing";
 import { getCompassoAccessInTransaction } from "@informach/billing/compasso";
-import { PRODUCTS } from "@informach/config";
 import { COMPASSO_POLICY } from "@informach/config/collections";
-import { and, db, eq } from "@informach/db";
-import { familyMigrationSources } from "@informach/db/schema";
+import { db } from "@informach/db";
 import type { FamilyTransaction } from "@informach/family";
-import { assertAllowed } from "@/lib/errors";
 import type { Access } from "../acesso/policy";
 import type { EstrelaAuthority } from "../familia/authority";
 
@@ -25,31 +21,9 @@ export async function estrelaAccessInTransaction(
       childLimit: COMPASSO_POLICY.capacity.dependents,
       source: coverage.source === "trial" ? "trial" : "paid",
     };
-  const origins = await tx
-    .select({ userId: familyMigrationSources.sourceOwnerId })
-    .from(familyMigrationSources)
-    .where(
-      and(
-        eq(familyMigrationSources.groupId, actor.familyGroupId),
-        eq(familyMigrationSources.app, "dia-de-estrela"),
-      ),
-    );
-  assertAllowed(
-    origins.length <= 1,
-    "BILLING_REVIEW",
-    "A cobertura anterior desta família precisa de conferência.",
-  );
-  if (!origins[0]) return free;
-  const subscription = await getProSubscription(
-    { db: tx, app: "dia-de-estrela", provider: "stripe" },
-    { type: "user", id: origins[0].userId },
-  );
-  const product = PRODUCTS.find(
-    (product) => product.app === "dia-de-estrela" && product.id === subscription?.productId,
-  );
-  return subscription && product?.tier === "family"
-    ? { paid: true, tier: "family", childLimit: 4, source: "legacy" }
-    : free;
+  // The app never sold a plan of its own, so there is no earlier contract to
+  // honor: coverage is Compasso only (paid, trial or accepted legacy period).
+  return free;
 }
 export function getEstrelaAccess(actor: EstrelaAuthority) {
   return db.transaction((tx) => estrelaAccessInTransaction(tx, actor));

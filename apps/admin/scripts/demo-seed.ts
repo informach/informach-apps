@@ -265,13 +265,6 @@ async function main() {
       status: "active",
       startedDaysAgo: 12,
     },
-    {
-      userId: "demo-gabi",
-      app: "dia-de-estrela",
-      productId: "estrela_family_monthly",
-      status: "active",
-      startedDaysAgo: 1,
-    },
   ];
   for (const plan of plans) {
     const person = people.find((p) => p.id === plan.userId);
