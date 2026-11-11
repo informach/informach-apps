@@ -982,7 +982,8 @@ describe("Managed checkout kept by the legacy app while its contract lives", () 
     const terms = await db.transaction((tx) =>
       readLegacyFutureTerms(tx, f.payer.userId, account.id),
     );
-    expect(terms.paidThrough).toEqual(f.payer.end);
+    // Periods are never added up: the family date is the latest paid end.
+    expect(terms.paidThrough).toEqual(f.contributor.end);
   });
 
   it("keeps blocking a checkout that the provider ties to another subscription", async () => {
