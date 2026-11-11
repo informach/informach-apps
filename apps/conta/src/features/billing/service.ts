@@ -5,6 +5,7 @@ import { getBillingMaintenance } from "@/lib/billing";
 import { getEnv } from "@/lib/env";
 import { billingAvailability } from "./availability";
 import {
+  coordination,
   enqueueEvent,
   futureContract,
   anotherPayer as hasAnotherPayer,
@@ -37,7 +38,12 @@ export async function billingPanel(
     groupId ? legacyContracts(actorId, groupId) : null,
     groupId ? legacyFamilyEligible(actorId, groupId) : false,
   ]);
-  const future = selected ? await futureContract(actorId, selected.account.id) : null;
+  const [future, coordinationRequest] = selected
+    ? await Promise.all([
+        futureContract(actorId, selected.account.id),
+        coordination(actorId, selected.account.id),
+      ])
+    : [null, null];
   return {
     accounts,
     selected,
@@ -47,6 +53,7 @@ export async function billingPanel(
     legacyContracts: contracts,
     legacyFamilyEligible: eligible,
     futureContract: future,
+    coordination: coordinationRequest,
     enabled: operations.subscribe,
     operations,
   };

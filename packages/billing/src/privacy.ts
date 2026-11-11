@@ -4,6 +4,8 @@ import {
   creditLedger,
   creditPurchaseIntents,
   customers,
+  legacyBillingConsents,
+  legacyBillingCoordinations,
   legacyContractAcceptancePeriods,
   legacyContractAcceptances,
   legacyFutureIntents,
@@ -217,6 +219,62 @@ export async function* exportPersonalBillingRecords(
         ),
       )
       .orderBy(desc(legacyFutureIntents.id))
+      .limit(PAGE_SIZE),
+  );
+
+  // Own receipts only. `terms` is what this person was shown; it never holds
+  // the other adult's contract, plan or payment method.
+  yield* pages("billing.coordination_consents", (before) =>
+    db
+      .select({
+        id: legacyBillingConsents.id,
+        coordinationId: legacyBillingConsents.coordinationId,
+        role: legacyBillingConsents.role,
+        decision: legacyBillingConsents.decision,
+        terms: legacyBillingConsents.terms,
+        createdAt: legacyBillingConsents.createdAt,
+      })
+      .from(legacyBillingConsents)
+      .where(
+        and(
+          eq(legacyBillingConsents.userId, actorId),
+          lte(legacyBillingConsents.createdAt, startedAt),
+          before ? lt(legacyBillingConsents.id, before) : undefined,
+        ),
+      )
+      .orderBy(desc(legacyBillingConsents.id))
+      .limit(PAGE_SIZE),
+  );
+
+  // The payer sees the dates of their own charge; the contributor only that a
+  // coordination exists and its state.
+  yield* pages("billing.coordinations", (before) =>
+    db
+      .select({
+        id: legacyBillingCoordinations.id,
+        role: sql<
+          "payer" | "contributor"
+        >`case when ${legacyBillingCoordinations.payerUserId} = ${actorId} then 'payer' else 'contributor' end`,
+        state: legacyBillingCoordinations.state,
+        fromChargeAt: sql<Date | null>`case when ${legacyBillingCoordinations.payerUserId} = ${actorId} then ${legacyBillingCoordinations.fromChargeAt} end`,
+        deferUntil: sql<Date | null>`case when ${legacyBillingCoordinations.payerUserId} = ${actorId} then ${legacyBillingCoordinations.deferUntil} end`,
+        amountCents: sql<
+          number | null
+        >`case when ${legacyBillingCoordinations.payerUserId} = ${actorId} then ${legacyBillingCoordinations.amountCents} end`,
+        createdAt: legacyBillingCoordinations.createdAt,
+      })
+      .from(legacyBillingCoordinations)
+      .where(
+        and(
+          or(
+            eq(legacyBillingCoordinations.payerUserId, actorId),
+            eq(legacyBillingCoordinations.contributorUserId, actorId),
+          ),
+          lte(legacyBillingCoordinations.createdAt, startedAt),
+          before ? lt(legacyBillingCoordinations.id, before) : undefined,
+        ),
+      )
+      .orderBy(desc(legacyBillingCoordinations.id))
       .limit(PAGE_SIZE),
   );
 

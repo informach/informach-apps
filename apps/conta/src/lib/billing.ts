@@ -3,6 +3,7 @@ import { createCompassoCommerce } from "@informach/billing/compasso-commerce";
 import { createStripePaymentFactReader } from "@informach/billing/payment-facts";
 import { createStripeProvider } from "@informach/billing/providers/stripe";
 import { createStripeFutureContractProvider } from "@informach/billing/providers/stripe-future-contract";
+import { createStripeLegacyDeferralProvider } from "@informach/billing/providers/stripe-legacy-deferral";
 import { createStripePlanSchedules } from "@informach/billing/providers/stripe-plans";
 import { db } from "@informach/db";
 import { getEnv } from "./env";
@@ -50,7 +51,30 @@ function createRuntime() {
     secretKey: env.STRIPE_SECRET_KEY,
     mode: env.STRIPE_MODE,
   });
-  return { ...deps, reader, legacyProducts, commerce, commerceDeps, verifyCatalog, futureProvider };
+  const deferralProvider = createStripeLegacyDeferralProvider({
+    secretKey: env.STRIPE_SECRET_KEY,
+    mode: env.STRIPE_MODE,
+  });
+  // The coordination reads the payer's Compasso price and refreshes the
+  // contributed historical contracts, so it needs both catalogs.
+  const coordinationDeps = {
+    db,
+    products: [...products, ...legacyProducts],
+    mode: env.STRIPE_MODE,
+    providerClient,
+    deferralProvider,
+    futureProvider,
+  };
+  return {
+    ...deps,
+    reader,
+    legacyProducts,
+    commerce,
+    commerceDeps,
+    verifyCatalog,
+    futureProvider,
+    coordinationDeps,
+  };
 }
 export function getBilling() {
   if (!getEnv().COMPASSO_BILLING_ENABLED) throw new Error("Compasso billing is not enabled");

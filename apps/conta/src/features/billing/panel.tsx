@@ -6,10 +6,12 @@ import type {
 } from "@informach/billing/compasso-account";
 import type { listLegacyCreditWallets } from "@informach/billing/credit-migration";
 import type { listLegacyContracts } from "@informach/billing/legacy-contracts";
+import type { activeLegacyCoordination } from "@informach/billing/legacy-coordination";
 import type { activeLegacyFutureIntent } from "@informach/billing/legacy-future-contract";
 import { APPS, findApp, PRODUCTS } from "@informach/config";
 import { COMPASSO_POLICY } from "@informach/config/collections";
 import type { billingAvailability } from "./availability";
+import { CoordinationForm } from "./coordination-form";
 import { BillingForm } from "./form";
 import { FutureContractForm } from "./future-contract-form";
 import { LegacyContractForm } from "./legacy-contract-form";
@@ -24,6 +26,7 @@ export type BillingPanelData = {
   legacyContracts: Awaited<ReturnType<typeof listLegacyContracts>> | null;
   legacyFamilyEligible: boolean;
   futureContract: Awaited<ReturnType<typeof activeLegacyFutureIntent>>;
+  coordination: Awaited<ReturnType<typeof activeLegacyCoordination>>;
   enabled: boolean;
   operations: ReturnType<typeof billingAvailability>;
 };
@@ -37,7 +40,9 @@ const productName = (id: string) => PRODUCTS.find((p) => p.id === id)?.name ?? "
 const subscriptionStatus: Record<string, string> = {
   incomplete: "Pagamento pendente",
   active: "Ativa",
-  trialing: "Em teste",
+  // The Compasso trial is local and never creates a Stripe subscription; a
+  // subscription in `trialing` is one whose next charge was deferred.
+  trialing: "Ativa · próxima cobrança adiada",
   past_due: "Pagamento em atraso",
   unpaid: "Pagamento necessário",
   paused: "Pausada",
@@ -125,6 +130,13 @@ export function BillingPanel({
     `/?${new URLSearchParams({ ...(group ? { familia: group.id } : {}), ...(selected ? { pagamento: selected.account.id } : {}), ...extra })}#compasso`;
   return (
     <div className="billing-management">
+      {selected && data.coordination && (
+        <CoordinationForm
+          accountId={selected.account.id}
+          coordination={data.coordination}
+          enabled={data.operations["change-plan"]}
+        />
+      )}
       {group && data.legacyContracts && data.legacyContracts.contracts.length > 0 && (
         <section className="sheet legacy-wallets" aria-label="Seus contratos anteriores">
           <p className="eyebrow">Contratos anteriores</p>

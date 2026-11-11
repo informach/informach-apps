@@ -5,6 +5,7 @@ import { processFamilyWebClosures } from "@informach/account/closure-family";
 import { AccountDepartureBatchError } from "@informach/account/departure-jobs";
 import { purgeExpiredDepartureReviews } from "@informach/account/departure-reviews";
 import { runLegacyContractMaintenance } from "@informach/billing/legacy-contract-jobs";
+import { runLegacyCoordinationRecovery } from "@informach/billing/legacy-coordination-jobs";
 import { runLegacyFutureRecovery } from "@informach/billing/legacy-future-jobs";
 import { db, recordJobRun } from "@informach/db";
 import { getBillingMaintenance } from "./billing";
@@ -52,21 +53,35 @@ export async function runBillingJob() {
         onError: () => reportOperationalError("billing.future_reconciliation.failed"),
       }),
     ]);
+    // In sequence after the others: it may hold an account lock across
+    // provider I/O and the coordination pool has two connections.
+    const [coordination] = await Promise.allSettled([
+      runLegacyCoordinationRecovery({
+        ...runtime.coordinationDeps,
+        onError: () => reportOperationalError("billing.coordination_reconciliation.failed"),
+      }),
+    ]);
     if (
       native.status === "rejected" ||
       migrated.status === "rejected" ||
-      future.status === "rejected"
+      future.status === "rejected" ||
+      coordination.status === "rejected"
     )
       throw new AggregateError(
-        [native, migrated, future].flatMap((result) =>
+        [native, migrated, future, coordination].flatMap((result) =>
           result.status === "rejected" ? [result.reason] : [],
         ),
         "CompassoBillingReconciliationIncomplete",
       );
     const result = native.value;
     const legacy = migrated.value;
-    if (result.failed || legacy.failed || future.value.failed)
+    if (result.failed || legacy.failed || future.value.failed || coordination.value.failed)
       throw new Error("CompassoBillingReconciliationIncomplete");
-    return { ...result, legacyChecked: legacy.checked, futureChecked: future.value.checked };
+    return {
+      ...result,
+      legacyChecked: legacy.checked,
+      futureChecked: future.value.checked,
+      coordinationChecked: coordination.value.checked,
+    };
   });
 }

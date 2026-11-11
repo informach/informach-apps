@@ -201,6 +201,32 @@ async function closeWithoutEffect(tx: Tx, row: Coordination, reason: "covered" |
   return closed;
 }
 
+/** Local summary for the payer's panel, without provider reads. Billing
+ * ownership survives leaving the family, as for the future contract. */
+export async function activeLegacyCoordination(db: Database, actorId: string, accountId: string) {
+  z.uuid().parse(accountId);
+  await assertAccountPayer(db, actorId, accountId);
+  const [row] = await db
+    .select({
+      id: legacyBillingCoordinations.id,
+      state: legacyBillingCoordinations.state,
+      amountCents: legacyBillingCoordinations.amountCents,
+      interval: legacyBillingCoordinations.interval,
+      fromChargeAt: legacyBillingCoordinations.fromChargeAt,
+      deferUntil: legacyBillingCoordinations.deferUntil,
+    })
+    .from(legacyBillingCoordinations)
+    .where(
+      and(
+        eq(legacyBillingCoordinations.accountId, accountId),
+        eq(legacyBillingCoordinations.payerUserId, actorId),
+        inArray(legacyBillingCoordinations.state, [...ACTIVE_COORDINATION_STATES]),
+      ),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
 /** What the payer is asked to approve: only the payer's own plan, amount and
  * dates. The contributor's app, price and contract are never returned. */
 export async function previewLegacyCoordination(

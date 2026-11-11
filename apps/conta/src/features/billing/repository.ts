@@ -11,8 +11,11 @@ import {
   familyHasAcceptedLegacyContract,
   listLegacyContracts,
 } from "@informach/billing/legacy-contracts";
+import { activeLegacyCoordination } from "@informach/billing/legacy-coordination";
 import { activeLegacyFutureIntent } from "@informach/billing/legacy-future-contract";
 import { db } from "@informach/db";
+export const coordination = (actorId: string, accountId: string) =>
+  activeLegacyCoordination(db, actorId, accountId);
 export const legacyWallets = (actorId: string) => listLegacyCreditWallets(db, actorId);
 export const legacyContracts = (actorId: string, groupId: string) =>
   listLegacyContracts(db, actorId, groupId);

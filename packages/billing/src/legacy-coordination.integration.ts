@@ -24,6 +24,7 @@ import {
 import { runLegacyCoordinationRecovery } from "./legacy-coordination-jobs";
 import { readLegacyFutureTerms } from "./legacy-future-terms";
 import type { SubscriptionPaymentSnapshot } from "./payment-facts";
+import { exportPersonalBillingRecords } from "./privacy";
 import { LegacyDeferralChargeError } from "./providers/stripe-legacy-deferral";
 
 const url = process.env.DATABASE_URL;
@@ -859,5 +860,46 @@ describe("Two payers: the payer's first charge is still a future schedule", () =
           ),
         ),
     ).toEqual([{ reason: "schedule_started_before_move" }]);
+  });
+});
+
+describe("Two payers: privacy of each adult's records", () => {
+  it("exports only one's own receipts and never the payer's charge to the contributor", async () => {
+    const f = await family(20, 40);
+    const native = await nativeSubscription(f.group.id, f.payer, 10);
+    await f.contribute(f.contributor, "payer_decides");
+    const offer = await previewLegacyCoordination(f.coordination, f.payer.userId, {
+      accountId: native.account.id,
+    });
+    if (!offer?.revision) throw new Error("Missing offer revision");
+    await acceptLegacyCoordination(f.coordination, f.payer.userId, f.payer.sessionId, {
+      accountId: native.account.id,
+      revision: offer.revision,
+      requestKey: randomUUID(),
+    });
+    const collect = async (userId: string) => {
+      const chunks = [];
+      for await (const chunk of exportPersonalBillingRecords(db, userId)) chunks.push(chunk);
+      return chunks;
+    };
+    const payer = await collect(f.payer.userId);
+    const contributor = await collect(f.contributor.userId);
+    const records = (chunks: Awaited<ReturnType<typeof collect>>, kind: string): unknown[] =>
+      chunks.filter((chunk) => chunk.kind === kind).flatMap((chunk): unknown[] => chunk.records);
+    expect(records(payer, "billing.coordination_consents")).toMatchObject([
+      { role: "payer", decision: "accepted" },
+    ]);
+    expect(records(contributor, "billing.coordination_consents")).toMatchObject([
+      { role: "contributor", decision: "accepted" },
+    ]);
+    expect(records(payer, "billing.coordinations")).toMatchObject([
+      { role: "payer", state: "applied", amountCents: 4990 },
+    ]);
+    const shared = records(contributor, "billing.coordinations");
+    expect(shared).toMatchObject([
+      { role: "contributor", state: "applied", amountCents: null, deferUntil: null },
+    ]);
+    expect(JSON.stringify(contributor)).not.toContain(native.subscription.providerSubscriptionId);
+    expect(JSON.stringify(payer)).not.toContain(f.contributor.sub.id);
   });
 });

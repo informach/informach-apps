@@ -42,6 +42,7 @@ export function LegacyContractForm({
               <input type="hidden" name="groupId" value={groupId} />
               <input type="hidden" name="subscriptionId" value={subscriptionId} />
               <input type="hidden" name="revision" value={preview.revision} />
+              <input type="hidden" name="coordination" value={preview.coordination} />
               <p>
                 Período pago até <strong>{end}</strong>. Após o aceite, o acesso será compartilhado
                 com {groupName} enquanto esse período estiver válido.
@@ -50,8 +51,15 @@ export function LegacyContractForm({
                 {preview.cancellationScheduled
                   ? "A renovação anterior já está encerrada ou programada para terminar."
                   : "A renovação anterior será encerrada ao fim do período já pago."}{" "}
-                Nenhuma assinatura nova será cobrada agora.
+                Nenhuma assinatura nova será cobrada agora, e não há reembolso do período já pago.
               </p>
+              {preview.coordination === "payer_decides" && (
+                <p>
+                  Outro adulto já paga o Compasso desta família. Quem paga decide se a própria
+                  próxima cobrança fica para depois do seu período pago. O seu aceite não depende
+                  dessa decisão.
+                </p>
+              )}
               <label className="check-label">
                 <input type="checkbox" name="confirmed" required disabled={!enabled || pending} />
                 Aceito migrar este contrato para {groupName} e encerrar sua renovação anterior,

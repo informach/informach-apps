@@ -6,6 +6,7 @@ import {
   creditPurchaseIntents,
   creditReservations,
   customers,
+  legacyBillingCoordinations,
   subscriptions,
   users,
 } from "@informach/db/schema";
@@ -146,6 +147,34 @@ export async function* inspectBillingDeparture(
         ),
       )
       .orderBy(desc(collectionPlanChanges.id))
+      .limit(PAGE_SIZE),
+  );
+
+  // Coordinations this adult answers as payer and that still bind the next
+  // charge. A contributor's closure does not depend on them.
+  yield* pages("billing.pending_coordinations", (before) =>
+    db
+      .select({
+        id: legacyBillingCoordinations.id,
+        state: legacyBillingCoordinations.state,
+        deferUntil: legacyBillingCoordinations.deferUntil,
+      })
+      .from(legacyBillingCoordinations)
+      .where(
+        and(
+          eq(legacyBillingCoordinations.payerUserId, actorId),
+          inArray(legacyBillingCoordinations.state, [
+            "open",
+            "payer_accepted",
+            "applying",
+            "applied",
+            "review",
+          ]),
+          eligiblePersonalBillingActor(actorId),
+          before ? lt(legacyBillingCoordinations.id, before) : undefined,
+        ),
+      )
+      .orderBy(desc(legacyBillingCoordinations.id))
       .limit(PAGE_SIZE),
   );
 

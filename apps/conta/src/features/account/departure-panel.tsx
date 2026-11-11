@@ -40,6 +40,9 @@ export function DeparturePanel({
   const reservations = review.records.flatMap((chunk) =>
     chunk.kind === "billing.active_ai_reservations" ? chunk.records : [],
   );
+  const coordinations = review.records.flatMap((chunk) =>
+    chunk.kind === "billing.pending_coordinations" ? chunk.records : [],
+  );
   const independent = [
     ...new Set(
       review.records.flatMap((chunk) =>
@@ -175,6 +178,10 @@ export function DeparturePanel({
             <div className="departure-count-row">
               <dt>Operações de IA com créditos reservados</dt>
               <dd>{reservations.length}</dd>
+            </div>
+            <div className="departure-count-row">
+              <dt>Pedidos de adiamento da sua cobrança</dt>
+              <dd>{coordinations.length}</dd>
             </div>
           </dl>
           {contracts.length > 0 && (

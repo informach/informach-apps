@@ -20,6 +20,7 @@ const schema = z.discriminatedUnion("operation", [
     groupId: z.uuid(),
     subscriptionId: z.uuid(),
     revision: z.string().regex(/^[a-f0-9]{64}$/),
+    coordination: z.enum(["none", "payer_decides"]),
     confirmed: z.literal("on"),
   }),
 ]);
@@ -27,7 +28,14 @@ export type LegacyContractFormState = {
   ok: boolean;
   message: string;
   completed?: boolean;
-  preview?: { revision: string; endsAt: string; cancellationScheduled: boolean };
+  preview?: {
+    revision: string;
+    endsAt: string;
+    cancellationScheduled: boolean;
+    /** `payer_decides`: another adult already pays Compasso for this family
+     * and decides alone whether their next charge moves. */
+    coordination: "none" | "payer_decides";
+  };
 };
 
 export async function legacyContractAction(
@@ -58,6 +66,12 @@ export async function legacyContractAction(
             (latest, period) => (period.end > latest ? period.end : latest),
             result.periods[0]?.end ?? new Date(0),
           );
+          if (result.coordination === "wait")
+            return {
+              ok: false,
+              message:
+                "A cobrança do Compasso desta família está em andamento. Tente de novo depois que ela for concluída.",
+            };
           return {
             ok: true,
             message: "Confira o período e a família antes de confirmar.",
@@ -65,6 +79,7 @@ export async function legacyContractAction(
               revision: result.revision,
               endsAt: endsAt.toISOString(),
               cancellationScheduled: result.status === "canceled" || result.cancelAtPeriodEnd,
+              coordination: result.coordination,
             },
           };
         }
@@ -77,7 +92,9 @@ export async function legacyContractAction(
           ok: true,
           completed: true,
           message:
-            "Aceite registrado. A renovação anterior será conferida e encerrada ao fim do período pago.",
+            input.coordination === "payer_decides"
+              ? "Aceite registrado. A renovação anterior será encerrada ao fim do período pago, e quem paga o Compasso desta família decide se a próxima cobrança fica para depois dele."
+              : "Aceite registrado. A renovação anterior será conferida e encerrada ao fim do período pago.",
         };
       } catch (error) {
         reportOperationalError("billing.legacy_contract.failed", error);
