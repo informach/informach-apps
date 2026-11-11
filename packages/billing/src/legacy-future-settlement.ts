@@ -2,11 +2,12 @@ import type { Database } from "@informach/db";
 import {
   collectionAccounts,
   customers,
+  legacyBillingCoordinations,
   legacyFutureIntents,
   subscriptionPaymentPeriods,
   subscriptions,
 } from "@informach/db/schema";
-import { and, eq, gte } from "drizzle-orm";
+import { and, eq, gte, inArray } from "drizzle-orm";
 import { z } from "zod/v4";
 import { hasPendingCompassoReview, requestCollectionReconciliation } from "./collection-jobs";
 import { withCompassoBillingLock } from "./credit-purchases";
@@ -37,6 +38,19 @@ export async function settleLegacyFutureIntent(
     if (!intent || intent.state !== "scheduled" || !intent.scheduleId || !intent.paymentMethodId)
       throw new BillingError("Future schedule is not ready for settlement");
     if (intent.startsAt > new Date()) return { intentId, state: "waiting" as const };
+    // An accepted coordination may have moved the schedule at the provider
+    // before the local receipt was updated; its own recovery finishes first.
+    const [moving] = await deps.db
+      .select({ id: legacyBillingCoordinations.id })
+      .from(legacyBillingCoordinations)
+      .where(
+        and(
+          eq(legacyBillingCoordinations.futureIntentId, intentId),
+          inArray(legacyBillingCoordinations.state, ["payer_accepted", "applying"]),
+        ),
+      )
+      .limit(1);
+    if (moving) return { intentId, state: "waiting" as const };
     const [customer] = await deps.db
       .select()
       .from(customers)

@@ -494,7 +494,10 @@ export async function applyLegacyCoordinationLocked(
   if (firstAttempt) await refreshContributedContracts(deps, coordinationId);
   const claim = await deps.db.transaction(async (tx) => {
     await lockFamilyMembership(tx, observed.payerUserId, observed.groupId);
-    await lockActiveWebParticipation(tx, observed.payerUserId);
+    // A new provider effect is a commercial act and needs an active payer.
+    // Finishing one that was already attempted settles an existing obligation,
+    // so it must remain possible while the payer's account is being closed.
+    if (firstAttempt) await lockActiveWebParticipation(tx, observed.payerUserId);
     const [row] = await tx
       .select()
       .from(legacyBillingCoordinations)

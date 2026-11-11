@@ -86,7 +86,9 @@ export function createCompassoWallet(deps: {
           eq(collectionAccounts.collection, "compasso"),
           eq(customers.app, "compasso"),
           eq(customers.subjectType, "billing_account"),
-          inArray(subscriptions.status, ["active", "past_due", "canceled"]),
+          // `trialing` is how a coordinated deferral holds the next charge; the
+          // period below is still one the payer actually paid for.
+          inArray(subscriptions.status, ["active", "past_due", "canceled", "trialing"]),
           eq(subscriptionPaymentPeriods.fullyRefunded, false),
           eq(subscriptionPaymentPeriods.disputed, false),
           lte(subscriptionPaymentPeriods.periodStart, now),

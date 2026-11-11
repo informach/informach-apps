@@ -4,6 +4,7 @@ import {
   collectionPlanChanges,
   customers,
   familyEvents,
+  legacyBillingCoordinations,
   subscriptionPaymentPeriods,
   subscriptions,
 } from "@informach/db/schema";
@@ -93,6 +94,20 @@ export async function requestCompassoPlanChange(
         ),
       );
     if (existing) throw new BillingError("A plan change is already in progress");
+    // The payer accepted moving this subscription's next charge; its price
+    // must not change between that acceptance and the provider update.
+    const [coordinated] = await tx
+      .select({ id: legacyBillingCoordinations.id })
+      .from(legacyBillingCoordinations)
+      .where(
+        and(
+          eq(legacyBillingCoordinations.subscriptionId, row.sub.id),
+          inArray(legacyBillingCoordinations.state, ["payer_accepted", "applying", "applied"]),
+        ),
+      )
+      .limit(1);
+    if (coordinated)
+      throw new BillingError("The next charge was deferred; the plan can change after it");
     if (
       row.sub.status !== "active" ||
       row.sub.cancelAtPeriodEnd ||

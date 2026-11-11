@@ -7,6 +7,7 @@ import {
   collectionAccounts,
   customers,
   familyMigrationSources,
+  legacyBillingCoordinations,
   legacyFutureIntents,
   subscriptions,
 } from "@informach/db/schema";
@@ -1025,6 +1026,19 @@ export async function requestLegacyFutureCancellation(
         )
         .for("update");
       if (intent?.state === "canceled") return "canceled" as const;
+      // While an accepted coordination is moving this schedule's start, the
+      // provider and the local receipt may briefly disagree on the date.
+      const [moving] = await tx
+        .select({ id: legacyBillingCoordinations.id })
+        .from(legacyBillingCoordinations)
+        .where(
+          and(
+            eq(legacyBillingCoordinations.futureIntentId, intentId),
+            inArray(legacyBillingCoordinations.state, ["payer_accepted", "applying"]),
+          ),
+        )
+        .limit(1);
+      if (moving) throw new BillingError("Future schedule start is being moved; try again");
       if (intent?.state === "setup_ready") {
         if (intent.scheduleId) throw new BillingError("Future schedule requires reconciliation");
         await tx

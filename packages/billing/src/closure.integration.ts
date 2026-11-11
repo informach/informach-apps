@@ -1252,3 +1252,99 @@ it.each([false, true])(
     ).toBe("canceled");
   },
 );
+
+async function coordination(
+  f: Awaited<ReturnType<typeof fixture>>,
+  state: "open" | "applying" | "applied" | "review",
+) {
+  const offered = state !== "open";
+  const [row] = await db
+    .insert(schema.legacyBillingCoordinations)
+    .values({
+      accountId: f.account.id,
+      groupId: f.group.id,
+      payerUserId: f.owner,
+      contributorUserId: f.guest,
+      policyVersion: "compasso-coordination-2026-11-11-v1",
+      state,
+      ...(offered
+        ? {
+            kind: "subscription_trial",
+            subscriptionId: f.subscriptionId,
+            providerPriceId: f.snapshot.priceId,
+            amountCents: 49900,
+            interval: "year",
+            fromChargeAt: f.snapshot.end,
+            contributedPaidThrough: new Date(f.snapshot.end.getTime() + 30 * 86400_000),
+            deferUntil: new Date(f.snapshot.end.getTime() + 30 * 86400_000),
+            offerRevision: "a".repeat(64),
+            effectAttemptedAt: new Date(),
+            effectConfirmedAt: state === "applied" ? new Date() : null,
+          }
+        : {}),
+    })
+    .returning();
+  if (!row) throw new Error("Missing coordination");
+  return row;
+}
+const coordinationState = async (id: string) =>
+  (
+    await db
+      .select({
+        state: schema.legacyBillingCoordinations.state,
+        reason: schema.legacyBillingCoordinations.reason,
+      })
+      .from(schema.legacyBillingCoordinations)
+      .where(eq(schema.legacyBillingCoordinations.id, id))
+  )[0];
+
+it("ends a coordination the payer never answered together with the payer's mandate", async () => {
+  const f = await fixture(),
+    row = await coordination(f, "open"),
+    authority = await freeze(f.owner),
+    plan = await prepare(authority);
+  expect(plan.coordinations).toMatchObject([{ id: row.id, state: "open" }]);
+  await expect(commit(authority, plan.fingerprint)).rejects.toMatchObject({
+    code: "pending_operations",
+  });
+  await reconcileBillingClosure(f.deps, authority, plan.fingerprint);
+  expect(await coordinationState(row.id)).toEqual({ state: "canceled", reason: "payer_closure" });
+  await commit(authority, plan.fingerprint);
+  // The other adult is not this coordination's payer: their closure ignores it.
+  const g = await fixture();
+  await coordination(g, "open");
+  expect((await prepare(await freeze(g.guest))).coordinations).toEqual([]);
+});
+
+it("waits for an attempted deferral and closes an applied one only after the subscription ended", async () => {
+  const f = await fixture(),
+    row = await coordination(f, "applying"),
+    authority = await freeze(f.owner),
+    plan = await prepare(authority);
+  // The attempt may already be in force at the provider: nothing is closed.
+  await expect(reconcileBillingClosure(f.deps, authority, plan.fingerprint)).rejects.toMatchObject({
+    code: "pending_operations",
+  });
+  expect(f.state.closeCalls).toBe(0);
+  expect(await coordinationState(row.id)).toMatchObject({ state: "applying" });
+  await db
+    .update(schema.legacyBillingCoordinations)
+    .set({ state: "applied", effectConfirmedAt: new Date() })
+    .where(eq(schema.legacyBillingCoordinations.id, row.id));
+  await reconcileBillingClosure(f.deps, authority, plan.fingerprint);
+  expect(f.state.closeCalls).toBe(1);
+  expect(await coordinationState(row.id)).toEqual({ state: "canceled", reason: "payer_closure" });
+  await commit(authority, plan.fingerprint);
+});
+
+it("does not close billing over a coordination held for financial review", async () => {
+  const f = await fixture(),
+    row = await coordination(f, "review"),
+    authority = await freeze(f.owner),
+    plan = await prepare(authority);
+  await expect(reconcileBillingClosure(f.deps, authority, plan.fingerprint)).rejects.toMatchObject({
+    code: "financial_review",
+  });
+  expect(f.state.closeCalls).toBe(0);
+  expect(await coordinationState(row.id)).toMatchObject({ state: "review" });
+});

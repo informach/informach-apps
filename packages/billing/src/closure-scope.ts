@@ -7,9 +7,19 @@ import {
   creditReservations,
   customers,
   familyGroups,
+  legacyBillingCoordinations,
   legacyFutureIntents,
 } from "@informach/db/schema";
 import { activePersonalWebReservations, personalWebCustomerCondition } from "./personal-scope";
+
+/** A coordination in one of these states still binds the payer's billing. */
+export const ACTIVE_BILLING_COORDINATION_STATES: readonly string[] = [
+  "open",
+  "payer_accepted",
+  "applying",
+  "applied",
+  "review",
+];
 
 export type BillingClosureTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 export type FrozenBillingActor = Parameters<typeof lockFrozenWebParticipation>[1];
@@ -116,6 +126,26 @@ export async function lockBillingClosureScope(
       .orderBy(asc(legacyFutureIntents.id))
       .limit(PAGE_SIZE),
   );
+  // Only the coordinations this actor answers as payer: closing the adult who
+  // merely contributed a contract never changes someone else's billing.
+  const coordinations = await pages((after) =>
+    tx
+      .select({
+        id: legacyBillingCoordinations.id,
+        accountId: legacyBillingCoordinations.accountId,
+        payerUserId: legacyBillingCoordinations.payerUserId,
+        state: legacyBillingCoordinations.state,
+      })
+      .from(legacyBillingCoordinations)
+      .where(
+        and(
+          eq(legacyBillingCoordinations.payerUserId, actor.userId),
+          after ? gt(legacyBillingCoordinations.id, after) : undefined,
+        ),
+      )
+      .orderBy(asc(legacyBillingCoordinations.id))
+      .limit(PAGE_SIZE),
+  );
   const [facts] = await tx.execute<{
     reservations: boolean;
     legacyPending: boolean;
@@ -135,7 +165,9 @@ export async function lockBillingClosureScope(
      (select count(*) from billing.legacy_contract_acceptances where payer_user_id = ${actor.userId}) +
      (select count(*) from billing.legacy_contract_acceptance_periods p join billing.legacy_contract_acceptances a on a.id = p.acceptance_id where a.payer_user_id = ${actor.userId}) +
      (select count(*) from billing.legacy_payment_evidence_reviews r join billing.subscriptions s on s.id = r.subscription_id where s.customer_id in (${ownCustomerIds})) +
-     (select count(*) from billing.legacy_future_intents where payer_user_id = ${actor.userId}))::integer as retained`);
+     (select count(*) from billing.legacy_future_intents where payer_user_id = ${actor.userId}) +
+     (select count(*) from billing.legacy_billing_coordinations where payer_user_id = ${actor.userId} or contributor_user_id = ${actor.userId}) +
+     (select count(*) from billing.legacy_billing_consents where user_id = ${actor.userId}))::integer as retained`);
   if (!facts) throw new BillingClosureError("financial_review");
   const compasso = ownedCustomers.filter((c) => c.app === "compasso");
   const unsupported =
@@ -155,6 +187,9 @@ export async function lockBillingClosureScope(
         ownedAccounts,
         ownedCustomers,
         futureIntents.map(({ state: _state, ...intent }) => intent),
+        // Appended only when present, so selections prepared before this
+        // record existed keep the fingerprint they consented to.
+        ...(coordinations.length ? [coordinations.map(({ state: _state, ...item }) => item)] : []),
       ]),
     )
     .digest("hex");
@@ -162,6 +197,7 @@ export async function lockBillingClosureScope(
     accounts: ownedAccounts,
     customers: compasso,
     futureIntents,
+    coordinations,
     fingerprint,
     retainedRecords: facts.retained + ownedCustomers.length + ownedAccounts.length,
     pendingOperations: facts.reservations,
@@ -233,6 +269,8 @@ export async function commitBillingClosure(
       ["setup_pending", "setup_ready", "scheduling", "scheduled", "review"].includes(intent.state),
     )
   )
+    throw new BillingClosureError("pending_operations");
+  if (scope.coordinations.some((item) => ACTIVE_BILLING_COORDINATION_STATES.includes(item.state)))
     throw new BillingClosureError("pending_operations");
   for (const customer of scope.customers)
     if (!(await hasBillingClosureReceipt(tx, actor, customer.id, fingerprint)))

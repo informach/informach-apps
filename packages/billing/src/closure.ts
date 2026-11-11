@@ -5,6 +5,7 @@ import {
   collectionPlanChanges,
   creditPurchaseIntents,
   customers,
+  legacyBillingCoordinations,
   legacyFutureIntents,
   subscriptions,
 } from "@informach/db/schema";
@@ -179,6 +180,78 @@ export async function reconcileBillingClosure(
     assertBillingClosureScope(tx, actor, fingerprint),
   );
   const deadline = performance.now() + 45_000;
+  // Requests the payer never answered, or answered without any provider
+  // attempt, end here. An attempt already recorded may have reached the
+  // provider: the billing job finishes it first. What was applied is closed
+  // only after its subscription or schedule is terminal, below.
+  for (const selected of scope.coordinations) {
+    if (!["open", "payer_accepted", "applying", "review"].includes(selected.state)) continue;
+    if (performance.now() > deadline) throw new BillingClosureError("pending_operations");
+    await withCompassoBillingLock(selected.accountId, () =>
+      input.db.transaction(async (tx) => {
+        await assertBillingClosureScope(tx, actor, fingerprint);
+        const [row] = await tx
+          .select()
+          .from(legacyBillingCoordinations)
+          .where(
+            and(
+              eq(legacyBillingCoordinations.id, selected.id),
+              eq(legacyBillingCoordinations.payerUserId, actor.userId),
+            ),
+          )
+          .for("update");
+        if (!row) throw new BillingClosureError("scope_changed");
+        if (row.state === "review") throw new BillingClosureError("financial_review");
+        if (row.state === "applying" || (row.state === "payer_accepted" && row.effectAttemptedAt))
+          throw new BillingClosureError("pending_operations");
+        if (row.state !== "open" && row.state !== "payer_accepted") return;
+        await tx
+          .update(legacyBillingCoordinations)
+          .set({ state: "canceled", reason: "payer_closure", updatedAt: sql`clock_timestamp()` })
+          .where(eq(legacyBillingCoordinations.id, row.id));
+      }),
+    );
+  }
+  const closeAppliedCoordinations = async () => {
+    for (const selected of scope.coordinations) {
+      await withCompassoBillingLock(selected.accountId, () =>
+        input.db.transaction(async (tx) => {
+          const [row] = await tx
+            .select()
+            .from(legacyBillingCoordinations)
+            .where(
+              and(
+                eq(legacyBillingCoordinations.id, selected.id),
+                eq(legacyBillingCoordinations.payerUserId, actor.userId),
+              ),
+            )
+            .for("update");
+          if (!row) throw new BillingClosureError("scope_changed");
+          if (row.state !== "applied") return;
+          const [subscription] = row.subscriptionId
+            ? await tx
+                .select({ status: subscriptions.status })
+                .from(subscriptions)
+                .where(eq(subscriptions.id, row.subscriptionId))
+            : [];
+          const [intent] = row.futureIntentId
+            ? await tx
+                .select({ state: legacyFutureIntents.state })
+                .from(legacyFutureIntents)
+                .where(eq(legacyFutureIntents.id, row.futureIntentId))
+            : [];
+          const terminal = row.subscriptionId
+            ? !!subscription && ["canceled", "incomplete_expired"].includes(subscription.status)
+            : !!intent && ["canceled", "applied", "failed"].includes(intent.state);
+          if (!terminal) throw new BillingClosureError("pending_operations");
+          await tx
+            .update(legacyBillingCoordinations)
+            .set({ state: "canceled", reason: "payer_closure", updatedAt: sql`clock_timestamp()` })
+            .where(eq(legacyBillingCoordinations.id, row.id));
+        }),
+      );
+    }
+  };
   for (const selected of scope.futureIntents) {
     if (["canceled", "applied"].includes(selected.state)) continue;
     if (performance.now() > deadline) throw new BillingClosureError("pending_operations");
@@ -252,7 +325,7 @@ export async function reconcileBillingClosure(
         : await cancelUnsettledLegacyFutureIntent(deps, { intentId: selected.id });
     if (result.state !== "canceled") throw new BillingClosureError("pending_operations");
   }
-  if (!scope.customers.length) return;
+  if (!scope.customers.length) return closeAppliedCoordinations();
   const deps = input.commerce();
   if (deps.db !== input.db) throw new BillingClosureError("scope_changed");
   const close = deps.providerClient.closeCustomerSubscriptions;
@@ -356,4 +429,5 @@ export async function reconcileBillingClosure(
       });
     });
   }
+  await closeAppliedCoordinations();
 }

@@ -427,9 +427,11 @@ describe("Two payers: historical contract brought to a family that already pays"
     const [open] = await coordinationOf(native.account.id);
     if (!open) throw new Error("Missing coordination");
     await age(open.id);
-    expect(
-      await runLegacyCoordinationRecovery({ ...f.coordination, onError: vi.fn() }),
-    ).toMatchObject({ failed: 0 });
+    const onError = vi.fn();
+    // `failed` also counts coordinations held for review anywhere in the
+    // database, so the assertion is on this run's own errors.
+    await runLegacyCoordinationRecovery({ ...f.coordination, onError });
+    expect(onError).not.toHaveBeenCalled();
     expect(await coordinationOf(native.account.id)).toMatchObject([
       { state: "no_effect", reason: "covered" },
     ]);
@@ -518,15 +520,14 @@ describe("Two payers: historical contract brought to a family that already pays"
     if (!interrupted) throw new Error("Missing coordination");
     const onError = vi.fn();
     // A fresh attempt is not retried by a concurrent job run.
-    expect(await runLegacyCoordinationRecovery({ ...f.coordination, onError })).toMatchObject({
-      checked: 0,
-    });
+    await runLegacyCoordinationRecovery({ ...f.coordination, onError });
+    expect(await coordinationOf(native.account.id)).toMatchObject([{ state: "applying" }]);
+    expect(f.provider.defer).toHaveBeenCalledOnce();
     await age(interrupted.id);
-    expect(await runLegacyCoordinationRecovery({ ...f.coordination, onError })).toEqual({
-      checked: 1,
-      failed: 0,
-      review: 0,
-    });
+    const resumed = await runLegacyCoordinationRecovery({ ...f.coordination, onError });
+    // `failed` also counts coordinations held for review anywhere in the
+    // database; this run itself must not have failed.
+    expect(resumed.failed - resumed.review).toBe(0);
     expect(await coordinationOf(native.account.id)).toMatchObject([{ state: "applied" }]);
     expect(f.provider.defer).toHaveBeenCalledTimes(2);
     expect(onError).not.toHaveBeenCalled();
