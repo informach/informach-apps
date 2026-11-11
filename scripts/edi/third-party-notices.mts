@@ -99,7 +99,7 @@ export async function writeThirdPartyNotices(appId: string, resourcesDirectory: 
       `\n--- Libraries compiled into the MediaPipe WebAssembly ---\n${await readFile(fileURLToPath(new URL("../../apps/ediaula/resources/segmentation/WASM-NOTICES.txt", import.meta.url)), "utf8")}`,
       // The glossary's Portuguese word list is bundled into the renderer, so its
       // CC BY-SA attribution has to travel with the installer.
-      `\n--- Portuguese word list (glossary) ---\n${await readFile(fileURLToPath(new URL("../../apps/ediaula/src/shared/lexicon/LICENSE-pt-words.txt", import.meta.url)), "utf8")}`,
+      `\n--- Portuguese word list (glossary) ---\n${await readFile(fileURLToPath(new URL("../../packages/edi-speech/src/lexicon/LICENSE-pt-words.txt", import.meta.url)), "utf8")}`,
     );
   if (hasOcr(appId)) {
     // The WebAssembly core of tesseract.js-core compiles these libraries in, and the
