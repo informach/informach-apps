@@ -79,9 +79,9 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 | J2 | Conteúdo, casa da prova, navegação, necessidades, autonomia | feito |
 | J3 | Relações, casamento, gravidez, nascimento, cuidado, fases, políticas de tempo | feito |
 | J4 | Sessões, reserva de controle, permissões, visão e mudanças | feito |
-| J5 | Persistência e recuperação contra a plataforma falsa | em curso: fotografia, restauração e reaplicação dos fatos feitas na simulação; falta ligar à plataforma no servidor |
-| J6 | `apps/morada-server` | a fazer |
-| J7 | Quedas injetadas e gerador de carga | a fazer |
+| J5 | Persistência e recuperação contra a plataforma falsa | feito |
+| J6 | `apps/morada-server` | feito |
+| J7 | Quedas injetadas e gerador de carga | feito |
 | J8 | Cliente com cena procedural e HUD | a fazer |
 
 ### Etapa 1, junção
@@ -123,6 +123,38 @@ A suíte de conformidade (`@informach/recreio/testing/conformidade`) é a mesma 
 - Consumidores do `packages/config` (`config`, `admin`, `billing`, `informach-site`): typecheck limpo; testes de `config` (3), `admin` (180) e `billing` (205) passaram. Nenhum deles precisou de ajuste.
 - App rodando na porta 3009 contra um Postgres descartável, com e-mail em sandbox: cadastro, confirmação por código, entrada por OTP, código errado recusado, `/estante` e `/conta` protegidas, saída, 404 próprio e CSP sem erro de console, por HTTP e em navegador (Chromium).
 - **Não exercitado**: sessões no Redis (prefixo `recreio:auth:`) e `/api/ready` respondendo 200, porque não havia Redis na máquina; envio real pelo SendGrid; o bundle de produção servido por `next start`.
+
+### J5 a J7: servidor do jogo (11/11/2026)
+
+- `pnpm --filter @informach/morada-server typecheck`: sem erros. `pnpm exec biome check apps/morada-server`: limpo. `pnpm --filter @informach/morada-server test`: 45 testes em 5 arquivos, três execuções seguidas sem falha. O que cada arquivo prova está no [guia do servidor](../../apps/morada-server/README.md).
+- Os cinco passos do teste decisivo e a condição de saída da etapa passam **com o servidor, contra a plataforma em memória**: duas contas entram no mesmo mundo e na mesma instância e dirigem moradores da mesma família; uma cai sem aviso e a outra continua, com a fila intacta; a instância é derrubada, outra assume quando a posse vence e o mundo volta com o que é crítico exatamente igual. Falta repetir contra o Recreio de verdade, com banco e processo morto por sinal (lote X1).
+- Parto uma vez só nos três pontos de queda (antes de o fato ir para o diário, depois, e depois de avisar os clientes): em todos, depois da retomada há um bebê, com o id decidido na concepção, e uma entrada `nasc:<gravidez>` no diário.
+- Instância congelada além do prazo: ao voltar não simula nem escreve, fica sabendo no batimento seguinte, larga o mundo e fecha as conexões. O diário não recebe nada dela depois que outra assumiu.
+- Com o Recreio fora do ar, um passo com fato não é respondido nem difundido e o mundo não avança; quando volta, o fato entra uma vez só.
+- Quatro testes sobem o servidor em uma porta de verdade, com clientes WebSocket de verdade: origem e subprotocolo conferidos na subida, quadro grande demais, conexão que some sem fechar, saúde, prontidão, medidas e desligamento ordenado.
+- O ponto de entrada foi exercitado no modo de desenvolvimento (plataforma em memória): `/api/health`, `/api/ready` e `/dev/entrar` responderam. O modo ligado ao Recreio de verdade compila e ainda não foi executado.
+
+Medida de bancada (`pnpm --filter @informach/morada-server carga 10 5`: 10 mundos, 5 minutos de jogo cada, tudo no mesmo processo, sem rede nem banco, com os robôs clientes gastando CPU junto):
+
+| Jogadores por mundo | CPU por hora de mundo | CPU por passo | Tráfego por mundo | Memória por mundo | Fotografia |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 5,5 s | 0,153 ms | 1,2 kB/s | 610 kB | 4,8 kB |
+| 2 | 4,4 s | 0,122 ms | 2,5 kB/s | 512 kB | 5,3 kB |
+| 4 | 1,7 s | 0,048 ms | 6,1 kB/s | 669 kB | 6,0 kB |
+| 8 | 2,3 s | 0,065 ms | 12,2 kB/s | 1.063 kB | 7,2 kB |
+
+A ordem dos cenários pesa (o primeiro paga o aquecimento do motor), então a tabela serve para ordem de grandeza: poucos segundos de CPU por hora de mundo, cerca de 1,5 kB/s por jogador, menos de 1 MB de memória e fotografias de poucos kB. **Não é o custo por hora de mundo do Marco 0**, que só sai do Railway, com rede, banco e o processo de verdade (lote X4).
+
+Decisões tomadas ao implementar:
+
+- Dentro do mundo um jogador é o **id de membro**, não o id do perfil. O conteúdo do mundo nunca guarda o perfil do Recreio; apagar um perfil vira anular um vínculo no Recreio, sem reescrever diário.
+- A sessão dentro da simulação é a própria sessão de jogo. Reconectar com a mesma sessão retoma a reserva; uma sessão nova do mesmo jogador toma o lugar da antiga.
+- O prazo local da posse conta da hora em que o último batimento foi **enviado**, e o ator para 3 s antes dele. Não se compara relógio da instância com relógio do Recreio.
+- Fotografia a cada 30 s de mudança e logo depois de nascimento, casamento, mudança de família ou de fase. Um mundo que abre sem fotografia nasce de novo do mesmo jeito (a semente vem do id) e reaplica o diário.
+- Fotografia e hibernação que falham por indisponibilidade do Recreio não derrubam o mundo: repetem em 5 s. Achado por um teste.
+- O acesso de quem entra é um fato, gravado antes de a pessoa ver o mundo: o responsável recebe todos os direitos sobre as famílias; o convidado, os de jogo sobre a família indicada no convite.
+
+O que o servidor ainda não tem: build de produção, serviço no Railway, Sentry e a rota de arte (lotes X2 e X3).
 
 ### P2 e P3 (11/11/2026)
 

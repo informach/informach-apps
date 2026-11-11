@@ -1,0 +1,27 @@
+{
+  "name": "@informach/morada-server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "carga": "node --expose-gc --import tsx scripts/carga.mts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@informach/config": "workspace:*",
+    "@informach/morada-sim": "workspace:*",
+    "@informach/recreio": "workspace:*",
+    "pino": "^9.14.0",
+    "ws": "8.22.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/ws": "8.18.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
+  }
+}

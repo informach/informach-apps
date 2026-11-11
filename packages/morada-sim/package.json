@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./conteudo": "./src/conteudo/index.ts",
     "./formatos": "./src/formatos/index.ts",
+    "./protocolo": "./src/protocolo.ts",
     "./testes": "./src/testes/index.ts"
   },
   "scripts": {

@@ -20,7 +20,7 @@ export {
 export * from "./nucleo/canonico";
 export * from "./nucleo/fixo";
 export * from "./nucleo/relogio";
-export { sorteio, sorteioAte } from "./nucleo/sorteio";
+export { resumoDoTexto, sorteio, sorteioAte } from "./nucleo/sorteio";
 export type {
   ChaveReplicada,
   EventoDeApresentacao,
