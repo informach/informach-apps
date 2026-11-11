@@ -14,7 +14,10 @@ export async function createRedisFixture(directory) {
   await writeFile(
     path,
     `bind 0.0.0.0\nprotected-mode yes\nrequirepass ${password}\nsave ""\nappendonly no\n`,
-    { flag: "wx", mode: 0o600 },
+    // The official image runs as the `redis` user, which must read the bind
+    // mount on Linux. The file stays private: mkdtemp creates its directory
+    // with 0700, so no other host user can reach it.
+    { flag: "wx", mode: 0o644 },
   );
   function docker(args, input) {
     const result = spawnSync("docker", args, {
@@ -23,8 +26,14 @@ export async function createRedisFixture(directory) {
       input,
       timeout: 60_000,
     });
-    if (result.error || result.status !== 0)
-      throw new Error("Disposable Redis command failed; Docker Desktop must be available.");
+    if (result.error || result.status !== 0) {
+      // The password only travels through stdin and the bind-mounted file,
+      // never through arguments, so Docker's stderr can be reported.
+      const detail = String(result.stderr || result.error || "").trim();
+      throw new Error(
+        `Disposable Redis command failed (docker ${args[0]}): ${detail.slice(-300) || "Docker must be available"}`,
+      );
+    }
     return result.stdout.trim();
   }
   let containerId;
@@ -70,6 +79,16 @@ export async function createRedisFixture(directory) {
     console.log(`Isolated Redis: ${docker(["exec", containerId, "redis-server", "--version"])}`);
     return { url: `redis://:${password}@127.0.0.1:${match[1]}`, dispose };
   } catch (error) {
+    if (containerId) {
+      // Redis logs carry startup errors (an unreadable config, for one), never the password.
+      const logs = spawnSync("docker", ["logs", "--tail", "20", containerId], {
+        windowsHide: true,
+        encoding: "utf8",
+        timeout: 30_000,
+      });
+      const tail = `${logs.stdout ?? ""}${logs.stderr ?? ""}`.trim();
+      if (tail) console.error(`Disposable Redis container log:\n${tail}`);
+    }
     try {
       await dispose();
     } catch (cleanup) {
