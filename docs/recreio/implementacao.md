@@ -82,7 +82,7 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 | J5 | Persistência e recuperação contra a plataforma falsa | feito |
 | J6 | `apps/morada-server` | feito |
 | J7 | Quedas injetadas e gerador de carga | feito |
-| J8 | Cliente com cena procedural e HUD | em curso |
+| J8 | Cliente com cena procedural e HUD | feito |
 
 ### Etapa 1, junção
 
@@ -197,6 +197,23 @@ Decisões tomadas nestes lotes:
 - Uma fotografia compacta o diário. Na recuperação, a instância lê a fotografia e depois o diário a partir de `fotografia.diarioSeq`.
 
 Lacunas conhecidas, aceitas nesta etapa: a leitura do diário não é paginada; a emissão de ingresso não tem limite de tentativas; a renovação não recusa quando o jogo entra em `manutencao`; a entrada no mundo não reavalia o direito de jogar (a renovação da sessão e o batimento cobrem); nenhum serviço, variável ou agendador no `.railway/railway.ts` (lote X3).
+
+### J8: cliente do jogo (12/11/2026)
+
+- `pnpm --filter @informach/jogo-morada typecheck`: sem erros. `pnpm exec biome check packages/jogo-morada`: limpo. `pnpm --filter @informach/jogo-morada test`: 71 testes em 6 arquivos, com a simulação de verdade como referência (estados da conexão e reabertura por código de fechamento, buraco de sequência, estimador do tick do servidor, espelho igual a `mundo.visao()` depois de um roteiro de duas pessoas, comando pendente reenviado com o mesmo id, rota prevista igual à do servidor, menu em leque, retratos de duas pessoas, mapa de eixos sem espelhar a casa).
+- `pnpm --filter @informach/jogo-morada e2e`: 15 testes em Chromium (desenho por software), com o servidor do jogo em modo de desenvolvimento e a bancada construída. Duas pessoas entram no mesmo mundo e veem os quatro retratos; cada uma dirige um morador e tomar o do outro é recusado; clicar no chão leva o morador e a outra pessoa vê chegar; o menu da geladeira manda fazer um lanche; a rede cai e o jogo reconecta com a mesma sessão; uma pessoa some sem aviso, a outra continua, vê a espera, e depois de 30 s assume o morador; o contexto WebGL se perde e volta; teclado; janela de 900 px; sair; outra janela com o mesmo apelido toma o lugar. Nenhum erro no console.
+- O bundle é conferido no mesmo teste: o JavaScript do jogo tem 1.019 kB (278 kB com gzip) em 4 arquivos, dentro do orçamento de 1.250 kB e 360 kB; a página que importa só `MARCA_DO_CLIENTE` baixa 2,8 kB e nenhum three.js.
+- Roteiro de vida por script, uma pessoa a 3×, regras da prova (cerca de 33 minutos, sem erro de página): visita da vizinha, namoro, casamento, a vizinha vem morar na casa e aparece o quinto retrato, gravidez, nascimento com o bebê no colo e o sexto retrato, menu de cuidado do bebê e mamadeira na fila.
+- Medido na máquina de desenvolvimento (1280×720, casa da prova, 54 objetos, RTX 3060): 32 chamadas de desenho com 4 moradores e 42 com 6, 16,7 ms por quadro, custo da cena de 0,3 a 1 ms. Por software, no nível baixo: 16 a 18 chamadas, 33 ms por quadro. Sem sombras, o mundo parado são 4 chamadas.
+- **Não exercitado**: mão de gente no mouse; Firefox, WebKit e toque; rede fora do `localhost`; o cliente montado na página do Recreio (lote X1); a barriga da gravidez em imagem; o bebê crescendo.
+
+Achados para os próximos lotes, todos fora do cliente e ainda abertos:
+
+- O protocolo não leva o apelido das outras pessoas (`PresencaVista.jogadores` tem só o id e o estado). O jogo mostra "outra pessoa" a não ser que quem hospeda entregue `apelidoDe`.
+- Regras puras que o cliente usa não são exportadas pelo `@informach/morada-sim` (`podeSerInterrompido`, `impedimentoDoCuidado`, `relacaoExistente`, `saoParentes`). O cliente refez o mínimo; a cópia de `motivoDeDormir` não tem teste contra a original.
+- `pulso.tick` sai um passo atrasado (`ator.ts` chama `acadaSegundo()` antes de `avancar`). O estimador do cliente absorve.
+- O modo de desenvolvimento do servidor abre uma sessão nova a cada `/dev/entrar` e não renova: depois de 15 minutos a sessão acaba e a pessoa entra de novo. Não afeta o caminho de verdade, em que o SDK renova.
+- `PresencaVista.reservas[].moradorId` é `string`, e `EventoDeApresentacao` tem campos soltos.
 
 ### J0 a J4 e a parte de simulação do J5 (11/11/2026)
 
