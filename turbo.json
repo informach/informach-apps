@@ -77,7 +77,8 @@
         "RECREIO_TOKEN_KEY_ID",
         "RECREIO_TOKEN_PREVIOUS_PUBLIC_KEYS",
         "RECREIO_HOST_SECRETS",
-        "RECREIO_GAME_ORIGINS"
+        "RECREIO_GAME_ORIGINS",
+        "RECREIO_JOGO_DE_TESTE"
       ]
     },
     "typecheck": {

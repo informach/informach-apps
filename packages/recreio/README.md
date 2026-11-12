@@ -12,7 +12,7 @@ Consumido como TypeScript fonte, sem build, como os outros packages.
 | `./contrato` | Esquemas Zod e tipos de tudo que atravessa a rede: claims dos tokens, API do SDK, API das instâncias, `RecreioGameContext`, `ClienteDoHost` | Todos |
 | `./emissor` | Assinatura dos tokens, montagem do JWKS e conferência dos tokens que o próprio Recreio emitiu. Precisa da chave privada | Só `apps/recreio` |
 | `./host` | `criarVerificadorDeSessao` e `criarClienteDoHost` (o `ClienteDoHost` por HTTP) para o servidor de um jogo | Servidores de jogo |
-| `./sdk` | `criarRecreio`: o `RecreioGameContext` para o cliente de um jogo. Só `fetch` e temporizadores | Clientes de jogo e a página que hospeda o jogo |
+| `./sdk` | `criarRecreio`: o `RecreioGameContext` para o cliente de um jogo. Só `fetch` e temporizadores. Também `ModuloDoJogo`, o contrato entre a página que hospeda o jogo e o cliente dele | Clientes de jogo e a página que hospeda o jogo |
 | `./testing` | `criarPlataformaFalsa` e `criarEmissorDeTeste` | Testes e desenvolvimento dos jogos |
 | `./testing/conformidade` | `descreverConformidadeDoHost`: as regras da API das instâncias como testes | Testes de quem implementa `ClienteDoHost` |
 
@@ -124,6 +124,31 @@ const aberto = await recreio.mundos.abrir(mundoId); // { endereco, membroId, pap
 - `sair()` cancela o temporizador e encerra a sessão no Recreio. Sair de uma sessão que o Recreio já encerrou não é erro.
 - Os pedidos de sessão e de mundos vão com `credentials: "omit"`: só o token no cabeçalho, nenhum cookie.
 - O SDK não importa `./emissor`, `./host`, `jose` nem nada do Node; `src/sdk/sdk.test.ts` confere.
+
+### A página que hospeda o jogo
+
+O portal monta o cliente de um jogo por um contrato só de tipos (`ModuloDoJogo`, em `./sdk`), para a página não importar jogo nenhum e o jogo não importar a página:
+
+```ts
+import type { ModuloDoJogo } from "@informach/recreio/sdk";
+
+export const meuJogo: ModuloDoJogo = {
+  montar(host, contexto, { mundoId, aoSair, aoFalhar }) {
+    // contexto.mundos.abrir(mundoId) diz onde o mundo está rodando; o token de
+    // contexto.sessao.token() vai no primeiro quadro da conexão.
+    return {
+      dispose() {
+        // fechar conexões e soltar o que criou em `host`
+      },
+    };
+  },
+};
+```
+
+- A página abre a sessão (`criarRecreio`) antes de montar e a encerra (`sair()`) depois de `dispose()`. O jogo não chama `sair()`.
+- `aoSair()`: a pessoa saiu por dentro do jogo. `aoFalhar(erro)`: o jogo não tem como continuar; em geral ele repassa o `ErroDoRecreio` que recebeu de `mundos.abrir`, e a página mostra o motivo. Queda de conexão que o jogo resolve abrindo o mundo de novo não passa por `aoFalhar`.
+- `erroDaResposta(resposta)` (também em `./sdk`) transforma a recusa de `POST /api/sdk/v1/ingresso` no mesmo `ErroDoRecreio` que o SDK lança; é o que a página usa em `obterIngresso`.
+- O SDK confere as respostas com o Zod. Sob uma política de segurança sem `eval`, a página chama `z.config({ jitless: true })` no navegador, senão o Zod testa `new Function` e o navegador registra uma violação.
 
 ## Testar um servidor de jogo sem o Recreio
 

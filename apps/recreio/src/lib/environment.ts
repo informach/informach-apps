@@ -70,6 +70,12 @@ export const schema = z.object({
   RECREIO_GAME_ORIGINS: mapaJson(OrigensDoJogoSchema),
   /** Segredo do agendador para `/api/jobs/*`. */
   CRON_SECRET: z.string().min(32).optional(),
+  /**
+   * `1` acrescenta ao catálogo o jogo de teste (`teste`), que existe para
+   * provar a plataforma de ponta a ponta sem código de jogo nenhum. Só vale em
+   * desenvolvimento e na verificação isolada; em produção é recusado abaixo.
+   */
+  RECREIO_JOGO_DE_TESTE: z.enum(["0", "1"]).default("0"),
 });
 
 export type Environment = z.infer<typeof schema>;
@@ -145,6 +151,14 @@ export function validateEnvironment(input: NodeJS.ProcessEnv): Environment {
       throw new Error("Production requires RECREIO_TOKEN_PRIVATE_KEY.");
     if (!value.CRON_SECRET) throw new Error("Production requires CRON_SECRET.");
   }
+  // O jogo de teste nunca existe num serviço publicado. Um build de produção só
+  // o aceita na verificação isolada (`pnpm e2e`), que roda em localhost contra
+  // um banco descartável e é, ela mesma, recusada acima num serviço publicado.
+  if (
+    value.RECREIO_JOGO_DE_TESTE === "1" &&
+    (producao || (value.NODE_ENV === "production" && input.RECREIO_ISOLATED_TEST !== "1"))
+  )
+    throw new Error("RECREIO_JOGO_DE_TESTE cannot be enabled in production.");
   // As mensagens abaixo citam só o nome da variável, nunca o conteúdo.
   if (value.RECREIO_TOKEN_PRIVATE_KEY) {
     if (!chavePrivadaEd25519(value.RECREIO_TOKEN_PRIVATE_KEY))

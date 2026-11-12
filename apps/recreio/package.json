@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:integration": "node scripts/isolated.mjs integration",
+    "e2e": "node scripts/isolated.mjs e2e",
+    "jogo-de-teste": "node --import tsx e2e/servidor/main.ts",
     "conceder": "tsx scripts/conceder.ts",
     "revogar": "tsx scripts/revogar.ts",
     "gerar-chave": "node scripts/gerar-chave.mjs"
@@ -36,15 +38,18 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^24.19.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "@types/ws": "8.18.2",
     "dotenv": "^16.6.1",
     "postgres": "^3.4.9",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
-    "vitest": "^5.0.5"
+    "vitest": "^5.0.5",
+    "ws": "8.22.0"
   }
 }

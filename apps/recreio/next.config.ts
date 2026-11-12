@@ -33,6 +33,9 @@ const config: NextConfig = {
       "",
     NEXT_PUBLIC_RAILWAY_GIT_COMMIT_SHA:
       process.env.NEXT_PUBLIC_RAILWAY_GIT_COMMIT_SHA ?? process.env.RAILWAY_GIT_COMMIT_SHA ?? "",
+    // Gravado no build: sem `RECREIO_JOGO_DE_TESTE=1`, o registro dos clientes
+    // (`features/jogar/registro.ts`) nem empacota o jogo de teste.
+    RECREIO_CLIENTE_DE_TESTE: process.env.RECREIO_JOGO_DE_TESTE === "1" ? "1" : "",
   },
   async headers() {
     return [

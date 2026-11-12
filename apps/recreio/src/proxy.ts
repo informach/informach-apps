@@ -1,25 +1,21 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { manifestoDoJogo, origensDoJogo } from "@/features/jogos/config";
+import { jogoDoCaminho, montarCsp } from "@/lib/csp";
 
 // A autenticação é feita nos layouts do servidor e em cada ação. O proxy só
 // entrega os cabeçalhos de segurança do documento.
 export function proxy(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith("/api/")) return NextResponse.next();
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
-  const dev = process.env.NODE_ENV === "development";
-  const csp = [
-    "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data:",
-    "font-src 'self'",
-    "worker-src 'self'",
-    `connect-src 'self'${dev ? " ws: wss:" : ""}`,
-    "object-src 'none'",
-    "base-uri 'self'",
-    "frame-ancestors 'none'",
-    "form-action 'self'",
-  ].join("; ");
+  // Só a página de um jogo deste deploy ganha as origens dele; qualquer outro
+  // caminho, e `/jogar/<jogo que não existe>`, fica com a política do portal.
+  const jogo = jogoDoCaminho(request.nextUrl.pathname);
+  const csp = montarCsp({
+    nonce,
+    dev: process.env.NODE_ENV === "development",
+    jogo: jogo !== null && manifestoDoJogo(jogo) ? origensDoJogo(jogo) : null,
+  });
   const headers = new Headers(request.headers);
   headers.set("Content-Security-Policy", csp);
   headers.set("x-nonce", nonce);

@@ -91,6 +91,54 @@ describe("deployment environment", () => {
       }),
     ).toThrow("Redis");
   });
+  it("keeps the test game off by default and accepts it in development", () => {
+    expect(validateEnvironment(base).RECREIO_JOGO_DE_TESTE).toBe("0");
+    expect(
+      validateEnvironment({ ...base, NODE_ENV: "development", RECREIO_JOGO_DE_TESTE: "1" })
+        .RECREIO_JOGO_DE_TESTE,
+    ).toBe("1");
+    expect(
+      validateEnvironment({ ...base, NODE_ENV: "test", RECREIO_JOGO_DE_TESTE: "1" })
+        .RECREIO_JOGO_DE_TESTE,
+    ).toBe("1");
+    expect(() => validateEnvironment({ ...base, RECREIO_JOGO_DE_TESTE: "sim" })).toThrow(
+      "RECREIO_JOGO_DE_TESTE",
+    );
+  });
+  it("refuses the test game when NODE_ENV is production", () => {
+    // Build de produção em localhost, sem ser a verificação isolada.
+    expect(() => validateEnvironment({ ...base, RECREIO_JOGO_DE_TESTE: "1" })).toThrow(
+      "RECREIO_JOGO_DE_TESTE",
+    );
+    // Um serviço publicado completo.
+    expect(() => validateEnvironment({ ...production, RECREIO_JOGO_DE_TESTE: "1" })).toThrow(
+      "RECREIO_JOGO_DE_TESTE",
+    );
+    // A marca da verificação isolada não abre exceção num serviço publicado.
+    expect(() =>
+      validateEnvironment({
+        ...production,
+        RECREIO_JOGO_DE_TESTE: "1",
+        RECREIO_ISOLATED_TEST: "1",
+      }),
+    ).toThrow();
+  });
+  it("refuses the test game on a Railway deployment whatever NODE_ENV says", () => {
+    expect(() =>
+      validateEnvironment({
+        ...production,
+        NODE_ENV: "development",
+        RAILWAY_ENVIRONMENT_ID: "production",
+        RECREIO_JOGO_DE_TESTE: "1",
+      }),
+    ).toThrow("RECREIO_JOGO_DE_TESTE");
+  });
+  it("accepts the test game in a production build only for the isolated verification on localhost", () => {
+    expect(
+      validateEnvironment({ ...base, RECREIO_JOGO_DE_TESTE: "1", RECREIO_ISOLATED_TEST: "1" })
+        .RECREIO_JOGO_DE_TESTE,
+    ).toBe("1");
+  });
   it("closes the access by default and accepts only the two known modes", () => {
     expect(validateEnvironment(base).RECREIO_ACCESS_MODE).toBe("fechado");
     expect(

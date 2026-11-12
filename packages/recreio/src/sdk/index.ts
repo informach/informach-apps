@@ -11,7 +11,7 @@ import {
 } from "../contrato/sdk";
 import { FRACAO_PARA_RENOVAR } from "../contrato/tokens";
 import { ErroDoRecreio, ehErroDoRecreio } from "../dominio/erros";
-import { type Buscar, lerCorpo, pedir, semBarraFinal } from "../transporte/http";
+import { type Buscar, erroDaResposta, lerCorpo, pedir, semBarraFinal } from "../transporte/http";
 
 /**
  * SDK do Recreio para o cliente de um jogo. Só usa `fetch` e temporizadores:
@@ -209,5 +209,10 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   };
 }
 
+export type { JogoMontado, ModuloDoJogo, OpcoesDeMontagem } from "./modulo";
 export type { MudancaDeAcesso, RecreioGameContext };
-export { ErroDoRecreio, ehErroDoRecreio };
+/**
+ * `erroDaResposta` serve a quem fornece `obterIngresso`: transforma a recusa de
+ * `POST /api/sdk/v1/ingresso` no mesmo `ErroDoRecreio` que o SDK lança.
+ */
+export { ErroDoRecreio, ehErroDoRecreio, erroDaResposta };

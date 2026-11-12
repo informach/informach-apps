@@ -446,6 +446,13 @@ describe("o que o SDK carrega", () => {
       [],
     );
     expect([...externos].sort()).toEqual(["zod"]);
-    expect(readdirSync(path.join(raiz, "sdk")).sort()).toEqual(["index.ts", "sdk.test.ts"]);
+    // `modulo.ts` é só tipos (o contrato com a página que hospeda o jogo) e fala de
+    // DOM: por isso mora aqui, e não em `contrato/`, que servidores de jogo importam.
+    expect(readdirSync(path.join(raiz, "sdk")).sort()).toEqual([
+      "index.ts",
+      "modulo.ts",
+      "sdk.test.ts",
+    ]);
+    expect(relativos).toContain("sdk/modulo.ts");
   });
 });

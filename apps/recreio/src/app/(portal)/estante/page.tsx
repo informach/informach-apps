@@ -5,6 +5,8 @@ import { avaliarAcesso } from "@/features/acesso/service";
 import { descreverAcesso } from "@/features/acesso/texto";
 import { cartoesDaEstante } from "@/features/estante/catalogo";
 import { CartaoDoJogo } from "@/features/estante/components/cartao-do-jogo";
+import { temCliente } from "@/features/jogar/registro";
+import { jogoAbre, jogosDoCatalogo } from "@/features/jogos/config";
 import { CriarMundo } from "@/features/mundos/components/criar-mundo";
 import { EntrarComCodigo } from "@/features/mundos/components/entrar-com-codigo";
 import { ListaDeMundos } from "@/features/mundos/components/lista-de-mundos";
@@ -13,9 +15,6 @@ import { paginaDoPortal } from "@/features/sessao/ator";
 import { env } from "@/lib/env";
 
 export const metadata = { title: "Estante" };
-
-/** O jogo cujos mundos a estante mostra. Hoje o catálogo tem um só. */
-const JOGO_DOS_MUNDOS = JOGOS[0];
 
 export default async function Estante() {
   const { ator } = await paginaDoPortal();
@@ -33,8 +32,16 @@ export default async function Estante() {
     );
 
   // Os mundos são da pessoa mesmo quando o acesso está parado; criar e entrar
-  // em mundos é só para quem pode jogar.
-  const mundos = await mundosDoPerfil(ator.perfil.id, JOGO_DOS_MUNDOS.id);
+  // em mundos é só para quem pode jogar. Cada jogo deste deploy tem a sua
+  // lista; hoje o catálogo público tem um jogo só.
+  const jogos = await Promise.all(
+    jogosDoCatalogo().map(async (jogo) => ({
+      jogo,
+      mundos: await mundosDoPerfil(ator.perfil.id, jogo.id),
+      // "Jogar" só aparece para um jogo que abre e que o portal sabe hospedar.
+      jogavel: acesso.podeJogar && jogoAbre(jogo.id) && temCliente(jogo.id),
+    })),
+  );
 
   return (
     <>
@@ -51,41 +58,51 @@ export default async function Estante() {
         ))}
       </ul>
 
-      <section aria-labelledby="mundos" className="mt-12">
-        <h2 id="mundos" className="font-display text-2xl font-extrabold tracking-tight">
-          Seus mundos no {JOGO_DOS_MUNDOS.nome}
-        </h2>
-        <p className="mt-2 max-w-2xl text-tinta-suave">
-          Um mundo é onde o jogo acontece. Você pode jogar sozinho ou chamar outras pessoas com um
-          código de convite.
-        </p>
-        <div className="mt-5">
-          <ListaDeMundos mundos={mundos} />
-        </div>
-        {acesso.podeJogar && (
-          <div className="mt-6 grid gap-5 sm:grid-cols-2">
-            <section aria-labelledby="criar-mundo" className="painel p-5">
-              <h3 id="criar-mundo" className="font-display text-xl font-bold">
-                Criar mundo
-              </h3>
-              <div className="mt-3">
-                <CriarMundo
-                  jogo={JOGO_DOS_MUNDOS.id}
-                  limites={{ min: NOME_DE_MUNDO.min, max: NOME_DE_MUNDO.max }}
-                />
-              </div>
-            </section>
-            <section aria-labelledby="entrar-com-codigo" className="painel p-5">
-              <h3 id="entrar-com-codigo" className="font-display text-xl font-bold">
-                Entrar com código
-              </h3>
-              <div className="mt-3">
-                <EntrarComCodigo />
-              </div>
-            </section>
+      {jogos.map(({ jogo, mundos, jogavel }, indice) => (
+        <section key={jogo.id} aria-labelledby={`mundos-${jogo.id}`} className="mt-12">
+          <h2
+            id={`mundos-${jogo.id}`}
+            className="font-display text-2xl font-extrabold tracking-tight"
+          >
+            Seus mundos no {jogo.nome}
+          </h2>
+          {indice === 0 && (
+            <p className="mt-2 max-w-2xl text-tinta-suave">
+              Um mundo é onde o jogo acontece. Você pode jogar sozinho ou chamar outras pessoas com
+              um código de convite.
+            </p>
+          )}
+          <div className="mt-5">
+            <ListaDeMundos mundos={mundos} jogarEm={jogavel ? jogo.id : undefined} />
           </div>
-        )}
-      </section>
+          {acesso.podeJogar && (
+            <div className="mt-6 grid gap-5 sm:grid-cols-2">
+              <section aria-labelledby={`criar-mundo-${jogo.id}`} className="painel p-5">
+                <h3 id={`criar-mundo-${jogo.id}`} className="font-display text-xl font-bold">
+                  Criar mundo
+                </h3>
+                <div className="mt-3">
+                  <CriarMundo
+                    jogo={jogo.id}
+                    limites={{ min: NOME_DE_MUNDO.min, max: NOME_DE_MUNDO.max }}
+                  />
+                </div>
+              </section>
+              {/* O código do convite já diz de qual mundo é: um campo só, no primeiro jogo. */}
+              {indice === 0 && (
+                <section aria-labelledby="entrar-com-codigo" className="painel p-5">
+                  <h3 id="entrar-com-codigo" className="font-display text-xl font-bold">
+                    Entrar com código
+                  </h3>
+                  <div className="mt-3">
+                    <EntrarComCodigo />
+                  </div>
+                </section>
+              )}
+            </div>
+          )}
+        </section>
+      ))}
     </>
   );
 }

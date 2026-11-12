@@ -68,7 +68,7 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 | P4 | Ingresso, sessão, renovação, JWKS, cliente do SDK | feito |
 | P5 | Mundos, membros, convite | feito |
 | P6 | Posse, API das instâncias, armazenamento | feito |
-| P7 | `/jogar/[jogo]`, jogo de teste, E2E com queda da instância | a fazer |
+| P7 | `/jogar/[jogo]`, jogo de teste, E2E com queda da instância | feito |
 
 ### Etapa 1, jogo
 
@@ -88,7 +88,7 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 
 | Lote | Entrega | Estado |
 | --- | --- | --- |
-| X1 | Plataforma real no servidor, `/jogar/morada`, E2E com duas contas | a fazer |
+| X1 | Plataforma real no servidor, `/jogar/morada`, E2E com duas contas | em curso |
 | X2 | Empacotador e corpos reais na máquina de desenvolvimento | a fazer |
 | X3 | Railway atrás da constante, Bastidores mínimo, guias | a fazer |
 | X4 | Deploy fechado e medição de custo, só com autorização | a fazer |
@@ -197,6 +197,33 @@ Decisões tomadas nestes lotes:
 - Uma fotografia compacta o diário. Na recuperação, a instância lê a fotografia e depois o diário a partir de `fotografia.diarioSeq`.
 
 Lacunas conhecidas, aceitas nesta etapa: a leitura do diário não é paginada; a emissão de ingresso não tem limite de tentativas; a renovação não recusa quando o jogo entra em `manutencao`; a entrada no mundo não reavalia o direito de jogar (a renovação da sessão e o batimento cobrem); nenhum serviço, variável ou agendador no `.railway/railway.ts` (lote X3).
+
+### P7: página do jogo, jogo de teste e ponta a ponta (12/11/2026)
+
+- `pnpm --filter @informach/recreio-app typecheck` e `pnpm --filter @informach/recreio typecheck`: sem erros. `pnpm exec biome check apps/recreio packages/recreio`: limpo. `pnpm --filter @informach/recreio-app test`: 162 testes em 14 arquivos. `pnpm --filter @informach/recreio test`: 105 testes.
+- `pnpm --filter @informach/recreio-app test:integration`: 143 testes em 9 arquivos (os 132 de antes e 11 novos, da página do jogo com a variável do jogo de teste desligada e ligada).
+- `pnpm --filter @informach/recreio-app e2e`: 3 testes de navegador contra o portal em build de produção (`next build` e `next start`), banco descartável e o servidor do jogo de teste como processo à parte, sem nenhum código do Morada. Cerca de 2 minutos e meio com migrações e build.
+  - Duas contas se cadastram, confirmam o e-mail, criam perfil e recebem a concessão; uma cria o mundo e gera o convite, a outra entra pelo código; as duas abrem `/jogar/teste`, veem uma à outra e as somas uma da outra.
+  - A janela de uma é fechada: ela sai da lista da outra, que continua somando.
+  - **A instância é morta sem aviso** (`SIGKILL`): a página mostra "Reconectando", outro processo sobe e, quando a posse vence, o jogo volta **com o mesmo valor** e continua. O registro da instância é conferido: cercas 1, 2 e 3, e a última abertura veio da fotografia mais o diário.
+  - Um perfil joga em um lugar por vez: a segunda aba mostra "Você já está jogando em outro lugar", e "Continuar aqui" encerra a primeira. Sair da conta em uma aba encerra o jogo na outra dentro do batimento.
+  - Recusas: sem o direito de jogar volta para a estante; mundo de outra pessoa, mundo que não existe e id malformado mostram o mesmo aviso; `/jogar/nao-existe` é 404; sem instância aparece "O jogo está iniciando" e "Tentar de novo" funciona quando ela sobe.
+  - Nenhuma violação da política de segurança em nenhuma página, e o código do jogo de teste não aparece em nenhum script de `/estante`.
+- `pnpm build:recreio` com as variáveis do CI: `/jogar/[jogo]` listada, e nenhum arquivo do build contém o cliente do jogo de teste.
+- **Uma falha sem explicação em sete execuções do E2E, na máquina de desenvolvimento**: o processo do portal deixou de responder no começo de uma execução, sem saída guardada. Não se repetiu em cinco execuções seguintes; a saída do portal agora é guardada.
+- **Não exercitado**: repasse da sessão renovada e a perda de acesso durante o jogo (pedem uns 10 minutos de jogo); Redis; o passo novo do `ci.yml` rodando no GitHub; `next start` do build de produção com a variável desligada pedindo `/jogar/teste` (a garantia é o build sem o cliente, a validação do ambiente e os testes de integração com a variável desligada).
+
+Decisões tomadas neste lote:
+
+- **Contrato entre a página e o cliente de um jogo**: `ModuloDoJogo` em `@informach/recreio/sdk` (`montar(host, contexto, { mundoId, aoSair, aoFalhar })` devolve `{ dispose() }`). Fica em módulo só de navegador; `./contrato` não cita tipo de DOM, porque o servidor do jogo o importa.
+- **O registro dos clientes** (`apps/recreio/src/features/jogar/registro.ts`) liga o id do jogo a um `import()` dinâmico. Jogo do catálogo sem linha no registro não tem página.
+- **Jogo de teste** (`teste`): existe só com `RECREIO_JOGO_DE_TESTE=1`, recusada em serviço publicado e em `NODE_ENV=production` fora da verificação isolada em `localhost`. O cliente dele nem entra no build quando a variável está desligada. O catálogo público (`@informach/config/jogos`) não o conhece.
+- **A política de segurança de `/jogar/<jogo>`** é a do portal mais o que um jogo em WebGL com WebSocket precisa: `'wasm-unsafe-eval'`, `worker-src 'self' blob:`, imagens e mídia em `blob:` e `connect-src` com a origem do WebSocket daquele jogo. As outras rotas ficam como estavam.
+- **Entrar e sair da página do jogo é sempre carga de documento**, nunca navegação do roteador do Next: a política é do documento.
+- **Uma sessão de jogo por perfil**: tudo o que tira o jogo da tela desmonta o jogo e chama `sair()` antes de qualquer nova tentativa.
+- O Zod, no navegador, sonda `new Function` e isso aparece como violação da política; componente de navegador que usa o SDK importa `lib/zod-sem-eval.ts` antes.
+
+Para saber: sessão que acaba sem `pagehide` (navegador que trava) fica aberta até vencer, e a próxima abertura no mesmo aparelho mostra "Você já está jogando em outro lugar". Uma instância morta continua elegível por até 30 s, e um mundo aberto nessa janela espera a posse não reivindicada vencer.
 
 ### J8: cliente do jogo (12/11/2026)
 

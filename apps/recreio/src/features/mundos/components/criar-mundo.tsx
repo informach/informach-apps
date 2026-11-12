@@ -36,11 +36,11 @@ export function CriarMundo({
   return (
     <form onSubmit={enviar} className="grid gap-3">
       <div>
-        <Label htmlFor="nome-do-mundo" className="font-bold">
+        <Label htmlFor={`nome-do-mundo-${jogo}`} className="font-bold">
           Nome do mundo
         </Label>
         <Input
-          id="nome-do-mundo"
+          id={`nome-do-mundo-${jogo}`}
           name="nome"
           value={nome}
           onChange={(evento) => setNome(evento.target.value)}
