@@ -3,7 +3,17 @@ import type { DefInteracao, Efeito } from "../conteudo/esquema";
 import { novoId, relacaoEntre } from "../dominio/estado";
 import type { AcaoId, PerfilId, TarefaId } from "../dominio/ids";
 import { exigir, inserir, obter, remover } from "../dominio/tabela";
-import type { Acao, Alvo, Morador, MotivoDeRecusa, Objeto, PontoMm, Tick } from "../dominio/tipos";
+import type {
+  Acao,
+  Alvo,
+  EstadoDoMundo,
+  Morador,
+  MotivoDeRecusa,
+  Objeto,
+  PontoMm,
+  Tick,
+} from "../dominio/tipos";
+import type { Navegador } from "../espaco/navegador";
 import {
   duracaoDoMovimento,
   ondeEsta,
@@ -77,28 +87,51 @@ export function pararMovimento(ctx: Contexto, morador: Morador): void {
   tocar(ctx, "moradores", morador.id);
 }
 
+/**
+ * Onde fica em pé quem sai do objeto em que está sentado ou deitado, sem mudar
+ * nada; `null` para quem não está em um objeto. `navegador` é o do lote dele.
+ */
+export function ondeLevanta(
+  estado: EstadoDoMundo,
+  navegador: Navegador,
+  morador: Morador,
+): { andar: number; pos: PontoMm; frente: number } | null {
+  const local = morador.local;
+  if (local.t !== "objeto") return null;
+  const objeto = obter(estado.objetos, local.objetoId);
+  const lote = exigir(estado.lotes, local.loteId);
+  // Sai por onde se chega ao ponto; quem estava dentro do berço sai ao lado dele.
+  const acesso = objeto ? navegador.acesso(objeto, local.ponto) : null;
+  const vaga = objeto ? vagaDoPonto(objeto, local.ponto) : null;
+  const pos = acesso?.pos ?? (vaga ? navegador.livreMaisPerto(vaga.pos) : null) ?? lote.entrada;
+  return { andar: objeto?.andar ?? 0, pos: [pos[0], pos[1]], frente: acesso?.frente ?? 0 };
+}
+
+/**
+ * De onde o morador parte para andar agora: de onde está ou, se está sentado
+ * ou deitado, de onde fica em pé ao se levantar. `null` para quem está fora.
+ */
+export function partidaDe(
+  estado: EstadoDoMundo,
+  navegador: Navegador,
+  morador: Morador,
+  tick: Tick,
+): PontoMm | null {
+  return (ondeLevanta(estado, navegador, morador) ?? ondeEsta(estado, morador, tick))?.pos ?? null;
+}
+
 /** Tira do objeto quem estava sentado ou deitado nele e põe em pé ao lado. */
 export function levantar(ctx: Contexto, morador: Morador): void {
   const local = morador.local;
   if (local.t !== "objeto") return;
+  const emPe = ondeLevanta(ctx.estado, ctx.navegador(local.loteId), morador);
+  if (!emPe) return;
   const objeto = obter(ctx.estado.objetos, local.objetoId);
   if (objeto && objeto.ocupacao[local.ponto] === morador.id) {
     delete objeto.ocupacao[local.ponto];
     tocar(ctx, "objetos", objeto.id);
   }
-  const lote = exigir(ctx.estado.lotes, local.loteId);
-  const navegador = ctx.navegador(local.loteId);
-  // Sai por onde se chega ao ponto; quem estava dentro do berço sai ao lado dele.
-  const acesso = objeto ? navegador.acesso(objeto, local.ponto) : null;
-  const vaga = objeto ? vagaDoPonto(objeto, local.ponto) : null;
-  const pos = acesso?.pos ?? (vaga ? navegador.livreMaisPerto(vaga.pos) : null) ?? lote.entrada;
-  morador.local = {
-    t: "lote",
-    loteId: local.loteId,
-    andar: objeto?.andar ?? 0,
-    pos: [pos[0], pos[1]],
-    frente: acesso?.frente ?? 0,
-  };
+  morador.local = { t: "lote", loteId: local.loteId, ...emPe };
   tocar(ctx, "moradores", morador.id);
 }
 
@@ -186,10 +219,10 @@ export function limparAcoes(ctx: Contexto, morador: Morador): void {
   if (morador.acaoAtual) cancelarAcao(ctx, morador.acaoAtual);
 }
 
-/** A ação em curso pode ceder o lugar a outra. */
-export function podeSerInterrompido(ctx: Contexto, morador: Morador): boolean {
+/** A ação em curso pode ceder o lugar a outra. Só lê o estado. */
+export function podeSerInterrompido(estado: EstadoDoMundo, morador: Morador): boolean {
   if (!morador.acaoAtual) return true;
-  const acao = obter(ctx.estado.acoes, morador.acaoAtual);
+  const acao = obter(estado.acoes, morador.acaoAtual);
   if (!acao) return true;
   if (acao.origem === "jogador" || acao.origem === "resposta") return false;
   return interacao(acao.interacao)?.interruptivel ?? true;
@@ -200,7 +233,7 @@ export function podeSerInterrompido(ctx: Contexto, morador: Morador): boolean {
  * livre, ou fazendo algo que pode ser interrompido, para e passa a esperar.
  */
 function convocar(ctx: Contexto, ator: Morador, alvo: Morador, acao: Acao): boolean {
-  if (!podeSerInterrompido(ctx, alvo)) return false;
+  if (!podeSerInterrompido(ctx.estado, alvo)) return false;
   if (alvo.acaoAtual) cancelarAcao(ctx, alvo.acaoAtual);
   pararMovimento(ctx, alvo);
   if (alvo.local.t === "objeto" && alvo.local.ponto !== PONTO_DENTRO) levantar(ctx, alvo);
@@ -371,8 +404,9 @@ function iniciar(ctx: Contexto, morador: Morador, acao: Acao): void {
   // Quem estava sentado ou deitado em outro lugar se levanta para ir.
   if (morador.local.t === "objeto") levantar(ctx, morador);
   pararMovimento(ctx, morador);
-  const partida = ondeEsta(estado, morador, tick)?.pos ?? onde.pos;
-  const rota = ctx.navegador(onde.loteId).rota(partida, destino);
+  const navegador = ctx.navegador(onde.loteId);
+  const partida = partidaDe(estado, navegador, morador, tick) ?? onde.pos;
+  const rota = navegador.rota(partida, destino);
   if (!rota) {
     cancelarAcao(ctx, acao.id, "inalcancavel");
     return;

@@ -73,6 +73,13 @@ export const IntencaoSchema = z.strictObject({
 export type Intencao = z.infer<typeof IntencaoSchema>;
 
 /**
+ * Tamanho máximo do apelido de quem joga. O apelido é texto de fora: a
+ * simulação só o guarda na presença e o repassa aos clientes.
+ */
+export const APELIDO_MAX = 40;
+const apelido = z.string().min(1).max(APELIDO_MAX);
+
+/**
  * As entradas que não vêm de um jogador: o servidor avisa quem entrou, quem
  * caiu e que horas são. O relógio real chega sempre como dado.
  */
@@ -86,13 +93,20 @@ export const EntradaSchema = z.discriminatedUnion("t", [
     t: z.literal("sessao_entrou"),
     sessaoId: z.string().min(1),
     perfilId: z.string().min(1),
+    /** Como a plataforma chama este jogador. Sem ele, os outros veem só que há alguém. */
+    apelido: apelido.optional(),
   }),
   z.strictObject({
     t: z.literal("sessao_caiu"),
     sessaoId: z.string().min(1),
     agoraMs: z.number().int().nonnegative(),
   }),
-  z.strictObject({ t: z.literal("sessao_voltou"), sessaoId: z.string().min(1) }),
+  z.strictObject({
+    t: z.literal("sessao_voltou"),
+    sessaoId: z.string().min(1),
+    /** O apelido de agora, se mudou enquanto a pessoa estava fora. */
+    apelido: apelido.optional(),
+  }),
   z.strictObject({ t: z.literal("sessao_saiu"), sessaoId: z.string().min(1) }),
   /** Libera as reservas de quem caiu e não voltou a tempo. */
   z.strictObject({ t: z.literal("expirar"), agoraMs: z.number().int().nonnegative() }),

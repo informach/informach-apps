@@ -9,48 +9,101 @@ import { MoradaJogo } from "../src/MoradaJogo";
  * apelido cria o mundo; os outros entram dividindo a mesma família.
  *
  * `?apelido=Lia` entra direto, para abrir duas abas depressa e para os testes.
+ * `&validade=20` faz a sessão de jogo valer 20 segundos em vez de 15 minutos,
+ * para ver a renovação acontecer sem esperar.
  */
 
 const SERVIDOR: string = import.meta.env.VITE_MORADA_DEV ?? "http://localhost:3010";
 
-type Entrada = { sessao: string; mundoId: string; endereco: string };
+type SessaoDeJogo = { sessao: string; validadeMs: number };
+type Entrada = SessaoDeJogo & { mundoId: string; endereco: string };
 
-function ehEntrada(valor: unknown): valor is Entrada {
+function ehSessao(valor: unknown): valor is SessaoDeJogo {
   if (typeof valor !== "object" || valor === null) return false;
-  const { sessao, mundoId, endereco } = valor as Record<string, unknown>;
-  return typeof sessao === "string" && typeof mundoId === "string" && typeof endereco === "string";
+  const { sessao, validadeMs } = valor as Record<string, unknown>;
+  return typeof sessao === "string" && typeof validadeMs === "number" && validadeMs > 0;
 }
 
-/** A fonte do mundo feita do servidor de desenvolvimento. */
-function fonteDeDesenvolvimento(apelido: string): FonteDoMundo {
-  let atual: { sessao: string; mundoId: string } | null = null;
+function ehEntrada(valor: unknown): valor is Entrada {
+  if (!ehSessao(valor)) return false;
+  const { mundoId, endereco } = valor as Record<string, unknown>;
+  return typeof mundoId === "string" && typeof endereco === "string";
+}
+
+async function pedir(caminho: string, corpo: unknown): Promise<unknown> {
+  const resposta = await fetch(`${SERVIDOR}${caminho}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(corpo),
+  });
+  if (!resposta.ok) throw new Error(`O servidor de desenvolvimento respondeu ${resposta.status}`);
+  return resposta.json();
+}
+
+/**
+ * A fonte do mundo feita do servidor de desenvolvimento. Faz o papel do SDK do
+ * Recreio: guarda a sessão de jogo, renova antes de ela vencer e avisa o jogo,
+ * que manda `renovar_sessao` ao servidor.
+ */
+function fonteDeDesenvolvimento(apelido: string, validadeS?: number): FonteDoMundo {
+  let atual: SessaoDeJogo | null = null;
+  let renovacoes = 0;
+  let espera: ReturnType<typeof setTimeout> | null = null;
+  const ouvintes = new Set<(token: string) => void>();
+
+  /** A próxima renovação fica a um terço da validade: de 5 em 5 minutos na sessão de 15. */
+  function agendar(): void {
+    if (espera !== null) clearTimeout(espera);
+    espera = null;
+    if (atual && ouvintes.size > 0) espera = setTimeout(renovar, atual.validadeMs / 3);
+  }
+
+  function renovar(): void {
+    const antes = atual;
+    if (!antes) return;
+    pedir("/dev/renovar", { sessao: antes.sessao })
+      .then((dados) => {
+        // Se o mundo foi reaberto enquanto o pedido ia e voltava, a sessão vigente já é outra.
+        if (atual !== antes || !ehSessao(dados)) return;
+        atual = { sessao: dados.sessao, validadeMs: dados.validadeMs };
+        for (const ouvinte of ouvintes) ouvinte(dados.sessao);
+        // Fica à vista no documento, para os testes conferirem que a sessão foi renovada.
+        document.documentElement.dataset.moradaRenovacoes = String(++renovacoes);
+      })
+      // Sem resposta agora: tenta de novo na próxima volta, enquanto a sessão ainda vale.
+      .catch(() => {})
+      .finally(agendar);
+  }
+
   return {
     async abrir() {
-      const resposta = await fetch(`${SERVIDOR}/dev/entrar`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ apelido }),
-      });
-      if (!resposta.ok)
-        throw new Error(`O servidor de desenvolvimento respondeu ${resposta.status}`);
-      const dados: unknown = await resposta.json();
+      // Reabrir depois de uma queda é continuar: a mesma sessão, com prazo novo, e o servidor
+      // retoma a reserva. Se o servidor reiniciou, vêm um mundo novo e uma sessão nova.
+      const dados = await pedir("/dev/entrar", { apelido, continuar: atual !== null, validadeS });
       if (!ehEntrada(dados)) throw new Error("Resposta inesperada do servidor de desenvolvimento");
-      // No mesmo mundo, a sessão é mantida: é com ela que o servidor retoma a reserva
-      // depois de uma queda. Mundo novo é servidor reiniciado, e a sessão antiga não vale mais.
-      if (!atual || atual.mundoId !== dados.mundoId) {
-        atual = { sessao: dados.sessao, mundoId: dados.mundoId };
-      }
+      atual = { sessao: dados.sessao, validadeMs: dados.validadeMs };
+      agendar();
       return { endereco: dados.endereco, mundoId: dados.mundoId };
     },
     token() {
       if (!atual) throw new Error("A sessão só existe depois de abrir o mundo");
       return atual.sessao;
     },
+    aoRenovar(ouvinte) {
+      ouvintes.add(ouvinte);
+      agendar();
+      return () => {
+        ouvintes.delete(ouvinte);
+        // Sem ninguém ouvindo (o jogo acabou ou foi desmontado), para de renovar.
+        agendar();
+      };
+    },
   };
 }
 
-function Jogo({ apelido, aoSair }: { apelido: string; aoSair(): void }) {
-  const fonte = useMemo(() => fonteDeDesenvolvimento(apelido), [apelido]);
+function Jogo(props: { apelido: string; validadeS?: number; aoSair(): void }) {
+  const { apelido, validadeS, aoSair } = props;
+  const fonte = useMemo(() => fonteDeDesenvolvimento(apelido, validadeS), [apelido, validadeS]);
   return (
     <MoradaJogo
       className="bancada-jogo"
@@ -66,12 +119,22 @@ function Jogo({ apelido, aoSair }: { apelido: string; aoSair(): void }) {
 }
 
 function Bancada() {
-  const daUrl = new URLSearchParams(window.location.search).get("apelido")?.trim() ?? "";
+  const parametros = new URLSearchParams(window.location.search);
+  const daUrl = parametros.get("apelido")?.trim() ?? "";
+  const validade = Number(parametros.get("validade"));
   const [apelido, definirApelido] = useState(daUrl.length >= 2 ? daUrl.slice(0, 20) : "");
   const [rascunho, definirRascunho] = useState("");
   const [erro, definirErro] = useState("");
 
-  if (apelido) return <Jogo apelido={apelido} aoSair={() => definirApelido("")} />;
+  if (apelido) {
+    return (
+      <Jogo
+        apelido={apelido}
+        validadeS={validade > 0 ? validade : undefined}
+        aoSair={() => definirApelido("")}
+      />
+    );
+  }
 
   const entrar = (evento: FormEvent) => {
     evento.preventDefault();

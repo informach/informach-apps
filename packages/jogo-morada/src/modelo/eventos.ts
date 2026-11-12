@@ -1,7 +1,6 @@
 import {
   type EstadoDoMundo,
   type EventoDeApresentacao,
-  type Fase,
   type MoradorId,
   obter,
 } from "@informach/morada-sim";
@@ -38,7 +37,7 @@ export function textoDoEvento(
     case "cresceu": {
       const morador = obter(estado.moradores, evento.moradorId);
       const fase = morador
-        ? rotuloDaFase({ fase: evento.fase as Fase, aparencia: morador.aparencia })
+        ? rotuloDaFase({ fase: evento.fase, aparencia: morador.aparencia })
         : evento.fase;
       return {
         tom: "noticia",
@@ -69,7 +68,7 @@ export function textoDoEvento(
       if (evento.moradorId !== meuMoradorId) return null;
       return {
         tom: "recusa",
-        texto: `${nome(estado, evento.moradorId)} desistiu: ${textoDaRecusa(evento.motivo).toLowerCase()}`,
+        texto: `${nome(estado, evento.moradorId)} desistiu: ${textoDaRecusa(evento.motivo, evento.detalhe).toLowerCase()}`,
       };
   }
 }

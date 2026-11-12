@@ -86,7 +86,12 @@ function removerSessao(ctx: Contexto, sessaoId: SessaoId): void {
   conferirVoto(ctx);
 }
 
-export function sessaoEntrou(ctx: Contexto, sessaoId: SessaoId, perfilId: PerfilId): void {
+export function sessaoEntrou(
+  ctx: Contexto,
+  sessaoId: SessaoId,
+  perfilId: PerfilId,
+  apelido?: string,
+): void {
   // Um perfil tem uma conexão só: a nova toma o lugar da antiga.
   for (const antiga of [...ctx.presenca.sessoes]) {
     if (antiga.perfilId === perfilId && antiga.sessaoId !== sessaoId) {
@@ -97,8 +102,15 @@ export function sessaoEntrou(ctx: Contexto, sessaoId: SessaoId, perfilId: Perfil
   if (existente) {
     existente.estado = "presente";
     existente.ateMs = null;
+    if (apelido !== undefined) existente.apelido = apelido;
   } else {
-    ctx.presenca.sessoes.push({ sessaoId, perfilId, estado: "presente", ateMs: null });
+    ctx.presenca.sessoes.push({
+      sessaoId,
+      perfilId,
+      apelido: apelido ?? null,
+      estado: "presente",
+      ateMs: null,
+    });
   }
   tocarChave(ctx, "presenca");
 
@@ -127,11 +139,12 @@ export function sessaoCaiu(ctx: Contexto, sessaoId: SessaoId, agoraMs: number): 
   conferirVoto(ctx);
 }
 
-export function sessaoVoltou(ctx: Contexto, sessaoId: SessaoId): boolean {
+export function sessaoVoltou(ctx: Contexto, sessaoId: SessaoId, apelido?: string): boolean {
   const sessao = sessaoDe(ctx.presenca, sessaoId);
   if (!sessao) return false;
   sessao.estado = "presente";
   sessao.ateMs = null;
+  if (apelido !== undefined) sessao.apelido = apelido;
   tocarChave(ctx, "presenca");
   return true;
 }

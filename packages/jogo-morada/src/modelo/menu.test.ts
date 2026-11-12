@@ -304,6 +304,54 @@ describe("menu de um morador", () => {
     });
   });
 
+  it("pôr para dormir liga e desliga pela conferência do servidor, com o mesmo motivo", () => {
+    const mundo = criarMundoDaProva({ definicao: bairroComBebe() });
+    const roteiro = criarRoteiro(mundo);
+    const lia = moradorDeNome(mundo, "Lia");
+    const marcos = moradorDeNome(mundo, "Marcos");
+    const teo = moradorDeNome(mundo, "Téo");
+    const sessao = entrarEDirigir(roteiro, lia);
+    const cuidados = { t: "cuidados", bebeId: teo.id } as const;
+    const dormir = (ator: Morador | null) =>
+      opcao(menuNoEspelho(mundo, cuidados, ator), "por_para_dormir");
+    /** O que o servidor responde ao pedido que o menu faria. */
+    const pedir = (ator: Morador | null) =>
+      roteiro.comandar(sessao, dormir(ator).moradorId, dormir(ator).acao);
+
+    // O Marcos pega o Téo no colo: para a Lia, o bebê está no colo de outra pessoa.
+    roteiro.comandar(sessao, marcos.id, { t: "reservar" });
+    roteiro.comandar(sessao, marcos.id, {
+      t: "cuidar",
+      bebeId: teo.id,
+      cuidado: "pegar_no_colo",
+      executorId: marcos.id,
+    });
+    roteiro.ate(() => teo.local.t === "colo", 600, "o colo");
+    roteiro.comandar(sessao, lia.id, { t: "reservar" });
+    expect(dormir(lia)).toMatchObject({
+      habilitada: false,
+      motivo: "O bebê está no colo de outra pessoa.",
+    });
+    expect(pedir(lia)).toMatchObject({
+      ok: false,
+      motivo: "requisito",
+      detalhe: "no_colo_de_outro",
+    });
+
+    // Sem dirigir ninguém, o pedido vai sem executor: o menu liga, e quem carrega o bebê o leva.
+    roteiro.comandar(sessao, lia.id, { t: "liberar" });
+    expect(dormir(null)).toMatchObject({ habilitada: true, moradorId: null });
+    expect(pedir(null)).toMatchObject({ ok: true });
+    roteiro.ate(() => teo.local.t === "objeto", 1500, "o Téo chegar ao berço");
+
+    // No berço, o menu diz por que não, com ou sem cuidador, e o servidor recusa pelo mesmo motivo.
+    roteiro.comandar(sessao, lia.id, { t: "reservar" });
+    for (const ator of [lia, null]) {
+      expect(dormir(ator)).toMatchObject({ habilitada: false, motivo: "O bebê já está no berço." });
+      expect(pedir(ator)).toMatchObject({ ok: false, motivo: "requisito", detalhe: "ja_no_berco" });
+    }
+  });
+
   it("o alvo que sumiu do mundo não tem menu", () => {
     const mundo = criarMundoDaProva();
     expect(menuNoEspelho(mundo, { t: "objeto", objetoId: "obj_999999" }, null)).toBeNull();

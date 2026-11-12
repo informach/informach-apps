@@ -75,7 +75,8 @@ function exigir(
 
 /** Um comando do jogador passa à frente do que o morador fazia por conta própria. */
 function abrirCaminho(ctx: Contexto, morador: Morador): void {
-  if (morador.acaoAtual && podeSerInterrompido(ctx, morador)) cancelarAcao(ctx, morador.acaoAtual);
+  if (morador.acaoAtual && podeSerInterrompido(ctx.estado, morador))
+    cancelarAcao(ctx, morador.acaoAtual);
   // O que a autonomia já tinha posto na fila também sai.
   for (const id of [...morador.fila]) {
     const acao = obter(ctx.estado.acoes, id);
@@ -149,7 +150,7 @@ function escolherCuidador(
   const ondeBebe = ondeEsta(estado, bebe, tick);
   const livres = listar(estado.moradores)
     .filter((candidato) => serve(candidato) && !deOutro(candidato.id))
-    .filter((candidato) => podeSerInterrompido(ctx, candidato))
+    .filter((candidato) => podeSerInterrompido(estado, candidato))
     .map((candidato) => ({
       candidato,
       longe: ondeBebe
@@ -240,7 +241,7 @@ function executar(ctx: Contexto, sessao: Sessao, intencao: Intencao): Recusa | F
         if (impedimento) return recusa(impedimento);
       }
       // Confere antes de mexer: um comando recusado não muda nada.
-      const semComo = impedimentoDoCuidado(ctx, cuidador, bebe, acao.cuidado);
+      const semComo = impedimentoDoCuidado(estado, cuidador, bebe, acao.cuidado);
       if (semComo) return recusa("requisito", semComo);
       abrirCaminho(ctx, cuidador);
       enfileirarCuidado(ctx, cuidador, bebe, acao.cuidado, {

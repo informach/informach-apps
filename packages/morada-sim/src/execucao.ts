@@ -182,13 +182,13 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
         case "intencao":
           return aplicarIntencao(ctx, entrada.sessaoId, entrada.intencao);
         case "sessao_entrou":
-          sessaoEntrou(ctx, entrada.sessaoId, entrada.perfilId);
+          sessaoEntrou(ctx, entrada.sessaoId, entrada.perfilId, entrada.apelido);
           return aceito;
         case "sessao_caiu":
           sessaoCaiu(ctx, entrada.sessaoId, entrada.agoraMs);
           return aceito;
         case "sessao_voltou":
-          return sessaoVoltou(ctx, entrada.sessaoId)
+          return sessaoVoltou(ctx, entrada.sessaoId, entrada.apelido)
             ? aceito
             : { ok: false, comandoId: "", motivo: "sem_sessao" };
         case "sessao_saiu":

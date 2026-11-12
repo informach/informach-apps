@@ -1,4 +1,4 @@
-import type { Fase, Morador, MotivoDeRecusa } from "@informach/morada-sim";
+import type { EstadoDoCasal, Fase, Morador, MotivoDeRecusa } from "@informach/morada-sim";
 import type { Humor, Teste } from "@informach/morada-sim/conteudo";
 import { comportamento } from "@informach/morada-sim/conteudo";
 import type { MotivoDeReabertura, MotivoDoFim } from "../rede/conexao";
@@ -179,13 +179,13 @@ export function verboDoPedido(tipo: keyof typeof PEDIDOS): string {
   return PEDIDOS[tipo];
 }
 
-const CASAIS: Record<string, string> = {
+const CASAIS: Record<EstadoDoCasal, string> = {
   namoro: "estão namorando",
   casamento: "se casaram",
   ex: "se separaram",
   nenhum: "não são mais um casal",
 };
 
-export function verboDoCasal(casal: string): string {
-  return CASAIS[casal] ?? "mudaram de relação";
+export function verboDoCasal(casal: EstadoDoCasal): string {
+  return CASAIS[casal];
 }

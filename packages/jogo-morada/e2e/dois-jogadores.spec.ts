@@ -56,8 +56,10 @@ test("1. as duas entram, veem os quatro retratos e o mesmo mundo", async () => {
       "Vó Ana",
     ]);
     await expect(pagina.locator(".morada-retrato[data-estado='disponivel']")).toHaveCount(4);
-    await expect(pagina.locator(".morada-presenca")).toContainText("Você e mais 1 pessoa");
   }
+  // Cada uma vê, pelo apelido, quem está no mundo com ela.
+  await expect(lia.locator(".morada-presenca")).toContainText("Você e Bruno");
+  await expect(bruno.locator(".morada-presenca")).toContainText("Você e Lia");
 
   const mundoDaLia = await lia.evaluate(() => window.__morada?.espelho()?.mundoId);
   const mundoDoBruno = await bruno.evaluate(() => window.__morada?.espelho()?.mundoId);
@@ -105,11 +107,12 @@ test("2. cada uma dirige um morador; o retrato do outro diz quem dirige; tomar o
   await retrato(bruno, "Marcos").click();
   await expect(retrato(bruno, "Marcos")).toHaveAttribute("data-estado", "voce");
 
-  // Cada uma vê o morador da outra como dirigido por outra pessoa.
+  // Cada uma vê o morador da outra como dirigido por ela, pelo apelido.
   await expect(retrato(lia, "Marcos")).toHaveAttribute("data-estado", "outro");
-  await expect(retrato(lia, "Marcos")).toHaveAccessibleName(/Dirigido por outra pessoa/);
+  await expect(retrato(lia, "Marcos")).toHaveAccessibleName(/Dirigido por Bruno/);
+  await expect(retrato(lia, "Marcos").locator(".morada-placa")).toHaveText("Bruno");
   await expect(retrato(bruno, "Lia")).toHaveAttribute("data-estado", "outro");
-  await expect(retrato(bruno, "Lia")).toHaveAccessibleName(/Dirigido por outra pessoa/);
+  await expect(retrato(bruno, "Lia")).toHaveAccessibleName(/Dirigido por Lia/);
   await expect(retrato(lia, "Nina")).toHaveAttribute("data-estado", "disponivel");
 
   // O Bruno tenta tomar a Lia: o servidor recusa e o jogo diz por quê.
@@ -223,7 +226,7 @@ test("4b. a rede cai: o jogo reconecta sozinho, com a mesma sessão, e retoma a 
   await expect(retrato(lia, "Lia")).toHaveAttribute("data-estado", "voce");
   await expect(retrato(bruno, "Lia")).toHaveAttribute("data-estado", "outro");
   await expect(retrato(bruno, "Lia")).not.toHaveAttribute("data-espera", "sim");
-  await expect(lia.locator(".morada-presenca")).toContainText("Você e mais 1 pessoa");
+  await expect(lia.locator(".morada-presenca")).toContainText("Você e Bruno");
 });
 
 test("5. uma cai sem aviso: a outra continua, vê a espera, depois o morador livre, e assume", async () => {
@@ -232,8 +235,8 @@ test("5. uma cai sem aviso: a outra continua, vê a espera, depois o morador liv
 
   // A reserva do Bruno fica em espera: o retrato do Marcos diz isso.
   await expect(retrato(lia, "Marcos")).toHaveAttribute("data-espera", "sim");
-  await expect(retrato(lia, "Marcos")).toHaveAccessibleName(/em espera/);
-  await expect(lia.locator(".morada-presenca")).toContainText("1 em espera");
+  await expect(retrato(lia, "Marcos")).toHaveAccessibleName(/Dirigido por Bruno, em espera/);
+  await expect(lia.locator(".morada-presenca")).toContainText("Bruno em espera");
   await fotografar(lia, "5-em-espera");
 
   // A Lia continua jogando enquanto isso: o mundo anda e ela ainda dirige o morador dela.

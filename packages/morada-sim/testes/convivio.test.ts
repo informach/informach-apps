@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { interacao } from "../src/conteudo";
 import type { Morador } from "../src/index";
-import { aplicarMudancas, listar, PERMISSOES_DE_QUEM_DIVIDE } from "../src/index";
+import { APELIDO_MAX, aplicarMudancas, listar, PERMISSOES_DE_QUEM_DIVIDE } from "../src/index";
 import { BRUNO, criarMundoDaProva, criarRoteiro, LIA, moradorDeNome } from "../src/testes";
 
 /** Três pontos livres do quintal, na frente da casa. */
@@ -520,7 +520,55 @@ describe("o que os clientes veem", () => {
     roteiro.andar(10);
     acompanhar();
     expect(espelho).toEqual(mundo.visao(LIA));
-    expect(espelho.presenca.jogadores).toEqual([{ perfilId: LIA, estado: "presente" }]);
+    expect(espelho.presenca.jogadores).toEqual([
+      { perfilId: LIA, apelido: null, estado: "presente" },
+    ]);
+  });
+
+  it("a visão leva o apelido de quem está no mundo, e nada disso é gravado", () => {
+    const mundo = criarMundoDaProva({ fundadores: [LIA, BRUNO] });
+    const roteiro = criarRoteiro(mundo);
+    const espelho = mundo.visao(LIA);
+    const duravel = mundo.hash("duravel");
+    roteiro.entrar(LIA, "sessao-lia", "Liloca");
+    const deBruno = roteiro.entrar(BRUNO, "sessao-bruno", "Bruno");
+    aplicarMudancas(espelho, mundo.estado.relogio.tick, roteiro.saida.mudancas);
+    expect(espelho.presenca.jogadores).toEqual([
+      { perfilId: LIA, apelido: "Liloca", estado: "presente" },
+      { perfilId: BRUNO, apelido: "Bruno", estado: "presente" },
+    ]);
+    // A presença é só de quem está conectado: a fotografia não muda com quem entrou.
+    expect(mundo.hash("duravel")).toBe(duravel);
+    const foto = JSON.stringify(mundo.fotografar());
+    expect(foto).not.toContain("Liloca");
+    expect(foto).not.toContain("Bruno");
+
+    // Quem cai continua com o nome enquanto espera; quem volta pode trazer o apelido novo.
+    mundo.aplicar({ t: "sessao_caiu", sessaoId: deBruno, agoraMs: 10 });
+    roteiro.andar(1);
+    expect(mundo.visao(LIA).presenca.jogadores[1]).toEqual({
+      perfilId: BRUNO,
+      apelido: "Bruno",
+      estado: "em_graca",
+    });
+    mundo.aplicar({ t: "sessao_voltou", sessaoId: deBruno, apelido: "Bruno B." });
+    roteiro.andar(1);
+    expect(mundo.visao(LIA).presenca.jogadores[1]).toEqual({
+      perfilId: BRUNO,
+      apelido: "Bruno B.",
+      estado: "presente",
+    });
+
+    // O apelido é texto de fora: maior que o limite, a entrada é recusada.
+    expect(() =>
+      mundo.aplicar({
+        t: "sessao_entrou",
+        sessaoId: "sessao-de-nome-grande",
+        perfilId: "perfil-de-nome-grande",
+        apelido: "a".repeat(APELIDO_MAX + 1),
+      }),
+    ).toThrow();
+    expect(mundo.presenca.sessoes).toHaveLength(2);
   });
 
   it("a visão não leva a semente, os comandos nem os contadores", () => {

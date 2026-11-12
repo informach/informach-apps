@@ -1,6 +1,6 @@
 import type { EstadoDoMundo, PresencaVista, Velocidade } from "@informach/morada-sim";
 import { horaDoJogo, rotuloDaVelocidade, votoPendente } from "../modelo/painel";
-import type { OpcoesDosRetratos } from "../modelo/retratos";
+import { enumerar, type OpcoesDosRetratos } from "../modelo/retratos";
 import type { Controle } from "./controle";
 import { Icone } from "./Icone";
 
@@ -11,11 +11,6 @@ import { Icone } from "./Icone";
  */
 
 const VELOCIDADES: Velocidade[] = [0, 1, 2, 3];
-
-function lista(nomes: string[]): string {
-  if (nomes.length <= 1) return nomes[0] ?? "";
-  return `${nomes.slice(0, -1).join(", ")} e ${nomes[nomes.length - 1]}`;
-}
 
 export function Relogio(props: {
   controle: Controle;
@@ -63,7 +58,7 @@ export function Relogio(props: {
         <div className="morada-voto" role="status">
           <p>
             Pedido de {rotuloDaVelocidade(voto.velocidade)}.{" "}
-            {voto.faltam.length > 0 ? `Falta ${lista(voto.faltam)} concordar.` : ""}
+            {voto.faltam.length > 0 ? `Falta ${enumerar(voto.faltam)} concordar.` : ""}
           </p>
           <div>
             {voto.euConcordei ? null : (

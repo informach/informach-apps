@@ -20,12 +20,13 @@ import {
 import { resumoDaPresenca, retratosDe, vizinhosDe } from "./retratos";
 
 /** Os retratos como um jogador os vê: sobre a visão que o servidor manda para ele. */
-function retratos(mundo: Mundo, jogadorId: string, apelidos: Record<string, string> = {}) {
+function retratos(mundo: Mundo, jogadorId: string) {
   const visao = mundo.visao(jogadorId);
-  return retratosDe(estadoDoEspelho(visao, visao.tick), visao.presenca, {
-    jogadorId,
-    apelidoDe: (id) => apelidos[id],
-  });
+  return retratosDe(estadoDoEspelho(visao, visao.tick), visao.presenca, { jogadorId });
+}
+
+function presenca(mundo: Mundo, jogadorId: string) {
+  return resumoDaPresenca(mundo.visao(jogadorId).presenca, jogadorId);
 }
 
 function resumo(lista: ReturnType<typeof retratos>) {
@@ -36,8 +37,9 @@ describe("retratos com duas pessoas", () => {
   it("mostram a família inteira e o estado de cada morador para cada jogador", () => {
     const mundo = criarMundoDaProva({ fundadores: [LIA, BRUNO] });
     const roteiro = criarRoteiro(mundo);
-    const daLia = roteiro.entrar(LIA);
-    const doBruno = roteiro.entrar(BRUNO);
+    // O apelido de cada pessoa chega com ela, pela visão do servidor.
+    const daLia = roteiro.entrar(LIA, undefined, "Lia");
+    const doBruno = roteiro.entrar(BRUNO, undefined, "Bruno");
 
     // Ninguém escolheu ainda: os quatro livres, e os moradores do bairro ficam fora.
     expect(resumo(retratos(mundo, LIA))).toEqual({
@@ -52,24 +54,82 @@ describe("retratos com duas pessoas", () => {
 
     expect(resumo(retratos(mundo, LIA))).toEqual({
       Lia: "voce: Dirigido por você",
-      Marcos: "outro: Dirigido por outra pessoa",
+      Marcos: "outro: Dirigido por Bruno",
       Nina: "disponivel: Disponível",
       "Vó Ana": "disponivel: Disponível",
     });
     expect(resumo(retratos(mundo, BRUNO))).toEqual({
-      Lia: "outro: Dirigido por outra pessoa",
+      Lia: "outro: Dirigido por Lia",
       Marcos: "voce: Dirigido por você",
       Nina: "disponivel: Disponível",
       "Vó Ana": "disponivel: Disponível",
     });
-    // Quando quem hospeda o jogo sabe o apelido, ele aparece.
-    const comApelido = retratos(mundo, LIA, { [BRUNO]: "Bruno" });
-    expect(comApelido.find((r) => r.nome === "Marcos")).toMatchObject({
-      legenda: "Dirigido por Bruno",
+    // Na plaquinha vai o apelido de quem dirige.
+    expect(retratos(mundo, LIA).find((r) => r.nome === "Marcos")).toMatchObject({
       placa: "Bruno",
       emEspera: false,
     });
     expect(retratos(mundo, LIA).find((r) => r.nome === "Lia")?.placa).toBe("você");
+    // E a linha da presença diz quem está no mundo com a pessoa.
+    expect(presenca(mundo, LIA)).toEqual({ presentes: 2, emEspera: 0, texto: "Você e Bruno" });
+    expect(presenca(mundo, BRUNO).texto).toBe("Você e Lia");
+
+    // Quem cai continua com o nome, agora em espera.
+    mundo.aplicar({ t: "sessao_caiu", sessaoId: doBruno, agoraMs: 10_000 });
+    expect(retratos(mundo, LIA).find((r) => r.nome === "Marcos")).toMatchObject({
+      legenda: "Dirigido por Bruno, em espera",
+      placa: "em espera",
+    });
+    expect(presenca(mundo, LIA)).toEqual({
+      presentes: 1,
+      emEspera: 1,
+      texto: "Só você no mundo · Bruno em espera",
+    });
+  });
+
+  it("sem apelido na visão, o jogo não inventa nome", () => {
+    const mundo = criarMundoDaProva({ fundadores: [LIA, BRUNO] });
+    const roteiro = criarRoteiro(mundo);
+    roteiro.entrar(LIA);
+    const doBruno = roteiro.entrar(BRUNO);
+    roteiro.comandar(doBruno, moradorDeNome(mundo, "Marcos").id, { t: "reservar" });
+    expect(retratos(mundo, LIA).find((r) => r.nome === "Marcos")).toMatchObject({
+      legenda: "Dirigido por outra pessoa",
+      placa: "ocupado",
+    });
+    expect(presenca(mundo, LIA).texto).toBe("Você e mais 1 pessoa");
+  });
+
+  it("a linha da presença nomeia quem cabe e conta o resto", () => {
+    const linha = (...outros: [apelido: string | null, estado: "presente" | "em_graca"][]) =>
+      resumoDaPresenca(
+        {
+          jogadores: [
+            { perfilId: "eu", apelido: "Lia", estado: "presente" },
+            ...outros.map(([apelido, estado], n) => ({ perfilId: `outro-${n}`, apelido, estado })),
+          ],
+          reservas: [],
+          voto: null,
+        },
+        "eu",
+      ).texto;
+    expect(linha()).toBe("Só você no mundo");
+    expect(linha(["Bruno", "presente"], ["Ana", "presente"])).toBe("Você, Bruno e Ana");
+    expect(linha(["Bruno", "presente"], [null, "presente"])).toBe("Você, Bruno e mais 1 pessoa");
+    expect(
+      linha(
+        ["Bruno", "presente"],
+        ["Ana", "presente"],
+        ["Caio", "presente"],
+        ["Duda", "presente"],
+        [null, "presente"],
+      ),
+    ).toBe("Você, Bruno, Ana, Caio e mais 2 pessoas");
+    expect(linha(["Bruno", "presente"], ["Ana", "em_graca"])).toBe("Você e Bruno · Ana em espera");
+    expect(linha(["Bruno", "em_graca"], [null, "em_graca"])).toBe(
+      "Só você no mundo · Bruno e mais 1 em espera",
+    );
+    expect(linha([null, "em_graca"], [null, "em_graca"])).toBe("Só você no mundo · 2 em espera");
   });
 
   it("quem cai fica em espera e, passada a janela, o morador volta a ficar livre", () => {
@@ -162,8 +222,8 @@ describe("painéis", () => {
   it("o voto de velocidade diz quem ainda precisa concordar", () => {
     const mundo = criarMundoDaProva({ fundadores: [LIA, BRUNO] });
     const roteiro = criarRoteiro(mundo);
-    const daLia = roteiro.entrar(LIA);
-    const doBruno = roteiro.entrar(BRUNO);
+    const daLia = roteiro.entrar(LIA, undefined, "Lia");
+    const doBruno = roteiro.entrar(BRUNO, undefined, "Bruno");
     expect(votoPendente(mundo.visao(LIA).presenca, { jogadorId: LIA })).toBeNull();
 
     roteiro.comandar(daLia, null, { t: "votar_velocidade", velocidade: 3 });
@@ -171,7 +231,7 @@ describe("painéis", () => {
     expect(votoPendente(mundo.visao(LIA).presenca, { jogadorId: LIA })).toEqual({
       velocidade: 3,
       euConcordei: true,
-      faltam: ["outra pessoa"],
+      faltam: ["Bruno"],
     });
     expect(votoPendente(mundo.visao(BRUNO).presenca, { jogadorId: BRUNO })).toEqual({
       velocidade: 3,

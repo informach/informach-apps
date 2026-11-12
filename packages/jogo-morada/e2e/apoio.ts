@@ -18,9 +18,13 @@ export async function fotografar(pagina: Page, nome: string): Promise<void> {
   await pagina.screenshot({ path: `${telas}${nome}.png` });
 }
 
-/** Entra na bancada com um apelido e espera o mundo aparecer. */
-export async function entrar(pagina: Page, apelido: string): Promise<void> {
-  await pagina.goto(`/?apelido=${encodeURIComponent(apelido)}`);
+/**
+ * Entra na bancada com um apelido e espera o mundo aparecer. `validadeS` faz a
+ * sessão de jogo valer só esses segundos, para os testes de renovação.
+ */
+export async function entrar(pagina: Page, apelido: string, validadeS?: number): Promise<void> {
+  const validade = validadeS === undefined ? "" : `&validade=${validadeS}`;
+  await pagina.goto(`/?apelido=${encodeURIComponent(apelido)}${validade}`);
   await pagina.waitForFunction(() => window.__morada?.conexao() === "pronto");
   await expect(pagina.locator("canvas.morada-tela")).toBeVisible();
   // A cena desenhou os moradores pelo menos uma vez.

@@ -7,8 +7,6 @@ import type { OpcoesDosRetratos } from "../modelo/retratos";
  */
 export type Controle = {
   sessao: Sessao;
-  /** Como chamar outro jogador do mundo, se quem hospeda o jogo souber. */
-  apelidoDe?(jogadorId: string): string | undefined;
   alternarParedes(): void;
   focarNoMeu(): void;
   /** Devolve o foco do teclado à cena, depois de fechar um menu. */
@@ -19,9 +17,8 @@ export type Controle = {
   voltar: (() => void) | null;
 };
 
-/** Quem a pessoa é e como chamar os outros, na forma que os modelos do HUD esperam. */
+/** Quem a pessoa é neste mundo, na forma que os modelos do HUD esperam. */
 export function quemSou(controle: Controle): OpcoesDosRetratos | null {
   const jogadorId = controle.sessao.loja.jogador?.jogadorId;
-  if (!jogadorId) return null;
-  return { jogadorId, apelidoDe: controle.apelidoDe };
+  return jogadorId ? { jogadorId } : null;
 }

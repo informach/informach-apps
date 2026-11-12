@@ -144,7 +144,7 @@ function candidatos(
 
     if (def.alvo === "morador") {
       for (const outro of moradoresNoLote(estado, onde.loteId, tick)) {
-        if (outro.id === morador.id || !podeSerInterrompido(ctx, outro)) continue;
+        if (outro.id === morador.id || !podeSerInterrompido(estado, outro)) continue;
         const ondeOutro = ondeEsta(estado, outro, tick);
         if (ondeOutro) considerar(def, { t: "morador", moradorId: outro.id }, ondeOutro.pos);
       }

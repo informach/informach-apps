@@ -2,7 +2,13 @@ import { novoId } from "../dominio/estado";
 import type { DadosDoFato, Fato } from "../dominio/fatos";
 import type { FamiliaId, LoteId, MemoriaId, MoradorId, PerfilId } from "../dominio/ids";
 import { reduzirFato } from "../dominio/reduzir-fato";
-import type { EstadoDoMundo, Presenca } from "../dominio/tipos";
+import type {
+  EstadoDoCasal,
+  EstadoDoMundo,
+  Fase,
+  MotivoDeRecusa,
+  Presenca,
+} from "../dominio/tipos";
 import type { Navegador } from "../espaco/navegador";
 
 /**
@@ -28,11 +34,18 @@ export type ChaveReplicada = "relogio" | "regras" | "acessos" | "memorias" | "pr
 
 /** Avisos de uma vez só: o cliente mostra e esquece. Nunca são estado. */
 export type EventoDeApresentacao =
-  | { t: "recusou"; loteId: LoteId | null; moradorId: MoradorId; motivo: string }
+  /** Uma ação pedida pelo jogador não aconteceu. `detalhe` é o mesmo da resposta a um comando. */
+  | {
+      t: "recusou";
+      loteId: LoteId | null;
+      moradorId: MoradorId;
+      motivo: MotivoDeRecusa;
+      detalhe?: string;
+    }
   | { t: "nasceu"; loteId: LoteId | null; bebeId: MoradorId; gestanteId: MoradorId }
-  | { t: "casal"; loteId: LoteId | null; a: MoradorId; b: MoradorId; casal: string }
+  | { t: "casal"; loteId: LoteId | null; a: MoradorId; b: MoradorId; casal: EstadoDoCasal }
   | { t: "mudou_se"; loteId: LoteId | null; moradorId: MoradorId }
-  | { t: "cresceu"; loteId: LoteId | null; moradorId: MoradorId; fase: string }
+  | { t: "cresceu"; loteId: LoteId | null; moradorId: MoradorId; fase: Fase }
   | { t: "resposta"; loteId: LoteId | null; de: MoradorId; para: MoradorId; aceito: boolean }
   | { t: "acidente"; loteId: LoteId | null; moradorId: MoradorId }
   | { t: "visita"; loteId: LoteId | null; moradorId: MoradorId; chegou: boolean };

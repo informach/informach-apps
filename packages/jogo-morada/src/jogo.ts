@@ -83,10 +83,9 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
   let fechouMenu = false;
 
   const nome = (jogadorId: string): string =>
-    nomeDoJogador(jogadorId, {
-      jogadorId: loja.jogador?.jogadorId ?? "",
-      apelidoDe: opcoes.apelidoDe,
-    });
+    loja.visao
+      ? nomeDoJogador(loja.visao.presenca, jogadorId, { jogadorId: loja.jogador?.jogadorId ?? "" })
+      : "outra pessoa";
 
   const cena = new Cena(areaDaCena, {
     sessao,
@@ -115,7 +114,6 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
 
   const controle: Controle = {
     sessao,
-    apelidoDe: opcoes.apelidoDe,
     alternarParedes: () => loja.definirParedes(!loja.paredesBaixas),
     focarNoMeu() {
       if (!cena.focarNoMeu()) loja.avisar("info", "Você não dirige nenhum morador agora.");

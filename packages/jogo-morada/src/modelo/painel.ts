@@ -64,7 +64,7 @@ export function votoPendente(presenca: PresencaVista, opcoes: OpcoesDosRetratos)
   if (!voto) return null;
   const faltam = presenca.jogadores
     .filter((jogador) => jogador.estado === "presente" && !voto.aFavor.includes(jogador.perfilId))
-    .map((jogador) => nomeDoJogador(jogador.perfilId, opcoes));
+    .map((jogador) => nomeDoJogador(presenca, jogador.perfilId, opcoes));
   return {
     velocidade: voto.velocidade,
     euConcordei: voto.aFavor.includes(opcoes.jogadorId),

@@ -13,7 +13,8 @@ import type { ConstrutorDeSoquete, SoqueteDeRede } from "../rede/conexao";
  * verdade por trás, falando o protocolo por soquetes de mentira. Segue o que
  * `apps/morada-server` faz, na mesma ordem: a entrada devolve `bem_vindo` e a
  * visão inteira, as intenções entram no passo seguinte, a resposta de cada
- * uma sai antes das mudanças do passo, e o pulso sai uma vez por segundo.
+ * uma sai antes das mudanças do passo, e o pulso sai uma vez por segundo,
+ * depois do passo, com o tick em que o mundo está.
  *
  * O tempo é do teste: nada anda sozinho.
  */
@@ -212,8 +213,13 @@ export class ServidorDeMentira {
       const conhecida = this.mundo.presenca.sessoes.some((s) => s.sessaoId === mensagem.sessao);
       this.mundo.aplicar(
         conhecida
-          ? { t: "sessao_voltou", sessaoId: mensagem.sessao }
-          : { t: "sessao_entrou", sessaoId: mensagem.sessao, perfilId: quem.jogadorId },
+          ? { t: "sessao_voltou", sessaoId: mensagem.sessao, apelido: quem.apelido }
+          : {
+              t: "sessao_entrou",
+              sessaoId: mensagem.sessao,
+              perfilId: quem.jogadorId,
+              apelido: quem.apelido,
+            },
       );
       soquete.sessao = mensagem.sessao;
       soquete.jogadorId = quem.jogadorId;
@@ -294,8 +300,12 @@ export class ServidorDeMentira {
       respostas.push({ soquete, resultado });
     }
     this.passos++;
-    if (this.passos % 10 === 0) {
-      this.mundo.aplicar({ t: "expirar", agoraMs: this.relogio.agoraMs });
+    const umSegundo = this.passos % 10 === 0;
+    if (umSegundo) this.mundo.aplicar({ t: "expirar", agoraMs: this.relogio.agoraMs });
+    const saida = this.mundo.avancar(100);
+    for (const { soquete, resultado } of respostas) soquete.entregar({ t: "resultado", resultado });
+    this.difundir(saida);
+    if (umSegundo) {
       for (const soquete of this.dentro()) {
         soquete.entregar({
           t: "pulso",
@@ -305,9 +315,6 @@ export class ServidorDeMentira {
         });
       }
     }
-    const saida = this.mundo.avancar(100);
-    for (const { soquete, resultado } of respostas) soquete.entregar({ t: "resultado", resultado });
-    this.difundir(saida);
   }
 
   /** Vários passos, com o relógio do teste andando junto. */

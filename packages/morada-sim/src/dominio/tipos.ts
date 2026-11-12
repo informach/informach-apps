@@ -335,6 +335,8 @@ export type EstadoDoMundo = {
 export type Sessao = {
   sessaoId: SessaoId;
   perfilId: PerfilId;
+  /** Como a plataforma chama quem joga; `null` se quem hospeda o mundo não disse. */
+  apelido: string | null;
   /** `em_graca`: a conexão caiu e ainda pode voltar. */
   estado: "presente" | "em_graca";
   /** Relógio real do servidor, entregue como dado. */

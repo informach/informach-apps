@@ -31,7 +31,6 @@ export function MoradaJogo(props: OpcoesDoMorada & { className?: string }) {
       // Lidas na hora de usar: a página pode trocar as funções sem remontar o jogo.
       aoSair: atuais.aoSair ? () => opcoes.current.aoSair?.() : undefined,
       aoEncerrar: (motivo, detalhe) => opcoes.current.aoEncerrar?.(motivo, detalhe),
-      apelidoDe: (jogadorId) => opcoes.current.apelidoDe?.(jogadorId),
     });
     return () => {
       void jogo.dispose();

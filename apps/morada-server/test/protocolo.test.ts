@@ -237,7 +237,7 @@ describe("sessão de jogo", () => {
     // A queda por sessão vencida é como qualquer queda: a reserva espera e depois é liberada.
     await bancada.andar(320, undefined, [lia]);
     expect(lia.visao?.presenca.jogadores).toEqual([
-      { perfilId: lia.jogadorId, estado: "presente" },
+      { perfilId: lia.jogadorId, apelido: "Lia", estado: "presente" },
     ]);
   });
 
@@ -273,13 +273,75 @@ describe("sessão de jogo", () => {
     await bancada.andar(2, undefined, [lia]);
     expect(lia.visao?.presenca.reservas).toEqual([]);
     expect(lia.visao?.presenca.jogadores).toEqual([
-      { perfilId: lia.jogadorId, estado: "presente" },
+      { perfilId: lia.jogadorId, apelido: "Lia", estado: "presente" },
     ]);
     expect(lia.fechamento).toBeNull();
 
     // E ele não volta com a sessão encerrada.
     await bancada.entrar(bruno, mundoId);
     expect(bruno.fechamento).toBe(FECHAMENTO.semAcesso);
+  });
+});
+
+describe("pulso", () => {
+  it("sai uma vez por segundo, depois do passo, com o tick em que o mundo está", async () => {
+    const { bancada, instancia, lia, mundoId } = await mundoAberto();
+    const ator = instancia.ator(mundoId);
+    const pulsos = () => lia.quadros.flatMap((quadro) => (quadro.t === "pulso" ? [quadro] : []));
+
+    await bancada.andar(9);
+    expect(pulsos()).toEqual([]);
+    await bancada.andar(1);
+    // O décimo passo levou o mundo ao tick 10, e é esse o tick do pulso.
+    expect(ator?.tick).toBe(10);
+    expect(pulsos()).toEqual([{ t: "pulso", n: 10, tick: 10, agoraMs: bancada.agora() }]);
+    // O pulso sai por último: o passo do mesmo instante vem antes, com o mesmo tick.
+    expect(lia.quadros.slice(-2)).toMatchObject([
+      { t: "passo", tick: 10 },
+      { t: "pulso", tick: 10 },
+    ]);
+
+    // Com o mundo acelerado, cada passo de 100 ms vale três ticks.
+    await lia.comando(null, { t: "votar_velocidade", velocidade: 3 });
+    await bancada.andar(10);
+    expect(ator?.tick).toBe(40);
+    expect(lia.quadros.slice(-2)).toMatchObject([
+      { t: "passo", tick: 40 },
+      { t: "pulso", n: 20, tick: 40 },
+    ]);
+
+    // Pausado, o pulso continua saindo e o tick não anda.
+    await lia.comando(null, { t: "votar_velocidade", velocidade: 0 });
+    await bancada.andar(20);
+    expect(ator?.tick).toBe(40);
+    expect(pulsos().slice(-2)).toMatchObject([
+      { n: 30, tick: 40 },
+      { n: 40, tick: 40 },
+    ]);
+  });
+
+  it("não sai enquanto o diário não confirma o passo", async () => {
+    const { bancada, instancia, host, lia, mundoId } = await mundoAberto();
+    const daLia = lia.moradorDeNome("Lia").id;
+    const pulsos = () => lia.quadros.flatMap((quadro) => (quadro.t === "pulso" ? [quadro] : []));
+    await lia.comando(daLia, { t: "reservar" });
+    await bancada.andar(9);
+
+    // O décimo passo traz um fato e o Recreio não responde: o mundo espera, sem avisar ninguém.
+    const preferido = await lia.comando(daLia, { t: "definir_preferido", valor: true });
+    host.foraDoAr = true;
+    await bancada.andar(1);
+    expect(lia.resultados.has(preferido)).toBe(false);
+    expect(pulsos()).toEqual([]);
+
+    // O diário volta e o passo é confirmado; o pulso seguinte sai no segundo seguinte.
+    host.foraDoAr = false;
+    await bancada.andar(1);
+    expect(lia.resultados.get(preferido)).toMatchObject({ ok: true });
+    expect(pulsos()).toEqual([]);
+    await bancada.andar(10);
+    expect(instancia.ator(mundoId)?.tick).toBe(20);
+    expect(pulsos()).toMatchObject([{ n: 20, tick: 20 }]);
   });
 });
 

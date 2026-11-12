@@ -1,15 +1,13 @@
 import {
   type AcaoPedida,
   type Alvo,
-  bebeNoColoDe,
+  CUIDADO_DE_DORMIR,
   type EstadoDoMundo,
+  impedimentoDoCuidado,
   impedimentoDoPedido,
   type Morador,
   type MoradorId,
-  objetosDoLote,
   obter,
-  ondeEsta,
-  PONTO_DENTRO,
   recusaDaInteracao,
   type TipoDePedido,
   temPermissao,
@@ -59,7 +57,6 @@ export type ContextoDoMenu = {
 };
 
 const SEM_MORADOR = "Escolha um morador pelo retrato primeiro.";
-const CUIDADO_DE_DORMIR = "por_para_dormir";
 
 const CATEGORIAS: Record<string, string> = {
   armarios: "Armário",
@@ -160,35 +157,18 @@ function menuDoObjeto(
   return { titulo: nomeDoObjeto(objeto.catalogo), vazio: "Nada para fazer aqui.", opcoes };
 }
 
-/** O que impede pôr o bebê para dormir. As mesmas condições que o servidor confere. */
+/**
+ * O que impede pôr o bebê para dormir, em palavras; `null` se dá para fazer. É
+ * a conferência da simulação: sem cuidador escolhido, vale só o que não
+ * depende de quem o servidor vai escolher.
+ */
 function motivoDeDormir(
   estado: EstadoDoMundo,
   cuidador: Morador | null,
   bebe: Morador,
 ): string | null {
-  const onde = ondeEsta(estado, bebe, estado.relogio.tick);
-  if (!onde) return textoDoDetalhe("longe") ?? null;
-  const bercos = objetosDoLote(estado, onde.loteId).filter(
-    (objeto) => doCatalogo(objeto.catalogo)?.comportamento === "berco",
-  );
-  if (bebe.local.t === "objeto" && bercos.some((berco) => berco.id === objetoDoLocal(bebe))) {
-    return textoDoDetalhe("ja_no_berco") ?? null;
-  }
-  if (!bercos.some((berco) => berco.ocupacao[PONTO_DENTRO] === undefined)) {
-    return textoDoDetalhe("sem_berco") ?? null;
-  }
-  if (cuidador) {
-    if (bebe.local.t === "colo" && bebe.local.de !== cuidador.id) {
-      return textoDoDetalhe("no_colo_de_outro") ?? null;
-    }
-    const carregado = bebeNoColoDe(estado, cuidador.id);
-    if (carregado && carregado.id !== bebe.id) return textoDoDetalhe("maos_ocupadas") ?? null;
-  }
-  return null;
-}
-
-function objetoDoLocal(morador: Morador): string | null {
-  return morador.local.t === "objeto" ? morador.local.objetoId : null;
+  const impedimento = impedimentoDoCuidado(estado, cuidador, bebe, CUIDADO_DE_DORMIR);
+  return impedimento ? textoDaRecusa("requisito", impedimento) : null;
 }
 
 /** Os cuidados que servem a um bebê ou a uma criança pequena, na ordem do conteúdo. */

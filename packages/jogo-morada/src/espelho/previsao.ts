@@ -6,11 +6,11 @@ import {
   type Movimento,
   type Navegador,
   obter,
-  ondeEsta,
   type PontoMm,
-  vagaDoPonto,
+  partidaDe,
+  podeSerInterrompido,
 } from "@informach/morada-sim";
-import { interacao, MM_POR_TICK } from "@informach/morada-sim/conteudo";
+import { MM_POR_TICK } from "@informach/morada-sim/conteudo";
 
 /**
  * Previsão do "ir até aqui" do próprio morador, e a suavização do que a cena
@@ -76,42 +76,16 @@ export function posicaoFracionada(movimento: Movimento, tick: number): NoCaminho
 }
 
 /**
- * O servidor começaria uma ação nova deste morador no próximo passo: ele está
- * livre, ou faz por conta própria algo que pode ser interrompido, e não tem
- * pedido de jogador na fila. `ignorar` é uma ação que o cliente acabou de
- * mandar cancelar.
+ * O servidor começaria uma ação nova deste morador no próximo passo: não há
+ * pedido de jogador na fila dele e o que ele faz agora pode ceder o lugar, pela
+ * regra da simulação. `ignorar` é uma ação que o cliente acabou de mandar
+ * cancelar e que o espelho ainda mostra.
  */
 export function comecariaJa(estado: EstadoDoMundo, morador: Morador, ignorar?: string): boolean {
   for (const id of morador.fila) {
     if (obter(estado.acoes, id)?.origem === "jogador") return false;
   }
-  if (!morador.acaoAtual || morador.acaoAtual === ignorar) return true;
-  const acao = obter(estado.acoes, morador.acaoAtual);
-  if (!acao) return true;
-  if (acao.origem === "jogador" || acao.origem === "resposta") return false;
-  return interacao(acao.interacao)?.interruptivel ?? true;
-}
-
-/** De onde o servidor partiria: de onde o morador está, ou de onde ele se levanta. */
-export function partidaPrevista(
-  estado: EstadoDoMundo,
-  navegador: Navegador,
-  morador: Morador,
-  tick: number,
-): PontoMm | null {
-  const local = morador.local;
-  if (local.t === "objeto") {
-    const objeto = obter(estado.objetos, local.objetoId);
-    const lote = obter(estado.lotes, local.loteId);
-    if (!objeto || !lote) return null;
-    const acesso = navegador.acesso(objeto, local.ponto);
-    const vaga = vagaDoPonto(objeto, local.ponto);
-    const pos = acesso?.pos ?? (vaga ? navegador.livreMaisPerto(vaga.pos) : null) ?? lote.entrada;
-    return [pos[0], pos[1]];
-  }
-  if (local.t !== "lote") return null;
-  const onde = ondeEsta(estado, morador, tick);
-  return onde ? [onde.pos[0], onde.pos[1]] : null;
+  return morador.acaoAtual === ignorar || podeSerInterrompido(estado, morador);
 }
 
 /** A rota que o servidor daria a este clique, ou `null` se ele recusaria. */
@@ -123,7 +97,8 @@ export function rotaPrevista(
   tick: number,
 ): PontoMm[] | null {
   if (MM_POR_TICK[morador.fase] <= 0 || !navegador.livre(destino)) return null;
-  const partida = partidaPrevista(estado, navegador, morador, tick);
+  // De onde o servidor parte: de onde o morador está, ou de onde ele se levanta.
+  const partida = partidaDe(estado, navegador, morador, tick);
   if (!partida) return null;
   return navegador.rota(partida, destino);
 }

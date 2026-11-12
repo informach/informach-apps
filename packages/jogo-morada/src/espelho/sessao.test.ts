@@ -96,6 +96,13 @@ describe("espelho", () => {
     expect(lia.loja.visao?.relogio.velocidade).toBe(2);
     expect(lia.loja.meuMoradorId()).toBe(moradorDaLia.id);
     expect(bruno.loja.meuMoradorId()).toBe(moradorDoBruno.id);
+    // Cada espelho sabe o apelido de quem está no mundo: veio na visão, não de quem hospeda.
+    for (const sessao of [lia, bruno]) {
+      expect(sessao.loja.visao?.presenca.jogadores).toEqual([
+        { perfilId: LIA, apelido: "Lia", estado: "presente" },
+        { perfilId: BRUNO, apelido: "Bruno", estado: "presente" },
+      ]);
+    }
     expect(servidor.soquetes).toHaveLength(2);
   });
 

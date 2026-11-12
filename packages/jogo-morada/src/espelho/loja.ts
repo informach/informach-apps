@@ -116,9 +116,7 @@ export class Loja {
   meuMoradorId(): MoradorId | null {
     const jogadorId = this.jogador?.jogadorId;
     if (!jogadorId || !this.visao) return null;
-    const reserva = this.visao.presenca.reservas.find((r) => r.perfilId === jogadorId);
-    // A visão guarda o id como texto; ele é sempre de um morador.
-    return reserva ? (reserva.moradorId as MoradorId) : null;
+    return this.visao.presenca.reservas.find((r) => r.perfilId === jogadorId)?.moradorId ?? null;
   }
 
   avisar(tom: TomDoAviso, texto: string): void {

@@ -234,13 +234,27 @@ Para saber: sessão que acaba sem `pagehide` (navegador que trava) fica aberta a
 - Medido na máquina de desenvolvimento (1280×720, casa da prova, 54 objetos, RTX 3060): 32 chamadas de desenho com 4 moradores e 42 com 6, 16,7 ms por quadro, custo da cena de 0,3 a 1 ms. Por software, no nível baixo: 16 a 18 chamadas, 33 ms por quadro. Sem sombras, o mundo parado são 4 chamadas.
 - **Não exercitado**: mão de gente no mouse; Firefox, WebKit e toque; rede fora do `localhost`; o cliente montado na página do Recreio (lote X1); a barriga da gravidez em imagem; o bebê crescendo.
 
-Achados para os próximos lotes, todos fora do cliente e ainda abertos:
+### Acertos depois do J8 e ligação do servidor ao Recreio (12/11/2026)
 
-- O protocolo não leva o apelido das outras pessoas (`PresencaVista.jogadores` tem só o id e o estado). O jogo mostra "outra pessoa" a não ser que quem hospeda entregue `apelidoDe`.
-- Regras puras que o cliente usa não são exportadas pelo `@informach/morada-sim` (`podeSerInterrompido`, `impedimentoDoCuidado`, `relacaoExistente`, `saoParentes`). O cliente refez o mínimo; a cópia de `motivoDeDormir` não tem teste contra a original.
-- `pulso.tick` sai um passo atrasado (`ator.ts` chama `acadaSegundo()` antes de `avancar`). O estimador do cliente absorve.
-- O modo de desenvolvimento do servidor abre uma sessão nova a cada `/dev/entrar` e não renova: depois de 15 minutos a sessão acaba e a pessoa entra de novo. Não afeta o caminho de verdade, em que o SDK renova.
-- `PresencaVista.reservas[].moradorId` é `string`, e `EventoDeApresentacao` tem campos soltos.
+Os cinco achados do lote J8 foram fechados:
+
+- **Apelido das outras pessoas**: a presença replicada leva o apelido de cada pessoa presente (`PresencaVista.jogadores[].apelido`), vindo de `verificarEntrada` e limpo pelo servidor (sem caracteres de controle, até 40). É presença volátil: não entra no diário nem na fotografia. O jogo mostra "Dirigido por Bruno" e a linha de presença com os nomes; a opção `apelidoDe` do cliente saiu.
+- **Regras puras exportadas** pelo `@informach/morada-sim` (`podeSerInterrompido`, `impedimentoDoCuidado`, `relacaoExistente`, `saoParentes`, `ondeLevanta`, `partidaDe`); o cliente apagou as cópias. Conferido lado a lado com a versão anterior da simulação: três sementes, cerca de 40 mil ticks cada, hashes e respostas iguais.
+- **`pulso.tick`** sai depois do passo, com o tick em que o mundo está.
+- **Tipos**: `reservas[].moradorId` é `MoradorId`; os campos de `EventoDeApresentacao` usam as uniões do domínio. A recusa de um pedido passou a mandar `motivo` e `detalhe` como o comando `propor`.
+- **Sessão do modo de desenvolvimento**: `POST /dev/renovar` e `/dev/entrar` com `continuar`; a bancada renova sozinha. Só existem com `MORADA_PLATAFORMA=falsa`.
+
+`VERSAO_DO_PROTOCOLO` continua 1: os campos novos são aditivos.
+
+`apps/morada-server/src/main.ts` liga a instância ao Recreio de verdade quando `MORADA_PLATAFORMA=recreio`: `criarClienteDoHost` com `RECREIO_API_URL` e o segredo do jogo, e `criarVerificadorDeSessao` com o JWKS de `/api/sdk/v1/jwks`. Ainda não exercitado contra o portal rodando; é o que falta do lote X1.
+
+Verificado: `pnpm --filter @informach/morada-sim test` (99 testes), `pnpm --filter @informach/morada-server test` (54), `pnpm --filter @informach/jogo-morada test` (76) e `e2e` (17, com a renovação da sessão e o vencimento sem renovação), typecheck dos três e Biome limpos.
+
+Abertos, achados nesta passagem:
+
+- **Um passo pendente no diário se perde se alguém entra antes da nova tentativa** (`apps/morada-server/src/ator.ts`): `entrar` conclui um passo próprio e sobrescreve o pendente. Quebra a garantia de "diário antes de difundir"; entra no lote X1.
+- Com o diário fora do ar o servidor não manda pulso, e os clientes reabrem por falta de sinal depois de 12 s.
+- O verificador de sessão aceita o token até 5 s depois do vencimento, e o ator fecha no vencimento exato.
 
 ### J0 a J4 e a parte de simulação do J5 (11/11/2026)
 

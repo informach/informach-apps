@@ -2,6 +2,7 @@ import {
   type EstadoDoMundo,
   type FamiliaId,
   type Fase,
+  type JogadorVisto,
   listar,
   type Morador,
   type MoradorId,
@@ -44,8 +45,6 @@ export type Retrato = {
 export type OpcoesDosRetratos = {
   /** Quem a pessoa é neste mundo (`bem_vindo.jogadorId`). */
   jogadorId: string;
-  /** O apelido de outro jogador, se quem hospeda o jogo souber. */
-  apelidoDe?(jogadorId: string): string | undefined;
 };
 
 /** As famílias que a pessoa pode ver, na ordem do mundo. */
@@ -56,10 +55,19 @@ export function familiasDoJogador(estado: EstadoDoMundo, jogadorId: string): Fam
   return estado.familias.ordem.filter((id) => minhas.has(id));
 }
 
+/** O apelido de um jogador que está no mundo, como o servidor o conta; `null` se não veio. */
+export function apelidoDoJogador(presenca: PresencaVista, jogadorId: string): string | null {
+  return presenca.jogadores.find((jogador) => jogador.perfilId === jogadorId)?.apelido || null;
+}
+
 /** Como chamar outro jogador: pelo apelido, se houver; senão, sem inventar nome. */
-export function nomeDoJogador(jogadorId: string, opcoes: OpcoesDosRetratos): string {
+export function nomeDoJogador(
+  presenca: PresencaVista,
+  jogadorId: string,
+  opcoes: OpcoesDosRetratos,
+): string {
   if (jogadorId === opcoes.jogadorId) return "você";
-  return opcoes.apelidoDe?.(jogadorId) || "outra pessoa";
+  return apelidoDoJogador(presenca, jogadorId) ?? "outra pessoa";
 }
 
 function retratoDe(
@@ -87,9 +95,9 @@ function retratoDe(
     };
   }
   if (reserva) {
-    const quem = nomeDoJogador(reserva.perfilId, opcoes);
+    const quem = nomeDoJogador(presenca, reserva.perfilId, opcoes);
     // Na plaquinha cabe pouco: o apelido, se houver; sem ele, só que o morador está ocupado.
-    const apelido = opcoes.apelidoDe?.(reserva.perfilId);
+    const apelido = apelidoDoJogador(presenca, reserva.perfilId);
     const emEspera = presenca.jogadores.some(
       (jogador) => jogador.perfilId === reserva.perfilId && jogador.estado === "em_graca",
     );
@@ -97,7 +105,7 @@ function retratoDe(
       ...base,
       estado: "outro",
       legenda: emEspera ? `Dirigido por ${quem}, em espera` : `Dirigido por ${quem}`,
-      placa: emEspera ? "em espera" : apelido || "ocupado",
+      placa: emEspera ? "em espera" : (apelido ?? "ocupado"),
       emEspera,
     };
   }
@@ -164,13 +172,38 @@ export type PresencaResumida = {
   texto: string;
 };
 
+/** Quantos apelidos cabem na linha da presença; os outros entram na conta. */
+const NOMES_NA_LINHA = 3;
+
+/** "Bruno", "Bruno e Ana", "Bruno, Ana e Caio". */
+export function enumerar(partes: readonly string[]): string {
+  if (partes.length <= 1) return partes[0] ?? "";
+  return `${partes.slice(0, -1).join(", ")} e ${partes[partes.length - 1]}`;
+}
+
+/** Os apelidos que cabem na linha e quantos jogadores ficaram sem nome nela. */
+function nomear(jogadores: readonly JogadorVisto[]): { nomes: string[]; resto: number } {
+  const nomes = jogadores
+    .flatMap((jogador) => (jogador.apelido ? [jogador.apelido] : []))
+    .slice(0, NOMES_NA_LINHA);
+  return { nomes, resto: jogadores.length - nomes.length };
+}
+
+/** Quem está no mundo com a pessoa e quem caiu e ainda pode voltar, pelo apelido de cada um. */
 export function resumoDaPresenca(presenca: PresencaVista, jogadorId: string): PresencaResumida {
   const outros = presenca.jogadores.filter((jogador) => jogador.perfilId !== jogadorId);
-  const presentes = outros.filter((jogador) => jogador.estado === "presente").length;
-  const emEspera = outros.length - presentes;
+  const presentes = outros.filter((jogador) => jogador.estado === "presente");
+  const emEspera = outros.filter((jogador) => jogador.estado !== "presente");
   let texto = "Só você no mundo";
-  if (presentes === 1) texto = "Você e mais 1 pessoa";
-  else if (presentes > 1) texto = `Você e mais ${presentes} pessoas`;
-  if (emEspera > 0) texto += emEspera === 1 ? " · 1 em espera" : ` · ${emEspera} em espera`;
-  return { presentes: presentes + 1, emEspera, texto };
+  if (presentes.length > 0) {
+    const { nomes, resto } = nomear(presentes);
+    if (resto > 0) nomes.push(resto === 1 ? "mais 1 pessoa" : `mais ${resto} pessoas`);
+    texto = enumerar(["Você", ...nomes]);
+  }
+  if (emEspera.length > 0) {
+    const { nomes, resto } = nomear(emEspera);
+    if (resto > 0) nomes.push(nomes.length > 0 ? `mais ${resto}` : String(resto));
+    texto += ` · ${enumerar(nomes)} em espera`;
+  }
+  return { presentes: presentes.length + 1, emEspera: emEspera.length, texto };
 }

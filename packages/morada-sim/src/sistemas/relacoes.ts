@@ -260,7 +260,14 @@ export function fazerPedido(
 
   const impedimento = impedimentoDoPedido(estado, tipo, ator, alvo);
   if (impedimento) {
-    apresentar(ctx, { t: "recusou", loteId, moradorId: ator.id, motivo: impedimento });
+    // O mesmo motivo e o mesmo detalhe que o comando `propor` devolve.
+    apresentar(ctx, {
+      t: "recusou",
+      loteId,
+      moradorId: ator.id,
+      motivo: impedimento === "familia_cheia" ? "limite_da_familia" : "requisito",
+      detalhe: impedimento,
+    });
     return;
   }
 

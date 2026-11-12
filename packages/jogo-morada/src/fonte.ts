@@ -33,11 +33,6 @@ export type OpcoesDoMorada = {
    * (`protocolo`). O jogo mostra o motivo na tela; quem hospeda pode fazer mais.
    */
   aoEncerrar?(motivo: MotivoDoEncerramento, detalhe?: string): void;
-  /**
-   * Como chamar outro jogador deste mundo. O servidor só conta o id de membro;
-   * quem conhece os apelidos é o portal. Sem isto, o jogo diz "outra pessoa".
-   */
-  apelidoDe?(jogadorId: string): string | undefined;
   /** Expõe `window.__morada` para os testes de navegador. Nunca em produção. */
   depurar?: boolean;
 };

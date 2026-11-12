@@ -15,7 +15,14 @@ pnpm --filter @informach/morada-server test
 pnpm --filter @informach/morada-server carga 20 10   # medida de bancada: mundos, minutos
 ```
 
-No modo `falsa`, `POST /dev/entrar` com `{ "apelido": "Lia" }` devolve uma sessão de jogo, o id do mundo de desenvolvimento e o endereço do WebSocket. O primeiro apelido cria o mundo; os outros entram dividindo a família. Nada é salvo, e a configuração recusa este modo em produção.
+No modo `falsa`, `POST /dev/entrar` com `{ "apelido": "Lia" }` devolve uma sessão de jogo (`sessao`), quanto ela ainda vale (`validadeMs`), o id do mundo de desenvolvimento e o endereço do WebSocket. O primeiro apelido cria o mundo; os outros entram dividindo a família. Nada é salvo, e a configuração recusa este modo em produção.
+
+| Rota | Corpo | Para quê |
+| --- | --- | --- |
+| `POST /dev/entrar` | `{ apelido, continuar?, validadeS? }` | Cada entrada abre uma sessão de jogo nova, que toma o lugar da anterior do mesmo apelido. Com `continuar: true`, devolve um token novo da sessão que o apelido já tem aberta: quem reabre o mundo depois de uma queda retoma a reserva. `validadeS` encurta a validade dos tokens da sessão, para testar a renovação sem esperar 15 minutos |
+| `POST /dev/renovar` | `{ sessao }` | Troca um token que ainda vale por outro, da mesma sessão e com prazo novo (`{ sessao, validadeMs }`). `401` se o token não confere ou se a sessão já foi trocada por outra |
+
+O cliente manda o token novo ao servidor do jogo com `renovar_sessao`, como faz com o SDK do Recreio. A bancada de `@informach/jogo-morada` renova sozinha a um terço da validade, então um jogo de desenvolvimento segue além dos 15 minutos. As rotas `/dev/*` só existem neste modo: com `MORADA_PLATAFORMA=recreio` o servidor responde `404`.
 
 ## Variáveis
 
@@ -54,6 +61,10 @@ O protocolo de mensagens fica em `@informach/morada-sim/protocolo`, para o clien
 
 Dentro do mundo, um jogador é o **id de membro** que o Recreio devolve na entrada, não o id do perfil. A sessão dentro da simulação é a própria sessão de jogo (`sid`), então reconectar com a mesma sessão retoma a reserva.
 
+O **apelido** que o Recreio devolve na entrada vai para a presença do mundo, e é por ela que os outros jogadores sabem quem está, quem espera a volta e quem dirige cada morador. Para o servidor é texto de fora: entra sem caracteres de controle e cortado em `APELIDO_MAX`; se não sobra nada, a pessoa entra sem apelido. A presença não é gravada, então o apelido nunca vai para o diário nem para a fotografia, e é lido de novo a cada entrada.
+
+Uma vez por segundo cada conexão recebe um `pulso`, depois do passo daquele instante, com o tick em que o mundo está. Enquanto um passo espera o diário, o pulso também não sai.
+
 Fechamentos e o que o cliente faz com cada um estão em `FECHAMENTO`, no protocolo. Depois de 4009, 4010 e 4011 o cliente reabre o mundo pelo Recreio.
 
 ## Testes
@@ -62,9 +73,10 @@ Os testes usam a plataforma em memória de `@informach/recreio/testing` e conex�
 
 | Arquivo | O que prova |
 | --- | --- |
-| `test/convivio.test.ts` | Duas contas no mesmo mundo e na mesma instância; cada uma dirige um morador; queda sem aviso; retomada; diário antes do aviso; hibernação e volta |
+| `test/convivio.test.ts` | Duas contas no mesmo mundo e na mesma instância; cada uma vê o apelido da outra; cada uma dirige um morador; queda sem aviso; retomada; diário antes do aviso; hibernação e volta |
 | `test/quedas.test.ts` | Instância derrubada e mundo recuperado em outra; desligamento ordenado; parto uma vez só nos três pontos de queda; instância congelada que volta e não escreve; parada antes de a posse vencer |
-| `test/protocolo.test.ts` | Sessão inválida, vencida ou forjada; não membro; quadros fora do formato; excesso de comandos; comando repetido; sessão encerrada pelo Recreio; medidas |
+| `test/protocolo.test.ts` | Sessão inválida, vencida ou forjada; não membro; quadros fora do formato; excesso de comandos; comando repetido; sessão encerrada pelo Recreio; o tick do pulso; medidas |
+| `test/desenvolvimento.test.ts` | A plataforma do modo `falsa`: sessão renovada que passa dos 15 minutos e sessão que vence sem renovar; validade curta; continuar a mesma sessão ou abrir outra; as rotas `/dev/*` por HTTP e a ausência delas fora do modo |
 | `test/rede.test.ts` | O servidor em uma porta de verdade, com clientes WebSocket de verdade: origem, subprotocolo, tamanho de quadro, conexão que some, saúde e desligamento |
 
 ## Ainda não tem

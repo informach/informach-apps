@@ -1,6 +1,7 @@
-import { listar, type Morador } from "@informach/morada-sim";
+import { APELIDO_MAX, listar, type Morador } from "@informach/morada-sim";
 import { FECHAMENTO } from "@informach/morada-sim/protocolo";
 import { describe, expect, it } from "vitest";
+import { apelidoParaOMundo } from "../src/ator";
 import { ate, type Bancada, ClienteDeTeste, criarBancada, mundoDe } from "./apoio";
 
 /** Lia cria o mundo e joga; Bruno, de outra conta, é convidado para dividir a família. */
@@ -50,6 +51,50 @@ describe("duas contas no mesmo mundo", () => {
     const visao = mundoDe(instancia, mundoId).visao("");
     expect(lia.visao).toEqual(visao);
     expect(bruno.visao).toEqual(visao);
+  });
+
+  it("cada uma vê o apelido da outra, que vem do Recreio e não é gravado no mundo", async () => {
+    const { bancada, instancia, lia, bruno, mundoId } = await liaEBruno();
+    const jogadores = [
+      { perfilId: lia.jogadorId, apelido: "Lia", estado: "presente" },
+      { perfilId: bruno.jogadorId, apelido: "Bruno", estado: "presente" },
+    ];
+    // A Lia já estava no mundo e soube do Bruno por um passo; ele, pela visão inteira.
+    expect(lia.visao?.presenca.jogadores).toEqual(jogadores);
+    expect(bruno.visao?.presenca.jogadores).toEqual(jogadores);
+    expect(bruno.quadros[0]).toMatchObject({ t: "bem_vindo", apelido: "Bruno" });
+
+    // O apelido é de quem está conectado: não vai para o diário nem para a fotografia.
+    await bancada.andar(400);
+    const guardado = bancada.plataforma.mundo(mundoId);
+    expect(guardado.fotografias.length).toBeGreaterThan(0);
+    expect(JSON.stringify(mundoDe(instancia, mundoId).fotografar())).not.toContain("Bruno");
+    for (const entrada of guardado.diario) {
+      expect(new TextDecoder().decode(entrada.bytes)).not.toContain("Bruno");
+    }
+  });
+
+  it("o apelido é texto de fora: entra limpo e cortado no tamanho que o mundo aceita", async () => {
+    const bancada = await criarBancada();
+    await bancada.novaInstancia();
+    const comprido = `  Nome\u0000 de\n conta ${"x".repeat(80)}  `;
+    const dona = new ClienteDeTeste("Dona", bancada.plataforma.criarPerfil({ apelido: comprido }));
+    const vazio = new ClienteDeTeste("Vazio", bancada.plataforma.criarPerfil({ apelido: " \t " }));
+    const mundoId = bancada.criarMundo(dona);
+    bancada.convidar(mundoId, vazio);
+    await bancada.entrar(dona, mundoId);
+    await bancada.entrar(vazio, mundoId);
+
+    expect(apelidoParaOMundo(comprido)).toBe(`Nome  de  conta ${"x".repeat(APELIDO_MAX - 16)}`);
+    expect(apelidoParaOMundo("  Lia  ")).toBe("Lia");
+    // Um emoji não é cortado ao meio.
+    expect(apelidoParaOMundo(`${"a".repeat(APELIDO_MAX - 1)}😀`)).toBe("a".repeat(APELIDO_MAX - 1));
+    expect(dona.fechamento).toBeNull();
+    expect(dona.visao?.presenca.jogadores).toEqual([
+      { perfilId: dona.jogadorId, apelido: apelidoParaOMundo(comprido), estado: "presente" },
+      // Sem nada que se possa mostrar, a pessoa entra sem apelido.
+      { perfilId: vazio.jogadorId, apelido: null, estado: "presente" },
+    ]);
   });
 
   it("cada uma dirige um morador da mesma família, ao mesmo tempo", async () => {
@@ -106,6 +151,7 @@ describe("duas contas no mesmo mundo", () => {
     // A reserva dele espera a volta: ninguém toma o morador por enquanto.
     expect(lia.visao?.presenca.jogadores).toContainEqual({
       perfilId: bruno.jogadorId,
+      apelido: "Bruno",
       estado: "em_graca",
     });
     expect(
@@ -123,7 +169,7 @@ describe("duas contas no mesmo mundo", () => {
     // Passada a espera, a reserva é liberada e a fila do morador termina sozinha.
     await bancada.andar(320);
     expect(lia.visao?.presenca.jogadores).toEqual([
-      { perfilId: lia.jogadorId, estado: "presente" },
+      { perfilId: lia.jogadorId, apelido: "Lia", estado: "presente" },
     ]);
     await ate(
       bancada,
@@ -160,6 +206,7 @@ describe("duas contas no mesmo mundo", () => {
     });
     expect(lia.visao?.presenca.jogadores).toContainEqual({
       perfilId: bruno.jogadorId,
+      apelido: "Bruno",
       estado: "presente",
     });
     await bancada.andar(400);

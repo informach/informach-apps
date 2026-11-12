@@ -1,6 +1,7 @@
 import { performance } from "node:perf_hooks";
 import { gunzipSync, gzipSync } from "node:zlib";
 import {
+  APELIDO_MAX,
   criarMundo,
   type Fato,
   type Intencao,
@@ -99,6 +100,21 @@ const FATOS_MARCANTES = new Set([
 
 const texto = new TextEncoder();
 const leitura = new TextDecoder();
+
+/**
+ * O apelido de quem entra, como os outros jogadores vão ver. O Recreio já o
+ * conferiu pelas regras dele; para o mundo continua sendo texto de fora: sai
+ * sem caracteres de controle e cortado no tamanho que a simulação aceita. Se
+ * não sobra nada, a pessoa entra sem apelido.
+ */
+export function apelidoParaOMundo(bruto: string): string | undefined {
+  let saida = "";
+  for (const letra of bruto.replace(/\p{Cc}+/gu, " ").trim()) {
+    if (saida.length + letra.length > APELIDO_MAX) break;
+    saida += letra;
+  }
+  return saida.trimEnd() || undefined;
+}
 
 export type MedidasDoAtor = {
   mundoId: string;
@@ -329,11 +345,13 @@ export class Ator {
       }
 
       this.garantirAcesso(jogadorId, entrada);
+      // O apelido fica na presença do mundo, que é replicada e nunca gravada.
+      const apelido = apelidoParaOMundo(entrada.apelido);
       const conhecida = mundo.presenca.sessoes.some((s) => s.sessaoId === sessao.sid);
       mundo.aplicar(
         conhecida
-          ? { t: "sessao_voltou", sessaoId: sessao.sid }
-          : { t: "sessao_entrou", sessaoId: sessao.sid, perfilId: jogadorId },
+          ? { t: "sessao_voltou", sessaoId: sessao.sid, apelido }
+          : { t: "sessao_entrou", sessaoId: sessao.sid, perfilId: jogadorId, apelido },
       );
 
       ligacao.fase = "dentro";
@@ -351,7 +369,7 @@ export class Ator {
         t: "bem_vindo",
         v: VERSAO_DO_PROTOCOLO,
         jogadorId,
-        apelido: entrada.apelido,
+        apelido: apelido ?? "",
         papel: entrada.papel,
         tick: mundo.estado.relogio.tick,
         passoMs: 100,
@@ -439,7 +457,8 @@ export class Ator {
       this.aplicarCaixa(respostas);
 
       this.passos++;
-      if (this.passos % 10 === 0) this.acadaSegundo(agora);
+      const umSegundo = this.passos % 10 === 0;
+      if (umSegundo) this.acadaSegundo(agora);
 
       const tickAntes = mundo.estado.relogio.tick;
       const saida = mundo.avancar(100);
@@ -451,6 +470,9 @@ export class Ator {
 
       await this.concluirPasso(saida, respostas, null);
       if (this.estado !== "ativo") return;
+      // O pulso sai depois do passo, com o tick em que o mundo ficou. Com o
+      // diário por confirmar, nem o pulso sai: os clientes ainda não sabem deste passo.
+      if (umSegundo && !this.pendente) this.pulsar(agora);
 
       const marcante = saida.fatos.some((fato) => FATOS_MARCANTES.has(fato.dados.tipo));
       const venceu = this.op.agora() - this.fotografadoEm >= this.op.checkpointMs;
@@ -512,14 +534,15 @@ export class Ator {
         this.ligacoes.delete(sid);
         this.despedir(ligacao, FECHAMENTO.atrasado);
         mundo.aplicar({ t: "sessao_caiu", sessaoId: sid, agoraMs: agora });
-      } else {
-        this.enviar(ligacao, {
-          t: "pulso",
-          n: this.passos,
-          tick: mundo.estado.relogio.tick,
-          agoraMs: agora,
-        });
       }
+    }
+  }
+
+  /** O sinal de vida de uma vez por segundo: diz a todos em que tick o mundo está. */
+  private pulsar(agora: number): void {
+    const tick = (this.mundo as Mundo).estado.relogio.tick;
+    for (const ligacao of this.ligacoes.values()) {
+      this.enviar(ligacao, { t: "pulso", n: this.passos, tick, agoraMs: agora });
     }
   }
 

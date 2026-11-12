@@ -1,4 +1,4 @@
-import type { PerfilId } from "../dominio/ids";
+import type { MoradorId, PerfilId } from "../dominio/ids";
 import type { Tabela } from "../dominio/tabela";
 import type {
   AcessoFamilia,
@@ -45,9 +45,16 @@ const CAMPOS_LENTOS: Partial<Record<TabelaReplicada, readonly string[]>> = {
 };
 export const INTERVALO_DOS_CAMPOS_LENTOS = 10;
 
+export type JogadorVisto = {
+  perfilId: PerfilId;
+  /** Como a plataforma chama este jogador; `null` se quem hospeda o mundo não disse. */
+  apelido: string | null;
+  estado: "presente" | "em_graca";
+};
+
 export type PresencaVista = {
-  jogadores: { perfilId: PerfilId; estado: "presente" | "em_graca" }[];
-  reservas: { moradorId: string; perfilId: PerfilId }[];
+  jogadores: JogadorVisto[];
+  reservas: { moradorId: MoradorId; perfilId: PerfilId }[];
   voto: { velocidade: Velocidade; aFavor: PerfilId[] } | null;
 };
 
@@ -75,6 +82,7 @@ function presencaVista(presenca: Presenca): PresencaVista {
   return {
     jogadores: presenca.sessoes.map((sessao) => ({
       perfilId: sessao.perfilId,
+      apelido: sessao.apelido,
       estado: sessao.estado,
     })),
     reservas: presenca.reservas.map((reserva) => ({

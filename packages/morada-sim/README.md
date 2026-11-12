@@ -17,7 +17,7 @@ const mundo = criarMundo({
   fundadores: [perfilId],
 });
 
-mundo.aplicar({ t: "sessao_entrou", sessaoId, perfilId });
+mundo.aplicar({ t: "sessao_entrou", sessaoId, perfilId, apelido: "Lia" });
 const resultado = mundo.aplicar({ t: "intencao", sessaoId, intencao });
 const { tick, fatos, mudancas, apresentacao } = mundo.avancar(100);
 
@@ -45,7 +45,7 @@ const voltou = restaurar(foto, fatosGravadosDepoisDaFoto);
 
 | Subpath | Conteúdo |
 | --- | --- |
-| `.` | Execução, tipos, ids, invariantes, comandos, fatos, navegação, replicação |
+| `.` | Execução, tipos, ids, invariantes, comandos, fatos, navegação, replicação, regras puras |
 | `./conteudo` | Necessidades, interações, comportamentos, catálogo, o bairro e a casa da prova |
 | `./formatos` | Esquemas Zod do bairro, do imóvel e da fotografia; migrações |
 | `./testes` | Mundo da prova pronto e o roteiro que anda o tempo conferindo as invariantes |
@@ -65,7 +65,7 @@ O mesmo roteiro dá sempre o mesmo mundo, tick a tick. As regras, e como cada um
 Duas regiões, em `dominio/tipos.ts`:
 
 - **`EstadoDoMundo`** é durável e vai inteiro para a fotografia: bairros, lotes, imóveis, objetos, famílias, moradores, relações, ações, gravidezes, pedidos, quadro de tarefas, acessos, memórias.
-- **`Presenca`** é volátil: sessões, reservas de controle e o voto de velocidade. Nunca é gravada.
+- **`Presenca`** é volátil: sessões (com o apelido de quem joga), reservas de controle e o voto de velocidade. Nunca é gravada.
 
 Não existe campo "é NPC". Todo morador decide sozinho; quem dirige um morador é uma reserva de sessão.
 
@@ -87,6 +87,20 @@ Uma `Intencao` passa por: idempotência (o mesmo `comandoId` devolve a resposta 
 
 Um comando do jogador passa à frente do que o morador fazia por conta própria, se aquilo puder ser interrompido.
 
+## Regras puras
+
+As regras que só leem o estado são exportadas para o cliente montar menus e prever o que o servidor vai fazer, sem copiar nada. Recebem o estado (ou o espelho na forma do estado), nunca um contexto de passo, e a simulação usa as mesmas funções:
+
+| Função | Responde |
+| --- | --- |
+| `recusaDaInteracao`, `temPontoLivre` | Esta interação pode acontecer agora, e há lugar? |
+| `impedimentoDoPedido`, `decidirProposta` | O que impede um pedido de vida, e o que o morador responderia |
+| `impedimentoDoCuidado` | O que impede um cuidado com o bebê. Com cuidador `null`, só o que não depende de quem cuida |
+| `podeSerInterrompido` | O que o morador faz agora cede o lugar a um comando? |
+| `ondeLevanta`, `partidaDe` | Onde fica em pé quem sai de um móvel, e de onde o morador parte para andar |
+| `relacaoExistente`, `saoParentes` | A relação de um par, sem criar uma, e se são parentes diretos |
+| `permissoesDe`, `temPermissao` | O que um perfil pode fazer com uma família |
+
 ## Conteúdo como dados
 
 Uma interação nova é uma entrada em `conteudo/interacoes.ts`: quem pode, o que exige, quanto dura, o que promete para a autonomia e que efeitos tem. Um móvel novo é uma entrada no catálogo com o comportamento do tipo dele; todos os sofás compartilham o mesmo.
@@ -107,6 +121,10 @@ A casa e o catálogo da prova foram gerados a partir de `casa_mansarda` em `bibl
 
 `criarReplicador` guarda a última forma enviada de cada campo e devolve só o que mudou nas entidades marcadas. Necessidades e idades mudam a cada tick e são conferidas uma vez por segundo. `aplicarMudancas` atualiza o espelho do cliente.
 
+A presença vai na visão como `presenca`: cada jogador com o id, o estado (`presente` ou `em_graca`) e o **apelido** que quem hospeda o mundo informou em `sessao_entrou` ou `sessao_voltou` (`null` se não informou). O apelido é texto de fora, limitado a `APELIDO_MAX` caracteres pelo esquema da entrada; a simulação só o guarda na presença e o repassa. Como a presença, não entra na fotografia nem no diário.
+
+Os avisos de uma vez só (`EventoDeApresentacao`) usam os tipos do domínio: `recusou` leva um `MotivoDeRecusa` e, quando há, o mesmo `detalhe` da resposta a um comando; `casal` leva um `EstadoDoCasal`; `cresceu`, uma `Fase`.
+
 Com `conferirReplicacao: true` (o padrão dos testes) o replicador varre tudo a cada passo e acusa qualquer mudança visível que não tenha sido marcada.
 
 ## Testes
@@ -119,7 +137,7 @@ Com `conferirReplicacao: true` (o padrão dos testes) o replicador varre tudo a 
 | `testes/determinismo.test.ts` | Mesmo roteiro, mesmo mundo; independência da velocidade; restaurar e seguir é igual a não parar; o código não lê relógio nem sorteio |
 | `testes/familia.test.ts` | Quatro moradores vivem sete dias sozinhos sem necessidade presa no zero |
 | `testes/vida.test.ts` | Casamento com morador do bairro que continua sendo a mesma pessoa; bebê que nasce uma vez, é cuidado e cresce com o mesmo id |
-| `testes/convivio.test.ts` | Dois jogadores na mesma família; um condutor por morador; queda sem aviso com a fila intacta; acordo de velocidade; comando repetido; ids trocados |
+| `testes/convivio.test.ts` | Dois jogadores na mesma família; um condutor por morador; queda sem aviso com a fila intacta; acordo de velocidade; comando repetido; ids trocados; o apelido de cada jogador na visão e fora da fotografia |
 | `testes/tempo.test.ts` | As três políticas de avanço com duas famílias; gravidez e ausência; envelhecimento |
 | `testes/recuperacao.test.ts` | De qualquer fotografia, os fatos seguintes levam ao mesmo estado crítico; o parto acontece uma vez só em cada ponto de queda |
 | `testes/propriedades.test.ts` | Roteiros aleatórios: invariantes, replicação e espelho valem depois de qualquer sequência |

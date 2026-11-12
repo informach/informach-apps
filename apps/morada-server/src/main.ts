@@ -1,5 +1,10 @@
 import { REGRAS_DA_PROVA, REGRAS_PADRAO } from "@informach/morada-sim";
-import type { ClienteDoHost, VerificadorDeSessao } from "@informach/recreio/host";
+import {
+  type ClienteDoHost,
+  criarClienteDoHost,
+  criarVerificadorDeSessao,
+  type VerificadorDeSessao,
+} from "@informach/recreio/host";
 import pino from "pino";
 import { lerConfiguracao } from "./config";
 import { criarPlataformaDeDesenvolvimento } from "./desenvolvimento";
@@ -12,6 +17,7 @@ import { criarServidor } from "./servidor";
  * desligamento ordenado.
  */
 
+const JOGO = "morada";
 const log = pino({ name: "morada-server", level: process.env.LOG_LEVEL ?? "info" });
 
 async function principal(): Promise<void> {
@@ -22,7 +28,7 @@ async function principal(): Promise<void> {
   let verificador: VerificadorDeSessao;
   let agora: () => number = Date.now;
   let rotas: Parameters<typeof criarServidor>[0]["rotas"];
-  const urlPublica = config.MORADA_PUBLIC_URL ?? `ws://localhost:${config.PORT}`;
+  let urlPublica = config.MORADA_PUBLIC_URL ?? `ws://localhost:${config.PORT}`;
   let origens = config.MORADA_ORIGENS;
 
   if (config.MORADA_PLATAFORMA === "falsa") {
@@ -31,11 +37,19 @@ async function principal(): Promise<void> {
     ({ host, verificador, agora, rotas } = dev);
     log.warn("plataforma de desenvolvimento em memória: nada é salvo e qualquer um entra");
   } else {
-    // A ligação com o Recreio de verdade (cliente HTTP da API das instâncias e
-    // chaves públicas) entra com a junção dos dois lados, no lote X1.
-    throw new Error(
-      "MORADA_PLATAFORMA=recreio ainda não está ligado; use falsa em desenvolvimento",
-    );
+    // A configuração já garantiu estas três.
+    const api = config.RECREIO_API_URL as string;
+    urlPublica = config.MORADA_PUBLIC_URL as string;
+    host = criarClienteDoHost({
+      baseUrl: api,
+      jogo: JOGO,
+      segredo: config.RECREIO_HOST_SECRET as string,
+    });
+    verificador = criarVerificadorDeSessao({
+      emissor: config.RECREIO_EMISSOR ?? new URL(api).origin,
+      jogo: JOGO,
+      jwksUrl: new URL("/api/sdk/v1/jwks", api).toString(),
+    });
   }
 
   const instancia = criarInstancia({

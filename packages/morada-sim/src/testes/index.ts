@@ -120,8 +120,8 @@ export type Roteiro = {
   mundo: Mundo;
   /** Tudo o que saiu desde o começo do roteiro. */
   saida: Acumulado;
-  /** Entra com um perfil; devolve o id da sessão. */
-  entrar(perfilId: PerfilId, sessaoId?: SessaoId): SessaoId;
+  /** Entra com um perfil e, se dado, o apelido dele; devolve o id da sessão. */
+  entrar(perfilId: PerfilId, sessaoId?: SessaoId, apelido?: string): SessaoId;
   comandar(
     sessaoId: SessaoId,
     moradorId: MoradorId | null,
@@ -168,8 +168,12 @@ export function criarRoteiro(mundo: Mundo, opcoes: { conferirACada?: number } = 
     conferir,
     andar,
 
-    entrar(perfilId, sessaoId = `sessao-${++sessoes}`) {
-      mundo.aplicar({ t: "sessao_entrou", sessaoId, perfilId });
+    entrar(perfilId, sessaoId = `sessao-${++sessoes}`, apelido) {
+      mundo.aplicar(
+        apelido === undefined
+          ? { t: "sessao_entrou", sessaoId, perfilId }
+          : { t: "sessao_entrou", sessaoId, perfilId, apelido },
+      );
       guardar(mundo.avancar(0));
       conferir();
       return sessaoId;

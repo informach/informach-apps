@@ -55,7 +55,7 @@ function aoZerar(ctx: Contexto, morador: Morador): void {
   if (morador.necessidades.energia === 0) {
     const atual = morador.acaoAtual ? obter(ctx.estado.acoes, morador.acaoAtual) : undefined;
     const jaDormindo = atual && /^(dormir|cochilar)/.test(atual.interacao);
-    if (!jaDormindo && morador.fase !== "pequeno" && podeSerInterrompido(ctx, morador)) {
+    if (!jaDormindo && morador.fase !== "pequeno" && podeSerInterrompido(ctx.estado, morador)) {
       if (morador.acaoAtual) cancelarAcao(ctx, morador.acaoAtual);
       const acao = enfileirar(ctx, morador, {
         interacao: "dormir_no_chao",

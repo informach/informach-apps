@@ -7,7 +7,7 @@ import {
 import { novoId } from "../dominio/estado";
 import type { ObjetoId, PerfilId } from "../dominio/ids";
 import { inserir, listar, obter, remover } from "../dominio/tabela";
-import type { Morador, Objeto, Tarefa } from "../dominio/tipos";
+import type { EstadoDoMundo, Morador, Objeto, Tarefa } from "../dominio/tipos";
 import { bebeNoColoDe, objetosDoLote, ondeEsta, PONTO_DENTRO } from "../espaco/posicoes";
 import { UM } from "../nucleo/fixo";
 import { enfileirar } from "./acoes";
@@ -23,17 +23,17 @@ import { type Contexto, tocar } from "./contexto";
 const ATENDIDA = 600_000;
 export const CUIDADO_DE_DORMIR = "por_para_dormir";
 
-function bercoLivre(ctx: Contexto, loteId: string): Objeto | null {
-  for (const objeto of objetosDoLote(ctx.estado, loteId as Objeto["loteId"])) {
+function bercoLivre(estado: EstadoDoMundo, loteId: string): Objeto | null {
+  for (const objeto of objetosDoLote(estado, loteId as Objeto["loteId"])) {
     if (doCatalogo(objeto.catalogo)?.comportamento !== "berco") continue;
     if (objeto.ocupacao[PONTO_DENTRO] === undefined) return objeto;
   }
   return null;
 }
 
-function estaNoBerco(ctx: Contexto, bebe: Morador): boolean {
+function estaNoBerco(estado: EstadoDoMundo, bebe: Morador): boolean {
   if (bebe.local.t !== "objeto") return false;
-  const objeto = obter(ctx.estado.objetos, bebe.local.objetoId);
+  const objeto = obter(estado.objetos, bebe.local.objetoId);
   return doCatalogo(objeto?.catalogo ?? "")?.comportamento === "berco";
 }
 
@@ -53,7 +53,7 @@ export function passoDoQuadro(ctx: Contexto): void {
         (tarefa) => tarefa.bebeId === bebe.id && tarefa.cuidado === cuidado,
       );
       // Sono: se o bebê já está no berço, ele dorme sozinho; não há tarefa.
-      const dispensada = cuidado === CUIDADO_DE_DORMIR && estaNoBerco(ctx, bebe);
+      const dispensada = cuidado === CUIDADO_DE_DORMIR && estaNoBerco(estado, bebe);
 
       if (nivel < def.critico && !existente && !dispensada) {
         const tarefa: Tarefa = {
@@ -105,22 +105,35 @@ export function podeCuidar(morador: Morador): boolean {
   return FASES_QUE_CUIDAM.includes(morador.fase);
 }
 
-/** O que impede este cuidado agora, sem mudar nada; `null` se dá para fazer. */
+export type ImpedimentoDoCuidado =
+  | "longe"
+  | "no_colo_de_outro"
+  | "ja_no_berco"
+  | "sem_berco"
+  | "maos_ocupadas";
+
+/**
+ * O que impede este cuidado agora, sem mudar nada; `null` se dá para fazer.
+ * Com `cuidador` `null` (ainda não se sabe quem vai cuidar), confere só o que
+ * não depende dele: onde o bebê está e se há berço.
+ */
 export function impedimentoDoCuidado(
-  ctx: Contexto,
-  cuidador: Morador,
+  estado: EstadoDoMundo,
+  cuidador: Morador | null,
   bebe: Morador,
   cuidado: string,
-): "longe" | "no_colo_de_outro" | "ja_no_berco" | "sem_berco" | "maos_ocupadas" | null {
-  const estado = ctx.estado;
+): ImpedimentoDoCuidado | null {
   const tick = estado.relogio.tick;
   const onde = ondeEsta(estado, bebe, tick);
-  if (!onde || ondeEsta(estado, cuidador, tick)?.loteId !== onde.loteId) return "longe";
-  if (bebe.local.t === "colo" && bebe.local.de !== cuidador.id) return "no_colo_de_outro";
+  if (!onde) return "longe";
+  if (cuidador) {
+    if (ondeEsta(estado, cuidador, tick)?.loteId !== onde.loteId) return "longe";
+    if (bebe.local.t === "colo" && bebe.local.de !== cuidador.id) return "no_colo_de_outro";
+  }
   if (cuidado !== CUIDADO_DE_DORMIR) return null;
-  if (estaNoBerco(ctx, bebe)) return "ja_no_berco";
-  if (!bercoLivre(ctx, onde.loteId)) return "sem_berco";
-  const carregado = bebeNoColoDe(estado, cuidador.id);
+  if (estaNoBerco(estado, bebe)) return "ja_no_berco";
+  if (!bercoLivre(estado, onde.loteId)) return "sem_berco";
+  const carregado = cuidador ? bebeNoColoDe(estado, cuidador.id) : null;
   if (carregado && carregado.id !== bebe.id) return "maos_ocupadas";
   return null;
 }
@@ -138,7 +151,7 @@ export function enfileirarCuidado(
     | { tipo: "quadro"; tarefa: Tarefa }
     | { tipo: "jogador"; autor: PerfilId; comandoId: string },
 ): boolean {
-  if (impedimentoDoCuidado(ctx, cuidador, bebe, cuidado)) return false;
+  if (impedimentoDoCuidado(ctx.estado, cuidador, bebe, cuidado)) return false;
   const estado = ctx.estado;
   const onde = ondeEsta(estado, bebe, estado.relogio.tick);
   if (!onde) return false;
@@ -158,7 +171,7 @@ export function enfileirarCuidado(
   }
 
   // Pôr para dormir: pegar no colo, se ainda não está, e levar ao berço.
-  const berco = bercoLivre(ctx, onde.loteId);
+  const berco = bercoLivre(estado, onde.loteId);
   if (!berco) return false;
   if (!bebeNoColoDe(estado, cuidador.id)) {
     enfileirar(ctx, cuidador, {

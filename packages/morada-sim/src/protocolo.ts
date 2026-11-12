@@ -97,6 +97,7 @@ export type MensagemDoServidor =
   /** O que mudou em um passo, depois de gravado o que era crítico. */
   | { t: "passo"; seq: number; tick: number; mudancas: Mudanca[]; eventos: EventoDeApresentacao[] }
   | { t: "resultado"; resultado: Resultado }
+  /** Uma vez por segundo, depois do passo: `tick` é o tick em que o mundo está ao enviar. */
   | { t: "pulso"; n: number; tick: number; agoraMs: number }
   | { t: "aviso"; codigo: CodigoDeAviso }
   /** Resposta a `sair`: `salvo` diz se o que é crítico está gravado. */
