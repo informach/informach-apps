@@ -83,6 +83,7 @@ export async function probe(path: string): Promise<ProbeResult> {
     hasVideo: info.hasVideo,
     hasAudio: info.hasAudio,
     size: info.size,
+    mtime: statSync(path).mtimeMs,
     videoCodec: info.videoCodec,
     // Screen recorders often write variable frame rate; nominal and average rates then disagree.
     vfr: info.vfr,

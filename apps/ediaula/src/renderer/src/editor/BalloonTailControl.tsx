@@ -1,4 +1,10 @@
-import { BALLOON_TAIL, balloonPath, defaultOutline, freeBalloonTip } from "@shared/annotation";
+import {
+  BALLOON_TAIL,
+  balloonLook,
+  balloonPath,
+  defaultOutline,
+  freeBalloonTip,
+} from "@shared/annotation";
 import type { Asset, Clip, Project } from "@shared/types";
 import { type PointerEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { updateAnnotation } from "@/lib/annotations";
@@ -151,7 +157,7 @@ export function BalloonTailControl({
                 y={body.y + 1}
                 width={Math.max(0, body.w - 2)}
                 height={Math.max(0, body.h - 2)}
-                rx={16 * unit}
+                rx={balloonLook(a).radius * unit}
               />
             </clipPath>
           </defs>
@@ -161,10 +167,11 @@ export function BalloonTailControl({
               body.y,
               body.w,
               body.h,
-              16 * unit,
+              balloonLook(a).radius * unit,
               BALLOON_TAIL * unit,
               freeBalloonTip(draft).tail,
               { x: tx, y: ty },
+              balloonLook(a).straight,
             )}
             fill={a.fill ?? "#FFFFFF"}
             stroke={outline.color}

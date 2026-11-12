@@ -126,6 +126,8 @@ export function applyRender(
     proxy: _proxy,
     filmstrip: _filmstrip,
     missing: _missing,
+    // The date of the old render's file (shared/mediaChange.ts): the new one is another file.
+    mtime: _mtime,
     ...rest
   } = before;
   const asset: Asset = {

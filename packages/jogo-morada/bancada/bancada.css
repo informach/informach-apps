@@ -1,0 +1,94 @@
+/* A página da bancada: só o que fica em volta do jogo. O jogo traz o próprio CSS. */
+
+:root {
+  color-scheme: dark;
+  --bancada-noite: #0f1226;
+  --bancada-painel: #181c3a;
+  --bancada-linha: #6a75bd;
+  --bancada-tinta: #eef0ff;
+  --bancada-tinta-suave: #a3a9cc;
+  --bancada-lampiao: #ffc233;
+}
+
+html,
+body,
+#raiz {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bancada-noite);
+  color: var(--bancada-tinta);
+  font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
+.bancada-entrada {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.bancada-entrada form {
+  display: grid;
+  gap: 14px;
+  width: min(360px, 100%);
+  padding: 28px;
+  border-radius: 20px;
+  background: var(--bancada-painel);
+}
+
+.bancada-entrada h1 {
+  margin: 0;
+  font-size: 26px;
+}
+
+.bancada-entrada p {
+  margin: 0;
+  color: var(--bancada-tinta-suave);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.bancada-entrada label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.bancada-entrada input {
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--bancada-linha);
+  background: var(--bancada-noite);
+  color: inherit;
+  font: inherit;
+}
+
+.bancada-entrada button {
+  height: 44px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--bancada-lampiao);
+  color: #2a1c00;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bancada-entrada :focus-visible {
+  outline: 3px solid #86a4ff;
+  outline-offset: 2px;
+}
+
+.bancada-erro {
+  color: #ff7a76;
+}
+
+.bancada-jogo {
+  height: 100%;
+}

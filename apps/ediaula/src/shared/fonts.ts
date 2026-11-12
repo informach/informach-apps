@@ -10,11 +10,18 @@ export interface FontFamily {
   files: { weight: number; file: string }[];
 }
 
-/** The default for annotations and templates (the app's own typeface). */
-export const DEFAULT_FONT = "Plus Jakarta Sans";
+/**
+ * The default for annotations and templates: Baloo 2, bundled in resources/fonts (since
+ * 11/11/2026; before, the app's own Plus Jakarta Sans). An annotation without a font of its own
+ * is drawn with it.
+ */
+export const DEFAULT_FONT = "Baloo 2";
 
-/** CSS / canvas font list: the chosen family, then the default and a generic fallback. */
+/**
+ * CSS / canvas font list: the chosen family, then the default and, while a bundled font is still
+ * loading, the app's own typeface and a generic fallback.
+ */
 export function fontStack(family?: string): string {
   const main = family && family !== DEFAULT_FONT ? `"${family}", ` : "";
-  return `${main}"Plus Jakarta Sans Variable", "Plus Jakarta Sans", sans-serif`;
+  return `${main}"${DEFAULT_FONT}", "Plus Jakarta Sans Variable", "Plus Jakarta Sans", sans-serif`;
 }

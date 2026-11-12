@@ -41,7 +41,7 @@ export const PROP_GROUPS: { id: PropGroup; label: string; hint: string }[] = [
   {
     id: "style",
     label: "Estilo da anotação",
-    hint: "cores, preenchimento, contorno, sombra, fonte e traço (o texto fica)",
+    hint: "cores, preenchimento, escurecimento, contorno, sombra, fonte e traço (o texto fica)",
   },
   {
     id: "background",
@@ -64,6 +64,7 @@ export const ANNOTATION_STYLE_KEYS = [
   "color",
   "fill",
   "fillOpacity",
+  "dim",
   "outline",
   "shadow",
   "fontFamily",

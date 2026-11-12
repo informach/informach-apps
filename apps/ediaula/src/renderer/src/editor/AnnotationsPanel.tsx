@@ -1,25 +1,36 @@
-import { ANNOTATION_PRESETS, type Annotation, type AnnotationKind } from "@shared/annotation";
-import { inPalette, textOn } from "@shared/palettes";
+import { ANNOTATION_PRESETS, type Annotation, type AnnotationKind, KIT } from "@shared/annotation";
+import { inPalette, type Palette, readableOn, textOn } from "@shared/palettes";
 import {
   ArrowUpRight,
   Circle,
+  CircleCheck,
   CircleDashed,
+  CircleHelp,
   Clapperboard,
   Flag,
   Hash,
   IdCard,
   Image,
   Laugh,
+  ListOrdered,
   type LucideIcon,
+  Megaphone,
   MessageCircle,
+  MessageSquareText,
   Minus,
+  MousePointerClick,
+  MoveRight,
+  Pointer,
   RectangleHorizontal,
+  Scan,
   Spline,
   Square,
   StickyNote,
   Tag,
+  Ticket,
   Triangle,
   Type,
+  Zap,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { ANNOTATION_MIME, addAnnotation, addCard, addImageOverlay } from "@/lib/annotations";
@@ -103,6 +114,134 @@ const SHAPES: ShapeTile[] = [
     spec: { shape: "ellipse", boxWidth: 260, boxHeight: 260 },
   },
 ];
+
+/**
+ * The lesson kit's pieces: boxes whose color says their role, list items, the yellow frame, the
+ * pill and the heavy arrow, in the roles of the lesson's palette.
+ */
+export function kitTiles(p: Palette): ShapeTile[] {
+  const r = p.roles;
+  const flat = { outline: { color: "#FFFFFF", width: 0 }, shadow: null } as const;
+  return [
+    {
+      id: "kit-callout",
+      label: "Caixa numerada",
+      hint: "Balão do kit: número e ponteiro que se arrasta",
+      icon: MessageSquareText,
+      kind: "balloon",
+      spec: {
+        look: "kit",
+        textRole: "heading",
+        color: r.ink,
+        fill: r.light,
+        text: "Esse é o personagem",
+        badge: "1",
+        tail: "bottom-left",
+        fontSize: KIT.boxText,
+      },
+    },
+    {
+      id: "kit-action",
+      label: "Ação",
+      hint: "Branca: o que a criança faz, um termo",
+      icon: MousePointerClick,
+      kind: "box",
+      spec: { color: r.light, text: "Ação", pointer: "none", badge: "" },
+    },
+    {
+      id: "kit-reaction",
+      label: "Reação",
+      hint: "Verde: o que o jogo responde",
+      icon: Zap,
+      kind: "box",
+      spec: {
+        color: r.success,
+        textColor: readableOn(r.accent, r.success, p),
+        text: "Reação",
+        pointer: "none",
+        badge: "",
+      },
+    },
+    {
+      id: "kit-instruction",
+      label: "Instrução",
+      hint: "Amarela: o que fazer agora",
+      icon: Pointer,
+      kind: "box",
+      spec: { color: r.accent, text: "Pegue a chave", pointer: "none", badge: "" },
+    },
+    {
+      id: "kit-notice",
+      label: "Aviso",
+      hint: "Escura: aviso forte, próxima aula",
+      icon: Megaphone,
+      kind: "box",
+      spec: { color: r.dark, text: "Próxima", pointer: "none", badge: "" },
+    },
+    {
+      id: "kit-item",
+      label: "Item da lista",
+      hint: "Cartão com número: metas, passos",
+      icon: ListOrdered,
+      kind: "item",
+      spec: { color: r.primary, fill: r.light },
+    },
+    {
+      id: "kit-option",
+      label: "Alternativa",
+      hint: "A, B, C… de uma pergunta",
+      icon: CircleHelp,
+      kind: "item",
+      spec: {
+        color: r.accent,
+        fill: r.light,
+        marker: "square",
+        badge: "A",
+        text: "Nada acontece.",
+        fontSize: 45,
+        outline: { color: r.accent, width: 4.5 },
+      },
+    },
+    {
+      id: "kit-done",
+      label: "Aprendido",
+      hint: "Certo verde e a frase, sem cartão",
+      icon: CircleCheck,
+      kind: "item",
+      spec: {
+        color: r.success,
+        marker: "check",
+        bare: true,
+        badge: "",
+        text: "Toda ação tem uma reação.",
+      },
+    },
+    {
+      id: "kit-pill",
+      label: "Selo",
+      hint: "“Pause o vídeo”, módulo, tempo",
+      icon: Ticket,
+      kind: "label",
+      spec: { color: r.dark, text: "PAUSE O VÍDEO", icon: "pause", ...flat },
+    },
+    {
+      id: "kit-frame",
+      label: "Moldura",
+      hint: "Destaque amarelo no lugar da seta",
+      icon: Scan,
+      kind: "highlight",
+      spec: { color: r.accent, boxWidth: 520, boxHeight: 130, shadow: null },
+    },
+    {
+      id: "kit-arrow",
+      label: "Seta grossa",
+      hint: "Liga uma caixa à outra",
+      icon: MoveRight,
+      kind: "arrow",
+      spec: { color: r.ink, angle: 0, length: 144, thickness: 54, headSize: 114, ...flat },
+    },
+  ];
+}
 
 /** Annotation gallery: each tile drops an annotation at the playhead, above the lesson. */
 export function AnnotationsPanel(): ReactNode {
@@ -205,6 +344,21 @@ export function AnnotationsPanel(): ReactNode {
             tint(inPalette(p.spec, palette).color),
             () => void run(p.kind, () => addAnnotation(p.kind)),
             { kind: p.kind },
+          ),
+        )}
+      </div>
+
+      <h3 className="ann-group">Caixas e listas</h3>
+      <div className="ann-grid">
+        {kitTiles(palette).map((s) =>
+          tile(
+            s.id,
+            s.icon,
+            s.label,
+            s.hint,
+            tint(s.spec.color ?? palette.roles.accent),
+            () => void run(s.id, () => addAnnotation(s.kind, s.spec)),
+            { kind: s.kind, spec: s.spec },
           ),
         )}
       </div>

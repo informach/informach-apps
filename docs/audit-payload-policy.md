@@ -51,7 +51,7 @@ Eventos de billing devem registrar o ator quando a ação veio de usuário auten
 ## Observabilidade
 
 - Sentry/APM deve receber `payloadKeys`, `eventType`, `actorId` e erro sanitizado, não o payload completo.
-- Falha de persistência do audit permanece best-effort e deve ser reportada via `observability.onAuditPersistenceFailure`. A exceção é opcional e explícita: `logAuditEventStrict` (em `@informach/auth`) reporta do mesmo jeito e lança `AuditPersistenceError`, para quem não pode mostrar o dado nem concluir a ação sem o rastro. Hoje só o Bastidores usa.
+- Falha de persistência do audit permanece best-effort e deve ser reportada via `observability.onAuditPersistenceFailure`. A exceção é opcional e explícita: `logAuditEventStrict` (em `@informach/auth`) reporta do mesmo jeito e lança `AuditPersistenceError`, para quem não pode mostrar o dado nem concluir a ação sem o rastro. Hoje usam o Bastidores e os scripts de concessão do Recreio.
 - Novo evento exige atualizar a union `AuditEventType`, a union do package emissor quando existir, docs e testes de wiring.
 
 ## Eventos do Missão Saber
@@ -90,6 +90,38 @@ Eventos `estrela.*` registram o que os adultos fizeram na família do app `dia-d
 - `estrela.voice_saved` (`{ taskId, via }`) e `estrela.goal_photo_saved` (`{ childId, via }`): o arquivo nunca entra no evento.
 
 Finalidade: investigar mudanças na conta da família e atender suporte. O Bastidores mostra a frase do evento e os nomes dos campos, nunca os valores.
+
+## Eventos do Recreio
+
+Eventos `recreio.*` registram o que aconteceu com os perfis, com o direito de jogar, com as sessões de jogo e com os mundos no app `recreio`, com payload mínimo de IDs, nomes de campo, classificadores e contagens. O perfil é o que os jogos conhecem de uma pessoa: nunca gravar apelido, avatar, e-mail, IP, nome de aparelho, ingresso, token de sessão, chave, segredo de instância, nome de mundo, código de convite (nem o resumo dele), o texto de participação que o jogo guarda no convite, o resumo do mundo publicado pelo jogo ou qualquer texto livre.
+
+- `recreio.profile_created`: `{ profileId, kind }`, com `kind` igual a `adult` ou `minor`. O ator é a conta que criou o perfil.
+- `recreio.profile_updated`: `{ profileId, fields }`, onde `fields` lista só os nomes dos campos alterados (por exemplo `nickname` e `avatar`), nunca os valores. Ainda não há emissor: entra com a edição do perfil, e a lista de campos é registrada aqui junto com ele.
+- `recreio.entitlement_granted`: `{ entitlementId, groupId, targetId, tier, days, reasonCode }`, com `tier` igual a `individual` ou `family`, `days` o número de dias concedidos e `targetId` a conta titular do grupo.
+- `recreio.entitlement_revoked`: `{ entitlementId, groupId, targetId, reasonCode }`.
+
+`reasonCode` é um código curto e fechado (letras minúsculas, números e `_`, até 40 caracteres, conferido pelo script e pelo banco), não uma explicação escrita: quem concede escolhe o código, e a conversa com a pessoa fica fora do evento. Todos levam também `app: "recreio"`.
+
+As concessões são gravadas pelos scripts `conceder` e `revogar` de `apps/recreio`, sem conta de equipe por trás: o ator é nulo e o evento entra pela forma estrita (`logAuditEventStrict`), na mesma transação da linha em `recreio.entitlements`. Se o evento não grava, a concessão ou a revogação também não ficam. `recreio.profile_created` segue a forma padrão dos apps, sem derrubar a criação do perfil se a auditoria falhar.
+
+Sessões de jogo (eventos pessoais: `targetId` é a conta dona da sessão de aparelho):
+
+- `recreio.game_session_started`: `{ sessionId, profileId, gameId, replacedSessionId, targetId }`. `replacedSessionId` é a sessão encerrada por "continuar aqui", ou `null`. O ator é a conta.
+- `recreio.game_session_ended`: `{ sessionId, profileId, gameId, reason, targetId }`, com `reason` igual a `left`, `replaced`, `signed_out`, `access_lost` ou `expired`. O ator é a conta quando foi ela que causou o fim (`left`, `replaced`, `signed_out`) e nulo quando foi o Recreio (`access_lost`, `expired`, ou `signed_out` detectado na renovação).
+- `recreio.ticket_rejected`: `{ profileId, gameId, reason }`, com `reason` igual a `used_or_expired`, `device_session`, `access` ou `game`. Ator nulo. Só é gravado para ingresso com assinatura válida do Recreio: token inválido ou adulterado não gera evento, para a tabela não virar alvo de quem manda lixo.
+
+Mundos, convites e posse. **Eventos de mundo não levam `targetId`**: um mundo é de várias contas, então o evento só se liga a uma pessoa pelo ator (a conta do perfil que agiu), e quem investiga um mundo filtra por `spaceId`.
+
+- `recreio.space_created`: `{ spaceId, gameId, profileId, memberId, contentPolicy }`. `contentPolicy` é o id da política de mundo do manifesto do jogo.
+- `recreio.space_invite_created`: `{ spaceId, inviteId, memberId, form }`, com `memberId` o membro que convidou e `form` igual a `member`.
+- `recreio.space_invite_accepted`: `{ spaceId, inviteId, profileId, memberId }`.
+- `recreio.space_member_joined`: `{ spaceId, memberId, profileId, role, invitedByMemberId }`. Sai junto com o aceite, na mesma transação.
+- `recreio.space_lease_taken_over`: `{ spaceId, previousLeaseId, previousFence, previousInstanceId, leaseId, fence, instanceId }`. Ator nulo. Sai quando abrir um mundo encontra a posse vencida, fecha-a e atribui outra.
+- `recreio.space_write_refused`: `{ spaceId, gameId, instanceId, fence, operation }`, com `operation` igual a `journal`, `snapshot` ou `release`. Ator nulo. Sai quando uma instância autenticada tenta escrever sem a posse (cerca velha, posse vencida ou de outra instância). Pedido com segredo errado ou para mundo de outro jogo não gera evento.
+
+Como entram: os eventos que acompanham uma gravação (`game_session_started`, `game_session_ended`, `space_*` menos `space_write_refused`) usam a forma estrita, na mesma transação da mudança: ou os dois ficam gravados, ou nenhum. As recusas (`ticket_rejected`, `space_write_refused`) não têm transação para acompanhar e seguem a forma padrão, sem derrubar a resposta se a auditoria falhar.
+
+Finalidade: saber quem recebeu o direito de jogar, por quanto tempo e por qual motivo; reconstruir quem abriu e encerrou sessões de jogo; investigar entrada em mundos e troca de instância; e atender suporte. Não são métricas de jogo: nada do que acontece dentro de um mundo passa por aqui.
 
 ## Eventos da Agenda da Turma
 

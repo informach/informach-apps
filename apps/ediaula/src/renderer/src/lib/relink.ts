@@ -7,6 +7,7 @@ import { renderAnnotation } from "./annotations";
 import { redrawDrawing } from "./drawing";
 import { ensureFilmstrips } from "./filmstrip";
 import { checkAlpha, makeProxy } from "./importMedia";
+import { refreshChanged } from "./mediaUpdates";
 import { stillPicture } from "./stills";
 import { ensureTreated } from "./voice";
 import { restoreBlankPicture } from "./zoomLayer";
@@ -59,6 +60,8 @@ export async function refreshMissing(): Promise<void> {
     if (!!current.missing !== missing || !!current.cursorMissing !== cursorMissing)
       patchAsset(a.id, { missing, cursorMissing });
   });
+  // And files exported again over the old ones (same name): the lesson takes the new version.
+  await refreshChanged();
 }
 
 export async function checkAssets(): Promise<void> {
@@ -101,6 +104,8 @@ export async function checkAssets(): Promise<void> {
   void checkAlpha();
   await redrawMissingPictures();
   ensureFilmstrips();
+  // Files exported again over the old ones while the lesson was closed (same name).
+  void refreshChanged().catch(() => undefined);
 }
 
 /** Draws a picture of the editor again (its file was deleted, or the project came from another PC). */
@@ -165,9 +170,12 @@ async function relinkTo(
   const info = await window.api.probe(path);
   const problem = relinkMismatch(asset, info);
   if (problem) return problem;
-  useProject
-    .getState()
-    .relinkAsset(asset.id, { path, size: info.size, ...cursorMove(asset, companions) });
+  useProject.getState().relinkAsset(asset.id, {
+    path,
+    size: info.size,
+    ...(info.mtime ? { mtime: info.mtime } : {}),
+    ...cursorMove(asset, companions),
+  });
   if (asset.proxyStatus === "pending") void makeProxy({ ...asset, path, missing: false });
   return null;
 }

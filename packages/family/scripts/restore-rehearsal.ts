@@ -86,11 +86,13 @@ async function prefixMigrations() {
     })
     .passthrough()
     .parse(JSON.parse(await readFile(join(migrations, "meta", "_journal.json"), "utf8")));
-  if (!journal.entries.some((entry) => entry.idx === 79))
-    throw new Error("Historical migration boundary missing");
+  // The last migration production has before the Compasso cut. Recreio's 0080
+  // reached production on 12/11/2026, ahead of the Compasso migrations.
+  const boundary = journal.entries.find((entry) => entry.tag === "0080_recreio");
+  if (!boundary) throw new Error("Historical migration boundary missing");
   const directory = join(root, "prefix");
   await mkdir(join(directory, "meta"), { recursive: true });
-  const entries = journal.entries.filter((entry) => entry.idx <= 79);
+  const entries = journal.entries.filter((entry) => entry.idx <= boundary.idx);
   await writeFile(
     join(directory, "meta", "_journal.json"),
     JSON.stringify({ ...journal, entries }),

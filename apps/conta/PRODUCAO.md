@@ -123,7 +123,7 @@ Em 11/11 o catálogo de teste foi criado com `--mode dev --apply` (produto `prod
 
 1. Conciliação por titular sem bloqueios (`titular-reconciliation.mts`), restauração do backup real aprovada (`pnpm compasso:rehearse:restore`), CI verde e plano Railway só com adições.
 2. Catálogo live criado pela titular (`stripe-provision.mts --mode prod --apply` com o webhook da Conta) e segredos gravados nos serviços novos.
-3. `railway config apply` e merge na `main`, com aprovação da titular. O migrator aplica de 0080 a 0162 de uma vez; `/api/ready` segura cada app.
+3. `railway config apply` e merge na `main`, com aprovação da titular. O migrator aplica as 83 migrations do Compasso (tags de `0080_reflective_butterfly` a `0162_military_dexter_bennett`) de uma vez, depois da `0080_recreio` que já está em produção; `/api/ready` segura cada app. Antes do merge, `pnpm --filter @informach/db test` precisa passar com a `main` integrada: se outra frente tiver levado migrations à `main`, as do Compasso vão para depois delas no journal, ou o migrator as pula sem erro.
 4. `setup:oauth` da Conta, conferência de `/api/ready` e `/api/health`, crons em `ops.job_runs`, Sentry.
 5. Entrada compartilhada, família, perfis e aparelhos nos cinco apps, ainda com `COMPASSO_BILLING_ENABLED=false`.
 6. Nova conciliação por titular, agora com o schema novo: a comparação de faturas pagas com períodos locais precisa fechar depois da primeira leitura do provedor de cada contrato.

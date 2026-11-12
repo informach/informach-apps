@@ -321,7 +321,15 @@ export async function changeDrawing(
       ...q,
       assets: q.assets.map((a) =>
         a.id === assetId
-          ? { ...a, drawing: after, path: video.path, size: video.size, thumb: undefined }
+          ? // Another file: the date of the old one (shared/mediaChange.ts) does not come along.
+            {
+              ...a,
+              drawing: after,
+              path: video.path,
+              size: video.size,
+              thumb: undefined,
+              mtime: undefined,
+            }
           : a,
       ),
       clips: q.clips.map((c) =>

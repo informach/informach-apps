@@ -18,6 +18,12 @@ export type AnnotationKind =
   | "lowerthird"
   | "panel"
   | "line"
+  /** A box with a role (action, reaction, instruction, notice): centered heavy text, an optional
+   *  number in its corner and a small pointer on one side. */
+  | "box"
+  /** A row of a list: a card with a marker (number, letter, icon or check), a line of text and
+   *  an optional line below it (objectives, steps, quiz options, what was learned). */
+  | "item"
   /** Strokes drawn on the screen during a take (shared/drawing.ts): a video, not a picture. */
   | "drawing"
   /** A white or black board put over the screen while drawing, with its strokes: a video too. */
@@ -123,6 +129,7 @@ export function balloonTail(
   length: number,
   tail: Tail,
   tip?: Point,
+  straight = false,
 ): { base: Point; b: number; tip: Point } {
   const r = bodyRadius(w, h, radius);
   const across = tail.startsWith("top") || tail.startsWith("bottom");
@@ -135,7 +142,10 @@ export function balloonTail(
       ? Math.hypot(tip.x - Math.max(x + r, Math.min(x + w - r, tip.x)), tip.y - side)
       : Math.hypot(tip.y - Math.max(y + r, Math.min(y + h - r, tip.y)), tip.x - edge)
     : length;
+  // Short, the base is the kit pointer's (36 px in 1080p); pulled far, it widens, never a needle.
   const b = tailHalfWidth(along, r, length, dist);
+  // Without a dragged tip, a straight tail points square out of its side, short like the kit's.
+  const short = length * 0.55;
   const clampAlong = (v: number, from: number, size: number): number =>
     Math.max(from + r + b, Math.min(from + size - r - b, v));
   if (across) {
@@ -144,26 +154,37 @@ export function balloonTail(
       base: { x: cx, y: side },
       b,
       // Leaning out past the base, so the tail sweeps toward its side.
-      tip: tip ?? {
-        x: cx + (tail.endsWith("left") ? -length : length),
-        y: tail.startsWith("top") ? y - length : y + h + length,
-      },
+      tip:
+        tip ??
+        (straight
+          ? { x: cx, y: tail.startsWith("top") ? y - short : y + h + short }
+          : {
+              x: cx + (tail.endsWith("left") ? -length : length),
+              y: tail.startsWith("top") ? y - length : y + h + length,
+            }),
     };
   }
   const cy = clampAlong(tip ? tip.y : y + h / 2, y, h);
   return {
     base: { x: edge, y: cy },
     b,
-    tip: tip ?? { x: tail === "left" ? x - length : x + w + length, y: cy },
+    tip: tip ?? {
+      x: tail === "left" ? x - (straight ? short : length) : x + w + (straight ? short : length),
+      y: cy,
+    },
   };
 }
+
+/** A straight tail: two lines from the base corners to the tip. */
+const tailLines = (A: Point, B: Point, T: Point): string =>
+  `L ${A.x} ${A.y} L ${T.x} ${T.y} L ${B.x} ${B.y}`;
 
 /**
  * The tail between its base corners A and B (in the outline's order) and its tip T: each edge
  * leaves the body square and sweeps to the tip, narrowing as it goes, so the tail bends toward
  * where it points like a comic or Camtasia callout, and ends sharp.
  */
-function tailCurve(A: Point, B: Point, T: Point, out: Point): string {
+function comicTail(A: Point, B: Point, T: Point, out: Point): string {
   const M = { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2 };
   const depth = Math.max(1, (T.x - M.x) * out.x + (T.y - M.y) * out.y);
   const control = (P: Point): Point => {
@@ -191,9 +212,12 @@ export function balloonPath(
   length: number,
   tail: Tail,
   tip?: Point,
+  straight = false,
 ): string {
   const r = bodyRadius(w, h, radius);
-  const t = tail === "none" ? null : balloonTail(x, y, w, h, radius, length, tail, tip);
+  const t = tail === "none" ? null : balloonTail(x, y, w, h, radius, length, tail, tip, straight);
+  const tailCurve = (A: Point, B: Point, T: Point, out: Point): string =>
+    straight ? tailLines(A, B, T) : comicTail(A, B, T, out);
   const parts = [`M ${x + r} ${y}`];
   if (t && tail.startsWith("top"))
     parts.push(
@@ -252,7 +276,7 @@ export interface Annotation {
   direction?: string;
   /** Opening/closing card layout; titles: how the lines line up. */
   layout?: "left" | "center";
-  /** Typeface of the text (default: Plus Jakarta Sans). */
+  /** Typeface of the text (default: DEFAULT_FONT of shared/fonts.ts, Baloo 2). */
   fontFamily?: string;
   /** Outline around the shape or the letters; absent = the kind's usual look, width 0 = none. */
   outline?: Outline;
@@ -268,12 +292,83 @@ export interface Annotation {
   shape?: "rounded" | "rect" | "ellipse" | "triangle";
   fill?: string;
   fillOpacity?: number;
+  /**
+   * Highlight: darkens what is drawn below it, outside its box, at this opacity (0..1; absent or 0
+   * = not darkened). See shared/dim.ts.
+   */
+  dim?: number;
   /** Palette colors: text on light backgrounds (default #12140A) and the card's accent (default lime). */
   ink?: string;
   accent?: string;
   /** Comes in word by word (with the words' times when they are said) or drawn like a stroke. */
   reveal?: "words" | "draw";
+  /** Box and balloon in the kit's look: a number in its corner; item: the number or letter of its
+   *  marker (at most 3 characters). */
+  badge?: string;
+  /**
+   * Balloon: "comic" (the usual: an outline in its color and a curved tail) or "kit" (the kit's
+   * box: no outline, heavy centered text, corners of 30 px and a short straight tail).
+   */
+  look?: "comic" | "kit";
+  /** Box: a small pointer on one side, at `pointerAt` along it (0..1, absent = the middle). */
+  pointer?: Pointer;
+  pointerAt?: number;
+  /** Box and item: color of the main text (absent: the palette's ink or white, by the background). */
+  textColor?: string;
+  /** Label and item: a small drawing beside the text (item: inside its marker). */
+  icon?: AnnotationIcon;
+  /** Item: its marker: a circle, a rounded square (quiz letters), a check, or none. */
+  marker?: ItemMarker;
+  /** Item: no card behind it, only the marker and the text (a check list over the background). */
+  bare?: boolean;
+  /** Item: typeface of the line below (absent: the title's). */
+  bodyFont?: string;
+  /** Which of the theme's fonts the text takes (absent: the kind's own, see palettes.ts). */
+  textRole?: "heading" | "body";
 }
+
+export type Pointer = "none" | "up" | "down" | "left" | "right";
+export type ItemMarker = "circle" | "square" | "check" | "none";
+
+/** Small drawings of labels and items (lucide icons, drawn into the picture). */
+export const ANNOTATION_ICONS = {
+  pause: "Pausa",
+  play: "Play",
+  check: "Certo",
+  sparkles: "Brilho",
+  star: "Estrela",
+  flag: "Bandeira",
+  gamepad: "Controle",
+  key: "Chave",
+  clock: "Relógio",
+  flame: "Foguinho",
+  compass: "Bússola",
+  lightbulb: "Ideia",
+  target: "Alvo",
+  rocket: "Foguete",
+  trophy: "Troféu",
+  help: "Dúvida",
+  code: "Código",
+  pencil: "Lápis",
+} as const;
+export type AnnotationIcon = keyof typeof ANNOTATION_ICONS;
+export const ICON_IDS = Object.keys(ANNOTATION_ICONS) as AnnotationIcon[];
+
+/**
+ * Sizes of the boxes and list items, in 1080p pixels (the lesson slide kit, drawn at 1280×720,
+ * times 1.5): heavy text 45 px in boxes, 48 px in items, corners of 30 px.
+ */
+export const KIT = {
+  boxText: 45,
+  itemText: 48,
+  itemSub: 36,
+  itemKicker: 30,
+  itemWidth: 1140,
+  radius: 30,
+  marker: 96,
+  badge: 54,
+  pointer: { base: 36, height: 21 },
+} as const;
 
 export interface Outline {
   color: string;
@@ -300,12 +395,14 @@ const isLightHex = (hex: string): boolean => {
 };
 
 /** The usual outline of each kind (what absent `outline` means). */
-export function defaultOutline(a: Pick<Annotation, "kind" | "color" | "ink">): Outline {
+export function defaultOutline(
+  a: Pick<Annotation, "kind" | "color" | "ink"> & Pick<Annotation, "look">,
+): Outline {
   switch (a.kind) {
     case "arrow":
       return { color: "#FFFFFF", width: 4 };
     case "balloon":
-      return { color: a.color, width: 3 };
+      return { color: a.color, width: a.look === "kit" ? 0 : 3 };
     case "title":
       return { color: isLightHex(a.color) ? (a.ink ?? "#12140A") : "#FFFFFF", width: 5 };
     case "highlight":
@@ -339,22 +436,52 @@ export interface TextBoxLayout {
 }
 
 export function textBoxLayout(
-  a: Pick<Annotation, "kind" | "fontSize" | "width" | "layout" | "fill" | "color" | "ink">,
+  a: Pick<
+    Annotation,
+    | "kind"
+    | "fontSize"
+    | "width"
+    | "layout"
+    | "fill"
+    | "color"
+    | "ink"
+    | "textColor"
+    | "boxWidth"
+    | "look"
+  >,
 ): TextBoxLayout {
-  const fontSize = a.fontSize ?? ANNOTATION_TEXT;
+  // The kit's box, and a balloon in the kit's look (the same box with a tail that can be moved).
+  const box = kitBox(a);
+  const fontSize = a.fontSize ?? (box ? KIT.boxText : ANNOTATION_TEXT);
   const label = a.kind === "label";
   const fill = a.kind === "balloon" ? (a.fill ?? "#FFFFFF") : a.color;
+  const padX = label ? 20 : box ? 42 : 26;
   return {
     fontSize,
-    lineHeight: fontSize * 1.3,
-    padX: label ? 20 : 26,
-    padY: label ? 12 : 20,
-    maxWidth: a.width ?? 420,
+    lineHeight: fontSize * (box ? 1.12 : 1.3),
+    padX,
+    padY: label ? 12 : box ? 24 : 20,
+    // A box of a set width wraps inside it.
+    maxWidth:
+      a.kind === "box" && a.boxWidth
+        ? Math.max(40, a.boxWidth - padX * 2)
+        : (a.width ?? (box ? 450 : 420)),
     wraps: !label,
-    align: a.kind === "balloon" && a.layout !== "left" ? "center" : "left",
+    align: (a.kind === "balloon" || box) && a.layout !== "left" ? "center" : "left",
     fill,
-    textColor: isLightHex(fill) ? (a.ink ?? "#12140A") : "#FFFFFF",
+    textColor: a.textColor ?? (isLightHex(fill) ? (a.ink ?? "#12140A") : "#FFFFFF"),
   };
+}
+
+/** Drawn like the kit's box: a box, or a balloon in the kit's look. */
+export const kitBox = (a: Pick<Annotation, "kind" | "look">): boolean =>
+  a.kind === "box" || (a.kind === "balloon" && a.look === "kit");
+
+/** A balloon's corners and tail: the comic's, or the kit's (round corners, short straight tail). */
+export function balloonLook(a: Pick<Annotation, "look">): { radius: number; straight: boolean } {
+  return a.look === "kit"
+    ? { radius: KIT.radius, straight: true }
+    : { radius: 16, straight: false };
 }
 
 export const PALETTE = [
@@ -458,6 +585,36 @@ export const ANNOTATION_PRESETS: AnnotationPreset[] = [
     spec: { kind: "step", color: "#C8F031", text: "1" },
     duration: 3,
     enter: "pop",
+    exit: "fade",
+  },
+  {
+    kind: "box",
+    label: "Caixa",
+    spec: {
+      kind: "box",
+      color: "#FFFFFF",
+      text: "Esse é o personagem",
+      badge: "1",
+      pointer: "down",
+      width: 380,
+    },
+    duration: 4,
+    enter: "pop",
+    exit: "fade",
+  },
+  {
+    kind: "item",
+    label: "Item",
+    spec: {
+      kind: "item",
+      color: "#3D6BFF",
+      fill: "#FFFFFF",
+      text: "Mover o personagem com as setas",
+      badge: "1",
+      marker: "circle",
+    },
+    duration: 5,
+    enter: "slide-up",
     exit: "fade",
   },
   {

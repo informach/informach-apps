@@ -55,6 +55,15 @@ export const APPS = {
     published: false,
     privacyPath: "/ajustes",
   },
+  recreio: {
+    slug: "recreio",
+    name: "Recreio",
+    domain: "recreio.informach.com.br",
+    localPort: 3009,
+    // Coleção própria de jogos, fora do Compasso (decisão de 09/11/2026).
+    collection: "recreio",
+    published: false,
+  },
   agendaDaTurma: {
     slug: "agenda-da-turma",
     name: "Agenda da Turma",

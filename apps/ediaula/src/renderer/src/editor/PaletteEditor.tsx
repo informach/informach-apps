@@ -1,3 +1,4 @@
+import { DEFAULT_FONT } from "@shared/fonts";
 import {
   type Palette,
   type PaletteColor,
@@ -406,8 +407,8 @@ export function PaletteDialog({ onClose }: { onClose: () => void }): ReactNode {
               <h3 className="palette-h">Fontes</h3>
               {readOnly ? (
                 <p className="props-hint muted">
-                  Títulos: {palette.fonts?.heading ?? "padrão (Plus Jakarta Sans)"} · Texto:{" "}
-                  {palette.fonts?.body ?? "padrão (Plus Jakarta Sans)"}
+                  Títulos: {palette.fonts?.heading ?? `padrão (${DEFAULT_FONT})`} · Texto:{" "}
+                  {palette.fonts?.body ?? `padrão (${DEFAULT_FONT})`}
                 </p>
               ) : (
                 <>

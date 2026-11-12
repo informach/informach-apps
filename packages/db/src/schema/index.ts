@@ -15,3 +15,4 @@ export * from "./family";
 export * from "./missao-saber";
 export * from "./oauth";
 export * from "./ops";
+export * from "./recreio";

@@ -165,6 +165,16 @@ apaga tudo isso. O EdiAula não tem um jeito de apagar uma aula; quem apaga o ar
 conversa** antes, se quiser tirar a conversa também. Quando a versão do Codex manda a resposta enquanto escreve, o
 texto aparece aos poucos; senão, aparece inteiro no fim, como antes.
 
+**Imagens de referência no Assistente (11/11/2026).** Como no EdiSVG, uma mensagem leva até 4 imagens: o ícone de
+imagem ao lado de enviar, Ctrl+V na caixa de mensagem ou arrastar para o painel (a imagem solta no painel não entra na
+aula como mídia). PNG, JPEG, GIF e WebP; um lado maior que 1568 px é reduzido, e acima de 3,5 MB vira JPEG. As
+miniaturas aparecem antes do envio, com × para tirar, e na mensagem enviada. Dá para mandar só a imagem: o pedido
+padrão é "Use a imagem anexada como referência.". A leitura das imagens é a mesma do EdiSVG
+(`@informach/edi-desktop/ai-attachments`); o processo principal confere de novo (`src/main/turnImages.ts`) e entrega
+ao Claude Code e ao Codex pelo `TurnRequest.images` do pacote, e na chave da API como blocos de imagem antes do texto.
+Só as imagens da própria mensagem vão: a sessão do Claude Code e do Codex, e o histórico da chave da API, guardam as
+anteriores. A conversa guardada da aula fica só com o texto; as miniaturas somem ao fechar.
+
 **Modelos (chave da API):** Claude Opus 5.5 (padrão e recomendado), Claude Sonnet 5.5 e Claude Haiku 5.5 (econômico).
 Quem tinha escolhido o Claude Opus 5 continua nele, com um aviso de que o Opus 5.5 é mais novo e mais barato; o
 Claude Haiku 4.5 passa sozinho para o Haiku 5.5. Cada pedido vai com raciocínio adaptativo e com o **esforço**
@@ -1320,8 +1330,8 @@ continua funcionando sozinho; o contrato entre eles está em `packages/edi-link`
 
 ## Etapa 3: templates, barra de ferramentas completa e áudio
 
-- **Templates** (barra lateral › Templates): abertura animada, começo de seção, pergunta com alternativas,
-  desafio, recapitulando e encerramento animado. Campos preenchidos do curso e do roteiro, miniatura ao vivo.
+- **Templates** (barra lateral › Templates): os slides do kit da aula (veja "Kit de slides da aula" abaixo).
+  Campos preenchidos do curso e do roteiro, miniatura ao vivo.
   Cada camada vira uma anotação comum (fundo, selo, título, itens) que entra uma depois da outra, então a
   prévia e a exportação são iguais e tudo continua editável (`shared/templates.ts`, `lib/templates.ts`).
   Abertura e encerramento ocupam a tela toda e empurram a aula. Não usamos Remotion: ele exigiria um Chromium
@@ -1335,6 +1345,49 @@ continua funcionando sozinho; o contrato entre eles está em `packages/edi-link`
 - **Legendas** (barra lateral): os ajustes da legenda no vídeo.
 - IA: `add_template`, `set_audio`.
 
+## Kit de slides da aula: caixas, listas e templates (modelo "Aulas Zero Kids — Layout didático")
+
+As anotações e os templates seguem o kit de slides das aulas em vídeo: fundo claro, conteúdo à esquerda
+(no máximo 1170 px de largura em 1080p), a apresentadora sempre à direita e caixas cuja cor diz o papel.
+Os tamanhos vêm do kit desenhado em 1280×720, vezes 1,5 (`KIT` em `shared/annotation.ts`). Com a paleta
+**Sistema Zero** e "Usar as fontes do tema" ligado, sai igual ao kit (Baloo 2 nos títulos e caixas,
+Nunito no texto); em outra paleta, as mesmas formas nas cores dos papéis dela.
+
+- **Balão no estilo Caixa** (Propriedades do balão › Estilo: Quadrinho ou **Caixa**): o balão de sempre, com o
+  apontador que se arrasta na prévia, desenhado como a caixa do kit: sem contorno, texto grosso e centralizado,
+  cantos de 30 px, apontador reto e curto (base de 36 px, que alarga um pouco quando é puxado para longe) e
+  número opcional no canto. A **Caixa numerada** da galeria é este balão.
+- **Caixa** (`box`): texto grosso e centralizado, cantos de 30 px. Na galeria (Anotações › Caixas e listas):
+  **Ação** (branca), **Reação** (verde do sucesso com o texto
+  no amarelo do destaque, ou na tinta legível quando o amarelo não lê sobre o verde), **Instrução** (amarela)
+  e **Aviso** (escura). Propriedades: cor do texto, número no canto, ponteiro (↑ ↓ ← →) e a posição dele no
+  lado, alinhamento, largura.
+- **Item** (`item`): uma linha de lista num cartão. Marcador em círculo (número), quadrado (letra de
+  alternativa), certo (aprendido) ou nenhum; um ícone no marcador leva o número para o fim do cartão, apagado.
+  Linha de cima (ex.: "Próxima aula"), texto e linha de baixo (na fonte de texto do tema, `bodyFont`);
+  "Sem cartão" deixa só o marcador e o texto. Na galeria: **Item da lista**, **Alternativa**, **Aprendido**.
+- **Selo**: o rótulo ganhou **ícone** (pausa, play, certo, brilho, estrela, bandeira, controle, chave, relógio,
+  foguinho, bússola, ideia, alvo, foguete, troféu, dúvida, código, lápis; desenhos do lucide, feitos em SVG
+  no tamanho certo, `lib/annotationIcons.ts`). **Moldura** é o destaque amarelo sem brilho ("destaque amarelo
+  no lugar da seta vermelha") e **Seta grossa** liga uma caixa à outra.
+- **Templates** refeitos sobre os slides do kit: **Capa** (fundo azul, selo de módulo e aula, título grande),
+  **Objetivo** ("Hoje você vai…", até 4 metas com ícone), **Conceito** (duas caixas e a seta: Ação → Reação,
+  com exemplo), **Começo de seção**, **Pause e pense** (selo "Pause o vídeo", pergunta, alternativas A, B, C),
+  **Agora é com você** (tempo num selo ao lado do título, passos com detalhe depois de ":"), **O que
+  aprendemos** (certos verdes e o cartão da próxima aula) e **Encerramento**. As camadas são colocadas pela
+  borda do que desenham, descendo com o espaço do kit entre elas (`placeLayers` em `shared/templates.ts`).
+  O fundo claro e o texto suave vêm da paleta (`page` e `muted`, Sistema Zero: #E9EEF6 e #46536E) ou são
+  feitos dos papéis em paletas sem eles (`slideColors`).
+- **A apresentadora fica na frente do slide**: as camadas de um template vão logo abaixo da faixa do vídeo
+  recortado (chroma key ou transparência) que toca naquele trecho, e acima do resto (`slideTrack` em
+  `lib/templates.ts`); sem apresentadora no trecho, vão por cima da aula, como antes.
+- Aulas feitas antes reconhecem a abertura e o encerramento pelos nomes antigos ("Abertura animada",
+  "Encerramento animado"), então o modelo do curso não os insere de novo.
+- Todo texto do kit tem pelo menos os 36 px da verificação antes de exportar (a linha de baixo do item é o
+  menor, 36 px).
+- IA: `add_annotation` aceita `box` e `item` com `badge`, `pointer`, `text_color`, `icon`, `marker` e `bare`;
+  `add_template` ganhou `objective` e `concept`.
+
 ## Estilo: sombra projetada, contornos, setas, formas e fontes
 
 - **Sombra projetada** em qualquer clipe (Propriedades › Sombra projetada): nenhuma, suave, forte, longa ou
@@ -1343,6 +1396,16 @@ continua funcionando sozinho; o contrato entre eles está em `packages/edi-link`
   borrada da forma, desenhada uma vez (`shared/export/fx.ts`), ou do alfa a cada quadro no avatar recortado e
   nas imagens transparentes, com o mesmo desfoque. Nas anotações ela é
   desenhada na própria imagem.
+- **Máscara** de vídeos e imagens (Propriedades › Posição e tamanho › Máscara): Retângulo, Arredondado
+  (com o tamanho dos **cantos**), Círculo e **Oval** (a elipse que preenche a máscara), mais a **borda
+  suave** para dentro. **Ajustar a máscara na prévia** mostra o contorno da imagem inteira e a máscara com
+  8 alças: arrastar dentro move a máscara sem mexer no vídeo, os lados e os cantos mudam o tamanho, Shift
+  mantém a proporção (o círculo sempre mantém), Enter ou Esc termina; um Ctrl+Z por gesto. A máscara é o corte
+  do clipe (`crop`), então "Cortar bordas" continua mexendo nela. A prévia e a exportação usam a mesma conta
+  (`shapeAlpha` em `shared/compose.ts` e as expressões de `shared/export/fx.ts`), conferida pixel a pixel
+  contra o FFmpeg nos testes (`tests/mask.test.ts`). A sombra de um clipe com forma (e do avatar recortado)
+  não deixa mais um retângulo escuro fraco em volta na exportação: o `pad` do FFmpeg preenchia a
+  transparência com 16, e agora preenche com 0.
 - **Contorno** de anotações: Sem contorno · Sólido · Tracejado · Pontilhado, com cor e espessura. O sólido fica
   por fora da forma; traços e pontos ficam sobre a borda.
 - **Formas** (galeria de Anotações › Formas): retângulo, círculo e triângulo cheios, linha, curva e círculo vazado,
@@ -1351,9 +1414,25 @@ continua funcionando sozinho; o contrato entre eles está em `packages/edi-link`
 - **Setas**: cheia, linha ou tracejada, uma ou duas pontas, curva, espessura e tamanho da ponta.
 - **Formas**: destaque arredondado, reto ou em elipse, com preenchimento opcional; blocos novos "Círculo" e
   "Caixa".
+- **Largura e altura na prévia** (Destaque e formas): com a forma selecionada, as alças nas bordas e nos
+  cantos da própria forma mudam a largura e a altura, sem esticar o contorno nem os cantos (o tamanho é o de
+  Forma › Largura/Altura). O lado oposto fica no lugar; **Alt** aumenta a partir do centro, **Shift** num canto
+  mantém a proporção, **Esc** cancela. Enquanto arrasta, a forma aparece já desenhada no tamanho novo e o tamanho
+  aparece embaixo; soltar é um passo de desfazer (`editor/ShapeSizeControl.tsx`, contas em
+  `shared/shapeResize.ts`). Nessas formas o quadro de seleção só move; os cantos que mudavam a escala saíram
+  delas.
+- **Escurecer o resto** (Destaque › Forma): escurece em volta da caixa do destaque, com a opacidade escolhida
+  (10% a 95%, começa em 60%). Só as faixas abaixo da do destaque escurecem; o que está acima fica como está. O
+  recorte tem a forma do destaque (arredondada, reta, elipse ou triângulo), gira e espelha com ele, e o
+  escurecimento entra e sai junto com a caixa. Ele fica onde o destaque está parado: um movimento por
+  quadros-chave não leva o recorte junto. A prévia e a exportação usam a mesma conta (`shared/dim.ts`; na
+  exportação, uma imagem da tela inteira feita uma vez pelo FFmpeg, `export/fx.ts`).
 - **Fontes**: 12 famílias livres (OFL) empacotadas em `resources/fonts` (baixadas por
   `node scripts/fetch-fonts.mjs`), mais todas as instaladas no Windows. Valem para anotações, templates e
-  legenda gravada (o libass usa os mesmos arquivos TTF).
+  legenda gravada (o libass usa os mesmos arquivos TTF). A **fonte padrão** das anotações e dos templates, usada
+  quando nenhuma foi escolhida, é a **Baloo 2** desde 11/11/2026 (antes era a Plus Jakarta Sans, a fonte do
+  próprio app); `DEFAULT_FONT` em `src/shared/fonts.ts`. Anotações sem fonte própria de aulas antigas passam a
+  sair em Baloo 2. A legenda gravada continua com a fonte dela (Segoe UI), escolhida em Legendas.
 - IA: `set_style`; `add_annotation` aceita fonte, contorno, sombra, estilo da seta e forma; `set_captions` aceita fonte.
 
 ## Paletas de cores
@@ -1423,6 +1502,15 @@ continua funcionando sozinho; o contrato entre eles está em `packages/edi-link`
   aula), a roda ou o botão do meio movem a prévia aproximada e o número da porcentagem volta a ajustar. O
   escudo mostra as **áreas seguras**: a margem de 5% que todo player mostra, a faixa da legenda e, numa
   aula horizontal, o lado onde o apresentador costuma ficar.
+- **Réguas e guias** (botão da régua, ao lado do escudo): réguas no alto e à esquerda da prévia, em pixels
+  da aula a partir do canto do quadro, desenhadas como as réguas do EdiSVG, que acompanham o zoom e o movimento da prévia. Arrastar da régua de cima
+  cria uma guia horizontal, e da esquerda uma vertical; enquanto é arrastada, a guia mostra a posição
+  ("y = 540 px") e encaixa nas bordas e no centro da tela e dos clipes visíveis (Alt solta). A guia se arrasta
+  para mudar de lugar e some se for solta fora do quadro (de volta na régua); o quadradinho no canto das
+  réguas tira todas. Com as réguas à vista, os clipes arrastados na prévia encaixam também nas guias. As guias
+  ficam salvas na aula (`Project.guides`, em frações do quadro, então mudar o formato da aula não as perde),
+  cada gesto é um Ctrl+Z, e elas não aparecem em tela cheia nem na exportação (`editor/Rulers.tsx`,
+  `shared/rulerGuides.ts`).
 - **Posição e tamanho com números:** tamanho, horizontal e vertical (em pixels da aula), opacidade, corte das
   bordas e **Girar** (graus) aceitam valor digitado ao lado do controle; enquanto o controle está seguro, a
   prévia já mostra a mudança, e soltar grava um único Ctrl+Z. **Espelhar na horizontal** e **na vertical**
@@ -1963,6 +2051,18 @@ EdiAula e um verbo que a página não conhece, e uma página sem a ponte. Não m
   vídeo do apresentador e as propostas pendentes seguem o mesmo alinhamento; o cursor gravado não
   acompanha um arquivo com outro tempo e sai, com aviso. Ctrl+Z traz a mídia antiga de volta com os
   clipes.
+- **Arquivo atualizado com o mesmo nome** (11/11/2026): exportar de novo por cima do arquivo (mesmo nome,
+  conteúdo novo) atualiza a mídia sozinho, quando a aula abre, quando a janela volta ao foco e ao abrir
+  Exportar. O editor compara o tamanho e a data do arquivo com os guardados no projeto (`Asset.mtime`,
+  `src/shared/mediaChange.ts`, `src/renderer/src/lib/mediaUpdates.ts`). Escolher o mesmo arquivo em
+  **Substituir mídia** faz a mesma coisa na hora. A mídia mantém o nome e o id, e os clipes as edições,
+  qualquer que seja a duração nova: com transcrição, a versão nova é transcrita e os clipes seguem as
+  falas; sem ela (ou se as falas não baterem), os clipes ficam nos mesmos tempos do arquivo, e o que
+  passar do novo fim é cortado. Não é uma edição: a troca vale para todo o histórico, então o Ctrl+Z não
+  traz de volta a duração do arquivo antigo. A prévia carrega o arquivo de novo (o endereço `media://`
+  ganha uma versão), e o proxy, as miniaturas e a forma de onda são refeitos, porque os caches do processo
+  principal já mudam com o tamanho e a data. Mídias trazidas antes guardam a data na primeira olhada.
+  Imagens feitas pelo editor e animações vinculadas ao EdiSVG ficam de fora (essas têm o vínculo próprio).
 - **Desfoque, pixelado e holofote de região** (painel Zoom › Esconder ou destacar uma região): um clipe
   sem imagem, como a camada de zoom, que vale para tudo o que está nas faixas abaixo dele enquanto dura.
   Com ele selecionado, o retângulo aparece na prévia para mover e redimensionar; força e borda suave

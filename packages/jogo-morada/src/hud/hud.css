@@ -1,0 +1,1124 @@
+/*
+ * HUD do Morada. CSS puro, tudo debaixo de `.morada`, para não depender do
+ * tema nem do Tailwind de quem hospeda o jogo.
+ *
+ * A casa é a estrela: o HUD é uma moldura de vidro escuro, da noite do
+ * Recreio, em volta dela. As cores têm nome de coisa de casa. O lampião é a
+ * única cor de ação e marca o que é seu; a telha é de outra pessoa e de
+ * recusa; o jardim é o que está livre.
+ */
+
+.morada {
+  --mo-noite: #0f1226;
+  --mo-vidro: rgba(17, 21, 46, 0.84);
+  --mo-vidro-alto: rgba(30, 36, 74, 0.94);
+  --mo-vidro-fundo: rgba(8, 10, 26, 0.55);
+  --mo-fio: rgba(163, 169, 204, 0.2);
+  --mo-fio-forte: rgba(163, 169, 204, 0.42);
+  --mo-tinta: #eef0ff;
+  --mo-tinta-2: #c9cde8;
+  --mo-tinta-3: #a3a9cc;
+  --mo-tinta-4: #7f86b0;
+  --mo-lampiao: #ffc233;
+  --mo-lampiao-tinta: #2a1c00;
+  --mo-telha: #ff7a76;
+  --mo-jardim: #3fd0c3;
+  --mo-janela: #86a4ff;
+  --mo-raio: 14px;
+  --mo-raio-controle: 10px;
+  --mo-borda: 12px;
+  --mo-texto: var(--font-sans, ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif);
+  --mo-titulo: var(--font-display, var(--mo-texto));
+
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  container-type: size;
+  background: var(--mo-noite);
+  color: var(--mo-tinta);
+  font-family: var(--mo-texto);
+  font-size: 13px;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* Os ajustes de base usam `:where`, para qualquer regra de componente passar por cima deles. */
+:where(.morada) *,
+:where(.morada) *::before,
+:where(.morada) *::after {
+  box-sizing: border-box;
+}
+
+.morada-cena {
+  position: absolute;
+  inset: 0;
+}
+
+.morada-tela {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  outline: none;
+}
+
+.morada-tela:focus-visible {
+  box-shadow: inset 0 0 0 3px var(--mo-janela);
+}
+
+.morada-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.morada-hud > *,
+.morada-topo > *,
+.morada-base > *,
+.morada-coluna > * {
+  pointer-events: auto;
+}
+
+.morada-topo,
+.morada-base,
+.morada-coluna {
+  pointer-events: none;
+}
+
+:where(.morada) :is(h2, p, ul, ol, fieldset) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+:where(.morada) :is(ul, ol) {
+  list-style: none;
+}
+
+:where(.morada) button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.morada :focus-visible {
+  outline: 3px solid var(--mo-janela);
+  outline-offset: 2px;
+}
+
+.morada-so-leitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- Superfícies --- */
+
+.morada-painel {
+  background: var(--mo-vidro);
+  border: 1px solid var(--mo-fio);
+  border-radius: var(--mo-raio);
+  backdrop-filter: blur(10px);
+  padding: 12px;
+}
+
+.morada-painel h2 {
+  font-family: var(--mo-titulo);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mo-tinta-3);
+}
+
+.morada-nota {
+  color: var(--mo-tinta-3);
+  font-size: 12px;
+}
+
+.morada-botao {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: var(--mo-raio-controle);
+  border: 1px solid var(--mo-fio-forte);
+  background: transparent;
+  font-weight: 600;
+}
+
+.morada-botao:hover {
+  background: rgba(163, 169, 204, 0.14);
+}
+
+.morada-botao-forte {
+  background: var(--mo-lampiao);
+  border-color: var(--mo-lampiao);
+  color: var(--mo-lampiao-tinta);
+}
+
+.morada-botao-forte:hover {
+  background: #ffd266;
+}
+
+.morada-botao[aria-disabled="true"] {
+  color: var(--mo-tinta-4);
+  border-color: var(--mo-fio);
+  cursor: default;
+}
+
+.morada-botao-icone {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--mo-tinta-3);
+}
+
+.morada-botao-icone:hover {
+  background: rgba(163, 169, 204, 0.16);
+  color: var(--mo-tinta);
+}
+
+.morada-par {
+  display: flex;
+  gap: 8px;
+}
+
+/* --- Topo: relógio, presença, avisos --- */
+
+.morada-topo {
+  position: absolute;
+  top: var(--mo-borda);
+  left: var(--mo-borda);
+  right: var(--mo-borda);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.morada-relogio {
+  justify-self: start;
+  display: grid;
+  gap: 8px;
+  width: 204px;
+}
+
+.morada-hora {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.morada-hora strong {
+  font-family: var(--mo-titulo);
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.morada-hora span {
+  color: var(--mo-tinta-3);
+  font-size: 11.5px;
+  line-height: 1.2;
+}
+
+.morada-ritmo {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--mo-raio-controle);
+  background: var(--mo-vidro-fundo);
+}
+
+.morada-ritmo button {
+  display: grid;
+  place-items: center;
+  height: 28px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--mo-tinta-2);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.morada-ritmo button:hover {
+  background: rgba(163, 169, 204, 0.14);
+}
+
+.morada-ritmo button[aria-pressed="true"] {
+  background: var(--mo-lampiao);
+  color: var(--mo-lampiao-tinta);
+}
+
+/* O ritmo que alguém pediu e ainda espera acordo. */
+.morada-ritmo button[data-pedido="sim"] {
+  box-shadow: inset 0 0 0 2px var(--mo-lampiao);
+}
+
+.morada-voto {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--mo-tinta-2);
+}
+
+.morada-voto > div {
+  display: flex;
+  gap: 6px;
+}
+
+.morada-voto button {
+  flex: 1;
+  min-height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--mo-fio-forte);
+  background: transparent;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.morada-voto button:first-child {
+  background: var(--mo-lampiao);
+  border-color: var(--mo-lampiao);
+  color: var(--mo-lampiao-tinta);
+}
+
+.morada-presenca {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: var(--mo-vidro);
+  border: 1px solid var(--mo-fio);
+  backdrop-filter: blur(10px);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.morada-presenca b {
+  font-family: var(--mo-titulo);
+  font-weight: 700;
+}
+
+.morada-presenca span {
+  color: var(--mo-tinta-3);
+}
+
+.morada-avisos {
+  justify-self: end;
+  display: grid;
+  gap: 6px;
+  width: min(280px, 100%);
+}
+
+/* Sem o mundo montado, os avisos são a única coisa na tela além da carga. */
+.morada-hud > .morada-avisos {
+  position: absolute;
+  top: var(--mo-borda);
+  right: var(--mo-borda);
+  z-index: 6;
+}
+
+.morada-aviso {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 8px;
+  padding: 8px 8px 8px 10px;
+  border-radius: 12px;
+  background: var(--mo-vidro-alto);
+  border: 1px solid var(--mo-fio);
+  backdrop-filter: blur(10px);
+  font-size: 12.5px;
+}
+
+.morada-aviso p {
+  padding-top: 3px;
+  user-select: text;
+}
+
+.morada-aviso-marca {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: rgba(134, 164, 255, 0.18);
+  color: var(--mo-janela);
+}
+
+.morada-aviso[data-tom="recusa"] {
+  border-color: rgba(255, 122, 118, 0.5);
+}
+
+.morada-aviso[data-tom="recusa"] .morada-aviso-marca {
+  background: rgba(255, 122, 118, 0.18);
+  color: var(--mo-telha);
+}
+
+.morada-aviso[data-tom="noticia"] .morada-aviso-marca {
+  background: rgba(255, 194, 51, 0.18);
+  color: var(--mo-lampiao);
+}
+
+@keyframes morada-chegar {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+/* --- Trilho de ferramentas --- */
+
+.morada-trilho {
+  position: absolute;
+  right: var(--mo-borda);
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  gap: 2px;
+  padding: 4px;
+}
+
+.morada-trilho button {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  width: 68px;
+  padding: 8px 2px 6px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--mo-tinta-2);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.morada-trilho button:hover {
+  background: rgba(163, 169, 204, 0.14);
+  color: var(--mo-tinta);
+}
+
+.morada-trilho button[aria-pressed="true"],
+.morada-trilho button[aria-expanded="true"] {
+  background: rgba(255, 194, 51, 0.14);
+  color: var(--mo-lampiao);
+}
+
+.morada-trilho button[aria-disabled="true"] {
+  color: var(--mo-tinta-4);
+  cursor: default;
+}
+
+.morada-bairro {
+  position: absolute;
+  right: calc(var(--mo-borda) + 88px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  gap: 10px;
+  width: 268px;
+  background: var(--mo-vidro-alto);
+}
+
+.morada-bairro header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.morada-bairro ul {
+  display: grid;
+  gap: 8px;
+}
+
+.morada-bairro li {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.morada-bairro-nome {
+  display: grid;
+}
+
+.morada-bairro-nome small {
+  color: var(--mo-tinta-3);
+  font-size: 11.5px;
+}
+
+/* --- Base: morador, retratos, fila --- */
+
+.morada-base {
+  position: absolute;
+  left: var(--mo-borda);
+  right: var(--mo-borda);
+  bottom: var(--mo-borda);
+  display: grid;
+  grid-template-columns: 252px minmax(0, 1fr) 232px;
+  align-items: end;
+  gap: 12px;
+}
+
+.morada-coluna {
+  display: grid;
+  gap: 8px;
+}
+
+/* Morador em foco */
+
+.morada-morador {
+  display: grid;
+  gap: 10px;
+}
+
+.morada-morador header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.morada-morador h2 {
+  font-size: 15px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--mo-tinta);
+}
+
+.morada-humor {
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(134, 164, 255, 0.16);
+  color: var(--mo-janela);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.morada-humor[data-humor="alegre"],
+.morada-humor[data-humor="apaixonado"],
+.morada-humor[data-humor="inspirado"] {
+  background: rgba(255, 194, 51, 0.16);
+  color: var(--mo-lampiao);
+}
+
+.morada-humor[data-humor="triste"],
+.morada-humor[data-humor="irritado"],
+.morada-humor[data-humor="tenso"],
+.morada-humor[data-humor="envergonhado"] {
+  background: rgba(255, 122, 118, 0.16);
+  color: var(--mo-telha);
+}
+
+.morada-necessidades {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px 14px;
+}
+
+.morada-necessidades li {
+  display: grid;
+  gap: 3px;
+  font-size: 11.5px;
+  color: var(--mo-tinta-2);
+}
+
+.morada-necessidades em {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--mo-telha);
+}
+
+.morada-barra,
+.morada-progresso {
+  display: block;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--mo-vidro-fundo);
+  overflow: hidden;
+}
+
+.morada-barra i,
+.morada-progresso i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--mo-jardim);
+}
+
+/* O andamento de uma ação é da cor do que foi pedido. */
+.morada-progresso i {
+  background: var(--mo-lampiao);
+}
+
+.morada-necessidades li[data-critica="sim"] .morada-barra i {
+  background: var(--mo-telha);
+}
+
+.morada-sensacoes {
+  color: var(--mo-tinta-3);
+  font-size: 11.5px;
+}
+
+/* Retratos: molduras em arco, como a porta de uma casa, com a plaquinha embaixo. */
+
+.morada-retratos {
+  justify-self: center;
+  max-width: 100%;
+  padding: 10px 12px 8px;
+  overflow-x: auto;
+}
+
+.morada-retratos ul {
+  display: flex;
+  gap: 6px;
+}
+
+.morada-retrato {
+  --mo-anel: var(--mo-tinta-4);
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  width: 72px;
+  padding: 4px 2px 5px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+}
+
+.morada-retrato:hover {
+  background: rgba(163, 169, 204, 0.12);
+}
+
+.morada-retrato[aria-current="true"] {
+  background: rgba(163, 169, 204, 0.16);
+}
+
+.morada-retrato[data-estado="voce"] {
+  --mo-anel: var(--mo-lampiao);
+}
+
+.morada-retrato[data-estado="outro"] {
+  --mo-anel: var(--mo-telha);
+}
+
+.morada-retrato[data-estado="disponivel"] {
+  --mo-anel: var(--mo-jardim);
+}
+
+.morada-moldura {
+  position: relative;
+  display: block;
+  width: 50px;
+  height: 58px;
+  border-radius: 25px 25px 9px 9px;
+  background: linear-gradient(#39407a, #232955);
+  box-shadow: 0 0 0 3px var(--mo-anel);
+  overflow: hidden;
+}
+
+.morada-moldura-pequena {
+  --mo-anel: var(--mo-fio-forte);
+  width: 36px;
+  height: 42px;
+  border-radius: 18px 18px 7px 7px;
+  box-shadow: 0 0 0 2px var(--mo-anel);
+}
+
+/* Quem dirige caiu e ainda pode voltar: a moldura fica tracejada. */
+.morada-retrato[data-espera="sim"] .morada-moldura {
+  box-shadow: none;
+  outline: 3px dashed var(--mo-anel);
+}
+
+.morada-rosto {
+  position: absolute;
+  inset: 0;
+}
+
+.morada-rosto-cabeca {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  width: 44%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translateX(-50%);
+}
+
+.morada-rosto-ombros {
+  position: absolute;
+  left: 50%;
+  bottom: -30%;
+  width: 84%;
+  height: 62%;
+  border-radius: 50% 50% 0 0;
+  background: #8e96c8;
+  transform: translateX(-50%);
+}
+
+/* A fase muda a proporção: bebê é quase só cabeça, idoso tem os ombros mais baixos. */
+.morada-rosto-colo .morada-rosto-cabeca {
+  top: 30%;
+  width: 56%;
+}
+
+.morada-rosto-colo .morada-rosto-ombros {
+  bottom: -44%;
+  width: 70%;
+}
+
+.morada-rosto-pequeno .morada-rosto-cabeca {
+  top: 28%;
+  width: 52%;
+}
+
+.morada-rosto-pequeno .morada-rosto-ombros,
+.morada-rosto-crianca .morada-rosto-ombros {
+  bottom: -38%;
+  width: 74%;
+}
+
+.morada-rosto-crianca .morada-rosto-cabeca {
+  top: 26%;
+  width: 48%;
+}
+
+.morada-rosto-idoso .morada-rosto-ombros {
+  bottom: -34%;
+  background: #a9a6bd;
+}
+
+.morada-placa {
+  margin-top: -9px;
+  position: relative;
+  max-width: 100%;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--mo-anel);
+  color: var(--mo-noite);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.morada-retrato-nome {
+  font-size: 11.5px;
+  font-weight: 700;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Fila: etiquetas penduradas, a de cima é a que está acontecendo. */
+
+.morada-fila,
+.morada-pedidos {
+  display: grid;
+  gap: 8px;
+}
+
+.morada-fila ol {
+  display: grid;
+  gap: 5px;
+  max-height: 172px;
+  overflow-y: auto;
+}
+
+.morada-fila-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.morada-preferido {
+  flex: none;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid var(--mo-fio-forte);
+  background: transparent;
+  color: var(--mo-tinta-3);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.morada-preferido:hover {
+  background: rgba(163, 169, 204, 0.14);
+}
+
+.morada-preferido[aria-pressed="true"] {
+  background: var(--mo-lampiao);
+  border-color: var(--mo-lampiao);
+  color: var(--mo-lampiao-tinta);
+}
+
+.morada-etiqueta {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 4px 6px;
+  padding: 6px 4px 6px 10px;
+  border-radius: 10px;
+  border-left: 3px solid var(--mo-tinta-4);
+  background: var(--mo-vidro-fundo);
+}
+
+.morada-etiqueta[data-pedida="sim"] {
+  border-left-color: var(--mo-lampiao);
+}
+
+.morada-etiqueta[data-atual="sim"] {
+  background: rgba(255, 194, 51, 0.12);
+}
+
+.morada-etiqueta-texto {
+  display: grid;
+  min-width: 0;
+}
+
+.morada-etiqueta-texto b {
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.morada-etiqueta-texto small {
+  color: var(--mo-tinta-3);
+  font-size: 11px;
+}
+
+.morada-progresso {
+  grid-column: 1 / -1;
+  height: 4px;
+  margin-right: 6px;
+}
+
+.morada-pedidos {
+  border-color: rgba(255, 194, 51, 0.5);
+  background: var(--mo-vidro-alto);
+}
+
+.morada-pedidos ul {
+  display: grid;
+  gap: 10px;
+}
+
+.morada-pedidos li {
+  display: grid;
+  gap: 6px;
+}
+
+.morada-pedidos .morada-botao {
+  flex: 1;
+}
+
+/* --- Menu em leque --- */
+
+.morada-menu {
+  position: absolute;
+  width: 0;
+  height: 0;
+  z-index: 4;
+}
+
+.morada-menu-centro {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  width: 132px;
+  padding: 10px 8px 6px;
+  border-radius: 20px;
+  background: var(--mo-vidro-alto);
+  border: 1px solid var(--mo-fio-forte);
+  backdrop-filter: blur(10px);
+  text-align: center;
+}
+
+.morada-menu-centro strong {
+  font-family: var(--mo-titulo);
+  font-size: 13.5px;
+  line-height: 1.2;
+}
+
+.morada-menu-centro span {
+  color: var(--mo-tinta-3);
+  font-size: 11.5px;
+}
+
+.morada-opcao {
+  position: absolute;
+  display: grid;
+  gap: 1px;
+  width: max-content;
+  max-width: 196px;
+  min-height: 36px;
+  align-content: center;
+  padding: 6px 14px;
+  border-radius: 18px;
+  border: 1px solid transparent;
+  background: var(--mo-tinta);
+  color: var(--mo-noite);
+  text-align: left;
+  box-shadow: 0 6px 16px rgba(5, 7, 22, 0.4);
+}
+
+.morada-opcao[data-lado="direita"] {
+  transform: translate(0, -50%);
+}
+
+.morada-opcao[data-lado="esquerda"] {
+  transform: translate(-100%, -50%);
+  text-align: right;
+}
+
+.morada-opcao b {
+  font-size: 13px;
+}
+
+.morada-opcao small {
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.morada-opcao:hover,
+.morada-opcao:focus-visible {
+  background: var(--mo-lampiao);
+  color: var(--mo-lampiao-tinta);
+}
+
+/* Desligada: continua legível e com o motivo à vista; só não chama para o clique. */
+.morada-opcao[aria-disabled="true"] {
+  background: var(--mo-vidro-alto);
+  border-color: var(--mo-fio-forte);
+  color: var(--mo-tinta-3);
+  box-shadow: none;
+  cursor: default;
+}
+
+@keyframes morada-abrir {
+  from {
+    opacity: 0;
+    scale: 0.92;
+  }
+}
+
+/* --- Carga, faixa de reconexão, fim --- */
+
+.morada-veu {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background:
+    radial-gradient(60% 50% at 80% 0%, rgba(134, 164, 255, 0.16), transparent 70%), var(--mo-noite);
+}
+
+.morada-veu-leve,
+.morada-hud[data-encerrado="sim"] > .morada-veu {
+  background: rgba(15, 18, 38, 0.78);
+  backdrop-filter: blur(4px);
+}
+
+.morada-cartao {
+  display: grid;
+  gap: 12px;
+  width: min(380px, 100%);
+  padding: 24px;
+  border-radius: 20px;
+  background: var(--mo-vidro-alto);
+  border: 1px solid var(--mo-fio);
+  font-size: 14px;
+  user-select: text;
+}
+
+.morada-cartao h2 {
+  font-family: var(--mo-titulo);
+  font-size: 22px;
+  line-height: 1.15;
+  font-weight: 700;
+}
+
+.morada-cartao p {
+  color: var(--mo-tinta-2);
+}
+
+.morada-cartao .morada-botao {
+  justify-self: start;
+  min-height: 40px;
+  padding: 0 18px;
+}
+
+.morada-passos {
+  display: grid;
+  gap: 8px;
+}
+
+.morada-passos li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--mo-tinta-4);
+}
+
+.morada-passos li::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+}
+
+.morada-passos li[data-estado="feito"] {
+  color: var(--mo-tinta-3);
+}
+
+.morada-passos li[data-estado="feito"]::before {
+  background: currentColor;
+}
+
+.morada-passos li[data-estado="agora"] {
+  color: var(--mo-tinta);
+  font-weight: 700;
+}
+
+.morada-passos li[data-estado="agora"]::before {
+  border-color: var(--mo-lampiao);
+  background: var(--mo-lampiao);
+}
+
+.morada-faixa {
+  position: absolute;
+  top: calc(var(--mo-borda) + 44px);
+  left: 50%;
+  z-index: 7;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 32px);
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--mo-vidro-alto);
+  border: 1px solid rgba(255, 194, 51, 0.6);
+  font-weight: 600;
+}
+
+.morada-pulso {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--mo-lampiao);
+}
+
+@keyframes morada-pulsar {
+  to {
+    opacity: 0.35;
+  }
+}
+
+/* --- Janelas menores: 900 px de largura ainda é jogável --- */
+
+@container (max-width: 1080px) {
+  .morada-base {
+    grid-template-columns: 206px minmax(0, 1fr) 204px;
+    gap: 8px;
+  }
+
+  .morada-necessidades {
+    gap: 5px 10px;
+  }
+
+  .morada-morador header {
+    grid-template-columns: auto 1fr;
+  }
+
+  .morada-humor {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .morada-retrato {
+    width: 62px;
+  }
+
+  .morada-trilho button {
+    width: 58px;
+  }
+
+  .morada-presenca b {
+    display: none;
+  }
+}
+
+@container (max-height: 640px) {
+  .morada-sensacoes {
+    display: none;
+  }
+
+  .morada-fila ol {
+    max-height: 112px;
+  }
+}
+
+/* Movimento só para quem não pediu menos movimento ao sistema. */
+@media (prefers-reduced-motion: no-preference) {
+  .morada-botao {
+    transition: background-color 120ms ease-out;
+  }
+
+  .morada-aviso {
+    animation: morada-chegar 160ms ease-out;
+  }
+
+  .morada-barra i {
+    transition: width 400ms linear;
+  }
+
+  .morada-progresso i {
+    transition: width 250ms linear;
+  }
+
+  .morada-opcao {
+    animation: morada-abrir 140ms ease-out backwards;
+  }
+
+  .morada-passos li[data-estado="agora"]::before {
+    animation: morada-pulsar 1s ease-in-out infinite alternate;
+  }
+
+  .morada-pulso {
+    animation: morada-pulsar 0.8s ease-in-out infinite alternate;
+  }
+}

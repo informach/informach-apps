@@ -8,10 +8,13 @@ import {
   type Motion,
   NO_CROP,
   placementTransform,
+  ROUNDED_RADIUS,
   squareCrop,
+  squareMask,
   type Transform,
 } from "@shared/compose";
 import { transformAt, upsertKeyframe } from "@shared/keyframes";
+import { clipEnd } from "@shared/timeline";
 import { DEFAULT_TRANSITION, previousClip, TRANSITIONS } from "@shared/transitions";
 import type { Asset, Clip } from "@shared/types";
 import {
@@ -23,7 +26,9 @@ import {
   Pipette,
   RotateCcw,
   SlidersHorizontal,
+  SquareDashed,
   Wand2,
+  X,
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { leaveField, typedNumber } from "@/lib/fieldText";
@@ -177,7 +182,8 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
       v === null ? liveEdit.clear() : liveEdit.show([clip.id], { crop: { ...crop, [side]: v } });
   const percent: NumberInput = { factor: 100, unit: "%", limits: [0, 1] };
   const portrait = asset.height > asset.width;
-  const [cropOpen, setCropOpen] = useState(!!t.crop);
+  const [cropOpen, setCropOpen] = useState(false);
+  const maskEditing = useApp((s) => s.maskEdit === clip.id);
   const active = AVATAR_PLACEMENTS.find(
     (p) =>
       Math.abs(p.transform.x - t.x) < 0.005 &&
@@ -216,13 +222,14 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
           ))}
         </div>
       )}
-      <span className="field-label">Forma</span>
+      <span className="field-label">Máscara</span>
       <div className="chip-row">
         {(
           [
             [undefined, "Retângulo"],
             ["rounded", "Arredondado"],
             ["circle", "Círculo"],
+            ["ellipse", "Oval"],
           ] as const
         ).map(([m, label]) => (
           <button
@@ -232,10 +239,14 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
             onClick={() =>
               set({
                 mask: m,
-                ...(m === "circle" && !t.crop
-                  ? { crop: squareCrop(asset.width, asset.height) }
+                // A circle is round: the mask becomes the biggest square in it, on its center.
+                ...(m === "circle"
+                  ? {
+                      crop: t.crop
+                        ? squareMask(t.crop, asset.width, asset.height)
+                        : squareCrop(asset.width, asset.height),
+                    }
                   : {}),
-                ...(m !== "circle" && t.mask === "circle" ? { crop: undefined } : {}),
               })
             }
           >
@@ -243,6 +254,73 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
           </button>
         ))}
       </div>
+      <div className="chip-row">
+        <button
+          type="button"
+          className={`chip ${maskEditing ? "is-active" : ""}`}
+          aria-pressed={maskEditing}
+          onClick={() => {
+            if (maskEditing) {
+              useApp.getState().set({ maskEdit: null });
+              return;
+            }
+            // The mask is drawn over the clip as it is on the screen: the playhead goes to it.
+            const now = usePlayback.getState().time;
+            if (now < clip.start || now >= clipEnd(clip)) playback.seek(clip.start);
+            useApp.getState().set({ maskEdit: clip.id });
+          }}
+          title="Mostra a máscara na prévia: arraste para mover, puxe os lados e os cantos para mudar o tamanho (Shift mantém a proporção). Enter ou Esc termina."
+        >
+          <SquareDashed size={12} />{" "}
+          {maskEditing ? "Terminar a máscara" : "Ajustar a máscara na prévia"}
+        </button>
+        {(t.crop || t.mask || t.feather || t.corner !== undefined) && (
+          <button
+            type="button"
+            className="chip"
+            onClick={() => {
+              useApp.getState().set({ maskEdit: null });
+              updateClip(clip.id, (c) => {
+                const {
+                  crop: _c,
+                  mask: _m,
+                  corner: _k,
+                  feather: _f,
+                  ...rest
+                } = c.transform ?? DEFAULT_TRANSFORM;
+                return { ...c, transform: rest };
+              });
+            }}
+            title="Mostra o clipe inteiro de novo, sem forma nem borda suave"
+          >
+            <X size={12} /> Tirar a máscara
+          </button>
+        )}
+      </div>
+      {t.mask === "rounded" && (
+        <Slider
+          label="Cantos"
+          value={t.corner ?? ROUNDED_RADIUS}
+          min={0}
+          max={300}
+          step={1}
+          format={(v) => `${Math.round(v)} px`}
+          onCommit={(v) => set({ corner: v })}
+          onPreview={preview("corner")}
+          input={{ factor: 1, unit: "px", limits: [0, 2000] }}
+        />
+      )}
+      <Slider
+        label="Borda suave"
+        value={t.feather ?? 0}
+        min={0}
+        max={200}
+        step={1}
+        format={(v) => (v > 0 ? `${Math.round(v)} px` : "sem")}
+        onCommit={(v) => set({ feather: v > 0 ? v : undefined })}
+        onPreview={preview("feather")}
+        input={{ factor: 1, unit: "px", limits: [0, 2000] }}
+      />
       <Swatches value={t.border} none="Sem borda" onPick={(border) => set({ border })} />
       <Slider
         label="Tamanho"

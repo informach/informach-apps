@@ -1,4 +1,4 @@
-import { ANNOTATION_TEXT } from "./annotation.ts";
+import { KIT, textBoxLayout } from "./annotation.ts";
 import type { Cue } from "./captions.ts";
 import { DEFAULT_CAPTION_STYLE } from "./captions.ts";
 import { strip, type TimelineWord } from "./cleanup.ts";
@@ -173,9 +173,19 @@ export function annotationFont(
     case "balloon":
     case "note":
     case "label":
-      return a.text?.trim() ? { size: a.fontSize ?? ANNOTATION_TEXT, fixed: false } : null;
+      // A balloon in the kit's look starts bigger (textBoxLayout).
+      return a.text?.trim() ? { size: textBoxLayout(a).fontSize, fixed: false } : null;
     case "title":
       return a.text?.trim() ? { size: a.fontSize ?? 72, fixed: false } : null;
+    case "box":
+      return a.text?.trim() ? { size: a.fontSize ?? KIT.boxText, fixed: false } : null;
+    case "item":
+      // Its line below is the smallest text it draws.
+      return a.text?.trim()
+        ? a.subtitle?.trim()
+          ? { size: KIT.itemSub, fixed: true }
+          : { size: a.fontSize ?? KIT.itemText, fixed: false }
+        : null;
     case "card":
       return a.text?.trim() ? { size: a.fontSize ?? 96, fixed: false } : null;
     case "lowerthird":

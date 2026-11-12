@@ -1,6 +1,10 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createAssistantEngines, type EngineEvent } from "@informach/edi-desktop/ai-clients";
+import {
+  createAssistantEngines,
+  type EngineEvent,
+  type TurnImage,
+} from "@informach/edi-desktop/ai-clients";
 import { app } from "electron";
 import { AI_TOOLS, EDITOR_GUIDE, isAiToolName } from "../shared/aiTools.ts";
 import type { AssistantEvent } from "../shared/types.ts";
@@ -71,6 +75,7 @@ export const runClaudeCode = (
   model: string | undefined,
   effort: string,
   emit: Emit,
+  images: readonly TurnImage[] = [],
 ): Promise<void> =>
   engines.runClaudeCode({
     conversationId,
@@ -78,6 +83,7 @@ export const runClaudeCode = (
     url: mcpUrl(port),
     model,
     effort,
+    images,
     emit: panel(emit),
   });
 
@@ -86,8 +92,9 @@ export const runCodex = (
   text: string,
   port: number,
   emit: Emit,
+  images: readonly TurnImage[] = [],
 ): Promise<void> =>
-  engines.runCodex({ conversationId, text, url: mcpUrl(port), emit: panel(emit) });
+  engines.runCodex({ conversationId, text, url: mcpUrl(port), images, emit: panel(emit) });
 
 /**
  * Checks whether the installed Codex stays inside the editor's tools: asked to call get_overview

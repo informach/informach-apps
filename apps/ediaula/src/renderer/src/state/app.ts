@@ -96,6 +96,8 @@ interface AppStore {
     at: { x: number; y: number } | null;
     key?: "text" | "kicker" | "subtitle";
   } | null;
+  /** The clip whose mask is being drawn on the preview (editor/MaskTarget.tsx). */
+  maskEdit: string | null;
   set(partial: Partial<AppStore>): void;
   startJob(id: string, label: string): void;
   endJob(id: string): void;
@@ -133,6 +135,7 @@ export const useApp = create<AppStore>((set, get) => ({
   cursorRange: null,
   recordingZoom: null,
   textEdit: null,
+  maskEdit: null,
   set: (partial) => set(partial),
   startJob: (id, label) => set({ jobs: { ...get().jobs, [id]: { id, label, ratio: 0 } } }),
   endJob: (id) => {

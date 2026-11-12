@@ -80,6 +80,8 @@ jobs:
 
       - run: pnpm --filter @informach/dia-de-estrela test:integration
 
+      - run: pnpm --filter @informach/recreio-app test:integration
+
       - run: pnpm --filter @informach/cozya eval
         env:
           EVAL_PREFLIGHT: "1"
@@ -107,6 +109,17 @@ jobs:
       - run: pnpm --filter @informach/bora-treinar e2e
 
       - run: pnpm --filter @informach/dia-de-estrela e2e
+
+      # Portal em build de produção, banco descartável e, como processos à
+      # parte, o servidor do jogo de teste e o servidor do Morada de verdade
+      # (`apps/morada-server`). Não usa segredo nem serviço de fora: os segredos
+      # da execução são gerados na hora. O Morada desenha em WebGL por software.
+      - run: pnpm --filter @informach/recreio-app e2e
+
+      # O build do Recreio valida o ambiente como produção e exige a chave dos
+      # tokens. Ela é gerada aqui, vale só para este build e não fica em arquivo.
+      - name: Chave descartável dos tokens do Recreio
+        run: node apps/recreio/scripts/gerar-chave.mjs --github-env >> "$GITHUB_ENV"
 
       # Cada consumidor SSO precisa incorporar sua própria origem do catálogo.
       - run: pnpm exec tsx scripts/compasso/build-ci.mts
@@ -173,6 +186,15 @@ jobs:
         with:
           name: dia-de-estrela-verification-${{ github.run_attempt }}
           path: apps/conta/test-results/compasso-apps/dia-de-estrela/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Preserve Recreio failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-verification-${{ github.run_attempt }}
+          path: apps/recreio/tmp/verification/
           if-no-files-found: ignore
           retention-days: 7
 

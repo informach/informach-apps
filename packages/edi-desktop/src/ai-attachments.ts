@@ -1,13 +1,21 @@
 /**
- * Reference images of the assistant panel. The main process checks them again
- * (@informach/edi-desktop/ai-clients checkTurnImages); here they are only read, shrunk to what the
- * engines look at and shown.
+ * Reference images of an Edi tool's assistant panel (renderer side; EdiSVG and EdiAula). The main
+ * process checks them again (ai-images.ts checkTurnImages); here they are only read, shrunk to what
+ * the engines look at and shown.
  */
-export const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"] as const;
-export type ImageType = (typeof IMAGE_TYPES)[number];
+import {
+  TURN_IMAGE_BYTES,
+  TURN_IMAGE_LIMIT,
+  TURN_IMAGE_TYPES,
+  type TurnImage,
+  type TurnImageType,
+} from "./ai-image-limits.ts";
+
+export const IMAGE_TYPES = TURN_IMAGE_TYPES;
+export type ImageType = TurnImageType;
 /** Images per message, and bytes per image, as the main process accepts them. */
-export const IMAGE_LIMIT = 4;
-export const IMAGE_BYTES = 3_750_000;
+export const IMAGE_LIMIT = TURN_IMAGE_LIMIT;
+export const IMAGE_BYTES = TURN_IMAGE_BYTES;
 /** The engines scale larger images down to this side anyway: sending more only costs. */
 export const IMAGE_SIDE = 1568;
 
@@ -108,7 +116,9 @@ export function imageFiles(list: DataTransfer | null) {
  * The images that go with a turn: the most recent ones of the conversation sent, so that "make it
  * look more like the reference" still has it. At most IMAGE_LIMIT, in the order they were sent.
  */
-export function referenceImages(history: readonly { images?: readonly Attachment[] }[]) {
+export function referenceImages(
+  history: readonly { images?: readonly Attachment[] }[],
+): TurnImage[] {
   return history
     .flatMap((message) => message.images ?? [])
     .slice(-IMAGE_LIMIT)

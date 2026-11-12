@@ -2,7 +2,7 @@
 
 Preparação local em 10/11/2026. O ensaio verificará um backup lógico antes da migração de identidades e a restauração em banco vazio, usando apenas dados sintéticos. A origem e o destino serão bancos separados no mesmo PostgreSQL descartável em container local; não serão acessados Railway, Stripe ou arquivos de ambiente reais.
 
-1. Criar um PostgreSQL isolado com identificador aleatório, sem volumes persistentes ou bind de arquivos, acessível somente em loopback. Aplicar o prefixo imutável de migrations até 0079 e registrar perfis antigos dos quatro apps, histórico, permissões e saldo anterior.
+1. Criar um PostgreSQL isolado com identificador aleatório, sem volumes persistentes ou bind de arquivos, acessível somente em loopback. Aplicar o prefixo imutável de migrations até a última que produção tem antes do corte (`0080_recreio` desde 12/11; até 11/11 era a 0079) e registrar perfis antigos dos quatro apps, histórico, permissões e saldo anterior.
 2. Criar arquivo no formato custom de `pg_dump`, restaurar em outro banco vazio com `pg_restore --exit-on-error` e comparar registros da origem e destino antes de avançar. Arquivo e bancos existem apenas no container próprio.
 3. Aplicar as migrations reais restantes aos dois bancos independentemente. Comparar IDs nativos, dados, permissões e saldos, verificando os vínculos canônicos por origem e a separação de homônimos sem exigir UUIDs gerados iguais entre execuções.
 4. Confirmar saída zero e remover somente o container identificado e seus volumes anônimos próprios, após encerrar conexões. Documentar versões e limites observados.

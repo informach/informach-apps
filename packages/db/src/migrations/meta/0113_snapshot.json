@@ -1,6 +1,6 @@
 {
-  "id": "690d1fcd-0cac-48ec-92db-ad11e4f93aea",
-  "prevId": "b2ddc9ed-ebfd-4afc-a297-e5edd44e6825",
+  "id": "b2ddc9ed-ebfd-4afc-a297-e5edd44e6825",
+  "prevId": "46ce28c6-c33d-48c0-9dfc-f34e8a2dccd5",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -15397,10 +15397,16 @@
           "name": "family_profile_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "user_id": {
           "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "nickname": {
+          "name": "nickname",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -15421,6 +15427,12 @@
         "birth_month": {
           "name": "birth_month",
           "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatar": {
+          "name": "avatar",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         },
@@ -19252,6 +19264,1918 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "recreio.device_sessions": {
+      "name": "device_sessions",
+      "schema": "recreio",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "auth_session_id": {
+          "name": "auth_session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "active_profile_id": {
+          "name": "active_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "profile_selected_at": {
+          "name": "profile_selected_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "recreio_device_sessions_auth_session": {
+          "name": "recreio_device_sessions_auth_session",
+          "columns": [
+            {
+              "expression": "auth_session_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"recreio\".\"device_sessions\".\"auth_session_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "recreio_device_sessions_user": {
+          "name": "recreio_device_sessions_user",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "device_sessions_user_id_users_id_fk": {
+          "name": "device_sessions_user_id_users_id_fk",
+          "tableFrom": "device_sessions",
+          "tableTo": "users",
+          "schemaTo": "core",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "device_sessions_active_profile_id_profiles_id_fk": {
+          "name": "device_sessions_active_profile_id_profiles_id_fk",
+          "tableFrom": "device_sessions",
+          "tableTo": "profiles",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "active_profile_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "recreio_device_sessions_kind": {
+          "name": "recreio_device_sessions_kind",
+          "value": "\"recreio\".\"device_sessions\".\"kind\" in ('account', 'paired_device')"
+        },
+        "recreio_device_sessions_account": {
+          "name": "recreio_device_sessions_account",
+          "value": "\"recreio\".\"device_sessions\".\"kind\" <> 'account' or (\"recreio\".\"device_sessions\".\"auth_session_id\" is not null and \"recreio\".\"device_sessions\".\"user_id\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "recreio.entitlements": {
+      "name": "entitlements",
+      "schema": "recreio",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tier": {
+          "name": "tier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "starts_at": {
+          "name": "starts_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ends_at": {
+          "name": "ends_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason_code": {
+          "name": "reason_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "granted_by_user_id": {
+          "name": "granted_by_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_by_user_id": {
+          "name": "revoked_by_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoke_reason_code": {
+          "name": "revoke_reason_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "recreio_entitlements_group": {
+          "name": "recreio_entitlements_group",
+          "columns": [
+            {
+              "expression": "group_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ends_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "entitlements_group_id_groups_id_fk": {
+          "name": "entitlements_group_id_groups_id_fk",
+          "tableFrom": "entitlements",
+          "tableTo": "groups",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "entitlements_granted_by_user_id_users_id_fk": {
+          "name": "entitlements_granted_by_user_id_users_id_fk",
+          "tableFrom": "entitlements",
+          "tableTo": "users",
+          "schemaTo": "core",
+          "columnsFrom": [
+            "granted_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "entitlements_revoked_by_user_id_users_id_fk": {
+          "name": "entitlements_revoked_by_user_id_users_id_fk",
+          "tableFrom": "entitlements",
+          "tableTo": "users",
+          "schemaTo": "core",
+          "columnsFrom": [
+            "revoked_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "recreio_entitlements_kind": {
+          "name": "recreio_entitlements_kind",
+          "value": "\"recreio\".\"entitlements\".\"kind\" in ('courtesy', 'trial')"
+        },
+        "recreio_entitlements_tier": {
+          "name": "recreio_entitlements_tier",
+          "value": "\"recreio\".\"entitlements\".\"tier\" in ('individual', 'family')"
+        },
+        "recreio_entitlements_period": {
+          "name": "recreio_entitlements_period",
+          "value": "\"recreio\".\"entitlements\".\"ends_at\" > \"recreio\".\"entitlements\".\"starts_at\""
+        },
+        "recreio_entitlements_reason": {
+          "name": "recreio_entitlements_reason",
+          "value": "\"recreio\".\"entitlements\".\"reason_code\" ~ '^[a-z0-9_]{2,40}$'"
+        },
+        "recreio_entitlements_revoke_reason": {
+          "name": "recreio_entitlements_revoke_reason",
+          "value": "\"recreio\".\"entitlements\".\"revoke_reason_code\" is null or (\"recreio\".\"entitlements\".\"revoked_at\" is not null and \"recreio\".\"entitlements\".\"revoke_reason_code\" ~ '^[a-z0-9_]{2,40}$')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "recreio.game_instances": {
+      "name": "game_instances",
+      "schema": "recreio",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "public_url": {
+          "name": "public_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "capacity": {
+          "name": "capacity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "last_seen_at": {
+          "name": "last_seen_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "recreio_game_instances_pick": {
+          "name": "recreio_game_instances_pick",
+          "columns": [
+            {
+              "expression": "game_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "last_seen_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "recreio_game_instances_state": {
+          "name": "recreio_game_instances_state",
+          "value": "\"recreio\".\"game_instances\".\"state\" in ('active', 'draining', 'gone')"
+        },
+        "recreio_game_instances_capacity": {
+          "name": "recreio_game_instances_capacity",
+          "value": "\"recreio\".\"game_instances\".\"capacity\" > 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "recreio.game_sessions": {
+      "name": "game_sessions",
+      "schema": "recreio",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "device_session_id": {
+          "name": "device_session_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "space_id": {
+          "name": "space_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "last_renewed_at": {
+          "name": "last_renewed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_reason": {
+          "name": "end_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ended_seq": {
+          "name": "ended_seq",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "recreio_game_sessions_one_open": {
+          "name": "recreio_game_sessions_one_open",
+          "columns": [
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"recreio\".\"game_sessions\".\"ended_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "recreio_game_sessions_ended_seq": {
+          "name": "recreio_game_sessions_ended_seq",
+          "columns": [
+            {
+              "expression": "ended_seq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"recreio\".\"game_sessions\".\"ended_seq\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "game_sessions_profile_id_profiles_id_fk": {
+          "name": "game_sessions_profile_id_profiles_id_fk",
+          "tableFrom": "game_sessions",
+          "tableTo": "profiles",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "profile_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "game_sessions_device_session_id_device_sessions_id_fk": {
+          "name": "game_sessions_device_session_id_device_sessions_id_fk",
+          "tableFrom": "game_sessions",
+          "tableTo": "device_sessions",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "device_session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "game_sessions_space_id_spaces_id_fk": {
+          "name": "game_sessions_space_id_spaces_id_fk",
+          "tableFrom": "game_sessions",
+          "tableTo": "spaces",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "space_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "recreio_game_sessions_end_reason": {
+          "name": "recreio_game_sessions_end_reason",
+          "value": "\"recreio\".\"game_sessions\".\"end_reason\" is null or \"recreio\".\"game_sessions\".\"end_reason\" in ('left', 'replaced', 'access_lost', 'signed_out', 'expired')"
+        },
+        "recreio_game_sessions_ended": {
+          "name": "recreio_game_sessions_ended",
+          "value": "(\"recreio\".\"game_sessions\".\"ended_at\" is null and \"recreio\".\"game_sessions\".\"end_reason\" is null and \"recreio\".\"game_sessions\".\"ended_seq\" is null) or (\"recreio\".\"game_sessions\".\"ended_at\" is not null and \"recreio\".\"game_sessions\".\"end_reason\" is not null and \"recreio\".\"game_sessions\".\"ended_seq\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "recreio.game_tickets": {
+      "name": "game_tickets",
+      "schema": "recreio",
+      "columns": {
+        "jti": {
+          "name": "jti",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "device_session_id": {
+          "name": "device_session_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "consumed_at": {
+          "name": "consumed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "recreio_game_tickets_expires": {
+          "name": "recreio_game_tickets_expires",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "game_tickets_profile_id_profiles_id_fk": {
+          "name": "game_tickets_profile_id_profiles_id_fk",
+          "tableFrom": "game_tickets",
+          "tableTo": "profiles",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "profile_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "game_tickets_device_session_id_device_sessions_id_fk": {
+          "name": "game_tickets_device_session_id_device_sessions_id_fk",
+          "tableFrom": "game_tickets",
+          "tableTo": "device_sessions",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "device_session_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "recreio.groups": {
+      "name": "groups",
+      "schema": "recreio",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "owner_user_id": {
+          "name": "owner_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "recreio_groups_owner": {
+          "name": "recreio_groups_owner",
+          "columns": [
+            {
+              "expression": "owner_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "groups_owner_user_id_users_id_fk": {
+          "name": "groups_owner_user_id_users_id_fk",
+          "tableFrom": "groups",
+          "tableTo": "users",
+          "schemaTo": "core",
+          "columnsFrom": [
+            "owner_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "recreio.profiles": {
+      "name": "profiles",
+      "schema": "recreio",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "group_id": {
+          "name": "group_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "coverage_enabled": {
+          "name": "coverage_enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nickname": {
+          "name": "nickname",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "avatar": {
+          "name": "avatar",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'padrao'"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "policy_version": {
+          "name": "policy_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "recreio_profiles_own_login": {
+          "name": "recreio_profiles_own_login",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"recreio\".\"profiles\".\"user_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "recreio_profiles_group": {
+          "name": "recreio_profiles_group",
+          "columns": [
+            {
+              "expression": "group_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "profiles_user_id_users_id_fk": {
+          "name": "profiles_user_id_users_id_fk",
+          "tableFrom": "profiles",
+          "tableTo": "users",
+          "schemaTo": "core",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "profiles_group_id_groups_id_fk": {
+          "name": "profiles_group_id_groups_id_fk",
+          "tableFrom": "profiles",
+          "tableTo": "groups",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "group_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "recreio_profiles_kind": {
+          "name": "recreio_profiles_kind",
+          "value": "\"recreio\".\"profiles\".\"kind\" in ('adult', 'minor')"
+        },
+        "recreio_profiles_adult_login": {
+          "name": "recreio_profiles_adult_login",
+          "value": "\"recreio\".\"profiles\".\"kind\" = 'minor' or \"recreio\".\"profiles\".\"user_id\" is not null"
+        },
+        "recreio_profiles_nickname": {
+          "name": "recreio_profiles_nickname",
+          "value": "char_length(\"recreio\".\"profiles\".\"nickname\") between 2 and 20"
+        },
+        "recreio_profiles_status": {
+          "name": "recreio_profiles_status",
+          "value": "\"recreio\".\"profiles\".\"status\" in ('active', 'suspended')"
+        },
+        "recreio_profiles_policy_version": {
+          "name": "recreio_profiles_policy_version",
+          "value": "\"recreio\".\"profiles\".\"policy_version\" >= 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "recreio.space_invites": {
+      "name": "space_invites",
+      "schema": "recreio",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "space_id": {
+          "name": "space_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "invited_by_member_id": {
+          "name": "invited_by_member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "form": {
+          "name": "form",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "participation": {
+          "name": "participation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "code_hash": {
+          "name": "code_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "target_profile_id": {
+          "name": "target_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "accepted_at": {
+          "name": "accepted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "accepted_by_profile_id": {
+          "name": "accepted_by_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "recreio_space_invites_code": {
+          "name": "recreio_space_invites_code",
+          "columns": [
+            {
+              "expression": "code_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "recreio_space_invites_space": {
+          "name": "recreio_space_invites_space",
+          "columns": [
+            {
+              "expression": "space_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "space_invites_space_id_spaces_id_fk": {
+          "name": "space_invites_space_id_spaces_id_fk",
+          "tableFrom": "space_invites",
+          "tableTo": "spaces",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "space_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "space_invites_target_profile_id_profiles_id_fk": {
+          "name": "space_invites_target_profile_id_profiles_id_fk",
+          "tableFrom": "space_invites",
+          "tableTo": "profiles",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "target_profile_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "space_invites_accepted_by_profile_id_profiles_id_fk": {
+          "name": "space_invites_accepted_by_profile_id_profiles_id_fk",
+          "tableFrom": "space_invites",
+          "tableTo": "profiles",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "accepted_by_profile_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "recreio_space_invites_form": {
+          "name": "recreio_space_invites_form",
+          "value": "\"recreio\".\"space_invites\".\"form\" in ('member', 'visit')"
+        },
+        "recreio_space_invites_state": {
+          "name": "recreio_space_invites_state",
+          "value": "\"recreio\".\"space_invites\".\"state\" in ('pending_approval', 'sent', 'accepted', 'expired', 'revoked')"
+        },
+        "recreio_space_invites_participation": {
+          "name": "recreio_space_invites_participation",
+          "value": "\"recreio\".\"space_invites\".\"participation\" is null or char_length(\"recreio\".\"space_invites\".\"participation\") <= 64"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "recreio.space_journal": {
+      "name": "space_journal",
+      "schema": "recreio",
+      "columns": {
+        "space_id": {
+          "name": "space_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "seq": {
+          "name": "seq",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fence": {
+          "name": "fence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tick": {
+          "name": "tick",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fact_id": {
+          "name": "fact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload": {
+          "name": "payload",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "byte_size": {
+          "name": "byte_size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "recreio_space_journal_fact": {
+          "name": "recreio_space_journal_fact",
+          "columns": [
+            {
+              "expression": "space_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "fact_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "space_journal_space_id_spaces_id_fk": {
+          "name": "space_journal_space_id_spaces_id_fk",
+          "tableFrom": "space_journal",
+          "tableTo": "spaces",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "space_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "space_journal_space_id_seq_pk": {
+          "name": "space_journal_space_id_seq_pk",
+          "columns": [
+            "space_id",
+            "seq"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "recreio_space_journal_counters": {
+          "name": "recreio_space_journal_counters",
+          "value": "\"recreio\".\"space_journal\".\"seq\" >= 1 and \"recreio\".\"space_journal\".\"fence\" >= 0 and \"recreio\".\"space_journal\".\"tick\" >= 0 and \"recreio\".\"space_journal\".\"byte_size\" >= 0"
+        },
+        "recreio_space_journal_fact_id": {
+          "name": "recreio_space_journal_fact_id",
+          "value": "char_length(\"recreio\".\"space_journal\".\"fact_id\") between 1 and 160"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "recreio.space_leases": {
+      "name": "space_leases",
+      "schema": "recreio",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "space_id": {
+          "name": "space_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fence": {
+          "name": "fence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "holder_kind": {
+          "name": "holder_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "instance_id": {
+          "name": "instance_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "acquired_at": {
+          "name": "acquired_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "claimed_at": {
+          "name": "claimed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "released_at": {
+          "name": "released_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_reason": {
+          "name": "end_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "peak_players": {
+          "name": "peak_players",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "player_seconds": {
+          "name": "player_seconds",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "recreio_space_leases_fence": {
+          "name": "recreio_space_leases_fence",
+          "columns": [
+            {
+              "expression": "space_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "fence",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "recreio_space_leases_one_open": {
+          "name": "recreio_space_leases_one_open",
+          "columns": [
+            {
+              "expression": "space_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"recreio\".\"space_leases\".\"released_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "recreio_space_leases_expiring": {
+          "name": "recreio_space_leases_expiring",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"recreio\".\"space_leases\".\"released_at\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "space_leases_space_id_spaces_id_fk": {
+          "name": "space_leases_space_id_spaces_id_fk",
+          "tableFrom": "space_leases",
+          "tableTo": "spaces",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "space_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "space_leases_instance_id_game_instances_id_fk": {
+          "name": "space_leases_instance_id_game_instances_id_fk",
+          "tableFrom": "space_leases",
+          "tableTo": "game_instances",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "instance_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "recreio_space_leases_holder_kind": {
+          "name": "recreio_space_leases_holder_kind",
+          "value": "\"recreio\".\"space_leases\".\"holder_kind\" in ('server', 'offline', 'browser')"
+        },
+        "recreio_space_leases_state": {
+          "name": "recreio_space_leases_state",
+          "value": "\"recreio\".\"space_leases\".\"state\" in ('assigned', 'held', 'released')"
+        },
+        "recreio_space_leases_end_reason": {
+          "name": "recreio_space_leases_end_reason",
+          "value": "\"recreio\".\"space_leases\".\"end_reason\" is null or \"recreio\".\"space_leases\".\"end_reason\" in ('empty', 'drain', 'error', 'expired', 'taken_over')"
+        },
+        "recreio_space_leases_released": {
+          "name": "recreio_space_leases_released",
+          "value": "(\"recreio\".\"space_leases\".\"state\" = 'released') = (\"recreio\".\"space_leases\".\"released_at\" is not null)"
+        },
+        "recreio_space_leases_counters": {
+          "name": "recreio_space_leases_counters",
+          "value": "\"recreio\".\"space_leases\".\"fence\" >= 0 and \"recreio\".\"space_leases\".\"peak_players\" >= 0 and \"recreio\".\"space_leases\".\"player_seconds\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "recreio.space_members": {
+      "name": "space_members",
+      "schema": "recreio",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "space_id": {
+          "name": "space_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "profile_id": {
+          "name": "profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "participation": {
+          "name": "participation",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "invited_by_member_id": {
+          "name": "invited_by_member_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "joined_at": {
+          "name": "joined_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "left_at": {
+          "name": "left_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "recreio_space_members_profile": {
+          "name": "recreio_space_members_profile",
+          "columns": [
+            {
+              "expression": "space_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "recreio_space_members_by_profile": {
+          "name": "recreio_space_members_by_profile",
+          "columns": [
+            {
+              "expression": "profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "space_members_space_id_spaces_id_fk": {
+          "name": "space_members_space_id_spaces_id_fk",
+          "tableFrom": "space_members",
+          "tableTo": "spaces",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "space_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "space_members_profile_id_profiles_id_fk": {
+          "name": "space_members_profile_id_profiles_id_fk",
+          "tableFrom": "space_members",
+          "tableTo": "profiles",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "profile_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "recreio_space_members_role": {
+          "name": "recreio_space_members_role",
+          "value": "\"recreio\".\"space_members\".\"role\" in ('steward', 'coadmin', 'member')"
+        },
+        "recreio_space_members_state": {
+          "name": "recreio_space_members_state",
+          "value": "\"recreio\".\"space_members\".\"state\" in ('active', 'no_access', 'away', 'former')"
+        },
+        "recreio_space_members_participation": {
+          "name": "recreio_space_members_participation",
+          "value": "\"recreio\".\"space_members\".\"participation\" is null or char_length(\"recreio\".\"space_members\".\"participation\") <= 64"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "recreio.space_snapshots": {
+      "name": "space_snapshots",
+      "schema": "recreio",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "space_id": {
+          "name": "space_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fence": {
+          "name": "fence",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "schema_version": {
+          "name": "schema_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "journal_seq": {
+          "name": "journal_seq",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tick": {
+          "name": "tick",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "storage": {
+          "name": "storage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "data": {
+          "name": "data",
+          "type": "bytea",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "object_key": {
+          "name": "object_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "byte_size": {
+          "name": "byte_size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "recreio_space_snapshots_revision": {
+          "name": "recreio_space_snapshots_revision",
+          "columns": [
+            {
+              "expression": "space_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "revision",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "space_snapshots_space_id_spaces_id_fk": {
+          "name": "space_snapshots_space_id_spaces_id_fk",
+          "tableFrom": "space_snapshots",
+          "tableTo": "spaces",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "space_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "recreio_space_snapshots_kind": {
+          "name": "recreio_space_snapshots_kind",
+          "value": "\"recreio\".\"space_snapshots\".\"kind\" in ('checkpoint', 'hibernate', 'pinned')"
+        },
+        "recreio_space_snapshots_storage": {
+          "name": "recreio_space_snapshots_storage",
+          "value": "(\"recreio\".\"space_snapshots\".\"storage\" = 'pg' and \"recreio\".\"space_snapshots\".\"data\" is not null and \"recreio\".\"space_snapshots\".\"object_key\" is null) or (\"recreio\".\"space_snapshots\".\"storage\" = 'bucket' and \"recreio\".\"space_snapshots\".\"object_key\" is not null and \"recreio\".\"space_snapshots\".\"data\" is null)"
+        },
+        "recreio_space_snapshots_sha256": {
+          "name": "recreio_space_snapshots_sha256",
+          "value": "\"recreio\".\"space_snapshots\".\"sha256\" ~ '^[0-9a-f]{64}$'"
+        },
+        "recreio_space_snapshots_counters": {
+          "name": "recreio_space_snapshots_counters",
+          "value": "\"recreio\".\"space_snapshots\".\"revision\" >= 0 and \"recreio\".\"space_snapshots\".\"fence\" >= 0 and \"recreio\".\"space_snapshots\".\"journal_seq\" >= 0 and \"recreio\".\"space_snapshots\".\"tick\" >= 0 and \"recreio\".\"space_snapshots\".\"byte_size\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "recreio.spaces": {
+      "name": "spaces",
+      "schema": "recreio",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "game_id": {
+          "name": "game_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "steward_profile_id": {
+          "name": "steward_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_profile_id": {
+          "name": "created_by_profile_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_policy": {
+          "name": "content_policy",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "members_invite": {
+          "name": "members_invite",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'with_approval'"
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'hibernating'"
+        },
+        "schema_version": {
+          "name": "schema_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "journal_seq": {
+          "name": "journal_seq",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "lease_epoch": {
+          "name": "lease_epoch",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "summary": {
+          "name": "summary",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "recreio_spaces_steward": {
+          "name": "recreio_spaces_steward",
+          "columns": [
+            {
+              "expression": "steward_profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "recreio_spaces_creator": {
+          "name": "recreio_spaces_creator",
+          "columns": [
+            {
+              "expression": "created_by_profile_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "spaces_steward_profile_id_profiles_id_fk": {
+          "name": "spaces_steward_profile_id_profiles_id_fk",
+          "tableFrom": "spaces",
+          "tableTo": "profiles",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "steward_profile_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "spaces_created_by_profile_id_profiles_id_fk": {
+          "name": "spaces_created_by_profile_id_profiles_id_fk",
+          "tableFrom": "spaces",
+          "tableTo": "profiles",
+          "schemaTo": "recreio",
+          "columnsFrom": [
+            "created_by_profile_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "recreio_spaces_name": {
+          "name": "recreio_spaces_name",
+          "value": "char_length(\"recreio\".\"spaces\".\"name\") between 2 and 40"
+        },
+        "recreio_spaces_members_invite": {
+          "name": "recreio_spaces_members_invite",
+          "value": "\"recreio\".\"spaces\".\"members_invite\" in ('no', 'with_approval', 'yes')"
+        },
+        "recreio_spaces_status": {
+          "name": "recreio_spaces_status",
+          "value": "\"recreio\".\"spaces\".\"status\" in ('active', 'hibernating', 'archived', 'deleted')"
+        },
+        "recreio_spaces_counters": {
+          "name": "recreio_spaces_counters",
+          "value": "\"recreio\".\"spaces\".\"schema_version\" >= 1 and \"recreio\".\"spaces\".\"revision\" >= 0 and \"recreio\".\"spaces\".\"journal_seq\" >= 0 and \"recreio\".\"spaces\".\"lease_epoch\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -19335,9 +21259,21 @@
     "edi": "edi",
     "family": "family",
     "missao_saber": "missao_saber",
-    "ops": "ops"
+    "ops": "ops",
+    "recreio": "recreio"
   },
-  "sequences": {},
+  "sequences": {
+    "recreio.game_session_end_seq": {
+      "name": "game_session_end_seq",
+      "schema": "recreio",
+      "increment": "1",
+      "startWith": "1",
+      "minValue": "1",
+      "maxValue": "9223372036854775807",
+      "cache": "1",
+      "cycle": false
+    }
+  },
   "roles": {},
   "policies": {},
   "views": {},

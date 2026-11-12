@@ -188,6 +188,8 @@ export function windowSignature(
         regionFx: c.regionFx,
         follow,
         color: c.color,
+        // A Destaque darkening the tracks below it (shared/dim.ts): its picture does not show it.
+        dim: c.annotation?.kind === "highlight" ? c.annotation.dim : undefined,
         entry: c.zoomLayer ? entryView(project, c) : undefined,
         tail: c.tail,
         tailFx: c.tailFx,

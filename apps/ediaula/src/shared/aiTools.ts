@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { type AnnotationIcon, ICON_IDS } from "./annotation.ts";
 import { CAPTION_FONT_NAME } from "./captions.ts";
 import { LANGUAGE_CODE } from "./captionTranslate.ts";
 import { EXPORT_FORMATS, EXPORT_PRESET_IDS } from "./exportPresets.ts";
@@ -41,6 +42,8 @@ const ANNOTATION_KINDS = [
   "panel",
   "step",
   "lowerthird",
+  "box",
+  "item",
 ] as const;
 
 /** Kinds of memory the chat keeps (main/aiMemory.ts). */
@@ -552,20 +555,9 @@ export const AI_TOOLS = {
     title: "Adicionar anotação",
     permission: "write",
     description:
-      "Adds an annotation over the lesson: arrow, balloon (speech balloon), note (sticky note), label (pill), title, highlight (outline box or circle with shape=ellipse, optional fill), panel (filled shape: shape rounded/rect/ellipse/triangle, color = fill), line (straight or curved line, no heads unless heads is set), step (numbered circle) or lowerthird (name bar at the bottom: text = name, subtitle = second line). Place it in time with near_text (exact words spoken, from the transcript; the annotation starts when they are said) or at (timeline seconds); default is the playhead. x and y are the center as fractions of the frame (avoid covering controls, blocks, readouts or results). Arrow: angle in degrees (0 = pointing right, 90 = down), length in px, arrow_style solid/line/dashed, two_heads, curve (−1..1, 0 = straight) and thickness. font, outline_* and shadow as in set_style. Balloon: tail = none, bottom-left, bottom-right, top-left, top-right, left, right; fill = the balloon color inside (default white, the text turns light on dark fills), color = its outline. Colors: #C8F031 lime, #FFD60A yellow, #FF4D4D red, #3D6BFF blue, #9B7BFF violet, #FFFFFF, #12140A. Returns the clip id. Undoable.",
+      "Adds an annotation over the lesson: arrow, balloon (speech balloon), note (sticky note), label (pill), title, highlight (outline box or circle with shape=ellipse, optional fill), panel (filled shape: shape rounded/rect/ellipse/triangle, color = fill), line (straight or curved line, no heads unless heads is set), step (numbered circle) lowerthird (name bar at the bottom: text = name, subtitle = second line), box (a box whose color says its role, centered heavy text: white = an action or a term, the success green with the accent text = the game's reaction, the accent yellow = what to do now, the dark color = a strong notice; badge = a number on its corner, pointer = up/down/left/right toward what it talks about) or item (a row of a list on a card: marker circle with badge = number, square with badge = letter of a quiz option, check = something learned, with bare = true for no card; icon = a small drawing in the marker; subtitle = the line below). Place it in time with near_text (exact words spoken, from the transcript; the annotation starts when they are said) or at (timeline seconds); default is the playhead. x and y are the center as fractions of the frame (avoid covering controls, blocks, readouts or results). Arrow: angle in degrees (0 = pointing right, 90 = down), length in px, arrow_style solid/line/dashed, two_heads, curve (−1..1, 0 = straight) and thickness. font, outline_* and shadow as in set_style. Balloon: tail = none, bottom-left, bottom-right, top-left, top-right, left, right; fill = the balloon color inside (default white, the text turns light on dark fills), color = its outline. Colors: #C8F031 lime, #FFD60A yellow, #FF4D4D red, #3D6BFF blue, #9B7BFF violet, #FFFFFF, #12140A. Returns the clip id. Undoable.",
     input: z.object({
-      kind: z.enum([
-        "arrow",
-        "line",
-        "balloon",
-        "note",
-        "label",
-        "title",
-        "highlight",
-        "panel",
-        "step",
-        "lowerthird",
-      ]),
+      kind: z.enum(ANNOTATION_KINDS),
       subtitle: z.string().optional(),
       text: z.string().optional(),
       near_text: z.string().optional(),
@@ -589,12 +581,21 @@ export const AI_TOOLS = {
       two_heads: z.boolean().optional(),
       heads: z.number().int().min(0).max(2).optional(),
       curve: z.number().min(-1).max(1).optional(),
-      thickness: z.number().min(3).max(48).optional(),
+      thickness: z.number().min(3).max(64).optional(),
       shape: z.enum(["rounded", "rect", "ellipse", "triangle"]).optional(),
       fill: z
         .string()
         .regex(/^#[0-9a-fA-F]{6}$/)
         .optional(),
+      text_color: z
+        .string()
+        .regex(/^#[0-9a-fA-F]{6}$/)
+        .optional(),
+      badge: z.string().max(3).optional(),
+      pointer: z.enum(["none", "up", "down", "left", "right"]).optional(),
+      icon: z.enum(ICON_IDS as [AnnotationIcon, ...AnnotationIcon[]]).optional(),
+      marker: z.enum(["circle", "square", "check", "none"]).optional(),
+      bare: z.boolean().optional(),
     }),
   },
   add_annotations: {
@@ -782,9 +783,18 @@ export const AI_TOOLS = {
     title: "Template animado",
     permission: "write",
     description:
-      "Inserts an animated lesson template: several annotation layers coming in one after the other, each editable later. opening (full screen at 0:00, the lesson moves forward; fields kicker = course, title, subtitle), section (big number + section name over the lesson; number, title), question (quiz for the child; question, options = one per line, up to 4; quiz_item fills it from that question of the saved quiz, 1 for the first, timed after its line by default), challenge (tag, text), recap (title, items = one per line, up to 5), closing (full screen after the last clip; title, subtitle, call). Empty fields are filled from the course and the script. Time it with near_text or at (default: opening at the start, closing at the end, others at the playhead). Undoable.",
+      'Inserts an animated lesson template, a slide of the lesson kit: several annotation layers coming in one after the other, each editable later, the content on the left and the presenter kept in front of the slide. opening (cover, full screen at 0:00, the lesson moves forward; fields kicker = module and lesson, title, subtitle), objective ("Hoje você vai…": title, items = one goal per line, up to 4, note), concept (title, subtitle, first and second = the two boxes joined by an arrow, like Ação → Reação, example), section (section tag and name; number, title), question (pause and think: question, options = one per line, up to 4, note; quiz_item fills it from that question of the saved quiz, 1 for the first, timed after its line by default), challenge (your turn: title, time, steps = one per line, the detail after ":"), recap (what we learned: title, items = one per line, up to 5, next = next lesson), closing (full screen after the last clip; title, subtitle, call). Empty fields are filled from the course and the script. Time it with near_text or at (default: opening at the start, closing at the end, others at the playhead). Undoable.',
     input: z.object({
-      template: z.enum(["opening", "section", "question", "challenge", "recap", "closing"]),
+      template: z.enum([
+        "opening",
+        "objective",
+        "concept",
+        "section",
+        "question",
+        "challenge",
+        "recap",
+        "closing",
+      ]),
       fields: z.record(z.string(), z.string()).optional(),
       near_text: z.string().optional(),
       at: z.number().min(0).optional(),

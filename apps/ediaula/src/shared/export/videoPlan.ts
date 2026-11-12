@@ -3,13 +3,14 @@ import {
   clipLayout,
   DEFAULT_TRANSFORM,
   isMoving,
-  maskRadius,
+  maskShape,
   motionExprs,
   rotatedSize,
   shadowOffset,
   shadowReach,
 } from "../compose.ts";
 import { cursorOverlayExpressions } from "../cursor-expressions.ts";
+import { dimHole } from "../dim.ts";
 import { sumExpr } from "../exprSum.ts";
 import { keyframeExprs } from "../keyframes.ts";
 import {
@@ -49,7 +50,7 @@ import { zoomExprs, zoomsIn } from "../zoom.ts";
 import { entryView, frameClock, zoomLayerFilter } from "../zoomLayer.ts";
 import { OUTPUT_PARAMS, type SourceMatrix, type SourceRange, TO_YUVA, yuv709 } from "./color.ts";
 import { frameAt, frameTime, type Rate } from "./frames.ts";
-import { type FxAsset, type FxProvider, fxGraph } from "./fx.ts";
+import { type FxAsset, type FxProvider, fxGraph, padGray } from "./fx.ts";
 
 /**
  * The picture of a stretch of the lesson, [from, from + frames) on the frame grid, as one FFmpeg
@@ -796,6 +797,7 @@ export function buildVideoWindowPlan(
       !rgba &&
       !alphaContent &&
       !t?.mask &&
+      !t?.feather &&
       !t?.border &&
       !shadow &&
       opacity === 1 &&
@@ -805,6 +807,16 @@ export function buildVideoWindowPlan(
       !geo &&
       !hasColor(clip.color);
     const out = `o${L}`;
+
+    // A Destaque that darkens the rest: what is drawn so far (the tracks below) darkens around
+    // its box, fading in and out with it (shared/dim.ts).
+    const hole = image ? dimHole(clip, asset, { width: W, height: H }) : null;
+    if (hole) {
+      const dark = fxInput({ kind: "dim", w: W, h: H, hole }, `d${L}`, ["-framerate", rate]);
+      graph.push(`[${dark}]${TO_YUVA},${held}${fades}[dm${L}]`);
+      graph.push(`[${current}][dm${L}]overlay=0:0:eof_action=pass:${enable}[db${L}]`);
+      current = `db${L}`;
+    }
 
     /**
      * Draws the layer, and the shadow under it, over what is below. The pieces of a joined run
@@ -857,8 +869,14 @@ export function buildVideoWindowPlan(
     const fmt = rgba ? "rgba" : "yuva420p";
     // Shape, border and shadow are pictures made once (shared/export/fx.ts). A device frame
     // takes the place of the shape and the border.
-    const shaped = !geo && !!(t?.mask || t?.border);
-    const R = t?.mask && !geo ? maskRadius(t, vw, vh, H) : 0;
+    const shape = t && !geo ? maskShape(t, vw, vh, H) : null;
+    const shaped = !geo && !!(shape || t?.border);
+    const R = shape?.radius ?? 0;
+    // An ellipse or a soft edge goes into the shape's pictures (absent for the shapes before them).
+    const extras = {
+      ...(shape?.ellipse ? { ellipse: true } : {}),
+      ...(shape?.feather ? { feather: shape.feather } : {}),
+    };
     const border = geo ? undefined : t?.border;
     const bw = border ? (BORDER_WIDTH * H) / 1080 : 0;
 
@@ -907,7 +925,7 @@ export function buildVideoWindowPlan(
     // 2. Border ring over the picture (the whole ring shows, as in the preview), then the shape.
     if (border) {
       const ring = fxInput(
-        { kind: "ring", w: vw, h: vh, radius: R, border: bw, color: border },
+        { kind: "ring", w: vw, h: vh, radius: R, border: bw, color: border, ...extras },
         `${L}`,
       );
       const ringIn = rgba ? ring : `rg${L}`;
@@ -915,8 +933,8 @@ export function buildVideoWindowPlan(
       graph.push(`[${pic}][${ringIn}]overlay=0:0:format=auto[rb${L}]`);
       pic = `rb${L}`;
     }
-    if (R > 0) {
-      const mask = fxInput({ kind: "mask", w: vw, h: vh, radius: R }, `${L}`);
+    if (shape) {
+      const mask = fxInput({ kind: "mask", w: vw, h: vh, radius: R, ...extras }, `${L}`);
       if (alphaContent) {
         graph.push(
           `[${pic}]split[ma${L}][mb${L}];[mb${L}]alphaextract[mc${L}];[mc${L}][${mask}]blend=all_mode=multiply[md${L}];[ma${L}][md${L}]alphamerge[ms${L}]`,
@@ -967,7 +985,7 @@ export function buildVideoWindowPlan(
           Math.max(0, Math.min(q(outer) - q(inner), Math.round(offset / 4)));
         const [Y, U, V] = yuv709(shadow.color.slice(0, 7));
         graph.push(
-          `[${pic}]split[sp${L}][sq${L}];[sq${L}]alphaextract,scale=${q(vw)}:${q(vh)},pad=${q(cw)}:${q(ch)}:${at(margin + ox, vw, cw)}:${at(margin + oy, vh, ch)}:black,gblur=sigma=${n(Math.max(0.1, sigma / 4))},lut=y='val*${n(shadow.opacity)}',scale=${cw}:${ch},split[sa${L}][sb${L}];` +
+          `[${pic}]split[sp${L}][sq${L}];[sq${L}]alphaextract,scale=${q(vw)}:${q(vh)},${padGray(q(cw), q(ch), at(margin + ox, vw, cw), at(margin + oy, vh, ch), q(vw), q(vh))},gblur=sigma=${n(Math.max(0.1, sigma / 4))},lut=y='val*${n(shadow.opacity)}',scale=${cw}:${ch},split[sa${L}][sb${L}];` +
             `[sa${L}]format=yuv420p,lutyuv=y=${Y}:u=${U}:v=${V}[sc${L}];[sc${L}][sb${L}]alphamerge${rgba ? `,scale=in_color_matrix=bt709:in_range=tv,format=rgba` : ""}[sd${L}]`,
         );
         pic = `sp${L}`;
@@ -986,6 +1004,7 @@ export function buildVideoWindowPlan(
             sigma,
             opacity: shadow.opacity * opacity,
             color: shadow.color.slice(0, 7),
+            ...extras,
           },
           `${L}`,
           ["-framerate", rate],

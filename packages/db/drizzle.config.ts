@@ -31,6 +31,7 @@ export default defineConfig({
     "bora_treinar",
     "dia_de_estrela",
     "family",
+    "recreio",
   ],
   dbCredentials: {
     url: databaseUrl,

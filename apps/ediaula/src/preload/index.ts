@@ -215,6 +215,7 @@ const api: EdiAulaApi = {
   renderKeyed: (jobId, path, width, height, fps, duration, key) =>
     ipcRenderer.invoke("key:render", jobId, path, width, height, fps, duration, key),
   exists: (paths) => ipcRenderer.invoke("fs:exists", paths),
+  statFiles: (paths) => ipcRenderer.invoke("fs:stat", paths),
   createProject: (name, course, settings, fileName) =>
     ipcRenderer.invoke("project:create", name, course, settings, fileName),
   createPartProject: (name, course, settings, fields) =>
@@ -289,8 +290,8 @@ const api: EdiAulaApi = {
   setAiContext: (context) => ipcRenderer.invoke("ai:context", context),
   aiClients: () => ipcRenderer.invoke("ai:clients"),
   connectAiClient: (id, rotate) => ipcRenderer.invoke("ai:connect", id, rotate ?? false),
-  assistantSend: (conversationId, text) =>
-    ipcRenderer.invoke("assistant:send", conversationId, text),
+  assistantSend: (conversationId, text, images) =>
+    ipcRenderer.invoke("assistant:send", conversationId, text, images),
   assistantStop: (conversationId) => ipcRenderer.invoke("assistant:stop", conversationId),
   assistantReset: (conversationId) => ipcRenderer.invoke("assistant:reset", conversationId),
   onAssistantEvent: (cb) => {

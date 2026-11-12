@@ -1,7 +1,20 @@
 import type { Asset } from "@shared/types";
 
+/**
+ * Versions of files changed in place (the same name, new content): their URL changes with it, so
+ * the preview loads the file again instead of what it already had. The main process serves the
+ * path and ignores the query.
+ */
+const versions = new Map<string, number>();
+export function bumpMedia(path: string): void {
+  versions.set(path, (versions.get(path) ?? 0) + 1);
+}
+
 /** URL for a local file, served by the main process with range support. */
-export const mediaUrl = (path: string): string => `media://local/${encodeURIComponent(path)}`;
+export const mediaUrl = (path: string): string => {
+  const v = versions.get(path);
+  return `media://local/${encodeURIComponent(path)}${v ? `?v=${v}` : ""}`;
+};
 
 /** Prefer the 720p proxy for playback once it is ready. */
 export const playbackPath = (a: Asset): string =>

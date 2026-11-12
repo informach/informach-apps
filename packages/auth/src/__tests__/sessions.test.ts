@@ -1,8 +1,9 @@
-import { verifications } from "@informach/db/schema";
+import { sessions, verifications } from "@informach/db/schema";
 import type { SQL } from "drizzle-orm";
 import { PgDialect } from "drizzle-orm/pg-core";
 import { describe, expect, it } from "vitest";
 import {
+  isAuthSessionLive,
   listCachedSessions,
   revokeCachedSessions,
   revokeTrustedDevices,
@@ -85,6 +86,78 @@ describe("cached sessions in secondary storage", () => {
     const store = memoryStore({ "active-sessions-u1": "{not json" });
     expect(await listCachedSessions(store, "u1", now)).toEqual([]);
     expect(await revokeCachedSessions(memoryStore({}), "u1")).toBe(0);
+  });
+});
+
+describe("login session checked without the cookie", () => {
+  const store = () =>
+    memoryStore({
+      "active-sessions-u1": JSON.stringify([
+        { token: "tok-a", expiresAt: later },
+        { token: "tok-old", expiresAt: now - 1 },
+        { token: "tok-gone", expiresAt: later },
+      ]),
+      "tok-a": JSON.stringify({
+        session: { id: "s-a", userId: "u1", expiresAt: new Date(later).toISOString() },
+        user: { id: "u1" },
+      }),
+      "tok-old": JSON.stringify({ session: { id: "s-old", userId: "u1" }, user: { id: "u1" } }),
+      "active-sessions-u2": JSON.stringify([{ token: "tok-b", expiresAt: later }]),
+      "tok-b": JSON.stringify({ session: { id: "s-b", userId: "u2" }, user: { id: "u2" } }),
+    });
+
+  it("finds a live session of the account in secondary storage", async () => {
+    expect(await isAuthSessionLive({ sessionId: "s-a", userId: "u1", store: store(), now })).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    ["expired reference", "s-old", "u1"],
+    ["unknown session", "s-none", "u1"],
+    ["session of another account", "s-b", "u1"],
+    ["account without sessions", "s-a", "u3"],
+  ])("refuses %s", async (_case, sessionId, userId) => {
+    expect(await isAuthSessionLive({ sessionId, userId, store: store(), now })).toBe(false);
+  });
+
+  it("refuses a stored session whose own deadline has passed", async () => {
+    const stale = memoryStore({
+      "active-sessions-u1": JSON.stringify([{ token: "tok-a", expiresAt: later }]),
+      "tok-a": JSON.stringify({
+        session: { id: "s-a", userId: "u1", expiresAt: new Date(now - 1).toISOString() },
+      }),
+    });
+    expect(await isAuthSessionLive({ sessionId: "s-a", userId: "u1", store: stale, now })).toBe(
+      false,
+    );
+  });
+
+  it("without secondary storage asks core.sessions for id, account and deadline", async () => {
+    let condition: unknown;
+    const reader = (rows: { id: string }[]) => ({
+      select: () => ({
+        from: (table: unknown) => {
+          expect(table).toBe(sessions);
+          return {
+            where: (where: unknown) => {
+              condition = where;
+              return { limit: async () => rows };
+            },
+          };
+        },
+      }),
+    });
+    const input = { sessionId: "s-a", userId: "u1", now };
+    await expect(
+      isAuthSessionLive({ ...input, reader: reader([{ id: "s-a" }]) as never }),
+    ).resolves.toBe(true);
+    await expect(isAuthSessionLive({ ...input, reader: reader([]) as never })).resolves.toBe(false);
+    const query = new PgDialect().sqlToQuery(condition as SQL);
+    expect(query.sql).toBe(
+      '("core"."sessions"."id" = $1 and "core"."sessions"."user_id" = $2 and "core"."sessions"."expires_at" > $3)',
+    );
+    expect(query.params.slice(0, 2)).toEqual(["s-a", "u1"]);
   });
 });
 

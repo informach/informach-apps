@@ -5,18 +5,20 @@
  * the image their type says.
  */
 
-export const TURN_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"] as const;
-export type TurnImageType = (typeof TURN_IMAGE_TYPES)[number];
+import {
+  TURN_IMAGE_BYTES,
+  TURN_IMAGE_LIMIT,
+  type TurnImage,
+  type TurnImageType,
+} from "./ai-image-limits.ts";
 
-export interface TurnImage {
-  mediaType: TurnImageType;
-  data: Uint8Array;
-}
-
-/** At most this many images per message. */
-export const TURN_IMAGE_LIMIT = 4;
-/** Bytes of one image: its base64 stays within the 5 MB the engines accept. */
-export const TURN_IMAGE_BYTES = 3_750_000;
+export {
+  TURN_IMAGE_BYTES,
+  TURN_IMAGE_LIMIT,
+  TURN_IMAGE_TYPES,
+  type TurnImage,
+  type TurnImageType,
+} from "./ai-image-limits.ts";
 
 const startsWith = (data: Uint8Array, bytes: readonly number[], at = 0): boolean =>
   bytes.every((byte, index) => data[at + index] === byte);

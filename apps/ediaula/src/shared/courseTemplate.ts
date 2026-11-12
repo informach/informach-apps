@@ -119,6 +119,8 @@ const kinds = z.enum([
   "lowerthird",
   "panel",
   "line",
+  "box",
+  "item",
 ]);
 const motion = z.enum([
   "fade",
@@ -729,8 +731,12 @@ export function lessonCards(p: Pick<Project, "clips" | "assets">): {
   const end = projectDuration(p);
   const assets = new Map(p.assets.map((a) => [a.id, a]));
   const named = (c: Clip, id: "opening" | "closing"): boolean => {
-    const label = templateById(id)?.label;
-    return !!label && !!assets.get(c.assetId)?.name.startsWith(`${label} · `);
+    const t = templateById(id);
+    const name = assets.get(c.assetId)?.name;
+    // Lessons made before the templates were renamed keep the old names on their layers.
+    return (
+      !!t && !!name && [t.label, ...(t.formerLabels ?? [])].some((l) => name.startsWith(`${l} · `))
+    );
   };
   const isCard = (c: Clip, id: "opening" | "closing"): boolean =>
     c.annotation?.kind === "card" || named(c, id);

@@ -7,12 +7,13 @@ import {
   type Box,
   clipLayout,
   DEFAULT_TRANSFORM,
-  maskRadius,
+  maskShape,
   rotationOf,
   type Shadow,
   shadowOffset,
   type Transform,
 } from "@shared/compose";
+import { dimHole, dimMaskSvg } from "@shared/dim";
 import { gainAt } from "@shared/gain";
 import { transformAt, upsertKeyframe } from "@shared/keyframes";
 import {
@@ -27,6 +28,7 @@ import {
 } from "@shared/look";
 import { driftCorrection, elementRate } from "@shared/playbackSync";
 import { regionRectAt, regionStrength } from "@shared/regionFollow";
+import { sizedOnStage } from "@shared/shapeResize";
 import { clipEnd, clipSpeed, projectDuration, sourceAt, sourceEnd } from "@shared/timeline";
 import {
   type DerivedClip,
@@ -57,6 +59,7 @@ import {
   Pause,
   Play,
   Plus,
+  Ruler,
   ShieldCheck,
   SkipBack,
   SkipForward,
@@ -77,6 +80,7 @@ import {
 import { useSpeechSpans } from "@/lib/audio";
 import { useClickEvents } from "@/lib/clickSounds";
 import { timecode } from "@/lib/format";
+import { softMaskUrl } from "@/lib/maskImage";
 import { mediaUrl, playbackPath } from "@/lib/media";
 import { clipRevealTimes, revealing, revealPicture, revealStateAt } from "@/lib/reveal";
 import { listenPath, useVoiceListen } from "@/lib/voice";
@@ -89,10 +93,13 @@ import { BalloonTailControl } from "./BalloonTailControl";
 import { CaptionOverlay, KeyOverlay, useCues } from "./CaptionOverlay";
 import { CursorLayer } from "./CursorLayer";
 import { CutFxLayer } from "./CutFxLayer";
+import { MaskTarget } from "./MaskTarget";
 import { MediaPool } from "./mediaPool";
 import { buildLanes, type LanePlan, type PoolClip, pictureTarget, planLane } from "./previewPool";
 import { RecordingZoomTarget } from "./RecordingZoomTarget";
 import { RegionTarget } from "./RegionTarget";
+import { RULER, Rulers, StageGuides, useGuideDrag, useGuides } from "./Rulers";
+import { ShapeSizeControl } from "./ShapeSizeControl";
 import { ZoomTarget } from "./ZoomTarget";
 
 /** Clips are mounted a little before they start so the decoder is warm when they appear. */
@@ -105,6 +112,8 @@ const VIEW_MIN = 0.5;
 const VIEW_MAX = 4;
 /** Whether the safe areas are drawn over the preview, kept for the next session. */
 const SAFE_KEY = "ediaula.preview.safeArea";
+/** Whether the rulers (and the guides pulled from them) are shown, kept for the next session. */
+const RULERS_KEY = "ediaula.preview.rulers";
 const remembered = (key: string): boolean => {
   try {
     return localStorage.getItem(key) === "1";
@@ -235,6 +244,8 @@ export function Preview(): ReactNode {
   const hosts = useRef(new Map<string, HTMLDivElement>());
   const images = useRef(new Map<string, HTMLImageElement>());
   const regions = useRef(new Map<string, HTMLDivElement>());
+  /** The darkening around a Destaque's box, under its clip (shared/dim.ts). */
+  const dims = useRef(new Map<string, HTMLDivElement>());
   const parkingRef = useRef<HTMLDivElement>(null);
   const poolRef = useRef<MediaPool | null>(null);
   const layers = useRef(new Map<string, HTMLDivElement>());
@@ -248,6 +259,8 @@ export function Preview(): ReactNode {
   const [view, setView] = useState({ zoom: 1, x: 0, y: 0 });
   const size = { w: Math.round(fit.w * view.zoom), h: Math.round(fit.h * view.zoom) };
   const [safeArea, setSafeArea] = useState(() => remembered(SAFE_KEY));
+  const [rulers, setRulers] = useState(() => remembered(RULERS_KEY));
+  const userGuides = useGuides();
   const zoomed = useRef(false);
   zoomed.current = view.zoom !== 1;
   // Ctrl + wheel zooms the preview around the pointer (never the page); the wheel alone moves a
@@ -277,6 +290,7 @@ export function Preview(): ReactNode {
   const [tailEditing, setTailEditing] = useState<string | null>(null);
   /** The annotation whose text is being typed on it (AnnotationTextEditor): a double click or the panel. */
   const textEditing = useApp((s) => s.textEdit);
+  const maskEdit = useApp((s) => s.maskEdit);
   /** The annotation whose picture the text being typed replaces on the screen (a title). */
   const [textHidden, setTextHidden] = useState<string | null>(null);
   const closeText = useCallback(() => useApp.getState().set({ textEdit: null }), []);
@@ -296,15 +310,17 @@ export function Preview(): ReactNode {
     const el = areaRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => {
-      const aw = el.clientWidth;
-      const ah = el.clientHeight;
+      // The rulers take a strip along the top and the left.
+      const room = rulers && document.fullscreenElement !== el ? RULER : 0;
+      const aw = el.clientWidth - room;
+      const ah = el.clientHeight - room;
       const ratio = settings.width / settings.height;
       const w = Math.min(aw, ah * ratio);
       setFit({ w: Math.floor(w), h: Math.floor(w / ratio) });
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [settings.width, settings.height]);
+  }, [settings.width, settings.height, rulers]);
 
   // The automatic whooshes (shared/autoSounds.ts): each one sounds once when the playhead passes
   // its moment while playing forward (not on a jump), in the preview's mix like the export's,
@@ -598,6 +614,37 @@ export function Preview(): ReactNode {
           layer.style.transform = `translate(${X}px, ${Y}px) scale(${A.s * m.scale})${spin(rotationOf(liveTransform(c, live)))}`;
         }
       }
+      // A Destaque that darkens the rest: around its box where it stands (also while it is
+      // dragged), fading in and out with it, and magnified by the zoom layers above it.
+      for (const [id, el] of dims.current) {
+        const c = clips.get(id);
+        const track = c && tracks.get(c.trackId);
+        const asset = c && assets.get(c.assetId);
+        const stage = stageRef.current;
+        const hole =
+          c && asset && track && !track.hidden && t >= c.start && t < clipEnd(c)
+            ? dimHole(
+                { annotation: c.annotation, transform: liveTransform(c, live) },
+                asset,
+                project.settings,
+              )
+            : null;
+        el.style.visibility = hole ? "visible" : "hidden";
+        if (!c || !hole || !stage) continue;
+        el.style.opacity = String(hole.darkness * animAt(c, t).opacity);
+        const mask = `url("data:image/svg+xml,${encodeURIComponent(
+          dimMaskSvg(hole, project.settings.width, project.settings.height),
+        )}")`;
+        if (el.dataset.mask !== mask) {
+          el.dataset.mask = mask;
+          el.style.maskImage = mask;
+        }
+        const views = zoomsOver(project, order.get(c.trackId) ?? 0, t, editingZoom ?? undefined);
+        if (views.length) {
+          const A = zoomAffine(views, stage.clientWidth, stage.clientHeight);
+          el.style.transform = `translate(${A.tx}px, ${A.ty}px) scale(${A.s})`;
+        } else el.style.transform = "";
+      }
       // Region effects show while their clip lasts; zoom layers above them magnify them with
       // the rest of the picture, and a region that follows the recording goes with its zooms.
       for (const [id, el] of regions.current) {
@@ -838,6 +885,21 @@ export function Preview(): ReactNode {
     return out.sort((x, y) => x.order - y.order);
   };
 
+  // Guides pulled from the rulers snap to the frame's edges and center and to the pictures on screen.
+  const guideDrag = useGuideDrag({
+    stageRef,
+    frame: settings,
+    targets: () => {
+      const x = [0, settings.width / 2, settings.width];
+      const y = [0, settings.height / 2, settings.height];
+      for (const { bounds: b } of visibleAt(usePlayback.getState().time)) {
+        x.push(b.x, b.x + b.w / 2, b.x + b.w);
+        y.push(b.y, b.y + b.h / 2, b.y + b.h);
+      }
+      return { x, y };
+    },
+  });
+
   /**
    * Alt + click (without dragging): the picture under the one selected at that point (each
    * Alt + click goes one layer down, and from the bottom back to the top). Alt + drag moves the
@@ -900,6 +962,11 @@ export function Preview(): ReactNode {
     );
     const targetsX = [0, frame.width / 2, frame.width];
     const targetsY = [0, frame.height / 2, frame.height];
+    // And the guides pulled from the rulers, while they are shown.
+    if (rulers) {
+      targetsX.push(...userGuides.x.map((g) => g * frame.width));
+      targetsY.push(...userGuides.y.map((g) => g * frame.height));
+    }
     for (const { bounds: b } of others) {
       targetsX.push(b.x, b.x + b.w / 2, b.x + b.w);
       targetsY.push(b.y, b.y + b.h / 2, b.y + b.h);
@@ -1000,6 +1067,10 @@ export function Preview(): ReactNode {
     if (el) flaps.current.set(c.id, el);
     else flaps.current.delete(c.id);
   };
+  const dimRef = (c: Clip) => (el: HTMLDivElement | null) => {
+    if (el) dims.current.set(c.id, el);
+    else dims.current.delete(c.id);
+  };
   const layerRef = (c: Clip) => (el: HTMLDivElement | null) => {
     if (el) layers.current.set(c.id, el);
     else layers.current.delete(c.id);
@@ -1024,6 +1095,9 @@ export function Preview(): ReactNode {
   useEffect(() => {
     const open = useApp.getState().textEdit;
     if (open && open.id !== selectedId) useApp.getState().set({ textEdit: null });
+    // And the mask being drawn belongs to the clip that was selected.
+    const masking = useApp.getState().maskEdit;
+    if (masking && masking !== selectedId) useApp.getState().set({ maskEdit: null });
   }, [selectedId]);
 
   /** Double click on an annotation with text: it is typed right on it. False for anything else. */
@@ -1087,6 +1161,22 @@ export function Preview(): ReactNode {
           </button>
           <button
             type="button"
+            className={`ctl ctl-sm ${rulers ? "is-on" : ""}`}
+            aria-pressed={rulers}
+            title="Réguas e guias: arraste da régua para criar uma guia; as imagens grudam nelas ao mover (Alt solta). Solte a guia fora do quadro para tirar."
+            onClick={() => {
+              setRulers(!rulers);
+              try {
+                localStorage.setItem(RULERS_KEY, rulers ? "0" : "1");
+              } catch {
+                // Only a convenience: the choice is not kept.
+              }
+            }}
+          >
+            <Ruler size={14} />
+          </button>
+          <button
+            type="button"
             className="ctl ctl-sm"
             title="Afastar a prévia (Ctrl + roda do mouse)"
             disabled={view.zoom <= VIEW_MIN}
@@ -1115,7 +1205,7 @@ export function Preview(): ReactNode {
       </div>
 
       <div
-        className="stage-area"
+        className={`stage-area ${rulers ? "has-rulers" : ""}`}
         ref={areaRef}
         onPointerDown={(e) => {
           if (e.button !== 1) return;
@@ -1169,6 +1259,20 @@ export function Preview(): ReactNode {
           }}
         >
           <ColorFilters clips={mounted} />
+          {mounted.map((c) =>
+            c.annotation?.kind === "highlight" && c.annotation.dim ? (
+              <div
+                key={`dim:${c.id}`}
+                ref={dimRef(c)}
+                className="stage-dim"
+                // Under its clip's layer (same level, earlier on the stage), over the tracks below.
+                style={{
+                  zIndex: (100 - (trackIndex.get(c.trackId) ?? 0)) * 2,
+                  visibility: "hidden",
+                }}
+              />
+            ) : null,
+          )}
           {mounted.map((c) => {
             const a = assets.get(c.assetId);
             if (!a || a.missing || !project || c.zoomLayer) return null;
@@ -1192,13 +1296,33 @@ export function Preview(): ReactNode {
               ? deviceGeometry(tf.device, lay.visible.w, lay.visible.h)
               : null;
             const k = device ? device.screen.w / lay.visible.w : 1;
-            const radius = maskRadius(tf, lay.visible.w, lay.visible.h, settings.height) * scale;
+            // The shape: an ellipse, rounded corners, and a soft edge drawn as the export's mask.
+            const shape = device
+              ? null
+              : maskShape(tf, lay.visible.w, lay.visible.h, settings.height);
+            const radius = shape?.ellipse
+              ? "50%"
+              : shape?.radius
+                ? shape.radius * scale
+                : undefined;
+            const soft =
+              shape && shape.feather > 0
+                ? softMaskUrl(
+                    {
+                      ellipse: shape.ellipse,
+                      radius: shape.radius * scale,
+                      feather: shape.feather * scale,
+                    },
+                    lay.visible.w * scale,
+                    lay.visible.h * scale,
+                  )
+                : "";
             const box = {
               left: lay.visible.x * scale,
               top: lay.visible.y * scale,
               width: lay.visible.w * scale,
               height: lay.visible.h * scale,
-              borderRadius: device ? undefined : radius || undefined,
+              borderRadius: radius,
               filter: tf.shadow
                 ? cssShadow(tf.shadow, (settings.height / 1080) * scale)
                 : undefined,
@@ -1231,6 +1355,7 @@ export function Preview(): ReactNode {
                     ...(tf.flipH || tf.flipV
                       ? { transform: `scale(${tf.flipH ? -1 : 1}, ${tf.flipV ? -1 : 1})` }
                       : {}),
+                    ...(soft ? { maskImage: `url("${soft}")`, maskSize: "100% 100%" } : {}),
                     ...(device
                       ? {
                           left: device.screen.x * scale,
@@ -1291,7 +1416,7 @@ export function Preview(): ReactNode {
                   <span
                     className="stage-ring"
                     style={{
-                      borderRadius: radius || undefined,
+                      borderRadius: radius,
                       borderColor: tf.border,
                       borderWidth: ((BORDER_WIDTH * settings.height) / 1080) * scale,
                     }}
@@ -1308,6 +1433,16 @@ export function Preview(): ReactNode {
           )}
           {project && <KeyOverlay project={project} height={size.h} />}
           {safeArea && <SafeAreas portrait={settings.height > settings.width} />}
+          {rulers && (
+            <StageGuides
+              guides={userGuides}
+              draft={guideDrag.draft}
+              width={size.w}
+              height={size.h}
+              frame={settings}
+              onStart={guideDrag.start}
+            />
+          )}
           {guides && (
             <div className="stage-guides" aria-hidden="true">
               {guides.x.map((x) => (
@@ -1320,6 +1455,21 @@ export function Preview(): ReactNode {
           )}
           {selected?.zoomLayer && <ZoomTarget clip={selected} width={size.w} height={size.h} />}
           {selected?.regionFx && <RegionTarget clip={selected} width={size.w} height={size.h} />}
+          {selected &&
+            selectedAsset &&
+            maskEdit === selected.id &&
+            !selected.zoomLayer &&
+            !selected.regionFx &&
+            !selected.annotation && (
+              <MaskTarget
+                key={`mask:${selected.id}`}
+                clip={selected}
+                asset={selectedAsset}
+                transform={transformOf(selected)}
+                settings={settings}
+                scale={scale}
+              />
+            )}
           {selected && selectedAsset && recordingZoom?.assetId === selectedAsset.id && (
             <RecordingZoomTarget
               clip={selected}
@@ -1334,9 +1484,13 @@ export function Preview(): ReactNode {
             project &&
             !selected.zoomLayer &&
             !selected.regionFx &&
+            maskEdit !== selected.id &&
             isVisual(project, selected, selectedAsset) && (
               <Gizmo
                 dragging={draft?.id === selected.id}
+                // A shape is sized by its own sides and corners (ShapeSizeControl), not scaled.
+                scaled={!sizedOnStage(selected.annotation)}
+                hidden={tailEditing === selected.id}
                 clip={selected}
                 asset={selectedAsset}
                 transform={transformOf(selected)}
@@ -1363,6 +1517,20 @@ export function Preview(): ReactNode {
               onEditing={setTailEditing}
             />
           )}
+          {selected &&
+            sizedOnStage(selected.annotation) &&
+            selectedAsset &&
+            project &&
+            maskEdit !== selected.id && (
+              <ShapeSizeControl
+                key={`size:${selected.id}`}
+                clip={selected}
+                asset={selectedAsset}
+                project={project}
+                scale={scale}
+                onEditing={setTailEditing}
+              />
+            )}
           {textEditing &&
             selected?.id === textEditing.id &&
             typedOnStage(selected.annotation) &&
@@ -1381,6 +1549,15 @@ export function Preview(): ReactNode {
               />
             )}
         </div>
+        {rulers && (
+          <Rulers
+            areaRef={areaRef}
+            stageRef={stageRef}
+            scale={scale}
+            guides={userGuides}
+            onStart={guideDrag.start}
+          />
+        )}
       </div>
 
       <Transport
@@ -1394,6 +1571,8 @@ export function Preview(): ReactNode {
 /** Selection frame on the stage: drag inside to move, drag a corner to resize. Shown while the clip is on screen. */
 function Gizmo({
   dragging,
+  scaled,
+  hidden,
   clip,
   asset,
   transform,
@@ -1403,6 +1582,10 @@ function Gizmo({
   onEditText,
 }: {
   dragging: boolean;
+  /** Corners that scale it (a shape is sized by its own handles instead). */
+  scaled: boolean;
+  /** While its shape is being sized on the stage. */
+  hidden: boolean;
   clip: Clip;
   asset: Asset;
   transform: Transform;
@@ -1427,6 +1610,7 @@ function Gizmo({
     width: v.w * scale,
     height: v.h * scale,
     ...(lay.rotation ? { transform: `rotate(${lay.rotation}deg)` } : {}),
+    ...(hidden ? { visibility: "hidden" as const } : {}),
   };
   return (
     <fieldset
@@ -1440,7 +1624,7 @@ function Gizmo({
         onEditText(e, clip);
       }}
     >
-      {(["nw", "ne", "sw", "se"] as const).map((h) => (
+      {(scaled ? (["nw", "ne", "sw", "se"] as const) : []).map((h) => (
         <span
           key={h}
           className={`gizmo-handle gizmo-${h}`}

@@ -18,7 +18,16 @@ export const DRAW_SECONDS = 0.8;
 export const WORD_STEP = 0.28;
 
 /** Kinds with text that can come in word by word. */
-export const TEXT_REVEAL = new Set(["balloon", "note", "label", "title", "card", "lowerthird"]);
+export const TEXT_REVEAL = new Set([
+  "balloon",
+  "note",
+  "label",
+  "title",
+  "card",
+  "lowerthird",
+  "box",
+  "item",
+]);
 export const DRAW_REVEAL = new Set(["arrow", "line"]);
 
 /** What can come in, for each kind: words, a stroke, or nothing. */
@@ -29,7 +38,7 @@ export function revealKind(a: Pick<Annotation, "kind">): "words" | "draw" | null
 /** The words of an annotation, in the order they are drawn (main text, then the line below). */
 export function revealWords(a: Pick<Annotation, "kind" | "text" | "subtitle">): string[] {
   const split = (t?: string): string[] => (t ?? "").split(/\s+/).filter(Boolean);
-  return a.kind === "lowerthird" || a.kind === "card"
+  return a.kind === "lowerthird" || a.kind === "card" || a.kind === "item"
     ? [...split(a.text), ...split(a.subtitle)]
     : split(a.text);
 }

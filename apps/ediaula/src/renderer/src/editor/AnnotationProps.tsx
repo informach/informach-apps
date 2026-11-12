@@ -1,13 +1,20 @@
 import {
+  ANNOTATION_ICONS,
   ANNOTATION_TEXT,
   type Annotation,
+  type AnnotationIcon,
   defaultOutline,
+  ICON_IDS,
+  type ItemMarker,
   KIND_LABEL,
+  KIT,
   type Outline,
   type OutlineStyle,
   outlineStyle,
+  type Pointer,
   type Tail,
 } from "@shared/annotation";
+import { DEFAULT_DIM } from "@shared/dim";
 import {
   BOARD_COLORS,
   BOARD_KINDS,
@@ -23,12 +30,15 @@ import { clipEnd } from "@shared/timeline";
 import type { Clip } from "@shared/types";
 import { MessageSquareText, PenLine, Type, X } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
+import { ICON_COMPONENTS } from "@/lib/annotationIcons";
 import { updateAnnotation } from "@/lib/annotations";
 import { changeDrawing } from "@/lib/drawing";
+import { projectFont } from "@/lib/palettes";
 import { annotationStyle } from "@/lib/sharedLibrary";
 import { useApp } from "@/state/app";
 import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
+import { Toggle } from "@/ui";
 import { Slider } from "./ClipVisual";
 import { FontPicker } from "./FontPicker";
 import { FavoriteStyle, RevealRow } from "./LookSections";
@@ -38,7 +48,94 @@ import { Swatches } from "./Swatches";
 const DEFAULT_FONT: Partial<Record<Annotation["kind"], number>> = {
   card: 96,
   title: 72,
+  box: KIT.boxText,
+  item: KIT.itemText,
 };
+
+const POINTERS: [Pointer, string][] = [
+  ["none", "Sem"],
+  ["up", "↑"],
+  ["down", "↓"],
+  ["left", "←"],
+  ["right", "→"],
+];
+
+const MARKERS: [ItemMarker, string][] = [
+  ["circle", "Círculo"],
+  ["square", "Quadrado"],
+  ["check", "Certo"],
+  ["none", "Sem"],
+];
+
+/** The icons a label or an item can show, as small buttons (the first one takes it away). */
+function IconPicker({
+  value,
+  onPick,
+}: {
+  value: AnnotationIcon | undefined;
+  onPick: (icon: AnnotationIcon | undefined) => void;
+}): ReactNode {
+  return (
+    <div className="chip-row icon-chips">
+      <button
+        type="button"
+        className={`chip ${value ? "" : "is-active"}`}
+        onClick={() => onPick(undefined)}
+      >
+        Sem
+      </button>
+      {ICON_IDS.map((id) => {
+        const Icon = ICON_COMPONENTS[id];
+        return (
+          <button
+            type="button"
+            key={id}
+            className={`chip chip-icon ${value === id ? "is-active" : ""}`}
+            title={ANNOTATION_ICONS[id]}
+            aria-label={ANNOTATION_ICONS[id]}
+            onClick={() => onPick(id)}
+          >
+            <Icon size={14} />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** A short text field written to the annotation when it is left (Enter or leaving the field). */
+function ShortText({
+  label,
+  value,
+  max,
+  onCommit,
+}: {
+  label: string;
+  value: string;
+  max: number;
+  onCommit: (v: string) => void;
+}): ReactNode {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  const commit = (): void => {
+    if (draft !== value) onCommit(draft.trim().slice(0, max));
+  };
+  return (
+    <label className="short-text">
+      <span className="field-label">{label}</span>
+      <input
+        className="input"
+        value={draft}
+        maxLength={max}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+        }}
+      />
+    </label>
+  );
+}
 
 const TAILS: [Tail, string][] = [
   ["none", "Sem"],
@@ -71,6 +168,8 @@ const TEXT_KINDS = new Set<Annotation["kind"]>([
   "step",
   "card",
   "lowerthird",
+  "box",
+  "item",
 ]);
 
 function Chips<T extends string | number>({
@@ -208,6 +307,11 @@ const TYPED_TEXTS: Partial<Record<Annotation["kind"], [TextKey, string][]>> = {
     ["text", "Título"],
     ["subtitle", "Linha de baixo"],
   ],
+  item: [
+    ["kicker", "Linha de cima"],
+    ["text", "Texto"],
+    ["subtitle", "Linha de baixo"],
+  ],
 };
 type TextKey = "text" | "kicker" | "subtitle";
 
@@ -318,6 +422,32 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
         {hasText && (
           <FontPicker value={a.fontFamily} onChange={(fontFamily) => set({ fontFamily })} />
         )}
+        {a.kind === "balloon" && (
+          <>
+            <span className="field-label">Estilo</span>
+            <Chips
+              value={a.look ?? "comic"}
+              options={[
+                ["comic", "Quadrinho"],
+                ["kit", "Caixa"],
+              ]}
+              onPick={(look) => {
+                if (look === (a.look ?? "comic")) return;
+                const textRole = look === "kit" ? ("heading" as const) : undefined;
+                // With the theme's fonts in use, the text takes the font of its new role.
+                const font = projectFont(useProject.getState().project, { kind: a.kind, textRole });
+                set({
+                  look,
+                  textRole,
+                  // Back to the look's own outline and letter size.
+                  outline: undefined,
+                  fontSize: undefined,
+                  ...(font ? { fontFamily: font } : {}),
+                });
+              }}
+            />
+          </>
+        )}
         {a.kind === "balloon" ? (
           <>
             <span className="field-label">Preenchimento</span>
@@ -328,11 +458,29 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
             <span className="field-label">
               {OUTLINE_IS_COLOR.has(a.kind)
                 ? "Cor (contorno)"
-                : a.kind === "panel"
+                : a.kind === "panel" || a.kind === "box"
                   ? "Cor (preenchimento)"
-                  : "Cor"}
+                  : a.kind === "item"
+                    ? "Cor do marcador"
+                    : "Cor"}
             </span>
             <Swatches value={a.color} onPick={(c) => c && setColor(c)} />
+          </>
+        )}
+        {a.kind === "balloon" && a.look === "kit" && (
+          <>
+            <span className="field-label">Cor do texto</span>
+            <Swatches
+              value={a.textColor}
+              none="Automática"
+              onPick={(textColor) => set({ textColor })}
+            />
+            <ShortText
+              label="Número no canto (vazio: sem número)"
+              value={a.badge ?? ""}
+              max={3}
+              onCommit={(badge) => set({ badge })}
+            />
           </>
         )}
         {a.kind === "balloon" && (
@@ -357,12 +505,26 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
             </button>
           </>
         )}
-        {(a.kind === "balloon" || a.kind === "note" || a.kind === "title") && (
+        {(a.kind === "balloon" ||
+          a.kind === "note" ||
+          a.kind === "title" ||
+          (a.kind === "box" && !a.boxWidth)) && (
           <Slider
             label="Largura"
-            value={a.width ?? 420}
+            value={a.width ?? (a.kind === "box" ? 450 : 420)}
             min={160}
             max={1600}
+            step={10}
+            format={(v) => `${Math.round(v)} px`}
+            onCommit={(v) => set({ width: v })}
+          />
+        )}
+        {a.kind === "item" && (
+          <Slider
+            label={a.bare ? "Largura máxima" : "Largura do cartão"}
+            value={a.width ?? KIT.itemWidth}
+            min={400}
+            max={1800}
             step={10}
             format={(v) => `${Math.round(v)} px`}
             onCommit={(v) => set({ width: v })}
@@ -380,6 +542,114 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
           />
         )}
       </div>
+
+      {a.kind === "box" && (
+        <div className="props-section">
+          <h3>Caixa</h3>
+          <span className="field-label">Cor do texto</span>
+          <Swatches
+            value={a.textColor}
+            none="Automática"
+            onPick={(textColor) => set({ textColor })}
+          />
+          <ShortText
+            label="Número no canto (vazio: sem número)"
+            value={a.badge ?? ""}
+            max={3}
+            onCommit={(badge) => set({ badge })}
+          />
+          <span className="field-label">Ponteiro</span>
+          <Chips
+            value={a.pointer ?? "none"}
+            options={POINTERS}
+            onPick={(pointer) => set({ pointer })}
+          />
+          {(a.pointer ?? "none") !== "none" && (
+            <Slider
+              label="Posição do ponteiro"
+              value={a.pointerAt ?? 0.5}
+              min={0}
+              max={1}
+              step={0.05}
+              format={(v) => `${Math.round(v * 100)}%`}
+              onCommit={(v) => set({ pointerAt: v })}
+            />
+          )}
+          <Chips
+            value={a.layout ?? "center"}
+            options={[
+              ["left", "À esquerda"],
+              ["center", "Centralizado"],
+            ]}
+            onPick={(layout) => set({ layout })}
+          />
+        </div>
+      )}
+
+      {a.kind === "item" && (
+        <div className="props-section">
+          <h3>Item</h3>
+          <span className="field-label">Marcador</span>
+          <Chips
+            value={a.marker ?? "circle"}
+            options={MARKERS}
+            onPick={(marker) => set({ marker })}
+          />
+          {(a.marker ?? "circle") !== "check" && (
+            <ShortText
+              label={a.icon ? "Número (no fim do cartão)" : "Número ou letra"}
+              value={a.badge ?? ""}
+              max={3}
+              onCommit={(badge) => set({ badge })}
+            />
+          )}
+          {(a.marker ?? "circle") !== "check" && (
+            <>
+              <span className="field-label">Ícone no marcador</span>
+              <IconPicker value={a.icon} onPick={(icon) => set({ icon })} />
+            </>
+          )}
+          <span className="field-label">Cartão</span>
+          <Chips
+            value={a.bare ? "bare" : "card"}
+            options={[
+              ["card", "Com cartão"],
+              ["bare", "Sem cartão"],
+            ]}
+            onPick={(v) => set({ bare: v === "bare" })}
+          />
+          {!a.bare && (
+            <Swatches value={a.fill ?? "#FFFFFF"} onPick={(fill) => fill && set({ fill })} />
+          )}
+          <span className="field-label">Cor do texto</span>
+          <Swatches
+            value={a.textColor}
+            none="Automática"
+            onPick={(textColor) => set({ textColor })}
+          />
+          {a.kicker && (
+            <>
+              <span className="field-label">Cor da linha de cima</span>
+              <Swatches
+                value={a.accent ?? a.color}
+                onPick={(accent) => accent && set({ accent })}
+              />
+            </>
+          )}
+          <FontPicker
+            label="Fonte da linha de baixo"
+            value={a.bodyFont ?? a.fontFamily}
+            onChange={(bodyFont) => set({ bodyFont })}
+          />
+        </div>
+      )}
+
+      {a.kind === "label" && (
+        <div className="props-section">
+          <h3>Ícone</h3>
+          <IconPicker value={a.icon} onPick={(icon) => set({ icon })} />
+        </div>
+      )}
 
       {(a.kind === "arrow" || a.kind === "line") && (
         <div className="props-section">
@@ -448,7 +718,7 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
             label="Espessura"
             value={a.thickness ?? 14}
             min={3}
-            max={48}
+            max={64}
             step={1}
             format={(v) => `${Math.round(v)} px`}
             onCommit={(v) => set({ thickness: v })}
@@ -509,6 +779,26 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
                   step={0.05}
                   format={(v) => `${Math.round(v * 100)}%`}
                   onCommit={(v) => set({ fillOpacity: v })}
+                />
+              )}
+              {/* The tracks below darken around the box (shared/dim.ts). */}
+              <div className="toggle-row">
+                <span className="muted">Escurecer o resto</span>
+                <Toggle
+                  on={!!a.dim}
+                  onChange={(on) => set({ dim: on ? DEFAULT_DIM : undefined })}
+                  label="Escurecer o resto"
+                />
+              </div>
+              {!!a.dim && (
+                <Slider
+                  label="Escurecimento"
+                  value={a.dim}
+                  min={0.1}
+                  max={0.95}
+                  step={0.05}
+                  format={(v) => `${Math.round(v * 100)}%`}
+                  onCommit={(v) => set({ dim: v })}
                 />
               )}
             </>
