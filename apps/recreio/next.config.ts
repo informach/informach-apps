@@ -21,9 +21,11 @@ const config: NextConfig = {
     "@informach/config",
     "@informach/db",
     "@informach/emails",
-    // O cliente do Morada e a simulação que ele usa: só entram no que
-    // `/jogar/morada` baixa, por `import()` (`features/jogar/carregadores.ts`).
+    // O cliente do Morada, a simulação e o esquema do manifesto da arte que ele
+    // usa: só entram no que `/jogar/morada` baixa, por `import()`
+    // (`features/jogar/carregadores.ts`).
     "@informach/jogo-morada",
+    "@informach/morada-arte",
     "@informach/morada-sim",
     "@informach/recreio",
     "@informach/ui",

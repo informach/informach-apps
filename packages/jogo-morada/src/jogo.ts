@@ -9,6 +9,8 @@ import type {
 } from "@informach/morada-sim";
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
+import { AtivosDeArte } from "./ativos/arte";
+import type { Ativos } from "./ativos/ativos";
 import { AtivosProcedurais } from "./ativos/procedurais";
 import { type AlvoClicado, Cena, type MedidasDaCena } from "./cena/cena";
 import { Sessao } from "./espelho/sessao";
@@ -77,7 +79,16 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
 
   const sessao = new Sessao({ fonte: opcoes.fonte });
   const { loja } = sessao;
-  const ativos = new AtivosProcedurais();
+  const ativos: Ativos = opcoes.origemDaArte
+    ? new AtivosDeArte({
+        origem: opcoes.origemDaArte.replace(/\/+$/, ""),
+        token: () => opcoes.fonte.token(),
+        aoFalhar(arquivo, erro) {
+          // O jogo segue com o corpo procedural; o aviso fica para quem investiga.
+          console.warn(`[morada] arte: ${arquivo} não chegou`, erro);
+        },
+      })
+    : new AtivosProcedurais();
   let descartado = false;
   /** Um toque na cena com o menu aberto só fecha o menu. */
   let fechouMenu = false;

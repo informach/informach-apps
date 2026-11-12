@@ -212,6 +212,10 @@ export class MoradoresDaCena {
     const { estado } = quadro;
     const vivos = new Set<MoradorId>();
     const noColo: { morador: Morador; entrada: Entrada; de: MoradorId }[] = [];
+    const carregadores = new Set<MoradorId>();
+    for (const morador of listar(estado.moradores)) {
+      if (morador.local.t === "colo") carregadores.add(morador.local.de);
+    }
 
     for (const morador of listar(estado.moradores)) {
       vivos.add(morador.id);
@@ -273,7 +277,7 @@ export class MoradoresDaCena {
       raiz.visible = true;
       raiz.position.set(x, y, z);
       raiz.rotation.y = giroParaCena(entrada.frente);
-      this.aplicarPose(entrada, morador, situacao, quadro);
+      this.aplicarPose(entrada, morador, situacao, quadro, carregadores.has(morador.id));
       this.marcar(entrada, morador, quadro, [x, y, z], situacao);
     }
 
@@ -300,6 +304,7 @@ export class MoradoresDaCena {
         andando: false,
         agindo: false,
         animacao: null,
+        carregando: false,
         gravidez: 0,
         agoraMs: quadro.agoraMs,
         dtMs: quadro.dtMs,
@@ -323,12 +328,14 @@ export class MoradoresDaCena {
     morador: Morador,
     situacao: Situacao,
     quadro: QuadroDosMoradores,
+    carregando: boolean,
   ): void {
     entrada.visual.aplicar({
       postura: situacao.postura,
       andando: situacao.andando,
       agindo: situacao.agindo,
       animacao: situacao.animacao,
+      carregando,
       gravidez: gravidezDe(quadro.estado, morador.id),
       agoraMs: quadro.agoraMs,
       dtMs: quadro.dtMs,

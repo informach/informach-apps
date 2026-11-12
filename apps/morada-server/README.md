@@ -124,8 +124,27 @@ Nos testes, o Recreio "fora do ar" falha como o cliente HTTP de verdade falha: `
 
 Com o Recreio de verdade, o portal em build de produção, banco e o processo deste servidor morto por sinal, quem prova é o E2E do portal: `apps/recreio/e2e/morada.spec.ts` (`pnpm --filter @informach/recreio-app e2e`).
 
+## Arte
+
+Com `MORADA_ARTE_DIR` (a saída do empacotador `@informach/morada-arte`, sempre fora deste repositório), `src/arte.ts` entrega `/arte/<arquivo>`:
+
+- só com uma sessão de jogo válida em `Authorization: Bearer`, conferida pelo mesmo verificador do WebSocket (o JWKS do Recreio, ou a plataforma em memória no modo `falsa`); sem ela, 401;
+- só os nomes que o manifesto cita, mais o próprio `manifest.json`, comparados inteiros e sem decodificar; qualquer outro, 404;
+- CORS só para `MORADA_ORIGENS` (no modo ligado ao Recreio, pedido sem `Origin` é recusado);
+- pacotes com cache de um ano, privado e imutável (o nome leva o hash); manifesto revalidado pelo ETag;
+- a cópia `.br` que o empacotador gravou para quem aceita brotli, com ETag próprio.
+
+Tudo é lido para a memória na subida, e um manifesto que cita arquivo ausente impede a subida. Trocar a arte é reiniciar o processo. Sem a variável, a rota não existe e o cliente desenha os moradores procedurais.
+
+```bash
+ARTES_3D_DIR=<clone do artes-3d> pnpm --filter @informach/morada-arte empacotar -- --saida <pasta fora do repo>
+MORADA_PLATAFORMA=falsa MORADA_REGRAS=prova MORADA_ARTE_DIR=<pasta> pnpm dev:morada-server
+pnpm --filter @informach/jogo-morada bancada   # http://localhost:5173/?apelido=Lia&arte
+```
+
+No portal, a origem da arte é `RECREIO_GAME_ORIGINS.morada.assets` (`http://localhost:3010` em desenvolvimento).
+
 ## Ainda não tem
 
 - Build para produção, serviço no Railway e Sentry (lote X3).
-- Entrega da arte só para sessão de jogo válida (lote X2).
 - Os passos de todos os mundos esperam uns pelos outros: uma chamada lenta ao Recreio em um mundo atrasa o passo dos outros mundos da instância.

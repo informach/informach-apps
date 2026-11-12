@@ -45,6 +45,11 @@ export type OpcoesDoMorada = {
    * jogo escreve um aviso simples no lugar dele; com isto, quem hospeda avisa.
    */
   aoNaoCarregar?(): void;
+  /**
+   * Origem HTTP do servidor do jogo que entrega a arte (`/arte/<arquivo>`, só
+   * com a sessão de jogo). Sem ela, os moradores são procedurais.
+   */
+  origemDaArte?: string;
   /** Expõe `window.__morada` para os testes de navegador. Nunca em produção. */
   depurar?: boolean;
 };

@@ -40,7 +40,7 @@ export const morada: ModuloDoJogo = {
         palco.querySelector("canvas")?.focus({ preventScroll: true });
       },
     });
-    const jogo = montarMorada(palco, ponte.opcoes);
+    const jogo = montarMorada(palco, { ...ponte.opcoes, origemDaArte: opcoes.origemDaArte });
 
     return {
       async dispose() {

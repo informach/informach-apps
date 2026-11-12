@@ -27,6 +27,7 @@ export function MoradaJogo(props: OpcoesDoMorada & { className?: string }) {
     }
     const jogo = montarMorada(elemento, {
       fonte: atuais.fonte,
+      origemDaArte: atuais.origemDaArte,
       depurar: atuais.depurar,
       // Lidas na hora de usar: a página pode trocar as funções sem remontar o jogo.
       aoSair: atuais.aoSair ? () => opcoes.current.aoSair?.() : undefined,

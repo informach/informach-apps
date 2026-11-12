@@ -128,9 +128,11 @@ O contrato é o `ClienteDoHost` do package, e a implementação é conferida pel
 
 Mudou a regra, mude o teste e este texto.
 
+**Arte (lote X2).** `prepararPaginaDoJogo` devolve `jogo.origemDaArte` (`RECREIO_GAME_ORIGINS[jogo].assets`, ou `null`), o hospedeiro a passa em `OpcoesDeMontagem.origemDaArte` e o adaptador a entrega ao jogo. É a mesma origem que a CSP desta rota libera. O jogo baixa a arte do servidor dele com a sessão de jogo; o portal nunca vê nem serve arte. Sem `assets`, o Morada desenha os corpos procedurais, e é assim no CI e no E2E.
+
 ## O que ainda não existe
 
-PIN e aparelho pareado, perfis sem login criados pelo titular, edição do perfil, cobrança (Stripe) e webhooks, a arte do Morada servida só a sessões de jogo válidas (lote X2; o jogo roda com corpos e móveis procedurais), serviço e agendador no Railway e tela no Bastidores (os eventos `recreio.*` aparecem lá sem frase própria). Nos mundos: convite de visita, convite por membro com aprovação, coadministradores, sair de um mundo, remover membro, arquivar e a sucessão do responsável. No armazenamento: bucket. A exclusão de conta fica desligada (`accountDeletion: { enabled: false }`) até existirem as regras de sucessão do mundo.
+PIN e aparelho pareado, perfis sem login criados pelo titular, edição do perfil, cobrança (Stripe) e webhooks, serviço e agendador no Railway e tela no Bastidores (os eventos `recreio.*` aparecem lá sem frase própria). Nos mundos: convite de visita, convite por membro com aprovação, coadministradores, sair de um mundo, remover membro, arquivar e a sucessão do responsável. No armazenamento: bucket. A exclusão de conta fica desligada (`accountDeletion: { enabled: false }`) até existirem as regras de sucessão do mundo.
 
 Não adiante nada disso fora do lote correspondente do registro da frente.
 

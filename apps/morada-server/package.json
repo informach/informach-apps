@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@informach/config": "workspace:*",
+    "@informach/morada-arte": "workspace:*",
     "@informach/morada-sim": "workspace:*",
     "@informach/recreio": "workspace:*",
     "pino": "^9.14.0",
