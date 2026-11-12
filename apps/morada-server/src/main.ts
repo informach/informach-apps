@@ -7,6 +7,7 @@ import {
   type VerificadorDeSessao,
 } from "@informach/recreio/host";
 import pino from "pino";
+import { carregarArte } from "./arte";
 import { lerConfiguracao } from "./config";
 import { criarPlataformaDeDesenvolvimento } from "./desenvolvimento";
 import { criarInstancia } from "./instancia";
@@ -89,6 +90,22 @@ async function principal(): Promise<void> {
     });
   }
 
+  // A arte só é entregue com a pasta configurada; sem ela, a rota não existe.
+  const arte = config.MORADA_ARTE_DIR
+    ? carregarArte({
+        pasta: config.MORADA_ARTE_DIR,
+        verificador,
+        origens,
+        exigirOrigem: config.MORADA_PLATAFORMA === "recreio",
+        agora,
+      })
+    : null;
+  if (arte) {
+    const outras = rotas;
+    rotas = (pedido, resposta) =>
+      arte.tratar(pedido, resposta) || (outras?.(pedido, resposta) ?? false);
+  }
+
   const instancia = criarInstancia({
     host,
     verificador,
@@ -120,6 +137,9 @@ async function principal(): Promise<void> {
       plataforma: config.MORADA_PLATAFORMA,
       regras: config.MORADA_REGRAS,
       registrada: instancia.medir().registrada,
+      arte: arte
+        ? { arquivos: arte.arquivos, bytes: arte.bytes, commit: arte.manifesto.arte.commit }
+        : null,
     },
     instancia.medir().registrada
       ? "servidor do Morada no ar"

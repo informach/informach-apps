@@ -58,6 +58,15 @@ const Esquema = z
     MORADA_METRICAS_TOKEN: z.string().min(24).optional(),
     /** `prova` encurta gravidez e primeiras fases; é o preset da etapa 1. */
     MORADA_REGRAS: z.enum(["padrao", "prova"]).default("padrao"),
+    /**
+     * Pasta com os pacotes de arte (`manifest.json` e os GLB que o empacotador
+     * `@informach/morada-arte` gravou). Sem ela a rota `/arte/` não existe e o
+     * cliente desenha os moradores procedurais.
+     */
+    MORADA_ARTE_DIR: z.preprocess(
+      (valor) => (typeof valor === "string" && valor.trim() === "" ? undefined : valor),
+      z.string().trim().min(1).optional(),
+    ),
     RAILWAY_GIT_COMMIT_SHA: z.string().optional(),
   })
   .superRefine((env, contexto) => {

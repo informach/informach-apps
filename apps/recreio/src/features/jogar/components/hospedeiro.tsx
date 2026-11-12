@@ -61,7 +61,7 @@ export function Hospedeiro({
   jogo,
   mundo,
 }: {
-  jogo: { id: string; nome: string };
+  jogo: { id: string; nome: string; origemDaArte?: string | null };
   mundo: { id: MundoId; nome: string };
 }) {
   const [estado, despachar] = useReducer(reduzir, ESTADO_INICIAL);
@@ -143,6 +143,7 @@ export function Hospedeiro({
           if (!atual() || partida.current !== nova || !host) return await desistir();
           const montado = modulo.montar(host, contexto, {
             mundoId: mundo.id,
+            origemDaArte: jogo.origemDaArte ?? undefined,
             aoSair: sair,
             aoFalhar: (erro) => parar(paradaDoErro(erro)),
           });
@@ -161,7 +162,7 @@ export function Hospedeiro({
         }
       });
     },
-    [jogo.id, mundo.id, desmontar, parar, sair],
+    [jogo.id, jogo.origemDaArte, mundo.id, desmontar, parar, sair],
   );
 
   useEffect(() => {

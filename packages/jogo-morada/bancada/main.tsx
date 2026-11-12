@@ -10,7 +10,8 @@ import { MoradaJogo } from "../src/MoradaJogo";
  *
  * `?apelido=Lia` entra direto, para abrir duas abas depressa e para os testes.
  * `&validade=20` faz a sessão de jogo valer 20 segundos em vez de 15 minutos,
- * para ver a renovação acontecer sem esperar.
+ * para ver a renovação acontecer sem esperar. `&arte` veste os moradores com
+ * os pacotes que o servidor entrega (ele precisa de `MORADA_ARTE_DIR`).
  */
 
 const SERVIDOR: string = import.meta.env.VITE_MORADA_DEV ?? "http://localhost:3010";
@@ -101,13 +102,14 @@ function fonteDeDesenvolvimento(apelido: string, validadeS?: number): FonteDoMun
   };
 }
 
-function Jogo(props: { apelido: string; validadeS?: number; aoSair(): void }) {
-  const { apelido, validadeS, aoSair } = props;
+function Jogo(props: { apelido: string; validadeS?: number; arte: boolean; aoSair(): void }) {
+  const { apelido, validadeS, arte, aoSair } = props;
   const fonte = useMemo(() => fonteDeDesenvolvimento(apelido, validadeS), [apelido, validadeS]);
   return (
     <MoradaJogo
       className="bancada-jogo"
       fonte={fonte}
+      origemDaArte={arte ? SERVIDOR : undefined}
       aoSair={aoSair}
       // O motivo fica à vista no documento, para os testes conferirem que quem hospeda é avisado.
       aoEncerrar={(motivo) => {
@@ -131,6 +133,7 @@ function Bancada() {
       <Jogo
         apelido={apelido}
         validadeS={validade > 0 ? validade : undefined}
+        arte={parametros.has("arte")}
         aoSair={() => definirApelido("")}
       />
     );

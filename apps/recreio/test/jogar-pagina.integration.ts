@@ -52,7 +52,7 @@ describe("página do jogo", () => {
     const mundoDoMorada = await mundoDe(lia, MORADA, "Casa da Lia");
     expect(await prepararPaginaDoJogo(lia.perfil.id, MORADA, mundoDoMorada)).toEqual({
       tipo: "pronto",
-      jogo: { id: MORADA, nome: "Morada" },
+      jogo: { id: MORADA, nome: "Morada", origemDaArte: null },
       mundo: { id: mundoDoMorada, nome: "Casa da Lia" },
     });
   });
@@ -63,7 +63,7 @@ describe("página do jogo", () => {
     const pagina = await prepararPaginaDoJogo(lia.perfil.id, TESTE, mundo);
     expect(pagina).toEqual({
       tipo: "pronto",
-      jogo: { id: TESTE, nome: "Jogo de teste" },
+      jogo: { id: TESTE, nome: "Jogo de teste", origemDaArte: null },
       mundo: { id: mundo, nome: "Casa azul" },
     });
     const escrito = JSON.stringify(pagina);

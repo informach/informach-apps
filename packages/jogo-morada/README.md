@@ -54,7 +54,7 @@ Os do canvas vêm do mesmo teste de clique da cena, feito quando o ponteiro pass
 | `src/espelho` | `loja.ts`: o espelho do mundo e a inscrição do HUD. `comandos.ts`: intenções com id, pendentes, reenvio com o mesmo id. `previsao.ts`: o "ir até aqui" previsto e a suavização do desenho. `sessao.ts`: liga tudo, sem tela |
 | `src/modelo` | O que o HUD mostra, como contas puras sobre o espelho: retratos, menu, fila, necessidades, relógio, pedidos, textos das recusas |
 | `src/cena` | `cena.ts`: renderer, laço, qualidade, perda de contexto, clique. `casa.ts`, `planta.ts`: a casa a partir da planta. `moradores.ts`, `situacao.ts`: onde e como cada morador está. `espaco.ts`: da planta à cena |
-| `src/ativos` | `ativos.ts`: como a cena pede o visual de moradores e objetos. `procedurais.ts`: cápsulas e caixas, a única implementação por enquanto |
+| `src/ativos` | `ativos.ts`: como a cena pede o visual de moradores e objetos. `procedurais.ts`: cápsulas e caixas. `arte.ts`: os pacotes de arte do servidor do jogo, com o procedural enquanto não chegam. `escolhas.ts`: contas puras sobre o manifesto (qual pacote veste quem, qual clipe toca, quanto o corpo desce no apoio) |
 | `src/hud` | O HUD em React e `hud.css`, CSS puro debaixo de `.morada` |
 | `bancada` | Página de desenvolvimento que joga contra o servidor no modo `falsa` |
 | `e2e` | Testes de navegador (Playwright) |
@@ -73,7 +73,7 @@ O espelho tem as mesmas tabelas do estado do servidor, então as funções puras
 
 **Conexão.** Depois de 4009, 4010, 4011, 4013 e de queda de rede, o cliente chama `fonte.abrir()` de novo (espera de 0,5 s a 8 s, com folga sorteada) e entra com a mesma sessão, que retoma a reserva. Depois de 4001, 4003, 4008 e 4012, para e diz por quê. Se `fonte.abrir()` falha, o cliente também tenta de novo; quem hospeda decide, dentro de `abrir`, o que é passageiro (deixa o erro sair) e o que é definitivo (avisa a pessoa e desmonta o jogo). No portal essa regra está em `apps/recreio/src/features/jogar/adaptadores/morada-regra.ts`.
 
-**Ativos.** A cena não sabe que cara as coisas têm: pede a `Ativos`. `AtivosProcedurais` desenha sem arte nenhuma, e é o que roda no CI. Os pacotes de arte entram por outra implementação da mesma interface; a arte licenciada nunca é versionada aqui.
+**Ativos.** A cena não sabe que cara as coisas têm: pede a `Ativos`. `AtivosProcedurais` desenha sem arte nenhuma, e é o que roda no CI e em todo teste. Com `origemDaArte`, o jogo usa `AtivosDeArte`: cada morador nasce procedural e veste o pacote (`@informach/morada-arte`) quando ele chega de `<origemDaArte>/arte/<arquivo>`, pedido com `Authorization: Bearer <sessão de jogo>`. O pacote só é pedido quando a cena desenha o morador pela primeira vez (o vizinho fora do bairro não baixa nada); cada arquivo baixa uma vez por jogo; as bibliotecas de animação, só quando uma pose pede (a de grávida, a partir do 2º trimestre). Sem manifesto, sem pacote para a fase ou com o download falho, o morador continua procedural. Quem carrega um bebê fica no clipe de segurar, andando ou não, e o colo segue o meio das mãos a cada quadro; o bebê deita atravessado entre elas. O clique acerta uma caixa invisível do tamanho do corpo, não a malha com esqueleto. Os objetos continuam procedurais até o D1. A arte licenciada nunca é versionada aqui.
 
 ## Rodar
 
@@ -85,7 +85,7 @@ MORADA_PLATAFORMA=falsa MORADA_REGRAS=prova pnpm dev:morada-server
 pnpm --filter @informach/jogo-morada bancada
 ```
 
-`http://localhost:5173/?apelido=Lia` entra direto. O primeiro apelido cria o mundo; os outros entram na mesma família. Nada é salvo, e reiniciar o servidor dá um mundo novo. A porta 5173 é fixa porque o servidor de desenvolvimento só aceita o WebSocket dessa origem.
+`http://localhost:5173/?apelido=Lia` entra direto. `&arte` veste os moradores com os pacotes que o servidor entrega, se ele subiu com `MORADA_ARTE_DIR`. O primeiro apelido cria o mundo; os outros entram na mesma família. Nada é salvo, e reiniciar o servidor dá um mundo novo. A porta 5173 é fixa porque o servidor de desenvolvimento só aceita o WebSocket dessa origem.
 
 A sessão de desenvolvimento vale 15 minutos e a bancada a renova sozinha a cada 5, pelo `aoRenovar` da fonte, como o SDK do Recreio faz no portal: o jogo segue enquanto a página estiver aberta. Ao reabrir o mundo depois de uma queda, a bancada pede a mesma sessão (`continuar`), e o servidor retoma a reserva. `&validade=20` na URL faz a sessão valer 20 segundos, para ver a renovação acontecer.
 
@@ -119,7 +119,7 @@ Os testes de unidade usam a simulação de verdade (`@informach/morada-sim/teste
 
 ## Ainda não tem
 
-- Arte: os corpos, os móveis e as animações de verdade entram por uma implementação de `Ativos` (lotes X2 e D1).
+- Arte dos móveis e da casa (lote D1). As caixas procedurais têm a altura inteira da peça: a cama de casal (0,999 m, a cabeceira) cobre quem deita no colchão (0,52 m).
 - Som, construir, comprar e criar família (etapa 2).
 
 O jogo no portal (`/jogar/morada`), com duas contas, a queda de uma delas e a queda da instância, é conferido pelo E2E do portal: `apps/recreio/e2e/morada.spec.ts`.

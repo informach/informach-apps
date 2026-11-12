@@ -1,7 +1,7 @@
 import "server-only";
 import { ehErroDoRecreio, type MundoId, type PerfilId } from "@informach/recreio";
 import { avaliarAcesso } from "@/features/acesso/service";
-import { jogoQueAbre } from "@/features/jogos/config";
+import { jogoQueAbre, origensDoJogo } from "@/features/jogos/config";
 import { detalheDoMundo } from "@/features/mundos/service";
 import { temCliente } from "./registro";
 
@@ -24,7 +24,11 @@ export type PaginaDoJogo =
   | { tipo: "mundo_indisponivel"; jogo: { id: string; nome: string } }
   | {
       tipo: "pronto";
-      jogo: { id: string; nome: string };
+      /**
+       * `origemDaArte`: de onde o cliente baixa a arte (`RECREIO_GAME_ORIGINS[jogo].assets`),
+       * a mesma origem que a política de segurança desta página libera; `null` sem arte.
+       */
+      jogo: { id: string; nome: string; origemDaArte: string | null };
       mundo: { id: MundoId; nome: string };
     };
 
@@ -51,5 +55,9 @@ export async function prepararPaginaDoJogo(
   // o mundo de quem é membro ativo dele.
   const mundo = await detalheDoMundo(perfilId, mundoPedido);
   if (!mundo || mundo.jogo !== manifesto.id) return { tipo: "mundo_indisponivel", jogo };
-  return { tipo: "pronto", jogo, mundo: { id: mundo.id, nome: mundo.nome } };
+  return {
+    tipo: "pronto",
+    jogo: { ...jogo, origemDaArte: origensDoJogo(manifesto.id)?.assets ?? null },
+    mundo: { id: mundo.id, nome: mundo.nome },
+  };
 }

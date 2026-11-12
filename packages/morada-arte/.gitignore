@@ -1,0 +1,11 @@
+# A arte é licenciada e mora no repositório privado informach/artes-3d.
+# Nada dela, nem os pacotes gerados, entra neste repositório. A entrada e a
+# saída do empacotador ficam fora daqui; estas linhas só seguram um engano.
+*.glb
+*.glb.br
+*.png
+manifest.json
+manifest.json.br
+/saida/
+/arte/
+/artes-3d/
