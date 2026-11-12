@@ -20,6 +20,33 @@ describe("configuração do servidor", () => {
     });
   });
 
+  it("o endereço público é só a origem do WebSocket, como o Recreio a cadastra", () => {
+    // Com ou sem a barra final, o que a instância registra é a origem.
+    for (const escrita of ["ws://localhost:3110", "ws://localhost:3110/"]) {
+      expect(lerConfiguracao({ ...completa, MORADA_PUBLIC_URL: escrita }).MORADA_PUBLIC_URL).toBe(
+        "ws://localhost:3110",
+      );
+    }
+    for (const errada of [
+      "wss://morada-server.example/jogo",
+      "wss://morada-server.example/?a=1",
+      "https://morada-server.example",
+      "wss://usuario:senha@morada-server.example",
+    ]) {
+      expect(() => lerConfiguracao({ ...completa, MORADA_PUBLIC_URL: errada }), errada).toThrow(
+        /MORADA_PUBLIC_URL/,
+      );
+    }
+  });
+
+  it("cada origem de página é só uma origem, como o navegador a manda", () => {
+    for (const errada of ["https://recreio.example/", "https://recreio.example/jogar", "recreio"]) {
+      expect(() => lerConfiguracao({ ...completa, MORADA_ORIGENS: errada }), errada).toThrow(
+        /MORADA_ORIGENS/,
+      );
+    }
+  });
+
   it("no modo de verdade, exige o Recreio, o segredo, o endereço e as origens", () => {
     for (const falta of Object.keys(completa)) {
       const env: Record<string, string> = { ...completa };

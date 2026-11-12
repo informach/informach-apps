@@ -37,4 +37,11 @@ export type JogoMontado = {
 
 export type ModuloDoJogo = {
   montar(host: HTMLElement, contexto: RecreioGameContext, opcoes: OpcoesDeMontagem): JogoMontado;
+  /**
+   * O jogo tem o próprio controle de saída, em todas as telas dele (jogando,
+   * entrando, reconectando), e chama `aoSair` por ele. Com isto a página não
+   * desenha o botão de sair dela por cima do jogo: um caminho de saída, não
+   * dois disputando o mesmo canto.
+   */
+  saidaPropria?: boolean;
 };

@@ -118,6 +118,46 @@ describe("a instância cai e o mundo volta", () => {
   });
 });
 
+describe("depois de voltar do diário", () => {
+  it("um fato novo logo depois da retomada não repete o id de um fato já gravado", async () => {
+    // Sem fotografia periódica: o mundo volta da fotografia inicial mais o diário.
+    const bancada = await criarBancada({ checkpointMs: 3_600_000 });
+    const a = await bancada.novaInstancia("wss://a.test");
+    const lia = bancada.jogador("Lia");
+    const mundoId = bancada.criarMundo(lia);
+    await bancada.entrar(lia, mundoId);
+    const daLia = lia.moradorDeNome("Lia").id;
+    await lia.comando(daLia, { t: "reservar" });
+    await bancada.andar(3);
+    // O último fato do diário: a Lia vira a preferida, no tick em que o mundo está.
+    const marcou = await lia.comando(daLia, { t: "definir_preferido", valor: true });
+    await bancada.andar(1);
+    expect(lia.resultados.get(marcou)).toMatchObject({ ok: true });
+
+    a.host.foraDoAr = true;
+    lia.cair();
+    const b = await bancada.novaInstancia("wss://b.test");
+    await bancada.andar(TTL_EM_TICKS + 1, [b.instancia]);
+    await bancada.entrar(lia, mundoId);
+    expect(lia.visao?.moradores.porId[daLia]?.preferidoDe).toBe(lia.jogadorId);
+
+    // A primeira coisa que ela faz ao voltar é desmarcar. O id de um fato leva o
+    // tick: se o mundo voltasse parado no tick do último fato, este teria o mesmo
+    // id dele, o diário o recusaria para sempre e o mundo ficaria esperando.
+    const tick = mundoDe(b.instancia, mundoId).estado.relogio.tick;
+    const desmarcou = await lia.comando(daLia, { t: "definir_preferido", valor: false });
+    await bancada.andar(5, [b.instancia]);
+    expect(lia.resultados.get(desmarcou)).toMatchObject({ ok: true });
+    expect(lia.visao?.moradores.porId[daLia]?.preferidoDe).toBeUndefined();
+    expect(mundoDe(b.instancia, mundoId).estado.relogio.tick).toBe(tick + 5);
+    const preferidos = fatosNoDiario(bancada, mundoId).filter(
+      (f) => f.tipo === "PreferidoDefinido",
+    );
+    expect(preferidos).toHaveLength(2);
+    expect(new Set(preferidos.map((f) => f.id)).size).toBe(2);
+  });
+});
+
 describe("o parto acontece uma vez só, em qualquer ponto de queda", () => {
   /** Uma gravidez perto do fim, com a Lia jogando na instância A e a B pronta para assumir. */
   async function pertoDoParto() {

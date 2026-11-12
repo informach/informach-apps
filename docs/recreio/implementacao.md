@@ -88,8 +88,8 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 
 | Lote | Entrega | Estado |
 | --- | --- | --- |
-| X1 | Plataforma real no servidor, `/jogar/morada`, E2E com duas contas | em curso |
-| X2 | Empacotador e corpos reais na máquina de desenvolvimento | a fazer |
+| X1 | Plataforma real no servidor, `/jogar/morada`, E2E com duas contas | feito |
+| X2 | Empacotador e corpos reais na máquina de desenvolvimento | em curso |
 | X3 | Railway atrás da constante, Bastidores mínimo, guias | a fazer |
 | X4 | Deploy fechado e medição de custo, só com autorização | a fazer |
 
@@ -188,7 +188,7 @@ Decisões tomadas nestes lotes:
 
 - O direito de jogar é avaliado imediatamente antes de cada transação, não dentro dela: `avaliarAcesso` usa o pool, e pedir uma segunda conexão com a transação aberta trava o app quando o pool enche (o teste de 20 aberturas simultâneas ficaria parado).
 - Os prazos de posse são julgados com `clock_timestamp()`, não `now()`: quem esperou a trava do mundo é julgado pela hora em que a conseguiu.
-- O batimento não trava a linha do mundo. Ele renova a posse com um comando condicionado, e a retomada fecha a mesma linha com a condição oposta: entre as duas, exatamente uma acontece.
+- O batimento não trava a linha do mundo. Ele renova a posse com um comando condicionado, e a retomada fecha a mesma linha com a condição oposta: as duas nunca acontecem juntas. Pode não acontecer nenhuma, quando a abertura encontra a posse no prazo e o batimento chega depois do vencimento; a dona já se cercou e a próxima abertura retoma.
 - `JA_ABERTO` desfaz a transação e o ingresso não é gasto; a página pergunta e tenta de novo com `continuarAqui`.
 - Uma instância só se registra com o endereço de `RECREIO_GAME_ORIGINS[jogo].ws`. Como o endereço é um por jogo, vale a restrição de uma réplica do servidor do jogo.
 - O CI não guarda chave: um passo gera um par descartável (`apps/recreio/scripts/gerar-chave.mjs --github-env`) antes do `pnpm build`.
@@ -197,6 +197,39 @@ Decisões tomadas nestes lotes:
 - Uma fotografia compacta o diário. Na recuperação, a instância lê a fotografia e depois o diário a partir de `fotografia.diarioSeq`.
 
 Lacunas conhecidas, aceitas nesta etapa: a leitura do diário não é paginada; a emissão de ingresso não tem limite de tentativas; a renovação não recusa quando o jogo entra em `manutencao`; a entrada no mundo não reavalia o direito de jogar (a renovação da sessão e o batimento cobrem); nenhum serviço, variável ou agendador no `.railway/railway.ts` (lote X3).
+
+### X1: o Morada no Recreio de verdade (12/11/2026)
+
+**A condição de saída da etapa 1 foi provada localmente**: duas contas jogam a mesma família, uma cai, a outra continua, a instância é morta e tudo volta. O custo por hora de mundo ainda não foi medido; é do lote X4, no Railway.
+
+- Typecheck de `@informach/morada-server`, `@informach/recreio`, `@informach/jogo-morada`, `@informach/recreio-app` e `@informach/morada-sim`: sem erros. `pnpm exec biome check apps/recreio apps/morada-server packages/jogo-morada packages/recreio packages/morada-sim`: limpo (350 arquivos).
+- Testes unitários: `morada-server` 73 (eram 54), `recreio` 106, `jogo-morada` 76, `recreio-app` 199 (eram 162).
+- `pnpm --filter @informach/recreio-app test:integration`: 143 testes, três execuções seguidas verdes depois de corrigir o teste da posse descrito abaixo.
+- `pnpm --filter @informach/recreio-app e2e`: **três execuções completas verdes**, 5 testes cada, de 289 a 336 s. Os três do P7 e dois do Morada:
+  - **A prova da etapa**: Ana e Bia se cadastram, Ana cria o mundo e o convite, Bia entra; as duas abrem `/jogar/morada`, cada uma dirige um morador e vê o da outra. O navegador da Bia é **morto** (não fechado) e a Ana continua. A Lia é marcada como preferida logo depois de uma fotografia e a instância é morta sem aviso (`SIGKILL`): outro processo sobe, retoma com a cerca seguinte a partir da fotografia mais o diário, e o fato está lá. Depois, redimensionar e sair, com o mundo hibernando.
+  - Sem instância e sessão trocada de janela ou conta encerrada: um aviso só, o da página.
+  - Depois de cada teste: zero `posse_perdida`, zero `diario_indisponivel`, nenhum segredo ou token no log da instância, desligamento por IPC no prazo, nenhuma violação de política de segurança nem erro de página ou de console fora das recusas esperadas da API e das falhas de WebSocket durante a queda provocada.
+  - Cerca de 2 minutos a mais no CI.
+- Build com as variáveis do CI (`pnpm build:recreio`): verde. O Morada chega em três arquivos só pelo `import()` do hospedeiro: 729 kB (188 kB com gzip), com o three.js e o HUD. Os arquivos comuns do portal e os das páginas da estante e de `/mundos/[id]` não citam "morada", "THREE" nem "WebGL"; o E2E confere o mesmo nos scripts que o navegador baixa. Não houve build de comparação na versão anterior.
+- Passagem manual com `next dev`, o servidor de verdade e dois navegadores: o servidor sobe antes do portal e se registra sozinho quando ele aparece; as duas contas jogam com os relógios iguais; a convidada tem todas as permissões menos gerir o mundo e as finanças; em 2,5 minutos o diário ficou em 3 entradas (1,2 kB) e as fotografias em 3,9 a 5,2 kB a cada cerca de 30 s. Com o portal fora por 45 s, a instância se cercou sozinha aos 30 s sem batimento e, na volta, retomou com a cerca 2 sem voltar o relógio. Nenhuma das duas tentativas chegou ao fim: reiniciar o `next dev` recarrega as páginas abertas, e na segunda o `/entrar` entrou num laço de recarga do modo de desenvolvimento que não se repetiu depois.
+- **Não exercitado**: o roteiro longo com o nascimento sobrevivendo à queda; `/api/metricas` do servidor do jogo; `pnpm --filter @informach/jogo-morada e2e` depois das últimas correções do servidor (que não tocam o cliente); Redis; o `ci.yml` rodando no GitHub.
+
+O que mudou:
+
+- **Servidor do jogo**: o passo pendente virou uma fila escoada em ordem, e quem entra com passo em espera só recebe o mundo quando ela esvazia (era o defeito em que um passo se perdia). O pulso continua com o diário fora do ar. O vencimento da sessão tem uma regra só (`sessaoVencida` e `TOLERANCIA_DE_RELOGIO_S` em `@informach/recreio/contrato`). Registro com nova tentativa, `/api/ready` e WebSocket em 503 até registrar, novo registro quando o Recreio esquece a instância, origem exigida no modo `recreio`, `.env.example`.
+- **Página do jogo**: adaptador do Morada (`features/jogar/adaptadores/`) com a regra de quem fala quando o jogo acaba, escrita no `apps/recreio/CLAUDE.md`. O registro dos jogos ficou em dois arquivos: `registro.ts` só com os ids e `carregadores.ts` com os `import()`, porque o `import()` no arquivo que as páginas de servidor importam quebrava o build. `ModuloDoJogo.saidaPropria` deixa o jogo desenhar o próprio "Sair". A estante e `/mundos/[id]` têm "Jogar".
+- **Cliente**: botão "Preferido" na fila (não havia como marcar), "Sair" nos cartões de entrada e reconexão, atributos `data-morada-*` para os testes lerem só o DOM.
+
+Achados corrigidos nesta passagem, todos com teste: recusa de entrada por indisponibilidade fechava como "sem acesso" (agora 4010, temporária); JWKS que passa do prazo fechava como "sessão" (agora 4010); `CHECKPOINT_NECESSARIO` nunca se resolvia; sessão encerrada com o jogador em espera não liberava a reserva; rejeição sem tratamento ao hibernar; conexão sem `Origin` aceita no modo real; erro registrado como `{}` no log.
+
+Um teste do P6 falhou uma vez em duas execuções (`posse.integration.ts`, renovação e retomada na mesma hora). A regra escrita prometia que exatamente uma das duas acontece; o código garante que **nunca as duas**. Pode não acontecer nenhuma: a abertura encontra a posse ainda no prazo e o batimento chega depois do vencimento. A instância já se cercou, e a próxima abertura retoma, ao custo de uma reconexão. O teste e o texto passaram a dizer isso; o código não mudou.
+
+Abertos:
+
+- **`restaurar` do `@informach/morada-sim`**: o mundo volta parado no tick do último fato reaplicado, e o id dos fatos leva o tick, então o primeiro fato depois da volta podia repetir um id e congelar o mundo. O servidor anda um passo depois de reaplicar fatos (teste em `apps/morada-server/test/quedas.test.ts`), mas a causa está na simulação e vale para qualquer outro uso de `restaurar`.
+- `instancia.passo()` espera todos os mundos: uma chamada lenta ao Recreio atrasa os outros mundos da instância.
+- Para o X2: a origem da arte já entra na política de segurança, mas a página não a entrega ao cliente, e o cliente cria os ativos procedurais fixos.
+- Para o X3: `apps/morada-server` roda com `tsx` e não tem build nem `start` de produção; a configuração exige `https` em `RECREIO_API_URL` em produção, o que recusa o endereço interno do Railway.
 
 ### P7: página do jogo, jogo de teste e ponta a ponta (12/11/2026)
 

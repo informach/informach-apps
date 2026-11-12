@@ -257,7 +257,7 @@ describe("abrir um mundo", () => {
     });
   });
 
-  it("renovação e retomada na mesma hora: exatamente uma acontece", async () => {
+  it("renovação e retomada na mesma hora: nunca as duas", async () => {
     const { mundoId, sessao, a, cerca } = await executando();
     await novaInstancia();
     const resultados: string[] = [];
@@ -286,12 +286,30 @@ describe("abrir um mundo", () => {
       const posse = abertas[0];
       if (!posse?.instanceId) throw new Error("Esperava uma posse aberta com instância");
       const renovou = RespostaDoBatimentoSchema.parse(batida.corpo).posses[0]?.estado === "ok";
-      // Renovou: a posse é a mesma. Não renovou: é outra, com a cerca seguinte.
-      expect(posse.fence).toBe(renovou ? cercaAtual : cercaAtual + 1);
-      resultados.push(renovou ? "renovou" : "retomou");
-      if (renovou) continue;
+      if (renovou) {
+        // Renovou: a posse é a mesma e a retomada não aconteceu.
+        expect(posse.fence).toBe(cercaAtual);
+        resultados.push("renovou");
+        continue;
+      }
+      if (posse.fence === cercaAtual) {
+        // Nenhuma das duas: a abertura entrou na posse ainda no prazo e o
+        // batimento chegou depois do vencimento. A dona já se cercou; a posse
+        // aberta está vencida e a próxima abertura a retoma.
+        const [vencida] = await db
+          .select({ vencida: sql<boolean>`${leases.expiresAt} <= clock_timestamp()` })
+          .from(leases)
+          .where(eq(leases.id, posse.id));
+        expect(vencida?.vencida).toBe(true);
+        expect((await abrirPelaRota(sessao, mundoId)).status).toBe(200);
+      }
+      const [retomada] = await possesAbertas(mundoId);
+      if (!retomada?.instanceId) throw new Error("Esperava uma posse aberta com instância");
+      // Não renovou: a posse é outra, com a cerca seguinte.
+      expect(retomada.fence).toBe(cercaAtual + 1);
+      resultados.push("retomou");
       // Quem recebeu a posse nova a reivindica, e a rodada seguinte corre contra ela.
-      dona = posse.instanceId;
+      dona = retomada.instanceId;
       const reivindicada = await pedir(
         "POST",
         `/api/interno/v1/mundos/${mundoId}/posse/reivindicar`,

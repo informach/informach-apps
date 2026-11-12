@@ -21,6 +21,10 @@ const config: NextConfig = {
     "@informach/config",
     "@informach/db",
     "@informach/emails",
+    // O cliente do Morada e a simulação que ele usa: só entram no que
+    // `/jogar/morada` baixa, por `import()` (`features/jogar/carregadores.ts`).
+    "@informach/jogo-morada",
+    "@informach/morada-sim",
     "@informach/recreio",
     "@informach/ui",
   ],
@@ -33,8 +37,8 @@ const config: NextConfig = {
       "",
     NEXT_PUBLIC_RAILWAY_GIT_COMMIT_SHA:
       process.env.NEXT_PUBLIC_RAILWAY_GIT_COMMIT_SHA ?? process.env.RAILWAY_GIT_COMMIT_SHA ?? "",
-    // Gravado no build: sem `RECREIO_JOGO_DE_TESTE=1`, o registro dos clientes
-    // (`features/jogar/registro.ts`) nem empacota o jogo de teste.
+    // Gravado no build: sem `RECREIO_JOGO_DE_TESTE=1`, os carregadores dos
+    // clientes (`features/jogar/carregadores.ts`) nem empacotam o jogo de teste.
     RECREIO_CLIENTE_DE_TESTE: process.env.RECREIO_JOGO_DE_TESTE === "1" ? "1" : "",
   },
   async headers() {

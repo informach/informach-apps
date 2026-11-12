@@ -15,6 +15,8 @@ import { MORADA, mundoDe } from "./jogo-apoio";
  * serviços e o banco são os de verdade.
  */
 const TESTE = "teste";
+/** Um jogo que está no catálogo e não tem linha no registro dos clientes. */
+const SEM_CLIENTE = "sem-cliente";
 
 vi.hoisted(() => {
   process.env.RECREIO_CLIENTE_DE_TESTE = "1";
@@ -25,6 +27,7 @@ vi.mock("@informach/config/jogos", async (original) => {
   const jogos = [
     ...real.JOGOS,
     { ...real.JOGOS[0], id: "teste", nome: "Jogo de teste", rota: "/jogar/teste" },
+    { ...real.JOGOS[0], id: "sem-cliente", nome: "Sem cliente", rota: "/jogar/sem-cliente" },
   ];
   return {
     ...real,
@@ -37,11 +40,20 @@ vi.mock("@informach/config/jogos", async (original) => {
 describe("página do jogo", () => {
   it("só o jogo com cliente no portal tem página", async () => {
     expect(temCliente(TESTE)).toBe(true);
-    expect(temCliente(MORADA)).toBe(false);
+    expect(temCliente(MORADA)).toBe(true);
+    expect(temCliente(SEM_CLIENTE)).toBe(false);
     const lia = await novoJogador();
-    const mundoDoMorada = await mundoDe(lia, MORADA);
-    expect(await prepararPaginaDoJogo(lia.perfil.id, MORADA, mundoDoMorada)).toEqual({
+    // Um jogo do catálogo, que abre e tem mundo, mas sem cliente no portal: não tem página.
+    const mundoSemCliente = await mundoDe(lia, SEM_CLIENTE);
+    expect(await prepararPaginaDoJogo(lia.perfil.id, SEM_CLIENTE, mundoSemCliente)).toEqual({
       tipo: "inexistente",
+    });
+    // O Morada tem cliente: a página dele abre com o mundo dele.
+    const mundoDoMorada = await mundoDe(lia, MORADA, "Casa da Lia");
+    expect(await prepararPaginaDoJogo(lia.perfil.id, MORADA, mundoDoMorada)).toEqual({
+      tipo: "pronto",
+      jogo: { id: MORADA, nome: "Morada" },
+      mundo: { id: mundoDoMorada, nome: "Casa da Lia" },
     });
   });
 

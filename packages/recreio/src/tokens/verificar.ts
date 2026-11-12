@@ -1,10 +1,7 @@
 import { errors, type JWTVerifyGetKey, jwtVerify } from "jose";
 import type { z } from "zod";
-import { ALGORITMO_DOS_TOKENS } from "../contrato/tokens";
+import { ALGORITMO_DOS_TOKENS, TOLERANCIA_DE_RELOGIO_S } from "../contrato/tokens";
 import { type CodigoDeErro, ErroDoRecreio } from "../dominio/erros";
-
-/** Tolerância de relógio entre quem emite e quem confere. */
-const TOLERANCIA_S = 5;
 
 export type OpcoesDeVerificacao<Claims> = {
   chaves: JWTVerifyGetKey;
@@ -31,7 +28,7 @@ export async function verificarToken<Claims>(
       algorithms: [ALGORITMO_DOS_TOKENS],
       issuer: opcoes.emissor,
       typ: opcoes.tipo,
-      clockTolerance: TOLERANCIA_S,
+      clockTolerance: TOLERANCIA_DE_RELOGIO_S,
       ...(opcoes.jogo === undefined ? {} : { audience: opcoes.jogo }),
       ...(opcoes.agora === undefined ? {} : { currentDate: opcoes.agora() }),
     });

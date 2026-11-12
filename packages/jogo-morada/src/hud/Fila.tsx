@@ -1,12 +1,15 @@
 import { type EstadoDoMundo, type MoradorId, obter } from "@informach/morada-sim";
 import { filaDe, type ItemDaFila } from "../modelo/painel";
-import type { Controle } from "./controle";
+import { type Controle, quemSou } from "./controle";
 import { Icone } from "./Icone";
 
 /**
  * A fila do morador que a pessoa dirige: o que ele faz agora e o que vem
  * depois, com o cancelar de cada item. Fila vazia não é ociosidade: o morador
  * volta a decidir sozinho.
+ *
+ * No topo fica a marca de preferido: com ela, a pessoa já entra no mundo
+ * dirigindo este morador. É uma escolha guardada com o mundo, não com a janela.
  */
 
 const SITUACOES: Record<ItemDaFila["situacao"], string> = {
@@ -34,9 +37,30 @@ export function Fila(props: {
   }
 
   const itens = filaDe(estado, meuMoradorId);
+  const preferido = morador.preferidoDe === quemSou(controle)?.jogadorId;
   return (
     <section className="morada-painel morada-fila" aria-label={`Fila de ${morador.nome}`}>
-      <h2>Fila de {morador.nome}</h2>
+      <header className="morada-fila-topo">
+        <h2>Fila de {morador.nome}</h2>
+        <button
+          type="button"
+          className="morada-preferido"
+          aria-pressed={preferido}
+          title={
+            preferido
+              ? `Você entra no mundo já dirigindo ${morador.nome}. Toque para desmarcar.`
+              : `Marque para entrar no mundo já dirigindo ${morador.nome}.`
+          }
+          onClick={() => {
+            void controle.sessao.comandar(meuMoradorId, {
+              t: "definir_preferido",
+              valor: !preferido,
+            });
+          }}
+        >
+          Preferido
+        </button>
+      </header>
       {itens.length === 0 ? (
         <p className="morada-nota">Fila vazia. {morador.nome} decide por conta própria.</p>
       ) : (

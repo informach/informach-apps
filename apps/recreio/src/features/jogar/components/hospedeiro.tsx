@@ -9,7 +9,8 @@ import {
   type RecreioGameContext,
 } from "@informach/recreio/sdk";
 import { LogOut } from "lucide-react";
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { carregadorDoJogo } from "../carregadores";
 import {
   ESTADO_INICIAL,
   type Parada,
@@ -19,7 +20,6 @@ import {
   textoDaParada,
 } from "../estado";
 import { pedirIngresso } from "../ingresso";
-import { carregadorDoJogo } from "../registro";
 import { AvisoDoJogo, TelaDoJogo } from "./aviso-do-jogo";
 
 /** O que está de pé enquanto a pessoa joga: a sessão de jogo e o jogo montado. */
@@ -65,6 +65,8 @@ export function Hospedeiro({
   mundo: { id: MundoId; nome: string };
 }) {
   const [estado, despachar] = useReducer(reduzir, ESTADO_INICIAL);
+  /** O jogo montado tem o próprio controle de saída: a página não desenha o dela. */
+  const [saidaDoJogo, definirSaidaDoJogo] = useState(false);
   const palco = useRef<HTMLDivElement>(null);
   const partida = useRef<Partida | null>(null);
   /** Cada tentativa de abrir tem um número; a que não é mais a atual desiste. */
@@ -150,6 +152,7 @@ export function Hospedeiro({
             return;
           }
           nova.montado = montado;
+          definirSaidaDoJogo(modulo.saidaPropria === true);
           despachar({ tipo: "montado" });
         } catch (erro) {
           if (!atual()) return;
@@ -195,7 +198,7 @@ export function Hospedeiro({
       {/* O jogo desenha aqui. Fora do jogo o elemento fica vazio e fora da leitura. */}
       <div ref={palco} data-palco className="absolute inset-0" inert={!jogando} />
 
-      {jogando && (
+      {jogando && !saidaDoJogo && (
         <button
           type="button"
           onClick={sair}

@@ -1,5 +1,6 @@
 import { performance } from "node:perf_hooks";
 import { gunzipSync, gzipSync } from "node:zlib";
+import { jogoPorId } from "@informach/config/jogos";
 import {
   APELIDO_MAX,
   criarMundo,
@@ -24,6 +25,7 @@ import {
   VERSAO_DO_PROTOCOLO,
 } from "@informach/morada-sim/protocolo";
 import { ehErroDoRecreio, FOLGA_DE_AUTOCERCA_MS, type MundoId } from "@informach/recreio";
+import { sessaoVencida } from "@informach/recreio/contrato";
 import type {
   ClienteDoHost,
   EntradaDoDiario,
@@ -60,7 +62,7 @@ export type Ligacao = {
   /** Quem a pessoa é neste mundo: o id de membro, não o do perfil. */
   jogadorId: string | null;
   perfilId: string | null;
-  /** Até quando a sessão de jogo vale, em ms. */
+  /** O `exp` da sessão de jogo, em ms. Quem diz se ela venceu é `sessaoVencida`. */
   expiraEm: number;
   seq: number;
   fichas: number;
@@ -84,6 +86,11 @@ export type OpcoesDoAtor = {
   regras?: Partial<RegrasDoMundo>;
   /** De quanto em quanto tempo real o mundo é fotografado enquanto muda. */
   checkpointMs: number;
+  /**
+   * Com este tanto de diário sem fotografia, o mundo é fotografado logo, sem
+   * esperar o intervalo. Por padrão, um quarto do teto do Recreio.
+   */
+  diarioParaFotografarBytes?: number;
   aoFechar(ator: Ator): void;
   registrar(evento: string, dados?: Record<string, unknown>): void;
 };
@@ -97,6 +104,44 @@ const FATOS_MARCANTES = new Set([
   "FaseMudou",
   "CasalMudou",
 ]);
+
+/**
+ * Os tetos do Recreio para o diário do Morada. O lote é dividido antes de
+ * passar deles, e o mundo é fotografado bem antes de o diário sem fotografia
+ * chegar ao ponto em que o Recreio recusa novas entradas.
+ */
+const LIMITES = jogoPorId("morada")?.limites ?? {
+  diarioLoteMaxBytes: 256 * 1024,
+  diarioPendenteMaxBytes: 8 * 1024 * 1024,
+};
+const ENTRADAS_POR_LOTE = 256;
+const DIARIO_SEM_FOTO_PARA_FOTOGRAFAR = Math.floor(LIMITES.diarioPendenteMaxBytes / 4);
+/** Com o diário fora do ar, o registro repete a queixa neste intervalo, não a cada tentativa. */
+const REPETIR_QUEIXA_MS = 5000;
+
+/**
+ * Recusas do Recreio que não dizem nada sobre quem pede: ele não respondeu ou
+ * pediu calma. A instância tenta de novo; o jogador não é mandado embora.
+ */
+function ehPassageiro(erro: unknown): boolean {
+  return ehErroDoRecreio(erro, "INDISPONIVEL") || ehErroDoRecreio(erro, "MUITAS_TENTATIVAS");
+}
+
+/**
+ * Recusas do diário que tentar de novo não resolve: o que a memória tem não
+ * bate com o que o Recreio guarda (sequência, fato repetido, tamanho) ou ele
+ * exige uma fotografia antes. O mundo recomeça do que está gravado.
+ */
+const RECUSAS_DO_DIARIO = [
+  "CHECKPOINT_NECESSARIO",
+  "FATO_DUPLICADO",
+  "SEQUENCIA",
+  "TAMANHO_EXCEDIDO",
+  "ENTRADA_INVALIDA",
+] as const;
+
+/** Um passo que ainda não foi concluído: os fatos esperam o diário e ninguém soube dele. */
+type PassoPorConcluir = { saida: SaidaDoPasso; respostas: (() => void)[] };
 
 const texto = new TextEncoder();
 const leitura = new TextDecoder();
@@ -148,8 +193,20 @@ export class Ator {
   private diarioSeq = 0;
   private fila: Promise<void> = Promise.resolve();
   private readonly caixa: EntradaNaCaixa[] = [];
-  /** Um passo cujo diário ainda não foi confirmado. Nada anda até ele gravar. */
-  private pendente: { saida: SaidaDoPasso; respostas: (() => void)[] } | null = null;
+  /**
+   * Os passos cujo diário ainda não foi confirmado, na ordem em que
+   * aconteceram. Nada anda até o primeiro gravar, e um passo novo (a entrada
+   * de alguém) entra atrás dos que já esperam: nunca toma o lugar deles.
+   */
+  private readonly pendentes: PassoPorConcluir[] = [];
+  /** Quem entrou e espera o diário confirmar tudo para ver o mundo. */
+  private readonly chegando: (() => void)[] = [];
+  /** O tick do último passo que os clientes puderam saber. */
+  private tickConfirmado = 0;
+  /** Bytes gravados no diário desde a última fotografia. */
+  private diarioSemFoto = 0;
+  private queixaEm = Number.NEGATIVE_INFINITY;
+  private esperandoDesde: number | null = null;
   private passos = 0;
   private mudouDesdeAFoto = false;
   private fotografadoEm = 0;
@@ -235,6 +292,7 @@ export class Ator {
     const diario = await host.lerDiario({ mundoId, cerca: this.cerca, apos: coberto });
     const fatos = diario.map((entrada) => JSON.parse(leitura.decode(entrada.bytes)) as Fato);
     this.diarioSeq = diario.at(-1)?.seq ?? Math.max(coberto, posse.diarioSeq);
+    this.diarioSemFoto = diario.reduce((total, entrada) => total + entrada.bytes.length, 0);
 
     // Sem fotografia, o mundo nasce de novo do mesmo jeito: a semente vem do id.
     const base = guardada
@@ -247,6 +305,7 @@ export class Ator {
           regras: this.op.regras,
         }).fotografar();
     this.mundo = restaurar(base, fatos);
+    this.tickConfirmado = this.mundo.estado.relogio.tick;
     this.estado = "ativo";
     this.fotografadoEm = this.op.agora();
     this.op.registrar("mundo_aberto", {
@@ -255,7 +314,14 @@ export class Ator {
       revisao: this.revisao,
       fatosReaplicados: fatos.length,
       novo: !guardada,
+      diarioSeq: this.diarioSeq,
+      tick: this.tickConfirmado,
     });
+    // A simulação volta parada no tick do último fato do diário, e o id de um
+    // fato leva o tick: um pedido feito agora poderia gerar um fato com o id de
+    // um que já está gravado, que o diário recusaria para sempre. Um passo
+    // antes de qualquer pedido põe o mundo adiante desse tick.
+    if (fatos.length > 0) await this.concluirPasso(this.mundo.avancar(100), []);
     // Um mundo novo, ou um que voltou só do diário, ganha logo a sua fotografia.
     if (!guardada || fatos.length > 0) await this.fotografar("checkpoint");
   }
@@ -326,11 +392,15 @@ export class Ator {
         });
       } catch (erro) {
         if (ehErroDoRecreio(erro, "POSSE_PERDIDA")) throw erro;
-        if (ehErroDoRecreio(erro)) {
+        // Só uma recusa de verdade manda a pessoa embora. Recreio que não respondeu
+        // não é falta de acesso: a entrada falha e o cliente reabre o mundo.
+        if (ehErroDoRecreio(erro) && !ehPassageiro(erro)) {
+          this.op.registrar("entrada_recusada", { mundoId: this.mundoId, codigo: erro.codigo });
           this.despedir(ligacao, FECHAMENTO.semAcesso);
           this.fecharSeVazio();
           return;
         }
+        this.fecharSeVazio();
         throw erro;
       }
       if (ligacao.fase === "fechada") return;
@@ -354,7 +424,8 @@ export class Ator {
           : { t: "sessao_entrou", sessaoId: sessao.sid, perfilId: jogadorId, apelido },
       );
 
-      ligacao.fase = "dentro";
+      // A fase continua `entrando` até a pessoa receber o mundo: antes disso ela
+      // não recebe passo nem pulso, e o que mandar é ignorado.
       ligacao.ator = this;
       ligacao.sid = sessao.sid;
       ligacao.jogadorId = jogadorId;
@@ -362,25 +433,34 @@ export class Ator {
       ligacao.expiraEm = sessao.expiraEm;
       this.ligacoes.set(sessao.sid, ligacao);
 
-      // O acesso concedido é um fato: grava e avisa os outros antes de mostrar o mundo a quem chega.
-      await this.concluirPasso(mundo.avancar(0), [], ligacao);
-
-      this.enviar(ligacao, {
-        t: "bem_vindo",
-        v: VERSAO_DO_PROTOCOLO,
-        jogadorId,
-        apelido: apelido ?? "",
-        papel: entrada.papel,
-        tick: mundo.estado.relogio.tick,
-        passoMs: 100,
-        janelaDeGracaMs: mundo.estado.regras.janelaDeGracaMs,
+      // Quem chega só vê o mundo quando o diário confirmou tudo: o acesso dela,
+      // que é um fato, e qualquer passo que já esperava. Com o diário fora do
+      // ar, a entrada fica na fila atrás deles.
+      this.chegando.push(() => {
+        if (ligacao.fase !== "entrando" || this.ligacoes.get(sessao.sid) !== ligacao) return;
+        ligacao.fase = "dentro";
+        this.enviar(ligacao, {
+          t: "bem_vindo",
+          v: VERSAO_DO_PROTOCOLO,
+          jogadorId,
+          apelido: apelido ?? "",
+          papel: entrada.papel,
+          tick: mundo.estado.relogio.tick,
+          passoMs: 100,
+          janelaDeGracaMs: mundo.estado.regras.janelaDeGracaMs,
+        });
+        this.enviar(ligacao, {
+          t: "fotografia",
+          seq: ++ligacao.seq,
+          visao: mundo.visao(jogadorId),
+        });
+        this.op.registrar("jogador_entrou", {
+          mundoId: this.mundoId,
+          papel: entrada.papel,
+          jogadores: this.ligacoes.size,
+        });
       });
-      this.enviar(ligacao, {
-        t: "fotografia",
-        seq: ++ligacao.seq,
-        visao: mundo.visao(jogadorId),
-      });
-      this.op.registrar("jogador_entrou", { mundoId: this.mundoId, jogadores: this.ligacoes.size });
+      await this.concluirPasso(mundo.avancar(0), []);
     }).then(() => undefined);
   }
 
@@ -391,14 +471,19 @@ export class Ator {
     this.caixa.push(entrada);
   }
 
-  /** A sessão de jogo acabou no Recreio: quem estava com ela sai sem espera. */
+  /**
+   * A sessão de jogo acabou no Recreio: quem estava com ela sai sem espera.
+   * Vale também para quem tinha caído e ainda era esperado: uma sessão
+   * encerrada não volta, então a reserva dela é liberada já.
+   */
   encerrarSessao(sid: string): void {
     const ligacao = this.ligacoes.get(sid);
     if (ligacao) {
       this.ligacoes.delete(sid);
       this.despedir(ligacao, FECHAMENTO.semAcesso, "acesso_encerrado");
     }
-    this.receber({ t: "encerrada", sid });
+    const conhecida = this.mundo?.presenca.sessoes.some((sessao) => sessao.sessaoId === sid);
+    if (ligacao || conhecida) this.receber({ t: "encerrada", sid });
   }
 
   private aplicarCaixa(respostas: (() => void)[]): void {
@@ -444,10 +529,16 @@ export class Ator {
       // Posse perto de vencer sem batimento confirmado: não simula nem escreve.
       if (agora >= this.validaAte - FOLGA_DE_AUTOCERCA_MS) return;
 
+      // O contador segue o relógio real, com o mundo andando ou esperando: é ele que marca o pulso.
+      this.passos++;
+      const umSegundo = this.passos % 10 === 0;
+
       // Um passo anterior ainda não foi para o diário: tenta de novo antes de qualquer coisa.
-      if (this.pendente) {
-        const { saida, respostas } = this.pendente;
-        await this.concluirPasso(saida, respostas, null);
+      if (this.pendentes.length > 0) {
+        const gravou = await this.escoar();
+        // O mundo espera, mas o servidor está vivo: o pulso continua, com o tick
+        // do último passo que os clientes puderam saber.
+        if (!gravou && umSegundo && this.estado === "ativo") this.pulsar(agora);
         return;
       }
 
@@ -456,8 +547,6 @@ export class Ator {
       const respostas: (() => void)[] = [];
       this.aplicarCaixa(respostas);
 
-      this.passos++;
-      const umSegundo = this.passos % 10 === 0;
       if (umSegundo) this.acadaSegundo(agora);
 
       const tickAntes = mundo.estado.relogio.tick;
@@ -468,15 +557,20 @@ export class Ator {
       if (gasto > this.medidas.piorPassoMs) this.medidas.piorPassoMs = gasto;
       if (saida.tick !== tickAntes || saida.mudancas.length > 0) this.mudouDesdeAFoto = true;
 
-      await this.concluirPasso(saida, respostas, null);
+      await this.concluirPasso(saida, respostas);
       if (this.estado !== "ativo") return;
       // O pulso sai depois do passo, com o tick em que o mundo ficou. Com o
-      // diário por confirmar, nem o pulso sai: os clientes ainda não sabem deste passo.
-      if (umSegundo && !this.pendente) this.pulsar(agora);
+      // diário por confirmar, o tick é o do último passo confirmado: os
+      // clientes ainda não sabem deste.
+      if (umSegundo) this.pulsar(agora);
 
       const marcante = saida.fatos.some((fato) => FATOS_MARCANTES.has(fato.dados.tipo));
       const venceu = this.op.agora() - this.fotografadoEm >= this.op.checkpointMs;
-      if (this.mudouDesdeAFoto && (marcante || venceu)) {
+      // Diário grande sem fotografia: fotografa já, antes de o Recreio parar de aceitar entradas.
+      const diarioGrande =
+        this.diarioSemFoto >=
+        (this.op.diarioParaFotografarBytes ?? DIARIO_SEM_FOTO_PARA_FOTOGRAFAR);
+      if ((this.mudouDesdeAFoto && (marcante || venceu)) || diarioGrande) {
         await this.semDerrubar("fotografia", () => this.fotografar("checkpoint"));
       }
 
@@ -526,7 +620,7 @@ export class Ator {
     }
     for (const [sid, ligacao] of this.ligacoes) {
       // Sessão de jogo vencida sem renovação: a conexão fecha e a reserva espera a volta.
-      if (agora >= ligacao.expiraEm) {
+      if (sessaoVencida(ligacao.expiraEm, agora)) {
         this.ligacoes.delete(sid);
         this.despedir(ligacao, FECHAMENTO.sessao);
         mundo.aplicar({ t: "sessao_caiu", sessaoId: sid, agoraMs: agora });
@@ -538,91 +632,148 @@ export class Ator {
     }
   }
 
-  /** O sinal de vida de uma vez por segundo: diz a todos em que tick o mundo está. */
+  /**
+   * O sinal de vida de uma vez por segundo: diz a quem já está no mundo em que
+   * tick ele está. Enquanto um passo espera o diário, é o tick do último passo
+   * confirmado.
+   */
   private pulsar(agora: number): void {
-    const tick = (this.mundo as Mundo).estado.relogio.tick;
+    const tick =
+      this.pendentes.length > 0 ? this.tickConfirmado : (this.mundo as Mundo).estado.relogio.tick;
     for (const ligacao of this.ligacoes.values()) {
+      if (ligacao.fase !== "dentro") continue;
       this.enviar(ligacao, { t: "pulso", n: this.passos, tick, agoraMs: agora });
     }
   }
 
   /**
-   * Grava os fatos do passo e, só depois, conta aos clientes o que mudou. Se o
-   * diário não responde, o passo fica pendente e o mundo espera.
+   * Põe o passo na fila dos que esperam o diário e conclui o que der, em
+   * ordem. Um passo novo nunca passa na frente de um que ainda não gravou.
    */
-  private async concluirPasso(
-    saida: SaidaDoPasso,
-    respostas: (() => void)[],
-    excluir: Ligacao | null,
-  ): Promise<void> {
-    if (saida.fatos.length > 0) {
-      this.pendente = { saida, respostas };
-      const inicio = performance.now();
-      try {
-        await this.gravarFatos(saida.fatos);
-      } catch (erro) {
-        if (erro instanceof QuedaSimulada) throw erro;
-        if (
-          ehErroDoRecreio(erro, "POSSE_PERDIDA") ||
-          ehErroDoRecreio(erro, "POSSE_DE_OUTRA_INSTANCIA")
-        ) {
-          throw erro;
-        }
-        // Rede ou diário fora do ar: tenta de novo no próximo passo, sem avisar ninguém.
-        this.op.registrar("diario_indisponivel", {
-          mundoId: this.mundoId,
-          codigo: ehErroDoRecreio(erro) ? erro.codigo : "erro",
-        });
-        return;
-      } finally {
-        this.medidas.gravandoMs += performance.now() - inicio;
-      }
-      this.pendente = null;
-      this.medidas.fatos += saida.fatos.length;
-      this.op.falhas.atingir("depois_do_diario", { fatos: saida.fatos });
-    }
-
-    for (const responder of respostas) responder();
-    if (saida.mudancas.length > 0 || saida.apresentacao.length > 0) {
-      for (const ligacao of this.ligacoes.values()) {
-        if (ligacao === excluir) continue;
-        this.enviar(ligacao, {
-          t: "passo",
-          seq: ++ligacao.seq,
-          tick: saida.tick,
-          mudancas: saida.mudancas,
-          eventos: saida.apresentacao,
-        });
-      }
-    }
-    if (saida.fatos.length > 0) this.op.falhas.atingir("depois_de_avisar", { fatos: saida.fatos });
+  private concluirPasso(saida: SaidaDoPasso, respostas: (() => void)[]): Promise<boolean> {
+    this.pendentes.push({ saida, respostas });
+    return this.escoar();
   }
 
+  /**
+   * Conclui os passos que esperam, do mais antigo para o mais novo: grava os
+   * fatos e, só depois, responde a quem pediu e conta aos clientes o que
+   * mudou. Se o diário não responde, para no primeiro que não gravou e o
+   * mundo espera. Devolve se não sobrou nenhum.
+   */
+  private async escoar(): Promise<boolean> {
+    while (this.pendentes.length > 0) {
+      const passo = this.pendentes[0] as PassoPorConcluir;
+      const { saida } = passo;
+      if (saida.fatos.length > 0) {
+        const inicio = performance.now();
+        try {
+          await this.gravarFatos(saida.fatos);
+        } catch (erro) {
+          if (erro instanceof QuedaSimulada) throw erro;
+          if (
+            ehErroDoRecreio(erro, "POSSE_PERDIDA") ||
+            ehErroDoRecreio(erro, "POSSE_DE_OUTRA_INSTANCIA")
+          ) {
+            throw erro;
+          }
+          const recusa = RECUSAS_DO_DIARIO.find((codigo) => ehErroDoRecreio(erro, codigo));
+          if (recusa) {
+            this.recomecar(recusa);
+            return false;
+          }
+          // Rede ou diário fora do ar: tenta de novo no próximo passo, sem avisar ninguém.
+          const agora = this.op.agora();
+          this.esperandoDesde ??= agora;
+          if (agora - this.queixaEm >= REPETIR_QUEIXA_MS) {
+            this.queixaEm = agora;
+            this.op.registrar("diario_indisponivel", {
+              mundoId: this.mundoId,
+              codigo: ehErroDoRecreio(erro) ? erro.codigo : "erro",
+              passosEmEspera: this.pendentes.length,
+            });
+          }
+          return false;
+        } finally {
+          this.medidas.gravandoMs += performance.now() - inicio;
+        }
+        this.medidas.fatos += saida.fatos.length;
+        if (this.esperandoDesde !== null) {
+          this.op.registrar("diario_voltou", {
+            mundoId: this.mundoId,
+            esperouMs: this.op.agora() - this.esperandoDesde,
+          });
+          this.esperandoDesde = null;
+          this.queixaEm = Number.NEGATIVE_INFINITY;
+        }
+        this.op.falhas.atingir("depois_do_diario", { fatos: saida.fatos });
+      }
+      this.pendentes.shift();
+      this.tickConfirmado = saida.tick;
+
+      for (const responder of passo.respostas) responder();
+      if (saida.mudancas.length > 0 || saida.apresentacao.length > 0) {
+        for (const ligacao of this.ligacoes.values()) {
+          // Quem ainda está entrando recebe a visão inteira depois, e não este passo.
+          if (ligacao.fase !== "dentro") continue;
+          this.enviar(ligacao, {
+            t: "passo",
+            seq: ++ligacao.seq,
+            tick: saida.tick,
+            mudancas: saida.mudancas,
+            eventos: saida.apresentacao,
+          });
+        }
+      }
+      if (saida.fatos.length > 0) {
+        this.op.falhas.atingir("depois_de_avisar", { fatos: saida.fatos });
+      }
+    }
+    // Tudo gravado: quem esperava para entrar vê o mundo agora.
+    for (const receber of this.chegando.splice(0)) receber();
+    return true;
+  }
+
+  /**
+   * Manda os fatos de um passo ao diário, em lotes que cabem nos tetos do
+   * Recreio. Repetir um lote já gravado (a resposta se perdeu no caminho) não
+   * faz nada lá, então uma nova tentativa recomeça do primeiro que falta.
+   */
   private async gravarFatos(fatos: readonly Fato[]): Promise<void> {
-    const entradas: EntradaDoDiario[] = fatos.map((fato, i) => ({
-      seq: this.diarioSeq + 1 + i,
-      tick: fato.tick,
-      fatoId: fato.id,
-      bytes: texto.encode(JSON.stringify(fato)),
-    }));
     this.op.falhas.atingir("antes_do_diario", { fatos });
-    try {
+    const lotes: EntradaDoDiario[][] = [];
+    let lote: EntradaDoDiario[] = [];
+    let tamanho = 0;
+    for (const [i, fato] of fatos.entries()) {
+      const entrada: EntradaDoDiario = {
+        seq: this.diarioSeq + 1 + i,
+        tick: fato.tick,
+        fatoId: fato.id,
+        bytes: texto.encode(JSON.stringify(fato)),
+      };
+      const cheio =
+        lote.length >= ENTRADAS_POR_LOTE ||
+        tamanho + entrada.bytes.length > LIMITES.diarioLoteMaxBytes;
+      if (lote.length > 0 && cheio) {
+        lotes.push(lote);
+        lote = [];
+        tamanho = 0;
+      }
+      lote.push(entrada);
+      tamanho += entrada.bytes.length;
+    }
+    if (lote.length > 0) lotes.push(lote);
+    for (const parte of lotes) {
       const { confirmadoAte } = await this.op.host.anexarAoDiario({
         mundoId: this.mundoId,
         cerca: this.cerca,
-        entradas,
+        entradas: parte,
       });
-      this.diarioSeq = confirmadoAte;
-    } catch (erro) {
-      if (!ehErroDoRecreio(erro, "CHECKPOINT_NECESSARIO")) throw erro;
-      // Diário acumulado demais: fotografa o que já está gravado e tenta de novo.
-      await this.fotografar("checkpoint");
-      const { confirmadoAte } = await this.op.host.anexarAoDiario({
-        mundoId: this.mundoId,
-        cerca: this.cerca,
-        entradas,
-      });
-      this.diarioSeq = confirmadoAte;
+      // Um lote repetido volta com o diário onde já estava: só conta o que entrou agora.
+      if (confirmadoAte > this.diarioSeq) {
+        this.diarioSemFoto += parte.reduce((total, entrada) => total + entrada.bytes.length, 0);
+      }
+      this.diarioSeq = Math.max(this.diarioSeq, confirmadoAte);
     }
   }
 
@@ -645,7 +796,7 @@ export class Ator {
   private async fotografar(tipo: "checkpoint" | "hibernate"): Promise<void> {
     const mundo = this.mundo as Mundo;
     // Um passo com fatos por gravar não entra na fotografia: ela cobre só o que está no diário.
-    if (this.pendente) return;
+    if (this.pendentes.length > 0) return;
     const bytes = gzipSync(JSON.stringify(mundo.fotografar()));
     this.op.falhas.atingir("antes_da_fotografia");
     const inicio = performance.now();
@@ -673,15 +824,24 @@ export class Ator {
       this.medidas.gravandoMs += performance.now() - inicio;
     }
     this.mudouDesdeAFoto = false;
+    this.diarioSemFoto = 0;
     this.fotografadoEm = this.op.agora();
     this.medidas.fotografias++;
     this.medidas.bytesDaUltimaFotografia = bytes.length;
+    this.op.registrar("fotografia_gravada", {
+      mundoId: this.mundoId,
+      tipo,
+      revisao: this.revisao,
+      diarioSeq: this.diarioSeq,
+      tick: mundo.estado.relogio.tick,
+      bytes: bytes.length,
+    });
   }
 
   private async hibernar(): Promise<void> {
     if (this.estado !== "ativo") return;
     await this.fotografar("hibernate");
-    if (this.estado !== "ativo" || this.pendente) return;
+    if (this.estado !== "ativo" || this.pendentes.length > 0) return;
     await this.op.host.liberarPosse({ mundoId: this.mundoId, cerca: this.cerca, motivo: "vazio" });
     this.estado = "fechado";
     this.mundo = null;
@@ -691,29 +851,85 @@ export class Ator {
 
   private fecharSeVazio(): void {
     if (this.ligacoes.size === 0 && this.mundo?.presenca.sessoes.length === 0) {
-      void this.emSerie(() => this.hibernar());
+      // Sem o Recreio a hibernação fica para o próximo passo; daqui não sai erro sem dono.
+      this.emSerie(() => this.semDerrubar("hibernacao", () => this.hibernar())).catch(() => {});
     }
   }
 
-  /** Desligamento da instância: salva, solta a posse e manda os clientes reabrirem. */
+  /**
+   * Desligamento da instância: salva, solta a posse e manda os clientes
+   * reabrirem. O que ainda esperava o diário tem uma última tentativa; se ela
+   * falha, nada é fotografado nem solto (a fotografia só cobre o que está no
+   * diário), e a próxima instância recupera o que estava gravado quando a
+   * posse vencer. Ninguém chegou a saber do que não gravou.
+   */
   encerrar(): Promise<void> {
     return this.emSerie(async () => {
       if (this.estado !== "ativo") return;
       for (const ligacao of this.ligacoes.values()) {
         this.enviar(ligacao, { t: "aviso", codigo: "servidor_reiniciando" });
       }
-      await this.fotografar("checkpoint");
-      if (this.estado === "ativo" && !this.pendente) {
-        await this.op.host.liberarPosse({
+      try {
+        if (await this.escoar()) {
+          await this.fotografar("checkpoint");
+          if (this.estado === "ativo") {
+            await this.op.host.liberarPosse({
+              mundoId: this.mundoId,
+              cerca: this.cerca,
+              motivo: "drenagem",
+            });
+            this.op.registrar("posse_solta", {
+              mundoId: this.mundoId,
+              cerca: this.cerca,
+              motivo: "drenagem",
+            });
+          }
+        }
+      } catch (erro) {
+        if (erro instanceof QuedaSimulada) throw erro;
+        if (
+          ehErroDoRecreio(erro, "POSSE_PERDIDA") ||
+          ehErroDoRecreio(erro, "POSSE_DE_OUTRA_INSTANCIA")
+        ) {
+          throw erro;
+        }
+        this.op.registrar("encerramento_sem_salvar", {
           mundoId: this.mundoId,
-          cerca: this.cerca,
-          motivo: "drenagem",
+          codigo: ehErroDoRecreio(erro) ? erro.codigo : "erro",
+        });
+      }
+      if (this.estado !== "ativo") return;
+      if (this.pendentes.length > 0) {
+        this.op.registrar("encerramento_sem_salvar", {
+          mundoId: this.mundoId,
+          codigo: "diario_indisponivel",
+          passosEmEspera: this.pendentes.length,
         });
       }
       this.largar(FECHAMENTO.reiniciando);
       this.estado = "fechado";
       this.op.aoFechar(this);
     }).then(() => undefined);
+  }
+
+  /**
+   * O diário recusou o passo de um jeito que tentar de novo não resolve. O
+   * caso previsto é o Recreio exigir uma fotografia (`CHECKPOINT_NECESSARIO`),
+   * que não pode ser tirada agora: a memória já tem o passo que não gravou. Os
+   * outros (`RECUSAS_DO_DIARIO`) dizem que a memória e o diário não batem. O
+   * ator larga o que tem e fecha as conexões; a posse continua desta
+   * instância. Quem reabre o mundo cai aqui de novo, e a abertura recarrega o
+   * que está gravado e fotografa antes de qualquer pedido.
+   */
+  private recomecar(motivo: string): void {
+    this.op.registrar("mundo_recomeca", {
+      mundoId: this.mundoId,
+      motivo,
+      passosDescartados: this.pendentes.length,
+    });
+    this.largar(FECHAMENTO.reiniciando);
+    this.estado = "fechado";
+    this.op.aoFechar(this);
   }
 
   /** A posse não é mais desta instância: para tudo, sem escrever mais nada. */
@@ -730,7 +946,8 @@ export class Ator {
     this.estado = "perdido";
     this.mundo = null;
     this.caixa.length = 0;
-    this.pendente = null;
+    this.pendentes.length = 0;
+    this.chegando.length = 0;
     for (const ligacao of this.ligacoes.values()) ligacao.fase = "fechada";
     this.ligacoes.clear();
     this.op.aoFechar(this);
@@ -740,7 +957,8 @@ export class Ator {
     for (const ligacao of this.ligacoes.values()) this.despedir(ligacao, codigo);
     this.ligacoes.clear();
     this.caixa.length = 0;
-    this.pendente = null;
+    this.pendentes.length = 0;
+    this.chegando.length = 0;
     this.mundo = null;
   }
 

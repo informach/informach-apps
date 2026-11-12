@@ -117,10 +117,13 @@ describe("sessão de desenvolvimento", () => {
     // A sessão renovada continua com a validade pedida na entrada.
     expect(lia.validadeMs()).toBe(3000);
 
+    // Passado o vencimento e dentro da tolerância de relógio, o token ainda é aceito por
+    // quem o confere, e a conexão segue: os dois lados usam a mesma conta.
     await andar(40);
-    expect(lia.cliente.fechamento).toBe(FECHAMENTO.sessao);
-    // Token vencido (passada a tolerância de relógio) não renova: é preciso entrar de novo.
+    expect(lia.cliente.fechamento).toBeNull();
+    // Passada a tolerância, a conexão fecha e o token não renova: é preciso entrar de novo.
     await andar(60);
+    expect(lia.cliente.fechamento).toBe(FECHAMENTO.sessao);
     expect(await lia.renovar()).toBe(false);
   });
 

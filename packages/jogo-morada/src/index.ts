@@ -24,7 +24,9 @@ export function montarMorada(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMon
   // Se o jogo não carrega (a rede caiu no meio do download), a pessoa fica sabendo.
   // Aqui ainda não há HUD nem CSS: é só um texto no lugar do jogo.
   jogo.catch(() => {
-    if (!descartado) host.textContent = "Não foi possível carregar o jogo. Recarregue a página.";
+    if (descartado) return;
+    if (opcoes.aoNaoCarregar) opcoes.aoNaoCarregar();
+    else host.textContent = "Não foi possível carregar o jogo. Recarregue a página.";
   });
   return {
     async dispose() {

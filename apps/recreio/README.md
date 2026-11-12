@@ -1,6 +1,6 @@
 # Recreio
 
-Portal da plataforma de jogos da Informach. Hoje dá para entrar com a conta Informach, criar o perfil, escolher quem joga neste aparelho, ver a estante e a conta com a situação do direito de jogar, criar mundos e chamar outras pessoas por código de convite. O portal também atende os jogos: emite o ingresso e a sessão de jogo (API do SDK), guarda a posse, o diário e as fotografias dos mundos para os servidores de jogo (API das instâncias) e hospeda o jogo em `/jogar/<jogo>?mundo=<id>`. O Morada ainda não está ligado a essa página: por enquanto ela abre só o jogo de teste, que não existe em produção. Regras e limites em [CLAUDE.md](CLAUDE.md); escopo e lotes no [registro da frente](../../docs/recreio/implementacao.md).
+Portal da plataforma de jogos da Informach. Hoje dá para entrar com a conta Informach, criar o perfil, escolher quem joga neste aparelho, ver a estante e a conta com a situação do direito de jogar, criar mundos e chamar outras pessoas por código de convite. O portal também atende os jogos: emite o ingresso e a sessão de jogo (API do SDK), guarda a posse, o diário e as fotografias dos mundos para os servidores de jogo (API das instâncias) e hospeda o jogo em `/jogar/<jogo>?mundo=<id>`. O Morada abre nessa página, com o servidor dele (`apps/morada-server`) rodando ao lado; o jogo de teste, que não existe em produção, serve para provar a plataforma sem jogo nenhum. Regras e limites em [CLAUDE.md](CLAUDE.md); escopo e lotes no [registro da frente](../../docs/recreio/implementacao.md).
 
 ## Abrir localmente
 
@@ -43,6 +43,30 @@ pnpm --filter @informach/recreio-app gerar-chave
 O comando mostra `RECREIO_TOKEN_KEY_ID` e `RECREIO_TOKEN_PRIVATE_KEY` (PEM numa linha, com `\n` escapado) para copiar ao provedor. A chave pública servida em `/api/sdk/v1/jwks` sai da privada. Na rotação, a pública da chave antiga entra em `RECREIO_TOKEN_PREVIOUS_PUBLIC_KEYS` com o id dela e fica lá até as sessões assinadas por ela vencerem (15 min bastam).
 
 A manutenção (`POST /api/jobs/manutencao`, com `Authorization: Bearer $CRON_SECRET`) fecha posses vencidas, marca instâncias caladas, apaga ingressos antigos e encerra sessões de jogo sem renovação. Responde só contagens e pode rodar a qualquer intervalo; nada do caminho de jogo espera por ela.
+
+## Morada no portal
+
+O portal hospeda o cliente do Morada (`@informach/jogo-morada`) em `/jogar/morada?mundo=<id>`; o mundo roda no servidor do jogo (`apps/morada-server`), que fala com o portal pela API das instâncias. Para jogar localmente, com o PostgreSQL no ar e as migrations aplicadas:
+
+1. No `apps/recreio/.env.local`, o segredo e o endereço do servidor do jogo (os valores do `.env.example` já servem; troque o segredo):
+
+   ```bash
+   RECREIO_HOST_SECRETS={"morada":"um-segredo-qualquer-com-32-caracteres-ou-mais"}
+   RECREIO_GAME_ORIGINS={"morada":{"ws":"ws://localhost:3010"}}
+   ```
+
+2. No `apps/morada-server/.env` (copie de `apps/morada-server/.env.example`), o mesmo segredo em `RECREIO_HOST_SECRET`, `RECREIO_API_URL=http://localhost:3009`, `MORADA_PUBLIC_URL=ws://localhost:3010` e `MORADA_ORIGENS=http://localhost:3009`.
+
+3. Em dois terminais, na raiz:
+
+   ```bash
+   pnpm dev:recreio          # o portal, na 3009
+   pnpm dev:morada-server    # o servidor do jogo, na 3010; registra-se no portal quando ele responde
+   ```
+
+4. Crie a conta em `/entrar`, libere-a com `conceder`, crie um mundo em "Seus mundos no Morada" e use "Jogar". Para jogar a dois, crie outra conta em outro navegador (ou janela anônima), libere-a, gere o código de convite na página do mundo e entre com ele pela estante da outra conta.
+
+A ordem em que os dois sobem não importa: o servidor do jogo espera o portal para se registrar, e a página do jogo mostra "O jogo está iniciando" enquanto não há instância. Reiniciar o portal sem `RECREIO_TOKEN_PRIVATE_KEY` troca a chave dos tokens: quem estava jogando precisa abrir o jogo de novo. O que o servidor do jogo registra (posse, fotografias, batimentos com `LOG_LEVEL=debug`) está descrito no [guia dele](../morada-server/README.md#ligado-ao-recreio).
 
 ## Jogo de teste
 
@@ -93,7 +117,7 @@ A validação fica em `src/lib/environment.ts` e só cita o nome da variável re
 pnpm --filter @informach/recreio-app typecheck
 pnpm --filter @informach/recreio-app test              # regras puras, textos, fronteira do acesso, contraste
 pnpm --filter @informach/recreio-app test:integration  # banco descartável; ver abaixo
-pnpm --filter @informach/recreio-app e2e               # navegador, portal e servidor do jogo de teste; ver abaixo
+pnpm --filter @informach/recreio-app e2e               # navegador, portal e os servidores do jogo de teste e do Morada; ver abaixo
 pnpm exec biome check apps/recreio
 pnpm build:recreio                                     # precisa das variáveis acima (valores de exemplo servem)
 ```
@@ -112,11 +136,23 @@ As rotas são chamadas dentro do processo (`test/rotas.ts`), sem servidor. As qu
 
 ### E2E
 
-`pnpm --filter @informach/recreio-app e2e` roda `scripts/isolated.mjs e2e`: cria o banco descartável, aplica as migrations, faz um **build de produção** com o jogo de teste ligado (em `.next-isolated-<id>`, sem tocar no `.next`), sobe o portal com `next start` na porta 3109 e roda o Playwright (`e2e/jogar.spec.ts`, Chromium). O servidor do jogo de teste (porta 3019) é um processo à parte, iniciado e derrubado pelo próprio teste. Precisa só do PostgreSQL local e do Chromium do Playwright (`pnpm --filter @informach/recreio-app exec playwright install chromium`); não usa Redis, não envia e-mail (os códigos ficam em arquivos) e gera os segredos na hora. Leva cerca de dois minutos e meio, a maior parte no build e na espera pela posse de uma instância morta (30 s). As portas mudam com `RECREIO_E2E_PORT` e `RECREIO_E2E_GAME_PORT`.
+`pnpm --filter @informach/recreio-app e2e` roda `scripts/isolated.mjs e2e`: cria o banco descartável, aplica as migrations, faz um **build de produção** com o jogo de teste ligado (em `.next-isolated-<id>`, sem tocar no `.next`), sobe o portal com `next start` na porta 3109 e roda o Playwright (`e2e/*.spec.ts`, Chromium com desenho por software). Os servidores dos jogos são processos à parte, iniciados e derrubados pelos próprios testes: o do jogo de teste (porta 3019) e o do Morada, o de verdade (`apps/morada-server`, porta 3110, com `MORADA_PLATAFORMA=recreio` e `MORADA_REGRAS=prova`). Precisa só do PostgreSQL local e do Chromium do Playwright (`pnpm --filter @informach/recreio-app exec playwright install chromium`); não usa Redis, não envia e-mail (os códigos ficam em arquivos) e gera os segredos na hora. As portas mudam com `RECREIO_E2E_PORT`, `RECREIO_E2E_GAME_PORT` e `RECREIO_E2E_MORADA_PORT`.
 
-O que ele prova:
+`e2e/morada.spec.ts` é a condição de saída da etapa 1 ("duas contas diferentes jogam a mesma família, uma cai, a outra continua, e tudo volta depois de derrubar a instância"), pelo portal, pela API do Recreio, pelo banco e pelo servidor do Morada de verdade:
 
-- recusas: sem o direito de jogar a página devolve para a estante; jogo que não existe (e jogo do catálogo sem cliente) é 404; mundo de outra pessoa, inexistente ou com id sem forma mostram o mesmo aviso;
+- duas contas se cadastram, uma cria o mundo do Morada e convida, a outra entra; as duas abrem `/jogar/morada` e veem a mesma família, os quatro retratos e o mesmo relógio; quem criou é responsável com todas as permissões, quem foi convidada joga sem gerir o mundo nem as finanças;
+- cada uma dirige um morador e vê o da outra como "Dirigido por <apelido>"; tomar o morador da outra é recusado com a mensagem; uma manda o morador a um ponto do chão e a outra o vê chegar lá; o menu em leque de um móvel põe uma interação na fila; a janela muda de tamanho e a cena e o HUD acompanham;
+- o navegador de uma delas é **morto** (o processo, sem aviso): a outra continua, vê "em espera" e, passados os 30 s, assume o morador;
+- depois de uma fotografia do mundo, um fato que só fica no diário (o morador preferido) e então a instância é **morta com `SIGKILL`**: quem joga vê a faixa de reconexão do jogo, não uma página de erro; outra instância sobe, assume quando a posse vence, e o mundo volta com a mesma família, o preferido de pé, a reserva retomada por ele e o relógio sem voltar. O registro das instâncias mostra as cercas 1 e 2 e a segunda abertura montada da fotografia mais o diário;
+- a conta que caiu entra de novo em outro navegador, responde "Continuar aqui" e está na mesma família;
+- sem instância, a página diz "O jogo está iniciando"; a mesma conta em outra aba e a saída da conta encerram o jogo com **um** aviso, o da página;
+- a estante não baixa o código do jogo (nem a marca do cliente, nem o three.js) e a página do jogo baixa; nenhuma violação da política de segurança, erro de página ou erro de console; nenhum segredo ou token no que a instância escreveu.
+
+O jogo é montado como em produção, sem a opção de depuração: o teste confere o HUD, os nomes acessíveis e os atributos `data-morada-*`, e descobre onde clicar na cena passando o ponteiro por ela.
+
+O que `e2e/jogar.spec.ts` prova, com o jogo de teste:
+
+- recusas: sem o direito de jogar a página devolve para a estante; jogo que não existe é 404; mundo de outra pessoa, de outro jogo, inexistente ou com id sem forma mostram o mesmo aviso;
 - sem nenhuma instância, a pessoa lê "O jogo está iniciando" e "Tentar de novo" abre o jogo quando a instância sobe;
 - a estante não baixa o código do jogo e a página do jogo baixa (pelo texto dos scripts que cada navegação recebeu), e cada uma chega com a sua política de segurança;
 - duas contas no mesmo mundo veem uma à outra e ao contador; um aparelho some e a outra pessoa continua; sair pela página grava a fotografia e voltar traz o mesmo valor;
@@ -129,10 +165,10 @@ Uma falha deixa traces e capturas em `tmp/verification/<id>`; as capturas das te
 ## Estrutura
 
 - `src/app`: `/`, `/entrar`, `/comecar`, `/perfis`, `(portal)/estante`, `(portal)/conta`, `(portal)/mundos/[id]`, `(portal)/convite`, `jogar/[jogo]`, `/termos`, `/privacidade` e `api` (auth, health, ready, sair da conta, descadastro de e-mail, `sdk/v1`, `interno/v1`, `jobs/manutencao`).
-- `src/features`: `account` (concluir a entrada, botão de sair), `sessao` (ator, sessão de aparelho, saída), `perfis` (criar e escolher), `acesso` (direito de jogar e o texto dele), `estante` (cartões do catálogo), `jogos` (o catálogo do deploy e a configuração de cada jogo), `jogar` (a página que hospeda o jogo: decisão no servidor, estados, registro dos clientes), `jogo-de-teste` (cliente e protocolo do jogo de teste), `sessao-de-jogo` (ingresso, sessão, renovação), `mundos` (mundos, membros, convites e as telas deles), `posse` (posse, API das instâncias, armazenamento), `manutencao` (rotina agendada), `operations` (prontidão).
+- `src/features`: `account` (concluir a entrada, botão de sair), `sessao` (ator, sessão de aparelho, saída), `perfis` (criar e escolher), `acesso` (direito de jogar e o texto dele), `estante` (cartões do catálogo), `jogos` (o catálogo do deploy e a configuração de cada jogo), `jogar` (a página que hospeda o jogo: decisão no servidor, estados, registro e carregadores dos clientes, e `adaptadores/` com o do Morada), `jogo-de-teste` (cliente e protocolo do jogo de teste), `sessao-de-jogo` (ingresso, sessão, renovação), `mundos` (mundos, membros, convites e as telas deles), `posse` (posse, API das instâncias, armazenamento), `manutencao` (rotina agendada), `operations` (prontidão).
 - `scripts`: `conceder` e `revogar` (concessões), `gerar-chave` (par de chaves dos tokens), `isolated.mjs` (banco descartável dos testes de integração e do E2E).
 - `test`: testes de integração e o apoio deles.
-- `e2e`: `jogar.spec.ts` (Playwright) e `servidor/main.ts` (o servidor do jogo de teste).
+- `e2e`: `jogar.spec.ts` (a plataforma, com o jogo de teste), `morada.spec.ts` (o Morada de verdade), `apoio.ts` e `morada-apoio.ts` (o que os dois têm em comum e o que é do Morada), `navegador.ts` (opções do Chromium) e `servidor/main.ts` (o servidor do jogo de teste).
 - `src/components`: marca, capa provisória do Morada, formulário de entrada, moldura das páginas de texto, navegação do portal.
 - `src/lib`: auth, env, chaves dos tokens, respostas HTTP, e-mails, Redis, limite de tentativas, logger, observabilidade, telemetria, destino do login.
 - `src/proxy.ts`: CSP com nonce (a de `/jogar/<jogo>` leva as origens do jogo), montada em `src/lib/csp.ts`.

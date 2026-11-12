@@ -6,6 +6,7 @@ import {
   QUADRO_MAXIMO_BYTES,
   SUBPROTOCOLO,
 } from "@informach/morada-sim/protocolo";
+import { ehErroDoRecreio } from "@informach/recreio";
 import { type WebSocket, WebSocketServer } from "ws";
 import type { Conexao } from "./ator";
 import type { Instancia } from "./instancia";
@@ -20,6 +21,12 @@ export type OpcoesDoServidor = {
   instancia: Instancia;
   /** Origens de página que podem abrir o WebSocket. Outra origem é recusada na subida. */
   origens: readonly string[];
+  /**
+   * Recusa também quem não manda origem. Navegador sempre manda; sem esta
+   * opção, quem não é navegador (testes, robôs de carga) conecta sem ela.
+   * Ligada quando a instância fala com o Recreio de verdade.
+   */
+  exigirOrigem?: boolean;
   commit: string | null;
   /** Segredo para ler as medidas. Sem ele, a rota não existe. */
   tokenDeMetricas: string | null;
@@ -27,18 +34,38 @@ export type OpcoesDoServidor = {
   pingMs?: number;
   /** Rotas extras, só para desenvolvimento. */
   rotas?(pedido: IncomingMessage, resposta: ServerResponse): boolean;
+  /** De quanto em quanto tempo tentar o registro enquanto o Recreio não responde. */
+  esperaDoRegistroMs?: number;
   aoErro?(erro: unknown, contexto: string): void;
+  registrar?(evento: string, dados?: Record<string, unknown>): void;
 };
 
 export type Servidor = {
   http: Server;
-  /** Começa a ouvir e a andar. Devolve a porta em uso. */
+  /**
+   * Começa a ouvir e a andar, e tenta registrar a instância no Recreio. Se o
+   * Recreio ainda não responde, o servidor fica no ar sem aceitar conexões de
+   * jogo (`/api/ready` responde 503) e tenta de novo até conseguir. Devolve a
+   * porta em uso.
+   */
   iniciar(porta: number, host?: string): Promise<number>;
   /** Para de aceitar conexões, salva os mundos e fecha tudo. */
   encerrar(): Promise<void>;
 };
 
 const PASSO_MS = 100;
+/** Enquanto o Recreio não responde, o registro é tentado neste intervalo. */
+const ESPERA_DO_REGISTRO_MS = 2000;
+/** Recusa de verdade (segredo, endereço, jogo fechado) é configuração: insiste devagar. */
+const ESPERA_DO_REGISTRO_RECUSADO_MS = 15_000;
+
+/** O que conferir em cada recusa do registro, para quem lê o log. Nunca traz valor de variável. */
+const DICAS_DO_REGISTRO: Record<string, string> = {
+  INDISPONIVEL: "o Recreio não respondeu; confira RECREIO_API_URL",
+  NAO_AUTENTICADO: "RECREIO_HOST_SECRET não é o segredo do jogo em RECREIO_HOST_SECRETS",
+  ENTRADA_INVALIDA: "MORADA_PUBLIC_URL precisa ser igual a RECREIO_GAME_ORIGINS.morada.ws",
+  JOGO_INDISPONIVEL: "o jogo não está aberto no catálogo deste Recreio",
+};
 
 function json(resposta: ServerResponse, status: number, corpo: unknown): void {
   const texto = JSON.stringify(corpo);
@@ -59,12 +86,22 @@ function mesmoSegredo(recebido: string, esperado: string): boolean {
 export function criarServidor(op: OpcoesDoServidor): Servidor {
   const { instancia } = op;
   const aoErro = op.aoErro ?? (() => {});
+  const registrar = op.registrar ?? (() => {});
   const pingMs = op.pingMs ?? 5000;
-  let pronto = false;
+  const esperaDoRegistroMs = op.esperaDoRegistroMs ?? ESPERA_DO_REGISTRO_MS;
+  /** O servidor está ouvindo. Pronto para o jogo é isto mais o registro no Recreio. */
+  let ouvindo = false;
   let encerrando = false;
   let relogio: NodeJS.Timeout | null = null;
-  let batimento: NodeJS.Timeout | null = null;
+  let ciclo: NodeJS.Timeout | null = null;
   let pulsacao: NodeJS.Timeout | null = null;
+  let tentativasDeRegistro = 0;
+  let ultimaRecusa: string | null = null;
+
+  const pronto = () => {
+    const medidas = instancia.medir();
+    return ouvindo && !encerrando && medidas.viva && medidas.registrada;
+  };
 
   const http = createServer((pedido, resposta) => {
     const caminho = (pedido.url ?? "/").split("?")[0];
@@ -73,8 +110,7 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
     }
     if (pedido.method === "GET" && caminho === "/api/ready") {
       // Pronto é estar registrado no Recreio e aceitando mundos.
-      const medidas = instancia.medir();
-      const ok = pronto && !encerrando && medidas.viva && !medidas.drenando;
+      const ok = pronto() && !instancia.medir().drenando;
       return json(resposta, ok ? 200 : 503, { status: ok ? "ready" : "unavailable" });
     }
     if (pedido.method === "GET" && caminho === "/api/metricas" && op.tokenDeMetricas) {
@@ -112,9 +148,12 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
       socket.write(`HTTP/1.1 ${status} ${texto}\r\nConnection: close\r\n\r\n`);
       socket.destroy();
     };
-    if (encerrando || !pronto) return recusar(503, "Service Unavailable");
-    // Navegador sempre manda a origem. Sem origem, só quem não é navegador (testes, robôs de carga).
-    if (origem !== undefined && !op.origens.includes(origem)) return recusar(403, "Forbidden");
+    if (!pronto()) return recusar(503, "Service Unavailable");
+    // Navegador sempre manda a origem. Sem origem, só quem não é navegador
+    // (testes, robôs de carga), e só quando a instância não exige.
+    if (origem === undefined ? op.exigirOrigem : !op.origens.includes(origem)) {
+      return recusar(403, "Forbidden");
+    }
     const pedidos = (pedido.headers["sec-websocket-protocol"] ?? "")
       .split(",")
       .map((p) => p.trim());
@@ -182,6 +221,57 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
     relogio = setTimeout(rodar, PASSO_MS);
   }
 
+  /** Tenta o registro no Recreio. Devolve quanto esperar até a próxima tentativa; 0 se registrou. */
+  async function tentarRegistro(): Promise<number> {
+    tentativasDeRegistro++;
+    try {
+      await instancia.iniciar();
+      tentativasDeRegistro = 0;
+      ultimaRecusa = null;
+      return 0;
+    } catch (erro) {
+      const codigo = ehErroDoRecreio(erro) ? erro.codigo : "erro";
+      // Uma linha quando o motivo muda e depois de dez em dez tentativas, não a cada uma.
+      if (codigo !== ultimaRecusa || tentativasDeRegistro % 10 === 0) {
+        ultimaRecusa = codigo;
+        const dica = DICAS_DO_REGISTRO[codigo];
+        registrar("registro_falhou", {
+          codigo,
+          tentativa: tentativasDeRegistro,
+          ...(dica ? { dica } : {}),
+        });
+      }
+      if (!ehErroDoRecreio(erro)) aoErro(erro, "registro");
+      return codigo === "INDISPONIVEL" || codigo === "erro"
+        ? esperaDoRegistroMs
+        : Math.max(esperaDoRegistroMs, ESPERA_DO_REGISTRO_RECUSADO_MS);
+    }
+  }
+
+  /**
+   * O laço do Recreio: registra enquanto não está registrada e, depois, bate
+   * no intervalo que o registro informou. Uma volta só começa quando a
+   * anterior acabou, e o intervalo conta do começo dela.
+   */
+  async function voltaDoRecreio(): Promise<void> {
+    if (encerrando) return;
+    const inicio = performance.now();
+    let espera: number;
+    if (instancia.medir().registrada) {
+      await instancia.batimento().catch((erro: unknown) => aoErro(erro, "batimento"));
+      espera = instancia.batimentoMs;
+    } else {
+      espera = await tentarRegistro();
+      // Registrou agora: o primeiro batimento sai no intervalo normal.
+      if (espera === 0) espera = instancia.batimentoMs;
+    }
+    if (encerrando) return;
+    ciclo = setTimeout(
+      () => void voltaDoRecreio(),
+      Math.max(0, espera - (performance.now() - inicio)),
+    );
+  }
+
   return {
     http,
 
@@ -193,12 +283,10 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
           resolve();
         });
       });
-      await instancia.iniciar();
-      pronto = true;
+      ouvindo = true;
       ligarRelogio();
-      batimento = setInterval(() => {
-        instancia.batimento().catch((erro: unknown) => aoErro(erro, "batimento"));
-      }, instancia.batimentoMs);
+      // A primeira tentativa de registro é esperada aqui; as seguintes correm sozinhas.
+      await voltaDoRecreio();
       // Conexão que não responde ao ping em um intervalo é derrubada: a queda vira sessão em espera.
       pulsacao = setInterval(() => {
         for (const ws of sockets.clients) {
@@ -218,7 +306,7 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
       if (encerrando) return;
       encerrando = true;
       if (relogio) clearTimeout(relogio);
-      if (batimento) clearInterval(batimento);
+      if (ciclo) clearTimeout(ciclo);
       if (pulsacao) clearInterval(pulsacao);
       await instancia.encerrar();
       for (const ws of sockets.clients) ws.close(FECHAMENTO.reiniciando);

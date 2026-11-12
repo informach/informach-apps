@@ -12,7 +12,8 @@ import postgres from "postgres";
 // - `integration`: os testes de `test/*.integration.ts`, sem servidor.
 // - `e2e`: build de produção com o jogo de teste ligado, `next start` numa
 //   porta própria e o Playwright (`e2e/*.spec.ts`). O servidor do jogo de
-//   teste é iniciado e derrubado pelo próprio teste. Nada sai da máquina: sem
+//   teste e o servidor do Morada (`apps/morada-server`, como processo à parte)
+//   são iniciados e derrubados pelos próprios testes. Nada sai da máquina: sem
 //   Redis, sem envio de e-mail (os códigos ficam em arquivos) e sem segredo
 //   guardado (tudo é gerado aqui, a cada execução).
 const app = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -40,9 +41,10 @@ function porta(nome, padrao) {
   return valor;
 }
 // Portas só da verificação: nem a 3009 do portal em desenvolvimento, nem a
-// 3010 do servidor do Morada.
+// 3010 do servidor do Morada em desenvolvimento.
 const e2ePort = porta("RECREIO_E2E_PORT", "3109");
 const gamePort = porta("RECREIO_E2E_GAME_PORT", "3019");
+const moradaPort = porta("RECREIO_E2E_MORADA_PORT", "3110");
 const origin = e2e ? `http://localhost:${e2ePort}` : "http://localhost:3009";
 const e2eRunId = e2e ? randomBytes(12).toString("hex") : "";
 // O que a execução cria dentro do app e apaga no fim.
@@ -76,11 +78,13 @@ const testEnv = {
   SENTRY_AUTH_TOKEN: "",
   // Segredos e origens só deste teste. `jogo-de-teste` não está no catálogo:
   // os testes de integração que precisam de um segundo jogo o acrescentam por
-  // conta própria. No E2E o jogo é o `teste`, que só existe com a variável
-  // abaixo, e o servidor dele (`e2e/servidor`) lê este mesmo ambiente.
+  // conta própria. No E2E há dois jogos: o `teste`, que só existe com a
+  // variável abaixo e cujo servidor (`e2e/servidor`) lê este mesmo ambiente, e
+  // o Morada, cujo servidor de verdade (`apps/morada-server`) o teste inicia
+  // com o segredo e o endereço daqui.
   RECREIO_HOST_SECRETS: JSON.stringify(
     e2e
-      ? { teste: randomBytes(32).toString("hex") }
+      ? { teste: randomBytes(32).toString("hex"), morada: randomBytes(32).toString("hex") }
       : {
           morada: randomBytes(32).toString("hex"),
           "jogo-de-teste": randomBytes(32).toString("hex"),
@@ -88,7 +92,10 @@ const testEnv = {
   ),
   RECREIO_GAME_ORIGINS: JSON.stringify(
     e2e
-      ? { teste: { ws: `ws://localhost:${gamePort}` } }
+      ? {
+          teste: { ws: `ws://localhost:${gamePort}` },
+          morada: { ws: `ws://localhost:${moradaPort}` },
+        }
       : { morada: { ws: "ws://localhost:3010" }, "jogo-de-teste": { ws: "ws://localhost:3011" } },
   ),
   RECREIO_JOGO_DE_TESTE: e2e ? "1" : "0",

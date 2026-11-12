@@ -16,7 +16,7 @@ import {
  * sessão renovada e, se a conexão cai, abre o mundo de novo.
  *
  * Só existe em builds feitos com `RECREIO_JOGO_DE_TESTE=1`
- * (`features/jogar/registro.ts`).
+ * (`features/jogar/registro.ts` e `features/jogar/carregadores.ts`).
  */
 
 /** Aparece no elemento do jogo. O E2E procura este texto nos scripts que cada página baixa. */

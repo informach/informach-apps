@@ -239,6 +239,48 @@ describe("sessão de jogo", () => {
     expect(lia.visao?.presenca.jogadores).toEqual([
       { perfilId: lia.jogadorId, apelido: "Lia", estado: "presente" },
     ]);
+    // Quinze minutos de mundo, passo a passo: com a máquina ocupada passa dos 5 s do padrão.
+  }, 30_000);
+
+  it("a sessão vale até o vencimento mais a tolerância de relógio, para quem confere o token e para quem fecha a conexão", async () => {
+    const { bancada, instancia, mundoId } = await mundoAberto();
+    const bruno = bancada.jogador("Bruno");
+    bancada.convidar(mundoId, bruno);
+    bancada.plataforma.abrirMundo(mundoId, bruno.perfilId);
+    const sid = bancada.plataforma.abrirSessao(bruno.perfilId);
+    // Uma sessão que vence em dois segundos.
+    const curta = await bancada.recreio.sessao({
+      perfilId: bruno.perfilId,
+      sid,
+      agora: new Date(bancada.agora()),
+      validoAte: new Date(bancada.agora() + 2000),
+    });
+    const verificador = bancada.recreio.verificador("morada", () => new Date(bancada.agora()));
+    const aceita = () =>
+      verificador.verificar(curta).then(
+        () => true,
+        () => false,
+      );
+    await bruno.ligar(instancia, mundoId, curta);
+    expect(bruno.fechamento).toBeNull();
+
+    let recusadoEm: number | null = null;
+    let fechadoEm: number | null = null;
+    for (let passo = 0; passo < 100; passo++) {
+      await bancada.andar(1);
+      if (await aceita()) {
+        // Enquanto o token é aceito na entrada, a conexão não é fechada por vencimento.
+        expect(bruno.fechamento).toBeNull();
+      } else recusadoEm ??= bancada.agora();
+      if (bruno.fechamento !== null) fechadoEm ??= bancada.agora();
+    }
+    // O token passou do vencimento e ainda valeu pela tolerância; depois, os dois lados
+    // o recusam juntos (o servidor confere as sessões uma vez por segundo).
+    expect(bruno.fechamento).toBe(FECHAMENTO.sessao);
+    expect(recusadoEm).not.toBeNull();
+    expect((recusadoEm ?? 0) - (bancada.agora() - 10_000)).toBeGreaterThanOrEqual(5000);
+    expect((fechadoEm ?? 0) - (recusadoEm ?? 0)).toBeGreaterThanOrEqual(0);
+    expect((fechadoEm ?? 0) - (recusadoEm ?? 0)).toBeLessThan(1000);
   });
 
   it("a renovação precisa ser da mesma sessão", async () => {
@@ -281,6 +323,86 @@ describe("sessão de jogo", () => {
     await bancada.entrar(bruno, mundoId);
     expect(bruno.fechamento).toBe(FECHAMENTO.semAcesso);
   });
+
+  it("sessão encerrada no Recreio enquanto o jogador estava em espera libera a reserva no batimento", async () => {
+    const { bancada, instancia, lia, mundoId } = await mundoAberto();
+    const bruno = bancada.jogador("Bruno");
+    bancada.convidar(mundoId, bruno);
+    await bancada.entrar(bruno, mundoId);
+    const doMarcos = bruno.moradorDeNome("Marcos").id;
+    await bruno.comando(doMarcos, { t: "reservar" });
+    await bancada.andar(5, undefined, [lia, bruno]);
+
+    // A conexão do Bruno some: a reserva dele espera a volta por 30 s.
+    bruno.cair();
+    await bancada.andar(5, undefined, [lia]);
+    expect(lia.visao?.presenca.jogadores).toContainEqual({
+      perfilId: bruno.jogadorId,
+      apelido: "Bruno",
+      estado: "em_graca",
+    });
+    expect(lia.visao?.presenca.reservas).toContainEqual({
+      moradorId: doMarcos,
+      perfilId: bruno.jogadorId,
+    });
+
+    // A página dele fechou a sessão de jogo no Recreio: essa sessão não volta mais.
+    bancada.plataforma.encerrarSessao(bancada.sessaoDe(bruno) as SessaoDeJogoId, "left");
+    await instancia.batimento();
+    await bancada.andar(2, undefined, [lia]);
+    expect(lia.visao?.presenca.reservas).toEqual([]);
+    expect(lia.visao?.presenca.jogadores).toEqual([
+      { perfilId: lia.jogadorId, apelido: "Lia", estado: "presente" },
+    ]);
+  });
+
+  it("sem as chaves públicas do Recreio a sessão não é dada como inválida: o cliente reabre o mundo", async () => {
+    const { bancada, lia, mundoId } = await mundoAberto();
+    const bruno = bancada.jogador("Bruno");
+    bancada.convidar(mundoId, bruno);
+
+    // A busca das chaves passou do prazo (o Recreio demorou a responder).
+    bancada.chaves.foraDoAr = true;
+    await bancada.entrar(bruno, mundoId);
+    // 4010 manda reabrir; 4001 diria "sessão inválida" e pararia o jogo de quem tem sessão boa.
+    expect(bruno.fechamento).toBe(FECHAMENTO.reiniciando);
+    expect(bancada.registros.map((registro) => registro.evento)).toContain("chaves_indisponiveis");
+    // Quem já estava dentro não é afetado, nem ao renovar: a sessão vigente continua valendo.
+    await lia.mandar({ t: "renovar_sessao", sessao: await bancada.token(lia) });
+    expect(lia.fechamento).toBeNull();
+
+    bancada.chaves.foraDoAr = false;
+    bruno.cair();
+    await bancada.entrar(bruno, mundoId);
+    expect(bruno.fechamento).toBeNull();
+    // E um token que não confere continua sendo recusado como sessão inválida.
+    const forjado = bancada.jogador("Caio");
+    await forjado.ligar(
+      bancada.instancias.get("wss://a.test")?.instancia as never,
+      mundoId,
+      `${await bancada.token(bruno)}x`,
+    );
+    expect(forjado.fechamento).toBe(FECHAMENTO.sessao);
+  });
+
+  it("Recreio que não responde na entrada não é falta de acesso: o cliente reabre o mundo", async () => {
+    const { bancada, host, lia, mundoId } = await mundoAberto();
+    const bruno = bancada.jogador("Bruno");
+    bancada.convidar(mundoId, bruno);
+
+    host.foraDoAr = true;
+    host.soFalha = ["verificarEntrada"];
+    await bancada.entrar(bruno, mundoId);
+    // 4010 manda o cliente reabrir pelo Recreio; 4003 diria "sem acesso" e pararia o jogo.
+    expect(bruno.fechamento).toBe(FECHAMENTO.reiniciando);
+    expect(lia.fechamento).toBeNull();
+
+    host.foraDoAr = false;
+    bruno.cair();
+    await bancada.entrar(bruno, mundoId);
+    expect(bruno.fechamento).toBeNull();
+    expect(bruno.quadros.slice(-2).map((quadro) => quadro.t)).toEqual(["bem_vindo", "fotografia"]);
+  });
 });
 
 describe("pulso", () => {
@@ -320,28 +442,42 @@ describe("pulso", () => {
     ]);
   });
 
-  it("não sai enquanto o diário não confirma o passo", async () => {
+  it("com o diário fora do ar o pulso continua, com o tick do último passo confirmado", async () => {
     const { bancada, instancia, host, lia, mundoId } = await mundoAberto();
     const daLia = lia.moradorDeNome("Lia").id;
     const pulsos = () => lia.quadros.flatMap((quadro) => (quadro.t === "pulso" ? [quadro] : []));
     await lia.comando(daLia, { t: "reservar" });
     await bancada.andar(9);
 
-    // O décimo passo traz um fato e o Recreio não responde: o mundo espera, sem avisar ninguém.
+    // O décimo passo traz um fato e o diário não responde: o mundo espera, sem contar o passo
+    // a ninguém. O servidor continua vivo, e o pulso sai com o tick que os clientes conhecem.
     const preferido = await lia.comando(daLia, { t: "definir_preferido", valor: true });
     host.foraDoAr = true;
+    host.soFalha = ["anexarAoDiario"];
     await bancada.andar(1);
+    expect(instancia.ator(mundoId)?.tick).toBe(10);
     expect(lia.resultados.has(preferido)).toBe(false);
-    expect(pulsos()).toEqual([]);
+    expect(pulsos()).toEqual([{ t: "pulso", n: 10, tick: 9, agoraMs: bancada.agora() }]);
 
-    // O diário volta e o passo é confirmado; o pulso seguinte sai no segundo seguinte.
+    // Mais de doze segundos assim (o prazo em que o cliente daria a conexão por morta):
+    // um pulso por segundo, o mesmo tick, nenhum passo e nenhuma resposta.
+    const quadrosAntes = lia.quadros.length;
+    await bancada.andar(150);
+    expect(lia.quadros.slice(quadrosAntes).map((quadro) => quadro.t)).toEqual(
+      Array.from({ length: 15 }, () => "pulso"),
+    );
+    expect(pulsos().slice(-15)).toMatchObject(
+      Array.from({ length: 15 }, (_, i) => ({ n: 20 + i * 10, tick: 9 })),
+    );
+    expect(lia.fechamento).toBeNull();
+
+    // O diário volta: o passo é confirmado e respondido, e o pulso volta a andar com o mundo.
     host.foraDoAr = false;
     await bancada.andar(1);
     expect(lia.resultados.get(preferido)).toMatchObject({ ok: true });
-    expect(pulsos()).toEqual([]);
-    await bancada.andar(10);
-    expect(instancia.ator(mundoId)?.tick).toBe(20);
-    expect(pulsos()).toMatchObject([{ n: 20, tick: 20 }]);
+    await bancada.andar(9);
+    expect(instancia.ator(mundoId)?.tick).toBe(19);
+    expect(pulsos().at(-1)).toMatchObject({ n: 170, tick: 19 });
   });
 });
 

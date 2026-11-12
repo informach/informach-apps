@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { avaliarAcesso } from "@/features/acesso/service";
+import { temCliente } from "@/features/jogar/registro";
+import { jogoAbre } from "@/features/jogos/config";
 import { GerarConvite } from "@/features/mundos/components/gerar-convite";
 import { detalheDoMundo } from "@/features/mundos/service";
 import { avisoDoMembro, rotuloDoPapel } from "@/features/mundos/texto";
@@ -16,6 +19,10 @@ export default async function Mundo({ params }: { params: Promise<{ id: string }
   const { ator } = await paginaDoPortal();
   const mundo = await detalheDoMundo(ator.perfil.id, (await params).id);
   if (!mundo) notFound();
+  // "Jogar" aparece como na estante: para quem tem o direito de jogar, num jogo
+  // que abre e que o portal sabe hospedar.
+  const acesso = await avaliarAcesso({ profileId: ator.perfil.id, gameId: mundo.jogo });
+  const jogavel = acesso.podeJogar && jogoAbre(mundo.jogo) && temCliente(mundo.jogo);
   return (
     <>
       <p className="text-sm font-semibold text-tinta-suave">
@@ -27,6 +34,19 @@ export default async function Mundo({ params }: { params: Promise<{ id: string }
         {mundo.nome}
       </h1>
       <p className="mt-2 text-tinta-suave">Você participa como {rotuloDoPapel(mundo.papel)}.</p>
+      {jogavel && (
+        <p className="mt-5">
+          {/* Um `<a>` comum, não o `Link`: a página do jogo tem política de
+              segurança própria, e ela só vale num documento carregado do zero. */}
+          <a
+            href={`/jogar/${encodeURIComponent(mundo.jogo)}?mundo=${mundo.id}`}
+            aria-label={`Jogar em ${mundo.nome}`}
+            className="rb rb-sol rb-lg"
+          >
+            Jogar
+          </a>
+        </p>
+      )}
 
       <div className="mt-8 grid max-w-2xl gap-5">
         <section aria-labelledby="membros" className="painel p-5 sm:p-6">

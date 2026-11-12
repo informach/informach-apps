@@ -1,4 +1,10 @@
-import type { EstadoDoMundo, Fase, PresencaVista } from "@informach/morada-sim";
+import {
+  type EstadoDoMundo,
+  type Fase,
+  type Morador,
+  obter,
+  type PresencaVista,
+} from "@informach/morada-sim";
 import type { MouseEvent } from "react";
 import { type OpcoesDosRetratos, type Retrato, retratosDe } from "../modelo/retratos";
 import type { Controle } from "./controle";
@@ -21,6 +27,16 @@ export function Rosto({ pele, fase }: { pele: number; fase: Fase }) {
       <span className="morada-rosto-cabeca" style={{ background: corDaPele(pele) }} />
     </span>
   );
+}
+
+/**
+ * Onde o morador está, como o espelho sabe: a posição na planta do lote, em
+ * milímetros, ou `fora`. Vai em `data-morada-local`, um atributo estável para
+ * os testes de navegador conferirem o mundo sem olhar dentro do jogo.
+ */
+function localDe(morador: Morador | undefined): string | undefined {
+  if (!morador) return undefined;
+  return morador.local.t === "lote" ? `${morador.local.pos[0]},${morador.local.pos[1]}` : "fora";
 }
 
 function oQueFaz(retrato: Retrato): string {
@@ -72,6 +88,13 @@ export function Retratos(props: {
               data-estado={retrato.estado}
               data-espera={retrato.emEspera ? "sim" : undefined}
               data-morador={retrato.moradorId}
+              data-morada-local={localDe(obter(estado.moradores, retrato.moradorId))}
+              data-morada-andando={
+                obter(estado.moradores, retrato.moradorId)?.movimento ? "sim" : undefined
+              }
+              data-morada-preferido={
+                obter(estado.moradores, retrato.moradorId)?.preferidoDe ? "sim" : undefined
+              }
               aria-pressed={retrato.estado === "voce"}
               aria-current={selecionado === retrato.moradorId ? "true" : undefined}
               aria-label={`${retrato.nome}, ${retrato.rotuloDaFase}. ${retrato.legenda}. ${oQueFaz(retrato)}`}

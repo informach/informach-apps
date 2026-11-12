@@ -30,6 +30,7 @@ export function MoradaJogo(props: OpcoesDoMorada & { className?: string }) {
       depurar: atuais.depurar,
       // Lidas na hora de usar: a página pode trocar as funções sem remontar o jogo.
       aoSair: atuais.aoSair ? () => opcoes.current.aoSair?.() : undefined,
+      aoEntrar: () => opcoes.current.aoEntrar?.(),
       aoEncerrar: (motivo, detalhe) => opcoes.current.aoEncerrar?.(motivo, detalhe),
     });
     return () => {

@@ -34,6 +34,7 @@ import {
   type PerfilId,
   type SessaoDeJogoId,
 } from "@informach/recreio";
+import { sessaoVencida } from "@informach/recreio/contrato";
 import {
   type ClienteDoHost,
   criarClienteDoHost,
@@ -446,7 +447,7 @@ async function bater(): Promise<void> {
       const encerrada = resposta.sessoesEncerradas.find((sessao) => sessao.sid === jogador.sid);
       if (encerrada) tirar(mundo, jogador, "SESSAO_ENCERRADA", encerrada.motivo);
       // Token vencido sem renovação: a sessão não vale mais aqui.
-      else if (jogador.expiraEm <= agora) tirar(mundo, jogador, "SESSAO_INVALIDA");
+      else if (sessaoVencida(jogador.expiraEm, agora)) tirar(mundo, jogador, "SESSAO_INVALIDA");
     }
 }
 

@@ -32,6 +32,7 @@ import {
 import { MapControls } from "three/addons/controls/MapControls.js";
 import type { Ativos, ObjetoDaCena, VisualDosObjetos } from "../ativos/ativos";
 import type { Sessao } from "../espelho/sessao";
+import { nomeDoObjeto } from "../modelo/menu";
 import { fracaoDoDia } from "../modelo/painel";
 import { familiasDoJogador } from "../modelo/retratos";
 import { montarCasa, montarTerreno } from "./casa";
@@ -159,6 +160,9 @@ export class Cena {
   private readonly teclas = new Set<string>();
   private foco: { de: Vector3; para: Vector3; inicio: number } | null = null;
   private toque: { x: number; y: number; em: number } | null = null;
+  /** Onde o ponteiro parou por último, em coordenadas do elemento da cena; espera o próximo quadro. */
+  private ponteiro: { x: number; y: number } | null = null;
+  private rafDoPonteiro = 0;
   private extensaoDePerda: WEBGL_lose_context | null = null;
 
   // Medida dos quadros.
@@ -216,6 +220,8 @@ export class Cena {
     canvas.addEventListener("pointerdown", this.aoApertar);
     canvas.addEventListener("pointerup", this.aoSoltar);
     canvas.addEventListener("pointercancel", this.aoCancelar);
+    canvas.addEventListener("pointermove", this.aoMover);
+    canvas.addEventListener("pointerleave", this.aoSairDaCena);
     canvas.addEventListener("contextmenu", this.semMenu);
     canvas.addEventListener("webglcontextlost", this.aoPerder);
     canvas.addEventListener("webglcontextrestored", this.aoRestaurar);
@@ -389,9 +395,12 @@ export class Cena {
     this.observador.disconnect();
     this.cancelarAtivos?.();
     const canvas = this.renderer.domElement;
+    cancelAnimationFrame(this.rafDoPonteiro);
     canvas.removeEventListener("pointerdown", this.aoApertar);
     canvas.removeEventListener("pointerup", this.aoSoltar);
     canvas.removeEventListener("pointercancel", this.aoCancelar);
+    canvas.removeEventListener("pointermove", this.aoMover);
+    canvas.removeEventListener("pointerleave", this.aoSairDaCena);
     canvas.removeEventListener("contextmenu", this.semMenu);
     canvas.removeEventListener("webglcontextlost", this.aoPerder);
     canvas.removeEventListener("webglcontextrestored", this.aoRestaurar);
@@ -767,6 +776,69 @@ export class Cena {
   private readonly aoCancelar = (): void => {
     this.toque = null;
   };
+
+  /**
+   * O ponteiro passou pela cena: no próximo quadro a cena confere o que está
+   * debaixo dele. Com um botão apertado é a câmera que anda, e não se confere.
+   */
+  private readonly aoMover = (evento: PointerEvent): void => {
+    if (evento.pointerType !== "mouse" || evento.buttons !== 0) return;
+    const caixa = this.host.getBoundingClientRect();
+    this.ponteiro = { x: evento.clientX - caixa.left, y: evento.clientY - caixa.top };
+    if (this.rafDoPonteiro === 0) {
+      this.rafDoPonteiro = requestAnimationFrame(this.conferirPonteiro);
+    }
+  };
+
+  private readonly aoSairDaCena = (): void => {
+    this.ponteiro = null;
+    this.mostrarAlvo(null, null);
+  };
+
+  private readonly conferirPonteiro = (): void => {
+    this.rafDoPonteiro = 0;
+    const ponteiro = this.ponteiro;
+    if (this.descartada || !ponteiro) return;
+    this.mostrarAlvo(this.oQueHa(ponteiro.x, ponteiro.y), ponteiro);
+  };
+
+  /**
+   * Diz, no próprio canvas, o que um clique acertaria onde o ponteiro está: o
+   * cursor vira a mão sobre o que responde a um toque, e os atributos
+   * `data-morada-alvo*` dizem o que é. São estáveis: os testes de navegador
+   * acham por eles onde clicar, sem olhar dentro do jogo.
+   */
+  private mostrarAlvo(alvo: AlvoClicado | null, ponteiro: { x: number; y: number } | null): void {
+    const canvas = this.renderer.domElement;
+    const dados = canvas.dataset;
+    delete dados.moradaAlvo;
+    delete dados.moradaAlvoId;
+    delete dados.moradaAlvoNome;
+    delete dados.moradaAlvoPos;
+    if (ponteiro) dados.moradaPonteiro = `${Math.round(ponteiro.x)},${Math.round(ponteiro.y)}`;
+    else delete dados.moradaPonteiro;
+    const estado = alvo ? this.sessao.estado() : null;
+    let responde = false;
+    if (alvo && estado) {
+      if (alvo.t === "morador") {
+        dados.moradaAlvo = "morador";
+        dados.moradaAlvoId = alvo.moradorId;
+        dados.moradaAlvoNome = obter(estado.moradores, alvo.moradorId)?.nome ?? "";
+        responde = true;
+      } else if (alvo.t === "objeto") {
+        dados.moradaAlvo = "objeto";
+        dados.moradaAlvoId = alvo.objetoId;
+        dados.moradaAlvoNome = nomeDoObjeto(obter(estado.objetos, alvo.objetoId)?.catalogo ?? "");
+        responde = true;
+      } else {
+        dados.moradaAlvo = alvo.livre ? "chao" : "chao-ocupado";
+        dados.moradaAlvoPos = `${alvo.pos[0]},${alvo.pos[1]}`;
+        // No chão a mão só aparece para quem dirige alguém: é o "ir até aqui".
+        responde = alvo.livre && this.sessao.loja.meuMoradorId() !== null;
+      }
+    }
+    canvas.style.cursor = responde ? "pointer" : "";
+  }
 
   private readonly aoSoltar = (evento: PointerEvent): void => {
     const toque = this.toque;

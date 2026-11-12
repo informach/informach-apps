@@ -59,12 +59,13 @@ export function Hud({ controle }: { controle: Controle }) {
       temMundo={visao !== null}
       contextoPerdido={loja.contextoPerdido}
       aoVoltar={controle.voltar}
+      aoDesistir={controle.voltar ? controle.sair : null}
     />
   );
 
   if (!estado || !visao || !eu) {
     return (
-      <div ref={raiz} className="morada-hud">
+      <div ref={raiz} className="morada-hud" data-morada-conexao={loja.conexao.fase}>
         <Avisos loja={loja} avisos={loja.avisos} />
         {carga}
       </div>
@@ -81,9 +82,25 @@ export function Hud({ controle }: { controle: Controle }) {
     .map((id) => obter(estado.familias, id)?.nome)
     .find((nome) => nome !== undefined);
   const encerrado = loja.conexao.fase === "encerrado";
+  // O que a pessoa pode fazer nas famílias dela, como o mundo guarda. Fica à
+  // vista em `data-morada-permissoes`, estável, para os testes de navegador.
+  const permissoes = [
+    ...new Set(
+      estado.acessos
+        .filter((acesso) => acesso.perfilId === eu.jogadorId)
+        .flatMap((acesso) => acesso.permissoes),
+    ),
+  ].sort();
 
   return (
-    <div ref={raiz} className="morada-hud" data-encerrado={encerrado ? "sim" : undefined}>
+    <div
+      ref={raiz}
+      className="morada-hud"
+      data-encerrado={encerrado ? "sim" : undefined}
+      data-morada-conexao={loja.conexao.fase}
+      data-morada-papel={loja.jogador?.papel}
+      data-morada-permissoes={permissoes.join(" ")}
+    >
       <div className="morada-topo">
         <Relogio controle={controle} estado={estado} presenca={presenca} eu={eu} />
         <div className="morada-presenca" role="status">

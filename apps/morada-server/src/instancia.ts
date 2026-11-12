@@ -30,6 +30,7 @@ export type OpcoesDaInstancia = {
   definicao?: DefinicaoDeBairro;
   regras?: Partial<RegrasDoMundo>;
   checkpointMs?: number;
+  diarioParaFotografarBytes?: number;
   falhas?: Falhas;
   registrar?(evento: string, dados?: Record<string, unknown>): void;
 };
@@ -45,11 +46,18 @@ export type MedidasDaInstancia = {
   conexoes: number;
   drenando: boolean;
   viva: boolean;
+  /** O Recreio conhece esta instância: só assim ela recebe mundos. */
+  registrada: boolean;
   porMundo: MedidasDoAtor[];
 };
 
 export type Instancia = {
-  /** Registra a instância no Recreio. Antes disto ela não recebe mundos. */
+  /**
+   * Registra a instância no Recreio. Antes disto ela não recebe mundos. Se o
+   * Recreio não responde ou recusa, lança o erro dele; quem hospeda tenta de
+   * novo. Também serve para registrar outra vez quando o Recreio deixa de
+   * conhecer a instância.
+   */
   iniciar(): Promise<void>;
   conectou(conexao: Conexao): void;
   receber(conexao: Conexao, quadro: string): Promise<void>;
@@ -113,6 +121,7 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
       definicao: op.definicao,
       regras: op.regras,
       checkpointMs: op.checkpointMs ?? 30_000,
+      diarioParaFotografarBytes: op.diarioParaFotografarBytes,
       registrar,
       aoFechar(ator) {
         if (atores.get(ator.mundoId) === ator) atores.delete(ator.mundoId);
@@ -160,8 +169,15 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
       });
       batimentoMs = registro.batimentoMs;
       posseTtlMs = registro.posseTtlMs;
+      // Um registro novo é outra instância para o Recreio: cursor e drenagem começam do zero.
+      cursor = null;
+      drenando = false;
       registrada = true;
-      registrar("instancia_registrada", { instanciaId: registro.instanciaId });
+      registrar("instancia_registrada", {
+        instanciaId: registro.instanciaId,
+        batimentoMs,
+        posseTtlMs,
+      });
     },
 
     conectou(conexao) {
@@ -206,10 +222,18 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
         let sessao: Awaited<ReturnType<VerificadorDeSessao["verificar"]>>;
         try {
           sessao = await op.verificador.verificar(mensagem.sessao);
-        } catch {
+        } catch (erro) {
+          // Sem as chaves públicas do Recreio (ele não respondeu a tempo) não dá para
+          // dizer que a sessão é inválida: o cliente reabre o mundo e tenta de novo.
+          if (ehErroDoRecreio(erro, "INDISPONIVEL")) {
+            registrar("chaves_indisponiveis", {});
+            return fechar(ligacao, FECHAMENTO.reiniciando);
+          }
           return fechar(ligacao, FECHAMENTO.sessao);
         }
-        if (!registrada || !MundoIdSchema.safeParse(mensagem.mundoId).success) {
+        // Sem registro no Recreio a instância não abre mundo nenhum: o cliente reabre pelo Recreio.
+        if (!registrada) return fechar(ligacao, FECHAMENTO.reiniciando);
+        if (!MundoIdSchema.safeParse(mensagem.mundoId).success) {
           return fechar(ligacao, FECHAMENTO.semAcesso);
         }
         const ator = atorDe(mensagem.mundoId);
@@ -288,6 +312,14 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
           cursor,
         });
       } catch (erro) {
+        if (ehErroDoRecreio(erro, "NAO_AUTENTICADO")) {
+          // O Recreio não conhece mais esta instância, então as posses dela não
+          // valem: larga os mundos sem escrever. Quem hospeda registra de novo.
+          registrada = false;
+          registrar("registro_perdido", { mundos: atores.size });
+          for (const ator of [...atores.values()]) ator.perder("registro");
+          return;
+        }
         // Sem resposta, as posses não são renovadas: cada mundo se cerca sozinho no prazo.
         registrar("batimento_falhou", { codigo: ehErroDoRecreio(erro) ? erro.codigo : "erro" });
         return;
@@ -301,10 +333,17 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
         // O prazo local conta da hora em que o pedido saiu: nunca passa do prazo do Recreio.
         else ator.validaAte = enviadoEm + posseTtlMs;
       }
+      // Cada ator sabe se a sessão é dele, conectada ou em espera.
       for (const { sid } of resposta.sessoesEncerradas) {
-        for (const ator of atores.values()) {
-          if (ator.ligacoes.has(sid)) ator.encerrarSessao(sid);
-        }
+        for (const ator of atores.values()) ator.encerrarSessao(sid);
+      }
+      if (ativos.length > 0 || resposta.sessoesEncerradas.length > 0) {
+        registrar("batimento", {
+          mundos: ativos.length,
+          perdidas: resposta.posses.filter((posse) => posse.estado === "perdida").length,
+          sessoesEncerradas: resposta.sessoesEncerradas.length,
+          drenar: resposta.drenar,
+        });
       }
     },
 
@@ -327,6 +366,7 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
         conexoes: ligacoes.size,
         drenando,
         viva,
+        registrada,
         porMundo: [...atores.values()].map((ator) => ator.medir()),
       };
     },

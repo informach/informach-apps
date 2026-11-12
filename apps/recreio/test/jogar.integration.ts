@@ -39,10 +39,17 @@ describe("jogo de teste desligado", () => {
     }
   });
 
-  it("um jogo do catálogo sem cliente no portal também não tem página", async () => {
+  it("o Morada, que tem cliente no portal, tem página; o jogo de teste continua sem", async () => {
+    expect(temCliente(MORADA)).toBe(true);
     const lia = await novoJogador();
-    const mundo = await mundoDe(lia);
+    const mundo = await mundoDe(lia, MORADA, "Casa da Lia");
     expect(await prepararPaginaDoJogo(lia.perfil.id, MORADA, mundo)).toEqual({
+      tipo: "pronto",
+      jogo: { id: MORADA, nome: "Morada" },
+      mundo: { id: mundo, nome: "Casa da Lia" },
+    });
+    // O mundo é do Morada: pedido pelo jogo de teste, que não existe aqui, não abre nada.
+    expect(await prepararPaginaDoJogo(lia.perfil.id, TESTE, mundo)).toEqual({
       tipo: "inexistente",
     });
   });

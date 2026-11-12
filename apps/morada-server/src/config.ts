@@ -15,6 +15,19 @@ const lista = z
       .filter(Boolean),
   );
 
+/** Esquema e host de um endereço que é só origem (sem caminho, consulta ou credencial), ou `null`. */
+function origemDe(valor: string, esquemas: readonly string[]): string | null {
+  let url: URL;
+  try {
+    url = new URL(valor);
+  } catch {
+    return null;
+  }
+  if (!esquemas.includes(url.protocol)) return null;
+  if (url.pathname !== "/" || url.search || url.hash || url.username || url.password) return null;
+  return `${url.protocol}//${url.host}`;
+}
+
 const Esquema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -30,9 +43,16 @@ const Esquema = z
     RECREIO_HOST_SECRET: z.string().min(32).optional(),
     /** Quem emite as sessões de jogo. Por padrão, a origem do Recreio. */
     RECREIO_EMISSOR: z.url().optional(),
-    /** Endereço público do WebSocket, exatamente como está cadastrado no Recreio. */
+    /**
+     * Endereço público do WebSocket, igual a `RECREIO_GAME_ORIGINS.morada.ws` no
+     * Recreio: só a origem (`wss://host` ou `ws://host:porta`), sem caminho. É o
+     * que a instância registra e o endereço que o Recreio entrega ao navegador.
+     */
     MORADA_PUBLIC_URL: z.url().optional(),
-    /** Origens de página que podem abrir o WebSocket, separadas por vírgula. */
+    /**
+     * Origens de página que podem abrir o WebSocket, separadas por vírgula: a
+     * origem pública do portal do Recreio, como o navegador a manda.
+     */
     MORADA_ORIGENS: lista,
     MORADA_CAPACIDADE: z.coerce.number().int().positive().default(200),
     MORADA_METRICAS_TOKEN: z.string().min(24).optional(),
@@ -53,7 +73,21 @@ const Esquema = z
     if (!env.RECREIO_API_URL) falta("RECREIO_API_URL");
     if (!env.RECREIO_HOST_SECRET) falta("RECREIO_HOST_SECRET");
     if (!env.MORADA_PUBLIC_URL) falta("MORADA_PUBLIC_URL");
+    else if (origemDe(env.MORADA_PUBLIC_URL, ["ws:", "wss:"]) === null) {
+      falta(
+        "MORADA_PUBLIC_URL",
+        "precisa ser só a origem do WebSocket (ws:// ou wss://, sem caminho)",
+      );
+    }
     if (env.MORADA_ORIGENS.length === 0) falta("MORADA_ORIGENS");
+    else if (
+      env.MORADA_ORIGENS.some((origem) => origemDe(origem, ["http:", "https:"]) !== origem)
+    ) {
+      falta(
+        "MORADA_ORIGENS",
+        "cada item precisa ser só uma origem (https://host), sem barra no fim",
+      );
+    }
     if (env.NODE_ENV === "production") {
       if (env.RECREIO_API_URL && !env.RECREIO_API_URL.startsWith("https://")) {
         falta("RECREIO_API_URL", "precisa ser https em produção");
@@ -71,7 +105,12 @@ export type Configuracao = z.infer<typeof Esquema>;
 
 export function lerConfiguracao(env: Record<string, string | undefined>): Configuracao {
   const lida = Esquema.safeParse(env);
-  if (lida.success) return lida.data;
+  if (lida.success) {
+    // `ws://host:porta/` e `ws://host:porta` são o mesmo endereço: fica a origem.
+    const publica = lida.data.MORADA_PUBLIC_URL;
+    const origem = publica ? origemDe(publica, ["ws:", "wss:"]) : null;
+    return origem ? { ...lida.data, MORADA_PUBLIC_URL: origem } : lida.data;
+  }
   const problemas = lida.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`);
   throw new Error(`Configuração inválida do servidor do Morada. ${problemas.join("; ")}`);
 }

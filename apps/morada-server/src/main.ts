@@ -1,4 +1,5 @@
 import { REGRAS_DA_PROVA, REGRAS_PADRAO } from "@informach/morada-sim";
+import { ehErroDoRecreio } from "@informach/recreio";
 import {
   type ClienteDoHost,
   criarClienteDoHost,
@@ -19,6 +20,42 @@ import { criarServidor } from "./servidor";
 
 const JOGO = "morada";
 const log = pino({ name: "morada-server", level: process.env.LOG_LEVEL ?? "info" });
+
+/** Acontecimentos de rotina, que só aparecem com `LOG_LEVEL=debug`. */
+const DE_ROTINA = new Set(["batimento", "fotografia_gravada"]);
+/** Acontecimentos que pedem a atenção de quem opera. */
+const DE_ATENCAO = new Set([
+  "registro_falhou",
+  "registro_perdido",
+  "batimento_falhou",
+  "chaves_indisponiveis",
+  "diario_indisponivel",
+  "fotografia_indisponivel",
+  "hibernacao_indisponivel",
+  "encerramento_sem_salvar",
+  "mundo_recomeca",
+  "posse_perdida",
+  "entrada_falhou",
+]);
+
+/**
+ * O que a instância e o servidor contam. Os dados são sempre ids de mundo,
+ * códigos e contagens, montados por quem registra: nunca um token, o segredo,
+ * um apelido ou um perfil.
+ */
+function registrar(evento: string, dados: Record<string, unknown> = {}): void {
+  const linha = { evento, ...dados };
+  if (DE_ROTINA.has(evento)) log.debug(linha);
+  else if (DE_ATENCAO.has(evento)) log.warn(linha);
+  else log.info(linha);
+}
+
+/** Um erro para o log: o nome e o código ou a mensagem. O objeto inteiro não é registrado. */
+function descrever(erro: unknown): Record<string, string> {
+  if (ehErroDoRecreio(erro)) return { nome: erro.name, codigo: erro.codigo };
+  if (erro instanceof Error) return { nome: erro.name, mensagem: erro.message.slice(0, 200) };
+  return { nome: "desconhecido" };
+}
 
 async function principal(): Promise<void> {
   const config = lerConfiguracao(process.env);
@@ -60,19 +97,34 @@ async function principal(): Promise<void> {
     versao,
     capacidade: config.MORADA_CAPACIDADE,
     regras: config.MORADA_REGRAS === "prova" ? REGRAS_DA_PROVA : REGRAS_PADRAO,
-    registrar: (evento, dados) => log.info({ evento, ...dados }),
+    registrar,
   });
   const servidor = criarServidor({
     instancia,
     origens,
+    // Com o Recreio de verdade só o portal abre o WebSocket: quem não manda origem não entra.
+    exigirOrigem: config.MORADA_PLATAFORMA === "recreio",
     commit: config.RAILWAY_GIT_COMMIT_SHA ?? null,
     tokenDeMetricas: config.MORADA_METRICAS_TOKEN ?? null,
     rotas,
-    aoErro: (erro, contexto) => log.error({ contexto, erro }, "erro no servidor"),
+    registrar,
+    aoErro: (erro, contexto) => log.error({ contexto, erro: descrever(erro) }, "erro no servidor"),
   });
 
   const porta = await servidor.iniciar(config.PORT);
-  log.info({ porta, urlPublica, plataforma: config.MORADA_PLATAFORMA }, "servidor do Morada no ar");
+  log.info(
+    {
+      porta,
+      urlPublica,
+      origens,
+      plataforma: config.MORADA_PLATAFORMA,
+      regras: config.MORADA_REGRAS,
+      registrada: instancia.medir().registrada,
+    },
+    instancia.medir().registrada
+      ? "servidor do Morada no ar"
+      : "servidor do Morada no ar, esperando o Recreio para se registrar",
+  );
 
   let encerrando = false;
   const encerrar = (motivo: string) => {
@@ -87,7 +139,7 @@ async function principal(): Promise<void> {
         process.exit(0);
       },
       (erro: unknown) => {
-        log.error({ erro }, "falha ao encerrar");
+        log.error({ erro: descrever(erro) }, "falha ao encerrar");
         process.exit(1);
       },
     );
@@ -98,6 +150,8 @@ async function principal(): Promise<void> {
   process.on("message", (mensagem) => {
     if ((mensagem as { t?: unknown } | null)?.t === "encerrar") encerrar("mensagem");
   });
+  // Quem iniciou este processo com um canal de mensagens foi embora: não fica um servidor órfão.
+  if (process.send) process.on("disconnect", () => encerrar("canal_fechado"));
 }
 
 principal().catch((erro: unknown) => {

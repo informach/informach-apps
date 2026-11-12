@@ -1,17 +1,25 @@
-import { type ChildProcess, spawn, spawnSync } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readdir, readFile } from "node:fs/promises";
-import path from "node:path";
-import {
-  type Browser,
-  type BrowserContext,
-  expect,
-  type Locator,
-  type Page,
-  test,
-} from "@playwright/test";
+import { type ChildProcess, spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { expect, type Page, test } from "@playwright/test";
 import { WebSocket as ConexaoDeFora } from "ws";
 import { MARCA_DO_JOGO_DE_TESTE } from "../src/features/jogo-de-teste/cliente";
+import {
+  APP,
+  comecarVigia,
+  conceder,
+  criarMundo as criarMundoNoJogo,
+  esperarSaida,
+  esquecerAparelho,
+  fecharAparelhos,
+  hidratado,
+  linhasDeJson,
+  novaPessoa,
+  origemDoJogo as origemDe,
+  saiu,
+  scriptsDe,
+  tela,
+  vigia,
+} from "./apoio";
 
 /**
  * A plataforma de ponta a ponta, com navegadores de verdade, o portal em build
@@ -21,28 +29,12 @@ import { MARCA_DO_JOGO_DE_TESTE } from "../src/features/jogo-de-teste/cliente";
  * Só roda por `pnpm e2e` (`scripts/isolated.mjs e2e`). Cada teste cria as suas
  * contas e não depende do que os outros deixaram; a ordem importa só para o
  * primeiro, que precisa encontrar o Recreio sem nenhuma instância do jogo.
+ * O que é comum aos testes de navegador do portal fica em `apoio.ts`.
  */
 
-const SENHA = "Recreio-Teste-2026-Local!";
-const APP = process.cwd();
 const JOGO = "teste";
-/** Capturas das telas do jogo, para quem revisa olhar (`tmp` não entra no git). */
-const TELAS = path.resolve(APP, "tmp/telas");
-
-async function tela(page: Page, nome: string): Promise<void> {
-  await mkdir(TELAS, { recursive: true });
-  await page.screenshot({ path: path.join(TELAS, `${nome}.png`), animations: "disabled" });
-}
-
-function origemDoJogo(): { ws: string; http: string } {
-  const origens: unknown = JSON.parse(process.env.RECREIO_GAME_ORIGINS ?? "{}");
-  const ws =
-    typeof origens === "object" && origens !== null && JOGO in origens
-      ? (origens as Record<string, { ws?: unknown }>)[JOGO]?.ws
-      : undefined;
-  if (typeof ws !== "string") throw new Error("RECREIO_GAME_ORIGINS sem o jogo de teste");
-  return { ws, http: ws.replace(/^ws/, "http") };
-}
+const origemDoJogo = () => origemDe(JOGO);
+const criarMundo = (page: Page, nome: string) => criarMundoNoJogo(page, "Jogo de teste", nome);
 
 // --- O servidor do jogo de teste, como processo filho ---
 
@@ -76,18 +68,7 @@ async function iniciarServidor(): Promise<void> {
 
 /** O que as instâncias desta execução registraram (uma linha de JSON por acontecimento). */
 function registrosDoServidor(mensagem: string): Record<string, unknown>[] {
-  return saidaDoServidor
-    .join("")
-    .split(/\r?\n/)
-    .flatMap((linha) => {
-      try {
-        const lido: unknown = JSON.parse(linha);
-        return typeof lido === "object" && lido !== null ? [lido as Record<string, unknown>] : [];
-      } catch {
-        return [];
-      }
-    })
-    .filter((registro) => registro.mensagem === mensagem);
+  return linhasDeJson(saidaDoServidor).filter((registro) => registro.mensagem === mensagem);
 }
 
 /**
@@ -116,11 +97,6 @@ function conectarDeFora(opcoes: { origem?: string; quadro?: unknown }): Promise<
   });
 }
 
-function saiu(filho: ChildProcess): Promise<void> {
-  if (filho.exitCode !== null || filho.signalCode !== null) return Promise.resolve();
-  return new Promise((resolver) => filho.once("exit", () => resolver()));
-}
-
 /** Derruba a instância sem aviso, como uma queda de verdade. No Windows é um encerramento forçado. */
 async function matarServidor(): Promise<void> {
   const filho = servidor;
@@ -137,171 +113,26 @@ async function pararServidor(): Promise<void> {
   const filho = servidor;
   servidor = null;
   if (!filho) return;
-  const fim = saiu(filho);
   if (filho.connected) filho.send("descer");
-  const noPrazo = await Promise.race([
-    fim.then(() => true),
-    new Promise<boolean>((resolver) => setTimeout(() => resolver(false), 15_000)),
-  ]);
-  if (!noPrazo) {
-    filho.kill("SIGKILL");
-    await fim;
-  }
-}
-
-// --- Navegadores, com a política de segurança vigiada ---
-
-const contextos: BrowserContext[] = [];
-let violacoes: string[] = [];
-let errosDePagina: string[] = [];
-
-/** Um aparelho novo. Toda violação da política de segurança e todo erro de página ficam anotados. */
-async function novoAparelho(browser: Browser): Promise<BrowserContext> {
-  const uso = test.info().project.use;
-  const semente = createHash("sha256").update(randomUUID()).digest();
-  const contexto = await browser.newContext({
-    baseURL: uso.baseURL,
-    viewport: uso.viewport,
-    // Cada aparelho chega de um endereço: o limite de cadastros é por endereço.
-    extraHTTPHeaders: { "x-real-ip": `198.51.${semente[0]}.${semente[1]}` },
-  });
-  await contexto.addInitScript(() => {
-    document.addEventListener("securitypolicyviolation", (evento) => {
-      console.error(`CSP-VIOLACAO ${evento.violatedDirective} ${evento.blockedURI}`);
-    });
-  });
-  contexto.on("console", (mensagem) => {
-    const texto = mensagem.text();
-    if (/CSP-VIOLACAO|Content Security Policy|Content-Security-Policy/i.test(texto))
-      violacoes.push(`${mensagem.page()?.url() ?? "?"}: ${texto}`);
-  });
-  contexto.on("weberror", (erro) => errosDePagina.push(erro.error().message));
-  contextos.push(contexto);
-  return contexto;
+  await esperarSaida(filho, 15_000);
 }
 
 test.beforeEach(() => {
-  violacoes = [];
-  errosDePagina = [];
+  comecarVigia();
   saidaDoServidor = [];
 });
 
 test.afterEach(async () => {
-  for (const contexto of contextos.splice(0)) await contexto.close().catch(() => undefined);
+  await fecharAparelhos();
   await pararServidor();
   if (test.info().status !== test.info().expectedStatus)
     await test.info().attach("servidor-do-jogo.log", {
       body: saidaDoServidor.join(""),
       contentType: "text/plain",
     });
-  expect(violacoes, "violações da política de segurança").toEqual([]);
-  expect(errosDePagina, "erros de script nas páginas").toEqual([]);
+  expect(vigia().violacoes, "violações da política de segurança").toEqual([]);
+  expect(vigia().errosDePagina, "erros de script nas páginas").toEqual([]);
 });
-
-// --- Passos do portal ---
-
-/** Espera o React assumir o elemento: antes disso um clique não faz nada. */
-async function hidratado(alvo: Locator): Promise<void> {
-  await expect
-    .poll(() =>
-      alvo.evaluate((elemento) =>
-        Object.keys(elemento).some((chave) => chave.startsWith("__reactProps$")),
-      ),
-    )
-    .toBe(true);
-}
-
-async function codigoDoEmail(email: string): Promise<string> {
-  const pasta = process.env.EMAIL_SANDBOX_DIR;
-  if (!pasta) throw new Error("EMAIL_SANDBOX_DIR ausente");
-  let codigo = "";
-  await expect
-    .poll(
-      async () => {
-        const arquivos = (await readdir(pasta).catch(() => [] as string[])).filter((arquivo) =>
-          arquivo.endsWith(".json"),
-        );
-        for (const arquivo of arquivos) {
-          const mensagem = JSON.parse(await readFile(path.join(pasta, arquivo), "utf8"));
-          if (mensagem.to === email && mensagem.category === "auth.verify-email-otp")
-            codigo = mensagem.text?.match(/\b\d{6}\b/)?.[0] ?? "";
-        }
-        return codigo.length;
-      },
-      { timeout: 15_000 },
-    )
-    .toBe(6);
-  return codigo;
-}
-
-/** Libera os jogos para a conta com o script da equipe, no mesmo banco do portal. */
-function conceder(email: string): void {
-  const execucao = spawnSync(
-    process.execPath,
-    [
-      "--import",
-      "tsx",
-      "scripts/conceder.ts",
-      "--email",
-      email,
-      "--tier",
-      "individual",
-      "--dias",
-      "30",
-      "--motivo",
-      "e2e",
-    ],
-    { cwd: APP, env: process.env, encoding: "utf8", windowsHide: true },
-  );
-  if (execucao.status !== 0)
-    throw new Error(`conceder falhou (${execucao.status}): ${execucao.stderr}`);
-}
-
-type Pessoa = { contexto: BrowserContext; page: Page; email: string; apelido: string };
-
-/** Uma conta nova num aparelho novo: cadastro, código do e-mail e perfil. */
-async function novaPessoa(
-  browser: Browser,
-  apelido: string,
-  opcoes: { comAcesso?: boolean } = {},
-): Promise<Pessoa> {
-  const contexto = await novoAparelho(browser);
-  const page = await contexto.newPage();
-  const email = `recreio-${randomUUID()}@example.test`;
-  await page.goto("/entrar");
-  const criarConta = page.getByRole("button", { name: "Criar conta", exact: true });
-  await hidratado(criarConta);
-  await criarConta.click();
-  await page.getByLabel("Como podemos chamar você?").fill(`Conta de ${apelido}`);
-  await page.getByLabel("E-mail", { exact: true }).fill(email);
-  await page.getByLabel("Senha", { exact: true }).fill(SENHA);
-  await page.getByRole("checkbox").check();
-  await page.locator('form button[type="submit"]').click();
-  await page.getByLabel("Código de seis dígitos").fill(await codigoDoEmail(email));
-  await page.getByRole("button", { name: "Confirmar e-mail", exact: true }).click();
-  await expect(page).toHaveURL(/\/comecar$/);
-  const campoDoApelido = page.getByLabel("Apelido");
-  await hidratado(campoDoApelido);
-  await campoDoApelido.fill(apelido);
-  await page.getByRole("button", { name: "Criar perfil" }).click();
-  await expect(page).toHaveURL(/\/estante$/);
-  if (opcoes.comAcesso !== false) conceder(email);
-  return { contexto, page, email, apelido };
-}
-
-/** Cria um mundo do jogo de teste pela estante e devolve o id dele. */
-async function criarMundo(page: Page, nome: string): Promise<string> {
-  await page.goto("/estante");
-  const secao = page.getByRole("region", { name: "Seus mundos no Jogo de teste" });
-  const campo = secao.getByLabel("Nome do mundo");
-  await hidratado(campo);
-  await campo.fill(nome);
-  await secao.getByRole("button", { name: "Criar mundo" }).click();
-  await expect(page).toHaveURL(/\/mundos\/[0-9a-f-]{36}$/);
-  const id = new URL(page.url()).pathname.split("/").pop();
-  if (!id) throw new Error("Mundo sem id no endereço");
-  return id;
-}
 
 /** O que o jogo de teste mostra numa página. */
 function jogoEm(page: Page) {
@@ -316,20 +147,6 @@ function jogoEm(page: Page) {
 }
 
 const enderecoDoJogo = (mundoId: string) => `/jogar/${JOGO}?mundo=${mundoId}`;
-
-/** O texto de todos os scripts que uma navegação baixou, mais o do próprio documento. */
-async function scriptsDe(page: Page, navegar: () => Promise<unknown>): Promise<string[]> {
-  const pendentes: Promise<string>[] = [];
-  const anotar = (resposta: import("@playwright/test").Response) => {
-    const tipo = resposta.request().resourceType();
-    if (tipo === "script" || tipo === "document") pendentes.push(resposta.text().catch(() => ""));
-  };
-  page.on("response", anotar);
-  await navegar();
-  await page.waitForLoadState("networkidle");
-  page.off("response", anotar);
-  return Promise.all(pendentes);
-}
 
 // --- Os testes ---
 
@@ -352,9 +169,12 @@ test("recusas, jogo sem instância, política de segurança e isolamento do bund
     const inexistente = await eva.page.goto(`/jogar/nao-existe?mundo=${mundoDaEva}`);
     expect(inexistente?.status()).toBe(404);
     await expect(eva.page.getByRole("heading", { name: "Este caminho não existe." })).toBeVisible();
-    // O Morada está no catálogo, mas o portal ainda não tem o cliente dele.
-    const semCliente = await eva.page.goto(`/jogar/morada?mundo=${mundoDaEva}`);
-    expect(semCliente?.status()).toBe(404);
+    // O Morada tem página no portal, mas este mundo é de outro jogo: não abre nela.
+    const deOutroJogo = await eva.page.goto(`/jogar/morada?mundo=${mundoDaEva}`);
+    expect(deOutroJogo?.status()).toBe(200);
+    await expect(
+      eva.page.getByRole("heading", { name: "Este mundo não está disponível" }),
+    ).toBeVisible();
     await eva.page.goto(`/jogar/${JOGO}`);
     await expect(eva.page).toHaveURL(/\/estante$/);
   });
@@ -490,7 +310,7 @@ test("duas contas no mesmo mundo: presença, queda de um jogador e queda da inst
   });
 
   await test.step("o aparelho da Bia some: Ana continua e deixa de ver a Bia", async () => {
-    contextos.splice(contextos.indexOf(bia.contexto), 1);
+    esquecerAparelho(bia.contexto);
     await bia.contexto.close();
     await expect(daAna.presentes).not.toContainText("Bia");
     await expect(daAna.presentes).toContainText("Ana (você)");

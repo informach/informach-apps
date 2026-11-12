@@ -194,10 +194,17 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
     };
   }
 
-  // Quem hospeda o jogo fica sabendo, uma vez, quando ele para sem a pessoa ter pedido.
+  // Quem hospeda o jogo fica sabendo a cada vez que o mundo aparece (a entrada
+  // e cada volta depois de uma queda) e, uma vez, quando o jogo para sem a
+  // pessoa ter pedido.
   let avisouDoFim = false;
+  let faseAvisada = loja.conexao.fase;
   const pararDeOuvir = loja.subscribe(() => {
     const conexao = loja.conexao;
+    if (conexao.fase !== faseAvisada) {
+      faseAvisada = conexao.fase;
+      if (conexao.fase === "pronto") opcoes.aoEntrar?.();
+    }
     if (avisouDoFim || conexao.fase !== "encerrado" || conexao.motivo === "saiu") return;
     avisouDoFim = true;
     opcoes.aoEncerrar?.(conexao.motivo, conexao.detalhe);

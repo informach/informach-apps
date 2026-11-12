@@ -254,9 +254,11 @@ async function sessoesEncerradasDesde(
  *
  * A renovação de cada mundo é um comando só, condicionado à posse aberta com
  * aquela cerca, desta instância e ainda no prazo: quem abre o mundo e encontra
- * a posse vencida fecha a mesma linha com a condição oposta, então entre uma
- * renovação e uma retomada exatamente uma acontece. Devolve `null` se a
- * instância não existe neste jogo.
+ * a posse vencida fecha a mesma linha com a condição oposta, então uma
+ * renovação e uma retomada nunca acontecem as duas. Pode não acontecer
+ * nenhuma: a abertura encontra a posse no prazo e o batimento chega depois do
+ * vencimento; a dona já se cercou e a próxima abertura retoma. Devolve `null`
+ * se a instância não existe neste jogo.
  */
 export async function registrarBatimento(entrada: {
   instanciaId: InstanciaId;

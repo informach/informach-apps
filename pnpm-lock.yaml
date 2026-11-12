@@ -1285,6 +1285,12 @@ importers:
       '@informach/emails':
         specifier: workspace:*
         version: link:../../packages/emails
+      '@informach/jogo-morada':
+        specifier: workspace:*
+        version: link:../../packages/jogo-morada
+      '@informach/morada-sim':
+        specifier: workspace:*
+        version: link:../../packages/morada-sim
       '@informach/recreio':
         specifier: workspace:*
         version: link:../../packages/recreio

@@ -20,6 +20,19 @@ export const VALIDADE_DO_INGRESSO_S = 60;
 export const VALIDADE_DA_SESSAO_S = 15 * 60;
 /** O SDK renova quando passou esta fração da validade. */
 export const FRACAO_PARA_RENOVAR = 2 / 3;
+/** Tolerância de relógio entre quem emite e quem confere, em segundos. */
+export const TOLERANCIA_DE_RELOGIO_S = 5;
+
+/**
+ * Se um token com este `exp` (em milissegundos) já venceu. É a mesma conta de
+ * quem confere a assinatura: o token vale até `exp` mais a tolerância de
+ * relógio. Quem guarda o prazo de uma sessão já conferida (o servidor do jogo,
+ * para fechar a conexão) usa esta função, e não `agora >= exp`: assim um token
+ * aceito na entrada nunca é dado como vencido no mesmo instante.
+ */
+export function sessaoVencida(expiraEmMs: number, agoraMs: number): boolean {
+  return Math.floor(agoraMs / 1000) >= Math.floor(expiraEmMs / 1000) + TOLERANCIA_DE_RELOGIO_S;
+}
 
 export const ESCOPOS = ["perfil", "mundos"] as const;
 export type Escopo = (typeof ESCOPOS)[number];
@@ -62,7 +75,7 @@ export type SessaoVerificada = {
   jogo: string;
   escopos: readonly Escopo[];
   versaoDaPolitica: number;
-  /** Em milissegundos desde a época. */
+  /** O `exp` do token, em milissegundos desde a época. Para saber se venceu, `sessaoVencida`. */
   expiraEm: number;
 };
 

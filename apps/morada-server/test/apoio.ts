@@ -1,3 +1,4 @@
+import type { LimitesDoJogo } from "@informach/config/jogos";
 import {
   type AcaoPedida,
   aplicarMudancas,
@@ -14,7 +15,12 @@ import {
   type MensagemDoServidor,
   VERSAO_DO_PROTOCOLO,
 } from "@informach/morada-sim/protocolo";
-import type { MundoId, PerfilId, SessaoDeJogoId } from "@informach/recreio";
+import {
+  ErroDoRecreio,
+  type MundoId,
+  type PerfilId,
+  type SessaoDeJogoId,
+} from "@informach/recreio";
 import type { ClienteDoHost } from "@informach/recreio/host";
 import {
   criarEmissorDeTeste,
@@ -140,23 +146,45 @@ export async function criarBancada(
     definicao?: DefinicaoDeBairro;
     checkpointMs?: number;
     capacidade?: number;
+    diarioParaFotografarBytes?: number;
+    /** Tetos do Recreio diferentes dos do manifesto, para chegar neles num teste curto. */
+    limites?: Partial<LimitesDoJogo>;
   } = {},
 ) {
-  const plataforma: PlataformaFalsa = criarPlataformaFalsa();
+  const plataforma: PlataformaFalsa = criarPlataformaFalsa({ limites: opcoes.limites });
   const recreio: EmissorDeTeste = await criarEmissorDeTeste();
   let agoraMs = plataforma.agora();
   const instancias = new Map<string, { instancia: Instancia; falhas: Falhas; host: HostDeTeste }>();
+  /**
+   * As chaves públicas do Recreio, que o verificador de sessão busca por HTTP.
+   * Fora do ar, a conferência falha como a de verdade quando a busca das chaves
+   * passa do prazo: `ErroDoRecreio("INDISPONIVEL")`.
+   */
+  const chaves = { foraDoAr: false };
+  /** Tudo o que as instâncias registraram, na ordem. */
+  const registros: { evento: string; dados: Record<string, unknown> }[] = [];
   const sessoes = new Map<ClienteDeTeste, SessaoDeJogoId>();
 
-  /** O cliente das instâncias, com um interruptor para simular o Recreio fora do ar. */
-  type HostDeTeste = ClienteDoHost & { foraDoAr: boolean; chamadas: string[] };
+  /**
+   * O cliente das instâncias, com um interruptor para simular o Recreio fora
+   * do ar. Fora do ar, cada chamada falha como no cliente HTTP de verdade:
+   * `ErroDoRecreio("INDISPONIVEL")`. `soFalha` restringe a falha a alguns
+   * métodos (o diário fora do ar com o resto respondendo, por exemplo).
+   */
+  type HostDeTeste = ClienteDoHost & {
+    foraDoAr: boolean;
+    soFalha: readonly (keyof ClienteDoHost)[] | null;
+    chamadas: string[];
+  };
   function hostDeTeste(): HostDeTeste {
     const real = plataforma.cliente();
-    const host = { foraDoAr: false, chamadas: [] as string[] } as HostDeTeste;
+    const host = { foraDoAr: false, soFalha: null, chamadas: [] as string[] } as HostDeTeste;
     for (const nome of Object.keys(real) as (keyof ClienteDoHost)[]) {
       // biome-ignore lint/suspicious/noExplicitAny: repasse genérico dos métodos do cliente.
       (host as any)[nome] = async (...args: unknown[]) => {
-        if (host.foraDoAr) throw new Error("Recreio fora do ar");
+        if (host.foraDoAr && (host.soFalha === null || host.soFalha.includes(nome))) {
+          throw new ErroDoRecreio("INDISPONIVEL");
+        }
         host.chamadas.push(nome);
         // biome-ignore lint/suspicious/noExplicitAny: repasse genérico dos métodos do cliente.
         return (real as any)[nome](...args);
@@ -168,9 +196,15 @@ export async function criarBancada(
   async function novaInstancia(url = "wss://a.test") {
     const falhas = criarFalhas();
     const host = hostDeTeste();
+    const verificador = recreio.verificador("morada", () => new Date(agoraMs));
     const instancia = criarInstancia({
       host,
-      verificador: recreio.verificador("morada", () => new Date(agoraMs)),
+      verificador: {
+        verificar: (token) =>
+          chaves.foraDoAr
+            ? Promise.reject(new ErroDoRecreio("INDISPONIVEL"))
+            : verificador.verificar(token),
+      },
       agora: () => agoraMs,
       urlPublica: url,
       versao: "teste",
@@ -178,7 +212,9 @@ export async function criarBancada(
       regras: opcoes.regras ?? REGRAS_DA_PROVA,
       definicao: opcoes.definicao,
       checkpointMs: opcoes.checkpointMs ?? 30_000,
+      diarioParaFotografarBytes: opcoes.diarioParaFotografarBytes,
       falhas,
+      registrar: (evento, dados = {}) => registros.push({ evento, dados }),
     });
     await instancia.iniciar();
     instancias.set(url, { instancia, falhas, host });
@@ -195,6 +231,8 @@ export async function criarBancada(
     plataforma,
     recreio,
     instancias,
+    chaves,
+    registros,
     novaInstancia,
     agora: () => agoraMs,
 

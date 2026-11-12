@@ -19,8 +19,16 @@ export function Carga(props: {
   temMundo: boolean;
   contextoPerdido: boolean;
   aoVoltar: (() => void) | null;
+  /** Sair do jogo antes de o mundo aparecer; `null` se quem hospeda não tem para onde voltar. */
+  aoDesistir: (() => void) | null;
 }) {
-  const { conexao, temMundo, contextoPerdido, aoVoltar } = props;
+  const { conexao, temMundo, contextoPerdido, aoVoltar, aoDesistir } = props;
+  // Sem o mundo na tela não há trilho de ferramentas: a saída fica no próprio cartão.
+  const sair = aoDesistir ? (
+    <button type="button" className="morada-botao" onClick={aoDesistir}>
+      Sair
+    </button>
+  ) : null;
 
   if (conexao.fase === "encerrado") {
     // Quem saiu por vontade própria já está indo embora: não há o que explicar.
@@ -56,6 +64,7 @@ export function Carga(props: {
         <div className="morada-cartao">
           <h2>Morada</h2>
           <p>{texto}</p>
+          {sair}
         </div>
       </div>
     );
@@ -78,6 +87,7 @@ export function Carga(props: {
               </li>
             ))}
           </ol>
+          {sair}
         </div>
       </div>
     );

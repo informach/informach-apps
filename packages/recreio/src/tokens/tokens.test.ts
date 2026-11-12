@@ -2,7 +2,9 @@ import { exportPKCS8, exportSPKI, generateKeyPair, SignJWT } from "jose";
 import { describe, expect, it } from "vitest";
 import {
   ALGORITMO_DOS_TOKENS,
+  sessaoVencida,
   TIPO_DA_SESSAO,
+  TOLERANCIA_DE_RELOGIO_S,
   VALIDADE_DA_SESSAO_S,
   VALIDADE_DO_INGRESSO_S,
 } from "../contrato/tokens";
@@ -76,6 +78,29 @@ describe("sessão de jogo", () => {
         validoAte: agora,
       }),
     ).rejects.toThrow();
+  });
+
+  it("vence no mesmo instante para quem confere o token e para quem guarda o prazo dele", async () => {
+    const recreio = await criarEmissorDeTeste();
+    const token = await recreio.sessao({ perfilId, sid, agora });
+    const { expiraEm } = await recreio.verificador("morada", mais(1)).verificar(token);
+    expect(expiraEm).toBe(agora.getTime() + VALIDADE_DA_SESSAO_S * 1000);
+
+    // Em volta do vencimento e do fim da tolerância, de meio em meio segundo.
+    for (let ms = -2000; ms <= (TOLERANCIA_DE_RELOGIO_S + 2) * 1000; ms += 500) {
+      const instante = expiraEm + ms;
+      const aceita = await recreio
+        .verificador("morada", () => new Date(instante))
+        .verificar(token)
+        .then(
+          () => true,
+          () => false,
+        );
+      expect(sessaoVencida(expiraEm, instante), `${ms} ms depois do vencimento`).toBe(!aceita);
+    }
+    // O token vale pela tolerância inteira e nem um segundo a mais.
+    expect(sessaoVencida(expiraEm, expiraEm + TOLERANCIA_DE_RELOGIO_S * 1000 - 1)).toBe(false);
+    expect(sessaoVencida(expiraEm, expiraEm + TOLERANCIA_DE_RELOGIO_S * 1000)).toBe(true);
   });
 
   it("é recusada vencida, de outro jogo, de outro emissor ou adulterada", async () => {

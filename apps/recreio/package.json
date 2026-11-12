@@ -25,6 +25,8 @@
     "@informach/config": "workspace:*",
     "@informach/db": "workspace:*",
     "@informach/emails": "workspace:*",
+    "@informach/jogo-morada": "workspace:*",
+    "@informach/morada-sim": "workspace:*",
     "@informach/recreio": "workspace:*",
     "@informach/ui": "workspace:*",
     "@sentry/nextjs": "^10.76.2",

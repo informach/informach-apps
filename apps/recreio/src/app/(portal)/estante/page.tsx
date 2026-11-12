@@ -53,7 +53,10 @@ export default async function Estante() {
       <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {cartoesDaEstante(JOGOS).map((jogo) => (
           <li key={jogo.id}>
-            <CartaoDoJogo jogo={jogo} />
+            <CartaoDoJogo
+              jogo={jogo}
+              jogavel={jogos.some((item) => item.jogo.id === jogo.id && item.jogavel)}
+            />
           </li>
         ))}
       </ul>

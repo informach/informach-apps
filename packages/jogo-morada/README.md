@@ -16,14 +16,31 @@ await jogo.dispose();
 
 Ou, em React, `import { MoradaJogo } from "@informach/jogo-morada/react"`, que monta ao aparecer e solta ao sumir. O elemento que recebe o jogo precisa ter tamanho; o jogo ocupa tudo.
 
-`FonteDoMundo` é tudo o que o jogo precisa de quem o hospeda: `abrir()` (onde o mundo está rodando, chamado de novo a cada reabertura), `token()` (a sessão de jogo, que vai no primeiro quadro e nunca no endereço), `aoRenovar` (a sessão ganhou prazo novo: o jogo manda `renovar_sessao` ao servidor) e `aoPerderAcesso`. A bancada entrega uma fonte feita do servidor de desenvolvimento; o portal entrega uma feita do SDK do Recreio.
+`FonteDoMundo` é tudo o que o jogo precisa de quem o hospeda: `abrir()` (onde o mundo está rodando, chamado de novo a cada reabertura), `token()` (a sessão de jogo, que vai no primeiro quadro e nunca no endereço), `aoRenovar` (a sessão ganhou prazo novo: o jogo manda `renovar_sessao` ao servidor) e `aoPerderAcesso`. A bancada entrega uma fonte feita do servidor de desenvolvimento; o portal entrega uma feita do SDK do Recreio (`apps/recreio/src/features/jogar/adaptadores/`).
 
 | Opção | Para quê |
 | --- | --- |
 | `fonte` | De onde vêm o mundo e a sessão |
-| `aoSair` | Chamado quando a pessoa sai e o servidor confirmou. Sem isto, o botão Sair só encerra o jogo |
+| `aoSair` | Chamado quando a pessoa sai e o servidor confirmou. Sem isto, o botão Sair só encerra o jogo. Com isto, os cartões de entrada e de reconexão (quando o mundo ainda não está na tela e não há trilho de ferramentas) também ganham um "Sair" |
+| `aoEntrar` | O mundo apareceu: na primeira entrada e a cada volta depois de uma queda. Quem hospeda usa para saber que, daí em diante, queda é assunto do jogo |
 | `aoEncerrar(motivo)` | O jogo parou sem a pessoa pedir e não vai tentar de novo (`sessao`, `sem_acesso`, `acesso_encerrado`, `substituida`, `protocolo`). O jogo mostra o motivo; quem hospeda pode desmontar e explicar do seu jeito |
-| `depurar` | Expõe `window.__morada` (espelho, posições desenhadas, medidas da cena). Só bancada e testes |
+| `aoNaoCarregar` | O código do jogo não chegou (rede caiu no download). Sem isto, o jogo escreve um aviso simples no lugar dele |
+| `depurar` | Expõe `window.__morada` (espelho, posições desenhadas, medidas da cena). Só bancada e testes; o portal não liga |
+
+### O que fica à vista para os testes
+
+Sem `depurar`, um teste de navegador confere o jogo pelo que a pessoa vê e por estes atributos, que são estáveis:
+
+| Onde | Atributo | O que diz |
+| --- | --- | --- |
+| `.morada-hud` | `data-morada-conexao` | A fase da conexão: `conectando`, `entrando`, `montando`, `pronto`, `reconectando`, `encerrado` |
+| `.morada-hud` | `data-morada-papel`, `data-morada-permissoes` | O papel que o servidor informou e as permissões da pessoa nas famílias dela, em ordem alfabética |
+| `.morada-retrato` | `data-estado`, `data-espera`, `data-morador` | Quem dirige (`voce`, `outro`, `disponivel`, `autonomo`), se espera a volta de quem caiu, e o id do morador |
+| `.morada-retrato` | `data-morada-local`, `data-morada-andando`, `data-morada-preferido` | A posição na planta (`x,y` em milímetros, ou `fora`), se está andando e se é o preferido de alguém |
+| `canvas.morada-tela` | `data-morada-ponteiro` | O ponto da cena em que o ponteiro foi conferido por último (`x,y` no elemento) |
+| `canvas.morada-tela` | `data-morada-alvo`, `-alvo-nome`, `-alvo-id`, `-alvo-pos` | O que um clique ali acertaria: `chao`, `chao-ocupado`, `objeto` ou `morador`; o nome do móvel ou do morador; no chão, o ponto da planta |
+
+Os do canvas vêm do mesmo teste de clique da cena, feito quando o ponteiro passa (um por quadro). É também o que troca o cursor pela mão sobre o que responde a um toque.
 
 ### O jogo não vaza para o portal
 
@@ -44,6 +61,8 @@ Ou, em React, `import { MoradaJogo } from "@informach/jogo-morada/react"`, que m
 
 O espelho tem as mesmas tabelas do estado do servidor, então as funções puras da simulação rodam nele: `recusaDaInteracao`, `temPontoLivre`, `impedimentoDoPedido` e `impedimentoDoCuidado` montam o menu com o motivo de cada opção desligada, `podeSerInterrompido` e `partidaDe` dizem se e de onde o servidor começaria a andar, `criarNavegador` dá a mesma rota que o servidor dará, `posicaoNoMovimento` põe cada morador no lugar. `estadoDoEspelho` monta essa forma sem copiar nada. Regra do mundo não é copiada aqui: quando o cliente precisa de uma, a simulação a exporta.
 
+**Preferido.** No topo da fila do morador que a pessoa dirige há o botão "Preferido". Marcado, a pessoa entra no mundo já dirigindo aquele morador (é a regra da simulação; o fato `PreferidoDefinido` vai para o diário). É assim que a reserva volta sozinha depois de uma queda da instância.
+
 **Quem está no mundo.** A presença que o servidor replica traz o apelido de cada jogador. É dela que saem "Dirigido por Bruno", a plaquinha do retrato, quem falta concordar com a velocidade e a linha da presença ("Você e Bruno · Ana em espera"). Um jogador sem apelido na visão aparece como "outra pessoa"; o jogo não inventa nome.
 
 **Eixos.** A simulação usa os eixos do Blender em milímetros (planta em x e y, altura em z, frente em −Y). A cena usa os do glTF em metros: `(x, y, z) → (x, z, −y)`. É uma rotação, sem espelho, e o giro da simulação é o mesmo ângulo em torno do Y da cena. Um modelo com a frente em +Z entra sem ajuste.
@@ -52,7 +71,7 @@ O espelho tem as mesmas tabelas do estado do servidor, então as funções puras
 
 **Previsão.** Só o "ir até aqui" do próprio morador é previsto, e só quando o servidor começaria a andar no próximo passo. O desenho desliza para a rota do servidor em 150 ms quando ela chega, e de volta se o pedido é recusado.
 
-**Conexão.** Depois de 4009, 4010, 4011, 4013 e de queda de rede, o cliente chama `fonte.abrir()` de novo (espera de 0,5 s a 8 s, com folga sorteada) e entra com a mesma sessão, que retoma a reserva. Depois de 4001, 4003, 4008 e 4012, para e diz por quê.
+**Conexão.** Depois de 4009, 4010, 4011, 4013 e de queda de rede, o cliente chama `fonte.abrir()` de novo (espera de 0,5 s a 8 s, com folga sorteada) e entra com a mesma sessão, que retoma a reserva. Depois de 4001, 4003, 4008 e 4012, para e diz por quê. Se `fonte.abrir()` falha, o cliente também tenta de novo; quem hospeda decide, dentro de `abrir`, o que é passageiro (deixa o erro sair) e o que é definitivo (avisa a pessoa e desmonta o jogo). No portal essa regra está em `apps/recreio/src/features/jogar/adaptadores/morada-regra.ts`.
 
 **Ativos.** A cena não sabe que cara as coisas têm: pede a `Ativos`. `AtivosProcedurais` desenha sem arte nenhuma, e é o que roda no CI. Os pacotes de arte entram por outra implementação da mesma interface; a arte licenciada nunca é versionada aqui.
 
@@ -102,4 +121,5 @@ Os testes de unidade usam a simulação de verdade (`@informach/morada-sim/teste
 
 - Arte: os corpos, os móveis e as animações de verdade entram por uma implementação de `Ativos` (lotes X2 e D1).
 - Som, construir, comprar e criar família (etapa 2).
-- A rota `/jogar/morada` do portal e a fonte feita do SDK do Recreio (lote X1).
+
+O jogo no portal (`/jogar/morada`), com duas contas, a queda de uma delas e a queda da instância, é conferido pelo E2E do portal: `apps/recreio/e2e/morada.spec.ts`.
