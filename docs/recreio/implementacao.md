@@ -65,9 +65,9 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 | P1 | Esqueleto do `apps/recreio` e registros no monorepo | feito |
 | P2 | Schema `recreio`, migração, grupos, perfis, sessão de aparelho | feito |
 | P3 | Carregador de acesso, concessões, scripts `conceder` e `revogar` | feito |
-| P4 | Ingresso, sessão, renovação, JWKS, cliente do SDK | a fazer |
-| P5 | Mundos, membros, convite | a fazer |
-| P6 | Posse, API das instâncias, armazenamento | a fazer |
+| P4 | Ingresso, sessão, renovação, JWKS, cliente do SDK | feito |
+| P5 | Mundos, membros, convite | feito |
+| P6 | Posse, API das instâncias, armazenamento | feito |
 | P7 | `/jogar/[jogo]`, jogo de teste, E2E com queda da instância | a fazer |
 
 ### Etapa 1, jogo
@@ -82,7 +82,7 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 | J5 | Persistência e recuperação contra a plataforma falsa | feito |
 | J6 | `apps/morada-server` | feito |
 | J7 | Quedas injetadas e gerador de carga | feito |
-| J8 | Cliente com cena procedural e HUD | a fazer |
+| J8 | Cliente com cena procedural e HUD | em curso |
 
 ### Etapa 1, junção
 
@@ -173,6 +173,30 @@ O que estes lotes fixam para os próximos:
 - Um id de conta é um UUID válido e passa no esquema de `PerfilId`; a separação é imposta pelos tipos com marca e, em execução, pela consulta, que não encontra o perfil.
 - No Bastidores os eventos `recreio.*` aparecem com o texto genérico até o lote X3.
 - `/privacidade` e a linha da página inicial foram atualizadas para dizer que o Recreio guarda perfis; continuam pedindo a revisão do titular.
+
+### P4 a P6: tokens, mundos e posse (11/11/2026)
+
+- `pnpm --filter @informach/recreio typecheck`, `pnpm --filter @informach/recreio-app typecheck`, `pnpm --filter @informach/auth typecheck` e `pnpm --filter @informach/db typecheck`: sem erros. `pnpm exec biome check apps/recreio packages/recreio packages/auth packages/db`: limpo.
+- `pnpm --filter @informach/recreio test`: 105 testes em 6 arquivos (entram o cliente do SDK e o cliente das instâncias). `pnpm --filter @informach/recreio-app test`: 103 testes em 10 arquivos. `pnpm --filter @informach/auth test`: 268 testes.
+- `pnpm --filter @informach/recreio-app test:integration`, contra um Postgres descartável com todas as migrações: 132 testes em 7 arquivos (acesso 17, perfis 18, schema 10, conformidade 29, jogo 22, mundos 17, posse 19).
+- **A suíte de conformidade da API das instâncias passa sem alteração contra a implementação de verdade**: os 29 casos rodam pelo `criarClienteDoHost` real, com o `fetch` entregue aos manipuladores de rota exportados e o banco de verdade por baixo. É a mesma suíte que a plataforma em memória passa.
+- `pnpm build:recreio` com as variáveis do CI e uma chave descartável: build concluído, com as rotas `/api/sdk/v1/*`, `/api/interno/v1/*`, `/api/jobs/manutencao`, `/mundos/[id]` e `/convite`.
+- Passagem manual por HTTP de verdade (`next dev` na 3009, banco descartável, Chromium no portal, `criarRecreio` e `criarClienteDoHost` pela rede): duas contas, mundo criado no portal, convite aceito pela outra conta e código reusado recusado; ingresso só com cookie e da própria origem; sessão conferida contra o JWKS remoto; `SEM_INSTANCIA` sem instância; registro recusado com segredo errado; reivindicar, entrada dos dois, diário com buraco recusado, fotografia de 200 kB lida de volta byte a byte, batimento com as sessões encerradas, liberar com `CHECKPOINT_PENDENTE` e depois com sucesso, cerca velha recusada com `POSSE_PERDIDA`, manutenção registrada em `ops.job_runs`.
+- **Não exercitado**: Redis (sessões e limite de tentativas no Redis só têm teste com armazenamento em memória); `next start` no bundle de produção; Postgres 16 (o embutido é o 18); a mudança do `ci.yml` rodando no GitHub; `pnpm check` e `pnpm test` do repositório inteiro.
+
+Decisões tomadas nestes lotes:
+
+- O direito de jogar é avaliado imediatamente antes de cada transação, não dentro dela: `avaliarAcesso` usa o pool, e pedir uma segunda conexão com a transação aberta trava o app quando o pool enche (o teste de 20 aberturas simultâneas ficaria parado).
+- Os prazos de posse são julgados com `clock_timestamp()`, não `now()`: quem esperou a trava do mundo é julgado pela hora em que a conseguiu.
+- O batimento não trava a linha do mundo. Ele renova a posse com um comando condicionado, e a retomada fecha a mesma linha com a condição oposta: entre as duas, exatamente uma acontece.
+- `JA_ABERTO` desfaz a transação e o ingresso não é gasto; a página pergunta e tenta de novo com `continuarAqui`.
+- Uma instância só se registra com o endereço de `RECREIO_GAME_ORIGINS[jogo].ws`. Como o endereço é um por jogo, vale a restrição de uma réplica do servidor do jogo.
+- O CI não guarda chave: um passo gera um par descartável (`apps/recreio/scripts/gerar-chave.mjs --github-env`) antes do `pnpm build`.
+- `@informach/auth/sessions` ganhou `isAuthSessionLive`, para conferir a sessão de login sem cookie (Redis do app quando existe, senão `core.sessions`). É aditivo.
+- O Recreio não avisa a instância de uma atribuição: o navegador recebe o endereço, conecta, e a instância reivindica. Posse atribuída e não reivindicada vence em 30 s.
+- Uma fotografia compacta o diário. Na recuperação, a instância lê a fotografia e depois o diário a partir de `fotografia.diarioSeq`.
+
+Lacunas conhecidas, aceitas nesta etapa: a leitura do diário não é paginada; a emissão de ingresso não tem limite de tentativas; a renovação não recusa quando o jogo entra em `manutencao`; a entrada no mundo não reavalia o direito de jogar (a renovação da sessão e o batimento cobrem); nenhum serviço, variável ou agendador no `.railway/railway.ts` (lote X3).
 
 ### J0 a J4 e a parte de simulação do J5 (11/11/2026)
 

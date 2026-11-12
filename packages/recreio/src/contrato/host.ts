@@ -187,6 +187,36 @@ export type NovaFotografia = {
   resumo?: ResumoDoMundo;
 };
 
+// --- Transporte HTTP ---
+
+/**
+ * Como a API das instâncias viaja em `/api/interno/v1`. O segredo do jogo vai
+ * em `Authorization: Bearer`; o jogo e a instância, nestes cabeçalhos. Bytes
+ * do diário vão em base64 dentro do JSON; a fotografia vai crua, como
+ * `application/octet-stream`, com os metadados na consulta e nos cabeçalhos.
+ */
+export const CAMINHO_DA_API_DO_HOST = "/api/interno/v1";
+export const CABECALHO_DO_JOGO = "x-recreio-jogo";
+export const CABECALHO_DA_INSTANCIA = "x-recreio-instancia";
+/** Na leitura da fotografia: `MetaDeFotografia` em JSON, codificado em base64url. */
+export const CABECALHO_DA_FOTOGRAFIA = "x-recreio-fotografia";
+/** Na gravação da fotografia: `ResumoDoMundo` em JSON, codificado em base64url. Opcional. */
+export const CABECALHO_DO_RESUMO = "x-recreio-resumo";
+
+export const DiarioLidoSchema = z.strictObject({ entradas: z.array(NovaEntradaDoDiarioSchema) });
+export const DiarioConfirmadoSchema = z.strictObject({ confirmadoAte: naoNegativo });
+export const FotografiaGravadaSchema = z.strictObject({ revisao: naoNegativo });
+
+/** Os números que acompanham a fotografia na consulta do `PUT`. */
+export const ConsultaDaFotografiaSchema = z.strictObject({
+  cerca: naoNegativo,
+  revisaoEsperada: naoNegativo,
+  diarioSeq: naoNegativo,
+  tick: naoNegativo,
+  schemaVersion: z.number().int().positive(),
+  tipo: z.enum(["checkpoint", "hibernate"]),
+});
+
 /**
  * O cliente que o servidor do jogo usa. A implementação real fala HTTP com o
  * Recreio (`@informach/recreio/host`); a de teste roda em memória

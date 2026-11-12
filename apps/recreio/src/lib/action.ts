@@ -5,6 +5,7 @@ import { ZodError } from "zod";
 import { requireUser } from "./auth";
 import { AppError, assertAllowed } from "./errors";
 import { reportError } from "./observability";
+import { mensagemDaRecusa } from "./recusas";
 
 export async function verifiedUser() {
   const user = await requireUser();
@@ -26,6 +27,10 @@ export async function runAction<T>(operation: () => Promise<T>): Promise<ActionR
       return { ok: false, error: "Escolha quem vai jogar para continuar.", code: "SEM_PERFIL" };
     if (error instanceof ZodError)
       return { ok: false, error: "Confira os campos e tente novamente.", code: "INPUT" };
+    if (ehErroDoRecreio(error)) {
+      const mensagem = mensagemDaRecusa(error.codigo);
+      if (mensagem) return { ok: false, error: mensagem, code: error.codigo };
+    }
     const incident = crypto.randomUUID();
     reportError(error, incident);
     return {

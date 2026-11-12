@@ -36,13 +36,33 @@ const testEnv = {
   EMAIL_SANDBOX_MODE: "memory",
   RECREIO_ACCESS_MODE: "fechado",
   SENTRY_AUTH_TOKEN: "",
+  // Segredos e origens só deste teste. `jogo-de-teste` não está no catálogo:
+  // os testes que precisam de um segundo jogo o acrescentam por conta própria.
+  RECREIO_HOST_SECRETS: JSON.stringify({
+    morada: randomBytes(32).toString("hex"),
+    "jogo-de-teste": randomBytes(32).toString("hex"),
+  }),
+  RECREIO_GAME_ORIGINS: JSON.stringify({
+    morada: { ws: "ws://localhost:3010" },
+    "jogo-de-teste": { ws: "ws://localhost:3011" },
+  }),
+  CRON_SECRET: randomBytes(32).toString("hex"),
 };
 const childEnv = { ...process.env, ...testEnv, RECREIO_ISOLATED_TEST: "1" };
 // Isolated verification must not inherit optional production transports. In
 // particular, Better Auth stores sessions in Redis when REDIS_URL is present;
 // that would bypass the disposable PostgreSQL database created above and make
 // the run share state with the caller's environment.
-for (const key of ["REDIS_URL", "SENTRY_DSN", "NEXT_PUBLIC_SENTRY_DSN"]) delete childEnv[key];
+// The token key is left out on purpose: the app generates a throwaway pair.
+for (const key of [
+  "REDIS_URL",
+  "SENTRY_DSN",
+  "NEXT_PUBLIC_SENTRY_DSN",
+  "RECREIO_TOKEN_PRIVATE_KEY",
+  "RECREIO_TOKEN_KEY_ID",
+  "RECREIO_TOKEN_PREVIOUS_PUBLIC_KEYS",
+])
+  delete childEnv[key];
 function run(args, cwd) {
   const child = spawnSync(process.execPath, [pnpmCli, ...args], {
     cwd,

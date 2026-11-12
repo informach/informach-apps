@@ -104,6 +104,11 @@ jobs:
 
       - run: pnpm --filter @informach/dia-de-estrela e2e
 
+      # O build do Recreio valida o ambiente como produção e exige a chave dos
+      # tokens. Ela é gerada aqui, vale só para este build e não fica em arquivo.
+      - name: Chave descartável dos tokens do Recreio
+        run: node apps/recreio/scripts/gerar-chave.mjs --github-env >> "$GITHUB_ENV"
+
       - run: pnpm build
         env:
           BETTER_AUTH_URL: https://ci.example.com

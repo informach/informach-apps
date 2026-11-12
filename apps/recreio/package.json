@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:integration": "node scripts/isolated.mjs integration",
     "conceder": "tsx scripts/conceder.ts",
-    "revogar": "tsx scripts/revogar.ts"
+    "revogar": "tsx scripts/revogar.ts",
+    "gerar-chave": "node scripts/gerar-chave.mjs"
   },
   "dependencies": {
     "@better-auth/redis-storage": "1.7.10",

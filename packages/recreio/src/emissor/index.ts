@@ -2,6 +2,7 @@ import {
   type CryptoKey,
   createLocalJWKSet,
   exportJWK,
+  generateKeyPair,
   importPKCS8,
   importSPKI,
   type JSONWebKeySet,
@@ -11,9 +12,11 @@ import {
 } from "jose";
 import {
   ALGORITMO_DOS_TOKENS,
+  ClaimsDaSessaoSchema,
   ClaimsDoIngressoSchema,
   ESCOPOS,
   type IngressoVerificado,
+  type SessaoVerificada,
   TIPO_DA_SESSAO,
   TIPO_DO_INGRESSO,
   VALIDADE_DA_SESSAO_S,
@@ -44,7 +47,20 @@ export async function importarChavePublica(pem: string): Promise<ChavePublica> {
   return importSPKI(normalizarPem(pem), ALGORITMO_DOS_TOKENS, { extractable: true });
 }
 
+/** Um par novo, para desenvolvimento e testes: em produção a chave vem do ambiente. */
+export async function gerarParDeChaves(): Promise<{
+  privada: ChavePrivada;
+  publica: ChavePublica;
+}> {
+  const par = await generateKeyPair(ALGORITMO_DOS_TOKENS, { extractable: true });
+  return { privada: par.privateKey, publica: par.publicKey };
+}
+
 export type ChavePublicaComId = { kid: string; chave: ChavePublica };
+/** O conjunto de chaves públicas no formato de `/api/sdk/v1/jwks`. */
+export type Jwks = JSONWebKeySet;
+/** Como quem confere um token acha a chave pelo `kid`. */
+export type ChavesDeVerificacao = JWTVerifyGetKey;
 
 /** O conjunto servido em `/api/sdk/v1/jwks`: a chave atual e as anteriores. */
 export async function montarJwks(chaves: readonly ChavePublicaComId[]): Promise<JSONWebKeySet> {
@@ -160,6 +176,34 @@ export async function verificarIngresso(
     sessaoDeAparelhoId: claims.sid,
     jogo: claims.aud,
     jti: claims.jti,
+    versaoDaPolitica: claims.pv,
+    expiraEm: claims.exp * 1000,
+  };
+}
+
+/**
+ * Confere uma sessão de jogo que este Recreio emitiu, de qualquer jogo: a
+ * audiência não é fixada aqui, vem do token. Quem chama confere que o jogo
+ * existe e que a sessão continua aberta no banco. O servidor de um jogo usa
+ * `criarVerificadorDeSessao` (`@informach/recreio/host`), que fixa a audiência.
+ */
+export async function verificarSessaoEmitida(
+  token: string,
+  opcoes: { chaves: JWTVerifyGetKey; emissor: string; agora?: () => Date },
+): Promise<SessaoVerificada> {
+  const claims = await verificarToken(token, {
+    chaves: opcoes.chaves,
+    emissor: opcoes.emissor,
+    tipo: TIPO_DA_SESSAO,
+    esquema: ClaimsDaSessaoSchema,
+    erro: "SESSAO_INVALIDA",
+    agora: opcoes.agora,
+  });
+  return {
+    perfilId: claims.sub,
+    sid: claims.sid,
+    jogo: claims.aud,
+    escopos: claims.scp,
     versaoDaPolitica: claims.pv,
     expiraEm: claims.exp * 1000,
   };

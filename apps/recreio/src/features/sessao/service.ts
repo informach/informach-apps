@@ -1,8 +1,15 @@
 import "server-only";
-import { type ContaId, ContaIdSchema, type SessaoDeAparelhoId } from "@informach/recreio";
+import {
+  type ContaId,
+  ContaIdSchema,
+  type PerfilId,
+  type SessaoDeAparelhoId,
+} from "@informach/recreio";
 import { type PerfilDoRecreio, perfisSelecionaveis } from "@/features/perfis/service";
+import { sessaoDeLoginViva } from "./login";
 import {
   carregarOuCriarSessaoDaConta,
+  lerSessaoDeAparelho,
   limparPerfilAtivo,
   revogarSessaoDaConta,
 } from "./repository";
@@ -55,7 +62,48 @@ export async function resolverAtor(entrada: {
   return { ator: { contaId, sessaoDeAparelhoId: sessao.id, perfil }, perfis };
 }
 
-/** Sair da conta encerra a sessão de aparelho; ela não volta a valer. */
+export type VidaDaSessaoDeAparelho =
+  | { viva: true; contaId: ContaId; perfil: PerfilDoRecreio }
+  | { viva: false; motivo: "signed_out" | "expired" };
+
+/**
+ * A sessão de aparelho ainda sustenta este perfil jogando? É a conferência de
+ * `resolverAtor` para quem não tem o cookie: a troca do ingresso e a renovação
+ * da sessão de jogo chegam só com um token.
+ *
+ * Vale se a linha existe, não foi revogada, está no prazo, continua com este
+ * perfil ativo, o perfil ainda está na lista que o servidor monta para a
+ * conta, e a sessão de login por trás dela continua de pé. Sair por outro
+ * caminho (expiração do login, encerramento pelo Bastidores) não marca
+ * `revoked_at`; é a consulta à sessão de login que pega esses casos.
+ */
+export async function conferirSessaoDeAparelho(entrada: {
+  sessaoDeAparelhoId: SessaoDeAparelhoId;
+  perfilId: PerfilId;
+  agora?: Date;
+}): Promise<VidaDaSessaoDeAparelho> {
+  const agora = entrada.agora ?? new Date();
+  const sessao = await lerSessaoDeAparelho(entrada.sessaoDeAparelhoId);
+  if (!sessao || sessao.revogadaEm !== null || sessao.contaId === null)
+    return { viva: false, motivo: "signed_out" };
+  if (sessao.expiraEm.getTime() <= agora.getTime()) return { viva: false, motivo: "expired" };
+  if (sessao.perfilAtivoId !== entrada.perfilId) return { viva: false, motivo: "signed_out" };
+  const perfil = (await perfisSelecionaveis(sessao.contaId)).find(
+    (item) => item.id === entrada.perfilId,
+  );
+  if (!perfil) return { viva: false, motivo: "signed_out" };
+  if (
+    sessao.authSessionId !== null &&
+    !(await sessaoDeLoginViva({ authSessionId: sessao.authSessionId, contaId: sessao.contaId }))
+  )
+    return { viva: false, motivo: "signed_out" };
+  return { viva: true, contaId: sessao.contaId, perfil };
+}
+
+/**
+ * Sair da conta encerra a sessão de aparelho, que não volta a valer, e junto
+ * as sessões de jogo abertas por ela.
+ */
 export async function encerrarSessaoDeAparelho(entrada: {
   authSessionId: string;
   contaId: string;

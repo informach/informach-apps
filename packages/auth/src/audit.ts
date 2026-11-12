@@ -100,12 +100,21 @@ export type AuditEventType =
   | "estrela.redemption_resolved"
   | "estrela.voice_saved"
   | "estrela.goal_photo_saved"
-  // Recreio (apps/recreio): perfis e concessões do direito de jogar. Sessões de
-  // jogo e mundos entram com os lotes seguintes.
+  // Recreio (apps/recreio): perfis, concessões do direito de jogar, sessões de
+  // jogo, mundos, convites e posse.
   | "recreio.profile_created"
   | "recreio.profile_updated"
   | "recreio.entitlement_granted"
   | "recreio.entitlement_revoked"
+  | "recreio.game_session_started"
+  | "recreio.game_session_ended"
+  | "recreio.ticket_rejected"
+  | "recreio.space_created"
+  | "recreio.space_invite_created"
+  | "recreio.space_invite_accepted"
+  | "recreio.space_member_joined"
+  | "recreio.space_lease_taken_over"
+  | "recreio.space_write_refused"
   // Bastidores (apps/admin): consultas e ações da equipe sobre uma conta.
   | "admin.user_viewed"
   | "admin.sessions_revoked"

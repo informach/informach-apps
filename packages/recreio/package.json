@@ -10,6 +10,7 @@
     "./contrato": "./src/contrato/index.ts",
     "./emissor": "./src/emissor/index.ts",
     "./host": "./src/host/index.ts",
+    "./sdk": "./src/sdk/index.ts",
     "./testing": "./src/testing/index.ts",
     "./testing/conformidade": "./src/testing/conformidade.ts"
   },

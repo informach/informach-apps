@@ -20,7 +20,7 @@ O nome do pacote é `@informach/recreio-app`, porque `@informach/recreio` já é
 - `src/app`: rotas e composição. Páginas não importam o banco.
 - `src/features/<área>`: `components/` (telas), `actions.ts` (server actions), `service.ts` (sem Next), `repository.ts` (banco). Lógica pura fica em arquivo próprio, com teste (`estante/catalogo.ts`, `perfis/regras.ts`, `acesso/cobertura.ts`, `acesso/texto.ts`). O que precisa do Next sem ser ação fica em arquivo próprio da área (`sessao/ator.ts`, `sessao/http.ts`).
 - `src/components`: peças visuais sem dados (marca, capa, formulário de entrada, moldura das páginas de texto).
-- `src/lib`: o que atravessa o app (auth, env, e-mail, Redis, logger, observabilidade).
+- `src/lib`: o que atravessa o app (auth, env, chaves dos tokens, respostas HTTP, e-mail, Redis, limite de tentativas, logger, observabilidade). `lib/repository.ts` é o apoio dos repositórios (transação, travas, relógio do banco) e só eles o importam.
 - O Biome da raiz verifica as fronteiras: páginas, componentes, ações e rotas não importam `@informach/db`.
 
 ## A base (lote P1)
@@ -52,9 +52,50 @@ São cinco coisas separadas: a conta (`core.users`, do login compartilhado), a a
 - Auditoria: `recreio.profile_created`, `recreio.entitlement_granted` e `recreio.entitlement_revoked`, com os campos de `docs/audit-payload-policy.md`. Nunca apelido, e-mail, IP ou token.
 - `/estante` e `/conta` mostram a situação do acesso em texto simples (`acesso/texto.ts`).
 
+## Ingresso e sessão de jogo (lote P4)
+
+Princípios que não se negociam: **o jogo recebe um ingresso, nunca acesso ao banco; o jogo só conhece o id do perfil** (nunca conta, e-mail, idade, grupo ou cobrança); **o perfil ativo sai sempre da sessão conferida no servidor**; **saber um id não dá acesso** (toda rota confere o escopo de novo, e "existe mas não é seu" responde igual a "não existe").
+
+- `features/jogos/config.ts`: o que o app sabe de um jogo ao atender um pedido, juntando o manifesto (`@informach/config/jogos`) e o deploy (`RECREIO_HOST_SECRETS`, `RECREIO_GAME_ORIGINS`). Sessões, mundos e posse perguntam aqui. Jogo em `em_breve`, `manutencao` ou `aposentado` não abre.
+- `lib/tokens.ts`: `chavesDoRecreio()` carrega a chave uma vez por processo. A pública do JWKS sai da privada. Fora de produção, sem a variável, gera um par descartável e avisa no log; em produção a falta dela é erro de ambiente.
+- Rotas em `src/app/api/sdk/v1`. Todas respondem JSON; recusa é `{ codigo, estado?, motivo?, detalhe? }` com o status de `statusDoErro` (`lib/http.ts`). Corpo e parâmetros são conferidos com os esquemas de `@informach/recreio/contrato`.
+  - `GET jwks`: chave atual e anteriores, `Cache-Control: public, max-age=300`.
+  - `POST ingresso`: **a única autenticada pelo cookie**, e por isso só atende a própria origem. `perfilAtivo()`, `avaliarAcesso`, jogo que abre, linha em `game_tickets`, token de 60 s.
+  - `POST sessao`: autenticada pelo ingresso. A troca é uma transação (`abrirSessaoComIngresso`): consome o `jti` (uma vez, no prazo, e do mesmo perfil, aparelho e jogo que o token diz), confere e trava a sessão de aparelho, encerra a sessão anterior se veio `continuarAqui` (senão `JA_ABERTO`, e o ingresso não é gasto) e insere a nova.
+  - `POST sessao/renovar` e `POST sessao/sair`: token da sessão em `Authorization: Bearer`. A renovação confere a linha da sessão, a sessão de aparelho, a sessão de login por trás dela e o direito de jogar; se algo caiu, encerra a sessão ali mesmo e responde 403 `ACESSO_PERDIDO`.
+- A sessão de login é conferida **sem cookie** por `conferirSessaoDeAparelho` (`features/sessao/service.ts`), com `isAuthSessionLive` de `@informach/auth/sessions`: no Redis do app quando ele existe, senão em `core.sessions`. É isso que pega o login encerrado por outro caminho (expiração, Bastidores), que não marca `revoked_at`.
+- **Encerrar uma sessão de jogo** grava `ended_at`, `end_reason` e `ended_seq` num comando só, sempre por `encerrarSessoesAbertas` (`sessao-de-jogo/repository.ts`), atrás de uma trava de transação única. A sequência entrega o número antes do commit; a trava faz os números serem confirmados na ordem em que foram entregues, e o batimento de uma instância que lê "depois do cursor" nunca pula um. Quem vai encerrar pega a trava antes de tocar em linhas de `game_sessions`.
+- Sair da conta (`/api/conta/sair`) encerra, na mesma transação, as sessões de jogo daquela sessão de aparelho (`signed_out`).
+- `sessaoDeJogo(request)` (`sessao-de-jogo/http.ts`) é quem diz, nas rotas do SDK, o perfil, o `sid` e o jogo de quem pede, e exige a sessão aberta.
+- O acesso é avaliado imediatamente antes de cada transação, não dentro dela: `avaliarAcesso` usa o pool, e pedir uma segunda conexão com uma transação aberta trava o app quando o pool enche. Dentro de uma transação só se usa a própria transação.
+
+## Mundos, membros e convites (lote P5)
+
+- `features/mundos`: `service.ts` é chamado pelas rotas do SDK (sessão de jogo) e pelas ações do portal (cookie). Quem chama entrega o perfil já conferido; nenhum id de perfil vem do pedido.
+- Rotas: `GET` e `POST /api/sdk/v1/mundos`, `POST /api/sdk/v1/mundos/{id}/convites`, `POST /api/sdk/v1/convites/aceitar` (token da sessão de jogo ou cookie do portal). Telas: a estante lista os mundos do Morada, com "Criar mundo" e "Entrar com código"; `/mundos/[id]` mostra quem participa e, para o responsável, gera o código; `/convite?codigo=` traz o código preenchido e espera a pessoa confirmar.
+- Criar: teto `limites.mundosCriadosPorPerfil` do manifesto, por jogo, contado sob uma trava por perfil (`LIMITE_DE_MUNDOS`). O mundo nasce `hibernating`, com a política de mundo pedida se o jogo a oferece, senão a padrão.
+- Convidar: **só o responsável, só `member`** nesta etapa (`visit` dá `SEM_PERMISSAO`). O código vale 24 h e uma vez; o banco guarda só um HMAC dele (`mundos/codigo.ts`). Quem não é membro ativo, mundo de outro jogo e mundo que não existe dão a mesma recusa (`NAO_MEMBRO`).
+- Aceitar: a linha do mundo é travada antes da do convite. Código errado, vencido, usado ou revogado: `CONVITE_INVALIDO`, sempre igual. Depois `JA_MEMBRO` e `MUNDO_CHEIO` (`capacidades.mundos.membrosMax`), que não gastam o convite. Quem já saiu do mundo (`former`) volta na mesma linha de membro. As tentativas são contadas por perfil, dez a cada dez minutos (`lib/rate-limit.ts`, o contador de `@informach/auth`: Redis quando existe, senão `core.rate_limit`).
+- Auditoria na mesma transação da mudança. **Evento de mundo não leva `targetId`**: liga-se a uma pessoa só pelo ator.
+
+## Posse e API das instâncias (lote P6)
+
+O contrato é o `ClienteDoHost` do package, e a implementação é conferida pela suíte de conformidade (`test/conformidade.integration.ts`). Se o comportamento daqui e o da plataforma em memória divergirem, a suíte é quem manda.
+
+- Rotas em `src/app/api/interno/v1`, só para servidores de jogo: `Authorization: Bearer <segredo do jogo>` comparado em tempo constante, jogo em `X-Recreio-Jogo`, instância em `X-Recreio-Instancia` (`features/posse/http.ts`). Sem cookie e sem conferência de origem. O segredo de um jogo só alcança instâncias e mundos daquele jogo: mundo de outro jogo responde `NAO_ENCONTRADO`, instância de outro jogo `NAO_AUTENTICADO`.
+- **A regra central** (`features/posse/repository.ts`): toda operação de uma instância sobre um mundo trava a linha do mundo (`FOR UPDATE`) e exige, na mesma transação, a posse aberta com aquela cerca, daquela instância, reivindicada e dentro do prazo. Fora disso é `POSSE_PERDIDA` e nada muda. O prazo é julgado com `clock_timestamp()`: `now()` é a hora do começo da transação, e quem esperou a trava seria julgado com hora velha.
+- Ordem das travas no app: linha da conta em `core.users` (quando entra), linha do mundo em `spaces`, depois o resto.
+- `POST /api/sdk/v1/mundos/{id}/abrir` (navegador): com o mundo travado, entra na posse vigente ou fecha a vencida (`expired`), sobe `lease_epoch` e atribui a posse à instância ativa, vista dentro do prazo, com vaga e com menos mundos. Sem nenhuma: `SEM_INSTANCIA`, e nada fica pela metade. A resposta não leva a cerca. A retomada nunca espera a manutenção.
+- O batimento renova cada posse com um comando condicionado à mesma linha que a retomada fecha: entre renovar e retomar, exatamente uma acontece. Também soma jogadores por segundo e o pico, e devolve as sessões de jogo encerradas depois do cursor. Sem cursor valem as encerradas desde o registro da instância.
+- Uma instância só se registra com o endereço de `RECREIO_GAME_ORIGINS[jogo].ws`.
+- Diário: contínuo a partir de `journal_seq + 1`, tudo ou nada; repetir exatamente uma entrada gravada (ou já compactada) não faz nada. Fotografia: só sobre a `revisaoEsperada`; o `sha256` é calculado aqui; ficam as 5 mais novas e as fixadas, e o diário é compactado até a mais antiga guardada. Os tetos vêm de `limites` do manifesto.
+- `features/posse/armazenamento.ts` é a porta das fotografias e do diário; `armazenamento-repository.ts` é a implementação no Postgres (`storage = 'pg'`). A variante com bucket não existe.
+- `POST /api/jobs/manutencao` (`CRON_SECRET`, registrado em `ops.job_runs`): posses vencidas, instâncias caladas há mais de dois prazos (`gone`; se voltarem a bater, ficam `active` de novo), ingressos com mais de um dia, sessões de jogo sem renovação. Idempotente, só contagens.
+- Auditoria: `recreio.space_lease_taken_over` na transação da retomada; `recreio.space_write_refused` quando uma instância autenticada escreve sem a posse.
+
 ## O que ainda não existe
 
-PIN e aparelho pareado, perfis sem login criados pelo titular, edição do perfil, cobrança (Stripe) e webhooks, tokens e JWKS, mundos, convites, `/jogar/*`, API do SDK e das instâncias, jobs, E2E, serviço no Railway e tela no Bastidores (os eventos `recreio.*` aparecem lá sem frase própria). As tabelas de ingresso, sessão de jogo, mundo, posse, fotografia e diário já estão na migração `0080_recreio`, mas nada grava nelas ainda. A exclusão de conta fica desligada (`accountDeletion: { enabled: false }`) até existirem as regras de sucessão do mundo.
+PIN e aparelho pareado, perfis sem login criados pelo titular, edição do perfil, cobrança (Stripe) e webhooks, `/jogar/*` (a página que hospeda o jogo e a CSP dela), E2E, serviço e agendador no Railway e tela no Bastidores (os eventos `recreio.*` aparecem lá sem frase própria). Nos mundos: convite de visita, convite por membro com aprovação, coadministradores, sair de um mundo, remover membro, arquivar e a sucessão do responsável. No armazenamento: bucket. A exclusão de conta fica desligada (`accountDeletion: { enabled: false }`) até existirem as regras de sucessão do mundo.
 
 Não adiante nada disso fora do lote correspondente do registro da frente.
 

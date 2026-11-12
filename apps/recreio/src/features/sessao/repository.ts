@@ -1,16 +1,19 @@
 import "server-only";
 import { and, db, eq, isNull, sql } from "@informach/db";
 import {
+  recreioGameSessions as gameSessions,
   recreioProfiles as profiles,
   recreioDeviceSessions as sessions,
 } from "@informach/db/schema";
 import {
   type ContaId,
+  ContaIdSchema,
   type PerfilId,
   PerfilIdSchema,
   type SessaoDeAparelhoId,
   SessaoDeAparelhoIdSchema,
 } from "@informach/recreio";
+import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/repository";
 
 /** De quanto em quanto tempo uma sessão viva regrava "visto por último". */
 const RENOVAR_APOS_MS = 5 * 60_000;
@@ -117,25 +120,73 @@ export async function limparPerfilAtivo(sessaoDeAparelhoId: SessaoDeAparelhoId):
 }
 
 /**
- * Encerra a sessão de aparelho de uma sessão de login. Revogada não volta: um
- * novo login cria outra linha. Devolve o id encerrado, ou `null` se não havia
- * linha viva.
+ * Encerra a sessão de aparelho de uma sessão de login e, na mesma transação,
+ * as sessões de jogo abertas por ela (`signed_out`): quem sai da conta para de
+ * jogar, e a instância fica sabendo no próximo batimento. Revogada não volta:
+ * um novo login cria outra linha. Devolve o id encerrado, ou `null` se não
+ * havia linha viva.
  */
 export async function revogarSessaoDaConta(entrada: {
   authSessionId: string;
   contaId: ContaId;
   agora: Date;
 }): Promise<SessaoDeAparelhoId | null> {
+  return db.transaction(async (tx) => {
+    const [linha] = await tx
+      .update(sessions)
+      .set({ revokedAt: entrada.agora })
+      .where(
+        and(
+          eq(sessions.authSessionId, entrada.authSessionId),
+          eq(sessions.userId, entrada.contaId),
+          isNull(sessions.revokedAt),
+        ),
+      )
+      .returning({ id: sessions.id });
+    if (!linha) return null;
+    await encerrarSessoesAbertas(
+      tx,
+      sql`${gameSessions.deviceSessionId} = ${linha.id}`,
+      "signed_out",
+      { porQuem: "conta" },
+    );
+    return SessaoDeAparelhoIdSchema.parse(linha.id);
+  });
+}
+
+export type SessaoDeAparelhoLida = {
+  id: SessaoDeAparelhoId;
+  /** A sessão de login por trás dela; `null` em aparelho pareado. */
+  authSessionId: string | null;
+  contaId: ContaId | null;
+  perfilAtivoId: PerfilId | null;
+  expiraEm: Date;
+  revogadaEm: Date | null;
+};
+
+/** A linha da sessão de aparelho, sem criar nem renovar nada. */
+export async function lerSessaoDeAparelho(
+  id: SessaoDeAparelhoId,
+): Promise<SessaoDeAparelhoLida | null> {
   const [linha] = await db
-    .update(sessions)
-    .set({ revokedAt: entrada.agora })
-    .where(
-      and(
-        eq(sessions.authSessionId, entrada.authSessionId),
-        eq(sessions.userId, entrada.contaId),
-        isNull(sessions.revokedAt),
-      ),
-    )
-    .returning({ id: sessions.id });
-  return linha ? SessaoDeAparelhoIdSchema.parse(linha.id) : null;
+    .select({
+      id: sessions.id,
+      authSessionId: sessions.authSessionId,
+      userId: sessions.userId,
+      activeProfileId: sessions.activeProfileId,
+      expiresAt: sessions.expiresAt,
+      revokedAt: sessions.revokedAt,
+    })
+    .from(sessions)
+    .where(eq(sessions.id, id));
+  if (!linha) return null;
+  return {
+    id: SessaoDeAparelhoIdSchema.parse(linha.id),
+    authSessionId: linha.authSessionId,
+    contaId: linha.userId === null ? null : ContaIdSchema.parse(linha.userId),
+    perfilAtivoId:
+      linha.activeProfileId === null ? null : PerfilIdSchema.parse(linha.activeProfileId),
+    expiraEm: linha.expiresAt,
+    revogadaEm: linha.revokedAt,
+  };
 }

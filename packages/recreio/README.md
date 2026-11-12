@@ -10,12 +10,13 @@ Consumido como TypeScript fonte, sem build, como os outros packages.
 | --- | --- | --- |
 | `.` | Ids com marca, `decidirAcesso`, regras de mundo, posse, código de convite, erros | Todos |
 | `./contrato` | Esquemas Zod e tipos de tudo que atravessa a rede: claims dos tokens, API do SDK, API das instâncias, `RecreioGameContext`, `ClienteDoHost` | Todos |
-| `./emissor` | Assinatura dos tokens e montagem do JWKS. Precisa da chave privada | Só `apps/recreio` |
-| `./host` | `criarVerificadorDeSessao` para o servidor de um jogo | Servidores de jogo |
+| `./emissor` | Assinatura dos tokens, montagem do JWKS e conferência dos tokens que o próprio Recreio emitiu. Precisa da chave privada | Só `apps/recreio` |
+| `./host` | `criarVerificadorDeSessao` e `criarClienteDoHost` (o `ClienteDoHost` por HTTP) para o servidor de um jogo | Servidores de jogo |
+| `./sdk` | `criarRecreio`: o `RecreioGameContext` para o cliente de um jogo. Só `fetch` e temporizadores | Clientes de jogo e a página que hospeda o jogo |
 | `./testing` | `criarPlataformaFalsa` e `criarEmissorDeTeste` | Testes e desenvolvimento dos jogos |
 | `./testing/conformidade` | `descreverConformidadeDoHost`: as regras da API das instâncias como testes | Testes de quem implementa `ClienteDoHost` |
 
-O cliente do SDK (`./sdk`) e o cliente HTTP das instâncias entram com os lotes P4 e P6 do [registro da frente](../../docs/recreio/implementacao.md).
+Escopo e estado de cada lote ficam no [registro da frente](../../docs/recreio/implementacao.md).
 
 ## Quem pode importar o quê
 
@@ -75,6 +76,55 @@ O uso único do ingresso não é do token: quem troca consome o `jti` na mesma t
 
 Os tetos de tamanho vêm de `GameManifest.limites` em `@informach/config/jogos`.
 
+### Pelo HTTP
+
+`criarClienteDoHost({ baseUrl, jogo, segredo, fetch?, tempoLimiteMs? })` devolve o mesmo `ClienteDoHost`, falando com `/api/interno/v1` do Recreio:
+
+- `Authorization: Bearer <segredo do jogo>` e `X-Recreio-Jogo: <id do jogo>` em todo pedido. Depois de `registrar`, o cliente guarda o `instanciaId` e o manda em `X-Recreio-Instancia`; antes disso, qualquer outra chamada recusa com `NAO_AUTENTICADO` sem sair para a rede.
+- Bytes do diário vão em base64 dentro do JSON. A fotografia vai crua (`application/octet-stream`), com os números na consulta, o resumo opcional em `X-Recreio-Resumo` e, na leitura, os metadados em `X-Recreio-Fotografia` (JSON em base64url nos dois).
+- Toda recusa vira `ErroDoRecreio(codigo, detalhe)` com o código que o Recreio mandou. Rede fora do ar, tempo esgotado (10 s por padrão) e resposta sem código do contrato viram `ErroDoRecreio("INDISPONIVEL")`: dá para tentar de novo, mas o prazo da posse continua correndo.
+
+Os nomes dos cabeçalhos e os esquemas do transporte ficam em `./contrato` (`CABECALHO_DO_JOGO`, `DiarioLidoSchema`, `ConsultaDaFotografiaSchema`...).
+
+O que o servidor do jogo precisa respeitar:
+
+- **Batimento a cada `batimentoMs`** (10 s), com todos os mundos que executa. Posse que volta `perdida`: parar o mundo e fechar as conexões.
+- **Cursor**: `null` no primeiro batimento, depois sempre o `cursor` da resposta anterior. Com `null`, o Recreio devolve as sessões encerradas desde que a instância se registrou; cada sessão encerrada aparece uma vez.
+- **Parar de escrever antes do prazo** (`deveSeCercar`, com a folga de `FOLGA_DE_AUTOCERCA_MS`): o prazo é julgado pelo relógio do Recreio.
+- **Compactação**: gravar uma fotografia apaga do diário o que as fotografias guardadas já contêm. Ao retomar um mundo, ler a fotografia e depois o diário com `apos = fotografia.diarioSeq`.
+
+## SDK do cliente do jogo
+
+```ts
+import { criarRecreio } from "@informach/recreio/sdk";
+
+const recreio = await criarRecreio({
+  baseUrl: "", // a página do jogo roda na origem do portal
+  jogo: "morada",
+  // Quem fornece é a página que hospeda o jogo: pede o ingresso com o cookie do portal.
+  obterIngresso: async () => {
+    const resposta = await fetch("/api/sdk/v1/ingresso", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jogo: "morada" }),
+    });
+    if (!resposta.ok) throw new Error("sem ingresso");
+    return (await resposta.json()).ingresso;
+  },
+});
+
+recreio.sessao.token(); // vai para o servidor do jogo na conexão, nunca em URL
+recreio.sessao.aoRenovar((token) => { /* reenviar ao servidor do jogo */ });
+recreio.sessao.aoMudarAcesso(({ codigo, estado, motivo }) => { /* salvar e voltar ao portal */ });
+const aberto = await recreio.mundos.abrir(mundoId); // { endereco, membroId, papel, ... }
+```
+
+- A troca do ingresso é feita uma vez, em `criarRecreio`. Se o perfil já joga em outro aparelho, ela recusa com `ErroDoRecreio("JA_ABERTO")`; a página pergunta e chama de novo com `continuarAqui: true` (um ingresso novo é pedido a cada chamada).
+- A renovação é silenciosa, quando passou `FRACAO_PARA_RENOVAR` do prazo. Recusa do Recreio (`ACESSO_PERDIDO`, `SESSAO_ENCERRADA`, `SESSAO_INVALIDA`) dispara `aoMudarAcesso` uma vez e encerra as renovações. Sem resposta do Recreio, o SDK tenta de novo a cada 15 s até a sessão vencer, e então avisa com `codigo: "INDISPONIVEL"`.
+- `sair()` cancela o temporizador e encerra a sessão no Recreio. Sair de uma sessão que o Recreio já encerrou não é erro.
+- Os pedidos de sessão e de mundos vão com `credentials: "omit"`: só o token no cabeçalho, nenhum cookie.
+- O SDK não importa `./emissor`, `./host`, `jose` nem nada do Node; `src/sdk/sdk.test.ts` confere.
+
 ## Testar um servidor de jogo sem o Recreio
 
 ```ts
@@ -99,4 +149,4 @@ const sessao = await recreio.verificador().verificar(token);
 
 O relógio da plataforma falsa é manual (`avancar(ms)`), para testar vencimento de posse sem esperar.
 
-A implementação real passa pela mesma suíte de `./testing/conformidade` que a falsa.
+A implementação real passa pela mesma suíte de `./testing/conformidade` que a falsa: `apps/recreio/test/conformidade.integration.ts` roda a suíte com o `criarClienteDoHost` chamando as rotas do app.

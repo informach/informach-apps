@@ -1,6 +1,5 @@
 import "server-only";
 import { PRODUCTS } from "@informach/config";
-import { JOGOS } from "@informach/config/jogos";
 import {
   type AssinaturaDoGrupo,
   type DecisaoDeAcesso,
@@ -8,6 +7,7 @@ import {
   type PerfilId,
   PerfilIdSchema,
 } from "@informach/recreio";
+import { manifestoDoJogo } from "@/features/jogos/config";
 import { decidirComCobertura, tierDoProduto } from "./cobertura";
 import { type AssinaturaLida, lerFatosDeAcesso } from "./repository";
 
@@ -36,7 +36,7 @@ export async function avaliarAcesso(entrada: {
   gameId?: string;
 }): Promise<DecisaoDeAcesso> {
   const perfilId = PerfilIdSchema.parse(entrada.profileId);
-  if (entrada.gameId !== undefined && !JOGOS.some((jogo) => jogo.id === entrada.gameId))
+  if (entrada.gameId !== undefined && !manifestoDoJogo(entrada.gameId))
     throw new ErroDoRecreio("JOGO_INDISPONIVEL");
   const fatos = await lerFatosDeAcesso(perfilId);
   if (!fatos) throw new ErroDoRecreio("SEM_PERFIL");
