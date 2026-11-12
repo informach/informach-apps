@@ -27,6 +27,7 @@ import {
   runInputsSchema,
   saveRecipe,
 } from "../../../shared/pipelines";
+import { STYLE_GUIDES, type StyleGuide } from "../../../shared/styleGuide";
 import { paletteFromImage } from "./imagePalette";
 import {
   failureText,
@@ -300,12 +301,15 @@ function Fonts({
   fonts,
   families,
   onChange,
+  onGuide,
   label,
   disabled = false,
 }: {
   fonts: FontPair;
   families: BundledFamily[];
   onChange(fonts: FontPair): void;
+  /** A style guide's palette and fonts taken at once (shared/styleGuide.ts). */
+  onGuide(guide: StyleGuide): void;
   label: string;
   disabled?: boolean;
 }) {
@@ -313,6 +317,19 @@ function Fonts({
   return (
     <fieldset className="pipeline-palette pipeline-fonts">
       <legend>{label}</legend>
+      <div className="pipeline-swatches">
+        {STYLE_GUIDES.map((guide) => (
+          <button
+            key={guide.id}
+            type="button"
+            disabled={disabled}
+            title={`Paleta de texto e fontes do guia de estilo: ${guide.summary}`}
+            onClick={() => onGuide(guide)}
+          >
+            Paleta e fontes do guia {guide.name.split(" · ")[0]}
+          </button>
+        ))}
+      </div>
       <label htmlFor={`${id}-title`}>
         Título
         <select
@@ -405,6 +422,9 @@ function RecipeEditor({
           fonts={draft.fonts}
           families={families}
           onChange={(fonts) => setDraft({ ...draft, fonts })}
+          onGuide={(guide) =>
+            setDraft({ ...draft, fonts: guide.fonts, textPalette: guide.textPalette })
+          }
         />
       </div>
       <div className="dialog-footer">
@@ -669,6 +689,10 @@ function RunForm({
           families={families}
           disabled={running}
           onChange={setFonts}
+          onGuide={(guide) => {
+            setPalette(guide.textPalette);
+            setFonts(guide.fonts);
+          }}
         />
         {steps.length > 0 && (
           <ol className="pipeline-steps" aria-label="Etapas">

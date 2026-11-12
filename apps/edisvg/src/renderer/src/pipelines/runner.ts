@@ -58,6 +58,8 @@ export interface PipelineEditor {
    * its colours. Empty when no kit was imported.
    */
   designKit(): DraftKit;
+  /** The style guide chosen in the assistant panel, as the assistant reads it; null for none. */
+  styleGuide(): string | null;
   /** Records on the open artboard the lesson stretch an animation of a run is (lessonClips.ts). */
   markLessonClip(value: LessonClip): void;
   /** The lesson stretches recorded in the project whose animation is still there. */
@@ -491,6 +493,7 @@ const draftWithAssistant: PipelineStep = {
       fonts: (ctx.results.fonts as DraftFonts | undefined) ?? null,
       imagePalette: (ctx.results.imagePalette as string[] | undefined) ?? [],
       kit: ctx.editor.designKit(),
+      guide: ctx.editor.styleGuide(),
       lessonStart,
       ...(demo ? { demo } : {}),
     });

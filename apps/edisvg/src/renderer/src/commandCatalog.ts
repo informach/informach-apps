@@ -63,6 +63,11 @@ export function editorCommands(available: Availability, tools: EditorCommand[]):
       label: "Importar kit de design (.zip)",
       group: "Arquivo",
     },
+    {
+      id: "insert-kit-zero-kids",
+      label: "Inserir kit Zero Kids (guia de estilo das aulas)",
+      group: "Arquivo",
+    },
     { id: "export", label: "Exportar projeto ou animação", group: "Arquivo" },
     { id: "machine", label: "Editar máquinas de estados", group: "Exibir" },
     {

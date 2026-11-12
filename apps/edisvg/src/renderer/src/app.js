@@ -18,6 +18,7 @@ import {
 import "./toolbar.css";
 import { isKitBoardName } from "../../shared/designKit";
 import { flattenScene } from "../../shared/scene.js";
+import { styleGuideById, styleGuideKit } from "../../shared/styleGuide";
 import { completeAssetImport, prepareAssetImport } from "./asset-import";
 import { mountBoardsImport } from "./boards-import-panel";
 import {
@@ -1847,6 +1848,7 @@ function action(id) {
   if (id === "import-svg") return importArtwork();
   if (id === "import-game") return importGameProject();
   if (id === "import-kit") return importDesignKit();
+  if (id === "insert-kit-zero-kids") return insertStyleKit("zero-kids");
   if (id === "import-boards") return importBoards();
   if (id === "fonts") return openFonts();
   if (id === "pipelines") return void openPipelinesForLink();
@@ -2321,6 +2323,38 @@ async function importDesignKit() {
   }
 }
 /**
+ * Arquivo › Inserir kit Zero Kids: the pieces of a style guide (shared/styleGuide.ts) come in as
+ * a design kit, the way a ZIP does, with the guide's palette and fonts, in one undo step. The
+ * pieces already in the project (by name) are not inserted twice.
+ */
+async function insertStyleKit(guideId) {
+  if (refusedDuringRun()) return;
+  const guide = styleGuideById(guideId);
+  if (!guide) return;
+  if (!window.desktop) {
+    notify("Inserir o kit precisa do aplicativo desktop.");
+    return;
+  }
+  const session = state.sessionId;
+  try {
+    const plan = planDesignKit(styleGuideKit(guide), (svg) => importSvg(svg));
+    const names = new Set(state.artboards.map((board) => board.name));
+    const boards = plan.boards.filter((board) => !names.has(board.name));
+    if (!boards.length) {
+      notify(`O kit "${guide.name}" já está no projeto.`);
+      return;
+    }
+    const families = await window.desktop.pipelineFonts().catch(() => []);
+    if (state.sessionId !== session) {
+      notify("O projeto foi substituído; nenhuma importação foi aplicada.");
+      return;
+    }
+    await applyDesignKit({ ...plan, boards }, families, session);
+  } catch (error) {
+    notify(error instanceof Error ? error.message : "Não foi possível inserir o kit.");
+  }
+}
+/**
  * Arquivo › Importar pranchetas de outro projeto: artboards of another .edisvg come in with their
  * animations, rig, logic, assets and the artboards their components show (projectImport.ts),
  * in one undo step. The other file is only read.
@@ -2710,6 +2744,7 @@ function openPipelines(handed = undefined) {
           palette: boards[0]?.scene.palette ?? [],
         };
       },
+      styleGuide: () => assistant.styleGuideText(),
       setPalette: (colors) => {
         sameRunSession();
         transact([{ type: "appearance", operation: "palette", colors }]);
@@ -3692,6 +3727,7 @@ const assistant = setupAssistant({
   importSvg: importArtwork,
   importGameProject: () => importGameProject(),
   importDesignKit: () => importDesignKit(),
+  insertStyleKit: (id) => insertStyleKit(id),
   importBoards: () => importBoards(),
   openFonts: () => openFonts(),
   /** After a save (and when a project is taken): the linked animations render what changed. */
