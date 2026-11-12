@@ -45,7 +45,7 @@ describe("jogo de teste desligado", () => {
     const mundo = await mundoDe(lia, MORADA, "Casa da Lia");
     expect(await prepararPaginaDoJogo(lia.perfil.id, MORADA, mundo)).toEqual({
       tipo: "pronto",
-      jogo: { id: MORADA, nome: "Morada" },
+      jogo: { id: MORADA, nome: "Morada", origemDaArte: null },
       mundo: { id: mundo, nome: "Casa da Lia" },
     });
     // O mundo é do Morada: pedido pelo jogo de teste, que não existe aqui, não abre nada.

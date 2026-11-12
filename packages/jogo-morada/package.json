@@ -17,6 +17,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@informach/morada-arte": "workspace:*",
     "@informach/morada-sim": "workspace:*",
     "@informach/recreio": "workspace:*",
     "three": "0.186.1"

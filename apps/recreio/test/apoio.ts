@@ -62,8 +62,12 @@ export async function codigoDoBanco(operacao: Promise<unknown>): Promise<string 
 
 export const UNICO = "23505";
 export const CHECAGEM = "23514";
-/** `on delete restrict`: há linhas que dependem da que se tentou apagar. */
-export const RESTRICAO = "23001";
+/**
+ * `on delete restrict`: há linhas que dependem da que se tentou apagar. O
+ * Postgres 18 responde `restrict_violation` (23001); até o 17, como o do CI,
+ * `foreign_key_violation` (23503). Nos dois a linha fica.
+ */
+export const RESTRICAO: readonly string[] = ["23001", "23503"];
 
 /**
  * Uma sessão de login de verdade para a conta: a linha em `core.sessions` que

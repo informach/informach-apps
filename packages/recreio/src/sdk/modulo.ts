@@ -28,6 +28,12 @@ export type OpcoesDeMontagem = {
    * queda) não passa por aqui.
    */
   aoFalhar(erro: unknown): void;
+  /**
+   * Origem HTTP de onde o jogo baixa a arte (`RECREIO_GAME_ORIGINS[jogo].assets`),
+   * a mesma que a política de segurança da página libera. Sem ela, o jogo
+   * desenha sem a arte.
+   */
+  origemDaArte?: string;
 };
 
 export type JogoMontado = {

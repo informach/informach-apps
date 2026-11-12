@@ -26,6 +26,7 @@
     "@informach/db": "workspace:*",
     "@informach/emails": "workspace:*",
     "@informach/jogo-morada": "workspace:*",
+    "@informach/morada-arte": "workspace:*",
     "@informach/morada-sim": "workspace:*",
     "@informach/recreio": "workspace:*",
     "@informach/ui": "workspace:*",

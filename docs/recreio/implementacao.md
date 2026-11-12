@@ -89,7 +89,7 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 | Lote | Entrega | Estado |
 | --- | --- | --- |
 | X1 | Plataforma real no servidor, `/jogar/morada`, E2E com duas contas | feito |
-| X2 | Empacotador e corpos reais na máquina de desenvolvimento | em curso |
+| X2 | Empacotador e corpos reais na máquina de desenvolvimento | feito |
 | X3 | Railway atrás da constante, Bastidores mínimo, guias | a fazer |
 | X4 | Deploy fechado e medição de custo, só com autorização | a fazer |
 
@@ -198,6 +198,44 @@ Decisões tomadas nestes lotes:
 
 Lacunas conhecidas, aceitas nesta etapa: a leitura do diário não é paginada; a emissão de ingresso não tem limite de tentativas; a renovação não recusa quando o jogo entra em `manutencao`; a entrada no mundo não reavalia o direito de jogar (a renovação da sessão e o batimento cobrem); nenhum serviço, variável ou agendador no `.railway/railway.ts` (lote X3).
 
+### X2: empacotador e corpos reais (12/11/2026)
+
+**Os moradores aparecem com os corpos de verdade**: Lia, Marcos, Nina e Vó Ana, vestidos e nas cores da aparência da simulação, de pé e andando, com o servidor do jogo entregando a arte só a quem tem sessão. A arte vem de um clone do `informach/artes-3d` no commit `4f3012101735ffddd066c31bb0bd8319723eb9ba`, fora deste repositório, e a saída do empacotador também fica fora. Nenhum arquivo de arte entrou aqui.
+
+O que entrou:
+
+- **`packages/morada-arte`**: o empacotador, vindo do protótipo. Lê corpos, peças (`MIT1`), catálogos e bibliotecas de animação com Zod, monta cada personagem com a mesma conta da página de referência (encaixe das peças, pele coberta, camadas, cabelo sob chapéu), pinta pele, roupas e cabelo nos vértices (ou numa textura pequena quando a estampa não cabe nos vértices) e escreve um GLB por personagem, um por biblioteca de animação (só os clipes que o jogo usa) e o `manifest.json` (sem espaços). Cada arquivo leva o hash do conteúdo no nome e uma cópia `.br`. A linha de comando recusa `--arte` e `--saida` dentro deste repositório.
+- **`apps/morada-server/src/arte.ts`**: `/arte/<arquivo>` com `MORADA_ARTE_DIR`. Detalhes no [guia do servidor](../../apps/morada-server/README.md#arte).
+- **`packages/jogo-morada/src/ativos/arte.ts`**: `AtivosDeArte`, atrás da mesma interface `Ativos`. Regras no [guia do cliente](../../packages/jogo-morada/README.md). `escolhas.ts` tem as contas puras sobre o manifesto.
+- **Ligação**: `OpcoesDeMontagem.origemDaArte` no SDK, `jogo.origemDaArte` em `prepararPaginaDoJogo` (de `RECREIO_GAME_ORIGINS[jogo].assets`), o adaptador do Morada e `OpcoesDoMorada.origemDaArte`. A bancada ganhou `&arte`.
+- `PoseDoMorador.carregando`: a cena diz qual corpo carrega um bebê.
+
+Verificações:
+
+- `pnpm install` acrescentou ao `pnpm-lock.yaml` só as dependências do empacotador (`@gltf-transform/*` 4.5.1, `meshoptimizer` 1.3.0, `pngjs` 7.0.0) e os vínculos de workspace. Nada mais mudou.
+- Typecheck de `morada-arte`, `morada-server`, `jogo-morada`, `recreio` e `recreio-app`: sem erros. `pnpm exec biome check` nos cinco: limpo.
+- Testes: `morada-arte` 47 e 1 pulado sem a arte, 48 com `ARTES_3D_DIR` (67 s); `morada-server` 86 (eram 73; os novos são da rota de arte); `jogo-morada` 101 (eram 76; escolhas e `AtivosDeArte`, com `fetch` falso e uma cena com esqueleto montada no teste); `recreio` 106; `recreio-app` 199.
+- **Determinismo**: duas rodadas do empacotador sobre a prova deram os mesmos SHA-256 nos 28 arquivos, e os pacotes têm os mesmos hashes da última rodada do protótipo. 38 s por rodada.
+- **Tamanhos da prova** (com brotli): personagens de 97 a 175 kB; bibliotecas de 19 a 253 kB; manifesto 163 kB, ou 20 kB com brotli. Total de 5,4 MB, ou 1,92 MB com brotli.
+- **No navegador**, servidor do jogo no modo `falsa` com `MORADA_ARTE_DIR` e a bancada com `&arte` (Chromium, GPU): o mundo fica pronto em 0,7 s, e a arte chega logo depois. Na primeira medida foram 10 arquivos e **1,50 MB transferidos** (brotli em todos), incluindo Duda e Caio, que estão fora do bairro. Depois disso o pacote passou a ser pedido só quando a cena desenha o morador, e quem está fora não baixa mais nada; essa economia não foi medida de novo no navegador (o teste de unidade cobre). Cena com a arte: p95 de 16,8 ms (60 quadros), 27 chamadas de desenho, 146 mil triângulos. Nenhum erro de console nem de página; o único aviso (`PCFSoftShadowMap`) é anterior à arte.
+- Regressão sem arte, como no CI: `pnpm --filter @informach/recreio-app test:integration` 143 testes em 9 arquivos, contra um Postgres descartável (numa primeira rodada, o processo de `mundos.integration.ts` caiu com um erro nativo do Windows, 0xC0000409, antes de rodar teste algum; não se repetiu). `pnpm --filter @informach/recreio-app e2e`: 5 testes, incluindo a prova da etapa com o Morada (2,9 min). `pnpm --filter @informach/jogo-morada e2e`: 17 testes.
+- O servidor recusa o manifesto sem sessão (401, com o CORS da origem) e sobe dizendo quantos arquivos e bytes carregou e o commit da arte.
+- Olhei as telas: a família vestida, nas cores certas, de pé no chão e nas alturas relativas certas; andando no quintal.
+
+**Não exercitado**: sentar e deitar no jogo. Lia foi mandada à cama de casal e deitou, mas a caixa procedural da cama tem 0,999 m (a altura da cabeceira) e cobre quem deita no colchão, a 0,52 m; o mesmo acontece com o corpo procedural. O sofá ficou na fila atrás do sono. A descida do corpo para o apoio do clipe e a troca dos pesos da saia têm teste de unidade, e as telas do visor do protótipo mostram sentado e deitado. Também não foram exercitados a gravidez e o bebê no colo no jogo (um nascimento leva mais de 15 minutos de roteiro); os testes cobrem as formas de gravidez, a biblioteca de grávida pedida só no 2º trimestre e o colo seguindo as mãos. Nem o caminho pelo portal: `/jogar/morada` com `assets` declarado, a CSP e o SDK de verdade. O caminho do portal sem arte segue coberto pelo E2E.
+
+Decisões:
+
+- **O colo segue as mãos.** Quem carrega fica no clipe de segurar, andando ou não; só um gesto de cuidado (`resident.care.*`) toma o lugar. O colo é o meio dos ossos das mãos a cada quadro, no referencial da raiz; sem segurar, a âncora do manifesto. O bebê no colo fica na pose de descanso, deitado atravessado entre as mãos, de barriga para cima, com a cabeça para a mão esquerda. É o que o visor do protótipo fazia; a cena não mudou.
+- **Rotações das bibliotecas: nada a mudar.** A nota do protótipo dizia que gravar as rotações em 16 bits cortaria as bibliotecas de 840 para 341 kB com brotli. Elas **já** saem em 16 bits normalizados com o filtro de quatérnio do meshopt (modo `FILTER` do gltf-transform). O número da nota veio de um erro no script de medida: ele multiplicou por 32767 valores que já eram inteiros e saturou quase tudo. Medido de novo, gravar sem meshopt ou com `QUANTIZE` deixa a biblioteca `adulto` com 276 a 302 kB com brotli, contra 242 kB hoje.
+- **Moradores do mesmo pacote** dividem geometria, materiais e texturas e têm cada um o próprio esqueleto. Quem troca os pesos da saia (sentado, deitado) leva uma cópia rasa da geometria, com os mesmos atributos. Essa cópia não é solta ao descartar o morador, porque soltá-la tiraria da placa buffers que os outros moradores usam; sobra um objeto pequeno por troca de corpo (mudança de fase).
+- O clique num morador de arte acerta uma caixa invisível do tamanho do corpo. Raio contra malha com esqueleto calcula a pele de cada triângulo na CPU.
+- O recém-nascido empacotado não veste nenhum morador: a simulação não tem a fase `recem` (o bebê nasce `colo`).
+
+Achados corrigidos nesta passagem: o `.gitignore` do empacotador ignorava `src/saida/` junto com a pasta de saída, e o commit `wip` não tinha `src/saida/biblioteca.ts` nem `src/saida/glb.ts` (um clone novo não compilaria); `pnpm --filter … empacotar -- --saida` falhava com o `--` que o pnpm repassa; o `escolhas.ts` usava um campo de pose que não existia (o typecheck do cliente não passava); a cópia `.br` dividia o ETag com o arquivo original.
+
+Abertos (da arte, para o D1 e o titular): a biblioteca de grávida não tem segurar, embalar nem acenar grande; nove bibliotecas de esqueleto não foram baixadas nem empacotadas (`pequeno` e `adolescente` ficam procedurais); objetos de mão e tramas com furo não são suportados (o empacotador recusa); com saia fechada, deitar de pernas abertas deixa ver o corte da pele escondida; o guia da biblioteca de arte ainda diz que os corpos trazem cabelo e roupa, e `roupas.json` tem 360 itens contra 361 no guia.
+
 ### X1: o Morada no Recreio de verdade (12/11/2026)
 
 **A condição de saída da etapa 1 foi provada localmente**: duas contas jogam a mesma família, uma cai, a outra continua, a instância é morta e tudo volta. O custo por hora de mundo ainda não foi medido; é do lote X4, no Railway.
@@ -228,7 +266,7 @@ Abertos:
 
 - **`restaurar` do `@informach/morada-sim`**: o mundo volta parado no tick do último fato reaplicado, e o id dos fatos leva o tick, então o primeiro fato depois da volta podia repetir um id e congelar o mundo. O servidor anda um passo depois de reaplicar fatos (teste em `apps/morada-server/test/quedas.test.ts`), mas a causa está na simulação e vale para qualquer outro uso de `restaurar`.
 - `instancia.passo()` espera todos os mundos: uma chamada lenta ao Recreio atrasa os outros mundos da instância.
-- Para o X2: a origem da arte já entra na política de segurança, mas a página não a entrega ao cliente, e o cliente cria os ativos procedurais fixos.
+- Para o X2 (resolvido no X2): a origem da arte já entra na política de segurança, mas a página não a entrega ao cliente, e o cliente cria os ativos procedurais fixos.
 - Para o X3: `apps/morada-server` roda com `tsx` e não tem build nem `start` de produção; a configuração exige `https` em `RECREIO_API_URL` em produção, o que recusa o endereço interno do Railway.
 
 ### P7: página do jogo, jogo de teste e ponta a ponta (12/11/2026)

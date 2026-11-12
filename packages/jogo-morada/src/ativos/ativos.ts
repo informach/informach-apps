@@ -9,9 +9,9 @@ import type { PosturaDoCorpo } from "../cena/situacao";
  * cada coisa está, de quem é clicável e de quem dirige quem; os ativos só
  * dizem que cara as coisas têm.
  *
- * Hoje há uma implementação, `AtivosProcedurais` (cápsulas e caixas). Os
- * pacotes de arte entram depois por outra implementação desta mesma interface,
- * sem a cena mudar.
+ * Há duas implementações: `AtivosProcedurais` (cápsulas e caixas), que roda
+ * em qualquer lugar, e `AtivosDeArte`, que veste os moradores com os pacotes
+ * de arte do servidor do jogo e usa as procedurais enquanto eles não chegam.
  *
  * Convenções do que os ativos devolvem, as do glTF: metros, altura em Y, a
  * frente em +Z, a origem no chão (nos pés do morador; no ponto de inserção do
@@ -32,6 +32,8 @@ export type PoseDoMorador = {
   agindo: boolean;
   /** O clipe que a interação pede (`resident.eat.stand`...). O procedural ignora. */
   animacao: string | null;
+  /** Este corpo carrega um bebê no colo. */
+  carregando: boolean;
   /** Quanto da gravidez passou, de 0 a 1. */
   gravidez: number;
   /** Relógio da cena e tempo desde o quadro anterior, em milissegundos. */
