@@ -38,6 +38,8 @@ export const ASSET_RUNTIME_FIELDS = [
   "alpha",
   "fps",
   "vfr",
+  // When the file last changed, written down when it was not known yet (shared/mediaChange.ts).
+  "mtime",
 ] as const satisfies readonly (keyof Asset)[];
 
 type RuntimeField = (typeof ASSET_RUNTIME_FIELDS)[number];
@@ -235,14 +237,16 @@ export const closeTurn = (open: AiTurn | null, turn: AiTurn | null): AiTurn | nu
   open && turn && open.id === turn.id ? null : open;
 
 /** A redrawn picture can come out another size (drawn for the lesson's format of now). */
-export type RelinkChanges = Partial<Pick<Asset, "path" | "size" | "cursor" | "width" | "height">>;
+export type RelinkChanges = Partial<
+  Pick<Asset, "path" | "size" | "mtime" | "cursor" | "width" | "height">
+>;
 
 /**
  * A media file (or the cursor data next to it) found again somewhere else: every snapshot that
  * still points at the old place gets the new one, so undoing never brings the broken link back.
  */
 export function relinkIn(p: Project, before: Asset, changes: RelinkChanges): Project {
-  const { path, size, cursor, width, height } = changes;
+  const { path, size, mtime, cursor, width, height } = changes;
   let changed = false;
   const assets = p.assets.map((a) => {
     if (a.id !== before.id) return a;
@@ -254,6 +258,8 @@ export function relinkIn(p: Project, before: Asset, changes: RelinkChanges): Pro
     if (movesPath) {
       next.path = path;
       if (size !== undefined) next.size = size;
+      if (mtime !== undefined) next.mtime = mtime;
+      else delete next.mtime;
       if (width !== undefined && height !== undefined) {
         next.width = width;
         next.height = height;

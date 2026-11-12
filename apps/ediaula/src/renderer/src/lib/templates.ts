@@ -1,15 +1,17 @@
 import { ANNOTATION_MOTION, KIND_LABEL } from "@shared/annotation";
 import { openGap } from "@shared/inserts";
 import {
+  frameUnits,
+  type LayerSize,
   type LessonTemplate,
-  stackY,
+  placeLayers,
   type TemplateContext,
   templateById,
   templateDefaults,
   templateLayers,
 } from "@shared/templates";
-import { newId, projectDuration } from "@shared/timeline";
-import type { Asset, Clip, Project } from "@shared/types";
+import { clipEnd, newId, newTrackName, projectDuration } from "@shared/timeline";
+import type { Asset, Clip, Project, Track } from "@shared/types";
 import { usePlayback } from "@/state/playback";
 import { type Commit, personCommit, useProject } from "@/state/project";
 import { naturalTransform, OVERSAMPLE, overlayTrack, renderAnnotation } from "./annotations";
@@ -40,12 +42,62 @@ export function templateStart(t: LessonTemplate, p: Project): number {
       : usePlayback.getState().time;
 }
 
-/**
- * Inserts a template as one annotation clip per layer, stacked on the tracks above the lesson,
- * in one undo step. Full-screen templates push the lesson forward. Returns the clip ids.
- */
 /** A full-screen template that would leave a locked track out of sync is not inserted. */
 export class TemplateBlockedError extends Error {}
+
+/** Rendered pictures in 1080p pixels of a frame `frameHeight` high. */
+function layerSizes(
+  rendered: { width: number; height: number; margin: number }[],
+  frameHeight: number,
+): LayerSize[] {
+  const k = (frameHeight / 1080) * OVERSAMPLE;
+  return rendered.map((r) => ({ w: r.width / k, h: r.height / k, margin: r.margin / k }));
+}
+
+/**
+ * The track for a template's layer: right below the presenter (a cut-out video: chroma key or
+ * transparency) when one plays then, above everything else, so the slide never hides her;
+ * otherwise a free track above the lesson. Each layer goes above the one before.
+ */
+export function slideTrack(
+  p: Project,
+  start: number,
+  end: number,
+): { tracks: Track[]; track: Track } {
+  const assets = new Map(p.assets.map((a) => [a.id, a]));
+  const active = p.clips.filter((c) => c.start < end - 1e-3 && clipEnd(c) > start + 1e-3);
+  const presenters = new Set(
+    active
+      .filter((c) => {
+        const a = assets.get(c.assetId);
+        return !c.annotation && a?.kind === "video" && (!!a.key || a.alpha === true);
+      })
+      .map((c) => c.trackId),
+  );
+  const top = p.tracks.findIndex((t) => presenters.has(t.id));
+  if (top < 0) return overlayTrack(p, start, end, "Templates");
+  const busy = new Set(active.map((c) => c.trackId));
+  for (let i = top + 1; i < p.tracks.length; i++) {
+    const t = p.tracks[i];
+    if (t.kind !== "video") continue;
+    if (busy.has(t.id)) break;
+    if (!t.locked) return { tracks: p.tracks, track: t };
+  }
+  const track: Track = {
+    id: newId("t"),
+    kind: "video",
+    name: newTrackName(p.tracks),
+    muted: false,
+    hidden: false,
+    locked: false,
+  };
+  return { tracks: [...p.tracks.slice(0, top + 1), track, ...p.tracks.slice(top + 1)], track };
+}
+
+/**
+ * Inserts a template as one annotation clip per layer, below the presenter or above the lesson,
+ * in one undo step. Full-screen templates push the lesson forward. Returns the clip ids.
+ */
 
 export async function addTemplate(
   id: string,
@@ -57,22 +109,19 @@ export async function addTemplate(
   const p = useProject.getState().project;
   if (!t || !p) return [];
   const v = { ...templateDefaults(t, templateContext(p)), ...values };
+  const frame = frameUnits(p.settings);
   const layers = templateLayers(
     t,
     v,
-    activePalette(p).roles,
+    activePalette(p),
     p.paletteFonts ? activePalette(p).fonts : undefined,
+    frame,
   );
   const rendered = await Promise.all(
     layers.map((l) => renderAnnotation(l.spec, p.settings.height, p.settings.width)),
   );
   const paths = await Promise.all(rendered.map((r) => window.api.saveGenerated(r.bytes, "png")));
-  // Layers without a fixed height are stacked around the template's center, by their real heights.
-  const flowing = layers.map((l, i) => (l.y === undefined ? i : -1)).filter((i) => i >= 0);
-  const ys = stackY(
-    flowing.map((i) => rendered[i].height / OVERSAMPLE / p.settings.height),
-    t.flowY,
-  );
+  const places = placeLayers(t, layers, layerSizes(rendered, p.settings.height), frame);
   const start = Math.max(0, at ?? templateStart(t, p));
   if (t.fullscreen) {
     // A full-screen template pushes the lesson forward; a locked track would stay behind.
@@ -126,10 +175,9 @@ export async function addTemplate(
       };
       const from = start + l.at;
       const duration = Math.max(0.5, t.duration - l.at);
-      const { tracks, track } = overlayTrack(next, from, from + duration, "Templates");
-      const y = l.y ?? ys[flowing.indexOf(i)];
+      const { tracks, track } = slideTrack(next, from, from + duration);
       const transform = {
-        ...naturalTransform(r, next.settings, l.x, y),
+        ...naturalTransform(r, next.settings, places[i].x, places[i].y),
         ...(l.opacity !== undefined ? { opacity: l.opacity } : {}),
       };
       const clip: Clip = {
@@ -179,24 +227,25 @@ export async function templateThumb(
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   const project = useProject.getState().project;
+  const frame = frameUnits({ width: W, height: H });
   const layers = templateLayers(
     t,
     values,
-    activePalette(project).roles,
+    activePalette(project),
     project?.paletteFonts ? activePalette(project).fonts : undefined,
+    frame,
   );
   const rendered = await Promise.all(layers.map((l) => renderAnnotation(l.spec, H, W)));
-  const flowing = layers.map((l, i) => (l.y === undefined ? i : -1)).filter((i) => i >= 0);
-  const ys = stackY(
-    flowing.map((i) => rendered[i].height / OVERSAMPLE / H),
-    t.flowY,
-  );
+  const places = placeLayers(t, layers, layerSizes(rendered, H), frame);
   for (const [i, l] of layers.entries()) {
     const r = rendered[i];
     const bmp = await createImageBitmap(new Blob([r.bytes as BlobPart], { type: "image/png" }));
-    const y = (l.y ?? ys[flowing.indexOf(i)]) * canvas.height;
     ctx.globalAlpha = l.opacity ?? 1;
-    ctx.drawImage(bmp, l.x * canvas.width - r.width / 2, y - r.height / 2);
+    ctx.drawImage(
+      bmp,
+      places[i].x * canvas.width - r.width / 2,
+      places[i].y * canvas.height - r.height / 2,
+    );
   }
   const url = canvas.toDataURL("image/png");
   thumbs.set(key, url);

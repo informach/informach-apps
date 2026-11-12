@@ -1,3 +1,4 @@
+import { type Attachment, revokeAttachments } from "@informach/edi-desktop/ai-attachments";
 import { type SavedChat, type TurnChange, turnChangesFrom } from "@shared/assistantChat";
 import type { AssistantEvent } from "@shared/types";
 import { create } from "zustand";
@@ -32,6 +33,11 @@ export interface ChatItem {
   changes?: TurnChange[];
   /** The undo history's turn, while "Desfazer este pedido" can take it back. */
   turn?: string;
+  /**
+   * Reference images sent with a message, shown as thumbnails. Only for this session: the kept
+   * conversation has the text (the engine's own session still has the images).
+   */
+  images?: Attachment[];
 }
 
 interface Conversation {
@@ -46,7 +52,7 @@ interface Conversation {
 
 interface AssistantStore {
   conversations: Record<string, Conversation>;
-  send(conversationId: string, text: string): Promise<void>;
+  send(conversationId: string, text: string, images?: Attachment[]): Promise<void>;
   stop(conversationId: string): void;
   reset(conversationId: string): void;
   /** Reads the conversation kept for the lesson, once. */
@@ -226,16 +232,23 @@ export const useAssistant = create<AssistantStore>((set, get) => {
         };
       });
     },
-    send: async (id, text) => {
+    send: async (id, text, images = []) => {
       // Everything the assistant changes in this turn is undone by one Ctrl+Z, in this project only.
       const turn = useProject.getState().beginAiTurn(id);
       update(id, (c) => ({
         ...c,
         busy: true,
-        items: [...c.items, { id: nextId++, role: "user", text, tools: [] }],
+        items: [
+          ...c.items,
+          { id: nextId++, role: "user", text, tools: [], ...(images.length ? { images } : {}) },
+        ],
       }));
       try {
-        await window.api.assistantSend(id, text);
+        await window.api.assistantSend(
+          id,
+          text,
+          images.map(({ mediaType, data }) => ({ mediaType, data })),
+        );
       } catch (err) {
         update(id, (c) => ({
           ...c,
@@ -274,6 +287,8 @@ export const useAssistant = create<AssistantStore>((set, get) => {
     stop: (id) => void window.api.assistantStop(id),
     reset: (id) => {
       clearTimeout(saving.get(id));
+      // The thumbnails of the conversation go with it.
+      revokeAttachments(get().conversations[id]?.items.flatMap((it) => it.images ?? []) ?? []);
       void window.api.assistantReset(id);
       update(id, () => ({ ...empty, loaded: true }));
     },

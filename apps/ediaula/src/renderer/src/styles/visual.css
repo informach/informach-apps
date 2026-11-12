@@ -881,3 +881,19 @@ button.key-swatch {
   border-radius: 50%;
   border: 1px solid var(--line);
 }
+
+/* Icons of labels and list items, and the short fields (a box's number). */
+.icon-chips .chip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+}
+.short-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.short-text .input {
+  max-width: 120px;
+}

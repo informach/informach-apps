@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { TurnImage } from "@informach/edi-desktop/ai-clients";
 import type { BrowserWindow } from "electron";
 import { buildRequest, type Effort, resolveModel, usageCost } from "../shared/aiModels.ts";
 import {
@@ -14,6 +15,7 @@ import { decryptKey, readStored, storedEffort } from "./aiSettings.ts";
 import { withRecap } from "./conversations.ts";
 import { memory } from "./memory.ts";
 import { runToolRound, STOPPED } from "./toolRound.ts";
+import { apiContent } from "./turnImages.ts";
 
 const SYSTEM = `${EDITOR_GUIDE}
 
@@ -85,6 +87,7 @@ export async function sendMessage(
   conversationId: string,
   text: string,
   effortOverride?: Effort,
+  images: readonly TurnImage[] = [],
 ): Promise<void> {
   const emit = (e: AssistantEvent): void => {
     if (win && !win.isDestroyed()) win.webContents.send("assistant:event", conversationId, e);
@@ -107,7 +110,10 @@ export async function sendMessage(
   const known = conversations.get(conversationId);
   const messages = known ?? [];
   conversations.set(conversationId, messages);
-  messages.push({ role: "user", content: known ? text : await withRecap(conversationId, text) });
+  messages.push({
+    role: "user",
+    content: apiContent(known ? text : await withRecap(conversationId, text), images),
+  });
 
   running.get(conversationId)?.abort();
   const abort = new AbortController();

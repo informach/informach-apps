@@ -23,9 +23,17 @@ export interface Transform {
   scale: number;
   /** 0..1. */
   opacity: number;
+  /** The mask's rectangle: what is cut off each side (the picture stays where it is). */
   crop?: Crop;
-  /** Shape of the visible part: rounded corners or a circle (the webcam). */
-  mask?: "rounded" | "circle";
+  /**
+   * Shape of the visible part: rounded corners, a circle (the webcam: rounded by half the short
+   * side) or an ellipse filling the visible box (a circle when it is square).
+   */
+  mask?: "rounded" | "circle" | "ellipse";
+  /** Rounded shape: the corners' radius in pixels of a 1080p frame (absent: 28). */
+  corner?: number;
+  /** Soft edge of the shape, inward, in pixels of a 1080p frame (absent or 0: a sharp edge). */
+  feather?: number;
   /** Border color inside the shape edge, '#RRGGBB'. */
   border?: string;
   /** Drop shadow behind the visible shape. */
@@ -100,7 +108,7 @@ export const ROUNDED_RADIUS = 28;
 
 /** Corner radius in output pixels for a visible box of w × h (half the short side = circle). */
 export const maskRadius = (
-  t: Pick<Transform, "mask">,
+  t: Pick<Transform, "mask" | "corner">,
   w: number,
   h: number,
   frameHeight: number,
@@ -108,8 +116,80 @@ export const maskRadius = (
   t.mask === "circle"
     ? Math.min(w, h) / 2
     : t.mask === "rounded"
-      ? Math.min((ROUNDED_RADIUS * frameHeight) / 1080, Math.min(w, h) / 2)
+      ? Math.min(((t.corner ?? ROUNDED_RADIUS) * frameHeight) / 1080, Math.min(w, h) / 2)
       : 0;
+
+/** The shape that cuts a visible box of w × h, in output pixels. */
+export interface MaskShape {
+  ellipse: boolean;
+  /** Corner radius (not used by an ellipse). */
+  radius: number;
+  /** Soft edge, inward (0: sharp). */
+  feather: number;
+}
+
+/** The clip's shape for a visible box of w × h (null: the plain rectangle, nothing to cut). */
+export function maskShape(
+  t: Pick<Transform, "mask" | "corner" | "feather">,
+  w: number,
+  h: number,
+  frameHeight: number,
+): MaskShape | null {
+  const ellipse = t.mask === "ellipse";
+  const radius = ellipse ? 0 : maskRadius(t, w, h, frameHeight);
+  const feather = Math.min(
+    Math.max(0, ((t.feather ?? 0) * frameHeight) / 1080),
+    Math.min(w, h) / 2,
+  );
+  return ellipse || radius > 0 || feather > 0 ? { ellipse, radius, feather } : null;
+}
+
+/**
+ * Signed distance from a point of a w × h box (pixel coordinates, from its top-left corner) to
+ * the edge of its shape: negative inside. The export's FFmpeg expressions (export/fx.ts) are the
+ * same formulas, so the preview and the export cut the same pixels.
+ */
+export function shapeDistance(
+  shape: MaskShape,
+  w: number,
+  h: number,
+  x: number,
+  y: number,
+): number {
+  const px = x - w / 2;
+  const py = y - h / 2;
+  if (shape.ellipse) return (Math.hypot(px / (w / 2), py / (h / 2)) - 1) * (Math.min(w, h) / 2);
+  const R = Math.min(shape.radius, w / 2, h / 2);
+  const qx = Math.abs(px) - (w / 2 - R);
+  const qy = Math.abs(py) - (h / 2 - R);
+  return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - R;
+}
+
+/** How much of a pixel shows (0..1): sharp edges antialiased over a pixel, soft ones over `feather`. */
+export function shapeAlpha(shape: MaskShape, w: number, h: number, x: number, y: number): number {
+  const d = shapeDistance(shape, w, h, x, y);
+  const v = shape.feather > 0 ? -d / shape.feather : 0.5 - d;
+  return Math.max(0, Math.min(1, v));
+}
+
+/**
+ * The biggest square inside a mask (crop) of a w × h picture, on the same center: a circle made
+ * from a mask that was not square.
+ */
+export function squareMask(c: Crop, width: number, height: number): Crop {
+  const w = width * (1 - c.left - c.right);
+  const h = height * (1 - c.top - c.bottom);
+  const side = Math.min(w, h);
+  const cx = width * c.left + w / 2;
+  const cy = height * c.top + h / 2;
+  const r = (v: number): number => Math.round(v * 10000) / 10000;
+  return {
+    left: r((cx - side / 2) / width),
+    right: r(1 - (cx + side / 2) / width),
+    top: r((cy - side / 2) / height),
+    bottom: r(1 - (cy + side / 2) / height),
+  };
+}
 
 /** Crop that keeps a centered square, for a circle on a non-square picture. */
 export function squareCrop(width: number, height: number): Crop {

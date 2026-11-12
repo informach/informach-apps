@@ -47,6 +47,9 @@ export interface Palette {
   roles: Record<Role, string>;
   /** The theme's typefaces: titles (title, card, step) and running text (balloons, notes, labels, captions). */
   fonts?: { heading?: string; body?: string };
+  /** Light page behind the template slides and the softer text on it (absent: made from the roles). */
+  page?: string;
+  muted?: string;
   /** Comes with EdiAula (read-only: duplicate it to change). */
   builtIn?: boolean;
 }
@@ -122,9 +125,61 @@ export const SISTEMA_ZERO_PALETTE: Palette = {
     creative: "#6D3BF5",
   },
   fonts: { heading: "Baloo 2", body: "Nunito" },
+  page: "#E9EEF6",
+  muted: "#46536E",
 };
 
 export const BUILT_IN_PALETTES = [EDIAULA_PALETTE, SISTEMA_ZERO_PALETTE];
+
+/** `a` moved `t` of the way to `b` (both #RRGGBB). */
+export function mixHex(a: string, b: string, t: number): string {
+  const pa = parseInt(a.replace("#", "").slice(0, 6), 16);
+  const pb = parseInt(b.replace("#", "").slice(0, 6), 16);
+  const ch = (v: number, shift: number): number => (v >> shift) & 255;
+  const part = (shift: number): string =>
+    Math.round(ch(pa, shift) + (ch(pb, shift) - ch(pa, shift)) * t)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${part(16)}${part(8)}${part(0)}`.toUpperCase();
+}
+
+/**
+ * The colors of the template slides besides the roles: the light page, the softer text on it and
+ * a pale tint of the accent (the "pause and think" slide).
+ */
+export interface SlideColors {
+  page: string;
+  muted: string;
+  soft: string;
+}
+
+export function slideColors(p: Palette): SlideColors {
+  return {
+    page: (p.page ?? mixHex(p.roles.light, p.roles.primary, 0.08)).toUpperCase(),
+    muted: (p.muted ?? mixHex(p.roles.ink, p.roles.light, 0.3)).toUpperCase(),
+    soft: mixHex(p.roles.light, p.roles.accent, 0.28),
+  };
+}
+
+const luminance = (hex: string): number => {
+  const v = parseInt(hex.replace("#", "").slice(0, 6), 16);
+  const lin = (c: number): number => {
+    const x = c / 255;
+    return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin((v >> 16) & 255) + 0.7152 * lin((v >> 8) & 255) + 0.0722 * lin(v & 255);
+};
+
+/** Contrast between two colors (WCAG, 1 to 21). */
+export function contrast(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/** `text` on `bg` when big bold letters can be read on it (contrast 3), else the palette's ink or light. */
+export function readableOn(text: string, bg: string, p: Palette): string {
+  return contrast(text, bg) >= 3 ? text : textOn(bg, p);
+}
 
 const norm = (hex: string): string => hex.toUpperCase();
 
@@ -166,7 +221,12 @@ export function colorMapper(
     "ink",
     "dark",
   ];
-  for (const p of from) for (const r of order) map.set(norm(p.roles[r]), to.roles[r]);
+  const toSlides = slideColors(to);
+  for (const p of from) {
+    const fromSlides = slideColors(p);
+    for (const k of ["soft", "muted", "page"] as const) map.set(fromSlides[k], toSlides[k]);
+    for (const r of order) map.set(norm(p.roles[r]), to.roles[r]);
+  }
   return (hex) => (hex ? (map.get(norm(hex)) ?? hex) : hex);
 }
 
@@ -182,8 +242,10 @@ export function recolorAnnotation(
     ...(a.outline ? { outline: { ...a.outline, color: map(a.outline.color)! } } : {}),
     ...(a.fill ? { fill: map(a.fill) } : {}),
     ...(a.shadow ? { shadow: { ...a.shadow, color: map(a.shadow.color)! } } : {}),
+    ...(a.textColor ? { textColor: map(a.textColor) } : {}),
     ink: to.roles.ink,
     ...(a.kind === "card" ? { accent: to.roles.accent } : {}),
+    ...(a.kind === "item" && a.accent ? { accent: map(a.accent) } : {}),
   };
 }
 
@@ -221,15 +283,23 @@ const TEXT_KINDS = new Set<Annotation["kind"]>([
   "step",
   "card",
   "lowerthird",
+  "box",
+  "item",
 ]);
-const HEADING_KINDS = new Set<Annotation["kind"]>(["title", "card", "step"]);
+const HEADING_KINDS = new Set<Annotation["kind"]>(["title", "card", "step", "box", "item"]);
 
-export const fontRole = (kind: Annotation["kind"]): "heading" | "body" =>
-  HEADING_KINDS.has(kind) ? "heading" : "body";
+type FontSubject = Annotation["kind"] | Pick<Annotation, "kind" | "textRole">;
+
+/** Which of the theme's fonts an annotation (or a kind) takes: its own choice, else its kind's. */
+export const fontRole = (a: FontSubject): "heading" | "body" => {
+  const { kind, textRole } = typeof a === "string" ? { kind: a, textRole: undefined } : a;
+  return textRole ?? (HEADING_KINDS.has(kind) ? "heading" : "body");
+};
 
 /** The theme's font for an annotation kind (undefined: the kind has no text or the theme sets none). */
-export function themeFont(kind: Annotation["kind"], p: Palette): string | undefined {
-  return TEXT_KINDS.has(kind) ? p.fonts?.[fontRole(kind)] : undefined;
+export function themeFont(a: FontSubject, p: Palette): string | undefined {
+  const kind = typeof a === "string" ? a : a.kind;
+  return TEXT_KINDS.has(kind) ? p.fonts?.[fontRole(a)] : undefined;
 }
 
 /** Every font some theme assigns: those are replaced when themes change; others were picked by hand. */
@@ -245,7 +315,14 @@ export function themeFontSet(palettes: Palette[]): Set<string> {
  */
 export function refont(a: Annotation, to: Palette | null, themed: Set<string>): Annotation {
   if (!TEXT_KINDS.has(a.kind) || (a.fontFamily && !themed.has(a.fontFamily))) return a;
-  const font = to ? themeFont(a.kind, to) : undefined;
-  const { fontFamily: _old, ...rest } = a;
-  return font ? { ...rest, fontFamily: font } : rest;
+  const font = to ? themeFont(a, to) : undefined;
+  const { fontFamily: _old, bodyFont: _body, ...rest } = a;
+  // An item's line below takes the text font, unless it was picked by hand.
+  const body =
+    a.kind === "item" && (!a.bodyFont || themed.has(a.bodyFont)) ? to?.fonts?.body : a.bodyFont;
+  return {
+    ...rest,
+    ...(font ? { fontFamily: font } : {}),
+    ...(body ? { bodyFont: body } : {}),
+  };
 }

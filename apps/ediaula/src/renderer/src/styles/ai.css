@@ -195,6 +195,60 @@
   background: var(--text-1);
   color: var(--bg);
 }
+/* Reference images (as EdiSVG's assistant): the button, the ones waiting to go and the sent. */
+.composer-box .attach {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--text-2);
+}
+.composer-box .attach:not(:disabled):hover {
+  color: var(--text-1);
+  background: var(--panel-3);
+}
+.assistant.is-dropping {
+  outline: 2px dashed var(--accent);
+  outline-offset: -6px;
+}
+.chat-attachments,
+.chat-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chat-images {
+  margin-bottom: 6px;
+}
+.chat-attachments figure {
+  position: relative;
+  margin: 0;
+}
+.chat-attachments img,
+.chat-images img {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+}
+.attachment-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--panel-3);
+  border: 1px solid var(--line);
+  color: var(--text-1);
+}
 .composer-foot {
   display: flex;
   align-items: center;

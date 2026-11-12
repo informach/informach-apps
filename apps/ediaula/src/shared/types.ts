@@ -112,6 +112,11 @@ export interface Asset {
   hasVideo: boolean;
   hasAudio: boolean;
   size: number;
+  /**
+   * When the file last changed (ms), as it was probed: with `size`, how the editor sees that the
+   * file was replaced in place (shared/mediaChange.ts). Absent in media brought in before 11/11/2026.
+   */
+  mtime?: number;
   thumb?: string;
   /** Path to a JSON file with 100 normalized peaks per second. */
   waveform?: string;
@@ -459,6 +464,11 @@ export interface Project {
   /** Use the palette's fonts too (titles and text) instead of the default typeface. */
   paletteFonts?: boolean;
   /**
+   * Guides pulled from the preview's rulers (editor/Rulers.tsx): vertical ones at x and
+   * horizontal ones at y, as shares of the frame. Pictures dragged on the preview snap to them.
+   */
+  guides?: { x: number[]; y: number[] };
+  /**
    * Recording script pasted by the user and the section this video corresponds to; `confirmed`
    * once the person said the section is the right one (shared/scriptAlign.ts, rankSections).
    */
@@ -590,6 +600,8 @@ export interface ProbeResult {
   hasVideo: boolean;
   hasAudio: boolean;
   size: number;
+  /** When the file last changed (ms). */
+  mtime?: number;
   videoCodec?: string;
   vfr?: boolean;
   /** The picture carries transparency (WebM alpha_mode, or a pixel format with alpha). */
@@ -1276,6 +1288,8 @@ export interface EdiAulaApi {
     key: ChromaKey,
   ): Promise<string>;
   exists(paths: string[]): Promise<boolean[]>;
+  /** Size and last change (ms) of each file, or null when it is not there (shared/mediaChange.ts). */
+  statFiles(paths: string[]): Promise<({ size: number; mtime: number } | null)[]>;
   /** `fileName`: the file's name when the visible name has characters a file name cannot
    *  ("Gravação 18/10 07:06" is saved as "Gravação 18-10 07-06"). */
   createProject(
@@ -1409,7 +1423,15 @@ export interface EdiAulaApi {
   aiClients(): Promise<AiClientStatus[]>;
   /** Connects a client; `rotate` (Reconectar) replaces a token that still works. */
   connectAiClient(id: AiClientId, rotate?: boolean): Promise<{ ok: boolean; message: string }>;
-  assistantSend(conversationId: string, text: string): Promise<void>;
+  /** `images`: reference images of the message (the main process checks them again). */
+  assistantSend(
+    conversationId: string,
+    text: string,
+    images?: {
+      mediaType: "image/png" | "image/jpeg" | "image/gif" | "image/webp";
+      data: Uint8Array;
+    }[],
+  ): Promise<void>;
   assistantStop(conversationId: string): Promise<void>;
   assistantReset(conversationId: string): Promise<void>;
   onAssistantEvent(cb: (conversationId: string, e: AssistantEvent) => void): () => void;

@@ -77,6 +77,7 @@ export async function probeMedia(path: string): Promise<{ asset: Asset; codec?: 
     hasVideo: info.hasVideo,
     hasAudio: info.hasAudio,
     size: info.size,
+    ...(info.mtime ? { mtime: info.mtime } : {}),
     vfr: info.vfr,
     ...(info.alpha ? { alpha: true } : {}),
     proxyStatus: "none",

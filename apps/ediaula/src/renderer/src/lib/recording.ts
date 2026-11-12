@@ -298,6 +298,7 @@ async function replaceGuidedTake(r: RecordingResult): Promise<boolean> {
   relinkAsset(asset.id, {
     path: r.screen,
     size: info.size,
+    ...(info.mtime ? { mtime: info.mtime } : {}),
     ...(r.cursor ? { cursor: r.cursor } : {}),
   });
   patchAsset(asset.id, {

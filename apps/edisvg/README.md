@@ -808,7 +808,7 @@ O trim é um efeito da linha de pintura, como no Rive. Ao excluir um caminho (ou
 
 ## Imagens de referência no assistente (30/10/2026)
 
-O painel ✧ Assistente aceita até 4 imagens por mensagem: botão **Imagem**, Ctrl+V no campo de mensagem ou arrastar para o painel. São aceitos PNG, JPEG, GIF e WebP. Uma imagem com lado maior que 1568 px é reduzida antes do envio, porque os modelos não olham além disso; acima de 3,5 MB vira JPEG. As miniaturas aparecem antes do envio (com × para remover) e na conversa. Dá para mandar só a imagem: o pedido padrão é "Use a imagem anexada como referência.".
+O painel ✧ Assistente aceita até 4 imagens por mensagem: o ícone de imagem ao lado de **Parar** (era o botão **Imagem** até 11/11/2026), Ctrl+V no campo de mensagem ou arrastar para o painel. São aceitos PNG, JPEG, GIF e WebP. Uma imagem com lado maior que 1568 px é reduzida antes do envio, porque os modelos não olham além disso; acima de 3,5 MB vira JPEG. As miniaturas aparecem antes do envio (com × para remover) e na conversa. Dá para mandar só a imagem: o pedido padrão é "Use a imagem anexada como referência.".
 
 A imagem é só referência visual: o assistente recria formas, cores e proporções com as ferramentas de edição, e ela não entra no projeto. As perguntas seguintes da conversa continuam levando as imagens mais recentes (até 4, nas últimas 8 mensagens). Assim, "deixe mais parecido" ainda tem a referência. **Nova conversa**, **Novo projeto** e **Abrir** esquecem as imagens.
 

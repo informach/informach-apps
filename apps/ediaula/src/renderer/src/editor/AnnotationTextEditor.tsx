@@ -25,6 +25,8 @@ const TYPED = new Set<Annotation["kind"]>([
   "step",
   "lowerthird",
   "card",
+  "box",
+  "item",
 ]);
 
 /** The field of the layout under a point of the stage (or the main text). */
@@ -113,13 +115,16 @@ export function AnnotationTextEditor({
     };
   }, []);
   const fontFamily = a.fontFamily;
+  const bodyFont = a.bodyFont;
   useEffect(() => {
     let alive = true;
-    void loadAnnotationFonts(fontFamily, frame.height).then(() => alive && setReady(true));
+    void loadAnnotationFonts(fontFamily, frame.height, bodyFont).then(
+      () => alive && setReady(true),
+    );
     return () => {
       alive = false;
     };
-  }, [fontFamily, frame.height]);
+  }, [fontFamily, bodyFont, frame.height]);
 
   const on = annotationOnStage(clip, asset, project, scale, time, true);
   // Gone from the screen (the playhead moved away, the track locked or hidden): what was typed stays.

@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { panelImages } from "../../main/engines.js";
 import {
   fittedSize,
   frameAttachment,
   IMAGE_LIMIT,
   IMAGE_SIDE,
   referenceImages,
-} from "./assistantImages";
+} from "@informach/edi-desktop/ai-attachments";
+import { panelImages } from "../../main/engines.js";
 
 test("a pipeline's video frames (base64 from the main process) go back as bytes it accepts", () => {
   // The start of a JPEG, as the frames step returns it.

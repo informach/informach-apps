@@ -93,15 +93,15 @@ test("templates use the theme fonts by role unless the template has its own font
   const layers = templateLayers(
     templateById("question")!,
     { question: "Qual?", options: "A" },
-    SISTEMA_ZERO_PALETTE.roles,
+    SISTEMA_ZERO_PALETTE,
     fonts,
   );
   assert.equal(layers.find((l) => l.spec.kind === "title")!.spec.fontFamily, "Baloo 2");
-  assert.equal(layers.find((l) => l.spec.kind === "note")!.spec.fontFamily, "Nunito");
+  assert.equal(layers.find((l) => l.spec.kind === "label")!.spec.fontFamily, "Nunito");
   const own = templateLayers(
     templateById("question")!,
     { question: "Qual?", options: "A", font: "Fredoka" },
-    SISTEMA_ZERO_PALETTE.roles,
+    SISTEMA_ZERO_PALETTE,
     fonts,
   );
   assert.ok(

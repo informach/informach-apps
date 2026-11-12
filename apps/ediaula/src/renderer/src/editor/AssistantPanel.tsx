@@ -1,3 +1,11 @@
+import {
+  type Attachment,
+  IMAGE_LIMIT,
+  IMAGE_TYPES,
+  imageFiles,
+  readAttachment,
+  revokeAttachments,
+} from "@informach/edi-desktop/ai-attachments";
 import { withRenderKeys } from "@informach/edi-desktop/renderer";
 import { modelLabel, usageLabel } from "@shared/aiModels";
 import { type AiSettingsView, ENGINE_LABEL } from "@shared/types";
@@ -5,6 +13,7 @@ import {
   ArrowUp,
   Check,
   CircleSlash,
+  ImagePlus,
   KeyRound,
   ListVideo,
   Loader,
@@ -71,9 +80,68 @@ export function AssistantPanel(): ReactNode {
   const conv = useAssistant((s) => s.conversations[conversationId]);
   const { send, stop, reset, load } = useAssistant();
   const [draft, setDraft] = useState("");
+  // Reference images of the message being written (chosen, pasted or dropped), as EdiSVG's.
+  const [pending, setPending] = useState<Attachment[]>([]);
+  const [dropping, setDropping] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const items = conv?.items ?? [];
   const busy = conv?.busy ?? false;
+
+  const attach = async (files: File[]): Promise<void> => {
+    const added: Attachment[] = [];
+    let room = IMAGE_LIMIT - pending.length;
+    for (const file of files) {
+      if (room <= 0) {
+        useApp.getState().toast(`Anexe no máximo ${IMAGE_LIMIT} imagens por mensagem.`, "info");
+        break;
+      }
+      try {
+        added.push(await readAttachment(file));
+        room--;
+      } catch (err) {
+        useApp.getState().toast(err instanceof Error ? err.message : String(err), "error");
+      }
+    }
+    if (added.length) setPending((p) => [...p, ...added]);
+  };
+  const attachRef = useRef(attach);
+  attachRef.current = attach;
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+
+  // Images dropped on the panel are references for the message, never media of the lesson: the
+  // drop stops here, before the editor's own drop imports it.
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const over = (e: DragEvent): void => {
+      if (!e.dataTransfer?.types.includes("Files")) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setDropping(true);
+    };
+    const leave = (e: DragEvent): void => {
+      if (!el.contains(e.relatedTarget as Node | null)) setDropping(false);
+    };
+    const drop = (e: DragEvent): void => {
+      setDropping(false);
+      const files = imageFiles(e.dataTransfer);
+      if (!files.length) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (!busyRef.current) void attachRef.current(files);
+    };
+    el.addEventListener("dragover", over);
+    el.addEventListener("dragleave", leave);
+    el.addEventListener("drop", drop);
+    return () => {
+      el.removeEventListener("dragover", over);
+      el.removeEventListener("dragleave", leave);
+      el.removeEventListener("drop", drop);
+    };
+  });
 
   useEffect(() => {
     void window.api.aiSettings().then(setSettings);
@@ -107,11 +175,18 @@ export function AssistantPanel(): ReactNode {
       </div>
     );
 
-  const submit = (text: string): void => {
-    const t = text.trim();
+  const submit = (text: string, images: Attachment[] = []): void => {
+    const t =
+      text.trim() ||
+      (images.length > 1
+        ? "Use as imagens anexadas como referência."
+        : images.length
+          ? "Use a imagem anexada como referência."
+          : "");
     if (!t || busy) return;
     setDraft("");
-    void send(conversationId, t);
+    setPending([]);
+    void send(conversationId, t, images);
   };
   const runQuick = (q: Quick): void => {
     if (q.prompt !== undefined) submit(q.prompt);
@@ -130,7 +205,7 @@ export function AssistantPanel(): ReactNode {
   };
 
   return (
-    <div className="assistant">
+    <div className={`assistant ${dropping ? "is-dropping" : ""}`} ref={panelRef}>
       <div className="chat" ref={listRef}>
         <PlatformCard />
         {items.length === 0 && (
@@ -186,19 +261,67 @@ export function AssistantPanel(): ReactNode {
             ))}
           </div>
         )}
+        {pending.length > 0 && (
+          <div className="chat-attachments">
+            {pending.map((image) => (
+              <figure key={image.url}>
+                <img src={image.url} alt={`Imagem de referência: ${image.name}`} />
+                <button
+                  type="button"
+                  className="attachment-remove"
+                  aria-label={`Remover ${image.name}`}
+                  title="Remover"
+                  onClick={() => {
+                    revokeAttachments([image]);
+                    setPending((p) => p.filter((i) => i !== image));
+                  }}
+                >
+                  <X size={10} />
+                </button>
+              </figure>
+            ))}
+          </div>
+        )}
         <div className="composer-box">
           <textarea
             value={draft}
             placeholder='Ex.: "corte a parte em que falo do intervalo"'
             rows={2}
             onChange={(e) => setDraft(e.target.value)}
+            onPaste={(e) => {
+              const files = imageFiles(e.clipboardData);
+              if (!files.length || busy) return;
+              e.preventDefault();
+              void attach(files);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                submit(draft);
+                submit(draft, pending);
               }
             }}
           />
+          <input
+            ref={fileRef}
+            type="file"
+            accept={IMAGE_TYPES.join(",")}
+            multiple
+            hidden
+            onChange={(e) => {
+              void attach([...(e.target.files ?? [])]);
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            className="attach"
+            title="Anexar imagem de referência (também dá para colar ou arrastar)"
+            aria-label="Anexar imagem de referência"
+            disabled={busy || pending.length >= IMAGE_LIMIT}
+            onClick={() => fileRef.current?.click()}
+          >
+            <ImagePlus size={16} />
+          </button>
           {busy ? (
             <button
               type="button"
@@ -213,8 +336,8 @@ export function AssistantPanel(): ReactNode {
               type="button"
               className="send"
               title="Enviar (Enter)"
-              disabled={!draft.trim()}
-              onClick={() => submit(draft)}
+              disabled={!draft.trim() && !pending.length}
+              onClick={() => submit(draft, pending)}
             >
               <ArrowUp size={15} />
             </button>
@@ -415,7 +538,19 @@ function TurnChanges({
 }
 
 function Message({ item, conversationId }: { item: ChatItem; conversationId: string }): ReactNode {
-  if (item.role === "user") return <div className="msg msg-user">{item.text}</div>;
+  if (item.role === "user")
+    return (
+      <div className="msg msg-user">
+        {item.images?.length ? (
+          <div className="chat-images">
+            {item.images.map((image) => (
+              <img key={image.url} src={image.url} alt={`Imagem de referência: ${image.name}`} />
+            ))}
+          </div>
+        ) : null}
+        {item.text}
+      </div>
+    );
   if (item.role === "error") return <div className="msg msg-error">{item.text}</div>;
   return (
     <div className="msg msg-assistant">

@@ -47,12 +47,15 @@ export function systemFonts(): Promise<string[]> {
   return system;
 }
 
-/** Waits until the family can draw at the given weights (canvas text does not wait by itself). */
+/**
+ * Waits until the family (none: the default, DEFAULT_FONT) can draw at the given weights (canvas
+ * text does not wait by itself).
+ */
 export async function ensureFont(
   family: string | undefined,
   weights = [400, 600, 700, 800],
 ): Promise<void> {
-  if (!family || family === DEFAULT_FONT) return;
+  family ||= DEFAULT_FONT;
   await loadBundledFonts();
   await Promise.all(
     weights.map((w) => document.fonts.load(`${w} 40px "${family}"`).catch(() => undefined)),

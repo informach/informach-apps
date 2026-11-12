@@ -189,7 +189,7 @@ export async function applyPalette(
 /** The theme's font for a new annotation of this kind, when the project uses the theme's fonts. */
 export function projectFont(
   p: Project | null | undefined,
-  kind: Annotation["kind"],
+  kind: Annotation["kind"] | Pick<Annotation, "kind" | "textRole">,
 ): string | undefined {
   return p?.paletteFonts ? themeFont(kind, activePalette(p)) : undefined;
 }

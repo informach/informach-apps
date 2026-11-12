@@ -7,6 +7,7 @@ import {
   PROPOSAL_ITEM_LIMIT,
   PROPOSAL_LIMIT,
 } from "./anchors.ts";
+import { type AnnotationIcon, ICON_IDS } from "./annotation.ts";
 import { LANGUAGE_CODE } from "./captionTranslate.ts";
 import { CLICK_KINDS } from "./clickEvents.ts";
 import { CURSOR_POINTERS } from "./cursor.ts";
@@ -180,6 +181,8 @@ export const annotationSchema = z.looseObject({
     "lowerthird",
     "panel",
     "line",
+    "box",
+    "item",
     "drawing",
     "board",
   ]),
@@ -219,9 +222,20 @@ export const annotationSchema = z.looseObject({
   shape: z.enum(["rounded", "rect", "ellipse", "triangle"]).optional(),
   fill: color.optional(),
   fillOpacity: number.optional(),
+  dim: z.number().min(0).max(1).optional(),
   ink: color.optional(),
   accent: color.optional(),
   reveal: z.enum(["words", "draw"]).optional(),
+  badge: z.string().max(3).optional(),
+  look: z.enum(["comic", "kit"]).optional(),
+  pointer: z.enum(["none", "up", "down", "left", "right"]).optional(),
+  pointerAt: number.min(0).max(1).optional(),
+  textColor: color.optional(),
+  icon: z.enum(ICON_IDS as [AnnotationIcon, ...AnnotationIcon[]]).optional(),
+  marker: z.enum(["circle", "square", "check", "none"]).optional(),
+  bare: z.boolean().optional(),
+  bodyFont: text.optional(),
+  textRole: z.enum(["heading", "body"]).optional(),
   /** Projects of before the drawing moved to its media (Asset.drawing): normalizeProject moves it. */
   drawing: drawingSchema.optional(),
 });
@@ -250,6 +264,7 @@ const asset = z.looseObject({
   hasVideo: z.boolean(),
   hasAudio: z.boolean(),
   size: z.number().nonnegative().max(Number.MAX_SAFE_INTEGER),
+  mtime: z.number().nonnegative().max(Number.MAX_SAFE_INTEGER).optional(),
   thumb: path.optional(),
   waveform: path.optional(),
   proxy: path.optional(),
@@ -411,7 +426,9 @@ const transform = z.looseObject({
   scale: number.positive(),
   opacity: number.min(0).max(1),
   crop: z.looseObject({ left: number, top: number, right: number, bottom: number }).optional(),
-  mask: z.enum(["rounded", "circle"]).optional(),
+  mask: z.enum(["rounded", "circle", "ellipse"]).optional(),
+  corner: number.min(0).max(2000).optional(),
+  feather: number.min(0).max(2000).optional(),
   border: color.optional(),
   shadow: shadow.optional(),
   rotation: number.optional(),
@@ -650,6 +667,12 @@ export const projectSchema = z
       .optional(),
     palette: id.optional(),
     paletteFonts: z.boolean().optional(),
+    guides: z
+      .looseObject({
+        x: z.array(z.number().min(0).max(1)).max(200),
+        y: z.array(z.number().min(0).max(1)).max(200),
+      })
+      .optional(),
     script: z
       .looseObject({
         text,

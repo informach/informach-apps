@@ -165,6 +165,7 @@ import { scheduler, type WorkKind } from "./scheduler.ts";
 import { readSendSettings, writeSendSettings } from "./sendSettings.ts";
 import { autoSoundTrack, ensureSoundLibrary } from "./soundTrack.ts";
 import { rankInWorker } from "./syncPool.ts";
+import { panelImages } from "./turnImages.ts";
 import { renderVoiceCached } from "./voiceFiles.ts";
 import { treatVoice } from "./voiceTreat.ts";
 import {
@@ -1069,6 +1070,22 @@ function registerIpc(): void {
     },
   );
   ipcMain.handle("fs:exists", (_e, paths: string[]) => paths.map((p) => existsSync(p)));
+  // Size and date of the lesson's media: a file exported again over the old one (same name) is
+  // seen and taken in (renderer lib/mediaUpdates.ts). Only for files the editor may read.
+  ipcMain.handle("fs:stat", async (_e, raw: unknown) => {
+    const paths = z.array(z.string().min(1).max(32768)).max(5000).parse(raw);
+    return Promise.all(
+      paths.map(async (p) => {
+        try {
+          await desktopFiles.assertRead(p);
+          const st = statSync(p);
+          return st.isFile() ? { size: st.size, mtime: st.mtimeMs } : null;
+        } catch {
+          return null;
+        }
+      }),
+    );
+  });
 
   ipcMain.handle(
     "project:create",
@@ -1908,31 +1925,44 @@ function registerAiIpc(): void {
     return connectClient(id, mcp.port, z.boolean().optional().parse(rawRotate) ?? false);
   });
   ipcMain.handle("ai:openRestrictedClaude", () => openRestrictedClaude(mcp.port));
-  ipcMain.handle("assistant:send", async (_e, rawConversation: unknown, rawText: unknown) => {
-    const conversationId = conversationIdSchema.parse(rawConversation);
-    const text = z.string().min(1).max(4_000_000).parse(rawText);
-    const view = await aiView();
-    const emit = (ev: AssistantEvent): void => {
-      if (win && !win.isDestroyed()) win.webContents.send("assistant:event", conversationId, ev);
-    };
-    if (view.engine === "api") return sendMessage(win, conversationId, text, view.effort);
-    if (!view.mcpRunning) {
-      emit({
-        type: "error",
-        message:
-          "A conexão do EdiAula com a IA está desligada. Ligue em Configurações › Inteligência artificial.",
-      });
-      emit({ type: "done" });
-      return;
-    }
-    if (view.engine === "claude-code")
-      return runClaudeCode(conversationId, text, mcp.port, view.claudeModel, view.effort, emit);
-    if (!(await codexAllowed(emit))) {
-      emit({ type: "done" });
-      return;
-    }
-    return runCodex(conversationId, text, mcp.port, emit);
-  });
+  ipcMain.handle(
+    "assistant:send",
+    async (_e, rawConversation: unknown, rawText: unknown, rawImages: unknown) => {
+      const conversationId = conversationIdSchema.parse(rawConversation);
+      const text = z.string().min(1).max(4_000_000).parse(rawText);
+      // Reference images of the message (pasted, dropped or chosen in the panel).
+      const images = panelImages(rawImages);
+      const view = await aiView();
+      const emit = (ev: AssistantEvent): void => {
+        if (win && !win.isDestroyed()) win.webContents.send("assistant:event", conversationId, ev);
+      };
+      if (view.engine === "api") return sendMessage(win, conversationId, text, view.effort, images);
+      if (!view.mcpRunning) {
+        emit({
+          type: "error",
+          message:
+            "A conexão do EdiAula com a IA está desligada. Ligue em Configurações › Inteligência artificial.",
+        });
+        emit({ type: "done" });
+        return;
+      }
+      if (view.engine === "claude-code")
+        return runClaudeCode(
+          conversationId,
+          text,
+          mcp.port,
+          view.claudeModel,
+          view.effort,
+          emit,
+          images,
+        );
+      if (!(await codexAllowed(emit))) {
+        emit({ type: "done" });
+        return;
+      }
+      return runCodex(conversationId, text, mcp.port, emit, images);
+    },
+  );
   ipcMain.handle("assistant:stop", (_e, raw: unknown) => {
     const conversationId = conversationIdSchema.parse(raw);
     if (!stopEngineRun(conversationId)) stopConversation(conversationId);

@@ -141,6 +141,14 @@
   justify-content: flex-end;
   margin-top: 9px;
 }
+.assistant-panel .assistant-attach {
+  display: grid;
+  place-items: center;
+  padding: 0 8px;
+}
+.assistant-panel .assistant-attach svg {
+  display: block;
+}
 .assistant-panel [data-reset] {
   margin-right: auto;
   font-size: 10px;
