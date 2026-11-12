@@ -201,6 +201,7 @@ export const annotationSchema = z.looseObject({
     .optional(),
   boxWidth: number.optional(),
   boxHeight: number.optional(),
+  backdrop: z.boolean().optional(),
   kicker: text.optional(),
   subtitle: text.optional(),
   direction: text.optional(),

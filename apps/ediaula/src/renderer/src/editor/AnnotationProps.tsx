@@ -4,6 +4,7 @@ import {
   type Annotation,
   type AnnotationIcon,
   defaultOutline,
+  fillsFrame,
   ICON_IDS,
   type ItemMarker,
   KIND_LABEL,
@@ -26,6 +27,7 @@ import {
   withoutStroke,
 } from "@shared/drawing";
 import { plural } from "@shared/plural";
+import { SHAPE_LIMITS } from "@shared/shapeResize";
 import { clipEnd } from "@shared/timeline";
 import type { Clip } from "@shared/types";
 import { MessageSquareText, PenLine, Type, X } from "lucide-react";
@@ -368,7 +370,7 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
     void updateAnnotation(clip.id, c);
   };
   const hasText = TEXT_KINDS.has(a.kind);
-  const fullFrame = a.kind === "card" || (a.kind === "panel" && (a.boxWidth ?? 0) >= 1920);
+  const fullFrame = a.kind === "card" || fillsFrame(a);
   const ol = a.outline ?? defaultOutline(a);
   const setOutline = (c: Partial<Outline>): void => {
     set({ outline: { ...ol, ...c } });
@@ -751,8 +753,8 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
           <Slider
             label="Largura"
             value={a.boxWidth ?? 360}
-            min={40}
-            max={1800}
+            min={SHAPE_LIMITS.minW}
+            max={SHAPE_LIMITS.maxW}
             step={10}
             format={(v) => `${Math.round(v)} px`}
             onCommit={(v) => set({ boxWidth: v })}
@@ -760,8 +762,8 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
           <Slider
             label="Altura"
             value={a.boxHeight ?? 200}
-            min={40}
-            max={1000}
+            min={SHAPE_LIMITS.minH}
+            max={SHAPE_LIMITS.maxH}
             step={10}
             format={(v) => `${Math.round(v)} px`}
             onCommit={(v) => set({ boxHeight: v })}

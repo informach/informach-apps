@@ -1,4 +1,4 @@
-import { ANNOTATION_MOTION, KIND_LABEL } from "@shared/annotation";
+import { ANNOTATION_MOTION, fillsFrame, KIND_LABEL } from "@shared/annotation";
 import { openGap } from "@shared/inserts";
 import {
   frameUnits,
@@ -160,7 +160,7 @@ export async function addTemplate(
       const r = rendered[i];
       const asset: Asset = {
         id: newId("a"),
-        name: `${t.label} · ${l.spec.kind === "panel" && (l.spec.boxWidth ?? 0) >= 1920 ? "Fundo" : KIND_LABEL[l.spec.kind]}`,
+        name: `${t.label} · ${fillsFrame(l.spec) ? "Fundo" : KIND_LABEL[l.spec.kind]}`,
         path: paths[i],
         kind: "image",
         duration: 0,
