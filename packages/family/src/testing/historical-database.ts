@@ -13,7 +13,7 @@ const migrations = fileURLToPath(new URL("../../../db/src/migrations/", import.m
 type HistoricalDatabase = {
   db: Database;
   connection: ReturnType<typeof postgres>;
-  migrateTo: (index?: number) => Promise<void>;
+  migrateTo: (migration?: number) => Promise<void>;
 };
 
 /** Immutable migration prefixes in a separate, locally owned database, never the shared fixture. */
@@ -46,13 +46,19 @@ export async function withHistoricalDatabase<T>(
     const journal = JSON.parse(await readFile(join(migrations, "meta/_journal.json"), "utf8")) as {
       entries: { idx: number; tag: string }[];
     };
-    async function migrateTo(index?: number) {
-      if (index === undefined) return migrate(db, { migrationsFolder: migrations });
-      if (!journal.entries.some((entry) => entry.idx === index))
-        throw new Error("Unknown historical migration boundary");
-      const prefix = join(directory, String(index));
+    /** `migration` is the number in the tag (0099_…), as docs and tests cite it.
+     * It is not the journal idx: Recreio's 0080 came first, so from there the
+     * Compasso migrations sit one idx after their number. */
+    async function migrateTo(migration?: number) {
+      if (migration === undefined) return migrate(db, { migrationsFolder: migrations });
+      const tagPrefix = `${String(migration).padStart(4, "0")}_`;
+      const matches = journal.entries.filter((entry) => entry.tag.startsWith(tagPrefix));
+      const [boundary] = matches;
+      if (!boundary || matches.length > 1)
+        throw new Error("Unknown or ambiguous historical migration boundary");
+      const prefix = join(directory, String(migration));
       await mkdir(join(prefix, "meta"), { recursive: true });
-      const entries = journal.entries.filter((entry) => entry.idx <= index);
+      const entries = journal.entries.filter((entry) => entry.idx <= boundary.idx);
       await writeFile(join(prefix, "meta/_journal.json"), JSON.stringify({ ...journal, entries }));
       for (const entry of entries)
         await copyFile(join(migrations, `${entry.tag}.sql`), join(prefix, `${entry.tag}.sql`));
