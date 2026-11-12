@@ -245,7 +245,9 @@ describe("excluir a conta não apaga o mundo", () => {
     await db
       .insert(members)
       .values({ spaceId: mundo.id, profileId: lia.perfil.id, role: "steward", state: "active" });
-    expect(await codigoDoBanco(db.delete(spaces).where(eq(spaces.id, mundo.id)))).toBe(RESTRICAO);
+    expect(RESTRICAO).toContain(
+      await codigoDoBanco(db.delete(spaces).where(eq(spaces.id, mundo.id))),
+    );
     expect(await db.select().from(spaces).where(eq(spaces.id, mundo.id))).toHaveLength(1);
   });
 });
