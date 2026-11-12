@@ -1,7 +1,7 @@
 import { type Database, db } from "@informach/db";
-import { verifications } from "@informach/db/schema";
+import { sessions, verifications } from "@informach/db/schema";
 import type { SecondaryStorage } from "better-auth";
-import { and, eq, like } from "drizzle-orm";
+import { and, eq, gt, like } from "drizzle-orm";
 
 /**
  * Sessões que o Better Auth guarda no armazenamento secundário (Redis) de um app.
@@ -116,6 +116,51 @@ export async function revokeCachedSessions(
   }
   await store.delete(activeSessionsKey(userId));
   return live;
+}
+
+/** Quem lê: o cliente do banco ou uma transação aberta por quem chama. */
+export type AuthSessionReader = Pick<Database, "select">;
+
+/**
+ * A sessão de login `sessionId` desta conta ainda vale? É para quem guardou o
+ * id da sessão e precisa conferi-la sem o cookie: o Recreio renova a sessão de
+ * jogo com o token do jogo, e por trás dela a sessão de login tem de continuar
+ * de pé.
+ *
+ * Com `store`, a sessão mora só no armazenamento secundário do app (ver o
+ * comentário no topo); sem ele, em `core.sessions`. Nos dois casos a sessão
+ * precisa ser da conta informada e estar dentro do prazo. Nada da sessão sai
+ * daqui, só a resposta.
+ */
+export async function isAuthSessionLive(input: {
+  sessionId: string;
+  userId: string;
+  store?: SessionStore;
+  reader?: AuthSessionReader;
+  now?: number;
+}): Promise<boolean> {
+  const now = input.now ?? Date.now();
+  if (input.store) {
+    for (const reference of await references(input.store, input.userId)) {
+      const session = await liveSession(input.store, reference, now);
+      if (session?.id !== input.sessionId || session.userId !== input.userId) continue;
+      const expiresAt = asDate(session.expiresAt);
+      return expiresAt === null || expiresAt.getTime() > now;
+    }
+    return false;
+  }
+  const rows = await (input.reader ?? db)
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(
+      and(
+        eq(sessions.id, input.sessionId),
+        eq(sessions.userId, input.userId),
+        gt(sessions.expiresAt, new Date(now)),
+      ),
+    )
+    .limit(1);
+  return rows.length === 1;
 }
 
 /**

@@ -54,6 +54,10 @@ apps/dia-de-estrela/tmp/
 apps/dia-de-estrela/.next-e2e*/
 apps/dia-de-estrela/.next-isolated-*/
 apps/dia-de-estrela/test-results-*/
+apps/recreio/tmp/
+apps/recreio/.next-e2e*/
+apps/recreio/.next-isolated-*/
+apps/recreio/test-results-*/
 
 # Acervo de referência do estudo de olimpíadas (originais de terceiros)
 docs/propostas/missao-saber-2026-09-13/acervo/arquivos/

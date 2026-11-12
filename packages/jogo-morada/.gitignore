@@ -1,0 +1,7 @@
+# Saída da bancada (ferramenta de desenvolvimento e de teste; o package não tem build).
+bancada/dist/
+
+# Evidência local dos testes de navegador. Nunca vai para o git.
+e2e/telas/
+e2e/test-results/
+e2e/playwright-report/

@@ -225,6 +225,67 @@ export const PRODUCTS: readonly Product[] = [
     },
     listPrice: { amountCents: 24900, currency: "BRL" },
   },
+  // Recreio: não existe plano gratuito, e nenhum destes é vendido ainda. Os IDs
+  // do Stripe ficam como `price_TODO_*` até a cobrança ser provisionada (Marco 2
+  // da proposta; ver docs/recreio/implementacao.md).
+  {
+    id: "recreio_individual_monthly",
+    app: "recreio",
+    kind: "subscription",
+    name: "Recreio Individual",
+    description: "Todos os jogos publicados do Recreio, para um perfil.",
+    tier: "individual",
+    interval: "month",
+    stripePriceId: {
+      dev: "price_TODO_recreio_individual_monthly",
+      prod: "price_TODO_recreio_individual_monthly",
+    },
+    listPrice: { amountCents: 5990, currency: "BRL" },
+  },
+  {
+    id: "recreio_individual_annual",
+    app: "recreio",
+    kind: "subscription",
+    name: "Recreio Individual anual",
+    description: "Todos os jogos publicados do Recreio, para um perfil, por um ano.",
+    tier: "individual",
+    interval: "year",
+    stripePriceId: {
+      dev: "price_TODO_recreio_individual_annual",
+      prod: "price_TODO_recreio_individual_annual",
+    },
+    listPrice: { amountCents: 59900, currency: "BRL" },
+  },
+  {
+    id: "recreio_family_monthly",
+    app: "recreio",
+    kind: "subscription",
+    name: "Recreio Família",
+    description:
+      "Todos os jogos publicados do Recreio, para até quatro perfis jogando ao mesmo tempo, em aparelhos diferentes.",
+    tier: "family",
+    interval: "month",
+    stripePriceId: {
+      dev: "price_TODO_recreio_family_monthly",
+      prod: "price_TODO_recreio_family_monthly",
+    },
+    listPrice: { amountCents: 12790, currency: "BRL" },
+  },
+  {
+    id: "recreio_family_annual",
+    app: "recreio",
+    kind: "subscription",
+    name: "Recreio Família anual",
+    description:
+      "Todos os jogos publicados do Recreio, para até quatro perfis jogando ao mesmo tempo, em aparelhos diferentes, por um ano.",
+    tier: "family",
+    interval: "year",
+    stripePriceId: {
+      dev: "price_TODO_recreio_family_annual",
+      prod: "price_TODO_recreio_family_annual",
+    },
+    listPrice: { amountCents: 127900, currency: "BRL" },
+  },
   {
     id: "cozya_pro_monthly",
     app: "cozya",
