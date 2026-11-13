@@ -4,7 +4,7 @@ Para quem retoma a frente depois de uma pausa, nesta ou em outra máquina. O reg
 
 ## Onde está cada coisa
 
-- **`main` em `3f952fd`** já tem P0–P7, J0–J8 e X1–X3, incluindo recuperação, acesso e operação preparada. Serviços, cron e volume estão definidos atrás de `RECREIO_LAUNCHED=false`; nenhum foi publicado.
+- **`main` em `3f952fd`** já tem P0–P7, J0–J8 e X1–X3, incluindo recuperação, acesso e operação preparada. Em 13/11, os serviços, cron e volume foram provisionados pelo plugin Railway, ainda sem fonte/deploy. `RECREIO_PROVISIONED=true` preserva os recursos e `RECREIO_LAUNCHED=false` conserva as fontes desligadas. Segredos/domínios aguardam aprovação da revisão automática; detalhes no [registro operacional](railway-2026-11-13.md).
 - **Continuação na `main`:** arte dos móveis e acabamentos da casa atual, manifesto V2 compatível com V1 e provas com arte real. Ver [review do D1](review-d1-2026-11-13.md).
 - **A migração `0080_recreio`** está na `main`. O schema `recreio` passa a existir no banco onde o migrator rodar; nenhum app em produção o lê.
 - A branch `feat/recreio` foi juntada à `main` e não tem nada a mais.
@@ -51,7 +51,7 @@ Esse opt-in declara `assets` no SDK/CSP, entrega a pasta ao servidor do jogo e g
 ## Próximos passos
 
 1. D2: criação da família; depois D3–D8 conforme os critérios do plano. A meta de FPS do D1 ainda precisa de medição em vídeo integrado real.
-2. X4, em frente operacional separada: deploy fechado e custo por hora de mundo com 1, 2, 4 e 8 pessoas, seguindo [PRODUCAO.md](../../apps/recreio/PRODUCAO.md).
+2. X4, em frente operacional separada: concluir os bloqueios de configuração do [registro operacional](railway-2026-11-13.md), depois deploy fechado e custo por hora de mundo com 1, 2, 4 e 8 pessoas, seguindo [PRODUCAO.md](../../apps/recreio/PRODUCAO.md). O Stripe fica apenas documentado no [roteiro de cobrança](stripe-pendente.md), conforme pedido do titular.
 
 ## Abertos que pedem decisão do titular
 

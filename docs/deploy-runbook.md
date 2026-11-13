@@ -118,6 +118,8 @@ A migração chegou à `main` com o PR #10 (`fb39612`), e os `railway.toml` saí
 
 ### Lançamentos atrás de constantes
 
+O Recreio passou a separar provisionamento de lançamento em 13/11/2026: `RECREIO_PROVISIONED=true` inclui serviços/cron/volume já criados pelo plugin, `RECREIO_DOMAINS_CONFIGURED=false` conserva a ausência de vínculo público e `RECREIO_LAUNCHED=false` conserva as fontes de implantação desligadas. Não desligar essas constantes para rollback. Segredos/domínios foram bloqueados pela revisão automática e aguardam autorização explícita; o [registro operacional](recreio/railway-2026-11-13.md) descreve o estado confirmado. Isso não libera o migrator ou o corte Compasso.
+
 O topo do arquivo tem duas constantes de lançamento: `ADMIN_LAUNCHED` (Bastidores, ver `apps/admin/PRODUCAO.md`) e `EDI_RECONCILE_ACTIVE` (imagem do `cron-edi-reconcile`, ver `apps/edi/PRODUCAO.md`). Cada uma ficou falsa até o seu passo chegar, e virá-la para `true` com o apply foi o lançamento. As duas estão ligadas desde 17/10/2026, a conciliação às 20:09 UTC e o Bastidores às 22:01 UTC, e o que está no ar é o arquivo com elas em `true`.
 
 Nenhuma delas é chave de desligar. Com `ADMIN_LAUNCHED` em `false`, o apply volta o serviço ao esqueleto de antes do lançamento: apaga as variáveis do Bastidores, o domínio `admin.informach.com.br` e os crons `cron-admin-watch` e `cron-admin-weekly`, e recriar tudo exige refazer os segredos e o domínio no painel. Com `EDI_RECONCILE_ACTIVE` em `false`, o apply tira a imagem do `cron-edi-reconcile`. Um lançamento novo pode usar o mesmo padrão, e nunca se apaga o bloco de um serviço para limpar o plano: num arquivo do projeto inteiro, isso apaga o serviço.

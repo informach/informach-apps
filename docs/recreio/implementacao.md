@@ -38,7 +38,7 @@ Fecham o que as propostas deixaram em aberto. Mudam só com registro aqui.
 6. **Direito de jogar na etapa 1 por concessão auditada**, porque a cobrança só entra no Marco 2. `decidirAcesso` é a única função que decide; `past_due` não joga.
 7. **Sem arte, tudo roda**: corpos e móveis procedurais atrás da mesma interface dos pacotes. CI e E2E nunca usam arte licenciada.
 8. **Tabelas em inglês**, como todo o `packages/db`; textos, URLs e API do SDK em português.
-9. **Uma constante `RECREIO_LAUNCHED = false`** no `.railway/railway.ts` segura os dois serviços e o cron.
+9. **Estados operacionais separados na IaC:** desde o provisionamento de 13/11, `RECREIO_PROVISIONED=true` inclui os recursos; `RECREIO_DOMAINS_CONFIGURED=false` mantém os vínculos públicos ausentes; `RECREIO_LAUNCHED=false` mantém os serviços sem fonte e o cron sem imagem. Não usar essas constantes como rollback; estado e bloqueios no [registro operacional](railway-2026-11-13.md).
 10. **O servidor do jogo fala com o Recreio por HTTP**, nunca pelas tabelas. O empacotador de arte fica neste repositório como código, e não no `artes-3d`, para o contrato do manifesto e o empacotador andarem na mesma versão.
 11. **O app se chama `@informach/recreio-app`** no workspace, porque `@informach/recreio` é o package de domínio e contratos, como a proposta prescreve. Os scripts da raiz seguem o padrão curto (`dev:recreio`, `build:recreio`, `start:recreio`).
 
@@ -91,7 +91,7 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 | X1 | Plataforma real no servidor, `/jogar/morada`, E2E com duas contas | feito |
 | X2 | Empacotador e corpos reais na máquina de desenvolvimento | feito |
 | X3 | Railway atrás da constante, build de produção, Bastidores mínimo, guias | integrado à `main` em `3f952fd`; sem deploy |
-| X4 | Deploy fechado e medição de custo, só com autorização | a fazer |
+| X4 | Deploy fechado e medição de custo, só com autorização | em curso: recursos provisionados; deploy e custo pendentes |
 
 ### Etapa 2
 
@@ -381,3 +381,9 @@ Continuação escolhida pelo titular: revisar a base e completar a arte da casa 
 O empacotador seleciona móveis e acabamentos pela planta, emite manifesto V2 e continua lendo V1. O cliente carrega modelos sob demanda, agrupa repetições, mantém o procedural durante falhas e usa apoios medidos para assentos/colchões. A casa mantém a planta original, agora com revestimentos e portas/janelas; portas ficam abertas enquanto não existir estado de porta na simulação. Nenhum save, protocolo de rede ou schema de banco mudou.
 
 A conferência no portal com arte encontrou a necessidade de `connect-src blob:` para as texturas embutidas do GLTFLoader. A permissão foi acrescentada somente à página do jogo com origem de arte declarada. O runner tem opt-in de arte privada e guarda todas as evidências fora do checkout público. Resultados, medidas, achados e pendências no [review do D1](review-d1-2026-11-13.md).
+
+## Configuração do Railway — 13/11/2026
+
+Com o plugin conectado e autorização do titular para configurar, foram provisionados os dois serviços, o cron e o volume de arte. Builds, starts, readiness, padrões de arquivos, rede interna e variáveis não secretas foram configurados e relidos. Serviços sem fonte/deploy; volume sem pacote de arte. A revisão automática bloqueou o envio dos novos segredos e o vínculo dos domínios, exigindo aprovação explícita. O portal também precisa do Sentry obrigatório e da prontidão do banco; não foi removido o bloqueio de migrations do Compasso.
+
+X4 está em curso no provisionamento, sem implantação ou medição de custo. IDs, operações, verificações e bloqueios no [registro operacional](railway-2026-11-13.md). Stripe somente documentado no [roteiro de cobrança](stripe-pendente.md), sem acesso ou configuração do provedor, conforme pedido do titular. O próximo lote de jogo continua sendo D2.
