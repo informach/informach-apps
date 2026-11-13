@@ -83,6 +83,9 @@ test("production restore tool upgrades a historical synthetic source without cha
       select n::text, 'F1', 'Fixture city' from generate_series(1,5500) n`;
     await source`insert into agenda.schools(inep_code,city_ibge_code,name)
       select n::text, '1', 'Fixture school' from generate_series(1,100000) n`;
+    await source`create role fixture_reader nologin`;
+    await source`grant usage on schema agenda to fixture_reader`;
+    await source`grant select on agenda.student_profiles to fixture_reader`;
     // pg_dump runs in a sibling container. Use only this owned container's
     // private address, never a production URL inherited by the test process.
     const host = docker([
@@ -111,6 +114,7 @@ test("production restore tool upgrades a historical synthetic source without cha
     assert.equal(report.source.migrations.applied, entries.length);
     assert.equal(report.source.users, 1);
     assert.equal(report.restore.identical, true);
+    assert.equal(report.restore.roles, 1);
     assert.equal(report.migration.applied.applied, journal.entries.length);
     assert.ok(report.migration.family.people >= 1);
     assert.equal(report.repeat.unchanged, true);

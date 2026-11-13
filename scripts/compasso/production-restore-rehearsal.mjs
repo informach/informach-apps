@@ -99,12 +99,13 @@ async function readFacts(tx) {
   const owners =
     await tx`select n.nspname as schema, c.relname as name, pg_get_userbyid(c.relowner) as owner
       from pg_class c join pg_namespace n on n.oid = c.relnamespace
-      where c.relkind in ('r', 'p') and n.nspname not in ('pg_catalog', 'information_schema', 'pg_toast')
+      where c.relkind in ('r', 'p', 'S', 'v', 'm', 'f') and n.nspname not in ('pg_catalog', 'information_schema', 'pg_toast')
       order by 1, 2`;
-  const grants = await tx`select grantee, table_schema, count(*)::int as privileges
-      from information_schema.role_table_grants
+  const grants = await tx`select grantor, grantee, table_schema, table_name,
+      privilege_type, is_grantable, with_hierarchy
+      from information_schema.table_privileges
       where table_schema not in ('pg_catalog', 'information_schema')
-      group by 1, 2 order by 1, 2`;
+      order by 1, 2, 3, 4, 5, 6, 7`;
   const has = (key) => key in counts;
   // Money and identity facts that the cutover must preserve exactly.
   const [billing] = has("billing.credit_ledger")
