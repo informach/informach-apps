@@ -203,7 +203,7 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
           }
           emitir(
             ctx,
-            `acesso:${entrada.perfilId}:${entrada.familiaId}:${estado.relogio.tick}`,
+            `acesso:${entrada.perfilId}:${entrada.familiaId}:${novoId(estado, "fat")}`,
             entrada.familiaId,
             {
               tipo: "AcessoConcedido",
@@ -218,7 +218,7 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
         case "revogar_acesso": {
           emitir(
             ctx,
-            `revoga:${entrada.perfilId}:${entrada.familiaId}:${estado.relogio.tick}`,
+            `revoga:${entrada.perfilId}:${entrada.familiaId}:${novoId(estado, "fat")}`,
             entrada.familiaId,
             {
               tipo: "AcessoRevogado",

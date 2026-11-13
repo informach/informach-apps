@@ -1,4 +1,5 @@
 import { CUIDADO_POR_NECESSIDADE, interacao } from "../conteudo";
+import { novoId } from "../dominio/estado";
 import type { MoradorId, PerfilId, SessaoId } from "../dominio/ids";
 import type { Permissao } from "../dominio/permissoes";
 import { listar, obter } from "../dominio/tabela";
@@ -186,7 +187,7 @@ function executar(ctx: Contexto, sessao: Sessao, intencao: Intencao): Recusa | F
       if ("motivo" in morador) return morador;
       emitir(
         ctx,
-        `pref:${morador.id}:${tick}`,
+        `pref:${morador.id}:${novoId(estado, "fat")}`,
         morador.familiaId,
         { tipo: "PreferidoDefinido", moradorId: morador.id, perfilId: acao.valor ? perfil : null },
         causa("preferido"),

@@ -84,7 +84,7 @@ function ambienteDoServidor(extra: Record<string, string>): NodeJS.ProcessEnv {
 /** Sobe uma instância do servidor do Morada ligada ao portal e espera ela se registrar. */
 export async function iniciarServidor(extra: Record<string, string> = {}): Promise<void> {
   if (servidor) throw new Error("Já existe um servidor do Morada em execução");
-  const filho = spawn(process.execPath, ["--import", "tsx", "src/main.ts"], {
+  const filho = spawn(process.execPath, ["dist/main.mjs"], {
     cwd: PASTA_DO_SERVIDOR,
     env: ambienteDoServidor(extra),
     stdio: ["ignore", "pipe", "pipe", "ipc"],

@@ -71,6 +71,14 @@ const PER_APP: Array<Omit<RoutineDefinition, "app">> = [
 ];
 
 export const ROUTINES: readonly RoutineDefinition[] = [
+  {
+    app: "recreio",
+    job: "manutencao",
+    label: "Manutenção dos mundos e sessões do Recreio",
+    intervalMinutes: 5,
+    schedule: "a cada 5 minutos",
+    pausedNote: "Aguardando o deploy fechado do Recreio",
+  },
   ...PER_APP.map((routine) => ({ ...routine, app: "cozya" })),
   {
     app: "cozya",

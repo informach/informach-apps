@@ -70,3 +70,9 @@ Registrados nas revisões de 17/10/2026, sem correção por enquanto:
 - **Cancelar e assinar de novo em 24 horas conta como troca.** O movimento das assinaturas em Dinheiro trata uma assinatura nova que nasce até um dia antes ou depois do fim da antiga, no mesmo cliente de cobrança, como troca de plano (`REPLACEMENT_WINDOW_MS` em `src/features/money/logic.ts`): quem cancelou e assinou de novo nesse intervalo não aparece como cancelamento nem como assinatura nova.
 - **`ownerEmails()` inclui owner banido.** Os avisos de queda e o resumo da semana vão para toda conta com papel owner, sem conferir o banimento. Hoje um owner não é banido pela tela (a regra exige rebaixar antes), mas um banimento direto no banco ainda receberia os e-mails.
 - **Trocar a senha em outro produto não encerra a sessão do Bastidores.** A senha mora em `core.accounts`, compartilhada. O reset feito no próprio Bastidores apaga as sessões do Postgres (`revokeSessionsOnPasswordReset`), mas a troca feita em Cozya, Agenda, Missão, Bora Treinar ou Dia de Estrela só mexe nas sessões daquele app, e a sessão aberta no Bastidores continua até as 12 horas acabarem ou alguém usar "Encerrar sessões".
+
+## Recreio (13/11/2026)
+
+O cadastro mínimo inclui a aba Recreio com contagens estruturais (contas, perfis, mundos e sessões de jogo abertas), eventos `recreio.*` traduzidos na auditoria e revogação do prefixo `recreio:auth:` sem cache de cookie. O teste de privacidade inclui o schema `recreio`, mantendo apelidos, nomes, convites, fotografias e diário fora das consultas.
+
+Recreio e servidor do Morada só entram nas sondagens quando `ADMIN_RECREIO_ENABLED=1`, a configurar depois do deploy fechado. O padrão `0` evita avisos de queda de serviços ainda não publicados. A rotina `recreio/manutencao` fica como aguardando lançamento enquanto não houver execução registrada.

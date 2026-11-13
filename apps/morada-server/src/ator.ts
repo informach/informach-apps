@@ -317,11 +317,6 @@ export class Ator {
       diarioSeq: this.diarioSeq,
       tick: this.tickConfirmado,
     });
-    // A simulação volta parada no tick do último fato do diário, e o id de um
-    // fato leva o tick: um pedido feito agora poderia gerar um fato com o id de
-    // um que já está gravado, que o diário recusaria para sempre. Um passo
-    // antes de qualquer pedido põe o mundo adiante desse tick.
-    if (fatos.length > 0) await this.concluirPasso(this.mundo.avancar(100), []);
     // Um mundo novo, ou um que voltou só do diário, ganha logo a sua fotografia.
     if (!guardada || fatos.length > 0) await this.fotografar("checkpoint");
   }

@@ -18,6 +18,7 @@ import {
 import { describe, expect, it, vi } from "vitest";
 import { aceitarConvite, criarConvite } from "@/features/mundos/service";
 import { env } from "@/lib/env";
+import { revogar } from "../scripts/concessoes";
 import {
   aposentarInstancias,
   avancarRelogio,
@@ -440,6 +441,18 @@ describe("o que uma instância alcança", () => {
       perdida,
     );
     expect(await mundoNoBanco(mundoId)).toMatchObject({ journalSeq: 0, revision: 0 });
+  });
+
+  it("não entrega entrada ao mundo com uma concessão revogada antes da renovação", async () => {
+    const { lia, mundoId, sessao, a, cerca } = await executando();
+    await revogar({ email: lia.conta.email, motivo: "teste_integracao" });
+    const resposta = await pedir("POST", `/api/interno/v1/mundos/${mundoId}/entradas`, {
+      headers: cabecalhosDoHost(MORADA, a.instanciaId),
+      corpo: { cerca, sid: sessao.sid, perfilId: lia.perfil.id },
+    });
+    expect(resposta).toMatchObject({ status: 403, corpo: { codigo: "ACESSO_NEGADO" } });
+    expect(JSON.stringify(resposta.corpo)).not.toContain(lia.conta.email);
+    expect(resposta.corpo).not.toHaveProperty("apelido");
   });
 
   it("a entrada de um jogador confere a sessão, o perfil e o jogo, sem aceitar id trocado", async () => {

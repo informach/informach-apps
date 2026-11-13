@@ -141,3 +141,11 @@ Não adiante nada disso fora do lote correspondente do registro da frente.
 Tom editorial escuro da proposta, com a capa do jogo fazendo o trabalho visual. Tokens `--rc-*` em `src/app/globals.css`; `src/app/tema.test.ts` mede o contraste. Fontes Bricolage Grotesque (títulos) e Plus Jakarta Sans (texto), servidas pela própria origem. Nenhuma arte licenciada entra no repositório: a capa do Morada é um SVG provisório em `src/components/desenhos.tsx`.
 
 Textos em português do Brasil, simples e diretos, sem prometer o que ainda não existe.
+
+## Revisão de 13/11/2026
+
+- A emissão de ingresso limita cada perfil a 20 pedidos por minuto, pelo mesmo armazenamento de limites do app.
+- A renovação confere se o jogo continua aberto; manutenção encerra a sessão com `access_lost`, entrega `JOGO_INDISPONIVEL` e aparece no cursor de encerramentos da instância.
+- A entrada autorizada pela instância reavalia o direito de jogar, depois de conferir escopo, sessão e perfil, preservando as recusas que não revelam a existência de outro perfil/mundo.
+- A guarda compartilhada de `@informach/auth` impede excluir, por outro produto, uma conta que tenha perfil no Recreio. Até implementar sucessão/saída de mundos, a exclusão é assistida pelo suporte; o Recreio continua com a exclusão automática desligada.
+- O E2E isolado serve o Next standalone com `public` e `static` copiados e sobe `dist/main.mjs` do Morada. Implantação preparada em [PRODUCAO.md](PRODUCAO.md), ainda sem serviço publicado.

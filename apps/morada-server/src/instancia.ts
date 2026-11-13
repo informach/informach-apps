@@ -76,6 +76,9 @@ export type Instancia = {
 
 export function criarInstancia(op: OpcoesDaInstancia): Instancia {
   const atores = new Map<string, Ator>();
+  // No máximo um passo por mundo em voo. Um diário lento não acumula uma
+  // fila de ticks nem impede os outros mundos de receberem o próximo pulso.
+  const passosEmCurso = new Set<Ator>();
   const ligacoes = new Map<Conexao, Ligacao>();
   const falhas = op.falhas ?? semFalhas();
   const registrar = op.registrar ?? (() => {});
@@ -293,7 +296,15 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
 
     async passo() {
       if (!viva) return;
-      await vigiar(Promise.all([...atores.values()].map((ator) => ator.passo())));
+      const livres = [...atores.values()].filter((ator) => !passosEmCurso.has(ator));
+      await vigiar(
+        Promise.all(
+          livres.map((ator) => {
+            passosEmCurso.add(ator);
+            return ator.passo().finally(() => passosEmCurso.delete(ator));
+          }),
+        ),
+      );
     },
 
     async batimento() {

@@ -11,6 +11,7 @@ import { carregarArte } from "./arte";
 import { lerConfiguracao } from "./config";
 import { criarPlataformaDeDesenvolvimento } from "./desenvolvimento";
 import { criarInstancia } from "./instancia";
+import { concluirObservabilidade, iniciarObservabilidade, registrarFalha } from "./observabilidade";
 import { criarServidor } from "./servidor";
 
 /**
@@ -60,6 +61,7 @@ function descrever(erro: unknown): Record<string, string> {
 
 async function principal(): Promise<void> {
   const config = lerConfiguracao(process.env);
+  iniciarObservabilidade(config.SENTRY_DSN, config.RAILWAY_GIT_COMMIT_SHA);
   const versao = config.RAILWAY_GIT_COMMIT_SHA?.slice(0, 12) ?? "dev";
 
   let host: ClienteDoHost;
@@ -125,7 +127,10 @@ async function principal(): Promise<void> {
     tokenDeMetricas: config.MORADA_METRICAS_TOKEN ?? null,
     rotas,
     registrar,
-    aoErro: (erro, contexto) => log.error({ contexto, erro: descrever(erro) }, "erro no servidor"),
+    aoErro: (erro, contexto) => {
+      registrarFalha(erro, "rede");
+      log.error({ contexto, erro: descrever(erro) }, "erro no servidor");
+    },
   });
 
   const porta = await servidor.iniciar(config.PORT);
@@ -154,11 +159,13 @@ async function principal(): Promise<void> {
     // Se o desligamento ordenado travar, sai assim mesmo: o diário garante o que é crítico.
     const limite = setTimeout(() => process.exit(1), 25_000);
     servidor.encerrar().then(
-      () => {
+      async () => {
         clearTimeout(limite);
+        await concluirObservabilidade();
         process.exit(0);
       },
       (erro: unknown) => {
+        registrarFalha(erro, "encerrar");
         log.error({ erro: descrever(erro) }, "falha ao encerrar");
         process.exit(1);
       },
@@ -175,6 +182,7 @@ async function principal(): Promise<void> {
 }
 
 principal().catch((erro: unknown) => {
+  registrarFalha(erro, "iniciar");
   log.fatal(
     { erro: erro instanceof Error ? erro.message : String(erro) },
     "não foi possível iniciar",

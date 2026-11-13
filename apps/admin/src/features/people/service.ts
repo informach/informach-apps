@@ -495,6 +495,19 @@ function productFromId(productId: string | null): string | null {
 }
 
 const SIMPLE: Record<string, string> = {
+  "recreio.profile_created": "Criou um perfil no Recreio",
+  "recreio.profile_updated": "Atualizou um perfil no Recreio",
+  "recreio.entitlement_granted": "Recebeu acesso ao Recreio",
+  "recreio.entitlement_revoked": "Teve o acesso ao Recreio revogado",
+  "recreio.game_session_started": "Abriu uma sessão de jogo no Recreio",
+  "recreio.game_session_ended": "Encerrou uma sessão de jogo no Recreio",
+  "recreio.ticket_rejected": "Ingresso do Recreio recusado",
+  "recreio.space_created": "Criou um mundo no Recreio",
+  "recreio.space_invite_created": "Criou um convite de mundo no Recreio",
+  "recreio.space_invite_accepted": "Aceitou um convite de mundo no Recreio",
+  "recreio.space_member_joined": "Entrou em um mundo no Recreio",
+  "recreio.space_lease_taken_over": "Uma instância retomou um mundo no Recreio",
+  "recreio.space_write_refused": "Uma escrita de instância foi recusada no Recreio",
   "user.created": "Criou a conta",
   "user.email_changed": "Trocou o e-mail da conta",
   "user.password_changed": "Trocou a senha",

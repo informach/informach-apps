@@ -22,6 +22,7 @@ import { magicLink } from "better-auth/plugins/magic-link";
 import { organization } from "better-auth/plugins/organization";
 import { twoFactor } from "better-auth/plugins/two-factor";
 import { and, eq, ne, sql } from "drizzle-orm";
+import { assertAccountDeletionReady } from "./account-deletion-guard";
 import { configureObservability, logAuditEvent, logAuditEventStrict } from "./audit";
 import { CLIENT_IP_ADDRESS } from "./client-ip";
 import { type DesktopOAuthConfig, desktopOAuthPlugins, desktopOAuthSchema } from "./desktop-oauth";
@@ -747,6 +748,7 @@ function createAuthInstance(config: CreateAuthConfig) {
                   }
                 : {}),
               beforeDelete: async (user: { id: string; email: string }) => {
+                await assertAccountDeletionReady(user.id);
                 await logAuditEvent("user.deletion_requested", user.id, {
                   email: user.email,
                 });

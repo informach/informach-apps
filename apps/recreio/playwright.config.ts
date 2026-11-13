@@ -43,7 +43,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `pnpm exec next start -p ${e2ePort}`,
+    command: `node .next-isolated-${e2eRunId}/standalone/apps/recreio/server.js`,
+    env: { HOSTNAME: "127.0.0.1", PORT: e2ePort },
     url: `${origin}/api/health`,
     reuseExistingServer: false,
     stdout: "pipe",

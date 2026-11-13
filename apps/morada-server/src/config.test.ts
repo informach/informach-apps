@@ -90,4 +90,32 @@ describe("configuração do servidor", () => {
       MORADA_ORIGENS: [],
     });
   });
+
+  it("aceita HTTP só na rede privada Railway, com emissor público explícito", () => {
+    const privada = {
+      ...completa,
+      NODE_ENV: "production",
+      RECREIO_API_URL: "http://informachrecreio.railway.internal:3009",
+      RECREIO_EMISSOR: "https://recreio.example",
+    };
+    expect(lerConfiguracao(privada).RECREIO_API_URL).toBe(privada.RECREIO_API_URL);
+    expect(() => lerConfiguracao({ ...privada, RECREIO_EMISSOR: undefined })).toThrow(
+      /RECREIO_EMISSOR/,
+    );
+    for (const origem of [
+      "http://recreio.example",
+      "http://localhost:3009",
+      "http://railway.internal",
+      "http://foo.railway.internal.example",
+      "http://user:password@foo.railway.internal",
+      "http://foo.railway.internal/caminho",
+      "ftp://foo.railway.internal",
+    ])
+      expect(() => lerConfiguracao({ ...privada, RECREIO_API_URL: origem })).toThrow(
+        /RECREIO_API_URL/,
+      );
+    expect(() =>
+      lerConfiguracao({ ...privada, RECREIO_EMISSOR: "http://recreio.example" }),
+    ).toThrow(/RECREIO_EMISSOR/);
+  });
 });

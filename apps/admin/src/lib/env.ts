@@ -39,6 +39,8 @@ export const envSchema = z
     CRON_SECRET: z.string().min(32),
     /** Endereços dos serviços conferidos pelo painel, em JSON `{ "cozya": "https://..." }`. */
     ADMIN_SERVICE_URLS: z.string().default(""),
+    /** Ligar só depois do deploy fechado de Recreio e Morada. */
+    ADMIN_RECREIO_ENABLED: z.enum(["0", "1"]).default("0"),
     /** Monta os links do Stripe para o modo certo (test ou live). */
     STRIPE_MODE: z.enum(["dev", "prod"]).default("dev"),
     /** Organização do Sentry para os links de cada app (fase 3). */

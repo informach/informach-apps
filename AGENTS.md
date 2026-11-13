@@ -14,7 +14,7 @@ As instruções locais de `AGENTS.md` e `CLAUDE.md` complementam este guia dentr
 
 ## Mapa dos produtos
 
-O código fica no repositório privado `informach/informach-apps`. Os aplicativos web são serviços separados no Railway, no projeto `informach-apps`, com o domínio da casa `informach.com.br` e subdomínios por produto. Reutilize a infraestrutura existente quando o contrato permitir; não proponha outro provedor ou outro banco como padrão.
+O código fica em `informach/informach-apps`, atualmente público no GitHub. Arte licenciada permanece no repositório privado `informach/artes-3d`, fora deste checkout. Os aplicativos web são serviços separados no Railway, no projeto `informach-apps`, com o domínio da casa `informach.com.br` e subdomínios por produto. Reutilize a infraestrutura existente quando o contrato permitir; não proponha outro provedor ou outro banco como padrão.
 
 | Diretório | Papel | Desenvolvimento local |
 | --- | --- | --- |

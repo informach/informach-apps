@@ -31,6 +31,7 @@ import {
   type EdiUsage,
   type EstrelaUsage,
   type MissaoUsage,
+  recreioUsage,
   usageFor,
 } from "./repository";
 
@@ -135,6 +136,30 @@ export async function getProductView(
         { label: "Abrir o site", href: SERVICES.site.defaultOrigin },
         { label: "Railway", href: RAILWAY_PROJECT_URL },
       ],
+    };
+  }
+
+  if (product === "recreio") {
+    const usage = await recreioUsage();
+    return {
+      tab,
+      name: PRODUCTS.recreio.name,
+      domain: PRODUCTS.recreio.domain,
+      service,
+      kpis: [
+        { label: "contas", value: formatNumber(usage.accounts) },
+        { label: "perfis", value: formatNumber(usage.profiles) },
+        { label: "mundos", value: formatNumber(usage.worlds) },
+        { label: "sessões de jogo abertas", value: formatNumber(usage.sessions) },
+      ],
+      funnel: [],
+      usageTitle: "Alfa fechado",
+      usage: [],
+      plans: [],
+      credits: [],
+      ai: "O Recreio não usa IA.",
+      note: "Acesso por concessão da equipe. Mundos, apelidos, convites e fotografias dos jogos não aparecem no Bastidores.",
+      links: [{ label: "Railway", href: RAILWAY_PROJECT_URL }],
     };
   }
 

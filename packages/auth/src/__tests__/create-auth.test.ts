@@ -202,6 +202,7 @@ vi.mock("@informach/db", () => ({
 }));
 
 vi.mock("@informach/db/schema", () => ({
+  recreioProfiles: { id: "recreioProfiles.id", userId: "recreioProfiles.userId" },
   users: { __mock: "users", id: "users.id", role: "users.role" },
   sessions: { __mock: "sessions", userId: "sessions.user_id" },
   accounts: { __mock: "accounts" },
@@ -2059,7 +2060,10 @@ describe("createAuth — twoFactor plugin (opt-in)", () => {
 });
 
 describe("createAuth — account deletion (opt-in)", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    dbSelectChain.rows = [];
+  });
 
   it("does not configure deleteUser when accountDeletion is undefined", () => {
     createAuth(makeConfig());
@@ -2124,6 +2128,26 @@ describe("createAuth — account deletion (opt-in)", () => {
     const args = dbInsertChain.values.mock.calls.at(-1)?.[0] as Record<string, unknown>;
     expect(args.eventType).toBe("user.deleted");
     expect(args.actorId).toBeNull();
+  });
+
+  it("recusa exclusão em qualquer app antes da limpeza quando há perfil do Recreio", async () => {
+    const onBeforeDelete = vi.fn();
+    createAuth({ ...makeConfig(), accountDeletion: { enabled: true, onBeforeDelete } });
+    dbSelectChain.rows = [{ id: "perfil-recreio" }];
+    await expect(
+      captureConfig().user?.deleteUser?.beforeDelete?.({ id: "u1", email: "del@x" }),
+    ).rejects.toMatchObject({ body: { code: "RECREIO_ACCOUNT_DELETION_REQUIRES_SUPPORT" } });
+    expect(onBeforeDelete).not.toHaveBeenCalled();
+  });
+
+  it("falha ao consultar a guarda também impede a exclusão e a limpeza", async () => {
+    const onBeforeDelete = vi.fn();
+    createAuth({ ...makeConfig(), accountDeletion: { enabled: true, onBeforeDelete } });
+    dbSelectChain.limit.mockRejectedValueOnce(new Error("database unavailable"));
+    await expect(
+      captureConfig().user?.deleteUser?.beforeDelete?.({ id: "u1", email: "del@x" }),
+    ).rejects.toThrow("database unavailable");
+    expect(onBeforeDelete).not.toHaveBeenCalled();
   });
 
   it("beforeDelete invokes onBeforeDelete hook (LGPD cross-package cleanup)", async () => {

@@ -23,9 +23,17 @@ const CONTENT_SCHEMA_FILES = [
   "missao-saber.ts",
   "bora-treinar.ts",
   "dia-de-estrela.ts",
+  "recreio.ts",
 ];
 /** Schemas SQL desses arquivos, para pegar SQL escrito à mão. */
-const CONTENT_SQL_SCHEMAS = ["cozya", "agenda", "missao_saber", "bora_treinar", "dia_de_estrela"];
+const CONTENT_SQL_SCHEMAS = [
+  "cozya",
+  "agenda",
+  "missao_saber",
+  "bora_treinar",
+  "dia_de_estrela",
+  "recreio",
+];
 
 /** Nome de coluna que nunca sai do banco, em qualquer tabela. */
 const FORBIDDEN_ANYWHERE = new Set([
@@ -66,6 +74,9 @@ const SENSITIVE_SHARED_TABLES = [
  */
 const STRUCTURAL_COLUMNS = new Set([
   "id",
+  "groupId",
+  "spaceId",
+  "endedAt",
   "userId",
   "ownerUserId",
   "createdByUserId",
@@ -183,6 +194,7 @@ describe("privacidade das consultas do Bastidores", () => {
     expect(CONTENT_TABLES.has("agendaActivities")).toBe(true);
     expect(CONTENT_TABLES.has("agendaNotices")).toBe(true);
     expect(CONTENT_TABLES.has("missaoAttempts")).toBe(true);
+    expect(CONTENT_TABLES.has("recreioSpaceSnapshots")).toBe(true);
     expect(CONTENT_TABLES.size).toBeGreaterThan(30);
   });
 
@@ -196,6 +208,15 @@ describe("privacidade das consultas do Bastidores", () => {
     );
     expect(findViolations("d.ts", "db.select({ n: missaoProfiles.nickname })")).toHaveLength(1);
     expect(findViolations("e.ts", "readDb().select().from(agendaActivities)")).toHaveLength(1);
+    expect(
+      findViolations("recreio.ts", "readDb().select({ n: recreioProfiles.nickname })"),
+    ).toHaveLength(1);
+    expect(findViolations("recreio.ts", "readDb().select({ n: recreioSpaces.name })")).toHaveLength(
+      1,
+    );
+    expect(
+      findViolations("recreio.ts", "readDb().select({ n: recreioSpaceJournal.bytes })"),
+    ).toHaveLength(1);
     expect(findViolations("f.ts", "sql`select title from agenda.activities`")).toHaveLength(1);
   });
 

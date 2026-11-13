@@ -124,7 +124,10 @@ export async function probeAll(options: { fresh?: boolean } = {}): Promise<Servi
   const cached = globalCache.__bastidoresProbe;
   if (!options.fresh && cached && Date.now() - cached.at < CACHE_MS) return cached.checks;
   const origins = serviceOrigins(getEnv().ADMIN_SERVICE_URLS);
-  const checks = await Promise.all(SERVICE_KEYS.map((key) => probeService(key, origins[key])));
+  const enabled = SERVICE_KEYS.filter(
+    (key) => !["recreio", "morada-server"].includes(key) || getEnv().ADMIN_RECREIO_ENABLED === "1",
+  );
+  const checks = await Promise.all(enabled.map((key) => probeService(key, origins[key])));
   globalCache.__bastidoresProbe = { at: Date.now(), checks };
   return checks;
 }

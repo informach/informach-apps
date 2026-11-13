@@ -4,7 +4,7 @@ import {
   sessions,
   recreioGameTickets as tickets,
 } from "@informach/db/schema";
-import { ehErroDoRecreio, SessaoDeJogoIdSchema } from "@informach/recreio";
+import { ErroDoRecreio, ehErroDoRecreio, SessaoDeJogoIdSchema } from "@informach/recreio";
 import {
   IngressoEmitidoSchema,
   SessaoAbertaSchema,
@@ -14,6 +14,7 @@ import {
 } from "@informach/recreio/contrato";
 import { criarVerificadorDeSessao } from "@informach/recreio/host";
 import { describe, expect, it, vi } from "vitest";
+import * as jogosConfig from "@/features/jogos/config";
 import { selecionarPerfil } from "@/features/perfis/service";
 import { encerrarSessaoDeAparelho, resolverAtor } from "@/features/sessao/service";
 import { emitirIngresso } from "@/features/sessao-de-jogo/service";
@@ -102,6 +103,18 @@ describe("chaves públicas", () => {
 });
 
 describe("ingresso", () => {
+  it("limita a emissão por perfil sem gravar ingressos além do teto", async () => {
+    const lia = await novoJogador();
+    for (let i = 0; i < 20; i++) await ingressoDe(lia);
+    await expect(ingressoDe(lia)).rejects.toMatchObject({ codigo: "MUITAS_TENTATIVAS" });
+    const linhas = await db
+      .select({ id: tickets.jti })
+      .from(tickets)
+      .where(eq(tickets.profileId, lia.perfil.id));
+    expect(linhas).toHaveLength(20);
+    const bruno = await novoJogador();
+    await expect(ingressoDe(bruno)).resolves.toBeTypeOf("string");
+  });
   it("sai para o perfil ativo, vale 60 s e não leva a conta", async () => {
     const lia = await novoJogador();
     const emitido = IngressoEmitidoSchema.parse(await emitirIngresso(lia.ator, { jogo: MORADA }));
@@ -147,6 +160,23 @@ describe("ingresso", () => {
       codigo: "JOGO_INDISPONIVEL",
     });
     await expect(emitirIngresso(lia.ator, { jogo: MORADA, perfil: "x" })).rejects.toThrow();
+  });
+});
+
+describe("manutenção durante uma sessão", () => {
+  it("não renova e encerra a sessão para o próximo batimento da instância", async () => {
+    const lia = await novoJogador();
+    const sessao = await entrarNoJogo(lia);
+    const indisponivel = vi.spyOn(jogosConfig, "jogoQueAbre").mockImplementationOnce(() => {
+      throw new ErroDoRecreio("JOGO_INDISPONIVEL");
+    });
+    try {
+      const resposta = await renovar(sessao.token);
+      expect(resposta).toMatchObject({ status: 404, corpo: { codigo: "JOGO_INDISPONIVEL" } });
+      expect(await sessaoNoBanco(sessao.sid)).toMatchObject({ endReason: "access_lost" });
+    } finally {
+      indisponivel.mockRestore();
+    }
   });
 });
 

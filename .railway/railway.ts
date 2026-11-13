@@ -43,6 +43,8 @@ const EDI_RECONCILE_ACTIVE = true;
  * como as de cima: voltar para `false` apagaria o serviço e o cron.
  */
 const ESTRELA_LAUNCHED = false;
+/** Recreio e Morada: preparação apenas; ativar após revisar PRODUCAO.md e o plano. */
+const RECREIO_LAUNCHED = false;
 
 // Imagens dos crons sem build, fixadas por digest: uma tag trocada no registro
 // não muda o que roda com o CRON_SECRET de cada app. Para atualizar, conferir o
@@ -613,6 +615,111 @@ export default defineRailway((ctx) => {
     },
   });
 
+  // Recreio: alfa fechado, acesso por concessão, sem checkout. Segredos novos
+  // precisam existir antes do primeiro apply; preserve() não cria um segredo.
+  const recreio = service("@informach/recreio-app", {
+    source: main,
+    build: {
+      builder: "RAILPACK",
+      buildCommand: standaloneNext("recreio").buildCommand,
+      watchPatterns: [
+        "/apps/recreio/**",
+        ...packages(
+          "auth",
+          "billing",
+          "config",
+          "db",
+          "emails",
+          "ui",
+          "recreio",
+          "jogo-morada",
+          "morada-sim",
+          "morada-arte",
+        ),
+        ...WORKSPACE_FILES,
+      ],
+    },
+    start: standaloneNext("recreio").startCommand,
+    healthcheck: "/api/ready",
+    healthcheckTimeout: 60,
+    replicas: { [REGION]: 1 },
+    domains: [{ domain: "recreio.informach.com.br", port: 3009 }],
+    networking: { privateNetworkEndpoint: "informachrecreio" },
+    env: {
+      NODE_ENV: "production",
+      PORT: "3009",
+      RAILPACK_NODE_VERSION: NODE_VERSION,
+      NEXT_PUBLIC_APP_URL: "https://recreio.informach.com.br",
+      BETTER_AUTH_URL: "https://recreio.informach.com.br",
+      DATABASE_URL: Postgres.env.DATABASE_URL,
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: referência do Railway.
+      REDIS_URL: "${{Redis.REDIS_URL}}?family=0",
+      EMAIL_SANDBOX_MODE: "live",
+      SENDGRID_FROM: "Recreio <nao-responda@informach.com.br>",
+      SENDGRID_API_KEY: cozya.env.SENDGRID_API_KEY,
+      RECREIO_ACCESS_MODE: "fechado",
+      RECREIO_JOGO_DE_TESTE: "0",
+      RECREIO_GAME_ORIGINS: JSON.stringify({
+        morada: { ws: "wss://morada-server.informach.com.br" },
+      }),
+      BETTER_AUTH_SECRET: preserve(),
+      CRON_SECRET: preserve(),
+      RECREIO_HOST_SECRETS: preserve(),
+      RECREIO_TOKEN_PRIVATE_KEY: preserve(),
+      RECREIO_TOKEN_KEY_ID: preserve(),
+      RECREIO_TOKEN_PREVIOUS_PUBLIC_KEYS: preserve(),
+      SENTRY_DSN: preserve(),
+    },
+  });
+  // Arte licenciada num volume privado. Só configurar MORADA_ARTE_DIR depois
+  // de instalar/verificar o pacote; sem pasta o jogo usa os corpos procedurais.
+  const moradaArte = volume("morada-arte", { region: REGION, sizeMB: 1000 });
+  const morada = service("@informach/morada-server", {
+    source: main,
+    build: {
+      builder: "RAILPACK",
+      buildCommand: "pnpm install --frozen-lockfile --prod=false && pnpm build:morada-server",
+      watchPatterns: [
+        "/apps/morada-server/**",
+        ...packages("config", "recreio", "morada-sim", "morada-arte"),
+        ...WORKSPACE_FILES,
+      ],
+    },
+    start: "pnpm start:morada-server",
+    healthcheck: "/api/ready",
+    healthcheckTimeout: 60,
+    replicas: { [REGION]: 1 },
+    domains: [{ domain: "morada-server.informach.com.br", port: 3010 }],
+    networking: { privateNetworkEndpoint: "informachmorada" },
+    volumeMounts: { "/data": moradaArte },
+    env: {
+      NODE_ENV: "production",
+      PORT: "3010",
+      RAILPACK_NODE_VERSION: NODE_VERSION,
+      MORADA_PLATAFORMA: "recreio",
+      MORADA_REGRAS: "prova",
+      MORADA_CAPACIDADE: "200",
+      RECREIO_API_URL: "http://informachrecreio.railway.internal:3009",
+      RECREIO_EMISSOR: "https://recreio.informach.com.br",
+      MORADA_PUBLIC_URL: "wss://morada-server.informach.com.br",
+      MORADA_ORIGENS: "https://recreio.informach.com.br",
+      RECREIO_HOST_SECRET: preserve(),
+      MORADA_METRICAS_TOKEN: preserve(),
+      MORADA_ARTE_DIR: preserve(),
+      SENTRY_DSN: preserve(),
+    },
+  });
+  const recreioManutencao = service("cron-recreio-manutencao", {
+    source: image(CURL_IMAGE),
+    start: `sh -c 'curl --fail-with-body --silent --show-error --connect-timeout 10 --max-time 120 --request POST --header "Authorization: Bearer $CRON_SECRET" "$RECREIO_URL/api/jobs/manutencao"'`,
+    replicas: { [REGION]: 1 },
+    deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
+    env: {
+      CRON_SECRET: recreio.env.CRON_SECRET,
+      RECREIO_URL: "http://informachrecreio.railway.internal:3009",
+    },
+  });
+
   // Manutenção compartilhada pelos apps de assinatura.
   const crons = [
     perAppCron("billing-reconcile", "0 3 * * *", "billing-reconcile"),
@@ -768,6 +875,7 @@ export default defineRailway((ctx) => {
       site,
       admin,
       ...adminCrons,
+      ...(RECREIO_LAUNCHED ? [recreio, morada, moradaArte, recreioManutencao] : []),
       edi,
       ...crons,
       agendaRoutine,

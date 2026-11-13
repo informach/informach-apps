@@ -176,7 +176,7 @@ export function efetivarPedido(
       const casal = tipo === "namoro" ? "namoro" : "casamento";
       emitir(
         ctx,
-        `casal:${par}:${tick}`,
+        `casal:${par}:${novoId(estado, "fat")}`,
         de.familiaId,
         { tipo: "CasalMudou", a: de.id, b: para.id, casal, memoriaId: novaMemoria(ctx) },
         causa,
@@ -193,7 +193,7 @@ export function efetivarPedido(
       if (!familia) return false;
       emitir(
         ctx,
-        `fam:${para.id}:${tick}`,
+        `fam:${para.id}:${novoId(estado, "fat")}`,
         familia.id,
         {
           tipo: "FamiliaMudou",

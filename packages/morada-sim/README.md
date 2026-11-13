@@ -150,3 +150,7 @@ Com `conferirReplicacao: true` (o padrão dos testes) o replicador varre tudo a 
 - A criança pequena não anda pela casa sozinha: brinca, cochila e é cuidada onde está.
 - Os nomes dos clipes de animação nas interações são provisórios; o empacotador de arte confere a lista contra a biblioteca.
 - Não há dinheiro circulando além do fundo inicial; contas, trabalho e compras entram nas fases seguintes.
+
+## Identidade dos fatos na recuperação
+
+Alterações repetíveis (acesso, preferido, casal e mudança de família) usam o contador durável `contadores.fat`, com sufixo `fat_...`. O redutor reaplica também o contador ao ler o diário. Duas alterações no mesmo tick, inclusive depois de restaurar, têm ids diferentes. O relógio continua no último tick conhecido: não é necessário simular um passo artificial para evitar colisão. Nascimento (`nasc:<gravidez>`) e mudança de fase mantêm seus ids estáveis. Fotografias v1 e fatos antigos continuam legíveis; o novo contador cabe no mapa de contadores existente.

@@ -25,6 +25,9 @@ import {
   missaoReports,
   missaoSessions,
   missaoStudyDevices,
+  recreioGameSessions,
+  recreioProfiles,
+  recreioSpaces,
   users,
 } from "@informach/db/schema";
 import type { ProductKey } from "@/lib/products";
@@ -310,7 +313,35 @@ export function ediUsage(since: Date, now: Date): Promise<EdiUsage> {
   });
 }
 
+export type RecreioUsage = { accounts: number; profiles: number; worlds: number; sessions: number };
+
+export function recreioUsage(): Promise<RecreioUsage> {
+  return memo("products:recreio", TTL, async () => {
+    const db = readDb();
+    const [profiles, worlds, sessions] = await Promise.all([
+      db
+        .select({
+          total: count(),
+          accounts: sql<number>`count(distinct ${recreioProfiles.userId})`.mapWith(Number),
+        })
+        .from(recreioProfiles),
+      db.select({ total: count() }).from(recreioSpaces),
+      db
+        .select({ total: count() })
+        .from(recreioGameSessions)
+        .where(isNull(recreioGameSessions.endedAt)),
+    ]);
+    return {
+      accounts: profiles[0]?.accounts ?? 0,
+      profiles: Number(profiles[0]?.total ?? 0),
+      worlds: Number(worlds[0]?.total ?? 0),
+      sessions: Number(sessions[0]?.total ?? 0),
+    };
+  });
+}
+
 export type UsageByProduct = {
+  recreio: RecreioUsage;
   cozya: CozyaUsage;
   "agenda-da-turma": AgendaUsage;
   "missao-saber": MissaoUsage;
@@ -325,16 +356,18 @@ export async function usageFor<K extends ProductKey>(
   now: Date,
 ): Promise<UsageByProduct[K]> {
   const usage =
-    product === "cozya"
-      ? cozyaUsage(since)
-      : product === "agenda-da-turma"
-        ? agendaUsage(since)
-        : product === "missao-saber"
-          ? missaoUsage(since, now)
-          : product === "bora-treinar"
-            ? boraUsage(since)
-            : product === "dia-de-estrela"
-              ? estrelaUsage(since, now)
-              : ediUsage(since, now);
+    product === "recreio"
+      ? recreioUsage()
+      : product === "cozya"
+        ? cozyaUsage(since)
+        : product === "agenda-da-turma"
+          ? agendaUsage(since)
+          : product === "missao-saber"
+            ? missaoUsage(since, now)
+            : product === "bora-treinar"
+              ? boraUsage(since)
+              : product === "dia-de-estrela"
+                ? estrelaUsage(since, now)
+                : ediUsage(since, now);
   return usage as Promise<UsageByProduct[K]>;
 }

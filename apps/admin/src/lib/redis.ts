@@ -34,6 +34,7 @@ function redis(): IORedis | null {
  * apagada, por causa do cache em cookie do Better Auth.
  */
 export const REDIS_SESSION_APPS = [
+  { app: "recreio", name: "Recreio", keyPrefix: "recreio:auth:", cookieCacheMinutes: 0 },
   { app: "cozya", name: "Cozya", keyPrefix: "cozya:auth:", cookieCacheMinutes: 5 },
   {
     app: "agenda-da-turma",

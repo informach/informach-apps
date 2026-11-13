@@ -5,6 +5,8 @@ describe("abas de Produtos", () => {
   it("aceita só abas conhecidas e começa pelo Cozya", () => {
     expect(parseTab(undefined)).toBe("cozya");
     expect(parseTab("missao-saber")).toBe("missao-saber");
+    expect(parseTab("recreio")).toBe("recreio");
+    expect(tabProduct("recreio")).toBe("recreio");
     expect(parseTab(["edi", "cozya"])).toBe("edi");
     expect(parseTab("javascript:alert(1)")).toBe("cozya");
   });

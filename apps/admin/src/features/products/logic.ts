@@ -8,6 +8,7 @@ export const PRODUCT_TABS = [
   "bora-treinar",
   "dia-de-estrela",
   "edi",
+  "recreio",
   "site",
   "sistema-zero",
 ] as const;
@@ -20,6 +21,7 @@ export const TAB_LABEL: Record<ProductTab, string> = {
   "bora-treinar": "Bora Treinar",
   "dia-de-estrela": "Dia de Estrela",
   edi: "Suíte Edi",
+  recreio: "Recreio",
   site: "Site",
   "sistema-zero": "Sistema Zero",
 };

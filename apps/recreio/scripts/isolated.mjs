@@ -137,7 +137,15 @@ try {
   console.log(`[recreio] Isolated local database created: ${name}`);
   run(["--filter", "@informach/db", "db:migrate"], root);
   if (e2e) {
+    run(["--filter", "@informach/morada-server", "build"], root);
     run(["exec", "next", "build"], app);
+    // Mesmo artefato do Railway: o standalone precisa de public/ e static/.
+    const buildPath = generatedPaths[0];
+    const standalone = resolve(buildPath, "standalone/apps/recreio");
+    cpSync(resolve(app, "public"), resolve(standalone, "public"), { recursive: true });
+    cpSync(resolve(buildPath, "static"), resolve(standalone, basename(buildPath), "static"), {
+      recursive: true,
+    });
     run(["exec", "playwright", "test", ...process.argv.slice(3)], app);
   } else
     run(

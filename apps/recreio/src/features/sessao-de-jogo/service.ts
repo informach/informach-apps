@@ -21,6 +21,7 @@ import { avaliarAcesso } from "@/features/acesso/service";
 import { jogoQueAbre, manifestoDoJogo } from "@/features/jogos/config";
 import { conferirSessaoDeAparelho } from "@/features/sessao/service";
 import { audit } from "@/lib/observability";
+import { limitarTentativas } from "@/lib/rate-limit";
 import { chavesDoRecreio } from "@/lib/tokens";
 import { politicaDoPerfil } from "./politica";
 import {
@@ -72,6 +73,11 @@ export async function emitirIngresso(
   entrada: unknown,
 ): Promise<{ ingresso: string; expiraEm: string }> {
   const { jogo } = PedidoDeIngressoSchema.parse(entrada);
+  await limitarTentativas({
+    chave: `ingresso:${ator.perfil.id}`,
+    max: 20,
+    janelaEmSegundos: 60,
+  });
   const decisao = await exigirAcesso(ator.perfil.id, jogo);
   jogoQueAbre(jogo);
   const { emissor } = await chavesDoRecreio();
@@ -248,6 +254,14 @@ export async function renovarSessao(
   const sessao = await conferirToken(token);
   if (sessao.motivoDoFim !== null)
     throw new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: sessao.motivoDoFim });
+
+  try {
+    jogoQueAbre(sessao.jogo);
+  } catch (erro) {
+    if (erro instanceof ErroDoRecreio && erro.codigo === "JOGO_INDISPONIVEL")
+      await encerrarSessaoDeJogo({ sid: sessao.sid, motivo: "access_lost", porQuem: "recreio" });
+    throw erro;
+  }
 
   const aparelho = await conferirSessaoDeAparelho({
     sessaoDeAparelhoId: sessao.sessaoDeAparelhoId,

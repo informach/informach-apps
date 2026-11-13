@@ -187,6 +187,7 @@ export async function verificarEntrada(
   entrada: unknown,
 ): Promise<EntradaPermitida> {
   const pedido = PedidoDeEntradaSchema.parse(entrada);
+  jogoQueAbre(host.jogo);
   const permitida = await verificarEntradaNoMundo({
     mundoId: mundoDoHost(mundoId),
     jogo: host.jogo,
@@ -195,6 +196,9 @@ export async function verificarEntrada(
     sid: pedido.sid,
     perfilId: pedido.perfilId,
   });
+  // Primeiro confirma o escopo da instância e a identidade da sessão: um id
+  // trocado não pode revelar se existe perfil ou qual é o seu plano.
+  await exigirAcesso(pedido.perfilId, host.jogo);
   const politica = politicaDoPerfil(permitida);
   return {
     membroId: permitida.membroId,

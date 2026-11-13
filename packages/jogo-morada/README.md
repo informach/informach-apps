@@ -123,3 +123,7 @@ Os testes de unidade usam a simulação de verdade (`@informach/morada-sim/teste
 - Som, construir, comprar e criar família (etapa 2).
 
 O jogo no portal (`/jogar/morada`), com duas contas, a queda de uma delas e a queda da instância, é conferido pelo E2E do portal: `apps/recreio/e2e/morada.spec.ts`.
+
+## Móveis sem pacote de arte
+
+O fallback procedural usa superfícies de uso e encostos separados para cama e sofá, dois colchões no beliche e colchão/grades no berço. `formas-do-movel.ts` compartilha as alturas de assento e colchão com `apoio`; o colchão do berço usa a mesma altura do bebê. A cabeceira não ocupa mais todo o volume da cama. Todas as peças continuam num único `InstancedMesh`, com seleção por objeto e limites recalculados ao mudar a visibilidade. Isso melhora o fallback; a arte completa dos móveis do lote D1 continua pendente.

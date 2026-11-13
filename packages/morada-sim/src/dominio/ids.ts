@@ -37,7 +37,8 @@ export type PrefixoDeId =
   | "gra"
   | "ped"
   | "tar"
-  | "mem";
+  | "mem"
+  | "fat";
 
 const LARGURA = 6;
 

@@ -42,6 +42,10 @@ function naEntradaDoLote(estado: EstadoDoMundo, morador: Morador, loteId: string
 }
 
 export function reduzirFato(estado: EstadoDoMundo, fato: Fato): void {
+  // Fatos mutáveis usam um contador durável, independente do tick. A
+  // reaplicação também avança esse contador antes da próxima emissão.
+  const sufixo = fato.id.slice(fato.id.lastIndexOf(":") + 1);
+  if (/^fat_\d+$/.test(sufixo)) registrarId(estado, sufixo);
   const dados = fato.dados;
   switch (dados.tipo) {
     case "AcessoConcedido": {

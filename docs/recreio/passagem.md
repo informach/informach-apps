@@ -1,4 +1,4 @@
-# Recreio e Morada: nota de passagem (12/11/2026)
+# Recreio e Morada: nota de passagem (13/11/2026)
 
 Para quem retoma a frente depois de uma pausa, nesta ou em outra máquina. O registro completo (plano, decisões, verificações) está em [`implementacao.md`](implementacao.md).
 
@@ -33,17 +33,22 @@ O empacotamento leva cerca de 40 s e é determinístico (os hashes estão no reg
 
 Os testes de integração e o E2E do portal pedem um `DATABASE_URL` local (aceitam o `.env` da raiz); eles criam e apagam um banco descartável.
 
+## Continuação local de 13/11
+
+A branch `feat/recreio-review-completion` contém o código do X3 e as correções do [review](review-2026-11-13.md). Há build/start de produção, recursos Railway desligados pela constante, guia operacional, Bastidores mínimo e guarda compartilhada da exclusão. A restauração agora recupera o contador dos fatos mutáveis sem avanço artificial do tick. A emissão de ingressos tem limite, a manutenção interrompe a renovação e a entrada reavalia concessões. Um mundo lento não prende o relógio dos demais. O fallback dos móveis tem superfícies separadas dos encostos.
+
+O runner E2E agora serve o portal standalone e o Morada compilado. Nenhum recurso remoto foi criado. A arte privada não foi carregada nesta máquina.
+
 ## Próximos passos, em ordem
 
-1. **X3**, o que falta da etapa 1: serviços e cron no `.railway/railway.ts` atrás de `RECREIO_LAUNCHED=false`; build e `start` de produção do `apps/morada-server` (hoje roda com `tsx`, que é dependência de desenvolvimento), incluindo onde a arte empacotada fica no serviço (`MORADA_ARTE_DIR`) sem entrar no repositório; `RECREIO_API_URL` exige `https` em produção, o que recusa o endereço interno do Railway; registro mínimo no Bastidores; guarda de exclusão de conta; `PRODUCAO.md`; corrigir "repositório privado" no `AGENTS.md`. O `railway config plan` passa pela revisão do titular antes de aplicar.
-2. **X4**, só com autorização do titular: deploy fechado e medição do custo por hora de mundo com 1, 2, 4 e 8 pessoas.
-3. Etapa 2 (D1 a D8). O D1 traz a arte dos móveis: hoje a caixa procedural da cama tem a altura da cabeceira e cobre quem deita.
+1. Revisar e integrar a branch local com os gates e limites do [review](review-2026-11-13.md). O código do X3 está preparado; não há recurso criado no Railway.
+2. **X4**, após acesso e revisão do plano concreto: deploy fechado e medição de custo por hora de mundo com 1, 2, 4 e 8 pessoas, seguindo [PRODUCAO.md](../../apps/recreio/PRODUCAO.md).
+3. Etapa 2 (**D1 a D8**): arte completa dos móveis, criação de família, construção/compras, interações, família completa, ciclo de mundos, som e prova de diversão. O fallback de cama/sofá/berço/beliche foi corrigido; isso não encerra o D1.
 
 Ficou sem ver no jogo, e vale olhar no começo do X3 ou do D1: sentar e deitar com a arte, a gravidez, o bebê no colo e `/jogar/morada` com `RECREIO_GAME_ORIGINS.morada.assets` declarado (CSP e SDK de verdade). Detalhes na seção do X2 do registro.
 
 ## Abertos que pedem decisão do titular
 
-- `restaurar` do `@informach/morada-sim` devolve o mundo parado no tick do último fato, e o id dos fatos leva o tick: o primeiro fato depois da volta pode repetir um id. O servidor contorna; a causa está na simulação.
 - Os zips de pacotes de arte e as animações da Mixamo continuam no histórico do git deste repositório público.
 - Licença ITHappy por escrito e a conversa jurídica, que travam só o lançamento público.
 - `/termos` e `/privacidade` do Recreio pedem revisão.

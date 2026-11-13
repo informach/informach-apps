@@ -357,3 +357,7 @@ Três apps independentes no Railway, cada um com seu domínio (`admin.informach.
 
 - [`arquitetura-apps.md`](./arquitetura-apps.md) — o que vai dentro de `apps/<app>/`.
 - [`arquitetura-packages.md`](./arquitetura-packages.md) — o que vai dentro de `packages/<pkg>/`.
+
+## Recreio e Morada (preparação de 13/11/2026)
+
+O portal Recreio usa o padrão Next standalone. O Morada é um processo Node/WebSocket com `build:morada-server`/`start:morada-server`: esbuild empacota os packages TypeScript internos em `dist/main.mjs`; `pino`, `ws` e `@sentry/node` são dependências de produção. O jogo não recebe acesso ao banco e fala com a API do Recreio pela rede privada Railway, mantendo emissor público HTTPS explícito. Os dois serviços, o cron e o volume privado de arte permanecem fora dos recursos com `RECREIO_LAUNCHED=false`. A operação e os passos de autorização estão em [PRODUCAO.md](../apps/recreio/PRODUCAO.md); não há implantação inferida da presença desses blocos.

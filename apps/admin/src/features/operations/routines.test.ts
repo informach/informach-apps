@@ -89,8 +89,9 @@ describe("situação das rotinas", () => {
     const edi = routine("edi", "reconcile");
     expect(edi.pausedNote).toBeUndefined();
     expect(routineState(edi, null, now)).toBe("never");
-    // Hoje todos os crons do catálogo estão ligados no Railway.
-    expect(ROUTINES.filter((item) => item.pausedNote)).toEqual([]);
+    // O Recreio só entra na infraestrutura depois do deploy fechado.
+    expect(ROUTINES.filter((item) => item.pausedNote).map((item) => item.app)).toEqual(["recreio"]);
+    expect(routineState(routine("recreio", "manutencao"), null, now)).toBe("paused");
   });
 
   it("escreve a falha e o resumo em português, sem texto livre", () => {

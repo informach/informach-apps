@@ -65,7 +65,9 @@
     "edi:work:instalar": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/edi/hub-dev/instalar.ps1",
     "edi:test:native": "node scripts/edi/test-native.mts",
     "edi:test:pdf-view": "node apps/edipdf/scripts/probe-view-restart.mts",
-    "edi:test:visual": "node scripts/edi/visual-ediaula.mts"
+    "edi:test:visual": "node scripts/edi/visual-ediaula.mts",
+    "build:morada-server": "turbo build --filter=@informach/morada-server",
+    "start:morada-server": "pnpm --filter @informach/morada-server start"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.15",

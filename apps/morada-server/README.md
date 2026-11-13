@@ -144,7 +144,12 @@ pnpm --filter @informach/jogo-morada bancada   # http://localhost:5173/?apelido=
 
 No portal, a origem da arte é `RECREIO_GAME_ORIGINS.morada.assets` (`http://localhost:3010` em desenvolvimento).
 
-## Ainda não tem
+## Produção e isolamento dos mundos
 
-- Build para produção, serviço no Railway e Sentry (lote X3).
-- Os passos de todos os mundos esperam uns pelos outros: uma chamada lenta ao Recreio em um mundo atrasa o passo dos outros mundos da instância.
+`pnpm build:morada-server` gera `dist/main.mjs` com esbuild (versão fixada no lockfile), incluindo os packages internos. `pnpm start:morada-server` executa esse arquivo com Node, sem `tsx` em runtime. `pino`, `ws` e `@sentry/node` são dependências de produção externas ao bundle. O E2E do portal também sobe esse artefato compilado.
+
+Cada pulso inicia somente os mundos sem um passo em voo. Um diário ou checkpoint lento pausa apenas o seu mundo; não acumula ticks nem bloqueia os demais. Cada ator mantém a sua fila de escrita e a proteção pela posse.
+
+`SENTRY_DSN` é opcional. O servidor envia apenas classificadores de falha (`rede`, `encerrar`, `iniciar` e código do Recreio ou `INTERNO`), com filtro que remove requisição, pessoa, breadcrumbs e mensagens livres. O serviço, o volume de arte e o cron estão preparados no Railway atrás de `RECREIO_LAUNCHED=false`; isso não cria recursos nem comprova deploy. Instruções em [PRODUCAO.md](PRODUCAO.md).
+
+Em produção, `RECREIO_API_URL` aceita HTTPS ou HTTP numa origem privada exata `<serviço>.railway.internal`. A API privada exige `RECREIO_EMISSOR` HTTPS explícito, igual ao emissor público do portal. URLs com credenciais, caminho ou outro protocolo são recusadas.

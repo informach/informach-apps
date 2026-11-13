@@ -39,6 +39,21 @@ function event(
 }
 
 describe("frases da auditoria", () => {
+  it("traduz eventos do Recreio sem publicar conteúdo dos mundos ou credenciais", () => {
+    const descrito = describeEvent(
+      event("recreio.space_invite_created", "u-marina", {
+        app: "recreio",
+        spaceId: "mundo",
+        nome: "Casa privada",
+        codigo: "segredo",
+        apelido: "Apelido privado",
+      }),
+      people,
+    );
+    expect(groupOf("recreio.space_invite_created")).toBe("produtos");
+    expect(sentenceText(descrito.parts)).toBe("Criou um convite de mundo no Recreio");
+    expect(sentenceText(descrito.parts)).not.toMatch(/Casa privada|segredo|Apelido privado/);
+  });
   it("descreve as ações da equipe com quem agiu e sobre quem", () => {
     const viewed = describeEvent(
       event("admin.user_viewed", "u-helena", { targetId: "u-marina" }),
@@ -53,7 +68,14 @@ describe("frases da auditoria", () => {
       event("admin.sessions_revoked", "u-helena", {
         targetId: "u-marina",
         count: 3,
-        apps: ["cozya", "agenda-da-turma", "missao-saber", "bora-treinar", "dia-de-estrela"],
+        apps: [
+          "cozya",
+          "agenda-da-turma",
+          "missao-saber",
+          "bora-treinar",
+          "dia-de-estrela",
+          "recreio",
+        ],
         reason: "pedido pelo direct",
       }),
       people,
@@ -72,7 +94,7 @@ describe("frases da auditoria", () => {
       people,
     );
     expect(sentenceText(partial.parts)).toBe(
-      "Encerrou as sessões de Marina Duarte (sem alcançar Agenda da Turma, Missão Saber, Bora Treinar e Dia de Estrela), 0 sessões",
+      "Encerrou as sessões de Marina Duarte (sem alcançar Agenda da Turma, Missão Saber, Bora Treinar, Dia de Estrela e Recreio), 0 sessões",
     );
   });
 

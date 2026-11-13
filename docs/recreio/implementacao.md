@@ -2,7 +2,7 @@
 
 Registro detalhado da frente. O índice de continuidade é o [estado do repositório](../estado-do-repositorio.md); as regras permanentes ficam no [AGENTS.md](../../AGENTS.md).
 
-Branch `feat/recreio`, em worktree próprio. Nada foi enviado ao remoto nem publicado.
+Estado vigente em 13/11/2026: a `main` tem P0–P7, J0–J8, X1 e X2. A continuação local está na branch `feat/recreio-review-completion`, com o código do X3 e correções do [review de 13/11](review-2026-11-13.md). Ainda sem deploy; as seções datadas abaixo preservam as verificações e decisões de cada marco.
 
 ## De onde vem o escopo
 
@@ -90,7 +90,7 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 | --- | --- | --- |
 | X1 | Plataforma real no servidor, `/jogar/morada`, E2E com duas contas | feito |
 | X2 | Empacotador e corpos reais na máquina de desenvolvimento | feito |
-| X3 | Railway atrás da constante, Bastidores mínimo, guias | a fazer |
+| X3 | Railway atrás da constante, build de produção, Bastidores mínimo, guias | implementado localmente; ver review de 13/11 |
 | X4 | Deploy fechado e medição de custo, só com autorização | a fazer |
 
 ### Etapa 2
@@ -358,7 +358,17 @@ O que o P1 deixa para os próximos lotes:
 
 ## Pendências fora da frente
 
-- **Arte no histórico do git.** O `informach-apps` está público no GitHub, e o commit que tirou a pasta `ideas/` só apagou os arquivos: os zips dos pacotes e as animações da Mixamo continuam no histórico. Decisão do titular em 11/11/2026: registrar como pendência, sem ação nesta frente. O `AGENTS.md` ainda descreve o repositório como privado; a correção entra no lote X3.
+- **Arte no histórico do git.** O `informach-apps` está público no GitHub, e o commit que tirou a pasta `ideas/` só apagou os arquivos: os zips dos pacotes e as animações da Mixamo continuam no histórico. Decisão do titular em 11/11/2026: registrar como pendência, sem ação nesta frente. O `AGENTS.md` foi corrigido na revisão de 13/11 para refletir o estado público.
 - **Licença ITHappy** por escrito e a conversa jurídica (faixas, verificação de idade, classificação): correm em paralelo e travam só o lançamento público.
 - **Uma réplica** do `morada-server` até existir endereço por instância no Railway.
 - A migração do schema `recreio` vai para produção no merge na `main`, mesmo com a constante desligada. O merge só acontece depois do lote P6.
+
+## Revisão e continuação — 13/11/2026
+
+A revisão do titular retomou a base da `main` em `feat/recreio-review-completion`. Achados, correções, testes e limites no [review](review-2026-11-13.md); operação preparada em [PRODUCAO.md](../../apps/recreio/PRODUCAO.md).
+
+Código do X3: build/start do Morada com Node, API interna Railway com emissor público separado, serviços/cron/volume atrás de `RECREIO_LAUNCHED=false`, observabilidade sanitizada, cadastro mínimo do Recreio no Bastidores e guarda temporária de exclusão da conta em todos os apps. Correções adicionais: fatos mutáveis com contador durável e remoção do avanço artificial na restauração; manutenção interrompe renovação; limite de ingressos; concessão reavaliada na entrada; isolamento de passos lentos por mundo. Continuação visual: superfícies de cama/sofá/berço/beliche no fallback, ainda sem arte completa dos móveis.
+
+Decisão de segurança temporária: até existir sucessão/saída de mundos, contas com perfil do Recreio exigem exclusão assistida, inclusive quando o pedido parte de outro produto. A antiga suposição de exclusão automática na etapa 1 não está implementada e não deve ser anunciada como disponível.
+
+O X4 permanece sem execução remota. D1–D8 continuam abertos; a preparação operacional não encerra a etapa de diversão. Não houve reescrita do histórico de arte nem publicação de arte licenciada.

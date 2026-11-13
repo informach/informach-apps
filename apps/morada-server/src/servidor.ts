@@ -202,21 +202,17 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
     });
   });
 
-  /** O laço de 100 ms. Se um passo demora, o seguinte espera: nunca dois ao mesmo tempo. */
+  /** Pulso de 100 ms. A instância só inicia passos dos mundos que estão livres. */
   function ligarRelogio(): void {
     let proximo = performance.now() + PASSO_MS;
     const rodar = () => {
       if (encerrando) return;
-      instancia
-        .passo()
-        .catch((erro: unknown) => aoErro(erro, "passo"))
-        .finally(() => {
-          const agora = performance.now();
-          // Atrasou mais de três passos: recomeça a contar daqui, sem tentar recuperar tudo.
-          if (agora - proximo > 3 * PASSO_MS) proximo = agora;
-          proximo += PASSO_MS;
-          relogio = setTimeout(rodar, Math.max(0, proximo - performance.now()));
-        });
+      void instancia.passo().catch((erro: unknown) => aoErro(erro, "passo"));
+      const agora = performance.now();
+      // Atraso de CPU não gera uma rajada ilimitada para recuperar o tempo.
+      if (agora - proximo > 3 * PASSO_MS) proximo = agora;
+      proximo += PASSO_MS;
+      relogio = setTimeout(rodar, Math.max(0, proximo - performance.now()));
     };
     relogio = setTimeout(rodar, PASSO_MS);
   }
