@@ -1,4 +1,10 @@
-import { type BrowserContext, expect, type Page } from "@playwright/test";
+import { createHash } from "node:crypto";
+import { getAppUrl } from "@informach/config/domains";
+import { db, eq } from "@informach/db";
+import { users } from "@informach/db/schema";
+import { createFamilyService } from "@informach/family";
+import { type BrowserContext, expect, type Page, test } from "@playwright/test";
+import { fixtureAuthority } from "../test/canonical-fixture";
 
 /**
  * Fecha um contexto extra (outro aparelho, navegador reaberto) só depois que o
@@ -26,7 +32,11 @@ export async function prepareProfile(
   course = "olitef-n1",
 ) {
   await page.goto("/familia/preparar");
-  await page.getByLabel("Apelido do estudante").fill(nickname);
+  const person = await preparePerson(page, nickname);
+  await page.reload();
+  await page
+    .getByRole("combobox", { name: "Pessoa da família", exact: true })
+    .selectOption(person.id);
   await page.getByLabel("Ano escolar", { exact: true }).selectOption(grade);
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Continuar para a trilha" }).click();
@@ -48,11 +58,14 @@ export async function parentLogin(
   password = "Missao-Teste-2026-Local!",
   next = "/familia",
 ) {
-  await page.goto(`/entrar?next=${encodeURIComponent(next)}`);
-  await page.getByLabel("E-mail do responsável", { exact: true }).fill(email);
+  const central = getAppUrl("conta", "development");
+  await page.goto(`/entrar?reautenticar=1&next=${encodeURIComponent(next)}`);
+  await page.getByRole("button", { name: "Confirmar minha identidade", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`^${central}/entrar\\?`));
+  await page.getByLabel("E-mail", { exact: true }).fill(email);
   await page.getByLabel("Senha", { exact: true }).fill(password);
-  await page.getByRole("button", { name: "Entrar no Missão Saber", exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`${next.replace(/[?]/g, "\\?")}$`));
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  await expect(page).toHaveURL(`${getAppUrl("missao-saber", "development")}${next}`);
 }
 
 export async function openStudy(page: Page, nickname: string, shared = false) {
@@ -64,3 +77,41 @@ export const startMission = (page: Page) =>
   page.getByRole("button", {
     name: /^(Começar minha primeira missão|Começar missão|Revisar esta ideia)/,
   });
+
+/** Central auth has its own browser suite; product journeys use a verified synthetic account. */
+export async function registerParent(
+  page: Page,
+  email: string,
+  password = "Missao-Teste-2026-Local!",
+) {
+  const central = getAppUrl("conta", "development");
+  // APIRequestContext inherits context headers, not page.setExtraHTTPHeaders.
+  // Each synthetic household has its own address; production rate limits stay enabled.
+  const address = createHash("sha256").update(test.info().testId).digest();
+  await page.context().setExtraHTTPHeaders({ "x-real-ip": `198.20.${address[0]}.${address[1]}` });
+  const response = await page.request.post(`${central}/api/auth/sign-up/email`, {
+    headers: { origin: central },
+    data: { email, password, name: "Responsável de teste" },
+  });
+  expect(response.ok(), await response.text()).toBe(true);
+  const [user] = await db
+    .update(users)
+    .set({ emailVerified: true })
+    .where(eq(users.email, email))
+    .returning();
+  if (!user) throw new Error("Missing central account");
+  const authority = await fixtureAuthority(user.id);
+  await parentLogin(page, email, password);
+  return { userId: user.id, familyGroupId: authority.familyGroupId };
+}
+export async function preparePerson(page: Page, nickname: string) {
+  const session = await (await page.request.get("/api/auth/get-session")).json();
+  if (!session?.user?.id) throw new Error("An adult session is required to prepare a person");
+  const actor = await fixtureAuthority(session.user.id);
+  return createFamilyService({ db }).createPerson(actor.userId, {
+    groupId: actor.familyGroupId,
+    kind: "dependent",
+    displayName: nickname,
+    avatar: "cometa",
+  });
+}

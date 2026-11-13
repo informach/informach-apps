@@ -1,10 +1,14 @@
 import "server-only";
 import { renderEmailElement } from "@informach/emails";
 import { createElement } from "react";
-import { getAccess } from "@/features/billing/service";
+import { getGroupAccess } from "@/features/billing/service";
 import { challengeOf } from "@/features/desafios/repository";
-import { allowedProfileIds } from "@/features/familia/profile-access";
-import { listProfiles, progressOf } from "@/features/familia/repository";
+import {
+  enabledTrainerIds,
+  familyService,
+  listProfiles,
+  progressOf,
+} from "@/features/familia/repository";
 import { familySessionsSince } from "@/features/sessoes/repository";
 import { inicioDaSemana, inicioDoDiaLocal, somarDias } from "@/lib/datas";
 import { buildUnsubscribeUrl, emails } from "@/lib/emails";
@@ -21,6 +25,7 @@ import {
 import { LembreteEmail, ResumoSemanalEmail } from "./emails";
 import {
   familiasComAvisos,
+  isCurrentRecipient,
   marcarResumo,
   melhoresAntesDe,
   sessoesSomadasDesde,
@@ -32,21 +37,38 @@ const ORCAMENTO_MS = 50_000;
 type Resultado = "enviado" | "ignorado" | "falha";
 
 /** Perfis que o plano libera hoje (os bloqueados num downgrade não recebem lembrete). */
-async function perfisAtivos(userId: string) {
-  const [access, perfis] = await Promise.all([getAccess(userId), listProfiles(userId)]);
-  const permitidos = new Set(allowedProfileIds(perfis, access.profileLimit));
+async function perfisAtivos(userId: string, groupId: string) {
+  const [access, perfis] = await Promise.all([
+    getGroupAccess(userId, groupId),
+    listProfiles(userId, groupId),
+  ]);
+  const permitidos = new Set(await enabledTrainerIds(userId, groupId, access.profileLimit));
   return { access, ativos: perfis.filter((p) => permitidos.has(p.id)) };
+}
+
+/** Retry inline only while the whole rendered snapshot remains authorized. The next job rebuilds it. */
+async function mayDeliverSnapshot(
+  userId: string,
+  email: string,
+  groupId: string,
+  profileIds: string[],
+) {
+  if (!(await isCurrentRecipient(userId, email))) return false;
+  const { ativos } = await perfisAtivos(userId, groupId);
+  return profileIds.length > 0 && profileIds.every((id) => ativos.some((p) => p.id === id));
 }
 
 async function enviarLembrete(
   f: { userId: string; email: string; timezone: string },
+  groupId: string,
   data: string,
   agora: Date,
 ): Promise<Resultado> {
-  const { access, ativos } = await perfisAtivos(f.userId);
+  const { access, ativos } = await perfisAtivos(f.userId, groupId);
   const sessoes = await sessoesSomadasDesde(
     f.userId,
     inicioDoDiaLocal(inicioDaSemana(agora, f.timezone), f.timezone),
+    groupId,
   );
   const lembrete = montarLembrete(ativos, sessoes, agora.getTime(), f.timezone, access.unlocked);
   // todos já treinaram hoje (ou não há perfil): nada a lembrar
@@ -64,7 +86,14 @@ async function enviarLembrete(
     to: f.email,
     userId: f.userId,
     category: "bora.reminder",
-    messageKey: `bora:reminder:${f.userId}:${data}`,
+    authorizeContent: () =>
+      mayDeliverSnapshot(
+        f.userId,
+        f.email,
+        groupId,
+        ativos.map((p) => p.id),
+      ),
+    messageKey: `bora:reminder:${f.userId}:${groupId}:${data}`,
     subject: "Hora de treinar!",
     text: textoLembrete(lembrete, env.NEXT_PUBLIC_APP_URL, unsubscribeUrl),
     html,
@@ -78,27 +107,32 @@ const SEMANAS_DO_HISTORICO = 52;
 
 async function enviarResumo(
   f: { userId: string; email: string; timezone: string },
+  groupId: string,
   semana: { semana: string; anterior: string },
   agora: Date,
 ): Promise<Resultado> {
-  const { access, ativos } = await perfisAtivos(f.userId);
+  const { access, ativos } = await perfisAtivos(f.userId, groupId);
   if (!ativos.length) return "ignorado";
   const inicio = inicioDoDiaLocal(semana.anterior, f.timezone);
   const [sessoes, historico, melhores, progressos] = await Promise.all([
-    familySessionsSince(f.userId, inicio, inicioDoDiaLocal(semana.semana, f.timezone)),
+    familySessionsSince(f.userId, inicio, inicioDoDiaLocal(semana.semana, f.timezone), groupId),
     sessoesSomadasDesde(
       f.userId,
       inicioDoDiaLocal(somarDias(semana.anterior, -7 * SEMANAS_DO_HISTORICO), f.timezone),
+      groupId,
     ),
-    melhoresAntesDe(f.userId, inicio),
+    melhoresAntesDe(f.userId, inicio, groupId),
     // os níveis são da assinatura: sem ela, o resumo não oferece subir
-    access.unlocked ? Promise.all(ativos.map((p) => progressOf(p.id))) : null,
+    access.unlocked ? Promise.all(ativos.map((p) => progressOf(f.userId, p.id))) : null,
   ]);
-  const daSemana = sessoes.map((s) => ({
-    profileId: s.profileId,
-    durationSeconds: s.duration,
-    logs: s.logs,
-  }));
+  const allowed = new Set(ativos.map((p) => p.id));
+  const daSemana = sessoes
+    .filter((s) => allowed.has(s.profileId))
+    .map((s) => ({
+      profileId: s.profileId,
+      durationSeconds: s.duration,
+      logs: s.logs,
+    }));
   const resumo = montarResumo(
     ativos.map((p, i) => ({
       ...p,
@@ -113,7 +147,7 @@ async function enviarResumo(
       }),
     })),
     daSemana,
-    access.unlocked ? await challengeOf(f.userId, semana.anterior) : null,
+    access.unlocked ? await challengeOf(f.userId, groupId, semana.anterior) : null,
   );
   const unsubscribeUrl = buildUnsubscribeUrl(f.userId, "bora.weekly-summary");
   const { html } = await renderEmailElement(
@@ -128,7 +162,14 @@ async function enviarResumo(
     to: f.email,
     userId: f.userId,
     category: "bora.weekly-summary",
-    messageKey: `bora:weekly:${f.userId}:${semana.semana}`,
+    authorizeContent: () =>
+      mayDeliverSnapshot(
+        f.userId,
+        f.email,
+        groupId,
+        ativos.map((p) => p.id),
+      ),
+    messageKey: `bora:weekly:${f.userId}:${groupId}:${semana.semana}`,
     subject: resumo.treinou ? "A semana de treinos da família" : "Uma semana nova para treinar",
     text: textoResumo(resumo, env.NEXT_PUBLIC_APP_URL, unsubscribeUrl),
     html,
@@ -154,21 +195,27 @@ export async function rodarLembretes(agora = new Date()) {
       if (!f.emailVerified) continue;
       const plano = oQueEnviar({ ...f, weeklySummaryWeek: f.weeklySummaryWeek ?? null }, agora);
       try {
-        if (plano.lembrete) {
-          const r = await enviarLembrete(f, plano.lembrete, agora);
-          if (r === "enviado") contagem.lembretes += 1;
-          else if (r === "ignorado") contagem.ignorados += 1;
-          else contagem.falhas += 1;
-        }
-        if (plano.resumo) {
-          const r = await enviarResumo(f, plano.resumo, agora);
-          if (r === "falha") contagem.falhas += 1;
-          else {
-            if (r === "enviado") contagem.resumos += 1;
-            else contagem.ignorados += 1;
-            await marcarResumo(f.userId, plano.resumo.semana);
+        const groups = await familyService.listGroups(f.userId);
+        let summaryFailed = false;
+        for (const group of groups) {
+          if (plano.lembrete) {
+            const r = await enviarLembrete(f, group.id, plano.lembrete, agora);
+            if (r === "enviado") contagem.lembretes += 1;
+            else if (r === "ignorado") contagem.ignorados += 1;
+            else contagem.falhas += 1;
+          }
+          if (plano.resumo) {
+            const r = await enviarResumo(f, group.id, plano.resumo, agora);
+            if (r === "falha") {
+              contagem.falhas += 1;
+              summaryFailed = true;
+            } else {
+              if (r === "enviado") contagem.resumos += 1;
+              else contagem.ignorados += 1;
+            }
           }
         }
+        if (plano.resumo && !summaryFailed) await marcarResumo(f.userId, plano.resumo.semana);
       } catch (error) {
         // uma família com dado quebrado não pode calar as seguintes
         contagem.falhas += 1;

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { LinkChapa } from "@/components/ui/botao-chapa";
 import { CabecalhoPagina } from "@/components/ui/pagina";
 import { LearningReport } from "@/features/family/components/learning-report";
+import { parentAuthority } from "@/features/family/context";
 import { familyLearningReports } from "@/features/family/reports";
 import { familyReports } from "@/features/learning/repository";
 import { requirePageUser } from "@/lib/auth";
@@ -18,7 +19,9 @@ export default async function FollowUp({
   const reports = await familyLearningReports();
   const selected = perfil ? reports.find((report) => report.profile.id === perfil) : reports[0];
   if (perfil && !selected) notFound();
-  const submitted = selected ? await familyReports(user.id, selected.profile.id) : [];
+  const submitted = selected
+    ? await familyReports(await parentAuthority(user.id), selected.profile.id)
+    : [];
   return (
     <div className="mx-auto max-w-4xl">
       <CabecalhoPagina

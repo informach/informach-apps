@@ -63,9 +63,9 @@ export function GroupAccessPanel({
         {pendingRemoval ? (
           <div className="space-y-3 rounded-lg border border-destructive/30 p-4">
             <p className="text-sm">
-              Remover essa família do grupo? Ela perderá acesso às atividades recebidas deste grupo.
-              Atividades criadas por ela serão preservadas. O código também será renovado para
-              impedir reentrada pelo convite antigo.
+              Remover as matrículas feitas por esse responsável? Essas crianças perderão acesso às
+              atividades recebidas deste grupo. Atividades criadas pela própria família serão
+              preservadas. O código também será renovado para impedir reentrada pelo convite antigo.
             </p>
             <Button
               variant="destructive"

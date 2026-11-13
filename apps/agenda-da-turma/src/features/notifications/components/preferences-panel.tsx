@@ -25,10 +25,12 @@ const WEEKDAYS = [
 ] as const;
 
 export function NotificationPreferencesPanel({
+  familyGroupId,
   initial,
   enabled,
   publicKey,
 }: {
+  familyGroupId: string;
   initial: z.infer<typeof notificationPreferencesSchema>;
   enabled: boolean;
   publicKey: string | null;
@@ -43,7 +45,9 @@ export function NotificationPreferencesPanel({
       return;
     }
     setBusy(true);
-    const result = await catchActionResult(() => saveNotificationPreferencesAction(parsed.data));
+    const result = await catchActionResult(() =>
+      saveNotificationPreferencesAction({ familyGroupId, preferences: parsed.data }),
+    );
     setBusy(false);
     setMessage(result.ok ? "Preferências salvas." : noticeErrorMessage(result.error.code));
     if (result.ok) setValue(parsed.data);
@@ -87,7 +91,9 @@ export function NotificationPreferencesPanel({
         setMessage("Não foi possível validar a inscrição deste navegador.");
         return;
       }
-      const result = await catchActionResult(() => subscribePushAction(parsed.data));
+      const result = await catchActionResult(() =>
+        subscribePushAction({ familyGroupId, subscription: parsed.data }),
+      );
       if (!result.ok) {
         setMessage(
           result.error.code === "DEVICE_ALREADY_LINKED"
@@ -268,7 +274,7 @@ export function NotificationPreferencesPanel({
         <p className="text-sm text-muted-foreground">
           Resumos e lembretes fazem parte da assinatura da família.{" "}
           <Link href="/upgrade?motivo=lembretes" className="text-primary-ink underline">
-            Ver o Pro
+            Ver o Compasso
           </Link>
         </p>
       ) : null}

@@ -13,7 +13,11 @@ export class DatabaseLockBusyError extends Error {
  * and reserving every query connection before calling back would deadlock.
  * Two extra connections bound provider concurrency and leave query capacity free.
  */
-async function withLock<T>(key: string, operation: () => Promise<T>, wait: boolean): Promise<T> {
+async function withLocks<T>(
+  keys: readonly string[],
+  operation: () => Promise<T>,
+  wait: boolean,
+): Promise<T> {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error("DATABASE_URL is required for database locks");
   const global = globalThis as LockGlobal;
@@ -25,12 +29,14 @@ async function withLock<T>(key: string, operation: () => Promise<T>, wait: boole
   });
   // Wrap the generic value because postgres.begin unwraps arrays in its return type.
   const result = await global.__informachLockPg.begin(async (tx) => {
-    if (wait) await tx`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
-    else {
-      const [row] = await tx<
-        { acquired: boolean }[]
-      >`select pg_try_advisory_xact_lock(hashtextextended(${key}, 0)) as acquired`;
-      if (!row?.acquired) throw new DatabaseLockBusyError();
+    for (const key of [...new Set(keys)].sort()) {
+      if (wait) await tx`select pg_advisory_xact_lock(hashtextextended(${key}, 0))`;
+      else {
+        const [row] = await tx<
+          { acquired: boolean }[]
+        >`select pg_try_advisory_xact_lock(hashtextextended(${key}, 0)) as acquired`;
+        if (!row?.acquired) throw new DatabaseLockBusyError();
+      }
     }
     return { value: await operation() };
   });
@@ -38,9 +44,19 @@ async function withLock<T>(key: string, operation: () => Promise<T>, wait: boole
 }
 
 export function withDatabaseLock<T>(key: string, operation: () => Promise<T>): Promise<T> {
-  return withLock(key, operation, false);
+  return withLocks([key], operation, false);
 }
 
 export function withDatabaseLockWait<T>(key: string, operation: () => Promise<T>): Promise<T> {
-  return withLock(key, operation, true);
+  return withLocks([key], operation, true);
+}
+
+/** Acquire related provider lifecycle locks on ONE coordination connection.
+ * Nesting single-key helpers can exhaust this bounded pool and deadlock. */
+export function withDatabaseLocksWait<T>(
+  keys: readonly string[],
+  operation: () => Promise<T>,
+): Promise<T> {
+  if (!keys.length) throw new Error("A coordination key is required");
+  return withLocks(keys, operation, true);
 }

@@ -1,12 +1,34 @@
 # `@informach/agenda-da-turma` — app guide
 
+## Compasso — identidade, acesso e cobrança em migração (10/11/2026)
+
+O código deste app usa o login central em `apps/conta`, com callbacks/origens cadastrados em `@informach/config`. Cadastro, senha, verificação, recuperação e identidade compartilhada são geridos pela central; o app inicia OIDC e mantém apenas sua sessão vinculada à raiz. Sair encerra a raiz desse navegador. Ações que exigem confirmação recente usam `@informach/auth/web-sessions`, com a data da autenticação central; um callback novo não renova essa janela. `reautenticar=1` abre a confirmação real de credenciais. Não restaurar os antigos emissores de senha/OTP, hooks de exclusão global ou sessão Redis.
+
+A migração de perfis, cobrança, créditos e privacidade ainda está em execução; os contratos antigos descritos abaixo não foram removidos integralmente nem migrados em produção. O corte exige concluir a conversão dos writers, backfill, sessões e provedores. Estado e evidências: [registro da migração](../../docs/propostas/assinatura-web-2026-11-09/implementacao.md). Para a matriz isolada de login, execute `pnpm compasso:test:integration --apps-only` na raiz; ela cobre os apps registrados, em série, no computador e no celular.
+
+
+**Contrato já convertido:** ativação escolar referencia uma pessoa central; nome é lido de `family.people`, nascimento escolar continua no app. `AgendaAuthority` contém adulto e grupo escolhido; a consulta deve incluir concessão do app/perfil/contexto. Mutação precisa de leitura + escrita atuais, sob trava de família e perfil, com cobertura e capacidade conferidas na mesma transação. Matérias/tarefas extras, material e estudo seguem esse contrato. A interface deve refletir `canWrite`/`canManage`; autoria histórica não substitui concessão. Turmas escolares têm credenciais/administração próprias, conforme o contrato convertido abaixo.
+
+Fila offline guarda adulto, família e atividade; a rota confere o adulto da sessão e revalida a autoridade. Entradas anteriores sem contexto ficam ocultas até resolução pela origem persistida e permissões atuais, sem inferir por nome. Recibo e operação são atômicos; repetição não concede leitura de conteúdo após revogação. Calendário privado usa snapshot de read/concessão/geração; novos links duram 365 dias, enquanto os históricos preservam o prazo anterior. Recriar uma concessão não revive o link antigo. Gravações de lotes recusados devem fazer rollback, inclusive quando a recusa é um resultado de domínio.
+
+`/upgrade` e `/settings/billing` encaminham à central com a família selecionada. A venda local, a gestão local de planos e os componentes duplicados foram retirados. Preços públicos, cotação e consumo corrente usam o Compasso. Webhook/jobs dos contratos antigos continuam necessários até a migração financeira, com validade e poder de uso dos saldos preservados. Não publicar a migração de consumidores isoladamente. As referências históricas de operação Stripe abaixo não são política do Compasso. A produção continua inalterada. Gates usam o runner isolado documentado em §10.
+
+
 > Documentação primária do app para humanos e agentes. Para o root do monorepo ver [`/CLAUDE.md`](../../CLAUDE.md). Para os packages consumidos: [`@informach/auth/CLAUDE.md`](../../packages/auth/CLAUDE.md), [`@informach/billing/CLAUDE.md`](../../packages/billing/CLAUDE.md), [`@informach/emails/CLAUDE.md`](../../packages/emails/CLAUDE.md), [`@informach/ai-core/CLAUDE.md`](../../packages/ai-core/CLAUDE.md).
 
 ---
 
+Contrato escolar convertido em 10/11, 03h15: código da sala não acompanha a leitura de uma criança; só criador ou emissor da matrícula com leitura/escrita atuais o recebe. Matrícula exige gestão canônica; colaboração em matérias exige escrita atual (ou administração explícita da sala). Operações escolares seguem turma(s) ordenadas → família → perfil → tarefa/publicação. Não adicionar uma trava de turma depois de bloquear a família. Alterações de matérias, cores e slots são atômicas. Aceite é por adulto/família e só copia para crianças autorizadas; revisão de publicação altera campos escolares, conserva campos privados e não alcança quem saiu da sala. Primeiros passos são por adulto/grupo, com chave composta (0120/0121). A tela Crianças direciona pessoas/permissões à Minha conta; rotas antigas, IA e privacidade ainda estão em conversão. Detalhes e limitações no registro da frente.
+
+Contrato convertido em 10/11, 04h20: IA usa carteira Compasso da família, pessoa/ator explícitos e teto versionado aceito antes do uso. Não emitir créditos locais. Parsers têm saída limitada e sem repetição automática; STT tem tarifa por duração PCM validada e custo do provedor separado, sem alegar pinagem que o endpoint não suporta. Originais confirmados exigem escopo completo revisado e consentimento separado de compartilhamento. Notificações têm preferência por adulto/família e autorização revalidada no transporte; push não expõe conteúdo escolar. Exportação exige concessões atuais, sem exceção por autoria/pagamento. Adultos e novos convites são geridos na central. Links antigos de convite precisam de nova emissão central. Migrations 0122–0127 e evidências no registro da frente. Ainda falta contrato final e homologação integral.
+
+Complemento de 10/11, 05h00: voz e organização de matérias usam recibos privados de `@informach/ai-core/operations` (0128), com reutilização da mesma entrada/tarifa por 24 horas, vínculo adulto/família/perfil e prova financeira antes da devolução. O cron de rotina limpa recibos vencidos após resolução das reservas; não colocar saídas nos logs. A exportação inclui apenas resultados concluídos do próprio adulto com leitura atual. O calendário mostra validade de um ano para links novos e explica que novas crianças exigem novo link; criar/revogar compara o contexto da tela. Extras limitam controles de escrita pelas concessões/cobertura, mantendo consulta do histórico. Ensaios integrais de banco/tipos e unitários passaram antes desses últimos ajustes; gates e pendências atuais no registro da migração.
+
 ## 1. Propósito
 
-Agenda da Turma organiza recados escolares em providências para a família: o que fazer, até quando e quem cuida. O titular continua sendo o subject de billing; o Pro permite um segundo adulto com login próprio e permissões por criança. Não usar o identificador do titular como identidade de autenticação do convidado.
+Encerramento Compasso em integração (10/11): o adapter interno seleciona históricos pela custódia canônica, inclui originais próprios mesmo de famílias anteriores e segue turma → famílias ordenadas → participação. Um original compartilhado que abranja crianças a remover e a preservar bloqueia o encerramento e a exclusão local; `capture_profile_id` não autoriza apagar o documento inteiro. Originais privados próprios são removidos sem apagar as tarefas copiadas para outra criança. Turmas/publicações de outras famílias permanecem, com perda da administração da sala conforme a regra de turma órfã; autoria histórica dos registros preservados permanece e não concede acesso. A retomada elimina calendários/push antigos, torna recibos offline respostas sem conteúdo e cancela entregas abandonadas; reserva IA ou entrega ainda em curso impede a limpeza. A 0148 registra a revisão de participação na admissão de cada leitura de recado; persistir a resposta exige o mesmo ator, tentativa, perfil, concessões e revisão. Validação integrada em andamento; a rotina autenticada executa o plano confirmado na Conta, sem aceitar identidade ou seleção pelo HTTP.
+
+Agenda da Turma organiza recados escolares em providências para a família: o que fazer, até quando e quem cuida. Cada adulto usa sua identidade central; a família é o contexto comercial e as concessões por criança autorizam conteúdo. Pagante, administrador familiar e administrador de turma são papéis distintos.
 
 Estado da implementação em 11/09/2026: rotina móvel, recado com texto + imagem/PDF, revisão antes de salvar, prazos opcionais e origem da data, convites revogáveis, atribuição de responsável, histórico/versionamento, resumo e lembretes, push opt-in, calendário privado, exportação e exclusão de conta. Nascimento, turma e matérias são opcionais no primeiro uso. Grupos de turma são privados por criador e turno; conhecer os dados públicos da sala não concede acesso.
 
@@ -51,13 +73,13 @@ Entrada única (14/09/2026): existe **um gesto** para trazer atividade para dent
 
 **Não repor sem evidência de campo.** O código está no histórico do git (commits `86d79e2` e `86530bf`); o que falta não é implementação, é uma escola que mande tarefa por e-mail. Os canais que a família de fato usa são os que ficaram: foto, colar, ditado, compartilhamento do sistema e exportação do WhatsApp.
 
-Franquia de teste (14/09/2026): `features/notices/trial.ts` é a fonte única. A franquia é contada em **importações** (`FREE_NOTICE_TRIAL`, aplicado em `reserveNoticeParse` sobre linhas `is_trial`); os créditos só a financiam e por isso precisam **sobrar, nunca faltar** — se o saldo morrer antes do teto, a tela ainda anuncia importações que falham. Duas concessões idempotentes: `base` dá 1 crédito por importação e `voice` dá 3 por importação, porque ditar é iterativo e regravar é normal. Financiar generosamente não basta: `checkTrialAdmission` **recusa o ditado quando gastá-lo deixaria menos de um crédito por importação restante** (`VOICE_TRIAL_SPENT`), senão a transcrição comeria o saldo e a tela anunciaria importações que falham. `admitFreeTrialCall` **concede os créditos que financiam a chamada** antes de medir o saldo: medir antes vê um saldo sem o próprio financiamento, e foi assim que o ditado ficou recusado para toda conta gratuita, de forma autotravante. A aritmética mora em `trial-reserve.ts`, fora do `server-only`, para poder ser testada. Ele replica as MESMAS pré-condições de `reserveNoticeParse` (e-mail confirmado, orçamento diário global, teto de importações) para as rotas que entram pela franquia antes de existir um recado — sem isso, uma conta com e-mail não confirmado gastava IA por conta da casa. `withAiRouteGuards` aceita `freeTrial` e `ownerId`; **sempre passe `ownerId`** em rota que saiba de qual criança se trata, senão um segundo adulto convidado é tratado como Free numa família Pro. `getAddEntitlement` resolve plano e franquia do titular para a UI pelo mesmo caminho.
+O teste atual pertence ao Compasso: 14 dias e 20 créditos compartilhados, ativados na Conta. A franquia local de cinco importações e suas concessões `base`/`voice` foram removidas. Não restaurar `freeTrial`, `ownerId` ou contagem por `is_trial` como autorização: o ator informa adulto/família, e os repositórios conferem perfil, concessões e cobertura atual.
 
 Direção visual da rotina (12/09/2026): agenda escolar acolhedora para responsáveis e crianças, com a criança realizando atividades e a família acompanhando. A navegação mora no rodapé e a entrada na folha Adicionar; a rotina não repete atalhos. Usar a fonte e os tokens existentes: azul para tarefas, lilás para provas, rosa para trabalhos/eventos, verde para materiais e laranja para lembretes/autorizações. Cor sempre acompanhada de texto e ícone; fundos suaves, bordas arredondadas e controles de pelo menos 44 px. O mapa compartilhado fica em `features/unified-activities/presentation.ts`. Manter leitura nos temas claro e escuro, linguagem de acompanhamento em família e nenhuma pontuação ou competição entre crianças.
 
 **Nome curto da criança (06/11/2026).** Pílula, botão, card e linha de lista mostram o nome curto de `shortChildNames` (`features/students/utils.ts`): o primeiro nome, e mais um nome só para os irmãos que começam igual ("Maria Eduarda" e "Maria Clara"), nunca parando numa partícula ("Maria de Fátima"). Hoje, Atividades e Semana trocam o nome **uma vez, na entrada** (`withShortChildName` com o mapa da família inteira), para dois irmãos continuarem distinguíveis mesmo quando só um tem atividade na tela. O nome inteiro fica onde há lugar para ele e onde ele identifica: a folha da criança em Família, o detalhe da atividade, os formulários e os seletores. Com o nome inteiro, o botão "A vez de …" (que não encolhe) empurrava as aulas de "Hoje na escola" para uma palavra por linha e saía da tela, e as pílulas viravam uma criança por linha.
 
-O plano gratuito permite uma criança, 20 pendências próprias combinando escola/extras/recados, recebimento de atividades compartilhadas e cinco importações por conta verificada. Dados existentes continuam consultáveis após downgrade; novas automações pagas ficam pausadas. O Pro tem até três crianças, dois adultos e 70 créditos/mês. Não há validação de pagantes informada pelo fundador.
+O gratuito mantém uma criança, 20 pendências próprias combinando escola/extras/recados e recebimento de atividades compartilhadas. Dados existentes permanecem consultáveis após encerramento da cobertura; novas automações exigem cobertura atual. A Agenda no Compasso comporta até quatro dependentes conforme a capacidade global da família. Direitos antigos ainda reconhecidos vêm de `family.migration_sources`, sem transferir compras de uma família para outra.
 
 Teams e Batista ID são fontes de importação assistida (copiar publicação e enviar anexo). Conectores automáticos dependem de acesso autorizado e prova técnica; não estão disponíveis. Operação requer configuração de VAPID, envio de e-mail e scheduler. A implementação e a validação local não constituem implantação em produção.
 
@@ -65,202 +87,33 @@ Consulte [implementação e rastreabilidade](../../docs/reviews/agenda-da-turma-
 
 ---
 
-## 2. Modelo econômico (alinhado com `@informach/billing`)
+## 2. Compasso, carteira e IA
 
-| Item | Valor |
-|---|---|
-| Pro mensal | **R$ 19,90/mês** (`agenda_da_turma_pro_monthly`) |
-| Pro anual | **R$ 199,00/ano** (`agenda_da_turma_pro_annual`) — ~17% desc, 2 meses grátis |
-| Créditos Pro | **70/mês**, drip mensal no anual, expiram no fim do ciclo |
-| Free | 1 criança, 20 pendências próprias e 5 importações de teste por conta verificada |
-| Gateway de IA | OpenRouter; revisão obrigatória dos resultados |
+A política vigente fica em `@informach/config/collections` (`COMPASSO_POLICY`) e o catálogo em `@informach/config/products`. R$ 49,90/mês ou R$ 499/ano, dois adultos/quatro dependentes, teste de 14 dias sem cartão com 20 créditos; assinatura com 200 créditos mensais sem acumular, inclusive no anual. Recargas: 100/R$14,90, 300/R$39,90 e 1.000/R$99,90, sem vencimento. Esses valores não convertem automaticamente saldos antigos nem autorizam uma segunda cobrança.
 
-### Pacotes extras (Pro-only)
+- `features/ai/costs.ts` define a tarifa versionada e os tetos aceitos, compartilhados entre UI e servidor. O servidor recusa versão/teto diferentes, valida limites de entrada/saída e não debita acima do aceito. Não anunciar preço fixo de uma chamada para todos os formatos.
+- `noticeCostQuote` considera texto, imagem ou o contexto completo do PDF. PDF é nativo no modelo, sem OCR remoto adicional; limites de tamanho/páginas continuam em `features/ai/pdf-utils.ts`. O teste não financia qualquer PDF. Voz é PCM16 mono/16 kHz, no máximo 120 segundos, com um crédito por minuto iniciado; transcrição e organização são etapas apresentadas separadamente.
+- Recados preservam saída antes do débito e recuperam saída paga sem outra chamada. Voz e matérias usam `@informach/ai-core/operations`, com escopo adulto/família/perfil, tarifa/modelo/conteúdo, lease e recuperação por 24 horas. Autorizar novamente antes de devolver conteúdo; resultado sem prova financeira não é entregue.
+- Reservar → executar com limites → validar/persistir saída → confirmar/liberar. O `runId` conecta reserva, execução e telemetria. Não repetir automaticamente uma chamada paga nem compensar com créditos sem preservar a origem da operação.
+- Os agentes são stateless, sem logs ou traces de conteúdo. `agent_runs` recebe metadados sanitizados. Spans históricos anteriores à retirada de observabilidade precisam de tratamento de retenção no corte; a implementação local não comprova limpeza em produção.
+- Adicionar IA exige tarifa e orçamento completos, limite de tentativas/tempo/entrada/saída, permissões atuais e teste de recuperação/falha. As chaves antigas de `credit_pricing` permanecem para história financeira; não representam a tarifa Compasso.
 
-Mesma régua do cozya — pack custa mais per-credit que o plano (premium 20-40%) pra incentivar assinatura:
+Economia, limites e o que ainda depende de medição do provedor: [economia da IA](../../docs/propostas/assinatura-web-2026-11-09/economia-ia.md).
 
-| Pack | Créditos | Preço | R$/crédito |
-|---|---|---|---|
-| `agenda_da_turma_credits_10` | 10 | R$ 6,90 | R$ 0,69 |
-| `agenda_da_turma_credits_20` | 20 | R$ 12,90 | R$ 0,645 |
-| `agenda_da_turma_credits_30` | 30 | R$ 17,90 | R$ 0,597 |
+## 3. Estrutura, entrada e gestão compartilhada
 
-### Features de IA cadastradas
+- `src/app`: páginas, rotas e composição do Next; `src/features`: domínio por funcionalidade, serviços/repositórios/componentes; `src/lib`: adapters do app; `src/ai`: modelos e agentes.
+- `features/family`: ator, seleção explícita de grupo, projeção de nome central e permissões. A consulta vincula perfil nativo → ativação → pessoa/grupo; não confia no pagante ou no ID enviado pela UI.
+- `features/billing/access-repository.ts`: cobertura transacional. `lib/billing.ts`/jobs/webhook atendem apenas os contratos antigos até o corte financeiro; não criar novo Checkout por eles.
+- `/login` inicia o SSO registrado; `/signup` e `/choose-plan` preservam destinos locais e o ciclo escolhido nos links antigos. Login/senha/OTP/recuperação/exclusão global pertencem à Conta. Nenhum callback OAuth novo renova sozinho a confirmação recente da identidade.
+- Família → Crianças ativa uma pessoa já cadastrada na Conta. O app edita somente dados escolares; nomes, responsáveis e concessões ficam na Conta. Escola, turma e nascimento continuam opcionais.
+- `/upgrade` conserva a periodicidade até a oferta central, inclusive depois de login. A oferta não marca consentimento nem inicia Checkout automaticamente. `/settings/billing` converge no mesmo contexto familiar, sem outra carteira ou gestão de cobrança.
+- Não repor “Seja Pro” no cabeçalho: a oferta aparece quando o recurso precisa dela. `plans-content.ts` deriva os números da política compartilhada. Não escrever preços/franquias paralelos em componentes.
+- Tests: `src/**/*.test.ts` (unidade), `test/integration` (PostgreSQL) e `e2e` (Conta + Agenda reais em fixtures descartáveis). Ver §10.
 
-Recados têm captura própria com texto, anexo e ditado no mesmo fluxo. As ferramentas de **matérias** continuam em `/turmas/[id]/materias`; as de **atividades** (`parse_voice`/`parse_image`/`parse_pdf`) não têm mais entrada na interface. Pro tem 70 créditos/mês via webhook + sweeper; a captura de recados também aceita a franquia inicial gratuita.
+## 4. Stripe anterior — referência operacional até o corte financeiro
 
-| Feature | Modelo (OpenRouter) | Créditos |
-|---|---|---|
-| `agenda.notices.parse` | `openai/gpt-4o` | 1 |
-| `agenda.subjects.parse_image` | `openai/gpt-4o` (imageDetail=low) | 1 |
-| `agenda.subjects.transcribe_audio` | `openai/gpt-4o-transcribe` | 1 |
-| `agenda.subjects.parse_voice` | `openai/gpt-4o-mini` | 1 |
-| `agenda.activities.transcribe_audio` | `openai/gpt-4o-transcribe` | 1 |
-
-Cadastro em lote de atividades por voz/imagem/PDF espelha o pattern de
-matérias: áudio → transcribe (1 crédito) → parse (1 crédito) → batch confirm
-dialog; imagem → parse vision (1 crédito) → batch confirm dialog; PDF →
-parse multimodal (1 crédito) → batch confirm dialog. Cada chamada cobra
-1 crédito via reserve→commit/release, mesma régua das matérias. O parser
-recebe a lista de nomes dos perfis de estudante do user no user-message
-(server-side via `findStudentProfilesByUser`) e devolve `studentNameHint`
-por atividade; o serviço resolve `studentNameHint` → `activeTurmaId` via
-`findClosestStudent` (Levenshtein ≤ 3 + normalização) antes de devolver
-pra UI, então o dialog pré-seleciona a turma do card quando a IA aponta
-um filho específico. Somente ditado atual recebe a data de hoje como contexto.
-Imagens e PDFs recebem aviso de data desconhecida; prazos relativos exigem
-referência de publicação inequívoca. Nunca preencher amanhã/próxima aula por
-ausência de prazo. A captura de recados não envia nomes dos perfis à IA e
-exige escolha da criança pela pessoa na revisão. Envia só os **nomes das
-matérias** da criança escolhida (turma + extras) e o ano corrente, e recebe
-`subjectHint` por ação (ver §6, "Matéria nas providências de recado").
-
-PDF é processado direto pelo gpt-4o via AI SDK v6 (`type: "file"` +
-`mediaType: "application/pdf"`) — sem conversão pra imagem no servidor.
-Limites enforced antes da IA: máx 5 MB e 3 páginas (validação via
-`pdf-lib` em `features/ai/pdf-utils.ts`); PDFs maiores retornam
-`PDF_TOO_LONG`/`PDF_TOO_LARGE` no route handler antes de gastar crédito.
-
-Fluxo de voz custa 2 créditos (transcribe + parse). Fluxo de imagem e
-fluxo de PDF custam 1 crédito cada.
-
-**Nenhum agente da Agenda exporta traces (17/10/2026).** O leitor de recados nunca exportou; os leitores de matérias exportavam pelo `createDefaultObservability`, que grava entrada e saída de cada chamada (foto do horário, transcrição) em `ai_mastra.mastra_ai_spans`, sem rotina de exclusão. Saiu do `getMastra()`, e a política guarda-chuva promete que o conteúdo enviado à IA só fica guardado quando a família salva o resultado ou pelos prazos desta página. **Não religar sem uma retenção e sem atualizar as duas políticas.** As linhas antigas em produção (`"serviceName" = 'agenda-da-turma'`) continuam lá até uma limpeza autorizada.
-
-Seed em `packages/billing/src/seeds/credit-pricing.ts` (`AGENDA_PRICING_SEED` + `seedAgendaCreditPricing`) idempotente. Rodar `pnpm db:seed` insere rows em `billing.credit_pricing`.
-
-Para adicionar nova feature de IA:
-1. Adicionar row em `AGENDA_PRICING_SEED` com ID de modelo prefixado (`openai/gpt-4o-mini` por default).
-2. Adicionar entry em `AGENDA_MODELS` (`apps/agenda-da-turma/src/ai/models.ts`).
-3. Criar service em `src/features/ai/` envolvendo a chamada em `runBillableAiCall` (ou `withCredits` se multi-stage).
-4. Adicionar route handler em `src/app/api/ai/...` com `withAiRouteGuards` (cobre OpenRouter key + auth + rate-limit + Pro gate).
-5. Garantir que rate-limit em `lib/rate-limit.ts` cobre — hoje `AI_INVOKE_PER_HOUR: 60` cobre todas as features de IA da Agenda.
-6. UI: se a feature faz parte da entrada de atividades, ela entra na folha Adicionar e usa `freeTrial` no guard, sem selo "Pro" no botão. Feature exclusiva do Pro mostra o selo "Pro" e **não fica desligada**: o toque leva a `/upgrade` (como o `ExportPdfButton`, "Imprimir a semana"). Botão cinza sem saída é beco. O direito vem do plano da FAMÍLIA (`getFamilyEntitlements(...).enabled`), não de `getIsProForUser` de quem toca: o segundo adulto de uma casa Pro tem direito.
-
----
-
-## 3. Estrutura
-
-```
-apps/agenda-da-turma/
-├── src/
-│   ├── app/                       # Next 16 app router
-│   │   ├── (auth)/                # /login, /signup (quatro passos); /choose-plan só redireciona para /upgrade
-│   │   ├── (app)/                 # autenticadas
-│   │   │   ├── dashboard/         # "Hoje": horário do dia, rotina, rascunhos a conferir
-│   │   │   ├── atividades/        # lista + `[id]` (detalhe único) + `nova` (formulário único)
-│   │   │   ├── calendario/        # a aba Semana: a semana (padrão) e o mês, com a vista rápida do mês
-│   │   │   ├── recados/           # originais guardados + `novo` (captura) + redirects antigos
-│   │   │   ├── familia/           # crianças, turmas, adultos e ajustes
-│   │   │   ├── perfis/, turmas/   # redirect 307 para Família + telas profundas (extras, matérias)
-│   │   │   ├── settings/billing/  # plano + saldo + packs (Pro) + history + portal
-│   │   │   └── upgrade/           # UpgradeOffer: o Pro na hora certa, com o motivo de quem chegou
-│   │   ├── api/                   # webhooks/jobs + as poucas rotas do app
-│   │   │   ├── auth/[...all]/     # Better Auth handler
-│   │   │   ├── webhooks/{stripe,sendgrid}/
-│   │   │   ├── jobs/              # 5 billing crons + 3 email crons + rotina
-│   │   │   ├── ai/                # transcribe + matérias por voz/imagem
-│   │   │   ├── recados/           # parse, original e anexo
-│   │   │   ├── tasks/[id]/status/ # concluir/reabrir idempotente (fila offline, §9)
-│   │   │   ├── calendario/[token]/ # feed ICS privado
-│   │   │   ├── data/              # estados/cidades/escolas + exportação
-│   │   │   ├── product-event/     # métricas da landing
-│   │   │   ├── email/unsubscribe/
-│   │   │   ├── health/            # commit servindo; nunca toca o banco
-│   │   │   └── ready/             # portão de deploy: schema do banco (ver §6)
-│   │   ├── (marketing)/           # landing pública + termos/privacidade
-│   │   └── layout.tsx             # Plus Jakarta Sans + ThemeProvider + Toaster
-│   ├── features/
-│   │   ├── account/               # exportação e exclusão (LGPD)
-│   │   ├── activities/            # folha Adicionar, lista, aceite de compartilhadas e o fato publicado na turma
-│   │   ├── ai/                    # helpers cross-feature: _http-errors, image-utils, _shared (withAiRouteGuards)
-│   │   ├── billing/               # upgrade-offer, plan-card, credit-balance-card, credit-packs, history, plans-content (preços e franquias do catálogo)
-│   │   ├── calendar/              # a aba Semana: semana em linhas por dia, mês em grade, blips, vista rápida, range/grid
-│   │   ├── calendar-feed/         # token do feed ICS (hash em repouso, girável)
-│   │   ├── dashboard/             # Hoje: horário do dia (em lote), folhas, faixa da semana, semana para imprimir, datas com TZ São Paulo
-│   │   ├── family/                # acesso por criança, segundo adulto, convites e ajustes da casa
-│   │   ├── kid-mode/              # a vez da criança: até a próxima aula, uma por vez, "Feito!" com "Desfazer"
-│   │   ├── metrics/               # eventos de produto (enum estrito) + contrato da landing
-│   │   ├── notices/               # recado, leitura, rascunho e o CRUD de toda atividade (dívida de nome, ver §6)
-│   │   ├── notifications/         # resumo diário, resumo de domingo, lembretes, push e retenção
-│   │   ├── offline-queue/         # a fila de conclusões que esperam a rede (§9)
-│   │   ├── onboarding/            # signup-form (quatro passos), signup-flow (para onde vai depois do código), login-form
-│   │   ├── profile-subjects/      # matérias extracurriculares + o predicado de matéria pausada (§6)
-│   │   ├── students/              # perfis de estudante (CRUD, dialogs, avatar com chart-N, widgets do dashboard)
-│   │   ├── study-plan/            # plano de estudo determinístico para prova e trabalho
-│   │   ├── subject-kits/          # "levar sempre" por matéria
-│   │   ├── subjects/              # matérias por turma + paleta chart-N collision-free
-│   │   ├── turmas/                # turmas (create/join-by-code/active/leave + comboboxes IBGE+INEP)
-│   │   └── unified-activities/    # a projeção única: card, detalhe, carga do dia, toggle otimista
-│   ├── components/
-│   │   ├── brand/agenda-logo.tsx  # logotipo SVG inline (theme-aware)
-│   │   ├── app-shell/             # DesktopHeader e MobileTopBar, BottomNav, DesktopNav, UserMenu (conta e aparência)
-│   │   └── icons/canvas-icons.tsx # os ícones do canvas que o Lucide instalado redesenhou
-│   ├── lib/
-│   │   ├── env.ts                 # Zod-validated envs
-│   │   ├── auth.ts                # createAuth({ email: { verification: "otp", signIn: { magicLink: false }, forgetPassword: "otp" } })
-│   │   ├── billing.ts             # createBillingService({ organizationsEnabled: false, app: APPS.agendaDaTurma.slug })
-│   │   ├── emails.ts              # createEmailService(...)
-│   │   ├── action.ts              # createActionFactory({ helpers, rateLimitStorage: redisRateLimitStorage(redis, "agenda-da-turma:rl:") })
-│   │   ├── action-result.ts       # catchActionResult / isActionRejected (client helper)
-│   │   ├── observability.ts       # packageLogger + Sentry
-│   │   ├── redis.ts               # ioredis com ?family=0 implicit (Railway IPv6)
-│   │   ├── sendgrid-webhook.ts    # signature verify helper
-│   │   └── logger.ts              # pino app-level
-│   ├── proxy.ts                   # auth proxy; requireAuth: ["/dashboard","/choose-plan","/upgrade","/settings","/perfis","/turmas","/api/data"]
-│   ├── instrumentation.ts         # Sentry init (server)
-│   └── instrumentation-client.ts  # Sentry init (client)
-├── e2e/                           # Playwright (auth signup/signin por senha/OTP)
-├── public/
-│   └── logotipo.svg               # asset original (versão inline em components/brand/)
-└── next.config.ts                 # Sentry + standalone output + security headers/CSP estática
-```
-
-### Auth (OTP-only)
-
-- **Verificação de email**: OTP 6 dígitos (não link).
-- **Sign-in**: email/senha (sem magic link).
-- **Forget password**: OTP (não link).
-
-Justificativa em `packages/auth/CLAUDE.md` §3.1: OTP mantém usuário na mesma página, ótimo para mobile-first. Mesma decisão do cozya.
-
-Notificação `auth.signup-attempt-on-existing` está wired e dispara para **todos** os usuários existentes (não só Pro). O gate Pro foi removido em 2026-05-14 porque criava vazamento de info: atacante deduzia que "email existente recebe notificação ⇒ é Pro" via signup attempt. Defesa anti-spam fica no rate limit do `/sign-up/email` (5/h) — qualquer escalada futura (CAPTCHA, IP throttle) deve manter a notificação democrática.
-
-### Billing
-
-- `subject.type = "user"` sempre (`organizationsEnabled: false`).
-- `app: APPS.agendaDaTurma.slug` ("agenda-da-turma") garante isolamento de customers/credits do cozya — UNIQUE `(provider, subject_type, subject_id, app)` em `billing.customers`.
-- `hasProSubscription` é o gate único para liberar packs de crédito + (futuramente) features de IA.
-- LGPD: `accountDeletion.onBeforeDelete` chama `billing.cancelBillingForSubject` (cancela assinaturas; saldos e linhas históricas ficam por retenção fiscal).
-- Webhook handlers transacionais (`billing.payment-success` / `subscription-renewed` / `subscription-canceled` / `credits-purchased`) e dunning (`billing.payment-failed` via cron) usam `appName: APPS.agendaDaTurma.name` ("Agenda da Turma") nos templates.
-
-### Cadastro em quatro passos, plano fora dele (outubro de 2026)
-
-A escolha de plano saiu do cadastro: **o grátis vale por padrão e o Pro aparece quando faz falta**. Antes o cadastro terminava em `/choose-plan`, antes de a pessoa ver a Agenda fazer qualquer coisa, e o Pro anual escolhido na página de vendas se perdia ali (o `/signup` só lia `next` e a escolha abria no mensal).
-
-O desenho é o do canvas ("O começo"): sem cabeçalho e sem cartão, o símbolo no canto (o link para a página inicial) e as barras das etapas ao lado; o texto "Passo 2 de 4: Código" é o nome da figura para o leitor de tela. Título de 34 px, campos de 52 px e o botão no pé. O `(auth)/layout.tsx` é só o fundo do app; o login usa o mesmo canto com o símbolo.
-
-1. **Conta**: nome, e-mail e uma senha só, com "Mostrar" dentro do campo.
-2. **Código**: OTP de 6 números, reenviar depois de 60 s.
-3. **Criança**: só o nome (`createStudentProfileAction`, e a escolha fica lembrada neste aparelho para a folha "O que chegou?").
-4. **Primeiro recado**: os três caminhos. "Tirar uma foto" abre a câmera (ou a galeria) ali mesmo e a tela do recado já chega com a foto (`photo-handoff.ts`); mensagem e falar vão para `/recados/novo?modo=…&perfil=…`. Ou "Ir para Hoje sem recado".
-
-Para onde vai depois do código é uma regra pura e testada, `afterVerification` em `features/onboarding/signup-flow.ts`:
-
-- o convite de outro adulto (`?next=/familia/convite…`) vai direto ao destino e não cadastra criança;
-- `?plan=pro&cycle=` (ou `?next=/upgrade?cycle=`, o Pro que chegou pelo login) abre o pagamento **na confirmação do código**, no ciclo escolhido; se o pagamento não abrir, a pessoa tenta de novo ou segue no grátis, e o passo a passo passa a ser o da criança;
-- **qualquer outro `next` não pula a criança.** O proxy põe `?next=` em toda rota protegida, inclusive Hoje e o início do aplicativo instalado, e com a regra antiga a conta nova ficava sem criança. Esse destino vem depois dela (o convite de uma turma, por exemplo); `/dashboard` e nenhum destino terminam no primeiro recado. O "Criar conta" do login só repassa o `next` que veio na URL.
-
-O passo a passo no topo (`OnboardingStepper`) mostra só as etapas do caminho da pessoa ("Passo 2 de 4: Código"). O passo da criança tem "Fazer isso depois", e todo `next` passa por `safeInternalPath` (`lib/url.ts`), que recusa barra invertida e caractere de controle: o navegador transforma os dois em `//outro-site` na hora de navegar.
-
-**O ciclo não se perde em nenhum caminho de quem já tem conta.** `proOfferHref(cycle)` é o endereço da oferta (`/upgrade?cycle=anual|mensal`) e é usado por: `/signup` com sessão e `?plan=pro` (quem recarrega depois do código), o "Entrar" do cadastro de quem escolheu o Pro, a volta de um pagamento cancelado (`cancelUrl` em `features/onboarding/service.ts`), a sessão que vence na própria oferta e `/choose-plan`, que virou uma rota (`route.ts`) que só redireciona para lá, com 307, e continua existindo para links antigos.
-
-**O Pro na hora certa** (`/upgrade`, `UpgradeOffer`, como a prancha "Plano": o "X" para sair, o cartão do Pro com borda azul, o ciclo num seletor de duas partes, quatro linhas do Pro (`PRO_OFFER_FEATURES`) e o grátis numa frase; sem rodapé, como a tela do recado): a página abre respondendo ao motivo de quem chegou (`?motivo=imprimir|crianca|adulto|lembretes`; sem motivo conhecido ela olha a franquia: "Os recados de teste acabaram.", que é o caso do fim da franquia na folha Adicionar). Cada porta do Pro manda o seu motivo: "Imprimir a semana", a segunda criança, o convite de outro adulto e os lembretes. O titular que já assina vai para `/settings/billing`; o adulto convidado de uma casa Pro, sem criança própria, lê que tudo do Pro já vale para ele. Quem cuida junto numa casa Pro e cadastrou os próprios filhos no grátis vê a oferta: esta página é a única porta do pagamento fora do cadastro. **Não repor o "Seja Pro" no cabeçalho**: ele saiu justamente porque anunciava o Pro em todas as telas do grátis.
-
-Os números do plano (franquia, leituras por mês, crianças, adultos, atividades em aberto, o ditado que conta como dois, o menor pacote e "pague 10 meses, use 12") saem de `features/billing/plans-content.ts`, derivados do catálogo e dos limites do app, e a mensagem de franquia esgotada (`features/notices/messages.ts`) lê os mesmos. Número de plano escrito à mão na interface fica velho na primeira mudança de catálogo.
-
----
-
-## 4. Stripe Dashboard — checklist operacional
+Esta seção registra a operação do produto Agenda antigo. Não criar novos preços, assinaturas, webhooks ou crons a partir dela. A configuração Compasso pertence ao [runbook da Conta](../conta/PRODUCAO.md). Webhooks e crons existentes só podem sair após reconciliação e conversão das obrigações antigas; aplicar IaC exige plano sem recursos fora da frente.
 
 Estrutura no Stripe espelha o cozya (`apps/cozya/CLAUDE.md` §5): **2 Products + 5 Prices**, não 5 Products. Catálogo live (criado em 2026-05-14):
 
@@ -354,7 +207,7 @@ Validadas em `src/lib/env.ts` via Zod (`@t3-oss/env-nextjs`):
 
 ### Perfis de Estudante (`agenda.student_profiles`)
 
-Sub-entidades por conta, sem login próprio. Free = 1 perfil, Pro = 3. Limite enforced em `service.createStudentProfile` via `pg_advisory_xact_lock("agenda:student_profiles:<userId>")` + count check antes do insert. Coluna `active_turma_id uuid NULL FK -> agenda.turmas.id ON DELETE SET NULL` aponta pra turma ativa do perfil (no máximo uma).
+Cada linha preserva seu ID escolar e exige `family_profile_id` único, ligado à ativação central. Nome e titular local foram retirados pela migration 0129, depois do backfill e da conversão dos writers. Leitura/escrita/gestão/IA são concessões atuais e distintas. O limite é conferido na transação sob trava da família e conta todas as ativações, inclusive as não visíveis ao adulto: gratuito 1; Compasso 4; direito antigo reconhecido 3 até a conversão financeira. `active_turma_id` é nullable e não concede acesso sozinho.
 
 Avatar: iniciais (até 2 letras) + cor derivada por hash do nome via paleta `chart-1..5` (mesma das matérias). Sem upload de foto no v1 — não há infra de blob storage no monorepo.
 
@@ -561,7 +414,7 @@ Ordem de `app/(app)/dashboard/page.tsx`. A primeira tela responde "o que é para
 1. `TodayHeader`: saudação pela hora e a data ("Segunda, 19").
 2. Filtro de criança em pílulas, **um só na página**. O mesmo `?perfil=` vale para a escola, para as folhas e para os destinos.
 3. **`FirstStepsSection`** no topo enquanto faltar passo (criança → primeiro recado → turma → horário), calculada do banco a cada render e dispensável (`agenda.family_settings.first_steps_dismissed_at`). **O passo do horário usa `listTurmasNeedingScheduleForUser`, não `findTurmasOfUserMissingSubjects`**: esta última só enxerga turmas criadas pela conta. Sem criança nenhuma, a rotina nem aparece: "nada para hoje" numa conta vazia faria a conta nova parecer resolvida.
-4. `WelcomeFlash` e `PendingDraftsSection` ("Um recado ficou sem conferir").
+4. `PendingDraftsSection` ("Um recado ficou sem conferir"). Confirmações de pagamento ficam na Conta, por prova financeira; cobertura ativa ou parâmetro de URL não comprovam pagamento.
 5. **À noite** (`isEveningInApp`, a partir das 18h), `RoutineView` troca a página pela prancha da noite: "A mochila de amanhã", com uma linha por criança que tem aula, material ou qualquer atividade amanhã (os cards de amanhã moram nessa linha, e o "levar sempre" de cada aula embaixo), "Ainda de hoje", o dia fechado e "Ver a semana" quando há dia cheio. Sem "Hoje na escola" e sem o convite do resumo, e a página nem consulta o horário. Com `?perfil=`, uma linha "Só de Clara · Ver todas" diz que a tela está filtrada (`FilteredByChild`, também na Semana).
 6. **`RoutineSection`**: a frase de resumo (`routineSummary`), **"Para hoje"** (atrasadas, de hoje e sem data, ou o "Dia fechado"), **"Hoje na escola"** (`TodayScheduleSection`, uma linha por criança, as aulas como pílulas que abrem o "levar sempre", e "A vez de {nome}"), **"Amanhã, {dia}"** com a mochila dentro de dia, e **"A semana"** (`WeekStrip` de sete dias a partir de hoje, aviso de dia cheio e a lista do resto da semana recolhida). No telefone é uma coluna nessa ordem; no computador são duas (o que fazer à esquerda; escola e semana à direita), com `display: contents` e `order` nas colunas. A consulta da escola começa na página (`loadTodaySchedule`) para não esperar a rotina.
 7. `CommitmentWidget`: uma linha no fim ("Quer o resumo do dia por e-mail? Escolha a hora."), só para quem já tem rotina e ainda não ligou canal nenhum.
@@ -775,48 +628,35 @@ pnpm --filter @informach/agenda-da-turma exec biome check src
 pnpm build:agenda-da-turma                                              # produção (standalone output)
 pnpm start:agenda-da-turma                                              # serve build local
 
-# E2E
-pnpm --filter @informach/agenda-da-turma e2e                            # Playwright (sobe o dev server sozinho)
-pnpm --filter @informach/agenda-da-turma e2e:install                    # baixa Chromium 1×
-pnpm --filter @informach/agenda-da-turma e2e:ui                         # modo interativo
+# Integração e navegador com bancos descartáveis
+pnpm --filter @informach/agenda-da-turma test:integration
+pnpm --filter @informach/agenda-da-turma e2e
+pnpm --filter @informach/agenda-da-turma e2e:install
 
-# teste isolado
-pnpm --filter @informach/agenda-da-turma vitest run path/to/file.test.ts -t "test name"
-pnpm --filter @informach/agenda-da-turma exec playwright test e2e/auth.signup-and-verify.spec.ts
+# teste unitário focado
+pnpm --filter @informach/agenda-da-turma exec vitest run path/to/file.test.ts -t "test name"
 ```
 
-**O CI roda a config default (`playwright.config.ts`), não as dedicadas.**
-`review-fixes.spec.ts` e `family-routine.spec.ts` também têm
-`playwright.routine.config.ts`, e `sales-page.spec.ts` tem
-`playwright.marketing.config.ts`, com orçamentos de tempo bem mais folgados.
-Ajustar tempo só nessas configs não chega ao CI: foi assim que
-`review-fixes.spec.ts` ficou vermelho por vários commits, estourando 10 s de
-`actionTimeout` numa rota que declara `maxDuration = 90`.
-
-O servidor do e2e é `next dev`, que compila cada rota na primeira requisição.
-`e2e/warmup.setup.ts` roda como setup project antes da suíte e paga essa
-compilação nas rotas pesadas (`/api/recados/parse` e companhia). Ao acrescentar
-uma rota de API pesada que a suíte toque poucas vezes, inclua-a lá, senão o
-custo volta a cair no timeout do primeiro teste que a tocar.
+O navegador usa o runner Compasso com central e Agenda em standalone, PostgreSQL/Redis descartáveis, migrations e clientes OAuth próprios. Não usa `.env.local`, banco compartilhado, credenciais reais nem relaxamento das proteções de autenticação. Configuração única: `apps/conta/playwright.apps.config.ts`. Jornadas em `e2e/`; instruções e seleção de teste em [e2e/README.md](e2e/README.md). `typecheck` gera primeiro os tipos das rotas Next para detectar links incompatíveis também fora do build. O `tsconfig` inclui `.next/types` explicitamente e limita as fontes às pastas do app; não excluir `.next` inteiro, pois isso remove as declarações de `next/link` do typecheck. A origem registrada (`NEXT_PUBLIC_APP_URL`), e não o modo de otimização `NODE_ENV`, distingue localhost de implantação: apenas `http://localhost:3001` ou `https://agenda-da-turma.informach.com.br`, com `BETTER_AUTH_URL` idêntica. Railway recusa a origem local. O ensaio otimizado mantém Redis obrigatório e CSP com nonce/strict-dynamic, sem `unsafe-eval`; `upgrade-insecure-requests` é emitido somente na origem HTTPS.
 
 ---
 
 ## 11. Regras para agentes
 
-1. **Mudar preço Pro**: editar `listPrice.amountCents` dos 2 produtos em `packages/config/src/products.ts` E atualizar Stripe Dashboard. Os dois lados precisam bater — divergência é bug.
-2. **Adicionar nova feature de IA**: ver checklist em §2. Não pular `withCredits` — o gate de Pro+créditos é a única defesa contra Free consumindo IA.
-3. **Ajustar cap de créditos**: editar `bonusCreditsPerMonth` nos 2 produtos Pro em `products.ts`. UI auto-reflete via `currentProduct.bonusCreditsPerMonth` no `CreditBalanceCard`.
-4. **Stripe API version**: pinned em `2026-04-22.dahlia` no package `@informach/billing`. Bumpar requer validar payloads (ver `packages/billing/CLAUDE.md` §1).
-5. **Free não chama IA** (quando IA existir): o gate é `billing.hasProSubscription`. Nunca contornar — Free com IA quebra economia.
-6. **Single-user invariant**: `subject.type === "user"` em todo lugar. Não introduzir `organization` subject sem antes flipar `organizationsEnabled: true` no `createAuth` E `createBillingService` (decisão de produto, não code change isolado).
+1. **Preço, capacidade e franquia**: a fonte vigente é `COMPASSO_POLICY` em `@informach/config/collections`; preços Stripe devem corresponder ao catálogo aprovado. Produtos Pro antigos existem só para transição e conciliação, nunca para uma venda nova.
+2. **IA paga**: orçamento aceito, autoridade atual e carteira Compasso são obrigatórios. Cada fluxo reserva, persiste o resultado recuperável, confirma ou libera o consumo. Recarga paga pode financiar IA sem assinatura; ainda se aplicam cobertura do perfil e concessões.
+3. **Tipos de rota**: helpers e props conservam os destinos literais; não desligar `typedRoutes`. Redirecionamentos externos usam apenas a central registrada, com ambiente validado.
+4. **Stripe**: seguir a versão e os contratos vigentes de `@informach/billing`; mudança de API exige conferir os payloads reais. Nunca criar clientes/preços em componentes.
+5. **Validação**: não anunciar corte com gates focados. Provedores, migração histórica, privacidade e retirada dos contratos legados têm gates próprios no plano Compasso.
+6. **Escopo comercial**: contratos antigos conservam o subject de usuário e sua proveniência. Compasso usa família estável e pagante explícito; carteira familiar não concede conteúdo. Não converter esses contratos em Better Auth organizations.
 7. **`subject.id` é o `users.id` do `core` schema** (ver `lib/billing.ts:resolveSubjectEmail`). Não usar `users.email` como ID — o subject de billing é estável; email pode mudar.
 8. **Webhook dunning** (`/api/jobs/billing-dunning/route.ts`) embute lógica de send inline (não usa wrapper `retryBillingDunningEmails` como cozya). Aceitável hoje; se a função crescer, extrair pra `features/billing/service.ts` igual cozya.
-9. **`auth.signup-attempt-on-existing`** dispara para todos os usuários existentes (sem gate Pro). Manter assim — Pro-only gate vazava info via enumeration. Spam fica contido pelo rate limit `/sign-up/email` 5/h.
-10. **Cron services no Railway**: NUNCA criar services novos. Editar `APP_DOMAINS` nos 7 cron-perapp existentes (ver §4 + `docs/deploy-runbook.md` Fase 11).
+9. **Autenticação central**: políticas de tentativa de cadastro, OTP e limitação de frequência pertencem à Conta/auth. A Agenda não restaura os antigos endpoints/hooks locais nem condiciona proteção de identidade à assinatura.
+10. **Crons no Railway**: configuração vigente em `.railway/railway.ts` e no runbook. Reutilizar serviços compatíveis; não criar/configurar recursos fora da IaC. Conferir `plan` antes de `apply`, sem remover recursos alheios.
 11. **Adicionar nova rota authenticated**: incluir o prefixo em `requireAuth` no `src/proxy.ts`. Default deny não está ligado — só os prefixos listados são gated.
 12. **Não importar `@ai-sdk/openai` ou `@ai-sdk/anthropic` direto** quando IA chegar. Usar `createOpenRouter` de `@informach/ai-core/providers` (mesma regra do cozya §10.10). Whisper transcription pode usar `createOpenAI` apontando pra `https://openrouter.ai/api/v1`.
 13. **Adicionar nova categoria de email**: ver `packages/emails/CLAUDE.md` §7 regra 3. A Agenda usa `auth.*`, `billing.*` e `agenda.routine`. O corpo de `agenda.routine` não é persistido para retry genérico: o job do app regenera com permissões atuais.
-14. **Account deletion (LGPD)**: NÃO remover o hook `accountDeletion.onBeforeDelete` em `lib/auth.ts`. Sem ele, deletar a conta deixa subscriptions Stripe ativas e a cobrança continua.
+14. **Encerramento**: identidade global não é apagada por hook local. `account/closure` coordena consentimento, cobrança, apps e família; interromper renovação e reconciliar reservas antes da limpeza. Avaliação de leitura não autoriza exclusão.
 
 ---
 
@@ -829,18 +669,18 @@ custo volta a cair no timeout do primeiro teste que a tocar.
 
 ## Rotina familiar: limites de arquitetura e dados
 
-- A identidade Informach é compartilhada entre apps. A exclusão informa o alcance global e bloqueia enquanto outro app tiver assinatura ativa/recuperável, antes de cancelar a Agenda. Não remover esse guard nem cancelar outros produtos implicitamente.
+- A identidade Informach é compartilhada. Exportação de dados da Agenda usa somente as concessões atuais e resultados privados do próprio adulto. Exclusão global e substituição de responsável precisam do fluxo central coordenado; não reintroduzir hooks locais de exclusão da identidade ou cancelamento de outros produtos.
 
 - Rotas e componentes não consultam o banco diretamente. Services coordenam autenticação, entitlement e repositórios; transações ficam nos repositórios.
-- `features/family/access.ts` define acesso por criança. Convites/alterações/revogação usam lock por família. Não substituir autorização por gating visual de Pro.
+- `features/family/scope.ts` projeta as concessões canônicas por criança; convites e revogações pertencem a `@informach/family`. Escritas usam as mesmas travas das revogações, conforme o protocolo escolar. A interface não substitui autorização nas consultas.
 - `features/notices` guarda fonte e providências, com `version`, `dateOrigin`, conclusão e responsável. A confirmação é atômica e idempotente por documento/criança (`notice_applications`), sem cobrar novamente pela extração reaproveitada para outro filho. Retificações pedem decisão explícita e versionam a ação existente com identificador e conclusão preservados.
-- **Ciclo do recado**: `processing → ready | failed`; `ready → confirmed | discarded`; `discarded → ready` só quando o mesmo conteúdo é importado de novo (replay por `content_hash`, sem nova cobrança, com as ações descartadas restauradas). Cada ação de `parsed_result` tem um `id` (atribuído em `withActionIds` ao persistir; linhas antigas ganham o seu em `loadNoticeDraft`, com FOR UPDATE), e a lixeira da revisão chama `discardDraftActionAction`, que **marca** `discardedAt` — nunca remove — e vira `discarded` quando não sobra nenhuma. Descartar nunca devolve crédito: `TRIAL_COUNTED_STATUSES` (`trial-reserve.ts`) inclui `discarded` e é lido pelos DOIS contadores da franquia (`reserveNoticeParse` e `countTrialImports`). Leitores que alimentam a tela usam `storedExtractionSchema` + `visibleDraftActions`; `noticeExtractionSchema.parse` descartaria `id`/`discardedAt` em silêncio e os itens descartados voltariam.
-- O escopo do original (`source_profile_ids`) é confirmado separadamente das ações e inclui crianças mencionadas sem providências. Até essa revisão, só titular e remetente com acesso atual podem ler o original. Permissões para convidados exigem acesso a todo o escopo. Rascunhos antigos mantêm escopo desconhecido; não inferir autorização por ausência de ações.
+- **Ciclo do recado**: `processing → ready | failed`; `ready → confirmed | discarded`; `discarded → ready` só quando o mesmo conteúdo é importado de novo (replay por `content_hash`, sem nova cobrança, com as ações descartadas restauradas). Cada ação de `parsed_result` tem um `id` (atribuído em `withActionIds` ao persistir; linhas antigas ganham o seu em `loadNoticeDraft`, com FOR UPDATE), e a lixeira da revisão chama `discardDraftActionAction`, que **marca** `discardedAt` — nunca remove — e vira `discarded` quando não sobra nenhuma. Descartar resultado concluído não devolve o débito já confirmado; os contadores de teste antigos foram retirados. Leitores que alimentam a tela usam `storedExtractionSchema` + `visibleDraftActions`; `noticeExtractionSchema.parse` descartaria `id`/`discardedAt` em silêncio e os itens descartados voltariam.
+- O escopo do original (`source_profile_ids`) é confirmado separadamente das ações e inclui crianças mencionadas sem providências. Original privado exige autoria e acesso atual a todo o escopo. Compartilhar o original dentro da família exige consentimento separado; o pagante não ganha leitura por seu papel. Permissões de qualquer leitor abrangem todo o escopo. Rascunhos antigos mantêm escopo desconhecido; não inferir autorização por ausência de ações.
 - Toda alteração de turma ativa revalida participação dentro do bloqueio de turma/perfil usado na revogação. `active_turma_id` sozinho não concede acesso. Histórico escolar autoriza cada snapshot; versões privadas anteriores à publicação não são devolvidas ao destinatário.
 - O parser aceita referência de publicação identificada no original, com trecho de evidência. `noticeGenerationSchema` exige o campo nullable para geração estruturada; leitura de rascunhos anteriores aceita sua ausência. O mesmo vale para `subjectHint`, com um detalhe: `.required()` do Zod é raso, então o item de `actions` recebe `extractedActionSchema.required({ subjectHint: true })` à parte — o OpenRouter manda `json_schema.strict: true` e o Mastra não aplica o preparo estrito da OpenAI ao provider "openrouter", logo toda propriedade precisa estar em `required` (nullable serve, optional não). Ausência ou conflito da referência mantém datas relativas em aberto.
 - `features/activities/pending-limit.ts` é a contagem única de pendências. As escritas de escola/extras/recados e reabertura usam o mesmo lock. Status de cada família é privado; correção compartilhada não o apaga.
 - `features/notifications/delivery.ts` reconstrói a mensagem antes de enviar, respeita consentimento/silêncio/plano/acesso e usa claim idempotente. Resultado `deferred` do pacote de e-mail não cancela a notificação nem esgota tentativas; `unknown` exige reconciliação antes de reenviar. Finalização confere a reserva atual. O cron `cron-agenda-routine` do Railway (imagem `node:24-alpine` fixada por digest, declarado em `.railway/railway.ts`) roda `scripts/run-routine-job.mjs` a cada cinco minutos e percorre os cursores até o fim. Ele entrega e-mail e, com o par VAPID do serviço (desde 18/10/2026), push a quem ligou no aparelho (ver §9). O texto do script entra no start command quando o plano da IaC é montado: mudar o script só vale no cron depois de `railway config apply`. Ele só passou a existir em 17/10/2026: até ali a rotina nunca tinha rodado em produção.
-- `features/account/deletion.ts` cancela billing antes de limpar dados; falha preserva a conta. FKs de autoria permitem anonimização de atividades aceitas por outras famílias. Não prometer apagamento de cópias externas ou registros fiscais.
+- A exclusão global local foi retirada. FKs de autoria permitem anonimização de atividades aceitas por outras famílias; a identidade escolar já não depende de cascata do criador. O fluxo central de privacidade/retencão continua pendente de homologação. Não prometer apagamento de cópias externas ou registros fiscais.
 - Migrações 0035/0036 foram geradas pelo Drizzle. Os snapshots fazem parte da mudança. Não executar `db:push` em produção.
 - Métricas aceitam somente metadados definidos no schema. Não registrar recado, anexo, nome de criança ou tokens privados. `pilot:report` usa consulta somente de leitura e eventos de fatura para pagamentos.
 - Corpus de IA é opt-in (`test:ai-eval`) e usa provedor real; exemplos fictícios não provam precisão em recados reais. Integração e navegador exigem banco local e fixtures sintéticas.
@@ -859,7 +699,28 @@ O registro de setembro, que continua valendo onde a página de outubro não mudo
 - A home está em `src/app/(marketing)/page.tsx`. A implementação da proposta está documentada em `docs/propostas/agenda-vendas-2026-09-12/IMPLEMENTACAO.md`.
 - `components/marketing/sales.module.css` usa a fonte Jakarta e os tokens existentes, com estilos restritos ao layout público. O app autenticado mantém seu layout.
 - A demonstração é local, com dados fictícios e estado React. Não recebe arquivos nem chama IA. Prazo escolar e planejamento da família são apresentados separadamente.
-- O mensal é o padrão da home; `plans-content.ts` mostra o total anual cobrado, com equivalente mensal secundário. Preços continuam derivados do catálogo. CTA Pro preserva `plan=pro&cycle=mensal|anual` no cadastro.
+- O mensal é o padrão da home; `plans-content.ts` mostra o total anual cobrado, com equivalente mensal secundário. Preços continuam derivados do catálogo. CTA Compasso preserva o ciclo pela entrada SSO e pela central. Links antigos `plan=pro&cycle=mensal|anual` continuam encaminhados para a oferta central, sem abrir uma assinatura local.
 - `features/metrics/landing-schema.ts` é o contrato público estrito. Visita, CTA e demonstração têm eventos distintos. `qualified_visit` continua significando o primeiro clique de cadastro por montagem da página; não converter silenciosamente em pageview.
 - Migração 0039 adiciona `product_events.landing_context` nullable, sem backfill. Aplicar antes do novo código/relatório. Eventos não guardam conteúdo escolar nem identidade do visitante. `pilot:report` apresenta grupos agregados, sem atribuição individual entre visita e pagamento.
-- Verificação da home: `pnpm --filter @informach/agenda-da-turma exec playwright test --config playwright.marketing.config.ts` contra o dev server local. O teste intercepta apenas analytics; navegação e interações são reais. Persistência é verificada separadamente na suíte de integração local.
+- Verificação da home: `sales-page.spec.ts` na suite isolada acima. O teste intercepta apenas analytics; navegação e interações são reais. Persistência é verificada separadamente na integração PostgreSQL.
+- No Compasso, `LANDING_VARIANT` é `compasso-v1`; as variantes antigas continuam aceitas para abas abertas. Plus Jakarta Sans e Caveat são locais, com fontes/licenças/proveniência em `src/app/fonts`, sem acesso ao Google durante o build.
+
+
+Contrato 0129: `student_profiles.family_profile_id` e `notices.family_group_id` obrigatórios; `student_profiles.user_id/name`, `notices.owner_user_id` e as três tabelas locais de família foram retirados. Convites antigos ainda pendentes não concedem acesso: o responsável emite novo convite na Conta. As concessões anteriormente aceitas são preservadas pelo backfill. Writers antigos precisam parar antes da sequência de migração; não aplicar esse contrato com versões antigas servindo tráfego. Ensaios e limites no registro da frente.
+
+
+## Avaliação de privacidade Compasso
+
+`POST /api/jobs/account-departure` exige o segredo de cron do próprio app. A composição `lib/account.ts` fixa o app e injeta banco; o repository da funcionalidade consulta somente indicadores e contagens, com timeout por statement. Não aceitar ator/app vindos do corpo, retornar conteúdo ou considerar ausência de resposta como ausência de dados. A fila compartilhada tem posse, repetição e invalidação de respostas atrasadas; falha parcial é 503 e falha operacional no Bastidores. O agendamento está preparado na IaC, ainda sem provisão remota. A avaliação de leitura não congela acesso nem autoriza exclusão. A mesma rota agora processa primeiro as etapas de encerramento já autorizadas no coordenador, por adapter fixado na composição do app, e depois as avaliações; nunca aceita ator/domínio do HTTP. Retorna contagens separadas de etapas e avaliações. Congelamento e consentimento pertencem à Conta; provisionamento e homologação remotos continuam pendentes. Contrato e limitações no [plano de privacidade](../../docs/propostas/assinatura-web-2026-11-09/privacidade-conta.md).
+
+
+### Revisão de participação nas capacidades web
+
+A 0144 vincula links de calendário à revisão de participação capturada sob trava na emissão. O link antigo continua inválido após suspender e retomar; o adulto precisa gerar outro. Concessões de leitura e cobertura familiar continuam obrigatórias. A fila de notificações admite entregas sob a trava de família/participação; destinatários e dispositivos são filtrados novamente antes do transporte. Recibos de conclusão podem resolver entregas já admitidas sem autorizar novo conteúdo.
+
+
+### Entregas e encerramento escolar em integração
+
+0147 conserva a revisão web no recibo de notificação. Admissão usa o relógio operacional, separado da data usada para compor uma mensagem; conclusão e reaquisição conservam a tentativa exata. Envio exige recibo `processing`, até dez minutos, revisão atual e pertencimento à família. E-mail revalida no transporte; push reconfere a inscrição e usa texto genérico. Retomar não revalida um corpo antigo. Não há como recolher mensagem já aceita pelo provedor.
+
+O encerramento escolar ainda está em integração. A observação de dependências usa somente IDs; `school-closure-repository.ts` trava turmas antes de família/participação, inclui vínculos antigos em tarefas/materiais e revalida depois das travas. Uma turma nova exige reiniciar a seleção, nunca inverter travas. A remoção local de estudante usa essa ordem e a primitiva nativa compartilhada. Administração direta de turma (código e remoção de adulto) também confere participação sob trava, mesmo em requisições iniciadas antes da suspensão. Originais com várias crianças e publicações entre famílias exigem seleção própria; não tratar autoria como autorização para apagar tudo.

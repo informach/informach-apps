@@ -1,4 +1,5 @@
 "use client";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { Lock, Pencil, Plus, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -21,6 +22,8 @@ export type PerfilNaPorta = {
   name: string;
   color: string;
   allowed: boolean;
+  canWrite: boolean;
+  canManage: boolean;
   /** fez o primeiro acesso (ritmo, tempo e dias) */
   pronto: boolean;
   jeito: JeitoDeTreinar;
@@ -36,20 +39,24 @@ export type PerfilNaPorta = {
 export function ProfilesScreen({
   profiles,
   limit,
-  colors,
+  people,
+  accountUrl,
+  groupName,
   podeTreinarJunto,
 }: {
   profiles: PerfilNaPorta[];
   limit: number;
-  colors: string[];
+  people: { id: string; displayName: string }[];
+  accountUrl: string;
+  groupName: string;
   podeTreinarJunto: boolean;
 }) {
+  const hydrated = useHydrated();
   const router = useRouter();
   const [creating, setCreating] = useState(false);
   const [managing, setManaging] = useState(false);
   const [editando, setEditando] = useState<PerfilNaPorta | null>(null);
-  const [name, setName] = useState("");
-  const [color, setColor] = useState(colors[0] ?? "#3D7BFF");
+  const [personId, setPersonId] = useState("");
   const [jeito, setJeito] = useState<JeitoDeTreinar>({ ritmo: "comecando", minutos: 20, dias: 3 });
   const [message, setMessage] = useState("");
   const [pending, start] = useServerAction();
@@ -63,36 +70,33 @@ export function ProfilesScreen({
       unlockAudio();
       const result = await selectProfileAction(p.id);
       if (!result.ok) return setMessage(result.error);
-      router.push(p.pronto ? "/inicio" : `/perfis/${p.id}/comecar`);
+      router.push(!p.canWrite ? "/progresso" : p.pronto ? "/inicio" : `/perfis/${p.id}/comecar`);
     });
 
   const save = () =>
     start(async () => {
-      if (!name.trim()) return;
+      if (!personId) return;
       unlockAudio();
       const result = await createProfileAction(
-        name,
-        color,
+        personId,
         Intl.DateTimeFormat().resolvedOptions().timeZone,
       );
       if (!result.ok) return setMessage(result.error);
-      setName("");
+      setPersonId("");
       setCreating(false);
       router.push(`/perfis/${result.data.id}/comecar`);
     });
 
   const abrirEdicao = (p: PerfilNaPorta) => {
     setEditando(p);
-    setName(p.name);
-    setColor(p.color);
     setJeito(p.jeito);
     setMessage("");
   };
 
   const salvarEdicao = () =>
     start(async () => {
-      if (!editando || !name.trim()) return;
-      const result = await updateProfileAction(editando.id, { name, color, ...jeito });
+      if (!editando) return;
+      const result = await updateProfileAction(editando.id, jeito);
       if (!result.ok) return setMessage(result.error);
       setEditando(null);
       router.refresh();
@@ -114,34 +118,6 @@ export function ProfilesScreen({
     });
   };
 
-  const corEApelido = (
-    <>
-      <Avatar profile={{ name: name || "?", color }} size="7rem" />
-      <input
-        className="field"
-        placeholder="Nome ou apelido"
-        aria-label="Nome ou apelido"
-        value={name}
-        maxLength={24}
-        onChange={(e) => setName(e.target.value)}
-        data-autofocus
-      />
-      <fieldset className="swatches" aria-label="Cor">
-        {colors.map((c) => (
-          <button
-            key={c}
-            type="button"
-            className="swatch"
-            style={{ background: c }}
-            aria-pressed={c === color}
-            onClick={() => setColor(c)}
-            aria-label={`Cor ${c}`}
-          />
-        ))}
-      </fieldset>
-    </>
-  );
-
   if (editando)
     return (
       <main className="profiles" id="conteudo">
@@ -154,8 +130,13 @@ export function ProfilesScreen({
             salvarEdicao();
           }}
         >
-          {corEApelido}
-          <CamposDoTreino valor={jeito} aoMudar={setJeito} nome={name || editando.name} />
+          <Avatar profile={editando} size="7rem" />
+          <a href={accountUrl} className="muted small">
+            Nome, cor e acesso são gerenciados na Minha conta.
+          </a>
+          <fieldset disabled={!editando.canWrite}>
+            <CamposDoTreino valor={jeito} aoMudar={setJeito} nome={editando.name} />
+          </fieldset>
           <p className="muted small">
             Mudar o jeito de treinar não mexe nos níveis que já foram conquistados.
           </p>
@@ -163,11 +144,16 @@ export function ProfilesScreen({
             <button type="button" className="btn ghost" onClick={() => setEditando(null)}>
               Cancelar
             </button>
-            <button type="submit" className="btn primary" disabled={!name.trim() || pending}>
+            <button type="submit" className="btn primary" disabled={pending || !editando.canWrite}>
               Salvar
             </button>
           </div>
-          <button type="button" className="btn ghost perigo" onClick={() => remove(editando)}>
+          <button
+            type="button"
+            className="btn ghost perigo"
+            disabled={!editando.canManage}
+            onClick={() => remove(editando)}
+          >
             Apagar perfil
           </button>
           <p role="status" className="form-message">
@@ -192,18 +178,53 @@ export function ProfilesScreen({
             save();
           }}
         >
-          {corEApelido}
           <p className="muted small">
-            Só o apelido e a cor. Nenhum outro dado de quem treina é pedido.
+            {groupName}. Escolha uma pessoa já cadastrada na Minha conta.
           </p>
+          {people.length > 0 ? (
+            <label>
+              Pessoa
+              <select
+                className="field"
+                disabled={!hydrated || pending}
+                value={personId}
+                onChange={(event) => setPersonId(event.target.value)}
+                required
+              >
+                <option value="" disabled>
+                  Quem vai treinar?
+                </option>
+                {people.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.displayName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <p>
+              Nenhuma pessoa está disponível para ativar. Cadastre alguém ou confira suas permissões
+              na Minha conta.
+            </p>
+          )}
+          <a className="btn ghost" href={accountUrl}>
+            Gerenciar pessoas na Minha conta
+          </a>
+          <Link className="btn ghost" href="/contexto">
+            Trocar família
+          </Link>
           <div className="row">
             {profiles.length > 0 && (
               <button type="button" className="btn ghost" onClick={() => setCreating(false)}>
                 Cancelar
               </button>
             )}
-            <button type="submit" className="btn primary" disabled={!name.trim() || pending}>
-              Criar perfil
+            <button
+              type="submit"
+              className="btn primary"
+              disabled={!hydrated || !personId || pending}
+            >
+              Ativar no Bora Treinar
             </button>
           </div>
           <p role="status" className="form-message">
@@ -228,7 +249,7 @@ export function ProfilesScreen({
             key={p.id}
             className={`profile-tile ${p.allowed ? "" : "locked"}`}
             data-autofocus={i === 0 ? true : undefined}
-            disabled={pending}
+            disabled={!hydrated || pending}
             onClick={() =>
               managing ? abrirEdicao(p) : p.allowed ? enter(p) : abrirPlanos("perfis")
             }
@@ -260,11 +281,16 @@ export function ProfilesScreen({
                 <Lock size={34} />
               </span>
               <span className="muted">
-                {limit > 1 ? `Até ${limit} perfis` : "Mais perfis no plano Família"}
+                {limit > 1 ? `Até ${limit} perfis` : "Mais perfis no Compasso"}
               </span>
             </Cadeado>
           ) : (
-            <button type="button" className="profile-tile" onClick={() => setCreating(true)}>
+            <button
+              type="button"
+              className="profile-tile"
+              disabled={!hydrated}
+              onClick={() => setCreating(true)}
+            >
               <span className="avatar add">
                 <Plus size={40} />
               </span>
@@ -275,7 +301,12 @@ export function ProfilesScreen({
           ))}
       </div>
       <div className="row">
-        <button type="button" className="btn ghost" onClick={() => setManaging(!managing)}>
+        <button
+          type="button"
+          className="btn ghost"
+          disabled={!hydrated}
+          onClick={() => setManaging(!managing)}
+        >
           {managing ? "Pronto" : "Gerenciar perfis"}
         </button>
         {!managing && podeTreinarJunto && (
@@ -283,6 +314,9 @@ export function ProfilesScreen({
             <Users size={18} /> Treinar junto
           </Link>
         )}
+        <Link href="/contexto" className="btn ghost">
+          {groupName} · trocar família
+        </Link>
         <Link href="/conta" className="btn ghost">
           Conta e plano
         </Link>

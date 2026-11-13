@@ -2,35 +2,16 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { z } from "zod";
-import { recentParent, runAction, verifiedUser } from "@/lib/action";
+import { runAction, verifiedUser } from "@/lib/action";
 import { fusoValido } from "@/lib/datas";
 import { assertAllowed } from "@/lib/errors";
 import { audit } from "@/lib/observability";
-import {
-  changePlan,
-  checkout,
-  closeBillingAndFamily,
-  portal,
-  reactivate,
-} from "../billing/service";
 import { MINUTOS, RITMO_IDS, ritmoPorId } from "../perfil/regras";
 import { salvarPreferencias } from "../perfil/repository";
 import { comecarPerfil } from "../perfil/service";
-import { comecarTeste } from "../teste/service";
-import {
-  clearFamily,
-  createProfile,
-  deleteProfile,
-  setPreferences,
-  setTimezone,
-  updateProfile,
-} from "./repository";
-import { familyView, PROFILE_COLORS, PROFILE_COOKIE } from "./view";
-
-const profileSchema = z.object({
-  name: z.string().trim().min(1).max(24),
-  color: z.enum(PROFILE_COLORS),
-});
+import { deleteProfile, setPreferences, setTimezone } from "./repository";
+import { activateTrainer } from "./service";
+import { familyView, PROFILE_COOKIE } from "./view";
 
 /** Primeiro acesso e edição do jeito de treinar: só preferências de treino, nada de saúde. */
 const respostasSchema = z.object({
@@ -53,20 +34,17 @@ async function rememberProfile(id: string) {
 }
 
 /**
- * Cria um perfil. `fusoDoAparelho` é o fuso do navegador: no primeiro perfil ele vira o fuso da
+ * Ativa uma pessoa cadastrada na central. `fusoDoAparelho` é o fuso do navegador: no primeiro perfil ele vira o fuso da
  * família (antes ninguém gravava, e famílias fora de Brasília recebiam lembrete na hora errada).
  */
-export async function createProfileAction(name: string, color: string, fusoDoAparelho?: string) {
+export async function createProfileAction(personId: string, fusoDoAparelho?: string) {
   return runAction(async () => {
-    const input = profileSchema.parse({ name, color });
+    const person = z.uuid().parse(personId);
     const user = await verifiedUser();
-    const { access, profiles } = await familyView(user.id);
-    const id = await createProfile(user.id, input.name, input.color, access.profileLimit);
+    const { group, profiles } = await familyView(user.id);
+    const id = await activateTrainer(user.id, group.id, person);
     if (!profiles.length && fusoDoAparelho && fusoValido(fusoDoAparelho))
       await setTimezone(user.id, fusoDoAparelho, true);
-    // O teste de 7 dias começa sozinho no primeiro perfil: a pessoa prova a câmera e os treinos
-    // antes de qualquer cobrança. Se o e-mail já usou o teste, segue no grátis, sem erro.
-    if (!profiles.length && !access.subscribed) await comecarTeste(user);
     audit({ eventType: "bora.profile_created", actorId: user.id, payload: { profileId: id } });
     await rememberProfile(id);
     revalidatePath("/", "layout");
@@ -74,17 +52,12 @@ export async function createProfileAction(name: string, color: string, fusoDoApa
   });
 }
 
-/** Edita o perfil em "Gerenciar": apelido, cor e o jeito de treinar (sem mexer nos níveis). */
-export async function updateProfileAction(
-  id: string,
-  dados: { name: string; color: string } & z.input<typeof respostasSchema>,
-) {
+/** Edita o perfil em "Gerenciar": o jeito de treinar (sem mexer nos níveis). */
+export async function updateProfileAction(id: string, dados: z.input<typeof respostasSchema>) {
   return runAction(async () => {
     const profileId = z.uuid().parse(id);
-    const input = profileSchema.parse({ name: dados.name, color: dados.color });
     const respostas = respostasSchema.parse(dados);
     const user = await verifiedUser();
-    await updateProfile(user.id, profileId, input.name, input.color);
     await salvarPreferencias(user.id, profileId, {
       intensity: ritmoPorId(respostas.ritmo).intensidade,
       weeklyGoal: respostas.dias,
@@ -93,7 +66,7 @@ export async function updateProfileAction(
     audit({
       eventType: "bora.profile_updated",
       actorId: user.id,
-      payload: { profileId, fields: ["name", "color", "intensity", "weeklyGoal", "minutesPref"] },
+      payload: { profileId, fields: ["intensity", "weeklyGoal", "minutesPref"] },
     });
     revalidatePath("/", "layout");
   });
@@ -105,13 +78,8 @@ export async function comecarPerfilAction(id: string, respostas: z.input<typeof 
     const profileId = z.uuid().parse(id);
     const r = respostasSchema.parse(respostas);
     const user = await verifiedUser();
-    const { profiles } = await familyView(user.id);
-    await comecarPerfil(
-      user.id,
-      profiles.filter((p) => p.allowed).map((p) => p.id),
-      profileId,
-      r,
-    );
+    const { group } = await familyView(user.id);
+    await comecarPerfil(user.id, group.id, profileId, r);
     audit({
       eventType: "bora.profile_updated",
       actorId: user.id,
@@ -144,25 +112,9 @@ export async function selectProfileAction(id: string) {
     assertAllowed(
       profile.allowed,
       "PROFILE_LIMIT",
-      "Este perfil está guardado. O plano atual libera menos perfis; no plano Família cabem quatro.",
+      "Este perfil está guardado. Consulte a cobertura desta família na Minha conta.",
     );
     await rememberProfile(profileId);
-  });
-}
-
-/** "Começar 7 dias grátis": para quem já tinha conta no grátis antes de o teste existir. */
-export async function startTrialAction() {
-  return runAction(async () => {
-    const user = await verifiedUser();
-    const { access } = await familyView(user.id);
-    assertAllowed(!access.subscribed, "ALREADY_SUBSCRIBED", "Você já tem uma assinatura.");
-    const resultado = await comecarTeste(user);
-    assertAllowed(
-      resultado.ok,
-      resultado.ok ? "OK" : resultado.code,
-      "O teste de 7 dias já foi usado por este e-mail. Os planos continuam a um toque.",
-    );
-    revalidatePath("/", "layout");
   });
 }
 
@@ -188,53 +140,5 @@ export async function preferencesAction(prefs: z.input<typeof preferencesSchema>
       payload: { fields: Object.keys(input) },
     });
     revalidatePath("/conta");
-  });
-}
-
-/**
- * Abre o pagamento de uma assinatura nova. Não pede login recente: o pagamento acontece no Stripe,
- * com o cartão. Antes cada cadeado levava a Conta, que pedia o código de novo antes de mostrar o
- * botão de assinar. O login recente continua para Portal, troca de plano, limpeza e exclusão.
- */
-export async function checkoutAction(productId: string) {
-  return runAction(async () => {
-    z.string().max(80).parse(productId);
-    const user = await verifiedUser();
-    return checkout(user.id, productId);
-  });
-}
-
-export async function portalAction() {
-  return runAction(async () => portal((await recentParent()).id));
-}
-
-export async function changePlanAction(productId: string, retainedProfileId?: string) {
-  return runAction(async () => {
-    z.string().max(80).parse(productId);
-    const retained = z.uuid().optional().parse(retainedProfileId);
-    const result = await changePlan((await recentParent()).id, productId, retained);
-    revalidatePath("/conta");
-    return result;
-  });
-}
-
-export async function reactivateAction() {
-  return runAction(async () => {
-    await reactivate((await recentParent()).id);
-    revalidatePath("/conta");
-  });
-}
-
-export async function clearAction(confirmation: string) {
-  return runAction(async () => {
-    assertAllowed(
-      confirmation === "ENCERRAR E APAGAR",
-      "CONFIRM",
-      "Digite ENCERRAR E APAGAR para confirmar.",
-    );
-    const user = await recentParent();
-    await closeBillingAndFamily(user.id, () => clearFamily(user.id));
-    (await cookies()).delete(PROFILE_COOKIE);
-    revalidatePath("/", "layout");
   });
 }

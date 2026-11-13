@@ -1,6 +1,7 @@
 import { Button } from "@informach/ui/components/button";
 import { Check, Compass } from "lucide-react";
 import Link from "next/link";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { countUserProfilesWithoutTurma } from "@/features/students/service";
 import { computeFirstSteps, firstStepsProgress } from "../first-steps";
 import {
@@ -23,30 +24,21 @@ import { DismissFirstStepsButton } from "./dismiss-first-steps-button";
  * aparece, e não deve custar cinco consultas para decidir isso.
  */
 export async function FirstStepsSection({
-  userId,
+  actor,
   profileCount,
-  ownsAnyProfile,
+  canManageProfiles,
 }: {
-  userId: string;
+  actor: AgendaAuthority;
   /** Já contado pelo dashboard: não vale uma segunda consulta. */
   profileCount: number;
-  /**
-   * Alguma das crianças visíveis é desta conta?
-   *
-   * O segundo adulto **não** pode fazer os dois primeiros passos: cadastrar
-   * criança e vincular turma são do titular, e turma é escopada por conta. Ele
-   * via "1 de 4 prontos" com um botão que levava a uma tela onde não havia o
-   * que criar: uma trilha que nunca fechava. Também sai do caminho para quem é
-   * titular de uma casa e convidado de outra, pelo mesmo motivo.
-   */
-  ownsAnyProfile: boolean;
+  canManageProfiles: boolean;
 }) {
-  if (profileCount > 0 && !ownsAnyProfile) return null;
-  if (await isFirstStepsDismissed(userId)) return null;
+  if (!canManageProfiles) return null;
+  if (await isFirstStepsDismissed(actor)) return null;
   const [profilesWithoutTurma, turmasNeedingSchedule, hasActivity] = await Promise.all([
-    countUserProfilesWithoutTurma(userId),
-    listTurmasNeedingScheduleForUser(userId),
-    hasAnyActivity(userId),
+    countUserProfilesWithoutTurma(actor),
+    listTurmasNeedingScheduleForUser(actor),
+    hasAnyActivity(actor),
   ]);
   const steps = computeFirstSteps({
     profileCount,

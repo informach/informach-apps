@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { MobileTopBar } from "@/components/app-shell/app-header";
 import { SharedActivitiesSection } from "@/features/activities/components/shared-activities-section";
-import { getIsProForUser } from "@/features/billing/server-cache";
 import { RoutineSection, RoutineSkeleton } from "@/features/dashboard/components/routine-section";
 import { TodayHeader } from "@/features/dashboard/components/today-header";
 import {
@@ -10,13 +9,13 @@ import {
   TodayScheduleSkeleton,
 } from "@/features/dashboard/components/today-schedule-section";
 import { isEveningInApp, todayLocalIso } from "@/features/dashboard/date";
+import { requireFamilyContext } from "@/features/family/context";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { TodayViewedBeacon } from "@/features/metrics/components/today-viewed-beacon";
 import { PendingDraftsSection } from "@/features/notices/components/pending-drafts-section";
 import { CommitmentWidget } from "@/features/notifications/components/commitment-widget";
 import { getNotificationPreferences } from "@/features/notifications/service";
 import { FirstStepsSection } from "@/features/onboarding/components/first-steps-section";
-import { WelcomeFlash } from "@/features/onboarding/components/welcome-flash";
 import { ChildFilter, FilteredByChild } from "@/features/students/components/child-filter";
 import { listStudentProfilesForUser } from "@/features/students/service";
 import { shortChildNames } from "@/features/students/utils";
@@ -43,13 +42,14 @@ type Props = {
 export default async function DashboardPage({ searchParams }: Props) {
   const params = await searchParams;
   const user = await requireUserServer();
+  const group = await requireFamilyContext(user.id);
+  const actor = { userId: user.id, familyGroupId: group.id };
   const todayIso = todayLocalIso();
 
-  const [profiles, isPro, notificationPrefs, familyEntitlements] = await Promise.all([
-    listStudentProfilesForUser(user.id),
-    getIsProForUser(user.id),
-    getNotificationPreferences(user.id),
-    getFamilyEntitlements(user.id),
+  const [profiles, notificationPrefs, familyEntitlements] = await Promise.all([
+    listStudentProfilesForUser(actor),
+    getNotificationPreferences(actor),
+    getFamilyEntitlements(actor),
   ]);
 
   /*
@@ -77,11 +77,11 @@ export default async function DashboardPage({ searchParams }: Props) {
   // o erro e o mostra no seu próprio limite.
   // À noite a tela não mostra o horário de hoje (como na prancha da noite),
   // então nem consulta.
-  const schoolData = evening ? null : loadTodaySchedule(user.id, profileFilter);
+  const schoolData = evening ? null : loadTodaySchedule(actor, profileFilter);
   schoolData?.catch(() => {});
 
   const pillsHref = (profileId: string | null) =>
-    profileId ? `/dashboard?perfil=${profileId}` : "/dashboard";
+    profileId ? (`/dashboard?perfil=${profileId}` as const) : ("/dashboard" as const);
   // No celular as pílulas levam o avatar e ficam abaixo da frase; no
   // computador vão ao lado da data, só com o nome, como nas duas pranchas.
   const pills = <ChildFilter profiles={profiles} current={profileFilter} hrefFor={pillsHref} />;
@@ -104,29 +104,24 @@ export default async function DashboardPage({ searchParams }: Props) {
     />
   );
   // O que é do estado da conta, e não do dia: os primeiros passos, o recado
-  // que ficou sem conferir, as boas-vindas do Pro.
+  // que ficou sem conferir, os avisos de configuração.
   const notices = (
     <>
       <Suspense fallback={null}>
         <FirstStepsSection
-          userId={user.id}
+          actor={actor}
           profileCount={profiles.length}
-          // A lista já traz a coluna de dono: saber se o adulto é titular ou
-          // convidado não custa consulta nenhuma.
-          ownsAnyProfile={profiles.some((p) => p.userId === user.id)}
+          canManageProfiles={group.role === "administrator" || profiles.some((p) => p.canManage)}
         />
       </Suspense>
       <Suspense fallback={null}>
-        <WelcomeFlash isPro={isPro} />
-      </Suspense>
-      <Suspense fallback={null}>
-        <PendingDraftsSection userId={user.id} />
+        <PendingDraftsSection actor={actor} />
       </Suspense>
     </>
   );
   const shared = (
     <Suspense fallback={null}>
-      <SharedActivitiesSection userId={user.id} />
+      <SharedActivitiesSection actor={actor} />
     </Suspense>
   );
 
@@ -153,7 +148,7 @@ export default async function DashboardPage({ searchParams }: Props) {
             }
           >
             <RoutineSection
-              userId={user.id}
+              actor={actor}
               profileFilter={profileFilter}
               childNames={shortChildNames(profiles)}
               evening={evening}
@@ -171,6 +166,8 @@ export default async function DashboardPage({ searchParams }: Props) {
               commitment={
                 shouldAskForCommitment ? (
                   <CommitmentWidget
+                    key={actor.familyGroupId}
+                    familyGroupId={actor.familyGroupId}
                     dismissedKey={`agenda:commitment-dismissed:${user.id}`}
                     current={notificationPrefs}
                   />

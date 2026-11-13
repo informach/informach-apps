@@ -2,128 +2,91 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { fusoValido } from "@/domain/relogio";
-import { canInviteGuardian, canUsePush } from "@/features/acesso/policy";
+import { canUsePush } from "@/features/acesso/policy";
 import { gerarHashDoPin, pinSchema } from "@/features/aparelho/pin";
 import { createPairingCode, revokeDevice } from "@/features/aparelho/repository";
-import { retainProfilesForSmallerPlan } from "@/features/billing/repository";
 import { isAllowedPushEndpoint } from "@/features/lembretes/push";
 import { removePushSubscription, savePushSubscription } from "@/features/lembretes/repository";
-import {
-  acceptInvitation,
-  createInvitation,
-  leaveFamily,
-  removeGuardian,
-  revokeInvitation,
-} from "@/features/responsavel/repository";
 import { avisarFamilia } from "@/features/tempo-real/bus";
-import { familyAdult, familyOwner, recentParent, runAction, verifiedUser } from "@/lib/action";
+import { familyAdministrator, familyAdult, runAction, verifiedUser } from "@/lib/action";
 import { env } from "@/lib/env";
 import { assertAllowed } from "@/lib/errors";
 import { audit } from "@/lib/observability";
 import {
+  chooseLimitedChild,
   completeOnboarding,
   createChild,
   deleteChild,
   setPinHash,
-  updateChild,
   updateSettings,
 } from "./repository";
 import { familyView } from "./view";
 
-const corSchema = z.string().regex(/^#[0-9A-F]{6}$/);
-const criancaSchema = z.object({ name: z.string().trim().min(1).max(24), color: corSchema });
-
-function atualizar() {
-  revalidatePath("/", "layout");
-}
-
-/** Primeiro uso: crianças, rotinas prontas, PIN e fuso, de uma vez. */
+const atualizar = () => revalidatePath("/", "layout");
 export async function comecarAction(raw: unknown) {
   return runAction(async () => {
     const input = z
       .object({
-        children: z.array(criancaSchema).min(1).max(4),
+        personIds: z.array(z.string().uuid()).min(1).max(4),
         templateIds: z.array(z.string().max(40)).max(10),
         pin: pinSchema,
         timezone: z.string().max(60).refine(fusoValido),
       })
       .parse(raw);
-    const { ownerId } = await familyOwner();
-    const { access } = await familyView(ownerId);
-    const ids = await completeOnboarding(
-      ownerId,
-      {
-        children: input.children,
-        templateIds: input.templateIds,
-        pinHash: await gerarHashDoPin(input.pin),
-        timezone: input.timezone,
-      },
-      access.childLimit,
-    );
+    const { actor } = await familyAdministrator({ recent: true });
+    const ids = await completeOnboarding(actor, {
+      personIds: input.personIds,
+      templateIds: input.templateIds,
+      pinHash: await gerarHashDoPin(input.pin),
+      timezone: input.timezone,
+    });
     for (const childId of ids)
-      audit({ eventType: "estrela.child_created", actorId: ownerId, payload: { childId } });
-    audit({ eventType: "estrela.pin_set", actorId: ownerId, payload: { first: true } });
+      audit({ eventType: "estrela.child_created", actorId: actor.userId, payload: { childId } });
+    audit({ eventType: "estrela.pin_set", actorId: actor.userId, payload: { first: true } });
     atualizar();
     return { destination: "/inicio" };
   });
 }
-
 export async function adicionarCriancaAction(raw: unknown) {
   return runAction(async () => {
-    const input = criancaSchema.parse(raw);
-    const { ownerId, user } = await familyAdult();
-    const { access } = await familyView(ownerId);
-    const child = await createChild(ownerId, input, access.childLimit);
-    audit({ eventType: "estrela.child_created", actorId: user.id, payload: { childId: child.id } });
-    await avisarFamilia(ownerId, "ajustes");
-    atualizar();
-    return { id: child.id };
-  });
-}
-
-export async function editarCriancaAction(raw: unknown) {
-  return runAction(async () => {
-    const { id, ...input } = criancaSchema.extend({ id: z.string().uuid() }).parse(raw);
-    const { ownerId, user } = await familyAdult();
-    await updateChild(ownerId, id, input);
+    const personId = z.string().uuid().parse(raw);
+    const { actor } = await familyAdministrator({ recent: true });
+    const child = await createChild(actor, personId);
     audit({
-      eventType: "estrela.child_updated",
-      actorId: user.id,
-      payload: { childId: id, fields: ["name", "color"] },
+      eventType: "estrela.child_created",
+      actorId: actor.userId,
+      payload: { childId: child.id },
     });
-    await avisarFamilia(ownerId, "ajustes");
+    await avisarFamilia(actor.familyGroupId, "ajustes");
     atualizar();
+    return child;
   });
 }
-
-/** Apagar uma criança apaga a rotina, as estrelas e a meta dela. Só o titular, com e-mail recente. */
+/** Erases only this app's history, keeping the shared person and other apps. */
 export async function apagarCriancaAction(raw: unknown) {
   return runAction(async () => {
-    const id = z.string().uuid().parse(raw);
-    const { ownerId } = await familyOwner({ recent: true });
-    await deleteChild(ownerId, id);
-    audit({ eventType: "estrela.child_deleted", actorId: ownerId, payload: { childId: id } });
-    await avisarFamilia(ownerId, "ajustes");
+    const childId = z.string().uuid().parse(raw);
+    const { actor } = await familyAdult({ recent: true });
+    await deleteChild(actor, childId);
+    audit({ eventType: "estrela.child_deleted", actorId: actor.userId, payload: { childId } });
+    await avisarFamilia(actor.familyGroupId, "ajustes");
     atualizar();
   });
 }
-
-/** No plano gratuito, a criança que continua ativa; as outras ficam guardadas. */
 export async function escolherCriancaDoPlanoAction(raw: unknown) {
   return runAction(async () => {
     const childId = z.string().uuid().parse(raw);
-    const { ownerId } = await familyOwner();
-    await retainProfilesForSmallerPlan(ownerId, [childId], 1);
+    const { actor } = await familyAdministrator({ recent: true });
+    await chooseLimitedChild(actor, childId);
     audit({
       eventType: "estrela.child_updated",
-      actorId: ownerId,
+      actorId: actor.userId,
       payload: { childId, fields: ["accessEnabled"] },
     });
-    await avisarFamilia(ownerId, "ajustes");
+    await avisarFamilia(actor.familyGroupId, "ajustes");
     atualizar();
   });
 }
-
 export async function salvarAjustesAction(raw: unknown) {
   return runAction(async () => {
     const input = z
@@ -139,37 +102,33 @@ export async function salvarAjustesAction(raw: unknown) {
         chestBonus: z.number().int().min(0).max(50).optional(),
       })
       .parse(raw);
-    const { ownerId, user } = await familyAdult();
-    await updateSettings(ownerId, input);
+    const { actor } = await familyAdministrator();
+    await updateSettings(actor, input);
     audit({
       eventType: "estrela.settings_updated",
-      actorId: user.id,
+      actorId: actor.userId,
       payload: { fields: Object.keys(input) },
     });
-    await avisarFamilia(ownerId, "ajustes");
+    await avisarFamilia(actor.familyGroupId, "ajustes");
     atualizar();
   });
 }
-
-/** Trocar o PIN exige a conta, com o e-mail confirmado há pouco. */
 export async function trocarPinAction(raw: unknown) {
   return runAction(async () => {
     const pin = pinSchema.parse(raw);
-    const user = await recentParent();
-    const { ownerId } = await familyAdult();
-    await setPinHash(ownerId, await gerarHashDoPin(pin));
-    audit({ eventType: "estrela.pin_set", actorId: user.id, payload: { first: false } });
+    const { actor } = await familyAdministrator({ recent: true });
+    await setPinHash(actor, await gerarHashDoPin(pin));
+    audit({ eventType: "estrela.pin_set", actorId: actor.userId, payload: { first: false } });
+    atualizar();
   });
 }
-
 export async function gerarCodigoAparelhoAction(raw: unknown) {
   return runAction(async () => {
-    const user = await recentParent();
-    const { ownerId } = await familyAdult();
-    const result = await createPairingCode(ownerId, raw);
+    const { actor } = await familyAdult({ recent: true });
+    const result = await createPairingCode(actor, raw);
     audit({
       eventType: "estrela.device_code_issued",
-      actorId: user.id,
+      actorId: actor.userId,
       payload: { deviceId: result.device.id },
     });
     return {
@@ -179,78 +138,14 @@ export async function gerarCodigoAparelhoAction(raw: unknown) {
     };
   });
 }
-
 export async function desconectarAparelhoAction(raw: unknown) {
   return runAction(async () => {
     const deviceId = z.string().uuid().parse(raw);
-    const user = await recentParent();
-    const { ownerId } = await familyAdult();
-    if (await revokeDevice(ownerId, deviceId))
-      audit({ eventType: "estrela.device_revoked", actorId: user.id, payload: { deviceId } });
-    await avisarFamilia(ownerId, "aparelhos");
+    const { actor } = await familyAdult({ recent: true });
+    if (await revokeDevice(actor, deviceId))
+      audit({ eventType: "estrela.device_revoked", actorId: actor.userId, payload: { deviceId } });
+    await avisarFamilia(actor.familyGroupId, "aparelhos");
     atualizar();
-  });
-}
-
-export async function convidarResponsavelAction(raw: unknown) {
-  return runAction(async () => {
-    const email = z.string().trim().email().max(200).parse(raw);
-    const { ownerId } = await familyOwner({ recent: true });
-    const { access } = await familyView(ownerId);
-    assertAllowed(canInviteGuardian(access), "PLAN", "O segundo responsável é do plano Família.");
-    const invite = await createInvitation(ownerId, email);
-    audit({
-      eventType: "estrela.guardian_invited",
-      actorId: ownerId,
-      payload: { invitationId: invite.id },
-    });
-    atualizar();
-    return { url: `${env.NEXT_PUBLIC_APP_URL}/convite?token=${invite.token}` };
-  });
-}
-
-export async function cancelarConviteAction() {
-  return runAction(async () => {
-    const { ownerId } = await familyOwner();
-    await revokeInvitation(ownerId);
-    atualizar();
-  });
-}
-
-export async function removerResponsavelAction() {
-  return runAction(async () => {
-    const { ownerId } = await familyOwner({ recent: true });
-    const removido = await removeGuardian(ownerId);
-    if (removido)
-      audit({ eventType: "estrela.guardian_removed", actorId: ownerId, payload: { by: "owner" } });
-    atualizar();
-  });
-}
-
-export async function aceitarConviteAction(raw: unknown) {
-  return runAction(async () => {
-    const token = z.string().max(128).parse(raw);
-    const user = await verifiedUser();
-    const ownerId = await acceptInvitation(token, { id: user.id, email: user.email });
-    audit({ eventType: "estrela.guardian_joined", actorId: user.id, payload: { ownerId } });
-    await avisarFamilia(ownerId, "ajustes");
-    atualizar();
-    return { destination: "/inicio" };
-  });
-}
-
-export async function sairDaFamiliaAction() {
-  return runAction(async () => {
-    const user = await recentParent();
-    const ownerId = await leaveFamily(user.id);
-    if (ownerId)
-      audit({
-        eventType: "estrela.guardian_removed",
-        actorId: user.id,
-        payload: { by: "guardian" },
-      });
-    atualizar();
-    return { destination: "/comecar" };
   });
 }
 
@@ -262,9 +157,9 @@ export async function ativarPushAction(raw: unknown) {
         keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }),
       })
       .parse(raw);
-    const { ownerId, user } = await familyAdult();
-    const { access } = await familyView(ownerId);
-    assertAllowed(canUsePush(access), "PLAN", "Os alertas no celular são do plano Família.");
+    const { actor, user } = await familyAdult();
+    const { access } = await familyView(actor);
+    assertAllowed(canUsePush(access), "PLAN", "Os alertas no celular são do Compasso.");
     assertAllowed(
       isAllowedPushEndpoint(sub.endpoint),
       "PUSH",

@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { BackButton } from "@/components/app-shell/back-button";
+import { agendaAuthority } from "@/features/family/context";
 import { SubjectsSection } from "@/features/subjects/components/subjects-section";
+import { listAiProfilesForClass } from "@/features/subjects/repository";
 import { getSubjectsForUserAndTurma } from "@/features/subjects/service";
 import { formatTurmaShort } from "@/features/turmas/utils";
 import { requireUserServer } from "@/lib/auth";
-import { billing } from "@/lib/billing";
 
 export const metadata = {
   title: "Matérias",
@@ -14,9 +15,10 @@ export default async function SubjectsPage({ params }: { params: Promise<{ turma
   const user = await requireUserServer();
   const { turmaId } = await params;
 
-  const [result, isPro] = await Promise.all([
-    getSubjectsForUserAndTurma(user.id, turmaId),
-    billing.hasProSubscription({ type: "user", id: user.id }),
+  const actor = await agendaAuthority(user.id);
+  const [result, aiProfiles] = await Promise.all([
+    getSubjectsForUserAndTurma(actor, turmaId),
+    listAiProfilesForClass(actor, turmaId),
   ]);
   if (!result.ok) {
     // Tanto TURMA_NOT_FOUND quanto FORBIDDEN viram 404 — não vazamos existência da turma.
@@ -41,7 +43,7 @@ export default async function SubjectsPage({ params }: { params: Promise<{ turma
         turmaId={turma.id}
         currentUserId={user.id}
         canCreateSubject={canCreateSubject}
-        isPro={isPro}
+        aiProfiles={aiProfiles}
       />
     </main>
   );

@@ -1,7 +1,6 @@
 "use client";
-import { createInformachAuthClient } from "@informach/auth/client";
+import { createWebSsoAuthClient } from "@informach/auth/web-sso-client";
+import { webSsoEnvironment } from "@informach/auth/web-sso-contract";
+export const ssoEnvironment = webSsoEnvironment("bora-treinar", process.env.NEXT_PUBLIC_APP_URL);
 
-export const authClient = createInformachAuthClient({
-  baseURL: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3007",
-  email: { verification: "otp", signIn: { magicLink: false, otp: true }, forgetPassword: "otp" },
-});
+export const authClient = createWebSsoAuthClient("bora-treinar", ssoEnvironment);

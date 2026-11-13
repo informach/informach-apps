@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -22,86 +23,33 @@ import {
   agendaSubjects,
 } from "./agenda";
 import { users } from "./core";
+import { familyAppProfiles, familyGroups } from "./family";
 
-// Billing remains attached to the household owner. Every adult authenticates
-// independently; profile grants, rather than the owner's identity, authorize reads.
-export const agendaFamilyMembers = agenda.table(
-  "family_members",
+/** Onboarding preferences belong to the adult in the selected family. */
+export const agendaFamilySettings = agenda.table(
+  "family_settings",
   {
-    id: uuid("id").primaryKey().defaultRandom(),
-    ownerUserId: text("owner_user_id")
+    familyGroupId: uuid("family_group_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => familyGroups.id, { onDelete: "cascade" }),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    firstStepsDismissedAt: timestamp("first_steps_dismissed_at", { withTimezone: true }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [
-    uniqueIndex("agenda_family_one_guest_idx").on(t.ownerUserId),
-    uniqueIndex("agenda_family_guest_owner_idx").on(t.userId, t.ownerUserId),
-    check("agenda_family_distinct_adults", sql`${t.ownerUserId} <> ${t.userId}`),
-  ],
-);
-
-/**
- * Ajustes da casa que não são preferência de notificação nem dado de criança.
- *
- * Hoje guarda só a dispensa dos primeiros passos. Uma linha por titular, criada
- * na primeira escrita: ausência significa "nunca dispensou", que é o padrão.
- */
-export const agendaFamilySettings = agenda.table("family_settings", {
-  userId: text("user_id")
-    .primaryKey()
-    .references(() => users.id, { onDelete: "cascade" }),
-  firstStepsDismissedAt: timestamp("first_steps_dismissed_at", { withTimezone: true }),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-});
-
-export const agendaFamilyProfileAccess = agenda.table(
-  "family_profile_access",
-  {
-    memberId: uuid("member_id")
-      .notNull()
-      .references(() => agendaFamilyMembers.id, { onDelete: "cascade" }),
-    profileId: uuid("profile_id")
-      .notNull()
-      .references(() => agendaStudentProfiles.id, { onDelete: "cascade" }),
-  },
-  (t) => [
-    uniqueIndex("agenda_family_profile_access_idx").on(t.memberId, t.profileId),
-    index("agenda_family_access_profile_idx").on(t.profileId),
-  ],
-);
-
-export const agendaFamilyInvitations = agenda.table(
-  "family_invitations",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    ownerUserId: text("owner_user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    email: text("email").notNull(),
-    tokenHash: text("token_hash").notNull(),
-    profileIds: jsonb("profile_ids").$type<string[]>().notNull(),
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
-    revokedAt: timestamp("revoked_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => [
-    uniqueIndex("agenda_family_invite_token_idx").on(t.tokenHash),
-    index("agenda_family_invite_owner_idx").on(t.ownerUserId),
-  ],
+  (t) => [primaryKey({ columns: [t.familyGroupId, t.userId] })],
 );
 
 export const agendaNotices = agenda.table(
   "notices",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    ownerUserId: text("owner_user_id")
+    familyGroupId: uuid("family_group_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => familyGroups.id, {
+        onDelete: "restrict",
+      }),
     captureProfileId: uuid("capture_profile_id").references(() => agendaStudentProfiles.id, {
       onDelete: "cascade",
     }),
@@ -117,6 +65,7 @@ export const agendaNotices = agenda.table(
     contentHash: text("content_hash").notNull(),
     // Null means the original's complete child scope has not been reviewed.
     sourceProfileIds: jsonb("source_profile_ids").$type<string[] | null>(),
+    sharedWithinFamily: boolean("shared_within_family").notNull().default(false),
     attachmentName: text("attachment_name"),
     attachmentType: text("attachment_type"),
     attachmentData: text("attachment_data"),
@@ -130,15 +79,17 @@ export const agendaNotices = agenda.table(
     isTrial: boolean("is_trial").notNull().default(false),
     parsedResult: jsonb("parsed_result").$type<unknown>(),
     billingRunId: uuid("billing_run_id"),
+    webParticipationRevision: integer("web_participation_revision").notNull().default(0),
     failureCode: text("failure_code"),
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
-    uniqueIndex("agenda_notices_owner_hash_idx").on(t.ownerUserId, t.contentHash),
-    index("agenda_notices_owner_created_idx").on(t.ownerUserId, t.createdAt),
+    uniqueIndex("agenda_notices_family_hash_idx").on(t.familyGroupId, t.contentHash),
+    index("agenda_notices_family_created_idx").on(t.familyGroupId, t.createdAt),
     index("agenda_notices_expiry_idx").on(t.attachmentExpiresAt),
+    check("agenda_notice_web_revision_check", sql`${t.webParticipationRevision} >= 0`),
     check(
       "agenda_notice_status_check",
       sql`${t.status} IN ('processing','ready','failed','confirmed','discarded')`,
@@ -353,8 +304,12 @@ export const agendaActivityRevisions = agenda.table(
 export const agendaNotificationPreferences = agenda.table(
   "notification_preferences",
   {
+    id: uuid("id").defaultRandom().primaryKey(),
+    familyGroupId: uuid("family_group_id")
+      .notNull()
+      .references(() => familyGroups.id, { onDelete: "cascade" }),
     userId: text("user_id")
-      .primaryKey()
+      .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     emailEnabled: boolean("email_enabled").notNull().default(false),
     pushEnabled: boolean("push_enabled").notNull().default(false),
@@ -382,6 +337,7 @@ export const agendaNotificationPreferences = agenda.table(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
+    uniqueIndex("agenda_notification_family_user_idx").on(t.familyGroupId, t.userId),
     check(
       "agenda_notification_hours_check",
       sql`${t.digestHour} BETWEEN 0 AND 23 AND ${t.quietStart} BETWEEN 0 AND 23 AND ${t.quietEnd} BETWEEN 0 AND 23 AND ${t.weeklyDigestHour} BETWEEN 0 AND 23 AND ${t.weeklyDigestDay} BETWEEN 0 AND 6`,
@@ -414,7 +370,12 @@ export const agendaNotificationDeliveries = agenda.table(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    // Historical deliveries without a provable family retain null and cannot be reused.
+    familyGroupId: uuid("family_group_id").references(() => familyGroups.id, {
+      onDelete: "cascade",
+    }),
     messageKey: text("message_key").notNull(),
+    webParticipationRevision: integer("web_participation_revision").notNull().default(0),
     channel: text("channel", { enum: ["email", "push"] }).notNull(),
     status: text("status", { enum: ["pending", "processing", "sent", "failed", "canceled"] })
       .notNull()
@@ -424,7 +385,10 @@ export const agendaNotificationDeliveries = agenda.table(
     sentAt: timestamp("sent_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [uniqueIndex("agenda_delivery_idempotency_idx").on(t.userId, t.channel, t.messageKey)],
+  (t) => [
+    uniqueIndex("agenda_delivery_idempotency_idx").on(t.userId, t.channel, t.messageKey),
+    check("agenda_delivery_web_revision", sql`${t.webParticipationRevision} >= 0`),
+  ],
 );
 
 export const agendaCalendarFeeds = agenda.table(
@@ -434,13 +398,43 @@ export const agendaCalendarFeeds = agenda.table(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    /** Null only for historical feeds whose snapshot may span several households. */
+    familyGroupId: uuid("family_group_id").references(() => familyGroups.id, {
+      onDelete: "cascade",
+    }),
     tokenHash: text("token_hash").notNull(),
+    webParticipationRevision: integer("web_participation_revision").notNull().default(0),
+    /** Existing indefinite links keep their term; newly issued links expire in one year. */
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [
     uniqueIndex("agenda_feed_token_idx").on(t.tokenHash),
     index("agenda_feed_user_idx").on(t.userId),
+    check("agenda_feed_web_revision", sql`${t.webParticipationRevision} >= 0`),
+  ],
+);
+
+/** Read-only capability snapshot. Grant IDs remain historical after revocation. */
+export const agendaCalendarFeedProfiles = agenda.table(
+  "calendar_feed_profiles",
+  {
+    feedId: uuid("feed_id")
+      .notNull()
+      .references(() => agendaCalendarFeeds.id, { onDelete: "cascade" }),
+    profileId: uuid("profile_id").notNull(),
+    groupId: uuid("group_id").notNull(),
+    readGrantId: uuid("read_grant_id").notNull(),
+    activationGeneration: uuid("activation_generation").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.feedId, t.profileId] }),
+    foreignKey({
+      name: "agenda_feed_profile_context_fk",
+      columns: [t.profileId, t.groupId],
+      foreignColumns: [familyAppProfiles.id, familyAppProfiles.groupId],
+    }).onDelete("cascade"),
   ],
 );
 
@@ -468,6 +462,9 @@ export const agendaIdempotentWrites = agenda.table(
   "idempotent_writes",
   {
     key: uuid("key").notNull(),
+    familyGroupId: uuid("family_group_id").references(() => familyGroups.id, {
+      onDelete: "cascade",
+    }),
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -492,9 +489,9 @@ export const agendaProductEvents = agenda.table(
     durationMs: integer("duration_ms"),
     // Só tipo: a coluna é jsonb, e as variantes antigas continuam no banco.
     landingContext: jsonb("landing_context").$type<{
-      variant: "family-routine-v1" | "pagina-do-dia-v1";
+      variant: "family-routine-v1" | "pagina-do-dia-v1" | "compasso-v1";
       placement?: "hero" | "demo" | "pricing" | "final" | "sticky";
-      selection?: { plan: "free" } | { plan: "pro"; cycle: "monthly" | "annual" };
+      selection?: { plan: "free" } | { plan: "pro" | "compasso"; cycle: "monthly" | "annual" };
       scenario?: "cartaz" | "passeio" | "prova" | "material";
       action?: "scenario" | "plan" | "complete";
       firstCta?: boolean;

@@ -45,22 +45,44 @@ export async function conferirPin(pin: string, guardado: string | null | undefin
 const assinatura = (segredo: string, dados: string) =>
   createHmac("sha256", segredo).update(`estrela-pin:${dados}`).digest("base64url");
 
-/** Ficha de desbloqueio: presa ao aparelho e com prazo curto. */
-export function emitirDesbloqueio(segredo: string, deviceId: string, agora = Date.now()) {
+/** A new PIN generation invalidates every prior short-lived unlock without revoking devices. */
+export function emitirDesbloqueio(
+  segredo: string,
+  deviceId: string,
+  pinGeneration: string,
+  agora = Date.now(),
+) {
   const expira = agora + DESBLOQUEIO_MS;
-  return { valor: `${deviceId}.${expira}.${assinatura(segredo, `${deviceId}.${expira}`)}`, expira };
+  const dados = `v2.${deviceId}.${pinGeneration}.${expira}`;
+  return { valor: `${dados}.${assinatura(segredo, dados)}`, expira };
 }
-
 export function lerDesbloqueio(
   segredo: string,
   valor: string | undefined,
   deviceId: string,
+  pinGeneration: string,
   agora = Date.now(),
 ) {
   if (!valor) return null;
-  const [aparelho, expira, recebida] = valor.split(".");
-  if (aparelho !== deviceId || !expira || !recebida || Number(expira) <= agora) return null;
-  const esperada = Buffer.from(assinatura(segredo, `${aparelho}.${expira}`));
-  const veio = Buffer.from(recebida);
-  return esperada.length === veio.length && timingSafeEqual(esperada, veio) ? Number(expira) : null;
+  const parts = valor.split(".");
+  const [version, aparelho, generation, expiry, signature] = parts;
+  const expires = Number(expiry);
+  if (
+    parts.length !== 5 ||
+    version !== "v2" ||
+    aparelho !== deviceId ||
+    generation !== pinGeneration ||
+    !signature ||
+    !Number.isSafeInteger(expires) ||
+    expires <= agora ||
+    expires > agora + DESBLOQUEIO_MS
+  )
+    return null;
+  const expected = Buffer.from(
+    assinatura(segredo, `${version}.${aparelho}.${generation}.${expiry}`),
+  );
+  const received = Buffer.from(signature);
+  return expected.length === received.length && timingSafeEqual(expected, received)
+    ? expires
+    : null;
 }

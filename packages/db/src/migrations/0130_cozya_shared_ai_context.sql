@@ -1,0 +1,2 @@
+ALTER TABLE "cozya"."ai_operations" ADD COLUMN "family_group_id" uuid;--> statement-breakpoint
+ALTER TABLE "cozya"."ai_operations" ADD CONSTRAINT "ai_operations_family_group_id_groups_id_fk" FOREIGN KEY ("family_group_id") REFERENCES "family"."groups"("id") ON DELETE cascade ON UPDATE no action;

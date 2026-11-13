@@ -1,18 +1,25 @@
-import { currentTrainer, PROFILE_COLORS } from "@/features/familia/view";
+import { webSsoEnvironment } from "@informach/auth/web-sso-contract";
+import { getAppUrl } from "@informach/config/domains";
+import { listAvailablePeople } from "@/features/familia/service";
+import { currentTrainer } from "@/features/familia/view";
 import { ritmoDaIntensidade } from "@/features/perfil/regras";
 import { volumeDaFamiliaDesde } from "@/features/sessoes/repository";
 import { semanaAtual } from "@/features/treino/engine/habito";
 import { ProfilesScreen } from "@/features/treino/telas/perfis";
 import { FUSO_PADRAO, inicioDaSemana, inicioDoDiaLocal, numeroDoDia } from "@/lib/datas";
+import { env } from "@/lib/env";
 
 export const metadata = { title: "Quem vai treinar?" };
 
 export default async function Perfis() {
-  const { user, profiles, access, family } = await currentTrainer();
+  const { user, profiles, access, family, group } = await currentTrainer();
+  const people = await listAvailablePeople(user.id, group.id);
+  const accountUrl = `${getAppUrl("conta", webSsoEnvironment("bora-treinar", env.NEXT_PUBLIC_APP_URL))}/?familia=${group.id}#pessoas`;
   const fuso = family?.timezone ?? FUSO_PADRAO;
   const agora = Date.now();
   const semana = await volumeDaFamiliaDesde(
     user.id,
+    group.id,
     inicioDoDiaLocal(inicioDaSemana(agora, fuso), fuso),
   );
   const hoje = numeroDoDia(agora, fuso);
@@ -28,6 +35,8 @@ export default async function Perfis() {
           name: p.name,
           color: p.color,
           allowed: p.allowed,
+          canWrite: p.canWrite,
+          canManage: p.canManage,
           pronto: !!p.onboardedAt,
           jeito: {
             ritmo: ritmoDaIntensidade(p.intensity),
@@ -42,7 +51,9 @@ export default async function Perfis() {
         };
       })}
       limit={access.profileLimit}
-      colors={PROFILE_COLORS}
+      people={people}
+      accountUrl={accountUrl}
+      groupName={group.name}
       podeTreinarJunto={access.unlocked && permitidos >= 2}
     />
   );

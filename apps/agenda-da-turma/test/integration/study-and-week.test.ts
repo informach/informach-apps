@@ -1,26 +1,23 @@
 import { randomUUID } from "node:crypto";
 import { db, eq } from "@informach/db";
 import {
-  agendaNotificationDeliveries,
-  agendaProductEvents,
+  agendaNotificationPreferences,
   agendaProfileSubjects,
   agendaSubjectKits,
   agendaTasks,
-  customers,
-  emailDeliveries,
-  subscriptions,
   users,
 } from "@informach/db/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { setNoticeActionStatus } from "@/features/notices/service";
 import { deliverRoutineNotifications } from "@/features/notifications/delivery";
 import { DEFAULT_NOTIFICATION_PREFERENCES } from "@/features/notifications/schemas";
 import { saveNotificationPreferences } from "@/features/notifications/service";
-import { createStudentProfile } from "@/features/students/service";
 import { createStudyPlan, listStudySessions, removeStudyPlan } from "@/features/study-plan/service";
 import { listSubjectKits, saveSubjectKit } from "@/features/subject-kits/service";
 import { emails } from "@/lib/emails";
+import { agendaFixture } from "./compasso-fixture";
 
 function value<T>(result: { ok: true; value: T } | { ok: false; error: unknown }): T {
   if (!result.ok) throw new Error(JSON.stringify(result.error));
@@ -29,33 +26,7 @@ function value<T>(result: { ok: true; value: T } | { ok: false; error: unknown }
 
 let owner: string;
 let child: string;
-let customer: string;
-
-async function makePro() {
-  const [billingCustomer] = await db
-    .insert(customers)
-    .values({
-      provider: "stripe",
-      providerCustomerId: `test-${owner}`,
-      subjectType: "user",
-      subjectId: owner,
-      app: "agenda-da-turma",
-      email: `${owner}@e2e.local`,
-    })
-    .returning();
-  if (!billingCustomer) throw new Error("Customer missing");
-  customer = billingCustomer.id;
-  await db.insert(subscriptions).values({
-    customerId: customer,
-    provider: "stripe",
-    providerSubscriptionId: `test-${owner}`,
-    productId: "agenda_da_turma_pro_monthly",
-    providerPriceId: "price_synthetic",
-    status: "active",
-    currentPeriodStart: new Date(Date.now() - 86400_000),
-    currentPeriodEnd: new Date(Date.now() + 30 * 86400_000),
-  });
-}
+let actor: AgendaAuthority;
 
 async function exam(dueAt: string, type: "exam" | "task" = "exam") {
   const title = `Prova fictícia ${randomUUID()}`;
@@ -76,38 +47,22 @@ async function exam(dueAt: string, type: "exam" | "task" = "exam") {
 }
 
 beforeEach(async () => {
-  owner = `study-test-${randomUUID()}`;
-  await db.insert(users).values({
-    id: owner,
-    name: "Adulto fictício",
-    email: `${owner}@e2e.local`,
-    emailVerified: true,
-  });
-  await makePro();
-  child = value(
-    await createStudentProfile(owner, { name: "Criança fictícia", birthDate: null }),
-  ).id;
+  const f = await agendaFixture(true);
+  owner = f.owner;
+  child = f.profile.id;
+  actor = f.actor;
+  await db.update(agendaNotificationPreferences).set({ emailEnabled: false, pushEnabled: false });
   emails.clearOutbox();
 });
-afterEach(async () => {
-  await db.delete(agendaProductEvents).where(eq(agendaProductEvents.userId, owner));
-  await db.delete(emailDeliveries).where(eq(emailDeliveries.userId, owner));
-  await db
-    .delete(agendaNotificationDeliveries)
-    .where(eq(agendaNotificationDeliveries.userId, owner));
-  await db.delete(users).where(eq(users.id, owner));
-  await db.delete(subscriptions).where(eq(subscriptions.customerId, customer));
-  await db.delete(customers).where(eq(customers.id, customer));
-  emails.clearOutbox();
-});
+afterEach(() => emails.clearOutbox());
 
 describe("study plan", () => {
   it("creates sessions before the exam, linked to it and as family planning", async () => {
     const task = await exam(addDaysIso(todayLocalIso(), 6));
     expect(
-      value(await createStudyPlan(owner, { taskId: task.id, sessions: 3, minutesEach: 30 })),
+      value(await createStudyPlan(actor, { taskId: task.id, sessions: 3, minutesEach: 30 })),
     ).toEqual({ sessions: 3 });
-    const sessions = await listStudySessions(owner, task.id);
+    const sessions = await listStudySessions(actor, task.id);
     expect(sessions).toHaveLength(3);
     const rows = await db.select().from(agendaTasks).where(eq(agendaTasks.studyForTaskId, task.id));
     expect(rows.every((row) => row.type === "study")).toBe(true);
@@ -119,52 +74,55 @@ describe("study plan", () => {
   it("refuses what cannot be planned, and replanning does not stack", async () => {
     const today = await exam(todayLocalIso());
     expect(
-      await createStudyPlan(owner, { taskId: today.id, sessions: 2, minutesEach: 30 }),
+      await createStudyPlan(actor, { taskId: today.id, sessions: 2, minutesEach: 30 }),
     ).toMatchObject({ ok: false, error: { code: "NO_TIME_LEFT" } });
     const chore = await exam(addDaysIso(todayLocalIso(), 5), "task");
     expect(
-      await createStudyPlan(owner, { taskId: chore.id, sessions: 2, minutesEach: 30 }),
+      await createStudyPlan(actor, { taskId: chore.id, sessions: 2, minutesEach: 30 }),
     ).toMatchObject({ ok: false, error: { code: "NOT_PLANNABLE" } });
 
     const task = await exam(addDaysIso(todayLocalIso(), 6));
-    value(await createStudyPlan(owner, { taskId: task.id, sessions: 3, minutesEach: 30 }));
-    value(await createStudyPlan(owner, { taskId: task.id, sessions: 2, minutesEach: 60 }));
-    expect(await listStudySessions(owner, task.id)).toHaveLength(2);
+    value(await createStudyPlan(actor, { taskId: task.id, sessions: 3, minutesEach: 30 }));
+    value(await createStudyPlan(actor, { taskId: task.id, sessions: 2, minutesEach: 60 }));
+    expect(await listStudySessions(actor, task.id)).toHaveLength(2);
   });
   it("refuses on the free limit WITHOUT destroying the plan that already exists", async () => {
     // Um `return` de dentro de uma transação Drizzle commita: cancelar o plano
     // antes de checar o limite apagaria o que a família já tinha e devolveria
     // um erro pedindo espaço para sessões que acabaram de sumir.
-    await db.delete(subscriptions).where(eq(subscriptions.customerId, customer));
+    const free = await agendaFixture(false);
+    actor = free.actor;
+    owner = free.owner;
+    child = free.profile.id;
     const task = await exam(addDaysIso(todayLocalIso(), 8));
-    value(await createStudyPlan(owner, { taskId: task.id, sessions: 2, minutesEach: 30 }));
-    const before = await listStudySessions(owner, task.id);
+    value(await createStudyPlan(actor, { taskId: task.id, sessions: 2, minutesEach: 30 }));
+    const before = await listStudySessions(actor, task.id);
     expect(before).toHaveLength(2);
     // Enche a cota gratuita com pendências avulsas.
     for (let i = 0; i < 20; i += 1) await exam(addDaysIso(todayLocalIso(), 9), "task");
     expect(
-      await createStudyPlan(owner, { taskId: task.id, sessions: 3, minutesEach: 30 }),
+      await createStudyPlan(actor, { taskId: task.id, sessions: 3, minutesEach: 30 }),
     ).toMatchObject({ ok: false, error: { code: "ACTIVITY_LIMIT_REACHED" } });
-    const after = await listStudySessions(owner, task.id);
+    const after = await listStudySessions(actor, task.id);
     expect(after.map((s) => s.id)).toEqual(before.map((s) => s.id));
   });
   it("cancels the pending sessions when the exam itself is canceled", async () => {
     const task = await exam(addDaysIso(todayLocalIso(), 6));
-    value(await createStudyPlan(owner, { taskId: task.id, sessions: 3, minutesEach: 30 }));
-    const [first] = await listStudySessions(owner, task.id);
+    value(await createStudyPlan(actor, { taskId: task.id, sessions: 3, minutesEach: 30 }));
+    const [first] = await listStudySessions(actor, task.id);
     if (!first) throw new Error("Session missing");
     // O que já foi estudado continua feito.
-    value(await setNoticeActionStatus(owner, { id: first.id, version: 1, status: "done" }));
-    value(await setNoticeActionStatus(owner, { id: task.id, version: 1, status: "canceled" }));
-    const remaining = await listStudySessions(owner, task.id);
+    value(await setNoticeActionStatus(actor, { id: first.id, version: 1, status: "done" }));
+    value(await setNoticeActionStatus(actor, { id: task.id, version: 1, status: "canceled" }));
+    const remaining = await listStudySessions(actor, task.id);
     expect(remaining).toHaveLength(1);
     expect(remaining[0]?.status).toBe("done");
   });
   it("removes a plan without touching what was already done", async () => {
     const task = await exam(addDaysIso(todayLocalIso(), 6));
-    value(await createStudyPlan(owner, { taskId: task.id, sessions: 3, minutesEach: 30 }));
-    expect(value(await removeStudyPlan(owner, { taskId: task.id }))).toEqual({ canceled: 3 });
-    expect(await listStudySessions(owner, task.id)).toHaveLength(0);
+    value(await createStudyPlan(actor, { taskId: task.id, sessions: 3, minutesEach: 30 }));
+    expect(value(await removeStudyPlan(actor, { taskId: task.id }))).toEqual({ canceled: 3 });
+    expect(await listStudySessions(actor, task.id)).toHaveLength(0);
   });
   it("never plans for a child of another family", async () => {
     const outsider = `study-outsider-${randomUUID()}`;
@@ -176,7 +134,10 @@ describe("study plan", () => {
     });
     const task = await exam(addDaysIso(todayLocalIso(), 6));
     expect(
-      await createStudyPlan(outsider, { taskId: task.id, sessions: 2, minutesEach: 30 }),
+      await createStudyPlan(
+        { userId: outsider, familyGroupId: actor.familyGroupId },
+        { taskId: task.id, sessions: 2, minutesEach: 30 },
+      ),
     ).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
     await db.delete(users).where(eq(users.id, outsider));
   });
@@ -188,7 +149,7 @@ describe("weekly digest", () => {
 
   async function enableWeekly(day: number, hour: number) {
     value(
-      await saveNotificationPreferences(owner, {
+      await saveNotificationPreferences(actor, {
         ...DEFAULT_NOTIFICATION_PREFERENCES,
         emailEnabled: true,
         // O diário tem teste próprio; aqui ele não pode somar um e-mail.
@@ -275,9 +236,9 @@ describe("weekly digest", () => {
 
     const task = await exam(addDaysIso(hoje, 2));
     expect(
-      value(await createStudyPlan(owner, { taskId: task.id, sessions: 1, minutesEach: 30 })),
+      value(await createStudyPlan(actor, { taskId: task.id, sessions: 1, minutesEach: 30 })),
     ).toEqual({ sessions: 1 });
-    const sessions = await listStudySessions(owner, task.id);
+    const sessions = await listStudySessions(actor, task.id);
     // Três treinos marcariam hoje como cheio e empurrariam a sessão para
     // amanhã. Como a matéria está pausada, hoje continua livre.
     expect(sessions.map((session) => session.dueAt)).toEqual([hoje]);
@@ -297,7 +258,7 @@ describe("weekly digest", () => {
     if (!extraId) throw new Error("Profile subject missing");
 
     value(
-      await saveSubjectKit(owner, {
+      await saveSubjectKit(actor, {
         profileId: child,
         subjectId: null,
         profileSubjectId: extraId,
@@ -305,7 +266,7 @@ describe("weekly digest", () => {
       }),
     );
     value(
-      await saveSubjectKit(owner, {
+      await saveSubjectKit(actor, {
         profileId: child,
         subjectId: null,
         profileSubjectId: extraId,
@@ -313,7 +274,7 @@ describe("weekly digest", () => {
       }),
     );
 
-    const kits = await listSubjectKits(owner, [child]);
+    const kits = await listSubjectKits(actor, [child]);
     expect(kits.get(`${child}:${extraId}`)).toEqual(["touca", "óculos"]);
     const rows = await db
       .select()

@@ -16,7 +16,7 @@ Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão come
 | Cloudflare | CNAME para `aijyebw0.up.railway.app`, proxy ligado |
 | SendGrid | Fila compartilhada; eventos assinados processados pelo Cozya |
 
-O build executa `pnpm install --frozen-lockfile --prod=false && pnpm build:missao-saber`; o start executa `pnpm start:missao-saber`. `/api/ready` verifica PostgreSQL e Redis, e `/api/health` identifica o deployment. Produção rejeita chaves Stripe de teste, e-mail sandbox, preços ausentes e URLs incoerentes. Os segredos ficam apenas na Railway e nos ambientes locais ignorados pelo Git.
+Na configuração anterior publicada, o build executa `pnpm install --frozen-lockfile --prod=false && pnpm build:missao-saber` e o start `pnpm start:missao-saber`. Na branch Compasso, a IaC foi preparada para `standaloneNext("missao-saber")`: build com cópia de `public`/estáticos e `HOSTNAME=0.0.0.0 node apps/missao-saber/.next/standalone/apps/missao-saber/server.js`, respeitando `PORT`. A alteração ainda não foi aplicada no Railway. `/api/ready` verifica PostgreSQL e Redis, e `/api/health` identifica o deployment. Produção rejeita chaves Stripe de teste, e-mail sandbox, preços ausentes e URLs incoerentes. Os segredos ficam apenas na Railway e nos ambientes locais ignorados pelo Git.
 
 ## Ordem de deploy com migração nova
 
@@ -27,7 +27,7 @@ O migrator é um serviço à parte, configurado em `.railway/railway.ts`, com Wa
 3. Railway: redeploy de Missão Saber, Cozya e Agenda da Turma se algum deploy do push falhou no healthcheck (Cozya e Agenda esperam só 30 s). O redeploy usa o mesmo commit, que é o certo aqui.
 4. Conferir `/api/ready` dos três, o commit em `/api/health` e rodar `DATABASE_PUBLIC_URL=… pnpm --filter @informach/missao-saber production:verify-schema`, que compara com o journal do checkout.
 
-As migrações desta atualização são compatíveis com o código que já está no ar, então aplicar antes ou depois do push é seguro. O rollback de código continua possível para o schema, mas não para os dados: depois que a versão nova rodar, podem existir perfis com anos escolares e trilhas que a versão antiga não conhece. Voltar para um deployment anterior a esta atualização exige conferir esses perfis antes.
+O procedimento acima registra atualizações aditivas anteriores. **Não se aplica ao corte Compasso 0080–0113:** o contrato remove identidade nativa e altera autorização; exige janela coordenada, pausa dos writers antigos, backfill e consumidores novos, conforme o [registro da migração](../../docs/propostas/assinatura-web-2026-11-09/implementacao.md). As afirmações históricas de compatibilidade abaixo não autorizam aplicar o corte sobre apps antigos. O rollback de código continua possível para o schema, mas não para os dados: depois que a versão nova rodar, podem existir perfis com anos escolares e trilhas que a versão antiga não conhece. Voltar para um deployment anterior a esta atualização exige conferir esses perfis antes.
 
 ## Banco, migrations e recuperação
 

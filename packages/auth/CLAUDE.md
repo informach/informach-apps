@@ -1,5 +1,17 @@
 # `@informach/auth` — package guide
 
+## Entrada web compartilhada em implementação
+
+`webSso` configura a central como emissora OIDC ou um app Compasso como cliente. O contrato puro de URLs fica em `@informach/auth/web-sso-contract`; provisão e plugins, em `@informach/auth/web-sso`. A central usa `webSsoProvider` no cliente React para conservar a consulta assinada durante login/verificação de e-mail. URLs e portas vêm do catálogo, com callbacks exatos por app e ambiente. Edi e Bastidores não participam desse emissor.
+
+O fluxo usa authorization code de uso único, PKCE S256, estado vinculado ao navegador e ID token com assinatura, issuer, audience e nonce conferidos pelo Better Auth 1.7.10. A identidade `sub` aponta para a conta existente e verificada no banco; os apps não fazem cadastro implícito. O prazo de 10 minutos também governa a consulta assinada da tela de entrada nessa versão da biblioteca. Tokens de acesso/identidade duram 120 segundos; os clientes não recebem refresh token. Cookies ficam no host do app, com prefixo próprio.
+
+Nesse modo, sessões são autoritativas em PostgreSQL, sem cache de cookie, secondary storage ou papel em cache. Contadores de login são atômicos e separados por app em `core.rate_limit`. O cliente web só expõe entrar por OIDC, callback cadastrado, consultar sessão e sair; gestão de credenciais acontece na central. A provisão recusa drift de permissões, PKCE, callbacks e grants, em vez de sobrescrever silenciosamente. `core.sso_*` separa clientes, chaves, concessões e tokens do emissor desktop `core.oauth_*`; a definição das tabelas é compartilhada em uma fábrica, conservando o schema desktop existente.
+
+Consumidores desta migração: `apps/conta` e os cinco apps Compasso. Seus runtimes locais usam o novo SSO; a homologação conjunta e o corte operacional continuam em execução. As observações sobre sessões Redis abaixo descrevem os fluxos antigos ainda em produção. A troca exige desligar os emissores antigos e limpar suas sessões, sem tratar a existência do schema como corte concluído. Testes reais: `pnpm compasso:test:integration`, incluindo regressão do OAuth desktop. Registro e pendências na [migração](../../docs/propostas/assinatura-web-2026-11-09/implementacao.md).
+
+`/web-sso-entry` fornece o componente opcional de entrada dos apps, sem formulário local de credenciais. `/web-sso-client` cria o cliente navegador correspondente. `/web-sessions` mede confirmação recente pela raiz autenticada e encerra a raiz ao sair de um cliente. Nova entrada de credenciais válidas substitui a raiz apresentada pelo mesmo navegador, incluindo seus filhos; não apaga sessões de outros navegadores nem fecha a sessão por uma senha incorreta. O hook roda antes do plugin de duas etapas: a sessão nova ainda passa por seu desafio e não fica autenticada se esse desafio estiver pendente. Os handlers da entrada ficam habilitados só depois da hidratação, evitando perda de campos digitados no HTML inicial.
+
 > Documentação primária do package para humanos e agentes. Para checklist de produção (Railway, CSP, Redis, cron), ver [`PRODUCTION.md`](./PRODUCTION.md). Para validação de templates de email, ver [`@informach/emails/EMAILS.md`](../emails/EMAILS.md) (templates moved).
 
 ---
@@ -13,7 +25,7 @@
 - A matriz de RBAC custom (`Role` × `Permission`) — sem usar o plugin oficial `admin()`.
 - Funções de manutenção idempotentes para cron jobs.
 
-O package **não** decide UI, **não** lê env vars próprias, e **não** renderiza páginas de auth — cada app fornece config via `createAuth({...})` e expõe a auth handler em `app/api/auth/[...all]/route.ts`.
+O package **não** decide UI, **não** lê env vars próprias, e não possui rotas de páginas de auth — cada app fornece config via `createAuth({...})` e expõe a auth handler em `app/api/auth/[...all]/route.ts`.
 
 ---
 
@@ -61,6 +73,24 @@ Schema das tabelas usadas (FK e índices):
 Todas as colunas declaradas em `packages/db/src/schema/core.ts` (source of truth) e mapeadas via `drizzleAdapter({ schema: { user, session, ... } })`.
 
 ---
+
+## Participação web e congelamento
+
+`/web-participation` separa `active`, `frozen` e `closed` da identidade global em `core.web_participations` (0142). Ausência inicial representa participação ativa; escritores inicializam a linha e tomam `FOR SHARE`, enquanto o congelamento usa `FOR UPDATE`. A trava dura até o commit e não deve atravessar chamadas externas. Escritas simultâneas continuam possíveis; snapshots antigos em repeatable read são recusados pelo PostgreSQL. A revisão cresce a cada transição: jobs devem conservar a revisão admitida ao gravar respostas tardias, inclusive depois de uma retomada.
+
+As operações de congelar/retomar/fechar são internas: o coordenador de `account` precisa autorizar e persistir seu pedido imutável na mesma transação. Não chamar essas funções de uma rota pública isolada. A retomada depende de ausência de efeitos irreversíveis; `closed` não reabre automaticamente. A transição e a auditoria `user.web_participation_changed` são atômicas com a remoção das raízes web; FKs removem seus descendentes. Sessões/credenciais independentes do Edi e Bastidores permanecem. Login central continua disponível para acompanhamento/recuperação, mas o SSO recusa vincular aplicativos à participação suspensa.
+
+O coordenador serializa solicitações e finalização pelo ator e por `lockWebSessionChanges` antes de travar a sessão central exata/pedido. O mesmo lock de sessões serve à revogação normal de navegadores; não introduzir uma ordem inversa. `lockFrozenWebParticipation` só autoriza o escopo técnico do pedido já cercado pelo coordenador, nunca acesso de usuário a um domínio. Autorização de família e seleção da limpeza permanecem obrigatórias no adapter.
+
+Ordem de travas: escritores familiares tomam grupo(s), participação, pessoa/conteúdo; o coordenador de congelamento não deve tomar travas familiares/de domínio enquanto segura a participação. Reavaliação dos domínios é uma etapa posterior. `lockWebParticipation` serve à manutenção para observar o estado sob trava, sem autorizar uso ou leitura de conteúdo; `lockActiveWebParticipation` também exige identidade verificada e não banida. Esse incremento não é o executor completo de encerramento, ainda em implementação.
+
+## Troca de e-mail na central web
+
+Somente o emissor SSO habilita `emailOTP.changeEmail`, com prova do endereço atual e do novo. As duas etapas exigem sessão raiz verificada, válida e criada há menos de 15 minutos; abrir outro app ou renovar sessão não renova essa idade. Os endpoints têm limite próprio. Não habilitar o caminho alternativo `/change-email` por link nos clientes.
+
+A migration custom **0137** fecha as sessões raiz web (e descendentes por FK) na mesma transação da alteração de `core.users.email`, revoga provas pendentes do endereço antigo e convites familiares ainda não aceitos. A identidade/IDs, fatores, contratos e licenças são preservados; sessões independentes do Edi/Bastidores não entram nessa seleção. O sucesso exige nova entrada web. Se a transação falhar, a revogação também é revertida. Auditoria registra `user.email_changed` com escopo, sem endereços ou códigos. Não substituir por revogação posterior best-effort.
+
+Verificação real: `src/web-email-change.integration.ts`, incluído no runner Compasso `--auth-only` e completo. A política de teste por identidade fica em billing, com índice 0136; mudar e-mail não cria nova elegibilidade. Não atualizar automaticamente o contato fiscal do customer Stripe a partir dessa mudança.
 
 ## 3. Funcionalidades
 
@@ -555,12 +585,34 @@ Itens validados como possíveis evoluções, sem compromisso de prioridade:
 
 Para retomar trabalho de fase, perguntar ao usuário qual fase está autorizada — cada fase é entregável independente. Histórico de fases entregues vive na memory (`auth_roadmap.md`).
 
+## Conta central e SSO web (Compasso, 09/11/2026)
+
+`/identity-dependencies` fornece somente indicadores próprios de papéis, participação em organizações, autorizações OAuth desktop e sessões SQL sem origem web. Não retorna segredos, tokens ou nomes de outras organizações/pessoas. Sessão com `origin_app` nulo não identifica qual produto a originou. Esses fatos não autorizam excluir a identidade: cobrança e dependências de cada domínio também precisam ser verificadas. `user.closure_reviewed` registra somente o escopo da consulta, sem conteúdo do inventário.
+
+Frente autorizada em [implementação Compasso](../../docs/propostas/assinatura-web-2026-11-09/implementacao.md). `webSso` usa emissor/tabelas `sso_*` separados do Edi, callbacks exatos do catálogo, PKCE/nonce, ID token verificado e clientes sem refresh token. Cadastro, senha e gestão da identidade ficam no emissor `conta`; clientes não registram providers nem abrem rotas alternativas. Não compartilhar cookies entre subdomínios.
+
+A central suporta senha e TOTP/códigos de recuperação; seu campo lógico `twoFactorEnabled` aponta para `users.webTwoFactorEnabled` e o plugin usa `webTwoFactors`. Não usar o segredo ou os fatores do Bastidores. Confirmação de e-mail não cria sessão. Login OTP, magic link, providers sociais e passkeys não são rotas alternativas neste contrato. A central fecha as rotas genéricas de lista/revogação de sessões e acesso/vínculo de accounts; os comandos de `web-sessions` retornam dados sem credenciais e delimitam a revogação.
+
+Os clientes recebem `sid` assinado, verificam origem e usuário da sessão central e criam sessões filhas via contexto assíncrono da requisição. Usar `auth.handler` para callback; invocar callback diretamente por `auth.api` falha fechado. A FK composta impede associação a outro usuário e fecha a corrida entre revogar origem e inserir filho. Filhos não renovam automaticamente e não duram mais que a origem. A revogação dos apps antigos em Redis só estará unificada após convertê-los; presença das novas tabelas não encerra esses caches.
+
+Logs web do Better Auth viram somente `auth_provider_log` com app e nível. Nunca repassar mensagem, URL, argumentos ou erro bruto do provedor/observador: podem conter código, estado, identidade ou credenciais. URLs de retorno validam origem/caminho cadastrados, limites e unicidade de `code`/`state`.
+
+Ensaio completo: `pnpm compasso:test:integration --ui`. Detalhes de cobertura, versão e pendências ficam no registro da frente.
+
 ## Contrato Edi (16/10/2026)
 
 O subpath `@informach/auth/desktop-oauth` implementa device grant com client público native, sem secret, consentimento obrigatório, scopes `edi:license edi:devices offline_access`, access token de 300 s e refresh de 30 dias com rotação/replay denial. O pre-deploy idempotente confere a política completa do client/resource e falha diante de drift, sem overwrite silencioso. Não criar endpoint público de provisionamento.
 
 Edi escolhe confirmação/reset por OTP. O formulário permite retomar cadastro após reload e reenviar confirmação; login sem e-mail verificado continua proibido. Cooldown na UI não substitui os rate limits persistentes do backend. `pnpm edi:test:integration` cobre drift, device grant/refresh/replay e OTP expirado/inválido/reenvio/confirmação em PostgreSQL descartável. Os demais apps conservam suas opções de autenticação.
 
+
+`isActiveWebSession` confere a sessão filha, a raiz central, ambas as validades, o app e a elegibilidade atual do usuário. É o contrato de autorização viva para dispositivos vinculados. Não usar `isRecentWebAuthentication` como substituto: a janela de senha/MFA recente tem outra finalidade, e não deve ser estendida para sustentar um dispositivo.
+
+
+Na central web, `createInformachAuthClient({ redirectMode: "manual" })` preserva o plugin OAuth (query assinada) e desliga apenas a navegação automática padrão do Better Auth. `AuthForm` valida o callback registrado e realiza uma única navegação. Não usar simultaneamente o redirecionamento automático e `window.location.assign`: a primeira chamada pode consumir o estado/PKCE antes da segunda e produzir `state_mismatch`. Clientes que não optam por esse modo mantêm a navegação automática. O ensaio `client-navigation.test.ts` usa o SDK instalado e uma resposta HTTP sintética para verificar os dois modos.
+
+
+`currentWebParticipationCondition` acrescenta a revisão à condição ativa para capacidades emitidas pelos domínios. Não substitui a autorização por perfil nem a trava de emissão. A ausência de linha corresponde somente à revisão inicial zero. Transições removem explicitamente tokens `sso_access_tokens` e `sso_refresh_tokens` do ator antes das raízes web: essas FKs usam SET NULL e a cascata de sessão sozinha não revogaria os tokens. OAuth desktop permanece separado.
 ### Guarda temporária do Recreio (13/11/2026)
 
 Antes dos callbacks de exclusão de qualquer app, `account-deletion-guard.ts` consulta se a conta tem perfil no Recreio. Se tiver, interrompe com `RECREIO_ACCOUNT_DELETION_REQUIRES_SUPPORT` (409), antes de cancelar assinaturas ou apagar a conta. Falha de consulta também interrompe. A conta é compartilhada: desligar a exclusão só no app Recreio deixava o caminho pelos demais produtos aberto. A regra é temporária até a implementação da sucessão/saída de mundos; pedidos dessas contas precisam de atendimento assistido. As FKs de banco continuam preservando o conteúdo de mundos compartilhados; essa guarda não substitui a implementação futura do ciclo de vida.

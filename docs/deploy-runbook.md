@@ -6,6 +6,35 @@ Passo-a-passo reproduzível, baseado no deploy real do `@informach/cozya` (2026-
 
 ---
 
+## Migração Compasso em preparação — 10/11/2026
+
+O titular esclareceu que não há clientes externos pagantes: o corte é interno para dois desenvolvedores. Isso simplifica a implantação, mas não autoriza apagar histórico: em 10/11 foram encontrados seis contratos internos ativos no Stripe live e um cancelado, com últimas faturas pagas de valor positivo. Conferir períodos/créditos e encerrar as renovações antigas no corte. Os novos mecanismos de transição comercial gradual e suas migrations não publicadas foram retirados; a retirada devolveu naquele momento o journal a 0141; as novas 0142–0150 pertencem ao ciclo de privacidade, não restauram a transição comercial retirada. Decisão e evidências no [registro financeiro](propostas/assinatura-web-2026-11-09/migracao-financeira.md).
+
+Inventários não destrutivos, executados fora do Turbo e sem valores/identificadores sensíveis na saída:
+
+```powershell
+railway run --service Postgres --environment production -- pnpm --filter @informach/db exec tsx ../../scripts/compasso/financial-inventory.mjs
+railway run --service Postgres --environment production -- pnpm --filter @informach/db exec tsx ../../scripts/compasso/stripe-inventory.mts --stripe-env ../../apps/agenda-da-turma/.env.local --stripe-key STRIPE_PROD_SECRET_KEY
+```
+
+O segundo comando lê uma credencial já disponível no arquivo local ignorado, dentro do processo; não copiar seu valor para argumentos ou documentação. O transporte só aceita GET nos endpoints declarados; ambos usam transação `READ ONLY`. O resultado Stripe cobre contrato e última fatura, não o histórico integral de captura/estorno. Identifica o modo consultado e recursos ausentes nesse modo; ausência não comprova inexistência em outra conta/modo. Esses comandos não migram nem cancelam nada.
+
+A 0140 cria o schema `account` e duas tabelas vazias de avaliação de privacidade; a 0141 acrescenta índice de vencimento. Sem backfill ou alteração de conteúdo dos apps. O migrator aplica antes de promover os consumidores; `ai_mastra` continua fora do schemaFilter. A FK do ator é restritiva. Rollback conserva schema/tabelas; a versão anterior apenas deixa de coletar avaliações. Os cinco endpoints `/api/jobs/account-departure` exigem a credencial de cron de cada app, fixam o app no servidor e retornam somente contagens operacionais. Falha parcial precisa resultar em HTTP 503 e execução operacional com falha. A Conta solicita/acompanha respostas e expurga o cache pelo job próprio `account-maintenance`, 24 horas após vencer, em lotes de 100. Essa limpeza não afeta auditoria, identidade ou conteúdo dos produtos.
+
+IaC prepara Conta, dois crons centrais e cinco workers derivados do catálogo sob `COMPASSO_LAUNCHED=false`. Ativar exige Dia de Estrela disponível, inclusive para avaliar dados de usuários anteriores à publicação. Nunca voltar a flag para false depois de provisionar: isso apagaria recursos. Cada cron usa referência ao segredo do próprio serviço, com prazos de conexão/execução; os sete jobs estão no Bastidores como aguardando implantação até o primeiro registro. No corte, retirar a indicação de pausa após conferir as execuções. O ensaio local da definição não substitui `railway config plan` contra o ambiente atual. Segredos ausentes não são criados por `preserve()`, e a cobrança permanece desabilitada durante a homologação.
+
+O ciclo de identidade acrescenta 0136/0137: unicidade do teste por adulto e invalidação atômica de acessos/provas na troca de e-mail. Pré-condições e fronteira de rollback ficam no runbook da Conta. Não reabrir vendas ou anunciar privacidade integral apenas porque essa jornada passou localmente.
+
+A migration aditiva 0138 acrescenta os pedidos de transferência da responsabilidade pelo cadastro comum. Aceites são individuais e preservam as permissões dos apps. Versões antigas sem a trava canônica da pessoa não são alvo seguro de rollback após uma transferência. O runbook da Conta documenta a ordem e os limites; nenhum responsável é alterado ao aplicar o DDL.
+
+A 0139 acrescenta um marcador de seleção para conciliação de franquias antigas em `billing.subscriptions`, com índice. Não transforma saldos, contratos ou faturas. A coluna é nullable, sem backfill; o índice é criado pelo DDL normal e deve ser aplicado pelo migrator antes dos consumidores. Avaliar duração/trava no volume inventariado antes do corte. O marcador somente ordena tentativas; jamais utilizá-lo como confirmação financeira. Rollback de app conserva a coluna; a versão antiga perde a garantia de avanço diante de um lote com falhas persistentes.
+
+O [runbook da Conta](../apps/conta/PRODUCAO.md) e o [registro da migração](propostas/assinatura-web-2026-11-09/implementacao.md) prevalecem sobre as instruções históricas de criar assinatura por app abaixo. Não provisionar novas vendas locais de Cozya/Agenda. O corte exige fechar migração financeira e privacidade, ensaiar recuperação e conferir os serviços reais antes de deploy.
+
+Para Cozya, 0130/0131 acrescentam família, versão da tarifa e teto aceito às operações de IA. Linhas antigas conservam família nula e reconciliador anterior; não executar novamente uma operação antiga contra a carteira Compasso. O migrator aplica Drizzle e inicializa Mastra; retenção horária e resolução de reservas continuam requisitos. Readiness confere a última migration do build e não deve ser removido.
+
+Agenda e Cozya usam o decoder compartilhado Sharp 0.35.5. Seus `next.config.ts` incluem `visionImageTracingIncludes("../..")`: tracing padrão no Windows levou o addon mas omitiu as DLLs, detectado no ensaio standalone. O helper inclui somente bibliotecas nativas dos pacotes `@img/sharp-*` instalados pelo pnpm. Verificar o carregamento no artefato final para a plataforma de implantação; copiar arquivos manualmente para um build de teste não corrige o deploy. Não usar `--no-optional` na instalação desses consumidores. Ambos limitam `experimental.cpus` a 2 para a coleta/geração de páginas do build, evitando multiplicar a árvore de módulos em 11 workers por padrão num host compartilhado; esse orçamento não reduz a concorrência de requisições em produção. Tipos, páginas, readiness e testes continuam obrigatórios.
+
 ## TL;DR — quem faz o quê
 
 | Fase | Etapa | Como | Reusa entre apps? |
@@ -288,15 +317,15 @@ Para rodar de novo sem mudar nada: Dashboard, migrator, Deployments, Redeploy.
 >
 > **Desde 15/09/2026 isso não depende mais de alguém lembrar.** Os três apps
 > apontam `healthcheckPath` para `/api/ready`, que chama `checkSchemaReadiness()`
-> de `@informach/db`: ele compara a última migração do journal **deste build**
-> com `max(created_at)` em `drizzle.__drizzle_migrations` e responde 503
-> enquanto o banco estiver atrás. O Railway então não troca a instância e a
+> de `@informach/db`: ele confere o prefixo completo de recibos do journal
+> **deste build** em `drizzle.__drizzle_migrations` e responde 503 enquanto o
+> banco estiver atrás ou houver um buraco no histórico. O Railway então não troca a instância e a
 > versão anterior segue servindo — a ordem vira propriedade do deploy, não
 > disciplina do operador.
 >
-> A comparação é "atrás", nunca "diferente": **rollback do app sem desfazer
-> migração continua passando**, que é justamente a razão de o migrator ser um
-> service à parte.
+> Um banco mais novo pode passar se conservar todo o prefixo conhecido. Isso
+> não comprova compatibilidade de rollback após DDL destrutivo; ela deve ser
+> avaliada para a release. O migrator continua sendo um service à parte.
 >
 > Um migrator com Watch Paths pode não disparar num push que só mexe no app.
 > Nesse caso o banco já está à frente e o `/api/ready` passa na hora. O 503 só
@@ -306,6 +335,14 @@ Para rodar de novo sem mudar nada: Dashboard, migrator, Deployments, Redeploy.
 > Quando a mudança **remove ou aperta** (drop, NOT NULL, rename), a ordem se
 > inverte e a migração precisa ser quebrada em duas releases. Ver
 > `packages/db/CLAUDE.md`.
+
+No corte Compasso de novembro/2026, o push à main pode anteceder a manutenção.
+O migrator reconhece o ambiente Railway por `RAILWAY_ENVIRONMENT_ID` e, enquanto
+faltar o recibo `0162_military_dexter_bennett`, termina antes de DDL sem
+`COMPASSO_CUTOVER_RELEASE=compasso-2026-11`. Gravar essa variável somente após
+restaurar o backup real, conciliar os provedores e parar os escritores antigos,
+conforme `apps/conta/PRODUCAO.md`; então redeployar o migrator. A ausência da
+variável não bloqueia releases futuras quando esse lote já estiver completo.
 
 > **Gotcha**: o migrator precisa de `tsx` (devDep) pra rodar `packages/db/src/migrate.ts` e `packages/ai-core/scripts/migrate-mastra-storage.ts`. O build usa `--prod=false` para instalar devDeps mesmo se alguém puser `NODE_ENV=production` no serviço.
 
@@ -509,6 +546,8 @@ Sem isso o app retorna **503 silencioso** em `POST /api/webhooks/sendgrid` (gate
 
 Além deles: `cron-cozya-retention` (hora em hora), `cron-agenda-routine` (lembretes da Agenda, a cada 5 minutos, roda `apps/agenda-da-turma/scripts/run-routine-job.mjs` numa imagem `node:24-alpine` fixada por digest; os lembretes saem por e-mail e, para quem ligou no aparelho, por push, com o par `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` do serviço da Agenda, gravado em 18/10/2026), `cron-missao-saber-billing` e `cron-missao-saber-weekly-report`, `cron-bora-treinar-billing` (a cada 5 minutos) e `cron-bora-treinar-lembretes` (de hora em hora, lembretes de treino e resumo semanal; o app escolhe as famílias pela hora local de cada uma), `cron-dia-de-estrela-alertas` e `cron-dia-de-estrela-billing` (a cada 5 minutos, alertas aos pais e cobrança em crons separados; declarados, mas só entram no projeto com `ESTRELA_LAUNCHED`), `cron-edi-reconcile` e, com o lançamento do Bastidores, `cron-admin-watch` (vigia, a cada 5 minutos) e `cron-admin-weekly` (resumo da semana, segunda e terça às 11:00 UTC).
 
+**Corte Compasso da Agenda (preparado, não aplicado):** as preferências são por adulto/família e o cursor de `/api/jobs/routine` passa a ser o UUID da preferência. Não reaproveitar cursor antigo de usuário; iniciar uma execução nova, que o script atual já faz com cursor nulo. O job também retira saídas temporárias de IA vencidas após resolução da reserva. Conferir a execução do reconciliador de reservas da carteira e desse cron, além de readiness, antes de liberar IA após 0128. A migration preserva consentimento por vínculos históricos comprovados; não ligar canais para novas famílias automaticamente.
+
 **Toda rotina agendada deixa registro.** As rotas `/api/jobs/*` chamadas pelos crons passam o trabalho por `recordJobRun({ app, job }, fn)` de `@informach/db` (em `src/lib/job-runs.ts` de cada app). Cada execução vira uma linha em `ops.job_runs`, só com números e booleanos do resultado e o nome da classe de erro, e o Bastidores mostra em Operação a última execução, o resultado e as rotinas atrasadas. Rota nova de rotina precisa entrar nessa lista e na tabela de rotinas do Bastidores (`apps/admin/src/features/operations/routines.ts`).
 
 ### Onde ficam
@@ -618,3 +657,46 @@ Em ordem de impacto:
 - `packages/emails/PRODUCTION.md` — SendGrid + webhook setup
 - `apps/<app>/CLAUDE.md` — config específica do app (env vars, rate limits, modelos AI)
 - `CLAUDE.md` (root) — convenções monorepo + turbo.json env list
+
+### Compasso — migrations de participação web (10/11/2026, ainda locais)
+
+`0142_web_participation` cria o estado/revisão web separado da identidade global; `0143_ai_web_participation_revision` acrescenta a revisão de admissão aos recibos de IA e ao cache HTTP Cozya, com zero para registros anteriores. Esses nomes substituem os números usados por migrations contratuais não publicadas e retiradas do checkout; as migrations contratuais nunca foram aplicadas em produção. Conferir nomes/hashes do journal, não inferir pelo número isolado. A criação é aditiva e as colunas usam default constante; o CHECK exige leitura de validação nas tabelas de recibos. Aplicar pelo migrator e respeitar readiness dos consumidores. Ainda não há executor/rota pública de congelamento ou encerramento: provisionar migrations não autoriza disparar exclusão de usuários. Não publicar isoladamente a UI de confirmação antes de integrar reavaliação, limpeza, dispositivos, reservas e retomada. Rollback de aplicação não desfaz uma participação congelada: não executar congelamento enquanto houver consumidor antigo sem o bloqueio transacional.
+
+### Compasso: revisão de credenciais (0144, 10/11/2026)
+
+`0144_web_credential_revision` acrescenta inteiros não negativos, com valor inicial zero, aos aparelhos de Missão/Dia e links de calendário da Agenda. O valor zero conserva somente credenciais de uma participação nunca suspensa; depois de qualquer transição elas exigem emissão nova. DDL aditiva, sem alteração de conteúdo ou de OAuth desktop. Migrator deve concluir antes dos apps, com `/api/ready` preservado. Não voltar a uma versão que ignora revisão quando houver contas suspensas/retomadas. Gerada pelo Drizzle; aplicação até aqui somente em bases descartáveis. Não é a migration contratual de mesmo número retirada antes da publicação.
+
+### Compasso: coordenador de encerramento (0145, 10/11/2026)
+
+`0145_web_closure_coordinator` cria pedidos e etapas na área `account`, com restrições de estado, consentimento, posse e conclusão. Não executa exclusão, não cria pedidos para usuários existentes e não modifica contratos. O vínculo ao usuário é restritivo; o identificador da avaliação anterior é proveniência sem FK, permitindo o expurgo independente do cache de avaliações. A migration é aditiva, gerada pelo Drizzle, aplicada somente em bases descartáveis. Núcleo interno verificado; adapters, UI e jobs ainda em integração. Não ativar encerramento enquanto faltar qualquer domínio do catálogo. Rollback de aplicativo não cancela pedidos nem reabre participação; retomar sempre pelo coordenador e seus recibos. Não apagar as tabelas para recuperar uma operação.
+
+### Dia de Estrela: revisão das entregas push (0146, 10/11/2026)
+
+`0146_estrela_delivery_revision` adiciona revisão não negativa às entregas, com default zero, sem reenviar notificações. Gerada pelo Drizzle e aplicada somente em base descartável. Coluna aditiva com default constante; o CHECK exige validação das linhas. O app precisa desse schema antes da promoção. Claims de envio duram 60 segundos (timeout do provedor de 10 segundos); retomada/limpeza aguarda claims em curso e invalida os abandonados, preservando deduplicação na retomada. Destinatário, revisão, assinatura push existente e prazo são conferidos antes do envio. Não é possível recolher notificações já aceitas pelo provedor. Rollback não pode restaurar código que ignora a revisão se houver suspensão/retomada. Nenhuma rota de encerramento foi habilitada por essa migration.
+
+
+### Agenda: revisão das entregas (0147, 10/11/2026)
+
+`0147_agenda_delivery_revision` acrescenta revisão não negativa, default zero, aos recibos de notificações. DDL gerada pelo Drizzle e testada somente em PostgreSQL descartável. Coluna aditiva; o CHECK valida linhas existentes. Aplicar pelo migrator antes de promover o app; a mudança não reenvia mensagens. Admissão usa tempo operacional, e a tentativa expira em dez minutos, independente da data de referência do lembrete. Rollback para código sem revisão é incompatível com suspensão/retomada. Conta/encerramento ainda não habilitados.
+
+#### Compasso — 0148, leitor de recados (local, 10/11/2026)
+
+A `0148_agenda_notice_revision` adiciona a revisão de participação em `agenda.notices`, com default 0 e CHECK não negativo. Gerada pelo Drizzle; nenhuma transformação de conteúdo ou efeito Stripe. A gravação de novas saídas exige a revisão capturada na admissão, impedindo reaproveitar uma resposta anterior ao congelamento após retomada. Executar pelo migrator compartilhado antes de promover o consumidor e manter `/api/ready`. O DDL precisa de lock de tabela; programar com o restante do corte interno. Rollback de código que desconheça a revisão reabre essa fronteira de segurança: não promover versão anterior com pedidos de encerramento em curso. Produção ainda não alterada.
+
+### Compasso: recibos de encerramento financeiro (0149, 10/11/2026)
+
+`0149_compasso_closure_receipts` é aditiva e cria somente a tabela de recibos financeiros, suas duas FKs restritivas e checks de revisão/hash. Foi gerada pelo Drizzle e não altera dados atuais. Aplicar pelo migrator antes dos consumidores, preservando readiness. A confirmação financeira é separada da autorização do coordenador e não apaga fatos fiscais nem créditos. Rollback de código não desfaz cancelamento já confirmado no provedor: antes da exposição pública, concluir jobs, recuperação e homologação de falhas. Vendas desabilitadas não devem interromper manutenção de contratos existentes. A integração atual continua local; nenhum cancelamento live foi executado. Contrato em `docs/propostas/assinatura-web-2026-11-09/encerramento-financeiro.md`.
+
+### Compasso 0150 — retomada após mudança de escopo (local, 10/11)
+
+A migration gerada acrescenta `plan_revision`, `account.web_closure_consents`, amplia os estados/constraints do coordenador e troca a chave primária de `billing.collection_closure_receipts` para incluir a impressão da seleção. Não remove histórico nem normaliza dados de clientes. Constraints antigas são apenas ampliadas. A troca da chave exige trava da tabela; as tabelas são novas nesta frente e ainda não foram publicadas.
+
+Não manter o writer antigo de recibos financeiros em execução depois de aplicar a 0150: seu `ON CONFLICT` usa a chave anterior. No corte, interromper as rotinas afetadas, executar o migrator e promover a composição completa antes de reativá-las. Readiness deve permanecer ativa. Um rollback de código precisa conservar o contrato novo dos recibos e reconhecer os estados novos; não apagar consentimentos, voltar a uma chave incompatível com provas já criadas nem reabrir uma participação parcialmente apagada. A operação externa de cancelamento não é revertida por rollback do banco. A verificação local aplicou as migrations somente em PostgreSQL descartável; nenhuma ação remota foi executada.
+
+### Restauração ensaiada localmente para o Compasso
+
+`pnpm compasso:test:restore` é um ensaio sintético e local: exige Docker Desktop com contexto local e imagem `postgres:18-alpine` já presente, cria container identificado e temporário, testa `pg_dump`/`pg_restore` a partir de 0079 e migra origem/restauração separadamente. A versão principal 18 coincide com a observada em produção em leitura em 10/11; confirmar novamente no corte. Não lê `.env` nem aceita URL de banco; nunca o substitua por credenciais de produção. O histórico e as limitações ficam no [ensaio de restauração](propostas/assinatura-web-2026-11-09/ensaio-restauracao.md). A cópia não inclui ownership/ACL; antes do corte, conferir retenção, backup real e restauração em destino isolado com papéis e permissões adequados. Mesmo uma restauração conferida não reverte pagamentos ou cancelamentos já executados: preservar recibos e reconciliar fatos externos antes de qualquer reabertura.
+
+### Índice de proveniência para o corte
+
+A migration gerada `0151_compasso_legacy_source_index` cria somente o índice btree `family_migration_sources_group_idx` em `(group_id, app, source_owner_id)`. A busca de contratos antigos começa pelo grupo, mantendo o escopo da família e evitando uma varredura global crescente por contratação. O DDL usa `CREATE INDEX` normal, sujeito a lock e duração proporcionais ao volume. Aplicar pelo migrator na janela revisada do corte, medir o volume real e manter readiness; não usar `db:push` nem editar o SQL gerado. A migration foi gerada localmente e ainda não foi aplicada em produção.

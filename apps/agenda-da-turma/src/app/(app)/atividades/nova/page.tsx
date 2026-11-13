@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { getIsProForUser } from "@/features/billing/server-cache";
 import { isValidLocalIsoDate } from "@/features/dashboard/date";
 import { listAccessibleProfiles } from "@/features/family/access";
+import { agendaAuthority } from "@/features/family/context";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { CaptureForm } from "@/features/notices/components/capture-form";
 import { listAssignableAdults } from "@/features/notices/repository";
@@ -16,13 +16,13 @@ export default async function NewActivityPage({
   searchParams: Promise<{ perfil?: string; tipo?: string; data?: string }>;
 }) {
   const user = await requireUserServer();
+  const actor = await agendaAuthority(user.id);
   const params = await searchParams;
-  const [profiles, adults, entitlement, ownerIsPro, subjectOptions] = await Promise.all([
-    listAccessibleProfiles(user.id),
-    listAssignableAdults(user.id),
-    getFamilyEntitlements(user.id),
-    getIsProForUser(user.id),
-    listSubjectOptionsByProfile(user.id),
+  const [profiles, adults, entitlement, subjectOptions] = await Promise.all([
+    listAccessibleProfiles(actor),
+    listAssignableAdults(actor),
+    getFamilyEntitlements(actor),
+    listSubjectOptionsByProfile(actor),
   ]);
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 pb-28 sm:px-8">
@@ -39,10 +39,10 @@ export default async function NewActivityPage({
         mode="manual"
         subjectOptions={subjectOptions}
         profileTurmas={Object.fromEntries(profiles.map((p) => [p.id, p.activeTurmaId]))}
-        profiles={profiles.map((p) => ({ id: p.id, name: p.name }))}
+        profiles={profiles.filter((p) => p.canWrite).map((p) => ({ id: p.id, name: p.name }))}
         adults={adults}
         proProfileIds={entitlement.proProfileIds}
-        ownerIsPro={ownerIsPro}
+        aiProfileIds={profiles.filter((p) => p.canWrite && p.canUseAi).map((p) => p.id)}
         defaultProfileId={params.perfil}
         defaultType={activityTypeSchema.catch("task").parse(params.tipo)}
         defaultDueAt={isValidLocalIsoDate(params.data ?? "") ? params.data : undefined}

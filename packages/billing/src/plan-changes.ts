@@ -80,6 +80,10 @@ export async function switchPlan(
       `${input.newProductId} (kind=${newProduct.kind}, expected subscription)`,
     );
   }
+  if (newProduct.creditSchedule === "calendar_month" && input.mode !== "schedule_at_period_end")
+    throw new BillingError(
+      "A troca entre mensal e anual do Compasso começa no fim do período pago, preservando a franquia atual.",
+    );
   const newPriceId = getStripePriceId(newProduct, deps.stripeMode);
 
   const retriesSameSchedule =

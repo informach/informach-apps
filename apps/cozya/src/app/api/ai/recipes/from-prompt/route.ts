@@ -17,7 +17,7 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: Request): Promise<Response> {
-  const guard = await withAiRouteGuards({ errorScope: "cozya.from_prompt" });
+  const guard = await withAiRouteGuards({ request, errorScope: "cozya.from_prompt" });
   if (!guard.ok) return guard.response;
   const { userId } = guard;
 
@@ -38,7 +38,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ code: "INVALID_PROMPT" }, { status: 400 });
   }
 
-  return runAiOperation(request, userId, JSON.stringify({ prompt }), async () => {
+  return runAiOperation(request, guard.actor, JSON.stringify({ prompt }), async () => {
     try {
       const result = await researchRecipeFromPrompt({ userId, prompt });
       if (!result.isValidRecipe) {

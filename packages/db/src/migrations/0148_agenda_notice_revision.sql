@@ -1,0 +1,2 @@
+ALTER TABLE "agenda"."notices" ADD COLUMN "web_participation_revision" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "agenda"."notices" ADD CONSTRAINT "agenda_notice_web_revision_check" CHECK ("agenda"."notices"."web_participation_revision" >= 0);

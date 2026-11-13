@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AgendaAuthority } from "@/features/family/authority";
 
 const mocks = vi.hoisted(() => ({
   listAccessibleProfiles: vi.fn(),
@@ -38,6 +39,10 @@ vi.mock("./date", async (importOriginal) => ({
 
 import { getTodaySubjectsForProfiles } from "./today-subjects-service";
 
+const actor: AgendaAuthority = {
+  userId: "u1",
+  familyGroupId: "00000000-0000-4000-8000-000000000001",
+};
 const MONDAY = "2026-09-14";
 const WEDNESDAY = "2026-09-16";
 const SATURDAY = "2026-09-19";
@@ -74,14 +79,17 @@ describe("getTodaySubjectsForProfiles", () => {
       { profileId: "p1", turmaId: "t1" },
       { profileId: "p2", turmaId: "t2" },
     ]);
-    mocks.listSubjectsForTurma.mockImplementation(async (turmaId: string) =>
-      turmaId === "t1"
-        ? [subject({ id: "s1", turmaId: "t1", name: "Matemática" })]
-        : [subject({ id: "s2", turmaId: "t2", name: "História", colorIndex: 4 })],
+    mocks.listSubjectsForTurma.mockImplementation(
+      async (_actor: AgendaAuthority, turmaId: string) =>
+        turmaId === "t1"
+          ? [subject({ id: "s1", turmaId: "t1", name: "Matemática" })]
+          : [subject({ id: "s2", turmaId: "t2", name: "História", colorIndex: 4 })],
     );
-    mocks.attachAlternatingSlots.mockImplementation(async (rows: unknown[]) => rows);
+    mocks.attachAlternatingSlots.mockImplementation(
+      async (_actor: AgendaAuthority, rows: unknown[]) => rows,
+    );
 
-    const views = await getTodaySubjectsForProfiles("u1");
+    const views = await getTodaySubjectsForProfiles(actor);
 
     expect(views.map((v) => v.profileName)).toEqual(["Ana", "Bruno"]);
     expect(views[0]?.subjects.map((s) => s.name)).toEqual(["Matemática"]);
@@ -98,9 +106,11 @@ describe("getTodaySubjectsForProfiles", () => {
       { profileId: "p2", turmaId: "t1" },
     ]);
     mocks.listSubjectsForTurma.mockResolvedValue([subject()]);
-    mocks.attachAlternatingSlots.mockImplementation(async (rows: unknown[]) => rows);
+    mocks.attachAlternatingSlots.mockImplementation(
+      async (_actor: AgendaAuthority, rows: unknown[]) => rows,
+    );
 
-    const views = await getTodaySubjectsForProfiles("u1");
+    const views = await getTodaySubjectsForProfiles(actor);
 
     expect(views).toHaveLength(2);
     expect(mocks.listSubjectsForTurma).toHaveBeenCalledTimes(1);
@@ -115,7 +125,7 @@ describe("getTodaySubjectsForProfiles", () => {
     // Sem linha de participação: `active_turma_id` é só preferência.
     mocks.listMembershipsForProfiles.mockResolvedValue([]);
 
-    const views = await getTodaySubjectsForProfiles("u1");
+    const views = await getTodaySubjectsForProfiles(actor);
 
     expect(views).toEqual([]);
     expect(mocks.listSubjectsForTurma).not.toHaveBeenCalled();
@@ -140,9 +150,11 @@ describe("getTodaySubjectsForProfiles", () => {
       alternatingSlots: [{ dayOfWeek: "wed", pairedSubjectId: "artes", anchorDate: "2026-09-23" }],
     });
     mocks.listSubjectsForTurma.mockResolvedValue([artes, acc]);
-    mocks.attachAlternatingSlots.mockImplementation(async (rows: unknown[]) => rows);
+    mocks.attachAlternatingSlots.mockImplementation(
+      async (_actor: AgendaAuthority, rows: unknown[]) => rows,
+    );
 
-    const views = await getTodaySubjectsForProfiles("u1");
+    const views = await getTodaySubjectsForProfiles(actor);
 
     // Âncora da semana é de Artes: hoje é Artes, não ACC.
     expect(views[0]?.subjects.map((s) => s.name)).toEqual(["Artes"]);
@@ -157,9 +169,11 @@ describe("getTodaySubjectsForProfiles", () => {
     ]);
     mocks.listMembershipsForProfiles.mockResolvedValue([{ profileId: "p1", turmaId: "t1" }]);
     mocks.listSubjectsForTurma.mockResolvedValue([subject()]);
-    mocks.attachAlternatingSlots.mockImplementation(async (rows: unknown[]) => rows);
+    mocks.attachAlternatingSlots.mockImplementation(
+      async (_actor: AgendaAuthority, rows: unknown[]) => rows,
+    );
 
-    const views = await getTodaySubjectsForProfiles("u1");
+    const views = await getTodaySubjectsForProfiles(actor);
 
     expect(views).toHaveLength(1);
     expect(views[0]?.classDay).toBeNull();
@@ -176,12 +190,14 @@ describe("getTodaySubjectsForProfiles", () => {
       subject({ id: "seg", name: "Matemática", classDays: ["mon"] }),
       subject({ id: "ter", name: "História", classDays: ["tue"] }),
     ]);
-    mocks.attachAlternatingSlots.mockImplementation(async (rows: unknown[]) => rows);
+    mocks.attachAlternatingSlots.mockImplementation(
+      async (_actor: AgendaAuthority, rows: unknown[]) => rows,
+    );
 
-    const hoje = await getTodaySubjectsForProfiles("u1");
+    const hoje = await getTodaySubjectsForProfiles(actor);
     expect(hoje[0]?.subjects.map((s) => s.name)).toEqual(["Matemática"]);
 
-    const amanha = await getTodaySubjectsForProfiles("u1", { dateIso: "2026-09-15" });
+    const amanha = await getTodaySubjectsForProfiles(actor, { dateIso: "2026-09-15" });
     expect(amanha[0]?.subjects.map((s) => s.name)).toEqual(["História"]);
     expect(amanha[0]?.dateIso).toBe("2026-09-15");
   });
@@ -193,9 +209,11 @@ describe("getTodaySubjectsForProfiles", () => {
     ]);
     mocks.listMembershipsForProfiles.mockResolvedValue([{ profileId: "p1", turmaId: "t1" }]);
     mocks.listSubjectsForTurma.mockResolvedValue([subject()]);
-    mocks.attachAlternatingSlots.mockImplementation(async (rows: unknown[]) => rows);
+    mocks.attachAlternatingSlots.mockImplementation(
+      async (_actor: AgendaAuthority, rows: unknown[]) => rows,
+    );
 
-    const views = await getTodaySubjectsForProfiles("u1", { profileFilter: "p1" });
+    const views = await getTodaySubjectsForProfiles(actor, { profileFilter: "p1" });
 
     expect(views.map((v) => v.profileName)).toEqual(["Ana"]);
   });
@@ -223,7 +241,7 @@ describe("getTodaySubjectsForProfiles", () => {
       },
     ]);
 
-    const views = await getTodaySubjectsForProfiles("u1");
+    const views = await getTodaySubjectsForProfiles(actor);
 
     expect(views[0]?.subjects.map((s) => s.name)).toEqual(["Natação"]);
     expect(views[0]?.turmaId).toBeNull();

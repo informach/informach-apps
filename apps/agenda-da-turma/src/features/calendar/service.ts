@@ -1,4 +1,5 @@
 import "server-only";
+import type { AgendaAuthority } from "@/features/family/authority";
 
 import { getRoutineSnapshot } from "@/features/unified-activities/service";
 import { listTasksInDateRange } from "@/features/unified-activities/task-repository";
@@ -15,7 +16,7 @@ import type { CalendarSnapshot, CalendarView } from "./types";
  * discordar de Hoje sobre o que está sem data.
  */
 export async function getCalendarSnapshot(
-  userId: string,
+  actor: AgendaAuthority,
   options: {
     view: CalendarView;
     anchorIso: string;
@@ -24,9 +25,9 @@ export async function getCalendarSnapshot(
 ): Promise<CalendarSnapshot> {
   const { fromIso, toIso } = rangeForView(options.anchorIso, options.view);
   const [tasks, routine] = await Promise.all([
-    listTasksInDateRange(userId, { fromIso, toIso, profileFilter: options.profileFilter }),
+    listTasksInDateRange(actor, { fromIso, toIso, profileFilter: options.profileFilter }),
     options.view === "week"
-      ? getRoutineSnapshot(userId, { profileFilter: options.profileFilter })
+      ? getRoutineSnapshot(actor, { profileFilter: options.profileFilter })
       : null,
   ]);
 

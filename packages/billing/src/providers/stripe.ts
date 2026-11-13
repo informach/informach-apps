@@ -1,7 +1,9 @@
 import Stripe from "stripe";
-import { CheckoutPendingError, WebhookSignatureError } from "../errors";
+import { BillingError, CheckoutPendingError, WebhookSignatureError } from "../errors";
+import { createStripePaymentFactReader } from "../payment-facts";
 import type { SubjectRef } from "../types";
 import { cancelsAtPeriodEnd } from "./stripe-cancellation";
+import { readSettledStripeCreditPayment } from "./stripe-credit-payment";
 import type {
   BillingProviderClient,
   ProviderCancelSubscriptionInput,
@@ -178,6 +180,135 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
       await assertNoSubscription(customerId);
     },
 
+    async closeCreditCheckout(customerId, intentId, sessionId) {
+      const current = await stripe.checkout.sessions.retrieve(sessionId);
+      const owner = typeof current.customer === "string" ? current.customer : current.customer?.id;
+      if (
+        current.mode !== "payment" ||
+        owner !== customerId ||
+        current.metadata?.checkout_intent_id !== intentId
+      )
+        throw new Error("Credit checkout does not belong to this intent");
+      if (current.status === "open") {
+        await stripe.checkout.sessions.expire(sessionId);
+        return;
+      }
+      if (current.status === "expired") return;
+      if (current.payment_status !== "unpaid" || !current.payment_intent)
+        throw new CheckoutPendingError();
+      const paymentId =
+        typeof current.payment_intent === "string"
+          ? current.payment_intent
+          : current.payment_intent.id;
+      const payment = await stripe.paymentIntents.retrieve(paymentId);
+      if (payment.status === "canceled") return;
+      // Some delayed methods cannot be canceled while processing. Propagate the
+      // provider refusal and keep the durable guard until the outcome is known.
+      await stripe.paymentIntents.cancel(paymentId);
+    },
+
+    async readCreditCheckout(customerId, intentId, sessionId) {
+      const observedAt = new Date();
+      const session = await stripe.checkout.sessions.retrieve(sessionId, {
+        expand: ["line_items", "payment_intent.latest_charge"],
+      });
+      const owner = typeof session.customer === "string" ? session.customer : session.customer?.id;
+      const items = session.line_items;
+      const item = items?.data[0];
+      if (
+        session.mode !== "payment" ||
+        owner !== customerId ||
+        session.metadata?.checkout_intent_id !== intentId ||
+        !session.status ||
+        items?.has_more ||
+        items?.data.length !== 1 ||
+        item?.quantity !== 1 ||
+        !item.price?.id ||
+        !session.currency ||
+        session.amount_total === null
+      )
+        throw new Error("Credit checkout has an incompatible receipt");
+      const receipt = {
+        sessionId: session.id,
+        customerId,
+        intentId,
+        status: session.status,
+        paymentStatus: session.payment_status,
+        priceId: item.price.id,
+        amountCents: session.amount_total,
+        currency: session.currency.toUpperCase(),
+        observedAt,
+      };
+      if (session.payment_status !== "paid")
+        return {
+          ...receipt,
+          paymentCanceled:
+            typeof session.payment_intent === "object" &&
+            session.payment_intent?.status === "canceled",
+          payment: null,
+        };
+      const payment = session.payment_intent;
+      if (
+        !payment ||
+        typeof payment === "string" ||
+        payment.status !== "succeeded" ||
+        payment.amount_received !== session.amount_total ||
+        payment.currency !== session.currency
+      )
+        throw new Error("Paid credit checkout has no matching settled payment");
+      const settled = await readSettledStripeCreditPayment(
+        stripe,
+        payment,
+        {
+          customerId,
+          amountCents: session.amount_total,
+          currency: session.currency,
+        },
+        observedAt,
+      );
+      return {
+        ...receipt,
+        paymentCanceled: false,
+        payment: {
+          id: payment.id,
+          paidAt: settled.paidAt,
+          amountRefundedCents: settled.amountRefundedCents,
+          disputed: settled.disputed,
+        },
+      };
+    },
+
+    readSubscriptionPaymentFacts(subscriptionId, acceptedPriceIds) {
+      return createStripePaymentFactReader({ secretKey: config.secretKey, client: stripe }).read(
+        subscriptionId,
+        acceptedPriceIds,
+      );
+    },
+
+    readEventCustomerId(object) {
+      return createStripePaymentFactReader({
+        secretKey: config.secretKey,
+        client: stripe,
+      }).eventCustomerId(object);
+    },
+
+    async readCreditPayment(customerId, paymentId) {
+      const observedAt = new Date();
+      const payment = await stripe.paymentIntents.retrieve(paymentId, {
+        expand: ["latest_charge"],
+      });
+      return readSettledStripeCreditPayment(
+        stripe,
+        payment,
+        {
+          customerId,
+          amountCents: payment.amount,
+          currency: payment.currency,
+        },
+        observedAt,
+      );
+    },
+
     async createPortalSession(input: ProviderPortalInput): Promise<ProviderPortalSession> {
       const session = await stripe.billingPortal.sessions.create({
         customer: input.customerId,
@@ -190,29 +321,69 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
     async closeCustomerSubscriptions(customerId) {
       let expired = 0;
       let canceled = 0;
-      const subscriptionIds: string[] = [];
+      const subscriptionIds = new Set<string>();
+      const deadline = performance.now() + 45_000;
+      const requestOptions = { timeout: 10_000, maxNetworkRetries: 0 };
+      const checkDeadline = () => {
+        if (performance.now() >= deadline)
+          throw new BillingError("Customer closure remains pending");
+      };
       // Auto-pagination is essential: abandoned checkouts can exceed one page.
       // A completion racing with expiry throws. Preserve app data and retry the
       // whole operation; the next pass discovers the newly created subscription.
-      for await (const session of stripe.checkout.sessions.list({
-        customer: customerId,
-        status: "open",
-        limit: 100,
-      })) {
-        await stripe.checkout.sessions.expire(session.id);
+      for await (const session of stripe.checkout.sessions.list(
+        {
+          customer: customerId,
+          status: "open",
+          limit: 100,
+        },
+        requestOptions,
+      )) {
+        checkDeadline();
+        await stripe.checkout.sessions.expire(session.id, {}, requestOptions);
         expired++;
       }
-      for await (const subscription of stripe.subscriptions.list({
-        customer: customerId,
-        status: "all",
-        limit: 100,
-      })) {
-        subscriptionIds.push(subscription.id);
+      // A future schedule may have no subscription yet. Enumerating only
+      // subscriptions would leave a charge able to start after closure.
+      for await (const schedule of stripe.subscriptionSchedules.list(
+        { customer: customerId, limit: 100 },
+        requestOptions,
+      )) {
+        checkDeadline();
+        if (schedule.status !== "not_started" && schedule.status !== "active") continue;
+        await stripe.subscriptionSchedules.cancel(
+          schedule.id,
+          { invoice_now: false, prorate: false },
+          requestOptions,
+        );
+        if (schedule.subscription) {
+          subscriptionIds.add(
+            typeof schedule.subscription === "string"
+              ? schedule.subscription
+              : schedule.subscription.id,
+          );
+          canceled++;
+        }
+      }
+      for await (const subscription of stripe.subscriptions.list(
+        {
+          customer: customerId,
+          status: "all",
+          limit: 100,
+        },
+        requestOptions,
+      )) {
+        checkDeadline();
+        subscriptionIds.add(subscription.id);
         if (["canceled", "incomplete_expired"].includes(subscription.status)) continue;
-        await stripe.subscriptions.cancel(subscription.id, { invoice_now: false, prorate: false });
+        await stripe.subscriptions.cancel(
+          subscription.id,
+          { invoice_now: false, prorate: false },
+          requestOptions,
+        );
         canceled++;
       }
-      return { expired, canceled, subscriptionIds };
+      return { expired, canceled, subscriptionIds: [...subscriptionIds] };
     },
 
     async cancelSubscription(

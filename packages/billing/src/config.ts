@@ -2,6 +2,7 @@ import type { StripeMode } from "@informach/config";
 import type { Database } from "@informach/db";
 import type { RenderTemplate, SendEmail } from "@informach/emails";
 import type { BillingEmailCategory } from "./billing-emails";
+import type { ReservationsDeps } from "./credits/reservations";
 import type { Logger } from "./logger";
 import type { BillingProviderClient } from "./providers";
 import type { BillingAuditEvent, BillingProvider, Product, SubjectRef } from "./types";
@@ -19,6 +20,8 @@ export type BillingServiceConfig = {
   /** App-specific portal catalog, leaving the account default unchanged. */
   portalConfigurationId?: string;
   db: Database;
+  /** Required for family wallets; runs under the same transaction as reservation. */
+  authorizeCreditSpend?: ReservationsDeps["authorizeSpend"];
   appName: string;
   /**
    * Slug que identifica este app dentro do banco de billing

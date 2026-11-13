@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "collection_trial_actor_uniq" ON "billing"."collection_trials" USING btree ("collection","started_by") WHERE "billing"."collection_trials"."started_by" is not null;

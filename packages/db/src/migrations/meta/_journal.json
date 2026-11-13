@@ -568,6 +568,587 @@
       "when": 1794423045907,
       "tag": "0080_recreio",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1794482036133,
+      "tag": "0080_reflective_butterfly",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1794482037133,
+      "tag": "0081_compasso_profile_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1794482038133,
+      "tag": "0082_compasso_identity_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1794482039133,
+      "tag": "0083_compasso_wallet_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1794482040133,
+      "tag": "0084_compasso_commercial_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1794482041133,
+      "tag": "0085_compasso_sso",
+      "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1794482042133,
+      "tag": "0086_compasso_credit_funding",
+      "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1794482043133,
+      "tag": "0087_compasso_account_mfa",
+      "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1794482044133,
+      "tag": "0088_compasso_session_lineage",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1794482045133,
+      "tag": "0089_compasso_credit_purchase_intents",
+      "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1794482046133,
+      "tag": "0090_compasso_billing_reconciliation",
+      "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1794482047133,
+      "tag": "0091_compasso_wallet_history_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1794482048133,
+      "tag": "0092_compasso_adverse_event_hold",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1794482049133,
+      "tag": "0093_compasso_plan_schedules",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1794482050133,
+      "tag": "0094_compasso_bora_identity_transition",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1794482051133,
+      "tag": "0095_compasso_bora_challenge_context",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1794482052133,
+      "tag": "0096_compasso_bora_challenge_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1794482053133,
+      "tag": "0097_compasso_bora_challenge_contract",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1794482054133,
+      "tag": "0098_compasso_bora_history_ownership",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1794482055133,
+      "tag": "0099_compasso_bora_identity_contract",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1794482056133,
+      "tag": "0100_compasso_delegated_authority",
+      "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1794482057133,
+      "tag": "0101_compasso_missao_device_expansion",
+      "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1794482058133,
+      "tag": "0102_compasso_missao_device_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1794482059133,
+      "tag": "0103_compasso_missao_device_contract",
+      "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1794482060133,
+      "tag": "0104_compasso_missao_device_issuer",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1794482061133,
+      "tag": "0105_compasso_missao_challenge_context",
+      "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1794482062133,
+      "tag": "0106_compasso_missao_challenge_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1794482063133,
+      "tag": "0107_compasso_missao_challenge_contract",
+      "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1794482064133,
+      "tag": "0108_compasso_missao_identity_transition",
+      "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1794482065133,
+      "tag": "0109_compasso_missao_competition_context",
+      "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "7",
+      "when": 1794482066133,
+      "tag": "0110_compasso_missao_competition_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 112,
+      "version": "7",
+      "when": 1794482067133,
+      "tag": "0111_compasso_missao_competition_contract",
+      "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1794482068133,
+      "tag": "0112_compasso_missao_explicit_consent",
+      "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1794482069133,
+      "tag": "0113_compasso_missao_canonical_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 115,
+      "version": "7",
+      "when": 1794482070133,
+      "tag": "0114_compasso_estrela_context_expansion",
+      "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1794482071133,
+      "tag": "0115_compasso_estrela_context_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1794482072133,
+      "tag": "0116_compasso_estrela_context_contract",
+      "breakpoints": true
+    },
+    {
+      "idx": 118,
+      "version": "7",
+      "when": 1794482073133,
+      "tag": "0117_compasso_agenda_context_expansion",
+      "breakpoints": true
+    },
+    {
+      "idx": 119,
+      "version": "7",
+      "when": 1794482074133,
+      "tag": "0118_compasso_agenda_context_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1794482075133,
+      "tag": "0119_compasso_agenda_school_acceptance",
+      "breakpoints": true
+    },
+    {
+      "idx": 121,
+      "version": "7",
+      "when": 1794482076133,
+      "tag": "0120_compasso_agenda_settings_key_drop",
+      "breakpoints": true
+    },
+    {
+      "idx": 122,
+      "version": "7",
+      "when": 1794482077133,
+      "tag": "0121_compasso_agenda_onboarding_context",
+      "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1794482078133,
+      "tag": "0122_compasso_agenda_notice_wallet",
+      "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1794482079133,
+      "tag": "0123_compasso_agenda_source_visibility",
+      "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1794482080133,
+      "tag": "0124_compasso_agenda_source_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 126,
+      "version": "7",
+      "when": 1794482081133,
+      "tag": "0125_compasso_agenda_notification_expansion",
+      "breakpoints": true
+    },
+    {
+      "idx": 127,
+      "version": "7",
+      "when": 1794482082133,
+      "tag": "0126_compasso_agenda_notification_backfill",
+      "breakpoints": true
+    },
+    {
+      "idx": 128,
+      "version": "7",
+      "when": 1794482083133,
+      "tag": "0127_compasso_agenda_notification_contract",
+      "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1794482084133,
+      "tag": "0128_ai_operation_receipts",
+      "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1794482085133,
+      "tag": "0129_compasso_agenda_identity_contract",
+      "breakpoints": true
+    },
+    {
+      "idx": 131,
+      "version": "7",
+      "when": 1794482086133,
+      "tag": "0130_cozya_shared_ai_context",
+      "breakpoints": true
+    },
+    {
+      "idx": 132,
+      "version": "7",
+      "when": 1794482087133,
+      "tag": "0131_cozya_ai_price_acceptance",
+      "breakpoints": true
+    },
+    {
+      "idx": 133,
+      "version": "7",
+      "when": 1794482088133,
+      "tag": "0132_rapid_swarm",
+      "breakpoints": true
+    },
+    {
+      "idx": 134,
+      "version": "7",
+      "when": 1794482089133,
+      "tag": "0133_compasso_credit_wallet_closure",
+      "breakpoints": true
+    },
+    {
+      "idx": 135,
+      "version": "7",
+      "when": 1794482090133,
+      "tag": "0134_compasso_legacy_payment_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 136,
+      "version": "7",
+      "when": 1794482091133,
+      "tag": "0135_compasso_legacy_event_customer",
+      "breakpoints": true
+    },
+    {
+      "idx": 137,
+      "version": "7",
+      "when": 1794482092133,
+      "tag": "0136_compasso_trial_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 138,
+      "version": "7",
+      "when": 1794482093133,
+      "tag": "0137_web_email_change_security",
+      "breakpoints": true
+    },
+    {
+      "idx": 139,
+      "version": "7",
+      "when": 1794482094133,
+      "tag": "0138_family_person_transfers",
+      "breakpoints": true
+    },
+    {
+      "idx": 140,
+      "version": "7",
+      "when": 1794482095133,
+      "tag": "0139_legacy_funding_scheduling",
+      "breakpoints": true
+    },
+    {
+      "idx": 141,
+      "version": "7",
+      "when": 1794482096133,
+      "tag": "0140_account_departure_assessments",
+      "breakpoints": true
+    },
+    {
+      "idx": 142,
+      "version": "7",
+      "when": 1794482097133,
+      "tag": "0141_account_departure_review_expiry",
+      "breakpoints": true
+    },
+    {
+      "idx": 143,
+      "version": "7",
+      "when": 1794482098133,
+      "tag": "0142_web_participation",
+      "breakpoints": true
+    },
+    {
+      "idx": 144,
+      "version": "7",
+      "when": 1794482099133,
+      "tag": "0143_ai_web_participation_revision",
+      "breakpoints": true
+    },
+    {
+      "idx": 145,
+      "version": "7",
+      "when": 1794482100133,
+      "tag": "0144_web_credential_revision",
+      "breakpoints": true
+    },
+    {
+      "idx": 146,
+      "version": "7",
+      "when": 1794482101133,
+      "tag": "0145_web_closure_coordinator",
+      "breakpoints": true
+    },
+    {
+      "idx": 147,
+      "version": "7",
+      "when": 1794482102133,
+      "tag": "0146_estrela_delivery_revision",
+      "breakpoints": true
+    },
+    {
+      "idx": 148,
+      "version": "7",
+      "when": 1794482103133,
+      "tag": "0147_agenda_delivery_revision",
+      "breakpoints": true
+    },
+    {
+      "idx": 149,
+      "version": "7",
+      "when": 1794482104133,
+      "tag": "0148_agenda_notice_revision",
+      "breakpoints": true
+    },
+    {
+      "idx": 150,
+      "version": "7",
+      "when": 1794482105133,
+      "tag": "0149_compasso_closure_receipts",
+      "breakpoints": true
+    },
+    {
+      "idx": 151,
+      "version": "7",
+      "when": 1794482106133,
+      "tag": "0150_compasso_closure_reconsent",
+      "breakpoints": true
+    },
+    {
+      "idx": 152,
+      "version": "7",
+      "when": 1794482107133,
+      "tag": "0151_compasso_legacy_source_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 153,
+      "version": "7",
+      "when": 1794482108133,
+      "tag": "0152_compasso_legacy_acceptance",
+      "breakpoints": true
+    },
+    {
+      "idx": 154,
+      "version": "7",
+      "when": 1794482109133,
+      "tag": "0153_compasso_legacy_observation",
+      "breakpoints": true
+    },
+    {
+      "idx": 155,
+      "version": "7",
+      "when": 1794482110133,
+      "tag": "0154_compasso_legacy_cancellation",
+      "breakpoints": true
+    },
+    {
+      "idx": 156,
+      "version": "7",
+      "when": 1794482111133,
+      "tag": "0155_compasso_legacy_revision",
+      "breakpoints": true
+    },
+    {
+      "idx": 157,
+      "version": "7",
+      "when": 1794482112133,
+      "tag": "0156_compasso_legacy_refresh",
+      "breakpoints": true
+    },
+    {
+      "idx": 158,
+      "version": "7",
+      "when": 1794482113133,
+      "tag": "0157_compasso_legacy_future",
+      "breakpoints": true
+    },
+    {
+      "idx": 159,
+      "version": "7",
+      "when": 1794482114133,
+      "tag": "0158_futuristic_scream",
+      "breakpoints": true
+    },
+    {
+      "idx": 160,
+      "version": "7",
+      "when": 1794482115133,
+      "tag": "0159_charming_paibok",
+      "breakpoints": true
+    },
+    {
+      "idx": 161,
+      "version": "7",
+      "when": 1794482116133,
+      "tag": "0160_next_shockwave",
+      "breakpoints": true
+    },
+    {
+      "idx": 162,
+      "version": "7",
+      "when": 1794482117133,
+      "tag": "0161_condemned_lockjaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 163,
+      "version": "7",
+      "when": 1794482118133,
+      "tag": "0162_military_dexter_bennett",
+      "breakpoints": true
     }
   ]
 }

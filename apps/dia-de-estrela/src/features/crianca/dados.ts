@@ -2,25 +2,19 @@ import "server-only";
 import { relogioDa } from "@/domain/relogio";
 import { type RegistroLembrete, type Tarefa, tarefasDoDia } from "@/domain/rotina";
 import { canCreateCustomRewards } from "@/features/acesso/policy";
-import { getAccess } from "@/features/billing/service";
 import { balances, dayState, earnedLastWeek, history } from "@/features/estrelas/repository";
-import { allowedChildIds } from "@/features/familia/acesso-criancas";
-import { getFamily, listChildren } from "@/features/familia/repository";
 import { childRedemptions, goalsOf, listRewards } from "@/features/loja/repository";
 import { listTasks } from "@/features/rotina/repository";
 import { AppError } from "@/lib/errors";
+import type { ChildAuthority } from "../familia/authority";
+import { familySnapshot } from "../familia/repository";
 
-/** A criança, conferida contra a família e o plano. */
-export async function childOfDevice(ownerId: string, childId: string) {
-  const [kids, access, family] = await Promise.all([
-    listChildren(ownerId),
-    getAccess(ownerId),
-    getFamily(ownerId),
-  ]);
-  const allowed = new Set(allowedChildIds(kids, access.childLimit));
-  const child = kids.find((k) => k.id === childId);
-  if (!child || !family) throw new AppError("NOT_FOUND", "Criança não encontrada.");
-  return { child, family, allowed: allowed.has(child.id), access };
+/** Selected child scope is revalidated in each domain query. */
+export async function childOfDevice(actor: ChildAuthority, childId: string) {
+  const view = await familySnapshot(actor);
+  const child = view.children.find((c) => c.id === childId);
+  if (!child || !view.family) throw new AppError("NOT_FOUND", "Criança não encontrada.");
+  return { child, family: view.family, allowed: child.allowed, access: view.access };
 }
 
 export type DiaDaCrianca = Awaited<ReturnType<typeof childDay>>;
@@ -29,14 +23,14 @@ export type DiaDaCrianca = Awaited<ReturnType<typeof childDay>>;
  * Tudo o que a tela "Hoje" precisa: tarefas do dia no fuso da casa, o que já
  * foi feito, o estado dos lembretes, as estrelas e o baú.
  */
-export async function childDay(ownerId: string, childId: string, now = Date.now()) {
-  const { child, family, allowed } = await childOfDevice(ownerId, childId);
+export async function childDay(actor: ChildAuthority, childId: string, now = Date.now()) {
+  const { child, family, allowed } = await childOfDevice(actor, childId);
   const relogio = relogioDa(now, family.timezone);
-  const todas = await listTasks(ownerId, [childId]);
+  const todas = await listTasks(actor, [childId]);
   const tarefas = tarefasDoDia(todas, relogio.diaDaSemana);
   const [{ completions, reminders }, saldos] = await Promise.all([
-    dayState([childId], relogio.data),
-    balances([childId]),
+    dayState(actor, [childId], relogio.data),
+    balances(actor, [childId]),
   ]);
   const registros: Record<string, RegistroLembrete> = Object.fromEntries(
     reminders.map((r) => [
@@ -93,15 +87,15 @@ export async function childDay(ownerId: string, childId: string, now = Date.now(
 }
 
 /** O cofrinho: saldo, meta, histórico e pedidos em aberto. */
-export async function childPiggy(ownerId: string, childId: string, now = Date.now()) {
-  const { child, family, access } = await childOfDevice(ownerId, childId);
+export async function childPiggy(actor: ChildAuthority, childId: string, now = Date.now()) {
+  const { child, family, access } = await childOfDevice(actor, childId);
   const [saldos, goals, hist, semana, pedidos, rewards] = await Promise.all([
-    balances([childId]),
-    goalsOf([childId]),
-    history(childId, 12),
-    earnedLastWeek(childId, new Date(now)),
-    childRedemptions(childId),
-    listRewards(ownerId),
+    balances(actor, [childId]),
+    goalsOf(actor, [childId]),
+    history(actor, childId, 12),
+    earnedLastWeek(actor, childId, new Date(now)),
+    childRedemptions(actor, childId),
+    listRewards(actor),
   ]);
   const saldo = saldos.get(childId) ?? { saldo: 0, guardadas: 0 };
   return {
@@ -123,4 +117,25 @@ export async function childPiggy(ownerId: string, childId: string, now = Date.no
         canCreateCustomRewards({ ...access, tier: access.paid ? "family" : "free" }),
     ),
   };
+}
+
+export async function childChooser(device: import("../aparelho/policy").DeviceIdentity) {
+  const { childAuthority } = await import("../aparelho/server");
+  const rows = await Promise.all(
+    device.childIds.map(async (id) => {
+      const actor = childAuthority(device, id);
+      const view = await familySnapshot(actor);
+      const child = view.children.find((c) => c.id === id);
+      if (!child) return null;
+      const values = await balances(actor, [id]);
+      return {
+        id,
+        name: child.name,
+        color: child.color,
+        allowed: child.allowed,
+        estrelas: values.get(id)?.saldo ?? 0,
+      };
+    }),
+  );
+  return rows.filter((row) => row !== null);
 }

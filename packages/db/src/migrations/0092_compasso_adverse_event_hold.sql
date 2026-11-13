@@ -1,0 +1,2 @@
+ALTER TABLE "billing"."collection_billing_jobs" ADD COLUMN "risk_version" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "billing"."collection_billing_jobs" ADD CONSTRAINT "collection_billing_jobs_risk_chk" CHECK ("billing"."collection_billing_jobs"."risk_version" >= 0 AND "billing"."collection_billing_jobs"."risk_version" <= "billing"."collection_billing_jobs"."requested_version");

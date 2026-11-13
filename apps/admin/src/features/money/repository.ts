@@ -1,5 +1,5 @@
 import "server-only";
-import { PRO_STATUSES } from "@informach/billing";
+import { PRO_STATUSES } from "@informach/billing/access";
 import { and, count, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "@informach/db";
 import {
   creditLedger,

@@ -8,14 +8,15 @@ export type {
 
 export type BillingProvider = "stripe" | "asaas";
 
-export type SubjectType = "user" | "organization";
+export type SubjectType = "user" | "organization" | "billing_account";
 
 export type SubjectRef = {
   type: SubjectType;
   id: string;
 };
 
-export type CreditOwner = SubjectRef;
+/** A family wallet survives a change of payer. Stripe subjects remain adult accounts. */
+export type CreditOwner = { type: "user" | "organization" | "family"; id: string };
 
 export type SubscriptionStatus =
   | "active"
@@ -36,7 +37,9 @@ export type LedgerEntryType =
   | "consumption"
   | "refund"
   | "expiration"
-  | "adjustment";
+  | "adjustment"
+  | "funding_suspension"
+  | "funding_restoration";
 
 export type ReservationStatus = "active" | "committed" | "released" | "expired";
 
@@ -97,7 +100,7 @@ export type CreditBalance = {
 
 export type ReservationHandle = {
   id: string;
-  ownerType: SubjectType;
+  ownerType: CreditOwner["type"];
   ownerId: string;
   estimatedAmount: number;
   expiresAt: Date;

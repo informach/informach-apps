@@ -23,6 +23,17 @@ const balanceSnapshot = (amount: number, reserved: number) => [
         createdAt: "2020-01-01T00:00:00Z",
         expiresAt: null,
       },
+      ...(reserved > 0
+        ? [
+            {
+              id: "reservation",
+              amount: -reserved,
+              entryType: "consumption",
+              createdAt: "2020-01-02T00:00:00Z",
+              expiresAt: null,
+            },
+          ]
+        : []),
     ],
     reserved,
     as_of: new Date(),
@@ -140,6 +151,12 @@ describe("commitReservation", () => {
           {
             id: "res-1",
             ownerType: "user",
+            estimatedAmount: 200,
+            createdAt: new Date(),
+            app: "agenda-da-turma",
+            consumerApp: "agenda-da-turma",
+            actorUserId: "user-1",
+            personId: null,
             ownerId: "user-1",
             status: "active",
             expiresAt: futureExpiry,

@@ -1,153 +1,33 @@
+import { webSsoEnvironment } from "@informach/auth/web-sso-contract";
+import "server-only";
 import { createAuth, UnauthorizedError } from "@informach/auth";
 import { createServerHelpers } from "@informach/auth/server";
-import { APPS } from "@informach/config";
 import { buildUnsubscribeToken } from "@informach/emails";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { emails, getEmailUnsubscribeMailto } from "@/features/emails/service";
 import { AUTH_SIGN_IN_PATH } from "./auth-routing";
 import { env } from "./env";
-import { logger } from "./logger";
 import { authObservability } from "./observability";
-import { authSecondaryStorage } from "./redis";
-
-const googleProvider =
-  env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
-    ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET }
-    : undefined;
-
-/**
- * Defesa anti-brute-force explícita para os endpoints sensíveis do Better Auth.
- *
- * Por que explícito em vez de confiar nos defaults do Better Auth: o package
- * traz defaults sãos hoje (`@informach/auth/CLAUDE.md` §3.4), mas eles podem
- * mudar entre minor versions. Travar aqui garante que upgrades do Better Auth
- * não relaxem proteções silenciosamente.
- */
-const productionRateLimitRules = {
-  "/sign-in/email": { window: 60, max: 5 },
-  "/sign-in/email-otp": { window: 600, max: 5 },
-  "/sign-up/email": { window: 3600, max: 5 },
-  "/email-otp/send-verification-otp": { window: 60, max: 5 },
-  "/email-otp/verify-email": { window: 60, max: 10 },
-  "/forget-password": { window: 3600, max: 3 },
-  "/forget-password/email-otp": { window: 3600, max: 3 },
-  "/email-otp/request-password-reset": { window: 3600, max: 3 },
-  "/email-otp/reset-password": { window: 3600, max: 5 },
-  "/reset-password": { window: 3600, max: 5 },
-  "/verify-email": { window: 60, max: 10 },
-} as const;
-
-/**
- * E2E só relaxa quando explicitamente habilitado. Defesa em camadas: env.ts
- * rejeita E2E_RELAX_AUTH_RATE_LIMITS=1 em produção para impedir misconfig.
- */
-const rateLimitRules =
-  env.E2E_RELAX_AUTH_RATE_LIMITS === "1"
-    ? {
-        "/email-otp/send-verification-otp": { window: 60, max: 100 },
-        "/email-otp/verify-email": { window: 60, max: 100 },
-        "/sign-in/email-otp": { window: 60, max: 100 },
-        "/sign-up/email": { window: 60, max: 100 },
-      }
-    : productionRateLimitRules;
 
 export const authResult = createAuth({
-  appName: APPS.cozya.name,
+  appName: "Cozya",
   baseUrl: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
   trustedOrigins: [env.NEXT_PUBLIC_APP_URL],
+  webSso: {
+    role: "client",
+    app: "cozya",
+    environment: webSsoEnvironment("cozya", env.NEXT_PUBLIC_APP_URL),
+  },
+  observability: authObservability,
+  rateLimitRules: { "/sign-in/social": { window: 60, max: 10 } },
+  email: { verification: "link", signIn: { magicLink: false }, forgetPassword: "link" },
   sendEmail: emails.sendEmail,
   renderTemplate: emails.renderTemplate,
-  buildUnsubscribeUrl: (identifier, category) => {
-    const token = buildUnsubscribeToken(env.BETTER_AUTH_SECRET, identifier, category);
-    return `${env.NEXT_PUBLIC_APP_URL}/api/email/unsubscribe?t=${token}`;
-  },
+  buildUnsubscribeUrl: (identifier, category) =>
+    `${env.NEXT_PUBLIC_APP_URL}/api/email/unsubscribe?t=${buildUnsubscribeToken(env.BETTER_AUTH_SECRET, identifier, category)}`,
   unsubscribeMailto: getEmailUnsubscribeMailto(),
-  socialProviders: googleProvider ? { google: googleProvider } : undefined,
-  secondaryStorage: authSecondaryStorage,
-  observability: authObservability,
-  rateLimitRules,
-  // Cozya mantém login por e-mail/senha. OTP cobre fluxos que exigem
-  // confirmação por e-mail e também o login opcional sem senha.
-  email: {
-    verification: "otp",
-    signIn: { magicLink: false, otp: true },
-    forgetPassword: "otp",
-    // Security: notifica usuário existente quando alguém tenta cadastrar com
-    // o mesmo e-mail. Limita ao subset com Pro ativo (segurança proporcional
-    // ao valor da conta). Rate limit do /sign-up/email (5/h) protege spam.
-    onExistingUserSignUp: async ({ user }) => {
-      try {
-        const { billing } = await import("@/features/billing/service");
-        const isPro = await billing.hasProSubscription({ type: "user", id: user.id });
-        if (!isPro) return;
-        const unsubscribeUrl = `${env.NEXT_PUBLIC_APP_URL}/api/email/unsubscribe?t=${buildUnsubscribeToken(
-          env.BETTER_AUTH_SECRET,
-          user.email,
-          "auth.signup-attempt-on-existing",
-        )}`;
-        const { html, text, subject } = await emails.renderTemplate(
-          "auth.signup-attempt-on-existing",
-          {
-            appName: APPS.cozya.name,
-            loginUrl: `${env.NEXT_PUBLIC_APP_URL}/login`,
-            unsubscribeUrl,
-            unsubscribeMailto: getEmailUnsubscribeMailto(),
-          },
-        );
-        await emails.sendEmail({
-          to: user.email,
-          category: "auth.signup-attempt-on-existing",
-          messageKey: `signup-attempt-${user.id}-${crypto.randomUUID()}`,
-          userId: user.id,
-          unsubscribeUrl,
-          unsubscribeMailto: getEmailUnsubscribeMailto(),
-          subject,
-          text,
-          html,
-        });
-      } catch (err) {
-        logger.error(
-          { userId: user.id, err: err instanceof Error ? err.message : String(err) },
-          "auth.signup_attempt_on_existing.notify_failed",
-        );
-      }
-    },
-  },
-  // LGPD: when an account is deleted, cancel any active subscriptions and
-  // free credit balances for the user immediately. Ledger rows stay (fiscal).
-  accountDeletion: {
-    enabled: true,
-    requireCleanupSuccess: true,
-    onBeforeDelete: async (user) => {
-      const { hasOtherAppSubscriptions, clearCozyaData } = await import(
-        "@/features/account/repository"
-      );
-      const { purgeLegacyCozyaAi } = await import("@/features/account/legacy-ai");
-      if (await hasOtherAppSubscriptions(user.id))
-        throw new Error(
-          "Cancele as assinaturas dos outros apps Informach antes de excluir a conta compartilhada.",
-        );
-      const { billing } = await import("@/features/billing/service");
-      const result = await billing.cancelBillingForSubject({ type: "user", id: user.id });
-      if (result.failed > 0) {
-        logger.error(
-          {
-            userId: user.id,
-            canceled: result.canceled,
-            failed: result.failed,
-          },
-          "auth.account_deletion.billing_partial",
-        );
-        throw new Error(
-          "Não foi possível encerrar a assinatura. Tente novamente antes de excluir a conta.",
-        );
-      }
-      await purgeLegacyCozyaAi(user.id);
-      await clearCozyaData(user.id);
-    },
-  },
 });
 
 export const {
@@ -177,7 +57,7 @@ export async function redirectIfUnauthenticated(next?: string) {
   const user = await getCurrentUserServer();
   if (!user) {
     const target = next
-      ? `${AUTH_SIGN_IN_PATH}?next=${encodeURIComponent(next)}`
+      ? (`${AUTH_SIGN_IN_PATH}?next=${encodeURIComponent(next)}` as const)
       : AUTH_SIGN_IN_PATH;
     redirect(target);
   }

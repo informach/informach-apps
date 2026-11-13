@@ -10,50 +10,47 @@ const base: NodeJS.ProcessEnv = {
   SENDGRID_API_KEY: "SG.test",
   SENDGRID_FROM: "test@example.test",
   EMAIL_SANDBOX_MODE: "memory",
-  STRIPE_SECRET_KEY: "sk_test_fixture",
-  STRIPE_WEBHOOK_SECRET: "whsec_fixture",
-  STRIPE_MODE: "dev",
   CRON_SECRET: "test-cron-with-at-least-32-characters",
 };
 const production: NodeJS.ProcessEnv = {
   ...base,
   BETTER_AUTH_URL: "https://estrela.example.test",
   NEXT_PUBLIC_APP_URL: "https://estrela.example.test",
-  STRIPE_SECRET_KEY: "rk_live_fixture",
-  STRIPE_MODE: "prod",
   EMAIL_SANDBOX_MODE: "live",
   REDIS_URL: "redis://localhost:6379",
   SENTRY_DSN: "https://key@example.test/1",
   NEXT_PUBLIC_SENTRY_DSN: "https://key@example.test/1",
   SENDGRID_WEBHOOK_PUBLIC_KEY: "public-key",
-  STRIPE_PORTAL_CONFIGURATION_ID: "bpc_fixture",
-  ESTRELA_FAMILY_MONTHLY_PRICE: "price_3",
-  ESTRELA_FAMILY_ANNUAL_PRICE: "price_4",
   VAPID_PUBLIC_KEY: "public-vapid",
   VAPID_PRIVATE_KEY: "private-vapid",
 };
 describe("deployment environment", () => {
-  it("allows local production builds with Stripe test and requires matching key modes", () => {
-    expect(validateEnvironment(base).STRIPE_MODE).toBe("dev");
-    expect(() => validateEnvironment({ ...base, STRIPE_SECRET_KEY: "sk_live_fixture" })).toThrow(
-      "test Stripe",
-    );
+  it("treats empty optional variables as unset, while preserving required provider validation", () => {
+    const local = validateEnvironment({
+      ...base,
+      REDIS_URL: "",
+      SENTRY_DSN: "",
+      NEXT_PUBLIC_SENTRY_DSN: "",
+    });
+    expect(local.REDIS_URL).toBeUndefined();
+    expect(local.SENTRY_DSN).toBeUndefined();
+    expect(() => validateEnvironment({ ...base, DATABASE_URL: "" })).toThrow("DATABASE_URL");
   });
-  it("accepts restricted live keys with complete production dependencies", () => {
-    expect(validateEnvironment(production).STRIPE_MODE).toBe("prod");
+  it("accepts a complete production configuration without payment credentials", () => {
+    expect(validateEnvironment(production).EMAIL_SANDBOX_MODE).toBe("live");
+    expect(
+      Object.keys(validateEnvironment(production)).some((name) => name.startsWith("STRIPE")),
+    ).toBe(false);
   });
   it.each([
     { EMAIL_SANDBOX_MODE: "sandbox" },
     { REDIS_URL: undefined },
     { SENDGRID_WEBHOOK_PUBLIC_KEY: "" },
     { NEXT_PUBLIC_SENTRY_DSN: undefined },
-    { STRIPE_PORTAL_CONFIGURATION_ID: "" },
-    { ESTRELA_FAMILY_ANNUAL_PRICE: "price_TODO" },
-    { ESTRELA_ISOLATED_TEST: "1" },
+    { COMPASSO_ISOLATED_DATABASE: "1" },
     { VAPID_PUBLIC_KEY: "", VAPID_PRIVATE_KEY: "" },
     { VAPID_PRIVATE_KEY: "" },
     { BETTER_AUTH_URL: "https://different.example.test" },
-    { STRIPE_SECRET_KEY: "sk_test_fixture", STRIPE_MODE: "dev" },
   ])("rejects incomplete or mixed production configuration (%j)", (override) => {
     expect(() => validateEnvironment({ ...production, ...override })).toThrow();
   });
@@ -62,18 +59,18 @@ describe("deployment environment", () => {
       validateEnvironment({
         ...base,
         RAILWAY_ENVIRONMENT_ID: "production",
-        ESTRELA_ISOLATED_TEST: "1",
+        COMPASSO_ISOLATED_DATABASE: "1",
       }),
     ).toThrow();
   });
   it("never includes rejected credentials in validation errors", () => {
-    expect(() => validateEnvironment({ ...base, STRIPE_SECRET_KEY: "sensitive-value" })).toThrow(
-      "STRIPE_SECRET_KEY",
+    expect(() => validateEnvironment({ ...base, BETTER_AUTH_SECRET: "sensitive" })).toThrow(
+      "BETTER_AUTH_SECRET",
     );
     try {
-      validateEnvironment({ ...base, STRIPE_SECRET_KEY: "sensitive-value" });
+      validateEnvironment({ ...base, BETTER_AUTH_SECRET: "sensitive" });
     } catch (error) {
-      expect(String(error)).not.toContain("sensitive-value");
+      expect(String(error)).not.toContain("sensitive");
     }
   });
 });

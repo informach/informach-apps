@@ -9,19 +9,19 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:integration": "node scripts/isolated.mjs integration",
-    "e2e": "node scripts/isolated.mjs e2e",
-    "preview:setup": "node scripts/isolated.mjs preview"
+    "test:integration": "pnpm -w compasso:test:integration --estrela-only",
+    "e2e": "node ../../scripts/compasso/app-e2e.mjs dia-de-estrela"
   },
   "dependencies": {
-    "@better-auth/redis-storage": "1.7.10",
     "@fontsource-variable/baloo-2": "^5.2.6",
     "@fontsource-variable/nunito": "^5.2.6",
+    "@informach/account": "workspace:*",
     "@informach/auth": "workspace:*",
     "@informach/billing": "workspace:*",
     "@informach/config": "workspace:*",
     "@informach/db": "workspace:*",
     "@informach/emails": "workspace:*",
+    "@informach/family": "workspace:*",
     "@informach/ui": "workspace:*",
     "@sentry/nextjs": "^10.76.2",
     "ioredis": "^5.11.1",

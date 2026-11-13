@@ -17,6 +17,7 @@ export type EmailNamespace =
   | "adminWeeklySummary"
   | "verification"
   | "verifyEmailOtp"
+  | "changeEmailOtp"
   | "signInEmailOtp"
   | "forgetPasswordEmailOtp"
   | "passwordReset"

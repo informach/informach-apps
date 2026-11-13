@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { EXERCISES } from "@/features/treino/catalog/catalog";
+import { MAX_JUNTO, MIN_JUNTO } from "./limits";
 
 const exerciseId = z
   .string()
@@ -49,7 +50,7 @@ export type SessionInput = z.infer<typeof sessionInputSchema>;
 export const groupInputSchema = z
   .object({
     groupId: z.uuid(),
-    sessoes: z.array(sessionInputSchema).min(2).max(4),
+    sessoes: z.array(sessionInputSchema).min(MIN_JUNTO).max(MAX_JUNTO),
   })
   .refine((g) => g.sessoes.every((s) => s.groupId === g.groupId), "Grupo inconsistente.")
   .refine(

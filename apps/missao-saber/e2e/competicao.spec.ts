@@ -7,7 +7,7 @@ import { encontrarDesafio } from "../src/features/pecas/catalogo";
 import { montagemInicial } from "../src/features/pecas/montagem";
 import { teclasAteASolucao } from "../src/features/pecas/plano";
 import { ehMalha } from "../src/features/pecas/tipos";
-import { enterStudy, prepareProfile } from "./family-helpers";
+import { enterStudy, prepareProfile, registerParent } from "./family-helpers";
 
 async function familiaAssinante(page: Page, baseURL?: string) {
   if (!baseURL) throw new Error("Missing isolated origin");
@@ -16,17 +16,7 @@ async function familiaAssinante(page: Page, baseURL?: string) {
   const client = createHash("sha256").update(test.info().testId).digest();
   const headers = { origin: baseURL, "x-real-ip": `198.20.${client[0]}.${client[1]}` };
   await page.setExtraHTTPHeaders({ "x-real-ip": headers["x-real-ip"] });
-  const signup = await page.request.post("/api/auth/sign-up/email", {
-    headers,
-    data: { email, password, name: "Competição local" },
-  });
-  expect(signup.ok(), await signup.text()).toBe(true);
-  await db.update(users).set({ emailVerified: true }).where(eq(users.email, email));
-  const login = await page.request.post("/api/auth/sign-in/email", {
-    headers,
-    data: { email, password },
-  });
-  expect(login.ok(), await login.text()).toBe(true);
+  await registerParent(page, email, password);
   const [owner] = await db.select().from(users).where(eq(users.email, email));
   if (!owner) throw new Error("Missing owner");
   const [customer] = await db
@@ -72,7 +62,7 @@ test("competição: sorteio, acerto, tempo esgotado, desafio montado e pódio", 
   page,
   baseURL,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop", "A sala é pensada para tablet e TV.");
+  test.skip(!testInfo.project.name.endsWith("desktop"), "A sala é pensada para tablet e TV.");
   test.setTimeout(180_000);
   await familiaAssinante(page, baseURL);
   await prepareProfile(page, "Lia", "5", "canguru-e");

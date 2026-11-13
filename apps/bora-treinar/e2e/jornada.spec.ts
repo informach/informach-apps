@@ -1,46 +1,59 @@
-import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { createHash, randomUUID } from "node:crypto";
+import { startCompassoTrial } from "@informach/billing/compasso";
+import { getAppUrl } from "@informach/config/domains";
+import { db, eq } from "@informach/db";
+import { users } from "@informach/db/schema";
+import { createFamilyService } from "@informach/family";
 import { expect, type Page, test } from "@playwright/test";
 
-/** Os e-mails do teste isolado vão para disco (modo sandbox); o código vem do texto. */
-const emailDir = fileURLToPath(new URL("../tmp/emails", import.meta.url));
-
-async function codigoPara(email: string) {
-  for (let tentativa = 0; tentativa < 30; tentativa++) {
-    const arquivos = (await readdir(emailDir).catch(() => [])).filter((f) => f.endsWith(".json"));
-    const mensagens = await Promise.all(
-      arquivos.map(async (f) => JSON.parse(await readFile(join(emailDir, f), "utf8"))),
-    );
-    const minha = mensagens.reverse().find((m) => m.to === email && /\b\d{6}\b/.test(m.text ?? ""));
-    const codigo = minha?.text?.match(/\b(\d{6})\b/)?.[1];
-    if (codigo) return codigo as string;
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  throw new Error(`Código não chegou para ${email}`);
-}
-
-async function criarConta(page: Page, email: string) {
-  await page.goto("/entrar");
-  await page.getByRole("button", { name: "Criar conta" }).first().click();
-  await page.getByLabel("Seu nome").fill("Titular de teste");
-  await page.getByLabel("E-mail").fill(email);
-  await page.getByLabel("Senha").fill("Bora-Teste-2026-Local!");
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Criar conta", exact: true }).last().click();
-  await expect(page.getByText("Confira seu e-mail")).toBeVisible();
-  await page.getByLabel("Código de seis dígitos").fill(await codigoPara(email));
-  await page.getByRole("button", { name: "Confirmar e-mail", exact: true }).click();
+async function criarConta(page: Page) {
+  const central = getAppUrl("conta", "development");
+  const email = `${randomUUID()}@example.test`;
+  const password = randomUUID();
+  const ip = createHash("sha256")
+    .update(`${test.info().testId}-${test.info().project.name}`)
+    .digest();
+  await page.context().setExtraHTTPHeaders({ "x-real-ip": `198.51.${ip[0]}.${ip[1]}` });
+  const signup = await page.request.post(`${central}/api/auth/sign-up/email`, {
+    headers: { origin: central },
+    data: { email, password, name: "Adulto do treino" },
+  });
+  expect(signup.ok(), await signup.text()).toBe(true);
+  const [user] = await db
+    .update(users)
+    .set({ emailVerified: true })
+    .where(eq(users.email, email))
+    .returning({ id: users.id });
+  if (!user) throw new Error("Missing synthetic adult");
+  const family = createFamilyService({ db });
+  const group = await family.createGroup(user.id, "Família do treino");
+  const person = await family.createPerson(user.id, {
+    groupId: group.id,
+    kind: "dependent",
+    displayName: "Helena",
+  });
+  await startCompassoTrial(
+    { db, trialHashSecret: "isolated-bora-journey-trial".repeat(3) },
+    user.id,
+    group.id,
+  );
+  const signin = await page.request.post(`${central}/api/auth/sign-in/email`, {
+    headers: { origin: central },
+    data: { email, password },
+  });
+  expect(signin.ok(), await signin.text()).toBe(true);
+  await page.goto("/entrar?next=%2Fperfis");
+  await page.getByRole("button", { name: "Continuar com minha conta", exact: true }).click();
   await expect(page).toHaveURL(/\/perfis$/);
+  return person.id;
 }
 
 test("da conta nova ao primeiro treino salvo, contando à mão", async ({ page }) => {
-  const email = `bora-${Date.now()}-${Math.round(Math.random() * 1e6)}@example.test`;
-  await criarConta(page, email);
+  const personId = await criarConta(page);
 
   await expect(page.getByRole("heading", { name: "Quem vai treinar?" })).toBeVisible();
-  await page.getByLabel("Nome ou apelido").fill("Helena");
-  await page.getByRole("button", { name: "Criar perfil" }).click();
+  await page.getByRole("combobox", { name: "Pessoa", exact: true }).selectOption(personId);
+  await page.getByRole("button", { name: "Ativar no Bora Treinar", exact: true }).click();
 
   // primeiro acesso: ritmo, tempo e dias por semana
   await expect(page.getByRole("heading", { name: "Oi, Helena!" })).toBeVisible();
@@ -51,7 +64,7 @@ test("da conta nova ao primeiro treino salvo, contando à mão", async ({ page }
   await expect(page.getByText("Hoje é dia de · Helena")).toBeVisible();
   await expect(page.getByText("de 3 dias")).toBeVisible();
 
-  // conta nova com e-mail confirmado ganha o teste de 7 dias: os treinos da assinatura abrem
+  // O teste central de 14 dias libera os treinos desta família.
   await page.goto(`/treino?ref=${encodeURIComponent("catalogo:hiit-12")}`);
   await expect(page.getByRole("heading", { name: "HIIT 12" })).toBeVisible();
   await expect(page.getByText("Treinando como Helena")).toBeVisible();

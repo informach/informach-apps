@@ -14,7 +14,7 @@ export function ConfirmarAcesso({
         por dez minutos.
       </p>
       <div className="mt-4">
-        <LinkChapa href={`/entrar?next=${encodeURIComponent(next)}`} medida="p">
+        <LinkChapa href={`/entrar?reautenticar=1&next=${encodeURIComponent(next)}`} medida="p">
           Confirmar acesso do responsável
         </LinkChapa>
       </div>

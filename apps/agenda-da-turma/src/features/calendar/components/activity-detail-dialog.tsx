@@ -16,7 +16,6 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   onCloseAutoFocus?: (event: Event) => void;
   item: TaskRow | null;
-  currentUserId: string;
 };
 
 /**
@@ -27,13 +26,7 @@ type Props = {
  * página de detalhe já faziam. Agora é o mesmo card das outras telas; quem
  * precisa de mais abre a atividade pelo título.
  */
-export function ActivityDetailDialog({
-  open,
-  onOpenChange,
-  onCloseAutoFocus,
-  item,
-  currentUserId,
-}: Props) {
+export function ActivityDetailDialog({ open, onOpenChange, onCloseAutoFocus, item }: Props) {
   return (
     <Dialog open={open && item !== null} onOpenChange={onOpenChange}>
       <DialogContent onCloseAutoFocus={onCloseAutoFocus}>
@@ -47,7 +40,7 @@ export function ActivityDetailDialog({
             </DialogHeader>
             <ActivitySheet>
               <li>
-                <UnifiedActivityCard entry={{ key: item.id, item }} currentUserId={currentUserId} />
+                <UnifiedActivityCard entry={{ key: item.id, item }} />
               </li>
             </ActivitySheet>
           </>

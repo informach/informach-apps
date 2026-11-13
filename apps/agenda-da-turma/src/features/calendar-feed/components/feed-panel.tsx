@@ -5,7 +5,17 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { catchActionResult } from "@/lib/action-result";
 import { createCalendarFeedAction, revokeCalendarFeedAction } from "../actions";
-export function CalendarFeedPanel({ active, enabled }: { active: boolean; enabled: boolean }) {
+export function CalendarFeedPanel({
+  active,
+  enabled,
+  familyGroupId,
+  expiresAt,
+}: {
+  active: boolean;
+  enabled: boolean;
+  familyGroupId: string;
+  expiresAt: string | null;
+}) {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [message, setMessage] = useState("");
@@ -20,16 +30,26 @@ export function CalendarFeedPanel({ active, enabled }: { active: boolean; enable
       </p>
       <p className="text-sm text-muted-foreground">
         O link permite ler nomes e compromissos das crianças às quais você tem acesso. Guarde-o como
-        uma senha. Revogar impede novas consultas; cópias já baixadas precisam ser removidas no
-        calendário de destino.
+        uma senha. Novos links valem por um ano e incluem somente as crianças autorizadas no momento
+        da criação. Para incluir outra criança, gere um novo link. Revogar impede novas consultas;
+        cópias já baixadas precisam ser removidas no calendário de destino.
       </p>
+      {active ? (
+        <p className="text-sm text-muted-foreground">
+          {expiresAt
+            ? `Link atual válido até ${new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo" }).format(new Date(expiresAt))}.`
+            : "O link anterior à migração mantém sua validade original. Gere um novo para renovar as crianças incluídas."}
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-3">
         <Button
           variant="outline"
           disabled={busy || !enabled}
           onClick={async () => {
             setBusy(true);
-            const result = await catchActionResult(() => createCalendarFeedAction({}));
+            const result = await catchActionResult(() =>
+              createCalendarFeedAction({ familyGroupId }),
+            );
             setBusy(false);
             if (result.ok) {
               setUrl(result.value.url);
@@ -46,7 +66,9 @@ export function CalendarFeedPanel({ active, enabled }: { active: boolean; enable
             disabled={busy}
             onClick={async () => {
               setBusy(true);
-              const result = await catchActionResult(() => revokeCalendarFeedAction({}));
+              const result = await catchActionResult(() =>
+                revokeCalendarFeedAction({ familyGroupId }),
+              );
               setBusy(false);
               if (result.ok) {
                 setUrl("");

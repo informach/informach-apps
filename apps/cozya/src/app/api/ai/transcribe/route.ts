@@ -16,7 +16,7 @@ const MAX_AUDIO_REQUEST_BYTES = MAX_AUDIO_BYTES + 1024 * 1024;
 const ALLOWED_MIME_PREFIX = "audio/";
 
 export async function POST(request: Request): Promise<Response> {
-  const guard = await withAiRouteGuards({ errorScope: "cozya.transcribe" });
+  const guard = await withAiRouteGuards({ request, errorScope: "cozya.transcribe" });
   if (!guard.ok) return guard.response;
   const { userId } = guard;
 
@@ -49,7 +49,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ code: "INVALID_AUDIO" }, { status: 400 });
   }
 
-  return runAiOperation(request, userId, audioBlob, async () => {
+  return runAiOperation(request, guard.actor, audioBlob, async () => {
     try {
       const result = await transcribeRecipeAudio({ userId, audio: audioBlob });
       return Response.json({ text: result.text });

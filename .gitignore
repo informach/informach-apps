@@ -70,3 +70,7 @@ docs/propostas/missao-saber-2026-09-13/scripts/__pycache__/
 # rastreada para o seed do Migrator (Railway) conseguir popular agenda.schools
 # sem depender de filesystem externo. A versão descomprimida (74MB) fica fora.
 escolas_inep.csv
+
+# Per-run Compasso browser build artifacts (the runner owns their cleanup)
+.next-compasso-*/
+.compasso-tsconfig-*.json

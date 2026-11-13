@@ -85,6 +85,7 @@ export type EmailCategory =
   | "admin.weekly-summary"
   | "auth.verify-email"
   | "auth.verify-email-otp"
+  | "auth.change-email-otp"
   | "auth.sign-in-otp"
   | "auth.forget-password-otp"
   | "auth.password-reset"
@@ -105,6 +106,7 @@ export type RenderTemplatePropsByCategory = {
   "admin.weekly-summary": AdminWeeklySummaryEmailProps;
   "auth.verify-email": VerificationEmailProps;
   "auth.verify-email-otp": VerifyEmailOtpProps;
+  "auth.change-email-otp": Omit<VerifyEmailOtpProps, "purpose">;
   "auth.sign-in-otp": SignInEmailOtpProps;
   "auth.forget-password-otp": ForgetPasswordEmailOtpProps;
   "auth.password-reset": PasswordResetEmailProps;
@@ -137,6 +139,7 @@ type SubjectNamespace =
   | "adminWeeklySummary"
   | "verification"
   | "verifyEmailOtp"
+  | "changeEmailOtp"
   | "signInEmailOtp"
   | "forgetPasswordEmailOtp"
   | "passwordReset"
@@ -179,6 +182,11 @@ const CATEGORY_REGISTRY: {
   "auth.verify-email-otp": {
     component: VerifyEmailOtp,
     subjectNamespace: "verifyEmailOtp",
+    subjectValues: ({ appName }) => ({ appName }),
+  },
+  "auth.change-email-otp": {
+    component: (props) => createElement(VerifyEmailOtp, { ...props, purpose: "email-change" }),
+    subjectNamespace: "changeEmailOtp",
     subjectValues: ({ appName }) => ({ appName }),
   },
   "auth.sign-in-otp": {

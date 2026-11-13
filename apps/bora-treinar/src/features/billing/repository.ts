@@ -1,61 +1,16 @@
 import "server-only";
-import { getProSubscription } from "@informach/billing";
 import {
   and,
   DatabaseLockBusyError,
   db,
-  desc,
   eq,
-  inArray,
-  ne,
   withDatabaseLock,
   withDatabaseLockWait,
 } from "@informach/db";
-import {
-  boraProfiles,
-  checkoutIntents,
-  customers,
-  subscriptions,
-  users,
-} from "@informach/db/schema";
+import { customers, users } from "@informach/db/schema";
 import { assertAllowed } from "@/lib/errors";
 
 export const billingDatabase = db;
-/**
- * A conta Informach é compartilhada entre os apps. Antes de excluí-la por
- * aqui, nenhum outro app pode ter assinatura viva ou checkout em andamento;
- * cada app encerra o que é seu.
- */
-export async function hasOtherAppSubscriptions(userId: string) {
-  const pending = await db
-    .select({ id: checkoutIntents.id })
-    .from(checkoutIntents)
-    .innerJoin(customers, eq(checkoutIntents.customerId, customers.id))
-    .where(and(eq(checkoutIntents.userId, userId), ne(customers.app, "bora-treinar")))
-    .limit(1);
-  if (pending.length) return true;
-  const rows = await db
-    .select({ id: subscriptions.id })
-    .from(subscriptions)
-    .innerJoin(customers, eq(subscriptions.customerId, customers.id))
-    .where(
-      and(
-        eq(customers.subjectType, "user"),
-        eq(customers.subjectId, userId),
-        ne(customers.app, "bora-treinar"),
-        inArray(subscriptions.status, [
-          "active",
-          "trialing",
-          "past_due",
-          "unpaid",
-          "incomplete",
-          "paused",
-        ]),
-      ),
-    )
-    .limit(1);
-  return rows.length > 0;
-}
 export async function billingEventOwner(customerId: string) {
   const [customer] = await db
     .select({ id: customers.subjectId })
@@ -84,77 +39,6 @@ export async function withBillingLifecycle<T>(userId: string, operation: () => P
 }
 export function withBillingLifecycleWait<T>(userId: string, operation: () => Promise<T>) {
   return withDatabaseLockWait(`bora:billing:${userId}`, operation);
-}
-/** Todos os perfis voltam a valer (desfaz a escolha feita para um plano menor). */
-export async function enableAllProfiles(userId: string) {
-  await db.update(boraProfiles).set({ accessEnabled: true }).where(eq(boraProfiles.userId, userId));
-}
-
-export async function retainProfilesForSmallerPlan(
-  userId: string,
-  retainedProfileIds: string[],
-  limit: number,
-) {
-  return db.transaction(async (tx) => {
-    const [owner] = await tx
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.id, userId))
-      .for("update");
-    assertAllowed(owner, "AUTH", "Entre novamente para continuar.");
-    const owned = await tx
-      .select({ id: boraProfiles.id })
-      .from(boraProfiles)
-      .where(eq(boraProfiles.userId, userId))
-      .orderBy(boraProfiles.createdAt, boraProfiles.id);
-    const selected = [...new Set(retainedProfileIds)];
-    assertAllowed(
-      selected.length === Math.min(limit, owned.length) &&
-        selected.every((id) => owned.some((profile) => profile.id === id)),
-      "PROFILE_SELECTION",
-      `Escolha ${Math.min(limit, owned.length)} perfil(is) que continuarão ativos no plano menor.`,
-    );
-    await tx
-      .update(boraProfiles)
-      .set({ accessEnabled: false })
-      .where(eq(boraProfiles.userId, userId));
-    if (selected.length)
-      await tx
-        .update(boraProfiles)
-        .set({ accessEnabled: true })
-        .where(and(eq(boraProfiles.userId, userId), inArray(boraProfiles.id, selected)));
-    return selected;
-  });
-}
-/**
- * A assinatura com o pagamento atrasado (past_due), para a tolerância de 7 dias contados do fim do
- * período pago. Sem ela os perfis das crianças sumiam no mesmo instante em que um cartão recusava.
- * Fica aqui, e não em `PRO_STATUSES` do pacote de cobrança, porque é uma decisão deste app.
- */
-export async function pastDueSubscription(userId: string) {
-  const [row] = await db
-    .select({ subscription: subscriptions })
-    .from(subscriptions)
-    .innerJoin(customers, eq(subscriptions.customerId, customers.id))
-    .where(
-      and(
-        eq(customers.provider, "stripe"),
-        eq(customers.subjectType, "user"),
-        eq(customers.subjectId, userId),
-        eq(customers.app, "bora-treinar"),
-        eq(subscriptions.status, "past_due"),
-      ),
-    )
-    .orderBy(desc(subscriptions.currentPeriodEnd))
-    .limit(1);
-  return row?.subscription ?? null;
-}
-
-export async function entitlement(userId: string) {
-  return getProSubscription(
-    { db, provider: "stripe", app: "bora-treinar" },
-    { type: "user", id: userId },
-  );
 }
 export async function billingEmail(userId: string) {
   const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId));

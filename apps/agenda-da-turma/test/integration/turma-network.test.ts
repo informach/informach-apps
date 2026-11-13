@@ -1,34 +1,30 @@
-import { randomUUID } from "node:crypto";
-import { db, eq, inArray } from "@informach/db";
+import { db, eq } from "@informach/db";
 import {
   agendaActivities,
   agendaActivityAcceptances,
-  agendaCities,
-  agendaSchools,
-  agendaStates,
   agendaStudentProfiles,
   agendaSubjects,
   agendaTasks,
-  agendaTurmaMembers,
-  agendaTurmas,
-  users,
 } from "@informach/db/schema";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
   acceptAllSharedActivities,
   getPendingSharedActivitiesForUser,
 } from "@/features/activities/service";
 import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { listTurmasNeedingScheduleForUser } from "@/features/onboarding/first-steps-repository";
-import { findTurmaForInvite, joinTurmaByCode } from "@/features/turmas/service";
+import { createOrJoinTurma, findTurmaForInvite, joinTurmaByCode } from "@/features/turmas/service";
+import { agendaFixture, schoolFixture, value } from "./compasso-fixture";
 
+let publisherActor: AgendaAuthority;
+let receiverActor: AgendaAuthority;
+let outsiderActor: AgendaAuthority;
 let publisher: string;
 let receiver: string;
-let outsider: string;
 let publisherChild: string;
 let receiverChild: string;
 let unlinkedChild: string;
-let school: string;
 let turmaId: string;
 let turmaCode: string;
 let subjectId: string;
@@ -45,6 +41,7 @@ async function publishActivity(title: string, dueAt: string) {
       turmaId,
       subjectId,
       createdByUserId: publisher,
+      familyGroupId: publisherActor.familyGroupId,
       type: "task",
       visibility: "shared_with_turma",
       title,
@@ -55,70 +52,35 @@ async function publishActivity(title: string, dueAt: string) {
 }
 
 beforeEach(async () => {
-  publisher = `turma-pub-${randomUUID()}`;
-  receiver = `turma-rec-${randomUUID()}`;
-  outsider = `turma-out-${randomUUID()}`;
-  school = `turma-net-${randomUUID()}`.slice(0, 20);
-  await db.insert(users).values(
-    [publisher, receiver, outsider].map((id) => ({
-      id,
-      name: "Adulto fictício",
-      email: `${id}@e2e.local`,
-      emailVerified: true,
-    })),
-  );
-  await db.insert(agendaStates).values({ uf: school, ibgeCode: school, name: "Estado fictício" });
-  await db
-    .insert(agendaCities)
-    .values({ ibgeCode: school, stateUf: school, name: "Cidade fictícia" });
-  await db
-    .insert(agendaSchools)
-    .values({ inepCode: school, cityIbgeCode: school, name: "Escola fictícia" });
-  turmaCode = randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
-  const [turma] = await db
-    .insert(agendaTurmas)
-    .values({
-      schoolInepCode: school,
-      createdByUserId: publisher,
-      code: turmaCode,
+  const pub = await agendaFixture(true),
+    rec = await agendaFixture(true),
+    out = await agendaFixture(true);
+  publisher = pub.owner;
+  receiver = rec.owner;
+  publisherActor = pub.actor;
+  receiverActor = rec.actor;
+  outsiderActor = out.actor;
+  publisherChild = pub.profile.id;
+  receiverChild = rec.profile.id;
+  unlinkedChild = out.profile.id;
+  const classroom = value(
+    await createOrJoinTurma(publisherActor, {
+      schoolInepCode: await schoolFixture(),
       grade: "6ano",
       year: 2026,
       classLetter: "A",
-      shift: "morning",
-    })
-    .returning();
-  turmaId = required(turma).id;
+      profileId: publisherChild,
+    }),
+  );
+  if (!classroom.turma.code) throw new Error("Missing class code");
+  turmaId = classroom.turma.id;
+  turmaCode = classroom.turma.code;
+  value(await joinTurmaByCode(receiverActor, { code: turmaCode, profileId: receiverChild }));
   const [subject] = await db
     .insert(agendaSubjects)
     .values({ turmaId, createdByUserId: publisher, name: "Ciências" })
     .returning();
   subjectId = required(subject).id;
-  const [a] = await db
-    .insert(agendaStudentProfiles)
-    .values({ userId: publisher, name: "Criança que publica", activeTurmaId: turmaId })
-    .returning();
-  publisherChild = required(a).id;
-  const [b] = await db
-    .insert(agendaStudentProfiles)
-    .values({ userId: receiver, name: "Criança que recebe", activeTurmaId: turmaId })
-    .returning();
-  receiverChild = required(b).id;
-  const [c] = await db
-    .insert(agendaStudentProfiles)
-    .values({ userId: outsider, name: "Criança sem turma" })
-    .returning();
-  unlinkedChild = required(c).id;
-  await db.insert(agendaTurmaMembers).values([
-    { turmaId, studentProfileId: publisherChild },
-    { turmaId, studentProfileId: receiverChild },
-  ]);
-});
-afterEach(async () => {
-  await db.delete(agendaTurmas).where(eq(agendaTurmas.schoolInepCode, school));
-  await db.delete(agendaSchools).where(eq(agendaSchools.inepCode, school));
-  await db.delete(agendaCities).where(eq(agendaCities.ibgeCode, school));
-  await db.delete(agendaStates).where(eq(agendaStates.uf, school));
-  await db.delete(users).where(inArray(users.id, [publisher, receiver, outsider]));
 });
 
 describe("a turma as a network", () => {
@@ -126,14 +88,14 @@ describe("a turma as a network", () => {
     const soon = addDaysIso(todayLocalIso(), 3);
     await publishActivity("Ciências: capítulos 10, 11 e 12", soon);
     await publishActivity("Ciências: capítulos 13, 14 e 15", addDaysIso(soon, 7));
-    expect(await getPendingSharedActivitiesForUser(receiver)).toHaveLength(2);
+    expect(await getPendingSharedActivitiesForUser(receiverActor)).toHaveLength(2);
 
-    expect(await acceptAllSharedActivities(receiver)).toEqual({
+    expect(await acceptAllSharedActivities(receiverActor)).toEqual({
       accepted: 2,
       skipped: 0,
       remaining: 0,
     });
-    expect(await getPendingSharedActivitiesForUser(receiver)).toHaveLength(0);
+    expect(await getPendingSharedActivitiesForUser(receiverActor)).toHaveLength(0);
     const tasks = await db
       .select()
       .from(agendaTasks)
@@ -141,7 +103,7 @@ describe("a turma as a network", () => {
     expect(tasks).toHaveLength(2);
 
     // Repetir não duplica tarefa nem aceitação: já não há nada pendente.
-    expect(await acceptAllSharedActivities(receiver)).toEqual({
+    expect(await acceptAllSharedActivities(receiverActor)).toEqual({
       accepted: 0,
       skipped: 0,
       remaining: 0,
@@ -160,22 +122,22 @@ describe("a turma as a network", () => {
     // A matéria existe, mas sem dias de aula: não sugere prazo nem monta a
     // mochila. O passo tem de continuar aberto — e para quem ENTROU na turma
     // também, que é quem a consulta antiga nunca enxergava.
-    expect(await listTurmasNeedingScheduleForUser(receiver)).toEqual([{ turmaId }]);
-    expect(await listTurmasNeedingScheduleForUser(publisher)).toEqual([{ turmaId }]);
+    expect(await listTurmasNeedingScheduleForUser(receiverActor)).toEqual([{ turmaId }]);
+    expect(await listTurmasNeedingScheduleForUser(publisherActor)).toEqual([{ turmaId }]);
     // Qualquer membro pode cadastrar matéria, então o passo é acionável nos dois.
     await db
       .update(agendaSubjects)
       .set({ classDays: ["mon", "wed"] })
       .where(eq(agendaSubjects.id, subjectId));
-    expect(await listTurmasNeedingScheduleForUser(receiver)).toEqual([]);
-    expect(await listTurmasNeedingScheduleForUser(publisher)).toEqual([]);
+    expect(await listTurmasNeedingScheduleForUser(receiverActor)).toEqual([]);
+    expect(await listTurmasNeedingScheduleForUser(publisherActor)).toEqual([]);
     // Quem não tem turma não recebe passo de horário de turma nenhuma.
-    expect(await listTurmasNeedingScheduleForUser(outsider)).toEqual([]);
+    expect(await listTurmasNeedingScheduleForUser(outsiderActor)).toEqual([]);
   });
   it("never hands another turma's activities to an outsider", async () => {
     await publishActivity("Ciências: capítulos 10, 11 e 12", addDaysIso(todayLocalIso(), 3));
-    expect(await getPendingSharedActivitiesForUser(outsider)).toHaveLength(0);
-    expect(await acceptAllSharedActivities(outsider)).toEqual({
+    expect(await getPendingSharedActivitiesForUser(outsiderActor)).toHaveLength(0);
+    expect(await acceptAllSharedActivities(outsiderActor)).toEqual({
       accepted: 0,
       skipped: 0,
       remaining: 0,
@@ -186,10 +148,13 @@ describe("a turma as a network", () => {
   });
   it("resolves an invite code into the turma, and joining by link links the child", async () => {
     const invite = await findTurmaForInvite(turmaCode);
-    expect(invite).toMatchObject({ id: turmaId, schoolName: "Escola fictícia", grade: "6ano" });
+    expect(invite).toMatchObject({ id: turmaId, schoolName: "Synthetic", grade: "6ano" });
     expect(await findTurmaForInvite("NAOEXISTE123")).toBeNull();
 
-    const joined = await joinTurmaByCode(outsider, { code: turmaCode, profileId: unlinkedChild });
+    const joined = await joinTurmaByCode(outsiderActor, {
+      code: turmaCode,
+      profileId: unlinkedChild,
+    });
     expect(joined.ok).toBe(true);
     const [profile] = await db
       .select({ activeTurmaId: agendaStudentProfiles.activeTurmaId })
@@ -198,6 +163,6 @@ describe("a turma as a network", () => {
     expect(profile?.activeTurmaId).toBe(turmaId);
     // E agora a turma alcança essa família.
     await publishActivity("Ciências: capítulos 13, 14 e 15", addDaysIso(todayLocalIso(), 5));
-    expect(await getPendingSharedActivitiesForUser(outsider)).toHaveLength(1);
+    expect(await getPendingSharedActivitiesForUser(outsiderActor)).toHaveLength(1);
   });
 });

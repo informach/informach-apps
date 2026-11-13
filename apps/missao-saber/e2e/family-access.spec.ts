@@ -1,13 +1,16 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { db, eq } from "@informach/db";
-import { missaoProfiles, missaoStudyDevices, sessions, users } from "@informach/db/schema";
+import { missaoProfiles, missaoStudyDevices, sessions } from "@informach/db/schema";
 import { expect, type Page, type Response, test } from "@playwright/test";
+import { seedStudent } from "../test/canonical-fixture";
 import {
   closeDevice,
   enterStudy,
   parentLogin,
+  preparePerson,
   prepareProfile,
+  registerParent,
   startMission,
 } from "./family-helpers";
 
@@ -17,20 +20,12 @@ async function parent(page: Page, baseURL: string | undefined) {
   const headers = { origin: baseURL, "x-real-ip": `198.20.${client[0]}.${client[1]}` };
   await page.setExtraHTTPHeaders({ "x-real-ip": headers["x-real-ip"] });
   const email = `family-${randomUUID()}@example.test`;
-  const data = { email, password: "Missao-Teste-2026-Local!", name: "Responsável local" };
-  expect((await page.request.post("/api/auth/sign-up/email", { headers, data })).ok()).toBe(true);
-  const [user] = await db
-    .update(users)
-    .set({ emailVerified: true })
-    .where(eq(users.email, email))
-    .returning();
-  if (!user) throw new Error("Missing owner");
-  expect((await page.request.post("/api/auth/sign-in/email", { headers, data })).ok()).toBe(true);
+  const user = await registerParent(page, email);
   // Outro aparelho da mesma casa sai pelo mesmo endereço. Sem isto, todo
   // contexto extra caía no balde "unidentified" do limite de códigos de
   // conexão, compartilhado entre os testes da suíte inteira.
   const device = { baseURL, extraHTTPHeaders: { "x-real-ip": headers["x-real-ip"] } };
-  return { email, userId: user.id, headers, device };
+  return { email, userId: user.userId, headers, device };
 }
 
 async function cookieExpiry(response: Response, name: string) {
@@ -57,10 +52,12 @@ test("first access, explicit handoff, adult revocation and sibling isolation", a
   await expect(page.getByText("Seu plano, com clareza")).toHaveCount(0);
   await prepareProfile(page, "Lua");
   const adultCookies = await page.context().cookies();
-  const [sibling] = await db
-    .insert(missaoProfiles)
-    .values({ userId: owner.userId, nickname: "Sol", grade: 6, courseId: "olitef-n1" })
-    .returning();
+  const sibling = await seedStudent({
+    userId: owner.userId,
+    nickname: "Sol",
+    grade: 6,
+    courseId: "olitef-n1",
+  });
   if (!sibling) throw new Error("Missing sibling");
   await enterStudy(page, "Lua");
   const temporaryCookies = await page.context().cookies();
@@ -155,7 +152,9 @@ test("one-use device code, invalid origins, revocation of live actions and safe 
     await learner.goto("/estudar/conectar");
     await learner.getByLabel("Código de conexão").fill("AAAAA-AAAAA");
     await learner.getByRole("button", { name: "Entrar para estudar" }).click();
-    await expect(learner.locator("main").getByRole("alert")).toContainText("Confira o código");
+    await expect(learner.locator("main").getByRole("alert")).toContainText(
+      "Esta conexão não está mais disponível",
+    );
     await learner.getByLabel("Código de conexão").fill(code);
     await learner.getByRole("button", { name: "Entrar para estudar" }).click();
     await expect(learner.getByRole("heading", { name: "Olá, Lua." })).toBeVisible();
@@ -242,13 +241,19 @@ test("recent adult confirmation returns to account and preserves setup choices",
 }) => {
   const owner = await parent(page, baseURL);
   await page.goto("/familia/preparar");
-  await page.getByLabel("Apelido do estudante").fill("Lua");
+  const person = await preparePerson(page, "Lua");
+  await page.reload();
+  await page
+    .getByRole("combobox", { name: "Pessoa da família", exact: true })
+    .selectOption(person.id);
   await page.getByLabel("Ano escolar", { exact: true }).selectOption("6");
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "Continuar para a trilha" }).click();
   await page.locator('input[value="olitef-n1"]').check();
   await page.getByRole("button", { name: "Voltar", exact: true }).click();
-  await expect(page.getByLabel("Apelido do estudante")).toHaveValue("Lua");
+  await expect(page.getByRole("combobox", { name: "Pessoa da família", exact: true })).toHaveValue(
+    person.id,
+  );
   await page.getByRole("button", { name: "Continuar para a trilha" }).click();
   await db
     .update(sessions)
@@ -280,9 +285,7 @@ test("notebook drafts stay with their student across explicit switching and relo
 }) => {
   const owner = await parent(page, baseURL);
   await prepareProfile(page, "Lua");
-  await db
-    .insert(missaoProfiles)
-    .values({ userId: owner.userId, nickname: "Sol", grade: 6, courseId: "olitef-n1" });
+  await seedStudent({ userId: owner.userId, nickname: "Sol", grade: 6, courseId: "olitef-n1" });
   await page.reload();
   await enterStudy(page, "Lua", true);
   await page.goto("/caderno");
@@ -382,9 +385,7 @@ for (const selection of ["handoff", "switch"] as const) {
   }) => {
     const owner = await parent(page, baseURL);
     await prepareProfile(page, "Lua");
-    await db
-      .insert(missaoProfiles)
-      .values({ userId: owner.userId, nickname: "Sol", grade: 6, courseId: "olitef-n1" });
+    await seedStudent({ userId: owner.userId, nickname: "Sol", grade: 6, courseId: "olitef-n1" });
     await page.reload();
     await page.getByLabel(/Manter o acesso de estudo por até 30 dias/).check();
     const handoff = page.waitForResponse(

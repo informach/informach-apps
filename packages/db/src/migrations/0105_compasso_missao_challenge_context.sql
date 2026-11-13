@@ -1,0 +1,2 @@
+ALTER TABLE "missao_saber"."family_challenges" ADD COLUMN "family_group_id" uuid;--> statement-breakpoint
+ALTER TABLE "missao_saber"."family_challenges" ADD CONSTRAINT "family_challenges_family_group_id_groups_id_fk" FOREIGN KEY ("family_group_id") REFERENCES "family"."groups"("id") ON DELETE restrict ON UPDATE no action;

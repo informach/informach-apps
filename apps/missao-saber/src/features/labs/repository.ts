@@ -3,7 +3,8 @@ import { isDeepStrictEqual } from "node:util";
 import { and, db, eq } from "@informach/db";
 import { missaoExperiments, missaoProfiles } from "@informach/db/schema";
 import { assertAllowed } from "@/lib/errors";
-import { lockOwner } from "../learning/repository";
+import type { LearningAuthority } from "../family/authority";
+import { lockStudentAccess, studentAccessCondition } from "../family/scope";
 import {
   type Experiment,
   type ExperimentInput,
@@ -11,12 +12,12 @@ import {
   type SavedExperiment,
 } from "./schemas";
 
-export async function getExperiments(userId: string, profileId: string) {
+export async function getExperiments(actor: LearningAuthority, profileId: string) {
   const rows = await db
     .select({ experiment: missaoExperiments })
     .from(missaoExperiments)
     .innerJoin(missaoProfiles, eq(missaoExperiments.profileId, missaoProfiles.id))
-    .where(and(eq(missaoProfiles.userId, userId), eq(missaoProfiles.id, profileId)));
+    .where(and(studentAccessCondition(actor, missaoProfiles.id), eq(missaoProfiles.id, profileId)));
   return Object.fromEntries(
     rows.map(({ experiment }) => [
       experiment.kind,
@@ -25,7 +26,7 @@ export async function getExperiments(userId: string, profileId: string) {
   ) as Partial<Record<Experiment["kind"], SavedExperiment>>;
 }
 export async function saveExperiment(
-  userId: string,
+  actor: LearningAuthority,
   profileId: string,
   entrada: ExperimentInput,
   revision: number,
@@ -35,11 +36,13 @@ export async function saveExperiment(
      idempotência por igualdade profunda passaria a acusar conflito. */
   const state = experimentSchema.parse(entrada);
   return db.transaction(async (tx) => {
-    await lockOwner(tx, userId);
+    await lockStudentAccess(tx, actor, [profileId]);
     const [profile] = await tx
       .select({ id: missaoProfiles.id })
       .from(missaoProfiles)
-      .where(and(eq(missaoProfiles.userId, userId), eq(missaoProfiles.id, profileId)));
+      .where(
+        and(studentAccessCondition(actor, missaoProfiles.id), eq(missaoProfiles.id, profileId)),
+      );
     assertAllowed(profile, "PROFILE", "Perfil não encontrado.");
     const [existing] = await tx
       .select()

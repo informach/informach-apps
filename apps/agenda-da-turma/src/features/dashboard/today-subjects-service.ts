@@ -1,6 +1,7 @@
 import "server-only";
 
 import { listAccessibleProfiles } from "@/features/family/access";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { isExtraSubjectActiveOnDate } from "@/features/profile-subjects/class-days";
 import {
   listActiveProfileSubjectsForProfile,
@@ -143,21 +144,21 @@ function resolveDay(dateIso: string): { dateIso: string; classDay: AgendaClassDa
  * nem turma com horário nem extra ativa.
  */
 export async function getTodaySubjectsForProfile(
-  userId: string,
+  actor: AgendaAuthority,
   profileId: string,
 ): Promise<TodaySubjectsView | null> {
-  const profile = await findStudentProfileByIdForUser(userId, profileId);
+  const profile = await findStudentProfileByIdForUser(actor, profileId);
   if (!profile) return null;
 
   const { dateIso, classDay } = resolveDay(todayLocalIso());
   const activeTurmaId =
-    profile.activeTurmaId && (await verifyMembership(profile.id, profile.activeTurmaId))
+    profile.activeTurmaId && (await verifyMembership(actor, profile.id, profile.activeTurmaId))
       ? profile.activeTurmaId
       : null;
 
   const [turmaRows, extraSubjects] = await Promise.all([
-    activeTurmaId ? listSubjectsForTurma(activeTurmaId) : Promise.resolve([]),
-    listActiveProfileSubjectsForProfile(profileId),
+    activeTurmaId ? listSubjectsForTurma(actor, activeTurmaId) : Promise.resolve([]),
+    listActiveProfileSubjectsForProfile(actor, profileId),
   ]);
 
   return buildTodaySubjectsView({
@@ -166,7 +167,7 @@ export async function getTodaySubjectsForProfile(
     turmaId: activeTurmaId,
     dateIso,
     classDay,
-    turmaSubjects: turmaRows.length > 0 ? await attachAlternatingSlots(turmaRows) : [],
+    turmaSubjects: turmaRows.length > 0 ? await attachAlternatingSlots(actor, turmaRows) : [],
     extraSubjects,
   });
 }
@@ -178,10 +179,10 @@ export async function getTodaySubjectsForProfile(
  * duas vezes na mesma página usa `schedule-cache.ts`.
  */
 export async function getTomorrowSubjectsForProfiles(
-  userId: string,
+  actor: AgendaAuthority,
   options: { profileFilter?: string | null } = {},
 ): Promise<TodaySubjectsView[]> {
-  return getTodaySubjectsForProfiles(userId, {
+  return getTodaySubjectsForProfiles(actor, {
     ...options,
     dateIso: addDaysIso(todayLocalIso(), 1),
   });
@@ -201,10 +202,10 @@ export async function getTomorrowSubjectsForProfiles(
  * individual). A ordem segue o nome da criança.
  */
 export async function getTodaySubjectsForProfiles(
-  userId: string,
+  actor: AgendaAuthority,
   options: { profileFilter?: string | null; dateIso?: string } = {},
 ): Promise<TodaySubjectsView[]> {
-  const accessible = await listAccessibleProfiles(userId);
+  const accessible = await listAccessibleProfiles(actor);
   const profiles = (
     options.profileFilter ? accessible.filter((p) => p.id === options.profileFilter) : accessible
   ).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
@@ -214,8 +215,8 @@ export async function getTodaySubjectsForProfiles(
   const profileIds = profiles.map((p) => p.id);
 
   const [memberships, extras] = await Promise.all([
-    listMembershipsForProfiles(profileIds),
-    listActiveProfileSubjectsForProfiles(profileIds),
+    listMembershipsForProfiles(actor, profileIds),
+    listActiveProfileSubjectsForProfiles(actor, profileIds),
   ]);
 
   // `active_turma_id` é preferência; só vale com participação confirmada.
@@ -231,10 +232,12 @@ export async function getTodaySubjectsForProfiles(
   const distinctTurmaIds = [...new Set(turmaIdByProfile.values())];
   const subjectsByTurma = new Map<string, Subject[]>();
   if (distinctTurmaIds.length > 0) {
-    const perTurma = await Promise.all(distinctTurmaIds.map((id) => listSubjectsForTurma(id)));
+    const perTurma = await Promise.all(
+      distinctTurmaIds.map((id) => listSubjectsForTurma(actor, id)),
+    );
     // `attachAlternatingSlots` uma única vez sobre a união: os slots saem numa
     // consulta só, em vez de uma por turma.
-    const withSlots = await attachAlternatingSlots(perTurma.flat());
+    const withSlots = await attachAlternatingSlots(actor, perTurma.flat());
     for (const [index, turmaId] of distinctTurmaIds.entries()) {
       const ids = new Set(perTurma[index]?.map((s) => s.id));
       subjectsByTurma.set(

@@ -1,0 +1,89 @@
+name: Compasso
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: compasso-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  postgres18:
+    name: Compasso / ${{ matrix.gate }} ${{ matrix.app }} / PostgreSQL 18
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - gate: domain
+          - gate: account
+          - gate: closure
+          - gate: restore
+          - gate: apps
+            app: missao-saber
+          - gate: apps
+            app: bora-treinar
+          - gate: apps
+            app: dia-de-estrela
+          - gate: apps
+            app: agenda-da-turma
+          - gate: apps
+            app: cozya
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      CI: "true"
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci
+      NEXT_TELEMETRY_DISABLED: "1"
+      COMPASSO_TEST_APP: ${{ matrix.app }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - if: matrix.gate == 'account' || matrix.gate == 'closure' || matrix.gate == 'apps'
+        run: pnpm --filter @informach/conta exec playwright install --with-deps chromium
+      - if: matrix.gate == 'domain'
+        run: |
+          node --test scripts/compasso/postgres-fixture.test.mjs
+          node --test scripts/compasso/redis-fixture.test.mjs
+          pnpm compasso:test:integration
+      - if: matrix.gate == 'account'
+        run: |
+          pnpm compasso:test:ui
+          pnpm compasso:test:integration --migration-ui-only
+      - if: matrix.gate == 'closure'
+        run: pnpm compasso:test:closure
+      - if: matrix.gate == 'apps'
+        run: pnpm compasso:test:integration --apps-only --redis --optimized
+      - if: matrix.gate == 'restore'
+        run: |
+          docker pull postgres:18-alpine
+          pnpm compasso:test:restore
+          pnpm compasso:test:production-restore
+      - name: Preserve synthetic verification evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compasso-${{ matrix.gate }}-${{ matrix.app }}-${{ github.run_attempt }}
+          path: apps/conta/test-results/
+          if-no-files-found: ignore
+          retention-days: 7

@@ -13,6 +13,7 @@ type Device = {
   expiresAt: string;
   connectedAt: string | null;
   revokedAt: string | null;
+  currentParticipation: boolean;
 };
 export function DeviceManager({
   profiles,
@@ -138,7 +139,10 @@ export function DeviceManager({
       )}
       <ul className="space-y-3">
         {devices.map((device) => {
-          const active = !device.revokedAt && new Date(device.expiresAt).getTime() > Date.now();
+          const active =
+            device.currentParticipation &&
+            !device.revokedAt &&
+            new Date(device.expiresAt).getTime() > Date.now();
           return (
             <li key={device.id} className="rounded-controle border border-sombra p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -151,7 +155,7 @@ export function DeviceManager({
                       .join(", ")}
                   </p>
                   <p className="mt-1 text-sm">
-                    {device.revokedAt
+                    {device.revokedAt || !device.currentParticipation
                       ? "Conexão encerrada"
                       : !active
                         ? "Conexão expirada"

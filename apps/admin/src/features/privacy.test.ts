@@ -23,6 +23,7 @@ const CONTENT_SCHEMA_FILES = [
   "missao-saber.ts",
   "bora-treinar.ts",
   "dia-de-estrela.ts",
+  "family.ts",
   "recreio.ts",
 ];
 /** Schemas SQL desses arquivos, para pegar SQL escrito à mão. */
@@ -32,6 +33,7 @@ const CONTENT_SQL_SCHEMAS = [
   "missao_saber",
   "bora_treinar",
   "dia_de_estrela",
+  "family",
   "recreio",
 ];
 
@@ -81,6 +83,11 @@ const STRUCTURAL_COLUMNS = new Set([
   "ownerUserId",
   "createdByUserId",
   "profileId",
+  "familyProfileId",
+  "familyGroupId",
+  "groupId",
+  "personId",
+  "archivedAt",
   "studentProfileId",
   "childId",
   "turmaId",
@@ -104,6 +111,9 @@ const STRUCTURAL_COLUMNS = new Set([
 
 /** Exceções por tabela, cada uma com o motivo. */
 const TABLE_ALLOW_LIST: Record<string, Set<string>> = {
+  // Only relationship metadata; central names, colors and avatars stay private.
+  familyAppProfiles: new Set(["app"]),
+  familyMembers: new Set(["role"]),
   // A data da refeição planejada conta semanas planejadas; o prato não é lido.
   cozyaMeals: new Set(["day"]),
   // A semana da lista de compras só serve para contar listas por semana.

@@ -4,6 +4,8 @@
  * `ops.job_runs` por `recordJobRun` (o job é o segmento da rota
  * `/api/jobs/<job>`). Mudou um cron no Railway? Atualize aqui também.
  */
+import { getCollectionApps } from "@informach/config/collections";
+
 export type RoutineDefinition = {
   app: string;
   job: string;
@@ -71,6 +73,33 @@ const PER_APP: Array<Omit<RoutineDefinition, "app">> = [
 ];
 
 export const ROUTINES: readonly RoutineDefinition[] = [
+  ...getCollectionApps("compasso").map((app) => ({
+    app: app.slug,
+    job: "account-departure",
+    label: "Conferir e executar etapas de encerramento",
+    intervalMinutes: 5,
+    schedule: "a cada 5 minutos",
+    maxRuntimeMinutes: 6,
+    pausedNote: "Aguardando implantação do Compasso",
+  })),
+  {
+    app: "conta",
+    job: "account-maintenance",
+    label: "Concluir encerramentos e limpar consultas vencidas",
+    intervalMinutes: 5,
+    schedule: "a cada 5 minutos",
+    maxRuntimeMinutes: 6,
+    pausedNote: "Aguardando implantação do Compasso",
+  },
+  {
+    app: "conta",
+    job: "billing",
+    label: "Conciliar pagamentos e créditos do Compasso",
+    intervalMinutes: 1,
+    schedule: "a cada minuto",
+    maxRuntimeMinutes: 6,
+    pausedNote: "Aguardando implantação do Compasso",
+  },
   {
     app: "recreio",
     job: "manutencao",
@@ -141,18 +170,11 @@ export const ROUTINES: readonly RoutineDefinition[] = [
     intervalMinutes: 60,
     schedule: "de hora em hora",
   },
-  // Dia de Estrela: `cron-dia-de-estrela-alertas` e `cron-dia-de-estrela-billing`.
+  // Dia de Estrela: `cron-dia-de-estrela-alertas`. O app não tem cobrança própria.
   {
     app: "dia-de-estrela",
     job: "alertas",
     label: "Alertas aos pais e limpeza do Dia de Estrela",
-    intervalMinutes: 5,
-    schedule: "a cada 5 minutos",
-  },
-  {
-    app: "dia-de-estrela",
-    job: "billing",
-    label: "Manutenção da cobrança do Dia de Estrela",
     intervalMinutes: 5,
     schedule: "a cada 5 minutos",
   },

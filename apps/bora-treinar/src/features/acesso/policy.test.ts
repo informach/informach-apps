@@ -58,7 +58,7 @@ describe("o que cada plano libera", () => {
   it("o aquecimento também é gratuito", () => {
     expect(canStartWorkout(FREE_ACCESS, { kind: "catalogo", id: "aquecimento-5" })).toBe(true);
   });
-  it("o teste de 7 dias libera tudo, câmera inclusive, sem ser assinatura", () => {
+  it("o teste central libera tudo, câmera inclusive, sem ser assinatura", () => {
     expect(canStartWorkout(emTeste, { kind: "catalogo", id: "hiit-12" })).toBe(true);
     expect(canCountWithCamera(emTeste)).toBe(true);
     expect(emTeste.subscribed).toBe(false);

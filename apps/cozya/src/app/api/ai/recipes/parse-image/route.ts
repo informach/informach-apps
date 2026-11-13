@@ -22,7 +22,7 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: Request): Promise<Response> {
-  const guard = await withAiRouteGuards({ errorScope: "cozya.parse_image" });
+  const guard = await withAiRouteGuards({ request, errorScope: "cozya.parse_image" });
   if (!guard.ok) return guard.response;
   const { userId } = guard;
 
@@ -46,7 +46,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ code: "INVALID_IMAGE" }, { status: 400 });
   }
 
-  return runAiOperation(request, userId, JSON.stringify({ imageDataUrl }), async () => {
+  return runAiOperation(request, guard.actor, JSON.stringify({ imageDataUrl }), async () => {
     try {
       const result = await parseRecipeFromImage({ userId, imageDataUrl });
       if (!result.isValidRecipe) {
