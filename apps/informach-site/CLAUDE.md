@@ -192,3 +192,9 @@ Build estático: todas as rotas ○ (Static), inclusive `/sitemap.xml`, `/robots
 10. **Menu do celular**: o link guarda o destino e navega depois que a gaveta fecha (`onCloseAutoFocus`). Com a gaveta aberta a rolagem fica travada e o salto da âncora se perde.
 11. **`metadataBase`** só muda se o domínio mudar.
 12. **Deploy e dependências:** o `watchPatterns` do serviço `informach-site` em `.railway/railway.ts` cobre o site, `packages/config`, `packages/ui` e os arquivos raiz de build. Mudanças no catálogo de preços e domínios ou no contato precisam gerar novo build do site estático.
+
+## Fontes no build (13/11/2026)
+
+O layout usa `next/font/local` e os arquivos com licença OFL em `src/app/fonts`.
+As famílias e variáveis CSS foram preservadas. Assim o build não depende do
+download do Google Fonts, que falhou no Turbopack durante a revisão do CI.

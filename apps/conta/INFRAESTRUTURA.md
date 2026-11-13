@@ -105,3 +105,8 @@ encerramento (22 etapas com PostgreSQL/Redis descartáveis). O build de produç�
 do Bastidores passou com fontes locais e configuração sintética. O lint geral
 passou com os avisos já existentes. Esses resultados não substituem o backup
 real nem atestam o corte de produção.
+
+A regressão da Agenda após corrigir a captura passou nas 54 jornadas, com central
+e app em standalone, PostgreSQL/Redis descartáveis e sem provedores externos.
+Os builds de produção do site e Cozya também passaram com fontes locais; nenhuma
+fonte desses três apps exige download do Google durante a compilação.

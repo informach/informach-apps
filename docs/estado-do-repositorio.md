@@ -16,6 +16,15 @@ a pedido do titular. Migração continua retida: faltam conciliação financeira
 restauração do backup real, DNS/TLS e plano Railway atualizado. Detalhes e roteiro
 em [infraestrutura](../apps/conta/INFRAESTRUTURA.md),
 [Stripe manual](../apps/conta/STRIPE.md) e [produção](../apps/conta/PRODUCAO.md).
+O estágio final do CI revelou erro no resolvedor Google Fonts do Bastidores;
+as fontes passaram a arquivos locais com licença, preservando a tipografia.
+A mesma dependência externa foi retirada do site e Cozya. A captura da Agenda
+usa o controle de animações do Playwright, pois transições canceladas podem
+rejeitar `Animation.finished`. CI geral e nativo agora cancelam rodadas antigas
+da mesma referência, como a matriz Compasso já fazia. O nativo Edi passou novamente em `8c018a0`, após um timeout de reabertura do
+EdiPDF na rodada anterior. O fixture registra caixas nativas de erro antes que
+bloqueiem o diagnóstico, sem alterar o comportamento do app; a intermitência
+não foi considerada corrigida por uma repetição verde.
 Os registros datados abaixo são históricos, não instrução para retomar branches
 antigas ou exigir autorização genérica novamente.
 

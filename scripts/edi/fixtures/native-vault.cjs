@@ -1,6 +1,6 @@
 // biome-ignore-all lint/suspicious/noUndeclaredEnvVars: Direct isolated test child; never cached or invoked through Turbo.
 // Test-process support only. Never imported by an app or included in installers.
-const { safeStorage, app } = require("electron");
+const { safeStorage, app, dialog } = require("electron");
 const fs = require("node:fs/promises");
 const { join, resolve } = require("node:path");
 const { lock } = require("proper-lockfile");
@@ -12,6 +12,16 @@ if (!profile || !require("node:path").isAbsolute(profile) || app.isReady())
 // `pnpm edi:work` opens the tool's real profile: Chromium's storage stays at its root, as in a
 // released app, and logs and crash dumps keep Electron's defaults.
 const work = process.env.EDI_WORK_PROFILE === "true";
+if (!work) {
+  // A native error box blocks the main thread, including Playwright diagnostics.
+  // Keep the real dialog behavior and capture the original error first; the
+  // parent redacts owned paths before publishing the fixture's diagnostics.
+  const showErrorBox = dialog.showErrorBox.bind(dialog);
+  dialog.showErrorBox = (title, content) => {
+    console.error(JSON.stringify({ nativeFixtureErrorBox: { title, content } }));
+    showErrorBox(title, content);
+  };
+}
 for (const name of work
   ? ["userData", "sessionData"]
   : ["userData", "sessionData", "logs", "crashDumps"]) {

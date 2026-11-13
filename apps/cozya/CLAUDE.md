@@ -104,3 +104,9 @@ Teste pago de integração real, opt-in separado: definir `COZYA_LIVE_AI_SMOKE=1
 Escritas pessoais passam por `features/account/participation-repository.ts`: a participação ativa fica travada até o commit. Planejamento/IA financiados por família tomam primeiro a trava familiar e depois a participação; o caminho gratuito sem família também é protegido. Receitas, perfil culinário, refeições manuais, compras, preparo/feedback e limpeza local recusam gravações após congelamento. Telemetria de uso atrasada é descartada. Leituras pessoais filtram participação ativa; exportação revalida no começo e no fim e as consultas de filhos conferem a propriedade do pai. O resumo de teste também segura a participação. A autorização do executor global continua separada; essa proteção não é uma publicação do encerramento.
 
 O cache HTTP de IA e os recibos compartilhados conservam a revisão admitida. Persistência/recuperação não recriam saída depois de congelar e retomar; a reserva já admitida pode ser conciliada sem abrir novo consumo. As cinco verificações semânticas de receitas em `test/recipes.integration.ts` substituem os testes de cadeias SQL mockadas; limite concorrente, ordenação/paginação, busca, isolamento e bloqueio de 15 entradas de escrita usam PostgreSQL real. Cozinha/Compasso/receitas: 29 testes em três arquivos; unitários remanescentes: 125 em 24 arquivos. Tipos passaram. A limpeza coordenada precisa extrair/reutilizar a exclusão local sob autorização própria do pedido, sem ignorar a trava de participação.
+
+## Fontes no build (13/11/2026)
+
+O layout usa `next/font/local` e os arquivos com licença OFL em `src/app/fonts`.
+As famílias e variáveis CSS foram preservadas. Assim o build não depende do
+download do Google Fonts, que falhou no Turbopack durante a revisão do CI.

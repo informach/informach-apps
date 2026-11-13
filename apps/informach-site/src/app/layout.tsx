@@ -1,22 +1,25 @@
 import { Toaster } from "@informach/ui/components/sonner";
 import { ThemeProvider } from "@informach/ui/components/theme-provider";
 import type { Metadata, Viewport } from "next";
-import { Nunito, Plus_Jakarta_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import type { ReactNode } from "react";
 import { SITE_PRODUCTS } from "@/lib/products";
 import { SITE } from "@/lib/site";
 import "./globals.css";
 
-const jakarta = Plus_Jakarta_Sans({
+const jakarta = localFont({
+  src: "./fonts/plus-jakarta-sans-variable.woff2",
   variable: "--font-jakarta",
-  subsets: ["latin"],
+  weight: "200 800",
+  display: "swap",
 });
 
 /* Fonte arredondada da seção do Sistema Zero, a mesma do site dele. */
-const nunito = Nunito({
+const nunito = localFont({
+  src: "./fonts/nunito-variable.woff2",
   variable: "--font-nunito",
-  subsets: ["latin"],
-  weight: ["800", "900"],
+  weight: "200 900",
+  display: "swap",
 });
 
 const TITLE = "Informach: feito em casa, para a sua família";
