@@ -133,7 +133,11 @@ test("only the payer sees and answers the request to defer their own charge", as
     await expect(otherPage.getByRole("region", { name: "Adiamento da sua cobrança" })).toHaveCount(
       0,
     );
-    await expect(otherPage.locator("body")).not.toContainText("R$ 49,90");
+    // The public offer displays the list price to every member. Privacy is
+    // about the payer's contract and controls, not hiding a public price.
+    await expect(otherPage.getByRole("region", { name: "Seu contrato Compasso" })).toHaveCount(0);
+    expect(await otherPage.content()).not.toContain(subscription.providerSubscriptionId);
+    expect(await otherPage.content()).not.toContain(account.id);
 
     const deferUntil = new Date(end.getTime() + 30 * 86_400_000);
     await db

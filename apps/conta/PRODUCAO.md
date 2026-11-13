@@ -143,6 +143,11 @@ O pedido atual autoriza implementar e concluir o corte após os gates; não é
 necessária outra confirmação genérica de fase. Aceites pessoais, inserção de
 credenciais e compra real continuam ações dos titulares, sem simulação pelo agente.
 
+O candidato de lançamento também deve atualizar `published` da Conta e do Dia de
+Estrela no catálogo `APPS`, junto das constantes de lançamento da IaC. A abertura
+dos links na central só pode ser anunciada após DNS/TLS e readiness conferidos;
+não confundir serviço vazio provisionado com app publicado.
+
 1. Conciliação por titular sem bloqueios (`titular-reconciliation.mts`), restauração do backup real aprovada (`pnpm compasso:rehearse:restore`), CI verde e plano Railway só com adições.
 2. Catálogo live criado pela titular (`stripe-provision.mts --mode prod --apply` com o webhook da Conta) e segredos gravados nos serviços novos.
 3. `railway config apply` e merge na `main`, com aprovação da titular. O migrator aplica as 83 migrations do Compasso (tags de `0080_reflective_butterfly` a `0162_military_dexter_bennett`) de uma vez, depois da `0080_recreio` que já está em produção; `/api/ready` segura cada app. Antes do merge, `pnpm --filter @informach/db test` precisa passar com a `main` integrada: se outra frente tiver levado migrations à `main`, as do Compasso vão para depois delas no journal, ou o migrator as pula sem erro.
