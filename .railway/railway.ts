@@ -50,7 +50,11 @@ const ESTRELA_LAUNCHED = false;
 /** Preparation only. Enable with the reviewed Compasso cutover; never revert
  * after provisioning, since false would remove the central service and jobs. */
 const COMPASSO_LAUNCHED = false;
-/** Recreio e Morada: preparação apenas; ativar após revisar PRODUCAO.md e o plano. */
+/** Recursos provisionados via plugin em 13/11/2026; nunca desligar para rollback. */
+const RECREIO_PROVISIONED = true;
+/** Vínculo público pendente de aprovação explícita no plugin. */
+const RECREIO_DOMAINS_CONFIGURED = false;
+/** Fontes desligadas até liberar banco, observabilidade e ativação do alfa. */
 const RECREIO_LAUNCHED = false;
 
 // Imagens dos crons sem build, fixadas por digest: uma tag trocada no registro
@@ -142,6 +146,9 @@ export default defineRailway((ctx) => {
   }
   if (COMPASSO_LAUNCHED && !ESTRELA_LAUNCHED) {
     throw new Error("Compasso requires workers for every catalog app, including Dia de Estrela");
+  }
+  if (RECREIO_LAUNCHED && (!RECREIO_PROVISIONED || !RECREIO_DOMAINS_CONFIGURED)) {
+    throw new Error("Recreio requires provisioned resources and configured domains before launch");
   }
 
   const main = github(REPOSITORY, { branch: "main", checkSuites: false, rootDirectory: "/" });
@@ -729,7 +736,7 @@ export default defineRailway((ctx) => {
   // Recreio: alfa fechado, acesso por concessão, sem checkout. Segredos novos
   // precisam existir antes do primeiro apply; preserve() não cria um segredo.
   const recreio = service("@informach/recreio-app", {
-    source: main,
+    source: RECREIO_LAUNCHED ? main : undefined,
     build: {
       builder: "RAILPACK",
       buildCommand: standaloneNext("recreio").buildCommand,
@@ -754,7 +761,7 @@ export default defineRailway((ctx) => {
     healthcheck: "/api/ready",
     healthcheckTimeout: 60,
     replicas: { [REGION]: 1 },
-    domains: [{ domain: "recreio.informach.com.br", port: 3009 }],
+    domains: RECREIO_DOMAINS_CONFIGURED ? [{ domain: "recreio.informach.com.br", port: 3009 }] : [],
     networking: { privateNetworkEndpoint: "informachrecreio" },
     env: {
       NODE_ENV: "production",
@@ -780,13 +787,14 @@ export default defineRailway((ctx) => {
       RECREIO_TOKEN_KEY_ID: preserve(),
       RECREIO_TOKEN_PREVIOUS_PUBLIC_KEYS: preserve(),
       SENTRY_DSN: preserve(),
+      NEXT_PUBLIC_SENTRY_DSN: preserve(),
     },
   });
   // Arte licenciada num volume privado. Só configurar MORADA_ARTE_DIR depois
   // de instalar/verificar o pacote; sem pasta o jogo usa os corpos procedurais.
   const moradaArte = volume("morada-arte", { region: REGION, sizeMB: 1000 });
   const morada = service("@informach/morada-server", {
-    source: main,
+    source: RECREIO_LAUNCHED ? main : undefined,
     build: {
       builder: "RAILPACK",
       buildCommand: "pnpm install --frozen-lockfile --prod=false && pnpm build:morada-server",
@@ -800,7 +808,9 @@ export default defineRailway((ctx) => {
     healthcheck: "/api/ready",
     healthcheckTimeout: 60,
     replicas: { [REGION]: 1 },
-    domains: [{ domain: "morada-server.informach.com.br", port: 3010 }],
+    domains: RECREIO_DOMAINS_CONFIGURED
+      ? [{ domain: "morada-server.informach.com.br", port: 3010 }]
+      : [],
     networking: { privateNetworkEndpoint: "informachmorada" },
     volumeMounts: { "/data": moradaArte },
     env: {
@@ -821,7 +831,7 @@ export default defineRailway((ctx) => {
     },
   });
   const recreioManutencao = service("cron-recreio-manutencao", {
-    source: image(CURL_IMAGE),
+    source: RECREIO_LAUNCHED ? image(CURL_IMAGE) : undefined,
     start: `sh -c 'curl --fail-with-body --silent --show-error --connect-timeout 10 --max-time 120 --request POST --header "Authorization: Bearer $CRON_SECRET" "$RECREIO_URL/api/jobs/manutencao"'`,
     replicas: { [REGION]: 1 },
     deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
@@ -979,7 +989,9 @@ export default defineRailway((ctx) => {
       site,
       admin,
       ...adminCrons,
-      ...(RECREIO_LAUNCHED ? [recreio, morada, moradaArte, recreioManutencao] : []),
+      ...(RECREIO_PROVISIONED || RECREIO_LAUNCHED
+        ? [recreio, morada, moradaArte, recreioManutencao]
+        : []),
       edi,
       ...crons,
       agendaRoutine,
