@@ -52,8 +52,8 @@ const ESTRELA_LAUNCHED = false;
 const COMPASSO_LAUNCHED = false;
 /** Recursos provisionados via plugin em 13/11/2026; nunca desligar para rollback. */
 const RECREIO_PROVISIONED = true;
-/** Vínculo público pendente de aprovação explícita no plugin. */
-const RECREIO_DOMAINS_CONFIGURED = false;
+/** Vínculos autorizados e criados; DNS/certificados ainda precisam validar. */
+const RECREIO_DOMAINS_CONFIGURED = true;
 /** Fontes desligadas até liberar banco, observabilidade e ativação do alfa. */
 const RECREIO_LAUNCHED = false;
 

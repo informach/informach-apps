@@ -4,7 +4,7 @@ Para quem retoma a frente depois de uma pausa, nesta ou em outra máquina. O reg
 
 ## Onde está cada coisa
 
-- **`main` em `3f952fd`** já tem P0–P7, J0–J8 e X1–X3, incluindo recuperação, acesso e operação preparada. Em 13/11, os serviços, cron e volume foram provisionados pelo plugin Railway, ainda sem fonte/deploy. `RECREIO_PROVISIONED=true` preserva os recursos e `RECREIO_LAUNCHED=false` conserva as fontes desligadas. Segredos/domínios aguardam aprovação da revisão automática; detalhes no [registro operacional](railway-2026-11-13.md).
+- **`main` em `3f952fd`** já tem P0–P7, J0–J8 e X1–X3, incluindo recuperação, acesso e operação preparada. Em 13/11, os serviços, cron e volume foram provisionados pelo plugin Railway, ainda sem fonte/deploy. Segredos/referências e vínculos dos domínios foram concluídos após autorização explícita do titular; DNS/certificados, Sentry e prontidão do banco continuam pendentes. `RECREIO_PROVISIONED=true` e `RECREIO_DOMAINS_CONFIGURED=true` preservam recursos/vínculos; `RECREIO_LAUNCHED=false` conserva as fontes desligadas. Detalhes e registros DNS no [registro operacional](railway-2026-11-13.md).
 - **Continuação na `main`:** arte dos móveis e acabamentos da casa atual, manifesto V2 compatível com V1 e provas com arte real. Ver [review do D1](review-d1-2026-11-13.md).
 - **A migração `0080_recreio`** está na `main`. O schema `recreio` passa a existir no banco onde o migrator rodar; nenhum app em produção o lê.
 - A branch `feat/recreio` foi juntada à `main` e não tem nada a mais.
