@@ -21,12 +21,24 @@ as fontes passaram a arquivos locais com licença, preservando a tipografia.
 A mesma dependência externa foi retirada do site e Cozya. A captura da Agenda
 usa o controle de animações do Playwright, pois transições canceladas podem
 rejeitar `Animation.finished`. CI geral e nativo agora cancelam rodadas antigas
-da mesma referência, como a matriz Compasso já fazia. O nativo Edi passou novamente em `8c018a0`, após um timeout de reabertura do
+da mesma referência, como a matriz Compasso já fazia. O nativo Edi passou
+novamente em `8c018a0`, após um timeout de reabertura do
 EdiPDF na rodada anterior. O fixture registra caixas nativas de erro antes que
 bloqueiem o diagnóstico, sem alterar o comportamento do app; a intermitência
 não foi considerada corrigida por uma repetição verde.
 Os registros datados abaixo são históricos, não instrução para retomar branches
 antigas ou exigir autorização genérica novamente.
+
+**13/11 — causa do login intermitente no CI:** reproduzido 429 no endpoint
+OIDC de tokens, com 20 trocas em 42,8 segundos. O limite padrão do plugin era de
+um cliente, mas as trocas dos cinco servidores compartilham o IP de saída. A
+capacidade agora agrega 20 por app do catálogo, ainda com teto por minuto/IP.
+O ensaio HTTP com PostgreSQL confere códigos inválidos recusados, bloqueio da
+101ª troca e bloqueio da sexta senha incorreta. Passaram os testes de autenticação,
+as regressões dos oito consumidores e o ensaio repetido de entradas no navegador;
+detalhes em [infraestrutura](../apps/conta/INFRAESTRUTURA.md). O corte continua pendente
+dos gates operacionais acima. A reprodução local do estágio final de builds
+passou para todo o conjunto em `2bc396f`, antes deste ajuste de capacidade.
 
 O titular autorizou a migração completa do **Compasso** e confirmou R$ 49,90/mês ou R$ 499/ano, dois adultos, quatro dependentes e teste de 14 dias sem cartão. A política aprovada inclui 200 créditos mensais sem acumular, 20 no teste e recargas sem vencimento de 100/R$ 14,90, 300/R$ 39,90 e 1.000/R$ 99,90, preservando validade e poder de uso dos saldos antigos. Recreio, Morada e Suíte Edi permanecem fora do Compasso. Execução na branch `feat/compasso-migracao`, central `apps/conta` na porta 3011. A [implementação](propostas/assinatura-web-2026-11-09/implementacao.md) é o registro detalhado vigente; incrementos anteriores preservam a evidência histórica.
 

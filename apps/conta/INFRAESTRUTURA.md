@@ -43,11 +43,20 @@ de estudo da Missão Saber estava escondida no cron financeiro antigo. Agora ela
 também pertence ao worker `account-departure` da Missão, para não desaparecer
 quando esse cron financeiro for retirado.
 
+Antes de retirar os genéricos, conferir seus destinos `APP_DOMAINS` no Railway.
+Se aparecer um produto independente, preservar sua obrigação e corrigir o plano
+antes da exclusão. A conexão OAuth desta sessão não revela esses valores.
+
 As sete rotinas ainda atendem os deployments antigos em produção. Na consulta
 de 13/11, suas últimas execuções constavam como bem-sucedidas, sem réplicas
 mantidas em execução entre invocações. A retirada ocorrerá com a promoção
 coordenada do novo runtime, não antes dela. Nenhum desses serviços foi apagado
 nesta preparação.
+
+As métricas de 24 horas também foram consultadas, com amostragem de um minuto.
+O uso observado é baixo; execuções curtas podem não aparecer na amostra. Valores
+zero não significam ausência de custo. O plugin fornece consumo, sem uma fatura
+que permita atribuir economia em reais a essa retirada.
 
 ## Jobs que permanecem necessários
 
@@ -110,3 +119,18 @@ A regressão da Agenda após corrigir a captura passou nas 54 jornadas, com cent
 e app em standalone, PostgreSQL/Redis descartáveis e sem provedores externos.
 Os builds de produção do site e Cozya também passaram com fontes locais; nenhuma
 fonte desses três apps exige download do Google durante a compilação.
+
+Na investigação do CI, o login Missão falhou antes da jornada do produto: o
+endpoint OIDC de tokens respondeu 429 ao contador chegar a 20, ainda dentro dos
+60 segundos (42,8 s na leitura local). A capacidade do emissor agora agrega os
+cinco clientes servidores, com teto de 100/minuto/IP. A regressão confere o teto,
+a recusa de códigos inválidos e o limite independente de cinco senhas; não
+desliga o limitador nem reutiliza códigos. O cenário inicial foi reproduzido em
+banco/conta sintéticos, sem acessar contas reais.
+
+Após o ajuste do emissor, passaram 278 unitários de auth, 32 integrações de auth
+com PostgreSQL, 2.802 unitários dos oito consumidores e typecheck dos 40 projetos
+mais tooling Edi. Duas jornadas locais de navegador repetiram 40 entradas cada
+(80 reentradas, além da preparação), com builds standalone, sem o 429 observado
+antes do ajuste. O diagnóstico temporário foi removido do checkout; não entra
+na suíte cotidiana nem altera as verificações do protocolo.

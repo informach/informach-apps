@@ -8,6 +8,15 @@ O fluxo usa authorization code de uso único, PKCE S256, estado vinculado ao nav
 
 Nesse modo, sessões são autoritativas em PostgreSQL, sem cache de cookie, secondary storage ou papel em cache. Contadores de login são atômicos e separados por app em `core.rate_limit`. O cliente web só expõe entrar por OIDC, callback cadastrado, consultar sessão e sair; gestão de credenciais acontece na central. A provisão recusa drift de permissões, PKCE, callbacks e grants, em vez de sobrescrever silenciosamente. `core.sso_*` separa clientes, chaves, concessões e tokens do emissor desktop `core.oauth_*`; a definição das tabelas é compartilhada em uma fábrica, conservando o schema desktop existente.
 
+As trocas de código em `/oauth2/token` saem dos servidores dos apps, que podem
+compartilhar o IP de saída. O emissor reserva 20 trocas por minuto para cada app
+do catálogo Compasso, agregadas num teto atômico por IP (100 para os cinco apps).
+O padrão de 20 do plugin atendia um cliente e produziu 429/`invalid_code` com os
+clientes reunidos. Senha, cadastro e recuperação conservam seus limites próprios;
+não encaminhar IP do navegador para contornar o limite do servidor. O ensaio
+HTTP verifica códigos inválidos recusados, bloqueio após o teto e a sexta senha
+incorreta bloqueada. PKCE, uso único, nonce e demais limites OIDC permanecem.
+
 Consumidores desta migração: `apps/conta` e os cinco apps Compasso. Seus runtimes locais usam o novo SSO; a homologação conjunta e o corte operacional continuam em execução. As observações sobre sessões Redis abaixo descrevem os fluxos antigos ainda em produção. A troca exige desligar os emissores antigos e limpar suas sessões, sem tratar a existência do schema como corte concluído. Testes reais: `pnpm compasso:test:integration`, incluindo regressão do OAuth desktop. Registro e pendências na [migração](../../docs/propostas/assinatura-web-2026-11-09/implementacao.md).
 
 `/web-sso-entry` fornece o componente opcional de entrada dos apps, sem formulário local de credenciais. `/web-sso-client` cria o cliente navegador correspondente. `/web-sessions` mede confirmação recente pela raiz autenticada e encerra a raiz ao sair de um cliente. Nova entrada de credenciais válidas substitui a raiz apresentada pelo mesmo navegador, incluindo seus filhos; não apaga sessões de outros navegadores nem fecha a sessão por uma senha incorreta. O hook roda antes do plugin de duas etapas: a sessão nova ainda passa por seu desafio e não fica autenticada se esse desafio estiver pendente. Os handlers da entrada ficam habilitados só depois da hidratação, evitando perda de campos digitados no HTML inicial.

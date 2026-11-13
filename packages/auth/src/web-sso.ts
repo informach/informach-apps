@@ -26,6 +26,14 @@ import { bindWebSsoParent } from "./web-sso-context";
 
 const SCOPES = ["openid", "profile", "email"];
 
+// Token exchanges come from app servers, which can share one egress IP. The
+// provider's default is 20/minute for one client; reserve that capacity for
+// every registered collection app, retaining an atomic, finite IP budget.
+export const WEB_SSO_TOKEN_RATE_LIMIT = {
+  window: 60,
+  max: 20 * getCollectionApps("compasso").length,
+} as const;
+
 export function webSsoSchema() {
   return {
     jwks: ssoJwks,
@@ -50,6 +58,7 @@ export function webSsoPlugins(config: WebSsoConfig) {
         consentPage: "/conectar",
         scopes: SCOPES,
         grantTypes: ["authorization_code"],
+        rateLimit: { token: WEB_SSO_TOKEN_RATE_LIMIT },
         // The installed provider also uses this TTL for its signed login prompt.
         // Allow email verification to finish; codes remain single-use and PKCE-bound.
         codeExpiresIn: 600,

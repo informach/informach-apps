@@ -23,7 +23,7 @@ import {
   revokeWebBrowserFromClient,
   revokeWebSessions,
 } from "./web-sessions";
-import { provisionWebSso, webSsoClient, webSsoOrigin } from "./web-sso";
+import { provisionWebSso, WEB_SSO_TOKEN_RATE_LIMIT, webSsoClient, webSsoOrigin } from "./web-sso";
 
 const environment = "development";
 const centralOrigin = webSsoOrigin("conta", environment);
@@ -653,6 +653,57 @@ describe("real central OIDC and relying app", () => {
     );
     expect(attempts.filter((result) => result?.allowed)).toHaveLength(4);
     expect((await appLimit.consume(key, { max: 4, window: 60 })).allowed).toBe(true);
+  });
+  it("bounds pooled server token traffic while preserving the password attempt limit", async () => {
+    const limited = createAuth({
+      ...baseConfig(centralOrigin),
+      rateLimitRules: undefined,
+      webSso: { role: "provider", environment },
+      twoFactor: { enabled: true },
+      email: { verification: "otp", signIn: { magicLink: false }, forgetPassword: "otp" },
+    }).auth;
+    const token = () =>
+      limited.handler(
+        new Request(`${centralOrigin}/api/auth/oauth2/token`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "x-real-ip": "198.31.0.1",
+          },
+          body: new URLSearchParams({
+            grant_type: "authorization_code",
+            client_id: client.clientId,
+            redirect_uri: client.redirectUri,
+            code: "invalid-diagnostic-code",
+            code_verifier: "v".repeat(43),
+          }),
+        }),
+      );
+    // Invalid codes never authenticate, including beyond the old 20/IP limit.
+    for (let attempt = 0; attempt < WEB_SSO_TOKEN_RATE_LIMIT.max; attempt++) {
+      const response = await token();
+      expect(response.status).toBe(400);
+      expect((await response.json()).error).toBe("invalid_grant");
+    }
+    const blocked = await token();
+    expect(blocked.status).toBe(429);
+    expect(Number(blocked.headers.get("x-retry-after"))).toBeGreaterThan(0);
+    const email = `${randomUUID()}@example.test`;
+    const passwordAttempt = () =>
+      limited.handler(
+        new Request(`${centralOrigin}/api/auth/sign-in/email`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Origin: centralOrigin,
+            "x-real-ip": "198.31.0.2",
+          },
+          body: JSON.stringify({ email, password: "Invalid-Local-Password-Only!" }),
+        }),
+      );
+    for (let attempt = 0; attempt < 5; attempt++)
+      expect((await passwordAttempt()).status).toBe(401);
+    expect((await passwordAttempt()).status).toBe(429);
   });
   it("exposes one central recovery endpoint without alternate rate-limit budgets", async () => {
     const email = `${randomUUID()}@example.test`;

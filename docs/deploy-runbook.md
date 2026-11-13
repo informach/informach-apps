@@ -542,6 +542,15 @@ Sem isso o app retorna **503 silencioso** em `POST /api/webhooks/sendgrid` (gate
 
 ## Fase 11 — Cron services (♻ ADD, não recriar)
 
+**Corte Compasso (revisão de 13/11/2026):** a tabela legada abaixo descreve os
+jobs que ainda atendem os deployments antigos. No corte, retirar somente os sete
+serviços financeiros substituídos, depois de transferir suas obrigações e
+confirmar os novos jobs. E-mail, retenção, estudos, alertas e produtos independentes
+permanecem. Serviços já preparados continuam no grafo mesmo com a fonte desligada;
+uma flag de lançamento não é uma chave de rollback. Inventário, cadências,
+preflight e limites em [infraestrutura Compasso](../apps/conta/INFRAESTRUTURA.md).
+O plano remoto deve preservar todos os demais recursos, inclusive Recreio/Morada.
+
 **Estratégia compartilhada dos apps web existentes**: 9 services atendem os contratos de manutenção abaixo. Um novo app só entra em `APP_DOMAINS` quando implementar cada contrato correspondente.
 
 **Exceção Edi:** o desktop usa fatos financeiros e licenças assinadas, com reconciliação própria. `cron-edi-reconcile`, declarado em `.railway/railway.ts`, chama `POST /api/jobs/reconcile` a cada cinco minutos e é habilitado junto com a cobrança homologada. Não incluir o domínio Edi nos sete crons per-app por padrão. A limpeza global de autenticação, as suppressions e o webhook SendGrid compartilhados já abrangem as tabelas comuns. O retry genérico de e-mail exclui categorias `auth.*`; códigos OTP são reenviados pela pessoa, com os limites de autenticação. Ver [operação Edi](../apps/edi/PRODUCAO.md).
@@ -554,7 +563,7 @@ Além deles: `cron-cozya-retention` (hora em hora), `cron-agenda-routine` (lembr
 
 ### Onde ficam
 
-Os crons de manutenção são serviços de imagem `alpine/curl` sem build, fixada por digest (`CURL_IMAGE`), declarados em `.railway/railway.ts` pelos helpers `perAppCron(nome, agenda, rota)` e `globalCron(nome, agenda, rota)`. Agenda, start command e reinício `NEVER` vêm do arquivo; `CRON_SECRET`, `APP_DOMAINS` e `APP_URL` são variáveis do Railway (`preserve()`). Crons de um app só (`cron-cozya-retention`, `cron-missao-saber-billing`, `cron-missao-saber-weekly-report`, `cron-bora-treinar-billing`, `cron-bora-treinar-lembretes`, `cron-dia-de-estrela-alertas`, `cron-dia-de-estrela-billing`, `cron-edi-reconcile`) têm bloco próprio; o de cobrança da Missão lê `apps/missao-saber/scripts/maintenance-cron.sh`, os dois do Bora Treinar leem `apps/bora-treinar/scripts/maintenance-cron.sh` e `apps/bora-treinar/scripts/lembretes-cron.sh`, os do Dia de Estrela leem `apps/dia-de-estrela/scripts/alertas-cron.sh` e `apps/dia-de-estrela/scripts/maintenance-cron.sh` (variáveis `APP_ORIGIN`, `CRON_SECRET`, `SENTRY_DSN` e `SENTRY_ENVELOPE_URL`, como os da Missão), e o da Agenda, `apps/agenda-da-turma/scripts/run-routine-job.mjs`. O texto do script entra no start command quando o plano é montado: mudar o script e dar push não muda o cron; só vale depois de `railway config plan` e `railway config apply`.
+Os crons de manutenção são serviços de imagem `alpine/curl` sem build, fixada por digest (`CURL_IMAGE`), declarados em `.railway/railway.ts` pelos helpers `perAppCron(nome, agenda, rota)` e `globalCron(nome, agenda, rota)`. Agenda, start command e reinício `NEVER` vêm do arquivo; `CRON_SECRET`, `APP_DOMAINS` e `APP_URL` são variáveis do Railway (`preserve()`). Crons de um app só (`cron-cozya-retention`, `cron-missao-saber-billing`, `cron-missao-saber-weekly-report`, `cron-bora-treinar-billing`, `cron-bora-treinar-lembretes`, `cron-dia-de-estrela-alertas`, `cron-edi-reconcile`) têm bloco próprio; o de cobrança da Missão lê `apps/missao-saber/scripts/maintenance-cron.sh`, os dois do Bora Treinar leem `apps/bora-treinar/scripts/maintenance-cron.sh` e `apps/bora-treinar/scripts/lembretes-cron.sh`, o do Dia de Estrela lê `apps/dia-de-estrela/scripts/alertas-cron.sh` (variáveis `APP_ORIGIN`, `CRON_SECRET`, `SENTRY_DSN` e `SENTRY_ENVELOPE_URL`, como os da Missão), e o da Agenda, `apps/agenda-da-turma/scripts/run-routine-job.mjs`. O texto do script entra no start command quando o plano é montado: mudar o script e dar push não muda o cron; só vale depois de `railway config plan` e `railway config apply`.
 
 **Tabela completa** (criticidade 🔴/🟡/🟢, escopo 🌐 global ou 🔁 per-app loop):
 
