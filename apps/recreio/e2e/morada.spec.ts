@@ -140,6 +140,11 @@ test("duas contas jogam a mesma família; uma cai, a outra continua, e tudo volt
 
   const daAna = jogoEm(ana.page);
   let daBia = jogoEm(bia.page);
+  const pedidosDeArte = new Map<string, number>();
+  ana.page.on("response", (resposta) => {
+    if (resposta.url().startsWith(`${origemDoJogo(JOGO).http}/arte/`))
+      pedidosDeArte.set(new URL(resposta.url()).pathname, resposta.status());
+  });
 
   await test.step("7a. a estante não baixa o jogo; a página do jogo baixa, com a política dela", async () => {
     const daEstante = await scriptsDe(ana.page, () => ana.page.goto("/estante"));
@@ -161,7 +166,27 @@ test("duas contas jogam a mesma família; uma cai, a outra continua, e tudo volt
     await expect(ana.page).toHaveURL(enderecoDoJogo(mundoId));
     expect(doJogo.some((codigo) => codigo.includes(MARCA_DO_CLIENTE))).toBe(true);
     expect(doJogo.some((codigo) => codigo.includes(SINAL_DO_THREE))).toBe(true);
-    expect(politica).toContain(`connect-src 'self' ${origemDoJogo(JOGO).ws};`);
+    await expect(daAna.cena).toBeFocused();
+    const origemDaArte = process.env.MORADA_ARTE_DIR ? ` ${origemDoJogo(JOGO).http} blob:` : "";
+    expect(politica).toContain(`connect-src 'self' ${origemDoJogo(JOGO).ws}${origemDaArte};`);
+    if (process.env.MORADA_ARTE_DIR) {
+      // O teste normal continua sem arte; o opt-in local exercita SDK, CORS e CSP de verdade.
+      await expect
+        .poll(() => [...pedidosDeArte.keys()].filter((p) => p.includes("/obj-")).length)
+        .toBe(41);
+      await expect
+        .poll(() => [...pedidosDeArte.keys()].filter((p) => p.includes("/tex-")).length)
+        .toBe(11);
+      expect([...pedidosDeArte.values()].every((status) => status === 200 || status === 304)).toBe(
+        true,
+      );
+      await ana.page.getByRole("button", { name: "Paredes baixas", exact: true }).click();
+      await expect
+        .poll(() => [...pedidosDeArte.keys()].filter((p) => p.includes("/vao-")).length)
+        .toBe(3);
+      await tela(ana.page, "morada-arte-paredes-inteiras");
+      await ana.page.getByRole("button", { name: "Paredes altas", exact: true }).click();
+    }
     expect(politica).not.toContain("'unsafe-eval'");
     // Nada de quem joga está escrito no documento: nem o e-mail, nem um token.
     const documento = await ana.page.content();
@@ -204,8 +229,6 @@ test("duas contas jogam a mesma família; uma cai, a outra continua, e tudo volt
     // Uma saída só: a do jogo. A página não desenha a dela por cima.
     await expect(daAna.sair).toBeVisible();
     await expect(daAna.sairDaPagina).toHaveCount(0);
-    // O teclado já vale: o foco começou na cena.
-    await expect(daAna.cena).toBeFocused();
     await tela(ana.page, "morada-entrada-ana");
   });
 

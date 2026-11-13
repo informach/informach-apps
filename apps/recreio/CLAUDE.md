@@ -149,3 +149,10 @@ Textos em português do Brasil, simples e diretos, sem prometer o que ainda não
 - A entrada autorizada pela instância reavalia o direito de jogar, depois de conferir escopo, sessão e perfil, preservando as recusas que não revelam a existência de outro perfil/mundo.
 - A guarda compartilhada de `@informach/auth` impede excluir, por outro produto, uma conta que tenha perfil no Recreio. Até implementar sucessão/saída de mundos, a exclusão é assistida pelo suporte; o Recreio continua com a exclusão automática desligada.
 - O E2E isolado serve o Next standalone com `public` e `static` copiados e sobe `dist/main.mjs` do Morada. Implantação preparada em [PRODUCAO.md](PRODUCAO.md), ainda sem serviço publicado.
+
+
+## Arte da casa e verificação privada (D1)
+
+O portal continua só declarando `RECREIO_GAME_ORIGINS.morada.assets`; o jogo baixa a arte autenticada diretamente do servidor dele. Quando há origem de arte válida, `connect-src` também aceita `blob:`: o `GLTFLoader/ImageBitmapLoader` faz `fetch` das texturas embutidas. Outras páginas e jogos sem origem de arte continuam com a política anterior.
+
+O runner isolado aceita `RECREIO_E2E_ARTE_DIR=<pasta externa com manifest.json>`. Ele declara a origem HTTP da arte, entrega a pasta ao servidor do Morada e cria a pasta de evidências fora do checkout. Capturas manuais, screenshots automáticos e traces seguem para lá; o CI padrão continua sem arte. A rede fictícia de cada conta de teste (`x-real-ip`) só é aplicada à origem do portal, nunca à origem da arte. A jornada com arte confere os modelos e acabamentos carregados, as portas/janelas e a CSP, além de repetir as quedas.

@@ -82,6 +82,7 @@ export type MedidasDaCena = {
   placa: string;
   /** Intervalo entre quadros: p95 e média da última janela de 5 s, em milissegundos. */
   p95Ms: number | null;
+  p50Ms: number | null;
   mediaMs: number | null;
   /** Tempo gasto pela própria cena em cada quadro (conta e desenho), média da última janela. */
   custoMs: number | null;
@@ -89,6 +90,20 @@ export type MedidasDaCena = {
   triangulos: number;
   quadros: number;
 };
+
+/** Mesmo uma janela lenta precisa de medidas, para a qualidade poder descer. */
+export function medidasDosQuadros(intervalos: readonly number[], custos: readonly number[]) {
+  if (intervalos.length === 0) return null;
+  const ordenados = [...intervalos].sort((a, b) => a - b);
+  const p95 = ordenados[Math.min(ordenados.length - 1, Math.floor(ordenados.length * 0.95))] ?? 0;
+  return {
+    p95Ms: Math.round(p95 * 10) / 10,
+    p50Ms: Math.round((ordenados[Math.floor(ordenados.length / 2)] ?? 0) * 10) / 10,
+    mediaMs: Math.round((intervalos.reduce((s, x) => s + x, 0) / intervalos.length) * 10) / 10,
+    custoMs:
+      Math.round((custos.reduce((s, x) => s + x, 0) / Math.max(1, custos.length)) * 100) / 100,
+  };
+}
 
 export type OpcoesDaCena = {
   sessao: Sessao;
@@ -145,6 +160,8 @@ export class Cena {
   private terreno: Mesh | null = null;
   private pisos: Mesh[] = [];
   private paredes: Mesh[] = [];
+  private revestimentos: Mesh[] = [];
+  private aberturas: Object3D[] = [];
   private destino: Mesh | null = null;
   private destinoAte = 0;
 
@@ -169,8 +186,9 @@ export class Cena {
   private intervalos: number[] = [];
   private custos: number[] = [];
   private janelaDesde = 0;
-  private medidas: Pick<MedidasDaCena, "p95Ms" | "mediaMs" | "custoMs"> = {
+  private medidas: Pick<MedidasDaCena, "p95Ms" | "p50Ms" | "mediaMs" | "custoMs"> = {
     p95Ms: null,
+    p50Ms: null,
     mediaMs: null,
     custoMs: null,
   };
@@ -444,9 +462,13 @@ export class Cena {
   private desmontar(): void {
     this.soltarMalha(this.terreno);
     this.terreno = null;
-    for (const malha of [...this.pisos, ...this.paredes]) this.soltarMalha(malha);
+    for (const malha of [...this.pisos, ...this.paredes, ...this.revestimentos])
+      this.soltarMalha(malha);
     this.pisos = [];
     this.paredes = [];
+    this.revestimentos = [];
+    for (const vao of this.aberturas) vao.removeFromParent();
+    this.aberturas = [];
     this.objetos?.dispose();
     this.objetos = null;
     this.itens = [];
@@ -467,7 +489,20 @@ export class Cena {
     for (const lote of lotes) {
       const imovel = lote.imovelId ? obter(estado.imoveis, lote.imovelId) : undefined;
       if (!imovel) continue;
-      const casa = montarCasa(imovel, lote, corte, this.materialFixo);
+      const casa = montarCasa(
+        imovel,
+        lote,
+        corte,
+        this.materialFixo,
+        (id) => this.ativos.acabamento?.(id) ?? null,
+      );
+      this.revestimentos.push(...casa.revestimentos);
+      for (const malha of casa.revestimentos) this.mundo.add(malha);
+      const vaos = this.ativos.criarAberturas?.(imovel, lote, corte);
+      if (vaos) {
+        this.aberturas.push(vaos);
+        this.mundo.add(vaos);
+      }
       if (casa.pisos) {
         this.pisos.push(casa.pisos);
         this.mundo.add(casa.pisos);
@@ -561,28 +596,19 @@ export class Cena {
 
   /** Fecha uma janela de medida e desce a qualidade se os quadros estão demorando. */
   private fecharJanela(agora: number): void {
-    const intervalos = [...this.intervalos].sort((a, b) => a - b);
     this.janelaDesde = agora;
-    if (intervalos.length < 30) {
+    const medidas = medidasDosQuadros(this.intervalos, this.custos);
+    if (!medidas) {
       this.intervalos = [];
       this.custos = [];
       return;
     }
-    const p95 =
-      intervalos[Math.min(intervalos.length - 1, Math.floor(intervalos.length * 0.95))] ?? 0;
-    const media = intervalos.reduce((soma, valor) => soma + valor, 0) / intervalos.length;
-    const custo =
-      this.custos.reduce((soma, valor) => soma + valor, 0) / Math.max(1, this.custos.length);
-    this.medidas = {
-      p95Ms: Math.round(p95 * 10) / 10,
-      mediaMs: Math.round(media * 10) / 10,
-      custoMs: Math.round(custo * 100) / 100,
-    };
+    this.medidas = medidas;
     this.intervalos = [];
     this.custos = [];
     const degrau = DEGRAUS.indexOf(this.qualidadeAtual);
     const proximo = DEGRAUS[degrau + 1];
-    if (p95 > LIMITE_DO_P95_MS && proximo) {
+    if (medidas.p95Ms > LIMITE_DO_P95_MS && proximo) {
       this.qualidadeAtual = proximo;
       this.aplicarQualidade();
     }

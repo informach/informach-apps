@@ -3,6 +3,8 @@ export { empacotar, type OpcoesDoEmpacotador, type Resultado } from "./empacotar
 export { ErroDeArte } from "./erros";
 export { Biblioteca } from "./leitura/biblioteca";
 export {
+  type AberturaDoManifesto,
+  type AcabamentoDoManifesto,
   ARQUIVO_DO_MANIFESTO,
   arquivosDoManifesto,
   type BibliotecaDoManifesto,
@@ -10,6 +12,7 @@ export {
   FORMATO_DO_MANIFESTO,
   type Manifesto,
   ManifestoSchema,
+  type ObjetoDoManifesto,
   type PersonagemDoManifesto,
   SUFIXO_BROTLI,
   VERSAO_DO_MANIFESTO,

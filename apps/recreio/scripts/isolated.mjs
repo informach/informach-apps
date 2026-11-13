@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
-import { basename, dirname, resolve } from "node:path";
+import { cpSync, existsSync, mkdirSync, realpathSync, rmSync } from "node:fs";
+import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
 import postgres from "postgres";
@@ -47,6 +47,22 @@ const gamePort = porta("RECREIO_E2E_GAME_PORT", "3019");
 const moradaPort = porta("RECREIO_E2E_MORADA_PORT", "3110");
 const origin = e2e ? `http://localhost:${e2ePort}` : "http://localhost:3009";
 const e2eRunId = e2e ? randomBytes(12).toString("hex") : "";
+// Opt-in local: a arte e TODAS as capturas/traces ficam fora do checkout público.
+const artDir =
+  e2e && process.env.RECREIO_E2E_ARTE_DIR ? realpathSync(process.env.RECREIO_E2E_ARTE_DIR) : null;
+function outsideRepository(path) {
+  const rel = relative(realpathSync(root), realpathSync(path));
+  if (!rel || (!rel.startsWith("..") && !isAbsolute(rel)))
+    throw new Error("Private art and evidence must remain outside the public repository");
+}
+let privateArtifacts = null;
+if (artDir) {
+  outsideRepository(artDir);
+  if (!existsSync(resolve(artDir, "manifest.json"))) throw new Error("Art manifest missing");
+  privateArtifacts = resolve(artDir, "..", `recreio-evidence-${e2eRunId}`);
+  mkdirSync(privateArtifacts, { recursive: true });
+  outsideRepository(privateArtifacts);
+}
 // O que a execução cria dentro do app e apaga no fim.
 const generatedPaths = e2e
   ? [
@@ -94,7 +110,10 @@ const testEnv = {
     e2e
       ? {
           teste: { ws: `ws://localhost:${gamePort}` },
-          morada: { ws: `ws://localhost:${moradaPort}` },
+          morada: {
+            ws: `ws://localhost:${moradaPort}`,
+            ...(artDir ? { assets: `http://localhost:${moradaPort}` } : {}),
+          },
         }
       : { morada: { ws: "ws://localhost:3010" }, "jogo-de-teste": { ws: "ws://localhost:3011" } },
   ),
@@ -104,6 +123,10 @@ const testEnv = {
   RECREIO_E2E_PORT: e2ePort,
 };
 const childEnv = { ...process.env, ...testEnv, RECREIO_ISOLATED_TEST: "1" };
+delete childEnv.MORADA_ARTE_DIR;
+delete childEnv.RECREIO_E2E_PRIVATE_ARTIFACTS;
+if (artDir) childEnv.MORADA_ARTE_DIR = artDir;
+if (privateArtifacts) childEnv.RECREIO_E2E_PRIVATE_ARTIFACTS = privateArtifacts;
 // Isolated verification must not inherit optional production transports. In
 // particular, Better Auth stores sessions in Redis when REDIS_URL is present;
 // that would bypass the disposable PostgreSQL database created above and make
@@ -161,7 +184,9 @@ try {
     );
 } catch (error) {
   // Os traces e as capturas de uma falha ficam em `tmp/verification`.
-  if (resultsPath && existsSync(resultsPath)) {
+  if (privateArtifacts) {
+    console.error(`[recreio] Private evidence preserved outside repository: ${privateArtifacts}`);
+  } else if (resultsPath && existsSync(resultsPath)) {
     const evidence = resolve(app, "tmp/verification", e2eRunId);
     mkdirSync(evidence, { recursive: true });
     cpSync(resultsPath, evidence, { recursive: true });

@@ -4,7 +4,8 @@ import {
   ManifestoSchema,
   type PersonagemDoManifesto,
 } from "@informach/morada-arte/manifesto";
-import type { Objeto } from "@informach/morada-sim";
+import type { Lote, Objeto } from "@informach/morada-sim";
+import type { DocumentoDeImovel } from "@informach/morada-sim/formatos";
 import {
   type AnimationAction,
   type AnimationClip,
@@ -19,14 +20,19 @@ import {
   Matrix4,
   Mesh,
   MeshBasicMaterial,
+  MeshLambertMaterial,
   type Object3D,
   Quaternion,
+  RepeatWrapping,
   type SkinnedMesh,
+  SRGBColorSpace,
+  Texture,
   Vector3,
 } from "three";
 import { clone as clonarComEsqueleto } from "three/addons/utils/SkeletonUtils.js";
 import type { PontoDaCena } from "../cena/espaco";
 import type { PosturaDoCorpo } from "../cena/situacao";
+import { montarAberturas } from "./aberturas";
 import type {
   Ativos,
   DescricaoDoMorador,
@@ -43,6 +49,7 @@ import {
   expressaoDaPose,
   pesosDaGravidez,
 } from "./escolhas";
+import { type ModeloDeObjeto, ObjetosDeArte } from "./objetos";
 import { AtivosProcedurais } from "./procedurais";
 
 /**
@@ -51,8 +58,8 @@ import { AtivosProcedurais } from "./procedurais";
  *
  * Nada espera a arte: cada morador nasce procedural e veste o corpo de verdade
  * quando o pacote dele chega. Sem manifesto, sem pacote para a fase ou com o
- * download falho, ele continua procedural. Os objetos da casa continuam
- * procedurais nesta etapa.
+ * download falho, ele continua procedural. Com manifesto V2, os objetos da
+ * casa também trocam o procedural pelos modelos, com seleção por instância.
  *
  * Cada arquivo é baixado uma vez por jogo; as bibliotecas de animação, só
  * quando uma pose pede (a de grávida, só no 2º trimestre). Um download que
@@ -72,6 +79,7 @@ export type OpcoesDaArte = {
   lerPacote?(dados: ArrayBuffer): Promise<PacoteLido>;
   /** Avisa uma falha de download ou de leitura, uma vez por arquivo. */
   aoFalhar?(arquivo: string, erro: unknown): void;
+  lerTextura?(dados: Blob): Promise<Texture>;
 };
 
 /** Uma biblioteca de animação pronta: a entrada do manifesto e os clipes pelo nome. */
@@ -100,6 +108,13 @@ export class AtivosDeArte implements Ativos {
   /** Tudo o que veio de um GLB, para soltar no fim. */
   private readonly lidos: PacoteLido[] = [];
   private descartado = false;
+  private manifestoLido: Manifesto | null = null;
+  private readonly modelos = new Map<string, ModeloDeObjeto>();
+  private readonly materiais = new Map<string, MeshLambertMaterial>();
+  private readonly cenasDosVaos = new Map<string, Object3D>();
+  private readonly pedidosDoAmbiente = new Set<string>();
+  private readonly ouvintes = new Set<() => void>();
+  private notificacaoPendente = false;
 
   constructor(private readonly opcoes: OpcoesDaArte) {
     this.buscar = opcoes.fetch ?? ((entrada, init) => fetch(entrada, init));
@@ -107,11 +122,111 @@ export class AtivosDeArte implements Ativos {
   }
 
   criarObjetos(objetos: readonly ObjetoDaCena[]): VisualDosObjetos {
-    return this.procedurais.criarObjetos(objetos);
+    void this.prepararObjetos(objetos);
+    const semArte = objetos.filter(
+      (x) => !this.modelos.has(`${x.objeto.catalogo}@${x.objeto.versao}`),
+    );
+    return new ObjetosDeArte(objetos, this.modelos, this.procedurais.criarObjetos(semArte));
   }
 
   apoio(objeto: Objeto, ponto: string, postura: PosturaDoCorpo): number {
+    const altura = this.modelos.get(`${objeto.catalogo}@${objeto.versao}`)?.entrada.apoios[ponto];
+    if (altura !== undefined && (postura === "sentado" || postura === "deitado"))
+      return Math.round(altura * 1000);
     return this.procedurais.apoio(objeto, ponto, postura);
+  }
+
+  aoMudar(ouvinte: () => void): () => void {
+    this.ouvintes.add(ouvinte);
+    return () => this.ouvintes.delete(ouvinte);
+  }
+
+  private avisar(): void {
+    if (this.notificacaoPendente || this.descartado) return;
+    this.notificacaoPendente = true;
+    queueMicrotask(() => {
+      this.notificacaoPendente = false;
+      if (!this.descartado) for (const ouvinte of this.ouvintes) ouvinte();
+    });
+  }
+
+  private async prepararObjetos(objetos: readonly ObjetoDaCena[]): Promise<void> {
+    const m = await this.obterManifesto();
+    if (m?.versao !== 2 || this.descartado) return;
+    const necessarios = new Set(objetos.map((x) => `${x.objeto.catalogo}@${x.objeto.versao}`));
+    for (const entrada of m.objetos) {
+      const chave = `${entrada.id}@${entrada.versao}`;
+      if (
+        !necessarios.has(chave) ||
+        this.modelos.has(chave) ||
+        this.pedidosDoAmbiente.has(entrada.arquivo)
+      )
+        continue;
+      this.pedidosDoAmbiente.add(entrada.arquivo);
+      void this.obterPacote(entrada.arquivo).then((pacote) => {
+        if (pacote && !this.descartado) {
+          this.modelos.set(chave, { entrada, cena: pacote.scene });
+          this.avisar();
+        }
+        // Uma falha permite tentar de novo numa reconstrução futura da cena.
+        this.pedidosDoAmbiente.delete(entrada.arquivo);
+      });
+    }
+  }
+
+  acabamento(id: string): MeshLambertMaterial | null {
+    const pronto = this.materiais.get(id);
+    if (pronto || this.descartado) return pronto ?? null;
+    void this.prepararAcabamento(id);
+    return null;
+  }
+
+  private async prepararAcabamento(id: string): Promise<void> {
+    const m = await this.obterManifesto();
+    if (m?.versao !== 2 || this.descartado || this.materiais.has(id)) return;
+    const entrada = m.acabamentos.find((x) => x.id === id);
+    if (!entrada || this.pedidosDoAmbiente.has(entrada.arquivo)) return;
+    this.pedidosDoAmbiente.add(entrada.arquivo);
+    try {
+      const resposta = await this.baixar(entrada.arquivo);
+      if (!resposta || this.descartado) return;
+      const blob = await resposta.blob();
+      const textura = this.opcoes.lerTextura
+        ? await this.opcoes.lerTextura(blob)
+        : new Texture(await createImageBitmap(blob, { imageOrientation: "flipY" }));
+      if (this.descartado) {
+        soltarTextura(textura);
+        return;
+      }
+      textura.colorSpace = SRGBColorSpace;
+      textura.wrapS = textura.wrapT = RepeatWrapping;
+      textura.repeat.set(1 / entrada.escala, 1 / entrada.escala);
+      textura.needsUpdate = true;
+      this.materiais.set(id, new MeshLambertMaterial({ map: textura }));
+      this.avisar();
+    } catch (erro) {
+      this.opcoes.aoFalhar?.(entrada.arquivo, erro);
+    } finally {
+      this.pedidosDoAmbiente.delete(entrada.arquivo);
+    }
+  }
+
+  criarAberturas(imovel: DocumentoDeImovel, lote: Lote, corte: number | null): Object3D {
+    const m = this.manifestoLido;
+    if (corte !== null || !m || m.versao !== 2) return new Group();
+    for (const entrada of m.aberturas) {
+      if (this.cenasDosVaos.has(entrada.arquivo) || this.pedidosDoAmbiente.has(entrada.arquivo))
+        continue;
+      this.pedidosDoAmbiente.add(entrada.arquivo);
+      void this.obterPacote(entrada.arquivo).then((pacote) => {
+        if (pacote && !this.descartado) {
+          this.cenasDosVaos.set(entrada.arquivo, pacote.scene);
+          this.avisar();
+        }
+        this.pedidosDoAmbiente.delete(entrada.arquivo);
+      });
+    }
+    return montarAberturas(imovel, lote, m.aberturas, this.cenasDosVaos);
   }
 
   criarMorador(descricao: DescricaoDoMorador): VisualDoMorador {
@@ -165,9 +280,16 @@ export class AtivosDeArte implements Ativos {
     if (!this.manifesto) {
       const pedido = this.baixar("manifest.json").then(async (resposta) => {
         if (!resposta) return null;
-        const lido = ManifestoSchema.safeParse(await resposta.json());
-        if (lido.success) return lido.data;
-        this.opcoes.aoFalhar?.("manifest.json", lido.error);
+        try {
+          const lido = ManifestoSchema.safeParse(await resposta.json());
+          if (lido.success) {
+            this.manifestoLido = lido.data;
+            return lido.data;
+          }
+          this.opcoes.aoFalhar?.("manifest.json", lido.error);
+        } catch (erro) {
+          this.opcoes.aoFalhar?.("manifest.json", erro);
+        }
         return null;
       });
       this.manifesto = pedido;
@@ -227,7 +349,21 @@ export class AtivosDeArte implements Ativos {
     for (const pacote of this.lidos.splice(0)) soltarPacote(pacote);
     this.bibliotecas.clear();
     this.pacotes.clear();
+    this.ouvintes.clear();
+    this.modelos.clear();
+    this.cenasDosVaos.clear();
+    for (const material of this.materiais.values()) {
+      if (material.map) soltarTextura(material.map);
+      material.dispose();
+    }
+    this.materiais.clear();
   }
+}
+
+function soltarTextura(textura: Texture): void {
+  textura.dispose();
+  const imagem: unknown = textura.image;
+  if (typeof ImageBitmap !== "undefined" && imagem instanceof ImageBitmap) imagem.close();
 }
 
 /** Solta geometrias, materiais e texturas de um GLB. */

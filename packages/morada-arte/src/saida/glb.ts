@@ -7,7 +7,7 @@ import {
   NodeIO,
   type Skin,
 } from "@gltf-transform/core";
-import { EXTMeshoptCompression, KHRMeshQuantization } from "@gltf-transform/extensions";
+import { ALL_EXTENSIONS, EXTMeshoptCompression } from "@gltf-transform/extensions";
 import { quantize, reorder } from "@gltf-transform/functions";
 import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
 import type { Pesos } from "../encaixe/montar";
@@ -44,12 +44,10 @@ export function entradaESaida(): Promise<NodeIO> {
   io ??= (async () => {
     await MeshoptEncoder.ready;
     await MeshoptDecoder.ready;
-    return new NodeIO()
-      .registerExtensions([EXTMeshoptCompression, KHRMeshQuantization])
-      .registerDependencies({
-        "meshopt.encoder": MeshoptEncoder,
-        "meshopt.decoder": MeshoptDecoder,
-      });
+    return new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
+      "meshopt.encoder": MeshoptEncoder,
+      "meshopt.decoder": MeshoptDecoder,
+    });
   })();
   return io;
 }

@@ -12,6 +12,8 @@ Vários produtos web independentes que compartilham fundações (auth, billing, 
 
 Custos aceitos: tooling mais sofisticado (workspace manager + task runner), e blast radius maior quando se quebra uma config compartilhada. Os dois se mitigam com Turborepo e CI verde como gate de merge.
 
+Fluxo Git definido pelo titular em 13/11/2026: trabalho e commits na `main`, merges locais na `main` e push para `origin/main` após os gates da alteração. Conferir e integrar mudanças remotas sem sobrescrever trabalho concorrente. A autorização persiste para as entregas solicitadas; exceções dependem de uma orientação posterior do titular. O CI continua executando no push, conforme a configuração abaixo.
+
 ---
 
 ## Stack

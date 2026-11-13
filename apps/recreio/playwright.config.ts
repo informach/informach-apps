@@ -21,7 +21,9 @@ if (!e2eRunId || !/^[a-f0-9]{24}$/.test(e2eRunId))
 const origin = `http://localhost:${e2ePort}`;
 export default defineConfig({
   testDir: "./e2e",
-  outputDir: `test-results-${e2eRunId}`,
+  outputDir: process.env.RECREIO_E2E_PRIVATE_ARTIFACTS
+    ? `${process.env.RECREIO_E2E_PRIVATE_ARTIFACTS}/test-results`
+    : `test-results-${e2eRunId}`,
   // A jornada principal espera a posse de uma instância morta vencer (30 s).
   timeout: 240000,
   workers: 1,

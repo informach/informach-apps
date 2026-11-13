@@ -1,6 +1,7 @@
-import type { Aparencia, Fase, MoradorId, Objeto, ObjetoId } from "@informach/morada-sim";
+import type { Aparencia, Fase, Lote, MoradorId, Objeto, ObjetoId } from "@informach/morada-sim";
 import type { EntradaDeCatalogo } from "@informach/morada-sim/conteudo";
-import type { Intersection, Object3D } from "three";
+import type { DocumentoDeImovel } from "@informach/morada-sim/formatos";
+import type { Intersection, Material, Object3D } from "three";
 import type { PontoDaCena } from "../cena/espaco";
 import type { PosturaDoCorpo } from "../cena/situacao";
 
@@ -72,6 +73,10 @@ export interface VisualDosObjetos {
 }
 
 export interface Ativos {
+  /** Material compartilhado de piso/parede; null enquanto carrega ou sem pacote. */
+  acabamento?(id: string): Material | null;
+  /** Encaixes visuais nos vãos existentes; nunca muda a planta nem a navegação. */
+  criarAberturas?(imovel: DocumentoDeImovel, lote: Lote, corte: number | null): Object3D;
   /** O visual de todos os objetos de uma vez, para a implementação poder agrupar em instâncias. */
   criarObjetos(objetos: readonly ObjetoDaCena[]): VisualDosObjetos;
   /** O corpo de um morador. A cena pede outro quando a fase ou a aparência mudam. */

@@ -73,7 +73,7 @@ O espelho tem as mesmas tabelas do estado do servidor, então as funções puras
 
 **Conexão.** Depois de 4009, 4010, 4011, 4013 e de queda de rede, o cliente chama `fonte.abrir()` de novo (espera de 0,5 s a 8 s, com folga sorteada) e entra com a mesma sessão, que retoma a reserva. Depois de 4001, 4003, 4008 e 4012, para e diz por quê. Se `fonte.abrir()` falha, o cliente também tenta de novo; quem hospeda decide, dentro de `abrir`, o que é passageiro (deixa o erro sair) e o que é definitivo (avisa a pessoa e desmonta o jogo). No portal essa regra está em `apps/recreio/src/features/jogar/adaptadores/morada-regra.ts`.
 
-**Ativos.** A cena não sabe que cara as coisas têm: pede a `Ativos`. `AtivosProcedurais` desenha sem arte nenhuma, e é o que roda no CI e em todo teste. Com `origemDaArte`, o jogo usa `AtivosDeArte`: cada morador nasce procedural e veste o pacote (`@informach/morada-arte`) quando ele chega de `<origemDaArte>/arte/<arquivo>`, pedido com `Authorization: Bearer <sessão de jogo>`. O pacote só é pedido quando a cena desenha o morador pela primeira vez (o vizinho fora do bairro não baixa nada); cada arquivo baixa uma vez por jogo; as bibliotecas de animação, só quando uma pose pede (a de grávida, a partir do 2º trimestre). Sem manifesto, sem pacote para a fase ou com o download falho, o morador continua procedural. Quem carrega um bebê fica no clipe de segurar, andando ou não, e o colo segue o meio das mãos a cada quadro; o bebê deita atravessado entre elas. O clique acerta uma caixa invisível do tamanho do corpo, não a malha com esqueleto. Os objetos continuam procedurais até o D1. A arte licenciada nunca é versionada aqui.
+**Ativos.** A cena não sabe que cara as coisas têm: pede a `Ativos`. `AtivosProcedurais` desenha sem arte nenhuma, e é o que roda no CI e em todo teste. Com `origemDaArte`, o jogo usa `AtivosDeArte`: cada morador nasce procedural e veste o pacote (`@informach/morada-arte`) quando ele chega de `<origemDaArte>/arte/<arquivo>`, pedido com `Authorization: Bearer <sessão de jogo>`. O pacote só é pedido quando a cena desenha o morador pela primeira vez (o vizinho fora do bairro não baixa nada); cada arquivo baixa uma vez por jogo; as bibliotecas de animação, só quando uma pose pede (a de grávida, a partir do 2º trimestre). Sem manifesto, sem pacote para a fase ou com o download falho, o morador continua procedural. Quem carrega um bebê fica no clipe de segurar, andando ou não, e o colo segue o meio das mãos a cada quadro; o bebê deita atravessado entre elas. O clique acerta uma caixa invisível do tamanho do corpo, não a malha com esqueleto. Com manifesto V2, móveis repetidos usam `InstancedMesh` e compartilham geometria/material. Os que não chegaram ou falharam continuam procedurais. A arte licenciada nunca é versionada aqui.
 
 ## Rodar
 
@@ -119,11 +119,19 @@ Os testes de unidade usam a simulação de verdade (`@informach/morada-sim/teste
 
 ## Ainda não tem
 
-- Arte dos móveis e da casa (lote D1). As caixas procedurais têm a altura inteira da peça: a cama de casal (0,999 m, a cabeceira) cobre quem deita no colchão (0,52 m).
 - Som, construir, comprar e criar família (etapa 2).
 
 O jogo no portal (`/jogar/morada`), com duas contas, a queda de uma delas e a queda da instância, é conferido pelo E2E do portal: `apps/recreio/e2e/morada.spec.ts`.
 
 ## Móveis sem pacote de arte
 
-O fallback procedural usa superfícies de uso e encostos separados para cama e sofá, dois colchões no beliche e colchão/grades no berço. `formas-do-movel.ts` compartilha as alturas de assento e colchão com `apoio`; o colchão do berço usa a mesma altura do bebê. A cabeceira não ocupa mais todo o volume da cama. Todas as peças continuam num único `InstancedMesh`, com seleção por objeto e limites recalculados ao mudar a visibilidade. Isso melhora o fallback; a arte completa dos móveis do lote D1 continua pendente.
+O fallback procedural usa superfícies de uso e encostos separados para cama e sofá, dois colchões no beliche e colchão/grades no berço. `formas-do-movel.ts` compartilha as alturas de assento e colchão com `apoio`; o colchão do berço usa a mesma altura do bebê. A cabeceira não ocupa mais todo o volume da cama. Todas as peças continuam num único `InstancedMesh`, com seleção por objeto e limites recalculados ao mudar a visibilidade. O fallback continua independente da arte e permanece como base dos testes de CI.
+
+
+## Casa com arte (D1)
+
+`AtivosDeArte` lê os manifestos V1 e V2. V2 fornece os visuais dos móveis, os apoios reais e os materiais de acabamento. A seleção continua mapeando cada instância ao id do objeto, inclusive depois de esconder móveis de parede/teto. Geometrias e materiais pertencem ao cache dos ativos; reconstruir a cena solta só instâncias e superfícies próprias, e sair do jogo solta os recursos compartilhados.
+
+`Ativos.acabamento(id)` retorna um material compartilhado ou `null` enquanto baixa. `aoMudar` invalida a casa quando um recurso fica pronto. Os revestimentos são superfícies agrupadas por material, com UV em metros; uma parede é dividida onde mudam os cômodos e mantém os vãos e o corte da planta. Os modelos de portas e janelas usam os vãos existentes. Portas ficam abertas até existir estado de porta na simulação; passagens sem folha continuam abertas. Nada disso muda save, navegação ou protocolo.
+
+Apoios de assento/colchão vêm da geometria. O bebê no berço usa `dentro`, e o beliche usa alturas distintas para seus dois pontos. A arte ausente mantém o apoio procedural correspondente. A medição de depuração inclui p50/p95 de quadro, chamadas e triângulos. Ver [review do D1](../../docs/recreio/review-d1-2026-11-13.md) para evidências e limites, inclusive a meta ainda não homologada em vídeo integrado.

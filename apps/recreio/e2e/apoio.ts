@@ -26,7 +26,9 @@ import {
 export const SENHA = "Recreio-Teste-2026-Local!";
 export const APP = process.cwd();
 /** Capturas das telas do jogo, para quem revisa olhar (`tmp` não entra no git). */
-const TELAS = path.resolve(APP, "tmp/telas");
+const TELAS = process.env.RECREIO_E2E_PRIVATE_ARTIFACTS
+  ? path.resolve(process.env.RECREIO_E2E_PRIVATE_ARTIFACTS, "telas")
+  : path.resolve(APP, "tmp/telas");
 
 export async function tela(page: Page, nome: string): Promise<void> {
   await mkdir(TELAS, { recursive: true });
@@ -140,8 +142,15 @@ export async function novoAparelho(browser: Browser): Promise<BrowserContext> {
   const contexto = await browser.newContext({
     baseURL: uso.baseURL,
     viewport: uso.viewport,
-    extraHTTPHeaders: { "x-real-ip": `198.51.${semente[0]}.${semente[1]}` },
   });
+  if (!uso.baseURL) throw new Error("E2E sem origem do portal");
+  // O IP fictício só vai ao portal. Cabeçalho global vazava para a origem
+  // da arte e tornava seu preflight diferente do navegador de produção.
+  await contexto.route(`${new URL(uso.baseURL).origin}/**`, (rota) =>
+    rota.continue({
+      headers: { ...rota.request().headers(), "x-real-ip": `198.51.${semente[0]}.${semente[1]}` },
+    }),
+  );
   await vigiar(contexto);
   contextos.push(contexto);
   return contexto;

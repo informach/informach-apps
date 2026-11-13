@@ -35,8 +35,8 @@ O Morada alcança `http://informachrecreio.railway.internal:3009`; esse HTTP só
 
 O código é público. O clone `informach/artes-3d` e a saída do empacotador ficam fora deste repositório e de qualquer artefato público de CI. Consulte a [nota de passagem](../../docs/recreio/passagem.md) para o commit e os caminhos de empacotamento já utilizados.
 
-1. Empacotar num ambiente privado com `ARTES_3D_DIR=<clone privado> pnpm --filter @informach/morada-arte empacotar -- --saida <pasta privada>`.
-2. Transferir a saída completa (`manifest.json`, GLBs e cópias `.br`) por um canal privado autorizado para `/data/arte/<versao>` no volume do Morada. Este trabalho não configura um upload nem um bucket novo.
+1. Empacotar num ambiente privado com `ARTES_3D_DIR=<clone privado> pnpm --filter @informach/morada-arte empacotar -- --saida <pasta privada> --casa packages/morada-sim/src/conteudo/imoveis/casa-prova.v1.json`.
+2. Transferir a saída completa (`manifest.json`, GLBs, PNGs e cópias `.br`) por um canal privado autorizado para `/data/arte/<versao>` no volume do Morada. Este trabalho não configura um upload nem um bucket novo.
 3. Definir `MORADA_ARTE_DIR=/data/arte/<versao>` no provedor somente depois da transferência. Reiniciar o processo para conferir/carregar o pacote. Não sobrescrever arquivos de uma versão em uso; preservar a versão anterior para rollback.
 4. Acrescentar `assets: "https://morada-server.informach.com.br"` ao mapa `RECREIO_GAME_ORIGINS.morada` na IaC e reconstruir o portal, pois essa origem também participa da CSP do documento.
 5. Conferir `/jogar/morada` com a arte: CORS, CSP, corpo real, sentar/deitar, gravidez e bebê no colo. A rota `/arte/` exige sessão de jogo válida e só entrega os nomes do manifesto.
@@ -61,4 +61,4 @@ No X4, medir 1, 2, 4 e 8 jogadores por mundo com processo compilado, rede e arma
 
 A exclusão automática de contas com perfil Recreio está temporariamente bloqueada em todos os produtos: o suporte precisa tratar os pedidos até existir sucessão/saída de mundos. Não apagar contas diretamente como procedimento de suporte sem um plano de preservação dos mundos compartilhados.
 
-Lançamento público continua dependendo das condições jurídicas e de licença do registro da frente. Criar família, construção/compras, arte completa de móveis, expansão das interações, som e teste de diversão são os lotes D1–D8; esta preparação de implantação não os declara concluídos.
+Lançamento público continua dependendo das condições jurídicas e de licença do registro da frente. A arte da casa atual do D1 está implementada na frente correspondente; a meta de FPS em vídeo integrado ainda precisa de homologação. Criar família, construção/compras, expansão das interações, som e teste de diversão continuam nos lotes D2–D8; esta preparação de implantação não os declara concluídos.

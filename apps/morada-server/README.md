@@ -153,3 +153,10 @@ Cada pulso inicia somente os mundos sem um passo em voo. Um diário ou checkpoin
 `SENTRY_DSN` é opcional. O servidor envia apenas classificadores de falha (`rede`, `encerrar`, `iniciar` e código do Recreio ou `INTERNO`), com filtro que remove requisição, pessoa, breadcrumbs e mensagens livres. O serviço, o volume de arte e o cron estão preparados no Railway atrás de `RECREIO_LAUNCHED=false`; isso não cria recursos nem comprova deploy. Instruções em [PRODUCAO.md](PRODUCAO.md).
 
 Em produção, `RECREIO_API_URL` aceita HTTPS ou HTTP numa origem privada exata `<serviço>.railway.internal`. A API privada exige `RECREIO_EMISSOR` HTTPS explícito, igual ao emissor público do portal. URLs com credenciais, caminho ou outro protocolo são recusadas.
+
+
+### Arte do ambiente (D1)
+
+A rota `/arte/<arquivo>` aceita manifestos V1 e V2; V2 acrescenta móveis/encaixes GLB e acabamentos PNG. Só arquivos enumerados pelo manifesto são entregues, sempre após conferir a sessão. PNG usa `image/png`; GLB, `model/gltf-binary`. CORS, ETag por representação, cache privado e brotli seguem a mesma regra dos personagens. A pasta inteira é carregada ao iniciar: publicar outra versão exige reiniciar o processo.
+
+Arte, saída do empacotador e evidências com arte permanecem fora do repositório público. O E2E do portal tem opt-in local `RECREIO_E2E_ARTE_DIR`, explicado na [passagem](../../docs/recreio/passagem.md); ele não cria serviço remoto nem transfere arquivos.

@@ -70,7 +70,7 @@ describe("política da página de um jogo", () => {
       jogo: { ws: "wss://morada.example.test", assets: "https://arte.example.test" },
     });
     expect(csp).toContain(
-      "connect-src 'self' wss://morada.example.test https://arte.example.test;",
+      "connect-src 'self' wss://morada.example.test https://arte.example.test blob:;",
     );
     expect(csp).toContain("img-src 'self' data: blob: https://arte.example.test;");
     expect(csp).toContain("media-src 'self' data: blob: https://arte.example.test;");

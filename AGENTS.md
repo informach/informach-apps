@@ -12,6 +12,10 @@ Este é o ponto de entrada permanente para trabalhar no repositório `informach-
 
 As instruções locais de `AGENTS.md` e `CLAUDE.md` complementam este guia dentro de suas áreas. Decisões atuais e guias específicos prevalecem sobre resumos antigos; divergências devem ser corrigidas e registradas, não resolvidas por suposição. O pedido atual do usuário define o escopo e a autorização da tarefa.
 
+## Fluxo Git do titular
+
+Decisão de 13/11/2026: trabalhar e fazer commits na `main`, integrar mudanças por merge local na `main` e fazer push para `origin/main` depois dos gates da alteração. Essa orientação autoriza commit, integração local e push do trabalho solicitado; não exigir uma nova confirmação a cada entrega. Conferir a `main` remota antes de publicar, preservar mudanças concorrentes e nunca sobrescrever histórico remoto com force-push. Uma instrução posterior do titular pode definir uma exceção para uma tarefa específica.
+
 ## Mapa dos produtos
 
 O código fica em `informach/informach-apps`, atualmente público no GitHub. Arte licenciada permanece no repositório privado `informach/artes-3d`, fora deste checkout. Os aplicativos web são serviços separados no Railway, no projeto `informach-apps`, com o domínio da casa `informach.com.br` e subdomínios por produto. Reutilize a infraestrutura existente quando o contrato permitir; não proponha outro provedor ou outro banco como padrão.

@@ -27,8 +27,8 @@ import { sessaoVencida, type VerificadorDeSessao } from "@informach/recreio/cont
  *   imutável. O manifesto não tem, e é revalidado a cada abertura pelo ETag.
  * - Quem aceita brotli recebe a cópia `.br` que o empacotador gravou.
  *
- * Tudo é lido para a memória na subida (a prova inteira tem cerca de 8 MB com
- * as cópias em brotli): trocar a arte é reiniciar o processo.
+ * Tudo é lido para a memória na subida, inclusive as cópias em brotli:
+ * trocar a arte é reiniciar o processo.
  */
 
 export const PREFIXO_DA_ARTE = "/arte/";
@@ -80,7 +80,11 @@ function carregar(pasta: string, nome: string, ehManifesto: boolean): Arquivo {
   return {
     corpo,
     brotli: existsSync(comprimido) ? readFileSync(comprimido) : null,
-    tipo: ehManifesto ? "application/json; charset=utf-8" : "model/gltf-binary",
+    tipo: ehManifesto
+      ? "application/json; charset=utf-8"
+      : nome.endsWith(".png")
+        ? "image/png"
+        : "model/gltf-binary",
     cache: ehManifesto ? CACHE_DO_MANIFESTO : CACHE_DOS_PACOTES,
     etag: `"${resumo}"`,
     etagBrotli: `"${resumo}-br"`,

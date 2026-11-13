@@ -2,13 +2,13 @@
 
 Atualizado em 13/11/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
 
-## Recreio e Morada: revisão e preparação do X3 (13/11/2026)
+## Recreio e Morada: arte da casa, lote D1 (13/11/2026)
 
-A `main` contém a prova multiplayer até o X2. A continuação local está em `feat/recreio-review-completion`: correções de integridade na recuperação, acesso/renovação, isolamento de mundos lentos e móveis procedurais; build de produção do Morada, preparação do Railway, Bastidores mínimo e guarda temporária de exclusão de contas. Detalhes, verificações e limites no [review de 13/11](recreio/review-2026-11-13.md), no [registro da implementação](recreio/implementacao.md) e na [passagem](recreio/passagem.md).
+A `main` em `3f952fd` já contém P0–P7, J0–J8, X1–X3 e as correções do review de 13/11. A referência anterior a uma branch local do X3 estava desatualizada. A continuação na `main` acrescenta: manifesto V2 compatível com V1, móveis reais, acabamentos e encaixes da casa atual, apoios medidos e verificação com arte privada. Evidências e limites no [review do D1](recreio/review-d1-2026-11-13.md); sequência no [registro da implementação](recreio/implementacao.md) e na [passagem](recreio/passagem.md).
 
-Recreio e Morada continuam sem deploy. `RECREIO_LAUNCHED=false` mantém os dois serviços, o cron e o volume fora do projeto Railway; o [guia de operação](../apps/recreio/PRODUCAO.md) prepara o próximo passo. X4 (implantação fechada/medição real) e D1–D8 (diversão) continuam pendentes. Contas com perfil Recreio exigem exclusão assistida até existir sucessão/saída de mundos.
+Recreio e Morada continuam sem deploy. `RECREIO_LAUNCHED=false` mantém os recursos fora do projeto Railway. A prioridade escolhida é avançar o jogo: próximo lote D2, criação de família. A medição de quadros em vídeo integrado continua pendente; X4 (implantação fechada/custo real) e D2–D8 não são encerrados por esta entrega. Contas com perfil Recreio exigem exclusão assistida até existir sucessão/saída de mundos.
 
-As propostas e a arte ficam no repositório privado `informach/artes-3d`. Não versionar aqui peças licenciadas, animações Mixamo ou biblioteca de arte. Este repositório está público, e a pendência dos arquivos antigos no histórico continua no registro da frente.
+Arte licenciada, pacotes e capturas com arte permanecem fora do checkout público, no clone privado e nas pastas externas de validação. O E2E padrão continua sem arte. A pendência dos arquivos antigos no histórico não foi alterada.
 
 ## EdiPlayer, sexta ferramenta da suíte Edi (06/11/2026)
 

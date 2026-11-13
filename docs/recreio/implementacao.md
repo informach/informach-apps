@@ -2,7 +2,7 @@
 
 Registro detalhado da frente. O índice de continuidade é o [estado do repositório](../estado-do-repositorio.md); as regras permanentes ficam no [AGENTS.md](../../AGENTS.md).
 
-Estado vigente em 13/11/2026: a `main` tem P0–P7, J0–J8, X1 e X2. A continuação local está na branch `feat/recreio-review-completion`, com o código do X3 e correções do [review de 13/11](review-2026-11-13.md). Ainda sem deploy; as seções datadas abaixo preservam as verificações e decisões de cada marco.
+Estado vigente em 13/11/2026: a `main` em `3f952fd` contém P0–P7, J0–J8, X1–X3 e as correções do [review de 13/11](review-2026-11-13.md). A continuação na `main` implementa a arte completa da casa atual. Ver [review do D1](review-d1-2026-11-13.md) para provas e limites. Ainda sem deploy; as seções datadas abaixo preservam a história dos marcos anteriores.
 
 ## De onde vem o escopo
 
@@ -50,7 +50,7 @@ Valem até o titular dizer o contrário.
 2. Regras de tempo da prova num preset comprimido (gravidez e fases curtas), configurável por mundo.
 3. Quem entra na família compartilhada recebe as permissões de jogo, menos "gerir o mundo" e "gerir finanças".
 4. Queda de conexão: 30 s de tolerância antes de liberar a reserva. Queda da instância: até 30 s para outra assumir.
-5. Exclusão de conta no Recreio já ativa, deixando o mundo para os outros membros.
+5. Exclusão automática de conta desligada; exclusão assistida até existir sucessão/saída de mundos, conforme a revisão de 13/11. Substitui a suposição inicial de exclusão automática.
 6. Testadores da etapa 1 são adultos da equipe, com concessão de 30 dias.
 
 ## Lotes
@@ -90,14 +90,14 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 | --- | --- | --- |
 | X1 | Plataforma real no servidor, `/jogar/morada`, E2E com duas contas | feito |
 | X2 | Empacotador e corpos reais na máquina de desenvolvimento | feito |
-| X3 | Railway atrás da constante, build de produção, Bastidores mínimo, guias | implementado localmente; ver review de 13/11 |
+| X3 | Railway atrás da constante, build de produção, Bastidores mínimo, guias | integrado à `main` em `3f952fd`; sem deploy |
 | X4 | Deploy fechado e medição de custo, só com autorização | a fazer |
 
 ### Etapa 2
 
 | Lote | Entrega | Estado |
 | --- | --- | --- |
-| D1 | Arte completa no jogo e metas de desempenho | a fazer |
+| D1 | Arte da casa atual e metas de desempenho | implementado com arte real; homologação de FPS em vídeo integrado pendente, ver review D1 |
 | D2 | Criar família | a fazer |
 | D3 | Construir e comprar | a fazer |
 | D4 | 20 a 30 interações com animação real | a fazer |
@@ -372,3 +372,12 @@ Código do X3: build/start do Morada com Node, API interna Railway com emissor p
 Decisão de segurança temporária: até existir sucessão/saída de mundos, contas com perfil do Recreio exigem exclusão assistida, inclusive quando o pedido parte de outro produto. A antiga suposição de exclusão automática na etapa 1 não está implementada e não deve ser anunciada como disponível.
 
 O X4 permanece sem execução remota. D1–D8 continuam abertos; a preparação operacional não encerra a etapa de diversão. Não houve reescrita do histórico de arte nem publicação de arte licenciada.
+
+
+## D1 — arte da casa atual (13/11/2026)
+
+Continuação escolhida pelo titular: revisar a base e completar a arte da casa atual antes de avançar D2–D8, mantendo X4 separado. A base já inclui o X3 na `main`; não há branch antiga a reintegrar.
+
+O empacotador seleciona móveis e acabamentos pela planta, emite manifesto V2 e continua lendo V1. O cliente carrega modelos sob demanda, agrupa repetições, mantém o procedural durante falhas e usa apoios medidos para assentos/colchões. A casa mantém a planta original, agora com revestimentos e portas/janelas; portas ficam abertas enquanto não existir estado de porta na simulação. Nenhum save, protocolo de rede ou schema de banco mudou.
+
+A conferência no portal com arte encontrou a necessidade de `connect-src blob:` para as texturas embutidas do GLTFLoader. A permissão foi acrescentada somente à página do jogo com origem de arte declarada. O runner tem opt-in de arte privada e guarda todas as evidências fora do checkout público. Resultados, medidas, achados e pendências no [review do D1](review-d1-2026-11-13.md).

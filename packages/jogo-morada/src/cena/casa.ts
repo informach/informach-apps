@@ -1,10 +1,11 @@
 import type { Bairro, Lote } from "@informach/morada-sim";
-import type { DocumentoDeImovel } from "@informach/morada-sim/formatos";
+import type { Andar, DocumentoDeImovel, Parede } from "@informach/morada-sim/formatos";
 import {
   BoxGeometry,
   BufferAttribute,
-  type BufferGeometry,
+  BufferGeometry,
   Color,
+  type Material,
   Mesh,
   type MeshLambertMaterial,
 } from "three";
@@ -21,7 +22,8 @@ import {
  * A casa e o terreno, feitos da planta: piso por cômodo, paredes cortadas
  * pelas aberturas, o lote e o bairro em volta. Tudo o que não se mexe é
  * fundido em poucas malhas, com a cor nos vértices: uma chamada de desenho
- * para o terreno, uma para os pisos e uma para as paredes.
+ * para o terreno, uma para os pisos e uma para as paredes. Os revestimentos
+ * opcionais são agrupados por material sobre essas superfícies.
  */
 
 const PISOS: Record<string, number> = {
@@ -172,7 +174,35 @@ export function montarTerreno(
   return { malha };
 }
 
-export type CasaMontada = { pisos: Mesh | null; paredes: Mesh | null };
+export type CasaMontada = { pisos: Mesh | null; paredes: Mesh | null; revestimentos: Mesh[] };
+
+/** Superfície com UV em metros; o material define a escala da textura. */
+function superficie(pontos: number[], uv: number[], reversa = false): BufferGeometry {
+  const geometria = new BufferGeometry();
+  geometria.setAttribute("position", new BufferAttribute(new Float32Array(pontos), 3));
+  geometria.setAttribute("uv", new BufferAttribute(new Float32Array(uv), 2));
+  geometria.setIndex(reversa ? [2, 1, 0, 3, 2, 0] : [0, 1, 2, 0, 2, 3]);
+  geometria.computeVertexNormals();
+  return geometria;
+}
+
+/** Divide uma parede onde muda o cômodo encostado, preservando os vãos da planta. */
+export function trechosDeAcabamento(andar: Andar, parede: Parede): number[] {
+  const comprimento = comprimentoDaParede(parede);
+  const dx = parede.b[0] - parede.a[0],
+    dy = parede.b[1] - parede.a[1];
+  const cortes = new Set([0, comprimento]);
+  for (const comodo of andar.comodos)
+    for (const [x0, y0, x1, y1] of comodo.ret) {
+      for (const t of [
+        ...(dx ? [(x0 - parede.a[0]) / dx, (x1 - parede.a[0]) / dx] : []),
+        ...(dy ? [(y0 - parede.a[1]) / dy, (y1 - parede.a[1]) / dy] : []),
+      ]) {
+        if (t > 0 && t < 1) cortes.add(t * comprimento);
+      }
+    }
+  return [...cortes].sort((a, b) => a - b);
+}
 
 /**
  * A casa de um lote. `corte` é a altura das paredes baixas, em milímetros;
@@ -183,11 +213,20 @@ export function montarCasa(
   lote: Lote,
   corte: number | null,
   material: MeshLambertMaterial,
+  acabamento?: (id: string) => Material | null,
 ): CasaMontada {
   const [ox, oy] = lote.origem;
   const pisos: BufferGeometry[] = [];
   const paredes: BufferGeometry[] = [];
   const espessura = ESPESSURA_DA_PAREDE_MM;
+  const superficies = new Map<Material, BufferGeometry[]>();
+  const acrescentar = (id: string, criar: () => BufferGeometry): void => {
+    const mat = acabamento?.(id);
+    if (!mat) return;
+    const grupo = superficies.get(mat) ?? [];
+    grupo.push(criar());
+    superficies.set(mat, grupo);
+  };
 
   for (const andar of imovel.andares) {
     // O piso de cada cômodo é o topo de um bloco que desce até o terreno: a fundação.
@@ -197,6 +236,25 @@ export function montarCasa(
         pisos.push(
           laje(ox + x0, oy + y0, ox + x1, oy + y1, 0, Math.max(20, andar.z), FUNDACAO, cor),
         );
+        acrescentar(comodo.piso, () => {
+          const a = paraCena(ox + x0, oy + y0, andar.z + 0.5),
+            b = paraCena(ox + x1, oy + y0, andar.z + 0.5);
+          const c = paraCena(ox + x1, oy + y1, andar.z + 0.5),
+            d = paraCena(ox + x0, oy + y1, andar.z + 0.5);
+          return superficie(
+            [...a, ...b, ...c, ...d],
+            [
+              x0 / 1000,
+              y0 / 1000,
+              x1 / 1000,
+              y0 / 1000,
+              x1 / 1000,
+              y1 / 1000,
+              x0 / 1000,
+              y1 / 1000,
+            ],
+          );
+        });
       }
     }
 
@@ -214,6 +272,7 @@ export function montarCasa(
       const dy = (parede.b[1] - parede.a[1]) / comprimento;
       // Em torno do Y da cena, o X da peça vira a direção da parede na planta.
       const angulo = Math.atan2(dy, dx);
+      const cortes = trechosDeAcabamento(andar, parede);
       for (const peca of pecasDaParede(parede, andar.aberturas, PE_DIREITO_MM, corte)) {
         // As pontas avançam meia espessura, para os cantos fecharem.
         const de = peca.de <= 0 ? -espessura / 2 : peca.de;
@@ -233,6 +292,50 @@ export function montarCasa(
           andar.z + (peca.z0 + peca.z1) / 2,
         );
         paredes.push(geometria.rotateY(angulo).translate(x, y, z));
+        for (let i = 0; i < cortes.length - 1; i++) {
+          const inicio = Math.max(peca.de, cortes[i] ?? 0),
+            fim = Math.min(peca.ate, cortes[i + 1] ?? comprimento);
+          if (fim <= inicio) continue;
+          for (const lado of [-1, 1]) {
+            const nx = -dy * lado,
+              ny = dx * lado;
+            const px = parede.a[0] + (dx * (inicio + fim)) / 2 + nx * (espessura / 2 + 1);
+            const py = parede.a[1] + (dy * (inicio + fim)) / 2 + ny * (espessura / 2 + 1);
+            const comodo = andar.comodos.find((c) =>
+              c.ret.some(([x0, y0, x1, y1]) => px > x0 && px < x1 && py > y0 && py < y1),
+            );
+            if (!comodo) continue;
+            acrescentar(comodo.parede, () => {
+              const distancia = espessura / 2 + 0.5;
+              const a = paraCena(
+                ox + parede.a[0] + dx * inicio + nx * distancia,
+                oy + parede.a[1] + dy * inicio + ny * distancia,
+                andar.z + peca.z0,
+              );
+              const b = paraCena(
+                ox + parede.a[0] + dx * fim + nx * distancia,
+                oy + parede.a[1] + dy * fim + ny * distancia,
+                andar.z + peca.z0,
+              );
+              const c: number[] = [b[0], (andar.z + peca.z1) / 1000, b[2]];
+              const d: number[] = [a[0], (andar.z + peca.z1) / 1000, a[2]];
+              return superficie(
+                [...a, ...b, ...c, ...d],
+                [
+                  inicio / 1000,
+                  peca.z0 / 1000,
+                  fim / 1000,
+                  peca.z0 / 1000,
+                  fim / 1000,
+                  peca.z1 / 1000,
+                  inicio / 1000,
+                  peca.z1 / 1000,
+                ],
+                lado === 1,
+              );
+            });
+          }
+        }
       }
 
       // Um degrau em cada porta de fora, do terreno ao piso da casa.
@@ -272,5 +375,15 @@ export function montarCasa(
     malhaDasParedes.castShadow = true;
     malhaDasParedes.receiveShadow = true;
   }
-  return { pisos: malhaDosPisos, paredes: malhaDasParedes };
+  const revestimentos: Mesh[] = [];
+  for (const [mat, pecas] of superficies) {
+    const geometria = mergeGeometries(pecas);
+    for (const peca of pecas) peca.dispose();
+    if (geometria) {
+      const malha = new Mesh(geometria, mat);
+      malha.receiveShadow = true;
+      revestimentos.push(malha);
+    }
+  }
+  return { pisos: malhaDosPisos, paredes: malhaDasParedes, revestimentos };
 }

@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { brotliCompressSync, constants, gzipSync } from "node:zlib";
+import { type AmbienteEmpacotado, empacotarAmbiente } from "./ambiente";
 import {
   alcanceDosOssos,
   BibliotecaDeAnimacao,
@@ -59,6 +60,8 @@ export type OpcoesDoEmpacotador = {
   arte: string;
   saida: string;
   personagens: readonly Personagem[];
+  /** Planta cujas peças e acabamentos serão incluídos; omitida em pacotes só de personagens. */
+  casa?: unknown;
   /** Os clipes que o jogo usa; por omissão, a lista deste pacote. */
   pedidos?: readonly PedidoDeClipe[];
   tolerancia?: Tolerancia;
@@ -111,6 +114,8 @@ export type Resultado = {
   personagens: ResumoDePersonagem[];
   bibliotecas: ResumoDeBiblioteca[];
   ms: number;
+  ambiente: AmbienteEmpacotado;
+  recursos: (Tamanhos & { arquivo: string })[];
 };
 
 /** Brotli na qualidade máxima: os pacotes são comprimidos uma vez e servidos muitas. */
@@ -445,6 +450,10 @@ export async function empacotar(opcoes: OpcoesDoEmpacotador): Promise<Resultado>
     });
   }
 
+  const ambiente =
+    opcoes.casa === undefined
+      ? { objetos: [], acabamentos: [], aberturas: [] }
+      : await empacotarAmbiente(opcoes.arte, opcoes.saida, opcoes.casa);
   const manifesto = validar(
     ManifestoSchema,
     {
@@ -456,6 +465,7 @@ export async function empacotar(opcoes: OpcoesDoEmpacotador): Promise<Resultado>
       },
       personagens: doManifesto,
       bibliotecas: [...bibliotecas.values()].map((b) => b.manifesto),
+      ...ambiente,
     } satisfies Manifesto,
     "manifest.json",
   );
@@ -465,17 +475,24 @@ export async function empacotar(opcoes: OpcoesDoEmpacotador): Promise<Resultado>
 
   // Cada arquivo ganha uma cópia em brotli (`<arquivo>.br`), que o servidor do jogo entrega a quem
   // aceita. Comprimir uma vez aqui sai mais barato do que a cada pedido.
-  const atuais = new Set(
-    [...manifesto.personagens, ...manifesto.bibliotecas].map((x) => x.arquivo),
-  );
+  const atuais = new Set(arquivosDoManifesto(manifesto));
+  const recursos: Resultado["recursos"] = [];
   for (const nome of arquivosDoManifesto(manifesto)) {
     const caminho = join(opcoes.saida, nome);
-    writeFileSync(`${caminho}${SUFIXO_BROTLI}`, brotli(readFileSync(caminho)));
+    const original = readFileSync(caminho);
+    const comprimido = brotli(original);
+    writeFileSync(`${caminho}${SUFIXO_BROTLI}`, comprimido);
+    recursos.push({
+      arquivo: nome,
+      bytes: original.length,
+      gzip: gzipSync(original, { level: 9 }).length,
+      brotli: comprimido.length,
+    });
   }
 
   // os pacotes de uma rodada anterior que não fazem mais parte do manifesto saem da pasta
   for (const nome of readdirSync(opcoes.saida)) {
-    const pacote = /^([a-z0-9_-]+\.[0-9a-f]{10}\.glb)(\.br)?$/.exec(nome);
+    const pacote = /^([a-z0-9_-]+\.[0-9a-f]{10}\.(?:glb|png))(\.br)?$/.exec(nome);
     if (pacote?.[1] && !atuais.has(pacote[1])) rmSync(join(opcoes.saida, nome));
   }
 
@@ -484,5 +501,7 @@ export async function empacotar(opcoes: OpcoesDoEmpacotador): Promise<Resultado>
     personagens,
     bibliotecas: [...bibliotecas.values()].map((b) => b.resumo),
     ms: performance.now() - inicio,
+    ambiente,
+    recursos,
   };
 }

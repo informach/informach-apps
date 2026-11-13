@@ -8,7 +8,7 @@ import { z } from "zod";
  */
 
 export const FORMATO_DO_MANIFESTO = "morada-arte";
-export const VERSAO_DO_MANIFESTO = 1;
+export const VERSAO_DO_MANIFESTO = 2;
 
 /** O nome do manifesto na pasta dos pacotes. */
 export const ARQUIVO_DO_MANIFESTO = "manifest.json";
@@ -129,9 +129,46 @@ export const BibliotecaDoManifestoSchema = z.strictObject({
   ),
 });
 
-export const ManifestoSchema = z.strictObject({
+const desenho = z.strictObject({
+  chamadas: inteiro,
+  triangulos: inteiro,
+  vertices: inteiro,
+  texturas: inteiro,
+});
+
+/** Limites medidos no GLB, em metros no referencial do objeto. */
+export const ObjetoDoManifestoSchema = z.strictObject({
+  id: z.string().min(1),
+  versao: z.number().int().positive(),
+  arquivo,
+  bytes: inteiro,
+  limites: z.tuple([ponto, ponto]),
+  /** Alturas das superfícies de uso, em metros, por id do ponto da simulação. */
+  apoios: z.record(z.string(), z.number().nonnegative()),
+  desenho,
+});
+
+export const AcabamentoDoManifestoSchema = z.strictObject({
+  id: z.string().min(1),
+  arquivo: z.string().regex(/^[a-z0-9_-]+\.[0-9a-f]{10}\.png$/),
+  bytes: inteiro,
+  /** Tamanho de uma repetição em metros (piso 2 m, parede 3 m). */
+  escala: z.number().positive(),
+});
+
+export const AberturaDoManifestoSchema = z.strictObject({
+  id: z.string().min(1),
+  tipo: z.enum(["porta", "janela"]),
+  largura: z.number().positive(),
+  altura: z.number().positive(),
+  peitoril: z.number().nonnegative(),
+  arquivo,
+  bytes: inteiro,
+  desenho,
+});
+
+const campos = {
   formato: z.literal(FORMATO_DO_MANIFESTO),
-  versao: z.literal(VERSAO_DO_MANIFESTO),
   arte: z.strictObject({
     repositorio: z.string().min(1),
     /** Commit do repositório de arte de que os pacotes saíram. */
@@ -142,12 +179,27 @@ export const ManifestoSchema = z.strictObject({
   }),
   personagens: z.array(PersonagemDoManifestoSchema),
   bibliotecas: z.array(BibliotecaDoManifestoSchema),
-});
+};
+
+/** V1 continua legível; só os novos empacotamentos emitem V2. */
+export const ManifestoSchema = z.discriminatedUnion("versao", [
+  z.strictObject({ ...campos, versao: z.literal(1) }),
+  z.strictObject({
+    ...campos,
+    versao: z.literal(2),
+    objetos: z.array(ObjetoDoManifestoSchema),
+    acabamentos: z.array(AcabamentoDoManifestoSchema),
+    aberturas: z.array(AberturaDoManifestoSchema),
+  }),
+]);
 
 export type Manifesto = z.infer<typeof ManifestoSchema>;
 export type PersonagemDoManifesto = z.infer<typeof PersonagemDoManifestoSchema>;
 export type BibliotecaDoManifesto = z.infer<typeof BibliotecaDoManifestoSchema>;
 export type ClipeDoManifesto = z.infer<typeof ClipeDoManifestoSchema>;
+export type ObjetoDoManifesto = z.infer<typeof ObjetoDoManifestoSchema>;
+export type AcabamentoDoManifesto = z.infer<typeof AcabamentoDoManifestoSchema>;
+export type AberturaDoManifesto = z.infer<typeof AberturaDoManifestoSchema>;
 
 /**
  * Todos os arquivos que um manifesto cita, mais ele mesmo: é a lista inteira
@@ -155,8 +207,15 @@ export type ClipeDoManifesto = z.infer<typeof ClipeDoManifestoSchema>;
  */
 export function arquivosDoManifesto(manifesto: Manifesto): string[] {
   return [
-    ARQUIVO_DO_MANIFESTO,
-    ...manifesto.personagens.map((p) => p.arquivo),
-    ...manifesto.bibliotecas.map((b) => b.arquivo),
+    ...new Set([
+      ARQUIVO_DO_MANIFESTO,
+      ...manifesto.personagens.map((p) => p.arquivo),
+      ...manifesto.bibliotecas.map((b) => b.arquivo),
+      ...(manifesto.versao === 2
+        ? [...manifesto.objetos, ...manifesto.acabamentos, ...manifesto.aberturas].map(
+            (x) => x.arquivo,
+          )
+        : []),
+    ]),
   ];
 }

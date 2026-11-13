@@ -155,6 +155,37 @@ afterAll(async () => {
 });
 
 describe("entrega da arte", () => {
+  it("V2 entrega acabamentos PNG autenticados e não expõe arquivos fora do manifesto", async () => {
+    const nome = "tex-piso.0123456789.png";
+    const m = {
+      ...manifesto,
+      versao: 2,
+      objetos: [],
+      aberturas: [],
+      acabamentos: [{ id: "piso", arquivo: nome, bytes: 3, escala: 2 }],
+    };
+    const anterior = rota;
+    try {
+      writeFileSync(join(pasta, nome), Buffer.from([1, 2, 3]));
+      writeFileSync(join(pasta, "manifest.json"), JSON.stringify(m));
+      rota = carregarArte({
+        pasta,
+        verificador: recreio.verificador("morada"),
+        origens: [ORIGEM],
+        exigirOrigem: true,
+      });
+      const resposta = await pedir(`/arte/${nome}`, await comSessao());
+      expect(resposta.status).toBe(200);
+      expect(resposta.cabecalhos["content-type"]).toBe("image/png");
+      expect(resposta.cabecalhos["cache-control"]).toContain("private");
+      expect(resposta.corpo).toEqual(Buffer.from([1, 2, 3]));
+      expect((await pedir(`/arte/${nome}`, { origin: ORIGEM })).status).toBe(401);
+      expect((await pedir("/arte/tex-outro.0123456789.png", await comSessao())).status).toBe(404);
+    } finally {
+      rota = anterior;
+      writeFileSync(join(pasta, "manifest.json"), JSON.stringify(manifesto));
+    }
+  });
   it("lê o manifesto e conta os arquivos que pode entregar", () => {
     expect(rota.arquivos).toBe(3);
     expect(rota.manifesto.personagens[0]?.id).toBe("lia");

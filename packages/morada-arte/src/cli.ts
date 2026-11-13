@@ -27,6 +27,7 @@ const USO = `uso: tsx src/cli.ts --arte <ARTES_3D_DIR> --saida <pasta> [opções
   --elenco <id,id,...>     personagens prontos de codigo/arte/elenco.json
   --personagens <arquivo>  descrições de personagens em JSON (formato "morada-elenco")
   --commit <hash>          commit da arte, quando a pasta não é um clone do git
+  --casa <arquivo>         modelo de imóvel do jogo: inclui seus móveis, acabamentos e encaixes
   --ajuda                  mostra este texto
 `;
 
@@ -38,6 +39,7 @@ type Argumentos = {
   personagens: string | null;
   commit: string | null;
   ajuda: boolean;
+  casa: string | null;
 };
 
 export function lerArgumentos(argv: readonly string[], ambiente: NodeJS.ProcessEnv): Argumentos {
@@ -49,6 +51,7 @@ export function lerArgumentos(argv: readonly string[], ambiente: NodeJS.ProcessE
     personagens: null,
     commit: null,
     ajuda: false,
+    casa: null,
   };
   for (let i = 0; i < argv.length; i++) {
     const opcao = argv[i];
@@ -66,6 +69,7 @@ export function lerArgumentos(argv: readonly string[], ambiente: NodeJS.ProcessE
     else if (opcao === "--elenco") args.elenco.push(...valor().split(",").filter(Boolean));
     else if (opcao === "--personagens") args.personagens = valor();
     else if (opcao === "--commit") args.commit = valor();
+    else if (opcao === "--casa") args.casa = valor();
     else if (opcao === "--ajuda" || opcao === "--help" || opcao === "-h") args.ajuda = true;
     else throw new ErroDeArte("linha de comando", "opção desconhecida", opcao);
   }
@@ -146,6 +150,21 @@ export function tabela(resultado: Resultado): string {
     };
   }
   linhas.push("");
+  linhas.push("ambiente          arquivo                              kB     gzip   brotli");
+  for (const p of [
+    ...resultado.ambiente.objetos,
+    ...resultado.ambiente.aberturas,
+    ...resultado.ambiente.acabamentos,
+  ]) {
+    const resumo = resultado.recursos.find((x) => x.arquivo === p.arquivo);
+    linhas.push(
+      `${p.id.padEnd(17)} ${p.arquivo} ${kb(p.bytes)} ${kb(resumo?.gzip ?? 0)} ${kb(resumo?.brotli ?? 0)}`,
+    );
+    total.bytes += p.bytes;
+    total.gzip += resumo?.gzip ?? 0;
+    total.brotli += resumo?.brotli ?? 0;
+  }
+  linhas.push("");
   linhas.push(
     `total                                            ${kb(total.bytes)} ${kb(total.gzip)} ${kb(total.brotli)}   (${(total.bytes / 1048576).toFixed(2)} MB; ${(resultado.ms / 1000).toFixed(1)} s)`,
   );
@@ -199,6 +218,9 @@ export async function executar(
       arte,
       saida,
       personagens: personagensPedidos(args, arte, base),
+      ...(args.casa
+        ? { casa: lerJson(readFileSync(resolve(base, args.casa), "utf8"), args.casa) }
+        : {}),
       ...(args.commit ? { commit: args.commit } : {}),
       aoAvancar: (mensagem) => process.stderr.write(`${mensagem}\n`),
     });

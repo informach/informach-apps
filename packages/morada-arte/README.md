@@ -2,7 +2,7 @@
 
 Empacotador de arte do Morada. Lê a biblioteca de personagens do repositório de arte (corpos, rostos, cabelos,
 roupas e bibliotecas de animação) e gera pacotes pequenos, prontos para o jogo: um GLB por personagem, um GLB de
-animações por esqueleto e um `manifest.json`.
+animações por esqueleto e um `manifest.json`. Com `--casa`, inclui os móveis, acabamentos e encaixes usados pela planta, sem copiar a biblioteca inteira para o jogo.
 
 Roda em Node, com `tsx`, sem passo de build. Não faz parte do cliente: o cliente só importa o tipo do manifesto
 (`@informach/morada-arte/manifesto`).
@@ -46,6 +46,7 @@ tsx src/cli.ts --arte <ARTES_3D_DIR> --saida <pasta> [opções]
   --elenco <id,id,...>     personagens prontos de codigo/arte/elenco.json
   --personagens <arquivo>  descrições em JSON (formato "morada-elenco")
   --commit <hash>          commit da arte, quando a pasta não é um clone do git
+  --casa <arquivo>         modelo de imóvel JSON do jogo (móveis, acabamentos e encaixes)
 ```
 
 Sai com código diferente de zero em qualquer falha de leitura ou de validação, com o arquivo e o campo na
@@ -204,3 +205,21 @@ src/
   cli.ts        linha de comando
 test/           testes e a fábrica da biblioteca de mentira
 ```
+
+
+## Ambiente da casa (D1)
+
+Na raiz do monorepo:
+
+```bash
+ARTES_3D_DIR=<clone-privado-fora-do-repo> pnpm --filter @informach/morada-arte empacotar -- \
+  --saida <saida-fora-do-repo> --casa packages/morada-sim/src/conteudo/imoveis/casa-prova.v1.json
+```
+
+A seleção vem dos ids/versões dos objetos, dos acabamentos dos cômodos e dos vãos da planta. A entrada privada precisa também de `biblioteca/moveis/<categoria>/catalogo.json`, dos GLBs citados, de `biblioteca/construcao/construcao.json`, `portas_janelas.json`, `pecas/` e das texturas utilizadas em `texturas/`. O D1 usa o mesmo commit privado fixado no X2; não segue automaticamente a `main` da arte.
+
+O manifesto emitido é V2, com `objetos`, `acabamentos` e `aberturas`; o esquema continua aceitando V1. Objetos e encaixes são GLBs com texturas embutidas e compressão meshopt; acabamentos são PNGs com nome por hash. Todos recebem cópia brotli e entram em `arquivosDoManifesto`. Os GLBs mantêm materiais, transparência e extras/pivôs. GLB com URI externa ou catálogo apontando para fora da entrada é recusado.
+
+Os apoios são medidos por raio na geometria original: assento na parte dianteira do sofá, colchões de cama/berço e os dois níveis do beliche. O manifesto guarda as alturas em metros, por ponto de uso; `dentro` é o ponto do bebê no berço. Isso não altera as regras nem os pontos da simulação.
+
+`Resultado.recursos` informa bytes crus, gzip e brotli por arquivo. A tabela da CLI soma os recursos do ambiente aos personagens e bibliotecas. Repetir o empacotamento da mesma entrada produz os mesmos arquivos; medidas e limites da prova real ficam no [review do D1](../../docs/recreio/review-d1-2026-11-13.md).
