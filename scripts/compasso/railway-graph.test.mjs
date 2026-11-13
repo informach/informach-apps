@@ -74,8 +74,16 @@ test("preparation retains the existing central services; cutover retires only th
     "cron-agenda-routine",
     "cron-missao-saber-weekly-report",
     "cron-bora-treinar-lembretes",
-  ])
+    "cron-admin-watch",
+    "cron-admin-weekly",
+    "@informach/recreio-app",
+    "@informach/morada-server",
+    "morada-arte",
+    "cron-recreio-manutencao",
+  ]) {
+    assert.ok(before.has(name), `${name} must remain in the prepared graph`);
     assert.deepEqual(after.get(name), before.get(name), `${name} must be preserved`);
+  }
   assert.equal(before.get("@informach/admin").variables.ADMIN_COMPASSO_ENABLED.value, "0");
   assert.equal(after.get("@informach/admin").variables.ADMIN_COMPASSO_ENABLED.value, "1");
 });
