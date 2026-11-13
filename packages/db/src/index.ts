@@ -1,9 +1,11 @@
+export type { SQLWrapper } from "drizzle-orm";
 export {
   and,
   asc,
   count,
   desc,
   eq,
+  getTableColumns,
   gt,
   gte,
   ilike,
@@ -20,7 +22,12 @@ export { db } from "./client";
 export { createDatabaseConnection } from "./connection";
 export type { JobRunMeta } from "./job-runs";
 export { recordJobRun, summarizeJobResult } from "./job-runs";
-export { DatabaseLockBusyError, withDatabaseLock, withDatabaseLockWait } from "./locks";
+export {
+  DatabaseLockBusyError,
+  withDatabaseLock,
+  withDatabaseLocksWait,
+  withDatabaseLockWait,
+} from "./locks";
 export type { SchemaReadiness } from "./readiness";
 export { checkSchemaReadiness, EXPECTED_MIGRATION } from "./readiness";
 export type { ReadOnlyDatabase, ReadOnlyDatabaseOptions } from "./readonly";

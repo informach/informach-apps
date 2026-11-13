@@ -31,14 +31,17 @@ const birthDateSchema = z
   );
 
 const studentProfileBaseSchema = z.object({
-  name: z.string().trim().min(1, "Informe o nome").max(80, "No máximo 80 caracteres"),
   birthDate: z
     .union([birthDateSchema, z.literal(""), z.null()])
     .optional()
     .transform((value) => value || null),
 });
 
-export const createStudentProfileInputSchema = studentProfileBaseSchema;
+export const createStudentProfileInputSchema = studentProfileBaseSchema
+  .extend({
+    personId: z.uuid("Escolha uma criança da Minha conta"),
+  })
+  .strict();
 export type StudentProfileFormValues = z.input<typeof createStudentProfileInputSchema>;
 export type CreateStudentProfileInput = z.output<typeof createStudentProfileInputSchema>;
 
@@ -46,9 +49,11 @@ export const studentProfileIdSchema = z.object({
   id: z.string().uuid("Identificador inválido"),
 });
 
-export const updateStudentProfileInputSchema = studentProfileBaseSchema.extend({
-  id: z.string().uuid("Identificador inválido"),
-});
+export const updateStudentProfileInputSchema = studentProfileBaseSchema
+  .extend({
+    id: z.string().uuid("Identificador inválido"),
+  })
+  .strict();
 export type UpdateStudentProfileFormValues = z.input<typeof updateStudentProfileInputSchema>;
 export type UpdateStudentProfileInput = z.output<typeof updateStudentProfileInputSchema>;
 

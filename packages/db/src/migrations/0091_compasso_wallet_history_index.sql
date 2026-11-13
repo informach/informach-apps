@@ -1,0 +1,1 @@
+CREATE INDEX "credit_ledger_owner_app_sequence_idx" ON "billing"."credit_ledger" USING btree ("owner_type","owner_id","app","sequence");

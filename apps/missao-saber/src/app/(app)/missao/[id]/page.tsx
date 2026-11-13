@@ -14,7 +14,7 @@ export default async function Mission({ params }: { params: Promise<{ id: string
   await requireStudyPage(`/missao/${id}`);
   try {
     const identity = await requireStudySession(id);
-    const view = await sessionView(identity.userId, id);
+    const view = await sessionView(identity, id);
     // `currentDashboard` é memoizado por requisição, então o layout já pagou
     // esta consulta: aqui só se lê a rotina escolhida pelo responsável.
     const data = await currentDashboard();

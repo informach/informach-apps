@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { weekStart } from "@/features/family/desafio";
 import { buildWeeklySummary, weeklySummaryRecipients } from "@/features/family/resumo-semanal";
+import { mayDeliverWeeklySnapshot } from "@/features/family/weekly-repository";
 import { completeWeeklyReport } from "@/features/learning/repository";
 import { buildUnsubscribeUrl, emails } from "@/lib/emails";
 import { env } from "@/lib/env";
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
             to: email,
             userId,
             category: "missao.weekly-report",
+            authorizeContent: () => mayDeliverWeeklySnapshot(userId, email, resumo.receipts),
             messageKey: `missao:weekly:${userId}:${resumo.semana}`,
             subject: resumo.assunto,
             text: resumo.texto,

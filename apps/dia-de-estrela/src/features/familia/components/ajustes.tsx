@@ -1,37 +1,21 @@
 "use client";
-import {
-  Bell,
-  Copy,
-  Download,
-  LogOut,
-  Minus,
-  Plus,
-  Smartphone,
-  Trash2,
-  UserPlus,
-} from "lucide-react";
+import { getAppUrl } from "@informach/config/domains";
+import { Bell, Download, LogOut, Minus, Plus, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useMemo, useState } from "react";
 import { encode } from "uqr";
 import { Erro, useAcao } from "@/components/acao";
-import { brl } from "@/domain/estrelas";
-import { CORES_CRIANCA } from "@/domain/modelos";
-import { assinarAction, portalAction, reativarAction } from "@/features/billing/actions";
+
 import { desconectarEsteAparelhoAction } from "@/features/crianca/actions";
-import { authClient } from "@/lib/auth-client";
+import { authClient, ssoEnvironment } from "@/lib/auth-client";
 import {
   adicionarCriancaAction,
   apagarCriancaAction,
   ativarPushAction,
-  cancelarConviteAction,
-  convidarResponsavelAction,
   desativarPushAction,
   desconectarAparelhoAction,
-  editarCriancaAction,
   escolherCriancaDoPlanoAction,
   gerarCodigoAparelhoAction,
-  removerResponsavelAction,
-  sairDaFamiliaAction,
   salvarAjustesAction,
   trocarPinAction,
 } from "../actions";
@@ -88,267 +72,166 @@ export function AjustesNoAparelho() {
 }
 
 export function Plano({
-  titular,
+  familyGroupId,
   pago,
-  assinatura,
-  precos,
+  limite,
+  administrador,
   criancas,
 }: {
-  titular: boolean;
+  familyGroupId: string;
   pago: boolean;
-  assinatura: {
-    productId: string;
-    cancelAtPeriodEnd: boolean;
-    currentPeriodEnd: string | null;
-  } | null;
-  precos: Record<string, number>;
-  criancas: { id: string; name: string; allowed: boolean }[];
+  limite: number;
+  administrador: boolean;
+  criancas: { id: string; name: string; allowed: boolean; canManage: boolean }[];
 }) {
   const { pendente, erro, rodar } = useAcao();
-  const ir = (d: { url: string | null | undefined }) => d.url && window.location.assign(d.url);
   return (
-    <Secao id="plano" titulo={pago ? "Plano Família" : "Plano gratuito"}>
-      {pago ? (
-        <>
-          <p className="font-semibold text-tinta-suave">
-            Até 4 crianças, segundo responsável, alertas no celular, voz dos pais, loja completa e
-            foto da meta.
-            {assinatura?.cancelAtPeriodEnd && assinatura.currentPeriodEnd
-              ? ` A assinatura termina em ${new Date(assinatura.currentPeriodEnd).toLocaleDateString("pt-BR")}.`
-              : ""}
-          </p>
-          {titular && (
-            <div className="flex flex-wrap gap-2">
+    <Secao
+      titulo={pago ? "Acesso da família" : "Acesso gratuito"}
+      descricao={`Até ${limite} ${limite === 1 ? "criança" : "crianças"}. Assinatura e pagamentos ficam na Minha conta.`}
+    >
+      <a
+        className="bp bp-ceu"
+        href={`${getAppUrl("conta", ssoEnvironment)}/?familia=${familyGroupId}#compasso`}
+      >
+        Ver Compasso na Minha conta
+      </a>
+      {administrador &&
+        limite === 1 &&
+        criancas.every((c) => c.canManage) &&
+        criancas.length > 1 && (
+          <div className="flex flex-col gap-2">
+            <p className="font-semibold">
+              Escolha quem usa a vaga gratuita. Os outros históricos ficam guardados.
+            </p>
+            {criancas.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className="bp bp-claro"
+                disabled={pendente || c.allowed}
+                onClick={() => rodar(() => escolherCriancaDoPlanoAction(c.id))}
+              >
+                {c.name}
+                {c.allowed ? " · ativa" : " · ativar"}
+              </button>
+            ))}
+          </div>
+        )}
+      <Erro texto={erro} />
+    </Secao>
+  );
+}
+export function Criancas({
+  administrador,
+  limite,
+  criancas,
+  pessoas,
+  contaUrl,
+}: {
+  administrador: boolean;
+  limite: number;
+  contaUrl: string;
+  criancas: { id: string; name: string; color: string; canManage: boolean }[];
+  pessoas: { id: string; name: string }[];
+}) {
+  const [personId, setPersonId] = useState("");
+  const [removing, setRemoving] = useState<string | null>(null);
+  const { pendente, erro, rodar } = useAcao();
+  const selectId = useId();
+  return (
+    <Secao
+      titulo="Crianças e históricos"
+      descricao="Nome e cor são compartilhados com os outros aplicativos. As rotinas e estrelas ficam no Dia de Estrela."
+    >
+      {criancas.map((c) => (
+        <div key={c.id} className="rounded-xl border-2 border-linha-forte p-3">
+          <div className="flex items-center gap-3">
+            <span
+              className="size-8 rounded-full"
+              style={{ background: c.color }}
+              aria-hidden="true"
+            />
+            <span className="flex-1 font-bold">{c.name}</span>
+            {c.canManage && (
               <button
                 type="button"
                 className="bp bp-claro"
                 disabled={pendente}
-                onClick={() => rodar(portalAction, ir)}
+                onClick={() => setRemoving(c.id)}
               >
-                Gerenciar pagamento
+                Apagar histórico
               </button>
-              {assinatura?.cancelAtPeriodEnd && (
-                <button
-                  type="button"
-                  className="bp bp-ceu"
-                  disabled={pendente}
-                  onClick={() => rodar(reativarAction)}
-                >
-                  Manter a assinatura
-                </button>
-              )}
-            </div>
-          )}
-        </>
-      ) : (
-        <>
-          <p className="font-semibold text-tinta-suave">
-            Uma criança, rotinas, passo a passo, lembretes no tablet, estrelas e cofrinho. O Família
-            libera até 4 crianças, segundo responsável, alertas no celular, voz dos pais, itens
-            próprios na loja e foto da meta.
-          </p>
-          {titular ? (
-            <div className="grid gap-2 sm:grid-cols-2">
+            )}
+          </div>
+          {removing === c.id && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <p className="w-full font-semibold">
+                Apagar as rotinas, estrelas e pedidos de {c.name} neste app? A pessoa e os outros
+                aplicativos serão preservados.
+              </p>
               <button
                 type="button"
-                className="b3 b3-estrela normal-case tracking-normal"
+                className="bp bp-claro"
                 disabled={pendente}
-                onClick={() => rodar(() => assinarAction("estrela_family_monthly"), ir)}
+                onClick={() => setRemoving(null)}
               >
-                Família · {brl(precos.estrela_family_monthly ?? 0)}/mês
+                Voltar
               </button>
               <button
                 type="button"
-                className="b3 b3-claro normal-case tracking-normal"
+                className="bp bp-ceu"
                 disabled={pendente}
-                onClick={() => rodar(() => assinarAction("estrela_family_annual"), ir)}
+                onClick={() =>
+                  rodar(
+                    () => apagarCriancaAction(c.id),
+                    () => setRemoving(null),
+                  )
+                }
               >
-                Família · {brl(precos.estrela_family_annual ?? 0)}/ano
+                Confirmar exclusão do histórico
               </button>
             </div>
-          ) : (
-            <p className="text-sm font-bold">Só o titular da conta pode assinar.</p>
           )}
-          {titular && criancas.length > 1 && <EscolherCriancaDoPlano criancas={criancas} />}
-        </>
-      )}
-      <Erro texto={erro} />
-    </Secao>
-  );
-}
-
-function EscolherCriancaDoPlano({
-  criancas,
-}: {
-  criancas: { id: string; name: string; allowed: boolean }[];
-}) {
-  const { pendente, erro, rodar } = useAcao();
-  return (
-    <div className="rounded-xl bg-ceu-claro p-3">
-      <p className="text-sm font-bold">
-        No gratuito, uma criança fica ativa. As outras continuam guardadas e voltam com o Família.
-      </p>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {criancas.map((c) => (
-          <button
-            key={c.id}
-            type="button"
-            aria-pressed={c.allowed}
-            disabled={pendente || c.allowed}
-            onClick={() => rodar(() => escolherCriancaDoPlanoAction(c.id))}
-            className={`bp ${c.allowed ? "bp-ceu" : "bp-claro"}`}
-          >
-            {c.name}
-            {c.allowed ? " (ativa)" : ""}
-          </button>
-        ))}
-      </div>
-      <Erro texto={erro} />
-    </div>
-  );
-}
-
-export function Criancas({
-  titular,
-  limite,
-  criancas,
-}: {
-  titular: boolean;
-  limite: number;
-  criancas: { id: string; name: string; color: string }[];
-}) {
-  const ids = useId();
-  const [nova, setNova] = useState("");
-  const { pendente, erro, rodar } = useAcao();
-  return (
-    <Secao
-      titulo="Crianças"
-      descricao="Só o apelido e uma cor. Nada de idade, foto ou data de nascimento."
-    >
-      <ul className="flex flex-col gap-3">
-        {criancas.map((c) => (
-          <LinhaCrianca key={c.id} c={c} titular={titular} />
-        ))}
-      </ul>
-      {criancas.length < limite ? (
+        </div>
+      ))}
+      {administrador && pessoas.length > 0 && criancas.length < limite && (
         <form
-          className="flex gap-2"
+          className="flex flex-col gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             rodar(
-              () =>
-                adicionarCriancaAction({
-                  name: nova,
-                  color: CORES_CRIANCA[criancas.length % CORES_CRIANCA.length],
-                }),
-              () => setNova(""),
+              () => adicionarCriancaAction(personId),
+              () => setPersonId(""),
             );
           }}
         >
-          <label className="sr-only" htmlFor={`${ids}-nova`}>
-            Nome da nova criança
+          <label htmlFor={selectId} className="font-bold">
+            Ativar uma criança cadastrada
           </label>
-          <input
-            id={`${ids}-nova`}
+          <select
+            id={selectId}
             className={campo}
-            maxLength={24}
-            value={nova}
-            placeholder="Nome da criança"
-            onChange={(e) => setNova(e.target.value)}
-          />
-          <button type="submit" className="bp bp-ceu shrink-0" disabled={pendente || !nova.trim()}>
-            <Plus className="size-4" aria-hidden="true" /> Adicionar
+            value={personId}
+            onChange={(e) => setPersonId(e.target.value)}
+          >
+            <option value="">Escolha uma pessoa</option>
+            {pessoas.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <button type="submit" className="bp bp-ceu" disabled={pendente || !personId}>
+            Ativar no Dia de Estrela
           </button>
         </form>
-      ) : (
-        <p className="text-sm font-bold text-tinta-suave">
-          {limite === 1
-            ? "O plano gratuito tem uma criança. O Família tem até quatro."
-            : "A família já tem quatro crianças, o máximo do plano."}
-        </p>
       )}
+      <a className="bp bp-claro" href={contaUrl}>
+        Pessoas e permissões na Minha conta
+      </a>
       <Erro texto={erro} />
     </Secao>
-  );
-}
-
-function LinhaCrianca({
-  c,
-  titular,
-}: {
-  c: { id: string; name: string; color: string };
-  titular: boolean;
-}) {
-  const [nome, setNome] = useState(c.name);
-  const [apagando, setApagando] = useState(false);
-  const { pendente, erro, rodar } = useAcao();
-  const salvar = (patch: { name?: string; color?: string }) =>
-    rodar(() =>
-      editarCriancaAction({ id: c.id, name: patch.name ?? c.name, color: patch.color ?? c.color }),
-    );
-  return (
-    <li className="rounded-xl border-2 border-linha p-3">
-      <div className="flex items-center gap-2">
-        <span
-          className="grid size-10 shrink-0 place-items-center rounded-full font-display text-lg font-extrabold text-white"
-          style={{ background: c.color }}
-        >
-          {(nome || "?").charAt(0).toUpperCase()}
-        </span>
-        <input
-          aria-label={`Nome de ${c.name}`}
-          className={campo}
-          maxLength={24}
-          value={nome}
-          onChange={(e) => setNome(e.target.value)}
-          onBlur={() => nome.trim() && nome !== c.name && salvar({ name: nome.trim() })}
-        />
-        {titular && (
-          <button
-            type="button"
-            aria-label={`Apagar ${c.name}`}
-            className="grid size-11 shrink-0 place-items-center text-tinta-suave"
-            onClick={() => setApagando(true)}
-          >
-            <Trash2 className="size-4" aria-hidden="true" />
-          </button>
-        )}
-      </div>
-      <fieldset className="mt-2 flex min-w-0 gap-2">
-        <legend className="sr-only">Cor de {c.name}</legend>
-        {CORES_CRIANCA.map((cor) => (
-          <button
-            key={cor}
-            type="button"
-            aria-pressed={cor === c.color}
-            aria-label={`Cor ${cor}`}
-            disabled={pendente}
-            onClick={() => salvar({ color: cor })}
-            className={`size-9 rounded-full ${cor === c.color ? "ring-4 ring-ceu-borda" : ""}`}
-            style={{ background: cor }}
-          />
-        ))}
-      </fieldset>
-      {apagando && (
-        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl bg-[#fde8e6] p-3">
-          <p className="flex-1 text-sm font-bold text-[#8f1d14]">
-            Apagar {c.name}? A rotina, as estrelas e a meta dela também saem.
-          </p>
-          <button type="button" className="bp bp-claro" onClick={() => setApagando(false)}>
-            Não
-          </button>
-          <button
-            type="button"
-            className="bp bp-perigo"
-            disabled={pendente}
-            onClick={() => rodar(() => apagarCriancaAction(c.id))}
-          >
-            Apagar
-          </button>
-        </div>
-      )}
-      <Erro texto={erro} />
-    </li>
   );
 }
 
@@ -779,7 +662,7 @@ export function Push({
     >
       {!permitido ? (
         <p className="rounded-xl bg-uva-clara p-3 text-sm font-bold text-uva-escura">
-          Os alertas no celular são do plano Família. No gratuito, eles aparecem no Início.
+          Os alertas no celular são do Compasso. No gratuito, eles aparecem no Início.
         </p>
       ) : !disponivel ? (
         <p className="text-sm font-bold text-tinta-suave">
@@ -864,148 +747,29 @@ export function TrocarPin() {
   );
 }
 
-export function SegundoResponsavel({
-  titular,
-  permitido,
-  estado,
-}: {
-  titular: boolean;
-  permitido: boolean;
-  estado: {
-    guardian: { email: string; name: string | null } | null;
-    invite: { email: string; expiresAt: string } | null;
-  };
-}) {
-  const ids = useId();
-  const [email, setEmail] = useState("");
-  const [link, setLink] = useState<string | null>(null);
-  const [copiado, setCopiado] = useState(false);
+export function Conta({ email }: { email: string }) {
   const { pendente, erro, rodar } = useAcao();
-  if (!titular)
-    return (
-      <Secao titulo="Família" descricao="Você é segundo responsável desta família.">
-        <button
-          type="button"
-          className="bp bp-claro"
-          disabled={pendente}
-          onClick={() => rodar(sairDaFamiliaAction, (d) => window.location.assign(d.destination))}
-        >
-          Sair desta família
-        </button>
-        <Erro texto={erro} />
-      </Secao>
-    );
-  return (
-    <Secao
-      titulo="Segundo responsável"
-      descricao="Outro adulto da casa acompanha todas as crianças, recebe os alertas e aprova tarefas. A assinatura continua sua."
-    >
-      {!permitido ? (
-        <p className="rounded-xl bg-uva-clara p-3 text-sm font-bold text-uva-escura">
-          O segundo responsável é do plano Família.
-        </p>
-      ) : estado.guardian ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="flex-1 font-bold">{estado.guardian.name || estado.guardian.email}</p>
-          <button
-            type="button"
-            className="bp bp-claro"
-            disabled={pendente}
-            onClick={() => rodar(removerResponsavelAction)}
-          >
-            Remover
-          </button>
-        </div>
-      ) : link ? (
-        <div className="flex flex-col gap-2 rounded-xl bg-ceu-claro p-3">
-          <p className="text-sm font-bold">Envie este link para {email}. Vale por 3 dias.</p>
-          <p className="break-all rounded-lg bg-white p-2 text-xs font-bold">{link}</p>
-          <button
-            type="button"
-            className="bp bp-ceu"
-            onClick={() => void navigator.clipboard?.writeText(link).then(() => setCopiado(true))}
-          >
-            <Copy className="size-4" aria-hidden="true" /> {copiado ? "Copiado" : "Copiar link"}
-          </button>
-        </div>
-      ) : (
-        <>
-          {estado.invite && (
-            <div className="flex flex-wrap items-center gap-2 text-sm font-bold">
-              <span className="flex-1">
-                Convite para {estado.invite.email}, vale até{" "}
-                {new Date(estado.invite.expiresAt).toLocaleString("pt-BR", {
-                  dateStyle: "short",
-                  timeStyle: "short",
-                })}
-                .
-              </span>
-              <button
-                type="button"
-                className="bp bp-claro"
-                disabled={pendente}
-                onClick={() => rodar(cancelarConviteAction)}
-              >
-                Cancelar convite
-              </button>
-            </div>
-          )}
-          <form
-            className="flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              rodar(
-                () => convidarResponsavelAction(email),
-                (d) => setLink(d.url),
-              );
-            }}
-          >
-            <label className="sr-only" htmlFor={`${ids}-email`}>
-              E-mail do segundo responsável
-            </label>
-            <input
-              id={`${ids}-email`}
-              type="email"
-              className={campo}
-              value={email}
-              placeholder="E-mail do outro adulto"
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <button
-              type="submit"
-              className="bp bp-ceu shrink-0"
-              disabled={pendente || !email.includes("@")}
-            >
-              <UserPlus className="size-4" aria-hidden="true" /> Convidar
-            </button>
-          </form>
-        </>
-      )}
-      <Erro texto={erro} />
-    </Secao>
-  );
-}
-
-export function Conta({ email, titular }: { email: string; titular: boolean }) {
-  const { pendente, erro, setErro, rodar } = useAcao();
-  const [aviso, setAviso] = useState<string | null>(null);
-  const [excluir, setExcluir] = useState(false);
   return (
     <Secao titulo="Conta" descricao={email}>
       <div className="flex flex-wrap gap-2">
-        {titular && (
-          <a href="/api/conta/exportar" className="bp bp-claro">
-            <Download className="size-4" aria-hidden="true" /> Baixar meus dados
-          </a>
-        )}
+        <a href="/api/conta/exportar" className="bp bp-claro">
+          <Download className="size-4" aria-hidden="true" /> Baixar históricos autorizados
+        </a>
         <button
           type="button"
           className="bp bp-claro"
           disabled={pendente}
           onClick={() =>
-            void authClient.signOut().then((r) => {
-              if (r.error) setErro("Não foi possível sair agora.");
-              else window.location.replace("/");
+            rodar(async () => {
+              const result = await authClient.signOut();
+              if (result.error)
+                return {
+                  ok: false as const,
+                  code: "SIGN_OUT_FAILED",
+                  error: "Não foi possível sair agora.",
+                };
+              window.location.replace("/");
+              return { ok: true as const, data: null };
             })
           }
         >
@@ -1018,45 +782,11 @@ export function Conta({ email, titular }: { email: string; titular: boolean }) {
           Privacidade
         </Link>
       </div>
-      {excluir ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-[#fde8e6] p-3 text-sm font-bold text-[#8f1d14]">
-          <span className="flex-1">
-            A conta Informach é a mesma dos outros apps. Vamos mandar um e-mail para confirmar a
-            exclusão.
-          </span>
-          <button type="button" className="bp bp-claro" onClick={() => setExcluir(false)}>
-            Não
-          </button>
-          <button
-            type="button"
-            className="bp bp-perigo"
-            disabled={pendente}
-            onClick={() =>
-              rodar(async () => {
-                const r = await authClient.deleteUser({ callbackURL: "/" });
-                setAviso(
-                  r.error
-                    ? "Não foi possível pedir a exclusão agora."
-                    : "Enviamos um e-mail para confirmar a exclusão da conta.",
-                );
-                setExcluir(false);
-                return { ok: true as const, data: null };
-              })
-            }
-          >
-            Excluir conta
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          className="self-start text-sm font-extrabold text-[#8f1d14] underline"
-          onClick={() => setExcluir(true)}
-        >
-          Excluir a conta
-        </button>
-      )}
-      {aviso && <p className="text-sm font-bold">{aviso}</p>}
+      <p className="text-sm">
+        Nome, e-mail, senha, segurança e exclusão da conta compartilhada são gerenciados na central
+        da conta.
+      </p>
+      <a href={getAppUrl("conta", ssoEnvironment)}>Gerenciar minha conta compartilhada</a>
       <Erro texto={erro} />
     </Secao>
   );

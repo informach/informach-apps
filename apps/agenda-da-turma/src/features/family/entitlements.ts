@@ -1,17 +1,18 @@
 import "server-only";
-import { billing } from "@/lib/billing";
 import { listAccessibleProfiles } from "./access";
-
-export async function getFamilyEntitlements(userId: string) {
-  const profiles = await listAccessibleProfiles(userId);
-  const owners = [...new Set([userId, ...profiles.map((p) => p.userId)])];
-  const plans = await Promise.all(
-    owners.map(async (id) => ({ id, pro: await billing.hasProSubscription({ type: "user", id }) })),
-  );
-  const proOwners = plans.filter((p) => p.pro).map((p) => p.id);
+import type { AgendaAuthority } from "./authority";
+import { readAgendaCoverage } from "./entitlement-repository";
+/** Presentation only. Mutations must recheck coverage inside their transaction. */
+export async function getFamilyEntitlements(actor: AgendaAuthority) {
+  const [{ access, coveredIds }, profiles] = await Promise.all([
+    readAgendaCoverage(actor),
+    listAccessibleProfiles(actor),
+  ]);
   return {
-    enabled: proOwners.length > 0,
-    proProfileIds: profiles.filter((p) => proOwners.includes(p.userId)).map((p) => p.id),
-    proOwnerIds: proOwners,
+    ...access,
+    usableProfileIds: profiles.filter((p) => coveredIds.includes(p.id)).map((p) => p.id),
+    proProfileIds: access.enabled
+      ? profiles.filter((p) => coveredIds.includes(p.id)).map((p) => p.id)
+      : [],
   };
 }

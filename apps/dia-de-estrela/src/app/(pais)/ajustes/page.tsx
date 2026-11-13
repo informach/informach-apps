@@ -1,6 +1,6 @@
-import { canInviteGuardian, canUsePush } from "@/features/acesso/policy";
+import { getAppUrl } from "@informach/config/domains";
+import { canUsePush } from "@/features/acesso/policy";
 import { listDevices } from "@/features/aparelho/repository";
-import { products } from "@/features/billing/service";
 import {
   AjustesDaCasa,
   AjustesNoAparelho,
@@ -9,13 +9,12 @@ import {
   Criancas,
   Plano,
   Push,
-  SegundoResponsavel,
   TrocarPin,
 } from "@/features/familia/components/ajustes";
+import { activationChoices } from "@/features/familia/context-repository";
 import { parentPage } from "@/features/familia/view";
 import { pushConfigured } from "@/features/lembretes/push";
 import { hasPushSubscription } from "@/features/lembretes/repository";
-import { guardianState } from "@/features/responsavel/repository";
 import { env } from "@/lib/env";
 
 export const metadata = { title: "Ajustes" };
@@ -26,61 +25,52 @@ export default async function Ajustes({
   searchParams: Promise<{ pagamento?: string; pin?: string }>;
 }) {
   const ctx = await parentPage();
-  const sp = await searchParams;
+  await searchParams;
   if (ctx.mode === "pin") return <AjustesNoAparelho />;
   const family = ctx.family;
-  const [devices, guardian, comPush] = await Promise.all([
-    listDevices(ctx.ownerId),
-    guardianState(ctx.ownerId),
+  const [devices, people, comPush] = await Promise.all([
+    listDevices(ctx.actor),
+    ctx.role === "administrator" ? activationChoices(ctx.actor) : [],
     hasPushSubscription(ctx.userId),
   ]);
-  const titular = ctx.role === "owner";
-  const precos = Object.fromEntries(products.map((p) => [p.id, p.listPrice?.amountCents ?? 0]));
+  const titular = ctx.role === "administrator";
+  const environment =
+    new URL(env.NEXT_PUBLIC_APP_URL).hostname === "localhost" ? "development" : "production";
+  const contaUrl = `${getAppUrl("conta", environment)}/?familia=${ctx.actor.familyGroupId}#familia`;
   return (
     <div className="flex flex-col gap-4">
       <header>
         <p className="text-xs font-extrabold tracking-[0.12em] text-tinta-suave">AJUSTES</p>
         <h1 className="font-display text-3xl font-extrabold leading-tight">Família e lembretes</h1>
       </header>
-      {sp.pagamento === "recebido" && (
-        <p role="status" className="cartao bg-folha-clara p-4 font-bold text-folha-escura">
-          Pagamento recebido. O plano Família é liberado assim que a confirmação chegar.
-        </p>
-      )}
       <Plano
-        titular={titular}
+        familyGroupId={ctx.actor.familyGroupId}
+        administrador={titular}
         pago={ctx.access.paid}
-        assinatura={
-          ctx.subscription
-            ? {
-                productId: ctx.subscription.productId,
-                cancelAtPeriodEnd: !!ctx.subscription.cancelAtPeriodEnd,
-                currentPeriodEnd: (
-                  ctx.subscription.cancelAtPeriodEnd ?? ctx.subscription.currentPeriodEnd
-                ).toISOString(),
-              }
-            : null
-        }
-        precos={precos}
-        criancas={ctx.children.map((c) => ({ id: c.id, name: c.name, allowed: c.allowed }))}
+        limite={ctx.access.childLimit}
+        criancas={ctx.children}
       />
       <Criancas
-        titular={titular}
+        administrador={titular}
         limite={ctx.access.childLimit}
-        criancas={ctx.children.map((c) => ({ id: c.id, name: c.name, color: c.color }))}
+        criancas={ctx.children}
+        pessoas={people}
+        contaUrl={contaUrl}
       />
       <Aparelhos
-        criancas={ctx.children.filter((c) => c.allowed).map((c) => ({ id: c.id, name: c.name }))}
+        criancas={ctx.children
+          .filter((c) => c.allowed && c.canWrite)
+          .map((c) => ({ id: c.id, name: c.name }))}
         aparelhos={devices.map((d) => ({
           id: d.id,
           label: d.label,
           childIds: d.childIds,
           lastSeenAt: d.lastSeenAt?.toISOString() ?? null,
-          ativo: !d.revokedAt && d.expiresAt.getTime() > Date.now(),
+          ativo: d.currentParticipation && !d.revokedAt && d.expiresAt.getTime() > Date.now(),
         }))}
         nomes={Object.fromEntries(ctx.children.map((c) => [c.id, c.name]))}
       />
-      {family && (
+      {family && titular && (
         <AjustesDaCasa
           inicial={{
             timezone: family.timezone,
@@ -101,20 +91,8 @@ export default async function Ajustes({
         ativo={comPush}
         chavePublica={env.VAPID_PUBLIC_KEY}
       />
-      <TrocarPin />
-      <SegundoResponsavel
-        titular={titular}
-        permitido={canInviteGuardian(ctx.access)}
-        estado={{
-          guardian: guardian.guardian
-            ? { email: guardian.guardian.email, name: guardian.guardian.name }
-            : null,
-          invite: guardian.invite
-            ? { email: guardian.invite.email, expiresAt: guardian.invite.expiresAt.toISOString() }
-            : null,
-        }}
-      />
-      <Conta email={ctx.email} titular={titular} />
+      {titular && <TrocarPin />}
+      <Conta email={ctx.email} />
     </div>
   );
 }

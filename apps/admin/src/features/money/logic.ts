@@ -1,4 +1,4 @@
-import { PRO_STATUSES } from "@informach/billing";
+import { PRO_STATUSES } from "@informach/billing/access";
 import { findProduct } from "@informach/config";
 import { isProductKey, PRODUCTS, type ProductKey } from "@/lib/products";
 

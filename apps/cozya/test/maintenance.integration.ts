@@ -7,8 +7,9 @@ import { billing } from "@/features/billing/service";
 
 it("recovers a backlog larger than one batch before pruning its billing evidence", async () => {
   if (
-    process.env.COZYA_ISOLATED_INTEGRATION !== "1" ||
-    !new URL(process.env.DATABASE_URL ?? "").pathname.startsWith("/cozya_review_")
+    process.env.COMPASSO_ISOLATED_DATABASE !== "1" &&
+    (process.env.COZYA_ISOLATED_INTEGRATION !== "1" ||
+      !new URL(process.env.DATABASE_URL ?? "").pathname.startsWith("/cozya_review_"))
   )
     throw new Error("Global retention tests require the isolated pnpm test:integration runner");
   const userId = randomUUID();
@@ -74,7 +75,10 @@ it("recovers a backlog larger than one batch before pruning its billing evidence
     expect(restored).toHaveLength(101);
     expect(
       restored.every(
-        (entry) => entry.amount === 1 && entry.metadata?.reason === "preview_unavailable",
+        (entry) =>
+          entry.amount === 1 &&
+          entry.metadata?.reason === "compensation" &&
+          entry.metadata?.recoveryReason === "preview_unavailable",
       ),
     ).toBe(true);
     expect((await maintainCozyaData(now)).compensated).toBe(0);

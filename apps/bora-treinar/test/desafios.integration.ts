@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { db, eq } from "@informach/db";
+import { startCompassoTrial } from "@informach/billing/compasso";
+import { db } from "@informach/db";
 import { users } from "@informach/db/schema";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createFamilyService } from "@informach/family";
+import { beforeAll, describe, expect, it } from "vitest";
 import type { Access } from "@/features/acesso/policy";
 import { challengeOf, setChallenge } from "@/features/desafios/repository";
 import { dadosDoDesafio } from "@/features/desafios/service";
-import { createProfile } from "@/features/familia/repository";
+import { activateTrainer } from "@/features/familia/service";
 import type { SessionInput } from "@/features/sessoes/schema";
 import { saveSession } from "@/features/sessoes/service";
 import { inicioDaSemana } from "@/lib/datas";
@@ -24,6 +26,7 @@ const daqui = (semanas: number) => new Date(agora.getTime() + semanas * 7 * 86_4
 const semana = inicioDaSemana(agora, FUSO);
 let ana = "";
 let beto = "";
+let groupId = "";
 
 const pratica = (profileId: string, reps: number): SessionInput => ({
   id: randomUUID(),
@@ -53,13 +56,28 @@ beforeAll(async () => {
     name: "Bora desafios",
     emailVerified: true,
   });
-  ana = await createProfile(owner, "Ana", "#3D7BFF", familia.profileLimit);
-  beto = await createProfile(owner, "Beto", "#FF7A45", familia.profileLimit);
+  const service = createFamilyService({ db });
+  const group = await service.createGroup(owner, "Família dos desafios");
+  groupId = group.id;
+  await startCompassoTrial(
+    { db, trialHashSecret: "isolated-challenge-trial".repeat(3) },
+    owner,
+    group.id,
+  );
+  const personA = await service.createPerson(owner, {
+    groupId: group.id,
+    kind: "dependent",
+    displayName: "Ana",
+  });
+  const personB = await service.createPerson(owner, {
+    groupId: group.id,
+    kind: "dependent",
+    displayName: "Beto",
+  });
+  ana = await activateTrainer(owner, group.id, personA.id);
+  beto = await activateTrainer(owner, group.id, personB.id);
 });
-
-afterAll(async () => {
-  await db.delete(users).where(eq(users.id, owner));
-});
+// The runner removes the isolated database, including this family's canonical identities.
 
 const liberado = async (profileId: string, quando: Date) => {
   const dados = await dadosDoDesafio(owner, profileId, FUSO, familia, quando);
@@ -69,7 +87,7 @@ const liberado = async (profileId: string, quando: Date) => {
 
 describe("desafio pessoal que renova sozinho", () => {
   it("cria o da semana uma vez só, mesmo com telas abertas ao mesmo tempo", async () => {
-    await setChallenge(owner, semana, { metric: "treinos", exerciseId: null, target: 2 });
+    await setChallenge(owner, groupId, semana, { metric: "treinos", exerciseId: null, target: 2 });
     const telas = await Promise.all([1, 2, 3].map(() => liberado(ana, agora)));
     for (const dados of telas)
       expect(dados.pessoal.desafio).toEqual({
@@ -81,7 +99,7 @@ describe("desafio pessoal que renova sozinho", () => {
   });
 
   it("soma os treinos do perfil e a parte de cada um no da família", async () => {
-    await saveSession(owner, familia, [ana, beto], pratica(ana, 300), FUSO);
+    await saveSession(owner, groupId, pratica(ana, 300), FUSO);
     const dados = await liberado(ana, agora);
     expect(dados.pessoal).toMatchObject({ feito: 300, cumprido: true, progresso: 1 });
     expect(dados.familia?.total).toBe(1);
@@ -104,7 +122,7 @@ describe("desafio pessoal que renova sozinho", () => {
     expect(dados.historico.familia).toEqual([
       expect.objectContaining({ weekStart: semana, feito: 1, cumprido: false }),
     ]);
-    expect(await challengeOf(owner, semana)).toEqual({
+    expect(await challengeOf(owner, groupId, semana)).toEqual({
       metric: "treinos",
       exerciseId: null,
       target: 2,

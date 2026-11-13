@@ -25,7 +25,11 @@ export function NewProfileSubjectButton({ profileId, disabled, disabledTitle }: 
         <Plus className="mr-1.5 size-4" aria-hidden />
         Nova matéria
       </Button>
-      <ProfileSubjectFormDialog open={open} onOpenChange={setOpen} profileId={profileId} />
+      <ProfileSubjectFormDialog
+        open={open && !disabled}
+        onOpenChange={setOpen}
+        profileId={profileId}
+      />
     </>
   );
 }

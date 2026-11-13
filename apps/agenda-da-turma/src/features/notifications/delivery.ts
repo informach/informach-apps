@@ -1,22 +1,29 @@
+import { purgeAgendaAiReceipts } from "@/features/ai/wallet-repository";
 import "server-only";
-import { and, db, eq, sql } from "@informach/db";
-import {
-  agendaNotices,
-  agendaNotificationDeliveries,
-  agendaNotificationPreferences,
-  agendaPushSubscriptions,
-  users,
-} from "@informach/db/schema";
+import { FamilyError } from "@informach/family";
 import webpush from "web-push";
 import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
 import { buildBackpack } from "@/features/dashboard/page-of-day";
 import { getTodaySubjectsForProfiles } from "@/features/dashboard/today-subjects-service";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { listNoticeActions } from "@/features/notices/repository";
 import { purgeExpiredIdempotentWrites } from "@/features/offline-queue/repository";
 import { listSubjectKits } from "@/features/subject-kits/service";
 import { buildEmailUnsubscribeUrl, emails } from "@/lib/emails";
 import { env } from "@/lib/env";
+import {
+  claim,
+  currentEmail,
+  currentPushDevice,
+  defer,
+  finish,
+  isCurrentDelivery,
+  listPushDevices,
+  listRecipients,
+  purgeExpiredAttachments,
+  retirePushDevice,
+} from "./delivery-repository";
 import { buildDailyDigest, buildReminder, type DigestItem, type PushText } from "./digest";
 import { isAllowedPushEndpoint, isQuietHour } from "./schemas";
 import { getNotificationPreferences } from "./service";
@@ -89,16 +96,16 @@ type Message = {
  * noite (`buildBackpack`), só que para cada dia da semana.
  */
 async function weeklyBackpacks(
-  userId: string,
+  actor: AgendaAuthority,
   profileIds: readonly string[],
   window: { fromIso: string; toIso: string },
 ): Promise<Record<string, WeeklyBackpack[]>> {
   if (profileIds.length === 0) return {};
-  const kits = Object.fromEntries(await listSubjectKits(userId, [...profileIds]));
+  const kits = Object.fromEntries(await listSubjectKits(actor, [...profileIds]));
   const days: string[] = [];
   for (let iso = window.fromIso; iso <= window.toIso; iso = addDaysIso(iso, 1)) days.push(iso);
   const schedules = await Promise.all(
-    days.map((dateIso) => getTodaySubjectsForProfiles(userId, { dateIso })),
+    days.map((dateIso) => getTodaySubjectsForProfiles(actor, { dateIso })),
   );
   return Object.fromEntries(
     days.map((iso, index) => [
@@ -112,75 +119,28 @@ async function weeklyBackpacks(
   );
 }
 
-async function claim(userId: string, channel: "email" | "push", messageKey: string, now: Date) {
-  await db
-    .insert(agendaNotificationDeliveries)
-    .values({ userId, channel, messageKey })
-    .onConflictDoNothing();
-  const [row] = await db
-    .update(agendaNotificationDeliveries)
-    .set({
-      status: "processing",
-      attempts: sql`CASE WHEN ${agendaNotificationDeliveries.status} = 'processing' THEN ${agendaNotificationDeliveries.attempts} ELSE ${agendaNotificationDeliveries.attempts} + 1 END`,
-      lastAttemptAt: now,
-    })
-    .where(
-      and(
-        eq(agendaNotificationDeliveries.userId, userId),
-        eq(agendaNotificationDeliveries.channel, channel),
-        eq(agendaNotificationDeliveries.messageKey, messageKey),
-        sql`(${agendaNotificationDeliveries.attempts} < 3 OR ${agendaNotificationDeliveries.status} = 'processing')`,
-        sql`(${agendaNotificationDeliveries.status} = 'pending' OR (${agendaNotificationDeliveries.status} IN ('failed', 'processing') AND ${agendaNotificationDeliveries.lastAttemptAt} < ${new Date(now.valueOf() - 10 * 60_000).toISOString()}::timestamptz))`,
-      ),
-    )
-    .returning();
-  return row ?? null;
-}
-async function finish(id: string, status: "sent" | "failed" | "canceled", now: Date) {
-  await db
-    .update(agendaNotificationDeliveries)
-    .set({ status, sentAt: status === "sent" ? now : null })
-    .where(
-      and(
-        eq(agendaNotificationDeliveries.id, id),
-        eq(agendaNotificationDeliveries.status, "processing"),
-        eq(agendaNotificationDeliveries.lastAttemptAt, now),
-      ),
-    );
-}
-
-async function defer(id: string, now: Date) {
-  // A busy/uncertain provider delivery is not a failed attempt and must not
-  // exhaust this job's retry budget. The email layer owns reconciliation.
-  await db
-    .update(agendaNotificationDeliveries)
-    .set({
-      status: "failed",
-      attempts: sql`greatest(0, ${agendaNotificationDeliveries.attempts} - 1)`,
-    })
-    .where(
-      and(
-        eq(agendaNotificationDeliveries.id, id),
-        eq(agendaNotificationDeliveries.status, "processing"),
-        eq(agendaNotificationDeliveries.lastAttemptAt, now),
-      ),
-    );
-}
-
 // Rebuild from current grants, subscription, status and dates for each send.
-async function currentMessages(userId: string, now: Date): Promise<Message[]> {
-  const prefs = await getNotificationPreferences(userId);
+export async function currentMessages(actor: AgendaAuthority, now: Date): Promise<Message[]> {
+  try {
+    return await buildCurrentMessages(actor, now);
+  } catch (error) {
+    if (error instanceof FamilyError) return [];
+    throw error;
+  }
+}
+async function buildCurrentMessages(actor: AgendaAuthority, now: Date): Promise<Message[]> {
+  const prefs = await getNotificationPreferences(actor);
   const today = todayLocalIso(now);
   const hour = saoPauloHour(now);
   if (isQuietHour(hour, prefs.quietStart, prefs.quietEnd)) return [];
-  const entitlement = await getFamilyEntitlements(userId);
+  const entitlement = await getFamilyEntitlements(actor);
   if (!entitlement.enabled) return [];
   // Uma lista só. O resumo já somou duas consultas — as providências de recado
   // e um snapshot por bucket das atividades escolares — e a mesma atividade
   // aparecia com dois textos diferentes conforme a tabela de origem. Com a
   // convergência, `listNoticeActions` (pendentes, por acesso à criança) é a
   // fonte inteira.
-  const rows = await listNoticeActions(userId);
+  const rows = await listNoticeActions(actor);
   const eligible = rows.filter((r) => entitlement.proProfileIds.includes(r.action.profileId));
   const messages: Message[] = [];
   // O resumo da semana, no dia e na hora combinados. Sai da MESMA lista do
@@ -215,7 +175,7 @@ async function currentMessages(userId: string, now: Date): Promise<Message[]> {
           todayIso: today,
           items,
           backpacks: await weeklyBackpacks(
-            userId,
+            actor,
             entitlement.proProfileIds,
             // A mochila de cada dia que o e-mail mostra, a partir de hoje.
             { fromIso: today, toIso: week.toIso },
@@ -248,72 +208,62 @@ async function currentMessages(userId: string, now: Date): Promise<Message[]> {
 
 export async function deliverRoutineNotifications(
   now = new Date(),
-  options: { afterUserId?: string | null; limit?: number; budgetMs?: number } = {},
+  options: { afterPreferenceId?: string | null; limit?: number; budgetMs?: number } = {},
 ) {
   const limit = Math.min(50, Math.max(1, options.limit ?? 20));
   const deadline = Date.now() + Math.min(45_000, Math.max(1000, options.budgetMs ?? 40_000));
   const hour = saoPauloHour(now);
-  const recipients = await db
-    .select({
-      preferences: agendaNotificationPreferences,
-      email: users.email,
-      verified: users.emailVerified,
-    })
-    .from(agendaNotificationPreferences)
-    .innerJoin(users, eq(users.id, agendaNotificationPreferences.userId))
-    .where(
-      and(
-        sql`(${agendaNotificationPreferences.emailEnabled} OR ${agendaNotificationPreferences.pushEnabled})`,
-        options.afterUserId
-          ? sql`${agendaNotificationPreferences.userId} > ${options.afterUserId}`
-          : undefined,
-      ),
-    )
-    .orderBy(agendaNotificationPreferences.userId)
-    .limit(limit + 1);
+  const recipients = await listRecipients(options.afterPreferenceId, limit + 1);
   let sent = 0;
   let failed = 0;
   let completed = 0;
-  let cursor = options.afterUserId ?? null;
+  let cursor = options.afterPreferenceId ?? null;
   let interrupted = false;
   recipientsLoop: for (const recipient of recipients.slice(0, limit)) {
     const prefs = recipient.preferences;
     const userId = prefs.userId;
+    const actor = { userId, familyGroupId: prefs.familyGroupId };
     if (Date.now() >= deadline) {
       interrupted = true;
       break;
     }
     if (!recipient.verified || isQuietHour(hour, prefs.quietStart, prefs.quietEnd)) {
-      cursor = userId;
+      cursor = prefs.id;
       completed++;
       continue;
     }
-    const messages = await currentMessages(userId, now);
-    const subscriptions = prefs.pushEnabled
-      ? await db
-          .select()
-          .from(agendaPushSubscriptions)
-          .where(eq(agendaPushSubscriptions.userId, userId))
-      : [];
+    const messages = await currentMessages(actor, now);
+    const subscriptions = prefs.pushEnabled ? await listPushDevices(userId) : [];
     for (const message of messages) {
       if (Date.now() >= deadline) {
         interrupted = true;
         break recipientsLoop;
       }
-      const currentPrefs = await getNotificationPreferences(userId);
+      let currentPrefs: Awaited<ReturnType<typeof getNotificationPreferences>>;
+      try {
+        currentPrefs = await getNotificationPreferences(actor);
+      } catch (error) {
+        if (error instanceof FamilyError) continue;
+        throw error;
+      }
       if (isQuietHour(saoPauloHour(now), currentPrefs.quietStart, currentPrefs.quietEnd)) continue;
       if (currentPrefs.emailEnabled) {
-        const delivery = await claim(userId, "email", message.key, now);
+        const delivery = await claim(actor, "email", message.key);
         if (delivery) {
           try {
-            const fresh = (await currentMessages(userId, now)).find((m) => m.key === message.key);
-            const consent = await getNotificationPreferences(userId);
+            const fresh = (await currentMessages(actor, now)).find((m) => m.key === message.key);
+            const consent = await getNotificationPreferences(actor);
             if (!fresh || !consent.emailEnabled) {
-              await finish(delivery.id, "canceled", now);
+              await finish(delivery, "canceled", now);
               continue;
             }
             const unsubscribeUrl = buildEmailUnsubscribeUrl(userId, "agenda.routine");
-            const url = `${env.NEXT_PUBLIC_APP_URL}${fresh.path}`;
+            const url = `${env.NEXT_PUBLIC_APP_URL}${notificationPath(actor, fresh.path)}`;
+            const recipientEmail = await currentEmail(userId);
+            if (!recipientEmail) {
+              await finish(delivery, "canceled", now);
+              continue;
+            }
             const links = {
               weekUrl: url,
               settingsUrl: `${env.NEXT_PUBLIC_APP_URL}/familia/ajustes`,
@@ -325,28 +275,40 @@ export async function deliverRoutineNotifications(
               ? renderWeeklyEmailText(fresh.weeklyEmail, links)
               : `${fresh.title}\n\n${fresh.lines.join("\n")}\n\nAbrir a Agenda: ${url}\n\n${EMAIL_FOOTNOTE}\nNão quero mais receber: ${unsubscribeUrl}`;
             const result = await emails.sendEmail({
-              to: recipient.email,
+              to: recipientEmail,
               userId,
               category: "agenda.routine",
-              messageKey: `agenda:${userId}:${message.key}`,
+              messageKey: `agenda:${userId}:${actor.familyGroupId}:${message.key}`,
               subject: fresh.title,
               text,
               html: fresh.weeklyEmail
                 ? renderWeeklyEmailHtml(fresh.weeklyEmail, links)
                 : `<h1>${escapeHtml(fresh.title)}</h1><ul>${fresh.lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul><p><a href="${escapeHtml(url)}">Abrir a Agenda</a></p><p>${escapeHtml(EMAIL_FOOTNOTE)}</p><p><a href="${escapeHtml(unsubscribeUrl)}">Não quero mais receber</a></p>`,
               unsubscribeUrl,
+              authorizeContent: async () => {
+                if (!(await isCurrentDelivery(actor, delivery))) return false;
+                const consent = await getNotificationPreferences(actor);
+                const current = (await currentMessages(actor, now)).find(
+                  (m) => m.key === fresh.key,
+                );
+                return (
+                  consent.emailEnabled &&
+                  (await currentEmail(userId)) === recipientEmail &&
+                  JSON.stringify(current) === JSON.stringify(fresh)
+                );
+              },
             });
-            if (result.status === "deferred") await defer(delivery.id, now);
+            if (result.status === "deferred") await defer(delivery);
             else
               await finish(
-                delivery.id,
+                delivery,
                 result.ok ? "sent" : result.status === "skipped" ? "canceled" : "failed",
                 now,
               );
             if (result.ok) sent++;
             else if (result.status === "failed") failed++;
           } catch {
-            await finish(delivery.id, "failed", now);
+            await finish(delivery, "failed", now);
             failed++;
           }
         }
@@ -358,22 +320,19 @@ export async function deliverRoutineNotifications(
             break recipientsLoop;
           }
           if (!isAllowedPushEndpoint(subscription.endpoint)) continue;
-          const delivery = await claim(userId, "push", `${message.key}:${subscription.id}`, now);
+          const delivery = await claim(actor, "push", `${message.key}:${subscription.id}`);
           if (!delivery) continue;
           try {
-            const fresh = (await currentMessages(userId, now)).find((m) => m.key === message.key);
-            const consent = await getNotificationPreferences(userId);
-            const [device] = await db
-              .select({ id: agendaPushSubscriptions.id })
-              .from(agendaPushSubscriptions)
-              .where(
-                and(
-                  eq(agendaPushSubscriptions.id, subscription.id),
-                  eq(agendaPushSubscriptions.userId, userId),
-                ),
-              );
-            if (!fresh || !consent.pushEnabled || !device) {
-              await finish(delivery.id, "canceled", now);
+            const fresh = (await currentMessages(actor, now)).find((m) => m.key === message.key);
+            const consent = await getNotificationPreferences(actor);
+            const device = await currentPushDevice(userId, subscription.id);
+            if (
+              !fresh ||
+              !consent.pushEnabled ||
+              !device ||
+              !(await isCurrentDelivery(actor, delivery))
+            ) {
+              await finish(delivery, "canceled", now);
               continue;
             }
             // A tela bloqueada nunca mostra nome de criança nem conteúdo escolar
@@ -382,13 +341,13 @@ export async function deliverRoutineNotifications(
             // montado e testado sem esses dados em `digest.ts` e `weekly.ts`.
             await webpush.sendNotification(
               {
-                endpoint: subscription.endpoint,
-                keys: { p256dh: subscription.p256dh, auth: subscription.auth },
+                endpoint: device.endpoint,
+                keys: { p256dh: device.p256dh, auth: device.auth },
               },
               JSON.stringify({
                 title: fresh.push.title,
                 body: fresh.push.body,
-                url: fresh.path,
+                url: notificationPath(actor, fresh.path),
                 tag: delivery.id,
               }),
               {
@@ -401,7 +360,7 @@ export async function deliverRoutineNotifications(
                 },
               },
             );
-            await finish(delivery.id, "sent", now);
+            await finish(delivery, "sent", now);
             sent++;
           } catch (error) {
             if (
@@ -410,27 +369,21 @@ export async function deliverRoutineNotifications(
               "statusCode" in error &&
               (error.statusCode === 410 || error.statusCode === 404)
             )
-              await db
-                .delete(agendaPushSubscriptions)
-                .where(eq(agendaPushSubscriptions.id, subscription.id));
-            await finish(delivery.id, "failed", now);
+              await retirePushDevice(userId, subscription.id);
+            await finish(delivery, "failed", now);
             failed++;
           }
         }
       }
     }
-    cursor = userId;
+    cursor = prefs.id;
     completed++;
   }
   // Retention is enforced even when nobody has notifications enabled.
   // O recibo da fila offline é lembrança de curto prazo, não histórico.
   await purgeExpiredIdempotentWrites(now);
-  await db
-    .update(agendaNotices)
-    .set({ attachmentData: null })
-    .where(
-      sql`${agendaNotices.attachmentExpiresAt} <= ${now.toISOString()}::timestamptz AND ${agendaNotices.attachmentData} IS NOT NULL`,
-    );
+  await purgeExpiredAttachments(now);
+  await purgeAgendaAiReceipts(now);
   return {
     sent,
     failed,
@@ -438,4 +391,8 @@ export async function deliverRoutineNotifications(
     cursor,
     hasMore: interrupted || recipients.length > limit,
   };
+}
+
+function notificationPath(actor: AgendaAuthority, path: string) {
+  return `/contexto?family=${encodeURIComponent(actor.familyGroupId)}&next=${encodeURIComponent(path)}`;
 }

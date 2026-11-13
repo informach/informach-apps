@@ -135,6 +135,7 @@ export function barHeights(points: SeriesPoint[]): number[] {
 export const EMAIL_CATEGORY_LABEL: Record<string, { one: string; many: string }> = {
   "auth.verify-email": { one: "link de confirmação", many: "links de confirmação" },
   "auth.verify-email-otp": { one: "código de confirmação", many: "códigos de confirmação" },
+  "auth.change-email-otp": { one: "código de troca de e-mail", many: "códigos de troca de e-mail" },
   "auth.sign-in-otp": { one: "código de acesso", many: "códigos de acesso" },
   "auth.forget-password-otp": { one: "código de senha", many: "códigos de senha" },
   "auth.password-reset": { one: "link de senha", many: "links de senha" },

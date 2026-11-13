@@ -7,7 +7,7 @@ export const metadata = { title: "Cofrinho" };
 
 export default async function Cofrinho() {
   const ctx = await parentPage();
-  const dados = await parentPiggy(ctx.ownerId, ctx.children);
+  const dados = await parentPiggy(ctx.actor, ctx.children);
   const taxa = ctx.family?.starsPerReal ?? 10;
   return (
     <div className="flex flex-col gap-4">
@@ -29,6 +29,7 @@ export default async function Cofrinho() {
         />
       ))}
       <LojaDaFamilia
+        podeGerenciar={ctx.mode === "adult" && ctx.role === "administrator"}
         itens={dados.rewards.map((r) => ({
           id: r.id,
           kind: r.kind,

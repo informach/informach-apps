@@ -20,7 +20,7 @@ export function handleAiHttpError(response: Response): boolean {
     return false;
   }
   if (response.status === 413) {
-    toast.error("Arquivo muito grande. Envie uma imagem de até 5 MB ou áudio de até 10 MB.");
+    toast.error("Arquivo muito grande. Envie uma imagem de até 5 MB ou áudio de até 2 minutos.");
     return false;
   }
   if (response.status === 401) {
@@ -38,7 +38,7 @@ export function handleAiHttpError(response: Response): boolean {
     return false;
   }
   if (response.status === 403) {
-    toast.error("Verifique seu e-mail e ative o teste gratuito ou o Pro para usar a IA.");
+    toast.error("Confira seu e-mail e seu acesso à família na Minha conta antes de usar a IA.");
     return false;
   }
   if (response.status === 503) {

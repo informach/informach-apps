@@ -1,3 +1,4 @@
+import { COMPASSO_LEGACY_CREDIT_POLICIES } from "@informach/config/collections";
 import type { Subscription as SubscriptionRow } from "@informach/db/schema";
 import { hasProSubscription } from "./access";
 import { createCreditPackCheckout, createSubscriptionCheckout } from "./checkout";
@@ -25,6 +26,9 @@ import {
   releaseReservation,
   reserveCredits,
 } from "./credits";
+import { refreshLegacyCreditPurchases } from "./credits/legacy-payments";
+import { refreshLegacySubscriptionGrants } from "./credits/legacy-subscriptions";
+import { forwardPendingLegacyCreditEntries } from "./credits/migration-forwarding";
 import {
   type GetOrCreateCustomerInput,
   type GetOrCreateCustomerResult,
@@ -79,6 +83,7 @@ import type {
 import {
   handleStripeEvent,
   type ParsedWebhookEvent,
+  retryLegacyFinancialEvents,
   verifyStripeSignature,
   type WebhookHandlerResult,
 } from "./webhooks";
@@ -110,6 +115,7 @@ export {
   CustomerNotFoundError,
   InsufficientCreditsError,
   InvalidProductError,
+  LegacySubscriptionPendingError,
   NotImplementedError,
   OrganizationsDisabledError,
   ReservationAlreadyResolvedError,
@@ -377,7 +383,9 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     provider: config.provider,
     providerClient,
     app: config.app,
-    webhookScope: config.appName,
+    webhookScope:
+      Object.entries(COMPASSO_LEGACY_CREDIT_POLICIES).find(([app]) => app === config.app)?.[1]
+        .webhookScope ?? config.appName,
     guardClosedBilling: config.guardClosedBilling,
     products: config.products,
     logger: config.logger,
@@ -388,6 +396,8 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
   const creditDeps = {
     db: config.db,
     app: config.app,
+    walletScope: config.app,
+    authorizeSpend: config.authorizeCreditSpend,
     logger: config.logger,
     onAudit: config.onAudit,
   };
@@ -522,8 +532,8 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
     closeRemoteBillingForSubject(subject) {
       return closeRemoteBillingForSubject(subscriptionsDeps, subject);
     },
-    reconcileSubscriptions(opts) {
-      return reconcileSubscriptionStatuses({
+    async reconcileSubscriptions(opts) {
+      const result = await reconcileSubscriptionStatuses({
         products: config.products,
         stripeMode: config.stripeMode,
         afterId: opts?.afterId,
@@ -535,6 +545,28 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
         logger: config.logger,
         batchSize: opts?.batchSize,
       });
+      const failures: unknown[] = [];
+      for (const reconcile of [
+        () => forwardPendingLegacyCreditEntries(config.db, config.app),
+        () => refreshLegacyCreditPurchases({ db: config.db, app: config.app, providerClient }),
+        () =>
+          refreshLegacySubscriptionGrants({
+            db: config.db,
+            app: config.app,
+            products: config.products,
+            providerClient,
+          }),
+        () => retryLegacyFinancialEvents(webhookDeps),
+      ]) {
+        try {
+          await reconcile();
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+      if (failures.length)
+        throw new AggregateError(failures, "Legacy credit reconciliation is incomplete");
+      return result;
     },
     expireMonthlyBonusCredits(opts) {
       return expireMonthlyBonusCredits({
@@ -545,8 +577,8 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
         batchSize: opts?.batchSize,
       });
     },
-    grantPendingMonthlyBonusCredits(opts) {
-      return grantPendingMonthlyBonusCredits({
+    async grantPendingMonthlyBonusCredits(opts) {
+      const result = await grantPendingMonthlyBonusCredits({
         db: config.db,
         app: config.app,
         products: config.products,
@@ -555,6 +587,13 @@ export function createBillingService(config: BillingServiceConfig): BillingServi
         now: opts?.now,
         batchSize: opts?.batchSize,
       });
+      await refreshLegacySubscriptionGrants({
+        db: config.db,
+        app: config.app,
+        products: config.products,
+        providerClient,
+      });
+      return result;
     },
     releaseExpiredReservations(opts) {
       return releaseExpiredReservations({

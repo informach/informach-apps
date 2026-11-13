@@ -1,14 +1,16 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { runRecordedAiCall, withCredits } from "@informach/ai-core";
+import { runRecordedAiCall } from "@informach/ai-core";
+import { speechAudioSeconds } from "@informach/ai-core/speech-audio";
 import { transcribeAudio } from "@informach/ai-core/transcription";
+import { z } from "zod";
 import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
 import { COZYA_MODELS } from "@/ai/models";
-import { billing } from "@/features/billing/service";
 import { env } from "@/lib/env";
 import { openRouterAttributionHeaders } from "@/lib/openrouter";
+import { COZYA_AI_COSTS, speechCredits } from "./costs";
 import { NoRecipeResultError } from "./errors";
-import { currentAiOperationId } from "./operation-context";
+import { runCozyaAiWorkflow } from "./workflow";
 
 export type TranscribeRecipeAudioInput = { userId: string; audio: Blob };
 export type TranscribeRecipeAudioResult = { text: string };
@@ -16,29 +18,32 @@ const FEATURE = "cozya.recipe.transcribe_audio" as const;
 const RECIPE_TRANSCRIPTION_PROMPT =
   "Receita brasileira em português. Ingredientes: frango, arroz, feijão, ovo, leite, queijo, manteiga, azeite, sal, açúcar, tomate, cebola, alho, farinha, fubá, mandioca. Preserve as quantidades e unidades faladas.";
 
-/** Standalone transcription (saved-recipe voice search): explicitly costs one credit. */
+const speechResultSchema = z.object({ text: z.string().trim().min(1).max(16000) });
+
+/** The duration tariff is explicit and includes at most two minutes. */
 export async function transcribeRecipeAudio(
   input: TranscribeRecipeAudioInput,
 ): Promise<TranscribeRecipeAudioResult> {
-  const out = await withCredits({
-    billing,
-    runId: currentAiOperationId(),
-    owner: { type: "user", id: input.userId },
-    app: "cozya",
+  speechAudioSeconds(new Uint8Array(await input.audio.arrayBuffer()));
+  return runCozyaAiWorkflow({
+    userId: input.userId,
     feature: FEATURE,
-    model: COZYA_MODELS[FEATURE],
-    estimateCost: () => ({ estimatedAmount: 1 }),
-    computeActualCost: () => ({ actualAmount: 1 }),
-    call: ({ reservation }) => transcribeAudioWithinReservation(input, reservation.id),
+    agent: "transcribe-audio",
+    quote: COZYA_AI_COSTS.speech,
+    parseResult: (value) => speechResultSchema.parse(value),
+    call: async (runId) => {
+      const result = await transcribeAudioWithinReservation(input, runId);
+      return { value: { text: result.text }, actualCredits: result.credits };
+    },
   });
-  return out.result;
 }
 
 /** Internal stage: never reserves or charges independently of the enclosing task. */
 export async function transcribeAudioWithinReservation(
   input: TranscribeRecipeAudioInput,
   reservationId: string,
-): Promise<TranscribeRecipeAudioResult> {
+) {
+  const seconds = speechAudioSeconds(new Uint8Array(await input.audio.arrayBuffer()));
   const { result } = await runRecordedAiCall({
     recorder,
     app: "cozya",
@@ -52,11 +57,11 @@ export async function transcribeAudioWithinReservation(
       model: COZYA_MODELS[FEATURE],
       stage: "transcribe",
     },
-    getUsage: () => ({ promptTokens: 0, completionTokens: 0, totalTokens: 0 }),
-    getSuccessMetadata: (response) =>
-      response.durationInSeconds === undefined
-        ? undefined
-        : { durationInSeconds: response.durationInSeconds },
+    getUsage: (response) => response.usage,
+    getSuccessMetadata: (response) => ({
+      durationInSeconds: seconds,
+      ...(response.costUsd === undefined ? {} : { providerCostUsd: response.costUsd }),
+    }),
     getErrorMetadata: (error) => ({ error: error instanceof Error ? error.name : "UnknownError" }),
     call: () =>
       transcribeAudio({
@@ -71,5 +76,5 @@ export async function transcribeAudioWithinReservation(
   });
   if (!result.text.trim())
     throw new NoRecipeResultError("Não consegui ouvir o áudio. Nenhum crédito foi consumido.");
-  return { text: result.text.trim() };
+  return { ...speechResultSchema.parse({ text: result.text }), credits: speechCredits(seconds) };
 }

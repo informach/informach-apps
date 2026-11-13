@@ -1,5 +1,6 @@
 import "server-only";
 import { createPostgresStore } from "@informach/ai-core/mastra";
+import { purgeAiOperationReceipts } from "@informach/ai-core/operations";
 import { and, asc, db, eq, lt, sql } from "@informach/db";
 import {
   agentRuns,
@@ -46,6 +47,7 @@ export async function maintainCozyaData(now = new Date()) {
     )
     .returning({ id: cozyaAiOperations.id });
   const cutoff = new Date(now.getTime() - 90 * 86400000);
+  await purgeAiOperationReceipts(db, "cozya", now);
   await db.delete(cozyaAiOperations).where(and(lt(cozyaAiOperations.createdAt, cutoff), resolved));
   const events = await db
     .delete(cozyaProductEvents)

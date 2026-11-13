@@ -7,10 +7,11 @@ import type { ChildView } from "@/features/familia/view";
 import { openAlerts } from "@/features/lembretes/repository";
 import { goalsOf, listRewards, pendingRedemptions } from "@/features/loja/repository";
 import { listTasks } from "@/features/rotina/repository";
+import type { ParentAuthority } from "../familia/authority";
 
 /** O Início dos pais: alertas, o que espera aprovação ou pagamento e o dia de cada criança. */
 export async function parentHome(
-  ownerId: string,
+  actor: ParentAuthority,
   timezone: string,
   children: ChildView[],
   now = Date.now(),
@@ -19,13 +20,13 @@ export async function parentHome(
   const ativos = children.filter((c) => c.allowed);
   const ids = ativos.map((c) => c.id);
   const [tarefas, estado, saldos, alertas, aprovacoes, pedidos, aparelhos] = await Promise.all([
-    listTasks(ownerId, ids),
-    dayState(ids, relogio.data),
-    balances(ids),
-    openAlerts(ownerId, relogio.data),
-    pendingApprovals(ownerId),
-    pendingRedemptions(ownerId),
-    activeDeviceChildren(ids),
+    listTasks(actor, ids),
+    dayState(actor, ids, relogio.data),
+    balances(actor, ids),
+    openAlerts(actor, relogio.data),
+    pendingApprovals(actor),
+    pendingRedemptions(actor),
+    activeDeviceChildren(actor, ids),
   ]);
   const criancas = ativos.map((c) => {
     const doDia = tarefasDoDia(
@@ -40,6 +41,7 @@ export async function parentHome(
       id: c.id,
       name: c.name,
       color: c.color,
+      canWrite: c.canWrite,
       saldo: saldos.get(c.id)?.saldo ?? 0,
       temAparelho: aparelhos.some((a) => a.childId === c.id),
       itens: visao.itens.map((i) => ({
@@ -57,30 +59,44 @@ export async function parentHome(
     };
   });
   const nome = new Map(children.map((c) => [c.id, c.name]));
+  const writable = new Set(children.filter((c) => c.canWrite).map((c) => c.id));
   return {
     relogio,
     criancas,
     alertas: alertas
       .filter((a) => !a.snoozeUntil || new Date(a.snoozeUntil).getTime() <= now)
-      .map((a) => ({ ...a, childName: nome.get(a.childId) ?? "" })),
+      .map((a) => ({
+        ...a,
+        childName: nome.get(a.childId) ?? "",
+        canWrite: writable.has(a.childId),
+      })),
     adiados: alertas.filter((a) => a.snoozeUntil && new Date(a.snoozeUntil).getTime() > now).length,
-    aprovacoes: aprovacoes.map((a) => ({ ...a, childName: nome.get(a.childId) ?? "" })),
-    pedidos: pedidos.map((p) => ({ ...p, childName: nome.get(p.childId) ?? "" })),
+    aprovacoes: aprovacoes.map((a) => ({
+      ...a,
+      childName: nome.get(a.childId) ?? "",
+      canWrite: writable.has(a.childId),
+    })),
+    pedidos: pedidos.map((p) => ({
+      ...p,
+      childName: nome.get(p.childId) ?? "",
+      canWrite: writable.has(p.childId),
+    })),
   };
 }
 
-export async function parentPiggy(ownerId: string, children: ChildView[]) {
+export async function parentPiggy(actor: ParentAuthority, children: ChildView[]) {
   const ids = children.map((c) => c.id);
   const [saldos, goals, rewards] = await Promise.all([
-    balances(ids),
-    goalsOf(ids),
-    listRewards(ownerId),
+    balances(actor, ids),
+    goalsOf(actor, ids),
+    listRewards(actor),
   ]);
   return {
     criancas: children.map((c) => ({
       id: c.id,
       name: c.name,
       color: c.color,
+      canWrite: c.canWrite,
       allowed: c.allowed,
       saldo: saldos.get(c.id)?.saldo ?? 0,
       guardadas: saldos.get(c.id)?.guardadas ?? 0,

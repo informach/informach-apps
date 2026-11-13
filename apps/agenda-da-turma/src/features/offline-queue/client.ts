@@ -1,5 +1,8 @@
 "use client";
 
+import { z } from "zod";
+import type { AgendaAuthority } from "@/features/family/authority";
+
 import {
   applyOutcome,
   classifyResponse,
@@ -34,6 +37,7 @@ async function post(entry: {
   version: number;
   status: PendingWriteStatus;
   fromQueue: boolean;
+  actor: AgendaAuthority;
 }): Promise<WriteOutcome> {
   let response: Response;
   try {
@@ -44,7 +48,7 @@ async function post(entry: {
         "Idempotency-Key": entry.key,
         ...(entry.fromQueue ? { "X-Agenda-Queued": "1" } : {}),
       },
-      body: JSON.stringify({ version: entry.version, status: entry.status }),
+      body: JSON.stringify({ ...entry.actor, version: entry.version, status: entry.status }),
     });
   } catch {
     // Sem rede, DNS preso, portal cativo: nada chegou ao servidor.
@@ -75,15 +79,9 @@ export async function submitTaskStatus(input: {
   version: number;
   status: PendingWriteStatus;
   title: string;
-  /**
-   * Quem está decidindo. A fila é da origem, não da sessão (ver `store.ts`).
-   *
-   * `null` quando a tela não está dentro de um `QueueOwnerProvider` — aí não há
-   * fila, e a falha volta a ser falha. Guardar sem dono seria guardar para
-   * qualquer um que entrasse depois neste aparelho.
-   */
-  userId: string | null;
+  actor: AgendaAuthority | null;
 }): Promise<ToggleResult> {
+  if (!input.actor) return { ok: false, error: { code: "ACCOUNT_CHANGED" } };
   const key = crypto.randomUUID();
   const outcome = await post({
     key,
@@ -91,24 +89,24 @@ export async function submitTaskStatus(input: {
     version: input.version,
     status: input.status,
     fromQueue: false,
+    actor: input.actor,
   });
   if (outcome.kind === "settled") {
     // Subiu de verdade: o que estava esperando OU marcado como recusado para
     // esta atividade deixa de valer. Sem isto, insistir num conflito pela
     // lixeira do card salvava a atividade e deixava a linha antiga na folha,
     // com a barra avisando para sempre sobre algo já resolvido.
-    if (outcome.ok && input.userId) await forgetTaskWrites(input.userId, input.id);
+    if (outcome.ok) await forgetTaskWrites(input.actor, input.id);
     return outcome.ok
       ? { ok: true, value: { id: input.id, version: outcome.version } }
       : { ok: false, error: { code: outcome.code } };
   }
   if (outcome.kind === "invalid") return { ok: false, error: { code: outcome.code } };
-  if (!input.userId) return { ok: false, error: { code: "OFFLINE" } };
 
   const entry: PendingWrite = {
     key,
     taskId: input.id,
-    userId: input.userId,
+    ...input.actor,
     status: input.status,
     version: input.version,
     title: input.title,
@@ -117,7 +115,7 @@ export async function submitTaskStatus(input: {
   };
   // Trocar de ideia ainda offline substitui a decisão anterior em vez de somar
   // uma segunda gravação com a mesma versão, que subiria já vencida.
-  const mine = visibleForOwner(await listPendingWrites(), input.userId);
+  const mine = visibleForOwner(await listPendingWrites(), input.actor);
   for (const stale of supersededKeys(mine, input.id)) await deletePendingWrite(stale);
   const stored = await savePendingWrite(entry);
   // Sem armazém não há fila, e prometer que "sobe quando a rede voltar" seria
@@ -158,21 +156,59 @@ export type FlushResult = { sent: number; conflicts: number };
  * gravações — e, pior, um deles regravaria do seu retrato em memória uma
  * entrada que outro tinha acabado de resolver.
  */
-let inFlight: Promise<FlushResult> | null = null;
-
-export function flushPendingWrites(userId: string): Promise<FlushResult> {
-  inFlight ??= runFlush(userId).finally(() => {
-    inFlight = null;
+const inFlight = new Map<string, Promise<FlushResult>>();
+export function flushPendingWrites(actor: AgendaAuthority): Promise<FlushResult> {
+  const context = JSON.stringify([actor.userId, actor.familyGroupId]);
+  const running = inFlight.get(context);
+  if (running) return running;
+  const promise = runFlush(actor).finally(() => {
+    inFlight.delete(context);
   });
-  return inFlight;
+  inFlight.set(context, promise);
+  return promise;
 }
 
-async function runFlush(userId: string): Promise<FlushResult> {
+const legacyResolutionSchema = z
+  .array(z.object({ taskId: z.uuid(), familyGroupId: z.uuid() }))
+  .max(100);
+async function resolveLegacyWrites(actor: AgendaAuthority) {
+  const legacy = (await listPendingWrites()).filter(
+    (entry) =>
+      entry.userId === actor.userId &&
+      entry.familyGroupId === null &&
+      Date.now() - entry.createdAt < 7 * 86_400_000,
+  );
+  if (!legacy.length) return;
+  // Bounded batches preserve all eligible decisions without sending activity titles.
+  for (let offset = 0; offset < legacy.length; offset += 100) {
+    const batch = legacy.slice(offset, offset + 100);
+    try {
+      const response = await fetch("/api/tasks/queue-context", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: actor.userId, taskIds: batch.map((entry) => entry.taskId) }),
+      });
+      if (!response.ok) return;
+      const parsed = legacyResolutionSchema.safeParse(await response.json());
+      if (!parsed.success) return;
+      for (const entry of batch) {
+        const context = parsed.data.find((row) => row.taskId === entry.taskId);
+        if (context)
+          await updatePendingWriteIfPresent({ ...entry, familyGroupId: context.familyGroupId });
+      }
+    } catch {
+      return;
+    }
+  }
+  notifyQueueChanged();
+}
+async function runFlush(actor: AgendaAuthority): Promise<FlushResult> {
+  await resolveLegacyWrites(actor);
   const all = await listPendingWrites();
   // O que passou da validade sai antes de qualquer tentativa: subir uma decisão
   // de dez dias atrás com a versão daquele dia só produziria conflito.
   for (const stale of expiredKeys(all)) await deletePendingWrite(stale);
-  let entries = visibleForOwner(all, userId);
+  let entries = visibleForOwner(all, actor);
   let sent = 0;
   let changed = false;
   for (const entry of orderedForFlush(entries)) {
@@ -182,6 +218,7 @@ async function runFlush(userId: string): Promise<FlushResult> {
       version: entry.version,
       status: entry.status,
       fromQueue: true,
+      actor,
     });
     // A rede caiu de novo no meio: o resto continua esperando, e insistir só
     // gastaria bateria repetindo a mesma falha.
@@ -203,8 +240,8 @@ async function runFlush(userId: string): Promise<FlushResult> {
 }
 
 /** Tira da fila tudo que esta pessoa tinha guardado sobre uma atividade. */
-async function forgetTaskWrites(userId: string, taskId: string) {
-  const mine = visibleForOwner(await listPendingWrites(), userId).filter(
+async function forgetTaskWrites(actor: AgendaAuthority, taskId: string) {
+  const mine = visibleForOwner(await listPendingWrites(), actor).filter(
     (entry) => entry.taskId === taskId,
   );
   if (!mine.length) return;
@@ -213,7 +250,8 @@ async function forgetTaskWrites(userId: string, taskId: string) {
 }
 
 /** Descartar uma gravação que o servidor recusou. A decisão é de quem lê. */
-export async function discardPendingWrite(key: string) {
+export async function discardPendingWrite(actor: AgendaAuthority, key: string) {
+  if (!visibleForOwner(await listPendingWrites(), actor).some((entry) => entry.key === key)) return;
   await deletePendingWrite(key);
   notifyQueueChanged();
 }

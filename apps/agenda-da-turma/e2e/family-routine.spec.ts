@@ -1,247 +1,123 @@
-import { randomUUID } from "node:crypto";
-import { db, eq, inArray } from "@informach/db";
-import {
-  agendaProductEvents,
-  agendaStudentProfiles,
-  customers,
-  emailDeliveries,
-  subscriptions,
-  users,
-} from "@informach/db/schema";
-import { type BrowserContext, expect, type Page, test } from "@playwright/test";
-import { extractFirstUrl, extractOtp, waitForEmail } from "./fixtures/email";
+import { and, db, eq } from "@informach/db";
+import { agendaStudentProfiles, agendaTasks, familyAppProfiles } from "@informach/db/schema";
+import { expect, test } from "@playwright/test";
+import { browserFamily, browserProfile, enterAgenda, family } from "./fixtures/compasso";
 
-const password = "Synthetic-Agenda!2026";
-// This full family journey also runs under the default CI Playwright config.
-test.setTimeout(180_000);
-const ids: string[] = [];
-const deletedUserEventIds: string[] = [];
-let customerId: string | null = null;
-let subscriptionId: string | null = null;
-async function register(context: BrowserContext, baseURL: string, label: string) {
-  const email = `routine-browser-${randomUUID()}@e2e.local`;
-  const response = await context.request.post(`${baseURL}/api/auth/sign-up/email`, {
-    headers: { Origin: baseURL },
-    data: { email, password, name: label },
-  });
-  expect(response.ok()).toBe(true);
-  const userId = (await response.json()).user.id as string;
-  ids.push(userId);
-  const mail = await waitForEmail({ to: email, category: "auth.verify-email-otp" });
-  const verified = await context.request.post(`${baseURL}/api/auth/email-otp/verify-email`, {
-    headers: { Origin: baseURL },
-    data: { email, otp: extractOtp(mail) },
-  });
-  expect(verified.ok()).toBe(true);
-  return { email, userId };
-}
-// O grátis vale por padrão: depois do código, a conta já está em Hoje.
-async function selectFree(page: Page) {
-  await page.goto("/dashboard");
-  await expect(page).toHaveURL(/dashboard/);
-}
-test.afterEach(async () => {
-  if (deletedUserEventIds.length)
-    await db
-      .delete(agendaProductEvents)
-      .where(inArray(agendaProductEvents.id, deletedUserEventIds));
-  if (ids.length) {
-    await db.delete(agendaProductEvents).where(inArray(agendaProductEvents.userId, ids));
-    await db.delete(emailDeliveries).where(inArray(emailDeliveries.userId, ids));
-    await db.delete(users).where(inArray(users.id, ids));
-  }
-  if (customerId) {
-    await db.delete(subscriptions).where(eq(subscriptions.customerId, customerId));
-    await db.delete(customers).where(eq(customers.id, customerId));
-  }
-});
-test("two adults, private child access, completion, revocation and confirmed deletion", async ({
-  browser,
-  context,
+test("two adults share only authorized school profiles and revocation reaches open sessions", async ({
   page,
+  browser,
   baseURL,
-}) => {
+}, testInfo) => {
   if (!baseURL) throw new Error("Missing local URL");
   const runtimeErrors: string[] = [];
   page.on("pageerror", (e) => runtimeErrors.push(e.message));
-  const cspErrors: string[] = [];
   page.on("console", (m) => {
-    if (/Content Security Policy|Refused to execute|violates.*directive/i.test(m.text()))
-      cspErrors.push(m.text());
-    if (/controlled input|hydration|hydrated/i.test(m.text())) runtimeErrors.push(m.text());
+    if (
+      /Content Security Policy|Refused to execute|violates.*directive|controlled input|hydration|hydrated/i.test(
+        m.text(),
+      )
+    )
+      runtimeErrors.push(m.text());
   });
-  const owner = await register(context, baseURL, "Responsável A fictício");
-  await selectFree(page);
-  const [customer] = await db
-    .insert(customers)
-    .values({
-      app: "agenda-da-turma",
-      provider: "stripe",
-      providerCustomerId: `test-${owner.userId}`,
-      subjectType: "user",
-      subjectId: owner.userId,
-      email: owner.email,
-    })
-    .returning();
-  if (!customer) throw new Error("Missing synthetic subscription owner");
-  customerId = customer.id;
-  const [subscription] = await db
-    .insert(subscriptions)
-    .values({
-      customerId,
-      provider: "stripe",
-      providerSubscriptionId: `test-${owner.userId}`,
-      providerPriceId: "price_synthetic",
-      productId: "agenda_da_turma_pro_monthly",
-      status: "active",
-      currentPeriodStart: new Date(),
-      currentPeriodEnd: new Date(Date.now() + 30 * 86400_000),
-    })
-    .returning();
-  if (!subscription) throw new Error("Missing synthetic subscription");
-  subscriptionId = subscription.id;
-  await page.goto("/recados/novo");
-  await page.getByLabel("Nome", { exact: true }).fill("Criança A fictícia");
-  await page.getByRole("button", { name: "Adicionar criança", exact: true }).click();
-  // Com a criança criada, a tela do recado segue para o recado; escrever à mão
-  // é o caminho "Escrever" da folha, o formulário de sempre.
-  await expect(page.getByRole("button", { name: "Ler o recado", exact: true })).toBeVisible();
-  await page.goto("/atividades/nova");
+  const owner = await browserFamily({ paid: true });
+  const person = await family.createPerson(owner.id, {
+    groupId: owner.groupId,
+    kind: "dependent",
+    displayName: "Criança A fictícia",
+  });
+  await enterAgenda(page, owner);
+  await page.goto("/familia");
+  await page.getByRole("button", { name: /Adicionar criança/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Adicionar criança à Agenda" });
+  await expect(page.getByRole("dialog").getByRole("combobox")).toBeEnabled();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("combobox", { name: "Criança", exact: true }).selectOption(person.id);
+  await dialog.getByRole("button", { name: "Adicionar à Agenda", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  const [child] = await db
+    .select({ id: agendaStudentProfiles.id })
+    .from(agendaStudentProfiles)
+    .innerJoin(familyAppProfiles, eq(familyAppProfiles.id, agendaStudentProfiles.familyProfileId))
+    .where(
+      and(eq(familyAppProfiles.groupId, owner.groupId), eq(familyAppProfiles.personId, person.id)),
+    );
+  if (!child) throw new Error("Missing school profile created through UI");
+  await browserProfile(owner, "Criança B restrita");
+  await page.goto(`/atividades/nova?perfil=${child.id}`);
   await page.getByLabel("Atividade", { exact: true }).fill("Preparar mochila fictícia");
   await page.getByRole("combobox", { name: "Tipo", exact: true }).selectOption("material");
   await page.getByRole("button", { name: "Salvar 1 material", exact: true }).click();
   await expect(page).toHaveURL(/\/atividades\?perfil=/);
-  await expect(
-    page.getByRole("link", { name: "Preparar mochila fictícia", exact: true }),
-  ).toBeVisible();
-  const [child] = await db
-    .select()
-    .from(agendaStudentProfiles)
-    .where(eq(agendaStudentProfiles.userId, owner.userId));
-  if (!child) throw new Error("Missing child created through UI");
-  await db
-    .insert(agendaStudentProfiles)
-    .values({ userId: owner.userId, name: "Criança B restrita" });
-  const guestContext = await browser.newContext({
-    baseURL,
-    ignoreHTTPSErrors: true,
-    viewport: { width: 390, height: 844 },
-  });
+  const guest = await browserFamily();
+  const invitation = await family.createInvitation(owner.id, owner.groupId, guest.email);
+  await family.acceptInvitation(guest.id, invitation.token);
+  const target = {
+    groupId: owner.groupId,
+    personId: person.id,
+    app: "agenda-da-turma",
+    userId: guest.id,
+  };
+  for (const action of ["read", "write"] as const)
+    await family.grantAccess(owner.id, { ...target, action });
+  const guestContext = await browser.newContext({ baseURL, viewport: { width: 390, height: 844 } });
   try {
-    const guest = await register(guestContext, baseURL, "Responsável B fictício");
     const guestPage = await guestContext.newPage();
-    await selectFree(guestPage);
-    await guestContext.request.post(`${baseURL}/api/auth/sign-out`, {
-      headers: { Origin: baseURL },
-      data: {},
-    });
-    await page.goto("/familia/adultos");
-    await page.getByLabel("E-mail do responsável").fill(guest.email);
-    await page.getByLabel("Criança B restrita", { exact: true }).uncheck();
-    await page.getByRole("button", { name: "Criar convite", exact: true }).click();
-    const invitation = await page.getByLabel("Link do convite").inputValue();
-    await guestPage.goto(invitation);
-    await expect(guestPage).toHaveURL(/login\?next=/);
-    await guestPage.getByLabel(/^E-?mail$/i).fill(guest.email);
-    await guestPage.getByLabel("Senha", { exact: true }).fill(password);
-    await guestPage.getByRole("button", { name: "Entrar", exact: true }).click();
-    await expect(
-      guestPage.getByRole("button", { name: "Aceitar convite", exact: true }),
-    ).toBeVisible();
-    await guestPage.getByRole("button", { name: "Aceitar convite", exact: true }).click();
-    await expect(guestPage).toHaveURL(/dashboard/);
-    await expect(
-      guestPage.getByRole("link", { name: "Preparar mochila fictícia", exact: true }),
-    ).toBeVisible();
+    await enterAgenda(guestPage, guest, "/contexto");
+    await guestPage
+      .getByRole("combobox", { name: "Família", exact: true })
+      .selectOption(owner.groupId);
+    await guestPage.getByRole("button", { name: "Continuar", exact: true }).click();
+    await expect(guestPage).toHaveURL(/\/dashboard$/);
     await expect(guestPage.getByText("Criança B restrita", { exact: true })).toHaveCount(0);
+    await guestPage.goto("/atividades");
     await guestPage
-      .getByRole("button", {
-        name: "Marcar como feito: Preparar mochila fictícia",
-        exact: true,
-      })
+      .getByRole("button", { name: "Marcar como feito: Preparar mochila fictícia", exact: true })
       .click();
-    await expect(
-      guestPage.getByRole("link", { name: "Preparar mochila fictícia", exact: true }),
-    ).toHaveCount(0);
-
-    // Quem cuida junto vê a criança em Crianças e, um toque ao lado, em Turmas
-    // via o app dizer que não tinha nenhuma — com dois botões que recusavam
-    // quem os tocasse. A tela agora conta a verdade e não convida para porta
-    // fechada.
-    await guestPage.goto("/familia");
-    await expect(guestPage.getByText("Criança A fictícia", { exact: true })).toBeVisible();
-    await guestPage.goto("/familia/turmas");
-    await expect(
-      guestPage.getByText("As turmas ficam com quem cadastrou as crianças", { exact: true }),
-    ).toBeVisible();
-    await expect(guestPage.getByRole("button", { name: "Nova turma", exact: true })).toHaveCount(0);
-    await expect(
-      guestPage.getByRole("button", { name: "Entrar por código", exact: true }),
-    ).toHaveCount(0);
-
-    await page.goto("/atividades?situacao=all");
-    await expect(
-      page.getByRole("button", { name: "Reabrir: Preparar mochila fictícia", exact: true }),
-    ).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-      true,
-    );
-    await page.screenshot({ path: "tmp/evaluation/family-mobile.png", fullPage: true });
-    await page.goto("/familia/adultos");
-    await page
-      .getByRole("button", { name: "Remover acesso deste responsável", exact: true })
-      .click();
-    await expect(page.getByText("Acesso atualizado.", { exact: true })).toBeVisible();
-    await guestPage.goto("/atividades?situacao=all");
-    await expect(
-      guestPage.getByRole("link", { name: "Preparar mochila fictícia", exact: true }),
-    ).toHaveCount(0);
-    await guestPage.goto("/settings/account");
-    await guestPage.getByLabel("Digite EXCLUIR para solicitar o link").fill("EXCLUIR");
-    await guestPage
-      .getByLabel("Entendo que a exclusão afeta todos os apps Informach.", { exact: true })
-      .check();
-    await guestPage
-      .getByRole("button", { name: "Enviar confirmação de exclusão", exact: true })
-      .click();
-    await expect(
-      guestPage.getByRole("status").filter({ hasText: "Enviamos um link" }),
-    ).toBeVisible();
-    const deletionEmail = await waitForEmail({
-      to: guest.email,
-      category: "auth.account-deletion",
-    });
-    expect(
-      await db.select({ id: users.id }).from(users).where(eq(users.id, guest.userId)),
-    ).toHaveLength(1);
-    deletedUserEventIds.push(
-      ...(
-        await db
-          .select({ id: agendaProductEvents.id })
-          .from(agendaProductEvents)
-          .where(eq(agendaProductEvents.userId, guest.userId))
-      ).map((row) => row.id),
-    );
-    await guestPage.goto(extractFirstUrl(deletionEmail, "delete-user"));
     await expect
       .poll(
         async () =>
-          (await db.select({ id: users.id }).from(users).where(eq(users.id, guest.userId))).length,
+          (await db.select().from(agendaTasks).where(eq(agendaTasks.profileId, child.id)))[0]
+            ?.status,
       )
-      .toBe(0);
-    const exportResponse = await context.request.get(`${baseURL}/api/data/export`);
-    expect(exportResponse.status()).toBe(200);
-    expect((await exportResponse.json()).profiles).toHaveLength(2);
-    await db
-      .update(subscriptions)
-      .set({ status: "canceled", canceledAt: new Date() })
-      .where(eq(subscriptions.id, subscriptionId));
+      .toBe("done");
     await page.goto("/atividades?situacao=all");
     await expect(
       page.getByRole("button", { name: "Reabrir: Preparar mochila fictícia", exact: true }),
     ).toBeVisible();
+    const staleExport = await guestPage.request.get(
+      `${baseURL}/api/data/export?familia=${guest.groupId}`,
+    );
+    expect(staleExport.status()).toBe(409);
+    const exportResponse = await guestPage.request.get(
+      `${baseURL}/api/data/export?familia=${owner.groupId}`,
+    );
+    expect(exportResponse.status()).toBe(200);
+    expect((await exportResponse.json()).profiles).toHaveLength(1);
+    await family.revokeAccess(owner.id, { ...target, action: "write" });
+    await guestPage.goto("/atividades?situacao=all");
+    const readonly = guestPage.getByRole("button", {
+      name: "Reabrir: Preparar mochila fictícia",
+      exact: true,
+    });
+    await expect(readonly).toHaveCount(0);
+    await expect(
+      guestPage.getByRole("link", { name: "Preparar mochila fictícia", exact: true }),
+    ).toBeVisible();
+    await family.revokeAccess(owner.id, { ...target, action: "read" });
+    await guestPage.reload();
+    await expect(
+      guestPage.getByRole("link", { name: "Preparar mochila fictícia", exact: true }),
+    ).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+      true,
+    );
+    await page.screenshot({ path: testInfo.outputPath("family-permissions.png"), fullPage: true });
+    const ownerExport = await page.request.get(
+      `${baseURL}/api/data/export?familia=${owner.groupId}`,
+    );
+    expect(ownerExport.status()).toBe(200);
+    expect((await ownerExport.json()).profiles).toHaveLength(2);
     expect(runtimeErrors).toEqual([]);
-    expect(cspErrors).toEqual([]);
   } finally {
     await guestContext.close();
   }

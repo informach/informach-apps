@@ -1,5 +1,6 @@
 import { Skeleton } from "@informach/ui/components/skeleton";
 import type { ReactNode } from "react";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { withShortChildName } from "@/features/students/utils";
 import { listSubjectKits } from "@/features/subject-kits/service";
 import { getRoutineSnapshot } from "@/features/unified-activities/service";
@@ -9,7 +10,7 @@ import { countStreakDays } from "../streak";
 import { RoutineView } from "./routine-view";
 
 export async function RoutineSection({
-  userId,
+  actor,
   profileFilter,
   evening,
   header,
@@ -20,7 +21,7 @@ export async function RoutineSection({
   commitment,
   childNames,
 }: {
-  userId: string;
+  actor: AgendaAuthority;
   /**
    * O nome curto de cada criança da casa (`shortChildNames`), trocado aqui, na
    * entrada: os cards, a mochila e as frases de resumo mostram o curto.
@@ -39,10 +40,10 @@ export async function RoutineSection({
   commitment?: ReactNode;
 }) {
   const [snapshot, tomorrowSchedule, completionDays] = await Promise.all([
-    getRoutineSnapshot(userId, { profileFilter }),
-    getTomorrowSubjectsCached(userId, profileFilter),
+    getRoutineSnapshot(actor, { profileFilter }),
+    getTomorrowSubjectsCached(actor, profileFilter),
     // Sem `profileFilter`: a sequência é da casa, não da criança em foco.
-    listFamilyCompletionDays(userId),
+    listFamilyCompletionDays(actor),
   ]);
   // "Levar sempre" acompanha a mochila nos dois arranjos da página: de dia
   // dentro de "Amanhã", à noite como a própria página.
@@ -55,7 +56,7 @@ export async function RoutineSection({
   };
   const tomorrowKits = Object.fromEntries(
     await listSubjectKits(
-      userId,
+      actor,
       tomorrowSchedule.map((view) => view.profileId),
     ),
   );
@@ -76,7 +77,6 @@ export async function RoutineSection({
       doneToday={snapshot.doneToday}
       streakDays={countStreakDays(completionDays, snapshot.todayIso)}
       streakCountsToday={completionDays.includes(snapshot.todayIso)}
-      currentUserId={userId}
       profileFilter={profileFilter}
       header={header}
       pills={pills}

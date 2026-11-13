@@ -12,30 +12,17 @@ const birthMonthSchema = z
   })
   .nullable()
   .optional();
-const avatarSchema = z.enum([
-  "cometa",
-  "folha",
-  "estrela",
-  "foguete",
-  "lua",
-  "raio",
-  "onda",
-  "bussola",
-]);
-export const profileSchema = z.object({
-  nickname: z.string().trim().min(2).max(24),
+export const profileSchema = z.strictObject({
+  personId: z.string().uuid(),
   grade: gradeSchema,
   birthMonth: birthMonthSchema,
-  avatar: avatarSchema,
   courseId: z.string().max(40),
   consent: z.literal(true),
 });
-export const updateProfileSchema = z.object({
+export const updateProfileSchema = z.strictObject({
   profileId: z.string().uuid(),
-  nickname: z.string().trim().min(2).max(24),
   grade: gradeSchema,
   birthMonth: birthMonthSchema,
-  avatar: avatarSchema,
   courseId: z.string().max(40),
   /** Obrigatório quando o mês de nascimento é informado pela primeira vez. */
   birthConsent: z.boolean().optional(),

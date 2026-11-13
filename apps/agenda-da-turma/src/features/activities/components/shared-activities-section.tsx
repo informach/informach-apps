@@ -1,3 +1,4 @@
+import type { AgendaAuthority } from "@/features/family/authority";
 import { getPendingSharedActivitiesForUser } from "../service";
 import { SharedActivitiesWidget } from "./shared-activities-widget";
 
@@ -13,8 +14,8 @@ import { SharedActivitiesWidget } from "./shared-activities-widget";
  * (`visibility: "shared_with_turma"` no serviço de atividades). A consulta
  * continua exigindo participação na turma, então nada vaza entre turmas.
  */
-export async function SharedActivitiesSection({ userId }: { userId: string }) {
-  const pendingShared = await getPendingSharedActivitiesForUser(userId);
+export async function SharedActivitiesSection({ actor }: { actor: AgendaAuthority }) {
+  const pendingShared = await getPendingSharedActivitiesForUser(actor);
   if (pendingShared.length === 0) return null;
   return <SharedActivitiesWidget items={pendingShared} />;
 }

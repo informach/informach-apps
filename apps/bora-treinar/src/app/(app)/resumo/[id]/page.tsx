@@ -18,9 +18,9 @@ export default async function Resumo({ params }: { params: Promise<{ id: string 
   const session = await sessionById(user.id, id);
   if (!session || !profiles.some((p) => p.id === session.profileId)) notFound();
   const [history, progress, earned] = await Promise.all([
-    sessionsOf(session.profileId, { since: undefined }),
-    progressOf(session.profileId),
-    achievementsOf(session.profileId),
+    sessionsOf(user.id, session.profileId, { since: undefined }),
+    progressOf(user.id, session.profileId),
+    achievementsOf(user.id, session.profileId),
   ]);
   const previous = history.filter((s) => s.startedAt < session.startedAt);
   const chainsInSession = new Set(

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 const TITLE = "Política de Privacidade. Cozya";
 const DESCRIPTION = "Como o Cozya trata receitas, planejamento, preferências e dados da conta.";
-const LAST_UPDATED = "17 de outubro de 2026";
+const LAST_UPDATED = "10 de novembro de 2026";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -45,8 +45,9 @@ export default function PrivacyPolicyPage() {
           <p>O Cozya coleta apenas o necessário pra operar o serviço:</p>
           <ul className="list-disc space-y-2 pl-6">
             <li>
-              <strong>Dados de cadastro:</strong> nome, e-mail e senha (armazenada como hash, nunca
-              em texto puro).
+              <strong>Dados de cadastro:</strong> nome e e-mail da sua conta central. A senha é
+              gerida pela Minha conta e armazenada como hash, nunca em texto puro. O Cozya mantém
+              uma sessão vinculada à autenticação central.
             </li>
             <li>
               <strong>Conteúdo que você cria:</strong> receitas, planos semanais, listas de compras,
@@ -63,7 +64,8 @@ export default function PrivacyPolicyPage() {
             </li>
             <li>
               <strong>Dados de cobrança:</strong> identificadores Stripe (customer ID, subscription
-              ID, status, ciclo). Dados completos de cartão são processados e armazenados
+              ID, status, ciclo), família que fornece a cobertura Compasso e registros de uso da
+              carteira compartilhada. Dados completos de cartão são processados e armazenados
               diretamente pela Stripe; o Cozya não os recebe nem armazena.
             </li>
             <li>
@@ -72,6 +74,12 @@ export default function PrivacyPolicyPage() {
               reduzida (e-mail substituído por hash quando possível).
             </li>
           </ul>
+          <p>
+            Receitas, preferências, refeições, listas e resultados de IA do Cozya continuam
+            individuais. Compartilhar uma assinatura ou carteira Compasso com outro adulto não
+            permite que ele veja esse conteúdo. A recuperação de uma resposta de IA exige também que
+            você continue autorizado na família que financiou a tarefa.
+          </p>
         </Section>
 
         <Section title="4. Para que usamos os dados">
@@ -214,7 +222,7 @@ export default function PrivacyPolicyPage() {
             </li>
             <li>solicitar portabilidade dos seus dados pra outro fornecedor;</li>
             <li>
-              exportar ou apagar os dados da cozinha e solicitar exclusão da conta Informach em{" "}
+              exportar ou apagar os dados da cozinha e acessar o encerramento do Compasso em{" "}
               <a className="underline" href="/settings/account">
                 Conta e privacidade
               </a>

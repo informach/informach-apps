@@ -1,6 +1,4 @@
 import "server-only";
-import { and, db, eq } from "@informach/db";
-import { missaoSessions } from "@informach/db/schema";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
@@ -13,7 +11,7 @@ import {
   safeDestination,
   selectedStudyProfile,
 } from "./policy";
-import { readStudyDevice } from "./repository";
+import { readStudyDevice, studySessionAvailable } from "./repository";
 
 export const getStudyIdentity = cache(async (): Promise<StudyIdentity | null> => {
   const jar = await cookies();
@@ -24,10 +22,12 @@ export const getStudyIdentity = cache(async (): Promise<StudyIdentity | null> =>
   const profileId = selectedStudyProfile(access.profileIds, jar.get(PROFILE_COOKIE)?.value);
   if (!profileId) return null;
   return {
+    kind: "study",
     deviceId: access.device.id,
     remember: access.device.remember,
     expiresAt: access.device.expiresAt,
     userId: access.device.userId,
+    familyGroupId: access.device.familyGroupId,
     profileIds: access.profileIds,
     profileId,
   };
@@ -66,11 +66,11 @@ export async function requireStudyProfile(raw: unknown) {
 export async function requireStudySession(raw: unknown) {
   const id = z.string().uuid().parse(raw);
   const identity = await requireStudyIdentity();
-  const [session] = await db
-    .select({ id: missaoSessions.id })
-    .from(missaoSessions)
-    .where(and(eq(missaoSessions.id, id), eq(missaoSessions.profileId, identity.profileId)));
-  assertAllowed(session, "NOT_FOUND", "Esta missão não pertence ao estudante selecionado.");
+  assertAllowed(
+    await studySessionAvailable(identity, id),
+    "NOT_FOUND",
+    "Esta missão não pertence ao estudante selecionado.",
+  );
   return identity;
 }
 

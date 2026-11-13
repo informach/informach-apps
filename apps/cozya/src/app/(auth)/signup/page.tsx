@@ -1,24 +1,12 @@
-import { parseCycleQueryParam } from "@/features/billing/plans-content";
-import { SignupForm } from "@/features/onboarding/components/signup-form";
-
-export const metadata = {
-  title: "Criar conta | Cozya",
-};
-
+import { webAppDestination } from "@informach/auth/web-sso-contract";
+import { redirect } from "next/navigation";
 export default async function SignupPage({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<{ next?: string; plan?: string; cycle?: string }>;
 }) {
-  const params = await searchParams;
-  const plan = paramValue(params.plan);
-  const cycle = parseCycleQueryParam(paramValue(params.cycle));
-  const verifiedRedirectTo =
-    plan === "pro" ? `/choose-plan?cycle=${cycle === "annual" ? "anual" : "mensal"}` : "/hoje";
-
-  return <SignupForm verifiedRedirectTo={verifiedRedirectTo} withPlan={plan === "pro"} />;
-}
-
-function paramValue(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
+  const { next, plan, cycle } = await searchParams;
+  if (plan === "pro")
+    redirect(`/upgrade?cycle=${cycle === "anual" || cycle === "annual" ? "annual" : "monthly"}`);
+  redirect(`/login?next=${encodeURIComponent(webAppDestination(next, "/hoje"))}`);
 }

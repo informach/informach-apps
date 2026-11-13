@@ -4,6 +4,8 @@ Como um app dentro de `apps/<app>/` se organiza por dentro. Para o monorepo como
 
 Este documento se aplica aos apps web Next.js. Ferramentas Electron seguem [`arquitetura-desktop.md`](./arquitetura-desktop.md).
 
+A central `apps/conta` está sendo construída na [migração Compasso](propostas/assinatura-web-2026-11-09/implementacao.md). Ela concentra a experiência de conta, pessoas, assinatura e créditos; regras continuam em `auth`, `family`, `billing` e na composição `account`. Os apps mantêm seus dados de domínio e devem verificar permissões no servidor. O emissor OIDC da central não substitui o protocolo desktop nem a autenticação administrativa. Enquanto os consumidores não forem convertidos, esta arquitetura permanece em transição local, sem corte autorizado pela mera presença de migrations.
+
 ---
 
 ## O que é um app
@@ -316,3 +318,33 @@ Quando promover lógica para package: dois apps precisam dela. Aí migra para `p
 
 - [`arquitetura-monorepo.md`](./arquitetura-monorepo.md) — o monorepo como um todo (workspaces, deploy, CI).
 - [`arquitetura-packages.md`](./arquitetura-packages.md) — packages compartilhados que o app consome.
+
+
+A matriz de navegador do Compasso usa `scripts/compasso/browser-artifacts.mjs` e `@informach/config/next-testing` para separar artefatos por execução. `COMPASSO_TEST_RUN_ID` exige identificador hexadecimal de 24 caracteres, `COMPASSO_ISOLATED_DATABASE=1` e banco local descartável; não é variável de produção. `.next-compasso-*` e `.compasso-tsconfig-*` pertencem ao runner, que também preserva/restaura o `next-env.d.ts` gerado quando ainda for seu. Uma jornada em `next dev` não substitui a verificação de build otimizado; a ocorrência HMR e o gate atual ficam no registro da migração.
+
+A mesma matriz pode usar `--apps-only --redis --optimized`: PostgreSQL descartável, Redis Docker autenticado e independente, builds em série e servidores standalone nos diretórios exclusivos. `scripts/compasso/browser-environment.mts` neutraliza variáveis de provedores também em `.env.production*`. Os testes específicos ficam em `apps/<app>/e2e-compasso` ou na suíte existente `e2e` de Bora/Missão/Dia/Agenda; a central apenas orquestra os projetos desktop/mobile (e tablet no Dia), sem importar domínio de outro app. A execução desse modo deve ser registrada como gate próprio, separada de `next dev` e de deploy remoto.
+
+
+Aparelhos delegados do Compasso conservam a identidade da concessão (`family.access_grants.id`) e a geração da ativação (`family.app_profiles.delegation_key`). `@informach/family/delegation` captura as concessões sob trava e compõe o predicado servidor; `/delegation-contract` expõe somente schema/tipo, sem banco no cliente. O consumidor soma token, prazo, revogação, família e seu perfil nativo. Remover/recriar concessão, arquivar/restaurar pessoa ou reassociar ativação não pode restaurar autoridade anterior. Mudança de nome preserva aparelhos. Um tablet infantil tem prazo próprio e nunca ganha gestão/IA por herdar o emissor; o pareamento transitório do Bora também exige a sessão SSO de origem. Writes conservam esse contexto até a transação e seguem grupo → aparelho → perfil. A implementação e os gates por consumidor ficam no registro Compasso; a existência do contrato compartilhado não prova sua integração em todos os apps.
+
+
+No Dia de Estrela, o PIN tem geração e validade verificadas no banco e é uma autoridade restrita às crianças do aparelho. A troca de PIN invalida desbloqueios abertos. Família/configuração/loja global usam grupo canônico; rotinas/estrelas/arquivos usam ativação e concessão da criança. SSE revalida leitura e sessão/delegação a cada sinal/ping e encerra no máximo em cinco minutos. Alertas verificam a concessão de leitura por destinatário antes de enviar; participação no grupo não basta.
+
+Para diagnóstico local da matriz, `COMPASSO_BROWSER_GREP` restringe cenários pelo título; omita para o gate completo. Uma execução filtrada não comprova a suíte inteira. O gate de metadados do Bastidores usa `pnpm compasso:test:integration --admin-only` com conexão de leitura e fixture descartável.
+
+
+Bora também usa o runner único Compasso (`test:integration` com `--bora-only --redis`, `e2e` com central/app standalone); os cenários estão em `apps/bora-treinar/e2e`. O treino manual original foi mantido com cadastro/pessoa/trial centrais. CI conserva as evidências dos três consumidores convertidos em `apps/conta/test-results/compasso-apps/<app>`; não nos diretórios dos antigos runners locais.
+
+
+### Agenda — colaboração escolar no Compasso (10/11/2026, em migração)
+
+A autoridade da rotina é adulto/grupo/perfil/concessão atual; a sala escolar possui administração independente. A matrícula grava quem a emitiu. Leitura do perfil não concede convite nem escrita da sala. Uma operação que referencia matérias/publicações bloqueia primeiro as turmas ordenadas, depois família e perfis/tarefas; dependência que mudou exige refazer a operação, não adquirir travas em ordem inversa. Receber uma publicação copia apenas para crianças autorizadas no contexto escolhido; o recibo pertence ao adulto/grupo. Correções escolares não propagam campos privados nem alcançam matrículas removidas. Pessoas/permissões são geridas na central; preferências de onboarding permanecem locais por adulto/grupo. A implementação e os ensaios focados não equivalem ao corte completo: consultar o [registro Compasso](propostas/assinatura-web-2026-11-09/implementacao.md).
+
+
+O contrato 0129 da Agenda fecha a expansão/backfill: ativação central obrigatória no perfil escolar, grupo obrigatório no original, sem cópias locais de nome/titular nem tabelas locais de membros/permissões/convites. A autoria do conteúdo continua distinta do direito de leitura. Links salvos de cobrança convergem à Conta com a família atual. Os types de rotas Next precisam ser gerados antes do typecheck; excluir `.next` inteiro remove declarações de Link e deixa divergências passarem fora do build. Origem de implantação registrada, e não `NODE_ENV`, governa callbacks e exigência de HTTPS; o ensaio otimizado de localhost conserva as demais proteções.
+
+### Encerramento da participação Compasso
+
+O login global e a participação no conjunto web têm ciclos distintos. A Conta coordena avaliação, congelamento, preparação e confirmação explícita; cada app executa seu próprio domínio pelo job autenticado `account-departure`. Billing resolve obrigações primeiro, os apps removem apenas dados autorizados e família desvincula por último. A manutenção central finaliza somente após todos os recibos, preservando identidade e produtos independentes. Conteúdo compartilhado depende de custódia/concessões, não de autoria histórica. Nova seleção após execução parcial exige novo consentimento e conserva etapas já concluídas.
+
+Depois do congelamento ou encerramento, a Conta oferece segurança do login, registros próprios de cobrança e cópia da conta. Não anuncia operações comerciais que dependam da participação ativa. O portal Stripe Compasso permite somente pagamento/comprovantes; mudanças de assinatura passam pela central. Contratos de posse, exportação e limites em [account](../packages/account/README.md); a implementação local não comprova publicação ou homologação dos cinco serviços em conjunto.

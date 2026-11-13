@@ -28,6 +28,14 @@ export default async function LayoutDosPais({ children }: { children: React.Reac
               <span className="font-display text-xl font-extrabold">Dia de Estrela</span>
             </Link>
           </header>
+          {ctx.mode === "adult" && (
+            <Link
+              href="/contexto"
+              className="mb-4 inline-flex min-h-11 items-center text-sm font-bold underline"
+            >
+              Escolher família
+            </Link>
+          )}
           {children}
         </main>
       </div>

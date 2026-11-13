@@ -1,9 +1,10 @@
 import "server-only";
-import { err, ok } from "@informach/auth/server-actions";
+import { err } from "@informach/auth/server-actions";
+import { FamilyError } from "@informach/family";
 import type { z } from "zod";
-import { findAccessibleProfile } from "@/features/family/access";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { recordProductEvent } from "@/features/metrics/events";
-import { findSubjectKits, subjectBelongsToProfile, upsertSubjectKit } from "./repository";
+import { findSubjectKits, upsertSubjectKit } from "./repository";
 import type { saveSubjectKitSchema } from "./schemas";
 
 /**
@@ -14,8 +15,8 @@ import type { saveSubjectKitSchema } from "./schemas";
  * lembretes semanais transformaria uma lista de três itens em vinte obrigações
  * que alguém tem de marcar como feitas.
  */
-export async function listSubjectKits(userId: string, profileIds: string[]) {
-  const rows = await findSubjectKits(userId, profileIds);
+export async function listSubjectKits(actor: AgendaAuthority, profileIds: string[]) {
+  const rows = await findSubjectKits(actor, profileIds);
   // Chave por (criança, matéria): a matéria é compartilhada entre famílias e
   // duas irmãs na mesma turma levam coisas diferentes.
   const byKey = new Map<string, string[]>();
@@ -26,18 +27,18 @@ export async function listSubjectKits(userId: string, profileIds: string[]) {
   return byKey;
 }
 
-export async function saveSubjectKit(userId: string, input: z.infer<typeof saveSubjectKitSchema>) {
-  const profile = await findAccessibleProfile(userId, input.profileId);
-  if (!profile) return err({ code: "INVALID_PROFILE" } as const);
-  if (!(await subjectBelongsToProfile(profile.id, input)))
-    return err({ code: "INVALID_SUBJECT" } as const);
+export async function saveSubjectKit(
+  actor: AgendaAuthority,
+  input: z.infer<typeof saveSubjectKitSchema>,
+) {
   const items = [...new Set(input.items.map((item) => item.trim()).filter(Boolean))];
-  await upsertSubjectKit({
-    profileId: profile.id,
-    subjectId: input.subjectId,
-    profileSubjectId: input.profileSubjectId,
-    items,
-  });
-  await recordProductEvent(userId, { event: "subject_kit_saved", count: items.length });
-  return ok({ items });
+  try {
+    const result = await upsertSubjectKit(actor, { ...input, items });
+    if (result.ok)
+      await recordProductEvent(actor.userId, { event: "subject_kit_saved", count: items.length });
+    return result;
+  } catch (error) {
+    if (error instanceof FamilyError) return err({ code: "INVALID_PROFILE" } as const);
+    throw error;
+  }
 }

@@ -1,13 +1,15 @@
-import { PRODUCTS } from "@informach/config";
+import { webSsoEnvironment } from "@informach/auth/web-sso-contract";
+import { COMPASSO_POLICY } from "@informach/config/collections";
+import { getAppUrl } from "@informach/config/domains";
 import { Camera, Dumbbell, Smartphone, Tv, Users } from "lucide-react";
 import Link from "next/link";
 import { Brand } from "@/components/brand";
-import { ofertas, reais } from "@/features/billing/ofertas";
-import { TRIAL_DAYS } from "@/features/teste/regras";
+import { reais } from "@/features/billing/ofertas";
 import { EXERCISES } from "@/features/treino/catalog/catalog";
 import { WORKOUTS } from "@/features/treino/catalog/workouts";
 import { Instructor3D } from "@/features/treino/instructor/instructor-3d";
 import { getCurrentUser } from "@/lib/auth";
+import { env } from "@/lib/env";
 
 const RECURSOS = [
   {
@@ -37,7 +39,7 @@ const RECURSOS = [
 
 export default async function Landing() {
   const user = await getCurrentUser();
-  const planos = ofertas(PRODUCTS.filter((p) => p.app === "bora-treinar"));
+  const central = `${getAppUrl("conta", webSsoEnvironment("bora-treinar", env.NEXT_PUBLIC_APP_URL))}/#compasso`;
   // quem já tem conta abre o app; quem não tem começa pelo cadastro (antes caía na aba Entrar)
   const comecar = user ? "/perfis" : "/entrar?modo=criar";
   return (
@@ -65,12 +67,12 @@ export default async function Landing() {
               <span>do aquecimento ao HIIT</span>
             </div>
             <Link href={comecar} className="btn big" data-autofocus>
-              {user ? "Abrir o app" : `Testar ${TRIAL_DAYS} dias grátis`}
+              {user ? "Abrir o app" : "Começar a treinar"}
             </Link>
             {!user && (
               <span className="hero-nota">
                 Sem cartão: a câmera, os {WORKOUTS.length} treinos e os níveis liberados por{" "}
-                {TRIAL_DAYS} dias. Depois, o grátis continua.
+                {COMPASSO_POLICY.trialDays} dias. Depois, o grátis continua.
               </span>
             )}
           </div>
@@ -88,7 +90,9 @@ export default async function Landing() {
 
         <div className="section-title">
           <h2>Planos</h2>
-          <span className="muted">{TRIAL_DAYS} dias com tudo liberado, sem cartão</span>
+          <span className="muted">
+            {COMPASSO_POLICY.trialDays} dias com tudo liberado, sem cartão
+          </span>
         </div>
         <div className="grid plans">
           <div className="card plan">
@@ -99,26 +103,25 @@ export default async function Landing() {
               exercício contando à mão ou pela voz.
             </p>
           </div>
-          {planos.map((o) => (
-            <div className="card plan" key={o.tier}>
-              <span className="muted">
-                {o.tier === "family" ? "Família · até quatro perfis" : "Individual · para você"}
-              </span>
-              <p className="num plan-price">
-                {reais(o.mensal.centavos)}
-                <small>/mês</small>
-              </p>
-              <p className="muted">
-                ou {reais(o.anual.porMes)}/mês no anual ({reais(o.anual.centavos)} por ano
-                {o.anual.mesesGratis ? `, ${o.anual.mesesGratis} meses grátis` : ""})
-              </p>
-              <p className="muted">
-                {o.tier === "family"
-                  ? "A mesma assinatura para a casa: até quatro perfis, cada um com o seu treino, os seus níveis e o seu histórico."
-                  : "Todos os treinos, contagem pela câmera e pela voz, celular como câmera da TV, níveis e treinos montados por você."}
-              </p>
-            </div>
-          ))}
+          <div className="card plan">
+            <span className="muted">Compasso · todos os apps web do pacote</span>
+            <p className="num plan-price">
+              {reais(COMPASSO_POLICY.monthlyAmountCents)}
+              <small>/mês</small>
+            </p>
+            <p className="muted">
+              ou {reais(COMPASSO_POLICY.annualAmountCents)} por ano. Até{" "}
+              {COMPASSO_POLICY.capacity.adults} adultos e {COMPASSO_POLICY.capacity.dependents}{" "}
+              dependentes.
+            </p>
+            <p className="muted">
+              Todos os treinos, câmera, níveis e histórico, junto dos outros aplicativos Compasso.
+              Recreio, Morada e Suíte Edi são produtos separados.
+            </p>
+            <a className="btn primary spaced" href={central}>
+              Conhecer o Compasso
+            </a>
+          </div>
         </div>
 
         <div className="section-title">
@@ -128,9 +131,10 @@ export default async function Landing() {
         </div>
         <div className="card">
           <p>
-            A câmera é processada no próprio aparelho: o vídeo nunca é enviado. Os perfis guardam um
-            apelido, uma cor e o jeito de treinar; nada de idade, peso ou foto. Treinos, níveis e
-            recordes ficam na conta para aparecer em qualquer aparelho.
+            A câmera é processada no próprio aparelho: o vídeo nunca é enviado. O Bora usa o nome e
+            a cor da pessoa cadastrada na família e guarda somente suas preferências de treino; não
+            pede idade, peso ou foto. Treinos, níveis e recordes ficam na conta para aparecer em
+            qualquer aparelho.
           </p>
         </div>
         <p className="muted footer-links">

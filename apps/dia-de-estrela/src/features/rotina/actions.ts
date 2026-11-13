@@ -1,14 +1,12 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { canRecordVoice } from "@/features/acesso/policy";
 import {
   bytesDeDataUrl,
   tipoDoAudio,
   VOZ_MAX_BYTES,
   VOZ_MAX_MS,
 } from "@/features/arquivos/validacao";
-import { familyView } from "@/features/familia/view";
 import { avisarFamilia } from "@/features/tempo-real/bus";
 import { parentActor, runAction } from "@/lib/action";
 import { assertAllowed } from "@/lib/errors";
@@ -34,9 +32,9 @@ export async function salvarTarefaAction(raw: unknown) {
       .parse(raw);
     const actor = await parentActor();
     let salvo = id;
-    if (id) await updateTask(actor.ownerId, id, task);
-    else salvo = await createTask(actor.ownerId, childId, task);
-    await avisarFamilia(actor.ownerId, "rotina");
+    if (id) await updateTask(actor, id, task);
+    else salvo = await createTask(actor, childId, task);
+    await avisarFamilia(actor.familyGroupId, "rotina");
     atualizar();
     return { id: salvo };
   });
@@ -46,8 +44,8 @@ export async function apagarTarefaAction(raw: unknown) {
   return runAction(async () => {
     const id = z.string().uuid().parse(raw);
     const actor = await parentActor();
-    await deleteTask(actor.ownerId, id);
-    await avisarFamilia(actor.ownerId, "rotina");
+    await deleteTask(actor, id);
+    await avisarFamilia(actor.familyGroupId, "rotina");
     atualizar();
   });
 }
@@ -58,14 +56,14 @@ export async function aplicarModeloAction(raw: unknown) {
       .object({ childId: z.string().uuid(), templateId: templateIdSchema })
       .parse(raw);
     const actor = await parentActor();
-    const n = await applyTemplate(actor.ownerId, childId, templateId);
-    await avisarFamilia(actor.ownerId, "rotina");
+    const n = await applyTemplate(actor, childId, templateId);
+    await avisarFamilia(actor.familyGroupId, "rotina");
     atualizar();
     return { added: n };
   });
 }
 
-/** Voz dos pais por tarefa (plano Família): até 15 s, tipo conferido pelos bytes. */
+/** Voz dos pais por tarefa (Compasso): até 15 s, tipo conferido pelos bytes. */
 export async function salvarVozAction(raw: unknown) {
   return runAction(async () => {
     const { taskId, audio, durationMs } = z
@@ -76,23 +74,17 @@ export async function salvarVozAction(raw: unknown) {
       })
       .parse(raw);
     const actor = await parentActor();
-    const { access } = await familyView(actor.ownerId);
-    assertAllowed(
-      canRecordVoice(access),
-      "PLAN",
-      "Gravar a própria voz é do plano Família. A voz do aparelho continua lendo tudo.",
-    );
     const bytes = bytesDeDataUrl(audio, VOZ_MAX_BYTES);
     assertAllowed(bytes, "AUDIO", "A gravação ficou grande demais. Grave uma frase curta.");
     const mime = tipoDoAudio(bytes);
     assertAllowed(mime, "AUDIO", "Não foi possível usar esta gravação. Tente gravar de novo.");
-    await saveVoice(actor.ownerId, taskId, { mime, data: Buffer.from(bytes), durationMs });
+    await saveVoice(actor, taskId, { mime, data: Buffer.from(bytes), durationMs });
     audit({
       eventType: "estrela.voice_saved",
-      actorId: actor.actorId,
-      payload: { taskId, via: actor.via },
+      actorId: actor.userId,
+      payload: { taskId, via: actor.kind },
     });
-    await avisarFamilia(actor.ownerId, "rotina");
+    await avisarFamilia(actor.familyGroupId, "rotina");
     atualizar();
   });
 }
@@ -101,8 +93,8 @@ export async function apagarVozAction(raw: unknown) {
   return runAction(async () => {
     const taskId = z.string().uuid().parse(raw);
     const actor = await parentActor();
-    await deleteVoice(actor.ownerId, taskId);
-    await avisarFamilia(actor.ownerId, "rotina");
+    await deleteVoice(actor, taskId);
+    await avisarFamilia(actor.familyGroupId, "rotina");
     atualizar();
   });
 }

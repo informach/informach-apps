@@ -2,6 +2,7 @@ import { Button } from "@informach/ui/components/button";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
+import { agendaAuthority } from "@/features/family/context";
 import { OriginalNotice } from "@/features/notices/components/original-notice";
 import { getNoticeSource } from "@/features/notices/repository";
 import { requireUserServer } from "@/lib/auth";
@@ -12,9 +13,10 @@ export const metadata = {
 };
 export default async function NoticeOriginalPage({ params }: { params: Promise<{ id: string }> }) {
   const user = await requireUserServer();
+  const actor = await agendaAuthority(user.id);
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) notFound();
-  const source = await getNoticeSource(user.id, id);
+  const source = await getNoticeSource(actor, id);
   if (source?.status !== "confirmed") notFound();
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8 pb-28 sm:px-8">

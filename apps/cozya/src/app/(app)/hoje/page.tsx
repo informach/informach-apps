@@ -74,9 +74,7 @@ export default async function TodayPage() {
   const user = await requireUserServer();
   const [access, started] = await Promise.all([getKitchenAccess(user.id), hasAnyMeal(user.id)]);
 
-  const trialAvailable = !access.isPro && !access.profile?.trialStartedAt;
-  // Planning controls only where they lead somewhere: Pro, an active trial or a trial to start.
-  const canEdit = access.canPlan || trialAvailable;
+  const canEdit = access.canPlan;
 
   if (!started && canEdit) {
     const own = (await getRecipeChoices(user.id)).slice(0, 6);
@@ -99,7 +97,6 @@ export default async function TodayPage() {
             servings: starter.servings ?? null,
             photo: recipePhoto(starter),
           }))}
-          trialPending={trialAvailable}
         />
       </main>
     );
@@ -123,7 +120,7 @@ export default async function TodayPage() {
   const tomorrowIsNext = !!next && next.day === data.tomorrow;
   const afterNext = data.tomorrowMeals.filter((meal) => meal !== next);
   const editHref = (meal: { day: string; slot: string }) =>
-    `/semana?week=${data.week}&editar=${meal.day}:${meal.slot}`;
+    `/semana?week=${data.week}&editar=${meal.day}:${meal.slot}` as const;
 
   return (
     <main className="mx-auto w-full max-w-[1200px] px-5 py-5 md:px-10 md:py-10">
@@ -332,7 +329,7 @@ export default async function TodayPage() {
                 {daysLeft <= 0 ? "hoje" : daysLeft === 1 ? "amanhã" : `em ${daysLeft} dias`}.
               </p>
               <p className="text-sm text-muted-foreground">
-                Suas receitas e listas continuam. Para seguir planejando, veja o Pro.
+                Suas receitas e listas continuam. Para seguir planejando, veja o Compasso.
               </p>
               <Link
                 href="/upgrade"
@@ -344,7 +341,7 @@ export default async function TodayPage() {
           )}
           {ended && (
             <div className="space-y-2 rounded-2xl bg-muted p-4">
-              <p className="font-bold">Novas semanas ficam no Pro.</p>
+              <p className="font-bold">Novas semanas ficam no Compasso.</p>
               <p className="text-sm text-muted-foreground">
                 Receitas, modo cozinha e as listas que você montou continuam aqui.
               </p>
@@ -352,7 +349,7 @@ export default async function TodayPage() {
                 href="/upgrade"
                 className="inline-flex min-h-11 items-center font-bold underline underline-offset-4"
               >
-                Conhecer o Pro
+                Conhecer o Compasso
               </Link>
             </div>
           )}

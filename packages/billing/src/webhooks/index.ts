@@ -1,13 +1,30 @@
 import type { Product } from "@informach/config";
+import { getAppCollection } from "@informach/config/collections";
 import type { Database } from "@informach/db";
-import { customers, webhookEvents } from "@informach/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import {
+  customers,
+  legacyContractAcceptances,
+  subscriptions,
+  webhookEvents,
+} from "@informach/db/schema";
+import { and, asc, eq, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
 import type { BillingEmailDeps } from "./../billing-emails";
+import {
+  isLegacyBillingEvent,
+  legacyPaymentReference,
+  refreshLegacyCreditPayment,
+  resolveLegacyFinancialCustomer,
+  withLegacyFinancialEventLock,
+} from "../credits/legacy-payments";
+import {
+  refreshLegacyCustomerSubscriptionFunding,
+  refreshLegacySubscriptionFunding,
+} from "../credits/legacy-subscriptions";
 import { type Logger, safeLog } from "./../logger";
 import type { BillingProviderClient } from "./../providers";
 import type { BillingAuditEvent, BillingProvider } from "./../types";
 import { handleCheckoutSessionCompleted } from "./checkout";
-import { handleInvoicePaid, handleInvoicePaymentFailed } from "./invoice";
+import { extractSubscriptionId, handleInvoicePaid, handleInvoicePaymentFailed } from "./invoice";
 import { handlePaymentIntentSucceeded } from "./payment";
 import { handleSubscriptionLifecycle } from "./subscription";
 
@@ -80,25 +97,64 @@ export async function handleStripeEvent(
   const providerEventKey = buildProviderEventKey(deps, event.id);
   const now = new Date();
   const staleBefore = new Date(now.getTime() - WEBHOOK_PROCESSING_STALE_MS);
-  const inserted = await deps.db
-    .insert(webhookEvents)
-    .values({
-      provider: deps.provider,
-      providerEventId: providerEventKey,
-      eventType: event.type,
-      payload: event.payload,
-      processingStartedAt: now,
-      attempts: 1,
-    })
-    .onConflictDoNothing({
-      target: [webhookEvents.provider, webhookEvents.providerEventId],
-    })
-    .returning({ id: webhookEvents.id });
+  let providerCustomerId: string | null;
+  try {
+    providerCustomerId = await resolveLegacyFinancialCustomer(deps, event);
+  } catch (error) {
+    // Preserve the signed receipt even when the provider cannot identify its
+    // customer. The app-wide family lock keeps it visible before any coverage
+    // transaction can pass; retry will resolve the original signed payload.
+    await withLegacyFinancialEventLock(
+      deps,
+      event,
+      async (writer) =>
+        writer
+          .insert(webhookEvents)
+          .values({
+            provider: deps.provider,
+            providerEventId: providerEventKey,
+            app: deps.app,
+            providerCustomerId: null,
+            eventType: event.type,
+            payload: event.payload,
+            processingStartedAt: null,
+            attempts: 1,
+            error: "Financial event customer resolution failed",
+          })
+          .onConflictDoNothing({ target: [webhookEvents.provider, webhookEvents.providerEventId] }),
+      null,
+    );
+    throw error;
+  }
+  const inserted = await withLegacyFinancialEventLock(
+    deps,
+    event,
+    async (writer) =>
+      writer
+        .insert(webhookEvents)
+        .values({
+          provider: deps.provider,
+          providerEventId: providerEventKey,
+          app: deps.app,
+          providerCustomerId,
+          eventType: event.type,
+          payload: event.payload,
+          processingStartedAt: now,
+          attempts: 1,
+        })
+        .onConflictDoNothing({
+          target: [webhookEvents.provider, webhookEvents.providerEventId],
+        })
+        .returning({ id: webhookEvents.id }),
+    providerCustomerId,
+  );
 
   if (inserted.length === 0) {
     const existingRows = await deps.db
       .select({
         processedAt: webhookEvents.processedAt,
+        app: webhookEvents.app,
+        providerCustomerId: webhookEvents.providerCustomerId,
         processingStartedAt: webhookEvents.processingStartedAt,
         error: webhookEvents.error,
         attempts: webhookEvents.attempts,
@@ -112,6 +168,10 @@ export async function handleStripeEvent(
       )
       .limit(1);
     const existing = existingRows[0];
+    if (existing?.app && existing.app !== deps.app)
+      throw new Error("Webhook receipt conflicts with its application scope");
+    if (existing?.providerCustomerId && existing.providerCustomerId !== providerCustomerId)
+      throw new Error("Webhook receipt conflicts with its customer scope");
     if (!existing) {
       throw new Error(
         `@informach/billing: webhook_events conflict but row not found for '${providerEventKey}'`,
@@ -140,28 +200,36 @@ export async function handleStripeEvent(
       return { processed: false, deduped: true, reason: "already_processing" };
     }
 
-    const claimed = await deps.db
-      .update(webhookEvents)
-      .set({
-        eventType: event.type,
-        payload: event.payload,
-        processingStartedAt: now,
-        error: null,
-        attempts: sql`${webhookEvents.attempts} + 1`,
-      })
-      .where(
-        and(
-          eq(webhookEvents.provider, deps.provider),
-          eq(webhookEvents.providerEventId, providerEventKey),
-          sql`${webhookEvents.processedAt} IS NULL`,
-          sql`(
-            ${webhookEvents.error} IS NOT NULL
-            OR ${webhookEvents.processingStartedAt} IS NULL
-            OR ${webhookEvents.processingStartedAt} <= ${staleBefore}
-          )`,
-        ),
-      )
-      .returning({ id: webhookEvents.id });
+    const claimed = await withLegacyFinancialEventLock(
+      deps,
+      event,
+      async (writer) =>
+        writer
+          .update(webhookEvents)
+          .set({
+            app: deps.app,
+            providerCustomerId,
+            eventType: event.type,
+            payload: event.payload,
+            processingStartedAt: now,
+            error: null,
+            attempts: sql`${webhookEvents.attempts} + 1`,
+          })
+          .where(
+            and(
+              eq(webhookEvents.provider, deps.provider),
+              eq(webhookEvents.providerEventId, providerEventKey),
+              isNull(webhookEvents.processedAt),
+              or(
+                isNotNull(webhookEvents.error),
+                isNull(webhookEvents.processingStartedAt),
+                lte(webhookEvents.processingStartedAt, staleBefore),
+              ),
+            ),
+          )
+          .returning({ id: webhookEvents.id }),
+      providerCustomerId,
+    );
 
     if (claimed.length === 0) {
       safeLog(deps.logger, "debug", "billing.webhook.deduped_in_progress", {
@@ -183,7 +251,34 @@ export async function handleStripeEvent(
   }
 
   try {
-    const reason = await dispatchEvent(deps, event);
+    if (
+      getAppCollection(deps.app) === "compasso" &&
+      isLegacyBillingEvent(event.type) &&
+      !providerCustomerId
+    )
+      throw new Error("Legacy financial event customer requires reconciliation");
+    const reason = await dispatchEvent(deps, event, providerCustomerId);
+    if (
+      getAppCollection(deps.app) === "compasso" &&
+      providerCustomerId &&
+      (event.type.startsWith("customer.subscription.") || event.type.startsWith("invoice."))
+    ) {
+      const [accepted] = await deps.db
+        .select({ id: legacyContractAcceptances.id })
+        .from(legacyContractAcceptances)
+        .innerJoin(subscriptions, eq(subscriptions.id, legacyContractAcceptances.subscriptionId))
+        .innerJoin(customers, eq(customers.id, subscriptions.customerId))
+        .where(
+          and(
+            eq(customers.app, deps.app),
+            eq(customers.provider, "stripe"),
+            eq(customers.providerCustomerId, providerCustomerId),
+          ),
+        )
+        .limit(1);
+      if (accepted && !(await refreshLegacyCustomerSubscriptionFunding(deps, providerCustomerId)))
+        throw new Error("Legacy subscription facts require reconciliation");
+    }
     await deps.db
       .update(webhookEvents)
       .set({ processedAt: new Date(), processingStartedAt: null, error: null })
@@ -223,7 +318,60 @@ function buildProviderEventKey(deps: StripeWebhookDeps, providerEventId: string)
   return scope ? `${scope}:${providerEventId}` : providerEventId;
 }
 
-async function dispatchEvent(deps: StripeWebhookDeps, event: ParsedWebhookEvent): Promise<string> {
+/** Reuses the signed-event processor and its durable claim; no second webhook engine.
+ * Attempt order prevents one permanently failing receipt from starving newer work.
+ */
+export async function retryLegacyFinancialEvents(deps: StripeWebhookDeps) {
+  if (getAppCollection(deps.app) !== "compasso") return { retried: 0 };
+  const rows = await deps.db
+    .select({ payload: webhookEvents.payload, type: webhookEvents.eventType })
+    .from(webhookEvents)
+    .where(
+      and(
+        eq(webhookEvents.provider, deps.provider),
+        isNull(webhookEvents.processedAt),
+        or(
+          eq(webhookEvents.app, deps.app),
+          and(
+            isNull(webhookEvents.app),
+            sql`starts_with(${webhookEvents.providerEventId}, ${`${deps.webhookScope?.trim() ?? ""}:`})`,
+          ),
+        ),
+        or(
+          eq(webhookEvents.eventType, "charge.refunded"),
+          sql`${webhookEvents.eventType} like 'charge.dispute.%'`,
+          sql`${webhookEvents.eventType} like 'customer.subscription.%'`,
+          sql`${webhookEvents.eventType} like 'invoice.%'`,
+        ),
+        or(
+          isNull(webhookEvents.processingStartedAt),
+          lt(webhookEvents.processingStartedAt, new Date(Date.now() - WEBHOOK_PROCESSING_STALE_MS)),
+        ),
+      ),
+    )
+    .orderBy(asc(webhookEvents.attempts), asc(webhookEvents.createdAt))
+    .limit(20);
+  const failures: unknown[] = [];
+  for (const row of rows) {
+    try {
+      const id = row.payload.id;
+      if (typeof id !== "string" || !id.startsWith("evt_"))
+        throw new Error("Financial event receipt has no original provider id");
+      await handleStripeEvent(deps, { id, type: row.type, payload: row.payload });
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length)
+    throw new AggregateError(failures, "Legacy financial events still require reconciliation");
+  return { retried: rows.length };
+}
+
+async function dispatchEvent(
+  deps: StripeWebhookDeps,
+  event: ParsedWebhookEvent,
+  providerCustomerId: string | null,
+): Promise<string> {
   const subscriptionDeps = {
     db: deps.db,
     provider: deps.provider,
@@ -296,11 +444,26 @@ async function dispatchEvent(deps: StripeWebhookDeps, event: ParsedWebhookEvent)
           onAudit: deps.onAudit,
           emails: deps.emails,
           products: deps.products,
+          providerClient: deps.providerClient,
         },
         obj as Parameters<typeof handlePaymentIntentSucceeded>[1],
         event.id,
       );
       return result.processed ? `payment.${result.reason}` : `payment_skipped:${result.reason}`;
+    }
+    case "charge.refunded":
+    case "charge.dispute.created":
+    case "charge.dispute.updated":
+    case "charge.dispute.closed":
+    case "charge.dispute.funds_withdrawn":
+    case "charge.dispute.funds_reinstated": {
+      const paymentId = legacyPaymentReference(obj);
+      if (paymentId && (await refreshLegacyCreditPayment(deps, paymentId)))
+        return "legacy_payment_reconciled";
+      return providerCustomerId &&
+        (await refreshLegacyCustomerSubscriptionFunding(deps, providerCustomerId))
+        ? "legacy_subscription_funding_reconciled"
+        : "not_a_legacy_credit_payment";
     }
     case "invoice.paid": {
       if (!obj) return "no_object";
@@ -319,6 +482,8 @@ async function dispatchEvent(deps: StripeWebhookDeps, event: ParsedWebhookEvent)
         event.id,
         providerEventCreatedAt(event.payload),
       );
+      const subscriptionId = extractSubscriptionId(obj as Parameters<typeof handleInvoicePaid>[1]);
+      if (subscriptionId) await refreshLegacySubscriptionFunding(deps, subscriptionId);
       return result.processed
         ? `invoice_paid.${result.reason}`
         : `invoice_paid_skipped:${result.reason}`;

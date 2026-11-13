@@ -21,7 +21,9 @@ const tipoRotulo = {
 export default async function DesafiosDePecas() {
   const data = await currentDashboard();
   if (!data.profile) return <EmptyProfile />;
-  const montados = new Map((await listSolves(data.profile.id)).map((s) => [s.puzzleId, s]));
+  const montados = new Map(
+    (await listSolves(data.authority, data.profile.id)).map((s) => [s.puzzleId, s]),
+  );
   const minhaFaixa = faixaDoAno(data.profile.grade);
   const acesso = { pago: data.access.paid, perfilLiberado: data.profileAllowed };
   // A faixa do estudante vem primeiro; as outras continuam abertas para treinar.

@@ -5,8 +5,8 @@ const url = process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL) : null;
 if (
   !url ||
   !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
-  !/^\/bora_review_[a-f0-9]{32}$/.test(url.pathname) ||
-  process.env.BORA_ISOLATED_TEST !== "1"
+  !/^\/(postgres|compasso_review_[a-f0-9]{24})$/.test(url.pathname) ||
+  process.env.COMPASSO_ISOLATED_DATABASE !== "1"
 )
   throw new Error("Use pnpm test:integration for a disposable local database");
 export default defineConfig({

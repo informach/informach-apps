@@ -375,6 +375,7 @@ export function describeUserAgent(ua: string | null | undefined): string {
 const EMAIL_CATEGORY: Record<string, string> = {
   "auth.verify-email": "Link para confirmar o e-mail",
   "auth.verify-email-otp": "Código para confirmar o e-mail",
+  "auth.change-email-otp": "Código para confirmar a troca de e-mail",
   "auth.sign-in-otp": "Código de acesso",
   "auth.forget-password-otp": "Código para trocar a senha",
   "auth.password-reset": "Link para trocar a senha",

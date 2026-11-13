@@ -1,4 +1,7 @@
-import { oauthDeviceAuthorizationClient } from "@better-auth/oauth-provider/client";
+import {
+  oauthDeviceAuthorizationClient,
+  oauthProviderClient,
+} from "@better-auth/oauth-provider/client";
 import { passkeyClient } from "@better-auth/passkey/client";
 import {
   emailOTPClient,
@@ -31,6 +34,9 @@ export type CreateAuthClientConfig = {
   organizations?: boolean;
   passkey?: boolean;
   desktopOAuth?: boolean;
+  webSsoProvider?: boolean;
+  /** Manual callers validate and perform the single navigation after authentication. */
+  redirectMode?: "automatic" | "manual";
   twoFactor?: boolean | { onRedirect?: () => void };
 };
 
@@ -57,7 +63,9 @@ export function createInformachAuthClient(config: CreateAuthClientConfig) {
 
   return createAuthClient({
     baseURL: config.baseURL,
+    disableDefaultFetchPlugins: config.redirectMode === "manual",
     plugins: [
+      ...(config.webSsoProvider ? ([oauthProviderClient()] as const) : ([] as const)),
       ...(config.desktopOAuth ? ([oauthDeviceAuthorizationClient()] as const) : ([] as const)),
       ...(magicLinkClientRequired(config.email) ? ([magicLinkClient()] as const) : ([] as const)),
       ...(emailOtpClientRequired(config.email) ? ([emailOTPClient()] as const) : ([] as const)),

@@ -5,8 +5,6 @@ import { and, db, eq, inArray, ne, sql } from "@informach/db";
 import {
   agendaActivities,
   agendaActivityRevisions,
-  agendaFamilyMembers,
-  agendaFamilyProfileAccess,
   agendaNoticeApplications,
   agendaNotices,
   agendaNotificationDeliveries,
@@ -17,6 +15,7 @@ import {
   agendaTasks,
   agendaTurmaMembers,
 } from "@informach/db/schema";
+import { profileAccessCondition } from "@informach/family/access";
 import type { z } from "zod";
 import { FREE_ACTIVITY_LIMIT } from "@/features/activities/limits";
 import {
@@ -25,6 +24,15 @@ import {
   lockPendingLimit,
 } from "@/features/activities/pending-limit";
 import { accessibleProfileCondition } from "@/features/family/access";
+import type { AgendaAuthority } from "@/features/family/authority";
+import { lockAgendaProfiles, studentGroupId } from "@/features/family/scope";
+import { atomicAgendaResult } from "@/features/family/transaction-repository";
+import { lockAgendaUse } from "@/features/family/use-repository";
+import {
+  assertTaskSchoolContexts,
+  lockTaskSchoolContexts,
+  type SchoolContextLocks,
+} from "@/features/turmas/transaction-repository";
 import { ensureStoredActionIds, visibleDraftActions } from "./drafts";
 import { resolveSeriesId } from "./recurrence";
 import { sourceAccessCondition } from "./repository";
@@ -60,23 +68,23 @@ export function contentChanged(previous: object, current: object): boolean {
   return content(previous) !== content(current);
 }
 
-async function validAssignee(tx: AgendaTransaction, ownerId: string, input: NoticeActionInput) {
-  if (!input.assignedToUserId || input.assignedToUserId === ownerId) return true;
-  const [guest] = await tx
-    .select({ id: agendaFamilyMembers.id })
-    .from(agendaFamilyMembers)
-    .innerJoin(
-      agendaFamilyProfileAccess,
-      eq(agendaFamilyProfileAccess.memberId, agendaFamilyMembers.id),
-    )
+async function validAssignee(tx: AgendaTransaction, input: NoticeActionInput) {
+  if (!input.assignedToUserId) return true;
+  const [recipient] = await tx
+    .select({ id: agendaStudentProfiles.id })
+    .from(agendaStudentProfiles)
     .where(
       and(
-        eq(agendaFamilyMembers.ownerUserId, ownerId),
-        eq(agendaFamilyMembers.userId, input.assignedToUserId),
-        eq(agendaFamilyProfileAccess.profileId, input.profileId),
+        eq(agendaStudentProfiles.id, input.profileId),
+        profileAccessCondition(
+          input.assignedToUserId,
+          "agenda-da-turma",
+          agendaStudentProfiles.familyProfileId,
+          "read",
+        ),
       ),
     );
-  return Boolean(guest);
+  return !!recipient;
 }
 
 /**
@@ -136,7 +144,7 @@ async function validSubject(tx: AgendaTransaction, input: NoticeActionInput) {
  */
 async function publishToTurma(
   tx: AgendaTransaction,
-  userId: string,
+  actor: AgendaAuthority,
   action: NoticeActionInput,
   reuse: Map<string, string>,
 ): Promise<string> {
@@ -161,7 +169,8 @@ async function publishToTurma(
     .values({
       turmaId: subject.turmaId,
       subjectId: action.subjectId,
-      createdByUserId: userId,
+      createdByUserId: actor.userId,
+      familyGroupId: actor.familyGroupId,
       type: action.type,
       visibility: "shared_with_turma",
       title: action.title,
@@ -174,31 +183,69 @@ async function publishToTurma(
   return created.id;
 }
 
-async function lockFamily(tx: AgendaTransaction, ownerId: string) {
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`agenda:family:${ownerId}`}))`);
-  await lockPendingLimit(tx, ownerId);
+/** The household lock is acquired before any native row or original is locked. */
+async function lockNoticeProfiles(
+  tx: AgendaTransaction,
+  actor: AgendaAuthority,
+  noticeId: string,
+  action: "read" | "write" = "write",
+) {
+  await lockPendingLimit(tx, actor);
+  const [notice] = await tx
+    .select({
+      captureId: agendaNotices.captureProfileId,
+      scope: agendaNotices.sourceProfileIds,
+      status: agendaNotices.status,
+    })
+    .from(agendaNotices)
+    .where(
+      and(
+        eq(agendaNotices.id, noticeId),
+        eq(agendaNotices.familyGroupId, actor.familyGroupId),
+        sourceAccessCondition(actor),
+      ),
+    );
+  if (!notice) return false;
+  const ids =
+    notice.status === "confirmed"
+      ? (notice.scope ?? [])
+      : notice.captureId
+        ? [notice.captureId]
+        : [];
+  if (!ids.length) return false;
+  await lockAgendaProfiles(tx, actor, ids, action);
+  return true;
+}
+async function lockTaskUse(tx: AgendaTransaction, actor: AgendaAuthority, taskId: string) {
+  await lockPendingLimit(tx, actor);
+  const [task] = await tx
+    .select({ profileId: agendaTasks.profileId })
+    .from(agendaTasks)
+    .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
+    .where(and(eq(agendaTasks.id, taskId), accessibleProfileCondition(actor, "write")));
+  return task ? lockAgendaUse(tx, actor, [task.profileId]) : null;
 }
 
 export async function insertConfirmedNotice(
-  userId: string,
+  actor: AgendaAuthority,
   input: z.infer<typeof confirmNoticeSchema>,
-  ownerId: string,
-  isPro: boolean,
 ) {
-  return db.transaction(async (tx) => {
-    await lockFamily(tx, ownerId);
+  const userId = actor.userId;
+  return atomicAgendaResult(async (tx) => {
+    const dependencies = {
+      taskIds: input.resolutions?.flatMap((r) => (r.kind === "replace" ? [r.actionId] : [])) ?? [],
+      subjectIds: input.actions.flatMap((a) => (a.subjectId ? [a.subjectId] : [])),
+    };
+    const schoolLocks = await lockTaskSchoolContexts(tx, dependencies);
+    await lockPendingLimit(tx, actor);
     const profileIds = [...new Set(input.actions.map((a) => a.profileId))];
-    const profiles = await tx
-      .select()
-      .from(agendaStudentProfiles)
-      .where(
-        and(
-          inArray(agendaStudentProfiles.id, profileIds),
-          eq(agendaStudentProfiles.userId, ownerId),
-          accessibleProfileCondition(userId),
-        ),
-      );
-    if (profiles.length !== profileIds.length) return err({ code: "INVALID_PROFILE" } as const);
+    const coverage = await lockAgendaUse(tx, actor, [
+      ...new Set([...profileIds, ...(input.sourceProfileIds ?? [])]),
+    ]);
+    const isPro = coverage.enabled;
+    await assertTaskSchoolContexts(tx, schoolLocks, dependencies);
+    if (input.noticeId && !(await lockNoticeProfiles(tx, actor, input.noticeId)))
+      return err({ code: "NOT_FOUND" } as const);
     let source: "teams" | "batista" | "notebook" | "whatsapp" | "other" | "manual" = "manual";
     let originalText = "";
     let scope: string[] | null = null;
@@ -210,8 +257,8 @@ export async function insertConfirmedNotice(
         .where(
           and(
             eq(agendaNotices.id, input.noticeId),
-            eq(agendaNotices.ownerUserId, ownerId),
-            sourceAccessCondition(userId),
+            eq(agendaNotices.familyGroupId, actor.familyGroupId),
+            sourceAccessCondition(actor),
           ),
         )
         .for("update");
@@ -237,13 +284,7 @@ export async function insertConfirmedNotice(
         const scopedProfiles = await tx
           .select({ id: agendaStudentProfiles.id })
           .from(agendaStudentProfiles)
-          .where(
-            and(
-              inArray(agendaStudentProfiles.id, scope),
-              eq(agendaStudentProfiles.userId, ownerId),
-              accessibleProfileCondition(userId),
-            ),
-          );
+          .where(and(inArray(agendaStudentProfiles.id, scope), accessibleProfileCondition(actor)));
         if (
           scopedProfiles.length !== scope.length ||
           [...profileIds, ...appliedProfiles].some((id) => !scope?.includes(id))
@@ -255,14 +296,16 @@ export async function insertConfirmedNotice(
       }
     }
 
+    if (input.noticeId && (!scope?.length || profileIds.some((id) => !scope.includes(id))))
+      return err({ code: "INVALID_SOURCE_SCOPE" } as const);
+
     // Applying a document is idempotent per child, independently of extraction
     // caching and of later edits/corrections to the resulting actions.
     const work = input.actions
       .map((action, index) => ({ action, index }))
       .filter(({ action }) => !appliedProfiles.includes(action.profileId));
     for (const { action } of work) {
-      if (!(await validAssignee(tx, ownerId, action)))
-        return err({ code: "INVALID_ASSIGNEE" } as const);
+      if (!(await validAssignee(tx, action))) return err({ code: "INVALID_ASSIGNEE" } as const);
       if (!(await validSubject(tx, action))) return err({ code: "INVALID_SUBJECT" } as const);
       if (!isPro && (action.recurrence !== "none" || action.reminderAt))
         return err({ code: "PRO_REQUIRED" } as const);
@@ -353,7 +396,7 @@ export async function insertConfirmedNotice(
     if (duplicates.length && !input.allowDuplicates)
       return err({ code: "POSSIBLE_DUPLICATES", duplicates } as const);
     const newCount = values.length - replacements.size;
-    const pending = await countPendingActivities(tx, ownerId);
+    const pending = await countPendingActivities(tx, actor);
     if (!isPro && newCount > 0 && pending + newCount > FREE_ACTIVITY_LIMIT)
       return err({
         code: "ACTIVITY_LIMIT_REACHED",
@@ -389,7 +432,7 @@ export async function insertConfirmedNotice(
             action.shareWithTurma ||
             (previous.sharedActivityId !== null && Boolean(action.dueAt && action.subjectId)),
         };
-        const sharing = await reconcileSharing(tx, userId, isPro, previous, keepShared, published);
+        const sharing = await reconcileSharing(tx, actor, isPro, previous, keepShared, published);
         if (!sharing.ok) return err({ code: sharing.code } as const);
         const [current] = await tx
           .update(agendaTasks)
@@ -404,7 +447,7 @@ export async function insertConfirmedNotice(
           .returning();
         if (!current) throw new Error("Notice correction failed");
         if (sharing.publishedBySelf && sharing.sharedActivityId)
-          await publishActivityCorrection(tx, sharing.sharedActivityId, userId, current);
+          await publishActivityCorrection(tx, sharing.sharedActivityId, actor, current);
         await tx.insert(agendaActivityRevisions).values({
           taskId: previous.id,
           actorId: userId,
@@ -421,7 +464,7 @@ export async function insertConfirmedNotice(
             ...fields,
             createdByUserId: userId,
             sharedActivityId: action.shareWithTurma
-              ? await publishToTurma(tx, userId, action, published)
+              ? await publishToTurma(tx, actor, action, published)
               : null,
             seriesId: resolveSeriesId(action.recurrence, null),
           })
@@ -447,6 +490,7 @@ export async function insertConfirmedNotice(
         .set({
           status: "confirmed",
           sourceProfileIds: scope,
+          sharedWithinFamily: sql`CASE WHEN ${agendaNotices.createdByUserId} = ${actor.userId} THEN ${input.shareOriginal} ELSE ${agendaNotices.sharedWithinFamily} END`,
           confirmedAt: sql`coalesce(${agendaNotices.confirmedAt}, now())`,
           updatedAt: new Date(),
         })
@@ -472,8 +516,9 @@ export async function insertConfirmedNotice(
  * transação e com a linha travada: dois `retomar` concorrentes atribuiriam ids
  * diferentes, e a lixeira de quem perdesse devolveria NOT_FOUND.
  */
-export async function loadNoticeDraft(userId: string, noticeId: string) {
+export async function loadNoticeDraft(actor: AgendaAuthority, noticeId: string) {
   return db.transaction(async (tx) => {
+    if (!(await lockNoticeProfiles(tx, actor, noticeId, "read"))) return null;
     const [notice] = await tx
       .select()
       .from(agendaNotices)
@@ -481,7 +526,7 @@ export async function loadNoticeDraft(userId: string, noticeId: string) {
         and(
           eq(agendaNotices.id, noticeId),
           eq(agendaNotices.status, "ready"),
-          sourceAccessCondition(userId),
+          sourceAccessCondition(actor),
         ),
       )
       .for("update");
@@ -505,14 +550,16 @@ export async function loadNoticeDraft(userId: string, noticeId: string) {
  * Só de `ready`: um recado `confirmed` já tem tarefas e aplicações por criança.
  */
 export async function discardDraftActionAtomically(
-  userId: string,
+  actor: AgendaAuthority,
   input: z.infer<typeof discardDraftActionSchema>,
 ) {
-  return db.transaction(async (tx) => {
+  return atomicAgendaResult(async (tx) => {
+    if (!(await lockNoticeProfiles(tx, actor, input.noticeId, "write")))
+      return err({ code: "NOT_FOUND" } as const);
     const [notice] = await tx
       .select()
       .from(agendaNotices)
-      .where(and(eq(agendaNotices.id, input.noticeId), sourceAccessCondition(userId)))
+      .where(and(eq(agendaNotices.id, input.noticeId), sourceAccessCondition(actor)))
       .for("update");
     if (!notice) return err({ code: "NOT_FOUND" } as const);
     if (notice.status !== "ready") return err({ code: "NOT_DRAFT" } as const);
@@ -540,14 +587,16 @@ export async function discardDraftActionAtomically(
 
 /** Descarta o recado inteiro. Mesma regra: só de `ready`. */
 export async function discardNoticeAtomically(
-  userId: string,
+  actor: AgendaAuthority,
   input: z.infer<typeof discardNoticeSchema>,
 ) {
-  return db.transaction(async (tx) => {
+  return atomicAgendaResult(async (tx) => {
+    if (!(await lockNoticeProfiles(tx, actor, input.noticeId, "write")))
+      return err({ code: "NOT_FOUND" } as const);
     const [notice] = await tx
       .select({ id: agendaNotices.id, status: agendaNotices.status })
       .from(agendaNotices)
-      .where(and(eq(agendaNotices.id, input.noticeId), sourceAccessCondition(userId)))
+      .where(and(eq(agendaNotices.id, input.noticeId), sourceAccessCondition(actor)))
       .for("update");
     if (!notice) return err({ code: "NOT_FOUND" } as const);
     if (notice.status !== "ready") return err({ code: "NOT_DRAFT" } as const);
@@ -573,13 +622,20 @@ async function cancelActionDeliveries(tx: AgendaTransaction, id: string, version
 }
 
 export async function updateNoticeActionAtomically(
-  userId: string,
+  actor: AgendaAuthority,
   input: z.infer<typeof updateNoticeActionSchema>,
-  ownerId: string,
-  isPro: boolean,
 ) {
-  return db.transaction(async (tx) => {
-    await lockFamily(tx, ownerId);
+  const userId = actor.userId;
+  return atomicAgendaResult(async (tx) => {
+    const dependencies = {
+      taskIds: [input.id],
+      subjectIds: input.action.subjectId ? [input.action.subjectId] : [],
+    };
+    const schoolLocks = await lockTaskSchoolContexts(tx, dependencies);
+    const coverage = await lockTaskUse(tx, actor, input.id);
+    if (!coverage) return err({ code: "NOT_FOUND" } as const);
+    const isPro = coverage.enabled;
+    await assertTaskSchoolContexts(tx, schoolLocks, dependencies);
     const [previous] = await tx
       .select()
       .from(agendaTasks)
@@ -591,7 +647,7 @@ export async function updateNoticeActionAtomically(
             tx
               .select({ id: agendaStudentProfiles.id })
               .from(agendaStudentProfiles)
-              .where(accessibleProfileCondition(userId)),
+              .where(accessibleProfileCondition(actor)),
           ),
         ),
       )
@@ -602,8 +658,7 @@ export async function updateNoticeActionAtomically(
     // Moving an action to another child could disclose its original to a new adult.
     if (input.action.profileId !== previous.profileId)
       return err({ code: "INVALID_PROFILE" } as const);
-    if (!(await validAssignee(tx, ownerId, input.action)))
-      return err({ code: "INVALID_ASSIGNEE" } as const);
+    if (!(await validAssignee(tx, input.action))) return err({ code: "INVALID_ASSIGNEE" } as const);
     if (!(await validSubject(tx, input.action))) return err({ code: "INVALID_SUBJECT" } as const);
     const addsAutomation =
       (input.action.recurrence !== "none" && input.action.recurrence !== previous.recurrence) ||
@@ -616,11 +671,11 @@ export async function updateNoticeActionAtomically(
     if (
       previous.sharedActivityId &&
       input.action.shareWithTurma &&
-      (await isPublishedBy(tx, previous.sharedActivityId, userId)) &&
+      (await isPublishedBy(tx, previous.sharedActivityId, actor)) &&
       (!input.action.dueAt || !input.action.subjectId)
     )
       return err({ code: "SHARED_REQUIRES_SCHOOL_FIELDS" } as const);
-    const sharing = await reconcileSharing(tx, userId, isPro, previous, input.action, new Map());
+    const sharing = await reconcileSharing(tx, actor, isPro, previous, input.action, new Map());
     if (!sharing.ok) return err({ code: sharing.code } as const);
     const { sharedActivityId, publishedBySelf } = sharing;
     const [current] = await tx
@@ -638,7 +693,7 @@ export async function updateNoticeActionAtomically(
       .returning();
     if (!current) throw new Error("Action update failed");
     if (publishedBySelf && sharedActivityId)
-      await publishActivityCorrection(tx, sharedActivityId, userId, current);
+      await publishActivityCorrection(tx, sharedActivityId, actor, current);
     await cancelActionDeliveries(tx, previous.id, previous.version);
     // Mandar para a turma pelo "Pronto" passa por aqui sem mudar o conteúdo: a
     // versão sobe (é ela que segura a concorrência), mas não há revisão, senão o
@@ -668,7 +723,7 @@ export async function updateNoticeActionAtomically(
  */
 async function reconcileSharing(
   tx: AgendaTransaction,
-  userId: string,
+  actor: AgendaAuthority,
   isPro: boolean,
   previous: { sharedActivityId: string | null },
   action: NoticeActionInput,
@@ -677,17 +732,31 @@ async function reconcileSharing(
   | { ok: true; sharedActivityId: string | null; publishedBySelf: boolean }
   | {
       ok: false;
-      code: "SHARE_REQUIRES_PRO" | "SHARE_NOT_YOURS" | "SHARE_ALREADY_ACCEPTED";
+      code: "SHARE_REQUIRES_PRO" | "SHARE_NOT_YOURS" | "SHARE_ALREADY_ACCEPTED" | "INVALID_SUBJECT";
     }
 > {
+  if (previous.sharedActivityId && action.shareWithTurma) {
+    const [publication] = await tx
+      .select({ turmaId: agendaActivities.turmaId })
+      .from(agendaActivities)
+      .where(eq(agendaActivities.id, previous.sharedActivityId));
+    const [subject] = action.subjectId
+      ? await tx
+          .select({ turmaId: agendaSubjects.turmaId })
+          .from(agendaSubjects)
+          .where(eq(agendaSubjects.id, action.subjectId))
+      : [];
+    if (!publication || !subject || subject.turmaId !== publication.turmaId)
+      return { ok: false, code: "INVALID_SUBJECT" };
+  }
   const publishedBySelf = previous.sharedActivityId
-    ? await isPublishedBy(tx, previous.sharedActivityId, userId)
+    ? await isPublishedBy(tx, previous.sharedActivityId, actor)
     : false;
   if (!previous.sharedActivityId && action.shareWithTurma) {
     if (!isPro) return { ok: false, code: "SHARE_REQUIRES_PRO" };
     return {
       ok: true,
-      sharedActivityId: await publishToTurma(tx, userId, action, reuse),
+      sharedActivityId: await publishToTurma(tx, actor, action, reuse),
       publishedBySelf: false,
     };
   }
@@ -696,7 +765,7 @@ async function reconcileSharing(
     // começado a cumprir. Só quem publicou pode, e só enquanto ninguém mais
     // tiver recebido — do contrário some da vista delas sem explicação.
     if (!publishedBySelf) return { ok: false, code: "SHARE_NOT_YOURS" };
-    if (await hasOtherHouseholdTasks(tx, previous.sharedActivityId, userId))
+    if (await hasOtherHouseholdTasks(tx, previous.sharedActivityId, actor))
       return { ok: false, code: "SHARE_ALREADY_ACCEPTED" };
     await tx.delete(agendaActivities).where(eq(agendaActivities.id, previous.sharedActivityId));
     return { ok: true, sharedActivityId: null, publishedBySelf: false };
@@ -708,7 +777,7 @@ async function reconcileSharing(
 async function hasOtherHouseholdTasks(
   tx: AgendaTransaction,
   activityId: string,
-  userId: string,
+  actor: AgendaAuthority,
 ): Promise<boolean> {
   const [row] = await tx
     .select({ id: agendaTasks.id })
@@ -717,7 +786,7 @@ async function hasOtherHouseholdTasks(
     .where(
       and(
         eq(agendaTasks.sharedActivityId, activityId),
-        sql`${agendaStudentProfiles.userId} IS DISTINCT FROM ${userId}`,
+        sql`${studentGroupId} IS DISTINCT FROM ${actor.familyGroupId}::uuid`,
       ),
     )
     .limit(1);
@@ -725,14 +794,15 @@ async function hasOtherHouseholdTasks(
 }
 
 /** O fato publicado é deste usuário e ainda vale? */
-async function isPublishedBy(tx: AgendaTransaction, activityId: string, userId: string) {
+async function isPublishedBy(tx: AgendaTransaction, activityId: string, actor: AgendaAuthority) {
   const [row] = await tx
     .select({ id: agendaActivities.id })
     .from(agendaActivities)
     .where(
       and(
         eq(agendaActivities.id, activityId),
-        eq(agendaActivities.createdByUserId, userId),
+        eq(agendaActivities.createdByUserId, actor.userId),
+        eq(agendaActivities.familyGroupId, actor.familyGroupId),
         sql`${agendaActivities.canceledAt} IS NULL`,
       ),
     )
@@ -752,7 +822,7 @@ async function isPublishedBy(tx: AgendaTransaction, activityId: string, userId: 
 async function publishActivityCorrection(
   tx: AgendaTransaction,
   activityId: string,
-  actorId: string,
+  actor: AgendaAuthority,
   task: typeof agendaTasks.$inferSelect,
 ) {
   if (!task.dueAt || !task.subjectId) return;
@@ -764,7 +834,13 @@ async function publishActivityCorrection(
   // Reconfere sob o lock: entre a checagem e aqui a atividade pode ter sido
   // cancelada por outra sessão, e ressuscitá-la em silêncio seria pior do que
   // deixar a correção valer só para esta família.
-  if (!previous || previous.canceledAt || previous.createdByUserId !== actorId) return;
+  if (
+    !previous ||
+    previous.canceledAt ||
+    previous.createdByUserId !== actor.userId ||
+    previous.familyGroupId !== actor.familyGroupId
+  )
+    return;
   const [current] = await tx
     .update(agendaActivities)
     .set({
@@ -781,7 +857,7 @@ async function publishActivityCorrection(
   if (!current) throw new Error("Shared activity correction failed");
   await tx.insert(agendaActivityRevisions).values({
     activityId,
-    actorId,
+    actorId: actor.userId,
     version: current.version,
     previous,
     current,
@@ -799,7 +875,13 @@ async function publishActivityCorrection(
       version: sql`${agendaTasks.version} + 1`,
       updatedAt: new Date(),
     })
-    .where(and(eq(agendaTasks.sharedActivityId, activityId), ne(agendaTasks.id, task.id)));
+    .where(
+      and(
+        eq(agendaTasks.sharedActivityId, activityId),
+        ne(agendaTasks.id, task.id),
+        sql`EXISTS (SELECT 1 FROM ${agendaTurmaMembers} WHERE ${agendaTurmaMembers.studentProfileId} = ${agendaTasks.profileId} AND ${agendaTurmaMembers.turmaId} = ${previous.turmaId})`,
+      ),
+    );
 }
 
 /**
@@ -813,7 +895,7 @@ async function publishActivityCorrection(
 async function cancelPublishedActivity(
   tx: AgendaTransaction,
   activityId: string,
-  actorId: string,
+  actor: AgendaAuthority,
   taskId: string,
 ) {
   const [previous] = await tx
@@ -821,7 +903,13 @@ async function cancelPublishedActivity(
     .from(agendaActivities)
     .where(eq(agendaActivities.id, activityId))
     .for("update");
-  if (!previous || previous.canceledAt || previous.createdByUserId !== actorId) return;
+  if (
+    !previous ||
+    previous.canceledAt ||
+    previous.createdByUserId !== actor.userId ||
+    previous.familyGroupId !== actor.familyGroupId
+  )
+    return;
   const [current] = await tx
     .update(agendaActivities)
     .set({ canceledAt: new Date(), version: previous.version + 1, updatedAt: new Date() })
@@ -830,7 +918,7 @@ async function cancelPublishedActivity(
   if (!current) throw new Error("Shared activity cancellation failed");
   await tx.insert(agendaActivityRevisions).values({
     activityId,
-    actorId,
+    actorId: actor.userId,
     version: current.version,
     previous,
     current,
@@ -847,6 +935,7 @@ async function cancelPublishedActivity(
         eq(agendaTasks.sharedActivityId, activityId),
         eq(agendaTasks.status, "pending"),
         ne(agendaTasks.id, taskId),
+        sql`EXISTS (SELECT 1 FROM ${agendaTurmaMembers} WHERE ${agendaTurmaMembers.studentProfileId} = ${agendaTasks.profileId} AND ${agendaTurmaMembers.turmaId} = ${previous.turmaId})`,
       ),
     );
 }
@@ -858,12 +947,13 @@ export function nextWeeklyDate(iso: string) {
 }
 
 export async function setNoticeActionStatusAtomically(
-  userId: string,
+  actor: AgendaAuthority,
   input: z.infer<typeof statusNoticeActionSchema>,
-  ownerId: string,
-  isPro: boolean,
 ) {
-  return db.transaction((tx) => setNoticeActionStatusWithinTx(tx, userId, input, ownerId, isPro));
+  return atomicAgendaResult(async (tx) => {
+    const schoolLocks = await lockTaskSchoolContexts(tx, { taskIds: [input.id] });
+    return setNoticeActionStatusWithinTx(tx, actor, input, schoolLocks);
+  });
 }
 
 /**
@@ -877,12 +967,15 @@ export async function setNoticeActionStatusAtomically(
  */
 export async function setNoticeActionStatusWithinTx(
   tx: AgendaTransaction,
-  userId: string,
+  actor: AgendaAuthority,
   input: z.infer<typeof statusNoticeActionSchema>,
-  ownerId: string,
-  isPro: boolean,
+  schoolLocks: SchoolContextLocks,
 ) {
-  await lockFamily(tx, ownerId);
+  const userId = actor.userId;
+  const coverage = await lockTaskUse(tx, actor, input.id);
+  if (!coverage) return err({ code: "NOT_FOUND" } as const);
+  const isPro = coverage.enabled;
+  await assertTaskSchoolContexts(tx, schoolLocks, { taskIds: [input.id] });
   const [previous] = await tx
     .select()
     .from(agendaTasks)
@@ -894,7 +987,7 @@ export async function setNoticeActionStatusWithinTx(
           tx
             .select({ id: agendaStudentProfiles.id })
             .from(agendaStudentProfiles)
-            .where(accessibleProfileCondition(userId)),
+            .where(accessibleProfileCondition(actor)),
         ),
       ),
     )
@@ -912,7 +1005,7 @@ export async function setNoticeActionStatusWithinTx(
   if (
     !isPro &&
     input.status === "pending" &&
-    (await countPendingActivities(tx, ownerId)) >= FREE_ACTIVITY_LIMIT
+    (await countPendingActivities(tx, actor)) >= FREE_ACTIVITY_LIMIT
   )
     return err({ code: "ACTIVITY_LIMIT_REACHED" } as const);
   const [current] = await tx
@@ -932,9 +1025,9 @@ export async function setNoticeActionStatusWithinTx(
   if (
     input.status === "canceled" &&
     previous.sharedActivityId &&
-    (await isPublishedBy(tx, previous.sharedActivityId, userId))
+    (await isPublishedBy(tx, previous.sharedActivityId, actor))
   )
-    await cancelPublishedActivity(tx, previous.sharedActivityId, userId, input.id);
+    await cancelPublishedActivity(tx, previous.sharedActivityId, actor, input.id);
   // Prova cancelada não deixa sessões de estudo órfãs cobrando preparação
   // para uma data que não existe mais. O que já foi estudado fica feito.
   if (input.status === "canceled")

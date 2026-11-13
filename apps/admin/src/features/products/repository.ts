@@ -1,7 +1,6 @@
 import "server-only";
 import { and, count, eq, gt, gte, inArray, isNotNull, isNull, sql } from "@informach/db";
 import {
-  agendaFamilyMembers,
   agendaProductEvents,
   agendaStudentProfiles,
   boraCustomWorkouts,
@@ -19,7 +18,8 @@ import {
   estrelaCompletions,
   estrelaDevices,
   estrelaFamilies,
-  estrelaGuardians,
+  events,
+  familyMembers,
   missaoFamilies,
   missaoProfiles,
   missaoReports,
@@ -34,6 +34,11 @@ import type { ProductKey } from "@/lib/products";
 import { readDb } from "@/lib/read-db";
 import { memo } from "../overview/memo";
 import { iso } from "../overview/sql-time";
+import {
+  agendaParticipants,
+  estrelaDeviceAuthority,
+  familyPresence,
+} from "../people/family-metadata";
 
 /**
  * Números de uso de cada produto. Só contagens: nenhum nome de receita, recado,
@@ -112,21 +117,19 @@ export function agendaUsage(since: Date): Promise<AgendaUsage> {
     const db = readDb();
     const [funnel, families, children, guests, events] = await Promise.all([
       funnelFor(
-        sql`select ${agendaStudentProfiles.userId} as user_id from ${agendaStudentProfiles}
-            union select ${agendaFamilyMembers.userId} from ${agendaFamilyMembers}
-            union select ${agendaFamilyMembers.ownerUserId} from ${agendaFamilyMembers}
+        sql`select user_id from (${familyPresence("agenda-da-turma")}) presence
             union select ${agendaProductEvents.userId} from ${agendaProductEvents}
               where ${agendaProductEvents.event} = 'signup' and ${agendaProductEvents.userId} is not null`,
         sql`select distinct ${agendaProductEvents.userId} as user_id from ${agendaProductEvents}
             where ${agendaProductEvents.createdAt} >= ${iso(since)} and ${agendaProductEvents.userId} is not null`,
       ),
-      db
-        .select({
-          total: sql<number>`count(distinct ${agendaStudentProfiles.userId})`.mapWith(Number),
-        })
-        .from(agendaStudentProfiles),
+      db.execute<{ total: number }>(
+        sql`select count(distinct group_id)::int as total from (${agendaParticipants()}) participants`,
+      ),
       db.select({ total: count() }).from(agendaStudentProfiles),
-      db.select({ total: count() }).from(agendaFamilyMembers),
+      db.execute<{ total: number }>(
+        sql`select count(*)::int as total from (${agendaParticipants()}) participants where role = 'member'`,
+      ),
       db
         .select({ name: agendaProductEvents.event, total: count() })
         .from(agendaProductEvents)
@@ -239,11 +242,10 @@ export function estrelaUsage(since: Date, now: Date): Promise<EstrelaUsage> {
     const db = readDb();
     const [funnel, children, devices, guardians, completions] = await Promise.all([
       funnelFor(
-        sql`select ${estrelaFamilies.userId} as user_id from ${estrelaFamilies}
-            union select ${estrelaGuardians.userId} from ${estrelaGuardians}`,
-        sql`select distinct ${estrelaChildren.userId} as user_id
-            from ${estrelaCompletions} join ${estrelaChildren} on ${estrelaChildren.id} = ${estrelaCompletions.childId}
-            where ${estrelaCompletions.completedAt} >= ${iso(since)}`,
+        familyPresence("dia-de-estrela"),
+        sql`select distinct ${events.actorId} as user_id from ${events}
+            where ${events.payload}->>'appName' = 'Dia de Estrela' and ${events.eventType} = 'session.created'
+              and ${events.createdAt} >= ${iso(since)}`,
       ),
       db.select({ total: count() }).from(estrelaChildren),
       db
@@ -253,10 +255,16 @@ export function estrelaUsage(since: Date, now: Date): Promise<EstrelaUsage> {
           and(
             isNotNull(estrelaDevices.connectedAt),
             isNull(estrelaDevices.revokedAt),
+            estrelaDeviceAuthority(),
             gt(estrelaDevices.expiresAt, now),
           ),
         ),
-      db.select({ total: count() }).from(estrelaGuardians),
+      db
+        .select({ total: count() })
+        .from(estrelaFamilies)
+        .where(sql`(
+        select count(*) from ${familyMembers} where ${familyMembers.groupId} = ${estrelaFamilies.familyGroupId}
+          and ${familyMembers.revokedAt} is null) > 1`),
       db
         .select({ markedBy: estrelaCompletions.markedBy, total: count() })
         .from(estrelaCompletions)

@@ -57,7 +57,9 @@ export type SendBillingEmailInput =
       recipient: BillingEmailRecipient;
       messageKey: string;
       creditAmount: number;
-      balanceAfter: number;
+      balanceAfter?: number;
+      conversion?: { sourceName: string; sourceCredits: number };
+      settlement?: { refundedCredits: number; underReview: boolean };
     };
 
 export type BillingEmailDeps = {
@@ -207,6 +209,8 @@ async function renderForCategory(
         ...baseProps,
         creditAmount: input.creditAmount,
         balanceAfter: input.balanceAfter,
+        conversion: input.conversion,
+        settlement: input.settlement,
         dashboardUrl: shared.manageBillingUrl,
       });
   }

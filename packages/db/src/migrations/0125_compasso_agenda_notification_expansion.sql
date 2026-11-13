@@ -1,0 +1,5 @@
+ALTER TABLE "agenda"."notification_deliveries" ADD COLUMN "family_group_id" uuid;--> statement-breakpoint
+ALTER TABLE "agenda"."notification_preferences" ADD COLUMN "id" uuid DEFAULT gen_random_uuid() NOT NULL;--> statement-breakpoint
+ALTER TABLE "agenda"."notification_preferences" ADD COLUMN "family_group_id" uuid;--> statement-breakpoint
+ALTER TABLE "agenda"."notification_deliveries" ADD CONSTRAINT "notification_deliveries_family_group_id_groups_id_fk" FOREIGN KEY ("family_group_id") REFERENCES "family"."groups"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agenda"."notification_preferences" ADD CONSTRAINT "notification_preferences_family_group_id_groups_id_fk" FOREIGN KEY ("family_group_id") REFERENCES "family"."groups"("id") ON DELETE cascade ON UPDATE no action;

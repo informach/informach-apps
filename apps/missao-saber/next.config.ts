@@ -1,20 +1,14 @@
 import path from "node:path";
+import { isolatedNextOptions } from "@informach/config/next-testing";
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
-const isolatedSuffix = process.env.MISSAO_E2E_RUN_ID;
-if (isolatedSuffix && !/^[a-f0-9]{24}$/.test(isolatedSuffix))
-  throw new Error("MISSAO_E2E_RUN_ID must be a 24-character hexadecimal identifier");
 const config: NextConfig = {
-  distDir:
-    process.env.MISSAO_ISOLATED_TEST === "1"
-      ? isolatedSuffix
-        ? `.next-isolated-${isolatedSuffix}`
-        : ".next-e2e"
-      : ".next",
+  output: "standalone",
   outputFileTracingRoot: path.resolve(__dirname, "../.."),
   turbopack: { root: path.resolve(__dirname, "../..") },
   transpilePackages: [
+    "@informach/account",
     "@informach/auth",
     "@informach/billing",
     "@informach/config",
@@ -49,6 +43,7 @@ const config: NextConfig = {
       },
     ];
   },
+  ...isolatedNextOptions(),
 };
 export default withSentryConfig(config, {
   org: process.env.SENTRY_ORG,

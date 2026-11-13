@@ -1,7 +1,11 @@
+import { COMPASSO_POLICY } from "@informach/config/collections";
 import { INFORMACH_CONTACT } from "@informach/config/contact";
 import { Brand } from "@/components/brand";
 import { catalogCourses, catalogGrades } from "@/features/content/catalog";
 import { gradeRangeSentence } from "@/features/family/school-year";
+
+const brl = (cents: number) =>
+  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 export const metadata = { title: "Termos de uso" };
 
 export default function Terms() {
@@ -17,12 +21,13 @@ export default function Terms() {
         </a>
       </header>
       <main id="conteudo" className="prosa">
-        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 17/10/2026</span>
+        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 09/11/2026</span>
         <h1>Termos do Missão Saber.</h1>
         <p>
           O Missão Saber é oferecido pela Informach Núcleo de Aprendizagem Ltda, CNPJ
           43.588.758/0001-03. O serviço é contratado por um responsável maior de 18 anos. Os perfis
-          de estudantes ficam vinculados a essa conta. O responsável deve proteger seu acesso e
+          de estudantes pertencem ao contexto familiar compartilhado. Cada responsável acessa apenas
+          os estudantes e ações explicitamente autorizados. O responsável deve proteger seu acesso e
           acompanhar o uso adequado à idade.
         </p>
         <h2>O serviço</h2>
@@ -35,18 +40,22 @@ export default function Terms() {
         </p>
         <h2>Assinatura</h2>
         <p>
-          Individual: R$ 29,90 mensais ou R$ 299 anuais para um estudante. Família: R$ 44,90 mensais
-          ou R$ 449 anuais para até três estudantes. No anual, o total é cobrado de uma vez. O
-          checkout apresenta o plano, o valor e a recorrência antes da confirmação. A assinatura se
-          renova automaticamente no ciclo escolhido até ser cancelada.
+          O acesso completo integra o Compasso: {brl(COMPASSO_POLICY.monthlyAmountCents)} por mês ou{" "}
+          {brl(COMPASSO_POLICY.annualAmountCents)} por ano, para até{" "}
+          {COMPASSO_POLICY.capacity.adults} adultos e {COMPASSO_POLICY.capacity.dependents}{" "}
+          dependentes. No anual, o total é cobrado de uma vez. O checkout apresenta valor e
+          recorrência antes da confirmação. A assinatura se renova até ser cancelada.
         </p>
         <p>
-          O portal de cobrança permite consultar pagamentos, atualizar o meio de pagamento e
-          solicitar cancelamento. O cancelamento interrompe a próxima renovação e mantém o acesso
-          até o fim do período pago. Mudanças que aumentam a capacidade ou antecipam um ciclo podem
-          gerar cobrança proporcional imediata, mostrada antes da confirmação. Reduções são
-          agendadas para o fim do período; ao passar de Família para Individual, o responsável
-          escolhe qual perfil continuará estudando. Os demais históricos ficam guardados.
+          O teste do Compasso dura {COMPASSO_POLICY.trialDays} dias, sem cartão, para famílias
+          elegíveis. Ao terminar sem assinatura, o acesso volta às funcionalidades gratuitas,
+          preservando os históricos.
+        </p>
+        <p>
+          A central da conta permite consultar e cancelar a assinatura. O portal seguro permite
+          atualizar o meio de pagamento e consultar comprovantes. O cancelamento interrompe a
+          próxima renovação e mantém o acesso até o fim do período pago. Registros de contratos
+          anteriores são preservados, sem nova contratação automática.
         </p>
         <h2>Aprendizagem e conteúdo</h2>
         <p>

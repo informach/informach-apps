@@ -1,6 +1,8 @@
+import { COMPASSO_POLICY } from "@informach/config/collections";
 import { INFORMACH_CONTACT } from "@informach/config/contact";
 import Link from "next/link";
 import { PaginaDeTexto } from "@/components/pagina-publica";
+import { brl } from "@/domain/estrelas";
 
 export const metadata = { title: "Termos" };
 
@@ -8,7 +10,7 @@ export default function Termos() {
   return (
     <PaginaDeTexto>
       <p className="text-sm font-extrabold tracking-[0.12em] text-tinta-suave">
-        ÚLTIMA ATUALIZAÇÃO · 06/11/2026
+        ÚLTIMA ATUALIZAÇÃO · 10/11/2026
       </p>
       <h1>Termos do Dia de Estrela.</h1>
       <p>
@@ -39,16 +41,20 @@ export default function Termos() {
       </p>
       <h2>Assinatura</h2>
       <p>
-        Família: R$ 24,90 mensais ou R$ 249 anuais, para até quatro crianças, com segundo
-        responsável, alertas no celular, voz dos pais, itens próprios na loja e foto da meta. No
-        anual, o total é cobrado de uma vez. O checkout apresenta o plano, o valor e a recorrência
-        antes da confirmação. A assinatura se renova automaticamente até ser cancelada.
+        O Dia de Estrela faz parte do Compasso: {brl(COMPASSO_POLICY.monthlyAmountCents)} por mês ou{" "}
+        {brl(COMPASSO_POLICY.annualAmountCents)} por ano, para até {COMPASSO_POLICY.capacity.adults}{" "}
+        adultos e {COMPASSO_POLICY.capacity.dependents} dependentes. O teste dura{" "}
+        {COMPASSO_POLICY.trialDays} dias sem cartão. Neste app, inclui alertas no celular, voz dos
+        pais, itens próprios na loja e foto da meta. No anual, o total é cobrado de uma vez. O
+        checkout apresenta o plano, o valor e a recorrência antes da confirmação. A assinatura se
+        renova automaticamente até ser cancelada.
       </p>
       <p>
-        O portal de cobrança permite consultar pagamentos, atualizar o meio de pagamento e cancelar.
+        A Minha conta centraliza a assinatura, os pagamentos e o cancelamento. Recreio, Morada e
+        Suíte Edi têm contratos separados. Este aplicativo não usa IA e não consome créditos de IA.
         O cancelamento interrompe a próxima renovação e mantém o acesso até o fim do período pago.
-        Ao voltar para o gratuito, o titular escolhe qual criança continua ativa; as demais ficam
-        guardadas.
+        Ao voltar para o gratuito, um administrador escolhe qual criança continua ativa; as demais
+        ficam guardadas.
       </p>
       <h2>Uso adequado</h2>
       <p>

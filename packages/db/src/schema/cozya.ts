@@ -13,6 +13,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "./core";
+import { familyGroups } from "./family";
 
 export const cozya = pgSchema("cozya");
 
@@ -219,11 +220,21 @@ export const cozyaAiOperations = cozya.table(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    // Null only for receipts created before the shared wallet migration.
+    familyGroupId: uuid("family_group_id").references(() => familyGroups.id, {
+      onDelete: "cascade",
+    }),
+    tariff: text("tariff"),
+    maxCredits: integer("max_credits"),
     fingerprint: text("fingerprint").notNull(),
+    webParticipationRevision: integer("web_participation_revision").notNull().default(0),
     response: jsonb("response").$type<unknown>(),
     statusCode: integer("status_code"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   },
-  (t) => [index("cozya_ai_operations_expiry_idx").on(t.expiresAt)],
+  (t) => [
+    index("cozya_ai_operations_expiry_idx").on(t.expiresAt),
+    check("cozya_ai_operations_web_revision", sql`${t.webParticipationRevision} >= 0`),
+  ],
 );

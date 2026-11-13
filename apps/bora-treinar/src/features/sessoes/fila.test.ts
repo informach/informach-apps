@@ -9,7 +9,7 @@ describe("fila de treinos feitos sem rede", () => {
   });
 
   it("fica guardado quando a recusa pode mudar (plano, perfil, login)", () => {
-    for (const code of ["PLAN", "PROFILE", "AUTH", "VERIFY", "UNEXPECTED"])
+    for (const code of ["PLAN", "PROFILE", "AUTH", "VERIFY", "UNEXPECTED", "ACCESS_DENIED"])
       expect(destino({ ok: false, code })).toBe("fica");
   });
 

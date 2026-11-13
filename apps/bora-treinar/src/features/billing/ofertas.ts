@@ -1,48 +1,3 @@
-/**
- * Os planos como a tela os mostra, calculados do catálogo (`@informach/config`), nunca escritos à
- * mão: o anual aparece pelo valor por mês e pelos meses que ele dá de graça.
- */
-export interface ProdutoDoCatalogo {
-  id: string;
-  tier?: string;
-  interval?: string;
-  listPrice?: { amountCents: number } | null;
-}
-
-export type TierPago = "individual" | "family";
-
-export interface Oferta {
-  tier: TierPago;
-  mensal: { id: string; centavos: number };
-  anual: { id: string; centavos: number; porMes: number; mesesGratis: number };
-}
-
-/** Individual primeiro: a maioria treina sozinha; a Família é a mesma assinatura com mais perfis. */
-const ORDEM: TierPago[] = ["individual", "family"];
-
-export function ofertas(produtos: readonly ProdutoDoCatalogo[]): Oferta[] {
-  return ORDEM.flatMap((tier) => {
-    const mensal = produtos.find((p) => p.tier === tier && p.interval === "month");
-    const anual = produtos.find((p) => p.tier === tier && p.interval === "year");
-    const m = mensal?.listPrice?.amountCents;
-    const a = anual?.listPrice?.amountCents;
-    if (!mensal || !anual || !m || !a) return [];
-    return [
-      {
-        tier,
-        mensal: { id: mensal.id, centavos: m },
-        anual: {
-          id: anual.id,
-          centavos: a,
-          porMes: Math.round(a / 12),
-          // quantos meses do mensal o anual deixa de cobrar (R$ 24,90 × 12 − R$ 249 = 2 meses)
-          mesesGratis: Math.max(0, Math.round((m * 12 - a) / m)),
-        },
-      },
-    ];
-  });
-}
-
 export const reais = (centavos: number) =>
   (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -58,7 +13,7 @@ export const MOTIVOS = {
     titulo: "Os níveis acompanham você.",
   },
   perfis: {
-    chamada: "Mais perfis no plano Família",
+    chamada: "Perfis compartilhados no Compasso",
     titulo: "Cada um da casa no seu perfil.",
   },
   editor: { chamada: "Montar treinos é da assinatura", titulo: "Monte o treino do seu jeito." },
@@ -68,7 +23,7 @@ export const MOTIVOS = {
     titulo: "A TV mostra, o celular conta.",
   },
   historico: { chamada: "O histórico completo é da assinatura", titulo: "Todo o seu histórico." },
-  geral: { chamada: "Planos do Bora Treinar", titulo: "Treine com tudo liberado." },
+  geral: { chamada: "Bora Treinar no Compasso", titulo: "Treine com tudo liberado." },
 } as const;
 
 export type Motivo = keyof typeof MOTIVOS;

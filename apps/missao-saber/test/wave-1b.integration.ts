@@ -3,7 +3,8 @@ import { db } from "@informach/db";
 import { users } from "@informach/db/schema";
 import { beforeAll, describe, expect, it } from "vitest";
 import { assessment, coursesForGrade, findCourse } from "@/features/content/catalog";
-import { begin, createProfile, dashboard } from "@/features/learning/service";
+import { begin, dashboard } from "@/features/learning/service";
+import { fixtureAuthority, prepareStudent } from "./family-fixture";
 
 const owner = randomUUID();
 
@@ -21,7 +22,7 @@ describe("onda 1b em PostgreSQL isolado: OLITEF N2", () => {
     expect(coursesForGrade(8).map((course) => course.id)).toEqual(
       expect.arrayContaining(["canguru-b", "obmep-n2", "olitef-n2"]),
     );
-    const profile = await createProfile(owner, {
+    const profile = await prepareStudent(await fixtureAuthority(owner), {
       nickname: "Téo",
       grade: 8,
       birthMonth: null,
@@ -29,10 +30,10 @@ describe("onda 1b em PostgreSQL isolado: OLITEF N2", () => {
       courseId: "olitef-n2",
       consent: true,
     });
-    const painel = await dashboard(owner, profile.id);
+    const painel = await dashboard(await fixtureAuthority(owner), profile.id);
     expect(painel.course?.id).toBe("olitef-n2");
     // Proporção é a primeira habilidade e abre sem assinatura.
-    const sessao = await begin(owner, {
+    const sessao = await begin(await fixtureAuthority(owner), {
       profileId: profile.id,
       lessonId: "proporcao-1",
       mode: "mission",
@@ -56,7 +57,7 @@ describe("onda 1b em PostgreSQL isolado: OLITEF N2", () => {
     );
     // O simulado é conteúdo pago: sem assinatura, o começo é recusado pelo plano.
     await expect(
-      begin(owner, {
+      begin(await fixtureAuthority(owner), {
         profileId: profile.id,
         lessonId: simulado.id,
         mode: "exam",
@@ -65,7 +66,7 @@ describe("onda 1b em PostgreSQL isolado: OLITEF N2", () => {
     ).rejects.toMatchObject({ code: "PLAN" });
     // O diagnóstico é gratuito e abre normalmente.
     const diagnostico = assessment(course, "diagnostic");
-    const inicio = await begin(owner, {
+    const inicio = await begin(await fixtureAuthority(owner), {
       profileId: profile.id,
       lessonId: diagnostico.id,
       mode: "diagnostic",

@@ -1,35 +1,16 @@
 # Bora Treinar
 
-Treino guiado com o peso do corpo (calistenia) para a família, em `bora-treinar.informach.com.br`. **Ainda não publicado**: o provisionamento de Stripe, Sentry, DNS e Railway está em [PRODUCAO.md](PRODUCAO.md).
+Treino guiado com o peso do corpo para a família, em `bora-treinar.informach.com.br`. O serviço foi provisionado em 31/10/2026; a migração Compasso desta branch **ainda não foi publicada**. Estado operacional em [PRODUCAO.md](PRODUCAO.md), contratos em [CLAUDE.md](CLAUDE.md).
 
-Um instrutor 3D mostra cada exercício, a câmera conta as repetições e o tempo de prancha no próprio aparelho (MediaPipe no navegador) e cada perfil da família sobe de nível nas trilhas de progressão. Tem desafio semanal da família, conquistas, editor de treinos, lembretes de treino e resumo semanal por e-mail, e o celular pode servir de câmera quando o treino passa na TV.
+O instrutor 3D, a câmera e a contagem rodam no aparelho. O servidor guarda sessões, progresso, conquistas e desafios das pessoas ativadas no app. Nome/cor e permissões vêm da central; histórico de treino permanece no Bora. O app não usa IA nem consome créditos.
 
-A conta é do titular (adulto), com perfis familiares só de apelido e cor, como na Missão Saber. Planos:
-
-| Plano | Mensal | Anual | Perfis |
-| --- | --- | --- | --- |
-| Grátis | | | 1, com o "Primeiro treino" e o "Aquecimento", a biblioteca de exercícios com o instrutor 3D e contagem manual ou pela voz |
-| Teste de 7 dias | | | até 4, com tudo liberado e sem cartão, um por e-mail |
-| Bora Treinar Individual | R$ 24,90 | R$ 249,00 | 1 |
-| Bora Treinar Família | R$ 34,90 | R$ 349,00 | até 4 |
-
-Sem IA e sem créditos. Preços no catálogo (`packages/config/src/products.ts`); os ids Stripe vêm das variáveis `BORA_{INDIVIDUAL,FAMILY}_{MONTHLY,ANNUAL}_PRICE`.
+O Compasso custa R$ 49,90/mês ou R$ 499/ano, para até dois adultos e quatro dependentes, com teste central de 14 dias sem cartão. O gratuito permite um perfil com os treinos iniciais e prática manual. Contratos antigos ainda têm uma ponte de leitura durante a migração, limitada à família de origem; não criam novo checkout ou teste local. O fechamento financeiro e operacional continua obrigatório.
 
 ## Abrir localmente
 
-Requisitos: Node e pnpm conforme o manifest e o CI do monorepo, e PostgreSQL local.
+Use as versões do manifest/CI e `pnpm install --frozen-lockfile`. Login exige central na porta 3011, Bora na 3007 e clientes OIDC locais registrados; não há mais cadastro isolado do Bora. Consulte o [runbook da central](../conta/PRODUCAO.md) para a composição local. Testes abaixo criam seu próprio ambiente descartável, sem ler credenciais reais.
 
-```powershell
-pnpm install --frozen-lockfile
-pnpm --filter @informach/bora-treinar preview:setup
-pnpm dev:bora-treinar
-```
-
-`preview:setup` lê o `DATABASE_URL` local da raiz, cria um banco `bora_preview_<uuid>`, aplica as migrations nele e grava `.env.local` ignorado pelo Git. Recusa destino remoto e não sobrescreve um `.env.local` que já exista. O app abre em `http://localhost:3007`.
-
-O `dev` e o `build` rodam antes `scripts/fetch-assets.mjs` (também disponível como `pnpm --filter @informach/bora-treinar assets`): ele copia o runtime WASM do `@mediapipe/tasks-vision` instalado para `public/mediapipe/wasm` e baixa o modelo `pose_landmarker_full.task`, conferido por SHA-256. O detector roda servido pela própria origem, sem CDN de terceiros; a primeira execução precisa de rede para o download do modelo.
-
-E-mails ficam em modo sandbox no local, gravados em `tmp/emails`; a Stripe local usa chave de teste.
+O `dev` e o `build` executam `scripts/fetch-assets.mjs` para preparar WASM e modelo MediaPipe conferidos por SHA-256, servidos pela própria origem. `pnpm --filter @informach/bora-treinar assets` executa somente essa preparação; o primeiro download exige rede. O playground a seguir continua disponível sem conta/banco.
 
 ## Playground (sem conta e sem banco)
 
@@ -54,7 +35,7 @@ pnpm --filter @informach/bora-treinar typecheck
 pnpm build:bora-treinar
 ```
 
-Integração e E2E criam e removem o próprio banco local (`bora_review_<uuid>`) e recusam banco remoto. O E2E compila e sobe uma aplicação de produção isolada, em Chromium desktop e Pixel 7, na porta 3107 (`BORA_E2E_PORT` troca a porta quando ela estiver ocupada); as evidências de falha ficam em `tmp/verification/`, que o CI guarda como artefato.
+Integração e navegador usam `scripts/compasso`: PostgreSQL descartável e Redis autenticado em loopback, sem banco de produção. O E2E compila central/Bora em série, sobe standalone e executa SSO, identidade/contextos, fila IndexedDB, pareamento e treino manual no computador e celular. Evidências ficam em `apps/conta/test-results/compasso-apps/bora-treinar/`. Os runners locais antigos e `preview:setup` foram retirados.
 
 ## Estrutura
 
@@ -62,7 +43,6 @@ Integração e E2E criam e removem o próprio banco local (`bora_review_<uuid>`)
 apps/bora-treinar/
 ├── scripts/
 │   ├── fetch-assets.mjs        # WASM e modelo de pose em public/mediapipe
-│   ├── isolated.mjs            # banco descartável para preview, integração e E2E
 │   ├── maintenance-cron.sh     # cron da cobrança: /api/ready e /api/jobs/billing
 │   └── lembretes-cron.sh       # cron dos lembretes: /api/ready e /api/jobs/lembretes
 └── src/
@@ -85,12 +65,12 @@ apps/bora-treinar/
     └── lib/                    # env, auth, redis, e-mails, observabilidade, job-runs
 ```
 
-O núcleo de `features/treino` roda todo no navegador; o resto (conta, cobrança, banco, e-mails, auditoria) segue o mesmo desenho da Missão Saber e usa os packages compartilhados (`@informach/auth`, `billing`, `config`, `db`, `emails`). As tabelas ficam no schema `bora_treinar` (`packages/db/src/schema/bora-treinar.ts`) e tudo cai em cascata a partir de `core.users`.
+O núcleo de `features/treino` roda todo no navegador; o resto (conta, cobrança, banco, e-mails, auditoria) segue o mesmo desenho da Missão Saber e usa os packages compartilhados (`@informach/auth`, `billing`, `config`, `db`, `emails`). As tabelas ficam no schema `bora_treinar` (`packages/db/src/schema/bora-treinar.ts`) e os históricos pertencem às ativações centrais, sem cascata da conta que os criou.
 
 ## Decisões principais
 
 - O detector de pose roda no navegador; o banco guarda só o resultado de cada série (repetições, segundos, avisos de execução), nunca imagem. Antes de prometer em página pública que nenhuma imagem passa pelo servidor, conferir o caminho do pareamento celular → TV.
-- Perfis guardam só apelido e cor. Eventos de auditoria `bora.*` levam IDs, nomes de campo e contagens (ver `docs/audit-payload-policy.md`).
-- Sessões no Redis do app (`bora-treinar:auth:`), sem cache em cookie: encerrar sessões pelo Bastidores vale na hora.
+- Nome e cor vêm da pessoa central; o perfil local guarda preferências de treino. Eventos de auditoria `bora.*` levam IDs, nomes de campo e contagens (ver `docs/audit-payload-policy.md`).
+- Sessões web no PostgreSQL, vinculadas à raiz da central e verificadas a cada uso; Redis transporta pareamento, não autenticação.
 - Lembretes (`bora.reminder`) e resumo semanal (`bora.weekly-summary`) são montados pelo app no momento do envio e não têm o corpo persistido.
 - Rotinas agendadas passam por `recordJobRun` com app `bora-treinar` e jobs `billing` e `lembretes`, que o Bastidores acompanha em Operação.

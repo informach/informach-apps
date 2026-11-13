@@ -1,7 +1,7 @@
 import "server-only";
+import { lockActiveWebParticipation } from "@informach/auth/web-participation";
 import { and, db, eq, inArray, ne, sql } from "@informach/db";
 import {
-  agentRuns,
   checkoutIntents,
   cozyaAiOperations,
   cozyaCookingSessions,
@@ -14,56 +14,72 @@ import {
   customers,
   subscriptions,
 } from "@informach/db/schema";
+import { availableCozyaAiOutputs } from "@/features/ai/previews";
 import { recoverInterruptedAiOperation } from "@/features/ai/recovery";
+import {
+  clearCozyaPrivateContent,
+  lockSettledCozyaCleanup,
+  unresolvedCozyaOperation,
+} from "./cleanup-repository";
+import { activeCozyaUserCondition, withActiveCozyaUser } from "./participation-repository";
 
-export class PendingAiCleanupError extends Error {
-  constructor() {
-    super(
-      "Uma operação de IA está em andamento ou aguardando devolução de crédito. Tente apagar novamente após a conclusão.",
-    );
-    this.name = "PendingAiCleanupError";
-  }
-}
-
-const unresolvedOperation = sql`(${cozyaAiOperations.statusCode} IS NULL OR (${cozyaAiOperations.statusCode} >= 500 AND coalesce(${cozyaAiOperations.response}->>'code', '') <> 'OPERATION_INTERRUPTED'))`;
+export { PendingAiCleanupError } from "./cleanup-repository";
 
 export async function saveCulinaryProfile(
   userId: string,
   input: { householdSize: number; preferences: string },
 ) {
-  await db
-    .insert(cozyaProfiles)
-    .values({ userId, ...input })
-    .onConflictDoUpdate({ target: cozyaProfiles.userId, set: { ...input, updatedAt: new Date() } });
+  await withActiveCozyaUser(userId, (tx) =>
+    tx
+      .insert(cozyaProfiles)
+      .values({ userId, ...input })
+      .onConflictDoUpdate({
+        target: cozyaProfiles.userId,
+        set: { ...input, updatedAt: new Date() },
+      }),
+  );
 }
 
 export async function exportCozyaData(userId: string) {
+  await db.transaction((tx) => lockActiveWebParticipation(tx, userId));
   const [recipes, profile, meals, shoppingLists, cooking, events, aiPreviews] = await Promise.all([
-    db.select().from(cozyaRecipes).where(eq(cozyaRecipes.userId, userId)),
-    db.select().from(cozyaProfiles).where(eq(cozyaProfiles.userId, userId)),
-    db.select().from(cozyaMeals).where(eq(cozyaMeals.userId, userId)),
-    db.select().from(cozyaShoppingLists).where(eq(cozyaShoppingLists.userId, userId)),
-    db.select().from(cozyaCookingSessions).where(eq(cozyaCookingSessions.userId, userId)),
+    db.select().from(cozyaRecipes).where(activeCozyaUserCondition(cozyaRecipes.userId, userId)),
+    db.select().from(cozyaProfiles).where(activeCozyaUserCondition(cozyaProfiles.userId, userId)),
+    db.select().from(cozyaMeals).where(activeCozyaUserCondition(cozyaMeals.userId, userId)),
+    db
+      .select()
+      .from(cozyaShoppingLists)
+      .where(activeCozyaUserCondition(cozyaShoppingLists.userId, userId)),
+    db
+      .select()
+      .from(cozyaCookingSessions)
+      .where(activeCozyaUserCondition(cozyaCookingSessions.userId, userId)),
     db
       .select({ name: cozyaProductEvents.name, occurredAt: cozyaProductEvents.occurredAt })
       .from(cozyaProductEvents)
-      .where(eq(cozyaProductEvents.userId, userId)),
-    db
-      .select({
-        id: cozyaAiOperations.id,
-        response: cozyaAiOperations.response,
-        createdAt: cozyaAiOperations.createdAt,
-        expiresAt: cozyaAiOperations.expiresAt,
-      })
-      .from(cozyaAiOperations)
-      .where(
-        and(eq(cozyaAiOperations.userId, userId), sql`${cozyaAiOperations.expiresAt} > now()`),
-      ),
+      .where(activeCozyaUserCondition(cozyaProductEvents.userId, userId)),
+    availableCozyaAiOutputs(userId).then((rows) =>
+      rows.map(({ id, response, createdAt, expiresAt }) => ({
+        id,
+        response,
+        createdAt,
+        expiresAt,
+      })),
+    ),
   ]);
   const ids = shoppingLists.map((list) => list.id);
   const shoppingItems = ids.length
-    ? await db.select().from(cozyaShoppingItems).where(inArray(cozyaShoppingItems.listId, ids))
+    ? await db
+        .select()
+        .from(cozyaShoppingItems)
+        .where(
+          and(
+            inArray(cozyaShoppingItems.listId, ids),
+            sql`exists (select 1 from ${cozyaShoppingLists} where ${cozyaShoppingLists.id} = ${cozyaShoppingItems.listId} and ${activeCozyaUserCondition(cozyaShoppingLists.userId, userId)})`,
+          ),
+        )
     : [];
+  await db.transaction((tx) => lockActiveWebParticipation(tx, userId));
   return {
     version: 1,
     exportedAt: new Date(),
@@ -78,39 +94,22 @@ export async function exportCozyaData(userId: string) {
   };
 }
 
-export async function clearCozyaData(userId: string) {
+/** Recovery is bounded and separate from the short content transaction. */
+export async function recoverCozyaCleanupOperations(userId: string) {
   const unresolved = await db
     .select({ id: cozyaAiOperations.id })
     .from(cozyaAiOperations)
-    .where(and(eq(cozyaAiOperations.userId, userId), unresolvedOperation))
+    .where(and(eq(cozyaAiOperations.userId, userId), unresolvedCozyaOperation))
     .limit(100);
   for (const operation of unresolved) await recoverInterruptedAiOperation(operation.id, userId);
+}
+
+export async function clearCozyaData(userId: string) {
+  await recoverCozyaCleanupOperations(userId);
   await db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`cozya:ai-owner:${userId}`}))`);
-    const [pending] = await tx
-      .select({ id: cozyaAiOperations.id })
-      .from(cozyaAiOperations)
-      .where(and(eq(cozyaAiOperations.userId, userId), unresolvedOperation))
-      .limit(1);
-    if (pending) throw new PendingAiCleanupError();
-    await tx.delete(cozyaMeals).where(eq(cozyaMeals.userId, userId));
-    await tx.delete(cozyaShoppingLists).where(eq(cozyaShoppingLists.userId, userId));
-    await tx.delete(cozyaRecipes).where(eq(cozyaRecipes.userId, userId));
-    await tx.delete(cozyaAiOperations).where(eq(cozyaAiOperations.userId, userId));
-    await tx.delete(cozyaProductEvents).where(eq(cozyaProductEvents.userId, userId));
-    // Clearing app data never restarts a trial or regrants promotional credits.
-    await tx
-      .update(cozyaProfiles)
-      .set({ preferences: "", householdSize: 2, updatedAt: new Date() })
-      .where(eq(cozyaProfiles.userId, userId));
-    await tx
-      .delete(agentRuns)
-      .where(
-        and(
-          eq(agentRuns.app, "cozya"),
-          sql`(${agentRuns.metadata}->>'userId' = ${userId} OR ${agentRuns.id} IN (SELECT id FROM billing.credit_reservations WHERE app = 'cozya' AND owner_type = 'user' AND owner_id = ${userId}) OR ${agentRuns.metadata}->>'reservationId' IN (SELECT id::text FROM billing.credit_reservations WHERE app = 'cozya' AND owner_type = 'user' AND owner_id = ${userId}))`,
-        ),
-      );
+    await lockActiveWebParticipation(tx, userId);
+    await lockSettledCozyaCleanup(tx, userId);
+    await clearCozyaPrivateContent(tx, userId);
   });
 }
 

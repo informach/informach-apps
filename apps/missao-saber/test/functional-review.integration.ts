@@ -14,7 +14,8 @@ import {
   setFamilyChallenge,
   startSession,
 } from "@/features/learning/repository";
-import { begin, changeCourse, createProfile, sessionView } from "@/features/learning/service";
+import { begin, changeCourse, sessionView } from "@/features/learning/service";
+import { fixtureAuthority, prepareStudent } from "./family-fixture";
 
 const owners: string[] = [];
 
@@ -27,7 +28,7 @@ async function family(courseId = "canguru-e") {
     name: "Revisão funcional",
     emailVerified: true,
   });
-  const profile = await createProfile(owner, {
+  const profile = await prepareStudent(await fixtureAuthority(owner), {
     nickname: "Sol",
     grade: 6,
     avatar: "cometa",
@@ -39,25 +40,28 @@ async function family(courseId = "canguru-e") {
 
 afterAll(async () => {
   await db.delete(missaoContentControls).where(inArray(missaoContentControls.actorId, owners));
-  await db.delete(users).where(inArray(users.id, owners));
+  await db
+    .update(users)
+    .set({ banned: true, emailVerified: false })
+    .where(inArray(users.id, owners));
 });
 
 describe("regressões da revisão funcional", () => {
   it("permite reler a sessão interrompida pela troca de trilha, sem reabrir respostas", async () => {
     const { owner, profile } = await family();
-    const session = await begin(owner, {
+    const session = await begin(await fixtureAuthority(owner), {
       profileId: profile.id,
       lessonId: "diagnostic:canguru-e",
       mode: "diagnostic",
       requestKey: randomUUID(),
     });
-    await changeCourse(owner, profile.id, "obmep-n1");
-    const view = await sessionView(owner, session.id);
+    await changeCourse(await fixtureAuthority(owner), profile.id, "obmep-n1");
+    const view = await sessionView(await fixtureAuthority(owner), session.id);
     expect(view).toMatchObject({ interrupted: true, interruptionReason: "A trilha mudou" });
     const first = view.lesson.items[0];
     if (!first) throw new Error("Missing diagnostic fixture");
     await expect(
-      recordAnswer(owner, {
+      recordAnswer(await fixtureAuthority(owner), {
         sessionId: session.id,
         itemId: first.id,
         answer: "__skip__",
@@ -65,7 +69,9 @@ describe("regressões da revisão funcional", () => {
       }),
     ).rejects.toMatchObject({ code: "INTERRUPTED" });
     const stranger = await family();
-    await expect(sessionView(stranger.owner, session.id)).rejects.toMatchObject({
+    await expect(
+      sessionView(await fixtureAuthority(stranger.owner), session.id),
+    ).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
   });
@@ -76,15 +82,21 @@ describe("regressões da revisão funcional", () => {
     const item = lesson?.items[0];
     if (!lesson || !item || item.type !== "choice") throw new Error("Missing choice fixture");
     const week = weekStart(new Date());
-    await setFamilyChallenge(owner, week, 4);
-    const session = await startSession(owner, profile.id, lesson, "mission", randomUUID());
-    await recordAnswer(owner, {
+    await setFamilyChallenge(await fixtureAuthority(owner), week, 4);
+    const session = await startSession(
+      await fixtureAuthority(owner),
+      profile.id,
+      lesson,
+      "mission",
+      randomUUID(),
+    );
+    await recordAnswer(await fixtureAuthority(owner), {
       sessionId: session.id,
       itemId: item.id,
       answer: item.answer,
       requestKey: randomUUID(),
     });
-    expect((await familyChallenge(owner, week)).progress).toBe(1);
+    expect((await familyChallenge(await fixtureAuthority(owner), week)).progress).toBe(1);
     await recordContentControl({
       lessonId: lesson.id,
       version: lesson.version,
@@ -94,8 +106,11 @@ describe("regressões da revisão funcional", () => {
       actorId: owner,
       note: "Erro confirmado na versão anterior desta atividade.",
     });
-    expect((await history(owner, profile.id)).evidence).toHaveLength(0);
-    expect(await familyChallenge(owner, week)).toMatchObject({ progress: 0, contributions: [] });
+    expect((await history(await fixtureAuthority(owner), profile.id)).evidence).toHaveLength(0);
+    expect(await familyChallenge(await fixtureAuthority(owner), week)).toMatchObject({
+      progress: 0,
+      contributions: [],
+    });
     const corrected = {
       ...lesson,
       version: lesson.version + 1,
@@ -104,19 +119,19 @@ describe("regressões da revisão funcional", () => {
       ),
     };
     const correctedSession = await startSession(
-      owner,
+      await fixtureAuthority(owner),
       profile.id,
       corrected,
       "mission",
       randomUUID(),
     );
-    await recordAnswer(owner, {
+    await recordAnswer(await fixtureAuthority(owner), {
       sessionId: correctedSession.id,
       itemId: item.id,
       answer: item.answer,
       requestKey: randomUUID(),
     });
-    expect((await familyChallenge(owner, week)).progress).toBe(1);
+    expect((await familyChallenge(await fixtureAuthority(owner), week)).progress).toBe(1);
     await db.delete(missaoContentControls).where(eq(missaoContentControls.actorId, owner));
   });
 
@@ -125,10 +140,16 @@ describe("regressões da revisão funcional", () => {
     const course = findCourse("canguru-e");
     if (!course) throw new Error("Missing course fixture");
     const lesson = assessment(course, "diagnostic");
-    const session = await startSession(owner, profile.id, lesson, "diagnostic", randomUUID());
+    const session = await startSession(
+      await fixtureAuthority(owner),
+      profile.id,
+      lesson,
+      "diagnostic",
+      randomUUID(),
+    );
     for (const item of lesson.items) {
       if (item.type !== "choice") throw new Error("Expected diagnostic choices");
-      await recordAnswer(owner, {
+      await recordAnswer(await fixtureAuthority(owner), {
         sessionId: session.id,
         itemId: item.id,
         answer: item.answer,
@@ -138,7 +159,12 @@ describe("regressões da revisão funcional", () => {
     const item = lesson.items[0];
     if (!item) throw new Error("Missing diagnostic item");
     const before = new Date(session.createdAt.getTime() + 86_400_000);
-    const previous = await previousAssessment(owner, profile.id, "diagnostic", before);
+    const previous = await previousAssessment(
+      await fixtureAuthority(owner),
+      profile.id,
+      "diagnostic",
+      before,
+    );
     const original = previous?.counts[item.skillId];
     if (!original) throw new Error("Missing previous assessment counts");
     await recordContentControl({
@@ -150,7 +176,12 @@ describe("regressões da revisão funcional", () => {
       actorId: owner,
       note: "Questão da avaliação invalidada após conferência do relato.",
     });
-    const after = await previousAssessment(owner, profile.id, "diagnostic", before);
+    const after = await previousAssessment(
+      await fixtureAuthority(owner),
+      profile.id,
+      "diagnostic",
+      before,
+    );
     expect(after?.counts[item.skillId] ?? { correct: 0, total: 0 }).toEqual({
       correct: original.correct - 1,
       total: original.total - 1,

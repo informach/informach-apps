@@ -8,35 +8,25 @@ import {
   DialogTitle,
 } from "@informach/ui/components/dialog";
 import { Label } from "@informach/ui/components/label";
-import { toast } from "@informach/ui/components/sonner";
 import { Textarea } from "@informach/ui/components/textarea";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { startTrialAction } from "@/features/kitchen/actions";
-import { TRIAL_CREDITS, TRIAL_DAYS } from "@/features/kitchen/trial";
+import { COZYA_AI_COSTS } from "@/features/ai/costs";
 import type { Recipe } from "../types";
-import { catchActionResult } from "./action-errors";
 import { RecipeFormDialog } from "./recipe-form-dialog";
 import { type ParsedRecipeFields, useAiRequest } from "./use-ai-request";
 
 export function RefineRecipeDialog({
   recipe,
   canUseAi,
-  trialAvailable = false,
   isPro,
   currentCount,
 }: {
   recipe: Recipe;
   canUseAi: boolean;
-  /** No trial yet: the dialog offers to start the 14 free days instead of sending to plans. */
-  trialAvailable?: boolean;
   isPro: boolean;
   currentCount: number;
 }) {
-  const router = useRouter();
-  const [trialStarted, setTrialStarted] = useState(false);
-  const [activating, setActivating] = useState(false);
   const [open, setOpen] = useState(false);
   const [request, setRequest] = useState("");
   const [processing, setProcessing] = useState(false);
@@ -59,7 +49,7 @@ export function RefineRecipeDialog({
         className="min-h-11 rounded-xl bg-card print:hidden"
         onClick={() => setOpen(true)}
       >
-        Adaptar com IA · 1 crédito
+        Adaptar com IA · até {COZYA_AI_COSTS.refine.maxCredits} créditos
       </Button>
       <Dialog
         open={open && !saving}
@@ -75,41 +65,15 @@ export function RefineRecipeDialog({
               cópia; o original é preservado.
             </DialogDescription>
           </DialogHeader>
-          {!canUseAi && !trialStarted ? (
-            trialAvailable ? (
-              <div className="space-y-3">
-                <p>
-                  Os {TRIAL_DAYS} dias grátis incluem {TRIAL_CREDITS} créditos de IA, um por receita
-                  trazida ou adaptada. Sem cartão.
-                </p>
-                <Button
-                  className="min-h-11"
-                  disabled={activating}
-                  onClick={async () => {
-                    setActivating(true);
-                    const result = await catchActionResult(() => startTrialAction({}));
-                    setActivating(false);
-                    if (!result.ok) {
-                      toast.error("Não foi possível começar o teste.");
-                      return;
-                    }
-                    setTrialStarted(true);
-                    router.refresh();
-                  }}
-                >
-                  {activating ? "Começando…" : `Começar os ${TRIAL_DAYS} dias e continuar`}
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p>
-                  A ajuda da IA faz parte do Pro. Escrever ou editar do seu jeito continua livre.
-                </p>
-                <Button asChild className="min-h-11">
-                  <Link href="/upgrade">Conhecer o Pro</Link>
-                </Button>
-              </div>
-            )
+          {!canUseAi ? (
+            <div className="space-y-3">
+              <p>
+                A ajuda da IA faz parte do Compasso. Escrever ou editar do seu jeito continua livre.
+              </p>
+              <Button asChild className="min-h-11">
+                <Link href="/upgrade">Conhecer o Compasso</Link>
+              </Button>
+            </div>
           ) : (
             <>
               <div className="space-y-2">
@@ -154,6 +118,7 @@ export function RefineRecipeDialog({
                         },
                         refinementRequest: request.trim(),
                       }),
+                      COZYA_AI_COSTS.refine,
                     );
                     if (!data) return;
                     if (!data.isValidRecipe) {
@@ -166,7 +131,9 @@ export function RefineRecipeDialog({
                   }
                 }}
               >
-                {processing ? "Preparando a adaptação…" : "Ver adaptação · 1 crédito"}
+                {processing
+                  ? "Preparando a adaptação…"
+                  : `Ver adaptação · até ${COZYA_AI_COSTS.refine.maxCredits} créditos`}
               </Button>
               {reason && (
                 <p role="status" className="text-sm">

@@ -8,7 +8,7 @@ const items = [
   { href: "/semana", label: "Semana", icon: CalendarDays },
   { href: "/compras", label: "Compras", icon: ShoppingBasket },
   { href: "/receitas", label: "Receitas", icon: BookOpen },
-];
+] as const;
 
 function isActive(pathname: string, href: string) {
   return pathname === href || (href === "/receitas" && pathname.startsWith("/receitas/"));

@@ -228,7 +228,7 @@ describe("transcribeAudio (OpenRouter — JSON+base64 via fetch)", () => {
     expect(firstFetchBody()).not.toHaveProperty("temperature");
   });
 
-  it("throws with status code and body snippet when OpenRouter returns non-2xx", async () => {
+  it("throws with status code without exposing provider body when OpenRouter returns non-2xx", async () => {
     fetchMock.mockResolvedValue(
       new Response('{"error":{"message":"unauthorized"}}', { status: 401 }),
     );
@@ -245,4 +245,34 @@ describe("transcribeAudio (OpenRouter — JSON+base64 via fetch)", () => {
       transcribeAudio({ apiKey: "k", audio: new Uint8Array([1]), format: "wav" }),
     ).rejects.toThrow(/missing 'text' field/);
   });
+});
+
+it("returns measured monetary usage without inferring or accepting malformed amounts", async () => {
+  const fetch = vi.fn(
+    async () =>
+      new Response(
+        JSON.stringify({ text: "ok", usage: { cost: 0.001, input_tokens: 12, output_tokens: 4 } }),
+      ),
+  );
+  vi.stubGlobal("fetch", fetch);
+  try {
+    expect(await transcribeAudio({ apiKey: "test", audio: new Uint8Array([1]) })).toEqual({
+      text: "ok",
+      costUsd: 0.001,
+      usage: { inputTokens: 12, outputTokens: 4 },
+    });
+    fetch.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          text: "ok",
+          usage: { cost: "0.001", input_tokens: -1, output_tokens: 2 },
+        }),
+      ),
+    );
+    expect(await transcribeAudio({ apiKey: "test", audio: new Uint8Array([1]) })).toEqual({
+      text: "ok",
+    });
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

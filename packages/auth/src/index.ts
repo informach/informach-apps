@@ -12,11 +12,12 @@ import {
   twoFactors,
   users,
   verifications,
+  webTwoFactors,
 } from "@informach/db/schema";
 import type { EmailCategory, RenderTemplate, SendEmail } from "@informach/emails";
 import { type BetterAuthPlugin, betterAuth, type SecondaryStorage } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { organization } from "better-auth/plugins/organization";
@@ -38,7 +39,22 @@ import {
 } from "./helpers";
 import type { AuthSecurityEvent, ObservabilityHooks } from "./observability";
 import { isRole, type Permission, ROLES, type Role } from "./permissions";
+import { postgresAuthRateLimit } from "./postgres-auth-rate-limit";
 import { revokeTrustedDevices } from "./sessions";
+import { webAuthLogger } from "./web-auth-logger";
+import {
+  isRecentCentralAuthentication,
+  retirePreviousWebBrowser,
+  revokeWebBrowserFromClient,
+} from "./web-sessions";
+import {
+  type WebSsoConfig,
+  webSsoClient,
+  webSsoOrigin,
+  webSsoPlugins,
+  webSsoSchema,
+} from "./web-sso";
+import { webSsoSessionData, withWebSsoRequest } from "./web-sso-context";
 
 export type { SecondaryStorage } from "better-auth";
 export type { AuditEventType, AuditPayload, AuditWriter } from "./audit";
@@ -235,6 +251,8 @@ export const DEFAULT_RATE_LIMIT_RULES = {
   "/email-otp/reset-password": { window: 3600, max: 5 },
   "/email-otp/send-verification-otp": { window: 60, max: 5 },
   "/email-otp/verify-email": { window: 60, max: 10 },
+  "/email-otp/request-email-change": { window: 600, max: 5 },
+  "/email-otp/change-email": { window: 600, max: 5 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type CreateAuthConfig = {
@@ -262,6 +280,8 @@ export type CreateAuthConfig = {
   passkey?: CreateAuthPasskeyConfig;
   twoFactor?: CreateAuthTwoFactorConfig;
   desktopOAuth?: DesktopOAuthConfig;
+  /** Central OIDC issuer or an app relying on it. Uses authoritative database sessions. */
+  webSso?: WebSsoConfig;
   /**
    * Per-app choice of email-based flows: verification, passwordless sign-in,
    * password reset. See {@link CreateAuthEmailConfig} for defaults.
@@ -330,6 +350,17 @@ function buildMagicLinkPlugin(config: CreateAuthConfig) {
 const EMAIL_OTP_EXPIRES_IN_SECONDS = 600;
 const EMAIL_OTP_LENGTH = 6;
 const EMAIL_OTP_ALLOWED_ATTEMPTS = 3;
+const CENTRAL_MANAGED_ROUTES = new Set([
+  "/list-sessions",
+  "/revoke-session",
+  "/revoke-sessions",
+  "/revoke-other-sessions",
+  "/list-accounts",
+  "/get-access-token",
+  "/refresh-token",
+  "/link-social",
+  "/unlink-account",
+]);
 
 type EmailFlowSelection = {
   verificationOtp: boolean;
@@ -357,9 +388,8 @@ const EMAIL_OTP_CATEGORY_BY_TYPE = {
   "email-verification": "auth.verify-email-otp",
   "sign-in": "auth.sign-in-otp",
   "forget-password": "auth.forget-password-otp",
+  "change-email": "auth.change-email-otp",
 } as const satisfies Record<string, EmailCategory>;
-
-type EmailOtpType = keyof typeof EMAIL_OTP_CATEGORY_BY_TYPE;
 
 /**
  * Builds the Better Auth `emailOTP` plugin with a `sendVerificationOTP`
@@ -375,11 +405,16 @@ function buildEmailOtpPlugin(config: CreateAuthConfig, flows: EmailFlowSelection
     disableSignUp: true,
     sendVerificationOnSignUp: flows.verificationOtp,
     overrideDefaultEmailVerification: flows.verificationOtp,
+    changeEmail: {
+      enabled: config.webSso?.role === "provider" && flows.verificationOtp,
+      verifyCurrentEmail: true,
+    },
     sendVerificationOTP: async ({ email, otp, type }) => {
-      const otpType = type as EmailOtpType;
+      const otpType = type;
       if (otpType === "email-verification" && !flows.verificationOtp) return;
       if (otpType === "sign-in" && !flows.signInOtp) return;
       if (otpType === "forget-password" && !flows.forgetPasswordOtp) return;
+      if (otpType === "change-email" && config.webSso?.role !== "provider") return;
 
       const category = EMAIL_OTP_CATEGORY_BY_TYPE[otpType];
       if (!category) return;
@@ -462,10 +497,14 @@ function buildTwoFactorPlugin(config: CreateAuthConfig) {
   if (!config.twoFactor?.enabled) return null;
   return twoFactor({
     issuer: config.twoFactor.issuer ?? config.appName,
+    ...(config.webSso?.role === "provider"
+      ? { schema: { user: { fields: { twoFactorEnabled: "webTwoFactorEnabled" } } } }
+      : {}),
   });
 }
 
 function buildPlugins(config: CreateAuthConfig, flows: EmailFlowSelection): BetterAuthPlugin[] {
+  if (config.webSso?.role === "client") return webSsoPlugins(config.webSso);
   const plugins: BetterAuthPlugin[] = [];
   if (magicLinkSignInEnabled(config)) {
     plugins.push(buildMagicLinkPlugin(config));
@@ -481,6 +520,7 @@ function buildPlugins(config: CreateAuthConfig, flows: EmailFlowSelection): Bett
   const twoFactorPlugin = buildTwoFactorPlugin(config);
   if (twoFactorPlugin) plugins.push(twoFactorPlugin);
   if (config.desktopOAuth) plugins.push(...desktopOAuthPlugins(config.desktopOAuth));
+  if (config.webSso) plugins.push(...webSsoPlugins(config.webSso));
   return plugins;
 }
 
@@ -628,6 +668,37 @@ async function revokeOtherSessionsWhenTwoFactorTurnsOn(
 }
 
 function createAuthInstance(config: CreateAuthConfig) {
+  if (config.webSso) {
+    if (
+      config.desktopOAuth ||
+      config.secondaryStorage ||
+      config.session?.cookieCache?.enabled ||
+      config.organizations?.enabled ||
+      config.cacheRoleOnSession
+    )
+      throw new Error("Web SSO requires authoritative database sessions and an isolated issuer");
+    const app = config.webSso.role === "provider" ? "conta" : config.webSso.app;
+    if (config.baseUrl !== webSsoOrigin(app, config.webSso.environment))
+      throw new Error("Web SSO origin must match the product registry");
+    if (
+      config.webSso.role === "provider" &&
+      (magicLinkSignInEnabled(config) ||
+        config.email?.signIn?.otp ||
+        config.passkey?.enabled ||
+        config.socialProviders)
+    )
+      throw new Error(
+        "The web account issuer requires password sign-in followed by its configured second factor",
+      );
+    if (
+      config.webSso.role === "client" &&
+      (config.twoFactor?.enabled ||
+        config.passkey?.enabled ||
+        config.socialProviders ||
+        config.accountDeletion?.enabled)
+    )
+      throw new Error("Web clients manage identity and security only in the account central");
+  }
   configureObservability(config.observability);
 
   const cookieCacheMaxAge =
@@ -643,7 +714,15 @@ function createAuthInstance(config: CreateAuthConfig) {
     appName: config.appName,
     baseURL: config.baseUrl,
     secret: config.secret,
-    socialProviders: config.socialProviders,
+    ...(config.webSso
+      ? {
+          logger: webAuthLogger(
+            config.webSso.role === "provider" ? "conta" : config.webSso.app,
+            config.observability?.onSecurityEvent,
+          ),
+        }
+      : {}),
+    socialProviders: config.webSso?.role === "client" ? undefined : config.socialProviders,
     secondaryStorage: config.secondaryStorage,
     database: drizzleAdapter(db, {
       provider: "pg",
@@ -657,11 +736,19 @@ function createAuthInstance(config: CreateAuthConfig) {
           ? { organization: organizations, member: members, invitation: invitations }
           : {}),
         ...(passkeyEnabled ? { passkey: passkeys } : {}),
-        ...(twoFactorEnabled ? { twoFactor: twoFactors } : {}),
+        ...(twoFactorEnabled
+          ? { twoFactor: config.webSso?.role === "provider" ? webTwoFactors : twoFactors }
+          : {}),
         ...(config.desktopOAuth ? desktopOAuthSchema() : {}),
+        ...(config.webSso?.role === "provider" ? webSsoSchema() : {}),
       },
     }),
     advanced: {
+      ...(config.webSso
+        ? {
+            cookiePrefix: `informach-${config.webSso.role === "provider" ? "conta" : config.webSso.app}`,
+          }
+        : {}),
       database: {
         generateId: () => crypto.randomUUID(),
       },
@@ -670,16 +757,23 @@ function createAuthInstance(config: CreateAuthConfig) {
     },
     trustedOrigins: config.trustedOrigins,
     session: {
+      ...(config.webSso?.role === "client" ? { disableSessionRefresh: true } : {}),
       cookieCache: {
-        enabled: config.session?.cookieCache?.enabled ?? true,
+        enabled: config.webSso ? false : (config.session?.cookieCache?.enabled ?? true),
         maxAge: cookieCacheMaxAge,
       },
       ...(config.session?.expiresIn ? { expiresIn: config.session.expiresIn } : {}),
       ...(config.session?.updateAge ? { updateAge: config.session.updateAge } : {}),
-      ...(cacheRoleOnSession
+      ...(cacheRoleOnSession || config.webSso
         ? {
             additionalFields: {
-              role: { type: "string", required: false },
+              ...(cacheRoleOnSession ? { role: { type: "string" as const, required: false } } : {}),
+              ...(config.webSso
+                ? {
+                    originApp: { type: "string" as const, required: false, input: false },
+                    parentSessionId: { type: "string" as const, required: false, input: false },
+                  }
+                : {}),
             },
           }
         : {}),
@@ -785,14 +879,33 @@ function createAuthInstance(config: CreateAuthConfig) {
     },
     rateLimit: {
       enabled: true,
+      ...(config.webSso
+        ? {
+            customStorage: postgresAuthRateLimit(
+              db,
+              config.webSso.role === "provider" ? "conta" : config.webSso.app,
+            ),
+          }
+        : {}),
       storage: config.secondaryStorage ? "secondary-storage" : "database",
       modelName: "rateLimit",
       window: 60,
       max: 100,
       customRules: mergeRateLimitRules(config.rateLimitRules),
     },
+    account:
+      config.webSso?.role === "client"
+        ? {
+            accountLinking: {
+              enabled: true,
+              trustedProviders: [
+                webSsoClient(config.webSso.app, config.webSso.environment).providerId,
+              ],
+            },
+          }
+        : undefined,
     emailAndPassword: {
-      enabled: true,
+      enabled: config.webSso?.role !== "client",
       disableSignUp: config.disableSignup ?? false,
       requireEmailVerification: true,
       revokeSessionsOnPasswordReset: true,
@@ -830,7 +943,11 @@ function createAuthInstance(config: CreateAuthConfig) {
       // The actual delivery is link-based when `email.verification === "link"`,
       // OTP-based otherwise (overrideDefaultEmailVerification on the OTP plugin).
       sendOnSignUp: true,
-      autoSignInAfterVerification: config.email?.autoSignInAfterVerification ?? true,
+      // Email verification must not create a session that bypasses the web authenticator.
+      autoSignInAfterVerification:
+        config.webSso?.role === "provider"
+          ? false
+          : (config.email?.autoSignInAfterVerification ?? true),
       ...(flows.verificationOtp
         ? {}
         : {
@@ -887,11 +1004,17 @@ function createAuthInstance(config: CreateAuthConfig) {
               });
               return false;
             }
+            const bounded = {
+              ...session,
+              ...cappedSessionExpiry(session.expiresAt, config.session?.expiresIn),
+            };
+            const webSession = config.webSso ? webSsoSessionData(config.webSso, bounded) : {};
+            if (!webSession) return false;
             return {
               data: {
-                ...session,
+                ...bounded,
                 ...(cacheRoleOnSession ? { role: user?.role ?? null } : {}),
-                ...cappedSessionExpiry(session.expiresAt, config.session?.expiresIn),
+                ...webSession,
               },
             };
           },
@@ -931,6 +1054,76 @@ function createAuthInstance(config: CreateAuthConfig) {
     },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
+        if (
+          config.webSso?.role === "provider" &&
+          (ctx.path === "/email-otp/request-email-change" || ctx.path === "/email-otp/change-email")
+        ) {
+          const current = await getSessionFromCtx(ctx);
+          if (
+            !current ||
+            !(await isRecentCentralAuthentication(current.user.id, current.session.id, 900))
+          )
+            throw new APIError("UNAUTHORIZED", {
+              code: "RECENT_AUTHENTICATION_REQUIRED",
+              message: "Sign in again before changing your email.",
+            });
+        }
+        if (config.webSso?.role === "provider" && ctx.path === "/sign-in/email") {
+          // Capture the browser's existing signed session before credentials are checked.
+          // A failed attempt must not close it; successful replacement is handled below.
+          await getSessionFromCtx(ctx);
+        }
+        // The shared database also holds sessions/accounts of other issuers.
+        // Use our credential-free session view and scoped revocation commands.
+        if (config.webSso?.role === "provider" && CENTRAL_MANAGED_ROUTES.has(ctx.path ?? "")) {
+          throw new APIError("FORBIDDEN", {
+            code: "MANAGED_ACCOUNT_OPERATION",
+            message: "Use the account central controls.",
+          });
+        }
+        // Recovery uses one endpoint and one rate-limit bucket in the central.
+        // Plugin aliases otherwise let callers reset the budget by changing paths.
+        if (
+          config.webSso?.role === "provider" &&
+          (ctx.path === "/forget-password/email-otp" ||
+            (ctx.path === "/email-otp/send-verification-otp" &&
+              bodyField(ctx, "type") === "forget-password"))
+        ) {
+          throw new APIError("FORBIDDEN", {
+            code: "CANONICAL_RECOVERY_REQUIRED",
+            message: "Use the account central password recovery.",
+          });
+        }
+        // The email OTP plugin is also needed for verification/reset. Its sign-in
+        // endpoint must remain closed, including codes created by legacy apps.
+        if (config.webSso?.role === "provider" && ctx.path === "/sign-in/email-otp") {
+          throw new APIError("FORBIDDEN", {
+            code: "PASSWORD_SIGNIN_REQUIRED",
+            message: "Sign in using your password and authenticator.",
+          });
+        }
+        if (config.webSso?.role === "client") {
+          if (ctx.path === "/sign-out") {
+            const current = await getSessionFromCtx(ctx);
+            if (current)
+              await revokeWebBrowserFromClient(
+                current.user.id,
+                current.session.id,
+                config.webSso.app,
+              );
+          }
+          const provider = webSsoClient(config.webSso.app, config.webSso.environment).providerId;
+          const registeredCallback = ctx.path === "/callback/:id" && ctx.params?.id === provider;
+          if (
+            !registeredCallback &&
+            !["/get-session", "/sign-in/social", "/sign-out", "/error"].includes(ctx.path ?? "")
+          )
+            throw new APIError("FORBIDDEN", {
+              code: "MANAGED_BY_ACCOUNT",
+              message: "Manage your account in the account central.",
+            });
+          return;
+        }
         // Better Auth nativo NÃO retorna USER_ALREADY_EXISTS quando
         // `requireEmailVerification: true` (proteção anti-enumeration via
         // "generic duplicate response"). Para apps consumer single-user esse
@@ -988,6 +1181,26 @@ function createAuthInstance(config: CreateAuthConfig) {
         const userId = session?.user?.id ?? ctx.context.newSession?.user?.id ?? null;
         const status = returnedStatus(ctx);
         const succeeded = returnedSuccessfully(status);
+
+        if (
+          config.webSso?.role === "provider" &&
+          path === "/sign-in/email" &&
+          succeeded &&
+          session &&
+          ctx.context.newSession &&
+          session.session.id !== ctx.context.newSession.session.id
+        ) {
+          const next = ctx.context.newSession;
+          try {
+            await retirePreviousWebBrowser(
+              { userId: session.user.id, sessionId: session.session.id },
+              { userId: next.user.id, sessionId: next.session.id },
+            );
+          } catch (error) {
+            await ctx.context.internalAdapter.deleteSession(next.session.token);
+            throw error;
+          }
+        }
 
         if (status === 429) {
           emitSecurityEvent(config, {
@@ -1050,6 +1263,12 @@ function createAuthInstance(config: CreateAuthConfig) {
               ? String((ctx.body as { newEmail?: unknown }).newEmail ?? "")
               : null;
           if (succeeded) await logAuditEvent("user.email_changed", userId, { newEmail });
+          return;
+        }
+        if (path === "/email-otp/change-email") {
+          // The database trigger atomically closes web roots and old proofs
+          // with the email update. No address or OTP belongs in the audit payload.
+          if (succeeded) await logAuditEvent("user.email_changed", userId, { scope: "web" });
           return;
         }
         if (path === "/organization/create") {
@@ -1230,7 +1449,14 @@ async function assertAnotherActiveOwner(tx: Transaction, userId: string): Promis
 }
 
 export function createAuth(config: CreateAuthConfig): CreateAuthResult {
-  const auth = createAuthInstance(config);
+  const instance = createAuthInstance(config);
+  const auth =
+    config.webSso?.role === "client"
+      ? {
+          ...instance,
+          handler: (request: Request) => withWebSsoRequest(() => instance.handler(request)),
+        }
+      : instance;
   const helpers = buildHelpers<User, Session>(auth);
 
   async function setUserRole(

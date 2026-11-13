@@ -57,9 +57,10 @@ export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
       : null;
 
   const memberProfileIds = new Set(turma.members.map((m) => m.profileId));
-  const linkableProfiles = userProfiles.filter((p) => !memberProfileIds.has(p.id));
+  const linkableProfiles = userProfiles.filter((p) => p.canManage && !memberProfileIds.has(p.id));
 
   const copyCode = async () => {
+    if (!turma.code) return;
     try {
       await navigator.clipboard.writeText(turma.code);
       toast.success("Código copiado");
@@ -69,7 +70,8 @@ export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
   };
 
   // O mesmo convite de Família › Crianças (ver `share-invite.ts`).
-  const shareInvite = () => shareTurmaInvite({ code: turma.code, label: formatTurmaShort(turma) });
+  const shareInvite = () =>
+    turma.code ? shareTurmaInvite({ code: turma.code, label: formatTurmaShort(turma) }) : undefined;
 
   const handleSetActive = (profileId: string) => {
     startTransition(async () => {
@@ -110,10 +112,10 @@ export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
   };
 
   const handleJoin = (profileId: string, profileName: string) => {
+    const code = turma.code;
+    if (!code) return;
     startTransition(async () => {
-      const result = await catchActionResult(() =>
-        joinTurmaByCodeAction({ code: turma.code, profileId }),
-      );
+      const result = await catchActionResult(() => joinTurmaByCodeAction({ code, profileId }));
       if (!result.ok) {
         if (isActionRejected(result.error)) {
           toast.error("Não foi possível vincular.");
@@ -194,14 +196,18 @@ export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
               Matérias
             </Link>
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={copyCode}>
-            <Copy className="mr-2 size-3.5" aria-hidden />
-            <span className="font-mono text-xs">{turma.code}</span>
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={shareInvite}>
-            <Share2 className="mr-2 size-3.5" aria-hidden />
-            Convidar
-          </Button>
+          {turma.code ? (
+            <>
+              <Button type="button" variant="outline" size="sm" onClick={copyCode}>
+                <Copy className="mr-2 size-3.5" aria-hidden />
+                <span className="font-mono text-xs">{turma.code}</span>
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={shareInvite}>
+                <Share2 className="mr-2 size-3.5" aria-hidden />
+                Convidar
+              </Button>
+            </>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-2 border-t pt-3">
@@ -209,7 +215,7 @@ export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Estudantes
             </p>
-            {linkableProfiles.length > 0 && !isEmpty ? (
+            {turma.code && linkableProfiles.length > 0 && !isEmpty ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button type="button" variant="ghost" size="sm" className="h-7 gap-1.5 text-xs">
@@ -232,7 +238,7 @@ export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
           {isEmpty ? (
             <div className="rounded-md bg-muted/40 p-3 text-sm text-muted-foreground">
               <p>Nenhum estudante seu vinculado nesta turma.</p>
-              {linkableProfiles.length > 0 ? (
+              {turma.code && linkableProfiles.length > 0 ? (
                 <div className="mt-2 flex flex-wrap gap-2">
                   {linkableProfiles.map((p) => (
                     <Button
@@ -272,6 +278,7 @@ export function TurmaCard({ turma, userProfiles, currentUserId }: Props) {
                       variant="ghost"
                       className="size-7 text-muted-foreground hover:text-foreground"
                       aria-label={`Ações para ${member.profileName}`}
+                      disabled={!member.canManage}
                     >
                       <MoreVertical className="size-3.5" aria-hidden />
                     </Button>

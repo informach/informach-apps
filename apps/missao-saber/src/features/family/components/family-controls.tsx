@@ -1,27 +1,20 @@
 "use client";
+import { getAppUrl } from "@informach/config/domains";
 import { Card, CardContent, CardHeader, CardTitle } from "@informach/ui/components/card";
 import { Input } from "@informach/ui/components/input";
 import { Label } from "@informach/ui/components/label";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { AVATARES, Avatar } from "@/components/avatares";
+import { useState } from "react";
 import { BarraProgresso } from "@/components/ui/barra-progresso";
 import { AncoraChapa, BotaoChapa } from "@/components/ui/botao-chapa";
 import { gradeLabel, schoolYear, suggestedGrade } from "@/features/family/school-year";
-import {
-  createProfileAction,
-  forgetProfileAction,
-  updateProfileAction,
-} from "@/features/learning/actions";
-import { authClient } from "@/lib/auth-client";
+import { forgetProfileAction, updateProfileAction } from "@/features/learning/actions";
+import { authClient, ssoEnvironment } from "@/lib/auth-client";
 import { useServerAction } from "@/lib/use-server-action";
 import {
-  changePlanAction,
-  checkoutAction,
+  chooseLimitedStudentAction,
   clearAction,
   familyChallengeAction,
-  portalAction,
-  reactivateAction,
   routineAction,
   weeklyReportEmailAction,
 } from "../actions";
@@ -120,214 +113,10 @@ function CamposDeAno({
   );
 }
 
-/**
- * Volta do checkout da Stripe (`/familia?pagamento=recebido`).
- *
- * O acesso só é liberado pelo webhook, que costuma chegar segundos depois do
- * redirecionamento. Em vez de mostrar "Explorar gratuito" para quem acabou de
- * pagar, a página avisa que está confirmando e se atualiza sozinha até o plano
- * aparecer; depois limpa o parâmetro para um recarregamento não repetir o aviso.
- */
-export function PaymentConfirmation({ paid, plano }: { paid: boolean; plano: string }) {
-  const router = useRouter();
-  const [tentativas, setTentativas] = useState(0);
-  const esgotado = tentativas >= 15;
-  useEffect(() => {
-    if (paid) {
-      const t = setTimeout(() => router.replace("/familia"), 8000);
-      return () => clearTimeout(t);
-    }
-    if (tentativas >= 15) return;
-    const t = setTimeout(() => {
-      setTentativas((n) => n + 1);
-      router.refresh();
-    }, 4000);
-    return () => clearTimeout(t);
-  }, [paid, router, tentativas]);
-  return (
-    <div
-      role="status"
-      aria-live="polite"
-      className="mb-6 rounded-card border-2 border-verde/40 bg-verde-claro p-4"
-    >
-      <p className="font-display font-semibold text-tinta">
-        {paid
-          ? `Pagamento confirmado. O plano ${plano} já está ativo.`
-          : esgotado
-            ? "A confirmação está demorando mais que o normal."
-            : "Confirmando o pagamento com a operadora…"}
-      </p>
-      <p className="mt-1 text-sm text-tinta">
-        {paid
-          ? "Os perfis da família já podem explorar as trilhas assinadas."
-          : esgotado
-            ? "Se o valor foi cobrado, o acesso é liberado assim que a operadora avisar. Volte a esta página em alguns minutos."
-            : "Esta página se atualiza sozinha. Nenhuma cobrança extra é feita enquanto isso."}
-      </p>
-    </div>
-  );
-}
-
 const seletor =
   "mt-1.5 block h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground";
 
-export function CreateProfile({
-  courses,
-  grades,
-}: {
-  courses: CourseChoice[];
-  grades: GradeChoice[];
-}) {
-  // Sem ano pré-escolhido: quem pula o campo não cria sem querer um perfil de 2º ano.
-  const [nickname, setNickname] = useState("");
-  const [grade, setGrade] = useState<number | null>(null);
-  const [birthMonth, setBirthMonth] = useState("");
-  const [avatar, setAvatar] = useState("cometa");
-  const [courseId, setCourseId] = useState("");
-  const [consent, setConsent] = useState(false);
-  const escolherAno = (next: number) => {
-    setGrade(next);
-    setCourseId(courseForGrade(courses, courseId, next) ?? "");
-  };
-  const [message, setMessage] = useState("");
-  const [pending, start] = useServerAction();
-  const router = useRouter();
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        start(async () => {
-          try {
-            const result = await createProfileAction({
-              nickname,
-              grade,
-              birthMonth: birthMonth || null,
-              avatar,
-              courseId,
-              consent,
-            });
-            if (result.ok) router.push("/hoje");
-            else setMessage(result.error);
-          } catch {
-            setMessage(
-              "Não foi possível criar o perfil. Confira os perfis existentes antes de tentar novamente.",
-            );
-          }
-        });
-      }}
-    >
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-display">Uma nova jornada</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <Label htmlFor="apelido">Apelido do estudante</Label>
-            <Input
-              id="apelido"
-              className="mt-1.5 h-11"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              minLength={2}
-              maxLength={24}
-              required
-              placeholder="Sem nome completo"
-              autoComplete="off"
-            />
-          </div>
-          <div className="mb-4 grid gap-4 sm:grid-cols-2">
-            <CamposDeAno
-              prefixo="novo"
-              grades={grades}
-              grade={grade}
-              birthMonth={birthMonth}
-              onGrade={escolherAno}
-              onBirthMonth={(value, sugerido) => {
-                setBirthMonth(value);
-                if (sugerido && grades.some((option) => option.value === sugerido))
-                  escolherAno(sugerido);
-              }}
-            />
-            <div>
-              <Label htmlFor="avatar">Avatar</Label>
-              {/* Prévia ao lado: o avatar deixou de ser dado invisível. */}
-              <div className="mt-1.5 flex items-center gap-3">
-                <Avatar id={avatar} tamanho="p" />
-                <select
-                  id="avatar"
-                  className={`${seletor} mt-0`}
-                  value={avatar}
-                  onChange={(e) => setAvatar(e.target.value)}
-                >
-                  {AVATARES.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-          <div className="mb-4">
-            <Label htmlFor="trilha-inicial">Primeira trilha</Label>
-            <select
-              id="trilha-inicial"
-              className={seletor}
-              value={courseId}
-              required
-              disabled={grade === null}
-              onChange={(e) => setCourseId(e.target.value)}
-            >
-              {grade === null ? (
-                <option value="">Escolha o ano escolar primeiro</option>
-              ) : (
-                courses
-                  .filter((c) => c.grades.includes(grade))
-                  .map((course) => (
-                    <option key={course.id} value={course.id}>
-                      {course.label}
-                    </option>
-                  ))
-              )}
-            </select>
-          </div>
-          <div className="mb-5 flex items-start gap-3">
-            <input
-              id="consentimento-perfil"
-              type="checkbox"
-              checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
-              required
-              className="mt-1 size-5 shrink-0 accent-[var(--ms-verde)]"
-            />
-            <Label htmlFor="consentimento-perfil" className="text-sm leading-snug font-normal">
-              Sou responsável legal, maior de 18 anos. Autorizo o perfil e o registro de tentativas,
-              pistas e descobertas para acompanhar a aprendizagem, e o mês de nascimento, se
-              informado, só para sugerir o ano escolar, conforme a{" "}
-              <a
-                href="/privacidade"
-                target="_blank"
-                rel="noopener"
-                className="font-medium underline underline-offset-4"
-              >
-                política de privacidade
-              </a>
-              .
-            </Label>
-          </div>
-          <BotaoChapa type="submit" disabled={pending}>
-            {pending ? "Criando…" : "Criar perfil e explorar"}
-          </BotaoChapa>
-          <p role="status" className="mt-2 text-sm text-muted-foreground">
-            {message}
-          </p>
-        </CardContent>
-      </Card>
-    </form>
-  );
-}
-
-/** Edição do perfil pelo responsável: apelido, avatar, nascimento, ano e trilha. */
+/** Preferências escolares locais; a identidade é gerida na central. */
 export function EditProfile({
   profile,
   courses,
@@ -344,10 +133,8 @@ export function EditProfile({
   courses: CourseChoice[];
   grades: GradeChoice[];
 }) {
-  const [nickname, setNickname] = useState(profile.nickname);
   const [grade, setGrade] = useState(profile.grade);
   const [birthMonth, setBirthMonth] = useState(profile.birthMonth);
-  const [avatar, setAvatar] = useState(profile.avatar);
   const [courseId, setCourseId] = useState(profile.courseId);
   const [birthConsent, setBirthConsent] = useState(false);
   const [message, setMessage] = useState("");
@@ -372,10 +159,8 @@ export function EditProfile({
             try {
               const result = await updateProfileAction({
                 profileId: profile.id,
-                nickname,
                 grade,
                 birthMonth: birthMonth || null,
-                avatar,
                 courseId,
                 birthConsent: pedeConsentimento ? birthConsent : undefined,
               });
@@ -390,19 +175,13 @@ export function EditProfile({
           });
         }}
       >
-        <div>
-          <Label htmlFor={`${profile.id}-apelido`}>Apelido do estudante</Label>
-          <Input
-            id={`${profile.id}-apelido`}
-            className="mt-1.5 h-11"
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            minLength={2}
-            maxLength={24}
-            required
-            autoComplete="off"
-          />
-        </div>
+        <p className="text-sm text-tinta-suave">
+          Nome e avatar são compartilhados entre os apps.{" "}
+          <a className="underline" href={getAppUrl("conta", ssoEnvironment)}>
+            Editar na Minha conta
+          </a>
+          .
+        </p>
         <div className="grid gap-4 xl:grid-cols-2">
           <CamposDeAno
             prefixo={profile.id}
@@ -417,24 +196,6 @@ export function EditProfile({
                 escolherAno(sugerido);
             }}
           />
-          <div>
-            <Label htmlFor={`${profile.id}-avatar`}>Avatar</Label>
-            <div className="mt-1.5 flex items-center gap-3">
-              <Avatar id={avatar} tamanho="p" />
-              <select
-                id={`${profile.id}-avatar`}
-                className={`${seletor} mt-0`}
-                value={avatar}
-                onChange={(e) => setAvatar(e.target.value)}
-              >
-                {AVATARES.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
           <div>
             <Label htmlFor={`${profile.id}-trilha`}>Trilha</Label>
             <select
@@ -505,7 +266,9 @@ export function FamilyChallenge({
   suggested,
   progress,
   contributions,
+  canManage,
 }: {
+  canManage: boolean;
   goal: number | null;
   suggested: number;
   progress: number;
@@ -535,8 +298,8 @@ export function FamilyChallenge({
       <CardHeader>
         <CardTitle className="font-display">Desafio da família</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Uma meta só, somando os estudantes da casa: estratégias diferentes resolvidas sem pistas
-          nesta semana. Sem classificação entre irmãos e sem dívida na semana seguinte.
+          Uma meta para a família. Aqui você vê as estratégias dos estudantes que tem permissão para
+          acompanhar. Sem classificação entre irmãos e sem dívida na semana seguinte.
         </p>
       </CardHeader>
       <CardContent>
@@ -554,38 +317,40 @@ export function FamilyChallenge({
             )}
           </div>
         )}
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="max-w-40">
-            <Label htmlFor="desafio">Meta da semana</Label>
-            <select
-              id="desafio"
-              className={seletor}
-              value={meta}
-              disabled={pending}
-              onChange={(event) => setMeta(Number(event.target.value))}
-            >
-              {[4, 6, 8, 10, 12, 16, 20, 24, 30, 40].map((valor) => (
-                <option key={valor} value={valor}>
-                  {valor} estratégias
-                </option>
-              ))}
-            </select>
-          </div>
-          <BotaoChapa type="button" medida="p" disabled={pending} onClick={() => salvar(meta)}>
-            {goal === null ? "Aceitar desafio" : "Atualizar meta"}
-          </BotaoChapa>
-          {goal !== null && (
-            <BotaoChapa
-              type="button"
-              tom="contorno"
-              medida="p"
-              disabled={pending}
-              onClick={() => salvar(0)}
-            >
-              Encerrar nesta semana
+        {canManage && (
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="max-w-40">
+              <Label htmlFor="desafio">Meta da semana</Label>
+              <select
+                id="desafio"
+                className={seletor}
+                value={meta}
+                disabled={pending}
+                onChange={(event) => setMeta(Number(event.target.value))}
+              >
+                {[4, 6, 8, 10, 12, 16, 20, 24, 30, 40].map((valor) => (
+                  <option key={valor} value={valor}>
+                    {valor} estratégias
+                  </option>
+                ))}
+              </select>
+            </div>
+            <BotaoChapa type="button" medida="p" disabled={pending} onClick={() => salvar(meta)}>
+              {goal === null ? "Aceitar desafio" : "Atualizar meta"}
             </BotaoChapa>
-          )}
-        </div>
+            {goal !== null && (
+              <BotaoChapa
+                type="button"
+                tom="contorno"
+                medida="p"
+                disabled={pending}
+                onClick={() => salvar(0)}
+              >
+                Encerrar nesta semana
+              </BotaoChapa>
+            )}
+          </div>
+        )}
         <p role="status" className="mt-2 text-sm font-medium">
           {message}
         </p>
@@ -712,192 +477,9 @@ export function Routine({ minutes }: { minutes: number }) {
   );
 }
 
-export function BillingButton({
-  productId,
-  disabled,
-  children,
-}: {
-  productId?: string;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
-  const [pending, start] = useServerAction();
-  const [message, setMessage] = useState("");
-  return (
-    <div>
-      <BotaoChapa
-        type="button"
-        tom="contorno"
-        disabled={pending || disabled}
-        onClick={() =>
-          start(async () => {
-            try {
-              const result = productId ? await checkoutAction(productId) : await portalAction();
-              if (result.ok) window.location.assign(result.data.url);
-              else setMessage(result.error);
-            } catch {
-              setMessage(
-                "Não foi possível abrir o pagamento. Confira sua assinatura antes de tentar novamente.",
-              );
-            }
-          })
-        }
-      >
-        {pending ? "Abrindo…" : children}
-      </BotaoChapa>
-      <p role="status" className="mt-1.5 text-sm font-medium wrap-anywhere text-coral-solido">
-        {message}
-      </p>
-    </div>
-  );
-}
-
-type PlanOption = {
-  id: string;
-  label: string;
-  timing: "immediate" | "schedule_at_period_end";
-  requiresRetainedProfile: boolean;
-};
-
-export function PlanChangeControls({
-  options,
-  profiles,
-  cancelAtPeriodEnd,
-  hasPendingChange,
-}: {
-  options: PlanOption[];
-  profiles: { id: string; nickname: string; accessEnabled: boolean }[];
-  cancelAtPeriodEnd: boolean;
-  hasPendingChange: boolean;
-}) {
-  const [retainedProfileId, setRetainedProfileId] = useState(
-    profiles.find((profile) => profile.accessEnabled)?.id ?? profiles[0]?.id ?? "",
-  );
-  const [message, setMessage] = useState("");
-  const [pending, start] = useServerAction();
-  const router = useRouter();
-  const needsChoice =
-    options.some((option) => option.requiresRetainedProfile) && profiles.length > 1;
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="font-display text-base">Alterar a assinatura</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {(cancelAtPeriodEnd || hasPendingChange) && (
-          <p className="mb-4 text-sm text-muted-foreground">
-            {cancelAtPeriodEnd
-              ? "Há uma alteração agendada. Para escolher outro plano, primeiro mantenha a assinatura atual."
-              : "A confirmação da alteração anterior ficou pendente. Você pode tentar novamente ou manter a assinatura atual."}
-          </p>
-        )}
-        {needsChoice && (
-          <div className="mb-4 max-w-sm">
-            <Label htmlFor="perfil-mantido">
-              Perfil que continuará ativo em um plano Individual
-            </Label>
-            <select
-              id="perfil-mantido"
-              className={seletor}
-              value={retainedProfileId}
-              onChange={(event) => setRetainedProfileId(event.target.value)}
-              disabled={pending}
-            >
-              {profiles.map((profile) => (
-                <option key={profile.id} value={profile.id}>
-                  {profile.nickname}
-                </option>
-              ))}
-            </select>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Os demais históricos ficam guardados e voltam a estudar quando o plano permitir.
-            </p>
-          </div>
-        )}
-        <div className="flex flex-wrap gap-2.5">
-          {options.map((option) => (
-            <BotaoChapa
-              key={option.id}
-              type="button"
-              tom="contorno"
-              disabled={
-                pending ||
-                (option.requiresRetainedProfile && profiles.length > 0 && !retainedProfileId)
-              }
-              onClick={() =>
-                start(async () => {
-                  const result = await changePlanAction(
-                    option.id,
-                    option.requiresRetainedProfile && profiles.length > 0
-                      ? retainedProfileId
-                      : undefined,
-                  );
-                  if (!result.ok) {
-                    setMessage(result.error);
-                    return;
-                  }
-                  if (result.data.url) {
-                    window.location.assign(result.data.url);
-                    return;
-                  }
-                  setMessage(
-                    result.data.effective === "now"
-                      ? "Plano alterado. O acesso foi atualizado após a confirmação da cobrança."
-                      : "Alteração agendada para o fim do período já pago.",
-                  );
-                  router.refresh();
-                })
-              }
-            >
-              {option.label}
-              {option.timing === "schedule_at_period_end" ? " no fim do período" : " agora"}
-            </BotaoChapa>
-          ))}
-          {(cancelAtPeriodEnd || hasPendingChange) && (
-            <BotaoChapa
-              type="button"
-              tom="contorno"
-              disabled={pending}
-              onClick={() =>
-                start(async () => {
-                  const result = await reactivateAction();
-                  setMessage(
-                    result.ok
-                      ? "Cancelamento desfeito; a assinatura continuará ativa."
-                      : result.error,
-                  );
-                  if (result.ok) router.refresh();
-                })
-              }
-            >
-              Manter assinatura atual
-            </BotaoChapa>
-          )}
-        </div>
-        <ul className="mt-4 grid gap-1 text-xs text-muted-foreground">
-          <li>
-            Trocas para anual e aumentos de perfis são cobrados com ajuste proporcional agora.
-          </li>
-          <li>Reduções de perfis e trocas de anual para mensal entram no fim do período pago.</li>
-        </ul>
-        <p role="status" className="mt-2 text-sm font-medium">
-          {message}
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-export function PrivacyControls({
-  outrasAssinaturas,
-  outroAppComDados,
-}: {
-  outrasAssinaturas: boolean;
-  outroAppComDados: string | null;
-}) {
+export function PrivacyControls({ canManageFamily }: { canManageFamily: boolean }) {
   const [confirmation, setConfirmation] = useState("");
   const [message, setMessage] = useState("");
-  const [excluirConta, setExcluirConta] = useState(false);
   const [pending, start] = useServerAction();
   const router = useRouter();
   return (
@@ -930,106 +512,90 @@ export function PrivacyControls({
           Sair da conta neste aparelho
         </button>
       </div>
-      <details className="mt-5 rounded-xl border border-destructive/35 bg-coral-claro/50 p-4">
-        <summary className="cursor-pointer font-semibold text-tinta">
-          Encerrar o Missão Saber e apagar dados pedagógicos
-        </summary>
-        <p className="mt-3 text-sm text-tinta">
-          Esta ação cancela imediatamente a assinatura deste app e remove todos os perfis, missões,
-          tentativas e anotações do Missão Saber. Exporte antes se quiser uma cópia. A conta
-          Informach e os dados da Agenda da Turma e do Cozya permanecem. Registros financeiros
-          seguem sua retenção própria.
-        </p>
-        <div className="mt-4 max-w-72">
-          <Label htmlFor="confirmacao">Digite ENCERRAR E APAGAR</Label>
-          <Input
-            id="confirmacao"
-            className="mt-1.5 h-11"
-            value={confirmation}
-            onChange={(e) => setConfirmation(e.target.value)}
-            autoComplete="off"
-          />
-        </div>
-        <button
-          type="button"
-          disabled={pending || confirmation !== "ENCERRAR E APAGAR"}
-          className="mt-3 rounded-md text-sm font-semibold text-destructive underline underline-offset-4 disabled:opacity-50"
-          onClick={() =>
-            start(async () => {
-              try {
-                const result = await clearAction(confirmation);
-                if (result.ok) {
-                  setConfirmation("");
-                  setMessage("Assinatura encerrada e dados pedagógicos removidos.");
-                  router.refresh();
-                } else setMessage(result.error);
-              } catch {
-                setMessage(
-                  "A operação não pôde ser confirmada. Verifique seus perfis e assinatura antes de repetir.",
-                );
-              }
-            })
-          }
-        >
-          Confirmar encerramento e exclusão
-        </button>
-      </details>
-      <details className="mt-3 rounded-xl border border-destructive/35 bg-coral-claro/50 p-4">
-        <summary className="cursor-pointer font-semibold text-tinta">
-          Excluir a conta Informach
-        </summary>
-        <p className="mt-3 text-sm text-tinta">
-          A conta Informach é a mesma na Agenda da Turma e no Cozya. A exclusão apaga a conta e os
-          dados do Missão Saber depois de você confirmar por e-mail. Registros financeiros seguem
-          sua retenção própria.
-        </p>
-        {outrasAssinaturas && (
-          <p className="mt-2 text-sm font-semibold text-tinta">
-            Há assinatura ativa em outro app Informach. Encerre-a nas configurações daquele app
-            antes de excluir a conta compartilhada.
+      {canManageFamily && (
+        <details className="mt-5 rounded-xl border border-destructive/35 bg-coral-claro/50 p-4">
+          <summary className="cursor-pointer font-semibold text-tinta">
+            Apagar o estudo desta família
+          </summary>
+          <p className="mt-3 text-sm text-tinta">
+            Esta ação remove os estudos, competições, anotações e conexões de aparelhos da família
+            selecionada. É necessário gerenciar todos os estudantes dessa família. Exporte antes se
+            quiser uma cópia. Pessoas, assinatura do Compasso e dados dos outros apps permanecem.
+            Para cancelar uma assinatura, abra Minha conta.
           </p>
-        )}
-        {!outrasAssinaturas && outroAppComDados && (
-          <p className="mt-2 text-sm font-semibold text-tinta">
-            Sua conta também tem dados no {outroAppComDados}. Peça a exclusão por lá: ela apaga os
-            dados daquele app e a conta compartilhada.
-          </p>
-        )}
-        <label htmlFor="excluir-conta" className="mt-3 flex items-start gap-3 text-sm text-tinta">
-          <input
-            id="excluir-conta"
-            type="checkbox"
-            className="mt-1 size-5 shrink-0 accent-[var(--ms-verde)]"
-            checked={excluirConta}
-            onChange={(e) => setExcluirConta(e.target.checked)}
-          />
-          Entendo que a exclusão vale para todos os apps Informach.
-        </label>
-        <button
-          type="button"
-          disabled={pending || !excluirConta || outrasAssinaturas || !!outroAppComDados}
-          className="mt-3 rounded-md text-sm font-semibold text-destructive underline underline-offset-4 disabled:opacity-50"
-          onClick={() =>
-            start(async () => {
-              try {
-                const result = await authClient.deleteUser({ callbackURL: "/" });
-                setMessage(
-                  result.error
-                    ? "Não foi possível solicitar a exclusão agora."
-                    : "Enviamos um e-mail para confirmar a exclusão da conta.",
-                );
-              } catch {
-                setMessage("Não foi possível solicitar a exclusão agora.");
-              }
-            })
-          }
-        >
-          Solicitar exclusão por e-mail
-        </button>
-      </details>
+          <div className="mt-4 max-w-72">
+            <Label htmlFor="confirmacao">Digite ENCERRAR E APAGAR</Label>
+            <Input
+              id="confirmacao"
+              className="mt-1.5 h-11"
+              value={confirmation}
+              onChange={(e) => setConfirmation(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+          <button
+            type="button"
+            disabled={pending || confirmation !== "ENCERRAR E APAGAR"}
+            className="mt-3 rounded-md text-sm font-semibold text-destructive underline underline-offset-4 disabled:opacity-50"
+            onClick={() =>
+              start(async () => {
+                try {
+                  const result = await clearAction(confirmation);
+                  if (result.ok) {
+                    setConfirmation("");
+                    setMessage("Dados de estudo desta família removidos.");
+                    router.refresh();
+                  } else setMessage(result.error);
+                } catch {
+                  setMessage(
+                    "A operação não pôde ser confirmada. Verifique os estudantes antes de repetir.",
+                  );
+                }
+              })
+            }
+          >
+            Confirmar exclusão do estudo
+          </button>
+        </details>
+      )}
+      <section className="mt-3 rounded-xl border p-4 space-y-3">
+        <h3>Sua conta compartilhada</h3>
+        <p>
+          Nome, e-mail, senha, segurança e exclusão da conta compartilhada são gerenciados na
+          central da conta.
+        </p>
+        <a href={getAppUrl("conta", ssoEnvironment)}>Gerenciar minha conta compartilhada</a>
+      </section>
       <p role="status" className="mt-2 text-sm font-medium">
         {message}
       </p>
     </>
+  );
+}
+
+export function LimitedStudentChoice({ profileId, name }: { profileId: string; name: string }) {
+  const [pending, start] = useServerAction();
+  const [message, setMessage] = useState("");
+  return (
+    <div className="mt-4">
+      <button
+        type="button"
+        disabled={pending}
+        className="min-h-11 font-semibold underline"
+        onClick={() =>
+          start(async () => {
+            const result = await chooseLimitedStudentAction(profileId);
+            setMessage(
+              result.ok ? "Escolha salva. Os históricos continuam preservados." : result.error,
+            );
+          })
+        }
+      >
+        Usar a vaga atual com {name}
+      </button>
+      <p role="status" className="text-sm">
+        {message}
+      </p>
+    </div>
   );
 }
