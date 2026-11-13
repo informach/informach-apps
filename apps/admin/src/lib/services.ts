@@ -2,7 +2,7 @@ import "server-only";
 import { serviceStatus } from "@informach/db/schema";
 import { getEnv } from "./env";
 import { shortCommit } from "./format";
-import { SERVICE_KEYS, SERVICES, type ServiceKey, serviceOrigins } from "./products";
+import { SERVICES, type ServiceKey, serviceKeysForDeployment, serviceOrigins } from "./products";
 import { readDb } from "./read-db";
 
 export type ServiceState = "up" | "slow" | "down";
@@ -124,9 +124,10 @@ export async function probeAll(options: { fresh?: boolean } = {}): Promise<Servi
   const cached = globalCache.__bastidoresProbe;
   if (!options.fresh && cached && Date.now() - cached.at < CACHE_MS) return cached.checks;
   const origins = serviceOrigins(getEnv().ADMIN_SERVICE_URLS);
-  const enabled = SERVICE_KEYS.filter(
-    (key) => !["recreio", "morada-server"].includes(key) || getEnv().ADMIN_RECREIO_ENABLED === "1",
-  );
+  const enabled = serviceKeysForDeployment({
+    compasso: getEnv().ADMIN_COMPASSO_ENABLED === "1",
+    recreio: getEnv().ADMIN_RECREIO_ENABLED === "1",
+  });
   const checks = await Promise.all(enabled.map((key) => probeService(key, origins[key])));
   globalCache.__bastidoresProbe = { at: Date.now(), checks };
   return checks;

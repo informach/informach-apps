@@ -14,6 +14,11 @@ Console da equipe Informach em `admin.informach.com.br` (porta 3003 em desenvolv
 
 Copy em português, humanizada, sem travessão, "pessoas" e não "usuários", nome do produto e não o slug, número sempre com unidade e período, situação sempre com ícone e palavra.
 
+Plus Jakarta Sans e JetBrains Mono são arquivos locais em `src/app/fonts`, com
+licenças OFL junto dos arquivos. O layout usa `next/font/local`, preservando as
+variáveis de tipografia e evitando downloads do Google no build. Em 13/11, esses
+downloads falharam no resolvedor de fontes do Turbopack no CI.
+
 ## Papéis
 
 | Ação | owner | admin |
@@ -80,6 +85,17 @@ Registrados nas revisões de 17/10/2026, sem correção por enquanto:
 ### Agenda no Compasso (10/11/2026, em migração)
 
 Presença e contagens de adultos usam participação familiar e concessão atual de leitura de uma ativação Agenda. O criador histórico e as tabelas familiares locais não autorizam nem contam acesso. A ficha conta somente perfis legíveis, adultos com acesso nas famílias administradas e famílias acompanhadas como membro; os totais de perfis do produto preservam o histórico. Nomes, rotina e conteúdo da família continuam proibidos. Verificação em `family-metadata.integration.test.ts`, pela conexão read-only; estado de gates no registro Compasso. Métricas comerciais ainda aguardam o corte financeiro compartilhado.
+## Estado operacional do Compasso
+
+`ADMIN_COMPASSO_ENABLED` começa em `0`: Conta e Dia de Estrela preparados sem
+deployment não entram nas sondagens. No corte completo, `1` acrescenta ambos e
+troca as rotinas financeiras individuais dos cinco apps pelas rotinas centrais,
+ativando também a monitoração dos workers de privacidade e alertas preparados.
+E-mail, retenção, lembretes, Edi e a flag do Recreio permanecem independentes.
+O estado de implantação é distinto de `COMPASSO_BILLING_ENABLED`, que pausa novos
+compromissos comerciais sem desativar manutenção. Revisão de infraestrutura e
+condições em [Conta — infraestrutura](../conta/INFRAESTRUTURA.md).
+
 ## Recreio (13/11/2026)
 
 O cadastro mínimo inclui a aba Recreio com contagens estruturais (contas, perfis, mundos e sessões de jogo abertas), eventos `recreio.*` traduzidos na auditoria e revogação do prefixo `recreio:auth:` sem cache de cookie. O teste de privacidade inclui o schema `recreio`, mantendo apelidos, nomes, convites, fotografias e diário fora das consultas.

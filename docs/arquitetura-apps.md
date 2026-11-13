@@ -345,6 +345,15 @@ O contrato 0129 da Agenda fecha a expansão/backfill: ativação central obrigat
 
 ### Encerramento da participação Compasso
 
+A propriedade dos jobs acompanha o corte coordenado: a Conta concilia cobrança
+nativa/legada e expira reservas dos seis escopos web; os cinco workers locais
+mantêm avaliação e encerramento consentido. O worker da Missão Saber também
+limpa códigos/aparelhos/contadores de estudo, antes atendidos pelo cron financeiro
+antigo. A IaC conserva os serviços preparados sem fonte e só retira os sete
+crons financeiros substituídos ao habilitar o Compasso. A monitoração usa
+`ADMIN_COMPASSO_ENABLED`, separada da pausa comercial e do lançamento Recreio.
+Contrato e verificação do grafo em [infraestrutura Compasso](../apps/conta/INFRAESTRUTURA.md).
+
 O login global e a participação no conjunto web têm ciclos distintos. A Conta coordena avaliação, congelamento, preparação e confirmação explícita; cada app executa seu próprio domínio pelo job autenticado `account-departure`. Billing resolve obrigações primeiro, os apps removem apenas dados autorizados e família desvincula por último. A manutenção central finaliza somente após todos os recibos, preservando identidade e produtos independentes. Conteúdo compartilhado depende de custódia/concessões, não de autoria histórica. Nova seleção após execução parcial exige novo consentimento e conserva etapas já concluídas.
 
 Depois do congelamento ou encerramento, a Conta oferece segurança do login, registros próprios de cobrança e cópia da conta. Não anuncia operações comerciais que dependam da participação ativa. O portal Stripe Compasso permite somente pagamento/comprovantes; mudanças de assinatura passam pela central. Contratos de posse, exportação e limites em [account](../packages/account/README.md); a implementação local não comprova publicação ou homologação dos cinco serviços em conjunto.

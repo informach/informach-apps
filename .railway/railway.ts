@@ -41,14 +41,13 @@ const ADMIN_LAUNCHED = true;
 /** Cron de conciliação do Edi rodando desde 17/10/2026, 20:09 UTC (apps/edi/PRODUCAO.md). */
 const EDI_RECONCILE_ACTIVE = true;
 /**
- * Dia de Estrela: serviço e cron descritos abaixo, mas fora do projeto até o
- * lançamento autorizado (apps/dia-de-estrela/PRODUCAO.md). Em `false` nada é
- * criado. Depois do primeiro apply com `true`, esta constante passa a valer
- * como as de cima: voltar para `false` apagaria o serviço e o cron.
+ * O serviço já existe sem fonte. A preparação permanece no grafo mesmo antes
+ * do corte; a flag liga a fonte e o cron somente no lançamento coordenado.
+ * Depois disso, nunca voltar para false: removeria a fonte e os jobs.
  */
 const ESTRELA_LAUNCHED = false;
-/** Preparation only. Enable with the reviewed Compasso cutover; never revert
- * after provisioning, since false would remove the central service and jobs. */
+/** Keep the prepared central service; enable its source/jobs at cutover.
+ * Never revert after launch: this also selects the financial cron owner. */
 const COMPASSO_LAUNCHED = false;
 /** Recreio e Morada: preparação apenas; ativar após revisar PRODUCAO.md e o plano. */
 const RECREIO_LAUNCHED = false;
@@ -419,7 +418,7 @@ export default defineRailway((ctx) => {
   // Dia de Estrela: sem IA. VAPID_* liga o push dos alertas aos pais.
   // Provisionamento pendente em apps/dia-de-estrela/PRODUCAO.md.
   const diaDeEstrela = service("@informach/dia-de-estrela", {
-    source: main,
+    ...(ESTRELA_LAUNCHED ? { source: main } : {}),
     build: {
       builder: "RAILPACK",
       buildCommand: standaloneNext("dia-de-estrela").buildCommand,
@@ -484,7 +483,7 @@ export default defineRailway((ctx) => {
     }),
   );
   const conta = service("@informach/conta", {
-    source: main,
+    ...(COMPASSO_LAUNCHED ? { source: main } : {}),
     build: {
       builder: "RAILPACK",
       buildCommand: "pnpm install --frozen-lockfile --prod=false && pnpm build:conta",
@@ -619,6 +618,7 @@ export default defineRailway((ctx) => {
       SENDGRID_FROM: "Bastidores Informach <nao-responda@informach.com.br>",
       SENDGRID_API_KEY: cozya.env.SENDGRID_API_KEY,
       STRIPE_MODE: "prod",
+      ADMIN_COMPASSO_ENABLED: COMPASSO_LAUNCHED ? "1" : "0",
       LOG_LEVEL: "info",
       BETTER_AUTH_SECRET: preserve(),
       CRON_SECRET: preserve(),
@@ -832,12 +832,16 @@ export default defineRailway((ctx) => {
   });
 
   // Manutenção compartilhada pelos apps de assinatura.
-  const crons = [
+  // Only the central billing job owns these obligations after the cutover.
+  // Keep them while the old deployments/contracts still serve production.
+  const legacyBillingCrons = [
     perAppCron("billing-reconcile", "0 3 * * *", "billing-reconcile"),
     perAppCron("billing-expire-bonus", "30 3 * * *", "billing-expire-bonus"),
     perAppCron("billing-grant-monthly", "45 3 * * *", "billing-grant-monthly"),
     perAppCron("billing-dunning", "0 */6 * * *", "billing-dunning"),
     perAppCron("billing-release-reservations", "*/5 * * * *", "billing-release-reservations"),
+  ];
+  const crons = [
     perAppCron("email-retry", "*/5 * * * *", "email-retry"),
     perAppCron("email-recover-stale", "*/30 * * * *", "email-recover-stale"),
     globalCron("auth-cleanup", "0 4 * * *", "auth-cleanup"),
@@ -974,8 +978,9 @@ export default defineRailway((ctx) => {
       agenda,
       missaoSaber,
       boraTreinar,
-      ...(ESTRELA_LAUNCHED ? [diaDeEstrela] : []),
-      ...(COMPASSO_LAUNCHED ? [conta, ...contaCrons, ...accountDepartureCrons] : []),
+      diaDeEstrela,
+      conta,
+      ...(COMPASSO_LAUNCHED ? [...contaCrons, ...accountDepartureCrons] : []),
       site,
       admin,
       ...adminCrons,
@@ -984,9 +989,8 @@ export default defineRailway((ctx) => {
       ...crons,
       agendaRoutine,
       cozyaRetention,
-      missaoBilling,
+      ...(!COMPASSO_LAUNCHED ? [...legacyBillingCrons, missaoBilling, boraBilling] : []),
       missaoWeeklyReport,
-      boraBilling,
       boraLembretes,
       ...(ESTRELA_LAUNCHED ? [estrelaAlertas] : []),
       ediReconcile,

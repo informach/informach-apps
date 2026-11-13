@@ -724,3 +724,11 @@ A 0144 vincula links de calendário à revisão de participação capturada sob 
 0147 conserva a revisão web no recibo de notificação. Admissão usa o relógio operacional, separado da data usada para compor uma mensagem; conclusão e reaquisição conservam a tentativa exata. Envio exige recibo `processing`, até dez minutos, revisão atual e pertencimento à família. E-mail revalida no transporte; push reconfere a inscrição e usa texto genérico. Retomar não revalida um corpo antigo. Não há como recolher mensagem já aceita pelo provedor.
 
 O encerramento escolar ainda está em integração. A observação de dependências usa somente IDs; `school-closure-repository.ts` trava turmas antes de família/participação, inclui vínculos antigos em tarefas/materiais e revalida depois das travas. Uma turma nova exige reiniciar a seleção, nunca inverter travas. A remoção local de estudante usa essa ordem e a primitiva nativa compartilhada. Administração direta de turma (código e remoção de adulto) também confere participação sob trava, mesmo em requisições iniciadas antes da suspensão. Originais com várias crianças e publicações entre famílias exigem seleção própria; não tratar autoria como autorização para apagar tudo.
+
+### Capturas de teste (13/11/2026)
+
+Capturas de folhas animadas usam `page.screenshot({ animations: "disabled" })`.
+Esperar todas as promises `Animation.finished` da página pode falhar com
+`AbortError` quando uma transição responsiva é substituída; isso não demonstra
+falha na abertura da folha. As verificações de visibilidade, escopo da criança
+e navegação continuam explícitas na jornada.

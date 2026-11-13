@@ -177,6 +177,7 @@ export const ROUTINES: readonly RoutineDefinition[] = [
     label: "Alertas aos pais e limpeza do Dia de Estrela",
     intervalMinutes: 5,
     schedule: "a cada 5 minutos",
+    pausedNote: "Aguardando implantação do Compasso",
   },
   {
     app: "edi",
@@ -203,6 +204,20 @@ export const ROUTINES: readonly RoutineDefinition[] = [
     lateAfterMinutes: 8 * DAY,
   },
 ];
+
+/** Deployment state, independent of the switch that pauses new purchases. */
+export function routinesForDeployment(compassoEnabled: boolean): readonly RoutineDefinition[] {
+  if (!compassoEnabled) return ROUTINES;
+  const apps = new Set(getCollectionApps("compasso").map((app) => app.slug));
+  return ROUTINES.flatMap((routine) => {
+    if (apps.has(routine.app) && routine.job.startsWith("billing")) return [];
+    if (routine.pausedNote === "Aguardando implantação do Compasso") {
+      const { pausedNote: _paused, ...active } = routine;
+      return [active];
+    }
+    return [routine];
+  });
+}
 
 export type LastRun = {
   startedAt: Date;

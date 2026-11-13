@@ -41,6 +41,8 @@ export const envSchema = z
     ADMIN_SERVICE_URLS: z.string().default(""),
     /** Ligar só depois do deploy fechado de Recreio e Morada. */
     ADMIN_RECREIO_ENABLED: z.enum(["0", "1"]).default("0"),
+    /** Select the central scheduler only after the coordinated Compasso cutover. */
+    ADMIN_COMPASSO_ENABLED: z.enum(["0", "1"]).default("0"),
     /** Monta os links do Stripe para o modo certo (test ou live). */
     STRIPE_MODE: z.enum(["dev", "prod"]).default("dev"),
     /** Organização do Sentry para os links de cada app (fase 3). */

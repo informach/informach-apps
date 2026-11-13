@@ -84,6 +84,7 @@ export function productName(app: string): string {
  */
 export const SERVICE_KEYS = [
   "site",
+  "conta",
   "cozya",
   "agenda-da-turma",
   "missao-saber",
@@ -94,6 +95,14 @@ export const SERVICE_KEYS = [
   "morada-server",
 ] as const;
 export type ServiceKey = (typeof SERVICE_KEYS)[number];
+
+export function serviceKeysForDeployment(options: { compasso: boolean; recreio: boolean }) {
+  return SERVICE_KEYS.filter(
+    (key) =>
+      (!["conta", "dia-de-estrela"].includes(key) || options.compasso) &&
+      (!["recreio", "morada-server"].includes(key) || options.recreio),
+  );
+}
 
 export type ServiceInfo = {
   key: ServiceKey;
@@ -106,6 +115,14 @@ export type ServiceInfo = {
 };
 
 export const SERVICES: Record<ServiceKey, ServiceInfo> = {
+  conta: {
+    key: "conta",
+    name: APPS.conta.name,
+    railwayService: "@informach/conta",
+    defaultOrigin: `https://${APPS.conta.domain}`,
+    readyPath: "/api/ready",
+    healthPath: "/api/health",
+  },
   recreio: {
     key: "recreio",
     name: APPS.recreio.name,

@@ -4,19 +4,24 @@ Atualizado em 13/11/2026. Este é o índice de continuidade entre sessões. As r
 
 ## Compasso: migração em implementação (10/11/2026)
 
-**13/11 — revisão e conclusão autorizadas:** o titular reconfirmou apenas
-pagantes internos, política vigente e manutenção coordenada. A retomada usa a
-branch `feat/compasso-corte` e o PR #35. O titular pediu integrar e enviar à main;
-o migrator Railway agora segura o lote até a liberação operacional explícita,
-documentada no runbook. Correções de portão de migrations,
-backup consistente, coordenação de cobrança e fixtures estão em verificação,
-com matriz PostgreSQL 18 acrescentada ao CI. Não houve corte: esta sessão ainda
-precisa de acesso verificado aos provedores e ao banco real. Achados, provas e
-pendências em [review de 13/11](propostas/assinatura-web-2026-11-09/review-2026-11-13.md).
+**13/11 — implementação integrada à main, corte pendente:** PR #35 integrado;
+o titular definiu trabalho, commits, integração local e push sempre na `main`.
+A falha intermitente do CI em Morada foi reproduzida e corrigida sem afrouxar o
+contrato; os nove jobs da matriz Compasso passaram no remoto em `4912b84`.
+A revisão da infraestrutura prepara a substituição de sete crons financeiros
+pela Conta, preserva tarefas de estudo e expiração de reservas e ajusta o
+Bastidores ao estado de implantação. Railway está conectado; Conta e Dia tiveram
+configuração completada sem deployments. Stripe deve ser operado manualmente,
+a pedido do titular. Migração continua retida: faltam conciliação financeira atual,
+restauração do backup real, DNS/TLS e plano Railway atualizado. Detalhes e roteiro
+em [infraestrutura](../apps/conta/INFRAESTRUTURA.md),
+[Stripe manual](../apps/conta/STRIPE.md) e [produção](../apps/conta/PRODUCAO.md).
+Os registros datados abaixo são históricos, não instrução para retomar branches
+antigas ou exigir autorização genérica novamente.
 
 O titular autorizou a migração completa do **Compasso** e confirmou R$ 49,90/mês ou R$ 499/ano, dois adultos, quatro dependentes e teste de 14 dias sem cartão. A política aprovada inclui 200 créditos mensais sem acumular, 20 no teste e recargas sem vencimento de 100/R$ 14,90, 300/R$ 39,90 e 1.000/R$ 99,90, preservando validade e poder de uso dos saldos antigos. Recreio, Morada e Suíte Edi permanecem fora do Compasso. Execução na branch `feat/compasso-migracao`, central `apps/conta` na porta 3011. A [implementação](propostas/assinatura-web-2026-11-09/implementacao.md) é o registro detalhado vigente; incrementos anteriores preservam a evidência histórica.
 
-Catálogo, família/pessoas/permissões, carteira, cobertura, cobrança e SSO foram implementados localmente. Os cinco consumidores possuem jornadas locais registradas, incluindo histórico, aparelhos e autorização por contexto. A central reúne administração familiar, autenticador web separado do Bastidores, revogação de sessões, assinatura/recargas, extrato e cancelamento. Troca mensal/anual passou pelo Stripe Test Clock. Isso não representa publicação: [runbook](../apps/conta/PRODUCAO.md), catálogo Stripe e serviço Conta continuam sem provisão remota; venda permanece desabilitada.
+Catálogo, família/pessoas/permissões, carteira, cobertura, cobrança e SSO foram implementados localmente. Os cinco consumidores possuem jornadas locais registradas, incluindo histórico, aparelhos e autorização por contexto. A central reúne administração familiar, autenticador web separado do Bastidores, revogação de sessões, assinatura/recargas, extrato e cancelamento. Troca mensal/anual passou pelo Stripe Test Clock. Isso não representa publicação: a preparação remota posterior está no [runbook](../apps/conta/PRODUCAO.md); venda permanece desabilitada.
 
 O aceite dos contratos antigos está em implementação: as migrations locais 0152–0160, recibos, observações, job de cancelamento, cobertura transitória, eventos e interface local da Conta estão conectados. A preparação da assinatura futura e do meio de pagamento possui recibo persistente; a prévia atualiza os contratos históricos conhecidos antes de apresentar os termos. O executor interno e o job recuperam agendas interrompidas; a aplicação após o início depende de pagamento conciliado, e o adapter foi ensaiado em Stripe de teste. A 0158 registra divergências de evidência legada, bloqueando uso até reconciliação; fatura de teste com linha zero não é período pago. As 0159 e 0160 versionam a admissão da sessão de pagamento e da programação, distinguindo uma tentativa não realizada de uma resposta perdida. O encerramento consentido agora seleciona as programações do próprio pagante e reconcilia os efeitos; ainda requer homologação completa. Faltam conferência remota integral antes do corte e homologação. Não aplicar as migrations isoladamente nem ativar o corte; detalhes e evidências no [registro de implementação](propostas/assinatura-web-2026-11-09/implementacao.md).
 

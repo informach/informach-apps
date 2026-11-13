@@ -1,12 +1,14 @@
 # Minha conta: preparação operacional do Compasso
 
-Estado em 13/11/2026: revisão na branch `feat/compasso-corte`, com o corte ainda
-pendente. Os registros de 11/11 abaixo documentam catálogo Stripe, serviços vazios,
-domínios e variáveis preparados; não houve homologação integral nem ativação
-registrada. Reconfirmar o estado remoto antes de operar. Ver
-[review atual](../../docs/propostas/assinatura-web-2026-11-09/review-2026-11-13.md)
+Estado em 13/11/2026: revisão integrada à `main`; corte de produção ainda
+pendente. Railway conectado e preparação dos serviços reconfirmada, sem conectar
+fontes ou liberar migrations. Conta e Dia de Estrela continuam sem deployments.
+Stripe será tratado manualmente pelo titular conforme [STRIPE.md](STRIPE.md).
+Retirada de crons, alterações remotas e condições do plano estão em
+[INFRAESTRUTURA.md](INFRAESTRUTURA.md). DNS/TLS, restauração do backup real e
+conciliação financeira atual continuam pendentes. Registros anteriores em
+[review de 13/11](../../docs/propostas/assinatura-web-2026-11-09/review-2026-11-13.md)
 e [implementação](../../docs/propostas/assinatura-web-2026-11-09/implementacao.md).
-Este guia não comprova acesso ou configuração atual dos provedores.
 
 ## Composição e verificações locais
 
@@ -99,8 +101,23 @@ Uma versão antiga do app não reabre uma carteira convertida. Não apagar recib
 
 `POST /api/jobs/account-maintenance` exige `CRON_SECRET` próprio com ao menos 32 caracteres; funciona com cobrança desligada. Processa etapas financeiras autorizadas, desvinculação familiar e finalização com todos os recibos; depois remove até 100 consultas técnicas por execução, 24 horas após vencerem. A limpeza das consultas preserva auditoria, conta, cobrança e conteúdo. Limpeza usa trava do pedido, `SKIP LOCKED` e transação. Uma falha retorna 503 e é registrada, sem payload pessoal, em `ops.job_runs`.
 
-A IaC prepara Conta, cron financeiro a cada minuto, manutenção a cada cinco e cinco crons locais de avaliação/encerramento a cada cinco minutos. Os crons têm limite HTTP de 300 segundos e alerta operacional a partir de seis minutos. A posse de uma etapa dura 90 segundos; durante I/O externo, é renovada a cada 20 segundos, somente enquanto o token/estado continuam válidos e dentro de 150 segundos. Esse prazo impede confirmação tardia; não aborta uma chamada externa em andamento, que deve possuir seu próprio limite. Cada worker recebe somente o segredo do próprio app por referência e fixa o app na composição. `COMPASSO_LAUNCHED=false` mantém esses oito novos recursos fora do grafo; sua habilitação exige também Dia de Estrela e depende do corte integral, plano remoto revisado e configuração real dos segredos. Não reverter flags após provisionar. O Bastidores lista os jobs preparados como aguardando implantação enquanto não há registro; retirar essa anotação após conferir a execução de todos. O ensaio local preservou os 30 recursos atuais e acrescentou 11 no cenário futuro completo (Conta e jobs mais Dia de Estrela e seus dois crons). Em 11/11, com a retirada da cobrança própria do Dia de Estrela, a avaliação offline do grafo dá 28 recursos hoje e 38 no cenário futuro: Conta, Dia de Estrela, os dois crons da Conta, os cinco de encerramento e o dos alertas do Dia, sem remoções, sem aplicar configuração remota.
+A IaC conserva os serviços preparados da Conta e Dia de Estrela sem fonte
+mesmo antes do corte. `COMPASSO_LAUNCHED=true` exige `ESTRELA_LAUNCHED=true` e liga
+fontes e oito jobs novos: financeiro por minuto, manutenção central e cinco
+workers de domínio a cada cinco minutos, além dos alertas do Dia de Estrela.
+Ao mesmo tempo retira os sete crons financeiros substituídos. Segredos são próprios
+por app; `preserve()` não cria um segredo ausente. Não reverter flags após lançar.
+O Bastidores muda sondagens/rotinas com `ADMIN_COMPASSO_ENABLED=1` no corte.
+O contrato offline é verificado por `pnpm compasso:test:infrastructure`; o plano
+real ainda precisa de CLI autenticada. Ver o inventário e as condições em
+[INFRAESTRUTURA.md](INFRAESTRUTURA.md).
 
+Os crons têm limite HTTP de 300 segundos e alerta operacional a partir de seis
+minutos. A posse de uma etapa dura 90 segundos e, durante I/O externo, é renovada
+a cada 20 segundos, enquanto token/estado continuam válidos e dentro de 150
+segundos. Esse prazo impede confirmação tardia; não aborta uma chamada externa,
+que precisa de limite próprio. Cada worker fixa o domínio e recebe somente o
+segredo do respectivo app.
 
 ## Preços dos contratos anteriores
 
@@ -123,9 +140,9 @@ Todas ficam em `scripts/compasso/`. As de leitura não escrevem nada; as que esc
 | `railway run --service Postgres --environment production -- pnpm exec tsx scripts/compasso/titular-reconciliation.mts --stripe-env <arquivo> --stripe-key <nome>` | Concilia, por titular pseudonimizado, cada contrato local com o Stripe (situação, fim do período, faturas pagas contra períodos locais, faturas abertas, estornos, contestações, pagamentos em liquidação, Checkouts abertos, agendas, eventos pendentes) e as carteiras; termina com código 2 e a lista `blocking` se houver divergência | Não (banco em transação read-only; Stripe só GET) |
 | `railway run --service Postgres --environment production -- pnpm compasso:rehearse:restore [--keep]` | Dump real (PostgreSQL 18), restauração em container descartável com os mesmos papéis, comparação de contagens, donos e privilégios, sequência completa do migrator na cópia com tempo medido, conferência de usuários, contratos, extrato e clientes do Dia de Estrela, e segunda rodada para provar que nada duplica | Não na origem; apaga o dump ao final |
 
-Em 11/11 o catálogo de teste foi criado com `--mode dev --apply` (produto `prod_VbuWNVAWXYBYLH`, portal `bpc_1UaghZCvOctqao30chCRlFJg`) e a repetição não propôs mudanças. O live continua sem catálogo e só deve ser criado pela titular, com o comando acima.
+Em 11/11 o catálogo de teste foi criado com `--mode dev --apply` (produto `prod_VbuWNVAWXYBYLH`, portal `bpc_1UaghZCvOctqao30chCRlFJg`) e a repetição não propôs mudanças. O catálogo live foi provisionado mais tarde no mesmo dia, conforme a tabela abaixo; conferir os recursos existentes antes de criar outro catálogo.
 
-## Sequência do corte (revista em 11/11/2026)
+## Sequência do corte (revista em 13/11/2026)
 
 **Complemento de 13/11 — manutenção coordenada aprovada.** Antes do DDL destrutivo,
 interromper as instâncias antigas dos cinco consumidores e impedir que novos
@@ -148,10 +165,10 @@ Estrela no catálogo `APPS`, junto das constantes de lançamento da IaC. A abert
 dos links na central só pode ser anunciada após DNS/TLS e readiness conferidos;
 não confundir serviço vazio provisionado com app publicado.
 
-1. Conciliação por titular sem bloqueios (`titular-reconciliation.mts`), restauração do backup real aprovada (`pnpm compasso:rehearse:restore`), CI verde e plano Railway só com adições.
-2. Catálogo live criado pela titular (`stripe-provision.mts --mode prod --apply` com o webhook da Conta) e segredos gravados nos serviços novos.
+1. Conciliação por titular sem bloqueios (`titular-reconciliation.mts`), restauração do backup real aprovada (`pnpm compasso:rehearse:restore`), CI verde, DNS/TLS e plano Railway revisado. As únicas exclusões esperadas no corte são os sete crons financeiros substituídos, conforme `INFRAESTRUTURA.md`; qualquer outra destruição interrompe o procedimento.
+2. Catálogo live existente conferido pela titular e credenciais nos serviços novos. O webhook só é cadastrado após a Conta estar pronta, com vendas desligadas, conforme `STRIPE.md`; não criar um catálogo duplicado para habilitá-lo.
 3. O titular autorizou integrar e enviar o código à `main` em 13/11. O corte possui uma trava própria: no Railway, enquanto o recibo da `0162_military_dexter_bennett` estiver ausente, `db:migrate` exige `COMPASSO_CUTOVER_RELEASE=compasso-2026-11` no serviço migrator. Sem ela, termina antes de qualquer DDL; `/api/ready` mantém os novos consumidores fora do tráfego. Só gravar a liberação depois dos gates, na manutenção coordenada, com escritores antigos parados, backup final e plano revisado. Aplicar a IaC e redeployar o migrator: ele aplica as 83 migrations de `0080_reflective_butterfly` a `0162_military_dexter_bennett`, depois da `0080_recreio`. Após o lote completo, remover a variável não bloqueia migrations de outras frentes. `pnpm --filter @informach/db test` deve passar com a `main` integrada; o migrator recusa buracos nos recibos, em vez de pular migrations silenciosamente.
-4. `setup:oauth` da Conta, conferência de `/api/ready` e `/api/health`, crons em `ops.job_runs`, Sentry.
+4. `setup:oauth` da Conta, conferência de `/api/ready` e `/api/health`, webhook e segredo próprios, crons novos em `ops.job_runs`, retirada dos sete substituídos, `ADMIN_COMPASSO_ENABLED=1` e Sentry.
 5. Entrada compartilhada, família, perfis e aparelhos nos cinco apps, ainda com `COMPASSO_BILLING_ENABLED=false`.
 6. Nova conciliação por titular, agora com o schema novo: a comparação de faturas pagas com períodos locais precisa fechar depois da primeira leitura do provedor de cada contrato.
 7. `COMPASSO_BILLING_ENABLED=true`. É exigido pelo aceite dos contratos antigos e pela programação da continuidade, não só pela venda. Não há clientes externos; nas famílias com contrato antigo, a barreira impede assinatura nova sobreposta.
@@ -181,9 +198,9 @@ Sentry: projetos `conta` e `dia-de-estrela` criados em 11/11/2026 na organizaç�
 - Serviços vazios `@informach/conta` e `@informach/dia-de-estrela` criados com `railway add`, sem fonte (nada implanta). Domínios `conta.informach.com.br` e `dia-de-estrela.informach.com.br` registrados com `railway domain`; os registros de DNS pedidos pelo Railway (CNAME e TXT `_railway-verify`) ficam no Cloudflare.
 - Variáveis gravadas por `scripts/compasso/production.py` (sem implantar): na Conta, segredos próprios, `COMPASSO_BILLING_ENABLED=false`, `STRIPE_MODE=prod`, a chave live restrita copiada do Missão Saber, o portal, os cinco preços live e `SENTRY_DSN`; no Dia de Estrela, origem, e-mail live, Sentry, Redis e banco por referência, segredos próprios e um par VAPID novo. Os crons recebem as variáveis depois do `apply` (`sync-cron-variables`).
 - **Rodar o plano no Windows:** a CLI avalia o `railway.ts` com Node puro, e os imports do catálogo exigem o `tsx`; o pacote de IaC confere a versão da CLI chamando `railway` sem shell, o que no Windows só funciona com o caminho do executável em `_`. Use `$env:NODE_OPTIONS="--import=tsx"; $env:_="$env:APPDATA\npm\node_modules\@railway\cli\bin\railway.exe"` antes de `railway config plan`/`apply`, e `--file` com uma cópia temporária em `.railway/` para ver o cenário com as constantes ligadas sem editar o arquivo.
-- **Plano do corte** (constantes ligadas, 11/11): 8 adições (os oito crons), 29 alterações (Conta e Dia de Estrela ganham fonte, build e start; variáveis da Conta por referência; padrões de observação dos consumidores; Missão Saber passa ao standalone) e nenhuma destruição.
-- **Redis:** a IaC declarava proxy TCP público na porta 6379 desde 17/10, mas o Railway não tem esse proxy hoje; o `apply` o recriaria e exporia o Redis. A branch declara só a rede privada. A `origin/main` ainda declara o proxy: um `apply` a partir dela reabriria o acesso público.
-- **Enquanto o corte não acontece:** um `apply` feito com as constantes desligadas, ou a partir da `origin/main`, apagaria os dois serviços vazios e seus domínios. Ninguém deve rodar `apply` fora do corte.
+- **Plano histórico do corte** (constantes ligadas, 11/11, anterior à revisão de crons de 13/11): 8 adições (os oito crons), 29 alterações (Conta e Dia de Estrela ganham fonte, build e start; variáveis da Conta por referência; padrões de observação dos consumidores; Missão Saber passa ao standalone) e nenhuma destruição.
+- **Redis:** a IaC antiga declarava proxy TCP público na porta 6379, ausente no Railway. A correção já integrada à `main` declara somente a rede privada e preserva o volume; não recriar o proxy para fazer o plano coincidir.
+- **Correção de 13/11:** Conta e Dia de Estrela permanecem no grafo com as constantes desligadas, sem fonte. O grafo anterior apagaria esses serviços vazios; a regressão offline agora impede isso. Ainda é obrigatório obter um plano real atualizado antes de qualquer apply.
 
 ## Verificação do comando de restauração — 13/11/2026
 

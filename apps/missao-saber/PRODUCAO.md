@@ -4,6 +4,14 @@ Publicado em 13/09/2026 em https://missao-saber.informach.com.br. A versão come
 
 ## Serviços
 
+No corte Compasso, `cron-missao-saber-billing` será substituído pela conciliação
+central. Sua limpeza de códigos de pareamento, aparelhos expirados/revogados e
+contadores de acesso foi preservada em `lib/account-maintenance.ts`, chamada pelo
+job autenticado `account-departure`. A limpeza termina antes do lote de
+encerramentos; sua falha não impede tentar as etapas consentidas, mas mantém a
+execução em erro. O cron antigo permanece enquanto o runtime anterior servir
+produção. Condições e demais rotinas em [infraestrutura Compasso](../conta/INFRAESTRUTURA.md).
+
 | Recurso | Configuração atual |
 | --- | --- |
 | Railway | Projeto `informach-apps`, ambiente `production` |

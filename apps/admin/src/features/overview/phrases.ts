@@ -8,6 +8,7 @@ export const SERVICE_SUBJECT: Record<
   ServiceKey,
   { the: string; inThe: string; feminine: boolean }
 > = {
+  conta: { the: "A Minha conta", inThe: "na Minha conta", feminine: true },
   recreio: { the: "O Recreio", inThe: "no Recreio", feminine: false },
   "morada-server": { the: "O servidor do Morada", inThe: "no servidor do Morada", feminine: false },
   site: { the: "O site Informach", inThe: "no site", feminine: false },

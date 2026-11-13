@@ -158,13 +158,13 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
         `${route}${route.includes("?") ? "&" : "?"}perfil=${child.id}`,
       );
     }
-    // A folha sobe com animação: a foto espera ela parar.
-    await page.evaluate(() =>
-      Promise.all(document.getAnimations().map((animation) => animation.finished)),
-    );
+    // Playwright settles finite animations while taking the picture. A CSS
+    // transition replaced by the responsive layout can legitimately be canceled;
+    // waiting on Animation.finished would reject with AbortError in that case.
     await page.screenshot({
       path: testInfo.outputPath("add-sheet-mobile.png"),
       caret: "initial",
+      animations: "disabled",
     });
     await page.keyboard.press("Escape");
     await expect(addSheet).toBeHidden();

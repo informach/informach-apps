@@ -1,13 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import type { ReactNode } from "react";
 import "./globals.css";
 
-const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin"] });
-const jetbrains = JetBrains_Mono({
+const jakarta = localFont({
+  src: "./fonts/plus-jakarta-sans-variable.woff2",
+  variable: "--font-jakarta",
+  weight: "200 800",
+  display: "swap",
+});
+const jetbrains = localFont({
+  src: "./fonts/jetbrains-mono-variable.woff2",
   variable: "--font-jetbrains",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: "100 800",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
