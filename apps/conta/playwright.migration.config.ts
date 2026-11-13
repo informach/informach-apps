@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { getAppUrl } from "@informach/config/domains";
 import { defineConfig, devices } from "@playwright/test";
 import { fixtureEnvironment } from "../../scripts/compasso/browser-environment.mjs";
+import { MIGRATION_PRICES } from "./e2e-migration/prices";
 
 if (process.env.COMPASSO_ISOLATED_DATABASE !== "1")
   throw new Error("Use the isolated Compasso integration runner");
@@ -32,11 +33,7 @@ export default defineConfig({
       COMPASSO_BILLING_ENABLED: "true",
       STRIPE_PORTAL_CONFIGURATION_ID: "bpc_isolated_fixture",
       CRON_SECRET: randomBytes(32).toString("hex"),
-      COMPASSO_MONTHLY_PRICE: "price_fixture_monthly",
-      COMPASSO_ANNUAL_PRICE: "price_fixture_annual",
-      COMPASSO_CREDITS_100_PRICE: "price_fixture_100",
-      COMPASSO_CREDITS_300_PRICE: "price_fixture_300",
-      COMPASSO_CREDITS_1000_PRICE: "price_fixture_1000",
+      ...MIGRATION_PRICES,
     },
   },
 });

@@ -6,6 +6,10 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: compasso-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   postgres18:
     name: Compasso / ${{ matrix.gate }} / PostgreSQL 18

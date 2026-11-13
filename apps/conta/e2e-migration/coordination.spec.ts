@@ -11,6 +11,7 @@ import {
 } from "@informach/db/schema";
 import { createFamilyService } from "@informach/family";
 import { type APIRequestContext, expect, type Page, test } from "@playwright/test";
+import { MIGRATION_PRICES } from "./prices";
 
 async function adult(request: APIRequestContext, ip: string) {
   const email = `${randomUUID()}@example.test`,
@@ -81,7 +82,7 @@ test("only the payer sees and answers the request to defer their own charge", as
         provider: "stripe",
         providerSubscriptionId: `sub_${randomUUID()}`,
         productId: "compasso_monthly",
-        providerPriceId: "price_browser_compasso",
+        providerPriceId: MIGRATION_PRICES.COMPASSO_MONTHLY_PRICE,
         status: "active",
         currentPeriodStart: start,
         currentPeriodEnd: end,
