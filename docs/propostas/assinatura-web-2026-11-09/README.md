@@ -1,5 +1,11 @@
 # Compasso: proposta de reestruturação dos aplicativos web
 
+Atualização de 13/11/2026: o titular reconfirmou a política vigente, os pagantes
+exclusivamente internos e a manutenção coordenada para concluir o corte. O
+[review de 13/11](review-2026-11-13.md) registra as correções e verificações novas
+e atualiza as pendências históricas abaixo. Produção depende dos gates e de
+acesso verificado aos provedores; não houve corte nesta sessão.
+
 Apresentação versão 4, revisada em 10/11/2026 com o corte interno para as contas de desenvolvimento. O titular autorizou a migração completa e aprovou preço, capacidade, teste e créditos. O andamento técnico vigente está em [implementação](implementacao.md), com as condições econômicas em [economia da IA](economia-ia.md). A apresentação explica o projeto; não comprova operação em produção.
 
 A [proposta visual](proposta.html) está salva na [página privada de apresentação](https://chatgpt.com/space/page_95335cdee98081919aaeb222704fa2d0). Contém catálogo, pessoas e permissões, carteira, protótipo da central, arquitetura, migração, critérios de aceitação e simulador econômico.

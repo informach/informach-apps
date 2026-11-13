@@ -219,6 +219,17 @@ Detalhes de como o `db` se organiza: ver [`arquitetura-packages.md`](./arquitetu
 
 ## Migrations
 
+O migrator valida o prefixo completo de `drizzle.__drizzle_migrations` antes e depois
+de aplicar SQL. Recibos intermediários ausentes, duplicados ou desconhecidos impedem
+a aplicação; `/api/ready` responde indisponível com `reason: inconsistent` no mesmo
+caso. O estado `behind` admite somente um sufixo ainda não aplicado. Um banco mais
+novo continua aceito se contém todo o prefixo conhecido. Essa leitura dos recibos
+não prova compatibilidade de rollback depois de remoções de colunas/tabelas.
+
+A matriz `.github/workflows/compasso.yml` verifica domínio, Conta, encerramento,
+consumidores standalone e restauração com PostgreSQL 18, além do CI geral em 16.
+Todos os dados e segredos desses ensaios são sintéticos.
+
 Regras invioláveis:
 
 1. Migrations rodam **só** a partir do comando raiz `pnpm db:migrate`: primeiro `@informach/db` aplica Drizzle, depois `@informach/ai-core` inicializa o storage Mastra (`ai_mastra`).

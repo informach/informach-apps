@@ -18,6 +18,9 @@ export function billingAvailability(env: BillingConfiguration, activeParticipati
     "cancel-purchase": changes,
     "cancel-subscription": changes,
     "cancel-plan-change": changes,
+    "preview-coordination": changes,
+    "accept-coordination": sales,
+    "decline-coordination": changes,
     refresh: maintenance,
     portal: maintenance && env.STRIPE_PORTAL_CONFIGURATION_ID.startsWith("bpc_"),
   };

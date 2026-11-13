@@ -1,6 +1,12 @@
 # Minha conta: preparação operacional do Compasso
 
-Estado em 10/11/2026: implementação local na branch `feat/compasso-migracao`. Ainda não há serviço/domínio/cron/webhook Compasso provisionado nem cobrança habilitada. Ver [implementação e evidências](../../docs/propostas/assinatura-web-2026-11-09/implementacao.md); este guia não comprova acesso ou configuração dos provedores.
+Estado em 13/11/2026: revisão na branch `feat/compasso-corte`, com o corte ainda
+pendente. Os registros de 11/11 abaixo documentam catálogo Stripe, serviços vazios,
+domínios e variáveis preparados; não houve homologação integral nem ativação
+registrada. Reconfirmar o estado remoto antes de operar. Ver
+[review atual](../../docs/propostas/assinatura-web-2026-11-09/review-2026-11-13.md)
+e [implementação](../../docs/propostas/assinatura-web-2026-11-09/implementacao.md).
+Este guia não comprova acesso ou configuração atual dos provedores.
 
 ## Composição e verificações locais
 
@@ -121,6 +127,22 @@ Em 11/11 o catálogo de teste foi criado com `--mode dev --apply` (produto `prod
 
 ## Sequência do corte (revista em 11/11/2026)
 
+**Complemento de 13/11 — manutenção coordenada aprovada.** Antes do DDL destrutivo,
+interromper as instâncias antigas dos cinco consumidores e impedir que novos
+deploys as reativem. Pausar os crons que escrevem nesses domínios e confirmar que
+execuções em andamento terminaram. Não apagar serviços do grafo IaC para pausá-los.
+Nos crons compartilhados, preservar as obrigações de Edi/Bastidores e os demais
+consumidores fora do corte; controlar os destinos Compasso separadamente.
+Resolver reservas de IA e conferir filas antes do backup final. Se um webhook
+ficar indisponível durante a janela, permitir reentrega; não responder sucesso
+antes da persistência. Guardar o inventário dos eventos e reconciliá-los antes
+de reabrir compras. O readiness só protege a promoção nova: não bloqueia escritores
+antigos já em execução nem certifica compatibilidade após remoção de colunas.
+
+O pedido atual autoriza implementar e concluir o corte após os gates; não é
+necessária outra confirmação genérica de fase. Aceites pessoais, inserção de
+credenciais e compra real continuam ações dos titulares, sem simulação pelo agente.
+
 1. Conciliação por titular sem bloqueios (`titular-reconciliation.mts`), restauração do backup real aprovada (`pnpm compasso:rehearse:restore`), CI verde e plano Railway só com adições.
 2. Catálogo live criado pela titular (`stripe-provision.mts --mode prod --apply` com o webhook da Conta) e segredos gravados nos serviços novos.
 3. `railway config apply` e merge na `main`, com aprovação da titular. O migrator aplica as 83 migrations do Compasso (tags de `0080_reflective_butterfly` a `0162_military_dexter_bennett`) de uma vez, depois da `0080_recreio` que já está em produção; `/api/ready` segura cada app. Antes do merge, `pnpm --filter @informach/db test` precisa passar com a `main` integrada: se outra frente tiver levado migrations à `main`, as do Compasso vão para depois delas no journal, ou o migrator as pula sem erro.
@@ -157,3 +179,24 @@ Sentry: projetos `conta` e `dia-de-estrela` criados em 11/11/2026 na organizaç�
 - **Plano do corte** (constantes ligadas, 11/11): 8 adições (os oito crons), 29 alterações (Conta e Dia de Estrela ganham fonte, build e start; variáveis da Conta por referência; padrões de observação dos consumidores; Missão Saber passa ao standalone) e nenhuma destruição.
 - **Redis:** a IaC declarava proxy TCP público na porta 6379 desde 17/10, mas o Railway não tem esse proxy hoje; o `apply` o recriaria e exporia o Redis. A branch declara só a rede privada. A `origin/main` ainda declara o proxy: um `apply` a partir dela reabriria o acesso público.
 - **Enquanto o corte não acontece:** um `apply` feito com as constantes desligadas, ou a partir da `origin/main`, apagaria os dois serviços vazios e seus domínios. Ninguém deve rodar `apply` fora do corte.
+
+## Verificação do comando de restauração — 13/11/2026
+
+`pnpm compasso:test:production-restore` executa a ferramenta operacional inteira
+contra um PostgreSQL 18 sintético: prefixo até `0080_recreio`, perfil/créditos e
+catálogo de referência sintéticos, dump, restauração com donos/permissões,
+migrator completo e repetição. Confere também que a origem não mudou. Não substitui
+a restauração do backup real. `pnpm compasso:test:restore` ensaia os históricos dos
+quatro apps com perfis, concessões e conteúdo representativo.
+
+A ferramenta real conserva um snapshot repeatable-read read-only enquanto
+`pg_dump --snapshot` lê. O arquivo privado recebe o dump pelo cliente Docker;
+não exige bind mount da pasta privada. A cópia no container é removida após o
+restore e novamente na limpeza, inclusive com `--keep`; o arquivo local também
+é removido. A espera usa TCP para não confundir o servidor temporário do initdb
+com o definitivo. O driver vem explicitamente do workspace db.
+
+Somente no teste com origem loopback, `COMPASSO_LOCAL_DUMP_HOST` permite o IP
+interno do container de origem na porta 5432: o cliente Node usa a porta publicada
+em loopback e o pg_dump usa a rede Docker. Esse ajuste é recusado para origens
+remotas e não deve ser configurado nos serviços de produção.

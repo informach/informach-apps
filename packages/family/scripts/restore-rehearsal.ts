@@ -23,6 +23,10 @@ const childEnv: NodeJS.ProcessEnv = {
 // Ignore inherited Docker endpoint overrides, then verify the selected local context.
 delete childEnv.DOCKER_HOST;
 delete childEnv.DOCKER_CONTEXT;
+delete childEnv.DOCKER_TLS;
+delete childEnv.DOCKER_TLS_VERIFY;
+delete childEnv.DOCKER_CERT_PATH;
+const localDocker = process.platform === "win32" ? [] : ["--host=unix:///var/run/docker.sock"];
 const migrations = fileURLToPath(new URL("../../db/src/migrations/", import.meta.url));
 const root = await mkdtemp(join(tmpdir(), "compasso-restore-"));
 let phase = "preflight";
@@ -31,7 +35,11 @@ const connections: ReturnType<typeof postgres>[] = [];
 const notices = new Map<string, number>();
 
 function docker(args: string[], allowFailure = false) {
-  const result = spawnSync("docker", args, { env: childEnv, windowsHide: true, encoding: "utf8" });
+  const result = spawnSync("docker", [...localDocker, ...args], {
+    env: childEnv,
+    windowsHide: true,
+    encoding: "utf8",
+  });
   if (result.error || result.status !== 0) {
     if (allowFailure) return null;
     throw new Error(`Docker command failed during ${phase}`);
@@ -188,8 +196,12 @@ function compareRecords(
   }
 }
 try {
-  const context = docker(["context", "inspect", "--format", "{{.Endpoints.docker.Host}}"]);
-  if (!context?.startsWith("npipe:////./pipe/")) throw new Error("Docker must be local on Windows");
+  if (process.platform === "win32") {
+    const context = docker(["context", "inspect", "--format", "{{.Endpoints.docker.Host}}"]);
+    if (!context?.startsWith("npipe:////./pipe/"))
+      throw new Error("Docker must be local on Windows");
+  }
+  const limits = docker(["info", "--format", "{{.MemoryLimit}}|{{.CPUCfsQuota}}"]);
   const image = docker(["image", "inspect", "postgres:18-alpine", "--format", "{{.Id}}"]);
   if (!image || !/^sha256:[a-f0-9]{64}$/.test(image))
     throw new Error("PostgreSQL 18 image unavailable locally");
@@ -209,10 +221,8 @@ try {
     "127.0.0.1::5432",
     "--tmpfs",
     "/var/lib/postgresql:rw",
-    "--memory",
-    "768m",
-    "--cpus",
-    "1",
+    ...(limits?.split("|")[0] === "true" ? ["--memory", "768m"] : []),
+    ...(limits?.split("|")[1] === "true" ? ["--cpus", "1"] : []),
     "--pull",
     "never",
     image,
@@ -224,7 +234,10 @@ try {
   if (!match) throw new Error("Unexpected PostgreSQL network binding");
   const port = Number(match[1]);
   const deadline = Date.now() + 60_000;
-  while (docker(["exec", containerName, "pg_isready", "-U", "postgres"], true) === null) {
+  while (
+    docker(["exec", containerName, "pg_isready", "-h", "127.0.0.1", "-U", "postgres"], true) ===
+    null
+  ) {
     if (Date.now() >= deadline) throw new Error("Disposable PostgreSQL did not become ready");
     await new Promise((done) => setTimeout(done, 1000));
   }

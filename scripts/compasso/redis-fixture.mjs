@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { writeFile } from "node:fs/promises";
+import { chmod, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 // Official Redis 7 Alpine image already used by the local environment, pinned by digest.
@@ -14,11 +14,13 @@ export async function createRedisFixture(directory) {
   await writeFile(
     path,
     `bind 0.0.0.0\nprotected-mode yes\nrequirepass ${password}\nsave ""\nappendonly no\n`,
-    // The official image runs as the `redis` user, which must read the bind
-    // mount on Linux. The file stays private: mkdtemp creates its directory
-    // with 0700, so no other host user can reach it.
+    // The image's redis user must read its copy. The source stays inside the
+    // private mkdtemp directory; no daemon access to that directory is needed.
     { flag: "wx", mode: 0o644 },
   );
+  // writeFile's mode is filtered by the process umask (often 0077 in cloud
+  // workspaces). Set the final copy mode explicitly inside the private folder.
+  await chmod(path, 0o644);
   function docker(args, input) {
     const result = spawnSync("docker", args, {
       windowsHide: true,
@@ -51,21 +53,22 @@ export async function createRedisFixture(directory) {
   }
   try {
     containerId = docker([
-      "run",
-      "--detach",
+      "create",
       "--name",
       name,
       "--label",
       `${LABEL}=${id}`,
       "--publish",
       "127.0.0.1::6379",
-      "--mount",
-      `type=bind,source=${path},target=/usr/local/etc/redis/redis.conf,readonly`,
       IMAGE,
       "redis-server",
-      "/usr/local/etc/redis/redis.conf",
+      "/tmp/compasso-redis.conf",
     ]);
     if (!/^[a-f0-9]{64}$/.test(containerId)) throw new Error("Unexpected Redis container identity");
+    // Stream through the client instead of bind mounting a host-private file:
+    // rootless or remote daemons cannot traverse the caller's 0700 directory.
+    docker(["cp", path, `${containerId}:/tmp/compasso-redis.conf`]);
+    docker(["start", containerId]);
     const published = docker(["port", containerId, "6379"]);
     const match = /^127\.0\.0\.1:(\d+)$/.exec(published);
     if (!match) throw new Error("Redis must be published only on a disposable loopback port");

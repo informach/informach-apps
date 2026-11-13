@@ -21,6 +21,9 @@ describe("billing admission during an operational sales pause", () => {
       "cancel-purchase": true,
       "cancel-subscription": true,
       "cancel-plan-change": true,
+      "preview-coordination": true,
+      "accept-coordination": false,
+      "decline-coordination": true,
       refresh: true,
       portal: true,
     });

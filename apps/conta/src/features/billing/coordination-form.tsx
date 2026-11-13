@@ -20,11 +20,15 @@ export type CoordinationSummary = {
 export function CoordinationForm({
   accountId,
   coordination,
-  enabled,
+  previewEnabled,
+  acceptEnabled,
+  declineEnabled,
 }: {
   accountId: string;
   coordination: CoordinationSummary;
-  enabled: boolean;
+  previewEnabled: boolean;
+  acceptEnabled: boolean;
+  declineEnabled: boolean;
 }) {
   const [state, action, pending] = useActionState<CoordinationFormState, FormData>(
     coordinationAction,
@@ -38,14 +42,16 @@ export function CoordinationForm({
         <h3>
           {coordination.state === "review"
             ? "Cobrança em conferência"
-            : coordination.deferUntil
+            : coordination.state === "applied" && coordination.deferUntil
               ? `Próxima cobrança adiada para ${day(coordination.deferUntil)}`
               : "Adiamento em andamento"}
         </h3>
         <p>
           {coordination.state === "review"
-            ? "Encontramos algo a conferir nesta cobrança. Nenhum valor extra é cobrado enquanto a conferência não termina."
-            : "Outro adulto trouxe um período já pago para a família. O valor e o plano continuam os mesmos, e nada foi reembolsado. A troca de plano fica disponível depois da cobrança adiada."}
+            ? "Encontramos algo a conferir nesta cobrança. A nova data ainda precisa ser confirmada."
+            : coordination.state === "applied"
+              ? "Outro adulto trouxe um período já pago para a família. O valor e o plano continuam os mesmos, e nada foi reembolsado. A troca de plano fica disponível depois da cobrança adiada."
+              : "Sua decisão foi registrada. Aguarde a confirmação da nova data antes de considerar a cobrança adiada."}
         </p>
       </section>
     );
@@ -62,7 +68,7 @@ export function CoordinationForm({
           <form action={action} className="form-stack">
             <input type="hidden" name="operation" value="preview" />
             <input type="hidden" name="accountId" value={accountId} />
-            <button type="submit" className="secondary" disabled={!enabled || pending}>
+            <button type="submit" className="secondary" disabled={!previewEnabled || pending}>
               {pending ? "Conferindo…" : preview ? "Atualizar prévia" : "Conferir datas"}
             </button>
           </form>
@@ -81,10 +87,15 @@ export function CoordinationForm({
                 <input type="hidden" name="revision" value={preview.revision} />
                 <input type="hidden" name="requestKey" value={preview.requestKey} />
                 <label className="check-label">
-                  <input type="checkbox" name="confirmed" required disabled={!enabled || pending} />
+                  <input
+                    type="checkbox"
+                    name="confirmed"
+                    required
+                    disabled={!acceptEnabled || pending}
+                  />
                   Aceito adiar minha próxima cobrança para {day(preview.deferUntil)}.
                 </label>
-                <button type="submit" disabled={!enabled || pending}>
+                <button type="submit" disabled={!acceptEnabled || pending}>
                   {pending ? "Confirmando…" : "Adiar minha cobrança"}
                 </button>
               </form>
@@ -93,7 +104,7 @@ export function CoordinationForm({
                 <input type="hidden" name="accountId" value={preview.accountId} />
                 <input type="hidden" name="revision" value={preview.revision} />
                 <input type="hidden" name="requestKey" value={preview.requestKey} />
-                <button type="submit" className="secondary" disabled={pending}>
+                <button type="submit" className="secondary" disabled={!declineEnabled || pending}>
                   Manter a data atual
                 </button>
               </form>

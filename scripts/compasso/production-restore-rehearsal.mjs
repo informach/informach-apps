@@ -16,15 +16,28 @@
 //   railway run --service Postgres --environment production -- pnpm compasso:rehearse:restore [--keep]
 import { spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { closeSync, mkdtempSync, openSync, readFileSync, rmSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
+import { isIP } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import postgres from "postgres";
+
+const postgres = createRequire(new URL("../../packages/db/package.json", import.meta.url))(
+  "postgres",
+);
 
 const sourceUrl = process.env.DATABASE_PUBLIC_URL;
 if (!sourceUrl) throw new Error("DATABASE_PUBLIC_URL is required");
+const localDumpHost = process.env.COMPASSO_LOCAL_DUMP_HOST;
+if (
+  localDumpHost &&
+  (!["127.0.0.1", "localhost"].includes(new URL(sourceUrl).hostname) || !isIP(localDumpHost))
+)
+  throw new Error("COMPASSO_LOCAL_DUMP_HOST only accepts an IP for a loopback fixture source");
 if (!process.env.npm_execpath) throw new Error("Run through `pnpm compasso:rehearse:restore`");
 const keep = process.argv.includes("--keep");
+if (process.argv.slice(2).some((argument) => argument !== "--keep"))
+  throw new Error("Unknown restoration rehearsal option");
 const root = resolve(import.meta.dirname, "../..");
 const workDirectory = mkdtempSync(join(tmpdir(), "compasso-restore-"));
 const databaseName = `compasso_restore_${randomBytes(8).toString("hex")}`;
@@ -53,42 +66,49 @@ function run(binary, args, options = {}) {
 function pgEnvironment(url) {
   const connection = new URL(url);
   return {
-    PGHOST: connection.hostname,
-    PGPORT: connection.port || "5432",
+    PGHOST: ["127.0.0.1", "localhost"].includes(connection.hostname)
+      ? (localDumpHost ?? "host.docker.internal")
+      : connection.hostname,
+    // This override is only for a standard PostgreSQL fixture container; the
+    // published loopback port and its internal 5432 are different endpoints.
+    PGPORT: localDumpHost ? "5432" : connection.port || "5432",
     PGUSER: decodeURIComponent(connection.username),
     PGPASSWORD: decodeURIComponent(connection.password),
     PGDATABASE: connection.pathname.slice(1),
     PGSSLMODE: connection.searchParams.get("sslmode") ?? "prefer",
+    PGCONNECT_TIMEOUT: "15",
   };
 }
 
 /** Facts that must be identical after restore and must survive migration. */
 async function facts(sql) {
-  return sql.begin("read only", async (tx) => {
-    const [server] = await tx`select current_setting('server_version_num')::int as version`;
-    const migrations = await tx`select count(*)::int as applied, max(created_at)::text as last
+  return sql.begin("isolation level repeatable read read only", readFacts);
+}
+async function readFacts(tx) {
+  const [server] = await tx`select current_setting('server_version_num')::int as version`;
+  const migrations = await tx`select count(*)::int as applied, max(created_at)::text as last
       from drizzle.__drizzle_migrations`;
-    const tables = await tx`select table_schema, table_name from information_schema.tables
+  const tables = await tx`select table_schema, table_name from information_schema.tables
       where table_type = 'BASE TABLE' and table_schema not in ('pg_catalog', 'information_schema')
       order by 1, 2`;
-    const counts = {};
-    for (const { table_schema: schema, table_name: name } of tables) {
-      const [row] = await tx`select count(*)::bigint::text as n from ${tx(schema)}.${tx(name)}`;
-      counts[`${schema}.${name}`] = Number(row.n);
-    }
-    const owners =
-      await tx`select n.nspname as schema, c.relname as name, pg_get_userbyid(c.relowner) as owner
+  const counts = {};
+  for (const { table_schema: schema, table_name: name } of tables) {
+    const [row] = await tx`select count(*)::bigint::text as n from ${tx(schema)}.${tx(name)}`;
+    counts[`${schema}.${name}`] = Number(row.n);
+  }
+  const owners =
+    await tx`select n.nspname as schema, c.relname as name, pg_get_userbyid(c.relowner) as owner
       from pg_class c join pg_namespace n on n.oid = c.relnamespace
       where c.relkind in ('r', 'p') and n.nspname not in ('pg_catalog', 'information_schema', 'pg_toast')
       order by 1, 2`;
-    const grants = await tx`select grantee, table_schema, count(*)::int as privileges
+  const grants = await tx`select grantee, table_schema, count(*)::int as privileges
       from information_schema.role_table_grants
       where table_schema not in ('pg_catalog', 'information_schema')
       group by 1, 2 order by 1, 2`;
-    const has = (key) => key in counts;
-    // Money and identity facts that the cutover must preserve exactly.
-    const [billing] = has("billing.credit_ledger")
-      ? await tx`select
+  const has = (key) => key in counts;
+  // Money and identity facts that the cutover must preserve exactly.
+  const [billing] = has("billing.credit_ledger")
+    ? await tx`select
           (select count(*)::int from billing.subscriptions) as subscriptions,
           (select count(*)::int from billing.customers) as customers,
           (select coalesce(sum(amount), 0)::bigint::text from billing.credit_ledger) as ledger_sum,
@@ -97,28 +117,31 @@ async function facts(sql) {
           (select md5(coalesce(string_agg(id::text || ':' || status::text || ':' || current_period_end::text, ',' order by id), ''))
              from billing.subscriptions) as subscriptions_digest,
           (select count(*)::int from billing.customers where app = 'dia-de-estrela') as dia_customers`
-      : [null];
-    const [identity] = await tx`select count(*)::int as users,
+    : [null];
+  const [identity] = await tx`select count(*)::int as users,
       md5(coalesce(string_agg(id || ':' || email, ',' order by id), '')) as users_digest from core.users`;
-    return {
-      server: server.version,
-      migrations: migrations[0],
-      counts,
-      owners,
-      grants,
-      billing,
-      identity,
-    };
-  });
+  return {
+    server: server.version,
+    migrations: migrations[0],
+    counts,
+    owners,
+    grants,
+    billing,
+    identity,
+  };
 }
 
 async function waitReady() {
   const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) {
-    const ready = spawnSync("docker", ["exec", containerName, "pg_isready", "-U", "postgres"], {
-      encoding: "utf8",
-      windowsHide: true,
-    });
+    const ready = spawnSync(
+      "docker",
+      ["exec", containerName, "pg_isready", "-h", "127.0.0.1", "-U", "postgres"],
+      {
+        encoding: "utf8",
+        windowsHide: true,
+      },
+    );
     if (ready.status === 0) return;
     await new Promise((done) => setTimeout(done, 500));
   }
@@ -142,15 +165,47 @@ function migrator(targetUrl) {
 
 let target;
 let containerStarted = false;
+const failures = [];
 const report = {};
 try {
   const source = postgres(sourceUrl, { max: 1, connect_timeout: 15, prepare: false });
   let before;
   let roles;
   try {
-    before = await facts(source);
-    roles = await source`select rolname from pg_roles
-      where rolname !~ '^pg_' and rolname not in ('postgres') order by 1`;
+    // The inventory and pg_dump must observe exactly the same committed data.
+    // Keep the exported snapshot alive until pg_dump has finished reading it.
+    await source.begin("isolation level repeatable read read only", async (tx) => {
+      const [snapshot] = await tx`select pg_export_snapshot() as id`;
+      before = await readFacts(tx);
+      if (Math.floor(before.server / 10000) !== 18)
+        throw new Error(`Production is PostgreSQL ${before.server}; use matching client tools`);
+      roles = await tx`select rolname from pg_roles
+        where rolname !~ '^pg_' and rolname not in ('postgres') order by 1`;
+      // Stream the dump through the client into a private file. Bind mounts
+      // cannot reach this private directory with a rootless/remote daemon.
+      const dumpFile = openSync(dumpPath, "wx", 0o600);
+      try {
+        run(
+          "docker",
+          [
+            "run",
+            "--rm",
+            "--add-host=host.docker.internal:host-gateway",
+            ...Object.keys(pgEnvironment(sourceUrl)).flatMap((name) => ["-e", name]),
+            IMAGE,
+            "pg_dump",
+            "--format=custom",
+            `--snapshot=${snapshot.id}`,
+          ],
+          {
+            env: { ...process.env, ...pgEnvironment(sourceUrl) },
+            stdio: ["ignore", dumpFile, "pipe"],
+          },
+        );
+      } finally {
+        closeSync(dumpFile);
+      }
+    });
   } finally {
     await source.end();
   }
@@ -165,21 +220,6 @@ try {
     users: before.identity.users,
   };
 
-  run(
-    "docker",
-    [
-      "run",
-      "--rm",
-      ...Object.keys(pgEnvironment(sourceUrl)).flatMap((name) => ["-e", name]),
-      "-v",
-      `${workDirectory}:/backup`,
-      IMAGE,
-      "pg_dump",
-      "--format=custom",
-      `--file=/backup/${dumpName}`,
-    ],
-    { env: { ...process.env, ...pgEnvironment(sourceUrl) } },
-  );
   const dump = readFileSync(dumpPath);
   report.dump = {
     bytes: statSync(dumpPath).size,
@@ -198,14 +238,13 @@ try {
       "POSTGRES_PASSWORD",
       "--publish",
       "127.0.0.1::5432",
-      "--volume",
-      `${workDirectory}:/backup`,
       IMAGE,
     ],
     { env: { ...process.env, POSTGRES_PASSWORD: temporaryPassword } },
   );
   containerStarted = true;
   await waitReady();
+  run("docker", ["cp", dumpPath, `${containerName}:/tmp/${dumpName}`]);
   const exec = (args) =>
     run("docker", ["exec", "--env", "PGPASSWORD", containerName, ...args], {
       env: { ...process.env, PGPASSWORD: temporaryPassword },
@@ -228,8 +267,9 @@ try {
     "postgres",
     "--dbname",
     databaseName,
-    `/backup/${dumpName}`,
+    `/tmp/${dumpName}`,
   ]);
+  exec(["rm", "-f", `/tmp/${dumpName}`]);
   const port = run("docker", ["port", containerName, "5432/tcp"]).split(":").at(-1);
   if (!port || !/^\d+$/.test(port)) throw new Error("Could not read mapped port");
   const targetUrl = `postgresql://postgres:${temporaryPassword}@127.0.0.1:${port}/${databaseName}`;
@@ -277,11 +317,37 @@ try {
   report.repeat.unchanged = true;
   if (keep) report.kept = { container: containerName, port: Number(port), database: databaseName };
   console.log(JSON.stringify(report, null, 2));
+} catch (error) {
+  failures.push(error);
 } finally {
-  await target?.end();
-  if (containerStarted && !keep)
-    spawnSync("docker", ["rm", "--force", containerName], { stdio: "ignore", windowsHide: true });
+  try {
+    await target?.end();
+  } catch (error) {
+    failures.push(error);
+  }
+  if (containerStarted) {
+    const removed = spawnSync("docker", ["exec", containerName, "rm", "-f", `/tmp/${dumpName}`], {
+      stdio: "ignore",
+      windowsHide: true,
+      timeout: 30_000,
+    });
+    if (removed.status !== 0) failures.push(new Error("Unable to remove the container's dump"));
+    if (!keep) {
+      const stopped = spawnSync("docker", ["rm", "--force", "--volumes", containerName], {
+        stdio: "ignore",
+        windowsHide: true,
+        timeout: 30_000,
+      });
+      if (stopped.status !== 0)
+        failures.push(new Error("Unable to remove the restoration container"));
+    }
+  }
   // The dump holds personal data: it never outlives the run, even with --keep.
-  rmSync(dumpPath, { force: true });
-  if (!keep) rmSync(workDirectory, { recursive: true, force: true });
+  try {
+    rmSync(dumpPath, { force: true });
+    if (!keep) rmSync(workDirectory, { recursive: true, force: true });
+  } catch (error) {
+    failures.push(error);
+  }
 }
+if (failures.length) throw new AggregateError(failures, "Restoration rehearsal failed");

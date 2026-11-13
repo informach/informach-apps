@@ -134,7 +134,9 @@ export function BillingPanel({
         <CoordinationForm
           accountId={selected.account.id}
           coordination={data.coordination}
-          enabled={data.operations["change-plan"]}
+          previewEnabled={data.operations["preview-coordination"]}
+          acceptEnabled={data.operations["accept-coordination"]}
+          declineEnabled={data.operations["decline-coordination"]}
         />
       )}
       {group && data.legacyContracts && data.legacyContracts.contracts.length > 0 && (

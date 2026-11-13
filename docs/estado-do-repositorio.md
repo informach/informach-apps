@@ -1,8 +1,16 @@
 # Estado do trabalho no repositório
 
-Atualizado em 11/11/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
+Atualizado em 13/11/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
 
 ## Compasso: migração em implementação (10/11/2026)
+
+**13/11 — revisão e conclusão autorizadas:** o titular reconfirmou apenas
+pagantes internos, política vigente e manutenção coordenada. A retomada usa a
+branch `feat/compasso-corte` e o PR #35. Correções de portão de migrations,
+backup consistente, coordenação de cobrança e fixtures estão em verificação,
+com matriz PostgreSQL 18 acrescentada ao CI. Não houve corte: esta sessão ainda
+precisa de acesso verificado aos provedores e ao banco real. Achados, provas e
+pendências em [review de 13/11](propostas/assinatura-web-2026-11-09/review-2026-11-13.md).
 
 O titular autorizou a migração completa do **Compasso** e confirmou R$ 49,90/mês ou R$ 499/ano, dois adultos, quatro dependentes e teste de 14 dias sem cartão. A política aprovada inclui 200 créditos mensais sem acumular, 20 no teste e recargas sem vencimento de 100/R$ 14,90, 300/R$ 39,90 e 1.000/R$ 99,90, preservando validade e poder de uso dos saldos antigos. Recreio, Morada e Suíte Edi permanecem fora do Compasso. Execução na branch `feat/compasso-migracao`, central `apps/conta` na porta 3011. A [implementação](propostas/assinatura-web-2026-11-09/implementacao.md) é o registro detalhado vigente; incrementos anteriores preservam a evidência histórica.
 

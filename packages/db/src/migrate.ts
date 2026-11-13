@@ -4,6 +4,8 @@ import { config as loadEnv } from "dotenv";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
+import { assessMigrationHistory } from "./migration-history";
+import journal from "./migrations/meta/_journal.json" with { type: "json" };
 
 loadEnv({
   path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..", ".env"),
@@ -17,13 +19,28 @@ async function main() {
 
   console.log("[db:migrate] connecting to database...");
   const migrationsClient = postgres(databaseUrl, { max: 1 });
-  const db = drizzle(migrationsClient);
-
-  console.log("[db:migrate] applying migrations from ./src/migrations");
-  await migrate(db, { migrationsFolder: "./src/migrations" });
-
-  console.log("[db:migrate] done.");
-  await migrationsClient.end();
+  const expected = journal.entries.map((entry) => entry.when);
+  try {
+    const [table] = await migrationsClient`
+      select to_regclass('drizzle.__drizzle_migrations')::text as name`;
+    const readHistory = async () => {
+      const rows = await migrationsClient`
+        select created_at::text as applied from drizzle.__drizzle_migrations order by created_at, id`;
+      return rows.map((row) => (row.applied === null ? NaN : Number(row.applied)));
+    };
+    const before = assessMigrationHistory(expected, table?.name ? await readHistory() : []);
+    if (before === "inconsistent")
+      throw new Error("Migration history is inconsistent; reconcile it before applying migrations");
+    console.log("[db:migrate] applying migrations from ./src/migrations");
+    await migrate(drizzle(migrationsClient), {
+      migrationsFolder: fileURLToPath(new URL("./migrations", import.meta.url)),
+    });
+    if (assessMigrationHistory(expected, await readHistory()) !== "ready")
+      throw new Error("Migration history is incomplete after migration");
+    console.log("[db:migrate] done.");
+  } finally {
+    await migrationsClient.end();
+  }
 }
 
 main().catch((error) => {

@@ -60,13 +60,9 @@ export async function coordinationAction(
         return { ok: false, message: "Confirme seu e-mail para continuar." };
       const participation = await accountParticipation(ctx.actor.id);
       const operations = billingAvailability(getEnv(), participation.state === "active");
-      // Moving a charge is a commercial change, gated like a plan change.
-      // Keeping the current date changes nothing and stays available.
-      if (
-        !(input.operation === "decline"
-          ? operations["cancel-plan-change"]
-          : operations["change-plan"])
-      )
+      // Reading the terms must remain possible during a sales pause so the
+      // payer can decline. Only accepting admits a new commercial change.
+      if (!operations[`${input.operation}-coordination`])
         return { ok: false, message: "Esta operação não está disponível agora." };
       try {
         const deps = getBillingMaintenance().coordinationDeps;

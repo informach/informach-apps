@@ -66,6 +66,8 @@ jobs:
 
       - run: node --test scripts/compasso/postgres-fixture.test.mjs
 
+      - run: node --test scripts/compasso/redis-fixture.test.mjs
+
       - run: pnpm compasso:test:integration
 
       - run: pnpm db:migrate
