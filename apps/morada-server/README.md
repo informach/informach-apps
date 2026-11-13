@@ -111,6 +111,8 @@ Fechamentos e o que o cliente faz com cada um estão em `FECHAMENTO`, no protoco
 
 Os testes usam a plataforma em memória de `@informach/recreio/testing` e conexões em memória, com o tempo controlado: cada passo é dado pelo teste.
 
+O caso de queda confere a chegada da fila quando ela termina e, depois, a liberação da reserva ao vencer a janela de graça. A posição após essa janela não é fixa: a autonomia continua ativa, e a semente de cada mundo pode levar o morador a outra atividade.
+
 | Arquivo | O que prova |
 | --- | --- |
 | `test/convivio.test.ts` | Duas contas no mesmo mundo e na mesma instância; cada uma vê o apelido da outra; cada uma dirige um morador; queda sem aviso; retomada; diário antes do aviso; hibernação e volta |
