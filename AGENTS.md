@@ -4,7 +4,7 @@ Este é o ponto de entrada permanente para trabalhar no repositório `informach-
 
 ## Antes de começar
 
-1. Confira a branch, `git status` e o diff. Preserve alterações existentes; não assuma que pertencem à tarefa atual.
+1. Trabalhe na `main`, conforme a preferência explícita do titular: commits e merges locais na `main`, seguidos de push para `origin/main`. Só use outra branch quando o titular pedir. Confira `git status` e o diff e preserve alterações existentes; não assuma que pertencem à tarefa atual.
 2. Leia o estado do trabalho e os guias da área afetada. Use o contexto já documentado; não peça ao usuário para explicar novamente o repositório ou os provedores.
 3. Confira scripts e versões nos manifests, no lockfile e nos workflows. Documentação de versões candidatas não autoriza atualizar dependências automaticamente.
 4. Identifique quais apps consomem um package antes de mudá-lo. Alterações compartilhadas precisam verificar os consumidores afetados.
