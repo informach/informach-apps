@@ -88,8 +88,9 @@ da Conta e Dia de Estrela no grafo, sem conectar fontes. Ao habilitar as duas
 flags no corte, o grafo retira exatamente os sete serviços da tabela e acrescenta
 os oito jobs acima. Nunca voltar as flags após lançar para tentar rollback.
 
-`pnpm compasso:test:infrastructure` avalia os dois grafos offline e verifica esse
-contrato e a preservação dos recursos independentes. Ele não consulta a API nem
+`pnpm compasso:test:infrastructure` força os dois estados em cópias descartáveis,
+independentemente das flags versionadas, e verifica o contrato e a preservação
+dos recursos independentes. Ele não consulta a API nem
 substitui `railway config plan` contra o ambiente real. Antes do apply, revisar
 o plano inteiro: as únicas destruições esperadas são os sete serviços listados,
 depois que suas obrigações estiverem cobertas. Parar diante de qualquer exclusão

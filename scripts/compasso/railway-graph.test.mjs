@@ -15,9 +15,11 @@ const context = createRailwayContext({
 async function graph(launched) {
   const target = new URL(`.compasso-graph-${randomUUID()}.ts`, sourceUrl);
   let source = await readFile(sourceUrl, "utf8");
-  if (launched)
-    for (const flag of ["ESTRELA_LAUNCHED", "COMPASSO_LAUNCHED"])
-      source = source.replace(`const ${flag} = false;`, `const ${flag} = true;`);
+  for (const flag of ["ESTRELA_LAUNCHED", "COMPASSO_LAUNCHED"]) {
+    const declaration = new RegExp(`const ${flag} = (?:true|false);`);
+    assert.match(source, declaration, `${flag} must remain an explicit deployment decision`);
+    source = source.replace(declaration, `const ${flag} = ${launched};`);
+  }
   try {
     await writeFile(target, source, { flag: "wx" });
     const loaded = await import(target.href);
