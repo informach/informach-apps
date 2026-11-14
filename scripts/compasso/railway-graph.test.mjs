@@ -61,6 +61,8 @@ test("preparation retains the existing central services; cutover retires only th
       "cron-dia-de-estrela-alertas",
     ].sort(),
   );
+  assert.equal(after.get("cron-conta-billing").deploy.cronSchedule, "*/5 * * * *");
+  assert.equal(after.get("@informach/conta").deploy.startCommand, "HOSTNAME=0.0.0.0 pnpm start:conta");
   for (const name of [
     "Postgres",
     "Redis",

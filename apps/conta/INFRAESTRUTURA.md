@@ -72,7 +72,8 @@ assinados da origem; não criar outra rotina só para repetir essa fila.
 O corte acrescenta oito jobs necessários: `cron-conta-billing`,
 `cron-conta-account-maintenance`, os cinco `cron-<app>-account-departure` e
 `cron-dia-de-estrela-alertas`. Cada worker de domínio recebe somente o segredo
-do seu app. O financeiro roda por minuto; os outros, a cada cinco minutos.
+do seu app. Os jobs rodam a cada cinco minutos, intervalo mínimo aceito pelo Railway;
+monitorar a fila financeira e sua latência conforme o volume de contratos.
 Não manter os sete jobs financeiros antigos junto com o novo por tempo indefinido.
 
 A quantidade de jobs financeiros cai de sete para um. A quantidade total de

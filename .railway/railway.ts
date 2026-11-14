@@ -500,7 +500,7 @@ export default defineRailway((ctx) => {
         ...WORKSPACE_FILES,
       ],
     },
-    start: "pnpm start:conta",
+    start: "HOSTNAME=0.0.0.0 pnpm start:conta",
     healthcheck: "/api/ready",
     healthcheckTimeout: 30,
     replicas: { [REGION]: 1 },
@@ -550,7 +550,7 @@ export default defineRailway((ctx) => {
     });
   });
   const contaCrons = [
-    { job: "billing", schedule: "* * * * *", timeout: 300 },
+    { job: "billing", schedule: "*/5 * * * *", timeout: 300 },
     { job: "account-maintenance", schedule: "*/5 * * * *", timeout: 300 },
   ].map(({ job, schedule, timeout }) =>
     service(`cron-conta-${job}`, {
