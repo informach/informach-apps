@@ -114,7 +114,9 @@ export const postgresRateLimitStorage: RateLimitStorage = {
         target: rateLimitTable.key,
         set: {
           count: sql<number>`case when ${rateLimitTable.lastRequest} > ${windowStart} then ${rateLimitTable.count} + 1 else 1 end`,
-          lastRequest: now,
+          // Keep the start of the fixed window. Updating it on every request
+          // turns a temporary limit into a lockout that retries can prolong.
+          lastRequest: sql<number>`case when ${rateLimitTable.lastRequest} > ${windowStart} then ${rateLimitTable.lastRequest} else ${now} end`,
         },
       })
       .returning({

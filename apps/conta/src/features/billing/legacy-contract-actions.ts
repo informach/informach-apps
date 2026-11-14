@@ -1,4 +1,5 @@
 "use server";
+import { RateLimitError } from "@informach/auth/server-actions";
 import { BillingError } from "@informach/billing";
 import {
   confirmRecentLegacyContractAcceptance,
@@ -44,10 +45,11 @@ export async function legacyContractAction(
 ): Promise<LegacyContractFormState> {
   const parsed = schema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { ok: false, message: "Confira a família e a confirmação." };
-  return getActions()
+  const action = getActions()
     .input(schema)
     .auth({ require: "user" })
-    .rateLimit({ key: "conta:legacy-contract", max: 4, window: "1m" })
+    // A payer may need to preview and confirm several legacy subscriptions.
+    .rateLimit({ key: "conta:legacy-contract", max: 20, window: "1m" })
     .run(async ({ ctx, input }): Promise<LegacyContractFormState> => {
       if (!ctx.actor?.emailVerified)
         return { ok: false, message: "Confirme seu e-mail para continuar." };
@@ -106,5 +108,12 @@ export async function legacyContractAction(
               : "A conferência não terminou. Tente novamente em instantes.",
         };
       }
-    })(parsed.data);
+    });
+  try {
+    return await action(parsed.data);
+  } catch (error) {
+    if (error instanceof RateLimitError)
+      return { ok: false, message: "Muitas tentativas. Aguarde um minuto e tente novamente." };
+    throw error;
+  }
 }

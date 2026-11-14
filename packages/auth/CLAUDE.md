@@ -2,6 +2,11 @@
 
 ## Entrada web compartilhada em implementação
 
+O limitador PostgreSQL das Server Actions usa janela fixa atômica: a primeira
+requisição inicia o prazo e novas tentativas não o prolongam. A conferência de
+contratos admite operações suficientes para prévias e confirmações de vários apps;
+ao atingir o limite, a Conta informa o usuário para aguardar.
+
 `webSso` configura a central como emissora OIDC ou um app Compasso como cliente. O contrato puro de URLs fica em `@informach/auth/web-sso-contract`; provisão e plugins, em `@informach/auth/web-sso`. A central usa `webSsoProvider` no cliente React para conservar a consulta assinada durante login/verificação de e-mail. URLs e portas vêm do catálogo, com callbacks exatos por app e ambiente. Edi e Bastidores não participam desse emissor.
 
 O fluxo usa authorization code de uso único, PKCE S256, estado vinculado ao navegador e ID token com assinatura, issuer, audience e nonce conferidos pelo Better Auth 1.7.10. A identidade `sub` aponta para a conta existente e verificada no banco; os apps não fazem cadastro implícito. O prazo de 10 minutos também governa a consulta assinada da tela de entrada nessa versão da biblioteca. Tokens de acesso/identidade duram 120 segundos; os clientes não recebem refresh token. Cookies ficam no host do app, com prefixo próprio.

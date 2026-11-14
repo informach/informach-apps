@@ -176,6 +176,7 @@ try {
       "run",
       "--config",
       "vitest.integration.config.ts",
+      "src/server-actions-rate-limit.integration.ts",
       "src/web-sso.integration.ts",
       "src/web-session-freshness.integration.ts",
       "src/web-email-change.integration.ts",
