@@ -298,8 +298,9 @@ export function AnnotationsPanel(): ReactNode {
     </button>
   );
   const shapeColor = (s: ShapeTile): string => {
-    const base = ANNOTATION_PRESETS.find((p) => p.kind === s.kind)!.spec;
-    return tint(inPalette({ ...base, ...s.spec } as Annotation, palette).color);
+    const preset = ANNOTATION_PRESETS.find((p) => p.kind === s.kind);
+    if (!preset) throw new Error("O modelo de anotação não foi encontrado.");
+    return tint(inPalette({ ...preset.spec, ...s.spec } as Annotation, palette).color);
   };
   return (
     <section className="library annotations">
@@ -335,17 +336,23 @@ export function AnnotationsPanel(): ReactNode {
 
       <h3 className="ann-group">Textos e indicações</h3>
       <div className="ann-grid">
-        {ANNOTATION_PRESETS.filter((p) => ICONS[p.kind]).map((p) =>
-          tile(
-            p.kind,
-            ICONS[p.kind]!,
-            p.label,
-            HINTS[p.kind]!,
-            tint(inPalette(p.spec, palette).color),
-            () => void run(p.kind, () => addAnnotation(p.kind)),
-            { kind: p.kind },
-          ),
-        )}
+        {ANNOTATION_PRESETS.flatMap((p) => {
+          const icon = ICONS[p.kind];
+          if (!icon) return [];
+          const hint = HINTS[p.kind];
+          if (!hint) throw new Error("A descrição da anotação não foi encontrada.");
+          return [
+            tile(
+              p.kind,
+              icon,
+              p.label,
+              hint,
+              tint(inPalette(p.spec, palette).color),
+              () => void run(p.kind, () => addAnnotation(p.kind)),
+              { kind: p.kind },
+            ),
+          ];
+        })}
       </div>
 
       <h3 className="ann-group">Caixas e listas</h3>

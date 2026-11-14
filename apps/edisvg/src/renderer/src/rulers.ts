@@ -45,7 +45,7 @@ export function rulerMarkup(state: State) {
 function stageMapping(stage: HTMLElement) {
   const svg = stage.querySelector<SVGSVGElement>(".scene-artwork>svg"),
     matrix = svg?.getScreenCTM();
-  if (!matrix || !matrix.a || !matrix.d) return null;
+  if (!matrix?.a || !matrix.d) return null;
   const box = stage.getBoundingClientRect(),
     left = box.left + stage.clientLeft,
     top = box.top + stage.clientTop;

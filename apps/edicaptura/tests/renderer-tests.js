@@ -6,7 +6,7 @@ const lines = [];
 let changed = 0;
 const assert = (value, label) => {
   if (!value) throw new Error(label);
-  lines.push("PASS: " + label);
+  lines.push(`PASS: ${label}`);
   results.textContent = lines.join("\n");
 };
 try {
@@ -85,5 +85,5 @@ try {
   results.textContent += "\nTodos os testes passaram.";
 } catch (error) {
   results.dataset.status = "failed";
-  results.textContent = lines.join("\n") + "\nFAIL: " + error.stack;
+  results.textContent = `${lines.join("\n")}\nFAIL: ${error.stack}`;
 }

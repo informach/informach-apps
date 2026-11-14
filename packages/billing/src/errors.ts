@@ -5,6 +5,25 @@ export class BillingError extends Error {
   }
 }
 
+export const INVOICE_VERIFICATION_PENDING =
+  "@informach/billing: Subscription invoice verification pending";
+
+/** A provider observation must be retried without acknowledging the webhook. */
+export class InvoiceVerificationPendingError extends Error {
+  constructor(cause: unknown) {
+    const safeNames = new Set([
+      "AbortError",
+      "TimeoutError",
+      "StripeConnectionError",
+      "StripeAPIError",
+      "BillingError",
+    ]);
+    const name = cause instanceof Error && safeNames.has(cause.name) ? cause.name : "ProviderError";
+    super(INVOICE_VERIFICATION_PENDING, { cause: new Error(name) });
+    this.name = "InvoiceVerificationPendingError";
+  }
+}
+
 /** A complete provider observation contradicts previously recorded payment evidence. */
 export class PaymentEvidenceMismatchError extends BillingError {
   constructor() {

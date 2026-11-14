@@ -9,7 +9,7 @@ import {
   familyChallenge,
   setFamilyChallenge,
 } from "@/features/learning/repository";
-import { fixtureAuthority, seedStudent, seedStudents } from "./family-fixture";
+import { fixtureAuthority, seedStudents } from "./family-fixture";
 
 const owner = randomUUID();
 const stranger = randomUUID();

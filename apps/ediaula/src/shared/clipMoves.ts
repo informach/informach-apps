@@ -83,7 +83,8 @@ export function planMoves(
   // How far each clip moves: its own request, or the request of a clip of its group.
   const deltas = new Map<string, { delta: number; by: string }>();
   for (const r of requests) {
-    const c = byId.get(r.id)!;
+    const c = byId.get(r.id);
+    if (!c) throw new Error("O clipe solicitado não está no projeto.");
     if ((r.start === undefined) === (r.delta === undefined))
       return {
         ok: false,
@@ -103,7 +104,8 @@ export function planMoves(
   const locked: string[] = [];
   const moves = new Map<string, number>();
   for (const [id, { delta }] of deltas) {
-    const c = byId.get(id)!;
+    const c = byId.get(id);
+    if (!c) throw new Error("O clipe do grupo não está no projeto.");
     if (lockedTracks.has(c.trackId)) locked.push(id);
     else if (Math.abs(delta) > EPS) moves.set(id, c.start + delta);
   }
@@ -113,9 +115,10 @@ export function planMoves(
         ok: false,
         error: `O clipe ${id} começaria antes do início da aula (${start.toFixed(2)} s). Nada foi feito.`,
       };
-  const clips = p.clips.map((c) =>
-    moves.has(c.id) ? { ...c, start: Math.max(0, moves.get(c.id)!) } : c,
-  );
+  const clips = p.clips.map((c) => {
+    const start = moves.get(c.id);
+    return start === undefined ? c : { ...c, start: Math.max(0, start) };
+  });
   const overlap = firstOverlap(clips, new Set(moves.keys()));
   if (overlap) return { ok: false, error: overlap };
   const packed = packedBack(p, clips);
@@ -123,7 +126,11 @@ export function planMoves(
   return {
     ok: true,
     clips,
-    moved: [...moves].map(([id, to]) => ({ id, from: byId.get(id)!.start, to })),
+    moved: [...moves].map(([id, to]) => {
+      const clip = byId.get(id);
+      if (!clip) throw new Error("O clipe movido não está no projeto.");
+      return { id, from: clip.start, to };
+    }),
     locked,
   };
 }

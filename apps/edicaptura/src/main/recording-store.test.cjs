@@ -463,7 +463,7 @@ test("ranges are single bounded safe integers; capabilities authorize a large sp
   assert.equal(await response.text(), "range!");
   assert.equal(response.headers.get("Content-Range"), "bytes 599999994-599999999/600000000");
   assert.equal((await streams.respond(request("bytes=0-2,4-6"))).status, 416);
-  assert.equal((await streams.respond(new Request(url + "/../secret"))).status, 403);
+  assert.equal((await streams.respond(new Request(`${url}/../secret`))).status, 403);
   assert.equal((await streams.respond(new Request(url, { method: "POST" }))).status, 405);
   const head = await streams.respond(new Request(url, { method: "HEAD" }));
   assert.equal(head.headers.get("Content-Length"), "600000000");

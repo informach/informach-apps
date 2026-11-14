@@ -1,5 +1,6 @@
 import type { TextStyle } from "@shared/doc";
 import { validateDimensions } from "@shared/documentFormat";
+import { requireCanvas2d } from "./canvas";
 
 /**
  * Text layers are drawn with the 2D canvas into a tight image, then placed like any image layer.
@@ -54,7 +55,7 @@ export function renderText(t: TextStyle): TextImage {
   const hit = cache.get(key);
   if (hit) return hit;
   ensureFont(t);
-  const measure = document.createElement("canvas").getContext("2d")!;
+  const measure = requireCanvas2d(document.createElement("canvas"));
   measure.font = fontString(t);
   measure.letterSpacing = `${t.letterSpacing}px`;
   const lines: string[] = [];
@@ -93,7 +94,7 @@ export function renderText(t: TextStyle): TextImage {
   const canvas = document.createElement("canvas");
   canvas.width = w;
   canvas.height = h;
-  const ctx = canvas.getContext("2d")!;
+  const ctx = requireCanvas2d(canvas);
   ctx.font = fontString(t);
   ctx.letterSpacing = `${t.letterSpacing}px`;
   ctx.fillStyle = t.color;

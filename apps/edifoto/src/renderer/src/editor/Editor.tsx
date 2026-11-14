@@ -3,12 +3,7 @@ import { type ReactNode, useEffect } from "react";
 import { actions, attempt } from "@/lib/actions";
 import { pasteImage } from "@/lib/files";
 import { crop, setLayerProps, setTransform } from "@/lib/ops";
-import {
-  clearSelection,
-  deleteSelectedPixels,
-  invertSelection,
-  selectionMask,
-} from "@/lib/selection";
+import { clearSelection, deleteSelectedPixels, invertSelection } from "@/lib/selection";
 import { finishPen } from "@/lib/vector";
 import { fitView, zoomStep, zoomTo } from "@/lib/view";
 import { useAssistant } from "@/state/assistant";
@@ -233,7 +228,8 @@ export function Editor(): ReactNode {
       }
       if (/^[0-9]$/.test(k) && doc.activeId && (ui.tool === "move" || ui.tool === "hand")) {
         const v = k === "0" ? 1 : Number(k) / 10;
-        run(() => setLayerProps(doc.activeId!, { opacity: v }));
+        const activeId = doc.activeId;
+        run(() => setLayerProps(activeId, { opacity: v }));
         return;
       }
       if (k.startsWith("arrow") && ui.tool === "move" && doc.activeId) {

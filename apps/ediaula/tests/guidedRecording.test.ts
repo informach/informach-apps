@@ -13,6 +13,7 @@ import {
 } from "../src/shared/guidedRecording.ts";
 import { runGuided, screenClock } from "../src/shared/guidedRunner.ts";
 import type { GlideResult } from "../src/shared/helperProtocol.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 const target: GuidedTarget = {
   x: 500,
@@ -183,7 +184,7 @@ test("runner glides once per step, dwells before each click and preserves post-c
     assert.ok(click.at - arrival.at >= plan.dwell - 0.001);
   }
   assert.equal(s.events.filter((e) => e.op === "move").length, 0);
-  assert.ok(s.time() - clicks.at(-1)!.at >= plan.after - 0.001);
+  assert.ok(s.time() - assertDefined(clicks.at(-1)).at >= plan.after - 0.001);
 });
 
 test("a pause halts the glide where it is and the same curve resumes afterwards", async () => {
@@ -290,9 +291,9 @@ test("separate phrase start anticipates speech while retaining the actual click 
   assert.equal(step.actAt, schedule.lead + 3);
   const s = simulation();
   await executeGuided(p, s.input, s.time, s.paused, s.controller.signal, s.advance);
-  const arrival = s.events.filter((e) => e.op === "arrive").at(-1)!;
+  const arrival = assertDefined(s.events.filter((e) => e.op === "arrive").at(-1));
   assert.ok(arrival.at <= step.speechAt - GUIDED_DEFAULTS.anticipation + 0.04);
-  assert.ok(s.events.find((e) => e.op === "click")!.at >= step.actAt);
+  assert.ok(assertDefined(s.events.find((e) => e.op === "click")).at >= step.actAt);
 });
 
 test("phrase timing validation includes overlap, invalid values and legacy plans", () => {

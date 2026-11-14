@@ -3,6 +3,7 @@ import type { Adjust, Doc, Gradient, Layer, Transform } from "@shared/doc";
 import { validateDimensions } from "@shared/documentFormat";
 import { inverse, localPlacement, maskPlacement } from "@shared/placement";
 import { getBitmap } from "./bitmaps";
+import { requireCanvas2d } from "./canvas";
 import { CLEAR_FS, DISPLAY_FS, FULLSCREEN_VS, LAYER_FS } from "./shaders";
 import { renderText } from "./text";
 import { renderVector } from "./vector";
@@ -110,7 +111,9 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
     gl.enableVertexAttribArray(0);
     gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-    this.white = gl.createTexture()!;
+    const white = gl.createTexture();
+    if (!white) throw new Error("Não foi possível criar a textura gráfica.");
+    this.white = white;
     gl.bindTexture(gl.TEXTURE_2D, this.white);
     gl.texImage2D(
       gl.TEXTURE_2D,
@@ -153,14 +156,16 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
   private program(fs: string): WebGLProgram {
     const gl = this.gl;
     const compile = (type: number, src: string): WebGLShader => {
-      const s = gl.createShader(type)!;
+      const s = gl.createShader(type);
+      if (!s) throw new Error("Não foi possível criar o shader gráfico.");
       gl.shaderSource(s, src);
       gl.compileShader(s);
       if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
         throw new Error(`Shader: ${gl.getShaderInfoLog(s)}`);
       return s;
     };
-    const p = gl.createProgram()!;
+    const p = gl.createProgram();
+    if (!p) throw new Error("Não foi possível criar o programa gráfico.");
     gl.attachShader(p, compile(gl.VERTEX_SHADER, FULLSCREEN_VS));
     gl.attachShader(p, compile(gl.FRAGMENT_SHADER, fs));
     gl.bindAttribLocation(p, 0, "aPos");
@@ -172,9 +177,10 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
   }
 
   private u(p: WebGLProgram, name: string): WebGLUniformLocation | null {
-    const cache = this.uniforms.get(p)!;
+    const cache = this.uniforms.get(p);
+    if (!cache) throw new Error("O programa gráfico não está registrado.");
     if (!cache.has(name)) cache.set(name, this.gl.getUniformLocation(p, name));
-    return cache.get(name)!;
+    return cache.get(name) ?? null;
   }
 
   private target(w: number, h: number): Target {
@@ -184,7 +190,8 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
     if (hit) return hit;
     const gl = this.gl;
     const make = (): [WebGLTexture, WebGLFramebuffer] => {
-      const tex = gl.createTexture()!;
+      const tex = gl.createTexture();
+      if (!tex) throw new Error("Não foi possível criar a textura gráfica.");
       gl.bindTexture(gl.TEXTURE_2D, tex);
       if (this.floatTargets)
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
@@ -193,7 +200,11 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      const fb = gl.createFramebuffer()!;
+      const fb = gl.createFramebuffer();
+      if (!fb) {
+        gl.deleteTexture(tex);
+        throw new Error("Não foi possível criar o quadro gráfico.");
+      }
       gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
       if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
@@ -259,7 +270,8 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
         gl.deleteTexture(entry.tex);
         this.textures.delete(id);
       }
-      const tex = gl.createTexture()!;
+      const tex = gl.createTexture();
+      if (!tex) throw new Error("Não foi possível criar a textura gráfica.");
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -276,7 +288,7 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
         const w = Math.min(canvas.width - x, Math.ceil(dirty.w) + 1);
         const h = Math.min(canvas.height - y, Math.ceil(dirty.h) + 1);
         if (w > 0 && h > 0) {
-          const data = canvas.getContext("2d")!.getImageData(x, y, w, h);
+          const data = requireCanvas2d(canvas).getImageData(x, y, w, h);
           gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, w, h, gl.RGBA, gl.UNSIGNED_BYTE, data.data);
         }
       } else {
@@ -590,10 +602,15 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
   /** Reads a composite back as 8-bit RGBA (straight alpha, top row first). */
   read(t: Target): ImageData {
     const gl = this.gl;
-    const tex = gl.createTexture()!;
+    const tex = gl.createTexture();
+    if (!tex) throw new Error("Não foi possível criar a textura gráfica.");
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, t.w, t.h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-    const fb = gl.createFramebuffer()!;
+    const fb = gl.createFramebuffer();
+    if (!fb) {
+      gl.deleteTexture(tex);
+      throw new Error("Não foi possível criar o quadro gráfico.");
+    }
     gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
     const p = this.copyProg;
@@ -632,7 +649,7 @@ void main() { outColor = texelFetch(uImage, ivec2(gl_FragCoord.xy), 0); }`);
     const c = document.createElement("canvas");
     c.width = img.width;
     c.height = img.height;
-    c.getContext("2d")!.putImageData(img, 0, 0);
+    requireCanvas2d(c).putImageData(img, 0, 0);
     this.onOffscreenRender?.();
     return c;
   }

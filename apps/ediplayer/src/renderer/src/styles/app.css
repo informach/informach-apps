@@ -287,11 +287,6 @@ kbd {
   height: 4px;
   background: rgba(14, 15, 18, 0.5);
 }
-.recent .bar span {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-}
 .recent strong {
   font-size: 13.5px;
   white-space: nowrap;
@@ -549,15 +544,9 @@ kbd {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.item.current .name {
-  font-weight: 600;
-}
 .item small {
   font-size: 11.5px;
   color: var(--text-3);
-}
-.item.current small {
-  color: var(--accent);
 }
 /* The name takes the room left by the X: it shrinks (with an ellipsis) instead of pushing the X
    out of the list, which also made the list scroll sideways. */
@@ -850,12 +839,6 @@ kbd {
   padding: 4px 6px;
   border-radius: 6px;
   background: var(--stage);
-}
-.list-mini .li span {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .ruler-panel {
@@ -1473,4 +1456,22 @@ dialog.ask p {
   .presets {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.list-mini .li span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent .bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+.item.current .name {
+  font-weight: 600;
+}
+.item.current small {
+  color: var(--accent);
 }

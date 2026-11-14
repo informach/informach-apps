@@ -29,12 +29,6 @@
   color: var(--muted);
   text-align: center;
 }
-.inspector [data-appearance-panel] > section > fieldset {
-  min-width: 0;
-  border: 0;
-  padding: 0;
-  margin: 0;
-}
 .resource-editor {
   min-width: 0;
   max-width: 100%;
@@ -59,6 +53,12 @@
 .resource-editor fieldset {
   display: grid;
   gap: 8px;
+}
+.inspector [data-appearance-panel] > section > fieldset {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
 }
 .resource-editor legend {
   color: var(--text);

@@ -37,7 +37,8 @@ export function BalloonTailControl({
     },
     [onEditing],
   );
-  const a = clip.annotation!;
+  const a = clip.annotation;
+  if (!a) throw new Error("A anotação selecionada não está disponível.");
   const g = a.balloonGeometry;
   const {
     x,
@@ -84,7 +85,9 @@ export function BalloonTailControl({
     if (e.button !== 0 || saving) return;
     e.preventDefault();
     playback.pause();
-    const stage = e.currentTarget.parentElement!.getBoundingClientRect();
+    const parent = e.currentTarget.parentElement;
+    if (!parent) return;
+    const stage = parent.getBoundingClientRect();
     const pointer = e.pointerId;
     const startX = e.clientX;
     const startY = e.clientY;

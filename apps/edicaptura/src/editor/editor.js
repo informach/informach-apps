@@ -109,9 +109,9 @@ const engine = new CanvasEditor($("canvas"), {
     const style = a || engine.style;
     $("color").value = style.color;
     $("stroke").value = style.stroke;
-    $("stroke-label").textContent = style.stroke + " px";
+    $("stroke-label").textContent = `${style.stroke} px`;
     $("opacity").value = Math.round(style.opacity * 100);
-    $("opacity-label").textContent = Math.round(style.opacity * 100) + "%";
+    $("opacity-label").textContent = `${Math.round(style.opacity * 100)}%`;
     $("font-size").value = style.fontSize || 24;
     if ($("object-rotation")) $("object-rotation").value = style.rotation || 0;
     if ($("object-width") && a) {
@@ -130,7 +130,7 @@ $("canvas").addEventListener("editor-error", (event) => toast(event.detail.messa
 for (const [id, label, i] of toolList) {
   const b = document.createElement("button");
   b.dataset.tool = id;
-  b.innerHTML = icon(i) + `<span>${label}</span>`;
+  b.innerHTML = `${icon(i)}<span>${label}</span>`;
   b.title = label;
   b.onclick = () => setTool(id);
   $("tools").append(b);
@@ -199,7 +199,7 @@ for (const color of ["#0062ff", "#f05c4f", "#f5ba46", "#35a47d", "#283142", "#ff
   const b = document.createElement("button");
   b.style.background = color;
   b.title = color;
-  b.setAttribute("aria-label", "Usar cor " + color);
+  b.setAttribute("aria-label", `Usar cor ${color}`);
   b.onclick = () => {
     $("color").value = color;
     engine.updateStyle({ color });
@@ -210,7 +210,7 @@ for (const color of ["#0062ff", "#f05c4f", "#283142"]) {
   const b = document.createElement("button");
   b.style.color = color;
   b.innerHTML = icon("arrow");
-  b.title = "Seta " + color;
+  b.title = `Seta ${color}`;
   b.onclick = () => {
     setTool("arrow");
     $("color").value = color;
@@ -220,11 +220,11 @@ for (const color of ["#0062ff", "#f05c4f", "#283142"]) {
 }
 $("color").oninput = (e) => engine.updateStyle({ color: e.target.value });
 $("stroke").oninput = (e) => {
-  $("stroke-label").textContent = e.target.value + " px";
+  $("stroke-label").textContent = `${e.target.value} px`;
   engine.updateStyle({ stroke: Number(e.target.value) });
 };
 $("opacity").oninput = (e) => {
-  $("opacity-label").textContent = e.target.value + "%";
+  $("opacity-label").textContent = `${e.target.value}%`;
   engine.updateStyle({ opacity: Number(e.target.value) / 100 });
 };
 $("font-size").onchange = (e) => engine.updateStyle({ fontSize: Number(e.target.value) });
@@ -399,9 +399,9 @@ function resize() {
     vp = $("canvas-viewport");
   if (fit) zoom = Math.min((vp.clientWidth - 30) / b.width, (vp.clientHeight - 30) / b.height, 1);
   zoom = Math.max(0.03, Math.min(zoom, 4));
-  $("canvas").style.width = Math.round(b.width * zoom) + "px";
-  $("canvas").style.height = Math.round(b.height * zoom) + "px";
-  $("zoom-label").textContent = Math.round(zoom * 100) + "%";
+  $("canvas").style.width = `${Math.round(b.width * zoom)}px`;
+  $("canvas").style.height = `${Math.round(b.height * zoom)}px`;
+  $("zoom-label").textContent = `${Math.round(zoom * 100)}%`;
 }
 new ResizeObserver(resize).observe($("canvas-viewport"));
 $("zoom-in").onclick = () => {
@@ -433,7 +433,7 @@ async function refreshLibrary() {
     ? { items: response.slice(0, 8), total: response.length }
     : response;
   entries = result.items;
-  $("recent-count").textContent = result.total + " arquivos";
+  $("recent-count").textContent = `${result.total} arquivos`;
   $("recent-list").replaceChildren();
   for (const entry of entries) $("recent-list").append(card(entry, false));
   if (!entries.length) {
@@ -1230,10 +1230,10 @@ $("photo-refresh").onclick = safe(async () => {
             const highlight = () => {
               const r = control.previewRect;
               Object.assign(outline.style, {
-                left: r.x * 100 + "%",
-                top: r.y * 100 + "%",
-                width: r.width * 100 + "%",
-                height: r.height * 100 + "%",
+                left: `${r.x * 100}%`,
+                top: `${r.y * 100}%`,
+                width: `${r.width * 100}%`,
+                height: `${r.height * 100}%`,
               });
               outline.hidden = false;
             };

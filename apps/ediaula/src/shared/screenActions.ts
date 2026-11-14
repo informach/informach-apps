@@ -55,7 +55,7 @@ export function screenActions(text: string): string[] {
     .filter(Boolean);
 }
 
-const Q = String.raw`["“]([^"”]+)["”]`;
+const Q = `["“]([^"”]+)["”]`;
 /** " por 2 s", " por 1,5 segundo": how long a "segurar" holds, at the end of its bracket. */
 const FOR = String.raw`(?:\s+por\s+(\d+(?:[.,]\d+)?)\s*(?:s|seg|segundos?))?`;
 const seconds = (text: string | undefined): number | undefined =>

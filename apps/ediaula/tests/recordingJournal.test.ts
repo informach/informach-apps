@@ -198,11 +198,11 @@ test("the lines a recovery cannot rebuild reach the disk at once; the voice anch
 
 test("um recado volta do diário no momento em que foi aberto, e um recado vazio não vale", () => {
   const replay = replayJournal(
-    text(
+    `${text(
       begin,
       { k: "first", src: "screen", part: 0, qpc: 2000, file: "tela-0.mp4" },
       { k: "note", qpc: 4000, text: "errei o clique no bloco" },
-    ) + `\n${JSON.stringify({ k: "note", qpc: 4500, text: "" })}`,
+    )}\n${JSON.stringify({ k: "note", qpc: 4500, text: "" })}`,
   );
   assert.deepEqual(replay.notes, [{ qpc: 4000, text: "errei o clique no bloco" }]);
   assert.equal(replay.skipped, 1);

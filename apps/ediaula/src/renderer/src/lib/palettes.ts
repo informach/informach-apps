@@ -74,8 +74,12 @@ function mapperTo(
 export function recolorCount(p: Project): number {
   const to = activePalette(p);
   const map = mapperTo(p, to);
-  const off = (hex: string | undefined): boolean =>
-    !!hex && map(hex)!.toUpperCase() !== hex.toUpperCase();
+  const off = (hex: string | undefined): boolean => {
+    if (!hex) return false;
+    const mapped = map(hex);
+    if (mapped === undefined) throw new Error("Não foi possível mapear a cor da paleta.");
+    return mapped.toUpperCase() !== hex.toUpperCase();
+  };
   const clips = p.clips.filter((c) => {
     const a = c.annotation;
     const t = c.transform;

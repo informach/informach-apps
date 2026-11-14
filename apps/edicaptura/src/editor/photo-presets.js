@@ -48,7 +48,7 @@ export function installPhotoPresets({ api, persist, dialog, safe }) {
     for (const p of profile.presets)
       $("photo-preset-list").append(
         new Option(
-          `${p.name}${p.regionValid === false ? " · região inválida" : ""}${p.shortcut ? " · " + p.shortcut : ""}`,
+          `${p.name}${p.regionValid === false ? " · região inválida" : ""}${p.shortcut ? ` · ${p.shortcut}` : ""}`,
           p.id,
         ),
       );

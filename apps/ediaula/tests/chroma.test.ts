@@ -18,6 +18,7 @@ import { clipLayout, fadeAt, placementTransform } from "../src/shared/compose.ts
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
 import { makeClip, splitClip } from "../src/shared/timeline.ts";
 import type { Asset, Project } from "../src/shared/types.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 const SCREEN: [number, number, number] = [9, 112, 246];
 const NAVY: [number, number, number] = [30, 36, 65];
@@ -134,7 +135,7 @@ test("fades ramp opacity at both ends and split clips keep one fade each", () =>
   assert.equal(fadeAt(c, 13.5), 0.5);
   const clip = makeClip(avatar, "t", 0, { width: 1920, height: 1080 });
   assert.ok(clip.transform && clip.fadeIn && clip.fadeOut, "avatars come placed with a dissolve");
-  const [a, b] = splitClip(clip, 5)!;
+  const [a, b] = assertDefined(splitClip(clip, 5));
   assert.ok(a.fadeIn && !a.fadeOut && !b.fadeIn && b.fadeOut);
 });
 

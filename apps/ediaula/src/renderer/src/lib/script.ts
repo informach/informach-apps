@@ -268,7 +268,8 @@ async function planPlacement(
     }
     const own = alignment.lines.find((l) => l.item === section.items.indexOf(item));
     if (own && own.matched / Math.max(1, own.total) >= 0.6) {
-      problems.push(`A fala de ${label} já está na timeline (${clock(own.start!)}).`);
+      const when = own.start === undefined ? "" : ` (${clock(own.start)})`;
+      problems.push(`A fala de ${label} já está na timeline${when}.`);
       continue;
     }
     const src = findLine(item.text, transcripts);

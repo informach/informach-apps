@@ -5,7 +5,7 @@
   const save = async (name, b64) => {
     const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
     await window.api.writeFile(
-      "C:/Users/julio/Desktop/CRIECOMHELENAEJULIO/APPS/EDIFOTO/.tmp/" + name,
+      `C:/Users/julio/Desktop/CRIECOMHELENAEJULIO/APPS/EDIFOTO/.tmp/${name}`,
       bin,
     );
   };
@@ -73,6 +73,6 @@
   r = await call("undo", {});
   out.undo = r.text;
   r = await call("export_image", { path: "C:/x.png", format: "png" });
-  out.exportDenied = r.ok + " " + r.text.slice(0, 60);
+  out.exportDenied = `${r.ok} ${r.text.slice(0, 60)}`;
   return out;
 })();

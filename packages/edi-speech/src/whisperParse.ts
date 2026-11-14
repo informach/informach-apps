@@ -65,21 +65,22 @@ export function parseVadSegments(log: string): VadSegment[] {
  * edge, so a word never lands in the middle of a removed silence.
  */
 export function vadToSource(t: number, segs: VadSegment[]): number {
+  const first = segs[0];
+  const last = segs.at(-1);
   if (!segs.length) return t;
-  if (t <= segs[0]!.vadStart) return segs[0]!.origStart;
-  const last = segs[segs.length - 1];
-  if (t >= last!.vadEnd) return last!.origEnd;
-  for (let i = 0; i < segs.length; i++) {
-    const s = segs[i];
-    if (t >= s!.vadStart && t <= s!.vadEnd) {
-      const vd = s!.vadEnd - s!.vadStart;
+  if (!first || !last) throw new Error("Segmentos de voz incompletos.");
+  if (t <= first.vadStart) return first.origStart;
+  if (t >= last.vadEnd) return last.origEnd;
+  for (const [i, s] of segs.entries()) {
+    if (t >= s.vadStart && t <= s.vadEnd) {
+      const vd = s.vadEnd - s.vadStart;
       return vd <= 0
-        ? s!.origStart
-        : s!.origStart + ((t - s!.vadStart) * (s!.origEnd - s!.origStart)) / vd;
+        ? s.origStart
+        : s.origStart + ((t - s.vadStart) * (s.origEnd - s.origStart)) / vd;
     }
     const next = segs[i + 1];
-    if (next && t > s!.vadEnd && t < next.vadStart)
-      return t <= (s!.vadEnd + next.vadStart) / 2 ? s!.origEnd : next.origStart;
+    if (next && t > s.vadEnd && t < next.vadStart)
+      return t <= (s.vadEnd + next.vadStart) / 2 ? s.origEnd : next.origStart;
   }
   return t;
 }
@@ -254,9 +255,9 @@ export function findHallucinations(
     list.find((p) => p.every((part, j) => folded[at + j] === part))?.length ?? 0;
   // "Legenda por Sônia Ruberti": um crédito de legenda com qualquer nome, só no fim do que foi
   // ouvido (os últimos segundos), onde o whisper inventa o fim de um vídeo.
-  const fim = words.length ? words[words.length - 1]!.end : 0;
-  for (let at = 0; at < words.length; at++) {
-    if (!/^legendas?$/.test(folded[at] ?? "") || words[at]!.start < fim - CREDIT_TAIL) continue;
+  const fim = words.at(-1)?.end ?? 0;
+  for (const [at, word] of words.entries()) {
+    if (!/^legendas?$/.test(folded[at] ?? "") || word.start < fim - CREDIT_TAIL) continue;
     const resto = words.length - at;
     if (resto >= 2 && resto <= 6 && (folded[at + 1] === "por" || folded[at + 1] === "pela"))
       for (let j = at; j < words.length; j++) out[j] = "credit";
@@ -294,8 +295,9 @@ export function parseWhisper(
     for (const tok of seg.tokens ?? []) {
       if (tok.text.startsWith("[") || !tok.text.trim()) continue;
       const startsWord = tok.text.startsWith(" ") && !PUNCT.test(tok.text.trim());
-      if (startsWord || groups.length === 0) groups.push([tok]);
-      else groups[groups.length - 1]!.push(tok);
+      const previous = groups.at(-1);
+      if (startsWord || !previous) groups.push([tok]);
+      else previous.push(tok);
     }
   }
 
@@ -306,15 +308,18 @@ export function parseWhisper(
       .join("")
       .trim();
     const timed = g.filter((t) => !PUNCT.test(t.text.trim()));
-    if (!timed.length) {
+    const first = timed[0];
+    const last = timed.at(-1);
+    if (!first || !last) {
       // Leading punctuation with no word yet: attach to the previous word.
-      if (heard.length) heard[heard.length - 1]!.text += text;
+      const previous = heard.at(-1);
+      if (previous) previous.text += text;
       continue;
     }
     heard.push({
       text,
-      start: tokenStart(timed[0]!),
-      end: tokenEnd(timed[timed.length - 1]!),
+      start: tokenStart(first),
+      end: tokenEnd(last),
       p: timed.reduce((s, t) => s + t.p, 0) / timed.length,
     });
   }

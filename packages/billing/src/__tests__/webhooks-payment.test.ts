@@ -132,6 +132,55 @@ describe("handlePaymentIntentSucceeded", () => {
     expect(calls.find((c) => c.mode === "select")).toBeUndefined();
   });
 
+  it("recognizes only an independently confirmed subscription invoice without credit metadata", async () => {
+    const { db } = createFakeDb();
+    const confirm = vi.fn().mockResolvedValue(true);
+    const logger = { warn: vi.fn() };
+    const deps = depsWithProducts(db, {
+      providerClient: { isPaidSubscriptionInvoice: confirm },
+      logger,
+    });
+    const result = await handlePaymentIntentSucceeded(
+      deps,
+      { ...baseIntent, invoice: "in_1", metadata: {} },
+      "evt_1",
+    );
+    expect(result).toEqual({ processed: false, reason: "subscription_invoice" });
+    expect(confirm).toHaveBeenCalledWith("in_1", "cus_test_1");
+    expect(logger.warn).not.toHaveBeenCalled();
+    confirm.mockResolvedValue(false);
+    expect(
+      await handlePaymentIntentSucceeded(
+        deps,
+        { ...baseIntent, invoice: "in_2", metadata: {} },
+        "evt_2",
+      ),
+    ).toEqual({ processed: false, reason: "missing_subject_metadata" });
+    expect(logger.warn).toHaveBeenCalledOnce();
+    confirm.mockClear();
+    await handlePaymentIntentSucceeded(
+      deps,
+      { ...baseIntent, invoice: "in_3", metadata: { credit_amount: "5000" } },
+      "evt_3",
+    );
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it("does not classify an invoice when the provider cannot confirm it", async () => {
+    const { db } = createFakeDb();
+    const deps = depsWithProducts(db, {
+      providerClient: {
+        isPaidSubscriptionInvoice: vi.fn().mockRejectedValue(new Error("unavailable")),
+      },
+    });
+    await expect(
+      handlePaymentIntentSucceeded(deps, { ...baseIntent, invoice: "in_1", metadata: {} }, "evt_1"),
+    ).rejects.toMatchObject({
+      message: "@informach/billing: Subscription invoice verification pending",
+      cause: { message: "ProviderError" },
+    });
+  });
+
   it("skips when product is not a credit pack (no credit_amount)", async () => {
     const { db } = createFakeDb();
     const result = await handlePaymentIntentSucceeded(

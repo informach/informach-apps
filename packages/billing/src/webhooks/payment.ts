@@ -12,7 +12,7 @@ import {
   findCreditWalletMigration,
   forwardMigratedCreditEntry,
 } from "../credits/migration-forwarding";
-import { BillingError } from "../errors";
+import { BillingError, InvoiceVerificationPendingError } from "../errors";
 import { type Logger, safeLog } from "./../logger";
 import type { BillingProviderClient } from "../providers/types";
 import type { BillingAuditEvent, BillingProvider } from "./../types";
@@ -20,6 +20,7 @@ import type { BillingAuditEvent, BillingProvider } from "./../types";
 type StripePaymentIntentLike = {
   id: string;
   customer: string | { id: string } | null;
+  invoice?: string | { id: string } | null;
   amount?: number;
   currency?: string;
   latest_charge?: string | { id: string } | null;
@@ -36,7 +37,7 @@ export type PaymentWebhookDeps = {
   emails?: BillingEmailDeps;
   /** Product catalog — used for productName resolution in receipts. */
   products: readonly Product[];
-  providerClient?: Pick<BillingProviderClient, "readCreditPayment">;
+  providerClient?: Pick<BillingProviderClient, "readCreditPayment" | "isPaidSubscriptionInvoice">;
 };
 
 export type PaymentWebhookResult = {
@@ -68,6 +69,29 @@ export async function handlePaymentIntentSucceeded(
   const creditAmountRaw = metadata.credit_amount;
 
   if (!subjectTypeRaw || !subjectId || !productId) {
+    const invoiceId =
+      typeof paymentIntent.invoice === "string" ? paymentIntent.invoice : paymentIntent.invoice?.id;
+    const customerId =
+      typeof paymentIntent.customer === "string"
+        ? paymentIntent.customer
+        : paymentIntent.customer?.id;
+    if (
+      !subjectTypeRaw &&
+      !subjectId &&
+      !productId &&
+      !creditAmountRaw &&
+      invoiceId &&
+      customerId &&
+      deps.providerClient?.isPaidSubscriptionInvoice
+    ) {
+      let confirmed: boolean;
+      try {
+        confirmed = await deps.providerClient.isPaidSubscriptionInvoice(invoiceId, customerId);
+      } catch (error) {
+        throw new InvoiceVerificationPendingError(error);
+      }
+      if (confirmed) return { processed: false, reason: "subscription_invoice" };
+    }
     safeLog(deps.logger, "warn", "billing.webhook.payment.missing_subject_metadata", {
       paymentIntentId: paymentIntent.id,
       eventId,

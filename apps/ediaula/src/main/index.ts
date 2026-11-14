@@ -334,6 +334,10 @@ async function serveMedia(request: Request): Promise<Response> {
 }
 
 let win: BrowserWindow | null = null;
+function requireWindow(): BrowserWindow {
+  if (!win || win.isDestroyed()) throw new Error("A janela do EdiAula não está disponível.");
+  return win;
+}
 /** The renders folders of the projects the open lesson links to (edisvgLink.ts). */
 const rendersWatcher = createRendersWatcher((project) => {
   if (win && !win.isDestroyed()) win.webContents.send("link:changed", project);
@@ -569,7 +573,7 @@ function registerIpc(): void {
         .join("")
         .trim()
         .replace(/\.md$/i, "") || "Modelo de edição";
-    const result = await dialog.showSaveDialog(win!, {
+    const result = await dialog.showSaveDialog(requireWindow(), {
       title: "Salvar modelo de edição",
       defaultPath: join(app.getPath("documents"), `${safe}.md`),
       filters: [{ name: "Markdown", extensions: ["md"] }],
@@ -582,7 +586,7 @@ function registerIpc(): void {
     return path;
   });
   ipcMain.handle("editing-template:read", async () => {
-    const result = await dialog.showOpenDialog(win!, {
+    const result = await dialog.showOpenDialog(requireWindow(), {
       title: "Ler modelo de edição",
       properties: ["openFile"],
       filters: [{ name: "Markdown", extensions: ["md"] }],
@@ -609,7 +613,7 @@ function registerIpc(): void {
   }));
 
   ipcMain.handle("dialog:media", async () => {
-    const r = await dialog.showOpenDialog(win!, {
+    const r = await dialog.showOpenDialog(requireWindow(), {
       title: "Importar mídia",
       properties: ["openFile", "multiSelections"],
       filters: MEDIA_FILTERS,
@@ -617,7 +621,7 @@ function registerIpc(): void {
     return r.canceled ? [] : r.filePaths;
   });
   ipcMain.handle("dialog:project", async () => {
-    const r = await dialog.showOpenDialog(win!, {
+    const r = await dialog.showOpenDialog(requireWindow(), {
       title: "Abrir projeto",
       defaultPath: projectsDir(),
       properties: ["openFile"],
@@ -702,7 +706,7 @@ function registerIpc(): void {
   ipcMain.handle("dialog:export", async (_e, defaultName: string) => {
     const audio = /\.mp3$/i.test(defaultName);
     const gif = /\.gif$/i.test(defaultName);
-    const r = await dialog.showSaveDialog(win!, {
+    const r = await dialog.showSaveDialog(requireWindow(), {
       title: audio ? "Exportar áudio" : gif ? "Exportar GIF animado" : "Exportar vídeo",
       defaultPath: join(app.getPath(audio ? "music" : gif ? "pictures" : "videos"), defaultName),
       filters: [
@@ -1165,7 +1169,7 @@ function registerIpc(): void {
     const allInside = linked.every((p) => insideFolder(p, dirname(path)));
     if (linked.length) {
       if (!(fresh && allInside)) {
-        const answer = await dialog.showMessageBox(win!, {
+        const answer = await dialog.showMessageBox(requireWindow(), {
           type: "question",
           title: "Arquivos vinculados ao projeto",
           message: `Permitir acesso aos ${linked.length} arquivos usados por este projeto?`,
@@ -1764,7 +1768,8 @@ async function applyMcp(): Promise<void> {
   const enabled = stored.mcpEnabled ?? true;
   const port = stored.mcpPort ?? DEFAULT_MCP_PORT;
   if (mcp.server && (!enabled || mcp.port !== port)) {
-    await new Promise<void>((r) => mcp.server!.close(() => r()));
+    const server = mcp.server;
+    await new Promise<void>((r) => server.close(() => r()));
     mcp = { server: null, port };
   }
   if (enabled && !mcp.server) {

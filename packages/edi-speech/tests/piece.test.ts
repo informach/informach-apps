@@ -26,7 +26,9 @@ function lesson(): HeardWord[] {
     }
   const shift = 120;
   for (const w of scene) out.push({ ...w, start: w.start + shift, end: w.end + shift });
-  t = scene.at(-1)!.end + shift + 1;
+  const last = scene.at(-1);
+  if (!last) throw new Error("A fixture de narração está vazia.");
+  t = last.end + shift + 1;
   for (let round = 0; round < 3; round++)
     for (const text of OTHER) {
       out.push({ text, start: t, end: t + 0.3, p: 0.9 });
@@ -48,9 +50,11 @@ describe("findScriptPiece", () => {
       "Quando ele pegar a chave, o aviso muda.",
     ]);
     // "depois," at 10.36 s and "muda." at 24.43–24.9 s of the scene, which starts at 120 s.
-    expect(piece.lines[0]!.start).toBeCloseTo(130.36, 1);
-    expect(piece.lines[1]!.start).toBeCloseTo(135.98, 1);
-    expect(piece.lines[2]!.start).toBeCloseTo(141.79, 1);
+    const [first, second, third] = piece.lines;
+    if (!first || !second || !third) throw new Error("As três falas deveriam estar presentes.");
+    expect(first.start).toBeCloseTo(130.36, 1);
+    expect(second.start).toBeCloseTo(135.98, 1);
+    expect(third.start).toBeCloseTo(141.79, 1);
     expect(piece.start).toBeCloseTo(130.36, 1);
     expect(piece.end).toBeGreaterThan(144.4);
     expect(piece.end).toBeLessThan(145.5);

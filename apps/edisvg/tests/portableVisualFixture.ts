@@ -11,7 +11,7 @@ export function portableVisualFixture() {
   if (!board) throw new Error("Missing portable board");
   // Canonical source syntax also represents actual pre-v6 effect definitions.
   const source = board.scene.nodes.find((node) => node.id === fixture.sourceId);
-  if (!source || !source.attrs.d) throw new Error("Missing source");
+  if (!source?.attrs.d) throw new Error("Missing source");
   editScene(board.scene, source.id, "attrs", { d: geometryPath(parsePath(source.attrs.d)) });
   const font = fontFixture(),
     audio = audioFixture(),

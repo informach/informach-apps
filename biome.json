@@ -77,6 +77,99 @@
   },
   "overrides": [
     {
+      "includes": ["scripts/compasso/stripe-evidence-inventory.mts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noUndeclaredEnvVars": {
+              "level": "warn",
+              "options": { "allowedEnvVars": ["DATABASE_PUBLIC_URL"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["scripts/edi/installer-config.mts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noUndeclaredEnvVars": {
+              "level": "warn",
+              "options": {
+                "allowedEnvVars": [
+                  "EDI_SOURCE_COMMIT",
+                  "EDI_DOWNLOAD_HOST",
+                  "EDI_UPDATE_SIGNING_KEY_ID",
+                  "EDI_PUBLISHER",
+                  "EDI_UPDATE_SIGNING_PRIVATE_KEY"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["scripts/edi/prepare-runner.mts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noUndeclaredEnvVars": {
+              "level": "warn",
+              "options": { "allowedEnvVars": ["GITHUB_ENV", "GITHUB_ACTIONS"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["scripts/edi/release.mts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noUndeclaredEnvVars": {
+              "level": "warn",
+              "options": {
+                "allowedEnvVars": [
+                  "CSC_LINK",
+                  "CSC_KEY_PASSWORD",
+                  "WIN_CSC_LINK",
+                  "EDI_PACKAGE_LAYOUT_ONLY"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["scripts/edi/test-portal.mts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noUndeclaredEnvVars": {
+              "level": "warn",
+              "options": { "allowedEnvVars": ["EDI_ISOLATED_DATABASE"] }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["scripts/edi/test-upgrade.mts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noUndeclaredEnvVars": {
+              "level": "warn",
+              "options": { "allowedEnvVars": ["GITHUB_ACTIONS", "RUNNER_ENVIRONMENT"] }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": [
         "scripts/compasso/financial-inventory.mjs",
         "scripts/compasso/stripe-inventory.mts",

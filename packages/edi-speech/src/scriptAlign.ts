@@ -100,10 +100,15 @@ export const OFF_SCRIPT_LIMIT = 0.35;
 
 const hasText = (w: TimelineWord): boolean => strip(w.text).length > 0;
 /** Word k of `list` is written with a capital in the middle of a sentence: a name. */
-const isName = (list: readonly string[], k: number): boolean =>
-  k > 0 &&
-  /^["“(]?\p{Lu}/u.test(list[k]?.trim() ?? "") &&
-  !/[.!?…:]["”')\]]*$/.test(list[k - 1]!.trim());
+const isName = (list: readonly string[], k: number): boolean => {
+  const previous = list[k - 1];
+  return (
+    k > 0 &&
+    previous !== undefined &&
+    /^["“(]?\p{Lu}/u.test(list[k]?.trim() ?? "") &&
+    !/[.!?…:]["”')\]]*$/.test(previous.trim())
+  );
+};
 const punctuated = (text: string): boolean => /[,.;:!?…]["”')\]]*$/.test(text.trim());
 
 interface Glossary {
@@ -121,10 +126,12 @@ function glossaryIndex(list: readonly GlossaryTerm[] | undefined): Glossary {
     // Only real words of a name by sound: "da" of "Mapa da Aventura" is not one.
     for (const tok of tokens) if (tok.tok.length >= 4 && !tok.stop) terms.add(tok.tok);
     const term = tokens.map((x) => x.tok);
-    if (term.length !== 1) continue;
+    const termToken = term[0];
+    if (term.length !== 1 || termToken === undefined) continue;
     for (const a of termAliases(t)) {
       const heard = tokenize(a).map((x) => x.tok);
-      if (heard.length === 1) alias.set(heard[0]!, term[0]!);
+      const heardToken = heard[0];
+      if (heard.length === 1 && heardToken !== undefined) alias.set(heardToken, termToken);
     }
   }
   return { terms, alias };
@@ -187,9 +194,15 @@ function scriptIndex(script: readonly string[], g: Glossary): ScriptIndex {
       found = new Uint8Array(uniqueScript.length);
       if (!/\d|%/.test(tok))
         for (const d of deletions(phoneticKey(tok)))
-          for (const candidate of near.get(d) ?? [])
-            if (!found[candidate] && fuzzyEqual(tok, uniqueScript[candidate]!, g.terms))
+          for (const candidate of near.get(d) ?? []) {
+            const scriptToken = uniqueScript[candidate];
+            if (
+              scriptToken !== undefined &&
+              !found[candidate] &&
+              fuzzyEqual(tok, scriptToken, g.terms)
+            )
               found[candidate] = 1;
+          }
       const exact = scriptIds.get(tok);
       if (exact !== undefined) found[exact] = 2;
       known.set(raw, found);
@@ -226,18 +239,25 @@ function lcs({ rows, cols }: Scores): [number, number][] {
   const best = wide ? new Uint32Array(size) : new Uint16Array(size);
   for (let i = 1; i <= n; i++) {
     const row = rows[i - 1];
+    if (!row) throw new Error("Linha de pontuação de fala ausente.");
     for (let j = 1; j <= m; j++) {
       const at = i * w + j;
       const diag = at - w - 1;
-      const s = row![cols[j - 1]!];
+      const col = cols[j - 1];
+      const s = col === undefined ? undefined : row[col];
+      const diagonalBest = best[diag];
+      if (s === undefined || diagonalBest === undefined)
+        throw new Error("Índice de pontuação de fala inválido.");
       if (s) {
         const run = ends[diag] ? ends[diag] + RUN_BONUS : 0;
-        ends[at] = s + Math.max(best[diag]!, run);
+        ends[at] = s + Math.max(diagonalBest, run);
       }
       const up = best[at - w];
       const left = best[at - 1];
       const own = ends[at];
-      best[at] = up! > left! ? (up! > own! ? up! : own!) : left! > own! ? left! : own!;
+      if (up === undefined || left === undefined || own === undefined)
+        throw new Error("Matriz de alinhamento incompleta.");
+      best[at] = Math.max(up, left, own);
     }
   }
   const pairs: [number, number][] = [];
@@ -250,11 +270,23 @@ function lcs({ rows, cols }: Scores): [number, number][] {
     if (inRun || (ends[at] && best[at] === ends[at])) {
       pairs.push([i - 1, j - 1]);
       // When the run and a fresh start score the same, the run goes on: the take stays whole.
-      inRun = !!ends[diag] && ends[at] === rows[i - 1]![cols[j - 1]!]! + ends[diag] + RUN_BONUS;
+      const row = rows[i - 1];
+      const col = cols[j - 1];
+      const score = col === undefined ? undefined : row?.[col];
+      const previous = ends[diag];
+      if (score === undefined || previous === undefined)
+        throw new Error("Matriz de alinhamento incompleta.");
+      inRun = !!previous && ends[at] === score + previous + RUN_BONUS;
       i--;
       j--;
-    } else if (best[at - w]! >= best[at - 1]!) i--;
-    else j--;
+    } else {
+      const up = best[at - w];
+      const left = best[at - 1];
+      if (up === undefined || left === undefined)
+        throw new Error("Matriz de alinhamento incompleta.");
+      if (up >= left) i--;
+      else j--;
+    }
   }
   return pairs.reverse();
 }
@@ -299,13 +331,26 @@ function bestMatch(
   const scores = { rows: run.map(line.row), cols: line.cols };
   const pairs = lcs(scores);
   let score = 0;
-  for (const [i, j] of pairs) score += scores.rows[i]![scores.cols[j]!]!;
+  for (const [i, j] of pairs) {
+    const row = scores.rows[i];
+    const col = scores.cols[j];
+    const value = col === undefined ? undefined : row?.[col];
+    if (value === undefined) throw new Error("Índice de pontuação de fala inválido.");
+    score += value;
+  }
   return { pairs, score };
 }
 
 const isNumberToken = (tok: string): boolean => /\d/.test(tok);
 
 type Pair = [number, number];
+
+/** Alignment indices come from several parallel token and word arrays. */
+function alignmentAt<T>(values: ArrayLike<T>, index: number): T {
+  const value = values[index];
+  if (value === undefined) throw new Error("Índice de alinhamento de fala inválido.");
+  return value;
+}
 
 /**
  * What was said outside the script: runs of words not in it (`inScript` 0), split at long pauses,
@@ -323,7 +368,8 @@ function offScriptRuns(
     const other = k + side;
     if (other < 0 || other >= words.length) return true;
     const [a, b] = side < 0 ? [words[other], words[k]] : [words[k], words[other]];
-    return punctuated(a!.text) || b!.start - a!.end >= BLOCK_PAUSE;
+    if (!a || !b) throw new Error("Índice de palavra falada inválido.");
+    return punctuated(a.text) || b.start - a.end >= BLOCK_PAUSE;
   };
   const offScript: OffScript[] = [];
   const flush = (from: number, to: number): void => {
@@ -342,9 +388,12 @@ function offScriptRuns(
     const run = words.slice(a, b + 1);
     const real = run.filter(hasText);
     if (real.length < MIN_RUN) return;
+    const first = run[0];
+    const last = run.at(-1);
+    if (!first || !last) throw new Error("Trecho de fala vazio.");
     const item: OffScript = {
-      start: run[0]!.start,
-      end: run[run.length - 1]!.end,
+      start: first.start,
+      end: last.end,
       text: run.map((w) => w.text).join(" "),
       words: real.length,
       keys: run.map((w) => w.key),
@@ -370,7 +419,10 @@ function offScriptRuns(
   let runStart = -1;
   for (let k = 0; k <= words.length; k++) {
     const free = k < words.length && !inScript[k];
-    const split = free && runStart >= 0 && words[k]!.start - words[k - 1]!.end > SPLIT_PAUSE;
+    const current = words[k];
+    const previous = words[k - 1];
+    const split =
+      free && runStart >= 0 && current && previous && current.start - previous.end > SPLIT_PAUSE;
     if (runStart >= 0 && (!free || split)) {
       flush(runStart, k - 1);
       runStart = -1;
@@ -412,18 +464,28 @@ function align(section: ScriptSection, pre: Prepared, scoreOnly = false): Alignm
   // The first token of each word, to take the tokens of a stretch of words.
   const firstToken = new Int32Array(words.length + 1).fill(tokens.length);
   for (let t = tokens.length - 1; t >= 0; t--)
-    for (const wi of tokens[t]!.src) firstToken[wi] = Math.min(firstToken[wi]!, t);
+    for (const wi of alignmentAt(tokens, t).src)
+      firstToken[wi] = Math.min(alignmentAt(firstToken, wi), t);
   for (let wi = words.length - 1; wi >= 0; wi--)
-    firstToken[wi] = Math.min(firstToken[wi]!, firstToken[wi + 1]!);
-  const lastWordOf = (t: number): number => tokens[t]!.src[tokens[t]!.src.length - 1]!;
+    firstToken[wi] = Math.min(alignmentAt(firstToken, wi), alignmentAt(firstToken, wi + 1));
+  const lastWordOf = (t: number): number => {
+    const source = alignmentAt(tokens, t).src;
+    return alignmentAt(source, source.length - 1);
+  };
   const spokenTexts = words.map((w) => w.text);
 
   // Where each line was matched by the alignment of the whole section: its words lie between
   // the lines around it, and in there its takes are told apart.
   const byLine: Pair[][] = lines.map(() => []);
-  for (const pair of pairs) byLine[owner[pair[1]]!]!.push(pair);
-  const firstAt = byLine.map((list) => (list.length ? tokens[list[0]![0]]!.src[0] : -1));
-  const lastAt = byLine.map((list) => (list.length ? lastWordOf(list[list.length - 1]![0]) : -1));
+  for (const pair of pairs) alignmentAt(byLine, alignmentAt(owner, pair[1])).push(pair);
+  const firstAt = byLine.map((list) => {
+    const first = list[0];
+    return first ? alignmentAt(alignmentAt(tokens, first[0]).src, 0) : -1;
+  });
+  const lastAt = byLine.map((list) => {
+    const last = list.at(-1);
+    return last ? lastWordOf(last[0]) : -1;
+  });
   const used = new Uint8Array(words.length);
   const spans: Pair[] = [];
   const substitutions: Substitution[] = [];
@@ -439,56 +501,62 @@ function align(section: ScriptSection, pre: Prepared, scoreOnly = false): Alignm
   }
   byLine.forEach((list, li) => {
     if (!list.length) return;
-    const line = lines[li];
+    const line = alignmentAt(lines, li);
+    const writtenWords = alignmentAt(lineWords, li);
+    const writtenTokens = alignmentAt(lineTokens, li);
+    const scriptStart = alignmentAt(lineStart, li);
     if (scoreOnly) {
       // Ranking sections only needs how much of each line was found.
-      line!.matched = list.length;
+      line.matched = list.length;
       matchedAll += list.length;
-      for (const [, si] of list) if (!script[si]!.stop) contentMatched++;
+      for (const [, si] of list) if (!alignmentAt(script, si).stop) contentMatched++;
       return;
     }
-    const maxWords = Math.ceil(lineWords[li]!.length * TAKE_LENGTH) + TAKE_SLACK;
+    const maxWords = Math.ceil(writtenWords.length * TAKE_LENGTH) + TAKE_SLACK;
     let lo = 0;
     for (let k = li - 1; k >= 0; k--)
-      if (lastAt[k]! >= 0) {
-        lo = lastAt[k]! + 1;
+      if (alignmentAt(lastAt, k) >= 0) {
+        lo = alignmentAt(lastAt, k) + 1;
         break;
       }
     let hi = words.length - 1;
     for (let k = li + 1; k < lines.length; k++)
-      if (firstAt[k]! >= 0) {
-        hi = firstAt[k]! - 1;
+      if (alignmentAt(firstAt, k) >= 0) {
+        hi = alignmentAt(firstAt, k) - 1;
         break;
       }
     // Earlier takes are said near the one the alignment found, never pages away.
-    lo = Math.max(lo, firstAt[li]! - 3 * maxWords);
-    hi = Math.min(hi, lastAt[li]! + 3 * maxWords);
+    lo = Math.max(lo, alignmentAt(firstAt, li) - 3 * maxWords);
+    hi = Math.min(hi, alignmentAt(lastAt, li) + 3 * maxWords);
     // Blocks of speech in the line's stretch, split at long pauses and at sentence ends.
     const blocks: Pair[] = [];
     for (let wi = lo; wi <= hi; wi++) {
       const cur = blocks[blocks.length - 1];
+      const previous = words[wi - 1];
+      const current = alignmentAt(words, wi);
       const breakBefore =
         !cur ||
-        words[wi]!.start - words[wi - 1]!.end >= TAKE_PAUSE ||
-        /[.!?…]["”')\]]*$/.test(words[wi - 1]!.text.trim());
+        (previous !== undefined &&
+          (current.start - previous.end >= TAKE_PAUSE ||
+            /[.!?…]["”')\]]*$/.test(previous.text.trim())));
       if (breakBefore) blocks.push([wi, wi]);
       else cur[1] = wi;
     }
-    const index = scriptIndex(lineTokens[li]!, glossary);
+    const index = scriptIndex(writtenTokens, glossary);
     // Every run of whole blocks short enough to be one take, with its best match to the line.
     const runs: { from: number; to: number; pairs: Pair[]; score: number }[] = [];
     for (let a = 0; a < blocks.length; a++)
       for (let b = a; b < blocks.length; b++) {
-        const from = blocks[a]![0];
-        const to = blocks[b]![1];
+        const from = alignmentAt(blocks, a)[0];
+        const to = alignmentAt(blocks, b)[1];
         if (to - from + 1 > maxWords) break;
-        const t0 = firstToken[from];
-        const t1 = firstToken[to + 1];
-        if (t1! <= t0!) continue;
+        const t0 = alignmentAt(firstToken, from);
+        const t1 = alignmentAt(firstToken, to + 1);
+        if (t1 <= t0) continue;
         const run = tokens.slice(t0, t1).map((t) => t.tok);
         const m = bestMatch(run, index);
         if (m.score)
-          runs.push({ from, to, score: m.score, pairs: m.pairs.map(([i, j]) => [i + t0!, j]) });
+          runs.push({ from, to, score: m.score, pairs: m.pairs.map(([i, j]) => [i + t0, j]) });
       }
     if (!runs.length) return;
     const top = Math.max(...runs.map((r) => r.score));
@@ -496,48 +564,52 @@ function align(section: ScriptSection, pre: Prepared, scoreOnly = false): Alignm
     const take = runs
       .filter((r) => r.score >= top * TAKE_SHARE)
       .sort((x, y) => y.to - x.to || y.score - x.score || x.to - x.from - (y.to - y.from))[0];
+    if (!take) throw new Error("Trecho de alinhamento ausente.");
     let start = Number.POSITIVE_INFINITY;
     let end = Number.NEGATIVE_INFINITY;
     let first = Number.POSITIVE_INFINITY;
     let last = -1;
-    for (const [ti, j] of take!.pairs) {
-      for (const wi of tokens[ti]!.src) {
+    for (const [ti, j] of take.pairs) {
+      for (const wi of alignmentAt(tokens, ti).src) {
+        const word = alignmentAt(words, wi);
         used[wi] = 1;
-        start = Math.min(start, words[wi]!.start);
-        end = Math.max(end, words[wi]!.end);
+        start = Math.min(start, word.start);
+        end = Math.max(end, word.end);
         first = Math.min(first, wi);
         last = Math.max(last, wi);
       }
-      line!.matched++;
-      if (!script[lineStart[li]! + j]!.stop) contentMatched++;
+      line.matched++;
+      if (!alignmentAt(script, scriptStart + j).stop) contentMatched++;
     }
-    matchedAll += line!.matched;
-    line!.start = start;
-    line!.end = end;
+    matchedAll += line.matched;
+    line.start = start;
+    line.end = end;
     spans.push([first, last]);
     // Between two matched words, a number or a name said where the script has another one.
-    for (let k = 1; k < take!.pairs.length; k++) {
-      const [t0, j0] = take!.pairs[k - 1]!;
-      const [t1, j1] = take!.pairs[k]!;
+    for (let k = 1; k < take.pairs.length; k++) {
+      const [t0, j0] = alignmentAt(take.pairs, k - 1);
+      const [t1, j1] = alignmentAt(take.pairs, k);
       const saidToks = tokens.slice(t0 + 1, t1);
-      const wrote = script.slice(lineStart[li]! + j0 + 1, lineStart[li]! + j1);
+      const wrote = script.slice(scriptStart + j0 + 1, scriptStart + j1);
       if (!saidToks.length || !wrote.length) continue;
       const salient = (t: SpeechToken): boolean =>
         (isNumberToken(t.tok) && !t.stop) || glossary.terms.has(t.tok);
-      const said = saidToks.filter((t) => salient(t) || isName(spokenTexts, t.src[0]!));
-      const written = wrote.filter((t) => salient(t) || isName(lineWords[li]!, t.src[0]!));
+      const said = saidToks.filter((t) => salient(t) || isName(spokenTexts, alignmentAt(t.src, 0)));
+      const written = wrote.filter(
+        (t) => salient(t) || isName(writtenWords, alignmentAt(t.src, 0)),
+      );
       if (!said.length || !written.length) continue;
       const saidText = [...new Set(saidToks.flatMap((t) => t.src))]
-        .map((wi) => words[wi]!.text)
+        .map((wi) => alignmentAt(words, wi).text)
         .join(" ");
       const writtenText = [...new Set(wrote.flatMap((t) => t.src))]
-        .map((wi) => lineWords[li]![wi])
+        .map((wi) => alignmentAt(writtenWords, wi))
         .join(" ");
       substitutions.push({
         line: li,
         said: saidText.replace(/[^\p{L}\p{N}%+-]+$/u, ""),
         written: writtenText.replace(/[^\p{L}\p{N}%+-]+$/u, ""),
-        start: words[saidToks[0]!.src[0]!]!.start,
+        start: alignmentAt(words, alignmentAt(alignmentAt(saidToks, 0).src, 0)).start,
       });
     }
   });
@@ -605,10 +677,11 @@ export function rankSections(
   const scores = doc.sections.map((s) => align(s, pre, true).content);
   let index = 0;
   scores.forEach((s, i) => {
-    if (s > scores[index]!) index = i;
+    if (s > alignmentAt(scores, index)) index = i;
   });
   const second = Math.max(0, ...scores.filter((_, i) => i !== index));
-  return { index, coverage: scores[index]!, margin: scores[index]! - second, scores };
+  const coverage = alignmentAt(scores, index);
+  return { index, coverage, margin: coverage - second, scores };
 }
 
 /** Whether the person should confirm the section picked automatically. */

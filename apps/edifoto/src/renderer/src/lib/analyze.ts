@@ -27,7 +27,9 @@ export interface ImageStats {
 export function analyzeDoc(doc: Doc): ImageStats {
   const scale = Math.min(1, 512 / Math.max(doc.width, doc.height));
   const c = compositor().renderToCanvas(doc, { scale });
-  const data = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
+  const context = c.getContext("2d");
+  if (!context) throw new Error("Não foi possível analisar a imagem.");
+  const data = context.getImageData(0, 0, c.width, c.height).data;
   const lumH = new Uint32Array(256);
   const chH = [new Uint32Array(256), new Uint32Array(256), new Uint32Array(256)];
   let n = 0;

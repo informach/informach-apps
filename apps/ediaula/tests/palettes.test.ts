@@ -14,8 +14,10 @@ import {
   themeFontSet,
 } from "../src/shared/palettes.ts";
 import { templateById, templateLayers } from "../src/shared/templates.ts";
+import { assertDefined } from "./assert-defined.ts";
 
-const preset = (kind: string) => ANNOTATION_PRESETS.find((p) => p.kind === kind)!.spec;
+const preset = (kind: string) =>
+  assertDefined(ANNOTATION_PRESETS.find((p) => p.kind === kind)).spec;
 
 test("new annotations come in the colors of the project palette, role by role", () => {
   assert.equal(inPalette(preset("note"), SISTEMA_ZERO_PALETTE).color, "#FFC02E");
@@ -91,15 +93,21 @@ test("theme fonts: titles and text get the theme typefaces; fonts picked by hand
 test("templates use the theme fonts by role unless the template has its own font", () => {
   const fonts = SISTEMA_ZERO_PALETTE.fonts;
   const layers = templateLayers(
-    templateById("question")!,
+    assertDefined(templateById("question")),
     { question: "Qual?", options: "A" },
     SISTEMA_ZERO_PALETTE,
     fonts,
   );
-  assert.equal(layers.find((l) => l.spec.kind === "title")!.spec.fontFamily, "Baloo 2");
-  assert.equal(layers.find((l) => l.spec.kind === "label")!.spec.fontFamily, "Nunito");
+  assert.equal(
+    assertDefined(layers.find((l) => l.spec.kind === "title")).spec.fontFamily,
+    "Baloo 2",
+  );
+  assert.equal(
+    assertDefined(layers.find((l) => l.spec.kind === "label")).spec.fontFamily,
+    "Nunito",
+  );
   const own = templateLayers(
-    templateById("question")!,
+    assertDefined(templateById("question")),
     { question: "Qual?", options: "A", font: "Fredoka" },
     SISTEMA_ZERO_PALETTE,
     fonts,

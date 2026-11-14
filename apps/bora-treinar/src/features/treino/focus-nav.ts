@@ -61,6 +61,8 @@ export function moveFocus(dir: Dir) {
 export function installFocusNav(onBack: () => void) {
   const handler = (e: KeyboardEvent) => {
     if (e.defaultPrevented) return;
+    // Some TV remotes or synthetic keydown events provide only keyCode.
+    const key = typeof e.key === "string" ? e.key : "";
     const t = e.target as HTMLElement;
     const typing =
       t.tagName === "INPUT" ||
@@ -74,20 +76,20 @@ export function installFocusNav(onBack: () => void) {
       t.tagName === "TEXTAREA" ||
       (t instanceof HTMLInputElement && ["number", "range", "date", "time"].includes(t.type));
     if (
-      e.key.startsWith("Arrow") &&
+      key.startsWith("Arrow") &&
       !setasDoCampo &&
-      !(typing && (e.key === "ArrowLeft" || e.key === "ArrowRight"))
+      !(typing && (key === "ArrowLeft" || key === "ArrowRight"))
     ) {
       e.preventDefault();
-      moveFocus(e.key as Dir);
+      moveFocus(key as Dir);
     } else if (
-      (BACK_KEYS.has(e.key) && !(typing && (e.key === "Backspace" || e.key === "Escape"))) ||
+      (BACK_KEYS.has(key) && !(typing && (key === "Backspace" || key === "Escape"))) ||
       BACK_CODES.has(e.keyCode)
     ) {
       const modal = document.querySelector<HTMLDialogElement>("dialog[open]");
       if (modal) {
         // Escape keeps native cancellation. Other TV back keys use the same cancel event.
-        if (e.key !== "Escape") {
+        if (key !== "Escape") {
           e.preventDefault();
           if (modal.dispatchEvent(new Event("cancel", { cancelable: true }))) modal.close();
         }

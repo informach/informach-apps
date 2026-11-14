@@ -17,9 +17,21 @@ e conferiu backups e ensaiou a restauração antes das mudanças.
 A família piloto foi consolidada com preservação dos logins e históricos. A
 conferência de contratos recebeu correção de limite; autorizações operacionais
 registram o verdadeiro responsável pela ação. Os seis contratos históricos foram
-registrados e a carteira remanescente foi migrada. Os seis encerramentos ao fim do período pago foram confirmados no provedor.
-A programação da cobrança futura permanece pendente; os recibos não comprovam
-que uma nova assinatura já tenha sido programada.
+registrados e a carteira remanescente foi migrada. Os seis encerramentos ao fim
+do período pago foram confirmados no provedor. A preparação do cartão e uma única
+programação de continuidade posterior ao último período pago foram verificadas
+no Stripe; a assinatura programada ainda não iniciou a cobrança.
+
+Na nova conferência do Railway, os sete serviços financeiros substituídos não
+constavam mais. Os 19 jobs mantidos não apresentavam alertas ativos: 16 tinham
+última execução bem-sucedida e três aguardavam a próxima janela diária ou
+semanal. O cron do Recreio permaneceu provisionado sem implantação nem execução,
+conforme a preparação autorizada para o futuro lançamento.
+
+Alertas históricos de produto desconhecido na Agenda e no Cozya foram
+relacionados a eventos Stripe de clientes registrados no outro app. Uma correção
+local para reconhecer essa origem está em validação; os alertas permanecem
+abertos até a implantação e a conferência do comportamento em produção.
 
 ## Infraestrutura observada
 

@@ -8,6 +8,7 @@ import { runLegacyContractMaintenance } from "@informach/billing/legacy-contract
 import { runLegacyCoordinationRecovery } from "@informach/billing/legacy-coordination-jobs";
 import { runLegacyFutureRecovery } from "@informach/billing/legacy-future-jobs";
 import { releaseExpiredReservations } from "@informach/billing/sweepers";
+import { retryPendingInvoiceVerifications } from "@informach/billing/webhooks";
 import { getCollectionApps } from "@informach/config/collections";
 import { db, recordJobRun } from "@informach/db";
 import { getBillingMaintenance } from "./billing";
@@ -39,7 +40,7 @@ export async function runAccountMaintenanceJob() {
 export async function runBillingJob() {
   return recordJobRun({ app: "conta", job: "billing" }, async () => {
     const runtime = getBillingMaintenance();
-    const [native, migrated, future] = await Promise.allSettled([
+    const [native, migrated, future, invoices] = await Promise.allSettled([
       runtime.commerce.runReconciliation(),
       runLegacyContractMaintenance({
         db,
@@ -54,6 +55,7 @@ export async function runBillingJob() {
         publicUrl: runtime.publicUrl,
         onError: () => reportOperationalError("billing.future_reconciliation.failed"),
       }),
+      retryPendingInvoiceVerifications({ db, providerClient: runtime.providerClient }),
     ]);
     // In sequence after the others: it may hold an account lock across
     // provider I/O and the coordination pool has two connections.
@@ -74,11 +76,12 @@ export async function runBillingJob() {
       native.status === "rejected" ||
       migrated.status === "rejected" ||
       future.status === "rejected" ||
+      invoices.status === "rejected" ||
       coordination.status === "rejected" ||
       expired.some((result) => result.status === "rejected")
     )
       throw new AggregateError(
-        [native, migrated, future, coordination, ...expired].flatMap((result) =>
+        [native, migrated, future, invoices, coordination, ...expired].flatMap((result) =>
           result.status === "rejected" ? [result.reason] : [],
         ),
         "CompassoBillingReconciliationIncomplete",
@@ -92,6 +95,7 @@ export async function runBillingJob() {
       legacyChecked: legacy.checked,
       futureChecked: future.value.checked,
       coordinationChecked: coordination.value.checked,
+      invoiceVerificationsRetried: invoices.value.retried,
       released: expired.reduce(
         (count, result) => count + (result.status === "fulfilled" ? result.value.released : 0),
         0,

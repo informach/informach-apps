@@ -1488,7 +1488,7 @@ export function registerRecorder(getMain: () => BrowserWindow | null): void {
     const b = overlay?.getBounds();
     const current =
       monitors.find((m) => m.index === recordedIndex) ??
-      (b ? monitors.find((m) => m.dip!.x === b.x && m.dip!.y === b.y) : undefined);
+      (b ? monitors.find((m) => m.dip?.x === b.x && m.dip?.y === b.y) : undefined);
     return { ...s, monitors, current: current?.index ?? null };
   });
   /** Tried in the background while the recorder is set up, not during the countdown. */

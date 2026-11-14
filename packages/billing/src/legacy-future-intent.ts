@@ -353,8 +353,7 @@ export async function openLegacyFutureSetup(
           ),
         )
         .for("update");
-      if (!intent || intent.state !== "setup_pending")
-        throw new BillingError("Future setup is not pending");
+      if (intent?.state !== "setup_pending") throw new BillingError("Future setup is not pending");
       const terms = await preview(tx, deps, actorId, {
         accountId: account.id,
         productId: z.enum(["compasso_monthly", "compasso_annual"]).parse(intent.productId),
@@ -383,8 +382,7 @@ export async function openLegacyFutureSetup(
       .from(customers)
       .where(eq(customers.id, customer.customerId));
     if (
-      !commercial ||
-      commercial.app !== "compasso" ||
+      commercial?.app !== "compasso" ||
       commercial.subjectType !== "billing_account" ||
       commercial.subjectId !== authorized.intent.accountId ||
       commercial.provider !== "stripe"
@@ -925,8 +923,7 @@ export async function cancelUnsettledLegacyFutureSetup(
     if (intent?.state === "canceled" && intent.cancelRequestedAt)
       return { intentId, state: "canceled" as const, providerStatus: "canceled" as const };
     if (
-      !intent ||
-      intent.state !== "review" ||
+      intent?.state !== "review" ||
       !intent.cancelRequestedAt ||
       intent.paymentMethodId ||
       intent.scheduleId
@@ -1079,8 +1076,7 @@ export async function requestLegacyFutureCancellation(
         return "setup" as const;
       }
       if (
-        !intent ||
-        !intent.paymentMethodId ||
+        !intent?.paymentMethodId ||
         !(
           intent.state === "scheduled" ||
           intent.state === "scheduling" ||

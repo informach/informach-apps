@@ -51,7 +51,7 @@ export function setupScrollControls(api, error) {
       op: "configure",
       axis: $("scroll-axis").value,
       margins: Object.fromEntries(
-        ["top", "bottom", "left", "right"].map((side) => [side, Number($("crop-" + side).value)]),
+        ["top", "bottom", "left", "right"].map((side) => [side, Number($(`crop-${side}`).value)]),
       ),
     });
   $("scroll-preview").onclick = () => review({ op: "preview" });

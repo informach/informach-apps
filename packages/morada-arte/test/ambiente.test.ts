@@ -183,8 +183,14 @@ describe("empacotamento do ambiente sem arte licenciada", () => {
     const fora = join(nova(), "privado.glb");
     writeFileSync(fora, "fora");
     expect(() => caminhoInterno(arte, fora)).toThrow("dentro");
-    symlinkSync(fora, join(arte, "link.glb"));
-    expect(() => caminhoInterno(arte, "link.glb")).toThrow("dentro");
+    if (process.platform === "win32") {
+      // Junções não exigem privilégio de criação de links de arquivo no Windows.
+      symlinkSync(dirname(fora), join(arte, "link"), "junction");
+      expect(() => caminhoInterno(arte, "link/privado.glb")).toThrow("dentro");
+    } else {
+      symlinkSync(fora, join(arte, "link.glb"));
+      expect(() => caminhoInterno(arte, "link.glb")).toThrow("dentro");
+    }
   });
 
   it("recusa um GLB com recurso externo antes de pedir a leitura", async () => {

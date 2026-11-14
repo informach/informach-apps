@@ -92,7 +92,7 @@ export function parseGlossaryText(text: string): GlossaryTerm[] {
   let cur = "";
   const flush = (): void => {
     const m = /^([^()]*)(?:\(([^)]*)\)?)?\s*$/.exec(cur.trim());
-    const term = clean(m ? m[1]! : cur.replace(/[()]/g, ""));
+    const term = clean(m?.[1] ?? cur.replace(/[()]/g, ""));
     const aliases = (m?.[2] ?? "").split(/[,;]/).map(clean).filter(Boolean);
     if (term) out.push(aliases.length ? { term, aliases } : term);
     cur = "";
@@ -173,9 +173,17 @@ export function editDistance(a: string, b: string, max: number): number {
     let best = i;
     for (let j = 1; j <= b.length; j++) {
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      let d = Math.min(prev[j]! + 1, cur[j - 1]! + 1, prev[j - 1]! + cost);
-      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1])
-        d = Math.min(d, prev2[j - 2]! + 1);
+      const deletion = prev[j];
+      const insertion = cur[j - 1];
+      const substitution = prev[j - 1];
+      if (deletion === undefined || insertion === undefined || substitution === undefined)
+        throw new Error("Matriz de distância incompleta.");
+      let d = Math.min(deletion + 1, insertion + 1, substitution + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        const transposition = prev2[j - 2];
+        if (transposition === undefined) throw new Error("Matriz de distância incompleta.");
+        d = Math.min(d, transposition + 1);
+      }
       cur.push(d);
       best = Math.min(best, d);
     }
@@ -183,7 +191,9 @@ export function editDistance(a: string, b: string, max: number): number {
     prev2 = prev;
     prev = cur;
   }
-  return prev[b.length]!;
+  const distance = prev[b.length];
+  if (distance === undefined) throw new Error("Matriz de distância incompleta.");
+  return distance;
 }
 
 const LEADING = /^[^\p{L}\p{N}]*/u;
@@ -238,24 +248,28 @@ export function correctWords<W extends Word>(
       keys.push((keys[keys.length - 1] ?? "") + sounds[k]);
     }
     list.forEach((term, t) => {
+      const cache = known[t];
+      if (!cache) throw new Error("Índice do glossário incompleto.");
       const hi = Math.min(term.words + 1, keys.length);
       for (let n = Math.max(1, term.words - 1); n <= hi; n++) {
         const key = keys[n - 1];
-        if (key!.length > term.key.length + term.maxDist) break;
-        if (key!.length < term.key.length - term.maxDist) continue;
         const plain = plains[n - 1];
+        if (key === undefined || plain === undefined)
+          throw new Error("Índice de palavras do glossário incompleto.");
+        if (key.length > term.key.length + term.maxDist) break;
+        if (key.length < term.key.length - term.maxDist) continue;
         const exact = plain === term.plain;
-        let dist = exact ? 0 : known[t]!.get(key!);
+        let dist = exact ? 0 : cache.get(key);
         if (dist === undefined) {
-          dist = editDistance(key!, term.key, term.maxDist);
-          known[t]!.set(key!, dist);
+          dist = editDistance(key, term.key, term.maxDist);
+          cache.set(key, dist);
         }
         if (dist > term.maxDist) continue;
         const real = folded.slice(at, at + n).every(isPortugueseWord);
         if (n === 1) {
           // A real word stays itself (not even its case changes), and a short heard form has to
           // sound exactly right.
-          if (real || plain!.length < 3 || (plain!.length <= 3 && dist > 0)) continue;
+          if (real || plain.length < 3 || (plain.length <= 3 && dist > 0)) continue;
         } else if (real && !exact) {
           // Several real words only when they spell the term ("sistema zero").
           continue;
@@ -282,13 +296,15 @@ export function correctWords<W extends Word>(
   }
   const out: W[] = [];
   for (let i = 0; i < words.length; i++) {
+    const first = words[i];
+    if (!first) throw new Error("Lista de palavras incompleta.");
     const m = chosen.get(i);
     if (!m) {
-      out.push(words[i]!);
+      out.push(first);
       continue;
     }
-    const first = words[i]!;
-    const last = words[i + m.n - 1]!;
+    const last = words[i + m.n - 1];
+    if (!last) throw new Error("Correspondência do glossário incompleta.");
     const text = replaceCore(first.text, m.term.text, last.text);
     if (m.n === 1) out.push(text === first.text ? first : { ...first, text, heard: first.text });
     else {
@@ -296,7 +312,7 @@ export function correctWords<W extends Word>(
       out.push({
         ...first,
         text,
-        end: last!.end,
+        end: last.end,
         p: Math.round((parts.reduce((s, w) => s + w.p, 0) / m.n) * 100) / 100,
         heard: parts.map((w) => w.text).join(" "),
         joined: parts.map((w, k) => w.i ?? i + k),
@@ -334,13 +350,13 @@ export function scriptTerms(doc: ScriptDoc | null): string[] {
       const tokens = item.text.split(/\s+/).filter(Boolean);
       let run: string[] = [];
       const flush = (): void => {
-        while (run.length && CONNECTORS.has(run[run.length - 1]!.toLowerCase())) run.pop();
+        while (run.length && CONNECTORS.has(run.at(-1)?.toLowerCase() ?? "")) run.pop();
         if (run.length) add(run.join(" "));
         run = [];
       };
       tokens.forEach((raw, i) => {
         const w = raw.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
-        const sentenceStart = i === 0 || /[.!?:…]["”)]?$/.test(tokens[i - 1]!);
+        const sentenceStart = i === 0 || /[.!?:…]["”)]?$/.test(tokens[i - 1] ?? "");
         if (w && capitalized(w) && (!sentenceStart || run.length)) run.push(w);
         else if (run.length && CONNECTORS.has(w)) run.push(w);
         else flush();

@@ -78,6 +78,7 @@ import {
   useState,
 } from "react";
 import { useSpeechSpans } from "@/lib/audio";
+import { requireCanvas2d } from "@/lib/canvas";
 import { useClickEvents } from "@/lib/clickSounds";
 import { timecode } from "@/lib/format";
 import { softMaskUrl } from "@/lib/maskImage";
@@ -192,7 +193,7 @@ function glitchMask(e: number, slot: number): string {
     const c = document.createElement("canvas");
     c.width = cols * cell;
     c.height = rows * cell;
-    const ctx = c.getContext("2d")!;
+    const ctx = requireCanvas2d(c);
     ctx.fillStyle = "#000";
     for (let by = 0; by < rows; by++)
       for (let bx = 0; bx < cols; bx++)
@@ -943,7 +944,9 @@ export function Preview(): ReactNode {
     }
     if (!below) pick();
     e.preventDefault();
-    const rect = stageRef.current!.getBoundingClientRect();
+    const stage = stageRef.current;
+    if (!stage) return;
+    const rect = stage.getBoundingClientRect();
     const base = clip.keyframes?.length
       ? transformAt(clip, usePlayback.getState().time)
       : (clip.transform ?? DEFAULT_TRANSFORM);

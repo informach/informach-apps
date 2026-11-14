@@ -18,7 +18,7 @@ export function ChromaKeyDialog(): ReactNode {
   const [source] = useState(() => {
     const s = useDoc.getState(),
       layer = s.doc?.layers.find((l) => l.id === s.activeId);
-    if (!layer || layer.kind !== "raster") return null;
+    if (layer?.kind !== "raster") return null;
     const bitmap = requireBitmap(layer.bitmap);
     return {
       layer,
@@ -126,7 +126,9 @@ export function ChromaKeyDialog(): ReactNode {
         pixels[i + 3] = 255;
       }
     }
-    canvas.getContext("2d")!.putImageData(new ImageData(pixels, canvas.width, canvas.height), 0, 0);
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Não foi possível criar a prévia de chroma key.");
+    context.putImageData(new ImageData(pixels, canvas.width, canvas.height), 0, 0);
   }, [source, result, mode, picking]);
 
   if (!source) return null;

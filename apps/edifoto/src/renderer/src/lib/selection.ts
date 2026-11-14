@@ -3,6 +3,7 @@ import { borderColor, refineAlpha, uniformCutout } from "@shared/masks";
 import { inverse, localPlacement, maskPlacement } from "@shared/placement";
 import { floodMask } from "@shared/selection";
 import { adoptCanvas, cloneBitmap, createBitmap, requireBitmap } from "@/engine/bitmaps";
+import { requireCanvas2d } from "@/engine/canvas";
 import { compositor } from "@/engine/compositor";
 import { drawVector } from "@/engine/vector";
 import { updateLayer, useDoc } from "@/state/doc";
@@ -17,7 +18,7 @@ export function setSelection(canvas: HTMLCanvasElement): void {
   const preview = document.createElement("canvas");
   preview.width = canvas.width;
   preview.height = canvas.height;
-  const c = preview.getContext("2d")!;
+  const c = requireCanvas2d(preview);
   c.drawImage(canvas, 0, 0);
   c.globalCompositeOperation = "source-in";
   c.fillStyle = "#ff7a4555";
@@ -38,7 +39,7 @@ export function combineSelection(canvas: HTMLCanvasElement, mode: SelectionMode)
     return;
   }
   const result = blank(),
-    ctx = result.getContext("2d")!;
+    ctx = requireCanvas2d(result);
   ctx.drawImage(requireBitmap(previous).canvas, 0, 0);
   ctx.globalCompositeOperation =
     mode === "add" ? "source-over" : mode === "subtract" ? "destination-out" : "destination-in";
@@ -48,7 +49,7 @@ export function combineSelection(canvas: HTMLCanvasElement, mode: SelectionMode)
 export function selectPolygon(points: Point[], mode: SelectionMode = "replace"): void {
   if (points.length < 3) return;
   const c = blank(),
-    ctx = c.getContext("2d")!;
+    ctx = requireCanvas2d(c);
   ctx.fillStyle = "#fff";
   ctx.beginPath();
   points.forEach((p, i) => {
@@ -64,7 +65,7 @@ export function selectWand(x: number, y: number, mode: SelectionMode = "replace"
   y = Math.floor(y);
   if (x < 0 || y < 0 || x >= d.width || y >= d.height) return;
   const c = compositor().renderToCanvas(d),
-    ctx = c.getContext("2d")!,
+    ctx = requireCanvas2d(c),
     data = ctx.getImageData(0, 0, c.width, c.height);
   data.data.set(
     floodMask(data.data, c.width, c.height, [y * c.width + x], useUi.getState().tolerance),
@@ -95,7 +96,7 @@ export function refineSelection(grow = 0, feather = 0): void {
 export function invertSelection(): void {
   const id = useUi.getState().selection,
     c = blank(),
-    ctx = c.getContext("2d")!;
+    ctx = requireCanvas2d(c);
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, c.width, c.height);
   if (id) {
@@ -108,7 +109,7 @@ export function vectorSelection(layer: VectorLayer): void {
   if (!layer.vector.closed || layer.vector.shape === "line")
     throw new OpError("Feche o traçado antes de criar uma seleção.");
   const c = blank();
-  drawVector(c.getContext("2d")!, layer, true);
+  drawVector(requireCanvas2d(c), layer, true);
   setSelection(c);
 }
 export function selectionMask(targetId?: string): void {

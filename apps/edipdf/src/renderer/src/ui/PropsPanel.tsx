@@ -88,7 +88,7 @@ function Colors({
       <label
         className={`swatch custom${custom ? " on" : ""}`}
         title="Outra cor"
-        style={custom ? { background: value! } : undefined}
+        style={custom && value ? { background: value } : undefined}
       >
         <input
           type="color"

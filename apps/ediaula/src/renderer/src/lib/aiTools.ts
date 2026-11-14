@@ -799,7 +799,9 @@ function shadowNamed(
 ): Shadow | null | undefined {
   if (name === "none") return null;
   if (name === "default") return undefined;
-  return SHADOW_PRESETS.find((x) => x.id === name)!.shadow;
+  const preset = SHADOW_PRESETS.find((x) => x.id === name);
+  if (!preset) throw new ToolError("O modelo de sombra não foi encontrado.");
+  return preset.shadow;
 }
 
 /** Font, outline and shadow changes for an annotation, from the AI tools' fields. */
@@ -1498,8 +1500,8 @@ const handlers: {
         const placed = it.insertId ? p.clips.find((c) => c.insertId === it.insertId) : undefined;
         const where = placed
           ? `na timeline em ${t(placed.start)}`
-          : l?.start !== undefined && l.matched / Math.max(1, l.total) >= 0.4
-            ? `${t(l.start)}–${t(l.end!)}, ${Math.round((l.matched / l.total) * 100)}% das palavras`
+          : l?.start !== undefined && l.end !== undefined && l.matched / Math.max(1, l.total) >= 0.4
+            ? `${t(l.start)}–${t(l.end)}, ${Math.round((l.matched / l.total) * 100)}% das palavras`
             : "não encontrada na gravação";
         return `LINHA ${lineNumber.get(idx)} · ${it.speaker}${it.avatar ? " (avatar)" : ""}${it.insertId ? ` [${it.insertId}]` : ""} · ${where}: "${it.text}"`;
       }),
@@ -2053,7 +2055,9 @@ ${r.message}`);
   ) {
     const p = requireProject();
     const start = await timeFor(p, near_text, at);
-    const base = ANNOTATION_PRESETS.find((x) => x.kind === kind)!.spec;
+    const preset = ANNOTATION_PRESETS.find((x) => x.kind === kind);
+    if (!preset) throw new ToolError("O modelo de anotação não foi encontrado.");
+    const base = preset.spec;
     const id = await addAnnotation(
       kind,
       {
@@ -2386,6 +2390,8 @@ ${r.message}`);
       values = { question: q.question, options: q.options.join("\n"), ...values };
       start ??= await quizItemTime(p, q);
     }
+    const t = templateById(template);
+    if (!t) throw new ToolError("O template não foi encontrado.");
     let ids: string[];
     try {
       ids = await addTemplate(template, values, start, commit);
@@ -2394,7 +2400,6 @@ ${r.message}`);
       throw err;
     }
     if (!ids.length) throw new ToolError("Não foi possível inserir o template.");
-    const t = templateById(template)!;
     return `${t.label}: ${ids.length} camadas inseridas${t.fullscreen && t.where === "start" ? ` (a aula andou ${t.duration} s para frente)` : ""} [${ids.join(", ")}].`;
   },
 

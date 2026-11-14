@@ -60,9 +60,8 @@ export function Ruler() {
     setZoom(z);
   };
   // A new video starts showing the whole of it.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset only when the video changes.
   useEffect(() => setZoom(1), [duration]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runs after the zoom changes the width.
+  // Run after zoom changes the width.
   useLayoutEffect(() => {
     const view = scroller.current;
     const pending = anchor.current;
@@ -370,7 +369,6 @@ export function Ruler() {
                   : "";
             return (
               <span
-                // biome-ignore lint/suspicious/noArrayIndexKey: the n-th cut stays the same element while dragged (its time changes on every move).
                 key={`cut-${i}`}
                 className={`cut-handle${edge}`}
                 role="presentation"

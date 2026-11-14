@@ -33,7 +33,7 @@ async function pack() {
       { cwd: root, stdio: "inherit" },
     );
   }
-  console.log("Aplicativo portátil em " + output);
+  console.log(`Aplicativo portátil em ${output}`);
 }
 pack().catch((e) => {
   console.error(e);

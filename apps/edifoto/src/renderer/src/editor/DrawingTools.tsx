@@ -289,21 +289,22 @@ export function useDrawingTools(): {
           />
           {withRenderKeys(anchors, (point) => JSON.stringify(point)).map(({ key, value: p }, i) => (
             <g key={key}>
-              {(["incoming", "outgoing"] as const).map(
-                (h) =>
-                  p[h] && (
-                    <g key={h}>
-                      <line x1={p.x} y1={p.y} x2={p[h]!.x} y2={p[h]!.y} stroke="#ffffff" />
-                      <circle
-                        className="handle"
-                        cx={p[h]!.x}
-                        cy={p[h]!.y}
-                        r={4}
-                        onPointerDown={(e) => anchorDown(e, editing?.id ?? null, i, h)}
-                      />
-                    </g>
-                  ),
-              )}
+              {(["incoming", "outgoing"] as const).map((h) => {
+                const handle = p[h];
+                if (!handle) return null;
+                return (
+                  <g key={h}>
+                    <line x1={p.x} y1={p.y} x2={handle.x} y2={handle.y} stroke="#ffffff" />
+                    <circle
+                      className="handle"
+                      cx={handle.x}
+                      cy={handle.y}
+                      r={4}
+                      onPointerDown={(e) => anchorDown(e, editing?.id ?? null, i, h)}
+                    />
+                  </g>
+                );
+              })}
               <rect
                 className="handle"
                 x={p.x - 4}

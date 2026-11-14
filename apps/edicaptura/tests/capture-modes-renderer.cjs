@@ -103,7 +103,7 @@ async function run() {
       };
     });
     const base = `http://127.0.0.1:${server.httpServer.address().port}`;
-    await page.goto(base + "/src/editor/index.html");
+    await page.goto(`${base}/src/editor/index.html`);
     await page.locator("#photo-options").click();
     assert(await page.locator("#photo-dialog").isVisible());
     await page.locator("#photo-cancel").click();
@@ -137,7 +137,7 @@ async function run() {
     );
     await page.locator("#photo-retry").click();
     assert(await page.evaluate(() => window.fixture.retried));
-    await page.goto(base + "/src/capture/selection.html");
+    await page.goto(`${base}/src/capture/selection.html`);
     await page.waitForFunction(() => document.querySelector("#picker").style.width);
     await page.mouse.move(213, 240);
     await page.mouse.down();

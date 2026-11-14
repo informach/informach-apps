@@ -95,7 +95,7 @@ function render() {
   $("cancel").hidden = state.mode !== "scroll";
   $("stop-hint").hidden = state.mode !== "video";
   $("finish-text").textContent = state.mode === "video" ? "Parar e salvar" : "Pronto · unir imagem";
-  $("count").textContent = state.count + " trecho" + (state.count === 1 ? "" : "s");
+  $("count").textContent = `${state.count} trecho${state.count === 1 ? "" : "s"}`;
   $("overlap").max = (state.axis === "horizontal" ? state.width : state.height) - 1;
   if (state.mode === "scroll") scrollControls.render(state);
 }
@@ -108,7 +108,7 @@ function renderClock() {
   if (state?.mode === "photo") return;
   const s = Math.floor(clock.elapsed() / 1000);
   $("timer").textContent =
-    String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+    `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 render();
 setInterval(renderClock, 1000);

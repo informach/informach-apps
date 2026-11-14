@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { ALIGN_TOLERANCE, planAlign, planMoves, splitOneClip } from "../src/shared/clipMoves.ts";
 import { clipEnd, sourceAt } from "../src/shared/clipTime.ts";
 import type { Clip, Project, Track } from "../src/shared/types.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 const track = (id: string, extra: Partial<Track> = {}): Track => ({
   id,
@@ -98,7 +99,10 @@ test("split_clip: só o clipe pedido; metades com tudo dele, entrada na primeira
   p.clips = p.clips.map((c) => (c.id === "avatar" ? { ...c, speed: 2, in: 10, groupId: "g" } : c));
   const r = splitOneClip(p, "avatar", 100);
   assert.ok(r.ok);
-  const [a, b] = [r.clips.find((c) => c.id === r.first)!, r.clips.find((c) => c.id === r.second)!];
+  const [a, b] = [
+    assertDefined(r.clips.find((c) => c.id === r.first)),
+    assertDefined(r.clips.find((c) => c.id === r.second)),
+  ];
   assert.equal(a.id, "avatar");
   assert.deepEqual([a.start, clipEnd(a), b.start, clipEnd(b)], [2.5, 100, 100, 451.6]);
   // Com velocidade 2, a segunda metade começa na mídia onde a primeira termina.

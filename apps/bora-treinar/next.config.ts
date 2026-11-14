@@ -1,6 +1,6 @@
 import path from "node:path";
 import { isolatedNextOptions } from "@informach/config/next-testing";
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
 const config: NextConfig = {

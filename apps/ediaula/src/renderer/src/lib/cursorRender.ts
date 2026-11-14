@@ -142,7 +142,8 @@ async function renderSprite(
     signal?.throwIfAborted();
     await window.api.cursorSprite.begin(jobId, path, id, size, fps);
     const canvas = new OffscreenCanvas(size, size);
-    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) throw new Error("Não foi possível criar o contexto do cursor.");
     const frames = positions.length / 2;
     const bytes = size * size * 4;
     const perBatch = Math.max(1, Math.min(BATCH, Math.floor(BATCH_BYTES / bytes)));

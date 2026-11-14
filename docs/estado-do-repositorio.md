@@ -9,9 +9,11 @@ Não comprova o seletor nativo nem o instalador publicado; comando no README do 
 **14/11 — Compasso em produção:** Conta e consumidores implantados, DNS e TLS
 validados; a reconciliação de cobrança e a transição da família piloto continuam
 em acompanhamento. Contratos históricos foram registrados com autorização
-operacional auditada, e a carteira legada foi migrada; a programação da nova
-assinatura ainda depende da preparação do pagamento; os seis encerramentos ao
-fim dos períodos pagos foram confirmados.
+operacional auditada, e a carteira legada foi migrada. Os seis encerramentos ao
+fim dos períodos pagos e a programação única posterior foram confirmados no Stripe.
+Segue em andamento a [limpeza dos diagnósticos](superpowers/plans/2026-11-14-limpeza-diagnosticos.md).
+A [revisão integral](reviews/compasso-2026-11-14/full-review.md) registra os
+achados, a evidência operacional e os gates ainda em execução.
 A fotografia anterior ao corte está em [levantamento](../apps/conta/LEVANTAMENTO-2026-11-14.md).
 
 ## Compasso: migração em implementação (10/11/2026)

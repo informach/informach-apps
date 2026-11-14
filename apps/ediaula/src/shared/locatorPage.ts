@@ -23,7 +23,7 @@
  * its own pointer (a split handle the pointer crossed on its way in pins every cursor of that page
  * to its arrows until the pointer comes back). A frame it cannot read shows the plain arrow.
  */
-export const CURSOR_AT_SOURCE = String.raw`function cursorAt(x, y, doc) {
+export const CURSOR_AT_SOURCE = `function cursorAt(x, y, doc) {
     const el = (doc || document).elementFromPoint(x, y);
     if (!el) return { cursor: "default", editable: false };
     if (el.tagName === "IFRAME" || el.tagName === "FRAME") {

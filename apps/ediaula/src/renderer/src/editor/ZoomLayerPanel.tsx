@@ -117,12 +117,13 @@ export function ZoomPointControls({
 export function ZoomLayerSection({ clip }: { clip: Clip }): ReactNode {
   const project = useProject((s) => s.project);
   const [busy, setBusy] = useState(false);
-  const z = clip.zoomLayer!;
+  const z = clip.zoomLayer;
+  if (!z) throw new Error("A camada de zoom não está disponível.");
   const set = (c: Parameters<typeof setZoomLayer>[1]): void => {
     setZoomLayer(clip.id, c);
   };
   const prev = project ? previousZoom(project, clip) : undefined;
-  const continues = !!prev && prev.zoomLayer!.zoomOut === false;
+  const continues = prev?.zoomLayer?.zoomOut === false;
   const next = project?.clips.find(
     (o) =>
       o.id !== clip.id &&
@@ -283,21 +284,25 @@ export function ZoomPanel({ onRecordingZoom }: { onRecordingZoom: () => void }):
       </Button>
       {layers.length > 0 && (
         <div className="zoom-layer-list">
-          {layers.map((c) => (
-            <button
-              type="button"
-              key={c.id}
-              className="zoom-go"
-              onClick={() => {
-                useProject.getState().select([c.id]);
-                playback.seek(c.start + 0.01);
-                useApp.getState().set({ sideTab: "properties" });
-              }}
-            >
-              <ZoomIn size={12} /> {clock(c.start)} a {clock(c.start + c.duration)} ·{" "}
-              {c.zoomLayer!.scale < 1.01 ? "volta ao normal" : `${c.zoomLayer!.scale.toFixed(1)}×`}
-            </button>
-          ))}
+          {layers.map((c) => {
+            const zoom = c.zoomLayer;
+            if (!zoom) throw new Error("Camada de zoom ausente.");
+            return (
+              <button
+                type="button"
+                key={c.id}
+                className="zoom-go"
+                onClick={() => {
+                  useProject.getState().select([c.id]);
+                  playback.seek(c.start + 0.01);
+                  useApp.getState().set({ sideTab: "properties" });
+                }}
+              >
+                <ZoomIn size={12} /> {clock(c.start)} a {clock(c.start + c.duration)} ·{" "}
+                {zoom.scale < 1.01 ? "volta ao normal" : `${zoom.scale.toFixed(1)}×`}
+              </button>
+            );
+          })}
         </div>
       )}
       <div className="props-section all-cuts">

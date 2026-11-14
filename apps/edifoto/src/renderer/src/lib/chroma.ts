@@ -33,9 +33,13 @@ export function applyChromaKey(
   const canvas = document.createElement("canvas");
   canvas.width = layer.width;
   canvas.height = layer.height;
-  canvas
-    .getContext("2d")!
-    .putImageData(new ImageData(new Uint8ClampedArray(pixels), layer.width, layer.height), 0, 0);
+  const context = canvas.getContext("2d");
+  if (!context) throw new OpError("Não foi possível criar a imagem de chroma key.");
+  context.putImageData(
+    new ImageData(new Uint8ClampedArray(pixels), layer.width, layer.height),
+    0,
+    0,
+  );
   const bitmap = adoptCanvas(canvas);
   useDoc
     .getState()

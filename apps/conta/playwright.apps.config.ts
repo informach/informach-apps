@@ -81,13 +81,17 @@ export default defineConfig({
       : []),
   ]),
   webServer: [
-    {
-      command: command("conta"),
-      url: `${getAppUrl("conta", "development")}/api/ready`,
-      reuseExistingServer: false,
-      timeout: 180_000,
-      env: fixtureEnvironment("conta", getAppUrl("conta", "development")),
-    },
+    ...(!optimized
+      ? [
+          {
+            command: command("conta"),
+            url: `${getAppUrl("conta", "development")}/api/ready`,
+            reuseExistingServer: false,
+            timeout: 180_000,
+            env: fixtureEnvironment("conta", getAppUrl("conta", "development")),
+          },
+        ]
+      : []),
     {
       command: command(app.slug),
       // This matrix exercises auth without Redis; production /api/ready remains unchanged.

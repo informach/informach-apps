@@ -1,5 +1,9 @@
 # Bora Treinar: guia do app
 
+O corte Compasso ocorreu em 14/11; os relatos abaixo de preparação são históricos.
+Veja o [levantamento operacional](../conta/LEVANTAMENTO-2026-11-14.md) para o
+estado publicado e as pendências de homologação.
+
 ## Encerramento Compasso — adapter interno
 
 `features/account/closure-repository.ts` prepara e executa a limpeza sob operação congelada; a composição fixa `app:bora-treinar`. Preferências e treinos próprios são pessoais. Históricos de perfis usam a seleção de `@informach/family/closure`, nunca o criador histórico; desafios da casa só desaparecem em grupos exclusivos. A remoção nativa é compartilhada com a exclusão local, mantendo a pessoa canônica e a prova de teste gratuito. Retomada preserva os treinos; câmera depende da sessão web já revogada. Worker e confirmação na Conta estão conectados localmente, ainda sem implantação; evidências e pendências no registro Compasso.

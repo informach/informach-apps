@@ -41,13 +41,13 @@ test("persisted presets register only owned shortcuts, rollback conflicts and su
     assert(registered.has("Control+Alt+K"));
     assert(registered.has("Control+Alt+X"));
     const before = await fs.readFile(path.join(root, "profile.json"), "utf8");
-    await fs.rename(root, root + "-moved");
+    await fs.rename(root, `${root}-moved`);
     try {
       await assert.rejects(
         store.update({ defaults: options, presets: [{ ...preset, shortcut: "Ctrl+Alt+J" }] }),
       );
     } finally {
-      await fs.rename(root + "-moved", root);
+      await fs.rename(`${root}-moved`, root);
     }
     assert(!registered.has("Control+Alt+J"));
     assert(registered.has("Control+Alt+K"));

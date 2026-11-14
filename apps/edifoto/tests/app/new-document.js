@@ -101,7 +101,7 @@ globalThis.__newDocumentTestRun = (async () => {
       }
       assert(
         rejected && E.useDoc.getState().doc.id === id,
-        "invalid dimensions rejected: " + w + "x" + h,
+        `invalid dimensions rejected: ${w}x${h}`,
       );
     }
   } finally {

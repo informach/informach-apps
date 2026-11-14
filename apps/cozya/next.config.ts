@@ -1,7 +1,7 @@
 import path from "node:path";
 import { visionImageTracingIncludes } from "@informach/ai-core/vision-image-build";
 import { isolatedNextOptions } from "@informach/config/next-testing";
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";

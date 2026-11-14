@@ -206,8 +206,8 @@ async function verifySelectionService() {
               await page.locator("#surface").focus();
               await page.keyboard.press("ArrowRight");
               for (const id of ["width", "height"]) {
-                await page.locator("#" + id).fill("2");
-                await page.locator("#" + id).press("Tab");
+                await page.locator(`#${id}`).fill("2");
+                await page.locator(`#${id}`).press("Tab");
               }
               await page.locator("#surface").focus();
               for (const [axis, key] of [
@@ -215,7 +215,7 @@ async function verifySelectionService() {
                 ["y", "ArrowDown"],
               ]) {
                 for (let step = 0; step < Math.floor(point[axis] / 10); step++)
-                  await page.keyboard.press("Shift+" + key);
+                  await page.keyboard.press(`Shift+${key}`);
                 for (let step = 0; step < point[axis] % 10; step++) await page.keyboard.press(key);
               }
               await page.keyboard.press("Enter");

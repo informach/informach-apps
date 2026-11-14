@@ -247,13 +247,13 @@ export function CursorPathDialog(): ReactNode {
               <svg
                 viewBox={`0 0 ${data.width} ${data.height}`}
                 aria-label="Caminho do cursor: dois cliques para adicionar, Delete para remover"
+                className="cursor-path-crosshair"
                 style={{
                   position: "absolute",
                   inset: 0,
                   width: "100%",
                   height: "100%",
                   touchAction: "none",
-                  cursor: "crosshair",
                 }}
                 onDoubleClick={(e) => {
                   if (!(e.target as Element).hasAttribute("data-path")) return;
@@ -334,7 +334,7 @@ export function CursorPathDialog(): ReactNode {
                   stroke="transparent"
                   strokeWidth={data.width / 55}
                   pointerEvents="stroke"
-                  style={{ cursor: "copy" }}
+                  className="cursor-path-copy"
                 />
                 {point &&
                   handles.map((h) => (
@@ -357,7 +357,7 @@ export function CursorPathDialog(): ReactNode {
                         fill="#56bdff"
                         stroke="#111111"
                         strokeWidth={data.width / 600}
-                        style={{ cursor: "grab" }}
+                        className="cursor-path-grab"
                       >
                         <title>{h.key === "inHandle" ? "Alça de entrada" : "Alça de saída"}</title>
                       </circle>

@@ -19,7 +19,7 @@ test("numeric SVG validation rejects nonfinite, malformed, out-of-budget and neg
     ["transform", "rotate(1 2)"],
   ]) {
     if (!name || value === undefined) throw new Error("Invalid test case");
-    assert.throws(() => validateSvgNumbers(name, value), name + ": " + value);
+    assert.throws(() => validateSvgNumbers(name, value), `${name}: ${value}`);
   }
   for (const [name, value] of [
     ["x", "-2.5%"],

@@ -42,7 +42,8 @@ export function renderKeyFile(jobId: string, asset: Asset, key: ChromaKey): Prom
 }
 
 function render(asset: Asset): Promise<void> {
-  const key = asset.key!;
+  const key = asset.key;
+  if (!key) throw new Error("Os ajustes de remoção de fundo não estão disponíveis.");
   const id = keyId(key);
   const current = running.get(asset.id);
   if (current?.id === id) return current.promise;

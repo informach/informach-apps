@@ -114,7 +114,7 @@ function sizing(a: Annotation, frameHeight: number): Sizing {
 let measurer: CanvasRenderingContext2D | null = null;
 /** A canvas that only measures text (the drawing measures the same fonts the same way). */
 function measuring(font: string): CanvasRenderingContext2D {
-  measurer ??= document.createElement("canvas").getContext("2d")!;
+  measurer ??= requireCanvas2d(document.createElement("canvas"));
   measurer.font = font;
   return measurer;
 }
@@ -688,7 +688,7 @@ export async function renderAnnotation(
   const ol = sz.outline;
   let balloon: BalloonGeometry | undefined;
   const canvas = document.createElement("canvas");
-  let ctx = canvas.getContext("2d")!;
+  let ctx = requireCanvas2d(canvas);
 
   // The kind's usual soft shadow, used when the annotation does not choose its own.
   let builtIn: Shadow | null = null;
@@ -698,7 +698,7 @@ export async function renderAnnotation(
   const size = (w: number, h: number): void => {
     canvas.width = Math.ceil(w);
     canvas.height = Math.ceil(h);
-    ctx = canvas.getContext("2d")!;
+    ctx = requireCanvas2d(canvas);
   };
   const dashKind = outlineStyle(ol);
   /** Dashes or dots along a stroke of width w (dots are round caps on zero-length dashes). */
@@ -1167,7 +1167,7 @@ export async function renderAnnotation(
     out = document.createElement("canvas");
     out.width = canvas.width + extra * 2;
     out.height = canvas.height + extra * 2;
-    const o = out.getContext("2d")!;
+    const o = requireCanvas2d(out);
     o.shadowColor = rgba(s.color, s.opacity);
     o.shadowBlur = s.blur * k;
     o.shadowOffsetX = dx * k;
@@ -1183,7 +1183,12 @@ export async function renderAnnotation(
       };
   }
 
-  const blob = await new Promise<Blob>((resolve) => out.toBlob((b) => resolve(b!), "image/png"));
+  const blob = await new Promise<Blob>((resolve, reject) =>
+    out.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error("Não foi possível gerar a imagem."))),
+      "image/png",
+    ),
+  );
   return {
     bytes: new Uint8Array(await blob.arrayBuffer()),
     width: out.width,
@@ -1254,7 +1259,8 @@ export async function addAnnotation(
 ): Promise<string | null> {
   const p = basisOf(commit);
   if (!p) return null;
-  const preset = ANNOTATION_PRESETS.find((x) => x.kind === kind)!;
+  const preset = ANNOTATION_PRESETS.find((x) => x.kind === kind);
+  if (!preset) throw new Error("O modelo de anotação não foi encontrado.");
   // Presets are written in EdiAula's colors; they come in the project's palette.
   const font = projectFont(p, { kind, textRole: changes.textRole ?? preset.spec.textRole });
   // An item's line below takes the theme's text font.
@@ -1535,3 +1541,5 @@ export async function addCard(
   useProject.getState().select([id]);
   return id;
 }
+
+import { requireCanvas2d } from "./canvas";

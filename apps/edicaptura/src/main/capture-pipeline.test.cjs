@@ -388,7 +388,7 @@ test("main handler denies sibling roles, subframes, stale URLs and switching roo
       called++;
     },
   });
-  vm.runInContext(handleCode + ';handle("photo:start",["editor"],fn);', context);
+  vm.runInContext(`${handleCode};handle("photo:start",["editor"],fn);`, context);
   await registered({ sender, senderFrame: frame });
   assert.equal(called, 1);
   win.role = "overlay";

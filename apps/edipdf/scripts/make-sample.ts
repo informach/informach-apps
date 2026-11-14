@@ -27,7 +27,7 @@ for (let n = 1; n <= 3; n++) {
         y -= 17;
         line = "";
       }
-      line += w + " ";
+      line += `${w} `;
     }
     page.drawText(line.trim(), { x: 72, y, size: 12, font });
     y -= 26;

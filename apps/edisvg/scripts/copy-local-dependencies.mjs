@@ -40,7 +40,7 @@ for (const name of visited) {
     typeof pkg.bin === "string" ? { [pkg.name.split("/").pop()]: pkg.bin } : pkg.bin || {};
   for (const [command, path] of Object.entries(bins))
     await writeFile(
-      join(target, ".bin", command + ".cmd"),
+      join(target, ".bin", `${command}.cmd`),
       `@echo off\r\nnode "%~dp0\\..\\${name.replaceAll("/", "\\")}\\${path.replaceAll("/", "\\")}" %*\r\n`,
     );
 }

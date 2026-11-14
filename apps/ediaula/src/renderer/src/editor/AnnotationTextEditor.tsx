@@ -88,7 +88,8 @@ export function AnnotationTextEditor({
   onHide: (id: string | null) => void;
 }): ReactNode {
   const time = usePlayback((s) => s.time);
-  const a = clip.annotation!;
+  const a = clip.annotation;
+  if (!a) throw new Error("A anotação a editar não está disponível.");
   const frame = project.settings;
   // The fields are measured once the annotation's fonts are there.
   const [ready, setReady] = useState(false);

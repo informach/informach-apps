@@ -155,7 +155,8 @@ export function Viewport(): ReactNode {
   const active = useDoc((s) => s.doc?.layers.find((l) => l.id === s.activeId));
 
   useEffect(() => {
-    const el = host.current!;
+    const el = host.current;
+    if (!el) return;
     const c = compositor();
     el.prepend(c.canvas);
     let last = { w: el.clientWidth, h: el.clientHeight };
@@ -200,7 +201,8 @@ export function Viewport(): ReactNode {
   }, [tool, doc]);
 
   useEffect(() => {
-    const el = host.current!;
+    const el = host.current;
+    if (!el) return;
     const onWheel = (e: WheelEvent): void => {
       e.preventDefault();
       const r = el.getBoundingClientRect();
@@ -219,14 +221,16 @@ export function Viewport(): ReactNode {
   }, []);
 
   const local = (e: { clientX: number; clientY: number }): [number, number] => {
-    const r = host.current!.getBoundingClientRect();
+    const el = host.current;
+    if (!el) throw new Error("A área de edição não está disponível.");
+    const r = el.getBoundingClientRect();
     return [e.clientX - r.left, e.clientY - r.top];
   };
 
   const startDrag = (d: Drag, e: React.PointerEvent): void => {
     drag.current = d;
     try {
-      host.current!.setPointerCapture(e.pointerId);
+      host.current?.setPointerCapture(e.pointerId);
     } catch {
       /* synthetic events (automated checks) have no capturable pointer */
     }
@@ -284,13 +288,14 @@ export function Viewport(): ReactNode {
       case "text": {
         const hit = hitTest(x, y);
         const hitLayer = hit ? ds.doc.layers.find((l) => l.id === hit) : undefined;
+        const above = ds.doc.layers[ds.doc.layers.length - 1]?.id;
         if (hitLayer?.kind === "text") ds.setActive(hit);
         else
           attempt(() =>
             addLayer({
               kind: "text",
               textAt: { x, y },
-              above: ds.doc!.layers[ds.doc!.layers.length - 1]?.id,
+              above,
               text: { color: ui.fg },
             }),
           );
@@ -396,7 +401,8 @@ export function Viewport(): ReactNode {
         return;
       }
       case "crop": {
-        const docNow = useDoc.getState().doc!;
+        const docNow = useDoc.getState().doc;
+        if (!docNow) return;
         useUi.setState({
           crop: cropDrag(d.start, d.mode, x - d.sx, y - d.sy, docNow.width, docNow.height),
         });

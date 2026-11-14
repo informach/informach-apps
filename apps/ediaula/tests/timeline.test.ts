@@ -23,6 +23,7 @@ import {
 } from "../src/shared/timeline.ts";
 import { previousClip } from "../src/shared/transitions.ts";
 import type { Asset, Clip } from "../src/shared/types.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 const clip = (id: string, start: number, duration: number, extra: Partial<Clip> = {}): Clip => ({
   id,
@@ -117,7 +118,7 @@ test("ripple drag cannot move the playhead or clips before zero", () => {
 });
 
 test("splitClip divides a clip and keeps source continuity", () => {
-  const [l, r] = splitClip(clip("c", 10, 20, { in: 5 }), 15)!;
+  const [l, r] = assertDefined(splitClip(clip("c", 10, 20, { in: 5 }), 15));
   assert.equal(l.id, "c");
   near(l.duration, 5);
   near(r.start, 15);
@@ -146,13 +147,13 @@ test("overwriteRange trims, splits and removes overlapped clips", () => {
     clip("z", 0, 30, { trackId: "t2" }),
   ];
   const out = overwriteRange(clips, "t1", 5, 25);
-  const a = out.find((c) => c.id === "a")!;
+  const a = assertDefined(out.find((c) => c.id === "a"));
   near(a.duration, 5);
   assert.equal(
     out.find((c) => c.id === "b"),
     undefined,
   );
-  const c = out.find((c) => c.id === "c")!;
+  const c = assertDefined(out.find((c) => c.id === "c"));
   near(c.start, 25);
   near(c.in, 5);
   near(c.duration, 5);
@@ -175,8 +176,8 @@ test("overwriteRange splits a clip that spans the whole range into two", () => {
 test("placeClips overwrites what is underneath a moved clip", () => {
   const moved = clip("m", 5, 10);
   const out = placeClips([clip("a", 0, 10), moved, clip("b", 12, 10)], [moved]);
-  near(out.find((c) => c.id === "a")!.duration, 5);
-  near(out.find((c) => c.id === "b")!.start, 15);
+  near(assertDefined(out.find((c) => c.id === "a")).duration, 5);
+  near(assertDefined(out.find((c) => c.id === "b")).start, 15);
   assert.equal(out.length, 3);
 });
 
@@ -188,15 +189,15 @@ test("rippleDelete closes the gap on the same track only", () => {
     clip("x", 20, 5, { trackId: "t2" }),
   ];
   const out = rippleDelete(clips, new Set(["b"]));
-  near(out.find((c) => c.id === "c")!.start, 10);
-  near(out.find((c) => c.id === "x")!.start, 20);
+  near(assertDefined(out.find((c) => c.id === "c")).start, 10);
+  near(assertDefined(out.find((c) => c.id === "x")).start, 20);
 });
 
 test("rippleDelete with several clips shifts by the total removed", () => {
   const clips = [clip("a", 0, 10), clip("b", 10, 5), clip("c", 15, 5), clip("d", 20, 5)];
   const out = rippleDelete(clips, new Set(["a", "c"]));
-  near(out.find((c) => c.id === "b")!.start, 0);
-  near(out.find((c) => c.id === "d")!.start, 5);
+  near(assertDefined(out.find((c) => c.id === "b")).start, 0);
+  near(assertDefined(out.find((c) => c.id === "d")).start, 5);
 });
 
 test("closeGaps packs one track back to back from its first clip, not from 0:00", () => {
@@ -317,19 +318,19 @@ test("pasteClips: back on its own track when free, otherwise above, never coveri
   // Free stretch: same track, at the playhead, new id; the original stays.
   const a = pasteClips(tracks, clips, [balloon], 20);
   assert.equal(a.clips.length, 3);
-  const pa = a.clips.find((c) => c.id === a.ids[0])!;
+  const pa = assertDefined(a.clips.find((c) => c.id === a.ids[0]));
   assert.deepEqual([pa.trackId, pa.start, pa.duration], ["mid", 20, 3]);
   assert.notEqual(pa.id, "b");
   assert.equal(a.tracks.length, 3);
 
   // Pasting over itself: the next free track above.
   const b = pasteClips(tracks, clips, [balloon], 11);
-  assert.equal(b.clips.find((c) => c.id === b.ids[0])!.trackId, "top");
+  assert.equal(assertDefined(b.clips.find((c) => c.id === b.ids[0])).trackId, "top");
 
   // Nothing free above: a new track right above the original.
   const busy = [...clips, clip("t", "top", 0, 60)];
   const c = pasteClips(tracks, busy, [lesson], 5);
-  const pc = c.clips.find((x) => x.id === c.ids[0])!;
+  const pc = assertDefined(c.clips.find((x) => x.id === c.ids[0]));
   assert.equal(c.tracks.length, 4);
   assert.equal(
     c.tracks.findIndex((t) => t.id === pc.trackId),
@@ -340,7 +341,7 @@ test("pasteClips: back on its own track when free, otherwise above, never coveri
   // Several clips keep their spacing.
   const d = pasteClips(tracks, clips, [balloon, clip("x", "mid", 14, 1)], 30);
   assert.deepEqual(
-    d.ids.map((id) => d.clips.find((x) => x.id === id)!.start),
+    d.ids.map((id) => assertDefined(d.clips.find((x) => x.id === id)).start),
     [30, 34],
   );
 });

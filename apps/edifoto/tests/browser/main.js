@@ -51,12 +51,12 @@ window.api = {
   readFile: async (path) =>
     memory.get(path) ??
     new Uint8Array(
-      await (await fetch("/tests/fixtures/" + path.split(/[\\/]/).pop())).arrayBuffer(),
+      await (await fetch(`/tests/fixtures/${path.split(/[\\/]/).pop()}`)).arrayBuffer(),
     ),
   writeFile: async (path, bytes) => {
     memory.set(path, bytes);
   },
-  pickSavePath: async (name) => "/test/" + name,
+  pickSavePath: async (name) => `/test/${name}`,
   aiClients: async () => [],
   saveAiSettings: async () => {
     throw new Error("Integração nativa indisponível no teste web.");

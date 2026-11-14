@@ -16,7 +16,7 @@ function evalFf(expr: string, t: number): number {
     clip: (x, a, b) => Math.min(b, Math.max(a, x)),
     pow: Math.pow,
   };
-  return new Function(...Object.keys(fns), "t", "return " + expr)(
+  return new Function(...Object.keys(fns), "t", `return ${expr}`)(
     ...Object.values(fns),
     t,
   ) as number;

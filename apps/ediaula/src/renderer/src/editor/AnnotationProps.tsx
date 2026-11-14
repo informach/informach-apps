@@ -320,7 +320,8 @@ type TextKey = "text" | "kicker" | "subtitle";
  * here: these buttons open it there, bringing the playhead into the clip when it is elsewhere.
  */
 function TypedTexts({ clip }: { clip: Clip }): ReactNode {
-  const a = clip.annotation!;
+  const a = clip.annotation;
+  if (!a) throw new Error("A anotação selecionada não está disponível.");
   const track = useProject((s) => s.project?.tracks.find((t) => t.id === clip.trackId));
   const blocked = track?.locked
     ? "A faixa está travada."
@@ -363,7 +364,8 @@ function TypedTexts({ clip }: { clip: Clip }): ReactNode {
 
 /** Editing an annotation redraws its picture; each change is one undo step. */
 export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
-  const a = clip.annotation!;
+  const a = clip.annotation;
+  if (!a) throw new Error("A anotação selecionada não está disponível.");
   const set = (c: Partial<Annotation>): void => {
     void updateAnnotation(clip.id, c);
   };

@@ -67,7 +67,8 @@ function onKey(e: KeyboardEvent): void {
     return;
   }
   if (mod && k === "o") {
-    void (e.preventDefault(), openDialog());
+    e.preventDefault();
+    void openDialog();
     return;
   }
   if (mod && k === "tab") {
@@ -91,11 +92,14 @@ function onKey(e: KeyboardEvent): void {
     return;
   }
   if (mod && k === "p") {
-    void (e.preventDefault(), finishDraft(doc.id), printDoc(doc.id));
+    e.preventDefault();
+    finishDraft(doc.id);
+    void printDoc(doc.id);
     return;
   }
   if (mod && k === "w") {
-    void (e.preventDefault(), closeDoc(doc.id));
+    e.preventDefault();
+    void closeDoc(doc.id);
     return;
   }
   if (mod && k === "f") {
@@ -105,17 +109,18 @@ function onKey(e: KeyboardEvent): void {
     return;
   }
   if (mod && (k === "=" || k === "+")) {
-    void (e.preventDefault(),
-    patchDoc(doc.id, { zoom: Math.min(MAX_ZOOM, doc.zoom * 1.2), fit: null }));
+    e.preventDefault();
+    patchDoc(doc.id, { zoom: Math.min(MAX_ZOOM, doc.zoom * 1.2), fit: null });
     return;
   }
   if (mod && k === "-") {
-    void (e.preventDefault(),
-    patchDoc(doc.id, { zoom: Math.max(MIN_ZOOM, doc.zoom / 1.2), fit: null }));
+    e.preventDefault();
+    patchDoc(doc.id, { zoom: Math.max(MIN_ZOOM, doc.zoom / 1.2), fit: null });
     return;
   }
   if (mod && k === "0") {
-    void (e.preventDefault(), patchDoc(doc.id, { fit: "width" }));
+    e.preventDefault();
+    patchDoc(doc.id, { fit: "width" });
     return;
   }
   if (typing(e.target)) return;
@@ -144,15 +149,18 @@ function onKey(e: KeyboardEvent): void {
     return;
   }
   if (mod && k === "z" && !e.shiftKey) {
-    void (e.preventDefault(), undo(doc.id));
+    e.preventDefault();
+    undo(doc.id);
     return;
   }
   if (mod && (k === "y" || (k === "z" && e.shiftKey))) {
-    void (e.preventDefault(), redo(doc.id));
+    e.preventDefault();
+    redo(doc.id);
     return;
   }
   if (mod && k === "a" && doc.view === "organize") {
-    void (e.preventDefault(), patchDoc(doc.id, { selection: doc.content.pages.map((p) => p.id) }));
+    e.preventDefault();
+    patchDoc(doc.id, { selection: doc.content.pages.map((p) => p.id) });
     return;
   }
   if (e.key === "Delete" || e.key === "Backspace") {
@@ -162,7 +170,8 @@ function onKey(e: KeyboardEvent): void {
       return;
     }
     if (doc.view === "organize" && doc.selection.length) {
-      void (e.preventDefault(), deletePages(doc.id, doc.selection));
+      e.preventDefault();
+      deletePages(doc.id, doc.selection);
       return;
     }
     return;

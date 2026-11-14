@@ -85,9 +85,13 @@ export function findScriptPiece(words: readonly HeardWord[], script: string): Sc
     if (sign === 1 && had < need) score++;
     if (sign === -1 && had <= need) score--;
   };
-  for (let i = 0; i < heard.length; i++) {
-    add(heard[i]!.tok, 1);
-    if (i >= size) add(heard[i - size]!.tok, -1);
+  for (const [i, token] of heard.entries()) {
+    add(token.tok, 1);
+    if (i >= size) {
+      const previous = heard[i - size];
+      if (!previous) throw new Error("Janela de palavras ouvidas incompleta.");
+      add(previous.tok, -1);
+    }
     const from = Math.max(0, i - size + 1);
     if (score > best.score) best = { score, from };
   }
@@ -137,11 +141,12 @@ export function findScriptPiece(words: readonly HeardWord[], script: string): Sc
       total: match.total,
     });
   }
-  if (missing.length)
+  const firstMissing = missing[0];
+  if (firstMissing !== undefined)
     throw new PieceNotFoundError(
       missing.length === 1
-        ? `Não achei no áudio a frase: "${quote(missing[0]!)}".`
-        : `Não achei no áudio ${missing.length} frases, a primeira: "${quote(missing[0]!)}".`,
+        ? `Não achei no áudio a frase: "${quote(firstMissing)}".`
+        : `Não achei no áudio ${missing.length} frases, a primeira: "${quote(firstMissing)}".`,
       missing,
     );
   return {

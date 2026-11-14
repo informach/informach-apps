@@ -4,7 +4,7 @@ import type { Database } from "@informach/db";
 import * as schema from "@informach/db/schema";
 import { createFamilyService } from "@informach/family";
 import { lockFamilyMembership } from "@informach/family/context";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import { afterAll, describe, expect, it, vi } from "vitest";
@@ -38,7 +38,11 @@ import { runLegacyFutureRecovery } from "../legacy-future-jobs";
 import { settleLegacyFutureIntent } from "../legacy-future-settlement";
 import { readLegacyFutureTerms } from "../legacy-future-terms";
 import { persistPaymentPeriods, type SubscriptionPaymentSnapshot } from "../payment-facts";
-import { handleStripeEvent, retryLegacyFinancialEvents } from "../webhooks";
+import {
+  handleStripeEvent,
+  retryLegacyFinancialEvents,
+  retryPendingInvoiceVerifications,
+} from "../webhooks";
 import { getBalance } from "./balance";
 import { withLegacyFinancialEventLock } from "./legacy-payments";
 import { hasPendingLegacyCreditReview } from "./legacy-review";
@@ -163,6 +167,301 @@ async function fixture() {
 }
 
 describe("Historical subscription funding after wallet conversion", () => {
+  it("records a confirmed subscription invoice payment without issuing credit or a warning", async () => {
+    const f = await fixture();
+    const logger = { warn: vi.fn(), error: vi.fn() };
+    const id = `evt_${randomUUID()}`;
+    const result = await handleStripeEvent(
+      {
+        db,
+        app: "cozya",
+        webhookScope: "cozya",
+        provider: "stripe",
+        providerClient: {
+          ...createFakeProvider().provider,
+          isPaidSubscriptionInvoice: async (invoiceId, customerId) =>
+            invoiceId === "in_subscription" && customerId === f.snapshot.customerId,
+        },
+        products: [],
+        logger,
+      },
+      {
+        id,
+        type: "payment_intent.succeeded",
+        payload: {
+          id,
+          data: {
+            object: {
+              id: `pi_${randomUUID()}`,
+              invoice: "in_subscription",
+              customer: f.snapshot.customerId,
+              metadata: {},
+            },
+          },
+        },
+      },
+    );
+    expect(result).toMatchObject({
+      processed: true,
+      reason: "payment_skipped:subscription_invoice",
+    });
+    expect(logger.warn).not.toHaveBeenCalled();
+    const [receipt] = await db
+      .select()
+      .from(schema.webhookEvents)
+      .where(eq(schema.webhookEvents.providerEventId, `cozya:${id}`));
+    expect(receipt?.processedAt).toBeInstanceOf(Date);
+    expect(
+      await db.select().from(schema.creditLedger).where(eq(schema.creditLedger.stripeEventId, id)),
+    ).toHaveLength(0);
+  });
+
+  it("keeps a provider failure retryable until invoice evidence is available", async () => {
+    const f = await fixture();
+    const id = `evt_${randomUUID()}`;
+    let state: "unavailable" | "mixed" | "confirmed" = "unavailable";
+    const deps = {
+      db,
+      app: "cozya",
+      webhookScope: "Cozya",
+      provider: "stripe" as const,
+      providerClient: {
+        ...createFakeProvider().provider,
+        isPaidSubscriptionInvoice: async () => {
+          if (state === "unavailable") throw new Error("provider unavailable");
+          return state === "confirmed";
+        },
+      },
+      products: [],
+    };
+    const event = {
+      id,
+      type: "payment_intent.succeeded",
+      payload: {
+        id,
+        data: {
+          object: {
+            id: `pi_${randomUUID()}`,
+            invoice: "in_subscription",
+            customer: f.snapshot.customerId,
+            metadata: {},
+          },
+        },
+      },
+    };
+    await expect(handleStripeEvent(deps, event)).rejects.toThrow(
+      "Subscription invoice verification pending",
+    );
+    const [before] = await db
+      .select()
+      .from(schema.webhookEvents)
+      .where(eq(schema.webhookEvents.providerEventId, `Cozya:${id}`));
+    expect(before?.processedAt).toBeNull();
+    const unrelatedId = `evt_${randomUUID()}`;
+    await db.insert(schema.webhookEvents).values({
+      provider: "stripe",
+      providerEventId: `edi:${unrelatedId}`,
+      app: "edi",
+      eventType: "payment_intent.succeeded",
+      payload: { ...event.payload, id: unrelatedId },
+      error: "@informach/billing: Subscription invoice verification pending",
+    });
+    state = "mixed";
+    await expect(retryPendingInvoiceVerifications(deps)).rejects.toThrow(
+      "Subscription invoice verifications remain pending",
+    );
+    const [review] = await db
+      .select()
+      .from(schema.webhookEvents)
+      .where(eq(schema.webhookEvents.providerEventId, `Cozya:${id}`));
+    expect(review?.processedAt).toBeNull();
+    state = "confirmed";
+    expect(await retryPendingInvoiceVerifications(deps)).toEqual({ retried: 1 });
+    const [after] = await db
+      .select()
+      .from(schema.webhookEvents)
+      .where(eq(schema.webhookEvents.providerEventId, `Cozya:${id}`));
+    expect(after?.processedAt).toBeInstanceOf(Date);
+    const [unrelated] = await db
+      .select()
+      .from(schema.webhookEvents)
+      .where(eq(schema.webhookEvents.providerEventId, `edi:${unrelatedId}`));
+    expect(unrelated?.processedAt).toBeNull();
+  });
+
+  it("continues to the next pending invoice when one remains unconfirmed", async () => {
+    const f = await fixture();
+    let recovering = false;
+    const deps = {
+      db,
+      app: "cozya",
+      webhookScope: "Cozya",
+      provider: "stripe" as const,
+      providerClient: {
+        ...createFakeProvider().provider,
+        isPaidSubscriptionInvoice: async (invoiceId: string) => {
+          if (!recovering) throw new Error("provider unavailable");
+          return invoiceId === "in_confirmed";
+        },
+      },
+      products: [],
+    };
+    const events = ["in_mixed", "in_confirmed"].map((invoice) => {
+      const id = `evt_${randomUUID()}`;
+      return {
+        id,
+        type: "payment_intent.succeeded",
+        payload: {
+          id,
+          data: {
+            object: {
+              id: `pi_${randomUUID()}`,
+              invoice,
+              customer: f.snapshot.customerId,
+              metadata: {},
+            },
+          },
+        },
+      };
+    });
+    for (const event of events)
+      await expect(handleStripeEvent(deps, event)).rejects.toThrow(
+        "Subscription invoice verification pending",
+      );
+    recovering = true;
+    await expect(retryPendingInvoiceVerifications(deps)).rejects.toThrow(
+      "Subscription invoice verifications remain pending",
+    );
+    const [first, second] = events;
+    if (!first || !second) throw new Error("Missing test events");
+    const rows = await db
+      .select()
+      .from(schema.webhookEvents)
+      .where(
+        inArray(schema.webhookEvents.providerEventId, [`Cozya:${first.id}`, `Cozya:${second.id}`]),
+      );
+    expect(rows.find((row) => row.providerEventId === `Cozya:${first.id}`)?.processedAt).toBeNull();
+    expect(
+      rows.find((row) => row.providerEventId === `Cozya:${second.id}`)?.processedAt,
+    ).toBeInstanceOf(Date);
+  });
+  it.each(["customer.subscription.updated", "invoice.paid"])(
+    "records %s for another app without applying it or hiding unknown customers",
+    async (type) => {
+      const f = await fixture();
+      const logger = { warn: vi.fn(), error: vi.fn() };
+      const provider = createFakeProvider().provider;
+      const deps = {
+        db,
+        app: "agenda-da-turma",
+        webhookScope: "agenda-da-turma",
+        provider: "stripe" as const,
+        providerClient: provider,
+        products: [],
+        logger,
+      };
+      const id = `evt_${randomUUID()}`;
+      const result = await handleStripeEvent(deps, {
+        id,
+        type,
+        payload: {
+          id,
+          data: { object: { id: f.sub.providerSubscriptionId, customer: f.snapshot.customerId } },
+        },
+      });
+      expect(result).toMatchObject({ processed: true, reason: "customer_other_app" });
+      const repeated = await handleStripeEvent(deps, {
+        id,
+        type,
+        payload: {
+          id,
+          data: { object: { id: f.sub.providerSubscriptionId, customer: f.snapshot.customerId } },
+        },
+      });
+      expect(repeated).toMatchObject({ processed: false, deduped: true });
+      expect(logger.warn).not.toHaveBeenCalled();
+      expect(logger.error).not.toHaveBeenCalled();
+      const [unchanged] = await db
+        .select()
+        .from(schema.subscriptions)
+        .where(eq(schema.subscriptions.id, f.sub.id));
+      expect(unchanged?.status).toBe(f.sub.status);
+      const [receipt] = await db
+        .select()
+        .from(schema.webhookEvents)
+        .where(eq(schema.webhookEvents.providerEventId, `agenda-da-turma:${id}`));
+      expect(receipt?.processedAt).toBeInstanceOf(Date);
+    },
+  );
+
+  it("keeps an unknown subscription customer visible to reconciliation", async () => {
+    const logger = { warn: vi.fn(), error: vi.fn() };
+    const id = `evt_${randomUUID()}`;
+    const result = await handleStripeEvent(
+      {
+        db,
+        app: "agenda-da-turma",
+        provider: "stripe",
+        providerClient: createFakeProvider().provider,
+        products: [],
+        logger,
+      },
+      {
+        id,
+        type: "customer.subscription.updated",
+        payload: {
+          id,
+          data: { object: { id: `sub_${randomUUID()}`, customer: `cus_${randomUUID()}` } },
+        },
+      },
+    );
+    expect(result).toMatchObject({
+      processed: true,
+      reason: "subscription_skipped:customer_not_found",
+    });
+    expect(logger.error).toHaveBeenCalled();
+  });
+
+  it("processes a local customer even when subscription metadata names another app", async () => {
+    const f = await fixture();
+    const product = PRODUCTS.find(
+      (entry) => entry.app === "cozya" && entry.kind === "subscription",
+    );
+    if (!product) throw new Error("Missing Cozya catalog");
+    const id = `evt_${randomUUID()}`;
+    const result = await handleStripeEvent(
+      {
+        db,
+        app: "cozya",
+        provider: "stripe",
+        providerClient: createFakeProvider().provider,
+        products: [{ ...product, stripePriceId: { dev: f.snapshot.priceId, prod: "" } }],
+      },
+      {
+        id,
+        type: "customer.subscription.updated",
+        payload: {
+          id,
+          data: {
+            object: {
+              id: f.sub.providerSubscriptionId,
+              customer: f.snapshot.customerId,
+              status: "active",
+              items: { data: [{ price: { id: f.snapshot.priceId } }] },
+              metadata: { product_id: "agenda_da_turma_pro_monthly" },
+            },
+          },
+        },
+      },
+    );
+    expect(result).toMatchObject({ processed: true, reason: "subscription_upserted" });
+    const [updated] = await db
+      .select()
+      .from(schema.subscriptions)
+      .where(eq(schema.subscriptions.id, f.sub.id));
+    expect(updated?.productId).toBe(product.id);
+  });
+
   it("records an owner-authorized wallet conversion without impersonating its holder", async () => {
     const f = await fixture();
     const owner = `wallet-operator-${randomUUID()}`;

@@ -123,17 +123,19 @@ function GroupBtn({
         className="tool tool-caret"
         title={`Opções de ${label.toLowerCase()}`}
         disabled={readOnly}
-        onClick={(e) =>
+        onClick={(e) => {
+          const parent = e.currentTarget.parentElement;
+          if (!parent) return;
           openMenuAt(
-            e.currentTarget.parentElement!,
+            parent,
             items.map((i) => ({
               label: i.label,
               icon: i.icon,
               checked: i.tool === last,
               run: () => setTool(i.tool),
             })),
-          )
-        }
+          );
+        }}
       >
         <ChevronDown size={12} />
       </button>

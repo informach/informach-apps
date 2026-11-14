@@ -277,7 +277,8 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
 
   const raf = useRef(0);
   const onScroll = (): void => {
-    const el = scrollRef.current!;
+    const el = scrollRef.current;
+    if (!el) return;
     if (headsRef.current) headsRef.current.scrollTop = el.scrollTop;
     cancelAnimationFrame(raf.current);
     raf.current = requestAnimationFrame(() =>
@@ -286,13 +287,15 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
   };
 
   const xToTime = (clientX: number): number => {
-    const el = scrollRef.current!;
+    const el = scrollRef.current;
+    if (!el) throw new Error("A timeline não está disponível.");
     return Math.max(0, (clientX - el.getBoundingClientRect().left + el.scrollLeft) / zoom);
   };
 
   /** Index of the lane under a viewport y coordinate, or null when outside the lanes. */
   const laneAt = (clientY: number): number | null => {
-    const el = scrollRef.current!;
+    const el = scrollRef.current;
+    if (!el) return null;
     let y = clientY - el.getBoundingClientRect().top + el.scrollTop - RULER_H;
     if (y < 0) return null;
     for (let i = 0; i < tracks.length; i++) {
@@ -362,7 +365,14 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
     const ids = new Set(moving.map((c) => c.id));
     const index = snapIndex(ids);
     const minStart = Math.min(...moving.map((c) => c.start));
-    const anchorLane = trackIndex.get(anchor.trackId)!;
+    const anchorLane = trackIndex.get(anchor.trackId);
+    if (anchorLane === undefined) return;
+    const positioned: { clip: Clip; lane: number }[] = [];
+    for (const clip of moving) {
+      const lane = trackIndex.get(clip.trackId);
+      if (lane === undefined) return;
+      positioned.push({ clip, lane });
+    }
     const startX = e.clientX;
     const startY = e.clientY;
     let started = false;
@@ -397,17 +407,19 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
         dt = Math.max(dt, -minStart);
         const lane = laneAt(ev.clientY);
         let delta = lane === null ? 0 : lane - anchorLane;
-        const valid = moving.every((c) => {
-          const from = tracks[trackIndex.get(c.trackId)!];
-          const to = tracks[trackIndex.get(c.trackId)! + delta];
+        const valid = positioned.every(({ lane: source }) => {
+          const from = tracks[source];
+          const to = tracks[source + delta];
           return !!from && !!to && !to.locked;
         });
         if (!valid) delta = 0;
-        result = moving.map((c) => ({
-          ...c,
-          start: c.start + dt,
-          trackId: tracks[trackIndex.get(c.trackId)! + delta].id,
-        }));
+        const next: Clip[] = [];
+        for (const { clip, lane: source } of positioned) {
+          const destination = tracks[source + delta];
+          if (!destination) return;
+          next.push({ ...clip, start: clip.start + dt, trackId: destination.id });
+        }
+        result = next;
         setPreview({ clips: new Map(result.map((c) => [c.id, c])), snap });
       },
       () => {
@@ -974,7 +986,7 @@ function TimelineInner({ project }: { project: Project }): ReactNode {
             <TrackHeader
               key={t.id}
               track={t}
-              label={labels.get(t.id)!}
+              label={labels.get(t.id) ?? t.name}
               empty={!byTrack.has(t.id)}
               soloed={solo.includes(t.id)}
               dragging={trackDrag?.id === t.id}
@@ -2078,14 +2090,14 @@ const ClipView = memo(function ClipView({
         showThumbs && (
           <div
             className="clip-thumbs"
-            style={{ backgroundImage: `url("${mediaUrl(asset.thumb!)}")` }}
+            style={{ backgroundImage: `url("${mediaUrl(showThumbs)}")` }}
           />
         )
       )}
       {showWave && (
         <div className={`clip-wave ${sound ? "is-full" : ""}`}>
           <Waveform
-            path={asset.waveform!}
+            path={showWave}
             sourceIn={clip.in}
             duration={clip.duration}
             speed={clipSpeed(clip)}

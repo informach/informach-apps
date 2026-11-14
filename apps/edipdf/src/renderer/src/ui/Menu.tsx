@@ -83,7 +83,8 @@ export function MenuHost(): React.ReactElement | null {
           ) ?? [],
         );
         if (!buttons.length) return;
-        const index = buttons.findIndex((button) => button === document.activeElement);
+        const active = document.activeElement;
+        const index = active instanceof HTMLButtonElement ? buttons.indexOf(active) : -1;
         let next: number | undefined;
         if (event.key === "ArrowDown") next = (index + 1) % buttons.length;
         if (event.key === "ArrowUp") next = (index - 1 + buttons.length) % buttons.length;

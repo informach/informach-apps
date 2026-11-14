@@ -72,8 +72,7 @@
   assert(document.querySelectorAll(".layer-row").length === 1, "layer type filter");
   change(document.querySelector('[aria-label="Filtrar camadas"]'), "all");
   await wait(50);
-  const vp = document.querySelector(".viewport"),
-    r = vp.getBoundingClientRect();
+  const vp = document.querySelector(".viewport");
   const send = async (el, type, x, y, extra = {}) => {
     el.dispatchEvent(
       new PointerEvent(type, {
@@ -109,7 +108,6 @@
     penSelected: null,
   });
   await wait(80);
-  const v = E.useUi.getState().view;
   const anchor = document.querySelector(".overlay rect.handle"),
     ar = anchor.getBoundingClientRect();
   await send(anchor, "pointerdown", ar.x + 4, ar.y + 4, { ctrlKey: true });

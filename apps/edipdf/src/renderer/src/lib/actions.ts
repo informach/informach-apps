@@ -413,10 +413,15 @@ export function extractPages(docId: string, pageIds: string[]): void {
   const part = subset(doc.content, ids);
   // New page ids so the two documents never share annotation targets.
   const remap = new Map(part.pages.map((p) => [p.id, uid("p")]));
+  const mappedPage = (id: string): string => {
+    const mapped = remap.get(id);
+    if (!mapped) throw new Error("A página extraída não foi encontrada.");
+    return mapped;
+  };
   const content: DocContent = {
     ...part,
-    pages: part.pages.map((p) => ({ ...p, id: remap.get(p.id)! })),
-    annots: part.annots.map((a) => ({ ...a, id: uid("a"), page: remap.get(a.page)! })),
+    pages: part.pages.map((p) => ({ ...p, id: mappedPage(p.id) })),
+    annots: part.annots.map((a) => ({ ...a, id: uid("a"), page: mappedPage(a.page) })),
   };
   const srcs = doc.sourceIds.map(getSource).filter((s): s is Source => !!s);
   const base = makeDoc(
@@ -501,15 +506,17 @@ export async function requestQuit(): Promise<void> {
 
 // ---- Text measurement ---------------------------------------------------------------------
 
-const measureCtx = document.createElement("canvas").getContext("2d")!;
+const measureCtx = document.createElement("canvas").getContext("2d");
 
 export function measureText(a: Pick<TextAnnot, "text" | "font" | "size" | "bold" | "italic">): {
   w: number;
   h: number;
 } {
-  measureCtx.font = `${a.italic ? "italic " : ""}${a.bold ? "bold " : ""}${a.size}px ${cssFontForText(a.font, a.text)}`;
+  const context = measureCtx;
+  if (!context) throw new Error("Não foi possível criar o contexto para medir texto.");
+  context.font = `${a.italic ? "italic " : ""}${a.bold ? "bold " : ""}${a.size}px ${cssFontForText(a.font, a.text)}`;
   const lines = textLines(a.text);
-  const w = Math.max(a.size * 0.5, ...lines.map((l) => measureCtx.measureText(l).width));
+  const w = Math.max(a.size * 0.5, ...lines.map((l) => context.measureText(l).width));
   return { w, h: lines.length * a.size * LINE_HEIGHT };
 }
 

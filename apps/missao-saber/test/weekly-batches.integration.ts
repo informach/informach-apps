@@ -8,7 +8,7 @@ import { weekStart } from "@/features/family/desafio";
 import { completeWeeklyReport, listFamiliesForWeeklyReport } from "@/features/learning/repository";
 import { emails } from "@/lib/emails";
 import { env } from "@/lib/env";
-import { seedStudent, seedStudents } from "./family-fixture";
+import { seedStudents } from "./family-fixture";
 
 const owners: string[] = [];
 afterEach(() => {

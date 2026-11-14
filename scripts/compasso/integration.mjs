@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { cp, mkdtemp, rm } from "node:fs/promises";
@@ -7,6 +7,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { APPS } from "../../packages/config/src/apps.ts";
 import { withBrowserArtifacts } from "./browser-artifacts.mjs";
 import { fixtureEnvironment } from "./browser-environment.mts";
+import { startFixtureIssuer } from "./fixture-issuer.mjs";
 import { createPostgresFixture } from "./postgres-fixture.mjs";
 import { createRedisFixture } from "./redis-fixture.mjs";
 
@@ -121,11 +122,30 @@ const env = {
   STRIPE_PORTAL_CONFIGURATION_ID: "",
   CRON_SECRET: randomBytes(32).toString("hex"),
 };
+// Playwright sets FORCE_COLOR for workers; preserve a no-color preference
+// without passing two conflicting color controls to the child processes.
+if (env.NO_COLOR) {
+  env.FORCE_COLOR ||= "0";
+  delete env.NO_COLOR;
+}
 for (const key of ["REDIS_URL", "SENDGRID_API_KEY", "SENTRY_DSN"]) delete env[key];
 function run(args, childEnv = env) {
   checked(process.execPath, [process.env.npm_execpath, ...args], {
     env: childEnv,
     stdio: "inherit",
+  });
+}
+function runAsync(args, childEnv = env) {
+  return new Promise((resolveRun, reject) => {
+    const child = spawn(process.execPath, [process.env.npm_execpath, ...args], {
+      env: childEnv,
+      stdio: "inherit",
+      windowsHide: true,
+    });
+    child.once("error", reject);
+    child.once("close", (code) =>
+      code === 0 ? resolveRun() : reject(new Error(`Isolated command failed (${code})`)),
+    );
   });
 }
 
@@ -383,46 +403,60 @@ try {
           COMPASSO_TEST_RUN_ID: id,
           COMPASSO_OPTIMIZED_TEST: optimized ? "1" : "",
         };
-        if (optimized) {
-          for (const target of [APPS.conta, app]) {
-            const appRoot = resolve("apps", target.slug);
-            const buildRoot = resolve(appRoot, `.next-compasso-${id}`);
-            const standaloneApp = resolve(buildRoot, "standalone", "apps", target.slug);
-            if (
-              !standaloneApp.startsWith(`${buildRoot}${process.platform === "win32" ? "\\" : "/"}`)
-            )
-              throw new Error("Unexpected standalone fixture path");
-            run(["--filter", `@informach/${target.slug}`, "build"], {
-              ...browserEnv,
-              ...fixtureEnvironment(
-                target.slug,
-                `http://localhost:${target.localPort}`,
-                browserEnv,
-              ),
-            });
-            await cp(
-              resolve(buildRoot, "static"),
-              resolve(standaloneApp, `.next-compasso-${id}`, "static"),
-              { recursive: true },
-            );
-            if (existsSync(resolve(appRoot, "public")))
-              await cp(resolve(appRoot, "public"), resolve(standaloneApp, "public"), {
-                recursive: true,
-              });
+        let issuer;
+        try {
+          if (optimized) {
+            for (const target of [APPS.conta, app]) {
+              const appRoot = resolve("apps", target.slug);
+              const buildRoot = resolve(appRoot, `.next-compasso-${id}`);
+              const standaloneApp = resolve(buildRoot, "standalone", "apps", target.slug);
+              if (
+                !standaloneApp.startsWith(
+                  `${buildRoot}${process.platform === "win32" ? "\\" : "/"}`,
+                )
+              )
+                throw new Error("Unexpected standalone fixture path");
+              const fixtureEnv = {
+                ...browserEnv,
+                ...fixtureEnvironment(
+                  target.slug,
+                  `http://localhost:${target.localPort}`,
+                  browserEnv,
+                ),
+              };
+              await runAsync(["--filter", `@informach/${target.slug}`, "build"], fixtureEnv);
+              await cp(
+                resolve(buildRoot, "static"),
+                resolve(standaloneApp, `.next-compasso-${id}`, "static"),
+                { recursive: true },
+              );
+              if (existsSync(resolve(appRoot, "public")))
+                await cp(resolve(appRoot, "public"), resolve(standaloneApp, "public"), {
+                  recursive: true,
+                });
+              if (target.slug === "conta")
+                issuer = await startFixtureIssuer(
+                  resolve(standaloneApp, "server.js"),
+                  fixtureEnv,
+                  `http://localhost:${target.localPort}`,
+                );
+            }
           }
+          await runAsync(
+            [
+              "--filter",
+              "@informach/conta",
+              "exec",
+              "playwright",
+              "test",
+              "--config",
+              "playwright.apps.config.ts",
+            ],
+            browserEnv,
+          );
+        } finally {
+          if (issuer) await issuer.dispose();
         }
-        run(
-          [
-            "--filter",
-            "@informach/conta",
-            "exec",
-            "playwright",
-            "test",
-            "--config",
-            "playwright.apps.config.ts",
-          ],
-          browserEnv,
-        );
       });
   }
 

@@ -1154,7 +1154,7 @@ function timeline() {
     .map(([v, n]) => `<option value="${v}" ${a.mode === v ? "selected" : ""}>${n}</option>`)
     .join(
       "",
-    )}</select><div class="transport">${button("start", "|◁")}${button("previous", "‹")}${button("play", state.playing ? "Ⅱ" : "▶", "play")}${button("next", "›")}${button("end", "▷|")}</div><span id="timecode" class="timecode"></span><span class="push"></span>${button("add-key", "◇ Adicionar marcador")}${button("auto", '<span class="key">◆</span> Chave automática', state.auto ? "selected" : "")}${button("curves", state.curve ? "⌁ Curvas" : "◇ Chaves", "view-toggle")}</div><div class="timeline-body"><div class="ruler-label">PROPRIEDADES</div><div class="ruler">${Array.from({ length: 7 }, (_, i) => `<span>${Math.round((a.frames * i) / 6)}</span>`).join("")}</div>${rows.map((name, i) => `<div class="track-label ${[1, 2, 4, 6, 8, 10].includes(i) ? "indent" : ""}">${[0, 3, 5, 7, 9].includes(i) ? "⌄ &nbsp; " : ""}${name}<span>${i === 10 ? "⚑" : "◇"}</span></div><div class="track ${i % 2 ? "alternate" : ""}" data-track="${i}">${(i === 0 || i === 3 || i === 5 ? [] : state.keys.filter((k, j) => i !== 8 || j % 2 === 0)).map((k) => `<button class="keyframe ${i === 8 ? "violet" : ""}" aria-label="Quadro ${k}, ${name}" data-frame="${k}" style="left:${(k / a.frames) * 100}%">◆</button>`).join("")}${state.curve && i === 1 ? '<svg class="timeline-curve" viewBox="0 0 600 24" preserveAspectRatio="none"><path d="M0 22Q150 22 300 2T600 22"/></svg>' : ""}</div>`).join("")}<div id="playhead"><span></span></div></div><footer class="statusbar"><span class="live-dot"></span> <span data-local-save>${localSaveStatus}</span> <span class="push">EdiSVG · Prévia funcional <span class="mint">60 quadros/s · base</span></span></footer></section>`;
+    )}</select><div class="transport">${button("start", "|◁")}${button("previous", "‹")}${button("play", state.playing ? "Ⅱ" : "▶", "play")}${button("next", "›")}${button("end", "▷|")}</div><span id="timecode" class="timecode"></span><span class="push"></span>${button("add-key", "◇ Adicionar marcador")}${button("auto", '<span class="key">◆</span> Chave automática', state.auto ? "selected" : "")}${button("curves", state.curve ? "⌁ Curvas" : "◇ Chaves", "view-toggle")}</div><div class="timeline-body"><div class="ruler-label">PROPRIEDADES</div><div class="ruler">${Array.from({ length: 7 }, (_, i) => `<span>${Math.round((a.frames * i) / 6)}</span>`).join("")}</div>${rows.map((name, i) => `<div class="track-label ${[1, 2, 4, 6, 8, 10].includes(i) ? "indent" : ""}">${[0, 3, 5, 7, 9].includes(i) ? "⌄ &nbsp; " : ""}${name}<span>${i === 10 ? "⚑" : "◇"}</span></div><div class="track ${i % 2 ? "alternate" : ""}" data-track="${i}">${(i === 0 || i === 3 || i === 5 ? [] : state.keys.filter((_, j) => i !== 8 || j % 2 === 0)).map((k) => `<button class="keyframe ${i === 8 ? "violet" : ""}" aria-label="Quadro ${k}, ${name}" data-frame="${k}" style="left:${(k / a.frames) * 100}%">◆</button>`).join("")}${state.curve && i === 1 ? '<svg class="timeline-curve" viewBox="0 0 600 24" preserveAspectRatio="none"><path d="M0 22Q150 22 300 2T600 22"/></svg>' : ""}</div>`).join("")}<div id="playhead"><span></span></div></div><footer class="statusbar"><span class="live-dot"></span> <span data-local-save>${localSaveStatus}</span> <span class="push">EdiSVG · Prévia funcional <span class="mint">60 quadros/s · base</span></span></footer></section>`;
 }
 function machineSidebar() {
   return `<aside class="sidebar"><div class="panel-heading">◈ Máquina: Interação</div><section><h3>CAMADAS</h3><div class="machine-layer selected">Corpo<small>Parado · Acenar · Pular</small></div><div class="machine-layer">Rosto<small>Blend 1D por humor · referência</small></div><div class="machine-layer">Piscar<small>Loop independente · referência</small></div></section><section><h3>INPUTS</h3><label class="data-row"><small class="purple">BOOL</small> acenando <input id="waving" type="checkbox" ${state.waving ? "checked" : ""}></label><label class="data-row"><small class="mint">NUM</small> humor <input id="humor" aria-label="Humor" type="number" min="0" max="1" step=".1" value="${state.humor}"></label><div class="data-row"><small class="key">TRIG</small> clicar ${button("trigger", "Disparar")}</div></section><section><h3>LISTENERS</h3>${[
@@ -1166,7 +1166,7 @@ function machineSidebar() {
     .join("")}</section>${button("animate", "← Voltar à timeline", "back-link")}</aside>`;
 }
 function machineCanvas() {
-  return `<div class="canvas-toolbar"><span>Corpo <small> / Máquina de estados</small></span><span class="push"></span><span class="live-dot"></span> ao vivo</div><div class="state-graph"><div class="entry">Entry <small>início</small></div><div class="connector">→</div>${["Parado", "Acenar", "Pular"].map((n, i) => `${i ? '<div class="connector">⇄<small>' + (i === 1 ? "acenando" : "clicar") + "</small></div>" : ""}<button class="state-node ${state.machine === n ? "running" : ""}" data-state="${n}"><span>◷ ${n}</span><small>anim. ${n} · ${animations[n].mode}</small><em>${state.machine === n ? "● ativo" : "○ estado"}</em></button>`).join("")}</div><div class="transition-note">Parado → Acenar: acenando = true &nbsp; / &nbsp; Pular → Parado: ao terminar</div><div class="live-preview"><div class="preview-title"><strong>Testar interação</strong><span class="mint">● ao vivo</span></div><div class="preview-body" tabindex="0" role="button" aria-label="Interagir com Zezé"><img class="mascot" src="assets/zeze.svg" alt="Zezé interativo"></div><p>Passe o mouse para acenar. Clique para pular.</p></div>`;
+  return `<div class="canvas-toolbar"><span>Corpo <small> / Máquina de estados</small></span><span class="push"></span><span class="live-dot"></span> ao vivo</div><div class="state-graph"><div class="entry">Entry <small>início</small></div><div class="connector">→</div>${["Parado", "Acenar", "Pular"].map((n, i) => `${i ? `<div class="connector">⇄<small>${i === 1 ? "acenando" : "clicar"}</small></div>` : ""}<button class="state-node ${state.machine === n ? "running" : ""}" data-state="${n}"><span>◷ ${n}</span><small>anim. ${n} · ${animations[n].mode}</small><em>${state.machine === n ? "● ativo" : "○ estado"}</em></button>`).join("")}</div><div class="transition-note">Parado → Acenar: acenando = true &nbsp; / &nbsp; Pular → Parado: ao terminar</div><div class="live-preview"><div class="preview-title"><strong>Testar interação</strong><span class="mint">● ao vivo</span></div><div class="preview-body" tabindex="0" role="button" aria-label="Interagir com Zezé"><img class="mascot" src="assets/zeze.svg" alt="Zezé interativo"></div><p>Passe o mouse para acenar. Clique para pular.</p></div>`;
 }
 function machineInspector() {
   return `<div class="panel-heading">TRANSIÇÃO SELECIONADA</div><section><div class="transition-title">Parado <span class="mint">→</span> Acenar</div><p class="detail">Condição <strong>acenando = true</strong></p><p class="detail">Duração <strong>200 ms · Suave</strong></p><p class="detail">Sair em <strong>imediato</strong></p></section><section><h3>EVENTOS RECEBIDOS</h3><div id="event-log" aria-live="polite"><p><span class="mint">0,00s</span> Entry → Parado</p></div></section><section><h3>USAR NO SITE</h3><p class="micro">Exporte como HTML interativo para testar os estados diretamente no navegador.</p>${button("export", "↗ Exportar para web", "wide")}</section>`;
@@ -1217,7 +1217,7 @@ function bind() {
   });
   if ($("#zoom"))
     $("#zoom").onchange = (e) => {
-      state.zoom = parseInt(e.target.value);
+      state.zoom = parseInt(e.target.value, 10);
       $(".artboard").style.setProperty("--zoom", state.zoom / 75);
     };
   if ($("#animation-select"))
@@ -1423,14 +1423,14 @@ function updateFileStatus(status) {
   fileStatus = status;
   const el = document.querySelector(".project>span");
   if (el) {
-    el.textContent = "/ " + status.name + (status.dirty ? " •" : "");
+    el.textContent = `/ ${status.name}${status.dirty ? " •" : ""}`;
     el.title = status.path || "Projeto ainda sem arquivo";
   }
-  document.title = (status.dirty ? "• " : "") + status.name + " — EdiSVG " + packageInfo.version;
+  document.title = `${(status.dirty ? "• " : "") + status.name} — EdiSVG ${packageInfo.version}`;
 }
 function refreshHistoryControls() {
   for (const direction of ["undo", "redo"]) {
-    const el = document.querySelector('[data-action="' + direction + '"]');
+    const el = document.querySelector(`[data-action="${direction}"]`);
     if (el) {
       el.disabled = direction === "undo" ? !projectHistory.canUndo : !projectHistory.canRedo;
       el.title =

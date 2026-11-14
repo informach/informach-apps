@@ -100,9 +100,9 @@ export function parseTarget(text: string): [number, number] | undefined {
     /(\d+(?:[.,]\d+)?)\s*(?:a|-|–|até)?\s*(\d+(?:[.,]\d+)?)?\s*(segundos?|s\b|minutos?|min\b)/i.exec(
       text,
     );
-  if (!m) return undefined;
-  const unit = /^min/i.test(m[3]!) ? 60 : 1;
-  const a = Number(m[1]!.replace(",", ".")) * unit;
+  if (!m || m[1] === undefined || m[3] === undefined) return undefined;
+  const unit = /^min/i.test(m[3]) ? 60 : 1;
+  const a = Number(m[1].replace(",", ".")) * unit;
   const b = m[2] ? Number(m[2].replace(",", ".")) * unit : a;
   return [Math.min(a, b), Math.max(a, b)];
 }
@@ -218,7 +218,7 @@ export function parseScript(md: string): ScriptDoc {
   const avatars = new Set<string>();
   for (const raw of lines) {
     const m = SPEAKER.exec(raw.trim());
-    if (m && /avatar/i.test(m[2] ?? "")) avatars.add(m[1]!.trim().toLowerCase());
+    if (m?.[1] !== undefined && /avatar/i.test(m[2] ?? "")) avatars.add(m[1].trim().toLowerCase());
   }
 
   const flushQuote = (): void => {
@@ -301,17 +301,17 @@ export function parseScript(md: string): ScriptDoc {
     if (!line) continue;
 
     let m = /^#\s+(.+)$/.exec(line);
-    if (m) {
-      doc.title = plain(m[1]!);
+    if (m?.[1] !== undefined) {
+      doc.title = plain(m[1]);
       continue;
     }
     m =
       /^##\s+(?:Seção|Secao|Parte|Cena)\s+([\w.]+)[.:]?\s*(.*)$/i.exec(line) ||
       /^##\s+()(.+)$/.exec(line);
-    if (m) {
+    if (m?.[2] !== undefined) {
       section = {
         number: (m[1] || String(doc.sections.length + 1)).replace(/\.$/, ""),
-        title: plain(m[2]!),
+        title: plain(m[2]),
         items: [],
       };
       doc.sections.push(section);
@@ -321,23 +321,23 @@ export function parseScript(md: string): ScriptDoc {
       continue;
     }
     m = /^###\s+(.+)$/.exec(line);
-    if (m) {
+    if (m?.[1] !== undefined) {
       if (section) {
-        const v = /`([^`]+)`\s*(?:·|-|–)?\s*(.*)$/.exec(m[1]!);
+        const v = /`([^`]+)`\s*(?:·|-|–)?\s*(.*)$/.exec(m[1]);
         section.videoId = v?.[1];
-        section.videoTitle = plain(v ? v[2]! : m[1]!.replace(/^Vídeo\s*/i, ""));
+        section.videoTitle = plain(v?.[2] ?? m[1].replace(/^Vídeo\s*/i, ""));
       }
       continue;
     }
     // Production scripts: "**Fala para ElevenLabs:**" and "**Substituições na edição kids:**"
     // alone on a line open the block below them (they are not speakers).
     m = /^\*\*([^*]+?):\*\*$/.exec(line);
-    if (m && /^fala\b/i.test(m[1]!.trim())) {
+    if (m?.[1] !== undefined && /^fala\b/i.test(m[1].trim())) {
       speaker = null;
       block = "speech";
       continue;
     }
-    if (m && /^substitui/i.test(m[1]!.trim())) {
+    if (m?.[1] !== undefined && /^substitui/i.test(m[1].trim())) {
       speaker = null;
       block = "substitutions";
       tableRows = 0;
@@ -345,15 +345,15 @@ export function parseScript(md: string): ScriptDoc {
     }
     // "**Professora:**" alone on a line opens a speaker block for the quotes that follow.
     m = SPEAKER.exec(line);
-    if (m && section) {
-      const name = m[1]!.trim();
+    if (m?.[1] !== undefined && section) {
+      const name = m[1].trim();
       speaker = { name, avatar: /avatar/i.test(m[2] ?? "") || avatars.has(name.toLowerCase()) };
       continue;
     }
     m = /^\*\*([^*]+?):\*\*\s*(.*)$/.exec(line);
-    if (m) {
-      const label = m[1]!.trim();
-      const text = m[2]!.trim();
+    if (m?.[1] !== undefined && m[2] !== undefined) {
+      const label = m[1].trim();
+      const text = m[2].trim();
       speaker = null;
       if (!section) {
         doc.notes.push(plain(line));
@@ -369,7 +369,7 @@ export function parseScript(md: string): ScriptDoc {
         const lead = LEADING_ID.exec(text);
         // A direction opening with a bold id announces its bold ids; otherwise any id it names.
         const named = lead
-          ? [...text.matchAll(BOLD_IDS)].map((x) => x[1]!)
+          ? [...text.matchAll(BOLD_IDS)].flatMap((x) => (x[1] === undefined ? [] : [x[1]]))
           : [...text.matchAll(INSERT_IDS)].map((x) => x[0]);
         const ids = [...new Set(named)].filter((id) => !announced.has(id));
         for (const id of ids) announced.add(id);

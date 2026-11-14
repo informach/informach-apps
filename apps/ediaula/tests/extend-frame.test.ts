@@ -19,6 +19,7 @@ import {
   speedForDuration,
 } from "../src/shared/timeline.ts";
 import type { Asset, Clip, Project } from "../src/shared/types.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 const clip: Clip = {
   id: "c",
@@ -59,7 +60,7 @@ test("duration input accepts clock times and decimal comma, rejecting malformed 
 });
 
 test("target duration preserves the source even very close to normal speed", () => {
-  const speed = speedForDuration([clip], 7.999)!;
+  const speed = assertDefined(speedForDuration([clip], 7.999));
   const out = setClipSpeed([clip], "c", speed, true)[0];
   assert.ok(Math.abs(out.duration - 7.999) < 1e-10);
   assert.ok(Math.abs(sourceEnd(out) - sourceEnd(clip)) < 1e-10);
@@ -73,15 +74,15 @@ test("extend frame preserves footage, inserts silence and ripples only its track
   const next = { ...clip, id: "next", start: 4 };
   const other = { ...clip, id: "other", trackId: "music", start: 4 };
   const { clips, stillId } = extendFrame([clip, next, other], "c", 1.5, 3, "still");
-  const still = clips.find((c) => c.id === stillId)!;
-  const right = clips.find((c) => c.assetId === "v" && c.start === 4.5)!;
+  const still = assertDefined(clips.find((c) => c.id === stillId));
+  const right = assertDefined(clips.find((c) => c.assetId === "v" && c.start === 4.5));
   assert.equal(still.duration, 3);
   assert.equal(still.volume, 0);
   assert.equal(still.assetId, "still");
-  assert.equal(sourceEnd(clips.find((c) => c.id === "c")!), right.in);
+  assert.equal(sourceEnd(assertDefined(clips.find((c) => c.id === "c"))), right.in);
   assert.equal(sourceEnd(right), sourceEnd(clip));
   assert.equal(right.speed, 2);
-  assert.equal(clips.find((c) => c.id === "next")!.start, 7);
+  assert.equal(assertDefined(clips.find((c) => c.id === "next")).start, 7);
   assert.equal(
     clips.find((c) => c.id === "other"),
     other,
@@ -101,7 +102,7 @@ test("extension at either edge creates no empty segment; movement resumes contin
     const out = extendFrame([edged], "c", at, 2, "still").clips;
     assert.equal(out.length, 2);
     assert.ok(out.every((c) => c.duration > 0));
-    assert.equal(out.find((c) => c.assetId === "v")!.duration, 4);
+    assert.equal(assertDefined(out.find((c) => c.assetId === "v")).duration, 4);
     // The held picture takes the edge it now occupies: entrance first, exit last.
     const still = out.find((c) => c.assetId === "still");
     const footage = out.find((c) => c.assetId === "v");
@@ -126,8 +127,11 @@ test("extension at either edge creates no empty segment; movement resumes contin
     ],
   };
   const { clips, stillId } = extendFrame([moving], "c", 2, 3, "still");
-  const right = clips.find((c) => c.start === 5)!;
-  assert.deepEqual(clips.find((c) => c.id === stillId)!.transform, transformAt(moving, 2));
+  const right = assertDefined(clips.find((c) => c.start === 5));
+  assert.deepEqual(
+    assertDefined(clips.find((c) => c.id === stillId)).transform,
+    transformAt(moving, 2),
+  );
   for (const delta of [0, 0.5, 1])
     assert.deepEqual(transformAt(right, 5 + delta), transformAt(moving, 2 + delta));
   // The movement after the held picture starts before its piece: a negative keyframe (E1).

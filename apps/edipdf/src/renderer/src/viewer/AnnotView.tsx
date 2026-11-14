@@ -212,14 +212,13 @@ export function AnnotHtml({
       return (
         <div
           data-annot={a.id}
-          className="annot-text"
+          className={selectable ? "annot-text is-selectable" : "annot-text"}
           style={{
             left: a.x * scale,
             top: a.y * scale,
             zIndex,
             pointerEvents: selectable ? "auto" : pe,
             userSelect: selectable ? "text" : undefined,
-            cursor: selectable ? "text" : undefined,
             ...textStyle(a, scale),
           }}
         >

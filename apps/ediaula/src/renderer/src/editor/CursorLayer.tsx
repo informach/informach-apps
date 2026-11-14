@@ -95,7 +95,7 @@ export function CursorLayer({
     const dpr = window.devicePixelRatio || 1;
     el.width = Math.max(1, Math.round(width * dpr));
     el.height = Math.max(1, Math.round(height * dpr));
-    const ctx = el.getContext("2d")!;
+    const ctx = requireCanvas2d(el);
     const k = (width / data.width) * dpr;
     let raf = 0;
     let last = -1;
@@ -125,3 +125,5 @@ export function CursorLayer({
 
   return <canvas ref={canvas} className="stage-cursor" style={{ width, height }} />;
 }
+
+import { requireCanvas2d } from "@/lib/canvas";

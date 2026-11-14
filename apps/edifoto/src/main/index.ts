@@ -60,6 +60,11 @@ const DOC_EXT = "edifoto";
 let win: BrowserWindow | null = null;
 let dirty = false;
 
+function requireWindow(): BrowserWindow {
+  if (!win || win.isDestroyed()) throw new Error("A janela do EdiFoto não está disponível.");
+  return win;
+}
+
 /** Image or document paths given on the command line ("Abrir com", drag onto the shortcut). */
 const filesFromArgs = (argv: string[]): string[] =>
   argv
@@ -109,7 +114,7 @@ function createWindow(): void {
   });
   win.on("close", (e) => {
     if (!dirty || (!app.isPackaged && process.env.EDIFOTO_SNAPSHOT)) return;
-    const choice = dialog.showMessageBoxSync(win!, {
+    const choice = dialog.showMessageBoxSync(requireWindow(), {
       type: "question",
       buttons: ["Salvar e sair", "Sair sem salvar", "Cancelar"],
       defaultId: 0,
@@ -183,7 +188,7 @@ function registerIpc(): void {
   });
   ipcMain.handle("app:info", () => ({ version: app.getVersion() }));
   ipcMain.handle("dialog:images", async (_e, multi: boolean) => {
-    const r = await dialog.showOpenDialog(win!, {
+    const r = await dialog.showOpenDialog(requireWindow(), {
       title: multi ? "Inserir imagens" : "Abrir imagem",
       properties: multi ? ["openFile", "multiSelections"] : ["openFile"],
       filters: [
@@ -195,7 +200,7 @@ function registerIpc(): void {
     return r.canceled ? [] : r.filePaths;
   });
   ipcMain.handle("dialog:document", async () => {
-    const r = await dialog.showOpenDialog(win!, {
+    const r = await dialog.showOpenDialog(requireWindow(), {
       title: "Abrir",
       properties: ["openFile"],
       filters: [{ name: "Imagens e documentos", extensions: [...IMAGE_EXT, DOC_EXT] }],
@@ -203,7 +208,7 @@ function registerIpc(): void {
     return r.canceled ? null : r.filePaths[0];
   });
   ipcMain.handle("dialog:save", async (_e, defaultName: string, kind: SaveKind) => {
-    const r = await dialog.showSaveDialog(win!, {
+    const r = await dialog.showSaveDialog(requireWindow(), {
       title: kind === "doc" ? "Salvar documento" : "Exportar imagem",
       defaultPath: join(app.getPath("pictures"), defaultName),
       filters: [SAVE_FILTERS[kind]],
@@ -282,7 +287,8 @@ async function synchronizeMcp(): Promise<void> {
     stored.mcpPort ??
     (!app.isPackaged && process.argv.includes("--edifoto-nova-versao") ? 47332 : DEFAULT_MCP_PORT);
   if (mcp.server && (!enabled || mcp.port !== port)) {
-    await new Promise<void>((r) => mcp.server!.close(() => r()));
+    const server = mcp.server;
+    await new Promise<void>((r) => server.close(() => r()));
     mcp = { server: null, port };
   }
   if (enabled && !mcp.server) {

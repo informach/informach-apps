@@ -475,8 +475,9 @@ export function animAt(clip: Animated, t: number): Anim {
   const a: Anim = { opacity: 1, scale: 1, dx: 0, dy: 0 };
   const enter = motionOf(clip.enter, clip.fadeIn);
   const exit = motionOf(clip.exit, clip.fadeOut);
-  if (enter) apply(a, enter, clamp01((t - clip.start) / clip.fadeIn!));
-  if (exit) apply(a, exit, clamp01((clip.start + clip.duration - t) / clip.fadeOut!));
+  if (enter && clip.fadeIn) apply(a, enter, clamp01((t - clip.start) / clip.fadeIn));
+  if (exit && clip.fadeOut)
+    apply(a, exit, clamp01((clip.start + clip.duration - t) / clip.fadeOut));
   return a;
 }
 

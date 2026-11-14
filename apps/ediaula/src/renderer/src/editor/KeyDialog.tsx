@@ -70,7 +70,7 @@ export function KeyDialog({
     const id = requestAnimationFrame(() => {
       el.width = frame.width;
       el.height = frame.height;
-      const ctx = el.getContext("2d")!;
+      const ctx = requireCanvas2d(el);
       const img = ctx.createImageData(frame.width, frame.height);
       if (backdrop === "original") {
         for (let i = 0, s = 0; s < frame.data.length; i += 4, s += 3) {
@@ -266,3 +266,5 @@ export function KeyDialog({
     </Modal>
   );
 }
+
+import { requireCanvas2d } from "@/lib/canvas";

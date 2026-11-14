@@ -9,6 +9,7 @@ import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { buildExportPlan, exportVideoArgs } from "../src/shared/exportPlan.ts";
 import { exportSpecSchema } from "../src/shared/project-schema.ts";
 import { ENCODERS, type Encoder, type ExportSpec, type Project } from "../src/shared/types.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
@@ -117,7 +118,7 @@ test("Reels/Shorts: a tall video with the whole lesson in the middle over a blur
     },
     dir,
   );
-  const v = probe(out).streams.find((s) => s.codec_type === "video")!;
+  const v = assertDefined(probe(out).streams.find((s) => s.codec_type === "video"));
   assert.deepEqual([v.width, v.height], [360, 640]);
   // The lesson (testsrc2 color bars) sits in the middle third; above it is the darkened blur.
   const px = (x: number, y: number): number[] =>
@@ -162,7 +163,7 @@ test("Reels/Shorts: a tall video with the whole lesson in the middle over a blur
     },
     dir,
   );
-  const c = probe(crop).streams.find((s) => s.codec_type === "video")!;
+  const c = assertDefined(probe(crop).streams.find((s) => s.codec_type === "video"));
   assert.deepEqual([c.width, c.height], [360, 640]);
 });
 
