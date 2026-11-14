@@ -17,9 +17,9 @@ e conferiu backups e ensaiou a restauração antes das mudanças.
 A família piloto foi consolidada com preservação dos logins e históricos. A
 conferência de contratos recebeu correção de limite; autorizações operacionais
 registram o verdadeiro responsável pela ação. Os seis contratos históricos foram
-registrados e a carteira remanescente foi migrada. A confirmação dos encerramentos
-e a programação da cobrança futura seguem em conciliação: recibos por si só não
-comprovam encerramento remoto nem assinatura nova programada.
+registrados e a carteira remanescente foi migrada. Os seis encerramentos ao fim do período pago foram confirmados no provedor.
+A programação da cobrança futura permanece pendente; os recibos não comprovam
+que uma nova assinatura já tenha sido programada.
 
 ## Infraestrutura observada
 

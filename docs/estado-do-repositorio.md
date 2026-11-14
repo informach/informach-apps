@@ -10,7 +10,8 @@ Não comprova o seletor nativo nem o instalador publicado; comando no README do 
 validados; a reconciliação de cobrança e a transição da família piloto continuam
 em acompanhamento. Contratos históricos foram registrados com autorização
 operacional auditada, e a carteira legada foi migrada; a programação da nova
-assinatura depende de confirmar todos os encerramentos ao fim dos períodos pagos.
+assinatura ainda depende da preparação do pagamento; os seis encerramentos ao
+fim dos períodos pagos foram confirmados.
 A fotografia anterior ao corte está em [levantamento](../apps/conta/LEVANTAMENTO-2026-11-14.md).
 
 ## Compasso: migração em implementação (10/11/2026)
