@@ -850,10 +850,34 @@ describe("Historical subscription funding after wallet conversion", () => {
         cancelUrl: `https://conta.example.test/?pagamento=${account.id}#compasso`,
       }),
     );
+    const scheduleRead = vi.fn(async (providerId: string) => {
+      if (providerId === f.sub.providerSubscriptionId)
+        return provider.readSubscriptionPaymentFacts();
+      if (providerId !== second.providerSubscriptionId) throw new Error("Unexpected contract");
+      return {
+        ...f.snapshot,
+        subscriptionId: providerId,
+        end: laterEnd,
+        status: "canceled" as const,
+        observedAt: new Date(++observedAt),
+        periods: f.snapshot.periods.map((period) => ({
+          ...period,
+          invoiceId: secondPeriod.providerInvoiceId,
+          lineId: secondPeriod.providerLineId,
+          end: laterEnd,
+          fullyRefunded: true,
+        })),
+      };
+    });
     const readSetup = vi.fn(async () => ({ status: "open" as const, paymentMethodId: null }));
     await expect(
       confirmLegacyFutureSetup(
-        { ...futureDeps, publicUrl: setupDeps.publicUrl, futureProvider: { readSetup } },
+        {
+          ...preflightDeps,
+          providerClient: { readSubscriptionPaymentFacts: scheduleRead },
+          publicUrl: setupDeps.publicUrl,
+          futureProvider: { readSetup },
+        },
         f.userId,
         sessionId,
         { intentId: intent.id },
@@ -911,9 +935,24 @@ describe("Historical subscription funding after wallet conversion", () => {
       status: "complete" as const,
       paymentMethodId: "pm_fixture",
     }));
+    // A hosted card setup can outlive the financial observation window. A
+    // review without a schedule may resume only after refreshing the facts.
+    await db
+      .update(schema.legacyFutureIntents)
+      .set({ state: "review" })
+      .where(eq(schema.legacyFutureIntents.id, nextIntent.id));
+    await db
+      .update(schema.legacyContractObservations)
+      .set({ observedAt: new Date(Date.now() - 10 * 60_000) })
+      .where(eq(schema.legacyContractObservations.subscriptionId, f.sub.id));
     await expect(
       confirmLegacyFutureSetup(
-        { ...futureDeps, publicUrl: setupDeps.publicUrl, futureProvider: { readSetup: completed } },
+        {
+          ...preflightDeps,
+          providerClient: { readSubscriptionPaymentFacts: scheduleRead },
+          publicUrl: setupDeps.publicUrl,
+          futureProvider: { readSetup: completed },
+        },
         f.userId,
         nextSession,
         { intentId: nextIntent.id },
@@ -921,7 +960,12 @@ describe("Historical subscription funding after wallet conversion", () => {
     ).resolves.toMatchObject({ state: "setup_ready" });
     await expect(
       confirmLegacyFutureSetup(
-        { ...futureDeps, publicUrl: setupDeps.publicUrl, futureProvider: { readSetup: completed } },
+        {
+          ...preflightDeps,
+          providerClient: { readSubscriptionPaymentFacts: scheduleRead },
+          publicUrl: setupDeps.publicUrl,
+          futureProvider: { readSetup: completed },
+        },
         f.userId,
         nextSession,
         { intentId: nextIntent.id },
@@ -933,25 +977,6 @@ describe("Historical subscription funding after wallet conversion", () => {
       .from(schema.legacyFutureIntents)
       .where(eq(schema.legacyFutureIntents.id, nextIntent.id));
     expect(ready).toMatchObject({ state: "setup_ready", paymentMethodId: "pm_fixture" });
-    const scheduleRead = vi.fn(async (providerId: string) => {
-      if (providerId === f.sub.providerSubscriptionId)
-        return provider.readSubscriptionPaymentFacts();
-      if (providerId !== second.providerSubscriptionId) throw new Error("Unexpected contract");
-      return {
-        ...f.snapshot,
-        subscriptionId: providerId,
-        end: laterEnd,
-        status: "canceled" as const,
-        observedAt: new Date(++observedAt),
-        periods: f.snapshot.periods.map((period) => ({
-          ...period,
-          invoiceId: secondPeriod.providerInvoiceId,
-          lineId: secondPeriod.providerLineId,
-          end: laterEnd,
-          fullyRefunded: true,
-        })),
-      };
-    });
     let scheduleCreated = false;
     const scheduleProvider = {
       findSchedule: vi.fn(async () =>
@@ -1092,7 +1117,8 @@ describe("Historical subscription funding after wallet conversion", () => {
     await expect(
       confirmLegacyFutureSetup(
         {
-          ...futureDeps,
+          ...preflightDeps,
+          providerClient: { readSubscriptionPaymentFacts: scheduleRead },
           publicUrl: setupDeps.publicUrl,
           futureProvider: { readSetup: changedDuringRead },
         },
@@ -1144,7 +1170,12 @@ describe("Historical subscription funding after wallet conversion", () => {
       { intentId: fourthIntent.id },
     );
     await confirmLegacyFutureSetup(
-      { ...futureDeps, publicUrl: setupDeps.publicUrl, futureProvider: { readSetup: completed } },
+      {
+        ...preflightDeps,
+        providerClient: { readSubscriptionPaymentFacts: scheduleRead },
+        publicUrl: setupDeps.publicUrl,
+        futureProvider: { readSetup: completed },
+      },
       f.userId,
       nextSession,
       { intentId: fourthIntent.id },
@@ -1203,7 +1234,12 @@ describe("Historical subscription funding after wallet conversion", () => {
       { intentId: cancelIntent.id },
     );
     await confirmLegacyFutureSetup(
-      { ...futureDeps, publicUrl: setupDeps.publicUrl, futureProvider: { readSetup: completed } },
+      {
+        ...preflightDeps,
+        providerClient: { readSubscriptionPaymentFacts: scheduleRead },
+        publicUrl: setupDeps.publicUrl,
+        futureProvider: { readSetup: completed },
+      },
       f.userId,
       nextSession,
       { intentId: cancelIntent.id },
@@ -1410,7 +1446,12 @@ describe("Historical subscription funding after wallet conversion", () => {
       { intentId: fifthIntent.id },
     );
     await confirmLegacyFutureSetup(
-      { ...futureDeps, publicUrl: setupDeps.publicUrl, futureProvider: { readSetup: completed } },
+      {
+        ...preflightDeps,
+        providerClient: { readSubscriptionPaymentFacts: scheduleRead },
+        publicUrl: setupDeps.publicUrl,
+        futureProvider: { readSetup: completed },
+      },
       f.userId,
       nextSession,
       { intentId: fifthIntent.id },

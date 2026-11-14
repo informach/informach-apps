@@ -12,7 +12,7 @@ import {
   subscriptions,
 } from "@informach/db/schema";
 import { lockFamilyMembership } from "@informach/family/context";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod/v4";
 import { assertAccountPayer } from "./collection-accounts";
 import { withActiveCompassoBillingLock, withCompassoBillingLock } from "./credit-purchases";
@@ -282,6 +282,7 @@ type SetupDependencies = Dependencies & {
 
 type ReadSetupDependencies = Dependencies & {
   futureProvider: Pick<ReturnType<typeof createStripeFutureContractProvider>, "readSetup">;
+  providerClient: Pick<BillingProviderClient, "readSubscriptionPaymentFacts">;
   publicUrl: string;
 };
 
@@ -524,7 +525,14 @@ export async function confirmLegacyFutureSetup(
         )
         .for("update");
       if (intent?.state === "setup_ready") return { ready: true as const };
-      if (!intent || intent.state !== "setup_pending" || !intent.setupSessionId)
+      if (
+        !intent ||
+        !["setup_pending", "review"].includes(intent.state) ||
+        !intent.setupSessionId ||
+        intent.cancelRequestedAt ||
+        intent.scheduleId ||
+        intent.paymentMethodId
+      )
         throw new BillingError("Future setup is not pending");
       const [customer] = await tx
         .select()
@@ -541,6 +549,12 @@ export async function confirmLegacyFutureSetup(
       return { ready: false as const, intent, customer, setupSessionId: intent.setupSessionId };
     });
     if (authorized.ready) return { intentId, state: "setup_ready" as const };
+    // Hosted setup may take longer than the observation window. Refresh all
+    // provider facts before comparing the accepted revision again.
+    await prepareLegacyFutureIntent(deps, actorId, {
+      accountId: authorized.intent.accountId,
+      productId: z.enum(["compasso_monthly", "compasso_annual"]).parse(authorized.intent.productId),
+    });
     const setup = setupInput(authorized.intent, authorized.customer.providerCustomerId, origin);
     const remote = await deps.futureProvider.readSetup(setup, authorized.setupSessionId);
     if (remote.status === "complete" && !remote.paymentMethodId)
@@ -582,7 +596,10 @@ export async function confirmLegacyFutureSetup(
         .where(
           and(
             eq(legacyFutureIntents.id, intentId),
-            eq(legacyFutureIntents.state, "setup_pending"),
+            inArray(legacyFutureIntents.state, ["setup_pending", "review"]),
+            isNull(legacyFutureIntents.cancelRequestedAt),
+            isNull(legacyFutureIntents.scheduleId),
+            isNull(legacyFutureIntents.paymentMethodId),
             eq(legacyFutureIntents.setupSessionId, authorized.setupSessionId),
           ),
         )

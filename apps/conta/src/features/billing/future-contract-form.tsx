@@ -54,15 +54,18 @@ export function FutureContractForm({
             {money(intent.amountCents)} {intent.interval === "year" ? "por ano" : "por mês"}, com
             renovação automática após a data programada.
           </p>
-          {intent.state === "setup_pending" && (
+          {(intent.state === "setup_pending" ||
+            (intent.state === "review" && !intent.cancelRequestedAt)) && (
             <>
-              <form action={action} className="form-stack">
-                <input type="hidden" name="operation" value="open" />
-                <input type="hidden" name="intentId" value={intent.id} />
-                <button type="submit" className="secondary" disabled={!canOffer || pending}>
-                  Abrir formulário de pagamento
-                </button>
-              </form>
+              {intent.state === "setup_pending" && (
+                <form action={action} className="form-stack">
+                  <input type="hidden" name="operation" value="open" />
+                  <input type="hidden" name="intentId" value={intent.id} />
+                  <button type="submit" className="secondary" disabled={!canOffer || pending}>
+                    Abrir formulário de pagamento
+                  </button>
+                </form>
+              )}
               <form action={action} className="form-stack">
                 <input type="hidden" name="operation" value="confirm" />
                 <input type="hidden" name="intentId" value={intent.id} />

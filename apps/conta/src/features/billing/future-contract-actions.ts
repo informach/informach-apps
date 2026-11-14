@@ -144,7 +144,10 @@ export async function futureContractAction(
           ok: false,
           message:
             error instanceof BillingError
-              ? "Não foi possível concluir. Atualize a conferência e verifique a permissão do pagante."
+              ? error.message ===
+                new BillingError("Recent central authentication is required").message
+                ? "Por segurança, saia da Conta e entre novamente. Depois, confira a continuidade e tente novamente."
+                : "Não foi possível concluir. Atualize a conferência e verifique a permissão do pagante."
               : "A operação está em conferência. Consulte o andamento antes de tentar novamente.",
         };
       }
