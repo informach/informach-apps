@@ -102,3 +102,38 @@ em [PRODUCAO.md](PRODUCAO.md), com os detalhes de infraestrutura em
 
 O CI geral e a matriz Compasso do commit `8d1c5b79` estavam em execução durante
 esta consulta; a aprovação do commit anterior não comprova o resultado desse commit.
+
+## Corte de 14/11 — evidência operacional
+
+O registro abaixo atualiza as pendências históricas acima. Os quatro consumidores
+antigos e seus jobs foram interrompidos durante o corte. Após suspender os
+agendamentos no Railway, foi criado o backup manual
+`compasso-pre-cutover-2026-11-14` às 13h12 UTC. Uma cópia do banco congelado foi
+restaurada em PostgreSQL 18: os fatos conferidos coincidiram, as 164 migrations
+ficaram registradas e a repetição não alterou contagens. A cópia temporária foi
+removida. O banco real recebeu as mesmas migrations e os clientes OIDC foram
+provisionados.
+
+A leitura Stripe e os registros financeiros no banco real reconciliaram sete
+contratos, 26 períodos pagos e três checkouts, sem bloqueios ou revisões abertas.
+Há dois titulares com contratos ativos e um contrato histórico cancelado da
+Agenda; o histórico foi preservado. Os sete crons financeiros antigos foram
+retirados, os novos jobs foram criados e os agendamentos preservados foram
+restabelecidos. O Railway exige intervalo mínimo de cinco minutos; a fila
+financeira deve ser acompanhada à medida que o volume crescer.
+
+Conta e os cinco aplicativos responderam `/api/ready` com HTTP 200 nos domínios
+de produção. O discovery OIDC respondeu com emissor e endpoints da Conta, e os
+jobs autenticados de cobrança, manutenção, saída dos cinco apps e alertas
+responderam com sucesso; as execuções ficaram registradas em `ops.job_runs`.
+O produto e preços live foram conferidos novamente. O webhook foi criado com
+segredo próprio: uma requisição assinada de prova, de tipo ignorado e sem efeito
+financeiro, retornou 200; uma sem assinatura retornou 400. Isso não comprova
+entrega real de evento pelo Stripe.
+
+`COMPASSO_BILLING_ENABLED=true` foi implantado após essas verificações. Ainda
+faltam as jornadas reais dos titulares: entrar, formar ou selecionar a família,
+cada pagante conferir e aceitar seus contratos, conferir a continuidade e as
+datas no Stripe e homologar uma compra real, webhook, crédito e extrato. Não
+simular aceites nem compras em nome dos titulares. As suites remotas do commit
+posterior à correção de formatação continuam sujeitas ao resultado do CI.

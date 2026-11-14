@@ -1,5 +1,9 @@
 # Minha conta: preparação operacional do Compasso
 
+O corte de 14/11 foi executado; evidências e homologações ainda pendentes estão
+no [levantamento operacional](LEVANTAMENTO-2026-11-14.md#corte-de-1411--evidência-operacional).
+Os registros datados abaixo preservam o contexto anterior ao corte.
+
 Estado em 13/11/2026: revisão integrada à `main`; corte de produção ainda
 pendente. Railway conectado e preparação dos serviços reconfirmada, sem conectar
 fontes ou liberar migrations. Conta e Dia de Estrela continuam sem deployments.
