@@ -4,6 +4,13 @@
 
 ## Compasso em implementação (10/11/2026)
 
+Para operação solicitada expressamente pela titular do negócio, o módulo interno
+de contratos legados oferece autorização por owner: exige owner verificado e
+administrador da mesma família, pagante membro, prévia financeira atual e
+revisão exata. Registra `billing.legacy_contract_owner_authorized` com o owner
+real, sem dizer que o outro pagante confirmou. Não expor essa capacidade em
+ações públicas nem tratá-la como autorização geral para outros clientes.
+
 `@informach/billing/closure` contém o adapter financeiro interno do encerramento, composto pelo package account. Seleção é por pagante imutável, inclui contas de famílias anteriores e recusa pendências legadas que ainda dependem do corte interno. A 0149 guarda confirmação financeira por operação/cliente; não autoriza exclusão por si só. A execução reutiliza conciliação, cancelamento e recargas, preserva períodos pagos/créditos e fecha somente o mandato adequado. Não importar account em billing. Na retomada não há cancelamento; resolver o runtime Stripe apenas se existir cliente comercial. Contrato e gates em [encerramento financeiro](../../docs/propostas/assinatura-web-2026-11-09/encerramento-financeiro.md). Não habilitar confirmação pública antes da composição completa e da revisão operacional.
 
 Admissões comerciais do ator tomam `auth:web-commerce:<ator>` junto à chave da conta, em uma única conexão do pool de coordenação. A transição da participação espera a admissão anterior registrar seu resultado e recusa as posteriores. Reconciliação de fatos já admitidos toma somente a chave da conta. Helpers de coordenação não devem ser aninhados; callbacks que já têm o lock usam as primitivas explicitamente marcadas `Locked`.

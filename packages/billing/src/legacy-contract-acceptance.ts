@@ -16,6 +16,7 @@ import {
   legacyContractObservations,
   subscriptionPaymentPeriods,
   subscriptions,
+  users,
   webhookEvents,
 } from "@informach/db/schema";
 import { lockFamilyMembership } from "@informach/family/context";
@@ -360,21 +361,48 @@ export function previewLegacyContractAcceptance(
 }
 
 /** Records exactly the previewed periods. It neither cancels nor creates a subscription. */
-export function acceptLegacyContract(
+type AcceptanceInput = {
+  groupId: string;
+  subscriptionId: string;
+  revision: string;
+  sessionId?: string;
+  coordination?: LegacyCoordinationMode;
+};
+
+export function acceptLegacyContract(db: Database, actorId: string, input: AcceptanceInput) {
+  return acceptLegacyContractWithAuthority(db, actorId, input, { kind: "payer" });
+}
+
+/** Internal operational entry point. It is not exported from the package's
+ * public subpaths and must not be wired to a user-facing action. The owner
+ * authorizes the payer's already-reconciled terms; the audit records the real
+ * authorizer rather than asserting that the other payer clicked an acceptance. */
+export function authorizeLegacyContractByOwner(
+  db: Database,
+  payerId: string,
+  ownerId: string,
+  input: Omit<AcceptanceInput, "sessionId">,
+) {
+  return acceptLegacyContractWithAuthority(db, payerId, input, { kind: "owner", ownerId });
+}
+
+function acceptLegacyContractWithAuthority(
   db: Database,
   actorId: string,
-  input: {
-    groupId: string;
-    subscriptionId: string;
-    revision: string;
-    sessionId?: string;
-    /** The coordination mode the adult saw in the preview. Without it only a
-     * direct acceptance is admitted. */
-    coordination?: LegacyCoordinationMode;
-  },
+  input: AcceptanceInput,
+  authority: { kind: "payer" } | { kind: "owner"; ownerId: string },
 ) {
   return db.transaction(async (tx) => {
     await lockFamilyMembership(tx, actorId, input.groupId);
+    if (authority.kind === "owner") {
+      await lockFamilyMembership(tx, authority.ownerId, input.groupId, "administrator");
+      const [owner] = await tx
+        .select({ role: users.role })
+        .from(users)
+        .where(and(eq(users.id, authority.ownerId), eq(users.role, "owner")))
+        .limit(1);
+      if (!owner) throw new BillingError("Owner authorization required");
+    }
     if (
       input.sessionId !== undefined &&
       !(await lockRecentCentralAuthentication(tx, actorId, input.sessionId))
@@ -396,7 +424,7 @@ export function acceptLegacyContract(
     }
     const existing = await existingReceipt();
     if (existing) return existing;
-    // Each adult accepts only their own contract. When the family's payer has
+    // Ordinarily each adult accepts only their own contract. When the family's payer has
     // no Compasso commitment yet, the contribution is recorded directly and the
     // payer's future terms aggregate it. When the payer is already committed,
     // the contribution opens a coordination that only the payer can answer.
@@ -430,8 +458,11 @@ export function acceptLegacyContract(
       );
     await tx.insert(familyEvents).values({
       groupId: input.groupId,
-      actorId,
-      event: "billing.legacy_contract_accepted",
+      actorId: authority.kind === "owner" ? authority.ownerId : actorId,
+      event:
+        authority.kind === "owner"
+          ? "billing.legacy_contract_owner_authorized"
+          : "billing.legacy_contract_accepted",
       targetId: receipt.id,
     });
     if (commitment.mode === "payer_decides")

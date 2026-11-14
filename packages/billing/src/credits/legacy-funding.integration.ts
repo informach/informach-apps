@@ -14,6 +14,7 @@ import { hasPendingCompassoReview } from "../collection-jobs";
 import { getCompassoAccess } from "../compasso";
 import {
   acceptLegacyContract,
+  authorizeLegacyContractByOwner,
   confirmLegacyContractAcceptance,
   confirmRecentLegacyContractAcceptance,
   prepareLegacyContractAcceptance,
@@ -2056,6 +2057,84 @@ describe("Historical subscription funding after wallet conversion", () => {
       subscriptionId: f.sub.id,
     });
   });
+  it("records an owner's explicit operational authorization without attributing it to the payer", async () => {
+    const f = await fixture();
+    const owner = `operator-${randomUUID()}`;
+    await db.insert(schema.users).values({
+      id: owner,
+      name: "Owner",
+      email: `${owner}@example.test`,
+      emailVerified: true,
+      role: "owner",
+    });
+    await db.insert(schema.familyMembers).values({
+      groupId: f.group.id,
+      userId: owner,
+      role: "administrator",
+    });
+    await db.insert(schema.familyMigrationSources).values({
+      app: "cozya",
+      sourceOwnerId: f.userId,
+      groupId: f.group.id,
+    });
+    await persistPaymentPeriods(db, f.sub.id, f.snapshot);
+    await db.insert(schema.legacyContractObservations).values({
+      subscriptionId: f.sub.id,
+      status: f.snapshot.status,
+      providerPriceId: f.snapshot.priceId,
+      periodStart: f.snapshot.start,
+      periodEnd: f.snapshot.end,
+      cancelAtPeriodEnd: false,
+      observedAt: f.snapshot.observedAt,
+    });
+    const input = { groupId: f.group.id, subscriptionId: f.sub.id };
+    const preview = await previewLegacyContractAcceptance(db, f.userId, input);
+    await expect(
+      authorizeLegacyContractByOwner(db, f.userId, f.userId, {
+        ...input,
+        revision: preview.revision,
+      }),
+    ).rejects.toThrow("Owner authorization required");
+    await db
+      .update(schema.familyMembers)
+      .set({ role: "member" })
+      .where(
+        and(eq(schema.familyMembers.groupId, f.group.id), eq(schema.familyMembers.userId, owner)),
+      );
+    await expect(
+      authorizeLegacyContractByOwner(db, f.userId, owner, { ...input, revision: preview.revision }),
+    ).rejects.toThrow();
+    await db
+      .update(schema.familyMembers)
+      .set({ role: "administrator" })
+      .where(
+        and(eq(schema.familyMembers.groupId, f.group.id), eq(schema.familyMembers.userId, owner)),
+      );
+    await expect(
+      authorizeLegacyContractByOwner(db, f.userId, owner, { ...input, revision: "0".repeat(64) }),
+    ).rejects.toThrow("updated contract preview");
+    const receipt = await authorizeLegacyContractByOwner(db, f.userId, owner, {
+      ...input,
+      revision: preview.revision,
+    });
+    expect(receipt.payerUserId).toBe(f.userId);
+    const events = await db
+      .select()
+      .from(schema.familyEvents)
+      .where(eq(schema.familyEvents.targetId, receipt.id));
+    expect(events).toMatchObject([
+      { actorId: owner, event: "billing.legacy_contract_owner_authorized" },
+    ]);
+    expect(
+      (
+        await authorizeLegacyContractByOwner(db, f.userId, owner, {
+          ...input,
+          revision: preview.revision,
+        })
+      ).id,
+    ).toBe(receipt.id);
+  });
+
   it("binds only explicitly accepted, paid periods to the payer's family", async () => {
     const f = await fixture();
     await db.insert(schema.familyMigrationSources).values({
