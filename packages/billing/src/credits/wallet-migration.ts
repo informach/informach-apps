@@ -15,6 +15,7 @@ import {
 import { lockFamilyMembership } from "@informach/family/context";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { BillingError } from "../errors";
+import { requireBillingOwner } from "../owner-authorization";
 import type { BillingProviderClient } from "../providers/types";
 import { previewCreditConversion } from "./conversion-preview";
 import { type BalanceEntry, projectCreditLots } from "./ledger-balance";
@@ -202,8 +203,28 @@ export async function migrateLegacyWallet(
   actorId: string,
   input: Destination & { revision: string },
 ) {
+  return migrateLegacyWalletWithAuthority(db, actorId, input, { kind: "payer" });
+}
+
+/** Internal operational entry point; never expose it to a user-facing action. */
+export async function migrateLegacyWalletByOwner(
+  db: Database,
+  payerId: string,
+  ownerId: string,
+  input: Destination & { revision: string },
+) {
+  return migrateLegacyWalletWithAuthority(db, payerId, input, { kind: "owner", ownerId });
+}
+
+async function migrateLegacyWalletWithAuthority(
+  db: Database,
+  actorId: string,
+  input: Destination & { revision: string },
+  authority: { kind: "payer" } | { kind: "owner"; ownerId: string },
+) {
   return db.transaction(async (tx) => {
     await lockMigrationContext(tx, actorId, input);
+    if (authority.kind === "owner") await requireBillingOwner(tx, authority.ownerId, input.groupId);
     const policy = COMPASSO_LEGACY_CREDIT_POLICIES[input.sourceApp];
     const existing = await findCreditWalletMigration(tx, input.sourceApp, {
       type: "user",
@@ -281,8 +302,11 @@ export async function migrateLegacyWallet(
     }
     await tx.insert(familyEvents).values({
       groupId: input.groupId,
-      actorId,
-      event: "billing.legacy_credits_migrated",
+      actorId: authority.kind === "owner" ? authority.ownerId : actorId,
+      event:
+        authority.kind === "owner"
+          ? "billing.legacy_credits_owner_migrated"
+          : "billing.legacy_credits_migrated",
       targetId: migration.id,
     });
     return migration;

@@ -47,7 +47,11 @@ import { lockCreditOwner } from "./locks";
 import { forwardPendingLegacyCreditEntries } from "./migration-forwarding";
 import { consumeCredits } from "./reservations";
 import { authorizeCompassoSpend } from "./shared";
-import { migrateLegacyWallet, previewLegacyWalletMigration } from "./wallet-migration";
+import {
+  migrateLegacyWallet,
+  migrateLegacyWalletByOwner,
+  previewLegacyWalletMigration,
+} from "./wallet-migration";
 
 const url = process.env.DATABASE_URL;
 if (
@@ -159,6 +163,51 @@ async function fixture() {
 }
 
 describe("Historical subscription funding after wallet conversion", () => {
+  it("records an owner-authorized wallet conversion without impersonating its holder", async () => {
+    const f = await fixture();
+    const owner = `wallet-operator-${randomUUID()}`;
+    await db.insert(schema.users).values({
+      id: owner,
+      name: "Owner",
+      email: `${owner}@example.test`,
+      emailVerified: true,
+      role: "owner",
+    });
+    await db.insert(schema.familyMembers).values({
+      groupId: f.group.id,
+      userId: owner,
+      role: "administrator",
+    });
+    await f.grant({ invoiceId: f.invoiceId });
+    await persistPaymentPeriods(db, f.sub.id, f.snapshot);
+    const input = { sourceApp: "cozya" as const, groupId: f.group.id };
+    const preview = await previewLegacyWalletMigration(db, f.userId, input);
+    if (preview.status !== "ready") throw new Error("Expected an unmigrated wallet");
+    await expect(
+      migrateLegacyWalletByOwner(db, f.userId, f.userId, { ...input, revision: preview.revision }),
+    ).rejects.toThrow("Owner authorization required");
+    const receipt = await migrateLegacyWalletByOwner(db, f.userId, owner, {
+      ...input,
+      revision: preview.revision,
+    });
+    expect(receipt.sourceUserId).toBe(f.userId);
+    expect(await f.balance()).toBe(preview.amount);
+    const events = await db
+      .select()
+      .from(schema.familyEvents)
+      .where(eq(schema.familyEvents.targetId, receipt.id));
+    expect(events).toMatchObject([
+      { actorId: owner, event: "billing.legacy_credits_owner_migrated" },
+    ]);
+    expect(
+      (
+        await migrateLegacyWalletByOwner(db, f.userId, owner, {
+          ...input,
+          revision: preview.revision,
+        })
+      ).id,
+    ).toBe(receipt.id);
+  });
   it("lets the verified payer cancel an existing future schedule after leaving the family", async () => {
     const f = await fixture();
     const other = `former-family-${randomUUID()}`;

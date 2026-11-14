@@ -16,7 +16,6 @@ import {
   legacyContractObservations,
   subscriptionPaymentPeriods,
   subscriptions,
-  users,
   webhookEvents,
 } from "@informach/db/schema";
 import { lockFamilyMembership } from "@informach/family/context";
@@ -30,6 +29,7 @@ import {
 } from "./legacy-contract-policy";
 import { attachLegacyCoordination } from "./legacy-coordination";
 import { type LegacyCoordinationMode, readContributorMode } from "./legacy-coordination-terms";
+import { requireBillingOwner } from "./owner-authorization";
 import type { BillingProviderClient } from "./providers/types";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
@@ -395,13 +395,7 @@ function acceptLegacyContractWithAuthority(
   return db.transaction(async (tx) => {
     await lockFamilyMembership(tx, actorId, input.groupId);
     if (authority.kind === "owner") {
-      await lockFamilyMembership(tx, authority.ownerId, input.groupId, "administrator");
-      const [owner] = await tx
-        .select({ role: users.role })
-        .from(users)
-        .where(and(eq(users.id, authority.ownerId), eq(users.role, "owner")))
-        .limit(1);
-      if (!owner) throw new BillingError("Owner authorization required");
+      await requireBillingOwner(tx, authority.ownerId, input.groupId);
     }
     if (
       input.sessionId !== undefined &&

@@ -10,6 +10,9 @@ administrador da mesma família, pagante membro, prévia financeira atual e
 revisão exata. Registra `billing.legacy_contract_owner_authorized` com o owner
 real, sem dizer que o outro pagante confirmou. Não expor essa capacidade em
 ações públicas nem tratá-la como autorização geral para outros clientes.
+O mesmo critério existe para a carteira legada no módulo interno: conserva a
+prévia, os lotes e as travas da conversão normal e registra o owner real no
+evento `billing.legacy_credits_owner_migrated`.
 
 `@informach/billing/closure` contém o adapter financeiro interno do encerramento, composto pelo package account. Seleção é por pagante imutável, inclui contas de famílias anteriores e recusa pendências legadas que ainda dependem do corte interno. A 0149 guarda confirmação financeira por operação/cliente; não autoriza exclusão por si só. A execução reutiliza conciliação, cancelamento e recargas, preserva períodos pagos/créditos e fecha somente o mandato adequado. Não importar account em billing. Na retomada não há cancelamento; resolver o runtime Stripe apenas se existir cliente comercial. Contrato e gates em [encerramento financeiro](../../docs/propostas/assinatura-web-2026-11-09/encerramento-financeiro.md). Não habilitar confirmação pública antes da composição completa e da revisão operacional.
 
