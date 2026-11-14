@@ -163,6 +163,25 @@ export function AccountDashboard({
                     </div>
                   </article>
                 ))}
+                {data.management?.members
+                  .filter(
+                    (member) => !data.people.some((person) => person.accountId === member.userId),
+                  )
+                  .map((member) => (
+                    <article className="person" key={`member-${member.userId}`}>
+                      <span
+                        className="person-avatar"
+                        aria-hidden="true"
+                        style={{ backgroundColor: "#48785C" }}
+                      >
+                        {member.name.slice(0, 1).toLocaleUpperCase("pt-BR")}
+                      </span>
+                      <div>
+                        <h3>{member.name}</h3>
+                        <p>Adulto</p>
+                      </div>
+                    </article>
+                  ))}
               </div>
               {data.group.role === "administrator" && (
                 <details className="sheet add-person">

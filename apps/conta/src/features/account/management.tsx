@@ -53,7 +53,7 @@ export function FamilyManagement({ data, actorId }: { data: Overview; actorId: s
         groupId={group.id}
       />
       <details className="sheet management-panel">
-        <summary>Pessoas, perfis e permissões</summary>
+        <summary>Editar pessoas, perfis e permissões</summary>
         <p>
           Uma pessoa pode ter um histórico em cada aplicativo. Escolha separadamente quem pode ver,
           editar, compartilhar ou usar IA.

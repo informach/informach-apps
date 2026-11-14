@@ -86,12 +86,16 @@ test("account, family, people and trial on a disposable database", async ({
     await guestPage.getByLabel("Código recebido").fill(token);
     await guestPage.getByRole("button", { name: "Entrar na família", exact: true }).click();
     await expect(guestPage.getByRole("heading", { name: "Família Oliveira" })).toBeVisible();
+    await expect(
+      guestPage.getByRole("heading", { name: "Marina Oliveira", exact: true }),
+    ).toBeVisible();
     await expect(guestPage.getByRole("heading", { name: "Ana Oliveira", exact: true })).toHaveCount(
       0,
     );
 
     await page.reload();
-    await page.getByText("Pessoas, perfis e permissões", { exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Rafael Oliveira", exact: true })).toBeVisible();
+    await page.getByText("Editar pessoas, perfis e permissões", { exact: true }).click();
     await page.getByText("Gerenciar Ana Oliveira", { exact: true }).click();
     const permissions = page
       .locator(".profile-access")
@@ -143,7 +147,7 @@ test("account, family, people and trial on a disposable database", async ({
     async () => null,
   );
   await page.reload();
-  await page.getByText("Pessoas, perfis e permissões", { exact: true }).click();
+  await page.getByText("Editar pessoas, perfis e permissões", { exact: true }).click();
   await page.getByText("Gerenciar Ana do Missão Saber", { exact: true }).click();
   await page.getByText("Associar a uma pessoa já cadastrada", { exact: true }).last().click();
   await page

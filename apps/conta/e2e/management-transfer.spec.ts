@@ -65,7 +65,7 @@ test("transfers common identity only after the other adult accepts", async ({
       async () => null,
     );
     await login(page, source);
-    await page.getByText("Pessoas, perfis e permissões", { exact: true }).click();
+    await page.getByText("Editar pessoas, perfis e permissões", { exact: true }).click();
     await page.getByText("Gerenciar Ana Oliveira", { exact: true }).click();
     await page.getByText("Transferir o cadastro de Ana Oliveira", { exact: true }).click();
     const form = page.locator(".person-transfer-form");
@@ -85,7 +85,7 @@ test("transfers common identity only after the other adult accepts", async ({
     await page.getByLabel("Senha", { exact: true }).fill(source.password);
     await page.getByRole("button", { name: "Entrar", exact: true }).click();
     await page.waitForURL(`${origin}/?familia=${group.id}`);
-    await page.getByText("Pessoas, perfis e permissões", { exact: true }).click();
+    await page.getByText("Editar pessoas, perfis e permissões", { exact: true }).click();
     await page.getByText("Gerenciar Ana Oliveira", { exact: true }).click();
     await page.getByText("Transferir o cadastro de Ana Oliveira", { exact: true }).click();
     await form.getByRole("checkbox").check();
@@ -102,7 +102,7 @@ test("transfers common identity only after the other adult accepts", async ({
     await request.getByRole("checkbox").check();
     await request.getByRole("button", { name: "Aceitar responsabilidade pelo cadastro" }).click();
     await expect(request).toHaveCount(0);
-    await recipientPage.getByText("Pessoas, perfis e permissões", { exact: true }).click();
+    await recipientPage.getByText("Editar pessoas, perfis e permissões", { exact: true }).click();
     await recipientPage.getByText("Gerenciar Ana Oliveira", { exact: true }).click();
     await expect(recipientPage.getByLabel("Nome da pessoa", { exact: true })).toHaveValue(
       "Ana Oliveira",
@@ -121,7 +121,7 @@ test("transfers common identity only after the other adult accepts", async ({
         .getByRole("combobox", { name: "Permissão", exact: true }),
     ).toHaveCount(0);
     await page.reload();
-    await page.getByText("Pessoas, perfis e permissões", { exact: true }).click();
+    await page.getByText("Editar pessoas, perfis e permissões", { exact: true }).click();
     await page.getByText("Gerenciar Ana Oliveira", { exact: true }).click();
     await expect(page.getByLabel("Nome da pessoa", { exact: true })).toHaveCount(0);
     await expect(
