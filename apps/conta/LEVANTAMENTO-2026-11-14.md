@@ -21,9 +21,17 @@ em [PRODUCAO.md](PRODUCAO.md), com os detalhes de infraestrutura em
   Os genéricos têm como destinos apenas Cozya e Agenda da Turma.
 - O teste offline `pnpm compasso:test:infrastructure` passou. O plano com as flags
   desligadas ainda apresenta diferenças de configuração; não foi aplicado.
+- O Railway recusou um backup manual por limite do plano. Com autorização da
+  titular, foi removido o backup vencido de 30/08 e cinco backups automáticos de
+  01/10 a 07/11. Permaneceram os dois backups manuais de setembro e os sete
+  automáticos de 09/11 em diante. Há nove backups; reservar a vaga para o backup
+  final após a parada dos writers. PITR não está habilitado nesse PostgreSQL.
 - A matriz da Agenda no CI encontrou deadlock em inserção direta de fixture. As
   três inserções passaram a tomar primeiro a trava familiar, como os escritores;
   as 54 jornadas desktop e mobile passaram localmente com banco e Redis isolados.
+- A matriz do Cozya recarregou a lista antes de terminar uma marcação otimista.
+  O teste agora aguarda a resposta da gravação antes de conferir a persistência;
+  as 20 jornadas desktop e mobile passaram com banco e Redis isolados.
 - Em 14/11, após a titular configurar os registros no Cloudflare, o Railway
   confirmou a propriedade e certificados válidos para `conta.informach.com.br`
   e `dia-de-estrela.informach.com.br`. As consultas externas chegam ao proxy

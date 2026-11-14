@@ -1,5 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { browserFamily, enterCozya } from "./fixtures/compasso";
 
 async function signInHousehold(page: Page) {
@@ -10,6 +10,20 @@ async function signInHousehold(page: Page) {
 
 // Client-side navigations can land on a route the cold dev server compiles on first use.
 const COMPILE = { timeout: 60_000 };
+
+/** The optimistic check is visible before the server has persisted it. */
+async function markShoppingItem(page: Page, item: Locator) {
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (result) =>
+        result.request().method() === "POST" &&
+        !!result.request().headers()["next-action"] &&
+        new URL(result.url()).pathname === "/compras",
+    ),
+    item.click(),
+  ]);
+  expect(response.ok()).toBe(true);
+}
 
 /** A Monday far enough ahead that every day of it can still be planned, whatever day the suite runs. */
 function futureWeek(weeksAhead: number): string {
@@ -207,7 +221,7 @@ test("first week, plan with lunchboxes, shop, cook and say how it went on a phon
   await expect(eggs).toContainText("18");
   await expect(cheese).toContainText("600 g");
   // Before leaving: what is already at home.
-  await eggs.click();
+  await markShoppingItem(page, eggs);
   await expect(eggs).toHaveAttribute("aria-pressed", "true");
   await page.reload();
   await expect(eggs).toHaveAttribute("aria-pressed", "true");
@@ -215,7 +229,7 @@ test("first week, plan with lunchboxes, shop, cook and say how it went on a phon
   // At the market: what is home is out of the way, the rest goes into the cart.
   await page.getByRole("button", { name: "No mercado", exact: true }).click();
   await expect(eggs).toHaveCount(0);
-  await cheese.click();
+  await markShoppingItem(page, cheese);
   await expect(cheese).toHaveAttribute("aria-pressed", "true");
   await page.reload();
   await expect(page.getByRole("button", { name: "No mercado", exact: true })).toHaveAttribute(

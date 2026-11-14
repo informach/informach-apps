@@ -83,10 +83,11 @@ pertencem à frente independente e devem permanecer intactos.
 
 ## Plano e verificação
 
-`COMPASSO_LAUNCHED=false` e `ESTRELA_LAUNCHED=false` conservam os serviços vazios
-da Conta e Dia de Estrela no grafo, sem conectar fontes. Ao habilitar as duas
-flags no corte, o grafo retira exatamente os sete serviços da tabela e acrescenta
-os oito jobs acima. Nunca voltar as flags após lançar para tentar rollback.
+Na preparação, `COMPASSO_LAUNCHED=false` e `ESTRELA_LAUNCHED=false` conservam
+os serviços vazios sem conectar fontes. O candidato de 14/11 já versiona ambas
+como `true`, mas o plano ainda não foi aplicado: isso não significa implantação.
+No corte, o grafo retira exatamente os sete serviços da tabela e acrescenta os
+oito jobs acima. Nunca voltar as flags após lançar para tentar rollback.
 
 `pnpm compasso:test:infrastructure` força os dois estados em cópias descartáveis,
 independentemente das flags versionadas, e verifica o contrato e a preservação
