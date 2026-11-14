@@ -64,6 +64,7 @@ jobs:
       - if: matrix.gate == 'domain'
         run: |
           node --import tsx --test scripts/compasso/railway-graph.test.mjs
+          node --test scripts/compasso/checkout-inventory.test.mjs
           node --test scripts/compasso/postgres-fixture.test.mjs
           node --test scripts/compasso/redis-fixture.test.mjs
           pnpm compasso:test:integration

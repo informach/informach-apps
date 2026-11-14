@@ -5,6 +5,7 @@ import { parseArgs } from "node:util";
 import type StripeType from "../../packages/billing/node_modules/stripe";
 import { getCollectionApps } from "../../packages/config/src/collections";
 import type Postgres from "../../packages/db/node_modules/postgres";
+import { countUnresolvedCheckouts } from "./checkout-inventory.mjs";
 
 // Cutover reconciliation per holder, read-only on both sides. The database is
 // read in one read-only transaction and Stripe only through GET requests to the
@@ -93,13 +94,11 @@ try {
       {
         periods: boolean;
         acceptances: boolean;
-        checkouts: boolean;
         eventCustomer: boolean;
         migrations: number;
       }[]
     >`select to_regclass('billing.subscription_payment_periods') is not null as periods,
         to_regclass('billing.legacy_contract_acceptances') is not null as acceptances,
-        to_regclass('billing.checkout_intents') is not null as checkouts,
         exists (select 1 from information_schema.columns where table_schema = 'billing'
           and table_name = 'webhook_events' and column_name = 'provider_customer_id') as "eventCustomer",
         (select count(*)::int from drizzle.__drizzle_migrations) as migrations`;
@@ -157,11 +156,7 @@ try {
       group by l.owner_id, l.app order by l.owner_id, l.app`;
     const [dia] = await sql<{ customers: number }[]>`
       select count(*)::int as customers from billing.customers where app = 'dia-de-estrela'`;
-    const [checkouts] = present?.checkouts
-      ? await sql<{ open: number }[]>`
-      select count(*)::int as open from billing.checkout_intents i join billing.customers c on c.id = i.customer_id
-      where c.app in ${sql(apps)}`
-      : [{ open: 0 }];
+    const checkouts = await countUnresolvedCheckouts(sql, apps);
     return {
       contracts,
       pending,
@@ -283,7 +278,7 @@ try {
     if (wallet.activeReservations)
       blocking.push(`${wallet.holder}/${wallet.app}: active_ai_reservation`);
   if (local.dia?.customers) blocking.push("dia-de-estrela: billing customers exist");
-  if (local.checkouts?.open) blocking.push(`legacy checkout intents: ${local.checkouts.open}`);
+  if (local.checkouts) blocking.push(`legacy checkout intents: ${local.checkouts}`);
   process.stdout.write(
     `${JSON.stringify(
       {
@@ -295,7 +290,7 @@ try {
         contracts,
         wallets,
         diaCustomers: local.dia?.customers ?? 0,
-        legacyCheckoutIntents: local.checkouts?.open ?? 0,
+        legacyCheckoutIntents: local.checkouts,
         blocking,
       },
       null,

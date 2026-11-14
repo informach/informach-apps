@@ -45,6 +45,11 @@ em [PRODUCAO.md](PRODUCAO.md), com os detalhes de infraestrutura em
   pagamentos. É preciso examinar fatura e Checkouts por titular, reconciliar a
   leitura financeira após a migração e repetir a conferência durante o corte,
   sem editar saldos, apagar recibos nem encerrar contratos como atalho.
+- Consulta posterior ao Stripe confirmou que as três sessões das intenções estão
+  concluídas e pagas; continuam bloqueadas até o recibo vincular cada sessão ao
+  contrato correspondente. A fatura observada na Agenda estava em rascunho de
+  renovação automática. O inventário foi corrigido para ignorar apenas intenções
+  com recibo da mesma sessão e do mesmo cliente, sem desconsiderar as pendentes.
 - A restauração do backup real em PostgreSQL 18 descartável passou: contagens e
   atributos conferidos foram preservados; a sequência aplicou 83 migrations na
   cópia e a segunda execução não alterou os fatos verificados. O ensaio removeu
