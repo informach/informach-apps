@@ -13,6 +13,7 @@ import {
   agendaTurmaMembers,
   agendaTurmas,
 } from "@informach/db/schema";
+import { lockFamilyMembership } from "@informach/family/context";
 import { expect, test } from "@playwright/test";
 import { browserFamily, browserProfile, enterAgenda } from "./fixtures/compasso";
 import { waitForAppHydration, waitForHydration } from "./fixtures/hydration";
@@ -20,6 +21,17 @@ import { waitForAppHydration, waitForHydration } from "./fixtures/hydration";
 function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error("Missing browser fixture");
   return value;
+}
+
+async function insertNoticeFixture(
+  userId: string,
+  groupId: string,
+  values: typeof agendaNotices.$inferInsert,
+) {
+  return db.transaction(async (tx) => {
+    await lockFamilyMembership(tx, userId, groupId);
+    return tx.insert(agendaNotices).values(values).returning();
+  });
 }
 
 test("review fixes: consecutive edits, source scope, reuse for another child and deadline correction", async ({
@@ -419,25 +431,22 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
     location: null,
     sourceExcerpt: "Entregar autorização amanhã.",
   };
-  const [notice] = await db
-    .insert(agendaNotices)
-    .values({
-      familyGroupId: f.groupId,
-      createdByUserId: id,
-      captureProfileId: child.id,
-      source: "teams",
-      text,
-      contentHash: createHash("sha256")
-        .update(JSON.stringify([text, null, [], null]))
-        .digest("hex"),
-      status: "ready",
-      parsedResult: {
-        actions: [extracted],
-        warnings: [],
-        publicationReference: { date: "2030-09-13", sourceExcerpt: "Publicado em 13/09/2030." },
-      },
-    })
-    .returning();
+  const [notice] = await insertNoticeFixture(id, f.groupId, {
+    familyGroupId: f.groupId,
+    createdByUserId: id,
+    captureProfileId: child.id,
+    source: "teams",
+    text,
+    contentHash: createHash("sha256")
+      .update(JSON.stringify([text, null, [], null]))
+      .digest("hex"),
+    status: "ready",
+    parsedResult: {
+      actions: [extracted],
+      warnings: [],
+      publicationReference: { date: "2030-09-13", sourceExcerpt: "Publicado em 13/09/2030." },
+    },
+  });
   const noticeId = required(notice).id;
   await page.goto(`/recados/novo?retomar=${noticeId}`);
   // A data do recado em dia da semana, e não "13/09/2030".
@@ -481,29 +490,26 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
     .from(agendaTasks)
     .where(and(eq(agendaTasks.noticeId, noticeId), eq(agendaTasks.profileId, child.id)));
   const previous = required(before);
-  const [correction] = await db
-    .insert(agendaNotices)
-    .values({
-      familyGroupId: f.groupId,
-      createdByUserId: id,
-      captureProfileId: child.id,
-      source: "teams",
-      text: "RETIFICAÇÃO: autorização até 16/09/2030",
-      contentHash: randomUUID(),
-      status: "ready",
-      parsedResult: {
-        actions: [
-          {
-            ...extracted,
-            dueAt: "2030-09-16",
-            dateOrigin: "school",
-            sourceExcerpt: "Autorização até 16/09/2030.",
-          },
-        ],
-        warnings: [],
-      },
-    })
-    .returning();
+  const [correction] = await insertNoticeFixture(id, f.groupId, {
+    familyGroupId: f.groupId,
+    createdByUserId: id,
+    captureProfileId: child.id,
+    source: "teams",
+    text: "RETIFICAÇÃO: autorização até 16/09/2030",
+    contentHash: randomUUID(),
+    status: "ready",
+    parsedResult: {
+      actions: [
+        {
+          ...extracted,
+          dueAt: "2030-09-16",
+          dateOrigin: "school",
+          sourceExcerpt: "Autorização até 16/09/2030.",
+        },
+      ],
+      warnings: [],
+    },
+  });
   await page.goto(`/recados/novo?retomar=${required(correction).id}`);
   await page.getByRole("checkbox", { name: /^Confirmei todas as crianças mencionadas/ }).check();
   await page.getByRole("button", { name: "Salvar 1 autorização", exact: true }).click();
@@ -550,29 +556,26 @@ test("review fixes: consecutive edits, source scope, reuse for another child and
     dateOrigin: "unspecified" as const,
     sourceExcerpt: "Prova de ciências — data ilegível.",
   };
-  const [photoNotice] = await db
-    .insert(agendaNotices)
-    .values({
-      familyGroupId: f.groupId,
-      createdByUserId: id,
-      captureProfileId: child.id,
-      source: "notebook",
-      text: "",
-      attachmentName: "agenda-sintetica.png",
-      attachmentType: "image/png",
-      attachmentData: photoBase64,
-      attachmentExpiresAt: new Date(Date.now() + 30 * 86400000),
-      contentHash: createHash("sha256")
-        .update(JSON.stringify(["", photoBase64, [], "2030-09-14"]))
-        .digest("hex"),
-      status: "ready",
-      parsedResult: {
-        actions: [homework, exam],
-        warnings: ["Confira a data da prova; a anotação está ilegível."],
-        publicationReference: null,
-      },
-    })
-    .returning();
+  const [photoNotice] = await insertNoticeFixture(id, f.groupId, {
+    familyGroupId: f.groupId,
+    createdByUserId: id,
+    captureProfileId: child.id,
+    source: "notebook",
+    text: "",
+    attachmentName: "agenda-sintetica.png",
+    attachmentType: "image/png",
+    attachmentData: photoBase64,
+    attachmentExpiresAt: new Date(Date.now() + 30 * 86400000),
+    contentHash: createHash("sha256")
+      .update(JSON.stringify(["", photoBase64, [], "2030-09-14"]))
+      .digest("hex"),
+    status: "ready",
+    parsedResult: {
+      actions: [homework, exam],
+      warnings: ["Confira a data da prova; a anotação está ilegível."],
+      publicationReference: null,
+    },
+  });
   const photoId = required(photoNotice).id;
   await page.goto(`/atividades?perfil=${child.id}`);
   await page.getByRole("button", { name: "Adicionar de um recado", exact: true }).click();
