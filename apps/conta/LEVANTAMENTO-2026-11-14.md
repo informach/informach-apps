@@ -5,6 +5,22 @@ homologados. O titular autorizou concluir o corte após os gates. A fonte operac
 em [PRODUCAO.md](PRODUCAO.md), com os detalhes de infraestrutura em
 [INFRAESTRUTURA.md](INFRAESTRUTURA.md).
 
+## Atualização posterior ao corte
+
+A infraestrutura e o inventário abaixo registram o estado anterior ao corte. Conta
+e consumidores foram implantados; os domínios da Conta e do Dia responderam após
+a configuração de DNS e TLS. Os sete crons financeiros legados foram substituídos
+pela manutenção central. O produto e os preços Compasso foram configurados no
+Stripe live, com descrição e imagem; o webhook foi verificado. A operação preparou
+e conferiu backups e ensaiou a restauração antes das mudanças.
+
+A família piloto foi consolidada com preservação dos logins e históricos. A
+conferência de contratos recebeu correção de limite; autorizações operacionais
+registram o verdadeiro responsável pela ação. Os seis contratos históricos foram
+registrados e a carteira remanescente foi migrada. A confirmação dos encerramentos
+e a programação da cobrança futura seguem em conciliação: recibos por si só não
+comprovam encerramento remoto nem assinatura nova programada.
+
 ## Infraestrutura observada
 
 - Railway `informach-apps/production`: Conta e Dia de Estrela estão provisionados,

@@ -6,10 +6,12 @@ Atualizado em 13/11/2026. Este é o índice de continuidade entre sessões. As r
 passou com a fixture `01-formas-v2.edisvg`, seletor controlado e limpeza sem falhas.
 Não comprova o seletor nativo nem o instalador publicado; comando no README do editor.
 
-**14/11 — Compasso:** restauração do backup real passou em cópia descartável;
-conciliação financeira ainda tem bloqueios e DNS/TLS segue pendente. Helena lembra
-de um possível cliente histórico cancelado, que deve ser conferido sem presumir
-sua identidade. Inventário e pré-requisitos em [levantamento](../apps/conta/LEVANTAMENTO-2026-11-14.md).
+**14/11 — Compasso em produção:** Conta e consumidores implantados, DNS e TLS
+validados; a reconciliação de cobrança e a transição da família piloto continuam
+em acompanhamento. Contratos históricos foram registrados com autorização
+operacional auditada, e a carteira legada foi migrada; a programação da nova
+assinatura depende de confirmar todos os encerramentos ao fim dos períodos pagos.
+A fotografia anterior ao corte está em [levantamento](../apps/conta/LEVANTAMENTO-2026-11-14.md).
 
 ## Compasso: migração em implementação (10/11/2026)
 
