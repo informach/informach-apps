@@ -1,6 +1,8 @@
 # Migração financeira do Compasso
 
-**Decisão vigente — 10/11/2026, após esclarecimento do titular:** não há clientes externos pagantes. Os dois usuários atuais com assinaturas são desenvolvedores testando os apps. Executar um **corte interno direto** para o Compasso, preservando os dados úteis das contas de desenvolvimento, em vez de manter uma operação de transição comercial gradual. Conta, família/permissões, carteira, segurança, cancelamento normal, privacidade e capacidade de incluir apps continuam no escopo. As políticas comerciais aprovadas ficam como referência, sem justificar mecanismos de migração de clientes inexistentes.
+**Atualização de 14/11/2026:** os titulares atuais são Helena e Julio; Helena lembrou que pode ter havido um cliente anterior que pagou um mês e cancelou. A conciliação encontrou um contrato local cancelado, mas não identifica se é essa pessoa nem exclui outros fatos históricos. Conferir a proveniência e preservar direitos e dados antes do corte; ver [levantamento](../../../apps/conta/LEVANTAMENTO-2026-11-14.md).
+
+**Decisão de 10/11/2026, com a ressalva histórica acima:** executar um **corte interno direto** para o Compasso, preservando os dados úteis das contas de desenvolvimento, em vez de manter uma operação de transição comercial gradual. Conta, família/permissões, carteira, segurança, cancelamento normal, privacidade e capacidade de incluir apps continuam no escopo. As políticas comerciais aprovadas ficam como referência.
 
 O inventário de 14h25, em transação somente de leitura no PostgreSQL, encontrou dois titulares com contratos não terminais/ativos e um terceiro titular apenas histórico. Há seis registros de assinatura ativa distribuídos entre os apps; status e preço de catálogo não comprovam captura de pagamento nem cliente externo. Nenhuma reserva de IA ativa. Logs agregados em `.codex-compasso-internal-cutover-inventory.log`, sem nomes, identificadores ou conteúdo. O dado do titular orienta a classificação comercial; a conciliação técnica ainda precisa distinguir registros internos e objetos reais do provedor antes do corte.
 
@@ -140,7 +142,7 @@ Este é um limite interno de persistência, **sem rota ou ação pública**. Ant
 
 ## Barreira de cobrança anterior no corte interno
 
-A revisão encontrou que o checkout Compasso verifica a assinatura do próprio conjunto, mas não consulta contratos antigos da mesma família. Durante o corte, uma renovação antiga ainda ativa ou um período já pago poderia coexistir com uma nova cobrança imediata. Embora não existam clientes externos pagantes, os contratos internos são reais e seus períodos devem ser respeitados.
+A revisão encontrou que o checkout Compasso verifica a assinatura do próprio conjunto, mas não consulta contratos antigos da mesma família. Durante o corte, uma renovação antiga ainda ativa ou um período já pago poderia coexistir com uma nova cobrança imediata. Os contratos são reais e seus períodos devem ser respeitados; a possível existência de um cliente histórico deve ser conferida conforme a atualização no início deste documento.
 
 A barreira de admissão no checkout da assinatura foi implementada localmente: dentro da autorização da família, consultar a proveniência `family.migration_sources` e os customers históricos dos apps Compasso. Recusar, antes de chamar o provedor, enquanto houver checkout antigo não resolvido, contrato antigo não terminal ou período anterior ainda vigente. Um vínculo de outra família e Edi não bloqueiam. A Conta retorna mensagem específica; os testes cobrem estado ativo, cancelado ainda vigente, expirado e checkout pendente, com PostgreSQL e provider de fixture. Recargas de IA não criam assinatura e não entram nessa regra.
 

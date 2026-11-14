@@ -6,6 +6,11 @@ Atualizado em 13/11/2026. Este é o índice de continuidade entre sessões. As r
 passou com a fixture `01-formas-v2.edisvg`, seletor controlado e limpeza sem falhas.
 Não comprova o seletor nativo nem o instalador publicado; comando no README do editor.
 
+**14/11 — Compasso:** restauração do backup real passou em cópia descartável;
+conciliação financeira ainda tem bloqueios e DNS/TLS segue pendente. Helena lembra
+de um possível cliente histórico cancelado, que deve ser conferido sem presumir
+sua identidade. Inventário e pré-requisitos em [levantamento](../apps/conta/LEVANTAMENTO-2026-11-14.md).
+
 ## Compasso: migração em implementação (10/11/2026)
 
 **13/11 — implementação integrada à main, corte pendente:** PR #35 integrado;

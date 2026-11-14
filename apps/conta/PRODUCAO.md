@@ -171,7 +171,7 @@ não confundir serviço vazio provisionado com app publicado.
 4. `setup:oauth` da Conta, conferência de `/api/ready` e `/api/health`, webhook e segredo próprios, crons novos em `ops.job_runs`, retirada dos sete substituídos, `ADMIN_COMPASSO_ENABLED=1` e Sentry.
 5. Entrada compartilhada, família, perfis e aparelhos nos cinco apps, ainda com `COMPASSO_BILLING_ENABLED=false`.
 6. Nova conciliação por titular, agora com o schema novo: a comparação de faturas pagas com períodos locais precisa fechar depois da primeira leitura do provedor de cada contrato.
-7. `COMPASSO_BILLING_ENABLED=true`. É exigido pelo aceite dos contratos antigos e pela programação da continuidade, não só pela venda. Não há clientes externos; nas famílias com contrato antigo, a barreira impede assinatura nova sobreposta.
+7. `COMPASSO_BILLING_ENABLED=true`. É exigido pelo aceite dos contratos antigos e pela programação da continuidade, não só pela venda. Os titulares relatam um possível cliente histórico cancelado, ainda a conferir; nas famílias com contrato antigo, a barreira impede assinatura nova sobreposta.
 8. Os titulares formam a família e cada um aceita o próprio contrato; o pagante prepara a continuidade e, se o outro adulto trouxer período maior, decide o adiamento. Conferir no Stripe a renovação antiga encerrada e a primeira cobrança na maior data paga.
 9. Compra pequena real pela titular para homologar Checkout, webhook, crédito e extrato.
 
