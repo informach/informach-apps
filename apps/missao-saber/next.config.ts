@@ -49,10 +49,11 @@ export default withSentryConfig(config, {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
+  release: { create: process.env.SENTRY_BUILD_VERIFICATION !== "1" },
   tunnelRoute: "/monitoring",
   silent: !process.env.CI,
   sourcemaps: {
-    disable: !process.env.SENTRY_AUTH_TOKEN,
+    disable: process.env.SENTRY_BUILD_VERIFICATION === "1" || !process.env.SENTRY_AUTH_TOKEN,
     deleteSourcemapsAfterUpload: true,
   },
 });

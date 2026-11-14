@@ -53,6 +53,7 @@
         "SENTRY_ORG",
         "SENTRY_PROJECT",
         "SENTRY_AUTH_TOKEN",
+        "SENTRY_BUILD_VERIFICATION",
         "NEXT_PUBLIC_APP_URL",
         "STRIPE_SECRET_KEY",
         "STRIPE_WEBHOOK_SECRET",

@@ -103,6 +103,16 @@ conta comercial tinha Helena como pagante.
 - Uma nova execução financeira simultânea ao build excedeu o limite de tempo de
   um teste; é necessário repetir a suíte completa no CI sem atribuir essa
   execução a uma falha funcional confirmada.
+- No PR de revisão, os workflows Compasso, CI e Edi passaram no GitHub. A
+  primeira execução do CI encontrou uma expectativa antiga sobre o ID da
+  chave de teste do Recreio; ela foi corrigida e a repetição passou, incluindo
+  os cinco cenários de navegador do Recreio e os builds.
+- O exame dos logs encontrou builds descartáveis tentando criar releases no
+  Sentry sem credenciais, ações GitHub com runtime desatualizado e PostgreSQL
+  de teste inicializado com autenticação local `trust`. A configuração passou
+  a distinguir builds descartáveis, atualizar as ações e exigir autenticação
+  no banco de teste. Essas alterações aguardam nova rodada do CI. Os testes de
+  rejeição intencional continuam exercitando e registrando os erros esperados.
 
 Os resultados finais dos gates gerais e da implantação devem ser acrescentados
 após terminarem. Alertas dependentes dessas correções ficam abertos até a

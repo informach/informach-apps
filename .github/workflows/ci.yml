@@ -20,6 +20,7 @@ jobs:
           POSTGRES_USER: ci
           POSTGRES_PASSWORD: ci
           POSTGRES_DB: ci
+          POSTGRES_INITDB_ARGS: "--auth-local=scram-sha-256 --auth-host=scram-sha-256"
         ports:
           - 5432:5432
         options: >-
@@ -50,12 +51,14 @@ jobs:
       STRIPE_MODE: dev
       OPENROUTER_API_KEY: sk-or-ci-build-placeholder
       REDIS_URL: redis://localhost:6379
+      # Verification builds are disposable and must not publish Sentry releases.
+      SENTRY_BUILD_VERIFICATION: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24.15.0
           cache: pnpm
