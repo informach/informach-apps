@@ -869,3 +869,14 @@ fecha a boca; não é sincronização fonética. O baú aberto seleciona o estad
 Baú já existente no projeto. Não se desenha uma segunda versão nem se modifica a abertura
 interativa. Arquivos existentes nunca são sobrescritos. Os originais e derivados permanecem
 no repositório consumidor com hashes; não embutir esse acervo no instalador do editor.
+
+
+### Conferir o caminho nativo da exportação web
+
+`pnpm --filter @informach/edisvg qualify:web-native <fonte-absoluta.edisvg> <pasta-absoluta-nova>`
+abre um build Electron de desenvolvimento com perfil e licença efêmeros, usando o harness oficial.
+O seletor é controlado; menu, renderer, IPC, validação e escrita atômica são reais. O ensaio
+exporta ZIP e arte, confere os formatos, preserva o original e grava um recibo e uma captura.
+Não comprova o diálogo nativo de arquivos nem o instalador publicado.
+
+Em 14/11/2026, o ensaio passou com a fixture `01-formas-v2.edisvg` e limpeza sem falhas.

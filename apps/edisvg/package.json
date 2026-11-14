@@ -18,7 +18,8 @@
     "desktop": "electron .",
     "package": "npm run build && node scripts/package.mjs",
     "shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/create-shortcut.ps1",
-    "test:media-native": "node --import tsx --test --test-concurrency=1 \"tests/media/*.integration.test.ts\""
+    "test:media-native": "node --import tsx --test --test-concurrency=1 \"tests/media/*.integration.test.ts\"",
+    "qualify:web-native": "node --import tsx scripts/qualify-native-web-export.mts"
   },
   "dependencies": {
     "@informach/edi-desktop": "workspace:*",

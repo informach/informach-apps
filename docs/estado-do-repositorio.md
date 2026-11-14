@@ -2,6 +2,10 @@
 
 Atualizado em 13/11/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
 
+**14/11 — EdiSVG:** recuperado o ensaio nativo da exportação web da branch local;
+passou com a fixture `01-formas-v2.edisvg`, seletor controlado e limpeza sem falhas.
+Não comprova o seletor nativo nem o instalador publicado; comando no README do editor.
+
 ## Compasso: migração em implementação (10/11/2026)
 
 **13/11 — implementação integrada à main, corte pendente:** PR #35 integrado;
