@@ -15,12 +15,12 @@ describe("commercial collection boundaries", () => {
     expect(getAppCollection("unknown")).toBeNull();
   });
 
-  it("does not advertise an unpublished app as available", () => {
+  it("lists all five launched Compasso applications as available", () => {
     expect(
-      getCollectionApps("compasso", { publishedOnly: true }).some(
-        (app) => app.slug === "dia-de-estrela",
-      ),
-    ).toBe(false);
+      getCollectionApps("compasso", { publishedOnly: true })
+        .map((app) => app.slug)
+        .sort(),
+    ).toEqual(["agenda-da-turma", "bora-treinar", "cozya", "dia-de-estrela", "missao-saber"]);
   });
 
   it("uses the confirmed subscription and family policy", () => {

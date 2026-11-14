@@ -45,10 +45,10 @@ const EDI_RECONCILE_ACTIVE = true;
  * do corte; a flag liga a fonte e o cron somente no lançamento coordenado.
  * Depois disso, nunca voltar para false: removeria a fonte e os jobs.
  */
-const ESTRELA_LAUNCHED = false;
+const ESTRELA_LAUNCHED = true;
 /** Keep the prepared central service; enable its source/jobs at cutover.
  * Never revert after launch: this also selects the financial cron owner. */
-const COMPASSO_LAUNCHED = false;
+const COMPASSO_LAUNCHED = true;
 /** Recursos provisionados via plugin em 13/11/2026; nunca desligar para rollback. */
 const RECREIO_PROVISIONED = true;
 /** Vínculos autorizados e criados; DNS/certificados ainda precisam validar. */

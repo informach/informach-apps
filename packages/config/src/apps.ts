@@ -18,7 +18,7 @@ export const APPS = {
     domain: "conta.informach.com.br",
     localPort: 3011,
     collection: null,
-    published: false,
+    published: true,
   },
   edi: {
     slug: "edi",
@@ -52,7 +52,7 @@ export const APPS = {
     domain: "dia-de-estrela.informach.com.br",
     localPort: 3008,
     collection: "compasso",
-    published: false,
+    published: true,
     privacyPath: "/ajustes",
   },
   recreio: {
