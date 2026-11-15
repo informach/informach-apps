@@ -43,6 +43,9 @@ export type PoseDoMorador = {
 };
 
 export interface VisualDoMorador {
+  readonly estadoDaArte?: "carregando" | "pronto" | "falha" | "simples";
+  /** Atualiza somente as cores quando corpo, cabelo e conjunto continuam os mesmos. */
+  definirAparencia?(aparencia: Aparencia): void;
   /** A cena põe isto no lugar e gira; o visual cuida do que está dentro. */
   readonly raiz: Object3D;
   /** Altura de pé, em metros: onde vão o nome e a marca de quem dirige. */

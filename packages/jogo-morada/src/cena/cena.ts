@@ -30,7 +30,7 @@ import {
   WebGLRenderer,
 } from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
-import type { Ativos, ObjetoDaCena, VisualDosObjetos } from "../ativos/ativos";
+import type { Ativos, DescricaoDoMorador, ObjetoDaCena, VisualDosObjetos } from "../ativos/ativos";
 import type { Sessao } from "../espelho/sessao";
 import { nomeDoObjeto } from "../modelo/menu";
 import { fracaoDoDia } from "../modelo/painel";
@@ -39,6 +39,7 @@ import { montarCasa, montarTerreno } from "./casa";
 import { centroDaCelula, daCena, METROS_POR_MM, type PontoDaCena, paraCena } from "./espaco";
 import { MoradoresDaCena } from "./moradores";
 import { CORTE_DAS_PAREDES_MM } from "./planta";
+import { type EstadoDaPrevia, PreviaDoMorador } from "./previa";
 import { alturaDoPiso } from "./situacao";
 
 /**
@@ -156,6 +157,15 @@ export class Cena {
   private readonly cancelarAtivos: (() => void) | undefined;
 
   private moradores: MoradoresDaCena;
+  private readonly previa: PreviaDoMorador;
+  private cameraAntesDaPrevia: {
+    posicao: Vector3;
+    alvo: Vector3;
+    minimo: number;
+    maximo: number;
+    pan: boolean;
+  } | null = null;
+  private alturaDaPrevia = 0;
   private objetos: VisualDosObjetos | null = null;
   private itens: ObjetoDaCena[] = [];
   private terreno: Mesh | null = null;
@@ -202,6 +212,8 @@ export class Cena {
     this.opcoes = opcoes;
     this.sessao = opcoes.sessao;
     this.ativos = opcoes.ativos;
+    this.previa = new PreviaDoMorador(this.ativos);
+    this.scene.add(this.previa.raiz);
 
     this.renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     const gl = this.renderer.getContext();
@@ -267,6 +279,19 @@ export class Cena {
 
   get qualidade(): Qualidade {
     return this.qualidadeAtual;
+  }
+
+  definirPrevia(descricao: DescricaoDoMorador | null): void {
+    this.previa.definir(descricao);
+  }
+  estadoDaPrevia(): EstadoDaPrevia {
+    return this.previa.estado;
+  }
+  recarregarPrevia(): void {
+    this.previa.recarregar();
+  }
+  girarPrevia(sentido: -1 | 1): void {
+    this.previa.girar(sentido);
   }
 
   /** Marca uma tecla de câmera como apertada ou solta (`KeyW`, `ArrowLeft`...). */
@@ -363,6 +388,7 @@ export class Cena {
 
   /** O que um clique neste ponto do elemento da cena acertaria. */
   oQueHa(x: number, y: number): AlvoClicado | null {
+    if (this.previa.aberta) return null;
     const estado = this.sessao.estado();
     if (!estado) return null;
     const { clientWidth, clientHeight } = this.host;
@@ -437,6 +463,7 @@ export class Cena {
 
     this.desmontar();
     this.moradores.dispose();
+    this.previa.dispose();
     if (this.destino) {
       this.destino.geometry.dispose();
       if (this.destino.material instanceof MeshBasicMaterial) this.destino.material.dispose();
@@ -543,7 +570,7 @@ export class Cena {
 
     this.revisaoMontada = this.sessao.loja.revisaoDaCasa;
     this.paredesMontadas = baixas;
-    if (!this.enquadrada) this.enquadrar(estado);
+    if (!this.enquadrada && !this.previa.aberta) this.enquadrar(estado);
   }
 
   /** Com as paredes baixas, o que fica pendurado acima do corte, e tudo o que é de teto, some. */
@@ -630,6 +657,10 @@ export class Cena {
     this.renderer.setSize(largura, altura, false);
     this.camera.aspect = largura / altura;
     this.camera.updateProjectionMatrix();
+    if (this.previa.aberta) {
+      this.alturaDaPrevia = 0;
+      this.recortarCameraDaPrevia();
+    }
   }
 
   // --- Laço ---
@@ -726,8 +757,11 @@ export class Cena {
         },
         previsao: this.sessao.previsao,
       });
-      this.iluminar(fracaoDoDia(estado));
     }
+
+    this.previa.atualizar(agora, dt);
+    this.ajustarCameraDaPrevia();
+    if (estado) this.iluminar(this.previa.aberta ? 0.4 : fracaoDoDia(estado));
 
     this.moverCamera(agora, dt);
     if (this.destino?.visible) {
@@ -772,7 +806,67 @@ export class Cena {
     sombra.updateProjectionMatrix();
   }
 
+  private ajustarCameraDaPrevia(): void {
+    if (!this.previa.aberta) {
+      const antes = this.cameraAntesDaPrevia;
+      if (!antes) return;
+      this.camera.position.copy(antes.posicao);
+      this.controles.target.copy(antes.alvo);
+      this.controles.minDistance = antes.minimo;
+      this.controles.maxDistance = antes.maximo;
+      this.controles.enablePan = antes.pan;
+      this.camera.clearViewOffset();
+      this.cameraAntesDaPrevia = null;
+      this.alturaDaPrevia = 0;
+      this.controles.update();
+      return;
+    }
+    if (!this.cameraAntesDaPrevia) {
+      this.cameraAntesDaPrevia = {
+        posicao: this.camera.position.clone(),
+        alvo: this.controles.target.clone(),
+        minimo: this.controles.minDistance,
+        maximo: this.controles.maxDistance,
+        pan: this.controles.enablePan,
+      };
+      this.foco = null;
+      this.teclas.clear();
+      this.controles.enablePan = false;
+    }
+    const altura = this.previa.altura;
+    if (altura === this.alturaDaPrevia) return;
+    this.alturaDaPrevia = altura;
+    this.controles.target.copy(this.previa.raiz.position).add(new Vector3(0, altura * 0.5, 0));
+    const pequeno = this.host.clientWidth < 720;
+    this.camera.position
+      .copy(this.controles.target)
+      .add(new Vector3(altura * 0.3, altura * (pequeno ? 1.8 : 1), altura * (pequeno ? 4.6 : 2.8)));
+    this.controles.minDistance = Math.max(1, altura * 1.5);
+    this.controles.maxDistance = Math.max(3, altura * 6);
+    this.recortarCameraDaPrevia();
+    this.controles.update();
+  }
+
+  private recortarCameraDaPrevia(): void {
+    const largura = this.host.clientWidth,
+      altura = this.host.clientHeight;
+    if (largura <= 0 || altura <= 0) return;
+    const pequeno = largura < 720;
+    this.camera.setViewOffset(
+      largura,
+      altura,
+      pequeno ? 0 : -largura * 0.18,
+      pequeno ? altura * 0.28 : 0,
+      largura,
+      altura,
+    );
+  }
+
   private moverCamera(agora: number, dt: number): void {
+    if (this.previa.aberta) {
+      this.controles.update();
+      return;
+    }
     const alvo = this.controles.target;
     // WASD e setas andam no chão, na direção para onde a câmera olha.
     let lado = 0;

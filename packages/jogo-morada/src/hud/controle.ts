@@ -1,3 +1,5 @@
+import type { DescricaoDoMorador } from "../ativos/ativos";
+import type { EstadoDaPrevia } from "../cena/previa";
 import type { Sessao } from "../espelho/sessao";
 import type { OpcoesDosRetratos } from "../modelo/retratos";
 
@@ -7,6 +9,12 @@ import type { OpcoesDosRetratos } from "../modelo/retratos";
  */
 export type Controle = {
   sessao: Sessao;
+  previa: {
+    definir(descricao: DescricaoDoMorador | null): void;
+    estado(): EstadoDaPrevia;
+    recarregar(): void;
+    girar(sentido: -1 | 1): void;
+  };
   alternarParedes(): void;
   focarNoMeu(): void;
   /** Devolve o foco do teclado à cena, depois de fechar um menu. */

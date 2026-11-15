@@ -125,6 +125,12 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
 
   const controle: Controle = {
     sessao,
+    previa: {
+      definir: (descricao) => cena.definirPrevia(descricao),
+      estado: () => cena.estadoDaPrevia(),
+      recarregar: () => cena.recarregarPrevia(),
+      girar: (sentido) => cena.girarPrevia(sentido),
+    },
     alternarParedes: () => loja.definirParedes(!loja.paredesBaixas),
     focarNoMeu() {
       if (!cena.focarNoMeu()) loja.avisar("info", "Você não dirige nenhum morador agora.");

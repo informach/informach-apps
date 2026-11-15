@@ -1,5 +1,6 @@
 import { jogoPorId } from "@informach/config/jogos";
 import { REGRAS_DA_PROVA, REGRAS_PADRAO } from "@informach/morada-sim";
+import { BAIRRO_INICIAL } from "@informach/morada-sim/conteudo";
 import { ehErroDoRecreio } from "@informach/recreio";
 import {
   type ClienteDoHost,
@@ -125,6 +126,7 @@ async function principal(): Promise<void> {
     urlPublica,
     versao,
     capacidade: config.MORADA_CAPACIDADE,
+    definicao: BAIRRO_INICIAL,
     catalogoDeAparencias: arte ? catalogoDeAparenciasDaArte(arte.manifesto) : undefined,
     regras: config.MORADA_REGRAS === "prova" ? REGRAS_DA_PROVA : REGRAS_PADRAO,
     registrar,

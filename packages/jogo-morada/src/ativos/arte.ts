@@ -257,15 +257,24 @@ export class AtivosDeArte implements Ativos {
   /** Quando o pacote do morador chega, o visual troca o corpo procedural pelo de arte. */
   private async vestir(visual: MoradorDeArte, descricao: DescricaoDoMorador): Promise<void> {
     const manifesto = await this.obterManifesto();
-    if (!manifesto || visual.descartado || this.descartado) return;
+    if (!manifesto || visual.descartado || this.descartado) {
+      if (!manifesto) visual.falhar();
+      return;
+    }
     const personagem = escolherPersonagem(manifesto, descricao);
-    if (!personagem) return;
+    if (!personagem) {
+      visual.falhar();
+      return;
+    }
     // A biblioteca principal começa a baixar junto com o corpo.
     if (personagem.biblioteca) this.biblioteca(manifesto, personagem.biblioteca);
     let uso: UsoDePersonagem | null = null;
     try {
       uso = await this.personagens.adquirir(personagem.arquivo);
-      if (!uso) return;
+      if (!uso) {
+        visual.falhar();
+        return;
+      }
       if (visual.descartado || this.descartado) {
         uso.liberar();
         return;
@@ -282,6 +291,7 @@ export class AtivosDeArte implements Ativos {
       );
     } catch (erro) {
       uso?.liberar();
+      visual.falhar();
       this.opcoes.aoFalhar?.(personagem.arquivo, erro);
     }
   }
@@ -409,6 +419,7 @@ export class AtivosDeArte implements Ativos {
       const resposta = await this.buscar(`${this.opcoes.origem}/arte/${arquivo}`, {
         headers: { authorization: `Bearer ${this.opcoes.token()}` },
         credentials: "omit",
+        signal: AbortSignal.timeout(60_000),
       });
       if (resposta.ok) return resposta;
       this.opcoes.aoFalhar?.(arquivo, new Error(`HTTP ${resposta.status}`));
@@ -507,6 +518,20 @@ class MoradorDeArte implements VisualDoMorador {
   descartado = false;
   private corpo: VisualDoMorador;
   private pedirCorpo: (() => void) | null;
+  private falhou = false;
+
+  get estadoDaArte(): "carregando" | "pronto" | "falha" {
+    return this.corpo.estadoDaArte === "pronto" ? "pronto" : this.falhou ? "falha" : "carregando";
+  }
+
+  falhar(): void {
+    this.falhou = true;
+  }
+
+  definirAparencia(aparencia: DescricaoDoMorador["aparencia"]): void {
+    this.descricao.aparencia = aparencia;
+    this.corpo.definirAparencia?.(aparencia);
+  }
 
   constructor(
     private readonly descricao: DescricaoDoMorador,
@@ -595,6 +620,7 @@ const _direita = new Vector3();
  * próprio misturador de animações.
  */
 class CorpoDeArte implements VisualDoMorador {
+  readonly estadoDaArte = "pronto";
   private descartado = false;
   private readonly esqueletos = new Set<Skeleton>();
   private readonly cores: CoresParametricas | null;
@@ -701,6 +727,10 @@ class CorpoDeArte implements VisualDoMorador {
 
   get colo(): PontoDaCena {
     return this.coloAtual;
+  }
+
+  definirAparencia(aparencia: DescricaoDoMorador["aparencia"]): void {
+    this.cores?.definir(coresDaAparencia(this.personagem, aparencia));
   }
 
   aplicar(pose: PoseDoMorador): void {

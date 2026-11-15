@@ -163,6 +163,12 @@ export function jogoEm(page: Page) {
 export async function mundoNaTela(jogo: Jogo, prazoMs = 60_000): Promise<void> {
   await expect(jogo.hud).toHaveAttribute("data-morada-conexao", "pronto", { timeout: prazoMs });
   await expect(jogo.cena).toBeVisible();
+  const inicio = jogo.page.getByRole("heading", { name: "Quem vai morar aqui?" });
+  await expect(inicio.or(jogo.retratos).first()).toBeVisible();
+  if (await inicio.isVisible()) {
+    await jogo.page.getByRole("button", { name: "Conhecer a família de exemplo" }).click();
+    await jogo.page.getByRole("button", { name: "Começar a jogar", exact: true }).click();
+  }
   await expect(jogo.retratos.first()).toBeVisible();
 }
 

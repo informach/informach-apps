@@ -50,3 +50,17 @@ A continuidade exige a mesma combinação de cabelo/conjunto e as mesmas partes 
 `--criacao` descreve 48 combinações: seis fases × duas linhas × cabelo natural/sem cabelo × camiseta/calça ou macacão. É uma coleção inicial fechada, sem alegação de disponibilizar todos os penteados e roupas da biblioteca. Os oito personagens legados permanecem no perfil anterior; só os descritores de criação ativam cores parametrizadas nesse modo. O empacotador passa a consumir `corpoDaFase` da simulação por dependência interna `workspace:*`, mantendo uma única definição dos corpos do jogo. O lockfile mudou apenas nesse vínculo; nenhuma versão externa foi alterada.
 
 O manifesto leva rótulos e cores iniciais reais dos canais montados. O host deriva a lista permitida desse manifesto, confere a matriz completa e fornece o catálogo somente aos mundos novos. Abrir um mundo com catálogo persistido exige que o pacote instalado ainda atenda às receitas gravadas. O cliente exige a combinação exata para receitas novas e aplica pele/rosto/cabelo/roupa pelos uniformes. O editor, a prévia e a prova das 48 combinações com arte real ainda estão pendentes. Gates não concluídos para esta coleção.
+
+### Pacote da coleção conferido
+
+`763be2da` aprovado nos cinco gates públicos em `43738642612`, incluindo nascimento com receita nova e continuidade de aparência. O artefato privado da execução `43738068686` (workflow `73fc07828`, código `c005537a`, anterior apenas ao ajuste de duração do teste) aprovou o empacotamento e cinco jornadas. Conferência local somente de metadados/arquivos baixados, sem build ou testes: manifesto V3, 56 personagens, 48 descritores de criação, 240 arquivos com as cópias Brotli, **24.723.634 bytes originais / 37.810.510 bytes incluindo Brotli**, uma máscara distinta. Os oito personagens legados preservam exatamente os nomes/hash dos GLBs do pacote D1. Artefato baixado fora do checkout público, em `.work` do repositório privado.
+
+Essa prova cobre a geração integral e a entrada do servidor com o catálogo; não significa que as 48 prévias já foram inspecionadas no editor. Esse aceite continua pendente, assim como FPS em hardware real.
+
+## Editor em implementação
+
+Fluxo novo para mundo sem família: escolha entre criar e conhecer a família de exemplo; moradores com nomes/traços/cores; relações fictícias; revisão da casa e saldo; confirmação pelo comando durável existente. Nomes iguais não definem identidade. Chaves locais mantêm os vínculos durante edição/remoção e viram índices apenas no pedido; o servidor continua criando IDs e saldo.
+
+Prévia visual separada do espelho, no renderer existente, com montagem dentro do quadro admitido. Cores atualizam uniformes; mudança de modelo conserva somente o pedido mais recente enquanto carrega. Estado de carregamento/falha e nova tentativa ficam visíveis. A câmera se adapta à altura e ao painel em computador/celular e volta para a casa ao concluir. O HUD aguarda o estado autoritativo da família, e a sessão reenvia o mesmo comando pendente após reconexão.
+
+As jornadas passam a escolher a família de exemplo por botões reais. Não há configuração de produção feita para fabricar a criação nos testes. Novas contas entram na criação; fotografias de mundos existentes continuam sendo restauradas. Este editor ainda não passou pelos gates nem foi implantado.
