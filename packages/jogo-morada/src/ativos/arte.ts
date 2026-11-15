@@ -41,6 +41,7 @@ import type {
   VisualDoMorador,
   VisualDosObjetos,
 } from "./ativos";
+import { CoresParametricas } from "./cores-parametricas";
 import {
   ajusteDoApoio,
   bibliotecasDaPose,
@@ -492,6 +493,7 @@ const _direita = new Vector3();
  * próprio misturador de animações.
  */
 class CorpoDeArte implements VisualDoMorador {
+  private readonly cores: CoresParametricas | null;
   readonly raiz = new Group();
   readonly altura: number;
   private coloAtual: PontoDaCena;
@@ -520,6 +522,7 @@ class CorpoDeArte implements VisualDoMorador {
     this.coloAtual = personagem.ancoras.colo;
     // Os próprios ossos; geometria, materiais e texturas ficam divididos com as outras cópias.
     this.modelo = clonarComEsqueleto(cena);
+    this.cores = personagem.cores ? new CoresParametricas(this.modelo, personagem.cores) : null;
     this.postura.add(this.modelo);
     this.raiz.add(this.postura);
     this.misturador = new AnimationMixer(this.modelo);
@@ -698,6 +701,7 @@ class CorpoDeArte implements VisualDoMorador {
 
   dispose(): void {
     this.misturador.stopAllAction();
+    this.cores?.dispose();
     this.misturador.uncacheRoot(this.modelo);
     // As geometrias próprias dividem os atributos com o pacote: soltá-las tiraria
     // da placa os buffers que os outros moradores usam. Só o alvo é deste corpo.

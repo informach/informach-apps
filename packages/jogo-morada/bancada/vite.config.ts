@@ -27,6 +27,7 @@ export default defineConfig({
       input: {
         jogo: fileURLToPath(new URL("./index.html", import.meta.url)),
         marca: fileURLToPath(new URL("./marca.html", import.meta.url)),
+        cores: fileURLToPath(new URL("./cores.html", import.meta.url)),
       },
     },
   },
