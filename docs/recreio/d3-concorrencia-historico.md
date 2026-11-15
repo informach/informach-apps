@@ -101,3 +101,13 @@ cliente `modelo/editor-da-casa.ts`, `hud/EdicaoDaCasa.tsx` e testes do ator.
   computador/celular. Esses gates não comprovam diversão humana ou 60 FPS.
 
 Construção estrutural, casas/orçamento e demais lotes continuam no plano D3.
+
+## Regressão de reconexão a conferir antes da integração
+
+Inspeção do ator encontrou a fila de `caiu` identificada somente pelo SID.
+Uma reentrada com o mesmo SID pode terminar antes do próximo passo processar
+essa queda antiga. O teste `reconexao-enfileirada.test.ts` provoca uma/três
+quedas e reentradas antes do passo, depois verifica comando, presença e reserva
+além dos 30 s de graça. Ainda sem correção ou resultado remoto.
+O workflow focado `morada-reconexao.yml` evita repetir navegador/100 dias para
+reproduzir essa hipótese; o conserto volta aos seis gates antes de integrar.
