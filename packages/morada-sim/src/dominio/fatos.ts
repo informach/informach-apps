@@ -46,6 +46,8 @@ export type DadosDoFato =
         versaoDaFamilia: number;
         revisaoDoEspacoAnterior: number;
         revisaoDoEspaco: number;
+        revisaoDosObjetosAnterior: number;
+        revisaoDosObjetos: number;
         anterior: Objeto | null;
         depois: Objeto | null;
         continuidade: import("../espaco/continuidade").ContinuidadeEspacial;

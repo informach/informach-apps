@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { BAIRRO_DA_PROVA } from "../src/conteudo";
 import {
+  CONTADOR_DE_REVISOES_DOS_OBJETOS,
+  revisaoDosObjetos,
+} from "../src/dominio/revisao-dos-objetos";
+import {
   comandoDeEdicao,
   copiar,
   listar,
@@ -8,6 +12,7 @@ import {
   type OpcoesDoMundo,
   obter,
   type PedidoDeEdicao,
+  reduzirFato,
   restaurar,
   tabelaVazia,
   verificarInvariantes,
@@ -124,6 +129,132 @@ function cenario(opcoes: OpcoesDoMundo = {}) {
 }
 
 describe("edição autoritativa e durável da casa", () => {
+  it("revisões globais sobrevivem à remoção, fotografia, replay e recusa sem reutilização", () => {
+    const c = cenario({ pinturasDisponiveis: PINTURAS });
+    const saldoInicial = c.familiaAtual().fundo;
+    expect(c.aplicar(c.compra()).ok).toBe(true);
+    const primeira = copiar(c.objeto());
+    expect(primeira.revisao).toBe(2);
+    expect(c.aplicar(c.compra(2, RACK, [5000, 2000, 0])).ok).toBe(true);
+    const segunda = listar(c.mundo.estado.objetos).find((o) => o.id !== primeira.id);
+    if (!segunda) throw new Error("Segunda compra ausente");
+    expect(segunda.revisao).toBe(3);
+    expect(
+      c.aplicar({
+        ...c.compra(3),
+        operacao: {
+          t: "pintar",
+          objetoId: primeira.id,
+          revisaoDoObjeto: primeira.revisao,
+          pintura: { perfil: PERFIL, cor: 0 },
+        },
+      }).ok,
+    ).toBe(true);
+    expect(c.objeto().revisao).toBe(4);
+    const lote = obter(c.mundo.estado.lotes, c.loteId);
+    if (!lote) throw new Error("Lote ausente");
+    const vender: PedidoDeEdicao = {
+      ...c.compra(4),
+      operacao: {
+        t: "vender",
+        objetoId: primeira.id,
+        revisaoDoObjeto: 4,
+        revisaoDoEspaco: lote.revisaoDoEspaco,
+        politicaDePrecos: 1,
+      },
+    };
+    expect(c.aplicar(vender).ok).toBe(true);
+    expect(revisaoDosObjetos(c.mundo.estado)).toBe(5);
+    expect(c.familiaAtual().fundo).toBe(saldoInicial - 36_000);
+    const antes = c.mundo.fotografar();
+    const voltou = restaurar(antes, [], { pinturasDisponiveis: PINTURAS });
+    c.entrar(voltou);
+    const pedido = c.compra(5);
+    expect(
+      voltou.aplicar({
+        t: "intencao",
+        sessaoId: LIA,
+        intencao: {
+          mundoId: voltou.estado.id,
+          comandoId: comandoDeEdicao(LIA, 5),
+          moradorId: null,
+          versaoEsperada: 0,
+          acao: { t: "editar_casa", pedido },
+        },
+      }).ok,
+    ).toBe(true);
+    expect(revisaoDosObjetos(voltou.estado)).toBe(6);
+    expect(
+      listar(voltou.estado.objetos)
+        .map((o) => o.revisao)
+        .sort(),
+    ).toEqual([3, 6]);
+    const fatos = voltou.avancar(0).fatos;
+    expect(restaurar(antes, [...fatos, ...fatos], { pinturasDisponiveis: PINTURAS }).hash()).toBe(
+      voltou.hash(),
+    );
+    const antigo: PedidoDeEdicao = {
+      ...c.compra(6),
+      operacao: {
+        t: "pintar",
+        objetoId: segunda.id,
+        revisaoDoObjeto: primeira.revisao,
+        pintura: null,
+      },
+    };
+    expect(
+      voltou.aplicar({
+        t: "intencao",
+        sessaoId: LIA,
+        intencao: {
+          mundoId: voltou.estado.id,
+          comandoId: comandoDeEdicao(LIA, 6),
+          moradorId: null,
+          versaoEsperada: 0,
+          acao: { t: "editar_casa", pedido: antigo },
+        },
+      }),
+    ).toMatchObject({ ok: false, motivo: "versao_antiga" });
+    expect(revisaoDosObjetos(voltou.estado)).toBe(6);
+    expect(verificarInvariantes(voltou.estado)).toEqual([]);
+  });
+
+  it("estouro do relógio recusa sem saldo, ID ou revisão parcial", () => {
+    const c = cenario();
+    c.mundo.estado.contadores[CONTADOR_DE_REVISOES_DOS_OBJETOS] = Number.MAX_SAFE_INTEGER;
+    const saldo = c.familiaAtual().fundo;
+    const contadores = copiar(c.mundo.estado.contadores);
+    expect(c.aplicar(c.compra())).toMatchObject({ ok: false, motivo: "politica_do_mundo" });
+    expect(c.familiaAtual().fundo).toBe(saldo);
+    expect(c.mundo.estado.contadores).toEqual(contadores);
+    expect(listar(c.mundo.estado.objetos)).toEqual([]);
+    expect(c.mundo.avancar(0).fatos).toMatchObject([
+      { dados: { tipo: "EdicaoRegistrada", efeito: null } },
+    ]);
+  });
+
+  it("relógio adulterado no fato é recusado atomicamente", () => {
+    const c = cenario();
+    expect(c.aplicar(c.compra()).ok).toBe(true);
+    const fato = c.mundo.avancar(0).fatos[0];
+    if (fato?.dados.tipo !== "EdicaoRegistrada" || !fato.dados.efeito)
+      throw new Error("Efeito ausente");
+    const corrompido = {
+      ...fato,
+      dados: {
+        ...fato.dados,
+        efeito: {
+          ...fato.dados.efeito,
+          revisaoDosObjetos: fato.dados.efeito.revisaoDosObjetos + 1,
+        },
+      },
+    };
+    const estado = copiar(c.base.estado);
+    const antes = JSON.stringify(estado);
+    expect(() => reduzirFato(estado, corrompido)).toThrow(/incompatível/);
+    expect(JSON.stringify(estado)).toBe(antes);
+  });
+
   it("admite perfis pelo host uma vez e recupera a admissão pelo diário", () => {
     const c = cenario({ pinturasDisponiveis: PINTURAS });
     c.mundo.aplicar({ t: "admitir_pinturas", catalogo: PINTURAS });
@@ -204,7 +335,7 @@ describe("edição autoritativa e durável da casa", () => {
     const saida = c.mundo.avancar(0);
     expect(saida.fatos).toHaveLength(1);
     expect(saida.fatos[0]?.dados.tipo).toBe("EdicaoRegistrada");
-    expect(c.objeto().revisao).toBe(1);
+    expect(c.objeto().revisao).toBe(2);
     const recuperado = restaurar(c.base, saida.fatos);
     expect(recuperado.hash()).toBe(c.mundo.hash());
     expect(restaurar(c.base, [...saida.fatos, ...saida.fatos]).hash()).toBe(c.mundo.hash());
@@ -287,26 +418,26 @@ describe("edição autoritativa e durável da casa", () => {
       operacao: {
         t: "mover",
         objetoId: objeto.id,
-        revisaoDoObjeto: 1,
+        revisaoDoObjeto: 2,
         revisaoDoEspaco: 2,
         colocacao: { pos: [4000, 2000, 0], andar: 0, giro: 90 },
       },
     };
     expect(c.aplicar(mover).ok).toBe(true);
-    expect(c.objeto()).toMatchObject({ revisao: 2, pos: [4000, 2000, 0], giro: 90 });
+    expect(c.objeto()).toMatchObject({ revisao: 3, pos: [4000, 2000, 0], giro: 90 });
     const pintar: PedidoDeEdicao = {
       ...compra,
       sequencia: 3,
       operacao: {
         t: "pintar",
         objetoId: objeto.id,
-        revisaoDoObjeto: 2,
+        revisaoDoObjeto: 3,
         pintura: { perfil: PERFIL, cor: 0x775511 },
       },
     };
     expect(c.aplicar(pintar).ok).toBe(true);
     expect(c.objeto()).toMatchObject({
-      revisao: 3,
+      revisao: 4,
       pintura: { perfil: PERFIL, cor: 0x775511 },
       cor: 0xffffff,
     });
@@ -316,7 +447,7 @@ describe("edição autoritativa e durável da casa", () => {
       operacao: {
         t: "vender",
         objetoId: objeto.id,
-        revisaoDoObjeto: 3,
+        revisaoDoObjeto: 4,
         revisaoDoEspaco: 3,
         politicaDePrecos: 1,
       },
@@ -352,7 +483,7 @@ describe("edição autoritativa e durável da casa", () => {
       operacao: {
         t: "mover",
         objetoId: c.objeto().id,
-        revisaoDoObjeto: 1,
+        revisaoDoObjeto: 2,
         revisaoDoEspaco: 2,
         colocacao: { pos: [4000, 2000, 0], andar: 0, giro: 0 },
       },
@@ -362,7 +493,7 @@ describe("edição autoritativa e durável da casa", () => {
       ok: false,
       motivo: "versao_antiga",
     });
-    expect(c.objeto()).toMatchObject({ revisao: 2, pos: [4000, 2000, 0] });
+    expect(c.objeto()).toMatchObject({ revisao: 3, pos: [4000, 2000, 0] });
   });
 
   it("recusa colocação e fato grande antes de gastar ou consumir ID de objeto", () => {
@@ -452,7 +583,7 @@ describe("edição autoritativa e durável da casa", () => {
         operacao: {
           t: "vender",
           objetoId: cama.id,
-          revisaoDoObjeto: 1,
+          revisaoDoObjeto: 2,
           revisaoDoEspaco: 2,
           politicaDePrecos: 1,
         },

@@ -317,6 +317,20 @@ anterior, sem interromper o mundo ou apresentar fallback como arte homologada.
 O downgrade de mundos V3 continua proibido; não usar backup como rollback de
 uma atualização sem um procedimento próprio de recuperação consentida.
 
+### Base do histórico em preparação
+
+O [plano de concorrência/histórico](d3-concorrencia-historico.md) detalha travas
+transitórias com geração/tempo do host e compensações financeiras próprias.
+Primeiro candidato acrescenta o relógio durável `contadores.revisao_objeto`:
+cada edição admitida consome uma revisão global; remoção conserva o piso e
+replay/recusa não o avançam. O mesmo fato confere o relógio anterior e publica
+o posterior. Fotografia/invariantes recusam relógio inválido ou inferior às
+revisões das peças. V2→V3 inicia em 1, sem alterar IDs/saldo/conteúdo legado.
+Testes de duas peças, remoção, reabertura/replay, recusa, estouro e fato
+adulterado aguardam GitHub. Ainda não implementa travas ou desfazer/refazer.
+Mundo V3 segue sem publicação: fotografias de candidatas antigas não são
+rollback nem formato de produção aceito pela nova candidata.
+
 ### Negociação para o corte V3/V4
 
 Antes de ativar o formato novo, o servidor passa a exigir protocolo 2 no

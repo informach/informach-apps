@@ -12,6 +12,7 @@ import type { Fato } from "./fatos";
 import type { MemoriaId, MoradorId } from "./ids";
 import { verificarInvariantes } from "./invariantes";
 import { PERMISSOES_DO_FUNDADOR } from "./permissoes";
+import { CONTADOR_DE_REVISOES_DOS_OBJETOS, revisaoDosObjetos } from "./revisao-dos-objetos";
 import { exigir, inserir, obter, remover, tem } from "./tabela";
 import type { EstadoDoMundo, Local, Memoria, Morador } from "./tipos";
 
@@ -110,6 +111,9 @@ export function reduzirFato(estado: EstadoDoMundo, fato: Fato): void {
           efeito.saldoAnterior !== familia.fundo ||
           efeito.versaoDaFamiliaAnterior !== familia.versao ||
           efeito.revisaoDoEspacoAnterior !== lote.revisaoDoEspaco ||
+          efeito.revisaoDosObjetosAnterior !== revisaoDosObjetos(novo) ||
+          !Number.isSafeInteger(efeito.revisaoDosObjetos) ||
+          efeito.revisaoDosObjetos !== efeito.revisaoDosObjetosAnterior + 1 ||
           canonico(atual) !== canonico(efeito.anterior) ||
           !Number.isSafeInteger(efeito.saldo) ||
           efeito.saldo < 0 ||
@@ -117,7 +121,10 @@ export function reduzirFato(estado: EstadoDoMundo, fato: Fato): void {
           efeito.versaoDaFamilia < familia.versao ||
           !Number.isSafeInteger(efeito.revisaoDoEspaco) ||
           efeito.revisaoDoEspaco < lote.revisaoDoEspaco ||
-          (efeito.depois && (efeito.depois.id !== id || efeito.depois.loteId !== lote.id))
+          (efeito.depois &&
+            (efeito.depois.id !== id ||
+              efeito.depois.loteId !== lote.id ||
+              efeito.depois.revisao !== efeito.revisaoDosObjetos))
         )
           throw new Error("Efeito incompatível com o estado da edição");
         if (efeito.depois) {
@@ -128,6 +135,7 @@ export function reduzirFato(estado: EstadoDoMundo, fato: Fato): void {
         familia.fundo = efeito.saldo;
         familia.versao = efeito.versaoDaFamilia;
         lote.revisaoDoEspaco = efeito.revisaoDoEspaco;
+        novo.contadores[CONTADOR_DE_REVISOES_DOS_OBJETOS] = efeito.revisaoDosObjetos;
       }
       novo.edicoes = compactarRespostasDeEdicao([
         ...novo.edicoes.filter((item) => item.autor !== recibo.autor),

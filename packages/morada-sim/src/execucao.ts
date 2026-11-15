@@ -16,6 +16,7 @@ import { verificarInvariantes } from "./dominio/invariantes";
 import { montarMoradorInicial } from "./dominio/morador-inicial";
 import { PERMISSOES_DO_FUNDADOR } from "./dominio/permissoes";
 import { reduzirFato } from "./dominio/reduzir-fato";
+import { CONTADOR_DE_REVISOES_DOS_OBJETOS } from "./dominio/revisao-dos-objetos";
 import { exigir, inserir, listar, obter, tabelaVazia } from "./dominio/tabela";
 import type {
   EstadoDoMundo,
@@ -387,7 +388,7 @@ export function criarMundo(novo: NovoMundo, opcoes: OpcoesDoMundo = {}): Mundo {
     catalogoDeAparencias: novo.catalogoDeAparencias
       ? CatalogoDeAparenciasSchema.parse(novo.catalogoDeAparencias)
       : null,
-    contadores: {},
+    contadores: { [CONTADOR_DE_REVISOES_DOS_OBJETOS]: 1 },
     avancoDoDia: { dia: 0, gastoMs: {} },
   };
 

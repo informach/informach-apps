@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BAIRRO_INICIAL } from "../conteudo";
+import { CONTADOR_DE_REVISOES_DOS_OBJETOS } from "../dominio/revisao-dos-objetos";
 import { criarMundo, listar, restaurar, verificarInvariantes } from "../index";
 import { criarMundoDaProva } from "../testes";
 import { abrirFotografia } from "./fotografia";
@@ -8,6 +9,8 @@ describe("fotografia V2 para mundo V3", () => {
   it("admite loja inicial e revisões sem mudar dados da família ou do mundo de origem", () => {
     const atual = criarMundoDaProva().fotografar();
     const { loja, edicoes, ...legado } = atual.estado;
+    const contadoresAntigos = { ...legado.contadores };
+    delete contadoresAntigos[CONTADOR_DE_REVISOES_DOS_OBJETOS];
     expect(loja.ofertas).toHaveLength(8);
     expect(edicoes).toEqual([]);
     const antiga = {
@@ -15,6 +18,7 @@ describe("fotografia V2 para mundo V3", () => {
       estado: {
         ...legado,
         versao: 2,
+        contadores: contadoresAntigos,
         objetos: {
           ordem: legado.objetos.ordem,
           porId: Object.fromEntries(
@@ -92,6 +96,9 @@ describe("fotografia V2 para mundo V3", () => {
     for (const campos of [
       { loja: null },
       { edicoes: null },
+      { contadores: {} },
+      { contadores: { [CONTADOR_DE_REVISOES_DOS_OBJETOS]: 0 } },
+      { contadores: { [CONTADOR_DE_REVISOES_DOS_OBJETOS]: Number.MAX_SAFE_INTEGER + 1 } },
       { objetos: { ...atual.estado.objetos, porId: { obj_000001: { revisao: 0 } } } },
       { versao: 4 },
     ])

@@ -12,6 +12,10 @@ import {
   PinturaDoMovelSchema,
 } from "../comandos/pintura";
 import { montarLojaInicial } from "../conteudo/loja";
+import {
+  CONTADOR_DE_REVISOES_DOS_OBJETOS,
+  revisaoDosObjetos,
+} from "../dominio/revisao-dos-objetos";
 import type { EstadoDoMundo } from "../dominio/tipos";
 
 /**
@@ -100,6 +104,12 @@ export const MIGRACOES_DO_MUNDO: readonly Migracao[] = [
         loja: montarLojaInicial(),
         edicoes: [],
         catalogoDePinturas: null,
+        contadores: {
+          ...z
+            .record(z.string(), z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER))
+            .parse(estado.contadores),
+          [CONTADOR_DE_REVISOES_DOS_OBJETOS]: 1,
+        },
         objetos: {
           ordem: objetos.ordem,
           porId: Object.fromEntries(
@@ -159,11 +169,15 @@ export function abrirFotografia(bruto: unknown): Fotografia {
   )
     throw new Error("Registros de edição repetidos ou acima do limite");
   estado.edicoes = edicoes;
+  const contadores = z
+    .record(z.string(), z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER))
+    .parse(estado.contadores);
+  const revisaoGlobal = revisaoDosObjetos({ contadores });
   z.object({
     porId: z.record(
       z.string(),
       z.object({
-        revisao: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+        revisao: z.number().int().positive().max(revisaoGlobal),
         pintura: PinturaDoMovelSchema.nullable(),
       }),
     ),

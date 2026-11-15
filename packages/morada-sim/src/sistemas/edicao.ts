@@ -9,6 +9,7 @@ import {
 import { perfilDePintura } from "../comandos/pintura";
 import type { DadosDoFato, Fato } from "../dominio/fatos";
 import { montarId } from "../dominio/ids";
+import { revisaoDosObjetos } from "../dominio/revisao-dos-objetos";
 import { listar, obter } from "../dominio/tabela";
 import type { Objeto, Resultado, Sessao } from "../dominio/tipos";
 import { conferirColocacaoNoChao } from "../espaco/colocacao";
@@ -121,6 +122,8 @@ export function editarCasa(
     resultado = { ok: false, motivo, ...(detalhe ? { detalhe } : {}) };
   };
   let depois: Objeto | null = anterior ? copiar(anterior) : null;
+  const revisaoAnterior = revisaoDosObjetos(estado);
+  const revisaoNova = revisaoAnterior + 1;
   let delta = 0;
   const espacial = operacao.t !== "pintar";
   if (operacao.t === "comprar") {
@@ -138,7 +141,7 @@ export function editarCasa(
         loteId: lote.id,
         catalogo: oferta.catalogo,
         versao: oferta.versaoDoCatalogo,
-        revisao: 1,
+        revisao: revisaoNova,
         ...copiar(operacao.colocacao),
         cor: 0xffffff,
         pintura: copiar(operacao.pintura),
@@ -149,7 +152,7 @@ export function editarCasa(
   } else if (!anterior || anterior.loteId !== lote.id) recusar("nao_existe");
   else if (anterior.revisao !== operacao.revisaoDoObjeto) recusar("versao_antiga");
   else if (Object.keys(anterior.ocupacao).length) recusar("ocupado");
-  else if (!Number.isSafeInteger(anterior.revisao + 1)) recusar("limite");
+  else if (!Number.isSafeInteger(revisaoNova)) recusar("limite");
   else if (operacao.t === "vender") {
     if (!oferta || oferta.versaoDoCatalogo !== anterior.versao) recusar("nao_existe");
     else if (estado.loja.politicaDePrecos !== operacao.politicaDePrecos) recusar("versao_antiga");
@@ -158,12 +161,12 @@ export function editarCasa(
       delta = oferta.revendaCentavos;
     }
   } else if (operacao.t === "mover")
-    depois = { ...copiar(anterior), ...copiar(operacao.colocacao), revisao: anterior.revisao + 1 };
+    depois = { ...copiar(anterior), ...copiar(operacao.colocacao), revisao: revisaoNova };
   else
     depois = {
       ...copiar(anterior),
       pintura: copiar(operacao.pintura),
-      revisao: anterior.revisao + 1,
+      revisao: revisaoNova,
     };
   if (!resultado && depois?.pintura) {
     const admitido = perfilDePintura(estado.catalogoDePinturas, depois);
@@ -179,6 +182,7 @@ export function editarCasa(
   if (
     !resultado &&
     (!Number.isSafeInteger(saldo) ||
+      !Number.isSafeInteger(revisaoNova) ||
       !Number.isSafeInteger(familia.versao + 1) ||
       !Number.isSafeInteger(lote.revisaoDoEspaco + 1))
   )
@@ -195,7 +199,7 @@ export function editarCasa(
     [familia.id]: familia.versao + (delta !== 0 ? 1 : 0),
     [lote.id]: lote.revisaoDoEspaco + (espacial ? 1 : 0),
   };
-  if (id) revisoes[id] = depois?.revisao ?? (anterior?.revisao ?? 0) + 1;
+  if (id) revisoes[id] = revisaoNova;
   const recibo: ReciboDeEdicao = {
     autor: sessao.perfilId,
     permissoes,
@@ -215,6 +219,8 @@ export function editarCasa(
           versaoDaFamilia: revisoes[familia.id] ?? familia.versao,
           revisaoDoEspacoAnterior: lote.revisaoDoEspaco,
           revisaoDoEspaco: revisoes[lote.id] ?? lote.revisaoDoEspaco,
+          revisaoDosObjetosAnterior: revisaoAnterior,
+          revisaoDosObjetos: revisaoNova,
           anterior: anterior ? copiar(anterior) : null,
           depois,
           continuidade: capturarContinuidadeEspacial(estado),

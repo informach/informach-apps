@@ -6,6 +6,7 @@ import {
 } from "../comandos/edicao";
 import { PinturaDoMovelSchema, perfilDePintura } from "../comandos/pintura";
 import { relacaoId } from "./ids";
+import { CONTADOR_DE_REVISOES_DOS_OBJETOS } from "./revisao-dos-objetos";
 import { listar, obter, type Tabela } from "./tabela";
 import type { EstadoDoMundo, Presenca } from "./tipos";
 
@@ -19,6 +20,13 @@ import type { EstadoDoMundo, Presenca } from "./tipos";
 export function verificarInvariantes(estado: EstadoDoMundo, presenca?: Presenca): string[] {
   const problemas: string[] = [];
   const erro = (texto: string) => problemas.push(texto);
+  const revisaoGlobal = estado.contadores[CONTADOR_DE_REVISOES_DOS_OBJETOS];
+  if (
+    typeof revisaoGlobal !== "number" ||
+    !Number.isSafeInteger(revisaoGlobal) ||
+    revisaoGlobal < 1
+  )
+    erro("Relógio de revisões dos objetos inválido");
   if (
     estado.edicoes.length > AUTORES_DE_EDICAO_DO_MUNDO ||
     new Set(estado.edicoes.map((registro) => registro.autor)).size !== estado.edicoes.length ||
@@ -173,6 +181,8 @@ export function verificarInvariantes(estado: EstadoDoMundo, presenca?: Presenca)
       erro(`${objeto.id}: pintura sem perfil admitido`);
     if (!Number.isSafeInteger(objeto.revisao) || objeto.revisao < 1)
       erro(`${objeto.id}: revisão inválida`);
+    if (typeof revisaoGlobal === "number" && objeto.revisao > revisaoGlobal)
+      erro(`${objeto.id}: revisão acima do relógio durável`);
     if (!obter(estado.lotes, objeto.loteId)) erro(`${objeto.id}: lote inexistente`);
     for (const [ponto, moradorId] of Object.entries(objeto.ocupacao)) {
       if (!obter(estado.moradores, moradorId)) erro(`${objeto.id}/${ponto}: ocupante inexistente`);
