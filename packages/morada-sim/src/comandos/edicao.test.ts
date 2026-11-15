@@ -15,9 +15,10 @@ const autor = "3e6b49b9-306f-4bdd-9c99-a427f276091e";
 function pedido(sequencia = 1): PedidoDeEdicao {
   return {
     sequencia,
+    familiaId: "fam_000001",
+    loteId: "lote_000001",
     operacao: {
       t: "comprar",
-      loteId: "lote_000001",
       revisaoDoEspaco: 1,
       politicaDePrecos: 1,
       catalogo: "rack_baixo",
@@ -30,6 +31,7 @@ function pedido(sequencia = 1): PedidoDeEdicao {
 function recibo(sequencia = 1): ReciboDeEdicao {
   return {
     autor,
+    permissoes: ["decorar", "gastar"],
     pedido: pedido(sequencia),
     resultado: { ok: true, tick: sequencia, revisoes: { lote_000001: sequencia + 1 } },
   };

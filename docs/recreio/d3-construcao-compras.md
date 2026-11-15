@@ -63,6 +63,15 @@ colisão que admite móvel por cima. Apoios, teto/parede, quintal e andares
 adicionais precisam de seus contratos e não são habilitados por esse perfil.
 Validação ainda sem integração com comandos, saldo ou formato de mundo.
 
+`2d8ad98d`: os seis gates
+[43754875975](https://github.com/informach/informach-apps/actions/runs/43754875975)
+aprovaram no GitHub. Nove casos espaciais e oito do protocolo de sequência,
+com 162 testes no núcleo, além de tipos, servidor/cliente, integrações,
+jornadas, versões e simulação longa. O primeiro candidato espacial parou em
+tipagem de uma variável capturada pelo callback de paredes; corrigido com
+constante validada, sem cast ou supressão. Isso ainda não comprova o editor,
+compras/vendas ou recuperação de uma edição de verdade.
+
 Arquivos novos em `packages/morada-sim/src/espaco/`; consumir
 `formatos/imovel.ts`, `espaco/navegador.ts`, `espaco/posicoes.ts`.
 
@@ -91,6 +100,26 @@ absolutos; replay já reduzido não volta a aplicar efeitos. Um salto no diário
 ou divergência de um recibo recente é corrupção, não autorização de continuar.
 Este módulo inicial não habilita comandos nem altera o formato do mundo;
 a integração atômica com fatos/fotografia, permissões e editor vem a seguir.
+
+A recuperação atual conserva posições, rotas, ações e ocupações da última
+fotografia; esses campos não são reconstituídos pelo diário econômico. Portanto
+o fato de edição também precisa conservar a continuidade espacial observada
+na admissão. Sem isso, vender um móvel depois que alguém terminou de usá-lo
+poderia restaurar a ocupação antiga apontando para um móvel que já foi vendido.
+O recibo e os efeitos não podem ser aplicados antes dessa continuidade.
+Cobrir fotografia durante uso → fim do uso → venda → queda antes da próxima
+foto, além de trajetória antiga cruzando uma compra nova. Medir o tamanho do
+fato e recusar antes de emitir se não couber no limite do diário; não contornar
+o problema cancelando ações de terceiros, teleportando moradores ou gravando
+uma fotografia completa a cada movimento de mouse.
+
+`espaco/continuidade.ts` está em preparação: conserva somente a projeção
+espacial de moradores, ações e ocupações, tick e contador de ações. Prepara uma
+cópia e confere invariantes antes de permitir a publicação junto do efeito.
+Saldo, necessidades, parentesco e identidade familiar não são copiados desse
+registro. O pedido de edição passa a fixar família/lote; o recibo conserva as
+capacidades que o host admitiu para exigir a autorização atual em um reenvio.
+Sem comandos ativados e sem alteração do formato do mundo nesta candidata.
 
 Arquivos: `comandos/intencao.ts`, `comandos/pipeline.ts`, novo sistema de edição;
 `dominio/tipos.ts`, `dominio/fatos.ts`, `dominio/reduzir-fato.ts`,

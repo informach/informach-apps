@@ -6,8 +6,12 @@ export const RESPOSTAS_DE_EDICAO = 32;
 const inteiro = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const sequencia = inteiro.positive();
 const autor = z.string().regex(/^[A-Za-z0-9_-]{1,44}$/);
-const entidade = (prefixo: string) =>
-  z.string().regex(new RegExp(`^${prefixo}_[A-Za-z0-9_-]{1,64}$`));
+const entidade = <P extends string>(prefixo: P) =>
+  z.custom<`${P}_${string}`>(
+    (valor) =>
+      typeof valor === "string" && new RegExp(`^${prefixo}_[A-Za-z0-9_-]{1,64}$`).test(valor),
+    { message: `Identidade de ${prefixo} inválida` },
+  );
 const mm = z.number().int().min(0).max(1_000_000);
 const posicao = z.strictObject({
   pos: z.tuple([mm, mm, mm]),
@@ -20,7 +24,6 @@ const versao = inteiro.positive();
 export const OperacaoDeEdicaoSchema = z.discriminatedUnion("t", [
   z.strictObject({
     t: z.literal("comprar"),
-    loteId: entidade("lote"),
     revisaoDoEspaco: versao,
     politicaDePrecos: versao,
     catalogo: z.string().regex(/^[a-z][a-z0-9_]{0,79}$/),
@@ -53,6 +56,8 @@ export type OperacaoDeEdicao = z.infer<typeof OperacaoDeEdicaoSchema>;
 
 export const PedidoDeEdicaoSchema = z.strictObject({
   sequencia,
+  familiaId: entidade("fam"),
+  loteId: entidade("lote"),
   operacao: OperacaoDeEdicaoSchema,
 });
 export type PedidoDeEdicao = z.infer<typeof PedidoDeEdicaoSchema>;
@@ -75,6 +80,12 @@ export const ResultadoDeEdicaoSchema = z.discriminatedUnion("ok", [
 
 export const ReciboDeEdicaoSchema = z.strictObject({
   autor,
+  /** Capacidades admitidas pelo host; não fazem parte do pedido do navegador. */
+  permissoes: z
+    .array(z.enum(["decorar", "gastar", "gerir_financas"]))
+    .min(1)
+    .max(3)
+    .refine((valores) => valores.includes("decorar") && new Set(valores).size === valores.length),
   pedido: PedidoDeEdicaoSchema,
   resultado: ResultadoDeEdicaoSchema,
 });
