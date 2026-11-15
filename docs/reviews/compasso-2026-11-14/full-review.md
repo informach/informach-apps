@@ -131,6 +131,9 @@ conta comercial tinha Helena como pagante.
   O tempo restante passa a ser calculado uma vez por iteração, com teste para
   o vencimento durante a atualização de estado. O CI usa a imagem PostgreSQL
   18 com locales disponíveis e exibe o log do Redis antes de encerrá-lo.
+- A chave descartável de assinatura gerada para o build do Recreio é marcada
+  como secreta no GitHub Actions antes de entrar no ambiente dos passos seguintes.
+  A chave exposta numa rodada anterior era sintética e restrita àquela execução.
 
 Os resultados finais dos gates gerais e da implantação devem ser acrescentados
 após terminarem. Alertas dependentes dessas correções ficam abertos até a

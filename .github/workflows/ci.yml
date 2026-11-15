@@ -133,7 +133,15 @@ jobs:
       # O build do Recreio valida o ambiente como produção e exige a chave dos
       # tokens. Ela é gerada aqui, vale só para este build e não fica em arquivo.
       - name: Chave descartável dos tokens do Recreio
-        run: node apps/recreio/scripts/gerar-chave.mjs --github-env >> "$GITHUB_ENV"
+        run: |
+          ci_values="$(node apps/recreio/scripts/gerar-chave.mjs --github-env)"
+          ci_private="${ci_values%%$'\n'*}"
+          case "$ci_private" in
+            RECREIO_TOKEN_PRIVATE_KEY=*) ;;
+            *) echo 'A chave descartável não foi gerada.' >&2; exit 1 ;;
+          esac
+          printf '::add-mask::%s\n' "${ci_private#RECREIO_TOKEN_PRIVATE_KEY=}"
+          printf '%s\n' "$ci_values" >> "$GITHUB_ENV"
 
       # Cada consumidor SSO precisa incorporar sua própria origem do catálogo.
       - run: pnpm exec tsx scripts/compasso/build-ci.mts
