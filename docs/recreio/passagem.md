@@ -1,12 +1,13 @@
-# Recreio e Morada: nota de passagem (13/11/2026)
+# Recreio e Morada: nota de passagem (15/11/2026)
 
-Para quem retoma a frente depois de uma pausa, nesta ou em outra máquina. O registro completo (plano, decisões, verificações) está em [`implementacao.md`](implementacao.md).
+Para quem retoma a frente depois de uma pausa. Leia primeiro a [execução atual](execucao-2026-11-15.md) e [PRODUCAO.md](../../apps/recreio/PRODUCAO.md). O registro completo permanece em [`implementacao.md`](implementacao.md). O titular autorizou as cinco frentes e todos os achados, incluindo família/proteção e homologação comercial. Testes pesados, builds, empacotamento e E2E rodam **somente no GitHub**, nunca nesta máquina; arte/evidência licenciada somente no repositório privado.
 
 ## Onde está cada coisa
 
-- **`main` em `3f952fd`** já tem P0–P7, J0–J8 e X1–X3, incluindo recuperação, acesso e operação preparada. Em 13/11, os serviços, cron e volume foram provisionados pelo plugin Railway, ainda sem fonte/deploy. Segredos/referências e vínculos dos domínios foram concluídos após autorização explícita do titular; DNS/certificados, Sentry e prontidão do banco continuam pendentes. `RECREIO_PROVISIONED=true` e `RECREIO_DOMAINS_CONFIGURED=true` preservam recursos/vínculos; `RECREIO_LAUNCHED=false` conserva as fontes desligadas. Detalhes e registros DNS no [registro operacional](railway-2026-11-13.md).
-- **Continuação na `main`:** arte dos móveis e acabamentos da casa atual, manifesto V2 compatível com V1 e provas com arte real. Ver [review do D1](review-d1-2026-11-13.md).
-- **A migração `0080_recreio`** está na `main`. O schema `recreio` passa a existir no banco onde o migrator rodar; nenhum app em produção o lê.
+- **`origin/main` em `98890016`** inclui as correções de integridade, revogação, auditoria, limites, recuperação e proteção contra downgrade de formato. Oito conjuntos de tipos/unidades, 171 integrações, cinco jornadas do portal, 18 do cliente, 100 dias e prova antes/depois passaram. Portal/Morada estavam prontos em `0aa4c82c` na última consulta; conferir o deployment do commit seguinte antes de chamá-lo de vigente.
+- **Alfa fechado implantado:** portal, Morada e manutenção, DNS/TLS, Redis, schema e Sentry conferidos. As três flags IaC estão em `true`; não são rollback. O titular entrou, criou um mundo, jogou e saiu. O backup lógico atual foi [restaurado em destino isolado](ensaio-backup-producao.md), com limpeza confirmada. Backups agendados, alerta humano, carga e custo por mundo ainda exigem prova. Não restaurar sobre a origem.
+- **Arte D1 no volume, ainda desativada:** pacote privado e manifesto conferidos; jornada privada completa ainda em investigação, candidato de limitação da fila gráfica em verificação. O visual em produção permanece procedural. Não aplicar a configuração de arte só porque ela aparece como desejada na IaC.
+- **A migração `0080_recreio`** já existe em produção, e a prontidão do portal confere a compatibilidade esperada. Não executar migrations isoladas da frente Compasso para esta entrega.
 - A branch `feat/recreio` foi juntada à `main` e não tem nada a mais.
 
 ## A arte numa máquina nova
@@ -33,7 +34,7 @@ pnpm --filter @informach/jogo-morada bancada     # http://localhost:5173/?apelid
 
 O empacotamento gera arquivos determinísticos com hash; sem `--casa`, inclui só personagens. Sem a arte, tudo continua procedural, como no CI. Ver tempos e tamanhos medidos no review do D1.
 
-Os testes de integração e o E2E do portal pedem um `DATABASE_URL` local (aceitam o `.env` da raiz); eles criam e apagam um banco descartável.
+Os testes de integração e o E2E do portal criam e apagam um banco descartável do executor GitHub. Nenhuma credencial ou dump de produção entra nesses testes. As receitas de desenvolvimento acima e abaixo são referências técnicas; não autorizam empacotar/buildar/testar nesta máquina.
 
 ## Continuação de 13/11
 
@@ -51,7 +52,7 @@ Esse opt-in declara `assets` no SDK/CSP, entrega a pasta ao servidor do jogo e g
 ## Próximos passos
 
 1. D2: criação da família; depois D3–D8 conforme os critérios do plano. A meta de FPS do D1 ainda precisa de medição em vídeo integrado real.
-2. X4, em frente operacional separada: concluir os bloqueios de configuração do [registro operacional](railway-2026-11-13.md), depois deploy fechado e custo por hora de mundo com 1, 2, 4 e 8 pessoas, seguindo [PRODUCAO.md](../../apps/recreio/PRODUCAO.md). O Stripe fica apenas documentado no [roteiro de cobrança](stripe-pendente.md), conforme pedido do titular.
+2. X4: homologar arte, backup agendado, alerta humano, estabilidade e custo por hora de mundo com 1, 2, 4 e 8 pessoas, seguindo [PRODUCAO.md](../../apps/recreio/PRODUCAO.md). A [sonda externa](monitoramento-externo.md) passou nos testes e na ingestão, mas o primeiro agendamento GitHub ainda precisa ser observado. Uptime Sentry de 60 s permanece desligado: o titular não pode liberar orçamento. O [roteiro de cobrança](stripe-pendente.md) registra a configuração/homologação comercial ainda pendente, agora dentro do escopo autorizado.
 
 ## Abertos que pedem decisão do titular
 

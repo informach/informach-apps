@@ -17,7 +17,7 @@ test("GPU ocupada não acumula quadros e o HUD continua respondendo", async ({ p
   // WebGL e desenho reais. A fronteira da GPU retém somente a confirmação;
   // a aplicação não recebe flags ou métodos adicionais para este ensaio.
   await page.addInitScript(() => {
-    const medida = { reter: true, pendentes: 0, maximo: 0, consultas: 0, esperasBloqueantes: 0 };
+    const medida = { reter: false, pendentes: 0, maximo: 0, consultas: 0, esperasBloqueantes: 0 };
     window.gpuDoEnsaio = medida;
     const pendentes = new Set<WebGLSync>();
     const prototipo = WebGL2RenderingContext.prototype;
@@ -43,6 +43,12 @@ test("GPU ocupada não acumula quadros e o HUD continua respondendo", async ({ p
     };
   });
   await entrar(page, "Prova da fila da GPU");
+  await page.evaluate(() => {
+    if (window.gpuDoEnsaio) {
+      window.gpuDoEnsaio.reter = true;
+      window.gpuDoEnsaio.consultas = 0;
+    }
+  });
   await expect
     .poll(() => page.evaluate(() => window.gpuDoEnsaio?.consultas ?? 0))
     .toBeGreaterThan(2);
