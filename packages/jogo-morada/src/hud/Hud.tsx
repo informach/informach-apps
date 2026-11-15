@@ -5,6 +5,7 @@ import { Avisos } from "./Avisos";
 import { Carga } from "./Carga";
 import { AguardandoFamilia, CriacaoDaFamilia } from "./CriacaoDaFamilia";
 import { type Controle, quemSou } from "./controle";
+import { EdicaoDaCasa } from "./EdicaoDaCasa";
 import { Fila } from "./Fila";
 import { MenuRadial } from "./MenuRadial";
 import { Painel } from "./Painel";
@@ -130,6 +131,7 @@ export function Hud({ controle }: { controle: Controle }) {
       data-morada-conexao={loja.conexao.fase}
       data-morada-papel={loja.jogador?.papel}
       data-morada-permissoes={permissoes.join(" ")}
+      data-morada-editando={controle.editor.aberto ? "true" : undefined}
     >
       <div className="morada-topo">
         <Relogio controle={controle} estado={estado} presenca={presenca} eu={eu} />
@@ -141,6 +143,7 @@ export function Hud({ controle }: { controle: Controle }) {
       </div>
 
       <Trilho controle={controle} estado={estado} meuMoradorId={meuMoradorId} />
+      <EdicaoDaCasa controle={controle} estado={estado} />
 
       <div className="morada-base">
         {emFoco ? <Painel estado={estado} morador={emFoco} /> : <span />}

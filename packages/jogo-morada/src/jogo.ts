@@ -18,6 +18,7 @@ import type { JogoMontado, OpcoesDoMorada } from "./fonte";
 import type { Controle } from "./hud/controle";
 import { Hud } from "./hud/Hud";
 import "./hud/hud.css";
+import { EditorDaCasa } from "./modelo/editor-da-casa";
 import { nomeDoJogador } from "./modelo/retratos";
 
 /**
@@ -79,6 +80,15 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
 
   const sessao = new Sessao({ fonte: opcoes.fonte });
   const { loja } = sessao;
+  const editor = new EditorDaCasa({
+    estado: () => sessao.estado(),
+    jogadorId: () => loja.jogador?.jogadorId ?? null,
+    pronto: () => loja.conexao.fase === "pronto",
+    proximaSequencia: () => loja.visao?.edicao?.proximaSequencia ?? null,
+    versaoDoEspelho: loja.getSnapshot,
+    aoMudar: () => loja.tocar(),
+    enviar: (pedido) => sessao.comandar(null, { t: "editar_casa", pedido }, { silencioso: true }),
+  });
   const ativos: Ativos = opcoes.origemDaArte
     ? new AtivosDeArte({
         origem: opcoes.origemDaArte.replace(/\/+$/, ""),
@@ -99,6 +109,7 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
       : "outra pessoa";
 
   const cena = new Cena(areaDaCena, {
+    editor,
     sessao,
     ativos,
     nomeDoJogador: nome,
@@ -108,6 +119,11 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
     },
     aoClicar(alvo, x, y) {
       if (fechouMenu || loja.conexao.fase === "encerrado") return;
+      if (editor.aberto) {
+        if (alvo.t === "objeto") editor.selecionar(alvo.objetoId);
+        else if (alvo.t === "chao") editor.posicionar(alvo.loteId, alvo.pos);
+        return;
+      }
       if (alvo.t === "chao") {
         const feito = sessao.irPara(alvo.pos);
         if (feito !== "sem_morador") {
@@ -124,6 +140,7 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
   };
 
   const controle: Controle = {
+    editor,
     sessao,
     previa: {
       definir: (descricao) => cena.definirPrevia(descricao),
@@ -153,6 +170,12 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
 
   const aoApertar = (evento: KeyboardEvent) => {
     if (evento.code === "Escape") {
+      if (editor.aberto) {
+        if (editor.rascunho) editor.cancelarSelecao();
+        else editor.fechar();
+        focarNaCena();
+        return;
+      }
       if (loja.menu) {
         loja.abrirMenu(null);
         focarNaCena();
@@ -161,6 +184,18 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
     }
     // Dentro de um botão ou do menu, as teclas são deles.
     if (emControle(evento.target)) return;
+    if (editor.aberto && !evento.repeat) {
+      if (evento.code === "KeyR") {
+        editor.girar();
+        evento.preventDefault();
+        return;
+      }
+      if (evento.code === "Enter") {
+        void editor.confirmar();
+        evento.preventDefault();
+        return;
+      }
+    }
     if (TECLAS_DA_CAMERA.has(evento.code)) {
       cena.definirTecla(evento.code, true);
       evento.preventDefault();

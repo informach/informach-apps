@@ -6,6 +6,7 @@ import { PinturaDoMovelSchema } from "./pintura";
 export const RESPOSTAS_DE_EDICAO = 32;
 export const RESPOSTAS_DE_EDICAO_DO_MUNDO = 128;
 export const AUTORES_DE_EDICAO_DO_MUNDO = 2048;
+export const LIMITE_DE_EDICAO_SEM_GESTAO_CENTAVOS = 50_000;
 const inteiro = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const sequencia = inteiro.positive();
 const autor = z.string().regex(/^[A-Za-z0-9_-]{1,44}$/);

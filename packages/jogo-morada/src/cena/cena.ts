@@ -32,6 +32,7 @@ import {
 import { MapControls } from "three/addons/controls/MapControls.js";
 import type { Ativos, DescricaoDoMorador, ObjetoDaCena, VisualDosObjetos } from "../ativos/ativos";
 import type { Sessao } from "../espelho/sessao";
+import type { EditorDaCasa } from "../modelo/editor-da-casa";
 import { nomeDoObjeto } from "../modelo/menu";
 import { fracaoDoDia } from "../modelo/painel";
 import { familiasDoJogador } from "../modelo/retratos";
@@ -40,6 +41,7 @@ import { centroDaCelula, daCena, METROS_POR_MM, type PontoDaCena, paraCena } fro
 import { MoradoresDaCena } from "./moradores";
 import { CORTE_DAS_PAREDES_MM } from "./planta";
 import { type EstadoDaPrevia, PreviaDoMorador, type QuadroDaPrevia } from "./previa";
+import { PreviaDoMovel } from "./previa-do-movel";
 import { alturaDoPiso } from "./situacao";
 
 /**
@@ -107,6 +109,7 @@ export function medidasDosQuadros(intervalos: readonly number[], custos: readonl
 }
 
 export type OpcoesDaCena = {
+  editor?: EditorDaCasa;
   sessao: Sessao;
   ativos: Ativos;
   /** Como chamar outro jogador, para o rótulo de quem ele dirige. */
@@ -135,6 +138,7 @@ function qualidadeInicial(placa: string): Qualidade {
 }
 
 export class Cena {
+  private readonly previaDoMovel: PreviaDoMovel;
   private readonly sessao: Sessao;
   private readonly ativos: Ativos;
   private readonly opcoes: OpcoesDaCena;
@@ -213,6 +217,9 @@ export class Cena {
     this.opcoes = opcoes;
     this.sessao = opcoes.sessao;
     this.ativos = opcoes.ativos;
+    this.previaDoMovel = new PreviaDoMovel(this.ativos);
+    this.mundo.add(this.previaDoMovel.raiz);
+    this.camera.layers.enable(1);
     this.previa = new PreviaDoMorador(this.ativos);
     this.scene.add(this.previa.raiz);
 
@@ -272,6 +279,7 @@ export class Cena {
     this.ajustarTamanho();
     this.cancelarAtivos = this.ativos.aoMudar?.(() => {
       this.revisaoMontada = -1;
+      this.previaDoMovel.invalidar();
     });
     this.ligar();
   }
@@ -465,6 +473,7 @@ export class Cena {
     this.desmontar();
     this.moradores.dispose();
     this.previa.dispose();
+    this.previaDoMovel.dispose();
     if (this.destino) {
       this.destino.geometry.dispose();
       if (this.destino.material instanceof MeshBasicMaterial) this.destino.material.dispose();
@@ -577,6 +586,7 @@ export class Cena {
   /** Com as paredes baixas, o que fica pendurado acima do corte, e tudo o que é de teto, some. */
   private esconderOQueFlutua(estado: EstadoDoMundo, corte: number | null): void {
     this.objetos?.definirVisiveis((item) => {
+      if (item.objeto.id === this.previaDoMovel.originalOculto) return false;
       if (corte === null) return true;
       const fixacao = item.entrada?.fixacao;
       if (fixacao === "teto") return false;
@@ -749,6 +759,9 @@ export class Cena {
       ) {
         this.montar(estado);
       }
+      const editor = this.opcoes.editor;
+      if (this.previaDoMovel.definir(estado, editor?.aberto ? editor.prever() : null))
+        this.esconderOQueFlutua(estado, loja.paredesBaixas ? CORTE_DAS_PAREDES_MM : null);
       const reservas = loja.visao?.presenca.reservas ?? [];
       this.moradores.atualizar({
         estado,
@@ -1043,6 +1056,7 @@ export class Cena {
     // Tudo o que estava na placa se foi: a cena é refeita do espelho.
     this.desmontar();
     this.moradores.dispose();
+    this.previaDoMovel.invalidar();
     this.moradores = new MoradoresDaCena(this.mundo, this.ativos);
     this.revisaoMontada = -1;
     this.aplicarQualidade();

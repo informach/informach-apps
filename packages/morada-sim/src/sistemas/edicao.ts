@@ -2,6 +2,7 @@ import {
   AUTORES_DE_EDICAO_DO_MUNDO,
   consultarEdicao,
   iniciarRegistroDeEdicoes,
+  LIMITE_DE_EDICAO_SEM_GESTAO_CENTAVOS,
   type PedidoDeEdicao,
   type ReciboDeEdicao,
 } from "../comandos/edicao";
@@ -16,7 +17,6 @@ import { copiar } from "../nucleo/canonico";
 import { type Contexto, causaDoJogador, emitir } from "./contexto";
 import { temPermissao } from "./presenca";
 
-const LIMITE_SEM_GESTAO_CENTAVOS = 50_000;
 const OBJETOS_POR_LOTE = 256;
 const FATO_MAX_BYTES_PADRAO = 256 * 1024;
 type DadosDaEdicao = Extract<DadosDoFato, { tipo: "EdicaoRegistrada" }>;
@@ -110,7 +110,7 @@ export function editarCasa(
       : operacao.t === "vender"
         ? (oferta?.revendaCentavos ?? 0)
         : 0;
-  if (valor > LIMITE_SEM_GESTAO_CENTAVOS) permissoes.push("gerir_financas");
+  if (valor > LIMITE_DE_EDICAO_SEM_GESTAO_CENTAVOS) permissoes.push("gerir_financas");
   if (!pode(permissoes)) return negar("sem_permissao");
 
   let resultado: ResultadoAdmitido | null = null;

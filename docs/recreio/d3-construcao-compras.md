@@ -252,6 +252,26 @@ são destinos válidos de rollback deste contrato; produção continua Mundo V2.
 Interface e homologação visual privada permanecem pendentes; não habilitar
 pintura nem Mundo V3 em produção com base nestes candidatos.
 
+`5b8f331a`, seis gates `43765644626`: admissão/persistência/renderer integrados,
+incluindo o teste de boas-vindas bloqueadas pelo journal. A prova privada
+`43766804477` percorreu oito peças e 30 ciclos por peça, sem crescimento nas
+geometrias/texturas/programas observados. A comparação inicial usou Mesh cru
+como referência contra InstancedMesh, encontrando diferenças em poucos pixels;
+a nova rodada usa o renderer de produção dos dois lados, sem elevar tolerâncias.
+As oito imagens foram revistas: estofados, estrutura da cama/mesa/rack/geladeira
+e moldura do criado delimitados; almofadas, roupa de cama, puxadores e pés de
+outra superfície conservados. Vidro também exige a prova sintética já registrada.
+
+Editor em preparação, ainda sem gate: loja e móveis da casa, prévia na mesma
+cena/renderer, grade de 0,5 m, giro, pintura admitida, compra e venda confirmadas,
+preço/saldo fictícios, teclado/toque e painel responsivo. O rascunho não altera
+o espelho; conflito exige revisão explícita e venda exige confirmação separada,
+inclusive pelo teclado. A prévia reaproveita os ativos e limita recálculo de
+navegação, com autoridade final no servidor. Quatro testes contra a simulação
+real e duas jornadas de navegador (computador/celular) aguardam execução remota.
+Travas com prazo, desfazer/refazer, orçamento/casas e construção estrutural
+continuam pendentes; este editor não conclui sozinho o D3.
+
 Arquivos: `comandos/intencao.ts`, `comandos/pipeline.ts`, novo sistema de edição;
 `dominio/tipos.ts`, `dominio/fatos.ts`, `dominio/reduzir-fato.ts`,
 `dominio/invariantes.ts`, `formatos/fotografia.ts`, `visao/replicacao.ts`.

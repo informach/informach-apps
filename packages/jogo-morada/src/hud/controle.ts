@@ -1,6 +1,7 @@
 import type { DescricaoDoMorador } from "../ativos/ativos";
 import type { EstadoDaPrevia } from "../cena/previa";
 import type { Sessao } from "../espelho/sessao";
+import type { EditorDaCasa } from "../modelo/editor-da-casa";
 import type { OpcoesDosRetratos } from "../modelo/retratos";
 
 /**
@@ -8,6 +9,7 @@ import type { OpcoesDosRetratos } from "../modelo/retratos";
  * lê o espelho pela sessão e pede por aqui.
  */
 export type Controle = {
+  editor: EditorDaCasa;
   sessao: Sessao;
   previa: {
     definir(descricao: DescricaoDoMorador | null): void;

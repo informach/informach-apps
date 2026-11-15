@@ -119,6 +119,7 @@ jobs:
           path: |
             packages/jogo-morada/e2e/test-results/**/cores-parametricas.json
             packages/jogo-morada/e2e/test-results/**/pintura-sintetica.json
+            packages/jogo-morada/e2e/test-results/**/editor-da-casa.png
           if-no-files-found: warn
           retention-days: 30
       - name: Preserve cross-build evidence
