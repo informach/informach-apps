@@ -478,7 +478,32 @@ test("duas contas jogam a mesma família; uma cai, a outra continua, e tudo volt
     await expect(daAna.presenca).toContainText("Você e Bia");
     await expect(daBia.retrato("Lia")).toHaveAccessibleName(/Dirigido por Ana/);
     await expect(daBia.retrato("Lia")).toHaveAttribute("data-morada-preferido", "sim");
-    await daBia.retrato("Marcos").click();
+    const quadrosDaInteracao = await bia.page.evaluateHandle(() => {
+      const medida = { quadros: 0, inicio: performance.now(), pedido: 0 };
+      const medir = () => {
+        medida.quadros++;
+        medida.pedido = requestAnimationFrame(medir);
+      };
+      medida.pedido = requestAnimationFrame(medir);
+      return medida;
+    });
+    try {
+      await daBia.retrato("Marcos").click();
+    } finally {
+      console.log(
+        "morada_e2e_interacao",
+        await quadrosDaInteracao.evaluate((medida) => {
+          cancelAnimationFrame(medida.pedido);
+          return {
+            quadros: medida.quadros,
+            duracaoMs: Math.round(performance.now() - medida.inicio),
+            visibilidade: document.visibilityState,
+            foco: document.hasFocus(),
+          };
+        }),
+      );
+      await quadrosDaInteracao.dispose();
+    }
     await expect(daBia.retrato("Marcos")).toHaveAttribute("data-estado", "voce");
     await expect(daAna.retrato("Marcos")).toHaveAccessibleName(/Dirigido por Bia/);
     expect(
