@@ -161,9 +161,10 @@ export function conferirColocacaoNoChao(
   let pegada: Retangulo | null = null;
   if (candidato) {
     const entrada = doCatalogo(candidato.catalogo);
-    pegada = pegadaNoLote(candidato);
-    if (!entrada || !pegada || (anterior && candidato.catalogo !== anterior.catalogo))
+    const areaCandidata = pegadaNoLote(candidato);
+    if (!entrada || !areaCandidata || (anterior && candidato.catalogo !== anterior.catalogo))
       return "catalogo_incompativel";
+    pegada = areaCandidata;
     if (entrada.fixacao !== "chao" || candidato.andar !== 0 || candidato.pos[2] !== 0)
       return "fixacao_nao_suportada";
     if (
@@ -181,7 +182,8 @@ export function conferirColocacaoNoChao(
       return "fora_do_lote";
     if (!cabeNoPiso(pegada, piso.contorno)) return "fora_do_piso";
     // Inclusive o vão da porta: a peça não pode atravessar a linha da parede.
-    if (piso.paredes.some((parede) => atravessa([parede.a, parede.b], pegada))) return "parede";
+    if (piso.paredes.some((parede) => atravessa([parede.a, parede.b], areaCandidata)))
+      return "parede";
     for (const outro of outros) {
       if (outro.andar !== candidato.andar) continue;
       const conteudo = doCatalogo(outro.catalogo);
