@@ -53,7 +53,13 @@ function origemAutorizada(): { url: URL; fixture: boolean } {
 
 /** Nenhuma variável da origem é herdada pelos processos do destino. */
 function ambienteNativo(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
-  return { PATH: process.env.PATH, NODE_ENV: "production", LANG: "en_US.utf8", TZ: "UTC", ...extra };
+  return {
+    PATH: process.env.PATH,
+    NODE_ENV: "production",
+    LANG: "en_US.utf8",
+    TZ: "UTC",
+    ...extra,
+  };
 }
 
 async function ferramenta(
