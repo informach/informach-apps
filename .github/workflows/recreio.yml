@@ -123,7 +123,7 @@ jobs:
         if: always() && matrix.gate == 'versoes'
         uses: actions/upload-artifact@v4
         with:
-          name: recreio-versoes-${{ github.run_attempt }}
+          name: recreio-versoes-medidas-${{ github.run_attempt }}
           path: apps/recreio/tmp/telas/troca-de-versao.json
           if-no-files-found: warn
           retention-days: 30

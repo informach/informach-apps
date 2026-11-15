@@ -788,6 +788,7 @@ export default defineRailway((ctx) => {
       CRON_SECRET: preserve(),
       RECREIO_HOST_SECRETS: preserve(),
       RECREIO_TOKEN_PRIVATE_KEY: preserve(),
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: preserve(),
       RECREIO_TOKEN_KEY_ID: preserve(),
       RECREIO_TOKEN_PREVIOUS_PUBLIC_KEYS: preserve(),
       SENTRY_DSN: preserve(),
@@ -835,7 +836,7 @@ export default defineRailway((ctx) => {
       MORADA_ORIGENS: "https://recreio.informach.com.br",
       RECREIO_HOST_SECRET: preserve(),
       MORADA_METRICAS_TOKEN: preserve(),
-      MORADA_ARTE_DIR: "/data/arte/d1-98f76bc403d8",
+      MORADA_ARTE_DIR: "/data/arte/d2-4198478735b6",
       SENTRY_DSN: preserve(),
     },
   });

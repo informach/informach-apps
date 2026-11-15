@@ -23,8 +23,9 @@ test.describe("troca de versão do portal", () => {
     try {
       servidor = await iniciarVersao(anterior, versaoA);
       const pessoa = await novaPessoa(browser, "Ana");
-      await pessoa.page.reload();
-      await expect(pessoa.page.locator("html")).toHaveAttribute("data-dpl-id", versaoA);
+      const documentoA = await pessoa.page.reload();
+      if (!documentoA) throw new Error("Documento da primeira versão ausente");
+      expect(await documentoA.text()).toContain(`data-dpl-id="${versaoA}"`);
       const secao = pessoa.page.getByRole("region", { name: "Seus mundos no Morada" });
       const campo = secao.getByLabel("Nome do mundo");
       await hidratado(campo);
@@ -33,10 +34,20 @@ test.describe("troca de versão do portal", () => {
       servidor = null;
       servidor = await iniciarVersao(atual, versaoB);
       // A mesma aba e o mesmo formulário continuam com os JS e IDs da build A.
-      await expect(pessoa.page.locator("html")).toHaveAttribute("data-dpl-id", versaoA);
-      await secao.getByRole("button", { name: "Criar mundo", exact: true }).click();
+      const [acao, documentoB] = await Promise.all([
+        pessoa.page.waitForRequest(
+          (pedido) => pedido.method() === "POST" && Boolean(pedido.headers()["next-action"]),
+        ),
+        pessoa.page.waitForResponse(
+          (resposta) =>
+            resposta.request().isNavigationRequest() &&
+            /\/mundos\/[0-9a-f-]{36}$/.test(new URL(resposta.url()).pathname),
+        ),
+        secao.getByRole("button", { name: "Criar mundo", exact: true }).click(),
+      ]);
+      expect(acao.headers()["x-deployment-id"]).toBe(versaoA);
       await expect(pessoa.page).toHaveURL(/\/mundos\/[0-9a-f-]{36}$/);
-      await expect(pessoa.page.locator("html")).toHaveAttribute("data-dpl-id", versaoB);
+      expect(await documentoB.text()).toContain(`data-dpl-id="${versaoB}"`);
       const mundo = new URL(pessoa.page.url()).pathname.split("/").pop();
       expect(mundo).toBeTruthy();
       await pessoa.page.goto("/estante");

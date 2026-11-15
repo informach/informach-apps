@@ -29,3 +29,16 @@ conservar a chave entre builds e identificar cada versão do cliente/servidor.
 
 Estado inicial: correção em preparação, incidente ainda não resolvido.
 Não altera a confirmação humana de salvar/reabrir a família personalizada.
+
+Primeira rodada `43750681062`: o gate de versões parou antes da mutação porque
+a asserção leu `data-dpl-id` no DOM após carregar a página. O trace confirma o
+identificador correto no HTML SSR e nas URLs dos recursos; o DOM final não o
+conservou. A nova asserção confere o HTML recebido e exige o cabeçalho
+`x-deployment-id` A no POST enviado depois de subir B, além do documento B no
+destino. Não ampliar prazo ou mascarar erros de ação. O teste efetivo da ação
+atravessando builds ainda está pendente.
+
+Conferência somente de leitura do Turbo local: o plano (sem executar build)
+inclui as duas variáveis no hash da tarefa do Recreio, herdando o restante da
+configuração raiz. O manifesto da build publicada tem chave AES de 32 bytes;
+ela ainda não foi copiada nem alterada no provedor.
