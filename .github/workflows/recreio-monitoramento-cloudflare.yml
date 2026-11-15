@@ -1,0 +1,70 @@
+name: Recreio - sonda Cloudflare
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, "verify/recreio-*"]
+    paths:
+      - ".github/workflows/recreio-monitoramento-cloudflare.yml"
+      - "infrastructure/cloudflare/recreio-monitor/**"
+      - "scripts/recreio/monitoramento*.mjs"
+      - "scripts/recreio/sonda.mjs"
+      - "pnpm-lock.yaml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recreio-cloudflare-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CF_TEST_TOOLS: ${{ github.workspace }}/infrastructure/cloudflare/recreio-monitor
+      WRANGLER_SEND_METRICS: "false"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Ferramentas isoladas, sem alterar os manifests do monorepo
+        run: npm install --prefix "$CF_TEST_TOOLS" --no-save --package-lock=false wrangler@4.162.0 miniflare@5.20261113.0-beta
+      - name: Conferir a sonda compartilhada
+        run: |
+          pnpm exec biome check scripts/recreio/sonda.mjs scripts/recreio/monitoramento.mjs scripts/recreio/monitoramento.test.mjs infrastructure/cloudflare/recreio-monitor/src/index.ts infrastructure/cloudflare/recreio-monitor/worker.test.mjs infrastructure/cloudflare/recreio-monitor/wrangler.jsonc
+          node --test scripts/recreio/monitoramento.test.mjs
+      - name: Gerar tipos da configuração e conferir a composição
+        run: |
+          node "$CF_TEST_TOOLS/node_modules/wrangler/bin/wrangler.js" types --config infrastructure/cloudflare/recreio-monitor/wrangler.jsonc --strict-vars=false
+          pnpm exec tsc --noEmit --strict --allowJs --checkJs false --skipLibCheck --target ES2022 --module ESNext --moduleResolution bundler --lib ES2022 infrastructure/cloudflare/recreio-monitor/src/index.ts infrastructure/cloudflare/recreio-monitor/worker-configuration.d.ts
+      - name: Construir o único arquivo que será publicado
+        run: pnpm --filter @informach/morada-server exec esbuild ../../infrastructure/cloudflare/recreio-monitor/src/index.ts --bundle --platform=browser --target=es2022 --format=esm --outfile=../../infrastructure/cloudflare/recreio-monitor/dist/worker.mjs
+      - name: Exercitar cron, transporte e falhas no runtime real
+        run: node --test infrastructure/cloudflare/recreio-monitor/worker.test.mjs
+      - name: Validar o pacote de publicação sem credenciais
+        run: node "$CF_TEST_TOOLS/node_modules/wrangler/bin/wrangler.js" deploy infrastructure/cloudflare/recreio-monitor/dist/worker.mjs --config infrastructure/cloudflare/recreio-monitor/wrangler.jsonc --no-bundle --dry-run
+      - name: Registrar integridade e procedência
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd infrastructure/cloudflare/recreio-monitor/dist
+          sha256sum worker.mjs > SHA256SUMS
+          node --input-type=module <<'JS'
+          import {writeFileSync} from 'node:fs';
+          writeFileSync('proveniencia.json',JSON.stringify({commit:process.env.GITHUB_SHA,wrangler:'4.162.0',miniflare:'5.20261113.0-beta',compatibilityDate:'2026-11-15'},null,2));
+          JS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recreio-monitor-cloudflare-${{ github.run_attempt }}
+          path: infrastructure/cloudflare/recreio-monitor/dist/
+          if-no-files-found: error
+          retention-days: 30

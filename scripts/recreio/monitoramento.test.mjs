@@ -2,13 +2,7 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import { test } from "node:test";
-import {
-  criarEnvelope,
-  destinoSentry,
-  enviarEnvelope,
-  sondar,
-  verificar,
-} from "./monitoramento.mjs";
+import { criarEnvelope, destinoSentry, enviarEnvelope, sondar, verificar } from "./sonda.mjs";
 
 async function comServidor(executarPedido, verificarServidor) {
   const servidor = createServer(executarPedido);
