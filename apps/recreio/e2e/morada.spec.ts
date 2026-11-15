@@ -51,6 +51,18 @@ import { ARGS_DO_NAVEGADOR, CANAL_DO_NAVEGADOR } from "./navegador";
 /** Um nome que só existe dentro do three.js: onde ele está, o jogo inteiro está. */
 const SINAL_DO_THREE = "WebGLRenderer";
 const FAMILIA = ["Lia", "Marcos", "Nina", "Vó Ana"];
+
+declare global {
+  interface Window {
+    graficaDaCriacao?: {
+      contextos: number;
+      buffers: number;
+      texturas: number;
+      maximoBuffers: number;
+      maximoTexturas: number;
+    };
+  }
+}
 const TODAS_AS_PERMISSOES = [
   "autorizar_mudanca",
   "chamar_morador",
@@ -91,6 +103,140 @@ function ehFalhaDaQueda(mensagem: ConsoleMessage): boolean {
 test.beforeEach(() => {
   comecarVigia();
   limparSaidaDoServidor();
+});
+
+test.describe("coleção real da criação", () => {
+  test.skip(
+    !process.env.MORADA_ARTE_DIR,
+    "As 48 prévias exigem o pacote privado de arte da criação",
+  );
+  test("cria, joga e reabre uma família personalizada", { tag: "@personalizacao" }, async ({
+    browser,
+  }) => {
+    test.setTimeout(600_000);
+    await iniciarServidor();
+    const pessoa = await novaPessoa(browser, "Criadora");
+    await pessoa.page.addInitScript(() => {
+      const medida = { contextos: 0, buffers: 0, texturas: 0, maximoBuffers: 0, maximoTexturas: 0 };
+      window.graficaDaCriacao = medida;
+      const contextos = new Set<WebGL2RenderingContext>();
+      const buffers = new Set<WebGLBuffer>();
+      const texturas = new Set<WebGLTexture>();
+      const gl = WebGL2RenderingContext.prototype;
+      const criarBuffer = gl.createBuffer,
+        apagarBuffer = gl.deleteBuffer,
+        criarTextura = gl.createTexture,
+        apagarTextura = gl.deleteTexture;
+      gl.createBuffer = function (this: WebGL2RenderingContext) {
+        contextos.add(this);
+        medida.contextos = contextos.size;
+        const buffer = criarBuffer.call(this);
+        if (buffer) buffers.add(buffer);
+        medida.buffers = buffers.size;
+        medida.maximoBuffers = Math.max(medida.maximoBuffers, medida.buffers);
+        return buffer;
+      };
+      gl.deleteBuffer = function (this: WebGL2RenderingContext, buffer) {
+        if (buffer) buffers.delete(buffer);
+        medida.buffers = buffers.size;
+        apagarBuffer.call(this, buffer);
+      };
+      gl.createTexture = function (this: WebGL2RenderingContext) {
+        const textura = criarTextura.call(this);
+        if (textura) texturas.add(textura);
+        medida.texturas = texturas.size;
+        medida.maximoTexturas = Math.max(medida.maximoTexturas, medida.texturas);
+        return textura;
+      };
+      gl.deleteTexture = function (this: WebGL2RenderingContext, textura) {
+        if (textura) texturas.delete(textura);
+        medida.texturas = texturas.size;
+        apagarTextura.call(this, textura);
+      };
+    });
+    const mundoId = await criarMundo(pessoa.page, "Morada", "Casa da Lua");
+    await pessoa.page.goto(enderecoDoJogo(mundoId));
+    await expect(pessoa.page.getByRole("heading", { name: "Quem vai morar aqui?" })).toBeVisible();
+    await pessoa.page.getByRole("button", { name: "Criar minha família", exact: true }).click();
+    await pessoa.page.getByLabel("Nome da família", { exact: true }).fill("Lua e Sol");
+    await pessoa.page.getByLabel("Nome no jogo", { exact: true }).fill("Lua");
+    const previa = pessoa.page.locator(".morada-criacao-previa [role='status']");
+    const fases = ["colo", "pequeno", "crianca", "adolescente", "adulto", "idoso"];
+    let combinacoes = 0;
+    for (const fase of fases)
+      for (const linha of ["f", "m"])
+        for (const cabelo of ["natural", "careca"])
+          for (const roupa of ["cotidiano", "macacao"]) {
+            await pessoa.page.getByLabel("Fase da vida", { exact: true }).selectOption(fase);
+            await pessoa.page.getByLabel("Tipo de corpo", { exact: true }).selectOption(linha);
+            await pessoa.page.getByLabel("Cabelo", { exact: true }).selectOption(cabelo);
+            await pessoa.page.getByLabel("Roupa", { exact: true }).selectOption(roupa);
+            await expect(previa).toHaveText("Assim vai ficar");
+            if (cabelo === "natural" && roupa === "cotidiano")
+              await tela(pessoa.page, `criacao-${fase}-${linha}`);
+            combinacoes++;
+          }
+    expect(combinacoes).toBe(48);
+    await pessoa.page.getByLabel("Fase da vida", { exact: true }).selectOption("adulto");
+    await pessoa.page.getByLabel("Tipo de corpo", { exact: true }).selectOption("f");
+    await pessoa.page.getByLabel("Cabelo", { exact: true }).selectOption("natural");
+    await pessoa.page.getByLabel("Roupa", { exact: true }).selectOption("cotidiano");
+    await expect(previa).toHaveText("Assim vai ficar");
+    const ciclos = async () => {
+      for (const cabelo of ["careca", "natural"])
+        for (const roupa of ["macacao", "cotidiano"]) {
+          await pessoa.page.getByLabel("Cabelo", { exact: true }).selectOption(cabelo);
+          await pessoa.page.getByLabel("Roupa", { exact: true }).selectOption(roupa);
+          await expect(previa).toHaveText("Assim vai ficar");
+        }
+    };
+    await ciclos();
+    const antes = await pessoa.page.evaluate(() => window.graficaDaCriacao);
+    await ciclos();
+    await ciclos();
+    const depois = await pessoa.page.evaluate(() => window.graficaDaCriacao);
+    expect(antes?.contextos).toBe(1);
+    expect(depois?.contextos).toBe(1);
+    expect(depois?.buffers).toBe(antes?.buffers);
+    expect(depois?.texturas).toBe(antes?.texturas);
+    await test.info().attach("criacao-recursos.json", {
+      body: JSON.stringify({ combinacoes, antes, depois }, null, 2),
+      contentType: "application/json",
+    });
+    await pessoa.page.setViewportSize({ width: 390, height: 844 });
+    await expect(
+      pessoa.page.getByRole("heading", { name: "Moradores", exact: true }),
+    ).toBeVisible();
+    await expect(previa).toHaveText("Assim vai ficar");
+    expect(
+      await pessoa.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    ).toBe(true);
+    await tela(pessoa.page, "criacao-celular");
+    await pessoa.page.setViewportSize({ width: 1280, height: 800 });
+    await pessoa.page.getByRole("button", { name: /Adicionar morador/ }).click();
+    await pessoa.page.getByLabel("Nome no jogo", { exact: true }).fill("Sol");
+    await pessoa.page.getByLabel("Tipo de corpo", { exact: true }).selectOption("m");
+    await expect(previa).toHaveText("Assim vai ficar");
+    await pessoa.page.getByRole("button", { name: "Continuar", exact: true }).click();
+    await pessoa.page.getByRole("button", { name: "Adicionar relação", exact: true }).click();
+    await pessoa.page.getByLabel("Vínculo", { exact: true }).selectOption("casamento");
+    await pessoa.page.getByRole("button", { name: "Continuar", exact: true }).click();
+    await expect(
+      pessoa.page.getByRole("heading", { name: "Seu novo lar", exact: true }),
+    ).toBeVisible();
+    await pessoa.page.getByRole("button", { name: "Começar a jogar", exact: true }).click();
+    const jogo = jogoEm(pessoa.page);
+    await mundoNaTela(jogo);
+    await expect(jogo.nomes).toHaveText(["Lua", "Sol"]);
+    await jogo.retrato("Lua").click();
+    await expect(jogo.retrato("Lua")).toHaveAttribute("data-estado", "voce");
+    await jogo.sair.click();
+    await expect(pessoa.page).toHaveURL(/\/estante/);
+    await pessoa.page.getByRole("link", { name: "Jogar em Casa da Lua" }).click();
+    await mundoNaTela(jogo);
+    await expect(jogo.nomes).toHaveText(["Lua", "Sol"]);
+    await expect(pessoa.page.getByRole("heading", { name: "Quem vai morar aqui?" })).toHaveCount(0);
+  });
 });
 
 test.afterEach(async () => {

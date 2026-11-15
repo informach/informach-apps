@@ -127,7 +127,7 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
     sessao,
     previa: {
       definir: (descricao) => cena.definirPrevia(descricao),
-      estado: () => cena.estadoDaPrevia(),
+      estado: (esperado) => cena.estadoDaPrevia(esperado),
       recarregar: () => cena.recarregarPrevia(),
       girar: (sentido) => cena.girarPrevia(sentido),
     },

@@ -1419,6 +1419,7 @@
   background: var(--mo-vidro);
 }
 .morada-criacao-previa-legenda b {
+  overflow-wrap: anywhere;
   font-family: var(--mo-titulo);
   font-size: 20px;
 }

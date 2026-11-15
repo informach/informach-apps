@@ -11,7 +11,7 @@ export type Controle = {
   sessao: Sessao;
   previa: {
     definir(descricao: DescricaoDoMorador | null): void;
-    estado(): EstadoDaPrevia;
+    estado(esperado?: DescricaoDoMorador): EstadoDaPrevia;
     recarregar(): void;
     girar(sentido: -1 | 1): void;
   };

@@ -39,7 +39,7 @@ import { montarCasa, montarTerreno } from "./casa";
 import { centroDaCelula, daCena, METROS_POR_MM, type PontoDaCena, paraCena } from "./espaco";
 import { MoradoresDaCena } from "./moradores";
 import { CORTE_DAS_PAREDES_MM } from "./planta";
-import { type EstadoDaPrevia, PreviaDoMorador } from "./previa";
+import { type EstadoDaPrevia, PreviaDoMorador, type QuadroDaPrevia } from "./previa";
 import { alturaDoPiso } from "./situacao";
 
 /**
@@ -182,6 +182,7 @@ export class Cena {
   private ultimo = 0;
   /** No máximo um quadro enviado à GPU; consultar sem bloquear a interface. */
   private quadroPendente: WebGLSync | null = null;
+  private quadroDaPreviaPendente: QuadroDaPrevia | null = null;
   private descartada = false;
   private perdida = false;
   private revisaoMontada = -1;
@@ -284,8 +285,8 @@ export class Cena {
   definirPrevia(descricao: DescricaoDoMorador | null): void {
     this.previa.definir(descricao);
   }
-  estadoDaPrevia(): EstadoDaPrevia {
-    return this.previa.estado;
+  estadoDaPrevia(esperado?: DescricaoDoMorador): EstadoDaPrevia {
+    return this.previa.estadoPara(esperado);
   }
   recarregarPrevia(): void {
     this.previa.recarregar();
@@ -682,6 +683,7 @@ export class Cena {
   private limparQuadroPendente(): void {
     if (this.quadroPendente) this.gl.deleteSync(this.quadroPendente);
     this.quadroPendente = null;
+    this.quadroDaPreviaPendente = null;
   }
 
   private gpuDisponivel(): boolean {
@@ -691,6 +693,7 @@ export class Cena {
     const estado = gl.clientWaitSync(this.quadroPendente, 0, 0);
     if (estado === gl.TIMEOUT_EXPIRED) return false;
     if (estado === gl.ALREADY_SIGNALED || estado === gl.CONDITION_SATISFIED) {
+      this.previa.confirmarQuadro(this.quadroDaPreviaPendente);
       this.limparQuadroPendente();
       return true;
     }
@@ -720,6 +723,7 @@ export class Cena {
 
     this.atualizar(agora, dt);
     this.renderer.render(this.scene, this.camera);
+    this.quadroDaPreviaPendente = this.previa.capturarQuadro();
     const gl = this.gl;
     this.quadroPendente = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
     if (this.quadroPendente) gl.flush();
@@ -1024,6 +1028,7 @@ export class Cena {
     // Os objetos de sincronização também deixam de existir com o contexto.
     this.quadroPendente = null;
     this.interromperDesenho();
+    this.previa.confirmarQuadro(null);
   };
 
   private readonly aoRestaurar = (): void => {

@@ -2,6 +2,11 @@ import { Group } from "three";
 import type { Ativos, DescricaoDoMorador, VisualDoMorador } from "../ativos/ativos";
 
 export type EstadoDaPrevia = "fechada" | "carregando" | "pronto" | "simples" | "falha";
+export type QuadroDaPrevia = {
+  visual: VisualDoMorador;
+  descricao: string;
+  estado: VisualDoMorador["estadoDaArte"];
+};
 
 /** Uma única prévia visual, sem entidades no espelho e sem renderer próprio. */
 export class PreviaDoMorador {
@@ -11,6 +16,7 @@ export class PreviaDoMorador {
   private pendente: DescricaoDoMorador | null | undefined;
   private repetir = false;
   private giroPendente = 0;
+  private desenhado: QuadroDaPrevia | null = null;
 
   constructor(private readonly ativos: Ativos) {
     this.raiz.position.set(-5, 0, 4);
@@ -25,7 +31,37 @@ export class PreviaDoMorador {
   get estado(): EstadoDaPrevia {
     if (this.pendente) return "carregando";
     if (!this.visual) return "fechada";
+    if (this.visual.estadoDaArte === "falha") return "falha";
+    if (
+      this.desenhado?.visual !== this.visual ||
+      this.desenhado.estado !== this.visual.estadoDaArte ||
+      this.desenhado.descricao !== this.assinaturaAtual()
+    )
+      return "carregando";
     return this.visual.estadoDaArte ?? "simples";
+  }
+
+  capturarQuadro(): QuadroDaPrevia | null {
+    return this.visual
+      ? { visual: this.visual, descricao: this.assinaturaAtual(), estado: this.visual.estadoDaArte }
+      : null;
+  }
+  confirmarQuadro(quadro: QuadroDaPrevia | null): void {
+    this.desenhado = quadro;
+  }
+  private assinaturaAtual(): string {
+    return JSON.stringify(this.descricao);
+  }
+
+  estadoPara(esperado?: DescricaoDoMorador): EstadoDaPrevia {
+    if (
+      esperado &&
+      (!this.descricao ||
+        esperado.fase !== this.descricao.fase ||
+        JSON.stringify(esperado.aparencia) !== JSON.stringify(this.descricao.aparencia))
+    )
+      return "carregando";
+    return this.estado;
   }
 
   /** Coalesce alterações do formulário; toda montagem acontece dentro do quadro admitido. */
@@ -81,6 +117,7 @@ export class PreviaDoMorador {
     this.visual?.dispose();
     this.visual = null;
     this.descricao = null;
+    this.desenhado = null;
   }
   dispose(): void {
     this.soltarVisual();

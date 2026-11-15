@@ -83,7 +83,9 @@ export function CriacaoDaFamilia({
   const aviso = useRef<HTMLParagraphElement>(null);
   const morador = editor.moradores.find((m) => m.chave === selecionada) ?? editor.moradores[0];
   const conectado = controle.sessao.loja.conexao.fase === "pronto";
-  const estadoDaPrevia = controle.previa.estado();
+  const estadoDaPrevia = controle.previa.estado(
+    modo === "editor" && morador ? descricaoDaPrevia(morador.dados) : undefined,
+  );
 
   useEffect(() => {
     if (erro) aviso.current?.focus();
