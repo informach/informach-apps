@@ -99,9 +99,10 @@ export function Carga(props: {
         <div className="morada-cartao">
           <h2>A imagem do jogo parou</h2>
           <p>
-            O navegador interrompeu o desenho. O mundo continua rodando e a cena volta sozinha em
-            instantes.
+            O navegador interrompeu o desenho. O mundo continua rodando. Se a imagem não voltar,
+            saia e abra o jogo novamente.
           </p>
+          {sair}
         </div>
       </div>
     );
