@@ -34,6 +34,7 @@ import type {
   ArmazenamentoDeMundos,
   EntradaGuardada,
   FotografiaParaGuardar,
+  PaginaDoDiario,
 } from "./armazenamento";
 import { armazenamentoPg } from "./armazenamento-repository";
 
@@ -585,7 +586,7 @@ export async function lerFotografiaDoMundo(
 
 export async function lerDiarioDoMundo(
   pedido: PedidoComPosse & { apos: number },
-): Promise<EntradaGuardada[]> {
+): Promise<PaginaDoDiario> {
   return db.transaction(async (tx) => {
     await conferirPosse(tx, pedido);
     return armazenamento.lerDiario(tx, pedido.mundoId, pedido.apos);

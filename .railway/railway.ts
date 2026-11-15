@@ -807,6 +807,8 @@ export default defineRailway((ctx) => {
     start: "pnpm start:morada-server",
     healthcheck: "/api/ready",
     healthcheckTimeout: 60,
+    // O processo reserva 25 s para salvar; Railway só pode matar depois disso.
+    deploy: { drainingSeconds: 35, overlapSeconds: 0 },
     replicas: { [REGION]: 1 },
     domains: RECREIO_DOMAINS_CONFIGURED
       ? [{ domain: "morada-server.informach.com.br", port: 3010 }]
@@ -820,6 +822,9 @@ export default defineRailway((ctx) => {
       MORADA_PLATAFORMA: "recreio",
       MORADA_REGRAS: "prova",
       MORADA_CAPACIDADE: "200",
+      MORADA_CONEXOES_MAX: "1024",
+      MORADA_PEDIDOS_EM_CURSO_MAX: "32",
+      MORADA_QUADROS_POR_SEGUNDO_MAX: "400",
       RECREIO_API_URL: "http://informachrecreio.railway.internal:3009",
       RECREIO_EMISSOR: "https://recreio.informach.com.br",
       MORADA_PUBLIC_URL: "wss://morada-server.informach.com.br",

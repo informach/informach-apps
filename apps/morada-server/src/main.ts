@@ -88,6 +88,7 @@ async function principal(): Promise<void> {
       jogo: JOGO,
       segredo: config.RECREIO_HOST_SECRET as string,
       fotografiaMaxBytes: manifesto.limites.fotografiaMaxBytes,
+      diarioMaxBytes: manifesto.limites.diarioPendenteMaxBytes,
     });
     verificador = criarVerificadorDeSessao({
       emissor: config.RECREIO_EMISSOR ?? new URL(api).origin,

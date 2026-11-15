@@ -101,6 +101,7 @@ const host: ClienteDoHost = criarClienteDoHost({
   jogo: JOGO_DE_TESTE_ID,
   segredo: cfg.segredo,
   fotografiaMaxBytes: JOGO_DE_TESTE.limites.fotografiaMaxBytes,
+  diarioMaxBytes: JOGO_DE_TESTE.limites.diarioPendenteMaxBytes,
 });
 const verificador = criarVerificadorDeSessao({
   emissor: cfg.origemDoPortal,

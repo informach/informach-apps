@@ -3,6 +3,7 @@ import { gzipSync } from "node:zlib";
 import { jogoPorId } from "@informach/config/jogos";
 import {
   APELIDO_MAX,
+  abrirFotografia,
   criarMundo,
   type Fato,
   type Intencao,
@@ -155,7 +156,7 @@ type PassoPorConcluir = {
 };
 
 const texto = new TextEncoder();
-const leitura = new TextDecoder();
+const leitura = new TextDecoder("utf-8", { fatal: true });
 
 /**
  * O apelido de quem entra, como os outros jogadores vão ver. O Recreio já o
@@ -299,15 +300,32 @@ export class Ator {
     const guardada = posse.fotografia
       ? await host.lerFotografia({ mundoId, cerca: this.cerca })
       : null;
+    if (
+      posse.fotografia &&
+      (!guardada ||
+        guardada.meta.revisao !== posse.revisao ||
+        guardada.meta.sha256 !== posse.fotografia.sha256)
+    )
+      throw new ErroDoRecreio("REVISAO_DIVERGENTE");
     const coberto = guardada?.meta.diarioSeq ?? 0;
+    if (coberto > posse.diarioSeq) throw new ErroDoRecreio("SEQUENCIA");
     const diario = await host.lerDiario({ mundoId, cerca: this.cerca, apos: coberto });
-    const fatos = diario.map((entrada) => JSON.parse(leitura.decode(entrada.bytes)) as Fato);
-    this.diarioSeq = diario.at(-1)?.seq ?? Math.max(coberto, posse.diarioSeq);
+    let ultima = coberto;
+    const fatos = diario.map((entrada) => {
+      if (entrada.seq !== ultima + 1) throw new ErroDoRecreio("SEQUENCIA");
+      ultima = entrada.seq;
+      const fato = JSON.parse(leitura.decode(entrada.bytes)) as Fato;
+      if (fato.id !== entrada.fatoId || fato.tick !== entrada.tick)
+        throw new ErroDoRecreio("SEQUENCIA");
+      return fato;
+    });
+    if (ultima !== posse.diarioSeq) throw new ErroDoRecreio("SEQUENCIA");
+    this.diarioSeq = ultima;
     this.diarioSemFoto = diario.reduce((total, entrada) => total + entrada.bytes.length, 0);
 
     // Sem fotografia, o mundo nasce de novo do mesmo jeito: a semente vem do id.
     const base = guardada
-      ? decodificarFotografia(guardada.bytes)
+      ? abrirFotografia(decodificarFotografia(guardada.bytes))
       : criarMundo({
           mundoId,
           semente: resumoDoTexto(mundoId),
@@ -315,6 +333,14 @@ export class Ator {
           fundadores: [],
           regras: this.op.regras,
         }).fotografar();
+    if (
+      base.mundoId !== mundoId ||
+      base.estado.id !== mundoId ||
+      base.tick !== base.estado.relogio.tick ||
+      (guardada &&
+        (base.tick !== guardada.meta.tick || base.estado.versao !== guardada.meta.schemaVersion))
+    )
+      throw new ErroDoRecreio("REVISAO_DIVERGENTE");
     this.mundo = restaurar(base, fatos);
     this.tickConfirmado = this.mundo.estado.relogio.tick;
     this.estado = "ativo";

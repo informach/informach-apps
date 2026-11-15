@@ -96,6 +96,34 @@ async function mundoNoBanco(mundoId: MundoId) {
 }
 
 describe("registro da instância", () => {
+  it("pagina por bytes e sequência, recupera tudo e recusa um buraco persistido", async () => {
+    const { mundoId, cerca, a } = await executando();
+    const entradas = Array.from({ length: 600 }, (_, n) => ({
+      ...fato(n + 1),
+      bytes: new Uint8Array(3000).fill(n % 251),
+    }));
+    for (let inicio = 0; inicio < entradas.length; inicio += 80)
+      await a.cliente.anexarAoDiario({
+        mundoId,
+        cerca,
+        entradas: entradas.slice(inicio, inicio + 80),
+      });
+    const primeira = await pedir(
+      "GET",
+      `/api/interno/v1/mundos/${mundoId}/diario?cerca=${cerca}&apos=0`,
+      { headers: cabecalhosDoHost(MORADA, a.instanciaId) },
+    );
+    expect(primeira).toMatchObject({ status: 200, corpo: { proximoApos: 87 } });
+    const lidas = await a.cliente.lerDiario({ mundoId, cerca, apos: 0 });
+    expect(lidas.map((e) => e.seq)).toEqual(entradas.map((e) => e.seq));
+    expect(
+      lidas.every((e, i) => Buffer.from(e.bytes).equals(Buffer.from(entradas[i]?.bytes ?? []))),
+    ).toBe(true);
+    await db.delete(journal).where(sql`${journal.spaceId} = ${mundoId} and ${journal.seq} = 300`);
+    await expect(a.cliente.lerDiario({ mundoId, cerca, apos: 0 })).rejects.toMatchObject({
+      codigo: "SEQUENCIA",
+    });
+  });
   it("o batimento em lote conserva cercas, ordem e medidas por mundo", async () => {
     const { lia, mundoId, a, cerca, sessao } = await executando();
     const outro = await mundoDe(lia);

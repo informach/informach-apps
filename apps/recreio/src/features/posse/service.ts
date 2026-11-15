@@ -168,8 +168,11 @@ export async function lerDiario(
   host: Host,
   mundoId: unknown,
   consulta: { cerca: unknown; apos: unknown },
-): Promise<{ entradas: { seq: number; tick: number; fatoId: string; bytes: string }[] }> {
-  const entradas = await lerDiarioDoMundo({
+): Promise<{
+  entradas: { seq: number; tick: number; fatoId: string; bytes: string }[];
+  proximoApos: number | null;
+}> {
+  const pagina = await lerDiarioDoMundo({
     mundoId: mundoDoHost(mundoId),
     jogo: host.jogo,
     instanciaId: host.instanciaId,
@@ -177,7 +180,11 @@ export async function lerDiario(
     apos: naoNegativo.parse(consulta.apos),
   });
   return {
-    entradas: entradas.map((entrada) => ({ ...entrada, bytes: bytesParaBase64(entrada.bytes) })),
+    entradas: pagina.entradas.map((entrada) => ({
+      ...entrada,
+      bytes: bytesParaBase64(entrada.bytes),
+    })),
+    proximoApos: pagina.proximoApos,
   };
 }
 

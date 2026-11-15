@@ -6,7 +6,7 @@ import {
   SUBPROTOCOLO,
   VERSAO_DO_PROTOCOLO,
 } from "@informach/morada-sim/protocolo";
-import { ErroDoRecreio } from "@informach/recreio";
+import { ErroDoRecreio, MundoIdSchema } from "@informach/recreio";
 import type { ClienteDoHost } from "@informach/recreio/host";
 import { criarEmissorDeTeste, criarPlataformaFalsa } from "@informach/recreio/testing";
 import { afterEach, describe, expect, it } from "vitest";
@@ -372,10 +372,33 @@ describe("servidor em uma porta de verdade", () => {
     abertos.length = 0;
     expect(await cliente.fechado).toBe(FECHAMENTO.reiniciando);
     expect(cliente.quadros).toContainEqual({ t: "aviso", codigo: "servidor_reiniciando" });
-    const guardado = plataforma.mundo(lia.mundoId as never);
+    const guardado = plataforma.mundo(MundoIdSchema.parse(lia.mundoId));
     expect(guardado.posse).toBeNull();
     expect(guardado.fotografias.at(-1)?.diarioSeq).toBe(guardado.diarioSeq);
   });
+
+  it("salva e encerra mesmo quando o cliente deixa de confirmar o fechamento WS", async () => {
+    const { porta, jogador, servidor, plataforma } = await subir();
+    const lia = await jogador("Lia");
+    const cliente = await conectar(porta);
+    cliente.mandar({
+      t: "entrar",
+      v: VERSAO_DO_PROTOCOLO,
+      sessao: lia.sessao,
+      mundoId: lia.mundoId,
+    });
+    await cliente.esperar(() => cliente.visao !== null);
+    cliente.ws.pause();
+    try {
+      await servidor.encerrar();
+      const guardado = plataforma.mundo(MundoIdSchema.parse(lia.mundoId));
+      expect(guardado.posse).toBeNull();
+      expect(guardado.fotografias.at(-1)?.diarioSeq).toBe(guardado.diarioSeq);
+    } finally {
+      cliente.ws.resume();
+      cliente.ws.terminate();
+    }
+  }, 10_000);
 });
 
 describe("registro no Recreio", () => {

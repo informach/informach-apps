@@ -5,6 +5,8 @@ import {
   CABECALHO_DO_RESUMO,
   CAMINHO_DA_API_DO_HOST,
   type ClienteDoHost,
+  DIARIO_PAGINA_MAX_BYTES,
+  DIARIO_RECUPERACAO_MAX_ENTRADAS,
   DiarioConfirmadoSchema,
   DiarioLidoSchema,
   EntradaPermitidaSchema,
@@ -36,6 +38,8 @@ export type OpcoesDoClienteDoHost = {
   tempoLimiteMs?: number;
   /** Teto comprimido do manifesto do jogo; aplicado antes de alocar o corpo. */
   fotografiaMaxBytes: number;
+  /** Teto total do diário necessário à recuperação, do catálogo do jogo. */
+  diarioMaxBytes: number;
 };
 
 const TEMPO_LIMITE_MS = 10_000;
@@ -54,6 +58,8 @@ const TEMPO_LIMITE_MS = 10_000;
 export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHost {
   if (!Number.isSafeInteger(opcoes.fotografiaMaxBytes) || opcoes.fotografiaMaxBytes <= 0)
     throw new Error("fotografiaMaxBytes precisa ser um inteiro positivo");
+  if (!Number.isSafeInteger(opcoes.diarioMaxBytes) || opcoes.diarioMaxBytes <= 0)
+    throw new Error("diarioMaxBytes precisa ser um inteiro positivo");
   const buscar: Buscar = opcoes.fetch ?? ((url, init) => fetch(url, init));
   const base = `${semBarraFinal(opcoes.baseUrl)}${CAMINHO_DA_API_DO_HOST}`;
   const tempoLimiteMs = opcoes.tempoLimiteMs ?? TEMPO_LIMITE_MS;
@@ -168,12 +174,33 @@ export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHost
 
     async lerDiario({ mundoId, cerca, apos }) {
       eu();
-      const resposta = await chamar(`${mundo(mundoId)}/diario?cerca=${cerca}&apos=${apos}`, {
-        method: "GET",
-        headers: cabecalhos(),
-      });
-      const { entradas } = await lerCorpo(resposta, DiarioLidoSchema);
-      return entradas.map((entrada) => ({ ...entrada, bytes: base64ParaBytes(entrada.bytes) }));
+      const diario: Awaited<ReturnType<ClienteDoHost["lerDiario"]>> = [];
+      let cursor = apos;
+      let total = 0;
+      for (;;) {
+        const resposta = await chamar(`${mundo(mundoId)}/diario?cerca=${cerca}&apos=${cursor}`, {
+          method: "GET",
+          headers: cabecalhos(),
+        });
+        const { entradas, proximoApos } = await lerCorpo(
+          resposta,
+          DiarioLidoSchema,
+          DIARIO_PAGINA_MAX_BYTES * 2 + 65_536,
+        );
+        for (const entrada of entradas) {
+          if (diario.length >= DIARIO_RECUPERACAO_MAX_ENTRADAS)
+            throw new ErroDoRecreio("INDISPONIVEL");
+          if (entrada.seq !== cursor + 1) throw new ErroDoRecreio("SEQUENCIA");
+          const bytes = base64ParaBytes(entrada.bytes);
+          total += bytes.length;
+          if (total > opcoes.diarioMaxBytes) throw new ErroDoRecreio("INDISPONIVEL");
+          diario.push({ ...entrada, bytes });
+          cursor = entrada.seq;
+        }
+        if (proximoApos === undefined || proximoApos === null) return diario;
+        if (cursor <= apos || cursor !== proximoApos || entradas.length === 0)
+          throw new ErroDoRecreio("SEQUENCIA");
+      }
     },
 
     async verificarEntrada({ mundoId, cerca, sid, perfilId }) {

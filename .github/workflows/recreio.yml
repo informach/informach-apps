@@ -6,6 +6,7 @@ on:
     branches: [main, "verify/recreio-*"]
     paths:
       - ".github/workflows/recreio.yml"
+      - ".railway/railway.ts"
       - "apps/recreio/**"
       - "apps/morada-server/**"
       - "packages/recreio/**"
@@ -75,6 +76,7 @@ jobs:
       - if: matrix.gate == 'quality'
         run: |
           pnpm check
+          pnpm compasso:test:infrastructure
           pnpm --workspace-concurrency=1 --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte typecheck
           pnpm --workspace-concurrency=1 --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte test
       - if: matrix.gate == 'integration'

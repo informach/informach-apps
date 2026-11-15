@@ -210,7 +210,14 @@ export const CABECALHO_DA_FOTOGRAFIA = "x-recreio-fotografia";
 /** Na gravação da fotografia: `ResumoDoMundo` em JSON, codificado em base64url. Opcional. */
 export const CABECALHO_DO_RESUMO = "x-recreio-resumo";
 
-export const DiarioLidoSchema = z.strictObject({ entradas: z.array(NovaEntradaDoDiarioSchema) });
+export const DIARIO_PAGINA_MAX_ENTRADAS = 256;
+export const DIARIO_PAGINA_MAX_BYTES = 256 * 1024;
+export const DIARIO_RECUPERACAO_MAX_ENTRADAS = 128 * 1024;
+export const DiarioLidoSchema = z.strictObject({
+  entradas: z.array(NovaEntradaDoDiarioSchema).max(DIARIO_PAGINA_MAX_ENTRADAS),
+  /** Última sequência entregue quando ainda há entradas; ausente em servidor anterior. */
+  proximoApos: naoNegativo.nullable().optional(),
+});
 export const DiarioConfirmadoSchema = z.strictObject({ confirmadoAte: naoNegativo });
 export const FotografiaGravadaSchema = z.strictObject({ revisao: naoNegativo });
 

@@ -83,6 +83,7 @@ export function clienteDoHost(jogo = MORADA): ClienteDoHost {
     segredo: segredo(jogo),
     fetch: despachar,
     fotografiaMaxBytes: limitesDoJogo(jogo).fotografiaMaxBytes,
+    diarioMaxBytes: limitesDoJogo(jogo).diarioPendenteMaxBytes,
   });
 }
 

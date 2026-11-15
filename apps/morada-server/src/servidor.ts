@@ -333,9 +333,18 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
       if (ciclo) clearTimeout(ciclo);
       if (pulsacao) clearInterval(pulsacao);
       await instancia.encerrar();
-      for (const ws of sockets.clients) ws.close(FECHAMENTO.reiniciando);
-      await new Promise<void>((resolve) => sockets.close(() => resolve()));
-      await new Promise<void>((resolve) => http.close(() => resolve()));
+      // Os mundos já estão gravados. Um cliente que não confirma o close WS
+      // não pode consumir os 25 s reservados para persistência do processo.
+      const forcarFechamento = setTimeout(() => {
+        for (const ws of sockets.clients) ws.terminate();
+      }, 1000);
+      try {
+        for (const ws of sockets.clients) ws.close(FECHAMENTO.reiniciando);
+        await new Promise<void>((resolve) => sockets.close(() => resolve()));
+        await new Promise<void>((resolve) => http.close(() => resolve()));
+      } finally {
+        clearTimeout(forcarFechamento);
+      }
     },
   };
 }

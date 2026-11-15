@@ -162,6 +162,7 @@ async function criarAmbiente(
         segredo: segredoDoHost(jogo) ?? "",
         fetch: despachar,
         fotografiaMaxBytes: limitesDoJogo(jogo).fotografiaMaxBytes,
+        diarioMaxBytes: limitesDoJogo(jogo).diarioPendenteMaxBytes,
       });
     },
 
