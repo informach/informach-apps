@@ -4,6 +4,7 @@ import {
   type CatalogoDeAparencias,
   CatalogoDeAparenciasSchema,
   conferirContinuidadeDaAparencia,
+  copiar,
   criarMundo,
   FASES,
   listar,
@@ -110,7 +111,7 @@ describe("catálogo admitido e persistido no mundo", () => {
       if (mudanca === "cabelo" || mudanca === "roupa") morador[mudanca] = "inventado";
       if (mudanca === "extra") morador.edicao.coresDaRoupa.oculos = 0xff0000;
       if (mudanca === "ausente") delete morador.edicao.coresDaRoupa.inteira;
-      const antes = structuredClone(mundo.estado.contadores);
+      const antes = copiar(mundo.estado.contadores);
       expect(fundar(mundo, dados)).toMatchObject({
         ok: false,
         motivo: "requisito",
@@ -123,7 +124,7 @@ describe("catálogo admitido e persistido no mundo", () => {
   it("não herda mudanças do chamador e conserva o catálogo na fotografia e na visão", () => {
     const c = catalogo();
     const mundo = novo(c);
-    const antes = structuredClone(c);
+    const antes = copiar(c);
     const primeira = c.opcoes[0];
     if (!primeira) throw new Error("Opção ausente");
     primeira.rotuloDaRoupa = "Alterada";
@@ -154,7 +155,7 @@ describe("catálogo admitido e persistido no mundo", () => {
     expect(fundar(mundo, familia()).ok).toBe(true);
     const morador = listar(mundo.estado.moradores).find((m) => m.nome === "Lua");
     if (!morador) throw new Error("Morador ausente");
-    const antes = structuredClone(morador.aparencia);
+    const antes = copiar(morador.aparencia);
     mundo.avancar(1000);
     expect(morador.fase).toBe("idoso");
     expect(morador.aparencia).toEqual({ ...antes, corpo: "idosa" });

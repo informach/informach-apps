@@ -1,5 +1,6 @@
 import { corpoDaFase } from "../conteudo";
 import type { MoradorInicial } from "../formatos/bairro";
+import { copiar } from "../nucleo/canonico";
 import { sorteioAte } from "../nucleo/sorteio";
 import { necessidadesIniciais } from "./estado";
 import type { FamiliaId, MoradorId } from "./ids";
@@ -28,7 +29,7 @@ export function montarMoradorInicial(
     idadeNaFaseMs: 0,
     origem: {},
     aparencia: {
-      ...(inicial.edicao ? { edicao: structuredClone(inicial.edicao) } : {}),
+      ...(inicial.edicao ? { edicao: copiar(inicial.edicao) } : {}),
       linha: inicial.linha,
       corpo: corpoDaFase(inicial.linha, inicial.fase),
       pele: inicial.pele,

@@ -14,6 +14,7 @@ import {
   type Relacao,
 } from "../dominio/tipos";
 import { ondeEsta } from "../espaco/posicoes";
+import { copiar } from "../nucleo/canonico";
 import { sorteioAte } from "../nucleo/sorteio";
 import { apresentar, type Contexto, emitir, novaMemoria, tocar } from "./contexto";
 import { darSensacao, MS_POR_DIA } from "./efeitos";
@@ -132,7 +133,7 @@ function criarBebe(estado: EstadoDoMundo, gravidez: Gravidez, gestante: Morador)
     idadeNaFaseMs: 0,
     origem: { gravidezId: gravidez.id },
     aparencia: {
-      ...(visual?.aparencia.edicao ? { edicao: structuredClone(visual.aparencia.edicao) } : {}),
+      ...(visual?.aparencia.edicao ? { edicao: copiar(visual.aparencia.edicao) } : {}),
       linha,
       corpo: corpoDaFase(linha, "colo"),
       pele: dePele.aparencia.pele,
