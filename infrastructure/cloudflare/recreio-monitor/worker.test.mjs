@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
+import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import { test } from "node:test";
@@ -47,32 +48,53 @@ async function cenario(opcoes, conferir) {
   let mf;
   try {
     mf = new Miniflare({
-      modules: true,
-      scriptPath,
-      compatibilityDate: "2026-11-15",
-      bindings: { ...bindings, ...opcoes.bindings },
-      outboundService: async (pedido) => {
-        const url = new URL(pedido.url);
-        // Somente a fronteira de rede é substituída: Worker e HTTP da fixture são reais.
-        const caminho = url.hostname.endsWith("sentry.io")
-          ? url.pathname
-          : url.hostname.startsWith("morada-server.")
-            ? "/morada-server"
-            : "/recreio";
-        assert.ok(
-          [
-            "recreio.informach.com.br",
-            "morada-server.informach.com.br",
-            "o123.ingest.us.sentry.io",
-          ].includes(url.hostname),
-        );
-        return fetch(`${local}${caminho}`, {
-          method: pedido.method,
-          headers: pedido.headers,
-          body: pedido.method === "POST" ? await pedido.arrayBuffer() : undefined,
-          redirect: "manual",
-        });
-      },
+      workers: [
+        {
+          config: {
+            name: "informach-recreio-monitor",
+            compatibilityDate: "2026-11-15",
+            manifest: {
+              mainModule: "worker.mjs",
+              modules: {
+                "worker.mjs": { type: "esm", contents: readFileSync(scriptPath, "utf8") },
+              },
+            },
+            env: Object.fromEntries(
+              Object.entries({ ...bindings, ...opcoes.bindings }).map(([nome, value]) => [
+                nome,
+                { type: "text", value },
+              ]),
+            ),
+          },
+          dev: {
+            outboundService: {
+              type: "fetcher",
+              handler: async (pedido) => {
+                const url = new URL(pedido.url);
+                // Somente a fronteira de rede é substituída: Worker e HTTP da fixture são reais.
+                const caminho = url.hostname.endsWith("sentry.io")
+                  ? url.pathname
+                  : url.hostname.startsWith("morada-server.")
+                    ? "/morada-server"
+                    : "/recreio";
+                assert.ok(
+                  [
+                    "recreio.informach.com.br",
+                    "morada-server.informach.com.br",
+                    "o123.ingest.us.sentry.io",
+                  ].includes(url.hostname),
+                );
+                return fetch(`${local}${caminho}`, {
+                  method: pedido.method,
+                  headers: pedido.headers,
+                  body: pedido.method === "POST" ? await pedido.arrayBuffer() : undefined,
+                  redirect: "manual",
+                });
+              },
+            },
+          },
+        },
+      ],
     });
     const worker = await mf.getWorker();
     const resultado = await worker.scheduled({ cron: "*/5 * * * *", scheduledTime: new Date() });
