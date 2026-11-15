@@ -54,6 +54,15 @@ preço/catálogo junto desse conteúdo. Consumidores: núcleo, servidor e client
 
 ## 2. Validação espacial sem efeitos
 
+Primeiro perfil em preparação em `espaco/colocacao.ts`: móveis no chão do
+térreo, dentro do contorno da casa, grade de 500 mm e quatro giros. Confere
+volume físico independentemente do bloqueio de navegação, contornos côncavos,
+paredes/vãos, entrada, acessos que já existiam, moradores/rotas, uso em curso
+ou enfileirado e suporte de enfeites legados. Tapete possui camada explícita de
+colisão que admite móvel por cima. Apoios, teto/parede, quintal e andares
+adicionais precisam de seus contratos e não são habilitados por esse perfil.
+Validação ainda sem integração com comandos, saldo ou formato de mundo.
+
 Arquivos novos em `packages/morada-sim/src/espaco/`; consumir
 `formatos/imovel.ts`, `espaco/navegador.ts`, `espaco/posicoes.ts`.
 

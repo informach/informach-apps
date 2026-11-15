@@ -408,6 +408,7 @@ export const CATALOGO_DA_PROVA: readonly EntradaDeCatalogo[] = [
     pegada: [-650, -650, 650, 650],
     altura: 15,
     bloqueia: false,
+    camadaDeColisao: "piso",
   },
   {
     id: "brinquedo_bola_vermelha",

@@ -35,6 +35,8 @@ export type EntradaDeCatalogo = {
   altura: Mm;
   /** Se impede a passagem. */
   bloqueia: boolean;
+  /** Tapetes admitem móveis por cima; não confundir passagem com volume físico. */
+  camadaDeColisao?: "piso" | "volume";
   comportamento?: string;
   pontos?: PontoDeUso[];
 };
