@@ -1,6 +1,6 @@
 # D2: criação da família do jogo
 
-Desenho de continuação autorizado pelo titular; **criação ainda não implementada**, preparação da compatibilidade em curso. A família fictícia do Morada não é o grupo de assinatura nem a família real do Recreio. Não reutilizar entidades, cobrança ou autoridade Compasso para representá-la.
+Desenho de continuação autorizado pelo titular; **núcleo, catálogo inicial e editor homologados no perfil registrado**, com implantação do alfa em acompanhamento no [registro operacional](execucao-2026-11-15.md). A seleção de casa/orçamento ainda está pendente. A família fictícia do Morada não é o grupo de assinatura nem a família real do Recreio. Não reutilizar entidades, cobrança ou autoridade Compasso para representá-la.
 
 **Objetivo:** começar com um ou mais moradores, escolher aparência, fase, traços e relações, conferir casa/orçamento e confirmar uma única criação durável. Mundos existentes conservam seus moradores e histórias.
 

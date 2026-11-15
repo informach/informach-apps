@@ -118,10 +118,11 @@ limitada à compra, IDs únicos e correspondência exata com o catálogo da
 simulação e a lista de peças que o host tem disponível. `conteudo/loja.ts`
 propõe oito ofertas iniciais, com rótulos e preços fictícios na política 1:
 rack 240 M$, sofá 460 M$, mesa lateral 95 M$, poltrona 220 M$, cadeira 90 M$,
-cama 650 M$, cabeceira 120 M$ e geladeira 780 M$; revenda de 50%.
+cama 650 M$, mesa de cabeceira 120 M$ e geladeira 780 M$; revenda de 50%.
 Não são preços de assinatura, oferta comercial ou conversão para dinheiro real.
 
-Contratos e dez casos de validação seguem como candidato para o GitHub.
+`cd9e7f3a`: nove casos de validação e cinco gates públicos aprovados em
+`43746502172`. Fonte somente na branch candidata `verify/recreio-2026-11-15-d3-catalogo`.
 Ainda não expostos no índice público do package, na visão, no mundo ou no
 servidor; nenhum comando de compra/venda está habilitado. Persistência da
 política, colocação, autorização, recibos e interface continuam pendentes.

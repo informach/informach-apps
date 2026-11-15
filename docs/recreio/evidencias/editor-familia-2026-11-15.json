@@ -1,0 +1,52 @@
+{
+  "codigoEditor": "36606409b433d672edd43a30ebfda235db3811a3",
+  "execucaoPublica": 43745915050,
+  "repeticaoMain": 43747663778,
+  "execucaoPrivada": 43745943221,
+  "ambiente": "GitHub Actions, Chromium headless, SwiftShader",
+  "jornadas": {
+    "combinacoesDeAparencia": 48,
+    "duracaoEditorSegundos": 228,
+    "jornadasGeraisComArte": 5,
+    "duracaoJornadasGeraisSegundos": 631,
+    "criacaoPersonalizadaComDoisMoradores": true,
+    "saiuPeloJogoEReabriu": true,
+    "larguraCelularPx": 390
+  },
+  "recursosAntesDosCiclos": {
+    "contextos": 1,
+    "buffers": 128,
+    "texturas": 33,
+    "maximoBuffers": 203,
+    "maximoTexturas": 35
+  },
+  "recursosDepoisDosCiclos": {
+    "contextos": 1,
+    "buffers": 128,
+    "texturas": 33,
+    "maximoBuffers": 203,
+    "maximoTexturas": 35
+  },
+  "arte": {
+    "origem": "4f3012101735ffddd066c31bb0bd8319723eb9ba",
+    "empacotador": "c005537a71cb497045a5d68e8ebfa662cb0bd87d",
+    "execucaoDoPacote": 43738068686,
+    "manifestoSha256": "4198478735b643e07d4ce0821db82654c42847bbf996d1d07a99a5890b21672f",
+    "arquivosComBrotli": 240,
+    "bytesComBrotli": 37810510,
+    "bytesOriginais": 24723634,
+    "releasePrivadaRascunho": 446270559,
+    "zipBytes": 37879766,
+    "zipSha256": "d9775ceeba79c3ca460e816be4bbdb4d5a2dbb4eead93a69bf6d03793ae908ed",
+    "downloadDaReleaseConferido": true,
+    "arquivosConferidosNoDownload": 240
+  },
+  "limites": [
+    "Contagens de alocacoes, sem medicao de bytes de VRAM ou memoria total",
+    "Navegador por software; nao certifica FPS em GPU fisica",
+    "Layout de celular em navegador; nao certifica aparelho movel real",
+    "Arte e capturas permanecem exclusivamente privadas",
+    "Casa e saldo iniciais fixos; selecao de casa/orcamento continua pendente",
+    "Diversao e retorno humano continuam sem prova"
+  ]
+}

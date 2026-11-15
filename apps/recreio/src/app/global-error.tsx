@@ -9,6 +9,7 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const versaoAnterior = error.name === "UnrecognizedActionError";
   useEffect(() => {
     Sentry.captureException(error);
   }, [error]);
@@ -30,14 +31,16 @@ export default function GlobalError({
       >
         <main style={{ maxWidth: "28rem", textAlign: "center" }}>
           <h1 style={{ fontSize: "1.5rem", lineHeight: 1.25, margin: "0 0 12px" }}>
-            Não foi possível abrir o Recreio.
+            {versaoAnterior ? "Atualizamos o Recreio." : "Não foi possível abrir o Recreio."}
           </h1>
           <p style={{ margin: "0 0 20px", lineHeight: 1.5 }}>
-            Sua conta continua como estava. Tente carregar novamente em alguns instantes.
+            {versaoAnterior
+              ? "Carregue a versão atual para continuar."
+              : "Carregue a página e confira o resultado antes de tentar novamente."}
           </p>
           <button
             type="button"
-            onClick={reset}
+            onClick={versaoAnterior ? () => window.location.reload() : reset}
             style={{
               font: "inherit",
               fontWeight: 700,
@@ -49,7 +52,7 @@ export default function GlobalError({
               cursor: "pointer",
             }}
           >
-            Tentar novamente
+            {versaoAnterior ? "Atualizar o Recreio" : "Tentar novamente"}
           </button>
         </main>
       </body>

@@ -11,7 +11,8 @@
  * com o seu id, até as sessões assinadas por ela vencerem.
  *
  * Com `--github-env`, imprime só as linhas `NOME=valor` de uma chave
- * descartável, para o passo de build do CI acrescentar a `$GITHUB_ENV`.
+ * descartável e uma chave AES descartável das ações, para o passo de build
+ * do CI acrescentar a `$GITHUB_ENV`. O modo normal não altera a chave AES.
  */
 import { generateKeyPairSync, randomBytes } from "node:crypto";
 
@@ -25,6 +26,7 @@ const kid = `recreio-${hoje}-${randomBytes(3).toString("hex")}`;
 if (process.argv.includes("--github-env")) {
   console.log(`RECREIO_TOKEN_PRIVATE_KEY=${privada}`);
   console.log(`RECREIO_TOKEN_KEY_ID=ci-${randomBytes(3).toString("hex")}`);
+  console.log(`NEXT_SERVER_ACTIONS_ENCRYPTION_KEY=${randomBytes(32).toString("base64")}`);
 } else {
   console.log("Chave nova. Copie para o provedor e não guarde em arquivo do repositório.\n");
   console.log(`RECREIO_TOKEN_KEY_ID=${kid}`);

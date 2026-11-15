@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:integration": "node scripts/isolated.mjs integration",
     "e2e": "node scripts/isolated.mjs e2e",
+    "e2e:versoes": "node scripts/isolated.mjs versoes",
     "jogo-de-teste": "node --import tsx e2e/servidor/main.ts",
     "conceder": "node --conditions=react-server --import tsx scripts/conceder.ts",
     "revogar": "node --conditions=react-server --import tsx scripts/revogar.ts",

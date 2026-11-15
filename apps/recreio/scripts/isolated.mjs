@@ -20,8 +20,10 @@ const app = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = resolve(app, "../..");
 loadEnv({ path: resolve(root, ".env") });
 const mode = process.argv[2];
-if (!["integration", "e2e"].includes(mode)) throw new Error("Choose integration or e2e");
-const e2e = mode === "e2e";
+if (!["integration", "e2e", "versoes"].includes(mode))
+  throw new Error("Choose integration, e2e or versoes");
+const versoes = mode === "versoes";
+const e2e = mode === "e2e" || versoes;
 const baseUrl = process.env.DATABASE_URL;
 const pnpmCli = process.env.npm_execpath;
 if (!baseUrl || !pnpmCli)
@@ -69,12 +71,15 @@ const generatedPaths = e2e
       resolve(app, `.next-isolated-${e2eRunId}`),
       resolve(app, `test-results-${e2eRunId}`),
       resolve(app, "tmp", `emails-e2e-${e2eRunId}`),
+      ...(versoes ? [resolve(app, "tmp", `.next-previous-${e2eRunId}`)] : []),
     ]
   : [];
 for (const generatedPath of generatedPaths) {
   const pai = dirname(generatedPath);
   if (
-    !/^(\.next-isolated|test-results|emails-e2e)-[a-f0-9]{24}$/.test(basename(generatedPath)) ||
+    !/^(\.next-isolated|\.next-previous|test-results|emails-e2e)-[a-f0-9]{24}$/.test(
+      basename(generatedPath),
+    ) ||
     (pai !== app && pai !== resolve(app, "tmp"))
   )
     throw new Error("Refusing to use an unexpected isolated artifact path");
@@ -83,6 +88,8 @@ const [, resultsPath, emailsPath] = generatedPaths;
 const testEnv = {
   DATABASE_URL: url.toString(),
   BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
+  NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: randomBytes(32).toString("base64"),
+  NEXT_DEPLOYMENT_ID: e2e ? `ci-${e2eRunId}-a` : "",
   BETTER_AUTH_URL: origin,
   NEXT_PUBLIC_APP_URL: origin,
   SENDGRID_API_KEY: "SG.local-not-sent",
@@ -121,6 +128,7 @@ const testEnv = {
   CRON_SECRET: randomBytes(32).toString("hex"),
   RECREIO_E2E_RUN_ID: e2eRunId,
   RECREIO_E2E_PORT: e2ePort,
+  RECREIO_E2E_VERSOES: versoes ? "1" : "0",
 };
 const childEnv = { ...process.env, ...testEnv, RECREIO_ISOLATED_TEST: "1" };
 delete childEnv.MORADA_ARTE_DIR;
@@ -160,7 +168,7 @@ try {
   console.log(`[recreio] Isolated local database created: ${name}`);
   run(["--filter", "@informach/db", "db:migrate"], root);
   if (e2e) {
-    run(["--filter", "@informach/morada-server", "build"], root);
+    if (!versoes) run(["--filter", "@informach/morada-server", "build"], root);
     run(["exec", "next", "build"], app);
     // Mesmo artefato do Railway: o standalone precisa de public/ e static/.
     const buildPath = generatedPaths[0];
@@ -169,7 +177,24 @@ try {
     cpSync(resolve(buildPath, "static"), resolve(standalone, basename(buildPath), "static"), {
       recursive: true,
     });
-    run(["exec", "playwright", "test", ...process.argv.slice(3)], app);
+    if (versoes) {
+      const previousPath = generatedPaths[3];
+      cpSync(resolve(buildPath, "standalone"), previousPath, {
+        recursive: true,
+        verbatimSymlinks: true,
+      });
+      childEnv.RECREIO_E2E_VERSAO_A = childEnv.NEXT_DEPLOYMENT_ID;
+      childEnv.NEXT_DEPLOYMENT_ID = `ci-${e2eRunId}-b`;
+      childEnv.RECREIO_E2E_VERSAO_B = childEnv.NEXT_DEPLOYMENT_ID;
+      childEnv.RECREIO_E2E_PREVIOUS_STANDALONE = resolve(previousPath, "apps/recreio");
+      childEnv.RECREIO_E2E_VERSOES = "1";
+      run(["exec", "next", "build"], app);
+      cpSync(resolve(app, "public"), resolve(standalone, "public"), { recursive: true });
+      cpSync(resolve(buildPath, "static"), resolve(standalone, basename(buildPath), "static"), {
+        recursive: true,
+      });
+      run(["exec", "playwright", "test", "--config", "playwright.versoes.config.ts"], app);
+    } else run(["exec", "playwright", "test", ...process.argv.slice(3)], app);
   } else
     run(
       [
