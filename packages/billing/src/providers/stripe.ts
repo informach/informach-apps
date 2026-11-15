@@ -292,6 +292,23 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
       }).eventCustomerId(object);
     },
 
+    async isPaidSubscriptionInvoice(invoiceId, customerId) {
+      const invoice = await stripe.invoices.retrieve(invoiceId);
+      const owner = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
+      if (owner !== customerId || !invoice.billing_reason?.startsWith("subscription_"))
+        return false;
+      // A mixed or incomplete invoice may contain an unrelated one-time purchase.
+      if (
+        invoice.lines.has_more ||
+        invoice.lines.data.length === 0 ||
+        invoice.lines.data.some((line) => line.parent?.type !== "subscription_item_details")
+      )
+        return false;
+      if (invoice.status !== "paid")
+        throw new BillingError("Subscription invoice payment is not yet confirmed");
+      return true;
+    },
+
     async readCreditPayment(customerId, paymentId) {
       const observedAt = new Date();
       const payment = await stripe.paymentIntents.retrieve(paymentId, {

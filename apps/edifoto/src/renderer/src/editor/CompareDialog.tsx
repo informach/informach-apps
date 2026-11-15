@@ -88,7 +88,8 @@ export function CompareDialog(): ReactNode {
                 disabled={!id}
                 onClick={() =>
                   attempt(() => {
-                    setLayerProps(id!, { blendMode: mode });
+                    if (!id) return;
+                    setLayerProps(id, { blendMode: mode });
                     close();
                   })
                 }

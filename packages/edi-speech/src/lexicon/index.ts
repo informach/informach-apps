@@ -16,7 +16,10 @@ function load(): Set<string> {
   const out = new Set<string>(LESSON_WORDS);
   let previous = "";
   for (const entry of PT_WORDS.split(",")) {
-    const shared = Number.parseInt(entry[0]!, 36);
+    const prefix = entry[0];
+    if (prefix === undefined) throw new Error("Entrada vazia no léxico de português.");
+    const shared = Number.parseInt(prefix, 36);
+    if (!Number.isFinite(shared)) throw new Error("Prefixo inválido no léxico de português.");
     previous = previous.slice(0, shared) + entry.slice(1);
     out.add(previous);
   }

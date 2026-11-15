@@ -60,7 +60,7 @@ export function Stage({ showTime = false }: { showTime?: boolean }) {
     ? `${transform.flipH ? " scaleX(-1)" : ""}${transform.flipV ? " scaleY(-1)" : ""}`
     : "";
   // A quarter turn swaps the sides: shrink so the turned picture still fits the stage.
-  const aspect = facts && facts.height ? facts.width / facts.height : 1;
+  const aspect = facts?.height ? facts.width / facts.height : 1;
   const fit = turn === 90 || turn === 270 ? Math.min(aspect, 1 / aspect) : 1;
   const style = { transform: `scale(${fit}) rotate(${turn}deg)${flips}` };
   const audioOnly = !!source && !source.facts.hasVideo;

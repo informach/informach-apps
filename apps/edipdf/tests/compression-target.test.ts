@@ -207,7 +207,7 @@ test("bounded PDF decoding rejects expansion beyond the budget and decodes filte
   const stream = doc.context.stream(compressed, { Filter: "FlateDecode" });
   assert.throws(() => decodeBoundedPdfStream(stream, 4096), /limite de memória/);
   assert.deepEqual(decodeBoundedPdfStream(stream, payload.length), payload);
-  const hex = new TextEncoder().encode(Buffer.from(compressed).toString("hex") + ">");
+  const hex = new TextEncoder().encode(`${Buffer.from(compressed).toString("hex")}>`);
   const chain = doc.context.stream(hex, { Filter: ["ASCIIHexDecode", "FlateDecode"] });
   assert.deepEqual(decodeBoundedPdfStream(chain, payload.length), payload);
   assert.throws(

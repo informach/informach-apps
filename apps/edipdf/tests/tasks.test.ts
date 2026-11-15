@@ -198,7 +198,9 @@ async function fixture() {
       },
       decode(value: Uint8Array) {
         const bytes = Buffer.from(value),
-          decipher = createDecipheriv("aes-256-gcm", key, bytes.subarray(0, 12));
+          decipher = createDecipheriv("aes-256-gcm", key, bytes.subarray(0, 12), {
+            authTagLength: 16,
+          });
         decipher.setAuthTag(bytes.subarray(-16));
         return Buffer.concat([decipher.update(bytes.subarray(12, -16)), decipher.final()]).toString(
           "utf8",

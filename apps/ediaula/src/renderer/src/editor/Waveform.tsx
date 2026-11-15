@@ -53,7 +53,7 @@ export function Waveform({
     const h = canvas.clientHeight;
     canvas.width = Math.ceil(width * dpr);
     canvas.height = Math.ceil(h * dpr);
-    const ctx = canvas.getContext("2d")!;
+    const ctx = requireCanvas2d(canvas);
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, h);
     ctx.fillStyle = color;
@@ -75,3 +75,5 @@ export function Waveform({
   if (width <= 0) return null;
   return <canvas ref={canvasRef} className="waveform" style={{ left: x0, width }} />;
 }
+
+import { requireCanvas2d } from "@/lib/canvas";

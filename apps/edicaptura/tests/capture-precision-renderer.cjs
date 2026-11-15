@@ -135,7 +135,7 @@ async function run() {
       { last },
     );
     const base = `http://127.0.0.1:${server.httpServer.address().port}`;
-    await page.goto(base + "/src/capture/selection.html");
+    await page.goto(`${base}/src/capture/selection.html`);
     await page.waitForFunction(() =>
       document.querySelector("#desktop").getAttribute("src")?.startsWith("data:image/"),
     );
@@ -228,7 +228,7 @@ async function run() {
     await page.screenshot({ path: path.join(evidence, "selection.png") });
     // Only the toolbar accompanies the region: no hint, loupe or side panel.
     for (const id of ["selection-tip", "loupe", "precision-panel"])
-      assert.equal(await page.locator("#" + id).count(), 0, id);
+      assert.equal(await page.locator(`#${id}`).count(), 0, id);
     await page.locator("#surface").focus();
     await page.keyboard.press("Enter");
     // Bitmap 1200 × 400 shown as 600 × 200 DIP: region 21,100 210 × 100 px.
@@ -237,7 +237,7 @@ async function run() {
       assert(Math.abs(chosen[key] - value) < 1e-6, `${key}: ${chosen[key]}`);
     await page.keyboard.press("Escape");
     assert(await page.evaluate(() => window.fixture.cancelled));
-    await page.goto(base + "/src/editor/index.html");
+    await page.goto(`${base}/src/editor/index.html`);
     await page.locator("#photo-options").click();
     await page.locator("#photo-preset-tools summary").click();
     await page.locator("#photo-delay").fill("4");

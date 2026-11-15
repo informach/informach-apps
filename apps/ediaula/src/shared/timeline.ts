@@ -325,7 +325,10 @@ export function closeGaps(clips: Clip[], trackId: string): Clip[] {
     moved.set(c.id, cursor);
     cursor += c.duration;
   }
-  return clips.map((c) => (moved.has(c.id) ? { ...c, start: moved.get(c.id)! } : c));
+  return clips.map((c) => {
+    const start = moved.get(c.id);
+    return start === undefined ? c : { ...c, start };
+  });
 }
 
 /** Returns the candidate closest to `t` within `threshold`, or `t` itself. */

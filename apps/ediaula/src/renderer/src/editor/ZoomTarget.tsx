@@ -148,7 +148,8 @@ export function ZoomTarget({
   width: number;
   height: number;
 }): ReactNode {
-  const z = clip.zoomLayer!;
+  const z = clip.zoomLayer;
+  if (!z) throw new Error("O zoom selecionado não está disponível.");
   return (
     <FocusBox
       focus={{ scale: z.scale, x: z.x, y: z.y }}

@@ -230,6 +230,15 @@ export function colorMapper(
   return (hex) => (hex ? (map.get(norm(hex)) ?? hex) : hex);
 }
 
+function requiredColor(
+  map: (hex: string | undefined) => string | undefined,
+  color: string,
+): string {
+  const mapped = map(color);
+  if (mapped === undefined) throw new Error("Não foi possível mapear a cor obrigatória.");
+  return mapped;
+}
+
 /** The same annotation in another palette (main color, outline, fill, shadow, text and accent). */
 export function recolorAnnotation(
   a: Annotation,
@@ -238,10 +247,10 @@ export function recolorAnnotation(
 ): Annotation {
   return {
     ...a,
-    color: map(a.color)!,
-    ...(a.outline ? { outline: { ...a.outline, color: map(a.outline.color)! } } : {}),
+    color: requiredColor(map, a.color),
+    ...(a.outline ? { outline: { ...a.outline, color: requiredColor(map, a.outline.color) } } : {}),
     ...(a.fill ? { fill: map(a.fill) } : {}),
-    ...(a.shadow ? { shadow: { ...a.shadow, color: map(a.shadow.color)! } } : {}),
+    ...(a.shadow ? { shadow: { ...a.shadow, color: requiredColor(map, a.shadow.color) } } : {}),
     ...(a.textColor ? { textColor: map(a.textColor) } : {}),
     ink: to.roles.ink,
     ...(a.kind === "card" ? { accent: to.roles.accent } : {}),
@@ -256,7 +265,7 @@ export function recolorTransform(
   return {
     ...t,
     ...(t.border ? { border: map(t.border) } : {}),
-    ...(t.shadow ? { shadow: { ...t.shadow, color: map(t.shadow.color)! } } : {}),
+    ...(t.shadow ? { shadow: { ...t.shadow, color: requiredColor(map, t.shadow.color) } } : {}),
   };
 }
 

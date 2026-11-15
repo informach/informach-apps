@@ -19,6 +19,7 @@ import {
 } from "../src/shared/cleanup.ts";
 import type { Clip, Project, Transcript } from "../src/shared/types.ts";
 import { makeTranscript, parseSilences, parseWhisper } from "../src/shared/whisperParse.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 // Real whisper.cpp (large-v3-turbo + DTW) output for a synthetic lesson excerpt with a "Né,",
 // a "tipo,", a repeated phrase and several pauses.
@@ -51,9 +52,9 @@ test("whisper tokens become words with punctuation attached and sane timing", ()
     );
     assert.ok(words[i].end > words[i].start);
   }
-  const sala = words.find((w) => w.text === "sala.")!;
+  const sala = assertDefined(words.find((w) => w.text === "sala."));
   assert.equal(sala.end, 6.264, "end snapped to the start of the following silence");
-  const ne = words.find((w) => w.text === "Né,")!;
+  const ne = assertDefined(words.find((w) => w.text === "Né,"));
   assert.ok(ne.start >= 9.652 && ne.start < 9.9, `Né starts right after the pause (${ne.start})`);
 });
 
@@ -131,11 +132,13 @@ test("analysis finds the filler words, the repeated phrase and the long pauses",
     keepPause: 0.4,
   });
   const byKey = new Map(words.map((w) => [w.key, w]));
-  const fillers = issues.filter((i) => i.kind === "filler").map((i) => byKey.get(i.words[0])!.text);
+  const fillers = issues
+    .filter((i) => i.kind === "filler")
+    .map((i) => assertDefined(byKey.get(i.words[0])).text);
   assert.deepEqual(fillers, ["Né,", "tipo,"]);
   const repeats = issues
     .filter((i) => i.kind === "repeat")
-    .flatMap((i) => i.words.map((k) => byKey.get(k)!.text));
+    .flatMap((i) => i.words.map((k) => assertDefined(byKey.get(k)).text));
   assert.deepEqual(repeats.sort(), ["Quem", "está", "está?", "participando,", "quem"].sort());
   const pauses = issues.filter((i) => i.kind === "silence");
   // Five pauses of a second or more; the three right after a question ("Quem ficou de fora?")
@@ -200,7 +203,7 @@ test("rippleDeleteRange cuts and shifts only target tracks", () => {
       [5, 12, 8],
     ],
   );
-  assert.equal(out.find((c) => c.id === "z")!.start, 12);
+  assert.equal(assertDefined(out.find((c) => c.id === "z")).start, 12);
 });
 
 test("locked music keeps its length; short music that ended early is left alone", () => {
@@ -208,10 +211,10 @@ test("locked music keeps its length; short music that ended early is left alone"
   const ranges: [number, number][] = [[10, 20]];
   const targets = cutTargets(p);
   const locked = applyCuts(p.clips, ranges, targets, new Set(["a2"]));
-  assert.equal(locked.find((c) => c.trackId === "a2")!.duration, 37);
+  assert.equal(assertDefined(locked.find((c) => c.trackId === "a2")).duration, 37);
   const shortMusic = p.clips.map((c) => (c.trackId === "a2" ? { ...c, duration: 8 } : c));
   const out = applyCuts(shortMusic, ranges, targets);
-  assert.equal(out.find((c) => c.trackId === "a2")!.duration, 8);
+  assert.equal(assertDefined(out.find((c) => c.trackId === "a2")).duration, 8);
 });
 
 test("mergeRanges joins overlapping cuts", () => {
@@ -235,7 +238,7 @@ test("paragraphs and SRT captions", () => {
   assert.ok(paras.length >= 3);
   const srt = buildSrt(words);
   assert.match(srt, /^1\n00:00:00,\d{3} --> 00:00:0\d,\d{3}\nBom, pessoal/);
-  const ne = words.find((w) => w.text === "Né,")!;
+  const ne = assertDefined(words.find((w) => w.text === "Né,"));
   assert.match(
     buildSrt(words, new Set([ne.key])),
     /\nEntão antes de ensinar/,

@@ -481,11 +481,13 @@ export class PhotoCapture {
   private async capture(a: Active) {
     this.guard(a);
     a.deadline = performance.now() + a.request.delay * 1000;
-    while (performance.now() < a.deadline) {
+    while (true) {
+      const remaining = a.deadline - performance.now();
+      if (remaining <= 0) break;
       this.guard(a);
       this.deps.state({
         phase: "countdown",
-        remaining: Math.ceil((a.deadline - performance.now()) / 1000),
+        remaining: Math.ceil(remaining / 1000),
       });
       await new Promise<void>((resolve, reject) => {
         const abort = () => {
@@ -497,7 +499,7 @@ export class PhotoCapture {
             a.abort.signal.removeEventListener("abort", abort);
             resolve();
           },
-          Math.min(100, (a.deadline ?? 0) - performance.now()),
+          Math.min(100, remaining),
         );
         a.abort.signal.addEventListener("abort", abort, { once: true });
       });

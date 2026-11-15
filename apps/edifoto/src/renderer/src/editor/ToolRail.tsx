@@ -46,8 +46,11 @@ export const TOOLS: { id: Tool; icon: LucideIcon; label: string; key: string }[]
   ],
 ];
 
-export const toolInfo = (id: Tool): (typeof TOOLS)[number][number] =>
-  TOOLS.flat().find((t) => t.id === id)!;
+export const toolInfo = (id: Tool): (typeof TOOLS)[number][number] => {
+  const tool = TOOLS.flat().find((t) => t.id === id);
+  if (!tool) throw new Error(`Ferramenta desconhecida: ${id}`);
+  return tool;
+};
 
 export function ToolRail(): ReactNode {
   const tool = useUi((s) => s.tool);

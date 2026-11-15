@@ -34,7 +34,7 @@ import {
 } from "../shared/preferences.ts";
 import { EMPTY_SESSION, sessionSchema } from "../shared/session-format.ts";
 import { localTaskRequestSchema } from "../shared/task-format.ts";
-import type { RecentFile, SavedSignature, UnsavedChoice } from "../shared/types.ts";
+import type { UnsavedChoice } from "../shared/types.ts";
 import { commitBatchDirectory } from "./batch-directory.ts";
 import { readBoundedFile } from "./bounded-files.ts";
 import { readEditorClipboard, writeAnnotationClipboard } from "./clipboard.ts";
@@ -325,7 +325,7 @@ function registerIpc(): void {
   };
   const handle = (
     channel: string,
-    listener: (event: IpcMainInvokeEvent, ...args: any[]) => unknown,
+    listener: (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown,
   ): void => {
     ipcMain.handle(channel, (event, ...args) => {
       if (!validSender(event)) throw new Error("Origem não autorizada");
@@ -353,7 +353,9 @@ function registerIpc(): void {
     for (const path of document.originPaths ?? []) openedPaths.add(path);
     return document;
   };
-  handle("recovery:load", async (_event, id: string) => protectOrigins(await recovery.load(id)));
+  handle("recovery:load", async (_event, id: unknown) =>
+    protectOrigins(await recovery.load(z.string().parse(id))),
+  );
   handle("recovery:save", async (_event, document: unknown) => {
     await recovery.save(document);
     const parsed = recoverySchema.parse(document);
@@ -366,16 +368,18 @@ function registerIpc(): void {
       };
     }
   });
-  handle("recovery:remove", (_event, id: string) => recovery.remove(id));
+  handle("recovery:remove", (_event, id: unknown) => recovery.remove(z.string().parse(id)));
   handle("versions:list", async () => {
     await versions.prune(await preferenceStore.read());
     return versions.list();
   });
-  handle("versions:load", async (_event, id: string) => protectOrigins(await versions.load(id)));
+  handle("versions:load", async (_event, id: unknown) =>
+    protectOrigins(await versions.load(z.string().parse(id))),
+  );
   handle("versions:save", async (_event, document: unknown) =>
     versions.save(document, await preferenceStore.read(), true),
   );
-  handle("versions:remove", (_event, id: string) => versions.remove(id));
+  handle("versions:remove", (_event, id: unknown) => versions.remove(z.string().parse(id)));
   handle("versions:clear", () => versions.clear());
   handle("session:load", async () => {
     if (!(await preferenceStore.read()).restoreSession)
@@ -432,44 +436,49 @@ function registerIpc(): void {
             : signatureStore;
     return { backup: !!(await store.reset()).backup };
   });
-  handle(
-    "dialog:open",
-    async (_e, opts?: { images?: boolean; multi?: boolean; title?: string }) => {
-      if (!win) return [];
-      const filters = opts?.images
-        ? [
-            { name: "PDF e imagens", extensions: ["pdf", "png", "jpg", "jpeg"] },
-            { name: "Imagens", extensions: ["png", "jpg", "jpeg"] },
-          ]
-        : [{ name: "Documentos PDF", extensions: ["pdf"] }];
-      const res = await dialog.showOpenDialog(win, {
-        title: opts?.title ?? "Abrir PDF",
-        filters,
-        properties: opts?.multi === false ? ["openFile"] : ["openFile", "multiSelections"],
-      });
-      if (res.canceled) return [];
-      if (res.filePaths.length > 100) throw new Error("Escolha até 100 arquivos por lote.");
-      let total = 0;
-      for (const path of res.filePaths) {
-        const size = await stat(path);
-        if (!size.isFile() || size.size < 1) throw new Error("Escolha apenas arquivos não vazios.");
-        total += size.size;
-        if (total > 512 * 1024 * 1024)
-          throw new Error("O lote excede 512 MB. Divida a seleção em lotes menores.");
+  handle("dialog:open", async (_e, raw: unknown) => {
+    const opts = z
+      .object({
+        images: z.boolean().optional(),
+        multi: z.boolean().optional(),
+        title: z.string().optional(),
+      })
+      .optional()
+      .parse(raw);
+    if (!win) return [];
+    const filters = opts?.images
+      ? [
+          { name: "PDF e imagens", extensions: ["pdf", "png", "jpg", "jpeg"] },
+          { name: "Imagens", extensions: ["png", "jpg", "jpeg"] },
+        ]
+      : [{ name: "Documentos PDF", extensions: ["pdf"] }];
+    const res = await dialog.showOpenDialog(win, {
+      title: opts?.title ?? "Abrir PDF",
+      filters,
+      properties: opts?.multi === false ? ["openFile"] : ["openFile", "multiSelections"],
+    });
+    if (res.canceled) return [];
+    if (res.filePaths.length > 100) throw new Error("Escolha até 100 arquivos por lote.");
+    let total = 0;
+    for (const path of res.filePaths) {
+      const size = await stat(path);
+      if (!size.isFile() || size.size < 1) throw new Error("Escolha apenas arquivos não vazios.");
+      total += size.size;
+      if (total > 512 * 1024 * 1024)
+        throw new Error("O lote excede 512 MB. Divida a seleção em lotes menores.");
+    }
+    const files = [];
+    let remaining = 512 * 1024 * 1024;
+    for (const path of res.filePaths) {
+      const file = await openFile(path, remaining);
+      if (file) {
+        files.push(file);
+        remaining -= file.bytes.length;
       }
-      const files = [];
-      let remaining = 512 * 1024 * 1024;
-      for (const path of res.filePaths) {
-        const file = await openFile(path, remaining);
-        if (file) {
-          files.push(file);
-          remaining -= file.bytes.length;
-        }
-      }
-      return files.filter(Boolean);
-    },
-  );
-  handle("file:read", (_e, path: string) => openFile(path));
+    }
+    return files.filter(Boolean);
+  });
+  handle("file:read", (_e, path: unknown) => openFile(z.string().parse(path)));
   const discoverScanner = async <T>(run: (signal: AbortSignal) => Promise<T>): Promise<T> => {
     const owner = win;
     if (!owner) throw new Error("A janela de digitalização foi fechada.");
@@ -530,37 +539,37 @@ function registerIpc(): void {
   handle("shell:open-web", async (_event, raw: unknown) => {
     await confirmWebLink(raw);
   });
-  handle(
-    "dialog:save",
-    async (_e, defaultName: string, kind: "pdf" | "png" | "jpg" | "data" = "pdf") => {
-      if (!win) return null;
-      kind = z.enum(["pdf", "png", "jpg", "data"]).parse(kind);
-      defaultName = safeAttachmentName(z.string().min(1).max(1000).parse(defaultName));
-      if (kind === "data" && !supportsOutputExtension(defaultName)) defaultName += ".bin";
-      const filters = {
-        pdf: { name: "Documento PDF", extensions: ["pdf"] },
-        png: { name: "Imagem PNG", extensions: ["png"] },
-        jpg: { name: "Imagem JPEG", extensions: ["jpg"] },
-        data: { name: "Todos os arquivos", extensions: ["*"] },
-      };
-      const res = await dialog.showSaveDialog(win, {
-        title: "Salvar como",
-        defaultPath: defaultName,
-        filters: [filters[kind]],
-      });
-      return res.canceled ? null : (res.filePath ?? null);
-    },
-  );
-  handle("dialog:folder", async (_e, title?: string) => {
+  handle("dialog:save", async (_e, rawName: unknown, rawKind: unknown) => {
     if (!win) return null;
+    const kind = z.enum(["pdf", "png", "jpg", "data"]).default("pdf").parse(rawKind);
+    let defaultName = safeAttachmentName(z.string().min(1).max(1000).parse(rawName));
+    if (kind === "data" && !supportsOutputExtension(defaultName)) defaultName += ".bin";
+    const filters = {
+      pdf: { name: "Documento PDF", extensions: ["pdf"] },
+      png: { name: "Imagem PNG", extensions: ["png"] },
+      jpg: { name: "Imagem JPEG", extensions: ["jpg"] },
+      data: { name: "Todos os arquivos", extensions: ["*"] },
+    };
+    const res = await dialog.showSaveDialog(win, {
+      title: "Salvar como",
+      defaultPath: defaultName,
+      filters: [filters[kind]],
+    });
+    return res.canceled ? null : (res.filePath ?? null);
+  });
+  handle("dialog:folder", async (_e, rawTitle: unknown) => {
+    if (!win) return null;
+    const title = z.string().optional().parse(rawTitle);
     const res = await dialog.showOpenDialog(win, {
       title: title ?? "Escolher pasta",
       properties: ["openDirectory", "createDirectory"],
     });
     return res.canceled ? null : res.filePaths[0];
   });
-  handle("file:write", (_e, path: string, bytes: Uint8Array) => fileRevisions.write(path, bytes));
-  handle("file:write-copy", async (_e, path: string, bytes: Uint8Array) => {
+  handle("file:write", (_e, path: unknown, bytes: unknown) =>
+    fileRevisions.write(z.string().parse(path), z.instanceof(Uint8Array).parse(bytes)),
+  );
+  handle("file:write-copy", async (_e, path: unknown, bytes: unknown) => {
     if (typeof path !== "string" || !(bytes instanceof Uint8Array))
       throw new Error("Saída de arquivo inválida.");
     const destination = await desktopFiles.assertWrite(path);
@@ -568,21 +577,24 @@ function registerIpc(): void {
     await atomicWrite(destination, bytes);
     fileRevisions.remember(destination, bytes);
   });
-  handle(
-    "file:write-many",
-    async (_e, folder: string, files: { name: string; bytes: Uint8Array }[]) => {
-      const written: string[] = [];
-      for (const f of files) {
-        if (!f.name || basename(f.name) !== f.name || f.name === "." || f.name === "..")
-          throw new Error("Nome de arquivo inválido");
-        const p = await writeUnique(join(folder, f.name), f.bytes);
-        written.push(p);
-      }
-      return written;
-    },
+  handle("file:write-many", async (_e, rawFolder: unknown, rawFiles: unknown) => {
+    const folder = z.string().parse(rawFolder);
+    const files = z
+      .array(z.object({ name: z.string(), bytes: z.instanceof(Uint8Array) }))
+      .parse(rawFiles);
+    const written: string[] = [];
+    for (const f of files) {
+      if (!f.name || basename(f.name) !== f.name || f.name === "." || f.name === "..")
+        throw new Error("Nome de arquivo inválido");
+      const p = await writeUnique(join(folder, f.name), f.bytes);
+      written.push(p);
+    }
+    return written;
+  });
+  handle("file:write-unique", (_e, path: unknown, bytes: unknown) =>
+    writeUnique(z.string().parse(path), z.instanceof(Uint8Array).parse(bytes)),
   );
-  handle("file:write-unique", (_e, path: string, bytes: Uint8Array) => writeUnique(path, bytes));
-  handle("shell:show", (_e, path: string) => shell.showItemInFolder(path));
+  handle("shell:show", (_e, path: unknown) => shell.showItemInFolder(z.string().parse(path)));
 
   handle("recent:list", async () => {
     const list = await recentStore.read();
@@ -590,8 +602,8 @@ function registerIpc(): void {
       .map((entry) => ({ ...entry, available: existsSync(entry.path) }))
       .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.openedAt - a.openedAt);
   });
-  handle("recent:add", async (_e, entry: RecentFile) => {
-    entry = recentFileSchema.parse(entry);
+  handle("recent:add", async (_e, rawEntry: unknown) => {
+    const entry = recentFileSchema.parse(rawEntry);
     const preferences = await preferenceStore.read();
     if (!preferences.rememberRecents) return recentStore.read();
     if (!preferences.recentThumbnails) delete entry.thumb;
@@ -609,7 +621,8 @@ function registerIpc(): void {
     app.addRecentDocument(entry.path);
     return next;
   });
-  handle("recent:remove", async (_e, path: string) => {
+  handle("recent:remove", async (_e, rawPath: unknown) => {
+    const path = z.string().parse(rawPath);
     const next = (await recentStore.read()).filter(
       (r) => r && typeof r.path === "string" && r.path !== path,
     );
@@ -631,8 +644,8 @@ function registerIpc(): void {
       (s) => s && typeof s.id === "string" && typeof s.src === "string",
     ),
   );
-  handle("signatures:save", async (_e, sig: SavedSignature) => {
-    sig = signatureSchema.parse(sig);
+  handle("signatures:save", async (_e, rawSignature: unknown) => {
+    const sig = signatureSchema.parse(rawSignature);
     const next = [sig, ...(await signatureStore.read()).filter((s) => s && s.id !== sig.id)].slice(
       0,
       8,
@@ -640,7 +653,8 @@ function registerIpc(): void {
     await signatureStore.write(next);
     return next;
   });
-  handle("signatures:remove", async (_e, id: string) => {
+  handle("signatures:remove", async (_e, rawId: unknown) => {
+    const id = z.string().parse(rawId);
     const next = (await signatureStore.read()).filter((s) => s && s.id !== id);
     await signatureStore.write(next);
     return next;
@@ -659,8 +673,9 @@ function registerIpc(): void {
     return [];
   });
 
-  handle("dialog:unsaved", async (_e, names: string[]): Promise<UnsavedChoice> => {
+  handle("dialog:unsaved", async (_e, rawNames: unknown): Promise<UnsavedChoice> => {
     if (!win) return "cancel";
+    const names = z.array(z.string()).parse(rawNames);
     const one = names.length === 1;
     const res = await dialog.showMessageBox(win, {
       type: "warning",
@@ -676,30 +691,27 @@ function registerIpc(): void {
     });
     return (["save", "discard", "cancel"] as const)[res.response];
   });
-  handle(
-    "dialog:message",
-    async (
-      _e,
-      o: {
-        type?: "info" | "warning" | "error" | "question";
-        title?: string;
-        message: string;
-        detail?: string;
-        buttons?: string[];
-      },
-    ) => {
-      if (!win) return 0;
-      const res = await dialog.showMessageBox(win, {
-        type: o.type ?? "info",
-        title: o.title ?? "EdiPDF",
-        message: o.message,
-        detail: o.detail,
-        buttons: o.buttons ?? ["OK"],
-        noLink: true,
-      });
-      return res.response;
-    },
-  );
+  handle("dialog:message", async (_e, raw: unknown) => {
+    if (!win) return 0;
+    const o = z
+      .object({
+        type: z.enum(["info", "warning", "error", "question"]).optional(),
+        title: z.string().optional(),
+        message: z.string(),
+        detail: z.string().optional(),
+        buttons: z.array(z.string()).optional(),
+      })
+      .parse(raw);
+    const res = await dialog.showMessageBox(win, {
+      type: o.type ?? "info",
+      title: o.title ?? "EdiPDF",
+      message: o.message,
+      detail: o.detail,
+      buttons: o.buttons ?? ["OK"],
+      noLink: true,
+    });
+    return res.response;
+  });
 
   handle("task:list", () => taskStore.list());
   handle("printers:list", async () => {

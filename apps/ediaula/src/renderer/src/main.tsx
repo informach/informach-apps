@@ -58,7 +58,9 @@ if (import.meta.env.DEV) {
   });
 }
 
-createRoot(document.getElementById("root")!).render(
+const root = document.getElementById("root");
+if (!root) throw new Error("O elemento principal do EdiAula não foi encontrado.");
+createRoot(root).render(
   <StrictMode>
     {location.hash === "#recorder-frame" ? (
       <RecorderFrame />

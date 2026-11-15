@@ -11,7 +11,7 @@ import {
   users,
 } from "@informach/db/schema";
 import { createFamilyService } from "@informach/family";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { todayLocalIso } from "@/features/dashboard/date";
 import type { AgendaAuthority } from "@/features/family/authority";
 import {
@@ -21,6 +21,7 @@ import {
 } from "@/features/offline-queue/repository";
 import { writeTaskStatusOnce } from "@/features/offline-queue/service";
 import { createStudentProfile } from "@/features/students/service";
+import { logger } from "@/lib/logger";
 
 function value<T>(result: { ok: true; value: T } | { ok: false; error: unknown }): T {
   if (!result.ok) throw new Error(JSON.stringify(result.error));
@@ -241,19 +242,26 @@ describe("fila offline", () => {
       .set({ result: { forma: "de outro tempo" } })
       .where(eq(agendaIdempotentWrites.key, key));
 
-    const repaired = await writeTaskStatusOnce(actor, {
-      key,
-      id: row.id,
-      version: row.version,
-      status: "done",
-    });
-    // A gravação já aconteceu, então a regravação encontra a versão nova e
-    // recusa — mas o recibo passa a ser legível, e a chave volta a ser
-    // idempotente em vez de recusar para sempre.
-    expect(repaired).toEqual({ ok: false, error: { code: "VERSION_CONFLICT" } });
-    expect(
-      await writeTaskStatusOnce(actor, { key, id: row.id, version: row.version, status: "done" }),
-    ).toEqual(repaired);
+    const warning = vi.spyOn(logger, "warn").mockImplementation(() => {});
+    try {
+      const repaired = await writeTaskStatusOnce(actor, {
+        key,
+        id: row.id,
+        version: row.version,
+        status: "done",
+      });
+      expect(warning).toHaveBeenCalledOnce();
+      expect(warning).toHaveBeenCalledWith({ key }, "agenda.offline_queue.unreadable_receipt");
+      // A gravação já aconteceu, então a regravação encontra a versão nova e
+      // recusa — mas o recibo passa a ser legível, e a chave volta a ser
+      // idempotente em vez de recusar para sempre.
+      expect(repaired).toEqual({ ok: false, error: { code: "VERSION_CONFLICT" } });
+      expect(
+        await writeTaskStatusOnce(actor, { key, id: row.id, version: row.version, status: "done" }),
+      ).toEqual(repaired);
+    } finally {
+      warning.mockRestore();
+    }
   });
 });
 

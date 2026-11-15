@@ -8,7 +8,7 @@ import { gradeAnswer } from "./engine";
 import { responseLabel } from "./response";
 
 const sample = findLesson("fracoes-formatos")?.items.find((item) => item.type === "numeric");
-if (!sample || sample.type !== "numeric") throw new Error("Missing half-metre activity");
+if (sample?.type !== "numeric") throw new Error("Missing half-metre activity");
 
 describe("contrato entre enunciado, campo e correção", () => {
   it("mostra os passos da resposta de ordenação com rótulos em português no histórico", () => {

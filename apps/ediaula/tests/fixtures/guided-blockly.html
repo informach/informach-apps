@@ -81,8 +81,8 @@
 
       function block(parent, parts, x, y, hat) {
         const g = document.createElementNS(NS, "g");
-        g.setAttribute("class", "blocklyDraggable" + (hat ? " hat" : ""));
-        g.setAttribute("data-id", "b" + ++serial + Math.random().toString(16).slice(2, 8));
+        g.setAttribute("class", `blocklyDraggable${hat ? " hat" : ""}`);
+        g.setAttribute("data-id", `b${++serial}${Math.random().toString(16).slice(2, 8)}`);
         const path = document.createElementNS(NS, "path");
         path.setAttribute("class", "blocklyPath");
         g.appendChild(path);
@@ -114,17 +114,17 @@
         path.setAttribute(
           "d",
           hat
-            ? "M0,12 C30,-4 70,-4 100,12 H" + width + " V" + height + " H0 Z"
-            : "M0,0 H" + width + " V" + height + " H0 Z",
+            ? `M0,12 C30,-4 70,-4 100,12 H${width} V${height} H0 Z`
+            : `M0,0 H${width} V${height} H0 Z`,
         );
-        g.setAttribute("transform", "translate(" + x + "," + y + ")");
+        g.setAttribute("transform", `translate(${x},${y})`);
         parent.appendChild(g);
         const item = { g, parts, x, y, width, height, hat, parent };
         if (parent === canvas) blocks.push(item);
         listen(item);
         return item;
       }
-      const place = (item) => item.g.setAttribute("transform", "translate(" + item.x + "," + item.y + ")");
+      const place = (item) => item.g.setAttribute("transform", `translate(${item.x},${item.y})`);
 
       block(canvas, ["quando clicar em ▶"], 40, 40, true);
       const templates = [
@@ -154,7 +154,7 @@
               origin = { x: dragged.x, y: dragged.y };
               dragged.g.classList.add("dragging");
               const m = canvas.getScreenCTM();
-              surfaceLayer.setAttribute("transform", "translate(" + m.e + "," + m.f + ") scale(" + m.a + ")");
+              surfaceLayer.setAttribute("transform", `translate(${m.e},${m.f}) scale(${m.a})`);
               surfaceLayer.appendChild(dragged.g);
               surface.classList.add("dragging");
             }
@@ -203,7 +203,7 @@
       save.addEventListener("click", () => {
         setTimeout(() => {
           document.getElementById("saved").hidden = false;
-          status.textContent = "Projeto salvo: " + name.value;
+          status.textContent = `Projeto salvo: ${name.value}`;
         }, 300);
       });
       document.addEventListener("keydown", (e) => {

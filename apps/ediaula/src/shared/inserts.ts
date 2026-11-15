@@ -108,8 +108,10 @@ export function planLineInsert(
     };
   const duration = lineSeconds + 2 * INSERT_PAD;
   if (!before) {
-    const at = Math.max(0, after!.start! - duration);
-    return { at, duration, gap: Math.max(0, duration - after!.start!), cut: 0 };
+    const start = after?.start;
+    if (start === undefined) return { error: "Não achei a fala após esta inserção." };
+    const at = Math.max(0, start - duration);
+    return { at, duration, gap: Math.max(0, duration - start), cut: 0 };
   }
   // After another avatar, its clip (and its fade) ends a pad after its last word.
   const prevEnd =

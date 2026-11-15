@@ -2,7 +2,7 @@ import path from "node:path";
 import { loadEnvFile } from "node:process";
 import { defineConfig } from "vitest/config";
 
-loadEnvFile(path.resolve(__dirname, ".env.local"));
+loadEnvFile(path.resolve(import.meta.dirname, ".env.local"));
 if (process.env.AGENDA_RUN_AI_EVAL !== "1" || !process.env.OPENROUTER_API_KEY)
   throw new Error(
     "Real provider evaluation requires AGENDA_RUN_AI_EVAL=1 and OPENROUTER_API_KEY; it incurs model usage",
@@ -10,8 +10,8 @@ if (process.env.AGENDA_RUN_AI_EVAL !== "1" || !process.env.OPENROUTER_API_KEY)
 export default defineConfig({
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
-      "server-only": path.resolve(__dirname, "test/integration/server-only.ts"),
+      "@": path.resolve(import.meta.dirname, "src"),
+      "server-only": path.resolve(import.meta.dirname, "test/integration/server-only.ts"),
     },
   },
   test: {

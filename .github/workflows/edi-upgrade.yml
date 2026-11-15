@@ -32,13 +32,14 @@ jobs:
       applications: ${{ steps.catalog.outputs.applications }}
       media_applications: ${{ steps.catalog.outputs.media_applications }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ inputs.source_ref || github.sha }}
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: 24.15.0
+          package-manager-cache: false
       - name: Discover applications from the suite catalog
         id: catalog
         run: |

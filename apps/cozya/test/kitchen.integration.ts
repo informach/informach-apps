@@ -9,8 +9,6 @@ import {
   cozyaCookingSessions,
   cozyaProfiles,
   cozyaRecipes,
-  cozyaTrialClaims,
-  creditLedger,
   creditReservations,
   users,
 } from "@informach/db/schema";

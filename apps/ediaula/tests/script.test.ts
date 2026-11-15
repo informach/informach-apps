@@ -4,6 +4,7 @@ import { test } from "node:test";
 import type { TimelineWord } from "../src/shared/cleanup.ts";
 import { parseScript, parseTarget, speechItems, speechSeconds } from "../src/shared/script.ts";
 import { alignSection, bestSection } from "../src/shared/scriptAlign.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 const md = readFileSync(new URL("./fixtures/roteiro-farol-dia1.md", import.meta.url), "utf8");
 const doc = parseScript(md);
@@ -43,7 +44,7 @@ test("speech, screen directions, avatar inserts, Zappy bridges and notes are tol
     6,
     "one item per paragraph",
   );
-  const deb = speech.find((i) => i.avatar)!;
+  const deb = assertDefined(speech.find((i) => i.avatar));
   assert.equal(deb.speaker, "Debinha");
   assert.equal(deb.insertId, "F1P1-D01");
   assert.equal(deb.text, "E como eu levo o personagem até a chave?");
@@ -99,7 +100,7 @@ test("alignment finds each line in the recording and keeps the last take of a re
   const a = alignSection(s1, words);
   const line0 = a.lines[0];
   assert.equal(line0.matched, line0.total);
-  assert.ok(line0.start! >= 10, "matched the second take");
+  assert.ok(assertDefined(line0.start) >= 10, "matched the second take");
   // The false start and the comment after a pause come back as two runs to cut.
   assert.equal(a.offScript.length, 2);
   assert.ok(a.offScript[0].text.startsWith("Oi! Neste desafio"));
@@ -120,8 +121,8 @@ test("an avatar insert goes after the line before it, opening the timeline when 
     ...said(p3.text, 12 + p2.text.split(/\s+/).length * 0.4 + 1),
   ];
   const a = alignSection(s1, words);
-  const deb = speechItems(s1).find((i) => i.insertId === "F1P1-D01")!;
-  const prevEnd = a.lines[1].end!;
+  const deb = assertDefined(speechItems(s1).find((i) => i.insertId === "F1P1-D01"));
+  const prevEnd = assertDefined(a.lines[1].end);
   const plan = planInsert(s1, a, deb, 3);
   assert.ok(!("error" in plan));
   if ("error" in plan) return;
@@ -151,8 +152,8 @@ test("opening the timeline splits speech and video tracks and leaves a music bed
       [7, 6, 4],
     ],
   );
-  assert.equal(out.find((c) => c.id === "m")!.duration, 30, "music untouched");
-  assert.equal(out.find((c) => c.id === "x")!.start, 15, "later clips move right");
+  assert.equal(assertDefined(out.find((c) => c.id === "m")).duration, 30, "music untouched");
+  assert.equal(assertDefined(out.find((c) => c.id === "x")).start, 15, "later clips move right");
 });
 
 test("opening the timeline never moves a locked track, and reports every locked clip after the point", () => {
@@ -191,7 +192,7 @@ test("the avatar line is found in the HeyGen transcript, in source time", () => 
     ["narr", tr("Oi! Neste desafio você vai programar o jogo", 0)],
     ["deb", tr("E como eu levo o personagem até a chave? E se eu clicar em Rodar?", 2)],
   ]);
-  const src = findLine("E como eu levo o personagem até a chave?", transcripts)!;
+  const src = assertDefined(findLine("E como eu levo o personagem até a chave?", transcripts));
   assert.equal(src.assetId, "deb");
   assert.ok(Math.abs(src.start - 2) < 0.01);
   assert.ok(src.end < 2 + 9 * 0.4 + 0.01, "stops at the end of the line");

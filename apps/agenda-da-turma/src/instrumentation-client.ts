@@ -1,3 +1,4 @@
+import "./lib/zod-browser-config";
 import * as Sentry from "@sentry/nextjs";
 import { env } from "./lib/env";
 import { scrubSentryEvent } from "./lib/sentry-scrub";

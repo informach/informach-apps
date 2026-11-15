@@ -1,89 +1,91 @@
-.narration-shield {
-  position: fixed;
-  inset: 52px 0 0;
-  z-index: 10000;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 20px;
-}
-.narration-panel {
-  width: 560px;
-  max-width: 90vw;
-  padding: 20px;
-  background: #181b21;
-  color: #f2f4f8;
-  border: 1px solid #454b58;
-  border-radius: 12px;
-  box-shadow: 0 8px 32px #0008;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.narration-panel p {
-  margin: 0;
-  color: #c0c6d0;
-}
-.narration-panel select {
-  max-width: 390px;
-  padding: 6px;
-}
-.narration-panel audio {
-  width: 100%;
-}
-.narration-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-.narration-actions button {
-  background: #303744;
-  color: #fff;
-  padding: 8px 14px;
-  border: 1px solid #555e70;
-  border-radius: 6px;
-  cursor: pointer;
-}
-.narration-actions button:disabled {
-  opacity: 0.5;
-  cursor: wait;
-}
-.narration-panel small {
-  color: #b4bdca;
-}
-.narration-guided {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #c0c6d0;
-  font-size: 12.5px;
-}
-.narration-prompter {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 180px;
-  overflow-y: auto;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: #0f1115;
-  border: 1px solid #2c313b;
-}
-.narration-prompter p {
-  font-size: 13px;
-  line-height: 1.45;
-  color: #8a92a0;
-}
-.narration-prompter p.is-current {
-  color: #f2f4f8;
-  font-size: 16px;
-  font-weight: 600;
-}
-.narration-prompter p.is-done {
-  opacity: 0.55;
-}
-.narration-speaker {
-  color: #c8f031;
-  font-weight: 600;
-  margin-right: 4px;
+@layer ediaula {
+  .narration-shield {
+    position: fixed;
+    inset: 52px 0 0;
+    z-index: 10000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 20px;
+  }
+  .narration-panel {
+    width: 560px;
+    max-width: 90vw;
+    padding: 20px;
+    background: #181b21;
+    color: #f2f4f8;
+    border: 1px solid #454b58;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px #0008;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .narration-panel p {
+    margin: 0;
+    color: #c0c6d0;
+  }
+  .narration-panel select {
+    max-width: 390px;
+    padding: 6px;
+  }
+  .narration-panel audio {
+    width: 100%;
+  }
+  .narration-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .narration-actions button {
+    background: #303744;
+    color: #fff;
+    padding: 8px 14px;
+    border: 1px solid #555e70;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .narration-actions button:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+  .narration-panel small {
+    color: #b4bdca;
+  }
+  .narration-guided {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #c0c6d0;
+    font-size: 12.5px;
+  }
+  .narration-prompter {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #0f1115;
+    border: 1px solid #2c313b;
+  }
+  .narration-prompter p {
+    font-size: 13px;
+    line-height: 1.45;
+    color: #8a92a0;
+  }
+  .narration-prompter p.is-current {
+    color: #f2f4f8;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .narration-prompter p.is-done {
+    opacity: 0.55;
+  }
+  .narration-speaker {
+    color: #c8f031;
+    font-weight: 600;
+    margin-right: 4px;
+  }
 }

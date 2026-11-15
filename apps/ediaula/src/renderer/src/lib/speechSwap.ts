@@ -84,7 +84,7 @@ async function swapInto(
   if (!voice?.hasAudio || !(voice.duration > 0))
     return "O áudio novo da fala não pôde ser lido ou não tem som.";
   const video = find(r.presenterPath);
-  if (r.presenterPath && (!video || video.kind !== "video"))
+  if (r.presenterPath && video?.kind !== "video")
     return "O vídeo novo do apresentador não pôde ser lido.";
 
   // The video is placed by its own sound against the new line's audio.

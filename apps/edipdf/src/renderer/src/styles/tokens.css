@@ -1,55 +1,57 @@
-/* Design tokens — mirror the variables in edipdf.pen (same family as EdiAula, coral accent). */
-:root {
-  --bg: #0d0e11;
-  --panel: #15171c;
-  --panel-2: #1c1f26;
-  --panel-3: #232731;
-  --line: #262a33;
-  --line-2: #323744;
-  --stage: #2a2e37;
-  --text-1: #eceef2;
-  --text-2: #9ba1ae;
-  --text-3: #646a78;
-  --accent: #ff5a4f;
-  --accent-soft: #ff5a4f22;
-  --accent-line: #ff5a4f66;
-  --on-accent: #1a0907;
-  --ok: #3ddc84;
-  --danger: #ff6b61;
-  --select: #3d8bff;
+@layer edipdf {
+  /* Design tokens — mirror the variables in edipdf.pen (same family as EdiAula, coral accent). */
+  :root {
+    --bg: #0d0e11;
+    --panel: #15171c;
+    --panel-2: #1c1f26;
+    --panel-3: #232731;
+    --line: #262a33;
+    --line-2: #323744;
+    --stage: #2a2e37;
+    --text-1: #eceef2;
+    --text-2: #9ba1ae;
+    --text-3: #646a78;
+    --accent: #ff5a4f;
+    --accent-soft: #ff5a4f22;
+    --accent-line: #ff5a4f66;
+    --on-accent: #1a0907;
+    --ok: #3ddc84;
+    --danger: #ff6b61;
+    --select: #3d8bff;
 
-  --font-ui: "Inter Variable", Inter, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
-  --font-display: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", var(--font-ui);
+    --font-ui: "Inter Variable", Inter, system-ui, sans-serif;
+    --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
+    --font-display: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", var(--font-ui);
 
-  --radius-sm: 6px;
-  --radius: 8px;
-  --radius-lg: 14px;
+    --radius-sm: 6px;
+    --radius: 8px;
+    --radius-lg: 14px;
 
-  --topbar-h: 48px;
-  /* Room for the native minimize/maximize/close buttons drawn over the top bar. */
-  --window-controls-w: 140px;
-}
-:root[data-theme="light"] {
-  color-scheme: light;
-  --bg: #f4f5f7;
-  --panel: #ffffff;
-  --panel-2: #f3f4f6;
-  --panel-3: #e8ebf0;
-  --line: #d7dce4;
-  --line-2: #c8cfda;
-  --stage: #e3e7ed;
-  --text-1: #18202c;
-  --text-2: #48576b;
-  --text-3: #607089;
-  --accent: #bf3028;
-  --accent-soft: #bf302814;
-  --accent-line: #bf302866;
-  --on-accent: #ffffff;
-  --ok: #147a42;
-  --danger: #b42318;
-  --select: #1d5ac8;
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
+    --topbar-h: 48px;
+    /* Room for the native minimize/maximize/close buttons drawn over the top bar. */
+    --window-controls-w: 140px;
+  }
+  :root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f4f5f7;
+    --panel: #ffffff;
+    --panel-2: #f3f4f6;
+    --panel-3: #e8ebf0;
+    --line: #d7dce4;
+    --line-2: #c8cfda;
+    --stage: #e3e7ed;
+    --text-1: #18202c;
+    --text-2: #48576b;
+    --text-3: #607089;
+    --accent: #bf3028;
+    --accent-soft: #bf302814;
+    --accent-line: #bf302866;
+    --on-accent: #ffffff;
+    --ok: #147a42;
+    --danger: #b42318;
+    --select: #1d5ac8;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+  }
 }

@@ -29,8 +29,10 @@ import {
 import { annotationFont } from "../src/shared/preflight.ts";
 import { annotationSchema } from "../src/shared/project-schema.ts";
 import { revealKind, revealWords } from "../src/shared/reveal.ts";
+import { assertDefined } from "./assert-defined.ts";
 
-const preset = (kind: string) => ANNOTATION_PRESETS.find((p) => p.kind === kind)!.spec;
+const preset = (kind: string) =>
+  assertDefined(ANNOTATION_PRESETS.find((p) => p.kind === kind)).spec;
 
 test("the box and the item are presets that come in the project's palette", () => {
   const box = inPalette(preset("box"), SISTEMA_ZERO_PALETTE);

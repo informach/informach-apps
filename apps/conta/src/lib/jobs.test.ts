@@ -5,6 +5,7 @@ const jobs = vi.hoisted(() => ({
   legacy: vi.fn(),
   future: vi.fn(),
   coordination: vi.fn(),
+  invoices: vi.fn(),
   release: vi.fn(),
 }));
 vi.mock("server-only", () => ({}));
@@ -13,6 +14,7 @@ vi.mock("@informach/db", () => ({
   recordJobRun: (_meta: unknown, run: () => unknown) => run(),
 }));
 vi.mock("@informach/billing/sweepers", () => ({ releaseExpiredReservations: jobs.release }));
+vi.mock("@informach/billing/webhooks", () => ({ retryPendingInvoiceVerifications: jobs.invoices }));
 vi.mock("@informach/billing/legacy-contract-jobs", () => ({
   runLegacyContractMaintenance: jobs.legacy,
 }));
@@ -38,6 +40,7 @@ describe("central financial scheduler", () => {
     for (const job of [jobs.legacy, jobs.future, jobs.coordination])
       job.mockResolvedValue({ failed: 0, checked: 1 });
     jobs.release.mockResolvedValue({ released: 1 });
+    jobs.invoices.mockResolvedValue({ retried: 0 });
   });
   it("drains expired reservations in the family and former app scopes without touching independent products", async () => {
     const result = await runBillingJob();
@@ -55,7 +58,13 @@ describe("central financial scheduler", () => {
     expect(scopes).toHaveLength(6);
     expect(scopes).not.toContain("edi");
     expect(scopes).not.toContain("recreio");
-    expect(result).toMatchObject({ processed: 2, released: 6, legacyChecked: 1 });
+    expect(jobs.invoices).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({
+      processed: 2,
+      released: 6,
+      legacyChecked: 1,
+      invoiceVerificationsRetried: 0,
+    });
   });
   it("still drains reservations when provider reconciliation fails and returns an operational failure", async () => {
     jobs.native.mockRejectedValue(new Error("provider_unavailable"));
@@ -70,5 +79,11 @@ describe("central financial scheduler", () => {
     });
     await expect(runBillingJob()).rejects.toThrow("CompassoBillingReconciliationIncomplete");
     expect(jobs.release).toHaveBeenCalledTimes(6);
+  });
+  it("reports a failed invoice verification while still running other maintenance", async () => {
+    jobs.invoices.mockRejectedValue(new Error("invoice_verification_pending"));
+    await expect(runBillingJob()).rejects.toThrow("CompassoBillingReconciliationIncomplete");
+    expect(jobs.release).toHaveBeenCalledTimes(6);
+    expect(jobs.coordination).toHaveBeenCalledOnce();
   });
 });

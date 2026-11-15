@@ -17,6 +17,7 @@ import { layoutRecording } from "../src/shared/recordingImport.ts";
 import { momentInTake } from "../src/shared/recordingJournal.ts";
 import { defaultTracks } from "../src/shared/timeline.ts";
 import type { Asset, Clip, Project, Track } from "../src/shared/types.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 /**
  * A take whose first frame came at QPC 1000 ms. The voice was asked to play from 12 s of the
@@ -476,7 +477,7 @@ test("voltar ao começo de uma fala grava por cima da tela dali em diante, na me
   const one = layoutOverNarration(project, [screenAsset("parte1", "screen")], first);
   const again = {
     ...part("parte2", 4, 2, 6),
-    over: { ...part("parte2", 4, 2, 6).over!, replace: true },
+    over: { ...assertDefined(part("parte2", 4, 2, 6).over), replace: true },
   };
   const two = layoutOverNarration(
     {
@@ -503,7 +504,7 @@ test("gravar por cima onde não há tela gravada entra como parte comum, sem apa
   };
   const take = {
     ...part("nova", 4, 2, 6),
-    over: { ...part("nova", 4, 2, 6).over!, replace: true },
+    over: { ...assertDefined(part("nova", 4, 2, 6).over), replace: true },
   };
   const layout = layoutOverNarration(project, [screenAsset("nova", "screen")], take);
   // The picture stays whole; the take goes on a "Tela" track of its own.

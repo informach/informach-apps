@@ -16,6 +16,7 @@ import {
   type TextStyle,
 } from "@shared/doc";
 import type { AiToolCall, ToolOutcome } from "@shared/types";
+import { requireCanvas2d } from "@/engine/canvas";
 import { compositor } from "@/engine/compositor";
 import { executeAiTransaction, useDoc } from "@/state/doc";
 import { useUi } from "@/state/ui";
@@ -112,7 +113,7 @@ function jpeg(c: HTMLCanvasElement, quality = 0.85): { data: string; mimeType: "
   const flat = document.createElement("canvas");
   flat.width = c.width;
   flat.height = c.height;
-  const ctx = flat.getContext("2d")!;
+  const ctx = requireCanvas2d(flat);
   // Checkerboard-free: transparency shows as mid gray so the model can tell it apart.
   ctx.fillStyle = "#808080";
   ctx.fillRect(0, 0, c.width, c.height);
@@ -139,7 +140,7 @@ function contactSheet(doc: Doc, layerId: string, modes: BlendMode[]): HTMLCanvas
   const sheet = document.createElement("canvas");
   sheet.width = cols * (tw + 8) + 8;
   sheet.height = rows * (th + label + 8) + 8;
-  const ctx = sheet.getContext("2d")!;
+  const ctx = requireCanvas2d(sheet);
   ctx.fillStyle = "#1a1a1d";
   ctx.fillRect(0, 0, sheet.width, sheet.height);
   ctx.font = '600 14px "Inter Variable", sans-serif';

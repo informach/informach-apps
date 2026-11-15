@@ -1,5 +1,5 @@
 import type { Product } from "@informach/config";
-import { getAppCollection } from "@informach/config/collections";
+import { getAppCollection, getCollectionApps } from "@informach/config/collections";
 import type { Database } from "@informach/db";
 import {
   customers,
@@ -7,7 +7,8 @@ import {
   subscriptions,
   webhookEvents,
 } from "@informach/db/schema";
-import { and, asc, eq, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { z } from "zod";
 import type { BillingEmailDeps } from "./../billing-emails";
 import {
   isLegacyBillingEvent,
@@ -20,6 +21,7 @@ import {
   refreshLegacyCustomerSubscriptionFunding,
   refreshLegacySubscriptionFunding,
 } from "../credits/legacy-subscriptions";
+import { INVOICE_VERIFICATION_PENDING } from "../errors";
 import { type Logger, safeLog } from "./../logger";
 import type { BillingProviderClient } from "./../providers";
 import type { BillingAuditEvent, BillingProvider } from "./../types";
@@ -367,6 +369,121 @@ export async function retryLegacyFinancialEvents(deps: StripeWebhookDeps) {
   return { retried: rows.length };
 }
 
+const retryInvoicePayload = z.object({
+  id: z.string().startsWith("evt_"),
+  data: z.object({
+    object: z.object({
+      id: z.string().startsWith("pi_"),
+      invoice: z.union([z.string().min(1), z.object({ id: z.string().min(1) })]),
+      customer: z.union([z.string().min(1), z.object({ id: z.string().min(1) })]),
+      metadata: z.record(z.string(), z.string()).nullish(),
+    }),
+  }),
+});
+
+/** Retry only previously admitted subscription-invoice observations. The
+ * original event processor owns the durable claim and all receipt updates. */
+export async function retryPendingInvoiceVerifications(deps: {
+  db: Database;
+  providerClient: BillingProviderClient;
+}) {
+  const verify = deps.providerClient.isPaidSubscriptionInvoice;
+  if (!verify) throw new Error("Subscription invoice verification is unavailable");
+  const rows = await deps.db
+    .select({
+      app: webhookEvents.app,
+      key: webhookEvents.providerEventId,
+      payload: webhookEvents.payload,
+    })
+    .from(webhookEvents)
+    .where(
+      and(
+        eq(webhookEvents.provider, "stripe"),
+        eq(webhookEvents.eventType, "payment_intent.succeeded"),
+        eq(webhookEvents.error, INVOICE_VERIFICATION_PENDING),
+        inArray(
+          webhookEvents.app,
+          getCollectionApps("compasso").map((app) => app.slug),
+        ),
+        isNull(webhookEvents.processedAt),
+        or(
+          isNull(webhookEvents.processingStartedAt),
+          lt(webhookEvents.processingStartedAt, new Date(Date.now() - WEBHOOK_PROCESSING_STALE_MS)),
+        ),
+      ),
+    )
+    .orderBy(asc(webhookEvents.attempts), asc(webhookEvents.createdAt))
+    .limit(2);
+  const failures: unknown[] = [];
+  let retried = 0;
+  for (const row of rows) {
+    let admitted = false;
+    try {
+      const parsed = retryInvoicePayload.safeParse(row.payload);
+      if (!row.app || !parsed.success) throw new Error("Invalid pending invoice receipt");
+      const { id, data } = parsed.data;
+      const metadata = data.object.metadata ?? {};
+      if (
+        [
+          metadata.subject_type,
+          metadata.subject_id,
+          metadata.product_id,
+          metadata.credit_amount,
+        ].some(Boolean)
+      )
+        throw new Error("Pending invoice receipt contains payment metadata");
+      const suffix = `:${id}`;
+      if (row.key !== id && !row.key.endsWith(suffix))
+        throw new Error("Invalid pending invoice scope");
+      const scope = row.key === id ? undefined : row.key.slice(0, -suffix.length);
+      if (row.key !== id && !scope) throw new Error("Invalid pending invoice scope");
+      const providerClient = {
+        ...deps.providerClient,
+        async isPaidSubscriptionInvoice(invoiceId: string, customerId: string) {
+          if (!(await verify.call(deps.providerClient, invoiceId, customerId)))
+            throw new Error("Subscription-only invoice is not confirmed");
+          return true;
+        },
+      };
+      admitted = true;
+      const result = await handleStripeEvent(
+        {
+          db: deps.db,
+          provider: "stripe",
+          providerClient,
+          app: row.app,
+          webhookScope: scope,
+          products: [],
+        },
+        { id, type: "payment_intent.succeeded", payload: row.payload },
+      );
+      if (!result.deduped) retried++;
+    } catch (error) {
+      failures.push(error);
+      if (!admitted) {
+        try {
+          await deps.db
+            .update(webhookEvents)
+            .set({ attempts: sql`${webhookEvents.attempts} + 1` })
+            .where(
+              and(
+                eq(webhookEvents.provider, "stripe"),
+                eq(webhookEvents.providerEventId, row.key),
+                isNull(webhookEvents.processedAt),
+                eq(webhookEvents.error, INVOICE_VERIFICATION_PENDING),
+              ),
+            );
+        } catch (updateError) {
+          failures.push(updateError);
+        }
+      }
+    }
+  }
+  if (failures.length)
+    throw new AggregateError(failures, "Subscription invoice verifications remain pending");
+  return { retried };
+}
+
 async function dispatchEvent(
   deps: StripeWebhookDeps,
   event: ParsedWebhookEvent,
@@ -383,6 +500,26 @@ async function dispatchEvent(
   };
   const data = (event.payload as { data?: { object?: unknown } }).data;
   const obj = data?.object;
+
+  // Stripe delivers the same account-wide events to each app's endpoint.
+  // Only skip when the globally unique provider customer is already recorded
+  // for another app; an unknown customer must still follow reconciliation.
+  if (
+    providerCustomerId &&
+    (event.type.startsWith("customer.subscription.") || event.type.startsWith("invoice."))
+  ) {
+    const [customer] = await deps.db
+      .select({ app: customers.app })
+      .from(customers)
+      .where(
+        and(
+          eq(customers.provider, deps.provider),
+          eq(customers.providerCustomerId, providerCustomerId),
+        ),
+      )
+      .limit(1);
+    if (customer && customer.app !== deps.app) return "customer_other_app";
+  }
 
   if (deps.guardClosedBilling && obj && typeof obj === "object") {
     const object = obj as {

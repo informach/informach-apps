@@ -269,8 +269,9 @@ export function VectorProperties({ layer }: { layer: VectorLayer }): ReactNode {
   const point = selected === null ? null : v.points[selected];
   const mask = (): void => {
     vectorSelection(layer);
-    const d = useDoc.getState().doc!,
-      i = d.layers.findIndex((l) => l.id === layer.id);
+    const d = useDoc.getState().doc;
+    if (!d) throw new Error("Abra um documento antes de criar a máscara.");
+    const i = d.layers.findIndex((l) => l.id === layer.id);
     if (i <= 0) throw new Error("Adicione uma camada abaixo do traçado.");
     selectionMask(d.layers[i - 1].id);
     useDoc.getState().setActive(d.layers[i - 1].id);
@@ -413,10 +414,10 @@ export function VectorProperties({ layer }: { layer: VectorLayer }): ReactNode {
             />
             Traçado fechado
           </label>
-          {point && (
+          {point && selected !== null && (
             <>
               <span>
-                Ponto {selected! + 1} / {v.points.length}
+                Ponto {selected + 1} / {v.points.length}
               </span>
               <label>
                 Alças

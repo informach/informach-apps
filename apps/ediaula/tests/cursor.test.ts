@@ -19,6 +19,7 @@ import { type CursorData, normalizeCursorData } from "../src/shared/cursorData.t
 import { retakeCuts } from "../src/shared/recording.ts";
 import { sourceAt } from "../src/shared/timeline.ts";
 import { autoZooms, type Zoom, zoomAt, zoomExprs } from "../src/shared/zoom.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 // A version 1 file, as older recordings wrote it: the editor reads it as version 2.
 const data: CursorData = normalizeCursorData({
@@ -60,7 +61,9 @@ test("manual cursor path reaches its anchors, interpolates smoothly and preserve
     [550, 450],
     "export sprite follows the edited preview",
   );
-  const ripple = ripplesAt(data, 2.1, fx).find((r) => Math.abs(r.progress - 0.1 / 0.45) < 1e-6)!;
+  const ripple = assertDefined(
+    ripplesAt(data, 2.1, fx).find((r) => Math.abs(r.progress - 0.1 / 0.45) < 1e-6),
+  );
   assert.equal(ripple.x, 600);
   assert.equal(ripple.y, 500);
   assert.deepEqual(cursorPathAt(path, sourceAt({ start: 10, in: 1, speed: 2 }, 10.5)), {
@@ -130,7 +133,7 @@ test("insert a cursor point at the clicked curve without duplicates or loss of n
     { t: 10, x: 100, y: 100, outHandle: { x: 0, y: 200 } },
     { t: 14, x: 500, y: 100, inHandle: { x: 0, y: 200 } },
   ];
-  const time = nearestCursorTime(path, 300, 250)!;
+  const time = assertDefined(nearestCursorTime(path, 300, 250));
   assert.equal(time, 12);
   const inserted = insertCursorPoint(path, time);
   assert.equal(inserted.length, 3);
@@ -190,12 +193,12 @@ test("opening a recording produces a visible editable path preserving turns and 
   const points = recordedCursorPath(track, 0.5, 5.5);
   assert.ok(points.length > 2);
   assert.equal(points[0].t, 0.5);
-  assert.equal(points.at(-1)!.t, 5.5);
+  assert.equal(assertDefined(points.at(-1)).t, 5.5);
   assert.match(cursorPathGeometry(points), / C /);
   for (let i = 0; i <= 60; i++) {
     const t = 0.5 + i / 12;
     const expected = cursorAt(track, t);
-    const actual = cursorPathAt(points, t)!;
+    const actual = assertDefined(cursorPathAt(points, t));
     assert.ok(Math.hypot(expected.x - actual.x, expected.y - actual.y) <= 6.001);
   }
   const still = buildTrack(
@@ -304,7 +307,7 @@ function evalFf(expr: string, t: number): number {
     min: Math.min,
   };
   const js = expr.split("if(").join("iff(");
-  return new Function(...Object.keys(fns), "T", "return " + js)(...Object.values(fns), t) as number;
+  return new Function(...Object.keys(fns), "T", `return ${js}`)(...Object.values(fns), t) as number;
 }
 
 test("the export expression gives the same view as the preview", () => {

@@ -102,8 +102,10 @@ export interface CursorPoint {
 }
 
 export function editedCursorAt(fx: CursorFx, t: number): { x: number; y: number } | null {
-  for (let i = (fx.pathEdits?.length ?? 0) - 1; i >= 0; i--) {
-    const edit = fx.pathEdits![i];
+  const edits = fx.pathEdits ?? [];
+  for (let i = edits.length - 1; i >= 0; i--) {
+    const edit = edits[i];
+    if (!edit) throw new Error("Edição do caminho do cursor ausente.");
     if (t >= edit.start && t <= edit.end) {
       if (!edit.points.length) return null;
       // Removing endpoint anchors must not resurrect recorded movement inside an edited interval.
@@ -182,7 +184,8 @@ export function nearestCursorTime(path: CursorPoint[], x: number, y: number): nu
     const segment = [path[i - 1], path[i]];
     for (let j = 0; j <= 64; j++) {
       const t = segment[0].t + ((segment[1].t - segment[0].t) * j) / 64;
-      const p = cursorPathAt(segment, t)!;
+      const p = cursorPathAt(segment, t);
+      if (!p) throw new Error("Não foi possível interpolar o caminho do cursor.");
       const d = (p.x - x) ** 2 + (p.y - y) ** 2;
       if (d < distance) {
         distance = d;
@@ -672,11 +675,14 @@ export function recordedCursorPath(
   const keep = new Set([0, count]);
   const stack: [number, number][] = [[0, count]];
   while (stack.length && keep.size < 512) {
-    const [a, b] = stack.pop()!;
+    const range = stack.pop();
+    if (!range) throw new Error("Intervalo de simplificação do cursor ausente.");
+    const [a, b] = range;
     let worst = -1,
       error = tolerance;
     for (let i = a + 1; i < b; i++) {
-      const p = cursorPathAt([samples[a], samples[b]], samples[i].t)!;
+      const p = cursorPathAt([samples[a], samples[b]], samples[i].t);
+      if (!p) throw new Error("Não foi possível simplificar o caminho do cursor.");
       const distance = Math.hypot(p.x - samples[i].x, p.y - samples[i].y);
       if (distance > error) {
         error = distance;

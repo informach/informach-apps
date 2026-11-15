@@ -57,7 +57,7 @@ test("transform coefficients must be finite and have the correct arity", () => {
   );
 });
 test("aggregate geometry/attribute budgets reject oversized scenes before publication", () => {
-  const d = "M0 0" + "L1 1".repeat(1000);
+  const d = `M0 0${"L1 1".repeat(1000)}`;
   const nodes = Array.from({ length: 101 }, (_, index) => ({
     ...node(),
     id: `node-${index}`,

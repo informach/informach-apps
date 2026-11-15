@@ -38,7 +38,7 @@
   const per = (f) => (b, s) => b.map((v, i) => f(v, s[i]));
   const sum = (c) => c[0] + c[1] + c[2];
   const ref = {
-    normal: (b, s) => s,
+    normal: (_, s) => s,
     darken: per(Math.min),
     multiply: per((b, s) => b * s),
     colorBurn: per(burn),

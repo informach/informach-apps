@@ -518,7 +518,8 @@ export function KeySection({ asset }: { asset: Asset }): ReactNode {
   const job = Object.values(jobs).find((j) => j.label === `Removendo fundo: ${asset.name}`);
   const key = asset.key;
   const set = (changes: Partial<ChromaKey>): void => {
-    setAssetKey(asset.id, { ...key!, ...changes });
+    if (!key) throw new Error("Ative a remoção de fundo antes de alterar seus ajustes.");
+    setAssetKey(asset.id, { ...key, ...changes });
   };
 
   const detect = async (): Promise<string | null> => {

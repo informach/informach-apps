@@ -10,6 +10,7 @@ import {
   pasteClipProps,
 } from "../src/shared/clipProps.ts";
 import type { Clip } from "../src/shared/types.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 const clip = (o: Partial<Clip> = {}): Clip => ({
   id: "c",
@@ -57,14 +58,21 @@ test("only the chosen groups are copied, and the rest of the target stays", () =
     source,
     new Set<PropGroup>(["position", "shadow"]),
   );
-  assert.deepEqual([out.transform!.x, out.transform!.y, out.transform!.scale], [0.8, 0.7, 0.4]);
-  assert.deepEqual(out.transform!.shadow, shadow);
   assert.deepEqual(
-    out.transform!.crop,
+    [
+      assertDefined(out.transform).x,
+      assertDefined(out.transform).y,
+      assertDefined(out.transform).scale,
+    ],
+    [0.8, 0.7, 0.4],
+  );
+  assert.deepEqual(assertDefined(out.transform).shadow, shadow);
+  assert.deepEqual(
+    assertDefined(out.transform).crop,
     { left: 0.1, top: 0, right: 0, bottom: 0 },
     "crop not chosen: kept",
   );
-  assert.equal(out.transform!.mask, undefined);
+  assert.equal(assertDefined(out.transform).mask, undefined);
   assert.equal(out.volume, 0.8);
   assert.equal(out.enter, undefined);
   assert.equal(out.id, "c");
@@ -88,10 +96,10 @@ test("crop, animation and audio come over whole; absent values are cleared", () 
     source,
     new Set<PropGroup>(["crop", "animation", "audio", "opacity"]),
   );
-  assert.equal(out.transform!.crop, undefined);
-  assert.equal(out.transform!.mask, "circle");
-  assert.equal(out.transform!.border, "#FFFFFF");
-  assert.equal(out.transform!.opacity, 0.9);
+  assert.equal(assertDefined(out.transform).crop, undefined);
+  assert.equal(assertDefined(out.transform).mask, "circle");
+  assert.equal(assertDefined(out.transform).border, "#FFFFFF");
+  assert.equal(assertDefined(out.transform).opacity, 0.9);
   assert.equal(out.enter, "pop");
   assert.equal(out.exit, undefined);
   assert.equal(out.fadeIn, undefined);
@@ -107,7 +115,7 @@ test("groups that do not fit the target are skipped (no volume on a picture)", (
     new Set<PropGroup>(["audio", "position"]),
   );
   assert.equal(out.volume, 1);
-  assert.equal(out.transform!.x, 0.8);
+  assert.equal(assertDefined(out.transform).x, 0.8);
   const groups = pastableGroups(copied, [{ clip: pic, kind: "image", hasAudio: false }]);
   assert.ok(
     !groups.includes("audio") && !groups.includes("speed") && !groups.includes("background"),

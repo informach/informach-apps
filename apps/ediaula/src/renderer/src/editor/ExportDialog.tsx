@@ -44,6 +44,7 @@ import {
   measureLoudness,
 } from "@/lib/preflight";
 import { needsRelink, reconnectMissing, refreshMissing } from "@/lib/relink";
+import { requireOpenProject } from "@/lib/requiredProject";
 import { cleanError } from "@/lib/transcripts";
 import { useApp } from "@/state/app";
 import { exportQueue, useExportQueue } from "@/state/exportQueue";
@@ -72,7 +73,7 @@ const GIF_LONG = 30;
 type Phase = { kind: "setup" } | { kind: "error"; message: string };
 
 export function ExportDialog(): ReactNode {
-  const project = useProject((s) => s.project)!;
+  const project = useProject((s) => requireOpenProject(s.project));
   const draftWaiting = useProject((s) => !!s.draft && s.draft.projectId === s.project?.id);
   const info = useApp((s) => s.info);
   const close = (): void => {

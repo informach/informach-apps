@@ -674,7 +674,7 @@ export async function applyLegacyCoordinationLocked(
         .from(legacyBillingCoordinations)
         .where(eq(legacyBillingCoordinations.id, claim.row.id))
         .for("update");
-      if (!row || row.state !== "applying")
+      if (row?.state !== "applying")
         throw new BillingError("Billing coordination changed while applying");
       if (claim.kind === "schedule_start" && claim.intent) {
         const [intent] = await tx
@@ -682,11 +682,7 @@ export async function applyLegacyCoordinationLocked(
           .from(legacyFutureIntents)
           .where(eq(legacyFutureIntents.id, claim.intent.id))
           .for("update");
-        if (
-          !intent ||
-          intent.state !== "scheduled" ||
-          intent.scheduleId !== claim.intent.scheduleId
-        )
+        if (intent?.state !== "scheduled" || intent.scheduleId !== claim.intent.scheduleId)
           throw new BillingError("Future contract changed while its start was moved");
         if (intent.startsAt.getTime() !== claim.deferUntil.getTime()) {
           const terms = await readLegacyFutureIntentTerms(
@@ -859,7 +855,7 @@ export async function reviewOpenLegacyCoordinationLocked(
       .select()
       .from(legacyBillingCoordinations)
       .where(eq(legacyBillingCoordinations.id, coordinationId));
-    if (!observed || observed.state !== "open") return { state: observed?.state ?? "missing" };
+    if (observed?.state !== "open") return { state: observed?.state ?? "missing" };
     const [account] = await tx
       .select()
       .from(collectionAccounts)
@@ -875,7 +871,7 @@ export async function reviewOpenLegacyCoordinationLocked(
       .from(legacyBillingCoordinations)
       .where(eq(legacyBillingCoordinations.id, coordinationId))
       .for("update");
-    if (!row || row.state !== "open") return { state: row?.state ?? "missing" };
+    if (row?.state !== "open") return { state: row?.state ?? "missing" };
     if (!member || !account || account.closedAt) {
       await tx
         .update(legacyBillingCoordinations)

@@ -138,7 +138,7 @@ describe("family observation and content maintenance", () => {
     const lesson = findLesson("fracoes-2");
     if (!lesson || !profileId) throw new Error("Missing authored fixture");
     const firstItem = lesson.items[0];
-    if (!firstItem || firstItem.type !== "choice") throw new Error("Missing choice fixture");
+    if (firstItem?.type !== "choice") throw new Error("Missing choice fixture");
     const oldSession = await startSession(
       await fixtureAuthority(owner),
       profileId,

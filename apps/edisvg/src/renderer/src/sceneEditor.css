@@ -28,9 +28,6 @@
   max-height: 80%;
   background: #fff;
 }
-.edisvg-design-mode .workspace {
-  height: calc(100dvh - 118px);
-}
 .edisvg-design-mode .timeline {
   height: 66px;
 }
@@ -91,7 +88,6 @@
   font-size: 17px;
   font-weight: 400;
   line-height: 10px;
-  transition: transform 120ms ease;
 }
 .inspector-disclosure[open] > summary::before,
 .rig-panel[open] > summary::before {
@@ -186,9 +182,17 @@
   border: 1px solid transparent;
   border-radius: 4px;
   padding: 0 6px 0 0;
-  transition:
-    border-color 100ms ease,
-    background-color 100ms ease;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .inspector-disclosure > summary::before,
+  .rig-panel > summary::before {
+    transition: transform 120ms ease;
+  }
+  .artboard-value {
+    transition:
+      border-color 100ms ease,
+      background-color 100ms ease;
+  }
 }
 .artboard-value:hover {
   border-color: var(--line);
@@ -742,6 +746,9 @@
 .workspace {
   position: relative;
   min-width: 0;
+}
+.edisvg-design-mode .workspace {
+  height: calc(100dvh - 118px);
 }
 .panel-resizer {
   position: absolute;

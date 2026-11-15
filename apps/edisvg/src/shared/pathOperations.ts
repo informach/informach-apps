@@ -134,7 +134,7 @@ export function simplifyContours(contours: Contour[], tolerance: number): Contou
 }
 export function applyPathEdit(scene: Scene, command: Command) {
   const entry = flattenScene(scene).find((item) => item.node.id === command.targetId);
-  if (!entry || entry.node.tag !== "path" || entry.node.instance)
+  if (entry?.node.tag !== "path" || entry.node.instance)
     throw new Error("Selecione um caminho vetorial.");
   if (entry.locked) throw new Error("Desbloqueie o caminho e seus grupos.");
   let contours = parsePath(entry.node.attrs.d ?? "");

@@ -119,9 +119,6 @@ h3 small {
 .push {
   margin-left: auto;
 }
-.hidden {
-  display: none !important;
-}
 .topbar {
   height: 52px;
   display: flex;
@@ -665,7 +662,7 @@ h3 small {
   color: #ffb547;
   top: 0;
   transform: translateX(-50%);
-  font-size: 9px !important;
+  font-size: 9px;
   line-height: 20px;
   padding: 0 5px;
   height: 20px;
@@ -687,15 +684,6 @@ h3 small {
   cursor: ew-resize;
   touch-action: none;
   user-select: none;
-}
-#playhead > span {
-  position: absolute;
-  top: 4px;
-  left: -5.5px;
-  width: 12px;
-  height: 16px;
-  background: var(--mint);
-  clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%);
 }
 .timeline-curve {
   position: absolute;
@@ -1043,7 +1031,6 @@ dialog::backdrop {
   z-index: 10;
   opacity: 0;
   pointer-events: none;
-  transition: 0.2s;
   max-width: 90vw;
   box-shadow: 0 5px 30px #0005;
 }
@@ -1389,9 +1376,18 @@ dialog::backdrop {
     padding: 6px 8px;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  * {
-    scroll-behavior: auto !important;
-    transition: none !important;
+@media (prefers-reduced-motion: no-preference) {
+  #toast {
+    transition: 0.2s;
   }
+}
+
+#playhead > span {
+  position: absolute;
+  top: 4px;
+  left: -5.5px;
+  width: 12px;
+  height: 16px;
+  background: var(--mint);
+  clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%);
 }

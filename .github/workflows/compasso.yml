@@ -35,11 +35,12 @@ jobs:
             app: cozya
     services:
       postgres:
-        image: postgres:18-alpine
+        image: postgres:18
         env:
           POSTGRES_USER: ci
           POSTGRES_PASSWORD: ci
           POSTGRES_DB: ci
+          POSTGRES_INITDB_ARGS: "--auth-local=scram-sha-256 --auth-host=scram-sha-256"
         ports: [5432:5432]
         options: >-
           --health-cmd "pg_isready -h 127.0.0.1 -U ci"
@@ -50,11 +51,13 @@ jobs:
       CI: "true"
       DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci
       NEXT_TELEMETRY_DISABLED: "1"
+      # Browser builds are disposable and must not publish Sentry releases.
+      SENTRY_BUILD_VERIFICATION: "1"
       COMPASSO_TEST_APP: ${{ matrix.app }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: 24.15.0
           cache: pnpm
@@ -67,6 +70,7 @@ jobs:
           node --test scripts/compasso/checkout-inventory.test.mjs
           node --test scripts/compasso/postgres-fixture.test.mjs
           node --test scripts/compasso/redis-fixture.test.mjs
+          node --import tsx --test scripts/compasso/browser-environment.test.mts
           pnpm compasso:test:integration
       - if: matrix.gate == 'account'
         run: |
@@ -83,7 +87,7 @@ jobs:
           pnpm compasso:test:production-restore
       - name: Preserve synthetic verification evidence
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: compasso-${{ matrix.gate }}-${{ matrix.app }}-${{ github.run_attempt }}
           path: apps/conta/test-results/

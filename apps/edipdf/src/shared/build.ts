@@ -468,9 +468,7 @@ export function smoothPath(pts: [number, number][]): string {
   if (!pts.length) return "";
   const f = (n: number) => +n.toFixed(2);
   if (pts.length < 3)
-    return (
-      `M ${f(pts[0][0])} ${f(pts[0][1])} ` + pts.map(([x, y]) => `L ${f(x)} ${f(y)}`).join(" ")
-    );
+    return `M ${f(pts[0][0])} ${f(pts[0][1])} ${pts.map(([x, y]) => `L ${f(x)} ${f(y)}`).join(" ")}`;
   let d = `M ${f(pts[0][0])} ${f(pts[0][1])}`;
   for (let i = 1; i < pts.length - 1; i++) {
     const [x, y] = pts[i];
@@ -478,7 +476,7 @@ export function smoothPath(pts: [number, number][]): string {
     d += ` Q ${f(x)} ${f(y)} ${f((x + nx) / 2)} ${f((y + ny) / 2)}`;
   }
   const [lx, ly] = pts[pts.length - 1];
-  return d + ` L ${f(lx)} ${f(ly)}`;
+  return `${d} L ${f(lx)} ${f(ly)}`;
 }
 
 function fillForms(doc: PDFDocument, values: DocContent["forms"]): void {

@@ -228,8 +228,9 @@ export function withTransitions(project: Project): DerivedProject {
     if (!a) continue;
     const kind = b.transition.kind;
     const d = Math.max(0.1, Math.min(b.transition.duration, b.duration / 2, a.duration / 2));
-    const A = clips.get(a.id)!;
-    const B = clips.get(b.id)!;
+    const A = clips.get(a.id);
+    const B = clips.get(b.id);
+    if (!A || !B) throw new Error("Os clipes da transição não foram encontrados.");
     if (isCutFx(kind)) {
       cutFx.push({
         kind,
@@ -265,7 +266,11 @@ export function withTransitions(project: Project): DerivedProject {
   }
   return {
     ...project,
-    clips: project.clips.map((c) => clips.get(c.id)!),
+    clips: project.clips.map((c) => {
+      const clip = clips.get(c.id);
+      if (!clip) throw new Error("O clipe da transição não foi encontrado.");
+      return clip;
+    }),
     ...(cutFx.length ? { cutFx } : {}),
   };
 }
@@ -422,7 +427,9 @@ export function tailProgressExpr(
   c: Pick<DerivedClip, "start" | "duration" | "tail">,
   T = "T",
 ): string {
-  return sm(`(${T}-${n(c.start + c.duration - c.tail!)})/${n(c.tail!)}`);
+  const tail = c.tail;
+  if (!tail) throw new Error("A transição não possui duração de saída.");
+  return sm(`(${T}-${n(c.start + c.duration - tail)})/${n(tail)}`);
 }
 
 /** Glitch blocks of the outgoing scene: 12 × 8 cells reshuffled 30 times a second. */

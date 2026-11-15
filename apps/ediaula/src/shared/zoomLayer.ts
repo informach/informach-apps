@@ -57,11 +57,11 @@ export function layerCurve(c: Pick<Clip, "start" | "duration" | "zoomLayer">): {
   return { start: c.start - (z?.origin ?? 0), duration: z?.length ?? c.duration };
 }
 
-export const viewOf = (c: Pick<Clip, "zoomLayer">): View => ({
-  scale: c.zoomLayer!.scale,
-  cx: c.zoomLayer!.x,
-  cy: c.zoomLayer!.y,
-});
+export const viewOf = (c: Pick<Clip, "zoomLayer">): View => {
+  const zoom = c.zoomLayer;
+  if (!zoom) throw new Error("A camada de zoom não está disponível.");
+  return { scale: zoom.scale, cx: zoom.x, cy: zoom.y };
+};
 
 /** A corner of the zoom box in the preview: n/s and w/e. */
 export type FocusCorner = "nw" | "ne" | "sw" | "se";
@@ -128,7 +128,8 @@ export function zoomTimes(c: Pick<Clip, "start" | "duration" | "zoomLayer">): {
   inT: number;
   outT: number;
 } {
-  const z = c.zoomLayer!;
+  const z = c.zoomLayer;
+  if (!z) throw new Error("A camada de zoom não está disponível.");
   const half = layerCurve(c).duration / 2;
   return {
     inT: z.zoomIn === false ? 0 : Math.min(half, z.easeIn ?? z.ease ?? 0.6),
@@ -151,7 +152,7 @@ export function previousZoom(p: Pick<Project, "clips">, c: LayerClip): Clip | un
 /** Where the way in starts: the previous layer's view when it stays zoomed up to here, else normal. */
 export function entryView(p: Pick<Project, "clips">, c: LayerClip): View {
   const prev = previousZoom(p, c);
-  return prev && prev.zoomLayer!.zoomOut === false ? viewOf(prev) : NORMAL;
+  return prev?.zoomLayer?.zoomOut === false ? viewOf(prev) : NORMAL;
 }
 
 const smooth = (p: number): number => {
@@ -215,17 +216,22 @@ export function zoomsOver(
 ): View[] {
   const order = new Map(p.tracks.map((tr, i) => [tr.id, i]));
   return p.clips
-    .filter(
-      (c) =>
-        c.zoomLayer &&
-        c.id !== skip &&
-        t >= c.start &&
-        t < c.start + c.duration &&
-        (order.get(c.trackId) ?? -1) < trackIndex &&
-        !p.tracks[order.get(c.trackId)!]?.hidden,
-    )
-    .sort((a, b) => order.get(b.trackId)! - order.get(a.trackId)!)
-    .map((c) => layerViewAt(c, t, entryView(p, c)))
+    .flatMap((clip) => {
+      const index = order.get(clip.trackId);
+      if (
+        index === undefined ||
+        !clip.zoomLayer ||
+        clip.id === skip ||
+        t < clip.start ||
+        t >= clip.start + clip.duration ||
+        index >= trackIndex ||
+        p.tracks[index]?.hidden
+      )
+        return [];
+      return [{ clip, index }];
+    })
+    .sort((a, b) => b.index - a.index)
+    .map(({ clip }) => layerViewAt(clip, t, entryView(p, clip)))
     .filter((v) => v.scale !== 1 || v.cx !== 0.5 || v.cy !== 0.5);
 }
 

@@ -24,7 +24,7 @@ function useModeThumbs(layerId: string | undefined, modes: BlendMode[]): Record<
     if (!layerId) return;
     const draw = (): void => {
       const doc = useDoc.getState().doc;
-      if (!doc || !doc.layers.some((l) => l.id === layerId)) return;
+      if (!doc?.layers.some((l) => l.id === layerId)) return;
       const scale = Math.min(1, THUMB / Math.max(doc.width, doc.height));
       try {
         const out: Record<string, string> = {};

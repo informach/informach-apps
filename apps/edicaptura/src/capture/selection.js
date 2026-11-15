@@ -4,7 +4,7 @@ import { hydrateIcons } from "../shared/icons.js";
 hydrateIcons();
 document.documentElement.style.setProperty(
   "--capture-line",
-  1 / (window.devicePixelRatio || 1) + "px",
+  `${1 / (window.devicePixelRatio || 1)}px`,
 );
 const $ = (id) => document.getElementById(id);
 const surface = $("surface"),
@@ -52,10 +52,10 @@ function render(showToolbar = true) {
   toolbar.hidden = !rect || !showToolbar;
   if (!rect) return;
   Object.assign(region.style, {
-    left: rect.x + "px",
-    top: rect.y + "px",
-    width: rect.width + "px",
-    height: rect.height + "px",
+    left: `${rect.x}px`,
+    top: `${rect.y}px`,
+    width: `${rect.width}px`,
+    height: `${rect.height}px`,
   });
   const sx = state.pixels.width / viewWidth,
     sy = state.pixels.height / viewHeight;
@@ -65,12 +65,11 @@ function render(showToolbar = true) {
     offsetX +
     clamp(rect.x + rect.width - toolbar.offsetWidth, 8, viewWidth - toolbar.offsetWidth - 8) +
     "px";
-  toolbar.style.top =
-    clamp(
-      offsetY + (rect.y >= 82 ? rect.y - 78 : rect.y + 10),
-      8,
-      innerHeight - 8 - toolbar.offsetHeight,
-    ) + "px";
+  toolbar.style.top = `${clamp(
+    offsetY + (rect.y >= 82 ? rect.y - 78 : rect.y + 10),
+    8,
+    innerHeight - 8 - toolbar.offsetHeight,
+  )}px`;
 }
 picker.addEventListener("pointerdown", (e) => {
   if (busy || e.button !== 0 || !state) return;
@@ -261,10 +260,10 @@ try {
     for (const el of [picker, $("desktop")])
       Object.assign(el.style, {
         inset: "auto",
-        left: offsetX + "px",
-        top: offsetY + "px",
-        width: viewWidth + "px",
-        height: viewHeight + "px",
+        left: `${offsetX}px`,
+        top: `${offsetY}px`,
+        width: `${viewWidth}px`,
+        height: `${viewHeight}px`,
       });
     document.body.style.background = "#111820";
     for (const mode of ["video", "scroll"])

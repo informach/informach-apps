@@ -24,7 +24,7 @@ test("salva e recupera original, anotações e recorte após reiniciar a bibliot
   );
   const reopened = new Library(folder);
   const doc = await reopened.read(item.id);
-  assert.equal(doc.dataUrl, "data:image/png;base64," + data.toString("base64"));
+  assert.equal(doc.dataUrl, `data:image/png;base64,${data.toString("base64")}`);
   assert.equal(doc.annotations[0].x, 10);
   assert.equal(doc.crop.height, 20);
   assert.equal((await reopened.list())[0].name, "Projeto");

@@ -247,9 +247,10 @@ function pieces(
           out.push({ lower, fold: bare.replace(/\./g, ""), src, capital });
         else if (/^\d+,\d+$/.test(bare)) {
           const [a, b] = bare.split(",");
-          out.push({ lower: a!, fold: a!, src, capital });
+          if (a === undefined || b === undefined) throw new Error("Número decimal inválido.");
+          out.push({ lower: a, fold: a, src, capital });
           out.push({ lower: "vírgula", fold: "virgula", src, capital: false });
-          out.push({ lower: b!, fold: b!, src, capital });
+          out.push({ lower: b, fold: b, src, capital });
         } else {
           const fold = foldText(bare);
           const split = compounds?.get(fold);
@@ -273,7 +274,9 @@ function spellRuns(list: Piece[]): SpeechToken[] {
     let j = i;
     let strong = 0;
     while (j < list.length) {
-      const l = letterOf(list[j]!);
+      const piece = list[j];
+      if (!piece) throw new Error("Lista de palavras incompleta.");
+      const l = letterOf(piece);
       if (!l) break;
       if (l.strong) strong++;
       j++;
@@ -286,29 +289,30 @@ function spellRuns(list: Piece[]): SpeechToken[] {
           .map((p) => letterOf(p)?.letter ?? "")
           .join(""),
         src: [...new Set(list.slice(i, j).map((p) => p.src))],
-        ...(list[j - 1]!.pause ? { pause: true } : {}),
+        ...(list[j - 1]?.pause ? { pause: true } : {}),
       });
       i = j;
       continue;
     }
     const p = list[i];
-    const name = LETTER_NAMES[p!.lower];
-    const stop = STOP_CONTRACTIONS.has(p!.fold) || STOP.has(p!.fold);
+    if (!p) throw new Error("Lista de palavras incompleta.");
+    const name = LETTER_NAMES[p.lower];
+    const stop = STOP_CONTRACTIONS.has(p.fold) || STOP.has(p.fold);
     // "num sei" is "não sei": before a verb "num" is the spoken "não", not "em um".
-    const negation = p!.fold === "num" && NEGATED.has(list[i + 1]?.fold ?? "");
+    const negation = p.fold === "num" && NEGATED.has(list[i + 1]?.fold ?? "");
     const parts = name
       ? [name]
-      : p!.fold === "%"
+      : p.fold === "%"
         ? ["%"]
         : negation
           ? ["nao"]
-          : (CONTRACTIONS[p!.fold] ?? [p!.fold]);
+          : (CONTRACTIONS[p.fold] ?? [p.fold]);
     for (const [k, tok] of parts.entries())
       out.push({
         tok,
-        src: [p!.src],
+        src: [p.src],
         ...(stop && !name && !negation ? { stop } : {}),
-        ...(p!.pause && k === parts.length - 1 ? { pause: true } : {}),
+        ...(p.pause && k === parts.length - 1 ? { pause: true } : {}),
       });
     i++;
   }
@@ -322,14 +326,17 @@ const isDigits = (s: string): boolean => /^\d+$/.test(s);
  * digits with a multiplier ("2 mil"), ordinals ("vigésimo primeiro") and "por cento".
  */
 function numberAt(toks: SpeechToken[], i: number): { tok: string; end: number } | null {
-  const first = toks[i]!.tok;
+  const first = toks[i]?.tok;
+  if (first === undefined) throw new Error("Lista de palavras incompleta.");
   const ord = ORDINALS.get(first);
   if (ord) {
     let value = ord[0];
     let slot = ord[1];
     let j = i + 1;
-    while (j < toks.length && !toks[j - 1]!.pause) {
-      const next = ORDINALS.get(toks[j]!.tok);
+    while (j < toks.length && !toks[j - 1]?.pause) {
+      const nextToken = toks[j];
+      if (!nextToken) throw new Error("Lista de palavras incompleta.");
+      const next = ORDINALS.get(nextToken.tok);
       if (!next || next[1] >= slot) break;
       value += next[0];
       slot = next[1];
@@ -348,9 +355,12 @@ function numberAt(toks: SpeechToken[], i: number): { tok: string; end: number } 
   let any = false;
   let j = i;
   // Punctuation ends a number: "dois, três" are two.
-  while (j < toks.length && !(j > i && toks[j - 1]!.pause)) {
-    const t = toks[j]!.tok;
-    if (t === "e" && any && !isDigits(toks[j - 1]!.tok)) {
+  while (j < toks.length && !(j > i && toks[j - 1]?.pause)) {
+    const current = toks[j];
+    if (!current) throw new Error("Lista de palavras incompleta.");
+    const t = current.tok;
+    const previous = toks[j - 1];
+    if (t === "e" && any && previous && !isDigits(previous.tok)) {
       const next = toks[j + 1]?.tok;
       const card = next !== undefined ? CARDINALS[next] : undefined;
       if (card && card[1] < last) {
@@ -393,7 +403,7 @@ function numberAt(toks: SpeechToken[], i: number): { tok: string; end: number } 
   }
   if (!any) return null;
   // A lone "e" left at the end belongs to the next words.
-  while (j > i && toks[j - 1]!.tok === "e") j--;
+  while (j > i && toks[j - 1]?.tok === "e") j--;
   return { tok: String(total + group), end: j };
 }
 
@@ -401,26 +411,29 @@ function numberAt(toks: SpeechToken[], i: number): { tok: string; end: number } 
 function numbers(toks: SpeechToken[]): SpeechToken[] {
   const out: SpeechToken[] = [];
   for (let i = 0; i < toks.length; ) {
-    if (toks[i]!.tok === "por" && toks[i + 1]?.tok === "cento") {
-      out.push({ tok: "%", src: [...new Set([...toks[i]!.src, ...toks[i + 1]!.src])] });
+    const current = toks[i];
+    if (!current) throw new Error("Lista de palavras incompleta.");
+    const next = toks[i + 1];
+    if (current.tok === "por" && next?.tok === "cento") {
+      out.push({ tok: "%", src: [...new Set([...current.src, ...next.src])] });
       i += 2;
       continue;
     }
     const n = numberAt(toks, i);
     if (!n) {
-      out.push(toks[i]!);
+      out.push(current);
       i++;
       continue;
     }
     const span = toks.slice(i, n.end);
     const src = [...new Set(span.flatMap((t) => t.src))];
     // "um" or "uma" alone is usually the article.
-    const stop = span.length === 1 && !!span[0]!.stop;
+    const stop = span.length === 1 && !!span[0]?.stop;
     out.push({
       tok: n.tok,
       src,
       ...(stop ? { stop } : {}),
-      ...(span[span.length - 1]!.pause ? { pause: true } : {}),
+      ...(span.at(-1)?.pause ? { pause: true } : {}),
     });
     i = n.end;
   }

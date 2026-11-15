@@ -45,13 +45,13 @@ test("annotation remains editable across repeated save/reopen cycles without dup
     assert.equal(document.getPage(0).node.Annots()?.size(), 2);
     const restored = takeEditableAnnotations(document).get(0) ?? [];
     assert.equal(restored.length, 2);
-    assert.equal(restored[0].kind === "note" ? restored[0].text : "", "Primeiro" + "!".repeat(i));
+    assert.equal(restored[0].kind === "note" ? restored[0].text : "", `Primeiro${"!".repeat(i)}`);
     content = {
       ...content,
       annots: restored.map((a) => ({
         ...a,
         page: "p",
-        ...("text" in a && a.kind === "note" ? { text: a.text + "!" } : {}),
+        ...("text" in a && a.kind === "note" ? { text: `${a.text}!` } : {}),
       })),
     };
   }

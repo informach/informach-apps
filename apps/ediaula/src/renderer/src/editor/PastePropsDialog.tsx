@@ -23,7 +23,8 @@ let lastPick: { from: "annotation" | "clip"; groups: Set<PropGroup> } | null = n
 function initialPick(src: CopiedProps | null, groups: PropGroup[]): Set<PropGroup> {
   if (!src) return new Set();
   const from = src.clip.annotation ? "annotation" : "clip";
-  if (lastPick?.from === from) return new Set(groups.filter((g) => lastPick!.groups.has(g)));
+  const previous = lastPick;
+  if (previous?.from === from) return new Set(groups.filter((g) => previous.groups.has(g)));
   return new Set(
     groups.filter(
       (g) =>

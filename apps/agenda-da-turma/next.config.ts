@@ -1,7 +1,7 @@
 import path from "node:path";
 import { visionImageTracingIncludes } from "@informach/ai-core/vision-image-build";
 import { isolatedNextOptions } from "@informach/config/next-testing";
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
 const isProd = process.env.NODE_ENV === "production";
@@ -124,6 +124,9 @@ export default withSentryConfig(nextConfig, {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
+  release: { create: process.env.SENTRY_BUILD_VERIFICATION !== "1" },
+  useRunAfterProductionCompileHook:
+    process.env.SENTRY_BUILD_VERIFICATION === "1" ? false : undefined,
   silent: !process.env.CI,
   // Eventos do client tunelados via /monitoring (same-origin) em vez de
   // *.ingest.sentry.io — adblockers (uBlock/AdGuard) bloqueiam o domínio
@@ -132,7 +135,7 @@ export default withSentryConfig(nextConfig, {
   // evento, irrelevante em low-traffic.
   tunnelRoute: "/monitoring",
   sourcemaps: {
-    disable: !hasSentrySourceMapConfig,
+    disable: process.env.SENTRY_BUILD_VERIFICATION === "1" || !hasSentrySourceMapConfig,
     deleteSourcemapsAfterUpload: true,
   },
   webpack: {

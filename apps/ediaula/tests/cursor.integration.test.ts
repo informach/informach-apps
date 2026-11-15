@@ -207,7 +207,7 @@ test("export draws the moving pointer sprite and zooms the recording like the pr
   }
   // Fully zoomed (after 1.6 + 0.7 s): 2x around the pointer, which lands in the middle of the frame
   // (view x 240..560, y 160..340: (400-240)*2 = 320, (250-160)*2 = 180), twice as big.
-  assert.ok(red(px(2.6, 320, 180)), "zoomed pointer at the center: " + px(2.6, 320, 180));
+  assert.ok(red(px(2.6, 320, 180)), `zoomed pointer at the center: ${px(2.6, 320, 180)}`);
   assert.ok(
     red(px(2.6, 306, 166)) && red(px(2.6, 334, 194)) && !red(px(2.6, 346, 206)),
     "and twice as big",

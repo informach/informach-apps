@@ -220,7 +220,7 @@ export async function templateThumb(
   const canvas = document.createElement("canvas");
   canvas.width = W * OVERSAMPLE;
   canvas.height = H * OVERSAMPLE;
-  const ctx = canvas.getContext("2d")!;
+  const ctx = requireCanvas2d(canvas);
   const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
   bg.addColorStop(0, "#3B4A5C");
   bg.addColorStop(1, "#5C6B3E");
@@ -251,3 +251,5 @@ export async function templateThumb(
   thumbs.set(key, url);
   return url;
 }
+
+import { requireCanvas2d } from "./canvas";

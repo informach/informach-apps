@@ -148,7 +148,7 @@ export async function prepareGuidedNarration(path: string): Promise<string> {
   if (!info.hasVideo) return path;
   const out = join(cacheDir(path), `${basename(path, extname(path))}-voz.wav`);
   if (existsSync(out)) return out;
-  const temp = out + ".partial.wav";
+  const temp = `${out}.partial.wav`;
   try {
     await run(FFMPEG, [
       "-y",

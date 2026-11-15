@@ -295,7 +295,7 @@ export function links(document: PDFDocument): PdfLink[] {
         continue;
       const rect = annotation.lookupMaybe(n("Rect"), PDFArray),
         geometry = pageGeometry(page);
-      if (!rect || rect.size() !== 4) throw new Error("Link contém área inválida.");
+      if (rect?.size() !== 4) throw new Error("Link contém área inválida.");
       const values = [
         rect.lookup(0, PDFNumber).asNumber(),
         rect.lookup(1, PDFNumber).asNumber(),

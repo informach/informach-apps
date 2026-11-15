@@ -9,6 +9,7 @@ import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
 import { type DerivedClip, withTransitions } from "../src/shared/transitions.ts";
 import type { Asset, Project } from "../src/shared/types.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
@@ -66,7 +67,7 @@ test("dissolve: the outgoing clip runs past the cut, picture only, fading over t
   // (the export pads the stream with it) instead of turning into a dip to black.
   const q = withTransitions(project("a.mp4", "b.mp4", "dissolve", 2));
   const a2 = q.clips.find((c) => c.id === "a") as DerivedClip;
-  const b2 = q.clips.find((c) => c.id === "b")!;
+  const b2 = assertDefined(q.clips.find((c) => c.id === "b"));
   assert.equal(a2.tail, 1);
   assert.equal(b2.fadeIn, undefined);
 });

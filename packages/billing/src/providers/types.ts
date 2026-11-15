@@ -216,6 +216,8 @@ export interface BillingProviderClient {
   ): Promise<ProviderCreditCheckoutSnapshot>;
   closeCreditCheckout?(customerId: string, intentId: string, sessionId: string): Promise<void>;
   readCreditPayment?(customerId: string, paymentId: string): Promise<ProviderCreditPaymentSnapshot>;
+  /** Confirm an invoice belongs to this customer and is a paid subscription invoice. */
+  isPaidSubscriptionInvoice?(invoiceId: string, customerId: string): Promise<boolean>;
   readSubscriptionPaymentFacts?(
     subscriptionId: string,
     acceptedPriceIds: ReadonlySet<string>,

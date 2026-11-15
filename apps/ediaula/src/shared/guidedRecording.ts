@@ -112,11 +112,12 @@ export function scheduleGuided(plan: GuidedPlan): {
     previousEnd = endAt;
     return { step, moveAt, arriveAt, speechAt, actAt, endAt };
   });
+  const audio = plan.audio;
   if (
-    plan.audio &&
-    (!Number.isFinite(plan.audio.duration) ||
-      plan.audio.duration <= 0 ||
-      plan.steps.some((s) => s.at >= plan.audio!.duration))
+    audio &&
+    (!Number.isFinite(audio.duration) ||
+      audio.duration <= 0 ||
+      plan.steps.some((s) => s.at >= audio.duration))
   )
     throw new Error("As ações precisam estar dentro da duração do áudio.");
   return {

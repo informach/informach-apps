@@ -142,7 +142,8 @@ describe("chaves públicas", () => {
     const jwks = await resposta.json();
     expect(jwks.keys).toHaveLength(1);
     expect(jwks.keys[0]).toMatchObject({ kty: "OKP", crv: "Ed25519", use: "sig", alg: "EdDSA" });
-    expect(jwks.keys[0].kid).toMatch(/^local-[0-9a-f]{8}$/);
+    expect(process.env.RECREIO_TOKEN_KEY_ID).toMatch(/^test-[0-9a-f]{12}$/);
+    expect(jwks.keys[0].kid).toBe(process.env.RECREIO_TOKEN_KEY_ID);
     expect(jwks.keys[0]).not.toHaveProperty("d");
 
     const lia = await novoJogador();

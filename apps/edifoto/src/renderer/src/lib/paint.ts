@@ -1,6 +1,7 @@
 import type { Doc, Layer } from "@shared/doc";
 import { type Affine, apply, inverse, localPlacement, maskPlacement } from "@shared/placement";
 import { type Rect, requireBitmap, touchBitmap } from "@/engine/bitmaps";
+import { requireCanvas2d } from "@/engine/canvas";
 import { type Patch, useDoc } from "@/state/doc";
 import { type BrushSettings, useUi } from "@/state/ui";
 import { addMask } from "./ops";
@@ -59,14 +60,14 @@ function makeStamp(
   const c = document.createElement("canvas");
   c.width = width;
   c.height = height;
-  const ctx = c.getContext("2d")!;
+  const ctx = requireCanvas2d(c);
   ctx.translate(width / 2, height / 2);
   ctx.transform(mapping[0], mapping[1], mapping[2], mapping[3], 0, 0);
   const g = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
   const hard = Math.min(0.99, Math.max(0, hardness / 100));
   g.addColorStop(0, color);
   g.addColorStop(hard, color);
-  g.addColorStop(1, color + "00");
+  g.addColorStop(1, `${color}00`);
   ctx.fillStyle = g;
   ctx.beginPath();
   ctx.arc(0, 0, radius, 0, Math.PI * 2);
@@ -124,10 +125,11 @@ function resolveTarget(
       useUi.setState({ paintTarget: "mask", fg: "#000000", bg: "#ffffff" });
       useUi.getState().toast("Máscara criada: preto esconde, branco revela.");
     }
-    const l = useDoc.getState().doc!.layers.find((x) => x.id === layer.id)!;
+    const l = useDoc.getState().doc?.layers.find((x) => x.id === layer.id);
+    if (!l?.mask) return "Não foi possível encontrar a máscara da camada.";
     const mapping = maskPlacement(l);
     return {
-      bitmap: l.mask!.bitmap,
+      bitmap: l.mask.bitmap,
       mapping,
       target: "mask",
       toBitmap: (x, y) => {
@@ -170,11 +172,11 @@ export function beginStroke(x: number, y: number, erase: boolean): string | null
   const W = bmp.canvas.width;
   const H = bmp.canvas.height;
   const snapshot = scratchCanvas("snap", W, H);
-  const sctx = snapshot.getContext("2d")!;
+  const sctx = requireCanvas2d(snapshot);
   sctx.clearRect(0, 0, W, H);
   sctx.drawImage(bmp.canvas, 0, 0);
   const buffer = scratchCanvas("buf", W, H);
-  const bctx = buffer.getContext("2d")!;
+  const bctx = requireCanvas2d(buffer);
   bctx.clearRect(0, 0, W, H);
   const worldRadius = Math.max(0.5, settings.size / 2);
   const radius =
@@ -187,7 +189,7 @@ export function beginStroke(x: number, y: number, erase: boolean): string | null
   let selection: HTMLCanvasElement | null = null;
   if (ui.selection) {
     selection = scratchCanvas("selection", W, H);
-    const sc = selection.getContext("2d")!;
+    const sc = requireCanvas2d(selection);
     sc.clearRect(0, 0, W, H);
     sc.save();
     if (t.target === "layer" && layer.kind === "raster") {
@@ -201,7 +203,7 @@ export function beginStroke(x: number, y: number, erase: boolean): string | null
     if (layer.kind !== "raster" || t.target !== "layer")
       return "Carimbo e desfoque precisam de uma camada de pixels.";
     const source = scratchCanvas("retouch", W, H),
-      ctx = source.getContext("2d")!;
+      ctx = requireCanvas2d(source);
     ctx.clearRect(0, 0, W, H);
     ctx.filter =
       ui.tool === "blur" ? `blur(${Math.max(1, (settings.size * t.ratio) / 15)}px)` : "none";
@@ -240,7 +242,7 @@ export function beginStroke(x: number, y: number, erase: boolean): string | null
               ? "Pintar máscara"
               : "Pincel",
   };
-  dab(stroke.last[0], stroke.last[1]);
+  dab(stroke, stroke.last[0], stroke.last[1]);
   return null;
 }
 
@@ -250,7 +252,7 @@ function drawDab(s: Stroke, x: number, y: number): void {
     return;
   }
   const tile = scratchCanvas("retouch-dab", s.stamp.width, s.stamp.height),
-    ctx = tile.getContext("2d")!;
+    ctx = requireCanvas2d(tile);
   ctx.clearRect(0, 0, tile.width, tile.height);
   ctx.globalCompositeOperation = "source-over";
   ctx.drawImage(
@@ -264,11 +266,15 @@ function drawDab(s: Stroke, x: number, y: number): void {
   s.bctx.drawImage(tile, x - tile.width / 2, y - tile.height / 2);
 }
 
-function dab(x: number, y: number): void {
-  const s = stroke!;
+function dab(s: Stroke, x: number, y: number): void {
   s.bctx.globalAlpha = s.settings.flow / 100;
   drawDab(s, x, y);
-  refresh({ x: x - s.radius - 1, y: y - s.radius - 1, w: s.radius * 2 + 2, h: s.radius * 2 + 2 });
+  refresh(s, {
+    x: x - s.radius - 1,
+    y: y - s.radius - 1,
+    w: s.radius * 2 + 2,
+    h: s.radius * 2 + 2,
+  });
 }
 
 export function continueStroke(x: number, y: number): void {
@@ -295,12 +301,11 @@ export function continueStroke(x: number, y: number): void {
     drawDab(s, px, py);
   }
   s.last = [lx + ((tx - lx) * steps) / steps, ly + ((ty - ly) * steps) / steps];
-  refresh(area);
+  refresh(s, area);
 }
 
 /** Rebuilds the target in an area: snapshot + stroke buffer at the stroke's opacity and mode. */
-function refresh(area: Rect): void {
-  const s = stroke!;
+function refresh(s: Stroke, area: Rect): void {
   const b = requireBitmap(s.bitmap);
   const r = clampRect(area, b.canvas.width, b.canvas.height);
   if (!r) return;
@@ -322,7 +327,7 @@ function refresh(area: Rect): void {
       : s.settings.mode;
   if (s.selection) {
     const c = scratchCanvas("selected-stroke", s.buffer.width, s.buffer.height),
-      sc = c.getContext("2d")!;
+      sc = requireCanvas2d(c);
     sc.clearRect(0, 0, c.width, c.height);
     sc.globalCompositeOperation = "source-over";
     sc.drawImage(s.buffer, 0, 0);
@@ -342,7 +347,7 @@ export function endStroke(): void {
   if (!s?.bounds) return;
   const b = requireBitmap(s.bitmap);
   const r = s.bounds;
-  const before = s.snapshot.getContext("2d")!.getImageData(r.x, r.y, r.w, r.h);
+  const before = requireCanvas2d(s.snapshot).getImageData(r.x, r.y, r.w, r.h);
   const after = b.ctx.getImageData(r.x, r.y, r.w, r.h);
   const patch: Patch = { bitmap: s.bitmap, x: r.x, y: r.y, before, after };
   useDoc.getState().commit(s.label, (d) => d, { patches: [patch] });

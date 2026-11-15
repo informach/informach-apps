@@ -222,8 +222,12 @@ export function renderKeyed(
     };
     const dispatch = (): void => {
       while (idle.length && waiting.length) {
-        const job = waiting.shift()!;
-        const wk = idle.pop()!;
+        const job = waiting.shift();
+        const wk = idle.pop();
+        if (!job || !wk) {
+          fail(new Error("A fila de processamento de chroma key está inconsistente."));
+          return;
+        }
         inflight++;
         wk.postMessage({ seq: job.seq, data: job.data, width: w, height: h, key }, [
           job.data.buffer as ArrayBuffer,
@@ -232,7 +236,11 @@ export function renderKeyed(
     };
     const flush = (): void => {
       while (done.has(nextOut)) {
-        const data = done.get(nextOut)!;
+        const data = done.get(nextOut);
+        if (!data) {
+          fail(new Error("Um quadro processado de chroma key está ausente."));
+          return;
+        }
         done.delete(nextOut);
         enc.stdin.write(data);
         nextOut++;

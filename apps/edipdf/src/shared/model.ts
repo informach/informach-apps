@@ -512,7 +512,8 @@ export const baselineForText = (font: FontKey, text: string): number =>
 export function toWinAnsi(text: string): string {
   let out = "";
   for (const ch of text) {
-    const c = ch.codePointAt(0)!;
+    const c = ch.codePointAt(0);
+    if (c === undefined) throw new Error("Caractere PDF inválido.");
     out +=
       c === 10 || (c >= 32 && c <= 126) || (c >= 160 && c <= 255) || WIN_ANSI_EXTRA.includes(ch)
         ? ch

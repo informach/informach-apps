@@ -12,6 +12,7 @@ import {
   templateDefaults,
   templateLayers,
 } from "../src/shared/templates.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 test("stacked layers are centered as a block and never overlap", () => {
   const ys = stackY([0.1, 0.2, 0.1], 0.5, 0.02);
@@ -45,7 +46,7 @@ test("every template builds layers that start inside it and come in one after th
 });
 
 test("defaults come from the course and the script; list fields make one layer per line", () => {
-  const opening = templateById("opening")!;
+  const opening = assertDefined(templateById("opening"));
   const v = templateDefaults(opening, {
     course: "A Chave do Farol",
     title: "O farol que pisca",
@@ -58,7 +59,7 @@ test("defaults come from the course and the script; list fields make one layer p
   });
   const texts = templateLayers(opening, v).map((l) => l.spec.text);
   assert.deepEqual(texts, [undefined, "A CHAVE DO FAROL", "O farol que pisca", "Seção 2"]);
-  const q = templateById("question")!;
+  const q = assertDefined(templateById("question"));
   const opts = templateLayers(q, {
     question: "Qual bloco?",
     options: "Repetir\n\n Esperar \nAcender",
@@ -73,12 +74,16 @@ test("defaults come from the course and the script; list fields make one layer p
   );
   // Empty optional lines are left out instead of drawing empty boxes.
   assert.equal(
-    templateLayers(templateById("closing")!, { title: "Tchau", subtitle: "", call: "" }).length,
+    templateLayers(assertDefined(templateById("closing")), {
+      title: "Tchau",
+      subtitle: "",
+      call: "",
+    }).length,
     2,
   );
   // An empty list shows the kit's example lines, so the thumbnail shows the layout.
   assert.equal(
-    templateLayers(templateById("objective")!, { title: "Hoje" }).filter(
+    templateLayers(assertDefined(templateById("objective")), { title: "Hoje" }).filter(
       (l) => l.spec.kind === "item",
     ).length,
     3,
@@ -86,7 +91,7 @@ test("defaults come from the course and the script; list fields make one layer p
 });
 
 test("your-turn steps split their detail after the colon; the time goes beside the title", () => {
-  const layers = templateLayers(templateById("challenge")!, {
+  const layers = templateLayers(assertDefined(templateById("challenge")), {
     title: "Agora é com você!",
     time: "5 minutos",
     steps: "Abra o projeto Farol: No Estúdio, em Meus jogos.\nTeste o jogo",
@@ -99,14 +104,14 @@ test("your-turn steps split their detail after the colon; the time goes beside t
       ["2", "Teste o jogo", undefined],
     ],
   );
-  const time = layers.find((l) => l.spec.kind === "label")!;
+  const time = assertDefined(layers.find((l) => l.spec.kind === "label"));
   assert.equal(time.spec.icon, "flame");
-  assert.equal(layers[time.beside!.layer].spec.text, "Agora é com você!");
+  assert.equal(layers[assertDefined(time.beside).layer].spec.text, "Agora é com você!");
 });
 
 test("templates take the colors of the palette roles and the slide colors", () => {
   const layers = templateLayers(
-    templateById("question")!,
+    assertDefined(templateById("question")),
     { question: "Qual?", options: "A\nB" },
     SISTEMA_ZERO_PALETTE,
   );
@@ -120,37 +125,41 @@ test("templates take the colors of the palette roles and the slide colors", () =
   assert.ok(layers.filter((l) => l.spec.kind !== "panel").every((l) => l.spec.ink === "#0F1A33"));
   // The kit's light page and its softer text.
   const recap = templateLayers(
-    templateById("objective")!,
+    assertDefined(templateById("objective")),
     { title: "Hoje", items: "Uma", note: "Fim" },
     SISTEMA_ZERO_PALETTE,
   );
   assert.equal(recap[0].spec.color, "#E9EEF6");
-  assert.equal(recap.at(-1)!.spec.color, "#46536E");
+  assert.equal(assertDefined(recap.at(-1)).spec.color, "#46536E");
   // The reaction box keeps the accent text only where it can be read.
   const reaction = (p = SISTEMA_ZERO_PALETTE) =>
-    templateLayers(templateById("concept")!, { second: "Reação" }, p).find(
-      (l) => l.spec.text === "Reação",
-    )!.spec;
+    assertDefined(
+      templateLayers(assertDefined(templateById("concept")), { second: "Reação" }, p).find(
+        (l) => l.spec.text === "Reação",
+      ),
+    ).spec;
   assert.equal(reaction().textColor, "#FFC02E");
   assert.equal(reaction(EDIAULA_PALETTE).textColor, "#FFFFFF");
 });
 
 test("templates use the theme fonts by role; an item's line below takes the text font", () => {
   const layers = templateLayers(
-    templateById("challenge")!,
+    assertDefined(templateById("challenge")),
     { title: "Sua vez", steps: "Abra: o projeto" },
     SISTEMA_ZERO_PALETTE,
     SISTEMA_ZERO_PALETTE.fonts,
   );
-  const item = layers.find((l) => l.spec.kind === "item")!.spec;
+  const item = assertDefined(layers.find((l) => l.spec.kind === "item")).spec;
   assert.equal(item.fontFamily, "Baloo 2");
   assert.equal(item.bodyFont, "Nunito");
-  const note = templateLayers(
-    templateById("objective")!,
-    { note: "No fim, um jogo." },
-    SISTEMA_ZERO_PALETTE,
-    SISTEMA_ZERO_PALETTE.fonts,
-  ).at(-1)!.spec;
+  const note = assertDefined(
+    templateLayers(
+      assertDefined(templateById("objective")),
+      { note: "No fim, um jogo." },
+      SISTEMA_ZERO_PALETTE,
+      SISTEMA_ZERO_PALETTE.fonts,
+    ).at(-1),
+  ).spec;
   // A line of running text drawn as a title takes the body font.
   assert.equal(note.kind, "title");
   assert.equal(note.fontFamily, "Nunito");
@@ -217,12 +226,12 @@ test("a vertical frame narrows the content to fit between the margins", () => {
   const frame = frameUnits({ width: 1080, height: 1920 });
   assert.equal(Math.round(frame.w), 608);
   const layers = templateLayers(
-    templateById("objective")!,
+    assertDefined(templateById("objective")),
     { items: "Uma meta" },
     EDIAULA_PALETTE,
     undefined,
     frame,
   );
-  const item = layers.find((l) => l.spec.kind === "item")!;
+  const item = assertDefined(layers.find((l) => l.spec.kind === "item"));
   assert.ok((item.spec.width ?? 0) <= frame.w - 96 * 2);
 });

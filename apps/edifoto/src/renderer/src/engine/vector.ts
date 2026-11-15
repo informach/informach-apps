@@ -1,6 +1,7 @@
 import type { Doc, VectorLayer } from "@shared/doc";
 import { localPlacement } from "@shared/placement";
 import { shapePath } from "@shared/vector";
+import { requireCanvas2d } from "./canvas";
 
 const cache = new Map<string, { key: string; canvas: HTMLCanvasElement; version: number }>();
 let version = 1;
@@ -16,8 +17,9 @@ export function drawVector(
     path = new Path2D(shapePath(v));
   ctx.save();
   ctx.transform(...localPlacement(t, v.width, v.height));
-  if (silhouette || v.fillColor) {
-    ctx.fillStyle = silhouette ? "#ffffff" : v.fillColor!;
+  const fillColor = silhouette ? "#ffffff" : v.fillColor;
+  if (fillColor) {
+    ctx.fillStyle = fillColor;
     ctx.globalAlpha = silhouette ? 1 : (v.fillOpacity ?? 1);
     if (v.closed && v.shape !== "line") ctx.fill(path);
     ctx.globalAlpha = 1;
@@ -50,7 +52,7 @@ export function renderVector(
   const canvas = document.createElement("canvas");
   canvas.width = doc.width;
   canvas.height = doc.height;
-  drawVector(canvas.getContext("2d")!, layer);
+  drawVector(requireCanvas2d(canvas), layer);
   const result = { key, canvas, version: version++ };
   cache.delete(layer.id);
   let pixels = canvas.width * canvas.height;

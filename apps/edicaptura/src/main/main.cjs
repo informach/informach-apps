@@ -298,7 +298,7 @@ function monitorState() {
     selected: monitorPreference,
     displays: screen.getAllDisplays().map((d, i) => ({
       id: String(d.id),
-      name: `Monitor ${i + 1}${d.id === primary ? " (principal)" : ""}${d.label ? " — " + d.label : ""}`,
+      name: `Monitor ${i + 1}${d.id === primary ? " (principal)" : ""}${d.label ? ` — ${d.label}` : ""}`,
       width: Math.round(d.size.width * d.scaleFactor),
       height: Math.round(d.size.height * d.scaleFactor),
     })),
@@ -806,7 +806,7 @@ async function finishScrollCapture(active, overlap) {
       const count = scroll.images.length;
       completeCapture(active);
       send("document", doc);
-      send("notice", { message: count + " trecho(s) salvo(s) em uma imagem." });
+      send("notice", { message: `${count} trecho(s) salvo(s) em uma imagem.` });
     }
   } catch (error) {
     if (capture === active)
@@ -1550,7 +1550,7 @@ async function initialize() {
         });
     }
     const result = await dialog.showSaveDialog(editor, {
-      defaultPath: path.join(directory, safeName + "." + format),
+      defaultPath: path.join(directory, `${safeName}.${format}`),
       filters: [{ name: format.toUpperCase(), extensions: [format] }],
     });
     if (result.canceled) return null;

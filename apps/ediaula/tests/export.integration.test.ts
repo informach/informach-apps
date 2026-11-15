@@ -8,6 +8,7 @@ import { test } from "node:test";
 import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
 import type { Encoder, Project } from "../src/shared/types.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
@@ -161,8 +162,8 @@ test("renders a multi-track project to a valid MP4", { timeout: 180_000 }, () =>
     info.streams.some((x) => x.codec_type === "audio"),
     "has audio",
   );
-  assert.equal(v!.width, 1920);
-  assert.equal(v!.height, 1080);
+  assert.equal(assertDefined(v).width, 1920);
+  assert.equal(assertDefined(v).height, 1080);
   assert.ok(Math.abs(info.duration - 8) < 0.2, `duration ${info.duration} ≈ 8`);
   console.log(`  encoder=${encoder} duration=${info.duration.toFixed(2)}s → ${outPath}`);
 });

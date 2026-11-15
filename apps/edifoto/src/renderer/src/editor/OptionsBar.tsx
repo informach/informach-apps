@@ -296,7 +296,7 @@ function CropOptions(): ReactNode {
 
 function TextOptions(): ReactNode {
   const layer = useDoc((s) => s.doc?.layers.find((l) => l.id === s.activeId));
-  if (!layer || layer.kind !== "text")
+  if (layer?.kind !== "text")
     return (
       <span className="opt-hint">
         Clique na imagem para criar um texto. Edite o conteúdo no painel Propriedades.

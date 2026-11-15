@@ -4,6 +4,24 @@
 
 ## Compasso em implementação (10/11/2026)
 
+Eventos Stripe de assinatura e fatura chegam aos endpoints dos vários apps. No
+Compasso, o dispatcher consulta a origem do customer pelo identificador único do
+provedor: quando o cadastro comprova que pertence a outro app, registra o recibo
+como processado sem aplicar seus efeitos nesse endpoint. Customer desconhecido
+continua pelo fluxo existente de sinalização e conciliação; metadados ou preço
+isolados não comprovam origem e não autorizam descartar um fato financeiro.
+Um PaymentIntent sem metadados só é reconhecido como pagamento de assinatura
+quando o Stripe confirma uma fatura paga do mesmo customer, com todas as linhas
+visíveis e exclusivamente de itens de assinatura. Faturas mistas, paginação,
+metadados parciais ou resultado inconclusivo continuam sinalizados; fatura
+ainda não paga ou falha na consulta produzem um recibo marcado para nova
+tentativa. O job central retoma somente esses recibos dos apps Compasso, usando
+o mesmo dispatcher e escopo de deduplicação; Edi, Recreio e pagamentos antigos
+com outros erros ficam fora dessa seleção. Resultado misto após uma falha
+mantém o recibo pendente e o job em erro para conferência. Erros do provedor
+são reduzidos a uma categoria fixa, sem serializar credenciais ou mensagens
+externas nos logs.
+
 Para operação solicitada expressamente pela titular do negócio, o módulo interno
 de contratos legados oferece autorização por owner: exige owner verificado e
 administrador da mesma família, pagante membro, prévia financeira atual e

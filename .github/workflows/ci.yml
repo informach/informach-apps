@@ -20,19 +20,11 @@ jobs:
           POSTGRES_USER: ci
           POSTGRES_PASSWORD: ci
           POSTGRES_DB: ci
+          POSTGRES_INITDB_ARGS: "--auth-local=scram-sha-256 --auth-host=scram-sha-256"
         ports:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U ci -d ci"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:7
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -50,12 +42,28 @@ jobs:
       STRIPE_MODE: dev
       OPENROUTER_API_KEY: sk-or-ci-build-placeholder
       REDIS_URL: redis://localhost:6379
+      # Verification builds are disposable and must not publish Sentry releases.
+      SENTRY_BUILD_VERIFICATION: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
 
-      - uses: pnpm/action-setup@v4
+      - name: Start isolated Redis
+        run: |
+          sudo sysctl -w vm.overcommit_memory=1
+          docker run --detach --rm --name compasso-ci-redis \
+            --publish 127.0.0.1:6379:6379 \
+            --mount "type=bind,source=$GITHUB_WORKSPACE/.github/redis-ci.conf,target=/usr/local/etc/redis/redis.conf,readonly" \
+            redis:7 redis-server /usr/local/etc/redis/redis.conf
+          for attempt in {1..30}; do
+            if docker exec compasso-ci-redis redis-cli ping | grep -qx PONG; then exit 0; fi
+            sleep 1
+          done
+          docker logs compasso-ci-redis
+          exit 1
 
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: 24.15.0
           cache: pnpm
@@ -125,7 +133,15 @@ jobs:
       # O build do Recreio valida o ambiente como produção e exige a chave dos
       # tokens. Ela é gerada aqui, vale só para este build e não fica em arquivo.
       - name: Chave descartável dos tokens do Recreio
-        run: node apps/recreio/scripts/gerar-chave.mjs --github-env >> "$GITHUB_ENV"
+        run: |
+          ci_values="$(node apps/recreio/scripts/gerar-chave.mjs --github-env)"
+          ci_private="${ci_values%%$'\n'*}"
+          case "$ci_private" in
+            RECREIO_TOKEN_PRIVATE_KEY=*) ;;
+            *) echo 'A chave descartável não foi gerada.' >&2; exit 1 ;;
+          esac
+          printf '::add-mask::%s\n' "${ci_private#RECREIO_TOKEN_PRIVATE_KEY=}"
+          printf '%s\n' "$ci_values" >> "$GITHUB_ENV"
 
       # Cada consumidor SSO precisa incorporar sua própria origem do catálogo.
       - run: pnpm exec tsx scripts/compasso/build-ci.mts
@@ -170,16 +186,24 @@ jobs:
 
       - name: Preserve Missao Saber failure evidence
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: missao-saber-verification-${{ github.run_attempt }}
           path: apps/conta/test-results/compasso-apps/missao-saber/
           if-no-files-found: ignore
           retention-days: 7
 
+      - name: Stop isolated Redis
+        if: always()
+        run: |
+          if docker inspect compasso-ci-redis >/dev/null 2>&1; then
+            docker logs compasso-ci-redis
+            docker stop compasso-ci-redis
+          fi
+
       - name: Preserve Bora Treinar failure evidence
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: bora-treinar-verification-${{ github.run_attempt }}
           path: apps/conta/test-results/compasso-apps/bora-treinar/
@@ -188,7 +212,7 @@ jobs:
 
       - name: Preserve Dia de Estrela failure evidence
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: dia-de-estrela-verification-${{ github.run_attempt }}
           path: apps/conta/test-results/compasso-apps/dia-de-estrela/
@@ -197,7 +221,7 @@ jobs:
 
       - name: Preserve Recreio failure evidence
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: recreio-verification-${{ github.run_attempt }}
           path: apps/recreio/tmp/verification/
@@ -209,7 +233,7 @@ jobs:
       # a mensagem do expect para investigar.
       - name: Preserve Agenda and Cozya failure evidence
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: playwright-test-results-${{ github.run_attempt }}
           path: |

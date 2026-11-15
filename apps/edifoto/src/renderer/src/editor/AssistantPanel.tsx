@@ -120,7 +120,8 @@ function Message({ item }: { item: ChatItem }): ReactNode {
             className="btn"
             disabled={!canCompare}
             onClick={() => {
-              useDoc.getState().setActive(item.layerId!);
+              if (!item.layerId) return;
+              useDoc.getState().setActive(item.layerId);
               useUi.setState({ compareOpen: true });
             }}
           >

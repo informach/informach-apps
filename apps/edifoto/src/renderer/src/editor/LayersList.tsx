@@ -48,7 +48,8 @@ function drawFit(canvas: HTMLCanvasElement, src: CanvasImageSource, w: number, h
   const dpr = window.devicePixelRatio || 1;
   canvas.width = 36 * dpr;
   canvas.height = 28 * dpr;
-  const ctx = canvas.getContext("2d")!;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Não foi possível criar a prévia da camada.");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const s = Math.min(canvas.width / w, canvas.height / h);
   ctx.imageSmoothingQuality = "high";

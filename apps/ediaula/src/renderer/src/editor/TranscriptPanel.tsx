@@ -29,6 +29,7 @@ import {
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { bytes, duration, timecode } from "@/lib/format";
 import { blindNotes, proposeCleanup } from "@/lib/proposals";
+import { requireOpenProject } from "@/lib/requiredProject";
 import {
   cleanError,
   cutRangesInteractive,
@@ -280,7 +281,7 @@ function ExternalModels({ status }: { status: EngineStatus }): ReactNode {
 }
 
 function TranscribeStart({ status }: { status: EngineStatus }): ReactNode {
-  const project = useProject((s) => s.project)!;
+  const project = useProject((s) => requireOpenProject(s.project));
   const running = useTranscribing();
   const jobs = useApp((s) => s.jobs);
   const language = useCleanup((s) => s.language);
@@ -398,7 +399,7 @@ const KIND_META = {
 } as const;
 
 function CleanupBar({ model, loading }: { model: TextModel; loading: boolean }): ReactNode {
-  const project = useProject((s) => s.project)!;
+  const project = useProject((s) => requireOpenProject(s.project));
   const { kinds, minSilence } = model.choices;
   const counts = { filler: 0, silence: 0, repeat: 0 };
   for (const i of model.active) counts[i.kind]++;
@@ -591,7 +592,7 @@ function TranscriptText({
     setSelection(range ? { words, range } : null);
 
   const index = useMemo(() => new Map(words.map((w, i) => [w.key, i])), [words]);
-  const project = useProject((s) => s.project)!;
+  const project = useProject((s) => requireOpenProject(s.project));
   // The words as the transcript shows them (glossary marks, times in the media's seconds).
   const shown = useMemo(() => shownByKey(transcripts), [transcripts]);
   const lost = useMemo(
@@ -745,7 +746,8 @@ function TranscriptText({
               </button>
               <div className="para-text">
                 {para.map((w) => {
-                  const i = index.get(w.key)!;
+                  const i = index.get(w.key);
+                  if (i === undefined) throw new Error("A palavra não está na transcrição atual.");
                   const pauses = silenceAfter.get(i) ?? [];
                   const issue = wordIssue.get(w.key);
                   return (

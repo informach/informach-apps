@@ -142,7 +142,7 @@ export function humanDuration(
  */
 export function typingGaps(text: string, seed: number, base = 0.09): number[] {
   const random = seeded(seed);
-  return [...text].map((char, i) => {
+  return [...text].map((_, i) => {
     const before = i > 0 ? text[i - 1] : "";
     const pause = /[\s.,;:!?]/.test(before) ? 0.08 : 0;
     return Math.round((base * (0.6 + random() * 0.8) + pause) * 1000) / 1000;

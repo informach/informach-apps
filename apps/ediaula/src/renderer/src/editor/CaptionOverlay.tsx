@@ -37,7 +37,6 @@ export function useCues(
 /** Burned captions as they will look, drawn over the preview stage (width × height in screen px). */
 export function CaptionOverlay({
   project,
-  width,
   height,
 }: {
   project: Project;

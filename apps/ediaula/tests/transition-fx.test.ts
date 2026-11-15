@@ -20,6 +20,7 @@ import {
   withTransitions,
 } from "../src/shared/transitions.ts";
 import type { Project } from "../src/shared/types.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 const require = createRequire(import.meta.url);
 const FFMPEG: string = require("ffmpeg-static");
@@ -94,7 +95,7 @@ function project(kind: TransitionKind, duration = 1): Project {
 function frame(p: Project, t: number): (x: number, y: number) => string {
   const out = join(
     dir,
-    `${p.clips[1].transition!.kind}-${Math.random().toString(36).slice(2)}.mp4`,
+    `${assertDefined(p.clips[1].transition).kind}-${Math.random().toString(36).slice(2)}.mp4`,
   );
   const plan = buildExportPlan(p, {
     outPath: out,
@@ -197,7 +198,7 @@ for (const kind of [
     timeout: 60_000,
   }, () => {
     const p = project(kind, 1);
-    p.clips[1].transition!.colors = ["#00FF00", "#FF00FF", "#FFFF00"];
+    assertDefined(p.clips[1].transition).colors = ["#00FF00", "#FF00FF", "#FFFF00"];
     const px = frame(p, 2);
     // colorsplit: the top half is the front color; colorbars: the fourth bar (index 3) repeats the first color.
     const [x, y] = kind === "colorsplit" ? [158, 40] : kind === "colorbars" ? [184, 88] : [158, 88];

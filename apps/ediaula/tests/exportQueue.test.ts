@@ -4,6 +4,7 @@ import { validateIpcValues } from "../../../packages/edi-desktop/src/files.ts";
 import { ExportQueue } from "../src/shared/exportQueue.ts";
 import { exportSpecSchema } from "../src/shared/project-schema.ts";
 import type { ExportSpec, Project } from "../src/shared/types.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 const project: Project = {
   id: "project",
@@ -55,11 +56,11 @@ test("exports run serially and retain their project and settings snapshots", asy
   second.project.name = "Editado depois do envio";
   assert.deepEqual(seen, ["one"]);
   assert.equal(q.items[1].state, "waiting");
-  release.shift()!();
+  assertDefined(release.shift())();
   await tick();
   assert.deepEqual(seen, ["one", "two"]);
   assert.equal(q.items[0].state, "done");
-  release.shift()!();
+  assertDefined(release.shift())();
   await tick();
   assert.equal(q.items[1].state, "done");
 });

@@ -22,7 +22,7 @@ function evalFf(expr: string, t: number): number {
     lte: (a, b) => (a <= b ? 1 : 0),
     clip: (x, a, b) => Math.min(b, Math.max(a, x)),
   };
-  return new Function(...Object.keys(fns), "t", "return " + expr.split("if(").join("iff("))(
+  return new Function(...Object.keys(fns), "t", `return ${expr.split("if(").join("iff(")}`)(
     ...Object.values(fns),
     t,
   ) as number;

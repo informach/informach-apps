@@ -67,7 +67,8 @@ export function pruneUnreachable(doc: PDFDocument): number {
     ctx.trailerInfo.Encrypt,
   ].filter((o): o is PDFObject => !!o);
   while (stack.length) {
-    const o = stack.pop()!;
+    const o = stack.pop();
+    if (!o) throw new Error("Objeto PDF ausente durante a análise de referências.");
     if (o instanceof PDFRef) {
       if (seen.has(o)) continue;
       seen.add(o);

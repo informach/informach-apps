@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { buildEditingTemplate } from "../src/shared/editingTemplate.ts";
 import type { Project } from "../src/shared/types.ts";
+import { assertDefined } from "./assert-defined.ts";
 
 const project: Project = {
   version: 1,
@@ -90,7 +91,7 @@ test("generation handles empty projects and leaves the source project unchanged"
 
 test("user text cannot terminate a JSON code fence or introduce table columns", () => {
   const changed = structuredClone(project);
-  changed.clips[0].annotation!.text = "Texto ``` com | separador";
+  assertDefined(changed.clips[0].annotation).text = "Texto ``` com | separador";
   const md = buildEditingTemplate(changed);
   assert.ok(md.includes("````json"));
   assert.ok(md.includes("Aula \\| 01"));

@@ -1,10 +1,4 @@
-import type {
-  EngineStatus,
-  Transcript,
-  WhisperModelInfo,
-  WhisperVariant,
-  Word,
-} from "@informach/edi-speech/types";
+import type { EngineStatus, WhisperVariant } from "@informach/edi-speech/types";
 import type { Effort } from "./aiModels.ts";
 import type { StoredProposal } from "./anchors.ts";
 import type { Annotation } from "./annotation.ts";

@@ -82,7 +82,7 @@ try {
     if (message.type() === "error" && !message.text().includes("favicon.ico"))
       receipt.errors.push(message.text());
   });
-  await page.goto(server.url + "/assets-qa.html");
+  await page.goto(`${server.url}/assets-qa.html`);
   await page.waitForFunction(() => !!window.__webAssets);
   for (const file of (await readdir(source)).filter((name) => name.endsWith(".edisvg")).sort()) {
     const original = await readFile(resolve(source, file));
@@ -124,7 +124,7 @@ try {
         );
         const artifact = parseAnimationArtifact(exported.content);
         assert.ok(artifact.poster, `${name}: falta a imagem de reserva`);
-        await writeFile(resolve(output, name + ".edi-animation.json"), exported.content, {
+        await writeFile(resolve(output, `${name}.edi-animation.json`), exported.content, {
           flag: "wx",
         });
         await page.evaluate(async (content) => {
@@ -133,7 +133,7 @@ try {
         }, exported.content);
         const first = await page
           .locator("#art")
-          .screenshot({ path: resolve(output, name + "-desktop.png") });
+          .screenshot({ path: resolve(output, `${name}-desktop.png`) });
         const control = board.behavior?.inputs.find((value) => value.kind === "boolean");
         if (machines.length && control?.kind === "boolean")
           await page.evaluate(
@@ -147,7 +147,7 @@ try {
           );
         const next = await page
           .locator("#art")
-          .screenshot({ path: resolve(output, name + "-desktop-next.png") });
+          .screenshot({ path: resolve(output, `${name}-desktop-next.png`) });
         const desktopChanged = hash(first) !== hash(next);
         if (clip || machines.length)
           assert.ok(desktopChanged, `${name}: a animação precisa mudar o desenho após avançar`);
@@ -157,7 +157,7 @@ try {
           async (content) => window.__webAssets?.mountFile(content),
           exported.content,
         );
-        await page.locator("#art").screenshot({ path: resolve(output, name + "-mobile.png") });
+        await page.locator("#art").screenshot({ path: resolve(output, `${name}-mobile.png`) });
         await page.evaluate(async () => window.__webAssets?.dispose());
         await page.setViewportSize({ width: 900, height: 700 });
         receipt.exports.push({

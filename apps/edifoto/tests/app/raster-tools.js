@@ -16,7 +16,6 @@ globalThis.__rasterTestRun = (async () => {
   ctx.fillStyle = "#ff0000";
   ctx.fillRect(20, 20, 40, 40);
   E.useDoc.getState().load(E.ops.docFromImage(photo, 160, 100, "Raster checks"));
-  const id = E.useDoc.getState().activeId;
   const pixel = (x, y) => {
     const l = E.useDoc.getState().doc.layers[0];
     return E.bitmaps.requireBitmap(l.bitmap).ctx.getImageData(x, y, 1, 1).data;

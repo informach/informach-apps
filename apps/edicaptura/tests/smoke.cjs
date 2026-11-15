@@ -12,7 +12,7 @@ async function until(fn, label, timeout = 20000) {
     if (result) return result;
     await delay(150);
   }
-  throw new Error("Timeout: " + label);
+  throw new Error(`Timeout: ${label}`);
 }
 class CDP {
   constructor(ws) {
@@ -50,7 +50,7 @@ class CDP {
       const id = ++this.next;
       const timeout = setTimeout(() => {
         this.pending.delete(id);
-        reject(new Error("CDP timeout: " + method));
+        reject(new Error(`CDP timeout: ${method}`));
       }, 15000);
       this.pending.set(id, {
         resolve: (value) => {
@@ -81,7 +81,7 @@ class CDP {
   async screenshot(name) {
     const result = await this.call("Page.captureScreenshot", { format: "png" });
     await fs.writeFile(
-      path.join(root, "test-results", name + ".png"),
+      path.join(root, "test-results", `${name}.png`),
       Buffer.from(result.data, "base64"),
     );
   }
@@ -97,7 +97,7 @@ async function run() {
     EDICAPTURA_TEST_PROFILE: path.join(root, ".test-profile", String(Date.now())),
   };
   delete env.ELECTRON_RUN_AS_NODE;
-  const proc = spawn(require("electron"), [root, "--remote-debugging-port=" + port], {
+  const proc = spawn(require("electron"), [root, `--remote-debugging-port=${port}`], {
     cwd: root,
     env,
     windowsHide: true,

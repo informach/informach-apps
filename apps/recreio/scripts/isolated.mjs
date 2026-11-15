@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { randomBytes, randomUUID } from "node:crypto";
+import { generateKeyPairSync, randomBytes, randomUUID } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, realpathSync, rmSync } from "node:fs";
 import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -80,6 +80,8 @@ for (const generatedPath of generatedPaths) {
     throw new Error("Refusing to use an unexpected isolated artifact path");
 }
 const [, resultsPath, emailsPath] = generatedPaths;
+// A fresh key belongs only to this run and is shared by its isolated processes.
+const tokenKey = generateKeyPairSync("ed25519").privateKey.export({ type: "pkcs8", format: "pem" });
 const testEnv = {
   DATABASE_URL: url.toString(),
   BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
@@ -91,6 +93,8 @@ const testEnv = {
   EMAIL_SANDBOX_MODE: e2e ? "sandbox" : "memory",
   ...(emailsPath ? { EMAIL_SANDBOX_DIR: emailsPath.replaceAll("\\", "/") } : {}),
   RECREIO_ACCESS_MODE: "fechado",
+  RECREIO_TOKEN_PRIVATE_KEY: tokenKey,
+  RECREIO_TOKEN_KEY_ID: `test-${randomBytes(6).toString("hex")}`,
   SENTRY_AUTH_TOKEN: "",
   // Segredos e origens só deste teste. `jogo-de-teste` não está no catálogo:
   // os testes de integração que precisam de um segundo jogo o acrescentam por
@@ -123,6 +127,12 @@ const testEnv = {
   RECREIO_E2E_PORT: e2ePort,
 };
 const childEnv = { ...process.env, ...testEnv, RECREIO_ISOLATED_TEST: "1" };
+// Playwright enables FORCE_COLOR in its workers; keep the caller's no-color
+// preference without passing mutually exclusive color settings to Node.
+if (childEnv.NO_COLOR) {
+  childEnv.FORCE_COLOR ||= "0";
+  delete childEnv.NO_COLOR;
+}
 delete childEnv.MORADA_ARTE_DIR;
 delete childEnv.RECREIO_E2E_PRIVATE_ARTIFACTS;
 if (artDir) childEnv.MORADA_ARTE_DIR = artDir;
@@ -131,13 +141,11 @@ if (privateArtifacts) childEnv.RECREIO_E2E_PRIVATE_ARTIFACTS = privateArtifacts;
 // particular, Better Auth stores sessions in Redis when REDIS_URL is present;
 // that would bypass the disposable PostgreSQL database created above and make
 // the run share state with the caller's environment.
-// The token key is left out on purpose: the app generates a throwaway pair.
+// The token key above is generated locally and never inherited from the caller.
 for (const key of [
   "REDIS_URL",
   "SENTRY_DSN",
   "NEXT_PUBLIC_SENTRY_DSN",
-  "RECREIO_TOKEN_PRIVATE_KEY",
-  "RECREIO_TOKEN_KEY_ID",
   "RECREIO_TOKEN_PREVIOUS_PUBLIC_KEYS",
 ])
   delete childEnv[key];

@@ -8,7 +8,7 @@ function choice(id: string) {
     .flatMap(packLessons)
     .flatMap((lesson) => lesson.items)
     .find((question) => question.id === id);
-  if (!found || found.type !== "choice") throw new Error(`Choice question not found: ${id}`);
+  if (found?.type !== "choice") throw new Error(`Choice question not found: ${id}`);
   return found;
 }
 

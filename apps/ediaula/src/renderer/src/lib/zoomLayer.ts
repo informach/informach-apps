@@ -19,7 +19,12 @@ export function blankPicture(): Promise<string> {
     const c = document.createElement("canvas");
     c.width = 1;
     c.height = 1;
-    const blob = await new Promise<Blob>((resolve) => c.toBlob((b) => resolve(b!), "image/png"));
+    const blob = await new Promise<Blob>((resolve, reject) =>
+      c.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error("Não foi possível criar a imagem de zoom."))),
+        "image/png",
+      ),
+    );
     return window.api.saveGenerated(new Uint8Array(await blob.arrayBuffer()), "png");
   })();
   return blank;
@@ -124,7 +129,8 @@ export async function continueZoom(
   const p = useProject.getState().project;
   const c = p?.clips.find((x) => x.id === clipId && x.zoomLayer);
   if (!p || !c) return null;
-  const z = c.zoomLayer!;
+  const z = c.zoomLayer;
+  if (!z) throw new Error("Camada de zoom ausente.");
   setZoomLayer(clipId, { zoomOut: false });
   const at = c.start + c.duration;
   if (step === "restore")

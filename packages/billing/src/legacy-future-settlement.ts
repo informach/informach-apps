@@ -35,7 +35,7 @@ export async function settleLegacyFutureIntent(
       .from(legacyFutureIntents)
       .where(eq(legacyFutureIntents.id, intentId));
     if (intent?.state === "applied") return { intentId, state: "applied" as const };
-    if (!intent || intent.state !== "scheduled" || !intent.scheduleId || !intent.paymentMethodId)
+    if (intent?.state !== "scheduled" || !intent.scheduleId || !intent.paymentMethodId)
       throw new BillingError("Future schedule is not ready for settlement");
     if (intent.startsAt > new Date()) return { intentId, state: "waiting" as const };
     // An accepted coordination may have moved the schedule at the provider
@@ -84,13 +84,13 @@ export async function settleLegacyFutureIntent(
         .from(legacyFutureIntents)
         .where(eq(legacyFutureIntents.id, intentId))
         .for("update");
-      if (!current || current.state !== "scheduled" || current.scheduleId !== remote.id)
+      if (current?.state !== "scheduled" || current.scheduleId !== remote.id)
         throw new BillingError("Future schedule changed during settlement");
       const [account] = await tx
         .select()
         .from(collectionAccounts)
         .where(eq(collectionAccounts.id, current.accountId));
-      if (!account || account.collection !== "compasso")
+      if (account?.collection !== "compasso")
         throw new BillingError("Future contract account is unavailable");
       const [subscription] = await tx
         .select()

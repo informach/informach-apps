@@ -231,11 +231,12 @@ export function PaletteDialog({ onClose }: { onClose: () => void }): ReactNode {
       const old = p.colors[i].hex.toUpperCase();
       const colors = p.colors.map((x, j) => (j === i ? { ...x, ...c } : x));
       // A role that pointed at the edited color follows it.
-      const roles = c.hex
+      const hex = c.hex;
+      const roles = hex
         ? (Object.fromEntries(
             ROLES.map((r) => [
               r,
-              p.roles[r].toUpperCase() === old ? c.hex!.toUpperCase() : p.roles[r],
+              p.roles[r].toUpperCase() === old ? hex.toUpperCase() : p.roles[r],
             ]),
           ) as Record<Role, string>)
         : p.roles;

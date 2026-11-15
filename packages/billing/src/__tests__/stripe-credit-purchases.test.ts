@@ -3,6 +3,12 @@ import { describe, expect, it } from "vitest";
 import { createStripeProvider } from "../providers/stripe";
 
 function fixture() {
+  const invoice = {
+    customer: "cus_payer",
+    status: "paid",
+    billing_reason: "subscription_cycle",
+    lines: { has_more: false, data: [{ parent: { type: "subscription_item_details" } }] },
+  };
   const charge = {
     id: "ch_paid",
     payment_intent: "pi_paid",
@@ -37,6 +43,7 @@ function fixture() {
   };
   const disputes: { status: string }[] = [];
   const api = {
+    invoices: { retrieve: async () => invoice },
     checkout: {
       sessions: {
         retrieve: async () => session,
@@ -71,10 +78,32 @@ function fixture() {
     throw new Error("Missing credit purchase capabilities");
   const read = () => provider.readCreditCheckout?.("cus_payer", "intent_receipt", "cs_receipt");
   const close = () => provider.closeCreditCheckout?.("cus_payer", "intent_receipt", "cs_receipt");
-  return { session, payment, charge, disputes, provider, read, close };
+  return { session, payment, charge, disputes, invoice, provider, read, close };
 }
 
 describe("Stripe authoritative credit receipts", () => {
+  it("confirms subscription invoices only for the same customer and paid state", async () => {
+    const f = fixture();
+    if (!f.provider.isPaidSubscriptionInvoice) throw new Error("Missing invoice verification");
+    const confirm = f.provider.isPaidSubscriptionInvoice;
+    expect(await confirm("in_1", "cus_payer")).toBe(true);
+    expect(await confirm("in_1", "cus_other")).toBe(false);
+    f.invoice.status = "open";
+    await expect(confirm("in_1", "cus_payer")).rejects.toThrow(
+      "Subscription invoice payment is not yet confirmed",
+    );
+    f.invoice.status = "paid";
+    f.invoice.billing_reason = "manual";
+    expect(await confirm("in_1", "cus_payer")).toBe(false);
+    f.invoice.billing_reason = "subscription_cycle";
+    f.invoice.lines.has_more = true;
+    expect(await confirm("in_1", "cus_payer")).toBe(false);
+    f.invoice.lines.has_more = false;
+    f.invoice.lines.data.push({ parent: { type: "invoice_item_details" } });
+    expect(await confirm("in_1", "cus_payer")).toBe(false);
+    f.invoice.lines.data = [];
+    expect(await confirm("in_1", "cus_payer")).toBe(false);
+  });
   it("reads settlement, proportional refund and unresolved dispute from expanded provider facts", async () => {
     const f = fixture();
     expect(await f.read()).toMatchObject({
