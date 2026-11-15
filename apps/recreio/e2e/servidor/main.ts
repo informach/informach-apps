@@ -51,7 +51,7 @@ import {
   PRAZO_PARA_ENTRAR_MS,
   QUADRO_MAX_BYTES,
 } from "../../src/features/jogo-de-teste/protocolo";
-import { JOGO_DE_TESTE_ID } from "../../src/features/jogos/catalogo";
+import { JOGO_DE_TESTE, JOGO_DE_TESTE_ID } from "../../src/features/jogos/catalogo";
 
 const app = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 carregarEnv({ path: resolve(app, ".env.local"), quiet: true });
@@ -100,6 +100,7 @@ const host: ClienteDoHost = criarClienteDoHost({
   baseUrl: cfg.origemDoPortal,
   jogo: JOGO_DE_TESTE_ID,
   segredo: cfg.segredo,
+  fotografiaMaxBytes: JOGO_DE_TESTE.limites.fotografiaMaxBytes,
 });
 const verificador = criarVerificadorDeSessao({
   emissor: cfg.origemDoPortal,

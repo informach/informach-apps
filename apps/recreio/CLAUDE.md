@@ -46,10 +46,12 @@ São cinco coisas separadas: a conta (`core.users`, do login compartilhado), a a
 ## Direito de jogar (lote P3)
 
 - `features/acesso/service.ts`: `avaliarAcesso({ profileId, gameId? })` carrega os fatos (perfil, grupo, assinatura do titular pelo `getProSubscription`, concessões) e entrega a `decidirAcesso`. **É o único lugar do app que lê assinatura ou concessão para decidir acesso**; `features/acesso/fronteira.test.ts` falha se outro arquivo de `src` fizer isso. Telas, ingresso e renovação de sessão chamam `avaliarAcesso`.
+- `features/acesso/decisao.ts` compõe a mesma decisão a partir dos fatos; o repository aceita a conexão da transação. A troca de ingresso toma SHARE no perfil antes de reler a autorização na própria transação. A revogação toma UPDATE nos perfis do grupo, ordenados, e encerra somente as sessões que perderam cobertura pelo cursor transacional. A instância as recebe no próximo batimento (10 s quando o transporte está saudável); não depende da renovação do navegador.
 - Cobertura: o perfil precisa ter grupo, estar com `coverage_enabled` e caber, por ordem de criação, no limite de perfis do plano em vigor (`acesso/cobertura.ts`).
 - A cobrança ainda não existe: o `@informach/billing` entra só para a leitura acima. Sem checkout, webhook ou serviço de cobrança; os produtos seguem `price_TODO_recreio_*`.
 - Nesta etapa quem joga é quem a equipe liberou: `pnpm --filter @informach/recreio-app conceder --email <e> --tier individual|family --dias <n> --motivo <codigo>` e `revogar --email <e> --motivo <codigo>` (`scripts/`, rodam com `tsx` e só precisam de `DATABASE_URL`). A linha em `recreio.entitlements` e o evento de auditoria entram na mesma transação. Uma concessão vigente por grupo; o motivo é um código curto, nunca texto livre.
 - Auditoria: `recreio.profile_created`, `recreio.entitlement_granted` e `recreio.entitlement_revoked`, com os campos de `docs/audit-payload-policy.md`. Nunca apelido, e-mail, IP ou token.
+- A criação de perfil/grupo e seu evento são atômicos no repository. Os scripts operacionais usam `node --conditions=react-server --import tsx` pelos comandos do package para consumir os mesmos repositories protegidos por `server-only`; não precisam das variáveis de ambiente do Next.
 - `/estante` e `/conta` mostram a situação do acesso em texto simples (`acesso/texto.ts`).
 
 ## Ingresso e sessão de jogo (lote P4)
@@ -67,7 +69,7 @@ Princípios que não se negociam: **o jogo recebe um ingresso, nunca acesso ao b
 - **Encerrar uma sessão de jogo** grava `ended_at`, `end_reason` e `ended_seq` num comando só, sempre por `encerrarSessoesAbertas` (`sessao-de-jogo/repository.ts`), atrás de uma trava de transação única. A sequência entrega o número antes do commit; a trava faz os números serem confirmados na ordem em que foram entregues, e o batimento de uma instância que lê "depois do cursor" nunca pula um. Quem vai encerrar pega a trava antes de tocar em linhas de `game_sessions`.
 - Sair da conta (`/api/conta/sair`) encerra, na mesma transação, as sessões de jogo daquela sessão de aparelho (`signed_out`).
 - `sessaoDeJogo(request)` (`sessao-de-jogo/http.ts`) é quem diz, nas rotas do SDK, o perfil, o `sid` e o jogo de quem pede, e exige a sessão aberta.
-- O acesso é avaliado imediatamente antes de cada transação, não dentro dela: `avaliarAcesso` usa o pool, e pedir uma segunda conexão com uma transação aberta trava o app quando o pool enche. Dentro de uma transação só se usa a própria transação.
+- `avaliarAcesso` usa o pool para a leitura preliminar; não chamá-lo de dentro de uma transação. A admissão final da sessão relê os fatos com `lerFatosDeAcesso(perfilId, tx)` e usa `decidirFatosLidos`, exclusivamente na conexão da transação. Isso impede que uma revogação entre a conferência preliminar e a inserção reabra o acesso.
 
 ## Mundos, membros e convites (lote P5)
 

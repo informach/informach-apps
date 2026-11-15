@@ -1,4 +1,5 @@
 import "server-only";
+import { logAuditEventStrict } from "@informach/auth";
 import { db, eq } from "@informach/db";
 import { recreioGroups as groups, recreioProfiles as profiles, users } from "@informach/db/schema";
 import {
@@ -102,6 +103,12 @@ export async function criarPerfilDaConta(
       })
       .returning(campos);
     assertAllowed(criado, "PERFIL", "Não foi possível criar o perfil. Tente de novo.");
+    await logAuditEventStrict(
+      "recreio.profile_created",
+      contaId,
+      { app: "recreio", profileId: criado.id, kind: criado.kind },
+      { writer: tx },
+    );
     return { perfil: paraPerfil(criado), criado: true };
   });
 }

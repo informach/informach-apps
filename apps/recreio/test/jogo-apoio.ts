@@ -14,7 +14,7 @@ import {
   SessaoAbertaSchema,
 } from "@informach/recreio/contrato";
 import { criarClienteDoHost } from "@informach/recreio/host";
-import { origensDoJogo, segredoDoHost } from "@/features/jogos/config";
+import { limitesDoJogo, origensDoJogo, segredoDoHost } from "@/features/jogos/config";
 import { criarMundo } from "@/features/mundos/service";
 import { emitirIngresso } from "@/features/sessao-de-jogo/service";
 import type { Jogador } from "./apoio";
@@ -77,7 +77,13 @@ export function enderecoDo(jogo: string): string {
 
 /** O cliente HTTP de verdade, com as rotas chamadas no processo. */
 export function clienteDoHost(jogo = MORADA): ClienteDoHost {
-  return criarClienteDoHost({ baseUrl: ORIGEM, jogo, segredo: segredo(jogo), fetch: despachar });
+  return criarClienteDoHost({
+    baseUrl: ORIGEM,
+    jogo,
+    segredo: segredo(jogo),
+    fetch: despachar,
+    fotografiaMaxBytes: limitesDoJogo(jogo).fotografiaMaxBytes,
+  });
 }
 
 export type InstanciaDeTeste = { cliente: ClienteDoHost; instanciaId: InstanciaId; jogo: string };

@@ -25,7 +25,7 @@ import {
   descreverConformidadeDoHost,
 } from "@informach/recreio/testing/conformidade";
 import { vi } from "vitest";
-import { segredoDoHost } from "@/features/jogos/config";
+import { limitesDoJogo, segredoDoHost } from "@/features/jogos/config";
 import { aceitarConvite, criarConvite, criarMundo } from "@/features/mundos/service";
 import { abrirMundo } from "@/features/posse/service";
 import { encerrarSessaoDeJogo } from "@/features/sessao-de-jogo/repository";
@@ -161,6 +161,7 @@ async function criarAmbiente(
         jogo,
         segredo: segredoDoHost(jogo) ?? "",
         fetch: despachar,
+        fotografiaMaxBytes: limitesDoJogo(jogo).fotografiaMaxBytes,
       });
     },
 

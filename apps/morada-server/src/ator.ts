@@ -1,5 +1,5 @@
 import { performance } from "node:perf_hooks";
-import { gunzipSync, gzipSync } from "node:zlib";
+import { gzipSync } from "node:zlib";
 import { jogoPorId } from "@informach/config/jogos";
 import {
   APELIDO_MAX,
@@ -24,7 +24,12 @@ import {
   type MensagemDoServidor,
   VERSAO_DO_PROTOCOLO,
 } from "@informach/morada-sim/protocolo";
-import { ehErroDoRecreio, FOLGA_DE_AUTOCERCA_MS, type MundoId } from "@informach/recreio";
+import {
+  ErroDoRecreio,
+  ehErroDoRecreio,
+  FOLGA_DE_AUTOCERCA_MS,
+  type MundoId,
+} from "@informach/recreio";
 import { sessaoVencida } from "@informach/recreio/contrato";
 import type {
   ClienteDoHost,
@@ -33,6 +38,7 @@ import type {
   SessaoVerificada,
 } from "@informach/recreio/host";
 import { type Falhas, QuedaSimulada } from "./falhas";
+import { decodificarFotografia } from "./fotografia";
 
 /**
  * Um mundo aberto nesta instância. O ator guarda a simulação na memória,
@@ -141,7 +147,12 @@ const RECUSAS_DO_DIARIO = [
 ] as const;
 
 /** Um passo que ainda não foi concluído: os fatos esperam o diário e ninguém soube dele. */
-type PassoPorConcluir = { saida: SaidaDoPasso; respostas: (() => void)[] };
+type PassoPorConcluir = {
+  saida: SaidaDoPasso;
+  respostas: (() => void)[];
+  /** Fixada na primeira tentativa; confirmações parciais não renumeram o passo. */
+  diarioBase: number | null;
+};
 
 const texto = new TextEncoder();
 const leitura = new TextDecoder();
@@ -296,7 +307,7 @@ export class Ator {
 
     // Sem fotografia, o mundo nasce de novo do mesmo jeito: a semente vem do id.
     const base = guardada
-      ? (JSON.parse(gunzipSync(guardada.bytes).toString("utf8")) as unknown)
+      ? decodificarFotografia(guardada.bytes)
       : criarMundo({
           mundoId,
           semente: resumoDoTexto(mundoId),
@@ -646,7 +657,7 @@ export class Ator {
    * ordem. Um passo novo nunca passa na frente de um que ainda não gravou.
    */
   private concluirPasso(saida: SaidaDoPasso, respostas: (() => void)[]): Promise<boolean> {
-    this.pendentes.push({ saida, respostas });
+    this.pendentes.push({ saida, respostas, diarioBase: null });
     return this.escoar();
   }
 
@@ -663,7 +674,8 @@ export class Ator {
       if (saida.fatos.length > 0) {
         const inicio = performance.now();
         try {
-          await this.gravarFatos(saida.fatos);
+          passo.diarioBase ??= this.diarioSeq;
+          await this.gravarFatos(saida.fatos, passo.diarioBase);
         } catch (erro) {
           if (erro instanceof QuedaSimulada) throw erro;
           if (
@@ -734,14 +746,14 @@ export class Ator {
    * Recreio. Repetir um lote já gravado (a resposta se perdeu no caminho) não
    * faz nada lá, então uma nova tentativa recomeça do primeiro que falta.
    */
-  private async gravarFatos(fatos: readonly Fato[]): Promise<void> {
+  private async gravarFatos(fatos: readonly Fato[], diarioBase: number): Promise<void> {
     this.op.falhas.atingir("antes_do_diario", { fatos });
     const lotes: EntradaDoDiario[][] = [];
     let lote: EntradaDoDiario[] = [];
     let tamanho = 0;
     for (const [i, fato] of fatos.entries()) {
       const entrada: EntradaDoDiario = {
-        seq: this.diarioSeq + 1 + i,
+        seq: diarioBase + 1 + i,
         tick: fato.tick,
         fatoId: fato.id,
         bytes: texto.encode(JSON.stringify(fato)),
@@ -758,15 +770,27 @@ export class Ator {
       tamanho += entrada.bytes.length;
     }
     if (lote.length > 0) lotes.push(lote);
+    const entradas = lotes.flat();
     for (const parte of lotes) {
       const { confirmadoAte } = await this.op.host.anexarAoDiario({
         mundoId: this.mundoId,
         cerca: this.cerca,
         entradas: parte,
       });
-      // Um lote repetido volta com o diário onde já estava: só conta o que entrou agora.
+      const ultima = parte.at(-1);
+      if (!ultima || confirmadoAte < ultima.seq || confirmadoAte > diarioBase + fatos.length)
+        throw new ErroDoRecreio("SEQUENCIA");
+      // Uma resposta perdida pode fazer o replay de uma parte voltar com o
+      // passo inteiro confirmado. Conta os bytes do prefixo reconhecido,
+      // inclusive os das partes seguintes, uma vez só.
       if (confirmadoAte > this.diarioSeq) {
-        this.diarioSemFoto += parte.reduce((total, entrada) => total + entrada.bytes.length, 0);
+        this.diarioSemFoto += entradas.reduce(
+          (total, entrada) =>
+            entrada.seq > this.diarioSeq && entrada.seq <= confirmadoAte
+              ? total + entrada.bytes.length
+              : total,
+          0,
+        );
       }
       this.diarioSeq = Math.max(this.diarioSeq, confirmadoAte);
     }

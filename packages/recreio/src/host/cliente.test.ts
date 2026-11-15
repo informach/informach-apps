@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { MundoIdSchema, PerfilIdSchema, SessaoDeJogoIdSchema } from "../dominio/ids";
 import { BATIMENTO_MS, POSSE_TTL_MS } from "../dominio/posse";
@@ -26,6 +27,7 @@ function ambiente() {
     baseUrl: "https://recreio.test/",
     jogo: "morada",
     segredo: SEGREDO,
+    fotografiaMaxBytes: 4 * 1024 * 1024,
     fetch: async (url, init) => {
       const body = init?.body;
       chamadas.push({
@@ -166,7 +168,9 @@ describe("cliente HTTP das instâncias", () => {
       schemaVersion: 1,
       tipo: "checkpoint",
       bytes: 3,
-      sha256: SHA,
+      sha256: createHash("sha256")
+        .update(new Uint8Array([7, 8, 9]))
+        .digest("hex"),
     };
     a.responder(
       new Response(new Uint8Array([7, 8, 9]), {
@@ -182,6 +186,29 @@ describe("cliente HTTP das instâncias", () => {
       `https://recreio.test/api/interno/v1/mundos/${MUNDO}/fotografia?cerca=2`,
     );
     expect(await a.cliente.lerFotografia({ mundoId: MUNDO, cerca: 2 })).toBeNull();
+  });
+
+  it("recusa fotografia alterada de mesmo tamanho antes de entregar ao jogo", async () => {
+    const a = ambiente();
+    await a.registrado();
+    const original = new Uint8Array([7, 8, 9]);
+    const alterada = new Uint8Array([7, 0, 9]);
+    const meta = {
+      revisao: 1,
+      diarioSeq: 0,
+      tick: 0,
+      schemaVersion: 1,
+      tipo: "checkpoint",
+      bytes: original.length,
+      sha256: createHash("sha256").update(original).digest("hex"),
+    };
+    a.responder(
+      new Response(alterada, { headers: { "x-recreio-fotografia": jsonParaCabecalho(meta) } }),
+      new Response(original, { headers: { "x-recreio-fotografia": jsonParaCabecalho(meta) } }),
+    );
+    const pedido = { mundoId: MUNDO, cerca: 2 };
+    await expect(a.cliente.lerFotografia(pedido)).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+    expect((await a.cliente.lerFotografia(pedido))?.bytes).toEqual(original);
   });
 
   it("fotografia cortada no caminho ou sem metadados não é entregue", async () => {
@@ -206,6 +233,42 @@ describe("cliente HTTP das instâncias", () => {
     await expect(a.cliente.lerFotografia(pedido)).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
     await expect(a.cliente.lerFotografia(pedido)).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
   });
+
+  it.each(["metadados", "corpo"] as const)(
+    "cancela uma fotografia quando %s excedem o tamanho admitido",
+    async (motivo) => {
+      const a = ambiente();
+      await a.registrado();
+      let cancelou = false;
+      const corpo = new ReadableStream<Uint8Array>({
+        start(controlador) {
+          controlador.enqueue(new Uint8Array([1, 2, 3]));
+        },
+        cancel() {
+          cancelou = true;
+        },
+      });
+      a.responder(
+        new Response(corpo, {
+          headers: {
+            "x-recreio-fotografia": jsonParaCabecalho({
+              revisao: 1,
+              diarioSeq: 0,
+              tick: 0,
+              schemaVersion: 1,
+              tipo: "checkpoint",
+              bytes: motivo === "metadados" ? 4 * 1024 * 1024 + 1 : 2,
+              sha256: SHA,
+            }),
+          },
+        }),
+      );
+      await expect(a.cliente.lerFotografia({ mundoId: MUNDO, cerca: 1 })).rejects.toMatchObject({
+        codigo: "INDISPONIVEL",
+      });
+      expect(cancelou).toBe(true);
+    },
+  );
 
   it("toda recusa vira ErroDoRecreio com o código e o detalhe do Recreio", async () => {
     const a = ambiente();

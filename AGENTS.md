@@ -9,6 +9,7 @@ Este é o ponto de entrada permanente para trabalhar no repositório `informach-
 3. Confira scripts e versões nos manifests, no lockfile e nos workflows. Documentação de versões candidatas não autoriza atualizar dependências automaticamente.
 4. Identifique quais apps consomem um package antes de mudá-lo. Alterações compartilhadas precisam verificar os consumidores afetados.
 5. Confira acesso e estado dos serviços antes de ações operacionais. Ter um runbook ou uma variável configurada não comprova conexão, deploy ou funcionamento em produção.
+6. Nesta máquina, não executar testes pesados, builds de homologação, E2E ou cargas prolongadas. O titular determinou em 15/11/2026 que esses gates rodem no GitHub Actions. Localmente, limitar o trabalho a inspeção, edição e verificações leves. Publicar candidatos de verificação sem ativar serviços; integrar em `origin/main` depois da evidência remota aplicável.
 
 As instruções locais de `AGENTS.md` e `CLAUDE.md` complementam este guia dentro de suas áreas. Decisões atuais e guias específicos prevalecem sobre resumos antigos; divergências devem ser corrigidas e registradas, não resolvidas por suposição. O pedido atual do usuário define o escopo e a autorização da tarefa.
 

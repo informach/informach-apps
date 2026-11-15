@@ -450,7 +450,7 @@ describe("o que uma instância alcança", () => {
       headers: cabecalhosDoHost(MORADA, a.instanciaId),
       corpo: { cerca, sid: sessao.sid, perfilId: lia.perfil.id },
     });
-    expect(resposta).toMatchObject({ status: 403, corpo: { codigo: "ACESSO_NEGADO" } });
+    expect(resposta).toMatchObject({ status: 403, corpo: { codigo: "SESSAO_ENCERRADA" } });
     expect(JSON.stringify(resposta.corpo)).not.toContain(lia.conta.email);
     expect(resposta.corpo).not.toHaveProperty("apelido");
   });

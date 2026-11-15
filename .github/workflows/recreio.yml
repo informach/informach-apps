@@ -1,0 +1,93 @@
+name: Recreio
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, "verify/recreio-*"]
+    paths:
+      - ".github/workflows/recreio.yml"
+      - "apps/recreio/**"
+      - "apps/morada-server/**"
+      - "packages/recreio/**"
+      - "packages/morada-sim/**"
+      - "packages/morada-arte/**"
+      - "packages/jogo-morada/**"
+      - "packages/config/**"
+      - "packages/db/**"
+      - "packages/auth/**"
+      - "packages/billing/**"
+      - "packages/emails/**"
+      - "packages/ui/**"
+      - "pnpm-lock.yaml"
+      - "package.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recreio-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Recreio / ${{ matrix.gate }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        gate: [quality, integration, e2e]
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      CI: "true"
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci
+      BETTER_AUTH_SECRET: ci-recreio-not-a-real-secret-xxxxxxxx
+      BETTER_AUTH_URL: http://localhost:3009
+      NEXT_PUBLIC_APP_URL: http://localhost:3009
+      SENDGRID_API_KEY: SG.ci.not-sent
+      SENDGRID_FROM: ci@example.test
+      EMAIL_SANDBOX_MODE: memory
+      CRON_SECRET: ci-recreio-not-a-real-secret-xxxxxxxx
+      STRIPE_SECRET_KEY: sk_test_ci_not_sent
+      STRIPE_WEBHOOK_SECRET: whsec_ci_not_sent
+      STRIPE_MODE: dev
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - if: matrix.gate == 'quality'
+        run: |
+          pnpm check
+          pnpm --workspace-concurrency=1 --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte typecheck
+          pnpm --workspace-concurrency=1 --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte test
+      - if: matrix.gate == 'integration'
+        run: pnpm --filter @informach/recreio-app test:integration
+      - if: matrix.gate == 'e2e'
+        run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
+      - if: matrix.gate == 'e2e'
+        run: pnpm --filter @informach/recreio-app e2e
+      - name: Preserve synthetic browser failure evidence
+        if: failure() && matrix.gate == 'e2e'
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-e2e-${{ github.run_attempt }}
+          path: apps/recreio/tmp/verification/
+          if-no-files-found: ignore
+          retention-days: 7

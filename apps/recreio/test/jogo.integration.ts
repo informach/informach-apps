@@ -1,5 +1,7 @@
-import { and, db, eq, isNull } from "@informach/db";
+import { AuditPersistenceError } from "@informach/auth";
+import { and, db, eq, isNull, sql } from "@informach/db";
 import {
+  recreioEntitlements as entitlements,
   recreioGameSessions as gameSessions,
   sessions,
   recreioGameTickets as tickets,
@@ -17,6 +19,7 @@ import { describe, expect, it, vi } from "vitest";
 import * as jogosConfig from "@/features/jogos/config";
 import { selecionarPerfil } from "@/features/perfis/service";
 import { encerrarSessaoDeAparelho, resolverAtor } from "@/features/sessao/service";
+import { abrirSessaoComIngresso } from "@/features/sessao-de-jogo/repository";
 import { emitirIngresso } from "@/features/sessao-de-jogo/service";
 import { chavesDoRecreio } from "@/lib/tokens";
 import { revogar } from "../scripts/concessoes";
@@ -54,6 +57,61 @@ const renovar = (token: string) => pedir("POST", "/api/sdk/v1/sessao/renovar", {
 const sair = (token: string) => pedir("POST", "/api/sdk/v1/sessao/sair", { token });
 const listar = (token: string, jogo = MORADA) =>
   pedir("GET", `/api/sdk/v1/mundos?jogo=${jogo}`, { token });
+
+describe("revogação atômica", () => {
+  it("revalida o acesso na transação mesmo quando o ingresso foi admitido antes da revogação", async () => {
+    const lia = await novoJogador();
+    const ingresso = await ingressoDe(lia);
+    const { jti } = claimsDe(ingresso);
+    if (typeof jti !== "string") throw new Error("Ingresso sem jti");
+    await revogar({ email: lia.conta.email, motivo: "teste" });
+    const agora = new Date();
+    await expect(
+      abrirSessaoComIngresso({
+        jti,
+        perfilId: lia.perfil.id,
+        sessaoDeAparelhoId: lia.ator.sessaoDeAparelhoId,
+        jogo: MORADA,
+        sid: SessaoDeJogoIdSchema.parse(crypto.randomUUID()),
+        agora,
+        expiraEm: new Date(agora.getTime() + 900_000),
+        continuarAqui: false,
+      }),
+    ).rejects.toMatchObject({ codigo: "ACESSO_NEGADO" });
+    expect(await abertasDe(lia)).toEqual([]);
+  });
+
+  it("falha da auditoria de encerramento desfaz a revogação e conserva a sessão", async () => {
+    const lia = await novoJogador();
+    const sessao = await entrarNoJogo(lia);
+    await db.execute(sql`
+      create function audit.recusar_fim_recreio_em_teste() returns trigger language plpgsql as $$
+      begin
+        if new.event_type = 'recreio.game_session_ended' then
+          raise exception 'auditoria indisponível (teste)';
+        end if;
+        return new;
+      end $$`);
+    await db.execute(sql`
+      create trigger recusar_fim_recreio_em_teste before insert on audit.events
+      for each row execute function audit.recusar_fim_recreio_em_teste()`);
+    try {
+      await expect(revogar({ email: lia.conta.email, motivo: "teste" })).rejects.toBeInstanceOf(
+        AuditPersistenceError,
+      );
+      expect((await sessaoNoBanco(sessao.sid))?.endedAt).toBeNull();
+      const concessoes = await db
+        .select()
+        .from(entitlements)
+        .where(eq(entitlements.groupId, lia.perfil.grupoId ?? ""));
+      expect(concessoes).toHaveLength(1);
+      expect(concessoes[0]?.revokedAt).toBeNull();
+    } finally {
+      await db.execute(sql`drop trigger recusar_fim_recreio_em_teste on audit.events`);
+      await db.execute(sql`drop function audit.recusar_fim_recreio_em_teste()`);
+    }
+  });
+});
 
 async function sessaoNoBanco(sid: string) {
   const [linha] = await db.select().from(gameSessions).where(eq(gameSessions.id, sid));
@@ -440,7 +498,7 @@ describe("renovação", () => {
     });
   });
 
-  it("com a concessão revogada: recusa, encerra a sessão e avisa só as instâncias daquele jogo, uma vez", async () => {
+  it("revogar encerra a sessão e avisa a instância sem depender da renovação do navegador", async () => {
     await aposentarInstancias();
     const lia = await novoJogador();
     const doJogo = await novaInstancia(MORADA);
@@ -451,10 +509,6 @@ describe("renovação", () => {
     expect(inicio.sessoesEncerradas).toEqual([]);
 
     await revogar({ email: lia.conta.email, motivo: "teste" });
-    expect(await renovar(token)).toEqual({
-      status: 403,
-      corpo: { codigo: "ACESSO_PERDIDO", estado: "REVOGADO", motivo: "concessao_revogada" },
-    });
     const linha = await sessaoNoBanco(sid);
     expect(linha).toMatchObject({ endReason: "access_lost" });
     expect(linha?.endedAt).not.toBeNull();

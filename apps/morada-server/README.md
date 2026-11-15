@@ -4,6 +4,8 @@ Processo Node de longa duração que executa os mundos abertos do Morada, vário
 
 Regras de domínio e contratos: [`packages/morada-sim/README.md`](../../packages/morada-sim/README.md) e [`packages/recreio/README.md`](../../packages/recreio/README.md). Estado da frente: [`docs/recreio/implementacao.md`](../../docs/recreio/implementacao.md).
 
+Integridade (15/11): um passo conserva a base de sequência entre as retentativas dos lotes do diário, inclusive quando a resposta se perde depois do commit. Cada fato de domínio é atômico no diário; uma fotografia só cobre passos inteiramente confirmados. A leitura HTTP confere o checksum e o teto comprimido do catálogo; `src/fotografia.ts` limita a expansão a 64 MiB e recusa UTF-8 inválido. Uma fotografia inválida interrompe a recuperação, sem recriar ou sobrescrever o mundo.
+
 ## Rodar
 
 ```bash

@@ -78,10 +78,11 @@ Os tetos de tamanho vêm de `GameManifest.limites` em `@informach/config/jogos`.
 
 ### Pelo HTTP
 
-`criarClienteDoHost({ baseUrl, jogo, segredo, fetch?, tempoLimiteMs? })` devolve o mesmo `ClienteDoHost`, falando com `/api/interno/v1` do Recreio:
+`criarClienteDoHost({ baseUrl, jogo, segredo, fotografiaMaxBytes, fetch?, tempoLimiteMs? })` devolve o mesmo `ClienteDoHost`, falando com `/api/interno/v1` do Recreio. `fotografiaMaxBytes` recebe o teto do manifesto do jogo:
 
 - `Authorization: Bearer <segredo do jogo>` e `X-Recreio-Jogo: <id do jogo>` em todo pedido. Depois de `registrar`, o cliente guarda o `instanciaId` e o manda em `X-Recreio-Instancia`; antes disso, qualquer outra chamada recusa com `NAO_AUTENTICADO` sem sair para a rede.
 - Bytes do diário vão em base64 dentro do JSON. A fotografia vai crua (`application/octet-stream`), com os números na consulta, o resumo opcional em `X-Recreio-Resumo` e, na leitura, os metadados em `X-Recreio-Fotografia` (JSON em base64url nos dois).
+- A leitura limita o corpo pelo manifesto e pelo tamanho declarado, cancela respostas excedentes e confere SHA-256 antes de entregar os bytes. Corpo cortado, checksum divergente ou metadados inválidos são `INDISPONIVEL`; o cliente não entrega uma fotografia parcial ao jogo.
 - Toda recusa vira `ErroDoRecreio(codigo, detalhe)` com o código que o Recreio mandou. Rede fora do ar, tempo esgotado (10 s por padrão) e resposta sem código do contrato viram `ErroDoRecreio("INDISPONIVEL")`: dá para tentar de novo, mas o prazo da posse continua correndo.
 
 Os nomes dos cabeçalhos e os esquemas do transporte ficam em `./contrato` (`CABECALHO_DO_JOGO`, `DiarioLidoSchema`, `ConsultaDaFotografiaSchema`...).

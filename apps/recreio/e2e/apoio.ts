@@ -243,6 +243,7 @@ export function conceder(email: string): void {
   const execucao = spawnSync(
     process.execPath,
     [
+      "--conditions=react-server",
       "--import",
       "tsx",
       "scripts/conceder.ts",

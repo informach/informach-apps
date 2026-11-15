@@ -1,6 +1,6 @@
 import { FECHAMENTO } from "@informach/morada-sim/protocolo";
-import { POSSE_TTL_MS, type SessaoDeJogoId } from "@informach/recreio";
-import { describe, expect, it } from "vitest";
+import { ErroDoRecreio, POSSE_TTL_MS, type SessaoDeJogoId } from "@informach/recreio";
+import { describe, expect, it, vi } from "vitest";
 import { type Bancada, criarBancada, mundoDe } from "./apoio";
 
 /**
@@ -223,6 +223,75 @@ describe("passo em espera do diário", () => {
 });
 
 describe("os tetos do diário", () => {
+  it.each(["antes", "depois"] as const)(
+    "retoma um passo com vários lotes quando a resposta falha %s da confirmação da segunda parte",
+    async (momento) => {
+      const bancada = await criarBancada();
+      const { instancia, host } = await bancada.novaInstancia();
+      const lia = bancada.jogador("Lia");
+      const mundoId = bancada.criarMundo(lia);
+      await bancada.entrar(lia, mundoId);
+      const daLia = lia.moradorDeNome("Lia").id;
+      await lia.comando(daLia, { t: "reservar" });
+      await bancada.andar(1);
+      const mundo = mundoDe(instancia, mundoId);
+      const sessaoId = bancada.sessaoDe(lia);
+      if (!sessaoId) throw new Error("sem sessão");
+      // Fatos reais de domínio, produzidos antes da próxima coleta do ator.
+      for (let n = 0; n < 301; n++) {
+        expect(
+          mundo.aplicar({
+            t: "intencao",
+            sessaoId,
+            intencao: {
+              comandoId: `preferido-lote-${n}`,
+              mundoId,
+              moradorId: daLia,
+              versaoEsperada: 0,
+              acao: { t: "definir_preferido", valor: n % 2 === 0 },
+            },
+          }),
+        ).toMatchObject({ ok: true });
+      }
+      const base = bancada.plataforma.mundo(mundoId).diarioSeq;
+      const anexar = host.anexarAoDiario;
+      let chamadas = 0;
+      const falha = vi.spyOn(host, "anexarAoDiario").mockImplementation(async (pedido) => {
+        const segunda = ++chamadas === 2;
+        if (segunda && momento === "antes") throw new ErroDoRecreio("INDISPONIVEL");
+        const resposta = await anexar(pedido);
+        if (segunda) throw new ErroDoRecreio("INDISPONIVEL");
+        return resposta;
+      });
+      try {
+        await bancada.andar(1);
+        expect(bancada.plataforma.mundo(mundoId).diarioSeq - base).toBe(
+          momento === "antes" ? 256 : 301,
+        );
+        await bancada.andar(1);
+        expect(lia.fechamento).toBeNull();
+        const guardado = bancada.plataforma.mundo(mundoId);
+        expect(guardado.diarioSeq).toBe(base + 301);
+        const entradas = guardado.diario.filter((entrada) => entrada.seq > base);
+        expect(entradas.map((entrada) => entrada.seq)).toEqual(
+          Array.from({ length: 301 }, (_, n) => base + n + 1),
+        );
+        expect(new Set(entradas.map((entrada) => entrada.fatoId)).size).toBe(301);
+        expect(lia.visao?.moradores.porId[daLia]?.preferidoDe).toBe(lia.jogadorId);
+        expect(
+          bancada.registros.filter((registro) => registro.evento === "mundo_recomeca"),
+        ).toEqual([]);
+        await instancia.encerrar();
+        lia.cair();
+        await bancada.novaInstancia("wss://b.test");
+        await bancada.entrar(lia, mundoId);
+        expect(lia.moradorDeNome("Lia").preferidoDe).toBe(lia.jogadorId);
+      } finally {
+        falha.mockRestore();
+      }
+    },
+  );
+
   it("com muito diário sem fotografia, fotografa logo em vez de esperar o intervalo", async () => {
     const bancada = await criarBancada({ diarioParaFotografarBytes: 1 });
     await bancada.novaInstancia();

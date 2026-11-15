@@ -1,3 +1,4 @@
+import { jogoPorId } from "@informach/config/jogos";
 import { REGRAS_DA_PROVA, REGRAS_PADRAO } from "@informach/morada-sim";
 import { ehErroDoRecreio } from "@informach/recreio";
 import {
@@ -77,6 +78,8 @@ async function principal(): Promise<void> {
     ({ host, verificador, agora, rotas } = dev);
     log.warn("plataforma de desenvolvimento em memória: nada é salvo e qualquer um entra");
   } else {
+    const manifesto = jogoPorId(JOGO);
+    if (!manifesto) throw new Error("Morada ausente do catálogo de jogos");
     // A configuração já garantiu estas três.
     const api = config.RECREIO_API_URL as string;
     urlPublica = config.MORADA_PUBLIC_URL as string;
@@ -84,6 +87,7 @@ async function principal(): Promise<void> {
       baseUrl: api,
       jogo: JOGO,
       segredo: config.RECREIO_HOST_SECRET as string,
+      fotografiaMaxBytes: manifesto.limites.fotografiaMaxBytes,
     });
     verificador = criarVerificadorDeSessao({
       emissor: config.RECREIO_EMISSOR ?? new URL(api).origin,

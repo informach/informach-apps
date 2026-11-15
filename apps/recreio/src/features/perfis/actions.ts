@@ -2,7 +2,6 @@
 import { ErroDoRecreio } from "@informach/recreio";
 import { atorAtual } from "@/features/sessao/ator";
 import { runAction, verifiedUser } from "@/lib/action";
-import { audit } from "@/lib/observability";
 import { criarPerfilProprio, selecionarPerfil } from "./service";
 
 // As duas ações devolvem o destino, e a tela vai até ele carregando a página
@@ -24,13 +23,7 @@ async function contaAtual() {
 export async function criarPerfilAction(entrada: unknown) {
   return runAction(async () => {
     const ator = await contaAtual();
-    const { perfil, criado } = await criarPerfilProprio(ator.contaId, entrada);
-    if (criado)
-      audit({
-        eventType: "recreio.profile_created",
-        actorId: ator.contaId,
-        payload: { profileId: perfil.id, kind: perfil.tipo },
-      });
+    const { perfil } = await criarPerfilProprio(ator.contaId, entrada);
     await selecionarPerfil(ator, perfil.id);
     return { destination: "/estante" };
   });

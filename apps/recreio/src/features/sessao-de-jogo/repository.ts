@@ -4,6 +4,7 @@ import { and, db, eq, inArray, isNull, lt, sql } from "@informach/db";
 import {
   recreioDeviceSessions as deviceSessions,
   recreioGameSessions as gameSessions,
+  recreioProfiles as profiles,
   recreioGameTickets as tickets,
 } from "@informach/db/schema";
 import {
@@ -16,6 +17,8 @@ import {
   SessaoDeJogoIdSchema,
 } from "@informach/recreio";
 import type { MotivoDeSessaoEncerrada } from "@informach/recreio/contrato";
+import { decidirFatosLidos } from "@/features/acesso/decisao";
+import { lerFatosDeAcesso } from "@/features/acesso/repository";
 import {
   AGORA,
   codigoDoPostgres,
@@ -184,8 +187,9 @@ export async function registrarIngresso(entrada: {
  *    a anterior é encerrada como `replaced`;
  * 5. a sessão nova é inserida.
  *
- * O direito de jogar é avaliado por quem chama imediatamente antes: avaliá-lo
- * aqui dentro pediria uma segunda conexão do pool para cada pedido.
+ * O perfil fica travado para leitura e o direito de jogar é relido usando a
+ * mesma conexão transacional. A revogação trava os perfis para escrita antes
+ * de retirar cobertura e encerrar as partidas, serializando admissão e corte.
  */
 export async function abrirSessaoComIngresso(entrada: {
   jti: string;
@@ -200,6 +204,15 @@ export async function abrirSessaoComIngresso(entrada: {
 }): Promise<{ substituida: SessaoDeJogoId | null }> {
   try {
     return await db.transaction(async (tx) => {
+      const [perfil] = await tx
+        .select({ id: profiles.id })
+        .from(profiles)
+        .where(eq(profiles.id, entrada.perfilId))
+        .for("share");
+      if (!perfil) throw new ErroDoRecreio("INGRESSO_INVALIDO");
+      const acesso = decidirFatosLidos(await lerFatosDeAcesso(entrada.perfilId, tx), new Date());
+      if (!acesso.podeJogar)
+        throw new ErroDoRecreio("ACESSO_NEGADO", { estado: acesso.estado, motivo: acesso.motivo });
       await travar(tx, `recreio:game_sessions:perfil:${entrada.perfilId}`);
       const [ingresso] = await tx
         .update(tickets)
