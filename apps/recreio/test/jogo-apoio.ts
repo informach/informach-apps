@@ -126,6 +126,7 @@ export function possesAbertas(mundoId: MundoId) {
       instanceId: leases.instanceId,
       state: leases.state,
       playerSeconds: leases.playerSeconds,
+      expiresAt: leases.expiresAt,
       peakPlayers: leases.peakPlayers,
     })
     .from(leases)

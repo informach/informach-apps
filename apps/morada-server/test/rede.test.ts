@@ -11,6 +11,7 @@ import type { ClienteDoHost } from "@informach/recreio/host";
 import { criarEmissorDeTeste, criarPlataformaFalsa } from "@informach/recreio/testing";
 import { afterEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
+import { z } from "zod";
 import { criarInstancia } from "../src/instancia";
 import { criarServidor, type OpcoesDoServidor, type Servidor } from "../src/servidor";
 
@@ -20,6 +21,9 @@ import { criarServidor, type OpcoesDoServidor, type Servidor } from "../src/serv
  */
 
 const ORIGEM = "http://localhost:3009";
+const MedidasDeRedeSchema = z.object({
+  rede: z.object({ pedidosEmCurso: z.number().int().nonnegative() }),
+});
 const abertos: Servidor[] = [];
 
 afterEach(async () => {
@@ -216,11 +220,13 @@ describe("servidor em uma porta de verdade", () => {
     try {
       primeira.mandar(pedido);
       const medidas = async () =>
-        (
-          await fetch(`http://127.0.0.1:${porta}/api/metricas`, {
-            headers: { authorization: "Bearer segredo-de-medidas" },
-          })
-        ).json();
+        MedidasDeRedeSchema.parse(
+          await (
+            await fetch(`http://127.0.0.1:${porta}/api/metricas`, {
+              headers: { authorization: "Bearer segredo-de-medidas" },
+            })
+          ).json(),
+        );
       await ate(async () => (await medidas()).rede.pedidosEmCurso === 1);
       segunda.mandar(pedido);
       expect(await segunda.fechado).toBe(FECHAMENTO.cheio);
