@@ -6,6 +6,7 @@ import { empacotar, type Resultado } from "./empacotar";
 import { ErroDeArte, lerJson, validar } from "./erros";
 import { Biblioteca } from "./leitura/biblioteca";
 import { ElencoDeEntradaSchema, type Personagem } from "./personagem/esquema";
+import { OPCOES_PADRAO } from "./personagem/montagem";
 import { ELENCO_DA_PROVA } from "./personagem/prova";
 import { personagemDoElenco } from "./personagem/resolucao";
 
@@ -28,6 +29,7 @@ const USO = `uso: tsx src/cli.ts --arte <ARTES_3D_DIR> --saida <pasta> [opções
   --personagens <arquivo>  descrições de personagens em JSON (formato "morada-elenco")
   --commit <hash>          commit da arte, quando a pasta não é um clone do git
   --casa <arquivo>         modelo de imóvel do jogo: inclui seus móveis, acabamentos e encaixes
+  --cores-parametricas    perfil V3 com canais de cor editáveis (exige cliente compatível)
   --ajuda                  mostra este texto
 `;
 
@@ -40,6 +42,7 @@ type Argumentos = {
   commit: string | null;
   ajuda: boolean;
   casa: string | null;
+  coresParametricas: boolean;
 };
 
 export function lerArgumentos(argv: readonly string[], ambiente: NodeJS.ProcessEnv): Argumentos {
@@ -52,6 +55,7 @@ export function lerArgumentos(argv: readonly string[], ambiente: NodeJS.ProcessE
     commit: null,
     ajuda: false,
     casa: null,
+    coresParametricas: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const opcao = argv[i];
@@ -70,6 +74,7 @@ export function lerArgumentos(argv: readonly string[], ambiente: NodeJS.ProcessE
     else if (opcao === "--personagens") args.personagens = valor();
     else if (opcao === "--commit") args.commit = valor();
     else if (opcao === "--casa") args.casa = valor();
+    else if (opcao === "--cores-parametricas") args.coresParametricas = true;
     else if (opcao === "--ajuda" || opcao === "--help" || opcao === "-h") args.ajuda = true;
     else throw new ErroDeArte("linha de comando", "opção desconhecida", opcao);
   }
@@ -218,6 +223,9 @@ export async function executar(
       arte,
       saida,
       personagens: personagensPedidos(args, arte, base),
+      ...(args.coresParametricas
+        ? { montagem: { ...OPCOES_PADRAO, coresParametricas: true } }
+        : {}),
       ...(args.casa
         ? { casa: lerJson(readFileSync(resolve(base, args.casa), "utf8"), args.casa) }
         : {}),

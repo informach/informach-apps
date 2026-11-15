@@ -161,11 +161,14 @@ async function conferir() {
         const pacote = await new GLTFLoader().parseAsync(biblioteca(textura), "");
         const modelo = clone(pacote.scene);
         const materiaisOriginais = new Set<MeshBasicMaterial | MeshStandardMaterial>();
+        const texturas = new Set<NonNullable<MeshStandardMaterial["map"]>>();
         modelo.traverse((objeto) => {
           if (!(objeto instanceof Mesh) || Array.isArray(objeto.material)) return;
           const original = objeto.material;
           if (!(original instanceof MeshStandardMaterial))
             throw new Error("Material do GLTF inesperado");
+          materiaisOriginais.add(original);
+          if (original.map) texturas.add(original.map);
           const material = padrao
             ? original
             : new MeshBasicMaterial({ map: original.map, vertexColors: original.vertexColors });
@@ -241,6 +244,10 @@ async function conferir() {
           cena.remove(modelo);
           controle.dispose();
           for (const material of materiaisOriginais) material.dispose();
+          for (const textura of texturas) {
+            textura.dispose();
+            if (textura.image instanceof ImageBitmap) textura.image.close();
+          }
           pacote.scene.traverse((objeto) => {
             if (objeto instanceof Mesh) objeto.geometry.dispose();
           });

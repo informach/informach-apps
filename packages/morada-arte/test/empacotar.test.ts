@@ -284,6 +284,8 @@ describe("empacotador sobre uma biblioteca de mentira", () => {
   });
 
   it("a linha de comando sai com erro e mensagem quando falta algo, e com zero quando dá certo", async () => {
+    expect(lerArgumentos(["--cores-parametricas"], {}).coresParametricas).toBe(true);
+    expect(lerArgumentos([], {}).coresParametricas).toBe(false);
     expect(lerArgumentos(["--saida", "x"], { ARTES_3D_DIR: "/arte" }).arte).toBe("/arte");
     expect(lerArgumentos(["--", "--saida", "x"], {}).saida).toBe("x");
     expect(() => lerArgumentos(["--saida"], {})).toThrow(ErroDeArte);

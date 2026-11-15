@@ -47,6 +47,7 @@ tsx src/cli.ts --arte <ARTES_3D_DIR> --saida <pasta> [opções]
   --personagens <arquivo>  descrições em JSON (formato "morada-elenco")
   --commit <hash>          commit da arte, quando a pasta não é um clone do git
   --casa <arquivo>         modelo de imóvel JSON do jogo (móveis, acabamentos e encaixes)
+  --cores-parametricas    perfil V3 com canais editáveis, para cliente compatível
 ```
 
 Sai com código diferente de zero em qualquer falha de leitura ou de validação, com o arquivo e o campo na
@@ -88,6 +89,23 @@ pasta.
   no three.js 0.186.1 com `GLTFLoader` e `MeshoptDecoder`.
 
 Convenções do glTF: metros, Y para cima, frente em +Z, origem no chão, entre os pés.
+
+### Perfil parametrizado V3 (em homologação)
+
+`--cores-parametricas` mantém a geometria montada e declara canais semânticos de pele, rosto, cabelo e
+slots de roupa no manifesto. A montagem padrão continua V2. No perfil novo, materiais de vértices
+levam `_MORADA_CANAL_COR`, `_MORADA_MASCARA_COR` e `_MORADA_PESO_COR` em float32; a fórmula linear é
+`original * (1 - máscara) + peso * cor`. Os nomes chegam ao three.js em minúsculas.
+
+Roupa com cor livre conserva RGB original e máscara linear no alpha, na grade original, em material
+**opaco**. `extras.moradaCor` declara canal e luminância. O shader lê a máscara, aplica a mesma fórmula
+da página e mantém opacidade 1. Isso exige o consumidor compatível; não usar como textura transparente
+nem redimensionar RGB e máscara separadamente. Texturas desse perfil ainda precisam de orçamento
+medido sobre o catálogo real antes da publicação.
+
+Materiais e uniformes pertencem ao morador; geometria e texturas pertencem ao pacote compartilhado.
+A bancada sintética e os gates do GitHub verificam GLTFLoader/WebGL, máscaras 0/parcial/1, fatores
+maiores que 1 e reutilização dos programas. Essa prova não certifica o catálogo licenciado nem FPS.
 
 ### Biblioteca de animação
 

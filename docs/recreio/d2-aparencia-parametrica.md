@@ -18,3 +18,13 @@ O empacotador atual assa corpo, cabelo e roupas num personagem completo. A fonte
 Portal e Morada conferidos em produção `116939f6`, saúde pública 200, com a arte D1. `b666611b` existe somente na branch de verificação; editor e perfil visual novo não foram ativados. Arte e capturas licenciadas continuam fora do repositório público.
 
 Preparação seguinte: coeficientes por vértice e transporte da textura RGB original com máscara linear no alpha de um material **opaco**, declarados em metadados V3. Sem redimensionar as grades; o shader precisa ler a máscara e restaurar a opacidade. Esse contrato ainda exige prova WebGL de RGB preservado inclusive em texels com alpha zero, além dos testes sintéticos da fórmula. Perfis V1/V2 continuam aceitos e o escritor atual conserva seu formato. Nenhum pacote V3 foi produzido, publicado ou ativado.
+
+## Candidato de canais e shader
+
+`a0fcf8d8` liga o perfil V3 ao empacotador: canais explícitos na montagem, coeficientes float32 preservados pela compressão, textura RGB original com máscara no alpha e materiais opacos. A opção é explícita; a montagem padrão continua V2. O perfil não redimensiona texturas parametrizadas. O orçamento do catálogo real ainda deve ser medido antes de publicá-lo.
+
+`b6c562ff` acrescenta materiais/uniformes por morador e validação dos atributos, sem modificar geometria ou textura compartilhadas. A bancada sintética `cores.html` compara a fórmula calculada com pixels após GLTFLoader e WebGL, em materiais basic/standard, máscaras 0/parcial/1 e fatores maiores que 1. O teste também confere que mudar a cor não recompila programas. Implementação e ensaio ainda aguardam aprovação remota; não são prova de aparência, orçamento ou FPS em hardware real.
+
+A rodada `43733570905` revelou uma comparação prematura na jornada de duas páginas: espelho atualizado pela rede e posições do último quadro da outra página. A conferência passou a trazer a página à frente e aguardar a convergência da cena para a mesma tolerância de cinco centímetros. Não foram ampliados tolerância, prazo ou tentativas da suíte. A rodada seguinte deve confirmar a jornada completa; a falha anterior permanece registrada.
+
+Continuam necessários: aplicação das escolhas de aparência aos uniformes, catálogo fechado validado no servidor, limite de cache das prévias, editor de família e pacote/jornadas com arte real no repositório privado. A produção não recebeu esses candidatos.

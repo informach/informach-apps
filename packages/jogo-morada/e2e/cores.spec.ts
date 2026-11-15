@@ -1,3 +1,4 @@
+import { writeFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
 test("cores V3 atravessam GLTFLoader e WebGL preservando máscaras, HDR e programas", async ({
@@ -15,8 +16,9 @@ test("cores V3 atravessam GLTFLoader e WebGL preservando máscaras, HDR e progra
   for (const medida of prova.medidas)
     expect(medida.desvio, JSON.stringify(medida)).toBeLessThanOrEqual(2);
   expect(erros).toEqual([]);
-  await test.info().attach("cores-parametricas.json", {
-    body: JSON.stringify(prova, null, 2),
-    contentType: "application/json",
-  });
+  const caminho = test.info().outputPath("cores-parametricas.json");
+  writeFileSync(caminho, `${JSON.stringify(prova, null, 2)}\n`);
+  await test
+    .info()
+    .attach("cores-parametricas.json", { path: caminho, contentType: "application/json" });
 });
