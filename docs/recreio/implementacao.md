@@ -4,6 +4,13 @@ Registro detalhado da frente. O índice de continuidade é o [estado do reposit�
 
 Estado vigente em 15/11/2026: portal/Morada em `7c81a68f`, alfa fechado D2, seis gates e repetição main aprovados; [versões do portal e mapas Sentry](versoes-do-portal.md) conferidos. Editor/coleção D2 têm prova privada e salvamento/retorno humano; escolha de casa/orçamento continua pendente. D3 tem núcleo Mundo V3/diário/quedas e cliente `99030597` aprovados nos seis gates **somente em candidata**. Pintura ainda exige perfil visual e arte homologada; [inventário/plano D3](d3-construcao-compras.md). Backup lógico real restaurado em destino isolado, avisos recebidos e agenda externa comprovada; custo acumulado exclusivo medido, sem custo por hora ativa. D2–D8, proteção familiar, retenção/capacidade, backup agendado e homologação comercial continuam em implementação. Ver [execução atual](execucao-2026-11-15.md) e [operação](../../apps/recreio/PRODUCAO.md). As seções datadas abaixo preservam a história dos marcos anteriores.
 
+Evolução candidata posterior: pintura e editor `472b3c2e`, seis gates
+`43771703601` aprovados. Oito móveis com prova privada de preservação visual e
+30 ciclos de recursos estáveis (`43767390595`); a prova do portal com pacote
+completo está em execução (`43772456935`). Negociação de protocolo para o corte
+V3/V4 em candidata `10b5bbb3`, ainda sem resultado dos seis gates. Esses marcos
+não alteram a produção D2 nem concluem D3; [detalhes](d3-construcao-compras.md).
+
 ## De onde vem o escopo
 
 As propostas ficam no repositório privado `informach/artes-3d`: `paginas/recreio.html` (v2.2), `paginas/morada.html` (v4.4, embora o rodapé da página ainda diga v4.2) e `CONTINUAR.md`. A seção "Ordem" das duas define 5 etapas. Esta frente cobre as duas primeiras, por decisão do titular em 11/11/2026:

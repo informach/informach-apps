@@ -108,6 +108,15 @@ jobs:
         run: |
           cp apps/morada-server/test/compatibilidade-executor.ts host-anterior/apps/morada-server/test/
           pnpm --filter @informach/jogo-morada exec vitest run src/rede/compatibilidade.test.ts
+      - name: Compilar o servidor publicado para a jornada do portal novo
+        if: matrix.gate == 'versoes'
+        working-directory: host-anterior
+        run: pnpm --filter @informach/morada-server build
+      - name: Provar o portal novo com o servidor publicado
+        if: matrix.gate == 'versoes'
+        env:
+          RECREIO_E2E_HOST_ANTERIOR_DIR: ${{ github.workspace }}/host-anterior/apps/morada-server
+        run: pnpm --filter @informach/recreio-app e2e --grep @compatibilidade
       - if: matrix.gate == 'cliente'
         run: pnpm --filter @informach/jogo-morada exec playwright install --with-deps chromium
       - if: matrix.gate == 'cliente'

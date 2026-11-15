@@ -340,6 +340,27 @@ cliente novo/host novo, cliente novo/host publicado e entrada antiga/host novo,
 incluindo ausência de fotografia/admissão no caso incompatível. A bancada
 unitária cobre limites da negociação; ela não substitui o binário publicado.
 
+`10b5bbb3`, job versões `132991071457` da rodada `43772419241`: três casos
+aprovados contra processos/WebSockets reais, incluindo checkout isolado do
+host publicado `7c81a68f`, com dependências próprias. Cliente novo entra/sai
+em ambos os hosts; entrada V1 no host novo recebe 4008 sem fotografia ou ator.
+[Evidência](evidencias/compatibilidade-morada-2026-11-15.json). Demais gates
+da mesma candidata ainda em execução; sem ativação em produção.
+
+Resultado posterior: **seis gates `43772419241` aprovados** para `10b5bbb3`.
+Prova privada completa `43772456935` aprovada, fonte `472b3c2e`, executor
+`25badb545`: compra azul, giro de 90°, pintura preta sem alterar saldo, saída
+e reinício com SIGTERM/checkpoint, reabertura preservando escolhas. Capturas
+revistas. Manifesto V4 composto dos artefatos imutáveis, 111 recursos antigos
+preservados byte a byte; 56 personagens/48 estilos. As 48 prévias repetiram
+um contexto, 537 buffers e 79 texturas antes/depois. [Evidência numérica](evidencias/editor-casa-2026-11-15.json).
+
+Próximo candidato: repetir decoração com arte real em largura de celular e
+provar a **cena completa do portal novo** com o build publicado, além do teste
+de conexão já aprovado. O auxílio de E2E recebe somente o diretório de outro
+build isolado; nenhum ponto de teste foi acrescentado ao produto. O contorno
+da prévia passa a não gravar no buffer de profundidade. Sem implantação V3.
+
 Arquivos: `comandos/intencao.ts`, `comandos/pipeline.ts`, novo sistema de edição;
 `dominio/tipos.ts`, `dominio/fatos.ts`, `dominio/reduzir-fato.ts`,
 `dominio/invariantes.ts`, `formatos/fotografia.ts`, `visao/replicacao.ts`.

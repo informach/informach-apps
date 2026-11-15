@@ -34,7 +34,7 @@ export class PreviaDoMovel {
       "position",
       new Float32BufferAttribute([-0.5, 0, -0.5, 0.5, 0, -0.5, 0.5, 0, 0.5, -0.5, 0, 0.5], 3),
     ),
-    new LineBasicMaterial({ color: 0x3fd0c3, depthTest: false }),
+    new LineBasicMaterial({ color: 0x3fd0c3, depthTest: false, depthWrite: false }),
   );
   private item: ObjetoDaCena | null = null;
   private chave = "";

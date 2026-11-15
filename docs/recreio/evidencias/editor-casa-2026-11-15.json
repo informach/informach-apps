@@ -1,0 +1,41 @@
+{
+  "codigo": "472b3c2e5c8dd1dd7ed7e3f2301cf009f31c7fe6",
+  "gatesPublicos": 43771703601,
+  "execucaoPrivada": 43772456935,
+  "executorPrivado": "25badb545bb251985f6588e33340cd042c37482b",
+  "composicao": {
+    "manifestoV4": "1b829c0a9e4e93f9e99f174b7fdcf66c690d2bfde1a213925bb3cd9616cb29ae",
+    "origemD2": 43738068686,
+    "origemPintura": 43767390595,
+    "personagens": 56,
+    "estilosIniciais": 48,
+    "moveisSubstituidos": 8,
+    "recursosPreservadosByteAByte": 111
+  },
+  "decoracao": {
+    "jornadasAprovadas": 1,
+    "viewport": { "width": 1365, "height": 900 },
+    "posicaoMetros": [3.5, 5],
+    "giroGraus": 90,
+    "corInicial": "#0055ff",
+    "corRestaurada": "#000000",
+    "saldoFicticioCentavos": 490500,
+    "reinicio": "SIGTERM com checkpoint, nova instancia e reabertura pela interface",
+    "conferido": ["compra", "orientacao", "pintura", "saldo", "posicao", "reabertura"],
+    "errosDePaginaOuConsole": 0,
+    "capturasRevistas": true
+  },
+  "criacao": {
+    "jornadasAprovadas": 1,
+    "combinacoes": 48,
+    "antes": { "contextos": 1, "buffers": 537, "texturas": 79 },
+    "depois": { "contextos": 1, "buffers": 537, "texturas": 79 },
+    "maximos": { "buffers": 612, "texturas": 81 }
+  },
+  "limites": [
+    "Executado no GitHub com navegador por software; nao mede FPS, VRAM ou hardware do usuario",
+    "Capturas, GLBs, receitas e pacote completos permanecem no repositorio privado",
+    "Nao modifica producao ou conclui o D3",
+    "Jornada real de celular e cena completa com host publicado ainda em preparacao"
+  ]
+}
