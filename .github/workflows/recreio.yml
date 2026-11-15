@@ -87,6 +87,27 @@ jobs:
         run: pnpm --filter @informach/recreio-app e2e
       - if: matrix.gate == 'versoes'
         run: pnpm --filter @informach/recreio-app e2e:versoes
+      - name: Ler o host publicado para a prova de protocolo
+        if: matrix.gate == 'versoes'
+        uses: actions/checkout@v4
+        with:
+          repository: informach/informach-apps
+          ref: 7c81a68fe5786198b47b3a270402ed9f2342ed1a
+          path: host-anterior
+          persist-credentials: false
+      - name: Instalar o host anterior sem compartilhar packages da candidata
+        if: matrix.gate == 'versoes'
+        working-directory: host-anterior
+        run: pnpm install --frozen-lockfile
+      - name: Provar as combinacoes com o servidor publicado real
+        if: matrix.gate == 'versoes'
+        env:
+          MORADA_HOST_ANTERIOR_DIR: ${{ github.workspace }}/host-anterior
+          MORADA_HOST_ANTERIOR_SHA: 7c81a68fe5786198b47b3a270402ed9f2342ed1a
+          MORADA_COMPATIBILIDADE_RELATORIO: ${{ runner.temp }}/morada-compatibilidade.json
+        run: |
+          cp apps/morada-server/test/compatibilidade-executor.ts host-anterior/apps/morada-server/test/
+          pnpm --filter @informach/jogo-morada exec vitest run src/rede/compatibilidade.test.ts
       - if: matrix.gate == 'cliente'
         run: pnpm --filter @informach/jogo-morada exec playwright install --with-deps chromium
       - if: matrix.gate == 'cliente'
@@ -101,6 +122,14 @@ jobs:
         with:
           name: morada-cem-dias-${{ github.run_attempt }}
           path: ${{ runner.temp }}/morada-longa.json
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Preservar prova das versoes do protocolo
+        if: always() && matrix.gate == 'versoes'
+        uses: actions/upload-artifact@v4
+        with:
+          name: morada-compatibilidade-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/morada-compatibilidade.json
           if-no-files-found: warn
           retention-days: 30
       - name: Preserve synthetic browser failure evidence

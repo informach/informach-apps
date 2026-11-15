@@ -4,6 +4,7 @@ import {
   type MensagemDoCliente,
   type MensagemDoServidor,
   VERSAO_DO_PROTOCOLO,
+  type VersaoDoProtocolo,
 } from "@informach/morada-sim/protocolo";
 import type { FonteDoMundo } from "../fonte";
 import type { ConstrutorDeSoquete, SoqueteDeRede } from "../rede/conexao";
@@ -125,6 +126,7 @@ export class SoqueteDeMentira implements SoqueteDeRede {
 }
 
 export type OpcoesDoServidorDeMentira = {
+  protocolo?: VersaoDoProtocolo;
   mundo: Mundo;
   /** Token de sessão → quem a pessoa é no mundo. Token fora da lista é recusado com 4001. */
   sessoes: Record<string, { jogadorId: string; apelido: string }>;
@@ -132,6 +134,7 @@ export type OpcoesDoServidorDeMentira = {
 };
 
 export class ServidorDeMentira {
+  private readonly protocolo: VersaoDoProtocolo;
   readonly soquetes: SoqueteDeMentira[] = [];
   readonly mundo: Mundo;
   /** Abre os soquetes novos na hora. Desligado, o teste abre com `abrir`. */
@@ -145,6 +148,7 @@ export class ServidorDeMentira {
   readonly Soquete: ConstrutorDeSoquete;
 
   constructor(opcoes: OpcoesDoServidorDeMentira) {
+    this.protocolo = opcoes.protocolo ?? VERSAO_DO_PROTOCOLO;
     this.mundo = opcoes.mundo;
     this.sessoes = opcoes.sessoes;
     this.relogio = opcoes.relogio;
@@ -190,11 +194,15 @@ export class ServidorDeMentira {
 
   receber(soquete: SoqueteDeMentira, mensagem: MensagemDoCliente): void {
     if (mensagem.t === "entrar") {
+      if (mensagem.v !== this.protocolo) {
+        soquete.fechar(FECHAMENTO.protocolo);
+        return;
+      }
       const quem = this.sessoes[mensagem.sessao];
       // Como o servidor de verdade: sessão que não confere, 4001; mundo que não é este, 4003.
       const recusa =
         this.recusarCom ??
-        (!quem || mensagem.v !== VERSAO_DO_PROTOCOLO
+        (!quem
           ? FECHAMENTO.sessao
           : mensagem.mundoId !== this.mundo.estado.id
             ? FECHAMENTO.semAcesso
@@ -226,7 +234,7 @@ export class ServidorDeMentira {
       this.difundir(this.mundo.avancar(0), soquete);
       soquete.entregar({
         t: "bem_vindo",
-        v: VERSAO_DO_PROTOCOLO,
+        v: this.protocolo,
         jogadorId: quem.jogadorId,
         apelido: quem.apelido,
         papel: "steward",

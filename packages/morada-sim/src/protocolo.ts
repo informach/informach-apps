@@ -13,7 +13,10 @@ import type { Mudanca, VisaoDoCliente } from "./visao/replicacao";
  * inteira e segue pelas mudanças.
  */
 
-export const VERSAO_DO_PROTOCOLO = 1;
+/** V2 exige o leitor do mundo V3 e da arte V4, inclusive em abas já abertas. */
+export const VERSAO_DO_PROTOCOLO = 2;
+/** O cliente de transição ainda pode apresentar V1 a um host anterior ao corte. */
+export type VersaoDoProtocolo = 1 | typeof VERSAO_DO_PROTOCOLO;
 /** Subprotocolo do WebSocket. Outro formato de quadro ganha outro nome. */
 export const SUBPROTOCOLO = "morada.v1.json";
 /** Tamanho máximo de um quadro vindo do cliente. */
@@ -58,7 +61,7 @@ export const MensagemDoClienteSchema = z.discriminatedUnion("t", [
   /** Sempre o primeiro quadro. A sessão vai aqui, nunca no endereço. */
   z.strictObject({
     t: z.literal("entrar"),
-    v: z.literal(VERSAO_DO_PROTOCOLO),
+    v: z.union([z.literal(1), z.literal(VERSAO_DO_PROTOCOLO)]),
     sessao: z.string().min(1).max(4096),
     mundoId: z.string().min(1).max(64),
   }),
@@ -83,7 +86,7 @@ export type CodigoDeAviso =
 export type MensagemDoServidor =
   | {
       t: "bem_vindo";
-      v: typeof VERSAO_DO_PROTOCOLO;
+      v: VersaoDoProtocolo;
       /** Quem você é dentro deste mundo. Não é o id do perfil no Recreio. */
       jogadorId: string;
       apelido: string;

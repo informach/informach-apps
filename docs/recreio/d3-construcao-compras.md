@@ -317,6 +317,29 @@ anterior, sem interromper o mundo ou apresentar fallback como arte homologada.
 O downgrade de mundos V3 continua proibido; não usar backup como rollback de
 uma atualização sem um procedimento próprio de recuperação consentida.
 
+### Negociação para o corte V3/V4
+
+Antes de ativar o formato novo, o servidor passa a exigir protocolo 2 no
+primeiro quadro, antes de verificar sessão ou admitir um ator. O subprotocolo
+WebSocket continua `morada.v1.json`, pois o transporte JSON não muda. O leitor
+de entradas reconhece 1/2 para o cliente de transição, mas o host admite só 2.
+Uma aba D2 manda 1 e recebe 4008, acionando sua mensagem existente para
+recarregar. Não recebe um mundo V3 nem tenta ler o manifesto V4.
+
+O cliente novo tenta 2. Exclusivamente após 4008 **antes de bem-vindo**, pode
+repetir uma vez no mesmo endereço com 1, preservando mundo/sessão e sem abrir
+outra posse no portal. Isso permite publicar o portal antes do servidor.
+Recusa de sessão/permissão, queda, fechamento depois de bem-vindo e boas-vindas
+de versão divergente não autorizam essa transição. Segunda recusa encerra;
+reabertura normal volta a preferir 2. Não existem fallback de autenticação,
+relaxamento de autorização ou downgrade do mundo persistido.
+
+Arquivos: `morada-sim/src/protocolo.ts`, `morada-server/src/instancia.ts`,
+`jogo-morada/src/rede/conexao.ts` e testes desses contratos. Provar em GitHub
+cliente novo/host novo, cliente novo/host publicado e entrada antiga/host novo,
+incluindo ausência de fotografia/admissão no caso incompatível. A bancada
+unitária cobre limites da negociação; ela não substitui o binário publicado.
+
 Arquivos: `comandos/intencao.ts`, `comandos/pipeline.ts`, novo sistema de edição;
 `dominio/tipos.ts`, `dominio/fatos.ts`, `dominio/reduzir-fato.ts`,
 `dominio/invariantes.ts`, `formatos/fotografia.ts`, `visao/replicacao.ts`.

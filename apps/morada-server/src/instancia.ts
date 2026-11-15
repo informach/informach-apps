@@ -4,6 +4,7 @@ import {
   FECHAMENTO,
   MensagemDoClienteSchema,
   QUADRO_MAXIMO_BYTES,
+  VERSAO_DO_PROTOCOLO,
 } from "@informach/morada-sim/protocolo";
 import { BATIMENTO_MS, ehErroDoRecreio, MundoIdSchema, POSSE_TTL_MS } from "@informach/recreio";
 import type { ClienteDoHost, VerificadorDeSessao } from "@informach/recreio/host";
@@ -227,6 +228,8 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
       if (ligacao.fase === "nova") {
         // O primeiro quadro é sempre a entrada, com a sessão de jogo.
         if (mensagem.t !== "entrar") return fechar(ligacao, FECHAMENTO.protocolo);
+        // Abas anteriores ao mundo V3 precisam recarregar antes de receber a visão/arte.
+        if (mensagem.v !== VERSAO_DO_PROTOCOLO) return fechar(ligacao, FECHAMENTO.protocolo);
         ligacao.fase = "entrando";
         let sessao: Awaited<ReturnType<VerificadorDeSessao["verificar"]>>;
         try {

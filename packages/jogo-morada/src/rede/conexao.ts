@@ -6,6 +6,7 @@ import {
   type MensagemDoServidor,
   SUBPROTOCOLO,
   VERSAO_DO_PROTOCOLO,
+  type VersaoDoProtocolo,
 } from "@informach/morada-sim/protocolo";
 import type { FonteDoMundo } from "../fonte";
 
@@ -339,7 +340,14 @@ export class Conexao {
     }
     if (geracao !== this.geracao || this.estadoAtual.fase === "encerrado") return;
     this.mundo = alvo.mundoId;
+    this.abrirSoquete(alvo, VERSAO_DO_PROTOCOLO, geracao);
+  }
 
+  private abrirSoquete(
+    alvo: { endereco: string; mundoId: string },
+    versao: VersaoDoProtocolo,
+    geracao: number,
+  ): void {
     let soquete: SoqueteDeRede;
     try {
       soquete = new this.Soquete(alvo.endereco, SUBPROTOCOLO);
@@ -358,7 +366,7 @@ export class Conexao {
       this.avancar("entrando");
       this.mandar({
         t: "entrar",
-        v: VERSAO_DO_PROTOCOLO,
+        v: versao,
         sessao: this.fonte.token(),
         mundoId: alvo.mundoId,
       });
@@ -372,20 +380,31 @@ export class Conexao {
         this.reabrir("lacuna");
         return;
       }
-      this.receber(mensagem, alvo.mundoId);
+      this.receber(mensagem, alvo.mundoId, versao);
     };
     soquete.onclose = (evento) => {
       if (geracao !== this.geracao) return;
+      // Uma única transição, só antes da admissão, mantém portal novo/host antigo.
+      // O host novo recusa V1 antes da sessão; nenhuma autorização é relaxada.
+      if (evento.code === FECHAMENTO.protocolo && !this.dentro && versao === 2) {
+        this.limparSoquete(FECHAMENTO_LOCAL);
+        this.abrirSoquete(alvo, 1, ++this.geracao);
+        return;
+      }
       this.fechou(evento.code);
     };
     // O erro vem sempre seguido do fechamento, que é quem decide.
     soquete.onerror = () => {};
   }
 
-  private receber(mensagem: MensagemDoServidor, mundoId: string): void {
+  private receber(mensagem: MensagemDoServidor, mundoId: string, versao: VersaoDoProtocolo): void {
     this.ultimoQuadroEm = this.agora();
     switch (mensagem.t) {
       case "bem_vindo":
+        if (mensagem.v !== versao || this.dentro) {
+          this.terminar("protocolo");
+          return;
+        }
         this.dentro = true;
         this.avancar("montando");
         this.ouvintes.bemVindo(mensagem, mundoId);
