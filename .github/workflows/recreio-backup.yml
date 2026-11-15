@@ -1,0 +1,114 @@
+name: Recreio - executor nativo de restauração
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, "verify/recreio-*-backup-runtime"]
+    paths:
+      - ".github/workflows/recreio-backup.yml"
+      - "apps/recreio/scripts/backup/**"
+      - "apps/recreio/test/backup-runtime-fixture.sql"
+      - "infrastructure/railway/recreio-backup.Dockerfile*"
+      - "pnpm-lock.yaml"
+      - "package.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recreio-backup-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  restauracao:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "true"
+      RECREIO_FIXTURE_CONTAINER: recreio-backup-fixture-${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir exatamente o executor operacional
+        run: docker build -f infrastructure/railway/recreio-backup.Dockerfile -t recreio-backup:ci .
+      - name: Iniciar somente a origem descartável
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --detach --name "$RECREIO_FIXTURE_CONTAINER" \
+            --label informach.fixture=recreio-backup \
+            --env POSTGRES_PASSWORD=ci --env POSTGRES_DB=fixture \
+            --publish 127.0.0.1:55431:5432 \
+            postgres@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42
+          printf '%s\n' 'RECREIO_FIXTURE_STARTED=1' >> "$GITHUB_ENV"
+          pronto=false
+          for tentativa in {1..60}; do
+            if docker exec "$RECREIO_FIXTURE_CONTAINER" pg_isready -U postgres -d fixture; then
+              pronto=true
+              break
+            fi
+            sleep 1
+          done
+          test "$pronto" = true
+          docker exec -i "$RECREIO_FIXTURE_CONTAINER" psql -U postgres -d fixture -v ON_ERROR_STOP=1 < apps/recreio/test/backup-runtime-fixture.sql
+      - name: Restaurar e conferir conteúdo, estrutura, ACL e limpeza
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --network host --env CI=true \
+            --env RECREIO_BACKUP_DATABASE_URL=postgres://postgres:ci@127.0.0.1:55431/fixture \
+            recreio-backup:ci | tee "$RUNNER_TEMP/recreio-backup.jsonl"
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const texto=readFileSync(process.env.RUNNER_TEMP+"/recreio-backup.jsonl","utf8");
+            const resultados=texto.trim().split("\n").map(s=>JSON.parse(s));
+            const resultado=resultados.at(-1);
+            if (!resultado?.ok || !resultado.conteudoIdentico || !resultado.estruturaIdentica || !resultado.temporariosRemovidos || resultado.tabelas<2 || resultado.bytes<=0 || texto.includes("FIXTURE_NAO_PUBLICAR_CONTEUDO")) process.exit(1);
+          '
+          intacta=$(docker exec "$RECREIO_FIXTURE_CONTAINER" psql -U postgres -d fixture -Atc "select count(*)=1 and bool_and(bytes=decode('0001ff','hex')) from recreio.space_snapshots")
+          test "$intacta" = t
+      - name: Recusar prova sem mundo persistido e origem fora do escopo
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec "$RECREIO_FIXTURE_CONTAINER" psql -U postgres -d fixture -v ON_ERROR_STOP=1 -c 'delete from recreio.space_snapshots'
+          set +e
+          docker run --rm --network host --env CI=true \
+            --env RECREIO_BACKUP_DATABASE_URL=postgres://postgres:ci@127.0.0.1:55431/fixture \
+            recreio-backup:ci > "$RUNNER_TEMP/sem-mundo.jsonl" 2>&1
+          status=$?
+          set -e
+          test "$status" -eq 1
+          grep '"codigo":"MUNDO_PERSISTIDO_AUSENTE"' "$RUNNER_TEMP/sem-mundo.jsonl"
+          grep '"temporariosRemovidos":true' "$RUNNER_TEMP/sem-mundo.jsonl"
+          set +e
+          docker run --rm --env CI=true \
+            --env RECREIO_BACKUP_DATABASE_URL=postgres://postgres:ci@192.0.2.10/fixture \
+            recreio-backup:ci > "$RUNNER_TEMP/fora-escopo.jsonl" 2>&1
+          status=$?
+          set -e
+          test "$status" -eq 1
+          grep '"codigo":"ORIGEM_FORA_DO_ESCOPO"' "$RUNNER_TEMP/fora-escopo.jsonl"
+          set +e
+          docker run --rm --env CI=true \
+            --env 'RECREIO_BACKUP_DATABASE_URL=postgres://postgres:ci@127.0.0.1/fixture?host=192.0.2.10' \
+            recreio-backup:ci > "$RUNNER_TEMP/opcoes-invalidas.jsonl" 2>&1
+          status=$?
+          set -e
+          test "$status" -eq 1
+          grep '"codigo":"OPCOES_DA_ORIGEM_NAO_SUPORTADAS"' "$RUNNER_TEMP/opcoes-invalidas.jsonl"
+      - name: Preservar somente o relatório sem conteúdo
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-backup-fixture
+          path: ${{ runner.temp }}/recreio-backup.jsonl
+          if-no-files-found: error
+          retention-days: 30
+      - name: Encerrar somente a origem criada neste job
+        if: always() && env.RECREIO_FIXTURE_STARTED == '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rotulo=$(docker inspect --format '{{ index .Config.Labels "informach.fixture" }}' "$RECREIO_FIXTURE_CONTAINER")
+          test "$rotulo" = recreio-backup
+          docker rm --force --volumes "$RECREIO_FIXTURE_CONTAINER"

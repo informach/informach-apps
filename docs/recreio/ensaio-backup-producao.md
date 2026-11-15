@@ -4,6 +4,10 @@ Preparação em 15/11/2026. Execução e aceite ainda pendentes; acompanhar o [r
 
 Metadados conferidos na origem: UTF8, `en_US.utf8`, provedor libc e versão de colação 2.41; extensões `plpgsql`, `pg_trgm` e `unaccent`. O destino precisa conservar esses fatos. O comparador em `apps/recreio/scripts/backup/inventario.ts` está em preparação, com quatro regressões entre bancos descartáveis: ordem física diferente, corrupção de mesmo tamanho/contagem, perda de índice e concessão de permissão divergente. Ele pede hashes de linhas ao próprio PostgreSQL e não devolve linhas privadas nem fingerprints nas falhas. Isso ainda não executa `pg_dump`/`pg_restore` nem comprova um backup real.
 
+O executor nativo foi preparado em `scripts/backup/ensaiar.ts`, com imagem própria em `infrastructure/railway/recreio-backup.Dockerfile`. Node 24.15.0 e PostgreSQL 18.6 estão fixados por digest, sem migração ou seed. A origem fica em transação somente de leitura; o destino usa cluster e socket Unix próprios em `/tmp`, sem porta TCP. O Dockerfile não recebe conexão no build. Ainda aguarda o workflow `recreio-backup.yml`, que constrói a imagem no GitHub e usa exclusivamente uma origem sintética. Não executar esse ensaio nesta máquina.
+
+Antes da execução real: exigir o resultado dos gates, criar somente um serviço temporário no projeto existente (uma réplica, sem cron/domínio/proxy/volume, limite inicial de 1 vCPU e 1 GiB), fixar a fonte no commit homologado e usar `RECREIO_BACKUP_ENSAIO=1` e `RECREIO_BACKUP_DATABASE_URL=${{Postgres.DATABASE_URL}}`. A ferramenta confere os IDs de projeto/ambiente e o hostname privado. Não provisionar enquanto a pré-condição de mundo/fotografia continuar ausente. A configuração ainda não foi aplicada.
+
 ## Execução prevista
 
 1. Validar o executor com PostgreSQL descartável no GitHub, incluindo corrupção que conserva contagens, falha do dump/restauração, divergência de proprietário/ACL, exclusão dos temporários e recusa de um destino remoto. Builds, integração e cargas automatizadas permanecem fora desta máquina.

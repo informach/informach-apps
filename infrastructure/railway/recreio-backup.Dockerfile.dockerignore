@@ -1,0 +1,16 @@
+.git
+.claude
+.agents
+.env*
+**/.env*
+node_modules
+**/node_modules
+**/.next*
+**/dist
+**/tmp
+**/test-results*
+**/playwright-report
+**/*.glb
+**/*.fbx
+**/*.blend
+**/*.blend.*
