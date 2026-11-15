@@ -15,7 +15,7 @@ import {
   aplicarRestauracaoDoMorada,
   prepararRestauracaoDoMorada,
   restaurarMorada,
-} from "@/features/recuperacao/morada";
+} from "../scripts/recuperacao-morada";
 import { aposentarInstancias, novoJogador } from "./apoio";
 import { abrirPelaRota, entrarNoJogo, mundoDe, novaInstancia } from "./jogo-apoio";
 

@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { parseArgs } from "node:util";
 import { MundoIdSchema } from "@informach/recreio";
 import { z } from "zod";
-import { prepararRestauracaoDoMorada, restaurarMorada } from "../src/features/recuperacao/morada";
 import { fotografiasRetidas, RecusaDeRecuperacao } from "../src/features/recuperacao/repository";
+import { prepararRestauracaoDoMorada, restaurarMorada } from "./recuperacao-morada";
 
 const USO = `Uso: pnpm --filter @informach/recreio-app restaurar-morada --mundo UUID [--antes REVISAO]
 Preparar: --mundo UUID --revisao FONTE --revisao-atual ATUAL [--operacao UUID] [--motivo CODIGO]

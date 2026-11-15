@@ -10,7 +10,7 @@ import {
   prepararRecuperacao,
   RecusaDeRecuperacao,
   reciboDeRecuperacao,
-} from "./repository";
+} from "../src/features/recuperacao/repository";
 
 export const PedidoDeRestauracaoDoMoradaSchema = z.strictObject({
   mundoId: MundoIdSchema,
