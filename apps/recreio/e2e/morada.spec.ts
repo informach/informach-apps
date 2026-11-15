@@ -33,7 +33,7 @@ import {
   saidaDoServidor,
   varrerCena,
 } from "./morada-apoio";
-import { ARGS_DO_NAVEGADOR } from "./navegador";
+import { ARGS_DO_NAVEGADOR, CANAL_DO_NAVEGADOR } from "./navegador";
 
 /**
  * A condição de saída da etapa 1, de ponta a ponta: duas contas diferentes
@@ -121,7 +121,10 @@ test("duas contas jogam a mesma família; uma cai, a outra continua, e tudo volt
   expect(registros("instancia_registrada")).toHaveLength(1);
 
   // A Bia joga num navegador próprio, que mais adiante é morto sem aviso.
-  navegadorQueCai = await chromium.launchServer({ args: ARGS_DO_NAVEGADOR });
+  navegadorQueCai = await chromium.launchServer({
+    channel: CANAL_DO_NAVEGADOR,
+    args: ARGS_DO_NAVEGADOR,
+  });
   const navegadorDaBia = await chromium.connect(navegadorQueCai.wsEndpoint());
 
   const ana = await novaPessoa(browser, "Ana");
