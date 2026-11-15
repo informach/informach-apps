@@ -32,6 +32,16 @@ const TELAS = process.env.RECREIO_E2E_PRIVATE_ARTIFACTS
 
 export async function tela(page: Page, nome: string): Promise<void> {
   await mkdir(TELAS, { recursive: true });
+  const estado = await page.evaluate(() => {
+    const canvas = document.querySelector<HTMLCanvasElement>("canvas.morada-tela");
+    return {
+      visibilidade: document.visibilityState,
+      foco: document.hasFocus(),
+      canvas: canvas ? { largura: canvas.width, altura: canvas.height } : null,
+      tempo: performance.now(),
+    };
+  });
+  console.log(`[captura] ${JSON.stringify({ nome, ...estado })}`);
   await page.screenshot({ path: path.join(TELAS, `${nome}.png`), animations: "disabled" });
 }
 
