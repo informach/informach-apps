@@ -101,7 +101,18 @@ export class Sessao {
           else if (previsto) this.previsao.cancelar();
         },
         resultado: (mensagem) => {
+          const edicao = mensagem.resultado.edicao;
+          const visao = this.loja.visao;
+          if (edicao && visao) {
+            const atual = visao.edicao?.proximaSequencia;
+            const proxima = edicao.proximaSequencia;
+            visao.edicao = {
+              proximaSequencia:
+                proxima === null || atual === null ? null : Math.max(atual ?? 1, proxima),
+            };
+          }
           this.comandos.receber(mensagem.resultado);
+          if (edicao && visao) this.loja.tocar();
         },
         pulso: (mensagem) => {
           this.relogio.amostra(mensagem.tick, agora());
@@ -111,6 +122,7 @@ export class Sessao {
     this.comandos = new Comandos({
       enviar: (intencao) => this.conexao.enviar({ t: "intencao", intencao }),
       mundoId: () => this.conexao.mundoId,
+      autor: () => this.loja.jogador?.jogadorId ?? null,
       novoId: opcoes.novoId,
     });
   }

@@ -29,6 +29,24 @@ const MOTIVOS: Record<MotivoDeRecusa, string> = {
 
 /** Detalhes que o servidor manda junto do motivo e que mudam a frase. */
 const DETALHES: Record<string, string> = {
+  saldo_insuficiente: "A família não tem saldo para esta compra.",
+  versao_antiga:
+    "A casa mudou enquanto você editava. Confira as escolhas antes de tentar novamente.",
+  edicao_antiga: "Este pedido já foi avaliado. Confira a casa antes de confirmar outra edição.",
+  edicao_salto: "Confira a casa antes de confirmar uma nova edição.",
+  edicao_conflito:
+    "Este pedido já foi enviado com outras escolhas. Confira a casa antes de continuar.",
+  edicao_identidade: "Não foi possível confirmar esta edição. Reabra o mundo para continuar.",
+  edicao_em_confirmacao: "Espere a confirmação da edição anterior.",
+  edicao_acima_do_limite: "Esta edição é grande demais. Tente uma mudança menor.",
+  historico_de_edicao_cheio: "Este mundo chegou ao limite de participantes no histórico de edição.",
+  fora_da_grade: "Escolha uma posição marcada na grade.",
+  fora_do_lote: "Escolha uma posição dentro do terreno da família.",
+  fora_do_piso: "Escolha um espaço no piso da casa.",
+  fixacao_nao_suportada: "Esta posição ainda não está disponível para esta peça.",
+  colisao: "Já há um objeto nesse espaço.",
+  parede: "Há uma parede ou porta nessa posição.",
+  acesso_bloqueado: "Deixe livre a passagem e o acesso aos móveis.",
   fila_cheia: "A fila já está cheia. Espere uma ação terminar ou cancele alguma.",
   sem_cuidador: "Não há ninguém livre na casa para cuidar agora.",
   executor: "Este morador não pode cuidar do bebê agora.",

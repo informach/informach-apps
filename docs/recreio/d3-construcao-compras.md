@@ -148,6 +148,29 @@ aguardam os gates públicos, prova de journal/ACK no servidor, editor e
 homologação privada antes de qualquer implantação V3. Construção estrutural,
 travas de edição, desfazer/refazer e escolha de casas continuam pendentes.
 
+`e9e8d834`: seis gates `43758376732` aprovados, incluindo testes do servidor
+com diário indisponível, queda antes/depois da gravação e nova posse sem
+duplicar compra. A primeira rodada do núcleo V3 (`d1e5ad43`) passou em 179/180
+testes da simulação, mas o ensaio de venda tentava sair da cama enquanto a
+ordem explícita de dormir permanecia na fila atual. O teste passou a cancelar
+essa ordem pelo comando existente antes de andar; não se alterou a semântica
+da fila ou o prazo do ensaio. Núcleo V3 continua fora da main publicada.
+
+Cliente em preparação: chave derivada do jogador/sequência, uma edição em
+confirmação por vez, cópia do pedido para que mexer no formulário não altere
+o reenvio, e próxima sequência recebida do servidor sem regredir com resposta
+antiga. Mensagens de saldo, posição, conflito e confirmação foram acrescentadas.
+
+Achado na composição visual: `ObjetosDeArte` aplica matrizes, mas não a cor
+persistida da peça. O caminho procedural não comprova pintura na arte real.
+Antes de anunciar/ativar pintura, definir semântica explícita de cor original
+versus cor escolhida e os canais que podem mudar, conservar detalhes/material
+compartilhados, provar duas instâncias com cores distintas e descarte estável
+com os ativos privados. Não multiplicar toda a arte por uma cor e chamar isso
+de troca RGB fiel, nem publicar V3 baseado somente no saldo e nos testes do
+núcleo. Editor/arte, travas/desfazer e demais critérios deste plano continuam
+obrigatórios para D3 integral.
+
 Arquivos: `comandos/intencao.ts`, `comandos/pipeline.ts`, novo sistema de edição;
 `dominio/tipos.ts`, `dominio/fatos.ts`, `dominio/reduzir-fato.ts`,
 `dominio/invariantes.ts`, `formatos/fotografia.ts`, `visao/replicacao.ts`.
