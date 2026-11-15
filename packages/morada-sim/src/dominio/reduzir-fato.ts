@@ -114,6 +114,11 @@ export function reduzirFato(estado: EstadoDoMundo, fato: Fato): void {
           efeito.revisaoDosObjetosAnterior !== revisaoDosObjetos(novo) ||
           !Number.isSafeInteger(efeito.revisaoDosObjetos) ||
           efeito.revisaoDosObjetos !== efeito.revisaoDosObjetosAnterior + 1 ||
+          !recibo.resultado.ok ||
+          Object.keys(recibo.resultado.revisoes).length !== 3 ||
+          recibo.resultado.revisoes[familia.id] !== efeito.versaoDaFamilia ||
+          recibo.resultado.revisoes[lote.id] !== efeito.revisaoDoEspaco ||
+          recibo.resultado.revisoes[id] !== efeito.revisaoDosObjetos ||
           canonico(atual) !== canonico(efeito.anterior) ||
           !Number.isSafeInteger(efeito.saldo) ||
           efeito.saldo < 0 ||

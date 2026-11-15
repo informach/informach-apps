@@ -326,6 +326,8 @@ cada edição admitida consome uma revisão global; remoção conserva o piso e
 replay/recusa não o avançam. O mesmo fato confere o relógio anterior e publica
 o posterior. Fotografia/invariantes recusam relógio inválido ou inferior às
 revisões das peças. V2→V3 inicia em 1, sem alterar IDs/saldo/conteúdo legado.
+O redutor também exige que as três revisões devolvidas no recibo correspondam
+exatamente à família, ao lote e à peça do efeito, sem chaves adicionais.
 Testes de duas peças, remoção, reabertura/replay, recusa, estouro e fato
 adulterado aguardam GitHub. Ainda não implementa travas ou desfazer/refazer.
 Mundo V3 segue sem publicação: fotografias de candidatas antigas não são

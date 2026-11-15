@@ -255,6 +255,34 @@ describe("edição autoritativa e durável da casa", () => {
     expect(JSON.stringify(estado)).toBe(antes);
   });
 
+  it("revisões mentirosas ou extras no recibo não publicam efeitos parciais", () => {
+    const c = cenario();
+    expect(c.aplicar(c.compra()).ok).toBe(true);
+    const fato = c.mundo.avancar(0).fatos[0];
+    if (
+      fato?.dados.tipo !== "EdicaoRegistrada" ||
+      !fato.dados.efeito?.depois ||
+      !fato.dados.recibo.resultado.ok
+    )
+      throw new Error("Compra confirmada ausente");
+    const objetoId = fato.dados.efeito.depois.id;
+    for (const campo of [c.familiaId, c.loteId, objetoId, "obj_extra"]) {
+      const revisoes = { ...fato.dados.recibo.resultado.revisoes };
+      revisoes[campo] = (revisoes[campo] ?? 0) + 1;
+      const corrompido = {
+        ...fato,
+        dados: {
+          ...fato.dados,
+          recibo: { ...fato.dados.recibo, resultado: { ...fato.dados.recibo.resultado, revisoes } },
+        },
+      };
+      const estado = copiar(c.base.estado);
+      const antes = JSON.stringify(estado);
+      expect(() => reduzirFato(estado, corrompido)).toThrow(/incompatível/);
+      expect(JSON.stringify(estado)).toBe(antes);
+    }
+  });
+
   it("admite perfis pelo host uma vez e recupera a admissão pelo diário", () => {
     const c = cenario({ pinturasDisponiveis: PINTURAS });
     c.mundo.aplicar({ t: "admitir_pinturas", catalogo: PINTURAS });
