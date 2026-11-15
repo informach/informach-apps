@@ -90,6 +90,13 @@ export function novaMemoria(ctx: Contexto): MemoriaId {
 /** Quais tabelas e chaves cada tipo de fato pode mudar, para a replicação. */
 function tocarPeloFato(ctx: Contexto, dados: DadosDoFato): void {
   switch (dados.tipo) {
+    case "FamiliaFundada":
+      tocar(ctx, "familias", dados.familia.id);
+      if (dados.familia.loteId) tocar(ctx, "lotes", dados.familia.loteId);
+      for (const morador of dados.moradores) tocar(ctx, "moradores", morador.id);
+      for (const relacao of dados.relacoes) tocar(ctx, "relacoes", relacao.id);
+      tocarChave(ctx, "acessos");
+      return;
     case "AcessoConcedido":
     case "AcessoRevogado":
       tocarChave(ctx, "acessos");

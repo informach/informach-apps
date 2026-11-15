@@ -7,7 +7,7 @@ import {
   recreioSpaceSnapshots as snapshots,
   recreioSpaces as spaces,
 } from "@informach/db/schema";
-import { criarMundo, REGRAS_DA_PROVA, restaurar } from "@informach/morada-sim";
+import { criarMundo, REGRAS_DA_PROVA, restaurar, VERSAO_DO_MUNDO } from "@informach/morada-sim";
 import { BAIRRO_DA_PROVA } from "@informach/morada-sim/conteudo";
 import { criarRoteiro, moradorDeNome } from "@informach/morada-sim/testes";
 import { describe, expect, it } from "vitest";
@@ -21,7 +21,7 @@ import { aposentarInstancias, novoJogador } from "./apoio";
 import { abrirPelaRota, entrarNoJogo, mundoDe, novaInstancia } from "./jogo-apoio";
 
 /** Histórico real do Morada, persistido pela API, com a fotografia mais nova danificada. */
-async function cenario() {
+async function cenario(legado = false) {
   await aposentarInstancias();
   const lia = await novoJogador({ apelido: "Nome privado" });
   const mundoId = await mundoDe(lia);
@@ -39,14 +39,22 @@ async function cenario() {
   const roteiro = criarRoteiro(mundo);
   const sid = roteiro.entrar(lia.perfil.id);
   const moradora = moradorDeNome(mundo, "Lia");
-  const primeira = gzipSync(JSON.stringify(mundo.fotografar()));
+  const fotografar = () => {
+    const foto = mundo.fotografar();
+    if (!legado) return gzipSync(JSON.stringify(foto));
+    const { fundacao, ...estadoV1 } = foto.estado;
+    if (fundacao !== null) throw new Error("Fixture V1 não admite criação V2");
+    return gzipSync(JSON.stringify({ ...foto, estado: { ...estadoV1, versao: 1 } }));
+  };
+  const schemaVersion = legado ? 1 : VERSAO_DO_MUNDO;
+  const primeira = fotografar();
   await host.cliente.gravarFotografia({
     mundoId,
     cerca: posse.cerca,
     revisaoEsperada: 0,
     diarioSeq: 0,
     tick: 0,
-    schemaVersion: 1,
+    schemaVersion,
     tipo: "checkpoint",
     bytes: primeira,
   });
@@ -63,14 +71,14 @@ async function cenario() {
   }));
   expect(entradas).toHaveLength(1);
   await host.cliente.anexarAoDiario({ mundoId, cerca: posse.cerca, entradas });
-  const segunda = gzipSync(JSON.stringify(mundo.fotografar()));
+  const segunda = fotografar();
   await host.cliente.gravarFotografia({
     mundoId,
     cerca: posse.cerca,
     revisaoEsperada: 1,
     diarioSeq: entradas.length,
     tick: mundo.estado.relogio.tick,
-    schemaVersion: 1,
+    schemaVersion,
     tipo: "checkpoint",
     bytes: segunda,
   });
@@ -112,9 +120,33 @@ async function evidencias(mundoId: string) {
 }
 
 describe("restauração operacional do Morada", () => {
+  it("migra fotografia V1 preservando o diário e publica o formato atual em transação", async () => {
+    const c = await cenario(true);
+    const preparada = await prepararRestauracaoDoMorada(c.pedido);
+    expect(preparada.material.foto.schemaVersion).toBe(1);
+    expect(preparada.fotografia.schemaVersion).toBe(VERSAO_DO_MUNDO);
+    const reconstruida = restaurar(
+      JSON.parse(gunzipSync(preparada.fotografia.bytes).toString("utf8")),
+    );
+    expect(reconstruida.estado.fundacao).toBeNull();
+    expect(reconstruida.estado.moradores.ordem).toHaveLength(6);
+    expect(
+      Object.values(reconstruida.estado.moradores.porId).some(
+        (morador) => morador?.preferidoDe === c.lia.perfil.id,
+      ),
+    ).toBe(true);
+    await aplicarRestauracaoDoMorada(preparada);
+    const prova = await evidencias(c.mundoId);
+    expect(prova.mundo?.schemaVersion).toBe(VERSAO_DO_MUNDO);
+    expect(prova.fotos.map((foto) => foto.schemaVersion)).toEqual([1, 1, VERSAO_DO_MUNDO]);
+    expect(prova.auditoria).toHaveLength(1);
+  });
   it("servidor antigo recusa restaurar fotografia antiga de mundo em formato futuro", async () => {
     const c = await cenario();
-    await db.update(spaces).set({ schemaVersion: 2 }).where(eq(spaces.id, c.mundoId));
+    await db
+      .update(spaces)
+      .set({ schemaVersion: VERSAO_DO_MUNDO + 1 })
+      .where(eq(spaces.id, c.mundoId));
     const antes = await evidencias(c.mundoId);
     await expect(prepararRestauracaoDoMorada(c.pedido)).rejects.toMatchObject({
       codigo: "INTEGRIDADE",
@@ -125,7 +157,10 @@ describe("restauração operacional do Morada", () => {
   it("alteração de formato depois do preparo invalida o material sem publicar revisão", async () => {
     const c = await cenario();
     const preparada = await prepararRestauracaoDoMorada(c.pedido);
-    await db.update(spaces).set({ schemaVersion: 2 }).where(eq(spaces.id, c.mundoId));
+    await db
+      .update(spaces)
+      .set({ schemaVersion: VERSAO_DO_MUNDO + 1 })
+      .where(eq(spaces.id, c.mundoId));
     const antes = await evidencias(c.mundoId);
     await expect(aplicarRestauracaoDoMorada(preparada)).rejects.toMatchObject({
       codigo: "MATERIAL_ALTERADO",
@@ -136,7 +171,10 @@ describe("restauração operacional do Morada", () => {
   it("escritor da restauração recusa downgrade mesmo com material atual e adapter inadequado", async () => {
     const c = await cenario();
     const preparada = await prepararRestauracaoDoMorada(c.pedido);
-    await db.update(spaces).set({ schemaVersion: 2 }).where(eq(spaces.id, c.mundoId));
+    await db
+      .update(spaces)
+      .set({ schemaVersion: VERSAO_DO_MUNDO + 1 })
+      .where(eq(spaces.id, c.mundoId));
     const material = await prepararRecuperacao(preparada.pedido);
     const antes = await evidencias(c.mundoId);
     await expect(
@@ -222,7 +260,7 @@ describe("restauração operacional do Morada", () => {
       revisaoEsperada: 2,
       diarioSeq: 1,
       tick: preparada.fotografia.tick,
-      schemaVersion: 1,
+      schemaVersion: preparada.fotografia.schemaVersion,
       tipo: "hibernate",
       bytes: preparada.fotografia.bytes,
     });

@@ -14,6 +14,7 @@ import {
   impedimentoDoCuidado,
   podeCuidar,
 } from "../sistemas/cuidado";
+import { fundarFamilia } from "../sistemas/fundacao";
 import { liberar, reservar, sessaoDe, temPermissao, votarVelocidade } from "../sistemas/presenca";
 import { recusaDaInteracao } from "../sistemas/regras";
 import { impedimentoDoPedido, responderPedido } from "../sistemas/relacoes";
@@ -170,6 +171,10 @@ function executar(ctx: Contexto, sessao: Sessao, intencao: Intencao): Recusa | F
   const causa = (motivo: string) => causaDoJogador(intencao.comandoId, perfil, motivo);
 
   switch (acao.t) {
+    case "fundar_familia":
+      if (intencao.moradorId !== null || intencao.versaoEsperada !== 0)
+        return recusa("comando_invalido");
+      return fundarFamilia(ctx, sessao, intencao.comandoId, acao.rascunho);
     case "reservar": {
       const morador = intencao.moradorId ? obter(estado.moradores, intencao.moradorId) : undefined;
       if (!morador) return recusa("nao_existe");
@@ -348,6 +353,19 @@ export function aplicarIntencao(ctx: Contexto, sessaoId: SessaoId, intencao: Int
   const comandoId = intencao.comandoId;
   if (intencao.mundoId !== estado.id) return { ok: false, comandoId, motivo: "mundo_errado" };
 
+  // Este recibo sobrevive à recuperação e à expulsão da memória curta de comandos.
+  if (intencao.acao.t === "fundar_familia") {
+    const sessao = sessaoDe(ctx.presenca, sessaoId);
+    if (sessao?.estado !== "presente") return { ok: false, comandoId, motivo: "sem_sessao" };
+    const recibo = estado.fundacao;
+    if (recibo) {
+      if (recibo.comandoId === comandoId && recibo.autor === sessao.perfilId)
+        return { ...recibo.resultado, repetido: true };
+      return { ok: false, comandoId, motivo: "ja_resolvido" };
+    }
+    if (sessao.podeFundarFamilia !== true) return { ok: false, comandoId, motivo: "sem_permissao" };
+  }
+
   // O mesmo comando de novo devolve o que foi respondido da primeira vez.
   const anterior = estado.comandos.find((registro) => registro.comandoId === comandoId);
   if (anterior) return { ...anterior.resultado, repetido: true };
@@ -376,6 +394,7 @@ export function aplicarIntencao(ctx: Contexto, sessaoId: SessaoId, intencao: Int
         ...(saida.detalhe === undefined ? {} : { detalhe: saida.detalhe }),
       }
     : { ok: true, comandoId, tick: estado.relogio.tick, versoes: saida.versoes };
-  lembrar(ctx, resultado);
+  // A criação bem-sucedida tem recibo no próprio fato; não cria uma segunda cópia volátil.
+  if (intencao.acao.t !== "fundar_familia" || !resultado.ok) lembrar(ctx, resultado);
   return resultado;
 }

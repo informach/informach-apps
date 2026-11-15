@@ -1,4 +1,4 @@
-import type { EstadoDoMundo, VisaoDoCliente } from "@informach/morada-sim";
+import { type EstadoDoMundo, VERSAO_DO_MUNDO, type VisaoDoCliente } from "@informach/morada-sim";
 
 /**
  * O espelho com a forma do estado do servidor, para as funções puras da
@@ -14,7 +14,7 @@ import type { EstadoDoMundo, VisaoDoCliente } from "@informach/morada-sim";
 export function estadoDoEspelho(visao: VisaoDoCliente, tick: number): EstadoDoMundo {
   return {
     formato: "morada.mundo",
-    versao: 1,
+    versao: VERSAO_DO_MUNDO,
     id: visao.mundoId,
     semente: 0,
     relogio: {
@@ -38,6 +38,7 @@ export function estadoDoEspelho(visao: VisaoDoCliente, tick: number): EstadoDoMu
     acessos: visao.acessos,
     memorias: visao.memorias,
     comandos: [],
+    fundacao: null,
     contadores: {},
     avancoDoDia: { dia: 0, gastoMs: {} },
   };

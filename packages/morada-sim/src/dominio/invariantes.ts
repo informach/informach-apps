@@ -12,6 +12,14 @@ import type { EstadoDoMundo, Presenca } from "./tipos";
 export function verificarInvariantes(estado: EstadoDoMundo, presenca?: Presenca): string[] {
   const problemas: string[] = [];
   const erro = (texto: string) => problemas.push(texto);
+  const fundacao = estado.fundacao;
+  if (
+    fundacao &&
+    (!obter(estado.familias, fundacao.familiaId) ||
+      fundacao.comandoId !== fundacao.resultado.comandoId ||
+      fundacao.resultado.tick > estado.relogio.tick)
+  )
+    erro("Recibo de fundação divergente");
 
   // Toda tabela guarda a ordem e os dados em acordo.
   const tabelas: [string, Tabela<string, { id: string }>][] = [

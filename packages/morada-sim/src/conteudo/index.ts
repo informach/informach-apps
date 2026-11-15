@@ -135,6 +135,19 @@ export function modeloDeImovel(referencia: string): ModeloDeImovel | undefined {
 /** O bairro da etapa 1: dois lotes, um com a casa pronta e um vazio. */
 export const BAIRRO_DA_PROVA = DefinicaoDeBairroSchema.parse(bairroProva);
 
+/** Mesma geometria e vizinhos, aguardando a família criada por quem inicia o mundo. */
+export const BAIRRO_INICIAL = DefinicaoDeBairroSchema.parse({
+  ...BAIRRO_DA_PROVA,
+  id: "bairro_inicial",
+  nome: "Bairro",
+  familias: [],
+  relacoes: BAIRRO_DA_PROVA.relacoes.filter(
+    ({ a, b }) =>
+      BAIRRO_DA_PROVA.avulsos.some((morador) => morador.ref === a) &&
+      BAIRRO_DA_PROVA.avulsos.some((morador) => morador.ref === b),
+  ),
+});
+
 /**
  * Confere as referências cruzadas do conteúdo. Devolve a lista de problemas;
  * vazia quando está tudo certo.

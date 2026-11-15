@@ -70,6 +70,8 @@ export type Ligacao = {
   /** Quem a pessoa é neste mundo: o id de membro, não o do perfil. */
   jogadorId: string | null;
   perfilId: string | null;
+  /** Contexto atual conferido pelo host; não vem de mensagem do navegador. */
+  acesso?: Pick<EntradaPermitida, "papel" | "participacao">;
   /** O `exp` da sessão de jogo, em ms. Quem diz se ela venceu é `sessaoVencida`. */
   expiraEm: number;
   seq: number;
@@ -107,6 +109,7 @@ export type OpcoesDoAtor = {
 const ATRASO_MAXIMO_BYTES = 1024 * 1024;
 /** Fatos depois dos quais vale fotografar logo, sem esperar o intervalo. */
 const FATOS_MARCANTES = new Set([
+  "FamiliaFundada",
   "NascimentoRegistrado",
   "FamiliaMudou",
   "FaseMudou",
@@ -373,7 +376,10 @@ export class Ator {
   // --- Entrar ---
 
   /** Dá a quem entra o acesso à família, se ainda não tem. */
-  private garantirAcesso(jogadorId: string, entrada: EntradaPermitida): void {
+  private garantirAcesso(
+    jogadorId: string,
+    entrada: Pick<EntradaPermitida, "papel" | "participacao">,
+  ): void {
     const mundo = this.mundo as Mundo;
     if (mundo.estado.acessos.some((acesso) => acesso.perfilId === jogadorId)) return;
     const familias = listar(mundo.estado.familias);
@@ -461,11 +467,18 @@ export class Ator {
       this.garantirAcesso(jogadorId, entrada);
       // O apelido fica na presença do mundo, que é replicada e nunca gravada.
       const apelido = apelidoParaOMundo(entrada.apelido);
+      const podeFundarFamilia = entrada.papel === "steward";
       const conhecida = mundo.presenca.sessoes.some((s) => s.sessaoId === sessao.sid);
       mundo.aplicar(
         conhecida
-          ? { t: "sessao_voltou", sessaoId: sessao.sid, apelido }
-          : { t: "sessao_entrou", sessaoId: sessao.sid, perfilId: jogadorId, apelido },
+          ? { t: "sessao_voltou", sessaoId: sessao.sid, apelido, podeFundarFamilia }
+          : {
+              t: "sessao_entrou",
+              sessaoId: sessao.sid,
+              perfilId: jogadorId,
+              apelido,
+              podeFundarFamilia,
+            },
       );
 
       // A fase continua `entrando` até a pessoa receber o mundo: antes disso ela
@@ -474,6 +487,7 @@ export class Ator {
       ligacao.sid = sessao.sid;
       ligacao.jogadorId = jogadorId;
       ligacao.perfilId = sessao.perfilId;
+      ligacao.acesso = { papel: entrada.papel, participacao: entrada.participacao };
       ligacao.expiraEm = sessao.expiraEm;
       this.ligacoes.set(sessao.sid, ligacao);
 
@@ -538,6 +552,12 @@ export class Ator {
           const { ligacao, intencao } = entrada;
           if (ligacao.fase !== "dentro" || !ligacao.sid) break;
           const resultado = mundo.aplicar({ t: "intencao", sessaoId: ligacao.sid, intencao });
+          if (resultado.ok && intencao.acao.t === "fundar_familia") {
+            for (const outra of this.ligacoes.values()) {
+              if (outra.fase !== "fechada" && outra.jogadorId && outra.acesso)
+                this.garantirAcesso(outra.jogadorId, outra.acesso);
+            }
+          }
           // A resposta só sai depois que o passo estiver gravado.
           respostas.push(() => this.enviar(ligacao, { t: "resultado", resultado }));
           break;

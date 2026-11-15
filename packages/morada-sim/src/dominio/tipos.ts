@@ -300,9 +300,17 @@ export type Resultado =
 
 export type RegistroDeComando = { comandoId: string; resultado: Resultado };
 
+/** Recibo de uma criação única, independente da memória curta dos demais comandos. */
+export type ReciboDeFundacao = {
+  comandoId: string;
+  autor: PerfilId;
+  familiaId: FamiliaId;
+  resultado: Extract<Resultado, { ok: true }>;
+};
+
 export type EstadoDoMundo = {
   formato: "morada.mundo";
-  versao: 1;
+  versao: 2;
   id: MundoId;
   semente: number;
   relogio: Relogio;
@@ -324,6 +332,8 @@ export type EstadoDoMundo = {
   memorias: Memoria[];
   /** Últimos comandos e o que foi respondido: repetir não faz de novo. */
   comandos: RegistroDeComando[];
+  /** Não é replicado; o servidor usa o recibo para recuperar confirmações perdidas. */
+  fundacao: ReciboDeFundacao | null;
   /** Fatos já aplicados neste tick, para não repetir ids no mesmo instante. */
   contadores: Record<string, number>;
   /** Dia real e quanto do avanço limitado já foi gasto nele, por família. */
@@ -335,6 +345,8 @@ export type EstadoDoMundo = {
 export type Sessao = {
   sessaoId: SessaoId;
   perfilId: PerfilId;
+  /** Só o host concede; ausência equivale a recusa. Nunca é durável ou replicada. */
+  podeFundarFamilia?: boolean;
   /** Como a plataforma chama quem joga; `null` se quem hospeda o mundo não disse. */
   apelido: string | null;
   /** `em_graca`: a conexão caiu e ainda pode voltar. */

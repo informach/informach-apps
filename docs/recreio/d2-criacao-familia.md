@@ -26,6 +26,14 @@ Compatibilidade `116939f6`: cinco gates aprovados no run 43725682301; integrada 
 
 O recibo de fundação deve permanecer no estado durável e no fato de criação, vinculado a ator/comando/família e ao resultado. A memória genérica de 512 comandos pode ser perdida antes do checkpoint ou expulsa por comandos seguintes; não basta para essa operação. Reaplicar o fato precisa reconstruir o recibo sem conceder dinheiro novamente. A versão 2 deve incluir esse campo, com migração explícita de mundos V1 conservando todo o histórico; ainda não ativada.
 
+### Núcleo V2 em candidato, sem ativação
+
+Contrato de rascunho `f0e635c7`, cinco gates do run 43726631821 aprovados. O incremento seguinte implementa intenção `fundar_familia`, fato/recibo, capacidade volátil concedida somente pelo host ao responsável pelo mundo, referência dos moradores por índice e geração de IDs/saldo/permissões no servidor. Entrada e retorno sem concessão explícita não conservam a capacidade. Membros já admitidos recebem o acesso de jogo existente em fatos separados, antes da resposta durável.
+
+O mundo V2 acrescenta `fundacao`, ausente nos mundos V1 e preenchido inicialmente com `null` pela migração. A foto original é validada antes da migração e o checkpoint atualizado antecede a admissão. O recibo não vai para a visão do cliente, nem depende da memória de comandos. Bairro inicial reutiliza geometria/vizinhos da prova, sem a família de exemplo; o padrão da instância continua sendo a prova até a entrega da interface.
+
+Verificação preparada: unidades da criação/recibo/grafo, diário indisponível, queda após diário e antes do ACK, repetição após recuperação, migração de foto V1 sem diário, falha de checkpoint impedindo entrada e restauração operacional V1→V2 em PostgreSQL real. **Ainda sem evidência remota desse núcleo. Não integrar/ativar V2 em produção antes da interface e da homologação privada das opções visuais prometidas.** Os identificadores de cabelo/roupa já são limitados no pedido; a compatibilidade com o catálogo e a prévia visual ainda precisam ser concluídas.
+
 - Unidades determinísticas: criação mínima/máxima, limites, relações, autoridade, repetição e invariantes.
 - Banco/API/servidor reais no GitHub: fato antes do ACK, perda de resposta, queda entre criação e fotografia, mesmo comando depois da recuperação, concorrência de duas sessões e convite sem capacidade.
 - Portal: criar família própria, retomar após sair, segunda pessoa ver o mesmo resultado, nenhuma violação CSP ou dado de conta no jogo.

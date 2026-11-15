@@ -10,8 +10,20 @@ import type { EstadoDoMundo } from "../dominio/tipos";
  * recusado, nunca adivinhado.
  */
 
-export const VERSAO_DO_MUNDO = 1;
+export const VERSAO_DO_MUNDO = 2;
 export const VERSAO_DA_FOTOGRAFIA = 1;
+
+const ReciboDeFundacaoSchema = z.strictObject({
+  comandoId: z.string().min(8).max(64),
+  autor: z.string().min(1).max(64),
+  familiaId: z.string().regex(/^fam_\d+$/),
+  resultado: z.strictObject({
+    ok: z.literal(true),
+    comandoId: z.string().min(8).max(64),
+    tick: z.number().int().nonnegative(),
+    versoes: z.record(z.string(), z.number().int().nonnegative()),
+  }),
+});
 
 const EnvelopeSchema = z.object({
   formato: z.literal("morada.foto"),
@@ -58,8 +70,10 @@ export type Migracao = {
   migrar(estado: Record<string, unknown>): Record<string, unknown>;
 };
 
-/** As migrações do formato do mundo, em ordem. Vazia enquanto só existe a versão 1. */
-export const MIGRACOES_DO_MUNDO: readonly Migracao[] = [];
+/** V2 admite a fundação durável; mundos antigos conservam moradores, relações e saldos. */
+export const MIGRACOES_DO_MUNDO: readonly Migracao[] = [
+  { de: 1, migrar: (estado) => ({ ...estado, fundacao: null }) },
+];
 
 export function migrar(
   estado: Record<string, unknown>,
@@ -92,6 +106,8 @@ export function abrirFotografia(bruto: unknown): Fotografia {
     VERSAO_DO_MUNDO,
     MIGRACOES_DO_MUNDO,
   );
+  if (!ReciboDeFundacaoSchema.nullable().safeParse(estado.fundacao).success)
+    throw new Error("Recibo de fundação inválido");
   if (estado.id !== envelope.mundoId) throw new Error("A fotografia é de outro mundo");
   return {
     formato: "morada.foto",

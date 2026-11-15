@@ -1,3 +1,4 @@
+export * from "./comandos/fundacao";
 export * from "./comandos/intencao";
 export { relacaoExistente, saoParentes } from "./dominio/estado";
 export * from "./dominio/fatos";
