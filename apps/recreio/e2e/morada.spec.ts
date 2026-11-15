@@ -69,6 +69,16 @@ const TODAS_AS_PERMISSOES = [
 /** O navegador da pessoa que vai cair: um processo à parte, para poder morrer sem aviso. */
 let navegadorQueCai: BrowserServer | null = null;
 
+/** Cada aparelho da Bia tem processo próprio, inclusive depois de reiniciar. */
+async function novoNavegadorDaBia() {
+  if (navegadorQueCai) throw new Error("O navegador anterior da Bia ainda precisa ser encerrado");
+  navegadorQueCai = await chromium.launchServer({
+    channel: CANAL_DO_NAVEGADOR,
+    args: ARGS_DO_NAVEGADOR,
+  });
+  return chromium.connect(navegadorQueCai.wsEndpoint());
+}
+
 /**
  * Com a instância fora do ar, o navegador registra no console cada conexão
  * recusada com o servidor do jogo. É o efeito esperado da queda que o teste
@@ -121,11 +131,7 @@ test("duas contas jogam a mesma família; uma cai, a outra continua, e tudo volt
   expect(registros("instancia_registrada")).toHaveLength(1);
 
   // A Bia joga num navegador próprio, que mais adiante é morto sem aviso.
-  navegadorQueCai = await chromium.launchServer({
-    channel: CANAL_DO_NAVEGADOR,
-    args: ARGS_DO_NAVEGADOR,
-  });
-  const navegadorDaBia = await chromium.connect(navegadorQueCai.wsEndpoint());
+  const navegadorDaBia = await novoNavegadorDaBia();
 
   const ana = await novaPessoa(browser, "Ana");
   let bia = await novaPessoa(navegadorDaBia, "Bia");
@@ -463,7 +469,7 @@ test("duas contas jogam a mesma família; uma cai, a outra continua, e tudo volt
   });
 
   await test.step("6. Bia volta em outro navegador, entra de novo e está na mesma família com a Ana", async () => {
-    bia = await entrarDeNovo(browser, bia);
+    bia = await entrarDeNovo(await novoNavegadorDaBia(), bia);
     daBia = jogoEm(bia.page);
     await bia.page.getByRole("link", { name: "Jogar em Casa da Ana" }).click();
     // O navegador que morreu não encerrou a sessão de jogo: o Recreio pergunta antes de continuar.
