@@ -34,6 +34,11 @@ describe("prévia e confirmação do quadro", () => {
     expect(previa.estadoPara(nova)).toBe("carregando");
     previa.confirmarQuadro(previa.capturarQuadro());
     expect(previa.estadoPara(nova)).toBe("simples");
+    // Alterar a projeção da câmera exige outro quadro, mesmo com a mesma aparência.
+    previa.confirmarQuadro(null);
+    expect(previa.estadoPara(nova)).toBe("carregando");
+    previa.confirmarQuadro(previa.capturarQuadro());
+    expect(previa.estadoPara(nova)).toBe("simples");
     previa.dispose();
     ativos.dispose();
   });

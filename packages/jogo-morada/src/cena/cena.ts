@@ -659,6 +659,8 @@ export class Cena {
     this.camera.aspect = largura / altura;
     this.camera.updateProjectionMatrix();
     if (this.previa.aberta) {
+      this.previa.confirmarQuadro(null);
+      this.quadroDaPreviaPendente = null;
       this.alturaDaPrevia = 0;
       this.recortarCameraDaPrevia();
     }

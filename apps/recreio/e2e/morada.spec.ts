@@ -167,26 +167,46 @@ test.describe("coleção real da criação", () => {
       for (const linha of ["f", "m"])
         for (const cabelo of ["natural", "careca"])
           for (const roupa of ["cotidiano", "macacao"]) {
-            await pessoa.page.getByLabel("Fase da vida", { exact: true }).selectOption(fase);
-            await pessoa.page.getByLabel("Tipo de corpo", { exact: true }).selectOption(linha);
-            await pessoa.page.getByLabel("Cabelo", { exact: true }).selectOption(cabelo);
-            await pessoa.page.getByLabel("Roupa", { exact: true }).selectOption(roupa);
+            await pessoa.page
+              .getByRole("combobox", { name: "Fase da vida", exact: true })
+              .selectOption(fase);
+            await pessoa.page
+              .getByRole("combobox", { name: "Tipo de corpo", exact: true })
+              .selectOption(linha);
+            await pessoa.page
+              .getByRole("combobox", { name: "Cabelo", exact: true })
+              .selectOption(cabelo);
+            await pessoa.page
+              .getByRole("combobox", { name: "Roupa", exact: true })
+              .selectOption(roupa);
             await expect(previa).toHaveText("Assim vai ficar");
             if (cabelo === "natural" && roupa === "cotidiano")
               await tela(pessoa.page, `criacao-${fase}-${linha}`);
             combinacoes++;
           }
     expect(combinacoes).toBe(48);
-    await pessoa.page.getByLabel("Fase da vida", { exact: true }).selectOption("adulto");
-    await pessoa.page.getByLabel("Tipo de corpo", { exact: true }).selectOption("f");
-    await pessoa.page.getByLabel("Cabelo", { exact: true }).selectOption("natural");
-    await pessoa.page.getByLabel("Roupa", { exact: true }).selectOption("cotidiano");
+    await pessoa.page
+      .getByRole("combobox", { name: "Fase da vida", exact: true })
+      .selectOption("adulto");
+    await pessoa.page
+      .getByRole("combobox", { name: "Tipo de corpo", exact: true })
+      .selectOption("f");
+    await pessoa.page
+      .getByRole("combobox", { name: "Cabelo", exact: true })
+      .selectOption("natural");
+    await pessoa.page
+      .getByRole("combobox", { name: "Roupa", exact: true })
+      .selectOption("cotidiano");
     await expect(previa).toHaveText("Assim vai ficar");
     const ciclos = async () => {
       for (const cabelo of ["careca", "natural"])
         for (const roupa of ["macacao", "cotidiano"]) {
-          await pessoa.page.getByLabel("Cabelo", { exact: true }).selectOption(cabelo);
-          await pessoa.page.getByLabel("Roupa", { exact: true }).selectOption(roupa);
+          await pessoa.page
+            .getByRole("combobox", { name: "Cabelo", exact: true })
+            .selectOption(cabelo);
+          await pessoa.page
+            .getByRole("combobox", { name: "Roupa", exact: true })
+            .selectOption(roupa);
           await expect(previa).toHaveText("Assim vai ficar");
         }
     };
@@ -215,11 +235,15 @@ test.describe("coleção real da criação", () => {
     await pessoa.page.setViewportSize({ width: 1280, height: 800 });
     await pessoa.page.getByRole("button", { name: /Adicionar morador/ }).click();
     await pessoa.page.getByLabel("Nome no jogo", { exact: true }).fill("Sol");
-    await pessoa.page.getByLabel("Tipo de corpo", { exact: true }).selectOption("m");
+    await pessoa.page
+      .getByRole("combobox", { name: "Tipo de corpo", exact: true })
+      .selectOption("m");
     await expect(previa).toHaveText("Assim vai ficar");
     await pessoa.page.getByRole("button", { name: "Continuar", exact: true }).click();
     await pessoa.page.getByRole("button", { name: "Adicionar relação", exact: true }).click();
-    await pessoa.page.getByLabel("Vínculo", { exact: true }).selectOption("casamento");
+    await pessoa.page
+      .getByRole("combobox", { name: "Vínculo", exact: true })
+      .selectOption("casamento");
     await pessoa.page.getByRole("button", { name: "Continuar", exact: true }).click();
     await expect(
       pessoa.page.getByRole("heading", { name: "Seu novo lar", exact: true }),

@@ -68,3 +68,11 @@ As jornadas passam a escolher a família de exemplo por botões reais. Não há 
 `270118cb` aprovado nos cinco gates públicos em `43740892015`, incluindo as jornadas que escolhem a família de exemplo. A continuação vincula “Assim vai ficar” ao quadro da receita atual **confirmado pela GPU**, reutilizando o único fence existente, sem espera bloqueante ou renderer adicional. Confirmação de quadro antigo não libera uma seleção nova.
 
 Jornada privada `@personalizacao`, em preparação: percorrer 48 combinações, capturar as 12 fases/linhas, testar largura de celular, repetir ciclos de modelos e conferir contagem estável de buffers/texturas e um contexto WebGL2; criar dois moradores com vínculo, jogar, sair e reabrir. O ensaio mede alocação de recursos, não VRAM ou FPS. Capturas com arte somente no repositório privado. Ainda aguarda execução dessa jornada.
+
+`e5f2fd9a` aprovado nos cinco gates públicos em `43741966085`. A execução privada
+`43742109628` aprovou as cinco jornadas existentes (8,9 min), mas o caso novo
+parou no primeiro seletor: o campo existia e sua captura mostrava a prévia correta;
+o seletor por texto integral do label também incluía as opções. O candidato seguinte
+usa o papel acessível `combobox` e o nome do campo, preservando prazo e asserções.
+Também invalida a confirmação da prévia ao mudar a projeção da câmera, para exigir
+um quadro confirmado no tamanho novo. Nenhum desses candidatos foi implantado.
