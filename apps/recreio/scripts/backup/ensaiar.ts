@@ -52,14 +52,14 @@ function origemAutorizada(): { url: URL; fixture: boolean } {
 }
 
 /** Nenhuma variável da origem é herdada pelos processos do destino. */
-function ambienteNativo(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
+function ambienteNativo(extra: Record<string, string> = {}): Record<string, string | undefined> {
   return { PATH: process.env.PATH, LANG: "en_US.utf8", TZ: "UTC", ...extra };
 }
 
 async function ferramenta(
   programa: string,
   argumentos: string[],
-  ambiente: NodeJS.ProcessEnv,
+  ambiente: Record<string, string | undefined>,
   saida?: number,
 ): Promise<void> {
   await new Promise<void>((resolve, reject) => {
