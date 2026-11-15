@@ -228,8 +228,18 @@ no mesmo tipo, mantendo a prova de preservação da imagem. O candidato seguinte
 acrescenta o shader de pintura por instância e uma bancada sintética com 20
 medições: duas cores independentes, preto/branco/canais zero, HDR, materiais
 basic/standard e detalhes fora da máscara. Execução remota pendente.
-Integração do renderer, catálogo admitido pelo host e interface permanecem
-pendentes; não habilitar pintura nem Mundo V3 em produção com base no preparador.
+`715f0615` passou nos seis gates `43763674376`, incluindo as 20 medições
+sintéticas e a comparação exata dos bytes da textura. Não comprova a arte real.
+O incremento seguinte integra `Objeto.pintura` anulável, catálogo admitido uma
+vez por fato do host, validação do perfil instalado ao editar e restaurar,
+grupos original/pintado com materiais próprios e reconstrução na mudança de cor.
+A admissão acontece após o checkpoint da migração e confirma o journal antes
+das boas-vindas. Vidro/detalhes ignoram a cor da instância, inclusive em malhas
+com vários materiais. Execução remota deste incremento ainda pendente.
+Como Mundo V3 nunca foi publicado, os candidatos V3 anteriores à pintura não
+são destinos válidos de rollback deste contrato; produção continua Mundo V2.
+Interface e homologação visual privada permanecem pendentes; não habilitar
+pintura nem Mundo V3 em produção com base nestes candidatos.
 
 Arquivos: `comandos/intencao.ts`, `comandos/pipeline.ts`, novo sistema de edição;
 `dominio/tipos.ts`, `dominio/fatos.ts`, `dominio/reduzir-fato.ts`,

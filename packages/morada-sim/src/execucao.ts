@@ -1,6 +1,11 @@
 import { CatalogoDeAparenciasSchema, conferirContinuidadeDaAparencia } from "./comandos/aparencia";
 import { type Entrada, EntradaSchema } from "./comandos/intencao";
 import { type CatalogoDaLoja, conferirContinuidadeDaLoja } from "./comandos/loja";
+import {
+  type CatalogoDePinturas,
+  conferirCatalogoDePinturas,
+  conferirDisponibilidadeDasPinturas,
+} from "./comandos/pintura";
 import { aplicarIntencao } from "./comandos/pipeline";
 import { modeloDeImovel } from "./conteudo";
 import { montarLojaInicial } from "./conteudo/loja";
@@ -32,7 +37,7 @@ import {
   VERSAO_DO_MUNDO,
 } from "./formatos/fotografia";
 import { andaresNoLote } from "./formatos/imovel";
-import { copiar, resumoDe } from "./nucleo/canonico";
+import { canonico, copiar, resumoDe } from "./nucleo/canonico";
 import { MS_DE_JOGO_POR_TICK, PASSO_MS } from "./nucleo/relogio";
 import { passoDasAcoes } from "./sistemas/acoes";
 import { passoDaAutonomia } from "./sistemas/autonomia";
@@ -118,6 +123,7 @@ export type Mundo = {
 };
 
 export type OpcoesDoMundo = {
+  pinturasDisponiveis?: CatalogoDePinturas;
   /** Limite do diário entregue pelo host; não vem da intenção do jogador. */
   maxBytesPorFato?: number;
   /** Acusa qualquer mudança visível que não foi marcada para replicação. Para testes. */
@@ -125,6 +131,14 @@ export type OpcoesDoMundo = {
 };
 
 function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
+  const pinturasDisponiveis = opcoes.pinturasDisponiveis
+    ? conferirCatalogoDePinturas(opcoes.pinturasDisponiveis)
+    : null;
+  conferirDisponibilidadeDasPinturas(
+    listar(estado.objetos),
+    estado.catalogoDePinturas,
+    pinturasDisponiveis,
+  );
   const presenca: Presenca = { sessoes: [], reservas: [], voto: null };
   const navegadores = new Map<LoteId, { revisao: number; navegador: Navegador }>();
   const tocadas = new Map<TabelaReplicada, Set<string>>();
@@ -155,6 +169,7 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
       chavesTocadas,
       navegador,
       maxBytesPorFato: opcoes.maxBytesPorFato,
+      pinturasDisponiveis,
     };
   }
 
@@ -198,6 +213,24 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
         versoes: {},
       };
       switch (entrada.t) {
+        case "admitir_pinturas": {
+          const catalogo = conferirCatalogoDePinturas(entrada.catalogo);
+          if (!pinturasDisponiveis || canonico(catalogo) !== canonico(pinturasDisponiveis))
+            throw new Error("Admissão de pintura exige o catálogo instalado pelo host");
+          if (estado.catalogoDePinturas) {
+            if (canonico(estado.catalogoDePinturas) !== canonico(catalogo))
+              throw new Error("O catálogo de pinturas admitido é imutável");
+            return aceito;
+          }
+          emitir(
+            ctx,
+            "catalogo:pinturas:1",
+            null,
+            { tipo: "PinturasAdmitidas", catalogo },
+            causaDoJogador(null, null, "pinturas_pelo_host"),
+          );
+          return aceito;
+        }
         case "intencao":
           return aplicarIntencao(ctx, entrada.sessaoId, entrada.intencao);
         case "sessao_entrou":
@@ -350,6 +383,7 @@ export function criarMundo(novo: NovoMundo, opcoes: OpcoesDoMundo = {}): Mundo {
     fundacao: null,
     loja: conferirContinuidadeDaLoja(novo.loja ?? montarLojaInicial()),
     edicoes: [],
+    catalogoDePinturas: null,
     catalogoDeAparencias: novo.catalogoDeAparencias
       ? CatalogoDeAparenciasSchema.parse(novo.catalogoDeAparencias)
       : null,
@@ -402,6 +436,7 @@ export function criarMundo(novo: NovoMundo, opcoes: OpcoesDoMundo = {}): Mundo {
           andar: objeto.andar,
           giro: objeto.giro,
           cor: objeto.cor,
+          pintura: null,
           ocupacao: {},
         });
       }

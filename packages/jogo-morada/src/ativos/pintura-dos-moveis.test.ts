@@ -59,7 +59,9 @@ describe("materiais de pintura por grupo de instâncias", () => {
     const { geometria, material } = modelo();
     const pintura = new PinturaDosMoveis(perfil),
       vidro = new MeshBasicMaterial({ transparent: true, opacity: 0.38 });
-    expect(pintura.material(vidro, geometria)).toBe(vidro);
+    const detalhe = pintura.material(vidro, geometria);
+    expect(detalhe).not.toBe(vidro);
+    expect(detalhe).toMatchObject({ transparent: true, opacity: 0.38 });
     material.userData.moradaPintura = { perfil: "b".repeat(64) };
     expect(() => pintura.material(material, geometria)).toThrow(/diverge/);
     material.userData.moradaPintura = { perfil: perfil.perfil };

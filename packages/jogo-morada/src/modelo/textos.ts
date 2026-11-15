@@ -39,6 +39,7 @@ const DETALHES: Record<string, string> = {
   edicao_identidade: "Não foi possível confirmar esta edição. Reabra o mundo para continuar.",
   edicao_em_confirmacao: "Espere a confirmação da edição anterior.",
   edicao_acima_do_limite: "Esta edição é grande demais. Tente uma mudança menor.",
+  pintura_indisponivel: "Esta cor não está disponível para o móvel agora. Reabra a seleção.",
   historico_de_edicao_cheio: "Este mundo chegou ao limite de participantes no histórico de edição.",
   fora_da_grade: "Escolha uma posição marcada na grade.",
   fora_do_lote: "Escolha uma posição dentro do terreno da família.",

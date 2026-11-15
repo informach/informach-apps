@@ -18,6 +18,7 @@ function movel(campos: Partial<Objeto> = {}): Objeto {
     andar: 0,
     giro: 0,
     cor: 0xffffff,
+    pintura: null,
     ocupacao: {},
     ...campos,
   };

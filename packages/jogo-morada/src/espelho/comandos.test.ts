@@ -16,7 +16,7 @@ function comprar(): Extract<AcaoPedida, { t: "editar_casa" }> {
         politicaDePrecos: 1,
         revisaoDoEspaco: 1,
         colocacao: { pos: [2000, 2000, 0], andar: 0, giro: 0 },
-        cor: 0xffffff,
+        pintura: null,
       },
     },
   };

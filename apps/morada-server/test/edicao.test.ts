@@ -34,6 +34,7 @@ async function cenario() {
         andar: 0,
         giro: 0,
         cor: 0xffffff,
+        pintura: null,
         ocupacao: {},
       };
       if (conferirColocacaoNoChao(mundo.estado, candidato.id, candidato) === null) {
@@ -54,7 +55,7 @@ async function cenario() {
       politicaDePrecos: 1,
       revisaoDoEspaco: lote.revisaoDoEspaco,
       colocacao: { pos: escolhido.pos, andar: 0, giro: 0 },
-      cor: 0xffffff,
+      pintura: null,
     },
   };
   const chave = comandoDeEdicao(lia.jogadorId, 1);
@@ -72,6 +73,35 @@ async function cenario() {
 }
 
 describe("journal das edições de móveis", () => {
+  it("não anuncia o catálogo de pintura nem dá boas-vindas antes do journal", async () => {
+    const catalogo = {
+      formato: "morada.pinturas",
+      versao: 1,
+      perfis: [
+        {
+          catalogo: "rack_pes_2portas_vermelho",
+          versaoDoCatalogo: 1,
+          perfil: "a".repeat(64),
+          rotulo: "Estrutura",
+          referencia: 0xc86432,
+        },
+      ],
+    } satisfies import("@informach/morada-sim").CatalogoDePinturas;
+    const bancada = await criarBancada({ pinturasDisponiveis: catalogo });
+    const a = await bancada.novaInstancia();
+    const lia = bancada.jogador("Lia");
+    const mundoId = bancada.criarMundo(lia);
+    a.host.soFalha = ["anexarAoDiario"];
+    a.host.foraDoAr = true;
+    await bancada.entrar(lia, mundoId);
+    expect(lia.visao).toBeNull();
+    expect(lia.quadros.some((q) => q.t === "bem_vindo")).toBe(false);
+    a.host.foraDoAr = false;
+    await bancada.andar(1);
+    expect(lia.quadros.some((q) => q.t === "bem_vindo")).toBe(true);
+    expect(lia.visao?.catalogoDePinturas).toEqual(catalogo);
+  });
+
   it("diário indisponível não entrega resultado, saldo nem objeto antes da confirmação", async () => {
     const c = await cenario();
     c.a.host.foraDoAr = true;

@@ -89,6 +89,7 @@ type EntradaNaCaixa =
   | { t: "encerrada"; sid: string };
 
 export type OpcoesDoAtor = {
+  pinturasDisponiveis?: import("@informach/morada-sim").CatalogoDePinturas;
   moveisDisponiveis?: readonly import("@informach/morada-sim").MovelDisponivel[];
   catalogoDeAparencias?: import("@informach/morada-sim").CatalogoDeAparencias;
   mundoId: MundoId;
@@ -363,7 +364,10 @@ export class Ator {
     conferirCatalogoDisponivel(base.estado.catalogoDeAparencias, this.op.catalogoDeAparencias);
     if (this.op.moveisDisponiveis)
       conferirCatalogoDaLoja(base.estado.loja, this.op.moveisDisponiveis);
-    this.mundo = restaurar(base, fatos, { maxBytesPorFato: LIMITES.diarioLoteMaxBytes });
+    this.mundo = restaurar(base, fatos, {
+      maxBytesPorFato: LIMITES.diarioLoteMaxBytes,
+      pinturasDisponiveis: this.op.pinturasDisponiveis,
+    });
     this.tickConfirmado = this.mundo.estado.relogio.tick;
     this.estado = "ativo";
     this.fotografadoEm = this.op.agora();
@@ -379,6 +383,12 @@ export class Ator {
     // Um mundo novo, ou um que voltou só do diário, ganha logo a sua fotografia.
     if (!guardada || fatos.length > 0 || guardada.meta.schemaVersion !== base.estado.versao)
       await this.fotografar("checkpoint");
+    // A fotografia da migração antecede a admissão. Conteúdo novo só chega ao
+    // cliente depois da confirmação do fato no diário, pelo fluxo normal.
+    if (this.op.pinturasDisponiveis && !this.mundo.estado.catalogoDePinturas) {
+      this.mundo.aplicar({ t: "admitir_pinturas", catalogo: this.op.pinturasDisponiveis });
+      await this.concluirPasso(this.mundo.avancar(0), []);
+    }
   }
 
   // --- Entrar ---

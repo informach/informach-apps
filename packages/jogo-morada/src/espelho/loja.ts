@@ -41,7 +41,7 @@ const DURACAO_DO_AVISO_MS = 6000;
 const AVISOS_NA_TELA = 4;
 
 /** Campos de um objeto que mudam o desenho da casa; a ocupação muda a toda hora e não entra. */
-const CAMPOS_DE_FORMA = ["pos", "giro", "catalogo", "loteId", "andar", "cor"];
+const CAMPOS_DE_FORMA = ["pos", "giro", "catalogo", "loteId", "andar", "cor", "pintura"];
 
 export class Loja {
   visao: VisaoDoCliente | null = null;

@@ -3,6 +3,7 @@ export * from "./comandos/edicao";
 export * from "./comandos/fundacao";
 export * from "./comandos/intencao";
 export * from "./comandos/loja";
+export * from "./comandos/pintura";
 export { relacaoExistente, saoParentes } from "./dominio/estado";
 export * from "./dominio/fatos";
 export * from "./dominio/ids";

@@ -111,6 +111,7 @@ describe("navegação em grade", () => {
       andar: 0,
       giro: 0,
       cor: 0,
+      pintura: null,
       ocupacao: {},
       revisao: 1,
     };

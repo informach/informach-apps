@@ -70,6 +70,7 @@ export type VisaoDoCliente = {
   presenca: PresencaVista;
   catalogoDeAparencias: EstadoDoMundo["catalogoDeAparencias"];
   loja: EstadoDoMundo["loja"];
+  catalogoDePinturas: EstadoDoMundo["catalogoDePinturas"];
   edicao: { proximaSequencia: number | null };
 } & { [T in TabelaReplicada]: EstadoDoMundo[T] } & Pick<EstadoDoMundo, "bairros">;
 
@@ -98,6 +99,8 @@ function presencaVista(presenca: Presenca): PresencaVista {
 
 function valorDaChave(estado: EstadoDoMundo, presenca: Presenca, chave: ChaveReplicada): unknown {
   switch (chave) {
+    case "catalogoDePinturas":
+      return estado.catalogoDePinturas;
     case "relogio":
       return {
         velocidade: estado.relogio.velocidade,
@@ -114,7 +117,14 @@ function valorDaChave(estado: EstadoDoMundo, presenca: Presenca, chave: ChaveRep
   }
 }
 
-const CHAVES: readonly ChaveReplicada[] = ["relogio", "regras", "acessos", "memorias", "presenca"];
+const CHAVES: readonly ChaveReplicada[] = [
+  "relogio",
+  "regras",
+  "acessos",
+  "memorias",
+  "presenca",
+  "catalogoDePinturas",
+];
 
 /** A visão inteira, para quem acabou de entrar ou de reconectar. */
 export function projetar(
@@ -131,6 +141,7 @@ export function projetar(
     regras: estado.regras,
     catalogoDeAparencias: estado.catalogoDeAparencias,
     loja: estado.loja,
+    catalogoDePinturas: estado.catalogoDePinturas,
     edicao: { proximaSequencia: ultima < Number.MAX_SAFE_INTEGER ? ultima + 1 : null },
     acessos: estado.acessos,
     memorias: estado.memorias,

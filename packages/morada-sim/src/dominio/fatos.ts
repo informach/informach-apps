@@ -32,6 +32,7 @@ import type {
  */
 
 export type DadosDoFato =
+  | { tipo: "PinturasAdmitidas"; catalogo: import("../comandos/pintura").CatalogoDePinturas }
   | {
       tipo: "EdicaoRegistrada";
       recibo: import("../comandos/edicao").ReciboDeEdicao;

@@ -3,6 +3,7 @@ import type { AcaoId, FamiliaId, MoradorId, ObjetoId, PedidoId } from "../domini
 import { PERMISSOES } from "../dominio/permissoes";
 import { PedidoDeEdicaoSchema } from "./edicao";
 import { RascunhoDaFamiliaSchema } from "./fundacao";
+import { CatalogoDePinturasSchema } from "./pintura";
 
 /**
  * Tudo o que entra na simulação. O cliente não muda o mundo: ele pede, com uma
@@ -88,6 +89,8 @@ const apelido = z.string().min(1).max(APELIDO_MAX);
  * caiu e que horas são. O relógio real chega sempre como dado.
  */
 export const EntradaSchema = z.discriminatedUnion("t", [
+  /** Somente o host admite conteúdo; esta entrada não pertence à AcaoPedidaSchema. */
+  z.strictObject({ t: z.literal("admitir_pinturas"), catalogo: CatalogoDePinturasSchema }),
   z.strictObject({
     t: z.literal("intencao"),
     sessaoId: z.string().min(1),

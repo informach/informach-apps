@@ -145,6 +145,7 @@ export async function criarBancada(
     regras?: Partial<RegrasDoMundo>;
     definicao?: DefinicaoDeBairro;
     checkpointMs?: number;
+    pinturasDisponiveis?: import("@informach/morada-sim").CatalogoDePinturas;
     capacidade?: number;
     diarioParaFotografarBytes?: number;
     /** Tetos do Recreio diferentes dos do manifesto, para chegar neles num teste curto. */
@@ -212,6 +213,7 @@ export async function criarBancada(
       regras: opcoes.regras ?? REGRAS_DA_PROVA,
       definicao: opcoes.definicao,
       checkpointMs: opcoes.checkpointMs ?? 30_000,
+      pinturasDisponiveis: opcoes.pinturasDisponiveis,
       diarioParaFotografarBytes: opcoes.diarioParaFotografarBytes,
       falhas,
       registrar: (evento, dados = {}) => registros.push({ evento, dados }),

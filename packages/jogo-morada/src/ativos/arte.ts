@@ -57,6 +57,7 @@ import {
   pesosDaGravidez,
 } from "./escolhas";
 import { type ModeloDeObjeto, ObjetosDeArte } from "./objetos";
+import { PinturaDosMoveis } from "./pintura-dos-moveis";
 import { AtivosProcedurais } from "./procedurais";
 
 /**
@@ -180,9 +181,21 @@ export class AtivosDeArte implements Ativos {
         continue;
       this.pedidosDoAmbiente.add(entrada.arquivo);
       void this.obterPacote(entrada.arquivo).then((pacote) => {
-        if (pacote && !this.descartado) {
-          this.modelos.set(chave, { entrada, cena: pacote.scene });
-          this.avisar();
+        try {
+          if (pacote && !this.descartado) {
+            if (entrada.pintura) {
+              const pintura = new PinturaDosMoveis(entrada.pintura);
+              try {
+                pintura.conferir(pacote.scene);
+              } finally {
+                pintura.dispose();
+              }
+            }
+            this.modelos.set(chave, { entrada, cena: pacote.scene });
+            this.avisar();
+          }
+        } catch (erro) {
+          this.opcoes.aoFalhar?.(entrada.arquivo, erro);
         }
         // Uma falha permite tentar de novo numa reconstrução futura da cena.
         this.pedidosDoAmbiente.delete(entrada.arquivo);

@@ -4,6 +4,7 @@ import {
   RESPOSTAS_DE_EDICAO,
   RESPOSTAS_DE_EDICAO_DO_MUNDO,
 } from "../comandos/edicao";
+import { PinturaDoMovelSchema, perfilDePintura } from "../comandos/pintura";
 import { relacaoId } from "./ids";
 import { listar, obter, type Tabela } from "./tabela";
 import type { EstadoDoMundo, Presenca } from "./tipos";
@@ -163,6 +164,13 @@ export function verificarInvariantes(estado: EstadoDoMundo, presenca?: Presenca)
 
   // Um ponto de uso tem um ocupante só, e o ocupante existe.
   for (const objeto of listar(estado.objetos)) {
+    const pintura = PinturaDoMovelSchema.nullable().safeParse(objeto.pintura);
+    if (
+      !pintura.success ||
+      (pintura.data &&
+        perfilDePintura(estado.catalogoDePinturas, objeto)?.perfil !== pintura.data.perfil)
+    )
+      erro(`${objeto.id}: pintura sem perfil admitido`);
     if (!Number.isSafeInteger(objeto.revisao) || objeto.revisao < 1)
       erro(`${objeto.id}: revisão inválida`);
     if (!obter(estado.lotes, objeto.loteId)) erro(`${objeto.id}: lote inexistente`);

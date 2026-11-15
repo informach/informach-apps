@@ -15,6 +15,20 @@ import {
 import { BRUNO, criarMundoDaProva, criarRoteiro, LIA, moradorDeNome } from "../src/testes";
 
 const RACK = "rack_pes_2portas_vermelho";
+const PERFIL = "a".repeat(64);
+const PINTURAS = {
+  formato: "morada.pinturas",
+  versao: 1,
+  perfis: [
+    {
+      catalogo: RACK,
+      versaoDoCatalogo: 1,
+      perfil: PERFIL,
+      rotulo: "Estrutura",
+      referencia: 0xc86432,
+    },
+  ],
+} satisfies import("../src/index").CatalogoDePinturas;
 function cenario(opcoes: OpcoesDoMundo = {}) {
   const bairro = copiar(BAIRRO_DA_PROVA);
   const familiaInicial = bairro.familias[0];
@@ -45,6 +59,8 @@ function cenario(opcoes: OpcoesDoMundo = {}) {
   for (const pessoa of listar(base.estado.moradores))
     pessoa.local = { t: "lote", loteId: lote.id, andar: 0, pos: [...lote.entrada], frente: 0 };
   const mundo = restaurar(base, [], { conferirReplicacao: true, ...opcoes });
+  if (opcoes.pinturasDisponiveis)
+    mundo.aplicar({ t: "admitir_pinturas", catalogo: opcoes.pinturasDisponiveis });
   const entrar = (alvo: Mundo, perfilId = LIA) =>
     alvo.aplicar({ t: "sessao_entrou", perfilId, sessaoId: perfilId });
   entrar(mundo);
@@ -84,7 +100,7 @@ function cenario(opcoes: OpcoesDoMundo = {}) {
       politicaDePrecos: 1,
       revisaoDoEspaco: obter(mundo.estado.lotes, lote.id)?.revisaoDoEspaco ?? 0,
       colocacao: { pos, andar: 0, giro: 0 },
-      cor: 0xffffff,
+      pintura: null,
     },
   });
   const objeto = () => {
@@ -106,6 +122,75 @@ function cenario(opcoes: OpcoesDoMundo = {}) {
 }
 
 describe("edição autoritativa e durável da casa", () => {
+  it("admite perfis pelo host uma vez e recupera a admissão pelo diário", () => {
+    const c = cenario({ pinturasDisponiveis: PINTURAS });
+    c.mundo.aplicar({ t: "admitir_pinturas", catalogo: PINTURAS });
+    const saida = c.mundo.avancar(0);
+    expect(saida.fatos).toHaveLength(1);
+    expect(saida.fatos[0]?.dados.tipo).toBe("PinturasAdmitidas");
+    expect(saida.mudancas).toContainEqual({ t: "c", chave: "catalogoDePinturas", valor: PINTURAS });
+    const voltou = restaurar(c.base, [...saida.fatos, ...saida.fatos], {
+      pinturasDisponiveis: PINTURAS,
+    });
+    expect(voltou.estado.catalogoDePinturas).toEqual(PINTURAS);
+    expect(voltou.hash()).toBe(c.mundo.hash());
+    expect(() =>
+      voltou.aplicar({ t: "admitir_pinturas", catalogo: { ...PINTURAS, perfis: [] } }),
+    ).toThrow(/instalado/);
+  });
+
+  it("conserva original, branco e preto distintos, sem alterar saldo ao pintar e reabrir", () => {
+    const c = cenario({ pinturasDisponiveis: PINTURAS });
+    const compra = c.compra();
+    expect(c.aplicar(compra).ok).toBe(true);
+    expect(c.objeto().pintura).toBeNull();
+    const saldo = c.familiaAtual().fundo;
+    const pintar = (sequencia: number, cor: number | null): PedidoDeEdicao => ({
+      ...compra,
+      sequencia,
+      operacao: {
+        t: "pintar",
+        objetoId: c.objeto().id,
+        revisaoDoObjeto: c.objeto().revisao,
+        pintura: cor === null ? null : { perfil: PERFIL, cor },
+      },
+    });
+    expect(c.aplicar(pintar(2, 0xffffff)).ok).toBe(true);
+    expect(c.objeto().pintura).toEqual({ perfil: PERFIL, cor: 0xffffff });
+    expect(c.aplicar(pintar(3, 0)).ok).toBe(true);
+    expect(c.objeto().pintura).toEqual({ perfil: PERFIL, cor: 0 });
+    expect(c.familiaAtual().fundo).toBe(saldo);
+    const fatos = c.mundo.avancar(0).fatos;
+    expect(restaurar(c.base, fatos, { pinturasDisponiveis: PINTURAS }).hash()).toBe(c.mundo.hash());
+    expect(() => restaurar(c.base, fatos)).toThrow(/sem perfil/);
+    expect(() =>
+      restaurar(c.mundo.fotografar(), [], { pinturasDisponiveis: { ...PINTURAS, perfis: [] } }),
+    ).toThrow(/sem perfil/);
+    expect(c.aplicar(pintar(4, null)).ok).toBe(true);
+    expect(c.objeto().pintura).toBeNull();
+    expect(restaurar(c.mundo.fotografar()).hash()).toBe(c.mundo.hash());
+  });
+
+  it("recusa pintura sem perfil instalado/admitido antes de criar peça ou gastar", () => {
+    for (const opcoes of [{}, { pinturasDisponiveis: PINTURAS }]) {
+      const c = cenario(opcoes);
+      const pedido = c.compra();
+      if (pedido.operacao.t !== "comprar") throw new Error("Compra ausente");
+      pedido.operacao.pintura = { perfil: "b".repeat(64), cor: 0 };
+      const saldo = c.familiaAtual().fundo;
+      const contadores = copiar(c.mundo.estado.contadores);
+      expect(c.aplicar(pedido)).toMatchObject({
+        ok: false,
+        motivo: "nao_existe",
+        detalhe: "pintura_indisponivel",
+      });
+      expect(listar(c.mundo.estado.objetos)).toHaveLength(0);
+      expect(c.familiaAtual().fundo).toBe(saldo);
+      expect(c.mundo.estado.contadores).toEqual(contadores);
+      expect(c.aplicar(pedido)).toMatchObject({ ok: false, repetido: true });
+    }
+  });
+
   it("compra uma vez, confirma saldo/objeto/recibo num fato e restaura sem repetir o gasto", () => {
     const c = cenario();
     const saldo = c.familiaAtual().fundo;
@@ -189,7 +274,7 @@ describe("edição autoritativa e durável da casa", () => {
   });
 
   it("mover/pintar/vender usam revisões atuais e não reaparecem ao repetir a compra", () => {
-    const c = cenario();
+    const c = cenario({ pinturasDisponiveis: PINTURAS });
     const inicial = c.familiaAtual().fundo;
     const compra = c.compra();
     expect(c.aplicar(compra).ok).toBe(true);
@@ -210,10 +295,19 @@ describe("edição autoritativa e durável da casa", () => {
     const pintar: PedidoDeEdicao = {
       ...compra,
       sequencia: 3,
-      operacao: { t: "pintar", objetoId: objeto.id, revisaoDoObjeto: 2, cor: 0x775511 },
+      operacao: {
+        t: "pintar",
+        objetoId: objeto.id,
+        revisaoDoObjeto: 2,
+        pintura: { perfil: PERFIL, cor: 0x775511 },
+      },
     };
     expect(c.aplicar(pintar).ok).toBe(true);
-    expect(c.objeto()).toMatchObject({ revisao: 3, cor: 0x775511 });
+    expect(c.objeto()).toMatchObject({
+      revisao: 3,
+      pintura: { perfil: PERFIL, cor: 0x775511 },
+      cor: 0xffffff,
+    });
     const vender: PedidoDeEdicao = {
       ...compra,
       sequencia: 4,

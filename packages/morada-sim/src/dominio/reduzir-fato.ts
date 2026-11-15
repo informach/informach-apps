@@ -4,6 +4,7 @@ import {
   compactarRespostasDeEdicao,
   iniciarRegistroDeEdicoes,
 } from "../comandos/edicao";
+import { conferirCatalogoDePinturas } from "../comandos/pintura";
 import { comContinuidadeEspacial } from "../espaco/continuidade";
 import { canonico, copiar } from "../nucleo/canonico";
 import { necessidadesNaNovaFase, registrarId, relacaoEntre } from "./estado";
@@ -57,6 +58,20 @@ export function reduzirFato(estado: EstadoDoMundo, fato: Fato): void {
   if (/^fat_\d+$/.test(sufixo)) registrarId(estado, sufixo);
   const dados = fato.dados;
   switch (dados.tipo) {
+    case "PinturasAdmitidas": {
+      if (
+        fato.id !== "catalogo:pinturas:1" ||
+        fato.familiaId !== null ||
+        fato.causa.autor !== "sim" ||
+        fato.causa.comandoId !== null
+      )
+        throw new Error("Admissão de pintura sem identidade do host");
+      const catalogo = conferirCatalogoDePinturas(dados.catalogo);
+      if (estado.catalogoDePinturas && canonico(estado.catalogoDePinturas) !== canonico(catalogo))
+        throw new Error("O catálogo de pinturas admitido é imutável");
+      estado.catalogoDePinturas = catalogo;
+      return;
+    }
     case "EdicaoRegistrada": {
       const recibo = dados.recibo;
       if (

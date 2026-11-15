@@ -30,7 +30,13 @@ export type TabelaReplicada =
   | "quadro";
 
 /** Partes do estado que são replicadas inteiras quando mudam. */
-export type ChaveReplicada = "relogio" | "regras" | "acessos" | "memorias" | "presenca";
+export type ChaveReplicada =
+  | "relogio"
+  | "regras"
+  | "acessos"
+  | "memorias"
+  | "presenca"
+  | "catalogoDePinturas";
 
 /** Avisos de uma vez só: o cliente mostra e esquece. Nunca são estado. */
 export type EventoDeApresentacao =
@@ -65,6 +71,7 @@ export type Contexto = {
   chavesTocadas: Set<ChaveReplicada>;
   navegador(loteId: LoteId): Navegador;
   maxBytesPorFato?: number;
+  pinturasDisponiveis?: import("../comandos/pintura").CatalogoDePinturas | null;
 };
 
 export function tocar(ctx: Contexto, tabela: TabelaReplicada, id: string): void {
@@ -91,6 +98,9 @@ export function novaMemoria(ctx: Contexto): MemoriaId {
 /** Quais tabelas e chaves cada tipo de fato pode mudar, para a replicação. */
 function tocarPeloFato(ctx: Contexto, dados: DadosDoFato): void {
   switch (dados.tipo) {
+    case "PinturasAdmitidas":
+      tocarChave(ctx, "catalogoDePinturas");
+      return;
     case "EdicaoRegistrada":
       if (dados.efeito) {
         tocar(ctx, "familias", dados.efeito.familiaId);

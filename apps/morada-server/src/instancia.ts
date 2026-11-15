@@ -18,6 +18,7 @@ import { type Falhas, QuedaSimulada, semFalhas } from "./falhas";
  */
 
 export type OpcoesDaInstancia = {
+  pinturasDisponiveis?: import("@informach/morada-sim").CatalogoDePinturas;
   moveisDisponiveis?: readonly import("@informach/morada-sim").MovelDisponivel[];
   catalogoDeAparencias?: import("@informach/morada-sim").CatalogoDeAparencias;
   host: ClienteDoHost;
@@ -127,6 +128,7 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
       regras: op.regras,
       catalogoDeAparencias: op.catalogoDeAparencias,
       moveisDisponiveis: op.moveisDisponiveis,
+      pinturasDisponiveis: op.pinturasDisponiveis,
       checkpointMs: op.checkpointMs ?? 30_000,
       diarioParaFotografarBytes: op.diarioParaFotografarBytes,
       registrar,

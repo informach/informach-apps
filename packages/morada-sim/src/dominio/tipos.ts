@@ -101,6 +101,8 @@ export type Objeto = {
   /** Graus, em múltiplos de 90. Com 0 a frente aponta para −Y. */
   giro: number;
   cor: number;
+  /** Original é null; RGB escolhido usa o perfil de superfície admitido pelo host. */
+  pintura: import("../comandos/pintura").PinturaDoMovel | null;
   /** Ponto de uso → quem o ocupa. Um ponto tem um ocupante só. */
   ocupacao: Record<string, MoradorId>;
 };
@@ -346,6 +348,7 @@ export type EstadoDoMundo = {
   /** Não é replicado; o servidor usa o recibo para recuperar confirmações perdidas. */
   fundacao: ReciboDeFundacao | null;
   loja: import("../comandos/loja").CatalogoDaLoja;
+  catalogoDePinturas: import("../comandos/pintura").CatalogoDePinturas | null;
   /** Piso durável por autor; respostas recentes têm limites por autor e por mundo. */
   edicoes: import("../comandos/edicao").RegistroDeEdicoes[];
   /** Conteúdo admitido na criação; não muda ao trocar o pacote de arte do servidor. */

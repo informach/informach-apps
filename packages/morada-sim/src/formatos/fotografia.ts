@@ -6,6 +6,11 @@ import {
   RegistroDeEdicoesSchema,
 } from "../comandos/edicao";
 import { conferirContinuidadeDaLoja } from "../comandos/loja";
+import {
+  CatalogoDePinturasSchema,
+  conferirCatalogoDePinturas,
+  PinturaDoMovelSchema,
+} from "../comandos/pintura";
 import { montarLojaInicial } from "../conteudo/loja";
 import type { EstadoDoMundo } from "../dominio/tipos";
 
@@ -94,10 +99,14 @@ export const MIGRACOES_DO_MUNDO: readonly Migracao[] = [
         ...estado,
         loja: montarLojaInicial(),
         edicoes: [],
+        catalogoDePinturas: null,
         objetos: {
           ordem: objetos.ordem,
           porId: Object.fromEntries(
-            Object.entries(objetos.porId).map(([id, objeto]) => [id, { ...objeto, revisao: 1 }]),
+            Object.entries(objetos.porId).map(([id, objeto]) => [
+              id,
+              { ...objeto, revisao: 1, pintura: null },
+            ]),
           ),
         },
       };
@@ -138,6 +147,8 @@ export function abrirFotografia(bruto: unknown): Fotografia {
   if (!catalogo.success) throw new Error("Catálogo de aparências inválido");
   if (catalogo.data) conferirContinuidadeDaAparencia(catalogo.data);
   estado.loja = conferirContinuidadeDaLoja(estado.loja);
+  const pinturas = CatalogoDePinturasSchema.nullable().parse(estado.catalogoDePinturas);
+  estado.catalogoDePinturas = pinturas ? conferirCatalogoDePinturas(pinturas) : null;
   const edicoes = z
     .array(RegistroDeEdicoesSchema)
     .max(AUTORES_DE_EDICAO_DO_MUNDO)
@@ -151,7 +162,10 @@ export function abrirFotografia(bruto: unknown): Fotografia {
   z.object({
     porId: z.record(
       z.string(),
-      z.object({ revisao: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) }),
+      z.object({
+        revisao: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+        pintura: PinturaDoMovelSchema.nullable(),
+      }),
     ),
   }).parse(estado.objetos);
   if (estado.id !== envelope.mundoId) throw new Error("A fotografia é de outro mundo");

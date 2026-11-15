@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { canonico } from "../nucleo/canonico";
+import { PinturaDoMovelSchema } from "./pintura";
 
 /** Independente dos 512 comandos genéricos e do histórico de desfazer. */
 export const RESPOSTAS_DE_EDICAO = 32;
@@ -31,7 +32,7 @@ export const OperacaoDeEdicaoSchema = z.discriminatedUnion("t", [
     catalogo: z.string().regex(/^[a-z][a-z0-9_]{0,79}$/),
     versaoDoCatalogo: versao,
     colocacao: posicao,
-    cor: inteiro.max(0xffffff),
+    pintura: PinturaDoMovelSchema.nullable(),
   }),
   z.strictObject({
     t: z.literal("mover"),
@@ -44,7 +45,7 @@ export const OperacaoDeEdicaoSchema = z.discriminatedUnion("t", [
     t: z.literal("pintar"),
     objetoId: entidade("obj"),
     revisaoDoObjeto: versao,
-    cor: inteiro.max(0xffffff),
+    pintura: PinturaDoMovelSchema.nullable(),
   }),
   z.strictObject({
     t: z.literal("vender"),

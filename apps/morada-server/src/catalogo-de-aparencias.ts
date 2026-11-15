@@ -2,8 +2,32 @@ import type { Manifesto } from "@informach/morada-arte/manifesto";
 import {
   type CatalogoDeAparencias,
   CatalogoDeAparenciasSchema,
+  type CatalogoDePinturas,
+  conferirCatalogoDePinturas,
   conferirContinuidadeDaAparencia,
 } from "@informach/morada-sim";
+
+/** Perfis anunciados pelo pacote instalado; o navegador não fornece receitas. */
+export function catalogoDePinturasDaArte(manifesto: Manifesto): CatalogoDePinturas | undefined {
+  if (manifesto.versao !== 4) return undefined;
+  return conferirCatalogoDePinturas({
+    formato: "morada.pinturas",
+    versao: 1,
+    perfis: manifesto.objetos.flatMap((objeto) =>
+      objeto.pintura
+        ? [
+            {
+              catalogo: objeto.id,
+              versaoDoCatalogo: objeto.versao,
+              perfil: objeto.pintura.perfil,
+              rotulo: objeto.pintura.rotulo,
+              referencia: objeto.pintura.referencia,
+            },
+          ]
+        : [],
+    ),
+  });
+}
 
 /** A lista permitida vem somente do pacote já validado pelo servidor. */
 export function catalogoDeAparenciasDaArte(manifesto: Manifesto): CatalogoDeAparencias | undefined {

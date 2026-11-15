@@ -26,7 +26,7 @@ function pedido(sequencia = 1): PedidoDeEdicao {
       catalogo: "rack_baixo",
       versaoDoCatalogo: 1,
       colocacao: { pos: [2000, 3000, 0], andar: 0, giro: 90 },
-      cor: 0xffffff,
+      pintura: null,
     },
   };
 }

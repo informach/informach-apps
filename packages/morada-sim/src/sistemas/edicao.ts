@@ -5,6 +5,7 @@ import {
   type PedidoDeEdicao,
   type ReciboDeEdicao,
 } from "../comandos/edicao";
+import { perfilDePintura } from "../comandos/pintura";
 import type { DadosDoFato, Fato } from "../dominio/fatos";
 import { montarId } from "../dominio/ids";
 import { listar, obter } from "../dominio/tabela";
@@ -139,7 +140,8 @@ export function editarCasa(
         versao: oferta.versaoDoCatalogo,
         revisao: 1,
         ...copiar(operacao.colocacao),
-        cor: operacao.cor,
+        cor: 0xffffff,
+        pintura: copiar(operacao.pintura),
         ocupacao: {},
       };
       delta = -oferta.compraCentavos;
@@ -157,7 +159,18 @@ export function editarCasa(
     }
   } else if (operacao.t === "mover")
     depois = { ...copiar(anterior), ...copiar(operacao.colocacao), revisao: anterior.revisao + 1 };
-  else depois = { ...copiar(anterior), cor: operacao.cor, revisao: anterior.revisao + 1 };
+  else
+    depois = {
+      ...copiar(anterior),
+      pintura: copiar(operacao.pintura),
+      revisao: anterior.revisao + 1,
+    };
+  if (!resultado && depois?.pintura) {
+    const admitido = perfilDePintura(estado.catalogoDePinturas, depois);
+    const disponivel = perfilDePintura(ctx.pinturasDisponiveis ?? null, depois);
+    if (admitido?.perfil !== depois.pintura.perfil || disponivel?.perfil !== depois.pintura.perfil)
+      recusar("nao_existe", "pintura_indisponivel");
+  }
   if (!resultado && operacao.t !== "pintar" && operacao.revisaoDoEspaco !== lote.revisaoDoEspaco)
     recusar("versao_antiga");
   const saldo = familia.fundo + delta;
