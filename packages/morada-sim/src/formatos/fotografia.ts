@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CatalogoDeAparenciasSchema, conferirContinuidadeDaAparencia } from "../comandos/aparencia";
 import type { EstadoDoMundo } from "../dominio/tipos";
 
 /**
@@ -72,7 +73,7 @@ export type Migracao = {
 
 /** V2 admite a fundação durável; mundos antigos conservam moradores, relações e saldos. */
 export const MIGRACOES_DO_MUNDO: readonly Migracao[] = [
-  { de: 1, migrar: (estado) => ({ ...estado, fundacao: null }) },
+  { de: 1, migrar: (estado) => ({ ...estado, fundacao: null, catalogoDeAparencias: null }) },
 ];
 
 export function migrar(
@@ -108,6 +109,9 @@ export function abrirFotografia(bruto: unknown): Fotografia {
   );
   if (!ReciboDeFundacaoSchema.nullable().safeParse(estado.fundacao).success)
     throw new Error("Recibo de fundação inválido");
+  const catalogo = CatalogoDeAparenciasSchema.nullable().safeParse(estado.catalogoDeAparencias);
+  if (!catalogo.success) throw new Error("Catálogo de aparências inválido");
+  if (catalogo.data) conferirContinuidadeDaAparencia(catalogo.data);
   if (estado.id !== envelope.mundoId) throw new Error("A fotografia é de outro mundo");
   return {
     formato: "morada.foto",

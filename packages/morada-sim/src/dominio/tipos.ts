@@ -117,6 +117,7 @@ export type Familia = {
 };
 
 export type Aparencia = {
+  edicao?: import("../comandos/aparencia").EdicaoDaAparencia;
   linha: "f" | "m";
   corpo: string;
   /** Tom de pele, como cor RGB inteira. */
@@ -334,6 +335,8 @@ export type EstadoDoMundo = {
   comandos: RegistroDeComando[];
   /** Não é replicado; o servidor usa o recibo para recuperar confirmações perdidas. */
   fundacao: ReciboDeFundacao | null;
+  /** Conteúdo admitido na criação; não muda ao trocar o pacote de arte do servidor. */
+  catalogoDeAparencias: import("../comandos/aparencia").CatalogoDeAparencias | null;
   /** Fatos já aplicados neste tick, para não repetir ids no mesmo instante. */
   contadores: Record<string, number>;
   /** Dia real e quanto do avanço limitado já foi gasto nele, por família. */

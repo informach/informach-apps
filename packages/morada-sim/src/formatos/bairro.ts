@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EdicaoDaAparenciaSchema } from "../comandos/aparencia";
 import { FASES } from "../dominio/tipos";
 
 /**
@@ -23,6 +24,7 @@ export const MoradorInicialSchema = z.strictObject({
   pele: z.number().int().min(0).max(0xffffff),
   cabelo: z.string(),
   roupa: z.string(),
+  edicao: EdicaoDaAparenciaSchema.optional(),
   tracos: z.array(z.string()).max(3),
   habilidades: z.record(z.string(), z.number().int().nonnegative()).optional(),
 });

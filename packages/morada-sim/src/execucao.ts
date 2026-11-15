@@ -1,3 +1,4 @@
+import { CatalogoDeAparenciasSchema, conferirContinuidadeDaAparencia } from "./comandos/aparencia";
 import { type Entrada, EntradaSchema } from "./comandos/intencao";
 import { aplicarIntencao } from "./comandos/pipeline";
 import { modeloDeImovel } from "./conteudo";
@@ -298,6 +299,7 @@ function criarMorador(
 }
 
 export type NovoMundo = {
+  catalogoDeAparencias?: import("./comandos/aparencia").CatalogoDeAparencias;
   mundoId: MundoId;
   semente: number;
   definicao: DefinicaoDeBairro;
@@ -332,11 +334,15 @@ export function criarMundo(novo: NovoMundo, opcoes: OpcoesDoMundo = {}): Mundo {
     memorias: [],
     comandos: [],
     fundacao: null,
+    catalogoDeAparencias: novo.catalogoDeAparencias
+      ? CatalogoDeAparenciasSchema.parse(novo.catalogoDeAparencias)
+      : null,
     contadores: {},
     avancoDoDia: { dia: 0, gastoMs: {} },
   };
 
   const bairroId = novoId(estado, "bairro");
+  if (estado.catalogoDeAparencias) conferirContinuidadeDaAparencia(estado.catalogoDeAparencias);
   const lotesPorRef = new Map<string, Lote>();
   for (const inicial of definicao.lotes) {
     const loteId = novoId(estado, "lote");

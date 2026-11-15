@@ -18,7 +18,8 @@ async function legado() {
     fundadores: [],
   });
   const foto = mundo.fotografar();
-  const { fundacao, ...estadoV1 } = foto.estado;
+  const { fundacao, catalogoDeAparencias, ...estadoV1 } = foto.estado;
+  expect(catalogoDeAparencias).toBeNull();
   expect(fundacao).toBeNull();
   const bytes = gzipSync(JSON.stringify({ ...foto, estado: { ...estadoV1, versao: 1 } }));
   await a.host.gravarFotografia({

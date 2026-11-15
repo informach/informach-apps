@@ -18,6 +18,7 @@ import { type Falhas, QuedaSimulada, semFalhas } from "./falhas";
  */
 
 export type OpcoesDaInstancia = {
+  catalogoDeAparencias?: import("@informach/morada-sim").CatalogoDeAparencias;
   host: ClienteDoHost;
   verificador: VerificadorDeSessao;
   /** Relógio real, em ms. Injetado para os testes controlarem o tempo. */
@@ -123,6 +124,7 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
       falhas,
       definicao: op.definicao,
       regras: op.regras,
+      catalogoDeAparencias: op.catalogoDeAparencias,
       checkpointMs: op.checkpointMs ?? 30_000,
       diarioParaFotografarBytes: op.diarioParaFotografarBytes,
       registrar,

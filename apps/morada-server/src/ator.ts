@@ -87,6 +87,7 @@ type EntradaNaCaixa =
   | { t: "encerrada"; sid: string };
 
 export type OpcoesDoAtor = {
+  catalogoDeAparencias?: import("@informach/morada-sim").CatalogoDeAparencias;
   mundoId: MundoId;
   host: ClienteDoHost;
   agora(): number;
@@ -347,6 +348,7 @@ export class Ator {
           definicao: this.op.definicao ?? BAIRRO_DA_PROVA,
           fundadores: [],
           regras: this.op.regras,
+          catalogoDeAparencias: this.op.catalogoDeAparencias,
         }).fotografar();
     if (
       base.mundoId !== mundoId ||

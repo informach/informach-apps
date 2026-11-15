@@ -39,6 +39,7 @@ export function estadoDoEspelho(visao: VisaoDoCliente, tick: number): EstadoDoMu
     memorias: visao.memorias,
     comandos: [],
     fundacao: null,
+    catalogoDeAparencias: visao.catalogoDeAparencias,
     contadores: {},
     avancoDoDia: { dia: 0, gastoMs: {} },
   };

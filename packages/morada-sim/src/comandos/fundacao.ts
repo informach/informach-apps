@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FASES } from "../dominio/tipos";
+import { EdicaoDaAparenciaSchema } from "./aparencia";
 
 /** Limite do pedido na rede; o limite jogável é o das regras do mundo. */
 const MAXIMO_NO_PEDIDO = 32;
@@ -36,6 +37,7 @@ export const RascunhoDaFamiliaSchema = z.strictObject({
         pele: z.number().int().min(0).max(0xffffff),
         cabelo: itemDeAparencia,
         roupa: itemDeAparencia,
+        edicao: EdicaoDaAparenciaSchema.optional(),
         tracos: z.array(z.enum(TRACOS_DA_FUNDACAO)).max(3),
       }),
     )

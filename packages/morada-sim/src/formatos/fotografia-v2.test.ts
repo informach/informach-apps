@@ -9,12 +9,18 @@ describe("fotografia V1 para mundo V2", () => {
     mundo.aplicar({ t: "sessao_entrou", sessaoId: "sessao-legada", perfilId: LIA });
     mundo.avancar(1_000);
     const atual = mundo.fotografar();
-    const { fundacao, ...estadoLegado } = atual.estado;
+    const { fundacao, catalogoDeAparencias, ...estadoLegado } = atual.estado;
+    expect(catalogoDeAparencias).toBeNull();
     expect(fundacao).toBeNull();
     const antiga = { ...atual, estado: { ...estadoLegado, versao: 1 } };
     const bytesAntes = JSON.stringify(antiga);
     const aberta = abrirFotografia(antiga);
-    expect(aberta.estado).toEqual({ ...antiga.estado, versao: VERSAO_DO_MUNDO, fundacao: null });
+    expect(aberta.estado).toEqual({
+      ...antiga.estado,
+      versao: VERSAO_DO_MUNDO,
+      fundacao: null,
+      catalogoDeAparencias: null,
+    });
     expect(JSON.stringify(antiga)).toBe(bytesAntes);
     const recuperado = restaurar(antiga);
     expect(recuperado.fotografar()).toEqual(atual);

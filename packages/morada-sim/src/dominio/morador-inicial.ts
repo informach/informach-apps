@@ -28,6 +28,7 @@ export function montarMoradorInicial(
     idadeNaFaseMs: 0,
     origem: {},
     aparencia: {
+      ...(inicial.edicao ? { edicao: structuredClone(inicial.edicao) } : {}),
       linha: inicial.linha,
       corpo: corpoDaFase(inicial.linha, inicial.fase),
       pele: inicial.pele,

@@ -115,6 +115,13 @@ function criarBebe(estado: EstadoDoMundo, gravidez: Gravidez, gestante: Morador)
   const dePele = outro && sorteioAte(2, semente, "pele", gravidez.id, 0) === 1 ? outro : gestante;
   const deCabelo =
     outro && sorteioAte(2, semente, "cabelo", gravidez.id, 0) === 1 ? outro : gestante;
+  const visual = deCabelo.aparencia.edicao
+    ? deCabelo
+    : gestante.aparencia.edicao
+      ? gestante
+      : outro?.aparencia.edicao
+        ? outro
+        : null;
   return {
     id: gravidez.bebeId,
     mundoId: estado.id,
@@ -125,11 +132,12 @@ function criarBebe(estado: EstadoDoMundo, gravidez: Gravidez, gestante: Morador)
     idadeNaFaseMs: 0,
     origem: { gravidezId: gravidez.id },
     aparencia: {
+      ...(visual?.aparencia.edicao ? { edicao: structuredClone(visual.aparencia.edicao) } : {}),
       linha,
       corpo: corpoDaFase(linha, "colo"),
       pele: dePele.aparencia.pele,
-      cabelo: deCabelo.aparencia.cabelo,
-      roupa: "bebe_body",
+      cabelo: visual?.aparencia.cabelo ?? deCabelo.aparencia.cabelo,
+      roupa: visual?.aparencia.roupa ?? "bebe_body",
       semente,
     },
     // Nasce no colo de quem gestou.

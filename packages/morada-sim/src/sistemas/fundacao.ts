@@ -1,3 +1,4 @@
+import { opcaoDeAparencia } from "../comandos/aparencia";
 import { impedimentoDaFundacao, type RascunhoDaFamilia } from "../comandos/fundacao";
 import { BAIRRO_DA_PROVA } from "../conteudo";
 import { novoId } from "../dominio/estado";
@@ -33,6 +34,15 @@ export function fundarFamilia(
       detalhe: impedimento,
     };
   const lote = listar(estado.lotes).find((l) => l.familiaId === null && l.imovelId !== null);
+  for (const morador of rascunho.moradores) {
+    const catalogo = estado.catalogoDeAparencias;
+    if (
+      catalogo &&
+      (!morador.edicao || !opcaoDeAparencia(catalogo, { ...morador, edicao: morador.edicao }))
+    )
+      return { motivo: "requisito", detalhe: "aparencia_indisponivel" };
+    if (!catalogo && morador.edicao) return { motivo: "requisito", detalhe: "catalogo_ausente" };
+  }
   const inicial = BAIRRO_DA_PROVA.familias[0];
   if (!lote || !inicial) return { motivo: "nao_existe", detalhe: "casa_inicial" };
 

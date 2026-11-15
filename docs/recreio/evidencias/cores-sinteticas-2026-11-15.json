@@ -1,0 +1,195 @@
+{
+  "formato": "morada.prova-cores-sinteticas",
+  "versao": 1,
+  "codigo": "eb5afe0c8db5513bfed6931740c20b92b157ebfe",
+  "execucao": "https://github.com/informach/informach-apps/actions/runs/43735689617",
+  "artefato": 14170542252,
+  "ambiente": "Chromium no GitHub Actions com SwiftShader",
+  "textura": "1x1",
+  "mascara": "3x1, amostragem independente, linear",
+  "tolerancia": 2,
+  "limitacoes": [
+    "Arte inteiramente sintetica",
+    "Nao mede FPS, VRAM ou GPU real",
+    "Nao homologa catalogo de aparencias"
+  ],
+  "medidas": [
+    {
+      "tipo": "vertices",
+      "material": "basic",
+      "cor": [
+        0.1,
+        0.4,
+        0.8
+      ],
+      "desvio": 0,
+      "programas": 1
+    },
+    {
+      "tipo": "vertices",
+      "material": "basic",
+      "cor": [
+        1,
+        0,
+        0
+      ],
+      "desvio": 0,
+      "programas": 1
+    },
+    {
+      "tipo": "vertices",
+      "material": "basic",
+      "cor": [
+        1.8,
+        0.2,
+        0.1
+      ],
+      "desvio": 0,
+      "programas": 1
+    },
+    {
+      "tipo": "vertices",
+      "material": "basic",
+      "cor": [
+        0.1,
+        0.4,
+        0.8
+      ],
+      "desvio": 0,
+      "programas": 1
+    },
+    {
+      "tipo": "vertices",
+      "material": "standard",
+      "cor": [
+        0.1,
+        0.4,
+        0.8
+      ],
+      "desvio": 0,
+      "programas": 1
+    },
+    {
+      "tipo": "vertices",
+      "material": "standard",
+      "cor": [
+        1,
+        0,
+        0
+      ],
+      "desvio": 0,
+      "programas": 1
+    },
+    {
+      "tipo": "vertices",
+      "material": "standard",
+      "cor": [
+        1.8,
+        0.2,
+        0.1
+      ],
+      "desvio": 0,
+      "programas": 1
+    },
+    {
+      "tipo": "vertices",
+      "material": "standard",
+      "cor": [
+        0.1,
+        0.4,
+        0.8
+      ],
+      "desvio": 0,
+      "programas": 1
+    },
+    {
+      "tipo": "textura",
+      "material": "basic",
+      "cor": [
+        0.1,
+        0.4,
+        0.8
+      ],
+      "desvio": 0,
+      "programas": 1
+    },
+    {
+      "tipo": "textura",
+      "material": "basic",
+      "cor": [
+        1,
+        0,
+        0
+      ],
+      "desvio": 0,
+      "programas": 1
+    },
+    {
+      "tipo": "textura",
+      "material": "basic",
+      "cor": [
+        1.8,
+        0.2,
+        0.1
+      ],
+      "desvio": 0,
+      "programas": 1
+    },
+    {
+      "tipo": "textura",
+      "material": "basic",
+      "cor": [
+        0.1,
+        0.4,
+        0.8
+      ],
+      "desvio": 0,
+      "programas": 1
+    },
+    {
+      "tipo": "textura",
+      "material": "standard",
+      "cor": [
+        0.1,
+        0.4,
+        0.8
+      ],
+      "desvio": 0,
+      "programas": 1
+    },
+    {
+      "tipo": "textura",
+      "material": "standard",
+      "cor": [
+        1,
+        0,
+        0
+      ],
+      "desvio": 0,
+      "programas": 1
+    },
+    {
+      "tipo": "textura",
+      "material": "standard",
+      "cor": [
+        1.8,
+        0.2,
+        0.1
+      ],
+      "desvio": 0,
+      "programas": 1
+    },
+    {
+      "tipo": "textura",
+      "material": "standard",
+      "cor": [
+        0.1,
+        0.4,
+        0.8
+      ],
+      "desvio": 0,
+      "programas": 1
+    }
+  ],
+  "erros": []
+}

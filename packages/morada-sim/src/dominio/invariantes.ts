@@ -1,3 +1,4 @@
+import { EdicaoDaAparenciaSchema, opcaoDeAparencia } from "../comandos/aparencia";
 import { relacaoId } from "./ids";
 import { listar, obter, type Tabela } from "./tabela";
 import type { EstadoDoMundo, Presenca } from "./tipos";
@@ -49,6 +50,19 @@ export function verificarInvariantes(estado: EstadoDoMundo, presenca?: Presenca)
   const porFamilia = new Map<string, number>();
 
   for (const morador of listar(estado.moradores)) {
+    if (morador.aparencia.edicao) {
+      const edicao = EdicaoDaAparenciaSchema.safeParse(morador.aparencia.edicao);
+      const opcao =
+        estado.catalogoDeAparencias && edicao.success
+          ? opcaoDeAparencia(estado.catalogoDeAparencias, {
+              ...morador.aparencia,
+              fase: morador.fase,
+              edicao: edicao.data,
+            })
+          : null;
+      if (!opcao || opcao.corpo !== morador.aparencia.corpo)
+        erro(`${morador.id}: aparência fora do catálogo admitido`);
+    }
     // Um morador pertence a no máximo uma família, e ela existe.
     if (morador.familiaId !== null) {
       if (!obter(estado.familias, morador.familiaId)) erro(`${morador.id}: família inexistente`);

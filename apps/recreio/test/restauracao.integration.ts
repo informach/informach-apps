@@ -42,7 +42,8 @@ async function cenario(legado = false) {
   const fotografar = () => {
     const foto = mundo.fotografar();
     if (!legado) return gzipSync(JSON.stringify(foto));
-    const { fundacao, ...estadoV1 } = foto.estado;
+    const { fundacao, catalogoDeAparencias, ...estadoV1 } = foto.estado;
+    if (catalogoDeAparencias !== null) throw new Error("Fixture V1 não admite catálogo V2");
     if (fundacao !== null) throw new Error("Fixture V1 não admite criação V2");
     return gzipSync(JSON.stringify({ ...foto, estado: { ...estadoV1, versao: 1 } }));
   };
