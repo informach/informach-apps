@@ -102,8 +102,10 @@ export class EditorDaCasa {
     const estado = this.fonte.estado(),
       contexto = this.contexto;
     const lote = estado && contexto ? obter(estado.lotes, contexto.loteId) : null;
+    const imovel = estado && lote?.imovelId ? obter(estado.imoveis, lote.imovelId) : null;
+    const piso = imovel?.andares.find((p) => p.n === 0);
     const oferta = estado?.loja.ofertas.find((o) => o.catalogo === catalogo);
-    if (this.pendente || !estado || !contexto || !lote || !oferta) return false;
+    if (this.pendente || !estado || !contexto || !lote || !oferta || !piso) return false;
     this.pedido = {
       ...contexto,
       operacao: {
@@ -116,7 +118,7 @@ export class EditorDaCasa {
           pos: [
             Math.round(lote.entrada[0] / GRADE_DE_EDICAO) * GRADE_DE_EDICAO,
             Math.round(lote.entrada[1] / GRADE_DE_EDICAO) * GRADE_DE_EDICAO,
-            0,
+            piso.z,
           ],
           andar: 0,
           giro: 0,
@@ -178,8 +180,13 @@ export class EditorDaCasa {
 
   posicionar(loteId: LoteId, pos: PontoMm): boolean {
     const operacao = this.pedido?.operacao;
+    const estado = this.fonte.estado();
+    const lote = estado ? obter(estado.lotes, loteId) : null;
+    const imovel = estado && lote?.imovelId ? obter(estado.imoveis, lote.imovelId) : null;
+    const piso = imovel?.andares.find((p) => p.n === 0);
     if (
       this.pendente ||
+      !piso ||
       this.contexto?.loteId !== loteId ||
       !operacao ||
       (operacao.t !== "comprar" && operacao.t !== "mover") ||
@@ -189,7 +196,7 @@ export class EditorDaCasa {
     const [x, y] = pos.map((v) => Math.round(v / GRADE_DE_EDICAO) * GRADE_DE_EDICAO);
     if (x === undefined || y === undefined || x < 0 || y < 0 || x > 1_000_000 || y > 1_000_000)
       return false;
-    operacao.colocacao.pos = [x, y, 0];
+    operacao.colocacao.pos = [x, y, piso.z];
     operacao.colocacao.andar = 0;
     this.aviso = null;
     this.mudar();

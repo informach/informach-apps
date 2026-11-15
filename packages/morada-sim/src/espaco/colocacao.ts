@@ -165,7 +165,7 @@ export function conferirColocacaoNoChao(
     if (!entrada || !areaCandidata || (anterior && candidato.catalogo !== anterior.catalogo))
       return "catalogo_incompativel";
     pegada = areaCandidata;
-    if (entrada.fixacao !== "chao" || candidato.andar !== 0 || candidato.pos[2] !== 0)
+    if (entrada.fixacao !== "chao" || candidato.andar !== 0 || candidato.pos[2] !== piso.z)
       return "fixacao_nao_suportada";
     if (
       !candidato.pos.every(Number.isSafeInteger) ||

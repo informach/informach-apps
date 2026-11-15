@@ -21,6 +21,7 @@ export class PreviaDoMovel {
   private visual: VisualDosObjetos | null = null;
   private item: ObjetoDaCena | null = null;
   private chave = "";
+  private assinatura = "";
   private oculto: ObjetoId | null = null;
 
   constructor(private readonly ativos: Ativos) {
@@ -47,6 +48,8 @@ export class PreviaDoMovel {
       return antes !== this.oculto;
     }
     const chave = `${objeto.id}/${objeto.catalogo}@${objeto.versao}/${objeto.pintura?.perfil ?? "original"}`;
+    const assinatura = `${objeto.pos.join(",")}/${objeto.giro}/${objeto.pintura?.cor ?? "original"}/${previa.valido}/${lote.origem.join(",")}`;
+    if (this.chave === chave && this.assinatura === assinatura) return false;
     if (this.chave !== chave) {
       this.limpar();
       this.item = { objeto, entrada: doCatalogo(objeto.catalogo), posicao: [0, 0, 0] };
@@ -64,6 +67,7 @@ export class PreviaDoMovel {
       objeto.pos[2],
     );
     this.visual.definirVisiveis(() => true);
+    this.assinatura = assinatura;
     this.oculto = obter(estado.objetos, objeto.id) ? objeto.id : null;
     const pegada = pegadaNoLote(objeto);
     this.piso.visible = pegada !== null;
@@ -87,6 +91,7 @@ export class PreviaDoMovel {
     this.visual = null;
     this.item = null;
     this.chave = "";
+    this.assinatura = "";
     this.oculto = null;
     this.piso.visible = false;
   }

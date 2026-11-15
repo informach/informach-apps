@@ -30,7 +30,9 @@ function contexto() {
   const imovel = lote?.imovelId ? estado.imoveis.porId[lote.imovelId] : undefined;
   const piso = imovel?.andares[0];
   const pessoa = listar(estado.moradores)[0];
-  if (!lote || !piso || !pessoa) throw new Error("Mundo da prova incompleto");
+  if (!lote || !imovel || !piso || !pessoa) throw new Error("Mundo da prova incompleto");
+  imovel.fundacao = 0;
+  piso.z = 0;
   lote.tamanho = [8000, 6000];
   lote.entrada = [1125, 5125];
   piso.contorno = [
@@ -48,6 +50,16 @@ function contexto() {
 }
 
 describe("colocação de móveis no piso térreo", () => {
+  it("exige a altura do piso elevado e recusa colocar a peça sob a fundação", () => {
+    const { estado, piso } = contexto();
+    piso.z = 450;
+    const objeto = movel({ pos: [2000, 2000, 450] });
+    expect(conferirColocacaoNoChao(estado, objeto.id, objeto)).toBeNull();
+    for (const altura of [0, 449, 451, 900])
+      expect(
+        conferirColocacaoNoChao(estado, objeto.id, { ...objeto, pos: [2000, 2000, altura] }),
+      ).toBe("fixacao_nao_suportada");
+  });
   it("transforma a pegada assimétrica nos quatro giros, sem alterar o objeto", () => {
     const objeto = movel();
     const anterior = copiar(objeto);

@@ -272,6 +272,26 @@ real e duas jornadas de navegador (computador/celular) aguardam execução remot
 Travas com prazo, desfazer/refazer, orçamento/casas e construção estrutural
 continuam pendentes; este editor não conclui sozinho o D3.
 
+Prova privada `43767390595`, executor `730b979f2`, fonte `5b8f331a`: oito peças,
+zero erros e **zero pixels diferentes** entre original e V4 sem pintura,
+mesmo caminho de instâncias. Trinta ciclos por peça sem crescimento observado
+em geometrias, texturas ou programas. [Evidência numérica](evidencias/pintura-moveis-2026-11-15.json);
+GLBs, receitas e capturas ficam privados. SwiftShader não certifica FPS real.
+
+Editor `e8cb6dc8`, rodada `43767544522`: qualidade/tipos/testes, integração,
+versões, portal e 100 dias aprovados; as duas jornadas novas do editor passaram.
+O job cliente falhou depois, no teste de renovação: a pausa aplicada na bancada
+compartilhada pelo editor não foi desfeita. O teste agora restaura a velocidade
+em `finally`, sem mudar o teste de renovação nem seus limites.
+
+A inspeção das capturas encontrou um problema real: colocação exigia z=0,
+mas o piso da casa inicial está a 450 mm. Servidor, rascunho e testes agora usam
+`andar.z`; cota diferente do piso é recusada. As bancadas vazias de piso zero
+declaram essa altura explicitamente. Capturas também revelaram presença sobre
+o relógio no celular e ferramentas cobertas pelo painel; cabeçalho limitado à
+largura e trilho reposicionado durante edição. A prévia evita reenviar matrizes
+e cores quando nada visível mudou. Novo gate completo ainda pendente.
+
 Arquivos: `comandos/intencao.ts`, `comandos/pipeline.ts`, novo sistema de edição;
 `dominio/tipos.ts`, `dominio/fatos.ts`, `dominio/reduzir-fato.ts`,
 `dominio/invariantes.ts`, `formatos/fotografia.ts`, `visao/replicacao.ts`.

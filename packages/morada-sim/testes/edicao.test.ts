@@ -44,6 +44,8 @@ function cenario(opcoes: OpcoesDoMundo = {}) {
   const imovel = lote?.imovelId ? obter(base.estado.imoveis, lote.imovelId) : undefined;
   const piso = imovel?.andares[0];
   if (!familia || !lote || !piso || !imovel) throw new Error("Casa da prova ausente");
+  imovel.fundacao = 0;
+  piso.z = 0;
   lote.tamanho = [8000, 6000];
   lote.entrada = [1125, 5125];
   piso.contorno = [

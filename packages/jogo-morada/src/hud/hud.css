@@ -1687,6 +1687,28 @@
 }
 
 @container (max-width: 700px) {
+  .morada-topo {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+  }
+  .morada-relogio {
+    width: min(204px, 100%);
+  }
+  .morada-presenca {
+    min-width: 0;
+    max-height: 96px;
+    padding: 10px;
+    border-radius: 12px;
+    white-space: normal;
+    overflow: auto;
+    overflow-wrap: anywhere;
+    font-size: 11px;
+  }
+  .morada-avisos {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    width: auto;
+  }
   .morada-edicao {
     top: auto;
     right: 12px;
@@ -1701,4 +1723,16 @@
   .morada-edicao-catalogo button {
     min-height: 110px;
   }
+  .morada-edicao input[type="number"],
+  .morada-edicao select {
+    font-size: 16px;
+  }
+}
+
+.morada-hud[data-morada-editando="true"] .morada-trilho {
+  top: 120px;
+  left: 12px;
+  right: auto;
+  transform: none;
+  grid-auto-flow: column;
 }

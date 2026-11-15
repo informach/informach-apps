@@ -20,7 +20,10 @@ async function cenario() {
   const mundo = mundoDe(a.instancia, mundoId);
   const familia = listar(mundo.estado.familias)[0];
   const lote = familia?.loteId ? obter(mundo.estado.lotes, familia.loteId) : undefined;
-  if (!familia || !lote || !lia.jogadorId) throw new Error("Mundo sem jogador/família/lote");
+  const imovel = lote?.imovelId ? obter(mundo.estado.imoveis, lote.imovelId) : null;
+  const piso = imovel?.andares.find((p) => p.n === 0);
+  if (!familia || !lote || !piso || !lia.jogadorId)
+    throw new Error("Mundo sem jogador/família/lote/piso");
   let escolhido: Objeto | null = null;
   for (let y = 500; y < lote.tamanho[1] && !escolhido; y += 500) {
     for (let x = 500; x < lote.tamanho[0]; x += 500) {
@@ -30,7 +33,7 @@ async function cenario() {
         catalogo: "mesa_lateral_redonda_prateleira_verde",
         versao: 1,
         revisao: 1,
-        pos: [x, y, 0],
+        pos: [x, y, piso.z],
         andar: 0,
         giro: 0,
         cor: 0xffffff,

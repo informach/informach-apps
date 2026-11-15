@@ -38,7 +38,9 @@ function cenario() {
     mundo.aplicar({ t: "sessao_entrou", sessaoId: perfilId, perfilId });
   const familia = listar(mundo.estado.familias)[0];
   const lote = familia?.loteId ? obter(mundo.estado.lotes, familia.loteId) : null;
-  if (!familia || !lote) throw new Error("Casa da prova ausente");
+  const imovel = lote?.imovelId ? obter(mundo.estado.imoveis, lote.imovelId) : null;
+  const piso = imovel?.andares.find((p) => p.n === 0);
+  if (!familia || !lote || !piso) throw new Error("Casa da prova ausente");
   let versao = 0;
   const enviados: PedidoDeEdicao[] = [];
   const enviar = (pedido: PedidoDeEdicao, autor = LIA): Resultado => {
@@ -80,7 +82,7 @@ function cenario() {
           catalogo: MESA,
           versao: 1,
           revisao: 1,
-          pos: [x, y, 0],
+          pos: [x, y, piso.z],
           andar: 0,
           giro: 0,
           cor: 0xffffff,
@@ -126,6 +128,7 @@ describe("rascunho do editor contra a simulação real", () => {
     const c = cenario(),
       hash = c.mundo.hash();
     c.preparar();
+    expect(c.editor.prever().objeto?.pos[2]).toBe(450);
     expect(c.editor.girar()).toBe(true);
     c.editor.girar();
     c.editor.girar();
