@@ -36,15 +36,15 @@ jobs:
     outputs:
       applications: ${{ steps.catalog.outputs.applications }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ env.EDI_RELEASE_TAG }}
           fetch-depth: 0
           persist-credentials: false
       - name: Require reviewed main ancestry
         run: git merge-base --is-ancestor HEAD origin/main
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 24.15.0
           cache: pnpm
@@ -80,15 +80,15 @@ jobs:
     env:
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ env.EDI_RELEASE_TAG }}
           fetch-depth: 0
           persist-credentials: false
       - name: Require reviewed main ancestry
         run: git merge-base --is-ancestor HEAD origin/main
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 24.15.0
           cache: pnpm
@@ -111,7 +111,7 @@ jobs:
         run: node --input-type=module -e 'import { hasNativeMedia } from "./packages/config/src/edi-tools.ts"; console.log("enabled=" + hasNativeMedia(process.argv[1]));' '${{ matrix.app }}' >> $env:GITHUB_OUTPUT
       - name: Restore verified native media and corresponding source
         if: steps.native-media.outputs.enabled == 'true'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
           name: edi-native-media-windows-x64
           path: .cache/edi-native-media/windows-x64
@@ -119,7 +119,7 @@ jobs:
         run: pnpm edi:test:native ${{ matrix.app }}
       - name: Preserve native verification screenshots
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: edi-native-${{ matrix.app }}
           path: .cache/edi-native-results/**/*.png
@@ -130,7 +130,7 @@ jobs:
         run: pnpm edi:installer ${{ matrix.app }}
         env:
           EDI_UPDATE_SIGNING_PRIVATE_KEY: ${{ secrets.EDI_UPDATE_SIGNING_PRIVATE_KEY }}
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: edi-installer-${{ matrix.app }}
           path: |
@@ -145,12 +145,12 @@ jobs:
     environment: edi-release
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ env.EDI_RELEASE_TAG }}
           persist-credentials: false
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 24.15.0
           cache: pnpm
@@ -165,7 +165,7 @@ jobs:
           EDI_UPDATE_PUBLIC_KEYS: ${{ vars.EDI_UPDATE_PUBLIC_KEYS }}
           EDI_UPDATE_SIGNING_KEY_ID: ${{ vars.EDI_UPDATE_SIGNING_KEY_ID }}
       - name: Restore verified application artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
           pattern: edi-installer-*
           path: .cache/edi-artifacts

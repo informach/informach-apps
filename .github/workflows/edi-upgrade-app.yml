@@ -15,12 +15,12 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ inputs.source_ref || github.sha }}
           persist-credentials: false
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 24.15.0
           cache: pnpm
@@ -29,7 +29,7 @@ jobs:
         id: native-media
         shell: pwsh
         run: node --input-type=module -e 'import { hasNativeMedia } from "./packages/config/src/edi-tools.ts"; console.log("enabled=" + hasNativeMedia(process.argv[1]));' '${{ inputs.app }}' >> $env:GITHUB_OUTPUT
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         if: steps.native-media.outputs.enabled == 'true'
         with:
           name: edi-native-media-windows-x64
@@ -40,7 +40,7 @@ jobs:
           EDI_UPGRADE_APP: ${{ inputs.app }}
       - name: Preserve upgrade verification evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: edi-upgrade-${{ inputs.app }}-${{ github.run_attempt }}
           path: .cache/edi-upgrade-results/*.json

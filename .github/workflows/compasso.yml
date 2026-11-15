@@ -55,9 +55,9 @@ jobs:
       SENTRY_BUILD_VERIFICATION: "1"
       COMPASSO_TEST_APP: ${{ matrix.app }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: 24.15.0
           cache: pnpm
@@ -87,7 +87,7 @@ jobs:
           pnpm compasso:test:production-restore
       - name: Preserve synthetic verification evidence
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: compasso-${{ matrix.gate }}-${{ matrix.app }}-${{ github.run_attempt }}
           path: apps/conta/test-results/

@@ -122,6 +122,10 @@ conta comercial tinha Helena como pagante.
 - O Redis de CI recebe configuração explícita e o parâmetro de memória
   recomendado no runner descartável; o container é encerrado ao final do job.
   Isso não altera o Redis nem as configurações do Railway de produção.
+- As ações dos workflows Edi também foram atualizadas para versões em Node 24,
+  mantendo referências fixadas por commit. A compatibilidade dos artefatos e
+  instaladores deve ser verificada no CI; o workflow de release não é executado
+  como parte desta revisão.
 
 Os resultados finais dos gates gerais e da implantação devem ser acrescentados
 após terminarem. Alertas dependentes dessas correções ficam abertos até a
