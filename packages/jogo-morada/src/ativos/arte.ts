@@ -183,7 +183,7 @@ export class AtivosDeArte implements Ativos {
       void this.obterPacote(entrada.arquivo).then((pacote) => {
         try {
           if (pacote && !this.descartado) {
-            if (entrada.pintura) {
+            if ("pintura" in entrada && entrada.pintura) {
               const pintura = new PinturaDosMoveis(entrada.pintura);
               try {
                 pintura.conferir(pacote.scene);

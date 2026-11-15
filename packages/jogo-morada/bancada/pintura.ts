@@ -161,6 +161,7 @@ async function conferir() {
     luz = new AmbientLight(0xffffff, Math.PI);
   cena.add(luz);
   const erros: string[] = [],
+    vidros: { material: string; desvio: number }[] = [],
     medidas: {
       material: string;
       luz: number;
@@ -202,6 +203,42 @@ async function conferir() {
         malha.setColorAt(1, new Color(0xffffff));
       }
       try {
+        const vidroOriginal = padrao
+          ? new MeshStandardMaterial({
+              color: 0x336699,
+              transparent: true,
+              opacity: 0.38,
+              metalness: 0,
+              roughness: 0.1,
+            })
+          : new MeshBasicMaterial({ color: 0x336699, transparent: true, opacity: 0.38 });
+        const vidroPintado = controle.material(vidroOriginal, modelo.geometry);
+        const vidro = new InstancedMesh(modelo.geometry, vidroOriginal, 2);
+        const vidroComCor = new InstancedMesh(modelo.geometry, vidroPintado, 2);
+        try {
+          for (const malha of [vidro, vidroComCor])
+            for (let i = 0; i < 2; i++)
+              malha.setMatrixAt(i, new Matrix4().makeTranslation(i * 2 - 1, 0, 0));
+          vidroComCor.setColorAt(0, new Color(0));
+          vidroComCor.setColorAt(1, new Color(0xff0000));
+          cena.add(vidro);
+          renderer.render(cena, camera);
+          const antes = [pixel(16), pixel(48), pixel(80), pixel(112)];
+          cena.remove(vidro);
+          cena.add(vidroComCor);
+          renderer.render(cena, camera);
+          const depois = [pixel(16), pixel(48), pixel(80), pixel(112)];
+          cena.remove(vidroComCor);
+          vidros.push({
+            material: padrao ? "standard" : "basic",
+            desvio: Math.max(...antes.map((p, i) => desvio(p, depois[i] ?? []))),
+          });
+        } finally {
+          cena.remove(vidro, vidroComCor);
+          vidro.dispose();
+          vidroComCor.dispose();
+          vidroOriginal.dispose();
+        }
         for (const intensidade of [Math.PI, Math.PI * 2]) {
           luz.intensity = intensidade;
           cena.add(nativo);
@@ -283,11 +320,12 @@ async function conferir() {
         referencia.dispose();
         if (original !== modelo.material) original.dispose();
         modelo.material.map?.dispose();
+        if (modelo.material.map?.image instanceof ImageBitmap) modelo.material.map.image.close();
         modelo.material.dispose();
         modelo.geometry.dispose();
       }
     }
-    return { erros, medidas };
+    return { erros, medidas, vidros };
   } finally {
     alvo.dispose();
     renderer.dispose();

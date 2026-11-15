@@ -13,6 +13,8 @@ test("pintura atravessa GLTFLoader e instâncias preservando detalhes e RGB inde
   const prova = JSON.parse(await resultado.innerText());
   expect(prova.erros).toEqual([]);
   expect(prova.medidas).toHaveLength(20);
+  expect(prova.vidros).toHaveLength(2);
+  for (const medida of prova.vidros) expect(medida.desvio, JSON.stringify(medida)).toBe(0);
   for (const medida of prova.medidas)
     expect(medida.desvio, JSON.stringify(medida)).toBeLessThanOrEqual(2);
   expect(erros).toEqual([]);

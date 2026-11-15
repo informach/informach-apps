@@ -239,6 +239,10 @@ com vários materiais. Execução remota deste incremento ainda pendente.
 Na primeira rodada (`43764638051`), o CI identificou um import de `listar`
 ausente na inicialização e referências ao DTO antigo em testes de conflito e
 reenvio. Corrigidos sem mudar as expectativas desses testes; nova rodada exigida.
+A rodada `43764819924` identificou o acesso à propriedade V4 em uma união com
+manifestos antigos; o leitor agora estreita a entrada antes de validar o perfil.
+O ensaio visual foi ampliado para comparar vidro original e vidro em instâncias
+com preto/vermelho, exigindo zero alteração nos pixels e no alpha.
 Como Mundo V3 nunca foi publicado, os candidatos V3 anteriores à pintura não
 são destinos válidos de rollback deste contrato; produção continua Mundo V2.
 Interface e homologação visual privada permanecem pendentes; não habilitar
