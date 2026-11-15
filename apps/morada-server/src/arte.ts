@@ -8,6 +8,7 @@ import {
   arquivosDoManifesto,
   type Manifesto,
   ManifestoSchema,
+  mascarasDoManifesto,
   SUFIXO_BROTLI,
 } from "@informach/morada-arte/manifesto";
 import { sessaoVencida, type VerificadorDeSessao } from "@informach/recreio/contrato";
@@ -140,6 +141,7 @@ export function carregarArte(opcoes: OpcoesDaArte): RotaDaArte {
   const pacotes = [
     ...manifesto.personagens,
     ...manifesto.bibliotecas,
+    ...mascarasDoManifesto(manifesto),
     ...(manifesto.versao !== 1
       ? [...manifesto.objetos, ...manifesto.acabamentos, ...manifesto.aberturas]
       : []),

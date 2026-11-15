@@ -295,6 +295,9 @@ describe("ativos de arte", () => {
     const b = criar(ativos, "adulto", "mor_b" as MoradorId);
     await liberar();
     const original = malhaDoCorpo(b).geometry.getAttribute("skinIndex");
+    const originalA = malhaDoCorpo(a).geometry.getAttribute("skinIndex");
+    expect(originalA).not.toBe(original);
+    expect(originalA.array).toEqual(original.array);
     a.aplicar(pose({ postura: "sentado" }));
     const armaduraA = a.raiz.getObjectByName("Armadura");
     const posicao = armaduraA?.parent?.parent?.position;
@@ -304,7 +307,22 @@ describe("ativos de arte", () => {
     );
     expect(malhaDoCorpo(b).geometry.getAttribute("skinIndex")).toBe(original);
     a.aplicar(pose());
-    expect(malhaDoCorpo(a).geometry.getAttribute("skinIndex")).toBe(original);
+    expect(malhaDoCorpo(a).geometry.getAttribute("skinIndex")).toBe(originalA);
+    const geometriaA = malhaDoCorpo(a).geometry;
+    const geometriaB = malhaDoCorpo(b).geometry;
+    let descartesA = 0;
+    let descartesB = 0;
+    geometriaA.addEventListener("dispose", () => descartesA++);
+    geometriaB.addEventListener("dispose", () => descartesB++);
+    a.dispose();
+    a.dispose();
+    expect(descartesA).toBe(1);
+    expect(descartesB).toBe(0);
+    b.aplicar(pose({ postura: "sentado" }));
+    expect(geometriaB.getAttribute("skinIndex")).toBe(geometriaB.getAttribute("_joints_dobrado"));
+    b.dispose();
+    ativos.dispose();
+    expect(descartesB).toBe(1);
   });
 
   it("segurando o bebê, o colo é o meio das mãos neste quadro; sem segurar, a âncora", async () => {

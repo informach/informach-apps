@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   type Accessor,
   Document,
@@ -85,6 +86,7 @@ type Contexto = {
   ): Accessor;
   cores: Material;
   inteiras: boolean;
+  mascaras: Map<string, MascaraEscrita>;
 };
 
 function primitivaNoDocumento(
@@ -141,8 +143,28 @@ function primitivaNoDocumento(
       .setRoughnessFactor(0.75)
       .setDoubleSided(true)
       .setBaseColorTexture(textura);
-    if (primitiva.materialDeCor)
-      material.setExtras({ moradaCor: primitiva.materialDeCor }).setAlphaMode("OPAQUE");
+    if (primitiva.materialDeCor?.tipo === "textura") {
+      const perfil = primitiva.materialDeCor;
+      const dados = escreverPng(perfil.mascara);
+      const hash = createHash("sha256").update(dados).digest("hex").slice(0, 10);
+      const arquivo = `mascara.${hash}.png`;
+      ctx.mascaras.set(arquivo, {
+        arquivo,
+        dados,
+        largura: perfil.mascara.largura,
+        altura: perfil.mascara.altura,
+      });
+      material
+        .setExtras({
+          moradaCor: {
+            tipo: "textura",
+            canal: perfil.canal,
+            luminancia: perfil.luminancia,
+            mascara: arquivo,
+          },
+        })
+        .setAlphaMode("OPAQUE");
+    }
     // como a página carrega as texturas: sem repetir
     material
       .getBaseColorTextureInfo()
@@ -215,7 +237,9 @@ export type MalhaEscrita = { no: string; triangulos: number; vertices: number; p
 export type PersonagemEscrito = {
   glb: Uint8Array;
   malhas: MalhaEscrita[];
+  mascaras: MascaraEscrita[];
 };
+type MascaraEscrita = { arquivo: string; dados: Uint8Array; largura: number; altura: number };
 
 export async function escreverPersonagem(
   montado: PersonagemMontado,
@@ -240,7 +264,13 @@ export async function escreverPersonagem(
     .setRoughnessFactor(0.75)
     .setDoubleSided(true);
   if (montado.cores) cores.setExtras({ moradaCor: { tipo: "vertices" } });
-  const ctx: Contexto = { doc, acessor, cores, inteiras: montado.relatorio.corMaxima <= 1 };
+  const ctx: Contexto = {
+    doc,
+    acessor,
+    cores,
+    inteiras: montado.relatorio.corMaxima <= 1,
+    mascaras: new Map(),
+  };
   const { skin, raiz } = esqueletoNoDocumento(doc, montado.corpo, acessor);
   const cena = doc.createScene(montado.plano.personagem.id).addChild(raiz);
   doc.getRoot().setDefaultScene(cena);
@@ -298,5 +328,5 @@ export async function escreverPersonagem(
     .setRequired(true)
     .setEncoderOptions({ method: EXTMeshoptCompression.EncoderMethod.FILTER });
   const glb = await (await entradaESaida()).writeBinary(doc);
-  return { glb, malhas };
+  return { glb, malhas, mascaras: [...ctx.mascaras.values()] };
 }

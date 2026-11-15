@@ -2,7 +2,7 @@ import type { ParametrosDosVertices } from "../cor/parametros";
 import type { FonteDeCor } from "../cor/pintura";
 import type { Pesos } from "../encaixe/montar";
 import type { Imagem } from "../leitura/imagem";
-import type { CanalDeCor, MaterialDeCor } from "../manifesto";
+import type { CanalDeCor } from "../manifesto";
 import { em, item } from "../numeros";
 
 /**
@@ -178,7 +178,9 @@ export type PrimitivaPronta = {
     mascaras: Float32Array;
     pesos: Float32Array;
   };
-  materialDeCor?: MaterialDeCor;
+  materialDeCor?:
+    | { tipo: "vertices" }
+    | { tipo: "textura"; canal: number; luminancia: number; mascara: Imagem };
   posicoes: Float32Array;
   normais: Float32Array;
   /** Cor linear por vértice; `null` na primitiva com textura. */

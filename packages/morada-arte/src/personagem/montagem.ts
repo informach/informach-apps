@@ -1,5 +1,4 @@
 import { corPeloNome, hexParaLinear, type Rgb } from "../cor/cores";
-import { texturaComMascaraDaRoupa } from "../cor/parametros";
 import {
   assarTextura,
   coresDosVertices,
@@ -437,14 +436,14 @@ export function montarPersonagem(
       normaisDasFormas: true,
       dobrado,
       cores: null,
-      textura: parametrica ? texturaComMascaraDaRoupa(fonte) : texturaQueCabe(fonte, opcoes),
+      textura: parametrica ? fonte.imagem : texturaQueCabe(fonte, opcoes),
     });
-    if (parametrica && registro && fonte.livre)
+    if (parametrica && registro && fonte.livre && fonte.mascara)
       primitiva.materialDeCor = {
         tipo: "textura",
         canal: registro.registrar(primeira),
         luminancia: fonte.livre.lum,
-        mascara: "alpha",
+        mascara: fonte.mascara,
       };
     primitivas.push(primitiva);
   }

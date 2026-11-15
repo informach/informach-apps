@@ -4,7 +4,7 @@ import {
   MAXIMO_DE_CANAIS_DE_COR,
   MaterialDeCorSchema,
 } from "@informach/morada-arte/manifesto";
-import { type Material, Mesh, type Object3D } from "three";
+import { type Material, Mesh, type Object3D, type Texture } from "three";
 
 /** Uniformes e materiais pertencem a um morador; geometrias e texturas ficam no pacote. */
 export class CoresParametricas {
@@ -12,7 +12,11 @@ export class CoresParametricas {
   private readonly materiais = new Map<Material, Material>();
   private readonly cores: CoresDoPersonagem;
 
-  constructor(modelo: Object3D, cores: CoresDoPersonagem) {
+  constructor(
+    modelo: Object3D,
+    cores: CoresDoPersonagem,
+    private readonly mascaras: ReadonlyMap<string, Texture> = new Map(),
+  ) {
     this.cores = CoresDoPersonagemSchema.parse(cores);
     this.definir(new Map());
     try {
@@ -88,6 +92,12 @@ export class CoresParametricas {
     const perfil = MaterialDeCorSchema.parse(original.userData.moradaCor);
     if (perfil.tipo === "textura" && perfil.canal >= this.cores.canais.length)
       throw new Error("Material usa canal ausente no manifesto");
+    const mascara = perfil.tipo === "textura" ? this.mascaras.get(perfil.mascara) : null;
+    if (
+      perfil.tipo === "textura" &&
+      (!mascara || !this.cores.mascaras?.some((m) => m.arquivo === perfil.mascara))
+    )
+      throw new Error("Máscara do material ausente no pacote");
     const material = original.clone();
     this.materiais.set(original, material);
     const anterior = original.onBeforeCompile;
@@ -121,13 +131,15 @@ if (_morada_canal_cor >= 0.0) {
       } else {
         shader.uniforms.moradaCanal = { value: perfil.canal };
         shader.uniforms.moradaLuminancia = { value: perfil.luminancia };
+        shader.uniforms.moradaMascara = { value: mascara };
         shader.fragmentShader = substituir(
           shader.fragmentShader,
           "#include <common>",
           `#include <common>
 ${uniformes}
 uniform int moradaCanal;
-uniform float moradaLuminancia;`,
+uniform float moradaLuminancia;
+uniform sampler2D moradaMascara;`,
         );
         shader.fragmentShader = substituir(
           shader.fragmentShader,
@@ -137,7 +149,8 @@ uniform float moradaLuminancia;`,
 vec4 amostraMorada = texture2D(map, vMapUv);
 float luzMorada = dot(amostraMorada.rgb, vec3(0.2126, 0.7152, 0.0722));
 vec3 livreMorada = moradaCores[moradaCanal] * luzMorada / max(moradaLuminancia, 0.001);
-diffuseColor *= vec4(mix(amostraMorada.rgb, livreMorada, amostraMorada.a), 1.0);
+float mascaraMorada = texture2D(moradaMascara, vMapUv).r;
+diffuseColor *= vec4(mix(amostraMorada.rgb, livreMorada, mascaraMorada), 1.0);
 #endif`,
         );
       }

@@ -17,7 +17,7 @@ O empacotador atual assa corpo, cabelo e roupas num personagem completo. A fonte
 
 Portal e Morada conferidos em produção `116939f6`, saúde pública 200, com a arte D1. `b666611b` existe somente na branch de verificação; editor e perfil visual novo não foram ativados. Arte e capturas licenciadas continuam fora do repositório público.
 
-Preparação seguinte: coeficientes por vértice e transporte da textura RGB original com máscara linear no alpha de um material **opaco**, declarados em metadados V3. Sem redimensionar as grades; o shader precisa ler a máscara e restaurar a opacidade. Esse contrato ainda exige prova WebGL de RGB preservado inclusive em texels com alpha zero, além dos testes sintéticos da fórmula. Perfis V1/V2 continuam aceitos e o escritor atual conserva seu formato. Nenhum pacote V3 foi produzido, publicado ou ativado.
+Preparação seguinte: coeficientes por vértice, textura RGB original e máscara linear em arquivo separado, declarados em metadados V3. O shader amostra as duas grades originais e mantém opacidade. Perfis V1/V2 continuam aceitos e o escritor padrão conserva seu formato. Nenhum pacote V3 com arte real foi homologado, publicado ou ativado.
 
 ## Candidato de canais e shader
 
@@ -28,3 +28,11 @@ Preparação seguinte: coeficientes por vértice e transporte da textura RGB ori
 A rodada `43733570905` revelou uma comparação prematura na jornada de duas páginas: espelho atualizado pela rede e posições do último quadro da outra página. A conferência passou a trazer a página à frente e aguardar a convergência da cena para a mesma tolerância de cinco centímetros. Não foram ampliados tolerância, prazo ou tentativas da suíte. A rodada seguinte deve confirmar a jornada completa; a falha anterior permanece registrada.
 
 Continuam necessários: aplicação das escolhas de aparência aos uniformes, catálogo fechado validado no servidor, limite de cache das prévias, editor de família e pacote/jornadas com arte real no repositório privado. A produção não recebeu esses candidatos.
+
+## Correção encontrada na arte real
+
+`43734076099` e `43734562394` aprovaram os cinco gates públicos dos respectivos candidatos, incluindo 20 jornadas do cliente. A primeira homologação privada V3 (`43734603723`) recusou Marcos porque textura e máscara têm resoluções diferentes. A tentativa de usar alpha de uma única imagem só atende grades iguais; não foi ativada em produção.
+
+A correção conserva RGB no GLB e a máscara em PNG separado com hash. Manifesto V3 declara bytes/dimensões e todos os arquivos são autenticados/validados pelo servidor. O shader usa amostragens independentes, sem mudar a resolução ou inferir máscara. A regressão sintética passa a incluir textura 4×4/máscara 2×1 no empacotador e textura 1×1/máscara 3×1 no navegador. Esses novos casos aguardam a rodada remota posterior à alteração.
+
+O cache em implementação limita somente os pacotes **ociosos** a quatro e 32 MiB estimados de buffers/imagens decodificados; não é teto de memória total nem medição de VRAM. Empréstimos mantêm pacotes vivos, inclusive durante download. Saída libera materiais/uniformes e esqueletos da instância. Geometrias que trocam pesos de saia levam buffers próprios e descarte próprio, pois descartar uma geometria que compartilha atributos pode liberar buffers usados por outra instância. Esse custo adicional exige medição no catálogo real.

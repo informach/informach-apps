@@ -49,6 +49,13 @@ export const CanalDeCorSchema = z
       ctx.addIssue({ code: "custom", message: "Somente roupa declara uma parte" });
   });
 
+export const MascaraDeCorSchema = z.strictObject({
+  arquivo: z.string().regex(/^mascara\.[0-9a-f]{10}\.png$/),
+  bytes: z.number().int().positive(),
+  largura: z.number().int().positive().max(16384),
+  altura: z.number().int().positive().max(16384),
+});
+
 export const CoresDoPersonagemSchema = z
   .strictObject({
     referenciaDePele: z
@@ -60,6 +67,7 @@ export const CoresDoPersonagemSchema = z
         "A referência da pele precisa dos três componentes positivos",
       ),
     canais: z.array(CanalDeCorSchema).min(1).max(MAXIMO_DE_CANAIS_DE_COR),
+    mascaras: z.array(MascaraDeCorSchema).max(128).optional(),
   })
   .superRefine(({ canais }, ctx) => {
     const ids = new Set<string>();
@@ -73,7 +81,7 @@ export const CoresDoPersonagemSchema = z
     }
   });
 
-/** Extras de um material opaco. Alpha transporta máscara, jamais transparência. */
+/** Extras de um material opaco; a máscara é outra imagem, na sua grade original. */
 export const MaterialDeCorSchema = z.discriminatedUnion("tipo", [
   z.strictObject({ tipo: z.literal("vertices") }),
   z.strictObject({
@@ -84,7 +92,7 @@ export const MaterialDeCorSchema = z.discriminatedUnion("tipo", [
       .min(0)
       .max(MAXIMO_DE_CANAIS_DE_COR - 1),
     luminancia: z.number().min(0).max(1),
-    mascara: z.literal("alpha"),
+    mascara: MascaraDeCorSchema.shape.arquivo,
   }),
 ]);
 
@@ -291,6 +299,7 @@ export function arquivosDoManifesto(manifesto: Manifesto): string[] {
       ARQUIVO_DO_MANIFESTO,
       ...manifesto.personagens.map((p) => p.arquivo),
       ...manifesto.bibliotecas.map((b) => b.arquivo),
+      ...mascarasDoManifesto(manifesto).map((m) => m.arquivo),
       ...(manifesto.versao !== 1
         ? [...manifesto.objetos, ...manifesto.acabamentos, ...manifesto.aberturas].map(
             (x) => x.arquivo,
@@ -298,4 +307,10 @@ export function arquivosDoManifesto(manifesto: Manifesto): string[] {
         : []),
     ]),
   ];
+}
+
+export function mascarasDoManifesto(manifesto: Manifesto): z.infer<typeof MascaraDeCorSchema>[] {
+  return manifesto.versao === 3
+    ? manifesto.personagens.flatMap((p) => p.cores?.mascaras ?? [])
+    : [];
 }

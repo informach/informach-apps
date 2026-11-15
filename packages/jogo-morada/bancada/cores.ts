@@ -5,10 +5,13 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshStandardMaterial,
+  NearestFilter,
+  NoColorSpace,
   NoToneMapping,
   OrthographicCamera,
   Scene,
   SRGBColorSpace,
+  Texture,
   WebGLRenderer,
   WebGLRenderTarget,
 } from "three";
@@ -16,9 +19,12 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone } from "three/addons/utils/SkeletonUtils.js";
 import { CoresParametricas } from "../src/ativos/cores-parametricas";
 
-// Biblioteca inteiramente sintética. PNG: mesmo RGB com máscaras 0, 128 e 255.
+// Biblioteca sintética: textura RGB 1×1 e máscara linear 3×1, sem reamostrar.
 const png =
-  "iVBORw0KGgoAAAANSUhEUgAAAAMAAAABCAYAAAAb4BS0AAAAEklEQVR4nGPYk6LBAMQNQPwfACAwBVhx5IzqAAAAAElFTkSuQmCC";
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPYk6LxHwAFcAJITMI9YQAAAABJRU5ErkJggg==";
+const pngDaMascara =
+  "iVBORw0KGgoAAAANSUhEUgAAAAMAAAABCAYAAAAb4BS0AAAAEklEQVR4nGNgYGD439DQ8B8EACJ1B3tLB/K9AAAAAElFTkSuQmCC";
+const arquivoDaMascara = "mascara.0123456789.png";
 const corOriginal = new Color(0xbc6428);
 const cores: CoresDoPersonagem = {
   referenciaDePele: "#ffffff",
@@ -113,7 +119,7 @@ function biblioteca(textura: boolean): string {
         alphaMode: "OPAQUE",
         extras: {
           moradaCor: textura
-            ? { tipo: "textura", canal: 0, luminancia: 0.5, mascara: "alpha" }
+            ? { tipo: "textura", canal: 0, luminancia: 0.5, mascara: arquivoDaMascara }
             : { tipo: "vertices" },
         },
       },
@@ -176,7 +182,29 @@ async function conferir() {
           materiaisOriginais.add(material);
           objeto.material = material;
         });
-        const controle = new CoresParametricas(modelo, cores);
+        const blobDaMascara = await (await fetch(`data:image/png;base64,${pngDaMascara}`)).blob();
+        const mascara = new Texture(
+          await createImageBitmap(blobDaMascara, {
+            premultiplyAlpha: "none",
+            colorSpaceConversion: "none",
+          }),
+        );
+        mascara.colorSpace = NoColorSpace;
+        mascara.flipY = false;
+        mascara.magFilter = mascara.minFilter = NearestFilter;
+        mascara.generateMipmaps = false;
+        mascara.needsUpdate = true;
+        texturas.add(mascara);
+        const controle = new CoresParametricas(
+          modelo,
+          {
+            ...cores,
+            mascaras: [
+              { arquivo: arquivoDaMascara, bytes: blobDaMascara.size, largura: 3, altura: 1 },
+            ],
+          },
+          new Map([[arquivoDaMascara, mascara]]),
+        );
         cena.add(modelo);
         let programas = 0;
         try {

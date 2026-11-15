@@ -1,4 +1,3 @@
-import type { Imagem } from "../leitura/imagem";
 import { em } from "../numeros";
 import { luminancia, type Rgb } from "./cores";
 import { corNoPonto, corOriginalDaRoupa, type FonteDeCor, mascaraDaRoupa } from "./pintura";
@@ -40,30 +39,6 @@ export type ParametrosDosVertices = {
   mascaras: Float32Array;
   pesos: Float32Array;
 };
-
-/**
- * Perfil opaco: RGB original em sRGB e máscara linear no canal alpha.
- * O material declara o uso e o shader restaura alpha=1 após ler a máscara.
- * Sem redimensionar: textura e máscara mantêm a mesma grade e filtragem.
- */
-export function texturaComMascaraDaRoupa(fonte: Extract<FonteDeCor, { tipo: "roupa" }>): Imagem {
-  const mascara = fonte.mascara;
-  if (!mascara || !fonte.livre) throw new Error("Textura parametrizada exige a máscara original");
-  if (
-    !Number.isSafeInteger(fonte.imagem.largura) ||
-    fonte.imagem.largura < 1 ||
-    !Number.isSafeInteger(fonte.imagem.altura) ||
-    fonte.imagem.altura < 1 ||
-    mascara.largura !== fonte.imagem.largura ||
-    mascara.altura !== fonte.imagem.altura ||
-    mascara.dados.length !== fonte.imagem.dados.length ||
-    fonte.imagem.dados.length !== fonte.imagem.largura * fonte.imagem.altura * 4
-  )
-    throw new Error("Textura e máscara com grades divergentes");
-  const dados = new Uint8Array(fonte.imagem.dados);
-  for (let i = 0; i < dados.length; i += 4) dados[i + 3] = em(mascara.dados, i);
-  return { ...fonte.imagem, dados };
-}
 
 /** A cor própria da malha multiplica ambas as parcelas e conserva seus detalhes. */
 export function parametrosDosVertices(

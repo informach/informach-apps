@@ -401,8 +401,10 @@ export async function empacotar(opcoes: OpcoesDoEmpacotador): Promise<Resultado>
     const escrito = await escreverPersonagem(montado, opcoes.escrita ?? ESCRITA_PADRAO);
     const arquivo = nomeComHash(personagem.id, escrito.glb);
     writeFileSync(join(opcoes.saida, arquivo), escrito.glb);
+    for (const mascara of escrito.mascaras)
+      writeFileSync(join(opcoes.saida, mascara.arquivo), mascara.dados);
     const { plano, corpo } = montado;
-    const texturas = montado.primitivas.filter((p) => p.textura).length;
+    const texturas = montado.primitivas.filter((p) => p.textura).length + escrito.mascaras.length;
     const doCorpo = escrito.malhas.find((m) => m.no === "corpo");
     const neutro = escrito.malhas.find((m) => m.no.startsWith("rosto_"));
     const daChupeta = escrito.malhas.find((m) => m.no === "chupeta");
@@ -415,7 +417,19 @@ export async function empacotar(opcoes: OpcoesDoEmpacotador): Promise<Resultado>
     };
     const daGravida = `${personagem.corpo}_gravida`;
     doManifesto.push({
-      ...(montado.cores ? { cores: montado.cores } : {}),
+      ...(montado.cores
+        ? {
+            cores: {
+              ...montado.cores,
+              mascaras: escrito.mascaras.map(({ arquivo, dados, largura, altura }) => ({
+                arquivo,
+                bytes: dados.length,
+                largura,
+                altura,
+              })),
+            },
+          }
+        : {}),
       id: personagem.id,
       nome: personagem.nome,
       arquivo,

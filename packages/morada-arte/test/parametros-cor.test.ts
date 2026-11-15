@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Rgb } from "../src/cor/cores";
-import {
-  amostrarParametrosDaCor,
-  parametrosDosVertices,
-  texturaComMascaraDaRoupa,
-} from "../src/cor/parametros";
+import { amostrarParametrosDaCor, parametrosDosVertices } from "../src/cor/parametros";
 import { corNoPonto, type FonteDeCor } from "../src/cor/pintura";
 import type { Imagem } from "../src/leitura/imagem";
 
@@ -30,24 +26,34 @@ const cores: Rgb[] = [
 ];
 
 describe("cor parametrizada por origem", () => {
-  it("transporta RGB e máscara na mesma grade sem alterar os originais", () => {
+  it("amostra RGB e máscara com grades diferentes sem redimensionar ou alterar os originais", () => {
+    const estreita = {
+      ...mascara,
+      largura: 1,
+      altura: 2,
+      dados: Uint8Array.from([0, 0, 0, 255, 255, 255, 255, 255]),
+    };
     const fonte: FonteDeCor = {
       tipo: "roupa",
       imagem,
-      mascara,
+      mascara: estreita,
       livre: { cor: [1, 0, 0], lum: 0.18 },
     };
     const antes = new Uint8Array(imagem.dados);
-    const textura = texturaComMascaraDaRoupa(fonte);
-    expect(textura.largura).toBe(imagem.largura);
-    expect(textura.altura).toBe(imagem.altura);
-    expect(textura.dados).toEqual(
-      Uint8Array.from([70, 100, 140, 0, 180, 90, 45, 255, 210, 170, 85, 128, 30, 190, 150, 64]),
-    );
+    for (const [u, v] of [
+      [0, 0],
+      [0.3, 0.4],
+      [1, 1],
+    ]) {
+      if (u === undefined || v === undefined) throw new Error("UV ausente");
+      const p = amostrarParametrosDaCor(fonte, u, v);
+      const esperado = corNoPonto(fonte, u, v);
+      for (let c = 0; c < 3; c++)
+        expect(
+          (p.original[c] ?? 0) * (1 - p.mascara) + (p.peso[c] ?? 0) * ([1, 0, 0][c] ?? 0),
+        ).toBeCloseTo(esperado[c] ?? 0, 12);
+    }
     expect(imagem.dados).toEqual(antes);
-    expect(() =>
-      texturaComMascaraDaRoupa({ ...fonte, mascara: { ...mascara, largura: 1 } }),
-    ).toThrow(/grades/);
   });
   it("reproduz o tingimento nas regiões sem máscara, parciais e inteiras", () => {
     for (const cor of cores) {

@@ -11,7 +11,7 @@ import { empacotar } from "../src/empacotar";
 import { ErroDeArte } from "../src/erros";
 import { Biblioteca } from "../src/leitura/biblioteca";
 import { ArquivoGlb } from "../src/leitura/glb";
-import { lerPng } from "../src/leitura/imagem";
+import { escreverPng, lerPng } from "../src/leitura/imagem";
 import {
   ATRIBUTO_CANAL_DE_COR,
   ATRIBUTO_MASCARA_DE_COR,
@@ -127,8 +127,10 @@ describe("empacotador sobre uma biblioteca de mentira", () => {
         } else {
           texturas++;
           const canal = canais.findIndex((c) => c.id === "roupa_cima");
+          const mascara = personagem.cores.mascaras?.[0];
+          if (!mascara) throw new Error("Máscara ausente no manifesto");
           expect(extras).toEqual({
-            moradaCor: { tipo: "textura", canal, luminancia: 0.5, mascara: "alpha" },
+            moradaCor: { tipo: "textura", canal, luminancia: 0.5, mascara: mascara.arquivo },
           });
           expect(material.getAlphaMode()).toBe("OPAQUE");
           const imagem = material.getBaseColorTexture()?.getImage();
@@ -138,6 +140,9 @@ describe("empacotador sobre uma biblioteca de mentira", () => {
           const png = lerPng(caminhoDaTextura);
           expect(png.dados[0]).toBe(188);
           expect(png.dados[3]).toBe(255);
+          const pngDaMascara = lerPng(join(saida, mascara.arquivo));
+          expect(pngDaMascara.dados[0]).toBe(255);
+          expect(arquivosDoManifesto(resultado.manifesto)).toContain(mascara.arquivo);
         }
       }
     expect(vertices).toBeGreaterThan(0);
@@ -165,6 +170,45 @@ describe("empacotador sobre uma biblioteca de mentira", () => {
     expect(erro({ ...ze, roupa: { cima: { id: "capa" } } })).toContain('"capa"');
     expect(erro({ ...ze, cabelo: { penteado: "moicano" } })).toContain("moicano");
     expect(erro({ ...ze, objetos: { dir: { id: "camisa" } } })).toContain("objetos de mão");
+  });
+
+  it("empacota textura 4×4 e máscara 2×1 sem reamostrar nenhuma grade", async () => {
+    const caminho = join(arte, "biblioteca/roupas_mascaras/camisa__Roupa_Gen_liso.png");
+    const original = readFileSync(caminho);
+    try {
+      writeFileSync(
+        caminho,
+        escreverPng({
+          largura: 2,
+          altura: 1,
+          dados: Uint8Array.from([0, 0, 0, 255, 255, 255, 255, 255]),
+        }),
+      );
+      const saida = nova();
+      const resultado = await empacotar({
+        arte,
+        saida,
+        personagens: [ze],
+        montagem: { ...OPCOES_PADRAO, coresParametricas: true },
+      });
+      const personagem = resultado.manifesto.personagens[0];
+      if (!personagem || !("cores" in personagem)) throw new Error("Personagem sem cores");
+      const mascara = personagem.cores?.mascaras?.[0];
+      if (!mascara) throw new Error("Máscara ausente");
+      expect([mascara.largura, mascara.altura]).toEqual([2, 1]);
+      expect(lerPng(join(saida, mascara.arquivo)).dados).toEqual(
+        Uint8Array.from([0, 0, 0, 255, 255, 255, 255, 255]),
+      );
+      const doc = await (await entradaESaida()).read(join(saida, personagem.arquivo));
+      const imagem = doc.getRoot().listTextures()[0]?.getImage();
+      if (!imagem) throw new Error("Textura ausente");
+      const png = join(nova(), "rgb.png");
+      writeFileSync(png, imagem);
+      const rgb = lerPng(png);
+      expect([rgb.largura, rgb.altura]).toEqual([4, 4]);
+    } finally {
+      writeFileSync(caminho, original);
+    }
   });
 
   it("converte um personagem do elenco pronto", () => {
