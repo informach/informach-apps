@@ -369,7 +369,12 @@ export async function empacotar(opcoes: OpcoesDoEmpacotador): Promise<Resultado>
   for (const personagem of opcoes.personagens) {
     const t0 = performance.now();
     avisar(`montando ${personagem.id} (${personagem.corpo})`);
-    const montado = montarPersonagem(biblioteca, personagem, opcoes.montagem ?? OPCOES_PADRAO);
+    const montagem = opcoes.montagem ?? OPCOES_PADRAO;
+    const montado = montarPersonagem(
+      biblioteca,
+      personagem,
+      personagem.criacao ? { ...montagem, coresParametricas: true } : montagem,
+    );
     montados.push({ personagem, montado, ms: performance.now() - t0 });
   }
 
@@ -416,7 +421,24 @@ export async function empacotar(opcoes: OpcoesDoEmpacotador): Promise<Resultado>
       texturas,
     };
     const daGravida = `${personagem.corpo}_gravida`;
+    const coresDaRoupa: Record<string, number> = {};
+    if (personagem.criacao)
+      for (const canal of montado.cores?.canais ?? []) {
+        if (canal.origem !== "roupa" || canal.parte === null) continue;
+        const peca = plano.pecas.find((p) => p.slot === canal.parte);
+        if (!peca?.cor) throw new Error(`Cor inicial ausente para ${personagem.id}/${canal.parte}`);
+        coresDaRoupa[canal.parte] = Number.parseInt(peca.cor.slice(1), 16);
+      }
     doManifesto.push({
+      ...(personagem.criacao
+        ? {
+            criacao: {
+              ...personagem.criacao,
+              corDoCabelo: Number.parseInt(plano.corDoCabelo.slice(1), 16),
+              coresDaRoupa,
+            },
+          }
+        : {}),
       ...(montado.cores
         ? {
             cores: {
@@ -474,7 +496,7 @@ export async function empacotar(opcoes: OpcoesDoEmpacotador): Promise<Resultado>
     ManifestoSchema,
     {
       formato: FORMATO_DO_MANIFESTO,
-      versao: opcoes.montagem?.coresParametricas
+      versao: montados.some((p) => p.montado.cores !== undefined)
         ? VERSAO_DO_MANIFESTO_PARAMETRICO
         : VERSAO_DO_MANIFESTO,
       arte: {

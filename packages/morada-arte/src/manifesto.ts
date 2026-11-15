@@ -242,6 +242,30 @@ export const AberturaDoManifestoSchema = z.strictObject({
 
 export const PersonagemParametricoSchema = PersonagemDoManifestoSchema.extend({
   cores: CoresDoPersonagemSchema.optional(),
+  criacao: z
+    .strictObject({
+      rotuloDoCabelo: z.string().min(1).max(40),
+      rotuloDaRoupa: z.string().min(1).max(40),
+      corDoCabelo: z.number().int().min(0).max(0xffffff),
+      coresDaRoupa: z.record(
+        z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
+        z.number().int().min(0).max(0xffffff),
+      ),
+    })
+    .optional(),
+}).superRefine((personagem, ctx) => {
+  if (!personagem.criacao) return;
+  if (!personagem.cores || !personagem.sim || personagem.sim.corpo !== personagem.corpo) {
+    ctx.addIssue({ code: "custom", message: "Criação exige canais e aparência correspondente" });
+    return;
+  }
+  const slots = personagem.cores.canais
+    .filter((c) => c.origem === "roupa")
+    .map((c) => c.parte)
+    .sort();
+  const escolhidos = Object.keys(personagem.criacao.coresDaRoupa).sort();
+  if (JSON.stringify(slots) !== JSON.stringify(escolhidos))
+    ctx.addIssue({ code: "custom", message: "Cores iniciais fora dos canais de roupa" });
 });
 
 const campos = {

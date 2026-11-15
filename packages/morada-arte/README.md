@@ -4,8 +4,8 @@ Empacotador de arte do Morada. Lê a biblioteca de personagens do repositório d
 roupas e bibliotecas de animação) e gera pacotes pequenos, prontos para o jogo: um GLB por personagem, um GLB de
 animações por esqueleto e um `manifest.json`. Com `--casa`, inclui os móveis, acabamentos e encaixes usados pela planta, sem copiar a biblioteca inteira para o jogo.
 
-Roda em Node, com `tsx`, sem passo de build. Não faz parte do cliente: o cliente só importa o tipo do manifesto
-(`@informach/morada-arte/manifesto`).
+O empacotador roda em Node, com `tsx`, sem passo de build. O cliente importa somente o contrato do manifesto
+(`@informach/morada-arte/manifesto`) e as contas puras de cor (`@informach/morada-arte/cores`), sem leitores de arquivos.
 
 ## Regras sobre a arte
 
@@ -48,6 +48,7 @@ tsx src/cli.ts --arte <ARTES_3D_DIR> --saida <pasta> [opções]
   --commit <hash>          commit da arte, quando a pasta não é um clone do git
   --casa <arquivo>         modelo de imóvel JSON do jogo (móveis, acabamentos e encaixes)
   --cores-parametricas    perfil V3 com canais editáveis, para cliente compatível
+  --criacao              48 combinações iniciais parametrizadas e os oito personagens legados
 ```
 
 Sai com código diferente de zero em qualquer falha de leitura ou de validação, com o arquivo e o campo na

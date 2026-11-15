@@ -39,6 +39,7 @@ import type {
   EntradaPermitida,
   SessaoVerificada,
 } from "@informach/recreio/host";
+import { conferirCatalogoDisponivel } from "./catalogo-de-aparencias";
 import { type Falhas, QuedaSimulada } from "./falhas";
 import { decodificarFotografia } from "./fotografia";
 
@@ -357,6 +358,7 @@ export class Ator {
       (guardada && base.tick !== guardada.meta.tick)
     )
       throw new ErroDoRecreio("REVISAO_DIVERGENTE");
+    conferirCatalogoDisponivel(base.estado.catalogoDeAparencias, this.op.catalogoDeAparencias);
     this.mundo = restaurar(base, fatos);
     this.tickConfirmado = this.mundo.estado.relogio.tick;
     this.estado = "ativo";

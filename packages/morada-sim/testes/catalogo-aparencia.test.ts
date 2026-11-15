@@ -16,6 +16,7 @@ import {
   restaurar,
   verificarInvariantes,
 } from "../src/index";
+import { criarRoteiro } from "../src/testes";
 
 function catalogo(): CatalogoDeAparencias {
   return CatalogoDeAparenciasSchema.parse({
@@ -89,6 +90,37 @@ function fundar(mundo: Mundo, rascunho: RascunhoDaFamilia) {
 }
 
 describe("catálogo admitido e persistido no mundo", () => {
+  it("o nascimento usa a receita admitida sem alterar a identidade visual dos genitores", () => {
+    const mundo = novo(catalogo(), { envelhecimento: "desligado", diasDeGravidez: 0.001 });
+    const dados = familia();
+    const primeira = dados.moradores[0];
+    if (!primeira) throw new Error("Moradora ausente");
+    dados.moradores.push({ ...copiar(primeira), nome: "Sol", linha: "m" });
+    dados.relacoes = [{ a: 0, b: 1, tipo: "casamento" }];
+    expect(fundar(mundo, dados).ok).toBe(true);
+    const pais = listar(mundo.estado.moradores).filter((m) => m.familiaId !== null);
+    const [a, b] = pais;
+    if (!a || !b) throw new Error("Genitores ausentes");
+    const antes = pais.map((m) => copiar(m.aparencia));
+    const roteiro = criarRoteiro(mundo, { conferirACada: 1 });
+    expect(roteiro.comandar("criador", b.id, { t: "reservar" })).toMatchObject({ ok: true });
+    expect(
+      roteiro.comandar("criador", b.id, { t: "propor", tipo: "bebe", alvoId: a.id }),
+    ).toMatchObject({ ok: true });
+    roteiro.ate(
+      () => listar(mundo.estado.gravidezes).some((g) => g.estado === "concluida"),
+      500,
+      "nascer com receita do catálogo",
+    );
+    const bebe = listar(mundo.estado.moradores).find((m) => m.origem.gravidezId !== undefined);
+    expect(bebe?.aparencia).toMatchObject({
+      cabelo: "natural",
+      roupa: "macacao",
+      edicao: primeira.edicao,
+    });
+    expect(pais.map((m) => m.aparencia)).toEqual(antes);
+    expect(verificarInvariantes(mundo.estado, mundo.presenca)).toEqual([]);
+  });
   it("admite cores RGB livres só numa combinação e nas partes empacotadas", () => {
     const mundo = novo();
     const dados = familia();
@@ -129,7 +161,7 @@ describe("catálogo admitido e persistido no mundo", () => {
     if (!primeira) throw new Error("Opção ausente");
     primeira.rotuloDaRoupa = "Alterada";
     expect(mundo.estado.catalogoDeAparencias).toEqual(antes);
-    expect(mundo.visao().catalogoDeAparencias).toEqual(antes);
+    expect(mundo.visao("criador").catalogoDeAparencias).toEqual(antes);
     expect(restaurar(mundo.fotografar()).estado.catalogoDeAparencias).toEqual(antes);
   });
   it("recusa catálogo sem continuidade das fases, partes divergentes e corpo incompatível", () => {

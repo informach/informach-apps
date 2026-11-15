@@ -17,6 +17,7 @@ export {
   SUFIXO_BROTLI,
   VERSAO_DO_MANIFESTO,
 } from "./manifesto";
+export { elencoDaCriacao } from "./personagem/criacao";
 export { ElencoDeEntradaSchema, type Personagem, PersonagemSchema } from "./personagem/esquema";
 export { EXPRESSOES_DO_JOGO, montarPersonagem } from "./personagem/montagem";
 export { ELENCO_DA_PROVA } from "./personagem/prova";

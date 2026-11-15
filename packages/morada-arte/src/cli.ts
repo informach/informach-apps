@@ -5,6 +5,7 @@ import { ZodError } from "zod";
 import { empacotar, type Resultado } from "./empacotar";
 import { ErroDeArte, lerJson, validar } from "./erros";
 import { Biblioteca } from "./leitura/biblioteca";
+import { elencoDaCriacao } from "./personagem/criacao";
 import { ElencoDeEntradaSchema, type Personagem } from "./personagem/esquema";
 import { OPCOES_PADRAO } from "./personagem/montagem";
 import { ELENCO_DA_PROVA } from "./personagem/prova";
@@ -30,6 +31,7 @@ const USO = `uso: tsx src/cli.ts --arte <ARTES_3D_DIR> --saida <pasta> [opções
   --commit <hash>          commit da arte, quando a pasta não é um clone do git
   --casa <arquivo>         modelo de imóvel do jogo: inclui seus móveis, acabamentos e encaixes
   --cores-parametricas    perfil V3 com canais de cor editáveis (exige cliente compatível)
+  --criacao              coleção inicial de criação e elenco legado (perfil V3)
   --ajuda                  mostra este texto
 `;
 
@@ -43,6 +45,7 @@ type Argumentos = {
   ajuda: boolean;
   casa: string | null;
   coresParametricas: boolean;
+  criacao: boolean;
 };
 
 export function lerArgumentos(argv: readonly string[], ambiente: NodeJS.ProcessEnv): Argumentos {
@@ -56,6 +59,7 @@ export function lerArgumentos(argv: readonly string[], ambiente: NodeJS.ProcessE
     ajuda: false,
     casa: null,
     coresParametricas: false,
+    criacao: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const opcao = argv[i];
@@ -75,6 +79,7 @@ export function lerArgumentos(argv: readonly string[], ambiente: NodeJS.ProcessE
     else if (opcao === "--commit") args.commit = valor();
     else if (opcao === "--casa") args.casa = valor();
     else if (opcao === "--cores-parametricas") args.coresParametricas = true;
+    else if (opcao === "--criacao") args.criacao = true;
     else if (opcao === "--ajuda" || opcao === "--help" || opcao === "-h") args.ajuda = true;
     else throw new ErroDeArte("linha de comando", "opção desconhecida", opcao);
   }
@@ -106,7 +111,8 @@ function personagensPedidos(args: Argumentos, arte: string, base: string): Perso
       lista.push(personagemDoElenco(entrada));
     }
   }
-  if (args.prova || lista.length === 0) lista.unshift(...ELENCO_DA_PROVA);
+  if (args.criacao) lista.push(...elencoDaCriacao());
+  if (args.prova || args.criacao || lista.length === 0) lista.unshift(...ELENCO_DA_PROVA);
   return lista;
 }
 

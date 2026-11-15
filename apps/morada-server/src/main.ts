@@ -9,6 +9,7 @@ import {
 } from "@informach/recreio/host";
 import pino from "pino";
 import { carregarArte } from "./arte";
+import { catalogoDeAparenciasDaArte } from "./catalogo-de-aparencias";
 import { lerConfiguracao } from "./config";
 import { criarPlataformaDeDesenvolvimento } from "./desenvolvimento";
 import { criarInstancia } from "./instancia";
@@ -124,6 +125,7 @@ async function principal(): Promise<void> {
     urlPublica,
     versao,
     capacidade: config.MORADA_CAPACIDADE,
+    catalogoDeAparencias: arte ? catalogoDeAparenciasDaArte(arte.manifesto) : undefined,
     regras: config.MORADA_REGRAS === "prova" ? REGRAS_DA_PROVA : REGRAS_PADRAO,
     registrar,
   });

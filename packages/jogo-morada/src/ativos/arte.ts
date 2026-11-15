@@ -44,6 +44,7 @@ import type {
   VisualDosObjetos,
 } from "./ativos";
 import { CacheDePersonagens, type UsoDePersonagem } from "./cache-de-personagens";
+import { coresDaAparencia } from "./cores-da-aparencia";
 import { CoresParametricas } from "./cores-parametricas";
 import {
   ajusteDoApoio,
@@ -630,6 +631,12 @@ class CorpoDeArte implements VisualDoMorador {
     this.cores = personagem.cores
       ? new CoresParametricas(this.modelo, personagem.cores, mascarasDoPacote)
       : null;
+    try {
+      this.cores?.definir(coresDaAparencia(personagem, descricao.aparencia));
+    } catch (erro) {
+      this.cores?.dispose();
+      throw erro;
+    }
     this.postura.add(this.modelo);
     this.raiz.add(this.postura);
     this.misturador = new AnimationMixer(this.modelo);
