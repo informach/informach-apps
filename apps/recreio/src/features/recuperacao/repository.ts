@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
-import { and, asc, db, desc, eq, gt, isNull, lte, sql } from "@informach/db";
+import { and, asc, db, desc, eq, gt, isNull, sql } from "@informach/db";
 import {
   events,
   recreioSpaceJournal as journal,
@@ -143,7 +143,7 @@ async function lerMaterial(
   const filtro = and(
     eq(journal.spaceId, mundo.id),
     gt(journal.seq, foto.journalSeq),
-    lte(journal.seq, mundo.journalSeq),
+    sql`${journal.seq} <= ${mundo.journalSeq}`,
   );
   // Orçamento real do bytea antes de transferir corpos. Fotografias retidas
   // podem precisar de mais diário que o checkpoint mais novo do runtime.
