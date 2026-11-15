@@ -203,10 +203,7 @@ export function conferirColocacaoNoChao(
   for (const objeto of novos) {
     for (const ponto of doCatalogo(objeto.catalogo)?.pontos ?? []) {
       const acessoAnterior = antes.acesso(objeto, ponto.id);
-      if (
-        (objeto.id === candidato?.id || acessoAnterior) &&
-        !depois.acesso(objeto, ponto.id)
-      )
+      if ((objeto.id === candidato?.id || acessoAnterior) && !depois.acesso(objeto, ponto.id))
         return "acesso_bloqueado";
       if (objeto.ocupacao[ponto.id] && acessoAnterior && !depois.alcancavel(acessoAnterior.pos))
         return "acesso_bloqueado";
