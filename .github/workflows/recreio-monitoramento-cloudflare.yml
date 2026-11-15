@@ -49,6 +49,7 @@ jobs:
       - name: Construir o único arquivo que será publicado
         run: pnpm --filter @informach/morada-server exec esbuild ../../infrastructure/cloudflare/recreio-monitor/src/index.ts --bundle --platform=browser --target=es2022 --format=esm --outfile=../../infrastructure/cloudflare/recreio-monitor/dist/worker.mjs
       - name: Exercitar cron, transporte e falhas no runtime real
+        timeout-minutes: 3
         run: node --test infrastructure/cloudflare/recreio-monitor/worker.test.mjs
       - name: Validar o pacote de publicação sem credenciais
         run: node "$CF_TEST_TOOLS/node_modules/wrangler/bin/wrangler.js" deploy infrastructure/cloudflare/recreio-monitor/dist/worker.mjs --config infrastructure/cloudflare/recreio-monitor/wrangler.jsonc --no-bundle --dry-run
