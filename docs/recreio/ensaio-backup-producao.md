@@ -2,6 +2,8 @@
 
 Preparação em 15/11/2026. Execução e aceite ainda pendentes; acompanhar o [registro](execucao-2026-11-15.md). O PostgreSQL compartilhado usa 18.6; possui backups diários, semanais e mensais, com PITR desligado. A ferramenta auditada de restauração de um mundo e este ensaio completo têm funções distintas.
 
+Metadados conferidos na origem: UTF8, `en_US.utf8`, provedor libc e versão de colação 2.41; extensões `plpgsql`, `pg_trgm` e `unaccent`. O destino precisa conservar esses fatos. O comparador em `apps/recreio/scripts/backup/inventario.ts` está em preparação, com quatro regressões entre bancos descartáveis: ordem física diferente, corrupção de mesmo tamanho/contagem, perda de índice e concessão de permissão divergente. Ele pede hashes de linhas ao próprio PostgreSQL e não devolve linhas privadas nem fingerprints nas falhas. Isso ainda não executa `pg_dump`/`pg_restore` nem comprova um backup real.
+
 ## Execução prevista
 
 1. Validar o executor com PostgreSQL descartável no GitHub, incluindo corrupção que conserva contagens, falha do dump/restauração, divergência de proprietário/ACL, exclusão dos temporários e recusa de um destino remoto. Builds, integração e cargas automatizadas permanecem fora desta máquina.
