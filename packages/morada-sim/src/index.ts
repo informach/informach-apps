@@ -11,6 +11,7 @@ export * from "./dominio/permissoes";
 export { reduzirFato } from "./dominio/reduzir-fato";
 export * from "./dominio/tabela";
 export * from "./dominio/tipos";
+export { conferirColocacaoNoChao, GRADE_DE_EDICAO, pegadaNoLote } from "./espaco/colocacao";
 export { CELULA, criarNavegador, type Navegador } from "./espaco/navegador";
 export * from "./espaco/posicoes";
 export * from "./execucao";

@@ -334,6 +334,9 @@ describe("edição autoritativa e durável da casa", () => {
     roteiro.ate(() => moradorDeNome(c.mundo, "Marcos").local.t === "objeto", 200, "deitar na cama");
     const antiga = c.mundo.fotografar();
     expect(Object.keys(obter(antiga.estado.objetos, cama.id)?.ocupacao ?? {})).not.toHaveLength(0);
+    const dormir = moradorDeNome(c.mundo, "Marcos").acaoAtual;
+    if (!dormir) throw new Error("Ação de dormir ausente");
+    expect(roteiro.comandar(LIA, pessoa.id, { t: "cancelar_acao", acaoId: dormir }).ok).toBe(true);
     expect(roteiro.comandar(LIA, pessoa.id, { t: "ir_para", pos: [1125, 5125], andar: 0 }).ok).toBe(
       true,
     );
