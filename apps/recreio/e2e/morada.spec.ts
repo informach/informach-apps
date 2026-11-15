@@ -295,6 +295,108 @@ test.afterEach(async () => {
   expect(vigia().errosDeConsole, "erros no console").toEqual([]);
 });
 
+test("compra, gira e pinta com arte real; saldo e escolhas voltam após salvar e restaurar", {
+  tag: "@decoracao",
+}, async ({ browser }) => {
+  test.skip(
+    process.env.RECREIO_E2E_PINTURA !== "1",
+    "Exige o pacote V4 e a homologação privada de pintura",
+  );
+  expect(process.env.MORADA_ARTE_DIR).toBeTruthy();
+  test.setTimeout(600_000);
+  await iniciarServidor();
+  const pessoa = await novaPessoa(browser, "Decoradora");
+  const mundoId = await criarMundo(pessoa.page, "Morada", "Casa das cores");
+  await pessoa.page.goto(enderecoDoJogo(mundoId));
+  const jogo = jogoEm(pessoa.page);
+  await mundoNaTela(jogo);
+  await pessoa.page.getByRole("button", { name: "Pausar", exact: true }).click();
+  await expect(pessoa.page.getByRole("button", { name: "Pausar", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await pessoa.page.getByRole("button", { name: "Decorar", exact: true }).click();
+  const painel = pessoa.page.getByRole("region", { name: "Decoração da casa" });
+  await painel.getByRole("button", { name: /Mesa lateral.*M\$/ }).click();
+  const comprar = painel.getByRole("button", { name: /Comprar por M\$/ });
+  let posicao: [number, number] | null = null;
+  for (let y = 4.5; y <= 8 && !posicao; y += 0.5) {
+    for (let x = 3; x <= 7; x += 0.5) {
+      await painel.getByLabel("Largura (m)", { exact: true }).fill(String(x));
+      await painel.getByLabel("Profundidade (m)", { exact: true }).fill(String(y));
+      if (await comprar.isEnabled()) {
+        posicao = [x, y];
+        break;
+      }
+    }
+  }
+  expect(posicao, "uma posição realmente livre na casa").not.toBeNull();
+  await painel.getByRole("button", { name: /Girar 90°/ }).click();
+  await expect(painel.getByLabel("Orientação do móvel")).toHaveText("90°");
+  await painel.getByLabel("Cor do móvel").fill("#0055ff");
+  await expect(painel.getByRole("button", { name: "Arte original", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  await pessoa.page.getByRole("button", { name: "Vista superior", exact: true }).click();
+  await painel.getByRole("button", { name: "Ver prévia na casa" }).click();
+  await tela(pessoa.page, "decoracao-previa-azul");
+  await comprar.click();
+  await expect(painel.getByText("Edição confirmada.", { exact: true })).toBeVisible();
+  const saldo = await painel.locator(".morada-edicao-saldo b").innerText();
+  await painel.getByRole("button", { name: /Na casa/ }).click();
+  const novaMesa = () =>
+    painel.getByRole("button", { name: /Mesa lateral redonda Peça \d+$/ }).last();
+  await novaMesa().click();
+  await expect(painel.getByLabel("Orientação do móvel")).toHaveText("90°");
+  await painel.getByRole("button", { name: "Pintar", exact: true }).click();
+  await expect(painel.getByLabel("Cor do móvel")).toHaveValue("#0055ff");
+  await painel.getByLabel("Cor do móvel").fill("#000000");
+  await painel.getByRole("button", { name: "Aplicar pintura", exact: true }).click();
+  await expect(painel.getByText("Edição confirmada.", { exact: true })).toBeVisible();
+  await expect(painel.locator(".morada-edicao-saldo b")).toHaveText(saldo);
+  await jogo.sair.click();
+  await expect(pessoa.page).toHaveURL(/\/estante/);
+  expect(await pararServidor()).toBe(true);
+  await iniciarServidor();
+  await pessoa.page.getByRole("link", { name: "Jogar em Casa das cores", exact: true }).click();
+  await mundoNaTela(jogo);
+  await pessoa.page.getByRole("button", { name: "Pausar", exact: true }).click();
+  await expect(pessoa.page.getByRole("button", { name: "Pausar", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await pessoa.page.getByRole("button", { name: "Decorar", exact: true }).click();
+  await expect(painel.locator(".morada-edicao-saldo b")).toHaveText(saldo);
+  await painel.getByRole("button", { name: /Na casa/ }).click();
+  await novaMesa().click();
+  await expect(painel.getByLabel("Orientação do móvel")).toHaveText("90°");
+  if (!posicao) throw new Error("Posição da compra ausente");
+  await expect(painel.getByLabel("Largura (m)", { exact: true })).toHaveValue(String(posicao[0]));
+  await expect(painel.getByLabel("Profundidade (m)", { exact: true })).toHaveValue(
+    String(posicao[1]),
+  );
+  await painel.getByRole("button", { name: "Pintar", exact: true }).click();
+  await expect(painel.getByLabel("Cor do móvel")).toHaveValue("#000000");
+  await expect(painel.getByRole("button", { name: "Arte original", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  await pessoa.page.getByRole("button", { name: "Vista superior", exact: true }).click();
+  await painel.getByRole("button", { name: "Ver prévia na casa" }).click();
+  await tela(pessoa.page, "decoracao-restaurada-preto");
+  await medida("decoracao-restaurada", {
+    posicao,
+    giro: 90,
+    pintura: "#000000",
+    saldo,
+    restauracao: true,
+    fonte: "interface de producao; sem depuracao ou leitura de conteudo do banco",
+  });
+  await jogo.sair.click();
+  await expect(pessoa.page).toHaveURL(/\/estante/);
+});
+
 test("duas contas jogam a mesma família; uma cai, a outra continua, e tudo volta depois de derrubar a instância", async ({
   browser,
 }) => {

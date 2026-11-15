@@ -300,6 +300,15 @@ O próximo candidato acrescenta vista superior com retorno à perspectiva e
 painel recolhido para deixar a casa visível durante a prévia. As jornadas
 também acusam exceções da página e erros de compilação/renderização WebGL.
 
+`63a06893`, seis gates `43770107775` aprovados (disparo manual): vista superior
+e painel recolhível verificados nas duas jornadas. Capturas revistas; o próximo
+candidato acrescenta contorno da pegada para a prévia continuar identificável
+sob o móvel, rótulo estável da vista no celular e orientação em graus.
+Inclui a jornada privada `@decoracao`, ainda não executada: comprar/girar/pintar
+com arte V4, sair, reiniciar o servidor isolado e conferir saldo, posição,
+orientação e preto explícito pela interface. O CI público a omite por não
+possuir o pacote licenciado; a prova depende do workflow privado completo.
+
 Antes do corte V3/V4, provar combinações de versões entre portal, cliente e
 servidor, incluindo uma aba antiga aberta. Cliente atual lê arte V4, mas uma
 aba D2 mantém o leitor antigo. A publicação precisa exigir atualização dessa

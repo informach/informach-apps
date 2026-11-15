@@ -1,6 +1,16 @@
 import { type EstadoDoMundo, type ObjetoId, obter, pegadaNoLote } from "@informach/morada-sim";
 import { doCatalogo } from "@informach/morada-sim/conteudo";
-import { DoubleSide, Group, Mesh, MeshBasicMaterial, PlaneGeometry } from "three";
+import {
+  BufferGeometry,
+  DoubleSide,
+  Float32BufferAttribute,
+  Group,
+  LineBasicMaterial,
+  LineLoop,
+  Mesh,
+  MeshBasicMaterial,
+  PlaneGeometry,
+} from "three";
 import type { Ativos, ObjetoDaCena, VisualDosObjetos } from "../ativos/ativos";
 import type { PreviaDaCasa } from "../modelo/editor-da-casa";
 import { paraCena } from "./espaco";
@@ -19,6 +29,13 @@ export class PreviaDoMovel {
     }),
   );
   private visual: VisualDosObjetos | null = null;
+  private readonly contorno = new LineLoop(
+    new BufferGeometry().setAttribute(
+      "position",
+      new Float32BufferAttribute([-0.5, 0, -0.5, 0.5, 0, -0.5, 0.5, 0, 0.5, -0.5, 0, 0.5], 3),
+    ),
+    new LineBasicMaterial({ color: 0x3fd0c3, depthTest: false }),
+  );
   private item: ObjetoDaCena | null = null;
   private chave = "";
   private assinatura = "";
@@ -27,8 +44,11 @@ export class PreviaDoMovel {
   constructor(private readonly ativos: Ativos) {
     this.piso.rotation.x = -Math.PI / 2;
     this.piso.visible = false;
-    this.raiz.add(this.piso);
+    this.contorno.visible = false;
+    this.contorno.renderOrder = 999;
+    this.raiz.add(this.piso, this.contorno);
     this.piso.layers.set(1);
+    this.contorno.layers.set(1);
   }
 
   get originalOculto(): ObjetoId | null {
@@ -71,6 +91,7 @@ export class PreviaDoMovel {
     this.oculto = obter(estado.objetos, objeto.id) ? objeto.id : null;
     const pegada = pegadaNoLote(objeto);
     this.piso.visible = pegada !== null;
+    this.contorno.visible = pegada !== null;
     if (pegada) {
       const [x0, y0, x1, y1] = pegada;
       this.piso.position.set(
@@ -82,6 +103,9 @@ export class PreviaDoMovel {
       );
       this.piso.scale.set((x1 - x0) / 1000, (y1 - y0) / 1000, 1);
       this.piso.material.color.setHex(previa.valido ? 0x3fd0c3 : 0xff7a76);
+      this.contorno.position.copy(this.piso.position);
+      this.contorno.scale.set((x1 - x0) / 1000, 1, (y1 - y0) / 1000);
+      this.contorno.material.color.copy(this.piso.material.color);
     }
     return antes !== this.oculto;
   }
@@ -94,6 +118,7 @@ export class PreviaDoMovel {
     this.assinatura = "";
     this.oculto = null;
     this.piso.visible = false;
+    this.contorno.visible = false;
   }
 
   dispose(): void {
@@ -101,6 +126,8 @@ export class PreviaDoMovel {
     this.raiz.removeFromParent();
     this.piso.geometry.dispose();
     this.piso.material.dispose();
+    this.contorno.geometry.dispose();
+    this.contorno.material.dispose();
     this.raiz.clear();
   }
 }

@@ -73,10 +73,9 @@ for (const formato of [
         .poll(() => page.evaluate(() => window.__morada?.espelho()?.objetos.ordem.length))
         .toBe(estado.objetos.ordem.length);
       await page.getByRole("button", { name: "Vista superior", exact: true }).click();
-      await expect(page.getByRole("button", { name: "Perspectiva", exact: true })).toHaveAttribute(
-        "aria-pressed",
-        "true",
-      );
+      await expect(
+        page.getByRole("button", { name: "Vista superior", exact: true }),
+      ).toHaveAttribute("aria-pressed", "true");
       await painel.getByRole("button", { name: "Ver prévia na casa" }).click();
       await page.screenshot({ path: test.info().outputPath("editor-da-casa.png") });
       await painel.getByRole("button", { name: /Comprar por M\$/ }).click();

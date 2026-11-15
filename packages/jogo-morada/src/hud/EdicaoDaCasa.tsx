@@ -118,6 +118,9 @@ function Detalhe(props: { controle: Controle; estado: EstadoDoMundo }) {
           <button type="button" className="morada-botao" onClick={() => editor.girar()}>
             Girar 90° <kbd>R</kbd>
           </button>
+          <output className="morada-edicao-orientacao" aria-label="Orientação do móvel">
+            {colocacao.giro}°
+          </output>
         </fieldset>
       ) : null}
       {(op.t === "comprar" || op.t === "pintar") && perfil ? (

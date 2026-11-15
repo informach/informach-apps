@@ -111,10 +111,11 @@ export function Trilho(props: {
           <button
             type="button"
             aria-pressed={controle.vistaSuperior()}
+            title={controle.vistaSuperior() ? "Voltar à perspectiva" : "Ver a casa de cima"}
             onClick={controle.alternarVista}
           >
             <Icone nome="superior" />
-            <span>{controle.vistaSuperior() ? "Perspectiva" : "Vista superior"}</span>
+            <span>Vista superior</span>
           </button>
         ) : null}
         {editavel ? (

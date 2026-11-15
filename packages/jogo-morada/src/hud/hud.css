@@ -1684,6 +1684,12 @@
   gap: 8px;
   margin-bottom: 12px;
 }
+.morada-edicao-orientacao {
+  display: inline-block;
+  margin-left: 10px;
+  color: var(--mo-tinta-3);
+  font-variant-numeric: tabular-nums;
+}
 .morada-edicao:has(.morada-edicao-compacta)
   > :is(
     .morada-edicao-cabecalho,
