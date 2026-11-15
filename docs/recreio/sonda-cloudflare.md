@@ -33,3 +33,6 @@ Regra Sentry [6349336](https://informach-nucleo-de-aprendizag.sentry.io/monitors
 
 
 **Aceite automático, 14h31 UTC:** cron executou às 14h25min21s e 14h30min21s UTC, ambos `ok`, sem exceções, CPU 4/3 ms e duração total 354/275 ms. Recreio/Morada prontos com uma tentativa; primeiros dois eventos informativos conferidos também no Sentry. Analytics retornou duas invocações e zero erros. [Evidência sanitizada](evidencias/sonda-externa-2026-11-15.json). Flag de prova desligada em nova versão do mesmo bundle; bindings secretos preservados. A agenda GitHub continua sem prova de disparo e é mantida como alternativa; a cadência automática comprovada pertence ao Workers. Esta amostra não prova SLA ou custo financeiro adicional zero.
+
+
+**14h35 UTC:** terceira execução automática aprovada na versão atual `9be57bef`, flag de prova desligada. Ambos prontos, CPU 2 ms/duração 302 ms, sem exceções e sem evento Sentry em verificações saudáveis. Evidência sanitizada atualizada; sessões locais de acompanhamento encerradas, cron remoto permanece ativo.
