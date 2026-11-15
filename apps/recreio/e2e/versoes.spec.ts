@@ -1,7 +1,15 @@
 import type { ChildProcess } from "node:child_process";
 import path from "node:path";
-import { expect, test } from "@playwright/test";
-import { comecarVigia, fecharAparelhos, hidratado, medida, novaPessoa, vigia } from "./apoio";
+import { type ConsoleMessage, expect, test } from "@playwright/test";
+import {
+  comecarVigia,
+  fecharAparelhos,
+  hidratado,
+  medida,
+  novaPessoa,
+  tolerando,
+  vigia,
+} from "./apoio";
 import { iniciarVersao, pararVersao } from "./versoes-apoio";
 
 test.describe("troca de versão do portal", () => {
@@ -30,9 +38,22 @@ test.describe("troca de versão do portal", () => {
       const campo = secao.getByLabel("Nome do mundo");
       await hidratado(campo);
       await campo.fill("Casa entre versões");
-      await pararVersao(servidor);
-      servidor = null;
-      servidor = await iniciarVersao(atual, versaoB);
+      const origem = new URL(pessoa.page.url()).origin;
+      const prefetchDuranteATroca = (mensagem: ConsoleMessage): boolean => {
+        if (mensagem.text() !== "Failed to load resource: net::ERR_CONNECTION_REFUSED")
+          return false;
+        const endereco = mensagem.location().url;
+        if (!endereco.startsWith(`${origem}/`)) return false;
+        const url = new URL(endereco);
+        return ["/conta", "/perfis"].includes(url.pathname) && url.searchParams.has("_rsc");
+      };
+      // O teste troca dois processos na mesma porta: só estes GETs de prefetch
+      // podem encontrar o intervalo sem servidor. A ação começa depois da saúde B.
+      await tolerando(prefetchDuranteATroca, async () => {
+        await pararVersao(servidor);
+        servidor = null;
+        servidor = await iniciarVersao(atual, versaoB);
+      });
       // A mesma aba e o mesmo formulário continuam com os JS e IDs da build A.
       const [acao, documentoB] = await Promise.all([
         pessoa.page.waitForRequest(

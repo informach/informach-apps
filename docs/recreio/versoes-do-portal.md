@@ -42,3 +42,11 @@ Conferência somente de leitura do Turbo local: o plano (sem executar build)
 inclui as duas variáveis no hash da tarefa do Recreio, herdando o restante da
 configuração raiz. O manifesto da build publicada tem chave AES de 32 bytes;
 ela ainda não foi copiada nem alterada no provedor.
+
+Rodada `43751528429`: a aba A enviou a ação com seu identificador depois de B
+ficar saudável, criou um mundo e recebeu o documento B; a lista mostrou só um.
+O gate reprovou na vigia por dois GETs de prefetch de `/conta`/`/perfis` recusados
+no intervalo em que a fixture para A antes de subir B na mesma porta. A nova
+fixture admite somente `ERR_CONNECTION_REFUSED` dessas URLs RSC e somente
+durante essa troca deliberada, como nos ensaios de queda existentes. Nenhuma
+supressão de erro da ação, CSP, página ou fase posterior à prontidão.
