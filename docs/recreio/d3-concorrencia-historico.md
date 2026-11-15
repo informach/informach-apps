@@ -27,6 +27,8 @@ autorização atual, sequência durável, revisão, colocação e saldo do servi
    navegador não escolhe um cômodo, uma caixa arbitrária ou o tamanho do bloqueio.
    Mover cobre peça, pegada atual e destino; comprar cobre destino; pintar/vender
    cobrem a peça. Conferir sobreposição entre regiões e peças, lote/andar e revisão.
+   Preparar a área exige `decorar`; isso não concede `gastar`, aprovação de
+   colocação ou dispensa do limite financeiro na confirmação da operação.
 4. O pedido financeiro referencia a concessão vigente na geração/sessão atuais.
    Um recibo já confirmado pode responder novamente após a trava terminar,
    depois de conferir autorização atual; uma operação nova não usa essa exceção.

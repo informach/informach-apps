@@ -12,11 +12,14 @@ Stripe continua sem configuração; os preços `price_TODO_recreio_*` não permi
 
 Primeira [medição de custo](../../docs/recreio/custo-alfa-2026-11-15.md): US$ 0,01013593 de uso atribuído pelo Railway aos dois serviços às 12:25 UTC, em amostra praticamente ociosa. Banco/Redis/monitoração compartilhados ainda sem rateio; não comprova custo por jogador ou hora de mundo.
 
-Evolução D3 fora da produção: editor e pintura `472b3c2e` passaram nos seis
-gates `43771703601`. A prova privada dos oito móveis preservou a arte original
-sem diferença de pixels; a prova pelo portal completo e o corte de protocolo
-continuam em execução. Não trocar a fonte/pasta de arte por esses candidatos
-antes da homologação e da sequência compatível. [Plano e limites do D3](../../docs/recreio/d3-construcao-compras.md).
+Evolução D3 fora da produção: `8a61f250`, seis gates `43775860241` aprovados,
+com editor/pintura, transição de protocolo e revisões persistidas. A prova
+privada `43774027587` aprovou computador/celular, restauração, 48 prévias e
+portal novo/servidor publicado com arte. A repetição da base com revisões
+persistidas está em execução; integração de travas/histórico ainda em curso.
+Não trocar a fonte/pasta antes da homologação do conjunto. O titular confirmou
+que a [licença de compra permite o uso comercial](../../docs/recreio/licenciamento-arte.md).
+[Plano e limites do D3](../../docs/recreio/d3-construcao-compras.md).
 
 ## Serviços implantados e arte preparada
 

@@ -1,5 +1,7 @@
 # Recreio e Morada: levantamento para produção
 
+Registro histórico do início de 15/11; a execução posterior está no [estado atual](../estado-do-repositorio.md) e no [registro de evidências](execucao-2026-11-15.md). O titular confirmou depois que a [licença de compra permite o uso comercial da arte](licenciamento-arte.md); a autorização avulsa mencionada abaixo deixou de ser pendência. Exposição de fontes no histórico é assunto distinto.
+
 Levantamento de 15/11/2026, sobre a `main` de `informach-apps` em `8602e4023b49e9daeb8883af554e1d26351969ce`, igual à `origin/main` consultada. Propostas consultadas diretamente na `origin/main` do repositório privado `artes-3d`, em `061177f12f603c74c32c9ddc2b81e6eb0b040565`: [Recreio v2.2](https://github.com/informach/artes-3d/blob/061177f12f603c74c32c9ddc2b81e6eb0b040565/paginas/recreio.html) e [Morada v4.4](https://github.com/informach/artes-3d/blob/061177f12f603c74c32c9ddc2b81e6eb0b040565/paginas/morada.html). O clone local da arte está atrasado; as duas propostas coincidem com as versões remotas, conferidas por diff.
 
 **Conclusão:** existe uma fundação técnica substancial e testável para um alfa interno de adultos. O Recreio ainda não é a plataforma familiar/comercial descrita na proposta e não está executando em produção. O próximo avanço exige corrigir integridade e operação, concluir X4 e seguir a sequência de diversão do Morada, proteção familiar, beta e lançamento. Ativar os serviços ou cadastrar preços no Stripe não encerra essas frentes.

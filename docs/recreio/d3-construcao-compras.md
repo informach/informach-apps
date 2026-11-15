@@ -350,6 +350,14 @@ tempo do host, geração/sessão, renovação/liberação, limite e cópias isol
 Esse módulo ainda não está ligado a intenções, ator, presença ou interface;
 não existe proteção de obra ativa só por ele estar no código.
 
+`8a61f250`, seis gates `43775860241` aprovados, incluindo os dez casos do
+registro transitório. A próxima candidata acrescenta derivação do alvo a partir
+de peça/medidas/revisões do servidor, sem caixas livres do cliente, alocação de
+ID ou gasto. Quatro casos ainda aguardam GitHub. A confirmação financeira
+continua conferindo colocação completa e as capacidades de gasto separadamente.
+Intenções, relógio/geração no ator, liberação na presença e interface ainda
+precisam consumir esses módulos antes de anunciar a proteção integrada.
+
 ### Negociação para o corte V3/V4
 
 Antes de ativar o formato novo, o servidor passa a exigir protocolo 2 no

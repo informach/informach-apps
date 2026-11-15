@@ -2,14 +2,15 @@
 
 Registro detalhado da frente. O índice de continuidade é o [estado do repositório](../estado-do-repositorio.md); as regras permanentes ficam no [AGENTS.md](../../AGENTS.md).
 
-Estado vigente em 15/11/2026: portal/Morada em `7c81a68f`, alfa fechado D2, seis gates e repetição main aprovados; [versões do portal e mapas Sentry](versoes-do-portal.md) conferidos. Editor/coleção D2 têm prova privada e salvamento/retorno humano; escolha de casa/orçamento continua pendente. D3 tem núcleo Mundo V3/diário/quedas e cliente `99030597` aprovados nos seis gates **somente em candidata**. Pintura ainda exige perfil visual e arte homologada; [inventário/plano D3](d3-construcao-compras.md). Backup lógico real restaurado em destino isolado, avisos recebidos e agenda externa comprovada; custo acumulado exclusivo medido, sem custo por hora ativa. D2–D8, proteção familiar, retenção/capacidade, backup agendado e homologação comercial continuam em implementação. Ver [execução atual](execucao-2026-11-15.md) e [operação](../../apps/recreio/PRODUCAO.md). As seções datadas abaixo preservam a história dos marcos anteriores.
+Estado vigente em 15/11/2026: portal/Morada em `7c81a68f`, alfa fechado D2, seis gates e repetição main aprovados; [versões do portal e mapas Sentry](versoes-do-portal.md) conferidos. Editor/coleção D2 têm prova privada e salvamento/retorno humano; escolha de casa/orçamento continua pendente. D3 está **somente em candidata**, com os marcos abaixo e [plano atual](d3-construcao-compras.md). Backup lógico real restaurado em destino isolado, avisos recebidos e agenda externa comprovada; custo acumulado exclusivo medido, sem custo por hora ativa. O titular confirmou a permissão comercial pela [licença de compra](licenciamento-arte.md). D2–D8, proteção familiar, retenção/capacidade, backup agendado e demais homologações comerciais continuam em implementação. Ver [execução atual](execucao-2026-11-15.md) e [operação](../../apps/recreio/PRODUCAO.md). As seções datadas abaixo preservam a história dos marcos anteriores.
 
-Evolução candidata posterior: pintura e editor `472b3c2e`, seis gates
-`43771703601` aprovados. Oito móveis com prova privada de preservação visual e
-30 ciclos de recursos estáveis (`43767390595`); a prova do portal com pacote
-completo está em execução (`43772456935`). Negociação de protocolo para o corte
-V3/V4 em candidata `10b5bbb3`, ainda sem resultado dos seis gates. Esses marcos
-não alteram a produção D2 nem concluem D3; [detalhes](d3-construcao-compras.md).
+Evolução candidata: `8a61f250`, seis gates `43775860241` aprovados, com editor,
+pintura, transição de protocolo, relógio persistido de revisões e registro puro
+de travas. Oito móveis preservam a arte original, e a prova privada `43774027587`
+aprovou quatro jornadas com arte real, incluindo celular e servidor publicado.
+A repetição da base com revisões persistidas está em execução. Derivação do
+alvo, integração de travas e histórico seguem em curso; sem alteração da produção
+D2 ou conclusão do D3. [Detalhes](d3-construcao-compras.md).
 
 ## De onde vem o escopo
 
@@ -366,7 +367,7 @@ O que o P1 deixa para os próximos lotes:
 ## Pendências fora da frente
 
 - **Arte no histórico do git.** O `informach-apps` está público no GitHub, e o commit que tirou a pasta `ideas/` só apagou os arquivos: os zips dos pacotes e as animações da Mixamo continuam no histórico. Decisão do titular em 11/11/2026: registrar como pendência, sem ação nesta frente. O `AGENTS.md` foi corrigido na revisão de 13/11 para refletir o estado público.
-- **Licença ITHappy** por escrito e a conversa jurídica (faixas, verificação de idade, classificação): correm em paralelo e travam só o lançamento público.
+- **Licença ITHappy:** o titular confirmou em 15/11 que a licença de compra permite o uso comercial; [decisão atual](licenciamento-arte.md). A conversa jurídica sobre faixas, verificação de idade e classificação permanece separada.
 - **Uma réplica** do `morada-server` até existir endereço por instância no Railway.
 - A migração do schema `recreio` vai para produção no merge na `main`, mesmo com a constante desligada. O merge só acontece depois do lote P6.
 
