@@ -9,7 +9,7 @@ export const LIMITES_DE_REDE = {
 /** Uma instância inteira, inclusive conexões que ainda não provaram a sessão. */
 export function criarAdmissao(
   limites: { conexoes: number; pedidosEmCurso: number; quadrosPorSegundo: number },
-  agora: () => number = performance.now,
+  agora: () => number = () => performance.now(),
 ) {
   for (const limite of Object.values(limites))
     if (!Number.isSafeInteger(limite) || limite <= 0) throw new Error("Limite de rede inválido");
