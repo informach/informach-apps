@@ -221,7 +221,14 @@ nenhuma alteração de pixels ou vidro. A preparação recusa UV interpolado,
 triângulos com texels distintos, filtros incompatíveis e pigmentos ausentes.
 Testes sintéticos incluem serialização GLB e compressão real, preservação do
 original, origem alterada e leitura V3/V4. Execução remota ainda pendente para
-este incremento. Renderer, catálogo admitido pelo host e interface permanecem
+este incremento. A rodada `43763160598` confirmou tipos, 184 casos do núcleo
+e 64 casos do empacotador; falhou em uma asserção que comparava `Buffer` com
+`Uint8Array` após GLB. A comparação foi corrigida para exigir os mesmos bytes
+no mesmo tipo, mantendo a prova de preservação da imagem. O candidato seguinte
+acrescenta o shader de pintura por instância e uma bancada sintética com 20
+medições: duas cores independentes, preto/branco/canais zero, HDR, materiais
+basic/standard e detalhes fora da máscara. Execução remota pendente.
+Integração do renderer, catálogo admitido pelo host e interface permanecem
 pendentes; não habilitar pintura nem Mundo V3 em produção com base no preparador.
 
 Arquivos: `comandos/intencao.ts`, `comandos/pipeline.ts`, novo sistema de edição;

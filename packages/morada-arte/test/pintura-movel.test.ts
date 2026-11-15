@@ -156,7 +156,7 @@ describe("perfil de pintura dos móveis, sem arte licenciada", () => {
     expect(m.vidro.getExtras()).toEqual({});
     const io = await entradaESaida();
     const lido = await io.readBinary(await io.writeBinary(m.doc));
-    expect(lido.getRoot().listTextures()[0]?.getImage()).toEqual(m.imagem);
+    expect(lido.getRoot().listTextures()[0]?.getImage()).toEqual(new Uint8Array(m.imagem));
     expect(
       lido
         .getRoot()
