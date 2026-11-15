@@ -13,6 +13,7 @@ import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
 import type { Pesos } from "../encaixe/montar";
 import type { Corpo } from "../leitura/corpo";
 import { escreverPng } from "../leitura/imagem";
+import { ATRIBUTO_CANAL_DE_COR, ATRIBUTO_MASCARA_DE_COR, ATRIBUTO_PESO_DE_COR } from "../manifesto";
 import { em } from "../numeros";
 import type { PersonagemMontado } from "../personagem/montagem";
 import type { PrimitivaPronta } from "../personagem/partes";
@@ -101,6 +102,21 @@ function primitivaNoDocumento(
     .setAttribute("JOINTS_0", ctx.acessor(`${nome}.ossos`, "VEC4", primitiva.pesos.ossos))
     .setAttribute("WEIGHTS_0", ctx.acessor(`${nome}.pesos`, "VEC4", primitiva.pesos.pesos));
   if (primitiva.cores) {
+    if (primitiva.parametrosDeCor) {
+      const parametros = primitiva.parametrosDeCor;
+      prim.setAttribute(
+        ATRIBUTO_CANAL_DE_COR,
+        ctx.acessor(`${nome}.canal_cor`, "SCALAR", parametros.canais),
+      );
+      prim.setAttribute(
+        ATRIBUTO_MASCARA_DE_COR,
+        ctx.acessor(`${nome}.mascara_cor`, "SCALAR", parametros.mascaras),
+      );
+      prim.setAttribute(
+        ATRIBUTO_PESO_DE_COR,
+        ctx.acessor(`${nome}.peso_cor`, "VEC3", parametros.pesos),
+      );
+    }
     if (ctx.inteiras) {
       const cores = new Uint16Array(primitiva.cores.length);
       for (let i = 0; i < cores.length; i++) {
@@ -125,6 +141,8 @@ function primitivaNoDocumento(
       .setRoughnessFactor(0.75)
       .setDoubleSided(true)
       .setBaseColorTexture(textura);
+    if (primitiva.materialDeCor)
+      material.setExtras({ moradaCor: primitiva.materialDeCor }).setAlphaMode("OPAQUE");
     // como a página carrega as texturas: sem repetir
     material
       .getBaseColorTextureInfo()
@@ -221,6 +239,7 @@ export async function escreverPersonagem(
     .setMetallicFactor(0)
     .setRoughnessFactor(0.75)
     .setDoubleSided(true);
+  if (montado.cores) cores.setExtras({ moradaCor: { tipo: "vertices" } });
   const ctx: Contexto = { doc, acessor, cores, inteiras: montado.relatorio.corMaxima <= 1 };
   const { skin, raiz } = esqueletoNoDocumento(doc, montado.corpo, acessor);
   const cena = doc.createScene(montado.plano.personagem.id).addChild(raiz);

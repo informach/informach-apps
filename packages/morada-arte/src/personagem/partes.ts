@@ -1,6 +1,8 @@
+import type { ParametrosDosVertices } from "../cor/parametros";
 import type { FonteDeCor } from "../cor/pintura";
 import type { Pesos } from "../encaixe/montar";
 import type { Imagem } from "../leitura/imagem";
+import type { CanalDeCor, MaterialDeCor } from "../manifesto";
 import { em, item } from "../numeros";
 
 /**
@@ -28,6 +30,8 @@ export type Parte = {
   indices: Uint32Array;
   formas: Map<string, FormaDaParte>;
   fonte: FonteDeCor;
+  /** Papel semântico escolhido na montagem; nunca inferido da cor dos pixels. */
+  canalDeCor?: Omit<CanalDeCor, "inicial">;
 };
 
 const copiar = (origem: ArrayLike<number>, v: number, largura: number, destino: number[]): void => {
@@ -169,6 +173,12 @@ export function cortarPorPlano(
 }
 
 export type PrimitivaPronta = {
+  parametrosDeCor?: {
+    canais: Float32Array;
+    mascaras: Float32Array;
+    pesos: Float32Array;
+  };
+  materialDeCor?: MaterialDeCor;
   posicoes: Float32Array;
   normais: Float32Array;
   /** Cor linear por vértice; `null` na primitiva com textura. */
@@ -182,6 +192,7 @@ export type PrimitivaPronta = {
 };
 
 export type OpcoesDeEmenda = {
+  parametrosDeCor?: ReadonlyMap<Parte, ParametrosDosVertices & { canal: number }>;
   /** Nomes das formas da malha final, na ordem; a parte que não tem uma delas entra com zeros. */
   formas: readonly string[];
   /** Guardar as normais das formas (só o corpo traz as dele). */
@@ -204,6 +215,9 @@ export function emendar(partes: readonly Parte[], opcoes: OpcoesDeEmenda): Primi
   const ossosDobrado: number[] = [];
   const pesosDobrado: number[] = [];
   const indices: number[] = [];
+  const canais: number[] = [];
+  const mascaras: number[] = [];
+  const pesosDaCor: number[] = [];
   const formas = opcoes.formas.map((nome) => ({
     nome,
     posicoes: [] as number[],
@@ -212,6 +226,16 @@ export function emendar(partes: readonly Parte[], opcoes: OpcoesDeEmenda): Primi
   for (const parte of partes) {
     const vertices = parte.posicoes.length / 3;
     const cor = opcoes.cores?.get(parte);
+    const parametros = opcoes.parametrosDeCor?.get(parte);
+    if (opcoes.parametrosDeCor && parte.canalDeCor && !parametros)
+      throw new Error(`parte ${parte.nome} sem parâmetros de cor`);
+    if (
+      parametros &&
+      (parametros.originais.length !== vertices * 3 ||
+        parametros.mascaras.length !== vertices ||
+        parametros.pesos.length !== vertices * 3)
+    )
+      throw new Error(`parte ${parte.nome} com parâmetros divergentes`);
     if (opcoes.cores && !cor) throw new Error(`parte ${parte.nome} sem cor por vértice`);
     if (!opcoes.cores && !parte.uv) throw new Error(`parte ${parte.nome} sem UV para a textura`);
     {
@@ -220,7 +244,13 @@ export function emendar(partes: readonly Parte[], opcoes: OpcoesDeEmenda): Primi
         for (let k = 0; k < 3; k++) {
           posicoes.push(em(parte.posicoes, i * 3 + k));
           normais.push(em(parte.normais, i * 3 + k));
-          if (cor) cores.push(em(cor, i * 3 + k));
+          if (cor) cores.push(em(parametros?.originais ?? cor, i * 3 + k));
+          if (opcoes.parametrosDeCor)
+            pesosDaCor.push(parametros ? em(parametros.pesos, i * 3 + k) : 0);
+        }
+        if (opcoes.parametrosDeCor) {
+          canais.push(parametros?.canal ?? -1);
+          mascaras.push(parametros ? em(parametros.mascaras, i) : 0);
         }
         if (!opcoes.cores && parte.uv) uv.push(em(parte.uv, i * 2), em(parte.uv, i * 2 + 1));
         const dobrado = parte.pesosDobrado ?? parte.pesos;
@@ -247,6 +277,16 @@ export function emendar(partes: readonly Parte[], opcoes: OpcoesDeEmenda): Primi
     }
   }
   return {
+    ...(opcoes.parametrosDeCor
+      ? {
+          parametrosDeCor: {
+            canais: Float32Array.from(canais),
+            mascaras: Float32Array.from(mascaras),
+            pesos: Float32Array.from(pesosDaCor),
+          },
+          materialDeCor: { tipo: "vertices" as const },
+        }
+      : {}),
     posicoes: Float32Array.from(posicoes),
     normais: Float32Array.from(normais),
     cores: opcoes.cores ? Float32Array.from(cores) : null,

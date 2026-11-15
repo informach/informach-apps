@@ -40,6 +40,7 @@ import {
   type PersonagemDoManifesto,
   SUFIXO_BROTLI,
   VERSAO_DO_MANIFESTO,
+  VERSAO_DO_MANIFESTO_PARAMETRICO,
 } from "./manifesto";
 import { em, item, type Vec3 } from "./numeros";
 import type { Personagem } from "./personagem/esquema";
@@ -414,6 +415,7 @@ export async function empacotar(opcoes: OpcoesDoEmpacotador): Promise<Resultado>
     };
     const daGravida = `${personagem.corpo}_gravida`;
     doManifesto.push({
+      ...(montado.cores ? { cores: montado.cores } : {}),
       id: personagem.id,
       nome: personagem.nome,
       arquivo,
@@ -458,7 +460,9 @@ export async function empacotar(opcoes: OpcoesDoEmpacotador): Promise<Resultado>
     ManifestoSchema,
     {
       formato: FORMATO_DO_MANIFESTO,
-      versao: VERSAO_DO_MANIFESTO,
+      versao: opcoes.montagem?.coresParametricas
+        ? VERSAO_DO_MANIFESTO_PARAMETRICO
+        : VERSAO_DO_MANIFESTO,
       arte: {
         repositorio: "informach/artes-3d",
         commit: opcoes.commit === undefined ? biblioteca.commit() : opcoes.commit,

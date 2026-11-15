@@ -11,9 +11,17 @@ import { empacotar } from "../src/empacotar";
 import { ErroDeArte } from "../src/erros";
 import { Biblioteca } from "../src/leitura/biblioteca";
 import { ArquivoGlb } from "../src/leitura/glb";
-import { arquivosDoManifesto, ManifestoSchema, SUFIXO_BROTLI } from "../src/manifesto";
+import { lerPng } from "../src/leitura/imagem";
+import {
+  ATRIBUTO_CANAL_DE_COR,
+  ATRIBUTO_MASCARA_DE_COR,
+  ATRIBUTO_PESO_DE_COR,
+  arquivosDoManifesto,
+  ManifestoSchema,
+  SUFIXO_BROTLI,
+} from "../src/manifesto";
 import { type Personagem, PersonagemSchema } from "../src/personagem/esquema";
-import { montarPersonagem } from "../src/personagem/montagem";
+import { montarPersonagem, OPCOES_PADRAO } from "../src/personagem/montagem";
 import { ELENCO_DA_PROVA } from "../src/personagem/prova";
 import { personagemDoElenco, resolver } from "../src/personagem/resolucao";
 import { entradaESaida, pesosEmBytes } from "../src/saida/glb";
@@ -73,6 +81,71 @@ describe("empacotador sobre uma biblioteca de mentira", () => {
       PersonagemSchema.parse({ ...ze, roupa: { cima: { id: "camisa", cor: null } } }),
     );
     expect(comNull.pecas[0]?.cor).toBeNull();
+  });
+
+  it("transporta canais semânticos, pesos float32 e máscara opaca pelo GLB comprimido V3", async () => {
+    const saida = nova();
+    const resultado = await empacotar({
+      arte,
+      saida,
+      personagens: [ze],
+      commit: null,
+      montagem: { ...OPCOES_PADRAO, coresParametricas: true },
+    });
+    expect(resultado.manifesto.versao).toBe(3);
+    const personagem = resultado.manifesto.personagens[0];
+    if (!personagem || !("cores" in personagem) || !personagem.cores)
+      throw new Error("Canais ausentes");
+    const canais = personagem.cores.canais;
+    expect(canais.map((c) => c.id)).toEqual(
+      expect.arrayContaining(["pele", "cabelo", "roupa_cima", "rosto"]),
+    );
+    expect(new Set(canais.map((c) => c.id)).size).toBe(canais.length);
+    const doc = await (await entradaESaida()).read(join(saida, personagem.arquivo));
+    let vertices = 0;
+    let texturas = 0;
+    for (const malha of doc.getRoot().listMeshes())
+      for (const primitiva of malha.listPrimitives()) {
+        const material = primitiva.getMaterial();
+        if (!material) throw new Error("Material ausente");
+        const extras = material.getExtras();
+        if (primitiva.getAttribute("COLOR_0")) {
+          vertices++;
+          expect(extras).toEqual({ moradaCor: { tipo: "vertices" } });
+          const ids = primitiva.getAttribute(ATRIBUTO_CANAL_DE_COR);
+          const mascaras = primitiva.getAttribute(ATRIBUTO_MASCARA_DE_COR);
+          const pesos = primitiva.getAttribute(ATRIBUTO_PESO_DE_COR);
+          if (!ids || !mascaras || !pesos) throw new Error("Atributos paramétricos ausentes");
+          expect(ids.getCount()).toBe(primitiva.getAttribute("POSITION")?.getCount());
+          expect(pesos.getArray()).toBeInstanceOf(Float32Array);
+          expect(mascaras.getCount()).toBe(ids.getCount());
+          expect(
+            Array.from(ids.getArray() ?? []).every(
+              (id) => Number.isInteger(id) && id >= -1 && id < canais.length,
+            ),
+          ).toBe(true);
+        } else {
+          texturas++;
+          const canal = canais.findIndex((c) => c.id === "roupa_cima");
+          expect(extras).toEqual({
+            moradaCor: { tipo: "textura", canal, luminancia: 0.5, mascara: "alpha" },
+          });
+          expect(material.getAlphaMode()).toBe("OPAQUE");
+          const imagem = material.getBaseColorTexture()?.getImage();
+          if (!imagem) throw new Error("Textura ausente");
+          const caminhoDaTextura = join(nova(), "textura.png");
+          writeFileSync(caminhoDaTextura, imagem);
+          const png = lerPng(caminhoDaTextura);
+          expect(png.dados[0]).toBe(188);
+          expect(png.dados[3]).toBe(255);
+        }
+      }
+    expect(vertices).toBeGreaterThan(0);
+    expect(texturas).toBe(1);
+    // O perfil novo é optativo; os mesmos pedidos continuam gerando V2 por padrão.
+    const legado = await empacotar({ arte, saida: nova(), personagens: [ze], commit: null });
+    expect(legado.manifesto.versao).toBe(2);
+    expect(legado.personagens[0]?.montado.cores).toBeUndefined();
   });
 
   it("recusa com mensagem clara o que não existe ou não cabe", () => {
