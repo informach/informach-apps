@@ -171,6 +171,49 @@ de troca RGB fiel, nem publicar V3 baseado somente no saldo e nos testes do
 núcleo. Editor/arte, travas/desfazer e demais critérios deste plano continuam
 obrigatórios para D3 integral.
 
+### Pintura: decisão após inventário privado
+
+Inventários privados `43759866252` (`b9f6d8128`) e `43760268212`
+(`f2b52ff15`) aprovados no GitHub. Seleção vem das oito ofertas canônicas, com
+arte fixa `4f301210…` e código aprovado `e9e8d834`. Só leitura, sem exportar GLB,
+sem processamento de arte nesta máquina. Metadados recuperados fora do checkout
+público. Os oito móveis usam atlas PNG de 16×16 e materiais opacos de fator
+branco; a geladeira tem também vidro transparente separado. Nos vértices
+amostrados, zero UV fora do centro do texel e zero triângulo com texels distintos.
+A textura usa filtro nearest. Histograma da textura inteira não define canais;
+o segundo inventário liga os texels efetivamente usados às primitivas.
+
+Implementação seguinte, antes de publicar Mundo V3:
+
+1. Separar original de escolha explícita: `pintura: null` conserva a arte;
+   uma pintura guarda perfil admitido e RGB, inclusive branco/preto. O campo
+   legado `cor` não pode fingir ser essa distinção: hoje os dois renderers o
+   ignoram. Catálogo de perfis chega do host, é admitido/guardado com recibo e
+   não muda preço, saldo ou geometria. Cliente nunca decide máscara ou arquivo.
+2. Perfis privados fixam hashes de origem e pigmentos/superfícies. Acrescentar
+   atributos próprios de máscara e pesos lineares, preservando textura, UV,
+   geometria e vidro. Excluir esses pesos da quantização que perder precisão.
+   Máscara por vértice é candidata pelo resultado dos texels; ainda exige
+   prova visual e numérica, não aprovação só por contagem.
+3. Renderizar grupos originais e pintados em instâncias: RGB por instância,
+   máscara compartilhada e materiais próprios do perfil. Não multiplicar o
+   RGB nativo pelo alvo; preservar detalhes fora da máscara, alfa, iluminação,
+   normais e rugosidade. Não anexar atributos mutáveis de instância à geometria
+   compartilhada nem alterar materiais do cache dos demais objetos.
+4. Novo perfil de manifesto aceita o pacote anterior. Código compatível entra
+   antes da arte; comandos de pintura dependem da disponibilidade real do host.
+   Mundo sem pintura continua legível no pacote antigo; mundo pintado exige
+   código/pacote compatíveis, sem reset ou fallback silencioso da cor.
+5. Gate público: preto/branco/canais zero, comparação do original, duas cores
+   independentes, shader básico/padrão e luz/HDR. Gate privado: oito móveis,
+   detalhes/vidro conservados, duas instâncias de cada peça, editar/sair/reabrir,
+   tamanho do pacote e recursos antes/depois de ciclos. Tudo no GitHub; nenhuma
+   alegação de FPS/hardware a partir da renderização por software.
+
+O cliente em `99030597` também passou nos seis gates `43759140904`; continua
+em candidata junto do núcleo, sem implantação V3. A fonte em produção segue
+`7c81a68f` (portal `59c3b020`, Morada `c69f1531`), conservando o alfa D2.
+
 Arquivos: `comandos/intencao.ts`, `comandos/pipeline.ts`, novo sistema de edição;
 `dominio/tipos.ts`, `dominio/fatos.ts`, `dominio/reduzir-fato.ts`,
 `dominio/invariantes.ts`, `formatos/fotografia.ts`, `visao/replicacao.ts`.
