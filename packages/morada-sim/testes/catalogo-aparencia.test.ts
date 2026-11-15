@@ -14,6 +14,7 @@ import {
   REGRAS_PADRAO,
   type RegrasDoMundo,
   restaurar,
+  ticksPorDia,
   verificarInvariantes,
 } from "../src/index";
 import { criarRoteiro } from "../src/testes";
@@ -91,7 +92,7 @@ function fundar(mundo: Mundo, rascunho: RascunhoDaFamilia) {
 
 describe("catálogo admitido e persistido no mundo", () => {
   it("o nascimento usa a receita admitida sem alterar a identidade visual dos genitores", () => {
-    const mundo = novo(catalogo(), { envelhecimento: "desligado", diasDeGravidez: 0.001 });
+    const mundo = novo(catalogo(), { envelhecimento: "desligado", diasDeGravidez: 1 });
     const dados = familia();
     const primeira = dados.moradores[0];
     if (!primeira) throw new Error("Moradora ausente");
@@ -109,7 +110,7 @@ describe("catálogo admitido e persistido no mundo", () => {
     ).toMatchObject({ ok: true });
     roteiro.ate(
       () => listar(mundo.estado.gravidezes).some((g) => g.estado === "concluida"),
-      500,
+      ticksPorDia(mundo.estado.relogio) + 200,
       "nascer com receita do catálogo",
     );
     const bebe = listar(mundo.estado.moradores).find((m) => m.origem.gravidezId !== undefined);
@@ -120,7 +121,7 @@ describe("catálogo admitido e persistido no mundo", () => {
     });
     expect(pais.map((m) => m.aparencia)).toEqual(antes);
     expect(verificarInvariantes(mundo.estado, mundo.presenca)).toEqual([]);
-  });
+  }, 60_000);
   it("admite cores RGB livres só numa combinação e nas partes empacotadas", () => {
     const mundo = novo();
     const dados = familia();
