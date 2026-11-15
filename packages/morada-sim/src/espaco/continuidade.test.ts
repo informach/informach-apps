@@ -42,9 +42,10 @@ describe("continuidade espacial de uma edição", () => {
     expect(recuperado.acoes).toEqual(mundo.estado.acoes);
     expect(recuperado.contadores.aca).toBe(mundo.estado.contadores.aca);
     expect(recuperado.familias).toEqual(fotografia.estado.familias);
-    expect(recuperado.moradores.porId[pessoa.id].necessidades).toEqual(
-      fotografia.estado.moradores.porId[pessoa.id].necessidades,
-    );
+    const voltou = recuperado.moradores.porId[pessoa.id];
+    const original = fotografia.estado.moradores.porId[pessoa.id];
+    if (!voltou || !original) throw new Error("Morador ausente na recuperação");
+    expect(voltou.necessidades).toEqual(original.necessidades);
     expect(capturarContinuidadeEspacial(recuperado)).toEqual(captura);
   });
 
