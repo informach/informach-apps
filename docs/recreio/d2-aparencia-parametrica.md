@@ -76,3 +76,18 @@ o seletor por texto integral do label também incluía as opções. O candidato 
 usa o papel acessível `combobox` e o nome do campo, preservando prazo e asserções.
 Também invalida a confirmação da prévia ao mudar a projeção da câmera, para exigir
 um quadro confirmado no tamanho novo. Nenhum desses candidatos foi implantado.
+
+`9c8cd9a5`: cinco gates públicos aprovados em `43743637255` e homologação
+privada `43743680982` aprovada: 48 combinações/criação personalizada em 3 min
+12 s e cinco jornadas gerais em 8 min 34 s. A inspeção das capturas encontrou
+o bebê sentado baixo demais no quadro: a câmera usava a altura nominal em pé.
+Ainda sem implantação. A correção mede vértices visíveis depois de ossos/morphs,
+no referencial da raiz, e conserva a medida enquanto a pose-base não muda.
+Não mede todos os vértices a cada quadro. Troca de clipe/postura invalida a
+medida, inclusive se a biblioteca chega depois do corpo. A confirmação da GPU
+também passa a distinguir a medida usada no quadro.
+
+O candidato seguinte conserva as contagens numéricas em JSON junto das capturas
+privadas. O anexo inline do primeiro ensaio não sobreviveu à limpeza dos
+resultados de testes bem-sucedidos; as asserções passaram, mas esses números
+ainda não têm arquivo preservado. Nenhum número de memória foi inferido delas.

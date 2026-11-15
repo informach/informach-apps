@@ -8,6 +8,7 @@ import {
   esquecerAparelho,
   fecharAparelhos,
   hidratado,
+  medida,
   novaPessoa,
   origemDoJogo,
   scriptsDe,
@@ -219,6 +220,7 @@ test.describe("coleção real da criação", () => {
     expect(depois?.contextos).toBe(1);
     expect(depois?.buffers).toBe(antes?.buffers);
     expect(depois?.texturas).toBe(antes?.texturas);
+    await medida("criacao-recursos", { combinacoes, antes, depois });
     await test.info().attach("criacao-recursos.json", {
       body: JSON.stringify({ combinacoes, antes, depois }, null, 2),
       contentType: "application/json",

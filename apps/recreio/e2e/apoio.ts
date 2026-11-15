@@ -1,6 +1,6 @@
 import { type ChildProcess, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readdir, readFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   type Browser,
@@ -33,6 +33,13 @@ const TELAS = process.env.RECREIO_E2E_PRIVATE_ARTIFACTS
 export async function tela(page: Page, nome: string): Promise<void> {
   await mkdir(TELAS, { recursive: true });
   await page.screenshot({ path: path.join(TELAS, `${nome}.png`), animations: "disabled" });
+}
+
+/** Medidas sem conteúdo de contas/jogo; conservadas junto das capturas da execução. */
+export async function medida(nome: string, dados: Record<string, unknown>): Promise<void> {
+  if (!/^[a-z0-9-]{1,64}$/.test(nome)) throw new Error("Nome de medida inválido");
+  await mkdir(TELAS, { recursive: true });
+  await writeFile(path.join(TELAS, `${nome}.json`), `${JSON.stringify(dados, null, 2)}\n`);
 }
 
 /** O endereço do servidor de um jogo, como o ambiente da execução o cadastrou no Recreio. */

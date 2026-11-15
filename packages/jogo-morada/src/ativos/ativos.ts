@@ -42,7 +42,11 @@ export type PoseDoMorador = {
   dtMs: number;
 };
 
+export type EnquadramentoDoMorador = { centro: PontoDaCena; tamanho: number };
+
 export interface VisualDoMorador {
+  /** Limites da pose visível no referencial da raiz, medidos somente para o editor. */
+  enquadramentoDaPrevia?(): EnquadramentoDoMorador | null;
   readonly estadoDaArte?: "carregando" | "pronto" | "falha" | "simples";
   /** Atualiza somente as cores quando corpo, cabelo e conjunto continuam os mesmos. */
   definirAparencia?(aparencia: Aparencia): void;

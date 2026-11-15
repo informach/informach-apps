@@ -165,7 +165,7 @@ export class Cena {
     maximo: number;
     pan: boolean;
   } | null = null;
-  private alturaDaPrevia = 0;
+  private enquadramentoDaPrevia = "";
   private objetos: VisualDosObjetos | null = null;
   private itens: ObjetoDaCena[] = [];
   private terreno: Mesh | null = null;
@@ -661,7 +661,7 @@ export class Cena {
     if (this.previa.aberta) {
       this.previa.confirmarQuadro(null);
       this.quadroDaPreviaPendente = null;
-      this.alturaDaPrevia = 0;
+      this.enquadramentoDaPrevia = "";
       this.recortarCameraDaPrevia();
     }
   }
@@ -823,7 +823,7 @@ export class Cena {
       this.controles.enablePan = antes.pan;
       this.camera.clearViewOffset();
       this.cameraAntesDaPrevia = null;
-      this.alturaDaPrevia = 0;
+      this.enquadramentoDaPrevia = "";
       this.controles.update();
       return;
     }
@@ -839,10 +839,14 @@ export class Cena {
       this.teclas.clear();
       this.controles.enablePan = false;
     }
-    const altura = this.previa.altura;
-    if (altura === this.alturaDaPrevia) return;
-    this.alturaDaPrevia = altura;
-    this.controles.target.copy(this.previa.raiz.position).add(new Vector3(0, altura * 0.5, 0));
+    const enquadramento = this.previa.enquadramento;
+    if (!enquadramento) return;
+    const assinatura = JSON.stringify([enquadramento, this.previa.raiz.rotation.y]);
+    if (assinatura === this.enquadramentoDaPrevia) return;
+    this.enquadramentoDaPrevia = assinatura;
+    const altura = enquadramento.tamanho;
+    this.previa.raiz.updateWorldMatrix(true, false);
+    this.controles.target.copy(this.previa.raiz.localToWorld(new Vector3(...enquadramento.centro)));
     const pequeno = this.host.clientWidth < 720;
     this.camera.position
       .copy(this.controles.target)

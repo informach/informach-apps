@@ -1,11 +1,17 @@
 import { Group } from "three";
-import type { Ativos, DescricaoDoMorador, VisualDoMorador } from "../ativos/ativos";
+import type {
+  Ativos,
+  DescricaoDoMorador,
+  EnquadramentoDoMorador,
+  VisualDoMorador,
+} from "../ativos/ativos";
 
 export type EstadoDaPrevia = "fechada" | "carregando" | "pronto" | "simples" | "falha";
 export type QuadroDaPrevia = {
   visual: VisualDoMorador;
   descricao: string;
   estado: VisualDoMorador["estadoDaArte"];
+  enquadramento: EnquadramentoDoMorador | null;
 };
 
 /** Uma única prévia visual, sem entidades no espelho e sem renderer próprio. */
@@ -17,6 +23,7 @@ export class PreviaDoMorador {
   private repetir = false;
   private giroPendente = 0;
   private desenhado: QuadroDaPrevia | null = null;
+  private enquadramentoAtual: EnquadramentoDoMorador | null = null;
 
   constructor(private readonly ativos: Ativos) {
     this.raiz.position.set(-5, 0, 4);
@@ -28,12 +35,16 @@ export class PreviaDoMorador {
   get altura(): number {
     return this.visual?.altura ?? 1.7;
   }
+  get enquadramento(): EnquadramentoDoMorador | null {
+    return this.enquadramentoAtual;
+  }
   get estado(): EstadoDaPrevia {
     if (this.pendente) return "carregando";
     if (!this.visual) return "fechada";
     if (this.visual.estadoDaArte === "falha") return "falha";
     if (
       this.desenhado?.visual !== this.visual ||
+      this.desenhado.enquadramento !== this.enquadramentoAtual ||
       this.desenhado.estado !== this.visual.estadoDaArte ||
       this.desenhado.descricao !== this.assinaturaAtual()
     )
@@ -43,7 +54,12 @@ export class PreviaDoMorador {
 
   capturarQuadro(): QuadroDaPrevia | null {
     return this.visual
-      ? { visual: this.visual, descricao: this.assinaturaAtual(), estado: this.visual.estadoDaArte }
+      ? {
+          visual: this.visual,
+          descricao: this.assinaturaAtual(),
+          estado: this.visual.estadoDaArte,
+          enquadramento: this.enquadramentoAtual,
+        }
       : null;
   }
   confirmarQuadro(quadro: QuadroDaPrevia | null): void {
@@ -111,6 +127,10 @@ export class PreviaDoMorador {
       agoraMs,
       dtMs,
     });
+    if (this.visual) {
+      this.enquadramentoAtual = this.visual.enquadramentoDaPrevia?.() ??
+        this.enquadramentoAtual ?? { centro: [0, this.altura / 2, 0], tamanho: this.altura };
+    }
   }
 
   private soltarVisual(): void {
@@ -118,6 +138,7 @@ export class PreviaDoMorador {
     this.visual = null;
     this.descricao = null;
     this.desenhado = null;
+    this.enquadramentoAtual = null;
   }
   dispose(): void {
     this.soltarVisual();

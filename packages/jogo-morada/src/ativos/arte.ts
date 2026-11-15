@@ -38,6 +38,7 @@ import { montarAberturas } from "./aberturas";
 import type {
   Ativos,
   DescricaoDoMorador,
+  EnquadramentoDoMorador,
   ObjetoDaCena,
   PoseDoMorador,
   VisualDoMorador,
@@ -46,6 +47,7 @@ import type {
 import { CacheDePersonagens, type UsoDePersonagem } from "./cache-de-personagens";
 import { coresDaAparencia } from "./cores-da-aparencia";
 import { CoresParametricas } from "./cores-parametricas";
+import { medirEnquadramento } from "./enquadramento";
 import {
   ajusteDoApoio,
   bibliotecasDaPose,
@@ -547,6 +549,10 @@ class MoradorDeArte implements VisualDoMorador {
     return this.corpo.altura;
   }
 
+  enquadramentoDaPrevia(): EnquadramentoDoMorador | null {
+    return this.corpo.enquadramentoDaPrevia?.() ?? null;
+  }
+
   get colo(): PontoDaCena {
     return this.corpo.colo;
   }
@@ -641,6 +647,9 @@ class CorpoDeArte implements VisualDoMorador {
   private clipeAtual: AnimationClip | null = null;
   private expressaoAtual = "";
   private dobrada = false;
+  private enquadramentoMedido: EnquadramentoDoMorador | null = null;
+  private posturaMedida: PosturaDoCorpo | null = null;
+  private gravidezMedida = -1;
 
   constructor(
     private readonly personagem: PersonagemDoManifesto,
@@ -733,7 +742,17 @@ class CorpoDeArte implements VisualDoMorador {
     this.cores?.definir(coresDaAparencia(this.personagem, aparencia));
   }
 
+  enquadramentoDaPrevia(): EnquadramentoDoMorador {
+    this.enquadramentoMedido ??= medirEnquadramento(this.modelo, this.raiz);
+    return this.enquadramentoMedido;
+  }
+
   aplicar(pose: PoseDoMorador): void {
+    if (this.posturaMedida !== pose.postura || this.gravidezMedida !== pose.gravidez) {
+      this.enquadramentoMedido = null;
+      this.posturaMedida = pose.postura;
+      this.gravidezMedida = pose.gravidez;
+    }
     const bibliotecas = bibliotecasDaPose(this.personagem, pose.gravidez)
       .map((id) => this.biblioteca(id))
       .filter((b): b is BibliotecaCarregada => b !== null);
@@ -773,6 +792,7 @@ class CorpoDeArte implements VisualDoMorador {
   /** Troca de clipe com uma passagem curta; sem clipe, volta à pose de descanso. */
   private tocar(clipe: AnimationClip | null): void {
     if (clipe === this.clipeAtual) return;
+    this.enquadramentoMedido = null;
     this.clipeAtual = clipe;
     const anterior = this.acao;
     if (!clipe) {
@@ -798,6 +818,7 @@ class CorpoDeArte implements VisualDoMorador {
 
   private dobrar(dobrada: boolean): void {
     if (dobrada === this.dobrada) return;
+    this.enquadramentoMedido = null;
     this.dobrada = dobrada;
     for (const d of this.dobraveis) {
       const [juntas, pesos] = dobrada ? d.dobrado : d.pano;
@@ -809,6 +830,7 @@ class CorpoDeArte implements VisualDoMorador {
   private expressao(nome: string): void {
     const alvo = this.rostos.has(nome) ? nome : (this.personagem.expressoes[0]?.nome ?? "");
     if (alvo === this.expressaoAtual) return;
+    this.enquadramentoMedido = null;
     this.expressaoAtual = alvo;
     for (const [chave, no] of this.rostos) no.visible = chave === alvo;
   }

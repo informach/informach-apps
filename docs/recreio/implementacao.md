@@ -2,7 +2,7 @@
 
 Registro detalhado da frente. O índice de continuidade é o [estado do repositório](../estado-do-repositorio.md); as regras permanentes ficam no [AGENTS.md](../../AGENTS.md).
 
-Estado vigente em 15/11/2026: portal/Morada em `95c24d24`, manutenção e arte D1 implantados no alfa fechado; prontidão, arte no acesso real e saída pelo jogo confirmadas. Duas jornadas privadas completas com arte e cinco gates públicos aprovados. Backup lógico real restaurado em destino isolado e avisos de teste recebidos pelo titular. Cron independente Cloudflare publicado após sete testes HTTP e cinco nativos; aceite da agenda no registro operacional. D2–D8, proteção familiar, retenção/capacidade, restauração de backup agendado e homologação comercial continuam em implementação. Ver [execução atual](execucao-2026-11-15.md), [operação](../../apps/recreio/PRODUCAO.md) e [review D1](review-d1-2026-11-13.md). As seções datadas abaixo preservam a história dos marcos anteriores.
+Estado vigente em 15/11/2026: portal/Morada em `116939f6`, manutenção e arte D1 implantados no alfa fechado; prontidão, arte no acesso real e saída pelo jogo confirmadas. Duas jornadas privadas completas com arte e cinco gates públicos aprovados no perfil D1. Backup lógico real restaurado em destino isolado e avisos de teste recebidos pelo titular. Cron independente Cloudflare publicado e agenda comprovada. D2 possui núcleo, catálogo inicial e editor em candidato, com [homologação própria](d2-aparencia-parametrica.md). D2–D8, proteção familiar, retenção/capacidade, restauração de backup agendado e homologação comercial continuam em implementação. Ver [execução atual](execucao-2026-11-15.md), [operação](../../apps/recreio/PRODUCAO.md) e [review D1](review-d1-2026-11-13.md). As seções datadas abaixo preservam a história dos marcos anteriores.
 
 ## De onde vem o escopo
 
@@ -91,15 +91,15 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 | X1 | Plataforma real no servidor, `/jogar/morada`, E2E com duas contas | feito |
 | X2 | Empacotador e corpos reais na máquina de desenvolvimento | feito |
 | X3 | Railway atrás da constante, build de produção, Bastidores mínimo, guias | integrado; serviços implantados em 15/11 |
-| X4 | Deploy fechado e medição de custo, com autorização do titular | em curso: alfa implantado, ingestão Sentry e uso ocioso medidos; restauração real, agenda externa, alertas e custo por mundo pendentes |
+| X4 | Deploy fechado e medição de custo, com autorização do titular | em curso: alfa, restauração lógica isolada, agenda externa e recebimento dos avisos comprovados; backup agendado, RPO/RTO e custo por hora de mundo pendentes |
 
 ### Etapa 2
 
 | Lote | Entrega | Estado |
 | --- | --- | --- |
 | D1 | Arte da casa atual e metas de desempenho | implementado com arte real; homologação de FPS em vídeo integrado pendente, ver review D1 |
-| D2 | Criar família | a fazer |
-| D3 | Construir e comprar | a fazer |
+| D2 | Criar família | em curso: núcleo, catálogo inicial e editor candidatos; seleção de casa/orçamento ainda depende do contrato D3 |
+| D3 | Construir e comprar | [plano de execução](d3-construcao-compras.md); implementação pendente |
 | D4 | 20 a 30 interações com animação real | a fazer |
 | D5 | Família completa | a fazer |
 | D6 | Ciclo do mundo no portal | a fazer |

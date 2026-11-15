@@ -32,3 +32,12 @@ Serviço temporário `0097b2d7-90ee-4c33-b8ef-90bcd2844d3e` removido em seguida,
 - Falha de backup, restauração, comparação ou limpeza produz falha operacional explícita; um processo que apenas iniciou não é prova de sucesso.
 - O resultado precisa identificar precisamente qual backup foi restaurado. `pg_dump` novo não pode ser apresentado como teste de um snapshot agendado do provedor.
 - Restauração dos backups agendados em destino isolado ainda exige um mecanismo de cópia suportado pelo Railway. A API consultada de `volumeInstanceBackupRestore` restaura a própria instância de volume; não é apropriada para este ensaio. Não usá-la sobre produção para obter uma aprovação de DR.
+
+Conferência adicional em 15/11 às 17h56 UTC: o schema vivo descreve
+`volumeInstanceId` como a instância **de origem**, sem argumento para destino
+isolado. A [documentação oficial](https://docs.railway.com/volumes/backups#how-to-restore-a-backup)
+confirma a troca de volume no serviço original e seu redeploy. O argumento
+`replicaServiceIds` trata réplicas HA; não comprova uma cópia independente.
+Nenhuma chamada de restauração foi executada. A API de busca recuperou as
+referências, mas a leitura das páginas pelo conector falhou; a documentação
+oficial foi consultada diretamente como alternativa.
