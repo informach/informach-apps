@@ -12,4 +12,3 @@ COPY --from=builder /build/ensaiar-backup.mjs /opt/recreio/ensaiar-backup.mjs
 RUN node --version && postgres --version
 ENTRYPOINT ["node", "/opt/recreio/ensaiar-backup.mjs"]
 CMD []
-CMD []

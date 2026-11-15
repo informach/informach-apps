@@ -372,6 +372,9 @@ export function criarPlataformaFalsa(
         if (foto.revisaoEsperada !== mundo.revisao) {
           throw new ErroDoRecreio("REVISAO_DIVERGENTE", { atual: mundo.revisao });
         }
+        if (foto.schemaVersion < mundo.schemaVersion) {
+          throw new ErroDoRecreio("REVISAO_DIVERGENTE");
+        }
         const anterior = mundo.fotografias.at(-1)?.meta.diarioSeq ?? 0;
         if (foto.diarioSeq > mundo.diarioSeq || foto.diarioSeq < anterior) {
           throw new ErroDoRecreio("ENTRADA_INVALIDA");

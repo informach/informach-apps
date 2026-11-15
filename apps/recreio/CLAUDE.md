@@ -151,7 +151,7 @@ Textos em português do Brasil, simples e diretos, sem prometer o que ainda não
 - A renovação confere se o jogo continua aberto; manutenção encerra a sessão com `access_lost`, entrega `JOGO_INDISPONIVEL` e aparece no cursor de encerramentos da instância.
 - A entrada autorizada pela instância reavalia o direito de jogar, depois de conferir escopo, sessão e perfil, preservando as recusas que não revelam a existência de outro perfil/mundo.
 - A guarda compartilhada de `@informach/auth` impede excluir, por outro produto, uma conta que tenha perfil no Recreio. Até implementar sucessão/saída de mundos, a exclusão é assistida pelo suporte; o Recreio continua com a exclusão automática desligada.
-- O E2E isolado serve o Next standalone com `public` e `static` copiados e sobe `dist/main.mjs` do Morada. Implantação preparada em [PRODUCAO.md](PRODUCAO.md), ainda sem serviço publicado.
+- O E2E isolado serve o Next standalone com `public` e `static` copiados e sobe `dist/main.mjs` do Morada. O estado inicial sem publicação foi superado em 15/11: alfa fechado implantado, com limites e pendências em [PRODUCAO.md](PRODUCAO.md).
 
 
 ## Arte da casa e verificação privada (D1)

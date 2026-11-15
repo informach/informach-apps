@@ -41,7 +41,14 @@ export type PedidoDeRecuperacao = {
 };
 
 type Material = {
-  mundo: { id: string; gameId: string; revision: number; journalSeq: number; leaseEpoch: number };
+  mundo: {
+    id: string;
+    gameId: string;
+    revision: number;
+    journalSeq: number;
+    leaseEpoch: number;
+    schemaVersion: number;
+  };
   foto: {
     revision: number;
     journalSeq: number;
@@ -105,6 +112,7 @@ async function lerMaterial(
       revision: spaces.revision,
       journalSeq: spaces.journalSeq,
       leaseEpoch: spaces.leaseEpoch,
+      schemaVersion: spaces.schemaVersion,
     })
     .from(spaces)
     .where(and(eq(spaces.id, pedido.mundoId), eq(spaces.gameId, pedido.jogo)))
@@ -181,6 +189,7 @@ async function lerMaterial(
       revision: mundo.revision,
       journalSeq: mundo.journalSeq,
       leaseEpoch: mundo.leaseEpoch,
+      schemaVersion: mundo.schemaVersion,
     },
     foto: {
       revision: foto.revision,
@@ -255,6 +264,8 @@ export function aplicarRecuperacao(
     if (anterior) return anterior;
     const atual = await lerMaterial(tx, pedido, "update");
     if (atual.impressao !== material.impressao) throw new RecusaDeRecuperacao("MATERIAL_ALTERADO");
+    if (foto.schemaVersion < atual.mundo.schemaVersion)
+      throw new RecusaDeRecuperacao("INTEGRIDADE");
     const revision = atual.mundo.revision + 1;
     await tx.insert(snapshots).values({
       spaceId: pedido.mundoId,

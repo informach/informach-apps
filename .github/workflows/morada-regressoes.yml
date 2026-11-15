@@ -59,3 +59,36 @@ jobs:
         run: |
           pnpm --filter @informach/morada-server exec vitest run test/arte.test.ts
           pnpm --filter @informach/jogo-morada exec playwright test --config e2e/playwright.config.ts qualidade.spec.ts
+      - name: Reproduzir regressão de formato contra o servidor anterior
+        shell: bash
+        run: |
+          set -euo pipefail
+          anterior=0aa4c82ccf7cde3297ba0acaa8603fa2e2b83884
+          git fetch --no-tags --depth=1 origin "$anterior"
+          trap 'git restore --source=HEAD -- apps/morada-server/src/ator.ts packages/recreio/src/testing/plataforma-falsa.ts' EXIT
+          git show "$anterior:apps/morada-server/src/ator.ts" > apps/morada-server/src/ator.ts
+          git show "$anterior:packages/recreio/src/testing/plataforma-falsa.ts" > packages/recreio/src/testing/plataforma-falsa.ts
+          set +e
+          pnpm --filter @informach/morada-server exec vitest run test/recuperacao-integra.test.ts -t versao_futura --reporter=json --outputFile="$RUNNER_TEMP/formato-ator-antes.json"
+          ator=$?
+          pnpm --filter @informach/recreio exec vitest run src/testing/plataforma-falsa.test.ts -t 'permite avançar o formato' --reporter=json --outputFile="$RUNNER_TEMP/formato-host-antes.json"
+          host=$?
+          set -e
+          test "$ator" -eq 1
+          test "$host" -eq 1
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import {readFileSync} from "node:fs";
+            for(const [arquivo,trecho] of [["ator","versao_futura"],["host","permite avançar o formato"]]) {
+              const r=JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/formato-"+arquivo+"-antes.json","utf8"));
+              const falhas=r.testResults.flatMap(s=>s.assertionResults).filter(t=>t.status==="failed");
+              assert.equal(r.numFailedTests,1);
+              assert.equal(falhas.length,1);
+              assert.ok(falhas[0].fullName.includes(trecho));
+              console.log(JSON.stringify({caso:falhas[0].fullName,falhouAntes:true}));
+            }
+          '
+      - name: Conferir proteção de formato no candidato
+        run: |
+          pnpm --filter @informach/morada-server exec vitest run test/recuperacao-integra.test.ts -t versao_futura
+          pnpm --filter @informach/recreio exec vitest run src/testing/plataforma-falsa.test.ts -t 'permite avançar o formato'

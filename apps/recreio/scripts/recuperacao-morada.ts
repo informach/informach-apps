@@ -1,7 +1,7 @@
 import "server-only";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { jogoPorId } from "@informach/config/jogos";
-import { abrirFotografia, type Fato, restaurar } from "@informach/morada-sim";
+import { abrirFotografia, type Fato, restaurar, VERSAO_DO_MUNDO } from "@informach/morada-sim";
 import { MundoIdSchema } from "@informach/recreio";
 import { z } from "zod";
 import {
@@ -37,6 +37,8 @@ export async function prepararRestauracaoDoMorada(entrada: unknown) {
   const pedido = pedidoDoMorada(entrada);
   const material = await prepararRecuperacao(pedido);
   try {
+    if (material.mundo.schemaVersion > VERSAO_DO_MUNDO)
+      throw new RecusaDeRecuperacao("INTEGRIDADE");
     const leitura = new TextDecoder("utf-8", { fatal: true });
     const base = abrirFotografia(
       JSON.parse(

@@ -2,13 +2,15 @@
 
 Atualizado em 15/11/2026. **Portal e Morada implantados no alfa fechado**, no commit `7c8b6a14`, depois dos quatro gates do [run 43703150878](https://github.com/informach/informach-apps/actions/runs/43703150878). Portal `69ada2d9-6758-4f47-9a79-277a6328bcf6` e Morada `7fb59034-eac3-4dc8-b1a4-792a28051fce`: deployments com sucesso e `/api/ready` público 200. O portal confirmou banco/Redis, JWKS e versão; o titular confirmou login real até a estante. As duas contas piloto têm cortesia até 15/12, ainda sem prova conjunta de jogo.
 
-Manutenção `eb0cac89-4ec8-4762-a038-8d7471d0f4a8` implantada; confirmar a execução registrada em `ops.job_runs`. Flag do Bastidores ativada, aguardando conferir o novo deployment e as sondagens. A entrega de um evento sanitizado do Morada ao Sentry foi comprovada (`MORADA-SERVER-1`); o evento é a prova operacional provocada, não uma falha de jogador. Sondagens HTTP do Sentry continuam **desativadas por falta de orçamento**, sem alterar o orçamento nem desligar monitores de outros produtos.
+Manutenção `eb0cac89-4ec8-4762-a038-8d7471d0f4a8` implantada; três execuções consecutivas aprovadas conferidas em `ops.job_runs` às 10:35/10:40/10:45 UTC de 15/11. Bastidores implantado com a flag Recreio; ambas as sondagens internas `up`, latências 213/195 ms na consulta de 10:45. A entrega de eventos sanitizados ao Sentry foi comprovada; são provas operacionais provocadas, não falhas de jogadores. Sondagens HTTP de 60 s do Sentry continuam **desativadas por falta de orçamento**, sem aumentar orçamento nem desligar monitores alheios. A [alternativa externa no GitHub](../../docs/recreio/monitoramento-externo.md) passou nos testes e na ingestão dos dois eventos de prova; agenda de cinco minutos aguarda integração na `main`. Notificação humana ainda não homologada.
 
 Arte D1 empacotada no GitHub privado e transferida por SFTP para `/data/arte/d1-98f76bc403d8`, sem substituir versão anterior. Os 138 arquivos foram conferidos antes da transferência; manifesto SHA-256 `98f76bc403d8011ae09dd38cdb7cf2f788f26e57ca9694bc15ce675ef8d2ea12`. A ativação da pasta e da origem de assets aguarda os gates do próximo candidato; **o processo atual ainda usa formas procedurais**.
 
 As três flags IaC estão em `true` e não são mecanismo de rollback. A ativação foi sequencial e restrita aos recursos Recreio/monitoração. [Registro de execução](../../docs/recreio/execucao-2026-11-15.md); [IDs e DNS](../../docs/recreio/railway-2026-11-13.md). X4 continua aberto: restauração do backup real em destino isolado, alertas, carga e custo por mundo ainda exigem prova. Backups Postgres diários/semanais/mensais existem; PITR desligado. Não restaurar o backup sobre o banco compartilhado como ensaio.
 
 Stripe continua sem configuração; os preços `price_TODO_recreio_*` não permitem cobrança. Pendências no [roteiro de cobrança](../../docs/recreio/stripe-pendente.md). D2–D8, proteção familiar completa e condições jurídicas continuam abertas.
+
+Primeira [medição de custo](../../docs/recreio/custo-alfa-2026-11-15.md): US$ 0,01013593 de uso atribuído pelo Railway aos dois serviços às 12:25 UTC, em amostra praticamente ociosa. Banco/Redis/monitoração compartilhados ainda sem rateio; não comprova custo por jogador ou hora de mundo.
 
 ## Serviços implantados e arte preparada
 

@@ -751,6 +751,8 @@ export async function gravarFotografiaDoMundo(
     const { mundo } = await conferirPosse(tx, pedido);
     if (pedido.revisaoEsperada !== mundo.revision)
       throw new ErroDoRecreio("REVISAO_DIVERGENTE", { atual: mundo.revision });
+    if (pedido.foto.schemaVersion < mundo.schemaVersion)
+      throw new ErroDoRecreio("REVISAO_DIVERGENTE");
     const anterior = (await armazenamento.ultimaFotografia(tx, pedido.mundoId))?.diarioSeq ?? 0;
     if (pedido.foto.diarioSeq > mundo.journalSeq || pedido.foto.diarioSeq < anterior)
       throw new ErroDoRecreio("ENTRADA_INVALIDA");

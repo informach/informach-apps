@@ -11,6 +11,7 @@ import { criarMundo, REGRAS_DA_PROVA, restaurar } from "@informach/morada-sim";
 import { BAIRRO_DA_PROVA } from "@informach/morada-sim/conteudo";
 import { criarRoteiro, moradorDeNome } from "@informach/morada-sim/testes";
 import { describe, expect, it } from "vitest";
+import { aplicarRecuperacao, prepararRecuperacao } from "@/features/recuperacao/repository";
 import {
   aplicarRestauracaoDoMorada,
   prepararRestauracaoDoMorada,
@@ -111,6 +112,39 @@ async function evidencias(mundoId: string) {
 }
 
 describe("restauração operacional do Morada", () => {
+  it("servidor antigo recusa restaurar fotografia antiga de mundo em formato futuro", async () => {
+    const c = await cenario();
+    await db.update(spaces).set({ schemaVersion: 2 }).where(eq(spaces.id, c.mundoId));
+    const antes = await evidencias(c.mundoId);
+    await expect(prepararRestauracaoDoMorada(c.pedido)).rejects.toMatchObject({
+      codigo: "INTEGRIDADE",
+    });
+    expect(await evidencias(c.mundoId)).toEqual(antes);
+  });
+
+  it("alteração de formato depois do preparo invalida o material sem publicar revisão", async () => {
+    const c = await cenario();
+    const preparada = await prepararRestauracaoDoMorada(c.pedido);
+    await db.update(spaces).set({ schemaVersion: 2 }).where(eq(spaces.id, c.mundoId));
+    const antes = await evidencias(c.mundoId);
+    await expect(aplicarRestauracaoDoMorada(preparada)).rejects.toMatchObject({
+      codigo: "MATERIAL_ALTERADO",
+    });
+    expect(await evidencias(c.mundoId)).toEqual(antes);
+  });
+
+  it("escritor da restauração recusa downgrade mesmo com material atual e adapter inadequado", async () => {
+    const c = await cenario();
+    const preparada = await prepararRestauracaoDoMorada(c.pedido);
+    await db.update(spaces).set({ schemaVersion: 2 }).where(eq(spaces.id, c.mundoId));
+    const material = await prepararRecuperacao(preparada.pedido);
+    const antes = await evidencias(c.mundoId);
+    await expect(
+      aplicarRecuperacao(preparada.pedido, material, preparada.fotografia),
+    ).rejects.toMatchObject({ codigo: "INTEGRIDADE" });
+    expect(await evidencias(c.mundoId)).toEqual(antes);
+  });
+
   it("prepara sem gravar, publica revisão nova e retoma com os fatos críticos", async () => {
     const c = await cenario();
     const preparada = await prepararRestauracaoDoMorada(c.pedido);

@@ -102,6 +102,7 @@ export const MetaDeFotografiaSchema = z.strictObject({
   /** Última entrada do diário que a fotografia já contém. */
   diarioSeq: naoNegativo,
   tick: naoNegativo,
+  /** Versão do formato persistido. Escritas não podem reduzi-la. */
   schemaVersion: z.number().int().positive(),
   tipo: z.enum(TIPOS_DE_FOTOGRAFIA),
   bytes: naoNegativo,

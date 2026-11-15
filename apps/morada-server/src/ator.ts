@@ -293,6 +293,7 @@ export class Ator {
     const { host, mundoId } = this.op;
     const pedidoEm = this.op.agora();
     const posse = await host.reivindicarPosse(mundoId);
+    if (posse.schemaVersion > VERSAO_DO_MUNDO) throw new ErroDoRecreio("REVISAO_DIVERGENTE");
     this.cerca = posse.cerca;
     this.validaAte = pedidoEm + this.op.posseTtlMs;
     this.revisao = posse.revisao;

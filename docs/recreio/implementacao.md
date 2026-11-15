@@ -2,7 +2,7 @@
 
 Registro detalhado da frente. O índice de continuidade é o [estado do repositório](../estado-do-repositorio.md); as regras permanentes ficam no [AGENTS.md](../../AGENTS.md).
 
-Estado vigente em 13/11/2026: a `main` em `3f952fd` contém P0–P7, J0–J8, X1–X3 e as correções do [review de 13/11](review-2026-11-13.md). A continuação na `main` implementa a arte completa da casa atual. Ver [review do D1](review-d1-2026-11-13.md) para provas e limites. Ainda sem deploy; as seções datadas abaixo preservam a história dos marcos anteriores.
+Estado vigente em 15/11/2026: portal, Morada e manutenção implantados no alfa fechado em `7c8b6a14`, com prontidão pública e login real até a estante conferidos. A arte D1 está no volume, mas ainda não ativada: a jornada privada completa segue em investigação. A continuação autorizada abrange integridade, operação, D2–D8, proteção familiar e homologação comercial. Ver [execução atual](execucao-2026-11-15.md), [operação](../../apps/recreio/PRODUCAO.md) e [review D1](review-d1-2026-11-13.md). As seções datadas abaixo preservam a história dos marcos anteriores.
 
 ## De onde vem o escopo
 
@@ -11,7 +11,7 @@ As propostas ficam no repositório privado `informach/artes-3d`: `paginas/recrei
 - **Etapa 1, "Prova juntos"**: mínimo do Recreio (login, perfil, ingresso, mundo com membros de duas contas, posse da instância) mais a Fase 0 do Morada. Sai quando "duas contas diferentes jogam a mesma família, uma cai, a outra continua, e tudo volta depois de derrubar a instância", com o custo por hora de mundo medido.
 - **Etapa 2, "A diversão"**: Fases 1 e 2 do Morada jogando sozinho; o Recreio só corrige. Sai quando "uma pessoa joga 7 dias de jogo e quer continuar; o filho nasce e cresce sendo a mesma pessoa".
 
-As etapas 3 a 5 ficam fora.
+Na autorização inicial de 11/11, as etapas 3 a 5 ficaram fora. Em 15/11, o titular ampliou o escopo às cinco frentes do [registro de execução](execucao-2026-11-15.md); elas permanecem em implementação e não são requisitos já entregues.
 
 ## Onde cada coisa fica
 
@@ -36,9 +36,9 @@ Fecham o que as propostas deixaram em aberto. Mudam só com registro aqui.
 4. **Determinismo imposto** na simulação: tempo em ticks inteiros, sorteio por contador, aritmética inteira; `tsconfig` sem DOM nem Node, regra do Biome e teste que varre o código.
 5. **Tokens** em JWS Ed25519 com `jose`: ingresso de 60 s e uso único, sessão de jogo de 15 min. Chaves públicas em `/api/sdk/v1/jwks`; `jti` consumido no Postgres.
 6. **Direito de jogar na etapa 1 por concessão auditada**, porque a cobrança só entra no Marco 2. `decidirAcesso` é a única função que decide; `past_due` não joga.
-7. **Sem arte, tudo roda**: corpos e móveis procedurais atrás da mesma interface dos pacotes. CI e E2E nunca usam arte licenciada.
+7. **Sem arte, tudo roda**: corpos e móveis procedurais atrás da mesma interface dos pacotes. CI e E2E públicos nunca usam arte licenciada; a homologação com arte ocorre somente no repositório privado, com evidências privadas e arquivos fora do checkout público.
 8. **Tabelas em inglês**, como todo o `packages/db`; textos, URLs e API do SDK em português.
-9. **Estados operacionais separados na IaC:** desde o provisionamento de 13/11, `RECREIO_PROVISIONED=true` inclui os recursos; `RECREIO_DOMAINS_CONFIGURED=true` preserva os vínculos autorizados, com DNS/certificados ainda pendentes; `RECREIO_LAUNCHED=false` mantém os serviços sem fonte e o cron sem imagem. Não usar essas constantes como rollback; estado e bloqueios no [registro operacional](railway-2026-11-13.md).
+9. **Estados operacionais separados na IaC:** `RECREIO_PROVISIONED=true` inclui os recursos; `RECREIO_DOMAINS_CONFIGURED=true` preserva os vínculos autorizados, com DNS/certificados conferidos em 15/11; `RECREIO_LAUNCHED=true` declara as fontes dos serviços e a imagem do cron já implantados. Não usar essas constantes como rollback nem aplicar todo o grafo para alterar dois serviços; estado e bloqueios no [registro de execução](execucao-2026-11-15.md).
 10. **O servidor do jogo fala com o Recreio por HTTP**, nunca pelas tabelas. O empacotador de arte fica neste repositório como código, e não no `artes-3d`, para o contrato do manifesto e o empacotador andarem na mesma versão.
 11. **O app se chama `@informach/recreio-app`** no workspace, porque `@informach/recreio` é o package de domínio e contratos, como a proposta prescreve. Os scripts da raiz seguem o padrão curto (`dev:recreio`, `build:recreio`, `start:recreio`).
 
@@ -90,8 +90,8 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 | --- | --- | --- |
 | X1 | Plataforma real no servidor, `/jogar/morada`, E2E com duas contas | feito |
 | X2 | Empacotador e corpos reais na máquina de desenvolvimento | feito |
-| X3 | Railway atrás da constante, build de produção, Bastidores mínimo, guias | integrado à `main` em `3f952fd`; sem deploy |
-| X4 | Deploy fechado e medição de custo, só com autorização | em curso: recursos provisionados; deploy e custo pendentes |
+| X3 | Railway atrás da constante, build de produção, Bastidores mínimo, guias | integrado; serviços implantados em 15/11 |
+| X4 | Deploy fechado e medição de custo, com autorização do titular | em curso: alfa implantado, ingestão Sentry e uso ocioso medidos; restauração real, agenda externa, alertas e custo por mundo pendentes |
 
 ### Etapa 2
 

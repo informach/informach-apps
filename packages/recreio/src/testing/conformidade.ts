@@ -270,6 +270,18 @@ export function descreverConformidadeDoHost(nome: string, criarAmbiente: Fabrica
     });
 
     describe("fotografia", () => {
+      it("permite avançar o formato, mas recusa reduzi-lo sem alterar a fotografia", async () => {
+        const a = await executando();
+        await a.cliente.gravarFotografia({ ...foto(a.cerca, 0, 0), schemaVersion: 2 });
+        const antes = await a.cliente.lerFotografia({ mundoId, cerca: a.cerca });
+        await recusa(a.cliente.gravarFotografia(foto(a.cerca, 1, 0)), "REVISAO_DIVERGENTE");
+        expect(await a.cliente.lerFotografia({ mundoId, cerca: a.cerca })).toEqual(antes);
+        expect(
+          await a.cliente.gravarFotografia({ ...foto(a.cerca, 1, 0), schemaVersion: 3 }),
+        ).toEqual({ revisao: 2 });
+        expect((await a.cliente.reivindicarPosse(mundoId)).schemaVersion).toBe(3);
+      });
+
       it("só grava sobre a revisão que a instância conhece", async () => {
         const a = await executando();
         await a.cliente.anexarAoDiario({ mundoId, cerca: a.cerca, entradas: [fato(1)] });
