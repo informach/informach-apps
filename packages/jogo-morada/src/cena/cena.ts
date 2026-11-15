@@ -169,6 +169,8 @@ export class Cena {
   private placa = "";
   private raf = 0;
   private ultimo = 0;
+  /** No máximo um quadro enviado à GPU; consultar sem bloquear a interface. */
+  private quadroPendente: WebGLSync | null = null;
   private descartada = false;
   private perdida = false;
   private revisaoMontada = -1;
@@ -410,6 +412,7 @@ export class Cena {
     this.descartada = true;
     cancelAnimationFrame(this.raf);
     this.raf = 0;
+    this.limparQuadroPendente();
     this.observador.disconnect();
     this.cancelarAtivos?.();
     const canvas = this.renderer.domElement;
@@ -638,6 +641,31 @@ export class Cena {
     this.raf = 0;
   }
 
+  private limparQuadroPendente(): void {
+    if (this.quadroPendente) this.renderer.getContext().deleteSync(this.quadroPendente);
+    this.quadroPendente = null;
+  }
+
+  private gpuDisponivel(): boolean {
+    if (!this.quadroPendente) return true;
+    const gl = this.renderer.getContext();
+    // Prazo zero: nunca esperar pela GPU no thread da interface.
+    const estado = gl.clientWaitSync(this.quadroPendente, 0, 0);
+    if (estado === gl.TIMEOUT_EXPIRED) return false;
+    if (estado === gl.ALREADY_SIGNALED || estado === gl.CONDITION_SATISFIED) {
+      this.limparQuadroPendente();
+      return true;
+    }
+    this.interromperDesenho();
+    return false;
+  }
+
+  private interromperDesenho(): void {
+    this.perdida = true;
+    this.desligar();
+    this.sessao.loja.definirContextoPerdido(true);
+  }
+
   private readonly quadro = (agora: number): void => {
     this.raf = 0;
     if (this.descartada || this.perdida || document.hidden) return;
@@ -647,12 +675,17 @@ export class Cena {
     const intervalo = agora - this.ultimo;
     // No degrau mais baixo, pula os quadros que vêm antes da hora.
     if (limite > 0 && intervalo < limite - 2) return;
+    if (!this.gpuDisponivel()) return;
     this.ultimo = agora;
     const dt = Math.min(100, Math.max(0, intervalo));
     const inicio = performance.now();
 
     this.atualizar(agora, dt);
     this.renderer.render(this.scene, this.camera);
+    const gl = this.renderer.getContext();
+    this.quadroPendente = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+    if (this.quadroPendente) gl.flush();
+    else this.interromperDesenho();
     this.quadros++;
 
     // ligar() já reinicia a janela ao voltar de uma aba oculta. Um quadro
@@ -887,9 +920,9 @@ export class Cena {
   private readonly aoPerder = (evento: Event): void => {
     // Sem isto o navegador não devolve o contexto.
     evento.preventDefault();
-    this.perdida = true;
-    this.desligar();
-    this.sessao.loja.definirContextoPerdido(true);
+    // Os objetos de sincronização também deixam de existir com o contexto.
+    this.quadroPendente = null;
+    this.interromperDesenho();
   };
 
   private readonly aoRestaurar = (): void => {
