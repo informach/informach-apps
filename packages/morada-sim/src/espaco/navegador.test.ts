@@ -112,6 +112,7 @@ describe("navegação em grade", () => {
       giro: 0,
       cor: 0,
       ocupacao: {},
+      revisao: 1,
     };
     const nav = criarNavegador(lote, null, [cama]);
     const dentro: PontoMm = [2500, 2000];

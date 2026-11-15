@@ -69,6 +69,8 @@ export type VisaoDoCliente = {
   memorias: Memoria[];
   presenca: PresencaVista;
   catalogoDeAparencias: EstadoDoMundo["catalogoDeAparencias"];
+  loja: EstadoDoMundo["loja"];
+  edicao: { proximaSequencia: number | null };
 } & { [T in TabelaReplicada]: EstadoDoMundo[T] } & Pick<EstadoDoMundo, "bairros">;
 
 export type Mudanca =
@@ -115,13 +117,21 @@ function valorDaChave(estado: EstadoDoMundo, presenca: Presenca, chave: ChaveRep
 const CHAVES: readonly ChaveReplicada[] = ["relogio", "regras", "acessos", "memorias", "presenca"];
 
 /** A visão inteira, para quem acabou de entrar ou de reconectar. */
-export function projetar(estado: EstadoDoMundo, presenca: Presenca): VisaoDoCliente {
+export function projetar(
+  estado: EstadoDoMundo,
+  presenca: Presenca,
+  perfilId?: PerfilId,
+): VisaoDoCliente {
+  const ultima =
+    estado.edicoes.find((registro) => registro.autor === perfilId)?.ultimaSequencia ?? 0;
   return copiar({
     mundoId: estado.id,
     tick: estado.relogio.tick,
     relogio: valorDaChave(estado, presenca, "relogio") as RelogioVisto,
     regras: estado.regras,
     catalogoDeAparencias: estado.catalogoDeAparencias,
+    loja: estado.loja,
+    edicao: { proximaSequencia: ultima < Number.MAX_SAFE_INTEGER ? ultima + 1 : null },
     acessos: estado.acessos,
     memorias: estado.memorias,
     presenca: presencaVista(presenca),

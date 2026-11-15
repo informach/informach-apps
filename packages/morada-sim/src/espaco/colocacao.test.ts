@@ -13,6 +13,7 @@ function movel(campos: Partial<Objeto> = {}): Objeto {
     loteId: "lote_000001",
     catalogo: rack,
     versao: 1,
+    revisao: 1,
     pos: [2000, 2000, 0],
     andar: 0,
     giro: 0,

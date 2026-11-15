@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   admitirReciboDeEdicao,
   comandoDeEdicao,
+  compactarRespostasDeEdicao,
   consultarEdicao,
   iniciarRegistroDeEdicoes,
   type PedidoDeEdicao,
   PedidoDeEdicaoSchema,
   RESPOSTAS_DE_EDICAO,
+  RESPOSTAS_DE_EDICAO_DO_MUNDO,
   type ReciboDeEdicao,
   RegistroDeEdicoesSchema,
 } from "./edicao";
@@ -124,9 +126,13 @@ describe("sequência durável da edição", () => {
     );
   });
 
-  it("recusa fotografia com janela incompleta, autor ou sequência adulterados", () => {
+  it("recusa fotografia com autor ou sequência adulterados; janela vazia conserva o piso", () => {
     const registro = admitirReciboDeEdicao(iniciarRegistroDeEdicoes(autor), recibo()).registro;
-    expect(RegistroDeEdicoesSchema.safeParse({ ...registro, recentes: [] }).success).toBe(false);
+    const semRespostas = RegistroDeEdicoesSchema.parse({ ...registro, recentes: [] });
+    expect(consultarEdicao(semRespostas, autor, comandoDeEdicao(autor, 1), pedido())).toEqual({
+      t: "recusada",
+      motivo: "antiga",
+    });
     expect(RegistroDeEdicoesSchema.safeParse({ ...registro, autor: "outro" }).success).toBe(false);
     expect(RegistroDeEdicoesSchema.safeParse({ ...registro, ultimaSequencia: 2 }).success).toBe(
       false,
@@ -134,6 +140,33 @@ describe("sequência durável da edição", () => {
     expect(
       RegistroDeEdicoesSchema.safeParse({ ...registro, recentes: [recibo(), recibo()] }).success,
     ).toBe(false);
+  });
+
+  it("limita respostas de vários autores sem apagar suas sequências duráveis", () => {
+    const registros = Array.from({ length: 10 }, (_, indice) => {
+      const perfilId = `autor-${indice}`;
+      let registro = iniciarRegistroDeEdicoes(perfilId);
+      for (let numero = 1; numero <= 40; numero++)
+        registro = admitirReciboDeEdicao(registro, { ...recibo(numero), autor: perfilId }).registro;
+      return registro;
+    });
+    const antes = JSON.stringify(registros);
+    const compactados = compactarRespostasDeEdicao(registros);
+    expect(compactados.reduce((soma, r) => soma + r.recentes.length, 0)).toBe(
+      RESPOSTAS_DE_EDICAO_DO_MUNDO,
+    );
+    expect(compactados.every((r) => r.ultimaSequencia === 40)).toBe(true);
+    expect(compactados.at(-1)?.recentes).toHaveLength(32);
+    const antigo = compactados[0];
+    if (!antigo) throw new Error("Registro ausente");
+    expect(antigo.recentes).toEqual([]);
+    expect(
+      consultarEdicao(antigo, antigo.autor, comandoDeEdicao(antigo.autor, 1), pedido()),
+    ).toEqual({
+      t: "recusada",
+      motivo: "antiga",
+    });
+    expect(JSON.stringify(registros)).toBe(antes);
   });
 
   it("recusa preço/saldo do navegador, frações, versões nulas e colocação não cardinal", () => {

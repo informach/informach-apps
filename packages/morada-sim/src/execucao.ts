@@ -1,7 +1,9 @@
 import { CatalogoDeAparenciasSchema, conferirContinuidadeDaAparencia } from "./comandos/aparencia";
 import { type Entrada, EntradaSchema } from "./comandos/intencao";
+import { type CatalogoDaLoja, conferirContinuidadeDaLoja } from "./comandos/loja";
 import { aplicarIntencao } from "./comandos/pipeline";
 import { modeloDeImovel } from "./conteudo";
+import { montarLojaInicial } from "./conteudo/loja";
 import { novoId, relacaoEntre } from "./dominio/estado";
 import type { Fato } from "./dominio/fatos";
 import type { FamiliaId, LoteId, MoradorId, MundoId, PerfilId } from "./dominio/ids";
@@ -116,6 +118,8 @@ export type Mundo = {
 };
 
 export type OpcoesDoMundo = {
+  /** Limite do diário entregue pelo host; não vem da intenção do jogador. */
+  maxBytesPorFato?: number;
   /** Acusa qualquer mudança visível que não foi marcada para replicação. Para testes. */
   conferirReplicacao?: boolean;
 };
@@ -142,7 +146,16 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
   }
 
   function contexto(): Contexto {
-    return { estado, presenca, fatos, apresentacao, tocadas, chavesTocadas, navegador };
+    return {
+      estado,
+      presenca,
+      fatos,
+      apresentacao,
+      tocadas,
+      chavesTocadas,
+      navegador,
+      maxBytesPorFato: opcoes.maxBytesPorFato,
+    };
   }
 
   function colher(): SaidaDoPasso {
@@ -277,8 +290,8 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
       };
     },
 
-    visao() {
-      return projetar(estado, presenca);
+    visao(perfilId) {
+      return projetar(estado, presenca, perfilId);
     },
 
     hash(escopo = "duravel") {
@@ -299,6 +312,7 @@ function criarMorador(
 }
 
 export type NovoMundo = {
+  loja?: CatalogoDaLoja;
   catalogoDeAparencias?: import("./comandos/aparencia").CatalogoDeAparencias;
   mundoId: MundoId;
   semente: number;
@@ -334,6 +348,8 @@ export function criarMundo(novo: NovoMundo, opcoes: OpcoesDoMundo = {}): Mundo {
     memorias: [],
     comandos: [],
     fundacao: null,
+    loja: conferirContinuidadeDaLoja(novo.loja ?? montarLojaInicial()),
+    edicoes: [],
     catalogoDeAparencias: novo.catalogoDeAparencias
       ? CatalogoDeAparenciasSchema.parse(novo.catalogoDeAparencias)
       : null,
@@ -381,6 +397,7 @@ export function criarMundo(novo: NovoMundo, opcoes: OpcoesDoMundo = {}): Mundo {
           loteId,
           catalogo: objeto.catalogo,
           versao: objeto.versao,
+          revisao: 1,
           pos: [objeto.pos[0] + dx, objeto.pos[1] + dy, objeto.pos[2]],
           andar: objeto.andar,
           giro: objeto.giro,

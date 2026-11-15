@@ -94,6 +94,8 @@ export type Objeto = {
   /** Entrada do catálogo. O mundo salvo nunca guarda arquivo 3D. */
   catalogo: string;
   versao: number;
+  /** Revisão da entidade; a versão acima pertence ao conteúdo do catálogo. */
+  revisao: number;
   pos: [x: Mm, y: Mm, z: Mm];
   andar: number;
   /** Graus, em múltiplos de 90. Com 0 a frente aponta para −Y. */
@@ -296,8 +298,16 @@ export type Resultado =
       /** Versão nova de cada entidade que o comando mudou. */
       versoes: Record<string, number>;
       repetido?: true;
+      edicao?: { proximaSequencia: number | null };
     }
-  | { ok: false; comandoId: string; motivo: MotivoDeRecusa; detalhe?: string; repetido?: true };
+  | {
+      ok: false;
+      comandoId: string;
+      motivo: MotivoDeRecusa;
+      detalhe?: string;
+      repetido?: true;
+      edicao?: { proximaSequencia: number | null };
+    };
 
 export type RegistroDeComando = { comandoId: string; resultado: Resultado };
 
@@ -311,7 +321,7 @@ export type ReciboDeFundacao = {
 
 export type EstadoDoMundo = {
   formato: "morada.mundo";
-  versao: 2;
+  versao: 3;
   id: MundoId;
   semente: number;
   relogio: Relogio;
@@ -335,6 +345,9 @@ export type EstadoDoMundo = {
   comandos: RegistroDeComando[];
   /** Não é replicado; o servidor usa o recibo para recuperar confirmações perdidas. */
   fundacao: ReciboDeFundacao | null;
+  loja: import("../comandos/loja").CatalogoDaLoja;
+  /** Piso durável por autor; respostas recentes têm limites por autor e por mundo. */
+  edicoes: import("../comandos/edicao").RegistroDeEdicoes[];
   /** Conteúdo admitido na criação; não muda ao trocar o pacote de arte do servidor. */
   catalogoDeAparencias: import("../comandos/aparencia").CatalogoDeAparencias | null;
   /** Fatos já aplicados neste tick, para não repetir ids no mesmo instante. */

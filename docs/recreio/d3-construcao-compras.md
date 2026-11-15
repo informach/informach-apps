@@ -121,6 +121,33 @@ registro. O pedido de edição passa a fixar família/lote; o recibo conserva as
 capacidades que o host admitiu para exigir a autorização atual em um reenvio.
 Sem comandos ativados e sem alteração do formato do mundo nesta candidata.
 
+Esse primeiro módulo de continuidade (`6e215d5e`) passou nos seis gates
+`43756008227`. A primeira rodada parou na tipagem do teste que acessava um
+morador possivelmente ausente; passou a exigir a entidade, sem non-null assertion.
+
+### Integração V3 em preparação, sem publicação
+
+A próxima candidata acrescenta mundo V3 com loja persistida, revisão própria
+dos objetos e registros por autor. Migra V1/V2 preservando família, fundação,
+aparência, relações, saldo e contadores. O servidor confere a disponibilidade
+da arte ao abrir, e o cliente recebe catálogo e próxima sequência própria.
+
+`editar_casa` passa antes da memória genérica: exige sessão, família/lote,
+permissão atual e identidade derivada do autor/sequência. Compra exige `gastar`;
+movimentações acima de 500 M$ exigem `gerir_financas`, inclusive em reenvios.
+Compra, mover/girar, pintar e vender produzem `EdicaoRegistrada`, com recibo e
+um efeito absoluto; validação espacial ocorre antes de consumir ID/dinheiro.
+Recusa admitida também tem recibo, sem efeito. Fatos grandes são recusados
+antes do efeito, respeitando o limite de bytes entregue pelo host.
+
+Respostas recentes: até 32 por autor e 128 no mundo, conservando o piso durável
+ao compactar. Histórico admite até 2048 autores distintos e 256 objetos por
+lote; atingir o limite recusa a operação, sem apagar sequências. São limites
+do primeiro perfil, não capacidade comprovada. Comandos e migração ainda
+aguardam os gates públicos, prova de journal/ACK no servidor, editor e
+homologação privada antes de qualquer implantação V3. Construção estrutural,
+travas de edição, desfazer/refazer e escolha de casas continuam pendentes.
+
 Arquivos: `comandos/intencao.ts`, `comandos/pipeline.ts`, novo sistema de edição;
 `dominio/tipos.ts`, `dominio/fatos.ts`, `dominio/reduzir-fato.ts`,
 `dominio/invariantes.ts`, `formatos/fotografia.ts`, `visao/replicacao.ts`.

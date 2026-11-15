@@ -4,6 +4,7 @@ import { jogoPorId } from "@informach/config/jogos";
 import {
   APELIDO_MAX,
   abrirFotografia,
+  conferirCatalogoDaLoja,
   conferirMetadadosDaFotografia,
   criarMundo,
   type Fato,
@@ -88,6 +89,7 @@ type EntradaNaCaixa =
   | { t: "encerrada"; sid: string };
 
 export type OpcoesDoAtor = {
+  moveisDisponiveis?: readonly import("@informach/morada-sim").MovelDisponivel[];
   catalogoDeAparencias?: import("@informach/morada-sim").CatalogoDeAparencias;
   mundoId: MundoId;
   host: ClienteDoHost;
@@ -359,7 +361,9 @@ export class Ator {
     )
       throw new ErroDoRecreio("REVISAO_DIVERGENTE");
     conferirCatalogoDisponivel(base.estado.catalogoDeAparencias, this.op.catalogoDeAparencias);
-    this.mundo = restaurar(base, fatos);
+    if (this.op.moveisDisponiveis)
+      conferirCatalogoDaLoja(base.estado.loja, this.op.moveisDisponiveis);
+    this.mundo = restaurar(base, fatos, { maxBytesPorFato: LIMITES.diarioLoteMaxBytes });
     this.tickConfirmado = this.mundo.estado.relogio.tick;
     this.estado = "ativo";
     this.fotografadoEm = this.op.agora();

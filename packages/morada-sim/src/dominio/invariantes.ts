@@ -1,4 +1,9 @@
 import { EdicaoDaAparenciaSchema, opcaoDeAparencia } from "../comandos/aparencia";
+import {
+  AUTORES_DE_EDICAO_DO_MUNDO,
+  RESPOSTAS_DE_EDICAO,
+  RESPOSTAS_DE_EDICAO_DO_MUNDO,
+} from "../comandos/edicao";
 import { relacaoId } from "./ids";
 import { listar, obter, type Tabela } from "./tabela";
 import type { EstadoDoMundo, Presenca } from "./tipos";
@@ -13,6 +18,22 @@ import type { EstadoDoMundo, Presenca } from "./tipos";
 export function verificarInvariantes(estado: EstadoDoMundo, presenca?: Presenca): string[] {
   const problemas: string[] = [];
   const erro = (texto: string) => problemas.push(texto);
+  if (
+    estado.edicoes.length > AUTORES_DE_EDICAO_DO_MUNDO ||
+    new Set(estado.edicoes.map((registro) => registro.autor)).size !== estado.edicoes.length ||
+    estado.edicoes.reduce((total, registro) => total + registro.recentes.length, 0) >
+      RESPOSTAS_DE_EDICAO_DO_MUNDO
+  )
+    erro("Histórico de edição repetido ou acima do limite");
+  for (const registro of estado.edicoes) {
+    if (
+      !Number.isSafeInteger(registro.ultimaSequencia) ||
+      registro.ultimaSequencia < 0 ||
+      registro.recentes.length > RESPOSTAS_DE_EDICAO ||
+      registro.recentes.length > registro.ultimaSequencia
+    )
+      erro("Sequência de edição inválida");
+  }
   const fundacao = estado.fundacao;
   if (
     fundacao &&
@@ -133,7 +154,8 @@ export function verificarInvariantes(estado: EstadoDoMundo, presenca?: Presenca)
 
   for (const familia of listar(estado.familias)) {
     // O fundo nunca fica negativo.
-    if (familia.fundo < 0) erro(`${familia.id}: fundo negativo`);
+    if (!Number.isSafeInteger(familia.fundo) || familia.fundo < 0)
+      erro(`${familia.id}: fundo inválido`);
     if (familia.loteId && !obter(estado.lotes, familia.loteId)) {
       erro(`${familia.id}: lote inexistente`);
     }
@@ -141,6 +163,8 @@ export function verificarInvariantes(estado: EstadoDoMundo, presenca?: Presenca)
 
   // Um ponto de uso tem um ocupante só, e o ocupante existe.
   for (const objeto of listar(estado.objetos)) {
+    if (!Number.isSafeInteger(objeto.revisao) || objeto.revisao < 1)
+      erro(`${objeto.id}: revisão inválida`);
     if (!obter(estado.lotes, objeto.loteId)) erro(`${objeto.id}: lote inexistente`);
     for (const [ponto, moradorId] of Object.entries(objeto.ocupacao)) {
       if (!obter(estado.moradores, moradorId)) erro(`${objeto.id}/${ponto}: ocupante inexistente`);

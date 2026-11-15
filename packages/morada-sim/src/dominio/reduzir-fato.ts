@@ -1,9 +1,17 @@
-import { copiar } from "../nucleo/canonico";
+import {
+  admitirReciboDeEdicao,
+  comandoDeEdicao,
+  compactarRespostasDeEdicao,
+  iniciarRegistroDeEdicoes,
+} from "../comandos/edicao";
+import { comContinuidadeEspacial } from "../espaco/continuidade";
+import { canonico, copiar } from "../nucleo/canonico";
 import { necessidadesNaNovaFase, registrarId, relacaoEntre } from "./estado";
 import type { Fato } from "./fatos";
 import type { MemoriaId, MoradorId } from "./ids";
+import { verificarInvariantes } from "./invariantes";
 import { PERMISSOES_DO_FUNDADOR } from "./permissoes";
-import { exigir, inserir, obter, tem } from "./tabela";
+import { exigir, inserir, obter, remover, tem } from "./tabela";
 import type { EstadoDoMundo, Local, Memoria, Morador } from "./tipos";
 
 /**
@@ -49,6 +57,72 @@ export function reduzirFato(estado: EstadoDoMundo, fato: Fato): void {
   if (/^fat_\d+$/.test(sufixo)) registrarId(estado, sufixo);
   const dados = fato.dados;
   switch (dados.tipo) {
+    case "EdicaoRegistrada": {
+      const recibo = dados.recibo;
+      if (
+        fato.id !== comandoDeEdicao(recibo.autor, recibo.pedido.sequencia) ||
+        fato.causa.comandoId !== fato.id ||
+        fato.causa.autor !== recibo.autor ||
+        fato.familiaId !== recibo.pedido.familiaId
+      )
+        throw new Error("Identidade divergente do fato de edição");
+      const registro =
+        estado.edicoes.find((item) => item.autor === recibo.autor) ??
+        iniciarRegistroDeEdicoes(recibo.autor);
+      const admitido = admitirReciboDeEdicao(registro, recibo);
+      if (!admitido.aplicar) return;
+      const efeito = dados.efeito;
+      if (recibo.resultado.ok !== (efeito !== null))
+        throw new Error("Efeito e recibo de edição divergentes");
+      if (
+        recibo.resultado.ok &&
+        (recibo.resultado.tick !== fato.tick || efeito?.continuidade.tick !== fato.tick)
+      )
+        throw new Error("Tick de edição divergente");
+      const novo = efeito ? comContinuidadeEspacial(estado, efeito.continuidade) : copiar(estado);
+      novo.relogio.tick = Math.max(novo.relogio.tick, fato.tick);
+      const familia = obter(novo.familias, recibo.pedido.familiaId);
+      const lote = obter(novo.lotes, recibo.pedido.loteId);
+      if (!familia || !lote || familia.loteId !== lote.id || lote.familiaId !== familia.id)
+        throw new Error("Contexto divergente do fato de edição");
+      if (efeito) {
+        const id = efeito.anterior?.id ?? efeito.depois?.id;
+        const atual = id ? (obter(novo.objetos, id) ?? null) : null;
+        if (
+          !id ||
+          efeito.familiaId !== familia.id ||
+          efeito.loteId !== lote.id ||
+          efeito.saldoAnterior !== familia.fundo ||
+          efeito.versaoDaFamiliaAnterior !== familia.versao ||
+          efeito.revisaoDoEspacoAnterior !== lote.revisaoDoEspaco ||
+          canonico(atual) !== canonico(efeito.anterior) ||
+          !Number.isSafeInteger(efeito.saldo) ||
+          efeito.saldo < 0 ||
+          !Number.isSafeInteger(efeito.versaoDaFamilia) ||
+          efeito.versaoDaFamilia < familia.versao ||
+          !Number.isSafeInteger(efeito.revisaoDoEspaco) ||
+          efeito.revisaoDoEspaco < lote.revisaoDoEspaco ||
+          (efeito.depois && (efeito.depois.id !== id || efeito.depois.loteId !== lote.id))
+        )
+          throw new Error("Efeito incompatível com o estado da edição");
+        if (efeito.depois) {
+          if (atual) novo.objetos.porId[id] = copiar(efeito.depois);
+          else inserir(novo.objetos, id, copiar(efeito.depois));
+          registrarId(novo, id);
+        } else remover(novo.objetos, id);
+        familia.fundo = efeito.saldo;
+        familia.versao = efeito.versaoDaFamilia;
+        lote.revisaoDoEspaco = efeito.revisaoDoEspaco;
+      }
+      novo.edicoes = compactarRespostasDeEdicao([
+        ...novo.edicoes.filter((item) => item.autor !== recibo.autor),
+        admitido.registro,
+      ]);
+      const problemas = verificarInvariantes(novo);
+      if (problemas.length) throw new Error(`Edição inválida: ${problemas.slice(0, 3).join("; ")}`);
+      Object.assign(estado, novo);
+      return;
+    }
     case "FamiliaFundada": {
       if (estado.fundacao) {
         if (

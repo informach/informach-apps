@@ -3,6 +3,8 @@ import { canonico } from "../nucleo/canonico";
 
 /** Independente dos 512 comandos genéricos e do histórico de desfazer. */
 export const RESPOSTAS_DE_EDICAO = 32;
+export const RESPOSTAS_DE_EDICAO_DO_MUNDO = 128;
+export const AUTORES_DE_EDICAO_DO_MUNDO = 2048;
 const inteiro = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const sequencia = inteiro.positive();
 const autor = z.string().regex(/^[A-Za-z0-9_-]{1,44}$/);
@@ -75,6 +77,7 @@ export const ResultadoDeEdicaoSchema = z.discriminatedUnion("ok", [
       "ocupado",
       "limite",
     ]),
+    detalhe: z.string().min(1).max(80).optional(),
   }),
 ]);
 
@@ -98,9 +101,9 @@ export const RegistroDeEdicoesSchema = z
     recentes: z.array(ReciboDeEdicaoSchema).max(RESPOSTAS_DE_EDICAO),
   })
   .superRefine((registro, ctx) => {
-    const quantidade = Math.min(registro.ultimaSequencia, RESPOSTAS_DE_EDICAO);
-    if (registro.recentes.length !== quantidade)
-      ctx.addIssue({ code: "custom", message: "Janela de recibos incompleta" });
+    const quantidade = registro.recentes.length;
+    if (quantidade > registro.ultimaSequencia)
+      ctx.addIssue({ code: "custom", message: "Janela maior que a sequência admitida" });
     for (const [indice, recibo] of registro.recentes.entries()) {
       if (
         recibo.autor !== registro.autor ||
@@ -110,6 +113,29 @@ export const RegistroDeEdicoesSchema = z
     }
   });
 export type RegistroDeEdicoes = z.infer<typeof RegistroDeEdicoesSchema>;
+
+/** Ordem de atividade: o autor da última admissão fica no fim da lista. */
+export function compactarRespostasDeEdicao(
+  registros: readonly RegistroDeEdicoes[],
+): RegistroDeEdicoes[] {
+  if (registros.length > AUTORES_DE_EDICAO_DO_MUNDO)
+    throw new Error("Limite de autores no histórico de edição");
+  let restantes = RESPOSTAS_DE_EDICAO_DO_MUNDO;
+  const saida: RegistroDeEdicoes[] = [];
+  for (let indice = registros.length - 1; indice >= 0; indice--) {
+    const registro = registros[indice];
+    if (!registro) continue;
+    const quantidade = Math.min(registro.recentes.length, restantes);
+    restantes -= quantidade;
+    saida.push(
+      RegistroDeEdicoesSchema.parse({
+        ...registro,
+        recentes: quantidade > 0 ? registro.recentes.slice(-quantidade) : [],
+      }),
+    );
+  }
+  return saida.reverse();
+}
 
 export function iniciarRegistroDeEdicoes(perfilId: string): RegistroDeEdicoes {
   return { autor: autor.parse(perfilId), ultimaSequencia: 0, recentes: [] };

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { AcaoId, FamiliaId, MoradorId, ObjetoId, PedidoId } from "../dominio/ids";
 import { PERMISSOES } from "../dominio/permissoes";
+import { PedidoDeEdicaoSchema } from "./edicao";
 import { RascunhoDaFamiliaSchema } from "./fundacao";
 
 /**
@@ -32,6 +33,7 @@ export const TIPOS_DE_PEDIDO = ["namoro", "casamento", "morar_junto", "bebe"] as
 const velocidade = z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]);
 
 export const AcaoPedidaSchema = z.discriminatedUnion("t", [
+  z.strictObject({ t: z.literal("editar_casa"), pedido: PedidoDeEdicaoSchema }),
   z.strictObject({ t: z.literal("fundar_familia"), rascunho: RascunhoDaFamiliaSchema }),
   /** Pede o controle do morador da intenção. */
   z.strictObject({ t: z.literal("reservar") }),

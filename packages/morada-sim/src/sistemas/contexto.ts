@@ -64,6 +64,7 @@ export type Contexto = {
   tocadas: Map<TabelaReplicada, Set<string>>;
   chavesTocadas: Set<ChaveReplicada>;
   navegador(loteId: LoteId): Navegador;
+  maxBytesPorFato?: number;
 };
 
 export function tocar(ctx: Contexto, tabela: TabelaReplicada, id: string): void {
@@ -90,6 +91,14 @@ export function novaMemoria(ctx: Contexto): MemoriaId {
 /** Quais tabelas e chaves cada tipo de fato pode mudar, para a replicação. */
 function tocarPeloFato(ctx: Contexto, dados: DadosDoFato): void {
   switch (dados.tipo) {
+    case "EdicaoRegistrada":
+      if (dados.efeito) {
+        tocar(ctx, "familias", dados.efeito.familiaId);
+        tocar(ctx, "lotes", dados.efeito.loteId);
+        const objeto = dados.efeito.depois ?? dados.efeito.anterior;
+        if (objeto) tocar(ctx, "objetos", objeto.id);
+      }
+      return;
     case "FamiliaFundada":
       tocar(ctx, "familias", dados.familia.id);
       if (dados.familia.loteId) tocar(ctx, "lotes", dados.familia.loteId);

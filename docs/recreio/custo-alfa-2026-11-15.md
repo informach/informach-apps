@@ -18,3 +18,17 @@ Na janela móvel anterior de uma hora, com 61 amostras de 60 s: portal com memó
 - Comparar uso acumulado antes/depois, respeitando a defasagem da contabilização, e guardar instante/release/configuração.
 - Rodar carga sintética no GitHub e relacionar mundos ativos, CPU, memória, tráfego e latência do servidor; não executar carga nesta máquina nem no Postgres compartilhado por padrão.
 - Definir rateio explícito da infraestrutura compartilhada e margem/capacidade antes da venda. Limite configurado de mundos não é capacidade comprovada.
+
+## Segunda leitura, aproximadamente 20h04 UTC
+
+Mesma consulta e período: portal **US$ 0,02732842**, Morada **US$ 0,03619232**,
+soma exclusiva **US$ 0,06352074**. A diferença para a leitura anterior arredondada
+é aproximadamente US$ 0,05338481. [Resposta numérica sanitizada](evidencias/custo-alfa-2026-11-15-2004.json).
+
+O cron continua sem linha na resposta; não atribuir custo zero. Nesse intervalo
+houve implantações, validações operacionais e o uso humano já confirmado, mas
+não uma janela controlada com tempo ativo de mundo/jogadores conhecido. O total
+é acumulado estimado e pode chegar com atraso; não dividir pelas horas de
+relógio e apresentar isso como custo por hora de mundo. Banco/Redis/backups
+compartilhados continuam sem rateio. Os quatro critérios de aceite acima
+permanecem abertos.

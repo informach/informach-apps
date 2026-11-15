@@ -1,5 +1,12 @@
 import { z } from "zod";
 import { CatalogoDeAparenciasSchema, conferirContinuidadeDaAparencia } from "../comandos/aparencia";
+import {
+  AUTORES_DE_EDICAO_DO_MUNDO,
+  RESPOSTAS_DE_EDICAO_DO_MUNDO,
+  RegistroDeEdicoesSchema,
+} from "../comandos/edicao";
+import { conferirContinuidadeDaLoja } from "../comandos/loja";
+import { montarLojaInicial } from "../conteudo/loja";
 import type { EstadoDoMundo } from "../dominio/tipos";
 
 /**
@@ -11,7 +18,7 @@ import type { EstadoDoMundo } from "../dominio/tipos";
  * recusado, nunca adivinhado.
  */
 
-export const VERSAO_DO_MUNDO = 2;
+export const VERSAO_DO_MUNDO = 3;
 export const VERSAO_DA_FOTOGRAFIA = 1;
 
 const ReciboDeFundacaoSchema = z.strictObject({
@@ -31,11 +38,11 @@ const EnvelopeSchema = z.object({
   versao: z.number().int().positive(),
   mundoId: z.string().min(1),
   tick: z.number().int().nonnegative(),
-  estado: z.object({
+  estado: z.looseObject({
     formato: z.literal("morada.mundo"),
     versao: z.number().int().positive(),
     id: z.string().min(1),
-    relogio: z.object({ tick: z.number().int().nonnegative() }),
+    relogio: z.looseObject({ tick: z.number().int().nonnegative() }),
   }),
 });
 
@@ -74,6 +81,28 @@ export type Migracao = {
 /** V2 admite a fundação durável; mundos antigos conservam moradores, relações e saldos. */
 export const MIGRACOES_DO_MUNDO: readonly Migracao[] = [
   { de: 1, migrar: (estado) => ({ ...estado, fundacao: null, catalogoDeAparencias: null }) },
+  {
+    de: 2,
+    migrar: (estado) => {
+      const objetos = z
+        .object({
+          ordem: z.array(z.string()),
+          porId: z.record(z.string(), z.record(z.string(), z.unknown())),
+        })
+        .parse(estado.objetos);
+      return {
+        ...estado,
+        loja: montarLojaInicial(),
+        edicoes: [],
+        objetos: {
+          ordem: objetos.ordem,
+          porId: Object.fromEntries(
+            Object.entries(objetos.porId).map(([id, objeto]) => [id, { ...objeto, revisao: 1 }]),
+          ),
+        },
+      };
+    },
+  },
 ];
 
 export function migrar(
@@ -102,16 +131,29 @@ export function abrirFotografia(bruto: unknown): Fotografia {
   if (envelope.versao !== VERSAO_DA_FOTOGRAFIA) {
     throw new Error(`Fotografia da versão ${envelope.versao} não é lida por este servidor`);
   }
-  const estado = migrar(
-    (bruto as { estado: Record<string, unknown> }).estado,
-    VERSAO_DO_MUNDO,
-    MIGRACOES_DO_MUNDO,
-  );
+  const estado = { ...migrar(envelope.estado, VERSAO_DO_MUNDO, MIGRACOES_DO_MUNDO) };
   if (!ReciboDeFundacaoSchema.nullable().safeParse(estado.fundacao).success)
     throw new Error("Recibo de fundação inválido");
   const catalogo = CatalogoDeAparenciasSchema.nullable().safeParse(estado.catalogoDeAparencias);
   if (!catalogo.success) throw new Error("Catálogo de aparências inválido");
   if (catalogo.data) conferirContinuidadeDaAparencia(catalogo.data);
+  estado.loja = conferirContinuidadeDaLoja(estado.loja);
+  const edicoes = z
+    .array(RegistroDeEdicoesSchema)
+    .max(AUTORES_DE_EDICAO_DO_MUNDO)
+    .parse(estado.edicoes);
+  if (
+    new Set(edicoes.map((r) => r.autor)).size !== edicoes.length ||
+    edicoes.reduce((total, r) => total + r.recentes.length, 0) > RESPOSTAS_DE_EDICAO_DO_MUNDO
+  )
+    throw new Error("Registros de edição repetidos ou acima do limite");
+  estado.edicoes = edicoes;
+  z.object({
+    porId: z.record(
+      z.string(),
+      z.object({ revisao: z.number().int().positive().max(Number.MAX_SAFE_INTEGER) }),
+    ),
+  }).parse(estado.objetos);
   if (estado.id !== envelope.mundoId) throw new Error("A fotografia é de outro mundo");
   return {
     formato: "morada.foto",

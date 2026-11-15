@@ -15,6 +15,7 @@ import type {
   Fase,
   Gravidez,
   Morador,
+  Objeto,
   Pedido,
   ReciboDeFundacao,
   Relacao,
@@ -31,6 +32,24 @@ import type {
  */
 
 export type DadosDoFato =
+  | {
+      tipo: "EdicaoRegistrada";
+      recibo: import("../comandos/edicao").ReciboDeEdicao;
+      /** Recusa admitida tem recibo sem efeito espacial ou financeiro. */
+      efeito: {
+        familiaId: FamiliaId;
+        loteId: LoteId;
+        saldoAnterior: Centavos;
+        saldo: Centavos;
+        versaoDaFamiliaAnterior: number;
+        versaoDaFamilia: number;
+        revisaoDoEspacoAnterior: number;
+        revisaoDoEspaco: number;
+        anterior: Objeto | null;
+        depois: Objeto | null;
+        continuidade: import("../espaco/continuidade").ContinuidadeEspacial;
+      } | null;
+    }
   | {
       tipo: "FamiliaFundada";
       familia: Familia;
