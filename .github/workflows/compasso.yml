@@ -70,6 +70,7 @@ jobs:
           node --test scripts/compasso/checkout-inventory.test.mjs
           node --test scripts/compasso/postgres-fixture.test.mjs
           node --test scripts/compasso/redis-fixture.test.mjs
+          node --import tsx --test scripts/compasso/browser-environment.test.mts
           pnpm compasso:test:integration
       - if: matrix.gate == 'account'
         run: |

@@ -72,6 +72,8 @@ export function fixtureEnvironment(
     SENDGRID_FROM: "test@example.test",
     EMAIL_SANDBOX_MODE: "memory",
     OPENROUTER_API_KEY: "isolated_fixture",
+    // This is a disposable build, never a source-map upload or Sentry release.
+    SENTRY_BUILD_VERIFICATION: "1",
     NEXT_TELEMETRY_DISABLED: "1",
     CSP_ENFORCE: "1",
   };

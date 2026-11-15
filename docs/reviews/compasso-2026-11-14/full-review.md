@@ -116,6 +116,9 @@ conta comercial tinha Helena como pagante.
 - O primeiro ajuste do Sentry não bastou: o hook pós-compilação ainda tentava
   criar uma release. Nos builds descartáveis, esse hook também fica desativado;
   a instrumentação da aplicação e o comportamento de produção são preservados.
+- A matriz inicial ainda mostrou o aviso porque o isolamento limpava também a
+  indicação do build descartável. A indicação agora é definida depois da
+  limpeza de credenciais; um teste confere os dois comportamentos.
 - O Redis de CI recebe configuração explícita e o parâmetro de memória
   recomendado no runner descartável; o container é encerrado ao final do job.
   Isso não altera o Redis nem as configurações do Railway de produção.
