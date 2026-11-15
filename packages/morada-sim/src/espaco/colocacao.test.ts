@@ -23,7 +23,7 @@ function movel(campos: Partial<Objeto> = {}): Objeto {
 }
 
 function contexto() {
-  const estado = criarMundoDaProva().estado;
+  const estado = criarMundoDaProva().fotografar().estado;
   const lote = listar(estado.lotes)[0];
   const imovel = lote?.imovelId ? estado.imoveis.porId[lote.imovelId] : undefined;
   const piso = imovel?.andares[0];
