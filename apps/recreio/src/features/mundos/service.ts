@@ -39,6 +39,7 @@ import {
 
 /** Tentativas de aceitar convite por perfil: dez a cada dez minutos. */
 const TENTATIVAS_DE_CONVITE = { max: 10, janelaEmSegundos: 600 };
+const EMISSOES_DE_CONVITE = { max: 20, janelaEmSegundos: 600 };
 
 /** O direito de jogar do perfil, sem olhar um jogo em particular. */
 async function exigirAcesso(perfilId: PerfilId, jogo?: string): Promise<void> {
@@ -104,6 +105,7 @@ export async function criarConvite(
   mundoId: unknown,
   entrada: unknown,
 ): Promise<ConviteCriado> {
+  await limitarTentativas({ chave: `emitir-convite:${quem.perfilId}`, ...EMISSOES_DE_CONVITE });
   const id = MundoIdSchema.parse(mundoId);
   const pedido = NovoConviteSchema.parse(entrada);
   await exigirAcesso(quem.perfilId, quem.jogo ?? undefined);
@@ -117,6 +119,7 @@ export async function criarConvite(
     participacao: pedido.participacao ?? null,
     codeHash: resumoDoConvite(codigo),
     validadeMs: VALIDADE_DO_CONVITE_MS,
+    tetoDeConvites: (jogo) => jogoDoCatalogo(jogo).capacidades.mundos.membrosMax,
   });
   return { codigo: formatarCodigoDeConvite(codigo), expiraEm: expiraEm.toISOString() };
 }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LIMITES_DE_REDE } from "./admissao";
 
 /**
  * Configuração do servidor do Morada. Os erros dizem só o nome da variável,
@@ -56,6 +57,24 @@ const Esquema = z
      */
     MORADA_ORIGENS: lista,
     MORADA_CAPACIDADE: z.coerce.number().int().positive().default(200),
+    MORADA_CONEXOES_MAX: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10_000)
+      .default(LIMITES_DE_REDE.conexoes),
+    MORADA_PEDIDOS_EM_CURSO_MAX: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(256)
+      .default(LIMITES_DE_REDE.pedidosEmCurso),
+    MORADA_QUADROS_POR_SEGUNDO_MAX: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10_000)
+      .default(LIMITES_DE_REDE.quadrosPorSegundo),
     MORADA_METRICAS_TOKEN: z.string().min(24).optional(),
     /** `prova` encurta gravidez e primeiras fases; é o preset da etapa 1. */
     MORADA_REGRAS: z.enum(["padrao", "prova"]).default("padrao"),

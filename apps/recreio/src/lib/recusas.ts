@@ -9,6 +9,8 @@ const MENSAGENS: Partial<Record<CodigoDeErro, string>> = {
   ACESSO_NEGADO: "O seu acesso aos jogos não está ativo.",
   JOGO_INDISPONIVEL: "Este jogo não está disponível agora.",
   LIMITE_DE_MUNDOS: "Você já criou o máximo de mundos deste jogo.",
+  LIMITE_DE_CONVITES:
+    "Este mundo já tem o máximo de convites em aberto. Use os códigos existentes ou espere vencerem.",
   CONVITE_INVALIDO:
     "Confira o código. Ele pode estar incorreto, ter expirado ou já ter sido usado.",
   JA_MEMBRO: "Você já participa deste mundo.",

@@ -1,6 +1,6 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
-import { and, db, eq, ne, sql } from "@informach/db";
+import { and, db, eq, gt, inArray, ne, sql } from "@informach/db";
 import {
   recreioSpaceInvites as invites,
   recreioSpaceMembers as members,
@@ -171,12 +171,14 @@ export async function criarConviteDoMundo(entrada: {
   participacao: string | null;
   codeHash: string;
   validadeMs: number;
+  tetoDeConvites: (jogo: string) => number;
 }): Promise<{ expiraEm: Date }> {
   return db.transaction(async (tx) => {
     const [mundo] = await tx
       .select({ id: spaces.id, gameId: spaces.gameId, status: spaces.status })
       .from(spaces)
-      .where(eq(spaces.id, entrada.mundoId));
+      .where(eq(spaces.id, entrada.mundoId))
+      .for("update");
     const [membro] = mundo
       ? await tx
           .select({ id: members.id, role: members.role, state: members.state })
@@ -192,6 +194,18 @@ export async function criarConviteDoMundo(entrada: {
     if (membro.role !== "steward") throw new ErroDoRecreio("SEM_PERMISSAO");
     if (mundo.status === "archived" || mundo.status === "deleted")
       throw new ErroDoRecreio("MUNDO_INDISPONIVEL");
+    const [abertos] = await tx
+      .select({ total: sql<number>`count(*)::int` })
+      .from(invites)
+      .where(
+        and(
+          eq(invites.spaceId, mundo.id),
+          inArray(invites.state, ["sent", "pending_approval"]),
+          gt(invites.expiresAt, AGORA),
+        ),
+      );
+    if ((abertos?.total ?? 0) >= entrada.tetoDeConvites(mundo.gameId))
+      throw new ErroDoRecreio("LIMITE_DE_CONVITES");
     const conta = await contaDoPerfil(tx, entrada.perfilId);
     const [convite] = await tx
       .insert(invites)

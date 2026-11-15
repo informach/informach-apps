@@ -15,10 +15,21 @@ describe("configuração do servidor", () => {
       PORT: 3010,
       MORADA_PLATAFORMA: "recreio",
       MORADA_CAPACIDADE: 200,
+      MORADA_CONEXOES_MAX: 1024,
+      MORADA_PEDIDOS_EM_CURSO_MAX: 32,
+      MORADA_QUADROS_POR_SEGUNDO_MAX: 400,
       MORADA_REGRAS: "padrao",
       MORADA_ORIGENS: ["https://recreio.example", "https://outro.example"],
     });
   });
+
+  it.each(["MORADA_CONEXOES_MAX", "MORADA_PEDIDOS_EM_CURSO_MAX", "MORADA_QUADROS_POR_SEGUNDO_MAX"])(
+    "recusa teto de rede inválido em %s",
+    (nome) => {
+      for (const valor of ["0", "-1", "1.5", "Infinity", "10001"])
+        expect(() => lerConfiguracao({ ...completa, [nome]: valor })).toThrow(new RegExp(nome));
+    },
+  );
 
   it("o endereço público é só a origem do WebSocket, como o Recreio a cadastra", () => {
     // Com ou sem a barra final, o que a instância registra é a origem.

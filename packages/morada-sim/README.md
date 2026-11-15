@@ -144,6 +144,8 @@ Com `conferirReplicacao: true` (o padrão dos testes) o replicador varre tudo a 
 
 ## Limites desta etapa
 
+`test:longa` executa `testes/cem-dias.longa.ts`, separado da unidade comum: 100 dias completos, nascimento/envelhecimento, invariantes, recuperação diária por diário e fotografia e continuação determinística contra o mundo ininterrupto. Mede fotografia comprimida e heap após GC; crescimento de heap tem orçamento sintético de 32 MiB entre o quinto e o centésimo dia. O workflow Recreio executa essa prova no GitHub e preserva o JSON de medidas, inclusive em falha. Essa evidência não substitui carga de rede/produção, memória total da aba, hardware de entrada ou avaliação humana.
+
 - Um andar por imóvel; paredes retas; objetos em giros de 90°.
 - Navegação em grade de 25 cm atrás da interface `Navegador`; uma malha de navegação pode tomar o lugar dela.
 - Pedidos de vida entre duas famílias com jogadores viram pedido aberto, mas unir duas famílias fica para a etapa dos vizinhos.

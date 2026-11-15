@@ -9,7 +9,7 @@ import {
   recreioSpaces as spaces,
   recreioGameTickets as tickets,
 } from "@informach/db/schema";
-import { type MundoId, PerfilIdSchema, POSSE_TTL_MS } from "@informach/recreio";
+import { type MundoId, MundoIdSchema, PerfilIdSchema, POSSE_TTL_MS } from "@informach/recreio";
 import {
   type EntradaDoDiario,
   MundoAbertoSchema,
@@ -96,6 +96,53 @@ async function mundoNoBanco(mundoId: MundoId) {
 }
 
 describe("registro da instância", () => {
+  it("o batimento em lote conserva cercas, ordem e medidas por mundo", async () => {
+    const { lia, mundoId, a, cerca, sessao } = await executando();
+    const outro = await mundoDe(lia);
+    expect((await abrirPelaRota(sessao, outro)).status).toBe(200);
+    const outraPosse = await a.cliente.reivindicarPosse(outro);
+    const antes = (await possesAbertas(outro))[0]?.expiresAt;
+    await db
+      .update(leases)
+      .set({
+        expiresAt: sql`clock_timestamp() + ${`${POSSE_TTL_MS - 5000} milliseconds`}::interval`,
+      })
+      .where(eq(leases.spaceId, mundoId));
+    const fantasma = MundoIdSchema.parse(crypto.randomUUID());
+    const resposta = await a.cliente.batimento({
+      mundos: [
+        { mundoId: outro, cerca: outraPosse.cerca + 1, jogadores: 8, tick: 0 },
+        { mundoId: fantasma, cerca: 0, jogadores: 0, tick: 0 },
+        { mundoId, cerca, jogadores: 3, tick: 0 },
+      ],
+      cursor: null,
+    });
+    expect(resposta.posses).toEqual([
+      { mundoId: outro, estado: "perdida", expiraEm: 0 },
+      { mundoId: fantasma, estado: "perdida", expiraEm: 0 },
+      { mundoId, estado: "ok", expiraEm: expect.any(Number) },
+    ]);
+    expect((await possesAbertas(outro))[0]?.expiresAt).toEqual(antes);
+    const [medidas] = await db
+      .select({ pico: leases.peakPlayers, segundos: leases.playerSeconds })
+      .from(leases)
+      .where(eq(leases.spaceId, mundoId));
+    expect(medidas?.pico).toBe(3);
+    expect(Number(medidas?.segundos)).toBeGreaterThanOrEqual(15);
+    expect((await a.cliente.batimento({ mundos: [], cursor: resposta.cursor })).posses).toEqual([]);
+  });
+
+  it("recusa relato com mundo repetido antes de renovar qualquer posse", async () => {
+    const { mundoId, a, cerca } = await executando();
+    const antes = (await possesAbertas(mundoId))[0]?.expiresAt;
+    const relato = { mundoId, cerca, jogadores: 1, tick: 0 };
+    const resposta = await pedir("POST", `/api/interno/v1/instancias/${a.instanciaId}/batimento`, {
+      headers: cabecalhosDoHost(MORADA, a.instanciaId),
+      corpo: { mundos: [relato, relato], cursor: null },
+    });
+    expect(resposta).toMatchObject({ status: 400, corpo: { codigo: "ENTRADA_INVALIDA" } });
+    expect((await possesAbertas(mundoId))[0]?.expiresAt).toEqual(antes);
+  });
   it("só aceita o segredo do jogo e o endereço configurado para ele", async () => {
     const registro = {
       jogo: MORADA,

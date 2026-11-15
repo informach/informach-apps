@@ -278,30 +278,45 @@ export async function registrarBatimento(entrada: {
   if (!instancia) return null;
 
   const posses: ResultadoDoBatimento["posses"] = [];
+  // Um comando para todas as posses: latência do banco não se multiplica
+  // pelo número de mundos. O contrato já recusa ids repetidos no relato.
+  const renovadas =
+    entrada.mundos.length === 0
+      ? []
+      : await db
+          .update(leases)
+          .set({
+            expiresAt: sql`${AGORA} + ${TTL}`,
+            // Jogadores vezes os segundos desde a última renovação (o prazo menos o TTL).
+            playerSeconds: sql`${leases.playerSeconds} + relato.jogadores::bigint * greatest(0, floor(extract(epoch from (${AGORA} - (${leases.expiresAt} - ${TTL})))))::bigint`,
+            peakPlayers: sql`greatest(${leases.peakPlayers}, relato.jogadores)`,
+          })
+          .from(
+            sql`(values ${sql.join(
+              entrada.mundos.map(
+                (relato) =>
+                  sql`(${relato.mundoId}::uuid, ${relato.cerca}::integer, ${Math.min(relato.jogadores, 10_000)}::integer)`,
+              ),
+              sql`, `,
+            )}) as relato(mundo_id, cerca, jogadores)`,
+          )
+          .where(
+            and(
+              sql`${leases.spaceId} = relato.mundo_id`,
+              isNull(leases.releasedAt),
+              sql`${leases.fence} = relato.cerca`,
+              eq(leases.instanceId, entrada.instanciaId),
+              sql`${leases.expiresAt} > ${AGORA}`,
+              sql`exists (select 1 from recreio.spaces mundo where mundo.id = ${leases.spaceId} and mundo.game_id = ${entrada.jogo})`,
+            ),
+          )
+          .returning({ mundoId: leases.spaceId, expiresAt: leases.expiresAt });
+  const porMundo = new Map(renovadas.map((posse) => [posse.mundoId, posse.expiresAt]));
   for (const relato of entrada.mundos) {
-    const jogadores = Math.min(relato.jogadores, 10_000);
-    const [renovada] = await db
-      .update(leases)
-      .set({
-        expiresAt: sql`${AGORA} + ${TTL}`,
-        // Jogadores vezes os segundos desde a última renovação (o prazo menos o TTL).
-        playerSeconds: sql`${leases.playerSeconds} + ${jogadores}::bigint * greatest(0, floor(extract(epoch from (${AGORA} - (${leases.expiresAt} - ${TTL})))))::bigint`,
-        peakPlayers: sql`greatest(${leases.peakPlayers}, ${jogadores}::int)`,
-      })
-      .where(
-        and(
-          eq(leases.spaceId, relato.mundoId),
-          isNull(leases.releasedAt),
-          eq(leases.fence, relato.cerca),
-          eq(leases.instanceId, entrada.instanciaId),
-          sql`${leases.expiresAt} > ${AGORA}`,
-          sql`exists (select 1 from recreio.spaces mundo where mundo.id = ${leases.spaceId} and mundo.game_id = ${entrada.jogo})`,
-        ),
-      )
-      .returning({ expiresAt: leases.expiresAt });
+    const expiraEm = porMundo.get(relato.mundoId);
     posses.push(
-      renovada
-        ? { mundoId: relato.mundoId, estado: "ok", expiraEm: renovada.expiresAt.getTime() }
+      expiraEm
+        ? { mundoId: relato.mundoId, estado: "ok", expiraEm: expiraEm.getTime() }
         : { mundoId: relato.mundoId, estado: "perdida", expiraEm: 0 },
     );
   }

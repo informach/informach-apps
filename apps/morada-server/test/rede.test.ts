@@ -12,7 +12,7 @@ import { criarEmissorDeTeste, criarPlataformaFalsa } from "@informach/recreio/te
 import { afterEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
 import { criarInstancia } from "../src/instancia";
-import { criarServidor, type Servidor } from "../src/servidor";
+import { criarServidor, type OpcoesDoServidor, type Servidor } from "../src/servidor";
 
 /**
  * O servidor de verdade, em uma porta de verdade, com clientes WebSocket de
@@ -60,6 +60,8 @@ async function subir(
     foraDoAr?: boolean;
     batimentoMs?: number;
     exigirOrigem?: boolean;
+    limitesDeRede?: OpcoesDoServidor["limitesDeRede"];
+    antesDeVerificar?: () => Promise<void>;
   } = {},
 ) {
   const plataforma = criarPlataformaFalsa({ inicio: Date.now() });
@@ -80,9 +82,15 @@ async function subir(
     if (falta > 0) plataforma.avancar(falta);
     return plataforma.agora();
   };
+  const verificador = recreio.verificador("morada", () => new Date(sincronizar()));
   const instancia = criarInstancia({
     host: hostComFalhas(plataforma.cliente(), doRecreio, opcoes.batimentoMs),
-    verificador: recreio.verificador("morada", () => new Date(sincronizar())),
+    verificador: {
+      async verificar(token) {
+        await opcoes.antesDeVerificar?.();
+        return verificador.verificar(token);
+      },
+    },
     agora: sincronizar,
     urlPublica: "ws://localhost",
     versao: "teste",
@@ -96,6 +104,7 @@ async function subir(
     commit: "abc123",
     tokenDeMetricas: "segredo-de-medidas",
     pingMs: opcoes.pingMs,
+    limitesDeRede: opcoes.limitesDeRede,
     esperaDoRegistroMs: 40,
     registrar: (evento, dados) => registros.push({ evento, ...dados }),
     aoErro: (erro, contexto) => registros.push({ contexto, erro: String(erro) }),
@@ -171,6 +180,59 @@ function conectar(
 }
 
 describe("servidor em uma porta de verdade", () => {
+  it("recusa conexões além do teto antes da autenticação e devolve a vaga ao fechar", async () => {
+    const { porta, instancia } = await subir({
+      limitesDeRede: { conexoes: 1, pedidosEmCurso: 1, quadrosPorSegundo: 10 },
+    });
+    const primeira = await conectar(porta);
+    await expect(conectar(porta)).rejects.toThrow(/503/);
+    expect(instancia.medir().conexoes).toBe(1);
+    primeira.ws.close();
+    await primeira.fechado;
+    await ate(() => instancia.medir().conexoes === 0);
+    const seguinte = await conectar(porta);
+    seguinte.ws.close();
+    await seguinte.fechado;
+  });
+
+  it("limita autenticações simultâneas sem derrubar a que já está admitida", async () => {
+    let liberar = () => {};
+    const bloqueio = new Promise<void>((resolve) => {
+      liberar = resolve;
+    });
+    const { porta, jogador } = await subir({
+      limitesDeRede: { conexoes: 3, pedidosEmCurso: 1, quadrosPorSegundo: 10 },
+      antesDeVerificar: () => bloqueio,
+    });
+    const lia = await jogador("Lia");
+    const primeira = await conectar(porta);
+    const segunda = await conectar(porta);
+    const pedido: MensagemDoCliente = {
+      t: "entrar",
+      v: VERSAO_DO_PROTOCOLO,
+      sessao: lia.sessao,
+      mundoId: lia.mundoId,
+    };
+    try {
+      primeira.mandar(pedido);
+      const medidas = async () =>
+        (
+          await fetch(`http://127.0.0.1:${porta}/api/metricas`, {
+            headers: { authorization: "Bearer segredo-de-medidas" },
+          })
+        ).json();
+      await ate(async () => (await medidas()).rede.pedidosEmCurso === 1);
+      segunda.mandar(pedido);
+      expect(await segunda.fechado).toBe(FECHAMENTO.cheio);
+      liberar();
+      await primeira.esperar(() => primeira.visao !== null);
+      await ate(async () => (await medidas()).rede.pedidosEmCurso === 0);
+      primeira.ws.close();
+      await primeira.fechado;
+    } finally {
+      liberar();
+    }
+  }, 20_000);
   it("dois clientes entram pelo WebSocket, jogam e o mundo anda no relógio", async () => {
     const { porta, jogador, instancia } = await subir();
     const lia = await jogador("Lia");

@@ -8,6 +8,7 @@ import {
 } from "@informach/morada-sim/protocolo";
 import { ehErroDoRecreio } from "@informach/recreio";
 import { type WebSocket, WebSocketServer } from "ws";
+import { criarAdmissao, LIMITES_DE_REDE } from "./admissao";
 import type { Conexao } from "./ator";
 import type { Instancia } from "./instancia";
 
@@ -32,6 +33,8 @@ export type OpcoesDoServidor = {
   tokenDeMetricas: string | null;
   /** De quanto em quanto tempo o servidor confere se o cliente ainda responde. */
   pingMs?: number;
+  /** Tetos da instância inteira, antes de autenticar ou abrir um mundo. */
+  limitesDeRede?: { conexoes: number; pedidosEmCurso: number; quadrosPorSegundo: number };
   /** Rotas extras, só para desenvolvimento. */
   rotas?(pedido: IncomingMessage, resposta: ServerResponse): boolean;
   /** De quanto em quanto tempo tentar o registro enquanto o Recreio não responde. */
@@ -89,6 +92,7 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
   const registrar = op.registrar ?? (() => {});
   const pingMs = op.pingMs ?? 5000;
   const esperaDoRegistroMs = op.esperaDoRegistroMs ?? ESPERA_DO_REGISTRO_MS;
+  const admissao = criarAdmissao(op.limitesDeRede ?? LIMITES_DE_REDE);
   /** O servidor está ouvindo. Pronto para o jogo é isto mais o registro no Recreio. */
   let ouvindo = false;
   let encerrando = false;
@@ -122,6 +126,7 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
       const cpu = process.cpuUsage();
       return json(resposta, 200, {
         ...instancia.medir(),
+        rede: { ...admissao.medir(), limites: op.limitesDeRede ?? LIMITES_DE_REDE },
         processo: {
           cpuUsuarioMs: Math.round(cpu.user / 1000),
           cpuSistemaMs: Math.round(cpu.system / 1000),
@@ -141,6 +146,11 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
     perMessageDeflate: false,
     handleProtocols: (protocolos) => (protocolos.has(SUBPROTOCOLO) ? SUBPROTOCOLO : false),
   });
+  // Inclui conexões HTTP incompletas; os sockets WS têm o teto mais estrito acima.
+  http.maxConnections = (op.limitesDeRede ?? LIMITES_DE_REDE).conexoes + 64;
+  http.maxHeadersCount = 32;
+  http.headersTimeout = 10_000;
+  http.requestTimeout = 10_000;
 
   http.on("upgrade", (pedido, socket, cabeca) => {
     const origem = pedido.headers.origin;
@@ -158,7 +168,17 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
       .split(",")
       .map((p) => p.trim());
     if (!pedidos.includes(SUBPROTOCOLO)) return recusar(400, "Bad Request");
-    sockets.handleUpgrade(pedido, socket, cabeca, (ws) => sockets.emit("connection", ws, pedido));
+    const liberar = admissao.conectar();
+    if (!liberar) return recusar(503, "Service Unavailable");
+    // Libera também upgrade inválido, erro TCP e fechamento sem quadro WS.
+    socket.once("close", liberar);
+    try {
+      sockets.handleUpgrade(pedido, socket, cabeca, (ws) => sockets.emit("connection", ws, pedido));
+    } catch (erro) {
+      liberar();
+      socket.destroy();
+      aoErro(erro, "upgrade");
+    }
   });
 
   const vivos = new WeakMap<WebSocket, boolean>();
@@ -184,12 +204,20 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
 
     ws.on("pong", () => vivos.set(ws, true));
     ws.on("message", (dados, binario) => {
+      const liberar = admissao.pedir();
+      if (!liberar) return ws.close(FECHAMENTO.cheio);
       entrou = true;
-      if (binario) return ws.close(FECHAMENTO.protocolo);
-      instancia.receber(conexao, dados.toString("utf8")).catch((erro: unknown) => {
-        aoErro(erro, "receber");
-        ws.close(FECHAMENTO.reiniciando);
-      });
+      if (binario) {
+        liberar();
+        return ws.close(FECHAMENTO.protocolo);
+      }
+      instancia
+        .receber(conexao, dados.toString("utf8"))
+        .catch((erro: unknown) => {
+          aoErro(erro, "receber");
+          ws.close(FECHAMENTO.reiniciando);
+        })
+        .finally(liberar);
     });
     ws.on("close", () => {
       clearTimeout(prazo);

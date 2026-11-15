@@ -46,15 +46,22 @@ export const InstanciaRegistradaSchema = z.strictObject({
 });
 export type InstanciaRegistrada = z.infer<typeof InstanciaRegistradaSchema>;
 
+export const MUNDOS_POR_BATIMENTO_MAX = 1000;
 export const BatimentoSchema = z.strictObject({
-  mundos: z.array(
-    z.strictObject({
-      mundoId: MundoIdSchema,
-      cerca: naoNegativo,
-      jogadores: naoNegativo,
-      tick: naoNegativo,
-    }),
-  ),
+  mundos: z
+    .array(
+      z.strictObject({
+        mundoId: MundoIdSchema,
+        cerca: naoNegativo,
+        jogadores: naoNegativo,
+        tick: naoNegativo,
+      }),
+    )
+    .max(MUNDOS_POR_BATIMENTO_MAX)
+    .refine(
+      (mundos) => new Set(mundos.map((mundo) => mundo.mundoId)).size === mundos.length,
+      "Mundo repetido no batimento",
+    ),
   /** Devolvido pelo batimento anterior; `null` no primeiro. */
   cursor: z.string().max(64).nullable(),
 });

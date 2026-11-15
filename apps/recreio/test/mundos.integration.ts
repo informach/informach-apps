@@ -1,4 +1,4 @@
-import { and, db, eq } from "@informach/db";
+import { and, db, eq, sql } from "@informach/db";
 import {
   recreioSpaceInvites as invites,
   recreioSpaceMembers as members,
@@ -194,6 +194,42 @@ describe("criar e listar mundos", () => {
 });
 
 describe("convites", () => {
+  it("emissão concorrente respeita o teto e não invalida os códigos anteriores", async () => {
+    const lia = await novoJogador();
+    const mundoId = await mundoDe(lia);
+    const resultados = await Promise.allSettled(
+      Array.from({ length: 12 }, () => conviteDe(lia, mundoId)),
+    );
+    const codigos = resultados.flatMap((resultado) =>
+      resultado.status === "fulfilled" ? [resultado.value] : [],
+    );
+    expect(codigos).toHaveLength(8);
+    for (const resultado of resultados)
+      if (resultado.status === "rejected")
+        expect(resultado.reason).toMatchObject({ codigo: "LIMITE_DE_CONVITES" });
+    const bruno = await novoJogador();
+    expect(await aceitarConvite(quem(bruno), { codigo: codigos[0] })).toMatchObject({ mundoId });
+    // Aceitar um código libera um lugar para outro, sem revogar os restantes.
+    expect(await conviteDe(lia, mundoId)).toMatch(/^[A-Z2-9]{5}-[A-Z2-9]{5}$/);
+    await db
+      .update(invites)
+      .set({ expiresAt: sql`now() - interval '1 second'` })
+      .where(eq(invites.spaceId, mundoId));
+    expect(await conviteDe(lia, mundoId)).toMatch(/^[A-Z2-9]{5}-[A-Z2-9]{5}$/);
+  });
+
+  it("a emissão usa contador próprio, inclusive quando o teto de convites já foi atingido", async () => {
+    const lia = await novoJogador();
+    const mundoId = await mundoDe(lia);
+    for (let i = 0; i < 20; i++) {
+      const resultado = conviteDe(lia, mundoId);
+      if (i < 8) await resultado;
+      else expect(await codigoDaRecusa(resultado)).toBe("LIMITE_DE_CONVITES");
+    }
+    expect(await codigoDaRecusa(conviteDe(lia, mundoId))).toBe("MUITAS_TENTATIVAS");
+    const linhas = await db.select().from(invites).where(eq(invites.spaceId, mundoId));
+    expect(linhas).toHaveLength(8);
+  });
   it("o código aparece uma vez, no formato de leitura, e o banco guarda só o resumo", async () => {
     const lia = await novoJogador();
     const mundoId = await mundoDe(lia);

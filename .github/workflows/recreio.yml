@@ -36,7 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gate: [quality, integration, e2e]
+        gate: [quality, integration, e2e, longa]
     services:
       postgres:
         image: postgres:18-alpine
@@ -83,6 +83,18 @@ jobs:
         run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
       - if: matrix.gate == 'e2e'
         run: pnpm --filter @informach/recreio-app e2e
+      - if: matrix.gate == 'longa'
+        run: pnpm --filter @informach/morada-sim test:longa
+        env:
+          MORADA_LONGA_RELATORIO: ${{ runner.temp }}/morada-longa.json
+      - name: Preserve long simulation evidence
+        if: always() && matrix.gate == 'longa'
+        uses: actions/upload-artifact@v4
+        with:
+          name: morada-cem-dias-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/morada-longa.json
+          if-no-files-found: warn
+          retention-days: 30
       - name: Preserve synthetic browser failure evidence
         if: failure() && matrix.gate == 'e2e'
         uses: actions/upload-artifact@v4

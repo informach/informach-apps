@@ -6,6 +6,10 @@ Regras de domínio e contratos: [`packages/morada-sim/README.md`](../../packages
 
 Integridade (15/11): um passo conserva a base de sequência entre as retentativas dos lotes do diário, inclusive quando a resposta se perde depois do commit. Cada fato de domínio é atômico no diário; uma fotografia só cobre passos inteiramente confirmados. A leitura HTTP confere o checksum e o teto comprimido do catálogo; `src/fotografia.ts` limita a expansão a 64 MiB e recusa UTF-8 inválido. Uma fotografia inválida interrompe a recuperação, sem recriar ou sobrescrever o mundo.
 
+## Limites da rede
+
+Conexões sem sessão também contam no teto global. `MORADA_CONEXOES_MAX` (padrão 1024), `MORADA_PEDIDOS_EM_CURSO_MAX` (32) e `MORADA_QUADROS_POR_SEGUNDO_MAX` (400) limitam sockets, verificações/entradas simultâneas e vazão agregada antes de processar o quadro. HTTP tem 64 vagas adicionais e prazos de cabeçalhos/corpo de 10 s. `/api/metricas` informa ocupação e limites. Os tetos protegem recursos; não representam jogadores/mundos homologados nem substituem proteção da borda. A lotação de mundos continua independente, pendente de carga medida. A segunda conexão recusada não expulsa uma admissão em andamento.
+
 ## Rodar
 
 ```bash
@@ -16,9 +20,7 @@ MORADA_PLATAFORMA=falsa pnpm dev:morada-server
 cp apps/morada-server/.env.example apps/morada-server/.env   # ajuste o segredo
 pnpm dev:morada-server
 
-pnpm --filter @informach/morada-server typecheck
-pnpm --filter @informach/morada-server test
-pnpm --filter @informach/morada-server carga 20 10   # medida de bancada: mundos, minutos
+# Homologação pesada: executar pelo workflow Recreio no GitHub, não nesta máquina.
 ```
 
 `pnpm dev:morada-server` lê `apps/morada-server/.env` se o arquivo existir (ele é ignorado pelo git); o que já está no ambiente do terminal vale mais que o arquivo, então o comando do modo `falsa` acima continua funcionando com o `.env` no lugar. No modo ligado ao Recreio, três valores precisam bater com o ambiente do portal: `RECREIO_HOST_SECRET` é o segredo de `RECREIO_HOST_SECRETS.morada`, `MORADA_PUBLIC_URL` é a origem de `RECREIO_GAME_ORIGINS.morada.ws`, e `MORADA_ORIGENS` é a origem pública do portal. O passo a passo com as duas pontas está no [guia do portal](../recreio/README.md#morada-no-portal).

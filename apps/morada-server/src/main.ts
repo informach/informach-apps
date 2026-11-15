@@ -129,6 +129,11 @@ async function principal(): Promise<void> {
     exigirOrigem: config.MORADA_PLATAFORMA === "recreio",
     commit: config.RAILWAY_GIT_COMMIT_SHA ?? null,
     tokenDeMetricas: config.MORADA_METRICAS_TOKEN ?? null,
+    limitesDeRede: {
+      conexoes: config.MORADA_CONEXOES_MAX,
+      pedidosEmCurso: config.MORADA_PEDIDOS_EM_CURSO_MAX,
+      quadrosPorSegundo: config.MORADA_QUADROS_POR_SEGUNDO_MAX,
+    },
     rotas,
     registrar,
     aoErro: (erro, contexto) => {
