@@ -509,6 +509,7 @@ const SIMPLE: Record<string, string> = {
   "recreio.space_member_joined": "Entrou em um mundo no Recreio",
   "recreio.space_lease_taken_over": "Uma instância retomou um mundo no Recreio",
   "recreio.space_write_refused": "Uma escrita de instância foi recusada no Recreio",
+  "recreio.space_restored": "Um mundo do Recreio foi restaurado pela operação",
   "user.created": "Criou a conta",
   "user.email_changed": "Trocou o e-mail da conta",
   "user.password_changed": "Trocou a senha",

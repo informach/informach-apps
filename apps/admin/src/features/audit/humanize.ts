@@ -133,6 +133,7 @@ const PHRASES: Record<string, (ctx: Context) => SentencePart[]> = {
   "recreio.space_member_joined": () => [t("Entrou em um mundo no Recreio")],
   "recreio.space_lease_taken_over": () => [t("Uma instância retomou um mundo no Recreio")],
   "recreio.space_write_refused": () => [t("Uma escrita de instância foi recusada no Recreio")],
+  "recreio.space_restored": () => [t("Um mundo do Recreio foi restaurado pela operação")],
   // Bastidores
   "admin.user_viewed": (ctx) => withTarget("Abriu a ficha de ", ctx),
   "admin.sessions_revoked": (ctx) => {

@@ -121,6 +121,7 @@ export type AuditEventType =
   | "recreio.space_member_joined"
   | "recreio.space_lease_taken_over"
   | "recreio.space_write_refused"
+  | "recreio.space_restored"
   // Bastidores (apps/admin): consultas e ações da equipe sobre uma conta.
   | "admin.user_viewed"
   | "admin.sessions_revoked"
