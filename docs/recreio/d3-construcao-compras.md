@@ -111,4 +111,17 @@ compor em `cena/cena.ts` e no controle do cliente, sem renderer adicional.
 - [ ] Revisar diff, integrar na main, conferir plano dos dois serviços e
   implantar em ordem compatível com formato/arte, preservando rollback válido.
 
-Estado inicial deste plano: nenhuma tarefa D3 implementada ou homologada.
+## Primeiro candidato: contrato e conteúdo da loja
+
+`comandos/loja.ts` valida formato/política, centavos inteiros seguros, revenda
+limitada à compra, IDs únicos e correspondência exata com o catálogo da
+simulação e a lista de peças que o host tem disponível. `conteudo/loja.ts`
+propõe oito ofertas iniciais, com rótulos e preços fictícios na política 1:
+rack 240 M$, sofá 460 M$, mesa lateral 95 M$, poltrona 220 M$, cadeira 90 M$,
+cama 650 M$, cabeceira 120 M$ e geladeira 780 M$; revenda de 50%.
+Não são preços de assinatura, oferta comercial ou conversão para dinheiro real.
+
+Contratos e dez casos de validação seguem como candidato para o GitHub.
+Ainda não expostos no índice público do package, na visão, no mundo ou no
+servidor; nenhum comando de compra/venda está habilitado. Persistência da
+política, colocação, autorização, recibos e interface continuam pendentes.
