@@ -47,7 +47,11 @@ it.each(["diario_cortado", "fotografia_ausente", "tick_divergente", "outro_mundo
     try {
       await bancada.entrar(lia, mundoId);
       expect(lia.fechamento).toBe(FECHAMENTO.reiniciando);
-      expect(b.instancia.ator(mundoId)?.simulacao).toBeNull();
+      expect(b.instancia.ator(mundoId)).toBeUndefined();
+      expect(bancada.registros).toContainEqual({
+        evento: "entrada_falhou",
+        dados: { codigo: falha === "diario_cortado" ? "SEQUENCIA" : "REVISAO_DIVERGENTE" },
+      });
       expect(b.host.chamadas).not.toContain("gravarFotografia");
       const depois = bancada.plataforma.mundo(mundoId);
       expect(depois.revisao).toBe(antes.revisao);
