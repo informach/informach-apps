@@ -37,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gate: [quality, integration, e2e, longa]
+        gate: [quality, integration, e2e, cliente, longa]
     services:
       postgres:
         image: postgres:18-alpine
@@ -85,6 +85,10 @@ jobs:
         run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
       - if: matrix.gate == 'e2e'
         run: pnpm --filter @informach/recreio-app e2e
+      - if: matrix.gate == 'cliente'
+        run: pnpm --filter @informach/jogo-morada exec playwright install --with-deps chromium
+      - if: matrix.gate == 'cliente'
+        run: pnpm --filter @informach/jogo-morada e2e
       - if: matrix.gate == 'longa'
         run: pnpm --filter @informach/morada-sim test:longa
         env:

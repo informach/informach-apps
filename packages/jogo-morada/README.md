@@ -77,6 +77,8 @@ O espelho tem as mesmas tabelas do estado do servidor, então as funções puras
 
 ## Rodar
 
+A qualidade adaptativa conta todos os quadros enquanto a aba está visível, inclusive os acima de 250 ms. O retorno de uma aba oculta reinicia o relógio e a janela; lentidão real não é descartada como se fosse uma pausa. A regressão de navegador desacelera apenas o agendador externo e exige redução de alta até baixa com cena/WebGL reais. Isso não homologa FPS em hardware de entrada.
+
 ```bash
 # Em um terminal, na raiz: o servidor do jogo em modo de desenvolvimento (porta 3010).
 MORADA_PLATAFORMA=falsa MORADA_REGRAS=prova pnpm dev:morada-server

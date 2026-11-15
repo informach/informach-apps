@@ -655,11 +655,10 @@ export class Cena {
     this.renderer.render(this.scene, this.camera);
     this.quadros++;
 
-    // Um intervalo enorme é a aba voltando, não um quadro lento.
-    if (intervalo < 250) {
-      this.intervalos.push(intervalo);
-      this.custos.push(performance.now() - inicio);
-    }
+    // ligar() já reinicia a janela ao voltar de uma aba oculta. Um quadro
+    // visível muito lento precisa contar para a redução de qualidade.
+    this.intervalos.push(intervalo);
+    this.custos.push(performance.now() - inicio);
     if (agora - this.janelaDesde >= JANELA_DE_MEDIDA_MS) this.fecharJanela(agora);
   };
 
