@@ -32,6 +32,7 @@ const USO = `uso: tsx src/cli.ts --arte <ARTES_3D_DIR> --saida <pasta> [opções
   --casa <arquivo>         modelo de imóvel do jogo: inclui seus móveis, acabamentos e encaixes
   --cores-parametricas    perfil V3 com canais de cor editáveis (exige cliente compatível)
   --criacao              coleção inicial de criação e elenco legado (perfil V3)
+  --perfis-pintura <json> perfis homologados dos móveis da casa (perfil V4)
   --ajuda                  mostra este texto
 `;
 
@@ -46,6 +47,7 @@ type Argumentos = {
   casa: string | null;
   coresParametricas: boolean;
   criacao: boolean;
+  perfisDePintura: string | null;
 };
 
 export function lerArgumentos(argv: readonly string[], ambiente: NodeJS.ProcessEnv): Argumentos {
@@ -60,6 +62,7 @@ export function lerArgumentos(argv: readonly string[], ambiente: NodeJS.ProcessE
     casa: null,
     coresParametricas: false,
     criacao: false,
+    perfisDePintura: null,
   };
   for (let i = 0; i < argv.length; i++) {
     const opcao = argv[i];
@@ -80,6 +83,7 @@ export function lerArgumentos(argv: readonly string[], ambiente: NodeJS.ProcessE
     else if (opcao === "--casa") args.casa = valor();
     else if (opcao === "--cores-parametricas") args.coresParametricas = true;
     else if (opcao === "--criacao") args.criacao = true;
+    else if (opcao === "--perfis-pintura") args.perfisDePintura = valor();
     else if (opcao === "--ajuda" || opcao === "--help" || opcao === "-h") args.ajuda = true;
     else throw new ErroDeArte("linha de comando", "opção desconhecida", opcao);
   }
@@ -234,6 +238,14 @@ export async function executar(
         : {}),
       ...(args.casa
         ? { casa: lerJson(readFileSync(resolve(base, args.casa), "utf8"), args.casa) }
+        : {}),
+      ...(args.perfisDePintura
+        ? {
+            perfisDePintura: lerJson(
+              readFileSync(resolve(base, args.perfisDePintura), "utf8"),
+              args.perfisDePintura,
+            ),
+          }
         : {}),
       ...(args.commit ? { commit: args.commit } : {}),
       aoAvancar: (mensagem) => process.stderr.write(`${mensagem}\n`),

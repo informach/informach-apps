@@ -18,7 +18,7 @@ export const PerfilDePinturaSchema = z.strictObject({
     .min(1)
     .max(40)
     .regex(/^[^\p{Cc}]+$/u),
-  referencia: rgb,
+  referencia: rgb.positive(),
 });
 export type PerfilDePintura = z.infer<typeof PerfilDePinturaSchema>;
 

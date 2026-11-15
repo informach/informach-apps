@@ -7,6 +7,7 @@ import { MeshoptEncoder } from "meshoptimizer";
 import { z } from "zod";
 import { ErroDeArte, lerJson, validar } from "./erros";
 import type { AberturaDoManifesto, AcabamentoDoManifesto, ObjetoDoManifesto } from "./manifesto";
+import { prepararPinturaDoMovel, ReceitasDePinturaSchema } from "./movel/pintura";
 import { entradaESaida } from "./saida/glb";
 
 const id = z.string().regex(/^[a-z0-9_-]+$/);
@@ -85,7 +86,7 @@ function gravar(saida: string, prefixo: string, bytes: Uint8Array, extensao = "g
 }
 
 /** Lê somente GLB autocontido: um pacote nunca dispara downloads externos no jogo. */
-async function lerModelo(pasta: string, nome: string): Promise<Document> {
+async function lerModelo(pasta: string, nome: string): Promise<{ doc: Document; sha256: string }> {
   const caminho = caminhoInterno(pasta, nome);
   const bytes = readFileSync(caminho);
   if (bytes.length < 20 || bytes.readUInt32LE(0) !== 0x46546c67 || bytes.readUInt32LE(4) !== 2) {
@@ -105,7 +106,10 @@ async function lerModelo(pasta: string, nome: string): Promise<Document> {
   ) {
     throw new ErroDeArte(caminho, "o GLB deve ter texturas e buffers embutidos, sem URI externa");
   }
-  return (await entradaESaida()).readBinary(bytes);
+  return {
+    doc: await (await entradaESaida()).readBinary(bytes),
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+  };
 }
 
 function desenho(doc: Document): ObjetoDoManifesto["desenho"] {
@@ -188,7 +192,12 @@ function apoios(doc: Document, grupo: string): Record<string, number> {
 async function comprimir(doc: Document): Promise<Uint8Array> {
   await doc.transform(
     unpartition(),
-    quantize({ quantizePosition: 14, quantizeTexcoord: 12 }),
+    quantize({
+      quantizePosition: 14,
+      quantizeTexcoord: 12,
+      // Máscara e luminância são dados do shader, não coordenadas geométricas.
+      pattern: /^(?!_MORADA_(?:MASCARA|PESO)_PINTURA$).*/,
+    }),
     reorder({ encoder: MeshoptEncoder }),
   );
   const { EXTMeshoptCompression } = await import("@gltf-transform/extensions");
@@ -210,8 +219,13 @@ export async function empacotarAmbiente(
   arte: string,
   saida: string,
   casa: unknown,
+  perfisDePintura?: unknown,
 ): Promise<AmbienteEmpacotado> {
   const modelo = validar(CasaSchema, casa, "casa");
+  const perfis =
+    perfisDePintura === undefined
+      ? []
+      : validar(ReceitasDePinturaSchema, perfisDePintura, "perfis-pintura").perfis;
   const resultado: AmbienteEmpacotado = { objetos: [], acabamentos: [], aberturas: [] };
   const raiz = join(arte, "biblioteca/moveis");
   const catalogo = new Map<string, { pasta: string; entrada: z.infer<typeof ItemSchema> }>();
@@ -226,16 +240,26 @@ export async function empacotarAmbiente(
     }
   }
   const pedidos = new Map(modelo.objetos.map((x) => [`${x.catalogo}@${x.versao}`, x]));
+  for (const perfil of perfis)
+    if (!pedidos.has(`${perfil.catalogo}@${perfil.versaoDoCatalogo}`))
+      throw new ErroDeArte(
+        perfil.catalogo,
+        "perfil de pintura fora das peças selecionadas pela casa",
+      );
   for (const [, pedido] of [...pedidos].sort(([a], [b]) => a.localeCompare(b))) {
     const item = catalogo.get(pedido.catalogo);
     if (!item) throw new ErroDeArte(raiz, `não há modelo para ${pedido.catalogo}`);
-    const doc = await lerModelo(item.pasta, item.entrada.arquivo);
+    const { doc, sha256 } = await lerModelo(item.pasta, item.entrada.arquivo);
     const cena = doc.getRoot().getDefaultScene() ?? doc.getRoot().listScenes()[0];
     if (!cena) throw new ErroDeArte(item.entrada.arquivo, "não tem cena");
     const { min, max } = getBounds(cena);
     const limites = validar(z.tuple([vetor, vetor]), [min, max], item.entrada.arquivo);
     const apoio = apoios(doc, item.entrada.grupo);
     const custo = desenho(doc);
+    const perfil = perfis.find(
+      (p) => p.catalogo === pedido.catalogo && p.versaoDoCatalogo === pedido.versao,
+    );
+    const pintura = perfil ? prepararPinturaDoMovel(doc, perfil, sha256) : undefined;
     const bytes = await comprimir(doc);
     resultado.objetos.push({
       id: pedido.catalogo,
@@ -245,6 +269,7 @@ export async function empacotarAmbiente(
       limites,
       apoios: apoio,
       desenho: custo,
+      ...(pintura ? { pintura } : {}),
     });
   }
   const pasta = join(arte, "biblioteca/construcao");
@@ -288,12 +313,12 @@ export async function empacotarAmbiente(
         );
       });
       if (!peca) throw new ErroDeArte(pasta, `não há encaixe para ${chave}`);
-      const doc = await lerModelo(pasta, peca.arquivo);
+      const { doc } = await lerModelo(pasta, peca.arquivo);
       if (peca.batente) {
         const batente = encaixes.batentes.find((x) => x.id === peca.batente);
         if (!batente) throw new ErroDeArte(pasta, `falta o batente ${peca.batente}`);
         const { mergeDocuments } = await import("@gltf-transform/functions");
-        const outro = await lerModelo(pasta, batente.arquivo);
+        const { doc: outro } = await lerModelo(pasta, batente.arquivo);
         const cena = doc.getRoot().listScenes()[0];
         const copia = mergeDocuments(doc, outro);
         for (const cenaOriginal of outro.getRoot().listScenes()) {

@@ -214,6 +214,16 @@ O cliente em `99030597` também passou nos seis gates `43759140904`; continua
 em candidata junto do núcleo, sem implantação V3. A fonte em produção segue
 `7c81a68f` (portal `59c3b020`, Morada `c69f1531`), conservando o alfa D2.
 
+O contrato de pintura em `d6767dd1` passou nos seis gates `43761541672`.
+O próximo candidato acrescenta o preparador do atlas dos móveis e manifesto V4:
+receita privada vinculada ao SHA-256, máscara e luminância float32 por vértice,
+nenhuma alteração de pixels ou vidro. A preparação recusa UV interpolado,
+triângulos com texels distintos, filtros incompatíveis e pigmentos ausentes.
+Testes sintéticos incluem serialização GLB e compressão real, preservação do
+original, origem alterada e leitura V3/V4. Execução remota ainda pendente para
+este incremento. Renderer, catálogo admitido pelo host e interface permanecem
+pendentes; não habilitar pintura nem Mundo V3 em produção com base no preparador.
+
 Arquivos: `comandos/intencao.ts`, `comandos/pipeline.ts`, novo sistema de edição;
 `dominio/tipos.ts`, `dominio/fatos.ts`, `dominio/reduzir-fato.ts`,
 `dominio/invariantes.ts`, `formatos/fotografia.ts`, `visao/replicacao.ts`.

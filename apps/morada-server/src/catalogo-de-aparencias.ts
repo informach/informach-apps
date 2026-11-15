@@ -7,7 +7,7 @@ import {
 
 /** A lista permitida vem somente do pacote já validado pelo servidor. */
 export function catalogoDeAparenciasDaArte(manifesto: Manifesto): CatalogoDeAparencias | undefined {
-  if (manifesto.versao !== 3) return undefined;
+  if (manifesto.versao !== 3 && manifesto.versao !== 4) return undefined;
   const opcoes = manifesto.personagens.flatMap((p) => {
     if (!p.criacao) return [];
     if (!p.cores || !p.sim) throw new Error(`Criação sem canais ou receita: ${p.id}`);
