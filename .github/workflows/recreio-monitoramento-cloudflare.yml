@@ -44,7 +44,7 @@ jobs:
           node --test scripts/recreio/monitoramento.test.mjs
       - name: Gerar tipos da configuração e conferir a composição
         run: |
-          node "$CF_TEST_TOOLS/node_modules/wrangler/bin/wrangler.js" types --config infrastructure/cloudflare/recreio-monitor/wrangler.jsonc --strict-vars=false
+          node "$CF_TEST_TOOLS/node_modules/wrangler/bin/wrangler.js" types infrastructure/cloudflare/recreio-monitor/worker-configuration.d.ts --config infrastructure/cloudflare/recreio-monitor/wrangler.jsonc --strict-vars=false
           pnpm exec tsc --noEmit --strict --allowJs --checkJs false --skipLibCheck --target ES2022 --module ESNext --moduleResolution bundler --lib ES2022 infrastructure/cloudflare/recreio-monitor/src/index.ts infrastructure/cloudflare/recreio-monitor/worker-configuration.d.ts
       - name: Construir o único arquivo que será publicado
         run: pnpm --filter @informach/morada-server exec esbuild ../../infrastructure/cloudflare/recreio-monitor/src/index.ts --bundle --platform=browser --target=es2022 --format=esm --outfile=../../infrastructure/cloudflare/recreio-monitor/dist/worker.mjs
