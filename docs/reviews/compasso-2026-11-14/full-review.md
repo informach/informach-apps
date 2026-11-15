@@ -113,6 +113,12 @@ conta comercial tinha Helena como pagante.
   a distinguir builds descartáveis, atualizar as ações e exigir autenticação
   no banco de teste. Essas alterações aguardam nova rodada do CI. Os testes de
   rejeição intencional continuam exercitando e registrando os erros esperados.
+- O primeiro ajuste do Sentry não bastou: o hook pós-compilação ainda tentava
+  criar uma release. Nos builds descartáveis, esse hook também fica desativado;
+  a instrumentação da aplicação e o comportamento de produção são preservados.
+- O Redis de CI recebe configuração explícita e o parâmetro de memória
+  recomendado no runner descartável; o container é encerrado ao final do job.
+  Isso não altera o Redis nem as configurações do Railway de produção.
 
 Os resultados finais dos gates gerais e da implantação devem ser acrescentados
 após terminarem. Alertas dependentes dessas correções ficam abertos até a

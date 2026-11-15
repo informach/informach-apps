@@ -37,6 +37,8 @@ export default withSentryConfig(config, {
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
   release: { create: process.env.SENTRY_BUILD_VERIFICATION !== "1" },
+  useRunAfterProductionCompileHook:
+    process.env.SENTRY_BUILD_VERIFICATION === "1" ? false : undefined,
   silent: !process.env.CI,
   sourcemaps: {
     disable:
