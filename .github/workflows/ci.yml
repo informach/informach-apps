@@ -189,6 +189,7 @@ jobs:
         if: always()
         run: |
           if docker inspect compasso-ci-redis >/dev/null 2>&1; then
+            docker logs compasso-ci-redis
             docker stop compasso-ci-redis
           fi
 

@@ -126,6 +126,11 @@ conta comercial tinha Helena como pagante.
   mantendo referências fixadas por commit. A compatibilidade dos artefatos e
   instaladores deve ser verificada no CI; o workflow de release não é executado
   como parte desta revisão.
+- A revisão do log também encontrou uma corrida na contagem regressiva do
+  EdiCaptura: o prazo podia vencer entre leituras e gerar um timeout negativo.
+  O tempo restante passa a ser calculado uma vez por iteração, com teste para
+  o vencimento durante a atualização de estado. O CI usa a imagem PostgreSQL
+  18 com locales disponíveis e exibe o log do Redis antes de encerrá-lo.
 
 Os resultados finais dos gates gerais e da implantação devem ser acrescentados
 após terminarem. Alertas dependentes dessas correções ficam abertos até a

@@ -215,6 +215,25 @@ test("countdown captures at or after deadline and cancellation never substitutes
   assert.equal(g.calls, 0);
   assert.equal(g.saved.length, 0);
 });
+test("countdown never schedules a negative timeout if the deadline passes while updating state", async (t) => {
+  let now = 0;
+  const delays = [];
+  const realSetTimeout = globalThis.setTimeout;
+  t.mock.method(performance, "now", () => now);
+  t.mock.method(globalThis, "setTimeout", (callback, delay) => {
+    delays.push(delay);
+    return realSetTimeout(callback, 0);
+  });
+  const f = setup({
+    state: (state) => {
+      if (state.phase === "countdown") now = 2_000;
+    },
+  });
+  await f.flow.start({ mode: "monitor", delay: 1 }, "1");
+  assert(delays.length > 0);
+  assert(delays.every((delay) => delay >= 0));
+  assert.equal(f.saved.length, 1);
+});
 test("late sources and topology/license invalidation do not save or activate", async () => {
   for (const invalidate of [(f) => f.flow.interrupt(), (f) => f.revoke(), (f) => f.topology()]) {
     const f = setup();
