@@ -86,7 +86,7 @@ describe("instâncias de móveis originais e pintados", () => {
       procedurais.criarObjetos([]),
     );
     const malhas = visual.raiz.children.filter(
-      (m): m is InstancedMesh => m instanceof InstancedMesh,
+      (m): m is InstancedMesh => m instanceof InstancedMesh && m.geometry === geometria,
     );
     expect(malhas).toHaveLength(4);
     const originais = malhas.filter((m) => m.count === 1),

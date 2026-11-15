@@ -243,6 +243,10 @@ A rodada `43764819924` identificou o acesso à propriedade V4 em uma união com
 manifestos antigos; o leitor agora estreita a entrada antes de validar o perfil.
 O ensaio visual foi ampliado para comparar vidro original e vidro em instâncias
 com preto/vermelho, exigindo zero alteração nos pixels e no alpha.
+A mesma rodada passou tipos e a prova visual; o teste de agrupamento contou
+também a malha procedural vazia da bancada. O teste agora delimita as quatro
+malhas que usam a geometria real examinada, conservando a exigência de dois
+grupos e a prova de descarte dos materiais próprios. Nova rodada pendente.
 Como Mundo V3 nunca foi publicado, os candidatos V3 anteriores à pintura não
 são destinos válidos de rollback deste contrato; produção continua Mundo V2.
 Interface e homologação visual privada permanecem pendentes; não habilitar
