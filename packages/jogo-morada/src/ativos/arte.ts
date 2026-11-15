@@ -152,7 +152,7 @@ export class AtivosDeArte implements Ativos {
 
   private async prepararObjetos(objetos: readonly ObjetoDaCena[]): Promise<void> {
     const m = await this.obterManifesto();
-    if (m?.versao !== 2 || this.descartado) return;
+    if (!m || m.versao === 1 || this.descartado) return;
     const necessarios = new Set(objetos.map((x) => `${x.objeto.catalogo}@${x.objeto.versao}`));
     for (const entrada of m.objetos) {
       const chave = `${entrada.id}@${entrada.versao}`;
@@ -183,7 +183,7 @@ export class AtivosDeArte implements Ativos {
 
   private async prepararAcabamento(id: string): Promise<void> {
     const m = await this.obterManifesto();
-    if (m?.versao !== 2 || this.descartado || this.materiais.has(id)) return;
+    if (!m || m.versao === 1 || this.descartado || this.materiais.has(id)) return;
     const entrada = m.acabamentos.find((x) => x.id === id);
     if (!entrada || this.pedidosDoAmbiente.has(entrada.arquivo)) return;
     this.pedidosDoAmbiente.add(entrada.arquivo);
@@ -213,7 +213,7 @@ export class AtivosDeArte implements Ativos {
 
   criarAberturas(imovel: DocumentoDeImovel, lote: Lote, corte: number | null): Object3D {
     const m = this.manifestoLido;
-    if (corte !== null || !m || m.versao !== 2) return new Group();
+    if (corte !== null || !m || m.versao === 1) return new Group();
     for (const entrada of m.aberturas) {
       if (this.cenasDosVaos.has(entrada.arquivo) || this.pedidosDoAmbiente.has(entrada.arquivo))
         continue;

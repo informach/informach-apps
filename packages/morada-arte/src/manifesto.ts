@@ -9,6 +9,12 @@ import { z } from "zod";
 
 export const FORMATO_DO_MANIFESTO = "morada-arte";
 export const VERSAO_DO_MANIFESTO = 2;
+/** Perfil de cores editáveis; o escritor legado conserva V1/V2. */
+export const VERSAO_DO_MANIFESTO_PARAMETRICO = 3;
+export const MAXIMO_DE_CANAIS_DE_COR = 16;
+export const ATRIBUTO_CANAL_DE_COR = "_MORADA_CANAL_COR";
+export const ATRIBUTO_MASCARA_DE_COR = "_MORADA_MASCARA_COR";
+export const ATRIBUTO_PESO_DE_COR = "_MORADA_PESO_COR";
 
 /** O nome do manifesto na pasta dos pacotes. */
 export const ARQUIVO_DO_MANIFESTO = "manifest.json";
@@ -22,6 +28,65 @@ export const SUFIXO_BROTLI = ".br";
 const ponto = z.tuple([z.number(), z.number(), z.number()]);
 const arquivo = z.string().regex(/^[a-z0-9_-]+\.[0-9a-f]{10}\.glb$/, "nome com hash do conteúdo");
 const inteiro = z.number().int().nonnegative();
+
+export const CanalDeCorSchema = z
+  .strictObject({
+    id: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+    origem: z.enum(["pele", "rosto", "cabelo", "roupa"]),
+    parte: z
+      .string()
+      .regex(/^[a-z][a-z0-9_]{0,39}$/)
+      .nullable(),
+    /** Fatores lineares; a pele divide o RGB pela referência da paleta. */
+    inicial: z.tuple([
+      z.number().min(0).max(4096),
+      z.number().min(0).max(4096),
+      z.number().min(0).max(4096),
+    ]),
+  })
+  .superRefine((canal, ctx) => {
+    if ((canal.origem === "roupa") !== (canal.parte !== null))
+      ctx.addIssue({ code: "custom", message: "Somente roupa declara uma parte" });
+  });
+
+export const CoresDoPersonagemSchema = z
+  .strictObject({
+    referenciaDePele: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/)
+      .refine(
+        (hex) =>
+          [1, 3, 5].every((inicio) => Number.parseInt(hex.slice(inicio, inicio + 2), 16) > 0),
+        "A referência da pele precisa dos três componentes positivos",
+      ),
+    canais: z.array(CanalDeCorSchema).min(1).max(MAXIMO_DE_CANAIS_DE_COR),
+  })
+  .superRefine(({ canais }, ctx) => {
+    const ids = new Set<string>();
+    const destinos = new Set<string>();
+    for (const canal of canais) {
+      const destino = canal.origem === "roupa" ? `roupa:${canal.parte}` : canal.origem;
+      if (ids.has(canal.id) || destinos.has(destino))
+        ctx.addIssue({ code: "custom", message: "Canal de cor repetido" });
+      ids.add(canal.id);
+      destinos.add(destino);
+    }
+  });
+
+/** Extras de um material opaco. Alpha transporta máscara, jamais transparência. */
+export const MaterialDeCorSchema = z.discriminatedUnion("tipo", [
+  z.strictObject({ tipo: z.literal("vertices") }),
+  z.strictObject({
+    tipo: z.literal("textura"),
+    canal: z
+      .number()
+      .int()
+      .min(0)
+      .max(MAXIMO_DE_CANAIS_DE_COR - 1),
+    luminancia: z.number().min(0).max(1),
+    mascara: z.literal("alpha"),
+  }),
+]);
 
 export const ExpressaoSchema = z.strictObject({
   /** `neutro`, `feliz`, `triste`, `bravo`, `dormindo`, `chorando`, `surpreso`. */
@@ -167,6 +232,10 @@ export const AberturaDoManifestoSchema = z.strictObject({
   desenho,
 });
 
+export const PersonagemParametricoSchema = PersonagemDoManifestoSchema.extend({
+  cores: CoresDoPersonagemSchema.optional(),
+});
+
 const campos = {
   formato: z.literal(FORMATO_DO_MANIFESTO),
   arte: z.strictObject({
@@ -181,7 +250,7 @@ const campos = {
   bibliotecas: z.array(BibliotecaDoManifestoSchema),
 };
 
-/** V1 continua legível; só os novos empacotamentos emitem V2. */
+/** Perfis antigos continuam legíveis; a aparência parametrizada usa V3. */
 export const ManifestoSchema = z.discriminatedUnion("versao", [
   z.strictObject({ ...campos, versao: z.literal(1) }),
   z.strictObject({
@@ -191,10 +260,21 @@ export const ManifestoSchema = z.discriminatedUnion("versao", [
     acabamentos: z.array(AcabamentoDoManifestoSchema),
     aberturas: z.array(AberturaDoManifestoSchema),
   }),
+  z.strictObject({
+    ...campos,
+    versao: z.literal(3),
+    personagens: z.array(PersonagemParametricoSchema),
+    objetos: z.array(ObjetoDoManifestoSchema),
+    acabamentos: z.array(AcabamentoDoManifestoSchema),
+    aberturas: z.array(AberturaDoManifestoSchema),
+  }),
 ]);
 
 export type Manifesto = z.infer<typeof ManifestoSchema>;
-export type PersonagemDoManifesto = z.infer<typeof PersonagemDoManifestoSchema>;
+export type PersonagemDoManifesto = z.infer<typeof PersonagemParametricoSchema>;
+export type CanalDeCor = z.infer<typeof CanalDeCorSchema>;
+export type CoresDoPersonagem = z.infer<typeof CoresDoPersonagemSchema>;
+export type MaterialDeCor = z.infer<typeof MaterialDeCorSchema>;
 export type BibliotecaDoManifesto = z.infer<typeof BibliotecaDoManifestoSchema>;
 export type ClipeDoManifesto = z.infer<typeof ClipeDoManifestoSchema>;
 export type ObjetoDoManifesto = z.infer<typeof ObjetoDoManifestoSchema>;
@@ -211,7 +291,7 @@ export function arquivosDoManifesto(manifesto: Manifesto): string[] {
       ARQUIVO_DO_MANIFESTO,
       ...manifesto.personagens.map((p) => p.arquivo),
       ...manifesto.bibliotecas.map((b) => b.arquivo),
-      ...(manifesto.versao === 2
+      ...(manifesto.versao !== 1
         ? [...manifesto.objetos, ...manifesto.acabamentos, ...manifesto.aberturas].map(
             (x) => x.arquivo,
           )

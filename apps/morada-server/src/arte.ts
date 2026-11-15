@@ -140,7 +140,7 @@ export function carregarArte(opcoes: OpcoesDaArte): RotaDaArte {
   const pacotes = [
     ...manifesto.personagens,
     ...manifesto.bibliotecas,
-    ...(manifesto.versao === 2
+    ...(manifesto.versao !== 1
       ? [...manifesto.objetos, ...manifesto.acabamentos, ...manifesto.aberturas]
       : []),
   ];
