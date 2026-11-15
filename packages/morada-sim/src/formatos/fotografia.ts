@@ -173,6 +173,7 @@ export function abrirFotografia(bruto: unknown): Fotografia {
     .record(z.string(), z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER))
     .parse(estado.contadores);
   const revisaoGlobal = revisaoDosObjetos({ contadores });
+  estado.contadores = contadores;
   z.object({
     porId: z.record(
       z.string(),

@@ -380,7 +380,7 @@ for (const aparelho of [
     ).toHaveAttribute("aria-pressed", "false");
     await pessoa.page.getByRole("button", { name: "Vista superior", exact: true }).click();
     await painel.getByRole("button", { name: "Ver prévia na casa" }).click();
-    await tela(pessoa.page, "decoracao-previa-azul");
+    await tela(pessoa.page, `decoracao-${aparelho.nome}-previa-azul`);
     await comprar.click();
     await expect(painel.getByText("Edição confirmada.", { exact: true })).toBeVisible();
     const saldo = await painel.locator(".morada-edicao-saldo b").innerText();
@@ -423,8 +423,8 @@ for (const aparelho of [
     ).toHaveAttribute("aria-pressed", "false");
     await pessoa.page.getByRole("button", { name: "Vista superior", exact: true }).click();
     await painel.getByRole("button", { name: "Ver prévia na casa" }).click();
-    await tela(pessoa.page, "decoracao-restaurada-preto");
-    await medida("decoracao-restaurada", {
+    await tela(pessoa.page, `decoracao-${aparelho.nome}-restaurada-preto`);
+    await medida(`decoracao-${aparelho.nome}-restaurada`, {
       aparelho: aparelho.nome,
       viewport: aparelho.viewport,
       posicao,

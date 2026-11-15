@@ -317,6 +317,15 @@ anterior, sem interromper o mundo ou apresentar fallback como arte homologada.
 O downgrade de mundos V3 continua proibido; não usar backup como rollback de
 uma atualização sem um procedimento próprio de recuperação consentida.
 
+`bfcf71bc`, seis gates `43773401139` aprovados, incluindo cena completa do
+portal novo com servidor publicado. Prova privada `43774027587`, executor
+`1f340515d`, aprovada: compatibilidade com arte D2, decoração/restauração no
+computador e no celular, criação/48 prévias com arte V4. Captura de celular
+revista: móvel preto visível, contorno e painel utilizáveis. [Prova numérica](evidencias/editor-casa-celular-2026-11-15.json).
+Capturas de computador foram sobrescritas pelo mesmo nome na etapa de celular;
+nomes passam a incluir o aparelho. Sobreposição de moradores/rótulos na entrada
+inicial permanece achado real para o lote de interações/apresentação.
+
 ### Base do histórico em preparação
 
 O [plano de concorrência/histórico](d3-concorrencia-historico.md) detalha travas
@@ -332,6 +341,14 @@ Testes de duas peças, remoção, reabertura/replay, recusa, estouro e fato
 adulterado aguardam GitHub. Ainda não implementa travas ou desfazer/refazer.
 Mundo V3 segue sem publicação: fotografias de candidatas antigas não são
 rollback nem formato de produção aceito pela nova candidata.
+
+`c41a659c`, seis gates `43774945906` aprovados para o relógio durável e a
+conferência das revisões do recibo. A candidata seguinte preserva as capturas
+por aparelho e reconstrói o mapa de contadores validado. Inclui o registro
+transitório de travas (dez casos ainda sem execução): exclusão por peça/região,
+tempo do host, geração/sessão, renovação/liberação, limite e cópias isoladas.
+Esse módulo ainda não está ligado a intenções, ator, presença ou interface;
+não existe proteção de obra ativa só por ele estar no código.
 
 ### Negociação para o corte V3/V4
 
