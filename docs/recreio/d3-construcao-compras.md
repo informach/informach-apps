@@ -236,6 +236,9 @@ grupos original/pintado com materiais próprios e reconstrução na mudança de 
 A admissão acontece após o checkpoint da migração e confirma o journal antes
 das boas-vindas. Vidro/detalhes ignoram a cor da instância, inclusive em malhas
 com vários materiais. Execução remota deste incremento ainda pendente.
+Na primeira rodada (`43764638051`), o CI identificou um import de `listar`
+ausente na inicialização e referências ao DTO antigo em testes de conflito e
+reenvio. Corrigidos sem mudar as expectativas desses testes; nova rodada exigida.
 Como Mundo V3 nunca foi publicado, os candidatos V3 anteriores à pintura não
 são destinos válidos de rollback deste contrato; produção continua Mundo V2.
 Interface e homologação visual privada permanecem pendentes; não habilitar

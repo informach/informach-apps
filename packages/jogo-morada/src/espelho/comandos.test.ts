@@ -37,7 +37,7 @@ describe("comandos duráveis de edição no cliente", () => {
     const pedido = comandos.comando(null, acao);
     expect(pedido.comandoId).toBe(comandoDeEdicao("jogador", 1));
     if (acao.pedido.operacao.t !== "comprar") throw new Error("Compra ausente");
-    acao.pedido.operacao.cor = 0;
+    acao.pedido.operacao.pintura = { perfil: "a".repeat(64), cor: 0 };
     acao.pedido.operacao.colocacao.pos[0] = 4000;
     comandos.reenviar();
     expect(enviados).toHaveLength(2);

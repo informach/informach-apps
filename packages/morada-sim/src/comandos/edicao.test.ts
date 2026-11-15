@@ -91,7 +91,7 @@ describe("sequência durável da edição", () => {
     const registro = admitirReciboDeEdicao(iniciarRegistroDeEdicoes(autor), recibo()).registro;
     const alterado = pedido();
     if (alterado.operacao.t !== "comprar") throw new Error("Compra ausente");
-    alterado.operacao.cor = 0;
+    alterado.operacao.pintura = { perfil: "a".repeat(64), cor: 0 };
     expect(consultarEdicao(registro, autor, comandoDeEdicao(autor, 1), alterado)).toEqual({
       t: "recusada",
       motivo: "conflito",

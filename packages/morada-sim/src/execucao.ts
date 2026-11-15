@@ -16,7 +16,7 @@ import { verificarInvariantes } from "./dominio/invariantes";
 import { montarMoradorInicial } from "./dominio/morador-inicial";
 import { PERMISSOES_DO_FUNDADOR } from "./dominio/permissoes";
 import { reduzirFato } from "./dominio/reduzir-fato";
-import { exigir, inserir, obter, tabelaVazia } from "./dominio/tabela";
+import { exigir, inserir, listar, obter, tabelaVazia } from "./dominio/tabela";
 import type {
   EstadoDoMundo,
   Familia,

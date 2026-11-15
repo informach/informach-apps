@@ -237,7 +237,7 @@ describe("edição autoritativa e durável da casa", () => {
     });
     const alterado = copiar(pedido);
     if (alterado.operacao.t !== "comprar") throw new Error("Compra ausente");
-    alterado.operacao.cor = 0;
+    alterado.operacao.pintura = { perfil: PERFIL, cor: 0 };
     expect(c.aplicar(alterado)).toMatchObject({ ok: false, motivo: "comando_invalido" });
     expect(c.familiaAtual().fundo).toBe(saldo);
     expect(c.mundo.estado.contadores.obj).toBe(contador);
