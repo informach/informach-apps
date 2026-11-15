@@ -4,9 +4,18 @@ import { entrar } from "./apoio";
 test("quadros visíveis acima de 250 ms reduzem a qualidade até o degrau baixo", async ({
   page,
 }) => {
-  // Só o agendador externo é desacelerado. Cena, WebGL, medidas e política
-  // são reais; nenhuma API de teste é acrescentada ao cliente.
+  // A placa/CPU informadas escolhem o ponto de partida alto; o renderer
+  // continua sendo o SwiftShader real. Isto verifica adaptação, não FPS.
+  // Só o agendador externo é desacelerado, sem API de teste no cliente.
   await page.addInitScript(() => {
+    const getParameter = WebGL2RenderingContext.prototype.getParameter;
+    WebGL2RenderingContext.prototype.getParameter = function (
+      this: WebGL2RenderingContext,
+      parameter: number,
+    ) {
+      return parameter === 37446 ? "GPU dedicada de ensaio" : getParameter.call(this, parameter);
+    };
+    Object.defineProperty(navigator, "hardwareConcurrency", { get: () => 8 });
     window.requestAnimationFrame = (callback) =>
       window.setTimeout(() => callback(performance.now()), 500);
     window.cancelAnimationFrame = (id) => window.clearTimeout(id);

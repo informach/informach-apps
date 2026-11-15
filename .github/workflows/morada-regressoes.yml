@@ -52,7 +52,8 @@ jobs:
             const r=JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/qualidade-antes.json","utf8"));
             const falhas=r.suites.flatMap(s=>s.specs).flatMap(s=>s.tests).flatMap(t=>t.results).flatMap(r=>r.errors??[]);
             console.log(JSON.stringify(falhas));
-            if (r.stats.unexpected!==1 || !falhas.some(e=>e.message?.includes("baixa")&&e.message?.includes("alta"))) process.exit(1);
+            const mensagens=falhas.map(e=>(e.message??"").replace(/\u001b\[[0-9;]*m/g,""));
+            if (r.stats.unexpected!==1 || !mensagens.some(m=>/Expected:\s*"baixa"/.test(m)&&/Received:\s*"alta"/.test(m))) process.exit(1);
           '
       - name: Conferir os mesmos casos com as correções
         run: |
