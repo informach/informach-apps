@@ -44,7 +44,7 @@ jobs:
       - name: Require reviewed main ancestry
         run: git merge-base --is-ancestor HEAD origin/main
       - uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: 24.15.0
           cache: pnpm
@@ -88,7 +88,7 @@ jobs:
       - name: Require reviewed main ancestry
         run: git merge-base --is-ancestor HEAD origin/main
       - uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: 24.15.0
           cache: pnpm
@@ -150,7 +150,7 @@ jobs:
           ref: ${{ env.EDI_RELEASE_TAG }}
           persist-credentials: false
       - uses: pnpm/action-setup@a8198c4bff370c8506180b035930dea56dbd5288
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: 24.15.0
           cache: pnpm
