@@ -779,7 +779,10 @@ export default defineRailway((ctx) => {
       RECREIO_ACCESS_MODE: "fechado",
       RECREIO_JOGO_DE_TESTE: "0",
       RECREIO_GAME_ORIGINS: JSON.stringify({
-        morada: { ws: "wss://morada-server.informach.com.br" },
+        morada: {
+          ws: "wss://morada-server.informach.com.br",
+          assets: "https://morada-server.informach.com.br",
+        },
       }),
       BETTER_AUTH_SECRET: preserve(),
       CRON_SECRET: preserve(),
@@ -832,7 +835,7 @@ export default defineRailway((ctx) => {
       MORADA_ORIGENS: "https://recreio.informach.com.br",
       RECREIO_HOST_SECRET: preserve(),
       MORADA_METRICAS_TOKEN: preserve(),
-      MORADA_ARTE_DIR: preserve(),
+      MORADA_ARTE_DIR: "/data/arte/d1-98f76bc403d8",
       SENTRY_DSN: preserve(),
     },
   });

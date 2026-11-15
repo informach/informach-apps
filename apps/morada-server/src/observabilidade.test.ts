@@ -9,18 +9,20 @@ describe("observabilidade do servidor", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("não inicia o transporte sem DSN", () => {
-    iniciarObservabilidade(undefined, "commit");
+    iniciarObservabilidade(undefined, "commit", "test");
     expect(Sentry.init).not.toHaveBeenCalled();
   });
 
   it("reconstrói o evento sem requisição, contexto, breadcrumbs ou mensagem livre", async () => {
-    iniciarObservabilidade("https://public@example.test/1", "commit");
+    iniciarObservabilidade("https://public@example.test/1", "commit", "production");
     const opcoes = vi.mocked(Sentry.init).mock.calls[0]?.[0];
     expect(opcoes?.defaultIntegrations).toBe(false);
+    expect(opcoes?.environment).toBe("production");
     if (!opcoes?.beforeSend) throw new Error("sem filtro");
     const evento = await opcoes.beforeSend(
       {
         type: undefined,
+        environment: "valor recebido no evento",
         message: "token privado",
         user: { email: "pessoa@example.test" },
         request: { headers: { Authorization: "Bearer segredo" } },
@@ -32,6 +34,7 @@ describe("observabilidade do servidor", () => {
     );
     expect(evento).toMatchObject({
       message: "morada.server_failure",
+      environment: "production",
       tags: { app: "morada-server", operation: "rede", code: "INTERNO" },
     });
     const texto = JSON.stringify(evento);

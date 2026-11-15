@@ -1,10 +1,16 @@
 # Recreio e Morada: operação do alfa fechado
 
-Atualizado em 15/11/2026. **Ativação do alfa autorizado em preparação; aplicativos ainda sem deployment.** Os dois serviços, o cron e o volume existem no Railway, com builds, rede interna, segredos e referências aos serviços compartilhados configurados. Ambos os domínios têm propriedade e certificado válidos; o Morada resolve pela Cloudflare e alcança o Railway, que responde fallback enquanto não há deploy. Sentry e monitores estão preparados; a coleta/alerta ainda precisa ser comprovada após deploy. O candidato IaC usa `RECREIO_PROVISIONED=true`, `RECREIO_DOMAINS_CONFIGURED=true` e `RECREIO_LAUNCHED=true`: mantém recursos e habilita as três fontes e a sondagem do Bastidores. O plano e os gates precisam passar antes da ativação sequencial, cuja evidência virá dos deployments. Execução atual no [registro de 15/11](../../docs/recreio/execucao-2026-11-15.md); IDs e DNS no [registro operacional](../../docs/recreio/railway-2026-11-13.md).
+Atualizado em 15/11/2026. **Portal e Morada implantados no alfa fechado**, no commit `7c8b6a14`, depois dos quatro gates do [run 43703150878](https://github.com/informach/informach-apps/actions/runs/43703150878). Portal `69ada2d9-6758-4f47-9a79-277a6328bcf6` e Morada `7fb59034-eac3-4dc8-b1a4-792a28051fce`: deployments com sucesso e `/api/ready` público 200. O portal confirmou banco/Redis, JWKS e versão; o titular confirmou login real até a estante. As duas contas piloto têm cortesia até 15/12, ainda sem prova conjunta de jogo.
 
-A implantação fechada e a medição de custo continuam no lote X4. O Stripe não foi acessado nem configurado; os passos restantes estão no [roteiro de cobrança](../../docs/recreio/stripe-pendente.md). Os preços `price_TODO_recreio_*` não permitem cobrança.
+Manutenção `eb0cac89-4ec8-4762-a038-8d7471d0f4a8` implantada; confirmar a execução registrada em `ops.job_runs`. Flag do Bastidores ativada, aguardando conferir o novo deployment e as sondagens. A entrega de um evento sanitizado do Morada ao Sentry foi comprovada (`MORADA-SERVER-1`); o evento é a prova operacional provocada, não uma falha de jogador. Sondagens HTTP do Sentry continuam **desativadas por falta de orçamento**, sem alterar o orçamento nem desligar monitores de outros produtos.
 
-## Serviços preparados
+Arte D1 empacotada no GitHub privado e transferida por SFTP para `/data/arte/d1-98f76bc403d8`, sem substituir versão anterior. Os 138 arquivos foram conferidos antes da transferência; manifesto SHA-256 `98f76bc403d8011ae09dd38cdb7cf2f788f26e57ca9694bc15ce675ef8d2ea12`. A ativação da pasta e da origem de assets aguarda os gates do próximo candidato; **o processo atual ainda usa formas procedurais**.
+
+As três flags IaC estão em `true` e não são mecanismo de rollback. A ativação foi sequencial e restrita aos recursos Recreio/monitoração. [Registro de execução](../../docs/recreio/execucao-2026-11-15.md); [IDs e DNS](../../docs/recreio/railway-2026-11-13.md). X4 continua aberto: restauração do backup real em destino isolado, alertas, carga e custo por mundo ainda exigem prova. Backups Postgres diários/semanais/mensais existem; PITR desligado. Não restaurar o backup sobre o banco compartilhado como ensaio.
+
+Stripe continua sem configuração; os preços `price_TODO_recreio_*` não permitem cobrança. Pendências no [roteiro de cobrança](../../docs/recreio/stripe-pendente.md). D2–D8, proteção familiar completa e condições jurídicas continuam abertas.
+
+## Serviços implantados e arte preparada
 
 | Recurso | Execução | Prontidão |
 | --- | --- | --- |

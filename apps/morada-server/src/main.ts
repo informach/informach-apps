@@ -62,7 +62,11 @@ function descrever(erro: unknown): Record<string, string> {
 
 async function principal(): Promise<void> {
   const config = lerConfiguracao(process.env);
-  iniciarObservabilidade(config.SENTRY_DSN, config.RAILWAY_GIT_COMMIT_SHA);
+  iniciarObservabilidade(
+    config.SENTRY_DSN,
+    config.RAILWAY_GIT_COMMIT_SHA,
+    process.env.RAILWAY_ENVIRONMENT_NAME ?? config.NODE_ENV,
+  );
   const versao = config.RAILWAY_GIT_COMMIT_SHA?.slice(0, 12) ?? "dev";
 
   let host: ClienteDoHost;

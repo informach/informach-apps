@@ -1,6 +1,6 @@
 # Recuperação explícita do Morada
 
-Comando operacional em implementação em 15/11/2026; conferir o resultado do candidato no [registro](execucao-2026-11-15.md). Não é uma prova de restauração do backup real em produção.
+Comando homologado em PostgreSQL descartável no [run 43701720630](https://github.com/informach/informach-apps/actions/runs/43701720630), incluindo sete regressões de recuperação dentro dos 163 testes de integração. Não é uma prova de restauração do backup real em produção; acompanhar o [registro](execucao-2026-11-15.md).
 
 O comando roda no portal, com a conexão operacional do Recreio. O servidor do Morada conserva apenas sua API HTTP e nunca recebe banco. A simulação valida/reconstrói o estado; os repositórios e endpoints de armazenamento continuam opacos ao conteúdo do jogo. Não há endpoint público de restauração nem exposição de conteúdo pelo Bastidores.
 

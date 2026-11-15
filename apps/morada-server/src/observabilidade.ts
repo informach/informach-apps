@@ -2,11 +2,16 @@ import { ehErroDoRecreio } from "@informach/recreio";
 import * as Sentry from "@sentry/node";
 
 /** Só classificadores fixos chegam ao provedor; nada da requisição ou do mundo. */
-export function iniciarObservabilidade(dsn: string | undefined, commit: string | undefined): void {
+export function iniciarObservabilidade(
+  dsn: string | undefined,
+  commit: string | undefined,
+  ambiente: string,
+): void {
   if (!dsn) return;
   Sentry.init({
     dsn,
     release: commit,
+    environment: ambiente,
     sendDefaultPii: false,
     defaultIntegrations: false,
     tracesSampleRate: 0,
@@ -15,6 +20,7 @@ export function iniciarObservabilidade(dsn: string | undefined, commit: string |
       event_id: evento.event_id,
       timestamp: evento.timestamp,
       release: commit,
+      environment: ambiente,
       platform: "node",
       level: "error",
       message: "morada.server_failure",

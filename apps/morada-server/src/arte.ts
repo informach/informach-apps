@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
+import { brotliDecompressSync } from "node:zlib";
 import {
   ARQUIVO_DO_MANIFESTO,
   arquivosDoManifesto,
@@ -69,17 +70,37 @@ export type RotaDaArte = {
   bytes: number;
 };
 
-function carregar(pasta: string, nome: string, ehManifesto: boolean): Arquivo {
+function carregar(pasta: string, nome: string, bytesEsperados: number | undefined): Arquivo {
+  const ehManifesto = nome === ARQUIVO_DO_MANIFESTO;
   const caminho = join(pasta, nome);
   if (!existsSync(caminho)) {
     throw new Error(`MORADA_ARTE_DIR: o manifesto cita ${nome}, que não está na pasta`);
   }
+  if (!ehManifesto && statSync(caminho).size !== bytesEsperados)
+    throw new Error(`MORADA_ARTE_DIR: tamanho divergente em ${nome}`);
   const corpo = readFileSync(caminho);
-  const resumo = createHash("sha256").update(corpo).digest("base64url").slice(0, 22);
+  const hash = createHash("sha256").update(corpo).digest();
+  if (
+    !ehManifesto &&
+    (corpo.length !== bytesEsperados || nome.split(".")[1] !== hash.toString("hex").slice(0, 10))
+  )
+    throw new Error(`MORADA_ARTE_DIR: integridade divergente em ${nome}`);
+  const resumo = hash.toString("base64url").slice(0, 22);
   const comprimido = `${caminho}${SUFIXO_BROTLI}`;
+  const brotli = existsSync(comprimido) ? readFileSync(comprimido) : null;
+  if (brotli) {
+    let expandido: Buffer;
+    try {
+      expandido = brotliDecompressSync(brotli, { maxOutputLength: Math.max(1, corpo.length) });
+    } catch {
+      throw new Error(`MORADA_ARTE_DIR: cópia brotli inválida em ${nome}`);
+    }
+    if (!expandido.equals(corpo))
+      throw new Error(`MORADA_ARTE_DIR: cópia brotli divergente em ${nome}`);
+  }
   return {
     corpo,
-    brotli: existsSync(comprimido) ? readFileSync(comprimido) : null,
+    brotli,
     tipo: ehManifesto
       ? "application/json; charset=utf-8"
       : nome.endsWith(".png")
@@ -87,7 +108,9 @@ function carregar(pasta: string, nome: string, ehManifesto: boolean): Arquivo {
         : "model/gltf-binary",
     cache: ehManifesto ? CACHE_DO_MANIFESTO : CACHE_DOS_PACOTES,
     etag: `"${resumo}"`,
-    etagBrotli: `"${resumo}-br"`,
+    etagBrotli: brotli
+      ? `"${createHash("sha256").update(brotli).digest("base64url").slice(0, 22)}-br"`
+      : `"${resumo}-br"`,
   };
 }
 
@@ -102,7 +125,7 @@ export function aceitaBrotli(cabecalho: string | string[] | undefined): boolean 
   });
 }
 
-/** Lê o manifesto e os pacotes da pasta. Falha na subida se algo do manifesto não estiver lá. */
+/** Confere nomes, tamanhos, hashes e representações antes de servir qualquer pacote. */
 export function carregarArte(opcoes: OpcoesDaArte): RotaDaArte {
   const agora = opcoes.agora ?? Date.now;
   const caminhoDoManifesto = join(opcoes.pasta, ARQUIVO_DO_MANIFESTO);
@@ -114,9 +137,23 @@ export function carregarArte(opcoes: OpcoesDaArte): RotaDaArte {
     throw new Error(`MORADA_ARTE_DIR: ${ARQUIVO_DO_MANIFESTO} fora do formato do empacotador`);
   }
   const manifesto = lido.data;
+  const pacotes = [
+    ...manifesto.personagens,
+    ...manifesto.bibliotecas,
+    ...(manifesto.versao === 2
+      ? [...manifesto.objetos, ...manifesto.acabamentos, ...manifesto.aberturas]
+      : []),
+  ];
+  const tamanhos = new Map<string, number>();
+  for (const pacote of pacotes) {
+    const anterior = tamanhos.get(pacote.arquivo);
+    if (anterior !== undefined && anterior !== pacote.bytes)
+      throw new Error(`MORADA_ARTE_DIR: tamanhos conflitantes em ${pacote.arquivo}`);
+    tamanhos.set(pacote.arquivo, pacote.bytes);
+  }
   const arquivos = new Map<string, Arquivo>();
   for (const nome of arquivosDoManifesto(manifesto)) {
-    arquivos.set(nome, carregar(opcoes.pasta, nome, nome === ARQUIVO_DO_MANIFESTO));
+    arquivos.set(nome, carregar(opcoes.pasta, nome, tamanhos.get(nome)));
   }
 
   /** Os cabeçalhos de CORS de uma origem permitida; nenhum para as outras. */

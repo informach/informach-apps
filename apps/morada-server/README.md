@@ -10,6 +10,8 @@ A recuperação exige a fotografia anunciada pela posse, do próprio mundo, com 
 
 O Railway reserva 35 s de drenagem, acima dos 25 s de persistência do processo, sem sobreposição de réplicas. Depois de salvar, o servidor espera até 1 s pela confirmação de fechamento dos WebSockets e termina os sockets que não respondem. O volume mantém réplica única; isso não constitui alta disponibilidade. Contrato do provedor: [desligamento e drenagem](https://docs.railway.com/deployments/deployment-teardown#draining-time).
 
+Arte declarada exige tamanho e SHA-256 compatíveis com o nome de cada arquivo; cópias brotli precisam expandir exatamente para o original, com limite de saída igual ao seu tamanho. Corrupção impede iniciar a rota. Cada representação tem ETag derivado dos próprios bytes. A telemetria conserva ambiente/release configurados e somente classificadores fixos, sem conteúdo dos mundos. Implantação, ativação da arte e evidências no [runbook do alfa](../recreio/PRODUCAO.md).
+
 ## Limites da rede
 
 Conexões sem sessão também contam no teto global. `MORADA_CONEXOES_MAX` (padrão 1024), `MORADA_PEDIDOS_EM_CURSO_MAX` (32) e `MORADA_QUADROS_POR_SEGUNDO_MAX` (400) limitam sockets, verificações/entradas simultâneas e vazão agregada antes de processar o quadro. HTTP tem 64 vagas adicionais e prazos de cabeçalhos/corpo de 10 s. `/api/metricas` informa ocupação e limites. Os tetos protegem recursos; não representam jogadores/mundos homologados nem substituem proteção da borda. A lotação de mundos continua independente, pendente de carga medida. A segunda conexão recusada não expulsa uma admissão em andamento.
