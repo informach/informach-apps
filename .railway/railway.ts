@@ -51,10 +51,10 @@ const ESTRELA_LAUNCHED = true;
 const COMPASSO_LAUNCHED = true;
 /** Recursos provisionados via plugin em 13/11/2026; nunca desligar para rollback. */
 const RECREIO_PROVISIONED = true;
-/** Vínculos autorizados e criados; DNS/certificados ainda precisam validar. */
+/** Vínculos, propriedade e certificados conferidos em 15/11/2026. */
 const RECREIO_DOMAINS_CONFIGURED = true;
-/** Fontes desligadas até liberar banco, observabilidade e ativação do alfa. */
-const RECREIO_LAUNCHED = false;
+/** Alfa fechado autorizado em 15/11. Nunca desligar para rollback de código. */
+const RECREIO_LAUNCHED = true;
 
 // Imagens dos crons sem build, fixadas por digest: uma tag trocada no registro
 // não muda o que roda com o CRON_SECRET de cada app. Para atualizar, conferir o
@@ -626,6 +626,7 @@ export default defineRailway((ctx) => {
       SENDGRID_API_KEY: cozya.env.SENDGRID_API_KEY,
       STRIPE_MODE: "prod",
       ADMIN_COMPASSO_ENABLED: COMPASSO_LAUNCHED ? "1" : "0",
+      ADMIN_RECREIO_ENABLED: RECREIO_LAUNCHED ? "1" : "0",
       LOG_LEVEL: "info",
       BETTER_AUTH_SECRET: preserve(),
       CRON_SECRET: preserve(),

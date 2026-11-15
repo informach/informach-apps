@@ -12,13 +12,18 @@ const context = createRailwayContext({
   environmentId: "174b2cb0-e1cd-410c-8764-d913e3af18d3",
 });
 
-async function graph(launched) {
+async function graph(launched, recreioLaunched) {
   const target = new URL(`.compasso-graph-${randomUUID()}.ts`, sourceUrl);
   let source = await readFile(sourceUrl, "utf8");
   for (const flag of ["ESTRELA_LAUNCHED", "COMPASSO_LAUNCHED"]) {
     const declaration = new RegExp(`const ${flag} = (?:true|false);`);
     assert.match(source, declaration, `${flag} must remain an explicit deployment decision`);
     source = source.replace(declaration, `const ${flag} = ${launched};`);
+  }
+  if (recreioLaunched !== undefined) {
+    const declaration = /const RECREIO_LAUNCHED = (?:true|false);/;
+    assert.match(source, declaration);
+    source = source.replace(declaration, `const RECREIO_LAUNCHED = ${recreioLaunched};`);
   }
   try {
     await writeFile(target, source, { flag: "wx" });
@@ -93,4 +98,40 @@ test("preparation retains the existing central services; cutover retires only th
   }
   assert.equal(before.get("@informach/admin").variables.ADMIN_COMPASSO_ENABLED.value, "0");
   assert.equal(after.get("@informach/admin").variables.ADMIN_COMPASSO_ENABLED.value, "1");
+});
+
+test("Recreio launch enables only its sources and monitoring, preserving data resources and other products", async () => {
+  const before = await graph(true, false);
+  const after = await graph(true, true);
+  assert.deepEqual([...after.keys()].sort(), [...before.keys()].sort());
+  const changed = [...before.keys()]
+    .filter((name) => JSON.stringify(before.get(name)) !== JSON.stringify(after.get(name)))
+    .sort();
+  assert.deepEqual(
+    changed,
+    [
+      "@informach/admin",
+      "@informach/morada-server",
+      "@informach/recreio-app",
+      "cron-recreio-manutencao",
+    ].sort(),
+  );
+  for (const name of [
+    "@informach/recreio-app",
+    "@informach/morada-server",
+    "cron-recreio-manutencao",
+  ]) {
+    assert.equal(before.get(name).source, undefined);
+    assert.ok(after.get(name).source);
+  }
+  assert.deepEqual(after.get("morada-arte"), before.get("morada-arte"));
+  assert.equal(after.get("cron-recreio-manutencao").deploy.cronSchedule, "*/5 * * * *");
+  assert.equal(before.get("@informach/admin").variables.ADMIN_RECREIO_ENABLED.value, "0");
+  assert.equal(after.get("@informach/admin").variables.ADMIN_RECREIO_ENABLED.value, "1");
+  const morada = after.get("@informach/morada-server");
+  assert.equal(morada.variables.DATABASE_URL, undefined);
+  assert.ok(morada.deploy.drainingSeconds > 25);
+  assert.ok(
+    Object.values(morada.deploy.multiRegionConfig).every((region) => region.numReplicas === 1),
+  );
 });
