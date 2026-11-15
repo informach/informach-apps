@@ -50,3 +50,34 @@ no intervalo em que a fixture para A antes de subir B na mesma porta. A nova
 fixture admite somente `ERR_CONNECTION_REFUSED` dessas URLs RSC e somente
 durante essa troca deliberada, como nos ensaios de queda existentes. Nenhuma
 supressão de erro da ação, CSP, página ou fase posterior à prontidão.
+
+## Aceite e implantação
+
+`8559f4ab`: os seis gates da execução
+[43751914501](https://github.com/informach/informach-apps/actions/runs/43751914501)
+aprovaram. A medida confirma mesma aba, versões distintas e um único mundo
+criado. [Evidência numérica](evidencias/versoes-portal-2026-11-15.json).
+
+A chave AES de 32 bytes da build anterior foi conservada no segredo próprio do
+portal antes do push na main. Deploy `909bcf91` aprovado, fonte conferida por
+`/api/health`; saúde e prontidão 200. SSH confirmou que manifesto e variável
+conservam a mesma chave, sem exibir seu valor.
+
+O upload dos mapas de código foi confirmado pelo build às 19h35min57s UTC e a
+release `8559f4ab…` existe no projeto Recreio do Sentry (ID `2094694861`). A pasta
+pública do pacote instalado contém zero `.map`. A credencial de organização
+usa o escopo `org:ci`, restrito a mapas/releases/mapeamentos de código; ela não
+é uma credencial limitada a um projeto, mas só está configurada no portal.
+Não altera orçamento nem sondagens pagas. A primeira credencial apareceu
+indevidamente na saída de uma ferramenta e foi revogada antes do uso; a
+substituta foi transferida diretamente para o Railway, sem imprimir o valor.
+
+`RECREIO-4` marcado como corrigido nessa release, conservando o evento e a
+detecção de regressões. Isso não certifica ausência de erros futuros. O build
+também avisou sobre import depreciado do `withSentryConfig`; a troca para o
+subpath `/config`, existente na versão instalada, segue na próxima candidata.
+
+Plano IaC inicialmente previa apagar as três variáveis do upload. Declarado
+`preserve()` em cada uma, o plano contra produção respondeu que a configuração
+está atualizada, sem exclusões. Foi necessário o loader instalado `tsx` para
+resolver imports TypeScript do catálogo; instrução registrada no runbook.

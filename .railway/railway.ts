@@ -793,6 +793,9 @@ export default defineRailway((ctx) => {
       RECREIO_TOKEN_PREVIOUS_PUBLIC_KEYS: preserve(),
       SENTRY_DSN: preserve(),
       NEXT_PUBLIC_SENTRY_DSN: preserve(),
+      SENTRY_AUTH_TOKEN: preserve(),
+      SENTRY_ORG: preserve(),
+      SENTRY_PROJECT: preserve(),
     },
   });
   // Arte licenciada num volume privado. Só configurar MORADA_ARTE_DIR depois

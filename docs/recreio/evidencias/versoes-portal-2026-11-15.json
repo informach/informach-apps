@@ -1,0 +1,36 @@
+{
+  "fonte": "8559f4ab1c6872c35f29fbb31cd2ab88e6656946",
+  "github": {
+    "run": 43751914501,
+    "conclusao": "success",
+    "gates": ["quality", "integration", "e2e", "cliente", "longa", "versoes"],
+    "artefato": "recreio-versoes-medidas-1",
+    "medida": {
+      "mesmaAba": true,
+      "criacaoConfirmadaUmaVez": true,
+      "versoesDistintas": true
+    }
+  },
+  "portal": {
+    "deployment": "909bcf91-e4e4-4fe8-b8a3-e51a8cda2286",
+    "status": "SUCCESS",
+    "saude": 200,
+    "prontidao": 200,
+    "chaveDaBuildAnteriorConservada": true,
+    "tamanhoDaChaveBytes": 32,
+    "mapasNaPastaPublica": 0
+  },
+  "sentry": {
+    "releaseId": "2094694861",
+    "uploadConfirmadoPeloBuildUtc": "2026-11-15T19:35:57.942Z",
+    "incidente": "RECREIO-4",
+    "estado": "resolvedInRelease",
+    "escopoDaCredencial": "org:ci",
+    "credencialInicialRevogada": true,
+    "credencialSubstitutaConfiguradaSomenteNoPortal": true
+  },
+  "limites": [
+    "O ensaio de duas builds usa banco descartavel no GitHub.",
+    "Nao e prova de ausencia de erros futuros nem medicao de desempenho em hardware real."
+  ]
+}

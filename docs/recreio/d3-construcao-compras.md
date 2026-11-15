@@ -66,6 +66,23 @@ Arquivos novos em `packages/morada-sim/src/espaco/`; consumir
 
 ## 3. Comandos e recibos duráveis
 
+Protocolo escolhido para o editor: cada perfil autorizado mantém uma sequência
+inteira segura, iniciada em 1, e no máximo 32 respostas recentes. A chave é
+`obra:<sequência em base 36>:<perfil>`; ela não aceita UUID independente da
+sequência. A ação estrita conserva o conteúdo e as revisões vistas, sem preços
+ou saldo enviados pelo cliente. Repetição recente exige conteúdo idêntico;
+repetição antiga é recusada mesmo depois de expirar a resposta. Saltos também
+são recusados: duas abas do mesmo autor precisam reler a sequência atual.
+
+O host confere a autorização atual antes de consultar/devolver um recibo.
+Resultado recusado por regra, mas admitido nessa sequência, também precisa de
+recibo durável: saldo que entrou depois não transforma o reenvio em compra.
+O redutor deve conferir a sequência antes de aplicar qualquer saldo/entidade
+absolutos; replay já reduzido não volta a aplicar efeitos. Um salto no diário
+ou divergência de um recibo recente é corrupção, não autorização de continuar.
+Este módulo inicial não habilita comandos nem altera o formato do mundo;
+a integração atômica com fatos/fotografia, permissões e editor vem a seguir.
+
 Arquivos: `comandos/intencao.ts`, `comandos/pipeline.ts`, novo sistema de edição;
 `dominio/tipos.ts`, `dominio/fatos.ts`, `dominio/reduzir-fato.ts`,
 `dominio/invariantes.ts`, `formatos/fotografia.ts`, `visao/replicacao.ts`.

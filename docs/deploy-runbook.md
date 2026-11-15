@@ -104,6 +104,12 @@ railway config apply           # roda um plano novo e pede confirmação
 
 > **Gotcha Windows + Git Bash.** O SDK confere a versão do CLI executando `$_`, e o Git Bash preenche `$_` com o shim sem extensão, então o plano falha dizendo que o CLI é antigo. Rode pelo PowerShell: `$env:_ = "$env:APPDATA\npm\node_modules\@railway\cli\bin\railway.exe"; & $env:_ config plan`.
 
+> **Imports TypeScript do catálogo.** A definição importa fontes do monorepo
+> com resolução de bundler. No Node 24, executar somente o CLI pode falhar em
+> `ERR_MODULE_NOT_FOUND` antes de consultar o provedor. Use o loader já instalado
+> no projeto: `$env:NODE_OPTIONS = '--import tsx'` antes de `config plan`/`apply`.
+> Não modificar imports compartilhados nem aplicar um plano que não foi avaliado.
+
 > **Loader TypeScript (CLI 5.62.1/Node 24.15, 15/11).** Os imports locais da IaC não têm extensão; o motor Node sem loader falha em `packages/config/src/collections`. Na chamada do plano, usar `NODE_OPTIONS=--import tsx`, com o `tsx` já fixado no lockfile. No PowerShell, definir temporariamente `$env:NODE_OPTIONS = '--import tsx'` junto do caminho de `$env:_` acima e restaurar os dois valores ao terminar. Não atualizar dependências nem contornar a conferência de versão. Capturar JSON com variáveis redigidas em pasta ignorada, sem `--show-values`/`--decrypt-variables`.
 
 > **Apply redeploya.** Cada serviço com mudança no plano ganha um deploy novo. Se houver deploys esperando aprovação (`NEEDS_APPROVAL`, commits de quem não é membro do workspace), alinhe o apply com a liberação desses commits.
