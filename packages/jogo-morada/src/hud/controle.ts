@@ -10,6 +10,8 @@ import type { OpcoesDosRetratos } from "../modelo/retratos";
  */
 export type Controle = {
   editor: EditorDaCasa;
+  vistaSuperior(): boolean;
+  alternarVista(): void;
   sessao: Sessao;
   previa: {
     definir(descricao: DescricaoDoMorador | null): void;

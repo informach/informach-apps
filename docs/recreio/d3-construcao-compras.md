@@ -292,6 +292,22 @@ o relógio no celular e ferramentas cobertas pelo painel; cabeçalho limitado à
 largura e trilho reposicionado durante edição. A prévia evita reenviar matrizes
 e cores quando nada visível mudou. Novo gate completo ainda pendente.
 
+`33838506`, seis gates `43768738920` aprovados. Cliente: 23 jornadas, incluindo
+computador/celular, altura real da compra e renovação após desfazer a pausa;
+JS 1.227.906 bytes, 339.289 com gzip, dentro do orçamento vigente. Capturas
+sintéticas revistas no executor local sem rodar jogo/testes nesta máquina.
+O próximo candidato acrescenta vista superior com retorno à perspectiva e
+painel recolhido para deixar a casa visível durante a prévia. As jornadas
+também acusam exceções da página e erros de compilação/renderização WebGL.
+
+Antes do corte V3/V4, provar combinações de versões entre portal, cliente e
+servidor, incluindo uma aba antiga aberta. Cliente atual lê arte V4, mas uma
+aba D2 mantém o leitor antigo. A publicação precisa exigir atualização dessa
+aba explicitamente e permitir a transição do cliente novo sobre servidor
+anterior, sem interromper o mundo ou apresentar fallback como arte homologada.
+O downgrade de mundos V3 continua proibido; não usar backup como rollback de
+uma atualização sem um procedimento próprio de recuperação consentida.
+
 Arquivos: `comandos/intencao.ts`, `comandos/pipeline.ts`, novo sistema de edição;
 `dominio/tipos.ts`, `dominio/fatos.ts`, `dominio/reduzir-fato.ts`,
 `dominio/invariantes.ts`, `formatos/fotografia.ts`, `visao/replicacao.ts`.

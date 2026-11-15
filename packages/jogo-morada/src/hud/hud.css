@@ -1678,6 +1678,28 @@
   font-size: 10px;
   line-height: 1.7;
 }
+
+.morada-edicao-ver-casa {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.morada-edicao:has(.morada-edicao-compacta)
+  > :is(
+    .morada-edicao-cabecalho,
+    .morada-edicao-saldo,
+    .morada-edicao-familia,
+    .morada-edicao-ajuda
+  ) {
+  display: none;
+}
+.morada-edicao-compacta > :is(.morada-edicao-voltar, fieldset) {
+  display: none;
+}
+.morada-edicao-compacta h3 {
+  font-size: 13px;
+  margin-bottom: 10px;
+}
 .morada-edicao kbd {
   font: inherit;
   font-size: 10px;

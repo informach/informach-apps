@@ -141,6 +141,11 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
 
   const controle: Controle = {
     editor,
+    vistaSuperior: () => cena.vistaSuperior,
+    alternarVista: () => {
+      cena.alternarVista();
+      loja.tocar();
+    },
     sessao,
     previa: {
       definir: (descricao) => cena.definirPrevia(descricao),

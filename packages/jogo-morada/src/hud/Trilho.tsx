@@ -107,6 +107,16 @@ export function Trilho(props: {
   return (
     <>
       <nav className="morada-painel morada-trilho" aria-label="Ferramentas da cena">
+        {controle.editor.aberto ? (
+          <button
+            type="button"
+            aria-pressed={controle.vistaSuperior()}
+            onClick={controle.alternarVista}
+          >
+            <Icone nome="superior" />
+            <span>{controle.vistaSuperior() ? "Perspectiva" : "Vista superior"}</span>
+          </button>
+        ) : null}
         {editavel ? (
           <button
             type="button"

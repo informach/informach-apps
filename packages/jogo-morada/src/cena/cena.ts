@@ -138,6 +138,12 @@ function qualidadeInicial(placa: string): Qualidade {
 }
 
 export class Cena {
+  private vistaAnterior: {
+    posicao: Vector3;
+    alvo: Vector3;
+    minimo: number;
+    maximo: number;
+  } | null = null;
   private readonly previaDoMovel: PreviaDoMovel;
   private readonly sessao: Sessao;
   private readonly ativos: Ativos;
@@ -288,6 +294,48 @@ export class Cena {
 
   get qualidade(): Qualidade {
     return this.qualidadeAtual;
+  }
+
+  get vistaSuperior(): boolean {
+    return this.vistaAnterior !== null;
+  }
+
+  alternarVista(): void {
+    this.foco = null;
+    if (this.vistaAnterior) {
+      const anterior = this.vistaAnterior;
+      this.vistaAnterior = null;
+      this.camera.position.copy(anterior.posicao);
+      this.controles.target.copy(anterior.alvo);
+      this.controles.minPolarAngle = anterior.minimo;
+      this.controles.maxPolarAngle = anterior.maximo;
+    } else {
+      this.vistaAnterior = {
+        posicao: this.camera.position.clone(),
+        alvo: this.controles.target.clone(),
+        minimo: this.controles.minPolarAngle,
+        maximo: this.controles.maxPolarAngle,
+      };
+      const previa = this.opcoes.editor?.prever().objeto,
+        estado = this.sessao.estado();
+      const lote = estado && previa ? obter(estado.lotes, previa.loteId) : null;
+      const alvo =
+        previa && lote
+          ? new Vector3(
+              ...paraCena(
+                lote.origem[0] + previa.pos[0],
+                lote.origem[1] + previa.pos[1],
+                previa.pos[2],
+              ),
+            )
+          : this.controles.target.clone();
+      const distancia = Math.max(12, this.camera.position.distanceTo(this.controles.target));
+      this.controles.target.copy(alvo);
+      this.camera.position.copy(alvo).add(new Vector3(0, distancia, 0.001));
+      this.controles.minPolarAngle = 0.001;
+      this.controles.maxPolarAngle = 0.001;
+    }
+    this.controles.update();
   }
 
   definirPrevia(descricao: DescricaoDoMorador | null): void {
@@ -760,6 +808,7 @@ export class Cena {
         this.montar(estado);
       }
       const editor = this.opcoes.editor;
+      if (!editor?.aberto && this.vistaSuperior) this.alternarVista();
       if (this.previaDoMovel.definir(estado, editor?.aberto ? editor.prever() : null))
         this.esconderOQueFlutua(estado, loja.paredesBaixas ? CORTE_DAS_PAREDES_MM : null);
       const reservas = loja.visao?.presenca.reservas ?? [];

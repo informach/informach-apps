@@ -20,6 +20,7 @@ function Detalhe(props: { controle: Controle; estado: EstadoDoMundo }) {
   const { controle, estado } = props,
     { editor } = controle;
   const [vendaConfirmada, confirmarVenda] = useState(false);
+  const [compacto, definirCompacto] = useState(false);
   const pedido = editor.rascunho;
   if (!pedido) return null;
   const op = pedido.operacao;
@@ -47,7 +48,7 @@ function Detalhe(props: { controle: Controle; estado: EstadoDoMundo }) {
           : "Confirmar posição";
   const valorDaCor = `#${(pintura?.cor ?? perfil?.referencia ?? 0xffffff).toString(16).padStart(6, "0")}`;
   return (
-    <div className="morada-edicao-detalhe">
+    <div className={`morada-edicao-detalhe ${compacto ? "morada-edicao-compacta" : ""}`}>
       <button
         type="button"
         className="morada-edicao-voltar"
@@ -57,6 +58,23 @@ function Detalhe(props: { controle: Controle; estado: EstadoDoMundo }) {
         ← Trocar seleção
       </button>
       <h3>{rotulo}</h3>
+      {op.t !== "vender" ? (
+        <div className="morada-edicao-ver-casa">
+          <button type="button" className="morada-botao" onClick={() => definirCompacto((v) => !v)}>
+            {compacto ? "Ver opções do móvel" : "Ver prévia na casa"}
+          </button>
+          {compacto && colocacao ? (
+            <button
+              type="button"
+              className="morada-botao"
+              disabled={ocupado}
+              onClick={() => editor.girar()}
+            >
+              Girar 90°
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {objeto ? (
         <fieldset className="morada-edicao-modos">
           <legend className="morada-so-leitor">O que fazer com o móvel</legend>
