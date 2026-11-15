@@ -139,6 +139,7 @@ export class Cena {
   private readonly opcoes: OpcoesDaCena;
   private readonly host: HTMLElement;
   private readonly renderer: WebGLRenderer;
+  private readonly gl: WebGL2RenderingContext;
   private readonly scene = new Scene();
   // Campo de visão estreito e câmera longe: quase isométrico, sem os moradores
   // tombarem para os lados nas bordas da tela.
@@ -203,6 +204,12 @@ export class Cena {
     this.ativos = opcoes.ativos;
 
     this.renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    const gl = this.renderer.getContext();
+    if (!(gl instanceof WebGL2RenderingContext)) {
+      this.renderer.dispose();
+      throw new Error("O desenho do Morada requer WebGL2");
+    }
+    this.gl = gl;
     this.renderer.outputColorSpace = SRGBColorSpace;
     this.renderer.shadowMap.type = PCFSoftShadowMap;
     this.placa = placaDe(this.renderer);
@@ -642,13 +649,13 @@ export class Cena {
   }
 
   private limparQuadroPendente(): void {
-    if (this.quadroPendente) this.renderer.getContext().deleteSync(this.quadroPendente);
+    if (this.quadroPendente) this.gl.deleteSync(this.quadroPendente);
     this.quadroPendente = null;
   }
 
   private gpuDisponivel(): boolean {
     if (!this.quadroPendente) return true;
-    const gl = this.renderer.getContext();
+    const gl = this.gl;
     // Prazo zero: nunca esperar pela GPU no thread da interface.
     const estado = gl.clientWaitSync(this.quadroPendente, 0, 0);
     if (estado === gl.TIMEOUT_EXPIRED) return false;
@@ -682,7 +689,7 @@ export class Cena {
 
     this.atualizar(agora, dt);
     this.renderer.render(this.scene, this.camera);
-    const gl = this.renderer.getContext();
+    const gl = this.gl;
     this.quadroPendente = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
     if (this.quadroPendente) gl.flush();
     else this.interromperDesenho();
