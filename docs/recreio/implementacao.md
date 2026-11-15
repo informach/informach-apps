@@ -2,7 +2,7 @@
 
 Registro detalhado da frente. O índice de continuidade é o [estado do repositório](../estado-do-repositorio.md); as regras permanentes ficam no [AGENTS.md](../../AGENTS.md).
 
-Estado vigente em 15/11/2026: portal, Morada e manutenção implantados no alfa fechado em `7c8b6a14`, com prontidão pública e login real até a estante conferidos. A arte D1 está no volume, mas ainda não ativada: a jornada privada completa segue em investigação. A continuação autorizada abrange integridade, operação, D2–D8, proteção familiar e homologação comercial. Ver [execução atual](execucao-2026-11-15.md), [operação](../../apps/recreio/PRODUCAO.md) e [review D1](review-d1-2026-11-13.md). As seções datadas abaixo preservam a história dos marcos anteriores.
+Estado vigente em 15/11/2026: portal/Morada em `95c24d24`, manutenção e arte D1 implantados no alfa fechado; prontidão, arte no acesso real e saída pelo jogo confirmadas. Duas jornadas privadas completas com arte e cinco gates públicos aprovados. Backup lógico real restaurado em destino isolado e avisos de teste recebidos pelo titular. Cron independente Cloudflare publicado após sete testes HTTP e cinco nativos; aceite da agenda no registro operacional. D2–D8, proteção familiar, retenção/capacidade, restauração de backup agendado e homologação comercial continuam em implementação. Ver [execução atual](execucao-2026-11-15.md), [operação](../../apps/recreio/PRODUCAO.md) e [review D1](review-d1-2026-11-13.md). As seções datadas abaixo preservam a história dos marcos anteriores.
 
 ## De onde vem o escopo
 
