@@ -4,6 +4,7 @@ import { jogoPorId } from "@informach/config/jogos";
 import {
   APELIDO_MAX,
   abrirFotografia,
+  conferirMetadadosDaFotografia,
   criarMundo,
   type Fato,
   type Intencao,
@@ -308,6 +309,16 @@ export class Ator {
         guardada.meta.sha256 !== posse.fotografia.sha256)
     )
       throw new ErroDoRecreio("REVISAO_DIVERGENTE");
+    const documento = guardada ? decodificarFotografia(guardada.bytes) : null;
+    if (
+      guardada &&
+      !conferirMetadadosDaFotografia(documento, {
+        mundoId,
+        tick: guardada.meta.tick,
+        versaoDoMundo: guardada.meta.schemaVersion,
+      })
+    )
+      throw new ErroDoRecreio("REVISAO_DIVERGENTE");
     const coberto = guardada?.meta.diarioSeq ?? 0;
     if (coberto > posse.diarioSeq) throw new ErroDoRecreio("SEQUENCIA");
     const diario = await host.lerDiario({ mundoId, cerca: this.cerca, apos: coberto });
@@ -326,7 +337,7 @@ export class Ator {
 
     // Sem fotografia, o mundo nasce de novo do mesmo jeito: a semente vem do id.
     const base = guardada
-      ? abrirFotografia(decodificarFotografia(guardada.bytes))
+      ? abrirFotografia(documento)
       : criarMundo({
           mundoId,
           semente: resumoDoTexto(mundoId),
@@ -338,8 +349,7 @@ export class Ator {
       base.mundoId !== mundoId ||
       base.estado.id !== mundoId ||
       base.tick !== base.estado.relogio.tick ||
-      (guardada &&
-        (base.tick !== guardada.meta.tick || base.estado.versao !== guardada.meta.schemaVersion))
+      (guardada && base.tick !== guardada.meta.tick)
     )
       throw new ErroDoRecreio("REVISAO_DIVERGENTE");
     this.mundo = restaurar(base, fatos);
@@ -356,7 +366,8 @@ export class Ator {
       tick: this.tickConfirmado,
     });
     // Um mundo novo, ou um que voltou só do diário, ganha logo a sua fotografia.
-    if (!guardada || fatos.length > 0) await this.fotografar("checkpoint");
+    if (!guardada || fatos.length > 0 || guardada.meta.schemaVersion !== base.estado.versao)
+      await this.fotografar("checkpoint");
   }
 
   // --- Entrar ---

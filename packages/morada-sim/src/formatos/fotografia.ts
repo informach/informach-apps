@@ -21,8 +21,28 @@ const EnvelopeSchema = z.object({
   estado: z.object({
     formato: z.literal("morada.mundo"),
     versao: z.number().int().positive(),
+    id: z.string().min(1),
+    relogio: z.object({ tick: z.number().int().nonnegative() }),
   }),
 });
+
+/** Confere a origem antes de qualquer migração; a versão migrada pode ser maior. */
+export function conferirMetadadosDaFotografia(
+  bruto: unknown,
+  esperado: { mundoId: string; tick: number; versaoDoMundo: number },
+): boolean {
+  const lida = EnvelopeSchema.safeParse(bruto);
+  if (!lida.success) return false;
+  const foto = lida.data;
+  return (
+    foto.versao === VERSAO_DA_FOTOGRAFIA &&
+    foto.mundoId === esperado.mundoId &&
+    foto.estado.id === esperado.mundoId &&
+    foto.tick === esperado.tick &&
+    foto.estado.relogio.tick === esperado.tick &&
+    foto.estado.versao === esperado.versaoDoMundo
+  );
+}
 
 export type Fotografia = {
   formato: "morada.foto";

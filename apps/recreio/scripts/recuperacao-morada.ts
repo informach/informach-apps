@@ -1,7 +1,13 @@
 import "server-only";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { jogoPorId } from "@informach/config/jogos";
-import { abrirFotografia, type Fato, restaurar, VERSAO_DO_MUNDO } from "@informach/morada-sim";
+import {
+  abrirFotografia,
+  conferirMetadadosDaFotografia,
+  type Fato,
+  restaurar,
+  VERSAO_DO_MUNDO,
+} from "@informach/morada-sim";
 import { MundoIdSchema } from "@informach/recreio";
 import { z } from "zod";
 import {
@@ -40,17 +46,23 @@ export async function prepararRestauracaoDoMorada(entrada: unknown) {
     if (material.mundo.schemaVersion > VERSAO_DO_MUNDO)
       throw new RecusaDeRecuperacao("INTEGRIDADE");
     const leitura = new TextDecoder("utf-8", { fatal: true });
-    const base = abrirFotografia(
-      JSON.parse(
-        leitura.decode(gunzipSync(material.foto.bytes, { maxOutputLength: 64 * 1024 * 1024 })),
-      ),
+    const documento = JSON.parse(
+      leitura.decode(gunzipSync(material.foto.bytes, { maxOutputLength: 64 * 1024 * 1024 })),
     );
+    if (
+      !conferirMetadadosDaFotografia(documento, {
+        mundoId: pedido.mundoId,
+        tick: material.foto.tick,
+        versaoDoMundo: material.foto.schemaVersion,
+      })
+    )
+      throw new RecusaDeRecuperacao("INTEGRIDADE");
+    const base = abrirFotografia(documento);
     if (
       base.mundoId !== pedido.mundoId ||
       base.estado.id !== pedido.mundoId ||
       base.tick !== material.foto.tick ||
-      base.tick !== base.estado.relogio.tick ||
-      base.estado.versao !== material.foto.schemaVersion
+      base.tick !== base.estado.relogio.tick
     )
       throw new RecusaDeRecuperacao("INTEGRIDADE");
     const fatos: Fato[] = material.entradas.map((entrada) => {

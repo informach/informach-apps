@@ -12,6 +12,7 @@ export * from "./espaco/posicoes";
 export * from "./execucao";
 export {
   abrirFotografia,
+  conferirMetadadosDaFotografia,
   type Fotografia,
   type Migracao,
   migrar,

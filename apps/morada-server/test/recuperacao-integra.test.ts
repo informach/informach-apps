@@ -1,5 +1,5 @@
 import { gzipSync } from "node:zlib";
-import { abrirFotografia } from "@informach/morada-sim";
+import { abrirFotografia, VERSAO_DO_MUNDO } from "@informach/morada-sim";
 import { FECHAMENTO } from "@informach/morada-sim/protocolo";
 import { POSSE_TTL_MS } from "@informach/recreio";
 import { expect, it, vi } from "vitest";
@@ -12,6 +12,8 @@ it.each([
   "tick_divergente",
   "outro_mundo",
   "versao_futura",
+  "versao_divergente",
+  "relogio_divergente",
 ] as const)("recuperação %s recusa abrir e não grava uma fotografia substituta", async (falha) => {
   const bancada = await criarBancada({ checkpointMs: 1_000_000 });
   const a = await bancada.novaInstancia("wss://a.test");
@@ -31,7 +33,9 @@ it.each([
   const reivindicar = b.host.reivindicarPosse;
   const posse = vi.spyOn(b.host, "reivindicarPosse").mockImplementation(async (id) => {
     const resultado = await reivindicar(id);
-    return falha === "versao_futura" ? { ...resultado, schemaVersion: 2 } : resultado;
+    return falha === "versao_futura"
+      ? { ...resultado, schemaVersion: VERSAO_DO_MUNDO + 1 }
+      : resultado;
   });
   const lerFoto = b.host.lerFotografia;
   const lerDiario = b.host.lerDiario;
@@ -41,6 +45,13 @@ it.each([
     if (falha === "fotografia_ausente") return null;
     if (falha === "tick_divergente")
       return { ...foto, meta: { ...foto.meta, tick: foto.meta.tick + 1 } };
+    if (falha === "versao_divergente")
+      return { ...foto, meta: { ...foto.meta, schemaVersion: foto.meta.schemaVersion + 1 } };
+    if (falha === "relogio_divergente") {
+      const documento = abrirFotografia(decodificarFotografia(foto.bytes));
+      documento.estado.relogio.tick++;
+      return { ...foto, bytes: gzipSync(JSON.stringify(documento)) };
+    }
     if (falha === "outro_mundo") {
       const documento = abrirFotografia(decodificarFotografia(foto.bytes));
       documento.mundoId = "outro-mundo";

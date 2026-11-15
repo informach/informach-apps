@@ -1,6 +1,6 @@
 # D2: criação da família do jogo
 
-Desenho de continuação autorizado pelo titular, ainda **não implementado**. A família fictícia do Morada não é o grupo de assinatura nem a família real do Recreio. Não reutilizar entidades, cobrança ou autoridade Compasso para representá-la.
+Desenho de continuação autorizado pelo titular; **criação ainda não implementada**, preparação da compatibilidade em curso. A família fictícia do Morada não é o grupo de assinatura nem a família real do Recreio. Não reutilizar entidades, cobrança ou autoridade Compasso para representá-la.
 
 **Objetivo:** começar com um ou mais moradores, escolher aparência, fase, traços e relações, conferir casa/orçamento e confirmar uma única criação durável. Mundos existentes conservam seus moradores e histórias.
 
@@ -19,6 +19,8 @@ Desenho de continuação autorizado pelo titular, ainda **não implementado**. A
 5. **Jornada.** Editor por etapas, começar com um morador permitido, acrescentar/remover até o limite, nomes/fases/traços/aparência, relações, casa e orçamento admissível. Confirmar exibe custo/saldo do jogo, sem confundir com dinheiro real. Mostrar erros do servidor junto da escolha e preservar o rascunho em falhas transitórias; não guardar dados da família em telemetria. Criação só aparece concluída após a confirmação durável. Teclado, foco, nomes acessíveis e saída cooperativa integram a jornada.
 
 ## Provas exigidas
+
+Preparação iniciada após a ativação D1: validação compartilhada dos metadados originais antes da migração, usada pelo ator e pelo restaurador operacional; checkpoint quando uma abertura efetivamente atualiza o formato. Mantida versão 1 e comportamento de criação atual. Unidades para metadados adulterados e regressões do servidor em verificação remota; isso não comprova uma migração V1→V2, que só deve ser homologada com o novo formato e os fatos da criação.
 
 - Unidades determinísticas: criação mínima/máxima, limites, relações, autoridade, repetição e invariantes.
 - Banco/API/servidor reais no GitHub: fato antes do ACK, perda de resposta, queda entre criação e fotografia, mesmo comando depois da recuperação, concorrência de duas sessões e convite sem capacidade.
