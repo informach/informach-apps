@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { createRailwayContext, project } from "railway/iac";
@@ -10,6 +13,63 @@ const sourceUrl = new URL("../../.railway/railway.ts", import.meta.url);
 const context = createRailwayContext({
   projectId: "f4da4285-5b98-48b5-b03e-5be02f4e7c56",
   environmentId: "174b2cb0-e1cd-410c-8764-d913e3af18d3",
+});
+
+test("Recreio watches code and workspace inputs while Markdown alone cannot trigger a deployment", async () => {
+  const resources = await graph(true, true);
+  const samples = [
+    [
+      "@informach/recreio-app",
+      [
+        ["apps/recreio/src/app/page.tsx", true],
+        ["packages/db/drizzle/0001.sql", true],
+        ["packages/recreio/src/sdk/index.ts", true],
+        ["apps/recreio/PRODUCAO.md", false],
+        ["packages/recreio/README.md", false],
+        ["pnpm-lock.yaml", true],
+        ["package.json", true],
+      ],
+    ],
+    [
+      "@informach/morada-server",
+      [
+        ["apps/morada-server/src/main.ts", true],
+        ["packages/morada-sim/src/execucao.ts", true],
+        ["packages/morada-arte/src/manifesto.ts", true],
+        ["apps/morada-server/README.md", false],
+        ["packages/morada-sim/README.md", false],
+        ["pnpm-lock.yaml", true],
+        ["package.json", true],
+      ],
+    ],
+  ];
+  for (const [name, paths] of samples) {
+    const sandbox = await mkdtemp(join(tmpdir(), "recreio-watch-"));
+    try {
+      const initialized = spawnSync("git", ["init", "--quiet", "--initial-branch=watch-proof"], {
+        cwd: sandbox,
+        encoding: "utf8",
+      });
+      assert.equal(initialized.status, 0, initialized.stderr);
+      await writeFile(
+        join(sandbox, ".gitignore"),
+        `${resources.get(name).build.watchPatterns.join("\n")}\n`,
+      );
+      for (const [path, watched] of paths) {
+        // Railway documenta sintaxe gitignore: positivo inclui, ! retira.
+        const result = spawnSync("git", ["check-ignore", "--no-index", "--stdin"], {
+          cwd: sandbox,
+          input: `${path}\n`,
+          encoding: "utf8",
+        });
+        assert.equal(result.status, watched ? 0 : 1, `${name}: ${path}: ${result.stderr}`);
+      }
+    } finally {
+      assert.equal(dirname(resolve(sandbox)), resolve(tmpdir()));
+      assert.match(basename(sandbox), /^recreio-watch-/);
+      await rm(sandbox, { recursive: true, force: true });
+    }
+  }
 });
 
 async function graph(launched, recreioLaunched) {
