@@ -4,9 +4,10 @@ Para quem retoma a frente depois de uma pausa. Leia primeiro a [execução atual
 
 ## Estado atual em 16/11
 
-CI geral `43923717777` recusado na transferência após novo login, por seleção
-perdida durante o carregamento. Correção de hidratação em verificação no GitHub;
-não confundir os seis gates aprovados com aprovação dessa rodada geral.
+Carregamento corrigido no portal `000f40ad`/`da0055b3`, prontidão e HTML inicial
+conferidos. Seis gates na candidata `7f3a7e2`; o controle negativo falhou nos três
+casos previstos. [Prova de carregamento](hidratacao-responsabilidade-2026-11-16.md).
+As falhas gerais anteriores permanecem no registro; prova humana adiada.
 
 [Remoção e convites corrigidos implantados](remocao-producao-2026-11-16.md):
 portal `1ed101be`, Morada `92f665e7`, schema 167 e arte D2. 325 integrações e

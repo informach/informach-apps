@@ -46,7 +46,7 @@ entrada e as telas autenticadas; a transferência continua até aceite, reentrad
 e saída com as duas contas sintéticas. Controles em `details` fechados são
 consultados explicitamente com `includeHidden`, sem alterar a confirmação.
 
-Estado: correção aprovada no GitHub e integrada; ativação ainda pendente.
+Estado: correção aprovada e implantada no alfa em `000f40ad`/`da0055b3`.
 
 ## Correções do ensaio
 
@@ -90,3 +90,31 @@ revisto. A prova de carregamento é a execução funcional com scripts suspensos
 O titular adiou a prova humana da transferência. Nenhuma conta piloto foi usada
 para simulá-la. Não houve mudança de autorização, schema, protocolo, arte ou
 política de cobrança; A5, restante de A6 e a homologação integral permanecem abertos.
+
+## Ativação e composição com D3
+
+Portal `da0055b3-c783-432f-b698-074d999b57f0` em sucesso, fonte `000f40ad`,
+conferida por SSH às 20:10:22 UTC. Rotas de membros/responsabilidade presentes,
+prontidão 200. GET público de `/entrar` às 20:10:26 UTC confirmou `fieldset`
+desabilitado e campos de e-mail/senha protegidos no HTML inicial. Configuração
+igual à anterior, sem staged changes. Upload dos mapas de código confirmado no
+build às 20:07:08 UTC. Morada ignorou a publicação, mantendo a fonte compatível
+`92f665e7`/D2, sem novo reinício.
+
+O CI geral `43935300744` da fonte anterior `037badb` repetiu a falha da proposta
+em `responsabilidade.spec.ts:69`; não é aprovação da transferência antiga.
+A repetição geral da nova main é `43946127613`, ainda em curso neste registro.
+Os seis gates da main `43946128031` passaram. O formatter documental não substitui
+essa verificação nem torna o CI geral pendente uma aprovação.
+
+Cron posterior ao deploy: 20:10:23.557–20:10:23.700 UTC, aprovado com as cinco
+contagens em zero, conferido pela fonte `000f40ad` às 20:13 UTC. Nesse instante,
+os oito apps do catálogo, Bastidores e Morada responderam 200 na prontidão.
+Consulta pontual do Sentry sem issues pendentes com atividade na última hora.
+Isso não comprova estabilidade prolongada, carga ou homologação integral.
+
+A composição de desenvolvimento `7491d368` passou os seis gates `43944728285`.
+Ela mantém protocolo 2 e a candidata D3 separada; isso não publica D3 nem comprova
+hardware, FPS, diversão ou o restante da criação/construção. O teste do processo
+encerrou com SIGTERM/PID 1, um mundo e zero falhas, em 124,46 ms numa plataforma
+isolada em memória. Não representa latência gráfica ou durabilidade em produção.
