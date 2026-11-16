@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { comandoDeEdicao, type ReciboDeEdicao, ReciboDeEdicaoSchema } from "../comandos/edicao";
+import {
+  comandoDeEdicao,
+  LIMITE_DE_EDICAO_SEM_GESTAO_CENTAVOS,
+  type ReciboDeEdicao,
+  ReciboDeEdicaoSchema,
+} from "../comandos/edicao";
 import { PinturaDoMovelSchema } from "../comandos/pintura";
 import type { FamiliaId, LoteId, ObjetoId, PerfilId } from "../dominio/ids";
 import type { Objeto } from "../dominio/tipos";
@@ -129,6 +134,9 @@ function origemCompativel(passo: OrigemDoPasso): boolean {
     passo.ordem < 1 ||
     !Number.isSafeInteger(passo.delta) ||
     !passo.permissoes.includes("decorar") ||
+    (passo.delta < 0 && !passo.permissoes.includes("gastar")) ||
+    (Math.abs(passo.delta) > LIMITE_DE_EDICAO_SEM_GESTAO_CENTAVOS &&
+      !passo.permissoes.includes("gerir_financas")) ||
     (passo.antes && (passo.antes.id !== id || passo.antes.loteId !== passo.loteId)) ||
     (passo.depois && (passo.depois.id !== id || passo.depois.loteId !== passo.loteId)) ||
     (passo.tipo === "comprar" &&

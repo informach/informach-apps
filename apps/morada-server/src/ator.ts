@@ -8,12 +8,14 @@ import {
   conferirCatalogoDaLoja,
   conferirMetadadosDaFotografia,
   criarMundo,
+  type EdicaoDoCliente,
   type Fato,
   type Intencao,
   listar,
   type Mundo,
   PERMISSOES_DE_QUEM_DIVIDE,
   PERMISSOES_DO_FUNDADOR,
+  projetarEdicao,
   type RegrasDoMundo,
   restaurar,
   resumoDoTexto,
@@ -163,6 +165,7 @@ const RECUSAS_DO_DIARIO = [
 type PassoPorConcluir = {
   saida: SaidaDoPasso;
   respostas: (() => void)[];
+  edicoes: Map<string, EdicaoDoCliente>;
   /** Fixada na primeira tentativa; confirmações parciais não renumeram o passo. */
   diarioBase: number | null;
 };
@@ -755,7 +758,21 @@ export class Ator {
    * ordem. Um passo novo nunca passa na frente de um que ainda não gravou.
    */
   private concluirPasso(saida: SaidaDoPasso, respostas: (() => void)[]): Promise<boolean> {
-    this.pendentes.push({ saida, respostas, diarioBase: null });
+    const edicoes = new Map<string, EdicaoDoCliente>();
+    if (
+      this.mundo &&
+      saida.fatos.some(
+        (fato) =>
+          fato.dados.tipo === "EdicaoRegistrada" ||
+          fato.dados.tipo === "AcessoConcedido" ||
+          fato.dados.tipo === "AcessoRevogado",
+      )
+    ) {
+      for (const ligacao of this.ligacoes.values())
+        if (ligacao.fase === "dentro" && ligacao.jogadorId)
+          edicoes.set(ligacao.jogadorId, projetarEdicao(this.mundo.estado, ligacao.jogadorId));
+    }
+    this.pendentes.push({ saida, respostas, edicoes, diarioBase: null });
     return this.escoar();
   }
 
@@ -817,16 +834,18 @@ export class Ator {
       this.tickConfirmado = saida.tick;
 
       for (const responder of passo.respostas) responder();
-      if (saida.mudancas.length > 0 || saida.apresentacao.length > 0) {
+      if (saida.mudancas.length > 0 || saida.apresentacao.length > 0 || passo.edicoes.size > 0) {
         for (const ligacao of this.ligacoes.values()) {
           // Quem ainda está entrando recebe a visão inteira depois, e não este passo.
           if (ligacao.fase !== "dentro") continue;
+          const edicao = ligacao.jogadorId ? passo.edicoes.get(ligacao.jogadorId) : undefined;
           this.enviar(ligacao, {
             t: "passo",
             seq: ++ligacao.seq,
             tick: saida.tick,
             mudancas: saida.mudancas,
             eventos: saida.apresentacao,
+            ...(edicao ? { edicao } : {}),
           });
         }
       }

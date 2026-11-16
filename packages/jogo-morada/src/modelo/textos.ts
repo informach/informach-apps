@@ -49,6 +49,12 @@ const DETALHES: Record<string, string> = {
   edicao_acima_do_limite: "Esta edição é grande demais. Tente uma mudança menor.",
   pintura_indisponivel: "Esta cor não está disponível para o móvel agora. Reabra a seleção.",
   historico_de_edicao_cheio: "Este mundo chegou ao limite de participantes no histórico de edição.",
+  historico_indisponivel: "Esta mudança não está mais no seu histórico disponível.",
+  historico_interferido:
+    "Outra edição alterou esta peça. Esta mudança não pode ser desfeita agora.",
+  historico_ocupado:
+    "O móvel está sendo usado. Espere ele ficar livre antes de alterar o histórico.",
+  historico_espaco: "A casa mudou. Confira a posição antes de confirmar o histórico.",
   fora_da_grade: "Escolha uma posição marcada na grade.",
   fora_do_lote: "Escolha uma posição dentro do terreno da família.",
   fora_do_piso: "Escolha um espaço no piso da casa.",

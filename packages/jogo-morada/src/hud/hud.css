@@ -1708,6 +1708,11 @@
   gap: 8px;
   margin-bottom: 12px;
 }
+.morada-edicao-historico {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
 .morada-edicao-orientacao {
   display: inline-block;
   margin-left: 10px;

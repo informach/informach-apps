@@ -13,6 +13,7 @@ import {
   type OpcoesDoMundo,
   obter,
   type PedidoDeEdicao,
+  proximoPassoDaCasa,
   reduzirFato,
   restaurar,
   tabelaVazia,
@@ -38,7 +39,7 @@ const PINTURAS = {
     },
   ],
 } satisfies import("../src/index").CatalogoDePinturas;
-function cenario(opcoes: OpcoesDoMundo = {}) {
+function cenario(opcoes: OpcoesDoMundo = {}, fundo = 500_000) {
   const bairro = copiar(BAIRRO_DA_PROVA);
   const familiaInicial = bairro.familias[0];
   const adulto = familiaInicial?.moradores.find((m) => m.nome === "Marcos");
@@ -53,6 +54,7 @@ function cenario(opcoes: OpcoesDoMundo = {}) {
   const imovel = lote?.imovelId ? obter(base.estado.imoveis, lote.imovelId) : undefined;
   const piso = imovel?.andares[0];
   if (!familia || !lote || !piso || !imovel) throw new Error("Casa da prova ausente");
+  familia.fundo = fundo;
   imovel.fundacao = 0;
   piso.z = 0;
   lote.tamanho = [8000, 6000];
@@ -162,6 +164,24 @@ function cenario(opcoes: OpcoesDoMundo = {}) {
     base,
     aplicar,
     compra,
+    historico: (sentido: "desfazer" | "refazer", autor = LIA): PedidoSemTrava => {
+      const passo = proximoPassoDaCasa(mundo.estado.historicoDaCasa, autor, sentido);
+      const sequencia = mundo.visao(autor).edicao.proximaSequencia;
+      const loteAtual = obter(mundo.estado.lotes, lote.id);
+      if (!passo || sequencia === null || !loteAtual) throw new Error("Histórico da prova ausente");
+      return {
+        familiaId: familia.id,
+        loteId: lote.id,
+        sequencia,
+        operacao: {
+          t: "compensar",
+          sentido,
+          chave: passo.chave,
+          revisaoDoPasso: passo.revisaoEsperada,
+          revisaoDoEspaco: loteAtual.revisaoDoEspaco,
+        },
+      };
+    },
     objeto,
     familiaAtual,
     entrar,
@@ -171,6 +191,184 @@ function cenario(opcoes: OpcoesDoMundo = {}) {
 }
 
 describe("edição autoritativa e durável da casa", () => {
+  it("desfaz a compra pelo valor pago e refaz a mesma peça sem reutilizar revisões ou cobrar duas vezes", () => {
+    const c = cenario();
+    expect(c.aplicar(c.compra()).ok).toBe(true);
+    const id = c.objeto().id,
+      contador = c.mundo.estado.contadores.obj;
+    const desfazer = c.historico("desfazer");
+    expect(c.aplicar(desfazer).ok).toBe(true);
+    expect(c.familiaAtual().fundo).toBe(500_000);
+    expect(listar(c.mundo.estado.objetos)).toEqual([]);
+    expect(c.mundo.estado.contadores.obj).toBe(contador);
+    expect(c.aplicar(desfazer)).toMatchObject({ ok: true, repetido: true });
+    const refazer = c.historico("refazer");
+    expect(c.aplicar(refazer).ok).toBe(true);
+    expect(c.objeto()).toMatchObject({ id, revisao: 4 });
+    expect(c.familiaAtual().fundo).toBe(476_000);
+    expect(c.aplicar(refazer)).toMatchObject({ ok: true, repetido: true });
+    expect(c.mundo.estado.historicoDaCasa).toHaveLength(1);
+    const fatos = c.mundo.avancar(0).fatos;
+    expect(restaurar(c.base, [...fatos, ...fatos]).hash()).toBe(c.mundo.hash());
+    expect(restaurar(c.mundo.fotografar()).hash()).toBe(c.mundo.hash());
+  });
+
+  it("desfaz e refaz a cadeia comprar, mover, pintar e vender preservando os deltas originais", () => {
+    const c = cenario({ pinturasDisponiveis: PINTURAS });
+    expect(c.aplicar(c.compra()).ok).toBe(true);
+    const id = c.objeto().id;
+    expect(
+      c.aplicar({
+        ...c.compra(2),
+        operacao: {
+          t: "mover",
+          objetoId: id,
+          revisaoDoObjeto: 2,
+          revisaoDoEspaco: 2,
+          colocacao: { pos: [4000, 2000, 0], andar: 0, giro: 90 },
+        },
+      }).ok,
+    ).toBe(true);
+    expect(
+      c.aplicar({
+        ...c.compra(3),
+        operacao: {
+          t: "pintar",
+          objetoId: id,
+          revisaoDoObjeto: 3,
+          pintura: { perfil: PERFIL, cor: 0 },
+        },
+      }).ok,
+    ).toBe(true);
+    expect(
+      c.aplicar({
+        ...c.compra(4),
+        operacao: {
+          t: "vender",
+          objetoId: id,
+          revisaoDoObjeto: 4,
+          revisaoDoEspaco: 3,
+          politicaDePrecos: 1,
+        },
+      }).ok,
+    ).toBe(true);
+    expect(c.familiaAtual().fundo).toBe(488_000);
+    for (let i = 0; i < 4; i++) expect(c.aplicar(c.historico("desfazer")).ok).toBe(true);
+    expect(c.familiaAtual().fundo).toBe(500_000);
+    expect(listar(c.mundo.estado.objetos)).toEqual([]);
+    for (let i = 0; i < 4; i++) expect(c.aplicar(c.historico("refazer")).ok).toBe(true);
+    expect(c.familiaAtual().fundo).toBe(488_000);
+    expect(listar(c.mundo.estado.objetos)).toEqual([]);
+    expect(revisaoDosObjetos(c.mundo.estado)).toBe(13);
+    const fatos = c.mundo.avancar(0).fatos;
+    expect(restaurar(c.base, fatos, { pinturasDisponiveis: PINTURAS }).hash()).toBe(c.mundo.hash());
+  });
+
+  it("revalida capacidades da origem e recusa ingresso alheio ou trava perdida sem consumir sequência", () => {
+    const c = cenario();
+    c.mundo.aplicar({
+      t: "conceder_acesso",
+      perfilId: BRUNO,
+      familiaId: c.familiaId,
+      permissoes: ["decorar", "gastar"],
+    });
+    c.entrar(c.mundo, BRUNO);
+    expect(c.aplicar(c.compra(), BRUNO).ok).toBe(true);
+    const desfazer = c.historico("desfazer", BRUNO);
+    expect(c.aplicar({ ...desfazer, sequencia: 1 }, LIA)).toMatchObject({ ok: false });
+    const semTrava = c.mundo.aplicar({
+      t: "intencao",
+      sessaoId: BRUNO,
+      intencao: {
+        mundoId: c.mundo.estado.id,
+        comandoId: comandoDeEdicao(BRUNO, 2),
+        moradorId: null,
+        versaoEsperada: 0,
+        acao: { t: "editar_casa", pedido: { ...desfazer, trava: INEXISTENTE } },
+      },
+    });
+    expect(semTrava).toMatchObject({ ok: false, detalhe: "trava_perdida" });
+    expect(c.mundo.visao(BRUNO).edicao.proximaSequencia).toBe(2);
+    c.mundo.aplicar({
+      t: "conceder_acesso",
+      perfilId: BRUNO,
+      familiaId: c.familiaId,
+      permissoes: ["decorar"],
+    });
+    expect(c.aplicar(desfazer, BRUNO)).toMatchObject({ ok: false, motivo: "sem_permissao" });
+    expect(c.familiaAtual().fundo).toBe(476_000);
+    expect(c.mundo.estado.historicoDaCasa).toHaveLength(1);
+  });
+
+  it("interferência alheia continua bloqueando depois de desfazer a aparência", () => {
+    const c = cenario({ pinturasDisponiveis: PINTURAS });
+    c.mundo.aplicar({
+      t: "conceder_acesso",
+      perfilId: BRUNO,
+      familiaId: c.familiaId,
+      permissoes: ["decorar", "gastar"],
+    });
+    c.entrar(c.mundo, BRUNO);
+    expect(c.aplicar(c.compra()).ok).toBe(true);
+    const objeto = c.objeto();
+    expect(
+      c.aplicar(
+        {
+          ...c.compra(1),
+          operacao: {
+            t: "pintar",
+            objetoId: objeto.id,
+            revisaoDoObjeto: objeto.revisao,
+            pintura: { perfil: PERFIL, cor: 0 },
+          },
+        },
+        BRUNO,
+      ).ok,
+    ).toBe(true);
+    expect(c.aplicar(c.historico("desfazer", BRUNO), BRUNO).ok).toBe(true);
+    expect(c.objeto().pintura).toBeNull();
+    expect(c.aplicar(c.historico("desfazer"))).toMatchObject({
+      ok: false,
+      detalhe: "historico_interferido",
+    });
+    expect(c.familiaAtual().fundo).toBe(476_000);
+  });
+
+  it("não retira dinheiro inexistente ao desfazer venda depois de outra compra da família", () => {
+    const c = cenario({}, 25_000);
+    c.mundo.aplicar({
+      t: "conceder_acesso",
+      perfilId: BRUNO,
+      familiaId: c.familiaId,
+      permissoes: ["decorar", "gastar"],
+    });
+    c.entrar(c.mundo, BRUNO);
+    expect(c.aplicar(c.compra()).ok).toBe(true);
+    expect(
+      c.aplicar({
+        ...c.compra(2),
+        operacao: {
+          t: "vender",
+          objetoId: c.objeto().id,
+          revisaoDoObjeto: 2,
+          revisaoDoEspaco: 2,
+          politicaDePrecos: 1,
+        },
+      }).ok,
+    ).toBe(true);
+    expect(
+      c.aplicar(c.compra(1, "mesa_lateral_redonda_prateleira_verde", [5000, 2000, 0]), BRUNO).ok,
+    ).toBe(true);
+    expect(c.familiaAtual().fundo).toBe(3500);
+    const antes = copiar(c.mundo.estado.historicoDaCasa);
+    expect(c.aplicar(c.historico("desfazer"))).toMatchObject({
+      ok: false,
+      detalhe: "saldo_insuficiente",
+    });
+    expect(c.familiaAtual().fundo).toBe(3500);
+    expect(c.mundo.estado.historicoDaCasa).toEqual(antes);
+    expect(listar(c.mundo.estado.objetos)).toHaveLength(1);
+  });
   it("revisões globais sobrevivem à remoção, fotografia, replay e recusa sem reutilização", () => {
     const c = cenario({ pinturasDisponiveis: PINTURAS });
     const saldoInicial = c.familiaAtual().fundo;

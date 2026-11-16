@@ -195,6 +195,28 @@ function cenario() {
 }
 
 describe("rascunho do editor contra a simulação real", () => {
+  it("histórico só compensa após conferência explícita e usa a mesma peça com valor original", async () => {
+    const c = cenario();
+    const inicial = c.familia.fundo;
+    const mesa = await c.comprar();
+    expect(c.editor.proximoNoHistorico("desfazer")).toMatchObject({
+      tipo: "comprar",
+      delta: -9500,
+    });
+    expect(c.editor.prepararHistorico("desfazer")).toBe(true);
+    expect(c.editor.prever().valido).toBe(true);
+    const quantidade = c.enviados.length;
+    expect(await c.editor.confirmar()).toBeNull();
+    expect(c.enviados).toHaveLength(quantidade);
+    expect(c.mundo.estado.objetos.porId[mesa.id]).toBeDefined();
+    expect((await c.editor.confirmar({ historicoConfirmado: true }))?.ok).toBe(true);
+    expect(c.mundo.estado.objetos.porId[mesa.id]).toBeUndefined();
+    expect(obter(c.mundo.estado.familias, c.familia.id)?.fundo).toBe(inicial);
+    expect(c.editor.prepararHistorico("refazer")).toBe(true);
+    expect((await c.editor.confirmar({ historicoConfirmado: true }))?.ok).toBe(true);
+    expect(c.mundo.estado.objetos.porId[mesa.id]).toMatchObject({ id: mesa.id, revisao: 4 });
+    expect(obter(c.mundo.estado.familias, c.familia.id)?.fundo).toBe(inicial - 9500);
+  });
   it("alterar um eixo conserva a última escolha do outro antes da próxima renderização", () => {
     const c = cenario();
     c.preparar();

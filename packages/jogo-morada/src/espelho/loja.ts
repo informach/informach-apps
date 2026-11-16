@@ -7,6 +7,7 @@ import {
   type VisaoDoCliente,
 } from "@informach/morada-sim";
 import type { EstadoDaConexao } from "../rede/conexao";
+import { atualizarEdicaoDoCliente } from "./edicao";
 import { estadoDoEspelho } from "./estado";
 
 /**
@@ -92,9 +93,14 @@ export class Loja {
     this.tocar();
   }
 
-  receberPasso(tick: number, mudancas: readonly Mudanca[]): void {
+  receberPasso(
+    tick: number,
+    mudancas: readonly Mudanca[],
+    edicao?: import("@informach/morada-sim").EdicaoDoCliente,
+  ): void {
     if (!this.visao) return;
     aplicarMudancas(this.visao, tick, mudancas);
+    if (edicao) this.visao.edicao = atualizarEdicaoDoCliente(this.visao.edicao, edicao);
     for (const mudanca of mudancas) {
       if (mudanca.t === "c") continue;
       if (mudanca.tabela === "imoveis" || mudanca.tabela === "lotes") this.revisaoDaCasa++;
@@ -104,7 +110,7 @@ export class Loja {
         if (mudouDeForma) this.revisaoDaCasa++;
       }
     }
-    if (mudancas.length > 0) this.tocar();
+    if (mudancas.length > 0 || edicao) this.tocar();
   }
 
   /** O espelho na forma do estado da simulação, com o tick que o cliente estima. */

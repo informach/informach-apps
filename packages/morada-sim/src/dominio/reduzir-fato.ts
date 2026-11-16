@@ -7,7 +7,12 @@ import {
 import { conferirCatalogoDePinturas } from "../comandos/pintura";
 import { comContinuidadeEspacial } from "../espaco/continuidade";
 import { canonico, copiar } from "../nucleo/canonico";
-import { pecaNoHistorico, registrarPassoDaCasa } from "../sistemas/historico-da-casa";
+import { conferirCompensacaoDaCasa } from "../sistemas/compensacao-da-casa";
+import {
+  confirmarCompensacaoDaCasa,
+  pecaNoHistorico,
+  registrarPassoDaCasa,
+} from "../sistemas/historico-da-casa";
 import { necessidadesNaNovaFase, registrarId, relacaoEntre } from "./estado";
 import type { Fato } from "./fatos";
 import type { MemoriaId, MoradorId } from "./ids";
@@ -103,6 +108,21 @@ export function reduzirFato(estado: EstadoDoMundo, fato: Fato): void {
       if (!familia || !lote || familia.loteId !== lote.id || lote.familiaId !== familia.id)
         throw new Error("Contexto divergente do fato de edição");
       if (efeito) {
+        const operacao = recibo.pedido.operacao;
+        const compensacao =
+          operacao.t === "compensar"
+            ? conferirCompensacaoDaCasa(novo, recibo.autor, { ...recibo.pedido, operacao })
+            : null;
+        if (
+          compensacao &&
+          (!compensacao.ok ||
+            canonico(pecaNoHistorico(efeito.anterior)) !==
+              canonico(pecaNoHistorico(compensacao.anterior)) ||
+            canonico(pecaNoHistorico(efeito.depois)) !== canonico(compensacao.depois) ||
+            efeito.saldo - efeito.saldoAnterior !== compensacao.delta ||
+            canonico(recibo.permissoes) !== canonico(compensacao.permissoes))
+        )
+          throw new Error("Compensação divergente do histórico original");
         const id = efeito.anterior?.id ?? efeito.depois?.id;
         const atual = id ? (obter(novo.objetos, id) ?? null) : null;
         if (
@@ -142,19 +162,28 @@ export function reduzirFato(estado: EstadoDoMundo, fato: Fato): void {
         familia.versao = efeito.versaoDaFamilia;
         lote.revisaoDoEspaco = efeito.revisaoDoEspaco;
         novo.contadores[CONTADOR_DE_REVISOES_DOS_OBJETOS] = efeito.revisaoDosObjetos;
-        novo.historicoDaCasa = registrarPassoDaCasa(novo.historicoDaCasa, {
-          chave: fato.id,
-          autor: recibo.autor,
-          sequencia: recibo.pedido.sequencia,
-          ordem: efeito.revisaoDosObjetos,
-          familiaId: familia.id,
-          loteId: lote.id,
-          tipo: recibo.pedido.operacao.t,
-          antes: pecaNoHistorico(efeito.anterior),
-          depois: pecaNoHistorico(efeito.depois),
-          delta: efeito.saldo - efeito.saldoAnterior,
-          permissoes: [...recibo.permissoes],
-        });
+        novo.historicoDaCasa =
+          operacao.t === "compensar"
+            ? confirmarCompensacaoDaCasa(novo.historicoDaCasa, {
+                autor: recibo.autor,
+                chave: operacao.chave,
+                sentido: operacao.sentido,
+                revisaoNova: efeito.revisaoDosObjetos,
+                depois: pecaNoHistorico(efeito.depois),
+              })
+            : registrarPassoDaCasa(novo.historicoDaCasa, {
+                chave: fato.id,
+                autor: recibo.autor,
+                sequencia: recibo.pedido.sequencia,
+                ordem: efeito.revisaoDosObjetos,
+                familiaId: familia.id,
+                loteId: lote.id,
+                tipo: operacao.t,
+                antes: pecaNoHistorico(efeito.anterior),
+                depois: pecaNoHistorico(efeito.depois),
+                delta: efeito.saldo - efeito.saldoAnterior,
+                permissoes: [...recibo.permissoes],
+              });
       }
       novo.edicoes = compactarRespostasDeEdicao([
         ...novo.edicoes.filter((item) => item.autor !== recibo.autor),

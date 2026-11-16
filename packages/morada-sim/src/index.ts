@@ -32,6 +32,10 @@ export * from "./nucleo/relogio";
 export { resumoDoTexto, sorteio, sorteioAte } from "./nucleo/sorteio";
 export { ondeLevanta, partidaDe, podeSerInterrompido } from "./sistemas/acoes";
 export { derivarAlvoDaObra, type RascunhoDaObra } from "./sistemas/alvo-da-obra";
+export {
+  type CompensacaoConferida,
+  conferirCompensacaoDaCasa,
+} from "./sistemas/compensacao-da-casa";
 export type {
   ChaveReplicada,
   EventoDeApresentacao,
@@ -42,6 +46,11 @@ export {
   type ImpedimentoDoCuidado,
   impedimentoDoCuidado,
 } from "./sistemas/cuidado";
+export {
+  type PassoDaCasa,
+  proximoPassoDaCasa,
+  type SentidoDoHistorico,
+} from "./sistemas/historico-da-casa";
 export { permissoesDe, temPermissao } from "./sistemas/presenca";
 export { recusaDaInteracao, temPontoLivre } from "./sistemas/regras";
 export { decidirProposta, impedimentoDoPedido } from "./sistemas/relacoes";

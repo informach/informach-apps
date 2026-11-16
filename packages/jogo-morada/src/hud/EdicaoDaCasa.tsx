@@ -1,4 +1,5 @@
 import {
+  conferirCompensacaoDaCasa,
   type EstadoDoMundo,
   listar,
   obter,
@@ -18,6 +19,101 @@ const moeda = new Intl.NumberFormat("pt-BR", {
 const dinheiro = (centavos: number) => `M$ ${moeda.format(centavos / 100)}`;
 const medida = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 
+function DetalheDoHistorico({ controle, estado }: { controle: Controle; estado: EstadoDoMundo }) {
+  const [conferido, conferir] = useState(false);
+  const { editor } = controle,
+    pedido = editor.rascunho;
+  if (pedido?.operacao.t !== "compensar") return null;
+  const op = pedido.operacao,
+    autor = controle.sessao.loja.jogador?.jogadorId;
+  const dados = autor
+    ? conferirCompensacaoDaCasa(estado, autor, { ...pedido, operacao: op })
+    : null;
+  const previa = editor.prever();
+  const peca = dados?.ok ? (dados.depois ?? dados.anterior) : null;
+  const nome = peca ? nomeDoObjeto(peca.catalogo) : "Móvel";
+  const acao = op.sentido === "desfazer" ? "Desfazer" : "Refazer";
+  const valor = dados?.ok
+    ? dados.delta > 0
+      ? `Receber ${dinheiro(dados.delta)}`
+      : dados.delta < 0
+        ? `Pagar ${dinheiro(-dados.delta)}`
+        : "Sem mudança no saldo"
+    : "Confira novamente a mudança";
+  return (
+    <div className="morada-edicao-detalhe">
+      <button
+        type="button"
+        className="morada-edicao-voltar"
+        disabled={editor.confirmando}
+        onClick={() => editor.cancelarSelecao()}
+      >
+        ← Cancelar histórico
+      </button>
+      <h3>
+        {acao}: {nome}
+      </h3>
+      <p>
+        {dados?.ok && !dados.depois
+          ? "A peça será retirada da casa."
+          : "A peça voltará às escolhas desta mudança."}
+      </p>
+      {peca ? (
+        <output className="morada-edicao-posicao-atual" aria-label="Posição do histórico">
+          {medida.format(peca.pos[0] / 1000)} × {medida.format(peca.pos[1] / 1000)} m · {peca.giro}°
+        </output>
+      ) : null}
+      <p>
+        <b>{valor}</b>
+      </p>
+      <p className="morada-nota">
+        O valor vem da edição original. As outras mudanças da família continuam.
+      </p>
+      <label className="morada-edicao-consentimento">
+        <input
+          type="checkbox"
+          checked={conferido}
+          disabled={editor.confirmando}
+          onChange={(e) => conferir(e.currentTarget.checked)}
+        />
+        Conferi a mudança e o valor
+      </label>
+      <p
+        className="morada-edicao-validade"
+        role="status"
+        data-valida={previa.valido ? "sim" : "nao"}
+      >
+        {editor.confirmando
+          ? "Esperando o servidor confirmar…"
+          : (previa.motivo ?? "Prévia válida. Confirme para aplicar.")}
+      </p>
+      <button
+        type="button"
+        className="morada-botao morada-botao-forte morada-edicao-confirmar"
+        disabled={editor.confirmando || !previa.valido || !conferido}
+        onClick={() => {
+          void editor.confirmar({ historicoConfirmado: conferido });
+        }}
+      >
+        {editor.confirmando ? "Confirmando…" : `Confirmar ${op.sentido}`}
+      </button>
+      {!previa.valido ? (
+        <button
+          type="button"
+          className="morada-botao"
+          disabled={editor.confirmando}
+          onClick={() => {
+            conferir(false);
+            editor.revisar();
+          }}
+        >
+          Revisar histórico
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function Detalhe(props: { controle: Controle; estado: EstadoDoMundo }) {
   const { controle, estado } = props,
     { editor } = controle;
@@ -26,6 +122,7 @@ function Detalhe(props: { controle: Controle; estado: EstadoDoMundo }) {
   const pedido = editor.rascunho;
   if (!pedido) return null;
   const op = pedido.operacao;
+  if (op.t === "compensar") return <DetalheDoHistorico controle={controle} estado={estado} />;
   const objeto = op.t !== "comprar" ? obter(estado.objetos, op.objetoId) : null;
   const catalogo = op.t === "comprar" ? op.catalogo : objeto?.catalogo;
   const oferta = estado.loja.ofertas.find((o) => o.catalogo === catalogo);
@@ -217,7 +314,9 @@ export function EdicaoDaCasa({ controle, estado }: { controle: Controle; estado:
   const familia = editor.familiaId ? obter(estado.familias, editor.familiaId) : null;
   const pedido = editor.rascunho;
   const chave = pedido
-    ? `${pedido.operacao.t}/${pedido.operacao.t === "comprar" ? pedido.operacao.catalogo : `${pedido.operacao.objetoId}/${pedido.operacao.revisaoDoObjeto}`}`
+    ? pedido.operacao.t === "compensar"
+      ? `${pedido.operacao.sentido}/${pedido.operacao.chave}/${pedido.operacao.revisaoDoPasso}`
+      : `${pedido.operacao.t}/${pedido.operacao.t === "comprar" ? pedido.operacao.catalogo : `${pedido.operacao.objetoId}/${pedido.operacao.revisaoDoObjeto}`}`
     : "sem-selecção";
   const objetos = listar(estado.objetos).filter((o) => o.loteId === editor.loteId);
   const presenca = controle.sessao.loja.visao?.presenca;
@@ -248,6 +347,27 @@ export function EdicaoDaCasa({ controle, estado }: { controle: Controle; estado:
         <span>{familia?.nome ?? "Família"}</span>
         <b>{familia ? dinheiro(familia.fundo) : "—"}</b>
       </div>
+      <nav className="morada-edicao-historico" aria-label="Histórico das suas mudanças">
+        {(["desfazer", "refazer"] as const).map((sentido) => {
+          const passo = editor.proximoNoHistorico(sentido);
+          return (
+            <button
+              key={sentido}
+              type="button"
+              className="morada-botao"
+              disabled={editor.confirmando || !passo || passo.interferida}
+              title={
+                passo?.interferida
+                  ? "Outra pessoa alterou esta peça."
+                  : "Confira a prévia antes de confirmar."
+              }
+              onClick={() => editor.prepararHistorico(sentido)}
+            >
+              {sentido === "desfazer" ? "Desfazer" : "Refazer"}
+            </button>
+          );
+        })}
+      </nav>
       {presenca && outrasObras.length > 0 ? (
         <aside className="morada-edicao-obras" aria-label="Outras pessoas decorando">
           <p>As áreas em amarelo estão sendo editadas:</p>

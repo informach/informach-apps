@@ -197,3 +197,19 @@ reconstruir ações antigas a partir de uma janela de recibos podada.
 Esse registro e seus testes não entregam desfazer/refazer ao jogador. Faltam
 admissão da compensação com permissões/valores/espaço atuais, reserva, diário,
 metadados individuais e interface, além das provas de queda e de duas contas.
+
+A persistência `0f0f1cd4` passou os seis gates públicos em `43794316689`.
+O incremento de compensação usa `operacao.t=compensar`, com somente a chave,
+o sentido e as revisões esperadas. O host deriva a peça e o delta da origem;
+não recebe valor ou fotografia do navegador. Cada compensação usa nova
+sequência financeira, revisão global e reserva, e o redutor confere novamente
+a origem antes de admitir a mudança na cópia atômica. Permissões originais,
+gasto quando houver débito, saldo e colocação atuais continuam obrigatórios.
+
+O ator fixa os metadados de cada autor no passo pendente e só os transmite
+depois do diário. A projeção contém apenas os próximos passos próprios de
+desfazer/refazer. O cliente conserva a revisão mais recente diante de ACK
+antigo e exige conferir uma prévia/valor antes de confirmar. Testes adicionados
+exercitam a cadeia de quatro operações, repetição, interferência, falta de
+permissão/saldo/trava e quedas antes/depois do diário em ambos os sentidos.
+Esse incremento ainda precisa de validação remota e jornada real no navegador.

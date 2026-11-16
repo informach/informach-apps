@@ -42,7 +42,9 @@ export function estadoDoEspelho(visao: VisaoDoCliente, tick: number): EstadoDoMu
     loja: visao.loja,
     catalogoDePinturas: visao.catalogoDePinturas,
     edicoes: [],
-    historicoDaCasa: [],
+    historicoDaCasa: [visao.edicao?.historico?.desfazer, visao.edicao?.historico?.refazer]
+      .filter((passo) => passo !== undefined && passo !== null)
+      .sort((a, b) => a.ordem - b.ordem),
     catalogoDeAparencias: visao.catalogoDeAparencias,
     contadores: {},
     avancoDoDia: { dia: 0, gastoMs: {} },

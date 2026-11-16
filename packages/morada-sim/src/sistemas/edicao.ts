@@ -3,6 +3,7 @@ import {
   consultarEdicao,
   iniciarRegistroDeEdicoes,
   LIMITE_DE_EDICAO_SEM_GESTAO_CENTAVOS,
+  OBJETOS_POR_LOTE,
   type PedidoDeEdicao,
   type ReciboDeEdicao,
 } from "../comandos/edicao";
@@ -16,11 +17,11 @@ import { conferirColocacaoNoChao } from "../espaco/colocacao";
 import { capturarContinuidadeEspacial } from "../espaco/continuidade";
 import { copiar } from "../nucleo/canonico";
 import { derivarAlvoDaObra } from "./alvo-da-obra";
+import { conferirCompensacaoDaCasa } from "./compensacao-da-casa";
 import { type Contexto, causaDoJogador, emitir, tocarChave } from "./contexto";
 import { temPermissao } from "./presenca";
 import { conferirTrava, liberarTrava } from "./travas-de-edicao";
 
-const OBJETOS_POR_LOTE = 256;
 const FATO_MAX_BYTES_PADRAO = 256 * 1024;
 type DadosDaEdicao = Extract<DadosDoFato, { tipo: "EdicaoRegistrada" }>;
 type ResultadoAdmitido = ReciboDeEdicao["resultado"];
@@ -100,12 +101,23 @@ export function editarCasa(
   )
     return negar("politica_do_mundo", "historico_de_edicao_cheio");
   const operacao = pedido.operacao;
+  const compensacao =
+    operacao.t === "compensar"
+      ? conferirCompensacaoDaCasa(estado, sessao.perfilId, { ...pedido, operacao })
+      : null;
+  if (compensacao && !compensacao.ok) return negar(compensacao.motivo, compensacao.detalhe);
   const anterior =
-    operacao.t === "comprar" ? null : (obter(estado.objetos, operacao.objetoId) ?? null);
+    operacao.t === "compensar"
+      ? (compensacao?.anterior ?? null)
+      : operacao.t === "comprar"
+        ? null
+        : (obter(estado.objetos, operacao.objetoId) ?? null);
   const oferta = estado.loja.ofertas.find(
     (item) => item.catalogo === (operacao.t === "comprar" ? operacao.catalogo : anterior?.catalogo),
   );
-  const permissoes: ReciboDeEdicao["permissoes"] = ["decorar"];
+  const permissoes: ReciboDeEdicao["permissoes"] = compensacao
+    ? [...compensacao.permissoes]
+    : ["decorar"];
   if (operacao.t === "comprar") permissoes.push("gastar");
   const valor =
     operacao.t === "comprar"
@@ -127,8 +139,20 @@ export function editarCasa(
   const revisaoAnterior = revisaoDosObjetos(estado);
   const revisaoNova = revisaoAnterior + 1;
   let delta = 0;
-  const espacial = operacao.t !== "pintar";
-  if (operacao.t === "comprar") {
+  const espacial = compensacao ? compensacao.espacial : operacao.t !== "pintar";
+  if (operacao.t === "compensar") {
+    if (!compensacao) throw new Error("Compensação não conferida");
+    depois = compensacao.depois
+      ? { ...copiar(compensacao.depois), revisao: revisaoNova, ocupacao: {} }
+      : null;
+    delta = compensacao.delta;
+    if (
+      !anterior &&
+      depois &&
+      listar(estado.objetos).filter((item) => item.loteId === lote.id).length >= OBJETOS_POR_LOTE
+    )
+      recusar("limite");
+  } else if (operacao.t === "comprar") {
     const numero = (estado.contadores.obj ?? 0) + 1;
     if (!oferta || oferta.versaoDoCatalogo !== operacao.versaoDoCatalogo) recusar("nao_existe");
     else if (estado.loja.politicaDePrecos !== operacao.politicaDePrecos) recusar("versao_antiga");
@@ -176,7 +200,12 @@ export function editarCasa(
     if (admitido?.perfil !== depois.pintura.perfil || disponivel?.perfil !== depois.pintura.perfil)
       recusar("nao_existe", "pintura_indisponivel");
   }
-  if (!resultado && operacao.t !== "pintar" && operacao.revisaoDoEspaco !== lote.revisaoDoEspaco)
+  if (
+    !resultado &&
+    espacial &&
+    "revisaoDoEspaco" in operacao &&
+    operacao.revisaoDoEspaco !== lote.revisaoDoEspaco
+  )
     recusar("versao_antiga");
   const saldo = familia.fundo + delta;
   if (!resultado && !Number.isSafeInteger(familia.fundo))

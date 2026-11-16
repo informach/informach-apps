@@ -72,7 +72,10 @@ export class ClienteDeTeste {
         this.visao = mensagem.visao;
         break;
       case "passo":
-        if (this.visao) aplicarMudancas(this.visao, mensagem.tick, mensagem.mudancas);
+        if (this.visao) {
+          aplicarMudancas(this.visao, mensagem.tick, mensagem.mudancas);
+          if (mensagem.edicao) this.visao.edicao = mensagem.edicao;
+        }
         break;
       case "resultado":
         this.resultados.set(mensagem.resultado.comandoId, mensagem.resultado);

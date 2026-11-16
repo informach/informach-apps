@@ -2,6 +2,7 @@ import {
   alvosDaObraConflitam,
   type ConcessaoPublicaDaObra,
   conferirColocacaoNoChao,
+  conferirCompensacaoDaCasa,
   copiar,
   derivarAlvoDaObra,
   type EstadoDoMundo,
@@ -9,16 +10,20 @@ import {
   GRADE_DE_EDICAO,
   LIMITE_DE_EDICAO_SEM_GESTAO_CENTAVOS,
   type LoteId,
+  OBJETOS_POR_LOTE,
   type Objeto,
   type ObjetoId,
   type OperacaoDeEdicao,
   obter,
+  type PassoDaCasa,
   type PedidoDeEdicao,
   type PontoMm,
   perfilDePintura,
+  proximoPassoDaCasa,
   type RascunhoDaObra,
   type ReferenciaDaTrava,
   type Resultado,
+  type SentidoDoHistorico,
   temPermissao,
 } from "@informach/morada-sim";
 import { ReservaDaObra } from "./reserva-da-obra";
@@ -149,6 +154,41 @@ export class EditorDaCasa {
     this.pedido = null;
     this.aviso = null;
     this.mudar();
+  }
+
+  proximoNoHistorico(sentido: SentidoDoHistorico): PassoDaCasa | null {
+    const estado = this.fonte.estado(),
+      autor = this.fonte.jogadorId(),
+      contexto = this.contexto;
+    const passo =
+      estado && autor ? proximoPassoDaCasa(estado.historicoDaCasa, autor, sentido) : null;
+    return passo &&
+      contexto &&
+      passo.familiaId === contexto.familiaId &&
+      passo.loteId === contexto.loteId
+      ? passo
+      : null;
+  }
+
+  prepararHistorico(sentido: SentidoDoHistorico): boolean {
+    const passo = this.proximoNoHistorico(sentido),
+      estado = this.fonte.estado();
+    const lote = estado && passo ? obter(estado.lotes, passo.loteId) : null;
+    if (this.pendente || !passo || !lote || passo.interferida) return false;
+    this.pedido = {
+      familiaId: passo.familiaId,
+      loteId: passo.loteId,
+      operacao: {
+        t: "compensar",
+        sentido,
+        chave: passo.chave,
+        revisaoDoPasso: passo.revisaoEsperada,
+        revisaoDoEspaco: lote.revisaoDoEspaco,
+      },
+    };
+    this.aviso = null;
+    this.mudar();
+    return true;
   }
 
   comprar(catalogo: string): boolean {
@@ -308,6 +348,7 @@ export class EditorDaCasa {
     const lote = estado && pedido ? obter(estado.lotes, pedido.loteId) : null;
     if (this.pendente || !estado || !pedido || !lote) return false;
     const operacao = pedido.operacao;
+    if (operacao.t === "compensar") return this.prepararHistorico(operacao.sentido);
     if (operacao.t !== "pintar") operacao.revisaoDoEspaco = lote.revisaoDoEspaco;
     if (operacao.t === "comprar" || operacao.t === "vender")
       operacao.politicaDePrecos = estado.loja.politicaDePrecos;
@@ -357,6 +398,47 @@ export class EditorDaCasa {
     )
       return recusar("Você não pode editar esta casa agora.");
     const op = pedido.operacao;
+    if (op.t === "compensar") {
+      const compensacao = conferirCompensacaoDaCasa(estado, autor, { ...pedido, operacao: op });
+      if (!compensacao.ok) return recusar(textoDaRecusa(compensacao.motivo, compensacao.detalhe));
+      const objeto: Objeto | null = compensacao.depois
+        ? { ...copiar(compensacao.depois), revisao: op.revisaoDoPasso, ocupacao: {} }
+        : null;
+      const destaque = objeto ?? compensacao.anterior;
+      if (!compensacao.permissoes.every((p) => temPermissao(estado, autor, familia.id, p)))
+        return recusar("Você não tem permissão para desfazer ou refazer esta mudança.", destaque);
+      const saldo = familia.fundo + compensacao.delta;
+      if (!Number.isSafeInteger(saldo) || saldo < 0)
+        return recusar("A família não tem saldo para esta mudança.", destaque);
+      if (
+        !compensacao.anterior &&
+        objeto &&
+        Object.values(estado.objetos.porId).filter((o) => o.loteId === lote.id).length >=
+          OBJETOS_POR_LOTE
+      )
+        return recusar("Esta casa chegou ao limite de móveis.", destaque);
+      if (
+        objeto?.pintura &&
+        perfilDePintura(estado.catalogoDePinturas, objeto)?.perfil !== objeto.pintura.perfil
+      )
+        return recusar("A pintura desta peça não está disponível.", destaque);
+      if (compensacao.espacial) {
+        const motivo = conferirColocacaoNoChao(estado, compensacao.id, objeto);
+        if (motivo) return recusar(textoDaRecusa("requisito", motivo), destaque);
+      }
+      const alvo = derivarAlvoDaObra(estado, autor, pedido);
+      if (!alvo.ok) return recusar(textoDaRecusa(alvo.motivo, alvo.detalhe), destaque);
+      const outra = this.fonte
+        .obras()
+        .find((o) => o.perfilId !== autor && alvosDaObraConflitam(o.alvo, alvo.alvo));
+      if (outra)
+        return recusar(`${outra.apelido ?? "Outro jogador"} está editando este espaço.`, destaque);
+      if (!this.fonte.pronto())
+        return recusar("Espere a conexão voltar antes de confirmar.", destaque);
+      if (this.fonte.proximaSequencia() === null)
+        return recusar("Reabra o mundo para continuar editando.", destaque);
+      return { valido: true, motivo: null, objeto: destaque };
+    }
     const atual = op.t === "comprar" ? null : obter(estado.objetos, op.objetoId);
     if (op.t !== "comprar" && (!atual || atual.loteId !== lote.id))
       return recusar("Este móvel já saiu da casa. Escolha outro.");
@@ -430,7 +512,9 @@ export class EditorDaCasa {
     return { valido: true, motivo: null, objeto };
   }
 
-  async confirmar(opcoes: { vendaConfirmada?: boolean } = {}): Promise<Resultado | null> {
+  async confirmar(
+    opcoes: { vendaConfirmada?: boolean; historicoConfirmado?: boolean } = {},
+  ): Promise<Resultado | null> {
     if (this.pendente) return null;
     const previa = this.prever(),
       pedido = this.pedido,
@@ -442,6 +526,11 @@ export class EditorDaCasa {
     }
     if (pedido.operacao.t === "vender" && !opcoes.vendaConfirmada) {
       this.aviso = "Confirme a retirada do móvel e o valor antes de vender.";
+      this.mudar();
+      return null;
+    }
+    if (pedido.operacao.t === "compensar" && !opcoes.historicoConfirmado) {
+      this.aviso = "Confira a mudança e o valor antes de confirmar o histórico.";
       this.mudar();
       return null;
     }

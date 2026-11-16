@@ -1,4 +1,5 @@
 import type { MoradorId, PerfilId } from "../dominio/ids";
+import { revisaoDosObjetos } from "../dominio/revisao-dos-objetos";
 import type { Tabela } from "../dominio/tabela";
 import type {
   AcessoFamilia,
@@ -10,6 +11,8 @@ import type {
 } from "../dominio/tipos";
 import { canonico, copiar } from "../nucleo/canonico";
 import type { ChaveReplicada, TabelaReplicada } from "../sistemas/contexto";
+import { type PassoDaCasa, proximoPassoDaCasa } from "../sistemas/historico-da-casa";
+import { temPermissao } from "../sistemas/presenca";
 
 /**
  * O que os clientes veem do mundo e como ficam sabendo do que muda.
@@ -64,6 +67,31 @@ export type PresencaVista = {
 
 export type RelogioVisto = { velocidade: Velocidade; msDeJogoPorTick: number };
 
+export type EdicaoDoCliente = {
+  proximaSequencia: number | null;
+  /** Ausente no host antigo. Nunca contém a pilha completa ou passos de outro autor. */
+  historico?: { revisao: number; desfazer: PassoDaCasa | null; refazer: PassoDaCasa | null };
+};
+
+export function projetarEdicao(estado: EstadoDoMundo, perfilId?: PerfilId): EdicaoDoCliente {
+  const ultima =
+    estado.edicoes.find((registro) => registro.autor === perfilId)?.ultimaSequencia ?? 0;
+  const proximo = (sentido: "desfazer" | "refazer") => {
+    const passo = perfilId ? proximoPassoDaCasa(estado.historicoDaCasa, perfilId, sentido) : null;
+    return passo && perfilId && temPermissao(estado, perfilId, passo.familiaId, "decorar")
+      ? passo
+      : null;
+  };
+  return {
+    proximaSequencia: ultima < Number.MAX_SAFE_INTEGER ? ultima + 1 : null,
+    historico: {
+      revisao: revisaoDosObjetos(estado),
+      desfazer: proximo("desfazer"),
+      refazer: proximo("refazer"),
+    },
+  };
+}
+
 export type VisaoDoCliente = {
   mundoId: string;
   tick: number;
@@ -75,7 +103,7 @@ export type VisaoDoCliente = {
   catalogoDeAparencias: EstadoDoMundo["catalogoDeAparencias"];
   loja: EstadoDoMundo["loja"];
   catalogoDePinturas: EstadoDoMundo["catalogoDePinturas"];
-  edicao: { proximaSequencia: number | null };
+  edicao: EdicaoDoCliente;
 } & { [T in TabelaReplicada]: EstadoDoMundo[T] } & Pick<EstadoDoMundo, "bairros">;
 
 export type Mudanca =
@@ -147,8 +175,6 @@ export function projetar(
   presenca: Presenca,
   perfilId?: PerfilId,
 ): VisaoDoCliente {
-  const ultima =
-    estado.edicoes.find((registro) => registro.autor === perfilId)?.ultimaSequencia ?? 0;
   return copiar({
     mundoId: estado.id,
     tick: estado.relogio.tick,
@@ -157,7 +183,7 @@ export function projetar(
     catalogoDeAparencias: estado.catalogoDeAparencias,
     loja: estado.loja,
     catalogoDePinturas: estado.catalogoDePinturas,
-    edicao: { proximaSequencia: ultima < Number.MAX_SAFE_INTEGER ? ultima + 1 : null },
+    edicao: projetarEdicao(estado, perfilId),
     acessos: estado.acessos,
     memorias: estado.memorias,
     presenca: presencaVista(presenca),

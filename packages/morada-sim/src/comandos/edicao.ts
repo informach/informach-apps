@@ -8,6 +8,7 @@ export const RESPOSTAS_DE_EDICAO = 32;
 export const RESPOSTAS_DE_EDICAO_DO_MUNDO = 128;
 export const AUTORES_DE_EDICAO_DO_MUNDO = 2048;
 export const LIMITE_DE_EDICAO_SEM_GESTAO_CENTAVOS = 50_000;
+export const OBJETOS_POR_LOTE = 256;
 const inteiro = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const sequencia = inteiro.positive();
 const autor = z.string().regex(/^[A-Za-z0-9_-]{1,44}$/);
@@ -27,6 +28,13 @@ const versao = inteiro.positive();
 
 /** O cliente indica peça/posição/revisões; dinheiro e geometria são do host. */
 export const OperacaoDeEdicaoSchema = z.discriminatedUnion("t", [
+  z.strictObject({
+    t: z.literal("compensar"),
+    sentido: z.enum(["desfazer", "refazer"]),
+    chave: z.string().min(1).max(64),
+    revisaoDoPasso: versao,
+    revisaoDoEspaco: versao,
+  }),
   z.strictObject({
     t: z.literal("comprar"),
     revisaoDoEspaco: versao,

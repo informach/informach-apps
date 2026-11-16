@@ -61,19 +61,22 @@ async function cenario() {
       pintura: null,
     },
   };
-  const preparar = async (instancia = a.instancia) => {
+  const preparar = async (
+    instancia = a.instancia,
+    atual: Omit<PedidoDeEdicao, "trava"> = rascunho,
+  ) => {
     const id = await lia.comando(null, {
       t: "preparar_obra",
       rascunho: {
-        familiaId: rascunho.familiaId,
-        loteId: rascunho.loteId,
-        operacao: rascunho.operacao,
+        familiaId: atual.familiaId,
+        loteId: atual.loteId,
+        operacao: atual.operacao,
       },
     });
     await bancada.andar(1, [instancia]);
     const resultado = lia.resultados.get(id);
     if (!resultado?.ok || !resultado.obra) throw new Error("Preparação da mesa recusada");
-    return { ...rascunho, trava: resultado.obra.referencia } satisfies PedidoDeEdicao;
+    return { ...atual, trava: resultado.obra.referencia } satisfies PedidoDeEdicao;
   };
   const pedido = await preparar();
   const chave = comandoDeEdicao(lia.jogadorId, 1);
@@ -169,12 +172,90 @@ describe("journal das edições de móveis", () => {
     expect(c.lia.resultados.has(c.chave)).toBe(false);
     expect(c.lia.visao?.familias.porId[c.familiaId]?.fundo).toBe(c.saldo);
     expect(c.lia.visao?.objetos.ordem.length).toBe(c.objetos);
+    expect(c.lia.visao?.edicao.historico?.desfazer).toBeNull();
     c.a.host.foraDoAr = false;
     await c.bancada.andar(1);
     expect(c.lia.resultados.get(c.chave)).toMatchObject({ ok: true });
     expect(c.lia.visao?.familias.porId[c.familiaId]?.fundo).toBe(c.saldo - 9_500);
     expect(c.lia.visao?.objetos.ordem.length).toBe(c.objetos + 1);
+    expect(c.lia.visao?.edicao.historico?.desfazer).toMatchObject({ chave: c.chave, delta: -9500 });
   });
+
+  for (const sentido of ["desfazer", "refazer"] as const) {
+    it.each(["antes_do_diario", "depois_do_diario"] as const)(
+      `${sentido}: queda %s conserva um único efeito e exige reserva nova quando ainda não gravou`,
+      async (ponto) => {
+        const c = await cenario();
+        await c.lia.comando(null, { t: "editar_casa", pedido: c.pedido }, c.chave);
+        await c.bancada.andar(1);
+        const rascunho = (direcao: "desfazer" | "refazer"): Omit<PedidoDeEdicao, "trava"> => {
+          const mundo = mundoDe(c.a.instancia, c.mundoId),
+            jogadorId = c.lia.jogadorId;
+          const metadados = jogadorId ? mundo.visao(jogadorId).edicao : null;
+          const passo = metadados?.historico?.[direcao];
+          const lote = obter(mundo.estado.lotes, c.pedido.loteId);
+          if (!passo || !metadados?.proximaSequencia || !lote)
+            throw new Error("Histórico da bancada ausente");
+          return {
+            familiaId: c.familiaId,
+            loteId: lote.id,
+            sequencia: metadados.proximaSequencia,
+            operacao: {
+              t: "compensar",
+              sentido: direcao,
+              chave: passo.chave,
+              revisaoDoPasso: passo.revisaoEsperada,
+              revisaoDoEspaco: lote.revisaoDoEspaco,
+            },
+          };
+        };
+        if (sentido === "refazer") {
+          const undo = await c.preparar(c.a.instancia, rascunho("desfazer"));
+          if (!c.lia.jogadorId) throw new Error("Jogador ausente");
+          const id = comandoDeEdicao(c.lia.jogadorId, undo.sequencia);
+          await c.lia.comando(null, { t: "editar_casa", pedido: undo }, id);
+          await c.bancada.andar(1);
+          expect(c.lia.resultados.get(id)?.ok).toBe(true);
+        }
+        const atual = rascunho(sentido),
+          pedido = await c.preparar(c.a.instancia, atual);
+        if (!c.lia.jogadorId) throw new Error("Jogador ausente");
+        const chave = comandoDeEdicao(c.lia.jogadorId, pedido.sequencia);
+        await c.lia.comando(null, { t: "editar_casa", pedido }, chave);
+        c.a.falhas.armar(ponto);
+        await expect(c.bancada.andar(1)).rejects.toMatchObject({ ponto });
+        expect(c.lia.resultados.has(chave)).toBe(false);
+        c.a.host.foraDoAr = true;
+        c.lia.cair();
+        c.bancada.esperar(POSSE_TTL_MS + 1);
+        const b = await c.bancada.novaInstancia("wss://b.test");
+        await c.bancada.entrar(c.lia, c.mundoId);
+        const mundo = mundoDe(b.instancia, c.mundoId);
+        await c.lia.comando(null, { t: "editar_casa", pedido }, chave);
+        await c.bancada.andar(1, [b.instancia]);
+        if (ponto === "antes_do_diario") {
+          expect(c.lia.resultados.get(chave)).toMatchObject({
+            ok: false,
+            detalhe: "trava_perdida",
+          });
+          const renovado = await c.preparar(b.instancia, atual);
+          expect(renovado.trava.geracao).not.toBe(pedido.trava.geracao);
+          await c.lia.comando(null, { t: "editar_casa", pedido: renovado }, chave);
+          await c.bancada.andar(1, [b.instancia]);
+        } else expect(c.lia.resultados.get(chave)).toMatchObject({ ok: true, repetido: true });
+        expect(c.lia.resultados.get(chave)?.ok).toBe(true);
+        expect(obter(mundo.estado.familias, c.familiaId)?.fundo).toBe(
+          c.saldo - (sentido === "refazer" ? 9500 : 0),
+        );
+        expect(mundo.estado.objetos.ordem).toHaveLength(
+          c.objetos + (sentido === "refazer" ? 1 : 0),
+        );
+        expect(mundo.estado.historicoDaCasa).toHaveLength(1);
+        expect(mundo.estado.historicoDaCasa[0]?.desfeita).toBe(sentido === "desfazer");
+        expect(verificarInvariantes(mundo.estado, mundo.presenca)).toEqual([]);
+      },
+    );
+  }
 
   it.each(["antes_do_diario", "depois_do_diario"] as const)(
     "queda %s não duplica compra ao assumir a posse em outra instância",

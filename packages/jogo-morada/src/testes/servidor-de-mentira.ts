@@ -1,4 +1,4 @@
-import type { Intencao, Mundo, Resultado } from "@informach/morada-sim";
+import { type Intencao, type Mundo, projetarEdicao, type Resultado } from "@informach/morada-sim";
 import {
   FECHAMENTO,
   type MensagemDoCliente,
@@ -288,7 +288,13 @@ export class ServidorDeMentira {
     saida: ReturnType<Mundo["avancar"]>,
     excluir: SoqueteDeMentira | null = null,
   ): void {
-    if (saida.mudancas.length === 0 && saida.apresentacao.length === 0) return;
+    const edicaoMudou = saida.fatos.some(
+      (f) =>
+        f.dados.tipo === "EdicaoRegistrada" ||
+        f.dados.tipo === "AcessoConcedido" ||
+        f.dados.tipo === "AcessoRevogado",
+    );
+    if (saida.mudancas.length === 0 && saida.apresentacao.length === 0 && !edicaoMudou) return;
     for (const soquete of this.dentro()) {
       if (soquete === excluir) continue;
       soquete.entregar({
@@ -297,6 +303,9 @@ export class ServidorDeMentira {
         tick: saida.tick,
         mudancas: saida.mudancas,
         eventos: saida.apresentacao,
+        ...(edicaoMudou && soquete.jogadorId
+          ? { edicao: projetarEdicao(this.mundo.estado, soquete.jogadorId) }
+          : {}),
       });
     }
   }

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { IntencaoSchema } from "./comandos/intencao";
 import type { Resultado } from "./dominio/tipos";
 import type { EventoDeApresentacao } from "./sistemas/contexto";
-import type { Mudanca, VisaoDoCliente } from "./visao/replicacao";
+import type { EdicaoDoCliente, Mudanca, VisaoDoCliente } from "./visao/replicacao";
 
 /**
  * As mensagens entre o cliente e o servidor do Morada. Aqui ficam só as
@@ -98,7 +98,14 @@ export type MensagemDoServidor =
   /** A visão inteira. Chega ao entrar e a cada reconexão. */
   | { t: "fotografia"; seq: number; visao: VisaoDoCliente }
   /** O que mudou em um passo, depois de gravado o que era crítico. */
-  | { t: "passo"; seq: number; tick: number; mudancas: Mudanca[]; eventos: EventoDeApresentacao[] }
+  | {
+      t: "passo";
+      seq: number;
+      tick: number;
+      mudancas: Mudanca[];
+      eventos: EventoDeApresentacao[];
+      edicao?: EdicaoDoCliente;
+    }
   | { t: "resultado"; resultado: Resultado }
   /** Uma vez por segundo, depois do passo: `tick` é o tick em que o mundo está ao enviar. */
   | { t: "pulso"; n: number; tick: number; agoraMs: number }

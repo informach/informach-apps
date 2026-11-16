@@ -18,6 +18,7 @@ import { textoDaRecusa } from "../modelo/textos";
 import { Conexao, type ConstrutorDeSoquete } from "../rede/conexao";
 import { RelogioDoServidor } from "../rede/relogio";
 import { Comandos } from "./comandos";
+import { atualizarEdicaoDoCliente } from "./edicao";
 import { Loja } from "./loja";
 import { comecariaJa, PrevisaoDeAndar, rotaPrevista } from "./previsao";
 
@@ -85,7 +86,7 @@ export class Sessao {
         passo: (mensagem) => {
           const visao = this.loja.visao;
           if (!visao) return;
-          this.loja.receberPasso(mensagem.tick, mensagem.mudancas);
+          this.loja.receberPasso(mensagem.tick, mensagem.mudancas, mensagem.edicao);
           const quando = agora();
           this.relogio.definirVelocidade(visao.relogio.velocidade, quando);
           this.relogio.amostra(mensagem.tick, quando);
@@ -104,12 +105,7 @@ export class Sessao {
           const edicao = mensagem.resultado.edicao;
           const visao = this.loja.visao;
           if (edicao && visao) {
-            const atual = visao.edicao?.proximaSequencia;
-            const proxima = edicao.proximaSequencia;
-            visao.edicao = {
-              proximaSequencia:
-                proxima === null || atual === null ? null : Math.max(atual ?? 1, proxima),
-            };
+            visao.edicao = atualizarEdicaoDoCliente(visao.edicao, edicao);
           }
           this.comandos.receber(mensagem.resultado);
           if (edicao && visao) this.loja.tocar();

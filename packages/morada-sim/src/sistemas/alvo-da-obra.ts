@@ -1,9 +1,10 @@
 import type { PedidoDeEdicao } from "../comandos/edicao";
-import type { PerfilId } from "../dominio/ids";
+import type { FamiliaId, PerfilId } from "../dominio/ids";
 import { obter } from "../dominio/tabela";
-import type { EstadoDoMundo, MotivoDeRecusa, Objeto } from "../dominio/tipos";
+import type { EstadoDoMundo, Lote, MotivoDeRecusa, Objeto } from "../dominio/tipos";
 import { GRADE_DE_EDICAO, pegadaNoLote } from "../espaco/colocacao";
 import { copiar } from "../nucleo/canonico";
+import { conferirCompensacaoDaCasa } from "./compensacao-da-casa";
 import { temPermissao } from "./presenca";
 import type { AlvoDaObra } from "./travas-de-edicao";
 
@@ -32,6 +33,16 @@ export function derivarAlvoDaObra(
   )
     return { ok: false, motivo: "sem_permissao" };
   const op = rascunho.operacao;
+  if (op.t === "compensar") {
+    const compensacao = conferirCompensacaoDaCasa(estado, perfilId, { ...rascunho, operacao: op });
+    if (!compensacao.ok) return compensacao;
+    return alvoDasPecas(
+      lote,
+      familia.id,
+      compensacao.anterior,
+      compensacao.depois ? { ...compensacao.depois, revisao: 1, ocupacao: {} } : null,
+    );
+  }
   const anterior = op.t === "comprar" ? null : obter(estado.objetos, op.objetoId);
   if (op.t !== "comprar" && (!anterior || anterior.loteId !== lote.id))
     return { ok: false, motivo: "nao_existe" };
@@ -66,6 +77,15 @@ export function derivarAlvoDaObra(
       : op.t === "mover" && anterior
         ? { ...copiar(anterior), ...copiar(op.colocacao) }
         : null;
+  return alvoDasPecas(lote, familia.id, anterior ?? null, candidato);
+}
+
+function alvoDasPecas(
+  lote: Lote,
+  familiaId: FamiliaId,
+  anterior: Objeto | null,
+  candidato: Objeto | null,
+): AlvoConferido {
   const regioes: AlvoDaObra["regioes"][number][] = [];
   for (const objeto of [anterior, candidato]) {
     if (!objeto) continue;
@@ -90,7 +110,7 @@ export function derivarAlvoDaObra(
   return {
     ok: true,
     alvo: {
-      familiaId: familia.id,
+      familiaId,
       loteId: lote.id,
       peca: anterior ? { id: anterior.id, revisao: anterior.revisao } : null,
       regioes,
