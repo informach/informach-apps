@@ -12,6 +12,7 @@ import type { ContaId, MundoId, PerfilId, SessaoDeAparelhoId } from "@informach/
 import { encerrarSessoesAbertas, travarEncerramentos } from "@/features/sessao-de-jogo/repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
+import { revogarPropostasDoMembro } from "./responsabilidade-repository";
 
 export type AutorDaSaida = {
   contaId: ContaId;
@@ -88,6 +89,7 @@ export async function registrarSaida(autor: AutorDaSaida, mundoId: MundoId) {
       "Você é responsável por este mundo. A saída depende de uma transferência aceita, ainda indisponível.",
     );
     const filtro = sql`${games.profileId} = ${perfil.id} and ${games.spaceId} = ${mundo.id}`;
+    await revogarPropostasDoMembro(tx, mundo.id, membro.id, autor.contaId);
     await travarEncerramentos(tx);
     await tx
       .select({ id: games.id })
