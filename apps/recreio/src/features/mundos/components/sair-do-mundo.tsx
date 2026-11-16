@@ -1,8 +1,9 @@
 "use client";
-import { useRef, useState, useTransition } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import { sairDoMundoAction } from "../actions";
 
 export function SairDoMundo({ mundoId }: { mundoId: string }) {
+  const consequenciasId = useId();
   const detalhes = useRef<HTMLDetailsElement>(null);
   const [pendente, iniciar] = useTransition();
   const [erro, definirErro] = useState("");
@@ -11,7 +12,7 @@ export function SairDoMundo({ mundoId }: { mundoId: string }) {
       <summary className="rb rb-vazado w-fit cursor-pointer list-none">
         Quero sair deste mundo
       </summary>
-      <p id="consequencias-da-saida" className="mt-4 text-tinta-suave">
+      <p id={consequenciasId} className="mt-4 text-tinta-suave">
         Você perde o acesso a este mundo. Os personagens e o progresso ficam para quem continua.
         Para voltar, você precisará aceitar outro convite.
       </p>
@@ -33,7 +34,7 @@ export function SairDoMundo({ mundoId }: { mundoId: string }) {
         <button
           type="button"
           className="rb rb-sol"
-          aria-describedby="consequencias-da-saida"
+          aria-describedby={consequenciasId}
           onClick={() =>
             iniciar(async () => {
               definirErro("");
