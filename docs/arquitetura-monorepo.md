@@ -230,6 +230,11 @@ não prova compatibilidade de rollback depois de remoções de colunas/tabelas.
 
 A matriz `.github/workflows/compasso.yml` verifica domínio, Conta, encerramento,
 consumidores standalone e restauração com PostgreSQL 18, além do CI geral em 16.
+O Recreio exige PostgreSQL 17+ para o limite nativo `transaction_timeout`:
+seus testes completos usam um segundo serviço descartável PG 18 no CI geral,
+que conserva PG 16 para os demais consumidores e prova a recusa do Recreio
+nessa versão. A prontidão do portal verifica essa capacidade antes de admitir
+tráfego. Essa separação não altera imagens nem volumes locais ou de produção.
 Todos os dados e segredos desses ensaios são sintéticos.
 
 Regras invioláveis:

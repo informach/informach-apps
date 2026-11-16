@@ -149,6 +149,17 @@ jobs:
           path: apps/recreio/tmp/verification/
           if-no-files-found: ignore
           retention-days: 7
+      - name: Preserve synthetic account screens
+        # Somente as duas telas de conta sintéticas; nenhuma captura do jogo.
+        if: always() && matrix.gate == 'e2e'
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-conta-${{ github.run_attempt }}
+          path: |
+            apps/recreio/tmp/telas/aparelhos-proprios.png
+            apps/recreio/tmp/telas/perfil-proprio-editado.png
+          if-no-files-found: warn
+          retention-days: 7
       - name: Preserve synthetic color evidence
         if: always() && matrix.gate == 'cliente'
         uses: actions/upload-artifact@v4
