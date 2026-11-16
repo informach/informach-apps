@@ -16,5 +16,16 @@ passaram, cobrindo uma/três quedas antigas e a queda normal sem retorno.
 Os testes usam instância, fila, presença e comandos reais da bancada, com
 plataforma/identidades sintéticas. Foram executados somente no GitHub.
 
-Esta cópia de produção ainda aguarda os seis gates do seu próprio candidato
-e conferência do deploy/saúde no Railway. Nenhum dado de mundo é reiniciado.
+Fonte de produção: `18f52aa004dc88be85420b9f7bc7eae77bbd6a56`, seis gates
+`43778361615` aprovados. A checagem global registrou 618 avisos, sem falha;
+as três regressões passaram. A main remota foi conferida antes do push,
+preservando o histórico, e a publicação ocorreu às 00h15 UTC de 16/11.
+
+Railway Morada `9fa87860-2503-4fda-a872-b0234b0cbba5`: `SUCCESS`, fonte conferida
+no provedor e em `/api/health`. Saúde e prontidão de ambos os serviços 200 após
+a implantação. O portal conservou `7c81a68f`/deployment `59c3b020`; seu build
+foi omitido pelos padrões de arquivos, pois esta mudança não o afeta. Mundo V2,
+protocolo 1 e arte D2 conservados; sem migration ou reset de dados.
+
+Repetição na main `43779266639` ainda em execução na última consulta. Recursos
+D3 continuam somente em candidata; a publicação deste hotfix não os habilita.
