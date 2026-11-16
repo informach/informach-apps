@@ -1,0 +1,39 @@
+{
+  "leituraInicio": "2026-11-16T12:52:03.4785061Z",
+  "leituraFim": "2026-11-16T12:52:04.6624329Z",
+  "periodoCobranca": { "inicio": "2026-11-09T10:40:03Z", "fim": "2026-12-09T10:40:03Z" },
+  "origem": "railway usage projects --project <projeto existente> --json",
+  "moeda": "USD",
+  "natureza": "uso acumulado estimado, sujeito a atualizacao; nao fatura liquidada",
+  "morada": {
+    "cpu": 0.0015601507793209877,
+    "memoria": 0.11244907698567902,
+    "saidaDeRede": 0.0005762334,
+    "volume": 0.0003593069139527529,
+    "backup": 0,
+    "total": 0.11494476807895276
+  },
+  "portal": {
+    "cpu": 0.001994089027777778,
+    "memoria": 0.07175215080296297,
+    "saidaDeRede": 0.0007581080500000001,
+    "volume": 0,
+    "backup": 0,
+    "total": 0.07450434788074076
+  },
+  "somaExclusiva": 0.18944911595969352,
+  "cronAusenteDaResposta": true,
+  "bancoRedisBastidoresBackupsCompartilhadosRateados": false,
+  "githubActionsIncluido": false,
+  "fotografiaUsoBanco": {
+    "leitura": "2026-11-16T12:52:06.600Z",
+    "posses": 6,
+    "possesAssumidas": 6,
+    "possesAbertas": 0,
+    "segundosJogadorRelatados": 2678,
+    "picoRelatado": 1,
+    "primeiraAquisicao": "2026-11-15T12:30:51.936Z",
+    "ultimaLiberacao": "2026-11-15T18:50:01.692Z"
+  },
+  "custoPorHoraAtivaComprovado": false
+}

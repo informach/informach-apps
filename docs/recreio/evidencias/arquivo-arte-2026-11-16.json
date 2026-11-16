@@ -1,0 +1,74 @@
+{
+  "repositorio": "informach/artes-3d",
+  "visibilidadeConferida": "PRIVATE",
+  "release": {
+    "id": 446608123,
+    "tag": "morada-arte-d3-v4-59f2614a-0c118aaf",
+    "draft": false,
+    "prerelease": true,
+    "makeLatest": false,
+    "assetId": 753448365,
+    "zipBytes": 40625419,
+    "zipSha256": "d689df7706a2ca09a0d692fdea67d21945eb14ab460240ccb89ff6eb6b6c63ff"
+  },
+  "recuperacao": {
+    "executor": "a86048fc9ff1b8815d1c09e0cdf9cb7af60207e7",
+    "run": 43872799095,
+    "job": 133318043319,
+    "status": "completed",
+    "conclusion": "success",
+    "tokenContents": "read",
+    "zipConferido": true,
+    "somasDoPacoteConferidas": 240,
+    "terminoSomas": "2026-11-16T13:07:41.8590547Z"
+  },
+  "origemTemporariaPreservada": {
+    "artifactId": 14197558533,
+    "run": 43802946380
+  },
+  "consumidorAlterado": ".github/workflows/morada-rotulos.yml",
+  "permissoesAmpliadas": false,
+  "publicacaoEmRepositorioPublico": false,
+  "d3AtivadoEmProducao": false,
+  "fpsDiversaoOuVendaCertificados": false,
+  "d2DoAlfa": {
+    "releaseId": 446270559,
+    "tag": "morada-arte-d2-4198478735b6",
+    "draft": false,
+    "prerelease": true,
+    "makeLatest": false,
+    "assetId": 751930796,
+    "zipBytes": 37879766,
+    "zipSha256": "d9775ceeba79c3ca460e816be4bbdb4d5a2dbb4eead93a69bf6d03793ae908ed",
+    "manifestoSha256": "4198478735b643e07d4ce0821db82654c42847bbf996d1d07a99a5890b21672f",
+    "arquivosComBrotli": 240,
+    "bytesOriginais": 24723634,
+    "bytesComBrotli": 37810510,
+    "hashesDosNomesConferidos": true,
+    "brotliIgualAosOriginais": true,
+    "run": 43875526133,
+    "job": 133327447485,
+    "executor": "e4fb56da5fa910d5196ed2353484a2909c8a007b",
+    "conclusion": "success",
+    "tokenContents": "read",
+    "conferidoEm": "2026-11-16T13:25:04.5838110Z",
+    "pacoteDeProducaoTrocado": false
+  },
+  "d3RepeticaoMesmaRodada": {
+    "run": 43875526133,
+    "job": 133327448380,
+    "conclusion": "success"
+  },
+  "controleNaMainPrivada": {
+    "codigo": "cd2c31aeee8d41ce0f0bd5c3ddd79e3de3402ab3",
+    "runCandidata": 43876788875,
+    "jobsAprovados": 2,
+    "workflowIdenticoA": "e4fb56da5fa910d5196ed2353484a2909c8a007b",
+    "runManualMain": 43877122326,
+    "conclusionManualMain": "success",
+    "arquivosAlterados": [
+      ".github/workflows/morada-arquivo.yml",
+      "LEIA.md"
+    ]
+  }
+}

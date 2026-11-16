@@ -1,0 +1,21 @@
+{
+  "codigo": "9f9f9e3a8d9ead85c79da81043a7771a8cff91d3",
+  "codigoDeProducaoIdenticoA": "473d6e366cdb6bf21114417eeb20eb8a1926e7cc",
+  "primeiraRodada": 43871778111,
+  "rodadaComCaptura": 43873141755,
+  "gatesAprovadosEmCadaRodada": 6,
+  "integracoes": 234,
+  "novasIntegracoes": 14,
+  "jornadas": 9,
+  "casosReservadosAOutrosExecutores": 2,
+  "jornadaNovaPrimeiraRodadaSegundos": 12.1,
+  "capturaSinteticaInspecionada": "participacoes-sem-acesso.png",
+  "capturaContemArteDoJogo": false,
+  "descricoesUnicasConferidasNoNavegador": true,
+  "contaSemConcessaoSaiDeParticipacaoAfastada": true,
+  "outraParticipacaoEResponsavelPreservados": true,
+  "paginacao": 20,
+  "alteracaoDeSchema": false,
+  "implantado": false,
+  "a6Concluido": false
+}

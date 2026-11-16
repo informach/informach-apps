@@ -68,9 +68,17 @@ não são impressos. Mensagens controladas de histórico/corte permanecem dispon
 
 A integração usa o mesmo cliente em DDL bloqueado e verifica rollback e retomada,
 além de presença/validade do índice gerado. As tabelas de prova são exclusivamente
-do banco descartável. A candidata do índice `892f8571` passou nos seis gates
-do Recreio (`43866074913`); o CI geral `43866074845` ainda está em execução.
-O índice ainda não foi aplicado em produção.
+do banco descartável. O escritor de limpeza fica em candidata separada,
+sem habilitação nesta entrega.
+
+## Gates aprovados para a etapa do índice
+
+A fonte `892f8571` passou nos seis gates `43866074913` e no CI geral
+`43866074845`. O conjunto com a página de participações próprias (`1935b078`)
+passou nos seis gates `43874709358`: 237 integrações, nove jornadas e dois
+casos reservados a outros executores. O código de banco é idêntico a `892f8571`;
+o código do portal é idêntico a `9f9f9e3a`. O escritor de limpeza não faz parte
+dessa entrega e o índice ainda precisa de sua conferência de produção.
 
 ## Candidata do escritor, separada da implantação do índice
 
@@ -86,7 +94,7 @@ Seis casos novos no PostgreSQL descartável cobrem lote/ordem/prazos, convite
 aceito e membro preservados, código antigo recusado antes/depois, duas execuções
 com 250 linhas travadas, erro real de DELETE e retomada HTTP, e EXPLAIN da
 consulta efetiva com 20 mil convites futuros. EXPLAIN não executa a exclusão.
-Essa candidata ainda exige execução remota e não está habilitada em produção.
+A fonte inicial foi homologada abaixo. O conjunto integrado à nova main ainda exige sua rodada remota e não está habilitado em produção.
 Publicá-la somente depois de confirmar o recibo 165 e o índice válido/pronto.
 
 A candidata `79a9504f` passou nos seis gates `43869499608`. Integração:
@@ -95,3 +103,4 @@ efetiva usou faixa do índice no volume sintético; o DELETE continuou limitado,
 e a falha real chegou ao HTTP seguida de retomada. A execução não altera o
 banco de produção e não demonstra capacidade do serviço Railway.
 [Evidências das candidatas](evidencias/convites-candidatas-2026-11-16.json).
+

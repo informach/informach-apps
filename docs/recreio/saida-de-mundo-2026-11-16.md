@@ -1,6 +1,6 @@
 # Saída voluntária de um convidado: contrato do incremento
 
-Em implementação; testes e builds somente no GitHub. Este incremento não conclui A6.
+Implantado no alfa fechado em `06e022d5`; testes e builds somente no GitHub. Este incremento não conclui A6. As rodadas anteriores abaixo preservam o histórico.
 
 ## Comportamento
 
@@ -67,3 +67,26 @@ A implantação ainda precisa de sua prova própria; não modificar contas pilot
 para simulá-la e não anunciar A6 concluído.
 
 [Prova estruturada](evidencias/saida-candidata-2026-11-16.json).
+
+## Implantação conferida
+
+Portal `06e022d5`, deployment `1f709104-8dcf-4280-92f8-123d6e326568`,
+e Bastidores `e15e5b15-64c1-408f-b96d-83ed60033fd8` concluíram com SUCCESS.
+O diff desde a candidata homologada contém somente documentação e evidência.
+Os seis gates da main `43859343699` passaram. Fonte relida no processo às
+11:43:18 UTC, ação presente no manifesto do servidor, saúde/prontidão 200,
+mapas enviados ao Sentry e release presente. Configurações do portal e
+Bastidores idênticas às anteriores, sem alterações preparadas.
+
+Cron automático posterior à implantação: 11:50:55.242–11:50:55.310 UTC,
+`ok=true`, quatro contagens zero. Isso confirma execução, sem demonstrar
+capacidade ou ausência de contenção. As nove prontidões web responderam 200
+às 11:42:17 UTC; o Edi seguia servindo sua versão anterior enquanto aguardava
+o CI geral protegido. Não foram alteradas contas piloto para provar a saída.
+Morada continua em `179a0a76`, Mundo V2/protocolo 1/arte D2.
+
+[Prova de produção](evidencias/saida-producao-2026-11-16.json).
+
+O CI geral da main `43859343682` concluiu com sucesso. O Edi então iniciou
+sua implantação protegida e concluiu `759bde6f-fc70-4c9b-bace-6df2be7105e6`
+com SUCCESS sobre `06e022d5`, sem desligar `checkSuites` ou forçar o deploy.
