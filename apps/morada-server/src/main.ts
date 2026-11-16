@@ -12,6 +12,7 @@ import { carregarArte } from "./arte";
 import { catalogoDeAparenciasDaArte } from "./catalogo-de-aparencias";
 import { lerConfiguracao } from "./config";
 import { criarPlataformaDeDesenvolvimento } from "./desenvolvimento";
+import { criarEncerramento } from "./encerramento";
 import { criarInstancia } from "./instancia";
 import { concluirObservabilidade, iniciarObservabilidade, registrarFalha } from "./observabilidade";
 import { resumoDaFalha } from "./resumo-da-falha";
@@ -162,26 +163,17 @@ async function principal(): Promise<void> {
       : "servidor do Morada no ar, esperando o Recreio para se registrar",
   );
 
-  let encerrando = false;
-  const encerrar = (motivo: string) => {
-    if (encerrando) return;
-    encerrando = true;
-    log.info({ motivo }, "encerrando: salvando os mundos e soltando as posses");
-    // Se o desligamento ordenado travar, sai assim mesmo: o diário garante o que é crítico.
-    const limite = setTimeout(() => process.exit(1), 25_000);
-    servidor.encerrar().then(
-      async () => {
-        clearTimeout(limite);
-        await concluirObservabilidade();
-        process.exit(0);
-      },
-      (erro: unknown) => {
-        registrarFalha(erro, "encerrar");
-        log.error({ erro: resumoDaFalha(erro) }, "falha ao encerrar");
-        process.exit(1);
-      },
-    );
-  };
+  const encerrar = criarEncerramento({
+    salvar: () => servidor.encerrar(),
+    concluirObservabilidade,
+    aoIniciar: (motivo) =>
+      log.info({ motivo }, "encerrando: salvando os mundos e soltando as posses"),
+    aoFalhar: (erro) => {
+      registrarFalha(erro, "encerrar");
+      log.error({ erro: resumoDaFalha(erro) }, "falha ao encerrar");
+    },
+    sair: (codigo) => process.exit(codigo),
+  });
   process.on("SIGTERM", () => encerrar("SIGTERM"));
   process.on("SIGINT", () => encerrar("SIGINT"));
   // No Windows um processo filho não recebe SIGTERM: quem o gerencia manda esta mensagem.

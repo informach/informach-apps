@@ -10,7 +10,7 @@ import { ehErroDoRecreio } from "@informach/recreio";
 import { type WebSocket, WebSocketServer } from "ws";
 import { criarAdmissao, LIMITES_DE_REDE } from "./admissao";
 import type { Conexao } from "./ator";
-import type { Instancia } from "./instancia";
+import type { Instancia, ResultadoDoEncerramento } from "./instancia";
 
 /**
  * O servidor de rede em volta de uma instância: WebSocket para o jogo e HTTP
@@ -53,7 +53,7 @@ export type Servidor = {
    */
   iniciar(porta: number, host?: string): Promise<number>;
   /** Para de aceitar conexões, salva os mundos e fecha tudo. */
-  encerrar(): Promise<void>;
+  encerrar(): Promise<ResultadoDoEncerramento>;
 };
 
 const PASSO_MS = 100;
@@ -96,6 +96,7 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
   /** O servidor está ouvindo. Pronto para o jogo é isto mais o registro no Recreio. */
   let ouvindo = false;
   let encerrando = false;
+  let encerramento: Promise<ResultadoDoEncerramento> | null = null;
   let relogio: NodeJS.Timeout | null = null;
   let ciclo: NodeJS.Timeout | null = null;
   let pulsacao: NodeJS.Timeout | null = null;
@@ -326,25 +327,30 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
       return typeof endereco === "object" && endereco ? endereco.port : porta;
     },
 
-    async encerrar() {
-      if (encerrando) return;
-      encerrando = true;
-      if (relogio) clearTimeout(relogio);
-      if (ciclo) clearTimeout(ciclo);
-      if (pulsacao) clearInterval(pulsacao);
-      await instancia.encerrar();
-      // Os mundos já estão gravados. Um cliente que não confirma o close WS
-      // não pode consumir os 25 s reservados para persistência do processo.
-      const forcarFechamento = setTimeout(() => {
-        for (const ws of sockets.clients) ws.terminate();
-      }, 1000);
-      try {
-        for (const ws of sockets.clients) ws.close(FECHAMENTO.reiniciando);
-        await new Promise<void>((resolve) => sockets.close(() => resolve()));
-        await new Promise<void>((resolve) => http.close(() => resolve()));
-      } finally {
-        clearTimeout(forcarFechamento);
-      }
+    encerrar() {
+      encerramento ??= (async () => {
+        encerrando = true;
+        if (relogio) clearTimeout(relogio);
+        if (ciclo) clearTimeout(ciclo);
+        if (pulsacao) clearInterval(pulsacao);
+        try {
+          return await instancia.encerrar();
+        } finally {
+          // A rede fecha também se algum mundo não salvou. Um cliente sem ACK
+          // de close não pode consumir o prazo reservado para persistência.
+          const forcarFechamento = setTimeout(() => {
+            for (const ws of sockets.clients) ws.terminate();
+          }, 1000);
+          try {
+            for (const ws of sockets.clients) ws.close(FECHAMENTO.reiniciando);
+            await new Promise<void>((resolve) => sockets.close(() => resolve()));
+            await new Promise<void>((resolve) => http.close(() => resolve()));
+          } finally {
+            clearTimeout(forcarFechamento);
+          }
+        }
+      })();
+      return encerramento;
     },
   };
 }

@@ -175,7 +175,7 @@ describe("passo em espera do diário", () => {
     const { bancada, instancia, host, lia, mundoId, preferido } = await comPassoEmEspera();
 
     host.foraDoAr = false;
-    await instancia.encerrar();
+    expect(await instancia.encerrar()).toEqual({ mundos: 1, falhas: 0 });
 
     expect(lia.resultados.get(preferido)).toMatchObject({ ok: true });
     expect(lia.fechamento).toBe(FECHAMENTO.reiniciando);
@@ -191,7 +191,8 @@ describe("passo em espera do diário", () => {
     const [fotografiasAntes, diarioAntes] = [antes.fotografias.length, antes.diarioSeq];
 
     host.soFalha = null;
-    await instancia.encerrar();
+    expect(await instancia.encerrar()).toEqual({ mundos: 1, falhas: 1 });
+    expect(await instancia.encerrar()).toEqual({ mundos: 1, falhas: 1 });
 
     // Ninguém soube do fato, e nada dele foi guardado: nem diário, nem fotografia.
     expect(lia.resultados.has(preferido)).toBe(false);

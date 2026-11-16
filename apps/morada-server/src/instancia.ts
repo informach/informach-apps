@@ -52,6 +52,8 @@ export type MedidasDaInstancia = {
   porMundo: MedidasDoAtor[];
 };
 
+export type ResultadoDoEncerramento = { mundos: number; falhas: number };
+
 export type Instancia = {
   /**
    * Registra a instância no Recreio. Antes disto ela não recebe mundos. Se o
@@ -68,7 +70,7 @@ export type Instancia = {
   /** Renova as posses e recolhe as sessões encerradas no Recreio. */
   batimento(): Promise<void>;
   /** Desligamento ordenado: salva tudo, solta as posses, fecha as conexões. */
-  encerrar(): Promise<void>;
+  encerrar(): Promise<ResultadoDoEncerramento>;
   medir(): MedidasDaInstancia;
   /** Para os testes: o ator de um mundo, se estiver aberto aqui. */
   ator(mundoId: string): Ator | undefined;
@@ -90,6 +92,7 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
   let registrada = false;
   /** Depois de uma queda simulada a instância não faz mais nada, como um processo morto. */
   let viva = true;
+  let encerramento: Promise<ResultadoDoEncerramento> | null = null;
 
   function morrer(): void {
     viva = false;
@@ -137,10 +140,12 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
   }
 
   function fechar(ligacao: Ligacao, codigo: number): void {
+    // O ator pode já ter enviado o close; retirar a referência não depende
+    // do callback posterior do transporte.
+    ligacoes.delete(ligacao.conexao);
     if (ligacao.fase === "fechada") return;
     ligacao.fase = "fechada";
     ligacao.conexao.fechar(codigo);
-    ligacoes.delete(ligacao.conexao);
   }
 
   /** Balde de fichas: recarrega com o tempo e gasta uma por quadro. */
@@ -360,17 +365,25 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
       }
     },
 
-    async encerrar() {
-      if (!viva) return;
-      drenando = true;
-      try {
-        await op.host.drenar();
-      } catch {
-        // Sem o Recreio, ainda vale salvar o que der.
-      }
-      await Promise.allSettled([...atores.values()].map((ator) => ator.encerrar()));
-      for (const ligacao of [...ligacoes.values()]) fechar(ligacao, FECHAMENTO.reiniciando);
-      viva = false;
+    encerrar() {
+      encerramento ??= (async () => {
+        if (!viva) return { mundos: 0, falhas: 0 };
+        drenando = true;
+        const mundos = [...atores.values()];
+        try {
+          await op.host.drenar();
+        } catch {
+          // Sem o Recreio, ainda vale salvar o que der; cada ator confirma seu resultado.
+        }
+        const resultados = await Promise.allSettled(mundos.map((ator) => ator.encerrar()));
+        const falhas = resultados.filter((r) => r.status === "rejected" || !r.value).length;
+        for (const ligacao of [...ligacoes.values()]) fechar(ligacao, FECHAMENTO.reiniciando);
+        viva = false;
+        const resultado = { mundos: mundos.length, falhas };
+        registrar("instancia_encerrada", resultado);
+        return resultado;
+      })();
+      return encerramento;
     },
 
     medir() {
