@@ -19,10 +19,15 @@ const raiz = fileURLToPath(new URL("../../..", import.meta.url));
 const porSoftware = process.env.MORADA_E2E_GPU !== "1";
 const regras = process.env.MORADA_E2E_REGRAS ?? "prova";
 if (regras !== "prova" && regras !== "padrao") throw new Error("Preset de regras inválido.");
+const grupo = process.env.MORADA_E2E_GRUPO ?? "focada";
+if (!/^[a-z][a-z0-9-]{0,63}$/.test(grupo)) throw new Error("Grupo de evidências inválido.");
+const resultados = evidenciasPrivadas
+  ? join(evidenciasPrivadas, "test-results")
+  : join(pacote, "e2e/test-results");
 
 export default defineConfig({
   testDir: ".",
-  outputDir: evidenciasPrivadas ? join(evidenciasPrivadas, "test-results") : "./test-results",
+  outputDir: join(resultados, grupo),
   fullyParallel: false,
   workers: 1,
   retries: 0,
@@ -52,7 +57,9 @@ export default defineConfig({
     },
     {
       command:
-        "pnpm build:bancada && pnpm exec vite preview --config bancada/vite.config.ts --strictPort",
+        process.env.MORADA_E2E_BUILD_PRONTO === "1"
+          ? "pnpm exec vite preview --config bancada/vite.config.ts --strictPort"
+          : "pnpm build:bancada && pnpm exec vite preview --config bancada/vite.config.ts --strictPort",
       cwd: pacote,
       url: "http://localhost:5173/",
       reuseExistingServer: false,

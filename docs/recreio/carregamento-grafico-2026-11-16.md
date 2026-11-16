@@ -72,3 +72,17 @@ do cliente conserva o desenho real e registra essas contagens, âncoras e caixas
 do HUD em computador/celular com editor compacto. Não altera o critério de
 visibilidade nem anuncia correção: a prova focada deve localizar em qual etapa
 as placas desaparecem antes de modificar o desenho novamente.
+
+Prova focada `43806398763` (`875922da`) aprovada: computador/celular com
+desenho procedural mostram nomes. A primeira execução não abriu Chromium;
+instalação do navegador e caminho de preservação corrigidos antes dessa prova.
+Na rodada completa `43807036615` (`491db949`), os dois casos novos passaram,
+mas os dois casos seguintes de sessão curta falharam na entrada. O servidor
+de desenvolvimento conserva membros de todos os arquivos no mesmo mundo:
+as duas identidades novas atingiram seu teto de oito antes da entrada de Rita.
+Não aumentar esse teto para a suíte passar.
+
+A correção do executor inicia servidor/mundo próprios por arquivo de jornada,
+preservando resultados em pastas diferentes. A bancada é construída uma vez
+no mesmo checkout, sem reutilizar processos/mundos nem repetir testes falhos.
+A nova rodada completa e a comparação privada com arte continuam necessárias.

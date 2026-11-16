@@ -102,6 +102,15 @@ pnpm exec biome check packages/jogo-morada
 
 O `e2e` precisa das portas 3010 e 5173 livres e do Chromium do Playwright (`pnpm --filter @informach/jogo-morada exec playwright install chromium`). O navegador de teste desenha por software; `MORADA_E2E_GPU=1` usa a placa de vídeo. As fotos de cada passo ficam em `e2e/telas/`, fora do git.
 
+Nesta máquina, testes gráficos/builds rodam somente no GitHub. O comando completo
+inicia um servidor e um mundo por arquivo de jornada, conservando as evidências
+de cada grupo. Constrói a bancada uma vez no mesmo checkout, sem reutilizar
+servidores ou mundos entre arquivos. Seleção focada usa `pnpm --filter
+@informach/jogo-morada exec playwright test --config e2e/playwright.config.ts`.
+Provas com arte exigem `MORADA_E2E_EVIDENCIAS` existente fora do checkout;
+capturas e resultados seguem para essa pasta privada. `MORADA_E2E_REGRAS=padrao`
+permite comparar o preset normal com a prova, sem alterar o servidor publicado.
+
 ## Testes
 
 | Arquivo | O que prova |
