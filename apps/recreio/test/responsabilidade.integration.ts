@@ -362,6 +362,66 @@ it.each(["minor", "suspended"] as const)(
   },
 );
 
+it.each(["suspended", "minor", "former", "sem_perfil"] as const)(
+  "o responsável pode cancelar mesmo com destinatário %s",
+  async (estado) => {
+    const c = await cenario();
+    const proposta = await proporResponsabilidade(c.a, c.id, c.membroBruno.id);
+    if (estado === "suspended")
+      await db
+        .update(profiles)
+        .set({ status: "suspended" })
+        .where(eq(profiles.id, c.bruno.perfil.id));
+    if (estado === "minor")
+      await db.update(profiles).set({ kind: "minor" }).where(eq(profiles.id, c.bruno.perfil.id));
+    if (estado === "former")
+      await db
+        .update(members)
+        .set({ state: "former", leftAt: new Date() })
+        .where(eq(members.id, c.membroBruno.id));
+    if (estado === "sem_perfil")
+      await db.delete(profiles).where(eq(profiles.id, c.bruno.perfil.id));
+    expect(await responderResponsabilidade(c.a, c.id, proposta.pedidoId, "revoked")).toEqual({
+      pedidoId: proposta.pedidoId,
+      estado: "revoked",
+    });
+    expect((await db.select().from(spaces).where(eq(spaces.id, c.id)))[0]?.stewardProfileId).toBe(
+      c.lia.perfil.id,
+    );
+  },
+);
+
+it.each(["suspended", "sem_perfil"] as const)(
+  "o destinatário pode recusar mesmo com proponente %s",
+  async (estado) => {
+    const c = await cenario();
+    const proposta = await proporResponsabilidade(c.a, c.id, c.membroBruno.id);
+    if (estado === "suspended")
+      await db
+        .update(profiles)
+        .set({ status: "suspended" })
+        .where(eq(profiles.id, c.lia.perfil.id));
+    else await db.delete(profiles).where(eq(profiles.id, c.lia.perfil.id));
+    expect(await responderResponsabilidade(c.b, c.id, proposta.pedidoId, "declined")).toEqual({
+      pedidoId: proposta.pedidoId,
+      estado: "declined",
+    });
+  },
+);
+
+it("o recibo terminal continua próprio quando o perfil do proponente deixa de existir", async () => {
+  const c = await cenario();
+  const proposta = await proporResponsabilidade(c.a, c.id, c.membroBruno.id);
+  await responderResponsabilidade(c.b, c.id, proposta.pedidoId, "accepted");
+  const eventos = await eventosCom("requestId", proposta.pedidoId);
+  await db.delete(profiles).where(eq(profiles.id, c.lia.perfil.id));
+  expect(await responderResponsabilidade(c.b, c.id, proposta.pedidoId, "accepted")).toEqual({
+    pedidoId: proposta.pedidoId,
+    estado: "accepted",
+  });
+  expect(await eventosCom("requestId", proposta.pedidoId)).toEqual(eventos);
+});
+
 async function segurarCursor() {
   const pronto = sinal<number>();
   const fim = sinal<void>();
