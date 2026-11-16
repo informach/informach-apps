@@ -16,6 +16,12 @@ for (const formato of [
     await page.getByRole("button", { name: "Decorar", exact: true }).click();
     const painel = page.getByRole("region", { name: "Decoração da casa" });
     await painel.getByRole("button", { name: /Mesa lateral.*M\$/ }).click();
+    await painel.getByLabel("Largura (m)", { exact: true }).fill("3.5");
+    await expect(painel.getByLabel("Posição da prévia", { exact: true })).toContainText("3,5 ×");
+    await painel.getByLabel("Profundidade (m)", { exact: true }).fill("5");
+    await expect(painel.getByLabel("Posição da prévia", { exact: true })).toHaveText(
+      "3,5 × 5 m · 0°",
+    );
     await page.getByRole("button", { name: "Vista superior", exact: true }).click();
     await painel.getByRole("button", { name: "Ver prévia na casa" }).click();
     const antes = await page.evaluate(() => window.__morada?.medidas().quadros ?? 0);
