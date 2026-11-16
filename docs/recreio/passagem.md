@@ -1,8 +1,28 @@
-# Recreio e Morada: nota de passagem (15/11/2026)
+# Recreio e Morada: nota de passagem (16/11/2026)
 
 Para quem retoma a frente depois de uma pausa. Leia primeiro a [execução atual](execucao-2026-11-15.md) e [PRODUCAO.md](../../apps/recreio/PRODUCAO.md). O registro completo permanece em [`implementacao.md`](implementacao.md). O titular autorizou as cinco frentes e todos os achados, incluindo família/proteção e homologação comercial. Testes pesados, builds, empacotamento e E2E rodam **somente no GitHub**, nunca nesta máquina; arte/evidência licenciada somente no repositório privado.
 
-## Onde está cada coisa
+## Estado atual em 16/11
+
+Portal em `cc48f3c6` e Morada em `179a0a76`, alfa fechado, Mundo V2/protocolo 1
+e arte D2/V3. Expiração em lotes e resultado verificável da drenagem implantados;
+seis gates de cada candidata e da main aprovados. Saúde/prontidão 200, cron,
+mapas do portal e arte conferidos. [Operação atual](../../apps/recreio/PRODUCAO.md).
+
+D3 continua separado da produção. A candidata `7d02a2d4` passou nos seis gates;
+a homologação privada investiga atraso após reconexão e capturas dos nomes no
+celular. [Diagnóstico gráfico](rotulos-2026-11-16.md). Nenhuma prova de diversão,
+60 FPS, alta disponibilidade ou encerramento de D2–D8 foi acrescentada.
+
+O titular confirmou a licença comercial; não repetir essa pergunta. Vídeo
+integrado está indisponível e adiado; testes pesados somente no GitHub e orçamento
+de uptime Sentry indisponível. Backup agendado, carga/custo real por mundo,
+família/proteção, direitos, cobrança e homologações continuam pendentes.
+
+## Marcos anteriores de 15/11
+
+Os itens abaixo preservam a proveniência dos incrementos anteriores. Códigos,
+ativação D1 e contagens ali registrados não descrevem a versão atual.
 
 - **Código da sonda em `5e54f59f`, integrado à main,** inclui as correções de integridade/revogação/auditoria/limites, recuperação, recusa de downgrade, fila gráfica e sonda compartilhada/Worker. Apps publicados em `95c24d24`. Cinco gates públicos, 171 integrações, cinco jornadas do portal, 19 do cliente e 100 dias aprovados no perfil registrado. Worker: sete testes HTTP e cinco nativos aprovados no run 43723080121 e repetição na main 43723421621; bundle SHA-256 `e64eaa7bd05fa954f5ecb0be5acd210b4138f2dfa374a94f2145ff93e9539ac8`.
 - **Alfa fechado implantado:** portal/Morada/manutenção, DNS/TLS, Redis, schema e Sentry conferidos. As três flags IaC estão em `true`; não são rollback. Titular confirmou criar/jogar/sair e, depois da ativação, ver a arte e sair pelo jogo. [Backup lógico real restaurado em destino isolado](ensaio-backup-producao.md), com limpeza confirmada; backup agendado, carga e custo por mundo ainda pendentes. Avisos Sentry recebidos pelo titular. Uptime Sentry continua desligado por orçamento; cron Workers com duas execuções automáticas e ingestão Sentry conferidas, prova desligada; [registro](sonda-cloudflare.md).
