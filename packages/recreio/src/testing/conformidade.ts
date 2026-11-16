@@ -167,19 +167,22 @@ export function descreverConformidadeDoHost(nome: string, criarAmbiente: Fabrica
         expect(tarde.posses).toMatchObject([{ mundoId, estado: "perdida" }]);
       });
 
-      it("avisa uma vez cada sessão encerrada", async () => {
-        const a = await executando();
-        const sid = await ambiente.abrirSessao(lia);
-        const primeiro = await a.cliente.batimento({ mundos: [], cursor: null });
-        expect(primeiro.sessoesEncerradas).toEqual([]);
+      it.each(["access_lost", "permissions_changed"] as const)(
+        "avisa uma vez cada sessão encerrada por %s",
+        async (motivo) => {
+          const a = await executando();
+          const sid = await ambiente.abrirSessao(lia);
+          const primeiro = await a.cliente.batimento({ mundos: [], cursor: null });
+          expect(primeiro.sessoesEncerradas).toEqual([]);
 
-        await ambiente.encerrarSessao(sid, "access_lost");
-        const segundo = await a.cliente.batimento({ mundos: [], cursor: primeiro.cursor });
-        expect(segundo.sessoesEncerradas).toEqual([{ sid, motivo: "access_lost" }]);
+          await ambiente.encerrarSessao(sid, motivo);
+          const segundo = await a.cliente.batimento({ mundos: [], cursor: primeiro.cursor });
+          expect(segundo.sessoesEncerradas).toEqual([{ sid, motivo }]);
 
-        const terceiro = await a.cliente.batimento({ mundos: [], cursor: segundo.cursor });
-        expect(terceiro.sessoesEncerradas).toEqual([]);
-      });
+          const terceiro = await a.cliente.batimento({ mundos: [], cursor: segundo.cursor });
+          expect(terceiro.sessoesEncerradas).toEqual([]);
+        },
+      );
     });
 
     describe("diário", () => {

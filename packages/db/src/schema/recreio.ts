@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   customType,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -11,6 +12,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -264,7 +266,7 @@ export const recreioGameSessions = recreio.table(
     expiresAt: moment("expires_at").notNull(),
     endedAt: moment("ended_at"),
     endReason: text("end_reason").$type<
-      "left" | "replaced" | "access_lost" | "signed_out" | "expired"
+      "left" | "replaced" | "access_lost" | "signed_out" | "expired" | "permissions_changed"
     >(),
     /** Preenchido com `nextval('recreio.game_session_end_seq')` ao encerrar. */
     endedSeq: bigint("ended_seq", { mode: "number" }),
@@ -274,7 +276,7 @@ export const recreioGameSessions = recreio.table(
     index("recreio_game_sessions_ended_seq").on(t.endedSeq).where(sql`${t.endedSeq} is not null`),
     check(
       "recreio_game_sessions_end_reason",
-      sql`${t.endReason} is null or ${t.endReason} in ('left', 'replaced', 'access_lost', 'signed_out', 'expired')`,
+      sql`${t.endReason} is null or ${t.endReason} in ('left', 'replaced', 'access_lost', 'signed_out', 'expired', 'permissions_changed')`,
     ),
     // Sessão encerrada sempre entra no cursor: sem isso uma instância nunca
     // saberia que ela acabou.
@@ -307,6 +309,12 @@ export const recreioSpaceMembers = recreio.table(
   },
   (t) => [
     uniqueIndex("recreio_space_members_profile").on(t.spaceId, t.profileId),
+    unique("recreio_space_members_space_id").on(t.spaceId, t.id),
+    foreignKey({
+      name: "recreio_space_members_inviter_world_fk",
+      columns: [t.spaceId, t.invitedByMemberId],
+      foreignColumns: [t.spaceId, t.id],
+    }).onDelete("restrict"),
     index("recreio_space_members_by_profile").on(t.profileId, t.state),
     check("recreio_space_members_role", sql`${t.role} in ('steward', 'coadmin', 'member')`),
     check(
@@ -347,6 +355,11 @@ export const recreioSpaceInvites = recreio.table(
   },
   (t) => [
     uniqueIndex("recreio_space_invites_code").on(t.codeHash),
+    foreignKey({
+      name: "recreio_space_invites_inviter_world_fk",
+      columns: [t.spaceId, t.invitedByMemberId],
+      foreignColumns: [recreioSpaceMembers.spaceId, recreioSpaceMembers.id],
+    }).onDelete("restrict"),
     index("recreio_space_invites_space").on(t.spaceId, t.state),
     index("recreio_space_invites_unused_expires")
       .on(t.expiresAt, t.id)
@@ -359,6 +372,68 @@ export const recreioSpaceInvites = recreio.table(
     check(
       "recreio_space_invites_participation",
       sql`${t.participation} is null or char_length(${t.participation}) <= 64`,
+    ),
+  ],
+);
+
+/** Oferta de responsabilidade: não concede autoridade antes do aceite do destinatário. */
+export const recreioSpaceStewardshipRequests = recreio.table(
+  "space_stewardship_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    spaceId: uuid("space_id")
+      .notNull()
+      .references(() => recreioSpaces.id, { onDelete: "restrict" }),
+    fromMemberId: uuid("from_member_id").notNull(),
+    toMemberId: uuid("to_member_id").notNull(),
+    state: text("state")
+      .$type<"pending" | "accepted" | "declined" | "revoked" | "expired">()
+      .notNull()
+      .default("pending"),
+    createdAt: time("created_at"),
+    expiresAt: moment("expires_at").notNull(),
+    completedAt: moment("completed_at"),
+  },
+  (t) => [
+    foreignKey({
+      name: "recreio_stewardship_from_member_world_fk",
+      columns: [t.spaceId, t.fromMemberId],
+      foreignColumns: [recreioSpaceMembers.spaceId, recreioSpaceMembers.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "recreio_stewardship_to_member_world_fk",
+      columns: [t.spaceId, t.toMemberId],
+      foreignColumns: [recreioSpaceMembers.spaceId, recreioSpaceMembers.id],
+    }).onDelete("restrict"),
+    uniqueIndex("recreio_stewardship_pending_world")
+      .on(t.spaceId)
+      .where(sql`${t.state} = 'pending'`),
+    index("recreio_stewardship_recipient_pending")
+      .on(t.toMemberId, t.id)
+      .where(sql`${t.state} = 'pending'`),
+    check("recreio_stewardship_distinct_members", sql`${t.fromMemberId} <> ${t.toMemberId}`),
+    check(
+      "recreio_stewardship_state",
+      sql`${t.state} in ('pending', 'accepted', 'declined', 'revoked', 'expired')`,
+    ),
+    check(
+      "recreio_stewardship_completion",
+      sql`
+      (${t.state} = 'pending' and ${t.completedAt} is null)
+      or (${t.state} <> 'pending' and ${t.completedAt} is not null)`,
+    ),
+    check("recreio_stewardship_expiry", sql`${t.expiresAt} > ${t.createdAt}`),
+    check(
+      "recreio_stewardship_completion_time",
+      sql`${t.completedAt} is null or ${t.completedAt} >= ${t.createdAt}`,
+    ),
+    check(
+      "recreio_stewardship_acceptance_time",
+      sql`${t.state} <> 'accepted' or ${t.completedAt} < ${t.expiresAt}`,
+    ),
+    check(
+      "recreio_stewardship_expiration_time",
+      sql`${t.state} <> 'expired' or ${t.completedAt} >= ${t.expiresAt}`,
     ),
   ],
 );

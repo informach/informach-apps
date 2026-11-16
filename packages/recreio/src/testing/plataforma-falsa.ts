@@ -95,6 +95,12 @@ export type PlataformaFalsa = {
     dados?: { papel?: PapelNoMundo; participacao?: string | null },
   ): MembroId;
   mudarEstadoDoMembro(mundoId: MundoId, perfilId: PerfilId, estado: EstadoDeMembro): void;
+  mudarPapelDoMembro(mundoId: MundoId, perfilId: PerfilId, papel: PapelNoMundo): void;
+  mudarParticipacaoDoMembro(
+    mundoId: MundoId,
+    perfilId: PerfilId,
+    participacao: string | null,
+  ): void;
 
   /** Registra uma sessão de jogo viva; o token é emitido à parte, pelo emissor de teste. */
   abrirSessao(perfilId: PerfilId, jogo?: string): SessaoDeJogoId;
@@ -492,6 +498,16 @@ export function criarPlataformaFalsa(
       const membro = obterMundo(mundoId).membros.find((m) => m.perfilId === perfilId);
       if (!membro) throw new ErroDoRecreio("NAO_MEMBRO");
       membro.estado = estado;
+    },
+    mudarPapelDoMembro(mundoId, perfilId, papel) {
+      const membro = obterMundo(mundoId).membros.find((m) => m.perfilId === perfilId);
+      if (!membro) throw new ErroDoRecreio("NAO_MEMBRO");
+      membro.papel = papel;
+    },
+    mudarParticipacaoDoMembro(mundoId, perfilId, participacao) {
+      const membro = obterMundo(mundoId).membros.find((m) => m.perfilId === perfilId);
+      if (!membro) throw new ErroDoRecreio("NAO_MEMBRO");
+      membro.participacao = participacao;
     },
 
     abrirSessao(perfilId, jogo = JOGO_PADRAO) {

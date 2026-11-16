@@ -509,6 +509,14 @@ const SIMPLE: Record<string, string> = {
   "recreio.space_invite_accepted": "Aceitou um convite de mundo no Recreio",
   "recreio.space_member_joined": "Entrou em um mundo no Recreio",
   "recreio.space_member_left": "Saiu de um mundo no Recreio",
+  "recreio.space_stewardship_requested":
+    "Propôs transferência de responsabilidade de um mundo no Recreio",
+  "recreio.space_stewardship_accepted": "Aceitou a responsabilidade por um mundo no Recreio",
+  "recreio.space_stewardship_declined": "Recusou a responsabilidade por um mundo no Recreio",
+  "recreio.space_stewardship_revoked":
+    "Cancelou uma proposta de responsabilidade de um mundo no Recreio",
+  "recreio.space_stewardship_expired":
+    "Expirou uma proposta de responsabilidade de um mundo no Recreio",
   "recreio.space_lease_taken_over": "Uma instância retomou um mundo no Recreio",
   "recreio.space_write_refused": "Uma escrita de instância foi recusada no Recreio",
   "recreio.space_restored": "Um mundo do Recreio foi restaurado pela operação",

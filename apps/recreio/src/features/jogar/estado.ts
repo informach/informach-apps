@@ -16,6 +16,7 @@ export type Parada =
   | "outro_lugar"
   | "saiu_da_conta"
   | "saiu_do_jogo"
+  | "permissoes_alteradas"
   | "sessao_encerrada"
   | "rede"
   | "falha";
@@ -71,6 +72,7 @@ function paradaDoFimDaSessao(motivo: string | null): Parada {
   if (motivo === "replaced") return "outro_lugar";
   if (motivo === "signed_out") return "saiu_da_conta";
   if (motivo === "left") return "saiu_do_jogo";
+  if (motivo === "permissions_changed") return "permissoes_alteradas";
   if (motivo === "access_lost") return "acesso_perdido";
   return "sessao_encerrada";
 }
@@ -193,6 +195,11 @@ const TEXTOS: Record<Parada, TextoDaParada> = {
     titulo: "A sessão de jogo terminou",
     texto: "Abra o jogo de novo para continuar.",
     acao: "tentar",
+  },
+  permissoes_alteradas: {
+    titulo: "Suas permissões neste mundo mudaram",
+    texto: "Seu progresso confirmado continua salvo. Volte à estante e abra o mundo novamente.",
+    acao: "nada",
   },
   rede: {
     titulo: "Não foi possível conectar",
