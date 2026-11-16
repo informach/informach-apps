@@ -1,0 +1,50 @@
+{
+  "codigo": "6e640e99691592aaee0335374f9b7240ec3fc45f",
+  "codigoDeProducaoIdenticoA": "714005f6dbbaeb9862707290874a31f09c37f3be",
+  "candidataRun": 43878699384,
+  "mainRecreioRun": 43880781779,
+  "gatesAprovadosEmCadaRodada": 6,
+  "integracoesCandidata": 243,
+  "portal": {
+    "deployment": "0db0c124-d91c-4220-b6f3-d9cc96d489f2",
+    "status": "SUCCESS",
+    "fonteRelidaEm": "2026-11-16T14:06:42.957Z",
+    "configuracaoIdentica": true,
+    "staged": null,
+    "ready": 200,
+    "readyConferidoEm": "2026-11-16T14:18:12.781Z",
+    "mapasSentryUpload": "2026-11-16T13:59:08.355853226Z",
+    "releaseSentryPresente": true
+  },
+  "cron": {
+    "inicio": "2026-11-16T14:05:09.819Z",
+    "fim": "2026-11-16T14:05:09.896Z",
+    "ok": true,
+    "summary": {
+      "possesVencidas": 0,
+      "convitesApagados": 0,
+      "sessoesExpiradas": 0,
+      "ingressosApagados": 0,
+      "instanciasSumidas": 0
+    }
+  },
+  "indiceConferidoAntesDoEscritor": "indice-participacoes-producao-2026-11-16.json",
+  "mainCIGeral": {
+    "run": 43880782077,
+    "status": "in_progress",
+    "checagemEstaticaCorrigida": true,
+    "tiposEUnidadesConcluidos": true,
+    "falhasObservadas": []
+  },
+  "sentry": {
+    "consulta": "is:unresolved lastSeen:-2h",
+    "projetos": ["recreio", "morada-server"],
+    "problemasEncontrados": false
+  },
+  "moradaReady": 200,
+  "moradaReadyConferidoEm": "2026-11-16T14:18:13.200Z",
+  "contasPilotoAlteradasParaProva": false,
+  "a7Concluido": false,
+  "d3Ativado": false,
+  "vendasLiberadas": false
+}
