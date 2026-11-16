@@ -14,7 +14,7 @@ function cenario() {
     definicao: BAIRRO_INICIAL,
     fundadores: [],
   });
-  const estado = mundo.estado;
+  const estado = mundo.fotografar().estado;
   const lote = listar(estado.lotes).find((l) => l.imovelId);
   const imovel = lote?.imovelId ? obter(estado.imoveis, lote.imovelId) : null;
   const piso = imovel?.andares[0];

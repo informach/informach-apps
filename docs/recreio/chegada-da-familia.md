@@ -27,3 +27,9 @@ A primeira candidata `a73cdbf4` parou no gate global de qualidade por formataç�
 do JSON de evidência da rodada anterior; a inspeção focalizada tinha coberto
 somente TypeScript. O JSON foi formatado conforme o Biome. A nova rodada precisa
 executar qualidade/tipos/testes completos, sem atribuir a falha ao domínio.
+
+`8bdf660e` chegou à tipagem e apontou que a fixture tentava substituir tabelas
+pela visão `Readonly` do mundo. A preparação passa a usar uma fotografia
+independente, sem cast ou remoção do contrato de leitura. O workflow focado
+`morada-chegada.yml` confere tipos e os testes de chegada/fundação no GitHub
+antes de repetir os seis gates e a homologação privada.
