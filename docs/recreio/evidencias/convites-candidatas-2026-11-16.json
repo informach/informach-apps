@@ -1,0 +1,41 @@
+{
+  "indiceEMigrator": {
+    "codigo": "892f8571593f00d3f17fa6e5b20b2964324c579b",
+    "recreioRun": 43866074913,
+    "gatesAprovados": 6,
+    "integracoes": 223,
+    "ciGeralRun": 43866074845,
+    "ciGeralAindaEmExecucao": false,
+    "geracaoRun": 43863187650,
+    "geracaoFonte": "5fe7922b5d4b21daaa10747bd85fc9c10b4dadf9",
+    "migration": "0164_needy_moira_mactaggert.sql",
+    "sqlSha256": "f7cc957f0ec1217f8fc1e30ce1e7970796a6499635116cfe9f114b0d3bf187f7",
+    "prefixoJournalPreservado": 164,
+    "journalEsperadoDepois": 165,
+    "alteracaoSnapshot": "somente recreio_space_invites_unused_expires",
+    "ddlDisputadoAbortouCom": "55P03",
+    "rollbackERetomadaConferidos": true,
+    "ciGeralConclusao": "success"
+  },
+  "limpeza": {
+    "codigo": "79a9504f8dfcc8504e0801e70e06b16eae7863c2",
+    "recreioRun": 43869499608,
+    "gatesAprovados": 6,
+    "integracoes": 229,
+    "novosCasos": 6,
+    "convitesSinteticosParaPlano": 20001,
+    "explainExecutaDelete": false,
+    "faixaDoIndiceConferida": true,
+    "aceitosEMembrosPreservados": true,
+    "codigoAntigoRecusadoAntesEDepois": true,
+    "concorrenciaCom250LinhasTravadas": true,
+    "falhaDeDeleteRetorna503ERetoma": true,
+    "loteMaximo": 500,
+    "janelaAposVencimentoHoras": 24,
+    "etapaExecutadaPorUltimo": true
+  },
+  "banco": "PostgreSQL 18 descartavel do GitHub",
+  "indiceConfirmadoEmProducao": false,
+  "limpezaHabilitadaEmProducao": false,
+  "a7Concluido": false
+}

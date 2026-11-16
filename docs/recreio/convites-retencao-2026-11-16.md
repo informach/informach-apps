@@ -91,3 +91,27 @@ Não houve exclusão de convites nessa etapa. Configuração do migrator idênti
 sem alterar o flag Compasso. As prontidões dos nove apps web responderam 200.
 O escritor continua em candidata própria e exige nova conferência integrada.
 [Prova operacional](evidencias/indice-participacoes-producao-2026-11-16.json).
+
+## Candidata do escritor, separada da implantação do índice
+
+A rotina acrescenta `convitesApagados` ao resumo do job, depois das quatro
+etapas existentes. Apaga no máximo 500 por instrução, com prazo estável,
+ordenação por vencimento/UUID, SKIP LOCKED e repetição das condições no DELETE.
+A transação limita instrução a 5 s, espera de trava a 1 s e duração a 15 s.
+Erro aborta o lote e mantém a resposta 503 do job; etapas anteriores podem
+ter concluído e continuam idempotentes. Não há auditoria de conteúdo na limpeza;
+o registro operacional do job conserva somente contagens/classificação.
+
+Seis casos novos no PostgreSQL descartável cobrem lote/ordem/prazos, convite
+aceito e membro preservados, código antigo recusado antes/depois, duas execuções
+com 250 linhas travadas, erro real de DELETE e retomada HTTP, e EXPLAIN da
+consulta efetiva com 20 mil convites futuros. EXPLAIN não executa a exclusão.
+A fonte inicial foi homologada abaixo. O conjunto integrado à nova main ainda exige sua rodada remota e não está habilitado em produção.
+Publicá-la somente depois de confirmar o recibo 165 e o índice válido/pronto.
+
+A candidata `79a9504f` passou nos seis gates `43869499608`. Integração:
+229 testes, incluindo os seis casos novos, sem falhas. O plano da consulta
+efetiva usou faixa do índice no volume sintético; o DELETE continuou limitado,
+e a falha real chegou ao HTTP seguida de retomada. A execução não altera o
+banco de produção e não demonstra capacidade do serviço Railway.
+[Evidências das candidatas](evidencias/convites-candidatas-2026-11-16.json).
