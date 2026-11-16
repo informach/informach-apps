@@ -508,6 +508,7 @@ const SIMPLE: Record<string, string> = {
   "recreio.space_invite_created": "Criou um convite de mundo no Recreio",
   "recreio.space_invite_accepted": "Aceitou um convite de mundo no Recreio",
   "recreio.space_member_joined": "Entrou em um mundo no Recreio",
+  "recreio.space_member_left": "Saiu de um mundo no Recreio",
   "recreio.space_lease_taken_over": "Uma instância retomou um mundo no Recreio",
   "recreio.space_write_refused": "Uma escrita de instância foi recusada no Recreio",
   "recreio.space_restored": "Um mundo do Recreio foi restaurado pela operação",

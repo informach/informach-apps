@@ -15,6 +15,7 @@ export type Parada =
   | "iniciando"
   | "outro_lugar"
   | "saiu_da_conta"
+  | "saiu_do_jogo"
   | "sessao_encerrada"
   | "rede"
   | "falha";
@@ -69,6 +70,7 @@ function motivoDe(erro: { detalhe: Readonly<Record<string, unknown>> }): string 
 function paradaDoFimDaSessao(motivo: string | null): Parada {
   if (motivo === "replaced") return "outro_lugar";
   if (motivo === "signed_out") return "saiu_da_conta";
+  if (motivo === "left") return "saiu_do_jogo";
   if (motivo === "access_lost") return "acesso_perdido";
   return "sessao_encerrada";
 }
@@ -181,6 +183,11 @@ const TEXTOS: Record<Parada, TextoDaParada> = {
     titulo: "Você saiu da conta",
     texto: "O jogo foi fechado junto com a sua entrada no Recreio.",
     acao: "entrar",
+  },
+  saiu_do_jogo: {
+    titulo: "Você saiu do jogo",
+    texto: "Seu progresso confirmado continua salvo. Confira seus mundos na estante.",
+    acao: "nada",
   },
   sessao_encerrada: {
     titulo: "A sessão de jogo terminou",

@@ -1,6 +1,7 @@
 "use server";
 import { perfilAtivo } from "@/features/sessao/ator";
 import { runAction, verifiedUser } from "@/lib/action";
+import { sairDoMundo } from "./saida";
 import { aceitarConvite, criarConvite, criarMundo } from "./service";
 
 // As ações do portal chamam os mesmos serviços das rotas do SDK. O perfil é
@@ -38,5 +39,22 @@ export async function aceitarConviteAction(codigo: unknown) {
     const perfilId = await quemPede();
     const aceito = await aceitarConvite({ perfilId }, { codigo });
     return { destination: `/mundos/${aceito.mundoId}` };
+  });
+}
+
+/** A autoridade inteira vem da sessão; não recebe outro perfil ou conta da tela. */
+export async function sairDoMundoAction(mundoId: unknown) {
+  return runAction(async () => {
+    await verifiedUser();
+    const ator = await perfilAtivo();
+    await sairDoMundo(
+      {
+        contaId: ator.contaId,
+        perfilId: ator.perfil.id,
+        sessaoDeAparelhoId: ator.sessaoDeAparelhoId,
+      },
+      mundoId,
+    );
+    return { destination: "/estante" };
   });
 }

@@ -42,11 +42,17 @@ import {
  *
  * Ordem das travas, para não haver espera em círculo: quem vai encerrar pega
  * a trava dos encerramentos **antes** de tocar em linhas de `game_sessions`, e
- * ninguém a pede já segurando uma dessas linhas. A renovação e a entrada num
+ * ninguém a pede pela primeira vez já segurando uma dessas linhas. Reentrar
+ * na trava já admitida na mesma transação não espera. A renovação e a entrada num
  * mundo mexem em uma linha com um comando só e não pedem a trava.
  */
 
 const TRAVA_DOS_ENCERRAMENTOS = "recreio:game_sessions:encerramento";
+
+/** Admite a ordem de encerramento antes de travar as sessões e reler a autoridade. */
+export async function travarEncerramentos(tx: Transacao): Promise<void> {
+  await travar(tx, TRAVA_DOS_ENCERRAMENTOS);
+}
 
 export type SessaoEncerrada = { sid: SessaoDeJogoId; perfilId: PerfilId; jogo: string };
 
@@ -66,7 +72,7 @@ export async function encerrarSessoesAbertas(
   motivo: MotivoDeSessaoEncerrada,
   opcoes: { porQuem: "conta" | "recreio" },
 ): Promise<SessaoEncerrada[]> {
-  await travar(tx, TRAVA_DOS_ENCERRAMENTOS);
+  await travarEncerramentos(tx);
   const encerradas = await tx
     .update(gameSessions)
     .set({

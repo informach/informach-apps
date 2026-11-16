@@ -71,6 +71,7 @@ describe("motivo de uma parada", () => {
     [new ErroDoRecreio("ACESSO_PERDIDO", { motivo: "signed_out" }), "saiu_da_conta"],
     [new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "replaced" }), "outro_lugar"],
     [new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "signed_out" }), "saiu_da_conta"],
+    [new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "left" }), "saiu_do_jogo"],
     [new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "access_lost" }), "acesso_perdido"],
     [new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "expired" }), "sessao_encerrada"],
     [new ErroDoRecreio("SESSAO_ENCERRADA"), "sessao_encerrada"],
@@ -114,6 +115,7 @@ describe("motivo de uma parada", () => {
     );
     expect(paradaDaMudanca({ codigo: "ACESSO_PERDIDO" })).toBe("acesso_perdido");
     expect(paradaDaMudanca({ codigo: "SESSAO_ENCERRADA", motivo: "replaced" })).toBe("outro_lugar");
+    expect(paradaDaMudanca({ codigo: "SESSAO_ENCERRADA", motivo: "left" })).toBe("saiu_do_jogo");
     expect(paradaDaMudanca({ codigo: "SESSAO_INVALIDA" })).toBe("sessao_encerrada");
     expect(paradaDaMudanca({ codigo: "INDISPONIVEL" })).toBe("rede");
   });
@@ -129,6 +131,7 @@ describe("texto das paradas", () => {
     "iniciando",
     "outro_lugar",
     "saiu_da_conta",
+    "saiu_do_jogo",
     "sessao_encerrada",
     "rede",
     "falha",
@@ -160,6 +163,7 @@ describe("texto das paradas", () => {
       iniciando: "tentar",
       outro_lugar: "tentar",
       saiu_da_conta: "entrar",
+      saiu_do_jogo: "nada",
       sessao_encerrada: "tentar",
       rede: "tentar",
       falha: "tentar",

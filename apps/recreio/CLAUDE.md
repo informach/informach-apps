@@ -85,6 +85,8 @@ Princípios que não se negociam: **o jogo recebe um ingresso, nunca acesso ao b
 
 ## Posse e API das instâncias (lote P6)
 
+A saída voluntária de convidado fica em `features/mundos/saida.ts` e `saida-repository.ts`: somente o próprio adulto, com perfil/aparelho revalidados na transação, independentemente da cobertura comercial. O mundo é travado como na admissão; membro vira `former` e sessões vinculadas acabam atomicamente com auditoria estrita. O responsável depende de sucessão aceita, ainda pendente. [Contrato e limites do incremento](../../docs/recreio/saida-de-mundo-2026-11-16.md); a gestão de participações não ativas e o restante de A6 continuam pendentes.
+
 O contrato é o `ClienteDoHost` do package, e a implementação é conferida pela suíte de conformidade (`test/conformidade.integration.ts`). Se o comportamento daqui e o da plataforma em memória divergirem, a suíte é quem manda.
 
 - Rotas em `src/app/api/interno/v1`, só para servidores de jogo: `Authorization: Bearer <segredo do jogo>` comparado em tempo constante, jogo em `X-Recreio-Jogo`, instância em `X-Recreio-Instancia` (`features/posse/http.ts`). Sem cookie e sem conferência de origem. O segredo de um jogo só alcança instâncias e mundos daquele jogo: mundo de outro jogo responde `NAO_ENCONTRADO`, instância de outro jogo `NAO_AUTENTICADO`.
