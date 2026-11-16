@@ -1,5 +1,5 @@
-import { ehErroDoRecreio } from "@informach/recreio";
 import * as Sentry from "@sentry/node";
+import { resumoDaFalha } from "./resumo-da-falha";
 
 /** Só classificadores fixos chegam ao provedor; nada da requisição ou do mundo. */
 export function iniciarObservabilidade(
@@ -36,7 +36,7 @@ export function iniciarObservabilidade(
 export function registrarFalha(erro: unknown, operacao: "rede" | "encerrar" | "iniciar"): void {
   Sentry.captureMessage("morada.server_failure", {
     level: "error",
-    tags: { operation: operacao, code: ehErroDoRecreio(erro) ? erro.codigo : "INTERNO" },
+    tags: { operation: operacao, code: resumoDaFalha(erro).codigo },
   });
 }
 

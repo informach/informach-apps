@@ -1,7 +1,6 @@
 import { jogoPorId } from "@informach/config/jogos";
 import { REGRAS_DA_PROVA, REGRAS_PADRAO } from "@informach/morada-sim";
 import { BAIRRO_INICIAL } from "@informach/morada-sim/conteudo";
-import { ehErroDoRecreio } from "@informach/recreio";
 import {
   type ClienteDoHost,
   criarClienteDoHost,
@@ -15,6 +14,7 @@ import { lerConfiguracao } from "./config";
 import { criarPlataformaDeDesenvolvimento } from "./desenvolvimento";
 import { criarInstancia } from "./instancia";
 import { concluirObservabilidade, iniciarObservabilidade, registrarFalha } from "./observabilidade";
+import { resumoDaFalha } from "./resumo-da-falha";
 import { criarServidor } from "./servidor";
 
 /**
@@ -53,13 +53,6 @@ function registrar(evento: string, dados: Record<string, unknown> = {}): void {
   if (DE_ROTINA.has(evento)) log.debug(linha);
   else if (DE_ATENCAO.has(evento)) log.warn(linha);
   else log.info(linha);
-}
-
-/** Um erro para o log: o nome e o código ou a mensagem. O objeto inteiro não é registrado. */
-function descrever(erro: unknown): Record<string, string> {
-  if (ehErroDoRecreio(erro)) return { nome: erro.name, codigo: erro.codigo };
-  if (erro instanceof Error) return { nome: erro.name, mensagem: erro.message.slice(0, 200) };
-  return { nome: "desconhecido" };
 }
 
 async function principal(): Promise<void> {
@@ -147,7 +140,7 @@ async function principal(): Promise<void> {
     registrar,
     aoErro: (erro, contexto) => {
       registrarFalha(erro, "rede");
-      log.error({ contexto, erro: descrever(erro) }, "erro no servidor");
+      log.error({ contexto, erro: resumoDaFalha(erro) }, "erro no servidor");
     },
   });
 
@@ -184,7 +177,7 @@ async function principal(): Promise<void> {
       },
       (erro: unknown) => {
         registrarFalha(erro, "encerrar");
-        log.error({ erro: descrever(erro) }, "falha ao encerrar");
+        log.error({ erro: resumoDaFalha(erro) }, "falha ao encerrar");
         process.exit(1);
       },
     );
@@ -201,9 +194,6 @@ async function principal(): Promise<void> {
 
 principal().catch((erro: unknown) => {
   registrarFalha(erro, "iniciar");
-  log.fatal(
-    { erro: erro instanceof Error ? erro.message : String(erro) },
-    "não foi possível iniciar",
-  );
+  log.fatal({ erro: resumoDaFalha(erro) }, "não foi possível iniciar");
   process.exit(1);
 });

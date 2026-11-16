@@ -162,7 +162,7 @@ No portal, a origem da arte é `RECREIO_GAME_ORIGINS.morada.assets` (`http://loc
 
 Cada pulso inicia somente os mundos sem um passo em voo. Um diário ou checkpoint lento pausa apenas o seu mundo; não acumula ticks nem bloqueia os demais. Cada ator mantém a sua fila de escrita e a proteção pela posse.
 
-`SENTRY_DSN` é opcional. O servidor envia apenas classificadores de falha (`rede`, `encerrar`, `iniciar` e código do Recreio ou `INTERNO`), com filtro que remove requisição, pessoa, breadcrumbs e mensagens livres. O serviço, o volume de arte e o cron estão preparados no Railway atrás de `RECREIO_LAUNCHED=false`; isso não cria recursos nem comprova deploy. Instruções em [PRODUCAO.md](PRODUCAO.md).
+`SENTRY_DSN` é opcional. O servidor envia apenas classificadores de falha (`rede`, `encerrar`, `iniciar` e código do Recreio ou `INTERNO`), com filtro que remove requisição, pessoa, breadcrumbs e mensagens livres. Os logs também usam classe/código controlados, inclusive no erro fatal de início. O alfa fechado está implantado no Railway, com arte D2 e manutenção periódica; as funcionalidades D3 continuam em candidata. Fontes, saúde, restauração e limites operacionais no [runbook do alfa](../recreio/PRODUCAO.md).
 
 Em produção, `RECREIO_API_URL` aceita HTTPS ou HTTP numa origem privada exata `<serviço>.railway.internal`. A API privada exige `RECREIO_EMISSOR` HTTPS explícito, igual ao emissor público do portal. URLs com credenciais, caminho ou outro protocolo são recusadas.
 
