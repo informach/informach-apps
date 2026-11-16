@@ -72,3 +72,9 @@ contagens zero. Isso comprova execução após a ativação, sem inferir ausênc
 global de linhas disputadas ou carga de 500 remoções em produção. Os mapas do
 portal foram enviados ao Sentry no build, confirmação às 04:34:33,912 UTC;
 release `7f9b2b0a` presente. Nenhum orçamento de monitoração alterado.
+
+Após o incremento de prazos HTTP, os dois serviços foram recompilados em
+`d13038b7`; a fonte do jogo continua idêntica a `22a3db6`. Arte D2/V3 e hash
+relidos no processo ativo, e cron automático às 05:15 UTC confirmado.
+[Operação dos prazos](prazos-navegador-2026-11-16.md). A7 continua aberto para
+a retenção das demais tabelas e medição em rede/banco.

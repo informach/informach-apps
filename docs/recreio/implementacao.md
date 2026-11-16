@@ -2,7 +2,7 @@
 
 Registro detalhado da frente. O índice de continuidade é o [estado do repositório](../estado-do-repositorio.md); as regras permanentes ficam no [AGENTS.md](../../AGENTS.md).
 
-Estado vigente em 16/11/2026: portal em `7f9b2b0a` e Morada em `22a3db6`, alfa fechado D2. Reconexão e logs corrigidos em produção, com seis gates e repetição main aprovados ([operação](telemetria-falhas.md)); [versões do portal e mapas Sentry](versoes-do-portal.md) conferidos. Editor/coleção D2 têm prova privada e salvamento/retorno humano; escolha de casa/orçamento continua pendente. D3 está **somente em candidata**, com os marcos abaixo e [plano atual](d3-construcao-compras.md). Backup lógico real restaurado em destino isolado, avisos recebidos e agenda externa comprovada; custo acumulado exclusivo medido, sem custo por hora ativa. O titular confirmou a permissão comercial pela [licença de compra](licenciamento-arte.md). D2–D8, proteção familiar, retenção/capacidade, backup agendado e demais homologações comerciais continuam em implementação. Ver [execução atual](execucao-2026-11-15.md) e [operação](../../apps/recreio/PRODUCAO.md). As seções datadas abaixo preservam a história dos marcos anteriores.
+Estado vigente em 16/11/2026: portal e Morada em `d13038b7`, alfa fechado D2. Reconexão e logs corrigidos em produção, com seis gates e repetição main aprovados ([operação](telemetria-falhas.md)); [versões do portal e mapas Sentry](versoes-do-portal.md) conferidos. Editor/coleção D2 têm prova privada e salvamento/retorno humano; escolha de casa/orçamento continua pendente. D3 está **somente em candidata**, com os marcos abaixo e [plano atual](d3-construcao-compras.md). Backup lógico real restaurado em destino isolado, avisos recebidos e agenda externa comprovada; custo acumulado exclusivo medido, sem custo por hora ativa. O titular confirmou a permissão comercial pela [licença de compra](licenciamento-arte.md). D2–D8, proteção familiar, retenção/capacidade, backup agendado e demais homologações comerciais continuam em implementação. Ver [execução atual](execucao-2026-11-15.md) e [operação](../../apps/recreio/PRODUCAO.md). As seções datadas abaixo preservam a história dos marcos anteriores.
 
 Evolução D3 fora da produção: `59f2614a`, seis gates `43802126864` e cinco
 jornadas privadas `43802946380` aprovados, incluindo duas contas, histórico
@@ -15,7 +15,7 @@ Construção estrutural e casas/orçamento continuam pendentes; D3 não concluí
 [histórico](d3-concorrencia-historico.md), [plano completo](d3-construcao-compras.md).
 Retenção de ingressos: `7f9b2b0a`, seis gates `43803801642` aprovados e main
 remota integrada; implantação e cron automático às 04:45 UTC conferidos. [Política](retencao-tecnica-2026-11-16.md).
-[Prazos do navegador](prazos-navegador-2026-11-16.md) em verificação no GitHub.
+[Prazos do navegador](prazos-navegador-2026-11-16.md) implantados, com cron/mapas/fonte conferidos.
 
 ## De onde vem o escopo
 
