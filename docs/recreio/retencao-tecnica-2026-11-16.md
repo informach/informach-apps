@@ -1,0 +1,42 @@
+# Retenção técnica: inventário anterior à limpeza
+
+A7 continua aberto. Leitura do schema e dos escritores em 16/11/2026; nenhuma
+linha de produção foi apagada por esse levantamento. Referências principais:
+`packages/db/src/schema/recreio.ts` e os repositórios de `sessao`,
+`sessao-de-jogo`, `posse` e `mundos` do portal.
+
+| Tabela | Situação e dependências que a limpeza deve respeitar |
+| --- | --- |
+| `game_tickets` | Já há remoção quando `expires_at` passou há mais de um dia. O comando atual retorna todas as linhas removidas; falta limitar o trabalho por execução e conferir o índice de seleção. |
+| `game_sessions` | `ended_seq` alimenta o cursor de encerramentos do host. Não apagar sessões abertas nem encerramentos ainda necessários para revogar tokens/conexões. Manter ordem e um topo monotônico após compactação; uma sequência PostgreSQL não substitui a confirmação ordenada das transações. |
+| `device_sessions` | O login carrega ou cria por `auth_session_id`. A linha revogada funciona como uma negativa persistida: apagá-la enquanto o login ainda for aceito poderia criar outra sessão de aparelho para o mesmo login. A expiração copiada pode estar antiga, pois uma linha revogada não é renovada. Também há cascata para ingressos e sessões de jogo. |
+| `space_invites` | Código é hash único; aceite trava mundo antes de convite. Convite aceito ou vencido não pode voltar a valer. A autoria fica também em `space_members.invited_by_member_id` e nos eventos de auditoria; não inferir que a linha do convite seja a única evidência de participação. |
+| `game_instances` | `gone` é recuperável: um batimento pode trazer a instância de volta. `started_at` delimita a primeira leitura dos encerramentos. Não tratar ausência de batimento como prova de inexistência definitiva ou apagar instância ativa/em drenagem. |
+| `space_leases` | Posses abertas sustentam a cerca do mundo. A época cresce em `spaces.lease_epoch`, sem depender de `max(fence)`. Posses encerradas conservam segundos e pico de jogadores, necessários à medição de uso/custo antes de qualquer agregação ou remoção. |
+| `entitlements` | Concessões auditadas, não cache. A revogação é conservada; não incluir na limpeza técnica por prazo de acesso. |
+| `spaces`, membros, fotografias e diário | Dados compartilhados e recuperação de mundo. A6 deve definir saída, sucessão, exportação e exclusão; não entram numa limpeza de sessões/convites. |
+| `audit.events` | Retenção padrão de cinco anos e contrato próprio em `docs/audit-payload-policy.md`. Sem exclusão oportunista pelo cron do Recreio. |
+
+## Contratos a implementar antes de habilitar
+
+1. Separar prazo de validade da credencial, janela de revogação, dados de uso
+   agregados e evidência de auditoria. Registrar prazos técnicos como política
+   versionada, com finalidade e dependências explícitas por tabela.
+2. Definir um critério comprovável de encerramento do login antes de retirar
+   sua negativa persistida. Leitura de Redis que falha deve falhar o job, sem
+   ser convertida em ausência. Cobrir renovação concorrente e login ainda
+   válido depois da expiração copiada na linha revogada.
+3. Definir compactação de encerramentos que conserve revogação e monotonia
+   do cursor. Cobrir transação de encerramento não confirmada, duas instâncias
+   em cursores diferentes, reconexão e primeira leitura após a compactação.
+4. Limitar cada lote, ordenar por prazo/ID e não aguardar indefinidamente
+   linhas disputadas. Preservar as travas de mundo/conta dos escritores e
+   revalidar o predicado de elegibilidade na exclusão. Índices e migrations
+   seguem o fluxo compartilhado do banco; não aplicar DDL avulso.
+5. Ensaiar idempotência, concorrência, interrupção e continuação no PostgreSQL
+   descartável do GitHub. O HTTP deve falhar quando a etapa falhar; registrar
+   apenas contagens e estado operacional. Repetir os gates do portal e as
+   provas de revogação antes da implantação.
+
+A7 permanece aberto; a implementação precisa dos contratos acima, sem usar
+apenas `expires_at`, `gone` ou `released_at` como critério de remoção.

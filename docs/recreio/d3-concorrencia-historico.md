@@ -250,3 +250,11 @@ parser de entrada ao fornecer as constantes usadas pela conexão. Constantes,
 schemas de entrada e tipos de saída passam a módulos internos distintos,
 preservando os mesmos exports públicos e o parser completo no host. Não usar
 esse resultado acima do teto como aprovação de desempenho.
+
+Fonte `cef54710`, prova focada `43798035904` aprovada: **1.246.670 bytes**,
+**344.650 gzip**, página da marca **2.974 bytes**. Teto preservado; a redução
+observada desde `7f0c5e33` é 8.807 bytes. A próxima rodada completa também
+inclui uma prova do ator inspecionando os quadros individuais da convidada,
+inclusive depois de reconectar, e os estados intermediários da cadeia de
+compensações. Não bastava um botão desabilitado para provar ausência de
+histórico alheio na rede.

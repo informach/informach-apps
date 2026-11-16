@@ -95,6 +95,30 @@ async function cenario() {
 }
 
 describe("journal das edições de móveis", () => {
+  it("fotografia e passos entregam somente os próximos itens próprios, sem expor o histórico do outro autor", async () => {
+    const c = await cenario();
+    const bruno = c.bancada.jogador("Bruno");
+    c.bancada.convidar(c.mundoId, bruno);
+    await c.bancada.entrar(bruno, c.mundoId);
+    expect(bruno.visao?.edicao.historico).toMatchObject({ desfazer: null, refazer: null });
+    await c.lia.comando(null, { t: "editar_casa", pedido: c.pedido }, c.chave);
+    await c.bancada.andar(1);
+    expect(c.lia.visao?.edicao.historico?.desfazer).toMatchObject({
+      chave: c.chave,
+      autor: c.lia.jogadorId,
+    });
+    expect(bruno.visao?.edicao.historico).toMatchObject({ desfazer: null, refazer: null });
+    expect(bruno.visao).not.toHaveProperty("historicoDaCasa");
+    const comEdicao = bruno.quadros.filter((q) => q.t === "passo" && q.edicao);
+    expect(comEdicao.length).toBeGreaterThan(0);
+    for (const quadro of comEdicao) {
+      if (quadro.t !== "passo") throw new Error("Quadro da prova inesperado");
+      expect(quadro.edicao?.historico).toMatchObject({ desfazer: null, refazer: null });
+    }
+    bruno.cair();
+    await c.bancada.entrar(bruno, c.mundoId);
+    expect(bruno.visao?.edicao.historico).toMatchObject({ desfazer: null, refazer: null });
+  });
   it("prazo do host expira a obra mesmo com a simulação pausada", async () => {
     const c = await cenario();
     await c.lia.comando(null, { t: "votar_velocidade", velocidade: 0 });

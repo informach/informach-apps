@@ -292,10 +292,30 @@ describe("edição autoritativa e durável da casa", () => {
       }).ok,
     ).toBe(true);
     expect(c.familiaAtual().fundo).toBe(488_000);
-    for (let i = 0; i < 4; i++) expect(c.aplicar(c.historico("desfazer")).ok).toBe(true);
+    expect(c.aplicar(c.historico("desfazer")).ok).toBe(true);
+    expect(c.objeto()).toMatchObject({
+      pos: [4000, 2000, 0],
+      giro: 90,
+      pintura: { perfil: PERFIL, cor: 0 },
+    });
+    expect(c.aplicar(c.historico("desfazer")).ok).toBe(true);
+    expect(c.objeto()).toMatchObject({ pos: [4000, 2000, 0], giro: 90, pintura: null });
+    expect(c.aplicar(c.historico("desfazer")).ok).toBe(true);
+    expect(c.objeto()).toMatchObject({ pos: [2000, 2000, 0], giro: 0, pintura: null });
+    expect(c.aplicar(c.historico("desfazer")).ok).toBe(true);
     expect(c.familiaAtual().fundo).toBe(500_000);
     expect(listar(c.mundo.estado.objetos)).toEqual([]);
-    for (let i = 0; i < 4; i++) expect(c.aplicar(c.historico("refazer")).ok).toBe(true);
+    expect(c.aplicar(c.historico("refazer")).ok).toBe(true);
+    expect(c.objeto()).toMatchObject({ pos: [2000, 2000, 0], giro: 0, pintura: null });
+    expect(c.aplicar(c.historico("refazer")).ok).toBe(true);
+    expect(c.objeto()).toMatchObject({ pos: [4000, 2000, 0], giro: 90, pintura: null });
+    expect(c.aplicar(c.historico("refazer")).ok).toBe(true);
+    expect(c.objeto()).toMatchObject({
+      pos: [4000, 2000, 0],
+      giro: 90,
+      pintura: { perfil: PERFIL, cor: 0 },
+    });
+    expect(c.aplicar(c.historico("refazer")).ok).toBe(true);
     expect(c.familiaAtual().fundo).toBe(488_000);
     expect(listar(c.mundo.estado.objetos)).toEqual([]);
     expect(revisaoDosObjetos(c.mundo.estado)).toBe(13);
