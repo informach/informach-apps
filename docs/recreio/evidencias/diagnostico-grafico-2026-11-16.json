@@ -45,5 +45,61 @@
   },
   "travamentoCorrigido": false,
   "fpsEmHardwareRealComprovado": false,
-  "ativacaoD3EmProducao": false
+  "ativacaoD3EmProducao": false,
+  "experimentoMateriais": {
+    "codigo": "7f9a9c8762b4a29f9ac6a6cf2a1e2d567c887dc8",
+    "gatesPublicos": 43822324604,
+    "jornadaPrivada": 43823529652,
+    "executor": "39aa423489d7830607359ba08f1cffaf1def1242",
+    "resultado": "failure",
+    "concorrencia": "failure",
+    "decoracaoComputador": "success",
+    "decoracaoCelular": "success",
+    "criacaoPersonalizada": "skipped",
+    "adotado": false,
+    "duracaoMs": 34351.875,
+    "amostras": 29331,
+    "getUniformsInclusivoMs": 19628.173,
+    "getShaderInfoLogProprioMs": 13595.716,
+    "getProgramInfoLogProprioMs": 6015.841,
+    "texSubImage2DProprioMs": 3489.232,
+    "limiteComparacao": "Duas maquinas SwiftShader distintas; nao constitui benchmark controlado."
+  },
+  "coletaProgramas": {
+    "codigo": "04d99f704e780b52726ba16ba1320804e805aa0a",
+    "gatesPublicos": 43825247579,
+    "jornadaPrivada": 43826248469,
+    "executor": "3a033fc5c7e82f2dddaa028f9d4559f8091113eb",
+    "resultado": "success",
+    "jornadasAprovadas": 5,
+    "escopoCpu": "Ultimo documento: historico restaurado. Nao cobre a jornada inteira nem a mesma etapa das falhas anteriores.",
+    "comparacaoDiretaComFalhas": false,
+    "duracaoCpuMs": 4825.477,
+    "amostras": 3681,
+    "consultas": 45,
+    "somaConsultasMs": 299.4,
+    "maiorConsultaMs": 129.5,
+    "criacao": {
+      "combinacoes": 48,
+      "antes": {
+        "contextos": 1,
+        "buffers": 128,
+        "texturas": 33,
+        "maximoBuffers": 203,
+        "maximoTexturas": 35
+      },
+      "depois": {
+        "contextos": 1,
+        "buffers": 128,
+        "texturas": 33,
+        "maximoBuffers": 203,
+        "maximoTexturas": 35
+      }
+    },
+    "imagensInspecionadas": {
+      "nomesComputador": 4,
+      "nomesCelular": 3,
+      "criacaoCelular": true
+    }
+  }
 }

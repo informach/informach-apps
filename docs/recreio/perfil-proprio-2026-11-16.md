@@ -27,3 +27,27 @@ Verificações pesadas somente no GitHub. Candidata própria sobre a main public
 seis gates antes de publicar, conferência de deploy/saúde/mapas depois.
 Sem migração ou alteração de dependências. Gestão de aparelhos, perfis infantis
 e encerramento continuam pendentes; este incremento não conclui A12.
+
+## Validação e operação
+
+Fonte `9725e5fb8490c5878f892d0fd1dc24494a3b5f61`: seis gates na
+[candidata 43826021613](https://github.com/informach/informach-apps/actions/runs/43826021613)
+e na [main 43826920567](https://github.com/informach/informach-apps/actions/runs/43826920567)
+aprovados. PostgreSQL: 188 integrações, incluindo nove novas de edição. Navegador:
+seis jornadas aprovadas e dois casos pulados por pertencerem aos executores
+específicos de versões/arte; esses executores têm seus próprios gates/provas.
+A jornada nova salva, recarrega, cancela sem gravar e escolhe avatar pelo cartão
+e por setas do teclado. A imagem da tela foi inspecionada. Isso não substitui
+homologação completa de acessibilidade com pessoas.
+
+Portal `6a5ccc68-7a77-491e-b751-8eb669fae37c` em SUCCESS; fonte e nova rota
+relidas no processo. Sem sessão, `/conta/perfil` redireciona 307 para o login;
+saúde/prontidão do portal e do Morada respondem 200. Mapas enviados ao Sentry
+às 07:54:36,256 UTC; release presente. Configurações integrais dos dois serviços
+comparadas, idênticas, sem alterações staged. O jogo não foi recompilado:
+gatilho SKIPPED, fonte `179a0a76`, Mundo V2/protocolo 1/arte D2 conservados.
+
+Cron automático de 08:00:52,459 a 08:00:52,529 UTC: `ok=true`, quatro contagens
+zero. Não prova ausência global de disputa ou carga. Nenhuma edição foi feita
+nas contas piloto para testar a implantação. [Evidência estruturada](evidencias/perfil-proprio-producao-2026-11-16.json).
+Gestão de aparelhos, proteção infantil e demais itens A12 continuam abertos.
