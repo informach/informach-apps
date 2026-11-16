@@ -113,6 +113,9 @@ Sessões de jogo (eventos pessoais: `targetId` é a conta dona da sessão de apa
 
 Mundos, convites e posse. **Eventos de mundo não levam `targetId`**: um mundo é de várias contas, então o evento só se liga a uma pessoa pelo ator (a conta do perfil que agiu), e quem investiga um mundo filtra por `spaceId`.
 
+Na transferência aceita, o encerramento das duas partidas registra em `actorId`
+a conta de quem aceitou. `targetId` conserva a conta afetada de cada partida.
+
 - `recreio.space_created`: `{ spaceId, gameId, profileId, memberId, contentPolicy }`. `contentPolicy` é o id da política de mundo do manifesto do jogo.
 - `recreio.space_invite_created`: `{ spaceId, inviteId, memberId, form }`, com `memberId` o membro que convidou e `form` igual a `member`.
 - `recreio.space_invite_accepted`: `{ spaceId, inviteId, profileId, memberId }`.

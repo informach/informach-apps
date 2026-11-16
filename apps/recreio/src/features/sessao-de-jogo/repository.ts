@@ -8,6 +8,7 @@ import {
   recreioGameTickets as tickets,
 } from "@informach/db/schema";
 import {
+  type ContaId,
   ErroDoRecreio,
   type PerfilId,
   PerfilIdSchema,
@@ -64,13 +65,14 @@ export type SessaoEncerrada = { sid: SessaoDeJogoId; perfilId: PerfilId; jogo: s
  * `porQuem` diz quem causou o fim: a `conta` da própria sessão (sair do jogo,
  * sair da conta, continuar em outro aparelho) ou o `recreio` (acesso perdido,
  * prazo vencido). No evento, a conta da sessão vai sempre em `targetId`, e é
- * também o ator quando foi ela.
+ * também o ator quando foi ela. Uma ação de outra conta usa `ator` com a
+ * identidade autenticada de quem agiu; não atribuir a decisão à conta afetada.
  */
 export async function encerrarSessoesAbertas(
   tx: Transacao,
   filtro: ReturnType<typeof sql>,
   motivo: MotivoDeSessaoEncerrada,
-  opcoes: { porQuem: "conta" | "recreio" },
+  opcoes: { porQuem: "conta" | "recreio" } | { porQuem: "ator"; contaId: ContaId },
 ): Promise<SessaoEncerrada[]> {
   await travarEncerramentos(tx);
   const encerradas = await tx
@@ -100,9 +102,11 @@ export async function encerrarSessoesAbertas(
   const contaDoAparelho = new Map(aparelhos.map((aparelho) => [aparelho.id, aparelho.userId]));
   for (const sessao of encerradas) {
     const conta = contaDoAparelho.get(sessao.deviceSessionId) ?? null;
+    const atorId =
+      opcoes.porQuem === "ator" ? opcoes.contaId : opcoes.porQuem === "conta" ? conta : null;
     await logAuditEventStrict(
       "recreio.game_session_ended",
-      opcoes.porQuem === "conta" ? conta : null,
+      atorId,
       {
         app: "recreio",
         sessionId: sessao.id,

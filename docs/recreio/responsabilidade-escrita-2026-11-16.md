@@ -27,6 +27,11 @@ auditoria estrita. Assinatura e cota de criação não mudam. A saída de um mem
 revoga sua oferta pendente na mesma transação. Nenhum conteúdo do mundo é lido
 ou alterado por essa operação.
 
+Na auditoria dos encerramentos, o ator é quem aceitou a transferência, inclusive
+na partida do antigo responsável. `targetId` conserva a conta afetada de cada
+partida. O helper admite esse ator explícito do contexto autenticado; o contrato
+anterior de ações da própria conta e decisões automáticas continua separado.
+
 O PostgreSQL descartável verifica oferta/aceite/repetição, datas do login,
 aparelhos, escopo, recusa/cancelamento/expiração, saída do destinatário,
 encerramentos/cursor, conservação de partidas de outros contextos, concorrência

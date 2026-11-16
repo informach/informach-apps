@@ -302,7 +302,10 @@ export async function responderResponsabilidade(
         .update(spaces)
         .set({ stewardProfileId: autor.perfilId })
         .where(eq(spaces.id, mundoId));
-      await encerrarSessoesAbertas(tx, filtro, "permissions_changed", { porQuem: "conta" });
+      await encerrarSessoesAbertas(tx, filtro, "permissions_changed", {
+        porQuem: "ator",
+        contaId: autor.contaId,
+      });
       return concluir(tx, pedido, "accepted", agora, autor.contaId);
     }
     const agora = await ctx.conferirPrazo(false);
