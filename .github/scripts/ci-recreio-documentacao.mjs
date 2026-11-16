@@ -6,6 +6,8 @@ const DOCUMENTOS = new Set([
   "docs/estado-do-repositorio.md",
   "docs/audit-payload-policy.md",
   "apps/recreio/PRODUCAO.md",
+  "apps/recreio/CLAUDE.md",
+  "apps/recreio/README.md",
 ]);
 
 /** A decisão usa o diff Git completo, sem o limite de 300 arquivos dos filtros de evento. */

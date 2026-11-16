@@ -14,6 +14,8 @@ test("somente documentos delimitados usam o gate documental", () => {
       "docs/estado-do-repositorio.md",
       "docs/audit-payload-policy.md",
       "apps/recreio/PRODUCAO.md",
+      "apps/recreio/CLAUDE.md",
+      "apps/recreio/README.md",
     ]),
     false,
   );
