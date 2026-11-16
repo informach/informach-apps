@@ -134,11 +134,6 @@ function desenharRotulo(texto: string, destaque: number | null): CanvasTexture {
 }
 
 export class MoradoresDaCena {
-  private refazerVisuais = false;
-
-  recarregar(): void {
-    this.refazerVisuais = true;
-  }
   private readonly entradas = new Map<MoradorId, Entrada>();
   private proprio: MoradorId | null = null;
   private readonly organizador = new OrganizadorDeRotulos();
@@ -266,11 +261,6 @@ export class MoradoresDaCena {
 
   /** Põe cada morador onde ele está neste quadro. */
   atualizar(quadro: QuadroDosMoradores): void {
-    if (this.refazerVisuais) {
-      for (const entrada of this.entradas.values()) this.soltar(entrada);
-      this.entradas.clear();
-      this.refazerVisuais = false;
-    }
     this.proprio = quadro.meuMoradorId;
     const { estado } = quadro;
     const vivos = new Set<MoradorId>();

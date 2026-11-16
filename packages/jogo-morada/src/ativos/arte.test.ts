@@ -7,8 +7,6 @@ import {
   Group,
   type Mesh,
   MeshBasicMaterial,
-  MeshLambertMaterial,
-  MeshStandardMaterial,
   type Object3D,
   Skeleton,
   SkinnedMesh,
@@ -131,7 +129,6 @@ function montar(
     status?: Record<string, number>;
     comPesosDobrados?: boolean;
     token?: () => string;
-    material?: MeshStandardMaterial;
   } = {},
 ): Montagem {
   const m = opcoes.m ?? manifesto();
@@ -150,13 +147,7 @@ function montar(
   const lerPacote = async (dados: ArrayBuffer): Promise<PacoteLido> => {
     const nome = new TextDecoder().decode(dados);
     if (nome.startsWith("anim-")) return { scene: new Group(), animations: clipesDaBiblioteca() };
-    const scene = cenaDePersonagem(opcoes.comPesosDobrados);
-    if (opcoes.material) {
-      const corpo = scene.getObjectByName("corpo");
-      if (!(corpo instanceof SkinnedMesh)) throw new Error("Corpo ausente");
-      corpo.material = opcoes.material;
-    }
-    return { scene, animations: [] };
+    return { scene: cenaDePersonagem(opcoes.comPesosDobrados), animations: [] };
   };
   const ativos = new AtivosDeArte({
     origem: ORIGEM,
@@ -193,24 +184,6 @@ function malhaDoCorpo(visual: VisualDoMorador): SkinnedMesh {
 }
 
 describe("ativos de arte", () => {
-  it("aplica o perfil aos corpos novos sem modificar o material compartilhado do pacote", async () => {
-    const material = new MeshStandardMaterial({ vertexColors: true });
-    const { ativos, liberar } = montar({ material });
-    expect(ativos.definirMateriaisSimples(false)).toBe(false);
-    expect(ativos.definirMateriaisSimples(true)).toBe(true);
-    const leve = criar(ativos);
-    await liberar();
-    expect(malhaDoCorpo(leve).material).toBeInstanceOf(MeshLambertMaterial);
-    expect(ativos.definirMateriaisSimples(true)).toBe(false);
-    expect(ativos.definirMateriaisSimples(false)).toBe(true);
-    const completo = criar(ativos);
-    await liberar();
-    expect(malhaDoCorpo(completo).material).toBe(material);
-    expect(malhaDoCorpo(leve).material).toBeInstanceOf(MeshLambertMaterial);
-    leve.dispose();
-    completo.dispose();
-    ativos.dispose();
-  });
   it("chegada de corpo avisa para preparar materiais sem pedir reconstrução do ambiente", async () => {
     const { ativos, liberar } = montar();
     const avisos: ("ambiente" | "morador")[] = [];

@@ -80,8 +80,6 @@ export interface VisualDosObjetos {
 }
 
 export interface Ativos {
-  /** Retorna se o perfil de material mudou; os corpos seguintes usam essa escolha. */
-  definirMateriaisSimples?(usar: boolean): boolean;
   /** Material compartilhado de piso/parede; null enquanto carrega ou sem pacote. */
   acabamento?(id: string): Material | null;
   /** Encaixes visuais nos vãos existentes; nunca muda a planta nem a navegação. */

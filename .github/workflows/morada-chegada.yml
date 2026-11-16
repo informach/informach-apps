@@ -27,7 +27,7 @@ jobs:
       - name: Conferir tipos do cliente editor e organizacao dos nomes
         run: |
           pnpm --filter @informach/jogo-morada typecheck
-          pnpm --filter @informach/jogo-morada exec vitest run src/modelo/rotulos-na-cena.test.ts src/modelo/editor-da-casa.test.ts src/cena/obras.test.ts src/cena/preparo-da-cena.test.ts src/ativos/arte.test.ts src/ativos/materiais-simples.test.ts src/espelho/edicao.test.ts src/espelho/sessao.test.ts --reporter=default --reporter=json --outputFile=${{ runner.temp }}/morada-rotulos.json
+          pnpm --filter @informach/jogo-morada exec vitest run src/modelo/rotulos-na-cena.test.ts src/modelo/editor-da-casa.test.ts src/cena/obras.test.ts src/cena/preparo-da-cena.test.ts src/ativos/arte.test.ts src/espelho/edicao.test.ts src/espelho/sessao.test.ts --reporter=default --reporter=json --outputFile=${{ runner.temp }}/morada-rotulos.json
       - name: Conferir ator e diario financeiro
         run: |
           pnpm --filter @informach/morada-server typecheck

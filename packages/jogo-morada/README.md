@@ -146,10 +146,3 @@ O fallback procedural usa superfícies de uso e encostos separados para cama e s
 `Ativos.acabamento(id)` retorna um material compartilhado ou `null` enquanto baixa. `aoMudar` invalida a casa quando um recurso fica pronto. Os revestimentos são superfícies agrupadas por material, com UV em metros; uma parede é dividida onde mudam os cômodos e mantém os vãos e o corte da planta. Os modelos de portas e janelas usam os vãos existentes. Portas ficam abertas até existir estado de porta na simulação; passagens sem folha continuam abertas. Nada disso muda save, navegação ou protocolo.
 
 Apoios de assento/colchão vêm da geometria. O bebê no berço usa `dentro`, e o beliche usa alturas distintas para seus dois pontos. A arte ausente mantém o apoio procedural correspondente. A medição de depuração inclui p50/p95 de quadro, chamadas e triângulos. Ver [review do D1](../../docs/recreio/review-d1-2026-11-13.md) para evidências e limites, inclusive a meta ainda não homologada em vídeo integrado.
-
-O perfil baixo passa a usar Lambert nos materiais Standard dos corpos, com mapas,
-alpha e paleta preservados e cópias de material por corpo; médio/alto conservam
-os originais. Materiais unlit e físicos com transmissão continuam no perfil de
-origem. Trocar o perfil recompõe somente os visuais no quadro admitido, sem
-mudar o mundo. A [comparação com arte e CPU](../../docs/recreio/materiais-baixa-qualidade.md)
-está em candidata; o resultado ainda não demonstra melhora nem FPS em hardware real.
