@@ -498,6 +498,7 @@ function productFromId(productId: string | null): string | null {
 const SIMPLE: Record<string, string> = {
   "recreio.profile_created": "Criou um perfil no Recreio",
   "recreio.profile_updated": "Atualizou um perfil no Recreio",
+  "recreio.device_session_revoked": "Desconectou um aparelho do Recreio",
   "recreio.entitlement_granted": "Recebeu acesso ao Recreio",
   "recreio.entitlement_revoked": "Teve o acesso ao Recreio revogado",
   "recreio.game_session_started": "Abriu uma sessão de jogo no Recreio",

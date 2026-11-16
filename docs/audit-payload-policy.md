@@ -97,6 +97,7 @@ Eventos `recreio.*` registram o que aconteceu com os perfis, com o direito de jo
 
 - `recreio.profile_created`: `{ profileId, kind }`, com `kind` igual a `adult` ou `minor`. O ator é a conta que criou o perfil.
 - `recreio.profile_updated`: `{ profileId, fields }`, onde `fields` lista somente `nickname` e/ou `avatar`, nunca os valores. A edição do perfil adulto próprio revalida a sessão e grava dados/evento na mesma transação; repetição sem mudança não emite evento. Conflito com outra edição recusa a gravação.
+- `recreio.device_session_revoked`: `{ deviceSessionId, profileId }`, ator da própria conta adulta. Revogação de outro aparelho de login e fim das partidas usam a mesma transação do evento estrito. Repetição sem efeito não emite novo evento; nunca incluir token, ID da sessão de login, IP, user-agent ou nome do aparelho. Não altera acessos de outros apps.
 - `recreio.entitlement_granted`: `{ entitlementId, groupId, targetId, tier, days, reasonCode }`, com `tier` igual a `individual` ou `family`, `days` o número de dias concedidos e `targetId` a conta titular do grupo.
 - `recreio.entitlement_revoked`: `{ entitlementId, groupId, targetId, reasonCode }`.
 
