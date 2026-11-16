@@ -116,7 +116,7 @@ export function Hospedeiro({
           const contexto = await criarRecreio({
             baseUrl: "",
             jogo: jogo.id,
-            obterIngresso: () => pedirIngresso(jogo.id),
+            obterIngresso: (signal) => pedirIngresso(jogo.id, signal),
             ...(continuarAqui ? { continuarAqui: true } : {}),
             // `keepalive` deixa o pedido de encerrar a sessão terminar mesmo
             // com a página indo embora.
