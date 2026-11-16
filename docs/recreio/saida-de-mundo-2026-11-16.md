@@ -36,3 +36,14 @@ mundo, membro, cursor e partidas. Os testes novos seguram cada trava no banco,
 aguardam o vencimento real e exigem recusa sem saída ou encerramento parcial.
 Resultados da continuação ainda precisam ser registrados. Nada deste incremento
 foi ativado em produção.
+
+
+A rodada `43855646492` aprovou cinco gates, incluindo 220 integrações. A nova
+jornada de navegador parou antes de aceitar o convite: o documento da estante
+fora carregado antes da concessão do fixture. A captura confirmou a mensagem
+“Acesso por convite da equipe”, sem campo de convite. A continuação navega
+novamente para a estante depois da concessão, seguindo a jornada existente;
+sem alterar o produto, o helper global, seletores ou prazos. Ainda falta provar
+a saída na jornada completa. Os catorze tipos passaram em `43855245767` sobre
+`307740bb`; as mudanças posteriores até este ponto são teste de navegador e
+este registro, com código de produção idêntico.

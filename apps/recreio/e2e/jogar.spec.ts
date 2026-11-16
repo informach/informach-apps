@@ -436,6 +436,8 @@ test("convidado confirma saída em outra aba e o responsável continua jogando",
   await gerar.click();
   const codigo = await ana.page.getByText(/^[0-9A-Z]{5}-[0-9A-Z]{5}$/).textContent();
   if (!codigo) throw new Error("Convite ausente");
+  // A concessão do fixture acontece depois do primeiro documento da estante.
+  await bia.page.goto("/estante");
   const campo = bia.page.getByLabel("Código do convite");
   await hidratado(campo);
   await campo.fill(codigo);
