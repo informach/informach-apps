@@ -1,0 +1,78 @@
+{
+  "codigo": "26a2316b6d37ec2b5fa01600279648815b7aba43",
+  "codigoDeProducaoIdenticoA": "1935b078fb0454ee36d04652548204b592631f63",
+  "candidataRecreioRun": 43874709358,
+  "candidataGatesAprovados": 6,
+  "bancoCodigo": "892f8571593f00d3f17fa6e5b20b2964324c579b",
+  "bancoCIGeral": 43866074845,
+  "bancoCIGeralAprovado": true,
+  "migrator": {
+    "deployment": "894273a8-7cc6-4fa3-95cf-eb02e5f30822",
+    "status": "SUCCESS",
+    "drizzleConcluidoEm": "2026-11-16T13:38:58.156784318Z",
+    "seedsConcluidosEm": "2026-11-16T13:39:03.938720907Z",
+    "configuracaoIdentica": true,
+    "staged": null
+  },
+  "banco": {
+    "conferidoEm": "2026-11-16T13:42:07.401Z",
+    "recibos": 165,
+    "ultimoWhen": "1794830662795",
+    "indice": "recreio_space_invites_unused_expires",
+    "valido": true,
+    "pronto": true,
+    "definicao": "CREATE INDEX recreio_space_invites_unused_expires ON recreio.space_invites USING btree (expires_at, id) WHERE (state <> 'accepted'::text)",
+    "convites": 0,
+    "bytesTabelaComIndices": 40960
+  },
+  "portal": {
+    "deployment": "7e27ddf6-7f1d-4f60-95d7-00fee4989271",
+    "status": "SUCCESS",
+    "fonteRelida": true,
+    "rotaParticipacoesCompilada": true,
+    "acaoSaidaCompilada": true,
+    "rotaConferidaEm": "2026-11-16T13:46:26.940Z",
+    "configuracaoIdentica": true,
+    "staged": null,
+    "mapasSentryUpload": "2026-11-16T13:37:52.076827830Z",
+    "releaseSentryPresente": true
+  },
+  "cron": {
+    "inicio": "2026-11-16T13:45:39.625Z",
+    "fim": "2026-11-16T13:45:39.683Z",
+    "ok": true,
+    "summary": {
+      "possesVencidas": 0,
+      "sessoesExpiradas": 0,
+      "ingressosApagados": 0,
+      "instanciasSumidas": 0
+    }
+  },
+  "prontidao": {
+    "appsDoCatalogo": 8,
+    "appsConferidosEm": "2026-11-16T13:48:25.343Z",
+    "bastidoresConferidoEm": "2026-11-16T13:49:47.593Z",
+    "todosStatus": 200
+  },
+  "morada": {
+    "fonte": "179a0a76a5350b1f96464a6fb2df83dbb5d91cad",
+    "deployment": "2ca8645b-865b-4b18-83b0-61314f8e2e7e",
+    "conferidoEm": "2026-11-16T13:50:56.106Z",
+    "artePasta": "d2-4198478735b6",
+    "manifestoVersao": 3,
+    "manifestoSha256": "4198478735b643e07d4ce0821db82654c42847bbf996d1d07a99a5890b21672f"
+  },
+  "mainCI": {
+    "run": 43877367518,
+    "conclusion": "failure",
+    "etapa": "pnpm check",
+    "causa": "formatação da lista de arquivos em arquivo-arte-2026-11-16.json",
+    "correcaoCandidata": "714005f6dbbaeb9862707290874a31f09c37f3be"
+  },
+  "limpezaDeConvitesHabilitada": false,
+  "contasPilotoAlteradasParaProva": false,
+  "a6Concluido": false,
+  "a7Concluido": false,
+  "d3Ativado": false,
+  "vendasLiberadas": false
+}

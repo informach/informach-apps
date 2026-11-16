@@ -79,3 +79,15 @@ passou nos seis gates `43874709358`: 237 integrações, nove jornadas e dois
 casos reservados a outros executores. O código de banco é idêntico a `892f8571`;
 o código do portal é idêntico a `9f9f9e3a`. O escritor de limpeza não faz parte
 dessa entrega e o índice ainda precisa de sua conferência de produção.
+
+## Índice em produção
+
+Fonte `26a2316b`: migrator `894273a8-7cc6-4fa3-95cf-eb02e5f30822`
+SUCCESS, Drizzle concluído às 13:38:58.156 UTC e seeds às 13:39:03.938 UTC.
+Consulta somente de leitura às 13:42:07 UTC confirmou 165 recibos,
+`when=1794830662795` e o índice parcial válido/pronto com `(expires_at,id)`
+e predicado `state <> 'accepted'`. Zero convites; 40.960 bytes com índices.
+Não houve exclusão de convites nessa etapa. Configuração do migrator idêntica,
+sem alterar o flag Compasso. As prontidões dos nove apps web responderam 200.
+O escritor continua em candidata própria e exige nova conferência integrada.
+[Prova operacional](evidencias/indice-participacoes-producao-2026-11-16.json).

@@ -4,7 +4,7 @@ Para quem retoma a frente depois de uma pausa. Leia primeiro a [execução atual
 
 ## Estado atual em 16/11
 
-Portal em `06e022d5` e Morada em `179a0a76`, alfa fechado, Mundo V2/protocolo 1
+Portal em `26a2316b` e Morada em `179a0a76`, alfa fechado, Mundo V2/protocolo 1
 e arte D2/V3. Expiração em lotes e resultado verificável da drenagem implantados;
 seis gates de cada candidata e da main aprovados. Saúde/prontidão 200, cron,
 mapas do portal e arte conferidos. [Operação atual](../../apps/recreio/PRODUCAO.md).
