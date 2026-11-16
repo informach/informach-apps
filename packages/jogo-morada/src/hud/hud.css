@@ -1524,6 +1524,23 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.morada-edicao-obras {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--mo-lampiao);
+  background: var(--mo-vidro-fundo);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.morada-edicao-obras p {
+  margin: 0 0 6px;
+}
+.morada-edicao-obras ul {
+  margin: 0;
+  padding-left: 16px;
+  max-height: 8em;
+  overflow-y: auto;
+}
 .morada-edicao-abas,
 .morada-edicao-modos {
   display: flex;

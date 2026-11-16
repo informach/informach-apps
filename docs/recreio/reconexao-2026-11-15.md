@@ -27,5 +27,6 @@ a implantação. O portal conservou `7c81a68f`/deployment `59c3b020`; seu build
 foi omitido pelos padrões de arquivos, pois esta mudança não o afeta. Mundo V2,
 protocolo 1 e arte D2 conservados; sem migration ou reset de dados.
 
-Repetição na main `43779266639` ainda em execução na última consulta. Recursos
-D3 continuam somente em candidata; a publicação deste hotfix não os habilita.
+Repetição na main `43779266639`: seis gates aprovados, fonte `18f52aa` conferida
+em 16/11 às 00h46 UTC. Recursos D3 continuam somente em candidata; a publicação
+deste hotfix não os habilita.

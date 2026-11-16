@@ -151,6 +151,22 @@ describe("autoridade transitória da obra", () => {
     expect(c.mundo.avancar(0).fatos).toEqual([]);
   });
 
+  it("replica o prazo restante mesmo quando ainda não venceu nenhuma concessão", () => {
+    const c = cenario();
+    c.preparar();
+    c.mundo.avancar(0);
+    c.mundo.aplicar({ t: "obra_do_host", geracao: GERACAO, agoraMs: 1000 });
+    const passo = c.mundo.avancar(0);
+    expect(passo.fatos).toEqual([]);
+    expect(passo.mudancas).toContainEqual(
+      expect.objectContaining({
+        t: "c",
+        chave: "presenca",
+        valor: expect.objectContaining({ obras: [expect.objectContaining({ prazoMs: 14_000 })] }),
+      }),
+    );
+  });
+
   it.each(["reconexao", "permissoes"] as const)("%s não revalida concessão antiga", (modo) => {
     const c = cenario();
     const obra = c.preparar();

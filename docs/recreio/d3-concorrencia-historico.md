@@ -58,8 +58,14 @@ efeitos depois da expiração. Presença pública projeta alvo/autor/prazo sem S
 O cliente mantém uma preparação em voo, renova a seleção e cancela ao perder
 conexão, visibilidade ou contexto gráfico. Os testes novos cobrem reentrada,
 revogação, referência forjada, expiração, resposta atrasada e queda antes/depois
-do journal. Ainda aguardam execução remota desta integração. A indicação visual
-das regiões, a jornada com duas contas e o histórico abaixo continuam pendentes.
+do journal. A primeira candidata `684c0f85` passou qualidade, integração, cliente,
+versões e simulação longa em `43781777001`; a jornada do portal ainda estava
+rodando ao preparar este registro. A continuação acrescenta contorno amarelo
+em um único buffer reutilizado e lista das outras pessoas por casa, além da
+jornada de duas contas pelo convite real, bloqueio, liberação por reconexão,
+compra e restauração. Essa continuação ainda aguarda seus próprios gates e
+capturas. O prazo restante também marca presença para replicação antes de expirar.
+O histórico abaixo continua pendente.
 O host publicado fixado na matriz de versões passou a `18f52aa`, que contém
 somente a correção da reconexão, preservando Mundo V2/protocolo 1.
 
@@ -115,19 +121,20 @@ cliente `modelo/editor-da-casa.ts`, `hud/EdicaoDaCasa.tsx` e testes do ator.
 
 Construção estrutural, casas/orçamento e demais lotes continuam no plano D3.
 
-## Regressão de reconexão a conferir antes da integração
+## Regressão de reconexão
 
 Inspeção do ator encontrou a fila de `caiu` identificada somente pelo SID.
 Uma reentrada com o mesmo SID pode terminar antes do próximo passo processar
 essa queda antiga. O teste `reconexao-enfileirada.test.ts` provoca uma/três
 quedas e reentradas antes do passo, depois verifica comando, presença e reserva
-além dos 30 s de graça. Ainda sem correção ou resultado remoto.
+além dos 30 s de graça.
 O workflow focado `morada-reconexao.yml` evita repetir navegador/100 dias para
 reproduzir essa hipótese; o conserto volta aos seis gates antes de integrar.
 
 Hipótese reproduzida em `1b88f4d7`, execução `43777623906`: os dois casos
 falharam depois da reentrada, devolvendo recusa no comando da sessão nova.
-Correção em preparação: ao consumir `caiu`, conferir se já existe uma conexão
-vigente para o SID antes de marcar a presença em graça. A prova inclui agora
-queda sem sucessora para conservar a expiração/liberação normais. Aguardar a
-rodada verde e os seis gates; sem implantação desta correção ainda.
+Correção: ao consumir `caiu`, conferir se já existe uma conexão vigente para o
+SID antes de marcar a presença em graça. As três regressões passaram em
+`43778006421`. O hotfix isolado `18f52aa` preservou Mundo V2/protocolo 1, passou
+seis gates na candidata `43778361615` e na main `43779266639`, e foi implantado
+no Railway. Detalhes e confirmação de saúde no [registro](reconexao-2026-11-15.md).

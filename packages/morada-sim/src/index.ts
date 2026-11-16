@@ -50,6 +50,7 @@ export {
   alvosDaObraConflitam,
   type ConcessaoPublicaDaObra,
   PRAZO_DA_TRAVA_DE_EDICAO_MS,
+  TRAVAS_DE_EDICAO_POR_MUNDO,
 } from "./sistemas/travas-de-edicao";
 export { progressoDaGravidez } from "./sistemas/vida";
 export * from "./visao/replicacao";

@@ -224,7 +224,12 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
             throw new Error("A geração de obra não muda dentro da mesma montagem");
           const iniciando = presenca.obra === null;
           presenca.obra ??= criarRegistroDeTravas(entrada.geracao);
-          if (expirarTravas(presenca.obra, entrada.agoraMs) || iniciando)
+          const avancou = entrada.agoraMs !== presenca.obra.agoraMs;
+          if (
+            expirarTravas(presenca.obra, entrada.agoraMs) ||
+            iniciando ||
+            (avancou && presenca.obra.travas.length > 0)
+          )
             tocarChave(ctx, "presenca");
           return aceito;
         }

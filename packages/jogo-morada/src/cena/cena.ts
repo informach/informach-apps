@@ -39,6 +39,7 @@ import { familiasDoJogador } from "../modelo/retratos";
 import { montarCasa, montarTerreno } from "./casa";
 import { centroDaCelula, daCena, METROS_POR_MM, type PontoDaCena, paraCena } from "./espaco";
 import { MoradoresDaCena } from "./moradores";
+import { ObrasDaCena } from "./obras";
 import { CORTE_DAS_PAREDES_MM } from "./planta";
 import { type EstadoDaPrevia, PreviaDoMorador, type QuadroDaPrevia } from "./previa";
 import { PreviaDoMovel } from "./previa-do-movel";
@@ -145,6 +146,7 @@ export class Cena {
     maximo: number;
   } | null = null;
   private readonly previaDoMovel: PreviaDoMovel;
+  private readonly obras = new ObrasDaCena();
   private readonly sessao: Sessao;
   private readonly ativos: Ativos;
   private readonly opcoes: OpcoesDaCena;
@@ -225,6 +227,7 @@ export class Cena {
     this.ativos = opcoes.ativos;
     this.previaDoMovel = new PreviaDoMovel(this.ativos);
     this.mundo.add(this.previaDoMovel.raiz);
+    this.mundo.add(this.obras.raiz);
     this.camera.layers.enable(1);
     this.previa = new PreviaDoMorador(this.ativos);
     this.scene.add(this.previa.raiz);
@@ -522,6 +525,7 @@ export class Cena {
     this.moradores.dispose();
     this.previa.dispose();
     this.previaDoMovel.dispose();
+    this.obras.dispose();
     if (this.destino) {
       this.destino.geometry.dispose();
       if (this.destino.material instanceof MeshBasicMaterial) this.destino.material.dispose();
@@ -808,6 +812,13 @@ export class Cena {
         this.montar(estado);
       }
       const editor = this.opcoes.editor;
+      this.obras.definir(
+        estado,
+        loja.visao?.presenca.obras,
+        loja.jogador?.jogadorId ?? null,
+        editor?.aberto ? editor.loteId : null,
+        loja.revisaoDaCasa,
+      );
       if (!editor?.aberto && this.vistaSuperior) this.alternarVista();
       if (this.previaDoMovel.definir(estado, editor?.aberto ? editor.prever() : null))
         this.esconderOQueFlutua(estado, loja.paredesBaixas ? CORTE_DAS_PAREDES_MM : null);

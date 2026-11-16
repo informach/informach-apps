@@ -7,6 +7,7 @@ import {
 } from "@informach/morada-sim";
 import { useState } from "react";
 import { nomeDoObjeto } from "../modelo/menu";
+import { nomeDoJogador } from "../modelo/retratos";
 import type { Controle } from "./controle";
 import { Icone } from "./Icone";
 
@@ -214,6 +215,10 @@ export function EdicaoDaCasa({ controle, estado }: { controle: Controle; estado:
     ? `${pedido.operacao.t}/${pedido.operacao.t === "comprar" ? pedido.operacao.catalogo : `${pedido.operacao.objetoId}/${pedido.operacao.revisaoDoObjeto}`}`
     : "sem-selecção";
   const objetos = listar(estado.objetos).filter((o) => o.loteId === editor.loteId);
+  const presenca = controle.sessao.loja.visao?.presenca;
+  const outrasObras = (presenca?.obras ?? []).filter(
+    (o) => o.perfilId !== autor && o.alvo.loteId === editor.loteId,
+  );
   return (
     <section className="morada-painel morada-edicao" aria-label="Decoração da casa">
       <header className="morada-edicao-cabecalho">
@@ -238,6 +243,22 @@ export function EdicaoDaCasa({ controle, estado }: { controle: Controle; estado:
         <span>{familia?.nome ?? "Família"}</span>
         <b>{familia ? dinheiro(familia.fundo) : "—"}</b>
       </div>
+      {presenca && outrasObras.length > 0 ? (
+        <aside className="morada-edicao-obras" aria-label="Outras pessoas decorando">
+          <p>As áreas em amarelo estão sendo editadas:</p>
+          <ul>
+            {outrasObras.map((obra) => {
+              const peca = obra.alvo.peca ? obter(estado.objetos, obra.alvo.peca.id) : null;
+              return (
+                <li key={`${obra.referencia.geracao}/${obra.referencia.numero}`}>
+                  <b>{nomeDoJogador(presenca, obra.perfilId, { jogadorId: autor ?? "" })}</b>
+                  {peca ? ` · ${nomeDoObjeto(peca.catalogo)}` : " · posição de uma peça"}
+                </li>
+              );
+            })}
+          </ul>
+        </aside>
+      ) : null}
       {familias.length > 1 ? (
         <label className="morada-edicao-familia">
           Casa da família
