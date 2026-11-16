@@ -54,6 +54,27 @@ retoma o que sobrou; zero pode significar que outra transação segura as linhas
 Testes novos em PostgreSQL descartável cobrem mais de um lote, ordem de prazo,
 usados/não usados, conservação dos recentes/válidos, duas execuções enquanto
 250 linhas estão travadas e erro real de exclusão pelo HTTP seguido de retomada.
-Os testes pesados rodam no GitHub; a aprovação e a implantação ainda faltam.
+Os testes pesados rodam no GitHub; resultados e implantação abaixo.
 Este incremento não remove sessões, cursores, negativos de revogação ou mundos,
 nem encerra A7. Referência SQL: [DELETE em lotes](https://www.postgresql.org/docs/18/sql-delete.html).
+
+## Implantação do primeiro incremento
+
+Fonte isolada `7f9b2b0a`, seis gates `43803801642` e repetição main
+`43804734967` aprovados. Integração: 175 testes, incluindo os três novos casos
+de lotes/concorrência/falha. Portal implantado no Railway:
+`7a757f0c-a1cb-4ef9-9b55-1cb10525906d`, fonte e saúde/prontidão 200 conferidas
+em 16/11. Morada conserva `22a3db6`, Mundo V2, protocolo 1 e arte D2.
+
+Consulta somente de leitura confirmou a execução automática da manutenção
+às **04:45:04,759 UTC**, término **04:45:04,882 UTC**, `ok=true`, quatro
+contagens zero. Isso comprova execução após a ativação, sem inferir ausência
+global de linhas disputadas ou carga de 500 remoções em produção. Os mapas do
+portal foram enviados ao Sentry no build, confirmação às 04:34:33,912 UTC;
+release `7f9b2b0a` presente. Nenhum orçamento de monitoração alterado.
+
+Após o incremento de prazos HTTP, os dois serviços foram recompilados em
+`d13038b7`; a fonte do jogo continua idêntica a `22a3db6`. Arte D2/V3 e hash
+relidos no processo ativo, e cron automático às 05:15 UTC confirmado.
+[Operação dos prazos](prazos-navegador-2026-11-16.md). A7 continua aberto para
+a retenção das demais tabelas e medição em rede/banco.

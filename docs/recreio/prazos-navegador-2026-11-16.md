@@ -25,7 +25,7 @@ impede agendar a próxima tentativa e anunciar a perda ao vencer a sessão.
    desconhecido, não rollback no servidor; consultar o estado antes de repetir
    criação/convite. Checkpoint na troca de aparelho continua uma entrega própria.
 
-## Candidata em preparação
+## Homologação e implantação
 
 O código aplica o prazo à operação inteira, cancela o sinal ao concluir e
 descarta respostas tardias. A saída possui confirmação remota separada da
@@ -34,7 +34,20 @@ falha, uma nova chamada pode tentar encerrar novamente. Somente resposta ou
 recusa terminal conhecida encerra essa tentativa como confirmada. Não repetir
 automaticamente mutações quando o resultado é desconhecido.
 
-Testes adicionados para prazo, corpo aberto, emissor que não responde,
-operações do SDK, expiração da renovação e confirmação da saída. Verificações
-pesadas e implantação ainda pendentes; Biome e diff conferidos localmente.
-O diagnóstico de nomes no celular do D3 permanece separado e aberto.
+Fonte isolada `d13038b7`: seis gates `43806077949` e repetição main
+`43806891362` aprovados no GitHub, incluindo portal, cliente, integração e
+versões reais. Implantado em ambos os serviços; saúde/prontidão públicas 200,
+fonte e deployments conferidos. [Evidência operacional](evidencias/prazos-producao-2026-11-16.json).
+
+O package compartilhado disparou também o rebuild do Morada. Comparação Git
+com `22a3db6` confirma igualdade dos arquivos de `apps/morada-server`,
+`morada-sim` e `morada-arte`: conserva Mundo V2/protocolo 1. Manifesto de arte
+ativo relido por SSH: V3, SHA-256 `4198478735b643e07d4ce0821db82654c42847bbf996d1d07a99a5890b21672f`.
+Não ativou editor D3, Mundo V3 ou manifesto V4.
+
+Mapas do portal enviados ao Sentry em 16/11 às 04:56:25,285 UTC e release
+`d13038b7` conferida. Consulta dos dois projetos sem grupos não resolvidos em
+produção nas últimas 24 horas. Manutenção automática confirmada às
+05:05/05:10/05:15 UTC, `ok=true`, contagens zero; sem inferir limpeza global
+ou carga de 500 remoções em produção. A proteção familiar, o checkpoint na
+troca, a retenção restante, o D3 e as demais frentes seguem em implementação.
