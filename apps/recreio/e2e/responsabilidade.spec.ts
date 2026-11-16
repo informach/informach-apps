@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page, type Route, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import {
   comecarVigia,
   convidar,
@@ -10,6 +10,7 @@ import {
   tela,
   vigia,
 } from "./apoio";
+import { conferirCarregamento } from "./hidratacao-apoio";
 import { envelhecerLogin } from "./responsabilidade-apoio";
 
 test.beforeEach(comecarVigia);
@@ -36,28 +37,6 @@ async function autenticarNovamente(
   await hidratado(perfil);
   await perfil.click();
   await expect(page).toHaveURL(new RegExp(`${destino}$`));
-}
-
-/** O HTML pode aparecer antes dos scripts; os controles precisam continuar indisponíveis. */
-async function conferirCarregamento(page: Page, controles: Locator[]) {
-  let liberar: (() => void) | undefined;
-  const scripts = new Promise<void>((resolver) => {
-    liberar = resolver;
-  });
-  const padrao = "**/_next/static/**/*.js";
-  const bloquear = async (rota: Route) => {
-    await scripts;
-    await rota.fallback();
-  };
-  await page.route(padrao, bloquear);
-  try {
-    await page.reload({ waitUntil: "commit" });
-    for (const controle of controles) await expect(controle).toBeDisabled();
-  } finally {
-    liberar?.();
-    await page.unroute(padrao, bloquear);
-  }
-  for (const controle of controles) await expect(controle).toBeEnabled();
 }
 
 test("duas contas propõem e aceitam com novo login, preservam o mundo e permitem a saída do antigo responsável", async ({
@@ -125,8 +104,12 @@ test("duas contas propõem e aceitam com novo login, preservam o mundo e permite
   ).toBeVisible();
   await autenticarNovamente(bruno.page, bruno, destino);
   await conferirCarregamento(bruno.page, [
-    bruno.page.getByRole("button", { name: "Recusar proposta", exact: true }),
-    bruno.page.getByRole("button", { name: "Aceitar e assumir responsabilidade", exact: true }),
+    bruno.page.getByRole("button", { name: "Recusar proposta", exact: true, includeHidden: true }),
+    bruno.page.getByRole("button", {
+      name: "Aceitar e assumir responsabilidade",
+      exact: true,
+      includeHidden: true,
+    }),
   ]);
   await bruno.page.getByText("Avaliar proposta", { exact: true }).click();
   await bruno.page

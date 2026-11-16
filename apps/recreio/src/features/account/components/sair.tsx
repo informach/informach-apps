@@ -1,4 +1,5 @@
 "use client";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { LogOut } from "lucide-react";
 import { useState } from "react";
 
@@ -9,6 +10,7 @@ import { useState } from "react";
  */
 export function Sair() {
   const [pendente, setPendente] = useState(false);
+  const interativo = useHydrated();
   const [erro, setErro] = useState("");
   async function sair() {
     setPendente(true);
@@ -28,7 +30,12 @@ export function Sair() {
   }
   return (
     <div>
-      <button type="button" className="rb rb-vazado" disabled={pendente} onClick={sair}>
+      <button
+        type="button"
+        className="rb rb-vazado"
+        disabled={!interativo || pendente}
+        onClick={sair}
+      >
         <LogOut className="size-4" aria-hidden="true" />
         {pendente ? "Saindo…" : "Sair da conta"}
       </button>

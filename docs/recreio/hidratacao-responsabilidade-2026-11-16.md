@@ -22,4 +22,26 @@ A documentação primária do Playwright descreve a seleção perdida antes da
 hidratação e recomenda desabilitar os controles até ficarem funcionais:
 [navegação/hidratação, versão 1.64.1](https://github.com/microsoft/playwright/blob/v1.64.1/docs/src/navigations.md#hydration).
 
-Estado: regressão preparada; correção e validação ainda pendentes.
+## Reprodução determinística e alcance
+
+Fonte `72608b3`, run `43937159361`, job E2E `133544668476`: a seleção ficou
+habilitada durante os 15 s de scripts suspensos, reproduzindo o defeito. Os outros
+cinco gates passaram; dez jornadas passaram e essa falhou, com dois skips próprios
+da matriz. Não reduzir a validade da autenticação nem repetir a submissão.
+
+A correção usa `@informach/ui/hooks/use-hydrated`, já existente e sem alterações
+no package. A inspeção encontrou o mesmo intervalo nos controles de autenticação,
+criação/edição e escolha do perfil, criação de mundo, entrada/emissão de convite,
+desconexão de aparelho, saída da conta, saída e remoção de participação. Esses
+controles também aguardam o estado interativo; links e `details` nativos continuam
+funcionando. O formulário de autenticação mantém dados e mudança de modo
+indisponíveis enquanto carrega ou processa uma operação.
+
+O teste compartilhado bloqueia os scripts reais, comprova que houve interceptação,
+confere os controles no HTML, libera os scripts no `finally` e exige habilitação.
+Não simula os serviços ou o mecanismo de hidratação. Novas jornadas percorrem
+entrada e as telas autenticadas; a transferência continua até aceite, reentrada
+e saída com as duas contas sintéticas. Controles em `details` fechados são
+consultados explicitamente com `includeHidden`, sem alterar a confirmação.
+
+Estado: correção ampliada em verificação no GitHub; ainda não publicada.

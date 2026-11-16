@@ -1,4 +1,5 @@
 "use client";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useState, useTransition } from "react";
 import { criarConviteAction } from "../actions";
 
@@ -17,6 +18,7 @@ export function GerarConvite({ mundoId }: { mundoId: string }) {
   const [convite, setConvite] = useState<{ codigo: string; expiraEm: string } | null>(null);
   const [erro, setErro] = useState("");
   const [pendente, iniciar] = useTransition();
+  const interativo = useHydrated();
 
   function gerar() {
     setErro("");
@@ -41,7 +43,12 @@ export function GerarConvite({ mundoId }: { mundoId: string }) {
           </p>
         </div>
       )}
-      <button type="button" className="rb rb-vazado" disabled={pendente} onClick={gerar}>
+      <button
+        type="button"
+        className="rb rb-vazado"
+        disabled={!interativo || pendente}
+        onClick={gerar}
+      >
         {pendente ? "Gerando…" : convite ? "Gerar outro código" : "Gerar código de convite"}
       </button>
       <p role="status" className="mt-2 min-h-5 text-sm font-semibold text-coral">
