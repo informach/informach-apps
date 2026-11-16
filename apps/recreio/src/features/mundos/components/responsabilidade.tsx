@@ -18,7 +18,13 @@ const mensagens = {
   expired: "A proposta venceu. O responsável atual pode preparar outra.",
 };
 
-export function Responsabilidade({ painel }: { painel: Painel }) {
+export function Responsabilidade({
+  painel,
+  prazoDaProposta,
+}: {
+  painel: Painel;
+  prazoDaProposta: string | null;
+}) {
   const router = useRouter();
   const campoId = useId();
   const avisoId = useId();
@@ -63,6 +69,9 @@ export function Responsabilidade({ painel }: { painel: Painel }) {
               : proposta.destinatario
                 ? `Você propôs a transferência para ${proposta.destinatario}.`
                 : "Há uma proposta de transferência enviada."}
+          </p>
+          <p className="mt-3 text-sm text-tinta-suave">
+            Prazo para responder: {prazoDaProposta} (horário de Brasília).
           </p>
           {!proposta.vigente ? (
             <p className="mt-3">Esta proposta venceu. O responsável pode preparar outra.</p>

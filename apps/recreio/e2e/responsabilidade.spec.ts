@@ -72,7 +72,23 @@ test("duas contas propõem e aceitam com novo login, preservam o mundo e permite
   ).toBeVisible();
   await bruno.page.goto(destino);
   await bruno.page.getByText("Avaliar proposta", { exact: true }).click();
+  await expect(bruno.page.getByText(/Prazo para responder:.*horário de Brasília/)).toBeVisible();
   await tela(bruno.page, "responsabilidade-recebida");
+  await bruno.page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await bruno.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  ).toBe(true);
+  await expect(
+    bruno.page.getByRole("button", { name: "Aceitar e assumir responsabilidade", exact: true }),
+  ).toBeVisible();
+  await bruno.page
+    .getByRole("button", { name: "Aceitar e assumir responsabilidade", exact: true })
+    .scrollIntoViewIfNeeded();
+  await expect(
+    bruno.page.getByRole("button", { name: "Aceitar e assumir responsabilidade", exact: true }),
+  ).toBeInViewport();
+  await tela(bruno.page, "responsabilidade-recebida-mobile");
+  await bruno.page.setViewportSize({ width: 1365, height: 900 });
   await envelhecerLogin(bruno.email);
   await bruno.page
     .getByRole("button", { name: "Aceitar e assumir responsabilidade", exact: true })

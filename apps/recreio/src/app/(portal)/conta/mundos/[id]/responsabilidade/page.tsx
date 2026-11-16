@@ -41,7 +41,18 @@ export default async function ResponsabilidadePeloMundo({
         {painel.mundo.nome}
       </h1>
       <p className="mt-3 max-w-2xl text-tinta-suave">Responsabilidade pelo mundo</p>
-      <Responsabilidade painel={painel} />
+      <Responsabilidade
+        painel={painel}
+        prazoDaProposta={
+          painel.proposta
+            ? new Intl.DateTimeFormat("pt-BR", {
+                timeZone: "America/Sao_Paulo",
+                dateStyle: "short",
+                timeStyle: "short",
+              }).format(painel.proposta.expiraEm)
+            : null
+        }
+      />
     </>
   );
 }
