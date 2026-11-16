@@ -52,10 +52,15 @@ test("nomes na cena com editor compacto após pintar e reabrir, no computador e 
     .getByRole("button", { name: /Mesa lateral redonda Peça \d+$/ })
     .last()
     .click();
-  await painel.getByRole("button", { name: "Pintar", exact: true }).click();
-  await painel.getByLabel("Cor do móvel").fill("#000000");
-  await painel.getByRole("button", { name: "Aplicar pintura", exact: true }).click();
-  await expect(painel.getByText("Edição confirmada.", { exact: true })).toBeVisible();
+  if (arte) {
+    await painel.getByRole("button", { name: "Pintar", exact: true }).click();
+    await painel.getByLabel("Cor do móvel").fill("#000000");
+    await painel.getByRole("button", { name: "Aplicar pintura", exact: true }).click();
+    await expect(painel.getByText("Edição confirmada.", { exact: true })).toBeVisible();
+  } else {
+    // O preset público não oferece pintura sem o catálogo privado homologado.
+    await expect(painel.getByRole("button", { name: "Pintar", exact: true })).toBeDisabled();
+  }
   // Remonta renderer, HUD e ativos; o servidor conserva o mundo em memória.
   // Restauração durável do processo continua na jornada do portal com PostgreSQL.
   await entrar(page, apelido, undefined, arte);
@@ -70,8 +75,8 @@ test("nomes na cena com editor compacto após pintar e reabrir, no computador e 
       .getByRole("button", { name: /Mesa lateral redonda Peça \d+$/ })
       .last()
       .click();
-    await painel.getByRole("button", { name: "Pintar", exact: true }).click();
-    await expect(painel.getByLabel("Cor do móvel")).toHaveValue("#000000");
+    await painel.getByRole("button", { name: arte ? "Pintar" : "Mover", exact: true }).click();
+    if (arte) await expect(painel.getByLabel("Cor do móvel")).toHaveValue("#000000");
     await page.getByRole("button", { name: "Vista superior", exact: true }).click();
     await painel.getByRole("button", { name: "Ver prévia na casa" }).click();
     try {
