@@ -239,7 +239,8 @@ test.describe("coleção real da criação", () => {
       }));
     const previas = [];
     async function ultimoQuadro() {
-      const quadro = await pessoa.page.evaluate(() => window.graficaDaCriacao?.quadrosConfirmados);
+      // Inclui o quadro em voo: sua confirmação ainda pode mostrar o estado anterior.
+      const quadro = await pessoa.page.evaluate(() => window.graficaDaCriacao?.quadrosEnviados);
       if (quadro === undefined) throw new Error("Observação da criação não instalada");
       return quadro;
     }
@@ -338,7 +339,10 @@ test.describe("coleção real da criação", () => {
     expect(depois?.contextos).toBe(1);
     expect(depois?.buffers).toBe(antes?.buffers);
     expect(depois?.texturas).toBe(antes?.texturas);
+    const antesDoCelular = await ultimoQuadro();
     await pessoa.page.setViewportSize({ width: 390, height: 844 });
+    // O ResizeObserver ajusta a câmera; conservar somente um desenho posterior ao ajuste.
+    await aguardarDesenho(antesDoCelular + 1);
     await expect(
       pessoa.page.getByRole("heading", { name: "Moradores", exact: true }),
     ).toBeVisible();
@@ -347,7 +351,9 @@ test.describe("coleção real da criação", () => {
       await pessoa.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
     ).toBe(true);
     await tela(pessoa.page, "criacao-celular");
+    const antesDoComputador = await ultimoQuadro();
     await pessoa.page.setViewportSize({ width: 1280, height: 800 });
+    await aguardarDesenho(antesDoComputador + 1);
     await pessoa.page.getByRole("button", { name: /Adicionar morador/ }).click();
     await pessoa.page.getByLabel("Nome no jogo", { exact: true }).fill("Sol");
     await pessoa.page

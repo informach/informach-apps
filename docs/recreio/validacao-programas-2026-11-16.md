@@ -54,3 +54,31 @@ etapas antes das asserções, inclusive em falha. Aguarda um novo fence realment
 confirmado e o texto de prontidão no mesmo instante; não amplia prazos nem
 retira a comparação de buffers/texturas. A próxima rodada deve distinguir
 medições em fases diferentes de um vazamento real, sem presumir a causa.
+
+
+## Quadros confirmados e limite da captura móvel
+
+Fonte `deab8105`, seis gates `43840579768` aprovados; executor privado
+`042c0161`, rodada `43844070986`, cinco jornadas aprovadas. As 48 combinações
+agora têm observação de quadros reais, escolhas e estado. Depois do aquecimento,
+os ciclos conservaram um contexto, 537 buffers e 79 texturas; máximos 612/81.
+Esses números são maiores que os da captura anterior, que não exigia desenhar
+cada escolha. Não compará-los como regressão nem como economia: o trabalho
+observado mudou. A estabilidade desses ciclos não certifica ausência universal
+de vazamento.
+
+A inspeção da imagem móvel encontrou uma captura ainda em “Preparando a
+prévia”, sem o personagem, depois da troca do viewport. O teste apenas relia
+um status que podia ser anterior ao ajuste da câmera. A continuação passa a
+esperar confirmações posteriores aos quadros já enviados, incluindo o quadro
+em voo, e dois desenhos novos na troca de viewport. Não altera o produto,
+não acrescenta espera fixa nem aumenta prazos. A nova captura precisa ser
+inspecionada antes de comprovar a aparência móvel.
+
+Nesta rodada, entrada: 21 consultas de ligação/10.567,6 ms; reconexão:
+22/11.504,6 ms; restauração: 25/931,3 ms; histórico: 25/917,6 ms. Somente
+LINK_STATUS, sem consultas de logs. Os recortes de CPU completos duraram
+34.262,034/34.961,703/12.118,615/6.662,828 ms. A variação entre executores e o
+custo de ligação continuam relevantes; a mudança não comprovou resolver o
+desempenho, nem substitui FPS em hardware real. Candidata continua sem adoção
+em produção ou ativação D3.
