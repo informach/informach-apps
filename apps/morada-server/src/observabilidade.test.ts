@@ -18,7 +18,7 @@ describe("observabilidade do servidor", () => {
     const filtro = vi.mocked(Sentry.init).mock.calls[0]?.[0]?.beforeSend;
     if (!filtro) throw new Error("Filtro ausente");
     const evento = await filtro(
-      { tags: { operation: "pessoa@example.test", code: "Bearer segredo" } },
+      { type: undefined, tags: { operation: "pessoa@example.test", code: "Bearer segredo" } },
       {},
     );
     expect(evento).toMatchObject({ tags: { operation: "desconhecida", code: "INTERNO" } });
