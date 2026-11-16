@@ -17,6 +17,7 @@ import {
   revisaoDosObjetos,
 } from "../dominio/revisao-dos-objetos";
 import type { EstadoDoMundo } from "../dominio/tipos";
+import { HistoricoDaCasaSchema } from "../sistemas/historico-da-casa";
 
 /**
  * Fotografia: o estado durável de um mundo em um tick. É o que vai para o
@@ -103,6 +104,7 @@ export const MIGRACOES_DO_MUNDO: readonly Migracao[] = [
         ...estado,
         loja: montarLojaInicial(),
         edicoes: [],
+        historicoDaCasa: [],
         catalogoDePinturas: null,
         contadores: {
           ...z
@@ -169,6 +171,7 @@ export function abrirFotografia(bruto: unknown): Fotografia {
   )
     throw new Error("Registros de edição repetidos ou acima do limite");
   estado.edicoes = edicoes;
+  estado.historicoDaCasa = HistoricoDaCasaSchema.parse(estado.historicoDaCasa);
   const contadores = z
     .record(z.string(), z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER))
     .parse(estado.contadores);

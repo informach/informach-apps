@@ -7,6 +7,7 @@ import {
 import { conferirCatalogoDePinturas } from "../comandos/pintura";
 import { comContinuidadeEspacial } from "../espaco/continuidade";
 import { canonico, copiar } from "../nucleo/canonico";
+import { pecaNoHistorico, registrarPassoDaCasa } from "../sistemas/historico-da-casa";
 import { necessidadesNaNovaFase, registrarId, relacaoEntre } from "./estado";
 import type { Fato } from "./fatos";
 import type { MemoriaId, MoradorId } from "./ids";
@@ -141,6 +142,19 @@ export function reduzirFato(estado: EstadoDoMundo, fato: Fato): void {
         familia.versao = efeito.versaoDaFamilia;
         lote.revisaoDoEspaco = efeito.revisaoDoEspaco;
         novo.contadores[CONTADOR_DE_REVISOES_DOS_OBJETOS] = efeito.revisaoDosObjetos;
+        novo.historicoDaCasa = registrarPassoDaCasa(novo.historicoDaCasa, {
+          chave: fato.id,
+          autor: recibo.autor,
+          sequencia: recibo.pedido.sequencia,
+          ordem: efeito.revisaoDosObjetos,
+          familiaId: familia.id,
+          loteId: lote.id,
+          tipo: recibo.pedido.operacao.t,
+          antes: pecaNoHistorico(efeito.anterior),
+          depois: pecaNoHistorico(efeito.depois),
+          delta: efeito.saldo - efeito.saldoAnterior,
+          permissoes: [...recibo.permissoes],
+        });
       }
       novo.edicoes = compactarRespostasDeEdicao([
         ...novo.edicoes.filter((item) => item.autor !== recibo.autor),

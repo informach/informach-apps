@@ -385,12 +385,68 @@ describe("edição autoritativa e durável da casa", () => {
     expect(saida.fatos).toHaveLength(1);
     expect(saida.fatos[0]?.dados.tipo).toBe("EdicaoRegistrada");
     expect(c.objeto().revisao).toBe(2);
+    expect(c.mundo.estado.historicoDaCasa).toMatchObject([
+      {
+        chave: comandoDeEdicao(LIA, 1),
+        autor: LIA,
+        sequencia: 1,
+        ordem: 2,
+        tipo: "comprar",
+        antes: null,
+        depois: { id: c.objeto().id, pos: [2000, 2000, 0] },
+        delta: -24_000,
+        desfeita: false,
+        interferida: false,
+        revisaoEsperada: 2,
+      },
+    ]);
+    expect(c.mundo.estado.historicoDaCasa[0]?.depois).not.toHaveProperty("ocupacao");
+    expect(c.mundo.estado.historicoDaCasa[0]?.depois).not.toHaveProperty("revisao");
     const recuperado = restaurar(c.base, saida.fatos);
     expect(recuperado.hash()).toBe(c.mundo.hash());
     expect(restaurar(c.base, [...saida.fatos, ...saida.fatos]).hash()).toBe(c.mundo.hash());
     expect(c.aplicar(pedido)).toMatchObject({ ok: true, repetido: true });
     expect(c.familiaAtual().fundo).toBe(saldo - 24_000);
     expect(c.mundo.avancar(0).fatos).toEqual([]);
+  });
+
+  it("recusa não cria passo; edição sem mudança só atualiza a âncora e sobrevive à fotografia", () => {
+    const c = cenario();
+    expect(c.aplicar(c.compra(1, "movel_inexistente")).ok).toBe(false);
+    expect(c.mundo.estado.historicoDaCasa).toEqual([]);
+    expect(c.aplicar(c.compra(2)).ok).toBe(true);
+    const original = copiar(c.mundo.estado.historicoDaCasa[0]);
+    const objeto = c.objeto();
+    const lote = obter(c.mundo.estado.lotes, c.loteId);
+    if (!lote || !original) throw new Error("Origem da prova ausente");
+    expect(
+      c.aplicar({
+        ...c.compra(3),
+        operacao: {
+          t: "mover",
+          objetoId: objeto.id,
+          revisaoDoObjeto: objeto.revisao,
+          revisaoDoEspaco: lote.revisaoDoEspaco,
+          colocacao: { pos: [...objeto.pos], andar: objeto.andar, giro: objeto.giro },
+        },
+      }).ok,
+    ).toBe(true);
+    expect(c.mundo.estado.historicoDaCasa).toEqual([{ ...original, revisaoEsperada: 3 }]);
+    const foto = c.mundo.fotografar();
+    expect(restaurar(foto).hash()).toBe(c.mundo.hash());
+    for (const campos of [
+      { chave: "outra-origem" },
+      { revisaoEsperada: 4 },
+      { familiaId: "fam_ausente" },
+      { depois: { ...original.depois, ocupacao: {} } },
+    ]) {
+      const adulterada = copiar(foto);
+      const passo = adulterada.estado.historicoDaCasa[0];
+      if (!passo) throw new Error("Passo da prova ausente");
+      Object.assign(passo, campos);
+      expect(() => restaurar(adulterada)).toThrow();
+    }
+    expect(c.mundo.fotografar()).toEqual(foto);
   });
 
   it("não compra de novo após expulsão da memória genérica, nem com outra chave ou conteúdo", () => {

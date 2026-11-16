@@ -8,11 +8,12 @@ import { abrirFotografia } from "./fotografia";
 describe("fotografia V2 para mundo V3", () => {
   it("admite loja inicial e revisões sem mudar dados da família ou do mundo de origem", () => {
     const atual = criarMundoDaProva().fotografar();
-    const { loja, edicoes, ...legado } = atual.estado;
+    const { loja, edicoes, historicoDaCasa, ...legado } = atual.estado;
     const contadoresAntigos = { ...legado.contadores };
     delete contadoresAntigos[CONTADOR_DE_REVISOES_DOS_OBJETOS];
     expect(loja.ofertas).toHaveLength(8);
     expect(edicoes).toEqual([]);
+    expect(historicoDaCasa).toEqual([]);
     const antiga = {
       ...atual,
       estado: {
@@ -81,9 +82,10 @@ describe("fotografia V2 para mundo V3", () => {
       }).ok,
     ).toBe(true);
     const atual = mundo.fotografar();
-    const { loja, edicoes, ...legado } = atual.estado;
+    const { loja, edicoes, historicoDaCasa, ...legado } = atual.estado;
     expect(loja.ofertas).toHaveLength(8);
     expect(edicoes).toEqual([]);
+    expect(historicoDaCasa).toEqual([]);
     const antiga = { ...atual, estado: { ...legado, versao: 2 } };
     const recuperado = restaurar(antiga);
     expect(recuperado.estado.fundacao).toEqual(atual.estado.fundacao);
@@ -96,6 +98,7 @@ describe("fotografia V2 para mundo V3", () => {
     for (const campos of [
       { loja: null },
       { edicoes: null },
+      { historicoDaCasa: null },
       { contadores: {} },
       { contadores: { [CONTADOR_DE_REVISOES_DOS_OBJETOS]: 0 } },
       { contadores: { [CONTADOR_DE_REVISOES_DOS_OBJETOS]: Number.MAX_SAFE_INTEGER + 1 } },

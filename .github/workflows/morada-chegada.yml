@@ -23,7 +23,7 @@ jobs:
       - name: Conferir os tipos do nucleo e dos testes
         run: pnpm --filter @informach/morada-sim typecheck
       - name: Exercitar geometria fundacao e restauracao
-        run: pnpm --filter @informach/morada-sim exec vitest run src/espaco/chegada.test.ts testes/fundacao.test.ts src/sistemas/historico-da-casa.test.ts --reporter=default --reporter=json --outputFile=${{ runner.temp }}/morada-chegada.json
+        run: pnpm --filter @informach/morada-sim exec vitest run src/espaco/chegada.test.ts testes/fundacao.test.ts src/sistemas/historico-da-casa.test.ts testes/edicao.test.ts src/formatos/fotografia-v3.test.ts --reporter=default --reporter=json --outputFile=${{ runner.temp }}/morada-chegada.json
       - name: Conferir tipos do cliente editor e organizacao dos nomes
         run: |
           pnpm --filter @informach/jogo-morada typecheck

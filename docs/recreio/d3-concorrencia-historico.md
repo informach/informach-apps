@@ -177,3 +177,23 @@ SID antes de marcar a presença em graça. As três regressões passaram em
 `43778006421`. O hotfix isolado `18f52aa` preservou Mundo V2/protocolo 1, passou
 seis gates na candidata `43778361615` e na main `43779266639`, e foi implantado
 no Railway. Detalhes e confirmação de saúde no [registro](reconexao-2026-11-15.md).
+
+## Implementação do histórico, ainda sem comandos de compensação
+
+A base `a264bd79` passou tipos e sete casos próprios do histórico no GitHub
+`43793575922` (26 casos do núcleo e 14 do cliente no conjunto focado). Retém
+50 passos por autor e 128 no mundo, não inclui ocupantes/revisões antigas e
+conserva o delta original. Interferência alheia não se torna válida ao retornar
+à mesma aparência; ações novas encerram apenas o refazer do próprio autor.
+
+O incremento seguinte inclui `historicoDaCasa` no Mundo V3 **ainda não
+publicado**, iniciando vazio na migração V2→V3. O redutor deriva cada passo do
+fato financeiro já admitido e o aplica na mesma cópia validada que saldo,
+peça e recibo. Repetições/recusas não criam passos; uma edição sem mudança só
+atualiza a âncora. A restauração exige formato, ordem, limites, identidade,
+vínculo familiar, sequência do autor e revisão global coerentes. Não tenta
+reconstruir ações antigas a partir de uma janela de recibos podada.
+
+Esse registro e seus testes não entregam desfazer/refazer ao jogador. Faltam
+admissão da compensação com permissões/valores/espaço atuais, reserva, diário,
+metadados individuais e interface, além das provas de queda e de duas contas.

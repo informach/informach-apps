@@ -5,6 +5,7 @@ import {
   RESPOSTAS_DE_EDICAO_DO_MUNDO,
 } from "../comandos/edicao";
 import { PinturaDoMovelSchema, perfilDePintura } from "../comandos/pintura";
+import { HistoricoDaCasaSchema } from "../sistemas/historico-da-casa";
 import { relacaoId } from "./ids";
 import { CONTADOR_DE_REVISOES_DOS_OBJETOS } from "./revisao-dos-objetos";
 import { listar, obter, type Tabela } from "./tabela";
@@ -43,6 +44,23 @@ export function verificarInvariantes(estado: EstadoDoMundo, presenca?: Presenca)
     )
       erro("Sequência de edição inválida");
   }
+  const historico = HistoricoDaCasaSchema.safeParse(estado.historicoDaCasa);
+  if (!historico.success) erro("Histórico da casa inválido");
+  else
+    for (const passo of historico.data) {
+      const registro = estado.edicoes.find((r) => r.autor === passo.autor);
+      const familia = obter(estado.familias, passo.familiaId);
+      const lote = obter(estado.lotes, passo.loteId);
+      if (
+        !registro ||
+        registro.ultimaSequencia < passo.sequencia ||
+        revisaoGlobal === undefined ||
+        passo.revisaoEsperada > revisaoGlobal ||
+        familia?.loteId !== passo.loteId ||
+        lote?.familiaId !== passo.familiaId
+      )
+        erro("Origem ou revisão do histórico divergente");
+    }
   const fundacao = estado.fundacao;
   if (
     fundacao &&

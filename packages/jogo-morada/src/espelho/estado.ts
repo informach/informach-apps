@@ -42,6 +42,7 @@ export function estadoDoEspelho(visao: VisaoDoCliente, tick: number): EstadoDoMu
     loja: visao.loja,
     catalogoDePinturas: visao.catalogoDePinturas,
     edicoes: [],
+    historicoDaCasa: [],
     catalogoDeAparencias: visao.catalogoDeAparencias,
     contadores: {},
     avancoDoDia: { dia: 0, gastoMs: {} },

@@ -413,6 +413,7 @@ export function criarMundo(novo: NovoMundo, opcoes: OpcoesDoMundo = {}): Mundo {
     fundacao: null,
     loja: conferirContinuidadeDaLoja(novo.loja ?? montarLojaInicial()),
     edicoes: [],
+    historicoDaCasa: [],
     catalogoDePinturas: null,
     catalogoDeAparencias: novo.catalogoDeAparencias
       ? CatalogoDeAparenciasSchema.parse(novo.catalogoDeAparencias)

@@ -352,6 +352,8 @@ export type EstadoDoMundo = {
   catalogoDePinturas: import("../comandos/pintura").CatalogoDePinturas | null;
   /** Piso durável por autor; respostas recentes têm limites por autor e por mundo. */
   edicoes: import("../comandos/edicao").RegistroDeEdicoes[];
+  /** Passos próprios compensáveis; independente da janela de respostas financeiras. */
+  historicoDaCasa: import("../sistemas/historico-da-casa").PassoDaCasa[];
   /** Conteúdo admitido na criação; não muda ao trocar o pacote de arte do servidor. */
   catalogoDeAparencias: import("../comandos/aparencia").CatalogoDeAparencias | null;
   /** Fatos já aplicados neste tick, para não repetir ids no mesmo instante. */
