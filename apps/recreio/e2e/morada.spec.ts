@@ -366,12 +366,18 @@ test("duas contas reservam espaço, liberam ao reconectar e conservam uma única
   await iniciarServidor();
   const ana = await novaPessoa(browser, "Ana"),
     bia = await novaPessoa(browser, "Bia");
-  const concluirPerfil = await perfilarCpu(bia.page, "cpu-bia-concorrencia");
+  let concluirPerfil: (() => Promise<void>) | null = null;
+  async function concluirEtapa() {
+    const concluir = concluirPerfil;
+    concluirPerfil = null;
+    await concluir?.();
+  }
   try {
     const mundoId = await criarMundo(ana.page, "Morada", "Casa compartilhada");
     await convidar(ana.page, bia.page, mundoId);
     await ana.page.goto(enderecoDoJogo(mundoId));
     await mundoNaTela(jogoEm(ana.page));
+    concluirPerfil = await perfilarCpu(bia.page, "cpu-bia-entrada");
     await bia.page.goto(enderecoDoJogo(mundoId));
     await mundoNaTela(jogoEm(bia.page));
     await ana.page.getByRole("button", { name: "Pausar", exact: true }).click();
@@ -405,6 +411,8 @@ test("duas contas reservam espaço, liberam ao reconectar e conservam uma única
     await expect(
       daAna.getByRole("complementary", { name: "Outras pessoas decorando" }),
     ).toContainText("Bia");
+    await concluirEtapa();
+    concluirPerfil = await perfilarCpu(bia.page, "cpu-bia-reconexao");
     await bia.page.reload();
     await mundoNaTela(jogoEm(bia.page));
     await expect(
@@ -438,12 +446,14 @@ test("duas contas reservam espaço, liberam ao reconectar e conservam uma única
     expect(centavos(saldo) - centavos(saldoDepois)).toBe(9_500);
     await expect(daAna.locator(".morada-edicao-saldo b")).toHaveText(saldoDepois);
     await expect(daAna.getByRole("button", { name: "Desfazer", exact: true })).toBeDisabled();
+    await concluirEtapa();
     await jogoEm(bia.page).sair.click();
     await expect(bia.page).toHaveURL(/\/estante/);
     await jogoEm(ana.page).sair.click();
     await expect(ana.page).toHaveURL(/\/estante/);
     expect(await pararServidor()).toBe(true);
     await iniciarServidor();
+    concluirPerfil = await perfilarCpu(bia.page, "cpu-bia-restauracao");
     await bia.page.goto(enderecoDoJogo(mundoId));
     await mundoNaTela(jogoEm(bia.page));
     await bia.page.getByRole("button", { name: "Decorar", exact: true }).click();
@@ -479,10 +489,12 @@ test("duas contas reservam espaço, liberam ao reconectar e conservam uma única
     await expect(daBia.getByRole("button", { name: /Na casa/ })).toContainText(
       String(quantidadeAntes + 1),
     );
+    await concluirEtapa();
     await jogoEm(bia.page).sair.click();
     await expect(bia.page).toHaveURL(/\/estante/);
     expect(await pararServidor()).toBe(true);
     await iniciarServidor();
+    concluirPerfil = await perfilarCpu(bia.page, "cpu-bia-historico");
     await bia.page.goto(enderecoDoJogo(mundoId));
     await mundoNaTela(jogoEm(bia.page));
     await bia.page.getByRole("button", { name: "Decorar", exact: true }).click();
@@ -515,7 +527,7 @@ test("duas contas reservam espaço, liberam ao reconectar e conservam uma única
       saldoDepois,
     });
   } finally {
-    await concluirPerfil();
+    await concluirEtapa();
   }
 });
 

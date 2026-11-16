@@ -51,3 +51,22 @@ O próximo diagnóstico observa duração e flags conhecidas dos programas no
 documento atual, sem armazenar GLSL, nomes de material ou arte, para identificar
 qual primeira utilização bloqueia. Não desativa verificações de shader, não muda
 resultados WebGL nem amplia prazos; a lentidão continua aberta.
+
+## Escopo da coleta por navegação
+
+A fonte `04d99f70` passou nos seis gates `43825247579` e nas cinco jornadas
+privadas `43826248469`, incluindo as 48 combinações sem crescimento de buffers
+ou texturas entre os dois pontos medidos. A captura posterior no computador
+tem quatro nomes; no celular, três. As imagens foram inspecionadas.
+
+O perfil salvo no fim dessa jornada bem-sucedida corresponde ao último documento
+(histórico restaurado), enquanto as falhas anteriores interromperam etapas
+anteriores. Seus 4.825,477 ms e as 45 consultas somando 299,4 ms não representam
+a mesma etapa da reconexão que falhou; não comparar esses recortes como melhora
+de desempenho ou prova de variabilidade do executor.
+
+A coleta passa a encerrar cada perfil antes da próxima navegação, com arquivos
+distintos para entrada, reconexão, restauração da compra e restauração do
+histórico. A observação WebGL é instalada uma única vez por página, para não
+duplicar wrappers/contagens entre etapas. Só o executor privado habilita a
+coleta. Os prazos e as asserções de interação permanecem os mesmos.

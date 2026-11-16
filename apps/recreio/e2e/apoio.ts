@@ -53,8 +53,11 @@ declare global {
   }
 }
 
+const paginasComObservacaoDeProgramas = new WeakSet<Page>();
+
 /** Metadados do documento atual; nunca conserva GLSL, nomes de materiais ou arte. */
 async function observarCompilacao(page: Page): Promise<void> {
+  if (paginasComObservacaoDeProgramas.has(page)) return;
   await page.addInitScript(() => {
     window.consultasDeProgramas = [];
     const recursos = new WeakMap<WebGLShader, string[]>();
@@ -123,6 +126,7 @@ async function observarCompilacao(page: Page): Promise<void> {
       }
     };
   });
+  paginasComObservacaoDeProgramas.add(page);
 }
 
 /** Observa submissões reais de WebGL, sem alterar o desenho ou o agendador. */
@@ -171,7 +175,7 @@ export async function perfilarCpu(page: Page, nome: string): Promise<() => Promi
   return async () => {
     try {
       const { profile } = await sessao.send("Profiler.stop");
-      await medida(nome, { profile });
+      await medida(nome, { documentoAtual: true, etapa: nome, profile });
       await medida(`${nome}-programas`, {
         documentoAtual: true,
         consultas: await page.evaluate(() => window.consultasDeProgramas ?? []),
