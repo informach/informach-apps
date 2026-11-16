@@ -4,14 +4,19 @@ Para quem retoma a frente depois de uma pausa. Leia primeiro a [execução atual
 
 ## Estado atual em 16/11
 
-Portal em `cc48f3c6` e Morada em `179a0a76`, alfa fechado, Mundo V2/protocolo 1
+Portal em `9725e5fb` e Morada em `179a0a76`, alfa fechado, Mundo V2/protocolo 1
 e arte D2/V3. Expiração em lotes e resultado verificável da drenagem implantados;
 seis gates de cada candidata e da main aprovados. Saúde/prontidão 200, cron,
 mapas do portal e arte conferidos. [Operação atual](../../apps/recreio/PRODUCAO.md).
 
-D3 continua separado da produção. A candidata `7d02a2d4` passou nos seis gates;
-a homologação privada investiga atraso após reconexão e capturas dos nomes no
-celular. [Diagnóstico gráfico](rotulos-2026-11-16.md). Nenhuma prova de diversão,
+Edição do perfil próprio implantada no portal, com seis gates na candidata/main,
+188 integrações e jornada de salvamento/recarga/teclado; [prova](perfil-proprio-2026-11-16.md).
+
+D3 continua separado da produção. A fonte `04d99f70` passou nos seis gates e nas
+cinco jornadas privadas `43826248469`, incluindo 48 combinações. O quadro antigo
+explica a captura específica sem nomes; a lentidão continua aberta. O perfil
+final dessa jornada é de outro documento e não permite comparar diretamente
+com a etapa que falhou. A coleta por navegação está em candidata. [Diagnóstico gráfico](rotulos-2026-11-16.md). Nenhuma prova de diversão,
 60 FPS, alta disponibilidade ou encerramento de D2–D8 foi acrescentada.
 
 O titular confirmou a licença comercial; não repetir essa pergunta. Vídeo

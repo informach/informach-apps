@@ -1,0 +1,47 @@
+{
+  "formato": "recreio.perfil-proprio-producao",
+  "versao": 1,
+  "data": "2026-11-16",
+  "codigo": "9725e5fb8490c5878f892d0fd1dc24494a3b5f61",
+  "deployment": "6a5ccc68-7a77-491e-b751-8eb669fae37c",
+  "status": "SUCCESS",
+  "rotaConfirmadaNoProcesso": true,
+  "rotaSemSessao": 307,
+  "healthPortal": 200,
+  "readyPortal": 200,
+  "healthMorada": 200,
+  "readyMorada": 200,
+  "gates": {
+    "candidata": 43826021613,
+    "main": 43826920567,
+    "jobsPorRodada": 6,
+    "integracoes": 188,
+    "novasIntegracoes": 9,
+    "jornadasNavegador": 6,
+    "casosEmOutrosExecutores": 2
+  },
+  "mapasSentryUpload": "2026-11-16T07:54:36.256438258Z",
+  "releaseSentryPresente": true,
+  "configuracoesRemotasIdenticas": true,
+  "morada": {
+    "codigo": "179a0a76a5350b1f96464a6fb2df83dbb5d91cad",
+    "gatilho": "301cdc72-a129-4a97-af04-ee4a7dc15148",
+    "statusGatilho": "SKIPPED",
+    "mundo": 2,
+    "protocolo": 1,
+    "arte": "D2/V3"
+  },
+  "cron": {
+    "inicio": "2026-11-16T08:00:52.459Z",
+    "fim": "2026-11-16T08:00:52.529Z",
+    "ok": true,
+    "summary": {
+      "possesVencidas": 0,
+      "sessoesExpiradas": 0,
+      "ingressosApagados": 0,
+      "instanciasSumidas": 0
+    }
+  },
+  "contasPilotoAlteradasNoEnsaio": false,
+  "a12Concluido": false
+}
