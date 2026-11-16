@@ -1,0 +1,81 @@
+name: Database - gerar migracao revisavel
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: Nome opcional da migracao (letras, numeros e sublinhado)
+        type: string
+        required: false
+        default: ""
+  push:
+    branches: ["verify/db-generate-*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-generate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # generate le os schemas; nenhum PostgreSQL ou segredo e disponibilizado.
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:9/metadata_only
+      MIGRATION_NAME: ${{ inputs.name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Gerar pelo script do projeto
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "$MIGRATION_NAME" ]]; then
+            [[ "$MIGRATION_NAME" =~ ^[a-z][a-z0-9_]{1,48}$ ]] || exit 1
+            pnpm db:generate --name "$MIGRATION_NAME"
+          else
+            pnpm db:generate
+          fi
+      - name: Preservar somente os arquivos gerados para revisao
+        env:
+          ARTIFACT_DIR: ${{ runner.temp }}/db-generated
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { createHash } from 'node:crypto';
+          import { copyFile, lstat, mkdir, readFile, writeFile } from 'node:fs/promises';
+          import { dirname, resolve } from 'node:path';
+          const paths = [...new Set([
+            ...execFileSync('git', ['diff', '--name-only', '-z'], { encoding: 'utf8' }).split('\0'),
+            ...execFileSync('git', ['ls-files', '--others', '--exclude-standard', '-z'], { encoding: 'utf8' }).split('\0'),
+          ].filter(Boolean))];
+          const allowed = /^packages\/db\/src\/migrations\/(?:\d{4}_[a-z0-9_]+\.sql|meta\/(?:_journal|\d{4}_snapshot)\.json)$/;
+          if (!paths.length || paths.some(path => !allowed.test(path)))
+            throw new Error('Generation produced no migration or changed files outside migrations');
+          const root = resolve(process.env.ARTIFACT_DIR);
+          const files = [];
+          for (const path of paths.sort()) {
+            if (!(await lstat(path)).isFile()) throw new Error('Generated migration must be a regular file');
+            const target = resolve(root, path);
+            await mkdir(dirname(target), { recursive: true });
+            await copyFile(path, target);
+            const bytes = await readFile(path);
+            files.push({ path, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
+          }
+          await writeFile(resolve(root, 'proveniencia.json'), JSON.stringify({ source: process.env.GITHUB_SHA, files }, null, 2) + '\n');
+          console.log(JSON.stringify({ source: process.env.GITHUB_SHA, files }));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-generated-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/db-generated/
+          if-no-files-found: error
+          retention-days: 7

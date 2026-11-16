@@ -20,6 +20,7 @@ import {
   tela,
   vigia,
 } from "./apoio";
+import { prepararParticipacoesAfastadas } from "./participacoes-apoio";
 
 /**
  * A plataforma de ponta a ponta, com navegadores de verdade, o portal em build
@@ -422,6 +423,55 @@ test("um perfil joga em um lugar por vez, e sair da conta encerra o jogo", async
     await segunda.getByRole("button", { name: "Entrar de novo" }).click();
     await expect(segunda).toHaveURL(/\/entrar/);
   });
+});
+
+test("Conta permite sair de participação afastada sem concessão", async ({ browser }) => {
+  await iniciarServidor();
+  const ana = await novaPessoa(browser, "Ana");
+  const bia = await novaPessoa(browser, "Bia", { comAcesso: false });
+  const primeiro = await criarMundo(ana.page, "Casa afastada A");
+  const segundo = await criarMundo(ana.page, "Casa afastada B");
+  await prepararParticipacoesAfastadas(bia.email, [primeiro, segundo]);
+  await bia.page.goto("/conta");
+  await bia.page.getByRole("link", { name: "Gerenciar participações", exact: true }).click();
+  await expect(bia.page).toHaveURL(/\/conta\/mundos$/);
+  const cartao = (nome: string) =>
+    bia.page.getByRole("listitem").filter({
+      has: bia.page.getByRole("heading", { name: nome, exact: true }),
+    });
+  const a = cartao("Casa afastada A"),
+    b = cartao("Casa afastada B");
+  await expect(a).toContainText("Participação afastada");
+  await expect(b).toContainText("Participação afastada");
+  for (const item of [a, b]) {
+    const abrir = item.getByText("Quero sair deste mundo", { exact: true });
+    await hidratado(abrir);
+    await abrir.click();
+  }
+  const descricaoA = await a
+    .getByRole("button", { name: "Confirmar saída", exact: true })
+    .getAttribute("aria-describedby");
+  const descricaoB = await b
+    .getByRole("button", { name: "Confirmar saída", exact: true })
+    .getAttribute("aria-describedby");
+  expect(descricaoA).toBeTruthy();
+  expect(descricaoB).toBeTruthy();
+  expect(descricaoA).not.toBe(descricaoB);
+  await tela(bia.page, "participacoes-sem-acesso");
+  await a.getByRole("button", { name: "Cancelar", exact: true }).click();
+  await expect(a.getByText("Quero sair deste mundo", { exact: true })).toBeFocused();
+  await expect(a.getByRole("button", { name: "Confirmar saída", exact: true })).toBeHidden();
+  await a.getByText("Quero sair deste mundo", { exact: true }).click();
+  await a.getByRole("button", { name: "Confirmar saída", exact: true }).click();
+  await expect(bia.page).toHaveURL(/\/estante$/);
+  await bia.page.goto("/conta/mundos");
+  await expect(cartao("Casa afastada A")).toHaveCount(0);
+  await expect(cartao("Casa afastada B")).toBeVisible();
+  await ana.page.goto("/conta/mundos");
+  await expect(
+    ana.page.getByRole("heading", { name: "Casa afastada A", exact: true }),
+  ).toBeVisible();
+  await expect(ana.page.getByText("Quero sair deste mundo", { exact: true })).toHaveCount(0);
 });
 
 test("convidado confirma saída em outra aba e o responsável continua jogando", async ({

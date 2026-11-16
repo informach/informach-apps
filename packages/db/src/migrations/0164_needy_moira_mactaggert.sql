@@ -1,0 +1,1 @@
+CREATE INDEX "recreio_space_invites_unused_expires" ON "recreio"."space_invites" USING btree ("expires_at","id") WHERE "recreio"."space_invites"."state" <> 'accepted';

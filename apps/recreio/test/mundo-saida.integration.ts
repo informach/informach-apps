@@ -17,7 +17,7 @@ import { verificarEntradaNoMundo } from "@/features/posse/repository";
 import { travarEncerramentos } from "@/features/sessao-de-jogo/repository";
 import { AppError } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
-import { aposentarInstancias, codigoDoBanco, type Jogador, novoJogador } from "./apoio";
+import { aposentarInstancias, codigoDoBanco, type Jogador, novoJogador, sinal } from "./apoio";
 import { abrirPelaRota, entrarNoJogo, mundoDe, novaInstancia } from "./jogo-apoio";
 
 const autorDe = (p: Jogador) => ({
@@ -88,20 +88,6 @@ async function emExecucao() {
 }
 
 /** Barreira real: a fila da linha do mundo determina quem foi admitido primeiro. */
-function sinal<T>() {
-  let concluir = (_valor: T): void => {
-    throw new Error("Sinal não preparado");
-  };
-  let recusar = (_erro: unknown): void => {
-    throw new Error("Sinal não preparado");
-  };
-  const promessa = new Promise<T>((resolve, reject) => {
-    concluir = resolve;
-    recusar = reject;
-  });
-  return { promessa, concluir, recusar };
-}
-
 async function segurar(operacao: (tx: Transacao) => Promise<unknown>) {
   const pronto = sinal<number>();
   const fim = sinal<void>();

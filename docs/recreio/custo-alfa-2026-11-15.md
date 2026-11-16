@@ -55,3 +55,22 @@ sequencialmente no mesmo processo; ordem/JIT e disputa pelos mesmos moradores
 limitam a comparação. Não inferir que acrescentar jogadores reduz o custo.
 Heap foi medido após aquecimento, não como pico sustentado da execução. CPU
 inclui clientes e armazenamento em memória no processo da bancada.
+
+## Nova fotografia em 16/11
+
+Leitura somente de metadados às 12:52:03–12:52:04 UTC, no mesmo período de
+cobrança: portal **US$ 0,07450435**, Morada **US$ 0,11494477**, soma exclusiva
+**US$ 0,18944912**. Os valores continuam acumulados e estimados; não são uma
+fatura ou a diferença de uma janela controlada. Cron novamente ausente da
+resposta, sem inferência de custo zero. Nenhum rateio de serviços compartilhados
+ou GitHub Actions foi acrescentado.
+
+Consulta agregada ao banco às 12:52:06 UTC: seis posses assumidas, nenhuma
+aberta, 2.678 segundos-jogador relatados e pico relatado de um jogador.
+Primeira aquisição em 15/11 às 12:30:51 UTC; última liberação às 18:50:01 UTC.
+Esses contadores integram relatos de batimento e não equivalem a uma medição
+contínua de horas de mundo ou a uma janela de faturamento já conciliada.
+Não dividir os dois números para anunciar custo unitário, capacidade, FPS ou
+prova humana com duas contas simultâneas. A janela delimitada continua pendente.
+
+[Fotografia estruturada](evidencias/custo-2026-11-16.json).

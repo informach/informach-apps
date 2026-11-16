@@ -1,0 +1,14 @@
+{
+  "codigoConjunto": "1935b078fb0454ee36d04652548204b592631f63",
+  "recreioRun": 43874709358,
+  "gatesAprovados": 6,
+  "integracoes": 237,
+  "jornadas": 9,
+  "casosReservadosAOutrosExecutores": 2,
+  "codigoBancoIdenticoA": "892f8571593f00d3f17fa6e5b20b2964324c579b",
+  "ciGeralBanco": { "run": 43866074845, "status": "completed", "conclusion": "success" },
+  "codigoPortalIdenticoA": "9f9f9e3a8d9ead85c79da81043a7771a8cff91d3",
+  "limpezaDeConvitesIncluida": false,
+  "d3Ativado": false,
+  "indiceConfirmadoEmProducao": false
+}
