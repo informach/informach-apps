@@ -45,7 +45,7 @@ jobs:
     needs: alteracao
     if: needs.alteracao.outputs.completo == 'true'
     concurrency:
-      group: ci-${{ github.ref }}
+      group: ci-completo-${{ github.ref }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     services:

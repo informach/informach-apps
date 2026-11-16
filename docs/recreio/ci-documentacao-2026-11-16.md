@@ -25,3 +25,13 @@ Esse run iniciou o job completo `ci`, como esperado para código.
 Este arquivo é o segundo envio de verificação e deve acionar somente o gate
 documental. Conferir na API do GitHub a classificação, resultado e permanência
 do job completo anterior antes de integrar. Ainda não alterar o CI da main.
+
+O segundo envio `c063abd`, run `43933275778`, confirmou `alteracao` e
+`documentos-recreio` aprovados, com `ci` ignorado. O run completo anterior
+`43933044670` continuava em execução depois desse resultado. Nenhum job de
+aplicativo foi declarado aprovado a partir do formatter.
+
+O grupo do job completo passa a `ci-completo-<referência>`. Na migração, ele
+não concorre com o grupo antigo do workflow completo ainda em curso na main,
+que pode ser dependência de um deploy protegido. Entre novos jobs completos,
+a política de cancelar código superado da mesma referência continua ativa.
