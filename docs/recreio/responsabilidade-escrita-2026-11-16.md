@@ -51,6 +51,11 @@ nativo, escolher seu perfil e voltar à proposta; a seleção de perfil preserva
 o destino interno validado no servidor. Depois do aceite, o antigo responsável
 pode sair e o novo continua com o mundo. Capturas são de dados sintéticos, sem arte.
 
-Ainda faltam os resultados remotos desta interface, regressões de espera por
-trava, revisão, implantação dos leitores e prova de operação. Não declarar A6
-ou o Recreio concluídos a partir desta candidata.
+Os seis gates finais passaram no GitHub (`43915310811`, fonte `37a75491`):
+291 integrações PostgreSQL, incluindo 29 casos da responsabilidade, e dez
+casos de navegador aprovados com duas exclusões específicas. Os testes incluem
+prazos que vencem enquanto a transação espera e retirada de propostas quando
+a outra parte está suspensa ou sem perfil. Os leitores já estão em produção
+na fonte `f0f1c96c`. Ainda faltam publicar os escritores, conferir a operação
+e homologar a transferência pelas duas contas reais. Não declarar A6 ou o
+Recreio concluídos a partir desta candidata.
