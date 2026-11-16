@@ -243,3 +243,10 @@ ler a versão do formato importava a fotografia, e gerar a chave financeira
 importava todos os schemas de operações/recibos. Versões e identidade passam
 a módulos próprios, mantendo as mesmas validações da chave e os mesmos
 exports públicos. A nova medição continua obrigatória.
+
+Em `3b187f2f`, o peso permaneceu em 1.251.099 bytes (gzip 346.208): a
+dependência ainda existia por outro caminho. `protocolo.ts` construía o
+parser de entrada ao fornecer as constantes usadas pela conexão. Constantes,
+schemas de entrada e tipos de saída passam a módulos internos distintos,
+preservando os mesmos exports públicos e o parser completo no host. Não usar
+esse resultado acima do teto como aprovação de desempenho.
