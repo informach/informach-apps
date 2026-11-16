@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { BAIRRO_DA_PROVA, BAIRRO_INICIAL } from "../src/conteudo";
 import {
+  copiar,
   criarMundo,
+  criarNavegador,
   type Fato,
   type Intencao,
   listar,
   type Mundo,
+  obter,
   type RascunhoDaFamilia,
   reduzirFato,
   relacaoExistente,
@@ -60,6 +63,65 @@ function criar(mundo: Mundo, dados = rascunho(), comandoId?: string, sessaoId = 
 }
 
 describe("fundação durável", () => {
+  it.each([1, 4, 8])(
+    "recebe %i moradores em posições livres, alcançáveis e separadas, preservadas no diário",
+    (quantidade) => {
+      const mundo = novo();
+      entrar(mundo, true);
+      const antes = mundo.fotografar();
+      const dados = rascunho(Array.from({ length: quantidade }, () => "adulto"));
+      expect(criar(mundo, dados).ok).toBe(true);
+      const familia = listar(mundo.estado.familias)[0];
+      const lote = familia?.loteId ? obter(mundo.estado.lotes, familia.loteId) : null;
+      const imovel = lote?.imovelId ? obter(mundo.estado.imoveis, lote.imovelId) : null;
+      if (!lote || !imovel) throw new Error("Casa ausente");
+      const navegador = criarNavegador(
+        lote,
+        imovel,
+        listar(mundo.estado.objetos).filter((o) => o.loteId === lote.id),
+      );
+      const moradores = listar(mundo.estado.moradores).filter((m) => m.familiaId === familia?.id);
+      expect(moradores).toHaveLength(quantidade);
+      const pontos = moradores.map((m) => {
+        if (m.local.t !== "lote") throw new Error("Morador não chegou no lote");
+        expect(navegador.alcancavel(m.local.pos)).toBe(true);
+        return m.local.pos;
+      });
+      for (let a = 0; a < pontos.length; a++)
+        for (let b = a + 1; b < pontos.length; b++) {
+          const p = pontos[a],
+            q = pontos[b];
+          if (!p || !q) throw new Error("Posição ausente");
+          expect((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2).toBeGreaterThanOrEqual(1_000_000);
+        }
+      const fatos = mundo.avancar(0).fatos;
+      expect(restaurar(antes, fatos).hash()).toBe(mundo.hash());
+      const repetido = novo();
+      entrar(repetido, true);
+      expect(criar(repetido, dados).ok).toBe(true);
+      expect(repetido.hash()).toBe(mundo.hash());
+    },
+  );
+
+  it("falta de espaço para a chegada recusa antes de consumir IDs ou criar família", () => {
+    const mundo = novo();
+    entrar(mundo, true);
+    const lote = listar(mundo.estado.lotes).find((l) => l.imovelId !== null);
+    if (!lote) throw new Error("Lote ausente");
+    lote.tamanho = [500, 500];
+    lote.entrada = [125, 125];
+    const contadores = copiar(mundo.estado.contadores);
+    const moradores = copiar(mundo.estado.moradores);
+    expect(criar(mundo, rascunho(["adulto", "crianca"]))).toMatchObject({
+      ok: false,
+      detalhe: "chegada_sem_espaco",
+    });
+    expect(mundo.estado.contadores).toEqual(contadores);
+    expect(mundo.estado.moradores).toEqual(moradores);
+    expect(listar(mundo.estado.familias)).toEqual([]);
+    expect(mundo.avancar(0).fatos).toEqual([]);
+  });
+
   it("cria uma família mínima, com saldo do jogo e acesso só ao ator autorizado", () => {
     const mundo = novo();
     entrar(mundo, true);

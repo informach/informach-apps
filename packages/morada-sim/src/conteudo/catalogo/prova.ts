@@ -75,6 +75,7 @@ export const CATALOGO_DA_PROVA: readonly EntradaDeCatalogo[] = [
     id: "tapete_persa_medalhao",
     versao: 1,
     categoria: "tapetes",
+    camadaDeColisao: "piso",
     fixacao: "chao",
     pegada: [-1030, -600, 1030, 600],
     altura: 16,
@@ -235,6 +236,7 @@ export const CATALOGO_DA_PROVA: readonly EntradaDeCatalogo[] = [
     id: "tapete_persa_pequeno",
     versao: 1,
     categoria: "tapetes",
+    camadaDeColisao: "piso",
     fixacao: "chao",
     pegada: [-565, -325, 565, 325],
     altura: 16,
@@ -341,6 +343,7 @@ export const CATALOGO_DA_PROVA: readonly EntradaDeCatalogo[] = [
   },
   {
     id: "tapete_listras_amarelo_verde",
+    camadaDeColisao: "piso",
     versao: 1,
     categoria: "banheiro",
     fixacao: "chao",

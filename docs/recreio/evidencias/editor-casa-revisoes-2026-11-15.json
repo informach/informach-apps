@@ -1,0 +1,65 @@
+{
+  "codigo": "8a61f2509e9c014174765e1d72a4b39a971bfd77",
+  "gatesPublicos": 43775860241,
+  "execucaoPrivada": 43776758861,
+  "executorPrivado": "353e744f83ab620adefca21281a3dc7991a10923",
+  "manifestoV4": "1b829c0a9e4e93f9e99f174b7fdcf66c690d2bfde1a213925bb3cd9616cb29ae",
+  "jornadasAprovadas": 4,
+  "falhas": 0,
+  "aparelhos": [
+    {
+      "aparelho": "computador",
+      "viewport": {
+        "width": 1365,
+        "height": 900
+      },
+      "posicao": [
+        3.5,
+        5
+      ],
+      "giro": 90,
+      "pintura": "#000000",
+      "saldo": "M$ 4.905,00",
+      "restauracao": true
+    },
+    {
+      "aparelho": "celular",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "posicao": [
+        3.5,
+        5
+      ],
+      "giro": 90,
+      "pintura": "#000000",
+      "saldo": "M$ 4.905,00",
+      "restauracao": true
+    }
+  ],
+  "criacao": {
+    "combinacoes": 48,
+    "antes": {
+      "contextos": 1,
+      "buffers": 128,
+      "texturas": 34,
+      "maximoBuffers": 203,
+      "maximoTexturas": 36
+    },
+    "depois": {
+      "contextos": 1,
+      "buffers": 128,
+      "texturas": 34,
+      "maximoBuffers": 203,
+      "maximoTexturas": 36
+    }
+  },
+  "capturasDistintasPorAparelho": true,
+  "limites": [
+    "Execucao privada anterior a integracao das travas no ator/cliente",
+    "Navegador por software no GitHub; sem prova de FPS ou hardware real",
+    "Moradores e nomes ainda se sobrepoem na entrada inicial",
+    "Arte e capturas privadas; sem ativacao do Mundo V3 em producao"
+  ]
+}

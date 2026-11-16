@@ -48,7 +48,7 @@ sistemas/contexto.ts,dominio/tipos.ts,visao/replicacao.ts}`;
 `jogo-morada/src/{modelo/editor-da-casa.ts,espelho/,hud/EdicaoDaCasa.tsx,cena/}`.
 Conferir schemas de recibos/fatos e a ordem do diário antes de exigir a trava.
 
-## Desfazer e refazer
+## Estado da integração das travas
 
 Estado em 15/11, integração das travas em candidata: aquisição, renovação e
 liberação já passam por sessão e autoridade atuais; o ator fornece geração
@@ -58,16 +58,18 @@ efeitos depois da expiração. Presença pública projeta alvo/autor/prazo sem S
 O cliente mantém uma preparação em voo, renova a seleção e cancela ao perder
 conexão, visibilidade ou contexto gráfico. Os testes novos cobrem reentrada,
 revogação, referência forjada, expiração, resposta atrasada e queda antes/depois
-do journal. A primeira candidata `684c0f85` passou qualidade, integração, cliente,
-versões e simulação longa em `43781777001`; a jornada do portal ainda estava
-rodando ao preparar este registro. A continuação acrescenta contorno amarelo
+do journal. A primeira candidata `684c0f85` passou os seis gates em `43781777001`.
+A continuação `c72d5ae2` também passou os seis gates em `43782414101`, acrescentando contorno amarelo
 em um único buffer reutilizado e lista das outras pessoas por casa, além da
 jornada de duas contas pelo convite real, bloqueio, liberação por reconexão,
-compra e restauração. Essa continuação ainda aguarda seus próprios gates e
-capturas. O prazo restante também marca presença para replicação antes de expirar.
+compra e restauração. A prova privada com arte completa `43783239739`, executor
+`ad2563459`, está em execução nessa fonte, incluindo as duas contas convidadas.
+O prazo restante também marca presença para replicação antes de expirar.
 O histórico abaixo continua pendente.
 O host publicado fixado na matriz de versões passou a `18f52aa`, que contém
 somente a correção da reconexão, preservando Mundo V2/protocolo 1.
+
+## Desfazer e refazer
 
 Histórico é conteúdo persistido; presença e travas não o substituem. Cada ação
 de desfazer/refazer é outro pedido durável e outro fato, com autorização atual.

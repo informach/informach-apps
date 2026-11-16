@@ -37,6 +37,7 @@ const DETALHES: Record<string, string> = {
   posicao_da_obra: "Escolha uma posição na grade do piso da casa.",
   catalogo_da_obra: "Esta peça ou posição ainda não está disponível para edição.",
   saldo_insuficiente: "A família não tem saldo para esta compra.",
+  chegada_sem_espaco: "Não há espaço livre para receber toda a família nesta casa.",
   versao_antiga:
     "A casa mudou enquanto você editava. Confira as escolhas antes de tentar novamente.",
   edicao_antiga: "Este pedido já foi avaliado. Confira a casa antes de confirmar outra edição.",
