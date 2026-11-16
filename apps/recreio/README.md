@@ -164,7 +164,7 @@ Uma falha deixa traces e capturas em `tmp/verification/<id>`; as capturas das te
 
 ## Estrutura
 
-- `src/app`: `/`, `/entrar`, `/comecar`, `/perfis`, `(portal)/estante`, `(portal)/conta`, `(portal)/mundos/[id]`, `(portal)/convite`, `jogar/[jogo]`, `/termos`, `/privacidade` e `api` (auth, health, ready, sair da conta, descadastro de e-mail, `sdk/v1`, `interno/v1`, `jobs/manutencao`).
+- `src/app`: `/`, `/entrar`, `/comecar`, `/perfis`, `(portal)/estante`, `(portal)/conta` (perfil, aparelhos e participações próprias em `/conta/mundos`), `(portal)/mundos/[id]`, `(portal)/convite`, `jogar/[jogo]`, `/termos`, `/privacidade` e `api` (auth, health, ready, sair da conta, descadastro de e-mail, `sdk/v1`, `interno/v1`, `jobs/manutencao`).
 - `src/features`: `account` (concluir a entrada, botão de sair), `sessao` (ator, sessão de aparelho, saída), `perfis` (criar e escolher), `acesso` (direito de jogar e o texto dele), `estante` (cartões do catálogo), `jogos` (o catálogo do deploy e a configuração de cada jogo), `jogar` (a página que hospeda o jogo: decisão no servidor, estados, registro e carregadores dos clientes, e `adaptadores/` com o do Morada), `jogo-de-teste` (cliente e protocolo do jogo de teste), `sessao-de-jogo` (ingresso, sessão, renovação), `mundos` (mundos, membros, convites e as telas deles), `posse` (posse, API das instâncias, armazenamento), `manutencao` (rotina agendada), `operations` (prontidão).
 - `scripts`: `conceder` e `revogar` (concessões), `gerar-chave` (par de chaves dos tokens), `isolated.mjs` (banco descartável dos testes de integração e do E2E).
 - `test`: testes de integração e o apoio deles.

@@ -43,6 +43,21 @@ export default async function Conta() {
           <EstadoDoAcesso texto={texto} id="conta-acesso" />
         </section>
 
+        <section aria-labelledby="conta-mundos" className="painel p-5 sm:p-6">
+          <h2 id="conta-mundos" className="font-display text-xl font-bold">
+            Mundos
+          </h2>
+          <p className="mt-2 text-tinta-suave">
+            Confira seus vínculos e saia dos mundos em que não quiser continuar.
+          </p>
+          <Link
+            href="/conta/mundos"
+            className="mt-4 inline-flex font-bold text-ceu underline underline-offset-4"
+          >
+            Gerenciar participações
+          </Link>
+        </section>
+
         <section aria-labelledby="conta-email" className="painel p-5 sm:p-6">
           <h2 id="conta-email" className="font-display text-xl font-bold">
             E-mail da conta
