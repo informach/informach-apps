@@ -81,6 +81,21 @@ jobs:
           pnpm --workspace-concurrency=1 --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte test
       - if: matrix.gate == 'integration'
         run: pnpm --filter @informach/recreio-app test:integration
+      - name: Verify production process receives SIGTERM
+        if: matrix.gate == 'quality'
+        run: |
+          pnpm build:morada-server
+          node apps/morada-server/scripts/verificar-conteiner.mjs
+        env:
+          MORADA_PROCESSO_RELATORIO: ${{ runner.temp }}/morada-processo.json
+      - name: Preserve process shutdown evidence
+        if: always() && matrix.gate == 'quality'
+        uses: actions/upload-artifact@v4
+        with:
+          name: morada-processo-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/morada-processo.json
+          if-no-files-found: warn
+          retention-days: 30
       - if: matrix.gate == 'e2e' || matrix.gate == 'versoes'
         run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
       - if: matrix.gate == 'e2e'

@@ -1,0 +1,63 @@
+{
+  "fonteEmProducao": "f0f1c96c11f22fec6f91315c03eddd8701c54fc5",
+  "candidataDoComando": "c082a1c445d8762d96efb2d7f2a8315d1460badb",
+  "gatesCandidata": { "runId": 43904561482, "quantidade": 6, "conclusao": "success" },
+  "provaNoConteinerGithub": {
+    "jobId": 133429798415,
+    "artefatoId": 14246216041,
+    "imagem": "node:24.15.0-bookworm-slim",
+    "pidPrincipal": 1,
+    "sinal": "SIGTERM",
+    "mundoComFundacao": true,
+    "mundosConfirmados": 1,
+    "falhas": 0,
+    "codigoDeSaida": 0,
+    "fechamentoWebSocket": 4010,
+    "encerrandoMs": 120.94770100000005,
+    "limite": "plataforma em memoria isolada; nao comprova banco ou durabilidade apos queda"
+  },
+  "preflight": {
+    "observadoEm": "2026-11-16T16:21:29.152Z",
+    "deployment": "679722ea-12f0-4b73-9357-ee25ab41c680",
+    "pid1": "pnpm start:morada-server",
+    "cwd": "/app",
+    "arquivoDiretoExiste": true,
+    "mundos": 0,
+    "conexoes": 0,
+    "drenando": false,
+    "configuracoesPendentes": false
+  },
+  "alteracaoDeConfiguracao": {
+    "campo": "deploy.startCommand",
+    "anterior": "pnpm start:morada-server",
+    "atual": "node apps/morada-server/dist/main.mjs",
+    "outrasDiferencas": [],
+    "configuracoesPendentes": false
+  },
+  "tentativaComSnapshotAnterior": {
+    "deployment": "5ea757a6-8d99-4eb2-945f-3d6290eb6e37",
+    "resultado": "voltou a responder, mas conservou o comando pnpm do snapshot anterior"
+  },
+  "implantacaoDaFonteComConfiguracaoAtual": {
+    "comandoCli": "railway redeploy --from-source",
+    "deployment": "afe83ea7-def2-4787-8300-f4fef7291940",
+    "status": "SUCCESS",
+    "observadoEm": "2026-11-16T16:27:15.286Z",
+    "pid1": ["/mise/installs/node/24.15.0/bin/node", "apps/morada-server/dist/main.mjs"],
+    "cwd": "/app",
+    "mundos": 0,
+    "conexoes": 0,
+    "drenando": false,
+    "prontidao": { "status": 200, "observadoEm": "2026-11-16T16:27:16.795Z" },
+    "arte": {
+      "pasta": "d2-4198478735b6",
+      "manifesto": 3,
+      "sha256": "4198478735b643e07d4ce0821db82654c42847bbf996d1d07a99a5890b21672f"
+    }
+  },
+  "limites": [
+    "confirmacao do encerramento direto no Railway deve ser observada na proxima implantacao normal",
+    "IaC e gate permanentes preparados na main local; aguardar o CI geral em curso antes do push",
+    "nao conclui A6, A7, desempenho ou homologacao comercial"
+  ]
+}
