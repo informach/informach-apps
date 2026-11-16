@@ -1,6 +1,7 @@
 "use client";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import type { ActionResult } from "@/lib/action";
 import type { painelDaResponsabilidade } from "../responsabilidade";
 import {
@@ -32,10 +33,7 @@ export function Responsabilidade({
   const [mensagem, informar] = useState("");
   const [login, exigirLogin] = useState(false);
   const [pendente, iniciar] = useTransition();
-  const [interativo, preparar] = useState(false);
-  useEffect(() => {
-    preparar(true);
-  }, []);
+  const interativo = useHydrated();
   function executar(operacao: () => Promise<ActionResult<{ estado: keyof typeof mensagens }>>) {
     iniciar(async () => {
       informar("");
