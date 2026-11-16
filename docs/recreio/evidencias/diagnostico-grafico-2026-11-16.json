@@ -1,0 +1,49 @@
+{
+  "formato": "morada.diagnostico-grafico",
+  "versao": 1,
+  "data": "2026-11-16",
+  "codigo": "7d02a2d419407046f70a860e1398b6d5ac572738",
+  "executor": "a8d0c5bbc807991ccbcfcded152af64c05fa4044",
+  "host": "179a0a76a5350b1f96464a6fb2df83dbb5d91cad",
+  "gatesPublicos": 43816899608,
+  "jornadaPrivada": {
+    "run": 43817696508,
+    "resultado": "failure",
+    "compatibilidade": "success",
+    "decoracaoComputador": "success",
+    "decoracaoCelular": "success",
+    "concorrencia": "failure",
+    "criacaoPersonalizada": "skipped",
+    "prazoInteracaoSegundos": 15
+  },
+  "cpu": {
+    "duracaoMs": 28912.129,
+    "amostras": 23993,
+    "intervaloSolicitadoMicrossegundos": 1000,
+    "maiorIntervaloMs": 221.148,
+    "intervalosAcimaDe50Ms": 1,
+    "getUniformsInclusivoMs": 16820.704,
+    "texSubImage2DProprioMs": 4207.747,
+    "coletaDeLixoProprioMs": 135.719,
+    "metodo": "Soma dos timeDeltas por amostra; ancestrais de mesmo nome contados uma vez por pilha. Tempos inclusivos nao sao somaveis entre funcoes."
+  },
+  "capacidades": {
+    "run": 43819519629,
+    "resultado": "success",
+    "renderer": "ANGLE Vulkan SwiftShader Subzero",
+    "webgl": 2,
+    "compilacaoParalela": false,
+    "nucleos": 2,
+    "texturaMaxima": 8192
+  },
+  "comparacaoCelularRestaurado": {
+    "desenhosAntes": 12,
+    "desenhosDepois": 16,
+    "nomesNaCapturaImediata": 0,
+    "nomesNaCapturaPosterior": 3,
+    "imagensPrivadasInspecionadas": true
+  },
+  "travamentoCorrigido": false,
+  "fpsEmHardwareRealComprovado": false,
+  "ativacaoD3EmProducao": false
+}
