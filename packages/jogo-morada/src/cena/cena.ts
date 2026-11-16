@@ -800,6 +800,7 @@ export class Cena {
     // No degrau mais baixo, pula os quadros que vêm antes da hora.
     if (limite > 0 && intervalo < limite - 2) return;
     if (!this.gpuDisponivel()) return;
+    if (this.preparo.preparando) return;
     const dt = Math.min(100, Math.max(0, intervalo));
     const inicio = performance.now();
 

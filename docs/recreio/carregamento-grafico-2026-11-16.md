@@ -37,3 +37,10 @@ Testes focados cobrem fila limitada, alteração durante a espera, erro,
 restauração e desmontagem. Gates completos, nova jornada com arte e exame das
 imagens continuam necessários. Sem clique forçado, aumento de timeout,
 desligamento do trace ou teste gráfico nesta máquina.
+
+`4aa8b48a`, prova focada `43801800272`: tipos, testes do núcleo/cliente/ator e
+orçamento de bundle aprovados; 1.247.868 bytes, 345.027 gzip. Um ajuste seguinte
+também evita atualizar poses repetidamente enquanto a preparação está em curso,
+mantendo a espera no intervalo do próximo quadro desenhado. Os testes completos
+de navegador e a nova prova privada continuam pendentes; ainda não declarar
+resolvida a pausa observada na fonte anterior.

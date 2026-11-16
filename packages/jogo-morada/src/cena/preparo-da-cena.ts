@@ -17,6 +17,10 @@ export class PreparoDaCena {
     this.falhou = false;
   }
 
+  get preparando(): boolean {
+    return this.emCurso !== null;
+  }
+
   pronta(): boolean {
     if (this.descartado || this.falhou) return false;
     if (this.preparada === this.atual) return true;

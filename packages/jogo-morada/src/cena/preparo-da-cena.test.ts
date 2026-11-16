@@ -31,7 +31,9 @@ describe("preparação dos programas sem bloquear o desenho da interface", () =>
     let chamadas = 0;
     const falha = vi.fn();
     const preparo = new PreparoDaCena(() => (++chamadas === 1 ? a.promessa : b.promessa), falha);
+    expect(preparo.preparando).toBe(false);
     expect(preparo.pronta()).toBe(false);
+    expect(preparo.preparando).toBe(true);
     await assentar();
     for (let i = 0; i < 50; i++) {
       preparo.invalidar();
@@ -45,6 +47,7 @@ describe("preparação dos programas sem bloquear o desenho da interface", () =>
     expect(chamadas).toBe(2);
     b.concluir();
     await assentar();
+    expect(preparo.preparando).toBe(false);
     expect(preparo.pronta()).toBe(true);
     expect(preparo.pronta()).toBe(true);
     expect(chamadas).toBe(2);
