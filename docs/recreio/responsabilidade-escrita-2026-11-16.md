@@ -1,11 +1,11 @@
 # Responsabilidade com aceite: candidata do portal
 
-Continuação da [preparação](responsabilidade-aceita-2026-11-16.md) e da
-[reconciliação do Morada](acessos-na-reentrada-2026-11-16.md). Não implantada.
-O portal candidato oferece proposta, aceite, recusa e cancelamento em
-`/conta/mundos/[id]/responsabilidade`, acessível pelas próprias participações.
-Essas ações não foram publicadas. A etapa 2 continua incompleta até os gates,
-a implantação prévia dos leitores e a homologação com duas contas.
+Implantada no alfa fechado em `92f665e7`. Continuação da
+[preparação](responsabilidade-aceita-2026-11-16.md) e da
+[reconciliação do Morada](acessos-na-reentrada-2026-11-16.md). O portal oferece
+proposta, aceite, recusa e cancelamento em `/conta/mundos/[id]/responsabilidade`,
+acessível pelas próprias participações. [Operação e limites](responsabilidade-producao-2026-11-16.md).
+A homologação com as duas contas reais foi adiada pelo titular; A6 continua aberta.
 
 O adapter de autoridade não recebe parâmetros: lê login nativo e perfil ativo.
 A prova usa `session.createdAt`, não renovação, seleção de perfil ou data enviada
@@ -56,6 +56,6 @@ Os seis gates finais passaram no GitHub (`43915310811`, fonte `37a75491`):
 casos de navegador aprovados com duas exclusões específicas. Os testes incluem
 prazos que vencem enquanto a transação espera e retirada de propostas quando
 a outra parte está suspensa ou sem perfil. Os leitores já estão em produção
-na fonte `f0f1c96c`. Ainda faltam publicar os escritores, conferir a operação
-e homologar a transferência pelas duas contas reais. Não declarar A6 ou o
+na fonte `f0f1c96c`. Os escritores e a operação já foram conferidos. A transferência pelas duas
+contas reais foi adiada pelo titular. Não declarar A6 ou o
 Recreio concluídos a partir desta candidata.

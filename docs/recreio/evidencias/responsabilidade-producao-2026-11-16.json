@@ -1,0 +1,119 @@
+{
+  "fonte": "92f665e730d201ecc606a5f692601c4bde27cc64",
+  "candidataHomologada": "37a754915750ad007dd63a26b2fd9550db4f2df9",
+  "diferencaDaCandidataSomenteDocumentacao": true,
+  "contratos": {
+    "mundo": 2,
+    "protocolo": 1,
+    "arte": "D2",
+    "recibosDeMigracao": 167
+  },
+  "gatesCandidata": {
+    "runId": 43915310811,
+    "aprovados": 6,
+    "integracoesPostgres": 291,
+    "casosResponsabilidade": 29,
+    "navegadorAprovados": 10,
+    "exclusoesEspecificas": 2
+  },
+  "mainRecreio": {
+    "runId": 43918017566,
+    "estado": "completed",
+    "conclusao": "success",
+    "aprovados": 6
+  },
+  "mainGeral": {
+    "runId": 43918017303,
+    "estado": "in_progress"
+  },
+  "portal": {
+    "deployment": "5c0ff09a-d72d-4bf2-a9a8-fa0f6051bc22",
+    "status": "SUCCESS",
+    "fonteNovaConferida": true,
+    "rotaCompilada": true,
+    "ready": 200,
+    "conferidoEm": "2026-11-16T17:38:50.129Z"
+  },
+  "morada": {
+    "deployment": "1c69178d-670b-4f19-a95a-d9ef9ece8d05",
+    "status": "SUCCESS",
+    "conferidoEm": "2026-11-16T17:27:26.517Z",
+    "pid1": ["/mise/installs/node/24.15.0/bin/node", "apps/morada-server/dist/main.mjs"],
+    "cwd": "/app",
+    "mundos": 0,
+    "conexoes": 0,
+    "drenando": false,
+    "ready": 200
+  },
+  "encerramentoNormalAnterior": {
+    "deployment": "afe83ea7-def2-4787-8300-f4fef7291940",
+    "sinalEm": "2026-11-16T17:27:03.248264076Z",
+    "sinal": "SIGTERM",
+    "pid": 1,
+    "confirmacaoEm": "2026-11-16T17:27:03.248272296Z",
+    "evento": "instancia_encerrada",
+    "mundos": 0,
+    "falhas": 0,
+    "limite": "parada sem mundo aberto; nao comprova salvamento real em producao"
+  },
+  "arte": {
+    "pasta": "d2-4198478735b6",
+    "manifesto": 3,
+    "sha256": "4198478735b643e07d4ce0821db82654c42847bbf996d1d07a99a5890b21672f"
+  },
+  "configuracoes": {
+    "portalEMoradaIdenticasAoPreflight": true,
+    "pendentes": false
+  },
+  "sentry": {
+    "mapasEnviadosEm": "2026-11-16T17:26:06.370329869Z",
+    "releaseConferida": true,
+    "consulta": "is:unresolved lastSeen:-1h",
+    "projetos": ["recreio", "morada-server"],
+    "nenhumaIssueEncontrada": true,
+    "limite": "consulta pontual; nao certifica estabilidade geral"
+  },
+  "migrator": {
+    "novaExecucao": "SKIPPED",
+    "ultimaExecucaoAplicada": "96f3ad7b-5c82-4bc8-aac3-01159d33a7a7",
+    "novaMigracao": false
+  },
+  "limites": [
+    "CI geral da main ainda em execucao neste registro",
+    "transferencia pelas duas contas reais adiada pelo titular",
+    "nao conclui A6, protecao familiar, retencao integral, desempenho ou venda"
+  ],
+  "primeiraTentativaPortal": {
+    "deployment": "4dff9c0c-ea5b-4854-9571-f3bc11852517",
+    "status": "FAILED",
+    "etapa": "CREATE_CONTAINER",
+    "erro": "An unknown error occurred.",
+    "aplicacaoIniciou": false,
+    "diagnosticoDisponivel": false,
+    "resolucaoObservada": "nova tentativa da mesma fonte e configuracao iniciou e ficou pronta; causa interna do provedor nao esclarecida"
+  },
+  "cron": {
+    "conferidoEm": "2026-11-16T17:41:08.051Z",
+    "inicio": "2026-11-16T17:40:50.780Z",
+    "fim": "2026-11-16T17:40:50.797Z",
+    "ok": true,
+    "summary": {
+      "possesVencidas": 0,
+      "convitesApagados": 0,
+      "sessoesExpiradas": 0,
+      "ingressosApagados": 0,
+      "instanciasSumidas": 0
+    }
+  },
+  "prontidaoCatalogoEAdmin": {
+    "conferidoEm": "2026-11-16T17:41:43.988698Z",
+    "userAgent": "recreio-ops/1",
+    "quantidade": 9,
+    "status": 200
+  },
+  "validacaoHumana": {
+    "estado": "adiada_pelo_titular",
+    "data": "2026-11-16",
+    "novaSolicitacaoNecessaria": false
+  }
+}

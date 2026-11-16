@@ -1,6 +1,6 @@
 # Resultado do envio de observabilidade no encerramento
 
-Correção verificada no GitHub, ainda sem implantação. O SDK `@sentry/node` 10.76.2 devolve um booleano de `flush`; resolver
+Correção implantada no alfa em `92f665e7`, após os gates do GitHub. O SDK `@sentry/node` 10.76.2 devolve um booleano de `flush`; resolver
 a promessa não significa que a fila terminou. O adapter anterior aguardava a
 promessa e ignorava esse resultado. O encerramento já tratava rejeições, mas
 não recebia como falha o timeout que o SDK representa por `false`.
