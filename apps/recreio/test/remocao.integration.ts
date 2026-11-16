@@ -416,17 +416,15 @@ it("pagina metadados por UUID sem repetir, misturar mundos ou listar o próprio 
       })),
     )
     .returning({ id: profiles.id });
-  await db
-    .insert(members)
-    .values(
-      sinteticos.map((p) => ({
-        spaceId: c.id,
-        profileId: p.id,
-        role: "member" as const,
-        state: "away" as const,
-        invitedByMemberId: c.membroLia.id,
-      })),
-    );
+  await db.insert(members).values(
+    sinteticos.map((p) => ({
+      spaceId: c.id,
+      profileId: p.id,
+      role: "member" as const,
+      state: "away" as const,
+      invitedByMemberId: c.membroLia.id,
+    })),
+  );
   const primeira = await painelDeMembros(c.a, c.id, undefined);
   expect(primeira.itens).toHaveLength(20);
   expect(primeira.proximo).toBe(primeira.itens.at(-1)?.id);
@@ -437,4 +435,58 @@ it("pagina metadados por UUID sem repetir, misturar mundos ou listar o próprio 
   expect(new Set(ids).size).toBe(25);
   expect(ids).not.toContain(c.membroLia.id);
   expect(ids).toEqual([...ids].sort());
+});
+
+it("um convite anterior à remoção não readmite; convite posterior conserva a identidade do membro", async () => {
+  const c = await cenario();
+  const velho = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
+    forma: "member",
+  });
+  await removerParticipacao(c.a, c.id, c.membroBruno.id);
+  await expect(
+    aceitarConvite({ perfilId: c.bruno.perfil.id }, { codigo: velho.codigo }),
+  ).rejects.toMatchObject({ codigo: "CONVITE_INVALIDO" });
+  const novo = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
+    forma: "member",
+  });
+  await aceitarConvite({ perfilId: c.bruno.perfil.id }, { codigo: novo.codigo });
+  expect(
+    (await db.select().from(members).where(eq(members.id, c.membroBruno.id)))[0],
+  ).toMatchObject({ state: "active", profileId: c.bruno.perfil.id });
+});
+
+it("a transferência revoga os convites pendentes do antigo responsável sem reativá-los se o papel voltar", async () => {
+  const c = await cenario();
+  const terceira = await novoJogador();
+  const velho = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
+    forma: "member",
+  });
+  const primeira = await proporResponsabilidade(c.a, c.id, c.membroBruno.id);
+  await responderResponsabilidade(c.b, c.id, primeira.pedidoId, "accepted");
+  const segunda = await proporResponsabilidade(c.b, c.id, c.membroLia.id);
+  await responderResponsabilidade(c.a, c.id, segunda.pedidoId, "accepted");
+  await expect(
+    aceitarConvite({ perfilId: terceira.perfil.id }, { codigo: velho.codigo }),
+  ).rejects.toMatchObject({ codigo: "CONVITE_INVALIDO" });
+  const novo = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
+    forma: "member",
+  });
+  await aceitarConvite({ perfilId: terceira.perfil.id }, { codigo: novo.codigo });
+});
+
+it("o aceite relê a autoridade atual do emissor mesmo em um convite legado ainda marcado como enviado", async () => {
+  const c = await cenario();
+  const terceira = await novoJogador();
+  const velho = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
+    forma: "member",
+  });
+  const oferta = await proporResponsabilidade(c.a, c.id, c.membroBruno.id);
+  await responderResponsabilidade(c.b, c.id, oferta.pedidoId, "accepted");
+  // Simula estado anterior ao novo escritor, sem depender de sua revogação.
+  await db.execute(
+    sql`update recreio.space_invites set state='sent' where space_id=${c.id} and invited_by_member_id=${c.membroLia.id} and state<>'accepted'`,
+  );
+  await expect(
+    aceitarConvite({ perfilId: terceira.perfil.id }, { codigo: velho.codigo }),
+  ).rejects.toMatchObject({ codigo: "CONVITE_INVALIDO" });
 });
