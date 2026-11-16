@@ -1,0 +1,54 @@
+name: Auth - tipos dos consumidores
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["verify/recreio-*-aparelhos"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auth-consumidores-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tipos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Conferir todos os consumidores declarados de auth
+        run: |
+          node --input-type=module <<'NODE'
+          import { existsSync, readFileSync, readdirSync } from 'node:fs';
+          import { join } from 'node:path';
+          import { spawnSync } from 'node:child_process';
+          const nomes = new Set(['@informach/auth']);
+          for (const base of ['apps', 'packages']) {
+            for (const entrada of readdirSync(base, { withFileTypes: true })) {
+              if (!entrada.isDirectory()) continue;
+              const arquivo = join(base, entrada.name, 'package.json');
+              if (!existsSync(arquivo)) continue;
+              const pacote = JSON.parse(readFileSync(arquivo, 'utf8'));
+              const dependencias = { ...pacote.dependencies, ...pacote.devDependencies };
+              if (!('@informach/auth' in dependencias)) continue;
+              if (typeof pacote.scripts?.typecheck !== 'string') throw new Error(`Consumidor sem typecheck: ${pacote.name}`);
+              nomes.add(pacote.name);
+            }
+          }
+          console.log('Consumidores e auth:', [...nomes].sort().join(', '));
+          const args = ['--workspace-concurrency=1', ...[...nomes].sort().flatMap(nome => ['--filter', nome]), 'typecheck'];
+          const resultado = spawnSync('pnpm', args, { stdio: 'inherit' });
+          if (resultado.error) throw resultado.error;
+          process.exit(resultado.status ?? 1);
+          NODE

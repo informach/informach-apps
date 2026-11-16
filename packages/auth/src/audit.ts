@@ -110,6 +110,7 @@ export type AuditEventType =
   // jogo, mundos, convites e posse.
   | "recreio.profile_created"
   | "recreio.profile_updated"
+  | "recreio.device_session_revoked"
   | "recreio.entitlement_granted"
   | "recreio.entitlement_revoked"
   | "recreio.game_session_started"

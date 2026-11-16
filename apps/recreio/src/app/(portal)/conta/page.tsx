@@ -56,6 +56,21 @@ export default async function Conta() {
           </div>
         </section>
 
+        <section aria-labelledby="conta-aparelhos" className="painel p-5 sm:p-6">
+          <h2 id="conta-aparelhos" className="font-display text-xl font-bold">
+            Aparelhos
+          </h2>
+          <p className="mt-2 text-tinta-suave">
+            Confira as sessões da sua conta no Recreio e desconecte outros aparelhos.
+          </p>
+          <Link
+            href="/conta/aparelhos"
+            className="mt-4 inline-flex font-bold text-ceu underline underline-offset-4"
+          >
+            Gerenciar aparelhos
+          </Link>
+        </section>
+
         <section aria-labelledby="conta-exclusao" className="painel p-5 sm:p-6">
           <h2 id="conta-exclusao" className="font-display text-xl font-bold">
             Excluir a conta
