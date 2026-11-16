@@ -22,3 +22,8 @@ legados que ainda eram tratados como volume; o tapete redondo já indicava piso.
 As medidas, versões, preços e arte permanecem as mesmas. Os testes de chegada
 exercitam os quatro tapetes, paredes, borda do lote, móveis e famílias de 1/4/8
 moradores, além da recusa sem espaço. Ainda aguardam execução remota.
+
+A primeira candidata `a73cdbf4` parou no gate global de qualidade por formatação
+do JSON de evidência da rodada anterior; a inspeção focalizada tinha coberto
+somente TypeScript. O JSON foi formatado conforme o Biome. A nova rodada precisa
+executar qualidade/tipos/testes completos, sem atribuir a falha ao domínio.

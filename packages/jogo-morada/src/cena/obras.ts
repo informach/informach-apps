@@ -33,7 +33,8 @@ export class ObrasDaCena {
 
   constructor() {
     this.raiz.layers.set(1);
-    this.raiz.renderOrder = 998;
+    // A reserva deve continuar visível mesmo sob a prévia local no mesmo espaço.
+    this.raiz.renderOrder = 1001;
     this.raiz.frustumCulled = false;
     this.raiz.geometry.setDrawRange(0, 0);
     this.raiz.visible = false;

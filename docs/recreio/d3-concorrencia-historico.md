@@ -63,7 +63,11 @@ A continuação `c72d5ae2` também passou os seis gates em `43782414101`, acresc
 em um único buffer reutilizado e lista das outras pessoas por casa, além da
 jornada de duas contas pelo convite real, bloqueio, liberação por reconexão,
 compra e restauração. A prova privada com arte completa `43783239739`, executor
-`ad2563459`, está em execução nessa fonte, incluindo as duas contas convidadas.
+`ad2563459`, passou as cinco jornadas nessa fonte, incluindo as duas contas
+convidadas. [Prova numérica](evidencias/obras-compartilhadas-2026-11-15.json).
+A captura mostrou o contorno reservado encoberto pela prévia local exatamente
+na mesma região; a ordem de desenho foi corrigida em candidata posterior,
+ainda exigindo outra captura para comprovar a indicação amarela.
 O prazo restante também marca presença para replicação antes de expirar.
 O histórico abaixo continua pendente.
 O host publicado fixado na matriz de versões passou a `18f52aa`, que contém

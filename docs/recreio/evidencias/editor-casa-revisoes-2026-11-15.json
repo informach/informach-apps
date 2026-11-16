@@ -13,10 +13,7 @@
         "width": 1365,
         "height": 900
       },
-      "posicao": [
-        3.5,
-        5
-      ],
+      "posicao": [3.5, 5],
       "giro": 90,
       "pintura": "#000000",
       "saldo": "M$ 4.905,00",
@@ -28,10 +25,7 @@
         "width": 390,
         "height": 844
       },
-      "posicao": [
-        3.5,
-        5
-      ],
+      "posicao": [3.5, 5],
       "giro": 90,
       "pintura": "#000000",
       "saldo": "M$ 4.905,00",
