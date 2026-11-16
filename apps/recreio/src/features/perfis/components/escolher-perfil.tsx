@@ -1,4 +1,5 @@
 "use client";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useState, useTransition } from "react";
 import { selecionarPerfilAction } from "../actions";
 import { AvatarDoPerfil } from "./avatar";
@@ -10,6 +11,7 @@ export function EscolherPerfil({ perfis, next }: { perfis: PerfilNaLista[]; next
   const [erro, setErro] = useState("");
   const [escolhido, setEscolhido] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
+  const interativo = useHydrated();
 
   function escolher(id: string) {
     setErro("");
@@ -32,7 +34,7 @@ export function EscolherPerfil({ perfis, next }: { perfis: PerfilNaLista[]; next
           <li key={perfil.id}>
             <button
               type="button"
-              disabled={pendente}
+              disabled={!interativo || pendente}
               onClick={() => escolher(perfil.id)}
               className="painel flex w-full items-center gap-4 p-4 text-left transition-colors hover:bg-painel-2 disabled:opacity-60"
             >

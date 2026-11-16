@@ -1,6 +1,7 @@
 "use client";
 import { Input } from "@informach/ui/components/input";
 import { Label } from "@informach/ui/components/label";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useState, useTransition } from "react";
 import { aceitarConviteAction } from "../actions";
 
@@ -13,6 +14,7 @@ export function EntrarComCodigo({ inicial = "" }: { inicial?: string }) {
   const [codigo, setCodigo] = useState(inicial);
   const [erro, setErro] = useState("");
   const [pendente, iniciar] = useTransition();
+  const interativo = useHydrated();
 
   function enviar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -40,6 +42,7 @@ export function EntrarComCodigo({ inicial = "" }: { inicial?: string }) {
         <Input
           id="codigo-do-convite"
           name="codigo"
+          disabled={!interativo || pendente}
           value={codigo}
           onChange={(evento) => setCodigo(evento.target.value)}
           maxLength={32}
@@ -52,7 +55,7 @@ export function EntrarComCodigo({ inicial = "" }: { inicial?: string }) {
         />
       </div>
       <div>
-        <button type="submit" className="rb rb-vazado" disabled={pendente}>
+        <button type="submit" className="rb rb-vazado" disabled={!interativo || pendente}>
           {pendente ? "Entrando…" : "Entrar no mundo"}
         </button>
         <p role="status" className="mt-2 min-h-5 text-sm font-semibold text-coral">

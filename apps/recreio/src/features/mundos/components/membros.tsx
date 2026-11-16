@@ -1,4 +1,5 @@
 "use client";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useId, useRef, useState, useTransition } from "react";
@@ -23,6 +24,7 @@ function Participante({
   confirmar: () => void;
 }) {
   const avisoId = useId();
+  const interativo = useHydrated();
   const detalhes = useRef<HTMLDetailsElement>(null);
   const nome = item.apelido ?? "Participante sem perfil";
   return (
@@ -39,7 +41,7 @@ function Participante({
           emitido depois desta remoção. Uma proposta pendente de responsabilidade para ela será
           cancelada. A assinatura não muda.
         </p>
-        <fieldset disabled={pendente} className="mt-4 flex flex-wrap gap-3">
+        <fieldset disabled={!interativo || pendente} className="mt-4 flex flex-wrap gap-3">
           <legend className="sr-only">Confirmar remoção de {nome}</legend>
           <button
             type="button"

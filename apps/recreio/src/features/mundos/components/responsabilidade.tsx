@@ -1,4 +1,5 @@
 "use client";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import type { ActionResult } from "@/lib/action";
@@ -32,6 +33,7 @@ export function Responsabilidade({
   const [mensagem, informar] = useState("");
   const [login, exigirLogin] = useState(false);
   const [pendente, iniciar] = useTransition();
+  const interativo = useHydrated();
   function executar(operacao: () => Promise<ActionResult<{ estado: keyof typeof mensagens }>>) {
     iniciar(async () => {
       informar("");
@@ -88,7 +90,7 @@ export function Responsabilidade({
                 as permissões. A assinatura e a cota de criação de mundos de cada pessoa continuam
                 como estão.
               </p>
-              <fieldset disabled={pendente} className="mt-4 flex flex-wrap gap-3">
+              <fieldset disabled={!interativo || pendente} className="mt-4 flex flex-wrap gap-3">
                 <legend className="sr-only">Decidir sobre a responsabilidade</legend>
                 <button
                   type="button"
@@ -119,7 +121,7 @@ export function Responsabilidade({
             <button
               type="button"
               className="rb rb-vazado mt-4"
-              disabled={pendente}
+              disabled={!interativo || pendente}
               onClick={() =>
                 executar(() =>
                   responderResponsabilidadeAction(painel.mundo.id, proposta.id, "revoked"),
@@ -152,7 +154,7 @@ export function Responsabilidade({
               Escolha outro adulto participante. A proposta vale 24 horas e só muda a
               responsabilidade depois do aceite. Você continua como membro e poderá sair depois.
             </p>
-            <fieldset disabled={pendente}>
+            <fieldset disabled={!interativo || pendente}>
               <legend className="sr-only">Propor transferência de responsabilidade</legend>
               <label htmlFor={campoId} className="block font-semibold">
                 Quem vai receber a proposta?
@@ -179,7 +181,7 @@ export function Responsabilidade({
         )
       ) : null}
       <p role="status" className="mt-4 text-sm font-semibold">
-        {pendente ? "Conferindo a proposta…" : mensagem}
+        {!interativo ? "Preparando os controles…" : pendente ? "Conferindo a proposta…" : mensagem}
       </p>
       {login ? (
         <a

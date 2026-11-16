@@ -10,6 +10,7 @@ import {
   tela,
   vigia,
 } from "./apoio";
+import { conferirCarregamento } from "./hidratacao-apoio";
 import { envelhecerLogin } from "./responsabilidade-apoio";
 
 test.beforeEach(comecarVigia);
@@ -64,7 +65,12 @@ test("duas contas propõem e aceitam com novo login, preservam o mundo e permite
   ).toBeVisible();
 
   await autenticarNovamente(lia.page, lia, destino);
+  await conferirCarregamento(lia.page, [
+    lia.page.getByLabel("Quem vai receber a proposta?"),
+    lia.page.getByRole("button", { name: "Propor transferência", exact: true }),
+  ]);
   await lia.page.getByLabel("Quem vai receber a proposta?").selectOption({ label: bruno.apelido });
+  await expect(lia.page.getByLabel("Quem vai receber a proposta?")).not.toHaveValue("");
   await lia.page.getByRole("button", { name: "Propor transferência", exact: true }).click();
   await expect(lia.page.getByText(/Proposta enviada\./)).toBeVisible();
   await expect(
@@ -97,6 +103,14 @@ test("duas contas propõem e aceitam com novo login, preservam o mundo e permite
     bruno.page.getByRole("link", { name: "Entrar novamente para confirmar", exact: true }),
   ).toBeVisible();
   await autenticarNovamente(bruno.page, bruno, destino);
+  await conferirCarregamento(bruno.page, [
+    bruno.page.getByRole("button", { name: "Recusar proposta", exact: true, includeHidden: true }),
+    bruno.page.getByRole("button", {
+      name: "Aceitar e assumir responsabilidade",
+      exact: true,
+      includeHidden: true,
+    }),
+  ]);
   await bruno.page.getByText("Avaliar proposta", { exact: true }).click();
   await bruno.page
     .getByRole("button", { name: "Aceitar e assumir responsabilidade", exact: true })
