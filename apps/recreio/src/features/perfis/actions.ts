@@ -2,7 +2,7 @@
 import { ErroDoRecreio } from "@informach/recreio";
 import { atorAtual } from "@/features/sessao/ator";
 import { runAction, verifiedUser } from "@/lib/action";
-import { criarPerfilProprio, selecionarPerfil } from "./service";
+import { criarPerfilProprio, editarPerfilProprio, selecionarPerfil } from "./service";
 
 // As duas ações devolvem o destino, e a tela vai até ele carregando a página
 // inteira: o portal é montado de novo com o perfil escolhido, sem cache do
@@ -35,5 +35,14 @@ export async function selecionarPerfilAction(perfilId: unknown) {
     const ator = await contaAtual();
     await selecionarPerfil(ator, perfilId);
     return { destination: "/estante" };
+  });
+}
+
+/** Só apelido/avatar; o repository revalida a sessão e deriva o perfil da conta. */
+export async function editarPerfilAction(entrada: unknown) {
+  return runAction(async () => {
+    const ator = await contaAtual();
+    await editarPerfilProprio(ator, entrada);
+    return { destination: "/conta" };
   });
 }

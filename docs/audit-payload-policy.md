@@ -96,7 +96,7 @@ Finalidade: investigar mudanças na conta da família e atender suporte. O Basti
 Eventos `recreio.*` registram o que aconteceu com os perfis, com o direito de jogar, com as sessões de jogo e com os mundos no app `recreio`, com payload mínimo de IDs, nomes de campo, classificadores e contagens. O perfil é o que os jogos conhecem de uma pessoa: nunca gravar apelido, avatar, e-mail, IP, nome de aparelho, ingresso, token de sessão, chave, segredo de instância, nome de mundo, código de convite (nem o resumo dele), o texto de participação que o jogo guarda no convite, o resumo do mundo publicado pelo jogo ou qualquer texto livre.
 
 - `recreio.profile_created`: `{ profileId, kind }`, com `kind` igual a `adult` ou `minor`. O ator é a conta que criou o perfil.
-- `recreio.profile_updated`: `{ profileId, fields }`, onde `fields` lista só os nomes dos campos alterados (por exemplo `nickname` e `avatar`), nunca os valores. Ainda não há emissor: entra com a edição do perfil, e a lista de campos é registrada aqui junto com ele.
+- `recreio.profile_updated`: `{ profileId, fields }`, onde `fields` lista somente `nickname` e/ou `avatar`, nunca os valores. A edição do perfil adulto próprio revalida a sessão e grava dados/evento na mesma transação; repetição sem mudança não emite evento. Conflito com outra edição recusa a gravação.
 - `recreio.entitlement_granted`: `{ entitlementId, groupId, targetId, tier, days, reasonCode }`, com `tier` igual a `individual` ou `family`, `days` o número de dias concedidos e `targetId` a conta titular do grupo.
 - `recreio.entitlement_revoked`: `{ entitlementId, groupId, targetId, reasonCode }`.
 

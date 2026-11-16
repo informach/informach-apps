@@ -1,16 +1,23 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
-import { db, eq } from "@informach/db";
-import { recreioGroups as groups, recreioProfiles as profiles, users } from "@informach/db/schema";
+import { and, db, eq, sql } from "@informach/db";
+import {
+  recreioDeviceSessions as deviceSessions,
+  recreioGroups as groups,
+  recreioProfiles as profiles,
+  users,
+} from "@informach/db/schema";
 import {
   type ContaId,
   type GrupoId,
   GrupoIdSchema,
   type PerfilId,
   PerfilIdSchema,
+  type SessaoDeAparelhoId,
 } from "@informach/recreio";
 import { assertAllowed } from "@/lib/errors";
-import type { NovoPerfil } from "./regras";
+import { AGORA } from "@/lib/repository";
+import type { EdicaoDoPerfil, NovoPerfil } from "./regras";
 
 /** O perfil como o portal o conhece. Não leva a conta: o jogo só vê o `id`. */
 export type PerfilDoRecreio = {
@@ -62,6 +69,69 @@ export async function perfisDaConta(contaId: ContaId): Promise<PerfilDoRecreio[]
     .where(eq(profiles.userId, contaId))
     .orderBy(profiles.createdAt, profiles.id);
   return linhas.map(paraPerfil);
+}
+
+/** Perfil → aparelho; os dois permanecem travados até dados e auditoria confirmarem. */
+export async function editarPerfilDaConta(
+  ator: { contaId: ContaId; sessaoDeAparelhoId: SessaoDeAparelhoId },
+  dados: EdicaoDoPerfil,
+): Promise<PerfilDoRecreio> {
+  return db.transaction(async (tx) => {
+    const [perfil] = await tx
+      .select(campos)
+      .from(profiles)
+      .where(and(eq(profiles.userId, ator.contaId), eq(profiles.kind, "adult")))
+      .for("update");
+    assertAllowed(perfil?.status === "active", "PERFIL", "Perfil não disponível.");
+    const [aparelho] = await tx
+      .select({
+        id: deviceSessions.id,
+        activeProfileId: deviceSessions.activeProfileId,
+        revokedAt: deviceSessions.revokedAt,
+      })
+      .from(deviceSessions)
+      .where(
+        and(
+          eq(deviceSessions.id, ator.sessaoDeAparelhoId),
+          eq(deviceSessions.userId, ator.contaId),
+          eq(deviceSessions.kind, "account"),
+        ),
+      )
+      .for("share");
+    assertAllowed(
+      aparelho && aparelho.activeProfileId === perfil.id && aparelho.revokedAt === null,
+      "AUTH",
+      "Entre novamente para continuar.",
+    );
+    // O relógio é consultado depois de adquirir as travas, inclusive após esperar.
+    const [prazo] = await tx
+      .select({ valido: sql<boolean>`${deviceSessions.expiresAt} > ${AGORA}` })
+      .from(deviceSessions)
+      .where(eq(deviceSessions.id, aparelho.id));
+    assertAllowed(prazo?.valido, "AUTH", "Entre novamente para continuar.");
+    const fields: ("nickname" | "avatar")[] = [];
+    if (perfil.nickname !== dados.novo.apelido) fields.push("nickname");
+    if (perfil.avatar !== dados.novo.avatar) fields.push("avatar");
+    if (fields.length === 0) return paraPerfil(perfil);
+    assertAllowed(
+      perfil.nickname === dados.anterior.apelido && perfil.avatar === dados.anterior.avatar,
+      "CONFLITO",
+      "O perfil mudou em outra tela. Volte à conta e abra a edição novamente.",
+    );
+    const [atualizado] = await tx
+      .update(profiles)
+      .set({ nickname: dados.novo.apelido, avatar: dados.novo.avatar, updatedAt: sql`now()` })
+      .where(and(eq(profiles.id, perfil.id), eq(profiles.userId, ator.contaId)))
+      .returning(campos);
+    assertAllowed(atualizado, "PERFIL", "Perfil não disponível.");
+    await logAuditEventStrict(
+      "recreio.profile_updated",
+      ator.contaId,
+      { app: "recreio", profileId: perfil.id, fields },
+      { writer: tx },
+    );
+    return paraPerfil(atualizado);
+  });
 }
 
 /**

@@ -7,8 +7,13 @@ import {
 } from "@informach/recreio";
 import { definirPerfilAtivo } from "@/features/sessao/repository";
 import { AppError } from "@/lib/errors";
-import { NovoPerfilSchema } from "./regras";
-import { criarPerfilDaConta, type PerfilDoRecreio, perfisDaConta } from "./repository";
+import { EdicaoDoPerfilSchema, NovoPerfilSchema } from "./regras";
+import {
+  criarPerfilDaConta,
+  editarPerfilDaConta,
+  type PerfilDoRecreio,
+  perfisDaConta,
+} from "./repository";
 
 export type { PerfilDoRecreio } from "./repository";
 
@@ -27,6 +32,13 @@ export async function criarPerfilProprio(
   entrada: unknown,
 ): Promise<{ perfil: PerfilDoRecreio; criado: boolean }> {
   return criarPerfilDaConta(contaId, NovoPerfilSchema.parse(entrada));
+}
+
+export async function editarPerfilProprio(
+  ator: { contaId: ContaId; sessaoDeAparelhoId: SessaoDeAparelhoId },
+  entrada: unknown,
+): Promise<PerfilDoRecreio> {
+  return editarPerfilDaConta(ator, EdicaoDoPerfilSchema.parse(entrada));
 }
 
 /**
