@@ -1,0 +1,32 @@
+{
+  "codigo": "bfd587a0e30f1937786cd47dea536d6931d97c52",
+  "recreio": {
+    "run": 43857336365,
+    "gatesAprovados": 6,
+    "integracoes": 220,
+    "novasIntegracoes": 19,
+    "jornadas": 8,
+    "casosEmOutrosExecutores": 2,
+    "jornadaNovaSegundos": 21.2
+  },
+  "authEConsumidores": {
+    "run": 43855245767,
+    "fonte": "307740bb7152f6106726fbcf98849b03b56d245b",
+    "tiposAprovados": 14,
+    "diferencaAteCodigo": [
+      "apps/recreio/e2e/jogar.spec.ts",
+      "docs/recreio/saida-de-mundo-2026-11-16.md"
+    ],
+    "codigoDeProducaoIdentico": true
+  },
+  "capturaConfirmacaoInspecionada": true,
+  "limites": {
+    "batimentoJogoDeTesteMs": 10000,
+    "janelaObservacaoE2eMs": 30000,
+    "alteracaoDeSchema": false,
+    "a6Concluido": false,
+    "d3Ativado": false,
+    "vendasLiberadas": false
+  },
+  "implantacaoAindaRequerProva": true
+}

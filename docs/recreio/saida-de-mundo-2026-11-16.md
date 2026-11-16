@@ -47,3 +47,23 @@ sem alterar o produto, o helper global, seletores ou prazos. Ainda falta provar
 a saída na jornada completa. Os catorze tipos passaram em `43855245767` sobre
 `307740bb`; as mudanças posteriores até este ponto são teste de navegador e
 este registro, com código de produção idêntico.
+
+
+## Candidata aprovada para implantação
+
+Código `bfd587a0e30f1937786cd47dea536d6931d97c52`: seis gates
+`43857336365` aprovados. PostgreSQL: 220 testes, dezenove novos. Navegador:
+oito jornadas aprovadas, dois casos reservados aos outros executores. A jornada
+nova levou 21,2 s no total (não é latência de revogação): cancelou a confirmação,
+conservou o jogo, confirmou a saída em outra aba, observou o encerramento pelo
+batimento e continuou somando como responsável. A tentativa posterior do
+convidado de reabrir o mundo foi recusada.
+
+Tela sintética de confirmação inspecionada: consequência, participantes,
+cancelamento e confirmação legíveis. Catorze tipos aprovados em `43855245767`
+sobre `307740bb`; `git diff` até `bfd587a0` confirma somente mudanças no teste
+de navegador e neste documento. O código dos produtores/consumidores é idêntico.
+A implantação ainda precisa de sua prova própria; não modificar contas piloto
+para simulá-la e não anunciar A6 concluído.
+
+[Prova estruturada](evidencias/saida-candidata-2026-11-16.json).

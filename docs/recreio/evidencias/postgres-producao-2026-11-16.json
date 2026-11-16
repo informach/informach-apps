@@ -1,0 +1,39 @@
+{
+  "fonte": "1c51feb19c0e66c585fff07aa889f8c19a7712a0",
+  "gates": {
+    "recreioCandidata": 43844337331,
+    "ciGeralCandidata": 43844337189,
+    "recreioMain": 43853153185,
+    "jobsRecreioPorRodada": 6,
+    "testeRecusaPg16": 1,
+    "integracoesPg18": 201
+  },
+  "portal": {
+    "deployment": "a14a491c-1e67-405e-a81b-a8020ed961a3",
+    "status": "SUCCESS",
+    "fonteRelida": true,
+    "conferidoEm": "2026-11-16T11:02:18.370Z",
+    "health": 200,
+    "ready": 200,
+    "bancoVersao": "18.6 (Debian 18.6-1.pgdg13+2)",
+    "transactionTimeoutDisponivel": true,
+    "configuracaoIdentica": true,
+    "staged": null
+  },
+  "mapasSentryUpload": "2026-11-16T10:57:09.790953526Z",
+  "releasePresente": true,
+  "cron": {
+    "inicio": "2026-11-16T11:10:52.667Z",
+    "fim": "2026-11-16T11:10:52.729Z",
+    "ok": true,
+    "summary": {
+      "possesVencidas": 0,
+      "sessoesExpiradas": 0,
+      "ingressosApagados": 0,
+      "instanciasSumidas": 0
+    }
+  },
+  "bancoRealAlterado": false,
+  "moradaFonte": "179a0a76a5350b1f96464a6fb2df83dbb5d91cad",
+  "d3Ativado": false
+}
