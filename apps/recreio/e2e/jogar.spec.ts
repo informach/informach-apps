@@ -423,3 +423,55 @@ test("um perfil joga em um lugar por vez, e sair da conta encerra o jogo", async
     await expect(segunda).toHaveURL(/\/entrar/);
   });
 });
+
+test("convidado confirma saída em outra aba e o responsável continua jogando", async ({
+  browser,
+}) => {
+  await iniciarServidor();
+  const ana = await novaPessoa(browser, "Ana");
+  const bia = await novaPessoa(browser, "Bia");
+  const mundoId = await criarMundo(ana.page, "Casa compartilhada");
+  const gerar = ana.page.getByRole("button", { name: "Gerar código de convite" });
+  await hidratado(gerar);
+  await gerar.click();
+  const codigo = await ana.page.getByText(/^[0-9A-Z]{5}-[0-9A-Z]{5}$/).textContent();
+  if (!codigo) throw new Error("Convite ausente");
+  const campo = bia.page.getByLabel("Código do convite");
+  await hidratado(campo);
+  await campo.fill(codigo);
+  await bia.page.getByRole("button", { name: "Entrar no mundo" }).click();
+  await expect(bia.page).toHaveURL(new RegExp(`/mundos/${mundoId}$`));
+  await ana.page.goto(enderecoDoJogo(mundoId));
+  await bia.page.goto(enderecoDoJogo(mundoId));
+  const daAna = jogoEm(ana.page);
+  const daBia = jogoEm(bia.page);
+  await expect(daAna.presentes).toContainText("Bia");
+  await expect(daBia.presentes).toContainText("Ana");
+  const gestao = await bia.contexto.newPage();
+  await gestao.goto(`/mundos/${mundoId}`);
+  const abrir = gestao.getByText("Quero sair deste mundo", { exact: true });
+  await hidratado(abrir);
+  await abrir.click();
+  await gestao.getByRole("button", { name: "Cancelar", exact: true }).click();
+  await expect(abrir).toBeFocused();
+  await expect(gestao.getByRole("button", { name: "Confirmar saída", exact: true })).toBeHidden();
+  await daBia.somar.click();
+  await expect(daAna.contador).toHaveText("1");
+  await abrir.click();
+  await tela(gestao, "saida-mundo-confirmacao");
+  await gestao.getByRole("button", { name: "Confirmar saída", exact: true }).click();
+  await expect(gestao).toHaveURL(/\/estante$/);
+  await expect(gestao.getByRole("link", { name: "Jogar em Casa compartilhada" })).toHaveCount(0);
+  // Janela já usada para a saída de conta: o host bate a cada 10 s.
+  await expect(
+    bia.page.getByRole("heading", { name: "Você saiu do jogo", exact: true }),
+  ).toBeVisible({ timeout: 30_000 });
+  await expect(daBia.somar).toHaveCount(0);
+  await expect(daAna.presentes).not.toContainText("Bia");
+  await daAna.somar.click();
+  await expect(daAna.contador).toHaveText("2");
+  await bia.page.goto(enderecoDoJogo(mundoId));
+  await expect(
+    bia.page.getByRole("heading", { name: "Este mundo não está disponível", exact: true }),
+  ).toBeVisible();
+});
