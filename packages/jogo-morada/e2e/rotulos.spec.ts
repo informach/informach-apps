@@ -95,6 +95,11 @@ test("nomes na cena com editor compacto após pintar e reabrir, no computador e 
     const rotulos = await page.evaluate(() => window.__morada?.medidas().rotulos);
     expect(rotulos?.moradores).toBeGreaterThan(0);
     expect(rotulos?.exibidos).toBeGreaterThan(0);
-    await painel.getByRole("button", { name: "Fechar decoração" }).click();
+    await page.getByRole("button", { name: "Decorar", exact: true }).click();
+    await expect(painel).toBeHidden();
+    await expect(page.getByRole("button", { name: "Vista superior", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   }
 });
