@@ -40,3 +40,14 @@ integração. Este registro operacional precisa confirmar na main o gate documen
 e a continuidade dos jobs completos `43935300744` e `43931150504`. O segundo usa
 o grupo antigo e é mantido para não interromper uma implantação protegida do Edi.
 Classificação e formatter não comprovam aprovação dos aplicativos.
+
+O envio documental `6487560`, run `43937517618`, passou na main:
+`alteracao` e `documentos-recreio` aprovados, `ci` ignorado. Depois do resultado,
+às 19:17 UTC, os dois jobs completos `43935300744` e `43931150504` continuavam
+em execução. O Railway ignorou esse envio para o portal (`cedaa6c2`, `SKIPPED`),
+mantendo o build de aplicação `1ed101be` sem reinício documental.
+
+O CI antigo `43931150504` terminou aprovado. A implantação protegida do Edi
+`4467f347-bf05-40dd-843b-d76343d7f8e0`, fonte `1ed101be`, também foi conferida
+em `SUCCESS`. A migração dos grupos preservou essa validação e o gate de deploy;
+nenhuma configuração de `checkSuites` foi desligada para publicar.

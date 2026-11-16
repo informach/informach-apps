@@ -168,6 +168,13 @@ Tom editorial escuro da proposta, com a capa do jogo fazendo o trabalho visual. 
 
 Textos em português do Brasil, simples e diretos, sem prometer o que ainda não existe.
 
+Controles que dependem de JavaScript usam `useHydrated` de
+`@informach/ui/hooks/use-hydrated` para aguardar a interatividade, junto do estado
+pendente da operação. Isso inclui entradas controladas, escolha de perfil,
+convites, gestão de aparelho, saída, remoção e transferência. Os E2E suspendem
+scripts pelo interceptador único da fixture, preservam o IP sintético e conferem
+habilitação após liberar os pedidos; não trocar essa prova por espera fixa.
+
 ## Revisão de 13/11/2026
 
 - A emissão de ingresso limita cada perfil a 20 pedidos por minuto, pelo mesmo armazenamento de limites do app.

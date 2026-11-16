@@ -66,7 +66,9 @@
     },
     "mainGeral": {
       "runId": 43931150504,
-      "estado": "in_progress_no_registro"
+      "estadoNoPrimeiroRegistro": "in_progress",
+      "conclusao": "success",
+      "conferidoEm": "2026-11-16T19:47:48Z"
     },
     "geralDaCandidata": {
       "runId": 43923717777,
