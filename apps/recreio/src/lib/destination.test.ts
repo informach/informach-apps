@@ -14,4 +14,8 @@ describe("destino depois do login", () => {
   it("recusa caminhos longos demais", () => {
     expect(safeDestination(`/${"a".repeat(300)}`)).toBe("/estante");
   });
+  it("parâmetros repetidos ou de outro tipo voltam à estante", () => {
+    for (const value of [["/conta", "/mundos"], [], {}, 1, true, undefined])
+      expect(safeDestination(value)).toBe("/estante");
+  });
 });

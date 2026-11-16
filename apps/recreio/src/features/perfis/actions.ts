@@ -2,6 +2,7 @@
 import { ErroDoRecreio } from "@informach/recreio";
 import { atorAtual } from "@/features/sessao/ator";
 import { runAction, verifiedUser } from "@/lib/action";
+import { safeDestination } from "@/lib/destination";
 import { criarPerfilProprio, editarPerfilProprio, selecionarPerfil } from "./service";
 
 // As duas ações devolvem o destino, e a tela vai até ele carregando a página
@@ -30,11 +31,11 @@ export async function criarPerfilAction(entrada: unknown) {
 }
 
 /** "Quem vai jogar?": o id pedido só vale se estiver na lista que o servidor monta. */
-export async function selecionarPerfilAction(perfilId: unknown) {
+export async function selecionarPerfilAction(perfilId: unknown, next?: unknown) {
   return runAction(async () => {
     const ator = await contaAtual();
     await selecionarPerfil(ator, perfilId);
-    return { destination: "/estante" };
+    return { destination: safeDestination(typeof next === "string" ? next : null) };
   });
 }
 

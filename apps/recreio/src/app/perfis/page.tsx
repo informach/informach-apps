@@ -4,12 +4,20 @@ import { Marca } from "@/components/desenhos";
 import { Sair } from "@/features/account/components/sair";
 import { EscolherPerfil } from "@/features/perfis/components/escolher-perfil";
 import { paginaDaConta } from "@/features/sessao/ator";
+import { safeDestination } from "@/lib/destination";
 
 export const metadata = { title: "Quem vai jogar?" };
 
 /** A lista é a que o servidor monta para a conta; hoje, o perfil dela mesma. */
-export default async function Perfis() {
-  const { user, ator, perfis } = await paginaDaConta("/perfis");
+export default async function Perfis({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const destino = safeDestination((await searchParams).next);
+  const { user, ator, perfis } = await paginaDaConta(
+    destino === "/estante" ? "/perfis" : `/perfis?next=${encodeURIComponent(destino)}`,
+  );
   if (perfis.length === 0) redirect("/comecar");
   return (
     <main id="conteudo" className="mx-auto min-h-dvh w-full max-w-2xl px-4 py-10 sm:px-8">
@@ -24,6 +32,7 @@ export default async function Perfis() {
       </p>
       <div className="mt-8">
         <EscolherPerfil
+          next={destino}
           perfis={perfis.map((perfil) => ({
             id: perfil.id,
             apelido: perfil.apelido,

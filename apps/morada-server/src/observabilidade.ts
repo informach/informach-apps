@@ -47,5 +47,8 @@ export function registrarFalha(erro: unknown, operacao: "rede" | "encerrar" | "i
 }
 
 export async function concluirObservabilidade(): Promise<void> {
-  await Sentry.flush(2000);
+  const cliente = Sentry.getClient();
+  if (!cliente) return;
+  const concluido = await cliente.flush(2000);
+  if (!concluido) throw new Error("O envio da observabilidade não terminou no prazo.");
 }
