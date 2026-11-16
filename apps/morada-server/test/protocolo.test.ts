@@ -315,33 +315,36 @@ describe("sessão de jogo", () => {
     expect(lia.fechamento).toBe(FECHAMENTO.sessao);
   });
 
-  it("quando o Recreio encerra a sessão, o jogador sai no batimento seguinte, sem espera", async () => {
-    const { bancada, instancia, lia, mundoId } = await mundoAberto();
-    const bruno = bancada.jogador("Bruno");
-    bancada.convidar(mundoId, bruno);
-    await bancada.entrar(bruno, mundoId);
-    const doMarcos = bruno.moradorDeNome("Marcos").id;
-    await bruno.comando(doMarcos, { t: "reservar" });
-    await bancada.andar(5, undefined, [lia, bruno]);
+  it.each(["access_lost", "permissions_changed"] as const)(
+    "quando o Recreio encerra por %s, o jogador sai no batimento seguinte, sem espera",
+    async (motivo) => {
+      const { bancada, instancia, lia, mundoId } = await mundoAberto();
+      const bruno = bancada.jogador("Bruno");
+      bancada.convidar(mundoId, bruno);
+      await bancada.entrar(bruno, mundoId);
+      const doMarcos = bruno.moradorDeNome("Marcos").id;
+      await bruno.comando(doMarcos, { t: "reservar" });
+      await bancada.andar(5, undefined, [lia, bruno]);
 
-    // O acesso do Bruno caiu no Recreio (pagamento, revogação, saída da conta).
-    bancada.plataforma.encerrarSessao(bancada.sessaoDe(bruno) as SessaoDeJogoId, "access_lost");
-    await instancia.batimento();
-    expect(bruno.quadros.at(-1)).toEqual({ t: "aviso", codigo: "acesso_encerrado" });
-    expect(bruno.fechamento).toBe(FECHAMENTO.semAcesso);
+      // O fim chega pelo cursor, inclusive quando as permissões foram alteradas.
+      bancada.plataforma.encerrarSessao(bancada.sessaoDe(bruno) as SessaoDeJogoId, motivo);
+      await instancia.batimento();
+      expect(bruno.quadros.at(-1)).toEqual({ t: "aviso", codigo: "acesso_encerrado" });
+      expect(bruno.fechamento).toBe(FECHAMENTO.semAcesso);
 
-    // Sem janela de espera: a reserva dele é liberada já, e a Lia segue.
-    await bancada.andar(2, undefined, [lia]);
-    expect(lia.visao?.presenca.reservas).toEqual([]);
-    expect(lia.visao?.presenca.jogadores).toEqual([
-      { perfilId: lia.jogadorId, apelido: "Lia", estado: "presente" },
-    ]);
-    expect(lia.fechamento).toBeNull();
+      // Sem janela de espera: a reserva dele é liberada já, e a Lia segue.
+      await bancada.andar(2, undefined, [lia]);
+      expect(lia.visao?.presenca.reservas).toEqual([]);
+      expect(lia.visao?.presenca.jogadores).toEqual([
+        { perfilId: lia.jogadorId, apelido: "Lia", estado: "presente" },
+      ]);
+      expect(lia.fechamento).toBeNull();
 
-    // E ele não volta com a sessão encerrada.
-    await bancada.entrar(bruno, mundoId);
-    expect(bruno.fechamento).toBe(FECHAMENTO.semAcesso);
-  });
+      // E ele não volta com a sessão encerrada.
+      await bancada.entrar(bruno, mundoId);
+      expect(bruno.fechamento).toBe(FECHAMENTO.semAcesso);
+    },
+  );
 
   it("sessão encerrada no Recreio enquanto o jogador estava em espera libera a reserva no batimento", async () => {
     const { bancada, instancia, lia, mundoId } = await mundoAberto();

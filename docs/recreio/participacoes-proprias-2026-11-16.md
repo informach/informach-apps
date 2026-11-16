@@ -1,6 +1,6 @@
 # Participações próprias: acesso à saída fora da estante
 
-Em preparação; este incremento não conclui A6. Testes e builds no GitHub.
+Implantado no alfa em `26a2316b`; este incremento não conclui A6. Testes e builds no GitHub. As candidatas abaixo preservam o histórico.
 
 ## Lacuna
 
@@ -74,3 +74,18 @@ navegador. A candidata não contém arte do jogo nessa evidência.
 O conjunto com a migração aditiva 0164 será conferido em outra rodada antes
 da main. A página não habilita a limpeza de convites; o escritor dessa limpeza
 continua separado até a conferência do índice em produção.
+
+## Implantação conferida
+
+Portal `26a2316b`, deployment `7e27ddf6-7f1d-4f60-95d7-00fee4989271`,
+SUCCESS. Fonte relida no processo; rota de participações e ação de saída
+presentes no pacote compilado. Mapas enviados ao Sentry e release presente.
+Configuração idêntica, sem alterações preparadas. Cron posterior às 13:45 UTC
+concluiu com sucesso. As nove prontidões web responderam 200.
+
+O CI geral da main parou na formatação de um JSON de evidência acrescentado
+depois da candidata homologada. A correção usa somente o formatter no arquivo;
+o código de produção não mudou. Não contar essa execução como CI geral aprovado.
+O CI geral do código de banco e os seis gates da candidata conjunta passaram.
+Nenhuma conta piloto foi modificada para a conferência de produção.
+[Prova operacional](evidencias/indice-participacoes-producao-2026-11-16.json).

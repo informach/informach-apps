@@ -79,3 +79,67 @@ passou nos seis gates `43874709358`: 237 integrações, nove jornadas e dois
 casos reservados a outros executores. O código de banco é idêntico a `892f8571`;
 o código do portal é idêntico a `9f9f9e3a`. O escritor de limpeza não faz parte
 dessa entrega e o índice ainda precisa de sua conferência de produção.
+
+## Índice em produção
+
+Fonte `26a2316b`: migrator `894273a8-7cc6-4fa3-95cf-eb02e5f30822`
+SUCCESS, Drizzle concluído às 13:38:58.156 UTC e seeds às 13:39:03.938 UTC.
+Consulta somente de leitura às 13:42:07 UTC confirmou 165 recibos,
+`when=1794830662795` e o índice parcial válido/pronto com `(expires_at,id)`
+e predicado `state <> 'accepted'`. Zero convites; 40.960 bytes com índices.
+Não houve exclusão de convites nessa etapa. Configuração do migrator idêntica,
+sem alterar o flag Compasso. As prontidões dos nove apps web responderam 200.
+O escritor continua em candidata própria e exige nova conferência integrada.
+[Prova operacional](evidencias/indice-participacoes-producao-2026-11-16.json).
+
+## Candidata do escritor, separada da implantação do índice
+
+A rotina acrescenta `convitesApagados` ao resumo do job, depois das quatro
+etapas existentes. Apaga no máximo 500 por instrução, com prazo estável,
+ordenação por vencimento/UUID, SKIP LOCKED e repetição das condições no DELETE.
+A transação limita instrução a 5 s, espera de trava a 1 s e duração a 15 s.
+Erro aborta o lote e mantém a resposta 503 do job; etapas anteriores podem
+ter concluído e continuam idempotentes. Não há auditoria de conteúdo na limpeza;
+o registro operacional do job conserva somente contagens/classificação.
+
+Seis casos novos no PostgreSQL descartável cobrem lote/ordem/prazos, convite
+aceito e membro preservados, código antigo recusado antes/depois, duas execuções
+com 250 linhas travadas, erro real de DELETE e retomada HTTP, e EXPLAIN da
+consulta efetiva com 20 mil convites futuros. EXPLAIN não executa a exclusão.
+A fonte inicial foi homologada abaixo. O conjunto integrado à nova main ainda exige sua rodada remota e não está habilitado em produção.
+Publicá-la somente depois de confirmar o recibo 165 e o índice válido/pronto.
+
+A candidata `79a9504f` passou nos seis gates `43869499608`. Integração:
+229 testes, incluindo os seis casos novos, sem falhas. O plano da consulta
+efetiva usou faixa do índice no volume sintético; o DELETE continuou limitado,
+e a falha real chegou ao HTTP seguida de retomada. A execução não altera o
+banco de produção e não demonstra capacidade do serviço Railway.
+[Evidências das candidatas](evidencias/convites-candidatas-2026-11-16.json).
+
+## Escritor integrado homologado
+
+A fonte `714005f6` passou nos seis gates `43878699384`, com 243 integrações e
+nove jornadas, depois de integrar a main do índice/participações. A primeira
+rodada integrada `ee4d2010` parou na mesma formatação do JSON de recuperação
+que havia falhado na main; a correção não mudou código de produção. O novo
+resumo e a política da etapa final também foram documentados no guia local.
+O índice já foi conferido em produção, conforme a prova acima. A implantação
+do escritor ainda precisa de sua conferência de fonte e cron com a quinta
+contagem. Os demais contratos de A7 continuam abertos.
+
+## Escritor em produção
+
+Fonte `6e640e99`, deployment `0db0c124-d91c-4220-b6f3-d9cc96d489f2`,
+SUCCESS; fonte relida no processo e configuração idêntica, sem alterações
+preparadas. A candidata `43878699384` e a main `43880781779` aprovaram os seis
+gates. Mapas enviados ao Sentry e release presente. A checagem estática da
+nova main passou; o CI geral `43880782077` segue nas integrações, sem falhas
+observadas nesse ponto, depois de tipos e unidades concluídos.
+
+Cron automático de 14:05:09.819–14:05:09.896 UTC concluiu com sucesso e cinco
+contagens, incluindo `convitesApagados=0`. A execução de 14:00 ainda tinha
+quatro contagens e precedeu a conferência da nova fonte; não foi usada como
+prova do escritor. Zero não demonstra capacidade ou ausência global de linhas
+retidas. Não foram criados/apagados convites piloto para produzir a prova.
+Membros, convites aceitos, mundos e auditoria permanecem fora desta limpeza.
+[Prova operacional](evidencias/convites-producao-2026-11-16.json).

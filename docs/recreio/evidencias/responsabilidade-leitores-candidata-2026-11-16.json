@@ -1,0 +1,60 @@
+{
+  "estado": "candidata_sem_escritores",
+  "baseProducao": "6e640e99691592aaee0335374f9b7240ec3fc45f",
+  "fonteDosLeitores": "3b31943b6ce9de7f0b0cb37c170e17a895776a5a",
+  "fonteDaReconciliacao": "9d97fa0c185f85e788fa495aea7b38da93296446",
+  "integracaoLocal": "963328341ab8186702850fac07d209dc95299052",
+  "comparacao": "apps/**/src, packages e .github identicos a fonteDaReconciliacao; somente documentacao posterior de producao foi acrescentada",
+  "gatesRecreio": {
+    "runId": 43896380796,
+    "conclusao": "success",
+    "gates": ["quality", "integration", "e2e", "cliente", "longa", "versoes"],
+    "integracoesPostgres": 259,
+    "novasIntegracoesDeEstrutura": 15,
+    "testesMoradaServer": 156,
+    "novosTestesDeAcesso": 8,
+    "navegadorAprovados": 9,
+    "navegadorIgnoradosEspecificos": 2
+  },
+  "ciGeralDosLeitores": { "runId": 43889414211, "conclusao": "success" },
+  "preflightParaPublicar": {
+    "observadoEm": "2026-11-16T15:56:48.442Z",
+    "fonte": "6e640e99691592aaee0335374f9b7240ec3fc45f",
+    "recibosDeMigracao": 165,
+    "membros": 2,
+    "convites": 0,
+    "partidasAbertas": 0,
+    "autoresDeMembrosInvalidos": 0,
+    "autoresDeConvitesInvalidos": 0,
+    "motivosForaDaListaAnterior": 0,
+    "configuracoesPendentesRailway": false
+  },
+  "inventarioSomenteLeitura": {
+    "observadoEm": "2026-11-16T15:33:37.316Z",
+    "recibosDeMigracao": 165,
+    "membros": 2,
+    "convites": 0,
+    "sessoesDeJogo": 6,
+    "autoresDeMembrosInvalidos": 0,
+    "autoresDeConvitesInvalidos": 0
+  },
+  "migracoes": {
+    "recibosEsperados": 167,
+    "unicidade": {
+      "tag": "0165_mean_blazing_skull",
+      "geracao": 43886570169,
+      "sha256Sql": "743825d491876fbf3bbac0b8fa9a5f79a8d4bc06683a5a1f4cced03ebf932989"
+    },
+    "referenciasEMotivo": {
+      "tag": "0166_silly_lizard",
+      "geracao": 43887205067,
+      "sha256Sql": "8b794cef5c6cd9e85b64069048513efcdc74d62bf087de98a6d5071fa89a6e6a"
+    },
+    "metadadosEditadosManualmente": false
+  },
+  "contratosMantidos": { "mundo": 2, "protocolo": 1, "manifestoDeArte": 3 },
+  "aindaExige": [
+    "migrator e leitores ativos em producao, prontidao e arte D2 conferidas",
+    "escrita e interface de transferencia homologadas em incremento posterior"
+  ]
+}

@@ -13,8 +13,6 @@ import {
   type Intencao,
   listar,
   type Mundo,
-  PERMISSOES_DE_QUEM_DIVIDE,
-  PERMISSOES_DO_FUNDADOR,
   projetarEdicao,
   type RegrasDoMundo,
   restaurar,
@@ -43,6 +41,7 @@ import type {
   EntradaPermitida,
   SessaoVerificada,
 } from "@informach/recreio/host";
+import { reconciliarAcessos } from "./acessos";
 import { conferirCatalogoDisponivel } from "./catalogo-de-aparencias";
 import { type Falhas, QuedaSimulada } from "./falhas";
 import { decodificarFotografia } from "./fotografia";
@@ -402,38 +401,13 @@ export class Ator {
 
   // --- Entrar ---
 
-  /** Dá a quem entra o acesso à família, se ainda não tem. */
+  /** Relê o papel atual sem apagar o direito próprio da fundação. */
   private garantirAcesso(
     jogadorId: string,
     entrada: Pick<EntradaPermitida, "papel" | "participacao">,
-  ): void {
-    const mundo = this.mundo as Mundo;
-    if (mundo.estado.acessos.some((acesso) => acesso.perfilId === jogadorId)) return;
-    const familias = listar(mundo.estado.familias);
-    if (entrada.papel === "steward") {
-      // Quem responde pelo mundo joga todas as famílias dele.
-      for (const familia of familias) {
-        mundo.aplicar({
-          t: "conceder_acesso",
-          perfilId: jogadorId,
-          familiaId: familia.id,
-          permissoes: [...PERMISSOES_DO_FUNDADOR],
-        });
-      }
-      return;
-    }
-    // Quem foi convidado divide a família indicada no convite; sem indicação, a primeira.
-    const indicada = entrada.participacao?.startsWith("familia:")
-      ? entrada.participacao.slice("familia:".length)
-      : null;
-    const familia = familias.find((f) => f.id === indicada) ?? familias[0];
-    if (!familia) return;
-    mundo.aplicar({
-      t: "conceder_acesso",
-      perfilId: jogadorId,
-      familiaId: familia.id,
-      permissoes: [...PERMISSOES_DE_QUEM_DIVIDE],
-    });
+  ): boolean {
+    if (!this.mundo) throw new Error("O mundo ainda não está aberto.");
+    return reconciliarAcessos(this.mundo, jogadorId, entrada);
   }
 
   entrar(ligacao: Ligacao, sessao: SessaoVerificada): Promise<void> {
@@ -483,6 +457,15 @@ export class Ator {
       if (ligacao.fase === "fechada") return;
 
       const jogadorId = entrada.membroId;
+      if (!this.garantirAcesso(jogadorId, entrada)) {
+        this.op.registrar("entrada_recusada", {
+          mundoId: this.mundoId,
+          codigo: "PARTICIPACAO_INVALIDA",
+        });
+        this.despedir(ligacao, FECHAMENTO.semAcesso);
+        this.fecharSeVazio();
+        return;
+      }
       // O mesmo jogador por outra conexão: a nova toma o lugar da antiga.
       for (const [sid, outra] of this.ligacoes) {
         if (outra !== ligacao && (sid === sessao.sid || outra.jogadorId === jogadorId)) {
@@ -492,7 +475,6 @@ export class Ator {
       }
 
       this.atualizarObra();
-      this.garantirAcesso(jogadorId, entrada);
       // O apelido fica na presença do mundo, que é replicada e nunca gravada.
       const apelido = apelidoParaOMundo(entrada.apelido);
       const podeFundarFamilia = entrada.papel === "steward";
@@ -583,8 +565,10 @@ export class Ator {
           const resultado = mundo.aplicar({ t: "intencao", sessaoId: ligacao.sid, intencao });
           if (resultado.ok && intencao.acao.t === "fundar_familia") {
             for (const outra of this.ligacoes.values()) {
-              if (outra.fase !== "fechada" && outra.jogadorId && outra.acesso)
-                this.garantirAcesso(outra.jogadorId, outra.acesso);
+              if (outra.fase !== "fechada" && outra.jogadorId && outra.acesso) {
+                if (!this.garantirAcesso(outra.jogadorId, outra.acesso) && outra.sid)
+                  this.encerrarSessao(outra.sid);
+              }
             }
           }
           // A resposta só sai depois que o passo estiver gravado.

@@ -73,6 +73,7 @@ export const MOTIVOS_DE_SESSAO_ENCERRADA = [
   "access_lost",
   "signed_out",
   "expired",
+  "permissions_changed",
 ] as const;
 export type MotivoDeSessaoEncerrada = (typeof MOTIVOS_DE_SESSAO_ENCERRADA)[number];
 
