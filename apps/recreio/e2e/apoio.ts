@@ -42,6 +42,64 @@ export async function medida(nome: string, dados: Record<string, unknown>): Prom
   await writeFile(path.join(TELAS, `${nome}.json`), `${JSON.stringify(dados, null, 2)}\n`);
 }
 
+declare global {
+  interface Window {
+    quadrosDaCena?: number;
+  }
+}
+
+/** Observa submissões reais de WebGL, sem alterar o desenho ou o agendador. */
+export async function observarDesenho(page: Page): Promise<void> {
+  if (!process.env.RECREIO_E2E_PRIVATE_ARTIFACTS || !process.env.MORADA_ARTE_DIR)
+    throw new Error("A observação da cena exige o executor privado de arte.");
+  await page.addInitScript(() => {
+    window.quadrosDaCena = 0;
+    const original = WebGL2RenderingContext.prototype.fenceSync;
+    WebGL2RenderingContext.prototype.fenceSync = function (condicao, flags) {
+      const resultado = original.call(this, condicao, flags);
+      if (
+        resultado &&
+        this.canvas instanceof HTMLCanvasElement &&
+        this.canvas.classList.contains("morada-tela")
+      )
+        window.quadrosDaCena = (window.quadrosDaCena ?? 0) + 1;
+      return resultado;
+    };
+  });
+}
+
+/** Compara a captura imediata àquela após o HUD participar de dois desenhos. */
+export async function telaComDesenho(page: Page, nome: string): Promise<void> {
+  const antes = await page.evaluate(() => window.quadrosDaCena);
+  if (antes === undefined) throw new Error("Observação WebGL não instalada.");
+  await tela(page, `${nome}-antes-do-quadro`);
+  await expect.poll(() => page.evaluate(() => window.quadrosDaCena)).toBeGreaterThan(antes + 1);
+  await tela(page, nome);
+  await medida(`quadros-${nome}`, {
+    antes,
+    depois: await page.evaluate(() => window.quadrosDaCena ?? 0),
+  });
+}
+
+/** Perfil numérico de CPU só no arquivo privado; não muda prazos ou asserções. */
+export async function perfilarCpu(page: Page, nome: string): Promise<() => Promise<void>> {
+  if (process.env.RECREIO_E2E_PERFIL_CPU !== "1") return async () => {};
+  if (!process.env.RECREIO_E2E_PRIVATE_ARTIFACTS || !process.env.MORADA_ARTE_DIR)
+    throw new Error("O perfil de CPU exige o executor privado de arte.");
+  const sessao = await page.context().newCDPSession(page);
+  await sessao.send("Profiler.enable");
+  await sessao.send("Profiler.setSamplingInterval", { interval: 1000 });
+  await sessao.send("Profiler.start");
+  return async () => {
+    try {
+      const { profile } = await sessao.send("Profiler.stop");
+      await medida(nome, { profile });
+    } finally {
+      await sessao.detach();
+    }
+  };
+}
+
 /** O endereço do servidor de um jogo, como o ambiente da execução o cadastrou no Recreio. */
 export function origemDoJogo(jogo: string): { ws: string; http: string; porta: number } {
   const origens: unknown = JSON.parse(process.env.RECREIO_GAME_ORIGINS ?? "{}");

@@ -17,10 +17,13 @@ import {
   hidratado,
   medida,
   novaPessoa,
+  observarDesenho,
   origemDoJogo,
+  perfilarCpu,
   scriptsDe,
   segredoDoJogo,
   tela,
+  telaComDesenho,
   tolerando,
   vigia,
 } from "./apoio";
@@ -363,152 +366,157 @@ test("duas contas reservam espaço, liberam ao reconectar e conservam uma única
   await iniciarServidor();
   const ana = await novaPessoa(browser, "Ana"),
     bia = await novaPessoa(browser, "Bia");
-  const mundoId = await criarMundo(ana.page, "Morada", "Casa compartilhada");
-  await convidar(ana.page, bia.page, mundoId);
-  await ana.page.goto(enderecoDoJogo(mundoId));
-  await mundoNaTela(jogoEm(ana.page));
-  await bia.page.goto(enderecoDoJogo(mundoId));
-  await mundoNaTela(jogoEm(bia.page));
-  await ana.page.getByRole("button", { name: "Pausar", exact: true }).click();
-  await bia.page.getByRole("button", { name: "Concordar", exact: true }).click();
-  await expect(ana.page.getByRole("button", { name: "Pausar", exact: true })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  for (const pessoa of [ana, bia])
-    await pessoa.page.getByRole("button", { name: "Decorar", exact: true }).click();
-  const daAna = ana.page.getByRole("region", { name: "Decoração da casa" });
-  const daBia = bia.page.getByRole("region", { name: "Decoração da casa" });
-  const quantidadeAntes = Number(
-    (await daBia.getByRole("button", { name: /Na casa/ }).innerText()).match(/\d+/)?.[0],
-  );
-  expect(Number.isInteger(quantidadeAntes)).toBe(true);
-  const mesa = /Mesa lateral.*M\$/;
-  await daAna.getByRole("button", { name: mesa }).click();
-  const posicaoDoConflito = await procurarPosicaoLivre(daAna);
-  await expect(
-    daBia.getByRole("complementary", { name: "Outras pessoas decorando" }),
-  ).toContainText("Ana");
-  await daBia.getByRole("button", { name: mesa }).click();
-  await posicionarPelaInterface(daBia, posicaoDoConflito);
-  await expect(daBia.getByRole("button", { name: /Comprar por M\$/ })).toBeDisabled();
-  await expect(daBia.getByText("Ana está editando este espaço.", { exact: true })).toBeVisible();
-  await bia.page.getByRole("button", { name: "Vista superior", exact: true }).click();
-  await tela(bia.page, "obra-compartilhada-ocupada");
-  await daAna.getByRole("button", { name: "Trocar seleção", exact: false }).click();
-  await expect(daBia.getByRole("button", { name: /Comprar por M\$/ })).toBeEnabled();
-  await expect(
-    daAna.getByRole("complementary", { name: "Outras pessoas decorando" }),
-  ).toContainText("Bia");
-  await bia.page.reload();
-  await mundoNaTela(jogoEm(bia.page));
-  await expect(daAna.getByRole("complementary", { name: "Outras pessoas decorando" })).toHaveCount(
-    0,
-  );
-  // Quem voltou não havia concordado com a pausa; o acordo precisa ser renovado.
-  await bia.page.getByRole("button", { name: "Pausar", exact: true }).click();
-  const concordar = ana.page.getByRole("button", { name: "Concordar", exact: true });
-  await expect(concordar).toBeVisible();
-  const relogio = await ana.page.getByRole("region", { name: "Relógio do jogo" }).boundingBox();
-  const ferramentas = await ana.page
-    .getByRole("navigation", { name: "Ferramentas da cena" })
-    .boundingBox();
-  expect(relogio).not.toBeNull();
-  expect(ferramentas).not.toBeNull();
-  if (!relogio || !ferramentas) throw new Error("Relógio e ferramentas precisam estar na tela");
-  expect(ferramentas.y).toBeGreaterThanOrEqual(relogio.y + relogio.height);
-  await ana.page.getByRole("button", { name: "Concordar", exact: true }).click();
-  await expect(bia.page.getByRole("button", { name: "Pausar", exact: true })).toHaveAttribute(
-    "aria-pressed",
-    "true",
-  );
-  await bia.page.getByRole("button", { name: "Decorar", exact: true }).click();
-  await daBia.getByRole("button", { name: mesa }).click();
-  const posicao = await procurarPosicaoLivre(daBia);
-  const saldo = await daBia.locator(".morada-edicao-saldo b").innerText();
-  await daBia.getByRole("button", { name: /Comprar por M\$/ }).click();
-  await expect(daBia.getByText("Edição confirmada.", { exact: true })).toBeVisible();
-  const saldoDepois = await daBia.locator(".morada-edicao-saldo b").innerText();
-  const centavos = (texto: string) => Number(texto.replace(/[^\d]/g, ""));
-  expect(centavos(saldo) - centavos(saldoDepois)).toBe(9_500);
-  await expect(daAna.locator(".morada-edicao-saldo b")).toHaveText(saldoDepois);
-  await expect(daAna.getByRole("button", { name: "Desfazer", exact: true })).toBeDisabled();
-  await jogoEm(bia.page).sair.click();
-  await expect(bia.page).toHaveURL(/\/estante/);
-  await jogoEm(ana.page).sair.click();
-  await expect(ana.page).toHaveURL(/\/estante/);
-  expect(await pararServidor()).toBe(true);
-  await iniciarServidor();
-  await bia.page.goto(enderecoDoJogo(mundoId));
-  await mundoNaTela(jogoEm(bia.page));
-  await bia.page.getByRole("button", { name: "Decorar", exact: true }).click();
-  await expect(daBia.locator(".morada-edicao-saldo b")).toHaveText(saldoDepois);
-  await daBia.getByRole("button", { name: /Na casa/ }).click();
-  await expect(daBia.getByRole("button", { name: /Na casa/ })).toContainText(
-    String(quantidadeAntes + 1),
-  );
-  await daBia
-    .getByRole("button", { name: /Mesa lateral redonda Peça \d+$/ })
-    .last()
-    .click();
-  await expect(daBia.getByLabel("Largura (m)", { exact: true })).toHaveValue(String(posicao[0]));
-  await expect(daBia.getByLabel("Profundidade (m)", { exact: true })).toHaveValue(
-    String(posicao[1]),
-  );
-  await daBia.getByRole("button", { name: "Desfazer", exact: true }).click();
-  await expect(
-    daBia.getByRole("button", { name: "Confirmar desfazer", exact: true }),
-  ).toBeDisabled();
-  await daBia.getByRole("checkbox", { name: "Conferi a mudança e o valor", exact: true }).check();
-  await daBia.getByRole("button", { name: "Confirmar desfazer", exact: true }).click();
-  await expect(daBia.getByText("Edição confirmada.", { exact: true })).toBeVisible();
-  await expect(daBia.locator(".morada-edicao-saldo b")).toHaveText(saldo);
-  await expect(daBia.getByRole("button", { name: /Na casa/ })).toContainText(
-    String(quantidadeAntes),
-  );
-  await daBia.getByRole("button", { name: "Refazer", exact: true }).click();
-  await daBia.getByRole("checkbox", { name: "Conferi a mudança e o valor", exact: true }).check();
-  await daBia.getByRole("button", { name: "Confirmar refazer", exact: true }).click();
-  await expect(daBia.getByText("Edição confirmada.", { exact: true })).toBeVisible();
-  await expect(daBia.locator(".morada-edicao-saldo b")).toHaveText(saldoDepois);
-  await expect(daBia.getByRole("button", { name: /Na casa/ })).toContainText(
-    String(quantidadeAntes + 1),
-  );
-  await jogoEm(bia.page).sair.click();
-  await expect(bia.page).toHaveURL(/\/estante/);
-  expect(await pararServidor()).toBe(true);
-  await iniciarServidor();
-  await bia.page.goto(enderecoDoJogo(mundoId));
-  await mundoNaTela(jogoEm(bia.page));
-  await bia.page.getByRole("button", { name: "Decorar", exact: true }).click();
-  await expect(daBia.locator(".morada-edicao-saldo b")).toHaveText(saldoDepois);
-  await expect(daBia.getByRole("button", { name: "Desfazer", exact: true })).toBeEnabled();
-  await expect(daBia.getByRole("button", { name: "Refazer", exact: true })).toBeDisabled();
-  await daBia.getByRole("button", { name: /Na casa/ }).click();
-  await daBia
-    .getByRole("button", { name: /Mesa lateral redonda Peça \d+$/ })
-    .last()
-    .click();
-  await expect(daBia.getByLabel("Largura (m)", { exact: true })).toHaveValue(String(posicao[0]));
-  await expect(daBia.getByLabel("Profundidade (m)", { exact: true })).toHaveValue(
-    String(posicao[1]),
-  );
-  await medida("obra-compartilhada", {
-    contas: 2,
-    convitePeloPortal: true,
-    conflitoVisivel: true,
-    reconexaoLiberou: true,
-    compraUnica: true,
-    restaurou: true,
-    historicoSomenteDoAutor: true,
-    desfazerCompra: true,
-    refazerCompra: true,
-    historicoRestaurado: true,
-    posicaoDoConflito,
-    posicao,
-    saldoAntes: saldo,
-    saldoDepois,
-  });
+  const concluirPerfil = await perfilarCpu(bia.page, "cpu-bia-concorrencia");
+  try {
+    const mundoId = await criarMundo(ana.page, "Morada", "Casa compartilhada");
+    await convidar(ana.page, bia.page, mundoId);
+    await ana.page.goto(enderecoDoJogo(mundoId));
+    await mundoNaTela(jogoEm(ana.page));
+    await bia.page.goto(enderecoDoJogo(mundoId));
+    await mundoNaTela(jogoEm(bia.page));
+    await ana.page.getByRole("button", { name: "Pausar", exact: true }).click();
+    await bia.page.getByRole("button", { name: "Concordar", exact: true }).click();
+    await expect(ana.page.getByRole("button", { name: "Pausar", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    for (const pessoa of [ana, bia])
+      await pessoa.page.getByRole("button", { name: "Decorar", exact: true }).click();
+    const daAna = ana.page.getByRole("region", { name: "Decoração da casa" });
+    const daBia = bia.page.getByRole("region", { name: "Decoração da casa" });
+    const quantidadeAntes = Number(
+      (await daBia.getByRole("button", { name: /Na casa/ }).innerText()).match(/\d+/)?.[0],
+    );
+    expect(Number.isInteger(quantidadeAntes)).toBe(true);
+    const mesa = /Mesa lateral.*M\$/;
+    await daAna.getByRole("button", { name: mesa }).click();
+    const posicaoDoConflito = await procurarPosicaoLivre(daAna);
+    await expect(
+      daBia.getByRole("complementary", { name: "Outras pessoas decorando" }),
+    ).toContainText("Ana");
+    await daBia.getByRole("button", { name: mesa }).click();
+    await posicionarPelaInterface(daBia, posicaoDoConflito);
+    await expect(daBia.getByRole("button", { name: /Comprar por M\$/ })).toBeDisabled();
+    await expect(daBia.getByText("Ana está editando este espaço.", { exact: true })).toBeVisible();
+    await bia.page.getByRole("button", { name: "Vista superior", exact: true }).click();
+    await tela(bia.page, "obra-compartilhada-ocupada");
+    await daAna.getByRole("button", { name: "Trocar seleção", exact: false }).click();
+    await expect(daBia.getByRole("button", { name: /Comprar por M\$/ })).toBeEnabled();
+    await expect(
+      daAna.getByRole("complementary", { name: "Outras pessoas decorando" }),
+    ).toContainText("Bia");
+    await bia.page.reload();
+    await mundoNaTela(jogoEm(bia.page));
+    await expect(
+      daAna.getByRole("complementary", { name: "Outras pessoas decorando" }),
+    ).toHaveCount(0);
+    // Quem voltou não havia concordado com a pausa; o acordo precisa ser renovado.
+    await bia.page.getByRole("button", { name: "Pausar", exact: true }).click();
+    const concordar = ana.page.getByRole("button", { name: "Concordar", exact: true });
+    await expect(concordar).toBeVisible();
+    const relogio = await ana.page.getByRole("region", { name: "Relógio do jogo" }).boundingBox();
+    const ferramentas = await ana.page
+      .getByRole("navigation", { name: "Ferramentas da cena" })
+      .boundingBox();
+    expect(relogio).not.toBeNull();
+    expect(ferramentas).not.toBeNull();
+    if (!relogio || !ferramentas) throw new Error("Relógio e ferramentas precisam estar na tela");
+    expect(ferramentas.y).toBeGreaterThanOrEqual(relogio.y + relogio.height);
+    await ana.page.getByRole("button", { name: "Concordar", exact: true }).click();
+    await expect(bia.page.getByRole("button", { name: "Pausar", exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    await bia.page.getByRole("button", { name: "Decorar", exact: true }).click();
+    await daBia.getByRole("button", { name: mesa }).click();
+    const posicao = await procurarPosicaoLivre(daBia);
+    const saldo = await daBia.locator(".morada-edicao-saldo b").innerText();
+    await daBia.getByRole("button", { name: /Comprar por M\$/ }).click();
+    await expect(daBia.getByText("Edição confirmada.", { exact: true })).toBeVisible();
+    const saldoDepois = await daBia.locator(".morada-edicao-saldo b").innerText();
+    const centavos = (texto: string) => Number(texto.replace(/[^\d]/g, ""));
+    expect(centavos(saldo) - centavos(saldoDepois)).toBe(9_500);
+    await expect(daAna.locator(".morada-edicao-saldo b")).toHaveText(saldoDepois);
+    await expect(daAna.getByRole("button", { name: "Desfazer", exact: true })).toBeDisabled();
+    await jogoEm(bia.page).sair.click();
+    await expect(bia.page).toHaveURL(/\/estante/);
+    await jogoEm(ana.page).sair.click();
+    await expect(ana.page).toHaveURL(/\/estante/);
+    expect(await pararServidor()).toBe(true);
+    await iniciarServidor();
+    await bia.page.goto(enderecoDoJogo(mundoId));
+    await mundoNaTela(jogoEm(bia.page));
+    await bia.page.getByRole("button", { name: "Decorar", exact: true }).click();
+    await expect(daBia.locator(".morada-edicao-saldo b")).toHaveText(saldoDepois);
+    await daBia.getByRole("button", { name: /Na casa/ }).click();
+    await expect(daBia.getByRole("button", { name: /Na casa/ })).toContainText(
+      String(quantidadeAntes + 1),
+    );
+    await daBia
+      .getByRole("button", { name: /Mesa lateral redonda Peça \d+$/ })
+      .last()
+      .click();
+    await expect(daBia.getByLabel("Largura (m)", { exact: true })).toHaveValue(String(posicao[0]));
+    await expect(daBia.getByLabel("Profundidade (m)", { exact: true })).toHaveValue(
+      String(posicao[1]),
+    );
+    await daBia.getByRole("button", { name: "Desfazer", exact: true }).click();
+    await expect(
+      daBia.getByRole("button", { name: "Confirmar desfazer", exact: true }),
+    ).toBeDisabled();
+    await daBia.getByRole("checkbox", { name: "Conferi a mudança e o valor", exact: true }).check();
+    await daBia.getByRole("button", { name: "Confirmar desfazer", exact: true }).click();
+    await expect(daBia.getByText("Edição confirmada.", { exact: true })).toBeVisible();
+    await expect(daBia.locator(".morada-edicao-saldo b")).toHaveText(saldo);
+    await expect(daBia.getByRole("button", { name: /Na casa/ })).toContainText(
+      String(quantidadeAntes),
+    );
+    await daBia.getByRole("button", { name: "Refazer", exact: true }).click();
+    await daBia.getByRole("checkbox", { name: "Conferi a mudança e o valor", exact: true }).check();
+    await daBia.getByRole("button", { name: "Confirmar refazer", exact: true }).click();
+    await expect(daBia.getByText("Edição confirmada.", { exact: true })).toBeVisible();
+    await expect(daBia.locator(".morada-edicao-saldo b")).toHaveText(saldoDepois);
+    await expect(daBia.getByRole("button", { name: /Na casa/ })).toContainText(
+      String(quantidadeAntes + 1),
+    );
+    await jogoEm(bia.page).sair.click();
+    await expect(bia.page).toHaveURL(/\/estante/);
+    expect(await pararServidor()).toBe(true);
+    await iniciarServidor();
+    await bia.page.goto(enderecoDoJogo(mundoId));
+    await mundoNaTela(jogoEm(bia.page));
+    await bia.page.getByRole("button", { name: "Decorar", exact: true }).click();
+    await expect(daBia.locator(".morada-edicao-saldo b")).toHaveText(saldoDepois);
+    await expect(daBia.getByRole("button", { name: "Desfazer", exact: true })).toBeEnabled();
+    await expect(daBia.getByRole("button", { name: "Refazer", exact: true })).toBeDisabled();
+    await daBia.getByRole("button", { name: /Na casa/ }).click();
+    await daBia
+      .getByRole("button", { name: /Mesa lateral redonda Peça \d+$/ })
+      .last()
+      .click();
+    await expect(daBia.getByLabel("Largura (m)", { exact: true })).toHaveValue(String(posicao[0]));
+    await expect(daBia.getByLabel("Profundidade (m)", { exact: true })).toHaveValue(
+      String(posicao[1]),
+    );
+    await medida("obra-compartilhada", {
+      contas: 2,
+      convitePeloPortal: true,
+      conflitoVisivel: true,
+      reconexaoLiberou: true,
+      compraUnica: true,
+      restaurou: true,
+      historicoSomenteDoAutor: true,
+      desfazerCompra: true,
+      refazerCompra: true,
+      historicoRestaurado: true,
+      posicaoDoConflito,
+      posicao,
+      saldoAntes: saldo,
+      saldoDepois,
+    });
+  } finally {
+    await concluirPerfil();
+  }
 });
 
 for (const aparelho of [
@@ -526,6 +534,7 @@ for (const aparelho of [
     test.setTimeout(600_000);
     await iniciarServidor();
     const pessoa = await novaPessoa(browser, "Decoradora");
+    await observarDesenho(pessoa.page);
     await pessoa.page.setViewportSize(aparelho.viewport);
     const mundoId = await criarMundo(pessoa.page, "Morada", "Casa das cores");
     await pessoa.page.goto(enderecoDoJogo(mundoId));
@@ -549,7 +558,7 @@ for (const aparelho of [
     ).toHaveAttribute("aria-pressed", "false");
     await pessoa.page.getByRole("button", { name: "Vista superior", exact: true }).click();
     await painel.getByRole("button", { name: "Ver prévia na casa" }).click();
-    await tela(pessoa.page, `decoracao-${aparelho.nome}-previa-azul`);
+    await telaComDesenho(pessoa.page, `decoracao-${aparelho.nome}-previa-azul`);
     await comprar.click();
     await expect(painel.getByText("Edição confirmada.", { exact: true })).toBeVisible();
     const saldo = await painel.locator(".morada-edicao-saldo b").innerText();
@@ -591,7 +600,7 @@ for (const aparelho of [
     ).toHaveAttribute("aria-pressed", "false");
     await pessoa.page.getByRole("button", { name: "Vista superior", exact: true }).click();
     await painel.getByRole("button", { name: "Ver prévia na casa" }).click();
-    await tela(pessoa.page, `decoracao-${aparelho.nome}-restaurada-preto`);
+    await telaComDesenho(pessoa.page, `decoracao-${aparelho.nome}-restaurada-preto`);
     await medida(`decoracao-${aparelho.nome}-restaurada`, {
       aparelho: aparelho.nome,
       viewport: aparelho.viewport,
