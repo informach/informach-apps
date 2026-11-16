@@ -130,8 +130,8 @@ export class AtivosDeArte implements Ativos {
   private readonly materiais = new Map<string, MeshLambertMaterial>();
   private readonly cenasDosVaos = new Map<string, Object3D>();
   private readonly pedidosDoAmbiente = new Set<string>();
-  private readonly ouvintes = new Set<() => void>();
-  private notificacaoPendente = false;
+  private readonly ouvintes = new Set<(tipo: "ambiente" | "morador") => void>();
+  private notificacaoPendente: "ambiente" | "morador" | null = null;
 
   constructor(private readonly opcoes: OpcoesDaArte) {
     this.buscar = opcoes.fetch ?? ((entrada, init) => fetch(entrada, init));
@@ -153,17 +153,22 @@ export class AtivosDeArte implements Ativos {
     return this.procedurais.apoio(objeto, ponto, postura);
   }
 
-  aoMudar(ouvinte: () => void): () => void {
+  aoMudar(ouvinte: (tipo: "ambiente" | "morador") => void): () => void {
     this.ouvintes.add(ouvinte);
     return () => this.ouvintes.delete(ouvinte);
   }
 
-  private avisar(): void {
-    if (this.notificacaoPendente || this.descartado) return;
-    this.notificacaoPendente = true;
+  private avisar(tipo: "ambiente" | "morador" = "ambiente"): void {
+    if (this.descartado) return;
+    if (this.notificacaoPendente) {
+      if (tipo === "ambiente") this.notificacaoPendente = tipo;
+      return;
+    }
+    this.notificacaoPendente = tipo;
     queueMicrotask(() => {
-      this.notificacaoPendente = false;
-      if (!this.descartado) for (const ouvinte of this.ouvintes) ouvinte();
+      const motivo = this.notificacaoPendente;
+      this.notificacaoPendente = null;
+      if (!this.descartado && motivo) for (const ouvinte of this.ouvintes) ouvinte(motivo);
     });
   }
 
@@ -304,6 +309,7 @@ export class AtivosDeArte implements Ativos {
           uso.pacote.mascarasDeCor ?? new Map(),
         ),
       );
+      this.avisar("morador");
     } catch (erro) {
       uso?.liberar();
       visual.falhar();

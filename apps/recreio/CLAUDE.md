@@ -135,7 +135,12 @@ Mudou a regra, mude o teste e este texto.
 
 ## O que ainda não existe
 
-PIN e aparelho pareado, perfis sem login criados pelo titular, edição do perfil, cobrança (Stripe) e webhooks, serviço e agendador no Railway e tela no Bastidores (os eventos `recreio.*` aparecem lá sem frase própria). Nos mundos: convite de visita, convite por membro com aprovação, coadministradores, sair de um mundo, remover membro, arquivar e a sucessão do responsável. No armazenamento: bucket. A exclusão de conta fica desligada (`accountDeletion: { enabled: false }`) até existirem as regras de sucessão do mundo.
+PIN e aparelho pareado, perfis sem login criados pelo titular, edição do perfil, cobrança (Stripe) e webhooks. Nos mundos: convite de visita, convite por membro com aprovação, coadministradores, sair de um mundo, remover membro, arquivar e a sucessão do responsável. No armazenamento: bucket. A exclusão de conta fica desligada (`accountDeletion: { enabled: false }`) até existirem as regras de sucessão do mundo.
+
+Serviços e cron já estão implantados no Railway no alfa fechado. O Bastidores
+tem cadastro/resumo do produto, sondas e frases dos eventos `recreio.*`, sem
+conteúdo das famílias. Isso não conclui moderação ou operação comercial;
+estado e fontes em [PRODUCAO.md](PRODUCAO.md).
 
 Não adiante nada disso fora do lote correspondente do registro da frente.
 

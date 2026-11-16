@@ -184,6 +184,19 @@ function malhaDoCorpo(visual: VisualDoMorador): SkinnedMesh {
 }
 
 describe("ativos de arte", () => {
+  it("chegada de corpo avisa para preparar materiais sem pedir reconstrução do ambiente", async () => {
+    const { ativos, liberar } = montar();
+    const avisos: ("ambiente" | "morador")[] = [];
+    const parar = ativos.aoMudar((tipo) => avisos.push(tipo));
+    const visual = criar(ativos);
+    expect(avisos).toEqual([]);
+    await liberar();
+    expect(vestido(visual)).toBe(true);
+    expect(avisos).toEqual(["morador"]);
+    parar();
+    visual.dispose();
+    ativos.dispose();
+  });
   it("conserva a medida da prévia entre quadros e refaz ao mudar a postura", async () => {
     const { ativos, liberar } = montar();
     const visual = criar(ativos);

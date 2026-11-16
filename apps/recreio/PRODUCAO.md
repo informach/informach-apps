@@ -1,6 +1,6 @@
 # Recreio e Morada: operação do alfa fechado
 
-Atualizado em 15/11/2026, 21h01 UTC. **Portal e Morada no alfa fechado com editor e coleção inicial D2**, fonte `7c81a68f`. Portal `59c3b020-8a77-4185-98f8-cb6d5db7c605` e Morada `c69f1531-85a3-4b89-9c3c-8feb0aae54f6`: deployments aprovados, fonte conferida e saúde/prontidão públicas 200. Seis gates `43753775951` e repetição na main `43754919539` aprovados. Chave das ações conservada; upload dos mapas confirmado no Sentry, segredos preservados na IaC e import do wrapper atualizado. `RECREIO-4` corrigido na release `8559f4ab`, com detecção de regressões. No marco `36606409`, a execução privada `43745943221` aprovou 48 prévias/criação personalizada e cinco jornadas gerais com arte; o titular confirmou salvar/reabrir conservando as escolhas. As duas contas piloto têm cortesia até 15/12; jogo conjunto humano ainda sem prova. O núcleo Mundo V3/editor de móveis segue apenas em candidata, sem implantação.
+Atualizado em 16/11/2026. **Portal e Morada no alfa fechado com editor e coleção inicial D2**: portal `7c81a68f`, Morada `22a3db6`. Portal `59c3b020-8a77-4185-98f8-cb6d5db7c605` e Morada `1c9e32b6-7bfb-4d7c-ba80-496797345b3b`: deployments aprovados, fonte conferida e saúde/prontidão públicas 200. Portal: seis gates `43753775951` e repetição main `43754919539` aprovados. Morada: candidata `43787487430` e repetição main `43788455104` aprovadas; [reconexão](../../docs/recreio/reconexao-2026-11-15.md) e [logs](../../docs/recreio/telemetria-falhas.md) corrigidos sem alterar Mundo V2/protocolo 1. Chave das ações conservada; upload dos mapas confirmado no Sentry, segredos preservados na IaC e import do wrapper atualizado. `RECREIO-4` corrigido na release `8559f4ab`, com detecção de regressões. No marco `36606409`, a execução privada `43745943221` aprovou 48 prévias/criação personalizada e cinco jornadas gerais com arte; o titular confirmou salvar/reabrir conservando as escolhas. As duas contas piloto têm cortesia até 15/12; jogo conjunto humano ainda sem prova. O núcleo Mundo V3/editor de móveis segue apenas em candidata, sem implantação.
 
 Manutenção implantada; três execuções consecutivas aprovadas conferidas em `ops.job_runs` às 10:35/10:40/10:45 UTC. Bastidores com ambas as sondagens internas `up` na consulta de 10:45. Entrega sanitizada ao Sentry e recebimento humano dos avisos de teste confirmados. Sondagens Sentry de 60 s continuam **desativadas por orçamento**, sem ampliação nem alteração de monitores alheios. A [sonda GitHub](../../docs/recreio/monitoramento-externo.md) funciona manualmente, mas não apresentou disparo agendado na janela observada. [Cron Cloudflare](../../docs/recreio/sonda-cloudflare.md) com duas execuções automáticas aprovadas às 14h25/14h30 UTC, ingestão conferida e flag de prova desligada. Regra específica Sentry 6349336 para falhas externas, e-mail e intervalo de 30 min, independente da prioridade automática; ainda sem falha real provocada em produção.
 
@@ -12,15 +12,18 @@ Stripe continua sem configuração; os preços `price_TODO_recreio_*` não permi
 
 Primeira [medição de custo](../../docs/recreio/custo-alfa-2026-11-15.md): US$ 0,01013593 de uso atribuído pelo Railway aos dois serviços às 12:25 UTC, em amostra praticamente ociosa. Banco/Redis/monitoração compartilhados ainda sem rateio; não comprova custo por jogador ou hora de mundo.
 
-Evolução D3 fora da produção: `499c44e8`, seis gates `43786020293` aprovados,
-com editor/pintura, transição de protocolo, revisões persistidas, travas,
-chegada e nomes. A base `c72d5ae2` passou cinco jornadas privadas em
-`43783239739`: duas contas, conflito/reconexão, compra/restauração,
-computador/celular e 48 prévias. Os nomes e o contorno reservado corrigidos
-aguardam novas capturas privadas. Histórico e construção estrutural pendentes.
-Não trocar a fonte/pasta antes da homologação do conjunto. O titular confirmou
-que a [licença de compra permite o uso comercial](../../docs/recreio/licenciamento-arte.md).
-[Plano e limites do D3](../../docs/recreio/d3-construcao-compras.md).
+Evolução D3 fora da produção: `2696bcbe`, seis gates `43798359814` aprovados.
+Editor/pintura, transição de protocolo, revisões e travas integrados. Histórico
+próprio com prévia e confirmação explícita, deltas da origem, revalidação do
+servidor, queda antes/depois do diário e retomada pela interface cobertos.
+JavaScript dentro do teto: 1.246.670 bytes/344.650 gzip. A prova privada `43799128058` falhou no clique da pausa durante a chegada da arte;
+três jornadas passaram e criação não executou. Resposta durante o carregamento
+e nomes da borda em homologação ([registro](../../docs/recreio/carregamento-grafico-2026-11-16.md)).
+Construção estrutural e casas/orçamento continuam pendentes. Não trocar a
+fonte/pasta antes da homologação do conjunto. A [licença de compra permite o
+uso comercial](../../docs/recreio/licenciamento-arte.md).
+[Plano e limites do D3](../../docs/recreio/d3-construcao-compras.md) e
+[provas do histórico](../../docs/recreio/d3-concorrencia-historico.md).
 
 ## Serviços implantados e arte preparada
 

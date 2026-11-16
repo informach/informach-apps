@@ -192,6 +192,9 @@ export class MoradoresDaCena {
       new SpriteMaterial({ depthTest: false, transparent: true, sizeAttenuation: false }),
     );
     rotulo.renderOrder = 10;
+    // O organizador já faz o recorte pelo corpo e pelo retângulo da placa.
+    // O recorte padrão do Sprite ignora o deslocamento aplicado em center.
+    rotulo.frustumCulled = false;
     // Tamanho fixo na tela, qualquer que seja a distância da câmera.
     rotulo.scale.set(0.1032, 0.0215, 1);
 

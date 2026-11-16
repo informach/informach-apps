@@ -2,15 +2,19 @@
 
 Registro detalhado da frente. O índice de continuidade é o [estado do repositório](../estado-do-repositorio.md); as regras permanentes ficam no [AGENTS.md](../../AGENTS.md).
 
-Estado vigente em 15/11/2026: portal/Morada em `7c81a68f`, alfa fechado D2, seis gates e repetição main aprovados; [versões do portal e mapas Sentry](versoes-do-portal.md) conferidos. Editor/coleção D2 têm prova privada e salvamento/retorno humano; escolha de casa/orçamento continua pendente. D3 está **somente em candidata**, com os marcos abaixo e [plano atual](d3-construcao-compras.md). Backup lógico real restaurado em destino isolado, avisos recebidos e agenda externa comprovada; custo acumulado exclusivo medido, sem custo por hora ativa. O titular confirmou a permissão comercial pela [licença de compra](licenciamento-arte.md). D2–D8, proteção familiar, retenção/capacidade, backup agendado e demais homologações comerciais continuam em implementação. Ver [execução atual](execucao-2026-11-15.md) e [operação](../../apps/recreio/PRODUCAO.md). As seções datadas abaixo preservam a história dos marcos anteriores.
+Estado vigente em 16/11/2026: portal em `7c81a68f` e Morada em `22a3db6`, alfa fechado D2. Reconexão e logs corrigidos em produção, com seis gates e repetição main aprovados ([operação](telemetria-falhas.md)); [versões do portal e mapas Sentry](versoes-do-portal.md) conferidos. Editor/coleção D2 têm prova privada e salvamento/retorno humano; escolha de casa/orçamento continua pendente. D3 está **somente em candidata**, com os marcos abaixo e [plano atual](d3-construcao-compras.md). Backup lógico real restaurado em destino isolado, avisos recebidos e agenda externa comprovada; custo acumulado exclusivo medido, sem custo por hora ativa. O titular confirmou a permissão comercial pela [licença de compra](licenciamento-arte.md). D2–D8, proteção familiar, retenção/capacidade, backup agendado e demais homologações comerciais continuam em implementação. Ver [execução atual](execucao-2026-11-15.md) e [operação](../../apps/recreio/PRODUCAO.md). As seções datadas abaixo preservam a história dos marcos anteriores.
 
-Evolução candidata: `8a61f250`, seis gates `43775860241` aprovados, com editor,
-pintura, transição de protocolo, relógio persistido de revisões e registro puro
-de travas. Oito móveis preservam a arte original, e a prova privada `43774027587`
-aprovou quatro jornadas com arte real, incluindo celular e servidor publicado.
-A repetição da base com revisões persistidas está em execução. Derivação do
-alvo, integração de travas e histórico seguem em curso; sem alteração da produção
-D2 ou conclusão do D3. [Detalhes](d3-construcao-compras.md).
+Evolução candidata: `2696bcbe`, seis gates `43798359814` aprovados. Editor,
+pintura, transição de protocolo, revisões, travas do host e histórico próprio
+integrados. Desfazer/refazer por confirmação real na interface, recuperação
+após nova parada/retomada, isolamento dos quadros individuais e quedas
+antes/depois do diário cobertos. JavaScript em 1.246.670 bytes/344.650 gzip,
+sem aumentar o teto. A prova privada `43799128058` falhou no clique de pausa durante a chegada da arte;
+três jornadas passaram e a de criação não executou. Nomes da borda e resposta
+durante o carregamento continuam em homologação ([registro](carregamento-grafico-2026-11-16.md)).
+Construção estrutural e casa/orçamento continuam pendentes; D3 não concluído.
+[Plano e limites](d3-construcao-compras.md), [histórico](d3-concorrencia-historico.md)
+e [retenção técnica ainda aberta](retencao-tecnica-2026-11-16.md).
 
 ## De onde vem o escopo
 
