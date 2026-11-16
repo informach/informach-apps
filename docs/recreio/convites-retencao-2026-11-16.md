@@ -49,3 +49,23 @@ somente consultas de metadados em produção. Registrar o cron automático.
 
 A definição de retenção dos aceitos, negativos de aparelhos, encerramentos,
 possessões e instâncias continua pendente em seus contratos próprios.
+
+
+## Geração e limites da candidata
+
+A geração `43863187650` sobre `5fe7922b` produziu somente
+`0164_needy_moira_mactaggert.sql`, snapshot 0164 e journal com 165 entradas.
+SHA-256 do SQL: `f7cc957f0ec1217f8fc1e30ce1e7970796a6499635116cfe9f114b0d3bf187f7`.
+Arquivo e metadados foram copiados do artefato com seus hashes conferidos.
+Comparação completa com o snapshot anterior identificou somente o novo índice;
+o prefixo de 164 entradas do journal está idêntico. SQL gerado não foi editado.
+
+O cliente operacional do migrator usa startup parameters do Postgres.js 3.4.9:
+uma conexão, conexão em até 15 s, espera de trava em até 1 s e instrução em até
+60 s. Compatível com PG 16/18; sem transaction_timeout global e sem novo flag de
+corte. Erros desconhecidos emitem somente classificação; URL, SQL e parâmetros
+não são impressos. Mensagens controladas de histórico/corte permanecem disponíveis.
+
+A integração usa o mesmo cliente em DDL bloqueado e verifica rollback e retomada,
+além de presença/validade do índice gerado. As tabelas de prova são exclusivamente
+do banco descartável. A limpeza dos convites ainda não foi implementada ou habilitada.

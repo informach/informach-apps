@@ -62,6 +62,21 @@ export async function codigoDoBanco(operacao: Promise<unknown>): Promise<string 
 
 export const UNICO = "23505";
 export const CHECAGEM = "23514";
+
+/** Sinal explícito para barreiras dos testes; compatível com o alvo ES2022. */
+export function sinal<T>() {
+  let concluir = (_valor: T): void => {
+    throw new Error("Sinal não preparado");
+  };
+  let recusar = (_erro: unknown): void => {
+    throw new Error("Sinal não preparado");
+  };
+  const promessa = new Promise<T>((resolve, reject) => {
+    concluir = resolve;
+    recusar = reject;
+  });
+  return { promessa, concluir, recusar };
+}
 /**
  * `on delete restrict`: há linhas que dependem da que se tentou apagar. O
  * Postgres 18 responde `restrict_violation` (23001); até o 17, como o do CI,
