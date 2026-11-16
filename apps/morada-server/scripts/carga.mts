@@ -12,8 +12,15 @@ import { type ClienteDeTeste, criarBancada } from "../test/apoio";
  * uso: pnpm --filter @informach/morada-server carga [mundos] [minutos]
  */
 
-const MUNDOS = Number(process.argv[2] ?? 20);
-const MINUTOS = Number(process.argv[3] ?? 10);
+function inteiro(texto: string | undefined, padrao: number, maximo: number, nome: string): number {
+  if (texto === undefined) return padrao;
+  const valor = /^\d+$/.test(texto) ? Number(texto) : NaN;
+  if (!Number.isSafeInteger(valor) || valor < 1 || valor > maximo)
+    throw new Error(`${nome} deve ser inteiro entre 1 e ${maximo}.`);
+  return valor;
+}
+const MUNDOS = inteiro(process.argv[2], 20, 50, "Mundos");
+const MINUTOS = inteiro(process.argv[3], 10, 60, "Minutos");
 const TICKS = MINUTOS * 600;
 const JOGADORES = [1, 2, 4, 8];
 
@@ -74,7 +81,7 @@ async function medir(jogadores: number): Promise<Linha> {
   const cpuAntes = process.cpuUsage();
   for (let tick = 0; tick < TICKS; tick++) {
     for (const doMundo of robos) {
-      for (let j = 0; j < doMundo.length; j++) await jogar(doMundo[j] as ClienteDeTeste, j, tick);
+      for (const [j, robo] of doMundo.entries()) await jogar(robo, j, tick);
     }
     await bancada.andar(1, undefined, todos);
   }

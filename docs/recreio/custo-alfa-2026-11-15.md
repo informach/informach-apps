@@ -32,3 +32,18 @@ não uma janela controlada com tempo ativo de mundo/jogadores conhecido. O total
 relógio e apresentar isso como custo por hora de mundo. Banco/Redis/backups
 compartilhados continuam sem rateio. Os quatro critérios de aceite acima
 permanecem abertos.
+
+## Bancada sintética no GitHub
+
+O workflow `morada-carga.yml` executa a bancada existente com 20 mundos e
+dez minutos simulados, nos cenários de 1/2/4/8 conexões. Os parâmetros aceitam
+somente inteiros limitados. Artefato de 30 dias conserva fonte, executor,
+hardware, limites e relatório de CPU/tráfego/memória/fotografia. Execução ainda
+pendente nesta candidata.
+
+A bancada usa conexões e persistência em memória, no mesmo processo e tempo
+acelerado. Os robôs disputam os moradores existentes; oito conexões não são
+oito moradores controlados de forma independente. A coluna de mundos por
+vCPU é extrapolação aritmética de CPU, não capacidade homologada. Não há
+PostgreSQL, WebSocket real, preço Railway, FPS ou efeito da rede nessa prova.
+O ensaio remoto em rede/banco e a janela financeira acima continuam obrigatórios.
