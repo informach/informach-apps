@@ -419,6 +419,7 @@ describe("edição autoritativa e durável da casa", () => {
     const objeto = c.objeto();
     const lote = obter(c.mundo.estado.lotes, c.loteId);
     if (!lote || !original) throw new Error("Origem da prova ausente");
+    expect(objeto.giro).toBe(0);
     expect(
       c.aplicar({
         ...c.compra(3),
@@ -427,7 +428,7 @@ describe("edição autoritativa e durável da casa", () => {
           objetoId: objeto.id,
           revisaoDoObjeto: objeto.revisao,
           revisaoDoEspaco: lote.revisaoDoEspaco,
-          colocacao: { pos: [...objeto.pos], andar: objeto.andar, giro: objeto.giro },
+          colocacao: { pos: [...objeto.pos], andar: objeto.andar, giro: 0 },
         },
       }).ok,
     ).toBe(true);
