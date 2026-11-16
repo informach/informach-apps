@@ -17,7 +17,10 @@ import {
   revisaoDosObjetos,
 } from "../dominio/revisao-dos-objetos";
 import type { EstadoDoMundo } from "../dominio/tipos";
+import { VERSAO_DA_FOTOGRAFIA, VERSAO_DO_MUNDO } from "../versoes";
 import { HistoricoDaCasaSchema } from "./historico-da-casa";
+
+export { VERSAO_DA_FOTOGRAFIA, VERSAO_DO_MUNDO } from "../versoes";
 
 /**
  * Fotografia: o estado durável de um mundo em um tick. É o que vai para o
@@ -27,9 +30,6 @@ import { HistoricoDaCasaSchema } from "./historico-da-casa";
  * migrações antes de ser lido; um mundo de versão mais nova que este código é
  * recusado, nunca adivinhado.
  */
-
-export const VERSAO_DO_MUNDO = 3;
-export const VERSAO_DA_FOTOGRAFIA = 1;
 
 const ReciboDeFundacaoSchema = z.strictObject({
   comandoId: z.string().min(8).max(64),

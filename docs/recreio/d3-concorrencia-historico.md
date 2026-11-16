@@ -235,3 +235,11 @@ em `formatos/` e declara a ausência de efeitos externos do package puro para
 permitir eliminar módulos não usados. O teto não foi aumentado, nem recursos
 ou validações do servidor removidos. Uma etapa focada passa a medir o mesmo
 bundle antes da nova rodada completa; redução ainda precisa ser conferida.
+
+Primeira medição após separar o schema (`d52a3436`, `43797274412`):
+1.251.075 bytes, 346.196 gzip. Redução observada de 4.402 bytes, ainda
+1.075 acima do teto. Outra dependência desnecessária foi identificada:
+ler a versão do formato importava a fotografia, e gerar a chave financeira
+importava todos os schemas de operações/recibos. Versões e identidade passam
+a módulos próprios, mantendo as mesmas validações da chave e os mesmos
+exports públicos. A nova medição continua obrigatória.

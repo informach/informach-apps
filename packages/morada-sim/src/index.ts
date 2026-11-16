@@ -23,8 +23,6 @@ export {
   type Fotografia,
   type Migracao,
   migrar,
-  VERSAO_DA_FOTOGRAFIA,
-  VERSAO_DO_MUNDO,
 } from "./formatos/fotografia";
 export * from "./nucleo/canonico";
 export * from "./nucleo/fixo";
@@ -62,4 +60,5 @@ export {
   TRAVAS_DE_EDICAO_POR_MUNDO,
 } from "./sistemas/travas-de-edicao";
 export { progressoDaGravidez } from "./sistemas/vida";
+export { VERSAO_DA_FOTOGRAFIA, VERSAO_DO_MUNDO } from "./versoes";
 export * from "./visao/replicacao";

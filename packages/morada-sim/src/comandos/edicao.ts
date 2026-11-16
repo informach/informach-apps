@@ -1,17 +1,26 @@
 import { z } from "zod";
 import { canonico } from "../nucleo/canonico";
+import {
+  AUTORES_DE_EDICAO_DO_MUNDO,
+  AutorDeEdicaoSchema as autor,
+  comandoDeEdicao,
+  RESPOSTAS_DE_EDICAO,
+  RESPOSTAS_DE_EDICAO_DO_MUNDO,
+  SequenciaDeEdicaoSchema as sequencia,
+} from "./identidade-da-edicao";
 import { ReferenciaDaTravaSchema } from "./obra";
 import { PinturaDoMovelSchema } from "./pintura";
 
-/** Independente dos 512 comandos genéricos e do histórico de desfazer. */
-export const RESPOSTAS_DE_EDICAO = 32;
-export const RESPOSTAS_DE_EDICAO_DO_MUNDO = 128;
-export const AUTORES_DE_EDICAO_DO_MUNDO = 2048;
-export const LIMITE_DE_EDICAO_SEM_GESTAO_CENTAVOS = 50_000;
-export const OBJETOS_POR_LOTE = 256;
+export {
+  AUTORES_DE_EDICAO_DO_MUNDO,
+  comandoDeEdicao,
+  LIMITE_DE_EDICAO_SEM_GESTAO_CENTAVOS,
+  OBJETOS_POR_LOTE,
+  RESPOSTAS_DE_EDICAO,
+  RESPOSTAS_DE_EDICAO_DO_MUNDO,
+} from "./identidade-da-edicao";
+
 const inteiro = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
-const sequencia = inteiro.positive();
-const autor = z.string().regex(/^[A-Za-z0-9_-]{1,44}$/);
 const entidade = <P extends string>(prefixo: P) =>
   z.custom<`${P}_${string}`>(
     (valor) =>
@@ -153,10 +162,6 @@ export function compactarRespostasDeEdicao(
 
 export function iniciarRegistroDeEdicoes(perfilId: string): RegistroDeEdicoes {
   return { autor: autor.parse(perfilId), ultimaSequencia: 0, recentes: [] };
-}
-
-export function comandoDeEdicao(perfilId: string, numero: number): string {
-  return `obra:${sequencia.parse(numero).toString(36)}:${autor.parse(perfilId)}`;
 }
 
 export type ConsultaDeEdicao =
