@@ -104,6 +104,39 @@ Nunca restaurar uma fotografia por cima da atividade dos demais.
    novas encerram apenas a ramificação de refazer daquele autor, sem apagar
    trilha de auditoria ou interferir na história de outra pessoa.
 
+### Desenho da compensação
+
+O passo conserva antes/depois da parte estática da peça, contrato de conteúdo,
+permissões admitidas e delta realmente aplicado. Ocupação não é restaurada.
+Cada autor tem pilhas de desfazer/refazer; a ordem de admissão global define
+a poda determinística de 50/128 passos, preservando os pisos de sequência.
+
+O relógio global impede reutilizar revisão de peça recriada, mas não basta
+para detectar interferência quando a peça volta a ficar ausente. Toda edição
+admitida, inclusive compensação, invalida os passos de outros autores daquela
+peça. Essa marca pertence ao histórico limitado, sem mapa crescente de IDs.
+Compensações próprias rebaseiam somente o próximo passo próprio compatível
+da mesma peça para a nova revisão, sem alterar o antes/depois original. Assim
+mover → pintar → desfazer pintura → desfazer movimento permanece possível,
+enquanto a intervenção alheia não volta a ser válida ao restaurar aparência.
+
+Compra/venda compensada usa o delta original sobre o saldo atual. Exigir as
+permissões atuais do contrato original, `gastar` se a compensação debitar e
+`gerir_financas` acima do limite; validar novamente conteúdo, colocação,
+ocupação, rotas e apoios. A preparação deriva peça/região do passo selecionado
+no servidor e a confirmação usa uma concessão vigente. Recibos confirmados
+continuam respondendo antes de conferir a concessão, após a autoridade atual.
+
+Projetar somente o próximo desfazer/refazer do próprio autor, incluindo valor,
+disponibilidade, motivo e dados da prévia. Fotografia inicial e atualização
+individual pelo ator devem usar o mesmo contrato. Mudança de histórico após
+edição alheia também atualiza essa projeção; não transmitir a pilha completa
+dos outros autores. A atualização segue a confirmação do diário e traz revisão
+monotônica para o cliente recusar metadados atrasados. Na interface, preparar
+e confirmar a compensação são gestos separados, com valor e conflito visíveis.
+
+Este desenho ainda não é implementação ou evidência de aceite do histórico.
+
 Arquivos: `morada-sim/src/{comandos/edicao.ts,sistemas/edicao.ts,dominio/fatos.ts,
 dominio/reduzir-fato.ts,dominio/invariantes.ts,formatos/fotografia.ts}`;
 cliente `modelo/editor-da-casa.ts`, `hud/EdicaoDaCasa.tsx` e testes do ator.
