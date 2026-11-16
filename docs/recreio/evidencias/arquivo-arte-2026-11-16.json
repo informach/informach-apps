@@ -1,0 +1,31 @@
+{
+  "repositorio": "informach/artes-3d",
+  "visibilidadeConferida": "PRIVATE",
+  "release": {
+    "id": 446608123,
+    "tag": "morada-arte-d3-v4-59f2614a-0c118aaf",
+    "draft": false,
+    "prerelease": true,
+    "makeLatest": false,
+    "assetId": 753448365,
+    "zipBytes": 40625419,
+    "zipSha256": "d689df7706a2ca09a0d692fdea67d21945eb14ab460240ccb89ff6eb6b6c63ff"
+  },
+  "recuperacao": {
+    "executor": "a86048fc9ff1b8815d1c09e0cdf9cb7af60207e7",
+    "run": 43872799095,
+    "job": 133318043319,
+    "status": "completed",
+    "conclusion": "success",
+    "tokenContents": "read",
+    "zipConferido": true,
+    "somasDoPacoteConferidas": 240,
+    "terminoSomas": "2026-11-16T13:07:41.8590547Z"
+  },
+  "origemTemporariaPreservada": { "artifactId": 14197558533, "run": 43802946380 },
+  "consumidorAlterado": ".github/workflows/morada-rotulos.yml",
+  "permissoesAmpliadas": false,
+  "publicacaoEmRepositorioPublico": false,
+  "d3AtivadoEmProducao": false,
+  "fpsDiversaoOuVendaCertificados": false
+}

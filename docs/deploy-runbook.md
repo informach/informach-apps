@@ -344,7 +344,7 @@ Para rodar de novo sem mudar nada: Dashboard, migrator, Deployments, Redeploy.
 >
 > Quando a mudança **remove ou aperta** (drop, NOT NULL, rename), a ordem se
 > inverte e a migração precisa ser quebrada em duas releases. Ver
-> `packages/db/CLAUDE.md`.
+> [contrato de migrações dos packages](arquitetura-packages.md).
 
 No corte Compasso de novembro/2026, o push à main pode anteceder a manutenção.
 O migrator reconhece o ambiente Railway por `RAILWAY_ENVIRONMENT_ID` e, enquanto
@@ -353,6 +353,22 @@ faltar o recibo `0162_military_dexter_bennett`, termina antes de DDL sem
 restaurar o backup real, conciliar os provedores e parar os escritores antigos,
 conforme `apps/conta/PRODUCAO.md`; então redeployar o migrator. A ausência da
 variável não bloqueia releases futuras quando esse lote já estiver completo.
+
+O cliente Drizzle do migrator configura `application_name=informach-migrator`,
+uma conexão, conexão em até 15 s, `lock_timeout=1000` e
+`statement_timeout=60000` (valores em milissegundos no Postgres.js).
+Esses parâmetros valem desde a abertura de cada conexão, inclusive reconexão;
+não se configura `transaction_timeout` global, preservando o PG 16 dos demais
+consumidores. Uma migração que disputa trava aborta e deve ser repetida depois
+de resolver a contenção. Não ampliar os limites automaticamente. Erros do
+driver são registrados por SQLSTATE, sem URL, SQL ou parâmetros; as recusas
+controladas de histórico e corte conservam sua explicação operacional.
+
+A 0164 do Recreio acrescenta somente o índice parcial de convites sem aceite.
+O escritor de limpeza é outra entrega: conferir antes o recibo 165, índice
+válido/pronto, término do migrator e prontidão dos consumidores. O rollback
+do app conserva esse índice. Não alterar `COMPASSO_CUTOVER_RELEASE` para essa
+entrega. [Contrato e provas](recreio/convites-retencao-2026-11-16.md).
 
 > **Gotcha**: o migrator precisa de `tsx` (devDep) pra rodar `packages/db/src/migrate.ts` e `packages/ai-core/scripts/migrate-mastra-storage.ts`. O build usa `--prod=false` para instalar devDeps mesmo se alguém puser `NODE_ENV=production` no serviço.
 

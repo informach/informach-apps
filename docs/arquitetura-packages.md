@@ -118,8 +118,24 @@ Cinco grupos consolidados. Cada novo package se encaixa em uma dessas categorias
 - Schemas SQL nativos por domínio via `pgSchema("nome").table(...)`. Exemplos atuais: `core`, `billing`, `audit`, `ai`, `agenda`, `cozya`.
 - Client singleton em `src/client.ts` com guard no `globalThis` para sobreviver a hot reload.
 - `drizzle.config.ts` com `dialect: "postgresql"`, `schema: "./src/schema/index.ts"`, `out: "./src/migrations"`, `schemaFilter: ["core","<dominio_app_1>",...]` para que o `drizzle-kit` só toque nas schemas geridas.
-- Migrations geradas por `drizzle-kit generate`, aplicadas por `drizzle-kit migrate` ou script `migrate.ts` (chamado manualmente ou por job dedicado, **nunca** no start de um app).
+- Migrations geradas pelo script `pnpm db:generate`, aplicadas por `pnpm db:migrate` (`migrate.ts`, manualmente ou pelo job dedicado, **nunca** no start de um app). Em produção, não executar `drizzle-kit migrate`/`push` diretamente: contornariam a conferência de histórico, a trava do corte e os limites operacionais.
 - Repository pattern: funções nomeadas por feature, exportadas via re-export no `index.ts`. Sem `Repo<T>` genérico — overengineering.
+
+SQL e snapshots gerados não são editados à mão. Transformações de dados usam
+migração customizada explícita anterior à restrição correspondente. Revisar
+ordem, prefixo do journal, volume e espera por travas antes da implantação.
+Mudanças aditivas chegam ao banco antes do escritor; remoções e restrições
+exigem versões compatíveis intermediárias e retirada dos consumidores antigos.
+Rollback do app conserva estruturas aditivas e histórico aplicado.
+
+O subpath `@informach/db/migration-runtime` serve ao migrator e à sua prova
+de integração. Ele cria uma conexão com prazo de conexão de 15 s, espera de
+trava de 1 s e instrução de 60 s desde o startup de cada conexão. Não muda
+o pool dos aplicativos nem adiciona `transaction_timeout` global ao PostgreSQL
+16 dos demais consumidores. O Recreio exige PG 17+ para seus limites próprios.
+Erros do driver são classificados sem URL, SQL ou parâmetros. O migrator
+continua verificando o journal completo antes e depois de aplicar; esse
+subpath não autoriza migrações avulsas ou desabilitar a trava Compasso.
 
 Layout:
 

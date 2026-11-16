@@ -1,0 +1,61 @@
+{
+  "fonte": "06e022d5f88da706b75042cf5a91f780bc5415ae",
+  "candidataHomologada": "bfd587a0e30f1937786cd47dea536d6931d97c52",
+  "diferencaDaCandidataSomenteDocumentacao": true,
+  "portal": {
+    "deployment": "1f709104-8dcf-4280-92f8-123d6e326568",
+    "status": "SUCCESS",
+    "fonteRelidaEm": "2026-11-16T11:43:18.836Z",
+    "acaoPresenteNoManifestoServidor": "sairDoMundoAction",
+    "health": 200,
+    "ready": 200,
+    "configuracaoIdentica": true,
+    "staged": null
+  },
+  "admin": {
+    "deployment": "e15e5b15-64c1-408f-b96d-83ed60033fd8",
+    "status": "SUCCESS",
+    "configuracaoIdentica": true,
+    "staged": null,
+    "eventoRotulado": "recreio.space_member_left"
+  },
+  "mainRecreio": {
+    "run": 43859343699,
+    "gatesAprovados": 6
+  },
+  "mapasSentryUpload": "2026-11-16T11:39:03.381664395Z",
+  "releasePresente": true,
+  "cron": {
+    "conferidoEm": "2026-11-16T11:51:32.677Z",
+    "inicio": "2026-11-16T11:50:55.242Z",
+    "fim": "2026-11-16T11:50:55.310Z",
+    "ok": true,
+    "summary": {
+      "possesVencidas": 0,
+      "sessoesExpiradas": 0,
+      "ingressosApagados": 0,
+      "instanciasSumidas": 0
+    }
+  },
+  "prontidaoNoveApps": {
+    "conferidoEm": "2026-11-16T11:42:17.160Z",
+    "status": 200
+  },
+  "moradaFonte": "179a0a76a5350b1f96464a6fb2df83dbb5d91cad",
+  "contasPilotoAlteradasParaProva": false,
+  "alteracaoDeSchema": false,
+  "a6Concluido": false,
+  "d3Ativado": false,
+  "vendasLiberadas": false,
+  "mainCI": {
+    "run": 43859343682,
+    "status": "completed",
+    "conclusion": "success"
+  },
+  "ediConsumidorAuth": {
+    "deployment": "759bde6f-fc70-4c9b-bace-6df2be7105e6",
+    "status": "SUCCESS",
+    "fonte": "06e022d5f88da706b75042cf5a91f780bc5415ae",
+    "checkSuitesPreservado": true
+  }
+}
