@@ -26,7 +26,10 @@ nova posse, direito do fundador, três indicações inválidas, reentrada sem no
 fatos, falha do diário e retirada de famílias fora da participação. A plataforma
 em memória fornece apenas a identidade e o papel atuais; as asserções verificam
 simulação, conexões e persistência reais do servidor. Execução pesada somente
-no GitHub. A candidata ainda precisa dos resultados remotos.
+no GitHub. A execução `43896380796`, fonte `9d97fa0c`, aprovou os seis gates:
+156 testes do servidor, incluindo os oito novos, 259 integrações PostgreSQL e
+nove testes de navegador aprovados com duas exclusões específicas. Implantação
+e conclusão do CI geral dos leitores continuam pendentes neste registro.
 
 A atualização afeta a próxima admissão. O futuro aceite da responsabilidade
 deverá encerrar as sessões dos dois envolvidos atomicamente com a troca do

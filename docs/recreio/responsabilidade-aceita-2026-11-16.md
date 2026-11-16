@@ -108,4 +108,15 @@ O contrato comum de instâncias exercita `permissions_changed` pelo SDK e pelo
 HTTP; a bancada do Morada verifica retirada da conexão e liberação da reserva
 no batimento, conservando a outra pessoa. O portal reconhece o motivo com uma
 mensagem própria, sem reutilizar a sessão encerrada; motivos futuros ainda têm
-parada genérica. Esses testes ainda precisam da execução remota da candidata.
+parada genérica. Os seis gates da candidata `3b31943b` passaram na execução
+`43889414108`, com 259 integrações aprovadas. O CI geral `43889414211` ainda
+está em andamento neste registro.
+
+A reconciliação de capacidades `9d97fa0c` passou nos seis gates de `43896380796`,
+com as mesmas 259 integrações, 156 testes do servidor (oito novos de acesso) e
+nove testes de navegador aprovados, com duas exclusões específicas. A integração
+local `96332834` conserva exatamente suas fontes de apps/packages/workflows;
+acrescenta a documentação posterior da limpeza já implantada. Ela não contém
+o repositório escritor nem ações/telas de transferência. Inventário às 15:33:37
+UTC conservou 165 recibos, dois membros, zero convites e nenhuma autoria inválida.
+Ainda falta concluir o CI geral e conferir a implantação antes da etapa 2.
