@@ -204,6 +204,9 @@ export async function addTemplate(
         ...naturalTransform(r, next.settings, places[i].x, places[i].y),
         ...(l.opacity !== undefined ? { opacity: l.opacity } : {}),
       };
+      // The cover over the first second of the lesson is its first picture: the layers that open it
+      // come in already there, never with the screen showing through a fade.
+      const opensLesson = found?.fullscreen && options.overLesson && from < 1e-3;
       const clip: Clip = {
         id: newId("c"),
         assetId: asset.id,
@@ -214,9 +217,9 @@ export async function addTemplate(
         volume: 1,
         annotation: l.spec,
         transform,
-        fadeIn: l.enter === "fade" ? 0.5 : ANNOTATION_MOTION.enter,
+        fadeIn: opensLesson ? 0 : l.enter === "fade" ? 0.5 : ANNOTATION_MOTION.enter,
         fadeOut: 0.4,
-        enter: l.enter,
+        ...(opensLesson ? {} : { enter: l.enter }),
         exit: l.exit,
         ...(groupId ? { groupId } : {}),
       };
