@@ -82,3 +82,25 @@ LINK_STATUS, sem consultas de logs. Os recortes de CPU completos duraram
 custo de ligação continuam relevantes; a mudança não comprovou resolver o
 desempenho, nem substitui FPS em hardware real. Candidata continua sem adoção
 em produção ou ativação D3.
+
+
+## Captura móvel depois do ajuste, inspecionada
+
+Fonte `9c329ad3`, seis gates públicos `43846477866` e cinco jornadas privadas
+`43847668849` aprovados; executor `afc246b6`. A imagem de criação a 390×844 foi
+inspecionada: personagem visível, “Assim vai ficar”, sem o quadro vazio anterior.
+O teste observa quadros enviados antes da mudança, incluindo o quadro em voo,
+e exige duas confirmações novas depois da troca de viewport. As 48 escolhas e
+os limites anteriores continuam exigidos, sem aumento de prazo.
+
+Nos ciclos finais: um contexto, 124 buffers e 33 texturas antes/depois; máximos
+199/35. Não comparar essas contagens com as de outro executor como redução de
+memória do produto: a mudança só afetou a observação/espera do teste.
+
+Entrada: 21 consultas de ligação/7.924,0 ms; reconexão: 22/11.318,6 ms;
+restauração: 23/639,6 ms; histórico: 22/547,0 ms. Sem consultas de logs nesses
+recortes. A ligação ainda bloqueia por segundos; desempenho permanece aberto,
+sem FPS/hardware certificados, adoção em produção ou ativação D3.
+
+[Prova estruturada](evidencias/previa-quadros-2026-11-16.json). As capturas e os
+perfis completos ficam somente no artefato privado e na cópia de trabalho privada.
