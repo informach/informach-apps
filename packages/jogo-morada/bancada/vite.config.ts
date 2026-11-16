@@ -29,6 +29,7 @@ export default defineConfig({
         marca: fileURLToPath(new URL("./marca.html", import.meta.url)),
         cores: fileURLToPath(new URL("./cores.html", import.meta.url)),
         pintura: fileURLToPath(new URL("./pintura.html", import.meta.url)),
+        programas: fileURLToPath(new URL("./programas.html", import.meta.url)),
       },
     },
   },

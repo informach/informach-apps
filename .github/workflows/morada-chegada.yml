@@ -27,7 +27,7 @@ jobs:
       - name: Conferir tipos do cliente editor e organizacao dos nomes
         run: |
           pnpm --filter @informach/jogo-morada typecheck
-          pnpm --filter @informach/jogo-morada exec vitest run src/modelo/rotulos-na-cena.test.ts src/modelo/editor-da-casa.test.ts src/cena/obras.test.ts src/cena/preparo-da-cena.test.ts src/ativos/arte.test.ts src/espelho/edicao.test.ts src/espelho/sessao.test.ts --reporter=default --reporter=json --outputFile=${{ runner.temp }}/morada-rotulos.json
+          pnpm --filter @informach/jogo-morada exec vitest run src/modelo/rotulos-na-cena.test.ts src/modelo/editor-da-casa.test.ts src/cena/obras.test.ts src/cena/preparo-da-cena.test.ts src/cena/programas.test.ts src/ativos/arte.test.ts src/espelho/edicao.test.ts src/espelho/sessao.test.ts --reporter=default --reporter=json --outputFile=${{ runner.temp }}/morada-rotulos.json
       - name: Conferir ator e diario financeiro
         run: |
           pnpm --filter @informach/morada-server typecheck
@@ -35,7 +35,7 @@ jobs:
       - name: Instalar o navegador da prova focada
         run: pnpm --filter @informach/jogo-morada exec playwright install --with-deps chromium
       - name: Conferir bundle e nomes com o desenho real
-        run: pnpm --filter @informach/jogo-morada exec playwright test --config e2e/playwright.config.ts e2e/bundle.spec.ts e2e/rotulos.spec.ts --grep "JavaScript|quem importa|nomes na cena"
+        run: pnpm --filter @informach/jogo-morada exec playwright test --config e2e/playwright.config.ts e2e/bundle.spec.ts e2e/rotulos.spec.ts e2e/programas.spec.ts --grep "JavaScript|quem importa|nomes na cena|ligação WebGL"
       - name: Conferir primeira entrada e console em mundo proprio
         env:
           MORADA_E2E_GRUPO: entrada

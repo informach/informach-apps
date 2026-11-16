@@ -46,7 +46,7 @@ declare global {
   interface Window {
     quadrosDaCena?: number;
     consultasDeProgramas?: {
-      operacao: "programa" | "shader";
+      operacao: "programa" | "shader" | "ligacao";
       duracaoMs: number;
       recursos: string[];
     }[];
@@ -67,6 +67,7 @@ async function observarCompilacao(page: Page): Promise<void> {
     const anexoOriginal = prototipo.attachShader;
     const programaOriginal = prototipo.getProgramInfoLog;
     const shaderOriginal = prototipo.getShaderInfoLog;
+    const ligacaoOriginal = prototipo.getProgramParameter;
     const flags = [
       "STANDARD",
       "PHYSICAL",
@@ -94,7 +95,7 @@ async function observarCompilacao(page: Page): Promise<void> {
     };
     function registrar(
       gl: WebGL2RenderingContext,
-      operacao: "programa" | "shader",
+      operacao: "programa" | "shader" | "ligacao",
       inicio: number,
       flags: string[],
     ) {
@@ -123,6 +124,17 @@ async function observarCompilacao(page: Page): Promise<void> {
         return shaderOriginal.call(this, shader);
       } finally {
         registrar(this, "shader", inicio, recursos.get(shader) ?? []);
+      }
+    };
+    prototipo.getProgramParameter = function (programa, parametro) {
+      if (parametro !== this.LINK_STATUS) return ligacaoOriginal.call(this, programa, parametro);
+      const inicio = performance.now();
+      try {
+        return ligacaoOriginal.call(this, programa, parametro);
+      } finally {
+        registrar(this, "ligacao", inicio, [
+          ...new Set((anexos.get(programa) ?? []).flatMap((shader) => recursos.get(shader) ?? [])),
+        ]);
       }
     };
   });

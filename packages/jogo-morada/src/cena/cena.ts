@@ -45,6 +45,7 @@ import { CORTE_DAS_PAREDES_MM } from "./planta";
 import { PreparoDaCena } from "./preparo-da-cena";
 import { type EstadoDaPrevia, PreviaDoMorador, type QuadroDaPrevia } from "./previa";
 import { PreviaDoMovel } from "./previa-do-movel";
+import { ErroDePrograma, ProgramasDaCena } from "./programas";
 import { alturaDoPiso } from "./situacao";
 
 /**
@@ -171,15 +172,17 @@ export class Cena {
   private readonly raio = new Raycaster();
   private readonly observador: ResizeObserver;
   private readonly cancelarAtivos: (() => void) | undefined;
+  private readonly programas = new ProgramasDaCena(
+    (programa) =>
+      programa instanceof WebGLProgram &&
+      this.gl.getProgramParameter(programa, this.gl.LINK_STATUS) === true,
+  );
   private readonly preparo = new PreparoDaCena(
-    () => this.renderer.compileAsync(this.scene, this.camera),
-    () => {
-      this.sessao.loja.avisar(
-        "recusa",
-        "Não foi possível preparar o desenho. Saia e reabra o mundo.",
-      );
-      this.interromperDesenho();
+    async () => {
+      await this.renderer.compileAsync(this.scene, this.camera);
+      this.programas.verificar(this.renderer.info.programs);
     },
+    () => this.falharDesenho(),
   );
 
   private moradores: MoradoresDaCena;
@@ -260,6 +263,8 @@ export class Cena {
       throw new Error("O desenho do Morada requer WebGL2");
     }
     this.gl = gl;
+    // Validação estrita própria; evita três consultas de logs por programa válido.
+    this.renderer.debug.checkShaderErrors = false;
     this.renderer.outputColorSpace = SRGBColorSpace;
     this.renderer.shadowMap.type = PCFSoftShadowMap;
     this.placa = placaDe(this.renderer);
@@ -799,6 +804,14 @@ export class Cena {
     this.sessao.loja.definirContextoPerdido(true);
   }
 
+  private falharDesenho(): void {
+    this.sessao.loja.avisar(
+      "recusa",
+      "Não foi possível preparar o desenho. Saia e reabra o mundo.",
+    );
+    this.interromperDesenho();
+  }
+
   private readonly quadro = (agora: number): void => {
     this.raf = 0;
     if (this.descartada || this.perdida || document.hidden) return;
@@ -824,6 +837,13 @@ export class Cena {
     if (!this.preparo.pronta()) return;
     this.ultimo = agora;
     this.renderer.render(this.scene, this.camera);
+    try {
+      this.programas.verificar(this.renderer.info.programs);
+    } catch (erro) {
+      this.falharDesenho();
+      if (!(erro instanceof ErroDePrograma)) throw erro;
+      return;
+    }
     this.rotulos = rotulos;
     this.quadroDaPreviaPendente = this.previa.capturarQuadro();
     const gl = this.gl;
