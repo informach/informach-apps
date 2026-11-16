@@ -49,7 +49,7 @@ async function contexto(
     .select({ perfilId: members.profileId })
     .from(members)
     .where(and(eq(members.id, outroMembroId), eq(members.spaceId, mundoId)));
-  assertAllowed(outroAntes?.perfilId, "MUNDO", "Participação indisponível.");
+  assertAllowed(outroAntes, "MUNDO", "Participação indisponível.");
   const perfis = await tx
     .select({
       id: profiles.id,
@@ -58,7 +58,12 @@ async function contexto(
       estado: profiles.status,
     })
     .from(profiles)
-    .where(inArray(profiles.id, [autor.perfilId, outroAntes.perfilId]))
+    .where(
+      inArray(
+        profiles.id,
+        outroAntes.perfilId ? [autor.perfilId, outroAntes.perfilId] : [autor.perfilId],
+      ),
+    )
     .orderBy(asc(profiles.id))
     .for("share");
   const perfil = perfis.find((item) => item.id === autor.perfilId);
@@ -68,11 +73,7 @@ async function contexto(
     "Entre no seu perfil adulto para continuar.",
   );
   const outroPerfil = perfis.find((item) => item.id === outroAntes.perfilId);
-  assertAllowed(
-    outroPerfil?.tipo === "adult" && outroPerfil.estado === "active",
-    "MUNDO",
-    "Participação adulta indisponível.",
-  );
+  const outroAdulto = outroPerfil?.tipo === "adult" && outroPerfil.estado === "active";
   const [aparelho] = await tx
     .select({ id: devices.id, authSessionId: devices.authSessionId, expiraEm: devices.expiresAt })
     .from(devices)
@@ -103,7 +104,7 @@ async function contexto(
   const outro = vinculos.find((item) => item.id === outroMembroId);
   assertAllowed(proprio?.profileId === perfil.id, "MUNDO", "Participação indisponível.");
   assertAllowed(
-    outro?.profileId === outroPerfil.id && outro.id !== proprio.id,
+    outro && outro.profileId === outroAntes.perfilId && outro.id !== proprio.id,
     "MUNDO",
     "Participação indisponível.",
   );
@@ -132,7 +133,7 @@ async function contexto(
     return agora;
   };
   await conferirPrazo(false);
-  return { mundo, proprio, outro, conferirPrazo };
+  return { mundo, proprio, outro, outroAdulto, conferirPrazo };
 }
 
 function exigirParticipantes(ctx: Awaited<ReturnType<typeof contexto>>) {
@@ -146,6 +147,12 @@ function exigirParticipantes(ctx: Awaited<ReturnType<typeof contexto>>) {
     "MUNDO",
     "Este mundo não está disponível para transferência.",
   );
+  assertAllowed(
+    ctx.outro.profileId && ctx.outroAdulto,
+    "MUNDO",
+    "Participação adulta indisponível.",
+  );
+  return ctx.outro.profileId;
 }
 
 async function concluir(
@@ -279,15 +286,15 @@ export async function responderResponsabilidade(
       await ctx.conferirPrazo(false);
       return { pedidoId: pedido.id, estado: pedido.state };
     }
-    exigirParticipantes(ctx);
-    const responsavel = resposta === "revoked" ? ctx.proprio : ctx.outro;
-    assertAllowed(
-      responsavel.role === "steward" && ctx.mundo.responsavel === responsavel.profileId,
-      "RESPONSAVEL",
-      "A responsabilidade por este mundo mudou. Confira a proposta atual.",
-    );
+    assertAllowed(ctx.proprio.state !== "former", "MUNDO", "Participação indisponível.");
     if (resposta === "accepted") {
-      const filtro = sql`${games.spaceId} = ${mundoId} and ${games.profileId} in (${autor.perfilId}, ${ctx.outro.profileId})`;
+      const perfilDoResponsavel = exigirParticipantes(ctx);
+      assertAllowed(
+        ctx.outro.role === "steward" && ctx.mundo.responsavel === perfilDoResponsavel,
+        "RESPONSAVEL",
+        "A responsabilidade por este mundo mudou. Confira a proposta atual.",
+      );
+      const filtro = sql`${games.spaceId} = ${mundoId} and ${games.profileId} in (${autor.perfilId}, ${perfilDoResponsavel})`;
       await travarEncerramentos(tx);
       await tx
         .select({ id: games.id })
@@ -308,6 +315,12 @@ export async function responderResponsabilidade(
       });
       return concluir(tx, pedido, "accepted", agora, autor.contaId);
     }
+    if (resposta === "revoked")
+      assertAllowed(
+        ctx.proprio.role === "steward" && ctx.mundo.responsavel === autor.perfilId,
+        "RESPONSAVEL",
+        "Somente o responsável atual pode cancelar a proposta.",
+      );
     const agora = await ctx.conferirPrazo(false);
     return concluir(
       tx,

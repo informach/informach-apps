@@ -32,6 +32,12 @@ na partida do antigo responsável. `targetId` conserva a conta afetada de cada
 partida. O helper admite esse ator explícito do contexto autenticado; o contrato
 anterior de ações da própria conta e decisões automáticas continua separado.
 
+Propor e aceitar exigem os dois adultos atuais elegíveis. Cancelar pelo
+responsável atual, recusar pelo destinatário e reler seu recibo terminal
+conservam a autoridade do próprio solicitante; não dependem de a outra parte
+continuar ativa ou ter perfil. O membro histórico permanece como referência.
+Essas operações não reaplicam papéis nem concedem acesso a um perfil suspenso.
+
 O PostgreSQL descartável verifica oferta/aceite/repetição, datas do login,
 aparelhos, escopo, recusa/cancelamento/expiração, saída do destinatário,
 encerramentos/cursor, conservação de partidas de outros contextos, concorrência
