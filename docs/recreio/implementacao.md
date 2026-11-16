@@ -2,14 +2,14 @@
 
 Registro detalhado da frente. O índice de continuidade é o [estado do repositório](../estado-do-repositorio.md); as regras permanentes ficam no [AGENTS.md](../../AGENTS.md).
 
-Estado vigente em 16/11/2026: portal e Morada em `d13038b7`, alfa fechado D2. Reconexão e logs corrigidos em produção, com seis gates e repetição main aprovados ([operação](telemetria-falhas.md)); [versões do portal e mapas Sentry](versoes-do-portal.md) conferidos. Editor/coleção D2 têm prova privada e salvamento/retorno humano; escolha de casa/orçamento continua pendente. D3 está **somente em candidata**, com os marcos abaixo e [plano atual](d3-construcao-compras.md). Backup lógico real restaurado em destino isolado, avisos recebidos e agenda externa comprovada; custo acumulado exclusivo medido, sem custo por hora ativa. O titular confirmou a permissão comercial pela [licença de compra](licenciamento-arte.md). D2–D8, proteção familiar, retenção/capacidade, backup agendado e demais homologações comerciais continuam em implementação. Ver [execução atual](execucao-2026-11-15.md) e [operação](../../apps/recreio/PRODUCAO.md). As seções datadas abaixo preservam a história dos marcos anteriores.
+Estado vigente em 16/11/2026: portal em `cc48f3c6` e Morada em `179a0a76`, alfa fechado D2. A expiração limitada de sessões e o resultado verificável da drenagem foram implantados, com seis gates nas candidatas e na main ([expiração](expiracao-sessoes-2026-11-16.md), [drenagem](drenagem-resultado-2026-11-16.md)); [versões do portal e mapas Sentry](versoes-do-portal.md) conferidos. Editor/coleção D2 têm prova privada e salvamento/retorno humano; escolha de casa/orçamento continua pendente. D3 está **somente em candidata**. O [diagnóstico gráfico](rotulos-2026-11-16.md) distinguiu captura de quadro antigo e bloqueio de renderização; a lentidão continua aberta. Backup lógico real restaurado em destino isolado, avisos recebidos e agenda externa comprovada; custo acumulado exclusivo medido, sem custo por hora ativa. O titular confirmou a permissão comercial pela [licença de compra](licenciamento-arte.md). D2–D8, proteção familiar, retenção/capacidade, backup agendado e demais homologações comerciais continuam em implementação. Ver [execução atual](execucao-2026-11-15.md) e [operação](../../apps/recreio/PRODUCAO.md). As seções datadas abaixo preservam a história dos marcos anteriores.
 
 Evolução D3 fora da produção: `59f2614a`, seis gates `43802126864` e cinco
 jornadas privadas `43802946380` aprovados, incluindo duas contas, histórico
 próprio com prévia/aceite, deltas originais, queda antes/depois do diário e
 restauração pela interface. JS 1.247.937 bytes/345.039 gzip, teto preservado.
-Computador com quatro nomes legíveis; no celular continuam ausentes, achado
-aberto. Arte e evidências arquivadas em rascunho privado, sem ativação do D3.
+Capturas históricas do celular sem nomes foram distinguidas de quadro antigo
+no diagnóstico posterior; a lentidão gráfica continua aberta. Arte e evidências arquivadas em rascunho privado, sem ativação do D3.
 Construção estrutural e casas/orçamento continuam pendentes; D3 não concluído.
 [Provas e limites](carregamento-grafico-2026-11-16.md),
 [histórico](d3-concorrencia-historico.md), [plano completo](d3-construcao-compras.md).
