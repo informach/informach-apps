@@ -41,3 +41,24 @@ confirma a troca de volume no serviço original e seu redeploy. O argumento
 Nenhuma chamada de restauração foi executada. A API de busca recuperou as
 referências, mas a leitura das páginas pelo conector falhou; a documentação
 oficial foi consultada diretamente como alternativa.
+
+## Revalidação da CLI em 16/11/2026
+
+A CLI instalada é 5.62.1. Seu `postgres pitr backup restore` usa
+`volumeInstanceBackupRestore` com a instância de origem, espera a cópia e
+aplica a troca de volume/redeploy automaticamente; não usar esse comando no
+Postgres compartilhado para este ensaio. O schema público foi relido somente
+por introspecção: `volumeInstanceId` continua descrito como origem e não há
+argumento de destino isolado. Nenhuma mutation de backup foi executada.
+
+PITR possui uma restauração diferente, em serviço novo. Porém está desligado,
+não recupera períodos anteriores à ativação e habilitá-lo cria arquivo em bucket
+e reinicia a origem. Isso não é um meio de testar o snapshot agendado existente.
+Não foi habilitado nem houve mudança do banco, bucket ou agenda. Continua
+pendente uma cópia suportada dos snapshots ou um arquivo lógico agendado próprio
+com restauração isolada verificada; não anunciar DR agendado a partir do dump novo.
+
+Fontes: [CLI 5.62.1, implementação do restore](https://github.com/railwayapp/cli/blob/v5.62.1/src/commands/database/pitr.rs),
+[API de volumes](https://docs.railway.com/integrations/api/manage-volumes#restore-from-backup),
+[snapshots](https://docs.railway.com/volumes/backups#how-to-restore-a-backup) e
+[PITR](https://docs.railway.com/volumes/point-in-time-recovery#restoring-to-a-point-in-time).

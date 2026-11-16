@@ -78,3 +78,18 @@ humana foram integrados à candidata, sem diferença em apps/packages/CI/IaC
 executáveis em relação a `737b6638`. O CI geral anterior da main e o da candidata
 ainda estão em execução; o novo envio à main deve aguardar a rodada atual para
 não cancelá-la. [Evidências da candidata](evidencias/remocao-candidata-2026-11-16.json).
+
+## Implantação e rollback
+
+Não há migration nova nem mudança de mundo/protocolo/arte. Mesmo assim, a fonte
+anterior `92f665e7` não é rollback seguro depois de iniciar remoções: seu aceite
+não conserva a barreira temporal do reingresso nem revalida o emissor. O mínimo
+é preservar os leitores corrigidos de `737b6638`, ainda que a interface ou os
+novos escritores sejam retirados em um rebuild. Não reabrir convites revogados
+nem mudar históricos para acomodar código antigo. Os cinco motivos antigos e
+`permissions_changed` continuam com os leitores já implantados.
+
+A publicação deve reler somente contagens de vínculos encerrados sem data de
+saída e de convites pendentes com emissor incompatível. Dado legado sem prova
+não autoriza inventar data, assumir outro emissor ou apagar autoria. Não usar
+as contas piloto para simular uma validação humana que o titular adiou.
