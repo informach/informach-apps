@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, type Route } from "@playwright/test";
 
-/** HTML e servidor reais; só a chegada dos scripts fica suspensa, sem espera fixa. */
+/** HTML e servidor reais. Estes ensaios reservam a interceptação de página para este bloqueio. */
 export async function conferirCarregamento(page: Page, controles: Locator[]) {
   let liberar: (() => void) | undefined;
   let bloqueados = 0;
@@ -21,7 +21,7 @@ export async function conferirCarregamento(page: Page, controles: Locator[]) {
     for (const controle of controles) await expect(controle).toBeDisabled();
   } finally {
     liberar?.();
-    await page.unroute(padrao, bloquear);
+    await page.unrouteAll({ behavior: "wait" });
   }
   for (const controle of controles) await expect(controle).toBeEnabled();
 }
