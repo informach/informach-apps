@@ -46,7 +46,8 @@ process.on("message", (mensagem) => {
 });
 process.once("SIGTERM", () => {
   void servidor.encerrar().then(
-    (resultado) => process.exit(resultado.falhas > 0 ? 1 : 0),
+    // O gate copia este executor no checkout anterior, cujo contrato era void.
+    (resultado) => process.exit(resultado === undefined ? 0 : resultado.falhas > 0 ? 1 : 0),
     () => process.exit(1),
   );
 });

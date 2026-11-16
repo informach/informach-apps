@@ -147,10 +147,12 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
   }
 
   function fechar(ligacao: Ligacao, codigo: number): void {
+    // O ator pode já ter enviado o close; retirar a referência não depende
+    // do callback posterior do transporte.
+    ligacoes.delete(ligacao.conexao);
     if (ligacao.fase === "fechada") return;
     ligacao.fase = "fechada";
     ligacao.conexao.fechar(codigo);
-    ligacoes.delete(ligacao.conexao);
   }
 
   /** Balde de fichas: recarrega com o tempo e gasta uma por quadro. */

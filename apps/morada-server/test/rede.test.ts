@@ -26,6 +26,20 @@ const MedidasDeRedeSchema = z.object({
 });
 const abertos: Servidor[] = [];
 
+function sinal() {
+  let resolver: (() => void) | undefined;
+  const promessa = new Promise<void>((resolve) => {
+    resolver = resolve;
+  });
+  return {
+    promessa,
+    liberar() {
+      if (!resolver) throw new Error("Sinal ausente");
+      resolver();
+    },
+  };
+}
+
 afterEach(async () => {
   for (const servidor of abertos.splice(0)) await servidor.encerrar();
 });
@@ -66,6 +80,7 @@ async function subir(
     exigirOrigem?: boolean;
     limitesDeRede?: OpcoesDoServidor["limitesDeRede"];
     antesDeVerificar?: () => Promise<void>;
+    antesDeFotografar?: () => Promise<void>;
   } = {},
 ) {
   const plataforma = criarPlataformaFalsa({ inicio: Date.now() });
@@ -87,8 +102,14 @@ async function subir(
     return plataforma.agora();
   };
   const verificador = recreio.verificador("morada", () => new Date(sincronizar()));
+  const host = hostComFalhas(plataforma.cliente(), doRecreio, opcoes.batimentoMs);
+  const gravar = host.gravarFotografia.bind(host);
+  host.gravarFotografia = async (pedido) => {
+    await opcoes.antesDeFotografar?.();
+    return gravar(pedido);
+  };
   const instancia = criarInstancia({
-    host: hostComFalhas(plataforma.cliente(), doRecreio, opcoes.batimentoMs),
+    host,
     verificador: {
       async verificar(token) {
         await opcoes.antesDeVerificar?.();
@@ -399,6 +420,69 @@ describe("servidor em uma porta de verdade", () => {
       cliente.ws.terminate();
     }
   }, 10_000);
+
+  it("retira prontidão e aguarda a escrita lenta antes de liberar a posse e fechar a rede", async () => {
+    let reter = false;
+    const escrita = sinal(),
+      espera = sinal();
+    const { porta, jogador, servidor, plataforma } = await subir({
+      antesDeFotografar: async () => {
+        if (reter) {
+          escrita.liberar();
+          await espera.promessa;
+        }
+      },
+    });
+    const lia = await jogador("Lia");
+    const cliente = await conectar(porta);
+    cliente.mandar({
+      t: "entrar",
+      v: VERSAO_DO_PROTOCOLO,
+      sessao: lia.sessao,
+      mundoId: lia.mundoId,
+    });
+    await cliente.esperar(() => cliente.visao !== null);
+    const id = MundoIdSchema.parse(lia.mundoId);
+    const fotosAntes = plataforma.mundo(id).fotografias.length;
+    reter = true;
+    const encerramento = servidor.encerrar();
+    try {
+      await escrita.promessa;
+      expect((await fetch(`http://127.0.0.1:${porta}/api/ready`)).status).toBe(503);
+      expect(servidor.http.listening).toBe(true);
+      expect(plataforma.mundo(id).posse).not.toBeNull();
+      expect(plataforma.mundo(id).fotografias).toHaveLength(fotosAntes);
+    } finally {
+      espera.liberar();
+    }
+    expect(await encerramento).toEqual({ mundos: 1, falhas: 0 });
+    expect(await cliente.fechado).toBe(FECHAMENTO.reiniciando);
+    expect(plataforma.mundo(id).posse).toBeNull();
+    expect(plataforma.mundo(id).fotografias.at(-1)?.diarioSeq).toBe(plataforma.mundo(id).diarioSeq);
+    expect(servidor.http.listening).toBe(false);
+  });
+
+  it("fecha HTTP e WebSocket e reporta falha quando o salvamento não é confirmado", async () => {
+    const { porta, jogador, servidor, plataforma, doRecreio } = await subir();
+    const lia = await jogador("Lia");
+    const cliente = await conectar(porta);
+    cliente.mandar({
+      t: "entrar",
+      v: VERSAO_DO_PROTOCOLO,
+      sessao: lia.sessao,
+      mundoId: lia.mundoId,
+    });
+    await cliente.esperar(() => cliente.visao !== null);
+    const id = MundoIdSchema.parse(lia.mundoId);
+    const fotosAntes = plataforma.mundo(id).fotografias.length;
+    doRecreio.foraDoAr = true;
+    expect(await servidor.encerrar()).toEqual({ mundos: 1, falhas: 1 });
+    expect(await servidor.encerrar()).toEqual({ mundos: 1, falhas: 1 });
+    expect(await cliente.fechado).toBe(FECHAMENTO.reiniciando);
+    expect(plataforma.mundo(id).posse).not.toBeNull();
+    expect(plataforma.mundo(id).fotografias).toHaveLength(fotosAntes);
+    expect(servidor.http.listening).toBe(false);
+  });
 });
 
 describe("registro no Recreio", () => {
