@@ -86,3 +86,9 @@ A correção do executor inicia servidor/mundo próprios por arquivo de jornada,
 preservando resultados em pastas diferentes. A bancada é construída uma vez
 no mesmo checkout, sem reutilizar processos/mundos nem repetir testes falhos.
 A nova rodada completa e a comparação privada com arte continuam necessárias.
+
+Na execução por arquivo, a história de duas pessoas detectou um 404 que antes
+ficava no primeiro navegador de outra jornada. Prova focada `43809095389`
+identificou `/favicon.ico` na primeira entrada. As quatro páginas da bancada
+passam a declarar um ícone SVG próprio, incluído pelo build. Não filtrar o erro
+do console nem desligar sua asserção; repetir a prova focada antes dos gates.
