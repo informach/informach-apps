@@ -491,7 +491,21 @@ export class MoradoresDaCena {
       this.pontoProjetado.copy(this.pontoDoRotulo).project(camera);
       rotulo.visible = false;
       const p = this.pontoProjetado;
-      if (p.z < -1 || p.z > 1 || Math.abs(p.x) > 1 || Math.abs(p.y) > 1) continue;
+      // Em perspectiva a cabeça pode projetar fora da borda mesmo com o corpo
+      // na tela. Nesse caso o organizador traz a placa inteira para dentro.
+      entrada.visual.raiz.getWorldPosition(this.pontoDoConector);
+      this.pontoDoConector.y += entrada.visual.altura / 2;
+      this.pontoDoConector.project(camera);
+      const corpo = this.pontoDoConector;
+      if (
+        p.z < -1 ||
+        p.z > 1 ||
+        corpo.z < -1 ||
+        corpo.z > 1 ||
+        Math.abs(corpo.x) > 1 ||
+        Math.abs(corpo.y) > 1
+      )
+        continue;
       candidatos.push({
         id,
         x: ((p.x + 1) * largura) / 2,

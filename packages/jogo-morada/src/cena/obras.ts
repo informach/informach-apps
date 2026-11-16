@@ -27,6 +27,7 @@ export class ObrasDaCena {
       depthTest: false,
       depthWrite: false,
       transparent: true,
+      toneMapped: false,
     }),
   );
   private anterior: {

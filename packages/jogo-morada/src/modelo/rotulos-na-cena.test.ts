@@ -16,6 +16,23 @@ const rotulo = (id: string, dados: Partial<RotuloProjetado> = {}): RotuloProjeta
   ...dados,
 });
 describe("nomes sem sobreposição na câmera", () => {
+  it("traz para dentro a âncora fora da borda de um corpo visível sem cobrir o painel", () => {
+    const nomes = new OrganizadorDeRotulos().organizar(
+      [
+        rotulo("a", { x: 410, y: 550 }),
+        rotulo("b", { x: 430, y: 580 }),
+        rotulo("c", { x: 420, y: 680 }),
+      ],
+      390,
+      844,
+      [{ x0: 12, y0: 647, x1: 378, y1: 832 }],
+    );
+    expect(nomes).toHaveLength(3);
+    for (const nome of nomes) {
+      expect(nome.x).toBeLessThanOrEqual(330);
+      expect(nome.y + 12 + 4).toBeLessThanOrEqual(647);
+    }
+  });
   it("mantém os nomes acima do painel compacto e libera a área quando o painel fecha", () => {
     const organizador = new OrganizadorDeRotulos();
     const candidatos = [rotulo("a", { y: 645 }), rotulo("b", { y: 645 })];

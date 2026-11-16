@@ -213,3 +213,11 @@ antigo e exige conferir uma prévia/valor antes de confirmar. Testes adicionados
 exercitam a cadeia de quatro operações, repetição, interferência, falta de
 permissão/saldo/trava e quedas antes/depois do diário em ambos os sentidos.
 Esse incremento ainda precisa de validação remota e jornada real no navegador.
+
+Fonte `188bbb46`: tipos e prova focada `43795640707` passaram: 51 casos do
+núcleo, 29 do cliente e 10 do ator. Inclui quatro quedas de compensação (dois
+sentidos × antes/depois do diário) e reenvio com a geração da instância antiga.
+O E2E de duas contas foi ampliado para conferir que a autora vê somente o
+próprio histórico, desfazer/refazer com aceite explícito, saldo/quantidade e
+persistência após nova parada/retomada. Os seis gates e a arte dessa ampliação
+ainda não foram executados.

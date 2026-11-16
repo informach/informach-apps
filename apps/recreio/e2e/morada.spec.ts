@@ -432,6 +432,7 @@ test("duas contas reservam espaço, liberam ao reconectar e conservam uma única
   const centavos = (texto: string) => Number(texto.replace(/[^\d]/g, ""));
   expect(centavos(saldo) - centavos(saldoDepois)).toBe(9_500);
   await expect(daAna.locator(".morada-edicao-saldo b")).toHaveText(saldoDepois);
+  await expect(daAna.getByRole("button", { name: "Desfazer", exact: true })).toBeDisabled();
   await jogoEm(bia.page).sair.click();
   await expect(bia.page).toHaveURL(/\/estante/);
   await jogoEm(ana.page).sair.click();
@@ -454,6 +455,44 @@ test("duas contas reservam espaço, liberam ao reconectar e conservam uma única
   await expect(daBia.getByLabel("Profundidade (m)", { exact: true })).toHaveValue(
     String(posicao[1]),
   );
+  await daBia.getByRole("button", { name: "Desfazer", exact: true }).click();
+  await expect(
+    daBia.getByRole("button", { name: "Confirmar desfazer", exact: true }),
+  ).toBeDisabled();
+  await daBia.getByRole("checkbox", { name: "Conferi a mudança e o valor", exact: true }).check();
+  await daBia.getByRole("button", { name: "Confirmar desfazer", exact: true }).click();
+  await expect(daBia.getByText("Edição confirmada.", { exact: true })).toBeVisible();
+  await expect(daBia.locator(".morada-edicao-saldo b")).toHaveText(saldo);
+  await expect(daBia.getByRole("button", { name: /Na casa/ })).toContainText(
+    String(quantidadeAntes),
+  );
+  await daBia.getByRole("button", { name: "Refazer", exact: true }).click();
+  await daBia.getByRole("checkbox", { name: "Conferi a mudança e o valor", exact: true }).check();
+  await daBia.getByRole("button", { name: "Confirmar refazer", exact: true }).click();
+  await expect(daBia.getByText("Edição confirmada.", { exact: true })).toBeVisible();
+  await expect(daBia.locator(".morada-edicao-saldo b")).toHaveText(saldoDepois);
+  await expect(daBia.getByRole("button", { name: /Na casa/ })).toContainText(
+    String(quantidadeAntes + 1),
+  );
+  await jogoEm(bia.page).sair.click();
+  await expect(bia.page).toHaveURL(/\/estante/);
+  expect(await pararServidor()).toBe(true);
+  await iniciarServidor();
+  await bia.page.goto(enderecoDoJogo(mundoId));
+  await mundoNaTela(jogoEm(bia.page));
+  await bia.page.getByRole("button", { name: "Decorar", exact: true }).click();
+  await expect(daBia.locator(".morada-edicao-saldo b")).toHaveText(saldoDepois);
+  await expect(daBia.getByRole("button", { name: "Desfazer", exact: true })).toBeEnabled();
+  await expect(daBia.getByRole("button", { name: "Refazer", exact: true })).toBeDisabled();
+  await daBia.getByRole("button", { name: /Na casa/ }).click();
+  await daBia
+    .getByRole("button", { name: /Mesa lateral redonda Peça \d+$/ })
+    .last()
+    .click();
+  await expect(daBia.getByLabel("Largura (m)", { exact: true })).toHaveValue(String(posicao[0]));
+  await expect(daBia.getByLabel("Profundidade (m)", { exact: true })).toHaveValue(
+    String(posicao[1]),
+  );
   await medida("obra-compartilhada", {
     contas: 2,
     convitePeloPortal: true,
@@ -461,6 +500,10 @@ test("duas contas reservam espaço, liberam ao reconectar e conservam uma única
     reconexaoLiberou: true,
     compraUnica: true,
     restaurou: true,
+    historicoSomenteDoAutor: true,
+    desfazerCompra: true,
+    refazerCompra: true,
+    historicoRestaurado: true,
     posicaoDoConflito,
     posicao,
     saldoAntes: saldo,

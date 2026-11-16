@@ -45,3 +45,17 @@ painéis. ResizeObserver e MutationObserver atualizam um cache após mudanças
 da interface; a cena consulta esse cache, sem medir o DOM a cada quadro.
 Casos puros cobrem painel aberto, fechado e tela inteiramente ocupada. Tipos,
 testes e novas capturas continuam necessários para aprovar esses ajustes.
+
+Fonte `aea30fd8`: seis gates `43793595975` e cinco jornadas privadas
+`43794302225` passaram, com compra única por 95 M$, saldo 5.000→4.905 e
+posição 3,5 m × 5 m restaurada. As 48 combinações terminaram com os mesmos
+recursos de antes: 1 contexto, 128 buffers e 43 texturas (picos 203/45).
+Essas contagens não medem FPS nem homologam hardware de entrada.
+
+Exame das três capturas: nomes legíveis no computador; no celular os corpos
+continuam visíveis na borda, mas seus nomes sumiram. A seleção visual ainda
+descartava a âncora da placa fora do frustum, antes de o organizador poder
+trazê-la para dentro. A seleção passa a considerar o centro do corpo; a placa
+continua limitada à janela e às áreas livres. A cor do contorno também deve
+conservar o amarelo da interface independentemente da exposição da cena.
+Esses ajustes posteriores exigem nova rodada e novo exame das imagens.

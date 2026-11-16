@@ -191,6 +191,45 @@ function cenario(opcoes: OpcoesDoMundo = {}, fundo = 500_000) {
 }
 
 describe("edição autoritativa e durável da casa", () => {
+  it("refazer não ocupa a peça de outra pessoa; falha conserva a pilha e permite uma nova conferência", () => {
+    const c = cenario();
+    c.mundo.aplicar({
+      t: "conceder_acesso",
+      perfilId: BRUNO,
+      familiaId: c.familiaId,
+      permissoes: ["decorar", "gastar"],
+    });
+    c.entrar(c.mundo, BRUNO);
+    expect(c.aplicar(c.compra()).ok).toBe(true);
+    const id = c.objeto().id;
+    expect(c.mundo.visao(BRUNO).edicao.historico?.desfazer).toBeNull();
+    expect(c.aplicar(c.historico("desfazer")).ok).toBe(true);
+    expect(c.aplicar(c.compra(1), BRUNO).ok).toBe(true);
+    const antes = copiar(c.mundo.estado.historicoDaCasa);
+    expect(c.aplicar(c.historico("refazer"))).toMatchObject({ ok: false, detalhe: "colisao" });
+    expect(c.mundo.estado.historicoDaCasa).toEqual(antes);
+    expect(c.familiaAtual().fundo).toBe(476_000);
+    expect(c.aplicar(c.historico("desfazer", BRUNO), BRUNO).ok).toBe(true);
+    expect(c.aplicar(c.historico("refazer")).ok).toBe(true);
+    expect(c.objeto()).toMatchObject({ id, revisao: 6 });
+    expect(c.familiaAtual().fundo).toBe(476_000);
+    expect(verificarInvariantes(c.mundo.estado)).toEqual([]);
+  });
+
+  it("redutor recusa compensação adulterada sem aplicar saldo, peça, recibo ou histórico parcial", () => {
+    const c = cenario();
+    expect(c.aplicar(c.compra()).ok).toBe(true);
+    c.mundo.avancar(0);
+    const antes = c.mundo.fotografar();
+    expect(c.aplicar(c.historico("desfazer")).ok).toBe(true);
+    const fato = copiar(c.mundo.avancar(0).fatos[0]);
+    if (fato?.dados.tipo !== "EdicaoRegistrada" || !fato.dados.efeito)
+      throw new Error("Compensação da prova ausente");
+    fato.dados.efeito.saldo++;
+    const alvo = copiar(antes.estado);
+    expect(() => reduzirFato(alvo, fato)).toThrow("histórico original");
+    expect(alvo).toEqual(antes.estado);
+  });
   it("desfaz a compra pelo valor pago e refaz a mesma peça sem reutilizar revisões ou cobrar duas vezes", () => {
     const c = cenario();
     expect(c.aplicar(c.compra()).ok).toBe(true);
