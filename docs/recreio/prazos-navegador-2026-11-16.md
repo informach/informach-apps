@@ -25,7 +25,7 @@ impede agendar a próxima tentativa e anunciar a perda ao vencer a sessão.
    desconhecido, não rollback no servidor; consultar o estado antes de repetir
    criação/convite. Checkpoint na troca de aparelho continua uma entrega própria.
 
-## Candidata em preparação
+## Homologação e implantação
 
 O código aplica o prazo à operação inteira, cancela o sinal ao concluir e
 descarta respostas tardias. A saída possui confirmação remota separada da
@@ -37,6 +37,7 @@ automaticamente mutações quando o resultado é desconhecido.
 Testes adicionados para prazo, corpo aberto, emissor que não responde,
 operações do SDK, expiração da renovação e confirmação da saída. Fonte
 `9706390f`: seis gates `43805088387` aprovados no GitHub, incluindo portal,
-cliente, integrações e versões reais. A candidata isolada `d13038b7`, sobre
-a versão publicada, está em verificação `43806077949`; implantação pendente.
+cliente, integrações e versões reais. Fonte isolada `d13038b7`, sobre a versão
+publicada: seis gates `43806077949` aprovados e main remota integrada. Build
+Railway em acompanhamento; ativação e repetição main ainda sem confirmação.
 O diagnóstico de nomes no celular do D3 permanece separado e aberto.
