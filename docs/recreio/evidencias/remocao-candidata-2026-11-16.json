@@ -1,0 +1,71 @@
+{
+  "estado": "candidata_sem_publicacao",
+  "fonteEmVerificacao": "737b6638f7a0f7c801a56bf9d448b6b960bb96d2",
+  "fonteEmProducao": "92f665e730d201ecc606a5f692601c4bde27cc64",
+  "contratos": {
+    "mundo": 2,
+    "protocolo": 1,
+    "arte": "D2",
+    "novaMigration": false
+  },
+  "remocaoBackend": {
+    "fonte": "2721e34f4e0e32ab2abd7bd77663d0038ae8e8ca",
+    "runId": 43921410946,
+    "gatesAprovados": 6,
+    "integracoesPostgres": 315
+  },
+  "interfaceAnterior": {
+    "fonte": "65895f481cf6a3c6bc1a9a0c6e276aed9fbba3ad",
+    "runId": 43922269263,
+    "integracoesPostgres": 318,
+    "navegadorAprovados": 11,
+    "exclusoesEspecificas": 2,
+    "erroDeQualidade": "formatacao da insercao sintetica paginada; corrigida antes de e94a1d1a"
+  },
+  "regressaoConvites": {
+    "fonte": "e94a1d1aa9c92e168365133640a9f2eb45b81a24",
+    "runId": 43922914708,
+    "jobId": 133494637259,
+    "falhas": 3,
+    "aprovados": 318,
+    "falhasReproduzidas": [
+      "convite anterior a remocao readmite",
+      "convite antigo revive depois de volta de papel",
+      "aceite nao rele autoridade atual do emissor"
+    ]
+  },
+  "correcao": {
+    "fonte": "737b6638f7a0f7c801a56bf9d448b6b960bb96d2",
+    "runId": 43923719509,
+    "integracaoJobId": 133497464088,
+    "integracoesPostgres": 325,
+    "casosRemocaoEConvites": 34,
+    "integracao": "success",
+    "qualidade": "success",
+    "cliente": "success",
+    "versoes": "success",
+    "e2e": "success",
+    "longa": "success",
+    "ciGeralRunId": 43923717777,
+    "ciGeral": "in_progress",
+    "gatesAprovados": 6
+  },
+  "capturaInspecionada": {
+    "fonte": "65895f481cf6a3c6bc1a9a0c6e276aed9fbba3ad",
+    "artefatoId": 14253839199,
+    "sha256Zip": "acc44bcaef963c7344f0309b0397aae71f080bdb530f49fe724512b6837dc0c4",
+    "arquivo": "remocao-membro-mobile.png",
+    "largura": 390,
+    "altura": 844,
+    "confirmacaoECancelamentoLegiveis": true,
+    "semRolagemHorizontal": true,
+    "dadosSinteticos": true,
+    "arteLicenciada": false
+  },
+  "limites": [
+    "conferir preflight e publicar somente depois do CI geral atual da main terminar",
+    "CI geral da main 92f665e7 ainda em curso; nao cancelar com push documental",
+    "validacao humana da transferencia adiada pelo titular; nao solicitar novamente",
+    "A6, A5, retencao integral, desempenho e venda continuam pendentes"
+  ]
+}

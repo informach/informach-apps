@@ -4,16 +4,22 @@ Para quem retoma a frente depois de uma pausa. Leia primeiro a [execução atual
 
 ## Estado atual em 16/11
 
-[Leitores da responsabilidade implantados](leitores-producao-2026-11-16.md):
-schema 167, quatro FKs compostas e reconciliação; sem ofertas/aceites publicados.
-PID 1 do Morada corrigido para Node direto, após prova de SIGTERM no contêiner
-do GitHub. [Dados da correção](processo-principal-2026-11-16.md); observar o
-encerramento no Railway na próxima implantação normal.
+CI geral `43923717777` recusado na transferência após novo login, por seleção
+perdida durante o carregamento. Correção de hidratação em verificação no GitHub;
+não confundir os seis gates aprovados com aprovação dessa rodada geral.
 
-Portal e Morada em `f0f1c96c`, alfa fechado, Mundo V2/protocolo 1
-e arte D2/V3. Expiração em lotes e resultado verificável da drenagem implantados;
-seis gates de cada candidata e da main aprovados. Saúde/prontidão 200, cron,
-mapas do portal e arte conferidos. [Operação atual](../../apps/recreio/PRODUCAO.md).
+[Remoção e convites corrigidos implantados](remocao-producao-2026-11-16.md):
+portal `1ed101be`, Morada `92f665e7`, schema 167 e arte D2. 325 integrações e
+seis gates na candidata/main; contas piloto preservadas e prova humana adiada.
+
+[Transferência aceita implantada](responsabilidade-producao-2026-11-16.md):
+naquele marco, portal e Morada em `92f665e7`, schema 167, Mundo V2/protocolo 1/arte D2.
+Proposta/aceite/recusa/cancelamento com login nativo, prazos e auditoria atômica.
+291 integrações e seis gates na candidata/main. Prova humana adiada pelo titular.
+Node PID 1 confirmado no Railway; retirada normal recebeu SIGTERM e confirmou
+zero mundos/zero falhas. Não houve prova de salvamento de mundo aberto nessa
+retirada. Prontidão, mapas, arte e cron posterior conferidos. CI geral da main
+em curso; não cancelá-lo com push só documental. D3 continua separada.
 
 Edição do perfil próprio implantada no portal, com seis gates na candidata/main,
 188 integrações e jornada de salvamento/recarga/teclado; [prova](perfil-proprio-2026-11-16.md).

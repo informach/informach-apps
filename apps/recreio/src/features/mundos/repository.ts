@@ -216,7 +216,8 @@ export async function criarConviteDoMundo(entrada: {
         participation: entrada.participacao,
         codeHash: entrada.codeHash,
         state: "sent",
-        expiresAt: sql`now() + ${`${entrada.validadeMs} milliseconds`}::interval`,
+        createdAt: AGORA,
+        expiresAt: sql`${AGORA} + ${`${entrada.validadeMs} milliseconds`}::interval`,
       })
       .returning({ id: invites.id, expiresAt: invites.expiresAt });
     if (!convite) throw new Error("O convite não foi gravado.");
@@ -258,7 +259,13 @@ export async function aceitarConviteDoMundo(entrada: {
       .where(eq(invites.codeHash, entrada.codeHash));
     if (!achado) throw new ErroDoRecreio("CONVITE_INVALIDO");
     const [mundo] = await tx
-      .select({ id: spaces.id, gameId: spaces.gameId, status: spaces.status, name: spaces.name })
+      .select({
+        id: spaces.id,
+        gameId: spaces.gameId,
+        status: spaces.status,
+        name: spaces.name,
+        stewardProfileId: spaces.stewardProfileId,
+      })
       .from(spaces)
       .where(eq(spaces.id, achado.spaceId))
       .for("update");
@@ -281,12 +288,31 @@ export async function aceitarConviteDoMundo(entrada: {
     if (!mundo || !convite || mundo.status === "archived" || mundo.status === "deleted")
       throw new ErroDoRecreio("CONVITE_INVALIDO");
 
+    const [emissor] = await tx
+      .select({ id: members.id })
+      .from(members)
+      .where(
+        and(
+          eq(members.spaceId, mundo.id),
+          eq(members.id, convite.invitedByMemberId),
+          eq(members.role, "steward"),
+          eq(members.state, "active"),
+          sql`${members.profileId} = ${mundo.stewardProfileId}`,
+        ),
+      );
+    if (!emissor) throw new ErroDoRecreio("CONVITE_INVALIDO");
     const conta = await contaDoPerfil(tx, entrada.perfilId);
     const [existente] = await tx
-      .select({ id: members.id, state: members.state })
+      .select({
+        id: members.id,
+        state: members.state,
+        reingresso: sql<boolean>`${members.leftAt} is not null and ${members.leftAt} < (select ${invites.createdAt} from ${invites} where ${invites.id} = ${convite.id})`,
+      })
       .from(members)
       .where(and(eq(members.spaceId, mundo.id), eq(members.profileId, entrada.perfilId)));
     if (existente && existente.state !== "former") throw new ErroDoRecreio("JA_MEMBRO");
+    if (existente?.state === "former" && !existente.reingresso)
+      throw new ErroDoRecreio("CONVITE_INVALIDO");
     const [contagem] = await tx
       .select({ total: sql<number>`count(*)::int` })
       .from(members)

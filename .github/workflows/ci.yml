@@ -7,12 +7,46 @@ on:
   pull_request:
     branches: [main]
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
+  alteracao:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      completo: ${{ steps.escopo.outputs.completo }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+      - run: node --test .github/scripts/ci-recreio-documentacao.test.mjs
+      - id: escopo
+        run: node .github/scripts/ci-recreio-documentacao.mjs "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_PATH" "$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+
+  documentos-recreio:
+    needs: alteracao
+    if: needs.alteracao.outputs.completo == 'false'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ci-documentos-recreio-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      # Somente o formatter da raiz; sem baixar/rodar binários nativos dos apps.
+      - run: pnpm install --frozen-lockfile --ignore-scripts --filter informach-apps
+      - run: pnpm exec biome check docs/recreio
+
   ci:
+    needs: alteracao
+    if: needs.alteracao.outputs.completo == 'true'
+    concurrency:
+      group: ci-completo-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     services:
       postgres:

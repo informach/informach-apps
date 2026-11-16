@@ -67,6 +67,14 @@ export default async function Participacoes({
               >
                 Responsabilidade pelo mundo
               </Link>
+              {item.papel === "steward" ? (
+                <Link
+                  href={`/conta/mundos/${item.mundoId}/membros`}
+                  className="mt-3 flex w-fit font-bold text-ceu underline underline-offset-4"
+                >
+                  Gerenciar membros
+                </Link>
+              ) : null}
               {item.estado === "active" &&
               (item.estadoDoMundo === "active" || item.estadoDoMundo === "hibernating") ? (
                 <Link

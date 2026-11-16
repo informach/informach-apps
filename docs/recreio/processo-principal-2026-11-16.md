@@ -33,9 +33,11 @@ UTC, o PID 1 era o Node 24.15.0 com `apps/morada-server/dist/main.mjs`, na
 raiz `/app`. Fonte ainda `f0f1c96c`, prontidão 200, zero mundos/conexões,
 arte D2 com o SHA anterior e nenhuma outra diferença de configuração.
 
-A IaC e o gate permanecem preparados na main local, aguardando o CI geral
-em curso para não cancelá-lo com outro push. A confirmação do encerramento
-direto no Railway deve ser observada na próxima implantação normal, sem
-reinício extra para esse fim. [Dados da correção](evidencias/processo-principal-producao-2026-11-16.json).
+IaC e gate publicados em `92f665e7`. Na retirada normal de `afe83ea7`, às
+17:27:03 UTC, o PID 1 recebeu SIGTERM e confirmou `instancia_encerrada`, com
+zero mundos e zero falhas. A nova instância está pronta com o mesmo comando.
+Não havia mundo aberto; isso não prova salvamento de uma partida de produção.
+[Operação posterior](responsabilidade-producao-2026-11-16.md) e
+[dados da correção inicial](evidencias/processo-principal-producao-2026-11-16.json).
 
 Contrato do provedor: [SIGTERM e tempo de drenagem](https://docs.railway.com/deployments/deployment-teardown#draining-time).

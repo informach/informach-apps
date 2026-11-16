@@ -12,7 +12,7 @@ type Painel = Awaited<ReturnType<typeof painelDaResponsabilidade>>;
 const mensagens = {
   pending: "Proposta enviada. A responsabilidade muda somente se a outra pessoa aceitar.",
   accepted:
-    "A proposta foi aceita. As partidas dos dois participantes neste mundo foram encerradas para atualizar as permissões. O progresso foi preservado.",
+    "A proposta foi aceita. As partidas dos dois participantes neste mundo foram encerradas para atualizar as permissões. O progresso foi preservado. Os convites de entrada ainda não usados do antigo responsável foram cancelados.",
   declined: "Proposta recusada. A responsabilidade continua com a mesma pessoa.",
   revoked: "Proposta cancelada. A responsabilidade continua com a mesma pessoa.",
   expired: "A proposta venceu. O responsável atual pode preparar outra.",
@@ -81,7 +81,8 @@ export function Responsabilidade({
                 Avaliar proposta
               </summary>
               <p id={avisoId} className="mt-4 text-tinta-suave">
-                Ao aceitar, você passa a responder pelo mundo. O responsável atual continua como
+                Ao aceitar, os convites de entrada ainda não usados do antigo responsável serão
+                cancelados. Você passa a responder pelo mundo. O responsável atual continua como
                 membro. Os personagens, o progresso e os direitos próprios da família do Morada
                 ficam preservados. As partidas dos dois neste mundo serão encerradas para atualizar
                 as permissões. A assinatura e a cota de criação de mundos de cada pessoa continuam
