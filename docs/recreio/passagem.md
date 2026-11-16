@@ -4,13 +4,15 @@ Para quem retoma a frente depois de uma pausa. Leia primeiro a [execução atual
 
 ## Estado atual em 16/11
 
-Portal em `9725e5fb` e Morada em `179a0a76`, alfa fechado, Mundo V2/protocolo 1
+Portal em `545aa7cb` e Morada em `179a0a76`, alfa fechado, Mundo V2/protocolo 1
 e arte D2/V3. Expiração em lotes e resultado verificável da drenagem implantados;
 seis gates de cada candidata e da main aprovados. Saúde/prontidão 200, cron,
 mapas do portal e arte conferidos. [Operação atual](../../apps/recreio/PRODUCAO.md).
 
 Edição do perfil próprio implantada no portal, com seis gates na candidata/main,
 188 integrações e jornada de salvamento/recarga/teclado; [prova](perfil-proprio-2026-11-16.md).
+
+[Aparelhos próprios](aparelhos-proprios-2026-11-16.md) implantados: paginação, negativa persistida e fim das partidas com auditoria atômica. Seis gates candidata/main, 200 integrações, sete jornadas e consumidores de auth aprovados; operação conferida.
 
 D3 continua separado da produção. A fonte `04d99f70` passou nos seis gates e nas
 cinco jornadas privadas `43826248469`, incluindo 48 combinações. O quadro antigo

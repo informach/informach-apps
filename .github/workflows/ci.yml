@@ -1,8 +1,9 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, "verify/recreio-*-postgres"]
   pull_request:
     branches: [main]
 
@@ -22,6 +23,21 @@ jobs:
           POSTGRES_DB: ci
         ports:
           - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres-recreio:
+        # O Recreio usa transaction_timeout (PG 17+), como a produção em 18.
+        # O PG 16 acima continua verificando os demais consumidores.
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5433:5432
         options: >-
           --health-cmd "pg_isready -U ci -d ci"
           --health-interval 10s
@@ -86,7 +102,12 @@ jobs:
 
       - run: pnpm --filter @informach/dia-de-estrela test:integration
 
+      - name: Recreio recusa PostgreSQL sem limite de transacao
+        run: pnpm --filter @informach/recreio-app test:integration operations.integration.ts
+
       - run: pnpm --filter @informach/recreio-app test:integration
+        env:
+          DATABASE_URL: postgres://ci:ci@localhost:5433/ci
 
       - run: pnpm --filter @informach/cozya eval
         env:
@@ -121,6 +142,8 @@ jobs:
       # (`apps/morada-server`). Não usa segredo nem serviço de fora: os segredos
       # da execução são gerados na hora. O Morada desenha em WebGL por software.
       - run: pnpm --filter @informach/recreio-app e2e
+        env:
+          DATABASE_URL: postgres://ci:ci@localhost:5433/ci
 
       # O build do Recreio exige as chaves dos tokens e das ações. As duas são
       # descartáveis neste CI e nunca são usadas nos serviços publicados.

@@ -28,7 +28,7 @@ O nome do pacote é `@informach/recreio-app`, porque `@informach/recreio` já é
 - Conta Informach por `@informach/auth`: senha ou código por e-mail (OTP para confirmar, entrar e redefinir senha), sem organizations. Sessões no Redis (`recreio:auth:`) com o cache de cookie desligado, para que sair ou revogar valha na hora.
 - `/` (página pública do alfa), `/entrar`, `/estante` e `/conta` (as duas exigem conta com e-mail confirmado e perfil ativo, conferidos no layout e em cada página), `/termos` e `/privacidade` provisórios.
 - `src/proxy.ts` só entrega a CSP com nonce e o caminho de volta do login. A autenticação fica no servidor, em layouts, páginas e ações. A política é montada em `lib/csp.ts`.
-- `/api/health` não toca o banco. `/api/ready` sonda o schema `recreio`, confere a migração esperada (`checkSchemaReadiness`) e o Redis; sem Redis responde 503.
+- `/api/health` não toca o banco. `/api/ready` exige `transaction_timeout` (PostgreSQL 17+), sonda o schema `recreio`, confere a migração esperada (`checkSchemaReadiness`) e o Redis; dependência incompatível ou Redis ausente responde 503. Os gates completos usam PG 18; o CI geral também prova a recusa em PG 16.
 - `/api/email/unsubscribe`: todo e-mail enviado leva esse endereço.
 - `RECREIO_ACCESS_MODE` (`fechado` por padrão, ou `aberto`): muda textos e, com `fechado`, faz a estante parar na explicação para quem não tem o direito de jogar. Não é ele que decide quem joga; isso é de `avaliarAcesso`.
 - Fora dos buscadores: `INDEXAVEL = false` em `src/lib/seo.ts`, separado do modo de acesso.

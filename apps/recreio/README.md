@@ -4,7 +4,7 @@ Portal da plataforma de jogos da Informach. Hoje dá para entrar com a conta Inf
 
 ## Abrir localmente
 
-Precisa de um PostgreSQL local com as migrations aplicadas (`pnpm db:migrate` com o mesmo `DATABASE_URL`). Redis é opcional fora de produção; sem ele as sessões ficam no Postgres e `/api/ready` responde 503.
+Precisa de PostgreSQL **17 ou posterior**, com as migrations aplicadas (`pnpm db:migrate` com o mesmo `DATABASE_URL`). O Recreio usa `transaction_timeout` para limitar transações de revogação e manutenção; `/api/ready` recusa um servidor sem esse recurso. Produção e os gates completos usam PostgreSQL 18; o CI geral também verifica a recusa em 16, preservado para os demais consumidores. Não trocar a imagem de um volume local existente sem o procedimento próprio de migração. Redis é opcional fora de produção; sem ele as sessões ficam no Postgres e `/api/ready` responde 503.
 
 ```bash
 pnpm install
