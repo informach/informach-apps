@@ -5,6 +5,7 @@ import { recreioGameSessions as games, recreioSpaceMembers as members } from "@i
 import { encerrarSessoesAbertas, travarEncerramentos } from "@/features/sessao-de-jogo/repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
+import { prepararRevogacaoDeConvites } from "./convites-revogacao-repository";
 import { type AutorDaResponsabilidade, contextoDaGestao, limitarGestao } from "./gestao-repository";
 import { revogarPropostasDoMembro } from "./responsabilidade-repository";
 
@@ -31,6 +32,7 @@ export async function registrarRemocao(
     );
     await ctx.conferirPrazo(true);
     if (ctx.outro.state === "former") return { removeu: false };
+    const revogarConvites = await prepararRevogacaoDeConvites(tx, ctx.mundo.id, ctx.outro.id);
     await revogarPropostasDoMembro(tx, ctx.mundo.id, ctx.outro.id, autor.contaId);
     // O perfil pode já ter sido excluído; o membro histórico continua existindo.
     const filtro = sql`${games.spaceId} = ${ctx.mundo.id} and ${games.profileId} = ${ctx.outro.profileId}`;
@@ -41,6 +43,7 @@ export async function registrarRemocao(
       .where(and(isNull(games.endedAt), filtro))
       .for("update");
     await ctx.conferirPrazo(true);
+    await revogarConvites(autor.contaId, "member_removed");
     await tx
       .update(members)
       .set({ state: "former", leftAt: AGORA })

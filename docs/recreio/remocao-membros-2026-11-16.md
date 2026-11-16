@@ -48,3 +48,24 @@ gestão do mundo, sem campos de autoridade vindos do navegador.
 
 Arquivamento, exportação/exclusão, menores, supervisão e encerramento global
 continuam fora deste incremento e permanecem pendências explícitas de A6/A5.
+
+## Revisão dos convites anteriores
+
+A fonte `e94a1d1a`, run `43922914708`, reproduziu três falhas: convite anterior
+à remoção readmitia o perfil; convites do antigo responsável sobreviviam à
+troca e à volta de papel; o aceite não relia a autoridade do emissor. As três
+promessas resolveram quando deveriam recusar, com 318 integrações aprovadas.
+A correção ainda precisa de gates e publicação.
+
+A troca e a remoção preparam as travas dos convites não usados do membro antes
+do cursor. Somente depois dos prazos revalidados os revogam, com evento estrito
+na mesma transação. Repetição de recibo não repete a ação. Aceites históricos e
+convites de outro mundo ficam preservados. O aceite exige emissor que continua
+membro ativo e responsável, conferido sob a trava do mundo. Um reingresso exige
+convite emitido após a saída/remoção. A comparação dos tempos fica no PostgreSQL,
+sem perder microssegundos em JavaScript; emissão e validade usam o relógio real
+após as travas. Vínculo histórico sem data de saída não ganha data inventada.
+
+A candidata da interface `65895f48` passou 318 integrações e a jornada nova no
+navegador. Qualidade falhou na formatação da inserção sintética paginada; foi
+corrigida antes de `e94a1d1a`. Isso não era falha da aplicação em produção.

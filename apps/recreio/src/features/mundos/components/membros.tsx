@@ -35,8 +35,9 @@ function Participante({
         </summary>
         <p id={avisoId} className="mt-4 text-tinta-suave">
           {nome} perderá o acesso a este mundo e sua partida nele será encerrada. Os moradores, o
-          progresso e a autoria permanecem. Para voltar, a pessoa precisará aceitar outro convite.
-          Uma proposta pendente de responsabilidade para ela será cancelada. A assinatura não muda.
+          progresso e a autoria permanecem. Para voltar, a pessoa precisará aceitar um convite
+          emitido depois desta remoção. Uma proposta pendente de responsabilidade para ela será
+          cancelada. A assinatura não muda.
         </p>
         <fieldset disabled={pendente} className="mt-4 flex flex-wrap gap-3">
           <legend className="sr-only">Confirmar remoção de {nome}</legend>

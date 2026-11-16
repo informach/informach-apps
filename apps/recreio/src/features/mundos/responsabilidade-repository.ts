@@ -10,6 +10,7 @@ import {
 import { encerrarSessoesAbertas, travarEncerramentos } from "@/features/sessao-de-jogo/repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
+import { prepararRevogacaoDeConvites } from "./convites-revogacao-repository";
 import { type AutorDaResponsabilidade, contextoDaGestao, limitarGestao } from "./gestao-repository";
 
 export type { AutorDaResponsabilidade, LoginDaResponsabilidade } from "./gestao-repository";
@@ -181,6 +182,7 @@ export async function responderResponsabilidade(
         "RESPONSAVEL",
         "A responsabilidade por este mundo mudou. Confira a proposta atual.",
       );
+      const revogarConvites = await prepararRevogacaoDeConvites(tx, mundoId, ctx.outro.id);
       const filtro = sql`${games.spaceId} = ${mundoId} and ${games.profileId} in (${autor.perfilId}, ${perfilDoResponsavel})`;
       await travarEncerramentos(tx);
       await tx
@@ -190,6 +192,7 @@ export async function responderResponsabilidade(
         .for("update");
       const agora = await ctx.conferirPrazo(true);
       if (pedido.expiresAt <= agora) return concluir(tx, pedido, "expired", agora, autor.contaId);
+      await revogarConvites(autor.contaId, "steward_changed");
       await tx.update(members).set({ role: "member" }).where(eq(members.id, ctx.outro.id));
       await tx.update(members).set({ role: "steward" }).where(eq(members.id, ctx.proprio.id));
       await tx

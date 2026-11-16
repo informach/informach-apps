@@ -4,6 +4,7 @@ import { db, eq, sql } from "@informach/db";
 import {
   recreioDeviceSessions as devices,
   recreioGameSessions as games,
+  recreioSpaceInvites as invites,
   recreioSpaceMembers as members,
   recreioProfiles as profiles,
   recreioSpaceStewardshipRequests as requests,
@@ -437,23 +438,27 @@ it("pagina metadados por UUID sem repetir, misturar mundos ou listar o próprio 
   expect(ids).toEqual([...ids].sort());
 });
 
-it("um convite anterior à remoção não readmite; convite posterior conserva a identidade do membro", async () => {
-  const c = await cenario();
-  const velho = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
-    forma: "member",
-  });
-  await removerParticipacao(c.a, c.id, c.membroBruno.id);
-  await expect(
-    aceitarConvite({ perfilId: c.bruno.perfil.id }, { codigo: velho.codigo }),
-  ).rejects.toMatchObject({ codigo: "CONVITE_INVALIDO" });
-  const novo = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
-    forma: "member",
-  });
-  await aceitarConvite({ perfilId: c.bruno.perfil.id }, { codigo: novo.codigo });
-  expect(
-    (await db.select().from(members).where(eq(members.id, c.membroBruno.id)))[0],
-  ).toMatchObject({ state: "active", profileId: c.bruno.perfil.id });
-});
+it.each(["remocao", "saida"] as const)(
+  "convite anterior a %s não readmite; um posterior conserva a identidade",
+  async (operacao) => {
+    const c = await cenario();
+    const velho = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
+      forma: "member",
+    });
+    if (operacao === "remocao") await removerParticipacao(c.a, c.id, c.membroBruno.id);
+    else await sairDoMundo(c.b, c.id);
+    await expect(
+      aceitarConvite({ perfilId: c.bruno.perfil.id }, { codigo: velho.codigo }),
+    ).rejects.toMatchObject({ codigo: "CONVITE_INVALIDO" });
+    const novo = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
+      forma: "member",
+    });
+    await aceitarConvite({ perfilId: c.bruno.perfil.id }, { codigo: novo.codigo });
+    expect(
+      (await db.select().from(members).where(eq(members.id, c.membroBruno.id)))[0],
+    ).toMatchObject({ state: "active", profileId: c.bruno.perfil.id });
+  },
+);
 
 it("a transferência revoga os convites pendentes do antigo responsável sem reativá-los se o papel voltar", async () => {
   const c = await cenario();
@@ -489,4 +494,72 @@ it("o aceite relê a autoridade atual do emissor mesmo em um convite legado aind
   await expect(
     aceitarConvite({ perfilId: terceira.perfil.id }, { codigo: velho.codigo }),
   ).rejects.toMatchObject({ codigo: "CONVITE_INVALIDO" });
+});
+
+it("revogar convites por transferência conserva aceites históricos e convites de outro mundo", async () => {
+  const c = await cenario();
+  const outro = await mundoDe(c.lia);
+  await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, { forma: "member" });
+  await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, outro, { forma: "member" });
+  const antes = await db.select().from(invites).where(eq(invites.spaceId, c.id));
+  const aceito = antes.find((x) => x.state === "accepted");
+  if (!aceito) throw new Error("Convite aceito ausente.");
+  const oferta = await proporResponsabilidade(c.a, c.id, c.membroBruno.id);
+  await responderResponsabilidade(c.b, c.id, oferta.pedidoId, "accepted");
+  expect((await db.select().from(invites).where(eq(invites.id, aceito.id)))[0]).toEqual(aceito);
+  expect((await db.select().from(invites).where(eq(invites.spaceId, outro)))[0]?.state).toBe(
+    "sent",
+  );
+  expect(
+    (await db.select().from(invites).where(eq(invites.spaceId, c.id))).filter(
+      (x) => x.state === "revoked",
+    ),
+  ).toHaveLength(1);
+});
+
+it("falha ao auditar a revogação dos convites reverte o aceite inteiro", async () => {
+  const c = await cenario();
+  await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, { forma: "member" });
+  const oferta = await proporResponsabilidade(c.a, c.id, c.membroBruno.id);
+  await db.execute(sql`create function audit.recusar_revogacao_convites_teste() returns trigger language plpgsql as $$
+    begin if new.event_type='recreio.space_invites_revoked' then raise exception 'indisponível (teste)'; end if; return new; end $$`);
+  await db.execute(
+    sql`create trigger recusar_revogacao_convites_teste before insert on audit.events for each row execute function audit.recusar_revogacao_convites_teste()`,
+  );
+  try {
+    await expect(
+      responderResponsabilidade(c.b, c.id, oferta.pedidoId, "accepted"),
+    ).rejects.toBeInstanceOf(AuditPersistenceError);
+    expect((await db.select().from(spaces).where(eq(spaces.id, c.id)))[0]?.stewardProfileId).toBe(
+      c.lia.perfil.id,
+    );
+    expect(
+      (await db.select().from(requests).where(eq(requests.id, oferta.pedidoId)))[0]?.state,
+    ).toBe("pending");
+    expect(
+      (await db.select().from(invites).where(eq(invites.spaceId, c.id))).filter(
+        (x) => x.state === "sent",
+      ),
+    ).toHaveLength(1);
+  } finally {
+    await db.execute(sql`drop trigger recusar_revogacao_convites_teste on audit.events`);
+    await db.execute(sql`drop function audit.recusar_revogacao_convites_teste()`);
+  }
+});
+
+it("não inventa data de saída para readmitir um vínculo histórico sem prova", async () => {
+  const c = await cenario();
+  await db
+    .update(members)
+    .set({ state: "former", leftAt: null })
+    .where(eq(members.id, c.membroBruno.id));
+  const convite = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
+    forma: "member",
+  });
+  await expect(
+    aceitarConvite({ perfilId: c.bruno.perfil.id }, { codigo: convite.codigo }),
+  ).rejects.toMatchObject({ codigo: "CONVITE_INVALIDO" });
+  expect(
+    (await db.select().from(members).where(eq(members.id, c.membroBruno.id)))[0]?.leftAt,
+  ).toBeNull();
 });
