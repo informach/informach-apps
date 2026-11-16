@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, type Route, test } from "@playwright/test";
 import {
   comecarVigia,
   convidar,
@@ -38,6 +38,28 @@ async function autenticarNovamente(
   await expect(page).toHaveURL(new RegExp(`${destino}$`));
 }
 
+/** O HTML pode aparecer antes dos scripts; os controles precisam continuar indisponíveis. */
+async function conferirCarregamento(page: Page, controles: Locator[]) {
+  let liberar: (() => void) | undefined;
+  const scripts = new Promise<void>((resolver) => {
+    liberar = resolver;
+  });
+  const padrao = "**/_next/static/**/*.js";
+  const bloquear = async (rota: Route) => {
+    await scripts;
+    await rota.fallback();
+  };
+  await page.route(padrao, bloquear);
+  try {
+    await page.reload({ waitUntil: "commit" });
+    for (const controle of controles) await expect(controle).toBeDisabled();
+  } finally {
+    liberar?.();
+    await page.unroute(padrao, bloquear);
+  }
+  for (const controle of controles) await expect(controle).toBeEnabled();
+}
+
 test("duas contas propõem e aceitam com novo login, preservam o mundo e permitem a saída do antigo responsável", async ({
   browser,
 }) => {
@@ -64,7 +86,12 @@ test("duas contas propõem e aceitam com novo login, preservam o mundo e permite
   ).toBeVisible();
 
   await autenticarNovamente(lia.page, lia, destino);
+  await conferirCarregamento(lia.page, [
+    lia.page.getByLabel("Quem vai receber a proposta?"),
+    lia.page.getByRole("button", { name: "Propor transferência", exact: true }),
+  ]);
   await lia.page.getByLabel("Quem vai receber a proposta?").selectOption({ label: bruno.apelido });
+  await expect(lia.page.getByLabel("Quem vai receber a proposta?")).not.toHaveValue("");
   await lia.page.getByRole("button", { name: "Propor transferência", exact: true }).click();
   await expect(lia.page.getByText(/Proposta enviada\./)).toBeVisible();
   await expect(
@@ -97,6 +124,10 @@ test("duas contas propõem e aceitam com novo login, preservam o mundo e permite
     bruno.page.getByRole("link", { name: "Entrar novamente para confirmar", exact: true }),
   ).toBeVisible();
   await autenticarNovamente(bruno.page, bruno, destino);
+  await conferirCarregamento(bruno.page, [
+    bruno.page.getByRole("button", { name: "Recusar proposta", exact: true }),
+    bruno.page.getByRole("button", { name: "Aceitar e assumir responsabilidade", exact: true }),
+  ]);
   await bruno.page.getByText("Avaliar proposta", { exact: true }).click();
   await bruno.page
     .getByRole("button", { name: "Aceitar e assumir responsabilidade", exact: true })
