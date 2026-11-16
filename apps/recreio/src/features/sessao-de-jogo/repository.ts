@@ -132,12 +132,34 @@ export async function encerrarSessaoDeJogo(entrada: {
   });
 }
 
-/** Encerra as sessões de jogo cujo prazo passou sem renovação. Devolve quantas. */
+/** Limite inclui os eventos de auditoria gravados na mesma transação. */
+export const LOTE_DE_SESSOES_VENCIDAS = 100;
+
+/** Encerra um lote de sessões vencidas sem esperar linhas em renovação. */
 export async function encerrarSessoesVencidas(): Promise<number> {
   return db.transaction(async (tx) => {
+    await tx.execute(sql`set local statement_timeout = '5s'`);
+    await tx.execute(sql`set local lock_timeout = '1s'`);
+    await tx.execute(sql`set local transaction_timeout = '15s'`);
+    // A trava do cursor vem antes de qualquer linha de sessão, como nos
+    // encerramentos interativos. SKIP LOCKED só evita esperar a renovação;
+    // não substitui a ordem de confirmação dos números de encerramento.
+    await travar(tx, TRAVA_DOS_ENCERRAMENTOS);
+    const lote = await tx
+      .select({ id: gameSessions.id })
+      .from(gameSessions)
+      .where(and(isNull(gameSessions.endedAt), sql`${gameSessions.expiresAt} <= ${AGORA}`))
+      .orderBy(gameSessions.expiresAt, gameSessions.id)
+      .limit(LOTE_DE_SESSOES_VENCIDAS)
+      .for("update", { skipLocked: true });
+    if (lote.length === 0) return 0;
     const encerradas = await encerrarSessoesAbertas(
       tx,
-      sql`${gameSessions.expiresAt} <= ${AGORA}`,
+      sql`${inArray(
+        gameSessions.id,
+        lote.map((sessao) => sessao.id),
+      )}
+        and ${gameSessions.expiresAt} <= ${AGORA}`,
       "expired",
       { porQuem: "recreio" },
     );
