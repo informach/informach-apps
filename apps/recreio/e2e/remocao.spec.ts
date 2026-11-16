@@ -44,11 +44,18 @@ test("responsável cancela a confirmação ou remove o convidado; reentrada é r
   expect(
     await lia.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
   ).toBe(true);
-  await lia.page
-    .getByRole("button", { name: "Confirmar remoção", exact: true })
-    .scrollIntoViewIfNeeded();
+  await expect(abrir).toBeFocused();
+  await lia.page.keyboard.press("Tab");
+  await expect(lia.page.getByRole("button", { name: "Cancelar", exact: true })).toBeFocused();
+  await lia.page.keyboard.press("Tab");
+  const confirmar = lia.page.getByRole("button", { name: "Confirmar remoção", exact: true });
+  await expect(confirmar).toBeFocused();
+  await expect(confirmar).toBeInViewport({ ratio: 1 });
+  await expect(lia.page.getByRole("button", { name: "Cancelar", exact: true })).toBeInViewport({
+    ratio: 1,
+  });
   await tela(lia.page, "remocao-membro-mobile");
-  await lia.page.getByRole("button", { name: "Confirmar remoção", exact: true }).click();
+  await confirmar.press("Enter");
   await expect(lia.page.getByRole("status")).toContainText(
     "Participação removida. O mundo e o progresso foram preservados.",
   );
