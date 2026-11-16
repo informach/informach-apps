@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { gzipSync } from "node:zlib";
 import { jogoPorId } from "@informach/config/jogos";
@@ -95,6 +96,8 @@ export type OpcoesDoAtor = {
   mundoId: MundoId;
   host: ClienteDoHost;
   agora(): number;
+  /** Tempo monotônico de obra; a produção usa performance.now(). */
+  agoraDaObra?(): number;
   posseTtlMs: number;
   falhas: Falhas;
   definicao?: DefinicaoDeBairro;
@@ -210,6 +213,7 @@ export class Ator {
   readonly ligacoes = new Map<string, Ligacao>();
 
   private mundo: Mundo | null = null;
+  private geracaoDaObra: string | null = null;
   private revisao = 0;
   private diarioSeq = 0;
   private fila: Promise<void> = Promise.resolve();
@@ -368,6 +372,8 @@ export class Ator {
       maxBytesPorFato: LIMITES.diarioLoteMaxBytes,
       pinturasDisponiveis: this.op.pinturasDisponiveis,
     });
+    this.geracaoDaObra = randomUUID();
+    this.atualizarObra();
     this.tickConfirmado = this.mundo.estado.relogio.tick;
     this.estado = "ativo";
     this.fotografadoEm = this.op.agora();
@@ -482,6 +488,7 @@ export class Ator {
         }
       }
 
+      this.atualizarObra();
       this.garantirAcesso(jogadorId, entrada);
       // O apelido fica na presença do mundo, que é replicada e nunca gravada.
       const apelido = apelidoParaOMundo(entrada.apelido);
@@ -569,6 +576,7 @@ export class Ator {
         case "intencao": {
           const { ligacao, intencao } = entrada;
           if (ligacao.fase !== "dentro" || !ligacao.sid) break;
+          this.atualizarObra();
           const resultado = mundo.aplicar({ t: "intencao", sessaoId: ligacao.sid, intencao });
           if (resultado.ok && intencao.acao.t === "fundar_familia") {
             for (const outra of this.ligacoes.values()) {
@@ -696,7 +704,17 @@ export class Ator {
     }
   }
 
+  private atualizarObra(): void {
+    if (!this.mundo || !this.geracaoDaObra) throw new Error("Obra sem montagem do host");
+    this.mundo.aplicar({
+      t: "obra_do_host",
+      geracao: this.geracaoDaObra,
+      agoraMs: Math.floor(this.op.agoraDaObra?.() ?? performance.now()),
+    });
+  }
+
   private acadaSegundo(agora: number): void {
+    this.atualizarObra();
     const mundo = this.mundo as Mundo;
     mundo.aplicar({ t: "expirar", agoraMs: agora });
     const dia = Math.floor(agora / 86_400_000);

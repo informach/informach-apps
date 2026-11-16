@@ -50,6 +50,19 @@ Conferir schemas de recibos/fatos e a ordem do diário antes de exigir a trava.
 
 ## Desfazer e refazer
 
+Estado em 15/11, integração das travas em candidata: aquisição, renovação e
+liberação já passam por sessão e autoridade atuais; o ator fornece geração
+por montagem e tempo monotônico, inclusive pausado. A confirmação financeira
+exige a referência vigente; o recibo durável continua respondendo sem reaplicar
+efeitos depois da expiração. Presença pública projeta alvo/autor/prazo sem SID.
+O cliente mantém uma preparação em voo, renova a seleção e cancela ao perder
+conexão, visibilidade ou contexto gráfico. Os testes novos cobrem reentrada,
+revogação, referência forjada, expiração, resposta atrasada e queda antes/depois
+do journal. Ainda aguardam execução remota desta integração. A indicação visual
+das regiões, a jornada com duas contas e o histórico abaixo continuam pendentes.
+O host publicado fixado na matriz de versões passou a `18f52aa`, que contém
+somente a correção da reconexão, preservando Mundo V2/protocolo 1.
+
 Histórico é conteúdo persistido; presença e travas não o substituem. Cada ação
 de desfazer/refazer é outro pedido durável e outro fato, com autorização atual.
 Nunca restaurar uma fotografia por cima da atividade dos demais.

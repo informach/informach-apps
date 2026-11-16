@@ -1,6 +1,9 @@
 import {
+  alvosDaObraConflitam,
+  type ConcessaoPublicaDaObra,
   conferirColocacaoNoChao,
   copiar,
+  derivarAlvoDaObra,
   type EstadoDoMundo,
   type FamiliaId,
   GRADE_DE_EDICAO,
@@ -13,12 +16,15 @@ import {
   type PedidoDeEdicao,
   type PontoMm,
   perfilDePintura,
+  type RascunhoDaObra,
+  type ReferenciaDaTrava,
   type Resultado,
   temPermissao,
 } from "@informach/morada-sim";
+import { ReservaDaObra } from "./reserva-da-obra";
 import { textoDaRecusa } from "./textos";
 
-type Rascunho = Omit<PedidoDeEdicao, "sequencia">;
+type Rascunho = RascunhoDaObra;
 export type PreviaDaCasa = { objeto: Objeto | null; valido: boolean; motivo: string | null };
 type FonteDoEditor = {
   estado(): EstadoDoMundo | null;
@@ -27,11 +33,19 @@ type FonteDoEditor = {
   proximaSequencia(): number | null;
   versaoDoEspelho(): number;
   enviar(pedido: PedidoDeEdicao): Promise<Resultado>;
+  preparar(rascunho: Rascunho): Promise<Resultado>;
+  renovar(referencia: ReferenciaDaTrava): Promise<Resultado>;
+  liberar(referencia: ReferenciaDaTrava): Promise<Resultado>;
+  obras(): (ConcessaoPublicaDaObra & { perfilId: string; apelido?: string | null })[];
+  agora?(): number;
+  agendar?(chamar: () => void, emMs: number): () => void;
   aoMudar(): void;
 };
 
 /** Rascunho local. Só o servidor muda objeto, revisão, saldo e sequência. */
 export class EditorDaCasa {
+  private readonly reserva: ReservaDaObra;
+  private descartado = false;
   private contexto: { familiaId: FamiliaId; loteId: LoteId } | null = null;
   private pedido: Rascunho | null = null;
   private pendente = false;
@@ -39,7 +53,44 @@ export class EditorDaCasa {
   private alteracao = 0;
   private cache: { chave: string; previa: PreviaDaCasa } | null = null;
 
-  constructor(private readonly fonte: FonteDoEditor) {}
+  constructor(private readonly fonte: FonteDoEditor) {
+    this.reserva = new ReservaDaObra({
+      autor: fonte.jogadorId,
+      alvo: (rascunho) => {
+        const estado = fonte.estado(),
+          autor = fonte.jogadorId();
+        const resultado = estado && autor ? derivarAlvoDaObra(estado, autor, rascunho) : null;
+        return resultado?.ok ? resultado.alvo : null;
+      },
+      preparar: fonte.preparar,
+      renovar: fonte.renovar,
+      liberar: fonte.liberar,
+      agora: fonte.agora,
+      agendar: fonte.agendar,
+      aoMudar: fonte.aoMudar,
+      aoRecusar: (resultado) => {
+        if (this.descartado || !this.pedido) return;
+        this.aviso = textoDaRecusa(resultado.motivo, resultado.detalhe);
+        fonte.aoMudar();
+      },
+    });
+  }
+
+  sincronizar(): void {
+    if (this.descartado || !this.fonte.pronto()) {
+      this.reserva.cancelar();
+      return;
+    }
+    if (this.pendente) return;
+    this.reserva.atualizar(
+      this.contexto && this.pedido && this.prever().valido ? this.pedido : null,
+    );
+  }
+
+  dispose(): void {
+    this.descartado = true;
+    this.reserva.dispose();
+  }
 
   get aberto(): boolean {
     return this.contexto !== null;
@@ -64,8 +115,10 @@ export class EditorDaCasa {
   }
 
   private mudar(): void {
+    if (this.descartado) return;
     this.alteracao++;
     this.fonte.aoMudar();
+    this.sincronizar();
   }
 
   abrir(familiaId: FamiliaId): boolean {
@@ -339,6 +392,15 @@ export class EditorDaCasa {
           ? copiar(atual)
           : null;
     if (!objeto) return recusar("Escolha outro móvel.");
+    const alvo = derivarAlvoDaObra(estado, autor, pedido);
+    if (!alvo.ok) return recusar(textoDaRecusa(alvo.motivo, alvo.detalhe), objeto);
+    {
+      const outra = this.fonte
+        .obras()
+        .find((obra) => obra.perfilId !== autor && alvosDaObraConflitam(obra.alvo, alvo.alvo));
+      if (outra)
+        return recusar(`${outra.apelido ?? "Outro jogador"} está editando este espaço.`, objeto);
+    }
     if (op.t === "mover") Object.assign(objeto, copiar(op.colocacao));
     if (op.t === "pintar") objeto.pintura = copiar(op.pintura);
     if (
@@ -377,7 +439,21 @@ export class EditorDaCasa {
     this.aviso = null;
     this.mudar();
     try {
-      const resposta = await this.fonte.enviar({ ...copiar(pedido), sequencia });
+      const preparacao = await this.reserva.obter(copiar(pedido));
+      if (!preparacao.ok) {
+        this.aviso = textoDaRecusa(preparacao.motivo, preparacao.detalhe);
+        return preparacao;
+      }
+      if (!preparacao.obra) throw new Error("Confirmação sem preparação da obra");
+      if (!this.fonte.pronto() || this.descartado) {
+        this.reserva.cancelar();
+        return { ok: false, comandoId: preparacao.comandoId, motivo: "sem_sessao" };
+      }
+      const resposta = await this.fonte.enviar({
+        ...copiar(pedido),
+        sequencia,
+        trava: preparacao.obra.referencia,
+      });
       if (resposta.ok) {
         this.pedido = null;
         this.aviso = "Edição confirmada.";

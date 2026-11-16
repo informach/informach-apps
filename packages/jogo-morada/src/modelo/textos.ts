@@ -29,6 +29,13 @@ const MOTIVOS: Record<MotivoDeRecusa, string> = {
 
 /** Detalhes que o servidor manda junto do motivo e que mudam a frase. */
 const DETALHES: Record<string, string> = {
+  trava_perdida: "A reserva desta edição terminou. Confira a seleção e confirme novamente.",
+  trava_ocupada: "Outro jogador está editando este espaço. Escolha outro local ou espere.",
+  obra_indisponivel: "A edição ainda não está disponível nesta instância. Reabra o mundo.",
+  edicao_cancelada:
+    "A preparação foi interrompida. Confira a seleção antes de confirmar novamente.",
+  posicao_da_obra: "Escolha uma posição na grade do piso da casa.",
+  catalogo_da_obra: "Esta peça ou posição ainda não está disponível para edição.",
   saldo_insuficiente: "A família não tem saldo para esta compra.",
   versao_antiga:
     "A casa mudou enquanto você editava. Confira as escolhas antes de tentar novamente.",

@@ -134,7 +134,7 @@ describe("fotografia", () => {
     const foto = mundo.fotografar();
     expect(JSON.stringify(foto)).not.toContain(sessao);
     const voltou = restaurar(foto);
-    expect(voltou.presenca).toEqual({ sessoes: [], reservas: [], voto: null });
+    expect(voltou.presenca).toEqual({ sessoes: [], reservas: [], voto: null, obra: null });
   });
 
   it("uma fotografia não muda quando o mundo segue", () => {

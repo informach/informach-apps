@@ -1,3 +1,4 @@
+import { GeracaoDaObraSchema, type ReferenciaDaTrava } from "../comandos/obra";
 import type { FamiliaId, LoteId, ObjetoId, PerfilId, SessaoId } from "../dominio/ids";
 import { canonico, copiar } from "../nucleo/canonico";
 
@@ -15,7 +16,12 @@ export type AlvoDaObra = {
   }[];
 };
 export type EscopoDaObra = { perfilId: PerfilId; sessaoId: SessaoId };
-export type ReferenciaDaTrava = { geracao: string; numero: number };
+export type { ReferenciaDaTrava } from "../comandos/obra";
+export type ConcessaoPublicaDaObra = {
+  referencia: ReferenciaDaTrava;
+  alvo: AlvoDaObra;
+  prazoMs: number;
+};
 export type TravaDaObra = EscopoDaObra & {
   referencia: ReferenciaDaTrava;
   alvo: AlvoDaObra;
@@ -33,8 +39,7 @@ export type ResultadoDaTrava =
 
 /** A geração vem do host em cada montagem; nada deste registro vai à fotografia. */
 export function criarRegistroDeTravas(geracao: string): RegistroDeTravas {
-  if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(geracao))
-    throw new Error("Geração de obra inválida");
+  if (!GeracaoDaObraSchema.safeParse(geracao).success) throw new Error("Geração de obra inválida");
   return { geracao, numero: 0, agoraMs: 0, travas: [] };
 }
 
@@ -85,7 +90,7 @@ export function expirarTravas(registro: RegistroDeTravas, agoraMs: number): bool
   return antes !== registro.travas.length;
 }
 
-function conflitam(a: AlvoDaObra, b: AlvoDaObra): boolean {
+export function alvosDaObraConflitam(a: AlvoDaObra, b: AlvoDaObra): boolean {
   if (a.loteId !== b.loteId) return false;
   if (a.peca && b.peca && a.peca.id === b.peca.id) return true;
   return a.regioes.some((x) =>
@@ -126,7 +131,7 @@ export function adquirirTrava(
     return { ok: true, mudou, concessao: copiar(anterior) };
   if (
     registro.travas.some(
-      (trava) => trava.perfilId !== escopo.perfilId && conflitam(trava.alvo, alvo),
+      (trava) => trava.perfilId !== escopo.perfilId && alvosDaObraConflitam(trava.alvo, alvo),
     )
   )
     return { ok: false, mudou, motivo: "ocupado" };
@@ -195,5 +200,17 @@ export function liberarTrava(
 export function liberarTravasDaSessao(registro: RegistroDeTravas, sessaoId: SessaoId): boolean {
   const antes = registro.travas.length;
   registro.travas = registro.travas.filter((trava) => trava.sessaoId !== sessaoId);
+  return antes !== registro.travas.length;
+}
+
+export function liberarTravasDoPerfil(
+  registro: RegistroDeTravas,
+  perfilId: PerfilId,
+  familiaId: FamiliaId,
+): boolean {
+  const antes = registro.travas.length;
+  registro.travas = registro.travas.filter(
+    (trava) => trava.perfilId !== perfilId || trava.alvo.familiaId !== familiaId,
+  );
   return antes !== registro.travas.length;
 }

@@ -207,6 +207,7 @@ export async function criarBancada(
             : verificador.verificar(token),
       },
       agora: () => agoraMs,
+      agoraDaObra: () => agoraMs,
       urlPublica: url,
       versao: "teste",
       capacidade: opcoes.capacidade ?? 10,

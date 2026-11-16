@@ -3,6 +3,7 @@ export * from "./comandos/edicao";
 export * from "./comandos/fundacao";
 export * from "./comandos/intencao";
 export * from "./comandos/loja";
+export * from "./comandos/obra";
 export * from "./comandos/pintura";
 export { relacaoExistente, saoParentes } from "./dominio/estado";
 export * from "./dominio/fatos";
@@ -30,6 +31,7 @@ export * from "./nucleo/fixo";
 export * from "./nucleo/relogio";
 export { resumoDoTexto, sorteio, sorteioAte } from "./nucleo/sorteio";
 export { ondeLevanta, partidaDe, podeSerInterrompido } from "./sistemas/acoes";
+export { derivarAlvoDaObra, type RascunhoDaObra } from "./sistemas/alvo-da-obra";
 export type {
   ChaveReplicada,
   EventoDeApresentacao,
@@ -43,5 +45,11 @@ export {
 export { permissoesDe, temPermissao } from "./sistemas/presenca";
 export { recusaDaInteracao, temPontoLivre } from "./sistemas/regras";
 export { decidirProposta, impedimentoDoPedido } from "./sistemas/relacoes";
+export {
+  type AlvoDaObra,
+  alvosDaObraConflitam,
+  type ConcessaoPublicaDaObra,
+  PRAZO_DA_TRAVA_DE_EDICAO_MS,
+} from "./sistemas/travas-de-edicao";
 export { progressoDaGravidez } from "./sistemas/vida";
 export * from "./visao/replicacao";

@@ -26,6 +26,7 @@ export type OpcoesDaInstancia = {
   verificador: VerificadorDeSessao;
   /** Relógio real, em ms. Injetado para os testes controlarem o tempo. */
   agora(): number;
+  agoraDaObra?(): number;
   /** Endereço público do WebSocket, como o Recreio o conhece. */
   urlPublica: string;
   versao: string;
@@ -123,6 +124,7 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
       mundoId: MundoIdSchema.parse(mundoId),
       host: op.host,
       agora: op.agora,
+      agoraDaObra: op.agoraDaObra,
       posseTtlMs,
       falhas,
       definicao: op.definicao,

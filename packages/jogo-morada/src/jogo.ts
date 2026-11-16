@@ -83,11 +83,25 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
   const editor = new EditorDaCasa({
     estado: () => sessao.estado(),
     jogadorId: () => loja.jogador?.jogadorId ?? null,
-    pronto: () => loja.conexao.fase === "pronto",
+    pronto: () =>
+      loja.conexao.fase === "pronto" &&
+      !loja.contextoPerdido &&
+      document.visibilityState === "visible",
     proximaSequencia: () => loja.visao?.edicao?.proximaSequencia ?? null,
     versaoDoEspelho: loja.getSnapshot,
     aoMudar: () => loja.tocar(),
     enviar: (pedido) => sessao.comandar(null, { t: "editar_casa", pedido }, { silencioso: true }),
+    preparar: (rascunho) =>
+      sessao.comandar(null, { t: "preparar_obra", rascunho }, { silencioso: true }),
+    renovar: (referencia) =>
+      sessao.comandar(null, { t: "renovar_obra", referencia }, { silencioso: true }),
+    liberar: (referencia) =>
+      sessao.comandar(null, { t: "liberar_obra", referencia }, { silencioso: true }),
+    obras: () =>
+      (loja.visao?.presenca.obras ?? []).map((obra) => ({
+        ...obra,
+        apelido: loja.visao?.presenca.jogadores.find((j) => j.perfilId === obra.perfilId)?.apelido,
+      })),
   });
   const ativos: Ativos = opcoes.origemDaArte
     ? new AtivosDeArte({
@@ -257,6 +271,7 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
   let avisouDoFim = false;
   let faseAvisada = loja.conexao.fase;
   const pararDeOuvir = loja.subscribe(() => {
+    editor.sincronizar();
     const conexao = loja.conexao;
     if (conexao.fase !== faseAvisada) {
       faseAvisada = conexao.fase;
@@ -267,6 +282,8 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
     opcoes.aoEncerrar?.(conexao.motivo, conexao.detalhe);
   });
 
+  const aoMudarVisibilidade = () => editor.sincronizar();
+  document.addEventListener("visibilitychange", aoMudarVisibilidade);
   sessao.iniciar();
 
   return {
@@ -276,6 +293,8 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
       // Sai do mundo antes de soltar a tela: o servidor salva e libera a reserva na hora.
       // Quem desmonta não quer mais notícia: nem do fim que o próprio `dispose` provoca.
       pararDeOuvir();
+      editor.dispose();
+      document.removeEventListener("visibilitychange", aoMudarVisibilidade);
       await sessao.sair();
       raiz.removeEventListener("keydown", aoApertar);
       raiz.removeEventListener("keyup", aoSoltar);

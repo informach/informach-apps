@@ -47,7 +47,7 @@ async function cenario() {
     }
   }
   if (!escolhido) throw new Error("Casa sem espaço para a mesa da prova de journal");
-  const pedido: PedidoDeEdicao = {
+  const rascunho: Omit<PedidoDeEdicao, "trava"> = {
     familiaId: familia.id,
     loteId: lote.id,
     sequencia: 1,
@@ -61,6 +61,21 @@ async function cenario() {
       pintura: null,
     },
   };
+  const preparar = async (instancia = a.instancia) => {
+    const id = await lia.comando(null, {
+      t: "preparar_obra",
+      rascunho: {
+        familiaId: rascunho.familiaId,
+        loteId: rascunho.loteId,
+        operacao: rascunho.operacao,
+      },
+    });
+    await bancada.andar(1, [instancia]);
+    const resultado = lia.resultados.get(id);
+    if (!resultado?.ok || !resultado.obra) throw new Error("Preparação da mesa recusada");
+    return { ...rascunho, trava: resultado.obra.referencia } satisfies PedidoDeEdicao;
+  };
+  const pedido = await preparar();
   const chave = comandoDeEdicao(lia.jogadorId, 1);
   return {
     bancada,
@@ -68,6 +83,7 @@ async function cenario() {
     lia,
     mundoId,
     pedido,
+    preparar,
     chave,
     familiaId: familia.id,
     saldo: familia.fundo,
@@ -76,6 +92,45 @@ async function cenario() {
 }
 
 describe("journal das edições de móveis", () => {
+  it("prazo do host expira a obra mesmo com a simulação pausada", async () => {
+    const c = await cenario();
+    await c.lia.comando(null, { t: "votar_velocidade", velocidade: 0 });
+    await c.bancada.andar(1);
+    const mundo = mundoDe(c.a.instancia, c.mundoId);
+    expect(mundo.estado.relogio.velocidade).toBe(0);
+    const tick = mundo.estado.relogio.tick;
+    c.bancada.esperar(15_000);
+    await c.lia.comando(null, { t: "editar_casa", pedido: c.pedido }, c.chave);
+    await c.bancada.andar(1);
+    expect(mundo.estado.relogio.tick).toBe(tick);
+    expect(c.lia.resultados.get(c.chave)).toMatchObject({ ok: false, detalhe: "trava_perdida" });
+    expect(obter(mundo.estado.familias, c.familiaId)?.fundo).toBe(c.saldo);
+    const nova = await c.preparar();
+    expect(nova.trava.numero).toBeGreaterThan(c.pedido.trava.numero);
+    await c.lia.comando(null, { t: "editar_casa", pedido: nova }, c.chave);
+    await c.bancada.andar(1);
+    expect(c.lia.resultados.get(c.chave)).toMatchObject({ ok: true });
+    expect(obter(mundo.estado.familias, c.familiaId)?.fundo).toBe(c.saldo - 9_500);
+  });
+
+  it("reentrada invalida a trava antiga e o aviso atrasado de queda preserva a nova", async () => {
+    const c = await cenario();
+    c.lia.cair();
+    await c.bancada.entrar(c.lia, c.mundoId);
+    const nova = await c.preparar();
+    expect(nova.trava.geracao).toBe(c.pedido.trava.geracao);
+    expect(nova.trava.numero).toBeGreaterThan(c.pedido.trava.numero);
+    await c.lia.comando(null, { t: "editar_casa", pedido: c.pedido }, c.chave);
+    await c.bancada.andar(1);
+    expect(c.lia.resultados.get(c.chave)).toMatchObject({ ok: false, detalhe: "trava_perdida" });
+    await c.lia.comando(null, { t: "editar_casa", pedido: nova }, c.chave);
+    await c.bancada.andar(1);
+    expect(c.lia.resultados.get(c.chave)).toMatchObject({ ok: true });
+    expect(obter(mundoDe(c.a.instancia, c.mundoId).estado.familias, c.familiaId)?.fundo).toBe(
+      c.saldo - 9_500,
+    );
+  });
+
   it("não anuncia o catálogo de pintura nem dá boas-vindas antes do journal", async () => {
     const catalogo = {
       formato: "morada.pinturas",
@@ -140,6 +195,17 @@ describe("journal das edições de móveis", () => {
       );
       await c.lia.comando(null, { t: "editar_casa", pedido: c.pedido }, c.chave);
       await c.bancada.andar(1, [b.instancia]);
+      if (ponto === "antes_do_diario") {
+        expect(c.lia.resultados.get(c.chave)).toMatchObject({
+          ok: false,
+          detalhe: "trava_perdida",
+        });
+        expect(obter(mundo.estado.familias, c.familiaId)?.fundo).toBe(c.saldo);
+        const novo = await c.preparar(b.instancia);
+        expect(novo.trava.geracao).not.toBe(c.pedido.trava.geracao);
+        await c.lia.comando(null, { t: "editar_casa", pedido: novo }, c.chave);
+        await c.bancada.andar(1, [b.instancia]);
+      }
       expect(c.lia.resultados.get(c.chave)).toMatchObject({ ok: true });
       if (ponto === "depois_do_diario")
         expect(c.lia.resultados.get(c.chave)).toMatchObject({ repetido: true });

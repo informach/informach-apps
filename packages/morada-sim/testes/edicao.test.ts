@@ -5,6 +5,7 @@ import {
   revisaoDosObjetos,
 } from "../src/dominio/revisao-dos-objetos";
 import {
+  canonico,
   comandoDeEdicao,
   copiar,
   listar,
@@ -20,6 +21,9 @@ import {
 import { BRUNO, criarMundoDaProva, criarRoteiro, LIA, moradorDeNome } from "../src/testes";
 
 const RACK = "rack_pes_2portas_vermelho";
+type PedidoSemTrava = Omit<PedidoDeEdicao, "trava">;
+const INEXISTENTE = { geracao: "00000000-0000-4000-8000-ffffffffffff", numero: 1 };
+let montagem = 0;
 const PERFIL = "a".repeat(64);
 const PINTURAS = {
   formato: "morada.pinturas",
@@ -68,35 +72,73 @@ function cenario(opcoes: OpcoesDoMundo = {}) {
   const mundo = restaurar(base, [], { conferirReplicacao: true, ...opcoes });
   if (opcoes.pinturasDisponiveis)
     mundo.aplicar({ t: "admitir_pinturas", catalogo: opcoes.pinturasDisponiveis });
-  const entrar = (alvo: Mundo, perfilId = LIA) =>
-    alvo.aplicar({ t: "sessao_entrou", perfilId, sessaoId: perfilId });
+  const entrar = (alvo: Mundo, perfilId = LIA) => {
+    if (!alvo.presenca.obra)
+      alvo.aplicar({
+        t: "obra_do_host",
+        geracao: `00000000-0000-4000-8000-${(++montagem).toString(16).padStart(12, "0")}`,
+        agoraMs: 0,
+      });
+    return alvo.aplicar({ t: "sessao_entrou", perfilId, sessaoId: perfilId });
+  };
   entrar(mundo);
   const familiaAtual = () => {
     const atual = obter(mundo.estado.familias, familia.id);
     if (!atual) throw new Error("Família ausente");
     return atual;
   };
+  const referencias = new Map<string, PedidoDeEdicao["trava"]>();
+  let auxiliar = 0;
   const aplicar = (
-    pedido: PedidoDeEdicao,
+    pedido: PedidoSemTrava,
     perfilId = LIA,
     chave = comandoDeEdicao(perfilId, pedido.sequencia),
-  ) =>
-    mundo.aplicar({
+    alvo: Mundo = mundo,
+  ) => {
+    const identidade = canonico({ perfilId, chave, pedido });
+    let referencia = referencias.get(identidade);
+    if (!referencia) {
+      const preparacao = alvo.aplicar({
+        t: "intencao",
+        sessaoId: perfilId,
+        intencao: {
+          mundoId: alvo.estado.id,
+          comandoId: `preparar-teste-${++auxiliar}`,
+          moradorId: null,
+          versaoEsperada: 0,
+          acao: {
+            t: "preparar_obra",
+            rascunho: {
+              familiaId: pedido.familiaId,
+              loteId: pedido.loteId,
+              operacao: pedido.operacao,
+            },
+          },
+        },
+      });
+      // Este é o teste do handler financeiro, inclusive contra pedidos recusados
+      // na preparação. A referência inexistente deve impedir qualquer efeito válido;
+      // recusas de negócio sem efeito continuam tendo recibo durável.
+      referencia = preparacao.ok && preparacao.obra ? preparacao.obra.referencia : INEXISTENTE;
+      referencias.set(identidade, referencia);
+    }
+    return alvo.aplicar({
       t: "intencao",
       sessaoId: perfilId,
       intencao: {
-        mundoId: mundo.estado.id,
+        mundoId: alvo.estado.id,
         comandoId: chave,
         moradorId: null,
         versaoEsperada: 0,
-        acao: { t: "editar_casa", pedido },
+        acao: { t: "editar_casa", pedido: { ...pedido, trava: referencia } },
       },
     });
+  };
   const compra = (
     sequencia = 1,
     catalogo = RACK,
     pos: [number, number, number] = [2000, 2000, 0],
-  ): PedidoDeEdicao => ({
+  ): PedidoSemTrava => ({
     familiaId: familia.id,
     loteId: lote.id,
     sequencia,
@@ -153,7 +195,7 @@ describe("edição autoritativa e durável da casa", () => {
     expect(c.objeto().revisao).toBe(4);
     const lote = obter(c.mundo.estado.lotes, c.loteId);
     if (!lote) throw new Error("Lote ausente");
-    const vender: PedidoDeEdicao = {
+    const vender: PedidoSemTrava = {
       ...c.compra(4),
       operacao: {
         t: "vender",
@@ -170,19 +212,7 @@ describe("edição autoritativa e durável da casa", () => {
     const voltou = restaurar(antes, [], { pinturasDisponiveis: PINTURAS });
     c.entrar(voltou);
     const pedido = c.compra(5);
-    expect(
-      voltou.aplicar({
-        t: "intencao",
-        sessaoId: LIA,
-        intencao: {
-          mundoId: voltou.estado.id,
-          comandoId: comandoDeEdicao(LIA, 5),
-          moradorId: null,
-          versaoEsperada: 0,
-          acao: { t: "editar_casa", pedido },
-        },
-      }).ok,
-    ).toBe(true);
+    expect(c.aplicar(pedido, LIA, comandoDeEdicao(LIA, 5), voltou).ok).toBe(true);
     expect(revisaoDosObjetos(voltou.estado)).toBe(6);
     expect(
       listar(voltou.estado.objetos)
@@ -193,7 +223,7 @@ describe("edição autoritativa e durável da casa", () => {
     expect(restaurar(antes, [...fatos, ...fatos], { pinturasDisponiveis: PINTURAS }).hash()).toBe(
       voltou.hash(),
     );
-    const antigo: PedidoDeEdicao = {
+    const antigo: PedidoSemTrava = {
       ...c.compra(6),
       operacao: {
         t: "pintar",
@@ -202,19 +232,10 @@ describe("edição autoritativa e durável da casa", () => {
         pintura: null,
       },
     };
-    expect(
-      voltou.aplicar({
-        t: "intencao",
-        sessaoId: LIA,
-        intencao: {
-          mundoId: voltou.estado.id,
-          comandoId: comandoDeEdicao(LIA, 6),
-          moradorId: null,
-          versaoEsperada: 0,
-          acao: { t: "editar_casa", pedido: antigo },
-        },
-      }),
-    ).toMatchObject({ ok: false, motivo: "versao_antiga" });
+    expect(c.aplicar(antigo, LIA, comandoDeEdicao(LIA, 6), voltou)).toMatchObject({
+      ok: false,
+      motivo: "versao_antiga",
+    });
     expect(revisaoDosObjetos(voltou.estado)).toBe(6);
     expect(verificarInvariantes(voltou.estado)).toEqual([]);
   });
@@ -306,7 +327,7 @@ describe("edição autoritativa e durável da casa", () => {
     expect(c.aplicar(compra).ok).toBe(true);
     expect(c.objeto().pintura).toBeNull();
     const saldo = c.familiaAtual().fundo;
-    const pintar = (sequencia: number, cor: number | null): PedidoDeEdicao => ({
+    const pintar = (sequencia: number, cor: number | null): PedidoSemTrava => ({
       ...compra,
       sequencia,
       operacao: {
@@ -440,7 +461,7 @@ describe("edição autoritativa e durável da casa", () => {
     const compra = c.compra();
     expect(c.aplicar(compra).ok).toBe(true);
     const objeto = c.objeto();
-    const mover: PedidoDeEdicao = {
+    const mover: PedidoSemTrava = {
       ...compra,
       sequencia: 2,
       operacao: {
@@ -453,7 +474,7 @@ describe("edição autoritativa e durável da casa", () => {
     };
     expect(c.aplicar(mover).ok).toBe(true);
     expect(c.objeto()).toMatchObject({ revisao: 3, pos: [4000, 2000, 0], giro: 90 });
-    const pintar: PedidoDeEdicao = {
+    const pintar: PedidoSemTrava = {
       ...compra,
       sequencia: 3,
       operacao: {
@@ -469,7 +490,7 @@ describe("edição autoritativa e durável da casa", () => {
       pintura: { perfil: PERFIL, cor: 0x775511 },
       cor: 0xffffff,
     });
-    const vender: PedidoDeEdicao = {
+    const vender: PedidoSemTrava = {
       ...compra,
       sequencia: 4,
       operacao: {
@@ -505,7 +526,7 @@ describe("edição autoritativa e durável da casa", () => {
       permissoes: ["decorar"],
     });
     c.entrar(c.mundo, BRUNO);
-    const pedido: PedidoDeEdicao = {
+    const pedido: PedidoSemTrava = {
       ...compra,
       sequencia: 2,
       operacao: {
@@ -555,17 +576,7 @@ describe("edição autoritativa e durável da casa", () => {
     familia.fundo = 500_000;
     const recuperado = restaurar(foto);
     c.entrar(recuperado);
-    const resultado = recuperado.aplicar({
-      t: "intencao",
-      sessaoId: LIA,
-      intencao: {
-        mundoId: recuperado.estado.id,
-        comandoId: comandoDeEdicao(LIA, 1),
-        moradorId: null,
-        versaoEsperada: 0,
-        acao: { t: "editar_casa", pedido },
-      },
-    });
+    const resultado = c.aplicar(pedido, LIA, comandoDeEdicao(LIA, 1), recuperado);
     expect(resultado).toMatchObject({ ok: false, repetido: true, detalhe: "saldo_insuficiente" });
     expect(obter(recuperado.estado.familias, c.familiaId)?.fundo).toBe(500_000);
     expect(listar(recuperado.estado.objetos)).toEqual([]);

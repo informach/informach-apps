@@ -60,6 +60,11 @@ import {
   sessaoSaiu,
   sessaoVoltou,
 } from "./sistemas/presenca";
+import {
+  criarRegistroDeTravas,
+  expirarTravas,
+  liberarTravasDoPerfil,
+} from "./sistemas/travas-de-edicao";
 import { passoDaVida } from "./sistemas/vida";
 import { passoDasVisitas } from "./sistemas/visitas";
 import {
@@ -140,7 +145,7 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
     estado.catalogoDePinturas,
     pinturasDisponiveis,
   );
-  const presenca: Presenca = { sessoes: [], reservas: [], voto: null };
+  const presenca: Presenca = { sessoes: [], reservas: [], voto: null, obra: null };
   const navegadores = new Map<LoteId, { revisao: number; navegador: Navegador }>();
   const tocadas = new Map<TabelaReplicada, Set<string>>();
   const chavesTocadas = new Set<ChaveReplicada>();
@@ -214,6 +219,15 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
         versoes: {},
       };
       switch (entrada.t) {
+        case "obra_do_host": {
+          if (presenca.obra && presenca.obra.geracao !== entrada.geracao)
+            throw new Error("A geração de obra não muda dentro da mesma montagem");
+          const iniciando = presenca.obra === null;
+          presenca.obra ??= criarRegistroDeTravas(entrada.geracao);
+          if (expirarTravas(presenca.obra, entrada.agoraMs) || iniciando)
+            tocarChave(ctx, "presenca");
+          return aceito;
+        }
         case "admitir_pinturas": {
           const catalogo = conferirCatalogoDePinturas(entrada.catalogo);
           if (!pinturasDisponiveis || canonico(catalogo) !== canonico(pinturasDisponiveis))
@@ -260,6 +274,11 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
           if (!obter(estado.familias, entrada.familiaId)) {
             return { ok: false, comandoId: "", motivo: "nao_existe" };
           }
+          if (
+            presenca.obra &&
+            liberarTravasDoPerfil(presenca.obra, entrada.perfilId, entrada.familiaId)
+          )
+            tocarChave(ctx, "presenca");
           emitir(
             ctx,
             `acesso:${entrada.perfilId}:${entrada.familiaId}:${novoId(estado, "fat")}`,
@@ -275,6 +294,11 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
           return aceito;
         }
         case "revogar_acesso": {
+          if (
+            presenca.obra &&
+            liberarTravasDoPerfil(presenca.obra, entrada.perfilId, entrada.familiaId)
+          )
+            tocarChave(ctx, "presenca");
           emitir(
             ctx,
             `revoga:${entrada.perfilId}:${entrada.familiaId}:${novoId(estado, "fat")}`,

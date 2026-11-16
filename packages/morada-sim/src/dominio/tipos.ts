@@ -301,6 +301,7 @@ export type Resultado =
       versoes: Record<string, number>;
       repetido?: true;
       edicao?: { proximaSequencia: number | null };
+      obra?: import("../sistemas/travas-de-edicao").ConcessaoPublicaDaObra;
     }
   | {
       ok: false;
@@ -388,6 +389,7 @@ export type VotoDeVelocidade = {
 };
 
 export type Presenca = {
+  obra: import("../sistemas/travas-de-edicao").RegistroDeTravas | null;
   sessoes: Sessao[];
   reservas: ReservaDeControle[];
   voto: VotoDeVelocidade | null;

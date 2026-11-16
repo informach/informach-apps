@@ -1,4 +1,5 @@
 import {
+  type AcaoPedida,
   type CatalogoDePinturas,
   comandoDeEdicao,
   conferirColocacaoNoChao,
@@ -10,10 +11,15 @@ import {
   restaurar,
 } from "@informach/morada-sim";
 import { BRUNO, criarMundoDaProva, LIA } from "@informach/morada-sim/testes";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { assentar, RelogioDeTeste } from "../testes/servidor-de-mentira";
 import { EditorDaCasa } from "./editor-da-casa";
 
 const MESA = "mesa_lateral_redonda_prateleira_verde";
+const editores: EditorDaCasa[] = [];
+afterEach(() => {
+  for (const editor of editores.splice(0)) editor.dispose();
+});
 const catalogo: CatalogoDePinturas = {
   formato: "morada.pinturas",
   versao: 1,
@@ -29,10 +35,13 @@ const catalogo: CatalogoDePinturas = {
 };
 
 function cenario() {
+  const relogio = new RelogioDeTeste();
+  const geracao = "00000000-0000-4000-8000-000000000001";
   const mundo = restaurar(criarMundoDaProva({ fundadores: [LIA, BRUNO] }).fotografar(), [], {
     pinturasDisponiveis: catalogo,
   });
   mundo.aplicar({ t: "admitir_pinturas", catalogo });
+  mundo.aplicar({ t: "obra_do_host", geracao, agoraMs: relogio.agora() });
   mundo.avancar(0);
   for (const perfilId of [LIA, BRUNO])
     mundo.aplicar({ t: "sessao_entrou", sessaoId: perfilId, perfilId });
@@ -42,6 +51,26 @@ function cenario() {
   const piso = imovel?.andares.find((p) => p.n === 0);
   if (!familia || !lote || !piso) throw new Error("Casa da prova ausente");
   let versao = 0;
+  let auxiliar = 0;
+  let pronto = true;
+  let entregarPreparacao = (resposta: Resultado): Promise<Resultado> => Promise.resolve(resposta);
+  const executar = (acao: AcaoPedida, autor = LIA): Resultado => {
+    mundo.aplicar({ t: "obra_do_host", geracao, agoraMs: relogio.agora() });
+    const resposta = mundo.aplicar({
+      t: "intencao",
+      sessaoId: autor,
+      intencao: {
+        mundoId: mundo.estado.id,
+        comandoId: `editor-auxiliar-${++auxiliar}`,
+        moradorId: null,
+        versaoEsperada: 0,
+        acao,
+      },
+    });
+    mundo.avancar(0);
+    versao++;
+    return resposta;
+  };
   const enviados: PedidoDeEdicao[] = [];
   const enviar = (pedido: PedidoDeEdicao, autor = LIA): Resultado => {
     const resposta = mundo.aplicar({
@@ -62,7 +91,7 @@ function cenario() {
   const editor = new EditorDaCasa({
     estado: () => mundo.estado,
     jogadorId: () => LIA,
-    pronto: () => true,
+    pronto: () => pronto,
     proximaSequencia: () => mundo.visao(LIA).edicao.proximaSequencia,
     versaoDoEspelho: () => versao,
     aoMudar: () => {
@@ -72,7 +101,14 @@ function cenario() {
       enviados.push(pedido);
       return enviar(pedido);
     },
+    preparar: async (rascunho) => entregarPreparacao(executar({ t: "preparar_obra", rascunho })),
+    renovar: async (referencia) => executar({ t: "renovar_obra", referencia }),
+    liberar: async (referencia) => executar({ t: "liberar_obra", referencia }),
+    obras: () => mundo.visao(LIA).presenca.obras ?? [],
+    agora: relogio.agora,
+    agendar: relogio.agendar,
   });
+  editores.push(editor);
   const livre = (): [number, number] => {
     for (let y = 500; y < lote.tamanho[1]; y += 500)
       for (let x = 500; x < lote.tamanho[0]; x += 500) {
@@ -113,7 +149,42 @@ function cenario() {
     lote,
     editor,
     enviados,
-    enviar,
+    enviarOutro: (pedido: Omit<PedidoDeEdicao, "trava">, autor = BRUNO) => {
+      const preparo = executar(
+        {
+          t: "preparar_obra",
+          rascunho: {
+            familiaId: pedido.familiaId,
+            loteId: pedido.loteId,
+            operacao: pedido.operacao,
+          },
+        },
+        autor,
+      );
+      if (!preparo.ok || !preparo.obra) return preparo;
+      return enviar({ ...pedido, trava: preparo.obra.referencia }, autor);
+    },
+    pronto: (valor: boolean) => {
+      pronto = valor;
+      versao++;
+      editor.sincronizar();
+    },
+    relogio,
+    segurarProximaPreparacao: () => {
+      let soltar: (() => void) | null = null;
+      const espera = new Promise<void>((resolve) => {
+        soltar = resolve;
+      });
+      entregarPreparacao = async (resposta) => {
+        entregarPreparacao = (proxima) => Promise.resolve(proxima);
+        await espera;
+        return resposta;
+      };
+      return () => {
+        if (!soltar) throw new Error("Entrega ausente");
+        soltar();
+      };
+    },
     livre,
     preparar,
     comprar,
@@ -124,6 +195,45 @@ function cenario() {
 }
 
 describe("rascunho do editor contra a simulação real", () => {
+  it("renova a seleção enquanto visível e libera ao perder conexão", async () => {
+    const c = cenario();
+    const antes = c.mundo.hash();
+    c.preparar();
+    await assentar();
+    const referencia = c.mundo.presenca.obra?.travas[0]?.referencia;
+    expect(referencia).toBeDefined();
+    for (let i = 0; i < 4; i++) {
+      c.relogio.avancar(5000);
+      await assentar();
+    }
+    expect(c.mundo.presenca.obra?.travas).toMatchObject([
+      { referencia, ateMs: c.relogio.agora() + 15_000 },
+    ]);
+    expect(c.mundo.hash()).toBe(antes);
+    c.pronto(false);
+    await assentar();
+    expect(c.mundo.presenca.obra?.travas).toEqual([]);
+    c.relogio.avancar(30_000);
+    await assentar();
+    expect(c.mundo.presenca.obra?.travas).toEqual([]);
+    expect(c.enviados).toEqual([]);
+  });
+
+  it("uma preparação atrasada não confirma a compra depois de perder e recuperar conexão", async () => {
+    const c = cenario();
+    const soltar = c.segurarProximaPreparacao();
+    c.preparar();
+    const confirmacao = c.editor.confirmar();
+    c.pronto(false);
+    c.pronto(true);
+    soltar();
+    expect(await confirmacao).toMatchObject({ ok: false });
+    await assentar();
+    expect(c.enviados).toEqual([]);
+    expect((await c.editor.confirmar())?.ok).toBe(true);
+    expect(c.enviados).toHaveLength(1);
+  });
+
   it("experimenta e cancela sem mudar o mundo; duas confirmações gastam uma vez", async () => {
     const c = cenario(),
       hash = c.mundo.hash();
@@ -155,7 +265,14 @@ describe("rascunho do editor contra a simulação real", () => {
     c.preparar();
     const rascunho = c.editor.rascunho;
     if (!rascunho) throw new Error("Rascunho ausente");
-    expect(c.enviar({ ...rascunho, sequencia: 1 }, BRUNO).ok).toBe(true);
+    await assentar();
+    expect(c.enviarOutro({ ...rascunho, sequencia: 1 }, BRUNO)).toMatchObject({
+      ok: false,
+      motivo: "ocupado",
+    });
+    c.pronto(false);
+    expect(c.enviarOutro({ ...rascunho, sequencia: 1 }, BRUNO).ok).toBe(true);
+    c.pronto(true);
     expect(c.editor.prever()).toMatchObject({
       valido: false,
       motivo: "A casa mudou. Revise a seleção antes de confirmar.",

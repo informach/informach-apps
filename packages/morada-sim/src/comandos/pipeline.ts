@@ -16,6 +16,7 @@ import {
 } from "../sistemas/cuidado";
 import { editarCasa } from "../sistemas/edicao";
 import { fundarFamilia } from "../sistemas/fundacao";
+import { executarObra } from "../sistemas/obra";
 import { liberar, reservar, sessaoDe, temPermissao, votarVelocidade } from "../sistemas/presenca";
 import { recusaDaInteracao } from "../sistemas/regras";
 import { impedimentoDoPedido, responderPedido } from "../sistemas/relacoes";
@@ -168,7 +169,10 @@ function executar(
   ctx: Contexto,
   sessao: Sessao,
   intencao: Intencao,
-  acao: Exclude<AcaoPedida, { t: "editar_casa" }>,
+  acao: Exclude<
+    AcaoPedida,
+    { t: "editar_casa" | "preparar_obra" | "renovar_obra" | "liberar_obra" }
+  >,
 ): Recusa | Feito {
   const estado = ctx.estado;
   const tick = estado.relogio.tick;
@@ -367,6 +371,17 @@ export function aplicarIntencao(ctx: Contexto, sessaoId: SessaoId, intencao: Int
     return editarCasa(ctx, sessao, comandoId, intencao.acao.pedido);
   }
   if (comandoId.startsWith("obra:")) return { ok: false, comandoId, motivo: "comando_invalido" };
+  if (
+    intencao.acao.t === "preparar_obra" ||
+    intencao.acao.t === "renovar_obra" ||
+    intencao.acao.t === "liberar_obra"
+  ) {
+    const sessao = sessaoDe(ctx.presenca, sessaoId);
+    if (sessao?.estado !== "presente") return { ok: false, comandoId, motivo: "sem_sessao" };
+    if (intencao.moradorId !== null || intencao.versaoEsperada !== 0)
+      return { ok: false, comandoId, motivo: "comando_invalido" };
+    return executarObra(ctx, sessao, comandoId, intencao.acao);
+  }
 
   // Este recibo sobrevive à recuperação e à expulsão da memória curta de comandos.
   if (intencao.acao.t === "fundar_familia") {

@@ -15,8 +15,10 @@ import type { Objeto, Resultado, Sessao } from "../dominio/tipos";
 import { conferirColocacaoNoChao } from "../espaco/colocacao";
 import { capturarContinuidadeEspacial } from "../espaco/continuidade";
 import { copiar } from "../nucleo/canonico";
-import { type Contexto, causaDoJogador, emitir } from "./contexto";
+import { derivarAlvoDaObra } from "./alvo-da-obra";
+import { type Contexto, causaDoJogador, emitir, tocarChave } from "./contexto";
 import { temPermissao } from "./presenca";
+import { conferirTrava, liberarTrava } from "./travas-de-edicao";
 
 const OBJETOS_POR_LOTE = 256;
 const FATO_MAX_BYTES_PADRAO = 256 * 1024;
@@ -195,6 +197,20 @@ export function editarCasa(
       recusar(impedimento === "ocupado" ? "ocupado" : "colocacao_invalida", impedimento);
   }
   if (!resultado && !id) recusar("nao_existe");
+  if (!resultado) {
+    const registro = ctx.presenca.obra;
+    const alvo = derivarAlvoDaObra(estado, sessao.perfilId, pedido);
+    if (!registro || !alvo.ok) return negar("requisito", "trava_perdida");
+    const conferida = conferirTrava(
+      registro,
+      registro.agoraMs,
+      { perfilId: sessao.perfilId, sessaoId: sessao.sessaoId },
+      pedido.trava,
+      alvo.alvo,
+    );
+    if (conferida.mudou) tocarChave(ctx, "presenca");
+    if (!conferida.valida) return negar("requisito", "trava_perdida");
+  }
   const revisoes: Record<string, number> = {
     [familia.id]: familia.versao + (delta !== 0 ? 1 : 0),
     [lote.id]: lote.revisaoDoEspaco + (espacial ? 1 : 0),
@@ -251,5 +267,14 @@ export function editarCasa(
   }
   if (!emitir(ctx, comandoId, familia.id, dados, causa))
     throw new Error("Fato de edição não emitido");
+  if (
+    ctx.presenca.obra &&
+    liberarTrava(
+      ctx.presenca.obra,
+      { perfilId: sessao.perfilId, sessaoId: sessao.sessaoId },
+      pedido.trava,
+    )
+  )
+    tocarChave(ctx, "presenca");
   return acompanhar(resposta(comandoId, dados.recibo.resultado));
 }

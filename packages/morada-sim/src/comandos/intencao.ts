@@ -1,8 +1,9 @@
 import { z } from "zod";
 import type { AcaoId, FamiliaId, MoradorId, ObjetoId, PedidoId } from "../dominio/ids";
 import { PERMISSOES } from "../dominio/permissoes";
-import { PedidoDeEdicaoSchema } from "./edicao";
+import { PedidoDeEdicaoSchema, RascunhoDeEdicaoSchema } from "./edicao";
 import { RascunhoDaFamiliaSchema } from "./fundacao";
+import { GeracaoDaObraSchema, ReferenciaDaTravaSchema } from "./obra";
 import { CatalogoDePinturasSchema } from "./pintura";
 
 /**
@@ -34,6 +35,9 @@ export const TIPOS_DE_PEDIDO = ["namoro", "casamento", "morar_junto", "bebe"] as
 const velocidade = z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]);
 
 export const AcaoPedidaSchema = z.discriminatedUnion("t", [
+  z.strictObject({ t: z.literal("preparar_obra"), rascunho: RascunhoDeEdicaoSchema }),
+  z.strictObject({ t: z.literal("renovar_obra"), referencia: ReferenciaDaTravaSchema }),
+  z.strictObject({ t: z.literal("liberar_obra"), referencia: ReferenciaDaTravaSchema }),
   z.strictObject({ t: z.literal("editar_casa"), pedido: PedidoDeEdicaoSchema }),
   z.strictObject({ t: z.literal("fundar_familia"), rascunho: RascunhoDaFamiliaSchema }),
   /** Pede o controle do morador da intenção. */
@@ -89,6 +93,12 @@ const apelido = z.string().min(1).max(APELIDO_MAX);
  * caiu e que horas são. O relógio real chega sempre como dado.
  */
 export const EntradaSchema = z.discriminatedUnion("t", [
+  /** Geração e relógio monotônico são exclusivamente do host. */
+  z.strictObject({
+    t: z.literal("obra_do_host"),
+    geracao: GeracaoDaObraSchema,
+    agoraMs: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+  }),
   /** Somente o host admite conteúdo; esta entrada não pertence à AcaoPedidaSchema. */
   z.strictObject({ t: z.literal("admitir_pinturas"), catalogo: CatalogoDePinturasSchema }),
   z.strictObject({

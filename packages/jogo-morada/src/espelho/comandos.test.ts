@@ -7,6 +7,7 @@ function comprar(): Extract<AcaoPedida, { t: "editar_casa" }> {
     t: "editar_casa",
     pedido: {
       sequencia: 1,
+      trava: { geracao: "00000000-0000-4000-8000-000000000001", numero: 1 },
       familiaId: "fam_000001",
       loteId: "lote_000001",
       operacao: {

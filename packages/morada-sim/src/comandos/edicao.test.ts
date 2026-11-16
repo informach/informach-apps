@@ -17,6 +17,7 @@ const autor = "3e6b49b9-306f-4bdd-9c99-a427f276091e";
 function pedido(sequencia = 1): PedidoDeEdicao {
   return {
     sequencia,
+    trava: { geracao: "00000000-0000-4000-8000-000000000001", numero: sequencia },
     familiaId: "fam_000001",
     loteId: "lote_000001",
     operacao: {

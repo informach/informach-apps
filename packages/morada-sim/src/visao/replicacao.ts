@@ -53,6 +53,10 @@ export type JogadorVisto = {
 };
 
 export type PresencaVista = {
+  /** Ausente no protocolo V1; presente quando o host inicializou as obras. */
+  obras?: (import("../sistemas/travas-de-edicao").ConcessaoPublicaDaObra & {
+    perfilId: PerfilId;
+  })[];
   jogadores: JogadorVisto[];
   reservas: { moradorId: MoradorId; perfilId: PerfilId }[];
   voto: { velocidade: Velocidade; aFavor: PerfilId[] } | null;
@@ -83,7 +87,18 @@ export type Mudanca =
   | { t: "c"; chave: ChaveReplicada; valor: unknown };
 
 function presencaVista(presenca: Presenca): PresencaVista {
+  const obra = presenca.obra;
   return {
+    ...(obra
+      ? {
+          obras: obra.travas.map((trava) => ({
+            perfilId: trava.perfilId,
+            referencia: copiar(trava.referencia),
+            alvo: copiar(trava.alvo),
+            prazoMs: Math.max(0, trava.ateMs - obra.agoraMs),
+          })),
+        }
+      : {}),
     jogadores: presenca.sessoes.map((sessao) => ({
       perfilId: sessao.perfilId,
       apelido: sessao.apelido,

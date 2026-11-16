@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { canonico } from "../nucleo/canonico";
+import { ReferenciaDaTravaSchema } from "./obra";
 import { PinturaDoMovelSchema } from "./pintura";
 
 /** Independente dos 512 comandos genéricos e do histórico de desfazer. */
@@ -58,11 +59,14 @@ export const OperacaoDeEdicaoSchema = z.discriminatedUnion("t", [
 ]);
 export type OperacaoDeEdicao = z.infer<typeof OperacaoDeEdicaoSchema>;
 
-export const PedidoDeEdicaoSchema = z.strictObject({
-  sequencia,
+export const RascunhoDeEdicaoSchema = z.strictObject({
   familiaId: entidade("fam"),
   loteId: entidade("lote"),
   operacao: OperacaoDeEdicaoSchema,
+});
+export const PedidoDeEdicaoSchema = RascunhoDeEdicaoSchema.extend({
+  sequencia,
+  trava: ReferenciaDaTravaSchema,
 });
 export type PedidoDeEdicao = z.infer<typeof PedidoDeEdicaoSchema>;
 

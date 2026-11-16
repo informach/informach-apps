@@ -134,6 +134,7 @@ export type OpcoesDoServidorDeMentira = {
 };
 
 export class ServidorDeMentira {
+  private readonly geracaoDaObra = crypto.randomUUID();
   private readonly protocolo: VersaoDoProtocolo;
   readonly soquetes: SoqueteDeMentira[] = [];
   readonly mundo: Mundo;
@@ -152,6 +153,7 @@ export class ServidorDeMentira {
     this.mundo = opcoes.mundo;
     this.sessoes = opcoes.sessoes;
     this.relogio = opcoes.relogio;
+    this.atualizarObra();
     const servidor = this;
     this.Soquete = class extends SoqueteDeMentira {
       constructor(endereco: string, subprotocolo: string) {
@@ -299,8 +301,17 @@ export class ServidorDeMentira {
     }
   }
 
+  private atualizarObra(): void {
+    this.mundo.aplicar({
+      t: "obra_do_host",
+      geracao: this.geracaoDaObra,
+      agoraMs: this.relogio.agoraMs,
+    });
+  }
+
   /** Um passo de 100 ms do servidor: aplica o que chegou, anda e conta o que mudou. */
   passo(): void {
+    this.atualizarObra();
     const respostas: { soquete: SoqueteDeMentira; resultado: Resultado }[] = [];
     for (const { soquete, intencao } of this.caixa.splice(0)) {
       if (!soquete.sessao) continue;
