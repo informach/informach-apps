@@ -88,3 +88,10 @@ com 250 linhas travadas, erro real de DELETE e retomada HTTP, e EXPLAIN da
 consulta efetiva com 20 mil convites futuros. EXPLAIN não executa a exclusão.
 Essa candidata ainda exige execução remota e não está habilitada em produção.
 Publicá-la somente depois de confirmar o recibo 165 e o índice válido/pronto.
+
+A candidata `79a9504f` passou nos seis gates `43869499608`. Integração:
+229 testes, incluindo os seis casos novos, sem falhas. O plano da consulta
+efetiva usou faixa do índice no volume sintético; o DELETE continuou limitado,
+e a falha real chegou ao HTTP seguida de retomada. A execução não altera o
+banco de produção e não demonstra capacidade do serviço Railway.
+[Evidências das candidatas](evidencias/convites-candidatas-2026-11-16.json).
