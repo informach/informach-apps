@@ -1,6 +1,6 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
-import { and, db, eq, inArray, isNull, lt, sql } from "@informach/db";
+import { and, db, eq, inArray, isNull, sql } from "@informach/db";
 import {
   recreioDeviceSessions as deviceSessions,
   recreioGameSessions as gameSessions,
@@ -145,13 +145,35 @@ export async function encerrarSessoesVencidas(): Promise<number> {
   });
 }
 
-/** Apaga ingressos vencidos há mais de um dia, usados ou não. Devolve quantos. */
+/** Teto por execução do cron; o restante continua elegível na próxima passagem. */
+export const LOTE_DE_INGRESSOS_ANTIGOS = 500;
+
+/**
+ * Apaga um lote de ingressos vencidos há mais de um dia, usados ou não.
+ * Não espera linhas disputadas nem traz seus identificadores para o processo.
+ * Zero removidos não comprova ausência de linhas travadas por outra transação.
+ */
 export async function apagarIngressosAntigos(): Promise<number> {
-  const apagados = await db
-    .delete(tickets)
-    .where(lt(tickets.expiresAt, sql`now() - interval '1 day'`))
-    .returning({ jti: tickets.jti });
-  return apagados.length;
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`set local statement_timeout = '5s'`);
+    const [resultado] = await tx.execute<{ apagados: number }>(sql`
+      with lote as (
+        select jti from recreio.game_tickets
+        where expires_at < statement_timestamp() - interval '1 day'
+        order by expires_at, jti
+        limit ${LOTE_DE_INGRESSOS_ANTIGOS}
+        for update skip locked
+      ), removidos as (
+        delete from recreio.game_tickets ingresso using lote
+        where ingresso.jti = lote.jti
+          and ingresso.expires_at < statement_timestamp() - interval '1 day'
+        returning 1
+      )
+      select count(*)::integer as apagados from removidos
+    `);
+    if (!resultado) throw new Error("A limpeza de ingressos não devolveu sua contagem.");
+    return resultado.apagados;
+  });
 }
 
 export async function registrarIngresso(entrada: {

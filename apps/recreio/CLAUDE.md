@@ -93,7 +93,7 @@ O contrato é o `ClienteDoHost` do package, e a implementação é conferida pel
 - Uma instância só se registra com o endereço de `RECREIO_GAME_ORIGINS[jogo].ws`.
 - Diário: contínuo a partir de `journal_seq + 1`, tudo ou nada; repetir exatamente uma entrada gravada (ou já compactada) não faz nada. Fotografia: só sobre a `revisaoEsperada`; o `sha256` é calculado aqui; ficam as 5 mais novas e as fixadas, e o diário é compactado até a mais antiga guardada. Os tetos vêm de `limites` do manifesto.
 - `features/posse/armazenamento.ts` é a porta das fotografias e do diário; `armazenamento-repository.ts` é a implementação no Postgres (`storage = 'pg'`). A variante com bucket não existe.
-- `POST /api/jobs/manutencao` (`CRON_SECRET`, registrado em `ops.job_runs`): posses vencidas, instâncias caladas há mais de dois prazos (`gone`; se voltarem a bater, ficam `active` de novo), ingressos com mais de um dia, sessões de jogo sem renovação. Idempotente, só contagens.
+- `POST /api/jobs/manutencao` (`CRON_SECRET`, registrado em `ops.job_runs`): posses vencidas, instâncias caladas há mais de dois prazos (`gone`; se voltarem a bater, ficam `active` de novo), ingressos vencidos há mais de um dia e sessões de jogo sem renovação. Ingressos: até 500 por passagem, prazo de consulta de 5 s e linhas disputadas ficam para a próxima. Repetir continua lotes sem duplicar efeitos; só contagens, falha parcial responde 503. [Política e estado de implantação](../../docs/recreio/retencao-tecnica-2026-11-16.md).
 - Auditoria: `recreio.space_lease_taken_over` na transação da retomada; `recreio.space_write_refused` quando uma instância autenticada escreve sem a posse.
 
 ## Página do jogo (lote P7)
