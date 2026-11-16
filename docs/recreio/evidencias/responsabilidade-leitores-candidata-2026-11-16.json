@@ -16,7 +16,19 @@
     "navegadorAprovados": 9,
     "navegadorIgnoradosEspecificos": 2
   },
-  "ciGeralDosLeitores": { "runId": 43889414211, "estadoNoRegistro": "in_progress" },
+  "ciGeralDosLeitores": { "runId": 43889414211, "conclusao": "success" },
+  "preflightParaPublicar": {
+    "observadoEm": "2026-11-16T15:56:48.442Z",
+    "fonte": "6e640e99691592aaee0335374f9b7240ec3fc45f",
+    "recibosDeMigracao": 165,
+    "membros": 2,
+    "convites": 0,
+    "partidasAbertas": 0,
+    "autoresDeMembrosInvalidos": 0,
+    "autoresDeConvitesInvalidos": 0,
+    "motivosForaDaListaAnterior": 0,
+    "configuracoesPendentesRailway": false
+  },
   "inventarioSomenteLeitura": {
     "observadoEm": "2026-11-16T15:33:37.316Z",
     "recibosDeMigracao": 165,
@@ -42,8 +54,6 @@
   },
   "contratosMantidos": { "mundo": 2, "protocolo": 1, "manifestoDeArte": 3 },
   "aindaExige": [
-    "CI geral completo dos consumidores compartilhados",
-    "inventario atualizado antes de publicar",
     "migrator e leitores ativos em producao, prontidao e arte D2 conferidas",
     "escrita e interface de transferencia homologadas em incremento posterior"
   ]

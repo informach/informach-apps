@@ -109,8 +109,8 @@ HTTP; a bancada do Morada verifica retirada da conexão e liberação da reserva
 no batimento, conservando a outra pessoa. O portal reconhece o motivo com uma
 mensagem própria, sem reutilizar a sessão encerrada; motivos futuros ainda têm
 parada genérica. Os seis gates da candidata `3b31943b` passaram na execução
-`43889414108`, com 259 integrações aprovadas. O CI geral `43889414211` ainda
-está em andamento neste registro.
+`43889414108`, com 259 integrações aprovadas. O CI geral `43889414211` também
+concluiu com sucesso, incluindo consumidores, integrações, navegadores e builds.
 
 A reconciliação de capacidades `9d97fa0c` passou nos seis gates de `43896380796`,
 com as mesmas 259 integrações, 156 testes do servidor (oito novos de acesso) e
@@ -119,4 +119,7 @@ local `96332834` conserva exatamente suas fontes de apps/packages/workflows;
 acrescenta a documentação posterior da limpeza já implantada. Ela não contém
 o repositório escritor nem ações/telas de transferência. Inventário às 15:33:37
 UTC conservou 165 recibos, dois membros, zero convites e nenhuma autoria inválida.
-Ainda falta concluir o CI geral e conferir a implantação antes da etapa 2.
+O inventário repetido às 15:56:48 UTC conservou essas contagens, sem partida
+aberta nem motivo fora da lista antiga. Portal, migrator e Morada estão sem
+configurações pendentes no Railway. Ainda falta conferir a implantação antes
+da etapa 2.

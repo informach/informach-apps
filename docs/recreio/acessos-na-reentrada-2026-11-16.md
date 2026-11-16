@@ -28,8 +28,9 @@ em memória fornece apenas a identidade e o papel atuais; as asserções verific
 simulação, conexões e persistência reais do servidor. Execução pesada somente
 no GitHub. A execução `43896380796`, fonte `9d97fa0c`, aprovou os seis gates:
 156 testes do servidor, incluindo os oito novos, 259 integrações PostgreSQL e
-nove testes de navegador aprovados com duas exclusões específicas. Implantação
-e conclusão do CI geral dos leitores continuam pendentes neste registro.
+nove testes de navegador aprovados com duas exclusões específicas. O CI geral
+dos leitores `43889414211` também passou. A implantação continua pendente neste
+registro.
 
 A atualização afeta a próxima admissão. O futuro aceite da responsabilidade
 deverá encerrar as sessões dos dois envolvidos atomicamente com a troca do
