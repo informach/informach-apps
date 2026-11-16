@@ -126,3 +126,20 @@ resumo e a política da etapa final também foram documentados no guia local.
 O índice já foi conferido em produção, conforme a prova acima. A implantação
 do escritor ainda precisa de sua conferência de fonte e cron com a quinta
 contagem. Os demais contratos de A7 continuam abertos.
+
+## Escritor em produção
+
+Fonte `6e640e99`, deployment `0db0c124-d91c-4220-b6f3-d9cc96d489f2`,
+SUCCESS; fonte relida no processo e configuração idêntica, sem alterações
+preparadas. A candidata `43878699384` e a main `43880781779` aprovaram os seis
+gates. Mapas enviados ao Sentry e release presente. A checagem estática da
+nova main passou; o CI geral `43880782077` segue nas integrações, sem falhas
+observadas nesse ponto, depois de tipos e unidades concluídos.
+
+Cron automático de 14:05:09.819–14:05:09.896 UTC concluiu com sucesso e cinco
+contagens, incluindo `convitesApagados=0`. A execução de 14:00 ainda tinha
+quatro contagens e precedeu a conferência da nova fonte; não foi usada como
+prova do escritor. Zero não demonstra capacidade ou ausência global de linhas
+retidas. Não foram criados/apagados convites piloto para produzir a prova.
+Membros, convites aceitos, mundos e auditoria permanecem fora desta limpeza.
+[Prova operacional](evidencias/convites-producao-2026-11-16.json).
