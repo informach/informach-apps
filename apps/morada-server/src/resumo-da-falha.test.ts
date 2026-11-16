@@ -16,16 +16,16 @@ describe("falhas sem conteúdo nos logs", () => {
     expect(resumoDaFalha(erro)).toEqual({ nome: "Error", codigo: "INTERNO" });
   });
 
-  it.each([SyntaxError, TypeError, RangeError, ReferenceError, URIError, AggregateError])(
-    "conserva somente a classe nativa %s",
-    (Tipo) => {
-      const erro =
-        Tipo === AggregateError
-          ? new AggregateError([new Error("segredo")], "privado")
-          : new Tipo("privado");
-      expect(resumoDaFalha(erro)).toEqual({ nome: Tipo.name, codigo: "INTERNO" });
-    },
-  );
+  it.each([
+    { nome: "SyntaxError", erro: new SyntaxError("privado") },
+    { nome: "TypeError", erro: new TypeError("privado") },
+    { nome: "RangeError", erro: new RangeError("privado") },
+    { nome: "ReferenceError", erro: new ReferenceError("privado") },
+    { nome: "URIError", erro: new URIError("privado") },
+    { nome: "AggregateError", erro: new AggregateError([new Error("segredo")], "privado") },
+  ])("conserva somente a classe nativa $nome", ({ nome, erro }) => {
+    expect(resumoDaFalha(erro)).toEqual({ nome, codigo: "INTERNO" });
+  });
 
   it("conserva o código admitido do Recreio, sem serializar seu detalhe", () => {
     const erro = new ErroDoRecreio("POSSE_PERDIDA");
