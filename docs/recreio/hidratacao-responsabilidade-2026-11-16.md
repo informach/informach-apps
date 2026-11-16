@@ -57,3 +57,11 @@ de IP sintético do contexto, gerando `Route is already handled`. A limpeza pass
 a `page.unrouteAll({ behavior: "wait" })`: estes ensaios reservam as rotas de
 página para o bloqueio e conservam as rotas do contexto. Aguardar os handlers é
 parte da prova; não usar `ignoreErrors`, catch vazio ou elevar os timeouts.
+
+`aa67c43`/`43942488391` demonstrou que aguardar a remoção não resolveu a disputa
+da cadeia `page.route` → `context.route`. A fixture passa a compor a suspensão
+no interceptador de contexto que já injeta o IP sintético somente no portal.
+Há um único `continue` por requisição, sem instalar/remover rotas durante o
+carregamento e sem mudar os limites de autenticação. A pausa é exclusiva do
+aparelho de teste, contada e liberada no `finally`. Refazer a comparação com
+essa mesma fixture nas duas fontes antes de considerar a prova válida.

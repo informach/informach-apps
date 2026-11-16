@@ -1,27 +1,15 @@
-import { expect, type Locator, type Page, type Route } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
+import { suspenderScriptsDoPortal } from "./apoio";
 
-/** HTML e servidor reais. Estes ensaios reservam a interceptação de página para este bloqueio. */
+/** HTML e servidor reais; só a chegada dos scripts fica suspensa, sem espera fixa. */
 export async function conferirCarregamento(page: Page, controles: Locator[]) {
-  let liberar: (() => void) | undefined;
-  let bloqueados = 0;
-  const scripts = new Promise<void>((resolver) => {
-    liberar = resolver;
-  });
-  const padrao = (url: URL) =>
-    url.pathname.startsWith("/_next/static/") && url.pathname.endsWith(".js");
-  const bloquear = async (rota: Route) => {
-    bloqueados++;
-    await scripts;
-    await rota.fallback();
-  };
-  await page.route(padrao, bloquear);
+  const pausa = suspenderScriptsDoPortal(page.context());
   try {
     await page.reload({ waitUntil: "commit" });
-    await expect.poll(() => bloqueados).toBeGreaterThan(0);
+    await expect.poll(pausa.contar).toBeGreaterThan(0);
     for (const controle of controles) await expect(controle).toBeDisabled();
   } finally {
-    liberar?.();
-    await page.unrouteAll({ behavior: "wait" });
+    pausa.liberar();
   }
   for (const controle of controles) await expect(controle).toBeEnabled();
 }

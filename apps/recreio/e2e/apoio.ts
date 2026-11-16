@@ -103,6 +103,26 @@ export function linhasDeJson(saida: readonly string[]): Record<string, unknown>[
 // --- Navegadores, com a política de segurança vigiada ---
 
 const contextos: BrowserContext[] = [];
+const scriptsSuspensos = new WeakMap<BrowserContext, { espera: Promise<void>; pedidos: number }>();
+
+/** Compõe a pausa com o único interceptador do portal, preservando o IP sintético. */
+export function suspenderScriptsDoPortal(contexto: BrowserContext) {
+  if (!contextos.includes(contexto) || scriptsSuspensos.has(contexto))
+    throw new Error("Suspensão exige um aparelho do teste sem outra pausa ativa");
+  let resolver: (() => void) | undefined;
+  const espera = new Promise<void>((liberar) => {
+    resolver = liberar;
+  });
+  const estado = { espera, pedidos: 0 };
+  scriptsSuspensos.set(contexto, estado);
+  return {
+    contar: () => estado.pedidos,
+    liberar: () => {
+      scriptsSuspensos.delete(contexto);
+      resolver?.();
+    },
+  };
+}
 let violacoes: string[] = [];
 let errosDePagina: string[] = [];
 let errosDeConsole: string[] = [];
@@ -153,11 +173,17 @@ export async function novoAparelho(browser: Browser): Promise<BrowserContext> {
   if (!uso.baseURL) throw new Error("E2E sem origem do portal");
   // O IP fictício só vai ao portal. Cabeçalho global vazava para a origem
   // da arte e tornava seu preflight diferente do navegador de produção.
-  await contexto.route(`${new URL(uso.baseURL).origin}/**`, (rota) =>
-    rota.continue({
+  await contexto.route(`${new URL(uso.baseURL).origin}/**`, async (rota) => {
+    const pausa = scriptsSuspensos.get(contexto);
+    const url = new URL(rota.request().url());
+    if (pausa && url.pathname.startsWith("/_next/static/") && url.pathname.endsWith(".js")) {
+      pausa.pedidos++;
+      await pausa.espera;
+    }
+    await rota.continue({
       headers: { ...rota.request().headers(), "x-real-ip": `198.51.${semente[0]}.${semente[1]}` },
-    }),
-  );
+    });
+  });
   await vigiar(contexto);
   contextos.push(contexto);
   return contexto;
