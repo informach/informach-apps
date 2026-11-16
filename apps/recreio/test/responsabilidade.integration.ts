@@ -196,14 +196,31 @@ async function partida(p: Jogador, mundoId: string) {
 
 it("o aceite encerra as duas partidas do mundo com motivo próprio e cursor", async () => {
   const c = await cenario();
-  const ids = [await partida(c.lia, c.id), await partida(c.bruno, c.id)];
+  const partidas = [
+    { id: await partida(c.lia, c.id), jogador: c.lia },
+    { id: await partida(c.bruno, c.id), jogador: c.bruno },
+  ];
   const proposta = await proporResponsabilidade(c.a, c.id, c.membroBruno.id);
   await responderResponsabilidade(c.b, c.id, proposta.pedidoId, "accepted");
-  for (const id of ids) {
+  for (const { id, jogador } of partidas) {
     const [sessao] = await db.select().from(games).where(eq(games.id, id));
     expect(sessao?.endReason).toBe("permissions_changed");
     expect(sessao?.endedAt).toBeInstanceOf(Date);
     expect(sessao?.endedSeq).toBeGreaterThan(0);
+    expect(await eventosCom("sessionId", id)).toEqual([
+      {
+        eventType: "recreio.game_session_ended",
+        actorId: c.bruno.conta.id,
+        payload: {
+          app: "recreio",
+          sessionId: id,
+          profileId: jogador.perfil.id,
+          gameId: "morada",
+          reason: "permissions_changed",
+          targetId: jogador.conta.id,
+        },
+      },
+    ]);
   }
 });
 
