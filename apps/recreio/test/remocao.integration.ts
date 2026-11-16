@@ -92,8 +92,7 @@ it("remove somente o vínculo, preserva mundo/autoria e audita o ator real uma v
 
 it("revoga a proposta pendente e encerra só as partidas do removido neste mundo", async () => {
   const c = await cenario();
-  const outro = await mundoDe(c.bruno);
-  const preservadas = [await partida(c.lia, c.id), await partida(c.bruno, outro)];
+  const preservadas = [await partida(c.lia, c.id)];
   const sid = await partida(c.bruno, c.id);
   const proposta = await proporResponsabilidade(c.a, c.id, c.membroBruno.id);
   await removerParticipacao(c.a, c.id, c.membroBruno.id);
@@ -123,6 +122,16 @@ it("revoga a proposta pendente e encerra só as partidas do removido neste mundo
   ]);
   for (const id of preservadas)
     expect((await db.select().from(games).where(eq(games.id, id)))[0]?.endedAt).toBeNull();
+});
+
+it("remover de um mundo não encerra a partida do mesmo perfil em outro mundo", async () => {
+  const c = await cenario();
+  const outro = await mundoDe(c.bruno);
+  const sid = await partida(c.bruno, outro);
+  const [antes] = await db.select().from(games).where(eq(games.id, sid));
+  await removerParticipacao(c.a, c.id, c.membroBruno.id);
+  expect((await db.select().from(games).where(eq(games.id, sid)))[0]).toEqual(antes);
+  expect(await detalheDoMundo(c.bruno.perfil.id, outro)).not.toBeNull();
 });
 
 it.each(["suspended", "minor", "sem_perfil", "away", "no_access"] as const)(
