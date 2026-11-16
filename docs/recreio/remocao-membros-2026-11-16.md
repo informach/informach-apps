@@ -1,6 +1,6 @@
 # Remoção de membro pelo responsável: próximo incremento A6
 
-Em preparação, sem publicação. Parte da autorização das cinco frentes e de
+Implantada no alfa em `1ed101be`; [conferência operacional](remocao-producao-2026-11-16.md). Parte da autorização das cinco frentes e de
 corrigir todos os achados. A transferência aceita não conclui continuidade,
 privacidade ou proteção familiar. Manter Mundo V2/protocolo 1/arte D2 e não
 misturar a candidata D3. Testes e builds somente no GitHub.

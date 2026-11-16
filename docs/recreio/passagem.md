@@ -4,8 +4,16 @@ Para quem retoma a frente depois de uma pausa. Leia primeiro a [execução atual
 
 ## Estado atual em 16/11
 
+CI geral `43923717777` recusado na transferência após novo login, por seleção
+perdida durante o carregamento. Correção de hidratação em verificação no GitHub;
+não confundir os seis gates aprovados com aprovação dessa rodada geral.
+
+[Remoção e convites corrigidos implantados](remocao-producao-2026-11-16.md):
+portal `1ed101be`, Morada `92f665e7`, schema 167 e arte D2. 325 integrações e
+seis gates na candidata/main; contas piloto preservadas e prova humana adiada.
+
 [Transferência aceita implantada](responsabilidade-producao-2026-11-16.md):
-portal e Morada em `92f665e7`, schema 167, Mundo V2/protocolo 1/arte D2.
+naquele marco, portal e Morada em `92f665e7`, schema 167, Mundo V2/protocolo 1/arte D2.
 Proposta/aceite/recusa/cancelamento com login nativo, prazos e auditoria atômica.
 291 integrações e seis gates na candidata/main. Prova humana adiada pelo titular.
 Node PID 1 confirmado no Railway; retirada normal recebeu SIGTERM e confirmou

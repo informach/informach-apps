@@ -85,7 +85,7 @@ Princípios que não se negociam: **o jogo recebe um ingresso, nunca acesso ao b
 
 ## Posse e API das instâncias (lote P6)
 
-A saída voluntária de convidado fica em `features/mundos/saida.ts` e `saida-repository.ts`: somente o próprio adulto, com perfil/aparelho revalidados na transação, independentemente da cobertura comercial. O mundo é travado como na admissão; membro vira `former` e sessões vinculadas acabam atomicamente com auditoria estrita. O responsável depende de sucessão aceita, ainda pendente. [Contrato e limites do incremento](../../docs/recreio/saida-de-mundo-2026-11-16.md); a gestão de participações não ativas e o restante de A6 continuam pendentes.
+A saída voluntária de convidado fica em `features/mundos/saida.ts` e `saida-repository.ts`: somente o próprio adulto, com perfil/aparelho revalidados na transação, independentemente da cobertura comercial. O mundo é travado como na admissão; membro vira `former` e sessões vinculadas acabam atomicamente com auditoria estrita. O responsável só pode sair depois da transferência aceita, já implantada. [Contrato e limites do incremento](../../docs/recreio/saida-de-mundo-2026-11-16.md); a gestão de participações não ativas e o restante de A6 continuam pendentes.
 
 O contrato é o `ClienteDoHost` do package, e a implementação é conferida pela suíte de conformidade (`test/conformidade.integration.ts`). Se o comportamento daqui e o da plataforma em memória divergirem, a suíte é quem manda.
 
@@ -143,17 +143,21 @@ PIN e aparelho pareado para menores, perfis sem login criados pelo titular,
 cobrança Stripe e webhooks e telas operacionais próprias no Bastidores. Os
 eventos do Recreio já têm classificadores/frases no console; isso não dá acesso
 ao conteúdo dos mundos. Nos mundos, continuam pendentes visita, convite por
-membro com aprovação, coadministradores, remoção de membro, arquivamento e
+membro com aprovação, coadministradores, arquivamento e
 exportação/exclusão. Bucket e backup agendado continuam pendentes. A exclusão
 automática da conta permanece desligada; a transferência aceita sozinha não
 conclui o encerramento de conta e de todos os vínculos compartilhados.
 
 Perfil adulto próprio e sua edição, gestão de aparelhos, participações e saída
 voluntária já têm código e provas. O alfa tem serviços, manutenção e sondagem
-externa implantados. A candidata de responsabilidade oferece proposta/aceite/
+externa implantados. O portal implantado oferece proposta/aceite/
 recusa/cancelamento por duas contas adultas, com login recente, papéis e fim de
 partidas atômicos. O autor da auditoria é quem aceitou; a conta afetada de cada
-partida fica em `targetId`. Conferir a ativação e os limites atuais em
+partida fica em `targetId`. Remoção pelo responsável também está implantada,
+com lista paginada, login recente e auditoria atômica. O aceite de convite relê
+o emissor, e convites anteriores à saída/remoção não readmitem o perfil. A
+transferência revoga os códigos pendentes do antigo responsável. Conferir
+a ativação e os limites atuais em
 [PRODUCAO.md](PRODUCAO.md) e no [registro da frente](../../docs/recreio/implementacao.md).
 
 Não adiante nada disso fora do lote correspondente do registro da frente.
@@ -169,7 +173,7 @@ Textos em português do Brasil, simples e diretos, sem prometer o que ainda não
 - A emissão de ingresso limita cada perfil a 20 pedidos por minuto, pelo mesmo armazenamento de limites do app.
 - A renovação confere se o jogo continua aberto; manutenção encerra a sessão com `access_lost`, entrega `JOGO_INDISPONIVEL` e aparece no cursor de encerramentos da instância.
 - A entrada autorizada pela instância reavalia o direito de jogar, depois de conferir escopo, sessão e perfil, preservando as recusas que não revelam a existência de outro perfil/mundo.
-- A guarda compartilhada de `@informach/auth` impede excluir, por outro produto, uma conta que tenha perfil no Recreio. Até implementar sucessão/saída de mundos, a exclusão é assistida pelo suporte; o Recreio continua com a exclusão automática desligada.
+- A guarda compartilhada de `@informach/auth` impede excluir, por outro produto, uma conta que tenha perfil no Recreio. Enquanto arquivamento, exportação/exclusão e todos os vínculos não forem resolvidos, a exclusão é assistida pelo suporte; o Recreio continua com a exclusão automática desligada.
 - O E2E isolado serve o Next standalone com `public` e `static` copiados e sobe `dist/main.mjs` do Morada. O estado inicial sem publicação foi superado em 15/11: alfa fechado implantado, com limites e pendências em [PRODUCAO.md](PRODUCAO.md).
 
 
