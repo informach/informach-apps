@@ -85,7 +85,7 @@ jobs:
         if: matrix.gate == 'quality'
         run: |
           pnpm build:morada-server
-          node apps/morada-server/scripts/verificar-conteiner.mjs
+          node --import tsx apps/morada-server/scripts/verificar-conteiner.mjs
         env:
           MORADA_PROCESSO_RELATORIO: ${{ runner.temp }}/morada-processo.json
       - name: Preserve process shutdown evidence
