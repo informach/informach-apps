@@ -7,7 +7,7 @@ linha de produção foi apagada por esse levantamento. Referências principais:
 
 | Tabela | Situação e dependências que a limpeza deve respeitar |
 | --- | --- |
-| `game_tickets` | Já há remoção quando `expires_at` passou há mais de um dia. O comando atual retorna todas as linhas removidas; falta limitar o trabalho por execução e conferir o índice de seleção. |
+| `game_tickets` | Em produção, remoção de todos os ingressos vencidos há mais de um dia, com retorno dos IDs. Candidata abaixo limita o lote e retorna somente contagem. O índice `recreio_game_tickets_expires` já existe; nenhuma migration necessária para este incremento. |
 | `game_sessions` | `ended_seq` alimenta o cursor de encerramentos do host. Não apagar sessões abertas nem encerramentos ainda necessários para revogar tokens/conexões. Manter ordem e um topo monotônico após compactação; uma sequência PostgreSQL não substitui a confirmação ordenada das transações. |
 | `device_sessions` | O login carrega ou cria por `auth_session_id`. A linha revogada funciona como uma negativa persistida: apagá-la enquanto o login ainda for aceito poderia criar outra sessão de aparelho para o mesmo login. A expiração copiada pode estar antiga, pois uma linha revogada não é renovada. Também há cascata para ingressos e sessões de jogo. |
 | `space_invites` | Código é hash único; aceite trava mundo antes de convite. Convite aceito ou vencido não pode voltar a valer. A autoria fica também em `space_members.invited_by_member_id` e nos eventos de auditoria; não inferir que a linha do convite seja a única evidência de participação. |
@@ -40,3 +40,20 @@ linha de produção foi apagada por esse levantamento. Referências principais:
 
 A7 permanece aberto; a implementação precisa dos contratos acima, sem usar
 apenas `expires_at`, `gone` ou `released_at` como critério de remoção.
+
+## Primeiro incremento: ingressos, em verificação
+
+Mantém a política existente de um dia depois do vencimento, usados ou não.
+Cada chamada seleciona até 500 linhas por prazo e UUID, com `FOR UPDATE SKIP
+LOCKED`, e exclui no mesmo comando. A exclusão repete o predicado temporal;
+o processo recebe somente a contagem. Um prazo de execução de 5 s limita a
+consulta; erro interrompe a etapa e chega ao HTTP 503/registro de falha do job.
+Não converte contenção ou erro em prova de limpeza completa. O cron seguinte
+retoma o que sobrou; zero pode significar que outra transação segura as linhas.
+
+Testes novos em PostgreSQL descartável cobrem mais de um lote, ordem de prazo,
+usados/não usados, conservação dos recentes/válidos, duas execuções enquanto
+250 linhas estão travadas e erro real de exclusão pelo HTTP seguido de retomada.
+Os testes pesados rodam no GitHub; a aprovação e a implantação ainda faltam.
+Este incremento não remove sessões, cursores, negativos de revogação ou mundos,
+nem encerra A7. Referência SQL: [DELETE em lotes](https://www.postgresql.org/docs/18/sql-delete.html).

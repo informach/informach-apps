@@ -7,7 +7,8 @@ import {
 
 /**
  * A rotina de manutenção do Recreio. Cada passo é idempotente e independente:
- * rodar duas vezes seguidas não muda nada na segunda. Devolve só contagens.
+ * repetir continua os lotes restantes sem repetir efeitos. Devolve só contagens;
+ * uma contagem zero pode decorrer de linhas disputadas, não de ausência global.
  *
  * Nada aqui é caminho crítico. Abrir um mundo fecha a posse vencida na hora, e
  * a renovação recusa a sessão sem acesso na hora; a rotina recolhe o que ficou

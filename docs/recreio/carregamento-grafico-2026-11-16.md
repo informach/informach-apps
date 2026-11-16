@@ -44,3 +44,10 @@ também evita atualizar poses repetidamente enquanto a preparação está em cur
 mantendo a espera no intervalo do próximo quadro desenhado. Os testes completos
 de navegador e a nova prova privada continuam pendentes; ainda não declarar
 resolvida a pausa observada na fonte anterior.
+
+Fonte `59f2614a`: os seis gates públicos da execução
+[43802126864](https://github.com/informach/informach-apps/actions/runs/43802126864)
+passaram. Inclui jornada de duas contas/desfazer/refazer/restauração, cliente,
+integração, qualidade, versões reais e simulação longa. O executor privado
+`0c118aaf` foi fixado nessa fonte para repetir as cinco jornadas com arte;
+resultado e exame das imagens ainda pendentes.
