@@ -1,8 +1,8 @@
 # Recreio e Morada: registro da implementação
 
 **16/11 — etapa de leitores implantada:** [schema 167, fontes, arte e cron](leitores-producao-2026-11-16.md)
-conferidos. Transferência com aceite ainda não publicada. Achado adicional:
-Node atrás do pnpm/shells no PID 1; correção e prova por SIGTERM em homologação.
+conferidos. Transferência com aceite ainda não publicada. O comando do Morada
+foi corrigido para Node no PID 1 após a [prova por SIGTERM](processo-principal-2026-11-16.md).
 
 Registro detalhado da frente. O índice de continuidade é o [estado do repositório](../estado-do-repositorio.md); as regras permanentes ficam no [AGENTS.md](../../AGENTS.md).
 
