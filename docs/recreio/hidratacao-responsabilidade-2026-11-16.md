@@ -47,3 +47,13 @@ e saída com as duas contas sintéticas. Controles em `details` fechados são
 consultados explicitamente com `includeHidden`, sem alterar a confirmação.
 
 Estado: correção ampliada em verificação no GitHub; ainda não publicada.
+
+## Correções do ensaio
+
+`07ab143`/`43939056103` recusou três testes porque o contador de scripts era zero;
+essa recusa expôs o glob incorreto. A fonte `38faa83` usa `URL.pathname` e
+intercepta os scripts, mas `unroute` corria com o `fallback` para o interceptador
+de IP sintético do contexto, gerando `Route is already handled`. A limpeza passa
+a `page.unrouteAll({ behavior: "wait" })`: estes ensaios reservam as rotas de
+página para o bloqueio e conservam as rotas do contexto. Aguardar os handlers é
+parte da prova; não usar `ignoreErrors`, catch vazio ou elevar os timeouts.
