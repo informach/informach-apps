@@ -1,0 +1,73 @@
+{
+  "fonte": "f0f1c96c11f22fec6f91315c03eddd8701c54fc5",
+  "estado": "leitores_implantados_sem_escritores",
+  "deployments": {
+    "portal": "665ae894-2100-4d18-88a6-01c14b0e939a",
+    "morada": "679722ea-12f0-4b73-9357-ee25ab41c680",
+    "migrator": "96f3ad7b-5c82-4bc8-aac3-01159d33a7a7",
+    "status": "SUCCESS",
+    "configuracoesIdenticasAoPreflight": true,
+    "configuracoesPendentes": false
+  },
+  "banco": {
+    "observadoEm": "2026-11-16T16:01:45.042Z",
+    "recibos": 167,
+    "ultimoJournal": "1794839729341",
+    "fksCompostasPorMundoValidadas": 4,
+    "checkAceitaPermissionsChanged": true
+  },
+  "semAtivacaoDeTransferencia": {
+    "observadoEm": "2026-11-16T16:11:14.309Z",
+    "fonteEDeploymentDoPortalConferidosPorSSH": true,
+    "rotaDeTransferenciaCompilada": false,
+    "pedidos": 0,
+    "permissionsChangedEmitidos": 0
+  },
+  "arte": {
+    "observadoEm": "2026-11-16T16:05:40.875Z",
+    "fonteEDeploymentDoMoradaConferidosPorSSH": true,
+    "pasta": "d2-4198478735b6",
+    "manifestoVersao": 3,
+    "sha256": "4198478735b643e07d4ce0821db82654c42847bbf996d1d07a99a5890b21672f"
+  },
+  "prontidao": {
+    "portalEMorada200Em": "2026-11-16T16:02:41Z",
+    "oitoAppsDoCatalogo200Em": "2026-11-16T16:14:12Z"
+  },
+  "cron": {
+    "inicio": "2026-11-16T16:10:16.749Z",
+    "fim": "2026-11-16T16:10:16.784Z",
+    "ok": true,
+    "summary": {
+      "possesVencidas": 0,
+      "convitesApagados": 0,
+      "sessoesExpiradas": 0,
+      "ingressosApagados": 0,
+      "instanciasSumidas": 0
+    }
+  },
+  "sentry": {
+    "releaseConferida": true,
+    "mapasEnviadosEm": "2026-11-16T15:59:13.154518435Z",
+    "consulta": "is:unresolved lastSeen:-2h",
+    "nenhumaIssueEncontradaEmRecreioEMorada": true,
+    "limite": "consulta pontual, nao certificacao geral de estabilidade"
+  },
+  "gates": {
+    "candidataRecreio": 43896380796,
+    "ciGeralDosLeitores": 43889414211,
+    "candidatasAprovadas": true,
+    "mainRecreio": 43902105461,
+    "mainGeral": 43902105332,
+    "mainAindaEmExecucaoNoRegistro": true
+  },
+  "achadoDoProcesso": {
+    "pid1": "pnpm start:morada-server",
+    "nodePid": 41,
+    "paradaAnterior": "Stopping Container seguido de ELIFECYCLE Command failed, sem confirmacao da instancia",
+    "conclusao": "nao comprova perda nem desligamento ordenado; zero partidas abertas no preflight",
+    "correcao": "comando Node direto e prova Docker em candidata separada, ainda sem alterar o servico"
+  },
+  "contratos": { "mundo": 2, "protocolo": 1, "arte": "D2" },
+  "naoConclui": ["A6", "A7", "protecao familiar", "homologacao comercial"]
+}
