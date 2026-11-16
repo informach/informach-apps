@@ -39,3 +39,7 @@ encerrado com cursor e repetição. Navegador: entrar duas vezes, desconectar o
 outro, conservar o atual, recusar o aparelho antigo e permitir autenticação nova.
 Seis gates antes de publicar; conferir fonte, saúde, mapas e cron depois.
 Família/PIN, nomes de aparelhos e demais itens A12 continuam pendentes.
+
+O Bastidores recebe a frase do novo evento na Auditoria e na ficha da conta
+(`features/audit/humanize.ts` e `features/people/service.ts`), sem ler conteúdo
+ou ampliar permissões. Os tipos e as unidades do Bastidores fazem parte do gate.

@@ -122,6 +122,7 @@ function dateOf(payload: Record<string, unknown>, key: string): Date | null {
 const PHRASES: Record<string, (ctx: Context) => SentencePart[]> = {
   "recreio.profile_created": () => [t("Criou um perfil no Recreio")],
   "recreio.profile_updated": () => [t("Atualizou um perfil no Recreio")],
+  "recreio.device_session_revoked": () => [t("Desconectou um aparelho do Recreio")],
   "recreio.entitlement_granted": () => [t("Recebeu acesso ao Recreio")],
   "recreio.entitlement_revoked": () => [t("Teve o acesso ao Recreio revogado")],
   "recreio.game_session_started": () => [t("Abriu uma sessão de jogo no Recreio")],
