@@ -63,6 +63,9 @@ test("o diff completo encontra código após mais de 300 documentos e conserva n
     assert.equal(todos.length, 306);
     assert.ok(todos.includes("packages/exemplo/com espaço.ts"));
     assert.equal(exigePipelineCompleto(todos), true);
+    git("mv", "packages/exemplo/com espaço.ts", "docs/recreio/renomeado.md");
+    const renomeado = commit();
+    assert.equal(exigePipelineCompleto(arquivosAlterados(codigo, renomeado, dir)), true);
   } finally {
     await rm(alvo, { recursive: true, force: true });
   }
