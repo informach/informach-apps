@@ -1,8 +1,9 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MudancaDeAcesso } from "../contrato/sdk";
 import { FRACAO_PARA_RENOVAR } from "../contrato/tokens";
+import { TEMPO_LIMITE_DO_PEDIDO_MS } from "../transporte/prazo";
 import { criarRecreio, REPETIR_RENOVACAO_APOS_MS } from "./index";
 
 const INICIO = Date.UTC(2026, 10, 11, 12, 0, 0);
@@ -13,6 +14,8 @@ const MEMBRO = "9d2c7b1a-3e4f-4a5b-8c6d-7e8f9a0b1c2d";
 
 /** Quando o SDK renova uma sessão que ainda vale `ms`. */
 const fracao = (ms: number) => Math.floor(ms * FRACAO_PARA_RENOVAR);
+
+afterEach(() => vi.useRealTimers());
 
 type Chamada = { url: string; method: string; headers: Record<string, string>; corpo: unknown };
 type Resposta = { status?: number; corpo?: unknown; texto?: string } | Error;
@@ -313,6 +316,11 @@ describe("sair", () => {
     a.responder(new TypeError("fetch failed"));
     await expect(recreio.sessao.sair()).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
     expect(a.pendentes()).toEqual([]);
+    a.responder({ corpo: {} });
+    await recreio.sessao.sair();
+    expect(a.chamadas).toHaveLength(3);
+    await recreio.sessao.sair();
+    expect(a.chamadas).toHaveLength(3);
   });
 });
 
@@ -406,6 +414,120 @@ describe("mundos", () => {
       codigo,
       detalhe,
     });
+  });
+});
+
+describe("pedidos sem resposta", () => {
+  function adiar<T>() {
+    let concluir: ((valor: T) => void) | undefined;
+    const promessa = new Promise<T>((resolve) => {
+      concluir = resolve;
+    });
+    return {
+      promessa,
+      concluir(valor: T) {
+        if (!concluir) throw new Error("Pedido não iniciado");
+        concluir(valor);
+      },
+    };
+  }
+
+  it("limita a emissão do ingresso e não inicia a troca quando ela não responde", async () => {
+    vi.useFakeTimers();
+    const a = ambiente(),
+      pendente = adiar<string>();
+    let signal: AbortSignal | undefined;
+    const abertura = criarRecreio({
+      ...a.opcoes(),
+      obterIngresso: (sinal) => {
+        signal = sinal;
+        return pendente.promessa;
+      },
+    });
+    const recusa = expect(abertura).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+    await vi.advanceTimersByTimeAsync(TEMPO_LIMITE_DO_PEDIDO_MS);
+    await recusa;
+    pendente.concluir("ingresso tardio");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(a.chamadas).toEqual([]);
+    expect(signal?.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each(["listar", "criar", "abrir", "convidar", "sair"] as const)(
+    "%s tem prazo e não repete automaticamente a operação",
+    async (operacao) => {
+      vi.useFakeTimers();
+      const a = ambiente(),
+        opcoes = a.opcoes(),
+        pendente = adiar<Response>();
+      let esperando = false,
+        pedidos = 0;
+      let signal: AbortSignal | null | undefined;
+      a.responder({ corpo: a.aberta() });
+      const recreio = await criarRecreio({
+        ...opcoes,
+        fetch: (url, init) => {
+          if (!esperando) return opcoes.fetch(url, init);
+          pedidos++;
+          signal = init?.signal;
+          return pendente.promessa;
+        },
+      });
+      esperando = true;
+      const operacoes = {
+        listar: () => recreio.mundos.listar(),
+        criar: () => recreio.mundos.criar({ nome: "Casa" }),
+        abrir: () => recreio.mundos.abrir(MUNDO),
+        convidar: () => recreio.mundos.convidar(MUNDO, { forma: "member" }),
+        sair: () => recreio.sessao.sair(),
+      };
+      const recusa = Promise.all([
+        expect(operacoes[operacao]()).rejects.toMatchObject({ codigo: "INDISPONIVEL" }),
+        ...(operacao === "sair"
+          ? [expect(recreio.sessao.sair()).rejects.toMatchObject({ codigo: "INDISPONIVEL" })]
+          : []),
+      ]);
+      await vi.advanceTimersByTimeAsync(TEMPO_LIMITE_DO_PEDIDO_MS);
+      await recusa;
+      expect(pedidos).toBe(1);
+      expect(signal?.aborted).toBe(true);
+      // Um adapter atrasado não muda o resultado já comunicado ao chamador.
+      pendente.concluir(Response.json({ mundos: [] }));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(pedidos).toBe(1);
+    },
+  );
+
+  it("renovação pendurada perde o acesso ao vencer e ignora a resposta tardia", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(INICIO);
+    const a = ambiente(),
+      opcoes = a.opcoes(),
+      pendente = adiar<Response>();
+    let signal: AbortSignal | null | undefined;
+    a.responder({ corpo: a.aberta("curta", INICIO + 1000) });
+    const recreio = await criarRecreio({
+      ...opcoes,
+      agora: () => Date.now(),
+      agendar: undefined,
+      fetch: (url, init) => {
+        if (!url.endsWith("/renovar")) return opcoes.fetch(url, init);
+        signal = init?.signal;
+        return pendente.promessa;
+      },
+    });
+    const mudancas: MudancaDeAcesso[] = [];
+    recreio.sessao.aoMudarAcesso((mudanca) => mudancas.push(mudanca));
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(mudancas).toEqual([{ tipo: "perdido", codigo: "INDISPONIVEL" }]);
+    expect(signal?.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+    pendente.concluir(Response.json(a.sessao("tardia", INICIO + QUINZE_MIN)));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(recreio.sessao.token()).toBe("curta");
+    expect(mudancas).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 

@@ -18,6 +18,13 @@ Consumido como TypeScript fonte, sem build, como os outros packages.
 
 Escopo e estado de cada lote ficam no [registro da frente](../../docs/recreio/implementacao.md).
 
+Pedidos do SDK têm prazo de 10 s, incluindo leitura do corpo; o emissor de
+ingresso recebe `AbortSignal`. A renovação também respeita o vencimento da
+sessão. Tempo esgotado é `INDISPONIVEL`, sem repetição automática das mutações
+nem garantia de rollback remoto. A saída distingue parada local de confirmação
+do servidor e permite nova tentativa depois de falha, agrupando chamadas
+simultâneas. [Contrato e estado de homologação](../../docs/recreio/prazos-navegador-2026-11-16.md).
+
 ## Quem pode importar o quê
 
 - `apps/recreio`: tudo.
