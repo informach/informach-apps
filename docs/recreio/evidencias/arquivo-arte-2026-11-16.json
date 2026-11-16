@@ -66,9 +66,6 @@
     "workflowIdenticoA": "e4fb56da5fa910d5196ed2353484a2909c8a007b",
     "runManualMain": 43877122326,
     "conclusionManualMain": "success",
-    "arquivosAlterados": [
-      ".github/workflows/morada-arquivo.yml",
-      "LEIA.md"
-    ]
+    "arquivosAlterados": [".github/workflows/morada-arquivo.yml", "LEIA.md"]
   }
 }
