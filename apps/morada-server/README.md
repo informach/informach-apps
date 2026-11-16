@@ -18,6 +18,11 @@ Conexões sem sessão também contam no teto global. `MORADA_CONEXOES_MAX` (padr
 
 ## Rodar
 
+No Railway, o comando da IaC é `node apps/morada-server/dist/main.mjs`, na raiz
+`/app`, para o Node receber SIGTERM como PID 1. A prova de processo usa um
+contêiner no GitHub, com um mundo e fechamento WebSocket; a configuração real,
+a prontidão e a arte são conferidas após a implantação. [Operação e limites](../../docs/recreio/processo-principal-2026-11-16.md).
+
 ```bash
 # Desenvolvimento, sem portal nem banco: plataforma em memória, porta 3010.
 MORADA_PLATAFORMA=falsa pnpm dev:morada-server

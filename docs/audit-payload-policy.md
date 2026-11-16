@@ -111,10 +111,10 @@ Sessões de jogo (eventos pessoais: `targetId` é a conta dona da sessão de apa
 - `recreio.game_session_ended`: `{ sessionId, profileId, gameId, reason, targetId }`, com `reason` igual a `left`, `replaced`, `signed_out`, `access_lost`, `expired` ou `permissions_changed`. O ator é a conta quando foi ela que causou o fim (`left`, `replaced`, `signed_out`, `permissions_changed`) e nulo quando foi o Recreio (`access_lost`, `expired`, ou `signed_out` detectado na renovação). O novo motivo exige leitores compatíveis implantados antes da primeira emissão.
 - `recreio.ticket_rejected`: `{ profileId, gameId, reason }`, com `reason` igual a `used_or_expired`, `device_session`, `access` ou `game`. Ator nulo. Só é gravado para ingresso com assinatura válida do Recreio: token inválido ou adulterado não gera evento, para a tabela não virar alvo de quem manda lixo.
 
-Mundos, convites e posse. **Eventos de mundo não levam `targetId`**: um mundo é de várias contas, então o evento só se liga a uma pessoa pelo ator (a conta do perfil que agiu), e quem investiga um mundo filtra por `spaceId`.
-
 Na transferência aceita, o encerramento das duas partidas registra em `actorId`
 a conta de quem aceitou. `targetId` conserva a conta afetada de cada partida.
+
+Mundos, convites e posse. **Eventos de mundo não levam `targetId`**: um mundo é de várias contas, então o evento só se liga a uma pessoa pelo ator (a conta do perfil que agiu), e quem investiga um mundo filtra por `spaceId`.
 
 - `recreio.space_created`: `{ spaceId, gameId, profileId, memberId, contentPolicy }`. `contentPolicy` é o id da política de mundo do manifesto do jogo.
 - `recreio.space_invite_created`: `{ spaceId, inviteId, memberId, form }`, com `memberId` o membro que convidou e `form` igual a `member`.

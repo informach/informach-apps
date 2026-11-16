@@ -139,7 +139,22 @@ Mudou a regra, mude o teste e este texto.
 
 ## O que ainda não existe
 
-PIN e aparelho pareado, perfis sem login criados pelo titular, edição do perfil, cobrança (Stripe) e webhooks, serviço e agendador no Railway e tela no Bastidores (os eventos `recreio.*` aparecem lá sem frase própria). Nos mundos: convite de visita, convite por membro com aprovação, coadministradores, sair de um mundo, remover membro, arquivar e a sucessão do responsável. No armazenamento: bucket. A exclusão de conta fica desligada (`accountDeletion: { enabled: false }`) até existirem as regras de sucessão do mundo.
+PIN e aparelho pareado para menores, perfis sem login criados pelo titular,
+cobrança Stripe e webhooks e telas operacionais próprias no Bastidores. Os
+eventos do Recreio já têm classificadores/frases no console; isso não dá acesso
+ao conteúdo dos mundos. Nos mundos, continuam pendentes visita, convite por
+membro com aprovação, coadministradores, remoção de membro, arquivamento e
+exportação/exclusão. Bucket e backup agendado continuam pendentes. A exclusão
+automática da conta permanece desligada; a transferência aceita sozinha não
+conclui o encerramento de conta e de todos os vínculos compartilhados.
+
+Perfil adulto próprio e sua edição, gestão de aparelhos, participações e saída
+voluntária já têm código e provas. O alfa tem serviços, manutenção e sondagem
+externa implantados. A candidata de responsabilidade oferece proposta/aceite/
+recusa/cancelamento por duas contas adultas, com login recente, papéis e fim de
+partidas atômicos. O autor da auditoria é quem aceitou; a conta afetada de cada
+partida fica em `targetId`. Conferir a ativação e os limites atuais em
+[PRODUCAO.md](PRODUCAO.md) e no [registro da frente](../../docs/recreio/implementacao.md).
 
 Não adiante nada disso fora do lote correspondente do registro da frente.
 
