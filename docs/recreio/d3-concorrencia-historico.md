@@ -111,3 +111,10 @@ quedas e reentradas antes do passo, depois verifica comando, presença e reserva
 além dos 30 s de graça. Ainda sem correção ou resultado remoto.
 O workflow focado `morada-reconexao.yml` evita repetir navegador/100 dias para
 reproduzir essa hipótese; o conserto volta aos seis gates antes de integrar.
+
+Hipótese reproduzida em `1b88f4d7`, execução `43777623906`: os dois casos
+falharam depois da reentrada, devolvendo recusa no comando da sessão nova.
+Correção em preparação: ao consumir `caiu`, conferir se já existe uma conexão
+vigente para o SID antes de marcar a presença em graça. A prova inclui agora
+queda sem sucessora para conservar a expiração/liberação normais. Aguardar a
+rodada verde e os seis gates; sem implantação desta correção ainda.
