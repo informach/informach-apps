@@ -32,7 +32,7 @@ async function receptor(bloqueado: boolean) {
       try {
         await Sentry.close(1000);
       } finally {
-        Sentry.setCurrentClient(undefined);
+        Sentry.getCurrentScope().setClient(undefined);
         servidor.closeAllConnections();
         await new Promise<void>((resolve, reject) =>
           servidor.close((erro) => (erro ? reject(erro) : resolve())),
