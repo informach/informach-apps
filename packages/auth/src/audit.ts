@@ -120,6 +120,7 @@ export type AuditEventType =
   | "recreio.space_invite_created"
   | "recreio.space_invite_accepted"
   | "recreio.space_member_joined"
+  | "recreio.space_member_left"
   | "recreio.space_lease_taken_over"
   | "recreio.space_write_refused"
   | "recreio.space_restored"

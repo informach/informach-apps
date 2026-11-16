@@ -132,6 +132,7 @@ const PHRASES: Record<string, (ctx: Context) => SentencePart[]> = {
   "recreio.space_invite_created": () => [t("Criou um convite de mundo no Recreio")],
   "recreio.space_invite_accepted": () => [t("Aceitou um convite de mundo no Recreio")],
   "recreio.space_member_joined": () => [t("Entrou em um mundo no Recreio")],
+  "recreio.space_member_left": () => [t("Saiu de um mundo no Recreio")],
   "recreio.space_lease_taken_over": () => [t("Uma instância retomou um mundo no Recreio")],
   "recreio.space_write_refused": () => [t("Uma escrita de instância foi recusada no Recreio")],
   "recreio.space_restored": () => [t("Um mundo do Recreio foi restaurado pela operação")],

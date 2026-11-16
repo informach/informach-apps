@@ -120,6 +120,7 @@ jobs:
           path: |
             apps/recreio/tmp/telas/aparelhos-proprios.png
             apps/recreio/tmp/telas/perfil-proprio-editado.png
+            apps/recreio/tmp/telas/saida-mundo-confirmacao.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic color evidence

@@ -172,6 +172,7 @@ describe("abrir o mundo", () => {
     [new ErroDoRecreio("MUNDO_INDISPONIVEL"), "mundo_indisponivel"],
     [new ErroDoRecreio("ACESSO_PERDIDO"), "acesso_perdido"],
     [new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "signed_out" }), "saiu_da_conta"],
+    [new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "left" }), "saiu_do_jogo"],
     [new ErroDoRecreio("SESSAO_INVALIDA"), "sessao_encerrada"],
     [new TypeError("resposta estranha"), "falha"],
   ] as const)(

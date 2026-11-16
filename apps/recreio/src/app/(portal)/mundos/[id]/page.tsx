@@ -4,6 +4,7 @@ import { avaliarAcesso } from "@/features/acesso/service";
 import { temCliente } from "@/features/jogar/registro";
 import { jogoAbre } from "@/features/jogos/config";
 import { GerarConvite } from "@/features/mundos/components/gerar-convite";
+import { SairDoMundo } from "@/features/mundos/components/sair-do-mundo";
 import { detalheDoMundo } from "@/features/mundos/service";
 import { avisoDoMembro, rotuloDoPapel } from "@/features/mundos/texto";
 import { AvatarDoPerfil } from "@/features/perfis/components/avatar";
@@ -89,6 +90,17 @@ export default async function Mundo({ params }: { params: Promise<{ id: string }
             <div className="mt-4">
               <GerarConvite mundoId={mundo.id} />
             </div>
+          </section>
+        )}
+        {mundo.papel !== "steward" && ator.perfil.tipo === "adult" && (
+          <section aria-labelledby="sair-do-mundo" className="painel p-5 sm:p-6">
+            <h2 id="sair-do-mundo" className="font-display text-xl font-bold">
+              Sair deste mundo
+            </h2>
+            <p className="mt-2 text-tinta-suave">
+              Sua conta e suas participações em outros mundos continuam disponíveis.
+            </p>
+            <SairDoMundo mundoId={mundo.id} />
           </section>
         )}
       </div>
