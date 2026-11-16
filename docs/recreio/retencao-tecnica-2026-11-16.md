@@ -7,7 +7,7 @@ linha de produção foi apagada por esse levantamento. Referências principais:
 
 | Tabela | Situação e dependências que a limpeza deve respeitar |
 | --- | --- |
-| `game_tickets` | Em produção, remoção de todos os ingressos vencidos há mais de um dia, com retorno dos IDs. Candidata abaixo limita o lote e retorna somente contagem. O índice `recreio_game_tickets_expires` já existe; nenhuma migration necessária para este incremento. |
+| `game_tickets` | Em produção, até 500 ingressos vencidos há mais de um dia por execução, com retorno somente da contagem. Concorrência, falha e retomada conferidas no incremento abaixo. O índice `recreio_game_tickets_expires` já existe; nenhuma migration necessária para este incremento. |
 | `game_sessions` | `ended_seq` alimenta o cursor de encerramentos do host. Não apagar sessões abertas nem encerramentos ainda necessários para revogar tokens/conexões. Manter ordem e um topo monotônico após compactação; uma sequência PostgreSQL não substitui a confirmação ordenada das transações. |
 | `device_sessions` | O login carrega ou cria por `auth_session_id`. A linha revogada funciona como uma negativa persistida: apagá-la enquanto o login ainda for aceito poderia criar outra sessão de aparelho para o mesmo login. A expiração copiada pode estar antiga, pois uma linha revogada não é renovada. Também há cascata para ingressos e sessões de jogo. |
 | `space_invites` | Código é hash único; aceite trava mundo antes de convite. Convite aceito ou vencido não pode voltar a valer. A autoria fica também em `space_members.invited_by_member_id` e nos eventos de auditoria; não inferir que a linha do convite seja a única evidência de participação. |
@@ -41,7 +41,7 @@ linha de produção foi apagada por esse levantamento. Referências principais:
 A7 permanece aberto; a implementação precisa dos contratos acima, sem usar
 apenas `expires_at`, `gone` ou `released_at` como critério de remoção.
 
-## Primeiro incremento: ingressos, em verificação
+## Primeiro incremento: ingressos, implantado
 
 Mantém a política existente de um dia depois do vencimento, usados ou não.
 Cada chamada seleciona até 500 linhas por prazo e UUID, com `FOR UPDATE SKIP
@@ -78,3 +78,8 @@ Após o incremento de prazos HTTP, os dois serviços foram recompilados em
 relidos no processo ativo, e cron automático às 05:15 UTC confirmado.
 [Operação dos prazos](prazos-navegador-2026-11-16.md). A7 continua aberto para
 a retenção das demais tabelas e medição em rede/banco.
+
+A expiração das sessões abertas também foi limitada, sem apagar os encerramentos:
+[100 por transação, auditoria/cursor preservados e implantação em `cc48f3c6`](expiracao-sessoes-2026-11-16.md).
+A tabela `game_sessions` e seu cursor continuam retidos; esse limite de trabalho
+não implementa a compactação ainda pendente.

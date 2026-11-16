@@ -102,7 +102,7 @@ Eventos `recreio.*` registram o que aconteceu com os perfis, com o direito de jo
 
 `reasonCode` é um código curto e fechado (letras minúsculas, números e `_`, até 40 caracteres, conferido pelo script e pelo banco), não uma explicação escrita: quem concede escolhe o código, e a conversa com a pessoa fica fora do evento. Todos levam também `app: "recreio"`.
 
-As concessões são gravadas pelos scripts `conceder` e `revogar` de `apps/recreio`, sem conta de equipe por trás: o ator é nulo e o evento entra pela forma estrita (`logAuditEventStrict`), na mesma transação da linha em `recreio.entitlements`. Se o evento não grava, a concessão ou a revogação também não ficam. `recreio.profile_created` segue a forma padrão dos apps, sem derrubar a criação do perfil se a auditoria falhar.
+As concessões são gravadas pelos scripts `conceder` e `revogar` de `apps/recreio`, sem conta de equipe por trás: o ator é nulo e o evento entra pela forma estrita (`logAuditEventStrict`), na mesma transação da linha em `recreio.entitlements`. Se o evento não grava, a concessão ou a revogação também não ficam. `recreio.profile_created` também usa `logAuditEventStrict` com o writer da mesma transação que cria perfil e grupo. Se a auditoria falha, a criação é revertida. Uma repetição que encontra o perfil já criado não emite outro evento.
 
 Sessões de jogo (eventos pessoais: `targetId` é a conta dona da sessão de aparelho):
 
