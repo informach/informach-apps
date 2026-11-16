@@ -42,7 +42,7 @@ pnpm --filter @informach/recreio-app gerar-chave
 
 O comando mostra `RECREIO_TOKEN_KEY_ID` e `RECREIO_TOKEN_PRIVATE_KEY` (PEM numa linha, com `\n` escapado) para copiar ao provedor. A chave pública servida em `/api/sdk/v1/jwks` sai da privada. Na rotação, a pública da chave antiga entra em `RECREIO_TOKEN_PREVIOUS_PUBLIC_KEYS` com o id dela e fica lá até as sessões assinadas por ela vencerem (15 min bastam).
 
-A manutenção (`POST /api/jobs/manutencao`, com `Authorization: Bearer $CRON_SECRET`) fecha posses vencidas, marca instâncias caladas, apaga ingressos antigos e encerra sessões de jogo sem renovação. Responde só contagens e pode rodar a qualquer intervalo; nada do caminho de jogo espera por ela.
+A manutenção (`POST /api/jobs/manutencao`, com `Authorization: Bearer $CRON_SECRET`) fecha posses vencidas, marca instâncias caladas, apaga ingressos antigos, encerra sessões de jogo sem renovação e recolhe convites sem aceite vencidos há mais de um dia. Convites aceitos são preservados. A limpeza usa lotes de até 500 e pula linhas ocupadas; zero não comprova ausência global. Responde só contagens e pode rodar a qualquer intervalo; nada do caminho de jogo espera por ela. O índice 0164 precisa estar implantado antes desse escritor; [política e homologação](../../docs/recreio/convites-retencao-2026-11-16.md).
 
 ## Morada no portal
 

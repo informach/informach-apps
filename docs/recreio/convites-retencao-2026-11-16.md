@@ -68,4 +68,23 @@ não são impressos. Mensagens controladas de histórico/corte permanecem dispon
 
 A integração usa o mesmo cliente em DDL bloqueado e verifica rollback e retomada,
 além de presença/validade do índice gerado. As tabelas de prova são exclusivamente
-do banco descartável. A limpeza dos convites ainda não foi implementada ou habilitada.
+do banco descartável. A candidata do índice `892f8571` passou nos seis gates
+do Recreio (`43866074913`); o CI geral `43866074845` ainda está em execução.
+O índice ainda não foi aplicado em produção.
+
+## Candidata do escritor, separada da implantação do índice
+
+A rotina acrescenta `convitesApagados` ao resumo do job, depois das quatro
+etapas existentes. Apaga no máximo 500 por instrução, com prazo estável,
+ordenação por vencimento/UUID, SKIP LOCKED e repetição das condições no DELETE.
+A transação limita instrução a 5 s, espera de trava a 1 s e duração a 15 s.
+Erro aborta o lote e mantém a resposta 503 do job; etapas anteriores podem
+ter concluído e continuam idempotentes. Não há auditoria de conteúdo na limpeza;
+o registro operacional do job conserva somente contagens/classificação.
+
+Seis casos novos no PostgreSQL descartável cobrem lote/ordem/prazos, convite
+aceito e membro preservados, código antigo recusado antes/depois, duas execuções
+com 250 linhas travadas, erro real de DELETE e retomada HTTP, e EXPLAIN da
+consulta efetiva com 20 mil convites futuros. EXPLAIN não executa a exclusão.
+Essa candidata ainda exige execução remota e não está habilitada em produção.
+Publicá-la somente depois de confirmar o recibo 165 e o índice válido/pronto.

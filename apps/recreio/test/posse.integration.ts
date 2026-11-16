@@ -856,6 +856,7 @@ describe("manutenção", () => {
         instanciasSumidas: 1,
         ingressosApagados: 1,
         sessoesExpiradas: 1,
+        convitesApagados: 0,
       },
     });
 
@@ -880,6 +881,7 @@ describe("manutenção", () => {
         instanciasSumidas: 0,
         ingressosApagados: 0,
         sessoesExpiradas: 0,
+        convitesApagados: 0,
       },
     });
     expect(
