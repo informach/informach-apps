@@ -67,6 +67,14 @@ export type QuadroDosMoradores = {
   previsao: PrevisaoDeAndar;
 };
 
+/** Contagens da apresentação para o perfil gráfico; sem nomes ou IDs. */
+export type MedidasDosRotulos = {
+  moradores: number;
+  projetados: number;
+  foraDoQuadro: number;
+  exibidos: number;
+};
+
 type Entrada = {
   visual: VisualDoMorador;
   /** Fase e aparência com que o visual foi feito: mudou, faz outro. */
@@ -474,11 +482,11 @@ export class MoradoresDaCena {
     largura: number,
     altura: number,
     areasDaInterface: readonly AreaDaInterface[],
-  ): void {
+  ): MedidasDosRotulos {
     if (!this.raiz.visible || largura <= 0 || altura <= 0) {
       this.conectores.visible = false;
       this.organizador.limpar();
-      return;
+      return { moradores: this.entradas.size, projetados: 0, foraDoQuadro: 0, exibidos: 0 };
     }
     camera.updateMatrixWorld();
     camera.getWorldPosition(this.posicaoDaCamera);
@@ -486,6 +494,7 @@ export class MoradoresDaCena {
       py = camera.projectionMatrix.elements[5];
     if (px === undefined || py === undefined) throw new Error("Projeção da câmera incompleta");
     const candidatos: RotuloProjetado[] = [];
+    let foraDoQuadro = 0;
     for (const [id, entrada] of this.entradas) {
       const rotulo = entrada.rotulo;
       rotulo.center.set(0.5, 0.5);
@@ -507,8 +516,10 @@ export class MoradoresDaCena {
         corpo.z > 1 ||
         Math.abs(corpo.x) > 1 ||
         Math.abs(corpo.y) > 1
-      )
+      ) {
+        foraDoQuadro++;
         continue;
+      }
       candidatos.push({
         id,
         x: ((p.x + 1) * largura) / 2,
@@ -520,7 +531,8 @@ export class MoradoresDaCena {
       });
     }
     let vertices = 0;
-    for (const nome of this.organizador.organizar(candidatos, largura, altura, areasDaInterface)) {
+    const organizados = this.organizador.organizar(candidatos, largura, altura, areasDaInterface);
+    for (const nome of organizados) {
       const entrada = ehMoradorId(nome.id) ? this.entradas.get(nome.id) : undefined;
       if (!entrada) continue;
       const rotulo = entrada.rotulo;
@@ -563,6 +575,12 @@ export class MoradoresDaCena {
     this.posicoesDosConectores.needsUpdate = vertices > 0;
     this.conectores.geometry.setDrawRange(0, vertices);
     this.conectores.visible = vertices > 0;
+    return {
+      moradores: this.entradas.size,
+      projetados: candidatos.length,
+      foraDoQuadro,
+      exibidos: organizados.length,
+    };
   }
 
   dispose(): void {

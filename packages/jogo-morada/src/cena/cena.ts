@@ -39,7 +39,7 @@ import { familiasDoJogador } from "../modelo/retratos";
 import type { AreaDaInterface } from "../modelo/rotulos-na-cena";
 import { montarCasa, montarTerreno } from "./casa";
 import { centroDaCelula, daCena, METROS_POR_MM, type PontoDaCena, paraCena } from "./espaco";
-import { MoradoresDaCena } from "./moradores";
+import { type MedidasDosRotulos, MoradoresDaCena } from "./moradores";
 import { ObrasDaCena } from "./obras";
 import { CORTE_DAS_PAREDES_MM } from "./planta";
 import { PreparoDaCena } from "./preparo-da-cena";
@@ -95,6 +95,7 @@ export type MedidasDaCena = {
   chamadas: number;
   triangulos: number;
   quadros: number;
+  rotulos: MedidasDosRotulos;
 };
 
 /** Mesmo uma janela lenta precisa de medidas, para a qualidade poder descer. */
@@ -232,6 +233,12 @@ export class Cena {
     custoMs: null,
   };
   private quadros = 0;
+  private rotulos: MedidasDosRotulos = {
+    moradores: 0,
+    projetados: 0,
+    foraDoQuadro: 0,
+    exibidos: 0,
+  };
 
   constructor(host: HTMLElement, opcoes: OpcoesDaCena) {
     this.host = host;
@@ -426,6 +433,7 @@ export class Cena {
       chamadas: this.renderer.info.render.calls,
       triangulos: this.renderer.info.render.triangles,
       quadros: this.quadros,
+      rotulos: { ...this.rotulos },
     };
   }
 
@@ -805,7 +813,7 @@ export class Cena {
     const inicio = performance.now();
 
     this.atualizar(agora, dt);
-    this.moradores.organizarRotulos(
+    const rotulos = this.moradores.organizarRotulos(
       this.camera,
       this.host.clientWidth,
       this.host.clientHeight,
@@ -815,6 +823,7 @@ export class Cena {
     if (!this.preparo.pronta()) return;
     this.ultimo = agora;
     this.renderer.render(this.scene, this.camera);
+    this.rotulos = rotulos;
     this.quadroDaPreviaPendente = this.previa.capturarQuadro();
     const gl = this.gl;
     this.quadroPendente = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);

@@ -33,7 +33,7 @@ jobs:
           pnpm --filter @informach/morada-server typecheck
           pnpm --filter @informach/morada-server exec vitest run test/edicao.test.ts
       - name: Conferir peso real do cliente e isolamento do portal
-        run: pnpm --filter @informach/jogo-morada exec playwright test --config e2e/playwright.config.ts e2e/bundle.spec.ts --grep "JavaScript|quem importa"
+        run: pnpm --filter @informach/jogo-morada exec playwright test --config e2e/playwright.config.ts e2e/bundle.spec.ts e2e/rotulos.spec.ts --grep "JavaScript|quem importa|nomes na cena"
       - name: Preservar resultado sintetico
         if: always()
         uses: actions/upload-artifact@v4
@@ -42,5 +42,6 @@ jobs:
           path: |
             ${{ runner.temp }}/morada-chegada.json
             ${{ runner.temp }}/morada-rotulos.json
+            packages/jogo-morada/test-results/
           if-no-files-found: warn
           retention-days: 30
