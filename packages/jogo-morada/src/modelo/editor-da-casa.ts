@@ -256,6 +256,16 @@ export class EditorDaCasa {
     return true;
   }
 
+  /** Um campo altera só seu eixo, usando o rascunho atual entre renderizações. */
+  posicionarEixo(eixo: 0 | 1, valorMm: number): boolean {
+    const pedido = this.pedido;
+    const op = pedido?.operacao;
+    if (!pedido || !op || (op.t !== "comprar" && op.t !== "mover")) return false;
+    const pos: PontoMm = [op.colocacao.pos[0], op.colocacao.pos[1]];
+    pos[eixo] = valorMm;
+    return this.posicionar(pedido.loteId, pos);
+  }
+
   girar(): boolean {
     const operacao = this.pedido?.operacao;
     if (this.pendente || !operacao || (operacao.t !== "comprar" && operacao.t !== "mover"))

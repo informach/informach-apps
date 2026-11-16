@@ -1,5 +1,12 @@
 import { MARCA_DO_CLIENTE } from "@informach/jogo-morada";
-import { type BrowserServer, type ConsoleMessage, chromium, expect, test } from "@playwright/test";
+import {
+  type BrowserServer,
+  type ConsoleMessage,
+  chromium,
+  expect,
+  type Locator,
+  test,
+} from "@playwright/test";
 import {
   comecarVigia,
   convidar,
@@ -52,6 +59,24 @@ import { ARGS_DO_NAVEGADOR, CANAL_DO_NAVEGADOR } from "./navegador";
 /** Um nome que só existe dentro do three.js: onde ele está, o jogo inteiro está. */
 const SINAL_DO_THREE = "WebGLRenderer";
 const FAMILIA = ["Lia", "Marcos", "Nina", "Vó Ana"];
+const metros = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
+
+async function posicionarPelaInterface(painel: Locator, pos: [number, number]): Promise<void> {
+  const previa = painel.getByLabel("Posição da prévia", { exact: true });
+  await painel.getByLabel("Largura (m)", { exact: true }).fill(String(pos[0]));
+  await expect(previa).toContainText(`${metros.format(pos[0])} ×`);
+  await painel.getByLabel("Profundidade (m)", { exact: true }).fill(String(pos[1]));
+  await expect(previa).toHaveText(`${metros.format(pos[0])} × ${metros.format(pos[1])} m · 0°`);
+}
+
+async function procurarPosicaoLivre(painel: Locator): Promise<[number, number]> {
+  for (let y = 4.5; y <= 8; y += 0.5)
+    for (let x = 3; x <= 7; x += 0.5) {
+      await posicionarPelaInterface(painel, [x, y]);
+      if (await painel.getByRole("button", { name: /Comprar por M\$/ }).isEnabled()) return [x, y];
+    }
+  throw new Error("Casa sem posição livre para a compra pela interface");
+}
 
 declare global {
   interface Window {
@@ -360,23 +385,12 @@ test("duas contas reservam espaço, liberam ao reconectar e conservam uma única
   expect(Number.isInteger(quantidadeAntes)).toBe(true);
   const mesa = /Mesa lateral.*M\$/;
   await daAna.getByRole("button", { name: mesa }).click();
-  let posicao: [number, number] | null = null;
-  for (let y = 4.5; y <= 8 && !posicao; y += 0.5)
-    for (let x = 3; x <= 7; x += 0.5) {
-      await daAna.getByLabel("Largura (m)", { exact: true }).fill(String(x));
-      await daAna.getByLabel("Profundidade (m)", { exact: true }).fill(String(y));
-      if (await daAna.getByRole("button", { name: /Comprar por M\$/ }).isEnabled()) {
-        posicao = [x, y];
-        break;
-      }
-    }
-  if (!posicao) throw new Error("Casa sem espaço para a prova compartilhada");
+  const posicaoDoConflito = await procurarPosicaoLivre(daAna);
   await expect(
     daBia.getByRole("complementary", { name: "Outras pessoas decorando" }),
   ).toContainText("Ana");
   await daBia.getByRole("button", { name: mesa }).click();
-  await daBia.getByLabel("Largura (m)", { exact: true }).fill(String(posicao[0]));
-  await daBia.getByLabel("Profundidade (m)", { exact: true }).fill(String(posicao[1]));
+  await posicionarPelaInterface(daBia, posicaoDoConflito);
   await expect(daBia.getByRole("button", { name: /Comprar por M\$/ })).toBeDisabled();
   await expect(daBia.getByText("Ana está editando este espaço.", { exact: true })).toBeVisible();
   await bia.page.getByRole("button", { name: "Vista superior", exact: true }).click();
@@ -391,10 +405,16 @@ test("duas contas reservam espaço, liberam ao reconectar e conservam uma única
   await expect(daAna.getByRole("complementary", { name: "Outras pessoas decorando" })).toHaveCount(
     0,
   );
+  // Quem voltou não havia concordado com a pausa; o acordo precisa ser renovado.
+  await bia.page.getByRole("button", { name: "Pausar", exact: true }).click();
+  await ana.page.getByRole("button", { name: "Concordar", exact: true }).click();
+  await expect(bia.page.getByRole("button", { name: "Pausar", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
   await bia.page.getByRole("button", { name: "Decorar", exact: true }).click();
   await daBia.getByRole("button", { name: mesa }).click();
-  await daBia.getByLabel("Largura (m)", { exact: true }).fill(String(posicao[0]));
-  await daBia.getByLabel("Profundidade (m)", { exact: true }).fill(String(posicao[1]));
+  const posicao = await procurarPosicaoLivre(daBia);
   const saldo = await daBia.locator(".morada-edicao-saldo b").innerText();
   await daBia.getByRole("button", { name: /Comprar por M\$/ }).click();
   await expect(daBia.getByText("Edição confirmada.", { exact: true })).toBeVisible();
@@ -431,6 +451,7 @@ test("duas contas reservam espaço, liberam ao reconectar e conservam uma única
     reconexaoLiberou: true,
     compraUnica: true,
     restaurou: true,
+    posicaoDoConflito,
     posicao,
     saldoAntes: saldo,
     saldoDepois,
@@ -466,18 +487,7 @@ for (const aparelho of [
     const painel = pessoa.page.getByRole("region", { name: "Decoração da casa" });
     await painel.getByRole("button", { name: /Mesa lateral.*M\$/ }).click();
     const comprar = painel.getByRole("button", { name: /Comprar por M\$/ });
-    let posicao: [number, number] | null = null;
-    for (let y = 4.5; y <= 8 && !posicao; y += 0.5) {
-      for (let x = 3; x <= 7; x += 0.5) {
-        await painel.getByLabel("Largura (m)", { exact: true }).fill(String(x));
-        await painel.getByLabel("Profundidade (m)", { exact: true }).fill(String(y));
-        if (await comprar.isEnabled()) {
-          posicao = [x, y];
-          break;
-        }
-      }
-    }
-    expect(posicao, "uma posição realmente livre na casa").not.toBeNull();
+    const posicao = await procurarPosicaoLivre(painel);
     await painel.getByRole("button", { name: /Girar 90°/ }).click();
     await expect(painel.getByLabel("Orientação do móvel")).toHaveText("90°");
     await painel.getByLabel("Cor do móvel").fill("#0055ff");
@@ -517,7 +527,6 @@ for (const aparelho of [
     await painel.getByRole("button", { name: /Na casa/ }).click();
     await novaMesa().click();
     await expect(painel.getByLabel("Orientação do móvel")).toHaveText("90°");
-    if (!posicao) throw new Error("Posição da compra ausente");
     await expect(painel.getByLabel("Largura (m)", { exact: true })).toHaveValue(String(posicao[0]));
     await expect(painel.getByLabel("Profundidade (m)", { exact: true })).toHaveValue(
       String(posicao[1]),

@@ -24,10 +24,10 @@ jobs:
         run: pnpm --filter @informach/morada-sim typecheck
       - name: Exercitar geometria fundacao e restauracao
         run: pnpm --filter @informach/morada-sim exec vitest run src/espaco/chegada.test.ts testes/fundacao.test.ts --reporter=default --reporter=json --outputFile=${{ runner.temp }}/morada-chegada.json
-      - name: Conferir tipos do cliente e organizacao dos nomes
+      - name: Conferir tipos do cliente editor e organizacao dos nomes
         run: |
           pnpm --filter @informach/jogo-morada typecheck
-          pnpm --filter @informach/jogo-morada exec vitest run src/modelo/rotulos-na-cena.test.ts --reporter=default --reporter=json --outputFile=${{ runner.temp }}/morada-rotulos.json
+          pnpm --filter @informach/jogo-morada exec vitest run src/modelo/rotulos-na-cena.test.ts src/modelo/editor-da-casa.test.ts src/cena/obras.test.ts --reporter=default --reporter=json --outputFile=${{ runner.temp }}/morada-rotulos.json
       - name: Preservar resultado sintetico
         if: always()
         uses: actions/upload-artifact@v4

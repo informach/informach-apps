@@ -22,7 +22,12 @@ export class ObrasDaCena {
   ).setUsage(DynamicDrawUsage);
   readonly raiz = new LineSegments(
     new BufferGeometry().setAttribute("position", this.posicoes),
-    new LineBasicMaterial({ color: 0xffcf70, depthTest: false, depthWrite: false }),
+    new LineBasicMaterial({
+      color: 0xffcf70,
+      depthTest: false,
+      depthWrite: false,
+      transparent: true,
+    }),
   );
   private anterior: {
     obras: PresencaVista["obras"];
@@ -33,7 +38,7 @@ export class ObrasDaCena {
 
   constructor() {
     this.raiz.layers.set(1);
-    // A reserva deve continuar visível mesmo sob a prévia local no mesmo espaço.
+    // Na fila transparente, depois da prévia, inclusive sobre modelos opacos.
     this.raiz.renderOrder = 1001;
     this.raiz.frustumCulled = false;
     this.raiz.geometry.setDrawRange(0, 0);

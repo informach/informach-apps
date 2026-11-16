@@ -195,6 +195,16 @@ function cenario() {
 }
 
 describe("rascunho do editor contra a simulação real", () => {
+  it("alterar um eixo conserva a última escolha do outro antes da próxima renderização", () => {
+    const c = cenario();
+    c.preparar();
+    expect(c.editor.posicionarEixo(0, 3500)).toBe(true);
+    expect(c.editor.posicionarEixo(1, 5000)).toBe(true);
+    expect(c.editor.rascunho?.operacao).toMatchObject({ colocacao: { pos: [3500, 5000, 450] } });
+    expect(c.editor.posicionarEixo(0, 4000)).toBe(true);
+    expect(c.editor.rascunho?.operacao).toMatchObject({ colocacao: { pos: [4000, 5000, 450] } });
+    expect(c.enviados).toEqual([]);
+  });
   it("renova a seleção enquanto visível e libera ao perder conexão", async () => {
     const c = cenario();
     const antes = c.mundo.hash();

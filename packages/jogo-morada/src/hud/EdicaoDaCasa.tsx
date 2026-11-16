@@ -16,6 +16,7 @@ const moeda = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 2,
 });
 const dinheiro = (centavos: number) => `M$ ${moeda.format(centavos / 100)}`;
+const medida = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 });
 
 function Detalhe(props: { controle: Controle; estado: EstadoDoMundo }) {
   const { controle, estado } = props,
@@ -59,6 +60,12 @@ function Detalhe(props: { controle: Controle; estado: EstadoDoMundo }) {
         ← Trocar seleção
       </button>
       <h3>{rotulo}</h3>
+      {colocacao ? (
+        <output className="morada-edicao-posicao-atual" aria-label="Posição da prévia">
+          {medida.format(colocacao.pos[0] / 1000)} × {medida.format(colocacao.pos[1] / 1000)} m ·{" "}
+          {colocacao.giro}°
+        </output>
+      ) : null}
       {op.t !== "vender" ? (
         <div className="morada-edicao-ver-casa">
           <button type="button" className="morada-botao" onClick={() => definirCompacto((v) => !v)}>
@@ -108,9 +115,7 @@ function Detalhe(props: { controle: Controle; estado: EstadoDoMundo }) {
                   onChange={(e) => {
                     const n = e.currentTarget.valueAsNumber;
                     if (!Number.isFinite(n)) return;
-                    const pos: [number, number] = [colocacao.pos[0], colocacao.pos[1]];
-                    pos[eixo] = Math.round(n * 1000);
-                    editor.posicionar(pedido.loteId, pos);
+                    editor.posicionarEixo(eixo, Math.round(n * 1000));
                   }}
                 />
               </label>

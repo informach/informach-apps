@@ -1513,6 +1513,13 @@
   margin: 4px 0 12px;
   font-size: 17px;
 }
+.morada-edicao-posicao-atual {
+  display: block;
+  margin: -4px 0 12px;
+  color: var(--mo-tinta-2);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
 .morada-edicao-saldo {
   margin: 16px 0;
   padding: 12px 0;
