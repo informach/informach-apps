@@ -12,7 +12,7 @@ Repetir a saída confirmada devolve sucesso sem repetir a auditoria. Mundo ausen
 
 - Derivar conta, perfil e aparelho da sessão confiável; a tela fornece somente o mundo. Exigir perfil adulto próprio ativo e aparelho de conta atual, não revogado nem vencido, relendo prazo depois das travas.
 - Limitar consultas/travas/transação como a gestão de aparelhos: 5 s/1 s/15 s.
-- Perfil e aparelho ficam sob `SHARE`, conservando a autoridade sem bloquear leitores ou FKs. Depois mundo `UPDATE`, membro, cursor de encerramentos e sessões. Não tomar o cursor antes da autoridade. A participação própria é sondada antes da trava do mundo para não disputar um mundo alheio e relida depois da trava.
+- Perfil e aparelho ficam sob `SHARE`, conservando a autoridade sem bloquear leitores ou FKs. Depois mundo `UPDATE`, membro, cursor de encerramentos e sessões. O prazo é relido depois dessas esperas e antes de alterar a participação. Não tomar o cursor antes da autoridade. A participação própria é sondada antes da trava do mundo para não disputar um mundo alheio e relida depois da trava.
 - A entrada no mundo já toma `UPDATE` do mundo em `conferirPosse`, antes de ler a participação e vincular a sessão. A saída usa a mesma trava. Assim uma entrada que esperou a saída relê a participação e falha; uma admitida primeiro fica vinculada antes de a saída encerrar suas sessões. Nenhuma mudança nessa admissão é necessária.
 - Auditoria estrita de saída e de encerramento no mesmo commit; falha conserva participação e sessões. Nenhuma exclusão ou alteração de schema.
 
@@ -24,3 +24,15 @@ Repetir a saída confirmada devolve sucesso sem repetir a auditoria. Mundo ausen
 4. Jornada com dois navegadores: convidado sai, desaparece da lista, sessão antiga é recusada e o responsável continua. Gates dos consumidores de auth e seis gates do Recreio antes da integração. Registrar implantação e limites separadamente.
 
 Saída do responsável, sucessão aceita, remoção por outro adulto, arquivamento, exportação/exclusão e proteção familiar continuam pendentes. Não anunciar A6 ou as cinco frentes concluídas.
+
+
+## Primeira candidata e revisão do vencimento
+
+A candidata `bccc185d` passou na integração, mas qualidade e builds recusaram
+`Promise.withResolvers` no teste: o alvo de tipos do projeto é ES2022. A barreira
+foi reescrita com o construtor Promise, sem alterar a configuração compartilhada.
+A revisão também move a última conferência de prazo para depois das travas de
+mundo, membro, cursor e partidas. Os testes novos seguram cada trava no banco,
+aguardam o vencimento real e exigem recusa sem saída ou encerramento parcial.
+Resultados da continuação ainda precisam ser registrados. Nada deste incremento
+foi ativado em produção.

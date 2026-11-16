@@ -14,7 +14,9 @@ import { describe, expect, it } from "vitest";
 import { sairDoMundo } from "@/features/mundos/saida";
 import { aceitarConvite, criarConvite, detalheDoMundo } from "@/features/mundos/service";
 import { verificarEntradaNoMundo } from "@/features/posse/repository";
+import { travarEncerramentos } from "@/features/sessao-de-jogo/repository";
 import { AppError } from "@/lib/errors";
+import type { Transacao } from "@/lib/repository";
 import { aposentarInstancias, codigoDoBanco, type Jogador, novoJogador } from "./apoio";
 import { abrirPelaRota, entrarNoJogo, mundoDe, novaInstancia } from "./jogo-apoio";
 
@@ -86,27 +88,45 @@ async function emExecucao() {
 }
 
 /** Barreira real: a fila da linha do mundo determina quem foi admitido primeiro. */
-async function travarMundo(mundoId: MundoId) {
-  const pronto = Promise.withResolvers<number>();
-  const fim = Promise.withResolvers<void>();
+function sinal<T>() {
+  let concluir = (_valor: T): void => {
+    throw new Error("Sinal não preparado");
+  };
+  let recusar = (_erro: unknown): void => {
+    throw new Error("Sinal não preparado");
+  };
+  const promessa = new Promise<T>((resolve, reject) => {
+    concluir = resolve;
+    recusar = reject;
+  });
+  return { promessa, concluir, recusar };
+}
+
+async function segurar(operacao: (tx: Transacao) => Promise<unknown>) {
+  const pronto = sinal<number>();
+  const fim = sinal<void>();
   const transacao = db.transaction(async (tx) => {
     await tx.execute(sql`set local statement_timeout = '10s'`);
-    await tx.execute(sql`select id from recreio.spaces where id=${mundoId} for update`);
+    await operacao(tx);
     const [linha] = await tx.execute<{ pid: number }>(sql`select pg_backend_pid() as pid`);
     if (!linha) throw new Error("Conexão ausente");
-    pronto.resolve(linha.pid);
-    await fim.promise;
+    pronto.concluir(linha.pid);
+    await fim.promessa;
   });
-  void transacao.catch(pronto.reject);
-  const pid = await pronto.promise;
+  void transacao.catch(pronto.recusar);
+  const pid = await pronto.promessa;
   return {
     pid,
     async liberar() {
-      fim.resolve();
+      fim.concluir(undefined);
       await transacao;
     },
   };
 }
+const travarMundo = (mundoId: MundoId) =>
+  segurar(async (tx) => {
+    await tx.execute(sql`select id from recreio.spaces where id=${mundoId} for update`);
+  });
 async function temEspera(pid: number) {
   const [linha] = await db.execute<{ esperando: boolean }>(sql`
     select exists(select 1 from pg_stat_activity
@@ -311,4 +331,53 @@ describe("saída voluntária de um mundo", () => {
     }
     expect(await sairDoMundo(autorDe(convidado), mundoId)).toEqual({ saiu: true });
   });
+
+  it.each(["mundo", "encerramentos", "partida"])(
+    "recusa a autoridade que vence enquanto espera %s",
+    async (caso) => {
+      const { convidado, mundoId } = await cenario();
+      const sid = await partida(convidado, mundoId);
+      const trava =
+        caso === "mundo"
+          ? await travarMundo(mundoId)
+          : caso === "encerramentos"
+            ? await segurar(travarEncerramentos)
+            : await segurar(async (tx) => {
+                await tx.execute(
+                  sql`select id from recreio.game_sessions where id=${sid} for update`,
+                );
+              });
+      await db
+        .update(devices)
+        .set({ expiresAt: sql`clock_timestamp() + interval '800ms'` })
+        .where(eq(devices.id, convidado.ator.sessaoDeAparelhoId));
+      const resultado = sairDoMundo(autorDe(convidado), mundoId).then(
+        (valor) => ({ ok: true, valor }),
+        (erro: unknown) => ({ ok: false, erro }),
+      );
+      try {
+        await expect.poll(() => temEspera(trava.pid), { interval: 20 }).toBe(true);
+        // Esperar a condição temporal real, sem relógio falso nem atraso fixo.
+        await expect
+          .poll(
+            async () => {
+              const [prazo] = await db.execute<{ venceu: boolean }>(sql`
+            select expires_at <= clock_timestamp() as venceu from recreio.device_sessions
+            where id=${convidado.ator.sessaoDeAparelhoId}`);
+              return prazo?.venceu;
+            },
+            { interval: 20 },
+          )
+          .toBe(true);
+        await trava.liberar();
+        expect(await resultado).toMatchObject({ ok: false, erro: { code: "AUTH" } });
+        expect((await membro(convidado, mundoId)).state).toBe("active");
+        expect((await sessao(sid))?.endedAt).toBeNull();
+        expect(await auditoria(convidado)).toEqual([]);
+      } finally {
+        await trava.liberar();
+        await resultado;
+      }
+    },
+  );
 });

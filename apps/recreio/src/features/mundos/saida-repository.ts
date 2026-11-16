@@ -9,7 +9,7 @@ import {
   recreioSpaces as spaces,
 } from "@informach/db/schema";
 import type { ContaId, MundoId, PerfilId, SessaoDeAparelhoId } from "@informach/recreio";
-import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/repository";
+import { encerrarSessoesAbertas, travarEncerramentos } from "@/features/sessao-de-jogo/repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
 
@@ -52,11 +52,14 @@ export async function registrarSaida(autor: AutorDaSaida, mundoId: MundoId) {
       )
       .for("share");
     assertAllowed(aparelho, "AUTH", "Entre novamente para continuar.");
-    const [prazo] = await tx
-      .select({ valido: sql<boolean>`${devices.expiresAt} > ${AGORA}` })
-      .from(devices)
-      .where(eq(devices.id, aparelho.id));
-    assertAllowed(prazo?.valido, "AUTH", "Entre novamente para continuar.");
+    const exigirPrazo = async () => {
+      const [prazo] = await tx
+        .select({ valido: sql<boolean>`${devices.expiresAt} > ${AGORA}` })
+        .from(devices)
+        .where(eq(devices.id, aparelho.id));
+      assertAllowed(prazo?.valido, "AUTH", "Entre novamente para continuar.");
+    };
+    await exigirPrazo();
     // Não disputar a trava de um mundo alheio; a participação será relida sob a trava.
     const [participacao] = await tx
       .select({ id: members.id })
@@ -75,22 +78,29 @@ export async function registrarSaida(autor: AutorDaSaida, mundoId: MundoId) {
       .where(and(eq(members.spaceId, mundo.id), eq(members.profileId, perfil.id)))
       .for("update");
     assertAllowed(membro, "MUNDO", "Mundo indisponível.");
-    if (membro.estado === "former") return { saiu: false };
+    if (membro.estado === "former") {
+      await exigirPrazo();
+      return { saiu: false };
+    }
     assertAllowed(
       membro.papel !== "steward",
       "RESPONSAVEL",
       "Você é responsável por este mundo. A saída depende de uma transferência aceita, ainda indisponível.",
     );
+    const filtro = sql`${games.profileId} = ${perfil.id} and ${games.spaceId} = ${mundo.id}`;
+    await travarEncerramentos(tx);
+    await tx
+      .select({ id: games.id })
+      .from(games)
+      .where(and(isNull(games.endedAt), filtro))
+      .for("update");
+    // Reler o relógio depois de todas as travas disputáveis, antes da mudança.
+    await exigirPrazo();
     await tx
       .update(members)
       .set({ state: "former", leftAt: AGORA })
       .where(eq(members.id, membro.id));
-    await encerrarSessoesAbertas(
-      tx,
-      sql`${games.profileId} = ${perfil.id} and ${games.spaceId} = ${mundo.id}`,
-      "left",
-      { porQuem: "conta" },
-    );
+    await encerrarSessoesAbertas(tx, filtro, "left", { porQuem: "conta" });
     await logAuditEventStrict(
       "recreio.space_member_left",
       autor.contaId,
