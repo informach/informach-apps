@@ -1,6 +1,7 @@
 "use client";
 import { Input } from "@informach/ui/components/input";
 import { Label } from "@informach/ui/components/label";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { cn } from "@informach/ui/lib/utils";
 import { useState, useTransition } from "react";
 import { AVATARES, type Avatar, NOME_DO_AVATAR } from "../avatares";
@@ -29,6 +30,7 @@ export function FormularioDoPerfil({
   const [avatar, setAvatar] = useState<Avatar>(inicial.avatar);
   const [erro, setErro] = useState("");
   const [pendente, iniciar] = useTransition();
+  const interativo = useHydrated();
 
   function enviar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -63,7 +65,7 @@ export function FormularioDoPerfil({
             maxLength={40}
             autoComplete="nickname"
             required
-            disabled={pendente}
+            disabled={!interativo || pendente}
             aria-describedby="apelido-ajuda"
             className="mt-1.5 h-12 rounded-controle border-[1.5px] border-linha-forte bg-fundo font-semibold text-tinta"
           />
@@ -74,7 +76,7 @@ export function FormularioDoPerfil({
         </div>
       </div>
 
-      <fieldset disabled={pendente}>
+      <fieldset disabled={!interativo || pendente}>
         <legend className="font-bold">Avatar</legend>
         <div className="mt-3 flex flex-wrap gap-3">
           {AVATARES.map((opcao) => (
@@ -103,7 +105,7 @@ export function FormularioDoPerfil({
       </fieldset>
 
       <div>
-        <button type="submit" className="rb rb-sol rb-lg" disabled={pendente}>
+        <button type="submit" className="rb rb-sol rb-lg" disabled={!interativo || pendente}>
           {pendente ? textoPendente : textoDoBotao}
         </button>
         <p role="status" className="mt-2 min-h-5 text-sm font-semibold text-coral">

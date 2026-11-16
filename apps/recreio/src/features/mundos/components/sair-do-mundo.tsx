@@ -1,4 +1,5 @@
 "use client";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useId, useRef, useState, useTransition } from "react";
 import { sairDoMundoAction } from "../actions";
 
@@ -6,6 +7,7 @@ export function SairDoMundo({ mundoId }: { mundoId: string }) {
   const consequenciasId = useId();
   const detalhes = useRef<HTMLDetailsElement>(null);
   const [pendente, iniciar] = useTransition();
+  const interativo = useHydrated();
   const [erro, definirErro] = useState("");
   return (
     <details ref={detalhes} className="mt-4">
@@ -16,7 +18,7 @@ export function SairDoMundo({ mundoId }: { mundoId: string }) {
         Você perde o acesso a este mundo. Os personagens e o progresso ficam para quem continua.
         Para voltar, você precisará aceitar outro convite.
       </p>
-      <fieldset disabled={pendente} className="mt-4 flex flex-wrap gap-3">
+      <fieldset disabled={!interativo || pendente} className="mt-4 flex flex-wrap gap-3">
         <legend className="sr-only">Confirmar saída deste mundo</legend>
         <button
           type="button"

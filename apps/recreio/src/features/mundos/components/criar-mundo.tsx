@@ -1,6 +1,7 @@
 "use client";
 import { Input } from "@informach/ui/components/input";
 import { Label } from "@informach/ui/components/label";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useState, useTransition } from "react";
 import { criarMundoAction } from "../actions";
 
@@ -15,6 +16,7 @@ export function CriarMundo({
   const [nome, setNome] = useState("");
   const [erro, setErro] = useState("");
   const [pendente, iniciar] = useTransition();
+  const interativo = useHydrated();
 
   function enviar(evento: React.FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -42,6 +44,7 @@ export function CriarMundo({
         <Input
           id={`nome-do-mundo-${jogo}`}
           name="nome"
+          disabled={!interativo || pendente}
           value={nome}
           onChange={(evento) => setNome(evento.target.value)}
           maxLength={limites.max}
@@ -51,7 +54,7 @@ export function CriarMundo({
         />
       </div>
       <div>
-        <button type="submit" className="rb rb-sol" disabled={pendente}>
+        <button type="submit" className="rb rb-sol" disabled={!interativo || pendente}>
           {pendente ? "Criando…" : "Criar mundo"}
         </button>
         <p role="status" className="mt-2 min-h-5 text-sm font-semibold text-coral">
