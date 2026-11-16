@@ -5,6 +5,7 @@ import {
   recreioDeviceSessions as devices,
   recreioGameSessions as games,
   recreioSpaceMembers as members,
+  recreioProfiles as profiles,
   recreioSpaceStewardshipRequests as requests,
   sessions,
   recreioSpaces as spaces,
@@ -17,8 +18,9 @@ import {
 } from "@/features/mundos/responsabilidade-repository";
 import { sairDoMundo } from "@/features/mundos/saida";
 import { aceitarConvite, criarConvite } from "@/features/mundos/service";
+import { travarEncerramentos } from "@/features/sessao-de-jogo/repository";
 import { AppError } from "@/lib/errors";
-import { eventosCom, type Jogador, novoJogador } from "./apoio";
+import { eventosCom, type Jogador, novoJogador, sinal } from "./apoio";
 import { mundoDe } from "./jogo-apoio";
 
 async function autor(p: Jogador): Promise<AutorDaResponsabilidade> {
@@ -311,3 +313,131 @@ it("aceite e cancelamento concorrentes produzem uma única decisão terminal", a
   );
   expect(await eventosCom("requestId", proposta.pedidoId)).toHaveLength(2);
 });
+
+it("um aceite antigo não reaplica a autoridade depois de uma transferência posterior", async () => {
+  const c = await cenario();
+  const primeira = await proporResponsabilidade(c.a, c.id, c.membroBruno.id);
+  await responderResponsabilidade(c.b, c.id, primeira.pedidoId, "accepted");
+  const segunda = await proporResponsabilidade(c.b, c.id, c.membroLia.id);
+  await responderResponsabilidade(c.a, c.id, segunda.pedidoId, "accepted");
+  await responderResponsabilidade(c.b, c.id, primeira.pedidoId, "accepted");
+  expect((await db.select().from(spaces).where(eq(spaces.id, c.id)))[0]?.stewardProfileId).toBe(
+    c.lia.perfil.id,
+  );
+  expect(await eventosCom("requestId", primeira.pedidoId)).toHaveLength(2);
+});
+
+it.each(["minor", "suspended"] as const)(
+  "o destinatário que se tornou %s não pode aceitar",
+  async (estado) => {
+    const c = await cenario();
+    const proposta = await proporResponsabilidade(c.a, c.id, c.membroBruno.id);
+    await db
+      .update(profiles)
+      .set(estado === "minor" ? { kind: "minor" } : { status: "suspended" })
+      .where(eq(profiles.id, c.bruno.perfil.id));
+    await expect(
+      responderResponsabilidade(c.b, c.id, proposta.pedidoId, "accepted"),
+    ).rejects.toMatchObject({ code: "AUTH" });
+    expect(
+      (await db.select().from(requests).where(eq(requests.id, proposta.pedidoId)))[0]?.state,
+    ).toBe("pending");
+  },
+);
+
+async function segurarCursor() {
+  const pronto = sinal<number>();
+  const fim = sinal<void>();
+  const transacao = db.transaction(async (tx) => {
+    await tx.execute(sql`set local transaction_timeout='15s'`);
+    await travarEncerramentos(tx);
+    const [linha] = await tx.execute<{ pid: number }>(sql`select pg_backend_pid() as pid`);
+    if (!linha) throw new Error("Conexão ausente na bancada.");
+    pronto.concluir(linha.pid);
+    await fim.promessa;
+  });
+  void transacao.catch(pronto.recusar);
+  return {
+    pid: await pronto.promessa,
+    async liberar() {
+      fim.concluir(undefined);
+      await transacao;
+    },
+  };
+}
+
+it.each(["login", "aparelho", "pedido"] as const)(
+  "relê o prazo de %s depois de esperar o cursor de encerramentos",
+  async (caso) => {
+    const c = await cenario();
+    const proposta = await proporResponsabilidade(c.a, c.id, c.membroBruno.id);
+    const sid = await partida(c.bruno, c.id);
+    const trava = await segurarCursor();
+    let resultado: Promise<unknown> | undefined;
+    try {
+      if (caso === "login")
+        await db
+          .update(sessions)
+          .set({ createdAt: sql`clock_timestamp()-interval '10 minutes'+interval '800ms'` })
+          .where(eq(sessions.id, c.b.login.authSessionId));
+      if (caso === "aparelho")
+        await db
+          .update(devices)
+          .set({ expiresAt: sql`clock_timestamp()+interval '800ms'` })
+          .where(eq(devices.id, c.b.sessaoDeAparelhoId));
+      if (caso === "pedido")
+        await db
+          .update(requests)
+          .set({ expiresAt: sql`clock_timestamp()+interval '800ms'` })
+          .where(eq(requests.id, proposta.pedidoId));
+      resultado = responderResponsabilidade(
+        await autor(c.bruno),
+        c.id,
+        proposta.pedidoId,
+        "accepted",
+      ).then(
+        (valor) => ({ ok: true, valor }),
+        (erro: unknown) => ({ ok: false, erro }),
+      );
+      await expect
+        .poll(
+          async () => {
+            const [linha] = await db.execute<{ esperando: boolean }>(
+              sql`select exists(select 1 from pg_stat_activity where ${trava.pid}=any(pg_blocking_pids(pid))) as esperando`,
+            );
+            return linha?.esperando;
+          },
+          { interval: 20 },
+        )
+        .toBe(true);
+      await expect
+        .poll(
+          async () => {
+            const condicao =
+              caso === "login"
+                ? sql`select created_at+interval '10 minutes'<=clock_timestamp() as venceu from core.sessions where id=${c.b.login.authSessionId}`
+                : caso === "aparelho"
+                  ? sql`select expires_at<=clock_timestamp() as venceu from recreio.device_sessions where id=${c.b.sessaoDeAparelhoId}`
+                  : sql`select expires_at<=clock_timestamp() as venceu from recreio.space_stewardship_requests where id=${proposta.pedidoId}`;
+            const [linha] = await db.execute<{ venceu: boolean }>(condicao);
+            return linha?.venceu;
+          },
+          { interval: 20 },
+        )
+        .toBe(true);
+      await trava.liberar();
+      expect(await resultado).toMatchObject(
+        caso === "pedido"
+          ? { ok: true, valor: { estado: "expired" } }
+          : { ok: false, erro: { code: caso === "login" ? "LOGIN_RECENTE" : "AUTH" } },
+      );
+      expect((await db.select().from(spaces).where(eq(spaces.id, c.id)))[0]?.stewardProfileId).toBe(
+        c.lia.perfil.id,
+      );
+      expect((await db.select().from(games).where(eq(games.id, sid)))[0]?.endedAt).toBeNull();
+    } finally {
+      await trava.liberar();
+      await resultado;
+    }
+  },
+);
