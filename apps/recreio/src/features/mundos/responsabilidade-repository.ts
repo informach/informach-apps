@@ -107,7 +107,7 @@ async function contexto(
     "MUNDO",
     "Participação indisponível.",
   );
-  async function conferirPrazo(recente: boolean) {
+  const conferirPrazo = async (recente: boolean) => {
     const [linha] = await tx
       .select({ agora: sql<Date>`${AGORA}`.mapWith(spaces.createdAt) })
       .from(spaces)
@@ -130,7 +130,7 @@ async function contexto(
         "Entre novamente para confirmar esta mudança de responsabilidade.",
       );
     return agora;
-  }
+  };
   await conferirPrazo(false);
   return { mundo, proprio, outro, conferirPrazo };
 }
