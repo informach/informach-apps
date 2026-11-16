@@ -14,8 +14,7 @@ export function exigePipelineCompleto(arquivos) {
     (arquivo) =>
       !DOCUMENTOS.has(arquivo) &&
       !(
-        arquivo.startsWith("docs/recreio/") &&
-        /\.(?:md|json)$/.test(arquivo) &&
+        /^docs\/recreio\/(?:[^/]+\.md|evidencias\/[^/]+\.json)$/.test(arquivo) &&
         !arquivo.includes("\ufffd")
       ),
   );
@@ -24,7 +23,7 @@ export function exigePipelineCompleto(arquivos) {
 export function arquivosAlterados(antes, depois, cwd = process.cwd()) {
   if (![antes, depois].every((sha) => /^[a-f0-9]{40}$/i.test(sha)))
     throw new Error("Referência Git inválida para classificar a alteração");
-  return execFileSync("git", ["diff", "--name-only", "-z", antes, depois], { cwd })
+  return execFileSync("git", ["diff", "--no-renames", "--name-only", "-z", antes, depois], { cwd })
     .toString("utf8")
     .split("\0")
     .filter(Boolean);
@@ -35,7 +34,9 @@ function garantirCommit(sha) {
   try {
     execFileSync("git", ["cat-file", "-e", `${sha}^{commit}`], { stdio: "ignore" });
   } catch {
-    execFileSync("git", ["fetch", "--no-tags", "--depth=1", "origin", sha], { stdio: "inherit" });
+    execFileSync("git", ["fetch", "--no-tags", "--depth=1", "origin", sha], {
+      stdio: ["ignore", "ignore", "inherit"],
+    });
   }
 }
 
