@@ -183,3 +183,13 @@ const sessao = await recreio.verificador().verificar(token);
 O relógio da plataforma falsa é manual (`avancar(ms)`), para testar vencimento de posse sem esperar.
 
 A implementação real passa pela mesma suíte de `./testing/conformidade` que a falsa: `apps/recreio/test/conformidade.integration.ts` roda a suíte com o `criarClienteDoHost` chamando as rotas do app.
+
+## Preparação da responsabilidade com aceite
+
+O contrato de encerramento também reconhece `permissions_changed`. O host
+fecha a conexão pelo cursor existente e o portal orienta voltar à estante
+para uma nova admissão. Não representa saída do mundo, perda de assinatura
+ou troca de aparelho. Os leitores precisam estar implantados antes do primeiro
+escritor desse motivo; depois dele, rollback conserva leitores compatíveis.
+A oferta/aceite ainda está em implementação e não é concedida pelo contrato.
+Plano e gates em [responsabilidade aceita](../../docs/recreio/responsabilidade-aceita-2026-11-16.md).

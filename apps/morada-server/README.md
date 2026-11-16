@@ -172,3 +172,14 @@ Em produção, `RECREIO_API_URL` aceita HTTPS ou HTTP numa origem privada exata 
 A rota `/arte/<arquivo>` aceita manifestos V1 e V2; V2 acrescenta móveis/encaixes GLB e acabamentos PNG. Só arquivos enumerados pelo manifesto são entregues, sempre após conferir a sessão. PNG usa `image/png`; GLB, `model/gltf-binary`. CORS, ETag por representação, cache privado e brotli seguem a mesma regra dos personagens. A pasta inteira é carregada ao iniciar: publicar outra versão exige reiniciar o processo.
 
 Arte, saída do empacotador e evidências com arte permanecem fora do repositório público. O E2E do portal tem opt-in local `RECREIO_E2E_ARTE_DIR`, explicado na [passagem](../../docs/recreio/passagem.md); ele não cria serviço remoto nem transfere arquivos.
+
+## Leitura de mudanças de permissão
+
+O batimento admite o encerramento `permissions_changed`, com a mesma retirada
+da conexão e liberação de reservas dos demais encerramentos. A sessão antiga
+não reentra; o portal explica a mudança e exige nova admissão. Essa preparação
+não troca responsabilidade, famílias simuladas ou capacidades persistidas.
+Antes do primeiro escritor de transferência, conferir todos os hosts ativos
+e reconciliar as capacidades conforme a proveniência, como exige o
+[plano de responsabilidade](../../docs/recreio/responsabilidade-aceita-2026-11-16.md).
+Mundo V2/protocolo 1 e arte D2 permanecem neste incremento.

@@ -80,3 +80,32 @@ continuidade do mundo e saída posterior do antigo responsável. Servidor/WS:
 papel atual e capacidades corretas após reconexão/restauração, com o limite
 de propagação documentado. Arquivamento e exportação/exclusão continuam
 incrementos próprios; não habilitar exclusão automática de conta nesta etapa.
+
+## Geração e inventário da etapa 1
+
+Inventário somente de leitura às 14:31:26 UTC: dois membros, zero convites,
+seis sessões de jogo e zero referências inválidas de autoria/motivo. Não há
+backfill ou exclusão implícita. O inventário deve ser relido antes de implantar.
+
+A geração `43886570169`, fonte `ee4bf72a`, produziu a 0165
+`mean_blazing_skull`: somente a unicidade dos membros por mundo/ID,
+SHA-256 `743825d491876fbf3bbac0b8fa9a5f79a8d4bc06683a5a1f4cced03ebf932989`.
+A geração `43887205067`, fonte `dd63db2e`, produziu a 0166 `silly_lizard`,
+SHA-256 `8b794cef5c6cd9e85b64069048513efcdc74d62bf087de98a6d5071fa89a6e6a`.
+Ela cria o pedido e seus checks/índices/FKs, aperta o escopo das duas autorias
+existentes e amplia somente o check de motivo da sessão. O prefixo de 165
+entradas foi preservado, seguido por duas entradas: journal final com 167.
+
+Os três arquivos de cada artefato foram conferidos por bytes/SHA antes da
+cópia. Comparação completa dos snapshots encontrou somente essas diferenças;
+o SQL e os metadados gerados não foram editados. A unicidade vem primeiro para
+as FKs compostas já encontrarem sua chave de referência, na mesma sequência
+do migrator. As consultas mantêm os limites operacionais já implantados.
+
+Quinze casos de estrutura no banco descartável cobrem escopo, unicidade,
+histórico, estados/prazos, membro sem perfil e encerramento com cursor/auditoria.
+O contrato comum de instâncias exercita `permissions_changed` pelo SDK e pelo
+HTTP; a bancada do Morada verifica retirada da conexão e liberação da reserva
+no batimento, conservando a outra pessoa. O portal reconhece o motivo com uma
+mensagem própria, sem reutilizar a sessão encerrada; motivos futuros ainda têm
+parada genérica. Esses testes ainda precisam da execução remota da candidata.
