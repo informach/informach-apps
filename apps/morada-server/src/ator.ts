@@ -999,12 +999,13 @@ export class Ator {
    * diário), e a próxima instância recupera o que estava gravado quando a
    * posse vencer. Ninguém chegou a saber do que não gravou.
    */
-  encerrar(): Promise<void> {
+  encerrar(): Promise<boolean> {
     return this.emSerie(async () => {
-      if (this.estado !== "ativo") return;
+      if (this.estado !== "ativo") return true;
       for (const ligacao of this.ligacoes.values()) {
         this.enviar(ligacao, { t: "aviso", codigo: "servidor_reiniciando" });
       }
+      let confirmado = false;
       try {
         if (await this.escoar()) {
           await this.fotografar("checkpoint");
@@ -1020,6 +1021,7 @@ export class Ator {
               motivo: "drenagem",
             });
           }
+          confirmado = true;
         }
       } catch (erro) {
         if (erro instanceof QuedaSimulada) throw erro;
@@ -1034,7 +1036,7 @@ export class Ator {
           codigo: ehErroDoRecreio(erro) ? erro.codigo : "erro",
         });
       }
-      if (this.estado !== "ativo") return;
+      if (this.estado !== "ativo") return confirmado;
       if (this.pendentes.length > 0) {
         this.op.registrar("encerramento_sem_salvar", {
           mundoId: this.mundoId,
@@ -1045,7 +1047,8 @@ export class Ator {
       this.largar(FECHAMENTO.reiniciando);
       this.estado = "fechado";
       this.op.aoFechar(this);
-    }).then(() => undefined);
+      return confirmado;
+    }).then((resultado) => resultado !== false);
   }
 
   /**

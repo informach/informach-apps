@@ -46,7 +46,7 @@ process.on("message", (mensagem) => {
 });
 process.once("SIGTERM", () => {
   void servidor.encerrar().then(
-    () => process.exit(0),
+    (resultado) => process.exit(resultado.falhas > 0 ? 1 : 0),
     () => process.exit(1),
   );
 });
