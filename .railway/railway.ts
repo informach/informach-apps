@@ -14,6 +14,7 @@ import {
 import { getCollectionApps } from "../packages/config/src/collections";
 import { getAppUrl } from "../packages/config/src/domains";
 import { getProductPriceVariableNames } from "../packages/config/src/products";
+import { MORADA_START_COMMAND } from "./morada-runtime";
 
 // Infraestrutura do projeto informach-apps no Railway, ambiente production.
 // Este arquivo descreve o projeto inteiro: o que sair daqui é apagado no próximo
@@ -814,7 +815,7 @@ export default defineRailway((ctx) => {
         "!/**/*.md",
       ],
     },
-    start: "pnpm start:morada-server",
+    start: MORADA_START_COMMAND.join(" "),
     healthcheck: "/api/ready",
     healthcheckTimeout: 60,
     // O processo reserva 25 s para salvar; Railway só pode matar depois disso.
