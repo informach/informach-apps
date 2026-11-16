@@ -104,12 +104,13 @@ describe("fundação durável", () => {
   );
 
   it("falta de espaço para a chegada recusa antes de consumir IDs ou criar família", () => {
-    const mundo = novo();
-    entrar(mundo, true);
-    const lote = listar(mundo.estado.lotes).find((l) => l.imovelId !== null);
+    const foto = novo().fotografar();
+    const lote = listar(foto.estado.lotes).find((l) => l.imovelId !== null);
     if (!lote) throw new Error("Lote ausente");
     lote.tamanho = [500, 500];
     lote.entrada = [125, 125];
+    const mundo = restaurar(foto, [], { conferirReplicacao: true });
+    entrar(mundo, true);
     const contadores = copiar(mundo.estado.contadores);
     const moradores = copiar(mundo.estado.moradores);
     expect(criar(mundo, rascunho(["adulto", "crianca"]))).toMatchObject({
