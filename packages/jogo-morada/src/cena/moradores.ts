@@ -70,6 +70,7 @@ export type QuadroDosMoradores = {
 /** Contagens da apresentação para o perfil gráfico; sem nomes ou IDs. */
 export type MedidasDosRotulos = {
   moradores: number;
+  comArte: number;
   projetados: number;
   foraDoQuadro: number;
   exibidos: number;
@@ -486,7 +487,13 @@ export class MoradoresDaCena {
     if (!this.raiz.visible || largura <= 0 || altura <= 0) {
       this.conectores.visible = false;
       this.organizador.limpar();
-      return { moradores: this.entradas.size, projetados: 0, foraDoQuadro: 0, exibidos: 0 };
+      return {
+        moradores: this.entradas.size,
+        comArte: 0,
+        projetados: 0,
+        foraDoQuadro: 0,
+        exibidos: 0,
+      };
     }
     camera.updateMatrixWorld();
     camera.getWorldPosition(this.posicaoDaCamera);
@@ -495,7 +502,9 @@ export class MoradoresDaCena {
     if (px === undefined || py === undefined) throw new Error("Projeção da câmera incompleta");
     const candidatos: RotuloProjetado[] = [];
     let foraDoQuadro = 0;
+    let comArte = 0;
     for (const [id, entrada] of this.entradas) {
+      if (entrada.visual.estadoDaArte === "pronto") comArte++;
       const rotulo = entrada.rotulo;
       rotulo.center.set(0.5, 0.5);
       if (!rotulo.visible) continue;
@@ -577,6 +586,7 @@ export class MoradoresDaCena {
     this.conectores.visible = vertices > 0;
     return {
       moradores: this.entradas.size,
+      comArte,
       projetados: candidatos.length,
       foraDoQuadro,
       exibidos: organizados.length,

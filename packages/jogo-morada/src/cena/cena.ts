@@ -235,6 +235,7 @@ export class Cena {
   private quadros = 0;
   private rotulos: MedidasDosRotulos = {
     moradores: 0,
+    comArte: 0,
     projetados: 0,
     foraDoQuadro: 0,
     exibidos: 0,
