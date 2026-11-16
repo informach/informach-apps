@@ -54,7 +54,7 @@ test("responsável cancela a confirmação ou remove o convidado; reentrada é r
   await expect(lia.page.getByRole("button", { name: "Cancelar", exact: true })).toBeInViewport({
     ratio: 1,
   });
-  await tela(lia.page, "remocao-membro-mobile");
+  await tela(lia.page, "remocao-membro-mobile", true);
   await confirmar.press("Enter");
   await expect(lia.page.getByRole("status")).toContainText(
     "Participação removida. O mundo e o progresso foram preservados.",

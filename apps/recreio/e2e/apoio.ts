@@ -30,9 +30,13 @@ const TELAS = process.env.RECREIO_E2E_PRIVATE_ARTIFACTS
   ? path.resolve(process.env.RECREIO_E2E_PRIVATE_ARTIFACTS, "telas")
   : path.resolve(APP, "tmp/telas");
 
-export async function tela(page: Page, nome: string): Promise<void> {
+export async function tela(page: Page, nome: string, paginaInteira = false): Promise<void> {
   await mkdir(TELAS, { recursive: true });
-  await page.screenshot({ path: path.join(TELAS, `${nome}.png`), animations: "disabled" });
+  await page.screenshot({
+    path: path.join(TELAS, `${nome}.png`),
+    animations: "disabled",
+    fullPage: paginaInteira,
+  });
 }
 
 /** Medidas sem conteúdo de contas/jogo; conservadas junto das capturas da execução. */
