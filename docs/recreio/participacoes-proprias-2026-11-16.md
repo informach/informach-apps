@@ -63,3 +63,14 @@ de jogo ou hardware. A captura foi produzida, mas faltava seu caminho na lista
 restrita de upload do workflow. Acrescentado somente esse PNG sintético de
 conta, sem capturas do jogo ou ampliação de permissões. A próxima rodada
 precisa preservar a imagem para inspeção. O código de produção não mudou.
+
+A repetição `43873141755`, fonte `9f9f9e3a`, aprovou os seis gates e preservou
+a captura. A imagem foi baixada e inspecionada: dois cartões legíveis,
+consequências e controles de confirmação/cancelamento em cada um, com os
+nomes sintéticos esperados. As descrições únicas também foram conferidas no
+navegador. A candidata não contém arte do jogo nessa evidência.
+[Prova estruturada](evidencias/participacoes-candidata-2026-11-16.json).
+
+O conjunto com a migração aditiva 0164 será conferido em outra rodada antes
+da main. A página não habilita a limpeza de convites; o escritor dessa limpeza
+continua separado até a conferência do índice em produção.
