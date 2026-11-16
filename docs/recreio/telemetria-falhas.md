@@ -24,3 +24,17 @@ Ainda aguarda repetição focada e seis gates.
 O filtro final Sentry também valida os valores de operação/código contra as
 listas controladas; retirar as demais chaves não bastaria se o próprio valor
 do classificador fosse livre. Os códigos reutilizam o catálogo do Recreio.
+
+
+Publicação em 16/11 às 01h49 UTC: fonte `22a3db60fab2490d2fe4ffa1d144fe7bc1aa8afe`,
+seis gates da candidata `43787487430` e repetição main `43788455104` aprovados.
+Railway `1c9e32b6-7bfb-4d7c-ba80-496797345b3b`: `SUCCESS` às 01h55 UTC.
+Às 01h56, saúde e prontidão de ambos os serviços responderam 200; o servidor
+confirmou `22a3db6` e o portal conservou `7c81a68f`/deployment `59c3b020`.
+O build do portal foi omitido pelos padrões de arquivos. Sem alteração de
+formato, protocolo, banco, variáveis ou pasta de arte: Mundo V2/protocolo 1 e
+coleção D2 permanecem válidos, assim como o rollback para `18f52aa`.
+
+O pacote publicado inclui somente o resumo de erros, a validação dos
+classificadores Sentry, testes e documentação. Os recursos D3 não entraram
+nesta publicação. Nenhum erro real foi provocado para gerar outro alerta.

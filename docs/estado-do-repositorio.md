@@ -70,7 +70,7 @@ Em 11/11, os builds individuais da Conta e dos cinco consumidores passaram com o
 
 ## Recreio e Morada: alfa fechado e correções (15/11/2026)
 
-Atualização operacional posterior: Morada em `18f52aa0`, correção de reconexão rápida publicada após os seis gates `43778361615`; portal em `7c81a68f`. Deploy do servidor `9fa87860` aprovado, fonte/saúde/prontidão conferidas; [prova e operação](recreio/reconexao-2026-11-15.md). D3 permanece em candidata. O titular confirmou que a [licença de compra permite o uso comercial da arte](recreio/licenciamento-arte.md).
+Atualização operacional posterior: Morada em `22a3db6`, com reconexão rápida e logs de erro por classificadores controlados; portal em `7c81a68f`. Seis gates da candidata `43787487430` e repetição main `43788455104` aprovados. Deploy `1c9e32b6` e fonte/saúde/prontidão conferidos às 01h56 UTC; [registro dos logs](recreio/telemetria-falhas.md) e [reconexão](recreio/reconexao-2026-11-15.md). Mundo V2/protocolo 1 preservados; D3 permanece em candidata. O titular confirmou que a [licença de compra permite o uso comercial da arte](recreio/licenciamento-arte.md).
 
 O titular autorizou as cinco frentes e todos os achados; [execução e evidências](recreio/execucao-2026-11-15.md), [levantamento histórico](recreio/levantamento-2026-11-15.md). Testes pesados exclusivamente no GitHub. Integridade, revogação/admissão, auditoria atômica, limites, recuperação, drenagem e recusa de downgrade corrigidos. Cinco gates públicos, 171 integrações, cinco jornadas do portal, 19 do cliente e 100 dias aprovados no perfil registrado. Fila gráfica limitada sem espera bloqueante; não certifica FPS.
 
