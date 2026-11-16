@@ -33,3 +33,10 @@ export const NovoPerfilSchema = z.strictObject({
   avatar: z.enum(AVATARES),
 });
 export type NovoPerfil = z.infer<typeof NovoPerfilSchema>;
+
+/** A base apresentada evita sobrescrever silenciosamente a edição de outra aba. */
+export const EdicaoDoPerfilSchema = z.strictObject({
+  anterior: NovoPerfilSchema,
+  novo: NovoPerfilSchema,
+});
+export type EdicaoDoPerfil = z.infer<typeof EdicaoDoPerfilSchema>;

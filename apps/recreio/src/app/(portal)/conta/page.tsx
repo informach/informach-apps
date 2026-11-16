@@ -31,6 +31,12 @@ export default async function Conta() {
               Trocar de perfil
             </Link>
           </div>
+          <Link
+            href="/conta/perfil"
+            className="mt-4 inline-flex font-bold text-ceu underline underline-offset-4"
+          >
+            Editar perfil
+          </Link>
         </section>
 
         <section aria-labelledby="conta-acesso" className="painel p-5 sm:p-6">
