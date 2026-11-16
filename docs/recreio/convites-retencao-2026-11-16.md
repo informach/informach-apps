@@ -115,3 +115,14 @@ efetiva usou faixa do índice no volume sintético; o DELETE continuou limitado,
 e a falha real chegou ao HTTP seguida de retomada. A execução não altera o
 banco de produção e não demonstra capacidade do serviço Railway.
 [Evidências das candidatas](evidencias/convites-candidatas-2026-11-16.json).
+
+## Escritor integrado homologado
+
+A fonte `714005f6` passou nos seis gates `43878699384`, com 243 integrações e
+nove jornadas, depois de integrar a main do índice/participações. A primeira
+rodada integrada `ee4d2010` parou na mesma formatação do JSON de recuperação
+que havia falhado na main; a correção não mudou código de produção. O novo
+resumo e a política da etapa final também foram documentados no guia local.
+O índice já foi conferido em produção, conforme a prova acima. A implantação
+do escritor ainda precisa de sua conferência de fonte e cron com a quinta
+contagem. Os demais contratos de A7 continuam abertos.

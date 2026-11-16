@@ -35,7 +35,16 @@
     "etapaExecutadaPorUltimo": true
   },
   "banco": "PostgreSQL 18 descartavel do GitHub",
-  "indiceConfirmadoEmProducao": false,
+  "indiceConfirmadoEmProducao": true,
   "limpezaHabilitadaEmProducao": false,
-  "a7Concluido": false
+  "a7Concluido": false,
+  "conjuntoIntegrado": {
+    "codigo": "714005f6dbbaeb9862707290874a31f09c37f3be",
+    "run": 43878699384,
+    "gatesAprovados": 6,
+    "integracoes": 243,
+    "jornadas": 9,
+    "casosReservadosAOutrosExecutores": 2
+  },
+  "provaIndiceProducao": "indice-participacoes-producao-2026-11-16.json"
 }
