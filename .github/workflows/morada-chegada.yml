@@ -32,6 +32,8 @@ jobs:
         run: |
           pnpm --filter @informach/morada-server typecheck
           pnpm --filter @informach/morada-server exec vitest run test/edicao.test.ts
+      - name: Conferir peso real do cliente e isolamento do portal
+        run: pnpm --filter @informach/jogo-morada exec playwright test --config e2e/playwright.config.ts e2e/bundle.spec.ts --grep "JavaScript|quem importa"
       - name: Preservar resultado sintetico
         if: always()
         uses: actions/upload-artifact@v4

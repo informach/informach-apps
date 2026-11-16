@@ -5,7 +5,7 @@ import {
   RESPOSTAS_DE_EDICAO_DO_MUNDO,
 } from "../comandos/edicao";
 import { PinturaDoMovelSchema, perfilDePintura } from "../comandos/pintura";
-import { HistoricoDaCasaSchema } from "../sistemas/historico-da-casa";
+import { HistoricoDaCasaSchema } from "../formatos/historico-da-casa";
 import { relacaoId } from "./ids";
 import { CONTADOR_DE_REVISOES_DOS_OBJETOS } from "./revisao-dos-objetos";
 import { listar, obter, type Tabela } from "./tabela";

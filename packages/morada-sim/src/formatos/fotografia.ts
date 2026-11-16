@@ -17,7 +17,7 @@ import {
   revisaoDosObjetos,
 } from "../dominio/revisao-dos-objetos";
 import type { EstadoDoMundo } from "../dominio/tipos";
-import { HistoricoDaCasaSchema } from "../sistemas/historico-da-casa";
+import { HistoricoDaCasaSchema } from "./historico-da-casa";
 
 /**
  * Fotografia: o estado durável de um mundo em um tick. É o que vai para o

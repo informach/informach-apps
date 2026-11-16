@@ -221,3 +221,17 @@ O E2E de duas contas foi ampliado para conferir que a autora vê somente o
 próprio histórico, desfazer/refazer com aceite explícito, saldo/quantidade e
 persistência após nova parada/retomada. Os seis gates e a arte dessa ampliação
 ainda não foram executados.
+
+Fonte `7f0c5e33`: prova focada `43796227280` aprovada (53 núcleo, 30 cliente,
+10 ator). Na rodada completa `43796395041`, qualidade, integração, versões,
+simulação longa e E2E passaram, inclusive a nova jornada de desfazer/refazer
+e restauração por duas contas. O gate do cliente falhou no orçamento:
+1.255.477 bytes de JavaScript, teto 1.250.000; gzip 347.329, teto 360.000.
+Não declarar seis gates aprovados para essa fonte.
+
+A construção dos schemas de fotografia estava no módulo dos helpers do
+histórico e entrava nas importações do cliente. A correção separa o validador
+em `formatos/` e declara a ausência de efeitos externos do package puro para
+permitir eliminar módulos não usados. O teto não foi aumentado, nem recursos
+ou validações do servidor removidos. Uma etapa focada passa a medir o mesmo
+bundle antes da nova rodada completa; redução ainda precisa ser conferida.
