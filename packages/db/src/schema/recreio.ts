@@ -11,6 +11,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -307,6 +308,7 @@ export const recreioSpaceMembers = recreio.table(
   },
   (t) => [
     uniqueIndex("recreio_space_members_profile").on(t.spaceId, t.profileId),
+    unique("recreio_space_members_space_id").on(t.spaceId, t.id),
     index("recreio_space_members_by_profile").on(t.profileId, t.state),
     check("recreio_space_members_role", sql`${t.role} in ('steward', 'coadmin', 'member')`),
     check(
