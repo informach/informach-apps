@@ -1986,6 +1986,14 @@ a criança vê e não salva nada. A primeira gravação, Cadê Todo Mundo Aula 1
 7. **Empacotar.** Em cada projeto de parte, **Arquivo › Empacotar para outra pessoa (com as mídias)**: um pacote
    por parte.
 
+### Aula automática: gravar e editar uma parte num comando
+
+A gravação acima, mais as animações de conceito no EdiSVG e a edição montada no EdiAula, rodam por um condutor
+e por scripts em `scripts/aula-automatica/` (desde 16/11/2026). O condutor abre o EdiAula ou o EdiSVG licenciado
+num perfil de trabalho e recebe comandos por HTTP local; `parte.sh <curso> <aula> <parte> <etapa>` liga as
+etapas pelo `config.json` da máquina (palco, roteiros do Sistema Zero, pasta do material, música). O passo a
+passo, as regras de edição da titular e os limites estão no [README da aula automática](scripts/aula-automatica/README.md).
+
 ### Teste de fumaça da gravação guiada
 
 `node_modules/.bin/electron scripts/guided-smoke.mts` (em `apps/ediaula`, com uns 2 GB de memória livres) serve

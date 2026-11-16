@@ -46,3 +46,30 @@ Aula 1 do Cadê anotado e notação no `ESPEC-ROTEIRO.md`. Detalhes no README do
   do servidor com o objetivo não cumprido.
 - Limites conhecidos: vídeos da aula não são controlados; Estúdio em Python fora do palco; quiz
   no palco sempre passa; o jogo pronto sorteia como no Kids.
+
+## Edição automática (16/11/2026)
+
+A titular pediu o processo completo: ao dizer "grava aula tal, parte tal", sair a tela gravada, as animações de
+conceito no EdiSVG e a edição montada no EdiAula, para o editor só conferir e exportar. As etapas são
+independentes: uma parte já gravada pode passar só pela edição, e a edição vai numa cópia do projeto gravado.
+
+O piloto foi a Farol Aula 3, Parte 2, revisada pelo editor em três rodadas e entregue inteira na v4. As regras da
+titular (apresentadora, zoom, destaques, caixas das categorias, capa, música, personagens, style guide das
+animações) estão no [README da aula automática](../../../apps/ediaula/scripts/aula-automatica/README.md), que é
+também o passo a passo. No EdiAula, `add_template` ganhou `over_lesson` (65456ef3) e a capa por cima da aula
+entra sem esmaecer (cf437f74).
+
+Os scripts saíram da máquina da sessão para `apps/ediaula/scripts/aula-automatica/`, sem caminhos fixos:
+condutor único, ações como módulos, `config.json` local e os scripts de decisão, montagem, animação e
+acabamento.
+
+**Verificado:**
+- condutor novo abrindo e comandando o EdiAula;
+- abrir projeto, ferramenta, quadro composto e cópia de edição;
+- decisões e montagem da Parte 2 pelo `parte.sh`, iguais às da v4;
+- as animações de exemplo regeradas iguais às exportadas.
+
+Ainda não houve uma gravação nova pelo `parte.sh`.
+
+**Pendências:** ferramentas do EdiAula para tirar clipes, pôr um clipe na faixa da tela com transição,
+encurtar e calar clipes e distribuir a música, para a edição sair sem mexer no arquivo do projeto.
