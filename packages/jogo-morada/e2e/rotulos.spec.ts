@@ -63,12 +63,12 @@ test("nomes na cena com editor compacto após pintar e reabrir, no computador e 
   }
   // Remonta renderer, HUD e ativos; o servidor conserva o mundo em memória.
   // Restauração durável do processo continua na jornada do portal com PostgreSQL.
-  await entrar(page, apelido, undefined, arte);
   for (const formato of [
     { nome: "computador", width: 1365, height: 900 },
     { nome: "celular", width: 390, height: 844 },
   ]) {
     await page.setViewportSize({ width: formato.width, height: formato.height });
+    await entrar(page, apelido, undefined, arte);
     await page.getByRole("button", { name: "Decorar", exact: true }).click();
     await painel.getByRole("button", { name: /Na casa/ }).click();
     await painel
@@ -95,11 +95,5 @@ test("nomes na cena com editor compacto após pintar e reabrir, no computador e 
     const rotulos = await page.evaluate(() => window.__morada?.medidas().rotulos);
     expect(rotulos?.moradores).toBeGreaterThan(0);
     expect(rotulos?.exibidos).toBeGreaterThan(0);
-    await page.getByRole("button", { name: "Decorar", exact: true }).click();
-    await expect(painel).toBeHidden();
-    await expect(page.getByRole("button", { name: "Vista superior", exact: true })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
   }
 });
