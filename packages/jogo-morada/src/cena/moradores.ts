@@ -8,22 +8,34 @@ import {
 } from "@informach/morada-sim";
 import { MM_POR_TICK } from "@informach/morada-sim/conteudo";
 import {
+  BufferGeometry,
   CanvasTexture,
   DoubleSide,
+  DynamicDrawUsage,
+  Float32BufferAttribute,
   type Group,
   type Intersection,
   LinearFilter,
+  LineBasicMaterial,
+  LineSegments,
   Mesh,
   MeshBasicMaterial,
   type Object3D,
   OctahedronGeometry,
+  type PerspectiveCamera,
   RingGeometry,
   Sprite,
   SpriteMaterial,
   SRGBColorSpace,
+  Vector3,
 } from "three";
 import type { Ativos, VisualDoMorador } from "../ativos/ativos";
 import { type PrevisaoDeAndar, Suavizador } from "../espelho/previsao";
+import {
+  MAXIMO_DE_ROTULOS_NA_CENA,
+  OrganizadorDeRotulos,
+  type RotuloProjetado,
+} from "../modelo/rotulos-na-cena";
 import { giroParaCena, menorVolta, type PontoDaCena, paraCena } from "./espaco";
 import { pedeMenosMovimento } from "./movimento";
 import { gravidezDe, type Situacao, situacaoDoMorador } from "./situacao";
@@ -113,6 +125,26 @@ function desenharRotulo(texto: string, destaque: number | null): CanvasTexture {
 
 export class MoradoresDaCena {
   private readonly entradas = new Map<MoradorId, Entrada>();
+  private proprio: MoradorId | null = null;
+  private readonly organizador = new OrganizadorDeRotulos();
+  private readonly posicoesDosConectores = new Float32BufferAttribute(
+    MAXIMO_DE_ROTULOS_NA_CENA * 2 * 3,
+    3,
+  ).setUsage(DynamicDrawUsage);
+  private readonly conectores = new LineSegments(
+    new BufferGeometry().setAttribute("position", this.posicoesDosConectores),
+    new LineBasicMaterial({
+      color: 0xd6dbe3,
+      transparent: true,
+      opacity: 0.65,
+      depthTest: false,
+      depthWrite: false,
+    }),
+  );
+  private readonly pontoDoRotulo = new Vector3();
+  private readonly pontoProjetado = new Vector3();
+  private readonly pontoDoConector = new Vector3();
+  private readonly posicaoDaCamera = new Vector3();
   private readonly anel = new RingGeometry(0.34, 0.44, 40);
   private readonly anelFino = new RingGeometry(0.36, 0.41, 40);
   private readonly losango = new OctahedronGeometry(0.09);
@@ -136,7 +168,14 @@ export class MoradoresDaCena {
   constructor(
     private readonly raiz: Group,
     private readonly ativos: Ativos,
-  ) {}
+  ) {
+    this.conectores.layers.set(1);
+    this.conectores.renderOrder = 9;
+    this.conectores.frustumCulled = false;
+    this.conectores.visible = false;
+    this.conectores.geometry.setDrawRange(0, 0);
+    this.raiz.add(this.conectores);
+  }
 
   private criar(morador: Morador): Entrada {
     const visual = this.ativos.criarMorador({
@@ -209,6 +248,7 @@ export class MoradoresDaCena {
 
   /** Põe cada morador onde ele está neste quadro. */
   atualizar(quadro: QuadroDosMoradores): void {
+    this.proprio = quadro.meuMoradorId;
     const { estado } = quadro;
     const vivos = new Set<MoradorId>();
     const noColo: { morador: Morador; entrada: Entrada; de: MoradorId }[] = [];
@@ -424,6 +464,84 @@ export class MoradoresDaCena {
     return [position.x, position.y, position.z];
   }
 
+  /** Ajusta somente a âncora dos sprites; corpos, posições e nomes do HUD ficam intactos. */
+  organizarRotulos(camera: PerspectiveCamera, largura: number, altura: number): void {
+    if (!this.raiz.visible || largura <= 0 || altura <= 0) {
+      this.conectores.visible = false;
+      this.organizador.limpar();
+      return;
+    }
+    camera.updateMatrixWorld();
+    camera.getWorldPosition(this.posicaoDaCamera);
+    const px = camera.projectionMatrix.elements[0],
+      py = camera.projectionMatrix.elements[5];
+    if (px === undefined || py === undefined) throw new Error("Projeção da câmera incompleta");
+    const candidatos: RotuloProjetado[] = [];
+    for (const [id, entrada] of this.entradas) {
+      const rotulo = entrada.rotulo;
+      rotulo.center.set(0.5, 0.5);
+      if (!rotulo.visible) continue;
+      rotulo.getWorldPosition(this.pontoDoRotulo);
+      this.pontoProjetado.copy(this.pontoDoRotulo).project(camera);
+      rotulo.visible = false;
+      const p = this.pontoProjetado;
+      if (p.z < -1 || p.z > 1 || Math.abs(p.x) > 1 || Math.abs(p.y) > 1) continue;
+      candidatos.push({
+        id,
+        x: ((p.x + 1) * largura) / 2,
+        y: ((1 - p.y) * altura) / 2,
+        largura: (rotulo.scale.x * px * largura) / 2,
+        altura: (rotulo.scale.y * py * altura) / 2,
+        prioridade: id === this.proprio ? 2 : entrada.anel.visible ? 1 : 0,
+        distancia: this.pontoDoRotulo.distanceToSquared(this.posicaoDaCamera),
+      });
+    }
+    let vertices = 0;
+    for (const nome of this.organizador.organizar(candidatos, largura, altura)) {
+      const entrada = ehMoradorId(nome.id) ? this.entradas.get(nome.id) : undefined;
+      if (!entrada) continue;
+      const rotulo = entrada.rotulo;
+      rotulo.visible = true;
+      rotulo.getWorldPosition(this.pontoDoRotulo);
+      const p = this.pontoProjetado.copy(this.pontoDoRotulo).project(camera);
+      const w = (rotulo.scale.x * px * largura) / 2,
+        h = (rotulo.scale.y * py * altura) / 2;
+      const dx = nome.x - ((p.x + 1) * largura) / 2,
+        dy = nome.y - ((1 - p.y) * altura) / 2;
+      rotulo.center.set(0.5 - dx / w, 0.5 + dy / h);
+      if (Math.abs(dx) <= w / 2 && Math.abs(dy) <= h / 2) continue;
+      const fator = Math.min(
+        dx === 0 ? Number.POSITIVE_INFINITY : w / (2 * Math.abs(dx)),
+        dy === 0 ? Number.POSITIVE_INFINITY : h / (2 * Math.abs(dy)),
+      );
+      this.pontoDoConector
+        .set(
+          ((nome.x - dx * fator) / largura) * 2 - 1,
+          1 - ((nome.y - dy * fator) / altura) * 2,
+          p.z,
+        )
+        .unproject(camera);
+      this.raiz.worldToLocal(this.pontoDoConector);
+      this.posicoesDosConectores.setXYZ(
+        vertices++,
+        rotulo.position.x,
+        rotulo.position.y,
+        rotulo.position.z,
+      );
+      this.posicoesDosConectores.setXYZ(
+        vertices++,
+        this.pontoDoConector.x,
+        this.pontoDoConector.y,
+        this.pontoDoConector.z,
+      );
+    }
+    // O mesmo objeto também volta após a perda e restauração do contexto WebGL.
+    if (!this.conectores.parent) this.raiz.add(this.conectores);
+    this.posicoesDosConectores.needsUpdate = vertices > 0;
+    this.conectores.geometry.setDrawRange(0, vertices);
+    this.conectores.visible = vertices > 0;
+  }
+
   dispose(): void {
     for (const entrada of this.entradas.values()) this.soltar(entrada);
     this.entradas.clear();
@@ -432,5 +550,9 @@ export class MoradoresDaCena {
     this.losango.dispose();
     this.materialMeu.dispose();
     this.materialDeOutro.dispose();
+    this.organizador.limpar();
+    this.conectores.removeFromParent();
+    this.conectores.geometry.dispose();
+    this.conectores.material.dispose();
   }
 }

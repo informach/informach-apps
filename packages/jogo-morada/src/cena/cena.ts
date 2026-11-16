@@ -786,6 +786,7 @@ export class Cena {
     const inicio = performance.now();
 
     this.atualizar(agora, dt);
+    this.moradores.organizarRotulos(this.camera, this.host.clientWidth, this.host.clientHeight);
     this.renderer.render(this.scene, this.camera);
     this.quadroDaPreviaPendente = this.previa.capturarQuadro();
     const gl = this.gl;

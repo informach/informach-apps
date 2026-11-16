@@ -33,3 +33,24 @@ pela visão `Readonly` do mundo. A preparação passa a usar uma fotografia
 independente, sem cast ou remoção do contrato de leitura. O workflow focado
 `morada-chegada.yml` confere tipos e os testes de chegada/fundação no GitHub
 antes de repetir os seis gates e a homologação privada.
+
+## Leitura dos nomes na câmera
+
+A distância física não impede que nomes se cruzem em uma câmera afastada ou
+em moradores já salvos próximos uns dos outros. O próximo incremento deve
+organizar os rótulos em coordenadas de tela, com prioridade para quem a pessoa
+dirige, afastamentos pequenos e conectores até os moradores. Respeitar a borda
+da tela, conservar os nomes no HUD e limitar a 24 rótulos simultâneos na cena,
+selecionados por prioridade/distância quando não couberem todos. Não mudar a
+posição física dos moradores para resolver a projeção da câmera.
+
+Usar os sprites existentes e um único buffer de segmentos para conectores;
+nenhum renderer, contexto, textura ou material por quadro. Testar aglomeração,
+prioridade, bordas, entrada/saída e estabilidade das posições. Conferir capturas
+de computador/celular com arte e a distinção entre os nomes e os corpos antes
+de encerrar o achado.
+
+`f46230ee`: 19 testes de chegada/fundação e tipagem passaram no GitHub,
+execução `43785157623`. A continuação implementa organização em tela e
+conectores, com quatro testes puros próprios e tipagem do cliente no mesmo
+workflow focado. Ainda falta a rodada integral e a revisão de capturas.

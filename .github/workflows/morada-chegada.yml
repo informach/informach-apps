@@ -1,4 +1,4 @@
-name: Morada - chegada da familia
+name: Morada - chegada e rotulos da familia
 
 on:
   workflow_dispatch:
@@ -24,11 +24,17 @@ jobs:
         run: pnpm --filter @informach/morada-sim typecheck
       - name: Exercitar geometria fundacao e restauracao
         run: pnpm --filter @informach/morada-sim exec vitest run src/espaco/chegada.test.ts testes/fundacao.test.ts --reporter=default --reporter=json --outputFile=${{ runner.temp }}/morada-chegada.json
+      - name: Conferir tipos do cliente e organizacao dos nomes
+        run: |
+          pnpm --filter @informach/jogo-morada typecheck
+          pnpm --filter @informach/jogo-morada exec vitest run src/modelo/rotulos-na-cena.test.ts --reporter=default --reporter=json --outputFile=${{ runner.temp }}/morada-rotulos.json
       - name: Preservar resultado sintetico
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: morada-chegada-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/morada-chegada.json
+          path: |
+            ${{ runner.temp }}/morada-chegada.json
+            ${{ runner.temp }}/morada-rotulos.json
           if-no-files-found: warn
           retention-days: 30
