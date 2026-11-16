@@ -1,3 +1,4 @@
+import { writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { entrar } from "./apoio";
 
@@ -7,7 +8,7 @@ for (const formato of [
 ]) {
   test(`nomes na cena com editor compacto no ${formato.nome}`, async ({ page }, info) => {
     await page.setViewportSize({ width: formato.width, height: formato.height });
-    await entrar(page, `Rótulos ${formato.nome}`);
+    await entrar(page, `Rótulos ${formato.nome}`, undefined, process.env.MORADA_E2E_ARTE === "1");
     const pausa = await page.evaluate(() =>
       window.__morada?.comandar(null, { t: "votar_velocidade", velocidade: 0 }),
     );
@@ -35,10 +36,9 @@ for (const formato of [
         window.__morada?.telaDoMorador(id),
       ),
     }));
-    await info.attach("projecao-e-hud", {
-      body: JSON.stringify(dados, null, 2),
-      contentType: "application/json",
-    });
+    const arquivo = info.outputPath("projecao-e-hud.json");
+    await writeFile(arquivo, JSON.stringify(dados, null, 2));
+    await info.attach("projecao-e-hud", { path: arquivo, contentType: "application/json" });
     await page.screenshot({ path: info.outputPath(`rotulos-${formato.nome}.png`) });
     expect(dados.medidas?.rotulos.moradores).toBeGreaterThan(0);
     expect(dados.medidas?.rotulos.exibidos).toBeGreaterThan(0);

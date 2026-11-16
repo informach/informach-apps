@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, realpathSync, rmSync } from "node:fs";
-import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
 import postgres from "postgres";
@@ -54,7 +54,8 @@ const artDir =
   e2e && process.env.RECREIO_E2E_ARTE_DIR ? realpathSync(process.env.RECREIO_E2E_ARTE_DIR) : null;
 function outsideRepository(path) {
   const rel = relative(realpathSync(root), realpathSync(path));
-  if (!rel || (!rel.startsWith("..") && !isAbsolute(rel)))
+  const outside = rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel);
+  if (!outside)
     throw new Error("Private art and evidence must remain outside the public repository");
 }
 let privateArtifacts = null;

@@ -32,7 +32,7 @@ jobs:
         run: |
           pnpm --filter @informach/morada-server typecheck
           pnpm --filter @informach/morada-server exec vitest run test/edicao.test.ts
-      - name: Conferir peso real do cliente e isolamento do portal
+      - name: Instalar o navegador da prova focada
         run: pnpm --filter @informach/jogo-morada exec playwright install --with-deps chromium
       - name: Conferir bundle e nomes com o desenho real
         run: pnpm --filter @informach/jogo-morada exec playwright test --config e2e/playwright.config.ts e2e/bundle.spec.ts e2e/rotulos.spec.ts --grep "JavaScript|quem importa|nomes na cena"

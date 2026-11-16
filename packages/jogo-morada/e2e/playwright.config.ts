@@ -1,5 +1,7 @@
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "@playwright/test";
+import { evidenciasPrivadas } from "./evidencias";
 
 /**
  * Testes de navegador do cliente do Morada. Sobem o servidor do jogo no modo
@@ -15,10 +17,12 @@ import { defineConfig } from "@playwright/test";
 const pacote = fileURLToPath(new URL("..", import.meta.url));
 const raiz = fileURLToPath(new URL("../../..", import.meta.url));
 const porSoftware = process.env.MORADA_E2E_GPU !== "1";
+const regras = process.env.MORADA_E2E_REGRAS ?? "prova";
+if (regras !== "prova" && regras !== "padrao") throw new Error("Preset de regras inválido.");
 
 export default defineConfig({
   testDir: ".",
-  outputDir: "./test-results",
+  outputDir: evidenciasPrivadas ? join(evidenciasPrivadas, "test-results") : "./test-results",
   fullyParallel: false,
   workers: 1,
   retries: 0,
@@ -42,7 +46,7 @@ export default defineConfig({
       command: "pnpm --filter @informach/morada-server exec tsx src/main.ts",
       cwd: raiz,
       url: "http://localhost:3010/api/ready",
-      env: { MORADA_PLATAFORMA: "falsa", MORADA_REGRAS: "prova", PORT: "3010", LOG_LEVEL: "warn" },
+      env: { MORADA_PLATAFORMA: "falsa", MORADA_REGRAS: regras, PORT: "3010", LOG_LEVEL: "warn" },
       reuseExistingServer: false,
       timeout: 60_000,
     },
