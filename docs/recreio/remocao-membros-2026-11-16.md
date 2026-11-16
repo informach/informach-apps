@@ -55,7 +55,8 @@ A fonte `e94a1d1a`, run `43922914708`, reproduziu três falhas: convite anterior
 à remoção readmitia o perfil; convites do antigo responsável sobreviviam à
 troca e à volta de papel; o aceite não relia a autoridade do emissor. As três
 promessas resolveram quando deveriam recusar, com 318 integrações aprovadas.
-A correção ainda precisa de gates e publicação.
+A correção passou nos seis gates `43923719509`, fonte `737b6638`: 325
+integrações, incluindo 34 casos de remoção/convites. Publicação ainda pendente.
 
 A troca e a remoção preparam as travas dos convites não usados do membro antes
 do cursor. Somente depois dos prazos revalidados os revogam, com evento estrito
@@ -69,3 +70,11 @@ após as travas. Vínculo histórico sem data de saída não ganha data inventad
 A candidata da interface `65895f48` passou 318 integrações e a jornada nova no
 navegador. Qualidade falhou na formatação da inserção sintética paginada; foi
 corrigida antes de `e94a1d1a`. Isso não era falha da aplicação em produção.
+
+## Fonte preparada para integração
+
+Os metadados operacionais de `92f665e7` e a decisão do titular de adiar a prova
+humana foram integrados à candidata, sem diferença em apps/packages/CI/IaC
+executáveis em relação a `737b6638`. O CI geral anterior da main e o da candidata
+ainda estão em execução; o novo envio à main deve aguardar a rodada atual para
+não cancelá-la. [Evidências da candidata](evidencias/remocao-candidata-2026-11-16.json).
