@@ -18,7 +18,8 @@ uma data inventada para permitir acesso.
 Seis gates `43923719509` aprovados: 325 integrações, incluindo 34 casos de
 remoção/convites. A fonte publicada passou os seis gates `43928476051`, assim
 como sua repetição na main `43931150556`. O CI geral da base `43918017303` passou;
-o da nova main `43931150504` ainda estava em execução ao registrar esta prova.
+o da nova main `43931150504`, inicialmente em execução, também passou por
+completo, conferido às 19:47:48 UTC.
 O CI geral da candidata `737b6638`, run `43923717777`, falhou na transferência
 após novo login: a seleção do destinatário foi perdida durante o carregamento.
 A remoção passou nesse mesmo navegador. A falha da transferência continua aberta

@@ -1,9 +1,10 @@
 # Recreio e Morada: operação do alfa fechado
 
-**16/11 — achado de carregamento em correção:** o CI geral `43923717777`
-revelou seleção perdida na transferência após novo login. Os controles precisam
-aguardar a hidratação. Regressão determinística e correção em verificação no
-GitHub; não considerar a transferência integralmente homologada por essa rodada.
+**16/11 — carregamento corrigido, ativação pendente:** seis gates aprovados em
+`7f3a7e2`, incluindo 13 jornadas de navegador. Os três casos com scripts suspensos
+reprovaram a base e passaram com a proteção de interatividade. Integração da
+interface aprovada; [prova e limites](../../docs/recreio/hidratacao-responsabilidade-2026-11-16.md).
+Validação humana da transferência continua adiada; conferir a ativação abaixo.
 
 **16/11 — remoção e convites corrigidos implantados:** o responsável remove outro
 membro com confirmação/login recente e auditoria atômica, preservando o mundo.

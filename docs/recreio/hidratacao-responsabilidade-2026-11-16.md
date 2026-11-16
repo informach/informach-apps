@@ -46,7 +46,7 @@ entrada e as telas autenticadas; a transferência continua até aceite, reentrad
 e saída com as duas contas sintéticas. Controles em `details` fechados são
 consultados explicitamente com `includeHidden`, sem alterar a confirmação.
 
-Estado: correção ampliada em verificação no GitHub; ainda não publicada.
+Estado: correção aprovada no GitHub e integrada; ativação ainda pendente.
 
 ## Correções do ensaio
 
@@ -65,3 +65,28 @@ Há um único `continue` por requisição, sem instalar/remover rotas durante o
 carregamento e sem mudar os limites de autenticação. A pausa é exclusiva do
 aparelho de teste, contada e liberada no `finally`. Refazer a comparação com
 essa mesma fixture nas duas fontes antes de considerar a prova válida.
+
+## Resultado da comparação
+
+Fontes com arquivos E2E byte a byte idênticos: base `02173393`, run
+`43944353352`, e correção `7f3a7e2`, run `43944326569`. A base falhou exatamente
+nos três testes esperados: entrada, controles autenticados e transferência,
+sempre por controle habilitado com os scripts suspensos. Dez jornadas passaram
+e duas são skips próprios da matriz. Não houve erro de interceptador nessa prova.
+
+A corrigida passou os seis gates. O navegador passou as 13 jornadas e manteve
+os dois skips específicos; a transferência percorreu login recente, proposta,
+aceite e saída. Integração com PostgreSQL: 325 testes. Qualidade, cliente,
+troca entre versões e simulação longa também aprovados. O CI geral da main
+anterior `43931150504` passou; isso não substitui o gate geral da nova fonte.
+
+Captura recebida em largura de 390 px revista: consequências e ambas as decisões
+legíveis, com rolagem vertical. Artefato `14263973033`, ZIP SHA-256
+`0ea5dbe9f6d53b252a6cc8cc654b7d196813e3f778ae2f74b6d6f7498337f074`.
+São contas sintéticas. O arquivo novo `entrada-pronta.png` foi gerado pelo teste,
+mas não consta da lista de capturas retidas pelo workflow; não foi declarado
+revisto. A prova de carregamento é a execução funcional com scripts suspensos.
+
+O titular adiou a prova humana da transferência. Nenhuma conta piloto foi usada
+para simulá-la. Não houve mudança de autorização, schema, protocolo, arte ou
+política de cobrança; A5, restante de A6 e a homologação integral permanecem abertos.
