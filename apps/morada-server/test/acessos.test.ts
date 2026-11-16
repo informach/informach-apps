@@ -168,7 +168,7 @@ it("o antigo responsável perde os outros acessos e fica apenas na família indi
     nome: "Cedro",
     lote: "lote_2",
     fundo: 500000,
-    moradores: [{ ...modelo, ref: "caio", nome: "Caio" }],
+    moradores: [{ ...modelo, ref: "morador_cedro", nome: "César" }],
   });
   const bancada = await criarBancada({ definicao });
   const a = await bancada.novaInstancia();
@@ -179,6 +179,8 @@ it("o antigo responsável perde os outros acessos e fica apenas na família indi
   bancada.plataforma.mudarPapelDoMembro(id, bruno.perfilId, "steward");
   await bancada.entrar(lia, id);
   await bancada.entrar(bruno, id);
+  expect(lia.fechamento).toBeNull();
+  expect(bruno.fechamento).toBeNull();
   const mundo = mundoDe(a.instancia, id);
   expect(mundo.estado.acessos.filter((item) => item.perfilId === bruno.jogadorId)).toHaveLength(2);
   const cedro = listar(mundo.estado.familias).find((familia) => familia.nome === "Cedro");
