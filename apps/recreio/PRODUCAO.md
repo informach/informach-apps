@@ -12,18 +12,16 @@ Stripe continua sem configuração; os preços `price_TODO_recreio_*` não permi
 
 Primeira [medição de custo](../../docs/recreio/custo-alfa-2026-11-15.md): US$ 0,01013593 de uso atribuído pelo Railway aos dois serviços às 12:25 UTC, em amostra praticamente ociosa. Banco/Redis/monitoração compartilhados ainda sem rateio; não comprova custo por jogador ou hora de mundo.
 
-Evolução D3 fora da produção: `2696bcbe`, seis gates `43798359814` aprovados.
-Editor/pintura, transição de protocolo, revisões e travas integrados. Histórico
-próprio com prévia e confirmação explícita, deltas da origem, revalidação do
-servidor, queda antes/depois do diário e retomada pela interface cobertos.
-JavaScript dentro do teto: 1.246.670 bytes/344.650 gzip. A prova privada `43799128058` falhou no clique da pausa durante a chegada da arte;
-três jornadas passaram e criação não executou. Resposta durante o carregamento
-e nomes da borda em homologação ([registro](../../docs/recreio/carregamento-grafico-2026-11-16.md)).
-Construção estrutural e casas/orçamento continuam pendentes. Não trocar a
-fonte/pasta antes da homologação do conjunto. A [licença de compra permite o
-uso comercial](../../docs/recreio/licenciamento-arte.md).
-[Plano e limites do D3](../../docs/recreio/d3-construcao-compras.md) e
-[provas do histórico](../../docs/recreio/d3-concorrencia-historico.md).
+Evolução D3 fora da produção: `59f2614a`, seis gates `43802126864` e cinco
+jornadas privadas `43802946380` aprovados, incluindo duas contas, histórico
+próprio com prévia/aceite, deltas originais, queda antes/depois do diário e
+restauração pela interface. JS 1.247.937 bytes/345.039 gzip, teto preservado.
+Computador com quatro nomes legíveis; no celular continuam ausentes, achado
+aberto. Arte e evidências arquivadas em rascunho privado, sem ativação do D3.
+Construção estrutural e casas/orçamento continuam pendentes; D3 não concluído.
+[Provas e limites](../../docs/recreio/carregamento-grafico-2026-11-16.md),
+[histórico](../../docs/recreio/d3-concorrencia-historico.md),
+[plano completo](../../docs/recreio/d3-construcao-compras.md).
 
 ## Serviços implantados e arte preparada
 

@@ -49,5 +49,19 @@ Fonte `59f2614a`: os seis gates públicos da execução
 [43802126864](https://github.com/informach/informach-apps/actions/runs/43802126864)
 passaram. Inclui jornada de duas contas/desfazer/refazer/restauração, cliente,
 integração, qualidade, versões reais e simulação longa. O executor privado
-`0c118aaf` foi fixado nessa fonte para repetir as cinco jornadas com arte;
-resultado e exame das imagens ainda pendentes.
+`0c118aaf` passou as cinco jornadas com arte em `43802946380`. A jornada antes
+interrompida conseguiu pausar, editar, desfazer/refazer e restaurar. Isso prova
+a jornada nessa rodada, não uma medida de latência de entrada ou FPS.
+
+JS medido no gate completo: **1.247.937 bytes**, **345.039 gzip**; página da
+marca 2.974 bytes. As 48 prévias retornaram a 1 contexto, 128 buffers e
+44 texturas; máximos 203/46. No computador, quatro nomes legíveis e contorno
+reservado amarelo. **No celular os nomes continuam ausentes**, apesar dos
+corpos visíveis: o achado permanece aberto e requer diagnóstico da projeção
+e das caixas do HUD, sem novas correções por suposição.
+
+[Evidência numérica](evidencias/historico-arte-2026-11-16.json). ZIP original
+do Actions preservado no rascunho privado 446608123, `artes-3d`, com 40.625.419
+bytes e SHA-256 `d689df7706a2ca09a0d692fdea67d21945eb14ab460240ccb89ff6eb6b6c63ff`
+igual ao digest do upload. Não recompresso nem ativado em produção. O registro
+do rascunho conserva a limitação visual e a incompletude do D3.

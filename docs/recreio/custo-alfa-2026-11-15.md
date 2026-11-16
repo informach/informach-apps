@@ -38,8 +38,9 @@ permanecem abertos.
 O workflow `morada-carga.yml` executa a bancada existente com 20 mundos e
 dez minutos simulados, nos cenários de 1/2/4/8 conexões. Os parâmetros aceitam
 somente inteiros limitados. Artefato de 30 dias conserva fonte, executor,
-hardware, limites e relatório de CPU/tráfego/memória/fotografia. Execução ainda
-pendente nesta candidata.
+hardware, limites e relatório de CPU/tráfego/memória/fotografia. Fonte
+`229baf7c`, [execução 43803715201](https://github.com/informach/informach-apps/actions/runs/43803715201)
+aprovada. [Valores e origem](evidencias/carga-sintetica-2026-11-16.json).
 
 A bancada usa conexões e persistência em memória, no mesmo processo e tempo
 acelerado. Os robôs disputam os moradores existentes; oito conexões não são
@@ -47,3 +48,10 @@ oito moradores controlados de forma independente. A coluna de mundos por
 vCPU é extrapolação aritmética de CPU, não capacidade homologada. Não há
 PostgreSQL, WebSocket real, preço Railway, FPS ou efeito da rede nessa prova.
 O ensaio remoto em rede/banco e a janela financeira acima continuam obrigatórios.
+
+CPU arredondada por tick: 0,121/0,097/0,037/0,050 ms; tráfego por mundo:
+1,15/2,56/6,09/12,20 kB/s, na ordem 1/2/4/8 conexões. Cenários ocorreram
+sequencialmente no mesmo processo; ordem/JIT e disputa pelos mesmos moradores
+limitam a comparação. Não inferir que acrescentar jogadores reduz o custo.
+Heap foi medido após aquecimento, não como pico sustentado da execução. CPU
+inclui clientes e armazenamento em memória no processo da bancada.

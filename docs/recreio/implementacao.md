@@ -4,17 +4,18 @@ Registro detalhado da frente. O índice de continuidade é o [estado do reposit�
 
 Estado vigente em 16/11/2026: portal em `7c81a68f` e Morada em `22a3db6`, alfa fechado D2. Reconexão e logs corrigidos em produção, com seis gates e repetição main aprovados ([operação](telemetria-falhas.md)); [versões do portal e mapas Sentry](versoes-do-portal.md) conferidos. Editor/coleção D2 têm prova privada e salvamento/retorno humano; escolha de casa/orçamento continua pendente. D3 está **somente em candidata**, com os marcos abaixo e [plano atual](d3-construcao-compras.md). Backup lógico real restaurado em destino isolado, avisos recebidos e agenda externa comprovada; custo acumulado exclusivo medido, sem custo por hora ativa. O titular confirmou a permissão comercial pela [licença de compra](licenciamento-arte.md). D2–D8, proteção familiar, retenção/capacidade, backup agendado e demais homologações comerciais continuam em implementação. Ver [execução atual](execucao-2026-11-15.md) e [operação](../../apps/recreio/PRODUCAO.md). As seções datadas abaixo preservam a história dos marcos anteriores.
 
-Evolução candidata: `2696bcbe`, seis gates `43798359814` aprovados. Editor,
-pintura, transição de protocolo, revisões, travas do host e histórico próprio
-integrados. Desfazer/refazer por confirmação real na interface, recuperação
-após nova parada/retomada, isolamento dos quadros individuais e quedas
-antes/depois do diário cobertos. JavaScript em 1.246.670 bytes/344.650 gzip,
-sem aumentar o teto. A prova privada `43799128058` falhou no clique de pausa durante a chegada da arte;
-três jornadas passaram e a de criação não executou. Nomes da borda e resposta
-durante o carregamento continuam em homologação ([registro](carregamento-grafico-2026-11-16.md)).
-Construção estrutural e casa/orçamento continuam pendentes; D3 não concluído.
-[Plano e limites](d3-construcao-compras.md), [histórico](d3-concorrencia-historico.md)
-e [retenção técnica ainda aberta](retencao-tecnica-2026-11-16.md).
+Evolução D3 fora da produção: `59f2614a`, seis gates `43802126864` e cinco
+jornadas privadas `43802946380` aprovados, incluindo duas contas, histórico
+próprio com prévia/aceite, deltas originais, queda antes/depois do diário e
+restauração pela interface. JS 1.247.937 bytes/345.039 gzip, teto preservado.
+Computador com quatro nomes legíveis; no celular continuam ausentes, achado
+aberto. Arte e evidências arquivadas em rascunho privado, sem ativação do D3.
+Construção estrutural e casas/orçamento continuam pendentes; D3 não concluído.
+[Provas e limites](carregamento-grafico-2026-11-16.md),
+[histórico](d3-concorrencia-historico.md), [plano completo](d3-construcao-compras.md).
+Retenção de ingressos: `7f9b2b0a`, seis gates `43803801642` aprovados e main
+remota integrada; implantação em acompanhamento. [Política](retencao-tecnica-2026-11-16.md).
+[Prazos do navegador](prazos-navegador-2026-11-16.md) em verificação no GitHub.
 
 ## De onde vem o escopo
 

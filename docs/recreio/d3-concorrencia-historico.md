@@ -258,3 +258,12 @@ inclui uma prova do ator inspecionando os quadros individuais da convidada,
 inclusive depois de reconectar, e os estados intermediários da cadeia de
 compensações. Não bastava um botão desabilitado para provar ausência de
 histórico alheio na rede.
+
+`2696bcbe` passou os seis gates `43798359814`, incluindo a inspeção dos
+quadros individuais. A fonte posterior `59f2614a` passou os seis gates
+`43802126864` e as cinco jornadas privadas `43802946380`: desfazer/refazer por
+duas contas, aceite explícito, saldo, quantidade única e nova restauração.
+[Evidência](evidencias/historico-arte-2026-11-16.json). O registro acima preserva
+as etapas anteriores; a compensação de móveis está homologada nesse perfil
+candidato. Construção estrutural, casas/orçamento e nomes no celular continuam
+abertos; nenhuma ativação do Mundo V3/protocolo 2 em produção.
