@@ -566,9 +566,13 @@ export class Ator {
           respostas.push(() => this.enviar(ligacao, { t: "resultado", resultado }));
           break;
         }
-        case "caiu":
+        case "caiu": {
+          // A queda pode ter esperado na fila enquanto outra conexão do mesmo SID entrou.
+          const atual = this.ligacoes.get(entrada.sid);
+          if (atual && atual.fase !== "fechada") break;
           mundo.aplicar({ t: "sessao_caiu", sessaoId: entrada.sid, agoraMs: this.op.agora() });
           break;
+        }
         case "encerrada":
           mundo.aplicar({ t: "sessao_saiu", sessaoId: entrada.sid });
           break;
