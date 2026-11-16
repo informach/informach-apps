@@ -704,6 +704,10 @@ export class Cena {
 
   private aplicarQualidade(): void {
     this.preparo.invalidar();
+    if (this.ativos.definirMateriaisSimples?.(this.qualidadeAtual === "baixa")) {
+      this.moradores.recarregar();
+      this.previa.recarregar();
+    }
     const nivel = QUALIDADES[this.qualidadeAtual];
     this.renderer.setPixelRatio(Math.min(nivel.dpr, window.devicePixelRatio || 1));
     this.renderer.shadowMap.enabled = nivel.sombras;

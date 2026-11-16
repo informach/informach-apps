@@ -56,6 +56,7 @@ import {
   expressaoDaPose,
   pesosDaGravidez,
 } from "./escolhas";
+import { MateriaisSimples } from "./materiais-simples";
 import { type ModeloDeObjeto, ObjetosDeArte } from "./objetos";
 import { PinturaDosMoveis } from "./pintura-dos-moveis";
 import { AtivosProcedurais } from "./procedurais";
@@ -111,6 +112,13 @@ async function lerComGltfLoader(dados: ArrayBuffer): Promise<PacoteLido> {
 }
 
 export class AtivosDeArte implements Ativos {
+  private materiaisSimples = false;
+
+  definirMateriaisSimples(usar: boolean): boolean {
+    if (this.materiaisSimples === usar) return false;
+    this.materiaisSimples = usar;
+    return true;
+  }
   private readonly procedurais = new AtivosProcedurais();
   private readonly buscar: typeof fetch;
   private readonly lerPacote: (dados: ArrayBuffer) => Promise<PacoteLido>;
@@ -307,6 +315,7 @@ export class AtivosDeArte implements Ativos {
           (id) => this.biblioteca(manifesto, id),
           uso.liberar,
           uso.pacote.mascarasDeCor ?? new Map(),
+          this.materiaisSimples,
         ),
       );
       this.avisar("morador");
@@ -648,7 +657,8 @@ class CorpoDeArte implements VisualDoMorador {
   readonly estadoDaArte = "pronto";
   private descartado = false;
   private readonly esqueletos = new Set<Skeleton>();
-  private readonly cores: CoresParametricas | null;
+  private readonly cores: CoresParametricas | null = null;
+  private readonly materiaisSimples: MateriaisSimples | null;
   readonly raiz = new Group();
   readonly altura: number;
   private coloAtual: PontoDaCena;
@@ -677,18 +687,22 @@ class CorpoDeArte implements VisualDoMorador {
     private readonly biblioteca: (id: string) => BibliotecaCarregada | null,
     private readonly liberarPacote: () => void,
     mascarasDoPacote: ReadonlyMap<string, Texture>,
+    simples: boolean,
   ) {
     this.altura = personagem.altura;
     this.coloAtual = personagem.ancoras.colo;
     // Os próprios ossos; geometria, materiais e texturas ficam divididos com as outras cópias.
     this.modelo = clonarComEsqueleto(cena);
-    this.cores = personagem.cores
-      ? new CoresParametricas(this.modelo, personagem.cores, mascarasDoPacote)
-      : null;
+    this.materiaisSimples = simples ? new MateriaisSimples() : null;
     try {
+      this.materiaisSimples?.aplicar(this.modelo);
+      this.cores = personagem.cores
+        ? new CoresParametricas(this.modelo, personagem.cores, mascarasDoPacote)
+        : null;
       this.cores?.definir(coresDaAparencia(personagem, descricao.aparencia));
     } catch (erro) {
       this.cores?.dispose();
+      this.materiaisSimples?.dispose();
       throw erro;
     }
     this.postura.add(this.modelo);
@@ -893,6 +907,7 @@ class CorpoDeArte implements VisualDoMorador {
     this.descartado = true;
     this.misturador.stopAllAction();
     this.cores?.dispose();
+    this.materiaisSimples?.dispose();
     this.misturador.uncacheRoot(this.modelo);
     for (const esqueleto of this.esqueletos) esqueleto.dispose();
     for (const dobravel of this.dobraveis) {
