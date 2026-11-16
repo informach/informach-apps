@@ -68,4 +68,14 @@ não são impressos. Mensagens controladas de histórico/corte permanecem dispon
 
 A integração usa o mesmo cliente em DDL bloqueado e verifica rollback e retomada,
 além de presença/validade do índice gerado. As tabelas de prova são exclusivamente
-do banco descartável. A limpeza dos convites ainda não foi implementada ou habilitada.
+do banco descartável. O escritor de limpeza fica em candidata separada,
+sem habilitação nesta entrega.
+
+## Gates aprovados para a etapa do índice
+
+A fonte `892f8571` passou nos seis gates `43866074913` e no CI geral
+`43866074845`. O conjunto com a página de participações próprias (`1935b078`)
+passou nos seis gates `43874709358`: 237 integrações, nove jornadas e dois
+casos reservados a outros executores. O código de banco é idêntico a `892f8571`;
+o código do portal é idêntico a `9f9f9e3a`. O escritor de limpeza não faz parte
+dessa entrega e o índice ainda precisa de sua conferência de produção.
