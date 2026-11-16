@@ -108,7 +108,10 @@ async function contexto(
     "Participação indisponível.",
   );
   async function conferirPrazo(recente: boolean) {
-    const [linha] = await tx.select({ agora: sql<Date>`${AGORA}`.mapWith(spaces.createdAt) });
+    const [linha] = await tx
+      .select({ agora: sql<Date>`${AGORA}`.mapWith(spaces.createdAt) })
+      .from(spaces)
+      .where(eq(spaces.id, mundoId));
     assertAllowed(linha, "AUTH", "Entre novamente para continuar.");
     const agora = linha.agora;
     assertAllowed(
@@ -332,7 +335,11 @@ export async function revogarPropostasDoMembro(
     )
     .orderBy(asc(requests.id))
     .for("update");
-  const [linha] = await tx.select({ agora: sql<Date>`${AGORA}`.mapWith(spaces.createdAt) });
+  if (pendentes.length === 0) return;
+  const [linha] = await tx
+    .select({ agora: sql<Date>`${AGORA}`.mapWith(spaces.createdAt) })
+    .from(spaces)
+    .where(eq(spaces.id, mundoId));
   assertAllowed(linha, "AUTH", "Não foi possível conferir o prazo da proposta.");
   for (const pedido of pendentes)
     await concluir(
