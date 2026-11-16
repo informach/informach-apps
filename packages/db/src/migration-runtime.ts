@@ -7,8 +7,8 @@ export function createMigrationClient(databaseUrl: string) {
     connect_timeout: 15,
     connection: {
       application_name: "informach-migrator",
-      lock_timeout: "1s",
-      statement_timeout: "60s",
+      lock_timeout: 1_000,
+      statement_timeout: 60_000,
     },
   });
 }
