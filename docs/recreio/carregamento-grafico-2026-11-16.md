@@ -65,3 +65,10 @@ do Actions preservado no rascunho privado 446608123, `artes-3d`, com 40.625.419
 bytes e SHA-256 `d689df7706a2ca09a0d692fdea67d21945eb14ab460240ccb89ff6eb6b6c63ff`
 igual ao digest do upload. Não recompresso nem ativado em produção. O registro
 do rascunho conserva a limitação visual e a incompletude do D3.
+
+Diagnóstico seguinte: o perfil gráfico passa a contar moradores, projeções,
+rejeições por enquadramento e placas organizadas, sem nomes/IDs. A bancada
+do cliente conserva o desenho real e registra essas contagens, âncoras e caixas
+do HUD em computador/celular com editor compacto. Não altera o critério de
+visibilidade nem anuncia correção: a prova focada deve localizar em qual etapa
+as placas desaparecem antes de modificar o desenho novamente.

@@ -35,6 +35,8 @@ recusa terminal conhecida encerra essa tentativa como confirmada. Não repetir
 automaticamente mutações quando o resultado é desconhecido.
 
 Testes adicionados para prazo, corpo aberto, emissor que não responde,
-operações do SDK, expiração da renovação e confirmação da saída. Verificações
-pesadas e implantação ainda pendentes; Biome e diff conferidos localmente.
+operações do SDK, expiração da renovação e confirmação da saída. Fonte
+`9706390f`: seis gates `43805088387` aprovados no GitHub, incluindo portal,
+cliente, integrações e versões reais. A candidata isolada `d13038b7`, sobre
+a versão publicada, está em verificação `43806077949`; implantação pendente.
 O diagnóstico de nomes no celular do D3 permanece separado e aberto.
