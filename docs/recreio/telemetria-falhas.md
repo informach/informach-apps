@@ -15,3 +15,8 @@ Testar erros com segredos em mensagem/nome/causa, códigos do Recreio e objetos
 desconhecidos cuja conversão falha. Conferir os consumidores e a entrada fatal;
 rodar os testes/tipos no GitHub. Atualizar o README para o alfa já implantado e
 o runbook real, sem declarar os recursos D3 publicados.
+
+Primeira candidata `cd30a72d`, execução focada `43786361105`: a tipagem recusou
+a união de construtores nativos no teste de `AggregateError`. A fixture passa
+a fornecer instâncias explícitas; sem mudar o código ou remover a verificação.
+Ainda aguarda repetição focada e seis gates.
