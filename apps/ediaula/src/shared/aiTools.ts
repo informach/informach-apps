@@ -799,6 +799,18 @@ export const AI_TOOLS = {
       near_text: z.string().optional(),
       at: z.number().min(0).optional(),
       quiz_item: z.int().min(1).max(100).optional(),
+      over_lesson: z
+        .boolean()
+        .optional()
+        .describe(
+          "opening and closing: true lays the full-screen slide over the lesson (the first or last seconds, the presenter talking in front) instead of pushing the lesson; the Sistema Zero lessons use it, the presenter speaks from the first second",
+        ),
+      duration: z
+        .number()
+        .min(1)
+        .max(15)
+        .optional()
+        .describe("Seconds the template lasts (over_lesson: 3 by default)"),
     }),
   },
   set_audio: {

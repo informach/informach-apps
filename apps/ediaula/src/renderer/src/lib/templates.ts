@@ -99,13 +99,32 @@ export function slideTrack(
  * in one undo step. Full-screen templates push the lesson forward. Returns the clip ids.
  */
 
+/** How long a full-screen template lasts when it lies over the lesson. */
+export const OVER_LESSON_SECONDS = 3;
+
+export interface TemplateOptions {
+  /** A full-screen template (the cover) over the first seconds, without pushing the lesson. */
+  overLesson?: boolean;
+  /** Seconds the template lasts, instead of its own. */
+  duration?: number;
+}
+
 export async function addTemplate(
   id: string,
   values: Record<string, string> = {},
   at?: number,
   commit: Commit = personCommit,
+  options: TemplateOptions = {},
 ): Promise<string[]> {
-  const t = templateById(id);
+  const found = templateById(id);
+  // Over the lesson: a full-screen template lies over its first seconds (the presenter talking in
+  // front from the first second) instead of pushing the lesson forward.
+  const t =
+    found?.fullscreen && options.overLesson
+      ? { ...found, fullscreen: false, duration: options.duration ?? OVER_LESSON_SECONDS }
+      : found && options.duration
+        ? { ...found, duration: options.duration }
+        : found;
   const p = useProject.getState().project;
   if (!t || !p) return [];
   const v = { ...templateDefaults(t, templateContext(p)), ...values };
@@ -122,7 +141,12 @@ export async function addTemplate(
   );
   const paths = await Promise.all(rendered.map((r) => window.api.saveGenerated(r.bytes, "png")));
   const places = placeLayers(t, layers, layerSizes(rendered, p.settings.height), frame);
-  const start = Math.max(0, at ?? templateStart(t, p));
+  // Over the lesson, the closing slide ends with the lesson instead of coming after it.
+  const lessonEnd = found?.fullscreen && options.overLesson && t.where === "end";
+  const start = Math.max(
+    0,
+    at ?? (lessonEnd ? projectDuration(p) - t.duration : templateStart(t, p)),
+  );
   if (t.fullscreen) {
     // A full-screen template pushes the lesson forward; a locked track would stay behind.
     const now = useProject.getState().project ?? p;

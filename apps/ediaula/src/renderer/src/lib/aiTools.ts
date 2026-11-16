@@ -2369,7 +2369,10 @@ ${r.message}`);
     return `Estilo aplicado em ${plural(done.length, "clipe", "clipes")}.${target.note}`;
   },
 
-  async add_template({ template, fields, near_text, at, quiz_item }, { commit }) {
+  async add_template(
+    { template, fields, near_text, at, quiz_item, over_lesson, duration },
+    { commit },
+  ) {
     const p = requireProject();
     let values = fields ?? {};
     let start = near_text || at !== undefined ? await timeFor(p, near_text, at) : undefined;
@@ -2388,14 +2391,18 @@ ${r.message}`);
     }
     let ids: string[];
     try {
-      ids = await addTemplate(template, values, start, commit);
+      ids = await addTemplate(template, values, start, commit, {
+        ...(over_lesson ? { overLesson: true } : {}),
+        ...(duration ? { duration } : {}),
+      });
     } catch (err) {
       if (err instanceof TemplateBlockedError) throw new ToolError(err.message);
       throw err;
     }
     if (!ids.length) throw new ToolError("Não foi possível inserir o template.");
     const t = templateById(template)!;
-    return `${t.label}: ${ids.length} camadas inseridas${t.fullscreen && t.where === "start" ? ` (a aula andou ${t.duration} s para frente)` : ""} [${ids.join(", ")}].`;
+    const pushed = t.fullscreen && t.where === "start" && !over_lesson;
+    return `${t.label}: ${ids.length} camadas inseridas${pushed ? ` (a aula andou ${duration ?? t.duration} s para frente)` : t.fullscreen && over_lesson ? " por cima do começo da aula, sem empurrar nada" : ""} [${ids.join(", ")}].`;
   },
 
   async set_audio({ add_music_path, music_tracks, denoise, clip_ids }, { commit }) {
