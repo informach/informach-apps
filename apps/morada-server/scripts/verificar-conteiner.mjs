@@ -7,7 +7,7 @@ import { setTimeout as esperar } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { FECHAMENTO, SUBPROTOCOLO, VERSAO_DO_PROTOCOLO } from "@informach/morada-sim/protocolo";
-import { MORADA_START_COMMAND } from "../../../.railway/morada-runtime.ts";
+import { MORADA_START_COMMAND } from "../../../.railway/morada-runtime.mts";
 
 // Prova de processo/contêiner somente no executor remoto, nunca nesta máquina.
 if (process.env.CI !== "true" || process.platform !== "linux" || !process.env.RUNNER_TEMP)
