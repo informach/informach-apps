@@ -16,6 +16,24 @@ const rotulo = (id: string, dados: Partial<RotuloProjetado> = {}): RotuloProjeta
   ...dados,
 });
 describe("nomes sem sobreposição na câmera", () => {
+  it("mantém os nomes acima do painel compacto e libera a área quando o painel fecha", () => {
+    const organizador = new OrganizadorDeRotulos();
+    const candidatos = [rotulo("a", { y: 645 }), rotulo("b", { y: 645 })];
+    const areas = [{ x0: 12, y0: 647, x1: 378, y1: 832 }];
+    const resultado = organizador.organizar(candidatos, 390, 844, areas);
+    expect(resultado).toHaveLength(2);
+    for (const r of resultado) expect(r.y + 12 + 4).toBeLessThanOrEqual(647);
+    const livres = organizador.organizar([rotulo("a", { y: 645, prioridade: 2 })], 390, 844);
+    expect(livres).toEqual([{ id: "a", x: 195, y: 645 }]);
+  });
+
+  it("não põe nome sobre um painel que ocupa todo o espaço disponível", () => {
+    expect(
+      new OrganizadorDeRotulos().organizar([rotulo("a")], 390, 844, [
+        { x0: 0, y0: 0, x1: 390, y1: 844 },
+      ]),
+    ).toEqual([]);
+  });
   it("organiza quatro nomes no celular sem mover os moradores e conserva a posição em quadros iguais", () => {
     const organizador = new OrganizadorDeRotulos();
     const candidatos = ["a", "b", "c", "d"].map((id) => rotulo(id));

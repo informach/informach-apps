@@ -29,3 +29,19 @@ Isso não altera o alvo, a área ou a autoridade da concessão no servidor.
 Capturas, trace e arte permanecem privados em `artes-3d/.work/` e nos artifacts
 da rodada. A correção ainda exige tipos/testes, seis gates e nova prova com arte;
 nenhum recurso D3 foi ativado em produção por este registro.
+
+## Pedido de pausa e áreas ocupadas pela interface
+
+Na candidata `4b9c78da`, cinco gates passaram, mas o E2E público
+`43791742210` encontrou outro problema real: depois da reconexão, a barra de
+ferramentas interceptou o clique em «Concordar». A barra começava a 120 pixels
+do topo, embora o relógio cresça para acomodar o pedido. No editor, topo e
+ferramentas passam a linhas consecutivas de uma grade. A jornada verifica a
+separação das caixas antes de usar o clique normal; não há clique forçado.
+
+A captura privada do celular também mostrou o nome da Vó Ana parcialmente
+encoberto pelo painel compacto. O organizador passa a evitar as caixas dos
+painéis. ResizeObserver e MutationObserver atualizam um cache após mudanças
+da interface; a cena consulta esse cache, sem medir o DOM a cada quadro.
+Casos puros cobrem painel aberto, fechado e tela inteiramente ocupada. Tipos,
+testes e novas capturas continuam necessários para aprovar esses ajustes.

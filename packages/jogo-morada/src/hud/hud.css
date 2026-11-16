@@ -1781,10 +1781,18 @@
   }
 }
 
+.morada-hud[data-morada-editando="true"] {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: var(--mo-borda);
+}
+.morada-hud[data-morada-editando="true"] .morada-topo {
+  position: static;
+}
 .morada-hud[data-morada-editando="true"] .morada-trilho {
-  top: 120px;
-  left: 12px;
-  right: auto;
+  position: static;
+  justify-self: start;
   transform: none;
   grid-auto-flow: column;
 }

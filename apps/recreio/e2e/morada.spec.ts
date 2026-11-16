@@ -407,6 +407,16 @@ test("duas contas reservam espaço, liberam ao reconectar e conservam uma única
   );
   // Quem voltou não havia concordado com a pausa; o acordo precisa ser renovado.
   await bia.page.getByRole("button", { name: "Pausar", exact: true }).click();
+  const concordar = ana.page.getByRole("button", { name: "Concordar", exact: true });
+  await expect(concordar).toBeVisible();
+  const relogio = await ana.page.getByRole("region", { name: "Relógio do jogo" }).boundingBox();
+  const ferramentas = await ana.page
+    .getByRole("navigation", { name: "Ferramentas da cena" })
+    .boundingBox();
+  expect(relogio).not.toBeNull();
+  expect(ferramentas).not.toBeNull();
+  if (!relogio || !ferramentas) throw new Error("Relógio e ferramentas precisam estar na tela");
+  expect(ferramentas.y).toBeGreaterThanOrEqual(relogio.y + relogio.height);
   await ana.page.getByRole("button", { name: "Concordar", exact: true }).click();
   await expect(bia.page.getByRole("button", { name: "Pausar", exact: true })).toHaveAttribute(
     "aria-pressed",

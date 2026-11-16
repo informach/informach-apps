@@ -9,6 +9,7 @@ export type RotuloProjetado = {
   distancia: number;
 };
 export type RotuloOrganizado = { id: string; x: number; y: number };
+export type AreaDaInterface = { x0: number; y0: number; x1: number; y1: number };
 type Deslocamento = { coluna: number; linha: number };
 const LINHAS = [0, -1, 1, -2, 2, -3, 3];
 const COLUNAS = [0, -1, 1];
@@ -22,6 +23,7 @@ export class OrganizadorDeRotulos {
     candidatos: readonly RotuloProjetado[],
     largura: number,
     altura: number,
+    areasDaInterface: readonly AreaDaInterface[] = [],
   ): RotuloOrganizado[] {
     if (largura <= 0 || altura <= 0) {
       this.anteriores.clear();
@@ -66,6 +68,16 @@ export class OrganizadorDeRotulos {
             rotulo.y + deslocamento.linha * (rotulo.altura + MARGEM),
           ),
         );
+        if (
+          areasDaInterface.some(
+            (area) =>
+              x + rotulo.largura / 2 + MARGEM > area.x0 &&
+              x - rotulo.largura / 2 - MARGEM < area.x1 &&
+              y + rotulo.altura / 2 + MARGEM > area.y0 &&
+              y - rotulo.altura / 2 - MARGEM < area.y1,
+          )
+        )
+          continue;
         if (
           ocupados.some(
             (o) =>

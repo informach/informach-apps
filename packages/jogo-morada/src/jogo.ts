@@ -15,6 +15,7 @@ import { AtivosProcedurais } from "./ativos/procedurais";
 import { type AlvoClicado, Cena, type MedidasDaCena } from "./cena/cena";
 import { Sessao } from "./espelho/sessao";
 import type { JogoMontado, OpcoesDoMorada } from "./fonte";
+import { AreasDoHud } from "./hud/areas-do-hud";
 import type { Controle } from "./hud/controle";
 import { Hud } from "./hud/Hud";
 import "./hud/hud.css";
@@ -122,32 +123,43 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
       ? nomeDoJogador(loja.visao.presenca, jogadorId, { jogadorId: loja.jogador?.jogadorId ?? "" })
       : "outra pessoa";
 
-  const cena = new Cena(areaDaCena, {
-    editor,
-    sessao,
-    ativos,
-    nomeDoJogador: nome,
-    aoTocar() {
-      fechouMenu = loja.menu !== null;
-      if (fechouMenu) loja.abrirMenu(null);
-    },
-    aoClicar(alvo, x, y) {
-      if (fechouMenu || loja.conexao.fase === "encerrado") return;
-      if (editor.aberto) {
-        if (alvo.t === "objeto") editor.selecionar(alvo.objetoId);
-        else if (alvo.t === "chao") editor.posicionar(alvo.loteId, alvo.pos);
-        return;
-      }
-      if (alvo.t === "chao") {
-        const feito = sessao.irPara(alvo.pos);
-        if (feito !== "sem_morador") {
-          cena.marcarDestino(alvo.loteId, alvo.pos, feito !== "bloqueado");
+  const areasDaInterface = new AreasDoHud(areaDoHud, areaDaCena);
+  let cena: Cena;
+  try {
+    cena = new Cena(areaDaCena, {
+      areasDaInterface: areasDaInterface.atuais,
+      editor,
+      sessao,
+      ativos,
+      nomeDoJogador: nome,
+      aoTocar() {
+        fechouMenu = loja.menu !== null;
+        if (fechouMenu) loja.abrirMenu(null);
+      },
+      aoClicar(alvo, x, y) {
+        if (fechouMenu || loja.conexao.fase === "encerrado") return;
+        if (editor.aberto) {
+          if (alvo.t === "objeto") editor.selecionar(alvo.objetoId);
+          else if (alvo.t === "chao") editor.posicionar(alvo.loteId, alvo.pos);
+          return;
         }
-        return;
-      }
-      loja.abrirMenu({ alvo, x, y });
-    },
-  });
+        if (alvo.t === "chao") {
+          const feito = sessao.irPara(alvo.pos);
+          if (feito !== "sem_morador") {
+            cena.marcarDestino(alvo.loteId, alvo.pos, feito !== "bloqueado");
+          }
+          return;
+        }
+        loja.abrirMenu({ alvo, x, y });
+      },
+    });
+  } catch (erro) {
+    areasDaInterface.dispose();
+    editor.dispose();
+    ativos.dispose();
+    raiz.remove();
+    throw erro;
+  }
 
   const focarNaCena = () => {
     areaDaCena.querySelector("canvas")?.focus({ preventScroll: true });
@@ -294,6 +306,7 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
       // Quem desmonta não quer mais notícia: nem do fim que o próprio `dispose` provoca.
       pararDeOuvir();
       editor.dispose();
+      areasDaInterface.dispose();
       document.removeEventListener("visibilitychange", aoMudarVisibilidade);
       await sessao.sair();
       raiz.removeEventListener("keydown", aoApertar);

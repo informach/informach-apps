@@ -32,6 +32,7 @@ import {
 import type { Ativos, VisualDoMorador } from "../ativos/ativos";
 import { type PrevisaoDeAndar, Suavizador } from "../espelho/previsao";
 import {
+  type AreaDaInterface,
   MAXIMO_DE_ROTULOS_NA_CENA,
   OrganizadorDeRotulos,
   type RotuloProjetado,
@@ -465,7 +466,12 @@ export class MoradoresDaCena {
   }
 
   /** Ajusta somente a âncora dos sprites; corpos, posições e nomes do HUD ficam intactos. */
-  organizarRotulos(camera: PerspectiveCamera, largura: number, altura: number): void {
+  organizarRotulos(
+    camera: PerspectiveCamera,
+    largura: number,
+    altura: number,
+    areasDaInterface: readonly AreaDaInterface[],
+  ): void {
     if (!this.raiz.visible || largura <= 0 || altura <= 0) {
       this.conectores.visible = false;
       this.organizador.limpar();
@@ -497,7 +503,7 @@ export class MoradoresDaCena {
       });
     }
     let vertices = 0;
-    for (const nome of this.organizador.organizar(candidatos, largura, altura)) {
+    for (const nome of this.organizador.organizar(candidatos, largura, altura, areasDaInterface)) {
       const entrada = ehMoradorId(nome.id) ? this.entradas.get(nome.id) : undefined;
       if (!entrada) continue;
       const rotulo = entrada.rotulo;

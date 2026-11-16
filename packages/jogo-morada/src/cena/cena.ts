@@ -36,6 +36,7 @@ import type { EditorDaCasa } from "../modelo/editor-da-casa";
 import { nomeDoObjeto } from "../modelo/menu";
 import { fracaoDoDia } from "../modelo/painel";
 import { familiasDoJogador } from "../modelo/retratos";
+import type { AreaDaInterface } from "../modelo/rotulos-na-cena";
 import { montarCasa, montarTerreno } from "./casa";
 import { centroDaCelula, daCena, METROS_POR_MM, type PontoDaCena, paraCena } from "./espaco";
 import { MoradoresDaCena } from "./moradores";
@@ -110,6 +111,7 @@ export function medidasDosQuadros(intervalos: readonly number[], custos: readonl
 }
 
 export type OpcoesDaCena = {
+  areasDaInterface(): readonly AreaDaInterface[];
   editor?: EditorDaCasa;
   sessao: Sessao;
   ativos: Ativos;
@@ -786,7 +788,12 @@ export class Cena {
     const inicio = performance.now();
 
     this.atualizar(agora, dt);
-    this.moradores.organizarRotulos(this.camera, this.host.clientWidth, this.host.clientHeight);
+    this.moradores.organizarRotulos(
+      this.camera,
+      this.host.clientWidth,
+      this.host.clientHeight,
+      this.opcoes.areasDaInterface(),
+    );
     this.renderer.render(this.scene, this.camera);
     this.quadroDaPreviaPendente = this.previa.capturarQuadro();
     const gl = this.gl;
