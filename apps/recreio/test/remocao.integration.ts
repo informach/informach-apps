@@ -12,13 +12,14 @@ import {
 } from "@informach/db/schema";
 import { expect, it } from "vitest";
 import type { AutorDaResponsabilidade } from "@/features/mundos/gestao-repository";
-import { removerParticipacao } from "@/features/mundos/remocao";
+import { painelDeMembros, removerParticipacao } from "@/features/mundos/remocao";
 import {
   proporResponsabilidade,
   responderResponsabilidade,
 } from "@/features/mundos/responsabilidade-repository";
 import { sairDoMundo } from "@/features/mundos/saida";
 import { aceitarConvite, criarConvite, detalheDoMundo } from "@/features/mundos/service";
+import { abrirMundo } from "@/features/posse/service";
 import { travarEncerramentos } from "@/features/sessao-de-jogo/repository";
 import { eventosCom, type Jogador, novoJogador, sinal } from "./apoio";
 import { mundoDe } from "./jogo-apoio";
@@ -73,6 +74,9 @@ it("remove somente o vínculo, preserva mundo/autoria e audita o ator real uma v
     leftAt: expect.any(Date),
   });
   expect(await detalheDoMundo(c.bruno.perfil.id, c.id)).toBeNull();
+  await expect(
+    abrirMundo({ perfilId: c.bruno.perfil.id, jogo: "morada" }, c.id),
+  ).rejects.toMatchObject({ codigo: "NAO_MEMBRO" });
   const eventos = await eventosCom("memberId", c.membroBruno.id);
   expect(eventos.filter((e) => e.eventType === "recreio.space_member_removed")).toEqual([
     {
@@ -366,3 +370,71 @@ it.each(["login", "aparelho"] as const)(
     }
   },
 );
+
+it("o painel é exclusivo do responsável e não expõe conteúdo, identidade de conta ou participação", async () => {
+  const c = await cenario();
+  const painel = await painelDeMembros(c.a, c.id, undefined);
+  expect(painel).toEqual({
+    mundo: { id: c.id, nome: "Casa de teste" },
+    itens: [{ id: c.membroBruno.id, apelido: c.bruno.perfil.apelido, estado: "active" }],
+    proximo: null,
+  });
+  await expect(painelDeMembros(c.b, c.id, undefined)).rejects.toMatchObject({
+    code: "RESPONSAVEL",
+  });
+  await expect(
+    painelDeMembros(await autor(await novoJogador()), c.id, undefined),
+  ).rejects.toMatchObject({ code: "MUNDO" });
+  await db
+    .update(devices)
+    .set({ revokedAt: new Date() })
+    .where(eq(devices.id, c.a.sessaoDeAparelhoId));
+  await expect(painelDeMembros(c.a, c.id, undefined)).rejects.toMatchObject({ code: "AUTH" });
+});
+
+it("o painel conserva alvos suspensos/sem perfil e exclui os já encerrados", async () => {
+  const c = await cenario();
+  await db.update(profiles).set({ status: "suspended" }).where(eq(profiles.id, c.bruno.perfil.id));
+  expect((await painelDeMembros(c.a, c.id, undefined)).itens).toHaveLength(1);
+  await db.delete(profiles).where(eq(profiles.id, c.bruno.perfil.id));
+  expect((await painelDeMembros(c.a, c.id, undefined)).itens).toEqual([
+    { id: c.membroBruno.id, apelido: null, estado: "active" },
+  ]);
+  await removerParticipacao(c.a, c.id, c.membroBruno.id);
+  expect((await painelDeMembros(c.a, c.id, undefined)).itens).toEqual([]);
+});
+
+it("pagina metadados por UUID sem repetir, misturar mundos ou listar o próprio responsável", async () => {
+  const c = await cenario();
+  // Histórico sintético acima do limite atual de convite; não habilita admissão de menores.
+  const sinteticos = await db
+    .insert(profiles)
+    .values(
+      Array.from({ length: 24 }, (_, i) => ({
+        nickname: `Histórico ${i}`,
+        kind: "minor" as const,
+      })),
+    )
+    .returning({ id: profiles.id });
+  await db
+    .insert(members)
+    .values(
+      sinteticos.map((p) => ({
+        spaceId: c.id,
+        profileId: p.id,
+        role: "member" as const,
+        state: "away" as const,
+        invitedByMemberId: c.membroLia.id,
+      })),
+    );
+  const primeira = await painelDeMembros(c.a, c.id, undefined);
+  expect(primeira.itens).toHaveLength(20);
+  expect(primeira.proximo).toBe(primeira.itens.at(-1)?.id);
+  const segunda = await painelDeMembros(c.a, c.id, primeira.proximo);
+  expect(segunda.itens).toHaveLength(5);
+  expect(segunda.proximo).toBeNull();
+  const ids = [...primeira.itens, ...segunda.itens].map((p) => p.id);
+  expect(new Set(ids).size).toBe(25);
+  expect(ids).not.toContain(c.membroLia.id);
+  expect(ids).toEqual([...ids].sort());
+});
