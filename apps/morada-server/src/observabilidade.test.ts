@@ -13,6 +13,18 @@ describe("observabilidade do servidor", () => {
     expect(Sentry.init).not.toHaveBeenCalled();
   });
 
+  it("classificadores livres no evento também não atravessam o filtro", async () => {
+    iniciarObservabilidade("https://public@example.test/1", "commit", "production");
+    const filtro = vi.mocked(Sentry.init).mock.calls[0]?.[0]?.beforeSend;
+    if (!filtro) throw new Error("Filtro ausente");
+    const evento = await filtro(
+      { tags: { operation: "pessoa@example.test", code: "Bearer segredo" } },
+      {},
+    );
+    expect(evento).toMatchObject({ tags: { operation: "desconhecida", code: "INTERNO" } });
+    expect(JSON.stringify(evento)).not.toMatch(/pessoa@|Bearer|segredo/);
+  });
+
   it("reconstrói o evento sem requisição, contexto, breadcrumbs ou mensagem livre", async () => {
     iniciarObservabilidade("https://public@example.test/1", "commit", "production");
     const opcoes = vi.mocked(Sentry.init).mock.calls[0]?.[0];
