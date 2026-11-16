@@ -1,6 +1,6 @@
 # Processo principal do Morada
 
-Achado operacional na implantação dos leitores `f0f1c96c`: às 16:02 UTC,
+Achado operacional na implantação dos leitores `f0f1c96c`: na conferência do processo,
 `/proc/1/cmdline` era `pnpm start:morada-server`. A árvore tinha mais um pnpm
 e dois shells antes de `node dist/main.mjs` (PID 41). A retirada anterior
 registrou `Stopping Container` e `ELIFECYCLE Command failed`, sem confirmação
@@ -21,9 +21,21 @@ contagens/estado/tempo no relatório. A plataforma em memória é a de testes,
 isolada no executor; essa prova não certifica banco ou durabilidade depois
 de uma queda. A máquina do titular não executa esse teste.
 
-Aguardar os gates antes de alterar o serviço. Depois da alteração, conferir
-o PID 1 real, a prontidão, a arte D2 e a configuração completa; registrar a
-mudança intencional somente no comando inicial. O deploy automático do código
-não aplica sozinho a alteração da configuração gerenciada no Railway.
+Os seis gates de `43904561482`, fonte `c082a1c4`, passaram. A prova confirmou
+um mundo com fundação, zero falhas, saída 0, fechamento 4010 e cerca de 121 ms
+para encerrar. É o ensaio isolado acima, sem certificação de banco/RTO.
+
+O serviço recebeu somente a alteração do comando inicial. Reutilizar o
+snapshot anterior (`5ea757a6`) também conservou seu comando antigo; não usar
+esse caminho para aplicar configuração nova. A implantação da fonte atual
+(`railway redeploy --from-source`, `afe83ea7`) aplicou o comando: às 16:27:15
+UTC, o PID 1 era o Node 24.15.0 com `apps/morada-server/dist/main.mjs`, na
+raiz `/app`. Fonte ainda `f0f1c96c`, prontidão 200, zero mundos/conexões,
+arte D2 com o SHA anterior e nenhuma outra diferença de configuração.
+
+A IaC e o gate permanecem preparados na main local, aguardando o CI geral
+em curso para não cancelá-lo com outro push. A confirmação do encerramento
+direto no Railway deve ser observada na próxima implantação normal, sem
+reinício extra para esse fim. [Dados da correção](evidencias/processo-principal-producao-2026-11-16.json).
 
 Contrato do provedor: [SIGTERM e tempo de drenagem](https://docs.railway.com/deployments/deployment-teardown#draining-time).

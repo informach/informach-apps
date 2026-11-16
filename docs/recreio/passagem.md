@@ -4,7 +4,13 @@ Para quem retoma a frente depois de uma pausa. Leia primeiro a [execução atual
 
 ## Estado atual em 16/11
 
-Portal em `6e640e99` e Morada em `179a0a76`, alfa fechado, Mundo V2/protocolo 1
+[Leitores da responsabilidade implantados](leitores-producao-2026-11-16.md):
+schema 167, quatro FKs compostas e reconciliação; sem ofertas/aceites publicados.
+PID 1 do Morada corrigido para Node direto, após prova de SIGTERM no contêiner
+do GitHub. [Dados da correção](processo-principal-2026-11-16.md); observar o
+encerramento no Railway na próxima implantação normal.
+
+Portal e Morada em `f0f1c96c`, alfa fechado, Mundo V2/protocolo 1
 e arte D2/V3. Expiração em lotes e resultado verificável da drenagem implantados;
 seis gates de cada candidata e da main aprovados. Saúde/prontidão 200, cron,
 mapas do portal e arte conferidos. [Operação atual](../../apps/recreio/PRODUCAO.md).
