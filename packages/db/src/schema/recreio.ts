@@ -348,6 +348,9 @@ export const recreioSpaceInvites = recreio.table(
   (t) => [
     uniqueIndex("recreio_space_invites_code").on(t.codeHash),
     index("recreio_space_invites_space").on(t.spaceId, t.state),
+    index("recreio_space_invites_unused_expires")
+      .on(t.expiresAt, t.id)
+      .where(sql`${t.state} <> 'accepted'`),
     check("recreio_space_invites_form", sql`${t.form} in ('member', 'visit')`),
     check(
       "recreio_space_invites_state",
