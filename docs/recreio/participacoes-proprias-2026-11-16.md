@@ -55,3 +55,11 @@ concessão, navega pela Conta, confere descrições distintas, cancela e confirm
 uma saída, conserva a outra e confere a página do responsável. O fixture não
 é API de produção e recusa banco/conta fora do padrão isolado. Gates remotos
 ainda precisam ser executados; não implantado.
+
+Os seis gates `43871778111` passaram sobre `473d6e36`: 234 integrações,
+incluindo os catorze casos acima, e nove jornadas com dois casos reservados
+a outros executores. A jornada nova levou 12,1 s no total, sem medir latência
+de jogo ou hardware. A captura foi produzida, mas faltava seu caminho na lista
+restrita de upload do workflow. Acrescentado somente esse PNG sintético de
+conta, sem capturas do jogo ou ampliação de permissões. A próxima rodada
+precisa preservar a imagem para inspeção. O código de produção não mudou.
