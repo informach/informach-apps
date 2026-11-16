@@ -34,3 +34,23 @@ Implementação:
 
 Gates pesados somente no GitHub. Sem ativação de D3 ou prova de FPS em hardware
 real; o desempenho e demais requisitos continuam abertos até as medições.
+
+## Primeira medição da candidata
+
+`cdde7924` passou nos seis gates `43834430236`; a prova focada anterior
+`43833205723` compilou programa válido/inválido com WebGL real. JS do jogo:
+1.249.100 bytes/345.588 gzip, teto preservado com 900 bytes de margem.
+
+A rodada privada `43835849598`, executor `a4184451`, aprovou compatibilidade,
+concorrência e decoração/restauração nos dois formatos. Na entrada: 22 consultas
+de ligação somaram 6.151,3 ms; reconexão: 21 somaram 3.665,4 ms; restauração:
+23/375,9 ms; histórico: 21/486,9 ms. Não houve consultas de logs nesses recortes.
+Os tempos são de executores distintos da referência, sem certificação de FPS
+ou ganho universal. A criação falhou: 104 buffers antes, 128 depois. A candidata
+não foi adotada nem ativou D3.
+
+O teste de criação passa a conservar escolhas, estado da prévia, contadores e
+etapas antes das asserções, inclusive em falha. Aguarda um novo fence realmente
+confirmado e o texto de prontidão no mesmo instante; não amplia prazos nem
+retira a comparação de buffers/texturas. A próxima rodada deve distinguir
+medições em fases diferentes de um vazamento real, sem presumir a causa.

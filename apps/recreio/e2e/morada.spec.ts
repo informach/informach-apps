@@ -89,6 +89,8 @@ declare global {
       texturas: number;
       maximoBuffers: number;
       maximoTexturas: number;
+      quadrosEnviados: number;
+      quadrosConfirmados: number;
     };
   }
 }
@@ -146,12 +148,48 @@ test.describe("coleção real da criação", () => {
     await iniciarServidor();
     const pessoa = await novaPessoa(browser, "Criadora");
     await pessoa.page.addInitScript(() => {
-      const medida = { contextos: 0, buffers: 0, texturas: 0, maximoBuffers: 0, maximoTexturas: 0 };
+      const medida = {
+        contextos: 0,
+        buffers: 0,
+        texturas: 0,
+        maximoBuffers: 0,
+        maximoTexturas: 0,
+        quadrosEnviados: 0,
+        quadrosConfirmados: 0,
+      };
       window.graficaDaCriacao = medida;
       const contextos = new Set<WebGL2RenderingContext>();
       const buffers = new Set<WebGLBuffer>();
       const texturas = new Set<WebGLTexture>();
       const gl = WebGL2RenderingContext.prototype;
+      const quadros = new WeakSet<WebGLSync>();
+      const confirmados = new WeakSet<WebGLSync>();
+      const fenceOriginal = gl.fenceSync,
+        esperarOriginal = gl.clientWaitSync;
+      gl.fenceSync = function (condicao, flags) {
+        const quadro = fenceOriginal.call(this, condicao, flags);
+        if (
+          quadro &&
+          this.canvas instanceof HTMLCanvasElement &&
+          this.canvas.classList.contains("morada-tela")
+        ) {
+          quadros.add(quadro);
+          medida.quadrosEnviados++;
+        }
+        return quadro;
+      };
+      gl.clientWaitSync = function (quadro, flags, prazo) {
+        const estado = esperarOriginal.call(this, quadro, flags, prazo);
+        if (
+          quadros.has(quadro) &&
+          !confirmados.has(quadro) &&
+          (estado === this.ALREADY_SIGNALED || estado === this.CONDITION_SATISFIED)
+        ) {
+          confirmados.add(quadro);
+          medida.quadrosConfirmados++;
+        }
+        return estado;
+      };
       const criarBuffer = gl.createBuffer,
         apagarBuffer = gl.deleteBuffer,
         criarTextura = gl.createTexture,
@@ -191,11 +229,39 @@ test.describe("coleção real da criação", () => {
     await pessoa.page.getByLabel("Nome no jogo", { exact: true }).fill("Lua");
     const previa = pessoa.page.locator(".morada-criacao-previa [role='status']");
     const fases = ["colo", "pequeno", "crianca", "adolescente", "adulto", "idoso"];
+    const capturarRecursos = () =>
+      pessoa.page.evaluate(() => ({
+        recursos: window.graficaDaCriacao ? { ...window.graficaDaCriacao } : null,
+        previa: document.querySelector(".morada-criacao-previa [role='status']")?.textContent,
+        escolhas: Array.from(
+          document.querySelectorAll<HTMLSelectElement>(".morada-criacao select"),
+        ).map((campo) => ({ nome: campo.labels?.[0]?.textContent, valor: campo.value })),
+      }));
+    const previas = [];
+    async function ultimoQuadro() {
+      const quadro = await pessoa.page.evaluate(() => window.graficaDaCriacao?.quadrosConfirmados);
+      if (quadro === undefined) throw new Error("Observação da criação não instalada");
+      return quadro;
+    }
+    async function aguardarDesenho(anterior: number) {
+      await expect
+        .poll(() =>
+          pessoa.page.evaluate((antes) => {
+            const quadro = window.graficaDaCriacao?.quadrosConfirmados;
+            const status = document.querySelector(
+              ".morada-criacao-previa [role='status']",
+            )?.textContent;
+            return typeof quadro === "number" && quadro > antes && status === "Assim vai ficar";
+          }, anterior),
+        )
+        .toBe(true);
+    }
     let combinacoes = 0;
     for (const fase of fases)
       for (const linha of ["f", "m"])
         for (const cabelo of ["natural", "careca"])
           for (const roupa of ["cotidiano", "macacao"]) {
+            const quadroAnterior = await ultimoQuadro();
             await pessoa.page
               .getByRole("combobox", { name: "Fase da vida", exact: true })
               .selectOption(fase);
@@ -209,11 +275,15 @@ test.describe("coleção real da criação", () => {
               .getByRole("combobox", { name: "Roupa", exact: true })
               .selectOption(roupa);
             await expect(previa).toHaveText("Assim vai ficar");
+            await aguardarDesenho(quadroAnterior);
+            previas.push({ fase, linha, cabelo, roupa, observado: await capturarRecursos() });
             if (cabelo === "natural" && roupa === "cotidiano")
               await tela(pessoa.page, `criacao-${fase}-${linha}`);
             combinacoes++;
           }
     expect(combinacoes).toBe(48);
+    const aposCombinacoes = await capturarRecursos();
+    const quadroDoRetorno = await ultimoQuadro();
     await pessoa.page
       .getByRole("combobox", { name: "Fase da vida", exact: true })
       .selectOption("adulto");
@@ -227,9 +297,12 @@ test.describe("coleção real da criação", () => {
       .getByRole("combobox", { name: "Roupa", exact: true })
       .selectOption("cotidiano");
     await expect(previa).toHaveText("Assim vai ficar");
+    await aguardarDesenho(quadroDoRetorno);
+    const aposRetorno = await capturarRecursos();
     const ciclos = async () => {
       for (const cabelo of ["careca", "natural"])
         for (const roupa of ["macacao", "cotidiano"]) {
+          const quadroAnterior = await ultimoQuadro();
           await pessoa.page
             .getByRole("combobox", { name: "Cabelo", exact: true })
             .selectOption(cabelo);
@@ -237,22 +310,34 @@ test.describe("coleção real da criação", () => {
             .getByRole("combobox", { name: "Roupa", exact: true })
             .selectOption(roupa);
           await expect(previa).toHaveText("Assim vai ficar");
+          await aguardarDesenho(quadroAnterior);
         }
     };
     await ciclos();
-    const antes = await pessoa.page.evaluate(() => window.graficaDaCriacao);
+    const aposAquecimento = await capturarRecursos();
+    const antes = aposAquecimento.recursos;
     await ciclos();
+    const aposSegundo = await capturarRecursos();
     await ciclos();
-    const depois = await pessoa.page.evaluate(() => window.graficaDaCriacao);
+    const aposTerceiro = await capturarRecursos();
+    const depois = aposTerceiro.recursos;
+    const evidencia = {
+      combinacoes,
+      antes,
+      depois,
+      previas,
+      etapas: { aposCombinacoes, aposRetorno, aposAquecimento, aposSegundo, aposTerceiro },
+    };
+    // Conservar também a falha: as comparações abaixo não podem impedir o diagnóstico.
+    await medida("criacao-recursos", evidencia);
+    await test.info().attach("criacao-recursos.json", {
+      body: JSON.stringify(evidencia, null, 2),
+      contentType: "application/json",
+    });
     expect(antes?.contextos).toBe(1);
     expect(depois?.contextos).toBe(1);
     expect(depois?.buffers).toBe(antes?.buffers);
     expect(depois?.texturas).toBe(antes?.texturas);
-    await medida("criacao-recursos", { combinacoes, antes, depois });
-    await test.info().attach("criacao-recursos.json", {
-      body: JSON.stringify({ combinacoes, antes, depois }, null, 2),
-      contentType: "application/json",
-    });
     await pessoa.page.setViewportSize({ width: 390, height: 844 });
     await expect(
       pessoa.page.getByRole("heading", { name: "Moradores", exact: true }),
