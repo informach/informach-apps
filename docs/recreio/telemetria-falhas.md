@@ -20,3 +20,7 @@ Primeira candidata `cd30a72d`, execução focada `43786361105`: a tipagem recuso
 a união de construtores nativos no teste de `AggregateError`. A fixture passa
 a fornecer instâncias explícitas; sem mudar o código ou remover a verificação.
 Ainda aguarda repetição focada e seis gates.
+
+O filtro final Sentry também valida os valores de operação/código contra as
+listas controladas; retirar as demais chaves não bastaria se o próprio valor
+do classificador fosse livre. Os códigos reutilizam o catálogo do Recreio.

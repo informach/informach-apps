@@ -1,5 +1,11 @@
+import { CODIGOS_DE_ERRO } from "@informach/recreio";
 import * as Sentry from "@sentry/node";
 import { resumoDaFalha } from "./resumo-da-falha";
+
+const OPERACOES = new Set(["rede", "encerrar", "iniciar"]);
+const CODIGOS = new Set<string>([...CODIGOS_DE_ERRO, "INTERNO"]);
+const classificador = (valor: unknown, admitidos: Set<string>, alternativa: string): string =>
+  typeof valor === "string" && admitidos.has(valor) ? valor : alternativa;
 
 /** Só classificadores fixos chegam ao provedor; nada da requisição ou do mundo. */
 export function iniciarObservabilidade(
@@ -26,8 +32,8 @@ export function iniciarObservabilidade(
       message: "morada.server_failure",
       tags: {
         app: "morada-server",
-        operation: evento.tags?.operation,
-        code: evento.tags?.code,
+        operation: classificador(evento.tags?.operation, OPERACOES, "desconhecida"),
+        code: classificador(evento.tags?.code, CODIGOS, "INTERNO"),
       },
     }),
   });
