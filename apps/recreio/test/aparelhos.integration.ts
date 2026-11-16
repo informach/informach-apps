@@ -82,6 +82,7 @@ describe("aparelhos da própria conta", () => {
     ]);
     const primeira = await listarAparelhos(pessoa.ator);
     expect(primeira.atual.id).toBe(pessoa.ator.sessaoDeAparelhoId);
+    expect(Object.keys(primeira.atual).sort()).toEqual(["criadoEm", "id", "vistoEm"]);
     expect(primeira.outros).toHaveLength(20);
     expect(primeira.proximo).not.toBeNull();
     await db.update(devices).set({ lastSeenAt: new Date() }).where(inArray(devices.id, ids));

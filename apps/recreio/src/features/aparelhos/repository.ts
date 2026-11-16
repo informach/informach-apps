@@ -27,7 +27,11 @@ const campos = {
 type LinhaDeAparelho = { id: string; criadoEm: Date; vistoEm: Date };
 export type AparelhoDaConta = Omit<LinhaDeAparelho, "id"> & { id: SessaoDeAparelhoId };
 function aparelho(linha: LinhaDeAparelho): AparelhoDaConta {
-  return { ...linha, id: SessaoDeAparelhoIdSchema.parse(linha.id) };
+  return {
+    id: SessaoDeAparelhoIdSchema.parse(linha.id),
+    criadoEm: linha.criadoEm,
+    vistoEm: linha.vistoEm,
+  };
 }
 
 async function limitarEspera(tx: Transacao) {
