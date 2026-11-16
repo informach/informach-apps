@@ -24,10 +24,12 @@ hidratação e recomenda desabilitar os controles até ficarem funcionais:
 
 ## Reprodução determinística e alcance
 
-Fonte `72608b3`, run `43937159361`, job E2E `133544668476`: a seleção ficou
-habilitada durante os 15 s de scripts suspensos, reproduzindo o defeito. Os outros
-cinco gates passaram; dez jornadas passaram e essa falhou, com dois skips próprios
-da matriz. Não reduzir a validade da autenticação nem repetir a submissão.
+Fonte `72608b3`, run `43937159361`, job E2E `133544668476`: o teste recusou o
+seletor habilitado; os outros cinco gates passaram. A revisão posterior constatou
+que o glob não abrangia as URLs `.js?dpl=...`. Portanto esse resultado não comprova
+scripts suspensos. A prova será refeita com predicado sobre `URL.pathname` e
+contador obrigatório de interceptações. Não reduzir a validade da autenticação
+nem repetir a submissão para ocultar a seleção perdida no CI geral original.
 
 A correção usa `@informach/ui/hooks/use-hydrated`, já existente e sem alterações
 no package. A inspeção encontrou o mesmo intervalo nos controles de autenticação,
