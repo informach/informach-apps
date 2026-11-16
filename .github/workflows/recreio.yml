@@ -122,6 +122,8 @@ jobs:
             apps/recreio/tmp/telas/perfil-proprio-editado.png
             apps/recreio/tmp/telas/saida-mundo-confirmacao.png
             apps/recreio/tmp/telas/participacoes-sem-acesso.png
+            apps/recreio/tmp/telas/responsabilidade-recebida.png
+            apps/recreio/tmp/telas/responsabilidade-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic color evidence

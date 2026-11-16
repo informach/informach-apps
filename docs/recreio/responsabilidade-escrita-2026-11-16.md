@@ -1,9 +1,11 @@
-# Escrita da transferência: candidata sem ações expostas
+# Responsabilidade com aceite: candidata do portal
 
 Continuação da [preparação](responsabilidade-aceita-2026-11-16.md) e da
 [reconciliação do Morada](acessos-na-reentrada-2026-11-16.md). Não implantada.
-Não há Server Action ou tela para propor/aceitar neste incremento. A etapa 2
-continua incompleta até sua homologação de ponta a ponta com duas contas.
+O portal candidato oferece proposta, aceite, recusa e cancelamento em
+`/conta/mundos/[id]/responsabilidade`, acessível pelas próprias participações.
+Essas ações não foram publicadas. A etapa 2 continua incompleta até os gates,
+a implantação prévia dos leitores e a homologação com duas contas.
 
 O adapter de autoridade não recebe parâmetros: lê login nativo e perfil ativo.
 A prova usa `session.createdAt`, não renovação, seleção de perfil ou data enviada
@@ -29,5 +31,15 @@ O PostgreSQL descartável verifica oferta/aceite/repetição, datas do login,
 aparelhos, escopo, recusa/cancelamento/expiração, saída do destinatário,
 encerramentos/cursor, conservação de partidas de outros contextos, concorrência
 e falha real de auditoria. Geração de tráfego, testes e builds somente no GitHub.
-Ainda faltam resultados remotos, regressões de espera por trava, interface,
-recuperação pelo login nativo e prova com as duas contas em navegador.
+O painel mostra ao responsável somente os adultos elegíveis do próprio mundo.
+O destinatário vê somente sua proposta, sem lista de outros membros ou conteúdo,
+inclusive sem cobertura comercial. Participação encerrada ou alheia é recusada.
+O teste de navegador usa duas contas sintéticas e envelhece apenas os metadados
+de login no PostgreSQL descartável. Ambas devem autenticar novamente pelo fluxo
+nativo, escolher seu perfil e voltar à proposta; a seleção de perfil preserva
+o destino interno validado no servidor. Depois do aceite, o antigo responsável
+pode sair e o novo continua com o mundo. Capturas são de dados sintéticos, sem arte.
+
+Ainda faltam os resultados remotos desta interface, regressões de espera por
+trava, revisão, implantação dos leitores e prova de operação. Não declarar A6
+ou o Recreio concluídos a partir desta candidata.

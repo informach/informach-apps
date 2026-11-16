@@ -6,7 +6,7 @@ import { AvatarDoPerfil } from "./avatar";
 export type PerfilNaLista = { id: string; apelido: string; avatar: string; atual: boolean };
 
 /** "Quem vai jogar?": a lista vem do servidor, e a escolha volta para ele conferir. */
-export function EscolherPerfil({ perfis }: { perfis: PerfilNaLista[] }) {
+export function EscolherPerfil({ perfis, next }: { perfis: PerfilNaLista[]; next?: string }) {
   const [erro, setErro] = useState("");
   const [escolhido, setEscolhido] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
@@ -15,7 +15,7 @@ export function EscolherPerfil({ perfis }: { perfis: PerfilNaLista[] }) {
     setErro("");
     setEscolhido(id);
     iniciar(async () => {
-      const resultado = await selecionarPerfilAction(id);
+      const resultado = await selecionarPerfilAction(id, next);
       if (resultado.ok) {
         window.location.assign(resultado.data.destination);
         return;

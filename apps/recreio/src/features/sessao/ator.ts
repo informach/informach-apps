@@ -1,8 +1,10 @@
 import "server-only";
 import { ErroDoRecreio } from "@informach/recreio";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { getSession, requirePageUser } from "@/lib/auth";
+import { safeDestination } from "@/lib/destination";
 import { type Ator, type AtorComPerfil, type ContextoDoAtor, resolverAtor } from "./service";
 
 export type { Ator, AtorComPerfil } from "./service";
@@ -49,9 +51,15 @@ export async function paginaDaConta(next?: string) {
 }
 
 /** Página do portal: exige alguém jogando. Sem perfil vai criar; sem escolha vai escolher. */
-export async function paginaDoPortal() {
+export async function paginaDoPortal(next?: string) {
   const pagina = await paginaDaConta();
   const perfil = pagina.ator.perfil;
-  if (!perfil) redirect(pagina.perfis.length > 0 ? "/perfis" : "/comecar");
+  if (!perfil) {
+    if (pagina.perfis.length > 0) {
+      const destino = safeDestination(next ?? (await headers()).get("x-recreio-path"));
+      redirect(destino === "/estante" ? "/perfis" : `/perfis?next=${encodeURIComponent(destino)}`);
+    }
+    redirect("/comecar");
+  }
   return { ...pagina, ator: { ...pagina.ator, perfil } };
 }

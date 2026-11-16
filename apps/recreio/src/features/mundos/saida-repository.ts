@@ -86,7 +86,7 @@ export async function registrarSaida(autor: AutorDaSaida, mundoId: MundoId) {
     assertAllowed(
       membro.papel !== "steward",
       "RESPONSAVEL",
-      "Você é responsável por este mundo. A saída depende de uma transferência aceita, ainda indisponível.",
+      "Você é responsável por este mundo. Transfira a responsabilidade e espere a outra pessoa aceitar antes de sair.",
     );
     const filtro = sql`${games.profileId} = ${perfil.id} and ${games.spaceId} = ${mundo.id}`;
     await revogarPropostasDoMembro(tx, mundo.id, membro.id, autor.contaId);

@@ -61,6 +61,12 @@ export default async function Participacoes({
               <p className="mt-2 text-tinta-suave">
                 {papeis[item.papel]} · {estados[item.estado]}
               </p>
+              <Link
+                href={`/conta/mundos/${item.mundoId}/responsabilidade`}
+                className="mt-3 flex w-fit font-bold text-ceu underline underline-offset-4"
+              >
+                Responsabilidade pelo mundo
+              </Link>
               {item.estado === "active" &&
               (item.estadoDoMundo === "active" || item.estadoDoMundo === "hibernating") ? (
                 <Link
@@ -72,7 +78,7 @@ export default async function Participacoes({
               ) : null}
               {item.papel === "steward" ? (
                 <p className="mt-3 text-sm text-tinta-suave">
-                  Você é responsável por este mundo e ainda não pode sair por aqui.
+                  Para sair, transfira a responsabilidade e espere a outra pessoa aceitar.
                 </p>
               ) : (
                 <SairDoMundo mundoId={item.mundoId} />
