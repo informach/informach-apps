@@ -25,7 +25,13 @@ test("editar o perfil próprio, cancelar e conferir o salvamento após recarrega
   await hidratado(apelido);
   await expect(apelido).toHaveValue("Lia");
   await apelido.fill("Lia do Sol");
-  await page.getByRole("radio", { name: "Sol", exact: true }).check();
+  await page.getByText("Sol", { exact: true }).click();
+  const sol = page.getByRole("radio", { name: "Sol", exact: true });
+  await expect(sol).toBeChecked();
+  await sol.press("ArrowRight");
+  await expect(page.getByRole("radio", { name: "Coral", exact: true })).toBeChecked();
+  await page.getByRole("radio", { name: "Coral", exact: true }).press("ArrowLeft");
+  await expect(sol).toBeChecked();
   await page.getByRole("button", { name: "Salvar perfil" }).click();
   await expect(page).toHaveURL(/\/conta$/);
   await expect(perfil).toContainText("Lia do Sol");
