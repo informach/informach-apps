@@ -17,6 +17,7 @@ import { selecionarPerfil } from "@/features/perfis/service";
 import { travarEncerramentos } from "@/features/sessao-de-jogo/encerramento-repository";
 import {
   emitirIngresso,
+  renovarSessao,
   sessaoDeJogoDoToken,
   trocarIngresso,
 } from "@/features/sessao-de-jogo/service";
@@ -107,6 +108,29 @@ const salvar = (r: Awaited<ReturnType<typeof preparar>>, dados = [gravacao]) =>
   pedir("POST", "/api/sdk/v1/sessao/salvamento", { token: r.capacidade.token, corpo: { dados } });
 
 describe("persistência final com capacidade restrita", () => {
+  it.each([false, true])(
+    "renovação na fronteira conserva a distinção entre prazo e revogação (%s)",
+    async (revogado) => {
+      const r = await preparar({ curta: true });
+      if (revogado)
+        await db
+          .update(devices)
+          .set({ revokedAt: new Date() })
+          .where(eq(devices.id, r.pessoa.ator.sessaoDeAparelhoId));
+      await new Promise((resolve) =>
+        setTimeout(resolve, Math.max(0, r.fim.getTime() - Date.now()) + 20),
+      );
+      const motivo = revogado ? "signed_out" : "expired";
+      await expect(renovarSessao(r.aberta.token)).rejects.toMatchObject({
+        codigo: "ACESSO_PERDIDO",
+        detalhe: { motivo },
+      });
+      expect((await db.select().from(games).where(eq(games.id, r.sessao.sid)))[0]?.endReason).toBe(
+        motivo,
+      );
+      expect((await salvar(r)).status).toBe(revogado ? 401 : 200);
+    },
+  );
   it("lote vazio reconhece conflitos já guardados sem sobrescrever ou duplicar as versões", async () => {
     const r = await preparar();
     await alterarDados(r.sessao, { ...gravacao, conteudo: "Nw==" });

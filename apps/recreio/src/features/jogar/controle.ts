@@ -46,7 +46,10 @@ export function observarTrocaDaPartida(
         controle.tempo.motivo !== "paused"
       ) {
         const motivo = controle.tempo.motivo;
-        const faltam = Date.parse(controle.tempo.pausaEm) - Date.parse(controle.agora);
+        // A concessão assinada usa segundos inteiros; a previsão mantém a
+        // precisão do orçamento e pode ficar uma fração de segundo depois.
+        const corte = Math.floor(Date.parse(controle.tempo.pausaEm) / 1000) * 1000;
+        const faltam = corte - Date.parse(controle.agora);
         if (faltam <= 600_000)
           pausa = setTimeout(
             () => {

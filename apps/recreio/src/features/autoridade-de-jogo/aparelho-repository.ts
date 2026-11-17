@@ -25,6 +25,12 @@ import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/encerramento-r
 import type { Transacao } from "@/lib/repository";
 
 export type ReferenciaDeJogador = { perfilId: PerfilId; sessaoDeAparelhoId: SessaoDeAparelhoId };
+/** Recusa no prazo da credencial; não comprova logout ou revogação física. */
+export class PrazoDaCredencialVencido extends ErroDoRecreio {
+  constructor() {
+    super("SESSAO_INVALIDA");
+  }
+}
 export type RecusaDeAutoridade = { admitida: false; erro: ErroDoRecreio };
 export const recusarAutoridade = (
   erro = new ErroDoRecreio("SESSAO_INVALIDA"),
@@ -139,11 +145,12 @@ export async function admitirAparelhoAtual(
     const agora = await agoraDoBanco(tx);
     if (
       aparelho.expiresAt <= agora ||
-      (pedido.expiraEm !== null && pedido.expiraEm <= agora.getTime()) ||
       (identidade.conta.banned &&
         (!identidade.conta.banExpiresAt || identidade.conta.banExpiresAt > agora))
     )
       throw new ErroDoRecreio("SESSAO_INVALIDA");
+    if (pedido.expiraEm !== null && pedido.expiraEm <= agora.getTime())
+      throw new PrazoDaCredencialVencido();
     return agora;
   };
   await conferirIdentidadeAtual();

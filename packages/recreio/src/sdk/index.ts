@@ -218,11 +218,18 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
         Math.min(TEMPO_LIMITE_DO_PEDIDO_MS, restante),
       );
       if (encerrada) return;
+      const prazoAnterior = expiraEm;
       token = renovada.token;
       expiraEm = renovada.expiraEm;
       if (opcoes.salvamentoRestrito && renovada.salvamento)
         capacidadeDeSalvamento = renovada.salvamento;
-      if (!renovacaoSuspensa) agendarPelaValidade();
+      if (!renovacaoSuspensa) {
+        if (Date.parse(expiraEm) <= Date.parse(prazoAnterior))
+          // Um limite que não avançou encerra no prazo já confirmado. Fracionar
+          // o restante repetidamente produz uma tempestade perto do vencimento.
+          agendarRenovacao(Date.parse(expiraEm) - agora());
+        else agendarPelaValidade();
+      }
       for (const ouvinte of [...aoRenovar]) ouvinte(token);
     } catch (erro) {
       if (encerrada) return;

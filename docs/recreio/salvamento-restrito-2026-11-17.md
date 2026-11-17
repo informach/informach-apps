@@ -391,3 +391,27 @@ Nova jornada de navegador configura um minuto pelo responsável, pareia um
 aparelho sem autoridade adulta, joga e espera esse minuto real. Exige recibo
 confirmado, recusa de escrita direta com a sessão anterior e relatório agregado
 somente no responsável. Esse ensaio e o novo timer ainda aguardam os gates.
+
+## Achado do minuto real: vencimento não é logout
+
+Em `b548067`/`44079734335`, seis jornadas de checkpoint passaram e o minuto
+real chegou à tela de salvamento não confirmado. O trace mostra a concessão
+terminando em `12:09:10.000Z`, previsão exata de orçamento em
+`12:09:10.753Z`, renovação ainda em voo na fronteira e persistência restrita
+recusada às `12:09:10.001Z`, embora sua assinatura valesse até `12:09:40Z`.
+Artefato de teste `14326109732`, SHA
+`e012c33452749e78e460267bfd11c8334f9d77f5884f720e3f1aea688a9c335b`,
+inspecionado sem publicar tokens, cabeçalhos ou conteúdo dos perfis.
+
+Causa: a renovação convertia toda `SESSAO_INVALIDA` em `signed_out`, inclusive
+o vencimento do token durante a espera do kernel. Isso invalidava corretamente
+a capacidade final por um logout que não aconteceu. O corretivo distingue
+internamente prazo de credencial de identidade/aparelho revogados; a renovação
+encerra prazo como `expired`. Revogação física tem precedência e continua
+impedindo salvar. Nenhuma tolerância ou concessão é ampliada.
+
+A pausa visual arredonda a previsão aos segundos inteiros do contrato assinado.
+O SDK, ao receber prazo que não avança, agenda o vencimento já confirmado em vez
+de renovar frações cada vez menores. A prova de fronteira também combina
+vencimento com revogação real. Reprodução isolada de banco em candidata de prova;
+a jornada do minuto permanece intacta para a rodada corretiva completa.

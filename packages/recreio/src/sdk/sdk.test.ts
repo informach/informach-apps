@@ -102,6 +102,26 @@ function ambiente() {
 }
 
 describe("abertura da sessão", () => {
+  it("prazo renovado que não avança espera o vencimento sem rajada de pedidos e conserva o salvamento", async () => {
+    const a = ambiente();
+    const fim = INICIO + 60_000;
+    const salvamento = { token: "salvar", expiraEm: new Date(fim + 30_000).toISOString() };
+    a.responder(
+      { corpo: { ...a.aberta("curta", fim), salvamento } },
+      { corpo: { ...a.sessao("curta-2", fim), salvamento } },
+      { corpo: { estado: "ready", expiraEm: salvamento.expiraEm } },
+    );
+    const contexto = await criarRecreio(a.opcoes({ salvamentoRestrito: true }));
+    const mudancas: MudancaDeAcesso[] = [];
+    contexto.sessao.aoMudarAcesso((mudanca) => mudancas.push(mudanca));
+    await a.disparar();
+    expect(a.pendentes()[0]?.emMs).toBe(60_000 - fracao(60_000));
+    await a.disparar();
+    expect(mudancas).toHaveLength(1);
+    expect(a.chamadas).toHaveLength(2);
+    expect(a.pendentes()).toHaveLength(0);
+    expect((await contexto.sessao.salvamento?.estado())?.estado).toBe("ready");
+  });
   it("recibo terminal encerra o SDK normal; parar não fecha nem amplia a capacidade restrita", async () => {
     const a = ambiente();
     a.responder(

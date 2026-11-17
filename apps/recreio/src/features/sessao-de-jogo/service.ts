@@ -15,6 +15,7 @@ import {
 } from "@informach/recreio/contrato";
 import { verificarIngresso, verificarSessaoEmitida } from "@informach/recreio/emissor";
 import { avaliarAcesso } from "@/features/acesso/service";
+import { PrazoDaCredencialVencido } from "@/features/autoridade-de-jogo/aparelho-repository";
 import { jogoQueAbre, manifestoDoJogo } from "@/features/jogos/config";
 import { audit } from "@/lib/observability";
 import { limitarTentativas } from "@/lib/rate-limit";
@@ -198,8 +199,9 @@ export async function renovarSessao(token: string | null): Promise<SessaoRenovad
   } catch (erro) {
     if (erro instanceof ErroDoRecreio) {
       if (erro.codigo === "SESSAO_INVALIDA") {
-        await encerrarSessaoDeJogo({ sid: sessao.sid, motivo: "signed_out", porQuem: "recreio" });
-        throw new ErroDoRecreio("ACESSO_PERDIDO", { motivo: "signed_out" });
+        const motivo = erro instanceof PrazoDaCredencialVencido ? "expired" : "signed_out";
+        await encerrarSessaoDeJogo({ sid: sessao.sid, motivo, porQuem: "recreio" });
+        throw new ErroDoRecreio("ACESSO_PERDIDO", { motivo });
       }
       if (erro.codigo === "ACESSO_PERDIDO" || erro.codigo === "POLITICA_INCOMPATIVEL") {
         const motivo =
