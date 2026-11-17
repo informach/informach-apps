@@ -160,6 +160,7 @@ export function pasteClipProps(target: Target, src: Clip, groups: Set<PropGroup>
   if (has("crop")) {
     set(tf(), "crop", from.crop);
     set(tf(), "mask", from.mask);
+    set(tf(), "polygon", from.polygon);
     set(tf(), "border", from.border);
   }
   if (has("opacity")) tf().opacity = from.opacity;

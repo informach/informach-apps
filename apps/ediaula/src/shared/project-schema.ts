@@ -10,6 +10,7 @@ import {
 import { type AnnotationIcon, ICON_IDS } from "./annotation.ts";
 import { LANGUAGE_CODE } from "./captionTranslate.ts";
 import { CLICK_KINDS } from "./clickEvents.ts";
+import { POLYGON_MAX, POLYGON_SHAPES_MAX, polygonOutlines } from "./compose.ts";
 import { CURSOR_POINTERS } from "./cursor.ts";
 import { DRAWING_TOOLS, MAX_STROKE_POINTS, MAX_STROKES } from "./drawing.ts";
 import { GAIN_LIMIT } from "./gain.ts";
@@ -31,6 +32,19 @@ import { VOICE_PRESETS } from "./voiceChain.ts";
 import { VOICE_MASTER_LIMIT } from "./voiceMaster.ts";
 
 const number = z.number().min(-1e9).max(1e9);
+/**
+ * A polygon drawn with the pen: up to POLYGON_SHAPES_MAX outlines and POLYGON_MAX corners in all
+ * (shared/compose.ts), fractions of its box. A polygon saved before it could have several
+ * outlines (one list of corners) is read as one outline.
+ */
+const polygonPoints = z.preprocess(
+  polygonOutlines,
+  z
+    .array(z.array(z.tuple([number.min(0).max(1), number.min(0).max(1)])).min(3))
+    .min(1)
+    .max(POLYGON_SHAPES_MAX)
+    .refine((shapes) => shapes.flat().length <= POLYGON_MAX, "Polígono com cantos demais"),
+);
 const time = z
   .number()
   .min(0)
@@ -133,6 +147,8 @@ export const cursorFxSchema = z.looseObject({
           spotlight: z.boolean().optional(),
           clickSound: z.boolean().optional(),
           hidden: z.boolean().optional(),
+          // CURSOR_RANGE_SIZE, a little looser for files written by hand.
+          size: z.number().min(0.1).max(6).optional(),
         }),
       }),
     )
@@ -220,7 +236,8 @@ export const annotationSchema = z.looseObject({
   arrowStyle: z.enum(["solid", "line", "dashed", "dotted"]).optional(),
   heads: z.union([z.literal(0), z.literal(1), z.literal(2)]).optional(),
   curve: number.optional(),
-  shape: z.enum(["rounded", "rect", "ellipse", "triangle"]).optional(),
+  shape: z.enum(["rounded", "rect", "ellipse", "triangle", "polygon"]).optional(),
+  polygon: polygonPoints.optional(),
   fill: color.optional(),
   fillOpacity: number.optional(),
   dim: z.number().min(0).max(1).optional(),
@@ -427,7 +444,9 @@ const transform = z.looseObject({
   scale: number.positive(),
   opacity: number.min(0).max(1),
   crop: z.looseObject({ left: number, top: number, right: number, bottom: number }).optional(),
-  mask: z.enum(["rounded", "circle", "ellipse"]).optional(),
+  mask: z.enum(["rounded", "circle", "ellipse", "polygon"]).optional(),
+  // The mask's polygon: fractions of the mask's rectangle.
+  polygon: polygonPoints.optional(),
   corner: number.min(0).max(2000).optional(),
   feather: number.min(0).max(2000).optional(),
   border: color.optional(),

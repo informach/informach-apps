@@ -8,19 +8,23 @@ import {
   clipLayout,
   DEFAULT_TRANSFORM,
   maskShape,
+  mirrorPolygon,
+  type PolygonPoint,
+  polygonPath,
   rotationOf,
   type Shadow,
   shadowOffset,
   type Transform,
 } from "@shared/compose";
-import { dimHole, dimMaskSvg } from "@shared/dim";
+import { dimHole, dimMaskSvg, drawnHighlight, highlightPolygonOnFrame } from "@shared/dim";
 import { gainAt } from "@shared/gain";
 import { transformAt, upsertKeyframe } from "@shared/keyframes";
 import {
   backgroundCss,
   boxBlurSigma,
   colorSvg,
-  DEVICE_COLORS,
+  type Device,
+  type DevicePart,
   deviceGeometry,
   hasColor,
   type RegionFx,
@@ -77,6 +81,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { updateAnnotation } from "@/lib/annotations";
 import { useSpeechSpans } from "@/lib/audio";
 import { useClickEvents } from "@/lib/clickSounds";
 import { timecode } from "@/lib/format";
@@ -87,7 +92,7 @@ import { listenPath, useVoiceListen } from "@/lib/voice";
 import { heard, useApp } from "@/state/app";
 import { liveTransform, useLiveEdit } from "@/state/liveEdit";
 import { playback, usePlayback } from "@/state/playback";
-import { assetMap, useProject, useShownProject } from "@/state/project";
+import { assetMap, personCommit, useProject, useShownProject } from "@/state/project";
 import { AnnotationTextEditor, typedOnStage } from "./AnnotationTextEditor";
 import { BalloonTailControl } from "./BalloonTailControl";
 import { CaptionOverlay, KeyOverlay, useCues } from "./CaptionOverlay";
@@ -95,6 +100,7 @@ import { CursorLayer } from "./CursorLayer";
 import { CutFxLayer } from "./CutFxLayer";
 import { MaskTarget } from "./MaskTarget";
 import { MediaPool } from "./mediaPool";
+import { PolygonPen } from "./PolygonPen";
 import { buildLanes, type LanePlan, type PoolClip, pictureTarget, planLane } from "./previewPool";
 import { RecordingZoomTarget } from "./RecordingZoomTarget";
 import { RegionTarget } from "./RegionTarget";
@@ -293,6 +299,7 @@ export function Preview(): ReactNode {
   /** The annotation whose text is being typed on it (AnnotationTextEditor): a double click or the panel. */
   const textEditing = useApp((s) => s.textEdit);
   const maskEdit = useApp((s) => s.maskEdit);
+  const highlightPen = useApp((s) => s.highlightPen);
   /** The annotation whose picture the text being typed replaces on the screen (a title). */
   const [textHidden, setTextHidden] = useState<string | null>(null);
   const closeText = useCallback(() => useApp.getState().set({ textEdit: null }), []);
@@ -1110,6 +1117,8 @@ export function Preview(): ReactNode {
     // And the mask being drawn belongs to the clip that was selected.
     const masking = useApp.getState().maskEdit;
     if (masking && masking !== selectedId) useApp.getState().set({ maskEdit: null });
+    const drawing = useApp.getState().highlightPen;
+    if (drawing && drawing !== selectedId) useApp.getState().set({ highlightPen: null });
   }, [selectedId]);
 
   /** Double click on an annotation with text: it is typed right on it. False for anything else. */
@@ -1317,6 +1326,9 @@ export function Preview(): ReactNode {
               : shape?.radius
                 ? shape.radius * scale
                 : undefined;
+            // The polygon is kept as the screen shows it; the mask goes on the flipped layer,
+            // so it is mirrored back there.
+            const flat = shape?.polygon && mirrorPolygon(shape.polygon, tf.flipH, tf.flipV);
             const soft =
               shape && shape.feather > 0
                 ? softMaskUrl(
@@ -1324,11 +1336,18 @@ export function Preview(): ReactNode {
                       ellipse: shape.ellipse,
                       radius: shape.radius * scale,
                       feather: shape.feather * scale,
+                      ...(flat ? { polygon: flat } : {}),
                     },
                     lay.visible.w * scale,
                     lay.visible.h * scale,
                   )
                 : "";
+            // A sharp polygon is cut by CSS, at once and at any size: all its outlines in one
+            // path, even-odd, as the export.
+            const cut =
+              flat && !soft
+                ? `path(evenodd, "${polygonPath(flat, lay.visible.w * scale, lay.visible.h * scale)}")`
+                : undefined;
             const box = {
               left: lay.visible.x * scale,
               top: lay.visible.y * scale,
@@ -1368,6 +1387,7 @@ export function Preview(): ReactNode {
                       ? { transform: `scale(${tf.flipH ? -1 : 1}, ${tf.flipV ? -1 : 1})` }
                       : {}),
                     ...(soft ? { maskImage: `url("${soft}")`, maskSize: "100% 100%" } : {}),
+                    ...(cut ? { clipPath: cut } : {}),
                     ...(device
                       ? {
                           left: device.screen.x * scale,
@@ -1424,15 +1444,27 @@ export function Preview(): ReactNode {
                 {(c as DerivedClip).tailFx === "fold" && (
                   <span ref={flapRef(c)} className="paper-flap" />
                 )}
-                {tf.border && !device && (
-                  <span
-                    className="stage-ring"
-                    style={{
-                      borderRadius: radius,
-                      borderColor: tf.border,
-                      borderWidth: ((BORDER_WIDTH * settings.height) / 1080) * scale,
-                    }}
+                {tf.border && !device && shape?.polygon ? (
+                  <PolygonRing
+                    id={c.id}
+                    points={shape.polygon}
+                    width={lay.visible.w * scale}
+                    height={lay.visible.h * scale}
+                    color={tf.border}
+                    border={((BORDER_WIDTH * settings.height) / 1080) * scale}
                   />
+                ) : (
+                  tf.border &&
+                  !device && (
+                    <span
+                      className="stage-ring"
+                      style={{
+                        borderRadius: radius,
+                        borderColor: tf.border,
+                        borderWidth: ((BORDER_WIDTH * settings.height) / 1080) * scale,
+                      }}
+                    />
+                  )
                 )}
               </div>
             );
@@ -1480,6 +1512,29 @@ export function Preview(): ReactNode {
                 transform={transformOf(selected)}
                 settings={settings}
                 scale={scale}
+              />
+            )}
+          {selected?.annotation?.kind === "highlight" &&
+            selectedAsset &&
+            highlightPen === selected.id && (
+              <PolygonPen
+                key={`pen:${selected.id}`}
+                width={size.w}
+                height={size.h}
+                style={{ left: 0, top: 0 }}
+                label="Caneta do Destaque: arraste para um retângulo ou clique para cada canto"
+                initial={highlightPolygonOnFrame(selected, selectedAsset, settings)}
+                onFinish={(points) => {
+                  useApp.getState().set({ highlightPen: null });
+                  const drawn = drawnHighlight(points, selected, selectedAsset, settings);
+                  if (!drawn) return;
+                  const { dx, dy, ...shape } = drawn;
+                  void updateAnnotation(selected.id, { shape: "polygon", ...shape }, personCommit, {
+                    dx,
+                    dy,
+                  });
+                }}
+                onCancel={() => useApp.getState().set({ highlightPen: null })}
               />
             )}
           {selected && selectedAsset && recordingZoom?.assetId === selectedAsset.id && (
@@ -1779,7 +1834,7 @@ function ColorFilters({ clips }: { clips: Clip[] }): ReactNode {
 const deviceFrames = new Map<string, string>();
 
 /** The device around a picture, drawn with the same geometry as the export's frame. */
-function deviceFrameUrl(device: "laptop" | "phone", w: number, h: number): string {
+function deviceFrameUrl(device: Device, w: number, h: number): string {
   const W = Math.max(2, Math.round(w));
   const H = Math.max(2, Math.round(h));
   const key = `${device}:${W}x${H}`;
@@ -1796,23 +1851,18 @@ function deviceFrameUrl(device: "laptop" | "phone", w: number, h: number): strin
     p.roundRect(r.x, r.y, r.w, r.h, Math.min(radius, r.w / 2, r.h / 2));
     return p;
   };
-  ctx.fillStyle = DEVICE_COLORS.body;
-  ctx.fill(box(g.body, g.bodyRadius));
+  const paint = (parts: readonly DevicePart[]): void => {
+    for (const p of parts) {
+      ctx.fillStyle = p.color;
+      ctx.fill(box(p.rect, p.radius));
+    }
+  };
+  // The parts under the picture, the screen cut out of them, then the parts over it.
+  paint(g.frame);
   ctx.globalCompositeOperation = "destination-out";
   ctx.fill(box(g.screen, g.screenRadius));
   ctx.globalCompositeOperation = "source-over";
-  if (g.notch) {
-    ctx.fillStyle = DEVICE_COLORS.body;
-    ctx.fill(box(g.notch, g.notch.h / 2));
-  }
-  if (g.base) {
-    ctx.fillStyle = DEVICE_COLORS.base;
-    ctx.fill(box(g.base, g.base.h * 0.35));
-  }
-  if (g.groove) {
-    ctx.fillStyle = DEVICE_COLORS.groove;
-    ctx.fill(box(g.groove, g.groove.h / 2));
-  }
+  paint(g.over);
   url = c.toDataURL("image/png");
   if (deviceFrames.size > 60) deviceFrames.clear();
   deviceFrames.set(key, url);
@@ -1824,7 +1874,7 @@ function DeviceFrame({
   width,
   height,
 }: {
-  device: "laptop" | "phone";
+  device: Device;
   width: number;
   height: number;
 }): ReactNode {
@@ -1861,6 +1911,49 @@ function fixedLook(fx: RegionFx, width: number, height: number): RegionLook {
 }
 
 /** Backdrop filter and soft-edge mask of a blur or pixelate region. */
+/**
+ * The border of a polygon mask: a line twice as wide as the border along its sides, kept to the
+ * inside of the shape, as the export's ring (shared/export/fx.ts contentExpr).
+ */
+function PolygonRing({
+  id,
+  points,
+  width,
+  height,
+  color,
+  border,
+}: {
+  id: string;
+  points: readonly (readonly PolygonPoint[])[];
+  width: number;
+  height: number;
+  color: string;
+  border: number;
+}): ReactNode {
+  const d = polygonPath(points, width, height);
+  return (
+    <svg
+      className="stage-ring stage-ring-polygon"
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      aria-hidden="true"
+    >
+      <clipPath id={`ring-${id}`}>
+        <path d={d} fillRule="evenodd" clipRule="evenodd" />
+      </clipPath>
+      <path
+        d={d}
+        fill="none"
+        stroke={color}
+        strokeWidth={border * 2}
+        strokeLinejoin="miter"
+        clipPath={`url(#ring-${id})`}
+      />
+    </svg>
+  );
+}
+
 function regionCss(fx: RegionFx, look: RegionLook): { filter: string; mask: string } {
   // Soft edges: the effect fades out over the feather, as the export's mask.
   const fade = look.feather > 0.5 ? look.feather : 0;

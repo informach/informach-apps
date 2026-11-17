@@ -40,6 +40,8 @@ import {
   BoxSelect,
   ChevronsDownUp,
   ChevronsUpDown,
+  Clock,
+  Copy,
   Eye,
   EyeOff,
   Film,
@@ -1836,6 +1838,14 @@ function IntervalFill({
   );
 }
 
+/** Puts a time on the clipboard and says what went. */
+function copyTime(text: string): void {
+  navigator.clipboard.writeText(text).then(
+    () => useApp.getState().toast(`Copiado: ${text}`, "success"),
+    () => useApp.getState().toast("Não deu para copiar para a área de transferência.", "error"),
+  );
+}
+
 function IntervalMarkers({
   interval,
   fps,
@@ -1849,6 +1859,7 @@ function IntervalMarkers({
 }): ReactNode {
   const time = usePlayback((s) => s.time);
   const [active, setActive] = useState<"start" | "end" | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; edge: "start" | "end" } | null>(null);
   const [position, setPosition] = useState({ left: 0, top: 0 });
   const startRef = useRef<HTMLButtonElement>(null);
   const endRef = useRef<HTMLButtonElement>(null);
@@ -1896,6 +1907,26 @@ function IntervalMarkers({
   useEffect(() => {
     if (!interval) setActive(null);
   }, [interval]);
+  const at = (edge: "start" | "end"): string => timecode(edge === "start" ? start : end, fps);
+  // Two clicks on a handle copy its time; the right button offers the other copies.
+  const handle = (edge: "start" | "end") => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      if (e.button === 0) setActive(e.shiftKey ? null : edge);
+      onDrag(e, edge);
+    },
+    onDoubleClick: (e: React.MouseEvent) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      copyTime(at(edge));
+    },
+    onContextMenu: (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setActive(null);
+      setMenu({ x: e.clientX, y: e.clientY, edge });
+    },
+  });
   return (
     <>
       <button
@@ -1904,10 +1935,8 @@ function IntervalMarkers({
         className="tl-interval-handle is-start"
         style={{ left: start * zoom }}
         aria-label="Início do intervalo"
-        onPointerDown={(e) => {
-          if (e.button === 0) setActive(e.shiftKey ? null : "start");
-          onDrag(e, "start");
-        }}
+        title="Arraste para marcar o início. Duplo clique copia o tempo; botão direito, mais opções."
+        {...handle("start")}
       />
       <button
         type="button"
@@ -1915,11 +1944,38 @@ function IntervalMarkers({
         className="tl-interval-handle is-end"
         style={{ left: end * zoom }}
         aria-label="Fim do intervalo"
-        onPointerDown={(e) => {
-          if (e.button === 0) setActive(e.shiftKey ? null : "end");
-          onDrag(e, "end");
-        }}
+        title="Arraste para marcar o fim. Duplo clique copia o tempo; botão direito, mais opções."
+        {...handle("end")}
       />
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          items={[
+            {
+              icon: Copy,
+              label: `Copiar o tempo do ${menu.edge === "start" ? "início" : "fim"}`,
+              shortcut: at(menu.edge),
+              onSelect: () => copyTime(at(menu.edge)),
+            },
+            {
+              icon: Copy,
+              label: "Copiar o intervalo",
+              hint: "Início e fim, como no rodapé da linha do tempo",
+              disabled: end <= start,
+              onSelect: () => copyTime(`${at("start")} – ${at("end")}`),
+            },
+            {
+              icon: Clock,
+              label: "Copiar a duração",
+              shortcut: timecode(end - start, fps),
+              disabled: end <= start,
+              onSelect: () => copyTime(timecode(end - start, fps)),
+            },
+          ]}
+        />
+      )}
       {active &&
         createPortal(
           <div className="tl-interval-tooltip" role="tooltip" style={position}>

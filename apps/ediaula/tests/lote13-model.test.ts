@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  DEVICE_COLORS,
+  DEVICES,
   deviceGeometry,
+  deviceParts,
   gradientAt,
   kelvinRgb,
   regionPixels,
@@ -123,17 +126,39 @@ test("the export reads an animated annotation from its sprite", () => {
 });
 
 test("device frames keep the picture's shape; the frame and the region math", () => {
-  for (const device of ["laptop", "phone"] as const)
+  for (const device of DEVICES)
     for (const [w, h] of [
       [1280, 720],
       [600, 1066],
+      [900, 900],
     ] as const) {
       const g = deviceGeometry(device, w, h);
-      assert.ok(Math.abs(g.screen.w / g.screen.h - w / h) < 1e-9, `${device} ${w}x${h}`);
-      assert.ok(g.body.x >= -1e-9 && g.body.x + g.body.w <= w + 1e-9);
-      const bottom = (g.base ?? g.body).y + (g.base ?? g.body).h;
-      assert.ok(bottom <= h + 1e-9);
+      const label = `${device} ${w}x${h}`;
+      assert.ok(Math.abs(g.screen.w / g.screen.h - w / h) < 1e-9, label);
+      // Every part (buttons too) stays in the box, and the screen inside the body.
+      for (const { rect: r } of deviceParts(g))
+        assert.ok(
+          r.x >= -1e-9 && r.y >= -1e-9 && r.x + r.w <= w + 1e-9 && r.y + r.h <= h + 1e-9,
+          label,
+        );
+      const body = g.frame.find((p) => p.color === DEVICE_COLORS.body)?.rect;
+      assert.ok(body, label);
+      assert.ok(g.screen.x > body.x && g.screen.x + g.screen.w < body.x + body.w, label);
+      assert.ok(g.screen.y > body.y && g.screen.y + g.screen.h < body.y + body.h, label);
     }
+  // The bezel follows the screen's short side: a wide phone is not framed thicker than upright.
+  const bezel = (g: ReturnType<typeof deviceGeometry>) =>
+    Math.min(g.screen.x, g.screen.y) / Math.min(g.screen.w, g.screen.h);
+  const wide = deviceGeometry("phone", 1280, 720);
+  const upright = deviceGeometry("phone", 720, 1280);
+  assert.ok(Math.abs(bezel(wide) - bezel(upright)) < 1e-6);
+  // A wide phone is turned to the left: its camera (over the picture) on the left of the screen.
+  const camera = wide.over[0]?.rect;
+  assert.ok(camera && camera.x < wide.screen.x + wide.screen.w * 0.1);
+  assert.ok(Math.abs(camera.y + camera.h / 2 - (wide.screen.y + wide.screen.h / 2)) < 1e-6);
+  // A tablet's camera sits in its bezel, never over the picture; a laptop has none.
+  assert.equal(deviceGeometry("tablet", 1280, 720).over.length, 0);
+  assert.equal(deviceGeometry("laptop", 1280, 720).over.length, 0);
   // Neutral light changes almost nothing; warm light takes blue away.
   const [r, g, b] = kelvinRgb(6500);
   assert.ok(r === 1 && g > 0.99 && b > 0.97);

@@ -98,6 +98,10 @@ interface AppStore {
   } | null;
   /** The clip whose mask is being drawn on the preview (editor/MaskTarget.tsx). */
   maskEdit: string | null;
+  /** The mask is being drawn as a polygon, corner by corner, with the pen (editor/MaskTarget.tsx). */
+  maskPen: boolean;
+  /** The Destaque whose shape is being drawn as a polygon over the frame (editor/PolygonPen.tsx). */
+  highlightPen: string | null;
   set(partial: Partial<AppStore>): void;
   startJob(id: string, label: string): void;
   endJob(id: string): void;
@@ -136,6 +140,8 @@ export const useApp = create<AppStore>((set, get) => ({
   recordingZoom: null,
   textEdit: null,
   maskEdit: null,
+  maskPen: false,
+  highlightPen: null,
   set: (partial) => set(partial),
   startJob: (id, label) => set({ jobs: { ...get().jobs, [id]: { id, label, ratio: 0 } } }),
   endJob: (id) => {

@@ -74,7 +74,10 @@ export interface CursorFx {
 export const CURSOR_POINTERS = ["auto", "vector", "real"] as const;
 export type CursorPointer = (typeof CURSOR_POINTERS)[number];
 
-/** What a stretch of the recording may turn on or off; sizes and colors stay the recording's. */
+/**
+ * What a stretch of the recording may turn on or off. The pointer's size may change there too
+ * (a zoomed clip shows it bigger); the colors stay the recording's.
+ */
 export const CURSOR_RANGE_KEYS = [
   "halo",
   "clicks",
@@ -84,7 +87,51 @@ export const CURSOR_RANGE_KEYS = [
   "hidden",
 ] as const;
 export type CursorRangeKey = (typeof CURSOR_RANGE_KEYS)[number];
-export type CursorRangeFx = Partial<Record<CursorRangeKey, boolean>>;
+export type CursorRangeFx = Partial<Record<CursorRangeKey, boolean>> & {
+  /** The pointer's size in the stretch (as CursorFx.size). */
+  size?: number;
+};
+
+/** The sizes a stretch may give the pointer (smaller than the recording's for a zoomed clip). */
+export const CURSOR_RANGE_SIZE = { min: 0.3, max: 4 } as const;
+
+/** The pointer's largest size anywhere in the recording: the export's sprite must hold it. */
+export const largestCursorSize = (fx: CursorFx): number =>
+  (fx.ranges ?? []).reduce((most, r) => Math.max(most, r.fx.size ?? 0), fx.size);
+
+const sameStretch = (r: CursorRange, start: number, end: number): boolean =>
+  Math.abs(r.start - start) < 1e-6 && Math.abs(r.end - end) < 1e-6;
+
+/** The pointer's size set for exactly this stretch of the source (a clip's), if any. */
+export function stretchCursorSize(fx: CursorFx, start: number, end: number): number | undefined {
+  const ranges = fx.ranges ?? [];
+  for (let i = ranges.length - 1; i >= 0; i--)
+    if (sameStretch(ranges[i], start, end) && ranges[i].fx.size !== undefined)
+      return ranges[i].fx.size;
+  return undefined;
+}
+
+/**
+ * The stretches with the pointer's size over exactly `start`..`end` set to `size`, or given back
+ * to the recording's (undefined). A stretch already over that span takes the size; otherwise a
+ * new one (`id`) is added, last, so it wins over the others where they overlap. A stretch left
+ * with nothing to change is removed.
+ */
+export function withStretchCursorSize(
+  ranges: CursorRange[],
+  start: number,
+  end: number,
+  size: number | undefined,
+  id: string,
+): CursorRange[] {
+  let at = ranges.length - 1;
+  while (at >= 0 && !sameStretch(ranges[at], start, end)) at--;
+  if (at < 0) return size === undefined ? ranges : [...ranges, { id, start, end, fx: { size } }];
+  const { size: _old, ...rest } = ranges[at].fx;
+  const fx: CursorRangeFx = size === undefined ? rest : { ...rest, size };
+  if (!Object.keys(fx).length) return ranges.filter((_, i) => i !== at);
+  return ranges.map((r, i) => (i === at ? { ...r, fx } : r));
+}
 
 export interface CursorRange {
   id: string;
@@ -644,8 +691,10 @@ export const spotlights = (fx: CursorFx): boolean =>
  */
 export const spriteSize = (data: Pick<CursorData, "height">, fx: CursorFx): number =>
   Math.ceil(
-    Math.max(140 * cursorScale(data, fx), magnifies(fx) ? 2 * (magnifierRadius(data, fx) + 6) : 0) /
-      2,
+    Math.max(
+      140 * cursorScale(data, { ...fx, size: largestCursorSize(fx) }),
+      magnifies(fx) ? 2 * (magnifierRadius(data, fx) + 6) : 0,
+    ) / 2,
   ) * 2;
 
 /** The stretches' switches that change the pointer sprite (the spotlight and the sound do not). */
@@ -658,8 +707,9 @@ export const cursorFxId = (fx: CursorFx): string => {
       a: r.start,
       b: r.end,
       on: SPRITE_RANGE_KEYS.map((key) => (r.fx[key] === undefined ? -1 : Number(r.fx[key]))),
+      size: r.fx.size ?? -1,
     }))
-    .filter((r) => r.on.some((v) => v >= 0));
+    .filter((r) => r.size >= 0 || r.on.some((v) => v >= 0));
   const looks = [
     fx.pointer ?? "auto",
     fx.halo || fx.ranges?.some((r) => r.fx.halo) ? (fx.haloColor ?? "") : "",

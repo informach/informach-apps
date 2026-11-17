@@ -1,6 +1,7 @@
 import {
   CURSOR_EFFECT_DEFAULTS,
   CURSOR_RANGE_KEYS,
+  CURSOR_RANGE_SIZE,
   type CursorFx,
   type CursorPointer,
   type CursorRange,
@@ -8,6 +9,8 @@ import {
   type CursorRangeKey,
   DEFAULT_CURSOR_FX,
   editedCursorAt,
+  stretchCursorSize,
+  withStretchCursorSize,
 } from "@shared/cursor";
 import type { CursorData } from "@shared/cursorData";
 import { plural } from "@shared/plural";
@@ -115,13 +118,14 @@ export function CursorSection({ asset, clip }: { asset: Asset; clip: Clip }): Re
       ) : (
         <>
           <Slider
-            label="Tamanho"
+            label="Tamanho na gravação"
             value={fx.size}
             min={0.8}
             max={4}
             step={0.05}
             onCommit={(v) => set({ size: v })}
           />
+          <ClipCursorSize asset={asset} clip={clip} fx={fx} />
           <Slider
             label="Suavizar"
             value={fx.smooth}
@@ -273,6 +277,52 @@ export function CursorSection({ asset, clip }: { asset: Asset; clip: Clip }): Re
 }
 
 /**
+ * The pointer's size over this clip's stretch of the recording only, kept as a stretch of the
+ * cursor effects (shared/cursor.ts withStretchCursorSize): a clip shown with a zoom makes the
+ * pointer bigger, and the recording's other clips keep their size. Copies of the same stretch
+ * change together, as with the cursor path.
+ */
+function ClipCursorSize({
+  asset,
+  clip,
+  fx,
+}: {
+  asset: Asset;
+  clip: Clip;
+  fx: CursorFx;
+}): ReactNode {
+  const start = clip.in;
+  const end = Math.min(asset.duration, sourceEnd(clip));
+  const own = stretchCursorSize(fx, start, end);
+  const write = (size: number | undefined): void => {
+    const ranges = withStretchCursorSize(fx.ranges ?? [], start, end, size, newId("cr"));
+    setCursorFx(asset.id, { ranges: ranges.length ? ranges : undefined });
+  };
+  return (
+    <>
+      <Slider
+        label="Tamanho neste clipe"
+        value={own ?? fx.size}
+        min={CURSOR_RANGE_SIZE.min}
+        max={CURSOR_RANGE_SIZE.max}
+        step={0.05}
+        onCommit={(v) => write(v)}
+      />
+      {own === undefined ? (
+        <p className="props-hint muted">
+          Muda só o trecho deste clipe, como um clipe com zoom, que mostra o cursor maior. Os outros
+          clipes da gravação ficam com o tamanho de cima.
+        </p>
+      ) : (
+        <Button size="sm" variant="ghost" icon={RotateCcw} onClick={() => write(undefined)}>
+          Usar o tamanho da gravação neste clipe
+        </Button>
+      )}
+    </>
+  );
+}
+
+/**
  * Effects for a stretch of the recording: each one the same, on or off there. They show as
  * violet bands on the recording's clips in the timeline, where their edges can be dragged.
  */
@@ -296,6 +346,14 @@ function CursorRanges({ asset, clip, fx }: { asset: Asset; clip: Clip; fx: Curso
     write([...all, range]);
     useApp.getState().set({ cursorRange: range.id });
   };
+  const resize = (id: string, size: number | undefined): void =>
+    write(
+      all.map((r) => {
+        if (r.id !== id) return r;
+        const { size: _old, ...rest } = r.fx;
+        return { ...r, fx: size === undefined ? rest : { ...rest, size } };
+      }),
+    );
   const change = (id: string, key: CursorRangeKey, value: string): void =>
     write(
       all.map((r) => {
@@ -315,8 +373,9 @@ function CursorRanges({ asset, clip, fx }: { asset: Asset; clip: Clip; fx: Curso
       </div>
       {ranges.length === 0 ? (
         <p className="props-hint muted">
-          Liga ou desliga a lupa, o holofote, o som e os outros efeitos só num pedaço da gravação. O
-          trecho aparece em roxo na faixa da gravação, e as bordas dele se arrastam ali.
+          Liga ou desliga a lupa, o holofote, o som e os outros efeitos, ou muda o tamanho do
+          cursor, só num pedaço da gravação. O trecho aparece em roxo na faixa da gravação, e as
+          bordas dele se arrastam ali.
         </p>
       ) : (
         <ul className="cursor-range-list">
@@ -363,6 +422,24 @@ function CursorRanges({ asset, clip, fx }: { asset: Asset; clip: Clip; fx: Curso
                   </label>
                 ))}
               </div>
+              <Slider
+                label={r.fx.size === undefined ? "Tamanho (como no resto)" : "Tamanho"}
+                value={r.fx.size ?? fx.size}
+                min={CURSOR_RANGE_SIZE.min}
+                max={CURSOR_RANGE_SIZE.max}
+                step={0.05}
+                onCommit={(v) => resize(r.id, v)}
+              />
+              {r.fx.size !== undefined && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  icon={RotateCcw}
+                  onClick={() => resize(r.id, undefined)}
+                >
+                  Tamanho como no resto
+                </Button>
+              )}
             </li>
           ))}
         </ul>

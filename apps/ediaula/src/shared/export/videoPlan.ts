@@ -876,6 +876,7 @@ export function buildVideoWindowPlan(
     const extras = {
       ...(shape?.ellipse ? { ellipse: true } : {}),
       ...(shape?.feather ? { feather: shape.feather } : {}),
+      ...(shape?.polygon ? { polygon: shape.polygon } : {}),
     };
     const border = geo ? undefined : t?.border;
     const bw = border ? (BORDER_WIDTH * H) / 1080 : 0;

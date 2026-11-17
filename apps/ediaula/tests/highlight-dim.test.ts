@@ -7,7 +7,14 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { filterScriptOption } from "../src/main/ffmpeg-arguments.ts";
 import type { Annotation } from "../src/shared/annotation.ts";
-import { dimHole, dimMaskSvg, highlightBox, triangleCorners } from "../src/shared/dim.ts";
+import {
+  dimHole,
+  dimMaskSvg,
+  drawnHighlight,
+  highlightBox,
+  highlightPolygonOnFrame,
+  triangleCorners,
+} from "../src/shared/dim.ts";
 import { fxGraph } from "../src/shared/export/fx.ts";
 import { buildExportPlan } from "../src/shared/exportPlan.ts";
 import { projectSchema } from "../src/shared/project-schema.ts";
@@ -283,4 +290,287 @@ test("every shape's picture is clear in the box and dark around it", { timeout: 
       assert.equal(at(100, shape === "triangle" ? 70 : 60), 0, `${shape} ${angle}° inside`);
       assert.ok(Math.abs(at(5, 5) - 128) <= 1, `${shape} ${angle}° outside: ${at(5, 5)}`);
     }
+});
+
+/** An arrow-like concave polygon, as fractions of its box. */
+const ARROW: [number, number][] = [
+  [0, 0.3],
+  [0.6, 0.3],
+  [0.6, 0],
+  [1, 0.5],
+  [0.6, 1],
+  [0.6, 0.7],
+  [0, 0.7],
+];
+
+test("a Destaque drawn as a polygon: its hole is the polygon, mirrored with the clip", () => {
+  const frame = { width: 640, height: 360 };
+  const at = { x: 0.5, y: 0.5, scale, opacity: 1 };
+  const drawn: Annotation = { ...highlight, shape: "polygon", polygon: [ARROW] };
+  const hole = dimHole({ annotation: drawn, transform: at }, picture, frame);
+  assert.ok(hole?.polygon);
+  assert.deepEqual(hole.polygon, [ARROW]);
+  const flipped = dimHole({ annotation: drawn, transform: { ...at, flipH: true } }, picture, frame);
+  assert.deepEqual(flipped?.polygon?.[0]?.[3], [0, 0.5], "the tip points left");
+  // Not drawn yet: the rounded box, as its picture.
+  const empty = dimHole(
+    { annotation: { ...highlight, shape: "polygon" }, transform: at },
+    picture,
+    frame,
+  );
+  assert.equal(empty?.shape, "rounded");
+  assert.equal(empty?.polygon, undefined);
+  assert.match(
+    dimMaskSvg(hole, 640, 360),
+    /<path fill-rule="evenodd" transform="translate\(259\.93 146\.6\d\)" d="M0 20\.\d+L72/,
+  );
+  const annotationSchema = projectSchema.shape.clips.element.shape.annotation.unwrap();
+  assert.ok(annotationSchema.safeParse(drawn).success);
+  // A polygon saved with one list of corners (before it could have several) reads as one outline.
+  const old = annotationSchema.parse({ ...highlight, shape: "polygon", polygon: ARROW });
+  assert.deepEqual(old.polygon, [ARROW]);
+  assert.equal(
+    annotationSchema.safeParse({ ...highlight, polygon: Array(9).fill(ARROW.slice(0, 3)) }).success,
+    false,
+    "eight outlines at most",
+  );
+});
+
+test("the export clears the polygon, turned, and darkens around it and in its notch", {
+  timeout: 60_000,
+}, () => {
+  for (const angle of [0, 90]) {
+    const hole = {
+      shape: "polygon" as const,
+      cx: 100,
+      cy: 60,
+      w: 100,
+      h: 60,
+      radius: 0,
+      angle,
+      flipV: false,
+      polygon: [ARROW],
+      darkness: 0.5,
+    };
+    const graph = fxGraph({ kind: "dim", w: 200, h: 120, hole }, "30", "out");
+    const alpha = Array.from(
+      ff([
+        "-filter_complex",
+        graph,
+        "-map",
+        "[out]",
+        "-frames:v",
+        "1",
+        "-pix_fmt",
+        "rgba",
+        "-f",
+        "rawvideo",
+        "-",
+      ]),
+    );
+    const at = (x: number, y: number): number => alpha[(y * 200 + x) * 4 + 3] ?? -1;
+    // The shaft's middle, then the notch beside the shaft (outside the polygon, inside its box).
+    const [sx, sy, nx, ny] = angle ? [100, 45, 123, 40] : [85, 60, 70, 36];
+    assert.equal(at(sx, sy), 0, `${angle}° inside`);
+    assert.ok(Math.abs(at(nx, ny) - 128) <= 1, `${angle}° notch: ${at(nx, ny)}`);
+    assert.ok(Math.abs(at(5, 5) - 128) <= 1, `${angle}° outside`);
+  }
+});
+
+test("a polygon drawn over the frame becomes the Destaque's box, where it was drawn", () => {
+  const frame = { width: 640, height: 360 };
+  const at = { x: 0.5, y: 0.5, scale, opacity: 1 };
+  const clip = { annotation: highlight, transform: at };
+  // Drawn at the left of the frame: 64 × 36 frame pixels, a triangle.
+  const points: [number, number][] = [
+    [0.1, 0.1],
+    [0.2, 0.2],
+    [0.1, 0.2],
+  ];
+  const d = drawnHighlight([points], clip, picture, frame);
+  assert.ok(d);
+  // 360 boxWidth shows 120 frame pixels now: 1080p pixels are three frame pixels.
+  assert.equal(d.boxWidth, 192);
+  assert.equal(d.boxHeight, 108);
+  assert.deepEqual(d.polygon, [
+    [
+      [0, 0],
+      [1, 1],
+      [0, 1],
+    ],
+  ]);
+  // The box's center goes from the frame's middle to the drawing's.
+  assert.ok(Math.abs(d.dx - (0.15 - 0.5)) < 1e-9 && Math.abs(d.dy - (0.15 - 0.5)) < 1e-9);
+  // On a flipped clip the corners are kept as the picture has them (mirrored back).
+  const flipped = drawnHighlight(
+    [points],
+    { ...clip, transform: { ...at, flipH: true } },
+    picture,
+    frame,
+  );
+  assert.deepEqual(flipped?.polygon[0]?.[0], [1, 0]);
+  // On a turned clip the box is in its own directions: a quarter turn swaps width and height.
+  const turned = drawnHighlight(
+    [points],
+    { ...clip, transform: { ...at, rotation: 90 } },
+    picture,
+    frame,
+  );
+  assert.equal(turned?.boxWidth, 108);
+  assert.equal(turned?.boxHeight, 192);
+  assert.equal(drawnHighlight([points.slice(0, 2)], clip, picture, frame), null);
+  // Two rectangles drawn apart: one box around both, each one a fraction of it.
+  const two = drawnHighlight(
+    [
+      [
+        [0.1, 0.1],
+        [0.2, 0.1],
+        [0.2, 0.2],
+        [0.1, 0.2],
+      ],
+      [
+        [0.3, 0.1],
+        [0.4, 0.1],
+        [0.4, 0.2],
+        [0.3, 0.2],
+      ],
+    ],
+    clip,
+    picture,
+    frame,
+  );
+  // Three times the 0.3 of the frame's width they span (within the picture's rounding).
+  assert.ok(Math.abs((two?.boxWidth ?? 0) - 576) <= 1, `${two?.boxWidth}`);
+  assert.equal(two?.polygon.length, 2);
+  assert.ok(Math.abs((two?.polygon[1]?.[0]?.[0] ?? 0) - 2 / 3) < 1e-4);
+});
+
+test("two rectangles in one Destaque: both clear, the rest dark, in the export", {
+  timeout: 60_000,
+}, () => {
+  const hole = {
+    shape: "polygon" as const,
+    cx: 100,
+    cy: 60,
+    w: 160,
+    h: 80,
+    radius: 0,
+    angle: 0,
+    flipV: false,
+    polygon: [
+      [
+        [0, 0],
+        [0.3, 0],
+        [0.3, 1],
+        [0, 1],
+      ],
+      [
+        [0.7, 0.25],
+        [1, 0.25],
+        [1, 0.75],
+        [0.7, 0.75],
+      ],
+    ] as [number, number][][],
+    darkness: 0.5,
+  };
+  const graph = fxGraph({ kind: "dim", w: 200, h: 120, hole }, "30", "out");
+  const alpha = Array.from(
+    ff([
+      "-filter_complex",
+      graph,
+      "-map",
+      "[out]",
+      "-frames:v",
+      "1",
+      "-pix_fmt",
+      "rgba",
+      "-f",
+      "rawvideo",
+      "-",
+    ]),
+  );
+  const at = (x: number, y: number): number => alpha[(y * 200 + x) * 4 + 3] ?? -1;
+  // The box goes from x 20 to 180 and y 20 to 100: the left rectangle to x 68, the right one
+  // from x 132 and y 40 to 80.
+  assert.equal(at(40, 60), 0, "left rectangle");
+  assert.equal(at(150, 60), 0, "right rectangle");
+  assert.ok(Math.abs(at(100, 60) - 128) <= 1, `between them: ${at(100, 60)}`);
+  assert.ok(Math.abs(at(150, 30) - 128) <= 1, `above the right one: ${at(150, 30)}`);
+  assert.ok(Math.abs(at(5, 5) - 128) <= 1, "outside");
+  // The preview's mask has both, in one even-odd path.
+  assert.match(
+    dimMaskSvg(hole, 200, 120),
+    /d="M0 0L48 0L48 80L0 80ZM112 20L160 20L160 60L112 60Z"/,
+  );
+});
+
+test("the pen opens with the Destaque's shapes where they are, so drawing again adds to them", () => {
+  const frame = { width: 640, height: 360 };
+  const shapes: [number, number][][] = [
+    [
+      [0.1, 0.1],
+      [0.2, 0.1],
+      [0.2, 0.2],
+      [0.1, 0.2],
+    ],
+    [
+      [0.3, 0.15],
+      [0.4, 0.15],
+      [0.35, 0.25],
+    ],
+  ];
+  for (const transform of [
+    { x: 0.5, y: 0.5, scale, opacity: 1 },
+    { x: 0.4, y: 0.6, scale, opacity: 1, rotation: 30, flipH: true },
+  ]) {
+    const clip = { annotation: highlight, transform };
+    const d = drawnHighlight(shapes, clip, picture, frame);
+    assert.ok(d);
+    // The Destaque made from them, where it lands.
+    const placed = {
+      annotation: {
+        ...highlight,
+        shape: "polygon" as const,
+        polygon: d.polygon,
+        boxWidth: d.boxWidth,
+        boxHeight: d.boxHeight,
+      },
+      transform: { ...transform, x: transform.x + d.dx, y: transform.y + d.dy },
+    };
+    // Its picture is redrawn at the same size per pixel: the box's share of the picture changes.
+    const k = (360 / 1080) * 2;
+    const redrawn = {
+      width: Math.ceil(d.boxWidth * k + 64 * k),
+      height: Math.ceil(d.boxHeight * k + 64 * k),
+    };
+    const sized = {
+      ...placed,
+      // Same frame pixels per picture pixel: scale 1 fits the picture in the frame.
+      transform: {
+        ...placed.transform,
+        scale:
+          (scale * Math.min(640 / picture.width, 360 / picture.height)) /
+          Math.min(640 / redrawn.width, 360 / redrawn.height),
+      },
+    };
+    const back = highlightPolygonOnFrame(sized, redrawn, frame);
+    assert.ok(back);
+    for (const [s, outline] of shapes.entries())
+      for (const [i, [x, y]] of outline.entries()) {
+        const [bx, by] = back[s]?.[i] ?? [Number.NaN, Number.NaN];
+        // Within a pixel of the frame (the box is kept in whole 1080p pixels).
+        assert.ok(
+          Math.abs(bx - x) * 640 < 1.5 && Math.abs(by - y) * 360 < 1.5,
+          `${s}:${i} ${bx},${by}`,
+        );
+      }
+  }
+  assert.equal(
+    highlightPolygonOnFrame(
+      { annotation: highlight, transform: { x: 0.5, y: 0.5, scale, opacity: 1 } },
+      picture,
+      frame,
+    ),
+    undefined,
+  );
 });

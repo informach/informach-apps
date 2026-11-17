@@ -9,6 +9,10 @@ import { collectingProvider } from "../src/main/export/fxAssets.ts";
 import {
   type MaskShape,
   maskShape,
+  type PolygonPoint,
+  polygonDistance,
+  polygonMask,
+  polygonOnPicture,
   shapeAlpha,
   squareMask,
   type Transform,
@@ -135,6 +139,108 @@ test("shapes made before keep their export pictures; the new ones get their own"
   );
 });
 
+/** Two rectangles apart, a third of the box each, as one polygon. */
+const TWO_BOXES: PolygonPoint[][] = [
+  [
+    [0.05, 0.1],
+    [0.35, 0.1],
+    [0.35, 0.9],
+    [0.05, 0.9],
+  ],
+  [
+    [0.6, 0.3],
+    [0.95, 0.3],
+    [0.95, 0.7],
+    [0.6, 0.7],
+  ],
+];
+
+/** A star of ten corners (concave), as fractions of its box. */
+const STAR: PolygonPoint[] = Array.from({ length: 10 }, (_, i) => {
+  const a = (i * Math.PI) / 5 - Math.PI / 2;
+  const r = i % 2 ? 0.2 : 0.5;
+  return [0.5 + r * Math.cos(a), 0.5 + r * Math.sin(a)];
+});
+
+test("a polygon mask: inside and outside by the even-odd rule, the distance to its nearest side", () => {
+  const square: PolygonPoint[] = [
+    [0.25, 0.25],
+    [0.75, 0.25],
+    [0.75, 0.75],
+    [0.25, 0.75],
+  ];
+  assert.equal(polygonDistance([square], 100, 100, 50, 50), -25);
+  assert.equal(polygonDistance([square], 100, 100, 50, 10), 15);
+  assert.equal(polygonDistance([square], 100, 100, 85, 85), Math.hypot(10, 10));
+  // The middle of a star is in; the notch between two points is out.
+  assert.ok(polygonDistance([STAR], 100, 100, 50, 50) < 0);
+  assert.ok(polygonDistance([STAR], 100, 100, 50, 85) > 0);
+  // Two rectangles apart are both inside; a rectangle inside another is a hole in it.
+  const left: PolygonPoint[] = [
+    [0, 0],
+    [0.4, 0],
+    [0.4, 1],
+    [0, 1],
+  ];
+  const right = left.map(([x, y]): PolygonPoint => [x + 0.6, y]);
+  assert.ok(polygonDistance([left, right], 100, 100, 20, 50) < 0);
+  assert.ok(polygonDistance([left, right], 100, 100, 80, 50) < 0);
+  assert.equal(polygonDistance([left, right], 100, 100, 50, 50), 10);
+  const inner = square.map(
+    ([x, y]): PolygonPoint => [0.4 + (x - 0.25) * 0.4, 0.4 + (y - 0.25) * 0.4],
+  );
+  assert.ok(polygonDistance([square, inner], 100, 100, 50, 50) > 0, "the hole");
+  assert.ok(polygonDistance([square, inner], 100, 100, 30, 30) < 0);
+  // A polygon with fewer than three corners cuts nothing; with three, it is the shape.
+  assert.equal(
+    maskShape(t({ mask: "polygon", polygon: [square.slice(0, 2)] }), 400, 200, 1080),
+    null,
+  );
+  assert.deepEqual(maskShape(t({ mask: "polygon", polygon: [square] }), 400, 200, 1080), {
+    ellipse: false,
+    radius: 0,
+    feather: 0,
+    polygon: [square],
+  });
+});
+
+test("a polygon drawn over the picture becomes the rectangle around it, and comes back", () => {
+  const drawn: PolygonPoint[] = [
+    [0.2, 0.1],
+    [0.6, 0.3],
+    [0.4, 0.5],
+  ];
+  const { crop, polygon } = polygonMask([drawn]);
+  assert.deepEqual(crop, { left: 0.2, top: 0.1, right: 0.4, bottom: 0.5 });
+  assert.deepEqual(polygon, [
+    [
+      [0, 0],
+      [1, 0.5],
+      [0.5, 1],
+    ],
+  ]);
+  const back = polygonOnPicture(polygon, crop)[0];
+  for (const [i, p] of back.entries()) {
+    assert.ok(Math.abs(p[0] - drawn[i][0]) < 1e-9 && Math.abs(p[1] - drawn[i][1]) < 1e-9);
+  }
+  // Corners drawn off the picture are kept on it.
+  assert.deepEqual(
+    polygonMask([
+      [
+        [-0.5, 0],
+        [1.5, 0],
+        [0.5, 1],
+      ],
+    ]).crop,
+    {
+      left: 0,
+      top: 0,
+      right: 0,
+      bottom: 0,
+    },
+  );
+});
+
 /** The export's mask picture, made by FFmpeg from fxGraph, as gray bytes. */
 function exported(shape: MaskShape, w: number, h: number): Buffer {
   const graph = fxGraph(
@@ -145,6 +251,7 @@ function exported(shape: MaskShape, w: number, h: number): Buffer {
       radius: shape.radius,
       ...(shape.ellipse ? { ellipse: true } : {}),
       ...(shape.feather ? { feather: shape.feather } : {}),
+      ...(shape.polygon ? { polygon: shape.polygon } : {}),
     },
     "30",
     "out",
@@ -176,6 +283,9 @@ test("the export cuts the same pixels the preview shows", { timeout: 60_000 }, (
     [{ ellipse: true, radius: 0, feather: 18 }, 160, 90],
     [{ ellipse: false, radius: 24, feather: 10 }, 160, 90],
     [{ ellipse: false, radius: 0, feather: 12 }, 120, 120],
+    [{ ellipse: false, radius: 0, feather: 0, polygon: [STAR] }, 160, 90],
+    [{ ellipse: false, radius: 0, feather: 8, polygon: [STAR] }, 160, 90],
+    [{ ellipse: false, radius: 0, feather: 0, polygon: TWO_BOXES }, 160, 90],
   ];
   for (const [shape, w, h] of shapes) {
     const gray = exported(shape, w, h);
@@ -238,6 +348,17 @@ test("an oval or a soft edge alone goes through the shape in the export", () => 
   };
   const crop = { left: 0.2, right: 0.2, top: 0.1, bottom: 0.1 };
   assert.deepEqual(masks(t({ scale: 0.8, crop, mask: "ellipse" })), ["mask:307x230:r0:e"]);
+  const tri: PolygonPoint[] = [
+    [0.5, 0],
+    [1, 1],
+    [0, 1],
+  ];
+  assert.deepEqual(masks(t({ scale: 0.8, crop, mask: "polygon", polygon: [tri] })), [
+    "mask:307x230:r0:p0.5,0;1,1;0,1",
+  ]);
+  assert.deepEqual(masks(t({ scale: 0.8, crop, mask: "polygon", polygon: [tri, tri] })), [
+    "mask:307x230:r0:p0.5,0;1,1;0,1|0.5,0;1,1;0,1",
+  ]);
   assert.deepEqual(masks(t({ scale: 0.8, crop, feather: 30 })), ["mask:307x230:r0:f10"]);
   assert.deepEqual(masks(t({ scale: 0.8, crop })), []);
 });
