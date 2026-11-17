@@ -1,8 +1,9 @@
 import { randomBytes } from "node:crypto";
-import { db, eq, sql } from "@informach/db";
+import { and, db, eq, sql } from "@informach/db";
 import {
   recreioGameSessions as games,
   recreioSessionHandoffs as handoffs,
+  recreioSpaceSnapshots as snapshots,
 } from "@informach/db/schema";
 import { ControleDaSessaoSchema } from "@informach/recreio/contrato";
 import { describe, expect, it, vi } from "vitest";
@@ -100,6 +101,24 @@ async function preparar() {
 }
 
 describe("checkpoint do mundo autenticado pela posse", () => {
+  it("bytes corrompidos com o mesmo tamanho não se tornam uma confirmação durável", async () => {
+    const r = await preparar();
+    const foto = await r.fotografia(r.antiga.revisao);
+    await db
+      .update(snapshots)
+      .set({ data: Buffer.from(JSON.stringify({ contador: 9 })) })
+      .where(and(eq(snapshots.spaceId, r.mundoId), eq(snapshots.revision, foto.revisao)));
+    await expect(r.host.cliente.confirmarCheckpoint(r.prova(foto.revisao))).rejects.toMatchObject({
+      codigo: "CHECKPOINT_NECESSARIO",
+    });
+    expect(
+      (await db.select().from(games).where(eq(games.id, r.anterior.sid)))[0]?.checkpointFrozenAt,
+    ).toBeNull();
+    const valida = await r.fotografia(foto.revisao);
+    expect(await r.host.cliente.confirmarCheckpoint(r.prova(valida.revisao))).toMatchObject({
+      estado: "confirmed",
+    });
+  });
   it("recusa foto anterior ao pedido; prova atual congela e permite a abertura no destinatário", async () => {
     const r = await preparar();
     await expect(

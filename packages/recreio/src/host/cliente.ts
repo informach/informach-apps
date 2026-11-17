@@ -5,6 +5,7 @@ import {
   CABECALHO_DO_RESUMO,
   CAMINHO_DA_API_DO_HOST,
   CheckpointDoHostSchema,
+  type ClienteDoHost,
   type ClienteDoHostComCheckpoint,
   DIARIO_PAGINA_MAX_BYTES,
   DIARIO_RECUPERACAO_MAX_ENTRADAS,

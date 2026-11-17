@@ -337,3 +337,19 @@ A redação de contexto técnico passa a ocultar também a prova de abertura, in
 PIN, código/segredo de pareamento e campos declarados em português. Corpos de
 pedido já eram removidos pelo transporte Sentry; não foi observada exposição
 em produção. O teste novo verifica a proteção recursiva desses campos.
+
+Rodada `87182f1`: a integração `44051663870` passou nas novas provas de mundo e
+prazo, mas o restante da matriz e o CI compartilhado pararam por uma importação
+de tipo faltante em `host/cliente.ts`. O tipo básico ainda era usado no leitor
+do diário; manter as duas interfaces importadas. Não considerar essa rodada aprovada.
+
+A reprodução `0d27e20`, `44051681781`, sobre `668dde1`, falhou exatamente nas duas
+esperas da auditoria: aceitava ACK e nova abertura depois do prazo. As outras
+463 integrações passaram. A mesma fixture passou no corretivo `87182f1`; a nova
+rodada completa precisa conservar essa evidência. Matriz reduzida segue isolada.
+
+A confirmação candidata também relê o SHA-256 e o tamanho dos bytes persistidos
+no PG. O teste novo corrompe somente a fotografia daquele mundo, mantendo seu
+tamanho, e exige recusa sem barreira. Armazenamento em bucket continua recusado
+até existir adapter com prova de integridade apropriada; não confiar só no
+metadado do objeto futuro. Nenhum conteúdo entra na auditoria ou no relatório.

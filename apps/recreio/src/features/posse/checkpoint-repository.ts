@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { and, db, eq } from "@informach/db";
 import {
   recreioGameSessions as games,
@@ -99,6 +100,13 @@ export async function confirmarCheckpointDoMundoNoBanco(
           foto.journalSeq !== entrada.diarioSeq ||
           foto.journalSeq !== mundo.journalSeq ||
           foto.createdAt < pedido.requestedAt
+        )
+          throw new ErroDoRecreio("CHECKPOINT_NECESSARIO");
+        if (
+          foto.storage !== "pg" ||
+          !foto.data ||
+          foto.data.byteLength !== foto.byteSize ||
+          createHash("sha256").update(foto.data).digest("hex") !== foto.sha256
         )
           throw new ErroDoRecreio("CHECKPOINT_NECESSARIO");
         return prova;
