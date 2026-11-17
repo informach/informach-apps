@@ -36,6 +36,12 @@ export default async function Mundo({ params }: { params: Promise<{ id: string }
         {mundo.nome}
       </h1>
       <p className="mt-2 text-tinta-suave">Você participa como {rotuloDoPapel(mundo.papel)}.</p>
+      <Link
+        href={`/participantes/${mundo.id}`}
+        className="mt-4 inline-flex min-h-11 items-center font-bold text-ceu underline"
+      >
+        Participantes e proteção
+      </Link>
       {mundo.estado === "archived" && (
         <p className="painel mt-5 max-w-2xl p-4">
           Este mundo está arquivado. Os membros e o progresso confirmado continuam guardados.

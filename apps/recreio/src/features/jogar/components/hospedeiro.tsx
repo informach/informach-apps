@@ -366,7 +366,11 @@ export function Hospedeiro({
             <Users className="size-5" aria-hidden="true" />
           </button>
           {painelSocial && (
-            <PainelSocialDaPartida api={apiSocial} aoFechar={() => definirPainelSocial(false)} />
+            <PainelSocialDaPartida
+              api={apiSocial}
+              mundoId={mundo?.id}
+              aoFechar={() => definirPainelSocial(false)}
+            />
           )}
         </>
       )}

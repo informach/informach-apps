@@ -113,6 +113,11 @@ removidas; retirar a referência não muda a amizade nem apaga um bloqueio.
 `presenceMode` (`online`, `friends`, `invisible`), com ator adulto atual.
 `recreio.social_notice_read` usa IDs de perfil, aviso e pedido. O ator é o
 responsável nativo atual que confirmou a leitura; repetição não duplica evento.
+Na candidata F5, a evidência privada do protocolo admite também a referência
+opaca ao mundo comum, capturada e autorizada no servidor. Ela segue o prazo do
+caso, sem conteúdo, nomes ou visibilidade desse ID na fila. Não acrescenta
+campos ao evento de auditoria.
+
 `recreio.safety_reported` usa IDs de protocolo e das duas pontas, categoria
 fechada, prioridade e espécie do ator. Não inclui corpo/hash/nonce/evidência
 ou identificação escolhida por pessoas. Ator infantil é nulo, e o responsável

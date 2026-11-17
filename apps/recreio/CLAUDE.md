@@ -106,6 +106,17 @@ Princípios que não se negociam: **o jogo recebe um ingresso, nunca acesso ao b
 
 ## Mundos, membros e convites (lote P5)
 
+F5 está em qualificação, ainda sem implantação. O responsável nativo atual pode
+gerir o mundo de um menor sem jogador próprio; a credencial infantil conserva
+somente gameplay. A estante protegida candidata cria mundos pelo mesmo serviço
+autoritativo e volta a `/aparelho`. `/participantes/[id]` e o painel do host
+oferecem proteção sem amizade: o servidor prova coparticipação sob a ordem
+contas → mundo → perfis. A consulta nativa e a proteção não exigem cobertura.
+Denúncia captura referência opaca, nunca evidência enviada pelo navegador.
+Bloquear não remove membros; códigos adultos também revalidam bloqueios no
+aceite. Convites dirigidos, aprovações e visitas seguem pendentes no
+[registro de F5](../../docs/recreio/mundos-completos-2026-11-17.md).
+
 - `features/mundos`: `service.ts` é chamado pelas rotas do SDK (sessão de jogo) e pelas ações do portal (cookie). Quem chama entrega o perfil já conferido; nenhum id de perfil vem do pedido.
 - Rotas: `GET` e `POST /api/sdk/v1/mundos`, `POST /api/sdk/v1/mundos/{id}/convites`, `POST /api/sdk/v1/convites/aceitar` (token da sessão de jogo ou cookie do portal). Telas: a estante lista os mundos do Morada, com "Criar mundo" e "Entrar com código"; `/mundos/[id]` mostra quem participa e, para o responsável, gera o código; `/convite?codigo=` traz o código preenchido e espera a pessoa confirmar.
 - Criar: teto `limites.mundosCriadosPorPerfil` do manifesto, por jogo, contado sob uma trava por perfil (`LIMITE_DE_MUNDOS`). O mundo nasce `hibernating`, com a política de mundo pedida se o jogo a oferece, senão a padrão.

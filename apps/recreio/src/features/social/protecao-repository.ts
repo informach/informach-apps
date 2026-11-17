@@ -92,7 +92,11 @@ export async function gravarProtecaoSobTrava(
       .select({ id: friends.lowerProfileId })
       .from(friends)
       .where(and(eq(friends.lowerProfileId, menor), eq(friends.higherProfileId, maior)));
-    assertAllowed(conhecido || amizade, "CONTATO", "Contato não disponível.");
+    assertAllowed(
+      conhecido || amizade || atual.mundoCompartilhado,
+      "CONTATO",
+      "Contato não disponível.",
+    );
     if (!entrada.bloqueado && !entrada.silenciado) return { bloqueado: false, silenciado: false };
     const existentes = await tx
       .select({ id: blocks.targetProfileId })

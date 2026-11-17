@@ -7,19 +7,41 @@ import { contagemDeMembros, rotuloDoPapel } from "../texto";
  * de um jogo que o portal sabe abrir, para quem tem o direito de jogar), cada
  * mundo ganha o caminho para o jogo.
  */
-export function ListaDeMundos({ mundos, jogarEm }: { mundos: ResumoDeMundo[]; jogarEm?: string }) {
+export function ListaDeMundos({
+  mundos,
+  jogarEm,
+  protegido = false,
+}: {
+  mundos: ResumoDeMundo[];
+  jogarEm?: string;
+  protegido?: boolean;
+}) {
   if (mundos.length === 0)
     return <p className="text-tinta-suave">Você ainda não participa de nenhum mundo.</p>;
   return (
     <ul className="grid gap-3 sm:grid-cols-2">
       {mundos.map((mundo) => (
         <li key={mundo.id} className="painel flex h-full flex-col gap-1 p-4">
-          <Link
-            href={`/mundos/${mundo.id}`}
-            className="font-display text-xl font-bold underline-offset-4 [overflow-wrap:anywhere] hover:underline"
-          >
-            {mundo.nome}
-          </Link>
+          {protegido ? (
+            <span className="font-display text-xl font-bold [overflow-wrap:anywhere]">
+              {mundo.nome}
+            </span>
+          ) : (
+            <Link
+              href={`/mundos/${mundo.id}`}
+              className="font-display text-xl font-bold underline-offset-4 [overflow-wrap:anywhere] hover:underline"
+            >
+              {mundo.nome}
+            </Link>
+          )}
+          {protegido && (
+            <Link
+              href={`/participantes/${mundo.id}`}
+              className="mt-2 inline-flex min-h-11 items-center font-bold text-ceu underline"
+            >
+              Participantes e proteção de {mundo.nome}
+            </Link>
+          )}
           {mundo.resumo && (
             <span className="text-sm text-tinta-suave [overflow-wrap:anywhere]">
               {mundo.resumo.titulo}

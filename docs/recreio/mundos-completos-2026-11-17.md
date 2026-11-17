@@ -139,3 +139,38 @@ ou conteúdo do navegador. O check de denúncias ganha a alternativa `mundo`, se
 alterar evidências anteriores; sua migration será gerada e conferida no GitHub.
 Bloqueio não expulsa membro nem apaga progresso. A listagem exige a autoridade
 atual do mundo e não transforma esse vínculo em amizade ou presença pública.
+
+`2f577567` passou nos oito gates `44189574384`, incluindo a gestão adulta no
+navegador. `84204b1c` passou nos sete outros gates, mas sua jornada infantil
+falhou ao tentar usar a estante adulta: a estante protegida não oferecia criação
+de mundos. O corretivo candidato inclui criação com a identidade restrita do
+aparelho, retorno a `/aparelho` e nomes sem link para a página adulta. Conserva
+classificação, cobertura, política, limites e auditoria no serviço existente.
+O teste continua exigindo criação real no título interno Livre, sem fabricar
+mundo no banco para anunciar essa jornada.
+
+A migration 0192 foi gerada em `44193535906`, origem
+`825c49c48976f165e77a37310f3179afdd424e46`, artefato `14377348257`.
+ZIP SHA-256 `bbdd2c86e94d94f4693165e754e69adfff04bd20be969742a8943fd02cffbd13`.
+Somente o check de evidência é ampliado, preservando todas as alternativas
+anteriores. Os três arquivos foram conferidos e copiados intactos:
+
+- SQL `0192_peaceful_kitty_pryde.sql`, 789 bytes,
+  `cb91e1af07b9795dcfaca25b4fbb2f83f66b3d65bbea45ef6ee90f955f401bce`.
+- Snapshot, 853281 bytes,
+  `64fdca8df7cf003a4e6abc891b98db5585bd2928dbe8599fa3e862ed8e3d59a2`.
+- Journal, 29197 bytes,
+  `a6436180b8125f7daed1c823f298eaa82d6251982555e53101142ec4180c5a38`.
+
+A candidata oferece `/participantes/[id]` para jogador nativo ou pareado e
+`social.participantes` no SDK, com dez registros, cursor, sem presença, conta,
+papéis administrativos ou conteúdo. A consulta nativa e a proteção não exigem
+assinatura; o SDK conserva SID e jogo atuais. As duas pontas bloqueadas têm
+identificação reservada. O host lista os participantes que ainda não aparecem
+nos contatos e oferece os mesmos cuidados dentro do diálogo. Convites adultos
+anteriores passam a recusar bloqueio atual em qualquer ponta, sem consumir o
+código. Dez integrações novas cobrem essas regras, escopo HTTP, revisão de
+proteção, atores nativo/infantil, rollback de auditoria e espera real da trava
+do mundo antes dos perfis. A nova jornada de navegador conserva o jogo e os
+membros após a proteção. Gates desta candidata ainda pendentes; produção não
+recebeu 0191/0192, convites dirigidos/aprovações e visitas continuam abertos.

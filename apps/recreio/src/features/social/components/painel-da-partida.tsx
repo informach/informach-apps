@@ -3,6 +3,8 @@ import type {
   CategoriaDeDenuncia,
   ContatoSocial,
   ListaSocial,
+  ParticipanteDoMundo,
+  ParticipantesDoMundo,
   SocialDoPerfil,
 } from "@informach/recreio/contrato";
 import { ehErroDoRecreio } from "@informach/recreio/sdk";
@@ -26,9 +28,11 @@ function mensagem(erro: unknown) {
 export function PainelSocialDaPartida({
   api,
   aoFechar,
+  mundoId,
 }: {
   api: SocialDoPerfil;
   aoFechar: () => void;
+  mundoId?: string;
 }) {
   const dialogo = useRef<HTMLDialogElement>(null),
     vivo = useRef(true),
@@ -154,6 +158,13 @@ export function PainelSocialDaPartida({
         </p>
       ) : (
         <>
+          {mundoId && (
+            <ParticipantesNaPartida
+              api={api}
+              mundoId={mundoId}
+              conhecidos={lista.contatos.map((c) => c.perfilId)}
+            />
+          )}
           {lista.podeCriarContatos ? (
             <NovosContatosNaPartida api={api} executar={executar} pendente={pendente} />
           ) : (
@@ -345,6 +356,126 @@ function NovosContatosNaPartida({
   );
 }
 
+function ParticipantesNaPartida({
+  api,
+  mundoId,
+  conhecidos,
+}: {
+  api: SocialDoPerfil;
+  mundoId: string;
+  conhecidos: readonly string[];
+}) {
+  const vivo = useRef(true),
+    pagina = useRef<string | undefined>(undefined);
+  const [dados, definirDados] = useState<ParticipantesDoMundo | null>(null),
+    [erro, definirErro] = useState("");
+  const [pendente, iniciar] = useTransition();
+  useEffect(() => {
+    vivo.current = true;
+    let atual = true;
+    void api
+      .participantes(mundoId)
+      .then((r) => {
+        if (atual) definirDados(r);
+      })
+      .catch((falha) => {
+        if (atual) definirErro(mensagem(falha));
+      });
+    return () => {
+      atual = false;
+      vivo.current = false;
+    };
+  }, [api, mundoId]);
+  const executar: Executar = (acao, confirmado) => {
+    definirErro("");
+    iniciar(async () => {
+      try {
+        const valor = await acao();
+        if (!vivo.current) return;
+        confirmado?.(valor);
+        const atual = await api.participantes(mundoId, pagina.current);
+        if (vivo.current) definirDados(atual);
+      } catch (falha) {
+        if (vivo.current) definirErro(mensagem(falha));
+      }
+    });
+  };
+  return (
+    <section className="mt-6" aria-label="Participantes deste mundo">
+      <h3 className="font-display text-xl font-bold">Participantes deste mundo</h3>
+      <p className="mt-2 text-sm text-tinta-suave">
+        Você pode bloquear, silenciar ou denunciar sem amizade. Isso não remove a participação nem
+        apaga progresso.
+      </p>
+      {erro && (
+        <p role="alert" className="mt-3 text-sm text-coral">
+          {erro}
+        </p>
+      )}
+      {!dados ? (
+        <p role="status" className="mt-3">
+          {erro ? "A lista ainda não foi confirmada." : "Conferindo participantes…"}
+        </p>
+      ) : (
+        <>
+          {dados.participantes.filter((p) => !conhecidos.includes(p.perfilId)).length === 0 ? (
+            <p className="mt-3">Nenhum outro participante nesta página.</p>
+          ) : (
+            <div className="mt-4 grid gap-4">
+              {dados.participantes
+                .filter((p) => !conhecidos.includes(p.perfilId))
+                .map((p) => (
+                  <ContatoNaPartida
+                    key={p.perfilId}
+                    contato={p}
+                    api={api}
+                    executar={executar}
+                    pendente={pendente}
+                    podeCriar={false}
+                  />
+                ))}
+            </div>
+          )}
+          <nav className="mt-3 flex flex-wrap gap-3" aria-label="Páginas de participantes">
+            <button
+              type="button"
+              className="rb rb-vazado"
+              disabled={pendente}
+              onClick={() =>
+                executar(
+                  async () => {},
+                  () => {
+                    pagina.current = undefined;
+                  },
+                )
+              }
+            >
+              Atualizar participantes
+            </button>
+            {dados.proximo && (
+              <button
+                type="button"
+                className="rb rb-vazado"
+                disabled={pendente}
+                onClick={() =>
+                  executar(
+                    async () => {},
+                    () => {
+                      pagina.current = dados.proximo ?? undefined;
+                    },
+                  )
+                }
+              >
+                Mais participantes
+              </button>
+            )}
+          </nav>
+        </>
+      )}
+    </section>
+  );
+}
+
 function ContatoNaPartida({
   contato: c,
   api,
@@ -352,13 +483,14 @@ function ContatoNaPartida({
   pendente,
   podeCriar,
 }: {
-  contato: ContatoSocial;
+  contato: ContatoSocial | ParticipanteDoMundo;
   api: SocialDoPerfil;
   executar: Executar;
   pendente: boolean;
   podeCriar: boolean;
 }) {
-  const pedido = c.pedido;
+  const social = "amizade" in c ? c : null;
+  const pedido = social?.pedido;
   const id = useId(),
     tentativa = useRef<{ categoria: CategoriaDeDenuncia; id: string } | null>(null);
   const [denuncia, definirDenuncia] = useState(false),
@@ -387,15 +519,17 @@ function ContatoNaPartida({
           <p className="mt-1 text-sm text-tinta-suave">
             {c.bloqueado
               ? "Bloqueado por você"
-              : c.amizade
+              : social?.amizade
                 ? "Amizade confirmada"
-                : c.pedido?.aguardaAprovacao
+                : social?.pedido?.aguardaAprovacao
                   ? "Aguardando aprovação do responsável"
-                  : "Pedido de amizade"}
+                  : social
+                    ? "Pedido de amizade"
+                    : "Participante deste mundo"}
           </p>
-          {c.amizade && !c.bloqueado && (
+          {social?.amizade && !c.bloqueado && (
             <p className="mt-1 text-xs text-tinta-suave">
-              {c.online ? "Online" : "Presença não informada"}
+              {social.online ? "Online" : "Presença não informada"}
             </p>
           )}
           {c.silenciado && <p className="mt-1 text-xs text-tinta-suave">Silenciado</p>}
@@ -426,7 +560,7 @@ function ContatoNaPartida({
             {pedido.direcao === "recebido" ? "Recusar pedido" : "Cancelar pedido"}
           </button>
         )}
-        {c.podeRemover && (
+        {social?.podeRemover && (
           <button
             type="button"
             className="rb rb-vazado"

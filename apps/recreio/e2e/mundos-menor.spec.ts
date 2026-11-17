@@ -2,7 +2,6 @@ import { expect, test } from "@playwright/test";
 import {
   comecarVigia,
   conceder,
-  criarMundo,
   fecharAparelhos,
   hidratado,
   novaPessoa,
@@ -75,7 +74,17 @@ test("responsável sem jogador gerencia o mundo criado no aparelho infantil, sem
     .click();
   await expect(infantil).toHaveURL(/\/aparelho$/);
   // Título interno Livre. Não altera a classificação pública do Morada.
-  const mundo = await criarMundo(infantil, "Jogo de teste", "Casa da Lua");
+  const secao = infantil.getByRole("region", { name: "Seus mundos no Jogo de teste", exact: true });
+  const nomeDoMundo = secao.getByLabel("Nome do mundo", { exact: true });
+  await hidratado(nomeDoMundo);
+  await nomeDoMundo.fill("Casa da Lua");
+  await secao.getByRole("button", { name: "Criar mundo", exact: true }).click();
+  await expect(infantil).toHaveURL(/\/aparelho\?mundoCriado=[0-9a-f-]{36}$/);
+  const mundo = new URL(infantil.url()).searchParams.get("mundoCriado");
+  if (!mundo) throw new Error("Mundo criado não confirmado");
+  await expect(
+    secao.getByRole("link", { name: "Jogar em Casa da Lua", exact: true }),
+  ).toBeVisible();
   await expect(infantil.getByRole("link", { name: "Gestão do mundo", exact: true })).toHaveCount(0);
   await page.goto(lista);
   await expect(

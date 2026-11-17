@@ -19,6 +19,10 @@ import {
   RevisaoDeDenunciaSchema,
 } from "../contrato/denuncias";
 import {
+  ConsultaDeParticipantesSchema,
+  ParticipantesDoMundoSchema,
+} from "../contrato/participantes";
+import {
   EstadoDeSalvamentoSchema,
   type PedidoDeSalvamentoDePerfil,
   PedidoDeSalvamentoDePerfilSchema,
@@ -367,6 +371,18 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   };
 
   const social: SocialDoPerfil = {
+    async participantes(mundoId, apos) {
+      exigirSessao();
+      const consulta = ConsultaDeParticipantesSchema.parse({
+        mundoId,
+        ...(apos === undefined ? {} : { apos }),
+      });
+      return enviar(
+        `/mundos/${encodeURIComponent(consulta.mundoId)}/participantes${consulta.apos ? `?apos=${encodeURIComponent(consulta.apos)}` : ""}`,
+        ParticipantesDoMundoSchema,
+        { method: "GET", token },
+      );
+    },
     async denuncias(protocolo) {
       exigirSessao();
       const consulta = ConsultaDeDenunciasSchema.parse(

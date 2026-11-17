@@ -1,10 +1,14 @@
 import "server-only";
 import { db, sql } from "@informach/db";
-import type { PerfilId } from "@informach/recreio";
+import type { MundoId, PerfilId } from "@informach/recreio";
 import {
   type AutorNativoRecente,
   autorizarContaNativa,
 } from "@/features/account/autoridade-repository";
+import {
+  confirmarCoparticipacao,
+  travarMundoCompartilhado,
+} from "@/features/mundos/coparticipacao-repository";
 import { AppError, assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 import type { ContextoSocial } from "./autoridade-repository";
@@ -34,10 +38,15 @@ async function tentar<T>(
     await tx.execute(sql`set local statement_timeout='5s'`);
     await tx.execute(sql`set local lock_timeout='2s'`);
     await tx.execute(sql`set local transaction_timeout='15s'`);
+    let pistaDeMundo: MundoId | null = null;
     const composicao = await travarComposicaoSocial(
       tx,
       { tipo: "responsavel", contaId: autor.contaId },
       [...new Set([pontas.origemId, ...(pontas.destinoId ? [pontas.destinoId] : [])])],
+      async () => {
+        if (pontas.destinoId && pontas.finalidade === "protecao")
+          pistaDeMundo = await travarMundoCompartilhado(tx, pontas.origemId, pontas.destinoId);
+      },
     );
     const nativa = await autorizarContaNativa(tx, autor);
     await nativa.conferirPrazo(prova);
@@ -90,6 +99,10 @@ async function tentar<T>(
       menor,
       versaoDoMenor: perfil.policyVersion,
       conferirPrazo,
+      mundoCompartilhado:
+        pontas.destinoId && pontas.finalidade === "protecao"
+          ? await confirmarCoparticipacao(tx, pistaDeMundo, pontas.origemId, pontas.destinoId)
+          : null,
     });
     await conferirPrazo();
     return { admitida: true as const, valor };

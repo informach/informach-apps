@@ -43,6 +43,7 @@ const NOMES: Record<string, string> = {
   pedido: "Pedido de amizade registrado",
   amizade: "Amizade registrada",
   protecao: "Proteção de contato registrada",
+  mundo: "Participação no mesmo mundo registrada",
 };
 
 export default async function SegurancaDoRecreio({

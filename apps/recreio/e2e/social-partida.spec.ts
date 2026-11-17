@@ -75,6 +75,60 @@ async function amizade(a: Page, b: Page) {
   await expect(b.getByText("Amizade confirmada", { exact: true })).toBeVisible();
 }
 
+test("participante sem amizade recebe proteção pelo portal e dentro da partida", async ({
+  browser,
+}) => {
+  const a = await novaPessoa(browser, "Sol participante"),
+    b = await novaPessoa(browser, "Mar participante");
+  const mundo = await criarMundo(a.page, "Jogo de teste", "Casa dos participantes");
+  await convidar(a.page, b.page, mundo);
+  await a.page.getByRole("link", { name: "Participantes e proteção", exact: true }).click();
+  await expect(a.page).toHaveURL(`/participantes/${mundo}`);
+  await expect(
+    a.page.getByRole("heading", { name: "Mar participante", exact: true }),
+  ).toBeVisible();
+  await expect(a.page.getByText("Amizade confirmada", { exact: true })).toHaveCount(0);
+  await a.page.getByRole("button", { name: "Denunciar contato", exact: true }).click();
+  await a.page
+    .getByRole("combobox", { name: "O que aconteceu?", exact: true })
+    .selectOption("outro");
+  await a.page.getByRole("button", { name: "Enviar denúncia", exact: true }).click();
+  await expect(a.page.getByLabel("Protocolo da denúncia", { exact: true })).toBeVisible();
+  await a.page.setViewportSize({ width: 390, height: 844 });
+  expect(await a.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+    true,
+  );
+  await tela(a.page, "participantes-protecao-mobile", { paginaInteira: true });
+  await contador.iniciar();
+  await a.page.goto(`/jogar/teste?mundo=${mundo}`);
+  await b.page.goto(`/jogar/teste?mundo=${mundo}`);
+  await expect(a.page.getByLabel("Valor do contador", { exact: true })).toHaveText("0");
+  await a.page.getByRole("button", { name: "Amigos e proteção", exact: true }).click();
+  const painel = a.page.getByRole("dialog", { name: "Amigos e proteção", exact: true });
+  const participantes = painel.getByRole("region", {
+    name: "Participantes deste mundo",
+    exact: true,
+  });
+  await expect(
+    participantes.getByRole("heading", { name: "Mar participante", exact: true }),
+  ).toBeVisible();
+  await participantes.getByRole("button", { name: "Silenciar", exact: true }).click();
+  await expect(participantes.getByText("Silenciado", { exact: true })).toBeVisible();
+  await participantes.getByRole("button", { name: "Bloquear", exact: true }).click();
+  await expect(participantes.getByText("Bloqueado por você", { exact: true })).toBeVisible();
+  await b.page.getByRole("button", { name: "Somar 1", exact: true }).click();
+  await expect(a.page.getByLabel("Valor do contador", { exact: true })).toHaveText("1");
+  await painel.getByRole("button", { name: "Voltar à partida", exact: true }).click();
+  await a.page.getByRole("button", { name: "Sair por dentro do jogo", exact: true }).click();
+  await b.page.getByRole("button", { name: "Sair por dentro do jogo", exact: true }).click();
+  await expect(a.page).toHaveURL(/\/estante$/);
+  await a.page.goto(`/mundos/${mundo}`);
+  await expect(
+    a.page.getByRole("heading", { name: "Casa dos participantes", exact: true }),
+  ).toBeVisible();
+  await expect(a.page.getByText("Mar participante", { exact: true })).toBeVisible();
+});
+
 test("painel social usa o SID sem sair, pausar o mundo ou retirar outros membros", async ({
   browser,
 }) => {

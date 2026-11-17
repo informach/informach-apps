@@ -123,6 +123,13 @@ O que o servidor do jogo precisa respeitar:
 Social é uma capacidade opcional em qualificação. `criarRecreio({ social: true,
 ... })` envia `suportaSocial: true`; `contexto.social` só existe quando o servidor
 também responde `social: true`. Clientes anteriores não recebem campo novo.
+
+Na candidata F5, `social.participantes(mundoId, apos?)` consulta dez participantes
+atuais do próprio mundo e jogo, com cursor. Só identidade opaca, apelido/avatar
+quando disponíveis e proteção própria; sem conta, presença ou conteúdo. Esse
+vínculo permite bloquear, silenciar e denunciar sem amizade. O servidor captura
+a referência; bloquear não expulsa membros nem altera progresso. Servidores e
+clientes desse incremento ainda estão em qualificação.
 A composição do Recreio mantém `RECREIO_SOCIAL_MODE=off` por padrão, até o aceite
 da frente completa. Desligar novos contatos conserva recusa, remoção e proteção
 de relações existentes para uma sessão ainda autorizada.
