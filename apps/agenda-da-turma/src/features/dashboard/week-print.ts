@@ -1,6 +1,7 @@
 import "server-only";
 
 import { buildWeekDays } from "@/features/calendar/date";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
 import { getRoutineSnapshot } from "@/features/unified-activities/service";
 import { listTasksInDateRange, type TaskRow } from "@/features/unified-activities/task-repository";
@@ -34,18 +35,18 @@ function toRow(task: TaskRow): PrintRow {
  * a rotina de Hoje (`getRoutineSnapshot`), então a folha nunca discorda delas.
  */
 export async function getWeekPrintout(
-  userId: string,
+  actor: AgendaAuthority,
   options: { anchorIso: string; profileFilter: string | null },
 ): Promise<WeekPrintout> {
   const todayIso = todayLocalIso();
   const days = buildWeekDays(options.anchorIso);
   const [tasks, routine] = await Promise.all([
-    listTasksInDateRange(userId, {
+    listTasksInDateRange(actor, {
       fromIso: days[0] ?? options.anchorIso,
       toIso: days[days.length - 1] ?? options.anchorIso,
       profileFilter: options.profileFilter,
     }),
-    getRoutineSnapshot(userId, { profileFilter: options.profileFilter }),
+    getRoutineSnapshot(actor, { profileFilter: options.profileFilter }),
   ]);
   const byDay = new Map<string, PrintRow[]>(days.map((iso) => [iso, []]));
   const ordered = [...tasks].sort(

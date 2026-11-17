@@ -46,9 +46,9 @@ export function DeleteSubjectDialog({ open, onOpenChange, subjectId, subjectName
           });
         } else if (result.error.code === "FORBIDDEN") {
           toast.error("Só quem criou essa matéria pode excluir.");
-        } else if (result.error.code === "IN_USE_BY_OTHERS") {
-          toast.error("Essa matéria está sendo usada por outras famílias.", {
-            description: "Não é possível excluir enquanto há atividades vinculadas.",
+        } else if (result.error.code === "IN_USE") {
+          toast.error("Essa matéria tem atividades ou materiais vinculados.", {
+            description: "Mantenha a matéria para preservar o histórico das crianças.",
           });
         } else {
           toast.error("Não foi possível excluir.", {

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Brand } from "@/components/brand";
 import { LinkChapa } from "@/components/ui/botao-chapa";
+import { parentAuthority } from "@/features/family/context";
 import { getProfiles } from "@/features/learning/repository";
 import { ConnectStudy, EnterStudy } from "@/features/study-access/components";
 import { ContextBoundary } from "@/features/study-access/context-boundary";
@@ -19,7 +20,9 @@ export default async function StudyEntry({
   const next = safeDestination(params.next, "study");
   const [user, identity] = await Promise.all([getCurrentUser(), getStudyIdentity()]);
   if (!user && identity) redirect(next);
-  const profiles = user?.emailVerified ? await getProfiles(user.id) : [];
+  const profiles = user?.emailVerified
+    ? (await getProfiles(await parentAuthority(user.id))).filter((profile) => profile.canWrite)
+    : [];
   return (
     <main id="conteudo" className="mx-auto max-w-2xl px-4 py-8 sm:px-8">
       <ContextBoundary />

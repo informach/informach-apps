@@ -64,7 +64,7 @@ export function activityOverviewHref(options: ActivityOverviewOptions) {
   if (options.assignedToMe) params.set("responsavel", "eu");
   if (options.noticeId) params.set("recado", options.noticeId);
   if (options.page > 1) params.set("pagina", String(options.page));
-  return params.size ? `/atividades?${params}` : "/atividades";
+  return params.size ? (`/atividades?${params}` as const) : "/atividades";
 }
 
 // Prazo e criança sem intermediários: com uma tabela só, o acesso é direto.

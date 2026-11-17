@@ -6,13 +6,14 @@ import {
   SUBPROTOCOLO,
   VERSAO_DO_PROTOCOLO,
 } from "@informach/morada-sim/protocolo";
-import { ErroDoRecreio } from "@informach/recreio";
+import { ErroDoRecreio, MundoIdSchema } from "@informach/recreio";
 import type { ClienteDoHost } from "@informach/recreio/host";
 import { criarEmissorDeTeste, criarPlataformaFalsa } from "@informach/recreio/testing";
 import { afterEach, describe, expect, it } from "vitest";
 import { WebSocket } from "ws";
+import { z } from "zod";
 import { criarInstancia } from "../src/instancia";
-import { criarServidor, type Servidor } from "../src/servidor";
+import { criarServidor, type OpcoesDoServidor, type Servidor } from "../src/servidor";
 
 /**
  * O servidor de verdade, em uma porta de verdade, com clientes WebSocket de
@@ -20,7 +21,24 @@ import { criarServidor, type Servidor } from "../src/servidor";
  */
 
 const ORIGEM = "http://localhost:3009";
+const MedidasDeRedeSchema = z.object({
+  rede: z.object({ pedidosEmCurso: z.number().int().nonnegative() }),
+});
 const abertos: Servidor[] = [];
+
+function sinal() {
+  let resolver: (() => void) | undefined;
+  const promessa = new Promise<void>((resolve) => {
+    resolver = resolve;
+  });
+  return {
+    promessa,
+    liberar() {
+      if (!resolver) throw new Error("Sinal ausente");
+      resolver();
+    },
+  };
+}
 
 afterEach(async () => {
   for (const servidor of abertos.splice(0)) await servidor.encerrar();
@@ -60,6 +78,9 @@ async function subir(
     foraDoAr?: boolean;
     batimentoMs?: number;
     exigirOrigem?: boolean;
+    limitesDeRede?: OpcoesDoServidor["limitesDeRede"];
+    antesDeVerificar?: () => Promise<void>;
+    antesDeFotografar?: () => Promise<void>;
   } = {},
 ) {
   const plataforma = criarPlataformaFalsa({ inicio: Date.now() });
@@ -80,9 +101,21 @@ async function subir(
     if (falta > 0) plataforma.avancar(falta);
     return plataforma.agora();
   };
+  const verificador = recreio.verificador("morada", () => new Date(sincronizar()));
+  const host = hostComFalhas(plataforma.cliente(), doRecreio, opcoes.batimentoMs);
+  const gravar = host.gravarFotografia.bind(host);
+  host.gravarFotografia = async (pedido) => {
+    await opcoes.antesDeFotografar?.();
+    return gravar(pedido);
+  };
   const instancia = criarInstancia({
-    host: hostComFalhas(plataforma.cliente(), doRecreio, opcoes.batimentoMs),
-    verificador: recreio.verificador("morada", () => new Date(sincronizar())),
+    host,
+    verificador: {
+      async verificar(token) {
+        await opcoes.antesDeVerificar?.();
+        return verificador.verificar(token);
+      },
+    },
     agora: sincronizar,
     urlPublica: "ws://localhost",
     versao: "teste",
@@ -96,6 +129,7 @@ async function subir(
     commit: "abc123",
     tokenDeMetricas: "segredo-de-medidas",
     pingMs: opcoes.pingMs,
+    limitesDeRede: opcoes.limitesDeRede,
     esperaDoRegistroMs: 40,
     registrar: (evento, dados) => registros.push({ evento, ...dados }),
     aoErro: (erro, contexto) => registros.push({ contexto, erro: String(erro) }),
@@ -171,6 +205,61 @@ function conectar(
 }
 
 describe("servidor em uma porta de verdade", () => {
+  it("recusa conexões além do teto antes da autenticação e devolve a vaga ao fechar", async () => {
+    const { porta, instancia } = await subir({
+      limitesDeRede: { conexoes: 1, pedidosEmCurso: 1, quadrosPorSegundo: 10 },
+    });
+    const primeira = await conectar(porta);
+    await expect(conectar(porta)).rejects.toThrow(/503/);
+    expect(instancia.medir().conexoes).toBe(1);
+    primeira.ws.close();
+    await primeira.fechado;
+    await ate(() => instancia.medir().conexoes === 0);
+    const seguinte = await conectar(porta);
+    seguinte.ws.close();
+    await seguinte.fechado;
+  });
+
+  it("limita autenticações simultâneas sem derrubar a que já está admitida", async () => {
+    let liberar = () => {};
+    const bloqueio = new Promise<void>((resolve) => {
+      liberar = resolve;
+    });
+    const { porta, jogador } = await subir({
+      limitesDeRede: { conexoes: 3, pedidosEmCurso: 1, quadrosPorSegundo: 10 },
+      antesDeVerificar: () => bloqueio,
+    });
+    const lia = await jogador("Lia");
+    const primeira = await conectar(porta);
+    const segunda = await conectar(porta);
+    const pedido: MensagemDoCliente = {
+      t: "entrar",
+      v: VERSAO_DO_PROTOCOLO,
+      sessao: lia.sessao,
+      mundoId: lia.mundoId,
+    };
+    try {
+      primeira.mandar(pedido);
+      const medidas = async () =>
+        MedidasDeRedeSchema.parse(
+          await (
+            await fetch(`http://127.0.0.1:${porta}/api/metricas`, {
+              headers: { authorization: "Bearer segredo-de-medidas" },
+            })
+          ).json(),
+        );
+      await ate(async () => (await medidas()).rede.pedidosEmCurso === 1);
+      segunda.mandar(pedido);
+      expect(await segunda.fechado).toBe(FECHAMENTO.cheio);
+      liberar();
+      await primeira.esperar(() => primeira.visao !== null);
+      await ate(async () => (await medidas()).rede.pedidosEmCurso === 0);
+      primeira.ws.close();
+      await primeira.fechado;
+    } finally {
+      liberar();
+    }
+  }, 20_000);
   it("dois clientes entram pelo WebSocket, jogam e o mundo anda no relógio", async () => {
     const { porta, jogador, instancia } = await subir();
     const lia = await jogador("Lia");
@@ -304,9 +393,95 @@ describe("servidor em uma porta de verdade", () => {
     abertos.length = 0;
     expect(await cliente.fechado).toBe(FECHAMENTO.reiniciando);
     expect(cliente.quadros).toContainEqual({ t: "aviso", codigo: "servidor_reiniciando" });
-    const guardado = plataforma.mundo(lia.mundoId as never);
+    const guardado = plataforma.mundo(MundoIdSchema.parse(lia.mundoId));
     expect(guardado.posse).toBeNull();
     expect(guardado.fotografias.at(-1)?.diarioSeq).toBe(guardado.diarioSeq);
+  });
+
+  it("salva e encerra mesmo quando o cliente deixa de confirmar o fechamento WS", async () => {
+    const { porta, jogador, servidor, plataforma } = await subir();
+    const lia = await jogador("Lia");
+    const cliente = await conectar(porta);
+    cliente.mandar({
+      t: "entrar",
+      v: VERSAO_DO_PROTOCOLO,
+      sessao: lia.sessao,
+      mundoId: lia.mundoId,
+    });
+    await cliente.esperar(() => cliente.visao !== null);
+    cliente.ws.pause();
+    try {
+      await servidor.encerrar();
+      const guardado = plataforma.mundo(MundoIdSchema.parse(lia.mundoId));
+      expect(guardado.posse).toBeNull();
+      expect(guardado.fotografias.at(-1)?.diarioSeq).toBe(guardado.diarioSeq);
+    } finally {
+      cliente.ws.resume();
+      cliente.ws.terminate();
+    }
+  }, 10_000);
+
+  it("retira prontidão e aguarda a escrita lenta antes de liberar a posse e fechar a rede", async () => {
+    let reter = false;
+    const escrita = sinal(),
+      espera = sinal();
+    const { porta, jogador, servidor, plataforma } = await subir({
+      antesDeFotografar: async () => {
+        if (reter) {
+          escrita.liberar();
+          await espera.promessa;
+        }
+      },
+    });
+    const lia = await jogador("Lia");
+    const cliente = await conectar(porta);
+    cliente.mandar({
+      t: "entrar",
+      v: VERSAO_DO_PROTOCOLO,
+      sessao: lia.sessao,
+      mundoId: lia.mundoId,
+    });
+    await cliente.esperar(() => cliente.visao !== null);
+    const id = MundoIdSchema.parse(lia.mundoId);
+    const fotosAntes = plataforma.mundo(id).fotografias.length;
+    reter = true;
+    const encerramento = servidor.encerrar();
+    try {
+      await escrita.promessa;
+      expect((await fetch(`http://127.0.0.1:${porta}/api/ready`)).status).toBe(503);
+      expect(servidor.http.listening).toBe(true);
+      expect(plataforma.mundo(id).posse).not.toBeNull();
+      expect(plataforma.mundo(id).fotografias).toHaveLength(fotosAntes);
+    } finally {
+      espera.liberar();
+    }
+    expect(await encerramento).toEqual({ mundos: 1, falhas: 0 });
+    expect(await cliente.fechado).toBe(FECHAMENTO.reiniciando);
+    expect(plataforma.mundo(id).posse).toBeNull();
+    expect(plataforma.mundo(id).fotografias.at(-1)?.diarioSeq).toBe(plataforma.mundo(id).diarioSeq);
+    expect(servidor.http.listening).toBe(false);
+  });
+
+  it("fecha HTTP e WebSocket e reporta falha quando o salvamento não é confirmado", async () => {
+    const { porta, jogador, servidor, plataforma, doRecreio } = await subir();
+    const lia = await jogador("Lia");
+    const cliente = await conectar(porta);
+    cliente.mandar({
+      t: "entrar",
+      v: VERSAO_DO_PROTOCOLO,
+      sessao: lia.sessao,
+      mundoId: lia.mundoId,
+    });
+    await cliente.esperar(() => cliente.visao !== null);
+    const id = MundoIdSchema.parse(lia.mundoId);
+    const fotosAntes = plataforma.mundo(id).fotografias.length;
+    doRecreio.foraDoAr = true;
+    expect(await servidor.encerrar()).toEqual({ mundos: 1, falhas: 1 });
+    expect(await servidor.encerrar()).toEqual({ mundos: 1, falhas: 1 });
+    expect(await cliente.fechado).toBe(FECHAMENTO.reiniciando);
+    expect(plataforma.mundo(id).posse).not.toBeNull();
+    expect(plataforma.mundo(id).fotografias).toHaveLength(fotosAntes);
+    expect(servidor.http.listening).toBe(false);
   });
 });
 

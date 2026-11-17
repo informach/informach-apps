@@ -40,6 +40,13 @@ export function DeleteStudentDialog({ open, onOpenChange, profileId, profileName
           router.refresh();
           return;
         }
+        if (result.error.code === "SHARED_ORIGINAL") {
+          toast.error("Há um recado original compartilhado", {
+            description:
+              "Ele também pertence a outra criança ou adulto. Revise o compartilhamento antes de remover este histórico.",
+          });
+          return;
+        }
         if (result.error.code === "NOT_FOUND") {
           toast.error("Essa criança já tinha saído da Agenda", {
             description: "Ela pode ter saído em outra aba.",

@@ -34,7 +34,7 @@ export function GravadorDeVoz({
   if (!podeGravar)
     return (
       <p className="rounded-xl bg-uva-clara p-3 text-sm font-bold text-uva-escura">
-        Gravar a sua voz no lembrete é do plano Família.{" "}
+        Gravar a sua voz no lembrete é do Compasso.{" "}
         <Link href="/ajustes#plano" className="underline">
           Ver planos
         </Link>

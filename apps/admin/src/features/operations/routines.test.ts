@@ -5,6 +5,7 @@ import {
   lateAfterMinutes,
   ROUTINES,
   routineState,
+  routinesForDeployment,
   summaryText,
 } from "./routines";
 
@@ -89,8 +90,46 @@ describe("situação das rotinas", () => {
     const edi = routine("edi", "reconcile");
     expect(edi.pausedNote).toBeUndefined();
     expect(routineState(edi, null, now)).toBe("never");
-    // Hoje todos os crons do catálogo estão ligados no Railway.
-    expect(ROUTINES.filter((item) => item.pausedNote)).toEqual([]);
+    expect(ROUTINES.filter((item) => item.app === "edi" && item.pausedNote)).toEqual([]);
+  });
+
+  it("mantém os jobs Compasso preparados visíveis e não oculta falhas depois da primeira execução", () => {
+    const prepared = ROUTINES.filter((item) => item.pausedNote && item.app !== "recreio");
+    expect(prepared).toHaveLength(8);
+    expect(prepared.filter((item) => item.job === "account-departure")).toHaveLength(5);
+    expect(prepared.filter((item) => item.app === "conta").map((item) => item.job)).toEqual([
+      "account-maintenance",
+      "billing",
+    ]);
+    for (const item of prepared) {
+      expect(routineState(item, null, now)).toBe("paused");
+      expect(routineState(item, run(0, { ok: false }), now)).toBe("failed");
+      expect(routineState(item, run(20), now)).toBe("late");
+    }
+  });
+
+  it("mantém a manutenção do Recreio aguardando o deploy fechado", () => {
+    expect(routineState(routine("recreio", "manutencao"), null, now)).toBe("paused");
+  });
+
+  it("aposenta a cobrança por app no corte e mantém os outros domínios e o Edi", () => {
+    const active = routinesForDeployment(true);
+    expect(active.filter((row) => row.job.startsWith("billing"))).toEqual([
+      expect.objectContaining({ app: "conta", job: "billing" }),
+    ]);
+    expect(active.find((row) => row.app === "edi" && row.job === "reconcile")).toBeTruthy();
+    for (const job of [
+      "weekly-report",
+      "lembretes",
+      "agenda-routine",
+      "cozya-retention",
+      "email-retry",
+      "auth-cleanup",
+    ])
+      expect(active.some((row) => row.job === job)).toBe(true);
+    expect(active.find((row) => row.app === "recreio")?.pausedNote).toBeTruthy();
+    expect(active.find((row) => row.app === "conta")?.pausedNote).toBeUndefined();
+    expect(routinesForDeployment(false)).toBe(ROUTINES);
   });
 
   it("escreve a falha e o resumo em português, sem texto livre", () => {

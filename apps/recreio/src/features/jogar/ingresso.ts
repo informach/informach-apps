@@ -1,4 +1,4 @@
-import { ErroDoRecreio, erroDaResposta } from "@informach/recreio/sdk";
+import { comPrazoDePedido, ErroDoRecreio, erroDaResposta } from "@informach/recreio/sdk";
 
 /**
  * Pede o ingresso de um jogo ao portal, com o cookie da própria origem. É o
@@ -8,7 +8,11 @@ import { ErroDoRecreio, erroDaResposta } from "@informach/recreio/sdk";
  * Toda recusa vira o `ErroDoRecreio` com o código que o portal mandou; rede
  * fora do ar e resposta que não dá para entender viram `INDISPONIVEL`.
  */
-export async function pedirIngresso(jogo: string): Promise<string> {
+export function pedirIngresso(jogo: string, signal?: AbortSignal): Promise<string> {
+  return signal ? obter(jogo, signal) : comPrazoDePedido((prazo) => obter(jogo, prazo));
+}
+
+async function obter(jogo: string, signal: AbortSignal): Promise<string> {
   let resposta: Response;
   try {
     resposta = await fetch("/api/sdk/v1/ingresso", {
@@ -17,6 +21,7 @@ export async function pedirIngresso(jogo: string): Promise<string> {
       body: JSON.stringify({ jogo }),
       credentials: "same-origin",
       cache: "no-store",
+      signal,
     });
   } catch {
     throw new ErroDoRecreio("INDISPONIVEL");

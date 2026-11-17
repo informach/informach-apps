@@ -1,0 +1,66 @@
+{
+  "formato": "recreio.operacao-prazos",
+  "versao": 1,
+  "conferidoEmUtc": "2026-11-16T05:16:51Z",
+  "codigo": "d13038b723a58be9c8a7628bc9655eedfb3dcf21",
+  "candidata": 43806077949,
+  "main": 43806891362,
+  "portal": {
+    "deployment": "4b21cdf2-68a0-48e2-b876-78ead67b4971",
+    "health": 200,
+    "ready": 200
+  },
+  "morada": {
+    "deployment": "f39c9f31-9c6b-49ac-8bb2-94e9c150b8d1",
+    "health": 200,
+    "ready": 200,
+    "fontesDoJogoIdenticasA": "22a3db60fab2490d2fe4ffa1d144fe7bc1aa8afe",
+    "mundo": 2,
+    "protocolo": 1,
+    "manifesto": 3,
+    "arteSha256": "4198478735b643e07d4ce0821db82654c42847bbf996d1d07a99a5890b21672f"
+  },
+  "sentry": {
+    "release": "d13038b723a58be9c8a7628bc9655eedfb3dcf21",
+    "uploadUtc": "2026-11-16T04:56:25.285830463Z",
+    "gruposNaoResolvidosProduction24h": {
+      "recreio": 0,
+      "morada-server": 0
+    }
+  },
+  "cron": [
+    {
+      "inicioUtc": "2026-11-16T05:05:02.296Z",
+      "fimUtc": "2026-11-16T05:05:02.348Z",
+      "ok": true,
+      "possesVencidas": 0,
+      "sessoesExpiradas": 0,
+      "ingressosApagados": 0,
+      "instanciasSumidas": 0
+    },
+    {
+      "inicioUtc": "2026-11-16T05:10:47.995Z",
+      "fimUtc": "2026-11-16T05:10:48.050Z",
+      "ok": true,
+      "possesVencidas": 0,
+      "sessoesExpiradas": 0,
+      "ingressosApagados": 0,
+      "instanciasSumidas": 0
+    },
+    {
+      "inicioUtc": "2026-11-16T05:15:40.593Z",
+      "fimUtc": "2026-11-16T05:15:40.643Z",
+      "ok": true,
+      "possesVencidas": 0,
+      "sessoesExpiradas": 0,
+      "ingressosApagados": 0,
+      "instanciasSumidas": 0
+    }
+  ],
+  "limites": [
+    "D3 nao ativado",
+    "Sem prova nova de FPS, diversao ou capacidade",
+    "Contagem zero nao certifica ausencia de linhas disputadas",
+    "Nao houve ampliacao de orçamento do Sentry"
+  ]
+}

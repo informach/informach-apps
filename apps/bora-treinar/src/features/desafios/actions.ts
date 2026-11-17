@@ -1,11 +1,10 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { canUseChallenges } from "@/features/acesso/policy";
 import { EXERCISES } from "@/features/treino/catalog/catalog";
 import { runAction, verifiedUser } from "@/lib/action";
 import { FUSO_PADRAO, inicioDaSemana } from "@/lib/datas";
-import { AppError, assertAllowed } from "@/lib/errors";
+import { AppError } from "@/lib/errors";
 import { familyView } from "../familia/view";
 import { METRICAS } from "./placar";
 import { clearChallenge, setChallenge } from "./repository";
@@ -34,15 +33,14 @@ export async function challengeAction(input: unknown) {
   return runAction(async () => {
     const user = await verifiedUser();
     const view = await familyView(user.id);
-    assertAllowed(canUseChallenges(view.access), "PLAN", "Os desafios fazem parte da assinatura.");
     const semana = inicioDaSemana(new Date(), view.family?.timezone ?? FUSO_PADRAO);
-    if (input === null) await clearChallenge(user.id, semana);
+    if (input === null) await clearChallenge(user.id, view.group.id, semana);
     else {
       const desafio = desafioSchema.safeParse(input);
       // a mensagem em português de cada regra, em vez do "confira os campos" genérico
       if (!desafio.success)
         throw new AppError("INPUT", desafio.error.issues[0]?.message ?? "Confira a meta.");
-      await setChallenge(user.id, semana, desafio.data);
+      await setChallenge(user.id, view.group.id, semana, desafio.data);
     }
     revalidatePath("/desafios");
     revalidatePath("/progresso");

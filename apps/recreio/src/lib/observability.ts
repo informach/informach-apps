@@ -24,10 +24,9 @@ export const packageLogger = {
  * nunca o apelido, o nome de um mundo, um código de convite, o e-mail, o IP ou
  * um token: ver docs/audit-payload-policy.md.
  *
- * Por aqui passam os eventos que não acompanham uma gravação: a criação do
- * perfil e as recusas (ingresso recusado, escrita de instância recusada). O
+ * Por aqui passam as recusas (ingresso recusado, escrita de instância recusada). O
  * que muda o banco numa transação (concessões, sessões de jogo, mundos,
- * convites, posse) grava o evento dentro dela, no repositório.
+ * convites, posse e criação de perfil) grava o evento dentro dela, no repositório.
  */
 export type RecreioAuditEvent = {
   eventType: Extract<AuditEventType, `recreio.${string}`>;

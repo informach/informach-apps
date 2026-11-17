@@ -1,7 +1,8 @@
 import "server-only";
 
 import { cache } from "react";
-import { getAddEntitlement } from "@/features/notices/trial";
+import { agendaAuthority } from "@/features/family/context";
+import { getAddEntitlement } from "@/features/notices/entitlement-repository";
 import { listStudentProfilesForUser } from "@/features/students/service";
 
 /**
@@ -11,9 +12,10 @@ import { listStudentProfilesForUser } from "@/features/students/service";
  * "Adicionar" da barra de cima no computador) e a consulta é uma só.
  */
 export const getShellData = cache(async (userId: string) => {
+  const actor = await agendaAuthority(userId);
   const [entitlement, profiles] = await Promise.all([
-    getAddEntitlement(userId),
-    listStudentProfilesForUser(userId),
+    getAddEntitlement(actor),
+    listStudentProfilesForUser(actor),
   ]);
   return {
     entitlement,

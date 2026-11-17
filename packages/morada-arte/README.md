@@ -2,10 +2,10 @@
 
 Empacotador de arte do Morada. Lê a biblioteca de personagens do repositório de arte (corpos, rostos, cabelos,
 roupas e bibliotecas de animação) e gera pacotes pequenos, prontos para o jogo: um GLB por personagem, um GLB de
-animações por esqueleto e um `manifest.json`.
+animações por esqueleto e um `manifest.json`. Com `--casa`, inclui os móveis, acabamentos e encaixes usados pela planta, sem copiar a biblioteca inteira para o jogo.
 
-Roda em Node, com `tsx`, sem passo de build. Não faz parte do cliente: o cliente só importa o tipo do manifesto
-(`@informach/morada-arte/manifesto`).
+O empacotador roda em Node, com `tsx`, sem passo de build. O cliente importa somente o contrato do manifesto
+(`@informach/morada-arte/manifesto`) e as contas puras de cor (`@informach/morada-arte/cores`), sem leitores de arquivos.
 
 ## Regras sobre a arte
 
@@ -46,6 +46,9 @@ tsx src/cli.ts --arte <ARTES_3D_DIR> --saida <pasta> [opções]
   --elenco <id,id,...>     personagens prontos de codigo/arte/elenco.json
   --personagens <arquivo>  descrições em JSON (formato "morada-elenco")
   --commit <hash>          commit da arte, quando a pasta não é um clone do git
+  --casa <arquivo>         modelo de imóvel JSON do jogo (móveis, acabamentos e encaixes)
+  --cores-parametricas    perfil V3 com canais editáveis, para cliente compatível
+  --criacao              48 combinações iniciais parametrizadas e os oito personagens legados
 ```
 
 Sai com código diferente de zero em qualquer falha de leitura ou de validação, com o arquivo e o campo na
@@ -87,6 +90,25 @@ pasta.
   no three.js 0.186.1 com `GLTFLoader` e `MeshoptDecoder`.
 
 Convenções do glTF: metros, Y para cima, frente em +Z, origem no chão, entre os pés.
+
+### Perfil parametrizado V3 (em homologação)
+
+`--cores-parametricas` mantém a geometria montada e declara canais semânticos de pele, rosto, cabelo e
+slots de roupa no manifesto. A montagem padrão continua V2. No perfil novo, materiais de vértices
+levam `_MORADA_CANAL_COR`, `_MORADA_MASCARA_COR` e `_MORADA_PESO_COR` em float32; a fórmula linear é
+`original * (1 - máscara) + peso * cor`. Os nomes chegam ao three.js em minúsculas.
+
+Roupa com cor livre conserva RGB original no GLB e máscara linear em outro PNG identificado por hash,
+nas respectivas grades originais, em material **opaco**. `extras.moradaCor` declara canal, luminância e
+arquivo da máscara; `cores.mascaras` declara bytes e dimensões. A lista de arquivos permitidos inclui
+essas máscaras e o servidor confere tamanho, hash e Brotli na inicialização. O shader amostra as duas
+texturas separadamente, aplica a mesma fórmula da página e mantém opacidade 1. Isso exige o consumidor
+compatível. Texturas desse perfil ainda precisam de orçamento medido sobre o catálogo real antes da
+publicação.
+
+Materiais e uniformes pertencem ao morador; geometria e texturas pertencem ao pacote compartilhado.
+A bancada sintética e os gates do GitHub verificam GLTFLoader/WebGL, máscaras 0/parcial/1, fatores
+maiores que 1 e reutilização dos programas. Essa prova não certifica o catálogo licenciado nem FPS.
 
 ### Biblioteca de animação
 
@@ -204,3 +226,21 @@ src/
   cli.ts        linha de comando
 test/           testes e a fábrica da biblioteca de mentira
 ```
+
+
+## Ambiente da casa (D1)
+
+Na raiz do monorepo:
+
+```bash
+ARTES_3D_DIR=<clone-privado-fora-do-repo> pnpm --filter @informach/morada-arte empacotar -- \
+  --saida <saida-fora-do-repo> --casa packages/morada-sim/src/conteudo/imoveis/casa-prova.v1.json
+```
+
+A seleção vem dos ids/versões dos objetos, dos acabamentos dos cômodos e dos vãos da planta. A entrada privada precisa também de `biblioteca/moveis/<categoria>/catalogo.json`, dos GLBs citados, de `biblioteca/construcao/construcao.json`, `portas_janelas.json`, `pecas/` e das texturas utilizadas em `texturas/`. O D1 usa o mesmo commit privado fixado no X2; não segue automaticamente a `main` da arte.
+
+O manifesto emitido é V2, com `objetos`, `acabamentos` e `aberturas`; o esquema continua aceitando V1. Objetos e encaixes são GLBs com texturas embutidas e compressão meshopt; acabamentos são PNGs com nome por hash. Todos recebem cópia brotli e entram em `arquivosDoManifesto`. Os GLBs mantêm materiais, transparência e extras/pivôs. GLB com URI externa ou catálogo apontando para fora da entrada é recusado.
+
+Os apoios são medidos por raio na geometria original: assento na parte dianteira do sofá, colchões de cama/berço e os dois níveis do beliche. O manifesto guarda as alturas em metros, por ponto de uso; `dentro` é o ponto do bebê no berço. Isso não altera as regras nem os pontos da simulação.
+
+`Resultado.recursos` informa bytes crus, gzip e brotli por arquivo. A tabela da CLI soma os recursos do ambiente aos personagens e bibliotecas. Repetir o empacotamento da mesma entrada produz os mesmos arquivos; medidas e limites da prova real ficam no [review do D1](../../docs/recreio/review-d1-2026-11-13.md).

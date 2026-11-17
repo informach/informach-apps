@@ -14,7 +14,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import { CameraIcon, MessageIcon, MicIcon, PencilIcon } from "@/components/icons/canvas-icons";
-import { PRO_READS_PER_MONTH } from "@/features/billing/plans-content";
 import type { AddEntitlement } from "@/features/notices/entitlement";
 import { readLastChild, rememberLastChild } from "@/features/notices/last-child";
 import { handOffPhoto } from "@/features/notices/photo-handoff";
@@ -72,14 +71,6 @@ const OPTIONS = [
   },
 ] as const;
 
-/** "58 de 70 leituras sobrando este mês." Com pacote comprado o saldo passa do mês, e a conta fica sem o "de 70". */
-function readsSentence(left: number) {
-  const total = left <= PRO_READS_PER_MONTH ? ` de ${PRO_READS_PER_MONTH}` : "";
-  const word = left === 1 && !total ? "leitura" : "leituras";
-  const note = left === 1 ? " O ditado usa duas." : "";
-  return `${left}${total} ${word} sobrando este mês.${note}`;
-}
-
 export function AddSheet({
   profileId,
   profiles = [],
@@ -118,9 +109,9 @@ export function AddSheet({
   // aparelho. Lido ao abrir, e não no render inicial: `localStorage` não existe
   // no servidor.
   const selected = known(chosen) ?? known(profileId) ?? profiles[0]?.id ?? null;
-  const withProfile = (href: string) => {
+  const withProfile = (href: "/atividades/nova" | `/recados/novo?modo=${string}`) => {
     if (!selected) return href;
-    return `${href}${href.includes("?") ? "&" : "?"}perfil=${encodeURIComponent(selected)}`;
+    return `${href}${href.includes("?") ? "&" : "?"}perfil=${encodeURIComponent(selected)}` as const;
   };
 
   return (
@@ -216,6 +207,21 @@ export function AddSheet({
             );
             const rowClass =
               "flex min-h-[72px] items-center gap-3.5 border-t border-foreground/15 px-4 py-2.5 transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none";
+            const allowed =
+              !!selected &&
+              (key === "escrever"
+                ? entitlement.writeProfileIds
+                : entitlement.aiProfileIds
+              ).includes(selected);
+            if (!allowed)
+              return (
+                <li key={key}>
+                  <div aria-disabled="true" className={cn(rowClass, "opacity-50")}>
+                    {row}
+                    <span className="sr-only">Sem permissão para esta criança</span>
+                  </div>
+                </li>
+              );
             return (
               <li key={key}>
                 {key === "foto" ? (
@@ -263,70 +269,22 @@ export function AddSheet({
             );
           })}
         </ul>
-        {/*
-          Quando a franquia acaba, o rodapé deixa de ser um aviso seco: a mesma
-          franquia é contada do lado do que a família ganhou, e o convite ao Pro
-          vem no único momento em que ele responde a uma pergunta que a pessoa
-          acabou de fazer. Escrever à mão continua livre, e continua na lista.
-        */}
-        {!entitlement.isPro && entitlement.trialLeft === 0 ? (
-          <div className="space-y-3 border-t border-foreground/15 px-5 pt-3.5">
-            <p className="text-sm leading-normal">
-              Os recados de teste acabaram.
-              {entitlement.organizedFromNotices > 0 ? (
-                <>
-                  {" "}
-                  Com eles, a Agenda organizou{" "}
-                  <strong className="font-bold">
-                    {entitlement.organizedFromNotices === 1
-                      ? "1 atividade"
-                      : `${entitlement.organizedFromNotices} atividades`}
-                  </strong>{" "}
-                  para vocês.
-                </>
-              ) : null}
-            </p>
-            <Button asChild className="min-h-11 w-full rounded-xl font-bold">
-              <Link href="/upgrade" onClick={() => setOpen(false)}>
-                Ver o Pro
-              </Link>
-            </Button>
-            <p className="text-sm text-muted-foreground">Escrever à mão continua livre.</p>
-          </div>
-        ) : (
-          <p className="border-t border-foreground/15 px-5 pt-3.5 text-sm leading-normal text-muted-foreground">
-            Você confere antes de salvar.{" "}
-            {entitlement.isPro ? (
-              entitlement.readsLeft === null ? null : entitlement.readsLeft === 0 ? (
-                // Sem leitura, os caminhos de foto, mensagem e fala respondem
-                // com erro: melhor dizer antes, e dizer a saída. Escrever
-                // continua livre.
-                <>
-                  <strong className="font-bold text-foreground">
-                    As leituras deste mês acabaram.
-                  </strong>{" "}
-                  {entitlement.isBillingOwner ? (
-                    <Link
-                      href="/settings/billing"
-                      onClick={() => setOpen(false)}
-                      className="font-bold text-primary-ink underline"
-                    >
-                      Ver mais leituras
-                    </Link>
-                  ) : (
-                    "Quem assina a Agenda pode comprar mais."
-                  )}
-                </>
-              ) : (
-                readsSentence(entitlement.readsLeft)
-              )
-            ) : entitlement.trialLeft === 1 ? (
-              "A Agenda ainda lê 1 recado de graça."
-            ) : (
-              `A Agenda ainda lê ${entitlement.trialLeft} recados de graça.`
-            )}
+        <div className="space-y-2 border-t border-foreground/15 px-5 pt-3.5 text-sm text-muted-foreground">
+          <p>
+            <strong className="text-foreground">
+              {entitlement.creditsAvailable} créditos disponíveis
+            </strong>{" "}
+            no saldo compartilhado do Compasso. O custo aparece antes de cada uso de IA.
           </p>
-        )}
+          <a
+            href={entitlement.accountHref}
+            onClick={() => setOpen(false)}
+            className="font-bold text-primary-ink underline"
+          >
+            Ver saldo e assinatura
+          </a>
+          <p>Escrever à mão não usa créditos. Você confere antes de salvar.</p>
+        </div>
       </DrawerContent>
     </Drawer>
   );

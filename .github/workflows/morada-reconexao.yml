@@ -1,0 +1,32 @@
+name: Morada - regressao focada da reconexao
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["verify/morada-reconexao-*"]
+
+permissions:
+  contents: read
+
+jobs:
+  conferir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Exercitar a fila e a reentrada reais
+        run: pnpm --filter @informach/morada-server exec vitest run test/reconexao-enfileirada.test.ts --reporter=default --reporter=json --outputFile=${{ runner.temp }}/morada-reconexao.json
+      - name: Preservar resultado sintetico
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: morada-reconexao-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/morada-reconexao.json
+          if-no-files-found: warn
+          retention-days: 30

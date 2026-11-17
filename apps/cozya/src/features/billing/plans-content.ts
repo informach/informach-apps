@@ -1,53 +1,8 @@
-import { findProduct } from "@informach/config";
-import { TRIAL_CREDITS, TRIAL_DAYS } from "@/features/kitchen/trial";
-import { FREE_RECIPE_LIMIT } from "@/features/recipes/limits";
+import { COMPASSO_POLICY } from "@informach/config/collections";
 
 export type BillingCycle = "monthly" | "annual";
 
-export type PlanFeature = { label: string; included: boolean };
-
-// Preços e créditos derivados de `packages/config/src/products.ts`, a fonte oficial.
-// Divergência entre UI e Stripe Dashboard é bug (root CLAUDE.md §8.1).
-const monthlyProduct = findProduct("cozya_pro_monthly");
-const annualProduct = findProduct("cozya_pro_annual");
-if (!monthlyProduct?.listPrice || !annualProduct?.listPrice) {
-  throw new Error(
-    "cozya_pro_monthly e cozya_pro_annual precisam ter listPrice em packages/config/src/products.ts",
-  );
-}
-// The annual plan releases the same credits every month: the copy says one number for both.
-if (
-  !monthlyProduct.bonusCreditsPerMonth ||
-  monthlyProduct.bonusCreditsPerMonth !== annualProduct.bonusCreditsPerMonth
-) {
-  throw new Error(
-    "cozya_pro_monthly e cozya_pro_annual precisam do mesmo bonusCreditsPerMonth em packages/config/src/products.ts",
-  );
-}
-/** Credits of the Pro every month, also on the annual plan. */
-export const PRO_MONTHLY_CREDITS = monthlyProduct.bonusCreditsPerMonth;
-
-export const FREE_FEATURES: PlanFeature[] = [
-  {
-    label: `${TRIAL_DAYS} dias para planejar, com ${TRIAL_CREDITS} créditos de IA, sem cartão`,
-    included: true,
-  },
-  { label: `Até ${FREE_RECIPE_LIMIT} receitas escritas do seu jeito`, included: true },
-  { label: "Modo cozinha em todas as suas receitas", included: true },
-  { label: "As semanas e listas que você já montou", included: true },
-  { label: "Compartilhar receita pelo WhatsApp", included: true },
-];
-
-export const PRO_FEATURES: PlanFeature[] = [
-  { label: "Semanas sem limite, com mesa e marmitas", included: true },
-  { label: "Lista do mercado somada, com despensa", included: true },
-  { label: "Modo cozinha e repetir a semana", included: true },
-  { label: "Receitas sem limite", included: true },
-  { label: "Trazer receita por foto, texto ou voz", included: true },
-  { label: "Encontrar receitas com fonte na web", included: true },
-  { label: `${PRO_MONTHLY_CREDITS} créditos de IA por mês, também no anual`, included: true },
-  { label: "Créditos extras quando precisar", included: true },
-];
+export const MONTHLY_CREDITS = COMPASSO_POLICY.ai.monthlyCredits;
 
 const BRL = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -55,8 +10,8 @@ const BRL = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 2,
 });
 
-const monthlyCents = monthlyProduct.listPrice.amountCents;
-const annualCents = annualProduct.listPrice.amountCents;
+const monthlyCents = COMPASSO_POLICY.monthlyAmountCents;
+const annualCents = COMPASSO_POLICY.annualAmountCents;
 const annualMonthlyEquivalentCents = Math.round(annualCents / 12);
 export const ANNUAL_SAVINGS_PCT = Math.round((1 - annualCents / (monthlyCents * 12)) * 100);
 export const ANNUAL_SAVINGS = BRL.format((monthlyCents * 12 - annualCents) / 100);
@@ -91,8 +46,3 @@ export const PRICING: Record<
     tabLabel: "Anual",
   },
 };
-
-/** Maps the marketing query param `?cycle=mensal|anual` to internal cycle id. */
-export function parseCycleQueryParam(value: string | undefined): BillingCycle {
-  return value === "anual" || value === "annual" ? "annual" : "monthly";
-}

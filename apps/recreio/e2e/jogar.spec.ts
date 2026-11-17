@@ -1,25 +1,22 @@
-import { type ChildProcess, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { expect, type Page, test } from "@playwright/test";
 import { WebSocket as ConexaoDeFora } from "ws";
 import { MARCA_DO_JOGO_DE_TESTE } from "../src/features/jogo-de-teste/cliente";
 import {
-  APP,
   comecarVigia,
   conceder,
   criarMundo as criarMundoNoJogo,
-  esperarSaida,
   esquecerAparelho,
   fecharAparelhos,
   hidratado,
-  linhasDeJson,
   novaPessoa,
   origemDoJogo as origemDe,
-  saiu,
   scriptsDe,
   tela,
   vigia,
 } from "./apoio";
+import { prepararParticipacoesAfastadas } from "./participacoes-apoio";
+import { servidorDoContador } from "./servidor-apoio";
 
 /**
  * A plataforma de ponta a ponta, com navegadores de verdade, o portal em build
@@ -38,38 +35,11 @@ const criarMundo = (page: Page, nome: string) => criarMundoNoJogo(page, "Jogo de
 
 // --- O servidor do jogo de teste, como processo filho ---
 
-let servidor: ChildProcess | null = null;
-let saidaDoServidor: string[] = [];
-
-async function noAr(): Promise<boolean> {
-  try {
-    return (await fetch(`${origemDoJogo().http}/saude`)).ok;
-  } catch {
-    return false;
-  }
-}
-
-/** Sobe uma instância e espera ela se registrar no Recreio e aceitar conexões. */
-async function iniciarServidor(): Promise<void> {
-  if (servidor) throw new Error("Já existe um servidor do jogo de teste em execução");
-  const filho = spawn(process.execPath, ["--import", "tsx", "e2e/servidor/main.ts"], {
-    cwd: APP,
-    env: process.env,
-    stdio: ["ignore", "pipe", "pipe", "ipc"],
-    windowsHide: true,
-  });
-  filho.stdout?.on("data", (parte: Buffer) => saidaDoServidor.push(parte.toString()));
-  filho.stderr?.on("data", (parte: Buffer) => saidaDoServidor.push(parte.toString()));
-  servidor = filho;
-  await expect
-    .poll(noAr, { timeout: 60_000, message: "o servidor do jogo de teste não subiu" })
-    .toBe(true);
-}
-
-/** O que as instâncias desta execução registraram (uma linha de JSON por acontecimento). */
-function registrosDoServidor(mensagem: string): Record<string, unknown>[] {
-  return linhasDeJson(saidaDoServidor).filter((registro) => registro.mensagem === mensagem);
-}
+const instancia = servidorDoContador();
+const iniciarServidor = () => instancia.iniciar();
+const registrosDoServidor = (mensagem: string) => instancia.registros(mensagem);
+const matarServidor = () => instancia.matar();
+const pararServidor = () => instancia.parar();
 
 /**
  * Uma conexão com a instância feita de fora do navegador, para ver o que ela
@@ -97,29 +67,9 @@ function conectarDeFora(opcoes: { origem?: string; quadro?: unknown }): Promise<
   });
 }
 
-/** Derruba a instância sem aviso, como uma queda de verdade. No Windows é um encerramento forçado. */
-async function matarServidor(): Promise<void> {
-  const filho = servidor;
-  servidor = null;
-  if (!filho) return;
-  const fim = saiu(filho);
-  filho.kill("SIGKILL");
-  await fim;
-  await expect.poll(noAr, { timeout: 15_000 }).toBe(false);
-}
-
-/** Descida ordenada: a instância avisa o Recreio, guarda os mundos e solta as posses. */
-async function pararServidor(): Promise<void> {
-  const filho = servidor;
-  servidor = null;
-  if (!filho) return;
-  if (filho.connected) filho.send("descer");
-  await esperarSaida(filho, 15_000);
-}
-
 test.beforeEach(() => {
   comecarVigia();
-  saidaDoServidor = [];
+  instancia.limparLog();
 });
 
 test.afterEach(async () => {
@@ -127,7 +77,7 @@ test.afterEach(async () => {
   await pararServidor();
   if (test.info().status !== test.info().expectedStatus)
     await test.info().attach("servidor-do-jogo.log", {
-      body: saidaDoServidor.join(""),
+      body: instancia.log(),
       contentType: "text/plain",
     });
   expect(vigia().violacoes, "violações da política de segurança").toEqual([]);
@@ -394,14 +344,18 @@ test("um perfil joga em um lugar por vez, e sair da conta encerra o jogo", async
     await expect(daPrimeira.contador).toHaveText("1");
   });
 
-  await test.step("continuar aqui encerra a sessão da primeira aba, com a explicação", async () => {
+  await test.step("com troca coordenada desligada, exige saída manual antes de abrir na outra aba", async () => {
     await segunda.getByRole("button", { name: "Continuar aqui" }).click();
+    await expect(
+      segunda.getByRole("heading", { name: "Salve e saia no outro aparelho" }),
+    ).toBeVisible();
+    await expect(daSegunda.somar).toHaveCount(0);
+    await expect(daPrimeira.contador).toHaveText("1");
+    await primeira.getByRole("button", { name: "Sair por dentro do jogo" }).click();
+    await expect(primeira).toHaveURL(/\/estante$/);
+    await segunda.getByRole("button", { name: "Tentar de novo" }).click();
     await expect(daSegunda.presentes).toContainText("Caio (você)");
     await expect(daSegunda.contador).toHaveText("1");
-    await expect(
-      primeira.getByRole("heading", { name: "Você continuou o jogo em outro lugar" }),
-    ).toBeVisible({ timeout: 30_000 });
-    await expect(primeira.getByRole("button", { name: "Jogar aqui" })).toBeVisible();
     await expect(daPrimeira.somar).toHaveCount(0);
     // A segunda aba não foi afetada pela saída da primeira.
     await daSegunda.somar.click();
@@ -422,4 +376,107 @@ test("um perfil joga em um lugar por vez, e sair da conta encerra o jogo", async
     await segunda.getByRole("button", { name: "Entrar de novo" }).click();
     await expect(segunda).toHaveURL(/\/entrar/);
   });
+});
+
+test("Conta permite sair de participação afastada sem concessão", async ({ browser }) => {
+  await iniciarServidor();
+  const ana = await novaPessoa(browser, "Ana");
+  const bia = await novaPessoa(browser, "Bia", { comAcesso: false });
+  const primeiro = await criarMundo(ana.page, "Casa afastada A");
+  const segundo = await criarMundo(ana.page, "Casa afastada B");
+  await prepararParticipacoesAfastadas(bia.email, [primeiro, segundo]);
+  await bia.page.goto("/conta");
+  await bia.page.getByRole("link", { name: "Gerenciar participações", exact: true }).click();
+  await expect(bia.page).toHaveURL(/\/conta\/mundos$/);
+  const cartao = (nome: string) =>
+    bia.page.getByRole("listitem").filter({
+      has: bia.page.getByRole("heading", { name: nome, exact: true }),
+    });
+  const a = cartao("Casa afastada A"),
+    b = cartao("Casa afastada B");
+  await expect(a).toContainText("Participação afastada");
+  await expect(b).toContainText("Participação afastada");
+  for (const item of [a, b]) {
+    const abrir = item.getByText("Quero sair deste mundo", { exact: true });
+    await hidratado(abrir);
+    await abrir.click();
+  }
+  const descricaoA = await a
+    .getByRole("button", { name: "Confirmar saída", exact: true })
+    .getAttribute("aria-describedby");
+  const descricaoB = await b
+    .getByRole("button", { name: "Confirmar saída", exact: true })
+    .getAttribute("aria-describedby");
+  expect(descricaoA).toBeTruthy();
+  expect(descricaoB).toBeTruthy();
+  expect(descricaoA).not.toBe(descricaoB);
+  await tela(bia.page, "participacoes-sem-acesso");
+  await a.getByRole("button", { name: "Cancelar", exact: true }).click();
+  await expect(a.getByText("Quero sair deste mundo", { exact: true })).toBeFocused();
+  await expect(a.getByRole("button", { name: "Confirmar saída", exact: true })).toBeHidden();
+  await a.getByText("Quero sair deste mundo", { exact: true }).click();
+  await a.getByRole("button", { name: "Confirmar saída", exact: true }).click();
+  await expect(bia.page).toHaveURL(/\/estante$/);
+  await bia.page.goto("/conta/mundos");
+  await expect(cartao("Casa afastada A")).toHaveCount(0);
+  await expect(cartao("Casa afastada B")).toBeVisible();
+  await ana.page.goto("/conta/mundos");
+  await expect(
+    ana.page.getByRole("heading", { name: "Casa afastada A", exact: true }),
+  ).toBeVisible();
+  await expect(ana.page.getByText("Quero sair deste mundo", { exact: true })).toHaveCount(0);
+});
+
+test("convidado confirma saída em outra aba e o responsável continua jogando", async ({
+  browser,
+}) => {
+  await iniciarServidor();
+  const ana = await novaPessoa(browser, "Ana");
+  const bia = await novaPessoa(browser, "Bia");
+  const mundoId = await criarMundo(ana.page, "Casa compartilhada");
+  const gerar = ana.page.getByRole("button", { name: "Gerar código de convite" });
+  await hidratado(gerar);
+  await gerar.click();
+  const codigo = await ana.page.getByText(/^[0-9A-Z]{5}-[0-9A-Z]{5}$/).textContent();
+  if (!codigo) throw new Error("Convite ausente");
+  // A concessão do fixture acontece depois do primeiro documento da estante.
+  await bia.page.goto("/estante");
+  const campo = bia.page.getByLabel("Código do convite");
+  await hidratado(campo);
+  await campo.fill(codigo);
+  await bia.page.getByRole("button", { name: "Entrar no mundo" }).click();
+  await expect(bia.page).toHaveURL(new RegExp(`/mundos/${mundoId}$`));
+  await ana.page.goto(enderecoDoJogo(mundoId));
+  await bia.page.goto(enderecoDoJogo(mundoId));
+  const daAna = jogoEm(ana.page);
+  const daBia = jogoEm(bia.page);
+  await expect(daAna.presentes).toContainText("Bia");
+  await expect(daBia.presentes).toContainText("Ana");
+  const gestao = await bia.contexto.newPage();
+  await gestao.goto(`/mundos/${mundoId}`);
+  const abrir = gestao.getByText("Quero sair deste mundo", { exact: true });
+  await hidratado(abrir);
+  await abrir.click();
+  await gestao.getByRole("button", { name: "Cancelar", exact: true }).click();
+  await expect(abrir).toBeFocused();
+  await expect(gestao.getByRole("button", { name: "Confirmar saída", exact: true })).toBeHidden();
+  await daBia.somar.click();
+  await expect(daAna.contador).toHaveText("1");
+  await abrir.click();
+  await tela(gestao, "saida-mundo-confirmacao");
+  await gestao.getByRole("button", { name: "Confirmar saída", exact: true }).click();
+  await expect(gestao).toHaveURL(/\/estante$/);
+  await expect(gestao.getByRole("link", { name: "Jogar em Casa compartilhada" })).toHaveCount(0);
+  // Janela já usada para a saída de conta: o host bate a cada 10 s.
+  await expect(
+    bia.page.getByRole("heading", { name: "Você saiu do jogo", exact: true }),
+  ).toBeVisible({ timeout: 30_000 });
+  await expect(daBia.somar).toHaveCount(0);
+  await expect(daAna.presentes).not.toContainText("Bia");
+  await daAna.somar.click();
+  await expect(daAna.contador).toHaveText("2");
+  await bia.page.goto(enderecoDoJogo(mundoId));
+  await expect(
+    bia.page.getByRole("heading", { name: "Este mundo não está disponível", exact: true }),
+  ).toBeVisible();
 });

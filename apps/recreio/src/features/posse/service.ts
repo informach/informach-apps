@@ -7,7 +7,6 @@ import {
   InstanciaIdSchema,
   type MundoId,
   MundoIdSchema,
-  type PerfilId,
   POSSE_TTL_MS,
 } from "@informach/recreio";
 import {
@@ -29,9 +28,8 @@ import {
   ResumoDoMundoSchema,
 } from "@informach/recreio/contrato";
 import { z } from "zod";
+import type { AutorDeMundos } from "@/features/autoridade-de-jogo/mundos-repository";
 import { enderecoDaInstanciaAceito, jogoQueAbre, limitesDoJogo } from "@/features/jogos/config";
-import { politicaDoPerfil } from "@/features/sessao-de-jogo/politica";
-import { exigirAcesso } from "@/features/sessao-de-jogo/service";
 import { audit } from "@/lib/observability";
 import {
   abrirMundoParaMembro,
@@ -168,8 +166,11 @@ export async function lerDiario(
   host: Host,
   mundoId: unknown,
   consulta: { cerca: unknown; apos: unknown },
-): Promise<{ entradas: { seq: number; tick: number; fatoId: string; bytes: string }[] }> {
-  const entradas = await lerDiarioDoMundo({
+): Promise<{
+  entradas: { seq: number; tick: number; fatoId: string; bytes: string }[];
+  proximoApos: number | null;
+}> {
+  const pagina = await lerDiarioDoMundo({
     mundoId: mundoDoHost(mundoId),
     jogo: host.jogo,
     instanciaId: host.instanciaId,
@@ -177,7 +178,11 @@ export async function lerDiario(
     apos: naoNegativo.parse(consulta.apos),
   });
   return {
-    entradas: entradas.map((entrada) => ({ ...entrada, bytes: bytesParaBase64(entrada.bytes) })),
+    entradas: pagina.entradas.map((entrada) => ({
+      ...entrada,
+      bytes: bytesParaBase64(entrada.bytes),
+    })),
+    proximoApos: pagina.proximoApos,
   };
 }
 
@@ -187,6 +192,7 @@ export async function verificarEntrada(
   entrada: unknown,
 ): Promise<EntradaPermitida> {
   const pedido = PedidoDeEntradaSchema.parse(entrada);
+  jogoQueAbre(host.jogo);
   const permitida = await verificarEntradaNoMundo({
     mundoId: mundoDoHost(mundoId),
     jogo: host.jogo,
@@ -195,7 +201,8 @@ export async function verificarEntrada(
     sid: pedido.sid,
     perfilId: pedido.perfilId,
   });
-  const politica = politicaDoPerfil(permitida);
+  // Primeiro confirma o escopo da instância e a identidade da sessão: um id
+  // trocado não pode revelar se existe perfil ou qual é o seu plano.
   return {
     membroId: permitida.membroId,
     papel: permitida.papel,
@@ -203,9 +210,9 @@ export async function verificarEntrada(
     apelido: permitida.apelido,
     avatar: permitida.avatar,
     politica: {
-      multiplayer: politica.multiplayer,
-      textoLivre: politica.textoLivre,
-      versao: politica.versao,
+      multiplayer: permitida.politica.multiplayer,
+      textoLivre: permitida.politica.textoLivre,
+      versao: permitida.politica.versao,
     },
   };
 }
@@ -309,19 +316,21 @@ export async function liberar(host: Host, mundoId: unknown, entrada: unknown): P
  * para quem testa; a rota do SDK não a devolve.
  */
 export async function abrirMundo(
-  sessao: { perfilId: PerfilId; jogo: string },
+  sessao: AutorDeMundos & { jogo: string },
   mundoId: unknown,
 ): Promise<MundoAberto & { cerca: number }> {
   const id = MundoIdSchema.safeParse(mundoId);
   // Id sem a forma de um id responde como mundo do qual não se é membro.
   if (!id.success) throw new ErroDoRecreio("NAO_MEMBRO");
-  await exigirAcesso(sessao.perfilId, sessao.jogo);
   jogoQueAbre(sessao.jogo);
-  const aberto = await abrirMundoParaMembro({
-    mundoId: id.data,
-    perfilId: sessao.perfilId,
-    jogo: sessao.jogo,
-  });
+  const aberto = await abrirMundoParaMembro(
+    {
+      mundoId: id.data,
+      perfilId: sessao.perfilId,
+      jogo: sessao.jogo,
+    },
+    sessao,
+  );
   return {
     mundoId: id.data,
     membroId: aberto.membroId,

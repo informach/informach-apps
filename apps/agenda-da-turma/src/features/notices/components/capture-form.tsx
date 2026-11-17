@@ -1,5 +1,6 @@
 "use client";
 
+import { prepareSpeechAudio } from "@informach/ai-core/speech-audio";
 import { Button } from "@informach/ui/components/button";
 import { Input } from "@informach/ui/components/input";
 import { toast } from "@informach/ui/components/sonner";
@@ -12,9 +13,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { handleAiHttpError } from "@/features/ai/_http-errors";
+import { noticeCostQuote, SPEECH_COST } from "@/features/ai/costs";
 import { todayLocalIso } from "@/features/dashboard/date";
 import { formatClockTime, longDayLabel, shortDayLabel } from "@/features/dashboard/day-labels";
-import { createStudentProfileAction } from "@/features/students/actions";
 import { shortChildNames } from "@/features/students/utils";
 import type { SubjectOptionsByProfile } from "@/features/subjects/options-service";
 import { ACTIVITY_TYPE_LABELS } from "@/features/unified-activities/activity-types";
@@ -145,6 +146,7 @@ const responseSchema = z.object({
   replay: z.boolean(),
   appliedProfileIds: z.array(z.string().uuid()).default([]),
   sourceProfileIds: z.array(z.string().uuid()).nullable().optional(),
+  sharedWithinFamily: z.boolean(),
 });
 
 export function CaptureForm({
@@ -154,7 +156,7 @@ export function CaptureForm({
   profileTurmas,
   suggestReminders = false,
   proProfileIds,
-  ownerIsPro,
+  aiProfileIds,
   initialNotice,
   mode = "capture",
   captureMode,
@@ -165,19 +167,10 @@ export function CaptureForm({
   defaultText = "",
   resumeUnavailable = false,
   viewerId = "",
-  viewerIsOwner = true,
-  ownProfileIds,
   turmaLabels = {},
 }: {
   /** Quem está trazendo o recado, para a frase de quem mais vê o original. */
   viewerId?: string;
-  /** Quem está aqui é o titular: o original "fica só com você". */
-  viewerIsOwner?: boolean;
-  /**
-   * As crianças da própria conta de quem traz o recado. Quem é titular de uma
-   * casa e convidado de outra lê a frase certa para a criança escolhida.
-   */
-  ownProfileIds?: readonly string[];
   /** "3º B" por criança, para a pergunta "Mandar para a turma do 3º B?". */
   turmaLabels?: Record<string, string>;
   profiles: RoutineProfile[];
@@ -188,7 +181,7 @@ export function CaptureForm({
   /** Preferência da casa: preencher o lembrete sugerido nas importações. */
   suggestReminders?: boolean;
   proProfileIds: string[];
-  ownerIsPro: boolean;
+  aiProfileIds: string[];
   mode?: "capture" | "manual";
   /**
    * Caminho escolhido na folha "O que chegou?". Decide o que vem primeiro e
@@ -218,17 +211,15 @@ export function CaptureForm({
   };
 }) {
   const router = useRouter();
-  const [profiles, setProfiles] = useState(initialProfiles);
+  const profiles = initialProfiles;
   const [profileId, setProfileId] = useState(
     initialNotice?.profileId ??
       initialProfiles.find((p) => p.id === defaultProfileId)?.id ??
       initialProfiles[0]?.id ??
       "",
   );
-  const isPro =
-    proProfileIds.includes(profileId) ||
-    (ownerIsPro && !initialProfiles.some((p) => p.id === profileId));
-  const [newChildName, setNewChildName] = useState("");
+  const isPro = proProfileIds.includes(profileId);
+  const canUseAi = aiProfileIds.includes(profileId);
   // Quem entra por "Foto", ou por um compartilhamento do sistema, está, na
   // maioria das vezes, mandando a agenda ou o caderno; é o que o próprio texto
   // da tela diz. Deixar "Teams" aqui marcava como publicação da escola a letra
@@ -246,8 +237,7 @@ export function CaptureForm({
    */
   const [resumed] = useState(Boolean(initialNotice));
   /** A criança é de uma casa Pro? (Perfil convidado herda o plano do titular.) */
-  const isProForProfile = (pid: string) =>
-    proProfileIds.includes(pid) || (ownerIsPro && !initialProfiles.some((p) => p.id === pid));
+  const isProForProfile = (pid: string) => proProfileIds.includes(pid);
   /*
    * Mandar para a turma não nasce marcado na revisão (`defaultShare: false`
    * abaixo): como no canvas, a
@@ -309,6 +299,7 @@ export function CaptureForm({
   // "O recado fala só de Clara" nasce desmarcado: o original pode falar de
   // outras crianças, e mostrá-lo aos outros adultos da casa é escolha de quem
   // trouxe o recado (regra da fase 3, mantida sobre o desenho do canvas).
+  const [sourceReviewed, setSourceReviewed] = useState(false);
   const [shareOriginal, setShareOriginal] = useState(false);
   /** A pergunta da turma no "Pronto": perguntar, mandando, mandado ou "agora não". */
   const [shareStep, setShareStep] = useState<"ask" | "sending" | "done" | "skipped">("ask");
@@ -428,6 +419,7 @@ export function CaptureForm({
    */
   const reviewEpoch = useRef(0);
   function resetDecisions() {
+    setSourceReviewed(false);
     setCorrections([]);
     setResolutions([]);
     setDuplicates([]);
@@ -508,32 +500,19 @@ export function CaptureForm({
     });
   }
 
-  async function addChild() {
-    setBusy(true);
-    setError("");
-    const result = await catchActionResult(() =>
-      createStudentProfileAction({ name: newChildName.trim(), birthDate: null }),
-    );
-    setBusy(false);
-    if (!result.ok) {
-      setError("Não foi possível adicionar a criança. Confira o nome e o limite do seu plano.");
-      return;
-    }
-    setProfiles([...profiles, { id: result.value.id, name: newChildName.trim() }]);
-    setProfileId(result.value.id);
-    if (mode === "manual") setDrafts([blankAction(result.value.id, defaultType)]);
-    router.refresh();
-  }
   /**
    * Transcreve o ditado e devolve o texto para o campo acima. A leitura do
    * recado continua sendo um passo separado, que a pessoa dispara depois de
    * conferir a transcrição: ditar errado não gasta a interpretação.
    */
   async function transcribeAudio(blob: Blob): Promise<string> {
+    if (!canUseAi) throw new Error("AI_ACCESS_DENIED");
     if (!profileId) return "";
     setError("");
     const body = new FormData();
-    body.append("audio", blob, "recado.webm");
+    body.append("audio", await prepareSpeechAudio(blob), "recado.wav");
+    body.append("profileId", profileId);
+    body.append("acceptedCost", JSON.stringify(SPEECH_COST));
     const response = await fetch(
       `/api/ai/activities/transcribe?perfil=${encodeURIComponent(profileId)}`,
       { method: "POST", body },
@@ -670,9 +649,11 @@ export function CaptureForm({
     }
   }
   async function extract() {
+    if (!canUseAi) return setError("Você não tem permissão para usar IA com esta criança.");
     setError("");
     resetDecisions();
     const input = parseNoticeSchema.safeParse({
+      acceptedCost: noticeCostQuote({ text, attachment }),
       profileId,
       source,
       sourceUrl: sourceUrl || null,
@@ -702,7 +683,7 @@ export function CaptureForm({
       }
       setAppliedProfileIds(result.data.appliedProfileIds);
       setSourceProfileIds(result.data.sourceProfileIds ?? []);
-      setShareOriginal(false);
+      setShareOriginal(result.data.sharedWithinFamily);
       setPublicationReference(result.data.extraction.publicationReference ?? null);
       setNoticeId(result.data.noticeId);
       setNoticeConfirmed(result.data.alreadyConfirmed);
@@ -737,9 +718,11 @@ export function CaptureForm({
       actions: drafts.map((d) => d.value),
       allowDuplicates,
       resolutions,
-      sourceProfileIds: shareOriginal
+      sourceProfileIds: noticeId
         ? [...new Set([...sourceProfileIds, ...drafts.map((d) => d.value.profileId)])]
         : null,
+      shareOriginal,
+      sourceReviewed,
     });
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
@@ -1020,7 +1003,7 @@ export function CaptureForm({
         variant={dictation ? "default" : "outline"}
         aria-label="Ditar a atividade"
         className={cn("shrink-0 rounded-full", dictation ? "size-16" : "size-11")}
-        disabled={busy || !profileId}
+        disabled={busy || !canUseAi}
         maxDurationMs={120_000}
         onAudioRecorded={transcribeAudio}
         onTranscriptionChange={(value) => {
@@ -1035,8 +1018,9 @@ export function CaptureForm({
           {dictation ? "Toque e conte o que precisa ser feito." : "Ditar a atividade."}
         </span>{" "}
         <span className="text-muted-foreground">
-          O texto aparece {dictation ? "abaixo" : "no campo"} para você conferir antes de mandar
-          ler.
+          Cada ditado custa 1 crédito por minuto iniciado, até {SPEECH_COST.maxCredits} créditos por
+          envio. A interpretação é cobrada separadamente, quando você mandar ler. O texto aparece{" "}
+          {dictation ? "abaixo" : "no campo"} para você conferir antes de mandar ler.
         </span>
       </p>
     </div>
@@ -1085,11 +1069,6 @@ export function CaptureForm({
     ),
   ];
   const originalWord = isImage ? "a foto" : "o recado";
-  const ownsSource =
-    ownProfileIds && requiredSourceIds.length
-      ? requiredSourceIds.every((id) => ownProfileIds.includes(id))
-      : viewerIsOwner;
-  const keptWith = ownsSource ? "só com você" : "só com você e com quem assina a Agenda";
   const sticky =
     "sticky -mx-4 mt-4 border-t border-foreground/15 bg-app-ground px-4 pt-3 pb-[calc(1.25rem+env(safe-area-inset-bottom))]";
 
@@ -1199,26 +1178,12 @@ export function CaptureForm({
           key="create-profile"
           className="mt-4 space-y-4 rounded-[20px] border border-foreground/15 bg-background p-5"
         >
-          <h1 className="text-xl font-extrabold tracking-tight">Como se chama a criança?</h1>
+          <h1 className="text-xl font-extrabold tracking-tight">Escolha quem usa a Agenda</h1>
           <p className="text-sm text-muted-foreground">
-            Só o nome basta. Escola, turma e horário podem vir depois.
+            Ative uma pessoa da família na Agenda ou peça permissão para criar atividades.
           </p>
-          <label htmlFor="child-name" className="grid gap-2 text-sm font-semibold">
-            Nome
-            <Input
-              id="child-name"
-              value={newChildName}
-              maxLength={80}
-              onChange={(e) => setNewChildName(e.target.value)}
-              autoComplete="off"
-            />
-          </label>
-          <Button
-            onClick={addChild}
-            disabled={busy || newChildName.trim().length < 2}
-            className="min-h-11 rounded-xl font-bold"
-          >
-            Adicionar criança
+          <Button asChild className="min-h-11 rounded-xl font-bold">
+            <Link href="/familia">Ver pessoas e permissões</Link>
           </Button>
         </section>
       ) : whatsAppMessages ? (
@@ -1496,22 +1461,28 @@ export function CaptureForm({
             </div>
           </details>
 
+          {!canUseAi ? (
+            <p role="status" className="text-sm text-muted-foreground">
+              Você não tem permissão para usar IA com esta criança. Um responsável pode conceder
+              esse acesso na Minha conta. Você ainda pode escrever a atividade manualmente.
+            </p>
+          ) : null}
           {error ? <div className="pt-2">{errorBox}</div> : null}
           <div className="mt-auto flex flex-col gap-2.5 pb-5 pt-3">
             <button
               type="button"
               onClick={extract}
-              disabled={busy || (!text.trim() && !attachment)}
+              disabled={busy || !canUseAi || (!text.trim() && !attachment)}
               className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-primary text-[17px] font-extrabold text-primary-foreground shadow-solid-primary disabled:opacity-50"
             >
               {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-              Ler o recado
+              Ler o recado · até {noticeCostQuote({ text, attachment }).maxCredits} créditos
             </button>
             <p className="text-center text-[13px] leading-normal text-muted-foreground">
-              {isPro
-                ? `Usa ${dictation ? "2 leituras" : "1 leitura"}. Nada é salvo antes de você conferir.`
-                : `Os primeiros recados são por nossa conta. Nada é salvo antes de você conferir.`}{" "}
-              A leitura passa por um serviço de inteligência artificial.
+              Reserva até {noticeCostQuote({ text, attachment }).maxCredits} créditos do saldo
+              compartilhado do Compasso. Ao concluir, cobra o consumo calculado e libera a
+              diferença. Falhas não são cobradas. Você confere as atividades antes de salvar. A
+              leitura usa um serviço de inteligência artificial.
             </p>
           </div>
         </section>
@@ -1652,10 +1623,7 @@ export function CaptureForm({
                       }}
                       profiles={profiles}
                       adults={adults}
-                      isPro={
-                        proProfileIds.includes(draft.value.profileId) ||
-                        (ownerIsPro && !initialProfiles.some((p) => p.id === draft.value.profileId))
-                      }
+                      isPro={proProfileIds.includes(draft.value.profileId)}
                     />
                     <button
                       type="button"
@@ -1722,6 +1690,16 @@ export function CaptureForm({
 
           {noticeId ? (
             <div className="px-1 pb-2 pt-4">
+              <label className="mb-4 flex items-start gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={sourceReviewed}
+                  onChange={(e) => setSourceReviewed(e.target.checked)}
+                  className="mt-0.5 size-[22px] accent-primary"
+                />
+                Confirmei todas as crianças mencionadas no original: {sourceNames}. Se houver outra,
+                marco abaixo antes de salvar.
+              </label>
               <label htmlFor="share-original" className="flex cursor-pointer items-start gap-3">
                 <input
                   id="share-original"
@@ -1731,20 +1709,22 @@ export function CaptureForm({
                   onChange={(e) => setShareOriginal(e.target.checked)}
                 />
                 <span className="text-sm leading-[1.45]">
-                  <b className="block text-[15px]">O recado fala só de {sourceNames}</b>
+                  <b className="block text-[15px]">Compartilhar o original na família</b>
                   <span className="text-muted-foreground">
                     Assim{" "}
                     {otherAdults.length
                       ? `${joinNames(otherAdults)} também ${otherAdults.length === 1 ? "pode" : "podem"}`
                       : `quem acompanha ${sourceNames} também pode`}{" "}
-                    ver {originalWord}. Se falar de outra criança, {originalWord} fica {keptWith}.
+                    ver {originalWord}, desde que tenham acesso a todas as crianças indicadas. Sem
+                    marcar, o original fica só com você enquanto mantiver acesso a elas.
                   </span>
                 </span>
               </label>
-              {shareOriginal && profiles.some((p) => !requiredSourceIds.includes(p.id)) ? (
+              {profiles.some((p) => !requiredSourceIds.includes(p.id)) ? (
                 <fieldset className="ml-[34px] mt-3 space-y-1 border-t border-foreground/15 pt-3">
                   <legend className="text-sm font-semibold">
-                    O recado também fala de outra criança daqui?
+                    O original fala de {sourceNames}. Marque também qualquer outra criança
+                    mencionada:
                   </legend>
                   {profiles
                     .filter((p) => !requiredSourceIds.includes(p.id))
@@ -1753,13 +1733,14 @@ export function CaptureForm({
                         <input
                           type="checkbox"
                           checked={sourceProfileIds.includes(p.id)}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            setSourceReviewed(false);
                             setSourceProfileIds(
                               e.target.checked
                                 ? [...sourceProfileIds, p.id]
                                 : sourceProfileIds.filter((id) => id !== p.id),
-                            )
-                          }
+                            );
+                          }}
                         />
                         {p.name}
                       </label>

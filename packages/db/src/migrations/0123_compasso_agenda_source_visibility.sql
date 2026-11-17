@@ -1,0 +1,1 @@
+ALTER TABLE "agenda"."notices" ADD COLUMN "shared_within_family" boolean DEFAULT false NOT NULL;

@@ -1,10 +1,14 @@
 import "server-only";
-import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
+import { createHmac, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { EventEmitter } from "node:events";
-import type Redis from "ioredis";
+import { z } from "zod";
 import { env } from "@/lib/env";
+import { logger } from "@/lib/logger";
 import { redis } from "@/lib/redis";
-import { ALFABETO_CODIGO, TAMANHO_CODIGO } from "./protocolo";
+import { mayUsePairing } from "./authorization";
+import { type PairingAuthority, pairingAuthoritySchema } from "./context";
+import { ALFABETO_CODIGO, codigoSchema, TAMANHO_CODIGO } from "./protocolo";
+import { type PairingBus as Barramento, createRedisPairingBus } from "./redis-bus";
 
 /**
  * Pareamento TV ↔ celular. O código vale 10 minutos para o celular entrar e é
@@ -20,68 +24,13 @@ const CRIACOES_POR_HORA = 20;
 
 export type Lado = "tv" | "celular";
 
-interface Registro {
-  userId: string;
-  criadoEm: number;
-  celular: boolean;
-}
-
-interface Barramento {
-  get(chave: string): Promise<string | null>;
-  set(chave: string, valor: string, ttlSegundos: number): Promise<void>;
-  /** grava só se ainda não existir; devolve se gravou */
-  setSeNovo(chave: string, valor: string, ttlSegundos: number): Promise<boolean>;
-  incr(chave: string, ttlSegundos: number): Promise<number>;
-  publicar(canal: string, mensagem: string): Promise<void>;
-  assinar(canal: string, aoReceber: (mensagem: string) => void): () => void;
-}
-
-function barramentoRedis(cliente: Redis): Barramento {
-  let assinante: Redis | null = null;
-  const ouvintes = new Map<string, Set<(m: string) => void>>();
-  const conectar = () => {
-    if (assinante) return assinante;
-    assinante = cliente.duplicate();
-    assinante.on("message", (canal: string, mensagem: string) => {
-      for (const fn of ouvintes.get(canal) ?? []) fn(mensagem);
-    });
-    return assinante;
-  };
-  return {
-    get: (chave) => cliente.get(chave),
-    async set(chave, valor, ttl) {
-      await cliente.set(chave, valor, "EX", ttl);
-    },
-    async setSeNovo(chave, valor, ttl) {
-      return (await cliente.set(chave, valor, "EX", ttl, "NX")) === "OK";
-    },
-    async incr(chave, ttl) {
-      const n = await cliente.incr(chave);
-      if (n === 1) await cliente.expire(chave, ttl);
-      return n;
-    },
-    async publicar(canal, mensagem) {
-      await cliente.publish(canal, mensagem);
-    },
-    assinar(canal, aoReceber) {
-      const sub = conectar();
-      let lista = ouvintes.get(canal);
-      if (!lista) {
-        lista = new Set();
-        ouvintes.set(canal, lista);
-        void sub.subscribe(canal);
-      }
-      lista.add(aoReceber);
-      return () => {
-        lista?.delete(aoReceber);
-        if (lista && !lista.size) {
-          ouvintes.delete(canal);
-          void sub.unsubscribe(canal);
-        }
-      };
-    },
-  };
-}
+const registroSchema = pairingAuthoritySchema.extend({
+  version: z.literal(3),
+  id: z.uuid(),
+  criadoEm: z.number().int().positive(),
+  celular: z.boolean(),
+});
+type Registro = z.infer<typeof registroSchema>;
 
 function barramentoMemoria(): Barramento {
   const valores = new Map<string, { valor: string; expira: number }>();
@@ -89,7 +38,10 @@ function barramentoMemoria(): Barramento {
   eventos.setMaxListeners(0);
   const ler = (chave: string) => {
     const item = valores.get(chave);
-    if (!item || item.expira < Date.now()) return null;
+    if (!item || item.expira <= Date.now()) {
+      valores.delete(chave);
+      return null;
+    }
     return item.valor;
   };
   return {
@@ -113,9 +65,11 @@ function barramentoMemoria(): Barramento {
     async publicar(canal, mensagem) {
       eventos.emit(canal, mensagem);
     },
-    assinar(canal, aoReceber) {
+    async assinar(canal, aoReceber) {
       eventos.on(canal, aoReceber);
-      return () => eventos.off(canal, aoReceber);
+      return async () => {
+        eventos.off(canal, aoReceber);
+      };
     },
   };
 }
@@ -123,7 +77,7 @@ function barramentoMemoria(): Barramento {
 const globalBus = globalThis as unknown as { __boraPareamento?: Barramento };
 export function barramento(): Barramento | null {
   if (globalBus.__boraPareamento) return globalBus.__boraPareamento;
-  if (redis) globalBus.__boraPareamento = barramentoRedis(redis);
+  if (redis) globalBus.__boraPareamento = createRedisPairingBus(redis);
   else if (env.NODE_ENV !== "production") globalBus.__boraPareamento = barramentoMemoria();
   return globalBus.__boraPareamento ?? null;
 }
@@ -136,44 +90,83 @@ export function gerarCodigo() {
 }
 
 const chave = (codigo: string) => `${PREFIXO}${codigo}`;
-export const canal = (codigo: string, lado: Lado) => `${PREFIXO}${codigo}:para-${lado}`;
+export const canal = (codigo: string, id: string, lado: Lado) =>
+  `${PREFIXO}${codigo}:${id}:para-${lado}`;
 
-/** Cria um código novo para a TV de uma conta. Devolve null se a conta passou do limite. */
-export async function criarPareamento(bus: Barramento, userId: string) {
-  if ((await bus.incr(`${PREFIXO}criacoes:${userId}`, 3600)) > CRIACOES_POR_HORA) return null;
+/** The route proves authority before allocation; the saved generation binds every later operation. */
+export async function criarPareamento(bus: Barramento, authority: PairingAuthority) {
+  const scope = pairingAuthoritySchema.parse(authority);
+  if ((await bus.incr(`${PREFIXO}criacoes:${scope.actorId}`, 3600)) > CRIACOES_POR_HORA)
+    return null;
   for (let tentativa = 0; tentativa < 5; tentativa++) {
     const codigo = gerarCodigo();
-    const registro: Registro = { userId, criadoEm: Date.now(), celular: false };
+    const registro: Registro = {
+      ...scope,
+      version: 3,
+      id: randomUUID(),
+      criadoEm: Date.now(),
+      celular: false,
+    };
     if (await bus.setSeNovo(chave(codigo), JSON.stringify(registro), DURACAO_CANAL_S))
-      return codigo;
+      return { codigo, ...registro };
   }
   throw new Error("Não foi possível gerar um código de pareamento");
 }
 
 async function registro(bus: Barramento, codigo: string): Promise<Registro | null> {
+  if (!codigoSchema.safeParse(codigo).success) return null;
   const bruto = await bus.get(chave(codigo));
-  return bruto ? (JSON.parse(bruto) as Registro) : null;
+  if (!bruto) return null;
+  let decoded: unknown;
+  try {
+    decoded = JSON.parse(bruto);
+  } catch {
+    return null;
+  }
+  const parsed = registroSchema.safeParse(decoded);
+  if (
+    !parsed.success ||
+    parsed.data.criadoEm > Date.now() ||
+    parsed.data.criadoEm + DURACAO_CANAL_S * 1000 <= Date.now()
+  )
+    return null;
+  return parsed.data;
 }
 
-/** O canal ainda existe (o celular pode voltar para ele com a credencial que já tem). */
-export async function canalAberto(bus: Barramento, codigo: string) {
-  return (await registro(bus, codigo)) !== null;
+/** Channels without delegated grant identities cannot survive the identity cutover; generation prevents code reuse. */
+export async function canalAutorizado(bus: Barramento, codigo: string, registroId?: string) {
+  const current = await registro(bus, codigo);
+  if (!current || (registroId && current.id !== registroId)) return null;
+  return (await mayUsePairing(current)) ? current : null;
 }
 
-export async function tvDona(bus: Barramento, codigo: string, userId: string) {
-  return (await registro(bus, codigo))?.userId === userId;
+export async function tvDona(
+  bus: Barramento,
+  codigo: string,
+  id: string,
+  actorId: string,
+  sessionId: string,
+) {
+  const current = await registro(bus, codigo);
+  if (
+    !current ||
+    current.id !== id ||
+    current.actorId !== actorId ||
+    current.sessionId !== sessionId
+  )
+    return null;
+  return (await mayUsePairing(current)) ? current : null;
 }
 
-/**
- * O celular entra com o código: dentro da janela e uma única vez. Devolve o
- * dono do pareamento, para a auditoria, ou null.
- */
-export async function entrarComCodigo(bus: Barramento, codigo: string, agora = Date.now()) {
-  const r = await registro(bus, codigo);
-  if (!r || r.celular || agora - r.criadoEm > JANELA_ENTRADA_MS) return null;
-  const restante = Math.max(60, Math.round((r.criadoEm + DURACAO_CANAL_S * 1000 - agora) / 1000));
+/** Exactly one phone claims a generation, even when multiple requests pass the initial read. */
+export async function entrarComCodigo(bus: Barramento, codigo: string) {
+  const r = await canalAutorizado(bus, codigo);
+  const agora = Date.now();
+  if (!r || r.celular || agora - r.criadoEm >= JANELA_ENTRADA_MS) return null;
+  const restante = Math.ceil((r.criadoEm + DURACAO_CANAL_S * 1000 - agora) / 1000);
+  if (!(await bus.setSeNovo(`${chave(codigo)}:${r.id}:claimed`, "1", restante))) return null;
   await bus.set(chave(codigo), JSON.stringify({ ...r, celular: true }), restante);
-  return r.userId;
+  return { ...r, celular: true };
 }
 
 const assinar = (dados: string) =>
@@ -181,60 +174,122 @@ const assinar = (dados: string) =>
     .update(`bora-pareamento:${dados}`)
     .digest("base64url");
 
-/** Credencial do celular: vale só para aquele código e expira com o canal. */
-export function emitirCredencial(codigo: string, agora = Date.now()) {
-  const expira = agora + DURACAO_CANAL_S * 1000;
-  return `${codigo}.${expira}.${assinar(`${codigo}.${expira}`)}`;
+/** The phone credential expires with the original channel, never three hours after a later join. */
+export function emitirCredencial(codigo: string, registroId: string, expiresAt: number) {
+  codigoSchema.parse(codigo);
+  z.uuid().parse(registroId);
+  z.number().int().positive().parse(expiresAt);
+  const data = `${codigo}.${registroId}.${expiresAt}`;
+  return `${data}.${assinar(data)}`;
 }
 
 export function lerCredencial(valor: string | undefined, agora = Date.now()) {
-  if (!valor) return null;
-  const [codigo, expira, assinatura] = valor.split(".");
-  if (!codigo || !expira || !assinatura || Number(expira) < agora) return null;
-  const esperado = Buffer.from(assinar(`${codigo}.${expira}`));
+  if (!valor || valor.length > 250) return null;
+  const [codigo, registroId, expira, assinatura, extra] = valor.split(".");
+  const parsed = z
+    .object({ codigo: codigoSchema, registroId: z.uuid() })
+    .safeParse({ codigo, registroId });
+  if (
+    extra !== undefined ||
+    !parsed.success ||
+    !expira ||
+    !/^\d{13}$/.test(expira) ||
+    Number(expira) <= agora ||
+    !assinatura
+  )
+    return null;
+  const esperado = Buffer.from(assinar(`${codigo}.${registroId}.${expira}`));
   const recebido = Buffer.from(assinatura);
-  return esperado.length === recebido.length && timingSafeEqual(esperado, recebido) ? codigo : null;
+  return esperado.length === recebido.length && timingSafeEqual(esperado, recebido)
+    ? parsed.data
+    : null;
 }
 
-export const ultimoEstado = (codigo: string) => `${PREFIXO}${codigo}:estado`;
+export const ultimoEstado = (codigo: string, id: string) => `${PREFIXO}${codigo}:${id}:estado`;
 
-/** Resposta SSE com batimento a cada 15 s; fecha a assinatura quando o cliente sai. */
+/** Authorization precedes every delivery and heartbeat; bounded queues close on backpressure. */
 export function streamSse(
   bus: Barramento,
   canalAssinado: string,
-  inicial: string | null,
+  inicial: string | null | (() => Promise<string | null>),
   sinal: AbortSignal,
+  authorize: () => Promise<boolean>,
 ) {
   const codificador = new TextEncoder();
   let encerrar: () => void = () => {};
-  const corpo = new ReadableStream<Uint8Array>({
-    start(controle) {
-      const enviar = (texto: string) => {
+  const corpo = new ReadableStream<Uint8Array>(
+    {
+      async start(controle) {
+        let closed = false;
+        let desassinar: (() => Promise<void>) | undefined;
+        let batimento: ReturnType<typeof setInterval> | undefined;
+        let pending = 0;
+        let sequence = Promise.resolve();
+        const entregar = (texto: string) => {
+          if (closed) return;
+          if (pending >= 32) {
+            encerrar();
+            return;
+          }
+          pending++;
+          sequence = sequence.then(async () => {
+            try {
+              if (closed) return;
+              if (!(await authorize()) || (controle.desiredSize ?? 0) <= 0) {
+                encerrar();
+                return;
+              }
+              if (!closed) controle.enqueue(codificador.encode(texto));
+            } catch {
+              encerrar();
+            } finally {
+              pending--;
+            }
+          });
+        };
+        const onAbort = () => encerrar();
+        encerrar = () => {
+          if (closed) return;
+          closed = true;
+          if (batimento) clearInterval(batimento);
+          if (desassinar) void desassinar().catch(() => logger.error("pairing.unsubscribe_failed"));
+          sinal.removeEventListener("abort", onAbort);
+          try {
+            controle.close();
+          } catch {
+            /* The consumer can have canceled concurrently. */
+          }
+        };
+        sinal.addEventListener("abort", onAbort, { once: true });
+        if (sinal.aborted) {
+          encerrar();
+          return;
+        }
         try {
-          controle.enqueue(codificador.encode(texto));
+          desassinar = await bus.assinar(
+            canalAssinado,
+            (m) => entregar(`data: ${m}\n\n`),
+            encerrar,
+          );
+          if (closed) {
+            await desassinar();
+            return;
+          }
+          // Redis has acknowledged the subscription before the first response bytes.
+          entregar("retry: 3000\n\n");
+          const first = typeof inicial === "function" ? await inicial() : inicial;
+          if (first) entregar(`data: ${first}\n\n`);
+          if (!closed) batimento = setInterval(() => entregar(": ping\n\n"), 15_000);
         } catch {
           encerrar();
         }
-      };
-      enviar("retry: 3000\n\n");
-      if (inicial) enviar(`data: ${inicial}\n\n`);
-      const desassinar = bus.assinar(canalAssinado, (m) => enviar(`data: ${m}\n\n`));
-      const batimento = setInterval(() => enviar(": ping\n\n"), 15_000);
-      encerrar = () => {
-        clearInterval(batimento);
-        desassinar();
-        try {
-          controle.close();
-        } catch {
-          // já fechado
-        }
-      };
-      sinal.addEventListener("abort", () => encerrar(), { once: true });
+      },
+      cancel() {
+        encerrar();
+      },
     },
-    cancel() {
-      encerrar();
-    },
-  });
+    { highWaterMark: 32 },
+  );
   return new Response(corpo, {
     headers: {
       "Content-Type": "text/event-stream; charset=utf-8",

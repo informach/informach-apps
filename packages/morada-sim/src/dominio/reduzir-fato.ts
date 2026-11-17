@@ -2,6 +2,7 @@ import { copiar } from "../nucleo/canonico";
 import { necessidadesNaNovaFase, registrarId, relacaoEntre } from "./estado";
 import type { Fato } from "./fatos";
 import type { MemoriaId, MoradorId } from "./ids";
+import { PERMISSOES_DO_FUNDADOR } from "./permissoes";
 import { exigir, inserir, obter, tem } from "./tabela";
 import type { EstadoDoMundo, Local, Memoria, Morador } from "./tipos";
 
@@ -42,8 +43,59 @@ function naEntradaDoLote(estado: EstadoDoMundo, morador: Morador, loteId: string
 }
 
 export function reduzirFato(estado: EstadoDoMundo, fato: Fato): void {
+  // Fatos mutáveis usam um contador durável, independente do tick. A
+  // reaplicação também avança esse contador antes da próxima emissão.
+  const sufixo = fato.id.slice(fato.id.lastIndexOf(":") + 1);
+  if (/^fat_\d+$/.test(sufixo)) registrarId(estado, sufixo);
   const dados = fato.dados;
   switch (dados.tipo) {
+    case "FamiliaFundada": {
+      if (estado.fundacao) {
+        if (
+          estado.fundacao.comandoId !== dados.recibo.comandoId ||
+          estado.fundacao.autor !== dados.recibo.autor ||
+          estado.fundacao.familiaId !== dados.familia.id
+        )
+          throw new Error("Fundação já registrada por outro fato");
+        return;
+      }
+      const familia = dados.familia;
+      const lote = familia.loteId ? obter(estado.lotes, familia.loteId) : undefined;
+      if (
+        estado.familias.ordem.length !== 0 ||
+        !lote ||
+        lote.familiaId !== null ||
+        dados.recibo.familiaId !== familia.id ||
+        fato.familiaId !== familia.id ||
+        fato.causa.comandoId !== dados.recibo.comandoId ||
+        fato.causa.autor !== dados.recibo.autor ||
+        dados.moradores.length < 1 ||
+        dados.moradores.length > estado.regras.maxMoradoresPorFamilia ||
+        dados.moradores.some((morador) => morador.familiaId !== familia.id)
+      )
+        throw new Error("Fundação incompatível com o mundo");
+      registrarId(estado, familia.id);
+      inserir(estado.familias, familia.id, copiar(familia));
+      lote.familiaId = familia.id;
+      for (const morador of dados.moradores) {
+        registrarId(estado, morador.id);
+        inserir(estado.moradores, morador.id, copiar(morador));
+      }
+      for (const relacao of dados.relacoes) {
+        inserir(estado.relacoes, relacao.id, copiar(relacao));
+        for (const id of [relacao.a, relacao.b]) {
+          const morador = exigir(estado.moradores, id);
+          if (!morador.relacoes.includes(relacao.id)) morador.relacoes.push(relacao.id);
+        }
+      }
+      estado.acessos.push({
+        familiaId: familia.id,
+        perfilId: dados.recibo.autor,
+        permissoes: [...PERMISSOES_DO_FUNDADOR],
+      });
+      estado.fundacao = copiar(dados.recibo);
+      return;
+    }
     case "AcessoConcedido": {
       const existente = estado.acessos.find(
         (acesso) => acesso.perfilId === dados.perfilId && acesso.familiaId === dados.familiaId,

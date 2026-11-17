@@ -8,6 +8,7 @@ import {
   esquecerAparelho,
   fecharAparelhos,
   hidratado,
+  medida,
   novaPessoa,
   origemDoJogo,
   scriptsDe,
@@ -33,7 +34,7 @@ import {
   saidaDoServidor,
   varrerCena,
 } from "./morada-apoio";
-import { ARGS_DO_NAVEGADOR } from "./navegador";
+import { ARGS_DO_NAVEGADOR, CANAL_DO_NAVEGADOR } from "./navegador";
 
 /**
  * A condição de saída da etapa 1, de ponta a ponta: duas contas diferentes
@@ -51,6 +52,18 @@ import { ARGS_DO_NAVEGADOR } from "./navegador";
 /** Um nome que só existe dentro do three.js: onde ele está, o jogo inteiro está. */
 const SINAL_DO_THREE = "WebGLRenderer";
 const FAMILIA = ["Lia", "Marcos", "Nina", "Vó Ana"];
+
+declare global {
+  interface Window {
+    graficaDaCriacao?: {
+      contextos: number;
+      buffers: number;
+      texturas: number;
+      maximoBuffers: number;
+      maximoTexturas: number;
+    };
+  }
+}
 const TODAS_AS_PERMISSOES = [
   "autorizar_mudanca",
   "chamar_morador",
@@ -69,6 +82,16 @@ const TODAS_AS_PERMISSOES = [
 /** O navegador da pessoa que vai cair: um processo à parte, para poder morrer sem aviso. */
 let navegadorQueCai: BrowserServer | null = null;
 
+/** Cada aparelho da Bia tem processo próprio, inclusive depois de reiniciar. */
+async function novoNavegadorDaBia() {
+  if (navegadorQueCai) throw new Error("O navegador anterior da Bia ainda precisa ser encerrado");
+  navegadorQueCai = await chromium.launchServer({
+    channel: CANAL_DO_NAVEGADOR,
+    args: ARGS_DO_NAVEGADOR,
+  });
+  return chromium.connect(navegadorQueCai.wsEndpoint());
+}
+
 /**
  * Com a instância fora do ar, o navegador registra no console cada conexão
  * recusada com o servidor do jogo. É o efeito esperado da queda que o teste
@@ -81,6 +104,165 @@ function ehFalhaDaQueda(mensagem: ConsoleMessage): boolean {
 test.beforeEach(() => {
   comecarVigia();
   limparSaidaDoServidor();
+});
+
+test.describe("coleção real da criação", () => {
+  test.skip(
+    !process.env.MORADA_ARTE_DIR,
+    "As 48 prévias exigem o pacote privado de arte da criação",
+  );
+  test("cria, joga e reabre uma família personalizada", { tag: "@personalizacao" }, async ({
+    browser,
+  }) => {
+    test.setTimeout(600_000);
+    await iniciarServidor();
+    const pessoa = await novaPessoa(browser, "Criadora");
+    await pessoa.page.addInitScript(() => {
+      const medida = { contextos: 0, buffers: 0, texturas: 0, maximoBuffers: 0, maximoTexturas: 0 };
+      window.graficaDaCriacao = medida;
+      const contextos = new Set<WebGL2RenderingContext>();
+      const buffers = new Set<WebGLBuffer>();
+      const texturas = new Set<WebGLTexture>();
+      const gl = WebGL2RenderingContext.prototype;
+      const criarBuffer = gl.createBuffer,
+        apagarBuffer = gl.deleteBuffer,
+        criarTextura = gl.createTexture,
+        apagarTextura = gl.deleteTexture;
+      gl.createBuffer = function (this: WebGL2RenderingContext) {
+        contextos.add(this);
+        medida.contextos = contextos.size;
+        const buffer = criarBuffer.call(this);
+        if (buffer) buffers.add(buffer);
+        medida.buffers = buffers.size;
+        medida.maximoBuffers = Math.max(medida.maximoBuffers, medida.buffers);
+        return buffer;
+      };
+      gl.deleteBuffer = function (this: WebGL2RenderingContext, buffer) {
+        if (buffer) buffers.delete(buffer);
+        medida.buffers = buffers.size;
+        apagarBuffer.call(this, buffer);
+      };
+      gl.createTexture = function (this: WebGL2RenderingContext) {
+        const textura = criarTextura.call(this);
+        if (textura) texturas.add(textura);
+        medida.texturas = texturas.size;
+        medida.maximoTexturas = Math.max(medida.maximoTexturas, medida.texturas);
+        return textura;
+      };
+      gl.deleteTexture = function (this: WebGL2RenderingContext, textura) {
+        if (textura) texturas.delete(textura);
+        medida.texturas = texturas.size;
+        apagarTextura.call(this, textura);
+      };
+    });
+    const mundoId = await criarMundo(pessoa.page, "Morada", "Casa da Lua");
+    await pessoa.page.goto(enderecoDoJogo(mundoId));
+    await expect(pessoa.page.getByRole("heading", { name: "Quem vai morar aqui?" })).toBeVisible();
+    await pessoa.page.getByRole("button", { name: "Criar minha família", exact: true }).click();
+    await pessoa.page.getByLabel("Nome da família", { exact: true }).fill("Lua e Sol");
+    await pessoa.page.getByLabel("Nome no jogo", { exact: true }).fill("Lua");
+    const previa = pessoa.page.locator(".morada-criacao-previa [role='status']");
+    const fases = ["colo", "pequeno", "crianca", "adolescente", "adulto", "idoso"];
+    let combinacoes = 0;
+    for (const fase of fases)
+      for (const linha of ["f", "m"])
+        for (const cabelo of ["natural", "careca"])
+          for (const roupa of ["cotidiano", "macacao"]) {
+            await pessoa.page
+              .getByRole("combobox", { name: "Fase da vida", exact: true })
+              .selectOption(fase);
+            await pessoa.page
+              .getByRole("combobox", { name: "Tipo de corpo", exact: true })
+              .selectOption(linha);
+            await pessoa.page
+              .getByRole("combobox", { name: "Cabelo", exact: true })
+              .selectOption(cabelo);
+            await pessoa.page
+              .getByRole("combobox", { name: "Roupa", exact: true })
+              .selectOption(roupa);
+            await expect(previa).toHaveText("Assim vai ficar");
+            if (cabelo === "natural" && roupa === "cotidiano")
+              await tela(pessoa.page, `criacao-${fase}-${linha}`);
+            combinacoes++;
+          }
+    expect(combinacoes).toBe(48);
+    await pessoa.page
+      .getByRole("combobox", { name: "Fase da vida", exact: true })
+      .selectOption("adulto");
+    await pessoa.page
+      .getByRole("combobox", { name: "Tipo de corpo", exact: true })
+      .selectOption("f");
+    await pessoa.page
+      .getByRole("combobox", { name: "Cabelo", exact: true })
+      .selectOption("natural");
+    await pessoa.page
+      .getByRole("combobox", { name: "Roupa", exact: true })
+      .selectOption("cotidiano");
+    await expect(previa).toHaveText("Assim vai ficar");
+    const ciclos = async () => {
+      for (const cabelo of ["careca", "natural"])
+        for (const roupa of ["macacao", "cotidiano"]) {
+          await pessoa.page
+            .getByRole("combobox", { name: "Cabelo", exact: true })
+            .selectOption(cabelo);
+          await pessoa.page
+            .getByRole("combobox", { name: "Roupa", exact: true })
+            .selectOption(roupa);
+          await expect(previa).toHaveText("Assim vai ficar");
+        }
+    };
+    await ciclos();
+    const antes = await pessoa.page.evaluate(() => window.graficaDaCriacao);
+    await ciclos();
+    await ciclos();
+    const depois = await pessoa.page.evaluate(() => window.graficaDaCriacao);
+    expect(antes?.contextos).toBe(1);
+    expect(depois?.contextos).toBe(1);
+    expect(depois?.buffers).toBe(antes?.buffers);
+    expect(depois?.texturas).toBe(antes?.texturas);
+    await medida("criacao-recursos", { combinacoes, antes, depois });
+    await test.info().attach("criacao-recursos.json", {
+      body: JSON.stringify({ combinacoes, antes, depois }, null, 2),
+      contentType: "application/json",
+    });
+    await pessoa.page.setViewportSize({ width: 390, height: 844 });
+    await expect(
+      pessoa.page.getByRole("heading", { name: "Moradores", exact: true }),
+    ).toBeVisible();
+    await expect(previa).toHaveText("Assim vai ficar");
+    expect(
+      await pessoa.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    ).toBe(true);
+    await tela(pessoa.page, "criacao-celular");
+    await pessoa.page.setViewportSize({ width: 1280, height: 800 });
+    await pessoa.page.getByRole("button", { name: /Adicionar morador/ }).click();
+    await pessoa.page.getByLabel("Nome no jogo", { exact: true }).fill("Sol");
+    await pessoa.page
+      .getByRole("combobox", { name: "Tipo de corpo", exact: true })
+      .selectOption("m");
+    await expect(previa).toHaveText("Assim vai ficar");
+    await pessoa.page.getByRole("button", { name: "Continuar", exact: true }).click();
+    await pessoa.page.getByRole("button", { name: "Adicionar relação", exact: true }).click();
+    await pessoa.page
+      .getByRole("combobox", { name: "Vínculo", exact: true })
+      .selectOption("casamento");
+    await pessoa.page.getByRole("button", { name: "Continuar", exact: true }).click();
+    await expect(
+      pessoa.page.getByRole("heading", { name: "Seu novo lar", exact: true }),
+    ).toBeVisible();
+    await pessoa.page.getByRole("button", { name: "Começar a jogar", exact: true }).click();
+    const jogo = jogoEm(pessoa.page);
+    await mundoNaTela(jogo);
+    await expect(jogo.nomes).toHaveText(["Lua", "Sol"]);
+    await jogo.retrato("Lua").click();
+    await expect(jogo.retrato("Lua")).toHaveAttribute("data-estado", "voce");
+    await jogo.sair.click();
+    await expect(pessoa.page).toHaveURL(/\/estante/);
+    await pessoa.page.getByRole("link", { name: "Jogar em Casa da Lua" }).click();
+    await mundoNaTela(jogo);
+    await expect(jogo.nomes).toHaveText(["Lua", "Sol"]);
+    await expect(pessoa.page.getByRole("heading", { name: "Quem vai morar aqui?" })).toHaveCount(0);
+  });
 });
 
 test.afterEach(async () => {
@@ -121,8 +303,7 @@ test("duas contas jogam a mesma família; uma cai, a outra continua, e tudo volt
   expect(registros("instancia_registrada")).toHaveLength(1);
 
   // A Bia joga num navegador próprio, que mais adiante é morto sem aviso.
-  navegadorQueCai = await chromium.launchServer({ args: ARGS_DO_NAVEGADOR });
-  const navegadorDaBia = await chromium.connect(navegadorQueCai.wsEndpoint());
+  const navegadorDaBia = await novoNavegadorDaBia();
 
   const ana = await novaPessoa(browser, "Ana");
   let bia = await novaPessoa(navegadorDaBia, "Bia");
@@ -140,6 +321,11 @@ test("duas contas jogam a mesma família; uma cai, a outra continua, e tudo volt
 
   const daAna = jogoEm(ana.page);
   let daBia = jogoEm(bia.page);
+  const pedidosDeArte = new Map<string, number>();
+  ana.page.on("response", (resposta) => {
+    if (resposta.url().startsWith(`${origemDoJogo(JOGO).http}/arte/`))
+      pedidosDeArte.set(new URL(resposta.url()).pathname, resposta.status());
+  });
 
   await test.step("7a. a estante não baixa o jogo; a página do jogo baixa, com a política dela", async () => {
     const daEstante = await scriptsDe(ana.page, () => ana.page.goto("/estante"));
@@ -161,7 +347,27 @@ test("duas contas jogam a mesma família; uma cai, a outra continua, e tudo volt
     await expect(ana.page).toHaveURL(enderecoDoJogo(mundoId));
     expect(doJogo.some((codigo) => codigo.includes(MARCA_DO_CLIENTE))).toBe(true);
     expect(doJogo.some((codigo) => codigo.includes(SINAL_DO_THREE))).toBe(true);
-    expect(politica).toContain(`connect-src 'self' ${origemDoJogo(JOGO).ws};`);
+    await expect(daAna.cena).toBeFocused();
+    const origemDaArte = process.env.MORADA_ARTE_DIR ? ` ${origemDoJogo(JOGO).http} blob:` : "";
+    expect(politica).toContain(`connect-src 'self' ${origemDoJogo(JOGO).ws}${origemDaArte};`);
+    if (process.env.MORADA_ARTE_DIR) {
+      // O teste normal continua sem arte; o opt-in local exercita SDK, CORS e CSP de verdade.
+      await expect
+        .poll(() => [...pedidosDeArte.keys()].filter((p) => p.includes("/obj-")).length)
+        .toBe(41);
+      await expect
+        .poll(() => [...pedidosDeArte.keys()].filter((p) => p.includes("/tex-")).length)
+        .toBe(11);
+      expect([...pedidosDeArte.values()].every((status) => status === 200 || status === 304)).toBe(
+        true,
+      );
+      await ana.page.getByRole("button", { name: "Paredes baixas", exact: true }).click();
+      await expect
+        .poll(() => [...pedidosDeArte.keys()].filter((p) => p.includes("/vao-")).length)
+        .toBe(3);
+      await tela(ana.page, "morada-arte-paredes-inteiras");
+      await ana.page.getByRole("button", { name: "Paredes altas", exact: true }).click();
+    }
     expect(politica).not.toContain("'unsafe-eval'");
     // Nada de quem joga está escrito no documento: nem o e-mail, nem um token.
     const documento = await ana.page.content();
@@ -204,8 +410,6 @@ test("duas contas jogam a mesma família; uma cai, a outra continua, e tudo volt
     // Uma saída só: a do jogo. A página não desenha a dela por cima.
     await expect(daAna.sair).toBeVisible();
     await expect(daAna.sairDaPagina).toHaveCount(0);
-    // O teclado já vale: o foco começou na cena.
-    await expect(daAna.cena).toBeFocused();
     await tela(ana.page, "morada-entrada-ana");
   });
 
@@ -437,14 +641,22 @@ test("duas contas jogam a mesma família; uma cai, a outra continua, e tudo volt
   });
 
   await test.step("6. Bia volta em outro navegador, entra de novo e está na mesma família com a Ana", async () => {
-    bia = await entrarDeNovo(browser, bia);
+    bia = await entrarDeNovo(await novoNavegadorDaBia(), bia);
+    // O aparelho antigo morreu. A conta revoga explicitamente aquele aparelho;
+    // não se finge um checkpoint nem se toma uma sessão ainda válida.
+    await bia.page.goto("/conta");
+    await bia.page.getByRole("link", { name: "Gerenciar aparelhos" }).click();
+    const outros = bia.page.getByRole("region", { name: "Outros aparelhos" });
+    const desconectar = outros.getByRole("button", { name: /Desconectar aparelho iniciado em/ });
+    await expect(desconectar).toHaveCount(1);
+    await hidratado(desconectar);
+    await desconectar.click();
+    await expect(
+      outros.getByText("Nenhum outro aparelho nesta página.", { exact: true }),
+    ).toBeVisible();
+    await bia.page.goto("/estante");
     daBia = jogoEm(bia.page);
     await bia.page.getByRole("link", { name: "Jogar em Casa da Ana" }).click();
-    // O navegador que morreu não encerrou a sessão de jogo: o Recreio pergunta antes de continuar.
-    await expect(
-      bia.page.getByRole("heading", { name: "Você já está jogando em outro lugar" }),
-    ).toBeVisible();
-    await bia.page.getByRole("button", { name: "Continuar aqui" }).click();
     await mundoNaTela(daBia);
 
     await expect(daBia.nomes).toHaveText(FAMILIA);
@@ -498,7 +710,7 @@ test("o Morada sem instância e com a sessão trocada de janela: quem avisa é a
     await expect(daPrimeira.retrato("Lia")).toHaveAttribute("data-estado", "voce");
   });
 
-  await test.step("a mesma conta continua em outra aba: a primeira para, com o aviso da página e sem o do jogo", async () => {
+  await test.step("a outra aba só abre depois da saída confirmada pelo jogo anterior", async () => {
     const segunda = await davi.contexto.newPage();
     const daSegunda = jogoEm(segunda);
     await segunda.goto(enderecoDoJogo(mundoId));
@@ -506,16 +718,19 @@ test("o Morada sem instância e com a sessão trocada de janela: quem avisa é a
       segunda.getByRole("heading", { name: "Você já está jogando em outro lugar" }),
     ).toBeVisible();
     await segunda.getByRole("button", { name: "Continuar aqui" }).click();
+    await expect(
+      segunda.getByRole("heading", { name: "Salve e saia no outro aparelho" }),
+    ).toBeVisible();
+    await expect(segunda.locator(".morada")).toHaveCount(0);
+    await expect(daPrimeira.nomes).toHaveText(FAMILIA);
+    await daPrimeira.sair.click();
+    await expect(primeira).toHaveURL(/\/estante$/);
+    await segunda.getByRole("button", { name: "Tentar de novo" }).click();
     await mundoNaTela(daSegunda);
 
-    await expect(
-      primeira.getByRole("heading", { name: "Você continuou o jogo em outro lugar" }),
-    ).toBeVisible({ timeout: 30_000 });
-    // Um aviso só: o cartão de fim do jogo não aparece junto com o da página.
     await expect(primeira.locator(".morada")).toHaveCount(0);
     await expect(primeira.getByRole("alertdialog")).toHaveCount(0);
-    await expect(primeira.getByRole("heading", { level: 2 })).toHaveCount(1);
-    await tela(primeira, "morada-continuou-em-outro-lugar");
+    await tela(primeira, "morada-saida-antes-da-troca");
     // A segunda aba segue jogando, com a família inteira.
     await expect(daSegunda.nomes).toHaveText(FAMILIA);
     await daSegunda.retrato("Lia").click();

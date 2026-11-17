@@ -1,13 +1,15 @@
 import "server-only";
 import { and, db, eq, inArray, sql } from "@informach/db";
-import {
-  estrelaChildren as children,
-  estrelaTasks as tasks,
-  estrelaTaskVoices as voices,
-} from "@informach/db/schema";
+import { estrelaTasks as tasks, estrelaTaskVoices as voices } from "@informach/db/schema";
+import type { FamilyTransaction } from "@informach/family";
 import { MODELOS } from "@/domain/modelos";
 import type { Tarefa } from "@/domain/rotina";
 import { assertAllowed } from "@/lib/errors";
+import { canRecordVoice } from "../acesso/policy";
+import { estrelaAccessInTransaction } from "../billing/access-repository";
+import type { EstrelaAuthority, ParentAuthority } from "../familia/authority";
+import { childAccessCondition, lockChildAccess } from "../familia/scope";
+import { assertParent, lockChildUse } from "../familia/use-repository";
 import type { TaskInput } from "./schemas";
 
 const taskFields = {
@@ -29,107 +31,114 @@ const taskFields = {
 };
 export type TaskRow = Tarefa & { childId: string; hasVoice: boolean };
 
-/** Toda leitura de tarefa passa pela família dona da criança. */
-const daFamilia = (ownerId: string) =>
-  sql`exists (select 1 from ${children} where ${children.id} = ${tasks.childId} and ${children.userId} = ${ownerId})`;
-
-export async function listTasks(ownerId: string, childIds?: string[]): Promise<TaskRow[]> {
+/** Every task/file query includes canonical identity, membership and delegation. */
+export async function listTasks(actor: EstrelaAuthority, childIds?: string[]): Promise<TaskRow[]> {
   if (childIds && !childIds.length) return [];
   return db
     .select(taskFields)
     .from(tasks)
-    .where(and(daFamilia(ownerId), childIds ? inArray(tasks.childId, childIds) : undefined))
+    .where(
+      and(
+        childAccessCondition(actor, tasks.childId),
+        childIds ? inArray(tasks.childId, childIds) : undefined,
+      ),
+    )
     .orderBy(tasks.time, tasks.createdAt);
 }
-
-export async function getTask(ownerId: string, taskId: string): Promise<TaskRow | null> {
+export async function getTask(actor: EstrelaAuthority, taskId: string): Promise<TaskRow | null> {
   const [row] = await db
     .select(taskFields)
     .from(tasks)
-    .where(and(eq(tasks.id, taskId), daFamilia(ownerId)));
+    .where(and(eq(tasks.id, taskId), childAccessCondition(actor, tasks.childId)));
   return row ?? null;
 }
-
-async function assertChild(ownerId: string, childId: string) {
-  const [child] = await db
-    .select({ id: children.id })
-    .from(children)
-    .where(and(eq(children.id, childId), eq(children.userId, ownerId)));
-  assertAllowed(child, "NOT_FOUND", "Criança não encontrada.");
+async function lockedTask(
+  tx: FamilyTransaction,
+  actor: ParentAuthority,
+  taskId: string,
+  use = true,
+) {
+  assertParent(actor);
+  const read = () =>
+    tx
+      .select(taskFields)
+      .from(tasks)
+      .where(and(eq(tasks.id, taskId), childAccessCondition(actor, tasks.childId, "write")));
+  const [before] = await read();
+  assertAllowed(before, "NOT_FOUND", "Tarefa não encontrada.");
+  if (use) await lockChildUse(tx, actor, [before.childId]);
+  else await lockChildAccess(tx, actor, [before.childId], "write");
+  const [task] = await read();
+  assertAllowed(task && task.childId === before.childId, "NOT_FOUND", "Tarefa não encontrada.");
+  return task;
 }
-
-export async function createTask(ownerId: string, childId: string, input: TaskInput) {
-  await assertChild(ownerId, childId);
-  const [row] = await db
-    .insert(tasks)
-    .values({ ...input, childId })
-    .returning({ id: tasks.id });
-  assertAllowed(row, "TASK", "Não foi possível salvar a tarefa.");
-  return row.id;
+export async function createTask(actor: ParentAuthority, childId: string, input: TaskInput) {
+  assertParent(actor);
+  return db.transaction(async (tx) => {
+    await lockChildUse(tx, actor, [childId]);
+    const [row] = await tx
+      .insert(tasks)
+      .values({ ...input, childId })
+      .returning({ id: tasks.id });
+    assertAllowed(row, "TASK", "Não foi possível salvar a tarefa.");
+    return row.id;
+  });
 }
-
-export async function updateTask(ownerId: string, taskId: string, input: TaskInput) {
-  const rows = await db
-    .update(tasks)
-    .set({ ...input, updatedAt: new Date() })
-    .where(and(eq(tasks.id, taskId), daFamilia(ownerId)))
-    .returning({ childId: tasks.childId });
-  assertAllowed(rows[0], "NOT_FOUND", "Tarefa não encontrada.");
-  return rows[0].childId;
+export async function updateTask(actor: ParentAuthority, taskId: string, input: TaskInput) {
+  return db.transaction(async (tx) => {
+    const task = await lockedTask(tx, actor, taskId);
+    await tx
+      .update(tasks)
+      .set({ ...input, updatedAt: new Date() })
+      .where(eq(tasks.id, taskId));
+    return task.childId;
+  });
 }
-
-export async function deleteTask(ownerId: string, taskId: string) {
-  const rows = await db
-    .delete(tasks)
-    .where(and(eq(tasks.id, taskId), daFamilia(ownerId)))
-    .returning({ id: tasks.id });
-  assertAllowed(rows.length, "NOT_FOUND", "Tarefa não encontrada.");
+export async function deleteTask(actor: ParentAuthority, taskId: string) {
+  return db.transaction(async (tx) => {
+    await lockedTask(tx, actor, taskId, false);
+    await tx.delete(tasks).where(eq(tasks.id, taskId));
+  });
 }
-
-export async function applyTemplate(ownerId: string, childId: string, templateId: string) {
-  await assertChild(ownerId, childId);
-  const modelo = MODELOS.find((m) => m.id === templateId);
-  assertAllowed(modelo, "TEMPLATE", "Modelo não encontrado.");
-  await db.insert(tasks).values(modelo.tasks.map((t) => ({ ...t, childId })));
-  return modelo.tasks.length;
+export async function applyTemplate(actor: ParentAuthority, childId: string, templateId: string) {
+  assertParent(actor);
+  const model = MODELOS.find((m) => m.id === templateId);
+  assertAllowed(model, "TEMPLATE", "Modelo não encontrado.");
+  return db.transaction(async (tx) => {
+    await lockChildUse(tx, actor, [childId]);
+    await tx.insert(tasks).values(model.tasks.map((t) => ({ ...t, childId })));
+    return model.tasks.length;
+  });
 }
-
 export async function saveVoice(
-  ownerId: string,
+  actor: ParentAuthority,
   taskId: string,
   voice: { mime: string; data: Buffer; durationMs: number },
 ) {
-  const task = await getTask(ownerId, taskId);
-  assertAllowed(task, "NOT_FOUND", "Tarefa não encontrada.");
-  await db
-    .insert(voices)
-    .values({ taskId, ...voice })
-    .onConflictDoUpdate({
-      target: voices.taskId,
-      set: { ...voice, updatedAt: new Date() },
-    });
+  return db.transaction(async (tx) => {
+    await lockedTask(tx, actor, taskId);
+    assertAllowed(
+      canRecordVoice(await estrelaAccessInTransaction(tx, actor)),
+      "PLAN",
+      "Gravar a própria voz precisa de acesso ao Compasso.",
+    );
+    await tx
+      .insert(voices)
+      .values({ taskId, ...voice })
+      .onConflictDoUpdate({ target: voices.taskId, set: { ...voice, updatedAt: new Date() } });
+  });
 }
-
-export async function deleteVoice(ownerId: string, taskId: string) {
-  const task = await getTask(ownerId, taskId);
-  assertAllowed(task, "NOT_FOUND", "Tarefa não encontrada.");
-  await db.delete(voices).where(eq(voices.taskId, taskId));
+export async function deleteVoice(actor: ParentAuthority, taskId: string) {
+  return db.transaction(async (tx) => {
+    await lockedTask(tx, actor, taskId, false);
+    await tx.delete(voices).where(eq(voices.taskId, taskId));
+  });
 }
-
-/** O áudio de uma tarefa, só para quem é da família dona dela. */
-export async function readVoice(ownerId: string, taskId: string, childIds?: string[] | null) {
-  if (childIds && !childIds.length) return null;
+export async function readVoice(actor: EstrelaAuthority, taskId: string) {
   const [row] = await db
     .select({ mime: voices.mime, data: voices.data, updatedAt: voices.updatedAt })
     .from(voices)
     .innerJoin(tasks, eq(voices.taskId, tasks.id))
-    .where(
-      and(
-        eq(voices.taskId, taskId),
-        daFamilia(ownerId),
-        // Um aparelho só ouve as tarefas das crianças conectadas a ele.
-        childIds ? inArray(tasks.childId, childIds) : undefined,
-      ),
-    );
+    .where(and(eq(voices.taskId, taskId), childAccessCondition(actor, tasks.childId)));
   return row ?? null;
 }

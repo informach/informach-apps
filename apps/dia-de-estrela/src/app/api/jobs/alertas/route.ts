@@ -7,7 +7,7 @@ import { redis } from "@/lib/redis";
 export const maxDuration = 120;
 
 // Onde a execução anterior parou, para a próxima continuar dali (ver runAlerts).
-const cursorKey = "dia-de-estrela:jobs:alertas:cursor";
+const cursorKey = "dia-de-estrela:jobs:alertas:group-cursor";
 
 /** De 5 em 5 minutos: alertas "não marcou" aos pais e limpeza do que é operacional. */
 export async function POST(request: Request) {

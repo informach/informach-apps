@@ -1,5 +1,5 @@
 import { MARCA_DO_CLIENTE, montarMorada } from "@informach/jogo-morada";
-import type { ModuloDoJogo } from "@informach/recreio/sdk";
+import { ErroDoRecreio, type ModuloDoJogo } from "@informach/recreio/sdk";
 import { ligarMoradaAoRecreio } from "./morada-regra";
 
 /**
@@ -18,6 +18,7 @@ export const morada: ModuloDoJogo = {
   saidaPropria: true,
 
   montar(host, contexto, opcoes) {
+    if (!opcoes.mundoId) throw new ErroDoRecreio("ENTRADA_INVALIDA");
     const palco = document.createElement("div");
     palco.className = "absolute inset-0";
     // Só o código deste arquivo carrega a marca: o E2E a procura nos scripts de cada página.

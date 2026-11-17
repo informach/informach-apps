@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { z } from "zod";
+import { agendaAuthority } from "@/features/family/context";
 import { ActivityDetail } from "@/features/unified-activities/components/activity-detail";
 import { findTaskForUser } from "@/features/unified-activities/task-repository";
 import { requireUserServer } from "@/lib/auth";
@@ -26,15 +27,16 @@ export default async function ActivityDetailPage({
   searchParams: Promise<{ editar?: string; historico?: string }>;
 }) {
   const user = await requireUserServer();
+  const actor = await agendaAuthority(user.id);
   const [{ id }, query] = await Promise.all([params, searchParams]);
   if (!z.string().uuid().safeParse(id).success) notFound();
 
-  const task = await findTaskForUser(user.id, id);
+  const task = await findTaskForUser(actor, id);
   if (!task) notFound();
 
   return (
     <ActivityDetail
-      userId={user.id}
+      actor={actor}
       task={task}
       editing={query.editar === "1"}
       historyOpen={query.historico === "1"}

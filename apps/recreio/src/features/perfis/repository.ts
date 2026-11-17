@@ -1,15 +1,23 @@
 import "server-only";
-import { db, eq } from "@informach/db";
+import { logAuditEventStrict } from "@informach/auth";
+import { and, db, eq, sql } from "@informach/db";
 import { recreioGroups as groups, recreioProfiles as profiles, users } from "@informach/db/schema";
 import {
   type ContaId,
   type GrupoId,
   GrupoIdSchema,
+  limiteDePerfisDoTier,
   type PerfilId,
   PerfilIdSchema,
+  type SessaoDeAparelhoId,
 } from "@informach/recreio";
+import {
+  autorizarContaNativa,
+  type IdentidadeNativa,
+  serializarContaNativa,
+} from "@/features/account/autoridade-repository";
 import { assertAllowed } from "@/lib/errors";
-import type { NovoPerfil } from "./regras";
+import type { EdicaoDoPerfil, NovoPerfil } from "./regras";
 
 /** O perfil como o portal o conhece. Não leva a conta: o jogo só vê o `id`. */
 export type PerfilDoRecreio = {
@@ -41,7 +49,7 @@ type Linha = {
   policyVersion: number;
 };
 
-function paraPerfil(linha: Linha): PerfilDoRecreio {
+export function paraPerfil(linha: Linha): PerfilDoRecreio {
   return {
     id: PerfilIdSchema.parse(linha.id),
     grupoId: linha.groupId === null ? null : GrupoIdSchema.parse(linha.groupId),
@@ -63,6 +71,48 @@ export async function perfisDaConta(contaId: ContaId): Promise<PerfilDoRecreio[]
   return linhas.map(paraPerfil);
 }
 
+/** Perfil → aparelho; os dois permanecem travados até dados e auditoria confirmarem. */
+export async function editarPerfilDaConta(
+  ator: { contaId: ContaId; sessaoDeAparelhoId: SessaoDeAparelhoId },
+  dados: EdicaoDoPerfil,
+): Promise<PerfilDoRecreio> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`set local transaction_timeout='15s'`);
+    await tx.execute(sql`set local lock_timeout='2s'`);
+    const contexto = await autorizarContaNativa(tx, ator, "update");
+    const [perfil] = await tx
+      .select(campos)
+      .from(profiles)
+      .where(and(eq(profiles.userId, ator.contaId), eq(profiles.kind, "adult")))
+      .for("update");
+    assertAllowed(perfil?.status === "active", "PERFIL", "Perfil não disponível.");
+    assertAllowed(contexto.perfilId === perfil.id, "AUTH", "Entre novamente para continuar.");
+    await contexto.conferirPrazo();
+    const fields: ("nickname" | "avatar")[] = [];
+    if (perfil.nickname !== dados.novo.apelido) fields.push("nickname");
+    if (perfil.avatar !== dados.novo.avatar) fields.push("avatar");
+    if (fields.length === 0) return paraPerfil(perfil);
+    assertAllowed(
+      perfil.nickname === dados.anterior.apelido && perfil.avatar === dados.anterior.avatar,
+      "CONFLITO",
+      "O perfil mudou em outra tela. Volte à conta e abra a edição novamente.",
+    );
+    const [atualizado] = await tx
+      .update(profiles)
+      .set({ nickname: dados.novo.apelido, avatar: dados.novo.avatar, updatedAt: sql`now()` })
+      .where(and(eq(profiles.id, perfil.id), eq(profiles.userId, ator.contaId)))
+      .returning(campos);
+    assertAllowed(atualizado, "PERFIL", "Perfil não disponível.");
+    await logAuditEventStrict(
+      "recreio.profile_updated",
+      ator.contaId,
+      { app: "recreio", profileId: perfil.id, fields },
+      { writer: tx },
+    );
+    return paraPerfil(atualizado);
+  });
+}
+
 /**
  * Cria o perfil adulto da conta e o grupo dela, numa transação só. A conta
  * fica travada do começo ao fim: dois pedidos ao mesmo tempo dão um perfil e
@@ -70,16 +120,21 @@ export async function perfisDaConta(contaId: ContaId): Promise<PerfilDoRecreio[]
  * Um grupo que a equipe já criou ao conceder acesso é reaproveitado.
  */
 export async function criarPerfilDaConta(
-  contaId: ContaId,
+  ator: IdentidadeNativa,
   dados: NovoPerfil,
 ): Promise<{ perfil: PerfilDoRecreio; criado: boolean }> {
   return db.transaction(async (tx) => {
+    const contaId = ator.contaId;
+    await tx.execute(sql`set local transaction_timeout='15s'`);
+    await tx.execute(sql`set local lock_timeout='2s'`);
+    await serializarContaNativa(tx, contaId);
     const [conta] = await tx
       .select({ id: users.id })
       .from(users)
       .where(eq(users.id, contaId))
       .for("no key update");
     assertAllowed(conta, "AUTH", "Entre novamente para continuar.");
+    const contexto = await autorizarContaNativa(tx, ator);
     const [existente] = await tx.select(campos).from(profiles).where(eq(profiles.userId, contaId));
     if (existente) return { perfil: paraPerfil(existente), criado: false };
     await tx
@@ -89,8 +144,21 @@ export async function criarPerfilDaConta(
     const [grupo] = await tx
       .select({ id: groups.id })
       .from(groups)
-      .where(eq(groups.ownerUserId, contaId));
+      .where(eq(groups.ownerUserId, contaId))
+      .for("update");
     assertAllowed(grupo, "PERFIL", "Não foi possível criar o perfil. Tente de novo.");
+    const limite = limiteDePerfisDoTier("family");
+    const cadastrados = await tx
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(eq(profiles.groupId, grupo.id))
+      .limit(limite);
+    assertAllowed(
+      cadastrados.length < limite,
+      "LIMITE_DE_PERFIS",
+      "Este grupo já tem quatro perfis. Gerencie os perfis existentes para continuar.",
+    );
+    await contexto.conferirPrazo();
     const [criado] = await tx
       .insert(profiles)
       .values({
@@ -102,6 +170,12 @@ export async function criarPerfilDaConta(
       })
       .returning(campos);
     assertAllowed(criado, "PERFIL", "Não foi possível criar o perfil. Tente de novo.");
+    await logAuditEventStrict(
+      "recreio.profile_created",
+      contaId,
+      { app: "recreio", profileId: criado.id, kind: criado.kind },
+      { writer: tx },
+    );
     return { perfil: paraPerfil(criado), criado: true };
   });
 }

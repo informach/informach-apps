@@ -6,7 +6,7 @@ export const metadata = { title: "Loja" };
 
 export default async function LojaDaCrianca() {
   const device = await requireChildPage();
-  const dados = await childPiggy(device.ownerId, device.childId);
+  const dados = await childPiggy(device.actor, device.childId);
   return (
     <main id="conteudo">
       <Loja dados={dados} />

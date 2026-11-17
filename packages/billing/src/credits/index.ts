@@ -1,4 +1,5 @@
 export { getBalance } from "./balance";
+export { createCompassoWallet } from "./compasso-wallet";
 export {
   type GrantBonusCreditsInput,
   type GrantBonusCreditsResult,
@@ -24,3 +25,4 @@ export {
   releaseReservation,
   reserveCredits,
 } from "./reservations";
+export { authorizeCompassoSpend } from "./shared";

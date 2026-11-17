@@ -1,17 +1,13 @@
 import { INFORMACH_CONTACT } from "@informach/config/contact";
 import { MessageCircle } from "lucide-react";
 import { AccountSettings } from "@/features/account/components/account-settings";
-import { hasOtherAppSubscriptions } from "@/features/account/repository";
 import { getKitchenAccess } from "@/features/kitchen/access";
 import { requireUserServer } from "@/lib/auth";
 
 export const metadata = { title: "Minha conta | Cozya" };
 export default async function AccountPage() {
   const user = await requireUserServer();
-  const [access, hasOtherSubscriptions] = await Promise.all([
-    getKitchenAccess(user.id),
-    hasOtherAppSubscriptions(user.id),
-  ]);
+  const access = await getKitchenAccess(user.id);
   return (
     <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8 md:px-8">
       <h1 className="text-[30px] font-extrabold tracking-display md:text-4xl">
@@ -21,7 +17,6 @@ export default async function AccountPage() {
         email={user.email}
         initialSize={access.profile?.householdSize ?? 2}
         initialPreferences={access.profile?.preferences ?? ""}
-        hasOtherSubscriptions={hasOtherSubscriptions}
       />
       <section aria-labelledby="contato" className="space-y-2 rounded-2xl bg-muted p-5">
         <h2 id="contato" className="text-xl font-extrabold">

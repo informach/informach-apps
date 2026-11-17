@@ -1,12 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db } from "@informach/db";
-import {
-  missaoAttempts,
-  missaoFamilies,
-  missaoProfiles,
-  missaoSessions,
-  users,
-} from "@informach/db/schema";
+import { missaoAttempts, missaoFamilies, missaoSessions, users } from "@informach/db/schema";
 import { beforeAll, describe, expect, it } from "vitest";
 import { findLesson } from "@/features/content/catalog";
 import { suggestedGoal, weekStart } from "@/features/family/desafio";
@@ -15,6 +9,7 @@ import {
   familyChallenge,
   setFamilyChallenge,
 } from "@/features/learning/repository";
+import { fixtureAuthority, seedStudent, seedStudents } from "./family-fixture";
 
 const owner = randomUUID();
 const stranger = randomUUID();
@@ -69,14 +64,11 @@ beforeAll(async () => {
     { userId: owner, consentVersion: "test" },
     { userId: stranger, consentVersion: "test" },
   ]);
-  const criados = await db
-    .insert(missaoProfiles)
-    .values([
-      { userId: owner, nickname: "Sol", grade: 6, avatar: "cometa", courseId: "olitef-n1" },
-      { userId: owner, nickname: "Lua", grade: 6, avatar: "lua", courseId: "olitef-n1" },
-      { userId: stranger, nickname: "Vizinha", grade: 6, avatar: "raio", courseId: "olitef-n1" },
-    ])
-    .returning({ id: missaoProfiles.id, nickname: missaoProfiles.nickname });
+  const criados = await seedStudents([
+    { userId: owner, nickname: "Sol", grade: 6, avatar: "cometa", courseId: "olitef-n1" },
+    { userId: owner, nickname: "Lua", grade: 6, avatar: "lua", courseId: "olitef-n1" },
+    { userId: stranger, nickname: "Vizinha", grade: 6, avatar: "raio", courseId: "olitef-n1" },
+  ]);
   sol = criados.find((p) => p.nickname === "Sol")?.id ?? "";
   lua = criados.find((p) => p.nickname === "Lua")?.id ?? "";
   if (!sol || !lua) throw new Error("Missing fixture profiles");
@@ -85,7 +77,7 @@ beforeAll(async () => {
 describe("desafio da família em PostgreSQL isolado", () => {
   it("não varre a semana enquanto nenhuma meta foi aceita", async () => {
     await seedCompletedSession(sol, 0);
-    expect(await familyChallenge(owner, weekStart(new Date()))).toEqual({
+    expect(await familyChallenge(await fixtureAuthority(owner), weekStart(new Date()))).toEqual({
       goal: null,
       progress: 0,
       contributions: [],
@@ -94,21 +86,21 @@ describe("desafio da família em PostgreSQL isolado", () => {
 
   it("soma estratégias distintas dos perfis da casa, sem contar pistas nem outra família", async () => {
     const semana = weekStart(new Date());
-    await setFamilyChallenge(owner, semana, suggestedGoal(2));
+    await setFamilyChallenge(await fixtureAuthority(owner), semana, suggestedGoal(2));
     // Mesmo perfil, mesma missão outra vez: variedade não cresce com repetição.
     await seedCompletedSession(sol, 0);
     // Outro perfil da casa soma na mesma barra.
     await seedCompletedSession(lua, 0);
     // Tentativa com pistas não vira evidência de estratégia resolvida sozinha.
     await seedCompletedSession(lua, 2);
-    const resultado = await familyChallenge(owner, semana);
+    const resultado = await familyChallenge(await fixtureAuthority(owner), semana);
     const lesson = findLesson("fracoes-1");
     const familias = new Set(lesson?.items.map((item) => item.familyId)).size;
     expect(resultado.goal).toBe(8);
     expect(resultado.progress).toBe(familias);
     expect(resultado.contributions.map((quem) => quem.nickname).sort()).toEqual(["Lua", "Sol"]);
     // A casa vizinha não aparece nem soma.
-    expect(await familyChallenge(stranger, semana)).toEqual({
+    expect(await familyChallenge(await fixtureAuthority(stranger), semana)).toEqual({
       goal: null,
       progress: 0,
       contributions: [],
@@ -117,22 +109,24 @@ describe("desafio da família em PostgreSQL isolado", () => {
 
   it("não conta diagnóstico nem simulado, onde pista não existe", async () => {
     const semana = weekStart(new Date());
-    const antes = await familyChallenge(owner, semana);
+    const antes = await familyChallenge(await fixtureAuthority(owner), semana);
     // Nestes modos toda resposta certa tem zero pistas por construção: um
     // diagnóstico inteiro encheria a meta da semana sozinho.
     await seedCompletedSession(sol, 0, undefined, "diagnostic");
     await seedCompletedSession(sol, 0, undefined, "exam");
-    expect((await familyChallenge(owner, semana)).progress).toBe(antes.progress);
+    expect((await familyChallenge(await fixtureAuthority(owner), semana)).progress).toBe(
+      antes.progress,
+    );
   });
 
   it("ignora o que aconteceu antes da semana e encerra sem dívida", async () => {
     const semana = weekStart(new Date());
     await seedCompletedSession(sol, 0, new Date(Date.now() - 30 * 86_400_000));
-    const antes = await familyChallenge(owner, semana);
+    const antes = await familyChallenge(await fixtureAuthority(owner), semana);
     const lesson = findLesson("fracoes-1");
     expect(antes.progress).toBe(new Set(lesson?.items.map((item) => item.familyId)).size);
-    await clearFamilyChallenge(owner, semana);
-    expect(await familyChallenge(owner, semana)).toEqual({
+    await clearFamilyChallenge(await fixtureAuthority(owner), semana);
+    expect(await familyChallenge(await fixtureAuthority(owner), semana)).toEqual({
       goal: null,
       progress: 0,
       contributions: [],

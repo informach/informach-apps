@@ -1,256 +1,202 @@
 import "server-only";
-
-import { and, asc, count, type Database, db, eq, inArray, ne, sql } from "@informach/db";
+import { err, ok } from "@informach/auth/server-actions";
+import { and, asc, count, db, eq, inArray, ne } from "@informach/db";
 import {
-  type AgendaExtracurricularDay,
-  type AgendaProfileSubjectStatus,
   agendaProfileSubjects,
   agendaStudentProfiles,
+  agendaSubjects,
   agendaTasks,
 } from "@informach/db/schema";
+import { type FamilyTransaction, requireFamilyCondition } from "@informach/family";
+import { lockFamilyMembership } from "@informach/family/context";
+import type { AgendaAuthority } from "@/features/family/authority";
+import { agendaProfileCondition } from "@/features/family/scope";
+import { atomicAgendaResult } from "@/features/family/transaction-repository";
+import { lockAgendaUse } from "@/features/family/use-repository";
+import { pickAvailableColorIndex } from "@/features/subjects/utils";
+import { activeMembershipCondition } from "@/features/turmas/access";
+import { FREE_PROFILE_SUBJECT_LIMIT, PRO_PROFILE_SUBJECT_LIMIT } from "./limits";
+import type {
+  CreateProfileSubjectInput,
+  SetProfileSubjectStatusInput,
+  UpdateProfileSubjectInput,
+} from "./schemas";
 import type { ProfileSubject } from "./types";
-import { pickAvailableColorIndexForProfile } from "./utils";
 
-type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
-export type DbClient = Database | Tx;
-
-export type NewProfileSubjectPayload = {
-  profileId: string;
-  name: string;
-  classDays: AgendaExtracurricularDay[];
-};
-
-export type ProfileSubjectUpdatePayload = {
-  name: string;
-  classDays: AgendaExtracurricularDay[];
-};
-
-export type InsertProfileSubjectWithinLimitResult =
-  | { ok: true; subject: ProfileSubject }
-  | { ok: false; code: "LIMIT_REACHED"; current: number; limit: number }
-  | { ok: false; code: "DUPLICATE_NAME" };
-
-// Insere extracurricular respeitando limite (Free 1 / Pro 10 per profile).
-// Advisory lock por perfil garante que count + insert sejam atômicos contra
-// inserts concorrentes. Color picking acontece dentro da mesma transação
-// pra ver lista atual de cores usadas (turma ativa + extras active).
-export async function insertProfileSubjectWithinLimit(
-  payload: NewProfileSubjectPayload,
-  limit: number,
-): Promise<InsertProfileSubjectWithinLimitResult> {
-  return db.transaction(
-    async (tx) => {
-      await lockProfileSubjectsForProfile(tx, payload.profileId);
-
-      const current = await countProfileSubjectsByProfileWithClient(tx, payload.profileId);
-      if (current >= limit) {
-        return { ok: false as const, code: "LIMIT_REACHED" as const, current, limit };
-      }
-
-      const colorIndex = await pickAvailableColorIndexForProfile(payload.profileId, payload.name);
-
-      const inserted = await tx
-        .insert(agendaProfileSubjects)
-        .values({
-          profileId: payload.profileId,
-          name: payload.name,
-          classDays: payload.classDays,
-          colorIndex,
-        })
-        .onConflictDoNothing({
-          target: [agendaProfileSubjects.profileId, agendaProfileSubjects.name],
-        })
-        .returning();
-
-      const row = inserted[0];
-      if (!row) {
-        return { ok: false as const, code: "DUPLICATE_NAME" as const };
-      }
-      return { ok: true as const, subject: row };
-    },
-    { isolationLevel: "read committed" },
-  );
-}
-
-async function lockProfileSubjectsForProfile(tx: Tx, profileId: string): Promise<void> {
-  await tx.execute(
-    sql`SELECT pg_advisory_xact_lock(hashtext(${`agenda:profile_subjects:${profileId}`}))`,
-  );
-}
-
-async function countProfileSubjectsByProfileWithClient(
-  client: DbClient,
-  profileId: string,
-): Promise<number> {
-  const [row] = await client
-    .select({ count: count() })
-    .from(agendaProfileSubjects)
-    .where(eq(agendaProfileSubjects.profileId, profileId));
-  return Number(row?.count ?? 0);
-}
-
-export async function countProfileSubjectsByProfile(profileId: string): Promise<number> {
-  return countProfileSubjectsByProfileWithClient(db, profileId);
-}
-
-export async function findProfileSubjectById(id: string): Promise<ProfileSubject | null> {
-  const [row] = await db
-    .select()
-    .from(agendaProfileSubjects)
-    .where(eq(agendaProfileSubjects.id, id))
-    .limit(1);
-  return row ?? null;
-}
-
-// Garante que o user é dono do perfil que possui a matéria (single-user
-// invariant). Usado pelo service antes de update/delete/setStatus.
-export async function findProfileSubjectByIdForUser(
-  userId: string,
-  id: string,
-): Promise<ProfileSubject | null> {
-  const [row] = await db
-    .select({ subject: agendaProfileSubjects })
-    .from(agendaProfileSubjects)
-    .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaProfileSubjects.profileId))
-    .where(and(eq(agendaStudentProfiles.userId, userId), eq(agendaProfileSubjects.id, id)))
-    .limit(1);
-  return row?.subject ?? null;
-}
-
-export async function profileSubjectNameExistsExceptId(
-  profileId: string,
-  name: string,
-  subjectId: string,
-): Promise<boolean> {
-  const [row] = await db
-    .select({ id: agendaProfileSubjects.id })
-    .from(agendaProfileSubjects)
-    .where(
-      and(
-        eq(agendaProfileSubjects.profileId, profileId),
-        eq(agendaProfileSubjects.name, name),
-        ne(agendaProfileSubjects.id, subjectId),
-      ),
-    )
-    .limit(1);
-  return row !== undefined;
-}
-
-// Lista todas as extras do perfil (active + paused). Ordenado por status
-// active primeiro, depois nome — UI da página `/perfis/[id]/extras` usa
-// essa ordem default.
-export async function listProfileSubjectsForProfile(profileId: string): Promise<ProfileSubject[]> {
+function visibleProfiles(actor: AgendaAuthority) {
   return db
-    .select()
-    .from(agendaProfileSubjects)
-    .where(eq(agendaProfileSubjects.profileId, profileId))
-    .orderBy(asc(agendaProfileSubjects.status), asc(agendaProfileSubjects.name));
+    .select({ id: agendaStudentProfiles.id })
+    .from(agendaStudentProfiles)
+    .where(agendaProfileCondition(actor));
+}
+function subjectScope(actor: AgendaAuthority) {
+  return inArray(agendaProfileSubjects.profileId, visibleProfiles(actor));
 }
 
-// Lista só as `active` — usado em queries de leitura unificada (dashboard,
-// calendar, today-subjects).
-export async function listActiveProfileSubjectsForProfile(
-  profileId: string,
-): Promise<ProfileSubject[]> {
-  return db
-    .select()
+async function colorsInTransaction(tx: FamilyTransaction, profileId: string) {
+  const [profile] = await tx
+    .select({ turmaId: agendaStudentProfiles.activeTurmaId })
+    .from(agendaStudentProfiles)
+    .where(and(eq(agendaStudentProfiles.id, profileId), activeMembershipCondition()));
+  const extras = await tx
+    .select({ colorIndex: agendaProfileSubjects.colorIndex })
     .from(agendaProfileSubjects)
     .where(
       and(
         eq(agendaProfileSubjects.profileId, profileId),
         eq(agendaProfileSubjects.status, "active"),
       ),
-    )
-    .orderBy(asc(agendaProfileSubjects.name));
+    );
+  const school = profile?.turmaId
+    ? await tx
+        .select({ colorIndex: agendaSubjects.colorIndex })
+        .from(agendaSubjects)
+        .where(eq(agendaSubjects.turmaId, profile.turmaId))
+    : [];
+  return [...extras, ...school].map((row) => row.colorIndex);
 }
-
-// Extras `active` de vários perfis de uma vez. Recebe ids já autorizados pelo
-// caller (o serviço resolve os perfis acessíveis antes), então não repete a
-// checagem de acesso aqui.
-export async function listActiveProfileSubjectsForProfiles(
-  profileIds: string[],
-): Promise<ProfileSubject[]> {
-  if (profileIds.length === 0) return [];
+export function insertProfileSubjectWithinLimit(
+  actor: AgendaAuthority,
+  input: CreateProfileSubjectInput,
+) {
+  return atomicAgendaResult(async (tx) => {
+    const access = await lockAgendaUse(tx, actor, [input.profileId]);
+    const limit = access.enabled ? PRO_PROFILE_SUBJECT_LIMIT : FREE_PROFILE_SUBJECT_LIMIT;
+    const [total] = await tx
+      .select({ total: count() })
+      .from(agendaProfileSubjects)
+      .where(eq(agendaProfileSubjects.profileId, input.profileId));
+    const current = Number(total?.total ?? 0);
+    if (current >= limit)
+      return err({ code: "PLAN_LIMIT_REACHED", current, limit, isPro: access.enabled } as const);
+    const colorIndex = pickAvailableColorIndex(
+      input.name,
+      await colorsInTransaction(tx, input.profileId),
+    );
+    const [subject] = await tx
+      .insert(agendaProfileSubjects)
+      .values({
+        profileId: input.profileId,
+        name: input.name,
+        classDays: input.classDays,
+        colorIndex,
+      })
+      .onConflictDoNothing({
+        target: [agendaProfileSubjects.profileId, agendaProfileSubjects.name],
+      })
+      .returning();
+    return subject ? ok(subject) : err({ code: "DUPLICATE_NAME" } as const);
+  });
+}
+async function lockSubject(tx: FamilyTransaction, actor: AgendaAuthority, id: string) {
+  await lockFamilyMembership(tx, actor.userId, actor.familyGroupId);
+  const [observed] = await tx
+    .select()
+    .from(agendaProfileSubjects)
+    .where(and(eq(agendaProfileSubjects.id, id), subjectScope(actor)));
+  requireFamilyCondition(observed);
+  await lockAgendaUse(tx, actor, [observed.profileId]);
+  const [current] = await tx
+    .select()
+    .from(agendaProfileSubjects)
+    .where(
+      and(
+        eq(agendaProfileSubjects.id, id),
+        eq(agendaProfileSubjects.profileId, observed.profileId),
+      ),
+    )
+    .for("update");
+  requireFamilyCondition(current);
+  return current;
+}
+export function updateProfileSubjectById(actor: AgendaAuthority, input: UpdateProfileSubjectInput) {
+  return atomicAgendaResult(async (tx) => {
+    const current = await lockSubject(tx, actor, input.id);
+    const [duplicate] = await tx
+      .select({ id: agendaProfileSubjects.id })
+      .from(agendaProfileSubjects)
+      .where(
+        and(
+          eq(agendaProfileSubjects.profileId, current.profileId),
+          eq(agendaProfileSubjects.name, input.name),
+          ne(agendaProfileSubjects.id, input.id),
+        ),
+      );
+    if (duplicate) return err({ code: "DUPLICATE_NAME" } as const);
+    const [subject] = await tx
+      .update(agendaProfileSubjects)
+      .set({ name: input.name, classDays: input.classDays, updatedAt: new Date() })
+      .where(eq(agendaProfileSubjects.id, input.id))
+      .returning();
+    requireFamilyCondition(subject);
+    return ok(subject);
+  });
+}
+export function deleteProfileSubjectById(actor: AgendaAuthority, id: string) {
+  return db.transaction(async (tx) => {
+    await lockSubject(tx, actor, id);
+    await tx.delete(agendaProfileSubjects).where(eq(agendaProfileSubjects.id, id));
+    return ok(true as const);
+  });
+}
+export function setProfileSubjectStatus(
+  actor: AgendaAuthority,
+  input: SetProfileSubjectStatusInput,
+  pausedAt: string | null,
+) {
+  return db.transaction(async (tx) => {
+    const current = await lockSubject(tx, actor, input.id);
+    if (current.status === input.status)
+      return ok({ subject: current, previousStatus: current.status });
+    const [subject] = await tx
+      .update(agendaProfileSubjects)
+      .set({ status: input.status, pausedAt, updatedAt: new Date() })
+      .where(eq(agendaProfileSubjects.id, input.id))
+      .returning();
+    requireFamilyCondition(subject);
+    return ok({ subject, previousStatus: current.status });
+  });
+}
+export async function findProfileSubjectByIdForUser(
+  actor: AgendaAuthority,
+  id: string,
+): Promise<ProfileSubject | null> {
+  const [row] = await db
+    .select()
+    .from(agendaProfileSubjects)
+    .where(and(eq(agendaProfileSubjects.id, id), subjectScope(actor)));
+  return row ?? null;
+}
+export function listProfileSubjectsForProfile(actor: AgendaAuthority, profileId: string) {
+  return db
+    .select()
+    .from(agendaProfileSubjects)
+    .where(and(eq(agendaProfileSubjects.profileId, profileId), subjectScope(actor)))
+    .orderBy(asc(agendaProfileSubjects.status), asc(agendaProfileSubjects.name));
+}
+export function listActiveProfileSubjectsForProfile(actor: AgendaAuthority, profileId: string) {
+  return listActiveProfileSubjectsForProfiles(actor, [profileId]);
+}
+export function listActiveProfileSubjectsForProfiles(actor: AgendaAuthority, profileIds: string[]) {
+  if (!profileIds.length) return Promise.resolve([]);
   return db
     .select()
     .from(agendaProfileSubjects)
     .where(
       and(
         inArray(agendaProfileSubjects.profileId, profileIds),
+        subjectScope(actor),
         eq(agendaProfileSubjects.status, "active"),
       ),
     )
     .orderBy(asc(agendaProfileSubjects.name));
 }
-
-// Lista todas as extras `active` de todos os perfis do user — utility pro
-// dashboard quando não tem filtro de perfil.
-export async function listActiveProfileSubjectsForUser(userId: string): Promise<ProfileSubject[]> {
-  const rows = await db
-    .select({ subject: agendaProfileSubjects })
-    .from(agendaProfileSubjects)
-    .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaProfileSubjects.profileId))
-    .where(
-      and(eq(agendaStudentProfiles.userId, userId), eq(agendaProfileSubjects.status, "active")),
-    )
-    .orderBy(asc(agendaProfileSubjects.name));
-  return rows.map((r) => r.subject);
-}
-
-export async function updateProfileSubjectById(
-  id: string,
-  payload: ProfileSubjectUpdatePayload,
-): Promise<ProfileSubject | null> {
-  const [row] = await db
-    .update(agendaProfileSubjects)
-    .set({
-      name: payload.name,
-      classDays: payload.classDays,
-      updatedAt: new Date(),
-    })
-    .where(eq(agendaProfileSubjects.id, id))
-    .returning();
-  return row ?? null;
-}
-
-export async function deleteProfileSubjectById(id: string): Promise<boolean> {
-  const removed = await db
-    .delete(agendaProfileSubjects)
-    .where(eq(agendaProfileSubjects.id, id))
-    .returning({ id: agendaProfileSubjects.id });
-  return removed.length > 0;
-}
-
-// Seta status (`active`/`paused`) + paused_at consistente.
-//   - paused: paused_at = today (caller passa ISO via app TZ)
-//   - active: paused_at = null
-// Check constraint do DB força essa consistência também, mas o app aplica
-// a regra explicitamente pra audit log carregar from→to + pausedAtIso.
-export async function setProfileSubjectStatus(
-  id: string,
-  status: AgendaProfileSubjectStatus,
-  pausedAtIso: string | null,
-): Promise<ProfileSubject | null> {
-  const [row] = await db
-    .update(agendaProfileSubjects)
-    .set({
-      status,
-      pausedAt: pausedAtIso,
-      updatedAt: new Date(),
-    })
-    .where(eq(agendaProfileSubjects.id, id))
-    .returning();
-  return row ?? null;
-}
-
-// Mapa profileSubjectId → (pending count, done count). Usado pelo card de
-// matéria extracurricular pra mostrar "3 pendentes". Single query com
-// GROUP BY pra evitar N+1.
 export async function loadActivityCountsForProfileSubjects(
+  actor: AgendaAuthority,
   ids: readonly string[],
-): Promise<Map<string, { pending: number; done: number }>> {
+) {
   const map = new Map<string, { pending: number; done: number }>();
-  if (ids.length === 0) return map;
+  if (!ids.length) return map;
   const rows = await db
     .select({
       profileSubjectId: agendaTasks.profileSubjectId,
@@ -258,14 +204,19 @@ export async function loadActivityCountsForProfileSubjects(
       total: count(),
     })
     .from(agendaTasks)
-    .where(inArray(agendaTasks.profileSubjectId, ids))
+    .where(
+      and(
+        inArray(agendaTasks.profileSubjectId, ids),
+        inArray(agendaTasks.profileId, visibleProfiles(actor)),
+      ),
+    )
     .groupBy(agendaTasks.profileSubjectId, agendaTasks.status);
   for (const row of rows) {
     if (!row.profileSubjectId) continue;
-    const existing = map.get(row.profileSubjectId) ?? { pending: 0, done: 0 };
-    if (row.status === "pending") existing.pending = Number(row.total);
-    if (row.status === "done") existing.done = Number(row.total);
-    map.set(row.profileSubjectId, existing);
+    const value = map.get(row.profileSubjectId) ?? { pending: 0, done: 0 };
+    if (row.status === "pending") value.pending = Number(row.total);
+    if (row.status === "done") value.done = Number(row.total);
+    map.set(row.profileSubjectId, value);
   }
   return map;
 }

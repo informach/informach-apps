@@ -15,11 +15,11 @@ export default async function Tarefa({
 }) {
   const ctx = await parentPage();
   const sp = await searchParams;
-  const tarefa = sp.id && /^[\da-f-]{36}$/.test(sp.id) ? await getTask(ctx.ownerId, sp.id) : null;
+  const tarefa = sp.id && /^[\da-f-]{36}$/.test(sp.id) ? await getTask(ctx.actor, sp.id) : null;
   if (sp.id && !tarefa) notFound();
   const childId = tarefa?.childId ?? sp.crianca;
   const crianca = ctx.children.find((c) => c.id === childId);
-  if (!crianca) notFound();
+  if (!crianca?.canWrite || !crianca.allowed) notFound();
   return (
     <EditorDeTarefa
       childId={crianca.id}

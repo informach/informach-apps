@@ -1,0 +1,48 @@
+{
+  "formato": "recreio.aparelhos-producao",
+  "versao": 1,
+  "data": "2026-11-16",
+  "codigo": "545aa7cb8c4ad215626b0c23429d69894afabf95",
+  "portal": {
+    "deployment": "7ce53469-bfc2-416d-bb9e-1d9975e0737b",
+    "status": "SUCCESS",
+    "rotaConfirmadaNoProcesso": true,
+    "rotaSemSessao": 307,
+    "ready": 200
+  },
+  "bastidores": {
+    "deployment": "71565ec4-e736-4c28-99bf-e25ae30e4cd5",
+    "status": "SUCCESS",
+    "ready": 200
+  },
+  "gates": {
+    "candidata": 43836674032,
+    "main": 43838006603,
+    "jobsPorRodada": 6,
+    "authEConsumidores": 43836381953,
+    "consumidoresMaisAuth": 14,
+    "integracoes": 200,
+    "novasIntegracoes": 12,
+    "jornadas": 7,
+    "casosEmOutrosExecutores": 2
+  },
+  "mapasSentryUpload": "2026-11-16T09:16:27.594819787Z",
+  "releaseSentryPresente": true,
+  "configuracoesPortalEBastidoresIdenticas": true,
+  "prontidaoNoveApps": 200,
+  "prontidaoConferidaEm": "2026-11-16T09:26:42.500Z",
+  "cron": {
+    "inicio": "2026-11-16T09:25:38.017Z",
+    "fim": "2026-11-16T09:25:38.095Z",
+    "ok": true,
+    "summary": {
+      "possesVencidas": 0,
+      "sessoesExpiradas": 0,
+      "ingressosApagados": 0,
+      "instanciasSumidas": 0
+    }
+  },
+  "contasPilotoAlteradasNoEnsaio": false,
+  "a12Concluido": false,
+  "d3Ativado": false
+}

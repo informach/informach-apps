@@ -2,7 +2,9 @@ import type { TurmaGrade } from "@/features/turmas/limits";
 
 export type StudentProfile = {
   id: string;
-  userId: string;
+  familyProfileId: string | null;
+  canWrite: boolean;
+  canManage: boolean;
   name: string;
   birthDate: string | null;
   activeTurmaId: string | null;

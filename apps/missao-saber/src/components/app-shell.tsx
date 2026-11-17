@@ -9,7 +9,7 @@ import { SignOut } from "./sign-out";
 
 type Profile = { id: string; nickname: string; grade: number; avatar: string };
 type ShellContext =
-  | { audience: "parent" }
+  | { audience: "parent"; familyName?: string }
   | { audience: "study"; profiles: Profile[]; selected: Profile | null };
 
 export function AppShell({
@@ -66,10 +66,16 @@ export function AppShell({
                 <ProfileSwitcher profiles={context.profiles} selected={context.selected?.id} />
                 <ParentSpaceLink />
               </>
+            ) : context.familyName ? (
+              <Link
+                href="/contexto"
+                className="inline-flex min-h-11 max-w-64 items-center gap-2 rounded-full bg-verde-claro px-3 py-2 text-xs font-semibold text-tinta"
+              >
+                <span className="truncate">{context.familyName}</span>
+                <span>Trocar família</span>
+              </Link>
             ) : (
-              <span className="rounded-full bg-verde-claro px-3 py-2 text-xs font-semibold text-tinta lg:hidden">
-                Responsável
-              </span>
+              <span>Área do responsável</span>
             )}
           </div>
         </header>

@@ -1,10 +1,12 @@
-import { and, db, eq, isNull } from "@informach/db";
+import { AuditPersistenceError } from "@informach/auth";
+import { and, db, eq, isNull, sql } from "@informach/db";
 import {
+  recreioEntitlements as entitlements,
   recreioGameSessions as gameSessions,
   sessions,
   recreioGameTickets as tickets,
 } from "@informach/db/schema";
-import { ehErroDoRecreio, SessaoDeJogoIdSchema } from "@informach/recreio";
+import { ErroDoRecreio, ehErroDoRecreio, SessaoDeJogoIdSchema } from "@informach/recreio";
 import {
   IngressoEmitidoSchema,
   SessaoAbertaSchema,
@@ -12,10 +14,13 @@ import {
   TIPO_DA_SESSAO,
   TIPO_DO_INGRESSO,
 } from "@informach/recreio/contrato";
+import { verificarIngresso } from "@informach/recreio/emissor";
 import { criarVerificadorDeSessao } from "@informach/recreio/host";
 import { describe, expect, it, vi } from "vitest";
+import * as jogosConfig from "@/features/jogos/config";
 import { selecionarPerfil } from "@/features/perfis/service";
 import { encerrarSessaoDeAparelho, resolverAtor } from "@/features/sessao/service";
+import { abrirSessaoComIngresso } from "@/features/sessao-de-jogo/repository";
 import { emitirIngresso } from "@/features/sessao-de-jogo/service";
 import { chavesDoRecreio } from "@/lib/tokens";
 import { revogar } from "../scripts/concessoes";
@@ -53,6 +58,56 @@ const renovar = (token: string) => pedir("POST", "/api/sdk/v1/sessao/renovar", {
 const sair = (token: string) => pedir("POST", "/api/sdk/v1/sessao/sair", { token });
 const listar = (token: string, jogo = MORADA) =>
   pedir("GET", `/api/sdk/v1/mundos?jogo=${jogo}`, { token });
+
+describe("revogação atômica", () => {
+  it("revalida o acesso na transação mesmo quando o ingresso foi admitido antes da revogação", async () => {
+    const lia = await novoJogador();
+    const ingresso = await ingressoDe(lia);
+    const { emissor, chaves } = await chavesDoRecreio();
+    const verificado = await verificarIngresso(ingresso, { chaves, emissor: emissor.emissor });
+    await revogar({ email: lia.conta.email, motivo: "teste" });
+    await expect(
+      abrirSessaoComIngresso({
+        ingresso: verificado,
+        emissor,
+        sid: SessaoDeJogoIdSchema.parse(crypto.randomUUID()),
+        continuarAqui: false,
+      }),
+    ).rejects.toMatchObject({ codigo: "ACESSO_NEGADO" });
+    expect(await abertasDe(lia)).toEqual([]);
+  });
+
+  it("falha da auditoria de encerramento desfaz a revogação e conserva a sessão", async () => {
+    const lia = await novoJogador();
+    const sessao = await entrarNoJogo(lia);
+    await db.execute(sql`
+      create function audit.recusar_fim_recreio_em_teste() returns trigger language plpgsql as $$
+      begin
+        if new.event_type = 'recreio.game_session_ended' then
+          raise exception 'auditoria indisponível (teste)';
+        end if;
+        return new;
+      end $$`);
+    await db.execute(sql`
+      create trigger recusar_fim_recreio_em_teste before insert on audit.events
+      for each row execute function audit.recusar_fim_recreio_em_teste()`);
+    try {
+      await expect(revogar({ email: lia.conta.email, motivo: "teste" })).rejects.toBeInstanceOf(
+        AuditPersistenceError,
+      );
+      expect((await sessaoNoBanco(sessao.sid))?.endedAt).toBeNull();
+      const concessoes = await db
+        .select()
+        .from(entitlements)
+        .where(eq(entitlements.groupId, lia.perfil.grupoId ?? ""));
+      expect(concessoes).toHaveLength(1);
+      expect(concessoes[0]?.revokedAt).toBeNull();
+    } finally {
+      await db.execute(sql`drop trigger recusar_fim_recreio_em_teste on audit.events`);
+      await db.execute(sql`drop function audit.recusar_fim_recreio_em_teste()`);
+    }
+  });
+});
 
 async function sessaoNoBanco(sid: string) {
   const [linha] = await db.select().from(gameSessions).where(eq(gameSessions.id, sid));
@@ -102,6 +157,18 @@ describe("chaves públicas", () => {
 });
 
 describe("ingresso", () => {
+  it("limita a emissão por perfil sem gravar ingressos além do teto", async () => {
+    const lia = await novoJogador();
+    for (let i = 0; i < 20; i++) await ingressoDe(lia);
+    await expect(ingressoDe(lia)).rejects.toMatchObject({ codigo: "MUITAS_TENTATIVAS" });
+    const linhas = await db
+      .select({ id: tickets.jti })
+      .from(tickets)
+      .where(eq(tickets.profileId, lia.perfil.id));
+    expect(linhas).toHaveLength(20);
+    const bruno = await novoJogador();
+    await expect(ingressoDe(bruno)).resolves.toBeTypeOf("string");
+  });
   it("sai para o perfil ativo, vale 60 s e não leva a conta", async () => {
     const lia = await novoJogador();
     const emitido = IngressoEmitidoSchema.parse(await emitirIngresso(lia.ator, { jogo: MORADA }));
@@ -147,6 +214,23 @@ describe("ingresso", () => {
       codigo: "JOGO_INDISPONIVEL",
     });
     await expect(emitirIngresso(lia.ator, { jogo: MORADA, perfil: "x" })).rejects.toThrow();
+  });
+});
+
+describe("manutenção durante uma sessão", () => {
+  it("não renova e encerra a sessão para o próximo batimento da instância", async () => {
+    const lia = await novoJogador();
+    const sessao = await entrarNoJogo(lia);
+    const indisponivel = vi.spyOn(jogosConfig, "jogoQueAbre").mockImplementationOnce(() => {
+      throw new ErroDoRecreio("JOGO_INDISPONIVEL");
+    });
+    try {
+      const resposta = await renovar(sessao.token);
+      expect(resposta).toMatchObject({ status: 404, corpo: { codigo: "JOGO_INDISPONIVEL" } });
+      expect(await sessaoNoBanco(sessao.sid)).toMatchObject({ endReason: "access_lost" });
+    } finally {
+      indisponivel.mockRestore();
+    }
   });
 });
 
@@ -326,7 +410,7 @@ describe("troca do ingresso pela sessão", () => {
     });
   });
 
-  it("com um jogo aberto em outro aparelho: JA_ABERTO, e `continuarAqui` encerra o anterior", async () => {
+  it("sem checkpoint, continuar aqui exige saída anterior e conserva o ingresso", async () => {
     const lia = await novoJogador();
     const primeira = await entrarNoJogo(lia);
     const celular = await outroAparelho(lia);
@@ -336,17 +420,24 @@ describe("troca do ingresso pela sessão", () => {
     // A recusa não gastou o ingresso nem mexeu na sessão aberta.
     expect((await sessaoNoBanco(primeira.sid))?.endedAt).toBeNull();
 
-    const segunda = await trocar(ingresso, { continuarAqui: true });
+    expect(await trocar(ingresso, { continuarAqui: true })).toEqual({
+      status: 409,
+      corpo: { codigo: "CHECKPOINT_PENDENTE", motivo: "manual" },
+    });
+    expect((await sessaoNoBanco(primeira.sid))?.endedAt).toBeNull();
+    expect((await listar(primeira.token)).status).toBe(200);
+    expect((await sair(primeira.token)).status).toBe(200);
+    const segunda = await trocar(ingresso);
     expect(segunda.status).toBe(200);
     const nova = SessaoDeJogoIdSchema.parse(claimsDe(String(segunda.corpo.token)).sid);
     expect(nova).not.toBe(primeira.sid);
-    expect(await sessaoNoBanco(primeira.sid)).toMatchObject({ endReason: "replaced" });
+    expect(await sessaoNoBanco(primeira.sid)).toMatchObject({ endReason: "left" });
     expect((await abertasDe(lia)).map((linha) => linha.id)).toEqual([nova]);
 
     // O token antigo continua bem assinado, mas a sessão dele acabou.
     expect(await listar(primeira.token)).toEqual({
       status: 403,
-      corpo: { codigo: "SESSAO_ENCERRADA", motivo: "replaced" },
+      corpo: { codigo: "SESSAO_ENCERRADA", motivo: "left" },
     });
     expect(await renovar(primeira.token)).toMatchObject({
       status: 403,
@@ -355,7 +446,7 @@ describe("troca do ingresso pela sessão", () => {
     expect((await eventosCom("sessionId", primeira.sid)).at(-1)).toMatchObject({
       eventType: "recreio.game_session_ended",
       actorId: lia.conta.id,
-      payload: { reason: "replaced", targetId: lia.conta.id },
+      payload: { reason: "left", targetId: lia.conta.id },
     });
   });
 });
@@ -410,7 +501,7 @@ describe("renovação", () => {
     });
   });
 
-  it("com a concessão revogada: recusa, encerra a sessão e avisa só as instâncias daquele jogo, uma vez", async () => {
+  it("revogar encerra a sessão e avisa a instância sem depender da renovação do navegador", async () => {
     await aposentarInstancias();
     const lia = await novoJogador();
     const doJogo = await novaInstancia(MORADA);
@@ -421,10 +512,6 @@ describe("renovação", () => {
     expect(inicio.sessoesEncerradas).toEqual([]);
 
     await revogar({ email: lia.conta.email, motivo: "teste" });
-    expect(await renovar(token)).toEqual({
-      status: 403,
-      corpo: { codigo: "ACESSO_PERDIDO", estado: "REVOGADO", motivo: "concessao_revogada" },
-    });
     const linha = await sessaoNoBanco(sid);
     expect(linha).toMatchObject({ endReason: "access_lost" });
     expect(linha?.endedAt).not.toBeNull();

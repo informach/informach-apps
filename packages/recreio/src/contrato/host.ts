@@ -8,6 +8,7 @@ import {
 } from "../dominio/ids";
 import { PAPEIS_NO_MUNDO, PARTICIPACAO_MAX } from "../dominio/mundos";
 import { TIPOS_DE_FOTOGRAFIA } from "../dominio/posse";
+import type { ResultadoDeCheckpoint } from "./sdk";
 
 /**
  * API das instâncias: o que um servidor de jogo pede ao Recreio. O servidor do
@@ -46,15 +47,22 @@ export const InstanciaRegistradaSchema = z.strictObject({
 });
 export type InstanciaRegistrada = z.infer<typeof InstanciaRegistradaSchema>;
 
+export const MUNDOS_POR_BATIMENTO_MAX = 1000;
 export const BatimentoSchema = z.strictObject({
-  mundos: z.array(
-    z.strictObject({
-      mundoId: MundoIdSchema,
-      cerca: naoNegativo,
-      jogadores: naoNegativo,
-      tick: naoNegativo,
-    }),
-  ),
+  mundos: z
+    .array(
+      z.strictObject({
+        mundoId: MundoIdSchema,
+        cerca: naoNegativo,
+        jogadores: naoNegativo,
+        tick: naoNegativo,
+      }),
+    )
+    .max(MUNDOS_POR_BATIMENTO_MAX)
+    .refine(
+      (mundos) => new Set(mundos.map((mundo) => mundo.mundoId)).size === mundos.length,
+      "Mundo repetido no batimento",
+    ),
   /** Devolvido pelo batimento anterior; `null` no primeiro. */
   cursor: z.string().max(64).nullable(),
 });
@@ -66,6 +74,7 @@ export const MOTIVOS_DE_SESSAO_ENCERRADA = [
   "access_lost",
   "signed_out",
   "expired",
+  "permissions_changed",
 ] as const;
 export type MotivoDeSessaoEncerrada = (typeof MOTIVOS_DE_SESSAO_ENCERRADA)[number];
 
@@ -95,6 +104,7 @@ export const MetaDeFotografiaSchema = z.strictObject({
   /** Última entrada do diário que a fotografia já contém. */
   diarioSeq: naoNegativo,
   tick: naoNegativo,
+  /** Versão do formato persistido. Escritas não podem reduzi-la. */
   schemaVersion: z.number().int().positive(),
   tipo: z.enum(TIPOS_DE_FOTOGRAFIA),
   bytes: naoNegativo,
@@ -203,9 +213,39 @@ export const CABECALHO_DA_FOTOGRAFIA = "x-recreio-fotografia";
 /** Na gravação da fotografia: `ResumoDoMundo` em JSON, codificado em base64url. Opcional. */
 export const CABECALHO_DO_RESUMO = "x-recreio-resumo";
 
-export const DiarioLidoSchema = z.strictObject({ entradas: z.array(NovaEntradaDoDiarioSchema) });
+export const DIARIO_PAGINA_MAX_ENTRADAS = 256;
+export const DIARIO_PAGINA_MAX_BYTES = 256 * 1024;
+export const DIARIO_RECUPERACAO_MAX_ENTRADAS = 128 * 1024;
+export const DiarioLidoSchema = z.strictObject({
+  entradas: z.array(NovaEntradaDoDiarioSchema).max(DIARIO_PAGINA_MAX_ENTRADAS),
+  /** Última sequência entregue quando ainda há entradas; ausente em servidor anterior. */
+  proximoApos: naoNegativo.nullable().optional(),
+});
 export const DiarioConfirmadoSchema = z.strictObject({ confirmadoAte: naoNegativo });
 export const FotografiaGravadaSchema = z.strictObject({ revisao: naoNegativo });
+
+const checkpointDoHost = {
+  id: z.uuid(),
+  sid: SessaoDeJogoIdSchema,
+  cerca: z.number().int().min(1).max(2147483647),
+};
+export const CheckpointDoHostSchema = z.discriminatedUnion("confirmado", [
+  z.strictObject({ ...checkpointDoHost, confirmado: z.literal(false) }),
+  z.strictObject({
+    ...checkpointDoHost,
+    confirmado: z.literal(true),
+    revisao: naoNegativo.max(2147483647),
+    diarioSeq: naoNegativo.max(Number.MAX_SAFE_INTEGER),
+  }),
+]);
+export type CheckpointDoHost = z.infer<typeof CheckpointDoHostSchema>;
+
+/** Capacidade adicional; o host básico não promete implementar checkpoint de troca. */
+export interface ClienteDoHostComCheckpoint extends ClienteDoHost {
+  confirmarCheckpoint(
+    pedido: CheckpointDoHost & { mundoId: z.infer<typeof MundoIdSchema> },
+  ): Promise<ResultadoDeCheckpoint>;
+}
 
 /** Os números que acompanham a fotografia na consulta do `PUT`. */
 export const ConsultaDaFotografiaSchema = z.strictObject({

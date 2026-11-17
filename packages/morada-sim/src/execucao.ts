@@ -1,10 +1,12 @@
+import { CatalogoDeAparenciasSchema, conferirContinuidadeDaAparencia } from "./comandos/aparencia";
 import { type Entrada, EntradaSchema } from "./comandos/intencao";
 import { aplicarIntencao } from "./comandos/pipeline";
-import { corpoDaFase, modeloDeImovel } from "./conteudo";
-import { necessidadesIniciais, novoId, relacaoEntre } from "./dominio/estado";
+import { modeloDeImovel } from "./conteudo";
+import { novoId, relacaoEntre } from "./dominio/estado";
 import type { Fato } from "./dominio/fatos";
 import type { FamiliaId, LoteId, MoradorId, MundoId, PerfilId } from "./dominio/ids";
 import { verificarInvariantes } from "./dominio/invariantes";
+import { montarMoradorInicial } from "./dominio/morador-inicial";
 import { PERMISSOES_DO_FUNDADOR } from "./dominio/permissoes";
 import { reduzirFato } from "./dominio/reduzir-fato";
 import { exigir, inserir, obter, tabelaVazia } from "./dominio/tabela";
@@ -21,11 +23,15 @@ import type {
 import { criarNavegador, type Navegador } from "./espaco/navegador";
 import { objetosDoLote } from "./espaco/posicoes";
 import type { DefinicaoDeBairro, MoradorInicial } from "./formatos/bairro";
-import { abrirFotografia, type Fotografia, VERSAO_DA_FOTOGRAFIA } from "./formatos/fotografia";
+import {
+  abrirFotografia,
+  type Fotografia,
+  VERSAO_DA_FOTOGRAFIA,
+  VERSAO_DO_MUNDO,
+} from "./formatos/fotografia";
 import { andaresNoLote } from "./formatos/imovel";
 import { copiar, resumoDe } from "./nucleo/canonico";
 import { MS_DE_JOGO_POR_TICK, PASSO_MS } from "./nucleo/relogio";
-import { sorteioAte } from "./nucleo/sorteio";
 import { passoDasAcoes } from "./sistemas/acoes";
 import { passoDaAutonomia } from "./sistemas/autonomia";
 import {
@@ -182,13 +188,19 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
         case "intencao":
           return aplicarIntencao(ctx, entrada.sessaoId, entrada.intencao);
         case "sessao_entrou":
-          sessaoEntrou(ctx, entrada.sessaoId, entrada.perfilId, entrada.apelido);
+          sessaoEntrou(
+            ctx,
+            entrada.sessaoId,
+            entrada.perfilId,
+            entrada.apelido,
+            entrada.podeFundarFamilia,
+          );
           return aceito;
         case "sessao_caiu":
           sessaoCaiu(ctx, entrada.sessaoId, entrada.agoraMs);
           return aceito;
         case "sessao_voltou":
-          return sessaoVoltou(ctx, entrada.sessaoId, entrada.apelido)
+          return sessaoVoltou(ctx, entrada.sessaoId, entrada.apelido, entrada.podeFundarFamilia)
             ? aceito
             : { ok: false, comandoId: "", motivo: "sem_sessao" };
         case "sessao_saiu":
@@ -203,7 +215,7 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
           }
           emitir(
             ctx,
-            `acesso:${entrada.perfilId}:${entrada.familiaId}:${estado.relogio.tick}`,
+            `acesso:${entrada.perfilId}:${entrada.familiaId}:${novoId(estado, "fat")}`,
             entrada.familiaId,
             {
               tipo: "AcessoConcedido",
@@ -218,7 +230,7 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
         case "revogar_acesso": {
           emitir(
             ctx,
-            `revoga:${entrada.perfilId}:${entrada.familiaId}:${estado.relogio.tick}`,
+            `revoga:${entrada.perfilId}:${entrada.familiaId}:${novoId(estado, "fat")}`,
             entrada.familiaId,
             {
               tipo: "AcessoRevogado",
@@ -282,44 +294,12 @@ function criarMorador(
   local: Morador["local"],
 ): Morador {
   const id = novoId(estado, "mor");
-  const necessidades = necessidadesIniciais(inicial.fase);
-  // Cada um começa em um ponto diferente das necessidades, para não agirem em coro.
-  for (const chave of Object.keys(necessidades).sort()) {
-    necessidades[chave] =
-      600_000 + sorteioAte(350_000, estado.semente, "inicio", `${id}:${chave}`, 0);
-  }
-  const morador: Morador = {
-    id,
-    mundoId: estado.id,
-    familiaId,
-    versao: 1,
-    nome: inicial.nome,
-    fase: inicial.fase,
-    idadeNaFaseMs: 0,
-    origem: {},
-    aparencia: {
-      linha: inicial.linha,
-      corpo: corpoDaFase(inicial.linha, inicial.fase),
-      pele: inicial.pele,
-      cabelo: inicial.cabelo,
-      roupa: inicial.roupa,
-      semente: sorteioAte(0x7fffffff, estado.semente, "aparencia", id, 0),
-    },
-    local,
-    movimento: null,
-    necessidades: local.t === "fora" ? {} : necessidades,
-    sensacoes: [],
-    tracos: [...inicial.tracos],
-    habilidades: { ...(inicial.habilidades ?? {}) },
-    relacoes: [],
-    fila: [],
-    acaoAtual: null,
-    carteira: 0,
-  };
+  const morador = montarMoradorInicial(estado, id, inicial, familiaId, local);
   return inserir(estado.moradores, id, morador);
 }
 
 export type NovoMundo = {
+  catalogoDeAparencias?: import("./comandos/aparencia").CatalogoDeAparencias;
   mundoId: MundoId;
   semente: number;
   definicao: DefinicaoDeBairro;
@@ -333,7 +313,7 @@ export function criarMundo(novo: NovoMundo, opcoes: OpcoesDoMundo = {}): Mundo {
   const { definicao } = novo;
   const estado: EstadoDoMundo = {
     formato: "morada.mundo",
-    versao: 1,
+    versao: VERSAO_DO_MUNDO,
     id: novo.mundoId,
     semente: novo.semente >>> 0,
     relogio: { tick: 0, velocidade: 1, msDeJogoPorTick: MS_DE_JOGO_POR_TICK },
@@ -353,11 +333,16 @@ export function criarMundo(novo: NovoMundo, opcoes: OpcoesDoMundo = {}): Mundo {
     acessos: [],
     memorias: [],
     comandos: [],
+    fundacao: null,
+    catalogoDeAparencias: novo.catalogoDeAparencias
+      ? CatalogoDeAparenciasSchema.parse(novo.catalogoDeAparencias)
+      : null,
     contadores: {},
     avancoDoDia: { dia: 0, gastoMs: {} },
   };
 
   const bairroId = novoId(estado, "bairro");
+  if (estado.catalogoDeAparencias) conferirContinuidadeDaAparencia(estado.catalogoDeAparencias);
   const lotesPorRef = new Map<string, Lote>();
   for (const inicial of definicao.lotes) {
     const loteId = novoId(estado, "lote");

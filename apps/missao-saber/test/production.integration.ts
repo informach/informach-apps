@@ -26,7 +26,7 @@ afterAll(async () => {
     await db.delete(subscriptions).where(eq(subscriptions.customerId, row.id));
   await db.delete(customers).where(eq(customers.app, app));
   await db.delete(emailDeliveries).where(eq(emailDeliveries.userId, owner));
-  await db.delete(users).where(eq(users.id, owner));
+  await db.update(users).set({ banned: true, emailVerified: false }).where(eq(users.id, owner));
 });
 
 describe("production infrastructure contracts", () => {

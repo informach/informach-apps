@@ -30,8 +30,11 @@ export function isActiveDestination(path: string, href: string) {
 }
 
 /** A criança escolhida viaja com a navegação, menos para Família. */
-export function withProfileParam(href: string, profileId: string | null) {
+export function withProfileParam(
+  href: (typeof APP_DESTINATIONS)[number]["href"],
+  profileId: string | null,
+) {
   return profileId && href !== "/familia"
-    ? `${href}?perfil=${encodeURIComponent(profileId)}`
+    ? (`${href}?perfil=${encodeURIComponent(profileId)}` as const)
     : href;
 }

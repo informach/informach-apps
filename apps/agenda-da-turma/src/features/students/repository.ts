@@ -1,135 +1,208 @@
 import "server-only";
-
-import { and, asc, count, type Database, db, eq, sql } from "@informach/db";
+import { and, asc, count, db, eq, isNull, sql } from "@informach/db";
 import {
-  type AgendaStudentProfile,
-  agendaCities,
   agendaSchools,
   agendaStudentProfiles,
   agendaTurmas,
+  familyAppProfiles,
+  familyGroupPeople,
+  familyPeople,
 } from "@informach/db/schema";
-import { accessibleProfileCondition } from "@/features/family/access";
+import { FamilyError, type FamilyTransaction, requireFamilyCondition } from "@informach/family";
+import { familyMembershipCondition } from "@informach/family/access";
+import { lockFamilyMembership, removeProfileInTransaction } from "@informach/family/context";
+import { eraseAgendaProfiles } from "@/features/account/cleanup-repository";
+import { lockAgendaProfileSchoolContexts } from "@/features/account/school-closure-repository";
+import { agendaAccessInTransaction } from "@/features/billing/access-repository";
+import type { AgendaAuthority } from "@/features/family/authority";
+import { agendaProfileCondition, lockAgendaProfiles, studentName } from "@/features/family/scope";
+import { familyService } from "@/features/family/service-repository";
 import { activeMembershipCondition } from "@/features/turmas/access";
-import type { StudentProfileWithActiveTurma } from "./types";
 
-type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
-type DbClient = Database | Tx;
+export class StudentCapacityError extends Error {
+  constructor(
+    readonly current: number,
+    readonly limit: number,
+    readonly isPro: boolean,
+  ) {
+    super("STUDENT_CAPACITY_EXCEEDED");
+  }
+}
 
-export type NewStudentProfilePayload = {
-  userId: string;
-  name: string;
-  birthDate: string | null;
+const studentFields = {
+  id: agendaStudentProfiles.id,
+  familyProfileId: agendaStudentProfiles.familyProfileId,
+  name: studentName,
+  birthDate: agendaStudentProfiles.birthDate,
+  activeTurmaId: agendaStudentProfiles.activeTurmaId,
+  createdAt: agendaStudentProfiles.createdAt,
+  updatedAt: agendaStudentProfiles.updatedAt,
 };
 
-export type StudentProfileUpdatePayload = Pick<NewStudentProfilePayload, "name" | "birthDate">;
+function projection(actor: AgendaAuthority) {
+  return {
+    ...studentFields,
+    canUseAi: sql<boolean>`${agendaProfileCondition(actor, "use_ai")}`.mapWith(Boolean),
+    canWrite: sql<boolean>`${agendaProfileCondition(actor, "write")}`.mapWith(Boolean),
+    canManage: sql<boolean>`${agendaProfileCondition(actor, "manage")}`.mapWith(Boolean),
+  };
+}
 
-export type InsertWithinLimitResult =
-  | { ok: true; profile: AgendaStudentProfile }
-  | { ok: false; current: number };
-
-export async function insertStudentProfile(
-  payload: NewStudentProfilePayload,
-): Promise<AgendaStudentProfile> {
-  return insertStudentProfileWithClient(db, payload);
+/** Capacity counts the whole family, including profiles the visiting adult cannot read. */
+export async function groupStudentIds(
+  client: typeof db | FamilyTransaction,
+  actor: AgendaAuthority,
+) {
+  return client
+    .select({ id: agendaStudentProfiles.id })
+    .from(agendaStudentProfiles)
+    .innerJoin(familyAppProfiles, eq(familyAppProfiles.id, agendaStudentProfiles.familyProfileId))
+    .innerJoin(familyPeople, eq(familyPeople.id, familyAppProfiles.personId))
+    .innerJoin(
+      familyGroupPeople,
+      and(
+        eq(familyGroupPeople.personId, familyPeople.id),
+        eq(familyGroupPeople.groupId, familyAppProfiles.groupId),
+      ),
+    )
+    .where(
+      and(
+        eq(familyAppProfiles.app, "agenda-da-turma"),
+        eq(familyAppProfiles.groupId, actor.familyGroupId),
+        familyMembershipCondition(actor.userId, familyAppProfiles.groupId),
+        isNull(familyAppProfiles.archivedAt),
+        isNull(familyPeople.archivedAt),
+        isNull(familyGroupPeople.archivedAt),
+      ),
+    )
+    .orderBy(asc(agendaStudentProfiles.createdAt), asc(agendaStudentProfiles.id));
 }
 
 export async function insertStudentProfileWithinLimit(
-  payload: NewStudentProfilePayload,
-  limit: number,
-): Promise<InsertWithinLimitResult> {
-  return db.transaction(
-    async (tx) => {
-      await lockProfileLimitForUser(tx, payload.userId);
-
-      const current = await countProfilesByUserWithClient(tx, payload.userId);
-      if (current >= limit) {
-        return { ok: false as const, current };
-      }
-
-      const profile = await insertStudentProfileWithClient(tx, payload);
-      return { ok: true as const, profile };
+  actor: AgendaAuthority,
+  input: { personId: string; birthDate: string | null },
+) {
+  const result = await familyService.activateProfile(
+    actor.userId,
+    { groupId: actor.familyGroupId, personId: input.personId, app: "agenda-da-turma" },
+    async (tx, familyProfileId) => {
+      const [person] = await tx
+        .select({ kind: familyPeople.kind })
+        .from(familyPeople)
+        .where(eq(familyPeople.id, input.personId));
+      requireFamilyCondition(
+        person?.kind === "dependent",
+        "INVALID_INPUT",
+        "Escolha uma criança desta família.",
+      );
+      const access = await agendaAccessInTransaction(tx, actor);
+      const current = (await groupStudentIds(tx, actor)).length;
+      if (current >= access.profileLimit)
+        throw new StudentCapacityError(current, access.profileLimit, access.enabled);
+      const [profile] = await tx
+        .insert(agendaStudentProfiles)
+        .values({
+          familyProfileId,
+          birthDate: input.birthDate,
+        })
+        .returning({ id: agendaStudentProfiles.id });
+      requireFamilyCondition(profile);
+      return profile.id;
     },
-    { isolationLevel: "read committed" },
   );
+  const profile = await findStudentProfileByIdForUser(actor, result.value);
+  requireFamilyCondition(profile);
+  return profile;
 }
 
-async function insertStudentProfileWithClient(
-  client: DbClient,
-  payload: NewStudentProfilePayload,
-): Promise<AgendaStudentProfile> {
-  const inserted = await client.insert(agendaStudentProfiles).values(payload).returning();
-  const row = inserted[0];
-  if (!row) {
-    throw new Error("agenda.student_profiles: insert returning empty");
-  }
-  return row;
-}
-
-async function lockProfileLimitForUser(tx: Tx, userId: string): Promise<void> {
-  await tx.execute(
-    sql`SELECT pg_advisory_xact_lock(hashtext(${`agenda:student_profiles:${userId}`}))`,
-  );
-}
-
-export async function findStudentProfilesByUser(userId: string): Promise<AgendaStudentProfile[]> {
+export function findStudentProfilesByUser(actor: AgendaAuthority) {
   return db
-    .select()
+    .select(projection(actor))
     .from(agendaStudentProfiles)
-    .where(accessibleProfileCondition(userId))
-    .orderBy(asc(agendaStudentProfiles.createdAt));
+    .where(agendaProfileCondition(actor))
+    .orderBy(asc(agendaStudentProfiles.createdAt), asc(agendaStudentProfiles.id));
 }
 
-export async function findStudentProfileByIdForUser(
-  userId: string,
-  id: string,
-): Promise<AgendaStudentProfile | null> {
+export async function findStudentProfileByIdForUser(actor: AgendaAuthority, id: string) {
   const [row] = await db
-    .select()
+    .select(projection(actor))
     .from(agendaStudentProfiles)
-    .where(and(eq(agendaStudentProfiles.userId, userId), eq(agendaStudentProfiles.id, id)))
+    .where(and(eq(agendaStudentProfiles.id, id), agendaProfileCondition(actor)))
     .limit(1);
   return row ?? null;
 }
 
 export async function updateStudentProfileForUser(
-  userId: string,
+  actor: AgendaAuthority,
   id: string,
-  payload: StudentProfileUpdatePayload,
-): Promise<AgendaStudentProfile | null> {
+  payload: { birthDate: string | null },
+) {
+  try {
+    await db.transaction(async (tx) => {
+      await lockAgendaProfiles(tx, actor, [id]);
+      await tx
+        .update(agendaStudentProfiles)
+        .set({ birthDate: payload.birthDate, updatedAt: new Date() })
+        .where(eq(agendaStudentProfiles.id, id));
+    });
+    return findStudentProfileByIdForUser(actor, id);
+  } catch (error) {
+    if (error instanceof FamilyError && error.code === "ACCESS_DENIED") return null;
+    throw error;
+  }
+}
+
+export async function deleteStudentProfileForUser(actor: AgendaAuthority, id: string) {
   const [row] = await db
-    .update(agendaStudentProfiles)
-    .set({ ...payload, updatedAt: new Date() })
-    .where(and(eq(agendaStudentProfiles.userId, userId), eq(agendaStudentProfiles.id, id)))
-    .returning();
-  return row ?? null;
-}
-
-export async function deleteStudentProfileForUser(userId: string, id: string): Promise<boolean> {
-  const rows = await db
-    .delete(agendaStudentProfiles)
-    .where(and(eq(agendaStudentProfiles.userId, userId), eq(agendaStudentProfiles.id, id)))
-    .returning({ id: agendaStudentProfiles.id });
-  return rows.length > 0;
-}
-
-export async function countStudentProfilesByUser(userId: string): Promise<number> {
-  return countProfilesByUserWithClient(db, userId);
-}
-
-async function countProfilesByUserWithClient(client: DbClient, userId: string): Promise<number> {
-  const [row] = await client
-    .select({ count: count() })
+    .select({ activationId: agendaStudentProfiles.familyProfileId })
     .from(agendaStudentProfiles)
-    .where(eq(agendaStudentProfiles.userId, userId));
-  return Number(row?.count ?? 0);
+    .innerJoin(familyAppProfiles, eq(familyAppProfiles.id, agendaStudentProfiles.familyProfileId))
+    .where(
+      and(
+        eq(agendaStudentProfiles.id, id),
+        eq(familyAppProfiles.groupId, actor.familyGroupId),
+        eq(familyAppProfiles.app, "agenda-da-turma"),
+        familyMembershipCondition(actor.userId, familyAppProfiles.groupId),
+      ),
+    );
+  if (!row?.activationId) return false;
+  try {
+    await db.transaction(async (tx) => {
+      const verifySchool = await lockAgendaProfileSchoolContexts(tx, [row.activationId]);
+      await removeProfileInTransaction(
+        tx,
+        actor.userId,
+        "agenda-da-turma",
+        row.activationId,
+        async (tx, activationId) => {
+          await verifySchool();
+          const [removed] = await eraseAgendaProfiles(tx, [activationId], actor.userId);
+          requireFamilyCondition(
+            removed?.id === id,
+            "CONFLICT",
+            "O histórico mudou. Atualize a página.",
+          );
+        },
+      );
+    });
+    return true;
+  } catch (error) {
+    if (error instanceof FamilyError && error.code === "ACCESS_DENIED") return false;
+    throw error;
+  }
 }
 
-export async function findStudentProfilesWithActiveTurmaByUser(
-  userId: string,
-): Promise<StudentProfileWithActiveTurma[]> {
+export async function countStudentProfilesByUser(actor: AgendaAuthority) {
+  return db.transaction(async (tx) => {
+    await lockFamilyMembership(tx, actor.userId, actor.familyGroupId);
+    return (await groupStudentIds(tx, actor)).length;
+  });
+}
+
+export async function findStudentProfilesWithActiveTurmaByUser(actor: AgendaAuthority) {
   const rows = await db
     .select({
-      profile: agendaStudentProfiles,
+      profile: projection(actor),
       turmaId: agendaTurmas.id,
       turmaGrade: agendaTurmas.grade,
       turmaClassLetter: agendaTurmas.classLetter,
@@ -141,12 +214,9 @@ export async function findStudentProfilesWithActiveTurmaByUser(
       and(eq(agendaTurmas.id, agendaStudentProfiles.activeTurmaId), activeMembershipCondition()),
     )
     .leftJoin(agendaSchools, eq(agendaSchools.inepCode, agendaTurmas.schoolInepCode))
-    .leftJoin(agendaCities, eq(agendaCities.ibgeCode, agendaSchools.cityIbgeCode))
-    .where(accessibleProfileCondition(userId))
-    .orderBy(asc(agendaStudentProfiles.createdAt));
-
+    .where(agendaProfileCondition(actor))
+    .orderBy(asc(agendaStudentProfiles.createdAt), asc(agendaStudentProfiles.id));
   return rows.map((row) => {
-    const profile = row.profile;
     const activeTurma =
       row.turmaId && row.turmaGrade && row.turmaClassLetter && row.schoolName
         ? {
@@ -156,30 +226,16 @@ export async function findStudentProfilesWithActiveTurmaByUser(
             schoolName: row.schoolName,
           }
         : null;
-    return {
-      ...profile,
-      activeTurmaId: activeTurma?.id ?? null,
-      activeTurma,
-    };
+    return { ...row.profile, activeTurmaId: activeTurma?.id ?? null, activeTurma };
   });
 }
 
-/**
- * Crianças DESTA CONTA sem turma ativa — escopo de dono, não de acesso.
- *
- * Deliberado: turma é escopada por conta (ver o guia do app), então o segundo
- * adulto não tem o que vincular. Quem consome isto é a trilha de primeiros
- * passos, que por sua vez não é mostrada a ele.
- */
-export async function countProfilesWithoutActiveTurmaByUser(userId: string): Promise<number> {
+export async function countProfilesWithoutActiveTurmaByUser(actor: AgendaAuthority) {
   const [row] = await db
     .select({ count: count() })
     .from(agendaStudentProfiles)
     .where(
-      and(
-        eq(agendaStudentProfiles.userId, userId),
-        sql`${agendaStudentProfiles.activeTurmaId} is null`,
-      ),
+      and(agendaProfileCondition(actor, "manage"), isNull(agendaStudentProfiles.activeTurmaId)),
     );
   return Number(row?.count ?? 0);
 }

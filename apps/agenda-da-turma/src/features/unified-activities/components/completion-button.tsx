@@ -41,7 +41,7 @@ export function ActivityCompletionButton({
     taskId: id,
     optimisticHideWhenDone: false,
     toggleAction: (next, latest) =>
-      submitTaskStatus({ id, version: latest ?? version, status: next, title, userId: queueOwner }),
+      submitTaskStatus({ id, version: latest ?? version, status: next, title, actor: queueOwner }),
     onSuccess: () => setError(""),
     onError: (actionError) =>
       setError(

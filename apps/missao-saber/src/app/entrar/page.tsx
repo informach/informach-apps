@@ -9,9 +9,9 @@ export const metadata = { title: "Entrar" };
 export default async function Login({
   searchParams,
 }: {
-  searchParams: Promise<{ confirmar?: string; next?: string }>;
+  searchParams: Promise<{ next?: string; reautenticar?: string }>;
 }) {
-  const { confirmar, next } = await searchParams;
+  const { next, reautenticar } = await searchParams;
   return (
     <main
       id="conteudo"
@@ -44,15 +44,7 @@ export default async function Login({
         <p className="mt-1 mb-6 text-sm text-tinta-suave">
           As primeiras missões de cada trilha são gratuitas. Sem cartão.
         </p>
-        <AuthForm
-          next={safeDestination(next, "parent")}
-          initialMode={confirmar ? "verify" : "login"}
-          initialMessage={
-            confirmar
-              ? "Confirme o e-mail do responsável: digite o e-mail e o código de seis dígitos que enviamos. Para receber outro código, use Confirmar e-mail / reenviar código."
-              : ""
-          }
-        />
+        <AuthForm next={safeDestination(next, "parent")} reauthenticate={reautenticar === "1"} />
       </section>
     </main>
   );

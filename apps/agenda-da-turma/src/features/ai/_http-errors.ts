@@ -22,9 +22,35 @@ export function handleAiHttpError(response: Response): boolean {
     return false;
   }
   if (response.status === 403) {
-    toast.error("Esta funcionalidade é apenas para assinantes Pro.", {
-      description: "Faça upgrade da sua conta para usar IA na agenda.",
-    });
+    toast.error("Confirme seu e-mail e a permissão para usar IA nesta criança em Minha conta.");
+    return false;
+  }
+  if (response.status === 402) {
+    toast.error("O saldo compartilhado não cobre esta operação. Veja os créditos em Minha conta.");
+    return false;
+  }
+  if (response.status === 409) {
+    response
+      .json()
+      .catch(() => null)
+      .then((data: { code?: string } | null) => {
+        if (data?.code === "AI_PROCESSING")
+          toast.info(
+            "A operação está sendo concluída. Aguarde e tente novamente para recuperar o resultado.",
+          );
+        else if (data?.code === "AI_RECOVERY_REQUIRED")
+          toast.error(
+            "A operação precisa de recuperação. Não envie novamente; entre em contato pelo suporte em Minha conta.",
+          );
+        else if (data?.code === "AI_RESULT_EXPIRED")
+          toast.error(
+            "O prazo de recuperação deste resultado terminou. Atualize a página para iniciar uma nova operação.",
+          );
+        else
+          toast.error(
+            "O contexto da família ou o custo mudou. Atualize a página antes de continuar.",
+          );
+      });
     return false;
   }
   if (response.status === 503) {

@@ -14,12 +14,12 @@ const hoje = [
   {
     Icone: LibraryBig,
     titulo: "A estante já existe",
-    texto: "Ela mostra o Morada, que ainda não abre.",
+    texto: "Ela reúne seus mundos do Morada e mostra a situação do seu acesso.",
   },
   {
     Icone: Hammer,
-    titulo: "Ainda não dá para jogar",
-    texto: "Os mundos e o jogo em si estão em construção.",
+    titulo: "Morada em teste",
+    texto: "Adultos convidados pela equipe podem jogar juntos no alfa fechado.",
   },
 ];
 
@@ -71,7 +71,7 @@ export default async function Inicio() {
             <div className="p-5 sm:p-6">
               <h2 className="font-display text-3xl font-extrabold tracking-tight">Morada</h2>
               <p className="mt-1 text-tinta-suave">
-                Em preparação. Ainda não dá para jogar por aqui.
+                Alfa fechado para adultos convidados pela equipe.
               </p>
             </div>
           </div>

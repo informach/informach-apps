@@ -846,15 +846,6 @@ a.chip {
 }
 
 /* ---------- folha de planos (abre de qualquer cadeado) ---------- */
-.folha-fundo {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  background: rgb(5 6 8 / 0.72);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
 .folha {
   width: min(100%, 34rem);
   max-height: 92dvh;
@@ -866,11 +857,21 @@ a.chip {
   gap: 0.9rem;
 }
 @media (min-width: 761px) {
-  .folha-fundo {
-    align-items: center;
-  }
   .folha {
     border-radius: 1.75rem;
+  }
+}
+.folha-dialog {
+  margin: auto auto 0;
+  color: inherit;
+  border: 1px solid var(--line);
+}
+.folha-dialog::backdrop {
+  background: rgb(5 6 8 / 0.72);
+}
+@media (min-width: 761px) {
+  .folha-dialog {
+    margin: auto;
   }
 }
 .folha-alca {

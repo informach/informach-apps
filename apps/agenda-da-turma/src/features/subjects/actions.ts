@@ -1,5 +1,6 @@
 "use server";
 
+import { agendaAuthority } from "@/features/family/context";
 import { action, err, ok } from "@/lib/action";
 import { logAgendaAuditEvent } from "@/lib/audit";
 import { logger } from "@/lib/logger";
@@ -19,7 +20,7 @@ export const createSubjectAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await createSubject(userId, input);
+    const result = await createSubject(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     const { subject, status, filled } = result.value;
@@ -55,7 +56,7 @@ export const updateSubjectAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await updateSubject(userId, input);
+    const result = await updateSubject(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     logger.info({ userId, subjectId: result.value.id }, "agenda.subject_updated");
@@ -71,7 +72,7 @@ export const deleteSubjectAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await deleteSubject(userId, input);
+    const result = await deleteSubject(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     logger.info({ userId, subjectId: input.id }, "agenda.subject_deleted");
@@ -97,7 +98,7 @@ export const createSubjectsBatchAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await createSubjectsBatch(userId, input);
+    const result = await createSubjectsBatch(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     const { items, counts, turmaId } = result.value;

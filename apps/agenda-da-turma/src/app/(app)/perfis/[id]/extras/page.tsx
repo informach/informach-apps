@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { BackButton } from "@/components/app-shell/back-button";
-import { getIsProForUser } from "@/features/billing/server-cache";
+import { agendaAuthority } from "@/features/family/context";
+import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { NewProfileSubjectButton } from "@/features/profile-subjects/components/new-profile-subject-button";
 import { ProfileSubjectsList } from "@/features/profile-subjects/components/profile-subjects-list";
 import {
@@ -21,9 +22,10 @@ export const metadata = {
 export default async function ProfileExtrasPage({ params }: Props) {
   const { id: profileId } = await params;
   const user = await requireUserServer();
-  const [result, isPro] = await Promise.all([
-    getProfileSubjectsForUserAndProfile(user.id, profileId),
-    getIsProForUser(user.id),
+  const actor = await agendaAuthority(user.id);
+  const [result, entitlement] = await Promise.all([
+    getProfileSubjectsForUserAndProfile(actor, profileId),
+    getFamilyEntitlements(actor),
   ]);
 
   if (!result.ok) {
@@ -31,13 +33,16 @@ export default async function ProfileExtrasPage({ params }: Props) {
   }
 
   const subjects = result.ok ? result.value.subjects : [];
+  const canWrite =
+    result.ok && result.value.canWrite && entitlement.usableProfileIds.includes(profileId);
+  const isPro = entitlement.proProfileIds.includes(profileId);
   const activeCount = subjects.filter((s) => s.status === "active").length;
   const limit = isPro ? PRO_PROFILE_SUBJECT_LIMIT : FREE_PROFILE_SUBJECT_LIMIT;
   const reachedLimit = activeCount >= limit;
   const disabledTitle = reachedLimit
     ? isPro
       ? `Cada criança pode ter até ${limit} atividades extras ativas`
-      : `No plano grátis, cada criança tem ${limit} atividade extra. Pause uma para criar outra, ou conheça o Pro.`
+      : `No plano grátis, cada criança tem ${limit} atividade extra. Pause uma para criar outra, ou conheça o Compasso.`
     : undefined;
 
   return (
@@ -57,8 +62,12 @@ export default async function ProfileExtrasPage({ params }: Props) {
         <div className="pl-[42px] sm:pl-0">
           <NewProfileSubjectButton
             profileId={profileId}
-            disabled={reachedLimit}
-            disabledTitle={disabledTitle}
+            disabled={!canWrite || reachedLimit}
+            disabledTitle={
+              !canWrite
+                ? "Você pode consultar este perfil. Para editar, confira as permissões e a assinatura em Minha conta."
+                : disabledTitle
+            }
           />
         </div>
       </header>
@@ -69,7 +78,7 @@ export default async function ProfileExtrasPage({ params }: Props) {
         </p>
       ) : null}
 
-      <ProfileSubjectsList profileId={profileId} subjects={subjects} />
+      <ProfileSubjectsList profileId={profileId} subjects={subjects} canWrite={canWrite} />
     </main>
   );
 }

@@ -8,8 +8,9 @@ import {
 } from "@informach/morada-sim/protocolo";
 import { ehErroDoRecreio } from "@informach/recreio";
 import { type WebSocket, WebSocketServer } from "ws";
+import { criarAdmissao, LIMITES_DE_REDE } from "./admissao";
 import type { Conexao } from "./ator";
-import type { Instancia } from "./instancia";
+import type { Instancia, ResultadoDoEncerramento } from "./instancia";
 
 /**
  * O servidor de rede em volta de uma instância: WebSocket para o jogo e HTTP
@@ -32,6 +33,8 @@ export type OpcoesDoServidor = {
   tokenDeMetricas: string | null;
   /** De quanto em quanto tempo o servidor confere se o cliente ainda responde. */
   pingMs?: number;
+  /** Tetos da instância inteira, antes de autenticar ou abrir um mundo. */
+  limitesDeRede?: { conexoes: number; pedidosEmCurso: number; quadrosPorSegundo: number };
   /** Rotas extras, só para desenvolvimento. */
   rotas?(pedido: IncomingMessage, resposta: ServerResponse): boolean;
   /** De quanto em quanto tempo tentar o registro enquanto o Recreio não responde. */
@@ -50,7 +53,7 @@ export type Servidor = {
    */
   iniciar(porta: number, host?: string): Promise<number>;
   /** Para de aceitar conexões, salva os mundos e fecha tudo. */
-  encerrar(): Promise<void>;
+  encerrar(): Promise<ResultadoDoEncerramento>;
 };
 
 const PASSO_MS = 100;
@@ -89,9 +92,11 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
   const registrar = op.registrar ?? (() => {});
   const pingMs = op.pingMs ?? 5000;
   const esperaDoRegistroMs = op.esperaDoRegistroMs ?? ESPERA_DO_REGISTRO_MS;
+  const admissao = criarAdmissao(op.limitesDeRede ?? LIMITES_DE_REDE);
   /** O servidor está ouvindo. Pronto para o jogo é isto mais o registro no Recreio. */
   let ouvindo = false;
   let encerrando = false;
+  let encerramento: Promise<ResultadoDoEncerramento> | null = null;
   let relogio: NodeJS.Timeout | null = null;
   let ciclo: NodeJS.Timeout | null = null;
   let pulsacao: NodeJS.Timeout | null = null;
@@ -122,6 +127,7 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
       const cpu = process.cpuUsage();
       return json(resposta, 200, {
         ...instancia.medir(),
+        rede: { ...admissao.medir(), limites: op.limitesDeRede ?? LIMITES_DE_REDE },
         processo: {
           cpuUsuarioMs: Math.round(cpu.user / 1000),
           cpuSistemaMs: Math.round(cpu.system / 1000),
@@ -141,6 +147,11 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
     perMessageDeflate: false,
     handleProtocols: (protocolos) => (protocolos.has(SUBPROTOCOLO) ? SUBPROTOCOLO : false),
   });
+  // Inclui conexões HTTP incompletas; os sockets WS têm o teto mais estrito acima.
+  http.maxConnections = (op.limitesDeRede ?? LIMITES_DE_REDE).conexoes + 64;
+  http.maxHeadersCount = 32;
+  http.headersTimeout = 10_000;
+  http.requestTimeout = 10_000;
 
   http.on("upgrade", (pedido, socket, cabeca) => {
     const origem = pedido.headers.origin;
@@ -158,7 +169,17 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
       .split(",")
       .map((p) => p.trim());
     if (!pedidos.includes(SUBPROTOCOLO)) return recusar(400, "Bad Request");
-    sockets.handleUpgrade(pedido, socket, cabeca, (ws) => sockets.emit("connection", ws, pedido));
+    const liberar = admissao.conectar();
+    if (!liberar) return recusar(503, "Service Unavailable");
+    // Libera também upgrade inválido, erro TCP e fechamento sem quadro WS.
+    socket.once("close", liberar);
+    try {
+      sockets.handleUpgrade(pedido, socket, cabeca, (ws) => sockets.emit("connection", ws, pedido));
+    } catch (erro) {
+      liberar();
+      socket.destroy();
+      aoErro(erro, "upgrade");
+    }
   });
 
   const vivos = new WeakMap<WebSocket, boolean>();
@@ -184,12 +205,20 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
 
     ws.on("pong", () => vivos.set(ws, true));
     ws.on("message", (dados, binario) => {
+      const liberar = admissao.pedir();
+      if (!liberar) return ws.close(FECHAMENTO.cheio);
       entrou = true;
-      if (binario) return ws.close(FECHAMENTO.protocolo);
-      instancia.receber(conexao, dados.toString("utf8")).catch((erro: unknown) => {
-        aoErro(erro, "receber");
-        ws.close(FECHAMENTO.reiniciando);
-      });
+      if (binario) {
+        liberar();
+        return ws.close(FECHAMENTO.protocolo);
+      }
+      instancia
+        .receber(conexao, dados.toString("utf8"))
+        .catch((erro: unknown) => {
+          aoErro(erro, "receber");
+          ws.close(FECHAMENTO.reiniciando);
+        })
+        .finally(liberar);
     });
     ws.on("close", () => {
       clearTimeout(prazo);
@@ -202,21 +231,17 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
     });
   });
 
-  /** O laço de 100 ms. Se um passo demora, o seguinte espera: nunca dois ao mesmo tempo. */
+  /** Pulso de 100 ms. A instância só inicia passos dos mundos que estão livres. */
   function ligarRelogio(): void {
     let proximo = performance.now() + PASSO_MS;
     const rodar = () => {
       if (encerrando) return;
-      instancia
-        .passo()
-        .catch((erro: unknown) => aoErro(erro, "passo"))
-        .finally(() => {
-          const agora = performance.now();
-          // Atrasou mais de três passos: recomeça a contar daqui, sem tentar recuperar tudo.
-          if (agora - proximo > 3 * PASSO_MS) proximo = agora;
-          proximo += PASSO_MS;
-          relogio = setTimeout(rodar, Math.max(0, proximo - performance.now()));
-        });
+      void instancia.passo().catch((erro: unknown) => aoErro(erro, "passo"));
+      const agora = performance.now();
+      // Atraso de CPU não gera uma rajada ilimitada para recuperar o tempo.
+      if (agora - proximo > 3 * PASSO_MS) proximo = agora;
+      proximo += PASSO_MS;
+      relogio = setTimeout(rodar, Math.max(0, proximo - performance.now()));
     };
     relogio = setTimeout(rodar, PASSO_MS);
   }
@@ -302,16 +327,30 @@ export function criarServidor(op: OpcoesDoServidor): Servidor {
       return typeof endereco === "object" && endereco ? endereco.port : porta;
     },
 
-    async encerrar() {
-      if (encerrando) return;
-      encerrando = true;
-      if (relogio) clearTimeout(relogio);
-      if (ciclo) clearTimeout(ciclo);
-      if (pulsacao) clearInterval(pulsacao);
-      await instancia.encerrar();
-      for (const ws of sockets.clients) ws.close(FECHAMENTO.reiniciando);
-      await new Promise<void>((resolve) => sockets.close(() => resolve()));
-      await new Promise<void>((resolve) => http.close(() => resolve()));
+    encerrar() {
+      encerramento ??= (async () => {
+        encerrando = true;
+        if (relogio) clearTimeout(relogio);
+        if (ciclo) clearTimeout(ciclo);
+        if (pulsacao) clearInterval(pulsacao);
+        try {
+          return await instancia.encerrar();
+        } finally {
+          // A rede fecha também se algum mundo não salvou. Um cliente sem ACK
+          // de close não pode consumir o prazo reservado para persistência.
+          const forcarFechamento = setTimeout(() => {
+            for (const ws of sockets.clients) ws.terminate();
+          }, 1000);
+          try {
+            for (const ws of sockets.clients) ws.close(FECHAMENTO.reiniciando);
+            await new Promise<void>((resolve) => sockets.close(() => resolve()));
+            await new Promise<void>((resolve) => http.close(() => resolve()));
+          } finally {
+            clearTimeout(forcarFechamento);
+          }
+        }
+      })();
+      return encerramento;
     },
   };
 }

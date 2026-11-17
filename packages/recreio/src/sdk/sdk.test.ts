@@ -1,9 +1,10 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MudancaDeAcesso } from "../contrato/sdk";
 import { FRACAO_PARA_RENOVAR } from "../contrato/tokens";
-import { criarRecreio, REPETIR_RENOVACAO_APOS_MS } from "./index";
+import { TEMPO_LIMITE_DO_PEDIDO_MS } from "../transporte/prazo";
+import { criarRecreio, type OpcoesDoRecreio, REPETIR_RENOVACAO_APOS_MS } from "./index";
 
 const INICIO = Date.UTC(2026, 10, 11, 12, 0, 0);
 const QUINZE_MIN = 15 * 60_000;
@@ -13,6 +14,8 @@ const MEMBRO = "9d2c7b1a-3e4f-4a5b-8c6d-7e8f9a0b1c2d";
 
 /** Quando o SDK renova uma sessão que ainda vale `ms`. */
 const fracao = (ms: number) => Math.floor(ms * FRACAO_PARA_RENOVAR);
+
+afterEach(() => vi.useRealTimers());
 
 type Chamada = { url: string; method: string; headers: Record<string, string>; corpo: unknown };
 type Resposta = { status?: number; corpo?: unknown; texto?: string } | Error;
@@ -67,7 +70,12 @@ function ambiente() {
       await new Promise((resolve) => setTimeout(resolve, 0));
     },
     pendentes: () => agendadas.filter((item) => !item.cancelada),
-    opcoes: (extra: { continuarAqui?: boolean } = {}) => ({
+    opcoes: (
+      extra: Pick<
+        OpcoesDoRecreio,
+        "continuarAqui" | "recuperarAbertura" | "aguardarCheckpoint" | "aoAguardarCheckpoint"
+      > = {},
+    ) => ({
       baseUrl: "https://recreio.test/",
       jogo: "morada",
       obterIngresso: async () => "ingresso-1",
@@ -86,6 +94,244 @@ function ambiente() {
 }
 
 describe("abertura da sessão", () => {
+  it("checkpoint envia ACK explícito com o token atual e não repete confirmação sem resposta", async () => {
+    const a = ambiente();
+    a.responder(
+      { corpo: a.aberta() },
+      { corpo: { estado: "confirmed", pausada: true } },
+      new Error("resposta perdida"),
+    );
+    const contexto = await criarRecreio(a.opcoes());
+    expect(await contexto.sessao.checkpoint(MUNDO, true)).toEqual({
+      estado: "confirmed",
+      pausada: true,
+    });
+    expect(a.chamadas.at(-1)).toEqual({
+      url: "https://recreio.test/api/sdk/v1/sessao/checkpoint",
+      method: "POST",
+      headers: { authorization: "Bearer sessao-1", "content-type": "application/json" },
+      corpo: { id: MUNDO, confirmado: true },
+    });
+    const antes = a.chamadas.length;
+    await expect(contexto.sessao.checkpoint(MUNDO, false)).rejects.toMatchObject({
+      codigo: "INDISPONIVEL",
+    });
+    expect(a.chamadas).toHaveLength(antes + 1);
+    expect(a.pendentes()).toHaveLength(0);
+  });
+  it("aguarda o ACK com o mesmo pedido e informa a espera antes de abrir", async () => {
+    const a = ambiente();
+    const avisar = vi.fn();
+    a.responder(
+      { status: 409, corpo: { codigo: "CHECKPOINT_PENDENTE", detalhe: { motivo: "requested" } } },
+      { corpo: a.aberta() },
+    );
+    const promessa = criarRecreio(
+      a.opcoes({
+        continuarAqui: true,
+        recuperarAbertura: true,
+        aguardarCheckpoint: true,
+        aoAguardarCheckpoint: avisar,
+      }),
+    );
+    await vi.waitFor(() => expect(avisar).toHaveBeenCalledOnce());
+    expect(a.chamadas).toHaveLength(1);
+    await a.disparar();
+    expect((await promessa).sessao.token()).toBe("sessao-1");
+    expect(a.chamadas[0]?.corpo).toEqual(a.chamadas[1]?.corpo);
+    expect(a.pendentes()).toHaveLength(1);
+  });
+  it.each(["manual", "failed", "expired"])("não repete espera recusada por %s", async (motivo) => {
+    const a = ambiente();
+    a.responder({ status: 409, corpo: { codigo: "CHECKPOINT_PENDENTE", detalhe: { motivo } } });
+    await expect(
+      criarRecreio(
+        a.opcoes({ continuarAqui: true, recuperarAbertura: true, aguardarCheckpoint: true }),
+      ),
+    ).rejects.toMatchObject({ codigo: "CHECKPOINT_PENDENTE" });
+    expect(a.chamadas).toHaveLength(1);
+    expect(a.pendentes()).toHaveLength(0);
+  });
+  it("renovação que já estava em voo não encerra o próprio checkpoint confirmado", async () => {
+    const a = ambiente();
+    let concluir = (_resposta: Response): void => {
+      throw new Error("Renovação não preparada");
+    };
+    const pendente = new Promise<Response>((resolve) => {
+      concluir = resolve;
+    });
+    const opcoes = a.opcoes();
+    const controle = {
+      agora: new Date(INICIO).toISOString(),
+      expiraEm: new Date(INICIO + QUINZE_MIN).toISOString(),
+      pausada: true,
+      tempo: null,
+      checkpoint: null,
+    };
+    a.responder(
+      { corpo: a.aberta() },
+      { corpo: { estado: "confirmed", pausada: true } },
+      { corpo: controle },
+    );
+    const contexto = await criarRecreio({
+      ...opcoes,
+      fetch: (url, init) => (url.endsWith("/sessao/renovar") ? pendente : opcoes.fetch(url, init)),
+    });
+    const perdeu = vi.fn();
+    contexto.sessao.aoMudarAcesso(perdeu);
+    await a.disparar();
+    await contexto.sessao.checkpoint(MUNDO, true);
+    concluir(Response.json({ codigo: "SESSAO_ENCERRADA", motivo: "checkpoint" }, { status: 403 }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(perdeu).not.toHaveBeenCalled();
+    expect(a.pendentes()).toHaveLength(0);
+    expect(await contexto.sessao.controle()).toMatchObject({ pausada: true });
+  });
+  it("pedido de checkpoint suspende a renovação até o controle liberar uma tentativa não confirmada", async () => {
+    const a = ambiente();
+    const controle = {
+      agora: new Date(INICIO).toISOString(),
+      expiraEm: new Date(INICIO + QUINZE_MIN).toISOString(),
+      pausada: false,
+      tempo: null,
+      checkpoint: {
+        id: MUNDO,
+        estado: "requested",
+        modo: "server",
+        expiraEm: new Date(INICIO + 30_000).toISOString(),
+      },
+    };
+    a.responder(
+      { corpo: a.aberta() },
+      { corpo: controle },
+      { corpo: { ...controle, checkpoint: null } },
+      { corpo: a.sessao("sessao-2", INICIO + QUINZE_MIN * 2) },
+    );
+    const contexto = await criarRecreio(a.opcoes());
+    await contexto.sessao.controle();
+    expect(a.pendentes()).toHaveLength(0);
+    expect(contexto.sessao.token()).toBe("sessao-1");
+    await contexto.sessao.controle();
+    expect(a.pendentes()).toHaveLength(1);
+    await a.disparar();
+    expect(contexto.sessao.token()).toBe("sessao-2");
+    expect(a.chamadas.filter((c) => c.url.endsWith("/sessao/renovar"))).toHaveLength(1);
+  });
+  it("recuperação repete só uma vez com o mesmo ingresso e prova aleatória; sem prova não repete", async () => {
+    const a = ambiente();
+    a.responder(new Error("resposta perdida"), { corpo: a.aberta() });
+    const contexto = await criarRecreio(a.opcoes({ recuperarAbertura: true }));
+    expect(contexto.sessao.token()).toBe("sessao-1");
+    expect(a.chamadas).toHaveLength(2);
+    expect(a.chamadas[0]?.corpo).toEqual(a.chamadas[1]?.corpo);
+    expect(a.chamadas[0]?.corpo).toEqual({
+      ingresso: "ingresso-1",
+      chaveDeTroca: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
+    });
+    expect(a.pendentes()).toHaveLength(1);
+    const outra = ambiente();
+    outra.responder(new Error("resposta perdida"));
+    await expect(criarRecreio(outra.opcoes())).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+    expect(outra.chamadas).toHaveLength(1);
+    expect(outra.pendentes()).toHaveLength(0);
+  });
+  it("prova é nova em outra abertura; recusa e segunda falha não geram novas tentativas", async () => {
+    const a = ambiente();
+    a.responder(new Error("rede"), new Error("rede"));
+    await expect(criarRecreio(a.opcoes({ recuperarAbertura: true }))).rejects.toMatchObject({
+      codigo: "INDISPONIVEL",
+    });
+    expect(a.chamadas).toHaveLength(2);
+    const outra = ambiente();
+    outra.responder({ status: 409, corpo: { codigo: "JA_ABERTO" } });
+    await expect(criarRecreio(outra.opcoes({ recuperarAbertura: true }))).rejects.toMatchObject({
+      codigo: "JA_ABERTO",
+    });
+    expect(outra.chamadas).toHaveLength(1);
+    expect(outra.chamadas[0]?.corpo).not.toEqual(a.chamadas[0]?.corpo);
+    expect(a.pendentes()).toHaveLength(0);
+    expect(outra.pendentes()).toHaveLength(0);
+  });
+  it("controle usa o token atual e não renova o prazo; resposta extra é recusada", async () => {
+    const a = ambiente();
+    const estado = {
+      agora: new Date(INICIO).toISOString(),
+      expiraEm: new Date(INICIO + QUINZE_MIN).toISOString(),
+      pausada: false,
+      tempo: null,
+      checkpoint: null,
+    };
+    a.responder(
+      { corpo: a.aberta() },
+      { corpo: estado },
+      { corpo: { ...estado, conta: "não pertence ao contrato" } },
+    );
+    const contexto = await criarRecreio(a.opcoes());
+    const prazo = contexto.sessao.expiraEm;
+    expect(await contexto.sessao.controle()).toEqual(estado);
+    expect(a.chamadas.at(-1)).toEqual({
+      url: "https://recreio.test/api/sdk/v1/sessao/controle",
+      method: "GET",
+      headers: { authorization: "Bearer sessao-1" },
+      corpo: undefined,
+    });
+    expect(contexto.sessao.expiraEm).toBe(prazo);
+    expect(a.pendentes()).toHaveLength(1);
+    await expect(contexto.sessao.controle()).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+  });
+  it("usa o token renovado para ler bytes e não repete automaticamente uma escrita sem resposta", async () => {
+    const a = ambiente();
+    a.responder(
+      { corpo: a.aberta() },
+      { corpo: a.sessao("sessao-2", INICIO + QUINZE_MIN * 2) },
+      { corpo: { versao: null } },
+      new Error("conexão perdida"),
+    );
+    const contexto = await criarRecreio(a.opcoes());
+    await a.disparar();
+    expect(await contexto.dados.ler("pontos")).toBeNull();
+    expect(a.chamadas.at(-1)?.headers.authorization).toBe("Bearer sessao-2");
+    const antes = a.chamadas.length;
+    await expect(
+      contexto.dados.gravar("pontos", new Uint8Array([0, 255]), 0),
+    ).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+    expect(a.chamadas).toHaveLength(antes + 1);
+    expect(a.chamadas.at(-1)?.corpo).toEqual({
+      operacao: "gravar",
+      chave: "pontos",
+      revisao: 0,
+      conteudo: "AP8=",
+    });
+  });
+  it("não envia dados ou conquistas depois de encerrar a sessão", async () => {
+    const a = ambiente();
+    a.responder({ corpo: a.aberta() }, { corpo: {} });
+    const contexto = await criarRecreio(a.opcoes());
+    await contexto.sessao.sair();
+    const antes = a.chamadas.length;
+    await expect(contexto.dados.ler("pontos")).rejects.toMatchObject({
+      codigo: "SESSAO_ENCERRADA",
+    });
+    await expect(contexto.dados.gravar("pontos", new Uint8Array())).rejects.toMatchObject({
+      codigo: "SESSAO_ENCERRADA",
+    });
+    await expect(contexto.conquista("primeiro-ponto", "recibo")).rejects.toMatchObject({
+      codigo: "SESSAO_ENCERRADA",
+    });
+    expect(a.chamadas).toHaveLength(antes);
+  });
+  it("oferece persistência por perfil e conquistas sem exigir um mundo", async () => {
+    const a = ambiente();
+    a.responder({ corpo: a.aberta() });
+    const contexto = await criarRecreio(a.opcoes());
+    expect(contexto).toHaveProperty("dados.ler", expect.any(Function));
+    expect(contexto).toHaveProperty("dados.gravar", expect.any(Function));
+    expect(contexto).toHaveProperty("dados.versoes", expect.any(Function));
+    expect(contexto).toHaveProperty("dados.resolver", expect.any(Function));
+    expect(contexto).toHaveProperty("dados.descartar", expect.any(Function));
+    expect(contexto).toHaveProperty("conquista", expect.any(Function));
+  });
+
   it("troca o ingresso por uma sessão e entrega perfil, política e token", async () => {
     const a = ambiente();
     a.responder({ corpo: a.aberta() });
@@ -313,6 +559,11 @@ describe("sair", () => {
     a.responder(new TypeError("fetch failed"));
     await expect(recreio.sessao.sair()).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
     expect(a.pendentes()).toEqual([]);
+    a.responder({ corpo: {} });
+    await recreio.sessao.sair();
+    expect(a.chamadas).toHaveLength(3);
+    await recreio.sessao.sair();
+    expect(a.chamadas).toHaveLength(3);
   });
 });
 
@@ -406,6 +657,120 @@ describe("mundos", () => {
       codigo,
       detalhe,
     });
+  });
+});
+
+describe("pedidos sem resposta", () => {
+  function adiar<T>() {
+    let concluir: ((valor: T) => void) | undefined;
+    const promessa = new Promise<T>((resolve) => {
+      concluir = resolve;
+    });
+    return {
+      promessa,
+      concluir(valor: T) {
+        if (!concluir) throw new Error("Pedido não iniciado");
+        concluir(valor);
+      },
+    };
+  }
+
+  it("limita a emissão do ingresso e não inicia a troca quando ela não responde", async () => {
+    vi.useFakeTimers();
+    const a = ambiente(),
+      pendente = adiar<string>();
+    let signal: AbortSignal | undefined;
+    const abertura = criarRecreio({
+      ...a.opcoes(),
+      obterIngresso: (sinal) => {
+        signal = sinal;
+        return pendente.promessa;
+      },
+    });
+    const recusa = expect(abertura).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+    await vi.advanceTimersByTimeAsync(TEMPO_LIMITE_DO_PEDIDO_MS);
+    await recusa;
+    pendente.concluir("ingresso tardio");
+    await vi.advanceTimersByTimeAsync(0);
+    expect(a.chamadas).toEqual([]);
+    expect(signal?.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each(["listar", "criar", "abrir", "convidar", "sair"] as const)(
+    "%s tem prazo e não repete automaticamente a operação",
+    async (operacao) => {
+      vi.useFakeTimers();
+      const a = ambiente(),
+        opcoes = a.opcoes(),
+        pendente = adiar<Response>();
+      let esperando = false,
+        pedidos = 0;
+      let signal: AbortSignal | null | undefined;
+      a.responder({ corpo: a.aberta() });
+      const recreio = await criarRecreio({
+        ...opcoes,
+        fetch: (url, init) => {
+          if (!esperando) return opcoes.fetch(url, init);
+          pedidos++;
+          signal = init?.signal;
+          return pendente.promessa;
+        },
+      });
+      esperando = true;
+      const operacoes = {
+        listar: () => recreio.mundos.listar(),
+        criar: () => recreio.mundos.criar({ nome: "Casa" }),
+        abrir: () => recreio.mundos.abrir(MUNDO),
+        convidar: () => recreio.mundos.convidar(MUNDO, { forma: "member" }),
+        sair: () => recreio.sessao.sair(),
+      };
+      const recusa = Promise.all([
+        expect(operacoes[operacao]()).rejects.toMatchObject({ codigo: "INDISPONIVEL" }),
+        ...(operacao === "sair"
+          ? [expect(recreio.sessao.sair()).rejects.toMatchObject({ codigo: "INDISPONIVEL" })]
+          : []),
+      ]);
+      await vi.advanceTimersByTimeAsync(TEMPO_LIMITE_DO_PEDIDO_MS);
+      await recusa;
+      expect(pedidos).toBe(1);
+      expect(signal?.aborted).toBe(true);
+      // Um adapter atrasado não muda o resultado já comunicado ao chamador.
+      pendente.concluir(Response.json({ mundos: [] }));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(pedidos).toBe(1);
+    },
+  );
+
+  it("renovação pendurada perde o acesso ao vencer e ignora a resposta tardia", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(INICIO);
+    const a = ambiente(),
+      opcoes = a.opcoes(),
+      pendente = adiar<Response>();
+    let signal: AbortSignal | null | undefined;
+    a.responder({ corpo: a.aberta("curta", INICIO + 1000) });
+    const recreio = await criarRecreio({
+      ...opcoes,
+      agora: () => Date.now(),
+      agendar: undefined,
+      fetch: (url, init) => {
+        if (!url.endsWith("/renovar")) return opcoes.fetch(url, init);
+        signal = init?.signal;
+        return pendente.promessa;
+      },
+    });
+    const mudancas: MudancaDeAcesso[] = [];
+    recreio.sessao.aoMudarAcesso((mudanca) => mudancas.push(mudanca));
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(mudancas).toEqual([{ tipo: "perdido", codigo: "INDISPONIVEL" }]);
+    expect(signal?.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+    pendente.concluir(Response.json(a.sessao("tardia", INICIO + QUINZE_MIN)));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(recreio.sessao.token()).toBe("curta");
+    expect(mudancas).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
 

@@ -33,6 +33,16 @@ export function escolherPersonagem(
   const pontos = (p: PersonagemDoManifesto): number => {
     if (p.faixa !== fase) return 0;
     const sim = p.sim;
+    if (aparencia.edicao)
+      return p.criacao &&
+        p.cores &&
+        p.sexo === aparencia.linha &&
+        sim?.corpo === aparencia.corpo &&
+        sim.cabelo === aparencia.cabelo &&
+        sim.roupa === aparencia.roupa
+        ? 10
+        : 0;
+    if (p.criacao) return 0;
     if (
       sim &&
       sim.corpo === aparencia.corpo &&

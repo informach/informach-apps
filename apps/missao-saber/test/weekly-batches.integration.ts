@@ -1,12 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { db, eq, inArray } from "@informach/db";
-import {
-  missaoAttempts,
-  missaoFamilies,
-  missaoProfiles,
-  missaoSessions,
-  users,
-} from "@informach/db/schema";
+import { missaoAttempts, missaoFamilies, missaoSessions, users } from "@informach/db/schema";
 import { afterAll, afterEach, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/jobs/weekly-report/route";
 import { findLesson } from "@/features/content/catalog";
@@ -14,6 +8,7 @@ import { weekStart } from "@/features/family/desafio";
 import { completeWeeklyReport, listFamiliesForWeeklyReport } from "@/features/learning/repository";
 import { emails } from "@/lib/emails";
 import { env } from "@/lib/env";
+import { seedStudent, seedStudents } from "./family-fixture";
 
 const owners: string[] = [];
 afterEach(() => {
@@ -21,7 +16,10 @@ afterEach(() => {
   emails.clearOutbox();
 });
 afterAll(async () => {
-  await db.delete(users).where(inArray(users.id, owners));
+  await db
+    .update(users)
+    .set({ banned: true, emailVerified: false })
+    .where(inArray(users.id, owners));
 });
 const request = (query = "") =>
   new Request(`http://localhost:3005/api/jobs/weekly-report${query}`, {
@@ -40,18 +38,15 @@ it("bounds batches, resumes pending families and preserves deduplication after a
   await db
     .insert(missaoFamilies)
     .values(ids.map((userId) => ({ userId, consentVersion: "test", weeklyReportEmail: true })));
-  const profiles = await db
-    .insert(missaoProfiles)
-    .values(
-      ids.map((userId) => ({
-        userId,
-        nickname: "Sol",
-        grade: 6,
-        avatar: "cometa",
-        courseId: "canguru-e",
-      })),
-    )
-    .returning();
+  const profiles = await seedStudents(
+    ids.map((userId) => ({
+      userId,
+      nickname: "Sol",
+      grade: 6,
+      avatar: "cometa",
+      courseId: "canguru-e",
+    })),
+  );
   const lesson = findLesson("fracoes-1");
   if (!lesson) throw new Error("Missing fixture");
   const sessions = await db

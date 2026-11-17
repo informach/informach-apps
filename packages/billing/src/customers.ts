@@ -1,13 +1,15 @@
 import type { Database } from "@informach/db";
 import { customers } from "@informach/db/schema";
 import { and, eq } from "drizzle-orm";
-import { OrganizationsDisabledError } from "./errors";
+import { assertAccountPayer } from "./collection-accounts";
+import { BillingError, OrganizationsDisabledError } from "./errors";
 import { type Logger, safeLog } from "./logger";
 import type { BillingProviderClient } from "./providers";
 import type { BillingProvider, SubjectRef } from "./types";
 
 export type GetOrCreateCustomerInput = {
   subject: SubjectRef;
+  actorId?: string | null;
   email: string;
   metadata?: Record<string, string>;
 };
@@ -21,7 +23,7 @@ export type GetOrCreateCustomerResult = {
 export type GetOrCreateCustomerDeps = {
   db: Database;
   provider: BillingProvider;
-  providerClient: BillingProviderClient;
+  providerClient: Pick<BillingProviderClient, "createCustomer">;
   organizationsEnabled: boolean;
   /** App slug — escopo de isolamento no `billing.customers.app`. */
   app: string;
@@ -39,6 +41,12 @@ export async function getOrCreateCustomer(
 ): Promise<GetOrCreateCustomerResult> {
   if (input.subject.type === "organization" && !deps.organizationsEnabled) {
     throw new OrganizationsDisabledError();
+  }
+  if (input.subject.type === "billing_account") {
+    if (!input.actorId) throw new BillingError("An authenticated payer is required");
+    const { account, email } = await assertAccountPayer(deps.db, input.actorId, input.subject.id);
+    if (account.collection !== deps.app || account.closedAt || email !== input.email)
+      throw new BillingError("Commercial account is closed or outside the checkout scope");
   }
 
   const existing = await deps.db

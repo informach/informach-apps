@@ -62,6 +62,21 @@ export async function codigoDoBanco(operacao: Promise<unknown>): Promise<string 
 
 export const UNICO = "23505";
 export const CHECAGEM = "23514";
+
+/** Sinal explícito para barreiras dos testes; compatível com o alvo ES2022. */
+export function sinal<T>() {
+  let concluir = (_valor: T): void => {
+    throw new Error("Sinal não preparado");
+  };
+  let recusar = (_erro: unknown): void => {
+    throw new Error("Sinal não preparado");
+  };
+  const promessa = new Promise<T>((resolve, reject) => {
+    concluir = resolve;
+    recusar = reject;
+  });
+  return { promessa, concluir, recusar };
+}
 /**
  * `on delete restrict`: há linhas que dependem da que se tentou apagar. O
  * Postgres 18 responde `restrict_violation` (23001); até o 17, como o do CI,
@@ -85,6 +100,13 @@ export async function loginReal(conta: ContaDeTeste) {
   return login;
 }
 
+/** Contexto nativo real, inclusive quando a conta ainda não tem jogador. */
+export async function atorDaConta(conta: ContaDeTeste) {
+  const contexto = await resolverAtor(await loginReal(conta));
+  if (!contexto) throw new Error("A sessão de aparelho deveria existir");
+  return contexto.ator;
+}
+
 export type Jogador = {
   conta: ContaDeTeste;
   login: Awaited<ReturnType<typeof loginReal>>;
@@ -101,13 +123,13 @@ export async function novoJogador(
   opcoes: { apelido?: string; avatar?: string; comAcesso?: boolean } = {},
 ): Promise<Jogador> {
   const conta = await novaConta();
-  const { perfil } = await criarPerfilProprio(conta.id, {
-    apelido: opcoes.apelido ?? "Lia",
-    avatar: opcoes.avatar ?? "padrao",
-  });
   const login = await loginReal(conta);
   const contexto = await resolverAtor(login);
   if (!contexto) throw new Error("A sessão de aparelho deveria existir");
+  const { perfil } = await criarPerfilProprio(contexto.ator, {
+    apelido: opcoes.apelido ?? "Lia",
+    avatar: opcoes.avatar ?? "padrao",
+  });
   await selecionarPerfil(contexto.ator, perfil.id);
   if (opcoes.comAcesso !== false)
     await conceder({ email: conta.email, tier: "individual", dias: 30, motivo: "teste" });

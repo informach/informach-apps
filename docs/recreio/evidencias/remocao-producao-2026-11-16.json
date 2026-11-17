@@ -1,0 +1,134 @@
+{
+  "fontePortal": "1ed101be594e81febdfeea7732067d7263135271",
+  "candidataComportamento": "737b6638f7a0f7c801a56bf9d448b6b960bb96d2",
+  "portal": {
+    "deployment": "85952e0f-dc51-4a44-8ea3-e0fdb9a6dab5",
+    "status": "SUCCESS",
+    "conferidoEm": "2026-11-16T18:47:41.985Z",
+    "rotaMembrosCompilada": true,
+    "rotaResponsabilidadeCompilada": true,
+    "ready": 200,
+    "configuracaoIgualAoPreflight": true,
+    "pendentes": false
+  },
+  "admin": {
+    "deployment": "0c3a8f70-7c75-451b-9a50-ce1c74ba09e0",
+    "status": "SUCCESS",
+    "novosEventos": ["recreio.space_member_removed", "recreio.space_invites_revoked"],
+    "configuracaoIgualAoPreflight": true,
+    "pendentes": false
+  },
+  "morada": {
+    "fonte": "92f665e730d201ecc606a5f692601c4bde27cc64",
+    "deployment": "1c69178d-670b-4f19-a95a-d9ef9ece8d05",
+    "novaImplantacao": "SKIPPED",
+    "prontidao": 200,
+    "reinicioAdicional": false
+  },
+  "contratos": {
+    "mundo": 2,
+    "protocolo": 1,
+    "arte": "D2",
+    "recibosDeMigracao": 167,
+    "ultimoJournal": "1794839729341",
+    "novaMigration": false
+  },
+  "preflight": {
+    "conferidoEm": "2026-11-16T18:30:32.216Z",
+    "membros": 2,
+    "encerradosSemData": 0,
+    "convitesPendentes": 0,
+    "emissoresIncompativeis": 0,
+    "partidasAbertas": 0,
+    "reparoDeDadosExecutado": false
+  },
+  "gates": {
+    "candidata": {
+      "runId": 43923719509,
+      "fonte": "737b6638f7a0f7c801a56bf9d448b6b960bb96d2",
+      "aprovados": 6,
+      "integracoesPostgres": 325,
+      "casosRemocaoEConvites": 34
+    },
+    "fontePublicada": {
+      "runId": 43928476051,
+      "fonte": "1ed101be594e81febdfeea7732067d7263135271",
+      "aprovados": 6
+    },
+    "mainRecreio": {
+      "runId": 43931150556,
+      "conclusao": "success",
+      "aprovados": 6
+    },
+    "ciGeralDaBase": {
+      "runId": 43918017303,
+      "conclusao": "success"
+    },
+    "mainGeral": {
+      "runId": 43931150504,
+      "estadoNoPrimeiroRegistro": "in_progress",
+      "conclusao": "success",
+      "conferidoEm": "2026-11-16T19:47:48Z"
+    },
+    "geralDaCandidata": {
+      "runId": 43923717777,
+      "jobId": 133497460410,
+      "conclusao": "failure",
+      "caso": "transferencia_apos_login_selecao_perdida",
+      "correcaoPendente": true,
+      "artefatoId": 14260710428,
+      "sha256Zip": "ce9a24bf4624a912f7d07889b23dbd2cf9fff17d5604616f2a7a34ac05b4c2bf"
+    }
+  },
+  "capturaFinal": {
+    "fonte": "d4c3b50341b9d379a2c544495cf8f446066523b0",
+    "runId": 43930655602,
+    "gatesAprovados": 6,
+    "diferencaAplicativoParaFontePublicada": false,
+    "diferencaSomenteTesteDeCaptura": true,
+    "artefatoId": 14259825541,
+    "sha256Zip": "cfef4ba308c575ca2aac4c4241e7a694b72d33448e7733be8995a4d62b728b13",
+    "arquivo": "remocao-membro-mobile.png",
+    "paginaInteira": true,
+    "largura": 390,
+    "alturaImagem": 971,
+    "alturaViewport": 844,
+    "botoesEConsequenciasLegiveis": true,
+    "rolagemHorizontal": false,
+    "confirmacaoPeloTeclado": true,
+    "dadosSinteticos": true,
+    "arteLicenciada": false
+  },
+  "cron": {
+    "inicio": "2026-11-16T18:45:31.093Z",
+    "fim": "2026-11-16T18:45:31.181Z",
+    "ok": true,
+    "summary": {
+      "possesVencidas": 0,
+      "convitesApagados": 0,
+      "sessoesExpiradas": 0,
+      "ingressosApagados": 0,
+      "instanciasSumidas": 0
+    }
+  },
+  "prontidao": {
+    "conferidoEm": "2026-11-16T18:53:24.710850Z",
+    "userAgent": "recreio-ops/1",
+    "oitoAppsAdminEMorada": 200
+  },
+  "sentry": {
+    "releaseConferida": true,
+    "mapasEnviadosEm": "2026-11-16T18:41:23.498093628Z",
+    "consulta": "is:unresolved lastSeen:-1h",
+    "projetos": ["recreio", "morada-server"],
+    "nenhumaIssueEncontrada": true,
+    "limite": "consulta pontual, nao certifica estabilidade geral"
+  },
+  "limites": [
+    "nao houve uso das contas piloto para simular aceite humano",
+    "validacao humana de transferencia adiada pelo titular",
+    "A6 ainda exige arquivamento e exportacao/exclusao",
+    "A5, retencao integral, backup agendado, custo por mundo, D3-D8 e venda continuam pendentes"
+  ],
+  "rollbackMinimo": "preservar leitores corrigidos de 737b6638; nao reabrir convites nem voltar ao aceite anterior"
+}

@@ -1,6 +1,8 @@
 import "server-only";
+import { FamilyError } from "@informach/family";
 
-import { getKitchenAccess } from "@/features/kitchen/access";
+import { cozyaAuthority } from "@/features/family/context";
+import { validateFamilyChoice } from "@/features/family/context-repository";
 import { getServerSession } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
@@ -10,11 +12,11 @@ import {
   enforceRateLimit,
   RateLimitedError,
 } from "@/lib/rate-limit";
-
-export type AiSubject = { readonly type: "user"; readonly id: string };
+import { aiErrorResponse } from "./errors";
+import type { CozyaAiActor } from "./wallet-repository";
 
 export type AiRouteGuardResult =
-  | { ok: true; userId: string; subject: AiSubject }
+  | { ok: true; userId: string; actor: CozyaAiActor }
   | { ok: false; response: Response };
 
 /**
@@ -24,13 +26,16 @@ export type AiRouteGuardResult =
  *   2. The request has a valid user session (else 401 `UNAUTHORIZED`).
  *   3. The user is under the per-hour anti-script invocation limit
  *      (else 429 `RATE_LIMITED` with `Retry-After`).
- *   4. Verified email and active Pro or explicitly activated trial entitlement.
- *      Billing still requires an available credit; an exhausted trial is not unlimited AI.
+ *   4. Verified email and current membership in the family shown in the browser.
+ *      Purchased credits remain spendable without an active subscription.
  *
  * `errorScope` is used for the structured log key emitted when the OpenRouter
  * key is missing (e.g. `"cozya.parse_text"` → `"cozya.parse_text.openrouter_key_missing"`).
  */
-export async function withAiRouteGuards(opts: { errorScope: string }): Promise<AiRouteGuardResult> {
+export async function withAiRouteGuards(opts: {
+  request: Request;
+  errorScope: string;
+}): Promise<AiRouteGuardResult> {
   if (!env.OPENROUTER_API_KEY) {
     logger.error({}, `${opts.errorScope}.openrouter_key_missing`);
     return {
@@ -52,7 +57,6 @@ export async function withAiRouteGuards(opts: { errorScope: string }): Promise<A
       ok: false,
       response: Response.json({ code: "EMAIL_VERIFICATION_REQUIRED" }, { status: 403 }),
     };
-  const subject: AiSubject = { type: "user", id: userId };
 
   try {
     await enforceRateLimit({
@@ -75,15 +79,24 @@ export async function withAiRouteGuards(opts: { errorScope: string }): Promise<A
     throw err;
   }
 
-  const access = await getKitchenAccess(userId);
-  if (!access.canUseAi) {
+  const actor = await cozyaAuthority(userId);
+  if (
+    !actor.familyGroupId ||
+    opts.request.headers.get("X-Compasso-Family") !== actor.familyGroupId
+  ) {
     return {
       ok: false,
-      response: Response.json({ code: "SUBSCRIPTION_REQUIRED" }, { status: 403 }),
+      response: Response.json({ code: "FAMILY_CONTEXT_CHANGED" }, { status: 409 }),
     };
   }
 
-  return { ok: true, userId, subject };
+  try {
+    await validateFamilyChoice(userId, actor.familyGroupId);
+  } catch (error) {
+    if (error instanceof FamilyError) return { ok: false, response: aiErrorResponse(error) };
+    throw error;
+  }
+  return { ok: true, userId, actor: { ...actor, familyGroupId: actor.familyGroupId } };
 }
 
 // Re-export do helper compartilhado em `@informach/ai-core` para que os

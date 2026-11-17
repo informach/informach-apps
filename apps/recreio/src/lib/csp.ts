@@ -78,8 +78,9 @@ export function montarCsp(opcoes: {
     "font-src 'self'",
     // Os decodificadores rodam em workers criados a partir de um blob.
     "worker-src 'self' blob:",
-    // O portal, a instância do jogo e, se o jogo declara, a origem da arte.
-    `connect-src 'self'${ws ? ` ${ws}` : ""}${comArte}${dev ? " ws: wss:" : ""}`,
+    // GLTFLoader/ImageBitmapLoader lê texturas embutidas com fetch(blob:).
+    // Essa leitura só é necessária quando o jogo declara a origem da arte.
+    `connect-src 'self'${ws ? ` ${ws}` : ""}${comArte}${arte ? " blob:" : ""}${dev ? " ws: wss:" : ""}`,
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'none'",

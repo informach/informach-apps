@@ -1,4 +1,5 @@
 import "server-only";
+import type { Route } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Helpers } from "./helpers";
@@ -43,7 +44,9 @@ export function createServerHelpers<TUser, TSession>(
       const user = await helpers.getCurrentUser(await getRequestHeaders());
       if (!user) {
         const target = next ? `${signInPath}?${nextParam}=${encodeURIComponent(next)}` : signInPath;
-        redirect(target);
+        // The sign-in route belongs to the consuming app; its registry is not
+        // available in this shared adapter. The destination is query-encoded.
+        redirect(target as Route);
       }
       return user;
     },

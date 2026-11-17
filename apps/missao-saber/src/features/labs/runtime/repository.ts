@@ -10,13 +10,17 @@ import {
   missaoSessions as sessions,
 } from "@informach/db/schema";
 import { z } from "zod";
-import { withBillingLifecycleWait } from "@/features/billing/repository";
-import { getAccess } from "@/features/billing/service";
+import {
+  type LearningAccess,
+  learningAccessInTransaction,
+} from "@/features/billing/access-repository";
 import { resolvedCourse } from "@/features/content/catalog";
 import { lessonSchema } from "@/features/content/types";
-import { allowedProfileIds } from "@/features/family/profile-access";
+import type { LearningAuthority } from "@/features/family/authority";
 import { effectiveGrade } from "@/features/family/school-year";
-import { lockOwner, recordHint } from "@/features/learning/repository";
+import { lockStudentAccess, studentAccessCondition } from "@/features/family/scope";
+import { enabledStudentIds, readStudents } from "@/features/family/student-repository";
+import { recordHintInTransaction } from "@/features/learning/repository";
 import { dashboard } from "@/features/learning/service";
 import { assertAllowed } from "@/lib/errors";
 import { experimentSchema } from "../schemas";
@@ -35,32 +39,23 @@ import type { ToolLaunch } from "./types";
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Run = typeof runs.$inferSelect;
 const identitySchema = z.object({ profileId: z.string().uuid(), id: z.string().uuid() });
-type BillingAccess = Awaited<ReturnType<typeof getAccess>>;
+type BillingAccess = LearningAccess;
 async function laboratoryTransaction<T>(
-  userId: string,
+  actor: LearningAuthority,
   operation: (tx: Tx, billingAccess: BillingAccess) => Promise<T>,
 ) {
-  return withBillingLifecycleWait(userId, async () => {
-    const billingAccess = await getAccess(userId);
-    return db.transaction(async (tx) => {
-      await lockOwner(tx, userId);
-      return operation(tx, billingAccess);
-    });
-  });
+  return db.transaction(async (tx) => operation(tx, await learningAccessInTransaction(tx, actor)));
 }
 async function lockedAccess(
   tx: Tx,
-  userId: string,
+  actor: LearningAuthority,
   profileId: string,
   experienceId: string,
   billingAccess: BillingAccess,
+  action: "read" | "write" = "write",
 ) {
-  const ordered = await tx
-    .select()
-    .from(profiles)
-    .where(eq(profiles.userId, userId))
-    .orderBy(profiles.createdAt, profiles.id);
-  const profile = ordered.find((row) => row.id === profileId);
+  await lockStudentAccess(tx, actor, [profileId], action);
+  const [profile] = await readStudents(tx, actor, profileId);
   assertAllowed(profile, "PROFILE", "Perfil não encontrado.");
   const grade = effectiveGrade(profile);
   const course = resolvedCourse({ ...profile, grade });
@@ -88,7 +83,9 @@ async function lockedAccess(
     grade,
     courseId: course.id,
     paid: billingAccess.paid,
-    profileAllowed: allowedProfileIds(ordered, billingAccess.profileLimit).includes(profileId),
+    profileAllowed: (await enabledStudentIds(tx, actor, billingAccess.profileLimit)).includes(
+      profileId,
+    ),
     contentStates: new Map(decision ? [[experience.lessonId, decision]] : []),
   });
   assertAllowed(
@@ -98,8 +95,8 @@ async function lockedAccess(
   );
   return { experience, grade, courseId: course.id };
 }
-async function access(userId: string, profileId: string, experienceId: string) {
-  const data = await dashboard(userId, profileId);
+async function access(actor: LearningAuthority, profileId: string, experienceId: string) {
+  const data = await dashboard(actor, profileId);
   assertAllowed(data.profile && data.course, "PROFILE", "Selecione um perfil e uma trilha.");
   const experience = eligibleExperiences({
     grade: data.profile.grade,
@@ -115,12 +112,32 @@ async function access(userId: string, profileId: string, experienceId: string) {
   );
   return { experience, grade: data.profile.grade, courseId: data.course.id };
 }
-async function ownedRun(tx: Tx, userId: string, profileId: string, id: string) {
+async function ownedRun(
+  tx: Tx,
+  actor: LearningAuthority,
+  profileId: string,
+  id: string,
+  action: "read" | "write" = "write",
+) {
+  const [candidate] = await tx
+    .select({ id: runs.id })
+    .from(runs)
+    .where(
+      and(
+        eq(runs.id, id),
+        eq(runs.profileId, profileId),
+        studentAccessCondition(actor, runs.profileId),
+      ),
+    );
+  assertAllowed(candidate, "NOT_FOUND", "Experiência não encontrada neste perfil.");
+  await lockStudentAccess(tx, actor, [profileId], action);
   const [row] = await tx
     .select({ run: runs })
     .from(runs)
     .innerJoin(profiles, eq(runs.profileId, profiles.id))
-    .where(and(eq(runs.id, id), eq(profiles.id, profileId), eq(profiles.userId, userId)));
+    .where(
+      and(eq(runs.id, id), eq(profiles.id, profileId), studentAccessCondition(actor, profiles.id)),
+    );
   assertAllowed(row, "NOT_FOUND", "Experiência não encontrada neste perfil.");
   assertAllowed(
     row.run.version === findExperience(row.run.experienceId)?.version,
@@ -171,7 +188,7 @@ async function view(run: Run, experience: LabExperience) {
 }
 export type LabExecutionView = Awaited<ReturnType<typeof view>>;
 
-export async function startLab(userId: string, raw: unknown) {
+export async function startLab(actor: LearningAuthority, raw: unknown) {
   const input = startLabSchema.parse(raw);
   const requestSource =
     !input.duplicateId && !input.noteId && !input.legacyKind && !input.context
@@ -187,52 +204,10 @@ export async function startLab(userId: string, raw: unknown) {
     "LAB_CONTEXT",
     "Escolha uma única origem para a nova experiência.",
   );
-  const [retry] = await db
-    .select({ run: runs })
-    .from(runs)
-    .innerJoin(profiles, eq(runs.profileId, profiles.id))
-    .where(
-      and(eq(runs.id, input.id), eq(profiles.id, input.profileId), eq(profiles.userId, userId)),
-    );
-  if (retry) {
-    const allowed = await access(userId, input.profileId, input.experienceId);
-    assertAllowed(
-      retry.run.experienceId === input.experienceId && retry.run.requestSource === requestSource,
-      "CONFLICT",
-      "Este identificador já está em uso.",
-    );
-    return view(retry.run, allowed.experience);
-  }
-  // Register assistance before a tool can be seen or an answer submitted.
-  if (input.context) {
-    const [source] = await db
-      .select({ profileId: sessions.profileId, snapshot: sessions.snapshot })
-      .from(sessions)
-      .innerJoin(profiles, eq(sessions.profileId, profiles.id))
-      .where(
-        and(
-          eq(sessions.id, input.context.sessionId),
-          eq(profiles.userId, userId),
-          eq(profiles.id, input.profileId),
-        ),
-      );
-    const experience = findExperience(input.experienceId);
-    const lesson = source ? lessonSchema.parse(source.snapshot) : null;
-    assertAllowed(
-      lesson &&
-        experience?.lessonId === lesson.id &&
-        experience.itemIds.includes(input.context.itemId) &&
-        lesson.items.some((item) => item.id === input.context?.itemId),
-      "LAB_CONTEXT",
-      "A experiência não pertence a esta questão.",
-    );
-    await access(userId, input.profileId, input.experienceId);
-    await recordHint(userId, { ...input.context, level: 1 });
-  }
-  return laboratoryTransaction(userId, async (tx, billingAccess) => {
+  return laboratoryTransaction(actor, async (tx, billingAccess) => {
     const allowed = await lockedAccess(
       tx,
-      userId,
+      actor,
       input.profileId,
       input.experienceId,
       billingAccess,
@@ -266,6 +241,31 @@ export async function startLab(userId: string, raw: unknown) {
         .orderBy(desc(runs.createdAt), desc(runs.id))
         .limit(1);
       if (continuing) return view(continuing, allowed.experience);
+    }
+    // Register assistance before a tool can be seen or an answer submitted.
+    if (input.context) {
+      const [source] = await tx
+        .select({ profileId: sessions.profileId, snapshot: sessions.snapshot })
+        .from(sessions)
+        .innerJoin(profiles, eq(sessions.profileId, profiles.id))
+        .where(
+          and(
+            eq(sessions.id, input.context.sessionId),
+            studentAccessCondition(actor, profiles.id),
+            eq(profiles.id, input.profileId),
+          ),
+        );
+      const experience = findExperience(input.experienceId);
+      const lesson = source ? lessonSchema.parse(source.snapshot) : null;
+      assertAllowed(
+        lesson &&
+          experience?.lessonId === lesson.id &&
+          experience.itemIds.includes(input.context.itemId) &&
+          lesson.items.some((item) => item.id === input.context?.itemId),
+        "LAB_CONTEXT",
+        "A experiência não pertence a esta questão.",
+      );
+      await recordHintInTransaction(tx, actor, { ...input.context, level: 1 });
     }
     const tool = await loadTool(allowed.experience.family);
     const first = tool.activity(launchFor(allowed.experience, allowed.grade, 0));
@@ -323,7 +323,7 @@ export async function startLab(userId: string, raw: unknown) {
       };
     }
     if (input.duplicateId) {
-      const original = await ownedRun(tx, userId, input.profileId, input.duplicateId);
+      const original = await ownedRun(tx, actor, input.profileId, input.duplicateId);
       assertAllowed(
         original.experienceId === input.experienceId,
         "LAB_CONTEXT",
@@ -352,7 +352,7 @@ export async function startLab(userId: string, raw: unknown) {
       );
       runGrade =
         attachment.grade ??
-        (await ownedRun(tx, userId, input.profileId, attachment.executionId)).grade;
+        (await ownedRun(tx, actor, input.profileId, attachment.executionId)).grade;
       document = await normalize(allowed.experience, runGrade, attachment.document);
       context ??= attachment.missionContext
         ? {
@@ -384,27 +384,28 @@ export async function startLab(userId: string, raw: unknown) {
   });
 }
 
-export async function readLab(userId: string, raw: unknown) {
+export async function readLab(actor: LearningAuthority, raw: unknown) {
   const input = identitySchema.parse(raw);
-  return laboratoryTransaction(userId, async (tx, billingAccess) => {
-    const run = await ownedRun(tx, userId, input.profileId, input.id);
+  return laboratoryTransaction(actor, async (tx, billingAccess) => {
+    const run = await ownedRun(tx, actor, input.profileId, input.id, "read");
     const allowed = await lockedAccess(
       tx,
-      userId,
+      actor,
       input.profileId,
       run.experienceId,
       billingAccess,
+      "read",
     );
     return view(run, allowed.experience);
   });
 }
-export async function saveLab(userId: string, raw: unknown) {
+export async function saveLab(actor: LearningAuthority, raw: unknown) {
   const input = saveLabSchema.parse(raw);
-  return laboratoryTransaction(userId, async (tx, billingAccess) => {
-    const run = await ownedRun(tx, userId, input.profileId, input.id);
+  return laboratoryTransaction(actor, async (tx, billingAccess) => {
+    const run = await ownedRun(tx, actor, input.profileId, input.id);
     const { experience } = await lockedAccess(
       tx,
-      userId,
+      actor,
       input.profileId,
       run.experienceId,
       billingAccess,
@@ -442,18 +443,18 @@ export async function saveLab(userId: string, raw: unknown) {
     return { revision: run.revision + 1, updatedAt: now.toISOString() };
   });
 }
-export async function assessLab(userId: string, raw: unknown) {
+export async function assessLab(actor: LearningAuthority, raw: unknown) {
   const input = identitySchema
     .extend({
       revision: z.number().int().positive(),
       variant: z.union([z.literal(0), z.literal(1)]),
     })
     .parse(raw);
-  return laboratoryTransaction(userId, async (tx, billingAccess) => {
-    const run = await ownedRun(tx, userId, input.profileId, input.id);
+  return laboratoryTransaction(actor, async (tx, billingAccess) => {
+    const run = await ownedRun(tx, actor, input.profileId, input.id);
     const { experience } = await lockedAccess(
       tx,
-      userId,
+      actor,
       input.profileId,
       run.experienceId,
       billingAccess,
@@ -493,8 +494,8 @@ export async function assessLab(userId: string, raw: unknown) {
     return { ...assessment, updatedAt: updatedAt.toISOString() };
   });
 }
-export async function listLabs(userId: string, profileId: string) {
-  const data = await dashboard(userId, z.string().uuid().parse(profileId));
+export async function listLabs(actor: LearningAuthority, profileId: string) {
+  const data = await dashboard(actor, z.string().uuid().parse(profileId));
   assertAllowed(data.profile, "PROFILE", "Perfil não encontrado.");
   const allowed = new Set(
     data.course
@@ -516,7 +517,7 @@ export async function listLabs(userId: string, profileId: string) {
       assessment: runs.assessment,
     })
     .from(runs)
-    .where(eq(runs.profileId, profileId))
+    .where(and(eq(runs.profileId, profileId), studentAccessCondition(actor, runs.profileId)))
     .orderBy(desc(runs.updatedAt));
   return rows
     .filter((run) => allowed.has(run.experienceId))
@@ -526,20 +527,26 @@ export async function listLabs(userId: string, profileId: string) {
       updatedAt: run.updatedAt.toISOString(),
     }));
 }
-export async function readLabNote(userId: string, profileId: string, noteId: string) {
+export async function readLabNote(actor: LearningAuthority, profileId: string, noteId: string) {
   identitySchema.parse({ profileId, id: noteId });
   const [row] = await db
     .select({ attachment: notes.labAttachment })
     .from(notes)
     .innerJoin(profiles, eq(notes.profileId, profiles.id))
-    .where(and(eq(notes.id, noteId), eq(profiles.id, profileId), eq(profiles.userId, userId)));
+    .where(
+      and(
+        eq(notes.id, noteId),
+        eq(profiles.id, profileId),
+        studentAccessCondition(actor, profiles.id),
+      ),
+    );
   assertAllowed(
     row?.attachment,
     "NOT_FOUND",
     "Investigação não encontrada no caderno deste perfil.",
   );
   const attachment = labAttachmentSchema.parse(row.attachment);
-  await access(userId, profileId, attachment.experienceId);
+  await access(actor, profileId, attachment.experienceId);
   return { ...attachment, noteId };
 }
 const legacyTargets = {
@@ -548,7 +555,7 @@ const legacyTargets = {
   groups: { family: "L12", mode: "possivel-ou-garantido", title: "Grupos e gavetas" },
 };
 export async function legacyLabChoices(
-  userId: string,
+  actor: LearningAuthority,
   profileId: string,
   eligible: LabExperience[],
 ) {
@@ -556,7 +563,7 @@ export async function legacyLabChoices(
     .select({ experiment: experiments })
     .from(experiments)
     .innerJoin(profiles, eq(experiments.profileId, profiles.id))
-    .where(and(eq(profiles.id, profileId), eq(profiles.userId, userId)));
+    .where(and(eq(profiles.id, profileId), studentAccessCondition(actor, profiles.id)));
   return rows.flatMap(({ experiment }) => {
     const target = legacyTargets[experiment.kind];
     const experience = eligible.find(
@@ -567,15 +574,15 @@ export async function legacyLabChoices(
       : [];
   });
 }
-export async function labToNotebook(userId: string, raw: unknown) {
+export async function labToNotebook(actor: LearningAuthority, raw: unknown) {
   const input = identitySchema
     .extend({ noteId: z.string().uuid(), revision: z.number().int().positive() })
     .parse(raw);
-  return laboratoryTransaction(userId, async (tx, billingAccess) => {
-    const run = await ownedRun(tx, userId, input.profileId, input.id);
+  return laboratoryTransaction(actor, async (tx, billingAccess) => {
+    const run = await ownedRun(tx, actor, input.profileId, input.id);
     const { experience } = await lockedAccess(
       tx,
-      userId,
+      actor,
       input.profileId,
       run.experienceId,
       billingAccess,

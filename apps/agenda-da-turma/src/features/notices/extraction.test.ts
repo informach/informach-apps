@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { noticeCostQuote } from "@/features/ai/costs";
 import { validateNoticeExtraction } from "./extraction";
 import { actionFieldsSchema, dateSchema, parseNoticeSchema } from "./schemas";
 
@@ -53,6 +54,7 @@ describe("school notice date provenance", () => {
   it("accepts a notebook photo with no typed text", () => {
     expect(
       parseNoticeSchema.safeParse({
+        acceptedCost: noticeCostQuote({ text: "" }),
         profileId: "f2eb50ee-b7b1-44b0-a20e-2261b382f8ee",
         source: "notebook",
         text: "",
@@ -190,10 +192,15 @@ describe("school notice date provenance", () => {
         pages: [2],
       },
     };
-    expect(parseNoticeSchema.safeParse(input).success).toBe(true);
     expect(
-      parseNoticeSchema.safeParse({ ...input, sourceUrl: "https://user:password@example.com/file" })
-        .success,
+      parseNoticeSchema.safeParse({ ...input, acceptedCost: noticeCostQuote(input) }).success,
+    ).toBe(true);
+    expect(
+      parseNoticeSchema.safeParse({
+        ...input,
+        acceptedCost: noticeCostQuote(input),
+        sourceUrl: "https://user:password@example.com/file",
+      }).success,
     ).toBe(false);
   });
 });

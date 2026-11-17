@@ -5,6 +5,7 @@ import {
   events as auditEvents,
   customers,
   recreioEntitlements as entitlements,
+  recreioGameSessions as gameSessions,
   recreioGroups as groups,
   recreioProfiles as profiles,
   subscriptions,
@@ -15,13 +16,17 @@ import { ZodError } from "zod";
 import { avaliarAcesso } from "@/features/acesso/service";
 import { criarPerfilProprio } from "@/features/perfis/service";
 import { conceder, RecusaDeConcessao, revogar } from "../scripts/concessoes";
-import { type ContaDeTeste, novaConta } from "./apoio";
+import { atorDaConta, type ContaDeTeste, novaConta, novoJogador } from "./apoio";
+import { entrarNoJogo } from "./jogo-apoio";
 
 const DIA = 86_400_000;
 
 async function contaComPerfil() {
   const conta = await novaConta();
-  const { perfil } = await criarPerfilProprio(conta.id, { apelido: "Lia", avatar: "sol" });
+  const { perfil } = await criarPerfilProprio(await atorDaConta(conta), {
+    apelido: "Lia",
+    avatar: "sol",
+  });
   return { conta, perfil };
 }
 
@@ -82,6 +87,35 @@ async function assinatura(
 }
 
 describe("direito de jogar por concessão", () => {
+  it("revogar a cortesia preserva a assinatura válida e encerra só quem ficou sem cobertura", async () => {
+    const titular = await novoJogador({ comAcesso: false });
+    const adulto = await novoJogador({ comAcesso: false });
+    await db
+      .update(profiles)
+      .set({ groupId: titular.perfil.grupoId })
+      .where(eq(profiles.id, adulto.perfil.id));
+    await conceder({ email: titular.conta.email, tier: "family", dias: 30, motivo: "teste" });
+    const primeira = await entrarNoJogo(titular);
+    const segunda = await entrarNoJogo(adulto);
+    // A assinatura entrou depois das sessões. Ao remover a cortesia, sobra
+    // cobertura individual: o perfil mais antigo continua, o outro sai.
+    await assinatura(titular.conta, "active", "recreio_individual_monthly");
+    await revogar({ email: titular.conta.email, motivo: "fim_do_alfa" });
+    const linhas = await db
+      .select()
+      .from(gameSessions)
+      .where(sql`${gameSessions.id} in (${primeira.sid}, ${segunda.sid})`);
+    expect(linhas.find((linha) => linha.id === primeira.sid)?.endedAt).toBeNull();
+    expect(linhas.find((linha) => linha.id === segunda.sid)).toMatchObject({
+      endReason: "access_lost",
+    });
+    expect(linhas.find((linha) => linha.id === segunda.sid)?.endedSeq).toBeGreaterThan(0);
+    expect(await avaliarAcesso({ profileId: titular.perfil.id })).toMatchObject({
+      podeJogar: true,
+      origem: "assinatura",
+    });
+  });
+
   it("sem concessão nem assinatura, não joga", async () => {
     const { perfil } = await contaComPerfil();
     expect(await avaliarAcesso({ profileId: perfil.id })).toMatchObject({
@@ -332,7 +366,10 @@ describe("concessão e auditoria andam juntas", () => {
     }
 
     // Com a auditoria de volta, a concessão entra, e a revogação sem evento é desfeita.
-    const { perfil } = await criarPerfilProprio(conta.id, { apelido: "Lia", avatar: "sol" });
+    const { perfil } = await criarPerfilProprio(await atorDaConta(conta), {
+      apelido: "Lia",
+      avatar: "sol",
+    });
     const feita = await conceder({
       email: conta.email,
       tier: "family",

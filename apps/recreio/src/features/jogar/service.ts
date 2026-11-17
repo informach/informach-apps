@@ -1,14 +1,15 @@
 import "server-only";
-import { ehErroDoRecreio, type MundoId, type PerfilId } from "@informach/recreio";
-import { avaliarAcesso } from "@/features/acesso/service";
+import { ehErroDoRecreio, type MundoId, MundoIdSchema } from "@informach/recreio";
+import type { ReferenciaDeJogador } from "@/features/autoridade-de-jogo/aparelho-repository";
+import { conferirAberturaDoJogo } from "@/features/autoridade-de-jogo/pagina-repository";
 import { jogoQueAbre, origensDoJogo } from "@/features/jogos/config";
-import { detalheDoMundo } from "@/features/mundos/service";
+import { detalheAtualDoMundo } from "@/features/mundos/service";
 import { temCliente } from "./registro";
 
 /**
  * O que a página `/jogar/<jogo>` decide no servidor antes de entregar qualquer
- * coisa ao navegador. O perfil já chega conferido (`paginaDoPortal`); aqui
- * entram o jogo, o direito de jogar e o mundo pedido.
+ * coisa ao navegador. A referência vem do cookie nativo ou pareado; o kernel
+ * relê aparelho, perfil, responsabilidade e política antes de liberar o cliente.
  *
  * A página só recebe o id do jogo, o id do mundo e textos de exibição. Nenhum
  * id de perfil ou de conta, e-mail ou token sai daqui.
@@ -20,6 +21,7 @@ export type PaginaDoJogo =
   | { tipo: "sem_acesso" }
   /** Faltou dizer qual mundo: a estante é onde se escolhe. */
   | { tipo: "sem_mundo" }
+  | { tipo: "pronto_sem_mundo"; jogo: { id: string; nome: string; origemDaArte: string | null } }
   /** O mundo não existe, é de outro jogo ou o perfil não participa dele: a mesma resposta. */
   | { tipo: "mundo_indisponivel"; jogo: { id: string; nome: string } }
   | {
@@ -33,7 +35,7 @@ export type PaginaDoJogo =
     };
 
 export async function prepararPaginaDoJogo(
-  perfilId: PerfilId,
+  jogador: ReferenciaDeJogador,
   jogoId: string,
   mundoPedido: string | string[] | undefined,
 ): Promise<PaginaDoJogo> {
@@ -46,14 +48,27 @@ export async function prepararPaginaDoJogo(
   }
   if (!temCliente(manifesto.id)) return { tipo: "inexistente" };
 
-  const acesso = await avaliarAcesso({ profileId: perfilId, gameId: manifesto.id });
-  if (!acesso.podeJogar) return { tipo: "sem_acesso" };
+  if (!(await conferirAberturaDoJogo(jogador, manifesto.id))) return { tipo: "sem_acesso" };
+
+  if (!manifesto.capacidades.mundos)
+    return {
+      tipo: "pronto_sem_mundo",
+      jogo: {
+        id: manifesto.id,
+        nome: manifesto.nome,
+        origemDaArte: origensDoJogo(manifesto.id)?.assets ?? null,
+      },
+    };
 
   if (typeof mundoPedido !== "string" || mundoPedido === "") return { tipo: "sem_mundo" };
   const jogo = { id: manifesto.id, nome: manifesto.nome };
-  // `detalheDoMundo` confere a forma do id com o esquema do domínio e só acha
-  // o mundo de quem é membro ativo dele.
-  const mundo = await detalheDoMundo(perfilId, mundoPedido);
+  const id = MundoIdSchema.safeParse(mundoPedido);
+  if (!id.success) return { tipo: "mundo_indisponivel", jogo };
+  const mundo = await detalheAtualDoMundo(jogador, manifesto.id, id.data).catch((erro: unknown) => {
+    if (ehErroDoRecreio(erro, "NAO_MEMBRO") || ehErroDoRecreio(erro, "POLITICA_INCOMPATIVEL"))
+      return null;
+    throw erro;
+  });
   if (!mundo || mundo.jogo !== manifesto.id) return { tipo: "mundo_indisponivel", jogo };
   return {
     tipo: "pronto",

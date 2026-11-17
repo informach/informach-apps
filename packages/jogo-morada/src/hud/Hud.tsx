@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { familiasDoJogador, resumoDaPresenca } from "../modelo/retratos";
 import { Avisos } from "./Avisos";
 import { Carga } from "./Carga";
+import { AguardandoFamilia, CriacaoDaFamilia } from "./CriacaoDaFamilia";
 import { type Controle, quemSou } from "./controle";
 import { Fila } from "./Fila";
 import { MenuRadial } from "./MenuRadial";
@@ -27,6 +28,13 @@ export function Hud({ controle }: { controle: Controle }) {
   const { sessao } = controle;
   const { loja } = sessao;
   useSyncExternalStore(loja.subscribe, loja.getSnapshot, loja.getSnapshot);
+  const estavaCriando = useRef(false);
+  const semFamilia = loja.visao?.familias.ordem.length === 0;
+  const temFamilia = (loja.visao?.familias.ordem.length ?? 0) > 0;
+  useEffect(() => {
+    if (estavaCriando.current && temFamilia) controle.focarNaCena();
+    estavaCriando.current = semFamilia;
+  }, [controle, semFamilia, temFamilia]);
 
   const [, bater] = useState(0);
   useEffect(() => {
@@ -67,6 +75,28 @@ export function Hud({ controle }: { controle: Controle }) {
     return (
       <div ref={raiz} className="morada-hud" data-morada-conexao={loja.conexao.fase}>
         <Avisos loja={loja} avisos={loja.avisos} />
+        {carga}
+      </div>
+    );
+  }
+
+  if (estado.familias.ordem.length === 0) {
+    return (
+      <div
+        ref={raiz}
+        className="morada-hud"
+        data-morada-conexao={loja.conexao.fase}
+        data-morada-papel={loja.jogador?.papel}
+      >
+        {loja.jogador?.papel === "steward" ? (
+          <CriacaoDaFamilia
+            controle={controle}
+            catalogo={estado.catalogoDeAparencias}
+            maximo={estado.regras.maxMoradoresPorFamilia}
+          />
+        ) : (
+          <AguardandoFamilia controle={controle} />
+        )}
         {carga}
       </div>
     );

@@ -45,12 +45,24 @@ describe("página do jogo", () => {
     const lia = await novoJogador();
     // Um jogo do catálogo, que abre e tem mundo, mas sem cliente no portal: não tem página.
     const mundoSemCliente = await mundoDe(lia, SEM_CLIENTE);
-    expect(await prepararPaginaDoJogo(lia.perfil.id, SEM_CLIENTE, mundoSemCliente)).toEqual({
+    expect(
+      await prepararPaginaDoJogo(
+        { perfilId: lia.perfil.id, sessaoDeAparelhoId: lia.ator.sessaoDeAparelhoId },
+        SEM_CLIENTE,
+        mundoSemCliente,
+      ),
+    ).toEqual({
       tipo: "inexistente",
     });
     // O Morada tem cliente: a página dele abre com o mundo dele.
     const mundoDoMorada = await mundoDe(lia, MORADA, "Casa da Lia");
-    expect(await prepararPaginaDoJogo(lia.perfil.id, MORADA, mundoDoMorada)).toEqual({
+    expect(
+      await prepararPaginaDoJogo(
+        { perfilId: lia.perfil.id, sessaoDeAparelhoId: lia.ator.sessaoDeAparelhoId },
+        MORADA,
+        mundoDoMorada,
+      ),
+    ).toEqual({
       tipo: "pronto",
       jogo: { id: MORADA, nome: "Morada", origemDaArte: null },
       mundo: { id: mundoDoMorada, nome: "Casa da Lia" },
@@ -60,7 +72,11 @@ describe("página do jogo", () => {
   it("entrega o jogo e o mundo, e nada de quem joga", async () => {
     const lia = await novoJogador();
     const mundo = await mundoDe(lia, TESTE, "Casa azul");
-    const pagina = await prepararPaginaDoJogo(lia.perfil.id, TESTE, mundo);
+    const pagina = await prepararPaginaDoJogo(
+      { perfilId: lia.perfil.id, sessaoDeAparelhoId: lia.ator.sessaoDeAparelhoId },
+      TESTE,
+      mundo,
+    );
     expect(pagina).toEqual({
       tipo: "pronto",
       jogo: { id: TESTE, nome: "Jogo de teste", origemDaArte: null },
@@ -77,15 +93,33 @@ describe("página do jogo", () => {
     const semAcesso = await novoJogador({ comAcesso: false });
     const lia = await novoJogador();
     const mundo = await mundoDe(lia, TESTE);
-    expect(await prepararPaginaDoJogo(semAcesso.perfil.id, TESTE, mundo)).toEqual({
+    expect(
+      await prepararPaginaDoJogo(
+        { perfilId: semAcesso.perfil.id, sessaoDeAparelhoId: semAcesso.ator.sessaoDeAparelhoId },
+        TESTE,
+        mundo,
+      ),
+    ).toEqual({
       tipo: "sem_acesso",
     });
-    expect(await prepararPaginaDoJogo(semAcesso.perfil.id, TESTE, undefined)).toEqual({
+    expect(
+      await prepararPaginaDoJogo(
+        { perfilId: semAcesso.perfil.id, sessaoDeAparelhoId: semAcesso.ator.sessaoDeAparelhoId },
+        TESTE,
+        undefined,
+      ),
+    ).toEqual({
       tipo: "sem_acesso",
     });
     // Quem perdeu o acesso continua membro do mundo, mas não entra no jogo.
     await revogar({ email: lia.conta.email, motivo: "teste" });
-    expect(await prepararPaginaDoJogo(lia.perfil.id, TESTE, mundo)).toEqual({
+    expect(
+      await prepararPaginaDoJogo(
+        { perfilId: lia.perfil.id, sessaoDeAparelhoId: lia.ator.sessaoDeAparelhoId },
+        TESTE,
+        mundo,
+      ),
+    ).toEqual({
       tipo: "sem_acesso",
     });
   });
@@ -94,7 +128,13 @@ describe("página do jogo", () => {
     "sem dizer o mundo (%j) volta para a estante",
     async (mundo) => {
       const lia = await novoJogador();
-      expect(await prepararPaginaDoJogo(lia.perfil.id, TESTE, mundo)).toEqual({
+      expect(
+        await prepararPaginaDoJogo(
+          { perfilId: lia.perfil.id, sessaoDeAparelhoId: lia.ator.sessaoDeAparelhoId },
+          TESTE,
+          mundo,
+        ),
+      ).toEqual({
         tipo: "sem_mundo",
       });
     },
@@ -107,7 +147,11 @@ describe("página do jogo", () => {
     const deOutroJogo = await mundoDe(lia, MORADA);
     const respostas = await Promise.all(
       [deOutraPessoa, deOutroJogo, randomUUID(), "nao-e-um-id", "' or 1=1 --"].map((mundo) =>
-        prepararPaginaDoJogo(lia.perfil.id, TESTE, mundo),
+        prepararPaginaDoJogo(
+          { perfilId: lia.perfil.id, sessaoDeAparelhoId: lia.ator.sessaoDeAparelhoId },
+          TESTE,
+          mundo,
+        ),
       ),
     );
     for (const resposta of respostas)

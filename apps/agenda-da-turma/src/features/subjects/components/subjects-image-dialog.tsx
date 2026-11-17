@@ -13,6 +13,7 @@ import { toast } from "@informach/ui/components/sonner";
 import { Camera, ImagePlus, Images, Loader2, RefreshCcw } from "lucide-react";
 import { useRef, useState } from "react";
 import { handleAiHttpError } from "@/features/ai/_http-errors";
+import { SUBJECT_IMAGE_COST } from "@/features/ai/costs";
 import {
   downscaleToDataUrl,
   isAcceptedImageMime,
@@ -22,6 +23,7 @@ import {
 import type { ParsedSubjectInput } from "./subjects-batch-confirm-dialog";
 
 type Props = {
+  profileId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onParsed: (subjects: ParsedSubjectInput[]) => void;
@@ -31,7 +33,7 @@ type Stage = "idle" | "preview" | "parsing" | "not_subjects";
 
 const PARSE_ENDPOINT = "/api/ai/subjects/parse-image";
 
-export function SubjectsImageDialog({ open, onOpenChange, onParsed }: Props) {
+export function SubjectsImageDialog({ profileId, open, onOpenChange, onParsed }: Props) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<Stage>("idle");
@@ -114,7 +116,7 @@ export function SubjectsImageDialog({ open, onOpenChange, onParsed }: Props) {
     const res = await fetch(PARSE_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageDataUrl }),
+      body: JSON.stringify({ imageDataUrl, profileId, acceptedCost: SUBJECT_IMAGE_COST }),
     });
     if (!handleAiHttpError(res)) {
       setStage("preview");
@@ -160,8 +162,10 @@ export function SubjectsImageDialog({ open, onOpenChange, onParsed }: Props) {
         <DialogHeader>
           <DialogTitle>Cadastrar matérias por imagem</DialogTitle>
           <DialogDescription>
-            Tire uma foto do horário da turma (impresso, print ou caderno). A Agenda separa as
-            matérias e os dias, e você confere antes de salvar.
+            A leitura reserva até {SUBJECT_IMAGE_COST.maxCredits} créditos do Compasso. Ao concluir,
+            cobra o consumo e libera a diferença. Falhas não são cobradas. Tire uma foto do horário
+            da turma (impresso, print ou caderno). A Agenda separa as matérias e os dias, e você
+            confere antes de salvar.
           </DialogDescription>
         </DialogHeader>
 

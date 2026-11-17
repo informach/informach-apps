@@ -1,3 +1,4 @@
+import { getEnv } from "@/lib/env";
 import { daysAgo } from "@/lib/format";
 import { productName, SERVICE_KEYS, SERVICES, type ServiceKey } from "@/lib/products";
 import {
@@ -20,10 +21,10 @@ import {
 } from "./repository";
 import {
   type LastRun,
-  ROUTINES,
   type RoutineDefinition,
   type RoutineState,
   routineState,
+  routinesForDeployment,
 } from "./routines";
 import { type SentryOverview, sentryOverview } from "./sentry";
 
@@ -88,16 +89,22 @@ export function buildRoutineRows(
   runs: ReadonlyArray<LastRun & { app: string; job: string }>,
   counts: ReadonlyArray<{ app: string; job: string; runs: number; failures: number }>,
   now: Date,
+  compassoEnabled = false,
 ): RoutineRow[] {
   const key = (app: string, job: string) => `${app}/${job}`;
   const lastByKey = new Map(runs.map((run) => [key(run.app, run.job), run]));
   const countByKey = new Map(counts.map((item) => [key(item.app, item.job), item]));
-  return ROUTINES.map((routine) => {
+  return routinesForDeployment(compassoEnabled).map((routine) => {
     const last = lastByKey.get(key(routine.app, routine.job)) ?? null;
     const count = countByKey.get(key(routine.app, routine.job));
     return {
       ...routine,
-      appName: routine.app === "admin" ? "Bastidores" : productName(routine.app),
+      appName:
+        routine.app === "admin"
+          ? "Bastidores"
+          : routine.app === "conta"
+            ? SERVICES.conta.name
+            : productName(routine.app),
       state: routineState(routine, last, now),
       last,
       runs24h: count?.runs ?? 0,
@@ -243,7 +250,7 @@ export async function getOperationsView(now: Date = new Date()): Promise<Operati
     checkedAt: checks[0]?.checkedAt ?? now,
     services: buildServiceRows(checks, stored),
     migrations,
-    routines: buildRoutineRows(runs, counts, now),
+    routines: buildRoutineRows(runs, counts, now, getEnv().ADMIN_COMPASSO_ENABLED === "1"),
     emails: buildEmailSummary(emailDay, emailWeek),
     ai: buildAiRows(reservations, costs),
     sentry,

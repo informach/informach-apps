@@ -14,6 +14,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { users } from "./core";
+import { familyAppProfiles, familyGroups } from "./family";
 
 export const boraTreinar = pgSchema("bora_treinar");
 const time = (name: string) => timestamp(name, { withTimezone: true }).defaultNow().notNull();
@@ -62,19 +63,20 @@ export const boraTrialClaims = boraTreinar.table("trial_claims", {
 });
 
 /**
- * Perfil de quem treina. Apelido, cor e preferências de treino (jeito de treinar, tempo, dias por
- * semana): nenhuma data de nascimento, peso, foto ou dado de saúde, porque perfis costumam ser de
- * crianças.
+ * Preferências e histórico de treino ligados obrigatoriamente à ativação canônica.
+ * Nome e cor pertencem à pessoa central; não há uma segunda identidade neste app.
  */
 export const boraProfiles = boraTreinar.table(
   "profiles",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id")
+    /** Canonical activation; identity and permissions belong to the family domain. */
+    familyProfileId: uuid("family_profile_id")
       .notNull()
-      .references(() => boraFamilies.userId, { onDelete: "cascade" }),
-    name: text("name").notNull(),
-    color: text("color").notNull(),
+      .references(() => familyAppProfiles.id, { onDelete: "restrict" })
+      .unique(),
+    /** Creator attribution only; deleting adult preferences must never delete shared history. */
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
     /** Perfil escolhido para continuar ativo quando o plano comporta menos perfis. */
     accessEnabled: boolean("access_enabled").notNull().default(true),
     /**
@@ -92,8 +94,6 @@ export const boraProfiles = boraTreinar.table(
   },
   (t) => [
     index("bora_profiles_owner").on(t.userId, t.createdAt),
-    check("bora_profiles_name", sql`char_length(${t.name}) between 1 and 24`),
-    check("bora_profiles_color", sql`${t.color} ~ '^#[0-9A-F]{6}$'`),
     check("bora_profiles_intensity", sql`${t.intensity} in ('leve', 'normal', 'forte')`),
     check("bora_profiles_weekly_goal", sql`${t.weeklyGoal} between 1 and 7`),
     check(
@@ -139,9 +139,8 @@ export const boraSessions = boraTreinar.table(
   "sessions",
   {
     id: uuid("id").primaryKey(),
-    userId: text("user_id")
-      .notNull()
-      .references(() => boraFamilies.userId, { onDelete: "cascade" }),
+    /** Creator attribution only; deleting adult preferences must never delete shared history. */
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
     profileId: uuid("profile_id")
       .notNull()
       .references(() => boraProfiles.id, { onDelete: "cascade" }),
@@ -229,9 +228,12 @@ export const boraChallenges = boraTreinar.table(
   "challenges",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id")
+    /** Canonical context, independent of the adult who created the challenge. */
+    familyGroupId: uuid("family_group_id")
       .notNull()
-      .references(() => boraFamilies.userId, { onDelete: "cascade" }),
+      .references(() => familyGroups.id, { onDelete: "restrict" }),
+    /** Creator attribution only; deleting adult preferences must never delete shared history. */
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
     /** Perfil dono do desafio; nulo = desafio da família, somado por todos. */
     profileId: uuid("profile_id").references(() => boraProfiles.id, { onDelete: "cascade" }),
     /** Segunda-feira local, em data pura. */
@@ -243,8 +245,8 @@ export const boraChallenges = boraTreinar.table(
     createdAt: time("created_at"),
   },
   (t) => [
-    uniqueIndex("bora_challenges_family_week")
-      .on(t.userId, t.weekStart)
+    uniqueIndex("bora_challenges_group_week")
+      .on(t.familyGroupId, t.weekStart)
       .where(sql`${t.profileId} is null`),
     uniqueIndex("bora_challenges_profile_week")
       .on(t.profileId, t.weekStart)

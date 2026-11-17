@@ -1,5 +1,6 @@
 import "server-only";
 import type { Staff } from "@/lib/access";
+import { getEnv } from "@/lib/env";
 import {
   daysAgo,
   formatBRL,
@@ -276,7 +277,9 @@ export async function getOverview(staff: Staff, now: Date = new Date()): Promise
     });
   }
 
-  const routines = routineAttention(buildRoutineRows(runs, [], now));
+  const routines = routineAttention(
+    buildRoutineRows(runs, [], now, getEnv().ADMIN_COMPASSO_ENABLED === "1"),
+  );
   if (routines) attention.push(routines);
 
   if (overdue > 0) {

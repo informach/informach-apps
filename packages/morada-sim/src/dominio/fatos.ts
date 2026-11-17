@@ -11,10 +11,12 @@ import type { Permissao } from "./permissoes";
 import type {
   Centavos,
   EstadoDoCasal,
+  Familia,
   Fase,
   Gravidez,
   Morador,
   Pedido,
+  ReciboDeFundacao,
   Relacao,
   Tick,
 } from "./tipos";
@@ -29,6 +31,13 @@ import type {
  */
 
 export type DadosDoFato =
+  | {
+      tipo: "FamiliaFundada";
+      familia: Familia;
+      moradores: Morador[];
+      relacoes: Relacao[];
+      recibo: ReciboDeFundacao;
+    }
   | { tipo: "AcessoConcedido"; perfilId: PerfilId; familiaId: FamiliaId; permissoes: Permissao[] }
   | { tipo: "AcessoRevogado"; perfilId: PerfilId; familiaId: FamiliaId }
   | { tipo: "PreferidoDefinido"; moradorId: MoradorId; perfilId: PerfilId | null }

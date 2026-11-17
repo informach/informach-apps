@@ -48,7 +48,9 @@ export function DayPage() {
             No domingo chega um resumo da semana por e-mail, com o dia mais cheio marcado enquanto
             ainda dá para adiantar.
           </p>
-          <p className="text-sm text-muted-foreground">Resumos e lembretes fazem parte do Pro.</p>
+          <p className="text-sm text-muted-foreground">
+            Resumos e lembretes fazem parte do Compasso.
+          </p>
         </div>
         <div className="flex flex-wrap justify-center gap-6">
           <Phone className={SMALL_PHONE} scale={0.6} label="A mochila de amanhã, à noite">

@@ -1,3 +1,5 @@
+export * from "./comandos/aparencia";
+export * from "./comandos/fundacao";
 export * from "./comandos/intencao";
 export { relacaoExistente, saoParentes } from "./dominio/estado";
 export * from "./dominio/fatos";
@@ -12,6 +14,7 @@ export * from "./espaco/posicoes";
 export * from "./execucao";
 export {
   abrirFotografia,
+  conferirMetadadosDaFotografia,
   type Fotografia,
   type Migracao,
   migrar,

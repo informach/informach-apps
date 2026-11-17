@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { z } from "zod";
 import { Sala } from "@/features/competition/components/sala";
 import { competitionView } from "@/features/competition/service";
+import { parentAuthority } from "@/features/family/context";
 import { requirePageUser } from "@/lib/auth";
 import { AppError } from "@/lib/errors";
 
@@ -14,7 +15,7 @@ export default async function SalaDaCompeticao({ params }: { params: Promise<{ i
   try {
     return (
       <div className="mx-auto max-w-6xl">
-        <Sala inicial={await competitionView(user.id, id)} />
+        <Sala inicial={await competitionView(await parentAuthority(user.id), id)} />
       </div>
     );
   } catch (erro) {

@@ -23,6 +23,8 @@ export const DoClienteSchema = z.discriminatedUnion("t", [
   z.strictObject({ t: z.literal("somar"), id: z.uuid() }),
   /** A sessão foi renovada: o servidor passa a valer pelo prazo do token novo. */
   z.strictObject({ t: z.literal("renovar"), token: z.string().min(1) }),
+  z.strictObject({ t: z.literal("checkpoint"), id: z.uuid() }),
+  z.strictObject({ t: z.literal("retomar") }),
 ]);
 export type DoCliente = z.infer<typeof DoClienteSchema>;
 
@@ -47,6 +49,8 @@ export const DoServidorSchema = z.discriminatedUnion("t", [
    * Recreio; `motivo` acompanha `SESSAO_ENCERRADA`.
    */
   z.strictObject({ t: z.literal("fim"), codigo: z.string(), motivo: z.string().optional() }),
+  z.strictObject({ t: z.literal("checkpoint"), id: z.uuid(), confirmado: z.boolean() }),
+  z.strictObject({ t: z.literal("retomado") }),
 ]);
 export type DoServidor = z.infer<typeof DoServidorSchema>;
 

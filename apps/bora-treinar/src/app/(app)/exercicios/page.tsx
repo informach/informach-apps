@@ -5,6 +5,6 @@ import { LibraryScreen } from "@/features/treino/telas/exercicios";
 export const metadata = { title: "Exercícios" };
 
 export default async function Exercicios() {
-  const { profile } = await requireTrainer();
-  return <LibraryScreen profile={profile} progress={await progressOf(profile.id)} />;
+  const { user, profile } = await requireTrainer();
+  return <LibraryScreen profile={profile} progress={await progressOf(user.id, profile.id)} />;
 }

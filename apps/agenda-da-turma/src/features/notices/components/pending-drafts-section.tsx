@@ -3,6 +3,7 @@ import { FileClock } from "lucide-react";
 import Link from "next/link";
 import { todayLocalIso } from "@/features/dashboard/date";
 import { shortDayLabel } from "@/features/dashboard/day-labels";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { listReadyNotices } from "@/features/notices/repository";
 import { SOURCE_LABELS } from "@/features/notices/schemas";
 import { DiscardDraftButton } from "./discard-draft-button";
@@ -24,8 +25,8 @@ import { DiscardDraftButton } from "./discard-draft-button";
  * Retorna `null` quando não há nada pendente: é uma seção de exceção, não um
  * item fixo da rotina.
  */
-export async function PendingDraftsSection({ userId }: { userId: string }) {
-  const drafts = await listReadyNotices(userId);
+export async function PendingDraftsSection({ actor }: { actor: AgendaAuthority }) {
+  const drafts = await listReadyNotices(actor);
   if (!drafts.length) return null;
 
   return (

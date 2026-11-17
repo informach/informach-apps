@@ -2,12 +2,18 @@ import "server-only";
 import { and, db, eq } from "@informach/db";
 import { cozyaAiOperations, creditLedger, creditReservations } from "@informach/db/schema";
 import { billing } from "@/features/billing/service";
+import { recoverSharedCozyaOperation } from "./shared-recovery";
 
 /** Reconcile a finished failure or abandoned request, including an ambiguous billing commit.
  * Row locking serializes recovery; the ledger event makes compensation independently idempotent.
  * An hour exceeds all model deadlines, including the audio + search + parse pipeline.
  */
 export async function recoverInterruptedAiOperation(id: string, userId: string, now = new Date()) {
+  const [candidate] = await db
+    .select({ groupId: cozyaAiOperations.familyGroupId })
+    .from(cozyaAiOperations)
+    .where(and(eq(cozyaAiOperations.id, id), eq(cozyaAiOperations.userId, userId)));
+  if (candidate?.groupId) return recoverSharedCozyaOperation(id, userId, now);
   return db.transaction(async (tx) => {
     const [operation] = await tx
       .select()
@@ -16,6 +22,7 @@ export async function recoverInterruptedAiOperation(id: string, userId: string, 
       .for("update");
     if (
       !operation ||
+      operation.familyGroupId !== null ||
       operation.createdAt.getTime() > now.getTime() - 3_600_000 ||
       (operation.statusCode !== null && operation.statusCode < 500) ||
       (operation.response as { code?: string } | null)?.code === "OPERATION_INTERRUPTED"
@@ -53,7 +60,7 @@ export async function recoverInterruptedAiOperation(id: string, userId: string, 
         reason: "compensation",
         stripeEventId: `cozya_operation_recovery_${id}`,
         expiresAt: new Date(now.getTime() + 30 * 86_400_000),
-        metadata: { operationId: id, reason: "preview_unavailable" },
+        metadata: { operationId: id, recoveryReason: "preview_unavailable" },
       });
       compensated = !grant.alreadyProcessed;
     }

@@ -59,6 +59,13 @@ export const PersonagemSchema = z.strictObject({
       roupa: z.string(),
     })
     .optional(),
+  /** Rótulos próprios do jogo para uma combinação oferecida na criação. */
+  criacao: z
+    .strictObject({
+      rotuloDoCabelo: z.string().min(1).max(40),
+      rotuloDaRoupa: z.string().min(1).max(40),
+    })
+    .optional(),
 });
 
 export type Peca = z.infer<typeof PecaSchema>;

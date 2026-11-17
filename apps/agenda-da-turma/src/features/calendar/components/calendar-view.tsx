@@ -10,7 +10,6 @@ import { MonthView } from "./month-view";
 import { WeekView } from "./week-view";
 
 type Props = {
-  userId: string;
   view: CalendarViewKind;
   anchorIso: string;
   todayIso: string;
@@ -26,7 +25,6 @@ type Props = {
 // `?perfil=`), e a barra navega por links montados no servidor. Estado local
 // só para a vista rápida do mês.
 export function CalendarView({
-  userId,
   view,
   anchorIso,
   todayIso,
@@ -48,7 +46,7 @@ export function CalendarView({
       if (iso) params.set("data", iso);
       if (profileFilter) params.set("perfil", profileFilter);
       const query = params.toString();
-      return query ? `/atividades/nova?${query}` : "/atividades/nova";
+      return query ? (`/atividades/nova?${query}` as const) : "/atividades/nova";
     },
     [profileFilter],
   );
@@ -102,7 +100,6 @@ export function CalendarView({
           }
         }}
         item={detailItem}
-        currentUserId={userId}
       />
     </div>
   );

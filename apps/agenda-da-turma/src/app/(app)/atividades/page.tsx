@@ -3,7 +3,8 @@ import { z } from "zod";
 import { BackButton } from "@/components/app-shell/back-button";
 import { ActivitiesSection } from "@/features/activities/components/activities-section";
 import { hasSecondAdultInFamily } from "@/features/family/access";
-import { getAddEntitlement } from "@/features/notices/trial";
+import { agendaAuthority } from "@/features/family/context";
+import { getAddEntitlement } from "@/features/notices/entitlement-repository";
 import { listStudentProfilesForUser } from "@/features/students/service";
 import { shortChildNames, withShortChildName } from "@/features/students/utils";
 import { activityTypeSchema } from "@/features/unified-activities/activity-types";
@@ -30,12 +31,13 @@ export default async function AtividadesPage({
   }>;
 }) {
   const user = await requireUserServer();
+  const actor = await agendaAuthority(user.id);
   const params = await searchParams;
   // Um adulto só: tudo é dele, e "o que é meu" seria um filtro que nunca tira
   // nada da lista. O controle aparece a partir do segundo.
   const [profiles, hasSecondAdult] = await Promise.all([
-    listStudentProfilesForUser(user.id),
-    hasSecondAdultInFamily(user.id),
+    listStudentProfilesForUser(actor),
+    hasSecondAdultInFamily(actor),
   ]);
   const activeFilter = profiles.find((p) => p.id === params.perfil) ?? null;
   const parsedType = activityTypeSchema.safeParse(params.tipo);
@@ -51,7 +53,7 @@ export default async function AtividadesPage({
     noticeId: z.string().uuid().catch("").parse(params.recado) || null,
     page: z.coerce.number().int().min(1).max(10000).catch(1).parse(params.pagina),
   };
-  const result = await getActivityOverview(user.id, filters);
+  const result = await getActivityOverview(actor, filters);
   const childNames = shortChildNames(profiles);
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 pb-28 md:px-8">
@@ -81,9 +83,8 @@ export default async function AtividadesPage({
         filters={filters}
         profiles={profiles}
         activeFilter={activeFilter}
-        currentUserId={user.id}
         hasSecondAdult={hasSecondAdult}
-        addEntitlement={await getAddEntitlement(user.id)}
+        addEntitlement={await getAddEntitlement(actor)}
       />
     </main>
   );

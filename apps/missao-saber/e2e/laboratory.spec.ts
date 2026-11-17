@@ -10,7 +10,13 @@ import {
   users,
 } from "@informach/db/schema";
 import { expect, type Page, test } from "@playwright/test";
-import { enterStudy, parentLogin, prepareProfile, startMission } from "./family-helpers";
+import {
+  enterStudy,
+  parentLogin,
+  prepareProfile,
+  registerParent,
+  startMission,
+} from "./family-helpers";
 
 async function setup(page: Page, baseURL?: string) {
   if (!baseURL) throw new Error("Missing isolated origin");
@@ -19,17 +25,7 @@ async function setup(page: Page, baseURL?: string) {
   const client = createHash("sha256").update(test.info().testId).digest();
   const headers = { origin: baseURL, "x-real-ip": `198.19.${client[0]}.${client[1]}` };
   await page.setExtraHTTPHeaders({ "x-real-ip": headers["x-real-ip"] });
-  const signup = await page.request.post("/api/auth/sign-up/email", {
-    headers,
-    data: { email, password, name: "Laboratório local" },
-  });
-  expect(signup.ok(), await signup.text()).toBe(true);
-  await db.update(users).set({ emailVerified: true }).where(eq(users.email, email));
-  const login = await page.request.post("/api/auth/sign-in/email", {
-    headers,
-    data: { email, password },
-  });
-  expect(login.ok(), await login.text()).toBe(true);
+  await registerParent(page, email, password);
   await prepareProfile(page, "Lua", "6", "canguru-e");
   await enterStudy(page, "Lua");
   return { email };

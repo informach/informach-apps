@@ -1,4 +1,5 @@
 import "server-only";
+import { lockActiveWebParticipation } from "@informach/auth/web-participation";
 import { and, asc, count, type Database, db, desc, eq, inArray, sql } from "@informach/db";
 import {
   cozyaCookingSessions,
@@ -7,7 +8,14 @@ import {
   cozyaShoppingItems,
   cozyaShoppingLists,
 } from "@informach/db/schema";
+import { requireFamilyCondition } from "@informach/family";
 import type { z } from "zod";
+import {
+  activeCozyaUserCondition,
+  withActiveCozyaUser,
+} from "@/features/account/participation-repository";
+import { cozyaAccessInTransaction } from "@/features/billing/access-repository";
+import type { CozyaAuthority } from "@/features/family/authority";
 import { addDays, localDay, weekStart } from "./dates";
 import {
   canonicalShoppingKey,
@@ -31,26 +39,18 @@ export async function getMealsBetween(userId: string, from: string, to: string) 
     .from(cozyaMeals)
     .where(
       and(
-        eq(cozyaMeals.userId, userId),
+        activeCozyaUserCondition(cozyaMeals.userId, userId),
         sql`${cozyaMeals.day} >= ${from} AND ${cozyaMeals.day} < ${to}`,
       ),
     )
     .orderBy(asc(cozyaMeals.day), asc(cozyaMeals.slot));
 }
 
-/** One setup at a time per account: a double tap or a retried request runs after the first. */
-export async function withAccountLock<T>(userId: string, scope: string, run: () => Promise<T>) {
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${`cozya:${scope}:${userId}`}))`);
-    return run();
-  });
-}
-
 export async function hasAnyMeal(userId: string) {
   const [row] = await db
     .select({ id: cozyaMeals.id })
     .from(cozyaMeals)
-    .where(eq(cozyaMeals.userId, userId))
+    .where(activeCozyaUserCondition(cozyaMeals.userId, userId))
     .limit(1);
   return Boolean(row);
 }
@@ -74,10 +74,10 @@ export async function getRecipeChoices(userId: string) {
       cozyaCookingSessions,
       and(
         eq(cozyaCookingSessions.recipeId, cozyaRecipes.id),
-        eq(cozyaCookingSessions.userId, userId),
+        activeCozyaUserCondition(cozyaCookingSessions.userId, userId),
       ),
     )
-    .where(eq(cozyaRecipes.userId, userId))
+    .where(activeCozyaUserCondition(cozyaRecipes.userId, userId))
     .orderBy(desc(cozyaRecipes.isFavorite), asc(cozyaRecipes.name));
 }
 
@@ -86,51 +86,80 @@ export async function getRecipesByIds(userId: string, ids: string[]) {
   return db
     .select()
     .from(cozyaRecipes)
-    .where(and(eq(cozyaRecipes.userId, userId), inArray(cozyaRecipes.id, ids)));
+    .where(
+      and(activeCozyaUserCondition(cozyaRecipes.userId, userId), inArray(cozyaRecipes.id, ids)),
+    );
 }
 
-export async function saveMeal(userId: string, input: z.infer<typeof mealSchema>) {
-  return db.transaction(async (tx) => {
-    await tx.execute(
-      sql`SELECT pg_advisory_xact_lock(hashtext(${`cozya:week:${userId}:${weekStart(input.day)}`}))`,
+export async function saveMeal(actor: CozyaAuthority, input: z.infer<typeof mealSchema>) {
+  return db.transaction((tx) => saveMealInTransaction(tx, actor, input));
+}
+
+export async function saveMealInTransaction(
+  tx: Tx,
+  actor: CozyaAuthority,
+  input: z.infer<typeof mealSchema>,
+) {
+  const { userId } = actor;
+  if (input.recipeId)
+    requireFamilyCondition(
+      (await cozyaAccessInTransaction(tx, actor)).enabled,
+      "ACCESS_DENIED",
+      "O planejamento precisa de acesso ao Compasso.",
     );
-    let label = input.label;
-    if (input.recipeId) {
-      const [recipe] = await tx
-        .select({ name: cozyaRecipes.name })
-        .from(cozyaRecipes)
-        .where(and(eq(cozyaRecipes.userId, userId), eq(cozyaRecipes.id, input.recipeId)));
-      if (!recipe) return false;
-      label = recipe.name;
-    }
-    const values = { ...input, userId, label, updatedAt: new Date() };
-    await tx
-      .insert(cozyaMeals)
-      .values(values)
-      .onConflictDoUpdate({
-        target: [cozyaMeals.userId, cozyaMeals.day, cozyaMeals.slot],
-        set: values,
-      });
-    return true;
-  });
+  await lockActiveWebParticipation(tx, userId);
+  await tx.execute(
+    sql`SELECT pg_advisory_xact_lock(hashtext(${`cozya:week:${userId}:${weekStart(input.day)}`}))`,
+  );
+  let label = input.label;
+  if (input.recipeId) {
+    const [recipe] = await tx
+      .select({ name: cozyaRecipes.name })
+      .from(cozyaRecipes)
+      .where(
+        and(
+          activeCozyaUserCondition(cozyaRecipes.userId, userId),
+          eq(cozyaRecipes.id, input.recipeId),
+        ),
+      );
+    if (!recipe) return false;
+    label = recipe.name;
+  }
+  const values = { ...input, userId, label, updatedAt: new Date() };
+  await tx
+    .insert(cozyaMeals)
+    .values(values)
+    .onConflictDoUpdate({
+      target: [cozyaMeals.userId, cozyaMeals.day, cozyaMeals.slot],
+      set: values,
+    });
+  return true;
 }
 
 export async function removeMeal(userId: string, id: string) {
-  await db.transaction(async (tx) => {
+  await withActiveCozyaUser(userId, async (tx) => {
     const [meal] = await tx
       .select({ day: cozyaMeals.day })
       .from(cozyaMeals)
-      .where(and(eq(cozyaMeals.userId, userId), eq(cozyaMeals.id, id)));
+      .where(and(activeCozyaUserCondition(cozyaMeals.userId, userId), eq(cozyaMeals.id, id)));
     if (!meal) return;
     await tx.execute(
       sql`SELECT pg_advisory_xact_lock(hashtext(${`cozya:week:${userId}:${weekStart(meal.day)}`}))`,
     );
-    await tx.delete(cozyaMeals).where(and(eq(cozyaMeals.userId, userId), eq(cozyaMeals.id, id)));
+    await tx
+      .delete(cozyaMeals)
+      .where(and(activeCozyaUserCondition(cozyaMeals.userId, userId), eq(cozyaMeals.id, id)));
   });
 }
 
-export async function repeatWeek(userId: string, week: string) {
+export async function repeatWeek(actor: CozyaAuthority, week: string) {
+  const { userId } = actor;
   return db.transaction(async (tx) => {
+    requireFamilyCondition(
+      (await cozyaAccessInTransaction(tx, actor)).enabled,
+      "ACCESS_DENIED",
+      "O planejamento precisa de acesso ao Compasso.",
+    );
     await tx.execute(
       sql`SELECT pg_advisory_xact_lock(hashtext(${`cozya:week:${userId}:${week}`}))`,
     );
@@ -139,7 +168,7 @@ export async function repeatWeek(userId: string, week: string) {
       .from(cozyaMeals)
       .where(
         and(
-          eq(cozyaMeals.userId, userId),
+          activeCozyaUserCondition(cozyaMeals.userId, userId),
           sql`${cozyaMeals.day} >= ${addDays(week, -7)} AND ${cozyaMeals.day} < ${week}`,
         ),
       );
@@ -174,7 +203,7 @@ async function plannedShoppingLines(
     .from(cozyaMeals)
     .where(
       and(
-        eq(cozyaMeals.userId, userId),
+        activeCozyaUserCondition(cozyaMeals.userId, userId),
         sql`${cozyaMeals.day} >= ${week} AND ${cozyaMeals.day} < ${addDays(week, 7)}`,
       ),
     );
@@ -183,7 +212,12 @@ async function plannedShoppingLines(
     ? await client
         .select()
         .from(cozyaRecipes)
-        .where(and(eq(cozyaRecipes.userId, userId), inArray(cozyaRecipes.id, recipeIds)))
+        .where(
+          and(
+            activeCozyaUserCondition(cozyaRecipes.userId, userId),
+            inArray(cozyaRecipes.id, recipeIds),
+          ),
+        )
     : [];
   return consolidateShopping(
     meals.flatMap((meal) => {
@@ -217,7 +251,12 @@ export async function getShoppingList(userId: string, week: string) {
   const [list] = await db
     .select()
     .from(cozyaShoppingLists)
-    .where(and(eq(cozyaShoppingLists.userId, userId), eq(cozyaShoppingLists.week, week)));
+    .where(
+      and(
+        activeCozyaUserCondition(cozyaShoppingLists.userId, userId),
+        eq(cozyaShoppingLists.week, week),
+      ),
+    );
   if (!list) return null;
   const [saved, planned] = await Promise.all([
     db
@@ -237,8 +276,14 @@ export async function getShoppingList(userId: string, week: string) {
   return { ...list, items, stale };
 }
 
-export async function generateShoppingList(userId: string, week: string) {
+export async function generateShoppingList(actor: CozyaAuthority, week: string) {
+  const { userId } = actor;
   return db.transaction(async (tx) => {
+    requireFamilyCondition(
+      (await cozyaAccessInTransaction(tx, actor)).enabled,
+      "ACCESS_DENIED",
+      "O planejamento precisa de acesso ao Compasso.",
+    );
     await tx.execute(
       sql`SELECT pg_advisory_xact_lock(hashtext(${`cozya:week:${userId}:${week}`}))`,
     );
@@ -296,16 +341,18 @@ export async function setShoppingItemState(
   id: string,
   state: "todo" | "have" | "bought",
 ) {
-  return db
-    .update(cozyaShoppingItems)
-    .set({ state })
-    .where(
-      and(
-        eq(cozyaShoppingItems.id, id),
-        sql`${cozyaShoppingItems.listId} IN (SELECT ${cozyaShoppingLists.id} FROM ${cozyaShoppingLists} WHERE ${cozyaShoppingLists.userId} = ${userId})`,
-      ),
-    )
-    .returning({ id: cozyaShoppingItems.id });
+  return withActiveCozyaUser(userId, (tx) =>
+    tx
+      .update(cozyaShoppingItems)
+      .set({ state })
+      .where(
+        and(
+          eq(cozyaShoppingItems.id, id),
+          sql`${cozyaShoppingItems.listId} IN (SELECT ${cozyaShoppingLists.id} FROM ${cozyaShoppingLists} WHERE ${cozyaShoppingLists.userId} = ${userId})`,
+        ),
+      )
+      .returning({ id: cozyaShoppingItems.id }),
+  );
 }
 
 export async function getCookingSession(userId: string, recipeId: string) {
@@ -313,7 +360,10 @@ export async function getCookingSession(userId: string, recipeId: string) {
     .select()
     .from(cozyaCookingSessions)
     .where(
-      and(eq(cozyaCookingSessions.userId, userId), eq(cozyaCookingSessions.recipeId, recipeId)),
+      and(
+        activeCozyaUserCondition(cozyaCookingSessions.userId, userId),
+        eq(cozyaCookingSessions.recipeId, recipeId),
+      ),
     );
   return session ?? null;
 }
@@ -325,43 +375,53 @@ export async function getCookingSessions(userId: string, recipeIds: string[]) {
     .from(cozyaCookingSessions)
     .where(
       and(
-        eq(cozyaCookingSessions.userId, userId),
+        activeCozyaUserCondition(cozyaCookingSessions.userId, userId),
         inArray(cozyaCookingSessions.recipeId, recipeIds),
       ),
     );
 }
 
 export async function removeShoppingExtra(userId: string, id: string) {
-  return db
-    .delete(cozyaShoppingItems)
-    .where(
-      and(
-        eq(cozyaShoppingItems.id, id),
-        sql`${cozyaShoppingItems.key} LIKE 'manual:%'`,
-        sql`${cozyaShoppingItems.listId} IN (SELECT ${cozyaShoppingLists.id} FROM ${cozyaShoppingLists} WHERE ${cozyaShoppingLists.userId} = ${userId})`,
-      ),
-    )
-    .returning({ id: cozyaShoppingItems.id });
+  return withActiveCozyaUser(userId, (tx) =>
+    tx
+      .delete(cozyaShoppingItems)
+      .where(
+        and(
+          eq(cozyaShoppingItems.id, id),
+          sql`${cozyaShoppingItems.key} LIKE 'manual:%'`,
+          sql`${cozyaShoppingItems.listId} IN (SELECT ${cozyaShoppingLists.id} FROM ${cozyaShoppingLists} WHERE ${cozyaShoppingLists.userId} = ${userId})`,
+        ),
+      )
+      .returning({ id: cozyaShoppingItems.id }),
+  );
 }
 
 export async function updateCookingSession(
   userId: string,
   input: z.infer<typeof cookingInputSchema>,
 ) {
-  return db.transaction(async (tx) => {
+  return withActiveCozyaUser(userId, async (tx) => {
     await tx.execute(
       sql`SELECT pg_advisory_xact_lock(hashtext(${`cozya:cook:${userId}:${input.recipeId}`}))`,
     );
     const [recipe] = await tx
       .select()
       .from(cozyaRecipes)
-      .where(and(eq(cozyaRecipes.id, input.recipeId), eq(cozyaRecipes.userId, userId)));
+      .where(
+        and(
+          eq(cozyaRecipes.id, input.recipeId),
+          activeCozyaUserCondition(cozyaRecipes.userId, userId),
+        ),
+      );
     if (!recipe) return null;
     const [previous] = await tx
       .select()
       .from(cozyaCookingSessions)
       .where(
-        and(eq(cozyaCookingSessions.userId, userId), eq(cozyaCookingSessions.recipeId, recipe.id)),
+        and(
+          activeCozyaUserCondition(cozyaCookingSessions.userId, userId),
+          eq(cozyaCookingSessions.recipeId, recipe.id),
+        ),
       );
     const sameVersion = previous?.recipeVersion.getTime() === recipe.contentUpdatedAt.getTime();
     // A preparation finished on another day is history: today's first mark starts a new one.
@@ -418,22 +478,24 @@ export async function saveCookingFeedback(
   userId: string,
   input: z.infer<typeof cookingFeedbackSchema>,
 ) {
-  const [session] = await db
-    .update(cozyaCookingSessions)
-    .set({
-      verdict: input.verdict,
-      note: input.note || null,
-      notedAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(cozyaCookingSessions.userId, userId),
-        eq(cozyaCookingSessions.recipeId, input.recipeId),
-      ),
-    )
-    .returning();
-  return session ?? null;
+  return withActiveCozyaUser(userId, async (tx) => {
+    const [session] = await tx
+      .update(cozyaCookingSessions)
+      .set({
+        verdict: input.verdict,
+        note: input.note || null,
+        notedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          activeCozyaUserCondition(cozyaCookingSessions.userId, userId),
+          eq(cozyaCookingSessions.recipeId, input.recipeId),
+        ),
+      )
+      .returning();
+    return session ?? null;
+  });
 }
 
 /**
@@ -441,40 +503,47 @@ export async function saveCookingFeedback(
  * trial counts: meals of its days, and lists, recipes and preparations from its start to its end.
  */
 export async function getTrialSummary(userId: string, trial: { from: Date; to: Date }) {
-  const firstDay = localDay(trial.from);
-  const lastDay = localDay(trial.to);
-  // Raw SQL parameters go as text; postgres-js does not serialize Date here.
-  const from = trial.from.toISOString();
-  const to = trial.to.toISOString();
-  const [row] = await db.execute<{
-    meals: number;
-    lists: number;
-    recipes: number;
-    cooked: number;
-  }>(sql`SELECT
+  return withActiveCozyaUser(userId, async (tx) => {
+    const firstDay = localDay(trial.from);
+    const lastDay = localDay(trial.to);
+    // Raw SQL parameters go as text; postgres-js does not serialize Date here.
+    const from = trial.from.toISOString();
+    const to = trial.to.toISOString();
+    const [row] = await tx.execute<{
+      meals: number;
+      lists: number;
+      recipes: number;
+      cooked: number;
+    }>(sql`SELECT
       (SELECT count(*)::int FROM ${cozyaMeals} WHERE ${cozyaMeals.userId} = ${userId} AND ${cozyaMeals.recipeId} IS NOT NULL AND ${cozyaMeals.day} >= ${firstDay} AND ${cozyaMeals.day} <= ${lastDay}) AS meals,
       (SELECT count(DISTINCT ${cozyaShoppingLists.id})::int FROM ${cozyaShoppingLists} JOIN ${cozyaShoppingItems} ON ${cozyaShoppingItems.listId} = ${cozyaShoppingLists.id}
         WHERE ${cozyaShoppingLists.userId} = ${userId} AND ${cozyaShoppingLists.generatedAt} >= ${from}::timestamptz AND ${cozyaShoppingLists.generatedAt} < ${to}::timestamptz
           AND (${cozyaShoppingItems.state} = 'bought' OR (${cozyaShoppingItems.state} = 'have' AND ${cozyaShoppingItems.category} <> 'despensa'))) AS lists,
       (SELECT count(*)::int FROM ${cozyaRecipes} WHERE ${cozyaRecipes.userId} = ${userId} AND ${cozyaRecipes.createdAt} >= ${from}::timestamptz AND ${cozyaRecipes.createdAt} < ${to}::timestamptz) AS recipes,
       (SELECT count(*)::int FROM cozya.product_events WHERE user_id = ${userId} AND name = 'cooking_completed' AND occurred_at >= ${from}::timestamptz AND occurred_at < ${to}::timestamptz) AS cooked`);
-  return {
-    meals: Number(row?.meals ?? 0),
-    lists: Number(row?.lists ?? 0),
-    recipes: Number(row?.recipes ?? 0),
-    cooked: Number(row?.cooked ?? 0),
-  };
+    return {
+      meals: Number(row?.meals ?? 0),
+      lists: Number(row?.lists ?? 0),
+      recipes: Number(row?.recipes ?? 0),
+      cooked: Number(row?.cooked ?? 0),
+    };
+  });
 }
 
 export async function addShoppingExtra(
   userId: string,
   input: { listId: string; name: string; amount: string },
 ) {
-  return db.transaction(async (tx) => {
+  return withActiveCozyaUser(userId, async (tx) => {
     const [list] = await tx
       .select()
       .from(cozyaShoppingLists)
-      .where(and(eq(cozyaShoppingLists.id, input.listId), eq(cozyaShoppingLists.userId, userId)))
+      .where(
+        and(
+          eq(cozyaShoppingLists.id, input.listId),
+          activeCozyaUserCondition(cozyaShoppingLists.userId, userId),
+        ),
+      )
       .for("update");
     if (!list) return false;
     const [total] = await tx

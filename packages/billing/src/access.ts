@@ -34,7 +34,7 @@ export const PRO_STATUSES = [
 ] as const satisfies ReadonlyArray<SubscriptionStatus>;
 
 export type AccessDeps = {
-  db: Database;
+  db: Pick<Database, "select">;
   provider: BillingProvider;
   /** App slug — escopo de isolamento usado para casar customers do mesmo subject. */
   app: string;

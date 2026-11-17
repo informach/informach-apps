@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { ARGS_DO_NAVEGADOR } from "./e2e/navegador";
+import { ARGS_DO_NAVEGADOR, CANAL_DO_NAVEGADOR } from "./e2e/navegador";
 
 // O E2E só roda por `pnpm e2e` (`scripts/isolated.mjs e2e`), que cria o banco
 // descartável, gera os segredos da execução e faz o build com o jogo de teste.
@@ -21,7 +21,9 @@ if (!e2eRunId || !/^[a-f0-9]{24}$/.test(e2eRunId))
 const origin = `http://localhost:${e2ePort}`;
 export default defineConfig({
   testDir: "./e2e",
-  outputDir: `test-results-${e2eRunId}`,
+  outputDir: process.env.RECREIO_E2E_PRIVATE_ARTIFACTS
+    ? `${process.env.RECREIO_E2E_PRIVATE_ARTIFACTS}/test-results`
+    : `test-results-${e2eRunId}`,
   // A jornada principal espera a posse de uma instância morta vencer (30 s).
   timeout: 240000,
   workers: 1,
@@ -34,7 +36,7 @@ export default defineConfig({
     actionTimeout: 15000,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    launchOptions: { args: ARGS_DO_NAVEGADOR },
+    launchOptions: { channel: CANAL_DO_NAVEGADOR, args: ARGS_DO_NAVEGADOR },
   },
   projects: [
     {
@@ -43,7 +45,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `pnpm exec next start -p ${e2ePort}`,
+    command: `node .next-isolated-${e2eRunId}/standalone/apps/recreio/server.js`,
+    env: { HOSTNAME: "127.0.0.1", PORT: e2ePort },
     url: `${origin}/api/health`,
     reuseExistingServer: false,
     stdout: "pipe",

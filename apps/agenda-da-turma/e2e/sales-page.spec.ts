@@ -83,7 +83,7 @@ test("demo keeps school deadlines intact, supports keyboard and emits bounded an
   await expect.poll(() => events.filter((e) => e.action === "complete").length).toBe(2);
   expect(events.filter((e) => e.action === "plan")).toHaveLength(1);
   expect(events.filter((e) => e.event === "landing_view")).toHaveLength(1);
-  expect(events.every((e) => e.variant === "pagina-do-dia-v1")).toBe(true);
+  expect(events.every((e) => e.variant === "compasso-v1")).toBe(true);
   expect(providerRequests).toEqual([]);
   expect(errors).toEqual([]);
 });
@@ -104,40 +104,31 @@ for (const selection of ["free", "monthly", "annual"] as const) {
     // O seletor só habilita depois da hidratação: daí em diante o clique conta
     // e o rastreador da página já está ouvindo os botões.
     await expect(pricing.getByRole("button", { name: "Mensal", exact: true })).toBeEnabled();
-    await expect(pricing).toContainText("19,90");
+    await expect(pricing).toContainText("49,90");
     if (selection === "annual") {
       await pricing.getByRole("button", { name: /^Anual/ }).click();
-      await expect(pricing).toContainText("199,00");
-      await expect(pricing).toContainText("pague 10 meses, use 12");
-      await expect(pricing).toContainText("16,58");
+      await expect(pricing).toContainText("499,00");
+      await expect(pricing).toContainText("41,58");
     }
     const cta =
       selection === "free"
         ? page.locator('[data-landing-placement="hero"]')
-        : pricing.getByRole("link", { name: "Assinar o Pro" });
+        : pricing.getByRole("link", { name: "Conhecer o Compasso" });
     await cta.click();
-    await expect(page).toHaveURL(
+    const destination =
       selection === "free"
-        ? /\/signup$/
-        : new RegExp(`/signup\\?plan=pro&cycle=${selection === "annual" ? "anual" : "mensal"}`),
-    );
-    // O cadastro diz para onde vai: o Pro escolhido segue para o pagamento
-    // depois do código; o resto, para a criança e o primeiro recado.
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      selection === "free"
-        ? "Vamos começar pelo recado que está te preocupando."
-        : "Crie a conta para assinar o Pro",
-    );
+        ? "/dashboard"
+        : `/upgrade?cycle=${selection === "annual" ? "anual" : "mensal"}`;
+    await expect(page).toHaveURL(new RegExp(`/login\\?next=${encodeURIComponent(destination)}$`));
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Sua conta compartilhada");
     await expect(
-      page.getByRole("img", {
-        name: selection === "free" ? "Passo 1 de 4: Conta" : "Passo 1 de 3: Conta",
-      }),
+      page.getByRole("button", { name: "Continuar com minha conta", exact: true }),
     ).toBeVisible();
     await expect.poll(() => events.filter((e) => e.event === "landing_cta").length).toBe(1);
     expect(events.find((e) => e.event === "landing_cta")).toMatchObject({
       firstCta: true,
       placement: selection === "free" ? "hero" : "pricing",
-      selection: selection === "free" ? { plan: "free" } : { plan: "pro", cycle: selection },
+      selection: selection === "free" ? { plan: "free" } : { plan: "compasso", cycle: selection },
     });
   });
 }

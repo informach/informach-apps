@@ -4,7 +4,8 @@ import { users } from "@informach/db/schema";
 import { beforeAll, describe, expect, it } from "vitest";
 import { assessment, catalogGrades, coursesForGrade, findCourse } from "@/features/content/catalog";
 import { gradeLabel } from "@/features/family/school-year";
-import { begin, createProfile, dashboard } from "@/features/learning/service";
+import { begin, dashboard } from "@/features/learning/service";
+import { fixtureAuthority, prepareStudent } from "./family-fixture";
 
 const owner = randomUUID();
 const outroResponsavel = randomUUID();
@@ -33,7 +34,7 @@ describe("onda 3a em PostgreSQL isolado: ensino médio", () => {
     expect(coursesForGrade(11).map((course) => course.id)).toEqual(
       expect.arrayContaining(["canguru-j", "obmep-n3"]),
     );
-    const profile = await createProfile(owner, {
+    const profile = await prepareStudent(await fixtureAuthority(owner), {
       nickname: "Rafa",
       grade: 11,
       birthMonth: null,
@@ -41,9 +42,11 @@ describe("onda 3a em PostgreSQL isolado: ensino médio", () => {
       courseId: "canguru-j",
       consent: true,
     });
-    expect((await dashboard(owner, profile.id)).course?.id).toBe("canguru-j");
+    expect((await dashboard(await fixtureAuthority(owner), profile.id)).course?.id).toBe(
+      "canguru-j",
+    );
     // Funções é a primeira habilidade das duas trilhas e abre sem assinatura.
-    const sessao = await begin(owner, {
+    const sessao = await begin(await fixtureAuthority(owner), {
       profileId: profile.id,
       lessonId: "funcoes-1",
       mode: "mission",
@@ -58,7 +61,7 @@ describe("onda 3a em PostgreSQL isolado: ensino médio", () => {
   });
 
   it("aceita a 3ª série na OBMEP N3 e recusa a Canguru J para esse ano", async () => {
-    const profile = await createProfile(outroResponsavel, {
+    const profile = await prepareStudent(await fixtureAuthority(outroResponsavel), {
       nickname: "Duda",
       grade: 12,
       birthMonth: null,
@@ -66,9 +69,11 @@ describe("onda 3a em PostgreSQL isolado: ensino médio", () => {
       courseId: "obmep-n3",
       consent: true,
     });
-    expect((await dashboard(outroResponsavel, profile.id)).course?.id).toBe("obmep-n3");
+    expect((await dashboard(await fixtureAuthority(outroResponsavel), profile.id)).course?.id).toBe(
+      "obmep-n3",
+    );
     await expect(
-      createProfile(randomUUID(), {
+      prepareStudent(await fixtureAuthority(outroResponsavel), {
         nickname: "Téo",
         grade: 12,
         birthMonth: null,

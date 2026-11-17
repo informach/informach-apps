@@ -39,6 +39,21 @@ function makeInput(overrides: Partial<DispatchInput> = {}): DispatchInput {
 }
 
 describe("dispatchEmail validation", () => {
+  it("refuses a transient access callback on persisted bodies", async () => {
+    const { db } = createFakeDb();
+    await expect(
+      dispatchEmail(
+        {
+          db: db as never,
+          defaultFrom: "noreply@example.com",
+          mode: "memory",
+          sandboxDir: "./tmp",
+          send: vi.fn(),
+        },
+        makeInput({ category: "billing.payment-success", authorizeContent: async () => true }),
+      ),
+    ).rejects.toThrow("non-persisted");
+  });
   it("requires html or text", async () => {
     const { db } = createFakeDb();
     const sendMock: SendFn = vi.fn();
@@ -54,6 +69,68 @@ describe("dispatchEmail validation", () => {
         makeInput({ html: undefined, text: undefined }),
       ),
     ).rejects.toThrow(/html.*or.*text/);
+  });
+});
+
+describe("current content authorization", () => {
+  it("stops inline retries after access is revoked", async () => {
+    const { db } = createFakeDb({
+      insertResult: [{ id: "authorized-email", status: "pending", sendAttempts: 0 }],
+      updateResult: [{ id: "authorized-email", status: "sending", sendAttempts: 1 }],
+    });
+    let authorized = true;
+    const send = vi.fn(async () => {
+      authorized = false;
+      throw Object.assign(new Error("temporary"), { response: { statusCode: 503 } });
+    });
+    const result = await dispatchEmail(
+      {
+        db: db as never,
+        defaultFrom: "noreply@example.com",
+        mode: "live",
+        sandboxDir: "./tmp",
+        send,
+        sleep: async () => {},
+        inlineRetryAttempts: 3,
+      },
+      makeInput({ category: "bora.weekly-summary", authorizeContent: async () => authorized }),
+    );
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({
+      ok: false,
+      status: "skipped",
+      reason: "content access revoked",
+    });
+  });
+
+  it("fails closed when authorization is unavailable and never adds private content to the outbox", async () => {
+    const { db } = createFakeDb({
+      insertResult: [{ id: "unavailable-email", status: "pending", sendAttempts: 0 }],
+      updateResult: [{ id: "unavailable-email", status: "sending", sendAttempts: 1 }],
+    });
+    const outbox = createTestOutbox();
+    const result = await dispatchEmail(
+      {
+        db: db as never,
+        defaultFrom: "noreply@example.com",
+        mode: "memory",
+        sandboxDir: "./tmp",
+        send: vi.fn(),
+        outbox,
+      },
+      makeInput({
+        category: "bora.reminder",
+        authorizeContent: async () => {
+          throw new Error("database unavailable");
+        },
+      }),
+    );
+    expect(result).toMatchObject({
+      ok: false,
+      status: "failed",
+      reason: "content authorization unavailable",
+    });
+    expect(outbox.entries).toEqual([]);
   });
 });
 

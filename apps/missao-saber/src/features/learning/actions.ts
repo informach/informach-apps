@@ -13,6 +13,7 @@ import {
 } from "@/features/study-access/server";
 import { recentParent, runAction } from "@/lib/action";
 import { assertAllowed } from "@/lib/errors";
+import { parentAuthority } from "../family/context";
 import * as repo from "./repository";
 import { editNoteSchema, noteSchema, reportSchema } from "./schemas";
 import * as learning from "./service";
@@ -20,24 +21,22 @@ import * as learning from "./service";
 export async function startAction(input: unknown) {
   return runAction(async () => {
     const identity = await studyProfileFromInput(input);
-    const session = await learning.begin(identity.userId, input);
+    const session = await learning.begin(identity, input);
     return { id: session.id };
   });
 }
 export async function answerAction(input: unknown) {
-  return runAction(async () => learning.answer((await studySessionFromInput(input)).userId, input));
+  return runAction(async () => learning.answer(await studySessionFromInput(input), input));
 }
 export async function hintAction(input: unknown) {
-  return runAction(async () => learning.hint((await studySessionFromInput(input)).userId, input));
+  return runAction(async () => learning.hint(await studySessionFromInput(input), input));
 }
 export async function interruptAction(sessionId: unknown) {
-  return runAction(async () =>
-    learning.interrupt((await requireStudySession(sessionId)).userId, sessionId),
-  );
+  return runAction(async () => learning.interrupt(await requireStudySession(sessionId), sessionId));
 }
 export async function readingSupportAction(sessionId: unknown) {
   return runAction(async () => ({
-    marked: await learning.markReading((await requireStudySession(sessionId)).userId, sessionId),
+    marked: await learning.markReading(await requireStudySession(sessionId), sessionId),
   }));
 }
 /** Sair da conta esquece o perfil escolhido neste aparelho. */
@@ -47,7 +46,7 @@ export async function forgetProfileAction() {
 export async function createProfileAction(input: unknown) {
   return runAction(async () => {
     const user = await recentParent();
-    const profile = await learning.createProfile(user.id, input);
+    const profile = await learning.createProfile(await parentAuthority(user.id), input);
     (await cookies()).set("ms-profile", profile.id, {
       httpOnly: true,
       sameSite: "lax",
@@ -61,7 +60,7 @@ export async function createProfileAction(input: unknown) {
 export async function updateProfileAction(input: unknown) {
   return runAction(async () => {
     const user = await recentParent();
-    await learning.updateProfile(user.id, input);
+    await learning.updateProfile(await parentAuthority(user.id), input);
     revalidatePath("/", "layout");
   });
 }
@@ -78,7 +77,7 @@ export async function courseAction(profileId: string, courseId: string) {
   return runAction(async () => {
     z.string().uuid().parse(profileId);
     z.string().max(40).parse(courseId);
-    await learning.changeCourse((await requireStudyProfile(profileId)).userId, profileId, courseId);
+    await learning.changeCourse(await requireStudyProfile(profileId), profileId, courseId);
     revalidatePath("/", "layout");
   });
 }
@@ -86,7 +85,7 @@ export async function noteAction(input: unknown) {
   return runAction(async () => {
     const data = noteSchema.parse(input);
     await repo.saveNote(
-      (await requireStudyProfile(data.profileId)).userId,
+      await requireStudyProfile(data.profileId),
       data.profileId,
       data.text,
       data.context,
@@ -98,7 +97,7 @@ export async function removeNoteAction(profileId: string, id: string) {
   return runAction(async () => {
     z.string().uuid().parse(profileId);
     z.string().uuid().parse(id);
-    await repo.removeNote((await requireStudyProfile(profileId)).userId, profileId, id);
+    await repo.removeNote(await requireStudyProfile(profileId), profileId, id);
     revalidatePath("/caderno");
   });
 }
@@ -106,7 +105,7 @@ export async function editNoteAction(input: unknown) {
   return runAction(async () => {
     const data = editNoteSchema.parse(input);
     await repo.editNote(
-      (await requireStudyProfile(data.profileId)).userId,
+      await requireStudyProfile(data.profileId),
       data.profileId,
       data.id,
       data.text,
@@ -119,13 +118,13 @@ export async function archiveNoteAction(profileId: string, id: string, archived:
     z.string().uuid().parse(profileId);
     z.string().uuid().parse(id);
     z.boolean().parse(archived);
-    await repo.archiveNote((await requireStudyProfile(profileId)).userId, profileId, id, archived);
+    await repo.archiveNote(await requireStudyProfile(profileId), profileId, id, archived);
     revalidatePath("/caderno");
   });
 }
 export async function reportAction(input: unknown) {
   return runAction(async () => {
     const data = reportSchema.parse(input);
-    await repo.saveReport((await requireStudySession(data.sessionId)).userId, data);
+    await repo.saveReport(await requireStudySession(data.sessionId), data);
   });
 }

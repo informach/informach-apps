@@ -16,6 +16,17 @@ function depois(...eventos: EventoDoHospedeiro[]): EstadoDoHospedeiro {
 }
 
 describe("estado da página do jogo", () => {
+  it("pausa de checkpoint não anuncia transferência concluída nem oferece retomar o SID", () => {
+    const parada = paradaDaMudanca({ codigo: "SESSAO_ENCERRADA", motivo: "checkpoint" });
+    expect(parada).toBe("pausado_para_troca");
+    expect(paradaDoErro(new ErroDoRecreio("CHECKPOINT_PENDENTE"))).toBe("troca_nao_confirmada");
+    expect(textoDaParada(parada).acao).toBe("nada");
+  });
+  it("pedido de saída manual não anuncia pausa ou transferência concluída", () => {
+    const parada = paradaDoErro(new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "manual" }));
+    expect(parada).toBe("saida_no_outro_aparelho");
+    expect(textoDaParada(parada).acao).toBe("tentar");
+  });
   it("abre, monta e joga", () => {
     expect(ESTADO_INICIAL).toEqual({ fase: "carregando" });
     expect(depois({ tipo: "montado" })).toEqual({ fase: "jogando" });
@@ -71,8 +82,14 @@ describe("motivo de uma parada", () => {
     [new ErroDoRecreio("ACESSO_PERDIDO", { motivo: "signed_out" }), "saiu_da_conta"],
     [new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "replaced" }), "outro_lugar"],
     [new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "signed_out" }), "saiu_da_conta"],
+    [new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "left" }), "saiu_do_jogo"],
+    [
+      new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "permissions_changed" }),
+      "permissoes_alteradas",
+    ],
     [new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "access_lost" }), "acesso_perdido"],
     [new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "expired" }), "sessao_encerrada"],
+    [new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "future_unknown" }), "sessao_encerrada"],
     [new ErroDoRecreio("SESSAO_ENCERRADA"), "sessao_encerrada"],
     [new ErroDoRecreio("SESSAO_INVALIDA"), "sessao_encerrada"],
     [new ErroDoRecreio("INGRESSO_INVALIDO"), "sessao_encerrada"],
@@ -114,6 +131,10 @@ describe("motivo de uma parada", () => {
     );
     expect(paradaDaMudanca({ codigo: "ACESSO_PERDIDO" })).toBe("acesso_perdido");
     expect(paradaDaMudanca({ codigo: "SESSAO_ENCERRADA", motivo: "replaced" })).toBe("outro_lugar");
+    expect(paradaDaMudanca({ codigo: "SESSAO_ENCERRADA", motivo: "left" })).toBe("saiu_do_jogo");
+    expect(paradaDaMudanca({ codigo: "SESSAO_ENCERRADA", motivo: "permissions_changed" })).toBe(
+      "permissoes_alteradas",
+    );
     expect(paradaDaMudanca({ codigo: "SESSAO_INVALIDA" })).toBe("sessao_encerrada");
     expect(paradaDaMudanca({ codigo: "INDISPONIVEL" })).toBe("rede");
   });
@@ -129,6 +150,8 @@ describe("texto das paradas", () => {
     "iniciando",
     "outro_lugar",
     "saiu_da_conta",
+    "saiu_do_jogo",
+    "permissoes_alteradas",
     "sessao_encerrada",
     "rede",
     "falha",
@@ -160,6 +183,8 @@ describe("texto das paradas", () => {
       iniciando: "tentar",
       outro_lugar: "tentar",
       saiu_da_conta: "entrar",
+      saiu_do_jogo: "nada",
+      permissoes_alteradas: "nada",
       sessao_encerrada: "tentar",
       rede: "tentar",
       falha: "tentar",

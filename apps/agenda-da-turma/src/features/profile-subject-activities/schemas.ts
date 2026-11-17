@@ -53,6 +53,7 @@ export type CreateProfileSubjectActivityFormValues = z.input<
 
 export const updateProfileSubjectActivityInputSchema = z.object({
   id: activityIdSchema,
+  version: z.number().int().positive(),
   type: typeSchema,
   title: titleSchema,
   description: descriptionSchema,
@@ -64,6 +65,7 @@ export type UpdateProfileSubjectActivityInput = z.output<
 
 export const deleteProfileSubjectActivityInputSchema = z.object({
   id: activityIdSchema,
+  version: z.number().int().positive(),
 });
 export type DeleteProfileSubjectActivityInput = z.output<
   typeof deleteProfileSubjectActivityInputSchema
@@ -71,6 +73,7 @@ export type DeleteProfileSubjectActivityInput = z.output<
 
 export const setProfileSubjectActivityStatusInputSchema = z.object({
   id: activityIdSchema,
+  version: z.number().int().positive(),
   status: statusSchema,
 });
 export type SetProfileSubjectActivityStatusInput = z.output<

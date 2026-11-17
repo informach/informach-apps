@@ -1,3 +1,4 @@
+import { isRecentWebAuthentication } from "@informach/auth/web-sessions";
 import { Avatar } from "@/components/avatares";
 import { LinkChapa } from "@/components/ui/botao-chapa";
 import { CabecalhoPagina } from "@/components/ui/pagina";
@@ -6,6 +7,7 @@ import { familyCourseChoices, familyGradeChoices } from "@/features/family/choic
 import {
   EditProfile,
   FamilyChallenge,
+  LimitedStudentChoice,
   Routine,
 } from "@/features/family/components/family-controls";
 import { ConfirmarAcesso } from "@/features/family/components/reconfirm";
@@ -19,7 +21,13 @@ export default async function Students() {
   const data = await familyDashboard();
   const session = await getSession();
   const recent =
-    !!session && Date.now() - new Date(session.session.createdAt).getTime() < 10 * 60_000;
+    !!session &&
+    (await isRecentWebAuthentication({
+      userId: session.user.id,
+      sessionId: session.session.id,
+      app: "missao-saber",
+      maxAgeSeconds: 600,
+    }));
   return (
     <div className="mx-auto max-w-4xl">
       <CabecalhoPagina
@@ -47,12 +55,21 @@ export default async function Students() {
                 perfil.
               </p>
             )}
-            <div className="mt-4">
-              <LinkChapa href={`/estudar?perfil=${profile.id}`} tom="contorno" medida="p">
-                Abrir estudo de {profile.nickname}
-              </LinkChapa>
-            </div>
-            {recent && (
+            {recent &&
+              data.canManageFamily &&
+              profile.canManage &&
+              data.access.profileLimit === 1 &&
+              !data.activeProfileIds.includes(profile.id) && (
+                <LimitedStudentChoice profileId={profile.id} name={profile.nickname} />
+              )}
+            {profile.canWrite && (
+              <div className="mt-4">
+                <LinkChapa href={`/estudar?perfil=${profile.id}`} tom="contorno" medida="p">
+                  Abrir estudo de {profile.nickname}
+                </LinkChapa>
+              </div>
+            )}
+            {recent && profile.canManage && (
               <EditProfile
                 profile={{
                   id: profile.id,
@@ -86,8 +103,12 @@ export default async function Students() {
       {data.family && (
         <section className="mt-8 grid gap-5">
           <h2 className="font-display text-xl font-semibold">Combinados da família</h2>
+          <p className="text-sm text-tinta-suave">
+            O tempo de estudo abaixo vale para os acessos de estudo abertos por você.
+          </p>
           <Routine minutes={data.family.dailyMinutes} />
           <FamilyChallenge
+            canManage={data.canManageFamily}
             goal={data.challenge.goal}
             suggested={suggestedGoal(data.profiles.length)}
             progress={data.challenge.progress}

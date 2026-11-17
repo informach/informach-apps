@@ -43,4 +43,25 @@ describe("school attachments", () => {
       }),
     ).rejects.toThrow("INVALID_ATTACHMENT");
   });
+  it("keeps the original attachment while sending a bounded JPEG to the model", async () => {
+    const originalData =
+      "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADklEQVQImWP4DwYMEAoAU7oL9W/sIDEAAAAASUVORK5CYII=";
+    const prepared = await prepareNoticeAttachment({
+      name: "recado.png",
+      dataUrl: `data:image/png;base64,${originalData}`,
+    });
+    expect(prepared).toMatchObject({
+      type: "image/png",
+      originalData,
+      name: "recado.png",
+      pages: [],
+    });
+    expect(prepared?.dataUrl).toMatch(/^data:image\/jpeg;base64,/);
+    await expect(
+      prepareNoticeAttachment({
+        name: "corrompido.png",
+        dataUrl: "data:image/png;base64,iVBORw0KGgo=",
+      }),
+    ).rejects.toThrow("INVALID_ATTACHMENT");
+  });
 });

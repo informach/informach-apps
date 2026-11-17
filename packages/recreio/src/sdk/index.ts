@@ -1,17 +1,34 @@
 import type { z } from "zod";
 import {
+  ChaveDeDadosSchema,
+  ConquistaSchema,
+  DadoLidoSchema,
+  DadosDescartadosSchema,
+  DadosGravadosSchema,
+  LIMITES_DOS_DADOS,
+  MutacaoDeDadosSchema,
+  PedidoDeConquistaSchema,
+  type VersaoDeDadosHttp,
+  VersoesDeDadosSchema,
+} from "../contrato/dados";
+import {
+  ConfirmacaoDeCheckpointSchema,
+  ControleDaSessaoSchema,
   ConviteCriadoSchema,
   ListaDeMundosSchema,
   type MudancaDeAcesso,
   MundoAbertoSchema,
   MundoRefSchema,
   type RecreioGameContext,
+  ResultadoDeCheckpointSchema,
   SessaoAbertaSchema,
   SessaoRenovadaSchema,
 } from "../contrato/sdk";
 import { FRACAO_PARA_RENOVAR } from "../contrato/tokens";
 import { ErroDoRecreio, ehErroDoRecreio } from "../dominio/erros";
+import { base64ParaBytes, bytesParaBase64 } from "../transporte/bytes";
 import { type Buscar, erroDaResposta, lerCorpo, pedir, semBarraFinal } from "../transporte/http";
+import { comPrazoDePedido, TEMPO_LIMITE_DO_PEDIDO_MS } from "../transporte/prazo";
 
 /**
  * SDK do Recreio para o cliente de um jogo. Só usa `fetch` e temporizadores:
@@ -39,9 +56,14 @@ export type OpcoesDoRecreio = {
    * Pede um ingresso ao Recreio (`POST /api/sdk/v1/ingresso`, com o cookie do
    * portal) e devolve o token. Quem fornece é a página que hospeda o jogo.
    */
-  obterIngresso: () => Promise<string>;
-  /** Encerra a sessão de jogo aberta em outro aparelho e continua neste. */
+  obterIngresso: (signal: AbortSignal) => Promise<string>;
+  /** Solicita continuar neste aparelho, sujeito ao checkpoint ou à saída anterior. */
   continuarAqui?: boolean;
+  /** Só ativar depois dos leitores do recibo no servidor. Não persiste a prova. */
+  recuperarAbertura?: boolean;
+  /** Aguarda o ACK de outro aparelho, conservando o mesmo ingresso e prova. */
+  aguardarCheckpoint?: boolean;
+  aoAguardarCheckpoint?: () => void;
   fetch?: Buscar;
   /** Relógio em milissegundos; existe para os testes. */
   agora?: () => number;
@@ -64,34 +86,83 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
     caminho: string,
     esquema: z.ZodType<T>,
     init: { method: "GET" | "POST"; token?: string; corpo?: unknown },
+    tempoLimiteMs = TEMPO_LIMITE_DO_PEDIDO_MS,
   ): Promise<T> {
-    const resposta = await pedir(buscar, `${base}${caminho}`, {
-      method: init.method,
-      headers: {
-        ...(init.token === undefined ? {} : { authorization: `Bearer ${init.token}` }),
-        ...(init.corpo === undefined ? {} : { "content-type": "application/json" }),
-      },
-      ...(init.corpo === undefined ? {} : { body: JSON.stringify(init.corpo) }),
-      // O token vai no cabeçalho; nenhum cookie do portal acompanha o jogo.
-      credentials: "omit",
-    });
-    return lerCorpo(resposta, esquema);
+    return comPrazoDePedido(async (signal) => {
+      const resposta = await pedir(buscar, `${base}${caminho}`, {
+        method: init.method,
+        headers: {
+          ...(init.token === undefined ? {} : { authorization: `Bearer ${init.token}` }),
+          ...(init.corpo === undefined ? {} : { "content-type": "application/json" }),
+        },
+        ...(init.corpo === undefined ? {} : { body: JSON.stringify(init.corpo) }),
+        // O token vai no cabeçalho; nenhum cookie do portal acompanha o jogo.
+        credentials: "omit",
+        signal,
+      });
+      signal.throwIfAborted();
+      return lerCorpo(resposta, esquema, LIMITES_DOS_DADOS.respostaBytes);
+    }, tempoLimiteMs);
   }
 
-  const ingresso = await opcoes.obterIngresso();
-  const aberta = await enviar("/sessao", SessaoAbertaSchema, {
+  const ingresso = await comPrazoDePedido(opcoes.obterIngresso);
+  const chaveDeTroca = opcoes.recuperarAbertura
+    ? bytesParaBase64(crypto.getRandomValues(new Uint8Array(32)))
+        .replaceAll("+", "-")
+        .replaceAll("/", "_")
+        .replace(/=+$/, "")
+    : undefined;
+  const pedidoDeAbertura = {
     method: "POST",
     corpo: {
       ingresso,
       ...(opcoes.continuarAqui === undefined ? {} : { continuarAqui: opcoes.continuarAqui }),
+      ...(chaveDeTroca === undefined ? {} : { chaveDeTroca }),
     },
-  });
+  } as const;
+  const aberta = await (async () => {
+    const fimDaEspera = agora() + 30_000;
+    let recuperacaoTentada = false;
+    for (let tentativa = 0; ; tentativa++) {
+      try {
+        return await enviar(
+          "/sessao",
+          SessaoAbertaSchema,
+          pedidoDeAbertura,
+          Math.max(1, Math.min(TEMPO_LIMITE_DO_PEDIDO_MS, fimDaEspera - agora())),
+        );
+      } catch (erro) {
+        // Somente este pedido tem recibo/prova: repetir preserva ingresso e SID.
+        if (chaveDeTroca && !recuperacaoTentada && ehErroDoRecreio(erro, "INDISPONIVEL")) {
+          recuperacaoTentada = true;
+          continue;
+        }
+        if (
+          !chaveDeTroca ||
+          !opcoes.continuarAqui ||
+          !opcoes.aguardarCheckpoint ||
+          tentativa >= 20 ||
+          !ehErroDoRecreio(erro, "CHECKPOINT_PENDENTE") ||
+          !["requested", "pending", "confirmed"].includes(String(erro.detalhe.motivo)) ||
+          agora() + 1000 >= fimDaEspera
+        )
+          throw erro;
+        opcoes.aoAguardarCheckpoint?.();
+        await new Promise<void>((resolve) => {
+          agendar(resolve, 1000);
+        });
+      }
+    }
+  })();
 
   let token = aberta.token;
   let expiraEm = aberta.expiraEm;
   /** Depois de sair ou de perder o acesso, nada mais é renovado. */
   let encerrada = false;
+  let saidaConfirmada = false;
+  let saidaEmCurso: Promise<void> | null = null;
   let cancelar: (() => void) | null = null;
+  let renovacaoSuspensa = false;
   const aoRenovar = new Set<(token: string) => void>();
   const aoMudarAcesso = new Set<(mudanca: MudancaDeAcesso) => void>();
 
@@ -118,19 +189,32 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   }
 
   async function renovar(): Promise<void> {
-    if (encerrada) return;
+    if (encerrada || renovacaoSuspensa) return;
+    const restante = Date.parse(expiraEm) - agora();
+    if (restante <= 0) {
+      perder({ tipo: "perdido", codigo: "INDISPONIVEL" });
+      return;
+    }
     try {
-      const renovada = await enviar("/sessao/renovar", SessaoRenovadaSchema, {
-        method: "POST",
-        token,
-      });
+      const renovada = await enviar(
+        "/sessao/renovar",
+        SessaoRenovadaSchema,
+        { method: "POST", token },
+        Math.min(TEMPO_LIMITE_DO_PEDIDO_MS, restante),
+      );
       if (encerrada) return;
       token = renovada.token;
       expiraEm = renovada.expiraEm;
-      agendarPelaValidade();
+      if (!renovacaoSuspensa) agendarPelaValidade();
       for (const ouvinte of [...aoRenovar]) ouvinte(token);
     } catch (erro) {
       if (encerrada) return;
+      if (
+        renovacaoSuspensa &&
+        ehErroDoRecreio(erro, "SESSAO_ENCERRADA") &&
+        erro.detalhe.motivo === "checkpoint"
+      )
+        return;
       if (ehErroDoRecreio(erro) && erro.codigo !== "INDISPONIVEL") {
         // O Recreio recusou: o acesso caiu, e o jogo é avisado uma vez.
         const { estado, motivo } = erro.detalhe;
@@ -145,18 +229,121 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       // Sem resposta do Recreio: tenta de novo enquanto a sessão não vence.
       const resta = Date.parse(expiraEm) - agora();
       if (resta <= 0) perder({ tipo: "perdido", codigo: "INDISPONIVEL" });
-      else agendarRenovacao(Math.min(REPETIR_RENOVACAO_APOS_MS, resta));
+      else if (!renovacaoSuspensa) agendarRenovacao(Math.min(REPETIR_RENOVACAO_APOS_MS, resta));
     }
   }
 
   agendarPelaValidade();
 
   const mundo = (id: string) => `/mundos/${encodeURIComponent(id)}`;
+  function exigirSessao(): void {
+    if (encerrada) throw new ErroDoRecreio("SESSAO_ENCERRADA");
+  }
+  const versaoDeDados = ({ conteudo, ...versao }: VersaoDeDadosHttp) => ({
+    ...versao,
+    dados: base64ParaBytes(conteudo),
+  });
+  const consultaDeDados = (chave: string, historico = false) =>
+    `/dados?${new URLSearchParams({ chave: ChaveDeDadosSchema.parse(chave), ...(historico ? { historico: "1" } : {}) })}`;
 
   return {
+    dados: {
+      async ler(chave) {
+        exigirSessao();
+        const { versao } = await enviar(consultaDeDados(chave), DadoLidoSchema, {
+          method: "GET",
+          token,
+        });
+        return versao ? versaoDeDados(versao) : null;
+      },
+      async gravar(chave, dados, revisao = 0) {
+        exigirSessao();
+        if (dados.byteLength > LIMITES_DOS_DADOS.bytesPorVersao)
+          throw new ErroDoRecreio("TAMANHO_EXCEDIDO");
+        const corpo = MutacaoDeDadosSchema.parse({
+          operacao: "gravar",
+          chave,
+          revisao,
+          conteudo: bytesParaBase64(dados),
+        });
+        return (await enviar("/dados", DadosGravadosSchema, { method: "POST", token, corpo }))
+          .revisao;
+      },
+      async versoes(chave) {
+        exigirSessao();
+        const lidas = await enviar(consultaDeDados(chave, true), VersoesDeDadosSchema, {
+          method: "GET",
+          token,
+        });
+        return { revisaoAtual: lidas.revisaoAtual, versoes: lidas.versoes.map(versaoDeDados) };
+      },
+      async resolver(chave, versaoId, revisao) {
+        exigirSessao();
+        const corpo = MutacaoDeDadosSchema.parse({
+          operacao: "resolver",
+          chave,
+          versaoId,
+          revisao,
+        });
+        return (await enviar("/dados", DadosGravadosSchema, { method: "POST", token, corpo }))
+          .revisao;
+      },
+      async descartar(chave, versaoId) {
+        exigirSessao();
+        const corpo = MutacaoDeDadosSchema.parse({ operacao: "descartar", chave, versaoId });
+        await enviar("/dados", DadosDescartadosSchema, { method: "POST", token, corpo });
+      },
+    },
+    conquista: async (id, chaveIdem) => {
+      exigirSessao();
+      return enviar("/conquistas", ConquistaSchema, {
+        method: "POST",
+        token,
+        corpo: PedidoDeConquistaSchema.parse({ id, chaveIdem }),
+      });
+    },
     perfil: aberta.perfil,
     politica: aberta.politica,
     sessao: {
+      async controle() {
+        exigirSessao();
+        const controle = await enviar("/sessao/controle", ControleDaSessaoSchema, {
+          method: "GET",
+          token,
+        });
+        if (controle.pausada || controle.checkpoint?.estado === "requested") {
+          renovacaoSuspensa = true;
+          cancelar?.();
+          cancelar = null;
+        } else if (renovacaoSuspensa && controle.checkpoint === null) {
+          renovacaoSuspensa = false;
+          agendarPelaValidade();
+        }
+        return controle;
+      },
+      async checkpoint(id, confirmado) {
+        exigirSessao();
+        const corpo = ConfirmacaoDeCheckpointSchema.parse({ id, confirmado });
+        if (confirmado) {
+          renovacaoSuspensa = true;
+          cancelar?.();
+          cancelar = null;
+        }
+        const resultado = await enviar("/sessao/checkpoint", ResultadoDeCheckpointSchema, {
+          method: "POST",
+          token,
+          corpo,
+        });
+        if (resultado.pausada) {
+          renovacaoSuspensa = true;
+          cancelar?.();
+          cancelar = null;
+        } else if (renovacaoSuspensa) {
+          renovacaoSuspensa = false;
+          agendarPelaValidade();
+        }
+        return resultado;
+      },
       get expiraEm() {
         return expiraEm;
       },
@@ -170,21 +357,36 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
         return () => aoMudarAcesso.delete(ouvinte);
       },
       async sair() {
-        const jaEncerrada = encerrada;
         parar();
-        if (jaEncerrada) return;
+        if (saidaConfirmada) return;
+        if (saidaEmCurso) return saidaEmCurso;
+        const pedido = (async () => {
+          try {
+            await comPrazoDePedido(async (signal) => {
+              const resposta = await pedir(buscar, `${base}/sessao/sair`, {
+                method: "POST",
+                headers: { authorization: `Bearer ${token}` },
+                credentials: "omit",
+                signal,
+              });
+              signal.throwIfAborted();
+              await resposta.body?.cancel();
+            });
+          } catch (erro) {
+            // Essas recusas confirmam que o servidor já encerrou a sessão.
+            if (
+              !ehErroDoRecreio(erro, "SESSAO_INVALIDA") &&
+              !ehErroDoRecreio(erro, "SESSAO_ENCERRADA")
+            )
+              throw erro;
+          }
+          saidaConfirmada = true;
+        })();
+        saidaEmCurso = pedido;
         try {
-          const resposta = await pedir(buscar, `${base}/sessao/sair`, {
-            method: "POST",
-            headers: { authorization: `Bearer ${token}` },
-            credentials: "omit",
-          });
-          await resposta.body?.cancel();
-        } catch (erro) {
-          // Sessão que o Recreio já não reconhece (venceu, foi encerrada) está fora: é o que se queria.
-          if (ehErroDoRecreio(erro, "SESSAO_INVALIDA") || ehErroDoRecreio(erro, "SESSAO_ENCERRADA"))
-            return;
-          throw erro;
+          await pedido;
+        } finally {
+          saidaEmCurso = null;
         }
       },
     },
@@ -209,10 +411,17 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   };
 }
 
+export type { ControleDaSessao } from "../contrato/sdk";
 export type { JogoMontado, ModuloDoJogo, OpcoesDeMontagem } from "./modulo";
 export type { MudancaDeAcesso, RecreioGameContext };
 /**
  * `erroDaResposta` serve a quem fornece `obterIngresso`: transforma a recusa de
  * `POST /api/sdk/v1/ingresso` no mesmo `ErroDoRecreio` que o SDK lança.
  */
-export { ErroDoRecreio, ehErroDoRecreio, erroDaResposta };
+export {
+  comPrazoDePedido,
+  ErroDoRecreio,
+  ehErroDoRecreio,
+  erroDaResposta,
+  TEMPO_LIMITE_DO_PEDIDO_MS,
+};

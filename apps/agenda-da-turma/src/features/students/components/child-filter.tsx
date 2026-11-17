@@ -1,4 +1,5 @@
 import { cn } from "@informach/ui/lib/utils";
+import type { Route } from "next";
 import Link from "next/link";
 import { shortChildNames } from "../utils";
 import { StudentAvatar } from "./student-avatar";
@@ -14,7 +15,7 @@ import { StudentAvatar } from "./student-avatar";
  * A pílula leva o nome curto (`shortChildNames`): com o nome inteiro, três
  * crianças viravam três linhas e a do computador passava por cima da data.
  */
-export function ChildFilter({
+export function ChildFilter<T extends string>({
   profiles,
   current,
   hrefFor,
@@ -22,7 +23,7 @@ export function ChildFilter({
 }: {
   profiles: Array<{ id: string; name: string }>;
   current: string | null;
-  hrefFor: (profileId: string | null) => string;
+  hrefFor: (profileId: string | null) => Route<T>;
   plain?: boolean;
 }) {
   if (profiles.length < 2) return null;
@@ -73,14 +74,14 @@ export function ChildFilter({
  * todas, para ninguém imprimir ou ler a semana de uma criança achando que é a
  * da casa.
  */
-export function FilteredByChild({
+export function FilteredByChild<T extends string>({
   profiles,
   current,
   clearHref,
 }: {
   profiles: Array<{ id: string; name: string }>;
   current: string | null;
-  clearHref: string;
+  clearHref: Route<T>;
 }) {
   const child = current ? profiles.find((profile) => profile.id === current) : null;
   if (!child || profiles.length < 2) return null;

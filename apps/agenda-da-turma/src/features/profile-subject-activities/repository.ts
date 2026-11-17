@@ -1,67 +1,40 @@
 import "server-only";
-
-import { and, asc, db, eq, sql } from "@informach/db";
-import { agendaStudentProfiles, agendaTasks } from "@informach/db/schema";
-import { countPendingActivities, lockPendingLimit } from "@/features/activities/pending-limit";
-import type { ActivityStatusValue, ActivityType } from "@/features/activities/types";
-import { accessibleProfileCondition } from "@/features/family/access";
-import { actionFingerprint } from "@/features/notices/write-repository";
+import { err, ok } from "@informach/auth/server-actions";
+import { and, asc, db, eq, inArray, sql } from "@informach/db";
+import {
+  agendaActivityRevisions,
+  agendaProfileSubjects,
+  agendaStudentProfiles,
+  agendaTasks,
+} from "@informach/db/schema";
+import { type FamilyTransaction, requireFamilyCondition } from "@informach/family";
+import { lockFamilyMembership } from "@informach/family/context";
+import { FREE_ACTIVITY_LIMIT } from "@/features/activities/limits";
+import { countPendingActivities } from "@/features/activities/pending-limit";
+import type { AgendaAuthority } from "@/features/family/authority";
+import { agendaProfileCondition } from "@/features/family/scope";
+import { atomicAgendaResult } from "@/features/family/transaction-repository";
+import { lockAgendaUse } from "@/features/family/use-repository";
+import {
+  actionFingerprint,
+  setNoticeActionStatusWithinTx,
+} from "@/features/notices/write-repository";
+import {
+  assertTaskSchoolContexts,
+  lockTaskSchoolContexts,
+} from "@/features/turmas/transaction-repository";
+import type {
+  CreateProfileSubjectActivityInput,
+  DeleteProfileSubjectActivityInput,
+  SetProfileSubjectActivityStatusInput,
+  UpdateProfileSubjectActivityInput,
+} from "./schemas";
 import type { ProfileSubjectActivity } from "./types";
-
-/**
- * A atividade extracurricular é uma tarefa como qualquer outra.
- *
- * Ela morava em `agenda.profile_subject_activities`, uma terceira tabela com o
- * seu próprio contrato — prazo obrigatório, sem hora, sem local, sem
- * responsável, sem histórico. Depois da convergência é uma linha de
- * `agenda.tasks` com `profile_subject_id` preenchido, e por isso ganhou de
- * graça tudo o que só a providência de recado tinha.
- *
- * Este repositório existe para as telas que ainda falam em "matéria
- * extracurricular" (a página da matéria e o feed .ics). Ele não conhece mais
- * nenhuma tabela própria.
- */
-export type NewProfileSubjectActivityPayload = {
-  profileId: string;
-  profileSubjectId: string;
-  createdByUserId: string;
-  type: ActivityType;
-  title: string;
-  description: string | null;
-  // "YYYY-MM-DD"
-  dueAt: string;
-};
-
-export type UpdateProfileSubjectActivityPayload = {
-  type: ActivityType;
-  title: string;
-  description: string | null;
-  dueAt: string;
-};
-
-// Só as tarefas extracurriculares: `profile_subject_id` preenchido e sem
-// recado de origem. A tarefa que veio de um recado E foi vinculada a uma
-// matéria extracurricular continua sendo do recado — ela aparece na lista
-// geral, não na página da matéria.
-const extraCondition = sql`${agendaTasks.profileSubjectId} IS NOT NULL`;
-
-function toTaskValues(payload: NewProfileSubjectActivityPayload) {
-  return {
-    profileId: payload.profileId,
-    profileSubjectId: payload.profileSubjectId,
-    createdByUserId: payload.createdByUserId,
-    type: payload.type,
-    title: payload.title,
-    description: payload.description,
-    dueAt: payload.dueAt,
-    dateOrigin: "family" as const,
-    fingerprint: actionFingerprint(payload),
-  };
-}
 
 function toActivity(row: typeof agendaTasks.$inferSelect): ProfileSubjectActivity {
   return {
     id: row.id,
+    version: row.version,
     profileId: row.profileId,
     // A condição de leitura garante o vínculo; o tipo do schema é nullable
     // porque a mesma coluna serve às tarefas sem matéria.
@@ -77,144 +50,171 @@ function toActivity(row: typeof agendaTasks.$inferSelect): ProfileSubjectActivit
   };
 }
 
-// Garante que o user tem acesso à criança dona da atividade. Usado pelo
-// service antes de update/delete/setStatus.
-export async function findProfileSubjectActivityForUser(
-  userId: string,
-  id: string,
-): Promise<ProfileSubjectActivity | null> {
-  const [row] = await db
-    .select({ task: agendaTasks })
+function visibleProfiles(actor: AgendaAuthority) {
+  return db
+    .select({ id: agendaStudentProfiles.id })
+    .from(agendaStudentProfiles)
+    .where(agendaProfileCondition(actor));
+}
+const extraCondition = sql`${agendaTasks.profileSubjectId} IS NOT NULL`;
+async function lockExtra(tx: FamilyTransaction, actor: AgendaAuthority, id: string) {
+  const schoolLocks = await lockTaskSchoolContexts(tx, { taskIds: [id] });
+  await lockFamilyMembership(tx, actor.userId, actor.familyGroupId);
+  const [candidate] = await tx
+    .select({ profileId: agendaTasks.profileId })
     .from(agendaTasks)
-    .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
-    .where(and(accessibleProfileCondition(userId), eq(agendaTasks.id, id), extraCondition))
-    .limit(1);
-  return row ? toActivity(row.task) : null;
-}
-
-// Insere a atividade. Pré-condição (verificada pelo service):
-//   - profileSubject pertence ao perfil
-//   - perfil pertence ao user
-export async function insertProfileSubjectActivity(
-  payload: NewProfileSubjectActivityPayload,
-): Promise<ProfileSubjectActivity> {
-  const [row] = await db.insert(agendaTasks).values(toTaskValues(payload)).returning();
-  if (!row) throw new Error("agenda.tasks: insert returned no row");
-  return toActivity(row);
-}
-
-// Variante Free: mesmo advisory lock e cap (`FREE_ACTIVITY_LIMIT`) das demais
-// origens. Free pode criar 20 atividades no total, misturadas como quiser.
-// Race-safety: lock por user serializa inserts concorrentes nesta conta.
-export type InsertProfileSubjectActivityWithinLimitResult =
-  | { ok: true; activity: ProfileSubjectActivity }
-  | { ok: false; current: number };
-
-export async function insertProfileSubjectActivityWithinFreeLimit(
-  payload: NewProfileSubjectActivityPayload,
-  limit: number,
-): Promise<InsertProfileSubjectActivityWithinLimitResult> {
-  return db.transaction(
-    async (tx) => {
-      // O teto é da família dona da criança, não de quem digita. Contar por
-      // quem digita daria zero para um segundo adulto e o limite passaria
-      // batido — e o lock seria outro, sem serializar com os demais writers.
-      const [owner] = await tx
-        .select({ userId: agendaStudentProfiles.userId })
-        .from(agendaStudentProfiles)
-        .where(eq(agendaStudentProfiles.id, payload.profileId));
-      if (!owner) throw new Error("agenda.tasks: profile not found for the free limit");
-      await lockPendingLimit(tx, owner.userId);
-
-      const current = await countPendingActivities(tx, owner.userId);
-      if (current >= limit) {
-        return { ok: false as const, current };
-      }
-      const [row] = await tx.insert(agendaTasks).values(toTaskValues(payload)).returning();
-      if (!row) throw new Error("agenda.tasks: insert returned no row");
-      return { ok: true as const, activity: toActivity(row) };
-    },
-    { isolationLevel: "read committed" },
-  );
-}
-
-export async function updateProfileSubjectActivityById(
-  id: string,
-  payload: UpdateProfileSubjectActivityPayload,
-): Promise<ProfileSubjectActivity | null> {
-  const [row] = await db
-    .update(agendaTasks)
-    .set({
-      type: payload.type,
-      title: payload.title,
-      description: payload.description,
-      dueAt: payload.dueAt,
-      dateOrigin: "family",
-      fingerprint: actionFingerprint(payload),
-      version: sql`${agendaTasks.version} + 1`,
-      updatedAt: new Date(),
-    })
-    .where(and(eq(agendaTasks.id, id), extraCondition))
-    .returning();
-  return row ? toActivity(row) : null;
-}
-
-export async function deleteProfileSubjectActivityById(id: string): Promise<boolean> {
-  const removed = await db
-    .delete(agendaTasks)
-    .where(and(eq(agendaTasks.id, id), extraCondition))
-    .returning({ id: agendaTasks.id });
-  return removed.length > 0;
-}
-
-export async function setProfileSubjectActivityStatus(
-  id: string,
-  status: ActivityStatusValue,
-  actorId: string,
-  freeLimit: number | null,
-): Promise<boolean | { limitReached: number }> {
-  const [candidate] = await db
-    .select({ ownerId: agendaStudentProfiles.userId })
-    .from(agendaTasks)
-    .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
-    .where(and(eq(agendaTasks.id, id), extraCondition, accessibleProfileCondition(actorId)));
-  if (!candidate) return false;
-  return db.transaction(async (tx) => {
-    await tx.execute(
-      sql`SELECT pg_advisory_xact_lock(hashtext(${`agenda:family:${candidate.ownerId}`}))`,
+    .where(
+      and(
+        eq(agendaTasks.id, id),
+        extraCondition,
+        inArray(agendaTasks.profileId, visibleProfiles(actor)),
+      ),
     );
-    await lockPendingLimit(tx, candidate.ownerId);
-    const [current] = await tx
-      .select({ task: agendaTasks })
-      .from(agendaTasks)
-      .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
-      .where(and(eq(agendaTasks.id, id), extraCondition, accessibleProfileCondition(actorId)))
-      .for("update");
-    if (!current) return false;
-    if (freeLimit !== null && status === "pending" && current.task.status === "done") {
-      const total = await countPendingActivities(tx, candidate.ownerId);
-      if (total >= freeLimit) return { limitReached: total };
+  requireFamilyCondition(candidate);
+  await lockAgendaUse(tx, actor, [candidate.profileId]);
+  const [task] = await tx
+    .select()
+    .from(agendaTasks)
+    .where(
+      and(eq(agendaTasks.id, id), eq(agendaTasks.profileId, candidate.profileId), extraCondition),
+    )
+    .for("update");
+  requireFamilyCondition(task);
+  await assertTaskSchoolContexts(tx, schoolLocks, { taskIds: [id] });
+  return { task, schoolLocks };
+}
+export async function findProfileSubjectActivityForUser(actor: AgendaAuthority, id: string) {
+  const [task] = await db
+    .select()
+    .from(agendaTasks)
+    .where(
+      and(
+        eq(agendaTasks.id, id),
+        extraCondition,
+        inArray(agendaTasks.profileId, visibleProfiles(actor)),
+      ),
+    );
+  return task ? toActivity(task) : null;
+}
+export function insertProfileSubjectActivity(
+  actor: AgendaAuthority,
+  input: CreateProfileSubjectActivityInput,
+) {
+  return atomicAgendaResult(async (tx) => {
+    await lockFamilyMembership(tx, actor.userId, actor.familyGroupId);
+    const [subject] = await tx
+      .select()
+      .from(agendaProfileSubjects)
+      .where(
+        and(
+          eq(agendaProfileSubjects.id, input.profileSubjectId),
+          inArray(agendaProfileSubjects.profileId, visibleProfiles(actor)),
+        ),
+      );
+    if (!subject) return err({ code: "PROFILE_SUBJECT_NOT_FOUND" } as const);
+    const access = await lockAgendaUse(tx, actor, [subject.profileId]);
+    const [currentSubject] = await tx
+      .select()
+      .from(agendaProfileSubjects)
+      .where(eq(agendaProfileSubjects.id, subject.id));
+    if (currentSubject?.status !== "active")
+      return err({ code: "PROFILE_SUBJECT_NOT_FOUND" } as const);
+    if (!access.enabled) {
+      const current = await countPendingActivities(tx, actor);
+      if (current >= FREE_ACTIVITY_LIMIT)
+        return err({
+          code: "ACTIVITY_LIMIT_REACHED",
+          current,
+          limit: FREE_ACTIVITY_LIMIT,
+        } as const);
     }
-    await tx
-      .update(agendaTasks)
-      .set({
-        status,
-        completedAt: status === "done" ? new Date() : null,
-        updatedAt: new Date(),
+    const [row] = await tx
+      .insert(agendaTasks)
+      .values({
+        ...input,
+        description: input.description ?? null,
+        profileId: subject.profileId,
+        createdByUserId: actor.userId,
+        dateOrigin: "family",
+        fingerprint: actionFingerprint(input),
       })
-      .where(eq(agendaTasks.id, id));
-    return true;
+      .returning();
+    requireFamilyCondition(row);
+    return ok(toActivity(row));
   });
 }
-
-// Atividades de uma matéria extracurricular, para a página da matéria.
+export function updateProfileSubjectActivityById(
+  actor: AgendaAuthority,
+  input: UpdateProfileSubjectActivityInput,
+) {
+  return atomicAgendaResult(async (tx) => {
+    const { task: previous } = await lockExtra(tx, actor, input.id);
+    if (previous.version !== input.version || previous.status === "canceled")
+      return err({ code: "VERSION_CONFLICT" } as const);
+    // A shared school fact must be edited through its complete form, which propagates corrections.
+    if (previous.sharedActivityId) return err({ code: "SHARED_ACTIVITY" } as const);
+    const [current] = await tx
+      .update(agendaTasks)
+      .set({
+        type: input.type,
+        title: input.title,
+        description: input.description ?? null,
+        dueAt: input.dueAt,
+        dateOrigin: "family",
+        fingerprint: actionFingerprint(input),
+        version: previous.version + 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(agendaTasks.id, input.id))
+      .returning();
+    requireFamilyCondition(current);
+    await tx.insert(agendaActivityRevisions).values({
+      taskId: input.id,
+      actorId: actor.userId,
+      version: current.version,
+      previous,
+      current,
+    });
+    return ok(toActivity(current));
+  });
+}
+export function deleteProfileSubjectActivityById(
+  actor: AgendaAuthority,
+  input: DeleteProfileSubjectActivityInput,
+) {
+  return atomicAgendaResult(async (tx) => {
+    const { task } = await lockExtra(tx, actor, input.id);
+    if (task.version !== input.version) return err({ code: "VERSION_CONFLICT" } as const);
+    if (task.sharedActivityId) return err({ code: "SHARED_ACTIVITY" } as const);
+    await tx.delete(agendaTasks).where(eq(agendaTasks.id, input.id));
+    return ok(true as const);
+  });
+}
+export function setProfileSubjectActivityStatus(
+  actor: AgendaAuthority,
+  input: SetProfileSubjectActivityStatusInput,
+) {
+  return atomicAgendaResult(async (tx) => {
+    const { schoolLocks } = await lockExtra(tx, actor, input.id);
+    const result = await setNoticeActionStatusWithinTx(tx, actor, input, schoolLocks);
+    return result.ok
+      ? ok({ id: input.id, status: input.status, version: result.value.version })
+      : result;
+  });
+}
 export async function listProfileSubjectActivitiesForSubject(
+  actor: AgendaAuthority,
   profileSubjectId: string,
-): Promise<ProfileSubjectActivity[]> {
+) {
   const rows = await db
     .select()
     .from(agendaTasks)
-    .where(eq(agendaTasks.profileSubjectId, profileSubjectId))
+    .where(
+      and(
+        eq(agendaTasks.profileSubjectId, profileSubjectId),
+        inArray(agendaTasks.profileId, visibleProfiles(actor)),
+      ),
+    )
     .orderBy(asc(agendaTasks.dueAt));
   return rows.map(toActivity);
 }

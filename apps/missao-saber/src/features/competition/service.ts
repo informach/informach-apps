@@ -2,13 +2,13 @@ import "server-only";
 import { randomInt } from "node:crypto";
 import { z } from "zod";
 import { AppError, assertAllowed } from "@/lib/errors";
-import { getAccess } from "../billing/service";
+import { getLearningAccess } from "../billing/access-repository";
 import { skillNames } from "../content/catalog";
 import { type Item, itemSchema, type PublicItem, publicItem } from "../content/types";
-import { allowedProfileIds } from "../family/profile-access";
+import type { ParentAuthority } from "../family/authority";
 import { gradeLabel } from "../family/school-year";
 import { gradeAnswer, numericSolution } from "../learning/engine";
-import { contentStates, getProfiles } from "../learning/repository";
+import { activeStudentIds, contentStates, getProfiles } from "../learning/repository";
 import { encontrarDesafio, faixaDoAno } from "../pecas/catalogo";
 import { lerMontagem } from "../pecas/esquema";
 import { verificar } from "../pecas/verificar";
@@ -28,20 +28,22 @@ import {
 import * as repo from "./repository";
 
 /** Perfis da família com o que cada um pode jogar em cada área. */
-export async function competitionSetup(userId: string) {
-  const [perfis, acesso] = await Promise.all([getProfiles(userId), getAccess(userId)]);
+export async function competitionSetup(actor: ParentAuthority) {
+  const [perfis, acesso] = await Promise.all([getProfiles(actor), getLearningAccess(actor)]);
   return {
     pago: acesso.paid,
-    perfis: perfis.map((perfil) => ({
-      id: perfil.id,
-      apelido: perfil.nickname,
-      avatar: perfil.avatar,
-      ano: gradeLabel(perfil.grade),
-      areas: {
-        matematica: elegibilidade("matematica", perfil.grade),
-        financeira: elegibilidade("financeira", perfil.grade),
-      },
-    })),
+    perfis: perfis
+      .filter((perfil) => perfil.canWrite)
+      .map((perfil) => ({
+        id: perfil.id,
+        apelido: perfil.nickname,
+        avatar: perfil.avatar,
+        ano: gradeLabel(perfil.grade),
+        areas: {
+          matematica: elegibilidade("matematica", perfil.grade),
+          financeira: elegibilidade("financeira", perfil.grade),
+        },
+      })),
   };
 }
 
@@ -71,21 +73,21 @@ export const createSchema = z
  * Sorteia e grava a competição inteira de uma vez: cada criança recebe os
  * próprios problemas e desafios agora, e a ordem das vezes fica fixa.
  */
-export async function createCompetition(userId: string, raw: unknown) {
+export async function createCompetition(actor: ParentAuthority, raw: unknown) {
   const dados = createSchema.parse(raw);
   const [perfis, acesso, estados] = await Promise.all([
-    getProfiles(userId),
-    getAccess(userId),
+    getProfiles(actor),
+    getLearningAccess(actor),
     contentStates(),
   ]);
-  const liberados = allowedProfileIds(perfis, acesso.profileLimit);
+  const liberados = await activeStudentIds(actor, acesso.profileLimit);
   const escolhidos = dados.perfis.map((id) => {
     const perfil = perfis.find((p) => p.id === id);
     assertAllowed(perfil, "PROFILE", "Perfil não encontrado.");
     return perfil;
   });
   const vistos = await repo.seenInCompetitions(
-    userId,
+    actor,
     escolhidos.map((p) => p.id),
   );
   const semente = randomInt(1, 2 ** 31 - 1);
@@ -156,7 +158,7 @@ export async function createCompetition(userId: string, raw: unknown) {
     },
   );
   return repo.createCompetition(
-    userId,
+    actor,
     {
       title: dados.titulo,
       area: dados.area,
@@ -180,8 +182,8 @@ export async function createCompetition(userId: string, raw: unknown) {
   );
 }
 
-export async function listCompetitions(userId: string) {
-  return (await repo.listCompetitions(userId)).map(
+export async function listCompetitions(actor: ParentAuthority) {
+  return (await repo.listCompetitions(actor)).map(
     ({ competicao, competidores, feitas, total }) => ({
       id: competicao.id,
       titulo: competicao.title,
@@ -259,8 +261,8 @@ function vezPublica(vez: repo.Turn): VezPublica {
   };
 }
 
-export async function competitionView(userId: string, id: string) {
-  const { competicao, competidores, vezes } = await repo.readCompetition(userId, id);
+export async function competitionView(actor: ParentAuthority, id: string) {
+  const { competicao, competidores, vezes } = await repo.readCompetition(actor, id);
   const pontos = (competidorId: string) =>
     vezes.filter((v) => v.competitorId === competidorId).reduce((s, v) => s + v.points, 0);
   const lista = competidores.map((c) => ({
@@ -293,19 +295,19 @@ export type CompetitionView = Awaited<ReturnType<typeof competitionView>>;
 
 const idSchema = z.string().uuid();
 
-export async function startTurn(userId: string, id: string) {
-  await repo.openNextTurn(userId, idSchema.parse(id), new Date());
-  return competitionView(userId, id);
+export async function startTurn(actor: ParentAuthority, id: string) {
+  await repo.openNextTurn(actor, idSchema.parse(id), new Date());
+  return competitionView(actor, id);
 }
 
 const respostaSchema = z.object({ vezId: z.string().uuid(), resposta: z.string().max(40_000) });
 
 /** Resposta de problema ou montagem de desafio, corrigida no servidor. */
-export async function answerTurn(userId: string, id: string, raw: unknown) {
+export async function answerTurn(actor: ParentAuthority, id: string, raw: unknown) {
   const { vezId, resposta } = respostaSchema.parse(raw);
   const agora = new Date();
   await repo.closeTurn(
-    userId,
+    actor,
     idSchema.parse(id),
     vezId,
     (vez) => {
@@ -333,7 +335,7 @@ export async function answerTurn(userId: string, id: string, raw: unknown) {
     },
     agora,
   );
-  return competitionView(userId, id);
+  return competitionView(actor, id);
 }
 
 const encerrarSchema = z.object({
@@ -341,11 +343,11 @@ const encerrarSchema = z.object({
   motivo: z.enum(["timeout", "gave_up"]),
 });
 /** Relógio que chegou a zero no aparelho, ou desafio encerrado por quem coordena. */
-export async function endTurn(userId: string, id: string, raw: unknown) {
+export async function endTurn(actor: ParentAuthority, id: string, raw: unknown) {
   const { vezId, motivo } = encerrarSchema.parse(raw);
   const agora = new Date();
   await repo.closeTurn(
-    userId,
+    actor,
     idSchema.parse(id),
     vezId,
     (vez) => {
@@ -364,9 +366,9 @@ export async function endTurn(userId: string, id: string, raw: unknown) {
     },
     agora,
   );
-  return competitionView(userId, id);
+  return competitionView(actor, id);
 }
 
-export async function deleteCompetition(userId: string, id: string) {
-  await repo.deleteCompetition(userId, idSchema.parse(id));
+export async function deleteCompetition(actor: ParentAuthority, id: string) {
+  await repo.deleteCompetition(actor, idSchema.parse(id));
 }

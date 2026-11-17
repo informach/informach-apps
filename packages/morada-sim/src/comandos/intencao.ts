@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { AcaoId, FamiliaId, MoradorId, ObjetoId, PedidoId } from "../dominio/ids";
 import { PERMISSOES } from "../dominio/permissoes";
+import { RascunhoDaFamiliaSchema } from "./fundacao";
 
 /**
  * Tudo o que entra na simulação. O cliente não muda o mundo: ele pede, com uma
@@ -31,6 +32,7 @@ export const TIPOS_DE_PEDIDO = ["namoro", "casamento", "morar_junto", "bebe"] as
 const velocidade = z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]);
 
 export const AcaoPedidaSchema = z.discriminatedUnion("t", [
+  z.strictObject({ t: z.literal("fundar_familia"), rascunho: RascunhoDaFamiliaSchema }),
   /** Pede o controle do morador da intenção. */
   z.strictObject({ t: z.literal("reservar") }),
   z.strictObject({ t: z.literal("liberar") }),
@@ -93,6 +95,8 @@ export const EntradaSchema = z.discriminatedUnion("t", [
     t: z.literal("sessao_entrou"),
     sessaoId: z.string().min(1),
     perfilId: z.string().min(1),
+    /** Capacidade entregue pelo host após autorização; nunca faz parte de Intencao. */
+    podeFundarFamilia: z.boolean().optional(),
     /** Como a plataforma chama este jogador. Sem ele, os outros veem só que há alguém. */
     apelido: apelido.optional(),
   }),
@@ -104,6 +108,8 @@ export const EntradaSchema = z.discriminatedUnion("t", [
   z.strictObject({
     t: z.literal("sessao_voltou"),
     sessaoId: z.string().min(1),
+    /** A volta exige renovar a autoridade, sem conservar a capacidade anterior. */
+    podeFundarFamilia: z.boolean().optional(),
     /** O apelido de agora, se mudou enquanto a pessoa estava fora. */
     apelido: apelido.optional(),
   }),

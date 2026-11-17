@@ -4,9 +4,8 @@ import { FREE_WORKOUT_IDS, WORKOUTS } from "@/features/treino/catalog/workouts";
 export type Tier = "free" | "individual" | "family";
 /**
  * O que a conta pode usar agora.
- * - `subscribed`: tem assinatura (ativa, em teste do Stripe, ou com o pagamento atrasado dentro
- *   da tolerância). É o que as telas de cobrança leem.
- * - `trial`: o teste de 7 dias do app, sem cartão.
+ * - `subscribed`: há cobertura paga do Compasso ou um contrato legado reconhecido.
+ * - `trial`: o teste central de 14 dias, sem cartão.
  * - `unlocked`: assinante ou em teste: é o que libera os recursos. As regras abaixo leem só isto.
  */
 export type Access = {
@@ -51,7 +50,7 @@ export function formatWorkoutRef(ref: WorkoutRef) {
 /**
  * O que o plano gratuito inclui: um perfil, o "Primeiro treino", o "Aquecimento", a biblioteca
  * com o instrutor 3D e a prática de cada exercício contando à mão. O resto é das assinaturas e
- * do teste de 7 dias.
+ * do teste central.
  */
 export function canStartWorkout(access: Access, ref: WorkoutRef) {
   if (ref.kind === "pratica") return true;
@@ -63,7 +62,7 @@ export const canCountWithCamera = (access: Access) => access.unlocked;
 export const canUseProgression = (access: Access) => access.unlocked;
 export const canUseChallenges = (access: Access) => access.unlocked;
 export const canEditWorkouts = (access: Access) => access.unlocked;
-export const canPairPhone = (access: Access) => access.unlocked;
+export const canPairPhone = (access: Pick<Access, "unlocked">) => access.unlocked;
 
 /** Quantos treinos do histórico aparecem no progresso. */
 export const historyLimit = (access: Access) => (access.unlocked ? 365 : 5);

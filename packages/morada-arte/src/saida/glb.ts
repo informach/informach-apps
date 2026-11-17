@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   type Accessor,
   Document,
@@ -7,12 +8,13 @@ import {
   NodeIO,
   type Skin,
 } from "@gltf-transform/core";
-import { EXTMeshoptCompression, KHRMeshQuantization } from "@gltf-transform/extensions";
+import { ALL_EXTENSIONS, EXTMeshoptCompression } from "@gltf-transform/extensions";
 import { quantize, reorder } from "@gltf-transform/functions";
 import { MeshoptDecoder, MeshoptEncoder } from "meshoptimizer";
 import type { Pesos } from "../encaixe/montar";
 import type { Corpo } from "../leitura/corpo";
 import { escreverPng } from "../leitura/imagem";
+import { ATRIBUTO_CANAL_DE_COR, ATRIBUTO_MASCARA_DE_COR, ATRIBUTO_PESO_DE_COR } from "../manifesto";
 import { em } from "../numeros";
 import type { PersonagemMontado } from "../personagem/montagem";
 import type { PrimitivaPronta } from "../personagem/partes";
@@ -44,12 +46,10 @@ export function entradaESaida(): Promise<NodeIO> {
   io ??= (async () => {
     await MeshoptEncoder.ready;
     await MeshoptDecoder.ready;
-    return new NodeIO()
-      .registerExtensions([EXTMeshoptCompression, KHRMeshQuantization])
-      .registerDependencies({
-        "meshopt.encoder": MeshoptEncoder,
-        "meshopt.decoder": MeshoptDecoder,
-      });
+    return new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
+      "meshopt.encoder": MeshoptEncoder,
+      "meshopt.decoder": MeshoptDecoder,
+    });
   })();
   return io;
 }
@@ -86,6 +86,7 @@ type Contexto = {
   ): Accessor;
   cores: Material;
   inteiras: boolean;
+  mascaras: Map<string, MascaraEscrita>;
 };
 
 function primitivaNoDocumento(
@@ -103,6 +104,21 @@ function primitivaNoDocumento(
     .setAttribute("JOINTS_0", ctx.acessor(`${nome}.ossos`, "VEC4", primitiva.pesos.ossos))
     .setAttribute("WEIGHTS_0", ctx.acessor(`${nome}.pesos`, "VEC4", primitiva.pesos.pesos));
   if (primitiva.cores) {
+    if (primitiva.parametrosDeCor) {
+      const parametros = primitiva.parametrosDeCor;
+      prim.setAttribute(
+        ATRIBUTO_CANAL_DE_COR,
+        ctx.acessor(`${nome}.canal_cor`, "SCALAR", parametros.canais),
+      );
+      prim.setAttribute(
+        ATRIBUTO_MASCARA_DE_COR,
+        ctx.acessor(`${nome}.mascara_cor`, "SCALAR", parametros.mascaras),
+      );
+      prim.setAttribute(
+        ATRIBUTO_PESO_DE_COR,
+        ctx.acessor(`${nome}.peso_cor`, "VEC3", parametros.pesos),
+      );
+    }
     if (ctx.inteiras) {
       const cores = new Uint16Array(primitiva.cores.length);
       for (let i = 0; i < cores.length; i++) {
@@ -127,6 +143,28 @@ function primitivaNoDocumento(
       .setRoughnessFactor(0.75)
       .setDoubleSided(true)
       .setBaseColorTexture(textura);
+    if (primitiva.materialDeCor?.tipo === "textura") {
+      const perfil = primitiva.materialDeCor;
+      const dados = escreverPng(perfil.mascara);
+      const hash = createHash("sha256").update(dados).digest("hex").slice(0, 10);
+      const arquivo = `mascara.${hash}.png`;
+      ctx.mascaras.set(arquivo, {
+        arquivo,
+        dados,
+        largura: perfil.mascara.largura,
+        altura: perfil.mascara.altura,
+      });
+      material
+        .setExtras({
+          moradaCor: {
+            tipo: "textura",
+            canal: perfil.canal,
+            luminancia: perfil.luminancia,
+            mascara: arquivo,
+          },
+        })
+        .setAlphaMode("OPAQUE");
+    }
     // como a página carrega as texturas: sem repetir
     material
       .getBaseColorTextureInfo()
@@ -199,7 +237,9 @@ export type MalhaEscrita = { no: string; triangulos: number; vertices: number; p
 export type PersonagemEscrito = {
   glb: Uint8Array;
   malhas: MalhaEscrita[];
+  mascaras: MascaraEscrita[];
 };
+type MascaraEscrita = { arquivo: string; dados: Uint8Array; largura: number; altura: number };
 
 export async function escreverPersonagem(
   montado: PersonagemMontado,
@@ -223,7 +263,14 @@ export async function escreverPersonagem(
     .setMetallicFactor(0)
     .setRoughnessFactor(0.75)
     .setDoubleSided(true);
-  const ctx: Contexto = { doc, acessor, cores, inteiras: montado.relatorio.corMaxima <= 1 };
+  if (montado.cores) cores.setExtras({ moradaCor: { tipo: "vertices" } });
+  const ctx: Contexto = {
+    doc,
+    acessor,
+    cores,
+    inteiras: montado.relatorio.corMaxima <= 1,
+    mascaras: new Map(),
+  };
   const { skin, raiz } = esqueletoNoDocumento(doc, montado.corpo, acessor);
   const cena = doc.createScene(montado.plano.personagem.id).addChild(raiz);
   doc.getRoot().setDefaultScene(cena);
@@ -281,5 +328,5 @@ export async function escreverPersonagem(
     .setRequired(true)
     .setEncoderOptions({ method: EXTMeshoptCompression.EncoderMethod.FILTER });
   const glb = await (await entradaESaida()).writeBinary(doc);
-  return { glb, malhas };
+  return { glb, malhas, mascaras: [...ctx.mascaras.values()] };
 }

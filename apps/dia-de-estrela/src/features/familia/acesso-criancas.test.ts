@@ -4,7 +4,7 @@ import { allowedChildIds } from "./acesso-criancas";
 const c = (id: string, accessEnabled = true) => ({ id, accessEnabled });
 
 describe("crianças liberadas pelo plano", () => {
-  it("o Família libera todas, até quatro", () => {
+  it("o Compasso libera todas, até quatro", () => {
     expect(allowedChildIds([c("a"), c("b"), c("c"), c("d"), c("e")], 4)).toEqual([
       "a",
       "b",

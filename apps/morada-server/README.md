@@ -4,7 +4,24 @@ Processo Node de longa duração que executa os mundos abertos do Morada, vário
 
 Regras de domínio e contratos: [`packages/morada-sim/README.md`](../../packages/morada-sim/README.md) e [`packages/recreio/README.md`](../../packages/recreio/README.md). Estado da frente: [`docs/recreio/implementacao.md`](../../docs/recreio/implementacao.md).
 
+Integridade (15/11): um passo conserva a base de sequência entre as retentativas dos lotes do diário, inclusive quando a resposta se perde depois do commit. Cada fato de domínio é atômico no diário; uma fotografia só cobre passos inteiramente confirmados. A leitura HTTP confere o checksum e o teto comprimido do catálogo; `src/fotografia.ts` limita a expansão a 64 MiB e recusa UTF-8 inválido. Uma fotografia inválida interrompe a recuperação, sem recriar ou sobrescrever o mundo.
+
+A recuperação exige a fotografia anunciada pela posse, do próprio mundo, com revisão/tick/formato coerentes. O diário precisa ser contínuo desde a fotografia até o topo anunciado; cada fato confere id/tick com o envelope. Ausência, buraco ou corte recusam abrir antes de qualquer nova fotografia, conservando os dados para a recuperação operacional. O cliente HTTP percorre páginas de até 256 entradas/256 KiB, com teto acumulado do catálogo e 131.072 entradas. Estes tetos são de segurança; um mundo antigo que exceda o orçamento exige tratamento operacional explícito.
+
+O Railway reserva 35 s de drenagem, acima dos 25 s totais de desligamento do processo, sem sobreposição de réplicas. O prazo inclui persistência, rede e flush da observabilidade. A instância devolve contagens de mundos e falhas; falha de salvamento termina com código 1, conserva a posse para recuperação e não impede a tentativa nos demais mundos. A rede fecha também em falha, esperando até 1 s pelo ACK de fechamento dos WebSockets. Chamadas repetidas compartilham o mesmo resultado. O volume mantém réplica única; isso não constitui alta disponibilidade. [Candidata e verificação](../../docs/recreio/drenagem-resultado-2026-11-16.md); contrato do provedor: [desligamento e drenagem](https://docs.railway.com/deployments/deployment-teardown#draining-time).
+
+Arte declarada exige tamanho e SHA-256 compatíveis com o nome de cada arquivo; cópias brotli precisam expandir exatamente para o original, com limite de saída igual ao seu tamanho. Corrupção impede iniciar a rota. Cada representação tem ETag derivado dos próprios bytes. A telemetria conserva ambiente/release configurados e somente classificadores fixos, sem conteúdo dos mundos. Implantação, ativação da arte e evidências no [runbook do alfa](../recreio/PRODUCAO.md).
+
+## Limites da rede
+
+Conexões sem sessão também contam no teto global. `MORADA_CONEXOES_MAX` (padrão 1024), `MORADA_PEDIDOS_EM_CURSO_MAX` (32) e `MORADA_QUADROS_POR_SEGUNDO_MAX` (400) limitam sockets, verificações/entradas simultâneas e vazão agregada antes de processar o quadro. HTTP tem 64 vagas adicionais e prazos de cabeçalhos/corpo de 10 s. `/api/metricas` informa ocupação e limites. Os tetos protegem recursos; não representam jogadores/mundos homologados nem substituem proteção da borda. A lotação de mundos continua independente, pendente de carga medida. A segunda conexão recusada não expulsa uma admissão em andamento.
+
 ## Rodar
+
+No Railway, o comando da IaC é `node apps/morada-server/dist/main.mjs`, na raiz
+`/app`, para o Node receber SIGTERM como PID 1. A prova de processo usa um
+contêiner no GitHub, com um mundo e fechamento WebSocket; a configuração real,
+a prontidão e a arte são conferidas após a implantação. [Operação e limites](../../docs/recreio/processo-principal-2026-11-16.md).
 
 ```bash
 # Desenvolvimento, sem portal nem banco: plataforma em memória, porta 3010.
@@ -14,9 +31,7 @@ MORADA_PLATAFORMA=falsa pnpm dev:morada-server
 cp apps/morada-server/.env.example apps/morada-server/.env   # ajuste o segredo
 pnpm dev:morada-server
 
-pnpm --filter @informach/morada-server typecheck
-pnpm --filter @informach/morada-server test
-pnpm --filter @informach/morada-server carga 20 10   # medida de bancada: mundos, minutos
+# Homologação pesada: executar pelo workflow Recreio no GitHub, não nesta máquina.
 ```
 
 `pnpm dev:morada-server` lê `apps/morada-server/.env` se o arquivo existir (ele é ignorado pelo git); o que já está no ambiente do terminal vale mais que o arquivo, então o comando do modo `falsa` acima continua funcionando com o `.env` no lugar. No modo ligado ao Recreio, três valores precisam bater com o ambiente do portal: `RECREIO_HOST_SECRET` é o segredo de `RECREIO_HOST_SECRETS.morada`, `MORADA_PUBLIC_URL` é a origem de `RECREIO_GAME_ORIGINS.morada.ws`, e `MORADA_ORIGENS` é a origem pública do portal. O passo a passo com as duas pontas está no [guia do portal](../recreio/README.md#morada-no-portal).
@@ -111,6 +126,8 @@ Fechamentos e o que o cliente faz com cada um estão em `FECHAMENTO`, no protoco
 
 Os testes usam a plataforma em memória de `@informach/recreio/testing` e conexões em memória, com o tempo controlado: cada passo é dado pelo teste.
 
+O caso de queda confere a chegada da fila quando ela termina e, depois, a liberação da reserva ao vencer a janela de graça. A posição após essa janela não é fixa: a autonomia continua ativa, e a semente de cada mundo pode levar o morador a outra atividade.
+
 | Arquivo | O que prova |
 | --- | --- |
 | `test/convivio.test.ts` | Duas contas no mesmo mundo e na mesma instância; cada uma vê o apelido da outra; cada uma dirige um morador; queda sem aviso; retomada; diário antes do aviso; hibernação e volta |
@@ -144,7 +161,30 @@ pnpm --filter @informach/jogo-morada bancada   # http://localhost:5173/?apelido=
 
 No portal, a origem da arte é `RECREIO_GAME_ORIGINS.morada.assets` (`http://localhost:3010` em desenvolvimento).
 
-## Ainda não tem
+## Produção e isolamento dos mundos
 
-- Build para produção, serviço no Railway e Sentry (lote X3).
-- Os passos de todos os mundos esperam uns pelos outros: uma chamada lenta ao Recreio em um mundo atrasa o passo dos outros mundos da instância.
+`pnpm build:morada-server` gera `dist/main.mjs` com esbuild (versão fixada no lockfile), incluindo os packages internos. `pnpm start:morada-server` executa esse arquivo com Node, sem `tsx` em runtime. `pino`, `ws` e `@sentry/node` são dependências de produção externas ao bundle. O E2E do portal também sobe esse artefato compilado.
+
+Cada pulso inicia somente os mundos sem um passo em voo. Um diário ou checkpoint lento pausa apenas o seu mundo; não acumula ticks nem bloqueia os demais. Cada ator mantém a sua fila de escrita e a proteção pela posse.
+
+`SENTRY_DSN` é opcional. O servidor envia apenas classificadores de falha (`rede`, `encerrar`, `iniciar` e código do Recreio ou `INTERNO`), com filtro que remove requisição, pessoa, breadcrumbs e mensagens livres. Os logs também usam classe/código controlados, inclusive no erro fatal de início. O alfa fechado está implantado no Railway, com arte D2 e manutenção periódica; as funcionalidades D3 continuam em candidata. Fontes, saúde, restauração e limites operacionais no [runbook do alfa](../recreio/PRODUCAO.md).
+
+Em produção, `RECREIO_API_URL` aceita HTTPS ou HTTP numa origem privada exata `<serviço>.railway.internal`. A API privada exige `RECREIO_EMISSOR` HTTPS explícito, igual ao emissor público do portal. URLs com credenciais, caminho ou outro protocolo são recusadas.
+
+
+### Arte do ambiente (D1)
+
+A rota `/arte/<arquivo>` aceita manifestos V1 e V2; V2 acrescenta móveis/encaixes GLB e acabamentos PNG. Só arquivos enumerados pelo manifesto são entregues, sempre após conferir a sessão. PNG usa `image/png`; GLB, `model/gltf-binary`. CORS, ETag por representação, cache privado e brotli seguem a mesma regra dos personagens. A pasta inteira é carregada ao iniciar: publicar outra versão exige reiniciar o processo.
+
+Arte, saída do empacotador e evidências com arte permanecem fora do repositório público. O E2E do portal tem opt-in local `RECREIO_E2E_ARTE_DIR`, explicado na [passagem](../../docs/recreio/passagem.md); ele não cria serviço remoto nem transfere arquivos.
+
+## Leitura de mudanças de permissão
+
+O batimento admite o encerramento `permissions_changed`, com a mesma retirada
+da conexão e liberação de reservas dos demais encerramentos. A sessão antiga
+não reentra; o portal explica a mudança e exige nova admissão. Essa preparação
+não troca responsabilidade, famílias simuladas ou capacidades persistidas.
+Antes do primeiro escritor de transferência, conferir todos os hosts ativos
+e reconciliar as capacidades conforme a proveniência, como exige o
+[plano de responsabilidade](../../docs/recreio/responsabilidade-aceita-2026-11-16.md).
+Mundo V2/protocolo 1 e arte D2 permanecem neste incremento.

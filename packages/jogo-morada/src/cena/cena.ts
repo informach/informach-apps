@@ -30,7 +30,7 @@ import {
   WebGLRenderer,
 } from "three";
 import { MapControls } from "three/addons/controls/MapControls.js";
-import type { Ativos, ObjetoDaCena, VisualDosObjetos } from "../ativos/ativos";
+import type { Ativos, DescricaoDoMorador, ObjetoDaCena, VisualDosObjetos } from "../ativos/ativos";
 import type { Sessao } from "../espelho/sessao";
 import { nomeDoObjeto } from "../modelo/menu";
 import { fracaoDoDia } from "../modelo/painel";
@@ -39,6 +39,7 @@ import { montarCasa, montarTerreno } from "./casa";
 import { centroDaCelula, daCena, METROS_POR_MM, type PontoDaCena, paraCena } from "./espaco";
 import { MoradoresDaCena } from "./moradores";
 import { CORTE_DAS_PAREDES_MM } from "./planta";
+import { type EstadoDaPrevia, PreviaDoMorador, type QuadroDaPrevia } from "./previa";
 import { alturaDoPiso } from "./situacao";
 
 /**
@@ -82,6 +83,7 @@ export type MedidasDaCena = {
   placa: string;
   /** Intervalo entre quadros: p95 e média da última janela de 5 s, em milissegundos. */
   p95Ms: number | null;
+  p50Ms: number | null;
   mediaMs: number | null;
   /** Tempo gasto pela própria cena em cada quadro (conta e desenho), média da última janela. */
   custoMs: number | null;
@@ -89,6 +91,20 @@ export type MedidasDaCena = {
   triangulos: number;
   quadros: number;
 };
+
+/** Mesmo uma janela lenta precisa de medidas, para a qualidade poder descer. */
+export function medidasDosQuadros(intervalos: readonly number[], custos: readonly number[]) {
+  if (intervalos.length === 0) return null;
+  const ordenados = [...intervalos].sort((a, b) => a - b);
+  const p95 = ordenados[Math.min(ordenados.length - 1, Math.floor(ordenados.length * 0.95))] ?? 0;
+  return {
+    p95Ms: Math.round(p95 * 10) / 10,
+    p50Ms: Math.round((ordenados[Math.floor(ordenados.length / 2)] ?? 0) * 10) / 10,
+    mediaMs: Math.round((intervalos.reduce((s, x) => s + x, 0) / intervalos.length) * 10) / 10,
+    custoMs:
+      Math.round((custos.reduce((s, x) => s + x, 0) / Math.max(1, custos.length)) * 100) / 100,
+  };
+}
 
 export type OpcoesDaCena = {
   sessao: Sessao;
@@ -124,6 +140,7 @@ export class Cena {
   private readonly opcoes: OpcoesDaCena;
   private readonly host: HTMLElement;
   private readonly renderer: WebGLRenderer;
+  private readonly gl: WebGL2RenderingContext;
   private readonly scene = new Scene();
   // Campo de visão estreito e câmera longe: quase isométrico, sem os moradores
   // tombarem para os lados nas bordas da tela.
@@ -140,11 +157,22 @@ export class Cena {
   private readonly cancelarAtivos: (() => void) | undefined;
 
   private moradores: MoradoresDaCena;
+  private readonly previa: PreviaDoMorador;
+  private cameraAntesDaPrevia: {
+    posicao: Vector3;
+    alvo: Vector3;
+    minimo: number;
+    maximo: number;
+    pan: boolean;
+  } | null = null;
+  private enquadramentoDaPrevia = "";
   private objetos: VisualDosObjetos | null = null;
   private itens: ObjetoDaCena[] = [];
   private terreno: Mesh | null = null;
   private pisos: Mesh[] = [];
   private paredes: Mesh[] = [];
+  private revestimentos: Mesh[] = [];
+  private aberturas: Object3D[] = [];
   private destino: Mesh | null = null;
   private destinoAte = 0;
 
@@ -152,6 +180,9 @@ export class Cena {
   private placa = "";
   private raf = 0;
   private ultimo = 0;
+  /** No máximo um quadro enviado à GPU; consultar sem bloquear a interface. */
+  private quadroPendente: WebGLSync | null = null;
+  private quadroDaPreviaPendente: QuadroDaPrevia | null = null;
   private descartada = false;
   private perdida = false;
   private revisaoMontada = -1;
@@ -169,8 +200,9 @@ export class Cena {
   private intervalos: number[] = [];
   private custos: number[] = [];
   private janelaDesde = 0;
-  private medidas: Pick<MedidasDaCena, "p95Ms" | "mediaMs" | "custoMs"> = {
+  private medidas: Pick<MedidasDaCena, "p95Ms" | "p50Ms" | "mediaMs" | "custoMs"> = {
     p95Ms: null,
+    p50Ms: null,
     mediaMs: null,
     custoMs: null,
   };
@@ -181,8 +213,16 @@ export class Cena {
     this.opcoes = opcoes;
     this.sessao = opcoes.sessao;
     this.ativos = opcoes.ativos;
+    this.previa = new PreviaDoMorador(this.ativos);
+    this.scene.add(this.previa.raiz);
 
     this.renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    const gl = this.renderer.getContext();
+    if (!(gl instanceof WebGL2RenderingContext)) {
+      this.renderer.dispose();
+      throw new Error("O desenho do Morada requer WebGL2");
+    }
+    this.gl = gl;
     this.renderer.outputColorSpace = SRGBColorSpace;
     this.renderer.shadowMap.type = PCFSoftShadowMap;
     this.placa = placaDe(this.renderer);
@@ -240,6 +280,19 @@ export class Cena {
 
   get qualidade(): Qualidade {
     return this.qualidadeAtual;
+  }
+
+  definirPrevia(descricao: DescricaoDoMorador | null): void {
+    this.previa.definir(descricao);
+  }
+  estadoDaPrevia(esperado?: DescricaoDoMorador): EstadoDaPrevia {
+    return this.previa.estadoPara(esperado);
+  }
+  recarregarPrevia(): void {
+    this.previa.recarregar();
+  }
+  girarPrevia(sentido: -1 | 1): void {
+    this.previa.girar(sentido);
   }
 
   /** Marca uma tecla de câmera como apertada ou solta (`KeyW`, `ArrowLeft`...). */
@@ -336,6 +389,7 @@ export class Cena {
 
   /** O que um clique neste ponto do elemento da cena acertaria. */
   oQueHa(x: number, y: number): AlvoClicado | null {
+    if (this.previa.aberta) return null;
     const estado = this.sessao.estado();
     if (!estado) return null;
     const { clientWidth, clientHeight } = this.host;
@@ -392,6 +446,7 @@ export class Cena {
     this.descartada = true;
     cancelAnimationFrame(this.raf);
     this.raf = 0;
+    this.limparQuadroPendente();
     this.observador.disconnect();
     this.cancelarAtivos?.();
     const canvas = this.renderer.domElement;
@@ -409,6 +464,7 @@ export class Cena {
 
     this.desmontar();
     this.moradores.dispose();
+    this.previa.dispose();
     if (this.destino) {
       this.destino.geometry.dispose();
       if (this.destino.material instanceof MeshBasicMaterial) this.destino.material.dispose();
@@ -444,9 +500,13 @@ export class Cena {
   private desmontar(): void {
     this.soltarMalha(this.terreno);
     this.terreno = null;
-    for (const malha of [...this.pisos, ...this.paredes]) this.soltarMalha(malha);
+    for (const malha of [...this.pisos, ...this.paredes, ...this.revestimentos])
+      this.soltarMalha(malha);
     this.pisos = [];
     this.paredes = [];
+    this.revestimentos = [];
+    for (const vao of this.aberturas) vao.removeFromParent();
+    this.aberturas = [];
     this.objetos?.dispose();
     this.objetos = null;
     this.itens = [];
@@ -467,7 +527,20 @@ export class Cena {
     for (const lote of lotes) {
       const imovel = lote.imovelId ? obter(estado.imoveis, lote.imovelId) : undefined;
       if (!imovel) continue;
-      const casa = montarCasa(imovel, lote, corte, this.materialFixo);
+      const casa = montarCasa(
+        imovel,
+        lote,
+        corte,
+        this.materialFixo,
+        (id) => this.ativos.acabamento?.(id) ?? null,
+      );
+      this.revestimentos.push(...casa.revestimentos);
+      for (const malha of casa.revestimentos) this.mundo.add(malha);
+      const vaos = this.ativos.criarAberturas?.(imovel, lote, corte);
+      if (vaos) {
+        this.aberturas.push(vaos);
+        this.mundo.add(vaos);
+      }
       if (casa.pisos) {
         this.pisos.push(casa.pisos);
         this.mundo.add(casa.pisos);
@@ -498,7 +571,7 @@ export class Cena {
 
     this.revisaoMontada = this.sessao.loja.revisaoDaCasa;
     this.paredesMontadas = baixas;
-    if (!this.enquadrada) this.enquadrar(estado);
+    if (!this.enquadrada && !this.previa.aberta) this.enquadrar(estado);
   }
 
   /** Com as paredes baixas, o que fica pendurado acima do corte, e tudo o que é de teto, some. */
@@ -561,28 +634,19 @@ export class Cena {
 
   /** Fecha uma janela de medida e desce a qualidade se os quadros estão demorando. */
   private fecharJanela(agora: number): void {
-    const intervalos = [...this.intervalos].sort((a, b) => a - b);
     this.janelaDesde = agora;
-    if (intervalos.length < 30) {
+    const medidas = medidasDosQuadros(this.intervalos, this.custos);
+    if (!medidas) {
       this.intervalos = [];
       this.custos = [];
       return;
     }
-    const p95 =
-      intervalos[Math.min(intervalos.length - 1, Math.floor(intervalos.length * 0.95))] ?? 0;
-    const media = intervalos.reduce((soma, valor) => soma + valor, 0) / intervalos.length;
-    const custo =
-      this.custos.reduce((soma, valor) => soma + valor, 0) / Math.max(1, this.custos.length);
-    this.medidas = {
-      p95Ms: Math.round(p95 * 10) / 10,
-      mediaMs: Math.round(media * 10) / 10,
-      custoMs: Math.round(custo * 100) / 100,
-    };
+    this.medidas = medidas;
     this.intervalos = [];
     this.custos = [];
     const degrau = DEGRAUS.indexOf(this.qualidadeAtual);
     const proximo = DEGRAUS[degrau + 1];
-    if (p95 > LIMITE_DO_P95_MS && proximo) {
+    if (medidas.p95Ms > LIMITE_DO_P95_MS && proximo) {
       this.qualidadeAtual = proximo;
       this.aplicarQualidade();
     }
@@ -594,6 +658,12 @@ export class Cena {
     this.renderer.setSize(largura, altura, false);
     this.camera.aspect = largura / altura;
     this.camera.updateProjectionMatrix();
+    if (this.previa.aberta) {
+      this.previa.confirmarQuadro(null);
+      this.quadroDaPreviaPendente = null;
+      this.enquadramentoDaPrevia = "";
+      this.recortarCameraDaPrevia();
+    }
   }
 
   // --- Laço ---
@@ -612,6 +682,33 @@ export class Cena {
     this.raf = 0;
   }
 
+  private limparQuadroPendente(): void {
+    if (this.quadroPendente) this.gl.deleteSync(this.quadroPendente);
+    this.quadroPendente = null;
+    this.quadroDaPreviaPendente = null;
+  }
+
+  private gpuDisponivel(): boolean {
+    if (!this.quadroPendente) return true;
+    const gl = this.gl;
+    // Prazo zero: nunca esperar pela GPU no thread da interface.
+    const estado = gl.clientWaitSync(this.quadroPendente, 0, 0);
+    if (estado === gl.TIMEOUT_EXPIRED) return false;
+    if (estado === gl.ALREADY_SIGNALED || estado === gl.CONDITION_SATISFIED) {
+      this.previa.confirmarQuadro(this.quadroDaPreviaPendente);
+      this.limparQuadroPendente();
+      return true;
+    }
+    this.interromperDesenho();
+    return false;
+  }
+
+  private interromperDesenho(): void {
+    this.perdida = true;
+    this.desligar();
+    this.sessao.loja.definirContextoPerdido(true);
+  }
+
   private readonly quadro = (agora: number): void => {
     this.raf = 0;
     if (this.descartada || this.perdida || document.hidden) return;
@@ -621,19 +718,24 @@ export class Cena {
     const intervalo = agora - this.ultimo;
     // No degrau mais baixo, pula os quadros que vêm antes da hora.
     if (limite > 0 && intervalo < limite - 2) return;
+    if (!this.gpuDisponivel()) return;
     this.ultimo = agora;
     const dt = Math.min(100, Math.max(0, intervalo));
     const inicio = performance.now();
 
     this.atualizar(agora, dt);
     this.renderer.render(this.scene, this.camera);
+    this.quadroDaPreviaPendente = this.previa.capturarQuadro();
+    const gl = this.gl;
+    this.quadroPendente = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
+    if (this.quadroPendente) gl.flush();
+    else this.interromperDesenho();
     this.quadros++;
 
-    // Um intervalo enorme é a aba voltando, não um quadro lento.
-    if (intervalo < 250) {
-      this.intervalos.push(intervalo);
-      this.custos.push(performance.now() - inicio);
-    }
+    // ligar() já reinicia a janela ao voltar de uma aba oculta. Um quadro
+    // visível muito lento precisa contar para a redução de qualidade.
+    this.intervalos.push(intervalo);
+    this.custos.push(performance.now() - inicio);
     if (agora - this.janelaDesde >= JANELA_DE_MEDIDA_MS) this.fecharJanela(agora);
   };
 
@@ -661,8 +763,11 @@ export class Cena {
         },
         previsao: this.sessao.previsao,
       });
-      this.iluminar(fracaoDoDia(estado));
     }
+
+    this.previa.atualizar(agora, dt);
+    this.ajustarCameraDaPrevia();
+    if (estado) this.iluminar(this.previa.aberta ? 0.4 : fracaoDoDia(estado));
 
     this.moverCamera(agora, dt);
     if (this.destino?.visible) {
@@ -707,7 +812,71 @@ export class Cena {
     sombra.updateProjectionMatrix();
   }
 
+  private ajustarCameraDaPrevia(): void {
+    if (!this.previa.aberta) {
+      const antes = this.cameraAntesDaPrevia;
+      if (!antes) return;
+      this.camera.position.copy(antes.posicao);
+      this.controles.target.copy(antes.alvo);
+      this.controles.minDistance = antes.minimo;
+      this.controles.maxDistance = antes.maximo;
+      this.controles.enablePan = antes.pan;
+      this.camera.clearViewOffset();
+      this.cameraAntesDaPrevia = null;
+      this.enquadramentoDaPrevia = "";
+      this.controles.update();
+      return;
+    }
+    if (!this.cameraAntesDaPrevia) {
+      this.cameraAntesDaPrevia = {
+        posicao: this.camera.position.clone(),
+        alvo: this.controles.target.clone(),
+        minimo: this.controles.minDistance,
+        maximo: this.controles.maxDistance,
+        pan: this.controles.enablePan,
+      };
+      this.foco = null;
+      this.teclas.clear();
+      this.controles.enablePan = false;
+    }
+    const enquadramento = this.previa.enquadramento;
+    if (!enquadramento) return;
+    const assinatura = JSON.stringify([enquadramento, this.previa.raiz.rotation.y]);
+    if (assinatura === this.enquadramentoDaPrevia) return;
+    this.enquadramentoDaPrevia = assinatura;
+    const altura = enquadramento.tamanho;
+    this.previa.raiz.updateWorldMatrix(true, false);
+    this.controles.target.copy(this.previa.raiz.localToWorld(new Vector3(...enquadramento.centro)));
+    const pequeno = this.host.clientWidth < 720;
+    this.camera.position
+      .copy(this.controles.target)
+      .add(new Vector3(altura * 0.3, altura * (pequeno ? 1.8 : 1), altura * (pequeno ? 4.6 : 2.8)));
+    this.controles.minDistance = Math.max(1, altura * 1.5);
+    this.controles.maxDistance = Math.max(3, altura * 6);
+    this.recortarCameraDaPrevia();
+    this.controles.update();
+  }
+
+  private recortarCameraDaPrevia(): void {
+    const largura = this.host.clientWidth,
+      altura = this.host.clientHeight;
+    if (largura <= 0 || altura <= 0) return;
+    const pequeno = largura < 720;
+    this.camera.setViewOffset(
+      largura,
+      altura,
+      pequeno ? 0 : -largura * 0.18,
+      pequeno ? altura * 0.28 : 0,
+      largura,
+      altura,
+    );
+  }
+
   private moverCamera(agora: number, dt: number): void {
+    if (this.previa.aberta) {
+      this.controles.update();
+      return;
+    }
     const alvo = this.controles.target;
     // WASD e setas andam no chão, na direção para onde a câmera olha.
     let lado = 0;
@@ -862,9 +1031,10 @@ export class Cena {
   private readonly aoPerder = (evento: Event): void => {
     // Sem isto o navegador não devolve o contexto.
     evento.preventDefault();
-    this.perdida = true;
-    this.desligar();
-    this.sessao.loja.definirContextoPerdido(true);
+    // Os objetos de sincronização também deixam de existir com o contexto.
+    this.quadroPendente = null;
+    this.interromperDesenho();
+    this.previa.confirmarQuadro(null);
   };
 
   private readonly aoRestaurar = (): void => {

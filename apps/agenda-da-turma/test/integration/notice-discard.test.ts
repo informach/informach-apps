@@ -1,22 +1,17 @@
 import { randomUUID } from "node:crypto";
-import { db, eq, inArray } from "@informach/db";
-import {
-  agendaFamilyMembers,
-  agendaFamilyProfileAccess,
-  agendaNotices,
-  agendaProductEvents,
-  agendaStudentProfiles,
-  creditReservations,
-  users,
-} from "@informach/db/schema";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { withCredits } from "@informach/ai-core";
+import { db, eq } from "@informach/db";
+import { agendaNotices, creditReservations } from "@informach/db/schema";
+import { beforeEach, expect, it } from "vitest";
+import { noticeCostQuote } from "@/features/ai/costs";
+import { agendaAiBilling, getAgendaAiBalance } from "@/features/ai/wallet-repository";
 import { withActionIds } from "@/features/notices/drafts";
 import { reserveNoticeParse } from "@/features/notices/parse-repository";
 import { listReadyNotices } from "@/features/notices/repository";
 import {
-  type NoticeActionInput,
+  actionFieldsSchema,
+  confirmNoticeSchema,
   parseNoticeSchema,
-  type StoredExtraction,
   storedExtractionSchema,
 } from "@/features/notices/schemas";
 import {
@@ -25,278 +20,175 @@ import {
   discardNotice,
   getNoticeDraft,
 } from "@/features/notices/service";
-import { countTrialImports } from "@/features/notices/trial";
+import { agendaFixture, family, value } from "./compasso-fixture";
 
-let owner: string;
-let guest: string;
-let outsider: string;
-let child: string;
-
+let f: Awaited<ReturnType<typeof agendaFixture>>;
 const extracted = {
   type: "task" as const,
-  title: "Fazer páginas 20 e 21",
+  title: "Pages 20 and 21",
   description: null,
   dueAt: null,
   dateOrigin: "unspecified" as const,
   time: null,
   location: null,
-  sourceExcerpt: "Fazer páginas 20 e 21",
+  sourceExcerpt: "Pages 20 and 21",
 };
 const legacyExtraction = {
-  actions: [extracted, { ...extracted, title: "Levar tesoura", sourceExcerpt: "Levar tesoura" }],
+  actions: [extracted, { ...extracted, title: "Bring scissors", sourceExcerpt: "Bring scissors" }],
   warnings: [],
 };
-const action = (profileId: string): NoticeActionInput => ({
-  profileId,
-  type: "task",
-  subjectId: null,
-  profileSubjectId: null,
-  title: "Fazer páginas 20 e 21",
-  description: null,
-  dueAt: null,
-  dateOrigin: "unspecified",
-  time: null,
-  estimatedMinutes: null,
-  location: null,
-  sourceExcerpt: null,
-  assignedToUserId: null,
-  reminderAt: null,
-  recurrence: "none",
-  shareWithTurma: false,
+beforeEach(async () => {
+  f = await agendaFixture(true);
+  for (const action of ["read", "write", "use_ai"] as const)
+    await family.grantAccess(f.owner, { ...f.target, action });
 });
-function required<T>(value: T | undefined): T {
-  if (value === undefined) throw new Error("Missing fixture");
-  return value;
-}
-async function insertNotice(
-  overrides: Partial<typeof agendaNotices.$inferInsert> & { parsedResult?: unknown } = {},
-) {
+async function notice(overrides: Partial<typeof agendaNotices.$inferInsert> = {}) {
   const [row] = await db
     .insert(agendaNotices)
     .values({
-      ownerUserId: owner,
-      captureProfileId: child,
-      createdByUserId: owner,
+      familyGroupId: f.actor.familyGroupId,
+      captureProfileId: f.profile.id,
+      createdByUserId: f.owner,
       source: "teams",
-      text: "Recado fictício",
+      text: "Synthetic notice",
       contentHash: randomUUID(),
       status: "ready",
       parsedResult: withActionIds(legacyExtraction),
       ...overrides,
     })
     .returning();
-  return required(row);
+  if (!row) throw new Error("Missing notice");
+  return row;
 }
 async function reload(id: string) {
   const [row] = await db.select().from(agendaNotices).where(eq(agendaNotices.id, id));
-  return required(row);
+  if (!row) throw new Error("Missing notice");
+  return row;
 }
-function storedIds(row: typeof agendaNotices.$inferSelect) {
-  return storedExtractionSchema.parse(row.parsedResult).actions.map((a) => a.id);
+function input() {
+  return parseNoticeSchema.parse({
+    profileId: f.profile.id,
+    source: "teams",
+    text: "Synthetic notice",
+    acceptedCost: noticeCostQuote({ text: "Synthetic notice" }),
+  });
 }
-
-beforeEach(async () => {
-  owner = `discard-owner-${randomUUID()}`;
-  guest = `discard-guest-${randomUUID()}`;
-  outsider = `discard-outsider-${randomUUID()}`;
-  await db.insert(users).values(
-    [owner, guest, outsider].map((id) => ({
-      id,
-      name: "Adulto fictício",
-      email: `${id}@e2e.local`,
-      emailVerified: true,
-    })),
+it("discards one action, keeps other stable IDs and refuses a repeated deletion", async () => {
+  const n = await notice();
+  const [first, second] = storedExtractionSchema.parse(n.parsedResult).actions;
+  if (!first?.id || !second?.id) throw new Error("Missing actions");
+  expect(await discardDraftAction(f.actor, { noticeId: n.id, actionId: first.id })).toMatchObject({
+    ok: true,
+    value: { remaining: 1 },
+  });
+  expect((await getNoticeDraft(f.actor, n.id))?.extraction.actions.map((a) => a.id)).toEqual([
+    second.id,
+  ]);
+  expect((await listReadyNotices(f.actor)).map((n) => n.id)).toContain(n.id);
+  expect(await discardDraftAction(f.actor, { noticeId: n.id, actionId: first.id })).toMatchObject({
+    ok: false,
+    error: { code: "NOT_FOUND" },
+  });
+});
+it("retires the final draft action and refuses saving from a stale tab", async () => {
+  const n = await notice();
+  for (const action of storedExtractionSchema.parse(n.parsedResult).actions) {
+    if (!action.id) throw new Error("Missing stable action ID");
+    value(await discardDraftAction(f.actor, { noticeId: n.id, actionId: action.id }));
+  }
+  expect((await reload(n.id)).status).toBe("discarded");
+  expect((await listReadyNotices(f.actor)).map((n) => n.id)).not.toContain(n.id);
+  expect(await getNoticeDraft(f.actor, n.id)).toBeNull();
+  expect(
+    await confirmNotice(
+      f.actor,
+      confirmNoticeSchema.parse({
+        noticeId: n.id,
+        sourceReviewed: true,
+        sourceProfileIds: [f.profile.id],
+        actions: [actionFieldsSchema.parse({ ...extracted, profileId: f.profile.id })],
+      }),
+    ),
+  ).toMatchObject({ ok: false, error: { code: "NOT_DRAFT" } });
+});
+it("only lets the capturing adult discard an unconfirmed original", async () => {
+  const n = await notice();
+  expect(await discardNotice(f.visitor, { noticeId: n.id })).toMatchObject({
+    ok: false,
+    error: { code: "NOT_FOUND" },
+  });
+  value(await discardNotice(f.actor, { noticeId: n.id }));
+  const guest = await notice({ createdByUserId: f.visitor.userId });
+  value(await discardNotice(f.visitor, { noticeId: guest.id }));
+  const confirmed = await notice({
+    status: "confirmed",
+    sourceProfileIds: [f.profile.id],
+    confirmedAt: new Date(),
+  });
+  expect(await discardNotice(f.actor, { noticeId: confirmed.id })).toMatchObject({
+    ok: false,
+    error: { code: "NOT_DRAFT" },
+  });
+});
+it("preserves the settled debit when discarding and restores paid output without a new reservation", async () => {
+  const { billing, owner } = await agendaAiBilling(f.actor, f.profile.id);
+  const paid = await withCredits({
+    billing,
+    owner,
+    app: "agenda-da-turma",
+    feature: "agenda.notices.parse",
+    estimateCost: () => ({ estimatedAmount: 4 }),
+    computeActualCost: () => ({ actualAmount: 2 }),
+    call: async () => withActionIds(legacyExtraction),
+  });
+  const n = await notice({ billingRunId: paid.reservationId, parsedResult: paid.result });
+  value(await discardNotice(f.actor, { noticeId: n.id }));
+  expect((await getAgendaAiBalance(f.actor)).available).toBe(18);
+  const replay = value(
+    await reserveNoticeParse({
+      actor: f.actor,
+      input: input(),
+      attachment: null,
+      contentHash: n.contentHash,
+      now: new Date(),
+    }),
   );
-  const [profile] = await db
-    .insert(agendaStudentProfiles)
-    .values({ userId: owner, name: "Criança fictícia" })
-    .returning();
-  child = required(profile).id;
-  // Segundo adulto com acesso à criança, sem passar pelo convite (que exige
-  // Pro): o que interessa aqui é o predicado de acesso, não o plano.
-  const [member] = await db
-    .insert(agendaFamilyMembers)
-    .values({ ownerUserId: owner, userId: guest })
-    .returning();
-  await db
-    .insert(agendaFamilyProfileAccess)
-    .values({ memberId: required(member).id, profileId: child });
+  expect(replay.replay).toBe(true);
+  expect((await getNoticeDraft(f.actor, n.id))?.extraction.actions).toHaveLength(2);
+  expect((await getAgendaAiBalance(f.actor)).available).toBe(18);
+  expect(
+    await db
+      .select()
+      .from(creditReservations)
+      .where(eq(creditReservations.ownerId, f.actor.familyGroupId)),
+  ).toHaveLength(1);
 });
-afterEach(async () => {
-  const ids = [owner, guest, outsider];
-  await db.delete(agendaProductEvents).where(inArray(agendaProductEvents.userId, ids));
-  await db.delete(creditReservations).where(inArray(creditReservations.ownerId, ids));
-  await db.delete(users).where(inArray(users.id, ids));
+it("cannot resurrect another adult's discarded original", async () => {
+  const n = await notice({ status: "discarded" });
+  expect(
+    await reserveNoticeParse({
+      actor: f.visitor,
+      input: input(),
+      attachment: null,
+      contentHash: n.contentHash,
+      now: new Date(),
+    }),
+  ).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+  expect((await reload(n.id)).status).toBe("discarded");
 });
-
-describe("discarding drafts", () => {
-  it("discards one action and keeps the other, with the same id", async () => {
-    const notice = await insertNotice();
-    const [first, second] = storedIds(notice);
-    const result = await discardDraftAction(owner, {
-      noticeId: notice.id,
-      actionId: required(first),
-    });
-    expect(result).toMatchObject({ ok: true, value: { remaining: 1 } });
-    const draft = await getNoticeDraft(owner, notice.id);
-    expect(draft?.extraction.actions.map((a) => a.id)).toEqual([second]);
-    expect((await reload(notice.id)).status).toBe("ready");
-    expect((await listReadyNotices(owner)).map((n) => n.id)).toContain(notice.id);
-    // Descartar de novo a mesma ação não existe mais para a família.
-    expect(
-      await discardDraftAction(owner, { noticeId: notice.id, actionId: required(first) }),
-    ).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
-  });
-  it("retires the notice when the last action is discarded", async () => {
-    const notice = await insertNotice();
-    const [first, second] = storedIds(notice);
-    await discardDraftAction(owner, { noticeId: notice.id, actionId: required(first) });
-    expect(
-      await discardDraftAction(owner, { noticeId: notice.id, actionId: required(second) }),
-    ).toMatchObject({ ok: true, value: { remaining: 0 } });
-    expect((await reload(notice.id)).status).toBe("discarded");
-    expect((await listReadyNotices(owner)).map((n) => n.id)).not.toContain(notice.id);
-    expect(await getNoticeDraft(owner, notice.id)).toBeNull();
-    // Aba velha salvando um recado já descartado: a tela está desatualizada,
-    // não há processamento em curso a esperar.
-    expect(
-      await confirmNotice(owner, {
-        noticeId: notice.id,
-        actions: [action(child)],
-        allowDuplicates: false,
-      }),
-    ).toMatchObject({ ok: false, error: { code: "NOT_DRAFT" } });
-  });
-  it("discards a whole draft only while it is ready, and only for who can resume it", async () => {
-    const confirmed = await insertNotice({ status: "confirmed", confirmedAt: new Date() });
-    expect(await discardNotice(owner, { noticeId: confirmed.id })).toMatchObject({
-      ok: false,
-      error: { code: "NOT_DRAFT" },
-    });
-    expect((await reload(confirmed.id)).status).toBe("confirmed");
-
-    const ownerCapture = await insertNotice();
-    expect(await discardNotice(outsider, { noticeId: ownerCapture.id })).toMatchObject({
-      ok: false,
-      error: { code: "NOT_FOUND" },
-    });
-    // O convidado não capturou este: não é dele para descartar.
-    expect(await discardNotice(guest, { noticeId: ownerCapture.id })).toMatchObject({
-      ok: false,
-      error: { code: "NOT_FOUND" },
-    });
-    expect(await discardNotice(owner, { noticeId: ownerCapture.id })).toMatchObject({
-      ok: true,
-      value: { id: ownerCapture.id },
-    });
-    expect((await reload(ownerCapture.id)).status).toBe("discarded");
-
-    const guestCapture = await insertNotice({ createdByUserId: guest });
-    expect(await discardNotice(guest, { noticeId: guestCapture.id })).toMatchObject({
-      ok: true,
-    });
-    expect((await reload(guestCapture.id)).status).toBe("discarded");
-  });
-  it("keeps counting a discarded trial import against the free allowance", async () => {
-    for (let i = 0; i < 4; i += 1) await insertNotice({ isTrial: true });
-    await insertNotice({ isTrial: true, status: "discarded" });
-    expect(await countTrialImports(owner)).toBe(5);
-    const reserved = await reserveNoticeParse({
-      userId: owner,
-      ownerId: owner,
-      profileId: child,
-      isPro: false,
-      input: parseNoticeSchema.parse({ profileId: child, source: "teams", text: "Outro recado" }),
-      attachment: null,
-      contentHash: randomUUID(),
-      now: new Date(),
-      trialDailyBudget: 10000,
-    });
-    expect(reserved).toMatchObject({ ok: false, error: { code: "TRIAL_ENDED" } });
-  });
-  it("replays discarded content without a new charge and restores every action", async () => {
-    const stored = withActionIds(legacyExtraction);
-    const [keep, drop] = stored.actions;
-    const marked: StoredExtraction = {
-      ...stored,
-      actions: [required(keep), { ...required(drop), discardedAt: new Date().toISOString() }],
-    };
-    const contentHash = randomUUID();
-    const notice = await insertNotice({
-      status: "discarded",
-      isTrial: true,
-      contentHash,
-      billingRunId: randomUUID(),
-      parsedResult: marked,
-    });
-    const replay = await reserveNoticeParse({
-      userId: owner,
-      ownerId: owner,
-      profileId: child,
-      isPro: false,
-      input: parseNoticeSchema.parse({
-        profileId: child,
-        source: "teams",
-        text: "Recado fictício",
-      }),
-      attachment: null,
-      contentHash,
-      now: new Date(),
-      trialDailyBudget: 10000,
-    });
-    expect(replay).toMatchObject({ ok: true, value: { replay: true, notice: { id: notice.id } } });
-    const restored = await reload(notice.id);
-    expect(restored.status).toBe("ready");
-    const actions = storedExtractionSchema.parse(restored.parsedResult).actions;
-    expect(actions.map((a) => a.id)).toEqual(stored.actions.map((a) => a.id));
-    expect(actions.every((a) => !a.discardedAt)).toBe(true);
-    expect(
-      await db.select().from(creditReservations).where(eq(creditReservations.ownerId, owner)),
-    ).toHaveLength(0);
-    expect(
-      await db.select().from(agendaProductEvents).where(eq(agendaProductEvents.userId, owner)),
-    ).toHaveLength(0);
-    expect((await getNoticeDraft(owner, notice.id))?.extraction.actions).toHaveLength(2);
-  });
-  it("never resurrects a discarded draft for an adult who cannot resume it", async () => {
-    const contentHash = randomUUID();
-    const notice = await insertNotice({ status: "discarded", contentHash });
-    const replay = await reserveNoticeParse({
-      userId: guest,
-      ownerId: owner,
-      profileId: child,
-      isPro: true,
-      input: parseNoticeSchema.parse({
-        profileId: child,
-        source: "teams",
-        text: "Recado fictício",
-      }),
-      attachment: null,
-      contentHash,
-      now: new Date(),
-      trialDailyBudget: 10000,
-    });
-    // Nem ressuscita, nem devolve uma tela muda: antes vinha um replay com
-    // zero ações visíveis, o formulário voltava vazio e tocar "ler recado" não
-    // fazia nada, sem erro nenhum.
-    expect(replay).toMatchObject({ ok: false, error: { code: "NOTICE_DISCARDED" } });
-    // O que não pode acontecer é o recado do titular voltar para "Falta
-    // conferir" na tela de quem não pode retomá-lo.
-    expect((await reload(notice.id)).status).toBe("discarded");
-    expect((await listReadyNotices(owner)).map((n) => n.id)).not.toContain(notice.id);
-  });
-  it("gives legacy rows stable ids on first resume", async () => {
-    const notice = await insertNotice({ parsedResult: legacyExtraction });
-    const first = await getNoticeDraft(owner, notice.id);
-    const ids = first?.extraction.actions.map((a) => a.id) ?? [];
-    expect(ids).toHaveLength(2);
-    expect(ids.every((id) => typeof id === "string")).toBe(true);
-    expect(storedIds(await reload(notice.id))).toEqual(ids);
-    const second = await getNoticeDraft(owner, notice.id);
-    expect(second?.extraction.actions.map((a) => a.id)).toEqual(ids);
-    // E a lixeira funciona nelas como em qualquer outra.
-    expect(
-      await discardDraftAction(owner, { noticeId: notice.id, actionId: required(ids[0]) }),
-    ).toMatchObject({ ok: true, value: { remaining: 1 } });
+it("assigns stable IDs to historical output before editing it", async () => {
+  const n = await notice({ parsedResult: legacyExtraction });
+  const first = await getNoticeDraft(f.actor, n.id);
+  const ids = first?.extraction.actions.map((a) => a.id) ?? [];
+  expect(ids).toHaveLength(2);
+  expect(
+    storedExtractionSchema.parse((await reload(n.id)).parsedResult).actions.map((a) => a.id),
+  ).toEqual(ids);
+  expect((await getNoticeDraft(f.actor, n.id))?.extraction.actions.map((a) => a.id)).toEqual(ids);
+  const id = ids[0];
+  if (!id) throw new Error("Missing action ID");
+  expect(await discardDraftAction(f.actor, { noticeId: n.id, actionId: id })).toMatchObject({
+    ok: true,
+    value: { remaining: 1 },
   });
 });

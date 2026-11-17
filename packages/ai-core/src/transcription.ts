@@ -1,25 +1,8 @@
-// Wrap fino sobre o endpoint `/audio/transcriptions` do OpenRouter.
-// Cobre qualquer modelo STT OpenAI-style exposto pelo gateway:
-// `openai/whisper-1`, `openai/whisper-large-v3`, `openai/gpt-4o-transcribe`,
-// `openai/gpt-4o-mini-transcribe`, e variantes de outros providers
-// (`groq/whisper-large-v3-turbo` etc).
-//
-// OpenRouter exige `Content-Type: application/json` com o áudio em base64
-// dentro de `input_audio: { data, format }`. NÃO aceita multipart/form-data
-// (formato canônico OpenAI) — confirmado lendo o SDK oficial
-// (`@openrouter/sdk` `src/funcs/sttCreateTranscription.ts` + `STTRequest`).
-// Tentar multipart gera "No number after minus sign in JSON at position 1"
-// porque o backend tenta parsear o `--boundary...` como JSON.
-//
-// IMPORTANTE: A request schema do OpenRouter aceita apenas `model`,
-// `input_audio`, `language`, `temperature` e `provider`. Campos extras no
-// topo (ex.: `prompt`) são silenciosamente descartados pelo gateway. Para
-// passar `prompt` ao decoder upstream, use o canal `provider.options.<slug>`
-// (passthrough específico por provider) — este helper faz isso automaticamente
-// derivando o slug do `model` (`openai/gpt-4o-transcribe` → `openai`).
-//
-// Frame-agnostic, sem `import "server-only"` para permitir teste com vitest;
-// na prática só roda em route handlers Node (`runtime: "nodejs"`).
+// OpenRouter speech-to-text, JSON/base64 transport.
+// Contract checked 2026-11-10: https://openrouter.ai/docs/guides/overview/multimodal/stt
+// STT applies data policy/options, not chat's provider pinning or max-price routing.
+// Provider usage is measured separately from an app's published credit tariff.
+// No server-only import: pure adapter, also exercised through synthetic HTTP tests.
 
 const DEFAULT_BASE_URL = "https://openrouter.ai/api/v1";
 // Default atualizado em 2026-05 — Whisper-1 e Whisper-large-v3 mostraram
@@ -83,6 +66,9 @@ export type TranscribeAudioResult = {
   text: string;
   /** Duração reportada pelo OpenRouter em `usage.seconds`, quando disponível. */
   durationInSeconds?: number;
+  /** Actual USD cost reported by the gateway, never inferred from duration. */
+  costUsd?: number;
+  usage?: { inputTokens: number; outputTokens: number };
 };
 
 /**
@@ -121,20 +107,28 @@ export async function transcribeAudio(input: TranscribeAudioInput): Promise<Tran
   });
 
   if (!response.ok) {
-    const errorBody = await response.text().catch(() => "");
-    throw new Error(
-      `OpenRouter transcription failed (${response.status}): ${errorBody.slice(0, 500)}`,
-    );
+    throw new Error(`OpenRouter transcription failed (${response.status})`);
   }
 
   const json = (await response.json()) as { text?: unknown; usage?: unknown };
   if (typeof json.text !== "string") {
     throw new Error("OpenRouter transcription response missing 'text' field");
   }
-  const durationInSeconds = durationFromUsage(json.usage);
-  return durationInSeconds === undefined
-    ? { text: json.text }
-    : { text: json.text, durationInSeconds };
+  const durationInSeconds = numberFromUsage(json.usage, "seconds");
+  const costUsd = numberFromUsage(json.usage, "cost");
+  const inputTokens = numberFromUsage(json.usage, "input_tokens");
+  const outputTokens = numberFromUsage(json.usage, "output_tokens");
+  return {
+    text: json.text,
+    ...(durationInSeconds === undefined ? {} : { durationInSeconds }),
+    ...(costUsd === undefined ? {} : { costUsd }),
+    ...(inputTokens !== undefined &&
+    outputTokens !== undefined &&
+    Number.isSafeInteger(inputTokens) &&
+    Number.isSafeInteger(outputTokens)
+      ? { usage: { inputTokens, outputTokens } }
+      : {}),
+  };
 }
 
 /**
@@ -175,10 +169,8 @@ function inferProviderSlug(model: string): string {
   return idx === -1 ? model : model.slice(0, idx);
 }
 
-function durationFromUsage(usage: unknown): number | undefined {
+function numberFromUsage(usage: unknown, key: string): number | undefined {
   if (!usage || typeof usage !== "object") return undefined;
-  const seconds = (usage as { seconds?: unknown }).seconds;
-  return typeof seconds === "number" && Number.isFinite(seconds) && seconds >= 0
-    ? seconds
-    : undefined;
+  const value = (usage as Record<string, unknown>)[key];
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : undefined;
 }

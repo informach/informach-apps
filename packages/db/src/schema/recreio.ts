@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   customType,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -11,6 +12,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -85,6 +87,7 @@ export const recreioProfiles = recreio.table(
   },
   (t) => [
     uniqueIndex("recreio_profiles_own_login").on(t.userId).where(sql`${t.userId} is not null`),
+    unique("recreio_profile_identity_kind").on(t.id, t.kind),
     index("recreio_profiles_group").on(t.groupId),
     check("recreio_profiles_kind", sql`${t.kind} in ('adult', 'minor')`),
     // Perfil adulto sai em cascata com a conta, então nunca fica sem `user_id`.
@@ -111,6 +114,8 @@ export const recreioDeviceSessions = recreio.table(
       onDelete: "set null",
     }),
     profileSelectedAt: moment("profile_selected_at"),
+    /** Trava de gestão independente do perfil/FK: excluir o menor não desbloqueia o adulto. */
+    minorContextGeneration: uuid("minor_context_generation"),
     lastSeenAt: time("last_seen_at"),
     expiresAt: moment("expires_at").notNull(),
     revokedAt: moment("revoked_at"),
@@ -242,8 +247,35 @@ export const recreioGameTickets = recreio.table(
     issuedAt: time("issued_at"),
     expiresAt: moment("expires_at").notNull(),
     consumedAt: moment("consumed_at"),
+    /** Prova opaca do pedido, somente hash; permite recuperar a mesma resposta. */
+    exchangeKeyHash: text("exchange_key_hash"),
+    openedSessionId: uuid("opened_session_id"),
   },
-  (t) => [index("recreio_game_tickets_expires").on(t.expiresAt)],
+  (t) => [
+    index("recreio_game_tickets_expires").on(t.expiresAt),
+    foreignKey({
+      name: "recreio_ticket_opened_session_profile",
+      columns: [t.openedSessionId, t.profileId],
+      foreignColumns: [recreioGameSessions.id, recreioGameSessions.profileId],
+    }).onDelete("cascade"),
+    uniqueIndex("recreio_ticket_opened_session")
+      .on(t.openedSessionId)
+      .where(sql`${t.openedSessionId} is not null`),
+    check(
+      "recreio_ticket_opened_receipt",
+      sql`${t.openedSessionId} is null or ${t.consumedAt} is not null`,
+    ),
+    check(
+      "recreio_ticket_exchange_key",
+      sql`${t.exchangeKeyHash} is null or (${t.consumedAt} is not null and ${t.openedSessionId} is not null and ${t.exchangeKeyHash} ~ '^[0-9a-f]{64}$')`,
+    ),
+    index("recreio_game_tickets_pending_profile")
+      .on(t.profileId, t.expiresAt)
+      .where(sql`${t.consumedAt} is null`),
+    index("recreio_game_tickets_pending_device")
+      .on(t.deviceSessionId, t.expiresAt)
+      .where(sql`${t.consumedAt} is null`),
+  ],
 );
 
 /** Sessão de jogo: o `id` é a claim `sid`. Um perfil joga uma coisa por vez. */
@@ -261,20 +293,25 @@ export const recreioGameSessions = recreio.table(
     spaceId: uuid("space_id").references(() => recreioSpaces.id, { onDelete: "set null" }),
     startedAt: time("started_at"),
     lastRenewedAt: time("last_renewed_at"),
+    /** Barreira do checkpoint: nunca é removida para reativar o mesmo SID. */
+    checkpointFrozenAt: moment("checkpoint_frozen_at"),
+    /** Contato de controle, separado de renovar a concessão de jogo. */
+    controlSeenAt: moment("control_seen_at"),
     expiresAt: moment("expires_at").notNull(),
     endedAt: moment("ended_at"),
     endReason: text("end_reason").$type<
-      "left" | "replaced" | "access_lost" | "signed_out" | "expired"
+      "left" | "replaced" | "access_lost" | "signed_out" | "expired" | "permissions_changed"
     >(),
     /** Preenchido com `nextval('recreio.game_session_end_seq')` ao encerrar. */
     endedSeq: bigint("ended_seq", { mode: "number" }),
   },
   (t) => [
     uniqueIndex("recreio_game_sessions_one_open").on(t.profileId).where(sql`${t.endedAt} is null`),
+    unique("recreio_game_session_identity_profile").on(t.id, t.profileId),
     index("recreio_game_sessions_ended_seq").on(t.endedSeq).where(sql`${t.endedSeq} is not null`),
     check(
       "recreio_game_sessions_end_reason",
-      sql`${t.endReason} is null or ${t.endReason} in ('left', 'replaced', 'access_lost', 'signed_out', 'expired')`,
+      sql`${t.endReason} is null or ${t.endReason} in ('left', 'replaced', 'access_lost', 'signed_out', 'expired', 'permissions_changed')`,
     ),
     // Sessão encerrada sempre entra no cursor: sem isso uma instância nunca
     // saberia que ela acabou.
@@ -307,6 +344,12 @@ export const recreioSpaceMembers = recreio.table(
   },
   (t) => [
     uniqueIndex("recreio_space_members_profile").on(t.spaceId, t.profileId),
+    unique("recreio_space_members_space_id").on(t.spaceId, t.id),
+    foreignKey({
+      name: "recreio_space_members_inviter_world_fk",
+      columns: [t.spaceId, t.invitedByMemberId],
+      foreignColumns: [t.spaceId, t.id],
+    }).onDelete("restrict"),
     index("recreio_space_members_by_profile").on(t.profileId, t.state),
     check("recreio_space_members_role", sql`${t.role} in ('steward', 'coadmin', 'member')`),
     check(
@@ -347,7 +390,15 @@ export const recreioSpaceInvites = recreio.table(
   },
   (t) => [
     uniqueIndex("recreio_space_invites_code").on(t.codeHash),
+    foreignKey({
+      name: "recreio_space_invites_inviter_world_fk",
+      columns: [t.spaceId, t.invitedByMemberId],
+      foreignColumns: [recreioSpaceMembers.spaceId, recreioSpaceMembers.id],
+    }).onDelete("restrict"),
     index("recreio_space_invites_space").on(t.spaceId, t.state),
+    index("recreio_space_invites_unused_expires")
+      .on(t.expiresAt, t.id)
+      .where(sql`${t.state} <> 'accepted'`),
     check("recreio_space_invites_form", sql`${t.form} in ('member', 'visit')`),
     check(
       "recreio_space_invites_state",
@@ -356,6 +407,68 @@ export const recreioSpaceInvites = recreio.table(
     check(
       "recreio_space_invites_participation",
       sql`${t.participation} is null or char_length(${t.participation}) <= 64`,
+    ),
+  ],
+);
+
+/** Oferta de responsabilidade: não concede autoridade antes do aceite do destinatário. */
+export const recreioSpaceStewardshipRequests = recreio.table(
+  "space_stewardship_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    spaceId: uuid("space_id")
+      .notNull()
+      .references(() => recreioSpaces.id, { onDelete: "restrict" }),
+    fromMemberId: uuid("from_member_id").notNull(),
+    toMemberId: uuid("to_member_id").notNull(),
+    state: text("state")
+      .$type<"pending" | "accepted" | "declined" | "revoked" | "expired">()
+      .notNull()
+      .default("pending"),
+    createdAt: time("created_at"),
+    expiresAt: moment("expires_at").notNull(),
+    completedAt: moment("completed_at"),
+  },
+  (t) => [
+    foreignKey({
+      name: "recreio_stewardship_from_member_world_fk",
+      columns: [t.spaceId, t.fromMemberId],
+      foreignColumns: [recreioSpaceMembers.spaceId, recreioSpaceMembers.id],
+    }).onDelete("restrict"),
+    foreignKey({
+      name: "recreio_stewardship_to_member_world_fk",
+      columns: [t.spaceId, t.toMemberId],
+      foreignColumns: [recreioSpaceMembers.spaceId, recreioSpaceMembers.id],
+    }).onDelete("restrict"),
+    uniqueIndex("recreio_stewardship_pending_world")
+      .on(t.spaceId)
+      .where(sql`${t.state} = 'pending'`),
+    index("recreio_stewardship_recipient_pending")
+      .on(t.toMemberId, t.id)
+      .where(sql`${t.state} = 'pending'`),
+    check("recreio_stewardship_distinct_members", sql`${t.fromMemberId} <> ${t.toMemberId}`),
+    check(
+      "recreio_stewardship_state",
+      sql`${t.state} in ('pending', 'accepted', 'declined', 'revoked', 'expired')`,
+    ),
+    check(
+      "recreio_stewardship_completion",
+      sql`
+      (${t.state} = 'pending' and ${t.completedAt} is null)
+      or (${t.state} <> 'pending' and ${t.completedAt} is not null)`,
+    ),
+    check("recreio_stewardship_expiry", sql`${t.expiresAt} > ${t.createdAt}`),
+    check(
+      "recreio_stewardship_completion_time",
+      sql`${t.completedAt} is null or ${t.completedAt} >= ${t.createdAt}`,
+    ),
+    check(
+      "recreio_stewardship_acceptance_time",
+      sql`${t.state} <> 'accepted' or ${t.completedAt} < ${t.expiresAt}`,
+    ),
+    check(
+      "recreio_stewardship_expiration_time",
+      sql`${t.state} <> 'expired' or ${t.completedAt} >= ${t.expiresAt}`,
     ),
   ],
 );

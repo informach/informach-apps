@@ -24,9 +24,11 @@ import {
   type Primitiva,
 } from "../leitura/corpo";
 import { escreverPng, type Imagem } from "../leitura/imagem";
+import type { CoresDoPersonagem } from "../manifesto";
 import { em, item } from "../numeros";
 import type { Personagem } from "./esquema";
 import { cortarPorPlano, emendar, type Parte, type PrimitivaPronta, recortar } from "./partes";
+import { RegistroDeCores } from "./registro-de-cores";
 import { type Plano, resolver } from "./resolucao";
 
 /**
@@ -47,6 +49,8 @@ export const EXPRESSOES_DO_JOGO = [
 ] as const;
 
 export type OpcoesDeMontagemDoPersonagem = {
+  /** Perfil V3 com canais semânticos editáveis; omissão conserva o pacote legado. */
+  coresParametricas?: boolean;
   /** Expressões que entram no pacote; a primeira é a que aparece ao carregar. */
   expressoes: readonly string[];
   /** Em quais expressões ficam as sete formas de fala. */
@@ -86,6 +90,7 @@ export type PecaNoRelatorio = {
 };
 
 export type PersonagemMontado = {
+  cores?: CoresDoPersonagem;
   plano: Plano;
   corpo: Corpo;
   /** As primitivas da malha do corpo: a pintada nos vértices primeiro, depois as com textura. */
@@ -201,6 +206,7 @@ export function montarPersonagem(
   const plano = resolver(biblioteca, personagem);
   const corpo = biblioteca.corpo(personagem.corpo);
   const { tabelas } = biblioteca;
+  const registro = opcoes.coresParametricas ? new RegistroDeCores(tabelas.REF) : null;
   const paleta = biblioteca.paletaDoCorpo();
   const referencial = opcoes.referencial(corpo);
   const corDoCabelo: FonteDeCor = { tipo: "lisa", cor: hexParaLinear(plano.corDoCabelo) };
@@ -290,6 +296,7 @@ export function montarPersonagem(
     ),
     indicesDaPele,
   );
+  pele.canalDeCor = { id: "pele", origem: "pele", parte: null };
   partes.push(pele);
   const erroDaPele = erroDaPinturaPorVertice(pele.fonte, pele.uv, pele.indices);
 
@@ -322,9 +329,11 @@ export function montarPersonagem(
         mascara: livre && info ? biblioteca.mascara(info.mascara) : null,
         livre,
       };
-      const parte = { ...recortar(inteira, visiveis, `${peca.id}:${material}`), fonte };
+      const parte: Parte = { ...recortar(inteira, visiveis, `${peca.id}:${material}`), fonte };
+      if (livre) parte.canalDeCor = { id: `roupa_${peca.slot}`, origem: "roupa", parte: peca.slot };
       const erro = erroDaPinturaPorVertice(fonte, parte.uv, parte.indices);
-      const texturizar = erro.maximo > opcoes.limiarDeTextura;
+      const texturizar =
+        (registro !== null && livre !== null) || erro.maximo > opcoes.limiarDeTextura;
       relatorioDasPecas.push({
         id: peca.id,
         material,
@@ -354,11 +363,19 @@ export function montarPersonagem(
     const tecido: FonteDeCor = { tipo: "lisa", cor: hexParaLinear(manta) };
     if (tipo !== "careca") {
       const primitiva = exigirMalha(corpo, "cabelo").primitivas[0];
-      if (primitiva) cabelos.push(parteDoCorpo(primitiva, "cabelo", corDoCabelo, false));
+      if (primitiva)
+        cabelos.push({
+          ...parteDoCorpo(primitiva, "cabelo", corDoCabelo, false),
+          canalDeCor: { id: "cabelo", origem: "cabelo", parte: null },
+        });
     }
     for (const sufixo of tipo === "gorro" ? ["manta", "gorro"] : ["manta"]) {
       const primitiva = malhaDoCorpo(corpo, sufixo)?.primitivas[0];
-      if (primitiva) cabelos.push(parteDoCorpo(primitiva, sufixo, tecido, false));
+      if (primitiva)
+        cabelos.push({
+          ...parteDoCorpo(primitiva, sufixo, tecido, false),
+          canalDeCor: { id: `roupa_${sufixo}`, origem: "roupa", parte: sufixo },
+        });
     }
   } else if (ligacao) {
     let cabelo: Parte | null = null;
@@ -371,6 +388,7 @@ export function montarPersonagem(
       cabelo = parteDeCabelo(montada, corDoCabelo);
     }
     if (cabelo) {
+      cabelo.canalDeCor = { id: "cabelo", origem: "cabelo", parte: null };
       if (plano.corte) {
         const { ponto, normal } = planoDoCorte(ligacao, plano.corte);
         cabelo = cortarPorPlano(cabelo, ponto, normal);
@@ -380,7 +398,10 @@ export function montarPersonagem(
     if (plano.barba) {
       const montada = montarItem(ligacao, biblioteca.item(plano.barba), { cabelo: true });
       pecasMontadas.set(plano.barba, montada);
-      cabelos.push(parteDeCabelo(montada, corDoCabelo));
+      cabelos.push({
+        ...parteDeCabelo(montada, corDoCabelo),
+        canalDeCor: { id: "cabelo", origem: "cabelo", parte: null },
+      });
     }
   }
   partes.push(...cabelos);
@@ -398,6 +419,7 @@ export function montarPersonagem(
       dobrado,
       cores: coresDasPartes,
       textura: null,
+      ...(registro ? { parametrosDeCor: registro.vertices(partes) } : {}),
     }),
   ];
   // peças com estampa: uma primitiva por textura assada (material e cor)
@@ -405,17 +427,25 @@ export function montarPersonagem(
   for (const { parte, chave } of comTextura)
     porTextura.set(chave, [...(porTextura.get(chave) ?? []), parte]);
   for (const grupo of porTextura.values()) {
-    const fonte = item(grupo, 0).fonte;
+    const primeira = item(grupo, 0);
+    const fonte = primeira.fonte;
     if (fonte.tipo !== "roupa") continue;
-    primitivas.push(
-      emendar(grupo, {
-        formas: gravidez,
-        normaisDasFormas: true,
-        dobrado,
-        cores: null,
-        textura: texturaQueCabe(fonte, opcoes),
-      }),
-    );
+    const parametrica = registro !== null && primeira.canalDeCor !== undefined;
+    const primitiva = emendar(grupo, {
+      formas: gravidez,
+      normaisDasFormas: true,
+      dobrado,
+      cores: null,
+      textura: parametrica ? fonte.imagem : texturaQueCabe(fonte, opcoes),
+    });
+    if (parametrica && registro && fonte.livre && fonte.mascara)
+      primitiva.materialDeCor = {
+        tipo: "textura",
+        canal: registro.registrar(primeira),
+        luminancia: fonte.livre.lum,
+        mascara: fonte.mascara,
+      };
+    primitivas.push(primitiva);
   }
 
   // ---------------------------------------------------------------- rostos e chupeta
@@ -429,12 +459,16 @@ export function montarPersonagem(
         primitiva.material === "Rosto"
           ? [plano.tom.rosto, plano.tom.rosto, plano.tom.rosto]
           : BRANCO;
-      return parteDoCorpo(
+      const parte = parteDoCorpo(
         primitiva,
         `rosto_${expressao}:${primitiva.material}`,
         { tipo: "paleta", imagem: paleta, fator },
         comFala,
       );
+      // Olhos, dentes e os demais materiais conservam a própria paleta.
+      if (primitiva.material === "Rosto")
+        parte.canalDeCor = { id: "rosto", origem: "rosto", parte: null };
+      return parte;
     });
     const nomesDaFala = comFala ? (malha.primitivas[0]?.formas.map((f) => f.nome) ?? []) : [];
     const cores = new Map(doRosto.map((p) => [p, pintar(p)] as const));
@@ -446,6 +480,7 @@ export function montarPersonagem(
         dobrado: false,
         cores,
         textura: null,
+        ...(registro ? { parametrosDeCor: registro.vertices(doRosto) } : {}),
       }),
     });
   }
@@ -467,6 +502,7 @@ export function montarPersonagem(
       dobrado: false,
       cores: new Map([[parte, pintar(parte)]]),
       textura: null,
+      ...(registro ? { parametrosDeCor: registro.vertices([parte]) } : {}),
     });
   }
 
@@ -480,6 +516,7 @@ export function montarPersonagem(
   }
 
   return {
+    ...(registro ? { cores: registro.manifesto() } : {}),
     plano,
     corpo,
     primitivas,

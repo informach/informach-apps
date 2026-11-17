@@ -1,4 +1,5 @@
 "use client";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useState, useTransition } from "react";
 import { selecionarPerfilAction } from "../actions";
 import { AvatarDoPerfil } from "./avatar";
@@ -6,16 +7,17 @@ import { AvatarDoPerfil } from "./avatar";
 export type PerfilNaLista = { id: string; apelido: string; avatar: string; atual: boolean };
 
 /** "Quem vai jogar?": a lista vem do servidor, e a escolha volta para ele conferir. */
-export function EscolherPerfil({ perfis }: { perfis: PerfilNaLista[] }) {
+export function EscolherPerfil({ perfis, next }: { perfis: PerfilNaLista[]; next?: string }) {
   const [erro, setErro] = useState("");
   const [escolhido, setEscolhido] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
+  const interativo = useHydrated();
 
   function escolher(id: string) {
     setErro("");
     setEscolhido(id);
     iniciar(async () => {
-      const resultado = await selecionarPerfilAction(id);
+      const resultado = await selecionarPerfilAction(id, next);
       if (resultado.ok) {
         window.location.assign(resultado.data.destination);
         return;
@@ -32,7 +34,7 @@ export function EscolherPerfil({ perfis }: { perfis: PerfilNaLista[] }) {
           <li key={perfil.id}>
             <button
               type="button"
-              disabled={pendente}
+              disabled={!interativo || pendente}
               onClick={() => escolher(perfil.id)}
               className="painel flex w-full items-center gap-4 p-4 text-left transition-colors hover:bg-painel-2 disabled:opacity-60"
             >

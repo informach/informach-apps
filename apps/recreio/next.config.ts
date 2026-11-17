@@ -1,12 +1,15 @@
 import path from "node:path";
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 import type { NextConfig } from "next";
 
 const isolatedSuffix = process.env.RECREIO_E2E_RUN_ID;
 if (isolatedSuffix && !/^[a-f0-9]{24}$/.test(isolatedSuffix))
   throw new Error("RECREIO_E2E_RUN_ID must be a 24-character hexadecimal identifier");
+if (process.env.NODE_ENV === "production" && !process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY)
+  throw new Error("NEXT_SERVER_ACTIONS_ENCRYPTION_KEY is required for production builds");
 const config: NextConfig = {
   output: "standalone",
+  deploymentId: process.env.NEXT_DEPLOYMENT_ID ?? process.env.RAILWAY_GIT_COMMIT_SHA,
   distDir:
     process.env.RECREIO_ISOLATED_TEST === "1"
       ? isolatedSuffix

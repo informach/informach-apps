@@ -3,7 +3,7 @@ import type { DraftExtraction, NoticeExtraction, StoredExtraction } from "./sche
 /**
  * Aritmética do rascunho guardado em `agenda.notices.parsed_result`.
  *
- * Sem `server-only`, como `trial-reserve.ts`: é transformação de JSON e precisa
+ * Sem `server-only`: é transformação de JSON e precisa
  * ser testada sem banco. Quem lê e grava a linha é o repositório.
  */
 

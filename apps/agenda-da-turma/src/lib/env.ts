@@ -1,3 +1,4 @@
+import { webSsoEnvironment } from "@informach/auth/web-sso-contract";
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
@@ -50,7 +51,6 @@ export const env = createEnv({
      * 100% funcional (auth, billing, atividades, calendário etc).
      */
     OPENROUTER_API_KEY: z.string().min(1).optional(),
-    AGENDA_TRIAL_DAILY_BUDGET: z.coerce.number().int().min(1).max(10000).default(100),
     VAPID_PUBLIC_KEY: z.string().min(1).optional(),
     VAPID_PRIVATE_KEY: z.string().min(1).optional(),
     /** Atribuição opcional para o leaderboard do OpenRouter (header HTTP-Referer). */
@@ -58,7 +58,6 @@ export const env = createEnv({
     /** Atribuição opcional (header X-OpenRouter-Title). */
     OPENROUTER_X_TITLE: z.string().min(1).optional(),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).optional(),
-    MASTRA_LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
     /**
      * Quando "1", o proxy emite `Content-Security-Policy` (enforce). Default:
      * enforce em produção, report-only fora dela. Para um rollout observado,
@@ -93,13 +92,11 @@ export const env = createEnv({
     STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY,
     STRIPE_MODE: process.env.STRIPE_MODE,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
-    AGENDA_TRIAL_DAILY_BUDGET: process.env.AGENDA_TRIAL_DAILY_BUDGET,
     VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY,
     VAPID_PRIVATE_KEY: process.env.VAPID_PRIVATE_KEY,
     OPENROUTER_HTTP_REFERER: process.env.OPENROUTER_HTTP_REFERER,
     OPENROUTER_X_TITLE: process.env.OPENROUTER_X_TITLE,
     LOG_LEVEL: process.env.LOG_LEVEL,
-    MASTRA_LOG_LEVEL: process.env.MASTRA_LOG_LEVEL,
     CSP_ENFORCE: process.env.CSP_ENFORCE,
   },
   emptyStringAsUndefined: true,
@@ -115,22 +112,13 @@ if (typeof window === "undefined") {
     throw new Error("REDIS_URL is required when NODE_ENV=production");
   }
 
-  if (env.NODE_ENV === "production") {
-    const authUrl = new URL(env.BETTER_AUTH_URL);
-    const appUrl = new URL(env.NEXT_PUBLIC_APP_URL);
-
-    if (authUrl.protocol !== "https:" || appUrl.protocol !== "https:") {
-      throw new Error(
-        "BETTER_AUTH_URL and NEXT_PUBLIC_APP_URL must use HTTPS when NODE_ENV=production",
-      );
-    }
-
-    if (authUrl.origin !== appUrl.origin) {
-      throw new Error(
-        "BETTER_AUTH_URL and NEXT_PUBLIC_APP_URL must share the same origin in production",
-      );
-    }
-  }
+  // Optimization mode and deployment origin are separate. Only the registered
+  // loopback origin can use HTTP; a Railway deployment must use its HTTPS origin.
+  const deployment = webSsoEnvironment("agenda-da-turma", env.NEXT_PUBLIC_APP_URL);
+  if (env.BETTER_AUTH_URL !== env.NEXT_PUBLIC_APP_URL)
+    throw new Error("BETTER_AUTH_URL must equal the registered NEXT_PUBLIC_APP_URL origin");
+  if (process.env.RAILWAY_ENVIRONMENT_ID && deployment !== "production")
+    throw new Error("A Railway deployment must use the registered production HTTPS origin");
 
   if (env.NODE_ENV === "production" && env.E2E_RELAX_AUTH_RATE_LIMITS === "1") {
     throw new Error(

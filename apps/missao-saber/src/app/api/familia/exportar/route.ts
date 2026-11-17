@@ -1,4 +1,5 @@
 import { UnauthorizedError } from "@informach/auth";
+import { parentAuthority } from "@/features/family/context";
 import { exportFamily } from "@/features/learning/repository";
 import { recentParent } from "@/lib/action";
 import { AppError } from "@/lib/errors";
@@ -6,7 +7,7 @@ import { AppError } from "@/lib/errors";
 export async function GET() {
   try {
     const user = await recentParent();
-    return Response.json(await exportFamily(user.id), {
+    return Response.json(await exportFamily(await parentAuthority(user.id)), {
       headers: {
         "Cache-Control": "private, no-store",
         "Content-Disposition": "attachment; filename=missao-saber-dados.json",

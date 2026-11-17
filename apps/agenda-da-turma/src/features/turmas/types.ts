@@ -13,7 +13,8 @@ export type Turma = {
   updatedAt: Date;
 };
 
-export type TurmaWithSchool = Turma & {
+export type TurmaWithSchool = Omit<Turma, "code"> & {
+  code: string | null;
   schoolName: string;
   cityName: string;
   stateUf: string;
@@ -25,6 +26,7 @@ export type TurmaForUser = TurmaWithSchool & {
     profileId: string;
     profileName: string;
     isActive: boolean;
+    canManage: boolean;
   }>;
   // Flags pra gate de Editar/Apagar (UI esconde/disabilita; service revalida).
   // `hasActivities`: existe pelo menos 1 row em agenda.activities com turmaId = id.

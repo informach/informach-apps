@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LIMITES_DE_REDE } from "./admissao";
 
 /**
  * Configuração do servidor do Morada. Os erros dizem só o nome da variável,
@@ -43,6 +44,7 @@ const Esquema = z
     RECREIO_HOST_SECRET: z.string().min(32).optional(),
     /** Quem emite as sessões de jogo. Por padrão, a origem do Recreio. */
     RECREIO_EMISSOR: z.url().optional(),
+    SENTRY_DSN: z.url().optional(),
     /**
      * Endereço público do WebSocket, igual a `RECREIO_GAME_ORIGINS.morada.ws` no
      * Recreio: só a origem (`wss://host` ou `ws://host:porta`), sem caminho. É o
@@ -55,6 +57,24 @@ const Esquema = z
      */
     MORADA_ORIGENS: lista,
     MORADA_CAPACIDADE: z.coerce.number().int().positive().default(200),
+    MORADA_CONEXOES_MAX: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10_000)
+      .default(LIMITES_DE_REDE.conexoes),
+    MORADA_PEDIDOS_EM_CURSO_MAX: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(256)
+      .default(LIMITES_DE_REDE.pedidosEmCurso),
+    MORADA_QUADROS_POR_SEGUNDO_MAX: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10_000)
+      .default(LIMITES_DE_REDE.quadrosPorSegundo),
     MORADA_METRICAS_TOKEN: z.string().min(24).optional(),
     /** `prova` encurta gravidez e primeiras fases; é o preset da etapa 1. */
     MORADA_REGRAS: z.enum(["padrao", "prova"]).default("padrao"),
@@ -80,6 +100,10 @@ const Esquema = z
       return;
     }
     if (!env.RECREIO_API_URL) falta("RECREIO_API_URL");
+    else if (origemDe(env.RECREIO_API_URL, ["http:", "https:"]) === null)
+      falta("RECREIO_API_URL", "precisa ser uma origem HTTP sem credenciais");
+    if (env.RECREIO_EMISSOR && origemDe(env.RECREIO_EMISSOR, ["http:", "https:"]) === null)
+      falta("RECREIO_EMISSOR", "precisa ser uma origem HTTP sem credenciais");
     if (!env.RECREIO_HOST_SECRET) falta("RECREIO_HOST_SECRET");
     if (!env.MORADA_PUBLIC_URL) falta("MORADA_PUBLIC_URL");
     else if (origemDe(env.MORADA_PUBLIC_URL, ["ws:", "wss:"]) === null) {
@@ -98,9 +122,20 @@ const Esquema = z
       );
     }
     if (env.NODE_ENV === "production") {
-      if (env.RECREIO_API_URL && !env.RECREIO_API_URL.startsWith("https://")) {
-        falta("RECREIO_API_URL", "precisa ser https em produção");
+      if (
+        env.RECREIO_API_URL &&
+        origemDe(env.RECREIO_API_URL, ["http:", "https:"]) !== null &&
+        !env.RECREIO_API_URL.startsWith("https://")
+      ) {
+        const api = new URL(env.RECREIO_API_URL);
+        const interna =
+          api.protocol === "http:" && /^[a-z0-9-]+\.railway\.internal$/.test(api.hostname);
+        if (!interna)
+          falta("RECREIO_API_URL", "precisa ser https ou uma origem privada do Railway");
+        if (!env.RECREIO_EMISSOR) falta("RECREIO_EMISSOR", "é obrigatório com a API privada");
       }
+      if (env.RECREIO_EMISSOR && !env.RECREIO_EMISSOR.startsWith("https://"))
+        falta("RECREIO_EMISSOR", "precisa ser https em produção");
       if (env.MORADA_PUBLIC_URL && !env.MORADA_PUBLIC_URL.startsWith("wss://")) {
         falta("MORADA_PUBLIC_URL", "precisa ser wss em produção");
       }

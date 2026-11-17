@@ -8,7 +8,7 @@ export default function Termos() {
   return (
     <PaginaDeTexto>
       <p className="text-sm font-bold tracking-[0.12em] text-tinta-suave">
-        ÚLTIMA ATUALIZAÇÃO · 11/11/2026
+        ÚLTIMA ATUALIZAÇÃO · 15/11/2026
       </p>
       <h1>Termos do Recreio, na fase de alfa.</h1>
       <p>
@@ -18,14 +18,24 @@ export default function Termos() {
       </p>
       <h2>O que existe hoje</h2>
       <p>
-        Nesta fase dá para criar ou usar a conta Informach e entrar no portal. Os jogos ainda não
-        estão disponíveis, não há assinatura nem cobrança, e o serviço pode mudar ou sair do ar sem
-        aviso.
+        Nesta fase dá para criar ou usar a conta Informach e entrar no portal. Adultos convidados
+        pela equipe podem receber uma liberação temporária para testar o Morada, criar mundos e
+        jogar juntos. Não há assinatura à venda nem cobrança no alfa. Recursos e disponibilidade
+        ainda estão em teste; uma falha pode exigir reconectar ou refazer alterações recentes.
       </p>
       <h2>Conta</h2>
       <p>
         A conta é a mesma dos outros apps da Informach e deve ser criada por uma pessoa maior de 18
-        anos.
+        anos. O alfa não oferece perfis infantis nem pareamento de aparelhos para menores. Cada
+        participante usa sua própria conta; não compartilhe códigos de entrada.
+      </p>
+      <h2>Mundos compartilhados</h2>
+      <p>
+        O responsável pelo mundo pode convidar outros participantes com acesso liberado. O convite
+        não transfere conta, assinatura ou propriedade sobre o progresso de outra pessoa. O fim de
+        uma liberação não apaga automaticamente o mundo dos demais membros. Saída de mundos,
+        transferência de responsabilidade e pedidos sobre os dados são tratados pelo suporte
+        enquanto os controles completos estão em desenvolvimento.
       </p>
       <h2>Uso adequado</h2>
       <p>

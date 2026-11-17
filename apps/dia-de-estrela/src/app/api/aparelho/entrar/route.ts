@@ -11,8 +11,8 @@ export async function POST(request: Request) {
     // Mesmo nível do código de pareamento: o aparelho dura 30 dias renováveis e
     // sobrevive ao fim da sessão, então pede uma entrada recente.
     await recentParent();
-    const { ownerId } = await familyAdult();
-    const access = await createDevice(ownerId, body);
+    const { actor } = await familyAdult();
+    const access = await createDevice(actor, body);
     return deviceConnectionResponse(request, access);
   });
   if (result.ok) return result.data;

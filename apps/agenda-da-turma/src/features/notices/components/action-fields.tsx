@@ -403,7 +403,7 @@ export function ActionFields({
                 {shareLocked
                   ? "Veio de outra família da turma. A cópia daqui é só de vocês; a da turma continua com quem mandou."
                   : !isPro
-                    ? "Mandar para a turma faz parte do Pro. No grátis a atividade fica só com vocês."
+                    ? "Mandar para a turma faz parte do Compasso. No grátis a atividade fica só com vocês."
                     : !value.dueAt
                       ? "Informe a data para as outras famílias saberem até quando."
                       : "As outras famílias da turma recebem esta atividade e decidem se aceitam."}

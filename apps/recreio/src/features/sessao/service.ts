@@ -6,7 +6,7 @@ import {
   type SessaoDeAparelhoId,
 } from "@informach/recreio";
 import { type PerfilDoRecreio, perfisSelecionaveis } from "@/features/perfis/service";
-import { sessaoDeLoginViva } from "./login";
+import { sessaoDeLoginVivaForaDeTransacao } from "./login";
 import {
   carregarOuCriarSessaoDaConta,
   lerSessaoDeAparelho,
@@ -33,6 +33,18 @@ export type ContextoDoAtor = {
   perfis: PerfilDoRecreio[];
 };
 
+/** Referência para PIN/saída próprios; não concede gestão ou perfil de jogo. */
+export async function referenciaNativaDoLogin(entrada: {
+  authSessionId: string;
+  contaId: string;
+  expiraEm: Date;
+}) {
+  const contaId = ContaIdSchema.parse(entrada.contaId);
+  const sessao = await carregarOuCriarSessaoDaConta({ ...entrada, contaId, agora: new Date() });
+  if (!sessao || sessao.revogadaEm !== null) return null;
+  return { contaId, sessaoDeAparelhoId: sessao.id };
+}
+
 /**
  * Monta o ator a partir de uma sessão de login já conferida. Carrega ou cria a
  * sessão de aparelho e confere de novo, a cada pedido, que o perfil ativo
@@ -56,15 +68,31 @@ export async function resolverAtor(entrada: {
     agora: entrada.agora ?? new Date(),
   });
   if (!sessao || sessao.revogadaEm !== null) return null;
+  // O contrato infantil só pode ser retomado por seleção/PIN explícitos. A
+  // ausência/exclusão do perfil nunca converte esta sessão em gestão nativa.
+  if (sessao.contextoDeMenor) return null;
   const perfis = await perfisSelecionaveis(contaId);
   const perfil = perfis.find((item) => item.id === sessao.perfilAtivoId) ?? null;
-  if (sessao.perfilAtivoId !== null && perfil === null) await limparPerfilAtivo(sessao.id);
+  if (sessao.perfilAtivoId !== null && perfil === null)
+    await limparPerfilAtivo(sessao.id, sessao.perfilAtivoId);
   return { ator: { contaId, sessaoDeAparelhoId: sessao.id, perfil }, perfis };
 }
 
 export type VidaDaSessaoDeAparelho =
   | { viva: true; contaId: ContaId; perfil: PerfilDoRecreio }
   | { viva: false; motivo: "signed_out" | "expired" };
+
+/** Revogação durável mesmo quando o login ainda não havia aberto uma página do portal. */
+export async function dedicarAparelhoAMenor(entrada: {
+  authSessionId: string;
+  contaId: string;
+  expiraEm: Date;
+}) {
+  const contaId = ContaIdSchema.parse(entrada.contaId);
+  const agora = new Date();
+  await carregarOuCriarSessaoDaConta({ ...entrada, contaId, agora });
+  await revogarSessaoDaConta({ authSessionId: entrada.authSessionId, contaId, agora });
+}
 
 /**
  * A sessão de aparelho ainda sustenta este perfil jogando? É a conferência de
@@ -84,7 +112,7 @@ export async function conferirSessaoDeAparelho(entrada: {
 }): Promise<VidaDaSessaoDeAparelho> {
   const agora = entrada.agora ?? new Date();
   const sessao = await lerSessaoDeAparelho(entrada.sessaoDeAparelhoId);
-  if (!sessao || sessao.revogadaEm !== null || sessao.contaId === null)
+  if (!sessao || sessao.contextoDeMenor || sessao.revogadaEm !== null || sessao.contaId === null)
     return { viva: false, motivo: "signed_out" };
   if (sessao.expiraEm.getTime() <= agora.getTime()) return { viva: false, motivo: "expired" };
   if (sessao.perfilAtivoId !== entrada.perfilId) return { viva: false, motivo: "signed_out" };
@@ -94,7 +122,10 @@ export async function conferirSessaoDeAparelho(entrada: {
   if (!perfil) return { viva: false, motivo: "signed_out" };
   if (
     sessao.authSessionId !== null &&
-    !(await sessaoDeLoginViva({ authSessionId: sessao.authSessionId, contaId: sessao.contaId }))
+    !(await sessaoDeLoginVivaForaDeTransacao({
+      authSessionId: sessao.authSessionId,
+      contaId: sessao.contaId,
+    }))
   )
     return { viva: false, motivo: "signed_out" };
   return { viva: true, contaId: sessao.contaId, perfil };

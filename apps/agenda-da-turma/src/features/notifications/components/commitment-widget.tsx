@@ -35,9 +35,11 @@ const HOURS = [
 ] as const;
 
 export function CommitmentWidget({
+  familyGroupId,
   dismissedKey,
   current,
 }: {
+  familyGroupId: string;
   dismissedKey: string;
   /**
    * As preferências como estão gravadas.
@@ -88,9 +90,8 @@ export function CommitmentWidget({
     startSaving(async () => {
       const result = await catchActionResult(() =>
         saveNotificationPreferencesAction({
-          ...current,
-          emailEnabled: true,
-          digestHour: chosen,
+          familyGroupId,
+          preferences: { ...current, emailEnabled: true, digestHour: chosen },
         }),
       );
       if (!result.ok) {

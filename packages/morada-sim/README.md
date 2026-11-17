@@ -144,9 +144,15 @@ Com `conferirReplicacao: true` (o padrão dos testes) o replicador varre tudo a 
 
 ## Limites desta etapa
 
+`test:longa` executa `testes/cem-dias.longa.ts`, separado da unidade comum: 100 dias completos, nascimento/envelhecimento, invariantes, recuperação diária por diário e fotografia e continuação determinística contra o mundo ininterrupto. Mede fotografia comprimida e heap após GC; crescimento de heap tem orçamento sintético de 32 MiB entre o quinto e o centésimo dia. O workflow Recreio executa essa prova no GitHub e preserva o JSON de medidas, inclusive em falha. Essa evidência não substitui carga de rede/produção, memória total da aba, hardware de entrada ou avaliação humana.
+
 - Um andar por imóvel; paredes retas; objetos em giros de 90°.
 - Navegação em grade de 25 cm atrás da interface `Navegador`; uma malha de navegação pode tomar o lugar dela.
 - Pedidos de vida entre duas famílias com jogadores viram pedido aberto, mas unir duas famílias fica para a etapa dos vizinhos.
 - A criança pequena não anda pela casa sozinha: brinca, cochila e é cuidada onde está.
 - Os nomes dos clipes de animação nas interações são provisórios; o empacotador de arte confere a lista contra a biblioteca.
 - Não há dinheiro circulando além do fundo inicial; contas, trabalho e compras entram nas fases seguintes.
+
+## Identidade dos fatos na recuperação
+
+Alterações repetíveis (acesso, preferido, casal e mudança de família) usam o contador durável `contadores.fat`, com sufixo `fat_...`. O redutor reaplica também o contador ao ler o diário. Duas alterações no mesmo tick, inclusive depois de restaurar, têm ids diferentes. O relógio continua no último tick conhecido: não é necessário simular um passo artificial para evitar colisão. Nascimento (`nasc:<gravidez>`) e mudança de fase mantêm seus ids estáveis. Fotografias v1 e fatos antigos continuam legíveis; o novo contador cabe no mapa de contadores existente.

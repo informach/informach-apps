@@ -1,5 +1,5 @@
 import "server-only";
-import { PRO_STATUSES } from "@informach/billing";
+import { PRO_STATUSES } from "@informach/billing/access";
 import { and, count, db, eq, gte, inArray, lt, sql } from "@informach/db";
 import {
   agentRuns,

@@ -4,7 +4,8 @@ import { missaoFamilies, missaoProfiles, missaoSessions, users } from "@informac
 import { beforeAll, describe, expect, it } from "vitest";
 import { schoolYear } from "@/features/family/school-year";
 import { CONSENT_VERSION, getProfiles } from "@/features/learning/repository";
-import { begin, createProfile, dashboard, updateProfile } from "@/features/learning/service";
+import { begin, dashboard, updateProfile } from "@/features/learning/service";
+import { fixtureAuthority, prepareStudent } from "./family-fixture";
 
 const owner = randomUUID();
 const stranger = randomUUID();
@@ -21,7 +22,7 @@ beforeAll(async () => {
     },
   ]);
   profileId = (
-    await createProfile(owner, {
+    await prepareStudent(await fixtureAuthority(owner), {
       nickname: "Sol",
       grade: 6,
       birthMonth: `${schoolYear() - 12}-06`,
@@ -37,74 +38,79 @@ describe("ano escolar do perfil em PostgreSQL isolado", () => {
     const [row] = await db.select().from(missaoProfiles).where(eq(missaoProfiles.id, profileId));
     expect(row?.gradeYear).toBe(schoolYear());
     expect(String(row?.birthMonth)).toMatch(new RegExp(`^${schoolYear() - 12}-06-01`));
-    const [profile] = await getProfiles(owner);
+    const [profile] = await getProfiles(await fixtureAuthority(owner));
     expect(profile?.grade).toBe(6);
     expect(profile?.storedGrade).toBe(6);
   });
 
   it("só o dono edita, e a trilha precisa caber no ano escolhido", async () => {
     await expect(
-      updateProfile(stranger, {
+      updateProfile(await fixtureAuthority(stranger), {
         profileId,
-        nickname: "Sol",
+
         grade: 7,
         birthMonth: null,
-        avatar: "lua",
+
         courseId: "canguru-b",
       }),
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
     await expect(
-      updateProfile(owner, {
+      updateProfile(await fixtureAuthority(owner), {
         profileId,
-        nickname: "Sol",
+
         grade: 7,
         birthMonth: null,
-        avatar: "lua",
+
         courseId: "canguru-e",
       }),
     ).rejects.toMatchObject({ code: "COURSE" });
     await expect(
-      updateProfile(owner, {
+      updateProfile(await fixtureAuthority(owner), {
         profileId,
-        nickname: "Sol",
+
         grade: 9,
         birthMonth: null,
-        avatar: "lua",
+
         courseId: "canguru-b",
       }),
     ).rejects.toMatchObject({ code: "COURSE" });
-    const updated = await updateProfile(owner, {
+    const updated = await updateProfile(await fixtureAuthority(owner), {
       profileId,
-      nickname: "Sol",
+
       grade: 7,
       birthMonth: null,
-      avatar: "lua",
+
       courseId: "canguru-b",
     });
-    expect(updated).toMatchObject({ grade: 7, avatar: "lua", courseId: "canguru-b" });
+    expect(updated).toMatchObject({ grade: 7, avatar: "cometa", courseId: "canguru-b" });
     expect(updated.birthMonth).toBeNull();
   });
 
   it("pede autorização de novo quando o mês de nascimento volta a ser informado", async () => {
     const edicao = {
       profileId,
-      nickname: "Sol",
       grade: 7,
       birthMonth: `${schoolYear() - 13}-02`,
-      avatar: "lua",
       courseId: "canguru-b",
     };
     await db
       .update(missaoFamilies)
       .set({ consentVersion: "2026-09-13" })
       .where(eq(missaoFamilies.userId, owner));
-    await expect(updateProfile(owner, edicao)).rejects.toMatchObject({ code: "CONSENT" });
-    const updated = await updateProfile(owner, { ...edicao, birthConsent: true });
+    await expect(updateProfile(await fixtureAuthority(owner), edicao)).rejects.toMatchObject({
+      code: "CONSENT",
+    });
+    const updated = await updateProfile(await fixtureAuthority(owner), {
+      ...edicao,
+      birthConsent: true,
+    });
     expect(String(updated.birthMonth)).toMatch(new RegExp(`^${schoolYear() - 13}-02-01`));
     const [family] = await db.select().from(missaoFamilies).where(eq(missaoFamilies.userId, owner));
     expect(family?.consentVersion).toBe(CONSENT_VERSION);
     // Com o mês já guardado, editar outros campos não pede de novo.
-    await expect(updateProfile(owner, { ...edicao, avatar: "cometa" })).resolves.toMatchObject({
+    await expect(
+      updateProfile(await fixtureAuthority(owner), { ...edicao, birthMonth: edicao.birthMonth }),
+    ).resolves.toMatchObject({
       avatar: "cometa",
     });
   });
@@ -115,7 +121,7 @@ describe("ano escolar do perfil em PostgreSQL isolado", () => {
       .update(missaoProfiles)
       .set({ grade: 6, courseId: "canguru-e", gradeYear: schoolYear() - 1 })
       .where(eq(missaoProfiles.id, profileId));
-    const painel = await dashboard(owner, profileId);
+    const painel = await dashboard(await fixtureAuthority(owner), profileId);
     expect(painel.profile?.grade).toBe(7);
     expect(painel.courseTransition?.from.id).toBe("canguru-e");
     expect(painel.courseTransition?.to?.id).toBe("canguru-b");
@@ -123,7 +129,7 @@ describe("ano escolar do perfil em PostgreSQL isolado", () => {
     // Nada foi gravado só por ler.
     const [antes] = await db.select().from(missaoProfiles).where(eq(missaoProfiles.id, profileId));
     expect(antes?.courseId).toBe("canguru-e");
-    await begin(owner, {
+    await begin(await fixtureAuthority(owner), {
       profileId,
       lessonId: "fracoes-1",
       mode: "mission",
@@ -131,7 +137,7 @@ describe("ano escolar do perfil em PostgreSQL isolado", () => {
     });
     const [depois] = await db.select().from(missaoProfiles).where(eq(missaoProfiles.id, profileId));
     expect(depois?.courseId).toBe("canguru-b");
-    expect((await dashboard(owner, profileId)).courseTransition).toBeNull();
+    expect((await dashboard(await fixtureAuthority(owner), profileId)).courseTransition).toBeNull();
   });
 
   it("leva o 9º ano da OBMEP N2 para a OBMEP N3 na virada para o ensino médio", async () => {
@@ -140,12 +146,12 @@ describe("ano escolar do perfil em PostgreSQL isolado", () => {
       .update(missaoProfiles)
       .set({ grade: 9, courseId: "obmep-n2", gradeYear: schoolYear() - 1 })
       .where(eq(missaoProfiles.id, profileId));
-    const painel = await dashboard(owner, profileId);
+    const painel = await dashboard(await fixtureAuthority(owner), profileId);
     expect(painel.profile?.grade).toBe(10);
     expect(painel.courseTransition?.from.id).toBe("obmep-n2");
     expect(painel.courseTransition?.to?.id).toBe("obmep-n3");
     expect(painel.course?.id).toBe("obmep-n3");
-    const sessao = await begin(owner, {
+    const sessao = await begin(await fixtureAuthority(owner), {
       profileId,
       lessonId: "funcoes-1",
       mode: "mission",
@@ -162,23 +168,23 @@ describe("ano escolar do perfil em PostgreSQL isolado", () => {
       .update(missaoProfiles)
       .set({ grade: 5, courseId: "mirim-2", gradeYear: schoolYear() })
       .where(eq(missaoProfiles.id, profileId));
-    const aberta = await begin(owner, {
+    const aberta = await begin(await fixtureAuthority(owner), {
       profileId,
       lessonId: "contagem-inicial-1",
       mode: "mission",
       requestKey: randomUUID(),
     });
-    expect((await dashboard(owner, profileId)).paused?.id).toBe(aberta.id);
+    expect((await dashboard(await fixtureAuthority(owner), profileId)).paused?.id).toBe(aberta.id);
     // Virada: o 6º ano segue para a OBMEP N1, e a pausa da Mirim não aparece mais.
     await db
       .update(missaoProfiles)
       .set({ gradeYear: schoolYear() - 1 })
       .where(eq(missaoProfiles.id, profileId));
-    const painel = await dashboard(owner, profileId);
+    const painel = await dashboard(await fixtureAuthority(owner), profileId);
     expect(painel.course?.id).toBe("obmep-n1");
     expect(painel.paused).toBeNull();
     // Gravar a trilha nova encerra a pausa antiga, que fica no histórico como interrompida.
-    await begin(owner, {
+    await begin(await fixtureAuthority(owner), {
       profileId,
       lessonId: "fracoes-1",
       mode: "mission",

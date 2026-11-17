@@ -1,0 +1,49 @@
+{
+  "checkedAt": "2026-11-17T02:33:51.878Z",
+  "source": "6b51dd13a03ff051489e608a73dd7d57e4fd4d76",
+  "candidateRun": 44000485493,
+  "candidateGatesPassed": 6,
+  "integrationTestsPassed": 342,
+  "negativePoolRun": 44000491805,
+  "negativePoolResult": "one expected timeout, 341 other tests passed; identical test file in fixed candidate",
+  "sharedCiRun": 43989145590,
+  "sharedCiSource": "bff2b1a299c48e1d7bd18a4444bfee5c50d2ac79",
+  "sharedCiScope": "packages and other apps unchanged between this source and production; six current Recreio gates cover final app changes",
+  "portalDeployment": "188855a8-8361-44cc-a937-d89c123233ae",
+  "moradaDeployment": "1720ebec-3cf8-4000-9385-ca78179a2c58",
+  "migratorDeployment": "fa52d61b-94cf-4a94-a5f8-68c89fda948a",
+  "migration": {
+    "name": "0167_milky_virginia_dare",
+    "receipts": 168,
+    "timestamp": "1794874802238",
+    "sha256": "f53b4b06a89e784d9db5d01947c2344e5ae7fb77ee5d5dccefd828bfe0c2202d",
+    "rows": { "keys": 0, "versions": 0, "achievements": 0 },
+    "commercialSeedsRun": false,
+    "originalMigratorCommandRestored": true,
+    "stagedChanges": null
+  },
+  "http": { "portalReady": 200, "moradaReady": 200, "dataWithoutAuth": 401 },
+  "testGameEnabled": false,
+  "sourceMaps": {
+    "browserUploadProcessed": true,
+    "serverUploadProcessed": true,
+    "warning": "0cz1d0mv5g_q7.js has no source map reference; upload reports success, this is not proof every emitted script has a map"
+  },
+  "maintenance": {
+    "startedAt": "2026-11-17T02:30:44.434Z",
+    "ok": true,
+    "summary": {
+      "possesVencidas": 0,
+      "convitesApagados": 0,
+      "sessoesExpiradas": 0,
+      "ingressosApagados": 0,
+      "instanciasSumidas": 1
+    }
+  },
+  "worldCompatibility": "No diff in Morada server, simulation, art or Railway runtime against previous public main; World2/protocol1 preserved",
+  "limits": [
+    "Internal no-world game runs only in isolated CI, not the public catalogue",
+    "No pilot account or existing world modified for this proof",
+    "F1-F11 remain open; this evidence does not release minors or commercial sales"
+  ]
+}

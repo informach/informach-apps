@@ -11,9 +11,17 @@ import { empacotar } from "../src/empacotar";
 import { ErroDeArte } from "../src/erros";
 import { Biblioteca } from "../src/leitura/biblioteca";
 import { ArquivoGlb } from "../src/leitura/glb";
-import { arquivosDoManifesto, ManifestoSchema, SUFIXO_BROTLI } from "../src/manifesto";
+import { escreverPng, lerPng } from "../src/leitura/imagem";
+import {
+  ATRIBUTO_CANAL_DE_COR,
+  ATRIBUTO_MASCARA_DE_COR,
+  ATRIBUTO_PESO_DE_COR,
+  arquivosDoManifesto,
+  ManifestoSchema,
+  SUFIXO_BROTLI,
+} from "../src/manifesto";
 import { type Personagem, PersonagemSchema } from "../src/personagem/esquema";
-import { montarPersonagem } from "../src/personagem/montagem";
+import { montarPersonagem, OPCOES_PADRAO } from "../src/personagem/montagem";
 import { ELENCO_DA_PROVA } from "../src/personagem/prova";
 import { personagemDoElenco, resolver } from "../src/personagem/resolucao";
 import { entradaESaida, pesosEmBytes } from "../src/saida/glb";
@@ -75,6 +83,76 @@ describe("empacotador sobre uma biblioteca de mentira", () => {
     expect(comNull.pecas[0]?.cor).toBeNull();
   });
 
+  it("transporta canais semânticos, pesos float32 e máscara opaca pelo GLB comprimido V3", async () => {
+    const saida = nova();
+    const resultado = await empacotar({
+      arte,
+      saida,
+      personagens: [ze],
+      commit: null,
+      montagem: { ...OPCOES_PADRAO, coresParametricas: true },
+    });
+    expect(resultado.manifesto.versao).toBe(3);
+    const personagem = resultado.manifesto.personagens[0];
+    if (!personagem || !("cores" in personagem) || !personagem.cores)
+      throw new Error("Canais ausentes");
+    const canais = personagem.cores.canais;
+    expect(canais.map((c) => c.id)).toEqual(
+      expect.arrayContaining(["pele", "cabelo", "roupa_cima", "rosto"]),
+    );
+    expect(new Set(canais.map((c) => c.id)).size).toBe(canais.length);
+    const doc = await (await entradaESaida()).read(join(saida, personagem.arquivo));
+    let vertices = 0;
+    let texturas = 0;
+    for (const malha of doc.getRoot().listMeshes())
+      for (const primitiva of malha.listPrimitives()) {
+        const material = primitiva.getMaterial();
+        if (!material) throw new Error("Material ausente");
+        const extras = material.getExtras();
+        if (primitiva.getAttribute("COLOR_0")) {
+          vertices++;
+          expect(extras).toEqual({ moradaCor: { tipo: "vertices" } });
+          const ids = primitiva.getAttribute(ATRIBUTO_CANAL_DE_COR);
+          const mascaras = primitiva.getAttribute(ATRIBUTO_MASCARA_DE_COR);
+          const pesos = primitiva.getAttribute(ATRIBUTO_PESO_DE_COR);
+          if (!ids || !mascaras || !pesos) throw new Error("Atributos paramétricos ausentes");
+          expect(ids.getCount()).toBe(primitiva.getAttribute("POSITION")?.getCount());
+          expect(pesos.getArray()).toBeInstanceOf(Float32Array);
+          expect(mascaras.getCount()).toBe(ids.getCount());
+          expect(
+            Array.from(ids.getArray() ?? []).every(
+              (id) => Number.isInteger(id) && id >= -1 && id < canais.length,
+            ),
+          ).toBe(true);
+        } else {
+          texturas++;
+          const canal = canais.findIndex((c) => c.id === "roupa_cima");
+          const mascara = personagem.cores.mascaras?.[0];
+          if (!mascara) throw new Error("Máscara ausente no manifesto");
+          expect(extras).toEqual({
+            moradaCor: { tipo: "textura", canal, luminancia: 0.5, mascara: mascara.arquivo },
+          });
+          expect(material.getAlphaMode()).toBe("OPAQUE");
+          const imagem = material.getBaseColorTexture()?.getImage();
+          if (!imagem) throw new Error("Textura ausente");
+          const caminhoDaTextura = join(nova(), "textura.png");
+          writeFileSync(caminhoDaTextura, imagem);
+          const png = lerPng(caminhoDaTextura);
+          expect(png.dados[0]).toBe(188);
+          expect(png.dados[3]).toBe(255);
+          const pngDaMascara = lerPng(join(saida, mascara.arquivo));
+          expect(pngDaMascara.dados[0]).toBe(255);
+          expect(arquivosDoManifesto(resultado.manifesto)).toContain(mascara.arquivo);
+        }
+      }
+    expect(vertices).toBeGreaterThan(0);
+    expect(texturas).toBe(1);
+    // O perfil novo é optativo; os mesmos pedidos continuam gerando V2 por padrão.
+    const legado = await empacotar({ arte, saida: nova(), personagens: [ze], commit: null });
+    expect(legado.manifesto.versao).toBe(2);
+    expect(legado.personagens[0]?.montado.cores).toBeUndefined();
+  });
+
   it("recusa com mensagem clara o que não existe ou não cabe", () => {
     const biblioteca = new Biblioteca(arte);
     const erro = (p: unknown): string => {
@@ -92,6 +170,45 @@ describe("empacotador sobre uma biblioteca de mentira", () => {
     expect(erro({ ...ze, roupa: { cima: { id: "capa" } } })).toContain('"capa"');
     expect(erro({ ...ze, cabelo: { penteado: "moicano" } })).toContain("moicano");
     expect(erro({ ...ze, objetos: { dir: { id: "camisa" } } })).toContain("objetos de mão");
+  });
+
+  it("empacota textura 4×4 e máscara 2×1 sem reamostrar nenhuma grade", async () => {
+    const caminho = join(arte, "biblioteca/roupas_mascaras/camisa__Roupa_Gen_liso.png");
+    const original = readFileSync(caminho);
+    try {
+      writeFileSync(
+        caminho,
+        escreverPng({
+          largura: 2,
+          altura: 1,
+          dados: Uint8Array.from([0, 0, 0, 255, 255, 255, 255, 255]),
+        }),
+      );
+      const saida = nova();
+      const resultado = await empacotar({
+        arte,
+        saida,
+        personagens: [ze],
+        montagem: { ...OPCOES_PADRAO, coresParametricas: true },
+      });
+      const personagem = resultado.manifesto.personagens[0];
+      if (!personagem || !("cores" in personagem)) throw new Error("Personagem sem cores");
+      const mascara = personagem.cores?.mascaras?.[0];
+      if (!mascara) throw new Error("Máscara ausente");
+      expect([mascara.largura, mascara.altura]).toEqual([2, 1]);
+      expect(lerPng(join(saida, mascara.arquivo)).dados).toEqual(
+        Uint8Array.from([0, 0, 0, 255, 255, 255, 255, 255]),
+      );
+      const doc = await (await entradaESaida()).read(join(saida, personagem.arquivo));
+      const imagem = doc.getRoot().listTextures()[0]?.getImage();
+      if (!imagem) throw new Error("Textura ausente");
+      const png = join(nova(), "rgb.png");
+      writeFileSync(png, imagem);
+      const rgb = lerPng(png);
+      expect([rgb.largura, rgb.altura]).toEqual([4, 4]);
+    } finally {
+      writeFileSync(caminho, original);
+    }
   });
 
   it("converte um personagem do elenco pronto", () => {
@@ -211,6 +328,8 @@ describe("empacotador sobre uma biblioteca de mentira", () => {
   });
 
   it("a linha de comando sai com erro e mensagem quando falta algo, e com zero quando dá certo", async () => {
+    expect(lerArgumentos(["--cores-parametricas"], {}).coresParametricas).toBe(true);
+    expect(lerArgumentos([], {}).coresParametricas).toBe(false);
     expect(lerArgumentos(["--saida", "x"], { ARTES_3D_DIR: "/arte" }).arte).toBe("/arte");
     expect(lerArgumentos(["--", "--saida", "x"], {}).saida).toBe("x");
     expect(() => lerArgumentos(["--saida"], {})).toThrow(ErroDeArte);

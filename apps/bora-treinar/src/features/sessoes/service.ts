@@ -32,6 +32,7 @@ import {
   saveProgress,
   type Tx,
 } from "../familia/repository";
+import { lockTrainerUse } from "../familia/use-repository";
 import { customWorkout } from "../meus-treinos/repository";
 import {
   grantAchievements,
@@ -43,16 +44,16 @@ import type { GroupInput, SessionInput } from "./schema";
 
 /** Aceita o avanço de uma trilha, conferindo de novo se ele ainda vale. */
 export async function acceptSuggestion(
-  access: Access,
-  allowedProfileIds: string[],
+  userId: string,
+  groupId: string,
   profileId: string,
   chainId: string,
 ) {
-  assertAllowed(canUseProgression(access), "PLAN", "Subir de nível faz parte da assinatura.");
-  assertAllowed(allowedProfileIds.includes(profileId), "PROFILE", "Perfil não encontrado.");
   await inTransaction(async (tx) => {
-    await lockProfile(tx, profileId);
-    const progress = await progressOf(profileId, tx);
+    const access = await lockTrainerUse(tx, userId, groupId, [profileId]);
+    assertAllowed(canUseProgression(access), "PLAN", "Subir de nível faz parte da assinatura.");
+    await lockProfile(tx, userId, profileId);
+    const progress = await progressOf(userId, profileId, tx);
     const st = progress[chainId];
     const suggestion = st && suggestionFor(chainId, st);
     assertAllowed(suggestion, "SUGGESTION", "Este avanço já foi aplicado.");
@@ -66,6 +67,7 @@ export async function resolveWorkout(
   userId: string,
   access: Access,
   ref: WorkoutRef,
+  tx?: Tx,
 ): Promise<{ workout: Workout | null; name: string }> {
   assertAllowed(
     canStartWorkout(access, ref),
@@ -78,26 +80,16 @@ export async function resolveWorkout(
     const workout = workoutById(ref.id);
     return { workout, name: workout.name };
   }
-  const workout = await customWorkout(userId, ref.id);
+  const workout = await customWorkout(userId, ref.id, tx);
   if (!workout) throw new AppError("WORKOUT", "Treino não encontrado.");
   return { workout, name: workout.name };
 }
 
-/** As checagens de um treino antes de gravar (plano, perfil, modo, séries): sem banco aberto. */
-async function validarSessao(
-  userId: string,
-  access: Access,
-  allowedProfileIds: string[],
-  input: SessionInput,
-) {
-  assertAllowed(
-    allowedProfileIds.includes(input.profileId),
-    "PROFILE",
-    "Este perfil não está disponível no plano atual.",
-  );
+/** Confere treino, modo e séries usando a cobertura lida dentro da transação. */
+async function validarSessao(userId: string, access: Access, input: SessionInput, tx: Tx) {
   const ref = parseWorkoutRef(input.workoutRef);
   assertAllowed(ref, "WORKOUT", "Treino não encontrado.");
-  const { name, workout } = await resolveWorkout(userId, access, ref);
+  const { name, workout } = await resolveWorkout(userId, access, ref, tx);
   if (input.mode === "camera")
     assertAllowed(canCountWithCamera(access), "PLAN", "A contagem pela câmera é da assinatura.");
   if (input.mode === "pareado")
@@ -123,8 +115,8 @@ async function gravarSessao(tx: Tx, userId: string, v: Validada, timezone: strin
   const { input, name, workout, feitos, startedAt } = v;
   {
     // o perfil fica travado até o fim: o progresso é lido e regravado aqui dentro
-    const { intensity, weeklyGoal } = await lockProfile(tx, input.profileId);
-    const progress = await progressOf(input.profileId, tx);
+    const { intensity, weeklyGoal } = await lockProfile(tx, userId, input.profileId);
+    const progress = await progressOf(userId, input.profileId, tx);
     // o servidor remonta o treino com os níveis e a intensidade do perfil: a meta de cada série e
     // quantas séries havia saem daqui, não do aparelho
     const plano = seriesPlanejadas(
@@ -155,8 +147,14 @@ async function gravarSessao(tx: Tx, userId: string, v: Validada, timezone: strin
       await saveProgress(input.profileId, avaliado.progress, tx);
     }
     // dois agregados no banco: o histórico resumido e as melhores marcas sem esta sessão
-    const history = await resumosDoPerfil(input.profileId, tx);
-    const anteriores = await melhoresAnteriores(input.profileId, input.id, new Date(startedAt), tx);
+    const history = await resumosDoPerfil(userId, input.profileId, tx);
+    const anteriores = await melhoresAnteriores(
+      userId,
+      input.profileId,
+      input.id,
+      new Date(startedAt),
+      tx,
+    );
     const achievements = await grantAchievements(
       tx,
       input.profileId,
@@ -177,41 +175,46 @@ async function gravarSessao(tx: Tx, userId: string, v: Validada, timezone: strin
  */
 export async function saveSession(
   userId: string,
-  access: Access,
-  allowedProfileIds: string[],
+  familyGroupId: string,
   input: SessionInput,
   timezone: string,
 ) {
   assertAllowed(!input.groupId, "INPUT", "Treino em grupo vai junto com o grupo.");
-  const v = await validarSessao(userId, access, allowedProfileIds, input);
-  return inTransaction((tx) => gravarSessao(tx, userId, v, timezone));
+  return inTransaction(async (tx) => {
+    const access = await lockTrainerUse(tx, userId, familyGroupId, [input.profileId]);
+    const validated = await validarSessao(userId, access, input, tx);
+    return gravarSessao(tx, userId, validated, timezone);
+  });
 }
 
-/**
- * Treinar junto: um treino por perfil, gravados numa transação só (ou nenhum). Os perfis são
- * travados em ordem de id, para dois grupos com as mesmas pessoas não se travarem um ao outro.
- */
+/** Validate and persist every participant under the same household and profile locks. */
 export async function saveGroupSession(
   userId: string,
-  access: Access,
-  allowedProfileIds: string[],
+  familyGroupId: string,
   grupo: GroupInput,
   timezone: string,
 ) {
-  assertAllowed(access.unlocked, "PLAN", "Treinar junto é do plano Família.");
-  const validadas: Validada[] = [];
-  for (const s of [...grupo.sessoes].sort((a, b) => a.profileId.localeCompare(b.profileId))) {
-    const v = await validarSessao(userId, access, allowedProfileIds, s);
-    assertAllowed(
-      v.workout && soSeries(v.workout),
-      "WORKOUT",
-      "Treinar junto é só com treino de séries.",
-    );
-    validadas.push(v);
-  }
   return inTransaction(async (tx) => {
+    const sorted = [...grupo.sessoes].sort((a, b) => a.profileId.localeCompare(b.profileId));
+    const access = await lockTrainerUse(
+      tx,
+      userId,
+      familyGroupId,
+      sorted.map((s) => s.profileId),
+    );
+    assertAllowed(access.unlocked, "PLAN", "Treinar junto faz parte do Compasso.");
+    const validated: Validada[] = [];
+    for (const input of sorted) {
+      const v = await validarSessao(userId, access, input, tx);
+      assertAllowed(
+        v.workout && soSeries(v.workout),
+        "WORKOUT",
+        "Treinar junto é só com treino de séries.",
+      );
+      validated.push(v);
+    }
     const sessoes = [];
-    for (const v of validadas) sessoes.push(await gravarSessao(tx, userId, v, timezone));
+    for (const v of validated) sessoes.push(await gravarSessao(tx, userId, v, timezone));
     return { groupId: grupo.groupId, sessoes };
   });
 }

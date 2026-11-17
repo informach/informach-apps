@@ -10,8 +10,8 @@ import {
   users,
 } from "@informach/db/schema";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { getLearningAccess } from "@/features/billing/access-repository";
 import { withBillingLifecycle } from "@/features/billing/repository";
-import { getAccess } from "@/features/billing/service";
 import {
   assessment,
   assessmentSources,
@@ -37,13 +37,13 @@ import {
 import {
   answer,
   begin,
-  createProfile,
   dashboard,
   hint,
   interrupt,
   markReading,
   sessionView,
 } from "@/features/learning/service";
+import { fixtureAuthority, prepareStudent } from "./family-fixture";
 
 const owner = randomUUID();
 const stranger = randomUUID();
@@ -68,18 +68,18 @@ beforeAll(async () => {
       emailVerified: true,
     },
   ]);
-  profileId = (await createProfile(owner, input)).id;
+  profileId = (await prepareStudent(await fixtureAuthority(owner), input)).id;
 });
 describe("isolated PostgreSQL learning", () => {
   it("isolates profile ownership and serializes the free profile limit", async () => {
     const results = await Promise.allSettled([
-      createProfile(stranger, input),
-      createProfile(stranger, { ...input, nickname: "Lua" }),
+      prepareStudent(await fixtureAuthority(stranger), input),
+      prepareStudent(await fixtureAuthority(stranger), { ...input, nickname: "Lua" }),
     ]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
-    expect(await getProfiles(stranger)).toHaveLength(1);
+    expect(await getProfiles(await fixtureAuthority(stranger))).toHaveLength(1);
     await expect(
-      begin(stranger, {
+      begin(await fixtureAuthority(stranger), {
         profileId,
         lessonId: "fracoes-1",
         mode: "mission",
@@ -89,7 +89,10 @@ describe("isolated PostgreSQL learning", () => {
   });
   it("starts and answers once under concurrent replay, with real server grading", async () => {
     const request = { profileId, lessonId: "fracoes-1", mode: "mission", requestKey: randomUUID() };
-    const [a, b] = await Promise.all([begin(owner, request), begin(owner, request)]);
+    const [a, b] = await Promise.all([
+      begin(await fixtureAuthority(owner), request),
+      begin(await fixtureAuthority(owner), request),
+    ]);
     expect(a.id).toBe(b.id);
     const lesson = findLesson("fracoes-1");
     const item = lesson?.items[0];
@@ -100,23 +103,36 @@ describe("isolated PostgreSQL learning", () => {
       answer: item.answer,
       requestKey: randomUUID(),
     };
-    await Promise.all([answer(owner, response), answer(owner, response)]);
-    const view = await sessionView(owner, a.id);
+    await Promise.all([
+      answer(await fixtureAuthority(owner), response),
+      answer(await fixtureAuthority(owner), response),
+    ]);
+    const view = await sessionView(await fixtureAuthority(owner), a.id);
     expect(view.saved).toHaveLength(1);
     expect(view.saved[0]?.feedback?.correct).toBe(true);
     expect(view.lesson.items[0]).not.toHaveProperty("answer");
     expect(view.lesson.items[0]).not.toHaveProperty("hints");
-    await expect(answer(owner, { ...response, requestKey: randomUUID() })).rejects.toMatchObject({
+    await expect(
+      answer(await fixtureAuthority(owner), { ...response, requestKey: randomUUID() }),
+    ).rejects.toMatchObject({
       code: "CONFLICT",
     });
-    await expect(sessionView(stranger, a.id)).rejects.toMatchObject({ code: "NOT_FOUND" });
-    await expect(answer(stranger, response)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(sessionView(await fixtureAuthority(stranger), a.id)).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
+    await expect(answer(await fixtureAuthority(stranger), response)).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
     await expect(
-      answer(owner, { ...response, itemId: "fracoes-1-6", requestKey: randomUUID() }),
+      answer(await fixtureAuthority(owner), {
+        ...response,
+        itemId: "fracoes-1-6",
+        requestKey: randomUUID(),
+      }),
     ).rejects.toMatchObject({ code: "ORDER" });
   });
   it("counts delivered hints even after replay and resume", async () => {
-    const session = await begin(owner, {
+    const session = await begin(await fixtureAuthority(owner), {
       profileId,
       lessonId: "fracoes-2",
       mode: "mission",
@@ -125,28 +141,32 @@ describe("isolated PostgreSQL learning", () => {
     const first = findLesson("fracoes-2")?.items[0];
     if (first?.type !== "choice") throw new Error("Missing fixture");
     const request = { sessionId: session.id, itemId: first.id, level: 1 };
-    expect(await hint(owner, request)).toHaveLength(1);
-    expect(await hint(owner, request)).toHaveLength(1);
-    await expect(hint(owner, { ...request, level: 3 })).rejects.toMatchObject({ code: "ORDER" });
-    const view = await answer(owner, {
+    expect(await hint(await fixtureAuthority(owner), request)).toHaveLength(1);
+    expect(await hint(await fixtureAuthority(owner), request)).toHaveLength(1);
+    await expect(
+      hint(await fixtureAuthority(owner), { ...request, level: 3 }),
+    ).rejects.toMatchObject({ code: "ORDER" });
+    const view = await answer(await fixtureAuthority(owner), {
       sessionId: session.id,
       itemId: first.id,
       answer: first.answer,
       requestKey: randomUUID(),
     });
     expect(view.saved[0]?.helpCount).toBe(1);
-    expect((await sessionView(owner, session.id)).hints[first.id]).toHaveLength(1);
+    expect(
+      (await sessionView(await fixtureAuthority(owner), session.id)).hints[first.id],
+    ).toHaveLength(1);
   });
   it("counts a skipped reflection as an attempted item for journey progression", async () => {
     const lesson = findLesson("fracoes-formatos");
     if (!lesson) throw new Error("Missing format lesson");
-    const session = await begin(owner, {
+    const session = await begin(await fixtureAuthority(owner), {
       profileId,
       lessonId: lesson.id,
       mode: "mission",
       requestKey: randomUUID(),
     });
-    let view = await sessionView(owner, session.id);
+    let view = await sessionView(await fixtureAuthority(owner), session.id);
     for (const item of lesson.items) {
       const response =
         item.type === "choice"
@@ -160,7 +180,7 @@ describe("isolated PostgreSQL learning", () => {
                     : item.steps.map((step) => step.id),
                 )
               : "__skip__";
-      view = await answer(owner, {
+      view = await answer(await fixtureAuthority(owner), {
         sessionId: session.id,
         itemId: item.id,
         answer: response,
@@ -168,43 +188,47 @@ describe("isolated PostgreSQL learning", () => {
       });
     }
     expect(view.completed).toBe(true);
-    const data = await dashboard(owner, profileId);
+    const data = await dashboard(await fixtureAuthority(owner), profileId);
     expect(data.attemptedItemIds).toEqual(
       expect.arrayContaining(lesson.items.map((item) => item.id)),
     );
     expect(data.evidence.some((row) => row.itemId === lesson.items.at(-1)?.id)).toBe(false);
   });
   it("embargoes diagnostic correction in view, history and export until completion", async () => {
-    const session = await begin(owner, {
+    const session = await begin(await fixtureAuthority(owner), {
       profileId,
       lessonId: "diagnostic:olitef-n1",
       mode: "diagnostic",
       requestKey: randomUUID(),
     });
-    const first = (await sessionView(owner, session.id)).lesson.items[0];
+    const first = (await sessionView(await fixtureAuthority(owner), session.id)).lesson.items[0];
     if (!first) throw new Error("Missing assessment");
-    await answer(owner, {
+    await answer(await fixtureAuthority(owner), {
       sessionId: session.id,
       itemId: first.id,
       answer: "__skip__",
       requestKey: randomUUID(),
     });
-    expect((await sessionView(owner, session.id)).saved[0]).toMatchObject({
+    expect((await sessionView(await fixtureAuthority(owner), session.id)).saved[0]).toMatchObject({
       feedback: null,
       result: null,
     });
     expect(
-      (await history(owner, profileId)).evidence.filter((r) => r.sessionId === session.id),
+      (await history(await fixtureAuthority(owner), profileId)).evidence.filter(
+        (r) => r.sessionId === session.id,
+      ),
     ).toHaveLength(0);
     expect(
-      (await exportFamily(owner)).attempts.find((r) => r.sessionId === session.id),
+      (await exportFamily(await fixtureAuthority(owner))).attempts.find(
+        (r) => r.sessionId === session.id,
+      ),
     ).toMatchObject({ correct: null, result: null });
     await expect(
-      hint(owner, { sessionId: session.id, itemId: first.id, level: 1 }),
+      hint(await fixtureAuthority(owner), { sessionId: session.id, itemId: first.id, level: 1 }),
     ).rejects.toMatchObject({ code: "MODE" });
-    let view = await sessionView(owner, session.id);
+    let view = await sessionView(await fixtureAuthority(owner), session.id);
     for (const item of view.lesson.items.slice(1))
-      view = await answer(owner, {
+      view = await answer(await fixtureAuthority(owner), {
         sessionId: session.id,
         itemId: item.id,
         answer: "__skip__",
@@ -214,30 +238,35 @@ describe("isolated PostgreSQL learning", () => {
     expect(view.saved.every((r) => r.feedback !== null)).toBe(true);
     expect(view.nextStep).not.toBeNull();
     expect(
-      (await exportFamily(owner)).attempts.find((r) => r.sessionId === session.id)?.correct,
+      (await exportFamily(await fixtureAuthority(owner))).attempts.find(
+        (r) => r.sessionId === session.id,
+      )?.correct,
     ).not.toBeNull();
   });
   it("declares reading support once and keeps the comparison honest about it", async () => {
     const leitor = randomUUID();
-    await db
-      .insert(users)
-      .values({ id: leitor, email: `${leitor}@example.test`, name: "Reading test" });
-    const perfil = (await createProfile(leitor, input)).id;
+    await db.insert(users).values({
+      id: leitor,
+      email: `${leitor}@example.test`,
+      name: "Reading test",
+      emailVerified: true,
+    });
+    const perfil = (await prepareStudent(await fixtureAuthority(leitor), input)).id;
     try {
-      const primeira = await begin(leitor, {
+      const primeira = await begin(await fixtureAuthority(leitor), {
         profileId: perfil,
         lessonId: "diagnostic:olitef-n1",
         mode: "diagnostic",
         requestKey: randomUUID(),
       });
-      expect(await markReading(leitor, primeira.id)).toBe(true);
+      expect(await markReading(await fixtureAuthority(leitor), primeira.id)).toBe(true);
       // Ouvir de novo é a mesma verdade, não uma falha: o cliente usa este
       // retorno para decidir se volta atrás no sinalizador local.
-      expect(await markReading(leitor, primeira.id)).toBe(true);
-      let vista = await sessionView(leitor, primeira.id);
+      expect(await markReading(await fixtureAuthority(leitor), primeira.id)).toBe(true);
+      let vista = await sessionView(await fixtureAuthority(leitor), primeira.id);
       expect(vista.readingSupport).toBe(true);
       for (const item of vista.lesson.items)
-        vista = await answer(leitor, {
+        vista = await answer(await fixtureAuthority(leitor), {
           sessionId: primeira.id,
           itemId: item.id,
           answer: "__skip__",
@@ -246,16 +275,16 @@ describe("isolated PostgreSQL learning", () => {
       expect(vista.completed).toBe(true);
       expect(vista.readingSupport).toBe(true);
       // A declaração já feita continua de pé depois do fim.
-      expect(await markReading(leitor, primeira.id)).toBe(true);
-      const segunda = await begin(leitor, {
+      expect(await markReading(await fixtureAuthority(leitor), primeira.id)).toBe(true);
+      const segunda = await begin(await fixtureAuthority(leitor), {
         profileId: perfil,
         lessonId: "diagnostic:olitef-n1",
         mode: "diagnostic",
         requestKey: randomUUID(),
       });
-      let vistaSegunda = await sessionView(leitor, segunda.id);
+      let vistaSegunda = await sessionView(await fixtureAuthority(leitor), segunda.id);
       for (const item of vistaSegunda.lesson.items)
-        vistaSegunda = await answer(leitor, {
+        vistaSegunda = await answer(await fixtureAuthority(leitor), {
           sessionId: segunda.id,
           itemId: item.id,
           answer: "__skip__",
@@ -265,18 +294,23 @@ describe("isolated PostgreSQL learning", () => {
       // Percurso encerrado sem apoio não aceita a declaração depois: ouvir na
       // revisão não muda como as respostas foram produzidas, e o cliente
       // precisa deste `false` para não exibir como registrado o que não foi.
-      expect(await markReading(leitor, segunda.id)).toBe(false);
-      expect((await sessionView(leitor, segunda.id)).readingSupport).toBe(false);
+      expect(await markReading(await fixtureAuthority(leitor), segunda.id)).toBe(false);
+      expect((await sessionView(await fixtureAuthority(leitor), segunda.id)).readingSupport).toBe(
+        false,
+      );
       // Sem este dado, a coluna de comparação mostraria como recuo o que é só
       // uma mudança nas condições de apoio.
       expect(vistaSegunda.previousAssessment?.readingSupport).toBe(true);
     } finally {
-      await db.delete(users).where(eq(users.id, leitor));
+      await db
+        .update(users)
+        .set({ banned: true, emailVerified: false })
+        .where(eq(users.id, leitor));
     }
   });
   it("rejects unpaid content and preserves historical sessions after cancellation", async () => {
     await expect(
-      begin(owner, {
+      begin(await fixtureAuthority(owner), {
         profileId,
         lessonId: "porcentagem-1",
         mode: "mission",
@@ -309,20 +343,23 @@ describe("isolated PostgreSQL learning", () => {
       })
       .returning();
     if (!subscription) throw new Error("Missing subscription");
-    expect((await getAccess(owner)).paid).toBe(false);
+    expect((await getLearningAccess(await fixtureAuthority(owner))).paid).toBe(false);
     await db.update(customers).set({ app: "missao-saber" }).where(eq(customers.id, customer.id));
     await db
       .update(subscriptions)
       .set({ productId: "missao_family_monthly" })
       .where(eq(subscriptions.id, subscription.id));
-    expect(await getAccess(owner)).toMatchObject({ paid: true, profileLimit: 3 });
-    const session = await begin(owner, {
+    expect(await getLearningAccess(await fixtureAuthority(owner))).toMatchObject({
+      paid: true,
+      profileLimit: 3,
+    });
+    const session = await begin(await fixtureAuthority(owner), {
       profileId,
       lessonId: "porcentagem-1",
       mode: "mission",
       requestKey: randomUUID(),
     });
-    const frozenView = await sessionView(owner, session.id);
+    const frozenView = await sessionView(await fixtureAuthority(owner), session.id);
     const frozen = frozenView.lesson.title;
     const firstItem = findLesson("porcentagem-1")?.items[0];
     if (!firstItem) throw new Error("Missing paid item fixture");
@@ -330,10 +367,12 @@ describe("isolated PostgreSQL learning", () => {
       .update(subscriptions)
       .set({ status: "past_due" })
       .where(eq(subscriptions.id, subscription.id));
-    expect((await getAccess(owner)).paid).toBe(false);
-    await expect(sessionView(owner, session.id)).rejects.toMatchObject({ code: "PLAN" });
+    expect((await getLearningAccess(await fixtureAuthority(owner))).paid).toBe(false);
+    await expect(sessionView(await fixtureAuthority(owner), session.id)).rejects.toMatchObject({
+      code: "PLAN",
+    });
     await expect(
-      answer(owner, {
+      answer(await fixtureAuthority(owner), {
         sessionId: session.id,
         itemId: firstItem.id,
         answer: firstItem.type === "choice" ? firstItem.answer : "0",
@@ -341,10 +380,14 @@ describe("isolated PostgreSQL learning", () => {
       }),
     ).rejects.toMatchObject({ code: "PLAN" });
     await expect(
-      hint(owner, { sessionId: session.id, itemId: firstItem.id, level: 1 }),
+      hint(await fixtureAuthority(owner), {
+        sessionId: session.id,
+        itemId: firstItem.id,
+        level: 1,
+      }),
     ).rejects.toMatchObject({ code: "PLAN" });
     await expect(
-      begin(owner, {
+      begin(await fixtureAuthority(owner), {
         profileId,
         lessonId: "porcentagem-2",
         mode: "mission",
@@ -358,7 +401,7 @@ describe("isolated PostgreSQL learning", () => {
     const paidLesson = findLesson("porcentagem-1");
     if (!paidLesson) throw new Error("Missing paid lesson fixture");
     for (const item of paidLesson.items) {
-      await answer(owner, {
+      await answer(await fixtureAuthority(owner), {
         sessionId: session.id,
         itemId: item.id,
         answer: "__skip__",
@@ -369,7 +412,9 @@ describe("isolated PostgreSQL learning", () => {
       .update(subscriptions)
       .set({ status: "canceled" })
       .where(eq(subscriptions.id, subscription.id));
-    expect((await sessionView(owner, session.id)).lesson.title).toBe(frozen);
+    expect((await sessionView(await fixtureAuthority(owner), session.id)).lesson.title).toBe(
+      frozen,
+    );
     await db
       .update(subscriptions)
       .set({ status: "active" })
@@ -379,45 +424,49 @@ describe("isolated PostgreSQL learning", () => {
     const course = courses[0];
     if (!course) throw new Error("Missing course");
     await expect(
-      begin(owner, {
+      begin(await fixtureAuthority(owner), {
         profileId,
         lessonId: "porcentagem-1",
         mode: "diagnostic",
         requestKey: randomUUID(),
       }),
     ).rejects.toMatchObject({ code: "LESSON" });
-    const session = await begin(owner, {
+    const session = await begin(await fixtureAuthority(owner), {
       profileId,
       lessonId: `exam:${course.id}`,
       mode: "exam",
       requestKey: randomUUID(),
     });
-    const first = (await sessionView(owner, session.id)).lesson.items[0];
+    const first = (await sessionView(await fixtureAuthority(owner), session.id)).lesson.items[0];
     if (!first) throw new Error("Missing exam");
-    const view = await answer(owner, {
+    const view = await answer(await fixtureAuthority(owner), {
       sessionId: session.id,
       itemId: first.id,
       answer: "__skip__",
       requestKey: randomUUID(),
     });
     expect(view.saved[0]).toMatchObject({ feedback: null, result: null });
-    expect((await history(owner, profileId)).evidence.some((r) => r.sessionId === session.id)).toBe(
-      false,
-    );
     expect(
-      (await exportFamily(owner)).attempts.find((r) => r.sessionId === session.id)?.correct,
+      (await history(await fixtureAuthority(owner), profileId)).evidence.some(
+        (r) => r.sessionId === session.id,
+      ),
+    ).toBe(false);
+    expect(
+      (await exportFamily(await fixtureAuthority(owner))).attempts.find(
+        (r) => r.sessionId === session.id,
+      )?.correct,
     ).toBeNull();
   });
   it("persists all four activity formats without turning reflection into objective evidence", async () => {
     const lesson = findLesson("fracoes-formatos");
     if (!lesson) throw new Error("Missing format lesson");
-    const session = await begin(owner, {
+    const session = await begin(await fixtureAuthority(owner), {
       profileId,
       lessonId: lesson.id,
       mode: "mission",
       requestKey: randomUUID(),
     });
-    const initial = await sessionView(owner, session.id);
+    const initial = await sessionView(await fixtureAuthority(owner), session.id);
     for (const item of initial.lesson.items) {
       expect(item).not.toHaveProperty("answer");
       expect(item).not.toHaveProperty("grading");
@@ -435,7 +484,7 @@ describe("isolated PostgreSQL learning", () => {
               ? JSON.stringify(["divide", "part", "multiply", "result"])
               : "Usei denominador 40 e comparei 25/40 com 24/40 para justificar a ordem.";
       const requestKey = randomUUID();
-      view = await answer(owner, {
+      view = await answer(await fixtureAuthority(owner), {
         sessionId: session.id,
         itemId: item.id,
         answer: response,
@@ -443,7 +492,7 @@ describe("isolated PostgreSQL learning", () => {
       });
       if (item.type === "numeric")
         expect(
-          await answer(owner, {
+          await answer(await fixtureAuthority(owner), {
             sessionId: session.id,
             itemId: item.id,
             answer: response,
@@ -460,9 +509,11 @@ describe("isolated PostgreSQL learning", () => {
     ]);
     expect(view.saved.at(-1)?.feedback).toMatchObject({ correct: null });
     expect(
-      (await history(owner, profileId)).evidence.filter((row) => row.sessionId === session.id),
+      (await history(await fixtureAuthority(owner), profileId)).evidence.filter(
+        (row) => row.sessionId === session.id,
+      ),
     ).toHaveLength(3);
-    const exported = await exportFamily(owner);
+    const exported = await exportFamily(await fixtureAuthority(owner));
     expect(
       exported.attempts.find(
         (row) => row.sessionId === session.id && row.itemId === "fracoes-formatos-4",
@@ -481,21 +532,40 @@ describe("isolated PostgreSQL learning", () => {
       .from(subscriptions)
       .where(eq(subscriptions.customerId, customer.id));
     if (!subscription) throw new Error("Missing subscription fixture");
-    const second = await createProfile(owner, { ...input, nickname: "Lua" });
+    const second = await prepareStudent(await fixtureAuthority(owner), {
+      ...input,
+      nickname: "Lua",
+    });
     try {
-      const secondOpen = await startSession(owner, second.id, paidLesson, "mission", randomUUID());
+      const secondOpen = await startSession(
+        await fixtureAuthority(owner),
+        second.id,
+        paidLesson,
+        "mission",
+        randomUUID(),
+      );
       await db
         .update(subscriptions)
         .set({ productId: "missao_individual_monthly" })
         .where(eq(subscriptions.id, subscription.id));
-      expect((await dashboard(owner, second.id)).profileAllowed).toBe(false);
+      expect((await dashboard(await fixtureAuthority(owner), second.id)).profileAllowed).toBe(
+        false,
+      );
       await expect(
-        startSession(owner, second.id, paidLesson, "mission", randomUUID()),
+        startSession(await fixtureAuthority(owner), second.id, paidLesson, "mission", randomUUID()),
       ).rejects.toMatchObject({ code: "PROFILE_LIMIT" });
-      await expect(sessionView(owner, secondOpen.id)).rejects.toMatchObject({
-        code: "PROFILE_LIMIT",
-      });
-      const raceSession = await startSession(owner, profileId, paidLesson, "mission", randomUUID());
+      await expect(sessionView(await fixtureAuthority(owner), secondOpen.id)).rejects.toMatchObject(
+        {
+          code: "PROFILE_LIMIT",
+        },
+      );
+      const raceSession = await startSession(
+        await fixtureAuthority(owner),
+        profileId,
+        paidLesson,
+        "mission",
+        randomUUID(),
+      );
       let unlock = () => {};
       let markLocked = () => {};
       const locked = new Promise<void>((resolve) => {
@@ -514,10 +584,10 @@ describe("isolated PostgreSQL learning", () => {
       });
       await locked;
       const rejectedStart = expect(
-        startSession(owner, profileId, paidLesson, "mission", randomUUID()),
+        startSession(await fixtureAuthority(owner), profileId, paidLesson, "mission", randomUUID()),
       ).rejects.toMatchObject({ code: "PLAN" });
       const rejectedAnswer = expect(
-        answer(owner, {
+        answer(await fixtureAuthority(owner), {
           sessionId: raceSession.id,
           itemId: paidFirst.id,
           answer: "__skip__",
@@ -550,7 +620,7 @@ describe("isolated PostgreSQL learning", () => {
       actorId: owner,
       note: "Pause a source that the current assessment would not select",
     });
-    const session = await begin(owner, {
+    const session = await begin(await fixtureAuthority(owner), {
       profileId,
       lessonId: `exam:${course.id}`,
       mode: "exam",
@@ -563,12 +633,12 @@ describe("isolated PostgreSQL learning", () => {
     const snapshot = lessonSchema.parse(stored?.snapshot);
     expect(assessmentSources(snapshot).some((source) => source.id === unused.id)).toBe(false);
     expect(assessmentSources(snapshot).some((source) => source.id === used.id)).toBe(true);
-    expect((await history(owner, profileId)).assessmentExposedFamilyIds).toContain(
-      snapshot.items[0]?.familyId,
-    );
-    let view = await sessionView(owner, session.id);
+    expect(
+      (await history(await fixtureAuthority(owner), profileId)).assessmentExposedFamilyIds,
+    ).toContain(snapshot.items[0]?.familyId);
+    let view = await sessionView(await fixtureAuthority(owner), session.id);
     for (const item of view.lesson.items)
-      view = await answer(owner, {
+      view = await answer(await fixtureAuthority(owner), {
         sessionId: session.id,
         itemId: item.id,
         answer: "__skip__",
@@ -581,7 +651,9 @@ describe("isolated PostgreSQL learning", () => {
     const source = findContentUnit(selected.source.lessonId);
     if (!source) throw new Error("Missing selected source");
     expect(
-      (await history(owner, profileId)).evidence.filter((row) => row.sessionId === session.id),
+      (await history(await fixtureAuthority(owner), profileId)).evidence.filter(
+        (row) => row.sessionId === session.id,
+      ),
     ).toHaveLength(snapshot.items.length);
     await recordContentControl({
       lessonId: source.id,
@@ -592,13 +664,13 @@ describe("isolated PostgreSQL learning", () => {
       actorId: owner,
       note: "Confirmed one incorrect activity and invalidate only its frozen evidence",
     });
-    const after = (await history(owner, profileId)).evidence.filter(
+    const after = (await history(await fixtureAuthority(owner), profileId)).evidence.filter(
       (row) => row.sessionId === session.id,
     );
     expect(after).toHaveLength(snapshot.items.length - 1);
     expect(after.some((row) => row.itemId === selected.id)).toBe(false);
     await expect(
-      begin(owner, {
+      begin(await fixtureAuthority(owner), {
         profileId,
         lessonId: `exam:${course.id}`,
         mode: "exam",
@@ -623,7 +695,9 @@ describe("isolated PostgreSQL learning", () => {
       })
       .returning();
     if (!legacySession) throw new Error("Missing legacy assessment session");
-    expect((await sessionView(owner, legacySession.id)).suspended).toBe(true);
+    expect((await sessionView(await fixtureAuthority(owner), legacySession.id)).suspended).toBe(
+      true,
+    );
     for (const lesson of [unused, source])
       await recordContentControl({
         lessonId: lesson.id,
@@ -637,7 +711,7 @@ describe("isolated PostgreSQL learning", () => {
   it("closes a suspended partial session idempotently without manufacturing completion", async () => {
     const lesson = findLesson("fracoes-1");
     if (!lesson) throw new Error("Missing lesson");
-    const session = await begin(owner, {
+    const session = await begin(await fixtureAuthority(owner), {
       profileId,
       lessonId: lesson.id,
       mode: "mission",
@@ -646,7 +720,7 @@ describe("isolated PostgreSQL learning", () => {
     const first = lesson.items[0];
     const second = lesson.items[1];
     if (first?.type !== "choice" || second?.type !== "choice") throw new Error("Missing items");
-    await answer(owner, {
+    await answer(await fixtureAuthority(owner), {
       sessionId: session.id,
       itemId: first.id,
       answer: first.answer,
@@ -661,26 +735,28 @@ describe("isolated PostgreSQL learning", () => {
       actorId: owner,
       note: "Suspend after a partial answer to verify the safe interruption path",
     });
-    expect((await sessionView(owner, session.id)).suspended).toBe(true);
-    const interrupted = await interrupt(owner, session.id);
+    expect((await sessionView(await fixtureAuthority(owner), session.id)).suspended).toBe(true);
+    const interrupted = await interrupt(await fixtureAuthority(owner), session.id);
     expect(interrupted).toMatchObject({ completed: false, interrupted: true });
-    expect((await interrupt(owner, session.id)).interrupted).toBe(true);
+    expect((await interrupt(await fixtureAuthority(owner), session.id)).interrupted).toBe(true);
     await expect(
-      answer(owner, {
+      answer(await fixtureAuthority(owner), {
         sessionId: session.id,
         itemId: second.id,
         answer: second.answer,
         requestKey: randomUUID(),
       }),
     ).rejects.toMatchObject({ code: "INTERRUPTED" });
-    const exported = await exportFamily(owner);
+    const exported = await exportFamily(await fixtureAuthority(owner));
     expect(exported.sessions.find((row) => row.id === session.id)).toMatchObject({
       completedAt: null,
       interruptionReason: "Conteúdo pausado para correção",
     });
     expect(exported.attempts.some((row) => row.sessionId === session.id)).toBe(true);
     expect(
-      (await history(owner, profileId)).evidence.some((row) => row.sessionId === session.id),
+      (await history(await fixtureAuthority(owner), profileId)).evidence.some(
+        (row) => row.sessionId === session.id,
+      ),
     ).toBe(false);
     await recordContentControl({
       lessonId: lesson.id,
@@ -690,7 +766,7 @@ describe("isolated PostgreSQL learning", () => {
       actorId: owner,
       note: "Restore the lesson after testing interrupted session handling",
     });
-    expect((await sessionView(owner, session.id)).interrupted).toBe(true);
+    expect((await sessionView(await fixtureAuthority(owner), session.id)).interrupted).toBe(true);
   });
   it("keeps a suspension across content changes and stores immutable snapshots", async () => {
     const lesson = findLesson("porcentagem-2");
@@ -704,7 +780,12 @@ describe("isolated PostgreSQL learning", () => {
       note: "Pause remains active independently from the current content hash",
     });
     await expect(
-      begin(owner, { profileId, lessonId: lesson.id, mode: "mission", requestKey: randomUUID() }),
+      begin(await fixtureAuthority(owner), {
+        profileId,
+        lessonId: lesson.id,
+        mode: "mission",
+        requestKey: randomUUID(),
+      }),
     ).rejects.toMatchObject({ code: "WITHDRAWN" });
     await recordContentControl({
       lessonId: lesson.id,
@@ -714,7 +795,7 @@ describe("isolated PostgreSQL learning", () => {
       actorId: owner,
       note: "Correction verified and mission explicitly made available again",
     });
-    const resumed = await begin(owner, {
+    const resumed = await begin(await fixtureAuthority(owner), {
       profileId,
       lessonId: lesson.id,
       mode: "mission",
@@ -732,33 +813,47 @@ describe("isolated PostgreSQL learning", () => {
   it("resumes saved experiments and refuses stale concurrent writes or foreign profiles", async () => {
     const state = { kind: "grid" as const, cells: Array<boolean>(20).fill(true) };
     state.cells[0] = false;
-    expect(await saveExperiment(owner, profileId, state, 0)).toBe(1);
-    expect(await saveExperiment(owner, profileId, { cells: state.cells, kind: "grid" }, 0)).toBe(1);
+    expect(await saveExperiment(await fixtureAuthority(owner), profileId, state, 0)).toBe(1);
+    expect(
+      await saveExperiment(
+        await fixtureAuthority(owner),
+        profileId,
+        { cells: state.cells, kind: "grid" },
+        0,
+      ),
+    ).toBe(1);
     // A montagem guardada é sempre normalizada pelo schema: previsão e
     // observação entram vazias quando o chamador não as envia, e é isso que
     // mantém a comparação de igualdade da idempotência confiável.
-    expect((await getExperiments(owner, profileId)).grid?.state).toEqual({
+    expect((await getExperiments(await fixtureAuthority(owner), profileId)).grid?.state).toEqual({
       ...state,
       previsao: "",
       observacao: "",
     });
-    expect(await getExperiments(stranger, profileId)).toEqual({});
-    await expect(saveExperiment(stranger, profileId, state, 1)).rejects.toMatchObject({
+    expect(await getExperiments(await fixtureAuthority(stranger), profileId)).toEqual({});
+    await expect(
+      saveExperiment(await fixtureAuthority(stranger), profileId, state, 1),
+    ).rejects.toMatchObject({
       code: "PROFILE",
     });
     const changed = { ...state, cells: Array<boolean>(20).fill(false) };
-    await expect(saveExperiment(owner, profileId, changed, 0)).rejects.toMatchObject({
+    await expect(
+      saveExperiment(await fixtureAuthority(owner), profileId, changed, 0),
+    ).rejects.toMatchObject({
       code: "CONFLICT",
     });
-    expect(await saveExperiment(owner, profileId, changed, 1)).toBe(2);
-    expect((await exportFamily(owner)).experiments).toHaveLength(1);
+    expect(await saveExperiment(await fixtureAuthority(owner), profileId, changed, 1)).toBe(2);
+    expect((await exportFamily(await fixtureAuthority(owner))).experiments).toHaveLength(1);
   });
   it("retains paused sessions beyond thirty completions and pages all summaries without answer snapshots", async () => {
     const historyOwner = randomUUID();
-    await db
-      .insert(users)
-      .values({ id: historyOwner, email: `${historyOwner}@example.test`, name: "History test" });
-    const historyProfile = (await createProfile(historyOwner, input)).id;
+    await db.insert(users).values({
+      id: historyOwner,
+      email: `${historyOwner}@example.test`,
+      name: "History test",
+      emailVerified: true,
+    });
+    const historyProfile = (await prepareStudent(await fixtureAuthority(historyOwner), input)).id;
     const lesson = findLesson("fracoes-1");
     if (!lesson) throw new Error("Missing fixture");
     try {
@@ -813,13 +908,17 @@ describe("isolated PostgreSQL learning", () => {
           })),
         ),
       );
-      const summary = await history(historyOwner, historyProfile);
+      const summary = await history(await fixtureAuthority(historyOwner), historyProfile);
       expect(summary.recent.some((s) => s.id === paused.id)).toBe(false);
       expect(summary.paused?.id).toBe(paused.id);
       const ids: string[] = [];
       let cursor: string | undefined;
       do {
-        const page = await sessionHistory(historyOwner, historyProfile, cursor);
+        const page = await sessionHistory(
+          await fixtureAuthority(historyOwner),
+          historyProfile,
+          cursor,
+        );
         for (const item of page.items) {
           expect(item).not.toHaveProperty("snapshot");
           ids.push(item.id);
@@ -829,22 +928,29 @@ describe("isolated PostgreSQL learning", () => {
       expect(ids).toContain(paused.id);
       expect(new Set(ids).size).toBe(36);
       expect(ids).toHaveLength(36);
-      await expect(sessionHistory(stranger, historyProfile)).rejects.toMatchObject({
+      await expect(
+        sessionHistory(await fixtureAuthority(stranger), historyProfile),
+      ).rejects.toMatchObject({
         code: "NOT_FOUND",
       });
-      expect((await getAccess(historyOwner)).paid).toBe(false);
-      expect((await sessionView(historyOwner, paused.id)).id).toBe(paused.id);
+      expect((await getLearningAccess(await fixtureAuthority(historyOwner))).paid).toBe(false);
+      expect((await sessionView(await fixtureAuthority(historyOwner), paused.id)).id).toBe(
+        paused.id,
+      );
     } finally {
-      await db.delete(users).where(eq(users.id, historyOwner));
+      await db
+        .update(users)
+        .set({ banned: true, emailVerified: false })
+        .where(eq(users.id, historyOwner));
     }
   });
   it("cascades only the chosen family's pedagogical data", async () => {
-    await saveNote(owner, profileId, "Uma referência muda o resultado.");
-    const otherProfiles = await getProfiles(stranger);
-    await clearFamily(owner);
-    expect((await exportFamily(owner)).attempts).toHaveLength(0);
-    expect(await getProfiles(owner)).toHaveLength(0);
-    expect(await getProfiles(stranger)).toEqual(otherProfiles);
+    await saveNote(await fixtureAuthority(owner), profileId, "Uma referência muda o resultado.");
+    const otherProfiles = await getProfiles(await fixtureAuthority(stranger));
+    await clearFamily(await fixtureAuthority(owner));
+    expect((await exportFamily(await fixtureAuthority(owner))).attempts).toHaveLength(0);
+    expect(await getProfiles(await fixtureAuthority(owner))).toHaveLength(0);
+    expect(await getProfiles(await fixtureAuthority(stranger))).toEqual(otherProfiles);
     expect(await db.select().from(users).where(eq(users.id, owner))).toHaveLength(1);
     expect(await db.select().from(customers).where(eq(customers.subjectId, owner))).toHaveLength(1);
   });

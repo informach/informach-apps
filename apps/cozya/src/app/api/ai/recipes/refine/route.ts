@@ -40,7 +40,7 @@ const requestSchema = z.object({
 });
 
 export async function POST(request: Request): Promise<Response> {
-  const guard = await withAiRouteGuards({ errorScope: "cozya.refine" });
+  const guard = await withAiRouteGuards({ request, errorScope: "cozya.refine" });
   if (!guard.ok) return guard.response;
   const { userId } = guard;
 
@@ -61,7 +61,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ code: "INVALID_REQUEST" }, { status: 400 });
   }
 
-  return runAiOperation(request, userId, JSON.stringify(body), async () => {
+  return runAiOperation(request, guard.actor, JSON.stringify(body), async () => {
     try {
       const currentRecipe = {
         ...body.recipe,

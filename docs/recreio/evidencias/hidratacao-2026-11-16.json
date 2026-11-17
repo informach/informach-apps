@@ -1,0 +1,87 @@
+{
+  "fonteCorrigida": "7f3a7e2e945afc1cbb27ff84350662a963481ea0",
+  "fonteControleNegativo": "021733936addd78ade53618adc082677ebad5425",
+  "arquivosE2eIdenticos": true,
+  "controleNegativo": {
+    "runId": 43944353352,
+    "jobE2e": 133569901584,
+    "conclusao": "failure",
+    "falhasEsperadas": 3,
+    "erroEsperado": "controle_habilitado_antes_dos_scripts",
+    "jornadasAprovadas": 10,
+    "skipsDaMatriz": 2,
+    "errosDeInterceptacao": false,
+    "outrosGatesAprovados": 5
+  },
+  "corrigida": {
+    "runId": 43944326569,
+    "conclusao": "success",
+    "gatesAprovados": 6,
+    "jobE2e": 133569809513,
+    "jornadasAprovadas": 13,
+    "skipsDaMatriz": 2,
+    "integracoesPostgres": 325
+  },
+  "capturas": {
+    "artefatoId": 14263973033,
+    "sha256Zip": "0ea5dbe9f6d53b252a6cc8cc654b7d196813e3f778ae2f74b6d6f7498337f074",
+    "revista": "responsabilidade-recebida-mobile.png",
+    "largura": 390,
+    "rolagemVertical": true,
+    "decisoesLegiveis": true,
+    "entradaProntaRetida": false,
+    "contasSinteticas": true
+  },
+  "producao": {
+    "ativacaoConferida": true,
+    "fonte": "000f40ad4f014e770616b185515352fc59d9e51c",
+    "deployment": "da0055b3-c783-432f-b698-074d999b57f0",
+    "status": "SUCCESS",
+    "conferidoEm": "2026-11-16T20:10:22.991Z",
+    "ready": 200,
+    "membrosCompilado": true,
+    "responsabilidadeCompilada": true,
+    "htmlPublicoConferidoEm": "2026-11-16T20:10:26.679411Z",
+    "camposProtegidosNoHtml": ["email", "senha"],
+    "configuracaoIgualAAnterior": true,
+    "stagedChanges": false,
+    "mapasSentryEnviadosEm": "2026-11-16T20:07:08.909743908Z",
+    "reinicioDoMorada": false,
+    "mainRecreio": { "runId": 43946128031, "conclusao": "success", "gatesAprovados": 6 },
+    "mainGeral": { "runId": 43946127613, "estado": "in_progress_no_registro" },
+    "cronPosterior": {
+      "inicio": "2026-11-16T20:10:23.557Z",
+      "fim": "2026-11-16T20:10:23.700Z",
+      "ok": true,
+      "contagens": {
+        "possesVencidas": 0,
+        "convitesApagados": 0,
+        "sessoesExpiradas": 0,
+        "ingressosApagados": 0,
+        "instanciasSumidas": 0
+      }
+    },
+    "prontidaoDoCatalogo": {
+      "conferidoEm": "2026-11-16T20:13:00.412710Z",
+      "appsDoCatalogo": 8,
+      "bastidores": true,
+      "morada": true,
+      "todos200": true
+    },
+    "sentry": { "issuesPendentesComAtividadeNaUltimaHora": 0, "provaDeEstabilidade": false }
+  },
+  "d3Integracao": {
+    "fonte": "7491d3681f4af15e35edbf600198fe0f97176593",
+    "runId": 43944728285,
+    "gatesAprovados": 6,
+    "protocolo": 2,
+    "publicada": false,
+    "provaDeHardwareOuDiversao": false
+  },
+  "validacaoHumana": "adiada_pelo_titular",
+  "execucaoPesada": "somente_github_actions",
+  "alteracaoDeSchema": false,
+  "alteracaoDeProtocolo": false,
+  "alteracaoDeAutorizacao": false,
+  "homologacaoIntegral": false
+}

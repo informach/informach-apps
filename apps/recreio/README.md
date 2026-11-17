@@ -4,7 +4,7 @@ Portal da plataforma de jogos da Informach. Hoje dá para entrar com a conta Inf
 
 ## Abrir localmente
 
-Precisa de um PostgreSQL local com as migrations aplicadas (`pnpm db:migrate` com o mesmo `DATABASE_URL`). Redis é opcional fora de produção; sem ele as sessões ficam no Postgres e `/api/ready` responde 503.
+Precisa de PostgreSQL **17 ou posterior**, com as migrations aplicadas (`pnpm db:migrate` com o mesmo `DATABASE_URL`). O Recreio usa `transaction_timeout` para limitar transações de revogação e manutenção; `/api/ready` recusa um servidor sem esse recurso. Produção e os gates completos usam PostgreSQL 18; o CI geral também verifica a recusa em 16, preservado para os demais consumidores. Não trocar a imagem de um volume local existente sem o procedimento próprio de migração. Redis é opcional fora de produção; sem ele as sessões ficam no Postgres e `/api/ready` responde 503.
 
 ```bash
 pnpm install
@@ -42,7 +42,7 @@ pnpm --filter @informach/recreio-app gerar-chave
 
 O comando mostra `RECREIO_TOKEN_KEY_ID` e `RECREIO_TOKEN_PRIVATE_KEY` (PEM numa linha, com `\n` escapado) para copiar ao provedor. A chave pública servida em `/api/sdk/v1/jwks` sai da privada. Na rotação, a pública da chave antiga entra em `RECREIO_TOKEN_PREVIOUS_PUBLIC_KEYS` com o id dela e fica lá até as sessões assinadas por ela vencerem (15 min bastam).
 
-A manutenção (`POST /api/jobs/manutencao`, com `Authorization: Bearer $CRON_SECRET`) fecha posses vencidas, marca instâncias caladas, apaga ingressos antigos e encerra sessões de jogo sem renovação. Responde só contagens e pode rodar a qualquer intervalo; nada do caminho de jogo espera por ela.
+A manutenção (`POST /api/jobs/manutencao`, com `Authorization: Bearer $CRON_SECRET`) fecha posses vencidas, marca instâncias caladas, apaga ingressos antigos, encerra sessões de jogo sem renovação e recolhe convites sem aceite vencidos há mais de um dia. Convites aceitos são preservados. A limpeza usa lotes de até 500 e pula linhas ocupadas; zero não comprova ausência global. Responde só contagens e pode rodar a qualquer intervalo; nada do caminho de jogo espera por ela. O índice 0164 precisa estar implantado antes desse escritor; [política e homologação](../../docs/recreio/convites-retencao-2026-11-16.md).
 
 ## Morada no portal
 
@@ -99,6 +99,7 @@ O servidor do jogo (`e2e/servidor/main.ts`) lê o mesmo `.env.local` do portal. 
 | `SENDGRID_API_KEY`, `SENDGRID_FROM` | Envio dos códigos de acesso |
 | `EMAIL_SANDBOX_MODE`, `EMAIL_SANDBOX_DIR` | `live`, `sandbox` (arquivos) ou `memory`; produção exige `live` |
 | `RECREIO_ACCESS_MODE` | `fechado` (padrão) ou `aberto` |
+| `RECREIO_FAMILY_MODE` | `off` (padrão), `setup` (novos cadastros e pareamentos) ou `play` (jogos protegidos, após homologação). Desligar não remove restrições já persistidas nem bloqueia retorno do adulto por PIN. Leitores compatíveis devem preceder escritores; ver o plano F3 |
 | `RECREIO_TOKEN_PRIVATE_KEY`, `RECREIO_TOKEN_KEY_ID` | Chave Ed25519 (PKCS8 PEM) dos tokens e o `kid` dela; obrigatórias em produção |
 | `RECREIO_TOKEN_PREVIOUS_PUBLIC_KEYS` | JSON de `kid` para chave pública (SPKI PEM) das chaves anteriores, na rotação; padrão `{}` |
 | `RECREIO_HOST_SECRETS` | JSON de id do jogo para o segredo da API das instâncias, 32 caracteres ou mais cada |
@@ -164,7 +165,7 @@ Uma falha deixa traces e capturas em `tmp/verification/<id>`; as capturas das te
 
 ## Estrutura
 
-- `src/app`: `/`, `/entrar`, `/comecar`, `/perfis`, `(portal)/estante`, `(portal)/conta`, `(portal)/mundos/[id]`, `(portal)/convite`, `jogar/[jogo]`, `/termos`, `/privacidade` e `api` (auth, health, ready, sair da conta, descadastro de e-mail, `sdk/v1`, `interno/v1`, `jobs/manutencao`).
+- `src/app`: `/`, `/entrar`, `/comecar`, `/perfis`, `(portal)/estante`, `(portal)/conta` (perfil, aparelhos e participações próprias em `/conta/mundos`), `(portal)/mundos/[id]`, `(portal)/convite`, `jogar/[jogo]`, `/termos`, `/privacidade` e `api` (auth, health, ready, sair da conta, descadastro de e-mail, `sdk/v1`, `interno/v1`, `jobs/manutencao`).
 - `src/features`: `account` (concluir a entrada, botão de sair), `sessao` (ator, sessão de aparelho, saída), `perfis` (criar e escolher), `acesso` (direito de jogar e o texto dele), `estante` (cartões do catálogo), `jogos` (o catálogo do deploy e a configuração de cada jogo), `jogar` (a página que hospeda o jogo: decisão no servidor, estados, registro e carregadores dos clientes, e `adaptadores/` com o do Morada), `jogo-de-teste` (cliente e protocolo do jogo de teste), `sessao-de-jogo` (ingresso, sessão, renovação), `mundos` (mundos, membros, convites e as telas deles), `posse` (posse, API das instâncias, armazenamento), `manutencao` (rotina agendada), `operations` (prontidão).
 - `scripts`: `conceder` e `revogar` (concessões), `gerar-chave` (par de chaves dos tokens), `isolated.mjs` (banco descartável dos testes de integração e do E2E).
 - `test`: testes de integração e o apoio deles.

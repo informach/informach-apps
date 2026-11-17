@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { getIsProForUser } from "@/features/billing/server-cache";
 import { listAccessibleProfiles } from "@/features/family/access";
+import { agendaAuthority } from "@/features/family/context";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { CaptureForm } from "@/features/notices/components/capture-form";
 import { listAssignableAdults } from "@/features/notices/repository";
@@ -34,17 +34,17 @@ export default async function NewNoticePage({
   }>;
 }) {
   const user = await requireUserServer();
+  const actor = await agendaAuthority(user.id);
   const params = await searchParams;
   const captureMode = captureModeSchema.safeParse(params.modo).data;
-  const [profiles, adults, entitlement, ownerIsPro, subjectOptions, notificationPrefs, turmas] =
+  const [profiles, adults, entitlement, subjectOptions, notificationPrefs, turmas] =
     await Promise.all([
-      listAccessibleProfiles(user.id),
-      listAssignableAdults(user.id),
-      getFamilyEntitlements(user.id),
-      getIsProForUser(user.id),
-      listSubjectOptionsByProfile(user.id),
-      getNotificationPreferences(user.id),
-      listTurmasForCurrentUser(user.id),
+      listAccessibleProfiles(actor),
+      listAssignableAdults(actor),
+      getFamilyEntitlements(actor),
+      listSubjectOptionsByProfile(actor),
+      getNotificationPreferences(actor),
+      listTurmasForCurrentUser(actor),
     ]);
   // "3º B" da turma ativa de cada criança, para "Mandar para a turma do 3º B?".
   const turmaLabels = Object.fromEntries(
@@ -78,7 +78,7 @@ export default async function NewNoticePage({
   if (params.retomar) {
     const id = z.string().uuid().safeParse(params.retomar);
     // Só rascunhos `ready`, já sem as ações descartadas e com id em cada uma.
-    const draft = id.success ? await getNoticeDraft(user.id, id.data) : null;
+    const draft = id.success ? await getNoticeDraft(actor, id.data) : null;
     if (
       draft?.notice.captureProfileId &&
       profiles.some((p) => p.id === draft.notice.captureProfileId)
@@ -114,13 +114,13 @@ export default async function NewNoticePage({
             .filter(Boolean)
             .join("|") || "new"
         }
-        profiles={profiles.map((p) => ({ id: p.id, name: p.name }))}
+        profiles={profiles.filter((p) => p.canWrite).map((p) => ({ id: p.id, name: p.name }))}
         adults={adults}
         subjectOptions={subjectOptions}
         profileTurmas={Object.fromEntries(profiles.map((p) => [p.id, p.activeTurmaId]))}
         suggestReminders={notificationPrefs.suggestReminders}
         proProfileIds={entitlement.proProfileIds}
-        ownerIsPro={ownerIsPro}
+        aiProfileIds={profiles.filter((p) => p.canWrite && p.canUseAi).map((p) => p.id)}
         initialNotice={initialNotice}
         captureMode={captureMode}
         defaultProfileId={params.perfil}
@@ -128,8 +128,6 @@ export default async function NewNoticePage({
         defaultSource={noticeSourceSchema.catch("teams").parse(params.origem)}
         resumeUnavailable={resumeUnavailable}
         viewerId={user.id}
-        viewerIsOwner={profiles.length === 0 || profiles.some((p) => p.userId === user.id)}
-        ownProfileIds={profiles.filter((p) => p.userId === user.id).map((p) => p.id)}
         turmaLabels={turmaLabels}
       />
     </main>

@@ -2,11 +2,10 @@ import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
-import type { Access, Tier } from "@/features/acesso/policy";
-import { getAccess } from "@/features/billing/service";
 import { requirePageUser } from "@/lib/auth";
-import { allowedProfileIds } from "./profile-access";
-import { getFamily, listProfiles, type ProfileRow } from "./repository";
+import { requireFamilyContext } from "./context";
+import type { ProfileRow } from "./repository";
+import { familyState } from "./state";
 
 export const PROFILE_COOKIE = "bt-perfil";
 export const PROFILE_COLORS = ["#3D7BFF", "#FF7A45", "#B07CFF", "#2EC4B6", "#FF5A8A", "#FFB547"];
@@ -15,27 +14,8 @@ export type ProfileView = ProfileRow & { allowed: boolean };
 
 /** Plano, perfis e quais deles o plano libera, para a conta do titular. */
 export const familyView = cache(async (userId: string) => {
-  const [access, profiles, family] = await Promise.all([
-    getAccess(userId),
-    listProfiles(userId),
-    getFamily(userId),
-  ]);
-  const allowed = new Set(allowedProfileIds(profiles, access.profileLimit));
-  const plan: Access = {
-    subscribed: access.subscribed,
-    unlocked: access.unlocked,
-    trial: access.trial,
-    tier: access.tier as Tier,
-    profileLimit: access.profileLimit,
-  };
-  return {
-    access: plan,
-    subscription: access.subscription,
-    /** pagamento atrasado, ainda liberado pela tolerância de 7 dias */
-    pagamentoAtrasado: access.pagamentoAtrasado,
-    family,
-    profiles: profiles.map((p) => ({ ...p, allowed: allowed.has(p.id) })) as ProfileView[],
-  };
+  const group = await requireFamilyContext(userId);
+  return familyState(userId, group.id);
 });
 
 /** Usuário verificado, sua família e o perfil escolhido em "Quem vai treinar?". */

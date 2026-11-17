@@ -12,6 +12,7 @@ import {
 import { toast } from "@informach/ui/components/sonner";
 import { Camera, ImagePlus, Images, Loader2, RefreshCcw } from "lucide-react";
 import { useRef, useState } from "react";
+import { COZYA_AI_COSTS } from "@/features/ai/costs";
 import { useAiRequest } from "./use-ai-request";
 import type { ParsedRecipeFields } from "./voice-recipe-dialog";
 
@@ -117,7 +118,11 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
     setNotRecipeReason("");
     setStage("parsing");
 
-    const data = await requestAi(PARSE_ENDPOINT, JSON.stringify({ imageDataUrl }));
+    const data = await requestAi(
+      PARSE_ENDPOINT,
+      JSON.stringify({ imageDataUrl }),
+      COZYA_AI_COSTS.photo,
+    );
     if (!data) {
       setStage("preview");
       return;
@@ -147,7 +152,8 @@ export function ImageRecipeDialog({ open, onOpenChange, onParsed }: Props) {
           </DialogDescription>
         </DialogHeader>
         <p className="text-xs text-muted-foreground">
-          1 crédito por receita organizada. Conteúdo inválido ou falha libera o crédito.
+          Reserva até {COZYA_AI_COSTS.photo.maxCredits} créditos compartilhados. Cobra o consumo ao
+          concluir e libera a diferença; falhas não são cobradas.
         </p>
 
         <input

@@ -1,0 +1,176 @@
+name: Recreio
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, "verify/recreio-*"]
+    paths:
+      - ".github/workflows/recreio.yml"
+      - ".railway/railway.ts"
+      - "apps/recreio/**"
+      - "apps/morada-server/**"
+      - "packages/recreio/**"
+      - "packages/morada-sim/**"
+      - "packages/morada-arte/**"
+      - "packages/jogo-morada/**"
+      - "packages/config/**"
+      - "packages/db/**"
+      - "packages/auth/**"
+      - "packages/billing/**"
+      - "packages/emails/**"
+      - "packages/ui/**"
+      - "pnpm-lock.yaml"
+      - "package.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recreio-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Recreio / ${{ matrix.gate }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        gate: [quality, integration, e2e, checkpoint, cliente, longa, versoes]
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -h 127.0.0.1 -U ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      CI: "true"
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:5432/ci
+      BETTER_AUTH_SECRET: ci-recreio-not-a-real-secret-xxxxxxxx
+      BETTER_AUTH_URL: http://localhost:3009
+      NEXT_PUBLIC_APP_URL: http://localhost:3009
+      SENDGRID_API_KEY: SG.ci.not-sent
+      SENDGRID_FROM: ci@example.test
+      EMAIL_SANDBOX_MODE: memory
+      CRON_SECRET: ci-recreio-not-a-real-secret-xxxxxxxx
+      STRIPE_SECRET_KEY: sk_test_ci_not_sent
+      STRIPE_WEBHOOK_SECRET: whsec_ci_not_sent
+      STRIPE_MODE: dev
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - if: matrix.gate == 'quality'
+        run: |
+          pnpm check
+          pnpm compasso:test:infrastructure
+          pnpm --workspace-concurrency=1 --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte typecheck
+          pnpm --workspace-concurrency=1 --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte test
+      - if: matrix.gate == 'integration'
+        run: pnpm --filter @informach/recreio-app test:integration
+      - name: Verify production process receives SIGTERM
+        if: matrix.gate == 'quality'
+        run: |
+          pnpm build:morada-server
+          node apps/morada-server/scripts/verificar-conteiner.mjs
+        env:
+          MORADA_PROCESSO_RELATORIO: ${{ runner.temp }}/morada-processo.json
+      - name: Preserve process shutdown evidence
+        if: always() && matrix.gate == 'quality'
+        uses: actions/upload-artifact@v4
+        with:
+          name: morada-processo-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/morada-processo.json
+          if-no-files-found: warn
+          retention-days: 30
+      - if: matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint'
+        run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
+      - if: matrix.gate == 'e2e'
+        run: pnpm --filter @informach/recreio-app e2e
+      - if: matrix.gate == 'checkpoint'
+        run: pnpm --filter @informach/recreio-app e2e --config playwright.checkpoint.config.ts
+        env:
+          RECREIO_CHECKPOINT_MODE: "on"
+      - if: matrix.gate == 'versoes'
+        run: pnpm --filter @informach/recreio-app e2e:versoes
+      - if: matrix.gate == 'cliente'
+        run: pnpm --filter @informach/jogo-morada exec playwright install --with-deps chromium
+      - if: matrix.gate == 'cliente'
+        run: pnpm --filter @informach/jogo-morada e2e
+      - if: matrix.gate == 'longa'
+        run: pnpm --filter @informach/morada-sim test:longa
+        env:
+          MORADA_LONGA_RELATORIO: ${{ runner.temp }}/morada-longa.json
+      - name: Preserve long simulation evidence
+        if: always() && matrix.gate == 'longa'
+        uses: actions/upload-artifact@v4
+        with:
+          name: morada-cem-dias-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/morada-longa.json
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Preserve synthetic browser failure evidence
+        if: failure() && (matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint')
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-${{ matrix.gate }}-${{ github.run_attempt }}
+          path: apps/recreio/tmp/verification/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Preserve synthetic account screens
+        # Somente telas de conta sintéticas; nenhuma captura do jogo.
+        if: always() && matrix.gate == 'e2e'
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-conta-${{ github.run_attempt }}
+          path: |
+            apps/recreio/tmp/telas/aparelhos-proprios.png
+            apps/recreio/tmp/telas/perfil-proprio-editado.png
+            apps/recreio/tmp/telas/saida-mundo-confirmacao.png
+            apps/recreio/tmp/telas/participacoes-sem-acesso.png
+            apps/recreio/tmp/telas/responsabilidade-recebida.png
+            apps/recreio/tmp/telas/responsabilidade-mobile.png
+            apps/recreio/tmp/telas/responsabilidade-recebida-mobile.png
+            apps/recreio/tmp/telas/remocao-membro-mobile.png
+            apps/recreio/tmp/telas/familia-cadastro-sem-jogador.png
+            apps/recreio/tmp/telas/aparelho-pareado-protegido.png
+            apps/recreio/tmp/telas/aparelho-pareado-mobile.png
+            apps/recreio/tmp/telas/aparelhos-menor-mobile.png
+            apps/recreio/tmp/telas/pin-nativo-sem-jogador.png
+            apps/recreio/tmp/telas/supervisao-mobile.png
+            apps/recreio/tmp/telas/supervisao-horarios-mobile.png
+            apps/recreio/tmp/telas/supervisao-confirmacao-mobile.png
+            apps/recreio/tmp/telas/perfil-compartilhado-mobile.png
+            apps/recreio/tmp/telas/retorno-adulto-pin-mobile.png
+            apps/recreio/tmp/telas/estante-protegida-mobile.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve synthetic color evidence
+        if: always() && matrix.gate == 'cliente'
+        uses: actions/upload-artifact@v4
+        with:
+          name: morada-cores-sinteticas-${{ github.run_attempt }}
+          path: packages/jogo-morada/e2e/test-results/**/cores-parametricas.json
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Preserve cross-build evidence
+        if: always() && matrix.gate == 'versoes'
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-versoes-medidas-${{ github.run_attempt }}
+          path: apps/recreio/tmp/telas/troca-de-versao.json
+          if-no-files-found: warn
+          retention-days: 30

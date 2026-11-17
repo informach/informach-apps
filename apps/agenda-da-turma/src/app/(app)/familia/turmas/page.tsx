@@ -1,4 +1,5 @@
 import { FamilyHeader } from "@/features/family/components/family-tabs";
+import { agendaAuthority } from "@/features/family/context";
 import { listStudentProfilesForUser } from "@/features/students/service";
 import { TurmasSection } from "@/features/turmas/components/turmas-section";
 import { listTurmasForCurrentUser } from "@/features/turmas/service";
@@ -12,17 +13,15 @@ export default async function FamilyTurmasPage({
   searchParams: Promise<{ perfil?: string }>;
 }) {
   const user = await requireUserServer();
+  const actor = await agendaAuthority(user.id);
   const params = await searchParams;
   const filterProfileId = params.perfil ?? null;
 
   const [accessible, allTurmas] = await Promise.all([
-    listStudentProfilesForUser(user.id),
-    listTurmasForCurrentUser(user.id),
+    listStudentProfilesForUser(actor),
+    listTurmasForCurrentUser(actor),
   ]);
-  // Esta tela é da conta: a turma é cadastrada por quem matriculou a criança.
-  // As demais telas de Família são por criança acessível, e é essa diferença
-  // que o estado vazio precisa explicar em vez de esconder.
-  const profiles = accessible.filter((p) => p.userId === user.id);
+  const profiles = accessible;
 
   const activeFilter = filterProfileId
     ? (profiles.find((p) => p.id === filterProfileId) ?? null)
@@ -40,7 +39,6 @@ export default async function FamilyTurmasPage({
       <TurmasSection
         turmas={turmas}
         profiles={profiles}
-        caresForOtherFamilies={accessible.length > profiles.length}
         activeFilter={activeFilter}
         currentUserId={user.id}
       />

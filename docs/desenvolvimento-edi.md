@@ -412,3 +412,11 @@ Na jornada PDF, cada reinicialização abrupta espera tanto o fechamento do prot
 No EdiCaptura, uma falha interrompe a inspeção de pixels: o handler genérico não consulta nem captura sua página de diagnóstico, pois a origem ou as dimensões podem ter invalidado a autorização. A falha original continua sendo propagada e o encerramento dos filhos é verificado antes da limpeza. Os demais apps mantêm a captura de diagnóstico de suas páginas próprias.
 
 Cada execução nativa cria um diretório exclusivo `run-*` em `.cache/edi-native-results`, cujo nome é registrado no log, sem sobrescrever evidências anteriores. Os workflows de teste nativo e release coletam os PNGs recursivamente. A validação de posse dos diálogos Foto usa somente o PID vivo da fixture e seus caminhos esperados; não imprime a linha de comando do processo.
+
+### Diagnóstico de erro nativo nos fixtures
+
+Em testes isolados, `scripts/edi/fixtures/native-vault.cjs` registra o erro
+original antes de uma caixa nativa síncrona bloquear a thread principal. A caixa
+continua real; os diagnósticos do runner removem os caminhos próprios antes de
+publicar. Esse registro não é ativado por `edi:work`, não entra nos instaladores
+e não transforma timeout de abertura em sucesso.

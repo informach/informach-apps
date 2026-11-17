@@ -18,7 +18,7 @@ export default async function Privacidade() {
         </Link>
       </header>
       <main id="conteudo" className="scroll narrow prosa">
-        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 06/11/2026</span>
+        <span className="eyebrow">ÚLTIMA ATUALIZAÇÃO · 09/11/2026</span>
         <h1>Privacidade, com clareza.</h1>
         <p>
           O Bora Treinar é operado pela Informach Núcleo de Aprendizagem Ltda, CNPJ
@@ -48,12 +48,13 @@ export default async function Privacidade() {
         <h2>Conta do titular e perfis</h2>
         <p>
           A conta Informach usa nome do titular, e-mail, credenciais de autenticação e registros de
-          segurança. Cada perfil guarda apenas um apelido, uma cor e as preferências de treino que a
-          própria família escolhe (o ritmo, o tempo de cada treino e quantos dias por semana), além
-          de uma resposta opcional de "como foi" depois de cada treino (fácil, na medida ou
-          difícil). Não pedimos nome completo, data de nascimento, peso, altura, fotos ou dados de
-          saúde de quem treina. O titular confirma a criação dos perfis; o tratamento de dados de
-          crianças e adolescentes atende ao seu melhor interesse.
+          segurança. O nome e a cor vêm da pessoa cadastrada na família compartilhada. O perfil do
+          Bora guarda as preferências de treino que a própria família escolhe (o ritmo, o tempo de
+          cada treino e quantos dias por semana), além de uma resposta opcional de "como foi" depois
+          de cada treino (fácil, na medida ou difícil). Não pedimos nome completo, data de
+          nascimento, peso, altura, fotos ou dados de saúde de quem treina. A pessoa responsável
+          ativa os perfis e concede permissões de acesso; o tratamento de dados de crianças e
+          adolescentes atende ao seu melhor interesse.
         </p>
         <h2>O que guardamos</h2>
         <p>
@@ -73,16 +74,17 @@ export default async function Privacidade() {
         </p>
         <h2>Quem acessa</h2>
         <p>
-          Os perfis pertencem à conta do titular. Não há perfis públicos, ranking entre famílias,
-          anúncios ou chat. O placar do desafio aparece só para a própria família. Os dados do Bora
-          Treinar ficam separados dos dados de outros apps Informach; a autenticação usa a conta
-          compartilhada Informach.
+          Os perfis ficam no contexto da família escolhida. Cada adulto acessa somente os perfis
+          para os quais tem permissão; participar da família não libera automaticamente o histórico
+          de outra pessoa. Não há perfis públicos, ranking entre famílias, anúncios ou chat.
+          Identidade e autenticação são compartilhadas, enquanto treinos e históricos pertencem ao
+          Bora. Pessoas de famílias diferentes não são combinadas pelo nome.
         </p>
         <h2>Serviços de operação</h2>
         <p>
           Railway e Cloudflare hospedam e entregam o serviço; PostgreSQL e Redis sustentam dados,
-          sessão, pareamento e proteção contra abuso. O SendGrid entrega códigos de acesso,
-          mensagens de cobrança e, se o titular ativar, lembretes de treino e o resumo semanal, que
+          autenticação, pareamento e proteção contra abuso. O SendGrid entrega códigos de acesso,
+          mensagens de cobrança e, se o adulto ativar, lembretes de treino e o resumo semanal, que
           podem ser desligados em Conta ou pelo link do próprio e-mail. A Stripe processa
           assinaturas; dados completos de cartão são preenchidos em sua página segura e não chegam
           ao Bora Treinar. O Sentry recebe erros técnicos após filtragem de identidades, nomes e
@@ -97,11 +99,12 @@ export default async function Privacidade() {
         </p>
         <h2>Seus controles</h2>
         <p>
-          Em Conta, com acesso confirmado recentemente, é possível exportar os dados em JSON, sair
-          da conta, gerenciar a assinatura, encerrar o Bora Treinar e apagar seus dados de treino ou
-          excluir a conta Informach, com confirmação por e-mail. Perfis podem ser apagados em
-          Gerenciar perfis, junto com seu histórico. O cancelamento pelo portal de cobrança preserva
-          o histórico.
+          Em Conta, com acesso confirmado recentemente, você pode exportar os dados a que tem
+          acesso. Em Gerenciar perfis, a permissão de gerenciamento permite apagar um perfil e seu
+          histórico do Bora, preservando a pessoa e os outros aplicativos. A Minha conta centraliza
+          identidade, segurança e assinatura Compasso. Pedidos sobre a exclusão da conta e outros
+          direitos podem ser enviados pelo canal de privacidade indicado nesta página. Cancelar a
+          assinatura não apaga o histórico.
         </p>
         <p>
           Você pode pedir confirmação e acesso aos dados, correção, portabilidade, informação sobre

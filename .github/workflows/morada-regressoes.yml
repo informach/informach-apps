@@ -1,0 +1,116 @@
+name: Morada - prova das regressões de 15 de novembro
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["verify/morada-regressoes-*"]
+
+permissions:
+  contents: read
+
+jobs:
+  antes-e-depois:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @informach/jogo-morada exec playwright install --with-deps chromium
+      - name: Reproduzir as recusas ausentes no código anterior
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin 7c8b6a147aa0454b1ae5cf302d6e9778e5569e33
+          trap 'git restore --source=HEAD -- apps/morada-server/src/arte.ts packages/jogo-morada/src/cena/cena.ts' EXIT
+          git show 7c8b6a147aa0454b1ae5cf302d6e9778e5569e33:apps/morada-server/src/arte.ts > apps/morada-server/src/arte.ts
+          set +e
+          pnpm --filter @informach/morada-server exec vitest run test/arte.test.ts --reporter=json --outputFile="$RUNNER_TEMP/arte-antes.json"
+          status=$?
+          set -e
+          test "$status" -eq 1
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const r=JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/arte-antes.json","utf8"));
+            const falhas=r.testResults.flatMap(s=>s.assertionResults).filter(t=>t.status==="failed");
+            console.log(JSON.stringify(falhas.map(t=>t.fullName)));
+            if (r.numFailedTests!==6 || falhas.length!==6 || falhas.some(t=>!t.fullName.includes("pasta da arte"))) process.exit(1);
+          '
+          git restore --source=HEAD -- apps/morada-server/src/arte.ts
+          git show 7c8b6a147aa0454b1ae5cf302d6e9778e5569e33:packages/jogo-morada/src/cena/cena.ts > packages/jogo-morada/src/cena/cena.ts
+          set +e
+          PLAYWRIGHT_JSON_OUTPUT_FILE="$RUNNER_TEMP/qualidade-antes.json" pnpm --filter @informach/jogo-morada exec playwright test --config e2e/playwright.config.ts qualidade.spec.ts -g 'quadros visíveis' --reporter=line,json
+          status=$?
+          set -e
+          test "$status" -eq 1
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const r=JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/qualidade-antes.json","utf8"));
+            const falhas=r.suites.flatMap(s=>s.specs).flatMap(s=>s.tests).flatMap(t=>t.results).flatMap(r=>r.errors??[]);
+            console.log(JSON.stringify(falhas));
+            const mensagens=falhas.map(e=>(e.message??"").replace(/\u001b\[[0-9;]*m/g,""));
+            if (r.stats.unexpected!==1 || !mensagens.some(m=>/Expected:\s*"baixa"/.test(m)&&/Received:\s*"alta"/.test(m))) process.exit(1);
+          '
+      - name: Conferir os mesmos casos com as correções
+        run: |
+          pnpm --filter @informach/morada-server exec vitest run test/arte.test.ts
+          pnpm --filter @informach/jogo-morada exec playwright test --config e2e/playwright.config.ts qualidade.spec.ts -g 'quadros visíveis'
+      - name: Reproduzir regressão de formato contra o servidor anterior
+        shell: bash
+        run: |
+          set -euo pipefail
+          anterior=0aa4c82ccf7cde3297ba0acaa8603fa2e2b83884
+          git fetch --no-tags --depth=1 origin "$anterior"
+          trap 'git restore --source=HEAD -- apps/morada-server/src/ator.ts packages/recreio/src/testing/plataforma-falsa.ts' EXIT
+          git show "$anterior:apps/morada-server/src/ator.ts" > apps/morada-server/src/ator.ts
+          git show "$anterior:packages/recreio/src/testing/plataforma-falsa.ts" > packages/recreio/src/testing/plataforma-falsa.ts
+          set +e
+          pnpm --filter @informach/morada-server exec vitest run test/recuperacao-integra.test.ts -t versao_futura --reporter=json --outputFile="$RUNNER_TEMP/formato-ator-antes.json"
+          ator=$?
+          pnpm --filter @informach/recreio exec vitest run src/testing/plataforma-falsa.test.ts -t 'permite avançar o formato' --reporter=json --outputFile="$RUNNER_TEMP/formato-host-antes.json"
+          host=$?
+          set -e
+          test "$ator" -eq 1
+          test "$host" -eq 1
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import {readFileSync} from "node:fs";
+            for(const [arquivo,trecho] of [["ator","versao_futura"],["host","permite avançar o formato"]]) {
+              const r=JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/formato-"+arquivo+"-antes.json","utf8"));
+              const falhas=r.testResults.flatMap(s=>s.assertionResults).filter(t=>t.status==="failed");
+              assert.equal(r.numFailedTests,1);
+              assert.equal(falhas.length,1);
+              assert.ok(falhas[0].fullName.includes(trecho));
+              console.log(JSON.stringify({caso:falhas[0].fullName,falhouAntes:true}));
+            }
+          '
+      - name: Conferir proteção de formato no candidato
+        run: |
+          pnpm --filter @informach/morada-server exec vitest run test/recuperacao-integra.test.ts -t versao_futura
+          pnpm --filter @informach/recreio exec vitest run src/testing/plataforma-falsa.test.ts -t 'permite avançar o formato'
+      - name: Reproduzir ausência de limite da fila gráfica
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'git restore --source=HEAD -- packages/jogo-morada/src/cena/cena.ts' EXIT
+          git show 0aa4c82ccf7cde3297ba0acaa8603fa2e2b83884:packages/jogo-morada/src/cena/cena.ts > packages/jogo-morada/src/cena/cena.ts
+          set +e
+          PLAYWRIGHT_JSON_OUTPUT_FILE="$RUNNER_TEMP/gpu-antes.json" pnpm --filter @informach/jogo-morada exec playwright test --config e2e/playwright.config.ts qualidade.spec.ts -g 'GPU ocupada' --reporter=line,json
+          status=$?
+          set -e
+          test "$status" -eq 1
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import {readFileSync} from "node:fs";
+            const r=JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/gpu-antes.json","utf8"));
+            assert.equal(r.stats.unexpected,1);
+            const falhas=r.suites.flatMap(s=>s.specs).filter(s=>!s.ok);
+            assert.equal(falhas.length,1);
+            assert.ok(falhas[0].title.includes("GPU ocupada"));
+          '
+      - name: Conferir limite da fila gráfica e interação do HUD
+        run: pnpm --filter @informach/jogo-morada exec playwright test --config e2e/playwright.config.ts qualidade.spec.ts -g 'GPU ocupada'

@@ -6,6 +6,9 @@ on:
     branches: [main]
 permissions:
   contents: read
+concurrency:
+  group: edi-native-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   media:
     uses: ./.github/workflows/edi-media.yml

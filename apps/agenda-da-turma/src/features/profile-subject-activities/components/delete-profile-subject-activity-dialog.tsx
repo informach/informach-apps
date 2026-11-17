@@ -21,6 +21,7 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   activityId: string;
+  version: number;
   title: string;
 };
 
@@ -28,6 +29,7 @@ export function DeleteProfileSubjectActivityDialog({
   open,
   onOpenChange,
   activityId,
+  version,
   title,
 }: Props) {
   const router = useRouter();
@@ -37,7 +39,7 @@ export function DeleteProfileSubjectActivityDialog({
     event.preventDefault();
     startTransition(async () => {
       const result = await catchActionResult(() =>
-        deleteProfileSubjectActivityAction({ id: activityId }),
+        deleteProfileSubjectActivityAction({ id: activityId, version }),
       );
       if (!result.ok) {
         if (isActionRejected(result.error)) {

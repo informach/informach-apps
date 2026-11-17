@@ -6,15 +6,17 @@ import {
 } from "@informach/db/schema";
 import { and, asc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 import { PRO_STATUSES } from "./access";
+import { resolveCreditOwner } from "./collection-accounts";
 import type { BillingServiceConfig } from "./config";
 import { grantBonusCredits } from "./credits/grant";
+import { grantCalendarSubscriptionCredits } from "./credits/subscription-grants";
 import { type Logger, safeLog } from "./logger";
 import type {
   BillingProviderClient,
   ProviderSubscriptionDetails,
   ProviderSubscriptionSummary,
 } from "./providers";
-import type { BillingAuditEvent, BillingProvider, SubscriptionStatus } from "./types";
+import type { BillingAuditEvent, BillingProvider, SubjectRef, SubscriptionStatus } from "./types";
 
 /**
  * Drip cadence and TTL for monthly grants on annual plans. Mirrors the values
@@ -136,7 +138,7 @@ export async function releaseExpiredReservations(
     UPDATE billing.credit_reservations
     SET status = 'expired',
         resolved_at = ${now.toISOString()}
-    WHERE id IN (
+    WHERE status = 'active' AND expires_at <= ${now.toISOString()} AND id IN (
       SELECT id FROM billing.credit_reservations
       WHERE status = 'active'
         AND app = ${deps.app}
@@ -157,7 +159,7 @@ export async function releaseExpiredReservations(
 }
 
 export type DunningSubject = {
-  type: "user" | "organization";
+  type: SubjectRef["type"];
   id: string;
 };
 
@@ -273,7 +275,7 @@ export async function retryFailedDunningEmails(
           const delivery = await deps.send({
             subscriptionId: sub.id,
             providerSubscriptionId: sub.providerSubscriptionId,
-            subject: { type: sub.subjectType as "user" | "organization", id: sub.subjectId },
+            subject: { type: sub.subjectType, id: sub.subjectId },
             invoiceId: dunning.lastInvoiceId,
             attempt,
           });
@@ -697,6 +699,14 @@ export async function grantPendingMonthlyBonusCredits(
       continue;
     }
 
+    if (product.creditSchedule === "calendar_month") {
+      const result = await grantCalendarSubscriptionCredits(deps, { subscriptionId: row.id, now });
+      if (result.granted) {
+        granted++;
+        totalCredits += result.amount;
+      } else skipped++;
+      continue;
+    }
     const anchor = row.nextCreditGrantAt;
     const nextAnchor = new Date(anchor.getTime() + ANNUAL_DRIP_INTERVAL_MS);
     const paidUntil = row.cancelAtPeriodEnd ?? row.currentPeriodEnd;
@@ -723,7 +733,10 @@ export async function grantPendingMonthlyBonusCredits(
         onAudit: deps.onAudit,
       },
       {
-        owner: { type: row.subjectType, id: row.subjectId },
+        owner: await resolveCreditOwner(deps.db, deps.app, {
+          type: row.subjectType,
+          id: row.subjectId,
+        }),
         amount: bonus,
         reason: "subscription_monthly",
         expiresAt: new Date(anchor.getTime() + MONTHLY_BONUS_TTL_DAYS * 86_400_000),
@@ -771,7 +784,7 @@ export async function grantPendingMonthlyBonusCredits(
 /** Candidate lists are hints only. Hold the lifecycle lock across reload, remote
  * reads, writes and email delivery, so closure cannot interleave with a job. */
 async function runWithFreshSubscription<
-  T extends { id: string; subjectType: "user" | "organization"; subjectId: string },
+  T extends { id: string; subjectType: SubjectRef["type"]; subjectId: string },
 >(
   deps: {
     db: Database;

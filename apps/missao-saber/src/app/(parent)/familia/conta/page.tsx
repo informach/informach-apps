@@ -9,17 +9,12 @@ import { requirePageUser } from "@/lib/auth";
 import { env } from "@/lib/env";
 
 export const metadata = { title: "Conta da família" };
-export default async function Account({
-  searchParams,
-}: {
-  searchParams: Promise<{ pagamento?: string }>;
-}) {
+export default async function Account() {
   const user = await requirePageUser();
-  const [data, devices, unsubscribed, params] = await Promise.all([
-    familyDashboard(),
-    listStudyDevices(user.id),
+  const data = await familyDashboard();
+  const [devices, unsubscribed] = await Promise.all([
+    listStudyDevices(user.id, data.authority.familyGroupId),
     weeklyReportUnsubscribed(user.id),
-    searchParams,
   ]);
   return (
     <div className="mx-auto max-w-4xl">
@@ -29,7 +24,9 @@ export default async function Account({
       />
       <DeviceManager
         connectionUrl={`${env.NEXT_PUBLIC_APP_URL}/estudar/conectar`}
-        profiles={data.profiles.map(({ id, nickname }) => ({ id, nickname }))}
+        profiles={data.profiles
+          .filter((profile) => profile.canWrite)
+          .map(({ id, nickname }) => ({ id, nickname }))}
         devices={devices.map((device) => ({
           id: device.id,
           label: device.label,
@@ -37,6 +34,7 @@ export default async function Account({
           expiresAt: device.expiresAt.toISOString(),
           connectedAt: device.connectedAt?.toISOString() ?? null,
           revokedAt: device.revokedAt?.toISOString() ?? null,
+          currentParticipation: device.currentParticipation,
         }))}
       />
       {data.family && (
@@ -48,7 +46,7 @@ export default async function Account({
           />
         </section>
       )}
-      <AccountPanel payment={params.pagamento} />
+      <AccountPanel />
     </div>
   );
 }

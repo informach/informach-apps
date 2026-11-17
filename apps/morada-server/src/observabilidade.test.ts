@@ -1,0 +1,66 @@
+import { ErroDoRecreio } from "@informach/recreio";
+import * as Sentry from "@sentry/node";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { iniciarObservabilidade, registrarFalha } from "./observabilidade";
+
+vi.mock("@sentry/node", () => ({ init: vi.fn(), captureMessage: vi.fn(), flush: vi.fn() }));
+
+describe("observabilidade do servidor", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("não inicia o transporte sem DSN", () => {
+    iniciarObservabilidade(undefined, "commit", "test");
+    expect(Sentry.init).not.toHaveBeenCalled();
+  });
+
+  it("classificadores livres no evento também não atravessam o filtro", async () => {
+    iniciarObservabilidade("https://public@example.test/1", "commit", "production");
+    const filtro = vi.mocked(Sentry.init).mock.calls[0]?.[0]?.beforeSend;
+    if (!filtro) throw new Error("Filtro ausente");
+    const evento = await filtro(
+      { type: undefined, tags: { operation: "pessoa@example.test", code: "Bearer segredo" } },
+      {},
+    );
+    expect(evento).toMatchObject({ tags: { operation: "desconhecida", code: "INTERNO" } });
+    expect(JSON.stringify(evento)).not.toMatch(/pessoa@|Bearer|segredo/);
+  });
+
+  it("reconstrói o evento sem requisição, contexto, breadcrumbs ou mensagem livre", async () => {
+    iniciarObservabilidade("https://public@example.test/1", "commit", "production");
+    const opcoes = vi.mocked(Sentry.init).mock.calls[0]?.[0];
+    expect(opcoes?.defaultIntegrations).toBe(false);
+    expect(opcoes?.environment).toBe("production");
+    if (!opcoes?.beforeSend) throw new Error("sem filtro");
+    const evento = await opcoes.beforeSend(
+      {
+        type: undefined,
+        environment: "valor recebido no evento",
+        message: "token privado",
+        user: { email: "pessoa@example.test" },
+        request: { headers: { Authorization: "Bearer segredo" } },
+        tags: { operation: "rede", code: "INTERNO", apelido: "Lia" },
+        extra: { mundo: "história da família" },
+        breadcrumbs: [{ message: "segredo" }],
+      },
+      {},
+    );
+    expect(evento).toMatchObject({
+      message: "morada.server_failure",
+      environment: "production",
+      tags: { app: "morada-server", operation: "rede", code: "INTERNO" },
+    });
+    const texto = JSON.stringify(evento);
+    for (const sensivel of ["token privado", "pessoa@", "Bearer", "segredo", "apelido", "história"])
+      expect(texto).not.toContain(sensivel);
+    registrarFalha(new Error("segredo"), "rede");
+    expect(Sentry.captureMessage).toHaveBeenLastCalledWith("morada.server_failure", {
+      level: "error",
+      tags: { operation: "rede", code: "INTERNO" },
+    });
+    registrarFalha(new ErroDoRecreio("POSSE_PERDIDA"), "encerrar");
+    expect(Sentry.captureMessage).toHaveBeenLastCalledWith("morada.server_failure", {
+      level: "error",
+      tags: { operation: "encerrar", code: "POSSE_PERDIDA" },
+    });
+  });
+});

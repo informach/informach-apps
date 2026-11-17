@@ -2,8 +2,8 @@
 import { ErroDoRecreio } from "@informach/recreio";
 import { atorAtual } from "@/features/sessao/ator";
 import { runAction, verifiedUser } from "@/lib/action";
-import { audit } from "@/lib/observability";
-import { criarPerfilProprio, selecionarPerfil } from "./service";
+import { safeDestination } from "@/lib/destination";
+import { criarPerfilProprio, editarPerfilProprio, selecionarPerfil } from "./service";
 
 // As duas ações devolvem o destino, e a tela vai até ele carregando a página
 // inteira: o portal é montado de novo com o perfil escolhido, sem cache do
@@ -24,23 +24,26 @@ async function contaAtual() {
 export async function criarPerfilAction(entrada: unknown) {
   return runAction(async () => {
     const ator = await contaAtual();
-    const { perfil, criado } = await criarPerfilProprio(ator.contaId, entrada);
-    if (criado)
-      audit({
-        eventType: "recreio.profile_created",
-        actorId: ator.contaId,
-        payload: { profileId: perfil.id, kind: perfil.tipo },
-      });
+    const { perfil } = await criarPerfilProprio(ator, entrada);
     await selecionarPerfil(ator, perfil.id);
     return { destination: "/estante" };
   });
 }
 
 /** "Quem vai jogar?": o id pedido só vale se estiver na lista que o servidor monta. */
-export async function selecionarPerfilAction(perfilId: unknown) {
+export async function selecionarPerfilAction(perfilId: unknown, next?: unknown) {
   return runAction(async () => {
     const ator = await contaAtual();
     await selecionarPerfil(ator, perfilId);
-    return { destination: "/estante" };
+    return { destination: safeDestination(typeof next === "string" ? next : null) };
+  });
+}
+
+/** Só apelido/avatar; o repository revalida a sessão e deriva o perfil da conta. */
+export async function editarPerfilAction(entrada: unknown) {
+  return runAction(async () => {
+    const ator = await contaAtual();
+    await editarPerfilProprio(ator, entrada);
+    return { destination: "/conta" };
   });
 }

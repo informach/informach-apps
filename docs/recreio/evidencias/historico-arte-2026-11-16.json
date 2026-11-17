@@ -1,0 +1,61 @@
+{
+  "codigo": "59f2614acdeaf59a88b976a547f8ce229c4d21a2",
+  "gatesPublicos": 43802126864,
+  "execucaoPrivada": 43802946380,
+  "executorPrivado": "0c118aafae567179bee54c8b00bff77c16f811bd",
+  "manifestoV4": "1b829c0a9e4e93f9e99f174b7fdcf66c690d2bfde1a213925bb3cd9616cb29ae",
+  "jornadasAprovadas": 5,
+  "falhas": 0,
+  "concorrencia": {
+    "contas": 2,
+    "convitePeloPortal": true,
+    "conflitoVisivel": true,
+    "reconexaoLiberou": true,
+    "compraUnica": true,
+    "restaurou": true,
+    "historicoSomenteDoAutor": true,
+    "desfazerCompra": true,
+    "refazerCompra": true,
+    "historicoRestaurado": true,
+    "posicaoDoConflito": [3.5, 5],
+    "posicao": [3.5, 5],
+    "saldoAntes": "M$ 5.000,00",
+    "saldoDepois": "M$ 4.905,00"
+  },
+  "criacao": {
+    "combinacoes": 48,
+    "antes": {
+      "contextos": 1,
+      "buffers": 128,
+      "texturas": 44,
+      "maximoBuffers": 203,
+      "maximoTexturas": 46
+    },
+    "depois": {
+      "contextos": 1,
+      "buffers": 128,
+      "texturas": 44,
+      "maximoBuffers": 203,
+      "maximoTexturas": 46
+    }
+  },
+  "arquivoPrivado": {
+    "releaseId": 446608123,
+    "rascunho": true,
+    "tag": "morada-arte-d3-v4-59f2614a-0c118aaf",
+    "artifactId": 14197558533,
+    "zipBytes": 40625419,
+    "zipSha256": "d689df7706a2ca09a0d692fdea67d21945eb14ab460240ccb89ff6eb6b6c63ff"
+  },
+  "exameVisual": {
+    "computador": "quatro nomes legiveis",
+    "celular": "nomes ausentes; achado aberto",
+    "conflito": "contorno amarelo visivel"
+  },
+  "limites": [
+    "Arte e capturas privadas",
+    "Sem ativacao do D3 em producao",
+    "Sem comprovacao de FPS, hardware real ou diversao",
+    "Construcao estrutural e casa/orcamento pendentes"
+  ]
+}

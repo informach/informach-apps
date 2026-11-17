@@ -68,6 +68,9 @@ export function UserMenu({ user }: { user: UserMenuUser }) {
           <Link href="/settings/account">Minha conta e cozinha</Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
+          <Link href="/contexto">Família e Compasso</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
           <Link href="/settings/billing">
             <CreditCard className="mr-2 size-4" aria-hidden />
             Gerenciar assinatura

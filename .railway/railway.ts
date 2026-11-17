@@ -6,10 +6,15 @@ import {
   postgres,
   preserve,
   project,
+  type ReferencableServiceNode,
   redis,
   service,
   volume,
 } from "railway/iac";
+import { getCollectionApps } from "../packages/config/src/collections";
+import { getAppUrl } from "../packages/config/src/domains";
+import { getProductPriceVariableNames } from "../packages/config/src/products";
+import { MORADA_START_COMMAND } from "./morada-runtime";
 
 // Infraestrutura do projeto informach-apps no Railway, ambiente production.
 // Este arquivo descreve o projeto inteiro: o que sair daqui é apagado no próximo
@@ -37,12 +42,20 @@ const ADMIN_LAUNCHED = true;
 /** Cron de conciliação do Edi rodando desde 17/10/2026, 20:09 UTC (apps/edi/PRODUCAO.md). */
 const EDI_RECONCILE_ACTIVE = true;
 /**
- * Dia de Estrela: serviço e cron descritos abaixo, mas fora do projeto até o
- * lançamento autorizado (apps/dia-de-estrela/PRODUCAO.md). Em `false` nada é
- * criado. Depois do primeiro apply com `true`, esta constante passa a valer
- * como as de cima: voltar para `false` apagaria o serviço e o cron.
+ * O serviço já existe sem fonte. A preparação permanece no grafo mesmo antes
+ * do corte; a flag liga a fonte e o cron somente no lançamento coordenado.
+ * Depois disso, nunca voltar para false: removeria a fonte e os jobs.
  */
-const ESTRELA_LAUNCHED = false;
+const ESTRELA_LAUNCHED = true;
+/** Keep the prepared central service; enable its source/jobs at cutover.
+ * Never revert after launch: this also selects the financial cron owner. */
+const COMPASSO_LAUNCHED = true;
+/** Recursos provisionados via plugin em 13/11/2026; nunca desligar para rollback. */
+const RECREIO_PROVISIONED = true;
+/** Vínculos, propriedade e certificados conferidos em 15/11/2026. */
+const RECREIO_DOMAINS_CONFIGURED = true;
+/** Alfa fechado autorizado em 15/11. Nunca desligar para rollback de código. */
+const RECREIO_LAUNCHED = true;
 
 // Imagens dos crons sem build, fixadas por digest: uma tag trocada no registro
 // não muda o que roda com o CRON_SECRET de cada app. Para atualizar, conferir o
@@ -69,6 +82,8 @@ const WORKSPACE_FILES = [
 function packages(...names: string[]): string[] {
   return names.map((name) => `/packages/${name}/**`);
 }
+
+const WEB_ACCOUNT_PACKAGES = ["account", "family", "edi-contracts", "edi-licensing"];
 
 // Next.js com `output: "standalone"`: o build copia public/ e .next/static para
 // dentro do standalone, e o start roda o server.js gerado.
@@ -129,6 +144,12 @@ export default defineRailway((ctx) => {
   if (ctx.projectId !== PROJECT_ID || ctx.environmentId !== PRODUCTION_ID) {
     throw new Error("Este arquivo descreve apenas informach-apps / production");
   }
+  if (COMPASSO_LAUNCHED && !ESTRELA_LAUNCHED) {
+    throw new Error("Compasso requires workers for every catalog app, including Dia de Estrela");
+  }
+  if (RECREIO_LAUNCHED && (!RECREIO_PROVISIONED || !RECREIO_DOMAINS_CONFIGURED)) {
+    throw new Error("Recreio requires provisioned resources and configured domains before launch");
+  }
 
   const main = github(REPOSITORY, { branch: "main", checkSuites: false, rootDirectory: "/" });
 
@@ -142,7 +163,9 @@ export default defineRailway((ctx) => {
     startCommand:
       '/bin/sh -c "rm -rf $RAILWAY_VOLUME_MOUNT_PATH/lost+found/ && exec docker-entrypoint.sh redis-server --requirepass $REDIS_PASSWORD --save 60 1 --dir $RAILWAY_VOLUME_MOUNT_PATH"',
   };
-  Redis.networking = { privateNetworkEndpoint: "redis", tcpProxies: { "6379": {} } };
+  // Private network only. Production has no public Redis proxy (checked on
+  // 11/11/2026); declaring one here would make the next apply expose it.
+  Redis.networking = { privateNetworkEndpoint: "redis" };
   const volumeAlerts = { usage: { "80": {}, "95": {}, "100": {} } };
   const postgresVolume = volume("postgres-volume", {
     alerts: volumeAlerts,
@@ -178,7 +201,11 @@ export default defineRailway((ctx) => {
     start: "pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference",
     replicas: { [REGION]: 1 },
     deploy: { restartPolicyType: "NEVER" },
-    env: { DATABASE_URL: preserve(), RAILPACK_NODE_VERSION: NODE_VERSION },
+    env: {
+      DATABASE_URL: preserve(),
+      RAILPACK_NODE_VERSION: NODE_VERSION,
+      COMPASSO_CUTOVER_RELEASE: preserve(),
+    },
   });
 
   const cozya = service("@informach/cozya", {
@@ -188,6 +215,7 @@ export default defineRailway((ctx) => {
       buildCommand: standaloneNext("cozya").buildCommand,
       watchPatterns: [
         "/apps/cozya/**",
+        ...packages(...WEB_ACCOUNT_PACKAGES),
         ...packages("ai-core", "auth", "billing", "config", "db", "emails", "ui"),
         ...WORKSPACE_FILES,
       ],
@@ -237,6 +265,7 @@ export default defineRailway((ctx) => {
       buildCommand: standaloneNext("agenda-da-turma").buildCommand,
       watchPatterns: [
         "/apps/agenda-da-turma/**",
+        ...packages(...WEB_ACCOUNT_PACKAGES),
         ...packages("ai-core", "auth", "billing", "config", "db", "emails", "ui"),
         ...WORKSPACE_FILES,
       ],
@@ -287,14 +316,15 @@ export default defineRailway((ctx) => {
     source: main,
     build: {
       builder: "RAILPACK",
-      buildCommand: "pnpm install --frozen-lockfile --prod=false && pnpm build:missao-saber",
+      buildCommand: standaloneNext("missao-saber").buildCommand,
       watchPatterns: [
         "/apps/missao-saber/**",
+        ...packages(...WEB_ACCOUNT_PACKAGES),
         ...packages("auth", "billing", "config", "db", "emails", "ui"),
         ...WORKSPACE_FILES,
       ],
     },
-    start: "pnpm start:missao-saber",
+    start: standaloneNext("missao-saber").startCommand,
     healthcheck: "/api/ready",
     healthcheckTimeout: 60,
     replicas: { [REGION]: 1 },
@@ -348,6 +378,7 @@ export default defineRailway((ctx) => {
       buildCommand: standaloneNext("bora-treinar").buildCommand,
       watchPatterns: [
         "/apps/bora-treinar/**",
+        ...packages(...WEB_ACCOUNT_PACKAGES),
         ...packages("auth", "billing", "config", "db", "emails", "ui"),
         ...WORKSPACE_FILES,
       ],
@@ -395,12 +426,13 @@ export default defineRailway((ctx) => {
   // Dia de Estrela: sem IA. VAPID_* liga o push dos alertas aos pais.
   // Provisionamento pendente em apps/dia-de-estrela/PRODUCAO.md.
   const diaDeEstrela = service("@informach/dia-de-estrela", {
-    source: main,
+    ...(ESTRELA_LAUNCHED ? { source: main } : {}),
     build: {
       builder: "RAILPACK",
       buildCommand: standaloneNext("dia-de-estrela").buildCommand,
       watchPatterns: [
         "/apps/dia-de-estrela/**",
+        ...packages(...WEB_ACCOUNT_PACKAGES),
         ...packages("auth", "billing", "config", "db", "emails", "ui"),
         ...WORKSPACE_FILES,
       ],
@@ -419,8 +451,6 @@ export default defineRailway((ctx) => {
       CRON_SECRET: preserve(),
       DATABASE_URL: preserve(),
       EMAIL_SANDBOX_MODE: preserve(),
-      ESTRELA_FAMILY_ANNUAL_PRICE: preserve(),
-      ESTRELA_FAMILY_MONTHLY_PRICE: preserve(),
       LOG_LEVEL: preserve(),
       NEXT_PUBLIC_APP_URL: preserve(),
       NEXT_PUBLIC_SENTRY_DSN: preserve(),
@@ -434,14 +464,104 @@ export default defineRailway((ctx) => {
       SENTRY_DSN: preserve(),
       SENTRY_ORG: preserve(),
       SENTRY_PROJECT: preserve(),
-      STRIPE_MODE: preserve(),
-      STRIPE_PORTAL_CONFIGURATION_ID: preserve(),
-      STRIPE_SECRET_KEY: preserve(),
-      STRIPE_WEBHOOK_SECRET: preserve(),
       VAPID_PRIVATE_KEY: preserve(),
       VAPID_PUBLIC_KEY: preserve(),
     },
   });
+
+  // New resources remain outside the graph until the cutover is reviewed.
+  // preserve() does not provision missing secrets: provision and verify them
+  // before enabling the service. The billing switch stays false for homologation.
+  const compassoAppServices = new Map<string, ReferencableServiceNode>([
+    ["cozya", cozya],
+    ["agenda-da-turma", agenda],
+    ["missao-saber", missaoSaber],
+    ["bora-treinar", boraTreinar],
+    ["dia-de-estrela", diaDeEstrela],
+  ]);
+  const legacyPriceReferences = Object.fromEntries(
+    getCollectionApps("compasso").flatMap((app) => {
+      const appService = compassoAppServices.get(app.slug);
+      if (!appService) throw new Error(`Missing Compasso service for ${app.slug}`);
+      return getProductPriceVariableNames([app.slug]).map((name) => {
+        if (!Object.hasOwn(appService.variables ?? {}, name))
+          throw new Error(`Missing price variable ${name} in ${app.slug}`);
+        return [name, appService.env[name]];
+      });
+    }),
+  );
+  const conta = service("@informach/conta", {
+    ...(COMPASSO_LAUNCHED ? { source: main } : {}),
+    build: {
+      builder: "RAILPACK",
+      buildCommand: "pnpm install --frozen-lockfile --prod=false && pnpm build:conta",
+      watchPatterns: [
+        "/apps/conta/**",
+        ...packages(...WEB_ACCOUNT_PACKAGES, "auth", "billing", "config", "db", "emails"),
+        ...WORKSPACE_FILES,
+      ],
+    },
+    start: "HOSTNAME=0.0.0.0 pnpm start:conta",
+    healthcheck: "/api/ready",
+    healthcheckTimeout: 30,
+    replicas: { [REGION]: 1 },
+    deploy: { restartPolicyMaxRetries: 3 },
+    domains: ["conta.informach.com.br"],
+    networking: { privateNetworkEndpoint: "informachconta" },
+    env: {
+      NODE_ENV: "production",
+      RAILPACK_NODE_VERSION: NODE_VERSION,
+      NEXT_PUBLIC_APP_URL: getAppUrl("conta", "production"),
+      DATABASE_URL: Postgres.env.DATABASE_URL,
+      EMAIL_SANDBOX_MODE: "live",
+      SENDGRID_FROM: "Minha conta <nao-responda@informach.com.br>",
+      SENDGRID_API_KEY: cozya.env.SENDGRID_API_KEY,
+      BETTER_AUTH_SECRET: preserve(),
+      COMPASSO_TRIAL_HASH_SECRET: preserve(),
+      CRON_SECRET: preserve(),
+      COMPASSO_BILLING_ENABLED: preserve(),
+      STRIPE_MODE: preserve(),
+      STRIPE_SECRET_KEY: preserve(),
+      STRIPE_WEBHOOK_SECRET: preserve(),
+      STRIPE_PORTAL_CONFIGURATION_ID: preserve(),
+      COMPASSO_MONTHLY_PRICE: preserve(),
+      COMPASSO_ANNUAL_PRICE: preserve(),
+      COMPASSO_CREDITS_100_PRICE: preserve(),
+      COMPASSO_CREDITS_300_PRICE: preserve(),
+      COMPASSO_CREDITS_1000_PRICE: preserve(),
+      // Operational failures only, sent to the `conta` project without SDK.
+      SENTRY_DSN: preserve(),
+      ...legacyPriceReferences,
+    },
+  });
+  const accountDepartureCrons = getCollectionApps("compasso").map((app) => {
+    const appService = compassoAppServices.get(app.slug);
+    if (!appService) throw new Error(`Missing Compasso worker service for ${app.slug}`);
+    // Each worker authenticates with its own app's secret, never a shared one.
+    const cronSecret = appService.env.CRON_SECRET;
+    if (!Object.hasOwn(appService.variables ?? {}, "CRON_SECRET") || cronSecret === undefined)
+      throw new Error(`Missing CRON_SECRET in ${app.slug}`);
+    return service(`cron-${app.slug}-account-departure`, {
+      source: image(CURL_IMAGE),
+      start:
+        'sh -ec \'curl --fail --silent --show-error --connect-timeout 10 --max-time 300 --request POST --header "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/jobs/account-departure"\'',
+      replicas: { [REGION]: 1 },
+      deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
+      env: { CRON_SECRET: cronSecret, APP_URL: getAppUrl(app.slug, "production") },
+    });
+  });
+  const contaCrons = [
+    { job: "billing", schedule: "*/5 * * * *", timeout: 300 },
+    { job: "account-maintenance", schedule: "*/5 * * * *", timeout: 300 },
+  ].map(({ job, schedule, timeout }) =>
+    service(`cron-conta-${job}`, {
+      source: image(CURL_IMAGE),
+      start: `sh -ec 'curl --fail --silent --show-error --connect-timeout 10 --max-time ${timeout} --request POST --header "Authorization: Bearer $CRON_SECRET" "$APP_URL/api/jobs/${job}"'`,
+      replicas: { [REGION]: 1 },
+      deploy: { cronSchedule: schedule, restartPolicyType: "NEVER" },
+      env: { CRON_SECRET: conta.env.CRON_SECRET, APP_URL: getAppUrl("conta", "production") },
+    }),
+  );
 
   const site = service("@informach/informach-site", {
     source: main,
@@ -506,6 +626,8 @@ export default defineRailway((ctx) => {
       SENDGRID_FROM: "Bastidores Informach <nao-responda@informach.com.br>",
       SENDGRID_API_KEY: cozya.env.SENDGRID_API_KEY,
       STRIPE_MODE: "prod",
+      ADMIN_COMPASSO_ENABLED: COMPASSO_LAUNCHED ? "1" : "0",
+      ADMIN_RECREIO_ENABLED: RECREIO_LAUNCHED ? "1" : "0",
       LOG_LEVEL: "info",
       BETTER_AUTH_SECRET: preserve(),
       CRON_SECRET: preserve(),
@@ -613,13 +735,141 @@ export default defineRailway((ctx) => {
     },
   });
 
+  // Recreio: alfa fechado, acesso por concessão, sem checkout. Segredos novos
+  // precisam existir antes do primeiro apply; preserve() não cria um segredo.
+  const recreio = service("@informach/recreio-app", {
+    source: RECREIO_LAUNCHED ? main : undefined,
+    build: {
+      builder: "RAILPACK",
+      buildCommand: standaloneNext("recreio").buildCommand,
+      watchPatterns: [
+        "/apps/recreio/**",
+        ...packages(
+          "auth",
+          "billing",
+          "config",
+          "db",
+          "emails",
+          "ui",
+          "recreio",
+          "jogo-morada",
+          "morada-sim",
+          "morada-arte",
+        ),
+        ...WORKSPACE_FILES,
+        "!/**/*.md",
+      ],
+    },
+    start: standaloneNext("recreio").startCommand,
+    healthcheck: "/api/ready",
+    healthcheckTimeout: 60,
+    replicas: { [REGION]: 1 },
+    domains: RECREIO_DOMAINS_CONFIGURED ? [{ domain: "recreio.informach.com.br", port: 3009 }] : [],
+    networking: { privateNetworkEndpoint: "informachrecreio" },
+    env: {
+      NODE_ENV: "production",
+      PORT: "3009",
+      RAILPACK_NODE_VERSION: NODE_VERSION,
+      NEXT_PUBLIC_APP_URL: "https://recreio.informach.com.br",
+      BETTER_AUTH_URL: "https://recreio.informach.com.br",
+      DATABASE_URL: Postgres.env.DATABASE_URL,
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: referência do Railway.
+      REDIS_URL: "${{Redis.REDIS_URL}}?family=0",
+      EMAIL_SANDBOX_MODE: "live",
+      SENDGRID_FROM: "Recreio <nao-responda@informach.com.br>",
+      SENDGRID_API_KEY: cozya.env.SENDGRID_API_KEY,
+      RECREIO_ACCESS_MODE: "fechado",
+      RECREIO_FAMILY_MODE: "off",
+      RECREIO_CHECKPOINT_MODE: "off",
+      RECREIO_JOGO_DE_TESTE: "0",
+      RECREIO_GAME_ORIGINS: JSON.stringify({
+        morada: {
+          ws: "wss://morada-server.informach.com.br",
+          assets: "https://morada-server.informach.com.br",
+        },
+      }),
+      BETTER_AUTH_SECRET: preserve(),
+      CRON_SECRET: preserve(),
+      RECREIO_HOST_SECRETS: preserve(),
+      RECREIO_TOKEN_PRIVATE_KEY: preserve(),
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: preserve(),
+      RECREIO_TOKEN_KEY_ID: preserve(),
+      RECREIO_TOKEN_PREVIOUS_PUBLIC_KEYS: preserve(),
+      SENTRY_DSN: preserve(),
+      NEXT_PUBLIC_SENTRY_DSN: preserve(),
+      SENTRY_AUTH_TOKEN: preserve(),
+      SENTRY_ORG: preserve(),
+      SENTRY_PROJECT: preserve(),
+    },
+  });
+  // Arte licenciada num volume privado. Só configurar MORADA_ARTE_DIR depois
+  // de instalar/verificar o pacote; sem pasta o jogo usa os corpos procedurais.
+  const moradaArte = volume("morada-arte", { region: REGION, sizeMB: 1000 });
+  const morada = service("@informach/morada-server", {
+    source: RECREIO_LAUNCHED ? main : undefined,
+    build: {
+      builder: "RAILPACK",
+      buildCommand: "pnpm install --frozen-lockfile --prod=false && pnpm build:morada-server",
+      watchPatterns: [
+        "/apps/morada-server/**",
+        ...packages("config", "recreio", "morada-sim", "morada-arte"),
+        ...WORKSPACE_FILES,
+        "!/**/*.md",
+      ],
+    },
+    start: MORADA_START_COMMAND.join(" "),
+    healthcheck: "/api/ready",
+    healthcheckTimeout: 60,
+    // O processo reserva 25 s para salvar; Railway só pode matar depois disso.
+    deploy: { drainingSeconds: 35, overlapSeconds: 0 },
+    replicas: { [REGION]: 1 },
+    domains: RECREIO_DOMAINS_CONFIGURED
+      ? [{ domain: "morada-server.informach.com.br", port: 3010 }]
+      : [],
+    networking: { privateNetworkEndpoint: "informachmorada" },
+    volumeMounts: { "/data": moradaArte },
+    env: {
+      NODE_ENV: "production",
+      PORT: "3010",
+      RAILPACK_NODE_VERSION: NODE_VERSION,
+      MORADA_PLATAFORMA: "recreio",
+      MORADA_REGRAS: "prova",
+      MORADA_CAPACIDADE: "200",
+      MORADA_CONEXOES_MAX: "1024",
+      MORADA_PEDIDOS_EM_CURSO_MAX: "32",
+      MORADA_QUADROS_POR_SEGUNDO_MAX: "400",
+      RECREIO_API_URL: "http://informachrecreio.railway.internal:3009",
+      RECREIO_EMISSOR: "https://recreio.informach.com.br",
+      MORADA_PUBLIC_URL: "wss://morada-server.informach.com.br",
+      MORADA_ORIGENS: "https://recreio.informach.com.br",
+      RECREIO_HOST_SECRET: preserve(),
+      MORADA_METRICAS_TOKEN: preserve(),
+      MORADA_ARTE_DIR: "/data/arte/d2-4198478735b6",
+      SENTRY_DSN: preserve(),
+    },
+  });
+  const recreioManutencao = service("cron-recreio-manutencao", {
+    source: RECREIO_LAUNCHED ? image(CURL_IMAGE) : undefined,
+    start: `sh -c 'curl --fail-with-body --silent --show-error --connect-timeout 10 --max-time 120 --request POST --header "Authorization: Bearer $CRON_SECRET" "$RECREIO_URL/api/jobs/manutencao"'`,
+    replicas: { [REGION]: 1 },
+    deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
+    env: {
+      CRON_SECRET: recreio.env.CRON_SECRET,
+      RECREIO_URL: "http://informachrecreio.railway.internal:3009",
+    },
+  });
+
   // Manutenção compartilhada pelos apps de assinatura.
-  const crons = [
+  // Only the central billing job owns these obligations after the cutover.
+  // Keep them while the old deployments/contracts still serve production.
+  const legacyBillingCrons = [
     perAppCron("billing-reconcile", "0 3 * * *", "billing-reconcile"),
     perAppCron("billing-expire-bonus", "30 3 * * *", "billing-expire-bonus"),
     perAppCron("billing-grant-monthly", "45 3 * * *", "billing-grant-monthly"),
     perAppCron("billing-dunning", "0 */6 * * *", "billing-dunning"),
     perAppCron("billing-release-reservations", "*/5 * * * *", "billing-release-reservations"),
+  ];
+  const crons = [
     perAppCron("email-retry", "*/5 * * * *", "email-retry"),
     perAppCron("email-recover-stale", "*/30 * * * *", "email-recover-stale"),
     globalCron("auth-cleanup", "0 4 * * *", "auth-cleanup"),
@@ -697,9 +947,9 @@ export default defineRailway((ctx) => {
     },
   });
 
-  // Dia de Estrela, de 5 em 5 minutos, em dois crons: os alertas "não marcou"
-  // aos pais (sensíveis ao horário) e a manutenção da cobrança, que pode demorar
-  // e não pode atrasar os alertas.
+  // Dia de Estrela, de 5 em 5 minutos: os alertas "não marcou" aos pais. O app
+  // não tem cobrança própria (só o Compasso); a avaliação e o encerramento de
+  // conta usam o cron-dia-de-estrela-account-departure do Compasso.
   const estrelaEnv = {
     APP_ORIGIN: preserve(),
     CRON_SECRET: preserve(),
@@ -713,14 +963,6 @@ export default defineRailway((ctx) => {
     deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
     env: estrelaEnv,
   });
-  const estrelaBilling = service("cron-dia-de-estrela-billing", {
-    source: image(CURL_IMAGE),
-    start: shellScript("apps/dia-de-estrela/scripts/maintenance-cron.sh"),
-    replicas: { [REGION]: 1 },
-    deploy: { cronSchedule: "*/5 * * * *", restartPolicyType: "NEVER" },
-    env: estrelaEnv,
-  });
-
   // Lembretes de treino e resumo semanal do Bora Treinar, de hora em hora: o
   // app decide quem recebe pela hora local de cada família.
   const boraLembretes = service("cron-bora-treinar-lembretes", {
@@ -764,19 +1006,23 @@ export default defineRailway((ctx) => {
       agenda,
       missaoSaber,
       boraTreinar,
-      ...(ESTRELA_LAUNCHED ? [diaDeEstrela] : []),
+      diaDeEstrela,
+      conta,
+      ...(COMPASSO_LAUNCHED ? [...contaCrons, ...accountDepartureCrons] : []),
       site,
       admin,
       ...adminCrons,
+      ...(RECREIO_PROVISIONED || RECREIO_LAUNCHED
+        ? [recreio, morada, moradaArte, recreioManutencao]
+        : []),
       edi,
       ...crons,
       agendaRoutine,
       cozyaRetention,
-      missaoBilling,
+      ...(!COMPASSO_LAUNCHED ? [...legacyBillingCrons, missaoBilling, boraBilling] : []),
       missaoWeeklyReport,
-      boraBilling,
       boraLembretes,
-      ...(ESTRELA_LAUNCHED ? [estrelaAlertas, estrelaBilling] : []),
+      ...(ESTRELA_LAUNCHED ? [estrelaAlertas] : []),
       ediReconcile,
     ],
   });

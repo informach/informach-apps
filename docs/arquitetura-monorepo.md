@@ -12,6 +12,8 @@ Vários produtos web independentes que compartilham fundações (auth, billing, 
 
 Custos aceitos: tooling mais sofisticado (workspace manager + task runner), e blast radius maior quando se quebra uma config compartilhada. Os dois se mitigam com Turborepo e CI verde como gate de merge.
 
+Fluxo Git definido pelo titular em 13/11/2026: trabalho e commits na `main`, merges locais na `main` e push para `origin/main` após os gates da alteração. Conferir e integrar mudanças remotas sem sobrescrever trabalho concorrente. A autorização persiste para as entregas solicitadas; exceções dependem de uma orientação posterior do titular. O CI continua executando no push, conforme a configuração abaixo.
+
 ---
 
 ## Stack
@@ -219,6 +221,22 @@ Detalhes de como o `db` se organiza: ver [`arquitetura-packages.md`](./arquitetu
 
 ## Migrations
 
+O migrator valida o prefixo completo de `drizzle.__drizzle_migrations` antes e depois
+de aplicar SQL. Recibos intermediários ausentes, duplicados ou desconhecidos impedem
+a aplicação; `/api/ready` responde indisponível com `reason: inconsistent` no mesmo
+caso. O estado `behind` admite somente um sufixo ainda não aplicado. Um banco mais
+novo continua aceito se contém todo o prefixo conhecido. Essa leitura dos recibos
+não prova compatibilidade de rollback depois de remoções de colunas/tabelas.
+
+A matriz `.github/workflows/compasso.yml` verifica domínio, Conta, encerramento,
+consumidores standalone e restauração com PostgreSQL 18, além do CI geral em 16.
+O Recreio exige PostgreSQL 17+ para o limite nativo `transaction_timeout`:
+seus testes completos usam um segundo serviço descartável PG 18 no CI geral,
+que conserva PG 16 para os demais consumidores e prova a recusa do Recreio
+nessa versão. A prontidão do portal verifica essa capacidade antes de admitir
+tráfego. Essa separação não altera imagens nem volumes locais ou de produção.
+Todos os dados e segredos desses ensaios são sintéticos.
+
 Regras invioláveis:
 
 1. Migrations rodam **só** a partir do comando raiz `pnpm db:migrate`: primeiro `@informach/db` aplica Drizzle, depois `@informach/ai-core` inicializa o storage Mastra (`ai_mastra`).
@@ -357,3 +375,7 @@ Três apps independentes no Railway, cada um com seu domínio (`admin.informach.
 
 - [`arquitetura-apps.md`](./arquitetura-apps.md) — o que vai dentro de `apps/<app>/`.
 - [`arquitetura-packages.md`](./arquitetura-packages.md) — o que vai dentro de `packages/<pkg>/`.
+
+## Recreio e Morada (preparação de 13/11/2026)
+
+O portal Recreio usa o padrão Next standalone. O Morada é um processo Node/WebSocket com `build:morada-server`/`start:morada-server`: esbuild empacota os packages TypeScript internos em `dist/main.mjs`; `pino`, `ws` e `@sentry/node` são dependências de produção. O jogo não recebe acesso ao banco e fala com a API do Recreio pela rede privada Railway, mantendo emissor público HTTPS explícito. Os dois serviços, o cron e o volume privado de arte permanecem fora dos recursos com `RECREIO_LAUNCHED=false`. A operação e os passos de autorização estão em [PRODUCAO.md](../apps/recreio/PRODUCAO.md); não há implantação inferida da presença desses blocos.

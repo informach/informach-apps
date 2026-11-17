@@ -97,7 +97,7 @@ export function PendingWritesSheet({
                       disabled={busy}
                       onClick={() =>
                         startTransition(async () => {
-                          await discardPendingWrite(entry.key);
+                          if (owner) await discardPendingWrite(owner, entry.key);
                           // Desistir devolve o card ao que o servidor diz: sem
                           // isto ele ficaria mostrando a decisão descartada.
                           router.refresh();

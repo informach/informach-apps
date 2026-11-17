@@ -1,18 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { createRequire } from "node:module";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { db, eq } from "@informach/db";
-import {
-  accounts,
-  agendaIdempotentWrites,
-  agendaProductEvents,
-  agendaStudentProfiles,
-  agendaTasks,
-  emailDeliveries,
-  users,
-} from "@informach/db/schema";
-import { type BrowserContext, expect, type Page, test } from "@playwright/test";
+import { agendaIdempotentWrites, agendaTasks } from "@informach/db/schema";
+import { expect, type Page, test } from "@playwright/test";
+import { browserFamily, browserProfile, enterAgenda } from "./fixtures/compasso";
 
 function required<T>(value: T | undefined): T {
   if (value === undefined) throw new Error("Missing browser fixture");
@@ -24,35 +14,12 @@ function todayIso() {
 }
 
 /** Uma família Free, já no dashboard, com uma atividade de hoje para concluir. */
-async function familyWithTask(page: Page, context: BrowserContext, baseURL: string, id: string) {
+async function familyWithTask(page: Page, id: string) {
   const email = `${id}@e2e.local`;
   const title = `Lição de casa ${randomUUID().slice(0, 8)}`;
-  const authRequire = createRequire(
-    path.resolve(process.cwd(), "../../packages/auth/package.json"),
-  );
-  const { hashPassword } = await import(
-    pathToFileURL(authRequire.resolve("better-auth/crypto")).href
-  );
-  await db.insert(users).values({ id, name: "Responsável fictício", email, emailVerified: true });
-  await db.insert(accounts).values({
-    id: randomUUID(),
-    userId: id,
-    accountId: id,
-    providerId: "credential",
-    password: await hashPassword("OfflineQueue!Synthetic2026"),
-  });
-  const login = await context.request.post(`${baseURL}/api/auth/sign-in/email`, {
-    headers: { Origin: baseURL },
-    data: { email, password: "OfflineQueue!Synthetic2026" },
-  });
-  expect(login.ok()).toBe(true);
-  // O grátis vale por padrão: depois do login, a conta vai direto para Hoje.
-  await page.goto("/dashboard");
-
-  const [child] = await db
-    .insert(agendaStudentProfiles)
-    .values({ userId: id, name: "Criança navegador" })
-    .returning();
+  const f = await browserFamily({ id, email, password: "OfflineQueue!Synthetic2026" });
+  const child = await browserProfile(f, "Criança navegador");
+  await enterAgenda(page, f);
   await db.insert(agendaTasks).values({
     profileId: required(child).id,
     createdByUserId: id,
@@ -63,13 +30,6 @@ async function familyWithTask(page: Page, context: BrowserContext, baseURL: stri
     fingerprint: randomUUID(),
   });
   return title;
-}
-
-async function removeFamily(id: string) {
-  await db.delete(agendaProductEvents).where(eq(agendaProductEvents.userId, id));
-  await db.delete(agendaIdempotentWrites).where(eq(agendaIdempotentWrites.userId, id));
-  await db.delete(emailDeliveries).where(eq(emailDeliveries.userId, id));
-  await db.delete(users).where(eq(users.id, id));
 }
 
 const taskStatus = async (title: string) =>
@@ -92,7 +52,7 @@ test("offline queue: completing without network reaches the server when it retur
   if (!baseURL) throw new Error("Local app required");
   const id = `offline-queue-browser-${randomUUID()}`;
   try {
-    const title = await familyWithTask(page, context, baseURL, id);
+    const title = await familyWithTask(page, id);
 
     await page.goto("/atividades");
     const toggle = page.getByRole("button", { name: `Marcar como feito: ${title}` });
@@ -131,7 +91,6 @@ test("offline queue: completing without network reaches the server when it retur
     expect(task?.version).toBe(2);
   } finally {
     await context.setOffline(false);
-    await removeFamily(id);
   }
 });
 
@@ -151,7 +110,7 @@ test("completion button stays disabled until the list hydrates", async ({
   if (!baseURL) throw new Error("Local app required");
   const id = `offline-queue-hydration-${randomUUID()}`;
   try {
-    const title = await familyWithTask(page, context, baseURL, id);
+    const title = await familyWithTask(page, id);
 
     let release = () => {};
     const scripts = new Promise<void>((resolve) => {
@@ -175,7 +134,7 @@ test("completion button stays disabled until the list hydrates", async ({
     // card continuar na lista depois do `router.refresh()`.
     await expect.poll(() => taskStatus(title), { timeout: 20_000 }).toBe("done");
   } finally {
-    await removeFamily(id);
+    await context.setOffline(false);
   }
 });
 
@@ -192,7 +151,7 @@ test("undo right after done reopens the activity on Hoje", async ({ page, contex
   if (!baseURL) throw new Error("Local app required");
   const id = `offline-queue-undo-${randomUUID()}`;
   try {
-    const title = await familyWithTask(page, context, baseURL, id);
+    const title = await familyWithTask(page, id);
     await page.goto("/dashboard");
     const toggle = page.getByRole("button", { name: `Marcar como feito: ${title}` });
     await expect(toggle).toBeEnabled();
@@ -203,6 +162,6 @@ test("undo right after done reopens the activity on Hoje", async ({ page, contex
     // A linha volta para "Para hoje", pronta para ser concluída de novo.
     await expect(toggle).toBeVisible();
   } finally {
-    await removeFamily(id);
+    await context.setOffline(false);
   }
 });

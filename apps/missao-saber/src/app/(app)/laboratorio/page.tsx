@@ -37,14 +37,14 @@ export default async function Laboratory({
     profileAllowed: data.profileAllowed,
     contentStates: data.contentStates,
   });
-  const saved = await listLabs(data.userId, data.profile.id);
-  const legacy = await legacyLabChoices(data.userId, data.profile.id, experiences);
+  const saved = await listLabs(data.authority, data.profile.id);
+  const legacy = await legacyLabChoices(data.authority, data.profile.id, experiences);
   let initial = null;
   let snapshot: Awaited<ReturnType<typeof readLabNote>> | undefined;
   let error = query.success ? "" : "O endereço desta experiência é inválido.";
   if (query.success && query.data.exec) {
     try {
-      initial = await readLab(data.userId, { profileId: data.profile.id, id: query.data.exec });
+      initial = await readLab(data.authority, { profileId: data.profile.id, id: query.data.exec });
     } catch (cause) {
       if (cause instanceof AppError) error = cause.message;
       else throw cause;
@@ -52,7 +52,7 @@ export default async function Laboratory({
   }
   if (query.success && query.data.note) {
     try {
-      snapshot = await readLabNote(data.userId, data.profile.id, query.data.note);
+      snapshot = await readLabNote(data.authority, data.profile.id, query.data.note);
     } catch (cause) {
       if (cause instanceof AppError) error = cause.message;
       else throw cause;

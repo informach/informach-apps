@@ -31,6 +31,42 @@ const APARENCIA = {
 };
 
 describe("escolhas dos ativos de arte", () => {
+  it("exige a combinação exata para receitas novas e conserva a escolha do mundo legado", () => {
+    const legado = personagem("lia", {
+      sim: {
+        corpo: "adulta",
+        pele: APARENCIA.pele,
+        cabelo: APARENCIA.cabelo,
+        roupa: APARENCIA.roupa,
+      },
+    });
+    const nova = personagem("criacao", {
+      sim: { corpo: "adulta", pele: 0, cabelo: "natural", roupa: "casual" },
+      cores: {
+        referenciaDePele: "#808080",
+        canais: [{ id: "pele", origem: "pele", parte: null, inicial: [1, 1, 1] }],
+      },
+      criacao: {
+        rotuloDoCabelo: "Natural",
+        rotuloDaRoupa: "Casual",
+        corDoCabelo: 0,
+        coresDaRoupa: {},
+      },
+    });
+    const m = ManifestoSchema.parse({ ...manifesto(), versao: 3, personagens: [nova, legado] });
+    const aparencia = {
+      ...APARENCIA,
+      cabelo: "natural",
+      roupa: "casual",
+      edicao: { versao: 1 as const, corDoCabelo: 0, coresDaRoupa: {} },
+    };
+    expect(escolherPersonagem(m, { fase: "adulto", aparencia })?.id).toBe("criacao");
+    expect(
+      escolherPersonagem(m, { fase: "adulto", aparencia: { ...aparencia, cabelo: "inexistente" } }),
+    ).toBeNull();
+    expect(escolherPersonagem(m, { fase: "crianca", aparencia })).toBeNull();
+    expect(escolherPersonagem(m, { fase: "adulto", aparencia: APARENCIA })?.id).toBe("lia");
+  });
   it("o manifesto de mentira tem a forma que o empacotador escreve", () => {
     expect(ManifestoSchema.safeParse(manifesto()).success).toBe(true);
   });

@@ -1,10 +1,13 @@
+import { COMPASSO_POLICY } from "@informach/config/collections";
 import { INFORMACH_CONTACT } from "@informach/config/contact";
 import type { Metadata } from "next";
 
 const TITLE = "Termos de Uso. Cozya";
 const DESCRIPTION =
   "Termos de uso do Cozya, serviço operado pela Informach Núcleo de Aprendizagem Ltda.";
-const LAST_UPDATED = "17 de outubro de 2026";
+const LAST_UPDATED = "10 de novembro de 2026";
+const money = (cents: number) =>
+  (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -47,12 +50,14 @@ export default function TermsOfUsePage() {
             no microfone, cola um texto ou descreve em uma frase, e a IA estrutura a receita.
           </p>
           <p>
-            Existem dois planos. No plano <strong>Free</strong>, você cadastra receitas manualmente,
-            sem custo, com até 15 receitas no acervo. Uma conta com e-mail verificado pode ativar um
-            teste de 14 dias de planejamento e 3 operações de IA, sem cartão ou renovação
-            automática. No plano <strong>Pro</strong>, você cria planos e listas semanais e recebe
-            50 créditos mensais de IA. Depois do teste, o acervo, o preparo e as listas existentes
-            continuam acessíveis.
+            O acesso gratuito permite cadastrar manualmente até 15 receitas. O Cozya faz parte do{" "}
+            <strong>Compasso</strong>, assinatura que inclui os aplicativos web participantes, com
+            até {COMPASSO_POLICY.capacity.adults} adultos e {COMPASSO_POLICY.capacity.dependents}{" "}
+            dependentes. Recreio, Morada e Suíte Edi são produtos separados. O Compasso libera o
+            planejamento de refeições e o acervo sem esse limite. Na Minha conta, você pode iniciar
+            explicitamente um teste de {COMPASSO_POLICY.trialDays} dias, sem cartão ou renovação
+            automática, com {COMPASSO_POLICY.ai.trialCredits} créditos compartilhados de IA. Depois
+            do teste, receitas, preparo e listas já criadas continuam acessíveis.
           </p>
         </Section>
 
@@ -66,23 +71,28 @@ export default function TermsOfUsePage() {
 
         <Section title="4. Planos, preços e pagamento">
           <p>
-            O plano Pro tem dois ciclos: <strong>R$ 14,90 por mês</strong> ou{" "}
-            <strong>R$ 149,00 por ano</strong> (equivalente a aproximadamente R$ 12,42 por mês).
-            Cada ciclo Pro inclui <strong>50 créditos de IA renovados todo mês</strong>; no ciclo
-            anual, os créditos são liberados mensalmente a partir da assinatura. Cada lote mensal
-            tem validade de 31 dias a partir da liberação. Os valores podem ser atualizados mediante
-            aviso prévio com 30 dias.
+            O Compasso custa <strong>{money(COMPASSO_POLICY.monthlyAmountCents)} por mês</strong> ou{" "}
+            <strong>{money(COMPASSO_POLICY.annualAmountCents)} por ano</strong>. Inclui{" "}
+            <strong>{COMPASSO_POLICY.ai.monthlyCredits} créditos de IA por mês</strong>,
+            compartilhados entre os aplicativos participantes e os adultos da família selecionada. A
+            franquia renova mensalmente, inclusive no plano anual, sem acumular para o mês seguinte.
+            Os valores podem ser atualizados mediante aviso prévio com 30 dias.
           </p>
           <p>
             Os pagamentos são processados pela Stripe Payments Brasil Ltda. A Cozya não armazena
             dados completos de cartão. Quando os créditos do mês acabam, você pode esperar a
-            renovação ou comprar pacotes avulsos (10, 20 ou 30 créditos extras). Os créditos
-            comprados não têm vencimento próprio; usar as funções de IA exige acesso ativo ao Pro ou
-            ao período de teste.
+            renovação ou comprar recargas na Minha conta:{" "}
+            {COMPASSO_POLICY.ai.packs
+              .map((pack) => `${pack.credits} créditos por ${money(pack.amountCents)}`)
+              .join("; ")}
+            . Os créditos comprados não vencem e podem ser usados mesmo sem assinatura ativa. Cada
+            tarefa mostra o máximo de créditos a reservar antes do uso; o excedente é liberado ao
+            concluir, e tarefas sem resultado válido não consomem créditos. Os saldos anteriores
+            conservam a validade e o poder de uso durante a migração.
           </p>
           <p>
             Não existe fidelidade. Você pode cancelar a assinatura a qualquer momento direto nas
-            configurações da conta. O cancelamento encerra a renovação automática; o acesso ao Pro
+            Minha conta. O cancelamento encerra a renovação automática; o acesso ao Compasso
             continua até o fim do período já pago. Pagamentos referentes a períodos já usados não
             são reembolsados.
           </p>
@@ -108,6 +118,11 @@ export default function TermsOfUsePage() {
         </Section>
 
         <Section title="6. Suas receitas e seu conteúdo">
+          <p>
+            As receitas, preferências, refeições e listas do Cozya pertencem à sua conta individual.
+            Selecionar uma família compartilha a cobertura e a carteira de créditos; isso não dá ao
+            outro adulto acesso ao seu conteúdo culinário.
+          </p>
           <p>
             As receitas e textos que você cria continuam sendo seus. Pra prestar o serviço, você
             concede ao Cozya uma licença não exclusiva, mundial e gratuita pra armazenar, processar,

@@ -6,19 +6,17 @@ import { laboratoryReport } from "@/features/labs/runtime/family-report";
 import { repeatedDifficulties, skillStates, weeklyEvidence } from "@/features/learning/engine";
 import { weeklyNarrative } from "@/features/learning/relato";
 import { history } from "@/features/learning/repository";
-import { requirePageUser } from "@/lib/auth";
 import { latestFamilyActivity } from "./activity";
 import { familyDashboard } from "./view";
 
 // Shared by overview and detail: the existing evidence rules remain authoritative.
 export const familyLearningReports = cache(async () => {
-  const user = await requirePageUser();
   const data = await familyDashboard();
   return Promise.all(
     data.profiles.map(async (profile) => {
       const [{ evidence, reflections, recent }, laboratory] = await Promise.all([
-        history(user.id, profile.id),
-        laboratoryReport(user.id, profile.id),
+        history(data.authority, profile.id),
+        laboratoryReport(data.authority, profile.id),
       ]);
       const states = skillStates(evidence);
       const course = resolvedCourse(profile);

@@ -1,10 +1,12 @@
 import "server-only";
 import { and, db, desc, eq, sql } from "@informach/db";
 import { missaoProfiles as profiles, missaoLabExecutions as runs } from "@informach/db/schema";
+import type { LearningAuthority } from "@/features/family/authority";
+import { studentAccessCondition } from "@/features/family/scope";
 import { findExperience } from "./catalog";
 
 /** Parent history may retain earlier grades. It never grants access to a child's tool. */
-export async function laboratoryReport(userId: string, profileId: string, since?: Date) {
+export async function laboratoryReport(actor: LearningAuthority, profileId: string, since?: Date) {
   const latestEvent = sql`(select max((event->>'at')::timestamptz) from jsonb_array_elements(${runs.events}) as event)`;
   const rows = await db
     .select({ id: runs.id, experienceId: runs.experienceId, events: runs.events })
@@ -12,7 +14,7 @@ export async function laboratoryReport(userId: string, profileId: string, since?
     .innerJoin(profiles, eq(runs.profileId, profiles.id))
     .where(
       and(
-        eq(profiles.userId, userId),
+        studentAccessCondition(actor, profiles.id),
         eq(profiles.id, profileId),
         since
           ? sql`${latestEvent} >= ${since.toISOString()}::timestamptz`

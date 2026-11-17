@@ -1,8 +1,10 @@
+import { currentAssigneeId } from "./assignment-repository";
 import "server-only";
 import { db, sql } from "@informach/db";
 import { agendaStudentProfiles, agendaTasks } from "@informach/db/schema";
 import { APP_TIME_ZONE } from "@/features/dashboard/date";
 import { accessibleProfileCondition } from "@/features/family/access";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { activeProfileSubjectCondition } from "@/features/profile-subjects/visibility";
 import { type ActivityOverviewOptions, OVERVIEW_PAGE_SIZE } from "./overview-types";
 import { ROUTINE_MAX_ITEMS, type RoutineBucketKey } from "./routine-types";
@@ -11,7 +13,7 @@ import { ROUTINE_MAX_ITEMS, type RoutineBucketKey } from "./routine-types";
 // antes era uma UNION de três fontes com formatos diferentes, e cada consumidor
 // precisava saber de qual delas a linha tinha vindo. Tudo que lista ou conta
 // atividades passa por aqui, para que os números e as listas nunca discordem.
-function activityIndexCte(userId: string) {
+function activityIndexCte(actor: AgendaAuthority) {
   return sql`
     WITH activity_index AS (
       SELECT ${agendaTasks.id} AS id,
@@ -21,11 +23,11 @@ function activityIndexCte(userId: string) {
         ${agendaTasks.dueAt} AS due_at,
         ${agendaTasks.createdAt} AS created_at,
         ${agendaTasks.completedAt} AS completed_at,
-        ${agendaTasks.assignedToUserId} AS assigned_to_user_id,
+        ${currentAssigneeId} AS assigned_to_user_id,
         ${agendaTasks.noticeId} AS notice_id
       FROM ${agendaTasks}
       INNER JOIN ${agendaStudentProfiles} ON ${agendaStudentProfiles.id} = ${agendaTasks.profileId}
-      WHERE ${accessibleProfileCondition(userId)}
+      WHERE ${accessibleProfileCondition(actor)}
         -- Matéria extracurricular pausada é silêncio, aqui também. Sem isto, os
         -- contadores da rotina e a lista mostravam o que a exportação em PDF e o
         -- card de progresso escondiam — e depois que os contadores viraram link,
@@ -35,7 +37,7 @@ function activityIndexCte(userId: string) {
 }
 
 export async function listActivityOverviewIndex(
-  userId: string,
+  actor: AgendaAuthority,
   options: ActivityOverviewOptions & {
     dueFrom: string | null;
     dueTo: string | null;
@@ -48,7 +50,7 @@ export async function listActivityOverviewIndex(
       ? sql`(completed_at AT TIME ZONE ${APP_TIME_ZONE})::date`
       : sql`due_at`;
   return db.execute<{ id: string }>(sql`
-    ${activityIndexCte(userId)}
+    ${activityIndexCte(actor)}
     SELECT id FROM activity_index
     WHERE (${options.profileFilter}::uuid IS NULL OR profile_id = ${options.profileFilter}::uuid)
       AND (${options.typeFilter}::text IS NULL OR type = ${options.typeFilter})
@@ -57,7 +59,7 @@ export async function listActivityOverviewIndex(
       -- "O que é meu": quem ficou de cuidar. Sem responsável definido a
       -- atividade é de todo mundo, então ela NÃO entra aqui — o filtro responde
       -- "o que combinaram comigo", não "o que sobrou".
-      AND (${options.assignedToMe} = false OR assigned_to_user_id = ${userId})
+      AND (${options.assignedToMe} = false OR assigned_to_user_id = ${actor.userId})
       -- Janela (ver dueWindowRange em overview-types). Sem recorte, a atividade
       -- sem prazo continua listada; com recorte ela sai, porque não há como
       -- dizer se um prazo a confirmar cai dentro ou fora da janela.
@@ -82,7 +84,7 @@ export async function listActivityOverviewIndex(
 //   tomorrow  — pendente para amanhã
 //   week      — pendente de depois de amanhã até o sétimo dia
 export async function listRoutineIndex(
-  userId: string,
+  actor: AgendaAuthority,
   options: {
     profileFilter: string | null;
     todayIso: string;
@@ -92,7 +94,7 @@ export async function listRoutineIndex(
 ) {
   return db.execute<{ id: string; bucket: RoutineBucketKey }>(
     sql`
-    ${activityIndexCte(userId)}
+    ${activityIndexCte(actor)}
     SELECT id,
       CASE
         WHEN due_at IS NULL OR due_at <= ${options.todayIso}::date THEN 'attention'
@@ -122,11 +124,11 @@ export async function listRoutineIndex(
  * quem as lesse.
  */
 export async function countDoneToday(
-  userId: string,
+  actor: AgendaAuthority,
   options: { profileFilter: string | null; todayIso: string },
 ): Promise<number> {
   const rows = await db.execute<{ done_today: string }>(sql`
-    ${activityIndexCte(userId)}
+    ${activityIndexCte(actor)}
     SELECT COUNT(*) AS done_today
     FROM activity_index
     WHERE status = 'done'

@@ -1,5 +1,6 @@
 "use server";
 
+import { agendaAuthority } from "@/features/family/context";
 import { action, err, ok } from "@/lib/action";
 import { logAgendaAuditEvent } from "@/lib/audit";
 import { logger } from "@/lib/logger";
@@ -24,7 +25,7 @@ export const createProfileSubjectAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await createProfileSubject(userId, input);
+    const result = await createProfileSubject(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     const subject = result.value;
@@ -47,7 +48,7 @@ export const updateProfileSubjectAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await updateProfileSubject(userId, input);
+    const result = await updateProfileSubject(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     logger.info({ userId, subjectId: result.value.id }, "agenda.profile_subject_updated");
@@ -65,7 +66,7 @@ export const deleteProfileSubjectAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await deleteProfileSubject(userId, input);
+    const result = await deleteProfileSubject(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     logger.info({ userId, subjectId: input.id }, "agenda.profile_subject_deleted");
@@ -83,7 +84,7 @@ export const setProfileSubjectStatusAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await setProfileSubjectStatusForUser(userId, input);
+    const result = await setProfileSubjectStatusForUser(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     if (result.value.previousStatus !== result.value.subject.status) {

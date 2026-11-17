@@ -1,5 +1,5 @@
 import "server-only";
-import { and, db, desc, eq } from "@informach/db";
+import { and, db, desc, eq, inArray } from "@informach/db";
 import {
   agendaActivities,
   agendaActivityRevisions,
@@ -8,24 +8,35 @@ import {
   users,
 } from "@informach/db/schema";
 import { accessibleProfileCondition } from "@/features/family/access";
-export async function findActivityHistory(userId: string, id: string) {
+import type { AgendaAuthority } from "@/features/family/authority";
+export async function findActivityHistory(actor: AgendaAuthority, id: string) {
   const accessible = await db
-    .select({ activity: agendaActivities, ownerId: agendaStudentProfiles.userId })
+    .select({ activity: agendaActivities, groupId: agendaActivities.familyGroupId })
     .from(agendaActivities)
     .innerJoin(agendaTasks, eq(agendaTasks.sharedActivityId, agendaActivities.id))
     .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
-    .where(and(eq(agendaActivities.id, id), accessibleProfileCondition(userId)));
+    .where(and(eq(agendaActivities.id, id), accessibleProfileCondition(actor)));
   const [activity] = accessible;
   if (!activity) return null;
-  const canReadPrivate = accessible.some(
-    (row) => row.ownerId === activity.activity.createdByUserId,
-  );
+  const canReadPrivate = accessible.some((row) => row.groupId === actor.familyGroupId);
   if (!canReadPrivate && activity.activity.visibility !== "shared_with_turma") return null;
   const history = await db
     .select({ revision: agendaActivityRevisions, name: users.name })
     .from(agendaActivityRevisions)
     .leftJoin(users, eq(users.id, agendaActivityRevisions.actorId))
-    .where(eq(agendaActivityRevisions.activityId, id))
+    .where(
+      and(
+        eq(agendaActivityRevisions.activityId, id),
+        inArray(
+          agendaActivityRevisions.activityId,
+          db
+            .select({ id: agendaTasks.sharedActivityId })
+            .from(agendaTasks)
+            .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
+            .where(accessibleProfileCondition(actor)),
+        ),
+      ),
+    )
     .orderBy(desc(agendaActivityRevisions.version));
   // Authorization applies to each snapshot, including the private state before
   // publication. A current recipient must never receive those old fields.

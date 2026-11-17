@@ -30,6 +30,7 @@ import { DeleteProfileSubjectDialog } from "./delete-profile-subject-dialog";
 import { ProfileSubjectFormDialog } from "./profile-subject-form-dialog";
 
 type Props = {
+  canWrite: boolean;
   subject: ProfileSubjectWithCounts;
   profileId: string;
 };
@@ -40,7 +41,7 @@ function formatPausedSinceLabel(iso: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function ProfileSubjectCard({ subject, profileId }: Props) {
+export function ProfileSubjectCard({ subject, profileId, canWrite }: Props) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -128,46 +129,48 @@ export function ProfileSubjectCard({ subject, profileId }: Props) {
               <ChevronRight className="size-4" aria-hidden />
             </Link>
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label={`Ações para ${subject.name}`}>
-                <MoreVertical className="size-4" aria-hidden />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {!isPaused ? (
-                <DropdownMenuItem onSelect={() => setNewActivityOpen(true)}>
-                  <Plus className="mr-2 size-4" aria-hidden />
-                  Nova atividade
+          {canWrite ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label={`Ações para ${subject.name}`}>
+                  <MoreVertical className="size-4" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {!isPaused ? (
+                  <DropdownMenuItem onSelect={() => setNewActivityOpen(true)}>
+                    <Plus className="mr-2 size-4" aria-hidden />
+                    Nova atividade
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem onSelect={toggleStatus} disabled={pending}>
+                  {isPaused ? (
+                    <>
+                      <Play className="mr-2 size-4" aria-hidden />
+                      Retomar
+                    </>
+                  ) : (
+                    <>
+                      <Pause className="mr-2 size-4" aria-hidden />
+                      Pausar
+                    </>
+                  )}
                 </DropdownMenuItem>
-              ) : null}
-              <DropdownMenuItem onSelect={toggleStatus} disabled={pending}>
-                {isPaused ? (
-                  <>
-                    <Play className="mr-2 size-4" aria-hidden />
-                    Retomar
-                  </>
-                ) : (
-                  <>
-                    <Pause className="mr-2 size-4" aria-hidden />
-                    Pausar
-                  </>
-                )}
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setEditOpen(true)}>
-                <Pencil className="mr-2 size-4" aria-hidden />
-                Editar
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={() => setDeleteOpen(true)}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="mr-2 size-4" aria-hidden />
-                Excluir
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+                  <Pencil className="mr-2 size-4" aria-hidden />
+                  Editar
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={() => setDeleteOpen(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 size-4" aria-hidden />
+                  Excluir
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </CardContent>
       </Card>
 

@@ -22,6 +22,7 @@ import { Avatar, fmtTime } from "@/components/avatar";
 import type { EventoCelular } from "@/features/pareamento/protocolo";
 import { usePareamentoTv } from "@/features/pareamento/use-pareamento-tv";
 import { saveGroupAction, saveSessionAction } from "@/features/sessoes/actions";
+import type { TrainingContext } from "@/features/sessoes/context";
 import { type Envio, GUARDAR_NA_FILA, guardarPendente } from "@/features/sessoes/fila";
 import type { SessionInput } from "@/features/sessoes/schema";
 import { lerAjustes, useAjustes } from "../ajustes";
@@ -149,12 +150,12 @@ async function microfoneNegado() {
   }
 }
 
-export interface PlayerProps {
+interface PlayerBaseProps {
   profile: { id: string; name: string; color: string; intensity?: Intensidade };
   /** primeiro treino do perfil: o portão mostra os cuidados antes */
   primeiroTreino?: boolean;
   /**
-   * Treinar junto: 2 a 4 perfis em rodízio. Cada um faz a sua série com o seu nível e ganha o
+   * Treinar junto: os perfis autorizados da família em rodízio. Cada um faz a sua série com o seu nível e ganha o
    * próprio treino salvo (o mesmo groupId); `profile` é quem abriu o treino.
    */
   grupo?: {
@@ -176,8 +177,12 @@ export interface PlayerProps {
    * Entrega o treino concluído a quem chamou em vez de salvar no servidor.
    * Só o playground de desenvolvimento usa: lá não há conta nem banco.
    */
-  onFinish?: (session: SessionInput) => void;
 }
+export type PlayerProps = PlayerBaseProps &
+  (
+    | { scope: TrainingContext; onFinish?: never }
+    | { scope?: never; onFinish: (session: SessionInput) => void }
+  );
 
 export function PlayerScreen({
   profile,
@@ -189,6 +194,7 @@ export function PlayerScreen({
   levels,
   saidaHref,
   onFinish,
+  scope,
   primeiroTreino = false,
   grupo,
 }: PlayerProps) {
@@ -236,6 +242,8 @@ export function PlayerScreen({
   const pausouParaVoz = useRef(false);
   const ouvinte = useRef<OuvinteDeVoz | null>(null);
   const [saveError, setSaveError] = useState("");
+  const [saveNeedsRetry, setSaveNeedsRetry] = useState(false);
+  const pendingPayload = useRef<Envio | null>(null);
   // portão "Pronto?" e largada
   const [largada, setLargada] = useState(0);
   const [seguranca, setSeguranca] = useState(primeiroTreino && !grupo);
@@ -377,7 +385,16 @@ export function PlayerScreen({
     },
     [runner, flash, dica],
   );
-  const par = usePareamentoTv(mode === "pareado", aoEventoCelular);
+  const par = usePareamentoTv(
+    mode === "pareado",
+    aoEventoCelular,
+    scope
+      ? {
+          ...scope,
+          profileIds: grupo ? grupo.map((person) => person.profileId) : [profile.id],
+        }
+      : null,
+  );
 
   async function save(feeling: Feeling | null = null) {
     if (saving.current) return;
@@ -435,14 +452,27 @@ export function PlayerScreen({
       onFinish("sessoes" in envio ? (envio.sessoes[0] as SessionInput) : envio);
       return;
     }
-    const input = envio;
+    const input = pendingPayload.current ?? envio;
+    pendingPayload.current = input;
+    const keepOnDevice = async (message: string, reason?: string) => {
+      try {
+        await guardarPendente(scope, input, reason);
+        setSaveError(`${message} O treino ficou guardado neste aparelho.`);
+      } catch {
+        saving.current = false;
+        setSaveNeedsRetry(true);
+        setSaveError(
+          "O treino ainda não foi salvo e o aparelho não conseguiu guardá-lo. Mantenha esta tela aberta e tente novamente.",
+        );
+      }
+    };
     try {
       const result =
         "sessoes" in input
-          ? await saveGroupAction(input).then((r) =>
+          ? await saveGroupAction(scope, input).then((r) =>
               r.ok ? { ...r, data: { destino: `/resumo/grupo/${r.data.groupId}` } } : r,
             )
-          : await saveSessionAction(input).then((r) =>
+          : await saveSessionAction(scope, input).then((r) =>
               r.ok ? { ...r, data: { destino: `/resumo/${r.data.sessionId}` } } : r,
             );
       if (result.ok) {
@@ -452,15 +482,11 @@ export function PlayerScreen({
       // Recusas que podem mudar (plano, perfil, login) ficam guardadas no aparelho, com o motivo:
       // antes só o erro inesperado ficava, e um treino feito com o plano vencendo se perdia.
       if (GUARDAR_NA_FILA.has(result.code)) {
-        await guardarPendente(input, result.code === "UNEXPECTED" ? undefined : result.code);
-        setSaveError(`${result.error} O treino ficou guardado neste aparelho.`);
+        await keepOnDevice(result.error, result.code === "UNEXPECTED" ? undefined : result.code);
       } else setSaveError(result.error);
     } catch {
       // sem rede: guarda no aparelho e salva quando a conexão voltar
-      await guardarPendente(input);
-      setSaveError(
-        "Sem conexão agora. O treino ficou guardado neste aparelho e será salvo quando a internet voltar.",
-      );
+      await keepOnDevice("Sem conexão agora.");
     }
   }
   const saveRef = useRef(save);
@@ -971,6 +997,19 @@ export function PlayerScreen({
           <div>
             <h2>Treino concluído!</h2>
             <p className="muted">{saveError}</p>
+            {saveNeedsRetry && (
+              <button
+                type="button"
+                className="btn primary big"
+                onClick={() => {
+                  setSaveError("");
+                  setSaveNeedsRetry(false);
+                  void save();
+                }}
+              >
+                Tentar salvar novamente
+              </button>
+            )}
             <button
               type="button"
               className="btn primary big"

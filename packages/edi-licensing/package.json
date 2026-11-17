@@ -7,7 +7,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./devices": "./src/devices.ts"
+    "./devices": "./src/devices.ts",
+    "./identity-dependencies": "./src/identity-dependencies.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

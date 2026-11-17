@@ -10,6 +10,10 @@
 
 ## Campos permitidos
 
+`user.web_participation_changed` registra somente `scope`, `state`, `operationId` e `revision`, com ator no campo próprio, na transação que altera a participação e revoga sessões web. Não incluir resultados das avaliações, dados dos apps, tokens ou nomes de aparelhos. É evidência da transição técnica; o pedido autorizado e a conclusão de limpeza pertencem ao coordenador de encerramento.
+
+`user.web_closure_changed` registra `scope`, `operationId` e `state`. `user.web_closure_step_completed` registra `scope`, `operationId`, `domain` e `phase`, na mesma transação do recibo e dos efeitos PostgreSQL. O ator usa o campo próprio. Planos, nomes, conteúdo, tokens de posse e erros de provedores não entram na auditoria. Uma etapa concluída não equivale a encerramento completo; apenas o estado final persistido confirma a operação.
+
 Preferir sempre identificadores e estado transacional:
 
 - IDs internos: `userId`, `organizationId`, `sessionId`, `subscriptionId`, `invoiceId`, `deliveryId`, `messageKey`.
@@ -33,6 +37,12 @@ Eventos `email.*` devem usar `emailHash` (SHA-256 do email normalizado) e `email
 Use email bruto apenas nos eventos de auth em que a identidade da conta é o próprio objeto auditado, e mantenha o payload pequeno.
 
 ## Billing
+
+### Transações de identidade familiar
+
+`family.events` é o registro transacional estrito das mudanças do domínio familiar. Aceita somente `event`, `groupId`, `personId`, `actorId`, `targetId` e horário; não possui payload JSON livre. Eventos de pessoa, associação, concessão/revogação, integrante, convite e transferência de administração são inseridos na mesma transação do efeito; falha impede a alteração. Não incluir nome, cor, avatar, e-mail, código de convite ou conteúdo dos apps. IDs de origem ficam em `family.migration_sources`/`app_profiles.source_key`, não em mensagens de erro públicas. Aplica-se a retenção padrão de segurança acima; anonimização exige fluxo explícito, não deleção de eventos pela UI. Esse contrato complementa `audit.events`, sem emitir uma cópia assíncrona como condição de sucesso.
+
+Reservas e extrato Compasso registram escopo comercial, app consumidor, ator adulto, pessoa quando aplicável e `runId`. `effectiveAt` é a data de aceitação da reserva para a apropriação do saldo; `createdAt` continua indicando quando o débito foi registrado. Expiração da franquia durante uma execução aceita não deve deslocar o débito para uma compra posterior.
 
 Eventos de billing devem registrar o ator quando a ação veio de usuário autenticado e usar payloads transacionais. `billing.checkout_started` deve incluir `checkoutSessionId`, `productId`, `subjectType`, `subjectId` e `mode`; compras de créditos podem incluir `creditAmount`. Motivos de cancelamento devem vir de enum controlado, não de texto livre.
 
@@ -85,20 +95,30 @@ Finalidade: investigar mudanças na conta da família e atender suporte. O Basti
 
 Eventos `recreio.*` registram o que aconteceu com os perfis, com o direito de jogar, com as sessões de jogo e com os mundos no app `recreio`, com payload mínimo de IDs, nomes de campo, classificadores e contagens. O perfil é o que os jogos conhecem de uma pessoa: nunca gravar apelido, avatar, e-mail, IP, nome de aparelho, ingresso, token de sessão, chave, segredo de instância, nome de mundo, código de convite (nem o resumo dele), o texto de participação que o jogo guarda no convite, o resumo do mundo publicado pelo jogo ou qualquer texto livre.
 
-- `recreio.profile_created`: `{ profileId, kind }`, com `kind` igual a `adult` ou `minor`. O ator é a conta que criou o perfil.
-- `recreio.profile_updated`: `{ profileId, fields }`, onde `fields` lista só os nomes dos campos alterados (por exemplo `nickname` e `avatar`), nunca os valores. Ainda não há emissor: entra com a edição do perfil, e a lista de campos é registrada aqui junto com ele.
+- `recreio.profile_created`: `{ profileId, kind, guardianLinkId?, declarationVersion? }`, com `kind` igual a `adult` ou `minor`. Os dois campos adicionais pertencem ao cadastro sob responsabilidade declarada; nunca incluir nascimento ou texto da declaração. O ator é a conta que criou o perfil.
+- `recreio.device_paired`: `{ profileId, deviceSessionId }`, ator responsável atual, emissão única na transação da aprovação. Nunca incluir código ou segredo de consulta/credencial.
+- `recreio.device_context_changed`: `{ deviceSessionId, profileId?, scope }`, com `scope` `adult`, `minor` ou `management`. Mudança de seleção e restrição junto do evento estrito; repetição sem mudança não emite evento. Troca entre contextos infantis não é atribuída ao adulto só porque o login nativo pertence a ele. Nunca incluir PIN, hash, sal ou credencial.
+- `recreio.protection_pin_changed`: `{ scope, profileId?, generation }`, `scope` nativo ou menor, sem PIN, hash ou sal. `recreio.minor_access_revoked`: `{ profileId, previousGeneration, generation }`. As gerações são UUIDs de autoridade, não hashes de segredo. Mudança/revogação e auditoria são atômicas.
+- `recreio.profile_updated`: `{ profileId, fields }`, onde `fields` lista somente `nickname` e/ou `avatar`, nunca os valores. A edição do perfil adulto próprio revalida a sessão e grava dados/evento na mesma transação; repetição sem mudança não emite evento. Conflito com outra edição recusa a gravação.
+- `recreio.minor_policy_recalculated`: `{ profileId, revision }`, ator nulo no cálculo servidor. `recreio.minor_supervision_changed`: `{ profileId, revision, changed }`, ator responsável autenticado; `changed=false` confirma a revisão sem alterar configuração. Nenhum deles registra nascimento, faixa, horários, orçamento ou conteúdo dos jogos. Política, invalidação das partidas e evento estrito são atômicos.
+- `recreio.profile_data_updated`, `recreio.profile_data_conflict` e `recreio.profile_data_conflict_discarded`: `{ profileId, gameId, dataId, versionId, revision }`. Nunca registrar chave, bytes, resumo criptográfico ou progresso. O conflito é confirmado no banco antes de devolver 409; versões não resolvidas não são removidas pela retenção. Evento e alteração usam a mesma transação estrita.
+- `recreio.achievement_unlocked`: `{ profileId, gameId, achievementId }`, somente IDs de conquista do manifesto estático. Nunca registrar chave de idempotência. Repetição do recibo não emite evento; conquistas declaradas pelo cliente não dão dinheiro ou direito de jogar.
+- `recreio.device_session_revoked`: `{ deviceSessionId, profileId? }`, ator da própria conta adulta. Sem jogador selecionado, omitir `profileId`; não criar perfil para auditar administração. Revogação de outro aparelho de login e fim das partidas usam a mesma transação do evento estrito. Repetição sem efeito não emite novo evento; nunca incluir token, ID da sessão de login, IP, user-agent ou nome do aparelho. Não altera acessos de outros apps. A ampliação para conta sem perfil está no incremento de gestão; conferir a implantação no registro antes de assumir produção.
 - `recreio.entitlement_granted`: `{ entitlementId, groupId, targetId, tier, days, reasonCode }`, com `tier` igual a `individual` ou `family`, `days` o número de dias concedidos e `targetId` a conta titular do grupo.
 - `recreio.entitlement_revoked`: `{ entitlementId, groupId, targetId, reasonCode }`.
 
 `reasonCode` é um código curto e fechado (letras minúsculas, números e `_`, até 40 caracteres, conferido pelo script e pelo banco), não uma explicação escrita: quem concede escolhe o código, e a conversa com a pessoa fica fora do evento. Todos levam também `app: "recreio"`.
 
-As concessões são gravadas pelos scripts `conceder` e `revogar` de `apps/recreio`, sem conta de equipe por trás: o ator é nulo e o evento entra pela forma estrita (`logAuditEventStrict`), na mesma transação da linha em `recreio.entitlements`. Se o evento não grava, a concessão ou a revogação também não ficam. `recreio.profile_created` segue a forma padrão dos apps, sem derrubar a criação do perfil se a auditoria falhar.
+As concessões são gravadas pelos scripts `conceder` e `revogar` de `apps/recreio`, sem conta de equipe por trás: o ator é nulo e o evento entra pela forma estrita (`logAuditEventStrict`), na mesma transação da linha em `recreio.entitlements`. Se o evento não grava, a concessão ou a revogação também não ficam. `recreio.profile_created` também usa `logAuditEventStrict` com o writer da mesma transação que cria perfil e grupo. Se a auditoria falha, a criação é revertida. Uma repetição que encontra o perfil já criado não emite outro evento.
 
 Sessões de jogo (eventos pessoais: `targetId` é a conta dona da sessão de aparelho):
 
 - `recreio.game_session_started`: `{ sessionId, profileId, gameId, replacedSessionId, targetId }`. `replacedSessionId` é a sessão encerrada por "continuar aqui", ou `null`. O ator é a conta.
-- `recreio.game_session_ended`: `{ sessionId, profileId, gameId, reason, targetId }`, com `reason` igual a `left`, `replaced`, `signed_out`, `access_lost` ou `expired`. O ator é a conta quando foi ela que causou o fim (`left`, `replaced`, `signed_out`) e nulo quando foi o Recreio (`access_lost`, `expired`, ou `signed_out` detectado na renovação).
+- `recreio.game_session_ended`: `{ sessionId, profileId, gameId, reason, targetId }`, com `reason` igual a `left`, `replaced`, `signed_out`, `access_lost`, `expired` ou `permissions_changed`. O ator é a conta quando foi ela que causou o fim (`left`, `replaced`, `signed_out`, `permissions_changed`) e nulo quando foi o Recreio (`access_lost`, `expired`, ou `signed_out` detectado na renovação). O novo motivo exige leitores compatíveis implantados antes da primeira emissão.
 - `recreio.ticket_rejected`: `{ profileId, gameId, reason }`, com `reason` igual a `used_or_expired`, `device_session`, `access` ou `game`. Ator nulo. Só é gravado para ingresso com assinatura válida do Recreio: token inválido ou adulterado não gera evento, para a tabela não virar alvo de quem manda lixo.
+
+Na transferência aceita, o encerramento das duas partidas registra em `actorId`
+a conta de quem aceitou. `targetId` conserva a conta afetada de cada partida.
 
 Mundos, convites e posse. **Eventos de mundo não levam `targetId`**: um mundo é de várias contas, então o evento só se liga a uma pessoa pelo ator (a conta do perfil que agiu), e quem investiga um mundo filtra por `spaceId`.
 
@@ -106,8 +126,12 @@ Mundos, convites e posse. **Eventos de mundo não levam `targetId`**: um mundo �
 - `recreio.space_invite_created`: `{ spaceId, inviteId, memberId, form }`, com `memberId` o membro que convidou e `form` igual a `member`.
 - `recreio.space_invite_accepted`: `{ spaceId, inviteId, profileId, memberId }`.
 - `recreio.space_member_joined`: `{ spaceId, memberId, profileId, role, invitedByMemberId }`. Sai junto com o aceite, na mesma transação.
+- `recreio.space_member_removed`: `{ spaceId, memberId, profileId }`, com perfil nulo quando já excluído. O ator é o responsável autenticado que removeu. A mudança do vínculo, retirada de propostas e fim das partidas são atômicos; a repetição não duplica o evento. Preserva conteúdo e autoria. Implantado no alfa fechado em `1ed101be`, sem abrir venda ou proteção familiar completa.
+- `recreio.space_invites_revoked`: `{ spaceId, memberId, reason, count }`, somente contagem/IDs; `reason` é `steward_changed` ou `member_removed`. A conta autenticada que confirmou a mudança é o ator. Revogação e evento estrito compartilham a transação da transferência/remoção, sem códigos, nomes, hashes de convite ou conteúdo.
+- `recreio.space_stewardship_requested`, `recreio.space_stewardship_accepted`, `recreio.space_stewardship_declined`, `recreio.space_stewardship_revoked`, `recreio.space_stewardship_expired`: `{ spaceId, requestId, fromMemberId, toMemberId }`. A conta autenticada é o ator; nomes, e-mails, códigos e conteúdo não entram no evento. Proposta e conclusão acompanham a mudança na mesma transação. A repetição terminal não emite outro evento nem reaplica a autoridade. Escritores implantados no alfa fechado em `92f665e7`; homologação humana adiada pelo titular.
 - `recreio.space_lease_taken_over`: `{ spaceId, previousLeaseId, previousFence, previousInstanceId, leaseId, fence, instanceId }`. Ator nulo. Sai quando abrir um mundo encontra a posse vencida, fecha-a e atribui outra.
 - `recreio.space_write_refused`: `{ spaceId, gameId, instanceId, fence, operation }`, com `operation` igual a `journal`, `snapshot` ou `release`. Ator nulo. Sai quando uma instância autenticada tenta escrever sem a posse (cerca velha, posse vencida ou de outra instância). Pedido com segredo errado ou para mundo de outro jogo não gera evento.
+- `recreio.space_restored`: `{ operationId, spaceId, gameId, sourceRevision, previousRevision, revision, journalSeq, fence, reasonCode }`, com ator nulo no comando técnico autenticado pela conexão operacional. Nova revisão e evento entram na mesma transação. O UUID identifica o recibo de repetição e fica vinculado a mundo, revisão escolhida, topo anterior e motivo. Não registrar corpo, hash de conteúdo, nomes, apelidos ou fatos do jogo. A inspeção do CLI mostra somente metadados técnicos; não cria acesso ao conteúdo pelo Bastidores.
 
 Como entram: os eventos que acompanham uma gravação (`game_session_started`, `game_session_ended`, `space_*` menos `space_write_refused`) usam a forma estrita, na mesma transação da mudança: ou os dois ficam gravados, ou nenhum. As recusas (`ticket_rejected`, `space_write_refused`) não têm transação para acompanhar e seguem a forma padrão, sem derrubar a resposta se a auditoria falhar.
 

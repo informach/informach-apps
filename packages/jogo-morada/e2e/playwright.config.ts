@@ -30,6 +30,7 @@ export default defineConfig({
     viewport: { width: 1280, height: 720 },
     trace: "off",
     launchOptions: {
+      channel: "chromium",
       args: porSoftware
         ? ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
         : ["--ignore-gpu-blocklist"],

@@ -25,6 +25,7 @@ export type EmailCategory =
   | "agenda.routine"
   | "auth.verify-email"
   | "auth.verify-email-otp"
+  | "auth.change-email-otp"
   | "auth.sign-in-otp"
   | "auth.forget-password-otp"
   | "auth.password-reset"
@@ -56,6 +57,8 @@ export type DispatchInput = {
   unsubscribeUrl: string;
   unsubscribeMailto?: string;
   userId?: string;
+  /** Recheck access immediately before each send; only for bodies rebuilt by the originating job. */
+  authorizeContent?: () => Promise<boolean>;
 };
 
 export type SendgridMessage = {
@@ -215,6 +218,8 @@ export async function dispatchEmail(
   const id = crypto.randomUUID();
   const now = new Date();
   const persistBody = shouldPersistBody(input.category);
+  if (input.authorizeContent && persistBody)
+    throw new Error("Content authorization requires a regenerated, non-persisted email body");
 
   const inserted = await deps.db
     .insert(emailDeliveries)
@@ -354,6 +359,44 @@ export async function dispatchEmail(
   }
   delivery = claimedRow;
 
+  const claimedDeliveryId = delivery.id;
+  async function checkContentAuthorization(): Promise<DispatchResult | null> {
+    if (!input.authorizeContent) return null;
+    let authorized: boolean;
+    try {
+      authorized = await input.authorizeContent();
+    } catch {
+      const reason = "content authorization unavailable";
+      await deps.db
+        .update(emailDeliveries)
+        .set({ status: "failed", lastError: reason, nextAttemptAt: null, updatedAt: new Date() })
+        .where(
+          and(
+            eq(emailDeliveries.id, claimedDeliveryId),
+            eq(emailDeliveries.status, "sending"),
+            eq(emailDeliveries.providerAccepted, false),
+          ),
+        );
+      return { ok: false, status: "failed", deliveryId: claimedDeliveryId, reason };
+    }
+    if (authorized) return null;
+    const reason = "content access revoked";
+    const marked = await markDeliveryBlocked(
+      deps.db,
+      claimedDeliveryId,
+      { kind: "access-revoked" },
+      ["sending"],
+    );
+    if (!marked)
+      return { ok: false, status: "deferred", deliveryId: claimedDeliveryId, reason: "in-flight" };
+    emitEmailAudit(deps, {
+      eventType: "email.delivery_skipped",
+      actorId: input.userId ?? null,
+      payload: { deliveryId: claimedDeliveryId, category: input.category, reason },
+    });
+    return { ok: false, status: "skipped", deliveryId: claimedDeliveryId, reason };
+  }
+
   const fromAddress = input.from ?? deps.defaultFrom;
   const headers = buildListUnsubscribeHeaders(input.unsubscribeUrl, input.unsubscribeMailto);
   const customArgs: Record<string, string> = {
@@ -363,6 +406,8 @@ export async function dispatchEmail(
   };
 
   if (deps.mode === "sandbox") {
+    const denied = await checkContentAuthorization();
+    if (denied) return denied;
     await writeSandboxFile(deps.sandboxDir, delivery, input, fromAddress, headers);
     await deps.db
       .update(emailDeliveries)
@@ -390,6 +435,8 @@ export async function dispatchEmail(
   }
 
   if (deps.mode === "memory") {
+    const denied = await checkContentAuthorization();
+    if (denied) return denied;
     deps.outbox?.push({
       id: delivery.id,
       to: input.to,
@@ -447,6 +494,8 @@ export async function dispatchEmail(
     if (attempt > 1 && (await providerAcceptanceArrived(deps.db, delivery.id))) {
       return { ok: true, status: "sent", deliveryId: delivery.id };
     }
+    const denied = await checkContentAuthorization();
+    if (denied) return denied;
     try {
       const { messageId } = await deps.send(message);
       await deps.db

@@ -39,8 +39,6 @@ const STRIPE_HOSTS = [
   "https://hooks.stripe.com",
   "https://checkout.stripe.com",
 ];
-const GOOGLE_FONTS_STYLE = "https://fonts.googleapis.com";
-const GOOGLE_FONTS_FILE = "https://fonts.gstatic.com";
 const GOOGLE_OAUTH = "https://accounts.google.com";
 
 export type BuildCspOptions = {
@@ -83,8 +81,8 @@ export function buildCspHeader(opts: BuildCspOptions): string {
     "default-src 'self'",
     scriptSrc,
     // Estilos: Tailwind 4 + shadcn precisam de inline. Aceito.
-    `style-src 'self' 'unsafe-inline' ${GOOGLE_FONTS_STYLE}`,
-    `font-src 'self' ${GOOGLE_FONTS_FILE} data:`,
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self' data:",
     // Imagens: data:/blob: para previews do upload de imagem (cadastro de
     // matérias/atividades por foto). PDFs convertidos pra blob no browser
     // antes do POST.
@@ -109,7 +107,7 @@ export function buildCspHeader(opts: BuildCspOptions): string {
   // (spec). Em vez de gerar warning no console, omitimos quando reportOnly.
   // Em produção sob HTTPS já é redundante (não há http:// pra upgrade), mas
   // mantém intent declarativa para auditorias.
-  if (!opts.reportOnly) {
+  if (!opts.reportOnly && new URL(env.NEXT_PUBLIC_APP_URL).protocol === "https:") {
     directives.push("upgrade-insecure-requests");
   }
 

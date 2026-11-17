@@ -1,6 +1,7 @@
 "use client";
 import { Input } from "@informach/ui/components/input";
 import { Label } from "@informach/ui/components/label";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { cn } from "@informach/ui/lib/utils";
 import { useState, useTransition } from "react";
 import { concluirEntradaAction } from "@/features/account/actions";
@@ -37,6 +38,7 @@ export function AuthForm({
   const [consent, setConsent] = useState(false);
   const [message, setMessage] = useState(initialMessage);
   const [pending, start] = useTransition();
+  const interativo = useHydrated();
   async function navigate() {
     const result = await concluirEntradaAction(next);
     if (!result.ok) {
@@ -46,7 +48,8 @@ export function AuthForm({
     window.location.assign(result.data.destination);
   }
   return (
-    <div>
+    <fieldset disabled={!interativo || pending} className="min-w-0">
+      <legend className="sr-only">Acesso ao Recreio</legend>
       <div className="mb-6 grid grid-cols-2 gap-1.5 rounded-controle border border-linha bg-fundo p-1.5">
         {(["login", "signup"] as const).map((alvo) => (
           <button
@@ -326,6 +329,6 @@ export function AuthForm({
           Confirmar e-mail / reenviar código
         </button>
       </div>
-    </div>
+    </fieldset>
   );
 }

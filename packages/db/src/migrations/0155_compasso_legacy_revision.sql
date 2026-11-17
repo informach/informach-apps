@@ -1,0 +1,2 @@
+ALTER TABLE "billing"."legacy_contract_acceptances" ADD COLUMN "accepted_revision" text;--> statement-breakpoint
+ALTER TABLE "billing"."legacy_contract_acceptances" ADD CONSTRAINT "legacy_contract_acceptance_revision_format" CHECK ("billing"."legacy_contract_acceptances"."accepted_revision" is null or "billing"."legacy_contract_acceptances"."accepted_revision" ~ '^[0-9a-f]{64}$');

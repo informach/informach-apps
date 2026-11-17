@@ -5,6 +5,7 @@ import { cache } from "react";
 import { z } from "zod";
 import { env } from "@/lib/env";
 import { assertAllowed } from "@/lib/errors";
+import type { ChildAuthority, PinAuthority } from "../familia/authority";
 import { lerDesbloqueio } from "./pin";
 import {
   CHILD_COOKIE,
@@ -13,7 +14,7 @@ import {
   selectedChild,
   UNLOCK_COOKIE,
 } from "./policy";
-import { readDevice } from "./repository";
+import { getPinChallenge, readDevice } from "./repository";
 
 /** O aparelho da criança, pelo cookie, conferido no banco a cada pedido. */
 export const getDeviceIdentity = cache(async (): Promise<DeviceIdentity | null> => {
@@ -24,7 +25,8 @@ export const getDeviceIdentity = cache(async (): Promise<DeviceIdentity | null> 
   if (!access) return null;
   return {
     deviceId: access.device.id,
-    ownerId: access.device.userId,
+    userId: access.device.userId,
+    familyGroupId: access.device.familyGroupId,
     childIds: access.childIds,
     childId: selectedChild(access.childIds, jar.get(CHILD_COOKIE)?.value),
     expiresAt: access.device.expiresAt,
@@ -47,7 +49,11 @@ export async function requireDevicePage() {
 export async function requireChildPage() {
   const identity = await requireDevicePage();
   if (!identity.childId) redirect("/crianca");
-  return { ...identity, childId: identity.childId };
+  return {
+    ...identity,
+    childId: identity.childId,
+    actor: childAuthority(identity, identity.childId),
+  };
 }
 
 /** Ações da criança: a criança tem de ser deste aparelho e a escolhida agora. */
@@ -60,17 +66,41 @@ export async function requireChild(raw: unknown) {
     "CHILD_CHANGED",
     "A criança deste aparelho mudou. Volte para a tela inicial.",
   );
-  return { ...identity, childId };
+  return { ...identity, childId, actor: childAuthority(identity, childId) };
 }
 
 /** A área dos pais foi aberta com o PIN neste aparelho há menos de 10 minutos? */
 export const pinUnlock = cache(async () => {
   const identity = await getDeviceIdentity();
   if (!identity) return null;
+  const challenge = await getPinChallenge(identity);
+  if (!challenge?.pinHash) return null;
   const expira = lerDesbloqueio(
     env.BETTER_AUTH_SECRET,
     (await cookies()).get(UNLOCK_COOKIE)?.value,
     identity.deviceId,
+    challenge.pinGeneration,
   );
-  return expira ? { ...identity, unlockedUntil: expira } : null;
+  if (!expira) return null;
+  const actor: PinAuthority = {
+    kind: "pin",
+    userId: identity.userId,
+    familyGroupId: identity.familyGroupId,
+    deviceId: identity.deviceId,
+    pinGeneration: challenge.pinGeneration,
+    unlockedUntil: expira,
+  };
+  return { ...identity, unlockedUntil: expira, actor };
 });
+
+/** A chooser may construct one authority per delegated child; domain checks still revalidate it. */
+export function childAuthority(identity: DeviceIdentity, childId: string): ChildAuthority {
+  assertAllowed(identity.childIds.includes(childId), "CHILD", "Criança não disponível.");
+  return {
+    kind: "child",
+    userId: identity.userId,
+    familyGroupId: identity.familyGroupId,
+    deviceId: identity.deviceId,
+    childId,
+  };
+}

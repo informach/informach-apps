@@ -1,8 +1,11 @@
 import "server-only";
 import { ErroDoRecreio } from "@informach/recreio";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import { temContextoPareado } from "@/features/protecao/http";
 import { getSession, requirePageUser } from "@/lib/auth";
+import { safeDestination } from "@/lib/destination";
 import { type Ator, type AtorComPerfil, type ContextoDoAtor, resolverAtor } from "./service";
 
 export type { Ator, AtorComPerfil } from "./service";
@@ -13,6 +16,7 @@ export type { Ator, AtorComPerfil } from "./service";
  * ativo vem da linha da sessão de aparelho.
  */
 const contexto = cache(async (): Promise<ContextoDoAtor | null> => {
+  if (await temContextoPareado()) return null;
   const atual = await getSession();
   if (!atual?.user.emailVerified) return null;
   return resolverAtor({
@@ -48,10 +52,24 @@ export async function paginaDaConta(next?: string) {
   return { user, ...atual };
 }
 
+/** Gestão usa a conta nativa; um perfil infantil não herda essa autoridade. */
+export async function paginaDaGestao(next = "/conta") {
+  const pagina = await paginaDaConta(next);
+  if (pagina.ator.perfil?.tipo === "minor")
+    redirect(`/perfis?next=${encodeURIComponent(safeDestination(next))}`);
+  return pagina;
+}
+
 /** Página do portal: exige alguém jogando. Sem perfil vai criar; sem escolha vai escolher. */
-export async function paginaDoPortal() {
+export async function paginaDoPortal(next?: string) {
   const pagina = await paginaDaConta();
   const perfil = pagina.ator.perfil;
-  if (!perfil) redirect(pagina.perfis.length > 0 ? "/perfis" : "/comecar");
+  if (!perfil) {
+    if (pagina.perfis.length > 0) {
+      const destino = safeDestination(next ?? (await headers()).get("x-recreio-path"));
+      redirect(destino === "/estante" ? "/perfis" : `/perfis?next=${encodeURIComponent(destino)}`);
+    }
+    redirect("/comecar");
+  }
   return { ...pagina, ator: { ...pagina.ator, perfil } };
 }

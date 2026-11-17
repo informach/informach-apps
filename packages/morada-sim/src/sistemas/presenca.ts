@@ -91,6 +91,7 @@ export function sessaoEntrou(
   sessaoId: SessaoId,
   perfilId: PerfilId,
   apelido?: string,
+  podeFundarFamilia = false,
 ): void {
   // Um perfil tem uma conexão só: a nova toma o lugar da antiga.
   for (const antiga of [...ctx.presenca.sessoes]) {
@@ -102,11 +103,13 @@ export function sessaoEntrou(
   if (existente) {
     existente.estado = "presente";
     existente.ateMs = null;
+    existente.podeFundarFamilia = podeFundarFamilia;
     if (apelido !== undefined) existente.apelido = apelido;
   } else {
     ctx.presenca.sessoes.push({
       sessaoId,
       perfilId,
+      podeFundarFamilia,
       apelido: apelido ?? null,
       estado: "presente",
       ateMs: null,
@@ -139,11 +142,17 @@ export function sessaoCaiu(ctx: Contexto, sessaoId: SessaoId, agoraMs: number): 
   conferirVoto(ctx);
 }
 
-export function sessaoVoltou(ctx: Contexto, sessaoId: SessaoId, apelido?: string): boolean {
+export function sessaoVoltou(
+  ctx: Contexto,
+  sessaoId: SessaoId,
+  apelido?: string,
+  podeFundarFamilia = false,
+): boolean {
   const sessao = sessaoDe(ctx.presenca, sessaoId);
   if (!sessao) return false;
   sessao.estado = "presente";
   sessao.ateMs = null;
+  sessao.podeFundarFamilia = podeFundarFamilia;
   if (apelido !== undefined) sessao.apelido = apelido;
   tocarChave(ctx, "presenca");
   return true;

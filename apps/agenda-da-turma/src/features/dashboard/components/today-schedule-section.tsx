@@ -1,6 +1,7 @@
 import { Skeleton } from "@informach/ui/components/skeleton";
 import { Hand } from "lucide-react";
 import Link from "next/link";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { StudentAvatar } from "@/features/students/components/student-avatar";
 import { shortChildNames } from "@/features/students/utils";
 import { SubjectKitDialog } from "@/features/subject-kits/components/subject-kit-dialog";
@@ -119,14 +120,14 @@ export type TodaySchedule = { views: TodaySubjectsView[]; kits: Record<string, s
  * sempre depois das atividades.
  */
 export async function loadTodaySchedule(
-  userId: string,
+  actor: AgendaAuthority,
   profileFilter: string | null,
 ): Promise<TodaySchedule> {
-  const views = await getTodaySubjectsForProfiles(userId, { profileFilter });
+  const views = await getTodaySubjectsForProfiles(actor, { profileFilter });
   if (views.length === 0) return { views, kits: {} };
   const kits = Object.fromEntries(
     await listSubjectKits(
-      userId,
+      actor,
       views.map((view) => view.profileId),
     ),
   );

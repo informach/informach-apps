@@ -10,11 +10,11 @@ import {
 import {
   CABECALHO_DA_INSTANCIA,
   CABECALHO_DO_JOGO,
-  type ClienteDoHost,
+  type ClienteDoHostComCheckpoint,
   SessaoAbertaSchema,
 } from "@informach/recreio/contrato";
 import { criarClienteDoHost } from "@informach/recreio/host";
-import { origensDoJogo, segredoDoHost } from "@/features/jogos/config";
+import { limitesDoJogo, origensDoJogo, segredoDoHost } from "@/features/jogos/config";
 import { criarMundo } from "@/features/mundos/service";
 import { emitirIngresso } from "@/features/sessao-de-jogo/service";
 import type { Jogador } from "./apoio";
@@ -58,7 +58,10 @@ export async function entrarNoJogo(
 
 /** Um mundo criado pelo jogador, pelo serviço que o portal e o SDK usam. */
 export async function mundoDe(jogador: Jogador, jogo = MORADA, nome = "Casa de teste") {
-  const mundo = await criarMundo({ perfilId: jogador.perfil.id, jogo }, { nome });
+  const mundo = await criarMundo(
+    { perfilId: jogador.perfil.id, sessaoDeAparelhoId: jogador.ator.sessaoDeAparelhoId, jogo },
+    { nome },
+  );
   return MundoIdSchema.parse(mundo.id);
 }
 
@@ -76,11 +79,22 @@ export function enderecoDo(jogo: string): string {
 }
 
 /** O cliente HTTP de verdade, com as rotas chamadas no processo. */
-export function clienteDoHost(jogo = MORADA): ClienteDoHost {
-  return criarClienteDoHost({ baseUrl: ORIGEM, jogo, segredo: segredo(jogo), fetch: despachar });
+export function clienteDoHost(jogo = MORADA): ClienteDoHostComCheckpoint {
+  return criarClienteDoHost({
+    baseUrl: ORIGEM,
+    jogo,
+    segredo: segredo(jogo),
+    fetch: despachar,
+    fotografiaMaxBytes: limitesDoJogo(jogo).fotografiaMaxBytes,
+    diarioMaxBytes: limitesDoJogo(jogo).diarioPendenteMaxBytes,
+  });
 }
 
-export type InstanciaDeTeste = { cliente: ClienteDoHost; instanciaId: InstanciaId; jogo: string };
+export type InstanciaDeTeste = {
+  cliente: ClienteDoHostComCheckpoint;
+  instanciaId: InstanciaId;
+  jogo: string;
+};
 
 /** Uma instância registrada no endereço configurado do jogo. */
 export async function novaInstancia(jogo = MORADA, capacidade = 10): Promise<InstanciaDeTeste> {
@@ -120,6 +134,7 @@ export function possesAbertas(mundoId: MundoId) {
       instanceId: leases.instanceId,
       state: leases.state,
       playerSeconds: leases.playerSeconds,
+      expiresAt: leases.expiresAt,
       peakPlayers: leases.peakPlayers,
     })
     .from(leases)

@@ -12,6 +12,7 @@ export const PRODUCT_KEYS = [
   "bora-treinar",
   "dia-de-estrela",
   "edi",
+  "recreio",
 ] as const;
 export type ProductKey = (typeof PRODUCT_KEYS)[number];
 
@@ -24,6 +25,12 @@ export type ProductInfo = {
 };
 
 export const PRODUCTS: Record<ProductKey, ProductInfo> = {
+  recreio: {
+    key: "recreio",
+    name: APPS.recreio.name,
+    domain: APPS.recreio.domain,
+    mark: { background: "#23433D", foreground: "#F5E8C8" },
+  },
   cozya: {
     key: "cozya",
     name: APPS.cozya.name,
@@ -77,14 +84,25 @@ export function productName(app: string): string {
  */
 export const SERVICE_KEYS = [
   "site",
+  "conta",
   "cozya",
   "agenda-da-turma",
   "missao-saber",
   "bora-treinar",
   "dia-de-estrela",
   "edi",
+  "recreio",
+  "morada-server",
 ] as const;
 export type ServiceKey = (typeof SERVICE_KEYS)[number];
+
+export function serviceKeysForDeployment(options: { compasso: boolean; recreio: boolean }) {
+  return SERVICE_KEYS.filter(
+    (key) =>
+      (!["conta", "dia-de-estrela"].includes(key) || options.compasso) &&
+      (!["recreio", "morada-server"].includes(key) || options.recreio),
+  );
+}
 
 export type ServiceInfo = {
   key: ServiceKey;
@@ -97,6 +115,30 @@ export type ServiceInfo = {
 };
 
 export const SERVICES: Record<ServiceKey, ServiceInfo> = {
+  conta: {
+    key: "conta",
+    name: APPS.conta.name,
+    railwayService: "@informach/conta",
+    defaultOrigin: `https://${APPS.conta.domain}`,
+    readyPath: "/api/ready",
+    healthPath: "/api/health",
+  },
+  recreio: {
+    key: "recreio",
+    name: APPS.recreio.name,
+    railwayService: "@informach/recreio-app",
+    defaultOrigin: `https://${APPS.recreio.domain}`,
+    readyPath: "/api/ready",
+    healthPath: "/api/health",
+  },
+  "morada-server": {
+    key: "morada-server",
+    name: "Servidor do Morada",
+    railwayService: "@informach/morada-server",
+    defaultOrigin: "https://morada-server.informach.com.br",
+    readyPath: "/api/ready",
+    healthPath: "/api/health",
+  },
   site: {
     key: "site",
     name: "Site Informach",
@@ -187,6 +229,7 @@ const APP_PHRASES: Record<string, string> = {
   [PRODUCTS["bora-treinar"].name]: `no ${PRODUCTS["bora-treinar"].name}`,
   [PRODUCTS["dia-de-estrela"].name]: `no ${PRODUCTS["dia-de-estrela"].name}`,
   [PRODUCTS.edi.name]: `na ${PRODUCTS.edi.name}`,
+  [PRODUCTS.recreio.name]: "no Recreio",
   Bastidores: "no Bastidores",
 };
 
@@ -201,6 +244,7 @@ const REDIS_SESSION_PRODUCTS: ProductKey[] = [
   "missao-saber",
   "bora-treinar",
   "dia-de-estrela",
+  "recreio",
 ];
 
 /**

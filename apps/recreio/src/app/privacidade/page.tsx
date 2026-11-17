@@ -7,7 +7,7 @@ export default function Privacidade() {
   return (
     <PaginaDeTexto>
       <p className="text-sm font-bold tracking-[0.12em] text-tinta-suave">
-        ÚLTIMA ATUALIZAÇÃO · 11/11/2026
+        ÚLTIMA ATUALIZAÇÃO · 15/11/2026
       </p>
       <h1>Privacidade no Recreio, na fase de alfa.</h1>
       <p>
@@ -22,13 +22,23 @@ export default function Privacidade() {
         segurança, como sessões e tentativas de acesso. Do Recreio em si, guardamos o seu perfil (o
         apelido e o avatar que você escolheu), em que aparelho ele está em uso e, quando a equipe
         libera os jogos para você, o registro dessa liberação. Os jogos recebem só o perfil, nunca o
-        seu e-mail. Nesta fase o Recreio ainda não guarda mundos nem dados de jogo, e não há
-        cobrança.
+        seu e-mail. Também guardamos mundos, seus membros e convites, o progresso do jogo e cópias
+        de recuperação para continuar a partida depois de sair ou de uma falha. O alfa fechado não
+        tem cobrança e é destinado a adultos convidados pela equipe.
       </p>
       <h2>Para que usamos</h2>
       <p>
-        Para autenticar quem entra, proteger a conta contra abuso e cumprir obrigações legais. Os
-        códigos de acesso são enviados para o e-mail da conta.
+        Para autenticar quem entra, proteger a conta contra abuso, permitir o jogo e a recuperação
+        do progresso e cumprir obrigações legais. Os códigos de acesso são enviados para o e-mail da
+        conta. Registros de segurança identificam operações e permissões; as histórias dos moradores
+        não são usadas para publicidade.
+      </p>
+      <h2>Quando você joga com outras pessoas</h2>
+      <p>
+        Os membros do mesmo mundo podem ver os apelidos dos participantes e o conteúdo que o jogo
+        compartilha naquele mundo. Convites permitem adicionar membros. Use nomes de jogo e evite
+        incluir dados pessoais nos nomes de mundos e moradores. Perder o acesso ao jogo não apaga
+        automaticamente o mundo ou o progresso das outras pessoas.
       </p>
       <h2>Serviços de operação</h2>
       <p>
@@ -44,10 +54,13 @@ export default function Privacidade() {
         confirmação e acesso aos dados, correção, portabilidade, anonimização, bloqueio ou
         eliminação quando cabível, nos termos da LGPD.
       </p>
-      <h2>Quando o Recreio crescer</h2>
+      <h2>Guarda e pedidos sobre os dados</h2>
       <p>
-        Mundos, dados de jogo e assinatura trazem dados novos. Esta página será atualizada antes de
-        eles existirem.
+        Mundos e progresso ficam guardados para a retomada do jogo. Os registros técnicos e as
+        cópias de recuperação têm finalidades próprias. Pedidos de exclusão e de informação sobre
+        retenção são atendidos pelo suporte: um mundo compartilhado exige preservar os direitos das
+        demais pessoas. Novos recursos familiares ou de assinatura terão suas condições informadas
+        antes de serem disponibilizados.
       </p>
       <p>
         Consulte também a{" "}

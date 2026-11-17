@@ -1,0 +1,38 @@
+{
+  "name": "@informach/account",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./privacy": "./src/privacy.ts",
+    "./departure": "./src/departure.ts",
+    "./departure-reviews": "./src/departure-reviews.ts",
+    "./closure": "./src/closure.ts",
+    "./closure-family": "./src/closure-family.ts",
+    "./closure-billing": "./src/closure-billing.ts",
+    "./departure-jobs": "./src/departure-jobs.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
+  },
+  "dependencies": {
+    "@informach/auth": "workspace:*",
+    "@informach/billing": "workspace:*",
+    "@informach/config": "workspace:*",
+    "@informach/db": "workspace:*",
+    "@informach/edi-licensing": "workspace:*",
+    "@informach/family": "workspace:*",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "drizzle-orm": "^0.45.4",
+    "postgres": "^3.4.9",
+    "vitest": "^5.0.5",
+    "typescript": "^5.9.3"
+  }
+}

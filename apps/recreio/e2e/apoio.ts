@@ -1,6 +1,6 @@
 import { type ChildProcess, spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readdir, readFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   type Browser,
@@ -26,11 +26,20 @@ import {
 export const SENHA = "Recreio-Teste-2026-Local!";
 export const APP = process.cwd();
 /** Capturas das telas do jogo, para quem revisa olhar (`tmp` não entra no git). */
-const TELAS = path.resolve(APP, "tmp/telas");
+const TELAS = process.env.RECREIO_E2E_PRIVATE_ARTIFACTS
+  ? path.resolve(process.env.RECREIO_E2E_PRIVATE_ARTIFACTS, "telas")
+  : path.resolve(APP, "tmp/telas");
 
 export async function tela(page: Page, nome: string): Promise<void> {
   await mkdir(TELAS, { recursive: true });
   await page.screenshot({ path: path.join(TELAS, `${nome}.png`), animations: "disabled" });
+}
+
+/** Medidas sem conteúdo de contas/jogo; conservadas junto das capturas da execução. */
+export async function medida(nome: string, dados: Record<string, unknown>): Promise<void> {
+  if (!/^[a-z0-9-]{1,64}$/.test(nome)) throw new Error("Nome de medida inválido");
+  await mkdir(TELAS, { recursive: true });
+  await writeFile(path.join(TELAS, `${nome}.json`), `${JSON.stringify(dados, null, 2)}\n`);
 }
 
 /** O endereço do servidor de um jogo, como o ambiente da execução o cadastrou no Recreio. */
@@ -94,6 +103,26 @@ export function linhasDeJson(saida: readonly string[]): Record<string, unknown>[
 // --- Navegadores, com a política de segurança vigiada ---
 
 const contextos: BrowserContext[] = [];
+const scriptsSuspensos = new WeakMap<BrowserContext, { espera: Promise<void>; pedidos: number }>();
+
+/** Compõe a pausa com o único interceptador do portal, preservando o IP sintético. */
+export function suspenderScriptsDoPortal(contexto: BrowserContext) {
+  if (!contextos.includes(contexto) || scriptsSuspensos.has(contexto))
+    throw new Error("Suspensão exige um aparelho do teste sem outra pausa ativa");
+  let resolver: (() => void) | undefined;
+  const espera = new Promise<void>((liberar) => {
+    resolver = liberar;
+  });
+  const estado = { espera, pedidos: 0 };
+  scriptsSuspensos.set(contexto, estado);
+  return {
+    contar: () => estado.pedidos,
+    liberar: () => {
+      scriptsSuspensos.delete(contexto);
+      resolver?.();
+    },
+  };
+}
 let violacoes: string[] = [];
 let errosDePagina: string[] = [];
 let errosDeConsole: string[] = [];
@@ -140,7 +169,20 @@ export async function novoAparelho(browser: Browser): Promise<BrowserContext> {
   const contexto = await browser.newContext({
     baseURL: uso.baseURL,
     viewport: uso.viewport,
-    extraHTTPHeaders: { "x-real-ip": `198.51.${semente[0]}.${semente[1]}` },
+  });
+  if (!uso.baseURL) throw new Error("E2E sem origem do portal");
+  // O IP fictício só vai ao portal. Cabeçalho global vazava para a origem
+  // da arte e tornava seu preflight diferente do navegador de produção.
+  await contexto.route(`${new URL(uso.baseURL).origin}/**`, async (rota) => {
+    const pausa = scriptsSuspensos.get(contexto);
+    const url = new URL(rota.request().url());
+    if (pausa && url.pathname.startsWith("/_next/static/") && url.pathname.endsWith(".js")) {
+      pausa.pedidos++;
+      await pausa.espera;
+    }
+    await rota.continue({
+      headers: { ...rota.request().headers(), "x-real-ip": `198.51.${semente[0]}.${semente[1]}` },
+    });
   });
   await vigiar(contexto);
   contextos.push(contexto);
@@ -230,17 +272,18 @@ async function codigoDoEmail(email: string): Promise<string> {
 }
 
 /** Libera os jogos para a conta com o script da equipe, no mesmo banco do portal. */
-export function conceder(email: string): void {
+export function conceder(email: string, tier: "individual" | "family" = "individual"): void {
   const execucao = spawnSync(
     process.execPath,
     [
+      "--conditions=react-server",
       "--import",
       "tsx",
       "scripts/conceder.ts",
       "--email",
       email,
       "--tier",
-      "individual",
+      tier,
       "--dias",
       "30",
       "--motivo",
@@ -258,7 +301,7 @@ export type Pessoa = { contexto: BrowserContext; page: Page; email: string; apel
 export async function novaPessoa(
   browser: Browser,
   apelido: string,
-  opcoes: { comAcesso?: boolean } = {},
+  opcoes: { comAcesso?: boolean; semPerfil?: boolean } = {},
 ): Promise<Pessoa> {
   const contexto = await novoAparelho(browser);
   const page = await contexto.newPage();
@@ -275,6 +318,7 @@ export async function novaPessoa(
   await page.getByLabel("Código de seis dígitos").fill(await codigoDoEmail(email));
   await page.getByRole("button", { name: "Confirmar e-mail", exact: true }).click();
   await expect(page).toHaveURL(/\/comecar$/);
+  if (opcoes.semPerfil) return { contexto, page, email, apelido };
   const campoDoApelido = page.getByLabel("Apelido");
   await hidratado(campoDoApelido);
   await campoDoApelido.fill(apelido);

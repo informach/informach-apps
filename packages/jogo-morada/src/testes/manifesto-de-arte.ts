@@ -105,13 +105,16 @@ export function personagem(
   };
 }
 
-export function manifesto(extra: Partial<Manifesto> = {}): Manifesto {
+export function manifesto(extra: Partial<Extract<Manifesto, { versao: 2 }>> = {}): Manifesto {
   return {
     formato: "morada-arte",
-    versao: 1,
+    versao: 2,
     arte: { repositorio: "informach/artes-3d", commit: null },
     personagens: [personagem("lia")],
     bibliotecas: [biblioteca("adulto")],
+    objetos: [],
+    acabamentos: [],
+    aberturas: [],
     ...extra,
   };
 }

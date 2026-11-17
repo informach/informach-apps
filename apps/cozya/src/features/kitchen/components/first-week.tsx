@@ -11,7 +11,6 @@ import { catchActionResult } from "@/features/recipes/components/action-errors";
 import { RecipeCover } from "@/features/recipes/components/recipe-cover";
 import { planFirstWeekAction } from "../actions";
 import { localDay, weekdayName } from "../dates";
-import { TRIAL_DAYS } from "../trial";
 import { FirstWeekSteps } from "./first-week-steps";
 
 type Option = { key: string; name: string; servings: number | null; photo: string | null };
@@ -22,11 +21,9 @@ const MAX_PICKS = 4;
 export function FirstWeek({
   own,
   starters,
-  trialPending,
 }: {
   own: (Option & { id: string })[];
   starters: (Option & { index: number })[];
-  trialPending: boolean;
 }) {
   const router = useRouter();
   const hydrated = useHydrated();
@@ -127,9 +124,6 @@ export function FirstWeek({
         </h1>
         <p className="text-[15px] leading-normal text-ink-soft">
           Três receitas, três dias e a lista do mercado.
-          {trialPending
-            ? ` Seus ${TRIAL_DAYS} dias grátis começam quando a primeira receita entrar na semana. Sem cartão.`
-            : ""}
         </p>
       </div>
       <FirstWeekSteps step={1} />
@@ -166,12 +160,13 @@ export function FirstWeek({
       </Link>
       {blocked ? (
         <div role="alert" className="space-y-3 rounded-2xl bg-muted p-4">
-          <p className="font-bold">Este e-mail já usou o teste grátis.</p>
+          <p className="font-bold">Ative o Compasso para planejar.</p>
           <p className="text-sm text-muted-foreground">
-            Suas receitas continuam aqui. Para colocar receitas na semana, assine o Pro.
+            Confira sua assinatura ou a disponibilidade do teste na Minha conta. Suas receitas
+            continuam aqui.
           </p>
           <Button asChild className="min-h-11">
-            <Link href="/upgrade">Conhecer o Pro</Link>
+            <Link href="/upgrade">Conhecer o Compasso</Link>
           </Button>
         </div>
       ) : (

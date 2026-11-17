@@ -1,5 +1,5 @@
 import "server-only";
-import { type db, sql } from "@informach/db";
+import { db, sql } from "@informach/db";
 
 /**
  * Apoio dos repositórios do Recreio: a transação, as travas e o relógio. Só
@@ -7,6 +7,14 @@ import { type db, sql } from "@informach/db";
  */
 
 export type Transacao = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Compõe repositories sem abrir uma segunda conexão sob travas de autoridade. */
+export function emTransacao<T>(
+  existente: Transacao | undefined,
+  executar: (tx: Transacao) => Promise<T>,
+): Promise<T> {
+  return existente ? executar(existente) : db.transaction(executar);
+}
 
 /**
  * Trava de transação por nome (`pg_advisory_xact_lock`): quem pede a mesma
@@ -35,3 +43,18 @@ export function codigoDoPostgres(erro: unknown): string | undefined {
 }
 
 export const VIOLACAO_DE_UNICO = "23505";
+
+/** Distingue a disputa conhecida de uma violação de integridade inesperada. */
+export function constraintDoPostgres(erro: unknown): string | undefined {
+  let atual: unknown = erro;
+  for (let nivel = 0; nivel < 4 && atual; nivel++) {
+    if (
+      typeof atual === "object" &&
+      "constraint_name" in atual &&
+      typeof atual.constraint_name === "string"
+    )
+      return atual.constraint_name;
+    atual = atual instanceof Error ? atual.cause : undefined;
+  }
+  return undefined;
+}

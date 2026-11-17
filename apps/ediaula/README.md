@@ -388,6 +388,31 @@ As três pedem a revisão do projeto lida (como `cut_ranges`), conferem todos os
 (e nomeiam) faixas travadas, são recusadas com um rascunho de estrutura esperando, viram um passo só do
 histórico (o `undo` da IA também desfaz) e valem no painel do assistente e nos apps conectados.
 
+**Passos de uma edição automática (IA, desde 16/11/2026).** São os passos que a aula automática
+(`scripts/aula-automatica/`) fazia no arquivo do projeto com o editor fechado
+(`src/shared/clipEdits.ts`). Nenhum empurra outros clipes.
+
+- `remove_clips` tira clipes, como o Delete: o grupo vai junto, o buraco fica, e os clipes de faixas travadas
+  ficam de fora e são nomeados.
+- `trim_clip` leva as bordas de um clipe para `start` e `end`, como arrastar as bordas: a filmagem fica no
+  lugar. Serve, por exemplo, para deixar o vídeo de um personagem só na fala. O clipe só cresce até onde a
+  mídia deixa e nunca por cima de outro.
+- `keep_ranges` mantém um clipe só nos trechos dados e tira o resto, cada pedaço no seu lugar, com um
+  esmaecer de entrada e saída (padrão 0,25 s). Serve para a apresentadora aparecer só quando fala sem ação na
+  tela. A entrada e a saída do próprio clipe ficam onde ele começa e termina, então a capa continua sendo o
+  primeiro quadro.
+- `place_cutaway` põe um clipe no lugar de um trecho de uma faixa, tipicamente a animação no lugar da
+  gravação da tela. O clipe pode vir da biblioteca (`media_id` e `at`) ou já estar na linha do tempo
+  (`clip_id`). A faixa e as de `also_track_ids` (o som da página) perdem o trecho, cortadas em volta. A
+  transição (padrão círculos coloridos de 0,6 s na paleta da aula) entra na animação e no clipe que volta
+  depois dela.
+- `spread_music` distribui a música de fundo em duas faixas novas marcadas como música, que abaixam com a voz.
+  Cada cópia entra 3 s antes da anterior acabar, todas com fade, e a última termina com fade no fim da aula.
+  O volume padrão é 0,15.
+
+`remove_clips`, `trim_clip`, `keep_ranges` e `place_cutaway` pedem a revisão do projeto, e todas são
+recusadas com um rascunho de estrutura esperando. Cada uma é um passo do histórico.
+
 **Cortar bordas (IA).** `set_crop` faz pela IA o que o **Cortar bordas** do inspetor faz: `left`, `right`,
 `top` e `bottom` são frações da largura ou da altura do vídeo original (0 a 0,45). O recorte vem antes da
 posição e da escala, então o clipe fica no mesmo centro e do mesmo tamanho e só some a faixa cortada; vale
@@ -1992,6 +2017,14 @@ a criança vê e não salva nada. A primeira gravação, Cadê Todo Mundo Aula 1
    gravações que ficaram sem uso, corrija (roteiro, palco ou plano) e grave de novo; as outras partes não mudam.
 7. **Empacotar.** Em cada projeto de parte, **Arquivo › Empacotar para outra pessoa (com as mídias)**: um pacote
    por parte.
+
+### Aula automática: gravar e editar uma parte num comando
+
+A gravação acima, mais as animações de conceito no EdiSVG e a edição montada no EdiAula, rodam por um condutor
+e por scripts em `scripts/aula-automatica/` (desde 16/11/2026). O condutor abre o EdiAula ou o EdiSVG licenciado
+num perfil de trabalho e recebe comandos por HTTP local; `parte.sh <curso> <aula> <parte> <etapa>` liga as
+etapas pelo `config.json` da máquina (palco, roteiros do Sistema Zero, pasta do material, música). O passo a
+passo, as regras de edição da titular e os limites estão no [README da aula automática](scripts/aula-automatica/README.md).
 
 ### Teste de fumaça da gravação guiada
 

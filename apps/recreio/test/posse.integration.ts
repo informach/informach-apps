@@ -9,7 +9,7 @@ import {
   recreioSpaces as spaces,
   recreioGameTickets as tickets,
 } from "@informach/db/schema";
-import { type MundoId, PerfilIdSchema, POSSE_TTL_MS } from "@informach/recreio";
+import { type MundoId, MundoIdSchema, PerfilIdSchema, POSSE_TTL_MS } from "@informach/recreio";
 import {
   type EntradaDoDiario,
   MundoAbertoSchema,
@@ -18,6 +18,7 @@ import {
 import { describe, expect, it, vi } from "vitest";
 import { aceitarConvite, criarConvite } from "@/features/mundos/service";
 import { env } from "@/lib/env";
+import { revogar } from "../scripts/concessoes";
 import {
   aposentarInstancias,
   avancarRelogio,
@@ -82,10 +83,21 @@ async function executando() {
 }
 
 async function membro(steward: Jogador, mundoId: MundoId, convidado: Jogador) {
-  const convite = await criarConvite({ perfilId: steward.perfil.id, jogo: null }, mundoId, {
-    forma: "member",
-  });
-  await aceitarConvite({ perfilId: convidado.perfil.id }, { codigo: convite.codigo });
+  const convite = await criarConvite(
+    {
+      perfilId: steward.perfil.id,
+      sessaoDeAparelhoId: steward.ator.sessaoDeAparelhoId,
+      jogo: null,
+    },
+    mundoId,
+    {
+      forma: "member",
+    },
+  );
+  await aceitarConvite(
+    { perfilId: convidado.perfil.id, sessaoDeAparelhoId: convidado.ator.sessaoDeAparelhoId },
+    { codigo: convite.codigo },
+  );
 }
 
 async function mundoNoBanco(mundoId: MundoId) {
@@ -95,6 +107,81 @@ async function mundoNoBanco(mundoId: MundoId) {
 }
 
 describe("registro da instância", () => {
+  it("pagina por bytes e sequência, recupera tudo e recusa um buraco persistido", async () => {
+    const { mundoId, cerca, a } = await executando();
+    const entradas = Array.from({ length: 600 }, (_, n) => ({
+      ...fato(n + 1),
+      bytes: new Uint8Array(3000).fill(n % 251),
+    }));
+    for (let inicio = 0; inicio < entradas.length; inicio += 80)
+      await a.cliente.anexarAoDiario({
+        mundoId,
+        cerca,
+        entradas: entradas.slice(inicio, inicio + 80),
+      });
+    const primeira = await pedir(
+      "GET",
+      `/api/interno/v1/mundos/${mundoId}/diario?cerca=${cerca}&apos=0`,
+      { headers: cabecalhosDoHost(MORADA, a.instanciaId) },
+    );
+    expect(primeira).toMatchObject({ status: 200, corpo: { proximoApos: 87 } });
+    const lidas = await a.cliente.lerDiario({ mundoId, cerca, apos: 0 });
+    expect(lidas.map((e) => e.seq)).toEqual(entradas.map((e) => e.seq));
+    expect(
+      lidas.every((e, i) => Buffer.from(e.bytes).equals(Buffer.from(entradas[i]?.bytes ?? []))),
+    ).toBe(true);
+    await db.delete(journal).where(sql`${journal.spaceId} = ${mundoId} and ${journal.seq} = 300`);
+    await expect(a.cliente.lerDiario({ mundoId, cerca, apos: 0 })).rejects.toMatchObject({
+      codigo: "SEQUENCIA",
+    });
+  });
+  it("o batimento em lote conserva cercas, ordem e medidas por mundo", async () => {
+    const { lia, mundoId, a, cerca, sessao } = await executando();
+    const outro = await mundoDe(lia);
+    expect((await abrirPelaRota(sessao, outro)).status).toBe(200);
+    const outraPosse = await a.cliente.reivindicarPosse(outro);
+    const antes = (await possesAbertas(outro))[0]?.expiresAt;
+    await db
+      .update(leases)
+      .set({
+        expiresAt: sql`clock_timestamp() + ${`${POSSE_TTL_MS - 5000} milliseconds`}::interval`,
+      })
+      .where(eq(leases.spaceId, mundoId));
+    const fantasma = MundoIdSchema.parse(crypto.randomUUID());
+    const resposta = await a.cliente.batimento({
+      mundos: [
+        { mundoId: outro, cerca: outraPosse.cerca + 1, jogadores: 8, tick: 0 },
+        { mundoId: fantasma, cerca: 0, jogadores: 0, tick: 0 },
+        { mundoId, cerca, jogadores: 3, tick: 0 },
+      ],
+      cursor: null,
+    });
+    expect(resposta.posses).toEqual([
+      { mundoId: outro, estado: "perdida", expiraEm: 0 },
+      { mundoId: fantasma, estado: "perdida", expiraEm: 0 },
+      { mundoId, estado: "ok", expiraEm: expect.any(Number) },
+    ]);
+    expect((await possesAbertas(outro))[0]?.expiresAt).toEqual(antes);
+    const [medidas] = await db
+      .select({ pico: leases.peakPlayers, segundos: leases.playerSeconds })
+      .from(leases)
+      .where(eq(leases.spaceId, mundoId));
+    expect(medidas?.pico).toBe(3);
+    expect(Number(medidas?.segundos)).toBeGreaterThanOrEqual(15);
+    expect((await a.cliente.batimento({ mundos: [], cursor: resposta.cursor })).posses).toEqual([]);
+  });
+
+  it("recusa relato com mundo repetido antes de renovar qualquer posse", async () => {
+    const { mundoId, a, cerca } = await executando();
+    const antes = (await possesAbertas(mundoId))[0]?.expiresAt;
+    const relato = { mundoId, cerca, jogadores: 1, tick: 0 };
+    const resposta = await pedir("POST", `/api/interno/v1/instancias/${a.instanciaId}/batimento`, {
+      headers: cabecalhosDoHost(MORADA, a.instanciaId),
+      corpo: { mundos: [relato, relato], cursor: null },
+    });
+    expect(resposta).toMatchObject({ status: 400, corpo: { codigo: "ENTRADA_INVALIDA" } });
+    expect((await possesAbertas(mundoId))[0]?.expiresAt).toEqual(antes);
+  });
   it("só aceita o segredo do jogo e o endereço configurado para ele", async () => {
     const registro = {
       jogo: MORADA,
@@ -442,6 +529,18 @@ describe("o que uma instância alcança", () => {
     expect(await mundoNoBanco(mundoId)).toMatchObject({ journalSeq: 0, revision: 0 });
   });
 
+  it("não entrega entrada ao mundo com uma concessão revogada antes da renovação", async () => {
+    const { lia, mundoId, sessao, a, cerca } = await executando();
+    await revogar({ email: lia.conta.email, motivo: "teste_integracao" });
+    const resposta = await pedir("POST", `/api/interno/v1/mundos/${mundoId}/entradas`, {
+      headers: cabecalhosDoHost(MORADA, a.instanciaId),
+      corpo: { cerca, sid: sessao.sid, perfilId: lia.perfil.id },
+    });
+    expect(resposta).toMatchObject({ status: 403, corpo: { codigo: "SESSAO_ENCERRADA" } });
+    expect(JSON.stringify(resposta.corpo)).not.toContain(lia.conta.email);
+    expect(resposta.corpo).not.toHaveProperty("apelido");
+  });
+
   it("a entrada de um jogador confere a sessão, o perfil e o jogo, sem aceitar id trocado", async () => {
     const { lia, mundoId, sessao, a, cerca } = await executando();
     const bruno = await novoJogador({ apelido: "Bruno" });
@@ -549,11 +648,18 @@ describe("o que o navegador alcança", () => {
       status: 403,
       corpo: { codigo: "NAO_MEMBRO" },
     });
-    // O id da conta do Bruno não é o perfil dele: o serviço não o acha como membro.
+    // O id da conta não é um jogador admitido por este aparelho.
     const { abrirMundo } = await import("@/features/posse/service");
     await expect(
-      abrirMundo({ perfilId: PerfilIdSchema.parse(bruno.conta.id), jogo: MORADA }, mundoId),
-    ).rejects.toMatchObject({ codigo: "SEM_PERFIL" });
+      abrirMundo(
+        {
+          perfilId: PerfilIdSchema.parse(bruno.conta.id),
+          sessaoDeAparelhoId: bruno.ator.sessaoDeAparelhoId,
+          jogo: MORADA,
+        },
+        mundoId,
+      ),
+    ).rejects.toMatchObject({ codigo: "SESSAO_INVALIDA" });
   });
 });
 
@@ -761,13 +867,14 @@ describe("manutenção", () => {
       .where(eq(gameSessions.id, sessao.sid));
 
     const primeira = await rodar();
-    expect(primeira).toEqual({
+    expect(primeira).toMatchObject({
       status: 200,
       corpo: {
         possesVencidas: 1,
         instanciasSumidas: 1,
         ingressosApagados: 1,
         sessoesExpiradas: 1,
+        convitesApagados: 0,
       },
     });
 
@@ -785,13 +892,14 @@ describe("manutenção", () => {
       (await db.select().from(tickets).where(eq(tickets.profileId, lia.perfil.id))).length,
     ).toBeGreaterThan(0);
 
-    expect(await rodar()).toEqual({
+    expect(await rodar()).toMatchObject({
       status: 200,
       corpo: {
         possesVencidas: 0,
         instanciasSumidas: 0,
         ingressosApagados: 0,
         sessoesExpiradas: 0,
+        convitesApagados: 0,
       },
     });
     expect(

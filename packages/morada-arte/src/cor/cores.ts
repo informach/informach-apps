@@ -52,17 +52,27 @@ export type TomDePele = {
   rosto: number;
 };
 
+/** Tom RGB livre, sem tabelas de nomes nem dependências do empacotador. */
+export function tomDePeleLivre(referencia: string, cor: string): TomDePele {
+  const tom = hexParaLinear(cor);
+  const ref = hexParaLinear(referencia);
+  if (ref.some((componente) => componente <= 0))
+    throw new Error("Referência de pele sem componente positivo");
+  return {
+    pele: [tom[0] / ref[0], tom[1] / ref[1], tom[2] / ref[2]],
+    rosto: Math.min(Math.max(0.28 + (luminancia(tom) - 0.03) / 0.25, 0.28), 1),
+  };
+}
+
 export function tomDePele(tabelas: TabelasDaPagina, pele: string): TomDePele | null {
   const hex = corPeloNome(tabelas.TONS, pele);
   if (!hex) return null;
-  const tom = hexParaLinear(hex);
-  const ref = hexParaLinear(tabelas.REF);
+  const livre = tomDePeleLivre(tabelas.REF, hex);
   const tabelado = tabelas.ROSTO[pele];
   // rostoPorLuz: os traços escurecem junto com a pele
-  const porLuz = Math.min(Math.max(0.28 + (luminancia(tom) - 0.03) / 0.25, 0.28), 1);
   return {
-    pele: [tom[0] / ref[0], tom[1] / ref[1], tom[2] / ref[2]],
-    rosto: tabelado ?? porLuz,
+    pele: livre.pele,
+    rosto: tabelado ?? livre.rosto,
   };
 }
 

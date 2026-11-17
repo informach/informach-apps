@@ -4,7 +4,8 @@ import { users } from "@informach/db/schema";
 import { beforeAll, describe, expect, it } from "vitest";
 import { assessment, catalogGrades, coursesForGrade, findCourse } from "@/features/content/catalog";
 import { gradeLabel, suggestedGrade } from "@/features/family/school-year";
-import { begin, createProfile, dashboard } from "@/features/learning/service";
+import { begin, dashboard } from "@/features/learning/service";
+import { fixtureAuthority, prepareStudent } from "./family-fixture";
 
 const owner = randomUUID();
 
@@ -27,7 +28,7 @@ describe("onda 4 em PostgreSQL isolado: Mirim 1", () => {
     // Quem fez 7 anos em fevereiro de 2026 é sugerido para o 2º ano em 2026.
     expect(suggestedGrade("2019-02", 2026)).toBe(2);
     expect(gradeLabel(2)).toBe("2º ano");
-    const profile = await createProfile(owner, {
+    const profile = await prepareStudent(await fixtureAuthority(owner), {
       nickname: "Bento",
       grade: 2,
       birthMonth: "2019-02",
@@ -35,8 +36,8 @@ describe("onda 4 em PostgreSQL isolado: Mirim 1", () => {
       courseId: "mirim-1",
       consent: true,
     });
-    expect((await dashboard(owner, profile.id)).course?.id).toBe("mirim-1");
-    const sessao = await begin(owner, {
+    expect((await dashboard(await fixtureAuthority(owner), profile.id)).course?.id).toBe("mirim-1");
+    const sessao = await begin(await fixtureAuthority(owner), {
       profileId: profile.id,
       lessonId: "contar-e-comparar-1",
       mode: "mission",

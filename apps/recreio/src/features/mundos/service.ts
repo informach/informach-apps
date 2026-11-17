@@ -18,17 +18,26 @@ import {
   type ResumoDeMundo,
   ResumoDoMundoSchema,
 } from "@informach/recreio/contrato";
-import { avaliarAcesso } from "@/features/acesso/service";
+import {
+  type AutorDeMundos,
+  comAutorDeMundos,
+} from "@/features/autoridade-de-jogo/mundos-repository";
 import { jogoDoCatalogo, jogoQueAbre, politicaDeMundo } from "@/features/jogos/config";
 import { limitarTentativas } from "@/lib/rate-limit";
+import { type Transacao, travar } from "@/lib/repository";
 import { resumoDoConvite } from "./codigo";
+import { mundoCompativel } from "./politica";
 import {
   aceitarConviteDoMundo,
   criarConviteDoMundo,
   criarMundoDoPerfil,
+  jogoDoMundo,
   lerMundoDoMembro,
+  lerPoliticaDeConteudoDoMundo,
   listarMundosDoPerfil,
   type MundoDoMembro,
+  mundoDoCodigo,
+  travarMundoDaOperacao,
 } from "./repository";
 
 /**
@@ -39,18 +48,16 @@ import {
 
 /** Tentativas de aceitar convite por perfil: dez a cada dez minutos. */
 const TENTATIVAS_DE_CONVITE = { max: 10, janelaEmSegundos: 600 };
-
-/** O direito de jogar do perfil, sem olhar um jogo em particular. */
-async function exigirAcesso(perfilId: PerfilId, jogo?: string): Promise<void> {
-  const decisao = await avaliarAcesso({ profileId: perfilId, gameId: jogo });
-  if (!decisao.podeJogar)
-    throw new ErroDoRecreio("ACESSO_NEGADO", { estado: decisao.estado, motivo: decisao.motivo });
-}
+const EMISSOES_DE_CONVITE = { max: 20, janelaEmSegundos: 600 };
 
 /** Os mundos do jogo em que o perfil é membro ativo, como o SDK e o portal mostram. */
-export async function mundosDoPerfil(perfilId: PerfilId, jogo: string): Promise<ResumoDeMundo[]> {
+export async function mundosDoPerfil(
+  perfilId: PerfilId,
+  jogo: string,
+  transacao?: Transacao,
+): Promise<ResumoDeMundo[]> {
   jogoDoCatalogo(jogo);
-  const mundos = await listarMundosDoPerfil(perfilId, jogo);
+  const mundos = await listarMundosDoPerfil(perfilId, jogo, transacao);
   return mundos.map((mundo) => {
     const resumo = ResumoDoMundoSchema.safeParse(mundo.resumo);
     return {
@@ -68,29 +75,53 @@ export async function mundosDoPerfil(perfilId: PerfilId, jogo: string): Promise<
 }
 
 /** A lista do SDK: exige o direito de jogar. */
-export async function listarMundos(quem: {
-  perfilId: PerfilId;
-  jogo: string;
-}): Promise<ResumoDeMundo[]> {
-  await exigirAcesso(quem.perfilId, quem.jogo);
-  return mundosDoPerfil(quem.perfilId, quem.jogo);
+export async function listarMundos(
+  quem: AutorDeMundos & { jogo: string },
+): Promise<ResumoDeMundo[]> {
+  return comAutorDeMundos(
+    quem,
+    quem.jogo,
+    async () => {},
+    async (tx, admissao) =>
+      (await mundosDoPerfil(quem.perfilId, quem.jogo, tx)).filter((mundo) =>
+        mundoCompativel(jogoDoCatalogo(quem.jogo), admissao.politica?.politica ?? null, mundo),
+      ),
+  );
 }
 
 /** Cria um mundo do jogo; quem cria vira o responsável. */
 export async function criarMundo(
-  quem: { perfilId: PerfilId; jogo: string },
+  quem: AutorDeMundos & { jogo: string },
   entrada: unknown,
 ): Promise<MundoRef> {
   const novo = NovoMundoSchema.parse(entrada);
-  await exigirAcesso(quem.perfilId, quem.jogo);
   const manifesto = jogoQueAbre(quem.jogo);
-  const mundo = await criarMundoDoPerfil({
-    perfilId: quem.perfilId,
-    jogo: manifesto.id,
-    nome: novo.nome,
-    politicaDeConteudo: politicaDeMundo(manifesto, novo.politicaDeConteudo),
-    limite: manifesto.limites.mundosCriadosPorPerfil,
-  });
+  if (!manifesto.capacidades.mundos) throw new ErroDoRecreio("SEM_PERMISSAO");
+  const politica = politicaDeMundo(manifesto, novo.politicaDeConteudo);
+  const mundo = await comAutorDeMundos(
+    quem,
+    manifesto.id,
+    (tx) => travar(tx, `recreio:spaces:criador:${quem.perfilId}`),
+    (tx, admissao) => {
+      if (
+        !mundoCompativel(manifesto, admissao.politica?.politica ?? null, {
+          politicaDeConteudo: politica,
+          membros: 1,
+        })
+      )
+        throw new ErroDoRecreio("POLITICA_INCOMPATIVEL");
+      return criarMundoDoPerfil(
+        {
+          perfilId: quem.perfilId,
+          jogo: manifesto.id,
+          nome: novo.nome,
+          politicaDeConteudo: politica,
+          limite: manifesto.limites.mundosCriadosPorPerfil,
+        },
+        tx,
+      );
+    },
+  );
   return { id: mundo.id, nome: mundo.nome };
 }
 
@@ -100,24 +131,39 @@ export async function criarMundo(
  * portal, onde a pessoa convida a partir da página do próprio mundo.
  */
 export async function criarConvite(
-  quem: { perfilId: PerfilId; jogo: string | null },
+  quem: AutorDeMundos & { jogo: string | null },
   mundoId: unknown,
   entrada: unknown,
 ): Promise<ConviteCriado> {
+  await limitarTentativas({ chave: `emitir-convite:${quem.perfilId}`, ...EMISSOES_DE_CONVITE });
   const id = MundoIdSchema.parse(mundoId);
   const pedido = NovoConviteSchema.parse(entrada);
-  await exigirAcesso(quem.perfilId, quem.jogo ?? undefined);
   // Convite de visita ainda não existe nesta etapa.
   if (pedido.forma !== "member") throw new ErroDoRecreio("SEM_PERMISSAO");
+  const jogo = await jogoDoMundo(id);
+  if (!jogo || (quem.jogo !== null && quem.jogo !== jogo)) throw new ErroDoRecreio("NAO_MEMBRO");
   const codigo = gerarCodigoDeConvite();
-  const { expiraEm } = await criarConviteDoMundo({
-    mundoId: id,
-    perfilId: quem.perfilId,
-    jogo: quem.jogo,
-    participacao: pedido.participacao ?? null,
-    codeHash: resumoDoConvite(codigo),
-    validadeMs: VALIDADE_DO_CONVITE_MS,
-  });
+  const { expiraEm } = await comAutorDeMundos(
+    quem,
+    jogo,
+    (tx) => travarMundoDaOperacao(tx, id, jogo),
+    (tx, admissao) => {
+      // Convites por código sem destinatário são do fluxo adulto. F4 terá aprovação explícita.
+      if (admissao.politica) throw new ErroDoRecreio("POLITICA_INCOMPATIVEL");
+      return criarConviteDoMundo(
+        {
+          mundoId: id,
+          perfilId: quem.perfilId,
+          jogo: quem.jogo,
+          participacao: pedido.participacao ?? null,
+          codeHash: resumoDoConvite(codigo),
+          validadeMs: VALIDADE_DO_CONVITE_MS,
+          tetoDeConvites: (jogo) => jogoDoCatalogo(jogo).capacidades.mundos?.membrosMax ?? 0,
+        },
+        tx,
+      );
+    },
+  );
   return { codigo: formatarCodigoDeConvite(codigo), expiraEm: expiraEm.toISOString() };
 }
 
@@ -126,19 +172,33 @@ export async function criarConvite(
  * perfil, antes de olhar o código, para ninguém testar códigos em série.
  */
 export async function aceitarConvite(
-  quem: { perfilId: PerfilId },
+  quem: AutorDeMundos,
   entrada: unknown,
 ): Promise<{ mundoId: MundoId; nome: string; jogo: string }> {
   const pedido = AceiteDeConviteSchema.parse(entrada);
   await limitarTentativas({ chave: `convite:${quem.perfilId}`, ...TENTATIVAS_DE_CONVITE });
-  await exigirAcesso(quem.perfilId);
   const codigo = normalizarCodigoDeConvite(pedido.codigo);
   if (codigo === null) throw new ErroDoRecreio("CONVITE_INVALIDO");
-  const aceito = await aceitarConviteDoMundo({
-    codeHash: resumoDoConvite(codigo),
-    perfilId: quem.perfilId,
-    tetoDeMembros: (jogo) => jogoDoCatalogo(jogo).capacidades.mundos.membrosMax,
-  });
+  const hash = resumoDoConvite(codigo);
+  const mundo = await mundoDoCodigo(hash);
+  if (!mundo || ("sid" in quem && quem.jogo !== mundo.jogo))
+    throw new ErroDoRecreio("CONVITE_INVALIDO");
+  const aceito = await comAutorDeMundos(
+    quem,
+    mundo.jogo,
+    (tx) => travarMundoDaOperacao(tx, mundo.id, mundo.jogo),
+    (tx, admissao) => {
+      if (admissao.politica) throw new ErroDoRecreio("POLITICA_INCOMPATIVEL");
+      return aceitarConviteDoMundo(
+        {
+          codeHash: hash,
+          perfilId: quem.perfilId,
+          tetoDeMembros: (jogo) => jogoDoCatalogo(jogo).capacidades.mundos?.membrosMax ?? 0,
+        },
+        tx,
+      );
+    },
+  );
   return { mundoId: aceito.mundoId, nome: aceito.nome, jogo: aceito.jogo };
 }
 
@@ -149,4 +209,25 @@ export async function detalheDoMundo(
 ): Promise<MundoDoMembro | null> {
   const id = MundoIdSchema.safeParse(mundoId);
   return id.success ? lerMundoDoMembro(id.data, perfilId) : null;
+}
+
+/** Página de jogo: só devolve o conteúdo dentro da autoridade atual do aparelho. */
+export function detalheAtualDoMundo(autor: AutorDeMundos, jogo: string, mundoId: MundoId) {
+  return comAutorDeMundos(
+    autor,
+    jogo,
+    (tx) => travarMundoDaOperacao(tx, mundoId, jogo),
+    async (tx, admissao) => {
+      const mundo = await lerMundoDoMembro(mundoId, autor.perfilId, tx);
+      if (!mundo) return null;
+      if (
+        !mundoCompativel(jogoDoCatalogo(jogo), admissao.politica?.politica ?? null, {
+          politicaDeConteudo: await lerPoliticaDeConteudoDoMundo(tx, mundoId),
+          membros: mundo.membros.filter((item) => item.estado === "active").length,
+        })
+      )
+        throw new ErroDoRecreio("POLITICA_INCOMPATIVEL");
+      return mundo;
+    },
+  );
 }

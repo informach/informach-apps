@@ -6,6 +6,8 @@
 
 ## 1. Propósito
 
+Recibos de créditos podem conter uma conversão Compasso e o estado financeiro observado (estorno/análise). O saldo total é opcional e fica ausente em recibos destinados a carteiras familiares: receber um comprovante não comprova participação atual na família. O template registra a compra e encaminha ao extrato; não promete disponibilidade imediata de um pagamento em conferência.
+
 `@informach/emails` é o pipeline de **transactional email** dos apps Next.js do monorepo `informach-platform`. Encapsula:
 
 - Despacho idempotente com claim atômico, retry inline polinomial e classificação permanent/transient (padrão Akita do "segundo cérebro").
@@ -400,3 +402,11 @@ pnpm --filter @informach/emails preview     # preview server React Email em :408
 - **`asm.groupId`** (Advanced Suppression Manager do SendGrid) — útil se quisermos delegar unsubscribe nativo. Hoje o nosso é custom (HMAC).
 
 Para retomar trabalho de fase, perguntar ao usuário qual fase está autorizada — cada fase é entregável independente.
+
+
+## Conteúdo com acesso revogável (Compasso, 09/11/2026)
+
+`SendEmailInput` e `DispatchInput` são o mesmo contrato. Categorias cujo corpo é regenerado pelo job podem fornecer `authorizeContent`: o pipeline consulta essa autorização antes de cada tentativa de transporte, inclusive em memory/sandbox. Negativa interrompe o envio; erro de verificação falha sem enviar. O callback não é persistido e é recusado em categorias com corpo persistido, para não deixar o sweeper genérico sem a autorização original. Bora fornece uma consulta nova de destinatário, cobertura e permissões de todos os perfis presentes no resumo. A autorização vale no instante da tentativa; uma mensagem já aceita pelo provedor não é recuperável. Nenhum corpo de resumo familiar é guardado para retry genérico. Alterações nos callbacks de outros produtos continuam a cargo de suas composições, não de regras específicas de apps dentro deste package.
+## Confirmação de troca de e-mail
+
+`auth.change-email-otp` usa o layout compartilhado de código com texto específico para o novo endereço. Confirmação do endereço atual continua em `auth.verify-email-otp`, com texto que atende tanto cadastro quanto confirmação posterior. Categorias `auth.*` mantêm corpo apenas no processo, sem persistir OTP ou link de uso único; não incluir o código em chave de idempotência, logs ou auditoria.

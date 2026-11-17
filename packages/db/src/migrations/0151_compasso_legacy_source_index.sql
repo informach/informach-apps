@@ -1,0 +1,1 @@
+CREATE INDEX "family_migration_sources_group_idx" ON "family"."migration_sources" USING btree ("group_id","app","source_owner_id");

@@ -1,4 +1,6 @@
-import { PRODUCTS } from "@informach/config";
+import { webSsoEnvironment } from "@informach/auth/web-sso-contract";
+import { COMPASSO_POLICY } from "@informach/config/collections";
+import { getAppUrl } from "@informach/config/domains";
 import { ArrowUpRight, Check, Compass, Lightbulb, Sprout } from "lucide-react";
 import Link from "next/link";
 import { Brand } from "@/components/brand";
@@ -10,6 +12,7 @@ import { Etiqueta } from "@/components/ui/pagina";
 import { catalogCourses, catalogGrades } from "@/features/content/catalog";
 import { inventory } from "@/features/content/inventory";
 import { gradeRangeLabel, gradeRangeSentence } from "@/features/family/school-year";
+import { env } from "@/lib/env";
 
 export const metadata = {
   title: { absolute: "Missão Saber · Uma descoberta por dia" },
@@ -18,15 +21,6 @@ export const metadata = {
 
 const brl = (cents: number) =>
   (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const planos = ["individual", "family"].map((tier) => ({
-  tier,
-  monthly: PRODUCTS.find(
-    (p) => p.app === "missao-saber" && p.tier === tier && p.interval === "month",
-  ),
-  annual: PRODUCTS.find(
-    (p) => p.app === "missao-saber" && p.tier === tier && p.interval === "year",
-  ),
-}));
 const perguntas = [
   {
     pergunta: "Precisa de cartão para começar?",
@@ -45,7 +39,7 @@ const perguntas = [
   {
     pergunta: "Posso cancelar quando quiser?",
     resposta:
-      "Sim, pelo portal seguro de cobrança, a qualquer momento. O histórico do estudante fica guardado e as missões gratuitas continuam abertas.",
+      "Sim, pela Minha conta, a qualquer momento. O cancelamento interrompe a próxima renovação, preserva o histórico do estudante e mantém as missões gratuitas abertas.",
   },
 ];
 
@@ -53,6 +47,7 @@ const perguntas = [
    mas mostrando a linguagem visual que a criança vai encontrar dentro. */
 
 export default function Home() {
+  const central = `${getAppUrl("conta", webSsoEnvironment("missao-saber", env.NEXT_PUBLIC_APP_URL))}/#compasso`;
   return (
     <div>
       <header className="flex flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-8">
@@ -311,59 +306,41 @@ export default function Home() {
                 do ano escolar, as revisões e os simulados.
               </p>
             </div>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              {planos.map(({ tier, monthly, annual }) =>
-                monthly && annual && monthly.listPrice && annual.listPrice ? (
-                  <Chapa
-                    key={tier}
-                    tom={tier === "family" ? "lima" : "creme"}
-                    className="flex flex-col"
-                  >
-                    <h3 className="font-display text-xl font-semibold text-tinta">
-                      {tier === "family" ? "Família" : "Individual"}
-                    </h3>
-                    <p className="mt-1 text-sm text-tinta-suave">
-                      {tier === "family" ? "Até três estudantes" : "Um estudante"}
-                    </p>
-                    <p className="mt-4 font-display text-4xl font-semibold text-tinta">
-                      {brl(monthly.listPrice.amountCents)}
-                      <span className="text-base font-normal text-tinta-suave">/mês</span>
-                    </p>
-                    <p className="mt-1 text-sm text-tinta-suave">
-                      Ou {brl(annual.listPrice.amountCents)} por ano, cobrados de uma vez.
-                    </p>
-                    <ul className="mt-5 grid gap-2 text-sm text-tinta">
-                      {[
-                        "Todas as trilhas do ano escolar",
-                        "Revisões espaçadas e simulados",
-                        "Histórico preservado após cancelar",
-                      ].map((linha) => (
-                        <li key={linha} className="flex items-start gap-2">
-                          <Check
-                            size={18}
-                            aria-hidden="true"
-                            className="mt-0.5 shrink-0 text-verde"
-                          />
-                          {linha}
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="mt-6">
-                      <LinkChapa
-                        href="/entrar"
-                        medida="m"
-                        tom={tier === "family" ? "verde" : "contorno"}
-                      >
-                        Criar conta e assinar
-                      </LinkChapa>
-                    </div>
-                  </Chapa>
-                ) : null,
-              )}
-            </div>
+            <Chapa tom="lima" className="mt-8 max-w-2xl">
+              <h3 className="font-display text-2xl font-semibold text-tinta">Compasso</h3>
+              <p className="mt-2 text-tinta-suave">
+                Uma assinatura para os aplicativos web do Compasso, incluindo o Missão Saber. Até{" "}
+                {COMPASSO_POLICY.capacity.adults} adultos e {COMPASSO_POLICY.capacity.dependents}{" "}
+                dependentes, com acessos definidos por perfil.
+              </p>
+              <p className="mt-5 font-display text-4xl font-semibold text-tinta">
+                {brl(COMPASSO_POLICY.monthlyAmountCents)}
+                <span className="text-base font-normal">/mês</span>
+              </p>
+              <p className="mt-1 text-sm">
+                Ou {brl(COMPASSO_POLICY.annualAmountCents)} por ano, cobrados de uma vez.
+              </p>
+              <ul className="mt-5 grid gap-2 text-sm">
+                {[
+                  "Todas as trilhas do ano escolar",
+                  "Revisões, simulados e acompanhamento",
+                  `${COMPASSO_POLICY.trialDays} dias de teste sem cartão para famílias elegíveis`,
+                  "Conta e assinatura gerenciadas na central",
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-2">
+                    <Check size={16} aria-hidden="true" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-6">
+                <LinkChapa href={central} tom="verde">
+                  Conhecer o Compasso <ArrowUpRight size={16} aria-hidden="true" />
+                </LinkChapa>
+              </div>
+            </Chapa>
             <p className="mt-4 text-sm text-tinta-suave">
-              Cancelamento a qualquer momento pelo portal seguro de cobrança. Sem anúncios e sem
-              venda de dados.
+              Cancelamento a qualquer momento pela Minha conta. Sem anúncios e sem venda de dados.
             </p>
             <div className="mt-12 max-w-3xl">
               <h3 className="font-display text-2xl font-semibold text-tinta">

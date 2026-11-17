@@ -15,7 +15,6 @@ import {
   sql,
 } from "@informach/db";
 import {
-  agendaFamilyMembers,
   agendaStudentProfiles,
   boraFamilies,
   boraProfiles,
@@ -33,8 +32,8 @@ import {
   estrelaCompletions,
   estrelaDevices,
   estrelaFamilies,
-  estrelaGuardians,
   events,
+  familyMembers,
   missaoFamilies,
   missaoProfiles,
   missaoSessions,
@@ -44,9 +43,16 @@ import {
   users,
 } from "@informach/db/schema";
 import { revokeDevice } from "@informach/edi-licensing/devices";
+import { profileAccessCondition } from "@informach/family/access";
 import type { ProductKey } from "@/lib/products";
 import { readDb } from "@/lib/read-db";
 import { eventsAboutPerson } from "../audit/repository";
+import {
+  agendaParticipants,
+  estrelaDeviceAuthority,
+  familyPresence,
+  memberOfHousehold,
+} from "./family-metadata";
 import {
   COZYA_DEMO_DAYS,
   countLiveSessions,
@@ -65,7 +71,7 @@ import {
  *
  * "Usa o produto" (filtro e etiquetas) é, por app:
  * - Cozya: tem `cozya.profiles` (criado na primeira entrada no app) ou cliente de cobrança do Cozya.
- * - Agenda da Turma: tem perfil de criança, é adulto convidado numa família ou tem cliente de cobrança da Agenda.
+ * - Agenda da Turma: tem concessão atual de leitura de perfil escolar ou cliente histórico de cobrança da Agenda.
  * - Missão Saber: tem `missao_saber.families` (criada no primeiro acesso) ou cliente de cobrança da Missão.
  * - Bora Treinar: tem `bora_treinar.families` (criada no primeiro acesso) ou cliente de cobrança do Bora.
  * - Dia de Estrela: tem `dia_de_estrela.families` (criada no primeiro uso), é segundo responsável numa família ou tem cliente de cobrança do Dia de Estrela.
@@ -83,17 +89,13 @@ function usesProduct(app: ProductKey) {
     case "cozya":
       return sql`(exists (select 1 from ${cozyaProfiles} where ${cozyaProfiles.userId} = ${users.id}) or ${hasCustomer(app)})`;
     case "agenda-da-turma":
-      return sql`(exists (select 1 from ${agendaStudentProfiles} where ${agendaStudentProfiles.userId} = ${users.id})
-        or exists (select 1 from ${agendaFamilyMembers} where ${agendaFamilyMembers.userId} = ${users.id})
-        or ${hasCustomer(app)})`;
+      return sql`(exists (select 1 from (${familyPresence("agenda-da-turma")}) presence where presence.user_id = ${users.id}) or ${hasCustomer(app)})`;
     case "missao-saber":
-      return sql`(exists (select 1 from ${missaoFamilies} where ${missaoFamilies.userId} = ${users.id}) or ${hasCustomer(app)})`;
+      return sql`(exists (select 1 from (${familyPresence("missao-saber")}) presence where presence.user_id = ${users.id}) or ${hasCustomer(app)})`;
     case "bora-treinar":
-      return sql`(exists (select 1 from ${boraFamilies} where ${boraFamilies.userId} = ${users.id}) or ${hasCustomer(app)})`;
+      return sql`(exists (select 1 from (${familyPresence("bora-treinar")}) presence where presence.user_id = ${users.id}) or ${hasCustomer(app)})`;
     case "dia-de-estrela":
-      return sql`(exists (select 1 from ${estrelaFamilies} where ${estrelaFamilies.userId} = ${users.id})
-        or exists (select 1 from ${estrelaGuardians} where ${estrelaGuardians.userId} = ${users.id})
-        or ${hasCustomer(app)})`;
+      return sql`(exists (select 1 from (${familyPresence("dia-de-estrela")}) presence where presence.user_id = ${users.id}) or ${hasCustomer(app)})`;
     case "edi":
       return sql`(exists (select 1 from ${ediDevices} where ${ediDevices.userId} = ${users.id})
         or exists (select 1 from ${ediEntitlements} where ${ediEntitlements.userId} = ${users.id})
@@ -233,68 +235,46 @@ export async function productPresenceFor(userIds: string[]) {
     set.add(app);
     presence.set(userId, set);
   };
-  const [
-    cozya,
-    agendaProfiles,
-    agendaGuests,
-    missao,
-    bora,
-    estrelaOwners,
-    estrelaSecond,
-    edi,
-    entitlements,
-    billingCustomers,
-  ] = await Promise.all([
-    readDb()
-      .select({ userId: cozyaProfiles.userId, trialStartedAt: cozyaProfiles.trialStartedAt })
-      .from(cozyaProfiles)
-      .where(inArray(cozyaProfiles.userId, userIds)),
-    readDb()
-      .selectDistinct({ userId: agendaStudentProfiles.userId })
-      .from(agendaStudentProfiles)
-      .where(inArray(agendaStudentProfiles.userId, userIds)),
-    readDb()
-      .selectDistinct({ userId: agendaFamilyMembers.userId })
-      .from(agendaFamilyMembers)
-      .where(inArray(agendaFamilyMembers.userId, userIds)),
-    readDb()
-      .select({ userId: missaoFamilies.userId })
-      .from(missaoFamilies)
-      .where(inArray(missaoFamilies.userId, userIds)),
-    readDb()
-      .select({ userId: boraFamilies.userId })
-      .from(boraFamilies)
-      .where(inArray(boraFamilies.userId, userIds)),
-    readDb()
-      .select({ userId: estrelaFamilies.userId })
-      .from(estrelaFamilies)
-      .where(inArray(estrelaFamilies.userId, userIds)),
-    readDb()
-      .select({ userId: estrelaGuardians.userId })
-      .from(estrelaGuardians)
-      .where(inArray(estrelaGuardians.userId, userIds)),
-    readDb()
-      .selectDistinct({ userId: ediDevices.userId })
-      .from(ediDevices)
-      .where(inArray(ediDevices.userId, userIds)),
-    readDb()
-      .select({ userId: ediEntitlements.userId })
-      .from(ediEntitlements)
-      .where(inArray(ediEntitlements.userId, userIds)),
-    readDb()
-      .selectDistinct({ userId: customers.subjectId, app: customers.app })
-      .from(customers)
-      .where(and(eq(customers.subjectType, "user"), inArray(customers.subjectId, userIds))),
-  ]);
+  const [cozya, agendaMembers, missao, bora, estrelaMembers, edi, entitlements, billingCustomers] =
+    await Promise.all([
+      readDb()
+        .select({ userId: cozyaProfiles.userId, trialStartedAt: cozyaProfiles.trialStartedAt })
+        .from(cozyaProfiles)
+        .where(inArray(cozyaProfiles.userId, userIds)),
+      readDb().execute<{ userId: string }>(
+        sql`select user_id as "userId" from (${familyPresence("agenda-da-turma")}) presence where ${inArray(sql`user_id`, userIds)}`,
+      ),
+      readDb().execute<{ userId: string }>(
+        sql`select user_id as "userId" from (${familyPresence("missao-saber")}) presence where ${inArray(sql`user_id`, userIds)}`,
+      ),
+      readDb().execute<{ userId: string }>(
+        sql`select user_id as "userId" from (${familyPresence("bora-treinar")}) presence where ${inArray(sql`user_id`, userIds)}`,
+      ),
+      readDb().execute<{ userId: string }>(
+        sql`select user_id as "userId" from (${familyPresence("dia-de-estrela")}) presence where ${inArray(sql`user_id`, userIds)}`,
+      ),
+      readDb()
+        .selectDistinct({ userId: ediDevices.userId })
+        .from(ediDevices)
+        .where(inArray(ediDevices.userId, userIds)),
+      readDb()
+        .select({ userId: ediEntitlements.userId })
+        .from(ediEntitlements)
+        .where(inArray(ediEntitlements.userId, userIds)),
+      readDb()
+        .selectDistinct({ userId: customers.subjectId, app: customers.app })
+        .from(customers)
+        .where(and(eq(customers.subjectType, "user"), inArray(customers.subjectId, userIds))),
+    ]);
   const cozyaTrials = new Map<string, Date>();
   for (const row of cozya) {
     add(row.userId, "cozya");
     if (row.trialStartedAt) cozyaTrials.set(row.userId, row.trialStartedAt);
   }
-  for (const row of [...agendaProfiles, ...agendaGuests]) add(row.userId, "agenda-da-turma");
+  for (const row of agendaMembers) add(row.userId, "agenda-da-turma");
   for (const row of missao) add(row.userId, "missao-saber");
   for (const row of bora) add(row.userId, "bora-treinar");
-  for (const row of [...estrelaOwners, ...estrelaSecond]) add(row.userId, "dia-de-estrela");
+  for (const row of estrelaMembers) add(row.userId, "dia-de-estrela");
   for (const row of [...edi, ...entitlements]) add(row.userId, "edi");
   for (const row of billingCustomers) {
     if (
@@ -374,15 +354,19 @@ export async function usageCounts(userId: string) {
     readDb()
       .select({ value: count() })
       .from(agendaStudentProfiles)
-      .where(eq(agendaStudentProfiles.userId, userId)),
-    readDb()
-      .select({ value: count() })
-      .from(agendaFamilyMembers)
-      .where(eq(agendaFamilyMembers.ownerUserId, userId)),
-    readDb()
-      .select({ value: count() })
-      .from(agendaFamilyMembers)
-      .where(eq(agendaFamilyMembers.userId, userId)),
+      .where(
+        profileAccessCondition(
+          userId,
+          "agenda-da-turma",
+          agendaStudentProfiles.familyProfileId,
+          "read",
+        ),
+      ),
+    readDb().execute<{ value: number }>(sql`select count(distinct other.user_id)::int as value
+      from (${agendaParticipants()}) other where other.user_id <> ${userId}
+      and exists (select 1 from (${agendaParticipants()}) own where own.user_id = ${userId} and own.group_id = other.group_id and own.role = 'administrator')`),
+    readDb().execute<{ value: number }>(sql`select count(distinct group_id)::int as value
+      from (${agendaParticipants()}) participant where participant.user_id = ${userId} and participant.role = 'member'`),
     readDb()
       .select({ userId: missaoFamilies.userId })
       .from(missaoFamilies)
@@ -391,7 +375,9 @@ export async function usageCounts(userId: string) {
     readDb()
       .select({ value: count() })
       .from(missaoProfiles)
-      .where(eq(missaoProfiles.userId, userId)),
+      .where(
+        profileAccessCondition(userId, "missao-saber", missaoProfiles.familyProfileId, "read"),
+      ),
     readDb()
       .select({ value: count() })
       .from(missaoStudyDevices)
@@ -412,13 +398,21 @@ export async function usageCounts(userId: string) {
       })
       .from(missaoSessions)
       .innerJoin(missaoProfiles, eq(missaoSessions.profileId, missaoProfiles.id))
-      .where(and(eq(missaoProfiles.userId, userId), isNotNull(missaoSessions.completedAt))),
+      .where(
+        and(
+          profileAccessCondition(userId, "missao-saber", missaoProfiles.familyProfileId, "read"),
+          isNotNull(missaoSessions.completedAt),
+        ),
+      ),
     readDb()
       .select({ userId: boraFamilies.userId })
       .from(boraFamilies)
       .where(eq(boraFamilies.userId, userId))
       .limit(1),
-    readDb().select({ value: count() }).from(boraProfiles).where(eq(boraProfiles.userId, userId)),
+    readDb()
+      .select({ value: count() })
+      .from(boraProfiles)
+      .where(profileAccessCondition(userId, "bora-treinar", boraProfiles.familyProfileId, "read")),
     readDb()
       .select({
         value: count(),
@@ -431,16 +425,23 @@ export async function usageCounts(userId: string) {
     readDb()
       .select({ userId: estrelaFamilies.userId })
       .from(estrelaFamilies)
-      .where(eq(estrelaFamilies.userId, userId))
+      .where(memberOfHousehold(userId, estrelaFamilies.familyGroupId))
       .limit(1),
     readDb()
       .select({ value: count() })
       .from(estrelaChildren)
-      .where(eq(estrelaChildren.userId, userId)),
+      .where(
+        profileAccessCondition(userId, "dia-de-estrela", estrelaChildren.familyProfileId, "read"),
+      ),
     readDb()
       .select({ value: count() })
       .from(estrelaChildren)
-      .where(and(eq(estrelaChildren.userId, userId), eq(estrelaChildren.accessEnabled, false))),
+      .where(
+        and(
+          profileAccessCondition(userId, "dia-de-estrela", estrelaChildren.familyProfileId, "read"),
+          eq(estrelaChildren.accessEnabled, false),
+        ),
+      ),
     readDb()
       .select({ value: count() })
       .from(estrelaDevices)
@@ -448,18 +449,33 @@ export async function usageCounts(userId: string) {
         and(
           eq(estrelaDevices.userId, userId),
           isNull(estrelaDevices.revokedAt),
+          estrelaDeviceAuthority(),
           isNotNull(estrelaDevices.connectedAt),
           gt(estrelaDevices.expiresAt, sql`now()`),
         ),
       ),
     readDb()
       .select({ value: count() })
-      .from(estrelaGuardians)
-      .where(eq(estrelaGuardians.userId, userId)),
+      .from(familyMembers)
+      .where(
+        and(
+          eq(familyMembers.userId, userId),
+          eq(familyMembers.role, "member"),
+          isNull(familyMembers.revokedAt),
+          sql`exists (select 1 from ${estrelaFamilies} where ${estrelaFamilies.familyGroupId} = ${familyMembers.groupId})`,
+        ),
+      ),
     readDb()
       .select({ value: count() })
-      .from(estrelaGuardians)
-      .where(eq(estrelaGuardians.ownerUserId, userId)),
+      .from(familyMembers)
+      .where(
+        and(
+          sql`${familyMembers.userId} <> ${userId}`,
+          isNull(familyMembers.revokedAt),
+          memberOfHousehold(userId, familyMembers.groupId),
+          sql`exists (select 1 from ${estrelaFamilies} where ${estrelaFamilies.familyGroupId} = ${familyMembers.groupId})`,
+        ),
+      ),
     readDb()
       .select({
         value: count(),
@@ -469,7 +485,9 @@ export async function usageCounts(userId: string) {
       })
       .from(estrelaCompletions)
       .innerJoin(estrelaChildren, eq(estrelaCompletions.childId, estrelaChildren.id))
-      .where(eq(estrelaChildren.userId, userId)),
+      .where(
+        profileAccessCondition(userId, "dia-de-estrela", estrelaChildren.familyProfileId, "read"),
+      ),
   ]);
   return {
     cozya: {

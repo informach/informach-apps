@@ -3,6 +3,7 @@ import { EmailLayout } from "./EmailLayout";
 import { DEFAULT_LOCALE, getTranslator, type Locale } from "./i18n";
 
 export type VerifyEmailOtpProps = {
+  purpose?: "verification" | "email-change";
   appName: string;
   otp: string;
   expiresInMinutes: number;
@@ -53,6 +54,7 @@ const expiresStyle = {
 };
 
 export function VerifyEmailOtp({
+  purpose = "verification",
   appName,
   otp,
   expiresInMinutes,
@@ -61,7 +63,7 @@ export function VerifyEmailOtp({
   preheader,
   locale = DEFAULT_LOCALE,
 }: VerifyEmailOtpProps) {
-  const t = getTranslator("verifyEmailOtp", locale);
+  const t = getTranslator(purpose === "email-change" ? "changeEmailOtp" : "verifyEmailOtp", locale);
 
   return (
     <EmailLayout

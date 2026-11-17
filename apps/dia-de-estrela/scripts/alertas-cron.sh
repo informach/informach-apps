@@ -1,6 +1,5 @@
 #!/bin/sh
-# Alertas "não marcou" aos pais do Dia de Estrela, de 5 em 5 minutos, num cron
-# só deles: a cobrança (maintenance-cron.sh) pode demorar e não pode atrasar o alerta.
+# Alertas "não marcou" aos pais do Dia de Estrela, de 5 em 5 minutos.
 set -eu
 
 report_failure() {

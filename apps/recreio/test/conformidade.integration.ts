@@ -25,7 +25,7 @@ import {
   descreverConformidadeDoHost,
 } from "@informach/recreio/testing/conformidade";
 import { vi } from "vitest";
-import { segredoDoHost } from "@/features/jogos/config";
+import { limitesDoJogo, segredoDoHost } from "@/features/jogos/config";
 import { aceitarConvite, criarConvite, criarMundo } from "@/features/mundos/service";
 import { abrirMundo } from "@/features/posse/service";
 import { encerrarSessaoDeJogo } from "@/features/sessao-de-jogo/repository";
@@ -93,7 +93,14 @@ async function criarAmbiente(
     },
 
     async criarMundo({ criador, jogo = JOGO_PADRAO, nome = "Mundo de teste" }) {
-      const mundo = await criarMundo({ perfilId: jogador(criador).perfil.id, jogo }, { nome });
+      const mundo = await criarMundo(
+        {
+          perfilId: jogador(criador).perfil.id,
+          sessaoDeAparelhoId: jogador(criador).ator.sessaoDeAparelhoId,
+          jogo,
+        },
+        { nome },
+      );
       jogoDoMundo.set(mundo.id, jogo);
       return mundo.id;
     },
@@ -106,14 +113,24 @@ async function criarAmbiente(
         .where(eq(spaces.id, mundoId));
       if (!mundo?.steward) throw new ErroDoRecreio("NAO_ENCONTRADO");
       const convite = await criarConvite(
-        { perfilId: PerfilIdSchema.parse(mundo.steward), jogo: null },
+        {
+          perfilId: PerfilIdSchema.parse(mundo.steward),
+          sessaoDeAparelhoId: jogador(PerfilIdSchema.parse(mundo.steward)).ator.sessaoDeAparelhoId,
+          jogo: null,
+        },
         mundoId,
         {
           forma: "member",
           ...(dados.participacao ? { participacao: dados.participacao } : {}),
         },
       );
-      await aceitarConvite({ perfilId: jogador(perfilId).perfil.id }, { codigo: convite.codigo });
+      await aceitarConvite(
+        {
+          perfilId: jogador(perfilId).perfil.id,
+          sessaoDeAparelhoId: jogador(perfilId).ator.sessaoDeAparelhoId,
+        },
+        { codigo: convite.codigo },
+      );
       const [membro] = await db
         .update(members)
         .set({ role: dados.papel ?? "member" })
@@ -135,7 +152,7 @@ async function criarAmbiente(
     // A sessão de jogo nasce como no produto: ingresso e troca.
     async abrirSessao(perfilId, jogo = JOGO_PADRAO) {
       const { ingresso } = await emitirIngresso(jogador(perfilId).ator, { jogo });
-      await trocarIngresso({ ingresso, continuarAqui: true });
+      await trocarIngresso({ ingresso });
       const [sessao] = await db
         .select({ id: gameSessions.id })
         .from(gameSessions)
@@ -149,7 +166,11 @@ async function criarAmbiente(
 
     async abrirMundo(mundoId, perfilId) {
       const aberto = await abrirMundo(
-        { perfilId, jogo: jogoDoMundo.get(mundoId) ?? JOGO_PADRAO },
+        {
+          perfilId,
+          sessaoDeAparelhoId: jogador(perfilId).ator.sessaoDeAparelhoId,
+          jogo: jogoDoMundo.get(mundoId) ?? JOGO_PADRAO,
+        },
         mundoId,
       );
       return { endereco: aberto.endereco, cerca: aberto.cerca };
@@ -161,6 +182,8 @@ async function criarAmbiente(
         jogo,
         segredo: segredoDoHost(jogo) ?? "",
         fetch: despachar,
+        fotografiaMaxBytes: limitesDoJogo(jogo).fotografiaMaxBytes,
+        diarioMaxBytes: limitesDoJogo(jogo).diarioPendenteMaxBytes,
       });
     },
 

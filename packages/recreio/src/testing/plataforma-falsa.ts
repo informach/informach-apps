@@ -95,6 +95,12 @@ export type PlataformaFalsa = {
     dados?: { papel?: PapelNoMundo; participacao?: string | null },
   ): MembroId;
   mudarEstadoDoMembro(mundoId: MundoId, perfilId: PerfilId, estado: EstadoDeMembro): void;
+  mudarPapelDoMembro(mundoId: MundoId, perfilId: PerfilId, papel: PapelNoMundo): void;
+  mudarParticipacaoDoMembro(
+    mundoId: MundoId,
+    perfilId: PerfilId,
+    participacao: string | null,
+  ): void;
 
   /** Registra uma sessão de jogo viva; o token é emitido à parte, pelo emissor de teste. */
   abrirSessao(perfilId: PerfilId, jogo?: string): SessaoDeJogoId;
@@ -372,6 +378,9 @@ export function criarPlataformaFalsa(
         if (foto.revisaoEsperada !== mundo.revisao) {
           throw new ErroDoRecreio("REVISAO_DIVERGENTE", { atual: mundo.revisao });
         }
+        if (foto.schemaVersion < mundo.schemaVersion) {
+          throw new ErroDoRecreio("REVISAO_DIVERGENTE");
+        }
         const anterior = mundo.fotografias.at(-1)?.meta.diarioSeq ?? 0;
         if (foto.diarioSeq > mundo.diarioSeq || foto.diarioSeq < anterior) {
           throw new ErroDoRecreio("ENTRADA_INVALIDA");
@@ -470,7 +479,7 @@ export function criarPlataformaFalsa(
       const mundo = obterMundo(mundoId);
       if (!perfis.has(perfilId)) throw new ErroDoRecreio("SEM_PERFIL");
       if (mundo.membros.some((m) => m.perfilId === perfilId)) throw new ErroDoRecreio("JA_MEMBRO");
-      const teto = opcoes.membrosMax ?? manifesto(mundo.jogo).capacidades.mundos.membrosMax;
+      const teto = opcoes.membrosMax ?? manifesto(mundo.jogo).capacidades.mundos?.membrosMax ?? 0;
       if (mundo.membros.filter((m) => m.estado === "active").length >= teto) {
         throw new ErroDoRecreio("MUNDO_CHEIO");
       }
@@ -489,6 +498,16 @@ export function criarPlataformaFalsa(
       const membro = obterMundo(mundoId).membros.find((m) => m.perfilId === perfilId);
       if (!membro) throw new ErroDoRecreio("NAO_MEMBRO");
       membro.estado = estado;
+    },
+    mudarPapelDoMembro(mundoId, perfilId, papel) {
+      const membro = obterMundo(mundoId).membros.find((m) => m.perfilId === perfilId);
+      if (!membro) throw new ErroDoRecreio("NAO_MEMBRO");
+      membro.papel = papel;
+    },
+    mudarParticipacaoDoMembro(mundoId, perfilId, participacao) {
+      const membro = obterMundo(mundoId).membros.find((m) => m.perfilId === perfilId);
+      if (!membro) throw new ErroDoRecreio("NAO_MEMBRO");
+      membro.participacao = participacao;
     },
 
     abrirSessao(perfilId, jogo = JOGO_PADRAO) {

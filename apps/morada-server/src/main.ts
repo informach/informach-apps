@@ -1,5 +1,6 @@
+import { jogoPorId } from "@informach/config/jogos";
 import { REGRAS_DA_PROVA, REGRAS_PADRAO } from "@informach/morada-sim";
-import { ehErroDoRecreio } from "@informach/recreio";
+import { BAIRRO_INICIAL } from "@informach/morada-sim/conteudo";
 import {
   type ClienteDoHost,
   criarClienteDoHost,
@@ -8,9 +9,13 @@ import {
 } from "@informach/recreio/host";
 import pino from "pino";
 import { carregarArte } from "./arte";
+import { catalogoDeAparenciasDaArte } from "./catalogo-de-aparencias";
 import { lerConfiguracao } from "./config";
 import { criarPlataformaDeDesenvolvimento } from "./desenvolvimento";
+import { criarEncerramento } from "./encerramento";
 import { criarInstancia } from "./instancia";
+import { concluirObservabilidade, iniciarObservabilidade, registrarFalha } from "./observabilidade";
+import { resumoDaFalha } from "./resumo-da-falha";
 import { criarServidor } from "./servidor";
 
 /**
@@ -51,15 +56,13 @@ function registrar(evento: string, dados: Record<string, unknown> = {}): void {
   else log.info(linha);
 }
 
-/** Um erro para o log: o nome e o código ou a mensagem. O objeto inteiro não é registrado. */
-function descrever(erro: unknown): Record<string, string> {
-  if (ehErroDoRecreio(erro)) return { nome: erro.name, codigo: erro.codigo };
-  if (erro instanceof Error) return { nome: erro.name, mensagem: erro.message.slice(0, 200) };
-  return { nome: "desconhecido" };
-}
-
 async function principal(): Promise<void> {
   const config = lerConfiguracao(process.env);
+  iniciarObservabilidade(
+    config.SENTRY_DSN,
+    config.RAILWAY_GIT_COMMIT_SHA,
+    process.env.RAILWAY_ENVIRONMENT_NAME ?? config.NODE_ENV,
+  );
   const versao = config.RAILWAY_GIT_COMMIT_SHA?.slice(0, 12) ?? "dev";
 
   let host: ClienteDoHost;
@@ -75,6 +78,8 @@ async function principal(): Promise<void> {
     ({ host, verificador, agora, rotas } = dev);
     log.warn("plataforma de desenvolvimento em memória: nada é salvo e qualquer um entra");
   } else {
+    const manifesto = jogoPorId(JOGO);
+    if (!manifesto) throw new Error("Morada ausente do catálogo de jogos");
     // A configuração já garantiu estas três.
     const api = config.RECREIO_API_URL as string;
     urlPublica = config.MORADA_PUBLIC_URL as string;
@@ -82,6 +87,8 @@ async function principal(): Promise<void> {
       baseUrl: api,
       jogo: JOGO,
       segredo: config.RECREIO_HOST_SECRET as string,
+      fotografiaMaxBytes: manifesto.limites.fotografiaMaxBytes,
+      diarioMaxBytes: manifesto.limites.diarioPendenteMaxBytes,
     });
     verificador = criarVerificadorDeSessao({
       emissor: config.RECREIO_EMISSOR ?? new URL(api).origin,
@@ -113,6 +120,8 @@ async function principal(): Promise<void> {
     urlPublica,
     versao,
     capacidade: config.MORADA_CAPACIDADE,
+    definicao: BAIRRO_INICIAL,
+    catalogoDeAparencias: arte ? catalogoDeAparenciasDaArte(arte.manifesto) : undefined,
     regras: config.MORADA_REGRAS === "prova" ? REGRAS_DA_PROVA : REGRAS_PADRAO,
     registrar,
   });
@@ -123,9 +132,17 @@ async function principal(): Promise<void> {
     exigirOrigem: config.MORADA_PLATAFORMA === "recreio",
     commit: config.RAILWAY_GIT_COMMIT_SHA ?? null,
     tokenDeMetricas: config.MORADA_METRICAS_TOKEN ?? null,
+    limitesDeRede: {
+      conexoes: config.MORADA_CONEXOES_MAX,
+      pedidosEmCurso: config.MORADA_PEDIDOS_EM_CURSO_MAX,
+      quadrosPorSegundo: config.MORADA_QUADROS_POR_SEGUNDO_MAX,
+    },
     rotas,
     registrar,
-    aoErro: (erro, contexto) => log.error({ contexto, erro: descrever(erro) }, "erro no servidor"),
+    aoErro: (erro, contexto) => {
+      registrarFalha(erro, "rede");
+      log.error({ contexto, erro: resumoDaFalha(erro) }, "erro no servidor");
+    },
   });
 
   const porta = await servidor.iniciar(config.PORT);
@@ -146,24 +163,17 @@ async function principal(): Promise<void> {
       : "servidor do Morada no ar, esperando o Recreio para se registrar",
   );
 
-  let encerrando = false;
-  const encerrar = (motivo: string) => {
-    if (encerrando) return;
-    encerrando = true;
-    log.info({ motivo }, "encerrando: salvando os mundos e soltando as posses");
-    // Se o desligamento ordenado travar, sai assim mesmo: o diário garante o que é crítico.
-    const limite = setTimeout(() => process.exit(1), 25_000);
-    servidor.encerrar().then(
-      () => {
-        clearTimeout(limite);
-        process.exit(0);
-      },
-      (erro: unknown) => {
-        log.error({ erro: descrever(erro) }, "falha ao encerrar");
-        process.exit(1);
-      },
-    );
-  };
+  const encerrar = criarEncerramento({
+    salvar: () => servidor.encerrar(),
+    concluirObservabilidade,
+    aoIniciar: (motivo) =>
+      log.info({ motivo }, "encerrando: salvando os mundos e soltando as posses"),
+    aoFalhar: (erro) => {
+      registrarFalha(erro, "encerrar");
+      log.error({ erro: resumoDaFalha(erro) }, "falha ao encerrar");
+    },
+    sair: (codigo) => process.exit(codigo),
+  });
   process.on("SIGTERM", () => encerrar("SIGTERM"));
   process.on("SIGINT", () => encerrar("SIGINT"));
   // No Windows um processo filho não recebe SIGTERM: quem o gerencia manda esta mensagem.
@@ -175,9 +185,7 @@ async function principal(): Promise<void> {
 }
 
 principal().catch((erro: unknown) => {
-  log.fatal(
-    { erro: erro instanceof Error ? erro.message : String(erro) },
-    "não foi possível iniciar",
-  );
+  registrarFalha(erro, "iniciar");
+  log.fatal({ erro: resumoDaFalha(erro) }, "não foi possível iniciar");
   process.exit(1);
 });

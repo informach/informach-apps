@@ -1,15 +1,11 @@
 import { z } from "zod";
 
-/**
- * A versão da página que gerou o evento. Mudou com a página do dia (outubro
- * de 2026) para separar a medição: "primeiro recado salvo por variante" só diz
- * alguma coisa se as duas páginas não se misturarem. Eventos antigos ficam com
- * `family-routine-v1` no banco.
- */
-export const LANDING_VARIANT = "pagina-do-dia-v1" as const;
+/** New acquisition events distinguish the shared Compasso offer from former Pro plans.
+ * Historical variants remain accepted for already-open tabs and aggregate reports. */
+export const LANDING_VARIANT = "compasso-v1" as const;
 // A anterior continua aceita: uma aba aberta antes do deploy ainda manda os
 // eventos dela, e recusá-los apagaria a última medição da página antiga.
-const variant = z.enum(["family-routine-v1", LANDING_VARIANT]);
+const variant = z.enum(["family-routine-v1", "pagina-do-dia-v1", LANDING_VARIANT]);
 // `sticky`: a barra fixa do celular.
 export const landingPlacementSchema = z.enum(["hero", "demo", "pricing", "final", "sticky"]);
 export const landingScenarioSchema = z.enum(["cartaz", "passeio", "prova", "material"]);
@@ -27,6 +23,7 @@ export const landingEventSchema = z.discriminatedUnion("event", [
       selection: z.discriminatedUnion("plan", [
         z.object({ plan: z.literal("free") }).strict(),
         z.object({ plan: z.literal("pro"), cycle: z.enum(["monthly", "annual"]) }).strict(),
+        z.object({ plan: z.literal("compasso"), cycle: z.enum(["monthly", "annual"]) }).strict(),
       ]),
       firstCta: z.boolean(),
     })

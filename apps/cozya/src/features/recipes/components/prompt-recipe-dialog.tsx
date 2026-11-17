@@ -12,6 +12,7 @@ import { toast } from "@informach/ui/components/sonner";
 import { SpeechInput } from "@informach/ui/components/speech-input";
 import { Textarea } from "@informach/ui/components/textarea";
 import { useState } from "react";
+import { COZYA_AI_COSTS } from "@/features/ai/costs";
 import { type ParsedRecipeFields, useAiRequest } from "./use-ai-request";
 
 type Props = {
@@ -44,8 +45,12 @@ export function PromptRecipeDialog({ open, onOpenChange, onParsed }: Props) {
         body.append("mode", "research");
       }
       const data = audio
-        ? await requestAi("/api/ai/recipes/from-audio", body, audio)
-        : await requestAi("/api/ai/recipes/from-prompt", JSON.stringify({ prompt: prompt.trim() }));
+        ? await requestAi("/api/ai/recipes/from-audio", body, COZYA_AI_COSTS.audioResearch, audio)
+        : await requestAi(
+            "/api/ai/recipes/from-prompt",
+            JSON.stringify({ prompt: prompt.trim() }),
+            COZYA_AI_COSTS.research,
+          );
       if (!data) return "";
       if (!data.isValidRecipe) {
         setReason(
@@ -98,7 +103,9 @@ export function PromptRecipeDialog({ open, onOpenChange, onParsed }: Props) {
             }
           />
           <p className="text-sm text-muted-foreground">
-            Ou fale e busque diretamente. Texto ou voz: 1 crédito pela tarefa completa.
+            Reserva até {COZYA_AI_COSTS.research.maxCredits} créditos por texto ou{" "}
+            {COZYA_AI_COSTS.audioResearch.maxCredits} por voz, incluindo a busca e organização.
+            Cobra o consumo ao concluir e libera a diferença.
           </p>
         </div>
         {processing && (

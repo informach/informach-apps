@@ -90,6 +90,7 @@ export async function createSubscriptionCheckout(
     {
       subject: input.subject,
       email,
+      actorId: input.actorId,
     },
   );
 
@@ -124,6 +125,7 @@ export async function createSubscriptionCheckout(
           cancelUrl: input.cancelUrl,
           trialDays: input.trialDays,
         },
+        input.actorId,
       )
     : await deps.providerClient.createCheckoutSession({
         mode: "subscription",
@@ -206,6 +208,7 @@ export async function createCreditPackCheckout(
     {
       subject: input.subject,
       email,
+      actorId: input.actorId,
     },
   );
 

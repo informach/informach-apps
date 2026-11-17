@@ -7,7 +7,6 @@ import {
   type DispatchResult,
   dispatchEmail,
   type EmailAddress,
-  type EmailCategory,
   type MemoryOutbox,
   type MemoryOutboxEntry,
   type SendFn,
@@ -66,18 +65,7 @@ export class EmailDeliveryError extends Error {
   }
 }
 
-export type SendEmailInput = {
-  to: EmailAddress;
-  subject: string;
-  html?: string;
-  text?: string;
-  from?: EmailAddress;
-  category: EmailCategory;
-  messageKey: string;
-  unsubscribeUrl: string;
-  unsubscribeMailto?: string;
-  userId?: string;
-};
+export type SendEmailInput = DispatchInput;
 
 export type SendEmail = (input: SendEmailInput) => Promise<DispatchResult>;
 

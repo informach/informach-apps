@@ -1,14 +1,115 @@
 # Estado do trabalho no repositório
 
-Atualizado em 11/11/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
+**16/11 — Recreio:** o titular priorizou [finalizar a plataforma web](recreio/fechamento-plataforma-2026-11-16.md)
+independente de D3–D8 do Morada. Confirmou os quatro preços e o cadastro de
+perfis sob responsabilidade declarada do adulto; conta pagante não precisa
+ocupar perfil de jogador. SDK independente com progresso/conflitos/conquistas
+implantado em `6b51dd13`, após seis gates no GitHub; migração 0167 e 168 recibos
+conferidos. [Prova e limites](recreio/dados-de-perfil-2026-11-16.md). Gestão sem
+jogador e cadastro de menores foram implantados com famílias desligadas;
+convites/cobertura de adultos e demais aceites de F1–F11 seguem abertos.
+**17/11:** PIN, supervisão, tempo agregado, dados e emissão/renovação passaram
+nos seis gates. Seleção pública por PIN, estante protegida e autoridade
+transacional dos mundos foram implantadas com fluxo familiar desligado. As duas recusas de
+mundos foram reproduzidas e passaram intactas no corretivo, junto de 437 outros
+testes de integração. A fonte final `ad37ca93` passou nos seis gates
+(`44029479872`) e foi implantada com famílias desligadas, após restauração
+lógica atual e 175 recibos de migração/0174 conferidos. CI compartilhado passou;
+[prova operacional](recreio/leitores-protegidos-2026-11-17.md).
+**17/11 — incremento de sessões:** `668dde1` implantado após sete gates e CI
+compartilhado aplicável. Migrations 0175/0176 e 177 recibos conferidos; saída
+do Morada exige ACK, troca forçada retirada e SID vinculado a um único mundo.
+Famílias e checkpoint continuam `off`;
+[evidência](recreio/checkpoint-sessoes-2026-11-17.md). A integração `2475661`
+implantou a fonte funcional `f4a8a15`, após sete gates e CI compartilhado:
+API/consumidor genérico de checkpoint de mundo e aviso de dez minutos.
+Os dois modos seguem `off`; 0177 e o salvamento restrito continuam privados.
+F3 e F4–F11 ainda não concluídos.
+Preservar o Morada
+World2/protocolo1 público; a main local do checkout original contém D3 e não
+pode ser enviada diretamente. Continuar F0–F11 do registro, sem anunciar fechamento.
 
-## Recreio e Morada: implementação em curso, etapa 1 até o X2 na `main` (12/11/2026)
+Atualizado em 13/11/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
 
-Recreio (plataforma de jogos por assinatura) e Morada (simulador de vida em família, o primeiro jogo) saíram da proposta. A frente cobre as **etapas 1 e 2** das propostas (a prova conjunta e a diversão jogando sozinho), na `main` até o lote X2, sem deploy. Para retomar, a [nota de passagem](recreio/passagem.md). Plano, decisões, suposições, lotes e verificações no [registro da frente](recreio/implementacao.md).
+**14/11 — EdiSVG:** recuperado o ensaio nativo da exportação web da branch local;
+passou com a fixture `01-formas-v2.edisvg`, seletor controlado e limpeza sem falhas.
+Não comprova o seletor nativo nem o instalador publicado; comando no README do editor.
 
-Feito e verificado localmente: `packages/recreio` (domínio, contratos, tokens Ed25519, plataforma em memória e a suíte de conformidade da API das instâncias; guia em [`packages/recreio/README.md`](../packages/recreio/README.md)) e o catálogo de jogos em `packages/config/src/jogos.ts`. Também existe o esqueleto do `apps/recreio` (porta 3009, package `@informach/recreio-app`): conta por OTP, estante e conta, sem banco próprio, perfis, cobrança nem jogo. E existe `packages/morada-sim`, a simulação determinística do Morada (lotes J0 a J4 e a parte de simulação do J5): os cinco passos do teste decisivo passam na simulação, com 98 testes; guia em [`packages/morada-sim/README.md`](../packages/morada-sim/README.md). O schema `recreio` existe como migração `0080_recreio` (não aplicada em produção), com perfis, sessão de aparelho e o direito de jogar por concessão auditada (lotes P2 e P3). O servidor do jogo, `apps/morada-server` (porta 3010; lotes J5 a J7), roda vários mundos por instância com WebSocket: os cinco passos do teste decisivo e a queda da instância passam contra a plataforma em memória, com 45 testes; guia em [`apps/morada-server/README.md`](../apps/morada-server/README.md). O Recreio já emite ingresso e sessão de jogo (Ed25519, JWKS), tem mundos com membros e convite, e a posse das instâncias com diário e fotografia no Postgres (lotes P4 a P6): a suíte de conformidade da API das instâncias passa sem alteração contra a implementação de verdade, com 132 testes de integração; regras em [`apps/recreio/CLAUDE.md`](../apps/recreio/CLAUDE.md). O cliente do jogo, `packages/jogo-morada` (lote J8), desenha a casa e os moradores com formas simples, sem arte, e traz retratos, fila, menu em leque e relógio: duas pessoas fazem os passos do teste em dois navegadores contra o servidor em modo de desenvolvimento, com 71 testes unitários e 15 de navegador; guia em [`packages/jogo-morada/README.md`](../packages/jogo-morada/README.md). A página que hospeda um jogo, `/jogar/[jogo]` (lote P7), existe com política de segurança própria e é provada de ponta a ponta com um jogo de teste que nunca entra em produção: duas contas no mesmo mundo, uma sai, a instância é morta e o jogo volta com o mesmo estado. Com a junção X1, o Morada roda em `/jogar/morada` contra o Recreio de verdade, e a condição de saída da etapa 1 passa de ponta a ponta na máquina de desenvolvimento: duas contas jogam a mesma família, uma cai, a outra continua, a instância é morta e tudo volta. Com o X2, o empacotador de arte (`packages/morada-arte`) gera os pacotes a partir de um clone do `artes-3d` fora do repositório, o servidor do jogo os entrega só a quem tem sessão de jogo e o cliente veste os moradores com os corpos de verdade, procedural enquanto não chegam e sem arte no CI. Ainda não há serviço no Railway, e o custo por hora de mundo não foi medido. Próximo passo: o X3 (Railway atrás de `RECREIO_LAUNCHED=false`); o X4 (deploy fechado e medição) só com autorização do titular.
+**14/11 — Compasso em produção:** Conta e consumidores implantados, DNS e TLS
+validados; a reconciliação de cobrança e a transição da família piloto continuam
+em acompanhamento. Contratos históricos foram registrados com autorização
+operacional auditada, e a carteira legada foi migrada; a programação da nova
+assinatura ainda depende da preparação do pagamento; os seis encerramentos ao
+fim dos períodos pagos foram confirmados.
+A fotografia anterior ao corte está em [levantamento](../apps/conta/LEVANTAMENTO-2026-11-14.md).
 
-As propostas, a arte e os guias continuam no repositório **privado** `informach/artes-3d`: `paginas/recreio.html` (v2.2), `paginas/morada.html` (v4.4) e `CONTINUAR.md`. **Não versionar aqui peças de pacote, animações da Mixamo nem a biblioteca de arte**: o jogo as lê de um clone do `artes-3d` fora deste repositório e elas só entram no build final. Este repositório está público no GitHub e o histórico ainda guarda os arquivos da antiga pasta `ideas/`; a pendência está no registro da frente.
+## Compasso: migração em implementação (10/11/2026)
+
+**13/11 — implementação integrada à main, corte pendente:** PR #35 integrado;
+o titular definiu trabalho, commits, integração local e push sempre na `main`.
+A falha intermitente do CI em Morada foi reproduzida e corrigida sem afrouxar o
+contrato; os nove jobs da matriz Compasso passaram no remoto em `4912b84`.
+A revisão da infraestrutura prepara a substituição de sete crons financeiros
+pela Conta, preserva tarefas de estudo e expiração de reservas e ajusta o
+Bastidores ao estado de implantação. Railway está conectado; Conta e Dia tiveram
+configuração completada sem deployments. Stripe deve ser operado manualmente,
+a pedido do titular. Migração continua retida: faltam conciliação financeira atual,
+restauração do backup real, DNS/TLS e plano Railway atualizado. Detalhes e roteiro
+em [infraestrutura](../apps/conta/INFRAESTRUTURA.md),
+[Stripe manual](../apps/conta/STRIPE.md) e [produção](../apps/conta/PRODUCAO.md).
+O estágio final do CI revelou erro no resolvedor Google Fonts do Bastidores;
+as fontes passaram a arquivos locais com licença, preservando a tipografia.
+A mesma dependência externa foi retirada do site e Cozya. A captura da Agenda
+usa o controle de animações do Playwright, pois transições canceladas podem
+rejeitar `Animation.finished`. CI geral e nativo agora cancelam rodadas antigas
+da mesma referência, como a matriz Compasso já fazia. O nativo Edi passou
+novamente em `8c018a0`, após um timeout de reabertura do
+EdiPDF na rodada anterior. O fixture registra caixas nativas de erro antes que
+bloqueiem o diagnóstico, sem alterar o comportamento do app; a intermitência
+não foi considerada corrigida por uma repetição verde.
+Os registros datados abaixo são históricos, não instrução para retomar branches
+antigas ou exigir autorização genérica novamente.
+
+**13/11 — causa do login intermitente no CI:** reproduzido 429 no endpoint
+OIDC de tokens, com 20 trocas em 42,8 segundos. O limite padrão do plugin era de
+um cliente, mas as trocas dos cinco servidores compartilham o IP de saída. A
+capacidade agora agrega 20 por app do catálogo, ainda com teto por minuto/IP.
+O ensaio HTTP com PostgreSQL confere códigos inválidos recusados, bloqueio da
+101ª troca e bloqueio da sexta senha incorreta. Passaram os testes de autenticação,
+as regressões dos oito consumidores e o ensaio repetido de entradas no navegador;
+detalhes em [infraestrutura](../apps/conta/INFRAESTRUTURA.md). O corte continua pendente
+dos gates operacionais acima. A reprodução local do estágio final de builds
+passou para todo o conjunto em `2bc396f`, antes deste ajuste de capacidade.
+
+O titular autorizou a migração completa do **Compasso** e confirmou R$ 49,90/mês ou R$ 499/ano, dois adultos, quatro dependentes e teste de 14 dias sem cartão. A política aprovada inclui 200 créditos mensais sem acumular, 20 no teste e recargas sem vencimento de 100/R$ 14,90, 300/R$ 39,90 e 1.000/R$ 99,90, preservando validade e poder de uso dos saldos antigos. Recreio, Morada e Suíte Edi permanecem fora do Compasso. Execução na branch `feat/compasso-migracao`, central `apps/conta` na porta 3011. A [implementação](propostas/assinatura-web-2026-11-09/implementacao.md) é o registro detalhado vigente; incrementos anteriores preservam a evidência histórica.
+
+Catálogo, família/pessoas/permissões, carteira, cobertura, cobrança e SSO foram implementados localmente. Os cinco consumidores possuem jornadas locais registradas, incluindo histórico, aparelhos e autorização por contexto. A central reúne administração familiar, autenticador web separado do Bastidores, revogação de sessões, assinatura/recargas, extrato e cancelamento. Troca mensal/anual passou pelo Stripe Test Clock. Isso não representa publicação: a preparação remota posterior está no [runbook](../apps/conta/PRODUCAO.md); venda permanece desabilitada.
+
+O aceite dos contratos antigos está em implementação: as migrations locais 0152–0160, recibos, observações, job de cancelamento, cobertura transitória, eventos e interface local da Conta estão conectados. A preparação da assinatura futura e do meio de pagamento possui recibo persistente; a prévia atualiza os contratos históricos conhecidos antes de apresentar os termos. O executor interno e o job recuperam agendas interrompidas; a aplicação após o início depende de pagamento conciliado, e o adapter foi ensaiado em Stripe de teste. A 0158 registra divergências de evidência legada, bloqueando uso até reconciliação; fatura de teste com linha zero não é período pago. As 0159 e 0160 versionam a admissão da sessão de pagamento e da programação, distinguindo uma tentativa não realizada de uma resposta perdida. O encerramento consentido agora seleciona as programações do próprio pagante e reconcilia os efeitos; ainda requer homologação completa. Faltam conferência remota integral antes do corte e homologação. Não aplicar as migrations isoladamente nem ativar o corte; detalhes e evidências no [registro de implementação](propostas/assinatura-web-2026-11-09/implementacao.md).
+
+**11/11, tarde, branch `feat/compasso-corte`** (da `main` local, com a `origin/main` integrada; sem push): implementado e verificado localmente o caso de dois pagantes na mesma família (migration 0161, aditiva). O bloqueio mútuo entre dois titulares foi desfeito; quando o pagante já paga, só ele decide adiar a própria cobrança. A regressão de banco da sessão filha (relógio de autenticação) passou. Ensaio Stripe de teste novo, `pnpm compasso:test:stripe-coordination`, passou. Processos Node desta máquina caem às vezes com 0xC0000409 sem diagnóstico (3 de 8 rodadas da suíte de cobrança); rodada com queda é repetida e não conta como aprovação. Próximos passos, na ordem: ensaio conjunto de encerramento com coordenação e intenção futura, Dia de Estrela pronto para subir só com o Compasso, ferramentas do corte (provisão Stripe, verificação do backup real, conciliação por titular), regressões completas, CI do PR, conciliação e backup reais, provisão e corte. Plano aprovado pela titular em 11/11.
+
+**11/11, noite (PR #35 em rascunho, não fazer merge: o merge é o corte):** Dia de Estrela sem cobrança própria; conciliação somente de leitura em produção sem divergência financeira, mas revelou que Checkouts gerenciados de Missão e Bora bloqueariam os titulares, corrigido com prova do provedor (0162). A titular passou a configuração dos provedores para o agente. Feito: Sentry (projetos `conta` e `dia-de-estrela`; a Conta envia falhas operacionais sem SDK), Stripe live e teste (produto Compasso com imagem e descrição, cinco preços, portal restrito; webhook só com a Conta no ar), Railway (serviços vazios e domínios da Conta e do Dia de Estrela, variáveis gravadas, plano do corte com 8 adições, 29 alterações e nenhuma destruição; a IaC deixou de declarar proxy público no Redis, que não existe em produção). Pendentes: DNS no Cloudflare (aguarda autorização da titular no MCP), ensaio de encerramento e testes de navegador (a máquina ficou sem memória; só com liberação), restauração do backup real, CI verde, e o corte com o "pode" da titular. Detalhes em `apps/conta/PRODUCAO.md`.
+
+Em 11/11, os builds individuais da Conta e dos cinco consumidores passaram com origens de produção e valores fictícios, e o CI foi ajustado para usar a origem registrada de cada app SSO. As matrizes isoladas de Bora, Dia, Agenda e Cozya passaram. A matriz longa do Missão teve falhas de recursos locais; suas seleções e repetições focalizadas estão registradas, sem declarar estável a execução longa. Encerramento completo em ambiente descartável e 225 testes compartilhados passaram. Nada disso autoriza o corte antes de resolver os fluxos e as conferências pendentes acima.
+
+**12/11:** a `main` (Recreio e Morada) foi integrada na branch. A `0080_recreio` chegou a produção antes do corte, e as 83 migrations do Compasso foram para depois dela no journal, sem mudar o SQL nem as tags; sem isso o migrator as pularia sem erro. `packages/db/src/migrations.test.ts` passou a conferir a ordem. Detalhes no [registro](propostas/assinatura-web-2026-11-09/implementacao.md). Ainda faltam as rodadas locais pesadas (encerramento, telas da Conta, matriz de navegadores, restauração do backup real), os registros DNS da Conta e do Dia de Estrela e o corte.
+
+**Novo contexto em 10/11:** o titular esclareceu que não existem clientes externos pagantes; os dois titulares atuais são desenvolvedores testando. O inventário somente de leitura confirmou dois titulares com contratos ativos e um terceiro apenas histórico. A frente segue por corte interno direto para o Compasso, preservando dados úteis e eliminando caminhos antigos após a substituição. Adapters/recibos da transição contratual gradual e migrations não publicadas 0142–0144 foram retirados; a regressão dessa retirada passou. As novas 0142–0144 pertencem às proteções de privacidade, sem restaurar o mecanismo contratual removido. A leitura Stripe confirmou seis contratos internos ativos em modo live, que precisam ser encerrados no corte com preservação de histórico e direitos. Políticas de transição aprovadas ficam documentadas como contingência, sem ampliar o sistema atual. A [migração financeira](propostas/assinatura-web-2026-11-09/migracao-financeira.md) registra o novo plano e distingue evidências históricas. Troca de e-mail, exportação, responsabilidade familiar e avaliações de privacidade passaram em banco/navegador; avaliação ainda não executa encerramento. A base de participação web, proteções familiares/contra respostas IA tardias e caminhos pessoais de Cozya/Bora passaram em banco. A 0144 vincula aparelhos e calendários à revisão de participação; a regressão de Missão, Dia, Agenda e administração familiar passou. A 0145 implementa o núcleo do coordenador durável, verificado em banco. Os adapters internos Cozya, Bora, Dia e Missão passaram em PostgreSQL, com seleção familiar que preserva históricos de outros adultos. A 0146 vincula entregas push à revisão e ao prazo de admissão; ainda local. A 0147 de notificações Agenda e os vínculos escolares passaram em banco. A 0148 protege respostas tardias do leitor de recados. O adapter Agenda passou pela suíte completa de banco; o coordenador também permite atualizar a preparação antes do consentimento. A barreira de admissão comercial passou em banco. A desvinculação final da família também foi implementada e verificada com o coordenador. O adapter financeiro e os recibos 0149 passaram em banco. A 0150 implementa nova confirmação quando o escopo muda após execução parcial, preservando recibos anteriores; a rodada conjunta financeira/coordenador passou, com falhas históricas mantidas no registro. A Conta separa pausa de vendas da manutenção de obrigações existentes. Confirmação, desistência anterior ao aceite, novo consentimento após mudança de escopo e acompanhamento do encerramento estão implementados na Conta local; jobs autenticados dos cinco apps e manutenção central estão conectados. A suíte da central passou em computador e celular, com limites e evidências no registro; a jornada conjunta da Conta e dos cinco serviços passou em banco e Redis descartáveis, com rotas HTTP reais e outra família preservada. Permanecem a conclusão da limpeza comercial dos consumidores, revisão integral, ensaio do corte e restauração do backup real em destino isolado, além da implantação/homologação. IaC e monitoração estão preparados, sem provisão remota. A apresentação v4 reflete o corte interno simplificado e foi atualizada na página privada. A falha nativa Windows de rodadas anteriores segue sem causa conclusiva. Sem commit, push, deploy ou alteração de produção.
+
+## Recreio e Morada: alfa fechado e correções (15/11/2026)
+
+**16/11 — operação atual:** portal em `000f40ad` e Morada em `92f665e7`, fonte e saúde/prontidão 200 conferidas. Expiração de sessões em lotes e resultado verificável do desligamento implantados após seis gates da candidata e da main; [expiração/cron](recreio/expiracao-sessoes-2026-11-16.md) e [drenagem](recreio/drenagem-resultado-2026-11-16.md). Arte D2 e configuração Railway comparadas; um volume/réplica, Mundo V2/protocolo 1 conservados. [Watch paths](recreio/watch-paths-2026-11-16.md) excluem Markdown. [Edição do perfil próprio](recreio/perfil-proprio-2026-11-16.md) implantada com auditoria atômica, revalidação do aparelho, proteção contra sobrescrita e seis gates na candidata/main; fonte, rota, mapas e cron conferidos. Gestão de aparelhos próprios implantada com revogação auditada, 200 integrações, sete jornadas e tipos dos 13 consumidores de auth mais o package; [prova](recreio/aparelhos-proprios-2026-11-16.md). Saída voluntária de convidados implantada em `06e022d5`, após 220 integrações, oito jornadas, tipos dos consumidores e seis gates na candidata/main; fonte, ação compilada, mapas e cron posterior conferidos. [Contrato e limites](recreio/saida-de-mundo-2026-11-16.md). Participações próprias implantadas na Conta e índice 0164 válido/pronto em produção; [prova](recreio/evidencias/indice-participacoes-producao-2026-11-16.json). Limpeza de convites implantada, com cron de cinco contagens; [prova](recreio/evidencias/convites-producao-2026-11-16.json). [Remoção e convites corrigidos implantados](recreio/remocao-producao-2026-11-16.md), com 325 integrações e seis gates na candidata/main. [Transferência aceita implantada](recreio/responsabilidade-producao-2026-11-16.md), com 291 integrações e seis gates na candidata/main; validação humana adiada pelo titular. D3 continua em candidata; desempenho, backup agendado e demais pendências abaixo continuam abertos. Os parágrafos seguintes preservam os marcos anteriores.
+
+Atualização operacional posterior: Morada em `22a3db6`, com reconexão rápida e logs de erro por classificadores controlados; portal em `7c81a68f`. Seis gates da candidata `43787487430` e repetição main `43788455104` aprovados. Deploy `1c9e32b6` e fonte/saúde/prontidão conferidos às 01h56 UTC; [registro dos logs](recreio/telemetria-falhas.md) e [reconexão](recreio/reconexao-2026-11-15.md). Mundo V2/protocolo 1 preservados; D3 permanece em candidata. O titular confirmou que a [licença de compra permite o uso comercial da arte](recreio/licenciamento-arte.md).
+
+O titular autorizou as cinco frentes e todos os achados; [execução e evidências](recreio/execucao-2026-11-15.md), [levantamento histórico](recreio/levantamento-2026-11-15.md). Testes pesados exclusivamente no GitHub. Integridade, revogação/admissão, auditoria atômica, limites, recuperação, drenagem e recusa de downgrade corrigidos. Cinco gates públicos, 171 integrações, cinco jornadas do portal, 19 do cliente e 100 dias aprovados no perfil registrado. Fila gráfica limitada sem espera bloqueante; não certifica FPS.
+
+Portal/Morada conferidos em `36606409`, manutenção, DNS/TLS, banco/Redis e coleção inicial D2 implantados. Cinco gates públicos e repetição main aprovados; execução privada `43745943221` aprovou 48 prévias/criação personalizada e cinco jornadas gerais com arte. O titular confirmou criar a família, jogar, sair e reabrir conservando as escolhas. Duas contas piloto com cortesia até 15/12; endereços fora do repositório público. [Backup lógico real restaurado em destino isolado](recreio/ensaio-backup-producao.md), conteúdo/estrutura comparados e temporários removidos. Recebimento humano de avisos Sentry confirmado. Uptime Sentry permanece desligado por orçamento indisponível. Agenda GitHub sem disparo observado; [cron Cloudflare](recreio/sonda-cloudflare.md) com três execuções automáticas conferidas, duas provas de ingestão Sentry e a terceira saudável após desligar a flag de prova. [Custo inicial ocioso](recreio/custo-alfa-2026-11-15.md) medido; sem custo unitário por mundo. [Operação atual](../apps/recreio/PRODUCAO.md).
+
+D2 no alfa: fundação/recibo durável, migração V1→V2, [coleção V3/editor](recreio/d2-aparencia-parametrica.md), medição de descarte e salvamento/retorno humano conferidos. Casa/orçamento continuam fixos; D2 integral não concluído. Contrato de loja D3 em candidato `cd9e7f3a`, cinco gates aprovados, sem comandos habilitados. `RECREIO-4` revelou ação de aba antiga após o deploy; [correção de versões](recreio/versoes-do-portal.md) e ensaio de duas builds em andamento no GitHub.
+
+Continuam abertos: restauração de backup agendado, retenção técnica, carga/custo com 1/2/4/8 jogadores, D2–D8, família/proteção, continuidade/direitos, experiência/cobrança e condições jurídicas/licença. Medição em vídeo integrado adiada pelo titular por indisponibilidade do aparelho; diversão e 60 FPS não comprovados. Exclusão por conta ainda assistida. Arte e evidências licenciadas permanecem privadas; a pendência do histórico público antigo não foi alterada.
 
 ## EdiPlayer, sexta ferramenta da suíte Edi (06/11/2026)
 
@@ -127,6 +228,8 @@ No mesmo dia, ela pediu um gravador menos engessado ("segunda proposta", na mesm
 - **Lembretes** no lugar de recados, e o Preparar aula começa por **Revisar a gravação**.
 
 Em 01/11/2026 ela pediu a gravação automatizada das aulas do Sistema Zero ([registro](propostas/ediaula-gravacao-automatica-2026-11-01/proposta.md)): o modo guiado ganhou movimento humano, esperas da plataforma aceleradas sob a fala, plano gerado dos colchetes do "Na tela" e a ponte `window.__gravacao`. No Sistema Zero, o palco de gravação (PR #233 para `staging`) aguarda a criação do serviço e o merge, que dependem dela; o piloto real com a Aula 1 do Cadê e o Lote 5 (montar o projeto) ficaram pendentes.
+
+Em 16/11/2026, a gravação automatizada ganhou a **edição automática** ([registro](propostas/ediaula-gravacao-automatica-2026-11-01/proposta.md#edição-automática-16112026)): as animações de conceito no EdiSVG e a edição no EdiAula saem dos scripts de `apps/ediaula/scripts/aula-automatica/` (condutor, `parte.sh` e `config.json` local; passo a passo no [README](../apps/ediaula/scripts/aula-automatica/README.md)). O piloto, a Farol Aula 3 Parte 2, foi entregue inteiro. O EdiAula ganhou `remove_clips`, `trim_clip`, `keep_ranges`, `place_cutaway` e `spread_music`, e o acabamento roda por elas, sem editar o arquivo do projeto. Falta uma gravação nova inteira pelo `parte.sh`.
 
 Em 01/11/2026, a pedido do titular, o EdiAula ganhou **efeitos sonoros**: 13 sons feitos pelo próprio app (cliques, wooshes e destaques), a escolha do clique do cursor, a categoria e os sons prontos na biblioteca de todas as aulas (ouvir, colocar no cursor da timeline, arrastar) e o **woosh automático** nos zooms e nas transições, igual na prévia e na exportação. Comportamento e arquivos no [README do EdiAula](../apps/ediaula/README.md#efeitos-sonoros). Typecheck e testes automáticos passaram (`tests/sound-effects.test.ts`, com o FFmpeg real); falta ouvir os sons e testar a interface no app aberto.
 
@@ -488,3 +591,6 @@ aberto foram acrescentadas ao editor, com fontes verificadas e saída nova sem s
 O acervo está no Sistema Zero; o editor não depende dele para funcionar. Conferir o README do
 ediSVG para comandos e limites. A integração desta frente é no main local, conforme pedido;
 não significa publicar instalador. O consumidor será integrado ao staging local do Sistema Zero.
+
+
+Compasso — continuidade de 09/11, 23h39: Missão passou à identidade obrigatória pela migração gerada 0113, com histórico nativo preservado e remoção de app autorizada também para participações arquivadas. Tipos passaram; repetição compartilhada/integração completa em execução. Navegador Missão, Dia/Agenda/Cozya, finanças/privacidade e corte operacional permanecem em andamento. Evidências e ressalvas no [registro da frente](propostas/assinatura-web-2026-11-09/implementacao.md).

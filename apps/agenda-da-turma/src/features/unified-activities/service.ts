@@ -1,5 +1,6 @@
 import "server-only";
 import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
+import type { AgendaAuthority } from "@/features/family/authority";
 import {
   type ActivityOverviewItem,
   type ActivityOverviewOptions,
@@ -15,28 +16,31 @@ import { listTasksByIds } from "./task-repository";
 // /atividades e os buckets da rotina compartilham esta hidratação, então o card
 // e os campos são exatamente os mesmos nas duas telas.
 async function hydrateIndexRows(
-  userId: string,
+  actor: AgendaAuthority,
   rows: { id: string }[],
 ): Promise<Map<string, ActivityOverviewItem>> {
   const tasks = await listTasksByIds(
-    userId,
+    actor,
     rows.map((row) => row.id),
   );
   return new Map(tasks.map((item) => [item.id, { key: item.id, item }]));
 }
 
-export async function getActivityOverview(userId: string, options: ActivityOverviewOptions) {
+export async function getActivityOverview(
+  actor: AgendaAuthority,
+  options: ActivityOverviewOptions,
+) {
   // "Hoje" sai do mesmo helper com fuso de São Paulo que a rotina usa, para que
   // a janela do contador e a janela da lista não possam divergir.
   const { from, to, column } = dueWindowRange(options.dueWindow, todayLocalIso(), addDaysIso);
-  const index = await listActivityOverviewIndex(userId, {
+  const index = await listActivityOverviewIndex(actor, {
     ...options,
     dueFrom: from,
     dueTo: to,
     windowColumn: column,
   });
   const visible = index.slice(0, OVERVIEW_PAGE_SIZE);
-  const items = await hydrateIndexRows(userId, visible);
+  const items = await hydrateIndexRows(actor, visible);
   return {
     items: visible.flatMap((row) => {
       const item = items.get(row.id);
@@ -65,7 +69,7 @@ export type RoutineSnapshot = {
  * mesma função.
  */
 export async function getRoutineSnapshot(
-  userId: string,
+  actor: AgendaAuthority,
   options: { profileFilter: string | null },
 ): Promise<RoutineSnapshot> {
   const todayIso = todayLocalIso();
@@ -76,10 +80,10 @@ export async function getRoutineSnapshot(
     weekEndIso: addDaysIso(todayIso, 7),
   };
   const [index, doneToday] = await Promise.all([
-    listRoutineIndex(userId, range),
-    countDoneToday(userId, { profileFilter: options.profileFilter, todayIso }),
+    listRoutineIndex(actor, range),
+    countDoneToday(actor, { profileFilter: options.profileFilter, todayIso }),
   ]);
-  const items = await hydrateIndexRows(userId, index);
+  const items = await hydrateIndexRows(actor, index);
   const buckets: RoutineBuckets = { attention: [], tomorrow: [], week: [] };
   for (const row of index) {
     const item = items.get(row.id);

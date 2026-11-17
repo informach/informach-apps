@@ -1,0 +1,2 @@
+ALTER TABLE "billing"."subscriptions" ADD COLUMN "legacy_funding_attempted_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "subscriptions_legacy_funding_attempt_idx" ON "billing"."subscriptions" USING btree ("legacy_funding_attempted_at","id");

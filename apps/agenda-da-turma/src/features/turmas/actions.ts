@@ -1,5 +1,6 @@
 "use server";
 
+import { agendaAuthority } from "@/features/family/context";
 import { action, err, ok } from "@/lib/action";
 import { logAgendaAuditEvent } from "@/lib/audit";
 import { logger } from "@/lib/logger";
@@ -28,7 +29,7 @@ export const createOrJoinTurmaAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await createOrJoinTurma(userId, input);
+    const result = await createOrJoinTurma(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     logger.info(
@@ -47,7 +48,7 @@ export const createOrJoinTurmaAction = action
     });
     return ok({
       turmaId: result.value.turma.id,
-      code: result.value.turma.code,
+      code: result.value.code,
       created: result.value.created,
     } as const);
   });
@@ -60,7 +61,7 @@ export const joinTurmaByCodeAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await joinTurmaByCode(userId, input);
+    const result = await joinTurmaByCode(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     logger.info(
@@ -82,7 +83,7 @@ export const setActiveTurmaAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await setActiveTurma(userId, input);
+    const result = await setActiveTurma(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     logger.info(
@@ -104,7 +105,7 @@ export const leaveTurmaAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await leaveTurma(userId, input);
+    const result = await leaveTurma(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     logger.info(
@@ -126,7 +127,7 @@ export const deleteTurmaAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await deleteTurma(userId, input);
+    const result = await deleteTurma(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     logger.info({ userId, turmaId: input.turmaId }, "agenda.turma_deleted");
@@ -142,7 +143,7 @@ export const updateTurmaAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await updateTurma(userId, input);
+    const result = await updateTurma(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     logger.info(

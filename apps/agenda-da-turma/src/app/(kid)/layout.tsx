@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { OfflineBanner } from "@/components/app-shell/offline-banner";
+import { agendaAuthority } from "@/features/family/context";
 import { OfflineQueueFlusher } from "@/features/offline-queue/components/offline-queue-flusher";
 import { QueueOwnerProvider } from "@/features/offline-queue/owner";
 import { redirectIfUnauthenticated } from "@/lib/auth";
@@ -17,8 +18,9 @@ import { redirectIfUnauthenticated } from "@/lib/auth";
  */
 export default async function KidLayout({ children }: { children: ReactNode }) {
   const user = await redirectIfUnauthenticated();
+  const actor = await agendaAuthority(user.id);
   return (
-    <QueueOwnerProvider userId={user.id}>
+    <QueueOwnerProvider key={`${actor.userId}:${actor.familyGroupId}`} actor={actor}>
       <div className="min-h-dvh bg-app-ground">
         <OfflineQueueFlusher />
         {/* O único elemento de shell que sobrevive aqui: uma criança marcando

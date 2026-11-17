@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { agendaAuthority } from "@/features/family/context";
 import { recordProductEvent } from "@/features/metrics/events";
 import { refreshActivityViews } from "@/features/unified-activities/revalidate";
 import { action, err, ok } from "@/lib/action";
@@ -17,7 +18,7 @@ export const respondSharedActivityAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await respondSharedActivity(userId, input);
+    const result = await respondSharedActivity(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     logger.info(
@@ -40,7 +41,7 @@ export const acceptAllSharedActivitiesAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await acceptAllSharedActivities(userId);
+    const result = await acceptAllSharedActivities(await agendaAuthority(userId));
     logger.info({ userId, ...result }, "agenda.activity_shared_accept_all");
     await logAgendaAuditEvent("agenda.activity_shared_response", userId, {
       accepted: true,

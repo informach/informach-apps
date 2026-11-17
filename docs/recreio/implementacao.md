@@ -1,8 +1,26 @@
 # Recreio e Morada: registro da implementação
 
+**Frente autorizada em 16/11:** concluir a plataforma web independente da evolução
+D3–D8 do Morada. O [registro de fechamento](fechamento-plataforma-2026-11-16.md)
+é a lista vigente de entregas e pendências. Os quatro preços foram confirmados;
+o cadastro familiar seguirá responsabilidade declarada pelo adulto, sem alegar
+verificação externa inexistente. SDK sem mundos e progresso por perfil foram
+[implantados em `6b51dd13`](dados-de-perfil-2026-11-16.md), com migração 0167,
+168 recibos e seis gates conferidos. Gestão familiar continua em candidata;
+F1–F11 e a homologação comercial não estão concluídos.
+
+**16/11 — etapa de leitores implantada:** [schema 167, fontes, arte e cron](leitores-producao-2026-11-16.md)
+conferidos. Transferência com aceite ainda não publicada. O comando do Morada
+foi corrigido para Node no PID 1 após a [prova por SIGTERM](processo-principal-2026-11-16.md).
+
 Registro detalhado da frente. O índice de continuidade é o [estado do repositório](../estado-do-repositorio.md); as regras permanentes ficam no [AGENTS.md](../../AGENTS.md).
 
-Branch `feat/recreio`, em worktree próprio. Nada foi enviado ao remoto nem publicado.
+Estado vigente em 16/11/2026: portal em `000f40ad` e Morada em `92f665e7`, alfa fechado D2. A expiração limitada de sessões e o resultado verificável da drenagem foram implantados, com seis gates nas candidatas e na main ([expiração](expiracao-sessoes-2026-11-16.md), [drenagem](drenagem-resultado-2026-11-16.md)); [versões do portal e mapas Sentry](versoes-do-portal.md) conferidos. Editor/coleção D2 têm prova privada e salvamento/retorno humano; escolha de casa/orçamento continua pendente. A [edição do perfil adulto próprio](perfil-proprio-2026-11-16.md) foi implantada com revalidação da sessão, conflito entre abas e auditoria atômica, após seis gates na candidata e na main. A [gestão dos aparelhos próprios](aparelhos-proprios-2026-11-16.md) foi implantada com paginação, revogação auditada e encerramento das partidas, após seis gates na candidata/main e tipos dos consumidores de auth. Saída voluntária de convidados implantada em `06e022d5`, após 220 integrações, oito jornadas, tipos dos consumidores e seis gates na candidata/main; fonte, ação compilada, mapas e cron posterior conferidos. [Contrato e limites](saida-de-mundo-2026-11-16.md). Participações próprias implantadas na Conta e índice 0164 válido/pronto em produção; [prova](evidencias/indice-participacoes-producao-2026-11-16.json). Limpeza de convites implantada, com cron de cinco contagens; [prova](evidencias/convites-producao-2026-11-16.json). [Remoção e convites corrigidos implantados](remocao-producao-2026-11-16.md), com 325 integrações e seis gates na candidata/main. [Transferência aceita implantada](responsabilidade-producao-2026-11-16.md), com 291 integrações e seis gates na candidata/main; prova humana adiada pelo titular. D3 está **somente em candidata**. O [diagnóstico gráfico](rotulos-2026-11-16.md) distinguiu captura de quadro antigo e bloqueio de renderização; a lentidão continua aberta. Backup lógico real restaurado em destino isolado, avisos recebidos e agenda externa comprovada; custo acumulado exclusivo medido, sem custo por hora ativa. O titular confirmou a permissão comercial pela [licença de compra](licenciamento-arte.md). D2–D8, proteção familiar, retenção/capacidade, backup agendado e demais homologações comerciais continuam em implementação. Ver [execução atual](execucao-2026-11-15.md) e [operação](../../apps/recreio/PRODUCAO.md). As seções datadas abaixo preservam a história dos marcos anteriores.
+
+16/11: [proteção do carregamento implantada](hidratacao-responsabilidade-2026-11-16.md)
+no portal `000f40ad`, com comparação negativa/corrigida e seis gates na candidata
+e na main. Composição D3 passou separadamente e continua sem publicação. A prova
+humana da transferência permanece adiada pelo titular.
 
 ## De onde vem o escopo
 
@@ -11,7 +29,7 @@ As propostas ficam no repositório privado `informach/artes-3d`: `paginas/recrei
 - **Etapa 1, "Prova juntos"**: mínimo do Recreio (login, perfil, ingresso, mundo com membros de duas contas, posse da instância) mais a Fase 0 do Morada. Sai quando "duas contas diferentes jogam a mesma família, uma cai, a outra continua, e tudo volta depois de derrubar a instância", com o custo por hora de mundo medido.
 - **Etapa 2, "A diversão"**: Fases 1 e 2 do Morada jogando sozinho; o Recreio só corrige. Sai quando "uma pessoa joga 7 dias de jogo e quer continuar; o filho nasce e cresce sendo a mesma pessoa".
 
-As etapas 3 a 5 ficam fora.
+Na autorização inicial de 11/11, as etapas 3 a 5 ficaram fora. Em 15/11, o titular ampliou o escopo às cinco frentes do [registro de execução](execucao-2026-11-15.md); elas permanecem em implementação e não são requisitos já entregues.
 
 ## Onde cada coisa fica
 
@@ -36,9 +54,9 @@ Fecham o que as propostas deixaram em aberto. Mudam só com registro aqui.
 4. **Determinismo imposto** na simulação: tempo em ticks inteiros, sorteio por contador, aritmética inteira; `tsconfig` sem DOM nem Node, regra do Biome e teste que varre o código.
 5. **Tokens** em JWS Ed25519 com `jose`: ingresso de 60 s e uso único, sessão de jogo de 15 min. Chaves públicas em `/api/sdk/v1/jwks`; `jti` consumido no Postgres.
 6. **Direito de jogar na etapa 1 por concessão auditada**, porque a cobrança só entra no Marco 2. `decidirAcesso` é a única função que decide; `past_due` não joga.
-7. **Sem arte, tudo roda**: corpos e móveis procedurais atrás da mesma interface dos pacotes. CI e E2E nunca usam arte licenciada.
+7. **Sem arte, tudo roda**: corpos e móveis procedurais atrás da mesma interface dos pacotes. CI e E2E públicos nunca usam arte licenciada; a homologação com arte ocorre somente no repositório privado, com evidências privadas e arquivos fora do checkout público.
 8. **Tabelas em inglês**, como todo o `packages/db`; textos, URLs e API do SDK em português.
-9. **Uma constante `RECREIO_LAUNCHED = false`** no `.railway/railway.ts` segura os dois serviços e o cron.
+9. **Estados operacionais separados na IaC:** `RECREIO_PROVISIONED=true` inclui os recursos; `RECREIO_DOMAINS_CONFIGURED=true` preserva os vínculos autorizados, com DNS/certificados conferidos em 15/11; `RECREIO_LAUNCHED=true` declara as fontes dos serviços e a imagem do cron já implantados. Não usar essas constantes como rollback nem aplicar todo o grafo para alterar dois serviços; estado e bloqueios no [registro de execução](execucao-2026-11-15.md).
 10. **O servidor do jogo fala com o Recreio por HTTP**, nunca pelas tabelas. O empacotador de arte fica neste repositório como código, e não no `artes-3d`, para o contrato do manifesto e o empacotador andarem na mesma versão.
 11. **O app se chama `@informach/recreio-app`** no workspace, porque `@informach/recreio` é o package de domínio e contratos, como a proposta prescreve. Os scripts da raiz seguem o padrão curto (`dev:recreio`, `build:recreio`, `start:recreio`).
 
@@ -50,7 +68,7 @@ Valem até o titular dizer o contrário.
 2. Regras de tempo da prova num preset comprimido (gravidez e fases curtas), configurável por mundo.
 3. Quem entra na família compartilhada recebe as permissões de jogo, menos "gerir o mundo" e "gerir finanças".
 4. Queda de conexão: 30 s de tolerância antes de liberar a reserva. Queda da instância: até 30 s para outra assumir.
-5. Exclusão de conta no Recreio já ativa, deixando o mundo para os outros membros.
+5. Exclusão automática de conta desligada; exclusão assistida até existir sucessão/saída de mundos, conforme a revisão de 13/11. Substitui a suposição inicial de exclusão automática.
 6. Testadores da etapa 1 são adultos da equipe, com concessão de 30 dias.
 
 ## Lotes
@@ -90,16 +108,16 @@ Estado: `feito` (implementado e verificado localmente), `em curso`, `a fazer`.
 | --- | --- | --- |
 | X1 | Plataforma real no servidor, `/jogar/morada`, E2E com duas contas | feito |
 | X2 | Empacotador e corpos reais na máquina de desenvolvimento | feito |
-| X3 | Railway atrás da constante, Bastidores mínimo, guias | a fazer |
-| X4 | Deploy fechado e medição de custo, só com autorização | a fazer |
+| X3 | Railway atrás da constante, build de produção, Bastidores mínimo, guias | integrado; serviços implantados em 15/11 |
+| X4 | Deploy fechado e medição de custo, com autorização do titular | em curso: alfa, restauração lógica isolada, agenda externa e recebimento dos avisos comprovados; backup agendado, RPO/RTO e custo por hora de mundo pendentes |
 
 ### Etapa 2
 
 | Lote | Entrega | Estado |
 | --- | --- | --- |
-| D1 | Arte completa no jogo e metas de desempenho | a fazer |
-| D2 | Criar família | a fazer |
-| D3 | Construir e comprar | a fazer |
+| D1 | Arte da casa atual e metas de desempenho | implementado com arte real; homologação de FPS em vídeo integrado pendente, ver review D1 |
+| D2 | Criar família | em curso: núcleo, catálogo inicial e editor candidatos; seleção de casa/orçamento ainda depende do contrato D3 |
+| D3 | Construir e comprar | [plano de execução](d3-construcao-compras.md); implementação pendente |
 | D4 | 20 a 30 interações com animação real | a fazer |
 | D5 | Família completa | a fazer |
 | D6 | Ciclo do mundo no portal | a fazer |
@@ -358,7 +376,32 @@ O que o P1 deixa para os próximos lotes:
 
 ## Pendências fora da frente
 
-- **Arte no histórico do git.** O `informach-apps` está público no GitHub, e o commit que tirou a pasta `ideas/` só apagou os arquivos: os zips dos pacotes e as animações da Mixamo continuam no histórico. Decisão do titular em 11/11/2026: registrar como pendência, sem ação nesta frente. O `AGENTS.md` ainda descreve o repositório como privado; a correção entra no lote X3.
+- **Arte no histórico do git.** O `informach-apps` está público no GitHub, e o commit que tirou a pasta `ideas/` só apagou os arquivos: os zips dos pacotes e as animações da Mixamo continuam no histórico. Decisão do titular em 11/11/2026: registrar como pendência, sem ação nesta frente. O `AGENTS.md` foi corrigido na revisão de 13/11 para refletir o estado público.
 - **Licença ITHappy** por escrito e a conversa jurídica (faixas, verificação de idade, classificação): correm em paralelo e travam só o lançamento público.
 - **Uma réplica** do `morada-server` até existir endereço por instância no Railway.
 - A migração do schema `recreio` vai para produção no merge na `main`, mesmo com a constante desligada. O merge só acontece depois do lote P6.
+
+## Revisão e continuação — 13/11/2026
+
+A revisão do titular retomou a base da `main` em `feat/recreio-review-completion`. Achados, correções, testes e limites no [review](review-2026-11-13.md); operação preparada em [PRODUCAO.md](../../apps/recreio/PRODUCAO.md).
+
+Código do X3: build/start do Morada com Node, API interna Railway com emissor público separado, serviços/cron/volume atrás de `RECREIO_LAUNCHED=false`, observabilidade sanitizada, cadastro mínimo do Recreio no Bastidores e guarda temporária de exclusão da conta em todos os apps. Correções adicionais: fatos mutáveis com contador durável e remoção do avanço artificial na restauração; manutenção interrompe renovação; limite de ingressos; concessão reavaliada na entrada; isolamento de passos lentos por mundo. Continuação visual: superfícies de cama/sofá/berço/beliche no fallback, ainda sem arte completa dos móveis.
+
+Decisão de segurança temporária: até existir sucessão/saída de mundos, contas com perfil do Recreio exigem exclusão assistida, inclusive quando o pedido parte de outro produto. A antiga suposição de exclusão automática na etapa 1 não está implementada e não deve ser anunciada como disponível.
+
+O X4 permanece sem execução remota. D1–D8 continuam abertos; a preparação operacional não encerra a etapa de diversão. Não houve reescrita do histórico de arte nem publicação de arte licenciada.
+
+
+## D1 — arte da casa atual (13/11/2026)
+
+Continuação escolhida pelo titular: revisar a base e completar a arte da casa atual antes de avançar D2–D8, mantendo X4 separado. A base já inclui o X3 na `main`; não há branch antiga a reintegrar.
+
+O empacotador seleciona móveis e acabamentos pela planta, emite manifesto V2 e continua lendo V1. O cliente carrega modelos sob demanda, agrupa repetições, mantém o procedural durante falhas e usa apoios medidos para assentos/colchões. A casa mantém a planta original, agora com revestimentos e portas/janelas; portas ficam abertas enquanto não existir estado de porta na simulação. Nenhum save, protocolo de rede ou schema de banco mudou.
+
+A conferência no portal com arte encontrou a necessidade de `connect-src blob:` para as texturas embutidas do GLTFLoader. A permissão foi acrescentada somente à página do jogo com origem de arte declarada. O runner tem opt-in de arte privada e guarda todas as evidências fora do checkout público. Resultados, medidas, achados e pendências no [review do D1](review-d1-2026-11-13.md).
+
+## Configuração do Railway — 13/11/2026
+
+Com o plugin conectado e autorização do titular para configurar, foram provisionados os dois serviços, o cron e o volume de arte. Builds, starts, readiness, padrões de arquivos, rede interna e variáveis não secretas foram configurados e relidos. Após a autorização explícita adicional solicitada pela revisão automática, os segredos/referências e vínculos dos dois domínios foram concluídos e relidos, sem iniciar deploy. Faltam DNS/certificados no Cloudflare, Sentry obrigatório do portal e prontidão do banco; não foi removido o bloqueio de migrations do Compasso. Serviços sem fonte/deploy; volume sem pacote de arte.
+
+X4 está em curso no provisionamento, sem implantação ou medição de custo. IDs, operações, verificações e bloqueios no [registro operacional](railway-2026-11-13.md). Stripe somente documentado no [roteiro de cobrança](stripe-pendente.md), sem acesso ou configuração do provedor, conforme pedido do titular. O próximo lote de jogo continua sendo D2.

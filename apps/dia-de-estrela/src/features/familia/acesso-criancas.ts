@@ -4,7 +4,7 @@ export type ChildAccessCandidate = {
 };
 
 /**
- * O plano Família inclui todas as crianças guardadas (até o limite). O plano
+ * O Compasso inclui todas as crianças guardadas (até o limite). O plano
  * de uma criança respeita a escolha dos pais ao rebaixar; sem escolha, fica a
  * primeira, para dados antigos ou escritos pela metade continuarem usáveis.
  */

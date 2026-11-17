@@ -7,10 +7,10 @@ export async function POST(request: Request) {
   const unauthorized = rejectUnauthorizedCron(request);
   if (unauthorized) return unauthorized;
   const cursor = new URL(request.url).searchParams.get("cursor");
-  if (cursor && (cursor.length > 128 || !/^[\w-]+$/.test(cursor)))
+  if (cursor && !/^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i.test(cursor))
     return Response.json({ error: "INVALID_CURSOR" }, { status: 400 });
   const result = await recordJob("agenda-routine", () =>
-    deliverRoutineNotifications(new Date(), { afterUserId: cursor }),
+    deliverRoutineNotifications(new Date(), { afterPreferenceId: cursor }),
   );
   return Response.json(result, {
     headers: { "Cache-Control": "no-store" },

@@ -1,15 +1,15 @@
 import { performance } from "node:perf_hooks";
-import { gunzipSync, gzipSync } from "node:zlib";
+import { gzipSync } from "node:zlib";
 import { jogoPorId } from "@informach/config/jogos";
 import {
   APELIDO_MAX,
+  abrirFotografia,
+  conferirMetadadosDaFotografia,
   criarMundo,
   type Fato,
   type Intencao,
   listar,
   type Mundo,
-  PERMISSOES_DE_QUEM_DIVIDE,
-  PERMISSOES_DO_FUNDADOR,
   type RegrasDoMundo,
   restaurar,
   resumoDoTexto,
@@ -24,7 +24,12 @@ import {
   type MensagemDoServidor,
   VERSAO_DO_PROTOCOLO,
 } from "@informach/morada-sim/protocolo";
-import { ehErroDoRecreio, FOLGA_DE_AUTOCERCA_MS, type MundoId } from "@informach/recreio";
+import {
+  ErroDoRecreio,
+  ehErroDoRecreio,
+  FOLGA_DE_AUTOCERCA_MS,
+  type MundoId,
+} from "@informach/recreio";
 import { sessaoVencida } from "@informach/recreio/contrato";
 import type {
   ClienteDoHost,
@@ -32,7 +37,10 @@ import type {
   EntradaPermitida,
   SessaoVerificada,
 } from "@informach/recreio/host";
+import { reconciliarAcessos } from "./acessos";
+import { conferirCatalogoDisponivel } from "./catalogo-de-aparencias";
 import { type Falhas, QuedaSimulada } from "./falhas";
+import { decodificarFotografia } from "./fotografia";
 
 /**
  * Um mundo aberto nesta instância. O ator guarda a simulação na memória,
@@ -62,6 +70,8 @@ export type Ligacao = {
   /** Quem a pessoa é neste mundo: o id de membro, não o do perfil. */
   jogadorId: string | null;
   perfilId: string | null;
+  /** Contexto atual conferido pelo host; não vem de mensagem do navegador. */
+  acesso?: Pick<EntradaPermitida, "papel" | "participacao">;
   /** O `exp` da sessão de jogo, em ms. Quem diz se ela venceu é `sessaoVencida`. */
   expiraEm: number;
   seq: number;
@@ -77,6 +87,7 @@ type EntradaNaCaixa =
   | { t: "encerrada"; sid: string };
 
 export type OpcoesDoAtor = {
+  catalogoDeAparencias?: import("@informach/morada-sim").CatalogoDeAparencias;
   mundoId: MundoId;
   host: ClienteDoHost;
   agora(): number;
@@ -99,6 +110,7 @@ export type OpcoesDoAtor = {
 const ATRASO_MAXIMO_BYTES = 1024 * 1024;
 /** Fatos depois dos quais vale fotografar logo, sem esperar o intervalo. */
 const FATOS_MARCANTES = new Set([
+  "FamiliaFundada",
   "NascimentoRegistrado",
   "FamiliaMudou",
   "FaseMudou",
@@ -141,10 +153,15 @@ const RECUSAS_DO_DIARIO = [
 ] as const;
 
 /** Um passo que ainda não foi concluído: os fatos esperam o diário e ninguém soube dele. */
-type PassoPorConcluir = { saida: SaidaDoPasso; respostas: (() => void)[] };
+type PassoPorConcluir = {
+  saida: SaidaDoPasso;
+  respostas: (() => void)[];
+  /** Fixada na primeira tentativa; confirmações parciais não renumeram o passo. */
+  diarioBase: number | null;
+};
 
 const texto = new TextEncoder();
-const leitura = new TextDecoder();
+const leitura = new TextDecoder("utf-8", { fatal: true });
 
 /**
  * O apelido de quem entra, como os outros jogadores vão ver. O Recreio já o
@@ -281,6 +298,7 @@ export class Ator {
     const { host, mundoId } = this.op;
     const pedidoEm = this.op.agora();
     const posse = await host.reivindicarPosse(mundoId);
+    if (posse.schemaVersion > VERSAO_DO_MUNDO) throw new ErroDoRecreio("REVISAO_DIVERGENTE");
     this.cerca = posse.cerca;
     this.validaAte = pedidoEm + this.op.posseTtlMs;
     this.revisao = posse.revisao;
@@ -288,22 +306,58 @@ export class Ator {
     const guardada = posse.fotografia
       ? await host.lerFotografia({ mundoId, cerca: this.cerca })
       : null;
+    if (
+      posse.fotografia &&
+      (!guardada ||
+        guardada.meta.revisao !== posse.revisao ||
+        guardada.meta.sha256 !== posse.fotografia.sha256)
+    )
+      throw new ErroDoRecreio("REVISAO_DIVERGENTE");
+    const documento = guardada ? decodificarFotografia(guardada.bytes) : null;
+    if (
+      guardada &&
+      !conferirMetadadosDaFotografia(documento, {
+        mundoId,
+        tick: guardada.meta.tick,
+        versaoDoMundo: guardada.meta.schemaVersion,
+      })
+    )
+      throw new ErroDoRecreio("REVISAO_DIVERGENTE");
     const coberto = guardada?.meta.diarioSeq ?? 0;
+    if (coberto > posse.diarioSeq) throw new ErroDoRecreio("SEQUENCIA");
     const diario = await host.lerDiario({ mundoId, cerca: this.cerca, apos: coberto });
-    const fatos = diario.map((entrada) => JSON.parse(leitura.decode(entrada.bytes)) as Fato);
-    this.diarioSeq = diario.at(-1)?.seq ?? Math.max(coberto, posse.diarioSeq);
+    let ultima = coberto;
+    const fatos = diario.map((entrada) => {
+      if (entrada.seq !== ultima + 1) throw new ErroDoRecreio("SEQUENCIA");
+      ultima = entrada.seq;
+      const fato = JSON.parse(leitura.decode(entrada.bytes)) as Fato;
+      if (fato.id !== entrada.fatoId || fato.tick !== entrada.tick)
+        throw new ErroDoRecreio("SEQUENCIA");
+      return fato;
+    });
+    if (ultima !== posse.diarioSeq) throw new ErroDoRecreio("SEQUENCIA");
+    this.diarioSeq = ultima;
     this.diarioSemFoto = diario.reduce((total, entrada) => total + entrada.bytes.length, 0);
 
     // Sem fotografia, o mundo nasce de novo do mesmo jeito: a semente vem do id.
     const base = guardada
-      ? (JSON.parse(gunzipSync(guardada.bytes).toString("utf8")) as unknown)
+      ? abrirFotografia(documento)
       : criarMundo({
           mundoId,
           semente: resumoDoTexto(mundoId),
           definicao: this.op.definicao ?? BAIRRO_DA_PROVA,
           fundadores: [],
           regras: this.op.regras,
+          catalogoDeAparencias: this.op.catalogoDeAparencias,
         }).fotografar();
+    if (
+      base.mundoId !== mundoId ||
+      base.estado.id !== mundoId ||
+      base.tick !== base.estado.relogio.tick ||
+      (guardada && base.tick !== guardada.meta.tick)
+    )
+      throw new ErroDoRecreio("REVISAO_DIVERGENTE");
+    conferirCatalogoDisponivel(base.estado.catalogoDeAparencias, this.op.catalogoDeAparencias);
     this.mundo = restaurar(base, fatos);
     this.tickConfirmado = this.mundo.estado.relogio.tick;
     this.estado = "ativo";
@@ -317,46 +371,20 @@ export class Ator {
       diarioSeq: this.diarioSeq,
       tick: this.tickConfirmado,
     });
-    // A simulação volta parada no tick do último fato do diário, e o id de um
-    // fato leva o tick: um pedido feito agora poderia gerar um fato com o id de
-    // um que já está gravado, que o diário recusaria para sempre. Um passo
-    // antes de qualquer pedido põe o mundo adiante desse tick.
-    if (fatos.length > 0) await this.concluirPasso(this.mundo.avancar(100), []);
     // Um mundo novo, ou um que voltou só do diário, ganha logo a sua fotografia.
-    if (!guardada || fatos.length > 0) await this.fotografar("checkpoint");
+    if (!guardada || fatos.length > 0 || guardada.meta.schemaVersion !== base.estado.versao)
+      await this.fotografar("checkpoint");
   }
 
   // --- Entrar ---
 
-  /** Dá a quem entra o acesso à família, se ainda não tem. */
-  private garantirAcesso(jogadorId: string, entrada: EntradaPermitida): void {
-    const mundo = this.mundo as Mundo;
-    if (mundo.estado.acessos.some((acesso) => acesso.perfilId === jogadorId)) return;
-    const familias = listar(mundo.estado.familias);
-    if (entrada.papel === "steward") {
-      // Quem responde pelo mundo joga todas as famílias dele.
-      for (const familia of familias) {
-        mundo.aplicar({
-          t: "conceder_acesso",
-          perfilId: jogadorId,
-          familiaId: familia.id,
-          permissoes: [...PERMISSOES_DO_FUNDADOR],
-        });
-      }
-      return;
-    }
-    // Quem foi convidado divide a família indicada no convite; sem indicação, a primeira.
-    const indicada = entrada.participacao?.startsWith("familia:")
-      ? entrada.participacao.slice("familia:".length)
-      : null;
-    const familia = familias.find((f) => f.id === indicada) ?? familias[0];
-    if (!familia) return;
-    mundo.aplicar({
-      t: "conceder_acesso",
-      perfilId: jogadorId,
-      familiaId: familia.id,
-      permissoes: [...PERMISSOES_DE_QUEM_DIVIDE],
-    });
+  /** Relê o papel atual sem apagar o direito próprio da fundação. */
+  private garantirAcesso(
+    jogadorId: string,
+    entrada: Pick<EntradaPermitida, "papel" | "participacao">,
+  ): boolean {
+    if (!this.mundo) throw new Error("O mundo ainda não está aberto.");
+    return reconciliarAcessos(this.mundo, jogadorId, entrada);
   }
 
   entrar(ligacao: Ligacao, sessao: SessaoVerificada): Promise<void> {
@@ -406,6 +434,15 @@ export class Ator {
       if (ligacao.fase === "fechada") return;
 
       const jogadorId = entrada.membroId;
+      if (!this.garantirAcesso(jogadorId, entrada)) {
+        this.op.registrar("entrada_recusada", {
+          mundoId: this.mundoId,
+          codigo: "PARTICIPACAO_INVALIDA",
+        });
+        this.despedir(ligacao, FECHAMENTO.semAcesso);
+        this.fecharSeVazio();
+        return;
+      }
       // O mesmo jogador por outra conexão: a nova toma o lugar da antiga.
       for (const [sid, outra] of this.ligacoes) {
         if (outra !== ligacao && (sid === sessao.sid || outra.jogadorId === jogadorId)) {
@@ -414,14 +451,20 @@ export class Ator {
         }
       }
 
-      this.garantirAcesso(jogadorId, entrada);
       // O apelido fica na presença do mundo, que é replicada e nunca gravada.
       const apelido = apelidoParaOMundo(entrada.apelido);
+      const podeFundarFamilia = entrada.papel === "steward";
       const conhecida = mundo.presenca.sessoes.some((s) => s.sessaoId === sessao.sid);
       mundo.aplicar(
         conhecida
-          ? { t: "sessao_voltou", sessaoId: sessao.sid, apelido }
-          : { t: "sessao_entrou", sessaoId: sessao.sid, perfilId: jogadorId, apelido },
+          ? { t: "sessao_voltou", sessaoId: sessao.sid, apelido, podeFundarFamilia }
+          : {
+              t: "sessao_entrou",
+              sessaoId: sessao.sid,
+              perfilId: jogadorId,
+              apelido,
+              podeFundarFamilia,
+            },
       );
 
       // A fase continua `entrando` até a pessoa receber o mundo: antes disso ela
@@ -430,6 +473,7 @@ export class Ator {
       ligacao.sid = sessao.sid;
       ligacao.jogadorId = jogadorId;
       ligacao.perfilId = sessao.perfilId;
+      ligacao.acesso = { papel: entrada.papel, participacao: entrada.participacao };
       ligacao.expiraEm = sessao.expiraEm;
       this.ligacoes.set(sessao.sid, ligacao);
 
@@ -494,13 +538,25 @@ export class Ator {
           const { ligacao, intencao } = entrada;
           if (ligacao.fase !== "dentro" || !ligacao.sid) break;
           const resultado = mundo.aplicar({ t: "intencao", sessaoId: ligacao.sid, intencao });
+          if (resultado.ok && intencao.acao.t === "fundar_familia") {
+            for (const outra of this.ligacoes.values()) {
+              if (outra.fase !== "fechada" && outra.jogadorId && outra.acesso) {
+                if (!this.garantirAcesso(outra.jogadorId, outra.acesso) && outra.sid)
+                  this.encerrarSessao(outra.sid);
+              }
+            }
+          }
           // A resposta só sai depois que o passo estiver gravado.
           respostas.push(() => this.enviar(ligacao, { t: "resultado", resultado }));
           break;
         }
-        case "caiu":
+        case "caiu": {
+          // A queda pode ter esperado na fila enquanto outra conexão do mesmo SID entrou.
+          const atual = this.ligacoes.get(entrada.sid);
+          if (atual && atual.fase !== "fechada") break;
           mundo.aplicar({ t: "sessao_caiu", sessaoId: entrada.sid, agoraMs: this.op.agora() });
           break;
+        }
         case "encerrada":
           mundo.aplicar({ t: "sessao_saiu", sessaoId: entrada.sid });
           break;
@@ -651,7 +707,7 @@ export class Ator {
    * ordem. Um passo novo nunca passa na frente de um que ainda não gravou.
    */
   private concluirPasso(saida: SaidaDoPasso, respostas: (() => void)[]): Promise<boolean> {
-    this.pendentes.push({ saida, respostas });
+    this.pendentes.push({ saida, respostas, diarioBase: null });
     return this.escoar();
   }
 
@@ -668,7 +724,8 @@ export class Ator {
       if (saida.fatos.length > 0) {
         const inicio = performance.now();
         try {
-          await this.gravarFatos(saida.fatos);
+          passo.diarioBase ??= this.diarioSeq;
+          await this.gravarFatos(saida.fatos, passo.diarioBase);
         } catch (erro) {
           if (erro instanceof QuedaSimulada) throw erro;
           if (
@@ -739,14 +796,14 @@ export class Ator {
    * Recreio. Repetir um lote já gravado (a resposta se perdeu no caminho) não
    * faz nada lá, então uma nova tentativa recomeça do primeiro que falta.
    */
-  private async gravarFatos(fatos: readonly Fato[]): Promise<void> {
+  private async gravarFatos(fatos: readonly Fato[], diarioBase: number): Promise<void> {
     this.op.falhas.atingir("antes_do_diario", { fatos });
     const lotes: EntradaDoDiario[][] = [];
     let lote: EntradaDoDiario[] = [];
     let tamanho = 0;
     for (const [i, fato] of fatos.entries()) {
       const entrada: EntradaDoDiario = {
-        seq: this.diarioSeq + 1 + i,
+        seq: diarioBase + 1 + i,
         tick: fato.tick,
         fatoId: fato.id,
         bytes: texto.encode(JSON.stringify(fato)),
@@ -763,15 +820,27 @@ export class Ator {
       tamanho += entrada.bytes.length;
     }
     if (lote.length > 0) lotes.push(lote);
+    const entradas = lotes.flat();
     for (const parte of lotes) {
       const { confirmadoAte } = await this.op.host.anexarAoDiario({
         mundoId: this.mundoId,
         cerca: this.cerca,
         entradas: parte,
       });
-      // Um lote repetido volta com o diário onde já estava: só conta o que entrou agora.
+      const ultima = parte.at(-1);
+      if (!ultima || confirmadoAte < ultima.seq || confirmadoAte > diarioBase + fatos.length)
+        throw new ErroDoRecreio("SEQUENCIA");
+      // Uma resposta perdida pode fazer o replay de uma parte voltar com o
+      // passo inteiro confirmado. Conta os bytes do prefixo reconhecido,
+      // inclusive os das partes seguintes, uma vez só.
       if (confirmadoAte > this.diarioSeq) {
-        this.diarioSemFoto += parte.reduce((total, entrada) => total + entrada.bytes.length, 0);
+        this.diarioSemFoto += entradas.reduce(
+          (total, entrada) =>
+            entrada.seq > this.diarioSeq && entrada.seq <= confirmadoAte
+              ? total + entrada.bytes.length
+              : total,
+          0,
+        );
       }
       this.diarioSeq = Math.max(this.diarioSeq, confirmadoAte);
     }
@@ -863,12 +932,13 @@ export class Ator {
    * diário), e a próxima instância recupera o que estava gravado quando a
    * posse vencer. Ninguém chegou a saber do que não gravou.
    */
-  encerrar(): Promise<void> {
+  encerrar(): Promise<boolean> {
     return this.emSerie(async () => {
-      if (this.estado !== "ativo") return;
+      if (this.estado !== "ativo") return true;
       for (const ligacao of this.ligacoes.values()) {
         this.enviar(ligacao, { t: "aviso", codigo: "servidor_reiniciando" });
       }
+      let confirmado = false;
       try {
         if (await this.escoar()) {
           await this.fotografar("checkpoint");
@@ -884,6 +954,7 @@ export class Ator {
               motivo: "drenagem",
             });
           }
+          confirmado = true;
         }
       } catch (erro) {
         if (erro instanceof QuedaSimulada) throw erro;
@@ -898,7 +969,7 @@ export class Ator {
           codigo: ehErroDoRecreio(erro) ? erro.codigo : "erro",
         });
       }
-      if (this.estado !== "ativo") return;
+      if (this.estado !== "ativo") return confirmado;
       if (this.pendentes.length > 0) {
         this.op.registrar("encerramento_sem_salvar", {
           mundoId: this.mundoId,
@@ -909,7 +980,8 @@ export class Ator {
       this.largar(FECHAMENTO.reiniciando);
       this.estado = "fechado";
       this.op.aoFechar(this);
-    }).then(() => undefined);
+      return confirmado;
+    }).then((resultado) => resultado !== false);
   }
 
   /**

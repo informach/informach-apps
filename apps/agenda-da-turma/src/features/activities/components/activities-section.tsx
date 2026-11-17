@@ -38,7 +38,6 @@ type Props = {
   filters: ActivityOverviewOptions;
   profiles: StudentProfile[];
   activeFilter: StudentProfile | null;
-  currentUserId: string;
   /** Com um adulto só, "o que é meu" nunca tiraria nada da lista. */
   hasSecondAdult: boolean;
   /** Plano e franquia do titular, para a folha Adicionar. */
@@ -51,7 +50,6 @@ export function ActivitiesSection({
   filters,
   profiles,
   activeFilter,
-  currentUserId,
   hasSecondAdult,
   addEntitlement,
 }: Props) {
@@ -61,7 +59,7 @@ export function ActivitiesSection({
   const manualParams = new URLSearchParams();
   if (activeFilter) manualParams.set("perfil", activeFilter.id);
   if (typeFilter) manualParams.set("tipo", typeFilter);
-  const manualHref = `/atividades/nova${manualParams.size ? `?${manualParams}` : ""}`;
+  const manualHref = `/atividades/nova${manualParams.size ? `?${manualParams}` : ""}` as const;
   const changeFilter = (next: Partial<ActivityOverviewOptions>) =>
     router.push(activityOverviewHref({ ...filters, ...next, page: 1 }));
   const handleFilterChange = (value: string) =>
@@ -276,7 +274,7 @@ export function ActivitiesSection({
           <ActivitySheet>
             {items.map((entry) => (
               <li key={entry.key}>
-                <UnifiedActivityCard entry={entry} currentUserId={currentUserId} />
+                <UnifiedActivityCard entry={entry} />
               </li>
             ))}
           </ActivitySheet>

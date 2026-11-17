@@ -1,49 +1,101 @@
-# Recreio e Morada: nota de passagem (12/11/2026)
+# Recreio e Morada: nota de passagem (16/11/2026)
 
-Para quem retoma a frente depois de uma pausa, nesta ou em outra máquina. O registro completo (plano, decisões, verificações) está em [`implementacao.md`](implementacao.md).
+Para quem retoma a frente depois de uma pausa. Leia primeiro a [execução atual](execucao-2026-11-15.md) e [PRODUCAO.md](../../apps/recreio/PRODUCAO.md). O registro completo permanece em [`implementacao.md`](implementacao.md). O titular autorizou as cinco frentes e todos os achados, incluindo família/proteção e homologação comercial. Testes pesados, builds, empacotamento e E2E rodam **somente no GitHub**, nunca nesta máquina; arte/evidência licenciada somente no repositório privado.
 
-## Onde está cada coisa
+## Estado atual em 16/11
 
-- **`main`** tem a etapa 1 até o lote X2: lotes P0 a P7, J0 a J8, X1 e X2, todos verificados localmente. A condição de saída da etapa 1 passa de ponta a ponta na máquina de desenvolvimento (duas contas, uma cai, a outra continua, a instância é morta e tudo volta), e os moradores já aparecem com os corpos de verdade quando o servidor do jogo tem a arte. Nada disso está publicado: não há serviço do Recreio nem do Morada no `.railway/railway.ts`.
-- **A migração `0080_recreio`** está na `main`. O schema `recreio` passa a existir no banco onde o migrator rodar; nenhum app em produção o lê.
+Carregamento corrigido no portal `000f40ad`/`da0055b3`, prontidão e HTML inicial
+conferidos. Seis gates na candidata `7f3a7e2`; o controle negativo falhou nos três
+casos previstos. [Prova de carregamento](hidratacao-responsabilidade-2026-11-16.md).
+As falhas gerais anteriores permanecem no registro; prova humana adiada.
+
+[Remoção e convites corrigidos implantados](remocao-producao-2026-11-16.md):
+portal `1ed101be`, Morada `92f665e7`, schema 167 e arte D2. 325 integrações e
+seis gates na candidata/main; contas piloto preservadas e prova humana adiada.
+
+[Transferência aceita implantada](responsabilidade-producao-2026-11-16.md):
+naquele marco, portal e Morada em `92f665e7`, schema 167, Mundo V2/protocolo 1/arte D2.
+Proposta/aceite/recusa/cancelamento com login nativo, prazos e auditoria atômica.
+291 integrações e seis gates na candidata/main. Prova humana adiada pelo titular.
+Node PID 1 confirmado no Railway; retirada normal recebeu SIGTERM e confirmou
+zero mundos/zero falhas. Não houve prova de salvamento de mundo aberto nessa
+retirada. Prontidão, mapas, arte e cron posterior conferidos. CI geral da main
+em curso; não cancelá-lo com push só documental. D3 continua separada.
+
+Edição do perfil próprio implantada no portal, com seis gates na candidata/main,
+188 integrações e jornada de salvamento/recarga/teclado; [prova](perfil-proprio-2026-11-16.md).
+
+[Aparelhos próprios](aparelhos-proprios-2026-11-16.md) implantados: paginação, negativa persistida e fim das partidas com auditoria atômica. Seis gates candidata/main, 200 integrações, sete jornadas e consumidores de auth aprovados; operação conferida.
+
+D3 continua separado da produção. A fonte `04d99f70` passou nos seis gates e nas
+cinco jornadas privadas `43826248469`, incluindo 48 combinações. O quadro antigo
+explica a captura específica sem nomes; a lentidão continua aberta. O perfil
+final dessa jornada é de outro documento e não permite comparar diretamente
+com a etapa que falhou. A coleta por navegação está em candidata. [Diagnóstico gráfico](rotulos-2026-11-16.md). Nenhuma prova de diversão,
+60 FPS, alta disponibilidade ou encerramento de D2–D8 foi acrescentada.
+
+O titular confirmou a licença comercial; não repetir essa pergunta. Vídeo
+integrado está indisponível e adiado; testes pesados somente no GitHub e orçamento
+de uptime Sentry indisponível. Backup agendado, carga/custo real por mundo,
+família/proteção, direitos, cobrança e homologações continuam pendentes.
+
+## Marcos anteriores de 15/11
+
+Os itens abaixo preservam a proveniência dos incrementos anteriores. Códigos,
+ativação D1 e contagens ali registrados não descrevem a versão atual.
+
+- **Código da sonda em `5e54f59f`, integrado à main,** inclui as correções de integridade/revogação/auditoria/limites, recuperação, recusa de downgrade, fila gráfica e sonda compartilhada/Worker. Apps publicados em `95c24d24`. Cinco gates públicos, 171 integrações, cinco jornadas do portal, 19 do cliente e 100 dias aprovados no perfil registrado. Worker: sete testes HTTP e cinco nativos aprovados no run 43723080121 e repetição na main 43723421621; bundle SHA-256 `e64eaa7bd05fa954f5ecb0be5acd210b4138f2dfa374a94f2145ff93e9539ac8`.
+- **Alfa fechado implantado:** portal/Morada/manutenção, DNS/TLS, Redis, schema e Sentry conferidos. As três flags IaC estão em `true`; não são rollback. Titular confirmou criar/jogar/sair e, depois da ativação, ver a arte e sair pelo jogo. [Backup lógico real restaurado em destino isolado](ensaio-backup-producao.md), com limpeza confirmada; backup agendado, carga e custo por mundo ainda pendentes. Avisos Sentry recebidos pelo titular. Uptime Sentry continua desligado por orçamento; cron Workers com duas execuções automáticas e ingestão Sentry conferidas, prova desligada; [registro](sonda-cloudflare.md).
+- **Arte D1 ativada:** servidor `893b0286` validou 69 originais/10.449.459 bytes, pacote privado `4f301210`; portal `c06b410e` com origem de assets/CSP conferidas. Plano Railway sem alterações às 14h18 UTC. Duas jornadas privadas completas 43719545176/43721091705 aprovadas, com dois navegadores independentes também no retorno. Confirmação visual humana recebida. Arte/capturas continuam privadas; não há medição de FPS ou diversão.
+- **A migração `0080_recreio`** já existe em produção, e a prontidão do portal confere a compatibilidade esperada. Não executar migrations isoladas da frente Compasso para esta entrega.
 - A branch `feat/recreio` foi juntada à `main` e não tem nada a mais.
 
 ## A arte numa máquina nova
 
-**Nenhum arquivo de arte entra neste repositório** (ele é público). O empacotador lê um clone parcial do `informach/artes-3d` (privado) no commit `4f3012101735ffddd066c31bb0bd8319723eb9ba`, sempre fora do repositório, e grava a saída também fora. Cerca de 550 MB:
+**Nenhum arquivo de arte entra neste repositório** (ele é público). O empacotador lê um clone parcial do `informach/artes-3d` (privado) no commit `4f3012101735ffddd066c31bb0bd8319723eb9ba`, sempre fora do repositório, e grava a saída também fora. O recorte de personagens usado no X2 tinha cerca de 550 MB; o D1 acrescenta móveis e construção:
 
 ```bash
 gh repo clone informach/artes-3d <fora-do-repo>/artes-3d -- --filter=blob:none --no-checkout
 cd <fora-do-repo>/artes-3d
 git sparse-checkout set --no-cone /LEIA.md '/biblioteca/LEIA*.md' /biblioteca/info.json /biblioteca/rotulos.json \
   /biblioteca/corpos/ /biblioteca/itens/ /biblioteca/roupas_mascaras/ /biblioteca/roupas_gen/ /biblioteca/medidas/ \
-  /biblioteca/props/ /codigo/arte/elenco.json /codigo/arte/cabelos.json /codigo/arte/roupas.json /paginas/tipos_de_corpo/ \
+  /biblioteca/props/ /biblioteca/moveis/ /biblioteca/construcao/ /codigo/arte/elenco.json /codigo/arte/cabelos.json /codigo/arte/roupas.json /paginas/tipos_de_corpo/ \
   /biblioteca/bibliotecas_30fps/adulto.glb /biblioteca/bibliotecas_30fps/idoso.glb \
   /biblioteca/bibliotecas_30fps/crianca_m.glb /biblioteca/bibliotecas_30fps/bebe_m.glb \
   /biblioteca/bibliotecas_30fps/adulta_gravida.glb
 git checkout 4f3012101735ffddd066c31bb0bd8319723eb9ba
 
 # na raiz deste repositório
-ARTES_3D_DIR=<fora-do-repo>/artes-3d pnpm --filter @informach/morada-arte empacotar -- --saida <fora-do-repo>/arte-prova
+ARTES_3D_DIR=<fora-do-repo>/artes-3d pnpm --filter @informach/morada-arte empacotar -- --saida <fora-do-repo>/arte-prova \
+  --casa packages/morada-sim/src/conteudo/imoveis/casa-prova.v1.json
 MORADA_PLATAFORMA=falsa MORADA_REGRAS=prova MORADA_ARTE_DIR=<fora-do-repo>/arte-prova pnpm dev:morada-server
 pnpm --filter @informach/jogo-morada bancada     # http://localhost:5173/?apelido=Lia&arte
 ```
 
-O empacotamento leva cerca de 40 s e é determinístico (os hashes estão no registro). Sem a arte, tudo roda com corpos procedurais, como no CI.
+O empacotamento gera arquivos determinísticos com hash; sem `--casa`, inclui só personagens. Sem a arte, tudo continua procedural, como no CI. Ver tempos e tamanhos medidos no review do D1.
 
-Os testes de integração e o E2E do portal pedem um `DATABASE_URL` local (aceitam o `.env` da raiz); eles criam e apagam um banco descartável.
+Os testes de integração e o E2E do portal criam e apagam um banco descartável do executor GitHub. Nenhuma credencial ou dump de produção entra nesses testes. As receitas de desenvolvimento acima e abaixo são referências técnicas; não autorizam empacotar/buildar/testar nesta máquina.
 
-## Próximos passos, em ordem
+## Continuação de 13/11
 
-1. **X3**, o que falta da etapa 1: serviços e cron no `.railway/railway.ts` atrás de `RECREIO_LAUNCHED=false`; build e `start` de produção do `apps/morada-server` (hoje roda com `tsx`, que é dependência de desenvolvimento), incluindo onde a arte empacotada fica no serviço (`MORADA_ARTE_DIR`) sem entrar no repositório; `RECREIO_API_URL` exige `https` em produção, o que recusa o endereço interno do Railway; registro mínimo no Bastidores; guarda de exclusão de conta; `PRODUCAO.md`; corrigir "repositório privado" no `AGENTS.md`. O `railway config plan` passa pela revisão do titular antes de aplicar.
-2. **X4**, só com autorização do titular: deploy fechado e medição do custo por hora de mundo com 1, 2, 4 e 8 pessoas.
-3. Etapa 2 (D1 a D8). O D1 traz a arte dos móveis: hoje a caixa procedural da cama tem a altura da cabeceira e cobre quem deita.
+O X3 já foi integrado à `main`; a passagem anterior dizia incorretamente que ele estava só em branch local. O D1 acrescenta a arte da casa atual e a revisão dessa integração. As provas visuais e os E2E ficam descritos no [review do D1](review-d1-2026-11-13.md).
 
-Ficou sem ver no jogo, e vale olhar no começo do X3 ou do D1: sentar e deitar com a arte, a gravidez, o bebê no colo e `/jogar/morada` com `RECREIO_GAME_ORIGINS.morada.assets` declarado (CSP e SDK de verdade). Detalhes na seção do X2 do registro.
+Para repetir o portal com arte, em banco local descartável:
+
+```bash
+RECREIO_E2E_ARTE_DIR=<fora-do-repo>/arte-prova DATABASE_URL=<postgres-local> \
+  pnpm --filter @informach/recreio-app e2e
+```
+
+Esse opt-in declara `assets` no SDK/CSP, entrega a pasta ao servidor do jogo e guarda capturas/traces em uma pasta irmã da arte, fora do repositório. O comando normal de E2E continua sem arte.
+
+## Próximos passos
+
+1. D2: criação da família; depois D3–D8 conforme os critérios do plano. A meta de FPS do D1 ainda precisa de medição em vídeo integrado real.
+2. X4: homologar arte, backup agendado, alerta humano, estabilidade e custo por hora de mundo com 1, 2, 4 e 8 pessoas, seguindo [PRODUCAO.md](../../apps/recreio/PRODUCAO.md). A [sonda externa](monitoramento-externo.md) passou nos testes e na ingestão, mas o primeiro agendamento GitHub ainda precisa ser observado. Uptime Sentry de 60 s permanece desligado: o titular não pode liberar orçamento. O [roteiro de cobrança](stripe-pendente.md) registra a configuração/homologação comercial ainda pendente, agora dentro do escopo autorizado.
 
 ## Abertos que pedem decisão do titular
 
-- `restaurar` do `@informach/morada-sim` devolve o mundo parado no tick do último fato, e o id dos fatos leva o tick: o primeiro fato depois da volta pode repetir um id. O servidor contorna; a causa está na simulação.
 - Os zips de pacotes de arte e as animações da Mixamo continuam no histórico do git deste repositório público.
 - Licença ITHappy por escrito e a conversa jurídica, que travam só o lançamento público.
 - `/termos` e `/privacidade` do Recreio pedem revisão.

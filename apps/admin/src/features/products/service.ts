@@ -31,6 +31,7 @@ import {
   type EdiUsage,
   type EstrelaUsage,
   type MissaoUsage,
+  recreioUsage,
   usageFor,
 } from "./repository";
 
@@ -135,6 +136,30 @@ export async function getProductView(
         { label: "Abrir o site", href: SERVICES.site.defaultOrigin },
         { label: "Railway", href: RAILWAY_PROJECT_URL },
       ],
+    };
+  }
+
+  if (product === "recreio") {
+    const usage = await recreioUsage();
+    return {
+      tab,
+      name: PRODUCTS.recreio.name,
+      domain: PRODUCTS.recreio.domain,
+      service,
+      kpis: [
+        { label: "contas", value: formatNumber(usage.accounts) },
+        { label: "perfis", value: formatNumber(usage.profiles) },
+        { label: "mundos", value: formatNumber(usage.worlds) },
+        { label: "sessões de jogo abertas", value: formatNumber(usage.sessions) },
+      ],
+      funnel: [],
+      usageTitle: "Alfa fechado",
+      usage: [],
+      plans: [],
+      credits: [],
+      ai: "O Recreio não usa IA.",
+      note: "Acesso por concessão da equipe. Mundos, apelidos, convites e fotografias dos jogos não aparecem no Bastidores.",
+      links: [{ label: "Railway", href: RAILWAY_PROJECT_URL }],
     };
   }
 
@@ -342,7 +367,7 @@ export async function getProductView(
         { value: formatNumber(estrela.accounts), label: "contas que usam o Dia de Estrela" },
         {
           value: formatNumber(estrela.active),
-          label: "famílias com tarefa feita nos últimos 7 dias",
+          label: "contas que entraram nos últimos 7 dias",
         },
         { ...proPair, label: proPair.label.replace("assinantes Pro", "famílias assinantes") },
         { value: formatNumber(estrela.children), label: "perfis de criança" },
@@ -354,7 +379,7 @@ export async function getProductView(
         { label: "Marcadas pela criança", value: formatNumber(estrela.completions.child ?? 0) },
         { label: "Marcadas pelos pais", value: formatNumber(estrela.completions.adult ?? 0) },
         { label: "Aparelhos das crianças conectados agora", value: formatNumber(estrela.devices) },
-        { label: "Famílias com segundo responsável", value: formatNumber(estrela.guardians) },
+        { label: "Famílias com mais de um adulto", value: formatNumber(estrela.guardians) },
       ],
       ai: "O Dia de Estrela não usa IA.",
       note: "Nomes das crianças, tarefas, metas, recompensas, vozes e fotos nunca aparecem aqui: só quantas tarefas foram feitas.",

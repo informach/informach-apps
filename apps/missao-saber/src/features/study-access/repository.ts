@@ -1,17 +1,27 @@
 import "server-only";
 import { createHash, createHmac, randomBytes } from "node:crypto";
+import {
+  activeWebParticipationCondition,
+  currentWebParticipationCondition,
+  lockActiveWebParticipation,
+} from "@informach/auth/web-participation";
 import { and, db, desc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from "@informach/db";
 import {
   missaoStudyCodes as codes,
   missaoStudyDevices as devices,
+  familyAppProfiles,
   missaoStudyDeviceProfiles as grants,
   missaoStudyAccessLimits as limits,
   missaoProfiles,
+  missaoSessions,
   users,
 } from "@informach/db/schema";
+import { lockFamilyMembership } from "@informach/family/context";
+import { captureProfileDelegations } from "@informach/family/delegation";
 import { env } from "@/lib/env";
 import { assertAllowed } from "@/lib/errors";
-import { lockOwner } from "../learning/repository";
+import type { StudyAuthority } from "../family/authority";
+import { studentAccessCondition, studyDeviceProfileCondition } from "../family/scope";
 import {
   CODE_ATTEMPTS,
   CODE_LIFETIME_MS,
@@ -24,6 +34,7 @@ import {
 const publicFields = {
   id: devices.id,
   userId: devices.userId,
+  familyGroupId: devices.familyGroupId,
   label: devices.label,
   remember: devices.remember,
   expiresAt: devices.expiresAt,
@@ -31,6 +42,7 @@ const publicFields = {
   revokedAt: devices.revokedAt,
   createdAt: devices.createdAt,
 };
+const devicesValue = (id: string) => sql`${id}::uuid`;
 const tokenHash = (token: string) => createHash("sha256").update(token).digest("hex");
 const privateHash = (purpose: string, value: string) =>
   createHmac("sha256", env.BETTER_AUTH_SECRET).update(`${purpose}:${value}`).digest("hex");
@@ -49,21 +61,50 @@ async function issueDevice(userId: string, raw: unknown, pending: boolean) {
     }
   }
   return db.transaction(async (tx) => {
-    await lockOwner(tx, userId);
     const owned = await tx
-      .select({ id: missaoProfiles.id })
+      .select({
+        id: missaoProfiles.id,
+        activationId: familyAppProfiles.id,
+        groupId: familyAppProfiles.groupId,
+      })
       .from(missaoProfiles)
-      .where(and(eq(missaoProfiles.userId, userId), inArray(missaoProfiles.id, input.profileIds)));
+      .innerJoin(familyAppProfiles, eq(familyAppProfiles.id, missaoProfiles.familyProfileId))
+      .where(
+        and(
+          eq(familyAppProfiles.app, "missao-saber"),
+          inArray(missaoProfiles.id, input.profileIds),
+        ),
+      );
     assertAllowed(
       owned.length === input.profileIds.length,
       "PROFILE",
       "Escolha somente estudantes da sua família.",
     );
+    const familyGroupId = owned[0]?.groupId;
+    assertAllowed(
+      familyGroupId && owned.every((profile) => profile.groupId === familyGroupId),
+      "PROFILE",
+      "Escolha estudantes da mesma família.",
+    );
+    const delegations = await captureProfileDelegations(
+      tx,
+      userId,
+      "missao-saber",
+      familyGroupId,
+      owned.map((profile) => profile.activationId),
+    );
+    const webParticipationRevision = await lockActiveWebParticipation(tx, userId);
     const active = await tx
       .select({ id: devices.id })
       .from(devices)
       .where(
-        and(eq(devices.userId, userId), isNull(devices.revokedAt), gt(devices.expiresAt, now)),
+        and(
+          eq(devices.userId, userId),
+          eq(devices.familyGroupId, familyGroupId),
+          isNull(devices.revokedAt),
+          gt(devices.expiresAt, now),
+          currentWebParticipationCondition(devices.userId, devices.webParticipationRevision),
+        ),
       );
     assertAllowed(
       active.length < 10,
@@ -74,7 +115,9 @@ async function issueDevice(userId: string, raw: unknown, pending: boolean) {
       .insert(devices)
       .values({
         userId,
+        familyGroupId,
         tokenHash: tokenHash(token),
+        webParticipationRevision,
         label: input.label,
         remember: input.remember,
         expiresAt: new Date(
@@ -84,9 +127,19 @@ async function issueDevice(userId: string, raw: unknown, pending: boolean) {
       })
       .returning(publicFields);
     assertAllowed(device, "DEVICE", "Não foi possível preparar o estudo.");
-    await tx
-      .insert(grants)
-      .values(input.profileIds.map((profileId) => ({ deviceId: device.id, profileId })));
+    await tx.insert(grants).values(
+      owned.map((profile) => {
+        const claim = delegations.find((entry) => entry.profileId === profile.activationId);
+        assertAllowed(claim, "PROFILE", "Estudante não disponível.");
+        return {
+          deviceId: device.id,
+          profileId: profile.id,
+          delegationKey: claim.delegationKey,
+          readGrantId: claim.readGrantId,
+          writeGrantId: claim.writeGrantId,
+        };
+      }),
+    );
     if (pending)
       await tx.insert(codes).values({
         deviceId: device.id,
@@ -126,6 +179,7 @@ export async function readStudyDevice(token: string) {
         isNotNull(devices.connectedAt),
         gt(devices.expiresAt, now),
         eq(users.emailVerified, true),
+        currentWebParticipationCondition(users.id, devices.webParticipationRevision),
         or(
           eq(users.banned, false),
           and(isNotNull(users.banExpiresAt), lt(users.banExpiresAt, now)),
@@ -137,19 +191,50 @@ export async function readStudyDevice(token: string) {
     .select({ id: grants.profileId })
     .from(grants)
     .innerJoin(missaoProfiles, eq(grants.profileId, missaoProfiles.id))
-    .where(and(eq(grants.deviceId, device.id), eq(missaoProfiles.userId, device.userId)))
+    .where(
+      and(
+        eq(grants.deviceId, device.id),
+        studyDeviceProfileCondition(device.userId, devicesValue(device.id), grants.profileId),
+      ),
+    )
     .orderBy(missaoProfiles.createdAt, missaoProfiles.id);
   if (!profiles.length) return null;
   return { device, profileIds: profiles.map((row) => row.id) };
 }
 
-export async function listStudyDevices(userId: string) {
+/** Navigation guard only. Domain operations must keep this authority in their transaction. */
+export async function studySessionAvailable(actor: StudyAuthority, sessionId: string) {
+  const [row] = await db
+    .select({ id: missaoSessions.id })
+    .from(missaoSessions)
+    .where(
+      and(
+        eq(missaoSessions.id, sessionId),
+        studentAccessCondition(actor, missaoSessions.profileId),
+      ),
+    );
+  return !!row;
+}
+
+export async function listStudyDevices(userId: string, familyGroupId?: string) {
   const rows = await db
-    .select(publicFields)
+    .select({
+      ...publicFields,
+      currentParticipation: currentWebParticipationCondition(
+        devices.userId,
+        devices.webParticipationRevision,
+      ).mapWith(Boolean),
+    })
     .from(devices)
-    .where(eq(devices.userId, userId))
+    .where(
+      and(
+        eq(devices.userId, userId),
+        activeWebParticipationCondition(userId),
+        familyGroupId ? eq(devices.familyGroupId, familyGroupId) : undefined,
+      ),
+    )
     .orderBy(
-      sql`(${devices.revokedAt} is null and ${devices.expiresAt} > now()) desc`,
+      sql`(${devices.revokedAt} is null and ${devices.expiresAt} > now() and ${currentWebParticipationCondition(devices.userId, devices.webParticipationRevision)}) desc`,
       desc(devices.createdAt),
     )
     .limit(30);
@@ -220,40 +305,61 @@ export async function redeemStudyCode(raw: unknown) {
   const now = new Date();
   const token = randomBytes(32).toString("hex");
   return db.transaction(async (tx) => {
-    // Lock the code row: only one concurrent request can consume it.
-    const [code] = await tx
-      .select()
+    const [observed] = await tx
+      .select({ device: publicFields, codeId: codes.id })
       .from(codes)
+      .innerJoin(devices, eq(codes.deviceId, devices.id))
       .where(
         and(
           eq(codes.codeHash, privateHash("code", parsed.data)),
           isNull(codes.consumedAt),
           gt(codes.expiresAt, now),
+          isNull(devices.revokedAt),
+          gt(devices.expiresAt, now),
         ),
-      )
-      .for("update");
-    assertAllowed(
-      code,
-      "CODE",
-      "Confira o código. Ele pode estar incorreto, ter expirado ou já ter sido usado.",
-    );
+      );
+    assertAllowed(observed, "CODE", "Esta conexão não está mais disponível. Peça um novo código.");
+    await lockFamilyMembership(tx, observed.device.userId, observed.device.familyGroupId);
     const [device] = await tx
       .select(publicFields)
       .from(devices)
       .where(
-        and(eq(devices.id, code.deviceId), isNull(devices.revokedAt), gt(devices.expiresAt, now)),
+        and(
+          eq(devices.id, observed.device.id),
+          isNull(devices.revokedAt),
+          isNull(devices.connectedAt),
+          gt(devices.expiresAt, new Date()),
+        ),
       )
       .for("update");
-    assertAllowed(
-      device,
-      "CODE",
-      "Esta conexão não está mais disponível. Peça um novo código ao responsável.",
-    );
+    assertAllowed(device, "CODE", "Esta conexão não está mais disponível. Peça um novo código.");
+    const [code] = await tx
+      .select()
+      .from(codes)
+      .where(
+        and(
+          eq(codes.id, observed.codeId),
+          isNull(codes.consumedAt),
+          gt(codes.expiresAt, new Date()),
+        ),
+      )
+      .for("update");
+    assertAllowed(code, "CODE", "Confira o código. Ele pode ter expirado ou já ter sido usado.");
     const profiles = await tx
       .select({ id: grants.profileId })
       .from(grants)
       .innerJoin(missaoProfiles, eq(grants.profileId, missaoProfiles.id))
-      .where(and(eq(grants.deviceId, device.id), eq(missaoProfiles.userId, device.userId)));
+      .where(
+        and(
+          eq(grants.deviceId, device.id),
+          studyDeviceProfileCondition(
+            device.userId,
+            devicesValue(device.id),
+            grants.profileId,
+            false,
+          ),
+        ),
+      );
     assertAllowed(
       profiles.length,
       "CODE",

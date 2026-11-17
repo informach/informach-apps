@@ -1,3 +1,6 @@
+import { z } from "zod";
+import type { AgendaAuthority } from "@/features/family/authority";
+
 /**
  * A fila de gravações que ainda não subiram — a parte que não toca o navegador.
  *
@@ -25,6 +28,8 @@ export type PendingWrite = {
    * HTML autenticado.
    */
   userId: string;
+  /** Null only for pre-migration entries, hidden until server resolution. */
+  familyGroupId: string | null;
   status: PendingWriteStatus;
   /** A versão que a pessoa via quando decidiu. É ela que o servidor confere. */
   version: number;
@@ -49,11 +54,14 @@ export const MAX_QUEUE_AGE_MS = 7 * 86_400_000;
 /** O que é desta pessoa e ainda vale. Nada mais aparece nem sobe. */
 export function visibleForOwner(
   entries: readonly PendingWrite[],
-  userId: string,
+  actor: AgendaAuthority,
   now = Date.now(),
 ): PendingWrite[] {
   return entries.filter(
-    (entry) => entry.userId === userId && now - entry.createdAt < MAX_QUEUE_AGE_MS,
+    (entry) =>
+      entry.userId === actor.userId &&
+      entry.familyGroupId === actor.familyGroupId &&
+      now - entry.createdAt < MAX_QUEUE_AGE_MS,
   );
 }
 
@@ -196,4 +204,22 @@ export function queueMessage({ waiting, conflicts }: QueueSummary): string | nul
       ? "1 mudança não pôde ser salva."
       : `${conflicts} mudanças não puderam ser salvas.`;
   return `${waitingLine}, ${conflictLine}.`;
+}
+
+/** Storage is untrusted, including entries created by a previous deployment. */
+const storedWriteSchema = z.object({
+  key: z.uuid(),
+  taskId: z.uuid(),
+  userId: z.string().min(1).max(200),
+  familyGroupId: z.uuid().nullable().default(null),
+  status: z.enum(["pending", "done"]),
+  version: z.number().int().positive(),
+  title: z.string().max(1000),
+  createdAt: z.number().int().nonnegative(),
+  state: z.enum(["pending", "conflict"]),
+  errorCode: z.string().max(200).optional(),
+});
+export function parseStoredWrite(value: unknown): PendingWrite | null {
+  const parsed = storedWriteSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
 }

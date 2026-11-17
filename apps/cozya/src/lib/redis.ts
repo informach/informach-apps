@@ -1,5 +1,3 @@
-import { redisStorage } from "@better-auth/redis-storage";
-import type { SecondaryStorage } from "@informach/auth";
 import IORedis from "ioredis";
 import { env } from "./env";
 import { logger } from "./logger";
@@ -28,7 +26,3 @@ function createRedis(): IORedis | null {
 const g = globalThis as GlobalWithRedis;
 g.__cozyaRedis ??= createRedis();
 export const redis = g.__cozyaRedis;
-
-export const authSecondaryStorage: SecondaryStorage | undefined = redis
-  ? redisStorage({ client: redis, keyPrefix: "cozya:auth:" })
-  : undefined;

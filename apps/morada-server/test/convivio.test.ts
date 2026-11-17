@@ -166,11 +166,8 @@ describe("duas contas no mesmo mundo", () => {
       ),
     ).toMatchObject({ ok: true });
 
-    // Passada a espera, a reserva é liberada e a fila do morador termina sozinha.
-    await bancada.andar(320);
-    expect(lia.visao?.presenca.jogadores).toEqual([
-      { perfilId: lia.jogadorId, apelido: "Lia", estado: "presente" },
-    ]);
+    // A fila continua depois da queda. Conferir a chegada quando ela termina:
+    // após a janela de graça, a autonomia pode levar Marcos a outro lugar.
     await ate(
       bancada,
       () => parado(mundo.estado.moradores.porId[doMarcos]),
@@ -178,6 +175,12 @@ describe("duas contas no mesmo mundo", () => {
       "a fila do Marcos acabar",
     );
     expect(mundo.estado.moradores.porId[doMarcos]?.local).toMatchObject({ pos: [6125, 3125] });
+
+    // Passada a espera, a reserva é liberada, sem exigir que o morador fique imóvel.
+    await bancada.andar(320);
+    expect(lia.visao?.presenca.jogadores).toEqual([
+      { perfilId: lia.jogadorId, apelido: "Lia", estado: "presente" },
+    ]);
     expect(mundo.estado.moradores.ordem.length).toBe(moradores);
     expect(listar(mundo.estado.familias)).toHaveLength(1);
 

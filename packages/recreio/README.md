@@ -2,6 +2,23 @@
 
 Domínio e contratos do Recreio, a plataforma de jogos. Não tem banco, React, Three.js nem WebSocket: o que grava fica em `apps/recreio`, e os jogos falam com a plataforma pelos contratos daqui.
 
+O SDK também atende jogos sem mundos: `contexto.dados` lê/grava bytes por chave,
+lista versões, resolve ou descarta conflitos; `contexto.conquista(id, chaveIdem)`
+registra somente IDs previstos no manifesto. Conquistas do cliente não concedem
+dinheiro nem acesso. `capacidades.mundos: null` dispensa mundo na montagem e
+recusa sua criação no servidor. O Morada continua exigindo mundo.
+
+Dados são privados por perfil/jogo, com 16 chaves, 64 KiB por versão, revisão
+obrigatória para atualizar (omissão = 0), quatro versões aceitas e três conflitos
+preservados. HTTP usa base64 canônico; o SDK usa `Uint8Array`, token vigente,
+prazo e nenhum cookie. Escritas não são repetidas automaticamente. Um 409
+`REVISAO_DIVERGENTE` informa `versaoId` e `revisaoAtual`; não significa perda da
+cópia enviada. Quando a cota está cheia, `LIMITE_DE_DADOS` recusa a nova cópia.
+`resolver` exige a revisão atual e `descartar` é explícito. Uma conquista obtida
+mantém a chave original; reutilizar a chave para outro ID ou trocar a chave da
+mesma obtenção é `FATO_DUPLICADO`. [Implantação e provas deste incremento](../../docs/recreio/dados-de-perfil-2026-11-16.md)
+ainda estão em verificação remota; a documentação do contrato não atesta produção.
+
 Consumido como TypeScript fonte, sem build, como os outros packages.
 
 ## Subpaths
@@ -17,6 +34,13 @@ Consumido como TypeScript fonte, sem build, como os outros packages.
 | `./testing/conformidade` | `descreverConformidadeDoHost`: as regras da API das instâncias como testes | Testes de quem implementa `ClienteDoHost` |
 
 Escopo e estado de cada lote ficam no [registro da frente](../../docs/recreio/implementacao.md).
+
+Pedidos do SDK têm prazo de 10 s, incluindo leitura do corpo; o emissor de
+ingresso recebe `AbortSignal`. A renovação também respeita o vencimento da
+sessão. Tempo esgotado é `INDISPONIVEL`, sem repetição automática das mutações
+nem garantia de rollback remoto. A saída distingue parada local de confirmação
+do servidor e permite nova tentativa depois de falha, agrupando chamadas
+simultâneas. [Contrato e estado de homologação](../../docs/recreio/prazos-navegador-2026-11-16.md).
 
 ## Quem pode importar o quê
 
@@ -78,10 +102,11 @@ Os tetos de tamanho vêm de `GameManifest.limites` em `@informach/config/jogos`.
 
 ### Pelo HTTP
 
-`criarClienteDoHost({ baseUrl, jogo, segredo, fetch?, tempoLimiteMs? })` devolve o mesmo `ClienteDoHost`, falando com `/api/interno/v1` do Recreio:
+`criarClienteDoHost({ baseUrl, jogo, segredo, fotografiaMaxBytes, diarioMaxBytes, fetch?, tempoLimiteMs? })` devolve o mesmo `ClienteDoHost`, falando com `/api/interno/v1` do Recreio. Os tetos recebem `fotografiaMaxBytes` e `diarioPendenteMaxBytes` do manifesto do jogo:
 
 - `Authorization: Bearer <segredo do jogo>` e `X-Recreio-Jogo: <id do jogo>` em todo pedido. Depois de `registrar`, o cliente guarda o `instanciaId` e o manda em `X-Recreio-Instancia`; antes disso, qualquer outra chamada recusa com `NAO_AUTENTICADO` sem sair para a rede.
 - Bytes do diário vão em base64 dentro do JSON. A fotografia vai crua (`application/octet-stream`), com os números na consulta, o resumo opcional em `X-Recreio-Resumo` e, na leitura, os metadados em `X-Recreio-Fotografia` (JSON em base64url nos dois).
+- A leitura limita o corpo pelo manifesto e pelo tamanho declarado, cancela respostas excedentes e confere SHA-256 antes de entregar os bytes. Corpo cortado, checksum divergente ou metadados inválidos são `INDISPONIVEL`; o cliente não entrega uma fotografia parcial ao jogo.
 - Toda recusa vira `ErroDoRecreio(codigo, detalhe)` com o código que o Recreio mandou. Rede fora do ar, tempo esgotado (10 s por padrão) e resposta sem código do contrato viram `ErroDoRecreio("INDISPONIVEL")`: dá para tentar de novo, mas o prazo da posse continua correndo.
 
 Os nomes dos cabeçalhos e os esquemas do transporte ficam em `./contrato` (`CABECALHO_DO_JOGO`, `DiarioLidoSchema`, `ConsultaDaFotografiaSchema`...).
@@ -175,3 +200,13 @@ const sessao = await recreio.verificador().verificar(token);
 O relógio da plataforma falsa é manual (`avancar(ms)`), para testar vencimento de posse sem esperar.
 
 A implementação real passa pela mesma suíte de `./testing/conformidade` que a falsa: `apps/recreio/test/conformidade.integration.ts` roda a suíte com o `criarClienteDoHost` chamando as rotas do app.
+
+## Preparação da responsabilidade com aceite
+
+O contrato de encerramento também reconhece `permissions_changed`. O host
+fecha a conexão pelo cursor existente e o portal orienta voltar à estante
+para uma nova admissão. Não representa saída do mundo, perda de assinatura
+ou troca de aparelho. Os leitores precisam estar implantados antes do primeiro
+escritor desse motivo; depois dele, rollback conserva leitores compatíveis.
+A oferta/aceite ainda está em implementação e não é concedida pelo contrato.
+Plano e gates em [responsabilidade aceita](../../docs/recreio/responsabilidade-aceita-2026-11-16.md).

@@ -1,6 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { recentParent, runAction, verifiedUser } from "@/lib/action";
+import { parentAuthority } from "../family/context";
 import { answerTurn, createCompetition, deleteCompetition, endTurn, startTurn } from "./service";
 
 /*
@@ -10,23 +11,27 @@ import { answerTurn, createCompetition, deleteCompetition, endTurn, startTurn } 
  */
 export async function createCompetitionAction(input: unknown) {
   return runAction(async () => {
-    const id = await createCompetition((await recentParent()).id, input);
+    const id = await createCompetition(await parentAuthority((await recentParent()).id), input);
     revalidatePath("/familia/competicoes");
     return { id };
   });
 }
 export async function deleteCompetitionAction(id: string) {
   return runAction(async () => {
-    await deleteCompetition((await recentParent()).id, id);
+    await deleteCompetition(await parentAuthority((await recentParent()).id), id);
     revalidatePath("/familia/competicoes");
   });
 }
 export async function startTurnAction(id: string) {
-  return runAction(async () => startTurn((await verifiedUser()).id, id));
+  return runAction(async () => startTurn(await parentAuthority((await verifiedUser()).id), id));
 }
 export async function answerTurnAction(id: string, input: unknown) {
-  return runAction(async () => answerTurn((await verifiedUser()).id, id, input));
+  return runAction(async () =>
+    answerTurn(await parentAuthority((await verifiedUser()).id), id, input),
+  );
 }
 export async function endTurnAction(id: string, input: unknown) {
-  return runAction(async () => endTurn((await verifiedUser()).id, id, input));
+  return runAction(async () =>
+    endTurn(await parentAuthority((await verifiedUser()).id), id, input),
+  );
 }

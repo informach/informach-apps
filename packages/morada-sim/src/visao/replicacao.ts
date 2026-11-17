@@ -68,6 +68,7 @@ export type VisaoDoCliente = {
   acessos: AcessoFamilia[];
   memorias: Memoria[];
   presenca: PresencaVista;
+  catalogoDeAparencias: EstadoDoMundo["catalogoDeAparencias"];
 } & { [T in TabelaReplicada]: EstadoDoMundo[T] } & Pick<EstadoDoMundo, "bairros">;
 
 export type Mudanca =
@@ -120,6 +121,7 @@ export function projetar(estado: EstadoDoMundo, presenca: Presenca): VisaoDoClie
     tick: estado.relogio.tick,
     relogio: valorDaChave(estado, presenca, "relogio") as RelogioVisto,
     regras: estado.regras,
+    catalogoDeAparencias: estado.catalogoDeAparencias,
     acessos: estado.acessos,
     memorias: estado.memorias,
     presenca: presencaVista(presenca),

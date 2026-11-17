@@ -1,6 +1,6 @@
 "use client";
+import { COMPASSO_POLICY } from "@informach/config/collections";
 import { Check, Lock } from "lucide-react";
-import { useRouter } from "next/navigation";
 import {
   createContext,
   type ReactNode,
@@ -10,17 +10,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { checkoutAction, startTrialAction } from "@/features/familia/actions";
-import { useServerAction } from "@/lib/use-server-action";
-import { TRIAL_DAYS } from "../teste/regras";
-import { MOTIVOS, type Motivo, type Oferta, reais } from "./ofertas";
+import { MOTIVOS, type Motivo, reais } from "./ofertas";
 
 interface Estado {
-  ofertas: Oferta[];
-  /** ids com preço configurado no Stripe deste ambiente */
-  configurados: string[];
-  assinante: boolean;
-  teste: { active: boolean; started: boolean };
+  accountUrl: string;
 }
 
 const Contexto = createContext<((motivo?: Motivo) => void) | null>(null);
@@ -79,7 +72,7 @@ const BENEFICIOS: Record<Motivo, string[]> = {
     "Junto: a câmera e os 15 treinos.",
   ],
   perfis: [
-    "Até 4 perfis na mesma assinatura.",
+    `Até ${COMPASSO_POLICY.capacity.adults} adultos e ${COMPASSO_POLICY.capacity.dependents} dependentes na família.`,
     "Cada um com o seu treino do dia, os seus níveis e o seu histórico.",
     "E, quando quiserem, treinar junto.",
   ],
@@ -125,166 +118,54 @@ function FolhaDePlanos({
   motivo: Motivo;
   fechar: () => void;
 }) {
-  const router = useRouter();
-  const [anual, setAnual] = useState(true);
-  const [tier, setTier] = useState(motivo === "perfis" ? "family" : "individual");
-  const [mensagem, setMensagem] = useState("");
-  const [pending, start] = useServerAction();
-  const caixa = useRef<HTMLDivElement>(null);
+  const caixa = useRef<HTMLDialogElement>(null);
   useEffect(() => {
-    const aoTeclar = (e: KeyboardEvent) => {
-      if (e.key === "Escape") fechar();
-    };
-    window.addEventListener("keydown", aoTeclar);
-    caixa.current?.querySelector<HTMLElement>("[data-autofocus]")?.focus();
-    return () => window.removeEventListener("keydown", aoTeclar);
-  }, [fechar]);
-
+    const dialog = caixa.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, []);
   const textos = MOTIVOS[motivo];
-  const podeTestar = !estado.assinante && !estado.teste.started;
-  const escolhida = estado.ofertas.find((o) => o.tier === tier) ?? estado.ofertas[0];
-  const produto = escolhida ? (anual ? escolhida.anual.id : escolhida.mensal.id) : null;
-
-  const assinar = () =>
-    start(async () => {
-      if (!produto) return;
-      const r = await checkoutAction(produto);
-      if (r.ok) window.location.assign(r.data.url);
-      else setMensagem(r.error);
-    });
-  const testar = () =>
-    start(async () => {
-      const r = await startTrialAction();
-      if (!r.ok) return setMensagem(r.error);
-      fechar();
-      router.refresh();
-    });
-
   return (
-    <div
-      className="folha-fundo"
-      onPointerDown={(e) => {
-        if (e.target === e.currentTarget) fechar();
-      }}
+    <dialog
+      className="folha folha-dialog"
+      aria-labelledby="planos-titulo"
+      ref={caixa}
+      onCancel={fechar}
     >
-      <div
-        className="folha"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="planos-titulo"
-        data-modal
-        ref={caixa}
-      >
-        <span className="folha-alca" aria-hidden />
-        <p className="eyebrow">
-          <Lock size={14} /> {textos.chamada}
-        </p>
-        <h2 id="planos-titulo">
-          {textos.titulo}
-          {podeTestar ? ` Experimente ${TRIAL_DAYS} dias.` : ""}
-        </h2>
-        <ul className="folha-beneficios">
-          {BENEFICIOS[motivo].map((b) => (
-            <li key={b}>
-              <Check size={18} aria-hidden /> {b}
-            </li>
-          ))}
-        </ul>
-
-        {podeTestar ? (
-          <>
-            <button
-              type="button"
-              className="btn primary big"
-              data-autofocus
-              disabled={pending}
-              onClick={testar}
-            >
-              {pending ? "Liberando…" : `Testar ${TRIAL_DAYS} dias grátis`}
-            </button>
-            <p className="muted small center">
-              Sem cartão. Tudo liberado por {TRIAL_DAYS} dias, até 4 perfis; depois volta ao grátis,
-              sem cobrança, e o que vocês fizeram fica guardado.
-            </p>
-          </>
-        ) : (
-          <>
-            <fieldset className="segmento">
-              <legend className="sr-only">Cobrança</legend>
-              <label>
-                <input
-                  type="radio"
-                  name="cobranca"
-                  className="sr-only"
-                  checked={!anual}
-                  onChange={() => setAnual(false)}
-                />
-                <span>Mensal</span>
-              </label>
-              <label>
-                <input
-                  type="radio"
-                  name="cobranca"
-                  className="sr-only"
-                  checked={anual}
-                  onChange={() => setAnual(true)}
-                />
-                <span>
-                  Anual
-                  {escolhida?.anual.mesesGratis
-                    ? ` · ${escolhida.anual.mesesGratis} meses grátis`
-                    : ""}
-                </span>
-              </label>
-            </fieldset>
-            <fieldset className="planos-opcoes">
-              <legend className="sr-only">Plano</legend>
-              {estado.ofertas.map((o) => (
-                <label className="plano-opcao" key={o.tier}>
-                  <input
-                    type="radio"
-                    name="plano"
-                    className="sr-only"
-                    checked={tier === o.tier}
-                    onChange={() => setTier(o.tier)}
-                  />
-                  <span className="plano-linha">
-                    <strong>{o.tier === "family" ? "Família" : "Individual"}</strong>
-                    <strong className="num">
-                      {reais(anual ? o.anual.porMes : o.mensal.centavos)}
-                      <small>/mês</small>
-                    </strong>
-                  </span>
-                  <span className="muted">
-                    {o.tier === "family"
-                      ? "Até 4 perfis na mesma assinatura, cada um com o seu treino"
-                      : "Para você"}
-                    {anual ? ` · ${reais(o.anual.centavos)} por ano` : ""}
-                  </span>
-                </label>
-              ))}
-            </fieldset>
-            <button
-              type="button"
-              className="btn primary big"
-              data-autofocus
-              disabled={pending || !produto || !estado.configurados.includes(produto)}
-              onClick={assinar}
-            >
-              {pending ? "Abrindo o pagamento…" : "Assinar"}
-            </button>
-            <p className="muted small center">
-              O pagamento é feito no Stripe, e você cancela quando quiser em Conta.
-            </p>
-          </>
-        )}
-        <p role="status" className="form-message">
-          {mensagem}
-        </p>
-        <button type="button" className="btn ghost" onClick={fechar}>
-          Agora não
-        </button>
-      </div>
-    </div>
+      <span className="folha-alca" aria-hidden />
+      <p className="eyebrow">
+        <Lock size={14} /> {textos.chamada}
+      </p>
+      <h2 id="planos-titulo">{textos.titulo}</h2>
+      <ul className="folha-beneficios">
+        {BENEFICIOS[motivo].map((b) => (
+          <li key={b}>
+            <Check size={18} aria-hidden /> {b}
+          </li>
+        ))}
+      </ul>
+      <p>
+        <strong>Incluído no Compasso.</strong> Uma assinatura para o Bora Treinar e os outros
+        aplicativos web do pacote.
+      </p>
+      <p className="num plan-price">
+        {reais(COMPASSO_POLICY.monthlyAmountCents)}
+        <small>/mês</small>
+      </p>
+      <p className="muted">
+        ou {reais(COMPASSO_POLICY.annualAmountCents)} por ano. Teste de {COMPASSO_POLICY.trialDays}{" "}
+        dias sem cartão para famílias elegíveis.
+      </p>
+      <a className="btn primary big" href={estado.accountUrl}>
+        Ver Compasso na Minha conta
+      </a>
+      <p className="muted small">
+        Na central você consulta a cobertura desta família e gerencia assinatura, créditos e
+        pessoas. O Bora Treinar não consome créditos de IA.
+      </p>
+      <button type="button" className="btn ghost" onClick={fechar}>
+        Agora não
+      </button>
+    </dialog>
   );
 }

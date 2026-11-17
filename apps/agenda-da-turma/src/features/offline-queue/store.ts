@@ -1,4 +1,4 @@
-import type { PendingWrite } from "./queue";
+import { type PendingWrite, parseStoredWrite } from "./queue";
 
 /**
  * A fila no aparelho.
@@ -81,7 +81,13 @@ async function readAll(): Promise<PendingWrite[]> {
     const db = await openWritesDb();
     const entries = await new Promise<PendingWrite[]>((resolve, reject) => {
       const request = db.transaction(WRITES_STORE, "readonly").objectStore(WRITES_STORE).getAll();
-      request.onsuccess = () => resolve((request.result ?? []) as PendingWrite[]);
+      request.onsuccess = () =>
+        resolve(
+          (request.result ?? []).flatMap((value: unknown) => {
+            const entry = parseStoredWrite(value);
+            return entry ? [entry] : [];
+          }),
+        );
       request.onerror = () => reject(request.error);
     });
     return entries.sort((a, b) => a.createdAt - b.createdAt);

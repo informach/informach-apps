@@ -31,7 +31,7 @@ export function NewProfileSubjectActivityButton({
         Nova atividade
       </Button>
       <ProfileSubjectActivityFormDialog
-        open={open}
+        open={open && !disabled}
         onOpenChange={setOpen}
         profileSubjectId={profileSubjectId}
         profileSubjectName={profileSubjectName}

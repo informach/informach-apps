@@ -1,5 +1,6 @@
 "use server";
 
+import { agendaAuthority } from "@/features/family/context";
 import { refreshActivityViews } from "@/features/unified-activities/revalidate";
 import { action, err, ok } from "@/lib/action";
 import { logAgendaAuditEvent } from "@/lib/audit";
@@ -25,7 +26,7 @@ export const createProfileSubjectActivityAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await createProfileSubjectActivity(userId, input);
+    const result = await createProfileSubjectActivity(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     logger.info(
@@ -52,7 +53,7 @@ export const updateProfileSubjectActivityAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await updateProfileSubjectActivity(userId, input);
+    const result = await updateProfileSubjectActivity(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     logger.info({ userId, activityId: result.value.id }, "agenda.profile_subject_activity_updated");
@@ -71,7 +72,7 @@ export const deleteProfileSubjectActivityAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await deleteProfileSubjectActivity(userId, input);
+    const result = await deleteProfileSubjectActivity(await agendaAuthority(userId), input);
     if (!result.ok) return err(result.error);
 
     logger.info({ userId, activityId: input.id }, "agenda.profile_subject_activity_deleted");
@@ -90,7 +91,10 @@ export const setProfileSubjectActivityStatusAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
-    const result = await setProfileSubjectActivityStatusForUser(userId, input);
+    const result = await setProfileSubjectActivityStatusForUser(
+      await agendaAuthority(userId),
+      input,
+    );
     if (!result.ok) return err(result.error);
 
     logger.info(

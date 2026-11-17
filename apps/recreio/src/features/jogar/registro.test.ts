@@ -29,6 +29,8 @@ describe("registro dos clientes de jogo", () => {
       const { carregadorDoJogo, temCliente, jogosComCliente } = await registroCom(valor);
       expect(temCliente("teste")).toBe(false);
       expect(carregadorDoJogo("teste")).toBeNull();
+      expect(temCliente("perfil-teste")).toBe(false);
+      expect(carregadorDoJogo("perfil-teste")).toBeNull();
       expect(jogosComCliente()).toEqual(["morada"]);
     },
   );
@@ -39,6 +41,8 @@ describe("registro dos clientes de jogo", () => {
     const carregar = carregadorDoJogo("teste");
     const modulo = await carregar?.();
     expect(typeof modulo?.montar).toBe("function");
+    expect(temCliente("perfil-teste")).toBe(true);
+    expect(typeof (await carregadorDoJogo("perfil-teste")?.())?.montar).toBe("function");
   });
 
   it("o Morada tem cliente no portal, com ou sem a opção do jogo de teste", async () => {
@@ -64,7 +68,14 @@ describe("registro dos clientes de jogo", () => {
   it("o que o servidor diz que tem página é exatamente o que o navegador sabe baixar", async () => {
     for (const valor of ["", "1"]) {
       const { carregadorDoJogo, temCliente, jogosComCliente } = await registroCom(valor);
-      for (const jogo of ["morada", "teste", "nao-existe", "toString", "__proto__"]) {
+      for (const jogo of [
+        "morada",
+        "teste",
+        "perfil-teste",
+        "nao-existe",
+        "toString",
+        "__proto__",
+      ]) {
         expect(
           carregadorDoJogo(jogo) !== null,
           `${jogo} com a opção ${JSON.stringify(valor)}`,

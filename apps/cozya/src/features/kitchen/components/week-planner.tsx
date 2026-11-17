@@ -33,7 +33,6 @@ import {
   type RecipeChoice,
   suggestionsFor,
 } from "../recipe-choices";
-import { TRIAL_DAYS } from "../trial";
 import type { Meal } from "../types";
 import { FirstWeekSteps } from "./first-week-steps";
 import { WeekNavigation } from "./week-navigation";
@@ -133,7 +132,6 @@ export function WeekPlanner({
   meals,
   recipes,
   canPlan,
-  trialAvailable,
   householdSize,
   initialEdit,
   list,
@@ -146,8 +144,6 @@ export function WeekPlanner({
   meals: Meal[];
   recipes: RecipeChoice[];
   canPlan: boolean;
-  /** No trial yet: the first saved meal opens the 14 days on its own. */
-  trialAvailable: boolean;
   householdSize: number;
   initialEdit: { day: string; slot: Slot } | null;
   list: "none" | "fresh" | "stale";
@@ -161,7 +157,7 @@ export function WeekPlanner({
   const router = useRouter();
   const hydrated = useHydrated();
   const now = useMemo(() => new Date(), []);
-  const canEdit = canPlan || trialAvailable;
+  const canEdit = canPlan;
   const [pending, startTransition] = useTransition();
   const [search, setSearch] = useState("");
   const [dirty, setDirty] = useState(false);
@@ -287,7 +283,7 @@ export function WeekPlanner({
         const code: string = result.error.code;
         toast.error(
           ["TRIAL_ALREADY_USED", "TRIAL_EXPIRED", "SUBSCRIPTION_REQUIRED"].includes(code)
-            ? "Para colocar receitas na semana, assine o Pro."
+            ? "Para colocar receitas na semana, assine o Compasso."
             : "Não foi possível salvar. Confira os campos e tente de novo.",
         );
         return;
@@ -326,7 +322,7 @@ export function WeekPlanner({
     });
 
   const disabled = !hydrated || pending;
-  const listPath = `/compras?week=${week}${firstWeek ? "&primeira=1" : ""}`;
+  const listPath = `/compras?week=${week}${firstWeek ? "&primeira=1" : ""}` as const;
   const openList = () =>
     // Without planning access the list that exists can still be opened, not rebuilt.
     list === "fresh" || !canPlan
@@ -386,20 +382,14 @@ export function WeekPlanner({
 
       {!canEdit && (
         <div role="status" className="space-y-2 rounded-2xl bg-muted p-4">
-          <p className="font-bold">Novas semanas ficam no Pro.</p>
+          <p className="font-bold">Novas semanas ficam no Compasso.</p>
           <p className="text-sm text-muted-foreground">
-            As semanas que você montou continuam aqui. Para planejar novas, assine o Pro.
+            As semanas que você montou continuam aqui. Para planejar novas, assine o Compasso.
           </p>
           <Button asChild className="min-h-11">
-            <Link href="/upgrade">Conhecer o Pro</Link>
+            <Link href="/upgrade">Conhecer o Compasso</Link>
           </Button>
         </div>
-      )}
-      {trialAvailable && (
-        <p role="status" className="rounded-2xl bg-muted p-4 text-sm">
-          Seus {TRIAL_DAYS} dias grátis começam quando a primeira receita entrar na semana. Sem
-          cartão.
-        </p>
       )}
 
       <ol className="divide-y divide-border md:grid md:grid-cols-7 md:gap-3 md:divide-y-0">

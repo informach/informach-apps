@@ -1,16 +1,22 @@
-import { ErroDoRecreio } from "@informach/recreio";
 import type { PoliticaDoPerfil } from "@informach/recreio/contrato";
+import type { ManifestoDoJogo } from "@/features/jogos/catalogo";
 
 /**
- * O que o perfil pode fazer nos jogos, como o jogo recebe. Nesta etapa só
- * existem perfis adultos: jogam com outras pessoas, sem texto livre (nenhum
- * jogo o oferece ainda) e na faixa mais alta. Perfil de criança ainda não tem
- * política definida e não abre jogo.
+ * A permissão efetiva do perfil também respeita a capacidade do título.
+ * Sessão e entrada na instância recebem a mesma política, sem dados da conta.
  */
-export function politicaDoPerfil(perfil: {
-  tipo: "adult" | "minor";
-  versaoDaPolitica: number;
-}): PoliticaDoPerfil {
-  if (perfil.tipo !== "adult") throw new ErroDoRecreio("POLITICA_INCOMPATIVEL");
-  return { multiplayer: true, textoLivre: false, faixa: "18", versao: perfil.versaoDaPolitica };
+export function politicaDaAdmissao(
+  contexto: {
+    politica: { politica: Pick<PoliticaDoPerfil, "faixa" | "multiplayer" | "textoLivre"> } | null;
+    versaoDaPolitica: number;
+  },
+  manifesto: ManifestoDoJogo,
+): PoliticaDoPerfil {
+  return {
+    multiplayer: contexto.politica?.politica.multiplayer ?? true,
+    textoLivre:
+      manifesto.capacidades.textoLivre && (contexto.politica?.politica.textoLivre ?? true),
+    faixa: contexto.politica?.politica.faixa ?? "18",
+    versao: contexto.versaoDaPolitica,
+  };
 }

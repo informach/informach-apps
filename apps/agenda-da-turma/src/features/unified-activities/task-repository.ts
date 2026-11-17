@@ -14,6 +14,8 @@ import {
   users,
 } from "@informach/db/schema";
 import { accessibleProfileCondition } from "@/features/family/access";
+import type { AgendaAuthority } from "@/features/family/authority";
+import { studentGroupId, studentName } from "@/features/family/scope";
 import { activeProfileSubjectCondition } from "@/features/profile-subjects/visibility";
 
 /**
@@ -30,21 +32,23 @@ import { activeProfileSubjectCondition } from "@/features/profile-subjects/visib
  * atividade — foi por não aceitar isso que o cadastro escolar exigia turma,
  * matéria e prazo antes de deixar a família anotar "levar garrafa de água".
  */
+import { currentAssigneeId } from "./assignment-repository";
+
 const taskSelect = {
   id: agendaTasks.id,
   noticeId: agendaTasks.noticeId,
   sharedActivityId: agendaTasks.sharedActivityId,
   profileId: agendaTasks.profileId,
-  profileName: agendaStudentProfiles.name,
+  profileName: studentName,
   /**
    * A família dona da criança — não quem criou a tarefa. É ela que paga o
    * plano, e por isso é ela que decide se lembrete e repetição estão
    * disponíveis: um segundo adulto convidado não é Free numa família Pro, e
    * uma família gratuita não vira Pro por receber a atividade de uma que é.
    */
-  ownerUserId: agendaStudentProfiles.userId,
+  familyGroupId: studentGroupId,
   createdByUserId: agendaTasks.createdByUserId,
-  assignedToUserId: agendaTasks.assignedToUserId,
+  assignedToUserId: currentAssigneeId,
   assignedName: users.name,
   type: agendaTasks.type,
   status: agendaTasks.status,
@@ -98,12 +102,15 @@ const taskSelect = {
 
 export type TaskRow = Awaited<ReturnType<typeof listTasksByIds>>[number];
 
-function selectTasks() {
+function selectTasks(actor: AgendaAuthority) {
   return db
-    .select(taskSelect)
+    .select({
+      ...taskSelect,
+      canWrite: sql<boolean>`${accessibleProfileCondition(actor, "write")}`,
+    })
     .from(agendaTasks)
     .innerJoin(agendaStudentProfiles, eq(agendaStudentProfiles.id, agendaTasks.profileId))
-    .leftJoin(users, eq(users.id, agendaTasks.assignedToUserId))
+    .leftJoin(users, eq(users.id, currentAssigneeId))
     .leftJoin(agendaSubjects, eq(agendaSubjects.id, agendaTasks.subjectId))
     .leftJoin(agendaProfileSubjects, eq(agendaProfileSubjects.id, agendaTasks.profileSubjectId))
     .leftJoin(agendaNotices, eq(agendaNotices.id, agendaTasks.noticeId))
@@ -112,14 +119,16 @@ function selectTasks() {
     .leftJoin(agendaSchools, eq(agendaSchools.inepCode, agendaTurmas.schoolInepCode));
 }
 
-export async function listTasksByIds(userId: string, ids: string[]) {
+export async function listTasksByIds(actor: AgendaAuthority, ids: string[]) {
   if (!ids.length) return [];
-  return selectTasks().where(and(accessibleProfileCondition(userId), inArray(agendaTasks.id, ids)));
+  return selectTasks(actor).where(
+    and(accessibleProfileCondition(actor), inArray(agendaTasks.id, ids)),
+  );
 }
 
-export async function findTaskForUser(userId: string, id: string) {
-  const [row] = await selectTasks()
-    .where(and(accessibleProfileCondition(userId), eq(agendaTasks.id, id)))
+export async function findTaskForUser(actor: AgendaAuthority, id: string) {
+  const [row] = await selectTasks(actor)
+    .where(and(accessibleProfileCondition(actor), eq(agendaTasks.id, id)))
     .limit(1);
   return row ?? null;
 }
@@ -132,12 +141,12 @@ export async function findTaskForUser(userId: string, id: string) {
  * numa célula.
  */
 export async function listTasksInDateRange(
-  userId: string,
+  actor: AgendaAuthority,
   options: { fromIso: string; toIso: string; profileFilter: string | null },
 ) {
-  return selectTasks().where(
+  return selectTasks(actor).where(
     and(
-      accessibleProfileCondition(userId),
+      accessibleProfileCondition(actor),
       sql`${agendaTasks.dueAt} BETWEEN ${options.fromIso}::date AND ${options.toIso}::date`,
       options.profileFilter ? eq(agendaTasks.profileId, options.profileFilter) : sql`TRUE`,
       sql`${agendaTasks.status} <> 'canceled'`,

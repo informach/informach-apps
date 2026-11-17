@@ -1,35 +1,29 @@
 import { randomUUID } from "node:crypto";
-import { and, db, eq, inArray } from "@informach/db";
+import { and, db, eq } from "@informach/db";
 import {
   agendaActivities,
-  agendaCities,
   agendaNotices,
   agendaNotificationDeliveries,
   agendaNotificationPreferences,
-  agendaProductEvents,
   agendaProfileSubjects,
-  agendaSchools,
   agendaStudentProfiles,
   agendaSubjects,
   agendaTasks,
   agendaTurmaMembers,
-  agendaTurmas,
-  creditReservations,
-  customers,
   emailDeliveries,
-  subscriptions,
-  users,
 } from "@informach/db/schema";
 import { PDFDocument } from "pdf-lib";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { z } from "zod";
 import { findActivityHistory } from "@/features/activities/history-repository";
 import { countPendingActivities } from "@/features/activities/pending-limit";
 import { listPendingSharedActivitiesForUser } from "@/features/activities/repository";
 import { respondSharedActivity } from "@/features/activities/service";
+import { noticeCostQuote } from "@/features/ai/costs";
 import { addDaysIso, todayLocalIso } from "@/features/dashboard/date";
 import { nextSchoolDayIso } from "@/features/dashboard/day-labels";
 import { hasSecondAdultInFamily } from "@/features/family/access";
-import { acceptFamilyInvitation, createFamilyInvitation } from "@/features/family/service";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { getKidModeSnapshot } from "@/features/kid-mode/service";
 import { validateNoticeExtraction } from "@/features/notices/extraction";
 import {
@@ -44,16 +38,21 @@ import {
   listNoticeOriginals,
   listReadyNotices,
 } from "@/features/notices/repository";
-import { type NoticeActionInput, parseNoticeSchema } from "@/features/notices/schemas";
 import {
-  confirmNotice,
+  confirmNoticeSchema,
+  type NoticeActionInput,
+  parseNoticeSchema,
+} from "@/features/notices/schemas";
+import {
+  confirmNotice as confirmNoticeService,
   setNoticeActionStatus,
   updateNoticeAction,
 } from "@/features/notices/service";
 import { deliverRoutineNotifications } from "@/features/notifications/delivery";
 import { createProfileSubjectActivity } from "@/features/profile-subject-activities/service";
-import { joinPrivateGroup, removeGroupAdult } from "@/features/turmas/group-access";
-import { createOrJoinTurma, setActiveTurma } from "@/features/turmas/service";
+import { createStudentProfile } from "@/features/students/service";
+import { removeGroupAdult } from "@/features/turmas/group-access";
+import { createOrJoinTurma, joinTurmaByCode, setActiveTurma } from "@/features/turmas/service";
 import type { ActivityOverviewOptions } from "@/features/unified-activities/overview-types";
 import { getActivityOverview, getRoutineSnapshot } from "@/features/unified-activities/service";
 import {
@@ -61,6 +60,7 @@ import {
   listTasksInDateRange,
 } from "@/features/unified-activities/task-repository";
 import { emails } from "@/lib/emails";
+import { agendaFixture, family, schoolFixture } from "./compasso-fixture";
 
 function value<T>(r: { ok: true; value: T } | { ok: false; error: unknown }): T {
   if (!r.ok) throw new Error(JSON.stringify(r.error));
@@ -74,8 +74,22 @@ let owner: string,
   otherChild: string,
   school: string,
   group: string,
-  subject: string,
-  customerId: string;
+  subject: string;
+let siblingPerson: string;
+let ownerActor: AgendaAuthority, guestActor: AgendaAuthority, outsiderActor: AgendaAuthority;
+function confirmNotice(actor: AgendaAuthority, input: z.input<typeof confirmNoticeSchema>) {
+  return confirmNoticeService(
+    actor,
+    confirmNoticeSchema.parse({
+      sourceReviewed: true,
+      shareOriginal: !!input.sourceProfileIds,
+      ...input,
+      sourceProfileIds: input.sourceProfileIds ?? [
+        ...new Set(input.actions.map((a) => a.profileId)),
+      ],
+    }),
+  );
+}
 const date = todayLocalIso();
 const action = (title = "Providência de revisão", profileId = child): NoticeActionInput => ({
   profileId,
@@ -112,60 +126,37 @@ const extraction = {
   warnings: [],
 };
 beforeEach(async () => {
-  const prefix = `zz-review-fix-${randomUUID()}`;
-  owner = `${prefix}-owner`;
-  guest = `${prefix}-guest`;
-  outsider = `${prefix}-other`;
-  await db.insert(users).values(
-    [owner, guest, outsider].map((id) => ({
-      id,
-      name: "Adulto fictício de revisão",
-      email: `${id}@e2e.local`,
-      emailVerified: true,
-    })),
-  );
-  const [c] = await db
-    .insert(customers)
-    .values({
-      provider: "stripe",
-      providerCustomerId: `test-${owner}`,
-      subjectType: "user",
-      subjectId: owner,
+  const f = await agendaFixture(true),
+    other = await agendaFixture(true);
+  owner = f.owner;
+  guest = f.visitor.userId;
+  outsider = other.owner;
+  ownerActor = f.actor;
+  guestActor = f.visitor;
+  outsiderActor = other.actor;
+  child = f.profile.id;
+  otherChild = other.profile.id;
+  await family.revokeMember(outsider, other.actor.familyGroupId, other.visitor.userId);
+  for (const action of ["read", "write", "use_ai"] as const)
+    await family.grantAccess(owner, {
+      groupId: f.actor.familyGroupId,
+      personId: f.target.personId,
       app: "agenda-da-turma",
-      email: `${owner}@e2e.local`,
-    })
-    .returning();
-  customerId = required(c).id;
-  await db.insert(subscriptions).values({
-    customerId,
-    provider: "stripe",
-    providerSubscriptionId: `test-${owner}`,
-    productId: "agenda_da_turma_pro_monthly",
-    providerPriceId: "price_synthetic",
-    status: "active",
-    currentPeriodStart: new Date(),
-    currentPeriodEnd: new Date(Date.now() + 30 * 86400000),
+      userId: guest,
+      action,
+    });
+  const person = await family.createPerson(owner, {
+    groupId: f.actor.familyGroupId,
+    kind: "dependent",
+    displayName: "Criança B restrita revisão",
   });
-  const p = await db
-    .insert(agendaStudentProfiles)
-    .values([
-      { userId: owner, name: "Criança A revisão" },
-      { userId: owner, name: "Criança B restrita revisão" },
-      { userId: outsider, name: "Criança C revisão" },
-    ])
-    .returning();
-  child = required(p[0]).id;
-  sibling = required(p[1]).id;
-  otherChild = required(p[2]).id;
-  const [city] = await db.select({ id: agendaCities.ibgeCode }).from(agendaCities).limit(1);
-  school = `review-${randomUUID()}`;
-  await db.insert(agendaSchools).values({
-    inepCode: school,
-    cityIbgeCode: required(city).id,
-    name: "Escola fictícia de revisão",
-  });
-  group = value(
-    await createOrJoinTurma(owner, {
+  siblingPerson = person.id;
+  sibling = value(
+    await createStudentProfile(ownerActor, { personId: person.id, birthDate: null }),
+  ).id;
+  school = await schoolFixture();
+  const classroom = value(
+    await createOrJoinTurma(ownerActor, {
       profileId: child,
       schoolInepCode: school,
       grade: "4ano",
@@ -173,42 +164,26 @@ beforeEach(async () => {
       classLetter: "A",
       shift: "morning",
     }),
-  ).turma.id;
+  );
+  group = classroom.turma.id;
+  if (!classroom.turma.code) throw new Error("Missing class code");
   const [s] = await db
     .insert(agendaSubjects)
     .values({ turmaId: group, name: "Matéria fictícia", createdByUserId: owner })
     .returning();
   subject = required(s).id;
-  const [g] = await db.select().from(agendaTurmas).where(eq(agendaTurmas.id, group));
-  await joinPrivateGroup(outsider, otherChild, required(g).code);
-  const invite = value(
-    await createFamilyInvitation(owner, { email: `${guest}@e2e.local`, profileIds: [child] }),
-  );
   value(
-    await acceptFamilyInvitation(
-      guest,
-      required(new URL(invite.url).searchParams.get("token") ?? undefined),
-    ),
+    await joinTurmaByCode(outsiderActor, { profileId: otherChild, code: classroom.turma.code }),
   );
+  await db.update(agendaNotificationPreferences).set({ emailEnabled: false, pushEnabled: false });
   emails.clearOutbox();
 });
-afterEach(async () => {
-  const ids = [owner, guest, outsider];
-  await db.delete(agendaTurmas).where(eq(agendaTurmas.schoolInepCode, school));
-  await db.delete(agendaSchools).where(eq(agendaSchools.inepCode, school));
-  await db.delete(agendaProductEvents).where(inArray(agendaProductEvents.userId, ids));
-  await db.delete(emailDeliveries).where(inArray(emailDeliveries.userId, ids));
-  await db.delete(creditReservations).where(inArray(creditReservations.ownerId, ids));
-  await db.delete(users).where(inArray(users.id, ids));
-  await db.delete(subscriptions).where(eq(subscriptions.customerId, customerId));
-  await db.delete(customers).where(eq(customers.id, customerId));
-  emails.clearOutbox();
-});
+afterEach(() => emails.clearOutbox());
 async function notice(text: string, profileId = child) {
   const [n] = await db
     .insert(agendaNotices)
     .values({
-      ownerUserId: owner,
+      familyGroupId: ownerActor.familyGroupId,
       captureProfileId: profileId,
       createdByUserId: owner,
       source: "teams",
@@ -237,7 +212,7 @@ async function schoolActivity(
   type: NoticeActionInput["type"] = "task",
 ): Promise<Task> {
   const created = value(
-    await confirmNotice(owner, {
+    await confirmNotice(ownerActor, {
       noticeId: null,
       allowDuplicates: true,
       actions: [
@@ -300,7 +275,7 @@ describe("Review regressions", () => {
       .values({ profileId: child, name: "Piano" })
       .returning();
     const extraRecord = value(
-      await createProfileSubjectActivity(owner, {
+      await createProfileSubjectActivity(ownerActor, {
         profileSubjectId: required(extra).id,
         type: "project",
         title: "Preparar apresentação de piano",
@@ -313,7 +288,7 @@ describe("Review regressions", () => {
       .set({ source: "notebook" })
       .where(eq(agendaNotices.id, original.id));
     value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         noticeId: original.id,
         actions: Array.from({ length: 30 }, (_, i) => ({
           ...action(`Anotação ${i}`),
@@ -326,7 +301,7 @@ describe("Review regressions", () => {
       }),
     );
     value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         noticeId: null,
         actions: [action("Somente a irmã", sibling)],
         allowDuplicates: false,
@@ -341,8 +316,8 @@ describe("Review regressions", () => {
       noticeId: null,
       page: 1,
     };
-    const first = await getActivityOverview(owner, options);
-    const second = await getActivityOverview(owner, { ...options, page: 2 });
+    const first = await getActivityOverview(ownerActor, options);
+    const second = await getActivityOverview(ownerActor, { ...options, page: 2 });
     expect(first.items).toHaveLength(30);
     expect(first.hasNextPage).toBe(true);
     expect(second.items).toHaveLength(2);
@@ -356,43 +331,43 @@ describe("Review regressions", () => {
         (item) => item.item.dueAt === null && item.item.noticeSource === "notebook",
       ),
     ).toBe(true);
-    const projects = await getActivityOverview(owner, { ...options, typeFilter: "project" });
+    const projects = await getActivityOverview(ownerActor, { ...options, typeFilter: "project" });
     expect(projects.items.map((item) => item.item.id)).toEqual([extraRecord.id]);
     expect(projects.hasNextPage).toBe(false);
-    const exams = await getActivityOverview(guest, { ...options, typeFilter: "exam" });
+    const exams = await getActivityOverview(guestActor, { ...options, typeFilter: "exam" });
     expect(exams.items).toHaveLength(30);
     expect(exams.hasNextPage).toBe(false);
     expect(
-      (await getActivityOverview(guest, { ...options, profileFilter: sibling })).items,
+      (await getActivityOverview(guestActor, { ...options, profileFilter: sibling })).items,
     ).toHaveLength(0);
-    expect((await getActivityOverview(outsider, options)).items).toHaveLength(0);
+    expect((await getActivityOverview(outsiderActor, options)).items).toHaveLength(0);
     // The action is accessible to the invited adult, but the original mentions a restricted sibling.
-    expect(await getNoticeSource(guest, original.id)).toBeNull();
-    expect(await listNoticeOriginals(guest, { page: 1 })).toHaveLength(0);
+    expect(await getNoticeSource(guestActor, original.id)).toBeNull();
+    expect(await listNoticeOriginals(guestActor, { page: 1 })).toHaveLength(0);
     expect(
-      (await listNoticeOriginals(owner, { page: 1, profileId: sibling })).map((row) => row.id),
+      (await listNoticeOriginals(ownerActor, { page: 1, profileId: sibling })).map((row) => row.id),
     ).toContain(original.id);
     const firstNotice = first.items.find((item) => item.item.noticeId !== null);
     if (!firstNotice) throw new Error("Missing notice activity");
     value(
-      await setNoticeActionStatus(guest, {
+      await setNoticeActionStatus(guestActor, {
         id: firstNotice.item.id,
         version: 1,
         status: "done",
       }),
     );
-    const completed = await getActivityOverview(owner, {
+    const completed = await getActivityOverview(ownerActor, {
       ...options,
       statusFilter: "done",
       noticeId: original.id,
     });
     expect(completed.items.map((item) => item.key)).toEqual([firstNotice.key]);
-    expect((await listNoticeActions(owner, { noticeId: original.id })).length).toBe(29);
+    expect((await listNoticeActions(ownerActor, { noticeId: original.id })).length).toBe(29);
     expect(
-      (await getActivityOverview(owner, { ...options, noticeId: original.id })).items,
+      (await getActivityOverview(ownerActor, { ...options, noticeId: original.id })).items,
     ).toHaveLength(29);
     expect(
-      (await getActivityOverview(owner, { ...options, typeFilter: "material" })).items,
+      (await getActivityOverview(ownerActor, { ...options, typeFilter: "material" })).items,
     ).toHaveLength(0);
   });
 
@@ -405,7 +380,7 @@ describe("Review regressions", () => {
      * nenhum aviso — junto com a soma do bucket.
      */
     const created = value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         noticeId: null,
         allowDuplicates: true,
         actions: [{ ...action("Trabalho de Ciências"), estimatedMinutes: 30 }],
@@ -417,7 +392,7 @@ describe("Review regressions", () => {
     // Edição que não menciona a duração: ela precisa sobreviver.
     const before = await reload(id);
     value(
-      await updateNoticeAction(owner, {
+      await updateNoticeAction(ownerActor, {
         id,
         version: before.version,
         action: taskAction(before, { title: "Trabalho de Ciências (corrigido)" }),
@@ -429,7 +404,7 @@ describe("Review regressions", () => {
 
     // E limpar continua sendo possível quando é a intenção.
     value(
-      await updateNoticeAction(owner, {
+      await updateNoticeAction(ownerActor, {
         id,
         version: after.version,
         action: taskAction(after, { estimatedMinutes: null }),
@@ -475,29 +450,29 @@ describe("Review regressions", () => {
       page: 1,
     };
     const listed = async () =>
-      (await getActivityOverview(owner, options)).items.map((entry) => entry.item.id);
+      (await getActivityOverview(ownerActor, options)).items.map((entry) => entry.item.id);
     // Hoje não tem mais os números do topo: o que conta é a linha em "Para hoje".
     const routineToday = async () =>
-      (await getRoutineSnapshot(owner, { profileFilter: child })).buckets.attention.map(
+      (await getRoutineSnapshot(ownerActor, { profileFilter: child })).buckets.attention.map(
         (entry) => entry.item.id,
       );
 
     const calendarIds = async () =>
       (
-        await listTasksInDateRange(owner, {
+        await listTasksInDateRange(ownerActor, {
           fromIso: addDaysIso(todayLocalIso(), -1),
           toIso: addDaysIso(todayLocalIso(), 1),
           profileFilter: child,
         })
       ).map((row) => row.id);
-    const digestIds = async () => (await listNoticeActions(owner)).map((row) => row.action.id);
+    const digestIds = async () => (await listNoticeActions(ownerActor)).map((row) => row.action.id);
 
     // Ativa: aparece em todas as superfícies e conta nos dois números.
     expect(await listed()).toContain(taskId);
     expect(await calendarIds()).toContain(taskId);
     expect(await digestIds()).toContain(taskId);
     expect(await routineToday()).toContain(taskId);
-    const pendingWithActive = await countPendingActivities(db, owner);
+    const pendingWithActive = await countPendingActivities(db, ownerActor);
 
     await db
       .update(agendaProfileSubjects)
@@ -510,7 +485,7 @@ describe("Review regressions", () => {
 
     // O LIMITE do plano gratuito conta o mesmo que a tela mostra. Sem isto a
     // família lê 15 pendências e é recusada ao cadastrar a 16ª, sem causa visível.
-    expect(await countPendingActivities(db, owner)).toBe(pendingWithActive - 1);
+    expect(await countPendingActivities(db, ownerActor)).toBe(pendingWithActive - 1);
 
     // E as outras superfícies que falam da mesma tarefa — aplicar em algumas e
     // não em outras é pior do que não aplicar.
@@ -524,7 +499,7 @@ describe("Review regressions", () => {
       .where(eq(agendaProfileSubjects.id, extraId));
     expect(await listed()).toContain(taskId);
     expect(await routineToday()).toContain(taskId);
-    expect(await countPendingActivities(db, owner)).toBe(pendingWithActive);
+    expect(await countPendingActivities(db, ownerActor)).toBe(pendingWithActive);
     expect(await calendarIds()).toContain(taskId);
     expect(await digestIds()).toContain(taskId);
   });
@@ -537,7 +512,7 @@ describe("Review regressions", () => {
      * entra. O filtro responde "o que combinamos comigo", não "o que sobrou".
      */
     const created = value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         noticeId: null,
         allowDuplicates: true,
         actions: [
@@ -561,22 +536,26 @@ describe("Review regressions", () => {
       noticeId: null,
       page: 1,
     };
-    const idsFor = async (userId: string, assignedToMe: boolean) =>
-      (await getActivityOverview(userId, { ...base, assignedToMe })).items.map(
+    const idsFor = async (actor: AgendaAuthority, assignedToMe: boolean) =>
+      (await getActivityOverview(actor, { ...base, assignedToMe })).items.map(
         (entry) => entry.item.id,
       );
 
     // Sem o filtro, as três aparecem para os dois adultos.
-    expect(await idsFor(owner, false)).toEqual(expect.arrayContaining([mine, theirs, nobodys]));
-    expect(await idsFor(guest, false)).toEqual(expect.arrayContaining([mine, theirs, nobodys]));
+    expect(await idsFor(ownerActor, false)).toEqual(
+      expect.arrayContaining([mine, theirs, nobodys]),
+    );
+    expect(await idsFor(guestActor, false)).toEqual(
+      expect.arrayContaining([mine, theirs, nobodys]),
+    );
 
     // Com o filtro, cada um vê só o seu — e a sem responsável some dos dois.
-    const ownerMine = await idsFor(owner, true);
+    const ownerMine = await idsFor(ownerActor, true);
     expect(ownerMine).toContain(mine);
     expect(ownerMine).not.toContain(theirs);
     expect(ownerMine).not.toContain(nobodys);
 
-    const guestMine = await idsFor(guest, true);
+    const guestMine = await idsFor(guestActor, true);
     expect(guestMine).toContain(theirs);
     expect(guestMine).not.toContain(mine);
     expect(guestMine).not.toContain(nobodys);
@@ -585,10 +564,10 @@ describe("Review regressions", () => {
   it("reconhece o segundo adulto por um EXISTS, dos dois lados do convite", async () => {
     // O botão "Só o que é meu" e o parse de `?responsavel=eu` dependem disto: se
     // der falso, o filtro deixa de existir E deixa de ser aplicado.
-    expect(await hasSecondAdultInFamily(owner)).toBe(true);
-    expect(await hasSecondAdultInFamily(guest)).toBe(true);
+    expect(await hasSecondAdultInFamily(ownerActor)).toBe(true);
+    expect(await hasSecondAdultInFamily(guestActor)).toBe(true);
     // Quem está sozinho na própria conta não vê o controle.
-    expect(await hasSecondAdultInFamily(outsider)).toBe(false);
+    expect(await hasSecondAdultInFamily(outsiderActor)).toBe(false);
   });
 
   it("modo criança autoriza por criança e reusa a lista da rotina", async () => {
@@ -603,7 +582,7 @@ describe("Review regressions", () => {
     // primeira entra na vez da criança, a segunda fica para adiantar.
     const nextClassIso = nextSchoolDayIso(todayLocalIso());
     const dated = (title: string, dueAt: string) =>
-      confirmNotice(owner, {
+      confirmNotice(ownerActor, {
         noticeId: null,
         allowDuplicates: true,
         actions: [{ ...action(title), dueAt, dateOrigin: "school" }],
@@ -612,7 +591,7 @@ describe("Review regressions", () => {
     value(await dated("Para adiantar", addDaysIso(nextClassIso, 1)));
 
     // O titular entra.
-    const asOwner = await getKidModeSnapshot(owner, child);
+    const asOwner = await getKidModeSnapshot(ownerActor, child);
     expect(asOwner).not.toBeNull();
     expect(asOwner?.profile.id).toBe(child);
     expect(asOwner?.todo.some((entry) => entry.item.id === task.id)).toBe(true);
@@ -620,22 +599,22 @@ describe("Review regressions", () => {
     expect(asOwner?.ahead.map((entry) => entry.item.title)).toContain("Para adiantar");
 
     // O segundo adulto entra SOMENTE na criança que o convite nomeou.
-    expect(await getKidModeSnapshot(guest, child)).not.toBeNull();
-    expect(await getKidModeSnapshot(guest, sibling)).toBeNull();
+    expect(await getKidModeSnapshot(guestActor, child)).not.toBeNull();
+    expect(await getKidModeSnapshot(guestActor, sibling)).toBeNull();
 
     // Quem não é da família não entra, e o titular não entra na criança de
     // outra família. Os dois casos devolvem `null` — a página responde 404 sem
     // dizer se a criança existe.
-    expect(await getKidModeSnapshot(outsider, child)).toBeNull();
-    expect(await getKidModeSnapshot(owner, otherChild)).toBeNull();
-    expect(await getKidModeSnapshot(owner, randomUUID())).toBeNull();
+    expect(await getKidModeSnapshot(outsiderActor, child)).toBeNull();
+    expect(await getKidModeSnapshot(ownerActor, otherChild)).toBeNull();
+    expect(await getKidModeSnapshot(ownerActor, randomUUID())).toBeNull();
 
     // Uma lista só: o que a criança vê é um pedaço da rotina do responsável,
     // pela mesma projeção: o "Para hoje" e o que vence até a próxima aula, e o
     // resto da semana para adiantar. Se alguém criar uma consulta própria para
     // o modo criança, pai e filha passam a discordar sobre o que falta, e este
     // teste é o que avisa.
-    const routine = await getRoutineSnapshot(owner, { profileFilter: child });
+    const routine = await getRoutineSnapshot(ownerActor, { profileFilter: child });
     const nextClass = nextSchoolDayIso(routine.todayIso);
     const later = [...routine.buckets.tomorrow, ...routine.buckets.week];
     expect(asOwner?.todo.map((entry) => entry.key)).toEqual([
@@ -665,7 +644,7 @@ describe("Review regressions", () => {
       dateOrigin: dueAt ? ("school" as const) : ("unspecified" as const),
     });
     const created = value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         noticeId: null,
         allowDuplicates: true,
         actions: [
@@ -694,7 +673,7 @@ describe("Review regressions", () => {
       page: 1,
     };
     const idsFor = async (patch: Partial<ActivityOverviewOptions>) =>
-      (await getActivityOverview(owner, { ...options, ...patch })).items
+      (await getActivityOverview(ownerActor, { ...options, ...patch })).items
         .map((entry) => entry.item.id)
         .sort();
 
@@ -715,7 +694,7 @@ describe("Review regressions", () => {
     // que venceu ontem e foi cuidada hoje precisa aparecer.
     const before = await reload(overdue);
     value(
-      await setNoticeActionStatus(owner, {
+      await setNoticeActionStatus(ownerActor, {
         id: overdue,
         version: before.version,
         status: "done",
@@ -741,26 +720,26 @@ describe("Review regressions", () => {
       noticeId: null,
       page: 1,
     };
-    const filtered = await getActivityOverview(owner, options);
+    const filtered = await getActivityOverview(ownerActor, options);
     expect(filtered.items.map((item) => item.item.id).sort()).toEqual(exams.sort());
-    expect((await getActivityOverview(outsider, options)).items).toEqual([]);
+    expect((await getActivityOverview(outsiderActor, options)).items).toEqual([]);
     expect(
-      (await getActivityOverview(owner, { ...options, profileFilter: sibling })).items,
+      (await getActivityOverview(ownerActor, { ...options, profileFilter: sibling })).items,
     ).toEqual([]);
-    const allTypes = await getActivityOverview(owner, { ...options, typeFilter: null });
+    const allTypes = await getActivityOverview(ownerActor, { ...options, typeFilter: null });
     expect(allTypes.items).toHaveLength(4);
   });
 
   it("F01 edits the current version twice and rejects an actually stale edit", async () => {
     const a = await schoolActivity();
     value(
-      await updateNoticeAction(owner, {
+      await updateNoticeAction(ownerActor, {
         id: a.id,
         version: a.version,
         action: taskAction(a, { description: "Primeira edição" }),
       }),
     );
-    const listed = await getActivityOverview(owner, {
+    const listed = await getActivityOverview(ownerActor, {
       profileFilter: null,
       typeFilter: null,
       statusFilter: "pending",
@@ -772,7 +751,7 @@ describe("Review regressions", () => {
     const first = await reload(a.id);
     expect(listed.items.find((item) => item.item.id === a.id)?.item.version).toBe(first.version);
     value(
-      await updateNoticeAction(owner, {
+      await updateNoticeAction(ownerActor, {
         id: a.id,
         version: first.version,
         action: taskAction(first, { description: "Segunda edição" }),
@@ -786,7 +765,7 @@ describe("Review regressions", () => {
       .where(eq(agendaActivities.id, sharedId(a)));
     expect(published).toMatchObject({ description: "Segunda edição", version: 3 });
     expect(
-      await updateNoticeAction(owner, {
+      await updateNoticeAction(ownerActor, {
         id: a.id,
         version: 1,
         action: taskAction(a, { description: "Edição antiga" }),
@@ -796,7 +775,7 @@ describe("Review regressions", () => {
   it("F02 keeps private snapshots with the owning family and only publishes public snapshots", async () => {
     const a = await schoolActivity(false, "SEGREDO FICTÍCIO PRIVADO");
     value(
-      await updateNoticeAction(owner, {
+      await updateNoticeAction(ownerActor, {
         id: a.id,
         version: a.version,
         action: taskAction(a, { description: "SEGREDO PRIVADO 2" }),
@@ -804,7 +783,7 @@ describe("Review regressions", () => {
     );
     const privateEdit = await reload(a.id);
     value(
-      await updateNoticeAction(owner, {
+      await updateNoticeAction(ownerActor, {
         id: a.id,
         version: privateEdit.version,
         action: taskAction(privateEdit, {
@@ -815,10 +794,13 @@ describe("Review regressions", () => {
     );
     const published = await reload(a.id);
     value(
-      await respondSharedActivity(outsider, { activityId: sharedId(published), accepted: true }),
+      await respondSharedActivity(outsiderActor, {
+        activityId: sharedId(published),
+        accepted: true,
+      }),
     );
     value(
-      await updateNoticeAction(owner, {
+      await updateNoticeAction(ownerActor, {
         id: a.id,
         version: published.version,
         action: taskAction(published, { description: "Correção pública" }),
@@ -826,38 +808,40 @@ describe("Review regressions", () => {
     );
     // O que a turma lê nasce na publicação: os rascunhos privados nunca
     // chegaram a `agenda.activities`, então não há o que filtrar depois.
-    const history = await findActivityHistory(outsider, sharedId(published));
+    const history = await findActivityHistory(outsiderActor, sharedId(published));
     expect(history?.history).toHaveLength(1);
     expect(JSON.stringify(history)).not.toContain("SEGREDO");
     expect(JSON.stringify(history)).toContain("Somente conteúdo público");
     expect(JSON.stringify(history)).toContain("Correção pública");
     // O histórico privado continua com a família, na tarefa.
-    expect(JSON.stringify(await getNoticeActionHistory(owner, a.id))).toContain(
+    expect(JSON.stringify(await getNoticeActionHistory(ownerActor, a.id))).toContain(
       "SEGREDO FICTÍCIO PRIVADO",
     );
-    expect(JSON.stringify(await getNoticeActionHistory(guest, a.id))).toContain(
+    expect(JSON.stringify(await getNoticeActionHistory(guestActor, a.id))).toContain(
       "SEGREDO FICTÍCIO PRIVADO",
     );
-    expect(await getNoticeActionHistory(outsider, a.id)).toEqual([]);
+    expect(await getNoticeActionHistory(outsiderActor, a.id)).toEqual([]);
   });
   it("F03 preserves recipient completion after accept, reject and creator deletion", async () => {
     const a = await schoolActivity();
-    value(await respondSharedActivity(outsider, { activityId: sharedId(a), accepted: true }));
+    value(await respondSharedActivity(outsiderActor, { activityId: sharedId(a), accepted: true }));
     await db
       .update(agendaTasks)
       .set({ status: "done" })
       .where(eq(agendaTasks.profileId, otherChild));
-    value(await respondSharedActivity(outsider, { activityId: sharedId(a), accepted: false }));
-    value(await setNoticeActionStatus(owner, { id: a.id, version: a.version, status: "canceled" }));
+    value(await respondSharedActivity(outsiderActor, { activityId: sharedId(a), accepted: false }));
+    value(
+      await setNoticeActionStatus(ownerActor, { id: a.id, version: a.version, status: "canceled" }),
+    );
     const statuses = await db
       .select()
       .from(agendaTasks)
       .where(eq(agendaTasks.profileId, otherChild));
     expect(statuses).toHaveLength(1);
     expect(statuses[0]?.status).toBe("done");
-    expect((await findActivityHistory(outsider, sharedId(a)))?.activity.canceledAt).toBeInstanceOf(
-      Date,
-    );
+    expect(
+      (await findActivityHistory(outsiderActor, sharedId(a)))?.activity.canceledAt,
+    ).toBeInstanceOf(Date);
   });
   it("publica e despublica pela mesma caixa, e recusa retirar da turma o que já foi recebido", async () => {
     // Criada só para a família: nada foi publicado.
@@ -866,7 +850,7 @@ describe("Review regressions", () => {
 
     // A mesma caixa publica depois, e a turma passa a ver.
     value(
-      await updateNoticeAction(owner, {
+      await updateNoticeAction(ownerActor, {
         id: own.id,
         version: own.version,
         action: taskAction(own, { shareWithTurma: true }),
@@ -874,12 +858,12 @@ describe("Review regressions", () => {
     );
     const published = await reload(own.id);
     expect(
-      (await listPendingSharedActivitiesForUser(outsider)).map((row) => row.activityId),
+      (await listPendingSharedActivitiesForUser(outsiderActor)).map((row) => row.activityId),
     ).toContain(sharedId(published));
 
     // Enquanto ninguém recebeu, retirar da turma é reversível.
     value(
-      await updateNoticeAction(owner, {
+      await updateNoticeAction(ownerActor, {
         id: own.id,
         version: published.version,
         action: taskAction(published, { shareWithTurma: false }),
@@ -897,7 +881,7 @@ describe("Review regressions", () => {
     // Depois que outra família recebe, some da vista dela seria pior do que
     // cancelar: a retirada é recusada com o motivo.
     value(
-      await updateNoticeAction(owner, {
+      await updateNoticeAction(ownerActor, {
         id: own.id,
         version: unpublished.version,
         action: taskAction(unpublished, { shareWithTurma: true }),
@@ -905,13 +889,13 @@ describe("Review regressions", () => {
     );
     const republished = await reload(own.id);
     value(
-      await respondSharedActivity(outsider, {
+      await respondSharedActivity(outsiderActor, {
         activityId: sharedId(republished),
         accepted: true,
       }),
     );
     expect(
-      await updateNoticeAction(owner, {
+      await updateNoticeAction(ownerActor, {
         id: own.id,
         version: republished.version,
         action: taskAction(republished, { shareWithTurma: false }),
@@ -930,7 +914,7 @@ describe("Review regressions", () => {
       );
     const mine = required(received);
     expect(
-      await updateNoticeAction(outsider, {
+      await updateNoticeAction(outsiderActor, {
         id: mine.id,
         version: mine.version,
         action: taskAction(mine, { shareWithTurma: false }),
@@ -940,13 +924,16 @@ describe("Review regressions", () => {
   it("leva a retificação que veio no recado até a turma, como a edição manual leva", async () => {
     const published = await schoolActivity(true, null, "Prova de ciências");
     value(
-      await respondSharedActivity(outsider, { activityId: sharedId(published), accepted: true }),
+      await respondSharedActivity(outsiderActor, {
+        activityId: sharedId(published),
+        accepted: true,
+      }),
     );
 
     // O recado diz que a escola adiou. A família escolhe "esta corrige a
     // anterior" em vez de criar outra.
     const corrected = value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         noticeId: null,
         allowDuplicates: true,
         actions: [
@@ -987,10 +974,13 @@ describe("Review regressions", () => {
   it("não reabre o que foi cancelado, porque a turma não seria avisada de volta", async () => {
     const published = await schoolActivity(true, null, "Prova cancelada");
     value(
-      await respondSharedActivity(outsider, { activityId: sharedId(published), accepted: true }),
+      await respondSharedActivity(outsiderActor, {
+        activityId: sharedId(published),
+        accepted: true,
+      }),
     );
     value(
-      await setNoticeActionStatus(owner, {
+      await setNoticeActionStatus(ownerActor, {
         id: published.id,
         version: published.version,
         status: "canceled",
@@ -998,7 +988,7 @@ describe("Review regressions", () => {
     );
     const canceled = await reload(published.id);
     expect(
-      await setNoticeActionStatus(owner, {
+      await setNoticeActionStatus(ownerActor, {
         id: published.id,
         version: canceled.version,
         status: "pending",
@@ -1009,7 +999,10 @@ describe("Review regressions", () => {
     const published = await schoolActivity();
     for (const _ of [1, 2])
       value(
-        await respondSharedActivity(outsider, { activityId: sharedId(published), accepted: true }),
+        await respondSharedActivity(outsiderActor, {
+          activityId: sharedId(published),
+          accepted: true,
+        }),
       );
     const received = await db
       .select()
@@ -1029,7 +1022,10 @@ describe("Review regressions", () => {
     // tratado como gratuito.
     const published = await schoolActivity(true, null, "Prova de história");
     value(
-      await respondSharedActivity(outsider, { activityId: sharedId(published), accepted: true }),
+      await respondSharedActivity(outsiderActor, {
+        activityId: sharedId(published),
+        accepted: true,
+      }),
     );
     const [received] = await db
       .select()
@@ -1040,9 +1036,9 @@ describe("Review regressions", () => {
           eq(agendaTasks.profileId, otherChild),
         ),
       );
-    const task = await findTaskForUser(outsider, required(received).id);
+    const task = await findTaskForUser(outsiderActor, required(received).id);
     expect(task?.createdByUserId).toBe(owner);
-    expect(task?.ownerUserId).toBe(outsider);
+    expect(task?.familyGroupId).toBe(outsiderActor.familyGroupId);
   });
   it("F04 denies unreviewed mixed originals and includes children without extracted actions in scope", async () => {
     const n = await notice("Material da criança A. INFORMAÇÃO RESTRITA DA CRIANÇA B.");
@@ -1061,93 +1057,116 @@ describe("Review regressions", () => {
     // `ready` por último: a confirmação logo abaixo depende dele.
     for (const status of ["processing", "discarded", "ready"] as const) {
       await db.update(agendaNotices).set({ status }).where(eq(agendaNotices.id, n.id));
-      expect(await getNoticeSource(guest, n.id)).toBeNull();
-      expect((await listReadyNotices(guest)).map((n) => n.id)).not.toContain(n.id);
-      expect((await getNoticeSource(owner, n.id))?.attachmentData).toBe(original);
+      expect(await getNoticeSource(guestActor, n.id)).toBeNull();
+      expect((await listReadyNotices(guestActor)).map((n) => n.id)).not.toContain(n.id);
+      expect((await getNoticeSource(ownerActor, n.id))?.attachmentData).toBe(original);
     }
     value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         noticeId: n.id,
         actions: [action("Material A", child)],
         sourceProfileIds: [child, sibling],
         allowDuplicates: false,
       }),
     );
-    expect(await getNoticeSource(guest, n.id)).toBeNull();
-    expect(await listNoticeActions(guest)).toHaveLength(1);
+    expect(await getNoticeSource(guestActor, n.id)).toBeNull();
+    expect(await listNoticeActions(guestActor)).toHaveLength(1);
   });
   it("F04 shares a reviewed single-child original and keeps its unknown scope private by default", async () => {
     const n = await notice("Material A");
     value(
-      await confirmNotice(owner, { noticeId: n.id, actions: [action()], allowDuplicates: false }),
+      await confirmNotice(ownerActor, {
+        noticeId: n.id,
+        actions: [action()],
+        allowDuplicates: false,
+      }),
     );
-    expect(await getNoticeSource(guest, n.id)).toBeNull();
+    expect(await getNoticeSource(guestActor, n.id)).toBeNull();
     value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         noticeId: n.id,
         actions: [action()],
         sourceProfileIds: [child],
         allowDuplicates: false,
       }),
     );
-    expect((await getNoticeSource(guest, n.id))?.text).toBe("Material A");
-    expect(await getNoticeSource(outsider, n.id)).toBeNull();
+    expect((await getNoticeSource(guestActor, n.id))?.text).toBe("Material A");
+    expect(await getNoticeSource(outsiderActor, n.id)).toBeNull();
   });
-  it("F04 allows the uploader to review their own draft but cannot grant access by narrowing its scope", async () => {
+  it("F04 keeps an uploader's draft private and denies narrowing after a child's grant is revoked", async () => {
     const n = await notice("A e B");
     await db
       .update(agendaNotices)
       .set({ createdByUserId: guest })
       .where(eq(agendaNotices.id, n.id));
-    expect((await getNoticeSource(guest, n.id))?.id).toBe(n.id);
+    expect((await getNoticeSource(guestActor, n.id))?.id).toBe(n.id);
+    expect(await getNoticeSource(ownerActor, n.id)).toBeNull();
+    expect(
+      await confirmNotice(ownerActor, {
+        noticeId: n.id,
+        actions: [action()],
+        sourceProfileIds: [child, sibling],
+        allowDuplicates: false,
+      }),
+    ).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+    const target = {
+      groupId: ownerActor.familyGroupId,
+      personId: siblingPerson,
+      app: "agenda-da-turma",
+      userId: guest,
+    };
+    for (const action of ["read", "write"] as const)
+      await family.grantAccess(owner, { ...target, action });
     value(
-      await confirmNotice(owner, {
+      await confirmNotice(guestActor, {
         noticeId: n.id,
         actions: [action()],
         sourceProfileIds: [child, sibling],
         allowDuplicates: false,
       }),
     );
+    await family.revokeAccess(owner, { ...target, action: "read" });
     expect(
-      await confirmNotice(guest, {
+      await confirmNotice(guestActor, {
         noticeId: n.id,
         actions: [action()],
         sourceProfileIds: [child],
         allowDuplicates: false,
       }),
-    ).toMatchObject({ ok: false, error: { code: "INVALID_SOURCE_SCOPE" } });
-    expect((await getNoticeSource(owner, n.id))?.sourceProfileIds).toEqual([child, sibling]);
+    ).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+    expect((await getNoticeSource(ownerActor, n.id))?.sourceProfileIds).toEqual([child, sibling]);
   });
   it("F05 reuses one extraction for another child without duplicating either application", async () => {
     const n = await notice("Levar autorização");
     value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         noticeId: n.id,
         actions: [action()],
         sourceProfileIds: [child],
         allowDuplicates: false,
       }),
     );
-    const initiallyConfirmedAt = (await getNoticeSource(owner, n.id))?.confirmedAt;
+    const initiallyConfirmedAt = (await getNoticeSource(ownerActor, n.id))?.confirmedAt;
     expect(initiallyConfirmedAt).toBeInstanceOf(Date);
-    const input = parseNoticeSchema.parse({ profileId: sibling, source: "teams", text: n.text });
+    const input = parseNoticeSchema.parse({
+      profileId: sibling,
+      source: "teams",
+      text: n.text,
+      acceptedCost: noticeCostQuote({ text: n.text }),
+    });
     const replay = value(
       await reserveNoticeParse({
-        userId: owner,
-        ownerId: owner,
-        profileId: sibling,
-        isPro: true,
+        actor: ownerActor,
         input,
         attachment: null,
         contentHash: n.contentHash,
         now: new Date(),
-        trialDailyBudget: 100,
       }),
     );
     expect(replay.replay).toBe(true);
     expect(replay.notice.id).toBe(n.id);
     const result = value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         noticeId: n.id,
         actions: [action("Providência de revisão", sibling)],
         sourceProfileIds: [child, sibling],
@@ -1155,11 +1174,11 @@ describe("Review regressions", () => {
       }),
     );
     expect(result.alreadyConfirmed).toBe(false);
-    expect(await listNoticeActions(owner, { profileId: sibling })).toHaveLength(1);
+    expect(await listNoticeActions(ownerActor, { profileId: sibling })).toHaveLength(1);
     for (const profileId of [child, sibling]) {
       expect(
         value(
-          await confirmNotice(owner, {
+          await confirmNotice(ownerActor, {
             noticeId: n.id,
             actions: [action("Providência de revisão", profileId)],
             allowDuplicates: false,
@@ -1167,14 +1186,14 @@ describe("Review regressions", () => {
         ).alreadyConfirmed,
       ).toBe(true);
     }
-    expect(await listNoticeActions(owner)).toHaveLength(2);
-    expect((await getNoticeSource(owner, n.id))?.confirmedAt).toEqual(initiallyConfirmedAt);
-    expect(await getNoticeSource(guest, n.id)).toBeNull();
+    expect(await listNoticeActions(ownerActor)).toHaveLength(2);
+    expect((await getNoticeSource(ownerActor, n.id))?.confirmedAt).toEqual(initiallyConfirmedAt);
+    expect(await getNoticeSource(guestActor, n.id)).toBeNull();
   });
   it("F06 requires a correction decision and updates one stable action with history and a new reminder", async () => {
     const n = await notice("Autorização até 14/09/2030");
     const first = value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         noticeId: n.id,
         actions: [{ ...action(), reminderAt: "2030-09-13T15:00:00Z" }],
         allowDuplicates: false,
@@ -1193,23 +1212,23 @@ describe("Review regressions", () => {
       actions: [{ ...action(), dueAt: "2030-09-16", reminderAt: "2030-09-15T15:00:00Z" }],
       allowDuplicates: false,
     };
-    expect(await confirmNotice(owner, input)).toMatchObject({
+    expect(await confirmNotice(ownerActor, input)).toMatchObject({
       ok: false,
       error: { code: "POSSIBLE_CORRECTIONS" },
     });
-    expect(await listNoticeActions(owner)).toHaveLength(1);
+    expect(await listNoticeActions(ownerActor)).toHaveLength(1);
     const saved = value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         ...input,
         resolutions: [{ index: 0, kind: "replace", actionId: id, version: 1 }],
       }),
     );
     expect(saved.ids).toEqual([id]);
-    const rows = await listNoticeActions(owner);
+    const rows = await listNoticeActions(ownerActor);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.action).toMatchObject({ id, dueAt: "2030-09-16", version: 2 });
     expect(rows[0]?.action.reminderAt?.toISOString()).toBe("2030-09-15T15:00:00.000Z");
-    const history = await getNoticeActionHistory(owner, id);
+    const history = await getNoticeActionHistory(ownerActor, id);
     expect(history[0]?.previous.dueAt).toBe("2030-09-14");
     expect(history[0]?.current.dueAt).toBe("2030-09-16");
     const deliveries = await db
@@ -1218,16 +1237,26 @@ describe("Review regressions", () => {
       .where(eq(agendaNotificationDeliveries.userId, owner));
     expect(deliveries[0]?.status).toBe("canceled");
     value(
-      await confirmNotice(owner, { noticeId: n.id, actions: [action()], allowDuplicates: false }),
+      await confirmNotice(ownerActor, {
+        noticeId: n.id,
+        actions: [action()],
+        allowDuplicates: false,
+      }),
     );
-    expect((await listNoticeActions(owner)).map((r) => r.action.dueAt)).toEqual(["2030-09-16"]);
+    expect((await listNoticeActions(ownerActor)).map((r) => r.action.dueAt)).toEqual([
+      "2030-09-16",
+    ]);
   });
   it("F06 preserves completed status and rejects a stale replacement version", async () => {
     const first = value(
-      await confirmNotice(owner, { noticeId: null, actions: [action()], allowDuplicates: false }),
+      await confirmNotice(ownerActor, {
+        noticeId: null,
+        actions: [action()],
+        allowDuplicates: false,
+      }),
     );
     const id = required(first.ids[0]);
-    value(await setNoticeActionStatus(owner, { id, version: 1, status: "done" }));
+    value(await setNoticeActionStatus(ownerActor, { id, version: 1, status: "done" }));
     const n = await notice("RETIFICAÇÃO: prazo novo");
     const input = {
       noticeId: n.id,
@@ -1235,19 +1264,21 @@ describe("Review regressions", () => {
       allowDuplicates: false,
     };
     expect(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         ...input,
         resolutions: [{ index: 0, kind: "replace", actionId: id, version: 1 }],
       }),
     ).toMatchObject({ ok: false, error: { code: "VERSION_CONFLICT" } });
     value(
-      await confirmNotice(owner, {
+      await confirmNotice(ownerActor, {
         ...input,
         resolutions: [{ index: 0, kind: "replace", actionId: id, version: 2 }],
       }),
     );
-    expect(await listNoticeActions(owner)).toHaveLength(0);
-    expect((await listNoticeActions(owner, { includeFinished: true }))[0]?.action).toMatchObject({
+    expect(await listNoticeActions(ownerActor)).toHaveLength(0);
+    expect(
+      (await listNoticeActions(ownerActor, { includeFinished: true }))[0]?.action,
+    ).toMatchObject({
       id,
       status: "done",
       version: 3,
@@ -1256,7 +1287,11 @@ describe("Review regressions", () => {
   });
   it("F06 allows an explicit decision to keep genuinely separate obligations", async () => {
     value(
-      await confirmNotice(owner, { noticeId: null, actions: [action()], allowDuplicates: false }),
+      await confirmNotice(ownerActor, {
+        noticeId: null,
+        actions: [action()],
+        allowDuplicates: false,
+      }),
     );
     const n = await notice("Outro pedido para uma nova data");
     const input = {
@@ -1264,12 +1299,14 @@ describe("Review regressions", () => {
       actions: [{ ...action(), dueAt: "2030-09-16" }],
       allowDuplicates: false,
     };
-    expect(await confirmNotice(owner, input)).toMatchObject({
+    expect(await confirmNotice(ownerActor, input)).toMatchObject({
       ok: false,
       error: { code: "POSSIBLE_CORRECTIONS" },
     });
-    value(await confirmNotice(owner, { ...input, resolutions: [{ index: 0, kind: "separate" }] }));
-    expect((await listNoticeActions(owner)).map((r) => r.action.dueAt).sort()).toEqual([
+    value(
+      await confirmNotice(ownerActor, { ...input, resolutions: [{ index: 0, kind: "separate" }] }),
+    );
+    expect((await listNoticeActions(ownerActor)).map((r) => r.action.dueAt).sort()).toEqual([
       "2030-09-14",
       "2030-09-16",
     ]);
@@ -1279,7 +1316,7 @@ describe("Review regressions", () => {
     async (resolvedStatus) => {
       const now = new Date("2030-09-13T15:00:00Z");
       const a = value(
-        await confirmNotice(owner, {
+        await confirmNotice(ownerActor, {
           noticeId: null,
           actions: [
             { ...action(), reminderAt: new Date(now.valueOf() - 20 * 60000).toISOString() },
@@ -1287,22 +1324,28 @@ describe("Review regressions", () => {
           allowDuplicates: false,
         }),
       );
-      await db
-        .insert(agendaNotificationPreferences)
-        .values({ userId: owner, emailEnabled: true, digestHour: 19, quietStart: 21, quietEnd: 7 });
-      const key = `action:${a.ids[0]}:v1`;
+      await db.insert(agendaNotificationPreferences).values({
+        userId: owner,
+        familyGroupId: ownerActor.familyGroupId,
+        emailEnabled: true,
+        digestHour: 19,
+        quietStart: 21,
+        quietEnd: 7,
+      });
+      const key = `${ownerActor.familyGroupId}:action:${a.ids[0]}:v1`;
       const interruptedAttempt = resolvedStatus === "failed" ? 3 : 1;
       await db.insert(agendaNotificationDeliveries).values({
         userId: owner,
+        familyGroupId: ownerActor.familyGroupId,
         messageKey: key,
         channel: "email",
         status: "processing",
         attempts: interruptedAttempt,
-        lastAttemptAt: new Date(now.valueOf() - 11 * 60000),
+        lastAttemptAt: new Date(Date.now() - 11 * 60000),
       });
       await db.insert(emailDeliveries).values({
         id: randomUUID(),
-        recipient: `${owner}@e2e.local`,
+        recipient: `${owner}@example.test`,
         category: "agenda.routine",
         messageKey: `agenda:${owner}:${key}`,
         subject: "Synthetic review reminder",
@@ -1311,14 +1354,20 @@ describe("Review regressions", () => {
         sendingStartedAt: new Date(),
         sendAttempts: 1,
       });
-      const options = { afterUserId: owner.slice(0, -5), limit: 1 };
+      const options = { limit: 1 };
       await deliverRoutineNotifications(now, options);
       await db
         .update(emailDeliveries)
         .set({ status: "unknown" })
         .where(eq(emailDeliveries.userId, owner));
-      for (let attempt = 1; attempt <= 5; attempt++)
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        // Retry leases use operational time, independently of the school date.
+        await db
+          .update(agendaNotificationDeliveries)
+          .set({ lastAttemptAt: new Date(Date.now() - 11 * 60000) })
+          .where(eq(agendaNotificationDeliveries.userId, owner));
         await deliverRoutineNotifications(new Date(now.valueOf() + attempt * 11 * 60000), options);
+      }
       const waiting = await db
         .select()
         .from(agendaNotificationDeliveries)
@@ -1330,6 +1379,10 @@ describe("Review regressions", () => {
         .update(emailDeliveries)
         .set({ status: resolvedStatus })
         .where(eq(emailDeliveries.userId, owner));
+      await db
+        .update(agendaNotificationDeliveries)
+        .set({ lastAttemptAt: new Date(Date.now() - 11 * 60000) })
+        .where(eq(agendaNotificationDeliveries.userId, owner));
       await deliverRoutineNotifications(new Date(now.valueOf() + 70 * 60000), options);
       expect(emails.getOutbox()).toHaveLength(resolvedStatus === "failed" ? 1 : 0);
       const finished = await db
@@ -1346,19 +1399,16 @@ describe("Review regressions", () => {
       profileId: child,
       source: "teams",
       text: "Levar material",
+      acceptedCost: noticeCostQuote({ text: "Levar material" }),
     });
     const hash = randomUUID();
     const reserve = (now: Date) =>
       reserveNoticeParse({
-        userId: owner,
-        ownerId: owner,
-        profileId: child,
-        isPro: true,
+        actor: ownerActor,
         input,
         attachment: null,
         contentHash: hash,
         now,
-        trialDailyBudget: 100,
       });
     const first = value(await reserve(new Date(Date.now() - 11 * 60000))).notice;
     const second = value(await reserve(new Date())).notice;
@@ -1366,16 +1416,18 @@ describe("Review regressions", () => {
       secondRun = required(second.billingRunId ?? undefined);
     expect(secondRun).not.toBe(firstRun);
     expect(await finishNoticeParse(first.id, firstRun, "failed", "PARSE_FAILED")).toBe(false);
-    await expect(persistNoticeExtraction(first.id, firstRun, extraction)).rejects.toThrow();
+    await expect(
+      persistNoticeExtraction(ownerActor, first.id, firstRun, extraction),
+    ).rejects.toThrow();
     let [row] = await db.select().from(agendaNotices).where(eq(agendaNotices.id, second.id));
     expect(row?.billingRunId).toBe(secondRun);
     expect(row?.status).toBe("processing");
-    await persistNoticeExtraction(second.id, secondRun, extraction);
+    await persistNoticeExtraction(ownerActor, second.id, secondRun, extraction);
     expect(await finishNoticeParse(second.id, secondRun, "ready")).toBe(true);
     expect(await finishNoticeParse(first.id, firstRun, "ready")).toBe(false);
     [row] = await db.select().from(agendaNotices).where(eq(agendaNotices.id, second.id));
     expect(row?.status).toBe("ready");
-    expect(row?.parsedResult).toEqual(extraction);
+    expect(row?.parsedResult).toMatchObject(extraction);
   });
   it("F09 refuses stale activation after membership was removed during a transaction", async () => {
     const a = await schoolActivity();
@@ -1399,7 +1451,7 @@ describe("Review regressions", () => {
       await gate;
     });
     await locked;
-    const reactivate = setActiveTurma(outsider, { profileId: otherChild, turmaId: group });
+    const reactivate = setActiveTurma(outsiderActor, { profileId: otherChild, turmaId: group });
     try {
       await new Promise((resolve) => setTimeout(resolve, 100));
     } finally {
@@ -1408,14 +1460,14 @@ describe("Review regressions", () => {
     await removal;
     expect(await reactivate).toMatchObject({ ok: false, error: { code: "NOT_A_MEMBER" } });
     expect(
-      (await listPendingSharedActivitiesForUser(outsider)).map((x) => x.activityId),
+      (await listPendingSharedActivitiesForUser(outsiderActor)).map((x) => x.activityId),
     ).not.toContain(sharedId(a));
   });
   it("F09 revocation and activation share the same lock and stale preferences grant no read/write access", async () => {
     const a = await schoolActivity();
     await Promise.all([
       removeGroupAdult(owner, group, outsider),
-      setActiveTurma(outsider, { profileId: otherChild, turmaId: group }),
+      setActiveTurma(outsiderActor, { profileId: otherChild, turmaId: group }),
     ]);
     const [profile] = await db
       .select()
@@ -1428,13 +1480,13 @@ describe("Review regressions", () => {
       .set({ activeTurmaId: group })
       .where(eq(agendaStudentProfiles.id, otherChild));
     expect(
-      (await listPendingSharedActivitiesForUser(outsider)).map((x) => x.activityId),
+      (await listPendingSharedActivitiesForUser(outsiderActor)).map((x) => x.activityId),
     ).not.toContain(sharedId(a));
     // Preferência velha não vale como autorização: a matéria é da turma de que
     // a criança não participa mais.
     expect(
       (
-        await confirmNotice(outsider, {
+        await confirmNotice(outsiderActor, {
           noticeId: null,
           allowDuplicates: true,
           actions: [
@@ -1449,7 +1501,7 @@ describe("Review regressions", () => {
       ).ok,
     ).toBe(false);
     expect(
-      (await respondSharedActivity(outsider, { activityId: sharedId(a), accepted: true })).ok,
+      (await respondSharedActivity(outsiderActor, { activityId: sharedId(a), accepted: true })).ok,
     ).toBe(false);
   });
   it("F10 accepts a relative date grounded in an explicit publication reference in the original", () => {

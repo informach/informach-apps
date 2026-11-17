@@ -19,7 +19,7 @@ type Props = {
   items: TaskRow[];
   /** As atividades em aberto sem data, que nenhum dia pode mostrar. */
   undated: TaskRow[];
-  newActivityHref: (iso: string) => string;
+  newActivityHref: (iso: string) => `/atividades/nova${"" | `?${string}`}`;
 };
 
 const DOT_CLASS: Record<number, string> = {

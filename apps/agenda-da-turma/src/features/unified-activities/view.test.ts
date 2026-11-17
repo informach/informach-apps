@@ -15,8 +15,14 @@ const OTHER = "user-other";
  * que os testes passam a exercitar.
  */
 function task(overrides: Partial<TaskRow> = {}): ActivityOverviewItem {
-  const item = {
+  const item: TaskRow = {
     id: "task-1",
+    familyGroupId: "family-1",
+    canWrite: true,
+    estimatedMinutes: null,
+    recurrence: "none",
+    reminderAt: null,
+    editedAfterSave: false,
     noticeId: null,
     sharedActivityId: null,
     profileId: "profile-1",
@@ -47,7 +53,7 @@ function task(overrides: Partial<TaskRow> = {}): ActivityOverviewItem {
     classLetter: null,
     year: null,
     ...overrides,
-  } as TaskRow;
+  };
   return { key: item.id, item };
 }
 
@@ -75,49 +81,49 @@ function schoolTask(overrides: Partial<TaskRow> = {}): ActivityOverviewItem {
 
 describe("toActivityView", () => {
   it("dá o mesmo formato à atividade da escola e à que veio de recado", () => {
-    const school = toActivityView(schoolTask(), ME);
-    const notice = toActivityView(task({ noticeId: "notice-1", noticeSource: "teams" }), ME);
+    const school = toActivityView(schoolTask());
+    const notice = toActivityView(task({ noticeId: "notice-1", noticeSource: "teams" }));
     expect(Object.keys(school).sort()).toEqual(Object.keys(notice).sort());
   });
 
   it("aponta toda atividade para o mesmo detalhe, seja qual for a origem", () => {
-    expect(toActivityView(schoolTask(), ME).detailHref).toBe("/atividades/task-escolar");
-    expect(toActivityView(task(), ME).detailHref).toBe("/atividades/task-1");
+    expect(toActivityView(schoolTask()).detailHref).toBe("/atividades/task-escolar");
+    expect(toActivityView(task()).detailHref).toBe("/atividades/task-1");
   });
 
   it("preserva o prazo ausente como dado, e não como erro", () => {
-    expect(toActivityView(task(), ME).dueAt).toBeNull();
+    expect(toActivityView(task()).dueAt).toBeNull();
   });
 
   it("não oferece alternância para o que foi cancelado, venha de onde vier", () => {
-    expect(toActivityView(schoolTask({ status: "canceled" }), ME).toggle).toBeNull();
-    expect(toActivityView(task({ status: "canceled" }), ME).toggle).toBeNull();
+    expect(toActivityView(schoolTask({ status: "canceled" })).toggle).toBeNull();
+    expect(toActivityView(task({ status: "canceled" })).toggle).toBeNull();
   });
 
   it("manda a versão junto ao alternar, para detectar conflito", () => {
-    expect(toActivityView(task({ version: 4 }), ME).toggle).toEqual({ id: "task-1", version: 4 });
+    expect(toActivityView(task({ version: 4 })).toggle).toEqual({ id: "task-1", version: 4 });
   });
 
-  it("só oferece o menu de ações a quem criou a atividade", () => {
-    expect(toActivityView(schoolTask(), ME).manage).not.toBeNull();
-    expect(toActivityView(schoolTask({ createdByUserId: OTHER }), ME).manage).toBeNull();
+  it("oferece o menu de ações conforme a permissão atual de escrita", () => {
+    expect(toActivityView(schoolTask()).manage).not.toBeNull();
+    expect(
+      toActivityView(schoolTask({ createdByUserId: OTHER, canWrite: false })).manage,
+    ).toBeNull();
   });
 
   it("mostra a turma quando a atividade foi publicada numa, e fora da escola quando não", () => {
-    expect(toActivityView(schoolTask(), ME).contextLine).toBe("5º ano A · 2026");
-    expect(toActivityView(task({ profileSubjectId: "ps-1" }), ME).contextLine).toBe(
-      "fora da escola",
-    );
-    expect(toActivityView(task(), ME).contextLine).toBeNull();
+    expect(toActivityView(schoolTask()).contextLine).toBe("5º ano A · 2026");
+    expect(toActivityView(task({ profileSubjectId: "ps-1" })).contextLine).toBe("fora da escola");
+    expect(toActivityView(task()).contextLine).toBeNull();
   });
 
   it("descreve a procedência do recado sem repetir o óbvio", () => {
     // Sem origem e planejada pela família, dizer a procedência do prazo é ruído.
     expect(
-      toActivityView(task({ dateOrigin: "family", dueAt: "2026-09-20" }), ME).provenance,
+      toActivityView(task({ dateOrigin: "family", dueAt: "2026-09-20" })).provenance,
     ).toBeNull();
     expect(
-      toActivityView(task({ noticeSource: "teams", dateOrigin: "school", dueAt: "2026-09-20" }), ME)
+      toActivityView(task({ noticeSource: "teams", dateOrigin: "school", dueAt: "2026-09-20" }))
         .provenance,
     ).toBe("Microsoft Teams · A escola disse");
   });
@@ -127,7 +133,7 @@ describe("o prazo na lista", () => {
   // O chip de prazo saiu deste adaptador para `due.ts`, testado à parte. Aqui
   // fica a garantia de que a vista entrega o que ele precisa.
   it("entrega data, hora e situação sem traduzir", () => {
-    const view = toActivityView(task({ dueAt: "2026-09-14", time: "08:00" }), ME);
+    const view = toActivityView(task({ dueAt: "2026-09-14", time: "08:00" }));
     expect({ dueAt: view.dueAt, time: view.time, status: view.status }).toEqual({
       dueAt: "2026-09-14",
       time: "08:00",
@@ -136,7 +142,16 @@ describe("o prazo na lista", () => {
   });
 
   it("diz quem cuida pelo nome, sem rótulo", () => {
-    expect(toActivityView(task({ assignedName: "Leo" }), ME).assignedName).toBe("Leo");
-    expect(toActivityView(task(), ME).assignedName).toBeNull();
+    expect(toActivityView(task({ assignedName: "Leo" })).assignedName).toBe("Leo");
+    expect(toActivityView(task()).assignedName).toBeNull();
   });
+});
+
+it("does not offer a mutation to a read-only adult, even for their own old task", () => {
+  const view = toActivityView(task({ canWrite: false, createdByUserId: ME }));
+  expect(view.manage).toBeNull();
+  expect(view.toggle).toBeNull();
+});
+it("offers current writers the shared family task regardless of who typed it", () => {
+  expect(toActivityView(task({ canWrite: true, createdByUserId: OTHER })).manage).not.toBeNull();
 });

@@ -1,4 +1,7 @@
-import type { Aparencia, Fase } from "../dominio/tipos";
+import type { Fase } from "../dominio/tipos";
+
+export { corpoDaFase } from "../dominio/aparencia";
+
 import { DefinicaoDeBairroSchema } from "../formatos/bairro";
 import { type ModeloDeImovel, ModeloDeImovelSchema } from "../formatos/imovel";
 import { CATALOGO_DA_PROVA } from "./catalogo/prova";
@@ -65,30 +68,6 @@ export function necessidadesDaFase(fase: Fase): DefNecessidade[] {
   return NECESSIDADES.filter((def) => def.fases.includes(fase));
 }
 
-/** Corpo de cada fase, pelas duas linhas da biblioteca de personagens. */
-const CORPOS: Record<Aparencia["linha"], Record<Fase, string>> = {
-  f: {
-    colo: "bebe_f",
-    pequeno: "pequena_f",
-    crianca: "crianca_f",
-    adolescente: "adolescente_f",
-    adulto: "adulta",
-    idoso: "idosa",
-  },
-  m: {
-    colo: "bebe_m",
-    pequeno: "pequeno_m",
-    crianca: "crianca_m",
-    adolescente: "adolescente_m",
-    adulto: "adulto",
-    idoso: "idoso",
-  },
-};
-
-export function corpoDaFase(linha: Aparencia["linha"], fase: Fase): string {
-  return CORPOS[linha][fase];
-}
-
 /** Quanto cada fase anda por tick (100 ms). Bebê de colo não anda. */
 export const MM_POR_TICK: Record<Fase, number> = {
   colo: 0,
@@ -134,6 +113,19 @@ export function modeloDeImovel(referencia: string): ModeloDeImovel | undefined {
 
 /** O bairro da etapa 1: dois lotes, um com a casa pronta e um vazio. */
 export const BAIRRO_DA_PROVA = DefinicaoDeBairroSchema.parse(bairroProva);
+
+/** Mesma geometria e vizinhos, aguardando a família criada por quem inicia o mundo. */
+export const BAIRRO_INICIAL = DefinicaoDeBairroSchema.parse({
+  ...BAIRRO_DA_PROVA,
+  id: "bairro_inicial",
+  nome: "Bairro",
+  familias: [],
+  relacoes: BAIRRO_DA_PROVA.relacoes.filter(
+    ({ a, b }) =>
+      BAIRRO_DA_PROVA.avulsos.some((morador) => morador.ref === a) &&
+      BAIRRO_DA_PROVA.avulsos.some((morador) => morador.ref === b),
+  ),
+});
 
 /**
  * Confere as referências cruzadas do conteúdo. Devolve a lista de problemas;

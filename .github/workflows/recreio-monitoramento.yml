@@ -1,0 +1,61 @@
+name: Recreio - monitoramento externo
+
+on:
+  schedule:
+    - cron: "3-58/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      provar_transporte:
+        description: Enviar um evento informativo sanitizado a cada projeto Sentry
+        type: boolean
+        default: false
+  push:
+    branches: [main, "verify/recreio-*"]
+    paths:
+      - ".github/workflows/recreio-monitoramento.yml"
+      - "scripts/recreio/monitoramento*.mjs"
+      - "scripts/recreio/sonda.mjs"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recreio-monitoramento-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  testes:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+      - run: node --test scripts/recreio/monitoramento.test.mjs
+
+  disponibilidade:
+    if: github.event_name != 'push' && github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+      - name: Conferir prontidão externa e transporte de alertas
+        env:
+          RECREIO_MONITOR_SENTRY_DSN: ${{ secrets.RECREIO_MONITOR_SENTRY_DSN }}
+          MORADA_MONITOR_SENTRY_DSN: ${{ secrets.MORADA_MONITOR_SENTRY_DSN }}
+          PROVAR_TRANSPORTE: ${{ inputs.provar_transporte }}
+        run: |
+          if [ "$PROVAR_TRANSPORTE" = "true" ]; then
+            node scripts/recreio/monitoramento.mjs --provar-transporte
+          else
+            node scripts/recreio/monitoramento.mjs
+          fi

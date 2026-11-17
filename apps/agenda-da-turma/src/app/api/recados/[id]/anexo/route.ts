@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { agendaAuthority } from "@/features/family/context";
 import { getNoticeSource } from "@/features/notices/repository";
 import { getServerSession } from "@/lib/auth";
 
@@ -7,7 +8,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   if (!session?.user) return new Response(null, { status: 401 });
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) return new Response(null, { status: 404 });
-  const source = await getNoticeSource(session.user.id, id);
+  const source = await getNoticeSource(await agendaAuthority(session.user.id), id);
   if (
     !source?.attachmentData ||
     !source.attachmentExpiresAt ||

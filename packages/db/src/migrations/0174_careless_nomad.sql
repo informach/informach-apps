@@ -1,0 +1,2 @@
+CREATE INDEX "recreio_game_tickets_pending_profile" ON "recreio"."game_tickets" USING btree ("profile_id","expires_at") WHERE "recreio"."game_tickets"."consumed_at" is null;--> statement-breakpoint
+CREATE INDEX "recreio_game_tickets_pending_device" ON "recreio"."game_tickets" USING btree ("device_session_id","expires_at") WHERE "recreio"."game_tickets"."consumed_at" is null;

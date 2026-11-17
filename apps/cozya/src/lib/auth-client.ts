@@ -1,15 +1,8 @@
-import { createInformachAuthClient } from "@informach/auth/client";
-import { env } from "./env";
+"use client";
+import { createWebSsoAuthClient } from "@informach/auth/web-sso-client";
+import { webSsoEnvironment } from "@informach/auth/web-sso-contract";
+export const ssoEnvironment = webSsoEnvironment("cozya", process.env.NEXT_PUBLIC_APP_URL);
 
-export const authClient = createInformachAuthClient({
-  baseURL: env.NEXT_PUBLIC_APP_URL,
-  // Mirrors apps/cozya/src/lib/auth.ts: password login stays enabled;
-  // OTP handles e-mail confirmations and optional passwordless login.
-  email: {
-    verification: "otp",
-    signIn: { magicLink: false, otp: true },
-    forgetPassword: "otp",
-  },
-});
+export const authClient = createWebSsoAuthClient("cozya", ssoEnvironment);
 
-export const { signIn, signUp, signOut, useSession, emailOtp, forgetPassword } = authClient;
+export const { signOut, useSession } = authClient;

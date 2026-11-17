@@ -1,6 +1,6 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
-import { and, db, eq, ne, sql } from "@informach/db";
+import { and, db, eq, gt, inArray, ne, sql } from "@informach/db";
 import {
   recreioSpaceInvites as invites,
   recreioSpaceMembers as members,
@@ -18,7 +18,7 @@ import {
   type PapelNoMundo,
   type PerfilId,
 } from "@informach/recreio";
-import { AGORA, type Transacao, travar } from "@/lib/repository";
+import { AGORA, emTransacao, type Transacao, travar } from "@/lib/repository";
 
 /**
  * Mundos, membros e convites no banco. Ordem das travas em todo o app: a linha
@@ -56,8 +56,9 @@ export type MundoDoPerfil = {
 export async function listarMundosDoPerfil(
   perfilId: PerfilId,
   jogo: string,
+  leitor: Transacao | typeof db = db,
 ): Promise<MundoDoPerfil[]> {
-  const linhas = await db
+  const linhas = await leitor
     .select({
       id: spaces.id,
       name: spaces.name,
@@ -99,14 +100,17 @@ export async function listarMundosDoPerfil(
  * pedidos ao mesmo tempo passam um de cada vez, e o que estoura o teto recebe
  * `LIMITE_DE_MUNDOS`.
  */
-export async function criarMundoDoPerfil(entrada: {
-  perfilId: PerfilId;
-  jogo: string;
-  nome: string;
-  politicaDeConteudo: string;
-  limite: number;
-}): Promise<{ id: MundoId; nome: string; membroId: MembroId }> {
-  return db.transaction(async (tx) => {
+export async function criarMundoDoPerfil(
+  entrada: {
+    perfilId: PerfilId;
+    jogo: string;
+    nome: string;
+    politicaDeConteudo: string;
+    limite: number;
+  },
+  transacao?: Transacao,
+): Promise<{ id: MundoId; nome: string; membroId: MembroId }> {
+  return emTransacao(transacao, async (tx) => {
     await travar(tx, `recreio:spaces:criador:${entrada.perfilId}`);
     const conta = await contaDoPerfil(tx, entrada.perfilId);
     const [contagem] = await tx
@@ -163,20 +167,25 @@ export async function criarMundoDoPerfil(entrada: {
  * não existe, de outro jogo ou do qual o perfil não é membro ativo dão a mesma
  * recusa (`NAO_MEMBRO`): saber um id não diz se o mundo existe.
  */
-export async function criarConviteDoMundo(entrada: {
-  mundoId: MundoId;
-  perfilId: PerfilId;
-  /** Quando o pedido vem de uma sessão de jogo, o mundo precisa ser daquele jogo. */
-  jogo: string | null;
-  participacao: string | null;
-  codeHash: string;
-  validadeMs: number;
-}): Promise<{ expiraEm: Date }> {
-  return db.transaction(async (tx) => {
+export async function criarConviteDoMundo(
+  entrada: {
+    mundoId: MundoId;
+    perfilId: PerfilId;
+    /** Quando o pedido vem de uma sessão de jogo, o mundo precisa ser daquele jogo. */
+    jogo: string | null;
+    participacao: string | null;
+    codeHash: string;
+    validadeMs: number;
+    tetoDeConvites: (jogo: string) => number;
+  },
+  transacao?: Transacao,
+): Promise<{ expiraEm: Date }> {
+  return emTransacao(transacao, async (tx) => {
     const [mundo] = await tx
       .select({ id: spaces.id, gameId: spaces.gameId, status: spaces.status })
       .from(spaces)
-      .where(eq(spaces.id, entrada.mundoId));
+      .where(eq(spaces.id, entrada.mundoId))
+      .for("update");
     const [membro] = mundo
       ? await tx
           .select({ id: members.id, role: members.role, state: members.state })
@@ -192,6 +201,18 @@ export async function criarConviteDoMundo(entrada: {
     if (membro.role !== "steward") throw new ErroDoRecreio("SEM_PERMISSAO");
     if (mundo.status === "archived" || mundo.status === "deleted")
       throw new ErroDoRecreio("MUNDO_INDISPONIVEL");
+    const [abertos] = await tx
+      .select({ total: sql<number>`count(*)::int` })
+      .from(invites)
+      .where(
+        and(
+          eq(invites.spaceId, mundo.id),
+          inArray(invites.state, ["sent", "pending_approval"]),
+          gt(invites.expiresAt, AGORA),
+        ),
+      );
+    if ((abertos?.total ?? 0) >= entrada.tetoDeConvites(mundo.gameId))
+      throw new ErroDoRecreio("LIMITE_DE_CONVITES");
     const conta = await contaDoPerfil(tx, entrada.perfilId);
     const [convite] = await tx
       .insert(invites)
@@ -202,7 +223,8 @@ export async function criarConviteDoMundo(entrada: {
         participation: entrada.participacao,
         codeHash: entrada.codeHash,
         state: "sent",
-        expiresAt: sql`now() + ${`${entrada.validadeMs} milliseconds`}::interval`,
+        createdAt: AGORA,
+        expiresAt: sql`${AGORA} + ${`${entrada.validadeMs} milliseconds`}::interval`,
       })
       .returning({ id: invites.id, expiresAt: invites.expiresAt });
     if (!convite) throw new Error("O convite não foi gravado.");
@@ -231,20 +253,29 @@ export async function criarConviteDoMundo(entrada: {
  * passam um de cada vez (um entra, o outro recebe `CONVITE_INVALIDO`), e a
  * contagem de membros para o teto não corre com outro aceite.
  */
-export async function aceitarConviteDoMundo(entrada: {
-  codeHash: string;
-  perfilId: PerfilId;
-  /** Teto de membros ativos do jogo do mundo. */
-  tetoDeMembros: (jogo: string) => number;
-}): Promise<{ mundoId: MundoId; nome: string; jogo: string; membroId: MembroId }> {
-  return db.transaction(async (tx) => {
+export async function aceitarConviteDoMundo(
+  entrada: {
+    codeHash: string;
+    perfilId: PerfilId;
+    /** Teto de membros ativos do jogo do mundo. */
+    tetoDeMembros: (jogo: string) => number;
+  },
+  transacao?: Transacao,
+): Promise<{ mundoId: MundoId; nome: string; jogo: string; membroId: MembroId }> {
+  return emTransacao(transacao, async (tx) => {
     const [achado] = await tx
       .select({ id: invites.id, spaceId: invites.spaceId })
       .from(invites)
       .where(eq(invites.codeHash, entrada.codeHash));
     if (!achado) throw new ErroDoRecreio("CONVITE_INVALIDO");
     const [mundo] = await tx
-      .select({ id: spaces.id, gameId: spaces.gameId, status: spaces.status, name: spaces.name })
+      .select({
+        id: spaces.id,
+        gameId: spaces.gameId,
+        status: spaces.status,
+        name: spaces.name,
+        stewardProfileId: spaces.stewardProfileId,
+      })
       .from(spaces)
       .where(eq(spaces.id, achado.spaceId))
       .for("update");
@@ -267,12 +298,31 @@ export async function aceitarConviteDoMundo(entrada: {
     if (!mundo || !convite || mundo.status === "archived" || mundo.status === "deleted")
       throw new ErroDoRecreio("CONVITE_INVALIDO");
 
+    const [emissor] = await tx
+      .select({ id: members.id })
+      .from(members)
+      .where(
+        and(
+          eq(members.spaceId, mundo.id),
+          eq(members.id, convite.invitedByMemberId),
+          eq(members.role, "steward"),
+          eq(members.state, "active"),
+          sql`${members.profileId} = ${mundo.stewardProfileId}`,
+        ),
+      );
+    if (!emissor) throw new ErroDoRecreio("CONVITE_INVALIDO");
     const conta = await contaDoPerfil(tx, entrada.perfilId);
     const [existente] = await tx
-      .select({ id: members.id, state: members.state })
+      .select({
+        id: members.id,
+        state: members.state,
+        reingresso: sql<boolean>`${members.leftAt} is not null and ${members.leftAt} < (select ${invites.createdAt} from ${invites} where ${invites.id} = ${convite.id})`,
+      })
       .from(members)
       .where(and(eq(members.spaceId, mundo.id), eq(members.profileId, entrada.perfilId)));
     if (existente && existente.state !== "former") throw new ErroDoRecreio("JA_MEMBRO");
+    if (existente?.state === "former" && !existente.reingresso)
+      throw new ErroDoRecreio("CONVITE_INVALIDO");
     const [contagem] = await tx
       .select({ total: sql<number>`count(*)::int` })
       .from(members)
@@ -362,8 +412,9 @@ export type MundoDoMembro = {
 export async function lerMundoDoMembro(
   mundoId: MundoId,
   perfilId: PerfilId,
+  leitor: Transacao | typeof db = db,
 ): Promise<MundoDoMembro | null> {
-  const [mundo] = await db
+  const [mundo] = await leitor
     .select({
       id: spaces.id,
       name: spaces.name,
@@ -382,7 +433,7 @@ export async function lerMundoDoMembro(
       ),
     );
   if (!mundo) return null;
-  const linhas = await db
+  const linhas = await leitor
     .select({
       id: members.id,
       role: members.role,
@@ -408,4 +459,40 @@ export async function lerMundoDoMembro(
       estado: linha.state,
     })),
   };
+}
+
+/** Só pistas técnicas; a operação relê o mundo sob trava antes da autoridade do perfil. */
+export async function jogoDoMundo(mundoId: MundoId) {
+  const [mundo] = await db
+    .select({ jogo: spaces.gameId })
+    .from(spaces)
+    .where(eq(spaces.id, mundoId));
+  return mundo?.jogo ?? null;
+}
+
+export async function lerPoliticaDeConteudoDoMundo(tx: Transacao, mundoId: MundoId) {
+  const [mundo] = await tx
+    .select({ politica: spaces.contentPolicy })
+    .from(spaces)
+    .where(eq(spaces.id, mundoId));
+  if (!mundo) throw new ErroDoRecreio("NAO_MEMBRO");
+  return mundo.politica;
+}
+
+export async function mundoDoCodigo(codeHash: string) {
+  const [mundo] = await db
+    .select({ id: spaces.id, jogo: spaces.gameId })
+    .from(invites)
+    .innerJoin(spaces, eq(spaces.id, invites.spaceId))
+    .where(eq(invites.codeHash, codeHash));
+  return mundo ? { id: MundoIdSchema.parse(mundo.id), jogo: mundo.jogo } : null;
+}
+
+export async function travarMundoDaOperacao(tx: Transacao, mundoId: MundoId, jogo: string) {
+  const [mundo] = await tx
+    .select({ id: spaces.id })
+    .from(spaces)
+    .where(and(eq(spaces.id, mundoId), eq(spaces.gameId, jogo)))
+    .for("update");
+  if (!mundo) throw new ErroDoRecreio("NAO_MEMBRO");
 }

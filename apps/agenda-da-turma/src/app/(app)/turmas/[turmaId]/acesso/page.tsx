@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { z } from "zod";
+import { agendaAuthority } from "@/features/family/context";
 import { GroupAccessPanel } from "@/features/turmas/components/group-access-panel";
 import { listGroupAdults } from "@/features/turmas/group-access";
 import { findTurmaWithSchoolById } from "@/features/turmas/repository";
@@ -15,8 +16,8 @@ export default async function GroupAccessPage({
   if (!z.string().uuid().safeParse(id).success) notFound();
   const adults = await listGroupAdults(user.id, id);
   if (!adults) notFound();
-  const turma = await findTurmaWithSchoolById(id);
-  if (!turma) notFound();
+  const turma = await findTurmaWithSchoolById(await agendaAuthority(user.id), id);
+  if (!turma?.code) notFound();
   return (
     <main className="mx-auto max-w-3xl space-y-6 px-4 py-8">
       <h1 className="text-2xl font-semibold">Acesso ao grupo · {turma.schoolName}</h1>

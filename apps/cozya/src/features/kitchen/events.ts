@@ -1,6 +1,7 @@
 import "server-only";
-import { db } from "@informach/db";
+import { WebParticipationError } from "@informach/auth/web-participation";
 import { cozyaProductEvents } from "@informach/db/schema";
+import { withActiveCozyaUser } from "@/features/account/participation-repository";
 import { logger } from "@/lib/logger";
 
 export type ProductEvent =
@@ -20,11 +21,15 @@ export type ProductEvent =
 /** Fixed event vocabulary, opaque identifiers only; never ingredient, prompt or profile content. */
 export async function recordProductEvent(userId: string, name: ProductEvent, entityKey: string) {
   try {
-    await db
-      .insert(cozyaProductEvents)
-      .values({ userId, name, dedupKey: `${userId}:${name}:${entityKey}` })
-      .onConflictDoNothing();
+    await withActiveCozyaUser(userId, (tx) =>
+      tx
+        .insert(cozyaProductEvents)
+        .values({ userId, name, dedupKey: `${userId}:${name}:${entityKey}` })
+        .onConflictDoNothing(),
+    );
   } catch (error) {
+    // Activity arriving after web participation ended is intentionally discarded.
+    if (error instanceof WebParticipationError) return;
     // The product mutation has already succeeded. Telemetry failure must not prompt a duplicate save.
     logger.error(
       { event: name, error: error instanceof Error ? error.name : "UnknownError" },

@@ -2,6 +2,9 @@ import { Badge } from "@informach/ui/components/badge";
 import { Sparkles } from "lucide-react";
 import { notFound } from "next/navigation";
 import { BackButton } from "@/components/app-shell/back-button";
+import { findAccessibleProfile } from "@/features/family/access";
+import { agendaAuthority } from "@/features/family/context";
+import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { NewProfileSubjectActivityButton } from "@/features/profile-subject-activities/components/new-profile-subject-activity-button";
 import { ProfileSubjectActivityCard } from "@/features/profile-subject-activities/components/profile-subject-activity-card";
 import { getProfileSubjectWithActivitiesForUser } from "@/features/profile-subject-activities/service";
@@ -30,8 +33,14 @@ function formatPausedSinceLabel(iso: string): string {
 export default async function ProfileSubjectDetailPage({ params }: Props) {
   const { id: profileId, subjectId } = await params;
   const user = await requireUserServer();
-  const result = await getProfileSubjectWithActivitiesForUser(user.id, subjectId);
-  if (!result.ok) notFound();
+  const actor = await agendaAuthority(user.id);
+  const [result, profile, entitlement] = await Promise.all([
+    getProfileSubjectWithActivitiesForUser(actor, subjectId),
+    findAccessibleProfile(actor, profileId),
+    getFamilyEntitlements(actor),
+  ]);
+  if (!result.ok || !profile || result.value.subject.profileId !== profileId) notFound();
+  const canWrite = profile.canWrite && entitlement.usableProfileIds.includes(profileId);
 
   const { subject, activities } = result.value;
   const Icon = getSubjectIcon(subject.name);
@@ -78,8 +87,14 @@ export default async function ProfileSubjectDetailPage({ params }: Props) {
         <NewProfileSubjectActivityButton
           profileSubjectId={subject.id}
           profileSubjectName={subject.name}
-          disabled={isPaused}
-          disabledTitle={isPaused ? "Retome a matéria para criar atividades" : undefined}
+          disabled={!canWrite || isPaused}
+          disabledTitle={
+            !canWrite
+              ? "Você pode consultar este perfil. Para editar, confira as permissões e a assinatura em Minha conta."
+              : isPaused
+                ? "Retome a matéria para criar atividades"
+                : undefined
+          }
         />
       </header>
 
@@ -98,8 +113,9 @@ export default async function ProfileSubjectDetailPage({ params }: Props) {
           <div className="space-y-3">
             {pendingActivities.map((a) => (
               <ProfileSubjectActivityCard
-                key={a.id}
+                key={`${a.id}:${canWrite}`}
                 activity={a}
+                canWrite={canWrite}
                 profileSubjectName={subject.name}
               />
             ))}
@@ -118,8 +134,9 @@ export default async function ProfileSubjectDetailPage({ params }: Props) {
           <div className="space-y-3">
             {doneActivities.map((a) => (
               <ProfileSubjectActivityCard
-                key={a.id}
+                key={`${a.id}:${canWrite}`}
                 activity={a}
+                canWrite={canWrite}
                 profileSubjectName={subject.name}
               />
             ))}

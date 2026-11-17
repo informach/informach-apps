@@ -3,6 +3,41 @@ import { describe, expect, it } from "vitest";
 import { safeContext, scrubEvent } from "./telemetry";
 
 describe("telemetry privacy", () => {
+  it("redacts opening proof, pairing codes, PIN and declared identity fields in nested contexts", () => {
+    expect(
+      safeContext({
+        sessionId: "sid-123",
+        pending: 1,
+        detalhes: [
+          {
+            chaveDeTroca: "exchange-proof",
+            ingresso: "game-ticket",
+            codigo: "pairing-code",
+            segredo: "pairing-secret",
+            pin: "593871",
+            pinHash: "pin-hash",
+            nascimento: "birth-month",
+            apelido: "player-name",
+          },
+        ],
+      }),
+    ).toEqual({
+      sessionId: "sid-123",
+      pending: 1,
+      detalhes: [
+        {
+          chaveDeTroca: "[redacted]",
+          ingresso: "[redacted]",
+          codigo: "[redacted]",
+          segredo: "[redacted]",
+          pin: "[redacted]",
+          pinHash: "[redacted]",
+          nascimento: "[redacted]",
+          apelido: "[redacted]",
+        },
+      ],
+    });
+  });
   it("removes identities, learner content, cookies and SQL parameters before transport", () => {
     const event: ErrorEvent = {
       type: undefined,

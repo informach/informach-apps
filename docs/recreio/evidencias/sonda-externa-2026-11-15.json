@@ -1,0 +1,112 @@
+{
+  "conferidoEm": "2026-11-15T14:36:00Z",
+  "worker": "informach-recreio-monitor",
+  "cron": "*/5 * * * *",
+  "fonte": "5e54f59ffe7ea8673d214ce9678e68b44a2214c5",
+  "sha256": "e64eaa7bd05fa954f5ecb0be5acd210b4138f2dfa374a94f2145ff93e9539ac8",
+  "gatesGithub": [43723080121, 43723421621],
+  "execucoesAgendadas": [
+    {
+      "agendadaEm": "2026-11-15T14:25:21.311000+00:00",
+      "resultado": "ok",
+      "cpuMs": 4,
+      "duracaoMs": 354,
+      "versao": "1e0ed8e3-ff78-4284-af61-7eb5a75d4f93",
+      "servicos": [
+        {
+          "servico": "recreio",
+          "instante": "2026-11-15T14:25:22.515Z",
+          "ok": true,
+          "codigo": "PRONTO",
+          "duracaoMs": 294,
+          "tentativas": 1,
+          "telemetriaEntregue": true,
+          "evento": "71c03b5b449b45b6913bb6e5e87510d3"
+        },
+        {
+          "servico": "morada-server",
+          "instante": "2026-11-15T14:25:22.498Z",
+          "ok": true,
+          "codigo": "PRONTO",
+          "duracaoMs": 277,
+          "tentativas": 1,
+          "telemetriaEntregue": true,
+          "evento": "c11d566c5fea4903bdd0b460df37d841"
+        }
+      ],
+      "excecoes": 0
+    },
+    {
+      "agendadaEm": "2026-11-15T14:30:21.311000+00:00",
+      "resultado": "ok",
+      "cpuMs": 3,
+      "duracaoMs": 275,
+      "versao": "1e0ed8e3-ff78-4284-af61-7eb5a75d4f93",
+      "servicos": [
+        {
+          "servico": "morada-server",
+          "instante": "2026-11-15T14:30:21.989Z",
+          "ok": true,
+          "codigo": "PRONTO",
+          "duracaoMs": 187,
+          "tentativas": 1,
+          "telemetriaEntregue": true,
+          "evento": "91eff683512a4a81a46e0e7ecf7da2d1"
+        },
+        {
+          "servico": "recreio",
+          "instante": "2026-11-15T14:30:22.003Z",
+          "ok": true,
+          "codigo": "PRONTO",
+          "duracaoMs": 201,
+          "tentativas": 1,
+          "telemetriaEntregue": true,
+          "evento": "817fae70919846fa832d8e13b92af03c"
+        }
+      ],
+      "excecoes": 0
+    },
+    {
+      "agendadaEm": "2026-11-15T14:35:21.311000+00:00",
+      "resultado": "ok",
+      "cpuMs": 2,
+      "duracaoMs": 302,
+      "versao": "9be57bef-61ca-4cf6-8388-f74dcadf336a",
+      "servicos": [
+        {
+          "servico": "morada-server",
+          "instante": "2026-11-15T14:35:22.532Z",
+          "ok": true,
+          "codigo": "PRONTO",
+          "duracaoMs": 287,
+          "tentativas": 1
+        },
+        {
+          "servico": "recreio",
+          "instante": "2026-11-15T14:35:22.549Z",
+          "ok": true,
+          "codigo": "PRONTO",
+          "duracaoMs": 304,
+          "tentativas": 1
+        }
+      ],
+      "excecoes": 0
+    }
+  ],
+  "ingestaoSentryConferida": [
+    "71c03b5b449b45b6913bb6e5e87510d3",
+    "c11d566c5fea4903bdd0b460df37d841"
+  ],
+  "analytics": {
+    "invocacoes": 2,
+    "erros": 0
+  },
+  "configuracaoAtual": {
+    "versao": "9be57bef-61ca-4cf6-8388-f74dcadf336a",
+    "provaTransporte": false,
+    "segredosDeIngestaoPreservados": 2,
+    "cpuMaxMs": 10,
+    "dominioPublico": false
+  },
+  "valorFinanceiroAdicionalMedido": null
+}

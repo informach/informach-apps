@@ -15,7 +15,11 @@
     "./logger": "./src/logger.ts",
     "./providers": "./src/providers/index.ts",
     "./mastra": "./src/mastra/index.ts",
-    "./transcription": "./src/transcription.ts"
+    "./transcription": "./src/transcription.ts",
+    "./speech-audio": "./src/speech-audio.ts",
+    "./operations": "./src/operations.ts",
+    "./vision-image": "./src/vision-image.ts",
+    "./vision-image-build": "./src/vision-image-build.ts"
   },
   "scripts": {
     "mastra:migrate": "tsx scripts/migrate-mastra-storage.ts",
@@ -23,6 +27,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@informach/auth": "workspace:*",
     "@ai-sdk/anthropic": "3.0.133",
     "@ai-sdk/openai": "3.0.130",
     "@informach/billing": "workspace:*",
@@ -36,6 +41,7 @@
     "ai": "^6.0.309",
     "drizzle-orm": "^0.45.4",
     "server-only": "^0.0.1",
+    "sharp": "0.35.5",
     "zod": "^4.6.7"
   },
   "devDependencies": {

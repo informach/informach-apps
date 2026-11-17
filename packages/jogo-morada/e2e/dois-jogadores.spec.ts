@@ -78,25 +78,30 @@ test("1. as duas entram, veem os quatro retratos e o mesmo mundo", async () => {
     );
     expect(desenhados).toBe(4);
   }
-  // Cada morador é desenhado onde o espelho diz que ele está (quem está parado no lote).
-  const desvios = await lia.evaluate(() => {
-    const jogo = window.__morada;
-    const visao = jogo?.espelho();
-    const desenhados = jogo?.posicoes() ?? {};
-    return (visao?.moradores.ordem ?? []).flatMap((id) => {
-      const morador = visao?.moradores.porId[id];
-      const desenhado = desenhados[id];
-      if (!morador || !desenhado || morador.local.t !== "lote" || morador.movimento) return [];
-      return [
-        Math.hypot(
-          desenhado.pos[0] - morador.local.pos[0],
-          desenhado.pos[1] - morador.local.pos[1],
-        ),
-      ];
-    });
-  });
-  expect(desvios.length).toBeGreaterThan(0);
-  expect(Math.max(...desvios)).toBeLessThan(5);
+  // O espelho recebe a rede antes do próximo quadro. Ao voltar da outra página,
+  // a cena deve alcançar o estado atual, inclusive sob a GPU por software.
+  await lia.bringToFront();
+  await expect
+    .poll(async () =>
+      lia.evaluate(() => {
+        const jogo = window.__morada;
+        const visao = jogo?.espelho();
+        const desenhados = jogo?.posicoes() ?? {};
+        const desvios = (visao?.moradores.ordem ?? []).flatMap((id) => {
+          const morador = visao?.moradores.porId[id];
+          const desenhado = desenhados[id];
+          if (!morador || !desenhado || morador.local.t !== "lote" || morador.movimento) return [];
+          return [
+            Math.hypot(
+              desenhado.pos[0] - morador.local.pos[0],
+              desenhado.pos[1] - morador.local.pos[1],
+            ),
+          ];
+        });
+        return desvios.length > 0 ? Math.max(...desvios) : null;
+      }),
+    )
+    .toBeLessThan(5);
   await fotografar(lia, "1-entrada-lia");
   await fotografar(bruno, "1-entrada-bruno");
 });

@@ -27,6 +27,12 @@ export async function entrar(pagina: Page, apelido: string, validadeS?: number):
   await pagina.goto(`/?apelido=${encodeURIComponent(apelido)}${validade}`);
   await pagina.waitForFunction(() => window.__morada?.conexao() === "pronto");
   await expect(pagina.locator("canvas.morada-tela")).toBeVisible();
+  const inicio = pagina.getByRole("heading", { name: "Quem vai morar aqui?" });
+  await expect(inicio.or(pagina.locator(".morada-retrato")).first()).toBeVisible();
+  if (await inicio.isVisible()) {
+    await pagina.getByRole("button", { name: "Conhecer a família de exemplo" }).click();
+    await pagina.getByRole("button", { name: "Começar a jogar", exact: true }).click();
+  }
   // A cena desenhou os moradores pelo menos uma vez.
   await pagina.waitForFunction(() => Object.keys(window.__morada?.posicoes() ?? {}).length > 0);
 }

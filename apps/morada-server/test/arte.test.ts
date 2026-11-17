@@ -1,9 +1,10 @@
+import { createHash } from "node:crypto";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { createServer, request, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { brotliCompressSync, brotliDecompressSync } from "node:zlib";
+import { brotliCompressSync, brotliDecompressSync, constants } from "node:zlib";
 import type { Manifesto } from "@informach/morada-arte/manifesto";
 import type { PerfilId, SessaoDeJogoId } from "@informach/recreio";
 import { criarEmissorDeTeste, type EmissorDeTeste } from "@informach/recreio/testing";
@@ -12,13 +13,17 @@ import { aceitaBrotli, carregarArte, type RotaDaArte } from "../src/arte";
 import { lerConfiguracao } from "../src/config";
 
 /**
- * A rota da arte com um pacote de mentira (bytes quaisquer com o nome no
- * formato do empacotador): nenhum arquivo de arte entra nos testes.
+ * Bytes sintéticos com tamanho e hash reais: nenhuma arte licenciada nos testes.
  */
 
 const ORIGEM = "http://localhost:3009";
-const PERSONAGEM = "lia.0123456789.glb";
-const BIBLIOTECA = "anim-adulto.abcdef0123.glb";
+const CONTEUDO_DO_PERSONAGEM = Buffer.from("glb-de-mentira ".repeat(200));
+const CONTEUDO_DA_BIBLIOTECA = Buffer.from("animacoes");
+function nomeComHash(prefixo: string, conteudo: Buffer, extensao = "glb"): string {
+  return `${prefixo}.${createHash("sha256").update(conteudo).digest("hex").slice(0, 10)}.${extensao}`;
+}
+const PERSONAGEM = nomeComHash("lia", CONTEUDO_DO_PERSONAGEM);
+const BIBLIOTECA = nomeComHash("anim-adulto", CONTEUDO_DA_BIBLIOTECA);
 
 const manifesto: Manifesto = {
   formato: "morada-arte",
@@ -29,7 +34,7 @@ const manifesto: Manifesto = {
       id: "lia",
       nome: "Lia",
       arquivo: PERSONAGEM,
-      bytes: 6,
+      bytes: CONTEUDO_DO_PERSONAGEM.length,
       corpo: "adulta",
       sexo: "f",
       faixa: "adulto",
@@ -58,7 +63,7 @@ const manifesto: Manifesto = {
     {
       id: "adulto",
       arquivo: BIBLIOTECA,
-      bytes: 8,
+      bytes: CONTEUDO_DA_BIBLIOTECA.length,
       faixa: "adulto",
       gravida: false,
       clipes: [],
@@ -67,8 +72,6 @@ const manifesto: Manifesto = {
     },
   ],
 };
-
-const CONTEUDO_DO_PERSONAGEM = Buffer.from("glb-de-mentira ".repeat(200));
 
 let pasta = "";
 let servidor: Server;
@@ -125,7 +128,7 @@ beforeAll(async () => {
   writeFileSync(join(pasta, PERSONAGEM), CONTEUDO_DO_PERSONAGEM);
   writeFileSync(join(pasta, `${PERSONAGEM}.br`), brotliCompressSync(CONTEUDO_DO_PERSONAGEM));
   // A biblioteca sem a cópia em brotli: é entregue sem compressão.
-  writeFileSync(join(pasta, BIBLIOTECA), Buffer.from("animacoes"));
+  writeFileSync(join(pasta, BIBLIOTECA), CONTEUDO_DA_BIBLIOTECA);
   // Um arquivo na pasta que o manifesto não cita, e um fora da pasta, ao lado dela.
   writeFileSync(join(pasta, "segredo.txt"), "não pode sair");
   writeFileSync(join(pasta, "..", "vizinho-da-arte.txt"), "também não");
@@ -155,6 +158,37 @@ afterAll(async () => {
 });
 
 describe("entrega da arte", () => {
+  it("V2 entrega acabamentos PNG autenticados e não expõe arquivos fora do manifesto", async () => {
+    const nome = nomeComHash("tex-piso", Buffer.from([1, 2, 3]), "png");
+    const m = {
+      ...manifesto,
+      versao: 2,
+      objetos: [],
+      aberturas: [],
+      acabamentos: [{ id: "piso", arquivo: nome, bytes: 3, escala: 2 }],
+    };
+    const anterior = rota;
+    try {
+      writeFileSync(join(pasta, nome), Buffer.from([1, 2, 3]));
+      writeFileSync(join(pasta, "manifest.json"), JSON.stringify(m));
+      rota = carregarArte({
+        pasta,
+        verificador: recreio.verificador("morada"),
+        origens: [ORIGEM],
+        exigirOrigem: true,
+      });
+      const resposta = await pedir(`/arte/${nome}`, await comSessao());
+      expect(resposta.status).toBe(200);
+      expect(resposta.cabecalhos["content-type"]).toBe("image/png");
+      expect(resposta.cabecalhos["cache-control"]).toContain("private");
+      expect(resposta.corpo).toEqual(Buffer.from([1, 2, 3]));
+      expect((await pedir(`/arte/${nome}`, { origin: ORIGEM })).status).toBe(401);
+      expect((await pedir("/arte/tex-outro.0123456789.png", await comSessao())).status).toBe(404);
+    } finally {
+      rota = anterior;
+      writeFileSync(join(pasta, "manifest.json"), JSON.stringify(manifesto));
+    }
+  });
   it("lê o manifesto e conta os arquivos que pode entregar", () => {
     expect(rota.arquivos).toBe(3);
     expect(rota.manifesto.personagens[0]?.id).toBe("lia");
@@ -326,6 +360,98 @@ describe("entrega da arte", () => {
 });
 
 describe("pasta da arte", () => {
+  async function comPastaSintetica(acao: (diretorio: string) => void | Promise<void>) {
+    const diretorio = mkdtempSync(join(tmpdir(), "morada-arte-integridade-"));
+    try {
+      writeFileSync(join(diretorio, "manifest.json"), JSON.stringify(manifesto));
+      writeFileSync(join(diretorio, PERSONAGEM), CONTEUDO_DO_PERSONAGEM);
+      writeFileSync(
+        join(diretorio, `${PERSONAGEM}.br`),
+        brotliCompressSync(CONTEUDO_DO_PERSONAGEM),
+      );
+      writeFileSync(join(diretorio, BIBLIOTECA), CONTEUDO_DA_BIBLIOTECA);
+      await acao(diretorio);
+    } finally {
+      rmSync(diretorio, { recursive: true, force: true });
+    }
+  }
+
+  it.each([
+    {
+      caso: "tamanho diferente do manifesto",
+      arquivo: PERSONAGEM,
+      corpo: Buffer.concat([CONTEUDO_DO_PERSONAGEM, Buffer.from([1])]),
+      erro: /tamanho divergente/,
+    },
+    {
+      caso: "bytes adulterados com o mesmo tamanho",
+      arquivo: PERSONAGEM,
+      corpo: Buffer.alloc(CONTEUDO_DO_PERSONAGEM.length, 33),
+      erro: /integridade divergente/,
+    },
+    {
+      caso: "brotli de outro conteúdo com o mesmo tamanho expandido",
+      arquivo: `${PERSONAGEM}.br`,
+      corpo: brotliCompressSync(Buffer.alloc(CONTEUDO_DO_PERSONAGEM.length, 33)),
+      erro: /brotli divergente/,
+    },
+    {
+      caso: "brotli que expande além do arquivo original",
+      arquivo: `${PERSONAGEM}.br`,
+      corpo: brotliCompressSync(Buffer.alloc(CONTEUDO_DO_PERSONAGEM.length + 1, 33)),
+      erro: /brotli inválida/,
+    },
+    {
+      caso: "brotli inválido",
+      arquivo: `${PERSONAGEM}.br`,
+      corpo: Buffer.from("não é brotli"),
+      erro: /brotli inválida/,
+    },
+  ])("recusa $caso antes de disponibilizar a rota", async ({ arquivo, corpo, erro }) => {
+    await comPastaSintetica((diretorio) => {
+      const opcoes = { pasta: diretorio, verificador: recreio.verificador("morada"), origens: [] };
+      expect(carregarArte(opcoes).arquivos).toBe(3);
+      writeFileSync(join(diretorio, arquivo), corpo);
+      expect(() => carregarArte(opcoes)).toThrow(erro);
+    });
+  });
+
+  it("recomprimir os mesmos bytes muda o ETag forte da representação brotli", async () => {
+    await comPastaSintetica(async (diretorio) => {
+      const anterior = rota;
+      try {
+        const primeira = await pedir(
+          `/arte/${PERSONAGEM}`,
+          await comSessao({ "accept-encoding": "br" }),
+        );
+        const outraCompressao = brotliCompressSync(CONTEUDO_DO_PERSONAGEM, {
+          params: { [constants.BROTLI_PARAM_QUALITY]: 0 },
+        });
+        expect(outraCompressao.equals(primeira.corpo)).toBe(false);
+        expect(brotliDecompressSync(outraCompressao)).toEqual(CONTEUDO_DO_PERSONAGEM);
+        writeFileSync(join(diretorio, `${PERSONAGEM}.br`), outraCompressao);
+        rota = carregarArte({
+          pasta: diretorio,
+          verificador: recreio.verificador("morada"),
+          origens: [ORIGEM],
+          exigirOrigem: true,
+        });
+        const segunda = await pedir(
+          `/arte/${PERSONAGEM}`,
+          await comSessao({
+            "accept-encoding": "br",
+            "if-none-match": String(primeira.cabecalhos.etag),
+          }),
+        );
+        expect(segunda.status).toBe(200);
+        expect(segunda.cabecalhos.etag).not.toBe(primeira.cabecalhos.etag);
+        expect(segunda.corpo).toEqual(outraCompressao);
+      } finally {
+        rota = anterior;
+      }
+    });
+  });
+
   it("a subida falha se o manifesto falta, está fora do formato ou cita um arquivo ausente", async () => {
     const vazia = mkdtempSync(join(tmpdir(), "morada-arte-vazia-"));
     try {

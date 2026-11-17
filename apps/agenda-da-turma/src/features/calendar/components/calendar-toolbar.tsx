@@ -10,11 +10,11 @@ type Props = {
   todayIso: string;
   /** Os endereços de cada controle, com a criança e a data da tela. */
   hrefs: {
-    week: string;
-    month: string;
-    prev: string;
-    next: string;
-    today: string;
+    week: `/calendario${"" | `?${string}`}`;
+    month: `/calendario${"" | `?${string}`}`;
+    prev: `/calendario${"" | `?${string}`}`;
+    next: `/calendario${"" | `?${string}`}`;
+    today: `/calendario${"" | `?${string}`}`;
   };
 };
 

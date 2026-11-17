@@ -144,7 +144,7 @@ export function KidModeScreen({ profile, todayIso, todo, ahead }: Props) {
         version,
         status,
         title: entry.item.title,
-        userId: queueOwner,
+        actor: queueOwner,
       });
       setSaving(false);
       if (result.ok) {

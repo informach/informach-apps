@@ -9,7 +9,7 @@ export const metadata = { title: "Início" };
 export default async function Inicio() {
   const ctx = await parentPage();
   const timezone = ctx.family?.timezone ?? "America/Sao_Paulo";
-  const dados = await parentHome(ctx.ownerId, timezone, ctx.children);
+  const dados = await parentHome(ctx.actor, timezone, ctx.children);
   const bloqueadas = ctx.children.filter((c) => !c.allowed);
   return (
     <div className="flex flex-col gap-4">
@@ -42,7 +42,7 @@ export default async function Inicio() {
       {bloqueadas.length > 0 && (
         <p className="cartao p-4 text-sm font-bold text-tinta-suave">
           {bloqueadas.map((c) => c.name).join(", ")} {bloqueadas.length === 1 ? "está" : "estão"}{" "}
-          fora do plano gratuito. Assine o Família em Ajustes para voltar a acompanhar.
+          fora do plano gratuito. Veja o Compasso em Ajustes para voltar a acompanhar.
         </p>
       )}
       {ctx.mode === "adult" &&

@@ -1,0 +1,111 @@
+{
+  "estado": "candidata_sem_ativacao_em_producao",
+  "fonteEmVerificacao": "37a754915750ad007dd63a26b2fd9550db4f2df9",
+  "leitoresMinimosImplantados": "f0f1c96c11f22fec6f91315c03eddd8701c54fc5",
+  "ciGeralDaBase": {
+    "runId": 43902105332,
+    "conclusao": "success"
+  },
+  "contratos": {
+    "mundo": 2,
+    "protocolo": 1,
+    "arte": "D2",
+    "recibosDeMigracao": 167
+  },
+  "provasAnterioresDaCandidata": {
+    "portal": {
+      "fonte": "7eed6a2e8ebf70ca871a0e9be6975e886281a1ba",
+      "runId": 43899424386,
+      "gatesAprovados": 6,
+      "navegadorAprovados": 10,
+      "exclusoesEspecificas": 2,
+      "duasContasComNovoLoginAntesDeProporEAceitar": true,
+      "antigoResponsavelSaiENovoMantemMundo": true
+    },
+    "prazos": {
+      "fonte": "2333f1f5ba6ab98c34761bd7c6a3b628e292b96e",
+      "runId": 43900506406,
+      "gatesAprovados": 6,
+      "integracoesPostgres": 284,
+      "loginAparelhoEPedidoVencemDuranteEspera": true,
+      "aceiteAntigoNaoReaplicaAutoridade": true
+    },
+    "auditoria": {
+      "reproducao": {
+        "fonte": "5c396dad167aab8ce213db5c025952f3a23843bd",
+        "runId": 43908821044,
+        "jobId": 133444838247,
+        "campoIncorreto": "actorId",
+        "falhasDoJob": 1
+      },
+      "correcao": {
+        "fonte": "b7c1526dfa20108f60af069a211dc09da67f7cd8",
+        "runId": 43909310393,
+        "gatesAprovados": 6
+      }
+    },
+    "flushObservabilidade": {
+      "reproducao": {
+        "fonte": "e738760d7ccb3e3fd5053d58ac29b16b589cfb10",
+        "runId": 43911549761,
+        "jobId": 133454688088,
+        "sdkETransporteReais": true,
+        "falhasDoServidor": 1,
+        "aprovadosDoServidor": 158
+      },
+      "correcao": {
+        "fonte": "66dd63aa7cd1e4bb5dc4a1d6c49720ddd2fc1b86",
+        "runId": 43912699035,
+        "gatesAprovados": 6
+      }
+    },
+    "cancelamentoEHistorico": {
+      "reproducao": {
+        "fonte": "ea899878e474371a5ae368c74962ff24aee02687",
+        "runId": 43913533109,
+        "jobId": 133461508291,
+        "falhasNovas": 7,
+        "aprovados": 284
+      },
+      "correcao": {
+        "fonte": "37a754915750ad007dd63a26b2fd9550db4f2df9",
+        "runId": 43915310811,
+        "estado": "success",
+        "gatesAprovados": 6,
+        "integracoesPostgres": 291,
+        "casosResponsabilidade": 29,
+        "navegadorAprovados": 10,
+        "exclusoesEspecificas": 2
+      }
+    }
+  },
+  "capturasInspecionadas": {
+    "fonte": "c082a1c445d8762d96efb2d7f2a8315d1460badb",
+    "runId": 43904561482,
+    "artefatoId": 14246196750,
+    "sha256Zip": "7eb00e35f49a4f22f370cd838418b25bb7e155f8cb93432d6ea0cefe99c38bc5",
+    "arquivos": [
+      "responsabilidade-recebida.png",
+      "responsabilidade-recebida-mobile.png",
+      "responsabilidade-mobile.png"
+    ],
+    "desktop": {
+      "largura": 1365,
+      "altura": 900
+    },
+    "mobile": {
+      "largura": 390,
+      "altura": 844
+    },
+    "prazoEBotoesLegiveis": true,
+    "rolagemHorizontal": false,
+    "dadosSinteticos": true,
+    "arteLicenciada": false
+  },
+  "limites": [
+    "conferir fontes, configuracoes, mapas, prontidao e cron apos implantar",
+    "observar SIGTERM do Node direto na retirada normal do Morada",
+    "sem prova de transferencia real pelas duas contas de producao",
+    "nao conclui A6, protecao familiar, retencao integral, desempenho ou venda"
+  ]
+}

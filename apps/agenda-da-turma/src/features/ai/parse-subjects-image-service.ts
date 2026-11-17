@@ -1,53 +1,50 @@
 import "server-only";
 
-import { runBillableAgentCall } from "@informach/ai-core";
+import { createHash } from "node:crypto";
 import { getMastra } from "@/ai";
 import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
 import { AGENDA_MODELS } from "@/ai/models";
-import { type SubjectsParserOutput, subjectsParserSchema } from "@/ai/subjects-parser/schema";
-import { billing } from "@/lib/billing";
+import type { SubjectsParserOutput } from "@/ai/subjects-parser/schema";
+import type { AgendaAuthority } from "@/features/family/authority";
+import { prepareNoticeAttachment } from "@/features/notices/attachment";
+import {
+  type AiCostAcceptance,
+  actualNoticeCredits,
+  assertCostAcceptance,
+  SUBJECT_IMAGE_COST,
+} from "./costs";
+import { subjectGenerationOptions } from "./subject-budget";
+import { validatedSubjectResult } from "./subject-result";
+import { agendaAiOperations } from "./wallet-repository";
 
 export type ParseSubjectsFromImageInput = {
-  userId: string;
-  /** Data URL no formato `data:image/{jpeg|png|webp};base64,...`. */
+  actor: AgendaAuthority;
+  profileId: string;
+  acceptedCost: AiCostAcceptance;
   imageDataUrl: string;
 };
-
 export type ParseSubjectsFromImageResult = SubjectsParserOutput;
-
 const FEATURE = "agenda.subjects.parse_image" as const;
-
-type SubjectsAgentResponse = {
-  object: unknown;
-  usage?: unknown;
-};
-
-/**
- * Estrutura uma imagem (print de horário, foto de quadro, foto de caderno)
- * numa lista validada de matérias. Usa agente vision `subjectsParserVision`
- * (`openai/gpt-4o`) com `imageDetail: "low"` — barato (~$0.005-0.016/call)
- * e suficiente pra OCR de texto impresso ou manuscrito. Tentamos "high" pra
- * resolver dias rotacionados em grades de horário, mas a detecção de
- * matérias REGREDIU (atenção do modelo se dispersou no grid analysis).
- * Conclusão: manter "low" como baseline; classDays é extraído quando óbvio
- * e o user ajusta manualmente no batch dialog quando necessário.
- *
- * Cobra 1 crédito via reserve→commit/release. Pro gating e rate limit ficam
- * no route handler.
- */
+/** Authorized, bounded extraction against the family wallet. */
 export async function parseSubjectsFromImage(
   input: ParseSubjectsFromImageInput,
 ): Promise<ParseSubjectsFromImageResult> {
-  const out = await runBillableAgentCall<SubjectsAgentResponse>({
-    billing,
-    owner: { type: "user", id: input.userId },
-    app: "agenda-da-turma",
+  assertCostAcceptance(input.acceptedCost, SUBJECT_IMAGE_COST);
+  if (!/^data:image\/(jpeg|png|webp);base64,/.test(input.imageDataUrl))
+    throw new Error("INVALID_IMAGE");
+  const attachment = await prepareNoticeAttachment({ name: "image", dataUrl: input.imageDataUrl });
+  if (!attachment) throw new Error("INVALID_IMAGE");
+  const operations = await agendaAiOperations(input.actor, input.profileId);
+  return operations.run({
     feature: FEATURE,
     model: AGENDA_MODELS[FEATURE],
-    recorder,
     agent: "subjectsParserVision",
-    getUsage: (response) => response.usage,
-    call: async ({ runId }) => {
+    recorder,
+    tariff: SUBJECT_IMAGE_COST.version,
+    maxCredits: SUBJECT_IMAGE_COST.maxCredits,
+    inputHash: createHash("sha256").update(input.imageDataUrl).digest("hex"),
+    parseResult: validatedSubjectResult,
+    call: async (runId) => {
       const mastra = getMastra();
       const response = await mastra.getAgent("subjectsParserVision").generate(
         [
@@ -60,22 +57,19 @@ export async function parseSubjectsFromImage(
               },
               {
                 type: "image",
-                image: input.imageDataUrl,
+                image: attachment.dataUrl,
                 providerOptions: { openai: { imageDetail: "low" } },
               },
             ],
           },
         ],
-        {
-          runId,
-          structuredOutput: {
-            schema: subjectsParserSchema,
-            errorStrategy: "strict",
-          },
-        },
+        subjectGenerationOptions(runId),
       );
-      return response;
+      return {
+        value: validatedSubjectResult(response.object),
+        actualCredits: actualNoticeCredits(response.usage),
+        usage: response.usage,
+      };
     },
   });
-  return out.result.object as SubjectsParserOutput;
 }

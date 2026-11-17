@@ -5,12 +5,29 @@ export class BillingError extends Error {
   }
 }
 
+/** A complete provider observation contradicts previously recorded payment evidence. */
+export class PaymentEvidenceMismatchError extends BillingError {
+  constructor() {
+    super("Previously recorded payment period requires reconciliation");
+    this.name = "PaymentEvidenceMismatchError";
+  }
+}
+
 export class CheckoutPendingError extends BillingError {
   constructor() {
     super(
       "A confirmação do pagamento anterior ainda está pendente. Aguarde a atualização da assinatura ou encerre a cobrança em Minha família.",
     );
     this.name = "CheckoutPendingError";
+  }
+}
+
+export class LegacySubscriptionPendingError extends BillingError {
+  constructor() {
+    super(
+      "A previous family subscription or checkout requires reconciliation before starting Compasso",
+    );
+    this.name = "LegacySubscriptionPendingError";
   }
 }
 

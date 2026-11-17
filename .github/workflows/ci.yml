@@ -1,13 +1,52 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, "verify/recreio-*-postgres"]
   pull_request:
     branches: [main]
 
 jobs:
+  alteracao:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      completo: ${{ steps.escopo.outputs.completo }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+      - run: node --test .github/scripts/ci-recreio-documentacao.test.mjs
+      - id: escopo
+        run: node .github/scripts/ci-recreio-documentacao.mjs "$GITHUB_EVENT_NAME" "$GITHUB_EVENT_PATH" "$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+
+  documentos-recreio:
+    needs: alteracao
+    if: needs.alteracao.outputs.completo == 'false'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ci-documentos-recreio-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      # Somente o formatter da raiz; sem baixar/rodar binários nativos dos apps.
+      - run: pnpm install --frozen-lockfile --ignore-scripts --filter informach-apps
+      - run: pnpm exec biome check docs/recreio
+
   ci:
+    needs: alteracao
+    if: needs.alteracao.outputs.completo == 'true'
+    concurrency:
+      group: ci-completo-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -18,6 +57,21 @@ jobs:
           POSTGRES_DB: ci
         ports:
           - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres-recreio:
+        # O Recreio usa transaction_timeout (PG 17+), como a produção em 18.
+        # O PG 16 acima continua verificando os demais consumidores.
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5433:5432
         options: >-
           --health-cmd "pg_isready -U ci -d ci"
           --health-interval 10s
@@ -64,7 +118,15 @@ jobs:
 
       - run: pnpm test
 
+      - run: node --test scripts/compasso/postgres-fixture.test.mjs
+
+      - run: node --test scripts/compasso/redis-fixture.test.mjs
+
+      - run: pnpm compasso:test:integration
+
       - run: pnpm db:migrate
+
+      - run: pnpm --filter @informach/agenda-da-turma test:integration
 
       - run: pnpm --filter @informach/cozya test:integration
 
@@ -74,7 +136,12 @@ jobs:
 
       - run: pnpm --filter @informach/dia-de-estrela test:integration
 
+      - name: Recreio recusa PostgreSQL sem limite de transacao
+        run: pnpm --filter @informach/recreio-app test:integration operations.integration.ts
+
       - run: pnpm --filter @informach/recreio-app test:integration
+        env:
+          DATABASE_URL: postgres://ci:ci@localhost:5433/ci
 
       - run: pnpm --filter @informach/cozya eval
         env:
@@ -109,13 +176,16 @@ jobs:
       # (`apps/morada-server`). Não usa segredo nem serviço de fora: os segredos
       # da execução são gerados na hora. O Morada desenha em WebGL por software.
       - run: pnpm --filter @informach/recreio-app e2e
+        env:
+          DATABASE_URL: postgres://ci:ci@localhost:5433/ci
 
-      # O build do Recreio valida o ambiente como produção e exige a chave dos
-      # tokens. Ela é gerada aqui, vale só para este build e não fica em arquivo.
-      - name: Chave descartável dos tokens do Recreio
+      # O build do Recreio exige as chaves dos tokens e das ações. As duas são
+      # descartáveis neste CI e nunca são usadas nos serviços publicados.
+      - name: Chaves descartáveis dos tokens e ações do Recreio
         run: node apps/recreio/scripts/gerar-chave.mjs --github-env >> "$GITHUB_ENV"
 
-      - run: pnpm build
+      # Cada consumidor SSO precisa incorporar sua própria origem do catálogo.
+      - run: pnpm exec tsx scripts/compasso/build-ci.mts
         env:
           BETTER_AUTH_URL: https://ci.example.com
           NEXT_PUBLIC_APP_URL: https://ci.example.com
@@ -132,8 +202,6 @@ jobs:
           BORA_INDIVIDUAL_ANNUAL_PRICE: price_ci_bora_individual_annual
           BORA_FAMILY_MONTHLY_PRICE: price_ci_bora_family_monthly
           BORA_FAMILY_ANNUAL_PRICE: price_ci_bora_family_annual
-          ESTRELA_FAMILY_MONTHLY_PRICE: price_ci_estrela_family_monthly
-          ESTRELA_FAMILY_ANNUAL_PRICE: price_ci_estrela_family_annual
           VAPID_PUBLIC_KEY: ci-build-placeholder-vapid-public
           VAPID_PRIVATE_KEY: ci-build-placeholder-vapid-private
           SENTRY_DSN: https://public@ci.example.com/1
@@ -142,12 +210,27 @@ jobs:
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
+      - run: pnpm build:conta
+        env:
+          NEXT_PUBLIC_APP_URL: https://conta.informach.com.br
+          COMPASSO_TRIAL_HASH_SECRET: ci-build-placeholder-not-a-real-secret-yyyy
+          COMPASSO_BILLING_ENABLED: "true"
+          COMPASSO_MONTHLY_PRICE: price_ci_compasso_monthly
+          COMPASSO_ANNUAL_PRICE: price_ci_compasso_annual
+          COMPASSO_CREDITS_100_PRICE: price_ci_compasso_credits_100
+          COMPASSO_CREDITS_300_PRICE: price_ci_compasso_credits_300
+          COMPASSO_CREDITS_1000_PRICE: price_ci_compasso_credits_1000
+          EMAIL_SANDBOX_MODE: live
+          STRIPE_SECRET_KEY: sk_live_ci_build_placeholder
+          STRIPE_MODE: prod
+          STRIPE_PORTAL_CONFIGURATION_ID: bpc_ci_build_placeholder
+
       - name: Preserve Missao Saber failure evidence
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: missao-saber-verification-${{ github.run_attempt }}
-          path: apps/missao-saber/tmp/verification/
+          path: apps/conta/test-results/compasso-apps/missao-saber/
           if-no-files-found: ignore
           retention-days: 7
 
@@ -156,7 +239,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bora-treinar-verification-${{ github.run_attempt }}
-          path: apps/bora-treinar/tmp/verification/
+          path: apps/conta/test-results/compasso-apps/bora-treinar/
           if-no-files-found: ignore
           retention-days: 7
 
@@ -165,7 +248,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dia-de-estrela-verification-${{ github.run_attempt }}
-          path: apps/dia-de-estrela/tmp/verification/
+          path: apps/conta/test-results/compasso-apps/dia-de-estrela/
           if-no-files-found: ignore
           retention-days: 7
 
@@ -189,5 +272,7 @@ jobs:
           path: |
             apps/agenda-da-turma/test-results/
             apps/cozya/test-results/
+            apps/conta/test-results/compasso-apps/cozya/
+            apps/conta/test-results/compasso-apps/agenda-da-turma/
           if-no-files-found: ignore
           retention-days: 7

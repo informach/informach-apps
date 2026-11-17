@@ -6,7 +6,10 @@
  *
  * Fica em arquivo próprio porque a configuração do Playwright e os testes que
  * abrem um navegador à parte usam a mesma lista.
+ * O canal chromium usa o navegador completo em headless, em vez do shell:
+ * https://playwright.dev/docs/browsers#chromium-new-headless-mode
  */
+export const CANAL_DO_NAVEGADOR = "chromium";
 export const ARGS_DO_NAVEGADOR = [
   "--use-angle=swiftshader",
   "--enable-unsafe-swiftshader",

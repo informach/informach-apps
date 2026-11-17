@@ -11,8 +11,8 @@ import { createOpenRouter } from "@informach/ai-core/providers";
 import { generateText, Output } from "ai";
 import { config as loadEnv } from "dotenv";
 import { z } from "zod";
-import { withModelFallbacks } from "../src/ai/fallbacks";
 import { COZYA_MODELS } from "../src/ai/models";
+import { cozyaModelPolicy } from "../src/ai/provider-policy";
 import { criticalIssues } from "../src/ai/recipe-parser/evals/critical-checks";
 import { DATASET, type DatasetEntry } from "../src/ai/recipe-parser/evals/dataset";
 import { RECIPE_PARSER_INSTRUCTIONS } from "../src/ai/recipe-parser/instructions";
@@ -70,9 +70,9 @@ async function main() {
   if (!process.env.OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY required");
   const openrouter = createOpenRouter({ apiKey: process.env.OPENROUTER_API_KEY });
   const textId = COZYA_MODELS["cozya.recipe.extract_from_text"];
-  const textModel = openrouter(textId, withModelFallbacks(textId));
+  const textModel = openrouter(textId, cozyaModelPolicy(textId));
   const visionId = COZYA_MODELS["cozya.recipe.extract_from_photo"];
-  const visionModel = openrouter(visionId, withModelFallbacks(visionId));
+  const visionModel = openrouter(visionId, cozyaModelPolicy(visionId));
   if (snapshot && process.env.EVAL_RESEARCH_MODEL)
     throw new Error("Model experiments cannot replace the production baseline");
   const researchId =
@@ -80,8 +80,8 @@ async function main() {
       ? "openai/gpt-4o"
       : COZYA_MODELS["cozya.recipe.generate_from_prompt"];
   const researchModel = openrouter(researchId, {
-    ...withModelFallbacks(researchId),
-    extraBody: { ...withModelFallbacks(researchId).extraBody, max_tool_calls: 1 },
+    ...cozyaModelPolicy(researchId),
+    extraBody: { max_tool_calls: 1 },
   });
   const costs: Record<string, unknown>[] = [];
   async function parse(entry: DatasetEntry): Promise<RecipeParserOutput> {
@@ -111,8 +111,7 @@ async function main() {
       const citation = research.sources.find(
         (item) => item.sourceType === "url" && item.url === url,
       );
-      if (!citation || citation.sourceType !== "url")
-        throw new Error("Research returned no matching citation");
+      if (citation?.sourceType !== "url") throw new Error("Research returned no matching citation");
       source = citation;
       input = JSON.stringify({ pedidoOriginal: entry.input, conteudoDaFonte: research.text });
     }

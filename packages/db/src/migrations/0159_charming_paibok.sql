@@ -1,0 +1,3 @@
+ALTER TABLE "billing"."legacy_future_intents" ADD COLUMN "setup_protocol_version" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "billing"."legacy_future_intents" ADD COLUMN "setup_attempted_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "billing"."legacy_future_intents" ADD CONSTRAINT "legacy_future_intent_setup_protocol" CHECK ("billing"."legacy_future_intents"."setup_protocol_version" in (0, 1));

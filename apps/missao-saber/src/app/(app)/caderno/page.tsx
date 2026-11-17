@@ -29,13 +29,13 @@ export default async function Notes({
   const query = parsed.data;
   const result = await (async () => {
     try {
-      const notes = await notebookPage(data.userId, data.profile.id, {
+      const notes = await notebookPage(data.authority, data.profile.id, {
         archived: query.archived === "1",
         search: query.q,
         cursor: query.after,
       });
       const context = query.session
-        ? await readNoteContext(data.userId, data.profile.id, query.session, query.item)
+        ? await readNoteContext(data.authority, data.profile.id, query.session, query.item)
         : undefined;
       return { notes, context };
     } catch (error) {

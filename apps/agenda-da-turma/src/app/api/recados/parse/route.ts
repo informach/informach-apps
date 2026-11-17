@@ -1,4 +1,5 @@
 import { jsonUtf8 } from "@/features/ai/_shared";
+import { agendaAuthority } from "@/features/family/context";
 import { parseNotice } from "@/features/notices/parse-service";
 import { parseNoticeSchema } from "@/features/notices/schemas";
 import { getServerSession } from "@/lib/auth";
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
     await enforceRateLimit({ key: `notices:${session.user.id}`, limit: 12, windowSeconds: 3600 });
     const parsed = parseNoticeSchema.safeParse(await readJsonWithSizeLimit(request, 7_200_000));
     if (!parsed.success) return jsonUtf8({ code: "INVALID_INPUT" }, { status: 400 });
-    const result = await parseNotice(session.user.id, parsed.data);
+    const result = await parseNotice(await agendaAuthority(session.user.id), parsed.data);
     return result.ok
       ? jsonUtf8(result.value, { headers: { "Cache-Control": "no-store" } })
       : jsonUtf8(result.error, { status: result.error.code === "PROCESSING" ? 409 : 422 });

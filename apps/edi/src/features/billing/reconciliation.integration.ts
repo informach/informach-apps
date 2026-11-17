@@ -266,6 +266,9 @@ describe("billing reconciliation and webhook serialization in PostgreSQL", () =>
       expect(await item.entitlement()).toMatchObject({ suspended: true });
       return {
         ...item.snapshot,
+        // This is a later provider read after the refund, not a contradictory
+        // replay of the original observation.
+        observedAt: new Date(item.snapshot.observedAt.getTime() + 1),
         periods: item.snapshot.periods.map((period) => ({ ...period, fullyRefunded: true })),
       };
     });

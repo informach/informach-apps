@@ -32,6 +32,37 @@ export type ProviderCheckoutState = {
   subscriptionId: string | null;
 };
 
+export type ProviderCreditCheckoutSnapshot = {
+  sessionId: string;
+  customerId: string;
+  intentId: string;
+  status: "open" | "complete" | "expired";
+  paymentStatus: "paid" | "unpaid" | "no_payment_required";
+  paymentCanceled: boolean;
+  priceId: string;
+  amountCents: number;
+  currency: string;
+  observedAt: Date;
+  payment: null | {
+    id: string;
+    paidAt: Date;
+    amountRefundedCents: number;
+    disputed: boolean;
+  };
+};
+
+/** Authoritative settlement of an existing payment, independent of the checkout generation. */
+export type ProviderCreditPaymentSnapshot = {
+  paymentId: string;
+  customerId: string;
+  amountCents: number;
+  currency: string;
+  paidAt: Date;
+  amountRefundedCents: number;
+  disputed: boolean;
+  observedAt: Date;
+};
+
 export type ProviderPortalInput = {
   configurationId?: string;
   customerId: string;
@@ -177,10 +208,24 @@ export interface BillingProviderClient {
   ): Promise<ProviderCheckoutState | null>;
   /** Refuse an existing nonterminal subscription; expire other payable sessions. */
   prepareSubscriptionCheckout?(customerId: string, preserveSessionId?: string): Promise<void>;
+  /** Authoritative payment-only receipt, with exact line item and financial state. */
+  readCreditCheckout?(
+    customerId: string,
+    intentId: string,
+    sessionId: string,
+  ): Promise<ProviderCreditCheckoutSnapshot>;
+  closeCreditCheckout?(customerId: string, intentId: string, sessionId: string): Promise<void>;
+  readCreditPayment?(customerId: string, paymentId: string): Promise<ProviderCreditPaymentSnapshot>;
+  readSubscriptionPaymentFacts?(
+    subscriptionId: string,
+    acceptedPriceIds: ReadonlySet<string>,
+  ): Promise<import("../payment-facts").SubscriptionPaymentSnapshot | null>;
+  readEventCustomerId?(object: unknown): Promise<string | null>;
 
   createPortalSession(input: ProviderPortalInput): Promise<ProviderPortalSession>;
 
-  /** Expires every open Checkout, then cancels even subscriptions not yet delivered by webhook. */
+  /** Expires open Checkout, cancels future/active schedules and subscriptions,
+   * including objects not yet delivered by webhook. No final invoice/proration. */
   closeCustomerSubscriptions?(
     customerId: string,
   ): Promise<{ expired: number; canceled: number; subscriptionIds: string[] }>;

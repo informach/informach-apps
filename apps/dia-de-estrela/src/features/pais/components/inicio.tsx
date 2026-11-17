@@ -17,6 +17,7 @@ import {
 } from "../actions";
 
 type Alerta = {
+  canWrite: boolean;
   id: string;
   childId: string;
   taskId: string;
@@ -26,8 +27,16 @@ type Alerta = {
   dueCount: number;
   deviceOnline: boolean;
 };
-type Aprovacao = { id: string; childName: string; title: string; icon: string; stars: number };
+type Aprovacao = {
+  canWrite: boolean;
+  id: string;
+  childName: string;
+  title: string;
+  icon: string;
+  stars: number;
+};
 type Pedido = {
+  canWrite: boolean;
   id: string;
   childName: string;
   label: string;
@@ -43,6 +52,7 @@ type Item = {
   completion?: { id: string; status: "approved" | "pending" } | undefined;
 };
 type Crianca = {
+  canWrite: boolean;
   id: string;
   name: string;
   color: string;
@@ -81,7 +91,7 @@ export function CartaoAlerta({ a }: { a: Alerta }) {
         <button
           type="button"
           className="bp bp-alerta px-2"
-          disabled={pendente}
+          disabled={pendente || !a.canWrite}
           onClick={() => rodar(() => lembrarAgoraAction(ids))}
         >
           <Volume2 className="size-4" aria-hidden="true" /> Lembrar
@@ -89,7 +99,7 @@ export function CartaoAlerta({ a }: { a: Alerta }) {
         <button
           type="button"
           className="bp bp-claro px-2"
-          disabled={pendente}
+          disabled={pendente || !a.canWrite}
           onClick={() => rodar(() => adiarAction(ids))}
         >
           <Clock className="size-4" aria-hidden="true" /> Adiar 15 min
@@ -97,7 +107,7 @@ export function CartaoAlerta({ a }: { a: Alerta }) {
         <button
           type="button"
           className="bp bp-claro px-2"
-          disabled={pendente}
+          disabled={pendente || !a.canWrite}
           onClick={() => rodar(() => marcarPelaCriancaAction(ids))}
         >
           <Check className="size-4" aria-hidden="true" /> Já fez
@@ -143,7 +153,7 @@ export function EsperandoVoce({
               <button
                 type="button"
                 className="bp bp-claro"
-                disabled={pendente}
+                disabled={pendente || !a.canWrite}
                 onClick={() => rodar(() => desfazerAction(a.id))}
               >
                 Não foi feita
@@ -151,7 +161,7 @@ export function EsperandoVoce({
               <button
                 type="button"
                 className="bp bp-ceu"
-                disabled={pendente}
+                disabled={pendente || !a.canWrite}
                 onClick={() => rodar(() => aprovarAction(a.id))}
               >
                 Aprovar
@@ -177,7 +187,7 @@ export function EsperandoVoce({
               <button
                 type="button"
                 className="bp bp-claro"
-                disabled={pendente}
+                disabled={pendente || !p.canWrite}
                 onClick={() => rodar(() => resolverPedidoAction({ id: p.id, outcome: "declined" }))}
               >
                 Recusar
@@ -185,7 +195,7 @@ export function EsperandoVoce({
               <button
                 type="button"
                 className="bp bp-tinta"
-                disabled={pendente}
+                disabled={pendente || !p.canWrite}
                 onClick={() =>
                   rodar(() => resolverPedidoAction({ id: p.id, outcome: "delivered" }))
                 }
@@ -285,7 +295,7 @@ export function CartaoCrianca({ c }: { c: Crianca }) {
                 <button
                   type="button"
                   className="inline-flex min-h-10 items-center gap-1 font-extrabold text-ceu-escuro"
-                  disabled={pendente}
+                  disabled={pendente || !c.canWrite}
                   onClick={() => {
                     const id = i.completion?.id;
                     if (id) rodar(() => desfazerAction(id));
@@ -297,7 +307,7 @@ export function CartaoCrianca({ c }: { c: Crianca }) {
                 <button
                   type="button"
                   className="inline-flex min-h-10 items-center gap-1 font-extrabold text-ceu-escuro"
-                  disabled={pendente}
+                  disabled={pendente || !c.canWrite}
                   onClick={() =>
                     rodar(() => marcarPelaCriancaAction({ childId: c.id, taskId: i.taskId }))
                   }

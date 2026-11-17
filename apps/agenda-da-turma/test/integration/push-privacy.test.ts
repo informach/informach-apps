@@ -1,14 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { db, eq } from "@informach/db";
+import { db } from "@informach/db";
 import {
-  agendaNotificationDeliveries,
+  agendaNotificationPreferences,
   agendaPushSubscriptions,
   agendaTasks,
-  customers,
-  subscriptions,
-  users,
 } from "@informach/db/schema";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /*
  * A tela bloqueada é pública. A política promete que o aviso no celular não
@@ -33,63 +30,25 @@ vi.mock("web-push", () => ({
 const { deliverRoutineNotifications } = await import("@/features/notifications/delivery");
 const { DEFAULT_NOTIFICATION_PREFERENCES } = await import("@/features/notifications/schemas");
 const { saveNotificationPreferences } = await import("@/features/notifications/service");
-const { createStudentProfile } = await import("@/features/students/service");
+const { agendaFixture } = await import("./compasso-fixture");
+let fixture: Awaited<ReturnType<typeof agendaFixture>>;
 
 let owner: string;
-let customer: string;
 // Segunda-feira, 19 de outubro de 2026, às 19h em São Paulo.
 const now = new Date("2026-10-19T22:00:00.000Z");
 
 beforeEach(async () => {
   sent.length = 0;
-  owner = `push-test-${randomUUID()}`;
-  await db.insert(users).values({
-    id: owner,
-    name: "Adulto fictício",
-    email: `${owner}@e2e.local`,
-    emailVerified: true,
-  });
-  const [billingCustomer] = await db
-    .insert(customers)
-    .values({
-      provider: "stripe",
-      providerCustomerId: `test-${owner}`,
-      subjectType: "user",
-      subjectId: owner,
-      app: "agenda-da-turma",
-      email: `${owner}@e2e.local`,
-    })
-    .returning();
-  if (!billingCustomer) throw new Error("Customer missing");
-  customer = billingCustomer.id;
-  await db.insert(subscriptions).values({
-    customerId: customer,
-    provider: "stripe",
-    providerSubscriptionId: `test-${owner}`,
-    productId: "agenda_da_turma_pro_monthly",
-    providerPriceId: "price_synthetic",
-    status: "active",
-    currentPeriodStart: new Date(now.valueOf() - 86400_000),
-    currentPeriodEnd: new Date(now.valueOf() + 30 * 86400_000),
-  });
-});
-
-afterEach(async () => {
-  await db
-    .delete(agendaNotificationDeliveries)
-    .where(eq(agendaNotificationDeliveries.userId, owner));
-  await db.delete(users).where(eq(users.id, owner));
-  await db.delete(subscriptions).where(eq(subscriptions.customerId, customer));
-  await db.delete(customers).where(eq(customers.id, customer));
+  fixture = await agendaFixture(true);
+  owner = fixture.owner;
+  await db.update(agendaNotificationPreferences).set({ emailEnabled: false, pushEnabled: false });
 });
 
 describe("push na tela bloqueada", () => {
   it("diz contagens e dias, sem nome de criança nem título de atividade", async () => {
-    const created = await createStudentProfile(owner, { name: "Clarinha Sigilo", birthDate: null });
-    if (!created.ok) throw new Error("Profile missing");
     await db.insert(agendaTasks).values([
       {
-        profileId: created.value.id,
+        profileId: fixture.profile.id,
         createdByUserId: owner,
         type: "exam",
         title: "Prova secreta de ciências",
@@ -98,7 +57,7 @@ describe("push na tela bloqueada", () => {
         fingerprint: randomUUID(),
       },
       {
-        profileId: created.value.id,
+        profileId: fixture.profile.id,
         createdByUserId: owner,
         type: "material",
         title: "Levar o caderno confidencial",
@@ -113,7 +72,7 @@ describe("push na tela bloqueada", () => {
       p256dh: `B${"a".repeat(86)}`,
       auth: "a".repeat(22),
     });
-    const saved = await saveNotificationPreferences(owner, {
+    const saved = await saveNotificationPreferences(fixture.actor, {
       ...DEFAULT_NOTIFICATION_PREFERENCES,
       pushEnabled: true,
       digestHour: 19,
@@ -130,7 +89,7 @@ describe("push na tela bloqueada", () => {
     expect(payload).toMatchObject({
       title: "O resumo do dia na Agenda",
       body: "1 para hoje e 1 para amanhã.",
-      url: "/dashboard",
+      url: `/contexto?family=${fixture.actor.familyGroupId}&next=%2Fdashboard`,
     });
     expect(sent[0]).not.toMatch(/Clarinha|Sigilo|secreta|confidencial|ciências/i);
   });

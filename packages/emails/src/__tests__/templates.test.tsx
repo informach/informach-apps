@@ -65,6 +65,18 @@ describe("renderTemplate", () => {
     expect(result.html).toContain("111222");
   });
 
+  it("explains confirmation of the new address without claiming it already changed", async () => {
+    const result = await renderTemplate("auth.change-email-otp", {
+      appName: "Minha conta",
+      otp: "123456",
+      expiresInMinutes: 10,
+    });
+    expect(result.subject).toBe("Confirme seu novo email em Minha conta");
+    expect(result.text).toContain("A alteração só acontece após essa confirmação");
+    expect(result.text).toContain("123456");
+    expect(result.text).not.toContain("cadastro");
+  });
+
   it("returns html, text and subject for verify-email-otp", async () => {
     const result = await renderTemplate("auth.verify-email-otp", {
       appName: "Test App",
@@ -213,10 +225,27 @@ describe("renderTemplate", () => {
       unsubscribeUrl: baseProps.unsubscribeUrl,
       unsubscribeMailto: baseProps.unsubscribeMailto,
     });
-    expect(result.subject).toBe("Test App — créditos adicionados");
+    expect(result.subject).toBe("Test App — compra de créditos");
     // Locale-aware thousands separator (pt-BR uses dot)
     expect(result.html).toContain("5.000");
     expect(result.html).toContain("12.500");
+  });
+
+  it("explains a converted purchase and financial review without revealing the family's balance", async () => {
+    const result = await renderTemplate("billing.credits-purchased", {
+      appName: "Compasso",
+      creditAmount: 1500,
+      conversion: { sourceName: "Cozya", sourceCredits: 100 },
+      settlement: { refundedCredits: 750, underReview: true },
+      dashboardUrl: "https://app.example.com/conta",
+      unsubscribeUrl: baseProps.unsubscribeUrl,
+    });
+    expect(result.text).toContain("100 créditos no Cozya");
+    expect(result.text).toContain("1.500 créditos Compasso");
+    expect(result.text).toContain("pagamento está em análise");
+    expect(result.text).toContain("estorno correspondente a 750 créditos");
+    expect(result.text).not.toContain("saldo registrado");
+    expect(result.text).not.toContain("disponíveis imediatamente");
   });
 
   it("returns html, text and subject for billing.credits-warning at 50%", async () => {

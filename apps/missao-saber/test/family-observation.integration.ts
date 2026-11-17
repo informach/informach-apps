@@ -5,7 +5,6 @@ import {
   customers,
   missaoContentControls,
   missaoFamilies,
-  missaoProfiles,
   missaoReports,
   missaoSessions,
   subscriptions,
@@ -30,10 +29,19 @@ import {
 } from "@/features/learning/repository";
 import { productMetrics } from "@/features/product-metrics/repository";
 import { env } from "@/lib/env";
+import { fixtureAuthority, seedStudent, seedStudents } from "./family-fixture";
 
 const owner = randomUUID();
 const stranger = randomUUID();
 let profileId = "";
+
+async function findReportedRecord(id: string, status: "pending" | "resolved" = "pending") {
+  for (let page = 0; ; page++) {
+    const rows = await contentReports(status, page);
+    const match = rows.find((row) => row.id === id);
+    if (match || rows.length <= 50) return match;
+  }
+}
 
 beforeAll(async () => {
   await db.insert(users).values([
@@ -44,16 +52,13 @@ beforeAll(async () => {
     { userId: owner, consentVersion: "test" },
     { userId: stranger, consentVersion: "test" },
   ]);
-  const [profile] = await db
-    .insert(missaoProfiles)
-    .values({
-      userId: owner,
-      nickname: "Sol",
-      grade: 6,
-      avatar: "cometa",
-      courseId: "olitef-n1",
-    })
-    .returning({ id: missaoProfiles.id });
+  const profile = await seedStudent({
+    userId: owner,
+    nickname: "Sol",
+    grade: 6,
+    avatar: "cometa",
+    courseId: "olitef-n1",
+  });
   if (!profile) throw new Error("Profile fixture was not created");
   profileId = profile.id;
 });
@@ -61,14 +66,23 @@ beforeAll(async () => {
 afterAll(async () => {
   await db.delete(missaoReports).where(eq(missaoReports.userId, owner));
   await db.delete(missaoContentControls).where(eq(missaoContentControls.actorId, owner));
-  await db.delete(users).where(inArray(users.id, [owner, stranger]));
+  await db
+    .update(users)
+    .set({ banned: true, emailVerified: false })
+    .where(inArray(users.id, [owner, stranger]));
 });
 
 describe("family observation and content maintenance", () => {
   it("records an idempotent contextual report only for the session owner and keeps support history", async () => {
     const lesson = findLesson("fracoes-1");
     if (!lesson || !profileId) throw new Error("Missing authored fixture");
-    const session = await startSession(owner, profileId, lesson, "mission", randomUUID());
+    const session = await startSession(
+      await fixtureAuthority(owner),
+      profileId,
+      lesson,
+      "mission",
+      randomUUID(),
+    );
     const itemId = lesson.items[0]?.id;
     if (!itemId) throw new Error("Missing item fixture");
     const request = {
@@ -78,28 +92,32 @@ describe("family observation and content maintenance", () => {
       detail: "",
       requestKey: randomUUID(),
     };
-    const first = await saveReport(owner, request);
-    expect((await saveReport(owner, request)).id).toBe(first.id);
-    expect((await saveReport(owner, { ...request, requestKey: randomUUID() })).id).toBe(first.id);
-    expect((await readSession(owner, session.id)).sessionReports).toContainEqual({
+    const first = await saveReport(await fixtureAuthority(owner), request);
+    expect((await saveReport(await fixtureAuthority(owner), request)).id).toBe(first.id);
+    expect(
+      (await saveReport(await fixtureAuthority(owner), { ...request, requestKey: randomUUID() }))
+        .id,
+    ).toBe(first.id);
+    expect(
+      (await readSession(await fixtureAuthority(owner), session.id)).sessionReports,
+    ).toContainEqual({
       itemId,
       category: "not_understood",
       detail: "",
     });
     await expect(
-      saveReport(owner, { ...request, category: "possible_error" }),
+      saveReport(await fixtureAuthority(owner), { ...request, category: "possible_error" }),
     ).rejects.toMatchObject({ code: "CONFLICT" });
     await expect(
-      saveReport(stranger, { ...request, requestKey: randomUUID() }),
+      saveReport(await fixtureAuthority(stranger), { ...request, requestKey: randomUUID() }),
     ).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
 
-    const queued = (await contentReports()).find((report) => report.id === first.id);
+    const queued = await findReportedRecord(first.id);
     expect(queued).toMatchObject({
       profileId,
       sessionId: session.id,
-      profileNickname: "Sol",
       recurrence: 1,
       status: "open",
     });
@@ -109,8 +127,11 @@ describe("family observation and content maintenance", () => {
       "investigating",
       "resolved",
     ]);
-    expect((await contentReports()).some((report) => report.id === first.id)).toBe(false);
-    expect((await contentReports("resolved")).some((report) => report.id === first.id)).toBe(true);
+    expect(await findReportedRecord(first.id)).toBeUndefined();
+    expect(await findReportedRecord(first.id, "resolved")).toMatchObject({
+      id: first.id,
+      status: "resolved",
+    });
   });
 
   it("consults and invalidates the reported old snapshot after a corrected version exists", async () => {
@@ -118,15 +139,23 @@ describe("family observation and content maintenance", () => {
     if (!lesson || !profileId) throw new Error("Missing authored fixture");
     const firstItem = lesson.items[0];
     if (!firstItem || firstItem.type !== "choice") throw new Error("Missing choice fixture");
-    const oldSession = await startSession(owner, profileId, lesson, "mission", randomUUID());
-    await recordAnswer(owner, {
+    const oldSession = await startSession(
+      await fixtureAuthority(owner),
+      profileId,
+      lesson,
+      "mission",
+      randomUUID(),
+    );
+    await recordAnswer(await fixtureAuthority(owner), {
       sessionId: oldSession.id,
       itemId: firstItem.id,
       answer: firstItem.answer,
       requestKey: randomUUID(),
     });
     expect(
-      (await history(owner, profileId)).evidence.some((row) => row.sessionId === oldSession.id),
+      (await history(await fixtureAuthority(owner), profileId)).evidence.some(
+        (row) => row.sessionId === oldSession.id,
+      ),
     ).toBe(true);
     const corrected = {
       ...lesson,
@@ -144,8 +173,14 @@ describe("family observation and content maintenance", () => {
       actorId: owner,
       note: "Nova versão corrigida e disponível para novas sessões.",
     });
-    const newSession = await startSession(owner, profileId, corrected, "mission", randomUUID());
-    const report = await saveReport(owner, {
+    const newSession = await startSession(
+      await fixtureAuthority(owner),
+      profileId,
+      corrected,
+      "mission",
+      randomUUID(),
+    );
+    const report = await saveReport(await fixtureAuthority(owner), {
       sessionId: oldSession.id,
       itemId: firstItem.id,
       category: "possible_error",
@@ -171,7 +206,7 @@ describe("family observation and content maintenance", () => {
     expect(storedOld[0]?.version).toBe(lesson.version);
     expect(storedNew[0]?.version).toBe(corrected.version);
     expect(storedOld[0]?.snapshot).not.toEqual(storedNew[0]?.snapshot);
-    expect((await history(owner, profileId)).evidence).toHaveLength(0);
+    expect((await history(await fixtureAuthority(owner), profileId)).evidence).toHaveLength(0);
     const [invalidation] = await db
       .select()
       .from(missaoContentControls)
@@ -181,7 +216,7 @@ describe("family observation and content maintenance", () => {
       invalidatedItems: [{ itemId: firstItem.id, itemHash: itemHash(firstItem) }],
     });
     await expect(
-      startSession(owner, profileId, corrected, "mission", randomUUID()),
+      startSession(await fixtureAuthority(owner), profileId, corrected, "mission", randomUUID()),
     ).resolves.toBeDefined();
   });
 
@@ -193,25 +228,22 @@ describe("family observation and content maintenance", () => {
     const baseline = await productMetrics([technicalEmail]);
     try {
       await db.insert(users).values([
-        { id: family, email: `${family}@example.test`, name: "Family metric" },
-        { id: technical, email: technicalEmail, name: "Technical metric" },
+        { id: family, email: `${family}@example.test`, name: "Family metric", emailVerified: true },
+        { id: technical, email: technicalEmail, name: "Technical metric", emailVerified: true },
       ]);
       await db.insert(missaoFamilies).values([
         { userId: family, consentVersion: "test", createdAt: new Date("2026-08-01T12:00:00Z") },
         { userId: technical, consentVersion: "test", createdAt: new Date("2026-08-01T12:00:00Z") },
       ]);
-      const metricProfiles = await db
-        .insert(missaoProfiles)
-        .values(
-          [family, technical].map((userId) => ({
-            userId,
-            nickname: "Metric",
-            grade: 6,
-            avatar: "cometa",
-            courseId: "olitef-n1",
-          })),
-        )
-        .returning({ id: missaoProfiles.id, userId: missaoProfiles.userId });
+      const metricProfiles = await seedStudents(
+        [family, technical].map((userId) => ({
+          userId,
+          nickname: "Metric",
+          grade: 6,
+          avatar: "cometa",
+          courseId: "olitef-n1",
+        })),
+      );
       const lesson = findLesson("fracoes-1");
       if (!lesson) throw new Error("Missing metric fixture");
       await db.insert(missaoSessions).values(
@@ -299,7 +331,10 @@ describe("family observation and content maintenance", () => {
           ]),
         );
       await db.delete(customers).where(inArray(customers.subjectId, [family, technical]));
-      await db.delete(users).where(inArray(users.id, [family, technical]));
+      await db
+        .update(users)
+        .set({ banned: true, emailVerified: false })
+        .where(inArray(users.id, [family, technical]));
     }
   });
 
@@ -365,7 +400,10 @@ describe("family observation and content maintenance", () => {
           ]),
         );
       await db.delete(customers).where(inArray(customers.subjectId, [neverConfirmed, confirmed]));
-      await db.delete(users).where(inArray(users.id, [neverConfirmed, confirmed]));
+      await db
+        .update(users)
+        .set({ banned: true, emailVerified: false })
+        .where(inArray(users.id, [neverConfirmed, confirmed]));
     }
   });
 
@@ -376,26 +414,26 @@ describe("family observation and content maintenance", () => {
     const before13 = await productMetrics([], day13);
     const before14 = await productMetrics([], day14);
     try {
-      await db
-        .insert(users)
-        .values(
-          members.map((id) => ({ id, email: `${id}@example.test`, name: "Retention boundary" })),
-        );
+      await db.insert(users).values(
+        members.map((id) => ({
+          id,
+          email: `${id}@example.test`,
+          name: "Retention boundary",
+          emailVerified: true,
+        })),
+      );
       await db
         .insert(missaoFamilies)
         .values(members.map((userId) => ({ userId, consentVersion: "test" })));
-      const metricProfiles = await db
-        .insert(missaoProfiles)
-        .values(
-          members.map((userId) => ({
-            userId,
-            nickname: "Boundary",
-            grade: 6,
-            avatar: "cometa",
-            courseId: "olitef-n1",
-          })),
-        )
-        .returning({ id: missaoProfiles.id, userId: missaoProfiles.userId });
+      const metricProfiles = await seedStudents(
+        members.map((userId) => ({
+          userId,
+          nickname: "Boundary",
+          grade: 6,
+          avatar: "cometa",
+          courseId: "olitef-n1",
+        })),
+      );
       const lesson = findLesson("fracoes-1");
       if (!lesson) throw new Error("Missing retention lesson");
       const returnTimes = [
@@ -432,7 +470,10 @@ describe("family observation and content maintenance", () => {
       expect(on14.retentionEligible - before14.retentionEligible).toBe(4);
       expect(on14.returnedWeekTwo - before14.returnedWeekTwo).toBe(2);
     } finally {
-      await db.delete(users).where(inArray(users.id, members));
+      await db
+        .update(users)
+        .set({ banned: true, emailVerified: false })
+        .where(inArray(users.id, members));
     }
   });
 });

@@ -33,6 +33,17 @@ const production: NodeJS.ProcessEnv = {
   BORA_FAMILY_ANNUAL_PRICE: "price_4",
 };
 describe("deployment environment", () => {
+  it("treats empty optional variables as unset, while preserving required provider validation", () => {
+    const local = validateEnvironment({
+      ...base,
+      REDIS_URL: "",
+      SENTRY_DSN: "",
+      NEXT_PUBLIC_SENTRY_DSN: "",
+    });
+    expect(local.REDIS_URL).toBeUndefined();
+    expect(local.SENTRY_DSN).toBeUndefined();
+    expect(() => validateEnvironment({ ...base, DATABASE_URL: "" })).toThrow("DATABASE_URL");
+  });
   it("allows local production builds with Stripe test and requires matching key modes", () => {
     expect(validateEnvironment(base).STRIPE_MODE).toBe("dev");
     expect(() => validateEnvironment({ ...base, STRIPE_SECRET_KEY: "sk_live_fixture" })).toThrow(
@@ -49,7 +60,7 @@ describe("deployment environment", () => {
     { NEXT_PUBLIC_SENTRY_DSN: undefined },
     { STRIPE_PORTAL_CONFIGURATION_ID: "" },
     { BORA_FAMILY_ANNUAL_PRICE: "price_TODO" },
-    { BORA_ISOLATED_TEST: "1" },
+    { COMPASSO_ISOLATED_DATABASE: "1" },
     { BETTER_AUTH_URL: "https://different.example.test" },
     { STRIPE_SECRET_KEY: "sk_test_fixture", STRIPE_MODE: "dev" },
   ])("rejects incomplete or mixed production configuration (%j)", (override) => {
@@ -60,7 +71,7 @@ describe("deployment environment", () => {
       validateEnvironment({
         ...base,
         RAILWAY_ENVIRONMENT_ID: "production",
-        BORA_ISOLATED_TEST: "1",
+        COMPASSO_ISOLATED_DATABASE: "1",
       }),
     ).toThrow();
   });

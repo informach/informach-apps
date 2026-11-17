@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
-import { basename, dirname, resolve } from "node:path";
+import { cpSync, existsSync, mkdirSync, realpathSync, rmSync } from "node:fs";
+import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { config as loadEnv } from "dotenv";
 import postgres from "postgres";
@@ -20,8 +20,10 @@ const app = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = resolve(app, "../..");
 loadEnv({ path: resolve(root, ".env") });
 const mode = process.argv[2];
-if (!["integration", "e2e"].includes(mode)) throw new Error("Choose integration or e2e");
-const e2e = mode === "e2e";
+if (!["integration", "e2e", "versoes"].includes(mode))
+  throw new Error("Choose integration, e2e or versoes");
+const versoes = mode === "versoes";
+const e2e = mode === "e2e" || versoes;
 const baseUrl = process.env.DATABASE_URL;
 const pnpmCli = process.env.npm_execpath;
 if (!baseUrl || !pnpmCli)
@@ -47,18 +49,37 @@ const gamePort = porta("RECREIO_E2E_GAME_PORT", "3019");
 const moradaPort = porta("RECREIO_E2E_MORADA_PORT", "3110");
 const origin = e2e ? `http://localhost:${e2ePort}` : "http://localhost:3009";
 const e2eRunId = e2e ? randomBytes(12).toString("hex") : "";
+// Opt-in local: a arte e TODAS as capturas/traces ficam fora do checkout público.
+const artDir =
+  e2e && process.env.RECREIO_E2E_ARTE_DIR ? realpathSync(process.env.RECREIO_E2E_ARTE_DIR) : null;
+function outsideRepository(path) {
+  const rel = relative(realpathSync(root), realpathSync(path));
+  if (!rel || (!rel.startsWith("..") && !isAbsolute(rel)))
+    throw new Error("Private art and evidence must remain outside the public repository");
+}
+let privateArtifacts = null;
+if (artDir) {
+  outsideRepository(artDir);
+  if (!existsSync(resolve(artDir, "manifest.json"))) throw new Error("Art manifest missing");
+  privateArtifacts = resolve(artDir, "..", `recreio-evidence-${e2eRunId}`);
+  mkdirSync(privateArtifacts, { recursive: true });
+  outsideRepository(privateArtifacts);
+}
 // O que a execução cria dentro do app e apaga no fim.
 const generatedPaths = e2e
   ? [
       resolve(app, `.next-isolated-${e2eRunId}`),
       resolve(app, `test-results-${e2eRunId}`),
       resolve(app, "tmp", `emails-e2e-${e2eRunId}`),
+      ...(versoes ? [resolve(app, "tmp", `.next-previous-${e2eRunId}`)] : []),
     ]
   : [];
 for (const generatedPath of generatedPaths) {
   const pai = dirname(generatedPath);
   if (
-    !/^(\.next-isolated|test-results|emails-e2e)-[a-f0-9]{24}$/.test(basename(generatedPath)) ||
+    !/^(\.next-isolated|\.next-previous|test-results|emails-e2e)-[a-f0-9]{24}$/.test(
+      basename(generatedPath),
+    ) ||
     (pai !== app && pai !== resolve(app, "tmp"))
   )
     throw new Error("Refusing to use an unexpected isolated artifact path");
@@ -67,6 +88,8 @@ const [, resultsPath, emailsPath] = generatedPaths;
 const testEnv = {
   DATABASE_URL: url.toString(),
   BETTER_AUTH_SECRET: randomBytes(32).toString("hex"),
+  NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: randomBytes(32).toString("base64"),
+  NEXT_DEPLOYMENT_ID: e2e ? `ci-${e2eRunId}-a` : "",
   BETTER_AUTH_URL: origin,
   NEXT_PUBLIC_APP_URL: origin,
   SENDGRID_API_KEY: "SG.local-not-sent",
@@ -75,6 +98,7 @@ const testEnv = {
   EMAIL_SANDBOX_MODE: e2e ? "sandbox" : "memory",
   ...(emailsPath ? { EMAIL_SANDBOX_DIR: emailsPath.replaceAll("\\", "/") } : {}),
   RECREIO_ACCESS_MODE: "fechado",
+  RECREIO_FAMILY_MODE: "play",
   SENTRY_AUTH_TOKEN: "",
   // Segredos e origens só deste teste. `jogo-de-teste` não está no catálogo:
   // os testes de integração que precisam de um segundo jogo o acrescentam por
@@ -94,7 +118,10 @@ const testEnv = {
     e2e
       ? {
           teste: { ws: `ws://localhost:${gamePort}` },
-          morada: { ws: `ws://localhost:${moradaPort}` },
+          morada: {
+            ws: `ws://localhost:${moradaPort}`,
+            ...(artDir ? { assets: `http://localhost:${moradaPort}` } : {}),
+          },
         }
       : { morada: { ws: "ws://localhost:3010" }, "jogo-de-teste": { ws: "ws://localhost:3011" } },
   ),
@@ -102,8 +129,13 @@ const testEnv = {
   CRON_SECRET: randomBytes(32).toString("hex"),
   RECREIO_E2E_RUN_ID: e2eRunId,
   RECREIO_E2E_PORT: e2ePort,
+  RECREIO_E2E_VERSOES: versoes ? "1" : "0",
 };
 const childEnv = { ...process.env, ...testEnv, RECREIO_ISOLATED_TEST: "1" };
+delete childEnv.MORADA_ARTE_DIR;
+delete childEnv.RECREIO_E2E_PRIVATE_ARTIFACTS;
+if (artDir) childEnv.MORADA_ARTE_DIR = artDir;
+if (privateArtifacts) childEnv.RECREIO_E2E_PRIVATE_ARTIFACTS = privateArtifacts;
 // Isolated verification must not inherit optional production transports. In
 // particular, Better Auth stores sessions in Redis when REDIS_URL is present;
 // that would bypass the disposable PostgreSQL database created above and make
@@ -137,8 +169,33 @@ try {
   console.log(`[recreio] Isolated local database created: ${name}`);
   run(["--filter", "@informach/db", "db:migrate"], root);
   if (e2e) {
+    if (!versoes) run(["--filter", "@informach/morada-server", "build"], root);
     run(["exec", "next", "build"], app);
-    run(["exec", "playwright", "test", ...process.argv.slice(3)], app);
+    // Mesmo artefato do Railway: o standalone precisa de public/ e static/.
+    const buildPath = generatedPaths[0];
+    const standalone = resolve(buildPath, "standalone/apps/recreio");
+    cpSync(resolve(app, "public"), resolve(standalone, "public"), { recursive: true });
+    cpSync(resolve(buildPath, "static"), resolve(standalone, basename(buildPath), "static"), {
+      recursive: true,
+    });
+    if (versoes) {
+      const previousPath = generatedPaths[3];
+      cpSync(resolve(buildPath, "standalone"), previousPath, {
+        recursive: true,
+        verbatimSymlinks: true,
+      });
+      childEnv.RECREIO_E2E_VERSAO_A = childEnv.NEXT_DEPLOYMENT_ID;
+      childEnv.NEXT_DEPLOYMENT_ID = `ci-${e2eRunId}-b`;
+      childEnv.RECREIO_E2E_VERSAO_B = childEnv.NEXT_DEPLOYMENT_ID;
+      childEnv.RECREIO_E2E_PREVIOUS_STANDALONE = resolve(previousPath, "apps/recreio");
+      childEnv.RECREIO_E2E_VERSOES = "1";
+      run(["exec", "next", "build"], app);
+      cpSync(resolve(app, "public"), resolve(standalone, "public"), { recursive: true });
+      cpSync(resolve(buildPath, "static"), resolve(standalone, basename(buildPath), "static"), {
+        recursive: true,
+      });
+      run(["exec", "playwright", "test", "--config", "playwright.versoes.config.ts"], app);
+    } else run(["exec", "playwright", "test", ...process.argv.slice(3)], app);
   } else
     run(
       [
@@ -153,7 +210,9 @@ try {
     );
 } catch (error) {
   // Os traces e as capturas de uma falha ficam em `tmp/verification`.
-  if (resultsPath && existsSync(resultsPath)) {
+  if (privateArtifacts) {
+    console.error(`[recreio] Private evidence preserved outside repository: ${privateArtifacts}`);
+  } else if (resultsPath && existsSync(resultsPath)) {
     const evidence = resolve(app, "tmp/verification", e2eRunId);
     mkdirSync(evidence, { recursive: true });
     cpSync(resultsPath, evidence, { recursive: true });

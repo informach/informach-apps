@@ -17,7 +17,7 @@ export function encerrarComErro(error: unknown, uso: string): never {
     process.exit(2);
   }
   console.error(
-    `Nada foi gravado. Falha inesperada (${error instanceof Error ? error.name : "erro"}).`,
+    `Não foi possível confirmar a operação (${error instanceof Error ? error.name : "erro"}). Confira o estado antes de repetir.`,
   );
   process.exit(3);
 }

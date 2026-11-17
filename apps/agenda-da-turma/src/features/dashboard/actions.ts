@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import { isValidDateIso } from "@/features/calendar/date";
+import { agendaAuthority } from "@/features/family/context";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { listStudentProfilesForUser } from "@/features/students/service";
 import { action, err, ok } from "@/lib/action";
@@ -27,9 +28,10 @@ export const exportWeekPdfDataAction = action
     const userId = ctx.actor?.id;
     if (!userId) return err({ code: "UNAUTHORIZED" } as const);
 
+    const actor = await agendaAuthority(userId);
     const [entitlements, profiles] = await Promise.all([
-      getFamilyEntitlements(userId),
-      listStudentProfilesForUser(userId),
+      getFamilyEntitlements(actor),
+      listStudentProfilesForUser(actor),
     ]);
     if (!entitlements.enabled) return err({ code: "SUBSCRIPTION_REQUIRED" } as const);
 
@@ -37,7 +39,7 @@ export const exportWeekPdfDataAction = action
       input.profileFilter && profiles.some((p) => p.id === input.profileFilter)
         ? input.profileFilter
         : null;
-    const week = await getWeekPrintout(userId, { anchorIso: input.anchorIso, profileFilter });
+    const week = await getWeekPrintout(actor, { anchorIso: input.anchorIso, profileFilter });
 
     return ok({
       week,

@@ -55,10 +55,46 @@ export async function pedir(buscar: Buscar, url: string, init: RequestInit): Pro
 }
 
 /** Lê o corpo JSON de uma resposta que deu certo e confere contra o contrato. */
-export async function lerCorpo<T>(resposta: Response, esquema: z.ZodType<T>): Promise<T> {
+export async function lerCorpo<T>(
+  resposta: Response,
+  esquema: z.ZodType<T>,
+  maxBytes?: number,
+): Promise<T> {
   let corpo: unknown;
   try {
-    corpo = await resposta.json();
+    if (maxBytes === undefined) corpo = await resposta.json();
+    else {
+      const leitor = resposta.body?.getReader();
+      if (!leitor) throw new ErroDoRecreio("INDISPONIVEL");
+      const partes: Uint8Array[] = [];
+      let tamanho = 0;
+      let terminou = false;
+      try {
+        for (;;) {
+          const parte = await leitor.read();
+          if (parte.done) {
+            terminou = true;
+            break;
+          }
+          tamanho += parte.value.length;
+          if (tamanho > maxBytes) throw new ErroDoRecreio("INDISPONIVEL");
+          partes.push(parte.value);
+        }
+        const bytes = new Uint8Array(tamanho);
+        let posicao = 0;
+        for (const parte of partes) {
+          bytes.set(parte, posicao);
+          posicao += parte.length;
+        }
+        corpo = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+      } finally {
+        try {
+          if (!terminou) await leitor.cancel();
+        } finally {
+          leitor.releaseLock();
+        }
+      }
+    }
   } catch {
     throw new ErroDoRecreio("INDISPONIVEL");
   }

@@ -1,4 +1,5 @@
 "use client";
+import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import Link from "next/link";
 import { useState } from "react";
 import { z } from "zod";
@@ -35,6 +36,7 @@ export function EnterStudy({
   selected?: string;
   next?: string;
 }) {
+  const hydrated = useHydrated();
   const [chosen, setChosen] = useState(selected ?? profiles[0]?.id ?? "");
   const [shared, setShared] = useState(false);
   const [remember, setRemember] = useState(false);
@@ -72,6 +74,7 @@ export function EnterStudy({
         </label>
         <select
           id="study-profile"
+          disabled={!hydrated || pending}
           value={chosen}
           onChange={(event) => setChosen(event.target.value)}
           required
@@ -113,7 +116,7 @@ export function EnterStudy({
         Ao começar, o acesso do responsável neste aparelho será encerrado. Para voltar à sua área,
         entre novamente com sua conta.
       </p>
-      <BotaoChapa type="submit" disabled={pending || !profile}>
+      <BotaoChapa type="submit" disabled={!hydrated || pending || !profile}>
         {pending
           ? "Preparando o estudo…"
           : `Começar estudo com ${profile?.nickname ?? "estudante"}`}

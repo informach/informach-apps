@@ -16,6 +16,63 @@ const row = (
   entryType: amount > 0 ? "bonus_grant" : "consumption",
   ...extra,
 });
+
+describe("subscription funding transitions", () => {
+  const suspend = (at: number) =>
+    row("suspend", -200, at, undefined, {
+      entryType: "funding_suspension",
+      originalLedgerEntryId: "monthly",
+    });
+  const restore = (at: number) =>
+    row("restore", 200, at, undefined, {
+      entryType: "funding_restoration",
+      originalLedgerEntryId: "monthly",
+    });
+  const grants = () => [row("monthly", 200, 1, 32), row("purchase", 100, 1)];
+
+  it("freezes only the remaining financed lot, without charging purchases for past use", () => {
+    const entries = [...grants(), row("accepted-use", -40, 2), suspend(3)];
+    expect(balance(entries, 4).total).toBe(100);
+    expect(balance([...entries, row("purchase-use", -10, 4), restore(5)], 6).total).toBe(250);
+  });
+  it("does not resurrect an expired monthly allowance after a dispute is won", () => {
+    expect(balance([...grants(), suspend(2), restore(40)], 41).total).toBe(100);
+  });
+  it("keeps a later month's allowance independent of the suspended period", () => {
+    expect(balance([...grants(), suspend(2), row("next-month", 200, 32, 60)], 33).total).toBe(300);
+  });
+  it("applies repeated state records without granting or deducting twice", () => {
+    const entries = [
+      ...grants(),
+      suspend(2),
+      { ...suspend(3), id: "repeat" },
+      restore(4),
+      { ...restore(5), id: "repeat-restore" },
+    ];
+    expect(balance(entries, 6).total).toBe(300);
+  });
+  it("uses the ledger sequence to order opposing transitions at an identical timestamp", () => {
+    expect(
+      balance([...grants(), { ...restore(2), sequence: 4 }, { ...suspend(2), sequence: 3 }], 3)
+        .total,
+    ).toBe(300);
+  });
+  it("preserves PostgreSQL microseconds when a reservation precedes restoration", () => {
+    const entries = [
+      ...grants(),
+      suspend(2),
+      { ...row("reservation", -10, 3), createdAt: "2026-01-03T00:00:00.000100+00:00" },
+      { ...restore(3), createdAt: "2026-01-03T00:00:00.000200+00:00" },
+    ];
+    // During the dispute the reservation must spend the purchase, even after
+    // restoration and expiration of the subscription lot.
+    expect(balance(entries, 33).total).toBe(90);
+    expect(projectCreditLedger(entries, "2026-01-03 00:00:00.000150+00").total).toBe(90);
+  });
+  it("rejects a funding control whose original grant is missing from the wallet", () => {
+    expect(() => balance([suspend(2)], 3)).toThrow("unavailable credit grant");
+  });
+});
 const balance = (entries: BalanceEntry[], at: number) => projectCreditLedger(entries, day(at));
 
 describe("credit validity and historical consumption", () => {
@@ -117,5 +174,13 @@ describe("credit validity and historical consumption", () => {
         5,
       ).total,
     ).toBe(50);
+  });
+  it("preserves legacy same-transaction grant precedence after sequence backfill", () => {
+    const entries = [
+      { ...row("purchase", 10, 1), sequence: 1 },
+      { ...row("usage", -20, 2), sequence: 2 },
+      { ...row("bonus", 50, 2, 3), sequence: 3 },
+    ];
+    expect(balance(entries, 4).total).toBe(10);
   });
 });

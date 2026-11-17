@@ -16,6 +16,7 @@ import type { Transacao } from "@/lib/repository";
  */
 
 export type EntradaGuardada = { seq: number; tick: number; fatoId: string; bytes: Uint8Array };
+export type PaginaDoDiario = { entradas: EntradaGuardada[]; proximoApos: number | null };
 
 export type FotografiaParaGuardar = {
   revisao: number;
@@ -48,7 +49,7 @@ export interface ArmazenamentoDeMundos {
   apararFotografias(tx: Transacao, mundoId: MundoId, guardar: number): Promise<number>;
 
   /** Entradas com `seq > apos`, em ordem. */
-  lerDiario(tx: Transacao, mundoId: MundoId, apos: number): Promise<EntradaGuardada[]>;
+  lerDiario(tx: Transacao, mundoId: MundoId, apos: number): Promise<PaginaDoDiario>;
 
   /** As entradas guardadas com estas sequências, para conferir uma repetição. */
   entradasPorSeq(

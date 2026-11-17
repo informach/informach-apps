@@ -27,6 +27,7 @@ import type {
   VisualDoMorador,
   VisualDosObjetos,
 } from "./ativos";
+import { ASSENTO_MM, COLCHAO_MM, formasDoMovel } from "./formas-do-movel";
 
 /**
  * Os ativos sem arte: moradores são cápsulas com cabeça, do tamanho da fase e
@@ -75,10 +76,6 @@ const CATEGORIAS: Record<string, number> = {
 };
 const COR_DESCONHECIDA = 0x9aa0b4;
 const NEUTRO = new Color(0xb9b4ac);
-
-/** Altura do assento e do colchão, quando a peça é mais alta do que eles (encosto, cabeceira). */
-const ASSENTO_MM = 430;
-const COLCHAO_MM = 520;
 
 class MoradorProcedural implements VisualDoMorador {
   readonly raiz = new Group();
@@ -186,7 +183,8 @@ class ObjetosProcedurais implements VisualDosObjetos {
     caixa: BufferGeometry,
   ) {
     this.material = new MeshLambertMaterial({ color: 0xffffff });
-    this.raiz = new InstancedMesh(caixa, this.material, Math.max(1, itens.length));
+    const quantidade = itens.reduce((total, item) => total + formasDoMovel(item.entrada).length, 0);
+    this.raiz = new InstancedMesh(caixa, this.material, Math.max(1, quantidade));
     this.raiz.castShadow = true;
     this.raiz.receiveShadow = true;
     this.definirVisiveis(() => true);
@@ -215,15 +213,18 @@ class ObjetosProcedurais implements VisualDosObjetos {
   }
 
   definirVisiveis(visivel: (item: ObjetoDaCena) => boolean): void {
-    this.visiveis = this.itens.filter(visivel);
+    const pecas = this.itens
+      .filter(visivel)
+      .flatMap((item) => formasDoMovel(item.entrada).map((forma) => ({ item, forma })));
+    this.visiveis = pecas.map(({ item }) => item);
     const matriz = new Matrix4();
     const giro = new Quaternion();
     const posicao = new Vector3();
     const escala = new Vector3();
     const eixo = new Vector3(0, 1, 0);
     const cor = new Color();
-    this.visiveis.forEach((item, indice) => {
-      const { centro, tamanho } = ObjetosProcedurais.medidas(item);
+    pecas.forEach(({ item, forma }, indice) => {
+      const { centro, tamanho } = forma;
       giro.setFromAxisAngle(eixo, giroParaCena(item.objeto.giro));
       // No referencial da peça, a lateral é o X da cena e a frente é o +Z.
       posicao.set(centro[0], centro[1], centro[2]).applyQuaternion(giro);
@@ -310,6 +311,7 @@ export class AtivosProcedurais implements Ativos {
     const altura = entrada?.altura ?? 0;
     if (postura === "sentado") return Math.min(altura, ASSENTO_MM);
     if (postura === "deitado") {
+      if (entrada?.comportamento === "berco") return Math.round(altura * 0.62);
       // No beliche, o segundo lugar é a cama de cima.
       if (entrada?.comportamento === "beliche" && ponto.endsWith("_2")) {
         return Math.round(altura * 0.62);

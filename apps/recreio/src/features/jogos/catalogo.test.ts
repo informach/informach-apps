@@ -1,17 +1,27 @@
 import { JOGOS, jogoPorId } from "@informach/config/jogos";
 import { describe, expect, it } from "vitest";
-import { catalogoDosJogos, JOGO_DE_TESTE, JOGO_DE_TESTE_ID, manifestoNoCatalogo } from "./catalogo";
+import {
+  catalogoDosJogos,
+  JOGO_DE_PERFIL,
+  JOGO_DE_PERFIL_ID,
+  JOGO_DE_TESTE,
+  JOGO_DE_TESTE_ID,
+  manifestoNoCatalogo,
+} from "./catalogo";
 
 describe("catálogo do deploy", () => {
   it("sem a opção, o jogo de teste não existe", () => {
     expect(catalogoDosJogos(false)).toBe(JOGOS);
     expect(manifestoNoCatalogo(JOGO_DE_TESTE_ID, false)).toBeNull();
+    expect(manifestoNoCatalogo(JOGO_DE_PERFIL_ID, false)).toBeNull();
     expect(manifestoNoCatalogo("morada", false)).toBe(jogoPorId("morada"));
     expect(manifestoNoCatalogo("nao-existe", false)).toBeNull();
   });
 
   it("com a opção, ele entra por último e os jogos públicos continuam os mesmos", () => {
-    expect(catalogoDosJogos(true)).toEqual([...JOGOS, JOGO_DE_TESTE]);
+    expect(catalogoDosJogos(true)).toEqual([...JOGOS, JOGO_DE_TESTE, JOGO_DE_PERFIL]);
+    expect(manifestoNoCatalogo(JOGO_DE_PERFIL_ID, true)).toBe(JOGO_DE_PERFIL);
+    expect(JOGO_DE_PERFIL.capacidades.mundos).toBeNull();
     expect(manifestoNoCatalogo(JOGO_DE_TESTE_ID, true)).toBe(JOGO_DE_TESTE);
     expect(manifestoNoCatalogo("morada", true)).toBe(jogoPorId("morada"));
     expect(manifestoNoCatalogo("nao-existe", true)).toBeNull();

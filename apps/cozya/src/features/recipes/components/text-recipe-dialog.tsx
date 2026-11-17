@@ -12,6 +12,7 @@ import {
 import { Textarea } from "@informach/ui/components/textarea";
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
+import { COZYA_AI_COSTS } from "@/features/ai/costs";
 import { useAiRequest } from "./use-ai-request";
 import type { ParsedRecipeFields } from "./voice-recipe-dialog";
 
@@ -52,7 +53,11 @@ export function TextRecipeDialog({ open, onOpenChange, onParsed }: Props) {
     setNotRecipeReason("");
     setStage("parsing");
 
-    const data = await requestAi(PARSE_ENDPOINT, JSON.stringify({ text: trimmed }));
+    const data = await requestAi(
+      PARSE_ENDPOINT,
+      JSON.stringify({ text: trimmed }),
+      COZYA_AI_COSTS.text,
+    );
     if (!data) {
       setStage("idle");
       return;
@@ -84,7 +89,8 @@ export function TextRecipeDialog({ open, onOpenChange, onParsed }: Props) {
           </DialogDescription>
         </DialogHeader>
         <p className="text-xs text-muted-foreground">
-          1 crédito por receita organizada. Conteúdo inválido ou falha libera o crédito.
+          Reserva até {COZYA_AI_COSTS.text.maxCredits} créditos compartilhados. Cobra o consumo ao
+          concluir e libera a diferença; falhas não são cobradas.
         </p>
 
         <div className="flex flex-col gap-2 py-2">

@@ -1,0 +1,2 @@
+ALTER TABLE "dia_de_estrela"."notification_deliveries" ADD COLUMN "web_participation_revision" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "dia_de_estrela"."notification_deliveries" ADD CONSTRAINT "estrela_delivery_web_revision" CHECK ("dia_de_estrela"."notification_deliveries"."web_participation_revision" >= 0);

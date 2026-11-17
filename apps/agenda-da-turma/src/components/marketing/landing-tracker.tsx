@@ -49,14 +49,14 @@ export function LandingTracker() {
         if (
           !(element instanceof HTMLAnchorElement) ||
           new URL(element.href).origin !== location.origin ||
-          new URL(element.href).pathname !== "/signup"
+          !["/signup", "/login"].includes(new URL(element.href).pathname)
         )
           return;
         const payload: unknown = {
           event: "landing_cta",
           variant: LANDING_VARIANT,
           placement,
-          selection: plan === "pro" ? { plan, cycle } : { plan },
+          selection: plan === "compasso" ? { plan, cycle } : { plan },
           firstCta: firstCta.current,
         };
         if (!landingEventSchema.safeParse(payload).success) return;

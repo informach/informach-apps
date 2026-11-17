@@ -1,6 +1,6 @@
 import "server-only";
 import { getProSubscription } from "@informach/billing";
-import { and, db, desc, eq, inArray } from "@informach/db";
+import { and, type Database, db, desc, eq, inArray } from "@informach/db";
 import {
   customers,
   recreioEntitlements as entitlements,
@@ -62,8 +62,11 @@ export type FatosLidos = {
   } | null;
 };
 
-async function assinaturaInativaMaisRecente(donoId: string): Promise<AssinaturaLida | null> {
-  const [linha] = await db
+async function assinaturaInativaMaisRecente(
+  donoId: string,
+  conexao: Pick<Database, "select">,
+): Promise<AssinaturaLida | null> {
+  const [linha] = await conexao
     .select({
       id: subscriptions.id,
       status: subscriptions.status,
@@ -87,8 +90,11 @@ async function assinaturaInativaMaisRecente(donoId: string): Promise<AssinaturaL
 }
 
 /** Tudo o que `decidirAcesso` precisa saber sobre um perfil, ou `null` se ele não existe. */
-export async function lerFatosDeAcesso(perfilId: PerfilId): Promise<FatosLidos | null> {
-  const [perfil] = await db
+export async function lerFatosDeAcesso(
+  perfilId: PerfilId,
+  conexao: Pick<Database, "select"> = db,
+): Promise<FatosLidos | null> {
+  const [perfil] = await conexao
     .select({
       id: profiles.id,
       status: profiles.status,
@@ -106,24 +112,24 @@ export async function lerFatosDeAcesso(perfilId: PerfilId): Promise<FatosLidos |
     versaoDaPolitica: perfil.policyVersion,
   };
   const [grupo] = perfil.groupId
-    ? await db
+    ? await conexao
         .select({ id: groups.id, ownerUserId: groups.ownerUserId })
         .from(groups)
         .where(eq(groups.id, perfil.groupId))
     : [];
   if (!grupo) return { perfil: lido, grupo: null };
   const [cobertos, ativa, inativa, concessoes] = await Promise.all([
-    db
+    conexao
       .select({ id: profiles.id })
       .from(profiles)
       .where(and(eq(profiles.groupId, grupo.id), eq(profiles.coverageEnabled, true)))
       .orderBy(profiles.createdAt, profiles.id),
     getProSubscription(
-      { db, provider: "stripe", app: APP },
+      { db: conexao, provider: "stripe", app: APP },
       { type: "user", id: grupo.ownerUserId },
     ),
-    assinaturaInativaMaisRecente(grupo.ownerUserId),
-    db
+    assinaturaInativaMaisRecente(grupo.ownerUserId, conexao),
+    conexao
       .select({
         id: entitlements.id,
         kind: entitlements.kind,

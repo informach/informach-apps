@@ -12,6 +12,7 @@ export type { ActivityStatusValue, ActivityType };
  */
 export type ProfileSubjectActivity = {
   id: string;
+  version: number;
   profileId: string;
   profileSubjectId: string;
   createdByUserId: string | null;

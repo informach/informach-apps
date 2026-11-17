@@ -1,0 +1,41 @@
+{
+  "formato": "recreio.operacao-drenagem",
+  "versao": 1,
+  "data": "2026-11-16",
+  "morada": {
+    "codigo": "179a0a76a5350b1f96464a6fb2df83dbb5d91cad",
+    "deployment": "2ca8645b-865b-4b18-83b0-61314f8e2e7e",
+    "health": 200,
+    "ready": 200,
+    "mundos": 0,
+    "conexoes": 0,
+    "viva": true,
+    "drenando": false,
+    "mundo": 2,
+    "protocolo": 1,
+    "manifesto": 3,
+    "arteSha256": "4198478735b643e07d4ce0821db82654c42847bbf996d1d07a99a5890b21672f"
+  },
+  "portal": {
+    "codigo": "cc48f3c62958806d43f4ecbf1233a63339849fb8",
+    "deployment": "ce6e5662-b2c0-46e4-a52b-831dcb8a40eb",
+    "health": 200,
+    "ready": 200,
+    "gatilhoDaDrenagem": "SKIPPED"
+  },
+  "gates": {
+    "candidata": 43815849549,
+    "main": 43817020639,
+    "jobsPorRodada": 6,
+    "testesDoServidor": 147
+  },
+  "configuracaoRemotaIdentica": true,
+  "limites": {
+    "processoSegundos": 25,
+    "railwaySegundos": 35,
+    "replicas": 1,
+    "sobreposicaoSegundos": 0
+  },
+  "provaDeDrenagemComLatenciaNoRailway": false,
+  "falhaProvocadaEmProducao": false
+}

@@ -4,7 +4,8 @@ import { users } from "@informach/db/schema";
 import { beforeAll, describe, expect, it } from "vitest";
 import { assessment, catalogGrades, coursesForGrade, findCourse } from "@/features/content/catalog";
 import { suggestedGrade } from "@/features/family/school-year";
-import { begin, createProfile, dashboard } from "@/features/learning/service";
+import { begin, dashboard } from "@/features/learning/service";
+import { fixtureAuthority, prepareStudent } from "./family-fixture";
 
 const owner = randomUUID();
 const outroResponsavel = randomUUID();
@@ -39,7 +40,7 @@ describe("onda 2 em PostgreSQL isolado: 3º ao 5º ano", () => {
     ).toEqual(["canguru-e", "mirim-2"]);
     // Uma criança que fez 8 anos em fevereiro de 2026 é sugerida para o 3º ano em 2026.
     expect(suggestedGrade("2018-02", 2026)).toBe(3);
-    const profile = await createProfile(owner, {
+    const profile = await prepareStudent(await fixtureAuthority(owner), {
       nickname: "Iris",
       grade: 3,
       birthMonth: "2018-02",
@@ -47,10 +48,10 @@ describe("onda 2 em PostgreSQL isolado: 3º ao 5º ano", () => {
       courseId: "canguru-p",
       consent: true,
     });
-    const painel = await dashboard(owner, profile.id);
+    const painel = await dashboard(await fixtureAuthority(owner), profile.id);
     expect(painel.course?.id).toBe("canguru-p");
     // A primeira unidade da faixa é gratuita.
-    const sessao = await begin(owner, {
+    const sessao = await begin(await fixtureAuthority(owner), {
       profileId: profile.id,
       lessonId: "contagem-inicial-1",
       mode: "mission",
@@ -66,7 +67,7 @@ describe("onda 2 em PostgreSQL isolado: 3º ao 5º ano", () => {
 
   it("aceita um perfil do 5º ano na Mirim 2 e recusa a Canguru P para esse ano", async () => {
     // Cada conta gratuita tem um perfil; o 5º ano entra em outra conta.
-    const profile = await createProfile(outroResponsavel, {
+    const profile = await prepareStudent(await fixtureAuthority(outroResponsavel), {
       nickname: "Noah",
       grade: 5,
       birthMonth: null,
@@ -74,10 +75,10 @@ describe("onda 2 em PostgreSQL isolado: 3º ao 5º ano", () => {
       courseId: "mirim-2",
       consent: true,
     });
-    const painel = await dashboard(outroResponsavel, profile.id);
+    const painel = await dashboard(await fixtureAuthority(outroResponsavel), profile.id);
     expect(painel.course?.id).toBe("mirim-2");
     await expect(
-      createProfile(randomUUID(), {
+      prepareStudent(await fixtureAuthority(outroResponsavel), {
         nickname: "Bela",
         grade: 5,
         birthMonth: null,

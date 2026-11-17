@@ -35,21 +35,41 @@ describe("PIN dos pais", () => {
 describe("desbloqueio da área dos pais no aparelho", () => {
   it("vale só para o aparelho que digitou o PIN, e só por 10 minutos", () => {
     const agora = 1_000_000;
-    const { valor } = emitirDesbloqueio(segredo, "aparelho-a", agora);
-    expect(lerDesbloqueio(segredo, valor, "aparelho-a", agora + 1000)).toBe(agora + DESBLOQUEIO_MS);
-    expect(lerDesbloqueio(segredo, valor, "aparelho-b", agora + 1000)).toBeNull();
-    expect(lerDesbloqueio(segredo, valor, "aparelho-a", agora + DESBLOQUEIO_MS)).toBeNull();
+    const { valor } = emitirDesbloqueio(segredo, "aparelho-a", "generation-a", agora);
+    expect(lerDesbloqueio(segredo, valor, "aparelho-a", "generation-a", agora + 1000)).toBe(
+      agora + DESBLOQUEIO_MS,
+    );
+    expect(lerDesbloqueio(segredo, valor, "aparelho-b", "generation-a", agora + 1000)).toBeNull();
+    expect(lerDesbloqueio(segredo, valor, "aparelho-a", "generation-b", agora + 1000)).toBeNull();
     expect(
-      lerDesbloqueio("outro-segredo-com-mais-de-32-caracteres", valor, "aparelho-a", agora),
+      lerDesbloqueio(segredo, `${valor}.extra`, "aparelho-a", "generation-a", agora),
+    ).toBeNull();
+    expect(
+      lerDesbloqueio(segredo, valor, "aparelho-a", "generation-a", agora + DESBLOQUEIO_MS),
+    ).toBeNull();
+    expect(
+      lerDesbloqueio(
+        "outro-segredo-com-mais-de-32-caracteres",
+        valor,
+        "aparelho-a",
+        "generation-a",
+        agora,
+      ),
     ).toBeNull();
   });
 
   it("recusa ficha adulterada", () => {
-    const { valor } = emitirDesbloqueio(segredo, "aparelho-a", 0);
-    const [id, , sig] = valor.split(".");
+    const { valor } = emitirDesbloqueio(segredo, "aparelho-a", "generation-a", 0);
+    const [version, id, generation, , sig] = valor.split(".");
     expect(
-      lerDesbloqueio(segredo, `${id}.${Number.MAX_SAFE_INTEGER}.${sig}`, "aparelho-a", 0),
+      lerDesbloqueio(
+        segredo,
+        `${version}.${id}.${generation}.${Number.MAX_SAFE_INTEGER}.${sig}`,
+        "aparelho-a",
+        "generation-a",
+        0,
+      ),
     ).toBeNull();
-    expect(lerDesbloqueio(segredo, undefined, "aparelho-a", 0)).toBeNull();
+    expect(lerDesbloqueio(segredo, undefined, "aparelho-a", "generation-a", 0)).toBeNull();
   });
 });

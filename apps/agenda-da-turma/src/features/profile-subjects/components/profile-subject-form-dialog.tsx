@@ -123,7 +123,7 @@ export function ProfileSubjectFormDialog({ open, onOpenChange, profileId, subjec
           router.refresh();
           return;
         }
-        if (result.error.code === "PROFILE_NOT_FOUND") {
+        if (result.error.code === "NOT_FOUND") {
           toast.error("Não achamos essa criança.");
           onOpenChange(false);
           router.refresh();
@@ -144,7 +144,7 @@ export function ProfileSubjectFormDialog({ open, onOpenChange, profileId, subjec
             {
               description: isPro
                 ? "Pause ou exclua uma que não está em uso para abrir espaço."
-                : "No Pro, cada criança pode ter até 10.",
+                : "No Compasso, cada criança pode ter até 10.",
             },
           );
           onOpenChange(false);

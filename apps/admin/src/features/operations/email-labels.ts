@@ -10,6 +10,7 @@ import type { EmailCategory } from "@informach/emails";
 const CATEGORY_LABELS: Record<string, string> = {
   "auth.verify-email": "Confirmação de e-mail",
   "auth.verify-email-otp": "Confirmação de e-mail",
+  "auth.change-email-otp": "Confirmação de troca de e-mail",
   "auth.sign-in-otp": "Código de acesso",
   "auth.magic-link": "Link de acesso",
   "auth.forget-password-otp": "Troca de senha",

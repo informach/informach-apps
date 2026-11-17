@@ -11,12 +11,9 @@ import { toast } from "@informach/ui/components/sonner";
 import { SpeechInput } from "@informach/ui/components/speech-input";
 import { Mic } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { z } from "zod";
-import { startTrialAction } from "@/features/kitchen/actions";
-import { TRIAL_CREDITS, TRIAL_DAYS } from "@/features/kitchen/trial";
-import { catchActionResult } from "./action-errors";
+import { COZYA_AI_COSTS } from "@/features/ai/costs";
 import { useRecoverableAiRequest } from "./use-ai-request";
 
 const transcriptSchema = z.union([
@@ -25,32 +22,12 @@ const transcriptSchema = z.union([
 ]);
 
 export function RecipeVoiceSearch({
-  isPro,
-  trialAvailable,
+  canUseAi,
   onTranscribed,
 }: {
-  isPro: boolean;
-  /** No trial yet: the locked AI offers to start the 14 days, not the plans. */
-  trialAvailable: boolean;
+  canUseAi: boolean;
   onTranscribed: (text: string) => void;
 }) {
-  const router = useRouter();
-  const [started, setStarted] = useState(false);
-  const [starting, startTransition] = useTransition();
-  const canUseAi = isPro || started;
-  const startTrial = () =>
-    startTransition(async () => {
-      const result = await catchActionResult(() => startTrialAction({}));
-      if (!result.ok) {
-        toast.error("Não foi possível começar o teste. Tente de novo.");
-        return;
-      }
-      toast.success(
-        `Seus ${TRIAL_DAYS} dias grátis começaram. Você tem ${TRIAL_CREDITS} créditos de IA.`,
-      );
-      setStarted(true);
-      router.refresh();
-    });
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -62,7 +39,7 @@ export function RecipeVoiceSearch({
     try {
       const form = new FormData();
       form.set("audio", audio, "search.webm");
-      const result = await request("/api/ai/transcribe", form, audio);
+      const result = await request("/api/ai/transcribe", form, COZYA_AI_COSTS.speech, audio);
       if (!result) return "";
       if (!("text" in result)) {
         toast.error(result.reason ?? "Não consegui ouvir o áudio. Nenhum crédito foi consumido.");
@@ -82,7 +59,7 @@ export function RecipeVoiceSearch({
         variant="ghost"
         size="icon"
         className="size-11"
-        aria-label="Ditar busca · 1 crédito"
+        aria-label={`Ditar busca · até ${COZYA_AI_COSTS.speech.maxCredits} créditos`}
         onClick={() => setOpen(true)}
       >
         <Mic className="size-4" aria-hidden />
@@ -103,7 +80,8 @@ export function RecipeVoiceSearch({
           <DialogHeader>
             <DialogTitle>Ditar uma busca nas suas receitas</DialogTitle>
             <DialogDescription>
-              A transcrição custa 1 crédito quando concluída. Digitar no campo de busca é gratuito.
+              Reserva até {COZYA_AI_COSTS.speech.maxCredits} créditos compartilhados. Custa 1
+              crédito por minuto iniciado, com a diferença liberada ao concluir. Digitar é gratuito.
               A busca procura nas receitas que você já guardou.
             </DialogDescription>
           </DialogHeader>
@@ -134,23 +112,13 @@ export function RecipeVoiceSearch({
                 </Button>
               )}
             </div>
-          ) : trialAvailable ? (
-            <div className="space-y-3 rounded-2xl bg-muted p-4">
-              <p className="text-sm leading-normal">
-                Seus {TRIAL_DAYS} dias grátis incluem {TRIAL_CREDITS} créditos de IA, um por
-                receita. Sem cartão.
-              </p>
-              <Button className="min-h-11" disabled={starting} onClick={startTrial}>
-                Ativar e continuar
-              </Button>
-            </div>
           ) : (
             <div className="space-y-3 rounded-2xl bg-muted p-4">
               <p className="text-sm leading-normal">
-                A ajuda da IA faz parte do Pro. Digitar no campo de busca continua grátis.
+                A ajuda da IA faz parte do Compasso. Digitar no campo de busca continua grátis.
               </p>
               <Button asChild className="min-h-11">
-                <Link href="/upgrade">Conhecer o Pro</Link>
+                <Link href="/contexto">Escolher família</Link>
               </Button>
             </div>
           )}

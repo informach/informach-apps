@@ -1,11 +1,21 @@
-import type { Product } from "@informach/config";
+import { findApp, type Product } from "@informach/config";
 import type { Database } from "@informach/db";
 import { creditLedger, customers, oneTimePayments } from "@informach/db/schema";
 import { and, eq } from "drizzle-orm";
 import { type BillingEmailDeps, sendBillingEmail } from "./../billing-emails";
+import { resolveCreditOwner } from "../collection-accounts";
 import { getBalance } from "../credits/balance";
+import { isMigratingCreditApp, settleLegacyCreditPayment } from "../credits/legacy-payments";
+import { lockCreditOwner } from "../credits/locks";
+import {
+  convertedLegacyAmount,
+  findCreditWalletMigration,
+  forwardMigratedCreditEntry,
+} from "../credits/migration-forwarding";
+import { BillingError } from "../errors";
 import { type Logger, safeLog } from "./../logger";
-import type { BillingAuditEvent, BillingProvider, SubjectType } from "./../types";
+import type { BillingProviderClient } from "../providers/types";
+import type { BillingAuditEvent, BillingProvider } from "./../types";
 
 type StripePaymentIntentLike = {
   id: string;
@@ -26,6 +36,7 @@ export type PaymentWebhookDeps = {
   emails?: BillingEmailDeps;
   /** Product catalog — used for productName resolution in receipts. */
   products: readonly Product[];
+  providerClient?: Pick<BillingProviderClient, "readCreditPayment">;
 };
 
 export type PaymentWebhookResult = {
@@ -66,7 +77,11 @@ export async function handlePaymentIntentSucceeded(
     });
     return { processed: false, reason: "missing_subject_metadata" };
   }
-  if (subjectTypeRaw !== "user" && subjectTypeRaw !== "organization") {
+  if (
+    subjectTypeRaw !== "user" &&
+    subjectTypeRaw !== "organization" &&
+    subjectTypeRaw !== "billing_account"
+  ) {
     safeLog(deps.logger, "warn", "billing.webhook.payment.invalid_subject_type", {
       paymentIntentId: paymentIntent.id,
       subjectTypeRaw,
@@ -81,6 +96,8 @@ export async function handlePaymentIntentSucceeded(
     });
     return { processed: false, reason: "product_not_in_catalog" };
   }
+  if (isMigratingCreditApp(deps.app) && product.app !== deps.app)
+    throw new BillingError("Credit product is outside this webhook scope");
   if (product.kind !== "credit_pack") {
     safeLog(deps.logger, "debug", "billing.webhook.payment.not_a_credit_pack", {
       paymentIntentId: paymentIntent.id,
@@ -122,7 +139,7 @@ export async function handlePaymentIntentSucceeded(
   }
   const creditAmount = product.creditAmount;
 
-  const subjectType = subjectTypeRaw as SubjectType;
+  const subjectType = subjectTypeRaw;
   const providerCustomerId = extractCustomerId(paymentIntent.customer);
   if (!providerCustomerId) {
     safeLog(deps.logger, "warn", "billing.webhook.payment.missing_customer", {
@@ -143,6 +160,7 @@ export async function handlePaymentIntentSucceeded(
       and(
         eq(customers.provider, deps.provider),
         eq(customers.providerCustomerId, providerCustomerId),
+        eq(customers.app, deps.app),
       ),
     )
     .limit(1);
@@ -172,8 +190,28 @@ export async function handlePaymentIntentSucceeded(
       : (paymentIntent.latest_charge?.id ?? null);
   const amountCents = paymentIntent.amount ?? 0;
   const currency = (paymentIntent.currency ?? "brl").toUpperCase();
+  const migrating = isMigratingCreditApp(deps.app);
+  if (migrating && !deps.providerClient?.readCreditPayment)
+    throw new BillingError("Legacy purchase requires authoritative payment reconciliation");
+  const snapshot =
+    migrating && deps.providerClient?.readCreditPayment
+      ? await deps.providerClient.readCreditPayment(providerCustomerId, paymentIntent.id)
+      : null;
+  if (
+    snapshot &&
+    (snapshot.paymentId !== paymentIntent.id ||
+      snapshot.customerId !== providerCustomerId ||
+      snapshot.amountCents !== amountCents ||
+      snapshot.currency.toUpperCase() !== currency)
+  )
+    throw new BillingError("Payment event conflicts with its settled receipt");
 
   const result = await deps.db.transaction(async (tx) => {
+    const creditOwner = await resolveCreditOwner(tx, deps.app, {
+      type: subjectType,
+      id: subjectId,
+    });
+    await lockCreditOwner(tx, creditOwner);
     // 1) one_time_payments — idempotent via (provider, provider_payment_id) UNIQUE
     const insertedPayment = await tx
       .insert(oneTimePayments)
@@ -205,7 +243,7 @@ export async function handlePaymentIntentSucceeded(
     } else {
       // Conflict — read back existing payment row id for ledger linkage.
       const existing = await tx
-        .select({ id: oneTimePayments.id })
+        .select()
         .from(oneTimePayments)
         .where(
           and(
@@ -219,15 +257,46 @@ export async function handlePaymentIntentSucceeded(
           "@informach/billing: oneTimePayments insert returned 0 rows but no existing row found",
         );
       }
+      if (
+        migrating &&
+        (existing[0].customerId !== customer.id ||
+          existing[0].productId !== productId ||
+          existing[0].amountCents !== amountCents ||
+          existing[0].currency !== currency ||
+          existing[0].creditAmount !== creditAmount)
+      )
+        throw new BillingError("Payment replay conflicts with its original purchase");
       paymentId = existing[0].id;
+    }
+
+    if (snapshot) {
+      // Distinct deliveries/reconciliation identifiers must not grant the same paid purchase twice.
+      const prior = await tx
+        .select()
+        .from(creditLedger)
+        .where(and(eq(creditLedger.paymentId, paymentId), eq(creditLedger.entryType, "purchase")));
+      if (prior.length) {
+        const grant = prior[0];
+        if (
+          prior.length !== 1 ||
+          !grant ||
+          grant.ownerType !== creditOwner.type ||
+          grant.ownerId !== creditOwner.id ||
+          grant.app !== deps.app ||
+          grant.amount !== creditAmount
+        )
+          throw new BillingError("Payment has a conflicting credit grant");
+        await settleLegacyCreditPayment(tx, deps.app, paymentId, snapshot);
+        return { ledgerEntryId: grant.id, paymentId, replay: true };
+      }
     }
 
     // 2) credit_ledger purchase entry — idempotent via stripe_event_id UNIQUE partial
     const insertedLedger = await tx
       .insert(creditLedger)
       .values({
-        ownerType: subjectType,
-        ownerId: subjectId,
+        ownerType: creditOwner.type,
+        ownerId: creditOwner.id,
         app: deps.app,
         entryType: "purchase",
         amount: creditAmount,
@@ -243,6 +312,11 @@ export async function handlePaymentIntentSucceeded(
       .returning({ id: creditLedger.id });
 
     if (insertedLedger.length > 0 && insertedLedger[0]) {
+      await forwardMigratedCreditEntry(tx, insertedLedger[0].id, {
+        app: deps.app,
+        owner: creditOwner,
+      });
+      if (snapshot) await settleLegacyCreditPayment(tx, deps.app, paymentId, snapshot);
       return {
         ledgerEntryId: insertedLedger[0].id,
         paymentId,
@@ -253,8 +327,20 @@ export async function handlePaymentIntentSucceeded(
     const existingLedger = await tx
       .select({ id: creditLedger.id })
       .from(creditLedger)
-      .where(eq(creditLedger.stripeEventId, eventId))
+      .where(
+        and(
+          eq(creditLedger.stripeEventId, eventId),
+          eq(creditLedger.paymentId, paymentId),
+          eq(creditLedger.app, deps.app),
+          eq(creditLedger.ownerType, creditOwner.type),
+          eq(creditLedger.ownerId, creditOwner.id),
+          eq(creditLedger.amount, creditAmount),
+          eq(creditLedger.entryType, "purchase"),
+        ),
+      )
       .limit(1);
+    if (!existingLedger[0]) throw new BillingError("Credit event conflicts with another purchase");
+    if (snapshot) await settleLegacyCreditPayment(tx, deps.app, paymentId, snapshot);
     return {
       ledgerEntryId: existingLedger[0]?.id ?? null,
       paymentId,
@@ -304,17 +390,57 @@ export async function handlePaymentIntentSucceeded(
   // never blocks the webhook ack. Idempotency: messageKey = ledgerEntryId, which
   // is stable per Stripe event.
   if (!result.replay && deps.emails && customer.email && result.ledgerEntryId) {
-    const balanceAfter = await readOwnerBalanceAfter(deps.db, subjectType, subjectId, deps.app);
-    await sendBillingEmail(deps.emails, {
-      category: "billing.credits-purchased",
-      recipient: {
-        email: customer.email,
-        userId: subjectType === "user" ? subjectId : undefined,
-      },
-      messageKey: result.ledgerEntryId,
-      creditAmount,
-      balanceAfter,
+    const display = await deps.db.transaction(async (tx) => {
+      const creditOwner = await resolveCreditOwner(tx, deps.app, {
+        type: subjectType,
+        id: subjectId,
+      });
+      await lockCreditOwner(tx, creditOwner);
+      const migration = await findCreditWalletMigration(tx, deps.app, creditOwner);
+      const refundedCredits = snapshot
+        ? Number(
+            (BigInt(creditAmount) * BigInt(snapshot.amountRefundedCents) +
+              BigInt(snapshot.amountCents) -
+              1n) /
+              BigInt(snapshot.amountCents),
+          )
+        : 0;
+      return {
+        creditAmount: migration
+          ? convertedLegacyAmount(creditAmount, migration.multiplier)
+          : creditAmount,
+        balanceAfter:
+          migration || creditOwner.type === "family"
+            ? undefined
+            : (await getBalance({ db: tx, app: deps.app }, creditOwner)).total,
+        conversion: migration
+          ? {
+              sourceName: findApp(deps.app)?.name ?? deps.emails?.appName ?? deps.app,
+              sourceCredits: creditAmount,
+            }
+          : undefined,
+        settlement: snapshot
+          ? {
+              refundedCredits: migration
+                ? convertedLegacyAmount(refundedCredits, migration.multiplier)
+                : refundedCredits,
+              underReview: snapshot.disputed,
+            }
+          : undefined,
+      };
     });
+    await sendBillingEmail(
+      { ...deps.emails, ...(display.conversion ? { appName: "Compasso" } : {}) },
+      {
+        category: "billing.credits-purchased",
+        recipient: {
+          email: customer.email,
+          userId: subjectType === "user" ? subjectId : undefined,
+        },
+        messageKey: result.ledgerEntryId,
+        ...display,
+      },
+    );
   }
 
   return {
@@ -327,17 +453,4 @@ function extractCustomerId(customer: StripePaymentIntentLike["customer"]): strin
   if (!customer) return null;
   if (typeof customer === "string") return customer;
   return customer.id;
-}
-
-/**
- * Reads the owner's balance immediately after a grant. Single round-trip, no
- * locks — this is for display only (email body), not for accounting decisions.
- */
-async function readOwnerBalanceAfter(
-  db: Database,
-  ownerType: SubjectType,
-  ownerId: string,
-  app: string,
-): Promise<number> {
-  return (await getBalance({ db, app }, { type: ownerType, id: ownerId })).total;
 }

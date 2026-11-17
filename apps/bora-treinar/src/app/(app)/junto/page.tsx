@@ -2,15 +2,16 @@ import { Lock } from "lucide-react";
 import { canCountWithCamera } from "@/features/acesso/policy";
 import { Cadeado } from "@/features/billing/planos";
 import { currentTrainer } from "@/features/familia/view";
+import { MIN_JUNTO } from "@/features/sessoes/limits";
 import { estimateMinutes, soSeries } from "@/features/treino/catalog/workouts";
 import { workoutCards } from "@/features/treino/dados";
-import { JuntoScreen, MIN_JUNTO } from "@/features/treino/telas/junto";
+import { JuntoScreen } from "@/features/treino/telas/junto";
 
 export const metadata = { title: "Treinar junto" };
 
 export default async function Junto() {
   const { user, profiles, access } = await currentTrainer();
-  const perfis = profiles.filter((p) => p.allowed && p.onboardedAt);
+  const perfis = profiles.filter((p) => p.allowed && p.canWrite && p.onboardedAt);
   if (!access.unlocked || perfis.length < MIN_JUNTO)
     return (
       <main className="profiles" id="conteudo">
@@ -21,7 +22,7 @@ export default async function Junto() {
           </p>
         ) : (
           <Cadeado motivo="perfis" className="btn primary big">
-            <Lock size={18} /> Treinar junto é do plano Família
+            <Lock size={18} /> Treinar junto faz parte do Compasso
           </Cadeado>
         )}
       </main>

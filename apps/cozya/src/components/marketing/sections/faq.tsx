@@ -10,11 +10,11 @@ const QUESTIONS = [
   },
   {
     q: "Preciso de cartão para experimentar?",
-    a: `Não. Depois de confirmar o e-mail, seus ${TRIAL_DAYS} dias começam quando você coloca a primeira receita na semana ou quando escolhe a ajuda da IA pela primeira vez, o que vier antes. São ${TRIAL_CREDITS} créditos de IA para o período. O teste é um por e-mail e não vira assinatura sozinho.`,
+    a: `Não. Você ativa o teste do Compasso na Minha conta. São ${TRIAL_DAYS} dias e ${TRIAL_CREDITS} créditos de IA compartilhados entre os apps da família. Abrir outro app não inicia outro teste. Ele não vira assinatura sozinho.`,
   },
   {
     q: `O que acontece depois dos ${TRIAL_DAYS} dias?`,
-    a: `Se você não assinar, a conta fica no Free. Suas receitas, o modo cozinha e as listas que já existem continuam. Novas semanas e a IA ficam no Pro. Nada é apagado, nem as receitas acima de ${FREE_RECIPE_LIMIT}.`,
+    a: `Se você não assinar, o Cozya fica no Free. Suas receitas, o modo cozinha e as listas existentes continuam, inclusive as receitas acima de ${FREE_RECIPE_LIMIT}. Para planejar novas semanas com receitas, é preciso o Compasso. Recargas de IA continuam disponíveis, respeitando os limites gratuitos.`,
   },
   {
     q: "A lista sabe o que já tenho em casa?",
@@ -26,7 +26,7 @@ const QUESTIONS = [
   },
   {
     q: "E se os créditos do mês acabarem?",
-    a: "Semana, lista e modo cozinha continuam. A ajuda da IA volta na renovação do mês, ou com créditos extras enquanto o Pro estiver ativo.",
+    a: "Você pode usar recargas compartilhadas sem vencimento, inclusive depois de cancelar a assinatura. A franquia mensal é renovada a cada mês da assinatura e não acumula. O custo de cada operação aparece antes do uso.",
   },
   {
     q: "Dá para mandar a lista para quem vai ao mercado?",
@@ -38,7 +38,7 @@ const QUESTIONS = [
   },
   {
     q: "Posso cancelar?",
-    a: "Pela sua conta, quando quiser. O Pro continua até o fim do período pago e depois a conta volta ao Free, com suas receitas.",
+    a: "O responsável pela assinatura pode cancelar na Minha conta, quando quiser. O Compasso continua até o fim do período pago e depois o Cozya volta ao Free, com suas receitas. O cancelamento vale para todo o pacote.",
   },
 ];
 

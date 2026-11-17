@@ -13,7 +13,7 @@ export function ActivityDetailShell({
   /** Linha discreta acima do título: versão, turma, matéria. */
   meta?: string;
   /** Editar é um passo dentro do detalhe: voltar leva à leitura. */
-  backHref: string;
+  backHref: `/atividades/${string}`;
   children: React.ReactNode;
 }) {
   return (

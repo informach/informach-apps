@@ -1,26 +1,20 @@
 import path from "node:path";
+import { isolatedNextOptions } from "@informach/config/next-testing";
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
-const isolatedSuffix = process.env.ESTRELA_E2E_RUN_ID;
-if (isolatedSuffix && !/^[a-f0-9]{24}$/.test(isolatedSuffix))
-  throw new Error("ESTRELA_E2E_RUN_ID must be a 24-character hexadecimal identifier");
 const config: NextConfig = {
   output: "standalone",
-  distDir:
-    process.env.ESTRELA_ISOLATED_TEST === "1"
-      ? isolatedSuffix
-        ? `.next-isolated-${isolatedSuffix}`
-        : ".next-e2e"
-      : ".next",
   outputFileTracingRoot: path.resolve(__dirname, "../.."),
   turbopack: { root: path.resolve(__dirname, "../..") },
   transpilePackages: [
+    "@informach/account",
     "@informach/auth",
     "@informach/billing",
     "@informach/config",
     "@informach/db",
     "@informach/emails",
+    "@informach/family",
     "@informach/ui",
   ],
   // A voz gravada de uma tarefa (até ~300 KB) e a foto da meta (até 250 KB)
@@ -53,6 +47,7 @@ const config: NextConfig = {
       },
     ];
   },
+  ...isolatedNextOptions(),
 };
 export default withSentryConfig(config, {
   org: process.env.SENTRY_ORG,

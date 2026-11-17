@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { z } from "zod";
+import { agendaAuthority } from "@/features/family/context";
 import { KidModeScreen } from "@/features/kid-mode/components/kid-mode-screen";
 import { getKidModeSnapshot } from "@/features/kid-mode/service";
 import { requireUserServer } from "@/lib/auth";
@@ -11,7 +12,8 @@ export default async function KidModePage({ params }: { params: Promise<{ perfil
   if (!z.string().uuid().safeParse(perfilId).success) notFound();
 
   const user = await requireUserServer();
-  const snapshot = await getKidModeSnapshot(user.id, perfilId);
+  const actor = await agendaAuthority(user.id);
+  const snapshot = await getKidModeSnapshot(actor, perfilId);
   // Inexistente e inacessível respondem igual: o 404 não conta a quem a criança
   // pertence.
   if (!snapshot) notFound();

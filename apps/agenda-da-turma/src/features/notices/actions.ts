@@ -1,5 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
+import { agendaAuthority } from "@/features/family/context";
 import { action, err } from "@/lib/action";
 import { ROUTINE_PATHS } from "./routine-paths";
 import {
@@ -41,7 +42,7 @@ export const confirmNoticeAction = action
   .rateLimit({ key: "notice-confirm", max: 60, window: "1h" })
   .run(async ({ ctx, input }) => {
     if (!ctx.actor?.id) return err({ code: "UNAUTHORIZED" } as const);
-    const result = await confirmNotice(ctx.actor.id, input);
+    const result = await confirmNotice(await agendaAuthority(ctx.actor.id), input);
     if (result.ok) refreshRoutine();
     return result;
   });
@@ -51,7 +52,7 @@ export const shareSavedWithTurmaAction = action
   .rateLimit({ key: "notice-share-saved", max: 30, window: "1h" })
   .run(async ({ ctx, input }) => {
     if (!ctx.actor?.id) return err({ code: "UNAUTHORIZED" } as const);
-    const result = await shareSavedWithTurma(ctx.actor.id, input);
+    const result = await shareSavedWithTurma(await agendaAuthority(ctx.actor.id), input);
     if (result.ok) refreshRoutine();
     return result;
   });
@@ -61,7 +62,7 @@ export const updateNoticeActionAction = action
   .rateLimit({ key: "notice-update", max: 100, window: "1h" })
   .run(async ({ ctx, input }) => {
     if (!ctx.actor?.id) return err({ code: "UNAUTHORIZED" } as const);
-    const result = await updateNoticeAction(ctx.actor.id, input);
+    const result = await updateNoticeAction(await agendaAuthority(ctx.actor.id), input);
     if (result.ok) refreshRoutine();
     return result;
   });
@@ -71,7 +72,7 @@ export const setNoticeStatusAction = action
   .rateLimit({ key: "notice-status", max: 100, window: "1h" })
   .run(async ({ ctx, input }) => {
     if (!ctx.actor?.id) return err({ code: "UNAUTHORIZED" } as const);
-    const result = await setNoticeActionStatus(ctx.actor.id, input);
+    const result = await setNoticeActionStatus(await agendaAuthority(ctx.actor.id), input);
     if (result.ok) refreshRoutine();
     return result;
   });
@@ -81,7 +82,7 @@ export const discardDraftActionAction = action
   .rateLimit({ key: "notice-discard-action", max: 100, window: "1h" })
   .run(async ({ ctx, input }) => {
     if (!ctx.actor?.id) return err({ code: "UNAUTHORIZED" } as const);
-    const result = await discardDraftAction(ctx.actor.id, input);
+    const result = await discardDraftAction(await agendaAuthority(ctx.actor.id), input);
     if (result.ok) refreshDrafts();
     return result;
   });
@@ -91,7 +92,7 @@ export const discardNoticeAction = action
   .rateLimit({ key: "notice-discard", max: 60, window: "1h" })
   .run(async ({ ctx, input }) => {
     if (!ctx.actor?.id) return err({ code: "UNAUTHORIZED" } as const);
-    const result = await discardNotice(ctx.actor.id, input);
+    const result = await discardNotice(await agendaAuthority(ctx.actor.id), input);
     if (result.ok) refreshDrafts();
     return result;
   });

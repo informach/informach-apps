@@ -120,6 +120,53 @@ function dateOf(payload: Record<string, unknown>, key: string): Date | null {
 }
 
 const PHRASES: Record<string, (ctx: Context) => SentencePart[]> = {
+  "recreio.profile_created": () => [t("Criou um perfil no Recreio")],
+  "recreio.profile_updated": () => [t("Atualizou um perfil no Recreio")],
+  "recreio.minor_policy_recalculated": () => [t("Recalculou as regras de um perfil protegido")],
+  "recreio.minor_supervision_changed": () => [t("Confirmou a supervisão de um perfil protegido")],
+  "recreio.profile_data_updated": () => [t("Salvou progresso pessoal no Recreio")],
+  "recreio.profile_data_conflict": () => [t("Preservou um conflito de progresso no Recreio")],
+  "recreio.profile_data_conflict_discarded": () => [
+    t("Descartou uma versão conflitante no Recreio"),
+  ],
+  "recreio.achievement_unlocked": () => [t("Registrou uma conquista no Recreio")],
+  "recreio.device_session_revoked": () => [t("Desconectou um aparelho do Recreio")],
+  "recreio.device_paired": () => [t("Pareou um aparelho protegido do Recreio")],
+  "recreio.device_context_changed": () => [t("Trocou o contexto de um aparelho do Recreio")],
+  "recreio.protection_pin_changed": () => [t("Alterou um PIN de proteção do Recreio")],
+  "recreio.minor_access_revoked": () => [
+    t("Revogou os aparelhos de um perfil protegido do Recreio"),
+  ],
+  "recreio.entitlement_granted": () => [t("Recebeu acesso ao Recreio")],
+  "recreio.entitlement_revoked": () => [t("Teve o acesso ao Recreio revogado")],
+  "recreio.game_session_started": () => [t("Abriu uma sessão de jogo no Recreio")],
+  "recreio.game_session_ended": () => [t("Encerrou uma sessão de jogo no Recreio")],
+  "recreio.ticket_rejected": () => [t("Ingresso do Recreio recusado")],
+  "recreio.space_created": () => [t("Criou um mundo no Recreio")],
+  "recreio.space_invite_created": () => [t("Criou um convite de mundo no Recreio")],
+  "recreio.space_invite_accepted": () => [t("Aceitou um convite de mundo no Recreio")],
+  "recreio.space_member_joined": () => [t("Entrou em um mundo no Recreio")],
+  "recreio.space_member_left": () => [t("Saiu de um mundo no Recreio")],
+  "recreio.space_invites_revoked": () => [t("Revogou convites de entrada em um mundo no Recreio")],
+  "recreio.space_member_removed": () => [t("Removeu um membro de um mundo no Recreio")],
+  "recreio.space_stewardship_requested": () => [
+    t("Propôs transferência de responsabilidade de um mundo no Recreio"),
+  ],
+  "recreio.space_stewardship_accepted": () => [
+    t("Aceitou a responsabilidade por um mundo no Recreio"),
+  ],
+  "recreio.space_stewardship_declined": () => [
+    t("Recusou a responsabilidade por um mundo no Recreio"),
+  ],
+  "recreio.space_stewardship_revoked": () => [
+    t("Cancelou uma proposta de responsabilidade de um mundo no Recreio"),
+  ],
+  "recreio.space_stewardship_expired": () => [
+    t("Expirou uma proposta de responsabilidade de um mundo no Recreio"),
+  ],
+  "recreio.space_lease_taken_over": () => [t("Uma instância retomou um mundo no Recreio")],
+  "recreio.space_write_refused": () => [t("Uma escrita de instância foi recusada no Recreio")],
+  "recreio.space_restored": () => [t("Um mundo do Recreio foi restaurado pela operação")],
   // Bastidores
   "admin.user_viewed": (ctx) => withTarget("Abriu a ficha de ", ctx),
   "admin.sessions_revoked": (ctx) => {

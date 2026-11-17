@@ -15,7 +15,12 @@ export type Parada =
   | "iniciando"
   | "outro_lugar"
   | "saiu_da_conta"
+  | "saiu_do_jogo"
+  | "permissoes_alteradas"
   | "sessao_encerrada"
+  | "pausado_para_troca"
+  | "saida_no_outro_aparelho"
+  | "troca_nao_confirmada"
   | "rede"
   | "falha";
 
@@ -67,8 +72,11 @@ function motivoDe(erro: { detalhe: Readonly<Record<string, unknown>> }): string 
 
 /** Como uma sessão de jogo que acabou aparece para a pessoa. */
 function paradaDoFimDaSessao(motivo: string | null): Parada {
+  if (motivo === "checkpoint") return "pausado_para_troca";
   if (motivo === "replaced") return "outro_lugar";
   if (motivo === "signed_out") return "saiu_da_conta";
+  if (motivo === "left") return "saiu_do_jogo";
+  if (motivo === "permissions_changed") return "permissoes_alteradas";
   if (motivo === "access_lost") return "acesso_perdido";
   return "sessao_encerrada";
 }
@@ -94,6 +102,8 @@ export function paradaDoErro(erro: unknown): Parada {
     }
     case "SESSAO_ENCERRADA":
       return paradaDoFimDaSessao(motivoDe(erro));
+    case "CHECKPOINT_PENDENTE":
+      return motivoDe(erro) === "manual" ? "saida_no_outro_aparelho" : "troca_nao_confirmada";
     case "SESSAO_INVALIDA":
     case "INGRESSO_INVALIDO":
       return "sessao_encerrada";
@@ -140,6 +150,22 @@ export type TextoDaParada = {
 };
 
 const TEXTOS: Record<Parada, TextoDaParada> = {
+  saida_no_outro_aparelho: {
+    titulo: "Salve e saia no outro aparelho",
+    texto: "Use o botão de saída do jogo na partida anterior. Depois, tente abrir aqui novamente.",
+    acao: "tentar",
+  },
+  troca_nao_confirmada: {
+    titulo: "A troca não foi confirmada",
+    texto:
+      "A nova partida não foi aberta. Confira o progresso e a conexão do outro aparelho antes de tentar novamente.",
+    acao: "tentar",
+  },
+  pausado_para_troca: {
+    titulo: "Jogo pausado para trocar de aparelho",
+    texto: "Esta sessão está pausada enquanto a troca de aparelho é confirmada.",
+    acao: "nada",
+  },
   sem_login: {
     titulo: "Entre de novo para jogar",
     texto: "A sua entrada no Recreio terminou neste aparelho.",
@@ -182,10 +208,20 @@ const TEXTOS: Record<Parada, TextoDaParada> = {
     texto: "O jogo foi fechado junto com a sua entrada no Recreio.",
     acao: "entrar",
   },
+  saiu_do_jogo: {
+    titulo: "Você saiu do jogo",
+    texto: "Seu progresso confirmado continua salvo. Confira seus mundos na estante.",
+    acao: "nada",
+  },
   sessao_encerrada: {
     titulo: "A sessão de jogo terminou",
     texto: "Abra o jogo de novo para continuar.",
     acao: "tentar",
+  },
+  permissoes_alteradas: {
+    titulo: "Suas permissões neste mundo mudaram",
+    texto: "Seu progresso confirmado continua salvo. Volte à estante e abra o mundo novamente.",
+    acao: "nada",
   },
   rede: {
     titulo: "Não foi possível conectar",

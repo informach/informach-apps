@@ -1,0 +1,35 @@
+{
+  "commit": "9710da1eacb3be272583c3224dcb70f9da6eadbb",
+  "files": [
+    {
+      "file": "plus-jakarta-sans-variable.woff2",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/plusjakartasans/PlusJakartaSans%5Bwght%5D.ttf",
+      "bytes": 60420,
+      "sha256": "b27ad637299413dc7fde4d937f73d618c947dfb4e9fbf068230f22258cf2d35e",
+      "sourceBytes": 176288,
+      "sourceSha256": "89b3fb38aa0d275d7a731d0d817a4f1622b316b4d7fbdedcf02ee9099ff68bc8",
+      "conversion": "fonttools 4.60.1; Brotli 1.2.0; full glyph set and variable axes preserved"
+    },
+    {
+      "file": "plus-jakarta-sans-OFL.txt",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/plusjakartasans/OFL.txt",
+      "bytes": 4402,
+      "sha256": "995c7199cab65954f545996326755daee7b63cc6b42b06c13da1f9502ab08a99"
+    },
+    {
+      "file": "caveat-variable.woff2",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/caveat/Caveat%5Bwght%5D.ttf",
+      "bytes": 173400,
+      "sha256": "9db568b963f422fe93e5b2fb91668a08764a84ade5bdecae8e5902719e0bdcb9",
+      "sourceBytes": 403648,
+      "sourceSha256": "0bdb6b660482d31531b3945849fba5916b3ef8695da7024a9e6b9ee3c4157988",
+      "conversion": "fonttools 4.60.1; Brotli 1.2.0; full glyph set and variable axes preserved"
+    },
+    {
+      "file": "caveat-OFL.txt",
+      "source": "https://raw.githubusercontent.com/google/fonts/9710da1eacb3be272583c3224dcb70f9da6eadbb/ofl/caveat/OFL.txt",
+      "bytes": 4385,
+      "sha256": "1f9d81d094273d82f3898a1ee8b598a717d050ecbf5ff7bede105b704880157b"
+    }
+  ]
+}

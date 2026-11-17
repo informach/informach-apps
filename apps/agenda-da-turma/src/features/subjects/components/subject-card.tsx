@@ -20,19 +20,26 @@ type Props = {
   subject: Subject;
   turmaId: string;
   currentUserId: string;
+  canContribute: boolean;
   // Outras matérias da turma — passadas pro SubjectFormDialog quando o user
   // edita (combobox de revezamento). Opcional pra retrocompat com call-sites
   // legacy que ainda não migraram.
   turmaSubjects?: readonly Subject[];
 };
 
-export function SubjectCard({ subject, turmaId, currentUserId, turmaSubjects }: Props) {
+export function SubjectCard({
+  subject,
+  turmaId,
+  currentUserId,
+  canContribute,
+  turmaSubjects,
+}: Props) {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const Icon = getSubjectIcon(subject.name);
   // Só o criador da matéria edita/exclui. O service também aplica o guard
   // (defesa em camadas) — esse check aqui só esconde os botões.
-  const canManage = subject.createdByUserId === currentUserId;
+  const canManage = canContribute && subject.createdByUserId === currentUserId;
 
   // Resume os slots de revezamento em string curta tipo "Qua Reveza com ACC".
   // Quando há múltiplos slots (matéria com revezamento em vários dias),

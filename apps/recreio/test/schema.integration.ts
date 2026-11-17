@@ -20,14 +20,22 @@ import { describe, expect, it } from "vitest";
 import { criarPerfilProprio } from "@/features/perfis/service";
 import { resolverAtor } from "@/features/sessao/service";
 import { conceder } from "../scripts/concessoes";
-import { CHECAGEM, codigoDoBanco, loginDe, novaConta, RESTRICAO, UNICO } from "./apoio";
+import {
+  atorDaConta,
+  CHECAGEM,
+  codigoDoBanco,
+  loginDe,
+  novaConta,
+  RESTRICAO,
+  UNICO,
+} from "./apoio";
 
 const daqui = (ms: number) => new Date(Date.now() + ms);
 const sha256 = (dados: Buffer) => createHash("sha256").update(dados).digest("hex");
 
 async function jogador(apelido: string) {
   const conta = await novaConta();
-  const { perfil } = await criarPerfilProprio(conta.id, { apelido, avatar: "sol" });
+  const { perfil } = await criarPerfilProprio(await atorDaConta(conta), { apelido, avatar: "sol" });
   const contexto = await resolverAtor(loginDe(conta));
   if (!contexto || !perfil.grupoId) throw new Error("Jogador de teste incompleto");
   return {

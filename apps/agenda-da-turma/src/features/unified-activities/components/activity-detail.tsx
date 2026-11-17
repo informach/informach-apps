@@ -1,5 +1,7 @@
+import { getAgendaAccess } from "@/features/billing/access-repository";
 import { todayLocalIso } from "@/features/dashboard/date";
 import { listAccessibleProfiles } from "@/features/family/access";
+import type { AgendaAuthority } from "@/features/family/authority";
 import { EditNoticeAction } from "@/features/notices/components/edit-action";
 import {
   getNoticeActionHistory,
@@ -13,7 +15,6 @@ import {
   STUDY_PLAN_TYPES,
 } from "@/features/study-plan/service";
 import { listSubjectOptionsByProfile } from "@/features/subjects/options-service";
-import { billing } from "@/lib/billing";
 import { taskToActionInput } from "../edit-defaults";
 import type { TaskRow } from "../task-repository";
 import { toActivityView } from "../view";
@@ -38,28 +39,28 @@ import { ActivityRevisionList } from "./revision-list";
  * gravação mudou.
  */
 export async function ActivityDetail({
-  userId,
+  actor,
   task,
   editing,
   historyOpen,
 }: {
-  userId: string;
+  actor: AgendaAuthority;
   task: TaskRow;
   editing: boolean;
   historyOpen: boolean;
 }) {
-  const view = toActivityView({ key: task.id, item: task }, userId);
+  const view = toActivityView({ key: task.id, item: task });
   const canceled = task.status === "canceled";
   // Cancelada não tem o que editar: o formulário ficaria todo travado.
-  const inEditMode = editing && !canceled;
+  const inEditMode = editing && !canceled && task.canWrite;
 
   if (inEditMode) {
     const [history, adults, isPro, subjectOptions, accessibleProfiles] = await Promise.all([
-      getNoticeActionHistory(userId, task.id),
-      listAssignableAdults(userId),
-      billing.hasProSubscription({ type: "user", id: task.ownerUserId }),
-      listSubjectOptionsByProfile(userId),
-      listAccessibleProfiles(userId),
+      getNoticeActionHistory(actor, task.id),
+      listAssignableAdults(actor),
+      getAgendaAccess(actor).then((access) => access.enabled),
+      listSubjectOptionsByProfile(actor),
+      listAccessibleProfiles(actor),
     ]);
     return (
       <ActivityDetailShell
@@ -75,7 +76,7 @@ export async function ActivityDetail({
           canceled={canceled}
           isPro={isPro}
           // Publicou outra família: a caixa fica marcada e travada.
-          shareLocked={task.sharedActivityId !== null && task.createdByUserId !== userId}
+          shareLocked={task.sharedActivityId !== null && task.createdByUserId !== actor.userId}
           fromNotice={task.noticeId !== null}
           profiles={[{ id: task.profileId, name: task.profileName }]}
           adults={adults}
@@ -95,18 +96,21 @@ export async function ActivityDetail({
   }
 
   const canPlanStudy =
-    !canceled && Boolean(task.dueAt) && STUDY_PLAN_TYPES.some((type) => type === task.type);
+    task.canWrite &&
+    !canceled &&
+    Boolean(task.dueAt) &&
+    STUDY_PLAN_TYPES.some((type) => type === task.type);
   const [history, source, studySessions, adults] = await Promise.all([
-    getNoticeActionHistory(userId, task.id),
-    task.noticeId ? getNoticeSource(userId, task.noticeId) : null,
-    listStudySessions(userId, task.id),
-    task.noticeId ? listAssignableAdults(userId) : [],
+    getNoticeActionHistory(actor, task.id),
+    task.noticeId ? getNoticeSource(actor, task.noticeId) : null,
+    listStudySessions(actor, task.id),
+    task.noticeId ? listAssignableAdults(actor) : [],
   ]);
   // A proposta só faz sentido antes de existir plano: com sessões na rotina, a
   // folha mostra os dias delas.
   const proposal =
     canPlanStudy && task.dueAt && studySessions.length === 0
-      ? await proposeStudyPlan(userId, {
+      ? await proposeStudyPlan(actor, {
           id: task.id,
           profileId: task.profileId,
           dueAt: task.dueAt,
@@ -123,8 +127,8 @@ export async function ActivityDetail({
   return (
     <ActivityRead
       task={task}
-      canEdit
-      sharedByMe={task.createdByUserId === userId}
+      canEdit={task.canWrite}
+      sharedByMe={task.createdByUserId === actor.userId}
       more={
         view.manage && view.toggle ? (
           <ActivityMoreMenu id={task.id} version={view.toggle.version} title={task.title} />

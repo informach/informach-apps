@@ -17,6 +17,7 @@ export type AuthAuditPersistenceFailureEvent = {
 };
 
 export type AuthSecurityEventType =
+  | "auth_provider_log"
   | "rate_limit_hit"
   | "role_mismatch"
   | "banned_user_signin_attempt"

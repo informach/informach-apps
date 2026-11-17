@@ -50,7 +50,6 @@ export default async function WeekPage({
         meals={meals}
         recipes={recipes}
         canPlan={access.canPlan}
-        trialAvailable={!access.isPro && !access.profile?.trialStartedAt}
         householdSize={access.profile?.householdSize ?? 2}
         initialEdit={edit}
         list={!list ? "none" : list.stale ? "stale" : "fresh"}

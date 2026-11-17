@@ -14,9 +14,9 @@ const now = new Date("2026-10-17T18:00:00Z");
 const trial = (startedDaysAgo: number) => {
   const trialStartedAt = new Date(now.getTime() - startedDaysAgo * DAY);
   const trialEndsAt = new Date(trialStartedAt.getTime() + TRIAL_DAYS * DAY);
-  return { profile: { trialStartedAt }, trialEndsAt, trialActive: trialEndsAt > now };
+  return { trialStartsAt: trialStartedAt, trialEndsAt, trialActive: trialEndsAt > now };
 };
-const neverStarted = { trialActive: false, trialEndsAt: null, profile: null };
+const neverStarted = { trialActive: false, trialEndsAt: null, trialStartsAt: null };
 
 describe("o teste na tela", () => {
   it("conta os dias que faltam durante o teste", () => {
@@ -41,7 +41,7 @@ describe("o resumo do fim do teste", () => {
     const access = { isPro: false, ...trial(3) };
     expect(trialRecap(access, false, now)).toEqual({
       phase: "active",
-      from: access.profile.trialStartedAt,
+      from: access.trialStartsAt,
       to: access.trialEndsAt,
     });
   });
@@ -50,7 +50,7 @@ describe("o resumo do fim do teste", () => {
     const access = { isPro: false, ...trial(TRIAL_DAYS + 2) };
     expect(trialRecap(access, false, now)).toEqual({
       phase: "ended",
-      from: access.profile.trialStartedAt,
+      from: access.trialStartsAt,
       to: access.trialEndsAt,
     });
   });

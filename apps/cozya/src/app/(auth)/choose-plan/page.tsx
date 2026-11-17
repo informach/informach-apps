@@ -1,21 +1,9 @@
-import { PlanCards } from "@/features/billing/components/plan-cards";
-import { parseCycleQueryParam } from "@/features/billing/plans-content";
-import { redirectIfUnauthenticated } from "@/lib/auth";
-
-export const metadata = {
-  title: "Escolha como começar | Cozya",
-};
-
+import { redirect } from "next/navigation";
 export default async function ChoosePlanPage({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams: Promise<{ cycle?: string }>;
 }) {
-  await redirectIfUnauthenticated("/choose-plan");
-
-  const params = await searchParams;
-  const cycleParam = typeof params.cycle === "string" ? params.cycle : undefined;
-  const initialCycle = parseCycleQueryParam(cycleParam);
-
-  return <PlanCards initialCycle={initialCycle} />;
+  const { cycle } = await searchParams;
+  redirect(`/upgrade?cycle=${cycle === "anual" || cycle === "annual" ? "annual" : "monthly"}`);
 }

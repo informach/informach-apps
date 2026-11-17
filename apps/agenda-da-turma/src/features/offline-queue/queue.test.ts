@@ -6,6 +6,7 @@ import {
   MAX_QUEUE_AGE_MS,
   orderedForFlush,
   type PendingWrite,
+  parseStoredWrite,
   queueMessage,
   summarizeQueue,
   supersededKeys,
@@ -19,6 +20,7 @@ const entry = (over: Partial<PendingWrite> = {}): PendingWrite => ({
   key: "k1",
   taskId: "t1",
   userId: "u1",
+  familyGroupId: "g1",
   status: "done",
   version: 3,
   title: "Prova de Ciências",
@@ -163,12 +165,49 @@ describe("visibleForOwner", () => {
     // O IndexedDB é da origem: num tablet de casa, a fila de quem saiu não pode
     // subir com a sessão de quem entrou.
     const list = [entry({ key: "minha" }), entry({ key: "de-outro", userId: "u2" })];
-    expect(visibleForOwner(list, "u1").map((item) => item.key)).toEqual(["minha"]);
+    expect(
+      visibleForOwner(list, { userId: "u1", familyGroupId: "g1" }).map((item) => item.key),
+    ).toEqual(["minha"]);
   });
 
   it("forgets what is older than the server keeps a receipt for", () => {
     const old = entry({ key: "velha", createdAt: Date.now() - MAX_QUEUE_AGE_MS - 1 });
-    expect(visibleForOwner([old], "u1")).toEqual([]);
+    expect(visibleForOwner([old], { userId: "u1", familyGroupId: "g1" })).toEqual([]);
     expect(expiredKeys([old])).toEqual(["velha"]);
   });
+});
+
+it("never exposes another context or an unresolved historical entry to the same adult", () => {
+  expect(
+    visibleForOwner(
+      [
+        entry(),
+        entry({ key: "other", familyGroupId: "g2" }),
+        entry({ key: "legacy", familyGroupId: null }),
+      ],
+      { userId: "u1", familyGroupId: "g1" },
+    ),
+  ).toEqual([entry()]);
+});
+
+it("validates stored entries and leaves historical context unresolved", () => {
+  const stored = {
+    ...entry(),
+    key: "588c7207-b75b-4112-8396-c6b84a4b682c",
+    taskId: "f934b598-f200-4f48-9138-ae2115698d45",
+    familyGroupId: undefined,
+  };
+  const legacy = parseStoredWrite(stored);
+  expect(legacy).toMatchObject({ familyGroupId: null, title: stored.title });
+  expect(
+    legacy &&
+      visibleForOwner([legacy], {
+        userId: "u1",
+        familyGroupId: "588c7207-b75b-4112-8396-c6b84a4b682c",
+      }),
+  ).toEqual([]);
+  expect(parseStoredWrite({ ...stored, familyGroupId: "invalid" })).toBeNull();
+  expect(parseStoredWrite({ ...stored, status: "canceled" })).toBeNull();
+  expect(parseStoredWrite({ ...stored, version: -1 })).toBeNull();
+  expect(parseStoredWrite({ ...stored, taskId: "" })).toBeNull();
 });

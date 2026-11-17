@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { MundoIdSchema, PerfilIdSchema, SessaoDeJogoIdSchema } from "../dominio/ids";
 import { BATIMENTO_MS, POSSE_TTL_MS } from "../dominio/posse";
@@ -19,13 +20,15 @@ type Chamada = {
   bytes: Uint8Array | null;
 };
 
-function ambiente() {
+function ambiente(opcoes: { diarioMaxBytes?: number } = {}) {
   const chamadas: Chamada[] = [];
   const fila: (Response | Error)[] = [];
   const cliente = criarClienteDoHost({
     baseUrl: "https://recreio.test/",
     jogo: "morada",
     segredo: SEGREDO,
+    fotografiaMaxBytes: 4 * 1024 * 1024,
+    diarioMaxBytes: opcoes.diarioMaxBytes ?? 8 * 1024 * 1024,
     fetch: async (url, init) => {
       const body = init?.body;
       chamadas.push({
@@ -61,6 +64,67 @@ function ambiente() {
 const recusa = (status: number, corpo: unknown) => Response.json(corpo, { status });
 
 describe("cliente HTTP das instâncias", () => {
+  const entrada = (seq: number) => ({ seq, tick: seq, fatoId: `f:${seq}`, bytes: "AA==" });
+
+  it("percorre páginas pela última sequência e conserva os bytes de todas", async () => {
+    const a = ambiente();
+    await a.registrado();
+    a.responder(
+      Response.json({ entradas: [entrada(1), entrada(2)], proximoApos: 2 }),
+      Response.json({ entradas: [entrada(3)], proximoApos: null }),
+    );
+    expect(
+      (await a.cliente.lerDiario({ mundoId: MUNDO, cerca: 3, apos: 0 })).map((e) => e.seq),
+    ).toEqual([1, 2, 3]);
+    expect(a.chamadas.at(-1)?.url).toContain("apos=2");
+  });
+
+  it.each([
+    { entradas: [entrada(2)], proximoApos: null },
+    { entradas: [entrada(1)], proximoApos: 0 },
+    { entradas: [], proximoApos: 1 },
+  ])("recusa buraco ou cursor que não avança: %j", async (pagina) => {
+    const a = ambiente();
+    await a.registrado();
+    a.responder(Response.json(pagina));
+    await expect(a.cliente.lerDiario({ mundoId: MUNDO, cerca: 3, apos: 0 })).rejects.toMatchObject({
+      codigo: "SEQUENCIA",
+    });
+  });
+
+  it("o teto da recuperação inclui a soma de todas as páginas", async () => {
+    const a = ambiente({ diarioMaxBytes: 1 });
+    await a.registrado();
+    a.responder(
+      Response.json({ entradas: [entrada(1)], proximoApos: 1 }),
+      Response.json({ entradas: [entrada(2)], proximoApos: null }),
+    );
+    await expect(a.cliente.lerDiario({ mundoId: MUNDO, cerca: 3, apos: 0 })).rejects.toMatchObject({
+      codigo: "INDISPONIVEL",
+    });
+  });
+
+  it("interrompe corpo de diário excessivo antes de interpretar o JSON", async () => {
+    const a = ambiente();
+    await a.registrado();
+    let cancelado = false;
+    a.responder(
+      new Response(
+        new ReadableStream({
+          start(controlador) {
+            controlador.enqueue(new Uint8Array(600_000));
+          },
+          cancel() {
+            cancelado = true;
+          },
+        }),
+      ),
+    );
+    await expect(a.cliente.lerDiario({ mundoId: MUNDO, cerca: 3, apos: 0 })).rejects.toMatchObject({
+      codigo: "INDISPONIVEL",
+    });
+    expect(cancelado).toBe(true);
+  });
   it("registra com o segredo e o jogo, e passa a mandar o id da instância", async () => {
     const a = ambiente();
     await a.registrado();
@@ -166,7 +230,9 @@ describe("cliente HTTP das instâncias", () => {
       schemaVersion: 1,
       tipo: "checkpoint",
       bytes: 3,
-      sha256: SHA,
+      sha256: createHash("sha256")
+        .update(new Uint8Array([7, 8, 9]))
+        .digest("hex"),
     };
     a.responder(
       new Response(new Uint8Array([7, 8, 9]), {
@@ -182,6 +248,29 @@ describe("cliente HTTP das instâncias", () => {
       `https://recreio.test/api/interno/v1/mundos/${MUNDO}/fotografia?cerca=2`,
     );
     expect(await a.cliente.lerFotografia({ mundoId: MUNDO, cerca: 2 })).toBeNull();
+  });
+
+  it("recusa fotografia alterada de mesmo tamanho antes de entregar ao jogo", async () => {
+    const a = ambiente();
+    await a.registrado();
+    const original = new Uint8Array([7, 8, 9]);
+    const alterada = new Uint8Array([7, 0, 9]);
+    const meta = {
+      revisao: 1,
+      diarioSeq: 0,
+      tick: 0,
+      schemaVersion: 1,
+      tipo: "checkpoint",
+      bytes: original.length,
+      sha256: createHash("sha256").update(original).digest("hex"),
+    };
+    a.responder(
+      new Response(alterada, { headers: { "x-recreio-fotografia": jsonParaCabecalho(meta) } }),
+      new Response(original, { headers: { "x-recreio-fotografia": jsonParaCabecalho(meta) } }),
+    );
+    const pedido = { mundoId: MUNDO, cerca: 2 };
+    await expect(a.cliente.lerFotografia(pedido)).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+    expect((await a.cliente.lerFotografia(pedido))?.bytes).toEqual(original);
   });
 
   it("fotografia cortada no caminho ou sem metadados não é entregue", async () => {
@@ -206,6 +295,42 @@ describe("cliente HTTP das instâncias", () => {
     await expect(a.cliente.lerFotografia(pedido)).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
     await expect(a.cliente.lerFotografia(pedido)).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
   });
+
+  it.each(["metadados", "corpo"] as const)(
+    "cancela uma fotografia quando %s excedem o tamanho admitido",
+    async (motivo) => {
+      const a = ambiente();
+      await a.registrado();
+      let cancelou = false;
+      const corpo = new ReadableStream<Uint8Array>({
+        start(controlador) {
+          controlador.enqueue(new Uint8Array([1, 2, 3]));
+        },
+        cancel() {
+          cancelou = true;
+        },
+      });
+      a.responder(
+        new Response(corpo, {
+          headers: {
+            "x-recreio-fotografia": jsonParaCabecalho({
+              revisao: 1,
+              diarioSeq: 0,
+              tick: 0,
+              schemaVersion: 1,
+              tipo: "checkpoint",
+              bytes: motivo === "metadados" ? 4 * 1024 * 1024 + 1 : 2,
+              sha256: SHA,
+            }),
+          },
+        }),
+      );
+      await expect(a.cliente.lerFotografia({ mundoId: MUNDO, cerca: 1 })).rejects.toMatchObject({
+        codigo: "INDISPONIVEL",
+      });
+      expect(cancelou).toBe(true);
+    },
+  );
 
   it("toda recusa vira ErroDoRecreio com o código e o detalhe do Recreio", async () => {
     const a = ambiente();

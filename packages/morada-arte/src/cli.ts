@@ -5,7 +5,9 @@ import { ZodError } from "zod";
 import { empacotar, type Resultado } from "./empacotar";
 import { ErroDeArte, lerJson, validar } from "./erros";
 import { Biblioteca } from "./leitura/biblioteca";
+import { elencoDaCriacao } from "./personagem/criacao";
 import { ElencoDeEntradaSchema, type Personagem } from "./personagem/esquema";
+import { OPCOES_PADRAO } from "./personagem/montagem";
 import { ELENCO_DA_PROVA } from "./personagem/prova";
 import { personagemDoElenco } from "./personagem/resolucao";
 
@@ -27,6 +29,9 @@ const USO = `uso: tsx src/cli.ts --arte <ARTES_3D_DIR> --saida <pasta> [opções
   --elenco <id,id,...>     personagens prontos de codigo/arte/elenco.json
   --personagens <arquivo>  descrições de personagens em JSON (formato "morada-elenco")
   --commit <hash>          commit da arte, quando a pasta não é um clone do git
+  --casa <arquivo>         modelo de imóvel do jogo: inclui seus móveis, acabamentos e encaixes
+  --cores-parametricas    perfil V3 com canais de cor editáveis (exige cliente compatível)
+  --criacao              coleção inicial de criação e elenco legado (perfil V3)
   --ajuda                  mostra este texto
 `;
 
@@ -38,6 +43,9 @@ type Argumentos = {
   personagens: string | null;
   commit: string | null;
   ajuda: boolean;
+  casa: string | null;
+  coresParametricas: boolean;
+  criacao: boolean;
 };
 
 export function lerArgumentos(argv: readonly string[], ambiente: NodeJS.ProcessEnv): Argumentos {
@@ -49,6 +57,9 @@ export function lerArgumentos(argv: readonly string[], ambiente: NodeJS.ProcessE
     personagens: null,
     commit: null,
     ajuda: false,
+    casa: null,
+    coresParametricas: false,
+    criacao: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const opcao = argv[i];
@@ -66,6 +77,9 @@ export function lerArgumentos(argv: readonly string[], ambiente: NodeJS.ProcessE
     else if (opcao === "--elenco") args.elenco.push(...valor().split(",").filter(Boolean));
     else if (opcao === "--personagens") args.personagens = valor();
     else if (opcao === "--commit") args.commit = valor();
+    else if (opcao === "--casa") args.casa = valor();
+    else if (opcao === "--cores-parametricas") args.coresParametricas = true;
+    else if (opcao === "--criacao") args.criacao = true;
     else if (opcao === "--ajuda" || opcao === "--help" || opcao === "-h") args.ajuda = true;
     else throw new ErroDeArte("linha de comando", "opção desconhecida", opcao);
   }
@@ -97,7 +111,8 @@ function personagensPedidos(args: Argumentos, arte: string, base: string): Perso
       lista.push(personagemDoElenco(entrada));
     }
   }
-  if (args.prova || lista.length === 0) lista.unshift(...ELENCO_DA_PROVA);
+  if (args.criacao) lista.push(...elencoDaCriacao());
+  if (args.prova || args.criacao || lista.length === 0) lista.unshift(...ELENCO_DA_PROVA);
   return lista;
 }
 
@@ -144,6 +159,21 @@ export function tabela(resultado: Resultado): string {
       gzip: total.gzip + b.gzip,
       brotli: total.brotli + b.brotli,
     };
+  }
+  linhas.push("");
+  linhas.push("ambiente          arquivo                              kB     gzip   brotli");
+  for (const p of [
+    ...resultado.ambiente.objetos,
+    ...resultado.ambiente.aberturas,
+    ...resultado.ambiente.acabamentos,
+  ]) {
+    const resumo = resultado.recursos.find((x) => x.arquivo === p.arquivo);
+    linhas.push(
+      `${p.id.padEnd(17)} ${p.arquivo} ${kb(p.bytes)} ${kb(resumo?.gzip ?? 0)} ${kb(resumo?.brotli ?? 0)}`,
+    );
+    total.bytes += p.bytes;
+    total.gzip += resumo?.gzip ?? 0;
+    total.brotli += resumo?.brotli ?? 0;
   }
   linhas.push("");
   linhas.push(
@@ -199,6 +229,12 @@ export async function executar(
       arte,
       saida,
       personagens: personagensPedidos(args, arte, base),
+      ...(args.coresParametricas
+        ? { montagem: { ...OPCOES_PADRAO, coresParametricas: true } }
+        : {}),
+      ...(args.casa
+        ? { casa: lerJson(readFileSync(resolve(base, args.casa), "utf8"), args.casa) }
+        : {}),
       ...(args.commit ? { commit: args.commit } : {}),
       aoAvancar: (mensagem) => process.stderr.write(`${mensagem}\n`),
     });

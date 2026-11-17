@@ -15,7 +15,6 @@ type Props = {
   isPro: boolean;
   currentCount: number;
   canUseAi?: boolean;
-  trialAvailable?: boolean;
   credits?: number | null;
   hasRecentPreviews?: boolean;
   /** Opens the sheet on arrival, e.g. from "Prefiro trazer uma receita minha". */
@@ -48,7 +47,6 @@ export function NewRecipeButton({
   isPro,
   currentCount,
   canUseAi = isPro,
-  trialAvailable = false,
   credits = null,
   hasRecentPreviews = false,
   defaultOpen = false,
@@ -86,7 +84,6 @@ export function NewRecipeButton({
         open={view === "picker"}
         onOpenChange={closeWith}
         canUseAi={canUseAi}
-        trialAvailable={trialAvailable}
         credits={credits}
         hasRecentPreviews={hasRecentPreviews}
         onPick={(method) => {

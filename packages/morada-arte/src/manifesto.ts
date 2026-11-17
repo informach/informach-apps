@@ -8,7 +8,13 @@ import { z } from "zod";
  */
 
 export const FORMATO_DO_MANIFESTO = "morada-arte";
-export const VERSAO_DO_MANIFESTO = 1;
+export const VERSAO_DO_MANIFESTO = 2;
+/** Perfil de cores editáveis; o escritor legado conserva V1/V2. */
+export const VERSAO_DO_MANIFESTO_PARAMETRICO = 3;
+export const MAXIMO_DE_CANAIS_DE_COR = 16;
+export const ATRIBUTO_CANAL_DE_COR = "_MORADA_CANAL_COR";
+export const ATRIBUTO_MASCARA_DE_COR = "_MORADA_MASCARA_COR";
+export const ATRIBUTO_PESO_DE_COR = "_MORADA_PESO_COR";
 
 /** O nome do manifesto na pasta dos pacotes. */
 export const ARQUIVO_DO_MANIFESTO = "manifest.json";
@@ -22,6 +28,73 @@ export const SUFIXO_BROTLI = ".br";
 const ponto = z.tuple([z.number(), z.number(), z.number()]);
 const arquivo = z.string().regex(/^[a-z0-9_-]+\.[0-9a-f]{10}\.glb$/, "nome com hash do conteúdo");
 const inteiro = z.number().int().nonnegative();
+
+export const CanalDeCorSchema = z
+  .strictObject({
+    id: z.string().regex(/^[a-z][a-z0-9_]{0,63}$/),
+    origem: z.enum(["pele", "rosto", "cabelo", "roupa"]),
+    parte: z
+      .string()
+      .regex(/^[a-z][a-z0-9_]{0,39}$/)
+      .nullable(),
+    /** Fatores lineares; a pele divide o RGB pela referência da paleta. */
+    inicial: z.tuple([
+      z.number().min(0).max(4096),
+      z.number().min(0).max(4096),
+      z.number().min(0).max(4096),
+    ]),
+  })
+  .superRefine((canal, ctx) => {
+    if ((canal.origem === "roupa") !== (canal.parte !== null))
+      ctx.addIssue({ code: "custom", message: "Somente roupa declara uma parte" });
+  });
+
+export const MascaraDeCorSchema = z.strictObject({
+  arquivo: z.string().regex(/^mascara\.[0-9a-f]{10}\.png$/),
+  bytes: z.number().int().positive(),
+  largura: z.number().int().positive().max(16384),
+  altura: z.number().int().positive().max(16384),
+});
+
+export const CoresDoPersonagemSchema = z
+  .strictObject({
+    referenciaDePele: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/)
+      .refine(
+        (hex) =>
+          [1, 3, 5].every((inicio) => Number.parseInt(hex.slice(inicio, inicio + 2), 16) > 0),
+        "A referência da pele precisa dos três componentes positivos",
+      ),
+    canais: z.array(CanalDeCorSchema).min(1).max(MAXIMO_DE_CANAIS_DE_COR),
+    mascaras: z.array(MascaraDeCorSchema).max(128).optional(),
+  })
+  .superRefine(({ canais }, ctx) => {
+    const ids = new Set<string>();
+    const destinos = new Set<string>();
+    for (const canal of canais) {
+      const destino = canal.origem === "roupa" ? `roupa:${canal.parte}` : canal.origem;
+      if (ids.has(canal.id) || destinos.has(destino))
+        ctx.addIssue({ code: "custom", message: "Canal de cor repetido" });
+      ids.add(canal.id);
+      destinos.add(destino);
+    }
+  });
+
+/** Extras de um material opaco; a máscara é outra imagem, na sua grade original. */
+export const MaterialDeCorSchema = z.discriminatedUnion("tipo", [
+  z.strictObject({ tipo: z.literal("vertices") }),
+  z.strictObject({
+    tipo: z.literal("textura"),
+    canal: z
+      .number()
+      .int()
+      .min(0)
+      .max(MAXIMO_DE_CANAIS_DE_COR - 1),
+    luminancia: z.number().min(0).max(1),
+    mascara: MascaraDeCorSchema.shape.arquivo,
+  }),
+]);
 
 export const ExpressaoSchema = z.strictObject({
   /** `neutro`, `feliz`, `triste`, `bravo`, `dormindo`, `chorando`, `surpreso`. */
@@ -129,9 +202,74 @@ export const BibliotecaDoManifestoSchema = z.strictObject({
   ),
 });
 
-export const ManifestoSchema = z.strictObject({
+const desenho = z.strictObject({
+  chamadas: inteiro,
+  triangulos: inteiro,
+  vertices: inteiro,
+  texturas: inteiro,
+});
+
+/** Limites medidos no GLB, em metros no referencial do objeto. */
+export const ObjetoDoManifestoSchema = z.strictObject({
+  id: z.string().min(1),
+  versao: z.number().int().positive(),
+  arquivo,
+  bytes: inteiro,
+  limites: z.tuple([ponto, ponto]),
+  /** Alturas das superfícies de uso, em metros, por id do ponto da simulação. */
+  apoios: z.record(z.string(), z.number().nonnegative()),
+  desenho,
+});
+
+export const AcabamentoDoManifestoSchema = z.strictObject({
+  id: z.string().min(1),
+  arquivo: z.string().regex(/^[a-z0-9_-]+\.[0-9a-f]{10}\.png$/),
+  bytes: inteiro,
+  /** Tamanho de uma repetição em metros (piso 2 m, parede 3 m). */
+  escala: z.number().positive(),
+});
+
+export const AberturaDoManifestoSchema = z.strictObject({
+  id: z.string().min(1),
+  tipo: z.enum(["porta", "janela"]),
+  largura: z.number().positive(),
+  altura: z.number().positive(),
+  peitoril: z.number().nonnegative(),
+  arquivo,
+  bytes: inteiro,
+  desenho,
+});
+
+export const PersonagemParametricoSchema = PersonagemDoManifestoSchema.extend({
+  cores: CoresDoPersonagemSchema.optional(),
+  criacao: z
+    .strictObject({
+      rotuloDoCabelo: z.string().min(1).max(40),
+      rotuloDaRoupa: z.string().min(1).max(40),
+      corDoCabelo: z.number().int().min(0).max(0xffffff),
+      coresDaRoupa: z.record(
+        z.string().regex(/^[a-z][a-z0-9_]{0,39}$/),
+        z.number().int().min(0).max(0xffffff),
+      ),
+    })
+    .optional(),
+}).superRefine((personagem, ctx) => {
+  if (!personagem.criacao) return;
+  if (!personagem.cores || !personagem.sim || personagem.sim.corpo !== personagem.corpo) {
+    ctx.addIssue({ code: "custom", message: "Criação exige canais e aparência correspondente" });
+    return;
+  }
+  const slots = personagem.cores.canais
+    .filter((c) => c.origem === "roupa")
+    .map((c) => c.parte)
+    .sort();
+  const escolhidos = Object.keys(personagem.criacao.coresDaRoupa).sort();
+  if (JSON.stringify(slots) !== JSON.stringify(escolhidos))
+    ctx.addIssue({ code: "custom", message: "Cores iniciais fora dos canais de roupa" });
+});
+
+const campos = {
   formato: z.literal(FORMATO_DO_MANIFESTO),
-  versao: z.literal(VERSAO_DO_MANIFESTO),
   arte: z.strictObject({
     repositorio: z.string().min(1),
     /** Commit do repositório de arte de que os pacotes saíram. */
@@ -142,12 +280,38 @@ export const ManifestoSchema = z.strictObject({
   }),
   personagens: z.array(PersonagemDoManifestoSchema),
   bibliotecas: z.array(BibliotecaDoManifestoSchema),
-});
+};
+
+/** Perfis antigos continuam legíveis; a aparência parametrizada usa V3. */
+export const ManifestoSchema = z.discriminatedUnion("versao", [
+  z.strictObject({ ...campos, versao: z.literal(1) }),
+  z.strictObject({
+    ...campos,
+    versao: z.literal(2),
+    objetos: z.array(ObjetoDoManifestoSchema),
+    acabamentos: z.array(AcabamentoDoManifestoSchema),
+    aberturas: z.array(AberturaDoManifestoSchema),
+  }),
+  z.strictObject({
+    ...campos,
+    versao: z.literal(3),
+    personagens: z.array(PersonagemParametricoSchema),
+    objetos: z.array(ObjetoDoManifestoSchema),
+    acabamentos: z.array(AcabamentoDoManifestoSchema),
+    aberturas: z.array(AberturaDoManifestoSchema),
+  }),
+]);
 
 export type Manifesto = z.infer<typeof ManifestoSchema>;
-export type PersonagemDoManifesto = z.infer<typeof PersonagemDoManifestoSchema>;
+export type PersonagemDoManifesto = z.infer<typeof PersonagemParametricoSchema>;
+export type CanalDeCor = z.infer<typeof CanalDeCorSchema>;
+export type CoresDoPersonagem = z.infer<typeof CoresDoPersonagemSchema>;
+export type MaterialDeCor = z.infer<typeof MaterialDeCorSchema>;
 export type BibliotecaDoManifesto = z.infer<typeof BibliotecaDoManifestoSchema>;
 export type ClipeDoManifesto = z.infer<typeof ClipeDoManifestoSchema>;
+export type ObjetoDoManifesto = z.infer<typeof ObjetoDoManifestoSchema>;
+export type AcabamentoDoManifesto = z.infer<typeof AcabamentoDoManifestoSchema>;
+export type AberturaDoManifesto = z.infer<typeof AberturaDoManifestoSchema>;
 
 /**
  * Todos os arquivos que um manifesto cita, mais ele mesmo: é a lista inteira
@@ -155,8 +319,22 @@ export type ClipeDoManifesto = z.infer<typeof ClipeDoManifestoSchema>;
  */
 export function arquivosDoManifesto(manifesto: Manifesto): string[] {
   return [
-    ARQUIVO_DO_MANIFESTO,
-    ...manifesto.personagens.map((p) => p.arquivo),
-    ...manifesto.bibliotecas.map((b) => b.arquivo),
+    ...new Set([
+      ARQUIVO_DO_MANIFESTO,
+      ...manifesto.personagens.map((p) => p.arquivo),
+      ...manifesto.bibliotecas.map((b) => b.arquivo),
+      ...mascarasDoManifesto(manifesto).map((m) => m.arquivo),
+      ...(manifesto.versao !== 1
+        ? [...manifesto.objetos, ...manifesto.acabamentos, ...manifesto.aberturas].map(
+            (x) => x.arquivo,
+          )
+        : []),
+    ]),
   ];
+}
+
+export function mascarasDoManifesto(manifesto: Manifesto): z.infer<typeof MascaraDeCorSchema>[] {
+  return manifesto.versao === 3
+    ? manifesto.personagens.flatMap((p) => p.cores?.mascaras ?? [])
+    : [];
 }

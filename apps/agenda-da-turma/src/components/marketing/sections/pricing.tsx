@@ -6,17 +6,15 @@ import { Minus } from "lucide-react";
 import { useState } from "react";
 import {
   type BillingCycle,
+  COMPASSO_FEATURES,
   FREE_FEATURES,
-  FREE_TRIAL_READS,
   type PlanFeature,
   PRICING,
-  PRO_FEATURES,
   SMALLEST_PACK_PRICE,
+  TRIAL_DAYS,
 } from "@/features/billing/plans-content";
 import { EYEBROW, H2, SEC, SEC_LIGHT, SHEET, WRAP } from "../landing-ui";
 import { SalesCta } from "../sales-cta";
-
-const TRIAL_WORDS: Record<number, string> = { 3: "três", 4: "quatro", 5: "cinco", 6: "seis" };
 
 function Features({ items }: { items: PlanFeature[] }) {
   return (
@@ -58,8 +56,7 @@ export function Pricing() {
         <div className="flex max-w-[720px] flex-col items-center gap-4 text-center">
           <p className={EYEBROW}>Planos</p>
           <h2 id="pricing-title" className={H2}>
-            Experimente com {TRIAL_WORDS[FREE_TRIAL_READS] ?? FREE_TRIAL_READS} recados. Fique se a
-            semana melhorar.
+            Experimente o Compasso por {TRIAL_DAYS} dias, sem cartão.
           </h2>
         </div>
         <fieldset className="flex gap-1 rounded-[14px] bg-card p-1">
@@ -87,23 +84,19 @@ export function Pricing() {
             <div>
               <h3 className="text-[22px] font-bold">Grátis</h3>
               <p className="mt-1.5 text-base text-muted-foreground">
-                Para experimentar com uma criança.
+                Para organizar a rotina de uma criança.
               </p>
             </div>
             <p className="text-[52px] font-extrabold leading-tight tracking-[-0.04em]">R$ 0</p>
             <Features items={FREE_FEATURES} />
-            <SalesCta
-              placement="pricing"
-              secondary
-              label="Começar com um recado"
-              className="mt-auto"
-            />
+            <SalesCta placement="pricing" secondary label="Criar minha conta" className="mt-auto" />
           </article>
           <article className={cn(SHEET, "flex flex-col gap-[18px] border-2 border-primary p-8")}>
             <div>
-              <h3 className="text-[22px] font-bold">Pro</h3>
+              <h3 className="text-[22px] font-bold">Compasso</h3>
               <p className="mt-1.5 text-base text-muted-foreground">
-                Para a casa inteira acompanhar junto.
+                Uma assinatura para os apps web da família. Recreio, Morada e Suíte Edi são
+                separados.
               </p>
             </div>
             <div aria-live="polite" aria-atomic="true" className="flex flex-col gap-2.5">
@@ -115,12 +108,12 @@ export function Pricing() {
               </p>
               <p className="-mt-2 text-[15px] text-foreground/80">{price.landingNote}</p>
             </div>
-            <Features items={PRO_FEATURES} />
+            <Features items={COMPASSO_FEATURES} />
             <SalesCta placement="pricing" cycle={cycle} className="mt-auto" />
             <p className="text-sm leading-normal text-muted-foreground">
               Cancele quando quiser. O que já está na Agenda continua lá para consultar.
               {SMALLEST_PACK_PRICE
-                ? ` Se as leituras acabarem antes do fim do mês, dá para comprar mais a partir de ${SMALLEST_PACK_PRICE}.`
+                ? ` Recargas de créditos sem vencimento a partir de ${SMALLEST_PACK_PRICE}.`
                 : ""}
             </p>
           </article>

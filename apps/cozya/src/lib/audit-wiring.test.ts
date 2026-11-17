@@ -45,9 +45,9 @@ type AuthConfig = {
     onAuditEvent?: unknown;
     onAuditPersistenceFailure?: unknown;
   };
-  accountDeletion?: {
-    onBeforeDelete?: (user: { id: string }) => Promise<void>;
-  };
+  accountDeletion?: unknown;
+  webSso?: { role: string; app: string };
+  secondaryStorage?: unknown;
 };
 
 type AuditHookConfig = {
@@ -66,12 +66,6 @@ vi.mock("@informach/auth", () => ({
 vi.mock("@informach/auth/server", () => ({
   createServerHelpers: mocks.createServerHelpers,
 }));
-
-vi.mock("@/features/account/repository", () => ({
-  hasOtherAppSubscriptions: vi.fn(async () => false),
-  clearCozyaData: vi.fn(async () => undefined),
-}));
-vi.mock("@/features/account/legacy-ai", () => ({ purgeLegacyCozyaAi: vi.fn(async () => 0) }));
 
 vi.mock("@informach/billing", () => ({
   createBillingService: mocks.createBillingService,
@@ -121,8 +115,8 @@ vi.mock("@sentry/nextjs", () => ({
 function stubEnv(): void {
   vi.stubEnv("DATABASE_URL", "postgresql://user:pass@localhost:5432/app");
   vi.stubEnv("BETTER_AUTH_SECRET", "0123456789abcdef0123456789abcdef");
-  vi.stubEnv("BETTER_AUTH_URL", "https://cozya.example.com");
-  vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://cozya.example.com");
+  vi.stubEnv("BETTER_AUTH_URL", "https://cozya.informach.com.br");
+  vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://cozya.informach.com.br");
   vi.stubEnv("SENDGRID_API_KEY", "SG.test");
   vi.stubEnv("SENDGRID_FROM", "noreply@cozya.example.com");
   vi.stubEnv("EMAIL_SANDBOX_MODE", "memory");
@@ -148,16 +142,14 @@ describe("audit wiring", () => {
 
     const createAuthCalls = mocks.createAuth.mock.calls as unknown as Array<[AuthConfig]>;
     const authConfig = createAuthCalls[0]?.[0];
-    expect(authConfig?.unsubscribeMailto).toBe("unsubscribe@cozya.example.com");
+    expect(authConfig?.unsubscribeMailto).toBe("unsubscribe@cozya.informach.com.br");
     expect(authConfig?.observability?.onAuditEvent).toBeTypeOf("function");
     expect(authConfig?.observability?.onAuditPersistenceFailure).toBeTypeOf("function");
     expect(mocks.createBillingService).not.toHaveBeenCalled();
-    expect(authConfig?.accountDeletion?.onBeforeDelete).toBeTypeOf("function");
-    if (!authConfig?.accountDeletion?.onBeforeDelete) {
-      throw new Error("missing account deletion hook");
-    }
-
-    await authConfig.accountDeletion.onBeforeDelete({ id: "user-1" });
+    expect(authConfig?.accountDeletion).toBeUndefined();
+    expect(authConfig?.secondaryStorage).toBeUndefined();
+    expect(authConfig?.webSso).toMatchObject({ role: "client", app: "cozya" });
+    await import("@/features/billing/service");
 
     const createBillingServiceCalls = mocks.createBillingService.mock.calls as unknown as Array<
       [AuditHookConfig]

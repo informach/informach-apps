@@ -1,6 +1,6 @@
 import { ErroDoRecreio } from "@informach/recreio";
 import { PedidoDeIngressoSchema } from "@informach/recreio/contrato";
-import { perfilAtivo } from "@/features/sessao/ator";
+import { jogadorDoAparelho } from "@/features/autoridade-de-jogo/http";
 import { emitirIngresso } from "@/features/sessao-de-jogo/service";
 import { corpoJson, json, mesmaOrigem, responder } from "@/lib/http";
 
@@ -15,6 +15,6 @@ export function POST(request: Request) {
   return responder(async () => {
     if (!mesmaOrigem(request)) throw new ErroDoRecreio("ACESSO_NEGADO", { motivo: "origem" });
     const pedido = await corpoJson(request, PedidoDeIngressoSchema, 1024);
-    return json(await emitirIngresso(await perfilAtivo(), pedido));
+    return json(await emitirIngresso(await jogadorDoAparelho(), pedido));
   });
 }

@@ -3,14 +3,12 @@ import { ArrowLeft, Camera, Check, Hand, Play } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/avatar";
+import { MAX_JUNTO, MIN_JUNTO } from "@/features/sessoes/limits";
 import { voltar } from "@/lib/voltar";
 import { unlockAudio } from "../engine/voice";
 
-export const MIN_JUNTO = 2;
-export const MAX_JUNTO = 4;
-
 /**
- * Treinar junto (o extra, não o centro): 2 a 4 perfis no mesmo treino de séries, em rodízio. Cada
+ * Treinar junto (o extra, não o centro): os perfis autorizados no mesmo treino de séries, em rodízio. Cada
  * um faz a sua série com o seu nível; no fim, cada perfil ganha o próprio treino salvo.
  */
 export function JuntoScreen({
@@ -60,7 +58,9 @@ export function JuntoScreen({
         </p>
 
         <fieldset className="escolhas linha junto-perfis">
-          <legend>Quem vai treinar? (de 2 a 4)</legend>
+          <legend>
+            Quem vai treinar? (de {MIN_JUNTO} a {MAX_JUNTO})
+          </legend>
           {perfis.map((p) => (
             <label key={p.id} className="escolha curta">
               <input

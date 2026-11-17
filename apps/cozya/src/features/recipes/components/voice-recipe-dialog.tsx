@@ -11,6 +11,7 @@ import {
 import { toast } from "@informach/ui/components/sonner";
 import { SpeechInput } from "@informach/ui/components/speech-input";
 import { useState } from "react";
+import { COZYA_AI_COSTS } from "@/features/ai/costs";
 import { type ParsedRecipeFields, useAiRequest } from "./use-ai-request";
 
 export type { ParsedRecipeFields } from "./use-ai-request";
@@ -41,7 +42,12 @@ export function VoiceRecipeDialog({ open, onOpenChange, onParsed }: Props) {
       const body = new FormData();
       body.append("audio", audio, "recipe.webm");
       body.append("mode", "recipe");
-      const data = await requestAi("/api/ai/recipes/from-audio", body, audio);
+      const data = await requestAi(
+        "/api/ai/recipes/from-audio",
+        body,
+        COZYA_AI_COSTS.audioRecipe,
+        audio,
+      );
       if (!data) return "";
       if (!data.isValidRecipe) {
         setReason(data.reason ?? "Não identifiquei uma receita. Nenhum crédito foi consumido.");
@@ -65,14 +71,15 @@ export function VoiceRecipeDialog({ open, onOpenChange, onParsed }: Props) {
         <DialogHeader>
           <DialogTitle>Nova receita por voz</DialogTitle>
           <DialogDescription>
-            Descreva ingredientes e preparo em até 3 minutos. A tarefa completa consome 1 crédito,
-            incluindo a transcrição. Você revisa antes de salvar.
+            Descreva ingredientes e preparo em até 2 minutos. Reserva até{" "}
+            {COZYA_AI_COSTS.audioRecipe.maxCredits} créditos compartilhados, incluindo transcrição e
+            interpretação. Cobra o consumo ao concluir e libera a diferença.
           </DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center gap-4 py-4">
           <SpeechInput
             aria-label="Gravar receita por voz"
-            maxDurationMs={180000}
+            maxDurationMs={120000}
             size="lg"
             variant="outline"
             className="size-16 rounded-full"

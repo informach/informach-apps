@@ -5,11 +5,15 @@ import { afterAll, expect, it } from "vitest";
 import { findLesson } from "@/features/content/catalog";
 import { independenceProgress, skillStates } from "@/features/learning/engine";
 import { history, recordAnswer } from "@/features/learning/repository";
-import { begin, createProfile } from "@/features/learning/service";
+import { begin } from "@/features/learning/service";
+import { fixtureAuthority, prepareStudent } from "./family-fixture";
 
 const owners: string[] = [];
 afterAll(async () => {
-  await db.delete(users).where(inArray(users.id, owners));
+  await db
+    .update(users)
+    .set({ banned: true, emailVerified: false })
+    .where(inArray(users.id, owners));
 });
 it("enforces separate recovery days on the server, preserves fresh evidence and respects course access", async () => {
   const owner = randomUUID();
@@ -20,7 +24,7 @@ it("enforces separate recovery days on the server, preserves fresh evidence and 
     name: "Recuperação",
     emailVerified: true,
   });
-  const profile = await createProfile(owner, {
+  const profile = await prepareStudent(await fixtureAuthority(owner), {
     nickname: "Sol",
     grade: 6,
     avatar: "cometa",
@@ -30,14 +34,19 @@ it("enforces separate recovery days on the server, preserves fresh evidence and 
   const first = findLesson("fracoes-recuperacao-1");
   const second = findLesson("fracoes-recuperacao-2");
   if (!first || !second) throw new Error("Missing recovery");
-  const open = (id: string) =>
-    begin(owner, { profileId: profile.id, lessonId: id, mode: "review", requestKey: randomUUID() });
+  const open = async (id: string) =>
+    begin(await fixtureAuthority(owner), {
+      profileId: profile.id,
+      lessonId: id,
+      mode: "review",
+      requestKey: randomUUID(),
+    });
   await expect(open(second.id)).rejects.toMatchObject({ code: "RECOVERY_DATE" });
   await expect(open("funcoes-recuperacao-1")).rejects.toMatchObject({ code: "COURSE" });
   await expect(open("orcamento-recuperacao-1")).rejects.toMatchObject({ code: "PLAN" });
   const a = await open(first.id);
   for (const item of first.items)
-    await recordAnswer(owner, {
+    await recordAnswer(await fixtureAuthority(owner), {
       sessionId: a.id,
       itemId: item.id,
       answer:
@@ -55,7 +64,7 @@ it("enforces separate recovery days on the server, preserves fresh evidence and 
     .where(eq(missaoAttempts.sessionId, a.id));
   const b = await open(second.id);
   for (const item of second.items)
-    await recordAnswer(owner, {
+    await recordAnswer(await fixtureAuthority(owner), {
       sessionId: b.id,
       itemId: item.id,
       answer:
@@ -66,7 +75,7 @@ it("enforces separate recovery days on the server, preserves fresh evidence and 
             : "",
       requestKey: randomUUID(),
     });
-  const data = await history(owner, profile.id);
+  const data = await history(await fixtureAuthority(owner), profile.id);
   expect(skillStates(data.evidence)[0]).toMatchObject({
     level: "independent",
     independentFamilies: 3,

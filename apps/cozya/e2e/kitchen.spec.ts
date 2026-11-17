@@ -1,32 +1,29 @@
-import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
-import { expect, type Page, test } from "@playwright/test";
-import { extractOtp, waitForEmail } from "./fixtures/email";
+import { expect, type Locator, type Page, test } from "@playwright/test";
+import { browserFamily, enterCozya } from "./fixtures/compasso";
 
-async function signInHousehold(page: Page, baseURL: string | undefined) {
-  const email = `kitchen-browser-${randomUUID()}@e2e.local`;
-  const headers = { Origin: baseURL ?? "http://localhost:3102" };
-  const signup = await page.request.post("/api/auth/sign-up/email", {
-    headers,
-    data: { name: "Cozinha de teste", email, password: "Cozya-Teste-2026!" },
-  });
-  expect(signup.status()).toBe(200);
-  const message = await waitForEmail({ to: email, category: "auth.verify-email-otp" });
-  const verify = await page.request.post("/api/auth/email-otp/verify-email", {
-    headers,
-    data: { email, otp: extractOtp(message) },
-  });
-  expect(verify.status()).toBe(200);
-  const login = await page.request.post("/api/auth/sign-in/email", {
-    headers,
-    data: { email, password: "Cozya-Teste-2026!" },
-  });
-  expect(login.status()).toBe(200);
-  return email;
+async function signInHousehold(page: Page) {
+  const fixture = await browserFamily();
+  await enterCozya(page, fixture);
+  return fixture;
 }
 
 // Client-side navigations can land on a route the cold dev server compiles on first use.
 const COMPILE = { timeout: 60_000 };
+
+/** The optimistic check is visible before the server has persisted it. */
+async function markShoppingItem(page: Page, item: Locator) {
+  const [response] = await Promise.all([
+    page.waitForResponse(
+      (result) =>
+        result.request().method() === "POST" &&
+        !!result.request().headers()["next-action"] &&
+        new URL(result.url()).pathname === "/compras",
+    ),
+    item.click(),
+  ]);
+  expect(response.ok()).toBe(true);
+}
 
 /** A Monday far enough ahead that every day of it can still be planned, whatever day the suite runs. */
 function futureWeek(weeksAhead: number): string {
@@ -62,12 +59,11 @@ async function planFirstWeek(page: Page) {
 
 test("first week, plan with lunchboxes, shop, cook and say how it went on a phone", async ({
   page,
-  baseURL,
 }) => {
   test.setTimeout(240000); // Several previously uncompiled routes on a cold Next development server.
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await signInHousehold(page, baseURL);
+  await signInHousehold(page);
   await page.setViewportSize({ width: 390, height: 844 });
 
   // The old home still works as a bookmark and lands on Hoje.
@@ -78,7 +74,7 @@ test("first week, plan with lunchboxes, shop, cook and say how it went on a phon
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Pular para o conteúdo" })).toBeFocused();
 
-  // First week: three recipes, three days, and the 14 free days start on their own.
+  // First week uses coverage already activated explicitly in the central fixture.
   const putOnDays = await planFirstWeek(page);
   const contrast = await putOnDays.evaluate((button) => {
     const style = getComputedStyle(button);
@@ -225,7 +221,7 @@ test("first week, plan with lunchboxes, shop, cook and say how it went on a phon
   await expect(eggs).toContainText("18");
   await expect(cheese).toContainText("600 g");
   // Before leaving: what is already at home.
-  await eggs.click();
+  await markShoppingItem(page, eggs);
   await expect(eggs).toHaveAttribute("aria-pressed", "true");
   await page.reload();
   await expect(eggs).toHaveAttribute("aria-pressed", "true");
@@ -233,7 +229,7 @@ test("first week, plan with lunchboxes, shop, cook and say how it went on a phon
   // At the market: what is home is out of the way, the rest goes into the cart.
   await page.getByRole("button", { name: "No mercado", exact: true }).click();
   await expect(eggs).toHaveCount(0);
-  await cheese.click();
+  await markShoppingItem(page, cheese);
   await expect(cheese).toHaveAttribute("aria-pressed", "true");
   await page.reload();
   await expect(page.getByRole("button", { name: "No mercado", exact: true })).toHaveAttribute(
@@ -337,6 +333,7 @@ test("first week, plan with lunchboxes, shop, cook and say how it went on a phon
 
   let adaptations = 0;
   await page.route("**/api/ai/recipes/refine", async (route) => {
+    expect(route.request().headers()["x-compasso-ai-credits"]).toBe("3");
     adaptations++;
     await route.fulfill({
       json:
@@ -358,13 +355,13 @@ test("first week, plan with lunchboxes, shop, cook and say how it went on a phon
     });
   });
   await page.goto(recipePath);
-  await page.getByRole("button", { name: "Adaptar com IA · 1 crédito", exact: true }).click();
+  await page.getByRole("button", { name: /^Adaptar com IA · até \d+ créditos$/ }).click();
   await page.getByLabel("O que quer mudar?").fill("Trocar queijo por abobrinha");
-  await page.getByRole("button", { name: "Ver adaptação · 1 crédito", exact: true }).click();
+  await page.getByRole("button", { name: /^Ver adaptação · até \d+ créditos$/ }).click();
   await expect(page.getByRole("button", { name: "Revisar e salvar uma cópia" })).toBeVisible();
   await page.getByLabel("O que quer mudar?").fill("Uma mudança impossível");
   await expect(page.getByRole("button", { name: "Revisar e salvar uma cópia" })).toHaveCount(0);
-  await page.getByRole("button", { name: "Ver adaptação · 1 crédito", exact: true }).click();
+  await page.getByRole("button", { name: /^Ver adaptação · até \d+ créditos$/ }).click();
   await expect(page.getByText("Não consegui aplicar esta mudança.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Revisar e salvar uma cópia" })).toHaveCount(0);
   expect(adaptations).toBe(2);
@@ -400,12 +397,11 @@ test("first week, plan with lunchboxes, shop, cook and say how it went on a phon
 
 test("leaving microphone permission or recording stops capture without a paid request", async ({
   page,
-  baseURL,
 }) => {
   test.setTimeout(120000);
-  await signInHousehold(page, baseURL);
+  await signInHousehold(page);
   await page.goto("/hoje");
-  // The first week saves three recipes and opens the trial that the voice search needs.
+  // The first week saves three recipes using the existing central trial.
   await (await planFirstWeek(page)).click();
   await expect(page.getByText(/^Teste: 1[34] dias$/)).toBeVisible(COMPILE);
   await page
@@ -449,8 +445,8 @@ test("leaving microphone permission or recording stops capture without a paid re
     });
   });
   const openVoice = async () => {
-    await page.getByRole("button", { name: "Ditar busca · 1 crédito", exact: true }).click();
-    await expect(page.getByText(/A transcrição custa 1 crédito quando concluída/)).toBeVisible();
+    await page.getByRole("button", { name: /^Ditar busca · até \d+ créditos$/ }).click();
+    await expect(page.getByText(/Custa 1 crédito por minuto iniciado/)).toBeVisible();
     await page.getByRole("button", { name: "Gravar termo de busca", exact: true }).click();
   };
   const micState = () =>

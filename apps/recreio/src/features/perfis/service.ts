@@ -5,10 +5,16 @@ import {
   PerfilIdSchema,
   type SessaoDeAparelhoId,
 } from "@informach/recreio";
+import type { IdentidadeNativa } from "@/features/account/autoridade-repository";
 import { definirPerfilAtivo } from "@/features/sessao/repository";
 import { AppError } from "@/lib/errors";
-import { NovoPerfilSchema } from "./regras";
-import { criarPerfilDaConta, type PerfilDoRecreio, perfisDaConta } from "./repository";
+import { EdicaoDoPerfilSchema, NovoPerfilSchema } from "./regras";
+import {
+  criarPerfilDaConta,
+  editarPerfilDaConta,
+  type PerfilDoRecreio,
+  perfisDaConta,
+} from "./repository";
 
 export type { PerfilDoRecreio } from "./repository";
 
@@ -23,10 +29,17 @@ export function perfisSelecionaveis(contaId: ContaId): Promise<PerfilDoRecreio[]
 
 /** Cria o perfil da própria conta. Uma conta tem um só; repetir devolve o que já existe. */
 export async function criarPerfilProprio(
-  contaId: ContaId,
+  ator: IdentidadeNativa,
   entrada: unknown,
 ): Promise<{ perfil: PerfilDoRecreio; criado: boolean }> {
-  return criarPerfilDaConta(contaId, NovoPerfilSchema.parse(entrada));
+  return criarPerfilDaConta(ator, NovoPerfilSchema.parse(entrada));
+}
+
+export async function editarPerfilProprio(
+  ator: { contaId: ContaId; sessaoDeAparelhoId: SessaoDeAparelhoId },
+  entrada: unknown,
+): Promise<PerfilDoRecreio> {
+  return editarPerfilDaConta(ator, EdicaoDoPerfilSchema.parse(entrada));
 }
 
 /**

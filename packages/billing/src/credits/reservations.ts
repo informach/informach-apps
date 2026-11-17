@@ -27,6 +27,7 @@ import type {
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 import { getBalance } from "./balance";
+import { lockCreditOwner } from "./locks";
 
 const DEFAULT_TTL_SECONDS = 600;
 const UUID_V4_OR_COMPATIBLE_RE =
@@ -42,6 +43,8 @@ export type ReserveCreditsInput = {
   owner: CreditOwner;
   estimatedAmount: number;
   app: string;
+  actorUserId?: string;
+  personId?: string;
   feature: string;
   model?: string;
   runId?: string;
@@ -71,6 +74,8 @@ export type ConsumeCreditsInput = {
   owner: CreditOwner;
   amount: number;
   app: string;
+  actorUserId?: string;
+  personId?: string;
   feature: string;
   model?: string;
   runId?: string;
@@ -83,13 +88,12 @@ export type ConsumeCreditsResult =
 
 export type ReservationsDeps = {
   db: Database;
+  /** Stable commercial scope; the input app records the actual consumer. */
+  walletScope?: string;
+  authorizeSpend?: (tx: Tx, input: ReserveCreditsInput | ConsumeCreditsInput) => Promise<void>;
   logger?: Logger;
   onAudit?: (event: BillingAuditEvent) => void;
 };
-
-function ownerKey(owner: CreditOwner): string {
-  return `${owner.type}:${owner.id}`;
-}
 
 function clampTtl(seconds?: number): number {
   const ttl = seconds ?? DEFAULT_TTL_SECONDS;
@@ -100,7 +104,7 @@ function clampTtl(seconds?: number): number {
 }
 
 function assertPositiveInteger(value: number, field: string): void {
-  if (!Number.isInteger(value) || value <= 0) {
+  if (!Number.isSafeInteger(value) || value <= 0 || value > 2_147_483_647) {
     throw new BillingError(`${field} must be a positive integer`);
   }
 }
@@ -109,17 +113,6 @@ function assertUuid(value: string, field: string): void {
   if (!UUID_V4_OR_COMPATIBLE_RE.test(value)) {
     throw new BillingError(`${field} must be a UUID`);
   }
-}
-
-/**
- * Acquires a Postgres advisory lock scoped to (owner_type, owner_id) for the
- * lifetime of the current transaction. Released automatically on COMMIT/ROLLBACK.
- *
- * `pg_advisory_xact_lock(hashtext(...))` is O(1) and only serializes operations
- * for the SAME owner — different owners never block each other.
- */
-async function lockOwnerForTx(tx: Tx, owner: CreditOwner): Promise<void> {
-  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${ownerKey(owner)}))`);
 }
 
 /**
@@ -150,8 +143,12 @@ export async function reserveCredits(
 
   return deps.db.transaction(
     async (tx) => {
-      await lockOwnerForTx(tx, input.owner);
-      const { total, reserved } = await readBalanceForOwner(tx, input.owner, input.app);
+      if (input.owner.type === "family" && !deps.authorizeSpend)
+        throw new BillingError("A shared wallet requires transactional spend authorization");
+      await lockCreditOwner(tx, input.owner);
+      await deps.authorizeSpend?.(tx, input);
+      const walletScope = deps.walletScope ?? input.app;
+      const { total, reserved } = await readBalanceForOwner(tx, input.owner, walletScope);
       const available = total - reserved;
       if (available < input.estimatedAmount) {
         safeLog(deps.logger, "info", "billing.credits.reserve.insufficient", {
@@ -172,12 +169,16 @@ export async function reserveCredits(
           ownerId: input.owner.id,
           estimatedAmount: input.estimatedAmount,
           status: "active",
-          app: input.app,
+          app: walletScope,
+          consumerApp: input.app,
+          actorUserId: input.actorUserId ?? null,
+          personId: input.personId ?? null,
           feature: input.feature,
           model: input.model ?? null,
           runId: input.runId ?? reservationId,
           requestId: input.requestId ?? null,
           expiresAt,
+          createdAt: sql`clock_timestamp()`,
           metadata: input.metadata ?? {},
         })
         .returning({
@@ -205,24 +206,12 @@ export async function reserveCredits(
   );
 }
 
-type ReservationRow = {
-  id: string;
-  ownerType: "user" | "organization";
-  ownerId: string;
-  app: string;
-  status: "active" | "committed" | "released" | "expired";
-  expiresAt: Date;
-  runId: string | null;
-  feature: string;
-  model: string | null;
-};
-
 export async function commitReservation(
   deps: ReservationsDeps,
   input: CommitReservationInput,
 ): Promise<CommitReservationResult> {
   assertPositiveInteger(input.actualAmount, "actualAmount");
-  return deps.db.transaction(
+  const outcome = await deps.db.transaction(
     async (tx) => {
       const found = await tx
         .select({
@@ -235,16 +224,23 @@ export async function commitReservation(
           runId: creditReservations.runId,
           feature: creditReservations.feature,
           model: creditReservations.model,
+          consumerApp: creditReservations.consumerApp,
+          actorUserId: creditReservations.actorUserId,
+          personId: creditReservations.personId,
+          createdAt: creditReservations.createdAt,
+          estimatedAmount: creditReservations.estimatedAmount,
         })
         .from(creditReservations)
         .where(eq(creditReservations.id, input.reservationId))
         .limit(1);
-      const reservation = found[0] as ReservationRow | undefined;
+      const reservation = found[0];
       if (!reservation) {
         throw new ReservationNotFoundError(input.reservationId);
       }
+      if (deps.walletScope && reservation.app !== deps.walletScope)
+        throw new ReservationNotFoundError(input.reservationId);
       const owner: CreditOwner = { type: reservation.ownerType, id: reservation.ownerId };
-      await lockOwnerForTx(tx, owner);
+      await lockCreditOwner(tx, owner);
 
       // Re-read after lock to avoid TOCTOU: another concurrent commit/release on
       // this same reservation would have changed `status`.
@@ -255,6 +251,7 @@ export async function commitReservation(
         })
         .from(creditReservations)
         .where(eq(creditReservations.id, input.reservationId))
+        .for("update")
         .limit(1);
       const current = fresh[0];
       if (!current) {
@@ -275,8 +272,11 @@ export async function commitReservation(
               eq(creditReservations.status, "active"),
             ),
           );
-        throw new ReservationExpiredError(input.reservationId);
+        return { expired: true as const };
       }
+
+      if (input.actualAmount > reservation.estimatedAmount)
+        throw new BillingError("Actual credits exceed the accepted reservation ceiling");
 
       await tx
         .update(creditReservations)
@@ -289,6 +289,11 @@ export async function commitReservation(
           ownerType: owner.type,
           ownerId: owner.id,
           app: reservation.app,
+          consumerApp: reservation.consumerApp,
+          actorUserId: reservation.actorUserId,
+          personId: reservation.personId,
+          effectiveAt: sql`(select created_at from billing.credit_reservations where id = ${input.reservationId}::uuid)`,
+          createdAt: sql`clock_timestamp()`,
           entryType: "consumption",
           amount: -Math.abs(input.actualAmount),
           reservationId: input.reservationId,
@@ -317,7 +322,7 @@ export async function commitReservation(
         try {
           deps.onAudit({
             eventType: "billing.credits_consumed",
-            actorId: null,
+            actorId: reservation.actorUserId,
             payload: {
               reservationId: input.reservationId,
               ledgerEntryId: ledgerRow.id,
@@ -346,6 +351,8 @@ export async function commitReservation(
     },
     { isolationLevel: "read committed" },
   );
+  if ("expired" in outcome) throw new ReservationExpiredError(input.reservationId);
+  return outcome;
 }
 
 export async function releaseReservation(
@@ -354,17 +361,33 @@ export async function releaseReservation(
 ): Promise<void> {
   // Idempotent: only updates if currently active. Already-resolved reservations
   // become a silent no-op (no error) — the caller can replay safely.
-  const updated = await deps.db
-    .update(creditReservations)
-    .set({
-      status: "released",
-      resolvedAt: new Date(),
-      metadata: sql`${creditReservations.metadata} || ${JSON.stringify({ release_reason: input.reason })}::jsonb`,
-    })
-    .where(
-      and(eq(creditReservations.id, input.reservationId), eq(creditReservations.status, "active")),
-    )
-    .returning({ id: creditReservations.id });
+  const updated = await deps.db.transaction(async (tx) => {
+    const [reservation] = await tx
+      .select({
+        ownerType: creditReservations.ownerType,
+        ownerId: creditReservations.ownerId,
+        app: creditReservations.app,
+      })
+      .from(creditReservations)
+      .where(eq(creditReservations.id, input.reservationId))
+      .limit(1);
+    if (!reservation || (deps.walletScope && reservation.app !== deps.walletScope)) return [];
+    await lockCreditOwner(tx, { type: reservation.ownerType, id: reservation.ownerId });
+    return tx
+      .update(creditReservations)
+      .set({
+        status: "released",
+        resolvedAt: new Date(),
+        metadata: sql`${creditReservations.metadata} || ${JSON.stringify({ release_reason: input.reason })}::jsonb`,
+      })
+      .where(
+        and(
+          eq(creditReservations.id, input.reservationId),
+          eq(creditReservations.status, "active"),
+        ),
+      )
+      .returning({ id: creditReservations.id });
+  });
 
   if (updated.length === 0) {
     safeLog(deps.logger, "debug", "billing.credits.release.noop", {
@@ -388,8 +411,12 @@ export async function consumeCredits(
   // for both phases since they share the tx.
   return deps.db.transaction(
     async (tx) => {
-      await lockOwnerForTx(tx, input.owner);
-      const { total, reserved } = await readBalanceForOwner(tx, input.owner, input.app);
+      if (input.owner.type === "family" && !deps.authorizeSpend)
+        throw new BillingError("A shared wallet requires transactional spend authorization");
+      await lockCreditOwner(tx, input.owner);
+      await deps.authorizeSpend?.(tx, input);
+      const walletScope = deps.walletScope ?? input.app;
+      const { total, reserved } = await readBalanceForOwner(tx, input.owner, walletScope);
       const available = total - reserved;
       if (available < input.amount) {
         safeLog(deps.logger, "info", "billing.credits.consume.insufficient", {
@@ -410,7 +437,11 @@ export async function consumeCredits(
         .values({
           ownerType: input.owner.type,
           ownerId: input.owner.id,
-          app: input.app,
+          app: walletScope,
+          consumerApp: input.app,
+          actorUserId: input.actorUserId ?? null,
+          personId: input.personId ?? null,
+          createdAt: sql`clock_timestamp()`,
           entryType: "consumption",
           amount: -Math.abs(input.amount),
           runId: input.runId ?? null,

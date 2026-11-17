@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { PairingContext } from "./context";
 import { type EstadoTv, type EventoCelular, eventoCelularSchema } from "./protocolo";
 
 type Fase = "desligado" | "criando" | "aguardando" | "conectado" | "desconectado" | "erro";
@@ -7,11 +8,11 @@ type Fase = "desligado" | "criando" | "aguardando" | "conectado" | "desconectado
 /** Sem nenhum evento do celular por esse tempo, ele caiu (o sinal vem a cada 2 s, sempre). */
 export const SILENCIO_DO_CELULAR_MS = 6000;
 
-function enviarEstado(codigo: string, estado: EstadoTv) {
+function enviarEstado(channel: { codigo: string; canalId: string }, estado: EstadoTv) {
   void fetch("/api/pareamento/estado", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ codigo, estado }),
+    body: JSON.stringify({ ...channel, estado }),
     keepalive: true,
   }).catch(() => undefined);
 }
@@ -25,7 +26,12 @@ function enviarEstado(codigo: string, estado: EstadoTv) {
  * "desconectado" e a TV mostra o código de novo (o mesmo celular volta sozinho pela credencial).
  * `novoCodigo` descarta o canal e cria outro, para um celular diferente ou um código vencido.
  */
-export function usePareamentoTv(ativo: boolean, aoEvento: (e: EventoCelular) => void) {
+export function usePareamentoTv(
+  ativo: boolean,
+  aoEvento: (e: EventoCelular) => void,
+  context: PairingContext | null,
+) {
+  const capturedContext = context ? JSON.stringify(context) : null;
   const [fase, setFase] = useState<Fase>(ativo ? "criando" : "desligado");
   const [codigo, setCodigo] = useState<string | null>(null);
   const [url, setUrl] = useState<string | null>(null);
@@ -33,7 +39,7 @@ export function usePareamentoTv(ativo: boolean, aoEvento: (e: EventoCelular) => 
   const [geracao, setGeracao] = useState(0);
   const handler = useRef(aoEvento);
   handler.current = aoEvento;
-  const codigoAtual = useRef<string | null>(null);
+  const codigoAtual = useRef<{ codigo: string; canalId: string } | null>(null);
   const ultimoEvento = useRef(0);
   const estadoAtual = useRef<{ estado: EstadoTv | null; enviado: string }>({
     estado: null,
@@ -49,28 +55,35 @@ export function usePareamentoTv(ativo: boolean, aoEvento: (e: EventoCelular) => 
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: `geracao` recria o canal de propósito
   useEffect(() => {
-    if (!ativo) return;
+    if (!ativo || !capturedContext) return;
     let fonte: EventSource | null = null;
     let vivo = true;
     setFase("criando");
     setErro(null);
     (async () => {
       try {
-        const resposta = await fetch("/api/pareamento/criar", { method: "POST" });
+        const resposta = await fetch("/api/pareamento/criar", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: capturedContext,
+        });
         const corpo = (await resposta.json().catch(() => ({}))) as {
           codigo?: string;
+          canalId?: string;
           url?: string;
           erro?: string;
         };
-        if (!resposta.ok || !corpo.codigo || !corpo.url)
+        if (!resposta.ok || !corpo.codigo || !corpo.canalId || !corpo.url)
           throw new Error(corpo.erro ?? "Não foi possível criar o pareamento.");
         if (!vivo) return;
-        codigoAtual.current = corpo.codigo;
+        codigoAtual.current = { codigo: corpo.codigo, canalId: corpo.canalId };
         setCodigo(corpo.codigo);
         setUrl(corpo.url);
         setFase("aguardando");
         reenviar();
-        fonte = new EventSource(`/api/pareamento/stream?lado=tv&codigo=${corpo.codigo}`);
+        fonte = new EventSource(
+          `/api/pareamento/stream?${new URLSearchParams({ lado: "tv", codigo: corpo.codigo, canalId: corpo.canalId })}`,
+        );
         fonte.onmessage = (mensagem) => {
           let dado: unknown;
           try {
@@ -102,7 +115,7 @@ export function usePareamentoTv(ativo: boolean, aoEvento: (e: EventoCelular) => 
       vivo = false;
       fonte?.close();
     };
-  }, [ativo, reenviar, geracao]);
+  }, [ativo, reenviar, geracao, capturedContext]);
 
   // o celular sumiu (tela apagou, saiu do app, caiu a rede)
   useEffect(() => {

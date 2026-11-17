@@ -8,8 +8,10 @@ export const maxDuration = 120;
 
 /**
  * Manutenção do Recreio, chamada pelo agendador: fecha posses vencidas, marca
- * instâncias sumidas, apaga ingressos antigos e encerra sessões de jogo
- * vencidas. Responde só com contagens.
+ * instâncias sumidas, apaga ingressos antigos, encerra sessões de jogo
+ * vencidas e recolhe convites sem aceite vencidos há mais de um dia, intenções
+ * familiares/pareamento vencidas e recibos familiares após 24 horas.
+ * Responde só com contagens.
  */
 export async function POST(request: Request) {
   if (!authorizedJob(request)) return new Response("Unauthorized", { status: 401 });

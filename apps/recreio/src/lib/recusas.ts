@@ -9,6 +9,8 @@ const MENSAGENS: Partial<Record<CodigoDeErro, string>> = {
   ACESSO_NEGADO: "O seu acesso aos jogos não está ativo.",
   JOGO_INDISPONIVEL: "Este jogo não está disponível agora.",
   LIMITE_DE_MUNDOS: "Você já criou o máximo de mundos deste jogo.",
+  LIMITE_DE_CONVITES:
+    "Este mundo já tem o máximo de convites em aberto. Use os códigos existentes ou espere vencerem.",
   CONVITE_INVALIDO:
     "Confira o código. Ele pode estar incorreto, ter expirado ou já ter sido usado.",
   JA_MEMBRO: "Você já participa deste mundo.",
@@ -18,6 +20,8 @@ const MENSAGENS: Partial<Record<CodigoDeErro, string>> = {
   MUNDO_INDISPONIVEL: "Este mundo não está disponível.",
   MUITAS_TENTATIVAS: "Muitas tentativas. Espere alguns minutos e tente de novo.",
   ENTRADA_INVALIDA: "Confira os campos e tente novamente.",
+  POLITICA_INCOMPATIVEL:
+    "Estas regras não são compatíveis com o perfil. Confira a faixa de conteúdo e as permissões.",
 };
 
 export function mensagemDaRecusa(codigo: CodigoDeErro): string | null {

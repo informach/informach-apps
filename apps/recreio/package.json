@@ -11,9 +11,11 @@
     "test": "vitest run",
     "test:integration": "node scripts/isolated.mjs integration",
     "e2e": "node scripts/isolated.mjs e2e",
+    "e2e:versoes": "node scripts/isolated.mjs versoes",
     "jogo-de-teste": "node --import tsx e2e/servidor/main.ts",
-    "conceder": "tsx scripts/conceder.ts",
-    "revogar": "tsx scripts/revogar.ts",
+    "conceder": "node --conditions=react-server --import tsx scripts/conceder.ts",
+    "revogar": "node --conditions=react-server --import tsx scripts/revogar.ts",
+    "restaurar-morada": "node --conditions=react-server --import tsx scripts/restaurar-morada.ts",
     "gerar-chave": "node scripts/gerar-chave.mjs"
   },
   "dependencies": {

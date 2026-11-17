@@ -12,21 +12,17 @@ import {
   type SessaoAberta,
   TrocaDeIngressoSchema,
 } from "@informach/recreio/contrato";
-import {
-  type TokenEmitido,
-  verificarIngresso,
-  verificarSessaoEmitida,
-} from "@informach/recreio/emissor";
+import { verificarIngresso, verificarSessaoEmitida } from "@informach/recreio/emissor";
 import { avaliarAcesso } from "@/features/acesso/service";
 import { jogoQueAbre, manifestoDoJogo } from "@/features/jogos/config";
-import { conferirSessaoDeAparelho } from "@/features/sessao/service";
 import { audit } from "@/lib/observability";
+import { limitarTentativas } from "@/lib/rate-limit";
 import { chavesDoRecreio } from "@/lib/tokens";
-import { politicaDoPerfil } from "./politica";
 import {
   abrirSessaoComIngresso,
   encerrarSessaoDeJogo,
   gravarRenovacao,
+  IngressoSemAparelhoValido,
   lerSessaoDeJogo,
   registrarIngresso,
 } from "./repository";
@@ -72,65 +68,28 @@ export async function emitirIngresso(
   entrada: unknown,
 ): Promise<{ ingresso: string; expiraEm: string }> {
   const { jogo } = PedidoDeIngressoSchema.parse(entrada);
-  const decisao = await exigirAcesso(ator.perfil.id, jogo);
+  await limitarTentativas({ chave: `ingresso:${ator.perfil.id}`, max: 20, janelaEmSegundos: 60 });
   jogoQueAbre(jogo);
   const { emissor } = await chavesDoRecreio();
-  const jti = crypto.randomUUID();
-  const agora = new Date();
-  const emitido = await emissor.ingresso({
-    jogo,
-    perfilId: ator.perfil.id,
-    sessaoDeAparelhoId: ator.sessaoDeAparelhoId,
-    versaoDaPolitica: decisao.versaoDaPolitica,
-    jti,
-    agora,
-  });
-  await registrarIngresso({
-    jti,
+  const emitido = await registrarIngresso({
     perfilId: ator.perfil.id,
     sessaoDeAparelhoId: ator.sessaoDeAparelhoId,
     jogo,
-    emitidoEm: agora,
-    expiraEm: emitido.expiraEm,
+    emissor,
   });
   return { ingresso: emitido.token, expiraEm: emitido.expiraEm.toISOString() };
 }
 
-/** Assina a sessão de jogo; acesso que termina neste segundo não dá sessão. */
-async function assinarSessao(dados: {
-  jogo: string;
-  perfilId: PerfilId;
-  sid: SessaoDeJogoId;
-  decisao: DecisaoDeAcesso;
-  agora: Date;
-  recusa: "ACESSO_NEGADO" | "ACESSO_PERDIDO";
-}): Promise<TokenEmitido> {
-  const { validoAte } = dados.decisao;
-  const segundo = Math.floor(dados.agora.getTime() / 1000);
-  if (validoAte !== null && Math.floor(validoAte.getTime() / 1000) <= segundo)
-    throw semAcesso(dados.recusa, dados.decisao);
-  const { emissor } = await chavesDoRecreio();
-  return emissor.sessao({
-    jogo: dados.jogo,
-    perfilId: dados.perfilId,
-    sid: dados.sid,
-    versaoDaPolitica: dados.decisao.versaoDaPolitica,
-    jti: crypto.randomUUID(),
-    agora: dados.agora,
-    validoAte,
-  });
-}
-
-/**
- * Troca o ingresso pela sessão de jogo. Quem autentica é o ingresso: não há
- * cookie neste pedido. Mesmo assim a sessão de aparelho que pediu o ingresso,
- * e a sessão de login por trás dela, precisam continuar valendo.
- */
+/** A assinatura e o consumo são admitidos na mesma transação da autoridade. */
 export async function trocarIngresso(entrada: unknown): Promise<SessaoAberta> {
   const pedido = TrocaDeIngressoSchema.parse(entrada);
   const { emissor, chaves } = await chavesDoRecreio();
   const ingresso = await verificarIngresso(pedido.ingresso, { chaves, emissor: emissor.emissor });
-  // Audiência que não é um jogo do catálogo nunca saiu daqui.
+  await limitarTentativas({
+    chave: `trocar-ingresso:${ingresso.perfilId}`,
+    max: 60,
+    janelaEmSegundos: 60,
+  });
   if (!manifestoDoJogo(ingresso.jogo)) throw new ErroDoRecreio("INGRESSO_INVALIDO");
   try {
     jogoQueAbre(ingresso.jogo);
@@ -138,65 +97,35 @@ export async function trocarIngresso(entrada: unknown): Promise<SessaoAberta> {
     ingressoRecusado(ingresso, "game");
     throw erro;
   }
-
-  const aparelho = await conferirSessaoDeAparelho({
-    sessaoDeAparelhoId: ingresso.sessaoDeAparelhoId,
-    perfilId: ingresso.perfilId,
-  });
-  if (!aparelho.viva) {
-    ingressoRecusado(ingresso, "device_session");
-    throw new ErroDoRecreio("INGRESSO_INVALIDO");
-  }
-  const politica = politicaDoPerfil(aparelho.perfil);
-
-  let decisao: DecisaoDeAcesso;
   try {
-    decisao = await exigirAcesso(ingresso.perfilId, ingresso.jogo);
-  } catch (erro) {
-    ingressoRecusado(ingresso, "access");
-    throw erro;
-  }
-
-  const agora = new Date();
-  const sid = SessaoDeJogoIdSchema.parse(crypto.randomUUID());
-  // O token é assinado antes da transação e só é entregue se ela confirmar.
-  const sessao = await assinarSessao({
-    jogo: ingresso.jogo,
-    perfilId: ingresso.perfilId,
-    sid,
-    decisao,
-    agora,
-    recusa: "ACESSO_NEGADO",
-  });
-  try {
-    await abrirSessaoComIngresso({
-      jti: ingresso.jti,
-      perfilId: ingresso.perfilId,
-      sessaoDeAparelhoId: ingresso.sessaoDeAparelhoId,
-      jogo: ingresso.jogo,
-      sid,
-      agora,
-      expiraEm: sessao.expiraEm,
+    return await abrirSessaoComIngresso({
+      ingresso,
       continuarAqui: pedido.continuarAqui === true,
+      chaveDeTroca: pedido.chaveDeTroca,
+      sid: SessaoDeJogoIdSchema.parse(crypto.randomUUID()),
+      emissor,
     });
   } catch (erro) {
-    if (erro instanceof ErroDoRecreio && erro.codigo === "INGRESSO_INVALIDO")
-      ingressoRecusado(ingresso, "used_or_expired");
+    if (erro instanceof ErroDoRecreio) {
+      if (erro.codigo === "INGRESSO_INVALIDO")
+        ingressoRecusado(
+          ingresso,
+          erro instanceof IngressoSemAparelhoValido ? "device_session" : "used_or_expired",
+        );
+      else if (erro.codigo === "ACESSO_NEGADO") ingressoRecusado(ingresso, "access");
+    }
     throw erro;
   }
-  return {
-    token: sessao.token,
-    expiraEm: sessao.expiraEm.toISOString(),
-    perfil: {
-      profileId: aparelho.perfil.id,
-      apelido: aparelho.perfil.apelido,
-      avatar: aparelho.perfil.avatar,
-    },
-    politica,
-  };
 }
 
-export type SessaoDeJogoAtiva = { perfilId: PerfilId; sid: SessaoDeJogoId; jogo: string };
+export type SessaoDeJogoAtiva = {
+  perfilId: PerfilId;
+  sid: SessaoDeJogoId;
+  jogo: string;
+  /** Prazo e política do token recebido, não de uma renovação posterior. */
+  expiraEm: number;
+  versaoDaPolitica: number;
+};
 
 type SessaoConferida = SessaoDeJogoAtiva & {
   sessaoDeAparelhoId: SessaoDeAparelhoId;
@@ -222,6 +151,8 @@ async function conferirToken(token: string | null): Promise<SessaoConferida> {
     jogo: linha.jogo,
     sessaoDeAparelhoId: linha.sessaoDeAparelhoId,
     motivoDoFim: linha.encerradaEm === null ? null : (linha.motivoDoFim ?? "expired"),
+    expiraEm: claims.expiraEm,
+    versaoDaPolitica: claims.versaoDaPolitica,
   };
 }
 
@@ -233,7 +164,8 @@ export async function sessaoDeJogoDoToken(token: string | null): Promise<SessaoD
   const sessao = await conferirToken(token);
   if (sessao.motivoDoFim !== null)
     throw new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: sessao.motivoDoFim });
-  return { perfilId: sessao.perfilId, sid: sessao.sid, jogo: sessao.jogo };
+  const { perfilId, sid, jogo, expiraEm, versaoDaPolitica } = sessao;
+  return { perfilId, sid, jogo, expiraEm, versaoDaPolitica };
 }
 
 /**
@@ -248,42 +180,42 @@ export async function renovarSessao(
   const sessao = await conferirToken(token);
   if (sessao.motivoDoFim !== null)
     throw new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: sessao.motivoDoFim });
-
-  const aparelho = await conferirSessaoDeAparelho({
-    sessaoDeAparelhoId: sessao.sessaoDeAparelhoId,
-    perfilId: sessao.perfilId,
+  await limitarTentativas({
+    chave: `renovar-sessao:${sessao.perfilId}`,
+    max: 120,
+    janelaEmSegundos: 60,
   });
-  if (!aparelho.viva) {
-    await encerrarSessaoDeJogo({ sid: sessao.sid, motivo: aparelho.motivo, porQuem: "recreio" });
-    throw new ErroDoRecreio("ACESSO_PERDIDO", { motivo: aparelho.motivo });
-  }
-
-  const decisao = await avaliarAcesso({ profileId: sessao.perfilId, gameId: sessao.jogo });
-  if (!decisao.podeJogar) {
-    await encerrarSessaoDeJogo({ sid: sessao.sid, motivo: "access_lost", porQuem: "recreio" });
-    throw semAcesso("ACESSO_PERDIDO", decisao);
-  }
-
-  const agora = new Date();
-  let renovada: TokenEmitido;
   try {
-    renovada = await assinarSessao({
-      jogo: sessao.jogo,
-      perfilId: sessao.perfilId,
-      sid: sessao.sid,
-      decisao,
-      agora,
-      recusa: "ACESSO_PERDIDO",
-    });
+    jogoQueAbre(sessao.jogo);
   } catch (erro) {
-    if (erro instanceof ErroDoRecreio && erro.codigo === "ACESSO_PERDIDO")
+    if (erro instanceof ErroDoRecreio && erro.codigo === "JOGO_INDISPONIVEL")
       await encerrarSessaoDeJogo({ sid: sessao.sid, motivo: "access_lost", porQuem: "recreio" });
     throw erro;
   }
-  const gravou = await gravarRenovacao({ sid: sessao.sid, agora, expiraEm: renovada.expiraEm });
-  // Encerrada entre a conferência e a gravação: o token novo não sai daqui.
-  if (!gravou) throw new ErroDoRecreio("SESSAO_ENCERRADA");
-  return { token: renovada.token, expiraEm: renovada.expiraEm.toISOString() };
+  const { emissor } = await chavesDoRecreio();
+  try {
+    return await gravarRenovacao({ sessao, emissor });
+  } catch (erro) {
+    if (erro instanceof ErroDoRecreio) {
+      if (erro.codigo === "SESSAO_INVALIDA") {
+        await encerrarSessaoDeJogo({ sid: sessao.sid, motivo: "signed_out", porQuem: "recreio" });
+        throw new ErroDoRecreio("ACESSO_PERDIDO", { motivo: "signed_out" });
+      }
+      if (erro.codigo === "ACESSO_PERDIDO" || erro.codigo === "POLITICA_INCOMPATIVEL") {
+        const motivo =
+          erro.codigo === "POLITICA_INCOMPATIVEL" || erro.detalhe.motivo === "permissions_changed"
+            ? "permissions_changed"
+            : ["expired", "daily_limit", "schedule", "paused"].includes(String(erro.detalhe.motivo))
+              ? "expired"
+              : "access_lost";
+        // Nenhuma linha de jogo fica travada nesta transação de encerramento.
+        await encerrarSessaoDeJogo({ sid: sessao.sid, motivo, porQuem: "recreio" });
+        if (erro.codigo === "POLITICA_INCOMPATIVEL")
+          throw new ErroDoRecreio("ACESSO_PERDIDO", { motivo: "permissions_changed" });
+      }
+    }
+    throw erro;
+  }
 }
 
 /** Sai do jogo. Repetir, ou sair de uma sessão que já acabou, não faz nada. */

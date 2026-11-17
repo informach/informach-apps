@@ -8,10 +8,10 @@ import {
 } from "@/features/acesso/policy";
 import { progressOf } from "@/features/familia/repository";
 import { requireTrainer } from "@/features/familia/view";
+import { MAX_JUNTO, MIN_JUNTO } from "@/features/sessoes/limits";
 import { jaTreinou } from "@/features/sessoes/repository";
 import { resolveWorkout } from "@/features/sessoes/service";
 import { soSeries } from "@/features/treino/catalog/workouts";
-import { MAX_JUNTO, MIN_JUNTO } from "@/features/treino/telas/junto";
 import { PlayerLoader } from "@/features/treino/telas/player-loader";
 
 export const metadata = { title: "Treinando" };
@@ -24,7 +24,8 @@ export default async function Treinar({
   const params = await searchParams;
   const ref = parseWorkoutRef(params.ref ?? "");
   if (!ref) notFound();
-  const { user, profile, access, profiles } = await requireTrainer();
+  const { user, profile, access, profiles, group } = await requireTrainer();
+  if (!profile.canWrite) redirect("/progresso");
   if (!canStartWorkout(access, ref)) redirect("/conta?motivo=treino");
   const pedido = params.modo === "camera" || params.modo === "pareado" ? params.modo : "manual";
   // sem assinatura, a contagem é manual; o servidor também recusa salvar o contrário
@@ -35,13 +36,13 @@ export default async function Treinar({
       : "manual";
   const [{ workout, name }, levels, treinou] = await Promise.all([
     resolveWorkout(user.id, access, ref),
-    progressOf(profile.id),
-    jaTreinou(profile.id),
+    progressOf(user.id, profile.id),
+    jaTreinou(user.id, profile.id),
   ]);
-  // treinar junto: 2 a 4 perfis liberados e prontos, num treino só de séries
+  // Treinar junto usa somente perfis autorizados para gravação neste contexto.
   const ids = [...new Set((params.junto ?? "").split(",").filter(Boolean))];
   const juntos = ids.length
-    ? profiles.filter((p) => ids.includes(p.id) && p.allowed && p.onboardedAt)
+    ? profiles.filter((p) => ids.includes(p.id) && p.allowed && p.canWrite && p.onboardedAt)
     : [];
   if (
     ids.length &&
@@ -59,15 +60,16 @@ export default async function Treinar({
           profileId: p.id,
           name: p.name,
           color: p.color,
-          levels: await progressOf(p.id),
+          levels: await progressOf(user.id, p.id),
           intensidade: p.intensity,
         })),
       )
     : undefined;
   return (
     <PlayerLoader
+      scope={{ actorId: user.id, familyGroupId: group.id }}
       // outro treino ou outro modo é outra montagem: o executor nasce uma vez por montagem
-      key={`${formatWorkoutRef(ref)}:${mode}:${ids.join(",")}`}
+      key={`${user.id}:${group.id}:${profile.id}:${formatWorkoutRef(ref)}:${mode}:${ids.join(",")}`}
       profile={{
         id: profile.id,
         name: profile.name,

@@ -3,7 +3,8 @@ import { db } from "@informach/db";
 import { users } from "@informach/db/schema";
 import { beforeAll, describe, expect, it } from "vitest";
 import { assessment, catalogGrades, courses, findCourse } from "@/features/content/catalog";
-import { begin, createProfile, dashboard } from "@/features/learning/service";
+import { begin, dashboard } from "@/features/learning/service";
+import { fixtureAuthority, prepareStudent } from "./family-fixture";
 
 const owner = randomUUID();
 
@@ -22,7 +23,7 @@ describe("onda 1a em PostgreSQL isolado: 8º e 9º ano", () => {
     expect(courses.map((course) => course.id)).toEqual(
       expect.arrayContaining(["obmep-n2", "canguru-c"]),
     );
-    const profile = await createProfile(owner, {
+    const profile = await prepareStudent(await fixtureAuthority(owner), {
       nickname: "Nina",
       grade: 9,
       birthMonth: null,
@@ -30,11 +31,11 @@ describe("onda 1a em PostgreSQL isolado: 8º e 9º ano", () => {
       courseId: "obmep-n2",
       consent: true,
     });
-    const painel = await dashboard(owner, profile.id);
+    const painel = await dashboard(await fixtureAuthority(owner), profile.id);
     expect(painel.course?.id).toBe("obmep-n2");
     expect(painel.courseTransition).toBeNull();
     // A primeira unidade da faixa é gratuita: proporção abre sem assinatura.
-    const sessao = await begin(owner, {
+    const sessao = await begin(await fixtureAuthority(owner), {
       profileId: profile.id,
       lessonId: "proporcao-1",
       mode: "mission",
@@ -47,7 +48,7 @@ describe("onda 1a em PostgreSQL isolado: 8º e 9º ano", () => {
     const diagnostico = assessment(course, "diagnostic");
     expect(diagnostico.items).toHaveLength(12);
     expect(new Set(diagnostico.items.map((item) => item.skillId))).toEqual(new Set(course.skills));
-    const inicio = await begin(owner, {
+    const inicio = await begin(await fixtureAuthority(owner), {
       profileId: profile.id,
       lessonId: diagnostico.id,
       mode: "diagnostic",
@@ -58,7 +59,7 @@ describe("onda 1a em PostgreSQL isolado: 8º e 9º ano", () => {
 
   it("recusa uma trilha que não cobre o ano escolhido", async () => {
     await expect(
-      createProfile(owner, {
+      prepareStudent(await fixtureAuthority(owner), {
         nickname: "Léo",
         grade: 8,
         birthMonth: null,

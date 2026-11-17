@@ -4,6 +4,7 @@ import { isValidDateIso, shiftAnchor, todayLocalIso } from "@/features/calendar/
 import { getCalendarSnapshot } from "@/features/calendar/service";
 import type { CalendarView as CalendarViewKind } from "@/features/calendar/types";
 import { ExportPdfButton } from "@/features/dashboard/components/export-pdf-button";
+import { agendaAuthority } from "@/features/family/context";
 import { getFamilyEntitlements } from "@/features/family/entitlements";
 import { FilteredByChild } from "@/features/students/components/child-filter";
 import { listStudentProfilesForUser } from "@/features/students/service";
@@ -34,14 +35,15 @@ function parseView(value: string | undefined): CalendarViewKind {
 export default async function CalendarPage({ searchParams }: Props) {
   const params = await searchParams;
   const user = await requireUserServer();
+  const actor = await agendaAuthority(user.id);
   const todayIso = todayLocalIso();
 
   const view = parseView(params.view);
   const anchorIso = params.date && isValidDateIso(params.date) ? params.date : todayIso;
 
   const [profiles, entitlements] = await Promise.all([
-    listStudentProfilesForUser(user.id),
-    getFamilyEntitlements(user.id),
+    listStudentProfilesForUser(actor),
+    getFamilyEntitlements(actor),
   ]);
 
   // Valida ?perfil= contra as crianças acessíveis: id inválido cai em "Todas".
@@ -50,10 +52,14 @@ export default async function CalendarPage({ searchParams }: Props) {
 
   // Os cards e as linhas da semana levam o nome curto de cada criança.
   const childNames = shortChildNames(profiles);
-  const snapshot = await getCalendarSnapshot(user.id, { view, anchorIso, profileFilter });
+  const snapshot = await getCalendarSnapshot(actor, { view, anchorIso, profileFilter });
 
   // Todo endereço da tela leva a vista, a data e a criança que estão nela.
-  const hrefWith = (next: { view?: CalendarViewKind; date?: string; perfil?: string | null }) => {
+  const hrefWith = (next: {
+    view?: CalendarViewKind;
+    date?: string;
+    perfil?: string | null;
+  }): `/calendario${"" | `?${string}`}` => {
     const query = new URLSearchParams();
     if ((next.view ?? view) === "month") query.set("view", "month");
     const date = next.date ?? anchorIso;
@@ -61,7 +67,7 @@ export default async function CalendarPage({ searchParams }: Props) {
     const perfil = next.perfil === undefined ? profileFilter : next.perfil;
     if (perfil) query.set("perfil", perfil);
     const text = query.toString();
-    return text ? `/calendario?${text}` : "/calendario";
+    return text ? (`/calendario?${text}` as const) : "/calendario";
   };
   const hrefs = {
     // Do mês para a semana: no mês de hoje, a semana de hoje; em outro mês, a
@@ -84,7 +90,6 @@ export default async function CalendarPage({ searchParams }: Props) {
         clearHref={hrefWith({ perfil: null })}
       />
       <CalendarView
-        userId={user.id}
         view={view}
         anchorIso={anchorIso}
         todayIso={todayIso}

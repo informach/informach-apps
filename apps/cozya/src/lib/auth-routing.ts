@@ -12,10 +12,8 @@ export const AUTH_PROTECTED_PATHS = [
   "/upgrade",
 ] as const;
 
-// Cozya is OTP-only (no magic-link, no link-based verification or password
-// reset, no organizations). The legacy `/verify-email`, `/reset-password`,
-// `/magic-link` and `/accept-invitation` routes are intentionally absent —
-// none of those flows are enabled in `lib/auth.ts`.
+// Credentials, verification and family invitations belong to Conta. Cozya only
+// initiates SSO and accepts its callback; it does not issue local credentials.
 export const AUTH_PUBLIC_PATHS = [
   AUTH_SIGN_IN_PATH,
   AUTH_SIGN_UP_PATH,

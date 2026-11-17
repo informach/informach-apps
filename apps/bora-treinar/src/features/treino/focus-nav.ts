@@ -16,7 +16,7 @@ function visible(el: HTMLElement) {
 }
 
 function candidates(): HTMLElement[] {
-  const modal = document.querySelector<HTMLElement>("[data-modal]");
+  const modal = document.querySelector<HTMLElement>("dialog[open], [data-modal]");
   // o atalho "Pular para o conteúdo" é do teclado de computador, não do controle remoto
   return [...(modal ?? document).querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
     (el) => !el.classList.contains("skip") && visible(el),
@@ -27,7 +27,7 @@ export function moveFocus(dir: Dir) {
   const all = candidates();
   const cur = document.activeElement as HTMLElement | null;
   if (!cur || !all.includes(cur)) {
-    (document.querySelector<HTMLElement>("[data-autofocus]") ?? all[0])?.focus();
+    (all.find((el) => el.hasAttribute("data-autofocus")) ?? all[0])?.focus();
     return;
   }
   const a = cur.getBoundingClientRect();
@@ -60,6 +60,7 @@ export function moveFocus(dir: Dir) {
 
 export function installFocusNav(onBack: () => void) {
   const handler = (e: KeyboardEvent) => {
+    if (e.defaultPrevented) return;
     const t = e.target as HTMLElement;
     const typing =
       t.tagName === "INPUT" ||
@@ -83,6 +84,15 @@ export function installFocusNav(onBack: () => void) {
       (BACK_KEYS.has(e.key) && !(typing && (e.key === "Backspace" || e.key === "Escape"))) ||
       BACK_CODES.has(e.keyCode)
     ) {
+      const modal = document.querySelector<HTMLDialogElement>("dialog[open]");
+      if (modal) {
+        // Escape keeps native cancellation. Other TV back keys use the same cancel event.
+        if (e.key !== "Escape") {
+          e.preventDefault();
+          if (modal.dispatchEvent(new Event("cancel", { cancelable: true }))) modal.close();
+        }
+        return;
+      }
       e.preventDefault();
       onBack();
     }

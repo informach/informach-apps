@@ -7,17 +7,24 @@
  * os dois ficam gravados, ou nenhum. O evento leva só ids, plano, dias e o
  * código do motivo; nunca o e-mail (ver docs/audit-payload-policy.md).
  *
- * Este arquivo grava concessões; quem decide o acesso é `avaliarAcesso`, em
- * `src/features/acesso`. Fica fora de `src` porque roda por `tsx`, sem o Next.
+ * Usa a mesma decisão de `src/features/acesso` ao retirar cobertura e encerrar
+ * partidas. Roda por `tsx`, com a condição `react-server`, sem iniciar o Next.
  */
 import { logAuditEventStrict } from "@informach/auth";
-import { and, db, eq, gt, isNull } from "@informach/db";
+import { and, asc, db, eq, gt, isNull, sql } from "@informach/db";
 import {
   recreioEntitlements as entitlements,
+  recreioGameSessions as gameSessions,
   recreioGroups as groups,
+  recreioProfiles as profiles,
   users,
 } from "@informach/db/schema";
+import { PerfilIdSchema } from "@informach/recreio";
 import { z } from "zod";
+import { decidirFatosLidos } from "../src/features/acesso/decisao";
+import { lerFatosDeAcesso } from "../src/features/acesso/repository";
+import { invalidarIngressosDoPerfil } from "../src/features/sessao-de-jogo/ingressos-repository";
+import { encerrarSessoesAbertas } from "../src/features/sessao-de-jogo/repository";
 
 /** Código curto, sem texto livre: é ele que vai para a auditoria. */
 const Motivo = z.string().regex(/^[a-z0-9_]{2,40}$/);
@@ -166,13 +173,23 @@ export async function revogar(
   opcoes: { agora?: Date } = {},
 ): Promise<RevogacaoFeita> {
   const dados = PedidoDeRevogacaoSchema.parse(pedido);
-  const revogadaEm = opcoes.agora ?? new Date();
   return db.transaction(async (tx) => {
     const conta = await contaConfirmada(tx, dados.email);
     const [grupo] = await tx
       .select({ id: groups.id })
       .from(groups)
       .where(eq(groups.ownerUserId, conta.id));
+    // A abertura toma SHARE no perfil antes de reler o acesso: uma sessão
+    // admitida antes desta trava será alcançada pelo encerramento abaixo.
+    const perfis = grupo
+      ? await tx
+          .select({ id: profiles.id })
+          .from(profiles)
+          .where(eq(profiles.groupId, grupo.id))
+          .orderBy(asc(profiles.id))
+          .for("update")
+      : [];
+    const revogadaEm = opcoes.agora ?? new Date();
     const abertas = grupo ? await vigentes(tx, grupo.id, revogadaEm) : [];
     if (!grupo || abertas.length === 0) throw new RecusaDeConcessao("SEM_CONCESSAO_VIGENTE");
     for (const concessao of abertas) {
@@ -192,6 +209,20 @@ export async function revogar(
         },
         { writer: tx },
       );
+    }
+    for (const perfil of perfis) {
+      const perfilId = PerfilIdSchema.parse(perfil.id);
+      const decisao = decidirFatosLidos(await lerFatosDeAcesso(perfilId, tx), revogadaEm);
+      // Uma cortesia retirada não interrompe outra cobertura ainda válida.
+      if (!decisao.podeJogar) {
+        await invalidarIngressosDoPerfil(tx, perfilId);
+        await encerrarSessoesAbertas(
+          tx,
+          sql`${gameSessions.profileId} = ${perfilId}`,
+          "access_lost",
+          { porQuem: "recreio" },
+        );
+      }
     }
     return {
       concessaoIds: abertas.map((concessao) => concessao.id),

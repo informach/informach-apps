@@ -1,8 +1,9 @@
+import { COMPASSO_POLICY } from "@informach/config/collections";
 import { daysBetween } from "./dates";
 
 /** The trial as the product promises it: these numbers are the copy too, never written by hand. */
-export const TRIAL_DAYS = 14;
-export const TRIAL_CREDITS = 3;
+export const TRIAL_DAYS = COMPASSO_POLICY.trialDays;
+export const TRIAL_CREDITS = COMPASSO_POLICY.ai.trialCredits;
 /** How long after its end the trial is still news: the recap "Seu teste terminou" stops after it. */
 export const TRIAL_RECAP_DAYS = 7;
 
@@ -11,7 +12,7 @@ type TrialAccess = {
   isPro: boolean;
   trialActive: boolean;
   trialEndsAt: Date | null;
-  profile: { trialStartedAt: Date | null } | null;
+  trialStartsAt: Date | null;
 };
 
 /**
@@ -25,7 +26,7 @@ export function trialDaysLeft(access: TrialAccess, now = new Date()): number | n
 
 /** The trial ended and the account is not Pro: "Novas semanas ficam no Pro." */
 export function trialEnded(access: TrialAccess): boolean {
-  return !access.isPro && !access.trialActive && !!access.profile?.trialStartedAt;
+  return !access.isPro && !access.trialActive && !!access.trialStartsAt;
 }
 
 export type TrialRecap = {
@@ -45,7 +46,7 @@ export function trialRecap(
   everSubscribed: boolean,
   now = new Date(),
 ): TrialRecap | null {
-  const from = access.profile?.trialStartedAt ?? null;
+  const from = access.trialStartsAt ?? null;
   const end = access.trialEndsAt;
   if (access.isPro || !from || !end) return null;
   if (access.trialActive) return { phase: "active", from, to: end };

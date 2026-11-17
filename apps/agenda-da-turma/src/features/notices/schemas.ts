@@ -63,8 +63,14 @@ const safeUrl = z
     return url.protocol === "https:" && !url.username && !url.password;
   }, "Use um endereço https sem credenciais");
 
+export const aiCostAcceptanceSchema = z.object({
+  version: z.string().min(1).max(40),
+  maxCredits: z.number().int().min(1).max(1000),
+});
+
 export const parseNoticeSchema = z
   .object({
+    acceptedCost: aiCostAcceptanceSchema,
     profileId: z.string().uuid(),
     source: noticeSourceSchema,
     sourceUrl: safeUrl.nullable().default(null),
@@ -255,26 +261,36 @@ export const actionFieldsSchema = extractedActionSchema
       });
   });
 export type NoticeActionInput = z.infer<typeof actionFieldsSchema>;
-export const confirmNoticeSchema = z.object({
-  noticeId: z.string().uuid().nullable(),
-  actions: z.array(actionFieldsSchema).min(1).max(30),
-  allowDuplicates: z.boolean().default(false),
-  sourceProfileIds: z.array(z.string().uuid()).min(1).max(10).nullable().optional(),
-  resolutions: z
-    .array(
-      z.discriminatedUnion("kind", [
-        z.object({ index: z.number().int().min(0).max(29), kind: z.literal("separate") }),
-        z.object({
-          index: z.number().int().min(0).max(29),
-          kind: z.literal("replace"),
-          actionId: z.string().uuid(),
-          version: z.number().int().positive(),
-        }),
-      ]),
-    )
-    .max(30)
-    .optional(),
-});
+export const confirmNoticeSchema = z
+  .object({
+    sourceReviewed: z.boolean().default(false),
+    shareOriginal: z.boolean().default(false),
+    noticeId: z.string().uuid().nullable(),
+    actions: z.array(actionFieldsSchema).min(1).max(30),
+    allowDuplicates: z.boolean().default(false),
+    sourceProfileIds: z.array(z.string().uuid()).min(1).max(10).nullable().optional(),
+    resolutions: z
+      .array(
+        z.discriminatedUnion("kind", [
+          z.object({ index: z.number().int().min(0).max(29), kind: z.literal("separate") }),
+          z.object({
+            index: z.number().int().min(0).max(29),
+            kind: z.literal("replace"),
+            actionId: z.string().uuid(),
+            version: z.number().int().positive(),
+          }),
+        ]),
+      )
+      .max(30)
+      .optional(),
+  })
+  .refine(
+    (input) => !input.noticeId || (input.sourceReviewed && !!input.sourceProfileIds?.length),
+    {
+      message: "Confirme todas as crianças mencionadas no original.",
+      path: ["sourceReviewed"],
+    },
+  );
 /** "Mandar para a turma", depois de salvar: as atividades que acabaram de entrar. */
 export const shareSavedWithTurmaSchema = z.object({
   ids: z.array(z.string().uuid()).min(1).max(30),

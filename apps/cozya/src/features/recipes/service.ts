@@ -1,18 +1,18 @@
 import "server-only";
 
 import { err, ok, type Result } from "@informach/auth/server-actions";
-import { billing } from "@/features/billing/service";
+import { cozyaAuthority } from "@/features/family/context";
 import { recordProductEvent } from "@/features/kitchen/events";
 import { parseIngredients } from "@/features/kitchen/ingredients";
 import { FREE_RECIPE_LIMIT } from "./limits";
+import { recipePayload } from "./payload";
 import {
   countFavoritesByUser,
   countRecipesByUser,
   deleteRecipeForUser,
   findRecipeByIdForUser,
   findRecipesPageByUser,
-  insertRecipe,
-  insertRecipeWithinFreeLimit,
+  insertRecipeForAccess,
   type RecipeListOptions,
   setRecipeFavoriteForUser,
   updateRecipeForUser,
@@ -34,38 +34,13 @@ export async function createRecipe(
   userId: string,
   input: RecipeInput,
 ): Promise<Result<Recipe, CreateRecipeError>> {
-  const payload = {
-    userId,
-    name: input.name,
-    ingredients: input.ingredients,
-    preparation: input.preparation,
-    finishing: input.finishing,
-    isFavorite: input.isFavorite,
-    creationMethod: input.creationMethod,
-    servings: input.servings ?? null,
-    totalMinutes: input.totalMinutes ?? null,
-    structuredIngredients: parseIngredients(input.ingredients),
-    sourceUrl: input.sourceUrl ?? null,
-    sourceName: input.sourceName ?? null,
-  };
+  const payload = recipePayload(userId, input);
 
-  const isPro = await billing.hasProSubscription({ type: "user", id: userId });
-  if (!isPro) {
-    const limitedInsert = await insertRecipeWithinFreeLimit(payload, FREE_RECIPE_LIMIT);
-    if (!limitedInsert.ok) {
-      return err({
-        code: "PLAN_LIMIT_REACHED",
-        limit: FREE_RECIPE_LIMIT,
-        current: limitedInsert.current,
-      });
-    }
-    await recordProductEvent(userId, "recipe_saved", limitedInsert.recipe.id);
-    return ok(limitedInsert.recipe);
-  }
-
-  const row = await insertRecipe(payload);
-  await recordProductEvent(userId, "recipe_saved", row.id);
-  return ok(row);
+  const result = await insertRecipeForAccess(await cozyaAuthority(userId), payload);
+  if (!result.ok)
+    return err({ code: "PLAN_LIMIT_REACHED", limit: FREE_RECIPE_LIMIT, current: result.current });
+  await recordProductEvent(userId, "recipe_saved", result.recipe.id);
+  return ok(result.recipe);
 }
 
 export async function listRecipesForUser(

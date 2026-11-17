@@ -53,13 +53,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     });
     const parsed = taskStatusBodySchema.safeParse(await readJsonWithSizeLimit(request, 1024));
     if (!parsed.success) return jsonUtf8({ code: "INVALID_INPUT" }, { status: 400 });
-    const result = await writeTaskStatusOnce(session.user.id, {
-      key,
-      id,
-      version: parsed.data.version,
-      status: parsed.data.status,
-      queued: request.headers.get("x-agenda-queued") === "1",
-    });
+    if (parsed.data.userId !== session.user.id)
+      return jsonUtf8({ code: "ACCOUNT_CHANGED" }, { status: 401 });
+    const result = await writeTaskStatusOnce(
+      { userId: session.user.id, familyGroupId: parsed.data.familyGroupId },
+      {
+        key,
+        id,
+        version: parsed.data.version,
+        status: parsed.data.status,
+        queued: request.headers.get("x-agenda-queued") === "1",
+      },
+    );
     if (result.ok) for (const path of ROUTINE_PATHS) revalidatePath(path, "layout");
     // Resultado de negócio é sempre 200: a recusa já é a resposta final, e um
     // 4xx faria a fila tratá-la como falha de transporte e tentar para sempre.

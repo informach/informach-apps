@@ -2,6 +2,7 @@ import "server-only";
 import webpush from "web-push";
 import { env } from "@/lib/env";
 import {
+  canNotifyChild,
   claimDelivery,
   deletePushById,
   familyAdults,
@@ -39,16 +40,25 @@ const remetente = () => {
  * Avisa os adultos da família. A tela bloqueada do celular nunca mostra o
  * nome da criança nem o nome da tarefa: só que há algo esperando.
  */
-export async function pushParaFamilia(ownerId: string, messageKey: string, url: string) {
+export async function pushParaFamilia(
+  groupId: string,
+  childId: string,
+  messageKey: string,
+  url: string,
+) {
   if (!pushConfigured()) return { sent: 0, failed: 0 };
-  const adultos = await familyAdults(ownerId);
+  const adultos = await familyAdults(groupId, childId);
   const assinaturas = await pushSubscriptionsOf(adultos);
   let sent = 0;
   let failed = 0;
   for (const s of assinaturas) {
     if (!isAllowedPushEndpoint(s.endpoint)) continue;
-    const entrega = await claimDelivery(s.userId, `${messageKey}:${s.id}`);
+    const entrega = await claimDelivery(s.userId, `${messageKey}:${s.id}`, s.id);
     if (!entrega) continue;
+    if (!(await canNotifyChild(groupId, childId, s.userId, entrega))) {
+      await finishDelivery(entrega, "failed");
+      continue;
+    }
     try {
       await webpush.sendNotification(
         { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },

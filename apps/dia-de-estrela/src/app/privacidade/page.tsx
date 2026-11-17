@@ -7,7 +7,7 @@ export default function Privacidade() {
   return (
     <PaginaDeTexto>
       <p className="text-sm font-extrabold tracking-[0.12em] text-tinta-suave">
-        ÚLTIMA ATUALIZAÇÃO · 06/11/2026
+        ÚLTIMA ATUALIZAÇÃO · 10/11/2026
       </p>
       <h1>Privacidade, com clareza.</h1>
       <p>
@@ -20,8 +20,10 @@ export default function Privacidade() {
       <p>
         A conta Informach usa nome do titular, e-mail, credenciais de autenticação e registros de
         segurança. De cada criança guardamos só um apelido e uma cor. Não pedimos nome completo,
-        idade, data de nascimento, foto da criança, escola ou dados de saúde. O titular cadastra as
-        crianças e responde pelo uso; o tratamento atende ao melhor interesse delas.
+        idade, data de nascimento, foto da criança, escola ou dados de saúde. A pessoa é cadastrada
+        na Minha conta; nome e cor são compartilhados, e cada aplicativo mantém seu próprio
+        histórico. O responsável pela criança gerencia o uso e as permissões; o tratamento atende ao
+        melhor interesse dela.
       </p>
       <h2>O que guardamos</h2>
       <p>
@@ -30,7 +32,7 @@ export default function Privacidade() {
         criança, o estado dos lembretes do dia e os alertas enviados aos pais. Isso sustenta a tela
         da criança, o acompanhamento dos pais e o cofrinho.
       </p>
-      <h2>Voz gravada e foto da meta (plano Família)</h2>
+      <h2>Voz gravada e foto da meta (Compasso)</h2>
       <p>
         Um adulto pode gravar a própria voz chamando a criança para uma tarefa (até 15 segundos) e
         escolher uma foto do item da meta. Esses arquivos ficam no nosso banco de dados, só são
@@ -48,10 +50,10 @@ export default function Privacidade() {
       </p>
       <h2>Alertas no celular</h2>
       <p>
-        No plano Família, os adultos podem receber alertas quando uma tarefa passa do horário sem
-        ser marcada. A notificação não mostra o nome da criança nem o nome da tarefa na tela
-        bloqueada. O envio passa pelo serviço de notificações do navegador (Google, Apple, Mozilla
-        ou Microsoft).
+        No Compasso, os adultos podem receber alertas quando uma tarefa passa do horário sem ser
+        marcada. A notificação não mostra o nome da criança nem o nome da tarefa na tela bloqueada.
+        O envio passa pelo serviço de notificações do navegador (Google, Apple, Mozilla ou
+        Microsoft).
       </p>
       <h2>Para que usamos e em qual base</h2>
       <p>
@@ -62,10 +64,12 @@ export default function Privacidade() {
       </p>
       <h2>Quem acessa</h2>
       <p>
-        Os dados pertencem à família: o titular e, se ele convidar, um segundo responsável. Não há
-        perfis públicos, ranking entre famílias, anúncios ou chat. Os dados do Dia de Estrela ficam
-        separados dos dados de outros apps Informach; a autenticação usa a conta compartilhada
-        Informach.
+        Cada adulto acessa apenas as crianças e funções que recebeu permissão para usar neste
+        aplicativo. Participar da família ou pagar a assinatura não libera automaticamente as
+        rotinas de todos. Os aparelhos das crianças têm acesso limitado aos perfis conectados;
+        retirar a autorização encerra esse acesso. Não há perfis públicos, ranking entre famílias,
+        anúncios ou chat. A identidade é compartilhada, e as rotinas, estrelas e arquivos ficam no
+        Dia de Estrela.
       </p>
       <h2>Serviços de operação</h2>
       <p>
@@ -78,12 +82,13 @@ export default function Privacidade() {
       </p>
       <h2>Seus controles</h2>
       <p>
-        Em Ajustes é possível exportar os dados em JSON, desconectar aparelhos, trocar o PIN,
-        remover o segundo responsável, apagar crianças (com a rotina e as estrelas delas), sair da
-        conta e pedir a exclusão da conta Informach, com confirmação por e-mail. Você pode pedir
-        confirmação e acesso aos dados, correção, portabilidade, anonimização, bloqueio ou
-        eliminação quando cabível, revogação de consentimento e oposição ao tratamento, nos termos
-        da LGPD.
+        Em Ajustes é possível exportar os dados em JSON, desconectar aparelhos, trocar o PIN, apagar
+        o histórico deste app quando você tiver permissão de gerenciamento e sair da conta.
+        Exportações incluem somente os perfis que você pode ler. Pessoas, convites, permissões e
+        dados da conta são gerenciados na Minha conta. Apagar um histórico do Dia de Estrela
+        preserva a pessoa e os outros apps. Você pode pedir confirmação e acesso aos dados,
+        correção, portabilidade, anonimização, bloqueio ou eliminação quando cabível, revogação de
+        consentimento e oposição ao tratamento, nos termos da LGPD.
       </p>
       <h2>Conservação</h2>
       <p>

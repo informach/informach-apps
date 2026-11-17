@@ -16,9 +16,9 @@ export default async function Progresso() {
   const fuso = family?.timezone ?? FUSO_PADRAO;
   const [sessions, progress, earned, desafio] = await Promise.all([
     // o bastante para o histórico do plano, o gráfico de 8 semanas e os recordes do ano
-    sessionsOf(profile.id, { since: new Date(Date.now() - 400 * 86_400_000) }),
-    progressOf(profile.id),
-    achievementsOf(profile.id),
+    sessionsOf(user.id, profile.id, { since: new Date(Date.now() - 400 * 86_400_000) }),
+    progressOf(user.id, profile.id),
+    achievementsOf(user.id, profile.id),
     dadosDoDesafio(user.id, profile.id, fuso, access),
   ]);
   const semanas = historicoDeSemanas(sessions, Date.now(), fuso, profile.weeklyGoal);

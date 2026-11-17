@@ -1,50 +1,23 @@
 import { randomUUID } from "node:crypto";
 import { db, eq } from "@informach/db";
 import { emailDeliveries, users } from "@informach/db/schema";
-import { dispatchEmail } from "@informach/emails";
-import { afterAll, expect, it, vi } from "vitest";
+import { afterAll, expect, it } from "vitest";
 import { emails } from "@/lib/emails";
 import { env } from "@/lib/env";
-import { packageLogger } from "@/lib/observability";
 
 const owner = randomUUID();
 const recipient = `${owner}@example.test`;
-
 afterAll(async () => {
-  vi.restoreAllMocks();
+  emails.clearOutbox();
   await db.delete(emailDeliveries).where(eq(emailDeliveries.recipient, recipient));
-  await db.delete(users).where(eq(users.id, owner));
+  await db.update(users).set({ banned: true, emailVerified: false }).where(eq(users.id, owner));
 });
-
-it("alerta falha no reset sem revelar a existência da conta nem persistir o código", async () => {
-  await db.insert(users).values({
-    id: owner,
-    email: recipient,
-    name: "Revisão de auth",
-    emailVerified: true,
-  });
-  const send = vi.fn(async () => {
-    throw Object.assign(new Error("temporary provider outage"), {
-      response: { statusCode: 503 },
-    });
-  });
-  const errors = vi.spyOn(packageLogger, "error");
-  vi.spyOn(emails, "sendEmail").mockImplementation((input) =>
-    dispatchEmail(
-      {
-        db,
-        defaultFrom: env.SENDGRID_FROM,
-        mode: "live",
-        sandboxDir: "tmp",
-        send,
-        logger: packageLogger,
-        inlineRetryAttempts: 1,
-      },
-      input,
-    ),
-  );
+it("does not issue local reset credentials or reveal whether a central account exists", async () => {
+  await db
+    .insert(users)
+    .values({ id: owner, email: recipient, name: "Central account", emailVerified: true });
   const { auth } = await import("@/lib/auth");
-  const statuses = [];
+  const responses = [];
   for (const email of [recipient, `${randomUUID()}@example.test`]) {
     const response = await auth.handler(
       new Request(`${env.BETTER_AUTH_URL}/api/auth/email-otp/request-password-reset`, {
@@ -53,21 +26,12 @@ it("alerta falha no reset sem revelar a existência da conta nem persistir o có
         body: JSON.stringify({ email }),
       }),
     );
-    statuses.push(response.status);
-    expect(await response.json()).toEqual({ success: true });
+    responses.push({ status: response.status, body: await response.text() });
   }
-  expect(statuses).toEqual([200, 200]);
-  expect(send).toHaveBeenCalledTimes(1);
-  const [delivery] = await db
-    .select()
-    .from(emailDeliveries)
-    .where(eq(emailDeliveries.recipient, recipient));
-  expect(delivery).toMatchObject({ status: "failed", html: null, text: null });
-  expect(errors).toHaveBeenCalledTimes(1);
-  expect(errors).toHaveBeenCalledWith("Email delivery inline retries exhausted", {
-    deliveryId: delivery?.id,
-    category: "auth.forget-password-otp",
-    classification: "transient",
-    attempts: 1,
-  });
+  expect(responses[0]).toEqual(responses[1]);
+  expect(responses[0]?.status).toBe(404);
+  expect(emails.getOutbox().filter((message) => message.to === recipient)).toEqual([]);
+  expect(
+    await db.select().from(emailDeliveries).where(eq(emailDeliveries.recipient, recipient)),
+  ).toEqual([]);
 });

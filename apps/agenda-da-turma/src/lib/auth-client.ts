@@ -1,13 +1,8 @@
-import { createInformachAuthClient } from "@informach/auth/client";
-import { env } from "./env";
+"use client";
+import { createWebSsoAuthClient } from "@informach/auth/web-sso-client";
+import { webSsoEnvironment } from "@informach/auth/web-sso-contract";
+export const ssoEnvironment = webSsoEnvironment("agenda-da-turma", process.env.NEXT_PUBLIC_APP_URL);
 
-export const authClient = createInformachAuthClient({
-  baseURL: env.NEXT_PUBLIC_APP_URL,
-  email: {
-    verification: "otp",
-    signIn: { magicLink: false, otp: true },
-    forgetPassword: "otp",
-  },
-});
+export const authClient = createWebSsoAuthClient("agenda-da-turma", ssoEnvironment);
 
-export const { signIn, signUp, signOut, useSession, emailOtp, forgetPassword } = authClient;
+export const { signOut, useSession } = authClient;

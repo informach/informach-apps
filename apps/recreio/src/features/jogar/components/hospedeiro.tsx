@@ -11,6 +11,7 @@ import {
 import { LogOut } from "lucide-react";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { carregadorDoJogo } from "../carregadores";
+import { type AvisoDaTroca, observarTrocaDaPartida } from "../controle";
 import {
   ESTADO_INICIAL,
   type Parada,
@@ -27,6 +28,7 @@ type Partida = {
   contexto: RecreioGameContext;
   montado: JogoMontado | null;
   cancelarAcesso: () => void;
+  cancelarControle: () => void;
 };
 
 /**
@@ -35,6 +37,7 @@ type Partida = {
  * hora, sem esperar o jogo: é o caso da página que está indo embora.
  */
 async function encerrar(partida: Partida, comPressa = false): Promise<void> {
+  partida.cancelarControle();
   partida.cancelarAcesso();
   // Sem resposta do Recreio a sessão vence sozinha, e a próxima abertura pergunta.
   const sairDaSessao = () => partida.contexto.sessao.sair().catch(() => undefined);
@@ -60,13 +63,21 @@ async function encerrar(partida: Partida, comPressa = false): Promise<void> {
 export function Hospedeiro({
   jogo,
   mundo,
+  estante = "/estante",
+  trocaCoordenada = false,
+  supervisionado = false,
 }: {
   jogo: { id: string; nome: string; origemDaArte?: string | null };
-  mundo: { id: MundoId; nome: string };
+  mundo: { id: MundoId; nome: string } | null;
+  estante?: "/estante" | "/aparelho";
+  trocaCoordenada?: boolean;
+  supervisionado?: boolean;
 }) {
   const [estado, despachar] = useReducer(reduzir, ESTADO_INICIAL);
   /** O jogo montado tem o próprio controle de saída: a página não desenha o dela. */
   const [saidaDoJogo, definirSaidaDoJogo] = useState(false);
+  const [avisoDaTroca, definirAvisoDaTroca] = useState<AvisoDaTroca | null>(null);
+  const [aguardandoTroca, definirAguardandoTroca] = useState(false);
   const palco = useRef<HTMLDivElement>(null);
   const partida = useRef<Partida | null>(null);
   /** Cada tentativa de abrir tem um número; a que não é mais a atual desiste. */
@@ -98,14 +109,16 @@ export function Hospedeiro({
   const sair = useCallback(() => {
     tentativa.current += 1;
     despachar({ tipo: "sair" });
-    void desmontar().finally(() => window.location.assign("/estante"));
-  }, [desmontar]);
+    void desmontar().finally(() => window.location.assign(estante));
+  }, [desmontar, estante]);
 
   const abrir = useCallback(
     (continuarAqui: boolean) => {
       tentativa.current += 1;
       const minha = tentativa.current;
       const atual = () => minha === tentativa.current;
+      definirAvisoDaTroca(null);
+      definirAguardandoTroca(false);
       despachar({ tipo: "abrir" });
       void desmontar();
       fila.current = fila.current.then(async () => {
@@ -116,8 +129,17 @@ export function Hospedeiro({
           const contexto = await criarRecreio({
             baseUrl: "",
             jogo: jogo.id,
-            obterIngresso: () => pedirIngresso(jogo.id),
+            obterIngresso: (signal) => pedirIngresso(jogo.id, signal),
             ...(continuarAqui ? { continuarAqui: true } : {}),
+            ...(trocaCoordenada
+              ? {
+                  recuperarAbertura: true,
+                  aguardarCheckpoint: true,
+                  aoAguardarCheckpoint: () => {
+                    if (atual()) definirAguardandoTroca(true);
+                  },
+                }
+              : {}),
             // `keepalive` deixa o pedido de encerrar a sessão terminar mesmo
             // com a página indo embora.
             fetch: (url, init) =>
@@ -126,6 +148,7 @@ export function Hospedeiro({
           const nova: Partida = {
             contexto,
             montado: null,
+            cancelarControle: () => {},
             cancelarAcesso: contexto.sessao.aoMudarAcesso((mudanca) =>
               parar(paradaDaMudanca(mudanca)),
             ),
@@ -142,7 +165,7 @@ export function Hospedeiro({
           const host = palco.current;
           if (!atual() || partida.current !== nova || !host) return await desistir();
           const montado = modulo.montar(host, contexto, {
-            mundoId: mundo.id,
+            mundoId: mundo?.id,
             origemDaArte: jogo.origemDaArte ?? undefined,
             aoSair: sair,
             aoFalhar: (erro) => parar(paradaDoErro(erro)),
@@ -153,16 +176,38 @@ export function Hospedeiro({
             return;
           }
           nova.montado = montado;
+          if (trocaCoordenada || supervisionado)
+            nova.cancelarControle = observarTrocaDaPartida(
+              contexto,
+              montado,
+              (aviso) => {
+                if (partida.current === nova) definirAvisoDaTroca(aviso);
+              },
+              (erro) => {
+                if (partida.current === nova) parar(paradaDoErro(erro));
+              },
+            );
+          definirAguardandoTroca(false);
           definirSaidaDoJogo(modulo.saidaPropria === true);
           despachar({ tipo: "montado" });
         } catch (erro) {
           if (!atual()) return;
+          definirAguardandoTroca(false);
           if (ehErroDoRecreio(erro, "JA_ABERTO")) despachar({ tipo: "ja_aberto" });
           else parar(paradaDoErro(erro));
         }
       });
     },
-    [jogo.id, jogo.origemDaArte, mundo.id, desmontar, parar, sair],
+    [
+      jogo.id,
+      jogo.origemDaArte,
+      mundo?.id,
+      desmontar,
+      parar,
+      sair,
+      trocaCoordenada,
+      supervisionado,
+    ],
   );
 
   useEffect(() => {
@@ -195,9 +240,33 @@ export function Hospedeiro({
   const parada = estado.fase === "parado" ? textoDaParada(estado.parada) : null;
 
   return (
-    <TelaDoJogo titulo={`${jogo.nome}: ${mundo.nome}`}>
+    <TelaDoJogo titulo={mundo ? `${jogo.nome}: ${mundo.nome}` : jogo.nome}>
       {/* O jogo desenha aqui. Fora do jogo o elemento fica vazio e fora da leitura. */}
-      <div ref={palco} data-palco className="absolute inset-0" inert={!jogando} />
+      <div
+        ref={palco}
+        data-palco
+        className="absolute inset-0"
+        inert={!jogando || avisoDaTroca?.bloqueia}
+      />
+
+      {jogando && avisoDaTroca && (
+        <div
+          className={
+            avisoDaTroca.bloqueia
+              ? "absolute inset-0 z-20 flex items-center justify-center bg-fundo/90 p-4"
+              : "absolute inset-x-4 top-4 z-20 mx-auto max-w-lg rounded-controle bg-fundo p-4 shadow-lg"
+          }
+        >
+          <div role="status" className="text-center">
+            <p>{avisoDaTroca.texto}</p>
+            {avisoDaTroca.bloqueia && (
+              <button type="button" className="rb rb-vazado mt-4" onClick={sair}>
+                Voltar à estante
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {jogando && !saidaDoJogo && (
         <button
@@ -220,17 +289,32 @@ export function Hospedeiro({
             : "absolute inset-0 z-20 flex items-center justify-center overflow-auto p-4"
         }
       >
-        {estado.fase === "carregando" && <AvisoDoJogo titulo={`Abrindo ${jogo.nome}…`} />}
+        {estado.fase === "carregando" && (
+          <AvisoDoJogo
+            titulo={
+              aguardandoTroca ? "Aguardando o outro aparelho salvar…" : `Abrindo ${jogo.nome}…`
+            }
+            texto={
+              aguardandoTroca
+                ? "Mantenha a partida anterior aberta. O jogo começa aqui depois da confirmação."
+                : undefined
+            }
+          />
+        )}
         {estado.fase === "saindo" && <AvisoDoJogo titulo="Saindo…" />}
         {estado.fase === "ja_aberto" && (
           <AvisoDoJogo
             titulo="Você já está jogando em outro lugar"
-            texto="Continuar aqui? O jogo aberto no outro lugar será desconectado."
+            texto={
+              trocaCoordenada
+                ? "Continuar aqui? Vamos pedir ao outro aparelho que salve antes de trocar."
+                : "Continuar aqui? Primeiro salve e saia pelo jogo no outro aparelho."
+            }
           >
             <button type="button" className="rb rb-sol" onClick={() => abrir(true)}>
               Continuar aqui
             </button>
-            <a href="/estante" className="rb rb-vazado">
+            <a href={estante} className="rb rb-vazado">
               Voltar à estante
             </a>
           </AvisoDoJogo>
@@ -247,7 +331,7 @@ export function Hospedeiro({
                 {parada.rotulo ?? "Entrar de novo"}
               </button>
             )}
-            <a href="/estante" className="rb rb-vazado">
+            <a href={estante} className="rb rb-vazado">
               Voltar à estante
             </a>
           </AvisoDoJogo>

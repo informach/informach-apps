@@ -1,0 +1,6 @@
+ALTER TABLE "billing"."legacy_contract_acceptances" ADD COLUMN "cancellation_confirmed_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "billing"."legacy_contract_acceptances" ADD COLUMN "cancellation_lease_token" uuid;--> statement-breakpoint
+ALTER TABLE "billing"."legacy_contract_acceptances" ADD COLUMN "cancellation_lease_until" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "billing"."legacy_contract_acceptances" ADD COLUMN "cancellation_attempted_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "legacy_contract_acceptance_pending_idx" ON "billing"."legacy_contract_acceptances" USING btree ("cancellation_attempted_at") WHERE "billing"."legacy_contract_acceptances"."cancellation_confirmed_at" is null;--> statement-breakpoint
+ALTER TABLE "billing"."legacy_contract_acceptances" ADD CONSTRAINT "legacy_contract_acceptance_lease_pair" CHECK (("billing"."legacy_contract_acceptances"."cancellation_lease_token" is null) = ("billing"."legacy_contract_acceptances"."cancellation_lease_until" is null));

@@ -6,13 +6,14 @@ import type { ProfileSubjectWithCounts } from "../types";
 import { ProfileSubjectCard } from "./profile-subject-card";
 
 type Props = {
+  canWrite: boolean;
   profileId: string;
   subjects: ProfileSubjectWithCounts[];
 };
 
 type Tab = "active" | "paused";
 
-export function ProfileSubjectsList({ profileId, subjects }: Props) {
+export function ProfileSubjectsList({ profileId, subjects, canWrite }: Props) {
   const [tab, setTab] = useState<Tab>("active");
 
   const active = subjects.filter((s) => s.status === "active");
@@ -37,7 +38,12 @@ export function ProfileSubjectsList({ profileId, subjects }: Props) {
       ) : (
         <div className="space-y-3">
           {visible.map((s) => (
-            <ProfileSubjectCard key={s.id} subject={s} profileId={profileId} />
+            <ProfileSubjectCard
+              key={`${s.id}:${canWrite}`}
+              subject={s}
+              profileId={profileId}
+              canWrite={canWrite}
+            />
           ))}
         </div>
       )}

@@ -18,7 +18,7 @@ export default async function Treino({
   if (!canStartWorkout(access, ref)) redirect("/conta?motivo=treino");
   const [{ workout }, levels] = await Promise.all([
     resolveWorkout(user.id, access, ref),
-    progressOf(profile.id),
+    progressOf(user.id, profile.id),
   ]);
   if (!workout) notFound();
   return (

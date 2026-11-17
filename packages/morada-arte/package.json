@@ -7,7 +7,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./manifesto": "./src/manifesto.ts"
+    "./manifesto": "./src/manifesto.ts",
+    "./cores": "./src/cor/cores.ts"
   },
   "scripts": {
     "empacotar": "tsx src/cli.ts",
@@ -15,6 +16,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@informach/morada-sim": "workspace:*",
     "@gltf-transform/core": "4.5.1",
     "@gltf-transform/extensions": "4.5.1",
     "@gltf-transform/functions": "4.5.1",

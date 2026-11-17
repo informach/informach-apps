@@ -4,7 +4,11 @@ import {
   recreioSpaceJournal as journal,
   recreioSpaceSnapshots as snapshots,
 } from "@informach/db/schema";
-import type { MetaDeFotografia } from "@informach/recreio/contrato";
+import {
+  DIARIO_PAGINA_MAX_BYTES,
+  DIARIO_PAGINA_MAX_ENTRADAS,
+  type MetaDeFotografia,
+} from "@informach/recreio/contrato";
 import type { ArmazenamentoDeMundos, EntradaGuardada } from "./armazenamento";
 
 /**
@@ -124,12 +128,30 @@ export const armazenamentoPg: ArmazenamentoDeMundos = {
   },
 
   async lerDiario(tx, mundoId, apos) {
-    const linhas = await tx
-      .select(camposDaEntrada)
+    // Primeiro só tamanhos/ids: não carregar 256 payloads grandes para depois
+    // descobrir que excedem o orçamento da página. A linha do mundo está travada.
+    const metas = await tx
+      .select({ seq: journal.seq, bytes: journal.byteSize })
       .from(journal)
       .where(and(eq(journal.spaceId, mundoId), gt(journal.seq, apos)))
-      .orderBy(asc(journal.seq));
-    return linhas.map(entrada);
+      .orderBy(asc(journal.seq))
+      .limit(DIARIO_PAGINA_MAX_ENTRADAS + 1);
+    const seqs: number[] = [];
+    let bytes = 0;
+    for (const meta of metas) {
+      if (
+        seqs.length === DIARIO_PAGINA_MAX_ENTRADAS ||
+        bytes + meta.bytes > DIARIO_PAGINA_MAX_BYTES
+      )
+        break;
+      seqs.push(meta.seq);
+      bytes += meta.bytes;
+    }
+    if (metas.length > 0 && seqs.length === 0)
+      throw new Error("Entrada do diário maior que a página");
+    const entradas = await this.entradasPorSeq(tx, mundoId, seqs);
+    entradas.sort((a, b) => a.seq - b.seq);
+    return { entradas, proximoApos: metas.length > seqs.length ? (seqs.at(-1) ?? null) : null };
   },
 
   async entradasPorSeq(tx, mundoId, seqs) {

@@ -93,12 +93,14 @@ export default function Privacy() {
           de cinco anos, com acesso restrito à operação autorizada.
         </p>
         <p>
-          Na área Família, com acesso confirmado recentemente, é possível exportar os dados, sair da
-          conta, gerenciar a assinatura, encerrar o Missão Saber e apagar seus dados pedagógicos ou
-          excluir a conta Informach, com confirmação por e-mail. O cancelamento pelo portal de
-          cobrança preserva o histórico. A exclusão de dados pedagógicos não exclui a conta
-          Informach nem os dados de outros produtos. A exclusão da conta compartilhada só é
-          concluída quando nenhum outro app Informach tem assinatura ativa.
+          Na área Família, com acesso confirmado recentemente e as permissões necessárias, é
+          possível exportar ou apagar os dados pedagógicos da família selecionada. Assinatura,
+          segurança do login e encerramento da participação no Compasso ficam na Minha conta. O
+          cancelamento da assinatura preserva os históricos; apagar dados pedagógicos não apaga o
+          login nem os dados de outros produtos. O encerramento do Compasso exige preparação e
+          confirmação explícita, preserva dados compartilhados conforme as responsabilidades e
+          mantém o login global e os produtos independentes. Exporte os conteúdos antes de iniciar a
+          preparação, que suspende o acesso ao conjunto.
         </p>
         <p>
           Você pode pedir confirmação e acesso aos dados, correção, portabilidade, informação sobre

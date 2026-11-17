@@ -4,7 +4,8 @@ import {
   ManifestoSchema,
   type PersonagemDoManifesto,
 } from "@informach/morada-arte/manifesto";
-import type { Objeto } from "@informach/morada-sim";
+import type { Lote, Objeto } from "@informach/morada-sim";
+import type { DocumentoDeImovel } from "@informach/morada-sim/formatos";
 import {
   type AnimationAction,
   type AnimationClip,
@@ -12,29 +13,41 @@ import {
   type Bone,
   BoxGeometry,
   type BufferAttribute,
-  BufferGeometry,
+  type BufferGeometry,
   Group,
   type InterleavedBufferAttribute,
   LoopRepeat,
   Matrix4,
   Mesh,
   MeshBasicMaterial,
+  MeshLambertMaterial,
+  NoColorSpace,
   type Object3D,
   Quaternion,
+  RepeatWrapping,
+  type Skeleton,
   type SkinnedMesh,
+  SRGBColorSpace,
+  Texture,
   Vector3,
 } from "three";
 import { clone as clonarComEsqueleto } from "three/addons/utils/SkeletonUtils.js";
 import type { PontoDaCena } from "../cena/espaco";
 import type { PosturaDoCorpo } from "../cena/situacao";
+import { montarAberturas } from "./aberturas";
 import type {
   Ativos,
   DescricaoDoMorador,
+  EnquadramentoDoMorador,
   ObjetoDaCena,
   PoseDoMorador,
   VisualDoMorador,
   VisualDosObjetos,
 } from "./ativos";
+import { CacheDePersonagens, type UsoDePersonagem } from "./cache-de-personagens";
+import { coresDaAparencia } from "./cores-da-aparencia";
+import { CoresParametricas } from "./cores-parametricas";
+import { medirEnquadramento } from "./enquadramento";
 import {
   ajusteDoApoio,
   bibliotecasDaPose,
@@ -43,6 +56,7 @@ import {
   expressaoDaPose,
   pesosDaGravidez,
 } from "./escolhas";
+import { type ModeloDeObjeto, ObjetosDeArte } from "./objetos";
 import { AtivosProcedurais } from "./procedurais";
 
 /**
@@ -51,8 +65,8 @@ import { AtivosProcedurais } from "./procedurais";
  *
  * Nada espera a arte: cada morador nasce procedural e veste o corpo de verdade
  * quando o pacote dele chega. Sem manifesto, sem pacote para a fase ou com o
- * download falho, ele continua procedural. Os objetos da casa continuam
- * procedurais nesta etapa.
+ * download falho, ele continua procedural. Com manifesto V2, os objetos da
+ * casa também trocam o procedural pelos modelos, com seleção por instância.
  *
  * Cada arquivo é baixado uma vez por jogo; as bibliotecas de animação, só
  * quando uma pose pede (a de grávida, só no 2º trimestre). Um download que
@@ -60,7 +74,11 @@ import { AtivosProcedurais } from "./procedurais";
  */
 
 /** O que veio de um GLB: a cena e as animações. */
-export type PacoteLido = { scene: Object3D; animations: AnimationClip[] };
+export type PacoteLido = {
+  scene: Object3D;
+  animations: AnimationClip[];
+  mascarasDeCor?: ReadonlyMap<string, Texture>;
+};
 
 export type OpcoesDaArte = {
   /** Origem HTTP do servidor do jogo (`https://morada.exemplo`), sem barra no fim. */
@@ -72,6 +90,7 @@ export type OpcoesDaArte = {
   lerPacote?(dados: ArrayBuffer): Promise<PacoteLido>;
   /** Avisa uma falha de download ou de leitura, uma vez por arquivo. */
   aoFalhar?(arquivo: string, erro: unknown): void;
+  lerTextura?(dados: Blob): Promise<Texture>;
 };
 
 /** Uma biblioteca de animação pronta: a entrada do manifesto e os clipes pelo nome. */
@@ -99,7 +118,19 @@ export class AtivosDeArte implements Ativos {
   private readonly bibliotecas = new Map<string, BibliotecaCarregada | "baixando">();
   /** Tudo o que veio de um GLB, para soltar no fim. */
   private readonly lidos: PacoteLido[] = [];
+  private readonly personagens = new CacheDePersonagens(
+    (arquivo) => this.carregarPersonagem(arquivo),
+    bytesDoPacote,
+    soltarPacote,
+  );
   private descartado = false;
+  private manifestoLido: Manifesto | null = null;
+  private readonly modelos = new Map<string, ModeloDeObjeto>();
+  private readonly materiais = new Map<string, MeshLambertMaterial>();
+  private readonly cenasDosVaos = new Map<string, Object3D>();
+  private readonly pedidosDoAmbiente = new Set<string>();
+  private readonly ouvintes = new Set<() => void>();
+  private notificacaoPendente = false;
 
   constructor(private readonly opcoes: OpcoesDaArte) {
     this.buscar = opcoes.fetch ?? ((entrada, init) => fetch(entrada, init));
@@ -107,11 +138,111 @@ export class AtivosDeArte implements Ativos {
   }
 
   criarObjetos(objetos: readonly ObjetoDaCena[]): VisualDosObjetos {
-    return this.procedurais.criarObjetos(objetos);
+    void this.prepararObjetos(objetos);
+    const semArte = objetos.filter(
+      (x) => !this.modelos.has(`${x.objeto.catalogo}@${x.objeto.versao}`),
+    );
+    return new ObjetosDeArte(objetos, this.modelos, this.procedurais.criarObjetos(semArte));
   }
 
   apoio(objeto: Objeto, ponto: string, postura: PosturaDoCorpo): number {
+    const altura = this.modelos.get(`${objeto.catalogo}@${objeto.versao}`)?.entrada.apoios[ponto];
+    if (altura !== undefined && (postura === "sentado" || postura === "deitado"))
+      return Math.round(altura * 1000);
     return this.procedurais.apoio(objeto, ponto, postura);
+  }
+
+  aoMudar(ouvinte: () => void): () => void {
+    this.ouvintes.add(ouvinte);
+    return () => this.ouvintes.delete(ouvinte);
+  }
+
+  private avisar(): void {
+    if (this.notificacaoPendente || this.descartado) return;
+    this.notificacaoPendente = true;
+    queueMicrotask(() => {
+      this.notificacaoPendente = false;
+      if (!this.descartado) for (const ouvinte of this.ouvintes) ouvinte();
+    });
+  }
+
+  private async prepararObjetos(objetos: readonly ObjetoDaCena[]): Promise<void> {
+    const m = await this.obterManifesto();
+    if (!m || m.versao === 1 || this.descartado) return;
+    const necessarios = new Set(objetos.map((x) => `${x.objeto.catalogo}@${x.objeto.versao}`));
+    for (const entrada of m.objetos) {
+      const chave = `${entrada.id}@${entrada.versao}`;
+      if (
+        !necessarios.has(chave) ||
+        this.modelos.has(chave) ||
+        this.pedidosDoAmbiente.has(entrada.arquivo)
+      )
+        continue;
+      this.pedidosDoAmbiente.add(entrada.arquivo);
+      void this.obterPacote(entrada.arquivo).then((pacote) => {
+        if (pacote && !this.descartado) {
+          this.modelos.set(chave, { entrada, cena: pacote.scene });
+          this.avisar();
+        }
+        // Uma falha permite tentar de novo numa reconstrução futura da cena.
+        this.pedidosDoAmbiente.delete(entrada.arquivo);
+      });
+    }
+  }
+
+  acabamento(id: string): MeshLambertMaterial | null {
+    const pronto = this.materiais.get(id);
+    if (pronto || this.descartado) return pronto ?? null;
+    void this.prepararAcabamento(id);
+    return null;
+  }
+
+  private async prepararAcabamento(id: string): Promise<void> {
+    const m = await this.obterManifesto();
+    if (!m || m.versao === 1 || this.descartado || this.materiais.has(id)) return;
+    const entrada = m.acabamentos.find((x) => x.id === id);
+    if (!entrada || this.pedidosDoAmbiente.has(entrada.arquivo)) return;
+    this.pedidosDoAmbiente.add(entrada.arquivo);
+    try {
+      const resposta = await this.baixar(entrada.arquivo);
+      if (!resposta || this.descartado) return;
+      const blob = await resposta.blob();
+      const textura = this.opcoes.lerTextura
+        ? await this.opcoes.lerTextura(blob)
+        : new Texture(await createImageBitmap(blob, { imageOrientation: "flipY" }));
+      if (this.descartado) {
+        soltarTextura(textura);
+        return;
+      }
+      textura.colorSpace = SRGBColorSpace;
+      textura.wrapS = textura.wrapT = RepeatWrapping;
+      textura.repeat.set(1 / entrada.escala, 1 / entrada.escala);
+      textura.needsUpdate = true;
+      this.materiais.set(id, new MeshLambertMaterial({ map: textura }));
+      this.avisar();
+    } catch (erro) {
+      this.opcoes.aoFalhar?.(entrada.arquivo, erro);
+    } finally {
+      this.pedidosDoAmbiente.delete(entrada.arquivo);
+    }
+  }
+
+  criarAberturas(imovel: DocumentoDeImovel, lote: Lote, corte: number | null): Object3D {
+    const m = this.manifestoLido;
+    if (corte !== null || !m || m.versao === 1) return new Group();
+    for (const entrada of m.aberturas) {
+      if (this.cenasDosVaos.has(entrada.arquivo) || this.pedidosDoAmbiente.has(entrada.arquivo))
+        continue;
+      this.pedidosDoAmbiente.add(entrada.arquivo);
+      void this.obterPacote(entrada.arquivo).then((pacote) => {
+        if (pacote && !this.descartado) {
+          this.cenasDosVaos.set(entrada.arquivo, pacote.scene);
+          this.avisar();
+        }
+        this.pedidosDoAmbiente.delete(entrada.arquivo);
+      });
+    }
+    return montarAberturas(imovel, lote, m.aberturas, this.cenasDosVaos);
   }
 
   criarMorador(descricao: DescricaoDoMorador): VisualDoMorador {
@@ -128,16 +259,43 @@ export class AtivosDeArte implements Ativos {
   /** Quando o pacote do morador chega, o visual troca o corpo procedural pelo de arte. */
   private async vestir(visual: MoradorDeArte, descricao: DescricaoDoMorador): Promise<void> {
     const manifesto = await this.obterManifesto();
-    if (!manifesto || visual.descartado || this.descartado) return;
+    if (!manifesto || visual.descartado || this.descartado) {
+      if (!manifesto) visual.falhar();
+      return;
+    }
     const personagem = escolherPersonagem(manifesto, descricao);
-    if (!personagem) return;
+    if (!personagem) {
+      visual.falhar();
+      return;
+    }
     // A biblioteca principal começa a baixar junto com o corpo.
     if (personagem.biblioteca) this.biblioteca(manifesto, personagem.biblioteca);
-    const pacote = await this.obterPacote(personagem.arquivo);
-    if (!pacote || visual.descartado || this.descartado) return;
-    visual.vestir(
-      new CorpoDeArte(personagem, pacote.scene, descricao, (id) => this.biblioteca(manifesto, id)),
-    );
+    let uso: UsoDePersonagem | null = null;
+    try {
+      uso = await this.personagens.adquirir(personagem.arquivo);
+      if (!uso) {
+        visual.falhar();
+        return;
+      }
+      if (visual.descartado || this.descartado) {
+        uso.liberar();
+        return;
+      }
+      visual.vestir(
+        new CorpoDeArte(
+          personagem,
+          uso.pacote.scene,
+          descricao,
+          (id) => this.biblioteca(manifesto, id),
+          uso.liberar,
+          uso.pacote.mascarasDeCor ?? new Map(),
+        ),
+      );
+    } catch (erro) {
+      uso?.liberar();
+      visual.falhar();
+      this.opcoes.aoFalhar?.(personagem.arquivo, erro);
+    }
   }
 
   /** A biblioteca pronta, ou `null` enquanto baixa (e começa a baixar, se ninguém pediu ainda). */
@@ -165,9 +323,16 @@ export class AtivosDeArte implements Ativos {
     if (!this.manifesto) {
       const pedido = this.baixar("manifest.json").then(async (resposta) => {
         if (!resposta) return null;
-        const lido = ManifestoSchema.safeParse(await resposta.json());
-        if (lido.success) return lido.data;
-        this.opcoes.aoFalhar?.("manifest.json", lido.error);
+        try {
+          const lido = ManifestoSchema.safeParse(await resposta.json());
+          if (lido.success) {
+            this.manifestoLido = lido.data;
+            return lido.data;
+          }
+          this.opcoes.aoFalhar?.("manifest.json", lido.error);
+        } catch (erro) {
+          this.opcoes.aoFalhar?.("manifest.json", erro);
+        }
         return null;
       });
       this.manifesto = pedido;
@@ -182,20 +347,14 @@ export class AtivosDeArte implements Ativos {
   private obterPacote(arquivo: string): Promise<PacoteLido | null> {
     let pedido = this.pacotes.get(arquivo);
     if (!pedido) {
-      pedido = this.baixar(arquivo).then(async (resposta) => {
-        if (!resposta) return null;
-        try {
-          const pacote = await this.lerPacote(await resposta.arrayBuffer());
-          if (this.descartado) {
-            soltarPacote(pacote);
-            return null;
-          }
-          this.lidos.push(pacote);
-          return pacote;
-        } catch (erro) {
-          this.opcoes.aoFalhar?.(arquivo, erro);
+      pedido = this.carregarPacote(arquivo).then((pacote) => {
+        if (!pacote) return null;
+        if (this.descartado) {
+          soltarPacote(pacote);
           return null;
         }
+        this.lidos.push(pacote);
+        return pacote;
       });
       this.pacotes.set(arquivo, pedido);
       const feito = pedido;
@@ -206,12 +365,63 @@ export class AtivosDeArte implements Ativos {
     return pedido;
   }
 
+  private async carregarPacote(arquivo: string): Promise<PacoteLido | null> {
+    const resposta = await this.baixar(arquivo);
+    if (!resposta) return null;
+    try {
+      return await this.lerPacote(await resposta.arrayBuffer());
+    } catch (erro) {
+      this.opcoes.aoFalhar?.(arquivo, erro);
+      return null;
+    }
+  }
+
+  private async carregarPersonagem(arquivo: string): Promise<PacoteLido | null> {
+    const pacote = await this.carregarPacote(arquivo);
+    if (!pacote) return null;
+    const entrada: PersonagemDoManifesto | undefined = this.manifestoLido?.personagens.find(
+      (p) => p.arquivo === arquivo,
+    );
+    const resultados = await Promise.allSettled(
+      (entrada?.cores?.mascaras ?? []).map(async (mascara) => {
+        const resposta = await this.baixar(mascara.arquivo);
+        if (!resposta) throw new Error(`Máscara indisponível: ${mascara.arquivo}`);
+        const blob = await resposta.blob();
+        const textura = this.opcoes.lerTextura
+          ? await this.opcoes.lerTextura(blob)
+          : new Texture(
+              await createImageBitmap(blob, {
+                premultiplyAlpha: "none",
+                colorSpaceConversion: "none",
+              }),
+            );
+        textura.colorSpace = NoColorSpace;
+        textura.flipY = false;
+        textura.needsUpdate = true;
+        return { arquivo: mascara.arquivo, textura };
+      }),
+    );
+    const falha = resultados.find((r) => r.status === "rejected");
+    if (falha?.status === "rejected") {
+      for (const resultado of resultados)
+        if (resultado.status === "fulfilled") soltarTextura(resultado.value.textura);
+      soltarPacote(pacote);
+      throw falha.reason;
+    }
+    const mascaras = new Map<string, Texture>();
+    for (const resultado of resultados)
+      if (resultado.status === "fulfilled")
+        mascaras.set(resultado.value.arquivo, resultado.value.textura);
+    return { ...pacote, mascarasDeCor: mascaras };
+  }
+
   /** Um arquivo do servidor do jogo, com a sessão. `null` em qualquer falha (já avisada). */
   private async baixar(arquivo: string): Promise<Response | null> {
     try {
       const resposta = await this.buscar(`${this.opcoes.origem}/arte/${arquivo}`, {
         headers: { authorization: `Bearer ${this.opcoes.token()}` },
         credentials: "omit",
+        signal: AbortSignal.timeout(60_000),
       });
       if (resposta.ok) return resposta;
       this.opcoes.aoFalhar?.(arquivo, new Error(`HTTP ${resposta.status}`));
@@ -223,29 +433,82 @@ export class AtivosDeArte implements Ativos {
 
   dispose(): void {
     this.descartado = true;
+    this.personagens.dispose();
     this.procedurais.dispose();
     for (const pacote of this.lidos.splice(0)) soltarPacote(pacote);
     this.bibliotecas.clear();
     this.pacotes.clear();
+    this.ouvintes.clear();
+    this.modelos.clear();
+    this.cenasDosVaos.clear();
+    for (const material of this.materiais.values()) {
+      if (material.map) soltarTextura(material.map);
+      material.dispose();
+    }
+    this.materiais.clear();
   }
+}
+
+function soltarTextura(textura: Texture): void {
+  textura.dispose();
+  const imagem: unknown = textura.image;
+  if (typeof ImageBitmap !== "undefined" && imagem instanceof ImageBitmap) imagem.close();
 }
 
 /** Solta geometrias, materiais e texturas de um GLB. */
 function soltarPacote(pacote: PacoteLido): void {
+  const geometrias = new Set<BufferGeometry>();
+  const materiais = new Set<import("three").Material>();
+  const texturas = new Set<Texture>();
+  for (const textura of pacote.mascarasDeCor?.values() ?? []) texturas.add(textura);
   pacote.scene.traverse((objeto) => {
-    if (!(objeto as Mesh).isMesh) return;
-    const malha = objeto as Mesh;
-    malha.geometry.dispose();
-    const materiais = Array.isArray(malha.material) ? malha.material : [malha.material];
-    for (const material of materiais) {
+    if (!(objeto instanceof Mesh)) return;
+    geometrias.add(objeto.geometry);
+    for (const material of Array.isArray(objeto.material) ? objeto.material : [objeto.material]) {
+      materiais.add(material);
       for (const valor of Object.values(material)) {
-        if (valor && typeof valor === "object" && (valor as { isTexture?: boolean }).isTexture) {
-          (valor as { dispose(): void }).dispose();
-        }
+        if (valor instanceof Texture) texturas.add(valor);
       }
-      material.dispose();
     }
   });
+  for (const geometria of geometrias) geometria.dispose();
+  for (const material of materiais) material.dispose();
+  for (const textura of texturas) soltarTextura(textura);
+}
+
+/** Estimativa de buffers e imagens decodificados, incluindo mipmaps da GPU. */
+function bytesDoPacote(pacote: PacoteLido): number {
+  const buffers = new Set<ArrayBufferLike>();
+  const texturas = new Set<Texture>();
+  for (const textura of pacote.mascarasDeCor?.values() ?? []) texturas.add(textura);
+  pacote.scene.traverse((objeto) => {
+    if (!(objeto instanceof Mesh)) return;
+    const atributos = [
+      ...Object.values(objeto.geometry.attributes),
+      ...Object.values(objeto.geometry.morphAttributes).flat(),
+      ...(objeto.geometry.index ? [objeto.geometry.index] : []),
+    ];
+    for (const atributo of atributos) buffers.add(atributo.array.buffer);
+    for (const material of Array.isArray(objeto.material) ? objeto.material : [objeto.material])
+      for (const valor of Object.values(material))
+        if (valor instanceof Texture) texturas.add(valor);
+  });
+  let bytes = [...buffers].reduce((soma, buffer) => soma + buffer.byteLength * 2, 0);
+  for (const textura of texturas) {
+    const imagem: unknown = textura.image;
+    if (
+      imagem &&
+      typeof imagem === "object" &&
+      "width" in imagem &&
+      "height" in imagem &&
+      typeof imagem.width === "number" &&
+      typeof imagem.height === "number"
+    )
+      bytes += Math.ceil(
+        imagem.width * imagem.height * 4 * (1 + (textura.generateMipmaps ? 4 / 3 : 1)),
+      );
+  }
+  return bytes;
 }
 
 /**
@@ -257,6 +520,20 @@ class MoradorDeArte implements VisualDoMorador {
   descartado = false;
   private corpo: VisualDoMorador;
   private pedirCorpo: (() => void) | null;
+  private falhou = false;
+
+  get estadoDaArte(): "carregando" | "pronto" | "falha" {
+    return this.corpo.estadoDaArte === "pronto" ? "pronto" : this.falhou ? "falha" : "carregando";
+  }
+
+  falhar(): void {
+    this.falhou = true;
+  }
+
+  definirAparencia(aparencia: DescricaoDoMorador["aparencia"]): void {
+    this.descricao.aparencia = aparencia;
+    this.corpo.definirAparencia?.(aparencia);
+  }
 
   constructor(
     private readonly descricao: DescricaoDoMorador,
@@ -270,6 +547,10 @@ class MoradorDeArte implements VisualDoMorador {
 
   get altura(): number {
     return this.corpo.altura;
+  }
+
+  enquadramentoDaPrevia(): EnquadramentoDoMorador | null {
+    return this.corpo.enquadramentoDaPrevia?.() ?? null;
   }
 
   get colo(): PontoDaCena {
@@ -307,20 +588,9 @@ class MoradorDeArte implements VisualDoMorador {
   }
 }
 
-/** A cópia de uma geometria que divide os atributos com a original: só a lista de atributos é dela. */
+/** A geometria mutável tem buffers próprios, para poder ser descartada com segurança. */
 function geometriaPropria(original: BufferGeometry): BufferGeometry {
-  const copia = new BufferGeometry();
-  copia.setIndex(original.index);
-  for (const [nome, atributo] of Object.entries(original.attributes)) {
-    copia.setAttribute(nome, atributo);
-  }
-  copia.morphAttributes = { ...original.morphAttributes };
-  copia.morphTargetsRelative = original.morphTargetsRelative;
-  for (const grupo of original.groups)
-    copia.addGroup(grupo.start, grupo.count, grupo.materialIndex);
-  copia.boundingBox = original.boundingBox;
-  copia.boundingSphere = original.boundingSphere;
-  return copia;
+  return original.clone();
 }
 
 type Atributo = BufferAttribute | InterleavedBufferAttribute;
@@ -356,6 +626,10 @@ const _direita = new Vector3();
  * próprio misturador de animações.
  */
 class CorpoDeArte implements VisualDoMorador {
+  readonly estadoDaArte = "pronto";
+  private descartado = false;
+  private readonly esqueletos = new Set<Skeleton>();
+  private readonly cores: CoresParametricas | null;
   readonly raiz = new Group();
   readonly altura: number;
   private coloAtual: PontoDaCena;
@@ -373,17 +647,31 @@ class CorpoDeArte implements VisualDoMorador {
   private clipeAtual: AnimationClip | null = null;
   private expressaoAtual = "";
   private dobrada = false;
+  private enquadramentoMedido: EnquadramentoDoMorador | null = null;
+  private posturaMedida: PosturaDoCorpo | null = null;
+  private gravidezMedida = -1;
 
   constructor(
     private readonly personagem: PersonagemDoManifesto,
     cena: Object3D,
     descricao: DescricaoDoMorador,
     private readonly biblioteca: (id: string) => BibliotecaCarregada | null,
+    private readonly liberarPacote: () => void,
+    mascarasDoPacote: ReadonlyMap<string, Texture>,
   ) {
     this.altura = personagem.altura;
     this.coloAtual = personagem.ancoras.colo;
     // Os próprios ossos; geometria, materiais e texturas ficam divididos com as outras cópias.
     this.modelo = clonarComEsqueleto(cena);
+    this.cores = personagem.cores
+      ? new CoresParametricas(this.modelo, personagem.cores, mascarasDoPacote)
+      : null;
+    try {
+      this.cores?.definir(coresDaAparencia(personagem, descricao.aparencia));
+    } catch (erro) {
+      this.cores?.dispose();
+      throw erro;
+    }
     this.postura.add(this.modelo);
     this.raiz.add(this.postura);
     this.misturador = new AnimationMixer(this.modelo);
@@ -391,6 +679,7 @@ class CorpoDeArte implements VisualDoMorador {
     this.modelo.traverse((objeto) => {
       const malha = objeto as SkinnedMesh;
       if (!malha.isSkinnedMesh) return;
+      this.esqueletos.add(malha.skeleton);
       // A caixa da malha quantizada não acompanha a pose; e o clique acerta a caixa de `alvo`.
       malha.frustumCulled = false;
       malha.castShadow = true;
@@ -413,8 +702,11 @@ class CorpoDeArte implements VisualDoMorador {
       malha.geometry = propria;
       this.dobraveis.push({
         geometria: propria,
-        pano: [g.getAttribute("skinIndex"), g.getAttribute("skinWeight")],
-        dobrado: [juntas, pesos],
+        pano: [propria.getAttribute("skinIndex"), propria.getAttribute("skinWeight")],
+        dobrado: [
+          propria.getAttribute("_joints_dobrado"),
+          propria.getAttribute("_weights_dobrado"),
+        ],
       });
     });
     this.modelo.traverse((objeto) => {
@@ -446,7 +738,21 @@ class CorpoDeArte implements VisualDoMorador {
     return this.coloAtual;
   }
 
+  definirAparencia(aparencia: DescricaoDoMorador["aparencia"]): void {
+    this.cores?.definir(coresDaAparencia(this.personagem, aparencia));
+  }
+
+  enquadramentoDaPrevia(): EnquadramentoDoMorador {
+    this.enquadramentoMedido ??= medirEnquadramento(this.modelo, this.raiz);
+    return this.enquadramentoMedido;
+  }
+
   aplicar(pose: PoseDoMorador): void {
+    if (this.posturaMedida !== pose.postura || this.gravidezMedida !== pose.gravidez) {
+      this.enquadramentoMedido = null;
+      this.posturaMedida = pose.postura;
+      this.gravidezMedida = pose.gravidez;
+    }
     const bibliotecas = bibliotecasDaPose(this.personagem, pose.gravidez)
       .map((id) => this.biblioteca(id))
       .filter((b): b is BibliotecaCarregada => b !== null);
@@ -486,6 +792,7 @@ class CorpoDeArte implements VisualDoMorador {
   /** Troca de clipe com uma passagem curta; sem clipe, volta à pose de descanso. */
   private tocar(clipe: AnimationClip | null): void {
     if (clipe === this.clipeAtual) return;
+    this.enquadramentoMedido = null;
     this.clipeAtual = clipe;
     const anterior = this.acao;
     if (!clipe) {
@@ -511,6 +818,7 @@ class CorpoDeArte implements VisualDoMorador {
 
   private dobrar(dobrada: boolean): void {
     if (dobrada === this.dobrada) return;
+    this.enquadramentoMedido = null;
     this.dobrada = dobrada;
     for (const d of this.dobraveis) {
       const [juntas, pesos] = dobrada ? d.dobrado : d.pano;
@@ -522,6 +830,7 @@ class CorpoDeArte implements VisualDoMorador {
   private expressao(nome: string): void {
     const alvo = this.rostos.has(nome) ? nome : (this.personagem.expressoes[0]?.nome ?? "");
     if (alvo === this.expressaoAtual) return;
+    this.enquadramentoMedido = null;
     this.expressaoAtual = alvo;
     for (const [chave, no] of this.rostos) no.visible = chave === alvo;
   }
@@ -561,12 +870,22 @@ class CorpoDeArte implements VisualDoMorador {
   }
 
   dispose(): void {
+    if (this.descartado) return;
+    this.descartado = true;
     this.misturador.stopAllAction();
+    this.cores?.dispose();
     this.misturador.uncacheRoot(this.modelo);
-    // As geometrias próprias dividem os atributos com o pacote: soltá-las tiraria
-    // da placa os buffers que os outros moradores usam. Só o alvo é deste corpo.
+    for (const esqueleto of this.esqueletos) esqueleto.dispose();
+    for (const dobravel of this.dobraveis) {
+      // Os pesos alternativos continuam em atributos próprios. Recolocar os
+      // regulares conserva todos os buffers na lista que o three descarta.
+      dobravel.geometria.setAttribute("skinIndex", dobravel.pano[0]);
+      dobravel.geometria.setAttribute("skinWeight", dobravel.pano[1]);
+      dobravel.geometria.dispose();
+    }
     this.alvo.geometry.dispose();
     (this.alvo.material as MeshBasicMaterial).dispose();
     this.raiz.removeFromParent();
+    this.liberarPacote();
   }
 }

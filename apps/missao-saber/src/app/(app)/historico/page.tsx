@@ -28,7 +28,7 @@ export default async function HistoryPage({
   if (!data.profile) return <EmptyProfile />;
   const params = await searchParams;
   const cursor = params.antes;
-  const history = await learningHistory(data.userId, data.profile.id, cursor).catch(
+  const history = await learningHistory(data.authority, data.profile.id, cursor).catch(
     (error: unknown) => {
       if (error instanceof ZodError) notFound();
       throw error;

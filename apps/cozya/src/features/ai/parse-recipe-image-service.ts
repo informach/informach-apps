@@ -1,14 +1,14 @@
 import "server-only";
+import { prepareVisionImage } from "@informach/ai-core/vision-image";
 
-import { runBillableAgentCall } from "@informach/ai-core";
 import { getMastra } from "@/ai";
-import { agentRunRecorder as recorder } from "@/ai/agent-run-recorder";
 import { COZYA_MODELS } from "@/ai/models";
-import { type RecipeParserOutput, recipeParserSchema } from "@/ai/recipe-parser/schema";
-import { billing } from "@/features/billing/service";
-import { currentAiOperationId } from "./operation-context";
+import type { RecipeParserOutput } from "@/ai/recipe-parser/schema";
+import { COZYA_AI_COSTS, modelUsageUsd, usdToCredits } from "./costs";
+import { recipeGenerationOptions } from "./generation-budget";
 import { validateRecipeOutput } from "./recipe-output";
 import { providerCostMetadata } from "./usage-metadata";
+import { runCozyaAiWorkflow } from "./workflow";
 
 export type ParseRecipeFromImageInput = {
   userId: string;
@@ -19,31 +19,17 @@ export type ParseRecipeFromImageResult = RecipeParserOutput;
 
 const FEATURE = "cozya.recipe.extract_from_photo" as const;
 
-type RecipeAgentResponse = {
-  object: unknown;
-  usage?: unknown;
-  providerMetadata?: unknown;
-};
-
 export async function parseRecipeFromImage(
   input: ParseRecipeFromImageInput,
 ): Promise<ParseRecipeFromImageResult> {
-  const out = await runBillableAgentCall<RecipeAgentResponse>({
-    billing,
-    runId: currentAiOperationId(),
-    owner: { type: "user", id: input.userId },
-    app: "cozya",
+  const imageDataUrl = await prepareVisionImage(input.imageDataUrl);
+  return runCozyaAiWorkflow({
+    userId: input.userId,
     feature: FEATURE,
-    model: COZYA_MODELS[FEATURE],
-    recorder,
-    retry: false,
-    metadata: { userId: input.userId },
-    getErrorMetadata: (error) => ({ error: error instanceof Error ? error.name : "UnknownError" }),
-    getSuccessMetadata: (response) =>
-      providerCostMetadata(response.providerMetadata, response.usage),
     agent: "recipeParserVision",
-    getUsage: (response) => response.usage,
-    call: async ({ runId }) => {
+    quote: COZYA_AI_COSTS.photo,
+    parseResult: validateRecipeOutput,
+    call: async (runId) => {
       // Vision agent (gpt-4o) — see apps/cozya/src/ai/index.ts. Other parse
       // flows reuse the cheaper recipeParser (gpt-4o-mini).
       const mastra = await getMastra();
@@ -58,25 +44,20 @@ export async function parseRecipeFromImage(
               },
               {
                 type: "image",
-                image: input.imageDataUrl,
+                image: imageDataUrl,
                 providerOptions: { openai: { imageDetail: "high" } },
               },
             ],
           },
         ],
-        {
-          runId,
-          abortSignal: AbortSignal.timeout(90000),
-          modelSettings: { maxOutputTokens: 3500, temperature: 0 },
-          structuredOutput: {
-            schema: recipeParserSchema,
-            errorStrategy: "strict",
-          },
-        },
+        recipeGenerationOptions(runId, "parse"),
       );
-      validateRecipeOutput(response.object);
-      return response;
+      return {
+        value: validateRecipeOutput(response.object),
+        actualCredits: usdToCredits(modelUsageUsd(COZYA_MODELS[FEATURE], response.usage)),
+        usage: response.usage,
+        metadata: providerCostMetadata(response.providerMetadata, response.usage),
+      };
     },
   });
-  return validateRecipeOutput(out.result.object);
 }

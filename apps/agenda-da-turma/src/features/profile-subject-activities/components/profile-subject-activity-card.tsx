@@ -25,11 +25,12 @@ import { DeleteProfileSubjectActivityDialog } from "./delete-profile-subject-act
 import { ProfileSubjectActivityFormDialog } from "./profile-subject-activity-form-dialog";
 
 type Props = {
+  canWrite: boolean;
   activity: ProfileSubjectActivity;
   profileSubjectName: string;
 };
 
-export function ProfileSubjectActivityCard({ activity, profileSubjectName }: Props) {
+export function ProfileSubjectActivityCard({ activity, profileSubjectName, canWrite }: Props) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -52,6 +53,7 @@ export function ProfileSubjectActivityCard({ activity, profileSubjectName }: Pro
       const result = await catchActionResult(() =>
         setProfileSubjectActivityStatusAction({
           id: activity.id,
+          version: activity.version,
           status: next ? "done" : "pending",
         }),
       );
@@ -79,7 +81,7 @@ export function ProfileSubjectActivityCard({ activity, profileSubjectName }: Pro
           <Checkbox
             checked={isDone}
             onCheckedChange={(v) => handleToggle(v === true)}
-            disabled={!hydrated || pending}
+            disabled={!canWrite || !hydrated || pending}
             aria-label={`${isDone ? "Reabrir" : "Marcar como feito"}: ${activity.title}`}
             className="mt-0.5"
           />
@@ -101,31 +103,33 @@ export function ProfileSubjectActivityCard({ activity, profileSubjectName }: Pro
             ) : null}
           </div>
           <DueChip due={due} />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-11 shrink-0 rounded-full"
-                aria-label={`Ações para ${activity.title}`}
-              >
-                <MoreVertical className="size-4" aria-hidden />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onSelect={() => setEditOpen(true)}>
-                <Pencil className="mr-2 size-4" aria-hidden />
-                Editar
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => setDeleteOpen(true)}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="mr-2 size-4" aria-hidden />
-                Excluir
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {canWrite ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-11 shrink-0 rounded-full"
+                  aria-label={`Ações para ${activity.title}`}
+                >
+                  <MoreVertical className="size-4" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+                  <Pencil className="mr-2 size-4" aria-hidden />
+                  Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => setDeleteOpen(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="mr-2 size-4" aria-hidden />
+                  Excluir
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -140,6 +144,7 @@ export function ProfileSubjectActivityCard({ activity, profileSubjectName }: Pro
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         activityId={activity.id}
+        version={activity.version}
         title={activity.title}
       />
     </>

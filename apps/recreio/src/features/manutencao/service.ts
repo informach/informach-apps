@@ -4,10 +4,12 @@ import {
   apagarIngressosAntigos,
   encerrarSessoesVencidas,
 } from "@/features/sessao-de-jogo/repository";
+import { apagarConvitesAntigos, apagarIntencoesAntigas, apagarUsoAntigo } from "./repository";
 
 /**
  * A rotina de manutenção do Recreio. Cada passo é idempotente e independente:
- * rodar duas vezes seguidas não muda nada na segunda. Devolve só contagens.
+ * repetir continua os lotes restantes sem repetir efeitos. Devolve só contagens;
+ * uma contagem zero pode decorrer de linhas disputadas, não de ausência global.
  *
  * Nada aqui é caminho crítico. Abrir um mundo fecha a posse vencida na hora, e
  * a renovação recusa a sessão sem acesso na hora; a rotina recolhe o que ficou
@@ -18,10 +20,27 @@ export async function executarManutencao(): Promise<{
   instanciasSumidas: number;
   ingressosApagados: number;
   sessoesExpiradas: number;
+  convitesApagados: number;
+  cadastrosPendentesApagados: number;
+  recibosDeCadastroApagados: number;
+  pareamentosApagados: number;
+  aparelhosNaoConfirmadosEncerrados: number;
+  diasDeUsoApagados: number;
 }> {
   const possesVencidas = await fecharPossesVencidas();
   const instanciasSumidas = await marcarInstanciasSumidas();
   const ingressosApagados = await apagarIngressosAntigos();
   const sessoesExpiradas = await encerrarSessoesVencidas();
-  return { possesVencidas, instanciasSumidas, ingressosApagados, sessoesExpiradas };
+  const convitesApagados = await apagarConvitesAntigos();
+  const intencoes = await apagarIntencoesAntigas();
+  const diasDeUsoApagados = await apagarUsoAntigo();
+  return {
+    possesVencidas,
+    instanciasSumidas,
+    ingressosApagados,
+    sessoesExpiradas,
+    convitesApagados,
+    ...intencoes,
+    diasDeUsoApagados,
+  };
 }

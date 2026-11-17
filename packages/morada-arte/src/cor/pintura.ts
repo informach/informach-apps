@@ -20,6 +20,24 @@ const TABELA_SRGB = Float64Array.from({ length: 256 }, (_, i) => srgbParaLinear(
 
 const TABELA_LINEAR = Float64Array.from({ length: 256 }, (_, i) => i / 255);
 
+/** Amostra original, anterior ao tingimento; reutilizada no perfil parametrizado. */
+export function corOriginalDaRoupa(
+  fonte: Extract<FonteDeCor, { tipo: "roupa" }>,
+  u: number,
+  v: number,
+): Rgb {
+  const t = amostrar(fonte.imagem, u, v, "bilinear", "segura", TABELA_SRGB);
+  return [t[0], t[1], t[2]];
+}
+
+export function mascaraDaRoupa(
+  fonte: Extract<FonteDeCor, { tipo: "roupa" }>,
+  u: number,
+  v: number,
+): number {
+  return fonte.mascara ? amostrar(fonte.mascara, u, v, "bilinear", "segura", TABELA_LINEAR)[0] : 0;
+}
+
 /** A cor linear que a página mostra neste ponto do UV, antes da luz. */
 export function corNoPonto(fonte: FonteDeCor, u: number, v: number): Rgb {
   if (fonte.tipo === "lisa") return fonte.cor;
@@ -27,11 +45,9 @@ export function corNoPonto(fonte: FonteDeCor, u: number, v: number): Rgb {
     const t = amostrar(fonte.imagem, u, v, "proximo", "segura", TABELA_SRGB);
     return [t[0] * fonte.fator[0], t[1] * fonte.fator[1], t[2] * fonte.fator[2]];
   }
-  const t = amostrar(fonte.imagem, u, v, "bilinear", "segura", TABELA_SRGB);
-  const textura: Rgb = [t[0], t[1], t[2]];
+  const textura = corOriginalDaRoupa(fonte, u, v);
   if (!fonte.livre || !fonte.mascara) return textura;
-  const m = amostrar(fonte.mascara, u, v, "bilinear", "segura", TABELA_LINEAR)[0];
-  return comCorLivre(textura, m, fonte.livre);
+  return comCorLivre(textura, mascaraDaRoupa(fonte, u, v), fonte.livre);
 }
 
 /** Uma cor linear por vértice (três números), pela cor da página no UV de cada um. */

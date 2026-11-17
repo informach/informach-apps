@@ -17,7 +17,7 @@ export type FirstStep = {
   id: "crianca" | "turma" | "horario" | "atividade";
   title: string;
   description: string;
-  href: string;
+  href: "/familia" | "/familia/turmas" | "/recados/novo?modo=foto" | `/turmas/${string}/materias`;
   cta: string;
   done: boolean;
 };

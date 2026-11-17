@@ -244,21 +244,22 @@ describe("withCredits", () => {
     expect(billing.releaseReservation).not.toHaveBeenCalled();
   });
 
-  it("commits actualAmount > estimatedAmount (caller may overrun)", async () => {
+  it("releases the reservation when the computed cost exceeds the accepted ceiling", async () => {
     const billing = makeBilling();
-    const out = await withCredits({
-      billing,
-      owner,
-      app: "cozya",
-      feature: "llm.text",
-      estimateCost: () => ({ estimatedAmount: 100 }),
-      call: async () => ({ tokens: 999 }),
-      computeActualCost: () => ({ actualAmount: 250 }),
-    });
-    expect(out.actualAmount).toBe(250);
-    expect(out.estimatedAmount).toBe(100);
-    expect(billing.commitReservation).toHaveBeenCalledWith(
-      expect.objectContaining({ actualAmount: 250 }),
+    await expect(
+      withCredits({
+        billing,
+        owner,
+        app: "cozya",
+        feature: "llm.text",
+        estimateCost: () => ({ estimatedAmount: 100 }),
+        call: async () => ({ tokens: 999 }),
+        computeActualCost: () => ({ actualAmount: 250 }),
+      }),
+    ).rejects.toThrow("ceiling");
+    expect(billing.commitReservation).not.toHaveBeenCalled();
+    expect(billing.releaseReservation).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "validation_failed" }),
     );
   });
 });

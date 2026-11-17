@@ -1,34 +1,15 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readdir, readFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { startCompassoTrial } from "@informach/billing/compasso";
+import { getAppUrl } from "@informach/config/domains";
 import { db, eq } from "@informach/db";
-import { customers, subscriptions, users } from "@informach/db/schema";
+import { users } from "@informach/db/schema";
+import { createFamilyService } from "@informach/family";
 import { type Browser, type BrowserContext, expect, type Page, test } from "@playwright/test";
 
 const SENHA = "Estrela-Teste-2026-Local!";
 const TELAS = path.resolve(process.cwd(), "tmp/telas");
-
-async function codigoDoEmail(email: string) {
-  const pasta = process.env.EMAIL_SANDBOX_DIR;
-  if (!pasta) throw new Error("Missing sandbox");
-  let codigo = "";
-  await expect
-    .poll(
-      async () => {
-        for (const arquivo of (await readdir(pasta).catch(() => [] as string[])).filter((f) =>
-          f.endsWith(".json"),
-        )) {
-          const msg = JSON.parse(await readFile(path.join(pasta, arquivo), "utf8"));
-          if (msg.to === email && msg.category === "auth.verify-email-otp")
-            codigo = msg.text?.match(/\b\d{6}\b/)?.[0] ?? "";
-        }
-        return codigo.length;
-      },
-      { timeout: 10000 },
-    )
-    .toBe(6);
-  return codigo;
-}
 
 async function tela(page: Page, nome: string) {
   await mkdir(TELAS, { recursive: true });
@@ -46,25 +27,38 @@ async function semRolagemLateral(page: Page) {
   expect(sobra).toBeLessThanOrEqual(1);
 }
 
-/** Cadastra um adulto, confirma o e-mail e faz o primeiro uso sem rotinas prontas. */
+/** Central auth has dedicated journeys; this fixture verifies real SSO and app onboarding. */
 async function criarFamilia(page: Page, criancas: string[]) {
   const id = createHash("sha256")
     .update(`${test.info().testId}-${test.info().project.name}`)
     .digest();
-  await page.setExtraHTTPHeaders({ "x-real-ip": `198.51.${id[0]}.${id[1]}` });
+  await page.context().setExtraHTTPHeaders({ "x-real-ip": `198.51.${id[0]}.${id[1]}` });
   const email = `estrela-${randomUUID()}@example.test`;
+  const central = getAppUrl("conta", "development");
+  const response = await page.request.post(`${central}/api/auth/sign-up/email`, {
+    headers: { origin: central },
+    data: { email, password: SENHA, name: "Responsável de teste" },
+  });
+  expect(response.ok(), await response.text()).toBe(true);
+  const [user] = await db
+    .update(users)
+    .set({ emailVerified: true })
+    .where(eq(users.email, email))
+    .returning({ id: users.id });
+  if (!user) throw new Error("Missing synthetic adult");
+  const family = createFamilyService({ db });
+  const group = await family.createGroup(user.id, "Família de teste");
+  for (const name of criancas)
+    await family.createPerson(user.id, { groupId: group.id, kind: "dependent", displayName: name });
   await page.goto("/entrar");
-  await page.getByRole("button", { name: "Criar conta", exact: true }).click();
-  await page.getByLabel("Como podemos chamar o responsável?").fill("Mãe do Lucas");
-  await page.getByLabel("E-mail do responsável", { exact: true }).fill(email);
+  await page.getByRole("button", { name: "Continuar com minha conta", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`^${central}/entrar`));
+  await page.getByLabel("E-mail", { exact: true }).fill(email);
   await page.getByLabel("Senha", { exact: true }).fill(SENHA);
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Criar conta do responsável" }).click();
-  await page.getByLabel("Código de seis dígitos").fill(await codigoDoEmail(email));
-  await page.getByRole("button", { name: "Confirmar e-mail", exact: true }).click();
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await expect(page).toHaveURL(/\/comecar$/);
   await expect(page.getByRole("heading", { name: "Quem vai usar?" })).toBeVisible();
-  await page.getByLabel("Nome da criança 1").fill(criancas[0] ?? "Lucas");
+  await page.getByRole("checkbox", { name: criancas[0] ?? "Lucas", exact: true }).check();
   await tela(page, "01-primeiro-uso");
   await page.getByRole("button", { name: "Continuar" }).click();
   for (const nome of ["Manhã de escola", "Volta da escola", "Noite"])
@@ -74,7 +68,7 @@ async function criarFamilia(page: Page, criancas: string[]) {
   await page.getByLabel("Repita o PIN").fill("2468");
   await page.getByRole("button", { name: "Concluir" }).click();
   await expect(page).toHaveURL(/\/inicio$/);
-  return email;
+  return { email, userId: user.id, groupId: group.id };
 }
 
 async function horaDaPagina(page: Page) {
@@ -228,40 +222,26 @@ test("jornada: rotina, tablet, lembrete, passo a passo, aprovação, loja e PIN"
   await fechar(contexto);
 });
 
-test("tablet compartilhado: 'Quem está usando?' com duas crianças no plano Família", async ({
+test("tablet compartilhado: 'Quem está usando?' com duas crianças no Compasso", async ({
   page,
   browser,
 }) => {
-  const email = await criarFamilia(page, ["Lucas"]);
-  const [titular] = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
-  if (!titular) throw new Error("Missing owner");
-  const [customer] = await db
-    .insert(customers)
-    .values({
-      provider: "stripe",
-      providerCustomerId: `cus_e2e_${titular.id}`,
-      subjectType: "user",
-      subjectId: titular.id,
-      app: "dia-de-estrela",
-      email,
-    })
-    .returning();
-  if (!customer) throw new Error("Missing customer");
-  await db.insert(subscriptions).values({
-    customerId: customer.id,
-    provider: "stripe",
-    providerSubscriptionId: `sub_e2e_${titular.id}`,
-    productId: "estrela_family_monthly",
-    providerPriceId: "price_e2e",
-    status: "active",
-    currentPeriodStart: new Date(),
-    currentPeriodEnd: new Date(Date.now() + 30 * 86_400_000),
+  const { userId, groupId } = await criarFamilia(page, ["Lucas"]);
+  await startCompassoTrial(
+    { db, trialHashSecret: process.env.COMPASSO_TRIAL_HASH_SECRET ?? "" },
+    userId,
+    groupId,
+  );
+  const person = await createFamilyService({ db }).createPerson(userId, {
+    groupId,
+    kind: "dependent",
+    displayName: "Marina",
   });
   await page.goto("/ajustes");
-  await expect(page.getByRole("heading", { name: "Plano Família" })).toBeVisible();
-  await page.getByLabel("Nome da nova criança").fill("Marina");
-  await page.getByRole("button", { name: "Adicionar", exact: true }).click();
-  await expect(page.getByLabel("Nome de Marina")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Acesso da família" })).toBeVisible();
+  await page.getByLabel("Ativar uma criança cadastrada").selectOption(person.id);
+  await page.getByRole("button", { name: "Ativar no Dia de Estrela", exact: true }).click();
+  await expect(page.getByText("Marina", { exact: true }).first()).toBeVisible();
   await tela(page, "17-ajustes-familia");
   const codigo = await gerarCodigo(page, ["Lucas", "Marina"]);
   const { contexto, crianca } = await aparelhoDaCrianca(browser, codigo);
