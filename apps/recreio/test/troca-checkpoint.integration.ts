@@ -11,6 +11,7 @@ import { describe, expect, it, vi } from "vitest";
 import { alterarDados, consultarDados } from "@/features/dados-de-perfil/service";
 import { selecionarPerfil } from "@/features/perfis/service";
 import { resolverAtor } from "@/features/sessao/service";
+import { lerControleDaSessao } from "@/features/sessao-de-jogo/controle-repository";
 import {
   emitirIngresso,
   renovarSessao,
@@ -181,6 +182,11 @@ describe("troca coordenada por checkpoint de perfil", () => {
     expect((await consultarDados(atual, "pontos", false)).versao?.conteudo).toBe("MQ==");
     expect((await db.select().from(games).where(eq(games.id, r.anterior.sid)))[0]).toMatchObject({
       endReason: "replaced",
+    });
+    // A referência foi conferida antes da troca; a leitura sob trava chega depois.
+    await expect(lerControleDaSessao(r.anterior)).rejects.toMatchObject({
+      codigo: "SESSAO_ENCERRADA",
+      detalhe: { motivo: "replaced" },
     });
     expect((await db.select().from(handoffs).where(eq(handoffs.id, id)))[0]?.status).toBe(
       "completed",

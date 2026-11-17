@@ -377,3 +377,12 @@ somente no GitHub; este incremento ainda não tem resultado remoto.
 `149ea66` passou nos sete gates `44052471827`; o CI compartilhado correspondente
 `44052471167` permanece em execução. Essa aprovação não inclui o consumidor
 genérico deste incremento nem autoriza ativar famílias ou checkpoint em produção.
+
+A rodada `4d9bd21`/`44056229374` chegou à troca real no mundo, mas a asserção
+do motivo no aparelho anterior falhou: uma consulta admitida pelo token antes
+do encerramento chegava à trava depois e perdia `replaced`, recebendo recusa
+genérica. O kernel passa a devolver o motivo persistido somente após conferir
+mesmo SID/perfil/aparelho/jogo e política atuais. Referências de outra autoridade
+continuam genéricas. A prova integrada consulta a referência anterior após
+a troca; a asserção original do navegador é preservada. Ainda sem resultado
+remoto do corretivo.
