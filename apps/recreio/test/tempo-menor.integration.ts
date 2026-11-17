@@ -14,6 +14,7 @@ import {
 import { describe, expect, it } from "vitest";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
 import { apagarUsoAntigo } from "@/features/manutencao/repository";
+import { consultarTempoDeJogo } from "@/features/politicas/controle-repository";
 import {
   calendarioDeBrasilia,
   prepararConcessaoDeTempo,
@@ -82,6 +83,69 @@ async function preparar(
   });
 }
 describe("concessão de tempo por perfil", () => {
+  it("barreira confirmada para de consumir tempo antes do fim definitivo da sessão", async () => {
+    const r = await familia();
+    const inicio = Date.parse("2018-11-03T15:00:00Z");
+    const configuracao = { ...supervisaoInicial(), minutosPorDia: 1 };
+    await preparar(r, new Date(inicio).toISOString(), configuracao, r.primeira.id);
+    const pausadaEm = new Date(inicio + 10_000);
+    await db
+      .update(games)
+      .set({ checkpointFrozenAt: pausadaEm })
+      .where(eq(games.id, r.primeira.id));
+    const controle = await db.transaction((tx) =>
+      consultarTempoDeJogo(
+        tx,
+        r.perfil.id,
+        SessaoDeJogoIdSchema.parse(r.primeira.id),
+        configuracao,
+        new Date(inicio + 20_000),
+        pausadaEm,
+      ),
+    );
+    expect(controle).toMatchObject({
+      usadoHojeMs: 10_000,
+      saldoMs: 50_000,
+      pausaEm: null,
+      motivo: null,
+    });
+    expect(
+      await preparar(r, new Date(inicio + 30_000).toISOString(), configuracao, r.segunda.id),
+    ).toMatchObject({ permitido: true, usadoMs: 10_000 });
+  });
+  it.each([
+    {
+      agora: "2018-11-04T02:59:40Z",
+      pausa: "2018-11-04T03:00:00.000Z",
+      motivo: "day_change",
+      horarios: null,
+    },
+    {
+      agora: "2019-02-17T01:59:40Z",
+      pausa: "2019-02-17T02:00:00.000Z",
+      motivo: "schedule",
+      horarios: [{ diaDaSemana: 6, inicioMinuto: 1430, fimMinuto: 1440 }],
+    },
+  ])(
+    "controle antecipa fronteira IANA sem alterar o agregado: $agora",
+    async ({ agora, pausa, motivo, horarios }) => {
+      const r = await familia();
+      const configuracao = { ...supervisaoInicial(), horarios };
+      await preparar(r, agora, configuracao, r.primeira.id);
+      const antes = await db.select().from(usage).where(eq(usage.profileId, r.perfil.id));
+      const controle = await db.transaction((tx) =>
+        consultarTempoDeJogo(
+          tx,
+          r.perfil.id,
+          SessaoDeJogoIdSchema.parse(r.primeira.id),
+          configuracao,
+          new Date(agora),
+        ),
+      );
+      expect(controle).toMatchObject({ pausaEm: pausa, motivo });
+      expect(await db.select().from(usage).where(eq(usage.profileId, r.perfil.id))).toEqual(antes);
+    },
+  );
   it("retenção global é limitada a 500 dias por lote e não remove agregados atuais", async () => {
     await db.delete(usage);
     const r = await familia();

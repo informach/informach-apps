@@ -70,7 +70,11 @@ async function acertarConcessaoAnterior(tx: Transacao, perfilId: PerfilId, agora
   if (!anterior) return;
   const [sessao] = anterior.sessionId
     ? await tx
-        .select({ profileId: games.profileId, endedAt: games.endedAt })
+        .select({
+          profileId: games.profileId,
+          endedAt: games.endedAt,
+          checkpointFrozenAt: games.checkpointFrozenAt,
+        })
         .from(games)
         .where(eq(games.id, anterior.sessionId))
     : [];
@@ -83,7 +87,9 @@ async function acertarConcessaoAnterior(tx: Transacao, perfilId: PerfilId, agora
       concedidoAte: anterior.leaseUntil.getTime(),
     },
     agora.getTime(),
-    sessao.endedAt?.getTime() ?? null,
+    sessao.checkpointFrozenAt && (!sessao.endedAt || sessao.checkpointFrozenAt < sessao.endedAt)
+      ? sessao.checkpointFrozenAt.getTime()
+      : (sessao.endedAt?.getTime() ?? null),
   );
   await tx
     .update(usage)

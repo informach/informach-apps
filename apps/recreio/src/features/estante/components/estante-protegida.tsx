@@ -1,6 +1,7 @@
 import { ehErroDoRecreio } from "@informach/recreio";
 import type { ReferenciaDeJogador } from "@/features/autoridade-de-jogo/aparelho-repository";
 import { conferirAberturaDoJogo } from "@/features/autoridade-de-jogo/pagina-repository";
+import { jogosProtegidosDisponiveis } from "@/features/familia/disponibilidade";
 import { temCliente } from "@/features/jogar/registro";
 import { jogoAbre, jogosDoCatalogo } from "@/features/jogos/config";
 import { ListaDeMundos } from "@/features/mundos/components/lista-de-mundos";
@@ -8,6 +9,17 @@ import { listarMundos } from "@/features/mundos/service";
 
 /** Sem links de conta, cobrança ou edição das regras do responsável. */
 export async function EstanteProtegida({ jogador }: { jogador: ReferenciaDeJogador }) {
+  if (!jogosProtegidosDisponiveis)
+    return (
+      <section className="painel mt-8 p-6">
+        <h2 className="font-display text-2xl font-bold">
+          Os jogos ainda não estão disponíveis neste acesso
+        </h2>
+        <p className="mt-3 text-tinta-suave">
+          Peça ao adulto para conferir o acesso. Você pode sair deste aparelho quando quiser.
+        </p>
+      </section>
+    );
   const jogos = await Promise.all(
     jogosDoCatalogo().map(async (jogo) => {
       let permitido = false;

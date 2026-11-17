@@ -91,3 +91,41 @@ Não há escritor de checkpoint/troca ou aviso antecipado nesta preparação.
 Não aplicar a 0175 isoladamente ou habilitar famílias/checkpoint em produção
 com base neste desenho. A publicação intermediária dos leitores familiares
 usa a fonte `ad37ca9` e termina na 0174; não inclui esta candidata.
+
+Leitores `f6a1ed0` passaram nos seis gates `44032050142`, com 443 integrações
+em 36 arquivos. O CI compartilhado dessa fonte é substituído pela rodada do
+incremento seguinte, que altera o SDK; não apresentar a rodada cancelada como
+aprovação compartilhada. A 0175 continua fora da produção.
+
+## Consulta de controle em implementação
+
+`GET /api/sdk/v1/sessao/controle` e `sessao.controle()` usam o token atual do
+jogo e a admissão comum. O contato técnico toma UPDATE da sessão desde o
+início, sem renovar o prazo, consumir ingresso ou acertar novamente o agregado.
+Consulta durante a própria barreira continua possível, com autoridade atual;
+isso não libera dados, mundo ou renovação. O limite é 60 consultas por perfil
+por minuto, anterior à transação. O consumidor ainda não agenda consultas
+automaticamente neste incremento.
+
+A resposta leva relógio/prazo do servidor, estado da pausa, saldo agregado e
+intenção vigente. Sem agenda completa, nascimento, identificador da conta,
+e-mail ou dados opacos. Recibos falhos/terminados não ocultam a intenção ativa.
+Estado confirmado exige a barreira e o modo precisa corresponder ao título.
+
+A projeção lê no máximo 61 segundos do calendário IANA para antecipar janela,
+limite diário e troca do dia. A concessão atual termina na meia-noite local:
+o consumidor ainda precisa salvar e retomar com autoridade do novo dia; uma
+renovação comum não pode esticar o token anterior através dessa fronteira.
+O horário do cliente nunca amplia acesso. A barreira confirmada deixa de
+consumir tempo, mesmo antes do encerramento definitivo da sessão.
+
+Novas provas reais de HTTP/banco e SDK cobrem leitura repetida sem novo débito,
+aparelho vencido, recibo falho anterior à intenção atual, leitura da própria
+pausa, capacidade de texto do título, meia-noite e retorno do horário de verão.
+Ainda dependem da rodada remota. A tela do aparelho em modo de preparação
+explica que os jogos não estão disponíveis, sem consultar um kernel que os
+recusa nem abrir gestão para a criança.
+
+O pedido da troca, o ACK, os avisos no host e a capacidade restrita de salvar
+antes/depois do corte ainda não estão implementados. Não inferir que consultar
+o controle por si só proteja o progresso ou conclua F3.

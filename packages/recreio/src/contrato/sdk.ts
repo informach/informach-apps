@@ -65,6 +65,31 @@ export const SessaoRenovadaSchema = z.strictObject({
   expiraEm: instanteIso,
 });
 
+/** Estado de controle, sem agenda, nascimento ou identidade da conta. Não renova a sessão. */
+export const ControleDaSessaoSchema = z.strictObject({
+  agora: instanteIso,
+  expiraEm: instanteIso,
+  pausada: z.boolean(),
+  tempo: z
+    .strictObject({
+      usadoHojeMs: z.number().int().min(0).max(172800000),
+      limiteDiarioMinutos: z.number().int().min(1).max(1440).nullable(),
+      saldoMs: z.number().int().min(0).max(86400000).nullable(),
+      pausaEm: instanteIso.nullable(),
+      motivo: z.enum(["daily_limit", "schedule", "paused", "day_change"]).nullable(),
+    })
+    .nullable(),
+  checkpoint: z
+    .strictObject({
+      id: z.uuid(),
+      estado: z.enum(["requested", "confirmed"]),
+      modo: z.enum(["profile", "server"]),
+      expiraEm: instanteIso,
+    })
+    .nullable(),
+});
+export type ControleDaSessao = z.infer<typeof ControleDaSessaoSchema>;
+
 export const RespostaDeErroSchema = z.object({
   codigo: z.string(),
   estado: z.enum(ESTADOS_DE_ACESSO_LISTA).optional(),
@@ -147,6 +172,8 @@ export interface RecreioGameContext {
   perfil: PerfilDoJogo;
   politica: PoliticaDoPerfil;
   sessao: {
+    /** Consulta o estado atual sem renovar nem acertar de novo o tempo concedido. */
+    controle(): Promise<ControleDaSessao>;
     /** Prazo da sessão atual, em ISO 8601. Muda a cada renovação. */
     readonly expiraEm: string;
     /** O token vigente, para o jogo levar ao próprio servidor. Nunca vai em URL. */

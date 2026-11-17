@@ -12,6 +12,7 @@ import {
   VersoesDeDadosSchema,
 } from "../contrato/dados";
 import {
+  ControleDaSessaoSchema,
   ConviteCriadoSchema,
   ListaDeMundosSchema,
   type MudancaDeAcesso,
@@ -249,6 +250,10 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
     perfil: aberta.perfil,
     politica: aberta.politica,
     sessao: {
+      async controle() {
+        exigirSessao();
+        return enviar("/sessao/controle", ControleDaSessaoSchema, { method: "GET", token });
+      },
       get expiraEm() {
         return expiraEm;
       },
@@ -316,6 +321,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   };
 }
 
+export type { ControleDaSessao } from "../contrato/sdk";
 export type { JogoMontado, ModuloDoJogo, OpcoesDeMontagem } from "./modulo";
 export type { MudancaDeAcesso, RecreioGameContext };
 /**

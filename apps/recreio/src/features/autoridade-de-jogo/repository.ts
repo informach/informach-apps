@@ -27,6 +27,8 @@ export async function comSessaoDeJogoAutoritativa<T>(
   opcoes: {
     antesDoPerfil?: (tx: Transacao) => Promise<void>;
     travaDaSessao?: "share" | "update";
+    /** Somente controle/checkpoint; nunca concede gameplay ou dados. */
+    permitirPausaDeCheckpoint?: boolean;
   } = {},
 ): Promise<T> {
   const resultado = await db.transaction(async (tx) => {
@@ -61,7 +63,7 @@ export async function comSessaoDeJogoAutoritativa<T>(
       admissao.versaoDaPolitica !== sessao.versaoDaPolitica
     )
       return recusarAutoridade();
-    if (jogo.checkpointFrozenAt !== null)
+    if (jogo.checkpointFrozenAt !== null && !opcoes.permitirPausaDeCheckpoint)
       return recusarAutoridade(new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "checkpoint" }));
     if (admissao.politica) {
       const calendario = await calendarioDeBrasilia(tx, agora);

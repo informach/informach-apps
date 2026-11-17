@@ -89,6 +89,33 @@ function ambiente() {
 }
 
 describe("abertura da sessão", () => {
+  it("controle usa o token atual e não renova o prazo; resposta extra é recusada", async () => {
+    const a = ambiente();
+    const estado = {
+      agora: new Date(INICIO).toISOString(),
+      expiraEm: new Date(INICIO + QUINZE_MIN).toISOString(),
+      pausada: false,
+      tempo: null,
+      checkpoint: null,
+    };
+    a.responder(
+      { corpo: a.aberta() },
+      { corpo: estado },
+      { corpo: { ...estado, conta: "não pertence ao contrato" } },
+    );
+    const contexto = await criarRecreio(a.opcoes());
+    const prazo = contexto.sessao.expiraEm;
+    expect(await contexto.sessao.controle()).toEqual(estado);
+    expect(a.chamadas.at(-1)).toEqual({
+      url: "https://recreio.test/api/sdk/v1/sessao/controle",
+      method: "GET",
+      headers: { authorization: "Bearer sessao-1" },
+      corpo: undefined,
+    });
+    expect(contexto.sessao.expiraEm).toBe(prazo);
+    expect(a.pendentes()).toHaveLength(1);
+    await expect(contexto.sessao.controle()).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+  });
   it("usa o token renovado para ler bytes e não repete automaticamente uma escrita sem resposta", async () => {
     const a = ambiente();
     a.responder(

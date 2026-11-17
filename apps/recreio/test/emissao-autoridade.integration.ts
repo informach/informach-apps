@@ -3,6 +3,7 @@ import { and, db, eq, sql } from "@informach/db";
 import {
   recreioDeviceSessions as devices,
   recreioGameSessions as games,
+  recreioSessionHandoffs as handoffs,
   recreioProfiles as profiles,
   sessions,
   recreioSpaces as spaces,
@@ -10,7 +11,7 @@ import {
   recreioMinorDailyUsage as usage,
 } from "@informach/db/schema";
 import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
-import { SessaoAbertaSchema } from "@informach/recreio/contrato";
+import { ControleDaSessaoSchema, SessaoAbertaSchema } from "@informach/recreio/contrato";
 import { describe, expect, it, vi } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import { conferirAberturaDoJogo } from "@/features/autoridade-de-jogo/pagina-repository";
@@ -123,6 +124,101 @@ async function abrir(r: Awaited<ReturnType<typeof protegido>>) {
 }
 
 describe("emissão transacional da autoridade", () => {
+  it("controle infantil projeta saldo sem gastar de novo, renovar ou revelar a conta", async () => {
+    const r = await protegido();
+    const supervisao = await consultarSupervisao(r.autor, r.perfil.id);
+    await salvarSupervisao(r.autor, {
+      perfilId: r.perfil.id,
+      versao: supervisao.versao,
+      configuracao: { ...supervisao.configuracao, minutosPorDia: 1 },
+      reconheco: true,
+    });
+    const aberta = await abrir(r);
+    const sessao = await sessaoDeJogoDoToken(aberta.token);
+    const antes = await db.select().from(usage).where(eq(usage.profileId, r.perfil.id));
+    const primeiro = await pedir("GET", "/api/sdk/v1/sessao/controle", { token: aberta.token });
+    expect(primeiro.status).toBe(200);
+    const controle = ControleDaSessaoSchema.parse(primeiro.corpo);
+    expect(controle).toMatchObject({
+      pausada: false,
+      checkpoint: null,
+      tempo: { limiteDiarioMinutos: 1, motivo: "daily_limit" },
+    });
+    expect(controle.tempo?.saldoMs).toBeGreaterThan(0);
+    expect(controle.tempo?.saldoMs).toBeLessThanOrEqual(60_000);
+    expect(controle.tempo?.pausaEm).not.toBeNull();
+    expect(controle.expiraEm).toBe(aberta.expiraEm);
+    const texto = JSON.stringify(controle);
+    for (const privado of [r.conta.id, r.conta.email, r.perfil.id, "nascimento", "horarios"])
+      expect(texto).not.toContain(privado);
+    expect(
+      (await pedir("GET", "/api/sdk/v1/sessao/controle", { token: aberta.token })).status,
+    ).toBe(200);
+    expect(await db.select().from(usage).where(eq(usage.profileId, r.perfil.id))).toEqual(antes);
+    expect((await db.select().from(games).where(eq(games.id, sessao.sid)))[0]).toMatchObject({
+      expiresAt: new Date(aberta.expiraEm),
+      controlSeenAt: expect.any(Date),
+    });
+    await db
+      .update(devices)
+      .set({ expiresAt: sql`clock_timestamp()-interval '1 second'` })
+      .where(eq(devices.id, r.ator.sessaoDeAparelhoId));
+    expect(
+      (await pedir("GET", "/api/sdk/v1/sessao/controle", { token: aberta.token })).status,
+    ).toBe(401);
+  });
+
+  it("controle mostra a intenção vigente mesmo com tentativa anterior falha e permite ler a própria pausa", async () => {
+    const r = await protegido();
+    const aberta = await abrir(r);
+    const sessao = await sessaoDeJogoDoToken(aberta.token);
+    const fazer = async (falha: boolean) => {
+      const ingresso = await emitirIngresso(r.ator, { jogo: JOGO });
+      const agora = new Date();
+      const [pedido] = await db
+        .insert(handoffs)
+        .values({
+          profileId: r.perfil.id,
+          fromSessionId: sessao.sid,
+          toDeviceSessionId: r.ator.sessaoDeAparelhoId,
+          ticketJti: String(claimsDe(ingresso.ingresso).jti),
+          policyVersion: sessao.versaoDaPolitica,
+          mode: "profile",
+          status: falha ? "failed" : "requested",
+          requestedAt: new Date(agora.getTime() - 1000),
+          expiresAt: new Date(agora.getTime() + 20_000),
+          finishedAt: falha ? agora : null,
+        })
+        .returning({ id: handoffs.id });
+      if (!pedido) throw new Error("Intenção ausente");
+      return pedido;
+    };
+    await fazer(true);
+    const atual = await fazer(false);
+    const resposta = await pedir("GET", "/api/sdk/v1/sessao/controle", { token: aberta.token });
+    expect(ControleDaSessaoSchema.parse(resposta.corpo)).toMatchObject({
+      pausada: false,
+      checkpoint: { id: atual.id, estado: "requested", modo: "profile" },
+    });
+    await db.transaction(async (tx) => {
+      await tx
+        .update(handoffs)
+        .set({ status: "confirmed", confirmedAt: new Date() })
+        .where(eq(handoffs.id, atual.id));
+      await tx
+        .update(games)
+        .set({ checkpointFrozenAt: new Date() })
+        .where(eq(games.id, sessao.sid));
+    });
+    const pausada = await pedir("GET", "/api/sdk/v1/sessao/controle", { token: aberta.token });
+    expect(ControleDaSessaoSchema.parse(pausada.corpo)).toMatchObject({
+      pausada: true,
+      checkpoint: { id: atual.id, estado: "confirmed" },
+    });
+    await expect(
+      alterarDados(sessao, { operacao: "gravar", chave: "pontos", conteudo: "MQ==", revisao: 0 }),
+    ).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA" });
+  });
   it("barreira de checkpoint recusa progresso, renovação e substituição sem consumir outro ingresso", async () => {
     const r = await protegido();
     const aberta = await abrir(r);
