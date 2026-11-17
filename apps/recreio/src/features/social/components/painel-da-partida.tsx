@@ -120,7 +120,7 @@ export function PainelSocialDaPartida({
       }}
       className="fixed inset-0 m-auto max-h-[90dvh] w-[min(42rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain rounded-controle border border-linha bg-fundo p-5 text-tinta shadow-2xl backdrop:bg-black/70 sm:p-7"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="sticky top-0 z-10 -mx-1 -mt-1 flex flex-wrap items-start justify-between gap-3 bg-fundo px-1 pt-1 pb-4">
         <h2 id={titulo} className="font-display text-2xl font-extrabold">
           Amigos e proteção
         </h2>
