@@ -39,7 +39,8 @@ import json,sys; d=json.load(sys.stdin); r=d.get('result') or d
 print(r.get('gerado') if isinstance(r,dict) else r); print(len(r.get('etapas',[])),'etapas'); print('\n'.join(r.get('verificacao',[])))" ;;
   gravar)
     "$C" estado '{"soVerificar": false, "caixasEtapa": "ligar", "caixasMin": 30}' >/dev/null
-    TIMEOUT=1900 "$C" acao sonda-caixas.mjs >/dev/null &
+    # Toda a saída da sonda fora do terminal: senão ela prende o pipe de quem chamou até o TIMEOUT dela.
+    TIMEOUT=1900 "$C" acao sonda-caixas.mjs >/dev/null 2>&1 &
     SONDA=$!
     TIMEOUT=2400 "$C" acao fazer-parte.mjs > "$ED/gravacao.log"
     kill "$SONDA" 2>/dev/null || true

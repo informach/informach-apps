@@ -200,6 +200,8 @@ Saem em `<parte>/edicao/`:
    - os vídeos dos personagens. O vídeo do HeyGen vem sem som: junte antes com o `.wav` usando ffmpeg.
 3. Ponha cada personagem no seu segundo: `ia add_clip '{"media_id": "...", "at": 100.0}'`. Cada fala usa o seu clipe.
    - Recorte o personagem só na fala, sem o silêncio das pontas: `ia trim_clip '{"clip_id": "...", "start": 173.5, "end": 175.8, "revision": N}'`.
+   - Onde a fala está no vídeo: `ffmpeg -i "Parte N - Debinha 1.wav" -af silencedetect=n=-35dB:d=0.25 -f null -`. Ponha o clipe em (segundo da fala na aula − início da fala no vídeo). Se a fala dela for mais longa que a da professora no mesmo lugar, comece logo depois da última palavra anterior, para não calar a professora na frase seguinte.
+   - Às vezes a importação já põe os personagens e a música no começo da linha do tempo, na faixa "Voz": tire esses clipes e ponha cada um no seu segundo.
    - A revisão aparece no fim do `ia get_overview`.
 4. Aplique o zoom, as marcações, a capa e as peças: `$S/parte.sh farol 3 2 aplicar`.
    - Cria as faixas "Zoom", logo acima da gravação, e "Marcações", acima do zoom.
@@ -308,4 +310,7 @@ O `decisoes.py` e o `montar.py` aplicam estas regras. A revisão de 17/11/2026 e
 - **Leitura dos ids:** as ações de acabamento e de limpeza leem os ids no arquivo salvo e a revisão no `get_overview`. Salve antes de mexer à mão no meio do caminho.
 - **Narração sem transcrição na cópia:** a verificação antes de exportar acusa "a fala do roteiro não está na aula", e a música não abaixa com a voz. Rode `ia transcribe '{"language": "pt"}'` antes da revisão.
 - **Volume:** a aula sai perto de −25 LUFS. A normalização é uma opção da exportação ("Normalizar o volume"), marcada por quem exporta.
+- **Jogo que perde uma tecla na gravação:** de vez em quando o jogo ignora uma tecla segurada (na Farol A3P3 de 17/11, o → que levava o personagem até a porta). Confira os quadros dos momentos de jogo antes de editar (o personagem chegou onde a fala diz?). Se não chegou, regrave: a tomada seguinte costuma sair certa.
+- **Parte de experiência:** as animações usam as artes do jogo da base do curso, nunca quadros da experiência ampliada, que mostram para que lado cada número cresce (a descoberta da criança). Setas de x e y com duas pontas, como em `edicao/exemplos/farol-a3p6-conceitos.py`.
+- **Aviso "fala do roteiro não está na aula" na fala de um personagem:** é a fala que o personagem diz no lugar da professora. Não precisa de correção.
 - **Botão clicado depois do último contorno registrado** (Reduzir, Próxima parte): o zoom e o balão usam o ponto do gesto no registro da gravação.
