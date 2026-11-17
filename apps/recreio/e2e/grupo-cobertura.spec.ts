@@ -39,6 +39,7 @@ test("titular sem jogador escolhe e troca a vaga Individual sem recriar os menor
   const referencias = await page
     .getByRole("link", { name: /^Supervisionar / })
     .evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+  expect(referencias).toHaveLength(2);
   conceder(pessoa.email, "individual");
   await page.goto("/conta");
   await page.getByRole("link", { name: "Gerenciar cobertura", exact: true }).click();
@@ -89,6 +90,8 @@ test("titular sem jogador escolhe e troca a vaga Individual sem recriar os menor
   );
   await tela(page, "grupo-cobertura-celular");
   await page.getByRole("link", { name: "Perfis sob sua responsabilidade", exact: true }).click();
+  await expect(page).toHaveURL(/\/conta\/perfis$/);
+  await expect(page.getByRole("link", { name: /^Supervisionar / })).toHaveCount(2);
   expect(
     await page
       .getByRole("link", { name: /^Supervisionar / })

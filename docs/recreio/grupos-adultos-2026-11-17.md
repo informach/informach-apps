@@ -200,3 +200,10 @@ duplicação conserva ID/prazo. Mudança da pista de grupo vazio recomeça uma v
 depois do rollback, com todos os mutexes descobertos na ordem correta. Auditoria
 e expiração que retira endereço são atômicas. Sem envio de e-mails operacionais.
 Listagem, revogação, aceite, limpeza global e telas de convite ainda pendentes.
+
+Na fonte `7a719f3`/`44091431827`, os seis gates sem E2E geral passaram,
+incluindo migração ordenada/constraints. A jornada da tela confirmou e
+recarregou as duas seleções; falhou ao ler links antes de concluir a navegação
+cliente de volta aos perfis. A fixture agora espera URL e exatamente dois links
+antes de comparar IDs. Sem espera arbitrária e sem mudar o produto. O capture
+de 390 px já foi produzido; inspeção e nova rodada ainda necessárias.
