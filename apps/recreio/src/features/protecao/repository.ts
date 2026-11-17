@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
-import { and, db, eq, isNull, sql } from "@informach/db";
+import { and, db, eq, gt, isNull, sql } from "@informach/db";
 import {
   recreioPairedCredentials as credentials,
   recreioDeviceSessions as devices,
@@ -153,7 +153,7 @@ export async function aprovarPedidoDePareamento(
           eq(credentials.accessGeneration, atual.accessGeneration),
           eq(credentials.guardianUserId, autor.contaId),
           isNull(devices.revokedAt),
-          sql`${devices.expiresAt} > ${agora}`,
+          gt(devices.expiresAt, agora),
         ),
       )
       .limit(APARELHOS_POR_MENOR);

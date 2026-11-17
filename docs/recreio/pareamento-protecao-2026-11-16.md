@@ -86,3 +86,18 @@ concorrência, auditoria e revogação antes da integração seguinte.
 
 Estado: backend em verificação remota, sem pareamento ou proteção infantil
 ativados em produção. F2–F3 continuam abertos.
+
+A rodada `44006194796` identificou que a comparação de data da quota usava
+SQL interpolado sem o encoder da coluna. O driver recusou o objeto Date antes
+da emissão; 370 testes passaram e seis casos do pareamento falharam pelo mesmo
+erro. A comparação usa agora `gt(colunaTimestamp, data)`, o operador tipado do
+Drizzle, sem converter para string ou alterar o driver.
+
+A limpeza global acrescenta lotes independentes de até 500 intenções familiares
+pendentes vencidas, recibos consumidos com 24 horas e pareamentos vencidos.
+`FOR UPDATE SKIP LOCKED` conserva operações em andamento. A expiração do
+pareamento fecha somente aparelhos que nunca confirmaram o segredo; apagar a
+intenção não remove a credencial já confirmada. O cron passa a devolver nove
+contagens, sem dados pessoais. Os testes próprios conferem limite/idempotência
+e preservação de perfil/aparelho confirmado; o teste antigo da manutenção de
+mundos mantém as mesmas cinco verificações de seu domínio.

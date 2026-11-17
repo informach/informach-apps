@@ -4,6 +4,7 @@ import {
   recreioPairedCredentials as credentials,
   recreioDeviceSessions as devices,
   recreioNativePins as pins,
+  recreioProfileCreationRequests as profileRequests,
   recreioProfiles as profiles,
   recreioMinorProtection as protection,
   recreioPairingRequests as requests,
@@ -14,6 +15,10 @@ import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
 import { describe, expect, it } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
+import {
+  apagarIntencoesAntigas,
+  LOTE_DE_INTENCOES_ANTIGAS,
+} from "@/features/manutencao/repository";
 import { aprovarPedidoDePareamento } from "@/features/protecao/repository";
 import { hashDoSegredo } from "@/features/protecao/segredos";
 import {
@@ -266,5 +271,97 @@ describe("pareamento e proteção do menor", () => {
     }
     await aprovarPareamento(r.autor, { perfilId: r.perfil.id, codigo: pedido.codigo });
     expect(await consultarPareamento(pedido.segredo)).toMatchObject({ estado: "pareado" });
+  });
+
+  it("limpeza global remove recibos vencidos em lotes e conserva perfis e recibos atuais", async () => {
+    await db.execute(
+      sql`delete from recreio.profile_creation_requests where (consumed_at is null and expires_at <= now()) or consumed_at <= now()-interval '1 day'`,
+    );
+    const r = await familia();
+    const [recibo] = await db
+      .select()
+      .from(profileRequests)
+      .where(eq(profileRequests.profileId, r.perfil.id));
+    if (!recibo) throw new Error("Recibo ausente");
+    await db
+      .insert(profileRequests)
+      .values(
+        Array.from({ length: LOTE_DE_INTENCOES_ANTIGAS + 1 }, () => ({
+          userId: r.conta.id,
+          createdAt: new Date(Date.now() - 600_000),
+          expiresAt: new Date(Date.now() - 300_000),
+        })),
+      );
+    await db
+      .insert(profileRequests)
+      .values({
+        userId: r.conta.id,
+        createdAt: new Date(Date.now() - 3 * 86_400_000),
+        expiresAt: new Date(Date.now() - 3 * 86_400_000 + 300_000),
+        consumedAt: new Date(Date.now() - 2 * 86_400_000),
+        fingerprint: "a".repeat(64),
+      });
+    const primeira = await apagarIntencoesAntigas();
+    expect(primeira).toMatchObject({
+      cadastrosPendentesApagados: 500,
+      recibosDeCadastroApagados: 1,
+    });
+    expect(await apagarIntencoesAntigas()).toMatchObject({
+      cadastrosPendentesApagados: 1,
+      recibosDeCadastroApagados: 0,
+    });
+    expect(await apagarIntencoesAntigas()).toMatchObject({
+      cadastrosPendentesApagados: 0,
+      recibosDeCadastroApagados: 0,
+    });
+    expect(await db.select().from(profiles).where(eq(profiles.id, r.perfil.id))).toHaveLength(1);
+    expect(
+      await db.select().from(profileRequests).where(eq(profileRequests.id, recibo.id)),
+    ).toHaveLength(1);
+  });
+
+  it("expirar pareamento fecha somente aparelho que nunca confirmou o segredo", async () => {
+    await db.execute(sql`delete from recreio.pairing_requests where expires_at <= now()`);
+    const r = await familia();
+    const confirmado = await preparar();
+    const naoConfirmado = await preparar();
+    const a = await aprovarPareamento(r.autor, {
+      perfilId: r.perfil.id,
+      codigo: confirmado.codigo,
+    });
+    const b = await aprovarPareamento(r.autor, {
+      perfilId: r.perfil.id,
+      codigo: naoConfirmado.codigo,
+    });
+    const registro = await consultarPareamento(confirmado.segredo);
+    if (registro.estado !== "pareado") throw new Error("Pareamento ausente");
+    for (const [pedido, claimedAt] of [
+      [confirmado, new Date(Date.now() - 480_000)],
+      [naoConfirmado, null],
+    ] as const) {
+      await db
+        .update(requests)
+        .set({
+          createdAt: new Date(Date.now() - 600_000),
+          approvedAt: new Date(Date.now() - 540_000),
+          claimedAt,
+          expiresAt: new Date(Date.now() - 300_000),
+        })
+        .where(eq(requests.codeHash, hashDoSegredo("codigo", pedido.codigo)));
+    }
+    expect(await apagarIntencoesAntigas()).toMatchObject({
+      pareamentosApagados: 2,
+      aparelhosNaoConfirmadosEncerrados: 1,
+    });
+    expect(await conferirCredencialPareada(registro.credencial)).toMatchObject({
+      sessaoDeAparelhoId: a.aparelhoId,
+    });
+    expect(
+      (await db.select().from(devices).where(eq(devices.id, b.aparelhoId)))[0]?.revokedAt,
+    ).toBeInstanceOf(Date);
+    expect(await apagarIntencoesAntigas()).toMatchObject({
+      pareamentosApagados: 0,
+      aparelhosNaoConfirmadosEncerrados: 0,
+    });
   });
 });

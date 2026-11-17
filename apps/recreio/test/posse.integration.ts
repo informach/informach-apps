@@ -849,7 +849,7 @@ describe("manutenção", () => {
       .where(eq(gameSessions.id, sessao.sid));
 
     const primeira = await rodar();
-    expect(primeira).toEqual({
+    expect(primeira).toMatchObject({
       status: 200,
       corpo: {
         possesVencidas: 1,
@@ -874,7 +874,7 @@ describe("manutenção", () => {
       (await db.select().from(tickets).where(eq(tickets.profileId, lia.perfil.id))).length,
     ).toBeGreaterThan(0);
 
-    expect(await rodar()).toEqual({
+    expect(await rodar()).toMatchObject({
       status: 200,
       corpo: {
         possesVencidas: 0,
