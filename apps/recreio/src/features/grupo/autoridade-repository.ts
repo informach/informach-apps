@@ -36,21 +36,38 @@ async function pistasDaComposicao(tx: Transacao, grupoId: GrupoId) {
  * de um titular que esteja coberto por outro grupo. Evita a inversão em grupos
  * recíprocos. A pista não autoriza: composição e responsabilidade são relidas.
  */
-export async function admitirGrupoDoTitular(
+async function admitirComposicao(
   tx: Transacao,
   autor: IdentidadeNativa,
   grupoId: GrupoId,
   modo: "share" | "update",
+  autoridade: "titular" | "proprio",
 ) {
   const [pistaDoGrupo] = await tx
-    .select({ id: groups.id })
+    .select({ id: groups.id, titularId: groups.ownerUserId })
     .from(groups)
-    .where(and(eq(groups.id, grupoId), eq(groups.ownerUserId, autor.contaId)));
+    .where(eq(groups.id, grupoId));
   assertAllowed(pistaDoGrupo, "GRUPO", "Grupo não disponível.");
+  if (autoridade === "titular")
+    assertAllowed(pistaDoGrupo.titularId === autor.contaId, "GRUPO", "Grupo não disponível.");
+  else {
+    const [proprio] = await tx
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(
+        and(
+          eq(profiles.groupId, grupoId),
+          eq(profiles.userId, autor.contaId),
+          eq(profiles.kind, "adult"),
+        ),
+      );
+    assertAllowed(proprio, "GRUPO", "Grupo não disponível.");
+  }
   const pistas = await pistasDaComposicao(tx, grupoId);
   const contas = [
     ...new Set([
       autor.contaId,
+      pistaDoGrupo.titularId,
       ...pistas.flatMap((p) => [p.contaId, p.responsavelId].filter((id) => id !== null)),
     ]),
   ].sort();
@@ -66,7 +83,7 @@ export async function admitirGrupoDoTitular(
   const [grupo] = await tx
     .select({ id: groups.id })
     .from(groups)
-    .where(and(eq(groups.id, grupoId), eq(groups.ownerUserId, autor.contaId)))
+    .where(and(eq(groups.id, grupoId), eq(groups.ownerUserId, pistaDoGrupo.titularId)))
     .for(modo);
   assertAllowed(grupo, "GRUPO", "Grupo não disponível.");
   const perfis = await tx
@@ -95,5 +112,29 @@ export async function admitirGrupoDoTitular(
     "O grupo mudou. Reabra a gestão antes de continuar.",
   );
   await nativa.conferirPrazo();
+  if (autoridade === "proprio")
+    assertAllowed(
+      perfis.some((p) => p.userId === autor.contaId && p.kind === "adult"),
+      "GRUPO",
+      "Grupo não disponível.",
+    );
   return { nativa, grupo, perfis, vinculos };
+}
+
+export function admitirGrupoDoTitular(
+  tx: Transacao,
+  autor: IdentidadeNativa,
+  grupoId: GrupoId,
+  modo: "share" | "update",
+) {
+  return admitirComposicao(tx, autor, grupoId, modo, "titular");
+}
+
+/** Somente a participação comercial do próprio adulto; não concede gestão do grupo. */
+export function admitirGrupoDaParticipacaoPropria(
+  tx: Transacao,
+  autor: IdentidadeNativa,
+  grupoId: GrupoId,
+) {
+  return admitirComposicao(tx, autor, grupoId, "update", "proprio");
 }

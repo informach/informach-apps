@@ -242,3 +242,17 @@ ambos retiram endereço/vinculação atomicamente e auditam sem conteúdo. Leitu
 têm limites de lock/transação e não retornam dados de perfil ou cobrança. A
 identificação visual do emissor, aceite, saída, expurgo global e telas de
 convite continuam pendentes. Provas negativas e rodada completa ainda necessárias.
+
+Leitura/recusa/revogação `ad2329c` passou nos sete gates `44100229807`.
+Novo incremento implementa saída do próprio adulto e retirada pelo titular:
+somente `group_id`/cobertura/revisão mudam, ingressos e sessões antigos são
+invalidados. Mundos, participações, progresso e conquistas permanecem no mesmo
+perfil. A repetição observa a ausência atual do vínculo, sem recriá-lo nem
+alterar um outro grupo. Remover menor por esse caminho é recusado; não muda
+responsabilidade. O titular pode retirar seu jogador e continuar administrador.
+
+Provas candidatas gravam dados e conquista pelo SDK, criam mundo compartilhado
+e exigem igualdade dos bytes/membros/mundo após os dois tipos de saída. Incluem
+grupos recíprocos, retirada/saída simultâneas, revisão/login antigos, contexto
+infantil e rollback da auditoria. Cobertura própria depois da saída, aceite,
+identificação do emissor, expurgo e interfaces completas ainda pendentes.

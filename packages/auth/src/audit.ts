@@ -114,6 +114,8 @@ export type AuditEventType =
   | "recreio.group_invite_created"
   | "recreio.group_invite_revoked"
   | "recreio.group_invite_declined"
+  | "recreio.group_member_left"
+  | "recreio.group_member_removed"
   | "recreio.group_invite_expired"
   | "recreio.profile_data_updated"
   | "recreio.profile_data_conflict"
