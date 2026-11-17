@@ -111,6 +111,8 @@ Também conta referências técnicas retiradas de códigos vencidos e relações
 removidas; retirar a referência não muda a amizade nem apaga um bloqueio.
 `recreio.social_presence_changed` registra perfil e o classificador
 `presenceMode` (`online`, `friends`, `invisible`), com ator adulto atual.
+`recreio.social_notice_read` usa IDs de perfil, aviso e pedido. O ator é o
+responsável nativo atual que confirmou a leitura; repetição não duplica evento.
 
 Eventos `recreio.*` registram o que aconteceu com os perfis, com o direito de jogar, com as sessões de jogo e com os mundos no app `recreio`, com payload mínimo de IDs, nomes de campo, classificadores e contagens. O perfil é o que os jogos conhecem de uma pessoa: nunca gravar apelido, avatar, e-mail, IP, nome de aparelho, ingresso, token de sessão, chave, segredo de instância, nome de mundo, código de convite (nem o resumo dele), o texto de participação que o jogo guarda no convite, o resumo do mundo publicado pelo jogo ou qualquer texto livre.
 

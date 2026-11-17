@@ -10,7 +10,7 @@ import { type PerfilId, PerfilIdSchema } from "@informach/recreio";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 import { parSocial } from "./amizade-repository";
-import type { AutorSocial } from "./autoridade-repository";
+import type { AutorSocial, ContextoDeProtecaoSocial } from "./autoridade-repository";
 import { comProtecaoSocial } from "./autoridade-repository";
 import type { ProtecaoDeContato } from "./regras";
 
@@ -58,125 +58,139 @@ async function removerRelacao(
 /** Não concede participação em mundo, nem retira dados ou titularidade de outra pessoa. */
 export async function salvarProtecaoDeContato(referencia: AutorSocial, entrada: ProtecaoDeContato) {
   assertAllowed(referencia.perfilId !== entrada.perfilId, "CONTATO", "Contato não disponível.");
-  return comProtecaoSocial(referencia, entrada.perfilId, async (tx, atual) => {
-    const a = atual.perfilId,
-      b = atual.alvoId;
-    const [anterior] = await tx
-      .select()
+  return comProtecaoSocial(referencia, entrada.perfilId, (tx, atual) =>
+    gravarProtecaoSobTrava(tx, atual, entrada),
+  );
+}
+
+/** Chamadores constroem o contexto somente após admissão do jogador ou responsável atual. */
+export async function gravarProtecaoSobTrava(
+  tx: Transacao,
+  atual: ContextoDeProtecaoSocial,
+  entrada: ProtecaoDeContato,
+) {
+  assertAllowed(
+    atual.perfilId !== entrada.perfilId && atual.alvoId === entrada.perfilId,
+    "CONTATO",
+    "Contato não disponível.",
+  );
+  const a = atual.perfilId,
+    b = atual.alvoId;
+  const [anterior] = await tx
+    .select()
+    .from(blocks)
+    .where(and(eq(blocks.actorProfileId, a), eq(blocks.targetProfileId, b)))
+    .for("update");
+  if (!anterior) {
+    const [menor, maior] = parSocial(a, b);
+    const [conhecido] = await tx
+      .select({ id: requests.id })
+      .from(requests)
+      .where(entre(a, b))
+      .limit(1);
+    const [amizade] = await tx
+      .select({ id: friends.lowerProfileId })
+      .from(friends)
+      .where(and(eq(friends.lowerProfileId, menor), eq(friends.higherProfileId, maior)));
+    assertAllowed(conhecido || amizade, "CONTATO", "Contato não disponível.");
+    if (!entrada.bloqueado && !entrada.silenciado) return { bloqueado: false, silenciado: false };
+    const existentes = await tx
+      .select({ id: blocks.targetProfileId })
       .from(blocks)
-      .where(and(eq(blocks.actorProfileId, a), eq(blocks.targetProfileId, b)))
-      .for("update");
-    if (!anterior) {
-      const [menor, maior] = parSocial(a, b);
-      const [conhecido] = await tx
-        .select({ id: requests.id })
-        .from(requests)
-        .where(entre(a, b))
-        .limit(1);
-      const [amizade] = await tx
-        .select({ id: friends.lowerProfileId })
-        .from(friends)
-        .where(and(eq(friends.lowerProfileId, menor), eq(friends.higherProfileId, maior)));
-      assertAllowed(conhecido || amizade, "CONTATO", "Contato não disponível.");
-      if (!entrada.bloqueado && !entrada.silenciado) return { bloqueado: false, silenciado: false };
-      const existentes = await tx
-        .select({ id: blocks.targetProfileId })
-        .from(blocks)
-        .where(eq(blocks.actorProfileId, a))
-        .limit(1000);
-      assertAllowed(
-        existentes.length < 1000,
-        "LIMITE_DE_CONTATOS",
-        "O limite de proteções foi atingido. Procure o suporte.",
-      );
-    }
-    if (anterior?.blocked === entrada.bloqueado && anterior.muted === entrada.silenciado)
-      return { bloqueado: entrada.bloqueado, silenciado: entrada.silenciado };
-    const agora = await atual.conferirPrazo();
-    if (
-      anterior &&
-      ((anterior.blocked && !entrada.bloqueado) || (anterior.muted && !entrada.silenciado))
-    )
-      assertAllowed(
-        entrada.anterior &&
-          entrada.anterior.bloqueado === anterior.blocked &&
-          entrada.anterior.silenciado === anterior.muted,
-        "CONFLITO",
-        "A proteção mudou. Atualize a tela antes de diminuir uma proteção.",
-      );
-    if (!entrada.bloqueado && !entrada.silenciado)
-      await tx
-        .delete(blocks)
-        .where(and(eq(blocks.actorProfileId, a), eq(blocks.targetProfileId, b)));
-    else
-      await tx
-        .insert(blocks)
-        .values({
-          actorProfileId: a,
-          targetProfileId: b,
-          blocked: entrada.bloqueado,
-          muted: entrada.silenciado,
-          updatedAt: agora,
-        })
-        .onConflictDoUpdate({
-          target: [blocks.actorProfileId, blocks.targetProfileId],
-          set: {
-            blocked: entrada.bloqueado,
-            muted: entrada.silenciado,
-            updatedAt: agora,
-          },
-        });
-    if (entrada.bloqueado) {
-      const pendentes = await tx
-        .select()
-        .from(requests)
-        .where(and(entre(a, b), eq(requests.state, "pending")))
-        .orderBy(requests.id)
-        .for("update");
-      for (const pedido of pendentes) {
-        await tx
-          .update(requests)
-          .set({ state: "revoked", finishedAt: agora })
-          .where(eq(requests.id, pedido.id));
-        await logAuditEventStrict(
-          "recreio.friend_request_revoked",
-          atual.contaId,
-          { app: "recreio", profileId: a, requestId: pedido.id },
-          { writer: tx },
-        );
-      }
-      await removerRelacao(tx, a, b, atual.contaId, atual.conferirPrazo);
-    }
-    await logAuditEventStrict(
-      "recreio.social_protection_changed",
-      atual.contaId,
-      {
-        app: "recreio",
-        profileId: a,
+      .where(eq(blocks.actorProfileId, a))
+      .limit(1000);
+    assertAllowed(
+      existentes.length < 1000,
+      "LIMITE_DE_CONTATOS",
+      "O limite de proteções foi atingido. Procure o suporte.",
+    );
+  }
+  if (anterior?.blocked === entrada.bloqueado && anterior.muted === entrada.silenciado)
+    return { bloqueado: entrada.bloqueado, silenciado: entrada.silenciado };
+  const agora = await atual.conferirPrazo();
+  if (
+    anterior &&
+    ((anterior.blocked && !entrada.bloqueado) || (anterior.muted && !entrada.silenciado))
+  )
+    assertAllowed(
+      entrada.anterior &&
+        entrada.anterior.bloqueado === anterior.blocked &&
+        entrada.anterior.silenciado === anterior.muted,
+      "CONFLITO",
+      "A proteção mudou. Atualize a tela antes de diminuir uma proteção.",
+    );
+  if (!entrada.bloqueado && !entrada.silenciado)
+    await tx.delete(blocks).where(and(eq(blocks.actorProfileId, a), eq(blocks.targetProfileId, b)));
+  else
+    await tx
+      .insert(blocks)
+      .values({
+        actorProfileId: a,
         targetProfileId: b,
         blocked: entrada.bloqueado,
         muted: entrada.silenciado,
-      },
-      { writer: tx },
-    );
-    await atual.conferirPrazo();
-    return { bloqueado: entrada.bloqueado, silenciado: entrada.silenciado };
-  });
+        updatedAt: agora,
+      })
+      .onConflictDoUpdate({
+        target: [blocks.actorProfileId, blocks.targetProfileId],
+        set: {
+          blocked: entrada.bloqueado,
+          muted: entrada.silenciado,
+          updatedAt: agora,
+        },
+      });
+  if (entrada.bloqueado) {
+    const pendentes = await tx
+      .select()
+      .from(requests)
+      .where(and(entre(a, b), eq(requests.state, "pending")))
+      .orderBy(requests.id)
+      .for("update");
+    for (const pedido of pendentes) {
+      await tx
+        .update(requests)
+        .set({ state: "revoked", finishedAt: agora })
+        .where(eq(requests.id, pedido.id));
+      await logAuditEventStrict(
+        "recreio.friend_request_revoked",
+        atual.contaId,
+        { app: "recreio", profileId: a, requestId: pedido.id },
+        { writer: tx },
+      );
+    }
+    await removerRelacao(tx, a, b, atual.contaId, atual.conferirPrazo);
+  }
+  await logAuditEventStrict(
+    "recreio.social_protection_changed",
+    atual.contaId,
+    {
+      app: "recreio",
+      profileId: a,
+      targetProfileId: b,
+      blocked: entrada.bloqueado,
+      muted: entrada.silenciado,
+    },
+    { writer: tx },
+  );
+  await atual.conferirPrazo();
+  return { bloqueado: entrada.bloqueado, silenciado: entrada.silenciado };
 }
 
 export async function removerAmizadeNoBanco(referencia: AutorSocial, alvo: PerfilId) {
   assertAllowed(referencia.perfilId !== alvo, "CONTATO", "Contato não disponível.");
-  return comProtecaoSocial(referencia, alvo, async (tx, atual) => {
-    const removida = await removerRelacao(
-      tx,
-      atual.perfilId,
-      atual.alvoId,
-      atual.contaId,
-      atual.conferirPrazo,
-    );
-    assertAllowed(removida !== null, "CONTATO", "Contato não disponível.");
-    return { removida: true };
-  });
+  return comProtecaoSocial(referencia, alvo, removerContatoSobTrava);
+}
+
+export async function removerContatoSobTrava(tx: Transacao, atual: ContextoDeProtecaoSocial) {
+  const removida = await removerRelacao(
+    tx,
+    atual.perfilId,
+    atual.alvoId,
+    atual.contaId,
+    atual.conferirPrazo,
+  );
+  assertAllowed(removida !== null, "CONTATO", "Contato não disponível.");
+  return { removida: true };
 }
 
 export async function encerrarPedidoNoBanco(

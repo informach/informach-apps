@@ -305,7 +305,26 @@ A redução de bloqueio/silêncio passa a exigir a fotografia anterior das duas
 flags. Uma tela antiga não pode retirar bloqueio novo ao tentar reativar som.
 Repetição sem mudança continua sem novo evento, e aumentar proteção não exige
 uma concessão nova. Remoção sem qualquer relação também recusa desconhecidos
-de forma uniforme. Essas provas e as novas FKs ainda aguardam os gates.
+de forma uniforme. `f64f63d` passou nos sete gates `44140322404`, com 658
+integrações/68 arquivos, quatro provas novas das FKs e atualização 179→187
+preservando perfis/progresso/conquistas e repetição sem mudança. Nada publicado.
+
+O incremento seguinte centraliza a autoridade social nativa do responsável e
+acrescenta consulta, proteção, remoção e leitura explícita dos avisos de seus
+menores, sem perfil jogador do adulto. Leitura exige identidade atual; mutação
+também exige login recente. O ator da auditoria é o adulto que agiu. Credencial
+pareada e conta de outro responsável não herdam esse poder. Proteção funciona
+com contato desabilitado/alvo suspenso e não concede participação em mundo.
+O responsável pode analisar a identificação adulta de um pedido que seu menor
+ainda não aprovou; a identificação de outro perfil protegido continua exigindo
+a aprovação atual do responsável daquele outro perfil.
+
+A abertura de novos contatos passa a ser conferida nos serviços, para cookie,
+SDK e gestão familiar. Só o executor descartável de testes habilita explicitamente
+o modo; o padrão de produção permanece `off`. Desligar novos contatos preserva
+consulta e proteção existentes. O próximo gate precisa confirmar a leitura sem
+login recente, a recusa na escrita, ausência de jogador fictício, avisos e
+rollback de proteção por prazo/auditoria. Telas ainda estão em implementação.
 
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra

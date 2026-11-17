@@ -5,16 +5,12 @@ import {
   recreioGameSessions as games,
 } from "@informach/db/schema";
 import { criarRecreio } from "@informach/recreio/sdk";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { emitirIngresso } from "@/features/sessao-de-jogo/service";
 import { env } from "@/lib/env";
 import { novoJogador } from "./apoio";
 import { despachar, ORIGEM, pedir } from "./rotas";
 
-vi.mock("@/lib/env", async (original) => {
-  const real = await original<typeof import("@/lib/env")>();
-  return { ...real, env: { ...real.env, RECREIO_SOCIAL_MODE: "on" } };
-});
 afterEach(() => {
   env.RECREIO_SOCIAL_MODE = "on";
 });

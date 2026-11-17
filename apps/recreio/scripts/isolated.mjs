@@ -99,6 +99,7 @@ const testEnv = {
   ...(emailsPath ? { EMAIL_SANDBOX_DIR: emailsPath.replaceAll("\\", "/") } : {}),
   RECREIO_ACCESS_MODE: "fechado",
   RECREIO_FAMILY_MODE: "play",
+  RECREIO_SOCIAL_MODE: "on",
   SENTRY_AUTH_TOKEN: "",
   // Segredos e origens só deste teste. `jogo-de-teste` não está no catálogo:
   // os testes de integração que precisam de um segundo jogo o acrescentam por

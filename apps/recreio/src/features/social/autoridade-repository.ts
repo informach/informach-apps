@@ -20,6 +20,12 @@ export type ContextoSocial = {
   conferirPrazo: () => Promise<Date>;
 };
 export type AutorSocial = ReferenciaDeJogador | SessaoDeJogoAtiva;
+export type ContextoDeProtecaoSocial = {
+  perfilId: PerfilId;
+  alvoId: PerfilId;
+  contaId: string | null;
+  conferirPrazo: () => Promise<Date>;
+};
 
 /** Cookies nativos/pareados; este caminho não aceita token de partida como identidade. */
 async function tentar<T>(
@@ -97,15 +103,7 @@ export async function comJogadorSocial<T>(
 export async function comProtecaoSocial<T>(
   referencia: AutorSocial,
   alvoId: PerfilId,
-  executar: (
-    tx: Transacao,
-    atual: {
-      perfilId: PerfilId;
-      alvoId: PerfilId;
-      contaId: string | null;
-      conferirPrazo: () => Promise<Date>;
-    },
-  ) => Promise<T>,
+  executar: (tx: Transacao, atual: ContextoDeProtecaoSocial) => Promise<T>,
 ) {
   const executarProtecao = (tx: Transacao, atual: ContextoSocial) =>
     executar(tx, {

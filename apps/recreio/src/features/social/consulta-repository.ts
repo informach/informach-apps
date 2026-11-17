@@ -20,115 +20,153 @@ import {
 } from "@informach/recreio";
 import type { ContatoSocial, ListaSocial } from "@informach/recreio/contrato";
 import { assertAllowed } from "@/lib/errors";
+import type { Transacao } from "@/lib/repository";
 import { parSocial } from "./amizade-repository";
-import { type AutorSocial, comJogadorSocial } from "./autoridade-repository";
+import { type AutorSocial, type ContextoSocial, comJogadorSocial } from "./autoridade-repository";
 import { presencaDePartidaAtual } from "./presenca-repository";
+import type { ContextoDeSupervisaoSocial } from "./responsavel-contexto-repository";
 
 export async function consultarContatoNoBanco(
   autor: AutorSocial,
   perfilId: PerfilId,
 ): Promise<ContatoSocial | null> {
   assertAllowed(autor.perfilId !== perfilId, "CONTATO", "Contato não disponível.");
-  return comJogadorSocial(autor, perfilId, async (tx, atual): Promise<ContatoSocial | null> => {
-    const destino = atual.destino;
-    assertAllowed(destino, "CONTATO", "Contato não disponível.");
-    const [menor, maior] = parSocial(autor.perfilId, perfilId);
-    const [amizade] = await tx
-      .select()
-      .from(friends)
-      .where(and(eq(friends.lowerProfileId, menor), eq(friends.higherProfileId, maior)));
-    const agora = await atual.conferirPrazo();
-    const [pendente] = await tx
-      .select()
-      .from(requests)
-      .where(
-        and(
-          eq(requests.state, "pending"),
-          gt(requests.expiresAt, agora),
-          or(
-            and(eq(requests.originProfileId, menor), eq(requests.targetProfileId, maior)),
-            and(eq(requests.originProfileId, maior), eq(requests.targetProfileId, menor)),
-          ),
-        ),
-      )
-      .limit(1);
-    const protecoes = await tx
-      .select()
-      .from(blocks)
-      .where(
+  return comJogadorSocial(autor, perfilId, (tx, atual) =>
+    lerContatoSobTrava(tx, atual, perfilId, false),
+  );
+}
+
+export async function consultarContatoParaResponsavel(
+  tx: Transacao,
+  atual: ContextoDeSupervisaoSocial,
+  perfilId: PerfilId,
+) {
+  assertAllowed(
+    atual.menor.id === atual.origem.id && atual.contaId === atual.menor.responsabilidade.contaId,
+    "PEDIDO",
+    "Perfil não disponível para esta responsabilidade.",
+  );
+  return lerContatoSobTrava(tx, atual, perfilId, true);
+}
+
+async function lerContatoSobTrava(
+  tx: Transacao,
+  atual: ContextoSocial,
+  perfilId: PerfilId,
+  responsavel: boolean,
+): Promise<ContatoSocial | null> {
+  const destino = atual.destino;
+  assertAllowed(destino, "CONTATO", "Contato não disponível.");
+  const [menor, maior] = parSocial(atual.origem.id, perfilId);
+  const [amizade] = await tx
+    .select()
+    .from(friends)
+    .where(and(eq(friends.lowerProfileId, menor), eq(friends.higherProfileId, maior)));
+  const agora = await atual.conferirPrazo();
+  const [pendente] = await tx
+    .select()
+    .from(requests)
+    .where(
+      and(
+        eq(requests.state, "pending"),
+        gt(requests.expiresAt, agora),
         or(
-          and(eq(blocks.actorProfileId, menor), eq(blocks.targetProfileId, maior)),
-          and(eq(blocks.actorProfileId, maior), eq(blocks.targetProfileId, menor)),
+          and(eq(requests.originProfileId, menor), eq(requests.targetProfileId, maior)),
+          and(eq(requests.originProfileId, maior), eq(requests.targetProfileId, menor)),
         ),
-      );
-    const propria = protecoes.find((p) => p.actorProfileId === autor.perfilId);
-    if (amizade?.state !== "active" && !pendente && !propria) return null;
-    const pedidoId = pendente?.id ?? amizade?.requestId;
-    const aprovacoes = pedidoId
-      ? await tx.select().from(consents).where(eq(consents.requestId, pedidoId))
-      : [];
-    const aprovacao = (id: PerfilId): AprovacaoSocial | null => {
-      const linha = aprovacoes.find((p) => p.profileId === id);
-      return linha?.approvedByUserId
-        ? {
-            perfilId: id,
-            contaId: ContaIdSchema.parse(linha.approvedByUserId),
-            vinculoId: linha.guardianLinkId,
-            geracao: linha.accessGeneration,
-          }
-        : null;
-    };
-    const relacao = {
-      amizadeAceita: amizade?.state === "active",
-      bloqueadoPorUmaDasPartes: protecoes.some((p) => p.blocked),
-      aprovacaoDaOrigem: aprovacao(atual.origem.id),
-      aprovacaoDoDestino: aprovacao(destino.id),
-    };
-    const aprovada =
-      aprovacaoSocialAtual(atual.origem, relacao.aprovacaoDaOrigem) &&
-      aprovacaoSocialAtual(destino, relacao.aprovacaoDoDestino);
-    const visivel =
-      contatoDisponivel(atual.origem) &&
-      contatoDisponivel(destino) &&
-      aprovada &&
-      !protecoes.some((p) => p.actorProfileId === perfilId && p.blocked);
-    const [perfil] = await tx
-      .select({ apelido: profiles.nickname, avatar: profiles.avatar })
-      .from(profiles)
-      .where(eq(profiles.id, perfilId));
-    const [preferencia] = await tx
-      .select()
-      .from(preferences)
-      .where(eq(preferences.profileId, perfilId));
-    const podeVerPresenca = presencaSocialVisivel({
-      observador: atual.origem,
-      observado: destino,
-      relacao,
-      preferenciaDoAdulto: preferencia?.presenceMode ?? "friends",
-      membrosDoMesmoMundo: false,
-    });
-    const online =
-      podeVerPresenca && (await presencaDePartidaAtual(tx, perfilId, await atual.conferirPrazo()));
-    return {
-      perfilId,
-      apelido: visivel ? (perfil?.apelido ?? null) : null,
-      avatar: visivel ? (perfil?.avatar ?? null) : null,
-      amizade: amizadeDisponivel(atual.origem, destino, relacao),
-      podeRemover: amizade?.state === "active",
-      online,
-      bloqueado: propria?.blocked ?? false,
-      silenciado: propria?.muted ?? false,
-      pedido: pendente
-        ? {
-            id: pendente.id,
-            direcao: pendente.originProfileId === autor.perfilId ? "enviado" : "recebido",
-            aceito: pendente.targetAcceptedAt !== null,
-            expiraEm: pendente.expiresAt.toISOString(),
-            aguardaAprovacao: !aprovada,
-          }
-        : null,
-    };
+      ),
+    )
+    .limit(1);
+  const protecoes = await tx
+    .select()
+    .from(blocks)
+    .where(
+      or(
+        and(eq(blocks.actorProfileId, menor), eq(blocks.targetProfileId, maior)),
+        and(eq(blocks.actorProfileId, maior), eq(blocks.targetProfileId, menor)),
+      ),
+    );
+  const propria = protecoes.find((p) => p.actorProfileId === atual.origem.id);
+  if (amizade?.state !== "active" && !pendente && !propria) return null;
+  const pedidoId = pendente?.id ?? amizade?.requestId;
+  const aprovacoes = pedidoId
+    ? await tx.select().from(consents).where(eq(consents.requestId, pedidoId))
+    : [];
+  const aprovacao = (id: PerfilId): AprovacaoSocial | null => {
+    const linha = aprovacoes.find((p) => p.profileId === id);
+    return linha?.approvedByUserId
+      ? {
+          perfilId: id,
+          contaId: ContaIdSchema.parse(linha.approvedByUserId),
+          vinculoId: linha.guardianLinkId,
+          geracao: linha.accessGeneration,
+        }
+      : null;
+  };
+  const relacao = {
+    amizadeAceita: amizade?.state === "active",
+    bloqueadoPorUmaDasPartes: protecoes.some((p) => p.blocked),
+    aprovacaoDaOrigem: aprovacao(atual.origem.id),
+    aprovacaoDoDestino: aprovacao(destino.id),
+  };
+  const aprovada =
+    aprovacaoSocialAtual(atual.origem, relacao.aprovacaoDaOrigem) &&
+    aprovacaoSocialAtual(destino, relacao.aprovacaoDoDestino);
+  const visivel =
+    (responsavel || contatoDisponivel(atual.origem)) &&
+    contatoDisponivel(destino) &&
+    (responsavel ? aprovacaoSocialAtual(destino, relacao.aprovacaoDoDestino) : aprovada) &&
+    !protecoes.some((p) => p.actorProfileId === perfilId && p.blocked);
+  const [perfil] = await tx
+    .select({ apelido: profiles.nickname, avatar: profiles.avatar })
+    .from(profiles)
+    .where(eq(profiles.id, perfilId));
+  const [preferencia] = await tx
+    .select()
+    .from(preferences)
+    .where(eq(preferences.profileId, perfilId));
+  const podeVerPresenca = presencaSocialVisivel({
+    observador: atual.origem,
+    observado: destino,
+    relacao,
+    preferenciaDoAdulto: preferencia?.presenceMode ?? "friends",
+    membrosDoMesmoMundo: false,
   });
+  const online =
+    podeVerPresenca && (await presencaDePartidaAtual(tx, perfilId, await atual.conferirPrazo()));
+  return {
+    perfilId,
+    apelido: visivel ? (perfil?.apelido ?? null) : null,
+    avatar: visivel ? (perfil?.avatar ?? null) : null,
+    amizade: amizadeDisponivel(atual.origem, destino, relacao),
+    podeRemover: amizade?.state === "active",
+    online,
+    bloqueado: propria?.blocked ?? false,
+    silenciado: propria?.muted ?? false,
+    pedido: pendente
+      ? {
+          id: pendente.id,
+          direcao: pendente.originProfileId === atual.origem.id ? "enviado" : "recebido",
+          aceito: pendente.targetAcceptedAt !== null,
+          expiraEm: pendente.expiresAt.toISOString(),
+          aguardaAprovacao: !aprovada,
+        }
+      : null,
+  };
+}
+
+export async function idsSociaisSobTrava(tx: Transacao, perfilId: PerfilId, apos: PerfilId | null) {
+  const ids = await tx.execute<{ perfil_id: string }>(sql`
+    select perfil_id from (
+      select case when lower_profile_id=${perfilId} then higher_profile_id else lower_profile_id end as perfil_id
+        from recreio.friendships where state='active' and (lower_profile_id=${perfilId} or higher_profile_id=${perfilId})
+      union select target_profile_id from recreio.social_blocks where actor_profile_id=${perfilId}
+      union select case when origin_profile_id=${perfilId} then target_profile_id else origin_profile_id end
+        from recreio.friend_requests where state='pending' and expires_at>statement_timestamp()
+          and (origin_profile_id=${perfilId} or target_profile_id=${perfilId})
+    ) relacoes where (${apos}::uuid is null or perfil_id>${apos}::uuid) order by perfil_id limit 11
+  `);
+  return ids.map((p) => PerfilIdSchema.parse(p.perfil_id));
 }
 
 /** Dez relações por página: autorização por par e travas curtas, sem busca pública. */
@@ -136,19 +174,9 @@ export async function listarSocialNoBanco(
   autor: AutorSocial,
   apos: PerfilId | null,
 ): Promise<ListaSocial> {
-  const pagina = await comJogadorSocial(autor, null, async (tx): Promise<PerfilId[]> => {
-    const ids = await tx.execute<{ perfil_id: string }>(sql`
-      select perfil_id from (
-        select case when lower_profile_id=${autor.perfilId} then higher_profile_id else lower_profile_id end as perfil_id
-          from recreio.friendships where state='active' and (lower_profile_id=${autor.perfilId} or higher_profile_id=${autor.perfilId})
-        union select target_profile_id from recreio.social_blocks where actor_profile_id=${autor.perfilId}
-        union select case when origin_profile_id=${autor.perfilId} then target_profile_id else origin_profile_id end
-          from recreio.friend_requests where state='pending' and expires_at>statement_timestamp()
-            and (origin_profile_id=${autor.perfilId} or target_profile_id=${autor.perfilId})
-      ) relacoes where (${apos}::uuid is null or perfil_id>${apos}::uuid) order by perfil_id limit 11
-    `);
-    return ids.map((p) => PerfilIdSchema.parse(p.perfil_id));
-  });
+  const pagina = await comJogadorSocial(autor, null, (tx) =>
+    idsSociaisSobTrava(tx, autor.perfilId, apos),
+  );
   const contatos: ContatoSocial[] = [];
   for (const id of pagina.slice(0, 10)) {
     const contato = await consultarContatoNoBanco(autor, id);

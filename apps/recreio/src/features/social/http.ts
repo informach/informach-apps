@@ -3,7 +3,6 @@ import { ErroDoRecreio } from "@informach/recreio";
 import type { MutacaoSocialSchema } from "@informach/recreio/contrato";
 import type { z } from "zod";
 import type { SessaoDeJogoAtiva } from "@/features/sessao-de-jogo/service";
-import { env } from "@/lib/env";
 import { AppError } from "@/lib/errors";
 import {
   aceitarAmizade,
@@ -16,16 +15,11 @@ import {
   removerAmizade,
 } from "./service";
 
-export function exigirSocialDisponivel() {
-  if (env.RECREIO_SOCIAL_MODE !== "on") throw new ErroDoRecreio("INDISPONIVEL");
-}
-
 export async function executarMutacaoSocial(
   sessao: SessaoDeJogoAtiva,
   pedido: z.infer<typeof MutacaoSocialSchema>,
 ) {
   try {
-    if (["codigo", "pedir", "aceitar"].includes(pedido.operacao)) exigirSocialDisponivel();
     switch (pedido.operacao) {
       case "presenca":
         return await alterarPresencaSocial(sessao, pedido.presenca);

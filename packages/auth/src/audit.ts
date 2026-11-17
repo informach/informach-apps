@@ -131,6 +131,7 @@ export type AuditEventType =
   | "recreio.social_protection_changed"
   | "recreio.social_records_purged"
   | "recreio.social_presence_changed"
+  | "recreio.social_notice_read"
   | "recreio.friendship_started"
   | "recreio.profile_data_updated"
   | "recreio.profile_data_conflict"

@@ -9,6 +9,7 @@ import { aceitarPedidoNoBanco, aprovarPedidoNoBanco } from "./aceite-repository"
 import type { AutorSocial } from "./autoridade-repository";
 import { gravarCodigoDeAmigo } from "./codigos-repository";
 import { listarSocialNoBanco } from "./consulta-repository";
+import { exigirNovosContatos } from "./disponibilidade";
 import { criarPedidoDeAmizade } from "./pedidos-repository";
 import { salvarPreferenciaDePresenca } from "./preferencias-repository";
 import {
@@ -26,6 +27,7 @@ import {
 import { hashDoCodigoDeAmigo, novoCodigoDeAmigo } from "./segredos";
 
 export async function emitirCodigoDeAmigo(referencia: AutorSocial) {
+  exigirNovosContatos();
   await limitarTentativas({
     chave: `social-codigo:${referencia.perfilId}`,
     max: 6,
@@ -47,6 +49,7 @@ export async function emitirCodigoDeAmigo(referencia: AutorSocial) {
   }
 }
 export async function pedirAmizade(referencia: AutorSocial, entrada: unknown) {
+  exigirNovosContatos();
   const pedido = NovoPedidoDeAmizadeSchema.parse(entrada);
   await limitarTentativas({
     chave: `social-pedido:${referencia.perfilId}`,
@@ -57,6 +60,7 @@ export async function pedirAmizade(referencia: AutorSocial, entrada: unknown) {
 }
 
 export async function aceitarAmizade(referencia: AutorSocial, pedidoId: unknown) {
+  exigirNovosContatos();
   const id = z.uuid().parse(pedidoId);
   await limitarTentativas({
     chave: `social-aceite:${referencia.perfilId}`,
@@ -66,6 +70,7 @@ export async function aceitarAmizade(referencia: AutorSocial, pedidoId: unknown)
   return aceitarPedidoNoBanco(referencia, id);
 }
 export async function aprovarAmizade(autor: AutorNativoRecente, entrada: unknown) {
+  exigirNovosContatos();
   const pedido = AprovacaoDeAmizadeSchema.parse(entrada);
   await limitarTentativas({
     chave: `social-aprovacao:${autor.contaId}`,
@@ -75,6 +80,7 @@ export async function aprovarAmizade(autor: AutorNativoRecente, entrada: unknown
   return aprovarPedidoNoBanco(autor, pedido);
 }
 export async function renovarAprovacaoDeAmizade(autor: AutorNativoRecente, entrada: unknown) {
+  exigirNovosContatos();
   const pedido = RenovacaoDeAmizadeSchema.parse(entrada);
   await limitarTentativas({
     chave: `social-reaprovacao:${autor.contaId}`,

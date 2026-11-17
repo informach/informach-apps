@@ -37,6 +37,15 @@ const production: NodeJS.ProcessEnv = {
   CRON_SECRET: SEGREDO,
 };
 describe("deployment environment", () => {
+  it("mantém social desligado por padrão e recusa modo desconhecido", () => {
+    expect(validateEnvironment(production).RECREIO_SOCIAL_MODE).toBe("off");
+    expect(
+      validateEnvironment({ ...production, RECREIO_SOCIAL_MODE: "on" }).RECREIO_SOCIAL_MODE,
+    ).toBe("on");
+    expect(() => validateEnvironment({ ...production, RECREIO_SOCIAL_MODE: "1" })).toThrow(
+      "RECREIO_SOCIAL_MODE",
+    );
+  });
   it("mantém novos perfis protegidos desligados por padrão e distingue preparação de jogo", () => {
     expect(validateEnvironment(production).RECREIO_FAMILY_MODE).toBe("off");
     expect(
