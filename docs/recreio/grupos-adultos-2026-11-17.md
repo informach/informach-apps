@@ -207,3 +207,13 @@ recarregou as duas seleções; falhou ao ler links antes de concluir a navegaç�
 cliente de volta aos perfis. A fixture agora espera URL e exatamente dois links
 antes de comparar IDs. Sem espera arbitrária e sem mudar o produto. O capture
 de 390 px já foi produzido; inspeção e nova rodada ainda necessárias.
+
+Revisão de privacidade antes do aceite: quando o destinatário já possui conta,
+fixar também seu ID na emissão. Reutilizar um endereço após troca/exclusão não
+pode revelar nem aceitar um convite dirigido à conta anterior. Nova coluna
+nullable e FK aditivas em geração própria (0181); dados reais não existem aqui.
+Conta excluída elimina sua pendência; recibos terminais retiram a vinculação.
+O endereço continua exigido junto do ID, e a resposta de emissão não informa
+se a conta existe. Leitores/aceite precisam provar a troca de endereço. A
+captura de cobertura entra na lista explícita de telas sintéticas do workflow;
+o artefato anterior de conta não a incluía. Inspeção visual continua pendente.

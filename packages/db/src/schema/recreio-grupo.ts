@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, foreignKey, index, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { users } from "./core";
 import { recreioGroups as groups, recreioProfiles as profiles, recreio } from "./recreio";
 
 const moment = (name: string) => timestamp(name, { withTimezone: true });
@@ -13,6 +14,8 @@ export const recreioGroupInvites = recreio.table(
     inviterUserId: text("inviter_user_id").notNull(),
     inviterDeclarationVersion: text("inviter_declaration_version").notNull(),
     recipientEmail: text("recipient_email"),
+    /** Conta já existente na emissão; trocar o endereço não muda o destinatário. */
+    recipientUserId: text("recipient_user_id").references(() => users.id, { onDelete: "cascade" }),
     state: text("state")
       .$type<"pending" | "accepted" | "revoked" | "expired">()
       .notNull()
@@ -48,6 +51,10 @@ export const recreioGroupInvites = recreio.table(
     check(
       "recreio_group_invite_state",
       sql`${t.state} in ('pending','accepted','revoked','expired')`,
+    ),
+    check(
+      "recreio_group_invite_binding",
+      sql`${t.state}='pending' or ${t.recipientUserId} is null`,
     ),
     check(
       "recreio_group_invite_expiry",

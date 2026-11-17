@@ -22,6 +22,7 @@ async function expirarPendentes(tx: Transacao, grupoId: string, autorId: string,
     .set({
       state: "expired",
       recipientEmail: null,
+      recipientUserId: null,
       finishedAt: agora,
     })
     .where(
@@ -124,6 +125,10 @@ async function tentarCriarConvite(autor: AutorNativoRecente, pedido: NovoConvite
       "LIMITE_DE_CONVITES",
       "Não foi possível preparar outro convite agora. Aguarde ou encerre um convite pendente.",
     );
+    const [destinatario] = await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, pedido.email));
     agora = await atual.nativa.conferirPrazo(autor.login);
     const [criado] = await tx
       .insert(invites)
@@ -132,6 +137,7 @@ async function tentarCriarConvite(autor: AutorNativoRecente, pedido: NovoConvite
         inviterUserId: autor.contaId,
         inviterDeclarationVersion: pedido.versaoDaDeclaracao,
         recipientEmail: pedido.email,
+        recipientUserId: destinatario?.id ?? null,
         createdAt: agora,
         expiresAt: new Date(agora.getTime() + PRAZO_DO_CONVITE_MS),
       })
