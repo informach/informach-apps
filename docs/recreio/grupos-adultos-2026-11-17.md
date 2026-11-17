@@ -142,3 +142,14 @@ escolhe e troca a vaga Individual, recarrega cada confirmação e confere que os
 IDs dos menores continuam iguais. Inclui captura a 390 px e recusa de seleção
 acima do limite. Nenhuma leitura de dados dos jogos ou acesso ao financeiro do
 outro adulto é acrescentado pela tela. Gates e inspeção visual ainda pendentes.
+
+Modelo de convites em preparação: tabela aditiva, destinatário pendente por
+endereço normalizado, 72 horas, endereço removido ao encerrar e recibo com
+declarações adultas próprias desta operação. Não reutilizar a declaração de
+responsabilidade por um menor para aceitar um adulto. FK composta liga emissor
+ao titular do grupo e aceite ao par perfil/login; apagar o perfil retira o par
+do recibo sem permitir que uma conta nova repita o aceite antigo.
+Unicidades compostas das tabelas existentes são redundantes com seus IDs
+primários, necessárias às FKs e não exigem normalização. Gerar e revisar a
+migration remotamente; não aplicar junto do salvamento. Writers, limpeza e
+fluxos de convite ainda não implementados.
