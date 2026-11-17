@@ -188,3 +188,11 @@ uma única vez o mesmo pedido diante de indisponibilidade. Não repete recusas,
 emite outro ingresso ou persiste a prova. Um teste passa por SDK, rotas e banco
 reais e descarta a primeira resposta depois do commit. Falha da segunda tentativa
 continua visível. Nenhuma página pública habilita esse consumidor ainda.
+
+`509f872` passou nos seis gates `44039845030`: 455 integrações/37 arquivos,
+incluindo a perda da resposta após o commit. O CI compartilhado `44039845094`
+continua em execução. A prova negativa isolada `6ea64b4`, `44040174048`, adiciona
+apenas a migration gerada, um teste HTTP e uma matriz de integração reduzida
+à fonte anterior `2bca24a`: reproduziu exatamente uma recusa 401 ao esperar a
+recuperação 200; os outros 448 testes passaram. Nunca integrar essa matriz.
+O teste HTTP idêntico segue para a rodada verde completa, sem reduzir gates.
