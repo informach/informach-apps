@@ -7,7 +7,7 @@ const KEEP = 64;
 const MOST = 1024;
 
 /**
- * The soft-edged shape as a picture for the CSS mask of a layer `w` × `h` stage pixels big:
+ * The soft-edged shape (or any polygon, which CSS cannot round nor soften) as a picture for the CSS mask of a layer `w` × `h` stage pixels big:
  * white where the clip shows, fading out toward the edge exactly as the export's mask does
  * (shared/compose.ts shapeAlpha, the formula of export/fx.ts). `shape` is in stage pixels.
  */
@@ -19,8 +19,20 @@ export function softMaskUrl(shape: MaskShape, w: number, h: number): string {
     ellipse: shape.ellipse,
     radius: shape.radius * k,
     feather: shape.feather * k,
+    // The polygon's corners are fractions of the box: the same at any size.
+    ...(shape.polygon ? { polygon: shape.polygon } : {}),
   };
-  const key = `${cw}x${ch}:${scaled.ellipse ? "e" : `r${scaled.radius.toFixed(1)}`}:f${scaled.feather.toFixed(1)}`;
+  const outline = scaled.polygon
+    ? `p${scaled.polygon
+        .map((o) =>
+          o
+            .flat()
+            .map((v) => v.toFixed(4))
+            .join(","),
+        )
+        .join("|")}`
+    : "";
+  const key = `${cw}x${ch}:${scaled.ellipse ? "e" : `r${scaled.radius.toFixed(1)}`}:f${scaled.feather.toFixed(1)}${outline}`;
   const known = made.get(key);
   if (known) return known;
   const canvas = document.createElement("canvas");

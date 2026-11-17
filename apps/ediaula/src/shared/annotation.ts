@@ -1,4 +1,4 @@
-import type { Motion, Shadow } from "./compose.ts";
+import type { Motion, Polygon, Shadow } from "./compose.ts";
 
 /**
  * Annotations drawn by EdiAula (arrows, speech balloons, notes, labels, titles, highlight boxes,
@@ -291,7 +291,12 @@ export interface Annotation {
   heads?: 0 | 1 | 2;
   curve?: number;
   /** Highlight and shapes: form, fill inside (#RRGGBB, absent = none) and its opacity. Balloon: its color inside (absent = white). */
-  shape?: "rounded" | "rect" | "ellipse" | "triangle";
+  shape?: "rounded" | "rect" | "ellipse" | "triangle" | "polygon";
+  /**
+   * Highlight drawn with the pen (shape "polygon"): its outlines (one or more), corners in
+   * drawing order, as fractions of its box, so resizing the box stretches it along.
+   */
+  polygon?: Polygon;
   fill?: string;
   fillOpacity?: number;
   /**

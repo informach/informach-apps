@@ -203,6 +203,16 @@ function requireProject(): Project {
   return p;
 }
 
+/** A track of the lesson the tool was told to use (refused with the tracks there are). */
+function requireTrack(p: Project, trackId: string): void {
+  const track = p.tracks.find((x) => x.id === trackId);
+  if (!track)
+    throw new ToolError(
+      `A faixa ${trackId} não existe nesta aula. Faixas: ${p.tracks.map((x) => `${x.name} [${x.id}]`).join(", ")}. Nada foi feito.`,
+    );
+  if (track.locked) throw new ToolError(`A faixa ${track.name} está travada. Nada foi feito.`);
+}
+
 /** The open project has to be on disk before the assistant switches to another one. */
 async function saveBeforeLeaving(): Promise<void> {
   // A draft waiting for review exists only in memory: the person applies or discards it first.
@@ -2057,11 +2067,17 @@ ${r.message}`);
       icon,
       marker,
       bare,
+      dim,
+      scale,
+      track_id,
     },
     { commit },
   ) {
     const p = requireProject();
     const start = await timeFor(p, near_text, at);
+    if (dim && kind !== "highlight")
+      throw new ToolError("Só o destaque (highlight) escurece o resto da tela.");
+    if (track_id) requireTrack(p, track_id);
     const base = ANNOTATION_PRESETS.find((x) => x.kind === kind)!.spec;
     const id = await addAnnotation(
       kind,
@@ -2091,8 +2107,9 @@ ${r.message}`);
         ...(icon ? { icon } : {}),
         ...(marker ? { marker } : {}),
         ...(bare !== undefined ? { bare } : {}),
+        ...(dim ? { dim } : {}),
       },
-      { at: start, duration, x, y },
+      { at: start, duration, x, y, scale, trackId: track_id },
       commit,
     );
     if (!id) throw new ToolError("Não foi possível adicionar a anotação.");
@@ -2290,13 +2307,18 @@ ${r.message}`);
     ].join("\n");
   },
 
-  async add_zoom({ near_text, at, duration, scale, x, y, ease, zoom_in, zoom_out }, { commit }) {
+  async add_zoom(
+    { near_text, at, duration, scale, x, y, ease, zoom_in, zoom_out, track_id },
+    { commit },
+  ) {
     const p = requireProject();
     const start = await timeFor(p, near_text, at);
+    if (track_id) requireTrack(p, track_id);
     const id = await addZoomLayer(
       {
         at: start,
         duration,
+        ...(track_id ? { dropOn: track_id } : {}),
         zoom: {
           ...(scale ? { scale } : {}),
           ...(x !== undefined ? { x } : {}),
@@ -2309,6 +2331,10 @@ ${r.message}`);
       commit,
     );
     if (!id) throw new ToolError("Não foi possível criar a camada de zoom.");
+    if (track_id) {
+      const placed = useProject.getState().project?.clips.find((c) => c.id === id);
+      return `Camada de zoom [${id}] em ${t(start)}, na faixa ${placed?.trackId ?? track_id} (aproxima as faixas abaixo dela).`;
+    }
     return `Camada de zoom [${id}] em ${t(start)}, numa faixa nova no topo (aproxima todas as faixas abaixo dela).`;
   },
 

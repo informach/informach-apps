@@ -4,12 +4,11 @@ import { createRoot } from "react-dom/client";
 import type { LessonClip } from "../../../shared/lessonClips";
 import { type LessonScript, lessonScript, pickedScript } from "../../../shared/lessonScript";
 import {
-  type BundledFamily,
   DEFAULT_FONTS,
   duplicateRecipe,
   emptyRecipeStore,
-  type FontPair,
   fromLesson,
+  type GuideImage,
   isBuiltIn,
   listRecipes,
   missingInputs,
@@ -26,9 +25,8 @@ import {
   restoreRecipe,
   runInputsSchema,
   saveRecipe,
+  withGuide,
 } from "../../../shared/pipelines";
-import { STYLE_GUIDES, type StyleGuide } from "../../../shared/styleGuide";
-import { paletteFromImage } from "./imagePalette";
 import {
   failureText,
   type PipelineBridge,
@@ -44,11 +42,15 @@ export interface PipelinesDesktop extends PipelineBridge {
   pipelinesRead(): Promise<RecipeStore>;
   pipelinesWrite(store: RecipeStore): Promise<RecipeStore>;
   pipelinePick(kind: PickedFile["kind"]): Promise<PickedFile | null>;
+  /** Keeps a style guide picture in the profile (main/pipelineGuides.ts). */
+  pipelineGuideSave(bytes: Uint8Array, name: string): Promise<GuideImage>;
   /** The lesson of a picked package: its id and script (lessonPackage.ts packageLesson). */
   pipelineLessonScript(token: string): Promise<{
     id: string | null;
     script: { text: string; section: number } | null;
   }>;
+  /** The end of a run, for the phone notice the main process sends when it is set up. */
+  pipelineNotify(notice: { ok: boolean; recipe: string; seconds: number }): Promise<void>;
 }
 
 /** The phrases of the picked lesson's script, and which of them this run animates. */
@@ -187,171 +189,126 @@ type View =
 
 const newRecipeId = () => `recipe-${crypto.randomUUID()}`;
 
-/** The biggest picture the palette reads colours from. */
-const IMAGE_BYTES = 50 * 1024 * 1024;
+/** The biggest style guide picture taken (main/pipelineGuides.ts GUIDE_BYTES). */
+const GUIDE_BYTES = 40 * 1024 * 1024;
 
-function Palette({
-  colors,
-  onChange,
+/**
+ * The style guide picture of a recipe or a run: chosen from a file, shown small, replaced or
+ * taken away. The run reads its colours and fonts, and the assistant follows it.
+ */
+function GuideField({
+  guide,
+  desktop,
   label,
   report,
+  onChange,
+  disabled = false,
 }: {
-  colors: string[];
-  onChange(colors: string[]): void;
+  guide: GuideImage | undefined;
+  desktop: Pick<PipelinesDesktop, "pipelineGuideSave" | "pipelineGuideRead">;
   label: string;
   report(message: string): void;
+  onChange(guide: GuideImage | undefined): void;
+  disabled?: boolean;
 }) {
   const picture = useRef<HTMLInputElement>(null);
   const [reading, setReading] = useState(false);
-  const fromImage = async (file: File) => {
-    if (file.size > IMAGE_BYTES) {
-      report("A imagem passa de 50 MB.");
+  const [preview, setPreview] = useState<{ id: string; url: string } | null>(null);
+  const [missing, setMissing] = useState<string | null>(null);
+  const id = guide?.id;
+  useEffect(() => {
+    if (!id) return;
+    let url: string | null = null;
+    let live = true;
+    desktop.pipelineGuideRead(id).then(
+      (kept) => {
+        if (!live) return;
+        url = URL.createObjectURL(new Blob([kept.bytes.slice().buffer], { type: kept.mediaType }));
+        setPreview({ id, url });
+      },
+      () => {
+        if (live) setMissing(id);
+      },
+    );
+    return () => {
+      live = false;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [id, desktop]);
+  const shown = id && preview?.id === id ? preview.url : null;
+  const choose = async (file: File) => {
+    if (file.size > GUIDE_BYTES) {
+      report("O guia de estilo passa de 40 MB.");
       return;
     }
     setReading(true);
     try {
-      onChange(await paletteFromImage(file));
+      onChange(
+        await desktop.pipelineGuideSave(new Uint8Array(await file.arrayBuffer()), file.name),
+      );
     } catch (error) {
       report(failureText(error));
     } finally {
       setReading(false);
     }
   };
+  const chooseButton = (text: string) => (
+    <button type="button" disabled={disabled || reading} onClick={() => picture.current?.click()}>
+      {reading ? "Lendo a imagem…" : text}
+    </button>
+  );
   return (
-    <fieldset className="pipeline-palette">
+    <fieldset className="pipeline-palette pipeline-guide">
       <legend>{label}</legend>
-      <div className="pipeline-swatches">
-        {colors.map((color, index) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: a colour may repeat; the slot is its identity
-          <span key={index} className="pipeline-swatch">
-            <input
-              type="color"
-              value={color}
-              aria-label={`Cor ${index + 1} da paleta`}
-              onChange={(event) =>
-                onChange(colors.map((c, i) => (i === index ? event.target.value : c)))
-              }
+      {guide ? (
+        <div className="pipeline-guide-row">
+          {shown ? (
+            <img
+              className="pipeline-guide-thumb"
+              src={shown}
+              alt={`Guia de estilo ${guide.name}`}
             />
-            <code>{color}</code>
-            {colors.length > 1 && (
-              <button
-                type="button"
-                aria-label={`Tirar a cor ${index + 1}`}
-                onClick={() => onChange(colors.filter((_, i) => i !== index))}
-              >
-                ×
+          ) : (
+            <span className="pipeline-guide-thumb" aria-hidden="true" />
+          )}
+          <div className="pipeline-guide-info">
+            <strong title={guide.name}>{guide.name}</strong>
+            <span className="micro">
+              {missing === guide.id
+                ? "Esta imagem não está mais neste computador: escolha de novo."
+                : "As cores e as fontes da execução saem desta imagem (lidas na primeira vez e guardadas com ela), e o assistente segue as regras, os tamanhos e os componentes dela. Quando ela e as instruções discordarem, vale o guia."}
+            </span>
+            <div className="pipeline-swatches">
+              {chooseButton("Trocar imagem…")}
+              <button type="button" disabled={disabled} onClick={() => onChange(undefined)}>
+                Sem guia
               </button>
-            )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="pipeline-guide-row">
+          <span className="micro">
+            Uma imagem (PNG, JPEG ou WebP) com o guia de estilo das aulas: paleta, tipografia,
+            componentes e regras. As cores e as fontes saem dele. Sem guia, a execução usa as cores
+            da receita e as fontes Baloo 2 e Nunito.
           </span>
-        ))}
-        {colors.length < 12 && (
-          <button type="button" onClick={() => onChange([...colors, "#ffffff"])}>
-            + Cor
-          </button>
-        )}
-        <button
-          type="button"
-          disabled={reading}
-          title="Troca a paleta pelas cores principais de uma imagem: a mais clara primeiro, a mais escura em seguida e a mais viva por último."
-          onClick={() => picture.current?.click()}
-        >
-          {reading ? "Lendo a imagem…" : "Cores de uma imagem…"}
-        </button>
-        <input
-          ref={picture}
-          type="file"
-          hidden
-          aria-label={`Imagem para a ${label.toLowerCase()}`}
-          accept="image/png,image/jpeg,image/webp,image/gif,image/bmp"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            // The same picture can be chosen again after editing the colours.
-            event.target.value = "";
-            if (file) void fromImage(file);
-          }}
-        />
-      </div>
-    </fieldset>
-  );
-}
-
-/** The families of a select: the bundle's, by group, and the chosen one even if it is not there. */
-function FamilyOptions({ families, current }: { families: BundledFamily[]; current: string }) {
-  const groups = [...new Set(families.map((f) => f.group))];
-  return (
-    <>
-      {!families.some((f) => f.family === current) && <option value={current}>{current}</option>}
-      {groups.map((group) => (
-        <optgroup key={group} label={group}>
-          {families
-            .filter((f) => f.group === group)
-            .map((f) => (
-              <option key={f.family} value={f.family}>
-                {f.family}
-              </option>
-            ))}
-        </optgroup>
-      ))}
-    </>
-  );
-}
-
-/** The fonts of titles and body text, from the fonts that come with EdiSVG (EdiAula's). */
-function Fonts({
-  fonts,
-  families,
-  onChange,
-  onGuide,
-  label,
-  disabled = false,
-}: {
-  fonts: FontPair;
-  families: BundledFamily[];
-  onChange(fonts: FontPair): void;
-  /** A style guide's palette and fonts taken at once (shared/styleGuide.ts). */
-  onGuide(guide: StyleGuide): void;
-  label: string;
-  disabled?: boolean;
-}) {
-  const id = useId();
-  return (
-    <fieldset className="pipeline-palette pipeline-fonts">
-      <legend>{label}</legend>
-      <div className="pipeline-swatches">
-        {STYLE_GUIDES.map((guide) => (
-          <button
-            key={guide.id}
-            type="button"
-            disabled={disabled}
-            title={`Paleta de texto e fontes do guia de estilo: ${guide.summary}`}
-            onClick={() => onGuide(guide)}
-          >
-            Paleta e fontes do guia {guide.name.split(" · ")[0]}
-          </button>
-        ))}
-      </div>
-      <label htmlFor={`${id}-title`}>
-        Título
-        <select
-          id={`${id}-title`}
-          value={fonts.title}
-          disabled={disabled}
-          onChange={(event) => onChange({ ...fonts, title: event.target.value })}
-        >
-          <FamilyOptions families={families} current={fonts.title} />
-        </select>
-      </label>
-      <label htmlFor={`${id}-body`}>
-        Corpo
-        <select
-          id={`${id}-body`}
-          value={fonts.body}
-          disabled={disabled}
-          onChange={(event) => onChange({ ...fonts, body: event.target.value })}
-        >
-          <FamilyOptions families={families} current={fonts.body} />
-        </select>
-      </label>
+          {chooseButton("Carregar guia de estilo…")}
+        </div>
+      )}
+      <input
+        ref={picture}
+        type="file"
+        hidden
+        aria-label={`Imagem do ${label.toLowerCase()}`}
+        accept="image/png,image/jpeg,image/webp"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          // The same picture can be chosen again.
+          event.target.value = "";
+          if (file) void choose(file);
+        }}
+      />
     </fieldset>
   );
 }
@@ -359,14 +316,14 @@ function Fonts({
 function RecipeEditor({
   recipe,
   isNew,
-  families,
+  desktop,
   report,
   onSave,
   onCancel,
 }: {
   recipe: Recipe;
   isNew: boolean;
-  families: BundledFamily[];
+  desktop: PipelinesDesktop;
   report(message: string): void;
   onSave(recipe: Recipe): void;
   onCancel(): void;
@@ -411,20 +368,12 @@ function RecipeEditor({
             onChange={(event) => setDraft({ ...draft, style: event.target.value })}
           />
         </label>
-        <Palette
-          label="Paleta de texto padrão"
-          colors={draft.textPalette}
+        <GuideField
+          label="Guia de estilo"
+          guide={draft.guideImage}
+          desktop={desktop}
           report={report}
-          onChange={(textPalette) => setDraft({ ...draft, textPalette })}
-        />
-        <Fonts
-          label="Fontes padrão"
-          fonts={draft.fonts}
-          families={families}
-          onChange={(fonts) => setDraft({ ...draft, fonts })}
-          onGuide={(guide) =>
-            setDraft({ ...draft, fonts: guide.fonts, textPalette: guide.textPalette })
-          }
+          onChange={(guide) => setDraft(withGuide(draft, guide))}
         />
       </div>
       <div className="dialog-footer">
@@ -463,7 +412,6 @@ const STEP_TEXT: Record<StepState["status"], string> = {
 
 function RunForm({
   recipe,
-  families,
   desktop,
   editor,
   report,
@@ -472,7 +420,6 @@ function RunForm({
   handed,
 }: {
   recipe: Recipe;
-  families: BundledFamily[];
   desktop: PipelinesDesktop;
   editor: PipelineEditor;
   handed?: HandedLesson;
@@ -490,8 +437,7 @@ function RunForm({
   const script = lesson ? pickedScript(lesson.script, lesson.picked) : typed;
   // What this project already animated of the lesson's section (each run records its phrases).
   const done = donePhrases(editor.lessonClips(), lessonRef);
-  const [palette, setPalette] = useState(recipe.textPalette);
-  const [fonts, setFonts] = useState(recipe.fonts);
+  const [guide, setGuide] = useState(recipe.guideImage);
   const [states, setStates] = useState<Record<string, StepState>>({});
   const [running, setRunning] = useState(false);
   const [outcome, setOutcome] = useState<{ ok: boolean; report: string[] } | null>(null);
@@ -504,13 +450,15 @@ function RunForm({
     },
     [],
   );
-  const steps = stepsFor(recipe.kind);
+  const steps = stepsFor(recipe.kind, !!guide);
+  // The colours and fonts come from the style guide; the recipe's are used only without one.
   const inputs = {
     recipeId: recipe.id,
     files,
     script,
-    textPalette: palette,
-    fonts,
+    textPalette: recipe.textPalette,
+    fonts: recipe.fonts,
+    ...(guide ? { guideImage: guide } : {}),
     ...(lessonRef
       ? {
           lesson: {
@@ -587,6 +535,7 @@ function RunForm({
     setBusy(true);
     setOutcome(null);
     editor.beginRun();
+    const startedAt = performance.now();
     try {
       const result = await runPipeline(
         recipe,
@@ -598,6 +547,15 @@ function RunForm({
         },
       );
       if (live.current) setOutcome({ ok: result.ok, report: result.report });
+      // Stopped by the person: they are at the computer, no notice.
+      if (!abort.signal.aborted)
+        desktop
+          .pipelineNotify({
+            ok: result.ok,
+            recipe: recipe.name,
+            seconds: (performance.now() - startedAt) / 1000,
+          })
+          .catch(() => undefined);
     } finally {
       // Whatever the run did (also when it stopped) is undone by one Ctrl+Z.
       editor.endRun();
@@ -677,22 +635,13 @@ function RunForm({
             </p>
           </>
         )}
-        <Palette
-          label="Paleta de texto desta vez"
-          colors={palette}
+        <GuideField
+          label="Guia de estilo desta vez"
+          guide={guide}
+          desktop={desktop}
           report={report}
-          onChange={setPalette}
-        />
-        <Fonts
-          label="Fontes desta vez"
-          fonts={fonts}
-          families={families}
           disabled={running}
-          onChange={setFonts}
-          onGuide={(guide) => {
-            setPalette(guide.textPalette);
-            setFonts(guide.fonts);
-          }}
+          onChange={setGuide}
         />
         {steps.length > 0 && (
           <ol className="pipeline-steps" aria-label="Etapas">
@@ -754,20 +703,6 @@ function PipelinesPanel({ desktop, editor, handed, report, close, setBusy }: Pro
   };
   const [store, setStore] = useState<RecipeStore | null>(null);
   const [view, setView] = useState<View>({ name: "list" });
-  /** The fonts that come with EdiSVG (EdiAula's), for titles and body text. */
-  const [families, setFamilies] = useState<BundledFamily[]>([]);
-  useEffect(() => {
-    let live = true;
-    desktop
-      .pipelineFonts()
-      .then((value) => {
-        if (live) setFamilies(value);
-      })
-      .catch((error: unknown) => report(failureText(error)));
-    return () => {
-      live = false;
-    };
-  }, [desktop, report]);
   /** The user recipe whose Excluir was pressed once (a second press removes it). */
   const [confirming, setConfirming] = useState<string | null>(null);
   // The store as last saved, and the saves in order: two quick changes never undo each other.
@@ -834,7 +769,7 @@ function PipelinesPanel({ desktop, editor, handed, report, close, setBusy }: Pro
         <RecipeEditor
           recipe={view.recipe}
           isNew={view.isNew}
-          families={families}
+          desktop={desktop}
           report={report}
           onCancel={() => setView({ name: "list" })}
           onSave={(recipe) => {
@@ -845,7 +780,6 @@ function PipelinesPanel({ desktop, editor, handed, report, close, setBusy }: Pro
       ) : view.name === "run" ? (
         <RunForm
           recipe={view.recipe}
-          families={families}
           desktop={desktop}
           editor={editor}
           report={report}

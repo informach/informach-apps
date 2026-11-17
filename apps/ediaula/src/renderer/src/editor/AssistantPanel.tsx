@@ -11,18 +11,21 @@ import { modelLabel, usageLabel } from "@shared/aiModels";
 import { type AiSettingsView, ENGINE_LABEL } from "@shared/types";
 import {
   ArrowUp,
+  BadgeCheck,
   Check,
   CircleSlash,
+  Coins,
   ImagePlus,
   KeyRound,
   ListVideo,
   Loader,
   type LucideIcon,
-  RotateCcw,
+  MessageSquarePlus,
   Scissors,
   Settings,
   Sparkles,
   Square,
+  TriangleAlert,
   Undo2,
   Wand2,
   X,
@@ -31,7 +34,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import { cancelAiCall, runningCall, useAiCalls } from "@/lib/aiActivity";
 import { proposeCleanup } from "@/lib/proposals";
 import { useApp } from "@/state/app";
-import { type ChatItem, type ToolActivity, useAssistant } from "@/state/assistant";
+import { type ChatItem, type ToolActivity, type TurnUsage, useAssistant } from "@/state/assistant";
 import { playback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { Button } from "@/ui";
@@ -343,35 +346,88 @@ export function AssistantPanel(): ReactNode {
             </button>
           )}
         </div>
-        <div className="composer-foot muted">
-          <span
-            className={`engine-label quota-${conv?.quota?.level ?? "none"}`}
-            title={conv?.quota?.text}
-          >
-            {settings
-              ? settings.engine === "api"
-                ? `${modelLabel(settings.model).replace(/ \(.*\)$/, "")} · chave da API`
-                : ENGINE_LABEL[settings.engine]
-              : ""}
-            {conv?.quota && conv.quota.level !== "ok" ? ` · ${conv.quota.text}` : ""}
-            {conv?.total ? ` · nesta conversa: ${usageLabel(conv.total)}` : ""}
-          </span>
-          <button
-            type="button"
-            className="link"
-            onClick={() => useApp.getState().set({ settingsOpen: true })}
-            title="Trocar o motor da IA"
-          >
-            <Settings size={11} />
-          </button>
-          <span className="spacer" />
-          {items.length > 0 && (
-            <button type="button" className="link" onClick={() => reset(conversationId)}>
-              <RotateCcw size={11} /> Nova conversa
-            </button>
-          )}
-        </div>
+        <ComposerFoot
+          settings={settings}
+          quota={conv?.quota}
+          total={conv?.total}
+          onReset={items.length > 0 ? () => reset(conversationId) : undefined}
+        />
       </div>
+    </div>
+  );
+}
+
+/** "39,2 mil", the tokens of the conversation short enough for the footer. */
+const shortTokens = (tokens: number): string =>
+  tokens >= 1_000_000
+    ? `${(tokens / 1_000_000).toFixed(1).replace(".", ",")} mi`
+    : tokens >= 1000
+      ? `${(tokens / 1000).toFixed(1).replace(".", ",")} mil`
+      : String(tokens);
+
+/**
+ * The composer's footer, all icons: the engine (opens the AI settings), the quota warning when
+ * there is one, what the conversation used, and "Nova conversa". The words are in the tooltips.
+ */
+function ComposerFoot({
+  settings,
+  quota,
+  total,
+  onReset,
+}: {
+  settings: AiSettingsView | null;
+  quota?: { level: "ok" | "warn" | "blocked"; text: string };
+  total?: TurnUsage;
+  onReset?: () => void;
+}): ReactNode {
+  const engine = settings
+    ? settings.engine === "api"
+      ? `${modelLabel(settings.model).replace(/ \(.*\)$/, "")} · chave da API`
+      : ENGINE_LABEL[settings.engine]
+    : "";
+  const EngineIcon = settings?.engine === "api" ? KeyRound : BadgeCheck;
+  return (
+    <div className="composer-foot">
+      {settings && (
+        <button
+          type="button"
+          className="foot-chip"
+          title={`${engine}. Clique para trocar o motor da IA.`}
+          aria-label={`Motor da IA: ${engine}. Trocar`}
+          onClick={() => useApp.getState().set({ settingsOpen: true })}
+        >
+          <EngineIcon size={12} />
+        </button>
+      )}
+      {quota && quota.level !== "ok" && (
+        <span className={`foot-chip foot-quota quota-${quota.level}`} title={quota.text}>
+          <TriangleAlert size={12} />
+          <span className="foot-text">{quota.text}</span>
+        </span>
+      )}
+      {total && total.tokens > 0 && (
+        <span className="foot-chip" title={`Nesta conversa: ${usageLabel(total)}`}>
+          <Coins size={12} />
+          <span className="mono">{shortTokens(total.tokens)}</span>
+          {total.usd !== undefined && !total.estimated && (
+            <span className="mono">
+              · US$ {total.usd < 0.01 ? "< 0,01" : total.usd.toFixed(2).replace(".", ",")}
+            </span>
+          )}
+        </span>
+      )}
+      <span className="spacer" />
+      {onReset && (
+        <button
+          type="button"
+          className="foot-chip"
+          title="Nova conversa"
+          aria-label="Nova conversa"
+          onClick={onReset}
+        >
+          <MessageSquarePlus size={13} />
+        </button>
+      )}
     </div>
   );
 }

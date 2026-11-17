@@ -13,6 +13,14 @@ import {
   recordedCursorPath,
 } from "@shared/cursor";
 import type { CursorData } from "@shared/cursorData";
+import {
+  panStageView,
+  type StageView,
+  stageViewShowing,
+  WHOLE_VIEW,
+  wheelZoomFactor,
+  zoomStageView,
+} from "@shared/stageView";
 import { clipSpeed, sourceAt, sourceEnd, timelineAt } from "@shared/timeline";
 import {
   type ReactNode,
@@ -58,6 +66,12 @@ export function CursorPathDialog(): ReactNode {
   const drag = useRef<{ index: number; handle?: "inHandle" | "outHandle" } | null>(null);
   /** The lesson is playing from the chosen time (its sound comes from the editor's preview). */
   const [listening, setListening] = useState(false);
+  /** Zoom and pan of the picture (shared/stageView.ts): the wheel zooms, the middle button pans. */
+  const [view, setView] = useState<StageView>(WHOLE_VIEW);
+  const frame = useRef<HTMLDivElement>(null);
+  const pan = useRef<{ x: number; y: number; pointer: number } | null>(null);
+  /** What the view keeps on screen: the cursor while listening, the selected point otherwise. */
+  const follow = useRef<{ x: number; y: number } | null>(null);
   const close = (): void => {
     useApp.getState().set({ cursorClip: null });
   };
@@ -207,6 +221,29 @@ export function CursorPathDialog(): ReactNode {
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [asset, clip, remove]);
+  // The wheel over the picture zooms around the pointer, never scrolling the dialog: a listener
+  // of its own, since React's wheel listener cannot hold the page.
+  useEffect(() => {
+    const el = frame.current;
+    if (!el || !data) return;
+    const onWheel = (e: WheelEvent): void => {
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      const fx = (e.clientX - r.left) / r.width;
+      const fy = (e.clientY - r.top) / r.height;
+      setView((v) => zoomStageView(v, wheelZoomFactor(e.deltaY), fx, fy));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [data]);
+  // A zoomed view goes after the chosen point, and after the cursor while the lesson plays.
+  const followKey = listening ? time : selected;
+  useEffect(() => {
+    void followKey;
+    const target = follow.current;
+    if (!target || !data) return;
+    setView((v) => stageViewShowing(v, target.x / data.width, target.y / data.height));
+  }, [followKey, data]);
   if (!asset || !clip || !project) return null;
   const end = Math.min(asset.duration, sourceEnd(clip));
   const speed = clipSpeed(clip);
@@ -220,6 +257,9 @@ export function CursorPathDialog(): ReactNode {
         )
       : null) ?? (track ? cursorAt(track, time) : null);
   const point = points[selected];
+  follow.current = listening ? current : (point ?? null);
+  /** Marks and lines keep their size on screen at any zoom, so close points come apart. */
+  const px = (n: number): number => n / view.zoom;
   const pointIndex = point ? path.findIndex((p) => p.t === point.t) : -1;
   const handles: { key: "inHandle" | "outHandle"; x: number; y: number }[] = [];
   if (pointIndex > 0)
@@ -268,13 +308,15 @@ export function CursorPathDialog(): ReactNode {
           Dê dois cliques na linha verde para adicionar um ponto naquele trecho do caminho.
           Selecione um ponto e pressione Delete para removê-lo. Arraste os pontos e as alças azuis
           para ajustar a curva. Ouça a aula (Espaço) ou arraste o tempo para achar o momento certo
-          pelo som.
+          pelo som. Gire a roda do mouse sobre a imagem para aproximar os pontos e arraste com o
+          botão do meio para mover a vista.
         </p>
         {error && <p role="alert">Não foi possível carregar o cursor: {error}</p>}
         {!data && !error && <p>Carregando caminho…</p>}
         {data && (
           <>
             <div
+              ref={frame}
               role="application"
               aria-label="Edição do caminho do cursor"
               style={{
@@ -283,162 +325,204 @@ export function CursorPathDialog(): ReactNode {
                 aspectRatio: `${data.width}/${data.height}`,
                 background: "#000",
                 flexShrink: 0,
+                overflow: "hidden",
+              }}
+              // The middle button drags the zoomed picture around.
+              onPointerDownCapture={(e) => {
+                if (e.button !== 1 || view.zoom === 1) return;
+                e.preventDefault();
+                e.stopPropagation();
+                pan.current = { x: e.clientX, y: e.clientY, pointer: e.pointerId };
+                e.currentTarget.setPointerCapture(e.pointerId);
+              }}
+              onPointerMoveCapture={(e) => {
+                const from = pan.current;
+                if (!from || from.pointer !== e.pointerId) return;
+                e.stopPropagation();
+                const r = e.currentTarget.getBoundingClientRect();
+                const dx = (e.clientX - from.x) / r.width;
+                const dy = (e.clientY - from.y) / r.height;
+                pan.current = { ...from, x: e.clientX, y: e.clientY };
+                setView((v) => panStageView(v, dx, dy));
+              }}
+              onPointerUpCapture={(e) => {
+                if (pan.current?.pointer !== e.pointerId) return;
+                e.stopPropagation();
+                pan.current = null;
+              }}
+              onPointerCancelCapture={() => {
+                pan.current = null;
+              }}
+              // Without this, the middle button starts the browser's autoscroll.
+              onMouseDown={(e) => {
+                if (e.button === 1) e.preventDefault();
               }}
             >
-              <video
-                ref={video}
-                src={mediaUrl(playbackPath(asset))}
-                muted
-                preload="auto"
-                onLoadedMetadata={() => {
-                  if (video.current) video.current.currentTime = time;
-                }}
-                style={{ width: "100%", height: "100%", display: "block" }}
-              />
-              <svg
-                viewBox={`0 0 ${data.width} ${data.height}`}
-                aria-label="Caminho do cursor: dois cliques para adicionar, Delete para remover"
+              <div
                 style={{
                   position: "absolute",
                   inset: 0,
-                  width: "100%",
-                  height: "100%",
-                  touchAction: "none",
-                  cursor: "crosshair",
-                }}
-                onDoubleClick={(e) => {
-                  if (!(e.target as Element).hasAttribute("data-path")) return;
-                  const r = e.currentTarget.getBoundingClientRect();
-                  const t = nearestCursorTime(
-                    path,
-                    ((e.clientX - r.left) / r.width) * data.width,
-                    ((e.clientY - r.top) / r.height) * data.height,
-                  );
-                  if (t !== null) insert(t);
-                }}
-                onPointerDown={(e) => {
-                  if (e.button !== 0 || locked) return;
-                  e.currentTarget.focus();
-                  if ((e.target as Element).hasAttribute("data-path")) return;
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const x = Math.max(
-                    0,
-                    Math.min(data.width, ((e.clientX - rect.left) / rect.width) * data.width),
-                  );
-                  const y = Math.max(
-                    0,
-                    Math.min(data.height, ((e.clientY - rect.top) / rect.height) * data.height),
-                  );
-                  const index = Number((e.target as Element).getAttribute("data-point") ?? -1);
-                  const handle = (e.target as Element).getAttribute("data-handle");
-                  if (index >= 0) {
-                    setSelected(index);
-                    stopListening();
-                    setTime(points[index].t);
-                    drag.current = {
-                      index,
-                      ...(handle === "inHandle" || handle === "outHandle" ? { handle } : {}),
-                    };
-                  } else drag.current = { index: add(x, y) };
-                  e.currentTarget.setPointerCapture(e.pointerId);
-                }}
-                onPointerMove={(e) => {
-                  if (drag.current === null) return;
-                  const r = e.currentTarget.getBoundingClientRect();
-                  const x = Math.max(
-                    0,
-                    Math.min(data.width, ((e.clientX - r.left) / r.width) * data.width),
-                  );
-                  const y = Math.max(
-                    0,
-                    Math.min(data.height, ((e.clientY - r.top) / r.height) * data.height),
-                  );
-                  const { index, handle } = drag.current;
-                  const anchor = points[index];
-                  if (handle) update(index, { [handle]: { x: x - anchor.x, y: y - anchor.y } });
-                  else update(index, { x, y });
-                }}
-                onPointerUp={() => {
-                  drag.current = null;
-                }}
-                onPointerCancel={() => {
-                  drag.current = null;
+                  transformOrigin: "0 0",
+                  transform: `translate(${view.x * 100}%, ${view.y * 100}%) scale(${view.zoom})`,
                 }}
               >
-                <path
-                  d={cursorPathGeometry(path)}
-                  fill="none"
-                  stroke="#111111"
-                  strokeWidth={data.width / 250}
-                  pointerEvents="none"
+                <video
+                  ref={video}
+                  src={mediaUrl(playbackPath(asset))}
+                  muted
+                  preload="auto"
+                  onLoadedMetadata={() => {
+                    if (video.current) video.current.currentTime = time;
+                  }}
+                  style={{ width: "100%", height: "100%", display: "block" }}
                 />
-                <path
-                  d={cursorPathGeometry(path)}
-                  fill="none"
-                  stroke="#c8f031"
-                  strokeWidth={data.width / 500}
-                  pointerEvents="none"
-                />
-                <path
-                  data-path="true"
-                  d={cursorPathGeometry(path)}
-                  fill="none"
-                  stroke="transparent"
-                  strokeWidth={data.width / 55}
-                  pointerEvents="stroke"
-                  style={{ cursor: "copy" }}
-                />
-                {point &&
-                  handles.map((h) => (
-                    <g key={h.key}>
-                      <line
-                        x1={point.x}
-                        y1={point.y}
-                        x2={h.x}
-                        y2={h.y}
-                        stroke="#56bdff"
-                        strokeWidth={data.width / 600}
-                        pointerEvents="none"
-                      />
-                      <circle
-                        data-point={selected}
-                        data-handle={h.key}
-                        cx={h.x}
-                        cy={h.y}
-                        r={data.width / 100}
-                        fill="#56bdff"
-                        stroke="#111111"
-                        strokeWidth={data.width / 600}
-                        style={{ cursor: "grab" }}
-                      >
-                        <title>{h.key === "inHandle" ? "Alça de entrada" : "Alça de saída"}</title>
-                      </circle>
-                    </g>
-                  ))}
-                {points.map((p, i) => (
-                  <circle
-                    key={p.t}
-                    data-point={i}
-                    cx={p.x}
-                    cy={p.y}
-                    r={data.width / 90}
-                    fill={i === selected ? "#ffffff" : "#c8f031"}
+                <svg
+                  viewBox={`0 0 ${data.width} ${data.height}`}
+                  aria-label="Caminho do cursor: dois cliques para adicionar, Delete para remover"
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    touchAction: "none",
+                    cursor: "crosshair",
+                  }}
+                  onDoubleClick={(e) => {
+                    if (!(e.target as Element).hasAttribute("data-path")) return;
+                    const r = e.currentTarget.getBoundingClientRect();
+                    const t = nearestCursorTime(
+                      path,
+                      ((e.clientX - r.left) / r.width) * data.width,
+                      ((e.clientY - r.top) / r.height) * data.height,
+                    );
+                    if (t !== null) insert(t);
+                  }}
+                  onPointerDown={(e) => {
+                    if (e.button !== 0 || locked) return;
+                    e.currentTarget.focus();
+                    if ((e.target as Element).hasAttribute("data-path")) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = Math.max(
+                      0,
+                      Math.min(data.width, ((e.clientX - rect.left) / rect.width) * data.width),
+                    );
+                    const y = Math.max(
+                      0,
+                      Math.min(data.height, ((e.clientY - rect.top) / rect.height) * data.height),
+                    );
+                    const index = Number((e.target as Element).getAttribute("data-point") ?? -1);
+                    const handle = (e.target as Element).getAttribute("data-handle");
+                    if (index >= 0) {
+                      setSelected(index);
+                      stopListening();
+                      setTime(points[index].t);
+                      drag.current = {
+                        index,
+                        ...(handle === "inHandle" || handle === "outHandle" ? { handle } : {}),
+                      };
+                    } else drag.current = { index: add(x, y) };
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                  }}
+                  onPointerMove={(e) => {
+                    if (drag.current === null) return;
+                    const r = e.currentTarget.getBoundingClientRect();
+                    const x = Math.max(
+                      0,
+                      Math.min(data.width, ((e.clientX - r.left) / r.width) * data.width),
+                    );
+                    const y = Math.max(
+                      0,
+                      Math.min(data.height, ((e.clientY - r.top) / r.height) * data.height),
+                    );
+                    const { index, handle } = drag.current;
+                    const anchor = points[index];
+                    if (handle) update(index, { [handle]: { x: x - anchor.x, y: y - anchor.y } });
+                    else update(index, { x, y });
+                  }}
+                  onPointerUp={() => {
+                    drag.current = null;
+                  }}
+                  onPointerCancel={() => {
+                    drag.current = null;
+                  }}
+                >
+                  <path
+                    d={cursorPathGeometry(path)}
+                    fill="none"
                     stroke="#111111"
-                    strokeWidth={data.width / 600}
-                  />
-                ))}
-                {current && (
-                  <circle
-                    cx={current.x}
-                    cy={current.y}
-                    r={data.width / 150}
-                    fill="#ff9459"
-                    stroke="#111"
-                    strokeWidth={data.width / 700}
+                    strokeWidth={px(data.width / 250)}
                     pointerEvents="none"
                   />
-                )}
-              </svg>
+                  <path
+                    d={cursorPathGeometry(path)}
+                    fill="none"
+                    stroke="#c8f031"
+                    strokeWidth={px(data.width / 500)}
+                    pointerEvents="none"
+                  />
+                  <path
+                    data-path="true"
+                    d={cursorPathGeometry(path)}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth={px(data.width / 55)}
+                    pointerEvents="stroke"
+                    style={{ cursor: "copy" }}
+                  />
+                  {point &&
+                    handles.map((h) => (
+                      <g key={h.key}>
+                        <line
+                          x1={point.x}
+                          y1={point.y}
+                          x2={h.x}
+                          y2={h.y}
+                          stroke="#56bdff"
+                          strokeWidth={px(data.width / 600)}
+                          pointerEvents="none"
+                        />
+                        <circle
+                          data-point={selected}
+                          data-handle={h.key}
+                          cx={h.x}
+                          cy={h.y}
+                          r={px(data.width / 100)}
+                          fill="#56bdff"
+                          stroke="#111111"
+                          strokeWidth={px(data.width / 600)}
+                          style={{ cursor: "grab" }}
+                        >
+                          <title>
+                            {h.key === "inHandle" ? "Alça de entrada" : "Alça de saída"}
+                          </title>
+                        </circle>
+                      </g>
+                    ))}
+                  {points.map((p, i) => (
+                    <circle
+                      key={p.t}
+                      data-point={i}
+                      cx={p.x}
+                      cy={p.y}
+                      r={px(data.width / 90)}
+                      fill={i === selected ? "#ffffff" : "#c8f031"}
+                      stroke="#111111"
+                      strokeWidth={px(data.width / 600)}
+                    />
+                  ))}
+                  {current && (
+                    <circle
+                      cx={current.x}
+                      cy={current.y}
+                      r={px(data.width / 150)}
+                      fill="#ff9459"
+                      stroke="#111"
+                      strokeWidth={px(data.width / 700)}
+                      pointerEvents="none"
+                    />
+                  )}
+                </svg>
+              </div>
             </div>
             <label>
               Tempo no intervalo: {localTime(time).toFixed(3)} / {localDuration.toFixed(3)} s
@@ -461,6 +545,14 @@ export function CursorPathDialog(): ReactNode {
               />
             </label>
             <div className="row-6 row-wrap">
+              <Button
+                size="sm"
+                disabled={view.zoom === 1}
+                title="A roda do mouse sobre a imagem aproxima e afasta"
+                onClick={() => setView(WHOLE_VIEW)}
+              >
+                Ver tudo ({Math.round(view.zoom * 100)}%)
+              </Button>
               <Button size="sm" aria-pressed={listening} onClick={toggleListening}>
                 {listening ? "Parar (Espaço)" : "Ouvir a aula daqui (Espaço)"}
               </Button>

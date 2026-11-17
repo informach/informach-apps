@@ -7,13 +7,18 @@
  * runs inside the export, once.
  */
 
+import type { Polygon, PolygonPoint } from "../compose.ts";
 import { type DimHole, triangleCorners } from "../dim.ts";
-import { DEVICE_COLORS, type Device, deviceGeometry, type Rect } from "../look.ts";
+import { type Device, deviceGeometry, type Rect } from "../look.ts";
 
-/** An ellipse instead of the rounded box, and a soft edge inward (shared/compose.ts maskShape). */
+/**
+ * An ellipse or a polygon instead of the rounded box, and a soft edge inward (shared/compose.ts
+ * maskShape). The polygon's corners are fractions of the picture.
+ */
 interface ShapeExtras {
   ellipse?: boolean;
   feather?: number;
+  polygon?: Polygon;
 }
 
 export type FxAsset =
@@ -67,7 +72,7 @@ export type FxAsset =
    * a pixel of antialiasing (shared/dim.ts DimHole: center, size, shape and turn).
    */
   | { kind: "dim"; w: number; h: number; hole: DimHole }
-  /** RGBA: a laptop or a phone around a transparent screen (shared/look.ts deviceGeometry). */
+  /** RGBA: a laptop, tablet or phone around a transparent screen (shared/look.ts deviceGeometry). */
   | { kind: "device"; device: Device; w: number; h: number }
   /** RGB: the lesson's background gradient (shared/look.ts gradientAt). */
   | { kind: "gradient"; w: number; h: number; from: string; to: string; angle: number };
@@ -79,7 +84,57 @@ const n = (v: number): string => (Math.round(v * 1000) / 1000).toString();
 
 /** The ellipse and the soft edge in a key (nothing for the shapes made before them). */
 const extrasKey = (a: ShapeExtras): string =>
-  `${a.ellipse ? ":e" : ""}${a.feather ? `:f${n(a.feather)}` : ""}`;
+  `${a.ellipse ? ":e" : ""}${a.feather ? `:f${n(a.feather)}` : ""}${a.polygon ? `:p${a.polygon.map((outline) => outline.map(([x, y]) => `${fine(x)},${fine(y)}`).join(";")).join("|")}` : ""}`;
+
+/** A number with the digits a polygon's sides need (no exponent, which FFmpeg reads otherwise). */
+const fine = (v: number): string => {
+  const text = v.toFixed(9).replace(/\.?0+$/, "");
+  return text === "-0" ? "0" : text;
+};
+
+/**
+ * Signed distance to the polygon's edge, negative inside (even-odd), for a picture of w × h:
+ * the same formula as shared/compose.ts polygonDistance, with every side's constants worked
+ * out here so FFmpeg does as little as possible per pixel.
+ */
+function polygonDistanceExpr(
+  polygon: readonly (readonly PolygonPoint[])[],
+  w: number,
+  h: number,
+  x = "(X+0.5)",
+  y = "(Y+0.5)",
+): string {
+  const near: string[] = [];
+  const crossings: string[] = [];
+  // Every side of every outline: the nearest one gives the distance, and the crossings of all
+  // of them say inside or out (even-odd).
+  for (const points of polygon)
+    for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+      const ax = points[j][0] * w;
+      const ay = points[j][1] * h;
+      const dx = points[i][0] * w - ax;
+      const dy = points[i][1] * h - ay;
+      const l2 = dx * dx + dy * dy;
+      if (l2 > 0) {
+        const k = `clip(${x}*${fine(dx / l2)}+${y}*${fine(dy / l2)}-${fine((ax * dx + ay * dy) / l2)},0,1)`;
+        near.push(`hypot(${x}-${fine(ax)}-${k}*${fine(dx)},${y}-${fine(ay)}-${k}*${fine(dy)})`);
+      } else near.push(`hypot(${x}-${fine(ax)},${y}-${fine(ay)})`);
+      if (dy !== 0)
+        crossings.push(
+          `abs(gt(${fine(ay)},${y})-gt(${fine(ay + dy)},${y}))*lt(${x},${fine(ax)}+${fine(dx / dy)}*(${y}-${fine(ay)}))`,
+        );
+    }
+  // A balanced tree of min(), so the expression stays shallow.
+  let level = near;
+  while (level.length > 1) {
+    const next: string[] = [];
+    for (let i = 0; i < level.length; i += 2)
+      next.push(i + 1 < level.length ? `min(${level[i]},${level[i + 1]})` : level[i]);
+    level = next;
+  }
+  const inside = crossings.length ? `mod(${crossings.join("+")},2)` : "0";
+  return `((1-2*${inside})*${level[0]})`;
+}
 
 /** A stable text naming the asset, for the cache. */
 export function fxKey(a: FxAsset): string {
@@ -97,10 +152,11 @@ export function fxKey(a: FxAsset): string {
       return `spotlight:${a.w}x${a.h}:${a.x},${a.y},${a.rw},${a.rh}:r${n(a.radius)}:f${n(a.feather)}:d${n(a.darkness)}`;
     case "dim": {
       const o = a.hole;
-      return `dim:${a.w}x${a.h}:${o.shape}:${n(o.cx)},${n(o.cy)},${n(o.w)},${n(o.h)}:r${n(o.radius)}:a${n(o.angle)}${o.flipV ? ":v" : ""}:d${n(o.darkness)}`;
+      return `dim:${a.w}x${a.h}:${o.shape}:${n(o.cx)},${n(o.cy)},${n(o.w)},${n(o.h)}:r${n(o.radius)}:a${n(o.angle)}${o.flipV ? ":v" : ""}:d${n(o.darkness)}${extrasKey({ ...(o.polygon ? { polygon: o.polygon } : {}) })}`;
     }
     case "device":
-      return `device:${a.device}:${a.w}x${a.h}`;
+      // "v2": the parts of each device (the frames cached before had no edge or buttons).
+      return `device:${a.device}:${a.w}x${a.h}:v2`;
     case "gradient":
       return `gradient:${a.w}x${a.h}:${a.from.toLowerCase()}:${a.to.toLowerCase()}:${n(a.angle)}`;
   }
@@ -134,16 +190,30 @@ function distanceExpr(radius: number, ellipse: boolean, inset = 0): string {
  * 1 inside the shape, 0 outside: the rounded box as before, or (with an ellipse or a soft edge)
  * from the signed distance, softening inward over `feather` pixels.
  */
-export function shapeExpr(radius: number, extras: ShapeExtras = {}): string {
+export function shapeExpr(
+  radius: number,
+  extras: ShapeExtras = {},
+  size?: { w: number; h: number },
+): string {
   const feather = extras.feather ?? 0;
-  if (!extras.ellipse && feather <= 0) return insideExpr(radius);
-  const d = distanceExpr(radius, !!extras.ellipse);
+  const polygon = extras.polygon && size ? extras.polygon : undefined;
+  if (!extras.ellipse && !polygon && feather <= 0) return insideExpr(radius);
+  const d = polygon
+    ? polygonDistanceExpr(polygon, size?.w ?? 0, size?.h ?? 0)
+    : distanceExpr(radius, !!extras.ellipse);
   return feather > 0 ? `clip(-${d}/${n(feather)},0,1)` : `clip(0.5-${d},0,1)`;
 }
 
 /** 1 in the content area (inside the border), 0 on the border and outside. */
-export function contentExpr(radius: number, border: number, ellipse = false): string {
+export function contentExpr(
+  radius: number,
+  border: number,
+  ellipse = false,
+  polygon?: { points: Polygon; w: number; h: number },
+): string {
   if (border <= 0) return "1";
+  if (polygon)
+    return `clip(${n(0.5 - border)}-${polygonDistanceExpr(polygon.points, polygon.w, polygon.h)},0,1)`;
   if (ellipse) return `clip(0.5-${distanceExpr(0, true, border)},0,1)`;
   return radius > 0
     ? `clip(${n(radius - border)}-${outside(radius)}+0.5,0,1)`
@@ -190,6 +260,9 @@ function holeDistance(o: DimHole): string {
   const y = `(Y+0.5-${n(o.cy)})`;
   const U = o.angle ? `(${x}*${n(cos)}+${y}*${n(sin)})` : x;
   const V = o.angle ? `(${y}*${n(cos)}-${x}*${n(sin)})` : y;
+  // A polygon's corners are fractions of the box, from its top-left corner.
+  if (o.polygon)
+    return polygonDistanceExpr(o.polygon, o.w, o.h, `(${U}+${n(o.w / 2)})`, `(${V}+${n(o.h / 2)})`);
   if (o.shape === "ellipse") {
     const rx = Math.max(0.5, o.w / 2);
     const ry = Math.max(0.5, o.h / 2);
@@ -227,10 +300,10 @@ export function fxGraph(a: FxAsset, rate: string, out: string, id = "fx"): strin
     `color=c=${color}:s=${w}x${h}:r=${rate},trim=end_frame=1`;
   switch (a.kind) {
     case "mask":
-      return `${one(a.w, a.h)},format=gray,geq=lum='255*${shapeExpr(a.radius, a)}'[${out}]`;
+      return `${one(a.w, a.h)},format=gray,geq=lum='255*${shapeExpr(a.radius, a, a)}'[${out}]`;
     case "ring": {
       const [r, g, b] = rgb(a.color);
-      return `${one(a.w, a.h, hex(a.color))},format=rgba,geq=r=${r}:g=${g}:b=${b}:a='255*(1-${contentExpr(a.radius, a.border, a.ellipse)})'[${out}]`;
+      return `${one(a.w, a.h, hex(a.color))},format=rgba,geq=r=${r}:g=${g}:b=${b}:a='255*(1-${contentExpr(a.radius, a.border, a.ellipse, a.polygon && { points: a.polygon, w: a.w, h: a.h })})'[${out}]`;
     }
     case "feather": {
       // The distance to the nearest edge, over the feather, eased like the preview's mask.
@@ -247,19 +320,20 @@ export function fxGraph(a: FxAsset, rate: string, out: string, id = "fx"): strin
       return `${one(a.w, a.h)},format=rgba,geq=r=0:g=0:b=0:a='255*${n(a.hole.darkness)}*clip(0.5+${holeDistance(a.hole)},0,1)'[${out}]`;
     case "device": {
       const g = deviceGeometry(a.device, a.w, a.h);
-      const body = inBox(g.body, g.bodyRadius);
-      const screen = inBox(g.screen, g.screenRadius);
-      const notch = g.notch ? inBox(g.notch, g.notch.h / 2) : "0";
-      const base = g.base ? inBox(g.base, g.base.h * 0.35) : "0";
-      const groove = g.groove ? inBox(g.groove, g.groove.h / 2) : "0";
-      // The body around the screen (the notch over it), and the laptop's base with its groove.
-      const frame = `max(${body}*(1-${screen}*(1-${notch})),${base})`;
-      const [br, bg, bb] = rgb(DEVICE_COLORS.body);
-      const [sr, sg, sb] = rgb(DEVICE_COLORS.base);
-      const [gr, gg, gb] = rgb(DEVICE_COLORS.groove);
-      const pick = (bodyC: number, baseC: number, grooveC: number): string =>
-        `if(gt(${base},0.5),if(gt(${groove},0.5),${grooveC},${baseC}),${bodyC})`;
-      return `${one(a.w, a.h)},format=rgba,geq=r='${pick(br, sr, gr)}':g='${pick(bg, sg, gg)}':b='${pick(bb, sb, gb)}':a='255*${frame}'[${out}]`;
+      // The preview's canvas, pixel by pixel: each part laid over the ones before it (colour
+      // premultiplied by coverage), the screen cut out, then the parts over the picture.
+      const color = ["0", "0", "0"];
+      let alpha = "0";
+      const lay = (k: string, rgbOf: [number, number, number] | null): void => {
+        for (let i = 0; i < 3; i++)
+          color[i] = `${rgbOf ? `${rgbOf[i]}*${k}+` : ""}(${color[i]})*(1-${k})`;
+        alpha = `${rgbOf ? `${k}+` : ""}(${alpha})*(1-${k})`;
+      };
+      for (const p of g.frame) lay(inBox(p.rect, p.radius), rgb(p.color));
+      lay(inBox(g.screen, g.screenRadius), null);
+      for (const p of g.over) lay(inBox(p.rect, p.radius), rgb(p.color));
+      const [r, gr, b] = color.map((c) => `'(${c})/max(${alpha},0.001)'`);
+      return `${one(a.w, a.h)},format=rgba,geq=r=${r}:g=${gr}:b=${b}:a='255*(${alpha})'[${out}]`;
     }
     case "gradient": {
       const r = (Math.PI * a.angle) / 180;
@@ -274,7 +348,7 @@ export function fxGraph(a: FxAsset, rate: string, out: string, id = "fx"): strin
       const cw = a.w + 2 * a.margin;
       const ch = a.h + 2 * a.margin;
       return (
-        `${one(a.w, a.h)},format=gray,geq=lum='255*${n(a.opacity)}*${shapeExpr(a.radius, a)}',` +
+        `${one(a.w, a.h)},format=gray,geq=lum='255*${n(a.opacity)}*${shapeExpr(a.radius, a, a)}',` +
         `${padGray(cw, ch, a.margin + a.dx, a.margin + a.dy, a.w, a.h)},gblur=sigma=${n(a.sigma)}[${id}a];` +
         `${one(cw, ch, hex(a.color))},format=rgba[${id}c];[${id}c][${id}a]alphamerge[${out}]`
       );
