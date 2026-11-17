@@ -5,10 +5,21 @@ import type {
   IdentidadeNativa,
 } from "@/features/account/autoridade-repository";
 import { limitarTentativas } from "@/lib/rate-limit";
+import { aceitarConviteNoBanco } from "./convites-aceite-repository";
 import { listarConvitesEnviados, listarConvitesRecebidos } from "./convites-consulta-repository";
 import { recusarConviteNoBanco, revogarConviteNoBanco } from "./convites-encerramento-repository";
-import { NovoConviteDeGrupoSchema } from "./convites-regras";
+import { AceiteDeGrupoSchema, NovoConviteDeGrupoSchema } from "./convites-regras";
 import { criarConviteDeGrupo } from "./convites-repository";
+
+export async function aceitarConviteDeAdulto(autor: AutorNativoRecente, entrada: unknown) {
+  const pedido = AceiteDeGrupoSchema.parse(entrada);
+  await limitarTentativas({
+    chave: `grupo-convite-aceite:${autor.contaId}`,
+    max: 20,
+    janelaEmSegundos: 600,
+  });
+  return aceitarConviteNoBanco(autor, pedido);
+}
 
 export async function convitesEnviados(autor: IdentidadeNativa) {
   await limitarTentativas({

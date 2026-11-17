@@ -267,3 +267,28 @@ perfis e comerciais de um/quatro jogadores; pagar não obriga a ocupar vaga.
 Provas candidatas incluem as duas saídas seguidas de reabertura pelo SDK,
 recusa sem cobertura/vaga, login/contexto inválidos e rollback por auditoria
 ou vencimento durante a transação. Ainda não qualificado nem publicado.
+
+A candidata `0583fe6` teve integração/qualidade/cliente/checkpoint aprovados,
+mas o gate de versões `44108907113` registrou `ERR_CONNECTION_RESET` de GET
+de prefetch `/perfis?_rsc` durante a parada deliberada do processo A. O teste
+já distinguia `ERR_CONNECTION_REFUSED` nesse mesmo intervalo e superfície.
+A correção reconhece também a conexão encerrada, somente para esses GETs de
+prefetch na origem/rotas autorizadas durante a troca; POST, navegação, erros de
+aplicação e o período depois da saúde B continuam estritos. Não declarar a
+rodada aprovada; a candidata seguinte exige novamente todos os sete gates.
+
+Aceite candidato usa o e-mail atual e o vínculo original, declaração adulta,
+ciência explícita da cobrança própria e seleção explícita de cobertura. Cria
+perfil apenas quando ainda não existe; perfil existente conserva ID e dados.
+Origem própria ou sem grupo é admitida, terceiro grupo exige saída anterior.
+Sem vaga financiada, só o aceite explicitamente sem cobertura pode prosseguir.
+Isso não inicia teste nem cancela contrato; o início comercial segue em F6.
+
+Recibo de aceite repete somente o corpo normalizado original pela conta
+destinatária e nunca reanexa quem já saiu. Composição é relida logo após os
+mutexes, antes de tomar travas de conta/perfil; se mudou durante a espera, a
+tentativa termina e uma nova admissão descobre todos os mutexes do zero. Não
+repetir conflito de revisão do usuário nem falha desconhecida. Provas incluem
+última vaga, quinto cadastro, aceites simultâneos, conta/endereço incorretos,
+revogação, prazo/cobertura vencendo na auditoria, rollback e reabertura do
+progresso real pelo SDK. Interfaces, expurgo e homologação ainda pendentes.
