@@ -68,6 +68,12 @@ export default async function PerfisDaFamilia({
                   >
                     Acesso e revisão de {perfil.apelido}
                   </Link>
+                  <Link
+                    href={`/conta/perfis/${perfil.id}/denuncias`}
+                    className="mt-2 block font-bold text-ceu underline"
+                  >
+                    Denúncias de {perfil.apelido}
+                  </Link>
                   <p className="mt-1 text-sm text-tinta-suave">
                     {perfil.status === "active" ? "Ativo" : "Suspenso"} · Conteúdo até{" "}
                     {faixas.classificacao === "L" ? "Livre" : `${faixas.classificacao} anos`}

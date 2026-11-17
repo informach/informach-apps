@@ -42,9 +42,14 @@ export default async function Amigos({
         >
           <Marca tamanho={30} />
         </Link>
-        <Link href={jogador.protegido ? "/aparelho" : "/estante"} className="rb rb-vazado">
-          Voltar para jogar
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link href="/denuncias" className="rb rb-vazado">
+            Acompanhar denúncias
+          </Link>
+          <Link href={jogador.protegido ? "/aparelho" : "/estante"} className="rb rb-vazado">
+            Voltar para jogar
+          </Link>
+        </div>
       </header>
       <div className="mt-10 flex items-center gap-4">
         <AvatarDoPerfil avatar={jogador.perfil.avatar} apelido={jogador.perfil.apelido} />

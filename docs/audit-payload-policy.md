@@ -139,6 +139,10 @@ mostrar os casos. `admin.recreio_moderation_requested` registra a tentativa com
 IDs de comando/caso e operação fechada, antes do envio. Não comprova o efeito:
 somente `recreio.moderation_command_applied` confirma a transação do Recreio.
 Nenhum desses eventos recebe sessão, prova HMAC, chave ou corpo do comando.
+`recreio.safety_review_requested` registra protocolo, perfil solicitante,
+revisão e espécie do autor atual, sem reatribuir o envio original da denúncia.
+Ator de criança é nulo; responsável usa a própria conta nativa. Sem hash,
+nonce, dados da outra ponta ou texto livre. Replay não duplica o evento.
 
 Eventos `recreio.*` registram o que aconteceu com os perfis, com o direito de jogar, com as sessões de jogo e com os mundos no app `recreio`, com payload mínimo de IDs, nomes de campo, classificadores e contagens. O perfil é o que os jogos conhecem de uma pessoa: nunca gravar apelido, avatar, e-mail, IP, nome de aparelho, ingresso, token de sessão, chave, segredo de instância, nome de mundo, código de convite (nem o resumo dele), o texto de participação que o jogo guarda no convite, o resumo do mundo publicado pelo jogo ou qualquer texto livre.
 

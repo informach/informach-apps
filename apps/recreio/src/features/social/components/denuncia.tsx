@@ -95,7 +95,13 @@ export function DenunciarContato({
           {protocolo && (
             <div role="status" className="mt-4 text-sm">
               <p className="font-bold">Denúncia recebida.</p>
-              <p className="mt-2">Guarde o protocolo para acompanhar pelo suporte.</p>
+              <p className="mt-2">Guarde o protocolo para acompanhar a resposta.</p>
+              <a
+                href={`${responsavel ? `/conta/perfis/${perfilId}/denuncias` : "/denuncias"}?protocolo=${protocolo}`}
+                className="mt-2 inline-flex min-h-11 items-center font-bold text-ceu underline"
+              >
+                Acompanhar denúncia
+              </a>
               {responsavel && (
                 <a
                   href={INFORMACH_CONTACT.directMessageUrl}

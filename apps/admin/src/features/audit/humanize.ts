@@ -152,6 +152,9 @@ const PHRASES: Record<string, (ctx: Context) => SentencePart[]> = {
   "recreio.social_notice_read": () => [t("Confirmou a leitura de um aviso de contato no Recreio")],
   "recreio.social_records_purged": () => [t("Removeu registros sociais vencidos do Recreio")],
   "recreio.safety_reported": () => [t("Registrou uma denúncia no Recreio, sem punição automática")],
+  "recreio.safety_review_requested": () => [
+    t("Pediu revisão da resposta a uma denúncia do Recreio"),
+  ],
   "recreio.safety_reports_purged": () => [
     t("Removeu denúncias do Recreio após o prazo de retenção"),
   ],

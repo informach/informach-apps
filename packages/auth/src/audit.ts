@@ -133,6 +133,7 @@ export type AuditEventType =
   | "recreio.social_presence_changed"
   | "recreio.social_notice_read"
   | "recreio.safety_reported"
+  | "recreio.safety_review_requested"
   | "recreio.safety_reports_purged"
   | "recreio.restriction_reconciled"
   | "recreio.restriction_review_requested"

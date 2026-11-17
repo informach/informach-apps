@@ -1331,6 +1331,13 @@
       "when": 1794944537513,
       "tag": "0189_third_lady_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 190,
+      "version": "7",
+      "when": 1794947645622,
+      "tag": "0190_charming_wasp",
+      "breakpoints": true
     }
   ]
 }

@@ -603,6 +603,34 @@ hash. Novos escritores devem gravar os três fatos de proveniência juntos.
 O perfil pareado nunca recebe a conta do responsável nem a identidade da outra
 pessoa; o responsável nativo só alcança perfis sob seu vínculo atual.
 
+0190 gerada em `44170544967`, fonte `1af3c596`, artefato `14367587087`;
+ZIP SHA `c6bf272755bd1dc2384d67221061c4032cbf6654f6a03f9c9e02a132e3bb8750`.
+`0190_charming_wasp.sql`, 1.172 bytes, SHA
+`1b5a4f578563bb1af1477eab15e0f57c0c4707dbbd85410f2193fd09fbb2b7c9`;
+snapshot SHA `99c551676840b0c759ac956a4ba5414ec540651c3ffb60b816f328b63df6c1a1`;
+journal SHA `f6a14a530361a5893261c772a0b578b686d05beb04490177785c07657f5e4c5c`.
+Três arquivos conferidos e copiados intactos. Alteração aditiva; não transforma
+linhas existentes nem inventa autoria. Base privada passa a 191 recibos;
+produção continua com 184/F1 e sem tabelas sociais.
+
+O acompanhamento candidato lista dez protocolos recentes ou um protocolo exato,
+sempre pelo perfil atual ou titular/responsável nativo atual. Projeta só categoria,
+estado, decisão e datas; não retorna outra ponta, conta ou evidência. Revisão
+exige decisão resolvida há menos de trinta dias e respeita o teto original de
+retenção; uma por caso, CAS e recibo de corpo/ator, auditoria e prazos revalidados
+no final. Novo recurso não sobrescreve a denúncia nem ressuscita credenciais.
+Seis integrações e uma jornada de navegador foram preparadas para autoridade,
+sigilo, concorrência, replay, antigo responsável, prazo e falhas de auditoria.
+A jornada usa sessão de equipe sintética já autenticada e chamada HTTP real;
+não comprova a tela de entrada/desafio TOTP do Bastidores.
+
+Revisão da resposta pode ser pedida no portal do jogador/pareado e na área do
+responsável, com login recente para este último. Quem está jogando é relido no
+servidor; perfil no formulário é só expectativa. A resposta anterior fica
+identificada durante nova análise. A equipe só pode concluir como medida aplicada
+se existir recibo de efeito confirmado naquele caso; teste adicional candidato
+nega a declaração sem prova. Este incremento ainda aguarda os gates remotos.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

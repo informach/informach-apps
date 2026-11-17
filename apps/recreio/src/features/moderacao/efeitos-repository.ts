@@ -1,7 +1,8 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
-import { and, eq, or } from "@informach/db";
+import { and, eq, inArray, or } from "@informach/db";
 import {
+  recreioModerationCommands as commands,
   recreioFriendships as friends,
   recreioSpaceInvites as invites,
   recreioSpaceMembers as members,
@@ -44,6 +45,28 @@ export async function aplicarEfeitoDeModeracao(
       "CONFLITO",
       "O caso precisa estar em análise antes da conclusão.",
     );
+    if (comando.decisao === "medida_aplicada") {
+      const [medida] = await tx
+        .select({ id: commands.id })
+        .from(commands)
+        .where(
+          and(
+            eq(commands.reportId, caso.id),
+            inArray(commands.operation, [
+              "suspender_perfil",
+              "reativar_perfil",
+              "desfazer_amizade",
+              "invalidar_convite",
+            ]),
+          ),
+        )
+        .limit(1);
+      assertAllowed(
+        medida,
+        "CONFLITO",
+        "Não há uma medida confirmada neste caso. Confira os recibos antes de concluir.",
+      );
+    }
     return { estado: "resolvida" as const, decisao: comando.decisao };
   }
   assertAllowed(

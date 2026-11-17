@@ -113,6 +113,12 @@ export default async function Conta() {
               >
                 Conferir acesso de {proprio.apelido}
               </Link>
+              <Link
+                href={`/conta/perfis/${proprio.id}/denuncias`}
+                className="mt-3 flex min-h-11 items-center font-bold text-ceu underline"
+              >
+                Acompanhar minhas denúncias
+              </Link>
             </section>
           ))}
 

@@ -78,6 +78,41 @@ async function nativo(
 }
 
 describe("comandos restritos da equipe têm efeito e recibo atômicos", () => {
+  it("só informa medida aplicada quando há recibo de um efeito confirmado no caso", async () => {
+    const r = await preparar();
+    await executarComandoDeModeracaoNoBanco(
+      await prova(r.autor, { ...r.base, operacao: "analisar" }),
+    );
+    const concluir = {
+      ...r.base,
+      comandoId: crypto.randomUUID(),
+      versaoDoCaso: 2,
+      operacao: "concluir",
+      decisao: "medida_aplicada",
+    };
+    await expect(
+      executarComandoDeModeracaoNoBanco(await prova(r.autor, concluir)),
+    ).rejects.toMatchObject({ code: "CONFLITO" });
+    await executarComandoDeModeracaoNoBanco(
+      await prova(r.autor, {
+        ...r.base,
+        comandoId: crypto.randomUUID(),
+        versaoDoCaso: 2,
+        operacao: "suspender_perfil",
+        perfilId: r.alvo.perfil.id,
+        versaoDoPerfil: r.alvo.perfil.versaoDaPolitica,
+        motivo: "medida_preventiva",
+      }),
+    );
+    expect(
+      await executarComandoDeModeracaoNoBanco(
+        await prova(r.autor, { ...concluir, versaoDoCaso: 3 }),
+      ),
+    ).toMatchObject({ versaoDoCaso: 4, repetido: false });
+    expect(
+      (await db.select().from(reports).where(eq(reports.id, r.base.protocolo)))[0],
+    ).toMatchObject({ state: "resolvida", decision: "medida_aplicada" });
+  });
   it("repetições simultâneas analisam uma vez; retirada do papel recusa até o replay", async () => {
     const r = await preparar(),
       p = await prova(r.autor, { ...r.base, operacao: "analisar" });
