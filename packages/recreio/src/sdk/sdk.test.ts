@@ -89,6 +89,18 @@ function ambiente() {
 }
 
 describe("abertura da sessão", () => {
+  it("oferece persistência por perfil e conquistas sem exigir um mundo", async () => {
+    const a = ambiente();
+    a.responder({ corpo: a.aberta() });
+    const contexto = await criarRecreio(a.opcoes());
+    expect(contexto).toHaveProperty("dados.ler", expect.any(Function));
+    expect(contexto).toHaveProperty("dados.gravar", expect.any(Function));
+    expect(contexto).toHaveProperty("dados.versoes", expect.any(Function));
+    expect(contexto).toHaveProperty("dados.resolver", expect.any(Function));
+    expect(contexto).toHaveProperty("dados.descartar", expect.any(Function));
+    expect(contexto).toHaveProperty("conquista", expect.any(Function));
+  });
+
   it("troca o ingresso por uma sessão e entrega perfil, política e token", async () => {
     const a = ambiente();
     a.responder({ corpo: a.aberta() });
