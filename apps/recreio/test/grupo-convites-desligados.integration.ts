@@ -57,6 +57,7 @@ it("flag desligada conserva leitura, recusa e revogação das pendências existe
   await expect(
     convidarAdulto(a.autor, {
       email: `${crypto.randomUUID()}@example.test`,
+      identificacao: "Ana",
       declaroMaioridade: true,
       versaoDaDeclaracao: VERSAO_DA_DECLARACAO_ADULTA,
     }),

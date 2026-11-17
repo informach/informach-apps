@@ -16,7 +16,7 @@ export async function limparConvitesDeGrupo() {
         select id from recreio.group_invites
         where state='pending' and expires_at<=statement_timestamp()
         order by expires_at,id limit ${LOTE_DE_CONVITES_DE_GRUPO} for update skip locked
-      ) update recreio.group_invites i set state='expired',recipient_email=null,
+      ) update recreio.group_invites i set state='expired',recipient_email=null,sender_label=null,
         recipient_user_id=null,finished_at=clock_timestamp()
         from lote l where i.id=l.id and i.state='pending'
           and i.expires_at<=statement_timestamp()

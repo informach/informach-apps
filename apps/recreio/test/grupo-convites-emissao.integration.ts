@@ -28,6 +28,7 @@ async function titular() {
 }
 const pedido = (email = `${crypto.randomUUID()}@example.test`) => ({
   email,
+  identificacao: "Ana",
   declaroMaioridade: true,
   versaoDaDeclaracao: VERSAO_DA_DECLARACAO_ADULTA,
 });

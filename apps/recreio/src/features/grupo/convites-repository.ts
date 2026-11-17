@@ -22,6 +22,7 @@ async function expirarPendentes(tx: Transacao, grupoId: string, autorId: string,
     .set({
       state: "expired",
       recipientEmail: null,
+      senderLabel: null,
       recipientUserId: null,
       finishedAt: agora,
     })
@@ -137,6 +138,7 @@ async function tentarCriarConvite(autor: AutorNativoRecente, pedido: NovoConvite
         inviterUserId: autor.contaId,
         inviterDeclarationVersion: pedido.versaoDaDeclaracao,
         recipientEmail: pedido.email,
+        senderLabel: pedido.identificacao,
         recipientUserId: destinatario?.id ?? null,
         createdAt: agora,
         expiresAt: new Date(agora.getTime() + PRAZO_DO_CONVITE_MS),

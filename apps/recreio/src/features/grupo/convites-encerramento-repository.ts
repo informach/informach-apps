@@ -25,7 +25,13 @@ async function encerrar(
   const estado = linha.expiresAt <= agora ? "expired" : "revoked";
   await tx
     .update(invites)
-    .set({ state: estado, recipientEmail: null, recipientUserId: null, finishedAt: agora })
+    .set({
+      state: estado,
+      recipientEmail: null,
+      senderLabel: null,
+      recipientUserId: null,
+      finishedAt: agora,
+    })
     .where(eq(invites.id, linha.id));
   const evento =
     estado === "expired"

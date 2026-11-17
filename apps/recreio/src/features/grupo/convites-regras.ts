@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { NovoPerfilSchema } from "@/features/perfis/regras";
+import { ApelidoSchema, NovoPerfilSchema } from "@/features/perfis/regras";
 
 /** Declaração adulta desta operação; não é a responsabilidade por um menor. */
 export const VERSAO_DA_DECLARACAO_ADULTA = "adulto-2026-11-17";
@@ -9,6 +9,7 @@ export const LIMITE_DE_CONVITES_RECEBIDOS = 20;
 
 export const NovoConviteDeGrupoSchema = z.strictObject({
   email: z.string().trim().toLowerCase().pipe(z.email().max(254)),
+  identificacao: ApelidoSchema.refine((valor) => !valor.includes("@")),
   declaroMaioridade: z.literal(true),
   versaoDaDeclaracao: z.literal(VERSAO_DA_DECLARACAO_ADULTA),
 });

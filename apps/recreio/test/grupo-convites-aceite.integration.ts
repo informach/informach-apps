@@ -72,6 +72,7 @@ async function nativo() {
 async function convite(a: Awaited<ReturnType<typeof nativo>>, email: string) {
   return convidarAdulto(a.autor, {
     email,
+    identificacao: "Ana",
     declaroMaioridade: true,
     versaoDaDeclaracao: VERSAO_DA_DECLARACAO_ADULTA,
   });

@@ -45,7 +45,7 @@ export async function listarConvitesRecebidos(autor: IdentidadeNativa) {
     const { nativa, email } = await admitirDestinatario(tx, autor);
     const agora = await nativa.conferirPrazo();
     const linhas = await tx
-      .select({ id: invites.id, fim: invites.expiresAt })
+      .select({ id: invites.id, fim: invites.expiresAt, identificacao: invites.senderLabel })
       .from(invites)
       .where(
         and(
@@ -57,6 +57,10 @@ export async function listarConvitesRecebidos(autor: IdentidadeNativa) {
       .orderBy(invites.createdAt, invites.id)
       .limit(LIMITE_DE_CONVITES_RECEBIDOS);
     await nativa.conferirPrazo();
-    return linhas.map((linha) => ({ conviteId: linha.id, expiraEm: linha.fim.toISOString() }));
+    return linhas.map((linha) => ({
+      conviteId: linha.id,
+      expiraEm: linha.fim.toISOString(),
+      identificacao: linha.identificacao ?? "Convite anterior",
+    }));
   });
 }

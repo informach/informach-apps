@@ -39,6 +39,7 @@ async function preparar() {
   const b = await titular();
   const convite = await convidarAdulto(a.autor, {
     email: b.conta.email,
+    identificacao: "Ana",
     declaroMaioridade: true,
     versaoDaDeclaracao: VERSAO_DA_DECLARACAO_ADULTA,
   });
@@ -50,7 +51,7 @@ describe("convites privados, recusa e revogação", () => {
     const r = await preparar();
     const estranho = await titular();
     expect(await convitesRecebidos(r.b.autor)).toEqual([
-      { conviteId: r.convite.conviteId, expiraEm: r.convite.expiraEm },
+      { conviteId: r.convite.conviteId, expiraEm: r.convite.expiraEm, identificacao: "Ana" },
     ]);
     expect(await convitesRecebidos(r.a.autor)).toEqual([]);
     expect(await convitesRecebidos(estranho.autor)).toEqual([]);
@@ -87,13 +88,14 @@ describe("convites privados, recusa e revogação", () => {
     const email = `${crypto.randomUUID()}@example.test`;
     const convite = await convidarAdulto(a.autor, {
       email,
+      identificacao: "Ana",
       declaroMaioridade: true,
       versaoDaDeclaracao: VERSAO_DA_DECLARACAO_ADULTA,
     });
     const novo = await titular();
     await db.update(users).set({ email }).where(eq(users.id, novo.conta.id));
     expect(await convitesRecebidos(novo.autor)).toEqual([
-      { conviteId: convite.conviteId, expiraEm: convite.expiraEm },
+      { conviteId: convite.conviteId, expiraEm: convite.expiraEm, identificacao: "Ana" },
     ]);
   });
 

@@ -14,6 +14,8 @@ export const recreioGroupInvites = recreio.table(
     inviterUserId: text("inviter_user_id").notNull(),
     inviterDeclarationVersion: text("inviter_declaration_version").notNull(),
     recipientEmail: text("recipient_email"),
+    /** Nome escolhido pelo emissor somente para apresentar a pendência ao destinatário. */
+    senderLabel: text("sender_label"),
     /** Conta já existente na emissão; trocar o endereço não muda o destinatário. */
     recipientUserId: text("recipient_user_id").references(() => users.id, { onDelete: "cascade" }),
     state: text("state")
@@ -55,6 +57,11 @@ export const recreioGroupInvites = recreio.table(
     check(
       "recreio_group_invite_binding",
       sql`${t.state}='pending' or ${t.recipientUserId} is null`,
+    ),
+    check(
+      "recreio_group_invite_sender_label",
+      sql`${t.senderLabel} is null or
+      (${t.state}='pending' and char_length(${t.senderLabel}) between 2 and 20)`,
     ),
     check(
       "recreio_group_invite_expiry",

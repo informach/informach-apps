@@ -209,6 +209,7 @@ async function tentarAceitar(autor: AutorNativoRecente, pedido: AceiteDeGrupo) {
       .set({
         state: "accepted",
         recipientEmail: null,
+        senderLabel: null,
         recipientUserId: null,
         acceptedUserId: autor.contaId,
         acceptedProfileId: perfilId,

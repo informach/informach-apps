@@ -300,3 +300,11 @@ expiração global auditada (lote de 100) e retenção dos recibos terminais por
 24 horas (lote de 500), com `SKIP LOCKED`. O cron devolve as duas contagens;
 nenhum desses passos apaga perfil, participação, dados ou auditoria. Provas de
 rollback, limites e disputa por linha rodam no PostgreSQL descartável remoto.
+
+Para apresentar convites de modo reconhecível sem revelar a conta do emissor,
+o formulário pedirá nome curto escolhido por ele (mesmas regras de apelido,
+sem e-mail). Só o destinatário recebe esse nome junto da pendência, com aviso
+de que é identificação declarada. O campo nullable preserva a leitura de
+pendências legadas; expiração/aceite/recusa/revogação o retiram junto do endereço.
+Constraint limita o nome a uma pendência de 2–20 caracteres. Mudança aditiva
+de schema em geração separada; 0182 ainda não existe nem foi aplicada.
