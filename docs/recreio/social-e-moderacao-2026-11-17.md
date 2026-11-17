@@ -544,6 +544,34 @@ que vence durante a operação. Validação remota ainda pendente neste incremen
 fila e emissor do Bastidores, retenção ampliada e superfícies próprias seguem
 em implementação. Não interpretar a rota candidata como moderação homologada.
 
+Atualização da qualificação: recurso próprio `ed598853` passou nos sete gates
+`44164112660`. Comandos `913adae9` passaram em 698 integrações/74 arquivos,
+incluindo as sete novas provas; atualização de base 179→190 conservou dois
+perfis, progresso/conquistas e repetição. Demais gates desse incremento ainda
+em acompanhamento. Nada social foi implantado.
+
+As quatro capturas completas do portal social em `4d01448`, artefato
+`14363436584`, foram inspecionadas: adulto, criança, denúncia e responsável sem
+jogador, 390 px, protocolo e controles completos legíveis, sem rolagem
+horizontal. ZIP SHA `9f08fc8350bf102ad06c467da732acb23c45251d1d405b6e754892b5d43e2fba`.
+São jornadas sintéticas do portal; não comprovam controles dentro da partida.
+
+O próximo candidato acrescenta a página nativa
+`/conta/perfis/[id]/restricao`, acessível ao titular adulto ou responsável atual,
+com pedido idempotente, histórico mínimo e login recente para envio. Sem exigir
+assinatura ou jogador do responsável. Não revela origem da denúncia nem
+restaura acesso por conta própria. Duas jornadas de navegador e capturas
+completas foram preparadas, ainda aguardando a execução remota.
+
+A manutenção candidata encerra casos resolvidos após trinta dias e reduz o
+prazo ao menor entre 180 dias da criação e noventa do encerramento. Cada expurgo
+de recursos/comandos/restrições liberadas é limitado a 500, com `SKIP LOCKED`
+e auditoria na mesma transação. Restrições ativas permanecem. Recurso próprio
+aguardando mais de 24 horas ou que vença sem solução deixa a manutenção em
+falha depois da limpeza auditada; não é tratado como atendido. O relógio da
+denúncia usa recebimento/recurso, sem reiniciar em movimentações da equipe.
+Quatro integrações adicionais candidatas cobrem prazo, revisão e rollback.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

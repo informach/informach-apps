@@ -51,6 +51,12 @@ export async function executarManutencao(): Promise<{
   denunciasVencidasSemSolucao: number;
   denunciasPrioritariasAtrasadas: number;
   denunciasAtrasadas: number;
+  denunciasEncerradas: number;
+  recursosDeRestricaoApagados: number;
+  recursosDeRestricaoVencidosSemSolucao: number;
+  recursosDeRestricaoAtrasados: number;
+  comandosDeModeracaoApagados: number;
+  restricoesLiberadasApagadas: number;
 }> {
   const possesVencidas = await fecharPossesVencidas();
   const instanciasSumidas = await marcarInstanciasSumidas();
