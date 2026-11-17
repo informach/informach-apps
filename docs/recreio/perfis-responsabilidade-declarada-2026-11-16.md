@@ -60,3 +60,20 @@ antes de criar a UNIQUE de `profiles(id, kind)`. O SQL não foi editado nem
 aplicado. Gerar primeiro somente a UNIQUE existente e incorporar a migration;
 depois reexportar o schema familiar e gerar a próxima migration com as tabelas.
 O PostgreSQL descartável precisa aplicar a sequência inteira antes da publicação.
+
+Sequência gerada e conferida por origem, tamanho e SHA-256:
+
+- `0168_ancient_stingray.sql`: somente UNIQUE, geração `43992190592`, fonte
+  `3da2354`, artefato `14288501104`, ZIP
+  `95db3f95396c4a8c40c6d862ba9b9fc6278649e4d54fe2970830604947669a89`.
+- `0169_nifty_rocket_raccoon.sql`: quatro tabelas e suas FKs, geração
+  `43992662536`, fonte `d3df599`, artefato `14288930902`, ZIP
+  `967f697817403b395165058c63bf85c37dba44a0515a904969c29abbad6fcafc`.
+
+O backend em candidata prepara e confirma intenções, aceita a declaração e
+registra perfil/vínculo/auditoria atomicamente. Usa calendário de Brasília para
+mês/ano e relógio do banco após as esperas. A autoridade nativa compartilhada
+com a gestão de aparelhos confere login e, quando exigido, os dez minutos de
+autenticação recente. Ainda faltam a interface, a seleção infantil, os convites
+e a proteção completa F2–F3; não ativar menores ou publicar estas migrations
+isoladamente a partir da existência desse código.

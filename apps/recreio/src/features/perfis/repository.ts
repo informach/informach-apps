@@ -11,6 +11,7 @@ import {
   type ContaId,
   type GrupoId,
   GrupoIdSchema,
+  limiteDePerfisDoTier,
   type PerfilId,
   PerfilIdSchema,
   type SessaoDeAparelhoId,
@@ -49,7 +50,7 @@ type Linha = {
   policyVersion: number;
 };
 
-function paraPerfil(linha: Linha): PerfilDoRecreio {
+export function paraPerfil(linha: Linha): PerfilDoRecreio {
   return {
     id: PerfilIdSchema.parse(linha.id),
     grupoId: linha.groupId === null ? null : GrupoIdSchema.parse(linha.groupId),
@@ -160,8 +161,20 @@ export async function criarPerfilDaConta(
     const [grupo] = await tx
       .select({ id: groups.id })
       .from(groups)
-      .where(eq(groups.ownerUserId, contaId));
+      .where(eq(groups.ownerUserId, contaId))
+      .for("update");
     assertAllowed(grupo, "PERFIL", "Não foi possível criar o perfil. Tente de novo.");
+    const limite = limiteDePerfisDoTier("family");
+    const cadastrados = await tx
+      .select({ id: profiles.id })
+      .from(profiles)
+      .where(eq(profiles.groupId, grupo.id))
+      .limit(limite);
+    assertAllowed(
+      cadastrados.length < limite,
+      "LIMITE_DE_PERFIS",
+      "Este grupo já tem quatro perfis. Gerencie os perfis existentes para continuar.",
+    );
     const [criado] = await tx
       .insert(profiles)
       .values({
