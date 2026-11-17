@@ -83,6 +83,58 @@ async function preparar(
   });
 }
 describe("concessão de tempo por perfil", () => {
+  it.each([
+    {
+      agora: "2018-11-03T15:00:00.250Z",
+      pausa: "2018-11-03T15:10:00.250Z",
+      motivo: "daily_limit",
+      minutosPorDia: 10,
+      horarios: null,
+    },
+    {
+      agora: "2018-11-03T15:00:00Z",
+      pausa: "2018-11-03T15:09:00.000Z",
+      motivo: "schedule",
+      minutosPorDia: null,
+      horarios: [{ diaDaSemana: 6, inicioMinuto: 720, fimMinuto: 729 }],
+    },
+    {
+      agora: "2018-11-04T02:51:00Z",
+      pausa: "2018-11-04T03:00:00.000Z",
+      motivo: "day_change",
+      minutosPorDia: null,
+      horarios: null,
+    },
+    {
+      agora: "2019-02-17T01:51:00Z",
+      pausa: "2019-02-17T02:00:00.000Z",
+      motivo: "schedule",
+      minutosPorDia: null,
+      horarios: [{ diaDaSemana: 6, inicioMinuto: 1410, fimMinuto: 1440 }],
+    },
+    { agora: "2018-11-03T15:00:00Z", pausa: null, motivo: null, minutosPorDia: 11, horarios: null },
+  ])(
+    "aviso de dez minutos separado da concessão curta: $agora / $motivo",
+    async ({ agora, pausa, motivo, minutosPorDia, horarios }) => {
+      const r = await familia();
+      const configuracao = { ...supervisaoInicial(), minutosPorDia, horarios };
+      const preparada = await preparar(r, agora, configuracao, r.primeira.id);
+      if (!preparada.permitido) throw new Error("Concessão inicial recusada");
+      expect(preparada.expiraEm.getTime() - Date.parse(agora)).toBeLessThanOrEqual(60_000);
+      const antes = await db.select().from(usage).where(eq(usage.profileId, r.perfil.id));
+      const controle = await db.transaction((tx) =>
+        consultarTempoDeJogo(
+          tx,
+          r.perfil.id,
+          SessaoDeJogoIdSchema.parse(r.primeira.id),
+          configuracao,
+          new Date(agora),
+        ),
+      );
+      expect(controle).toMatchObject({ pausaEm: pausa, motivo });
+      expect(await db.select().from(usage).where(eq(usage.profileId, r.perfil.id))).toEqual(antes);
+    },
+  );
   it("barreira confirmada para de consumir tempo antes do fim definitivo da sessão", async () => {
     const r = await familia();
     const inicio = Date.parse("2018-11-03T15:00:00Z");
