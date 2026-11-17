@@ -85,149 +85,153 @@ export async function mutarDados(
   sessao: SessaoDeJogoAtiva,
   pedido: MutacaoDeDados,
 ): Promise<ResultadoDeMutacao> {
-  return comAutoridade<ResultadoDeMutacao>(sessao, async (tx, contaId) => {
-    let [key] = await tx
-      .select()
+  return comAutoridade(sessao, (tx, contaId) => mutarDadosNaTransacao(tx, sessao, contaId, pedido));
+}
+
+/** Exige autoridade e mutex de dados já admitidos; compartilhado com a finalização restrita. */
+export async function mutarDadosNaTransacao(
+  tx: Transacao,
+  sessao: SessaoDeJogoAtiva,
+  contaId: string | null,
+  pedido: MutacaoDeDados,
+): Promise<ResultadoDeMutacao> {
+  let [key] = await tx
+    .select()
+    .from(keys)
+    .where(and(escopo(sessao), eq(keys.key, pedido.chave)))
+    .for("update");
+  if (!key) {
+    if (pedido.operacao !== "gravar") throw new ErroDoRecreio("NAO_ENCONTRADO");
+    const existentes = await tx
+      .select({ id: keys.id })
       .from(keys)
-      .where(and(escopo(sessao), eq(keys.key, pedido.chave)))
-      .for("update");
-    if (!key) {
-      if (pedido.operacao !== "gravar") throw new ErroDoRecreio("NAO_ENCONTRADO");
-      const existentes = await tx
-        .select({ id: keys.id })
-        .from(keys)
-        .where(escopo(sessao))
-        .limit(LIMITES_DOS_DADOS.chaves);
-      if (existentes.length >= LIMITES_DOS_DADOS.chaves) throw new ErroDoRecreio("LIMITE_DE_DADOS");
-      [key] = await tx
-        .insert(keys)
-        .values({ profileId: sessao.perfilId, gameId: sessao.jogo, key: pedido.chave })
-        .returning();
-    }
-    if (!key) throw new ErroDoRecreio("INDISPONIVEL");
-    const dataId = key.id;
-    const linhas = await tx.select().from(versions).where(eq(versions.dataId, key.id)).limit(8);
-    if (linhas.length > 7) throw new ErroDoRecreio("INDISPONIVEL");
-    for (const linha of linhas) conferirIntegridade(linha);
-    const escolhida =
-      pedido.operacao !== "gravar"
-        ? linhas.find((linha) => linha.id === pedido.versaoId && linha.kind === "conflict")
-        : null;
-    if (pedido.operacao !== "gravar" && !escolhida) throw new ErroDoRecreio("NAO_ENCONTRADO");
-    const auditar = (
-      evento:
-        | "recreio.profile_data_updated"
-        | "recreio.profile_data_conflict"
-        | "recreio.profile_data_conflict_discarded",
-      versionId: string,
-      revisao: number,
-    ) =>
-      logAuditEventStrict(
-        evento,
-        contaId,
-        {
-          app: "recreio",
-          profileId: sessao.perfilId,
-          gameId: sessao.jogo,
-          dataId,
-          versionId,
-          revision: revisao,
-        },
-        { writer: tx },
+      .where(escopo(sessao))
+      .limit(LIMITES_DOS_DADOS.chaves);
+    if (existentes.length >= LIMITES_DOS_DADOS.chaves) throw new ErroDoRecreio("LIMITE_DE_DADOS");
+    [key] = await tx
+      .insert(keys)
+      .values({ profileId: sessao.perfilId, gameId: sessao.jogo, key: pedido.chave })
+      .returning();
+  }
+  if (!key) throw new ErroDoRecreio("INDISPONIVEL");
+  const dataId = key.id;
+  const linhas = await tx.select().from(versions).where(eq(versions.dataId, key.id)).limit(8);
+  if (linhas.length > 7) throw new ErroDoRecreio("INDISPONIVEL");
+  for (const linha of linhas) conferirIntegridade(linha);
+  const escolhida =
+    pedido.operacao !== "gravar"
+      ? linhas.find((linha) => linha.id === pedido.versaoId && linha.kind === "conflict")
+      : null;
+  if (pedido.operacao !== "gravar" && !escolhida) throw new ErroDoRecreio("NAO_ENCONTRADO");
+  const auditar = (
+    evento:
+      | "recreio.profile_data_updated"
+      | "recreio.profile_data_conflict"
+      | "recreio.profile_data_conflict_discarded",
+    versionId: string,
+    revisao: number,
+  ) =>
+    logAuditEventStrict(
+      evento,
+      contaId,
+      {
+        app: "recreio",
+        profileId: sessao.perfilId,
+        gameId: sessao.jogo,
+        dataId,
+        versionId,
+        revision: revisao,
+      },
+      { writer: tx },
+    );
+  if (pedido.operacao === "descartar") {
+    await tx
+      .delete(versions)
+      .where(
+        and(
+          eq(versions.id, pedido.versaoId),
+          eq(versions.dataId, key.id),
+          eq(versions.kind, "conflict"),
+        ),
       );
-    if (pedido.operacao === "descartar") {
-      await tx
-        .delete(versions)
-        .where(
-          and(
-            eq(versions.id, pedido.versaoId),
-            eq(versions.dataId, key.id),
-            eq(versions.kind, "conflict"),
-          ),
-        );
-      await auditar("recreio.profile_data_conflict_discarded", pedido.versaoId, key.revision);
-      return { descartado: true as const };
-    }
-    const bytes =
-      pedido.operacao === "gravar"
-        ? Buffer.from(base64ParaBytes(pedido.conteudo))
-        : escolhida?.bytes;
-    if (!bytes) throw new ErroDoRecreio("NAO_ENCONTRADO");
-    const digest = hash(bytes);
-    if (pedido.revisao !== key.revision) {
-      const repetida =
-        pedido.operacao === "gravar" &&
-        linhas.find(
-          (linha) =>
-            linha.kind === "accepted" &&
-            linha.baseRevision === pedido.revisao &&
-            linha.digest === digest,
-        );
-      if (repetida && repetida.revision !== null) return { revisao: repetida.revision };
-      // Resolver nunca produz cópias de um conflito já preservado.
-      if (pedido.operacao === "resolver")
-        return { conflito: true as const, versaoId: pedido.versaoId, revisaoAtual: key.revision };
-      let conflito = linhas.find(
+    await auditar("recreio.profile_data_conflict_discarded", pedido.versaoId, key.revision);
+    return { descartado: true as const };
+  }
+  const bytes =
+    pedido.operacao === "gravar" ? Buffer.from(base64ParaBytes(pedido.conteudo)) : escolhida?.bytes;
+  if (!bytes) throw new ErroDoRecreio("NAO_ENCONTRADO");
+  const digest = hash(bytes);
+  if (pedido.revisao !== key.revision) {
+    const repetida =
+      pedido.operacao === "gravar" &&
+      linhas.find(
         (linha) =>
-          linha.kind === "conflict" &&
+          linha.kind === "accepted" &&
           linha.baseRevision === pedido.revisao &&
           linha.digest === digest,
       );
-      if (!conflito) {
-        if (
-          linhas.filter((linha) => linha.kind === "conflict").length >= LIMITES_DOS_DADOS.conflitos
-        )
-          throw new ErroDoRecreio("LIMITE_DE_DADOS");
-        [conflito] = await tx
-          .insert(versions)
-          .values({
-            dataId: key.id,
-            profileId: sessao.perfilId,
-            gameId: sessao.jogo,
-            baseRevision: pedido.revisao,
-            kind: "conflict",
-            bytes,
-            digest,
-          })
-          .returning();
-        if (!conflito) throw new ErroDoRecreio("INDISPONIVEL");
-        await auditar("recreio.profile_data_conflict", conflito.id, key.revision);
-      }
+    if (repetida && repetida.revision !== null) return { revisao: repetida.revision };
+    // Resolver nunca produz cópias de um conflito já preservado.
+    if (pedido.operacao === "resolver")
+      return { conflito: true as const, versaoId: pedido.versaoId, revisaoAtual: key.revision };
+    let conflito = linhas.find(
+      (linha) =>
+        linha.kind === "conflict" &&
+        linha.baseRevision === pedido.revisao &&
+        linha.digest === digest,
+    );
+    if (!conflito) {
+      if (linhas.filter((linha) => linha.kind === "conflict").length >= LIMITES_DOS_DADOS.conflitos)
+        throw new ErroDoRecreio("LIMITE_DE_DADOS");
+      [conflito] = await tx
+        .insert(versions)
+        .values({
+          dataId: key.id,
+          profileId: sessao.perfilId,
+          gameId: sessao.jogo,
+          baseRevision: pedido.revisao,
+          kind: "conflict",
+          bytes,
+          digest,
+        })
+        .returning();
       if (!conflito) throw new ErroDoRecreio("INDISPONIVEL");
-      return { conflito: true as const, versaoId: conflito.id, revisaoAtual: key.revision };
+      await auditar("recreio.profile_data_conflict", conflito.id, key.revision);
     }
-    if (key.revision >= 2_147_483_646) throw new ErroDoRecreio("LIMITE_DE_DADOS");
-    const revisao = key.revision + 1;
-    const [nova] = await tx
-      .insert(versions)
-      .values({
-        dataId: key.id,
-        profileId: sessao.perfilId,
-        gameId: sessao.jogo,
-        baseRevision: key.revision,
-        revision: revisao,
-        kind: "accepted",
-        bytes,
-        digest,
-      })
-      .returning();
-    await tx.update(keys).set({ revision: revisao, updatedAt: AGORA }).where(eq(keys.id, key.id));
-    if (escolhida) await tx.delete(versions).where(eq(versions.id, escolhida.id));
-    const antigas = linhas
-      .filter((linha) => linha.kind === "accepted")
-      .sort((a, b) => (b.revision ?? 0) - (a.revision ?? 0))
-      .slice(LIMITES_DOS_DADOS.anteriores);
-    if (antigas.length)
-      await tx.delete(versions).where(
-        inArray(
-          versions.id,
-          antigas.map((linha) => linha.id),
-        ),
-      );
-    if (!nova) throw new ErroDoRecreio("INDISPONIVEL");
-    await auditar("recreio.profile_data_updated", nova.id, revisao);
-    return { revisao };
-  });
+    if (!conflito) throw new ErroDoRecreio("INDISPONIVEL");
+    return { conflito: true as const, versaoId: conflito.id, revisaoAtual: key.revision };
+  }
+  if (key.revision >= 2_147_483_646) throw new ErroDoRecreio("LIMITE_DE_DADOS");
+  const revisao = key.revision + 1;
+  const [nova] = await tx
+    .insert(versions)
+    .values({
+      dataId: key.id,
+      profileId: sessao.perfilId,
+      gameId: sessao.jogo,
+      baseRevision: key.revision,
+      revision: revisao,
+      kind: "accepted",
+      bytes,
+      digest,
+    })
+    .returning();
+  await tx.update(keys).set({ revision: revisao, updatedAt: AGORA }).where(eq(keys.id, key.id));
+  if (escolhida) await tx.delete(versions).where(eq(versions.id, escolhida.id));
+  const antigas = linhas
+    .filter((linha) => linha.kind === "accepted")
+    .sort((a, b) => (b.revision ?? 0) - (a.revision ?? 0))
+    .slice(LIMITES_DOS_DADOS.anteriores);
+  if (antigas.length)
+    await tx.delete(versions).where(
+      inArray(
+        versions.id,
+        antigas.map((linha) => linha.id),
+      ),
+    );
+  if (!nova) throw new ErroDoRecreio("INDISPONIVEL");
+  await auditar("recreio.profile_data_updated", nova.id, revisao);
+  return { revisao };
 }
 
 export async function registrarConquista(sessao: SessaoDeJogoAtiva, id: string, chaveIdem: string) {

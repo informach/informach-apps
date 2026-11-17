@@ -388,6 +388,12 @@ continuam genéricas. A prova integrada consulta a referência anterior após
 a troca; a asserção original do navegador é preservada. Ainda sem resultado
 remoto do corretivo.
 
+O corretivo `a2893d9668e34114cdfe5240ea211237e3a03380`, `44057129948`, passou
+nos sete gates. A mesma jornada de mundo chegou ao fim, inclusive o motivo
+persistido no aparelho antigo, a tentativa de comando após a barreira, o outro
+membro ativo e a reabertura do contador. Ainda não faz parte da fonte `668dde1`
+implantada abaixo; a troca automática continua desligada.
+
 ## Implantação conferida em 17/11
 
 `668dde1fc50c8e4ed4d08ee1800165c285314b27` foi implantado no portal pelo
@@ -431,4 +437,3 @@ O expurgo técnico não pode descongelar a sessão. A tabela está vazia enquant
 a troca automática permanece desligada; retenção limitada precisa ser fechada
 antes da ativação. A API de mundo e os avisos posteriores não fazem parte desta
 fonte implantada. Famílias, venda, F3 e demais frentes continuam sem aceite final.
-

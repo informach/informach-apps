@@ -129,6 +129,7 @@ export type AuditEventType =
   | "recreio.session_handoff_confirmed"
   | "recreio.session_handoff_failed"
   | "recreio.session_handoff_completed"
+  | "recreio.session_save_completed"
   | "recreio.ticket_rejected"
   | "recreio.space_created"
   | "recreio.space_invite_created"

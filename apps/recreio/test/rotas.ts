@@ -26,6 +26,10 @@ const ROTAS: readonly [RegExp, () => Promise<Modulo>][] = [
     () => import("@/app/api/sdk/v1/sessao/checkpoint/route"),
   ],
   [/^\/api\/sdk\/v1\/sessao\/renovar$/, () => import("@/app/api/sdk/v1/sessao/renovar/route")],
+  [
+    /^\/api\/sdk\/v1\/sessao\/salvamento$/,
+    () => import("@/app/api/sdk/v1/sessao/salvamento/route"),
+  ],
   [/^\/api\/sdk\/v1\/sessao\/sair$/, () => import("@/app/api/sdk/v1/sessao/sair/route")],
   [/^\/api\/sdk\/v1\/mundos$/, () => import("@/app/api/sdk/v1/mundos/route")],
   [

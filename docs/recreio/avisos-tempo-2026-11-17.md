@@ -49,6 +49,12 @@ O teste passa a ordenar as duas leituras pelo ID, conservando a igualdade de
 todos os campos. Não se altera escritor, autorização ou dado de produção.
 Nova rodada completa ainda necessária.
 
+A candidata corretiva `f4a8a157`, `44058600992`, passou nos sete gates.
+A comparação de participações conserva todos os campos e a jornada familiar
+confere o aviso real com dez minutos, mesmo com troca coordenada desligada.
+O CI compartilhado ainda acompanha as fontes de contratos; a produção continua
+na `668dde1`, sem os avisos deste incremento e com famílias desligadas.
+
 Calendário e agrupamento conferidos na documentação do PostgreSQL 18:
 [séries temporais](https://www.postgresql.org/docs/18/functions-srf.html) e
 [conversão IANA e truncamento explícito em UTC](https://www.postgresql.org/docs/18/functions-datetime.html).

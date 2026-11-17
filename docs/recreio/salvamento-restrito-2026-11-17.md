@@ -99,3 +99,32 @@ criptográfico exato, emissor e verificadores, além do lote final limitado e
 sem chaves duplicadas. Ainda não emite capacidade em sessão real, não expõe
 rota e não persiste pela margem. Nenhuma configuração de produção habilita
 o modelo. Os gates da candidata ainda precisam ser executados.
+
+`5eebd6b` passou nos sete gates `44061099972`, incluindo as seis provas do
+modelo e a separação criptográfica de tipos/escopos. O CI compartilhado
+`44061099338` ainda está em execução. 0177 continua privada, sem aplicação
+em produção; a fonte efetiva do portal é `668dde1` com os dois modos `off`.
+
+## Writer de perfil em candidata
+
+O próximo incremento extrai a admissão comum de identidade/aparelho, sem
+retirar direito comercial, conteúdo ou prazos do kernel de gameplay. O novo
+finalizador exige capacidade própria, recibo, versão, dispositivo e prazo
+atuais. Só aceita `left`, `expired` ou `access_lost` como encerramentos anteriores;
+revogação, transferência e barreira de troca são recusadas. O cursor de
+encerramento detecta também um sucessor que já tenha terminado, sob o mutex
+do perfil, sem ordenar UUIDs ou depender da hora do navegador.
+
+O motor CAS é extraído sem duplicação para a transação já admitida. Lote,
+conflitos preservados, recibo, fim da sessão e auditoria confirmam juntos.
+Repetição exige o mesmo hash e não executa o writer. Limite de dez pedidos por
+perfil/minuto precede ler o corpo de até 2 MiB. A rota usa apenas o novo tipo
+Bearer; token normal não vale nessa rota e a capacidade não vale nas rotas
+de gameplay. A emissão automática/renovação do recibo e o consumidor do SDK
+ainda não estão ligados.
+
+As provas HTTP/banco verificam concessão expirada com relógio real, replay,
+corpo divergente, conflito, aparelho/política/sucessor/barreira, tipo incorreto,
+recibo de outro SID, falha de auditoria e espera atravessando o prazo. A prova
+de espera usa uma sequence descartável para comprovar que o trigger foi
+executado antes da recusa, mesmo após rollback. Ainda sem gates deste writer.

@@ -1,0 +1,159 @@
+import "server-only";
+import { logAuditEventStrict } from "@informach/auth";
+import { and, db, eq, gt, isNull, ne, or, sql } from "@informach/db";
+import {
+  recreioGameSessions as games,
+  recreioSessionSavePermits as permits,
+} from "@informach/db/schema";
+import { ErroDoRecreio, SessaoDeAparelhoIdSchema } from "@informach/recreio";
+import type { SalvamentoVerificado } from "@informach/recreio/contrato";
+import {
+  admitirAparelhoAtual,
+  prepararIdentidadeDoJogo,
+} from "@/features/autoridade-de-jogo/aparelho-repository";
+import {
+  encerrarSessoesAbertas,
+  travarEncerramentos,
+} from "@/features/sessao-de-jogo/encerramento-repository";
+import { type Transacao, travar } from "@/lib/repository";
+
+type Recibo = typeof permits.$inferSelect;
+type ProvaFinal = Pick<
+  Recibo,
+  | "results"
+  | "checkpointSpaceId"
+  | "checkpointFence"
+  | "checkpointRevision"
+  | "checkpointJournalSeq"
+> & { status: "completed" | "conflicted" };
+
+/**
+ * Capacidade exclusiva para concluir persistência. Não chama o kernel de
+ * gameplay com prazo ampliado nem admite operações fora deste finalizador.
+ */
+export async function concluirSalvamentoNoBanco(
+  capacidade: SalvamentoVerificado,
+  hashDoPedido: string,
+  opcoes: {
+    modo: "profile" | "server";
+    antesDoPerfil?: (tx: Transacao) => Promise<void>;
+    travarDominio?: (tx: Transacao) => Promise<void>;
+    conferirFinal?: (tx: Transacao) => Promise<void>;
+    persistir: (tx: Transacao, contaId: string | null, recibo: Recibo) => Promise<ProvaFinal>;
+  },
+): Promise<Recibo> {
+  const resultado = await db.transaction(async (tx) => {
+    await tx.execute(sql`set local transaction_timeout='10s'`);
+    await tx.execute(sql`set local lock_timeout='5s'`);
+    const [pista] = await tx
+      .select()
+      .from(games)
+      .where(
+        and(
+          eq(games.id, capacidade.sid),
+          eq(games.profileId, capacidade.perfilId),
+          eq(games.gameId, capacidade.jogo),
+        ),
+      );
+    if (!pista) throw new ErroDoRecreio("SESSAO_INVALIDA");
+    const referencia = {
+      perfilId: capacidade.perfilId,
+      sessaoDeAparelhoId: SessaoDeAparelhoIdSchema.parse(pista.deviceSessionId),
+      jogo: capacidade.jogo,
+      expiraEm: capacidade.expiraEm,
+    };
+    const identidade = await prepararIdentidadeDoJogo(tx, referencia);
+    await opcoes.antesDoPerfil?.(tx);
+    const admissao = await admitirAparelhoAtual(tx, referencia, identidade, async (t) => {
+      await travar(t, `recreio:game_sessions:perfil:${capacidade.perfilId}`);
+      await opcoes.travarDominio?.(t);
+      await travarEncerramentos(t);
+    });
+    if (!admissao.admitida) return admissao;
+    const [jogo] = await tx.select().from(games).where(eq(games.id, capacidade.sid)).for("update");
+    const [recibo] = await tx
+      .select()
+      .from(permits)
+      .where(eq(permits.id, capacidade.reciboId))
+      .for("update");
+    const conferirPrazo = async () => {
+      const agora = await admissao.conferirPrazo();
+      if (!recibo || recibo.expiresAt <= agora) throw new ErroDoRecreio("SESSAO_INVALIDA");
+      return agora;
+    };
+    const agora = await conferirPrazo();
+    if (
+      !jogo ||
+      !recibo ||
+      jogo.profileId !== capacidade.perfilId ||
+      jogo.gameId !== capacidade.jogo ||
+      jogo.deviceSessionId !== admissao.aparelho.id ||
+      recibo.sessionId !== jogo.id ||
+      recibo.profileId !== jogo.profileId ||
+      recibo.policyVersion !== capacidade.versaoDaPolitica ||
+      admissao.versaoDaPolitica !== capacidade.versaoDaPolitica ||
+      recibo.mode !== opcoes.modo ||
+      capacidade.expiraEm > recibo.expiresAt.getTime() ||
+      recibo.status === "expired" ||
+      jogo.checkpointFrozenAt !== null ||
+      (jogo.endReason !== null && !["left", "expired", "access_lost"].includes(jogo.endReason))
+    )
+      throw new ErroDoRecreio("SESSAO_INVALIDA");
+    if (recibo.status !== "ready") {
+      if (recibo.requestHash !== hashDoPedido) throw new ErroDoRecreio("FATO_DUPLICADO");
+      await opcoes.conferirFinal?.(tx);
+      await conferirPrazo();
+      return { admitida: true as const, valor: recibo };
+    }
+    // O cursor de encerramento ordena confirmações, sem depender de relógios
+    // ou UUIDs para reconhecer um sucessor que já tenha saído novamente.
+    const [sucessor] = await tx
+      .select({ id: games.id })
+      .from(games)
+      .where(
+        and(
+          eq(games.profileId, jogo.profileId),
+          ne(games.id, jogo.id),
+          or(
+            isNull(games.endedAt),
+            jogo.endedSeq === null ? sql`false` : gt(games.endedSeq, jogo.endedSeq),
+          ),
+        ),
+      )
+      .limit(1);
+    if (sucessor) throw new ErroDoRecreio("SESSAO_INVALIDA");
+    const prova = await opcoes.persistir(tx, admissao.contaId, recibo);
+    const fim = await conferirPrazo();
+    const motivo =
+      jogo.endReason === "access_lost" ? "access" : agora >= recibo.cutoffAt ? "time" : "manual";
+    const [concluido] = await tx
+      .update(permits)
+      .set({ ...prova, finishedAt: fim, reason: motivo, requestHash: hashDoPedido })
+      .where(eq(permits.id, recibo.id))
+      .returning();
+    if (!concluido) throw new ErroDoRecreio("INDISPONIVEL");
+    await encerrarSessoesAbertas(
+      tx,
+      sql`${games.id}=${jogo.id}`,
+      motivo === "access" ? "access_lost" : motivo === "time" ? "expired" : "left",
+      { porQuem: "recreio" },
+    );
+    await logAuditEventStrict(
+      "recreio.session_save_completed",
+      admissao.contaId,
+      {
+        app: "recreio",
+        profileId: capacidade.perfilId,
+        sessionId: capacidade.sid,
+        savePermitId: recibo.id,
+        gameId: capacidade.jogo,
+      },
+      { writer: tx },
+    );
+    await opcoes.conferirFinal?.(tx);
+    await conferirPrazo();
+    return { admitida: true as const, valor: concluido };
+  });
+  if (!resultado.admitida) throw resultado.erro;
+  return resultado.valor;
+}
