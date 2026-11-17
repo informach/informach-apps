@@ -23,11 +23,12 @@ import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 
 type Caso = typeof reports.$inferSelect;
+type ComandoDeCaso = Exclude<ComandoDeModeracao, { operacao: "responder_recurso" }>;
 
 /** Todas as pontas já estão admitidas: contas → mundo (se houver) → perfis → caso. */
 export async function aplicarEfeitoDeModeracao(
   tx: Transacao,
-  comando: ComandoDeModeracao,
+  comando: ComandoDeCaso,
   caso: Caso,
   composicao: ComposicaoSocial,
   contaId: string,

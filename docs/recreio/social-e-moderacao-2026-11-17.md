@@ -482,6 +482,23 @@ ou fazer o alvo depender do protocolo de outra pessoa para recorrer. A decisão
 da equipe precisa atualizar restrição, recurso e recibo atomicamente; restaurar
 não recupera SID, aparelho infantil ou consentimento antigo.
 
+O schema seguinte separa `profile_restrictions` (fato vigente; removido 90 dias
+após liberação) de `restriction_reviews` (recurso próprio, até 180 dias). Uma
+restrição perde a referência à denúncia expurgada, mas permanece contestável.
+O recurso contém apenas perfil/revisão, espécie e conta atual de quem pediu,
+estado/decisão e datas; nunca autor, motivo ou protocolo da denúncia alheia.
+Sessão pareada revogada não vira autoridade de recurso: proprietário adulto e
+responsável atual usam sua conta nativa. Suspensão legada sem recibo pode ser
+observada como tal, sem inventar moderador ou data da imposição.
+
+Comandos distinguem denúncia e recurso de restrição e vinculam o recibo à
+espécie exata. O nome físico `report_revision` permanece por compatibilidade,
+com campo TypeScript `caseRevision`; não renomear nem reescrever a coluna.
+Recurso respondido em manter/reativar confirma decisão, estado do perfil,
+restrição e recibo na mesma transação. Não restaurar por um caso antigo quando
+existe recurso aberto; a equipe deve responder ao recurso. Referências pessoais
+saem com o perfil conforme F7, sem prorrogar a denúncia original.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

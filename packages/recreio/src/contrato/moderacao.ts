@@ -36,6 +36,14 @@ export const ComandoDeModeracaoSchema = z.discriminatedUnion("operacao", [
     motivo,
   }),
   base.extend({ operacao: z.literal("invalidar_convite"), conviteId: z.uuid(), motivo }),
+  base.extend({
+    operacao: z.literal("responder_recurso"),
+    perfilId: PerfilIdSchema,
+    versaoDoPerfil: z.int().min(1).max(2147483646),
+    versaoDaRestricao: z.int().min(1).max(2147483646),
+    decisao: z.enum(["manter", "reativar"]),
+    motivo,
+  }),
 ]);
 export type ComandoDeModeracao = z.infer<typeof ComandoDeModeracaoSchema>;
 export const ReciboDeModeracaoSchema = z.strictObject({
@@ -49,6 +57,7 @@ export const ReciboDeModeracaoSchema = z.strictObject({
     "reativar_perfil",
     "desfazer_amizade",
     "invalidar_convite",
+    "responder_recurso",
   ]),
   repetido: z.boolean(),
 });

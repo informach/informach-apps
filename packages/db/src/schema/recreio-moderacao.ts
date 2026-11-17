@@ -105,12 +105,110 @@ export const recreioSafetyReports = recreio.table(
   ],
 );
 
+/** Fato mínimo da restrição vigente; o expurgo da denúncia não impede contestação própria. */
+export const recreioProfileRestrictions = recreio.table(
+  "profile_restrictions",
+  {
+    profileId: uuid("profile_id")
+      .primaryKey()
+      .references(() => recreioProfiles.id, { onDelete: "cascade" }),
+    revision: integer("revision").notNull().default(1),
+    state: text("state").$type<"suspended" | "released">().notNull(),
+    reason: text("reason")
+      .$type<
+        | "risco_confirmado"
+        | "medida_preventiva"
+        | "recurso_procedente"
+        | "correcao_operacional"
+        | "legado_sem_recibo"
+      >()
+      .notNull(),
+    sourceReportId: uuid("source_report_id").references(() => recreioSafetyReports.id, {
+      onDelete: "set null",
+    }),
+    moderatorUserId: text("moderator_user_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: moment("created_at").notNull().defaultNow(),
+    updatedAt: moment("updated_at").notNull().defaultNow(),
+    releasedAt: moment("released_at"),
+  },
+  (t) => [
+    index("recreio_profile_restriction_retention")
+      .on(t.releasedAt, t.profileId)
+      .where(sql`${t.state}='released'`),
+    check("recreio_profile_restriction_revision", sql`${t.revision}>0`),
+    check("recreio_profile_restriction_state", sql`${t.state} in ('suspended','released')`),
+    check(
+      "recreio_profile_restriction_reason",
+      sql`${t.reason} in ('risco_confirmado','medida_preventiva','recurso_procedente','correcao_operacional','legado_sem_recibo')`,
+    ),
+    check(
+      "recreio_profile_restriction_dates",
+      sql`${t.updatedAt}>=${t.createdAt} and (${t.releasedAt} is null or (${t.releasedAt}>=${t.createdAt} and ${t.releasedAt}<=${t.updatedAt}))`,
+    ),
+    check(
+      "recreio_profile_restriction_released",
+      sql`(${t.state}='released')=(${t.releasedAt} is not null)`,
+    ),
+  ],
+);
+
+/** Recurso próprio: não guarda autor, teor ou protocolo da denúncia de outra pessoa. */
+export const recreioRestrictionReviews = recreio.table(
+  "restriction_reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => recreioProfiles.id, { onDelete: "cascade" }),
+    restrictionRevision: integer("restriction_revision").notNull(),
+    clientKey: uuid("client_key").notNull(),
+    actorUserId: text("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    actorKind: text("actor_kind").$type<"titular" | "responsavel">().notNull(),
+    state: text("state").$type<"aberto" | "resolvido">().notNull().default("aberto"),
+    revision: integer("revision").notNull().default(1),
+    decision: text("decision").$type<"manter" | "reativar">(),
+    createdAt: moment("created_at").notNull().defaultNow(),
+    resolvedAt: moment("resolved_at"),
+    expiresAt: moment("expires_at").notNull(),
+  },
+  (t) => [
+    uniqueIndex("recreio_restriction_review_retry").on(t.profileId, t.clientKey),
+    uniqueIndex("recreio_restriction_review_open")
+      .on(t.profileId, t.restrictionRevision)
+      .where(sql`${t.state}='aberto'`),
+    index("recreio_restriction_review_queue").on(t.state, t.createdAt, t.id),
+    index("recreio_restriction_review_retention").on(t.expiresAt, t.id),
+    check(
+      "recreio_restriction_review_revision",
+      sql`${t.revision}>0 and ${t.restrictionRevision}>0`,
+    ),
+    check("recreio_restriction_review_actor", sql`${t.actorKind} in ('titular','responsavel')`),
+    check("recreio_restriction_review_state", sql`${t.state} in ('aberto','resolvido')`),
+    check(
+      "recreio_restriction_review_decision",
+      sql`(${t.state}='aberto' and ${t.decision} is null and ${t.resolvedAt} is null) or (${t.state}='resolvido' and ${t.decision} is not null and ${t.decision} in ('manter','reativar') and ${t.resolvedAt} is not null)`,
+    ),
+    check(
+      "recreio_restriction_review_dates",
+      sql`${t.expiresAt}>${t.createdAt} and ${t.expiresAt}<=${t.createdAt}+interval '180 days' and (${t.resolvedAt} is null or (${t.resolvedAt}>=${t.createdAt} and ${t.resolvedAt}<${t.expiresAt}))`,
+    ),
+  ],
+);
+
 /** Recibo do comando, separado da prova transitória e sem segredo, sessão ou texto livre. */
 export const recreioModerationCommands = recreio.table(
   "moderation_commands",
   {
     id: uuid("id").primaryKey(),
     reportId: uuid("report_id").references(() => recreioSafetyReports.id, { onDelete: "set null" }),
+    restrictionReviewId: uuid("restriction_review_id").references(
+      () => recreioRestrictionReviews.id,
+      { onDelete: "set null" },
+    ),
+    caseKind: text("case_kind")
+      .$type<"denuncia" | "recurso_restricao">()
+      .notNull()
+      .default("denuncia"),
     moderatorUserId: text("moderator_user_id").references(() => users.id, { onDelete: "set null" }),
     requestHash: text("request_hash").notNull(),
     operation: text("operation")
@@ -121,9 +219,11 @@ export const recreioModerationCommands = recreio.table(
         | "reativar_perfil"
         | "desfazer_amizade"
         | "invalidar_convite"
+        | "responder_recurso"
       >()
       .notNull(),
-    reportRevision: integer("report_revision").notNull(),
+    /** Nome físico anterior conservado; a espécie do caso fixa o significado. */
+    caseRevision: integer("report_revision").notNull(),
     createdAt: moment("created_at").notNull().defaultNow(),
     expiresAt: moment("expires_at").notNull(),
   },
@@ -132,10 +232,14 @@ export const recreioModerationCommands = recreio.table(
     index("recreio_moderation_command_report").on(t.reportId, t.createdAt),
     check(
       "recreio_moderation_command_operation",
-      sql`${t.operation} in ('analisar','concluir','suspender_perfil','reativar_perfil','desfazer_amizade','invalidar_convite')`,
+      sql`${t.operation} in ('analisar','concluir','suspender_perfil','reativar_perfil','desfazer_amizade','invalidar_convite','responder_recurso')`,
     ),
     check("recreio_moderation_command_digest", sql`${t.requestHash} ~ '^[a-f0-9]{64}$'`),
-    check("recreio_moderation_command_revision", sql`${t.reportRevision}>1`),
+    check("recreio_moderation_command_revision", sql`${t.caseRevision}>1`),
+    check(
+      "recreio_moderation_command_case",
+      sql`(${t.caseKind}='denuncia' and ${t.restrictionReviewId} is null and ${t.operation}<>'responder_recurso') or (${t.caseKind}='recurso_restricao' and ${t.reportId} is null and ${t.operation}='responder_recurso')`,
+    ),
     check(
       "recreio_moderation_command_dates",
       sql`${t.expiresAt}>${t.createdAt} and ${t.expiresAt}<=${t.createdAt}+interval '180 days'`,
