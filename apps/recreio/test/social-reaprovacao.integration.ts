@@ -7,6 +7,7 @@ import {
   recreioMinorProtection as protection,
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
+import { consultarSupervisao, salvarSupervisao } from "@/features/politicas/service";
 import { desconectarTodosDoMenor } from "@/features/protecao/service";
 import {
   aceitarAmizade,
@@ -104,11 +105,28 @@ describe("reaprovação explícita após revogação de autoridade", () => {
     await expect(renovarAprovacaoDeAmizade(outro.autor, r.entrada)).rejects.toMatchObject({
       code: "PEDIDO",
     });
+    const supervisao = await consultarSupervisao(r.autor, r.perfil.id);
+    await salvarSupervisao(r.autor, {
+      perfilId: r.perfil.id,
+      versao: supervisao.versao,
+      configuracao: {
+        ...supervisao.configuracao,
+        presenca: supervisao.configuracao.presenca === "invisible" ? "friends" : "invisible",
+      },
+      reconheco: true,
+    });
+    const [atual] = await db.select().from(profiles).where(eq(profiles.id, r.perfil.id));
+    if (!atual) throw new Error("Perfil ausente");
+    expect(atual.policyVersion).toBeGreaterThan(r.entrada.versao);
+    await expect(renovarAprovacaoDeAmizade(r.autor, r.entrada)).rejects.toMatchObject({
+      code: "CONFLITO",
+    });
     await expect(
-      renovarAprovacaoDeAmizade(r.autor, { ...r.entrada, versao: r.entrada.versao - 1 }),
-    ).rejects.toMatchObject({ code: "CONFLITO" });
-    await expect(
-      renovarAprovacaoDeAmizade(r.autor, { ...r.entrada, revisaoDaAmizade: 2 }),
+      renovarAprovacaoDeAmizade(r.autor, {
+        ...r.entrada,
+        versao: atual.policyVersion,
+        revisaoDaAmizade: 2,
+      }),
     ).rejects.toMatchObject({ code: "CONFLITO" });
   });
   it("auditoria indisponível não confirma a nova geração", async () => {

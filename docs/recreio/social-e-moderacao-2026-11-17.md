@@ -225,6 +225,12 @@ após revogar uma geração, o responsável atual precisa ler a versão do menor
 a revisão da relação e confirmar novamente. Repetir um aceite/aprovação antigo
 não concede essa autorização. Relação removida nunca é reativada por esse caminho.
 
+A primeira prova de revisão antiga em `68b3702` falhou porque subtrair um de
+uma revisão inicial gerou zero, recusado pelo schema antes da comparação. A
+correção da fixture altera a supervisão pelo serviço real, confirma o incremento
+e envia a versão anterior ainda válida no schema. Não houve relaxamento da
+validação nem aprovação dessa execução: `44133904635` contém a falha registrada.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.
