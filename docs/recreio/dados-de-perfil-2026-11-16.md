@@ -136,6 +136,12 @@ confere dez escritores realmente bloqueados e libera o lote para validar os
 logins pelas próprias conexões. Não aumentar o pool ou os timeouts para ocultar
 esse problema. Esta prova está em verificação remota antes da publicação.
 
+A primeira prova de barreira (`43999022859`, fonte `61ede6d`) passou nos outros
+341 casos, mas lia repetidamente o snapshot inicial de `pg_stat_activity`
+dentro da transação de controle e não observava os dez escritores. Cada leitura
+agora descarta esse snapshot, conforme a [documentação do PostgreSQL](https://www.postgresql.org/docs/18/monitoring-stats.html#MONITORING-STATS-VIEWS).
+O timeout não foi ampliado. Controle negativo e correção usam o mesmo teste.
+
 - [ ] Testar bytes ponta a ponta, token novo na renovação, corpo excessivo,
   entrada inválida, abortos e ausência de repetição automática das mutações.
 - [ ] Com navegador GitHub: jogar, salvar, sair, reabrir e conferir progresso;
