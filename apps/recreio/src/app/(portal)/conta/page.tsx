@@ -93,6 +93,21 @@ export default async function Conta() {
           </div>
         </section>
 
+        <section aria-labelledby="conta-familia" className="painel p-5 sm:p-6">
+          <h2 id="conta-familia" className="font-display text-xl font-bold">
+            Família
+          </h2>
+          <p className="mt-2 text-tinta-suave">
+            Cuide dos perfis de crianças e adolescentes sob sua responsabilidade.
+          </p>
+          <Link
+            href="/conta/perfis"
+            className="mt-4 inline-flex font-bold text-ceu underline underline-offset-4"
+          >
+            Gerenciar perfis
+          </Link>
+        </section>
+
         <section aria-labelledby="conta-aparelhos" className="painel p-5 sm:p-6">
           <h2 id="conta-aparelhos" className="font-display text-xl font-bold">
             Aparelhos

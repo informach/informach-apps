@@ -93,3 +93,24 @@ login no fallback PostgreSQL, esgotando o pool durante as criações concorrente
 O caminho transacional passou a exigir o reader da transação. A prova existente
 do lote e a nova prova determinística de dez escritores precisam passar sem
 aumentar pool, prazo ou retirar concorrência.
+
+A correção passou nos seis gates `44000530944`, fonte `39fef259`, incluindo
+a barreira de dez escritores. Não foi executado teste pesado nesta máquina.
+
+Na candidata seguinte, `/conta/perfis` lista por páginas somente vínculos
+explícitos da conta nativa e oferece o formulário com declaração desmarcada,
+mês/ano e intenção emitida por ação autenticada. A leitura da página não cria
+intenção. Cancelar só remove uma intenção própria ainda não consumida;
+repetir a confirmação de uma intenção consumida conserva o mesmo perfil.
+Erros de conexão mantêm os campos para uma nova tentativa. O formulário fica
+desabilitado no HTML inicial até a hidratação. A lista não devolve nascimento
+ou identidade do responsável ao componente; só perfil e faixas efetivas.
+Integração cobre cancelamento alheio/confirmado e autoridade atual; navegador
+cobre cadastro, recarga e cancelamento com adulto sem jogador. A verificação
+remota desta interface ainda está pendente.
+
+O recibo vence para replay em 24 horas, mas sua remoção física nesta candidata
+ainda é oportunista por conta. A limpeza global agendada pertence ao próximo
+incremento, antes da ativação em produção. Seleção infantil, PIN, pareamento,
+convites e os aceites completos de F1–F3 continuam pendentes; a tela não
+autoriza publicar isoladamente as migrations 0168–0169.

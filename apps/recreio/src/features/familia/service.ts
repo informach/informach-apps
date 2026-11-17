@@ -1,8 +1,32 @@
 import "server-only";
-import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import { PerfilIdSchema } from "@informach/recreio";
+import { z } from "zod";
+import type {
+  AutorNativoRecente,
+  IdentidadeNativa,
+} from "@/features/account/autoridade-repository";
 import { limitarTentativas } from "@/lib/rate-limit";
 import { CadastroDeMenorSchema } from "./regras";
-import { confirmarCadastroDeMenor, prepararCadastroDeMenor } from "./repository";
+import {
+  cancelarCadastroDeMenor,
+  confirmarCadastroDeMenor,
+  listarMenoresDoResponsavel,
+  prepararCadastroDeMenor,
+} from "./repository";
+
+export function listarPerfisMenores(autor: IdentidadeNativa, apos?: unknown) {
+  return listarMenoresDoResponsavel(autor, apos === undefined ? null : PerfilIdSchema.parse(apos));
+}
+
+export async function cancelarPerfilMenor(autor: IdentidadeNativa, intencaoId: unknown) {
+  const id = z.uuid().parse(intencaoId);
+  await limitarTentativas({
+    chave: `cancelar-menor:${autor.contaId}`,
+    max: 30,
+    janelaEmSegundos: 600,
+  });
+  return cancelarCadastroDeMenor(autor, id);
+}
 
 export async function prepararPerfilMenor(autor: AutorNativoRecente) {
   await limitarTentativas({

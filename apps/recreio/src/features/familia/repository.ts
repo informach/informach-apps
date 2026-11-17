@@ -12,12 +12,15 @@ import {
 } from "@informach/db/schema";
 import {
   exigirNascimentoDeMenor,
+  faixasDoMenor,
   limiteDePerfisDoTier,
+  type PerfilId,
   VERSAO_DA_RESPONSABILIDADE,
 } from "@informach/recreio";
 import {
   type AutorNativoRecente,
   autorizarContaNativa,
+  type IdentidadeNativa,
 } from "@/features/account/autoridade-repository";
 import { paraPerfil } from "@/features/perfis/repository";
 import { assertAllowed } from "@/lib/errors";
@@ -92,6 +95,53 @@ export async function prepararCadastroDeMenor(autor: AutorNativoRecente) {
       .returning({ id: requests.id, expiresAt: requests.expiresAt });
     assertAllowed(criado, "CADASTRO", "Não foi possível preparar o cadastro.");
     return { id: criado.id, expiraEm: criado.expiresAt.toISOString() };
+  });
+}
+
+/** Somente vínculos explícitos; nem o pagante nem o criador de um grupo herdam acesso. */
+export async function listarMenoresDoResponsavel(autor: IdentidadeNativa, apos: PerfilId | null) {
+  return db.transaction(async (tx) => {
+    await limites(tx);
+    const contexto = await autorizarContaNativa(tx, autor);
+    const linhas = await tx
+      .select({ perfil: profiles, nascimento: { ano: minors.birthYear, mes: minors.birthMonth } })
+      .from(guardians)
+      .innerJoin(profiles, eq(profiles.id, guardians.profileId))
+      .innerJoin(minors, eq(minors.profileId, profiles.id))
+      .where(
+        and(eq(guardians.guardianUserId, autor.contaId), apos ? gt(profiles.id, apos) : undefined),
+      )
+      .orderBy(profiles.id)
+      .limit(21);
+    const agora = await contexto.conferirPrazo();
+    const itens = linhas.slice(0, 20).map(({ perfil, nascimento }) => ({
+      perfil: paraPerfil(perfil),
+      faixas: faixasDoMenor(nascimento, mesEAno(agora)),
+    }));
+    return {
+      itens,
+      anoAtual: mesEAno(agora).ano,
+      proximo: linhas.length > 20 ? (itens.at(-1)?.perfil.id ?? null) : null,
+    };
+  });
+}
+
+/** Cancelar o formulário não remove recibo confirmado nem o perfil criado. */
+export async function cancelarCadastroDeMenor(autor: IdentidadeNativa, intencaoId: string) {
+  await db.transaction(async (tx) => {
+    await limites(tx);
+    const contexto = await autorizarContaNativa(tx, autor);
+    await travar(tx, `recreio:cadastro-perfil:conta:${autor.contaId}`);
+    await contexto.conferirPrazo();
+    await tx
+      .delete(requests)
+      .where(
+        and(
+          eq(requests.id, intencaoId),
+          eq(requests.userId, autor.contaId),
+          isNull(requests.consumedAt),
+        ),
+      );
   });
 }
 

@@ -14,7 +14,12 @@ import {
 import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
 import { describe, expect, it } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
-import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
+import {
+  cadastrarPerfilMenor,
+  cancelarPerfilMenor,
+  listarPerfisMenores,
+  prepararPerfilMenor,
+} from "@/features/familia/service";
 import { criarPerfilProprio } from "@/features/perfis/service";
 import { resolverAtor } from "@/features/sessao/service";
 import { codigoDoBanco, eventosCom, loginReal, novaConta, RESTRICAO, sinal } from "./apoio";
@@ -43,6 +48,84 @@ async function pedido(autor: AutorNativoRecente, apelido = "Menor privado") {
 }
 
 describe("cadastro sob responsabilidade declarada", () => {
+  it("lista somente responsabilidades explícitas e não devolve nascimento nem identidade", async () => {
+    const a = await responsavel();
+    const b = await responsavel();
+    const primeiro = await cadastrarPerfilMenor(a.autor, await pedido(a.autor));
+    await cadastrarPerfilMenor(b.autor, await pedido(b.autor, "Outro grupo"));
+    const pagina = await listarPerfisMenores(a.autor);
+    expect(pagina.itens).toHaveLength(1);
+    expect(pagina.itens[0]).toMatchObject({
+      perfil: { id: primeiro.perfil.id },
+      faixas: { social: "ate_12", classificacao: "6" },
+    });
+    expect(pagina.proximo).toBeNull();
+    for (const privado of [
+      "birthMonth",
+      "birthYear",
+      "nascimento",
+      "guardianUserId",
+      a.conta.email,
+    ]) {
+      expect(JSON.stringify(pagina)).not.toContain(privado);
+    }
+    const [declaracaoDeB] = await db
+      .select()
+      .from(declarations)
+      .where(eq(declarations.userId, b.conta.id));
+    if (!declaracaoDeB) throw new Error("Declaração de B ausente");
+    await db
+      .update(guardians)
+      .set({
+        guardianUserId: b.conta.id,
+        declarationId: declaracaoDeB.id,
+      })
+      .where(eq(guardians.profileId, primeiro.perfil.id));
+    expect((await listarPerfisMenores(a.autor)).itens).toEqual([]);
+    expect((await listarPerfisMenores(b.autor)).itens).toHaveLength(2);
+  });
+
+  it("cancelamento não alcança intenção alheia e não apaga recibo confirmado", async () => {
+    const a = await responsavel();
+    const b = await responsavel();
+    const entrada = await pedido(a.autor);
+    await cancelarPerfilMenor(b.autor, entrada.intencaoId);
+    const criado = await cadastrarPerfilMenor(a.autor, entrada);
+    await cancelarPerfilMenor(a.autor, entrada.intencaoId);
+    expect((await cadastrarPerfilMenor(a.autor, entrada)).perfil.id).toBe(criado.perfil.id);
+    const cancelado = await pedido(a.autor);
+    await cancelarPerfilMenor(a.autor, cancelado.intencaoId);
+    await cancelarPerfilMenor(a.autor, cancelado.intencaoId);
+    await expect(cadastrarPerfilMenor(a.autor, cancelado)).rejects.toMatchObject({
+      code: "CADASTRO",
+    });
+    expect((await listarPerfisMenores(a.autor)).itens).toHaveLength(1);
+    await expect(cancelarPerfilMenor(a.autor, "invalido")).rejects.toThrow();
+  });
+
+  it("gestão dos menores recusa login removido e aparelho infantil", async () => {
+    const r = await responsavel();
+    const entrada = await pedido(r.autor);
+    const criado = await cadastrarPerfilMenor(r.autor, entrada);
+    await db
+      .update(devices)
+      .set({ activeProfileId: criado.perfil.id })
+      .where(eq(devices.id, r.autor.sessaoDeAparelhoId));
+    await expect(listarPerfisMenores(r.autor)).rejects.toMatchObject({ code: "AUTH" });
+    await expect(cancelarPerfilMenor(r.autor, entrada.intencaoId)).rejects.toMatchObject({
+      code: "AUTH",
+    });
+    await db
+      .update(devices)
+      .set({ activeProfileId: null })
+      .where(eq(devices.id, r.autor.sessaoDeAparelhoId));
+    await db.delete(sessions).where(eq(sessions.id, r.autor.login.authSessionId));
+    await expect(listarPerfisMenores(r.autor)).rejects.toMatchObject({ code: "AUTH" });
+    await expect(cancelarPerfilMenor(r.autor, entrada.intencaoId)).rejects.toMatchObject({
+      code: "AUTH",
+    });
+  });
+
   it("pagante sem jogador cria um menor, com vínculo explícito e sem verificação fictícia", async () => {
     const r = await responsavel();
     const resultado = await cadastrarPerfilMenor(r.autor, await pedido(r.autor));
