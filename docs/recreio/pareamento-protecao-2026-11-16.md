@@ -101,3 +101,11 @@ intenção não remove a credencial já confirmada. O cron passa a devolver nove
 contagens, sem dados pessoais. Os testes próprios conferem limite/idempotência
 e preservação de perfil/aparelho confirmado; o teste antigo da manutenção de
 mundos mantém as mesmas cinco verificações de seu domínio.
+
+A rodada `44006664973` aprovou os 12 casos de pareamento/retenção; a única
+falha entre 378 integrações veio de uma fixture antiga de expiração global:
+sessões curtas de outros arquivos venciam durante a espera pelo cursor,
+mudando a contagem esperada de 1 para 3. O isolamento agora retira todas as
+sessões abertas anteriores no banco descartável, e cada caso cria tanto as
+vencidas quanto a válida que verifica. As contagens e provas de auditoria/cursor
+continuam idênticas; não aumentar TTL, timeout ou tolerar encerramentos extras.

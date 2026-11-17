@@ -1,4 +1,4 @@
-import { and, db, eq, inArray, isNull, lt, sql } from "@informach/db";
+import { and, db, eq, inArray, isNull, sql } from "@informach/db";
 import { events, recreioGameSessions as sessions } from "@informach/db/schema";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
@@ -62,10 +62,11 @@ const rodar = () =>
 
 describe("expiração limitada das sessões", () => {
   beforeEach(async () => {
-    // Somente no banco descartável imposto por vitest.integration.config.ts.
-    await db
-      .delete(sessions)
-      .where(and(isNull(sessions.endedAt), lt(sessions.expiresAt, sql`clock_timestamp()`)));
+    // A rotina é global. Sessões de outras fixtures ainda válidas também
+    // podem vencer durante a espera de trava deste teste. Cada caso cria
+    // aqui todas as sessões abertas que pretende observar (inclusive válidas).
+    // Somente no banco descartável e sem paralelismo de arquivos, impostos pela config.
+    await db.delete(sessions).where(isNull(sessions.endedAt));
   });
 
   it("retoma o lote mais antigo, conserva a sessão válida e entrega todos os encerramentos pelo cursor", async () => {
