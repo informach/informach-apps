@@ -19,7 +19,6 @@ export * from "./recreio";
 export * from "./recreio-checkpoints";
 export * from "./recreio-dados";
 export * from "./recreio-familia";
-export * from "./recreio-grupo";
 export * from "./recreio-politicas";
 export * from "./recreio-protecao";
 export * from "./recreio-salvamento";

@@ -153,3 +153,11 @@ Unicidades compostas das tabelas existentes são redundantes com seus IDs
 primários, necessárias às FKs e não exigem normalização. Gerar e revisar a
 migration remotamente; não aplicar junto do salvamento. Writers, limpeza e
 fluxos de convite ainda não implementados.
+
+Revisão da primeira geração (`44089860855`, fonte `70f1944`): o SQL criou as
+FKs compostas antes das unicidades referenciadas nas tabelas existentes. A
+ordem é inválida em PostgreSQL; artefato `14331216640` rejeitado, não copiado
+nem aplicado. Não corrigir SQL gerado à mão. Separar a geração das unicidades
+prévias (0179) da nova tabela e FKs (0180); conferir ambas no banco descartável.
+O arquivo de schema da tabela retorna somente depois da migration prévia,
+conservado na fonte `70f1944`. Nenhuma mudança de produção por esta correção.
