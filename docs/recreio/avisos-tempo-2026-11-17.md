@@ -42,6 +42,13 @@ com a fonte final. Nenhuma migration adicional. Famílias e checkpoint seguem
 desligados em produção. Não confundir aviso correto com garantia de gravação
 depois do corte: a capacidade restrita de salvamento continua pendente.
 
+Na candidata `fa3736f`/`44057662548`, os cinco casos de previsão passaram.
+A integração falhou em uma comparação anterior de participações: os mesmos
+dois registros completos vieram em ordem inversa numa consulta sem `ORDER BY`.
+O teste passa a ordenar as duas leituras pelo ID, conservando a igualdade de
+todos os campos. Não se altera escritor, autorização ou dado de produção.
+Nova rodada completa ainda necessária.
+
 Calendário e agrupamento conferidos na documentação do PostgreSQL 18:
 [séries temporais](https://www.postgresql.org/docs/18/functions-srf.html) e
 [conversão IANA e truncamento explícito em UTC](https://www.postgresql.org/docs/18/functions-datetime.html).
