@@ -1,0 +1,148 @@
+{
+  "formato": "morada.evidencia-pintura",
+  "versao": 1,
+  "codigo": "5b8f331a0d8b7f9b883a88ed691d8cdea1715671",
+  "execucaoPublica": 43765644626,
+  "execucaoPrivada": 43767390595,
+  "executorPrivado": "730b979f2",
+  "placa": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "erros": [],
+  "ciclosPorPeca": 30,
+  "comparacao": "ambos os pacotes pelo renderer de instancias do jogo",
+  "medidas": [
+    {
+      "catalogo": "cadeira_jantar_alta_amarela",
+      "desvioOriginal": 0,
+      "pixelsDiferentes": 0,
+      "antes": {
+        "geometries": 2,
+        "textures": 4
+      },
+      "depois": {
+        "geometries": 2,
+        "textures": 4
+      },
+      "programasAntes": 4,
+      "programasDepois": 4,
+      "chamadas": 2
+    },
+    {
+      "catalogo": "cama_casal_classica_terracota",
+      "desvioOriginal": 0,
+      "pixelsDiferentes": 0,
+      "antes": {
+        "geometries": 3,
+        "textures": 4
+      },
+      "depois": {
+        "geometries": 3,
+        "textures": 4
+      },
+      "programasAntes": 6,
+      "programasDepois": 6,
+      "chamadas": 2
+    },
+    {
+      "catalogo": "criado_classico_branco",
+      "desvioOriginal": 0,
+      "pixelsDiferentes": 0,
+      "antes": {
+        "geometries": 5,
+        "textures": 4
+      },
+      "depois": {
+        "geometries": 5,
+        "textures": 4
+      },
+      "programasAntes": 4,
+      "programasDepois": 4,
+      "chamadas": 6
+    },
+    {
+      "catalogo": "geladeira_retro_uma_porta_vermelha",
+      "desvioOriginal": 0,
+      "pixelsDiferentes": 0,
+      "antes": {
+        "geometries": 11,
+        "textures": 4
+      },
+      "depois": {
+        "geometries": 11,
+        "textures": 4
+      },
+      "programasAntes": 12,
+      "programasDepois": 12,
+      "chamadas": 14
+    },
+    {
+      "catalogo": "mesa_lateral_redonda_prateleira_verde",
+      "desvioOriginal": 0,
+      "pixelsDiferentes": 0,
+      "antes": {
+        "geometries": 3,
+        "textures": 4
+      },
+      "depois": {
+        "geometries": 3,
+        "textures": 4
+      },
+      "programasAntes": 4,
+      "programasDepois": 4,
+      "chamadas": 2
+    },
+    {
+      "catalogo": "poltrona_capitone_couro",
+      "desvioOriginal": 0,
+      "pixelsDiferentes": 0,
+      "antes": {
+        "geometries": 3,
+        "textures": 4
+      },
+      "depois": {
+        "geometries": 3,
+        "textures": 4
+      },
+      "programasAntes": 6,
+      "programasDepois": 6,
+      "chamadas": 2
+    },
+    {
+      "catalogo": "rack_pes_2portas_vermelho",
+      "desvioOriginal": 0,
+      "pixelsDiferentes": 0,
+      "antes": {
+        "geometries": 7,
+        "textures": 4
+      },
+      "depois": {
+        "geometries": 7,
+        "textures": 4
+      },
+      "programasAntes": 6,
+      "programasDepois": 6,
+      "chamadas": 6
+    },
+    {
+      "catalogo": "sofa_classico_mostarda",
+      "desvioOriginal": 0,
+      "pixelsDiferentes": 0,
+      "antes": {
+        "geometries": 3,
+        "textures": 4
+      },
+      "depois": {
+        "geometries": 3,
+        "textures": 4
+      },
+      "programasAntes": 6,
+      "programasDepois": 6,
+      "chamadas": 2
+    }
+  ],
+  "limites": [
+    "Sem medida de FPS em hardware real",
+    "Geometrias/texturas/programas observados; nao mede VRAM completa",
+    "Pacotes parciais de prova sem personagens; nao implantar",
+    "GLBs, receitas e capturas somente no repositorio privado"
+  ]
+}

@@ -12,7 +12,7 @@
   "scripts": {
     "bancada": "vite --config bancada/vite.config.ts",
     "build:bancada": "vite build --config bancada/vite.config.ts",
-    "e2e": "playwright test --config e2e/playwright.config.ts",
+    "e2e": "node scripts/e2e.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

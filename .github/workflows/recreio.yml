@@ -85,7 +85,7 @@ jobs:
         if: matrix.gate == 'quality'
         run: |
           pnpm build:morada-server
-          node apps/morada-server/scripts/verificar-conteiner.mjs
+          node --import tsx apps/morada-server/scripts/verificar-conteiner.mjs
         env:
           MORADA_PROCESSO_RELATORIO: ${{ runner.temp }}/morada-processo.json
       - name: Preserve process shutdown evidence
@@ -106,6 +106,36 @@ jobs:
           RECREIO_CHECKPOINT_MODE: "on"
       - if: matrix.gate == 'versoes'
         run: pnpm --filter @informach/recreio-app e2e:versoes
+      - name: Ler o host publicado para a prova de protocolo
+        if: matrix.gate == 'versoes'
+        uses: actions/checkout@v4
+        with:
+          repository: informach/informach-apps
+          ref: 179a0a76a5350b1f96464a6fb2df83dbb5d91cad
+          path: host-anterior
+          persist-credentials: false
+      - name: Instalar o host anterior sem compartilhar packages da candidata
+        if: matrix.gate == 'versoes'
+        working-directory: host-anterior
+        run: pnpm install --frozen-lockfile
+      - name: Provar as combinacoes com o servidor publicado real
+        if: matrix.gate == 'versoes'
+        env:
+          MORADA_HOST_ANTERIOR_DIR: ${{ github.workspace }}/host-anterior
+          MORADA_HOST_ANTERIOR_SHA: 179a0a76a5350b1f96464a6fb2df83dbb5d91cad
+          MORADA_COMPATIBILIDADE_RELATORIO: ${{ runner.temp }}/morada-compatibilidade.json
+        run: |
+          cp apps/morada-server/test/compatibilidade-executor.ts host-anterior/apps/morada-server/test/
+          pnpm --filter @informach/jogo-morada exec vitest run src/rede/compatibilidade.test.ts
+      - name: Compilar o servidor publicado para a jornada do portal novo
+        if: matrix.gate == 'versoes'
+        working-directory: host-anterior
+        run: pnpm --filter @informach/morada-server build
+      - name: Provar o portal novo com o servidor publicado
+        if: matrix.gate == 'versoes'
+        env:
+          RECREIO_E2E_HOST_ANTERIOR_DIR: ${{ github.workspace }}/host-anterior/apps/morada-server
+        run: pnpm --filter @informach/recreio-app e2e --grep @compatibilidade
       - if: matrix.gate == 'cliente'
         run: pnpm --filter @informach/jogo-morada exec playwright install --with-deps chromium
       - if: matrix.gate == 'cliente'
@@ -120,6 +150,14 @@ jobs:
         with:
           name: morada-cem-dias-${{ github.run_attempt }}
           path: ${{ runner.temp }}/morada-longa.json
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Preservar prova das versoes do protocolo
+        if: always() && matrix.gate == 'versoes'
+        uses: actions/upload-artifact@v4
+        with:
+          name: morada-compatibilidade-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/morada-compatibilidade.json
           if-no-files-found: warn
           retention-days: 30
       - name: Preserve synthetic browser failure evidence
@@ -163,7 +201,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: morada-cores-sinteticas-${{ github.run_attempt }}
-          path: packages/jogo-morada/e2e/test-results/**/cores-parametricas.json
+          path: |
+            packages/jogo-morada/e2e/test-results/**/cores-parametricas.json
+            packages/jogo-morada/e2e/test-results/**/pintura-sintetica.json
+            packages/jogo-morada/e2e/test-results/**/editor-da-casa.png
           if-no-files-found: warn
           retention-days: 30
       - name: Preserve cross-build evidence

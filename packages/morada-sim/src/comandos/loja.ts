@@ -30,11 +30,8 @@ export const CatalogoDaLojaSchema = z.strictObject({
 export type CatalogoDaLoja = z.infer<typeof CatalogoDaLojaSchema>;
 export type MovelDisponivel = { catalogo: string; versaoDoCatalogo: number };
 
-/** Catálogo da simulação e arte disponível são autoridades do host, nunca da intenção. */
-export function conferirCatalogoDaLoja(
-  bruto: unknown,
-  disponiveis: readonly MovelDisponivel[],
-): CatalogoDaLoja {
+/** Continuidade do conteúdo persistido, sem presumir que a arte esteja instalada. */
+export function conferirContinuidadeDaLoja(bruto: unknown): CatalogoDaLoja {
   const catalogo = CatalogoDaLojaSchema.parse(bruto);
   const vistos = new Set<string>();
   for (const oferta of catalogo.ofertas) {
@@ -43,6 +40,17 @@ export function conferirCatalogoDaLoja(
     const entrada = doCatalogo(oferta.catalogo);
     if (!entrada || entrada.versao !== oferta.versaoDoCatalogo)
       throw new Error("Oferta sem entrada compatível no catálogo da simulação");
+  }
+  return catalogo;
+}
+
+/** Catálogo da simulação e arte disponível são autoridades do host, nunca da intenção. */
+export function conferirCatalogoDaLoja(
+  bruto: unknown,
+  disponiveis: readonly MovelDisponivel[],
+): CatalogoDaLoja {
+  const catalogo = conferirContinuidadeDaLoja(bruto);
+  for (const oferta of catalogo.ofertas) {
     if (
       !disponiveis.some(
         (item) =>

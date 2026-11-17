@@ -13,6 +13,7 @@ import type {
   Relacao,
   Sessao,
 } from "../dominio/tipos";
+import { chegadaDaFamilia } from "../espaco/chegada";
 import { type Contexto, causaDoJogador, emitir } from "./contexto";
 
 type Saida = { motivo: MotivoDeRecusa; detalhe?: string } | { versoes: Record<string, number> };
@@ -45,6 +46,13 @@ export function fundarFamilia(
   }
   const inicial = BAIRRO_DA_PROVA.familias[0];
   if (!lote || !inicial) return { motivo: "nao_existe", detalhe: "casa_inicial" };
+  const chegadas = chegadaDaFamilia(
+    estado,
+    lote,
+    ctx.navegador(lote.id),
+    rascunho.moradores.length,
+  );
+  if (!chegadas) return { motivo: "requisito", detalhe: "chegada_sem_espaco" };
 
   const familia: Familia = {
     id: novoId(estado, "fam"),
@@ -54,8 +62,10 @@ export function fundarFamilia(
     vidaMs: 0,
     versao: 1,
   };
-  const moradores = rascunho.moradores.map((morador, i) =>
-    montarMoradorInicial(
+  const moradores = rascunho.moradores.map((morador, i) => {
+    const chegada = chegadas[i];
+    if (!chegada) throw new Error("Chegada sem morador");
+    return montarMoradorInicial(
       estado,
       novoId(estado, "mor"),
       { ...morador, ref: `novo_${i}` },
@@ -64,11 +74,11 @@ export function fundarFamilia(
         t: "lote",
         loteId: lote.id,
         andar: 0,
-        pos: [lote.entrada[0] + (i % 4) * 250, lote.entrada[1] + Math.floor(i / 4) * 250],
+        pos: [...chegada],
         frente: 180,
       },
-    ),
-  );
+    );
+  });
   const porIndice = (indice: number): Morador => {
     const morador = moradores[indice];
     if (!morador) throw new Error("Referência de fundação não validada");

@@ -22,6 +22,19 @@ no portal `000f40ad`, com comparação negativa/corrigida e seis gates na candid
 e na main. Composição D3 passou separadamente e continua sem publicação. A prova
 humana da transferência permanece adiada pelo titular.
 
+Evolução D3 fora da produção: `59f2614a`, seis gates `43802126864` e cinco
+jornadas privadas `43802946380` aprovados, incluindo duas contas, histórico
+próprio com prévia/aceite, deltas originais, queda antes/depois do diário e
+restauração pela interface. JS 1.247.937 bytes/345.039 gzip, teto preservado.
+Capturas históricas do celular sem nomes foram distinguidas de quadro antigo
+no diagnóstico posterior; a lentidão gráfica continua aberta. Arte e evidências arquivadas em rascunho privado, sem ativação do D3.
+Construção estrutural e casas/orçamento continuam pendentes; D3 não concluído.
+[Provas e limites](carregamento-grafico-2026-11-16.md),
+[histórico](d3-concorrencia-historico.md), [plano completo](d3-construcao-compras.md).
+Retenção de ingressos: `7f9b2b0a`, seis gates `43803801642` aprovados e main
+remota integrada; implantação e cron automático às 04:45 UTC conferidos. [Política](retencao-tecnica-2026-11-16.md).
+[Prazos do navegador](prazos-navegador-2026-11-16.md) implantados, com cron/mapas/fonte conferidos.
+
 ## De onde vem o escopo
 
 As propostas ficam no repositório privado `informach/artes-3d`: `paginas/recreio.html` (v2.2), `paginas/morada.html` (v4.4, embora o rodapé da página ainda diga v4.2) e `CONTINUAR.md`. A seção "Ordem" das duas define 5 etapas. Esta frente cobre as duas primeiras, por decisão do titular em 11/11/2026:
@@ -377,7 +390,7 @@ O que o P1 deixa para os próximos lotes:
 ## Pendências fora da frente
 
 - **Arte no histórico do git.** O `informach-apps` está público no GitHub, e o commit que tirou a pasta `ideas/` só apagou os arquivos: os zips dos pacotes e as animações da Mixamo continuam no histórico. Decisão do titular em 11/11/2026: registrar como pendência, sem ação nesta frente. O `AGENTS.md` foi corrigido na revisão de 13/11 para refletir o estado público.
-- **Licença ITHappy** por escrito e a conversa jurídica (faixas, verificação de idade, classificação): correm em paralelo e travam só o lançamento público.
+- **Licença ITHappy:** o titular confirmou em 15/11 que a licença de compra permite o uso comercial; [decisão atual](licenciamento-arte.md). A conversa jurídica sobre faixas, verificação de idade e classificação permanece separada.
 - **Uma réplica** do `morada-server` até existir endereço por instância no Railway.
 - A migração do schema `recreio` vai para produção no merge na `main`, mesmo com a constante desligada. O merge só acontece depois do lote P6.
 

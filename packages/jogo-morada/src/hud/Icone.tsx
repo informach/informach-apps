@@ -2,6 +2,8 @@
 
 const TRACOS = {
   pausa: "M8 5v14M16 5v14",
+  decorar: "M3 20V9l9-6 9 6v11M3 20h18M8 20v-6h8v6M7 9h10M8 5v5M16 5v5",
+  superior: "M4 4h16v16H4zM4 12h16M12 4v16M8 8h.1M16 16h.1",
   paredes: "M3 20V9l9-6 9 6v11M3 20h18M9 20v-6h6v6",
   mira: "M12 3v4M12 17v4M3 12h4M17 12h4M12 12m-3.5 0a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0",
   bairro:

@@ -94,7 +94,7 @@ export interface Ativos {
    * Avisa quando há visuais melhores do que os já entregues (um pacote acabou
    * de baixar): a cena refaz o que montou. O procedural nunca avisa.
    */
-  aoMudar?(ouvinte: () => void): () => void;
+  aoMudar?(ouvinte: (tipo: "ambiente" | "morador") => void): () => void;
   /** Solta geometrias, materiais e texturas compartilhados. */
   dispose(): void;
 }

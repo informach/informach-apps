@@ -1,4 +1,10 @@
-import { type EstadoDoMundo, type MoradorId, obter } from "@informach/morada-sim";
+import {
+  type EstadoDoMundo,
+  listar,
+  type MoradorId,
+  obter,
+  temPermissao,
+} from "@informach/morada-sim";
 import { useState } from "react";
 import { type Vizinho, vizinhosDe } from "../modelo/retratos";
 import type { Controle } from "./controle";
@@ -90,10 +96,44 @@ export function Trilho(props: {
   const { controle, estado, meuMoradorId } = props;
   const [bairroAberto, abrirBairro] = useState(false);
   const baixas = controle.sessao.loja.paredesBaixas;
+  const autor = controle.sessao.loja.jogador?.jogadorId;
+  const editavel =
+    autor && estado.loja
+      ? listar(estado.familias).find(
+          (f) => f.loteId && temPermissao(estado, autor, f.id, "decorar"),
+        )
+      : null;
 
   return (
     <>
       <nav className="morada-painel morada-trilho" aria-label="Ferramentas da cena">
+        {controle.editor.aberto ? (
+          <button
+            type="button"
+            aria-pressed={controle.vistaSuperior()}
+            title={controle.vistaSuperior() ? "Voltar à perspectiva" : "Ver a casa de cima"}
+            onClick={controle.alternarVista}
+          >
+            <Icone nome="superior" />
+            <span>Vista superior</span>
+          </button>
+        ) : null}
+        {editavel ? (
+          <button
+            type="button"
+            aria-pressed={controle.editor.aberto}
+            onClick={() => {
+              if (controle.editor.aberto) controle.editor.fechar();
+              else {
+                controle.sessao.loja.abrirMenu(null);
+                controle.editor.abrir(editavel.id);
+              }
+            }}
+          >
+            <Icone nome="decorar" />
+            <span>Decorar</span>
+          </button>
+        ) : null}
         <button
           type="button"
           aria-pressed={baixas}

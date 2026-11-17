@@ -82,7 +82,7 @@ function cruzam(p: Segmento, q: Segmento): boolean {
 }
 
 /** As partes sólidas das paredes de um andar: cada parede menos as suas portas. */
-function trechosSolidos(imovel: DocumentoDeImovel, andar: number): Segmento[] {
+export function trechosSolidos(imovel: DocumentoDeImovel, andar: number): Segmento[] {
   const planta = imovel.andares.find((a) => a.n === andar);
   if (!planta) return [];
   const trechos: Segmento[] = [];

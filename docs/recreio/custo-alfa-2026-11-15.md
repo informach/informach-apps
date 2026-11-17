@@ -19,6 +19,43 @@ Na janela móvel anterior de uma hora, com 61 amostras de 60 s: portal com memó
 - Rodar carga sintética no GitHub e relacionar mundos ativos, CPU, memória, tráfego e latência do servidor; não executar carga nesta máquina nem no Postgres compartilhado por padrão.
 - Definir rateio explícito da infraestrutura compartilhada e margem/capacidade antes da venda. Limite configurado de mundos não é capacidade comprovada.
 
+## Segunda leitura, aproximadamente 20h04 UTC
+
+Mesma consulta e período: portal **US$ 0,02732842**, Morada **US$ 0,03619232**,
+soma exclusiva **US$ 0,06352074**. A diferença para a leitura anterior arredondada
+é aproximadamente US$ 0,05338481. [Resposta numérica sanitizada](evidencias/custo-alfa-2026-11-15-2004.json).
+
+O cron continua sem linha na resposta; não atribuir custo zero. Nesse intervalo
+houve implantações, validações operacionais e o uso humano já confirmado, mas
+não uma janela controlada com tempo ativo de mundo/jogadores conhecido. O total
+é acumulado estimado e pode chegar com atraso; não dividir pelas horas de
+relógio e apresentar isso como custo por hora de mundo. Banco/Redis/backups
+compartilhados continuam sem rateio. Os quatro critérios de aceite acima
+permanecem abertos.
+
+## Bancada sintética no GitHub
+
+O workflow `morada-carga.yml` executa a bancada existente com 20 mundos e
+dez minutos simulados, nos cenários de 1/2/4/8 conexões. Os parâmetros aceitam
+somente inteiros limitados. Artefato de 30 dias conserva fonte, executor,
+hardware, limites e relatório de CPU/tráfego/memória/fotografia. Fonte
+`229baf7c`, [execução 43803715201](https://github.com/informach/informach-apps/actions/runs/43803715201)
+aprovada. [Valores e origem](evidencias/carga-sintetica-2026-11-16.json).
+
+A bancada usa conexões e persistência em memória, no mesmo processo e tempo
+acelerado. Os robôs disputam os moradores existentes; oito conexões não são
+oito moradores controlados de forma independente. A coluna de mundos por
+vCPU é extrapolação aritmética de CPU, não capacidade homologada. Não há
+PostgreSQL, WebSocket real, preço Railway, FPS ou efeito da rede nessa prova.
+O ensaio remoto em rede/banco e a janela financeira acima continuam obrigatórios.
+
+CPU arredondada por tick: 0,121/0,097/0,037/0,050 ms; tráfego por mundo:
+1,15/2,56/6,09/12,20 kB/s, na ordem 1/2/4/8 conexões. Cenários ocorreram
+sequencialmente no mesmo processo; ordem/JIT e disputa pelos mesmos moradores
+limitam a comparação. Não inferir que acrescentar jogadores reduz o custo.
+Heap foi medido após aquecimento, não como pico sustentado da execução. CPU
+inclui clientes e armazenamento em memória no processo da bancada.
+
 ## Nova fotografia em 16/11
 
 Leitura somente de metadados às 12:52:03–12:52:04 UTC, no mesmo período de

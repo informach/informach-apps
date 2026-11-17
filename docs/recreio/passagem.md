@@ -97,5 +97,5 @@ Esse opt-in declara `assets` no SDK/CSP, entrega a pasta ao servidor do jogo e g
 ## Abertos que pedem decisão do titular
 
 - Os zips de pacotes de arte e as animações da Mixamo continuam no histórico do git deste repositório público.
-- Licença ITHappy por escrito e a conversa jurídica, que travam só o lançamento público.
+- Uso comercial da arte confirmado pelo titular pela licença de compra em 15/11; [decisão atual](licenciamento-arte.md). Revisão jurídica/classificação continuam separadas.
 - `/termos` e `/privacidade` do Recreio pedem revisão.

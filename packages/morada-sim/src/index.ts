@@ -1,6 +1,10 @@
 export * from "./comandos/aparencia";
+export * from "./comandos/edicao";
 export * from "./comandos/fundacao";
 export * from "./comandos/intencao";
+export * from "./comandos/loja";
+export * from "./comandos/obra";
+export * from "./comandos/pintura";
 export { relacaoExistente, saoParentes } from "./dominio/estado";
 export * from "./dominio/fatos";
 export * from "./dominio/ids";
@@ -9,6 +13,7 @@ export * from "./dominio/permissoes";
 export { reduzirFato } from "./dominio/reduzir-fato";
 export * from "./dominio/tabela";
 export * from "./dominio/tipos";
+export { conferirColocacaoNoChao, GRADE_DE_EDICAO, pegadaNoLote } from "./espaco/colocacao";
 export { CELULA, criarNavegador, type Navegador } from "./espaco/navegador";
 export * from "./espaco/posicoes";
 export * from "./execucao";
@@ -18,14 +23,17 @@ export {
   type Fotografia,
   type Migracao,
   migrar,
-  VERSAO_DA_FOTOGRAFIA,
-  VERSAO_DO_MUNDO,
 } from "./formatos/fotografia";
 export * from "./nucleo/canonico";
 export * from "./nucleo/fixo";
 export * from "./nucleo/relogio";
 export { resumoDoTexto, sorteio, sorteioAte } from "./nucleo/sorteio";
 export { ondeLevanta, partidaDe, podeSerInterrompido } from "./sistemas/acoes";
+export { derivarAlvoDaObra, type RascunhoDaObra } from "./sistemas/alvo-da-obra";
+export {
+  type CompensacaoConferida,
+  conferirCompensacaoDaCasa,
+} from "./sistemas/compensacao-da-casa";
 export type {
   ChaveReplicada,
   EventoDeApresentacao,
@@ -36,8 +44,21 @@ export {
   type ImpedimentoDoCuidado,
   impedimentoDoCuidado,
 } from "./sistemas/cuidado";
+export {
+  type PassoDaCasa,
+  proximoPassoDaCasa,
+  type SentidoDoHistorico,
+} from "./sistemas/historico-da-casa";
 export { permissoesDe, temPermissao } from "./sistemas/presenca";
 export { recusaDaInteracao, temPontoLivre } from "./sistemas/regras";
 export { decidirProposta, impedimentoDoPedido } from "./sistemas/relacoes";
+export {
+  type AlvoDaObra,
+  alvosDaObraConflitam,
+  type ConcessaoPublicaDaObra,
+  PRAZO_DA_TRAVA_DE_EDICAO_MS,
+  TRAVAS_DE_EDICAO_POR_MUNDO,
+} from "./sistemas/travas-de-edicao";
 export { progressoDaGravidez } from "./sistemas/vida";
+export { VERSAO_DA_FOTOGRAFIA, VERSAO_DO_MUNDO } from "./versoes";
 export * from "./visao/replicacao";

@@ -1,0 +1,74 @@
+name: Morada - bancada sintetica de carga
+
+on:
+  workflow_dispatch:
+    inputs:
+      mundos:
+        description: Mundos simultaneos (1 a 50)
+        default: "20"
+        required: true
+      minutos:
+        description: Minutos simulados por cenario (1 a 60)
+        default: "10"
+        required: true
+  push:
+    branches: ["verify/morada-carga-*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: morada-carga-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  medir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CARGA_MUNDOS: ${{ inputs.mundos || '20' }}
+      CARGA_MINUTOS: ${{ inputs.minutos || '10' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Conferir tipos da bancada e servidor
+        run: pnpm --filter @informach/morada-server typecheck
+      - name: Registrar origem e limites da medicao
+        env:
+          EVIDENCIA_DIR: ${{ runner.temp }}/morada-carga
+        run: |
+          mkdir -p "$EVIDENCIA_DIR"
+          node --input-type=module <<'JS'
+          import { writeFileSync } from 'node:fs';
+          import { cpus, totalmem } from 'node:os';
+          const origem = {
+            formato: 'morada.carga-sintetica', versao: 1,
+            codigo: process.env.GITHUB_SHA, run: process.env.GITHUB_RUN_ID,
+            inicio: new Date().toISOString(), node: process.version,
+            plataforma: process.platform, arquitetura: process.arch,
+            cpus: cpus().map(({ model, speed }) => ({ model, speed })),
+            memoriaDoExecutor: totalmem(), mundos: process.env.CARGA_MUNDOS,
+            minutosSimuladosPorCenario: process.env.CARGA_MINUTOS,
+            conexoesPorMundo: [1, 2, 4, 8],
+            escopo: 'simulacao, codificacao e persistencia em memoria no mesmo processo',
+            semProvaDe: ['rede real', 'PostgreSQL', 'Railway', 'custo financeiro', 'capacidade de producao', 'FPS'],
+          };
+          writeFileSync(`${process.env.EVIDENCIA_DIR}/origem.json`, JSON.stringify(origem, null, 2) + '\n');
+          JS
+      - name: Medir quatro cenarios sem acessar provedores
+        run: |
+          set -euo pipefail
+          pnpm --filter @informach/morada-server carga "$CARGA_MUNDOS" "$CARGA_MINUTOS" | tee "$RUNNER_TEMP/morada-carga/resultado.md"
+      - name: Preservar resultado e origem
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: morada-carga-sintetica
+          path: ${{ runner.temp }}/morada-carga/
+          if-no-files-found: warn
+          retention-days: 30

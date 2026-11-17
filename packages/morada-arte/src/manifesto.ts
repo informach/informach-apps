@@ -11,6 +11,9 @@ export const FORMATO_DO_MANIFESTO = "morada-arte";
 export const VERSAO_DO_MANIFESTO = 2;
 /** Perfil de cores editáveis; o escritor legado conserva V1/V2. */
 export const VERSAO_DO_MANIFESTO_PARAMETRICO = 3;
+export const VERSAO_DO_MANIFESTO_PINTURA = 4;
+export const ATRIBUTO_MASCARA_PINTURA = "_MORADA_MASCARA_PINTURA";
+export const ATRIBUTO_PESO_PINTURA = "_MORADA_PESO_PINTURA";
 export const MAXIMO_DE_CANAIS_DE_COR = 16;
 export const ATRIBUTO_CANAL_DE_COR = "_MORADA_CANAL_COR";
 export const ATRIBUTO_MASCARA_DE_COR = "_MORADA_MASCARA_COR";
@@ -221,6 +224,23 @@ export const ObjetoDoManifestoSchema = z.strictObject({
   desenho,
 });
 
+/** Semântica da superfície original; RGB escolhido pertence à instância do mundo. */
+export const PinturaDoObjetoSchema = z.strictObject({
+  perfil: z.string().regex(/^[0-9a-f]{64}$/),
+  rotulo: z
+    .string()
+    .trim()
+    .min(1)
+    .max(40)
+    .regex(/^[^\p{Cc}]+$/u),
+  referencia: z.number().int().min(1).max(0xffffff),
+  mascara: z.literal(ATRIBUTO_MASCARA_PINTURA),
+  pesos: z.literal(ATRIBUTO_PESO_PINTURA),
+});
+export const ObjetoComPinturaDoManifestoSchema = ObjetoDoManifestoSchema.extend({
+  pintura: PinturaDoObjetoSchema.optional(),
+});
+
 export const AcabamentoDoManifestoSchema = z.strictObject({
   id: z.string().min(1),
   arquivo: z.string().regex(/^[a-z0-9_-]+\.[0-9a-f]{10}\.png$/),
@@ -300,6 +320,14 @@ export const ManifestoSchema = z.discriminatedUnion("versao", [
     acabamentos: z.array(AcabamentoDoManifestoSchema),
     aberturas: z.array(AberturaDoManifestoSchema),
   }),
+  z.strictObject({
+    ...campos,
+    versao: z.literal(4),
+    personagens: z.array(PersonagemParametricoSchema),
+    objetos: z.array(ObjetoComPinturaDoManifestoSchema),
+    acabamentos: z.array(AcabamentoDoManifestoSchema),
+    aberturas: z.array(AberturaDoManifestoSchema),
+  }),
 ]);
 
 export type Manifesto = z.infer<typeof ManifestoSchema>;
@@ -309,7 +337,8 @@ export type CoresDoPersonagem = z.infer<typeof CoresDoPersonagemSchema>;
 export type MaterialDeCor = z.infer<typeof MaterialDeCorSchema>;
 export type BibliotecaDoManifesto = z.infer<typeof BibliotecaDoManifestoSchema>;
 export type ClipeDoManifesto = z.infer<typeof ClipeDoManifestoSchema>;
-export type ObjetoDoManifesto = z.infer<typeof ObjetoDoManifestoSchema>;
+export type ObjetoDoManifesto = z.infer<typeof ObjetoComPinturaDoManifestoSchema>;
+export type PinturaDoObjeto = z.infer<typeof PinturaDoObjetoSchema>;
 export type AcabamentoDoManifesto = z.infer<typeof AcabamentoDoManifestoSchema>;
 export type AberturaDoManifesto = z.infer<typeof AberturaDoManifestoSchema>;
 
@@ -334,7 +363,7 @@ export function arquivosDoManifesto(manifesto: Manifesto): string[] {
 }
 
 export function mascarasDoManifesto(manifesto: Manifesto): z.infer<typeof MascaraDeCorSchema>[] {
-  return manifesto.versao === 3
+  return manifesto.versao === 3 || manifesto.versao === 4
     ? manifesto.personagens.flatMap((p) => p.cores?.mascaras ?? [])
     : [];
 }

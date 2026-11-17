@@ -10,6 +10,7 @@ import type {
   Velocidade,
 } from "../dominio/tipos";
 import { type Contexto, tocarChave } from "./contexto";
+import { liberarTravasDaSessao } from "./travas-de-edicao";
 
 /**
  * Presença: quem está conectado, quem dirige quem e o acordo de velocidade.
@@ -79,6 +80,8 @@ function conferirVoto(ctx: Contexto): void {
 }
 
 function removerSessao(ctx: Contexto, sessaoId: SessaoId): void {
+  if (ctx.presenca.obra && liberarTravasDaSessao(ctx.presenca.obra, sessaoId))
+    tocarChave(ctx, "presenca");
   const antes = ctx.presenca.sessoes.length;
   ctx.presenca.sessoes = ctx.presenca.sessoes.filter((sessao) => sessao.sessaoId !== sessaoId);
   ctx.presenca.reservas = ctx.presenca.reservas.filter((reserva) => reserva.sessaoId !== sessaoId);
@@ -93,6 +96,8 @@ export function sessaoEntrou(
   apelido?: string,
   podeFundarFamilia = false,
 ): void {
+  if (ctx.presenca.obra && liberarTravasDaSessao(ctx.presenca.obra, sessaoId))
+    tocarChave(ctx, "presenca");
   // Um perfil tem uma conexão só: a nova toma o lugar da antiga.
   for (const antiga of [...ctx.presenca.sessoes]) {
     if (antiga.perfilId === perfilId && antiga.sessaoId !== sessaoId) {
@@ -134,6 +139,8 @@ export function sessaoEntrou(
 
 /** A conexão caiu sem aviso. A reserva espera a volta por uma janela. */
 export function sessaoCaiu(ctx: Contexto, sessaoId: SessaoId, agoraMs: number): void {
+  if (ctx.presenca.obra && liberarTravasDaSessao(ctx.presenca.obra, sessaoId))
+    tocarChave(ctx, "presenca");
   const sessao = sessaoDe(ctx.presenca, sessaoId);
   if (!sessao || sessao.estado === "em_graca") return;
   sessao.estado = "em_graca";
@@ -148,6 +155,8 @@ export function sessaoVoltou(
   apelido?: string,
   podeFundarFamilia = false,
 ): boolean {
+  if (ctx.presenca.obra && liberarTravasDaSessao(ctx.presenca.obra, sessaoId))
+    tocarChave(ctx, "presenca");
   const sessao = sessaoDe(ctx.presenca, sessaoId);
   if (!sessao) return false;
   sessao.estado = "presente";

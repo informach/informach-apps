@@ -234,11 +234,14 @@ class ObjetosProcedurais implements VisualDosObjetos {
       escala.set(tamanho[0], tamanho[1], tamanho[2]);
       this.raiz.setMatrixAt(indice, matriz.compose(posicao, giro, escala));
 
-      cor.setHex(CATEGORIAS[item.entrada?.categoria ?? ""] ?? COR_DESCONHECIDA);
-      // O que não oferece ação fica mais apagado: o olho acha primeiro o que dá para usar.
-      if (!item.entrada?.comportamento) cor.lerp(NEUTRO, 0.45);
-      // Uma variação leve por peça, para móveis iguais e vizinhos não virarem um bloco só.
-      cor.offsetHSL(0, 0, ((indice % 5) - 2) * 0.012);
+      if (item.objeto.pintura) cor.setHex(item.objeto.pintura.cor);
+      else {
+        cor.setHex(CATEGORIAS[item.entrada?.categoria ?? ""] ?? COR_DESCONHECIDA);
+        // O que não oferece ação fica mais apagado: o olho acha primeiro o que dá para usar.
+        if (!item.entrada?.comportamento) cor.lerp(NEUTRO, 0.45);
+        // Uma variação leve por peça, para móveis iguais e vizinhos não virarem um bloco só.
+        cor.offsetHSL(0, 0, ((indice % 5) - 2) * 0.012);
+      }
       this.raiz.setColorAt(indice, cor);
     });
     this.raiz.count = this.visiveis.length;

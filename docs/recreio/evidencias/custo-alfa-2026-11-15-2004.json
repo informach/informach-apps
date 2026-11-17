@@ -1,0 +1,42 @@
+{
+  "tipo": "uso_acumulado_estimado_railway",
+  "consultaUtcAproximada": "2026-11-15 20:04 UTC",
+  "registroUtc": "2026-11-15 20:04:52 UTC",
+  "fonte": "railway usage projects --project <projeto existente> --json",
+  "moeda": "USD",
+  "periodo": {
+    "end": "2026-12-09T10:40:03+00:00",
+    "start": "2026-11-09T10:40:03+00:00"
+  },
+  "servicos": [
+    {
+      "backupDollars": 0,
+      "cpuDollars": 0.0007234995061728396,
+      "egressDollars": 0.0005415861000000001,
+      "id": "b294fe7c-b96b-4ca5-bfa5-191a7d574f08",
+      "memoryDollars": 0.03483239348148148,
+      "name": "@informach/morada-server",
+      "totalDollars": 0.03619231886341658,
+      "volumeDollars": 0.00009483977576225855
+    },
+    {
+      "backupDollars": 0,
+      "cpuDollars": 0.0008476701388888889,
+      "egressDollars": 0.00036847700000000003,
+      "id": "fd21f44e-43d9-4ac0-a125-7a379df8d486",
+      "memoryDollars": 0.026112270712098765,
+      "name": "@informach/recreio-app",
+      "totalDollars": 0.027328417850987653,
+      "volumeDollars": 0
+    }
+  ],
+  "totalExclusivo": 0.06352073671440424,
+  "cronRetornadoNaResposta": false,
+  "compartilhadosRateados": false,
+  "custoPorHoraDeMundoCalculado": false,
+  "limites": [
+    "Estimativa acumulada sujeita a atualizacao do provedor; nao e fatura liquidada.",
+    "Nao inclui infraestrutura compartilhada nem afirma custo zero do cron.",
+    "Nao ha denominador de tempo ativo de mundo/jogadores para custo unitario."
+  ]
+}

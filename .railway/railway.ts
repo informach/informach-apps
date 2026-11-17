@@ -14,7 +14,7 @@ import {
 import { getCollectionApps } from "../packages/config/src/collections";
 import { getAppUrl } from "../packages/config/src/domains";
 import { getProductPriceVariableNames } from "../packages/config/src/products";
-import { MORADA_START_COMMAND } from "./morada-runtime";
+import { MORADA_START_COMMAND } from "./morada-runtime.mts";
 
 // Infraestrutura do projeto informach-apps no Railway, ambiente production.
 // Este arquivo descreve o projeto inteiro: o que sair daqui é apagado no próximo

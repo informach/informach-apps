@@ -1,4 +1,11 @@
-import type { AcaoPedida, Intencao, MoradorId, Resultado } from "@informach/morada-sim";
+import {
+  type AcaoPedida,
+  comandoDeEdicao,
+  copiar,
+  type Intencao,
+  type MoradorId,
+  type Resultado,
+} from "@informach/morada-sim";
 
 /**
  * Os pedidos do cliente. O cliente não muda o mundo: monta uma intenção com
@@ -18,6 +25,8 @@ export type OpcoesDosComandos = {
   /** Manda a intenção. Devolve `false` se não há conexão agora. */
   enviar(intencao: Intencao): boolean;
   mundoId(): string | null;
+  /** Identidade do jogador entregue pelo servidor, nunca a conta do portal. */
+  autor?(): string | null;
   /** Um id novo por comando, com 8 caracteres ou mais. */
   novoId?(): string;
 };
@@ -36,7 +45,7 @@ export class Comandos {
 
   /** Os comandos ainda sem resposta, na ordem em que foram feitos. */
   emAberto(): Intencao[] {
-    return [...this.pendentes.values()].map((pendente) => pendente.intencao);
+    return [...this.pendentes.values()].map((pendente) => copiar(pendente.intencao));
   }
 
   /**
@@ -47,15 +56,39 @@ export class Comandos {
     moradorId: MoradorId | null,
     acao: AcaoPedida,
   ): { comandoId: string; resultado: Promise<Resultado> } {
-    const comandoId = this.novoId();
+    const autor = acao.t === "editar_casa" ? this.opcoes.autor?.() : null;
+    const comandoId =
+      acao.t === "editar_casa" && autor
+        ? comandoDeEdicao(autor, acao.pedido.sequencia)
+        : this.novoId();
     const mundoId = this.opcoes.mundoId();
-    if (!mundoId) {
+    if (!mundoId || (acao.t === "editar_casa" && !autor)) {
       return {
         comandoId,
         resultado: Promise.resolve({ ok: false, comandoId, motivo: "sem_sessao" }),
       };
     }
-    const intencao: Intencao = { comandoId, mundoId, moradorId, acao, versaoEsperada: 0 };
+    if (
+      acao.t === "editar_casa" &&
+      [...this.pendentes.values()].some((item) => item.intencao.acao.t === "editar_casa")
+    )
+      return {
+        comandoId,
+        resultado: Promise.resolve({
+          ok: false,
+          comandoId,
+          motivo: "ocupado",
+          detalhe: "edicao_em_confirmacao",
+        }),
+      };
+    // O formulário pode continuar mudando; o reenvio conserva exatamente o pedido enviado.
+    const intencao: Intencao = {
+      comandoId,
+      mundoId,
+      moradorId,
+      acao: copiar(acao),
+      versaoEsperada: 0,
+    };
     const resultado = new Promise<Resultado>((resolver) => {
       this.pendentes.set(comandoId, { intencao, enviado: false, resolver });
     });

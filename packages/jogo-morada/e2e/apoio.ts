@@ -1,7 +1,9 @@
 import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { LoteId, MoradorId } from "@informach/morada-sim";
 import { expect, type Page } from "@playwright/test";
+import { evidenciasPrivadas } from "./evidencias";
 
 /**
  * Apoio dos testes de navegador. Tudo o que olha para dentro do jogo passa por
@@ -10,21 +12,28 @@ import { expect, type Page } from "@playwright/test";
  * onde clicar.
  */
 
-const telas = fileURLToPath(new URL("./telas/", import.meta.url));
+const telas = evidenciasPrivadas
+  ? join(evidenciasPrivadas, "telas")
+  : fileURLToPath(new URL("./telas/", import.meta.url));
 
 /** Guarda uma foto da tela como evidência local. A pasta é ignorada pelo git. */
 export async function fotografar(pagina: Page, nome: string): Promise<void> {
   mkdirSync(telas, { recursive: true });
-  await pagina.screenshot({ path: `${telas}${nome}.png` });
+  await pagina.screenshot({ path: join(telas, `${nome}.png`) });
 }
 
 /**
  * Entra na bancada com um apelido e espera o mundo aparecer. `validadeS` faz a
  * sessão de jogo valer só esses segundos, para os testes de renovação.
  */
-export async function entrar(pagina: Page, apelido: string, validadeS?: number): Promise<void> {
+export async function entrar(
+  pagina: Page,
+  apelido: string,
+  validadeS?: number,
+  arte = false,
+): Promise<void> {
   const validade = validadeS === undefined ? "" : `&validade=${validadeS}`;
-  await pagina.goto(`/?apelido=${encodeURIComponent(apelido)}${validade}`);
+  await pagina.goto(`/?apelido=${encodeURIComponent(apelido)}${validade}${arte ? "&arte" : ""}`);
   await pagina.waitForFunction(() => window.__morada?.conexao() === "pronto");
   await expect(pagina.locator("canvas.morada-tela")).toBeVisible();
   const inicio = pagina.getByRole("heading", { name: "Quem vai morar aqui?" });

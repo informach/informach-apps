@@ -21,7 +21,8 @@ export default async function empacotar(ctx) {
       .first()
       .innerText()
       .catch(() => "");
-    if (/salv|pronto|empacotad|não foi/i.test(feito) && !/Empacotando/i.test(feito)) break;
+    // Só o fim: a tela de antes do clique já fala em "salvar" e em "empacotar".
+    if (/Aula empacotada em|não foi empacotada/i.test(feito)) break;
   }
   const zip = /Aula empacotada em (.+\.zip)/.exec(feito)?.[1] ?? null;
   const pronto = e.getByRole("button", { name: "Pronto", exact: true });

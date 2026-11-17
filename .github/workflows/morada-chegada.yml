@@ -1,0 +1,54 @@
+name: Morada - chegada e rotulos da familia
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["verify/morada-chegada-*", "verify/morada-historico-*"]
+
+permissions:
+  contents: read
+
+jobs:
+  conferir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Conferir os tipos do nucleo e dos testes
+        run: pnpm --filter @informach/morada-sim typecheck
+      - name: Exercitar geometria fundacao e restauracao
+        run: pnpm --filter @informach/morada-sim exec vitest run src/espaco/chegada.test.ts testes/fundacao.test.ts src/sistemas/historico-da-casa.test.ts testes/edicao.test.ts src/formatos/fotografia-v3.test.ts --reporter=default --reporter=json --outputFile=${{ runner.temp }}/morada-chegada.json
+      - name: Conferir tipos do cliente editor e organizacao dos nomes
+        run: |
+          pnpm --filter @informach/jogo-morada typecheck
+          pnpm --filter @informach/jogo-morada exec vitest run src/modelo/rotulos-na-cena.test.ts src/modelo/editor-da-casa.test.ts src/cena/obras.test.ts src/cena/preparo-da-cena.test.ts src/cena/programas.test.ts src/ativos/arte.test.ts src/espelho/edicao.test.ts src/espelho/sessao.test.ts --reporter=default --reporter=json --outputFile=${{ runner.temp }}/morada-rotulos.json
+      - name: Conferir ator e diario financeiro
+        run: |
+          pnpm --filter @informach/morada-server typecheck
+          pnpm --filter @informach/morada-server exec vitest run test/edicao.test.ts
+      - name: Instalar o navegador da prova focada
+        run: pnpm --filter @informach/jogo-morada exec playwright install --with-deps chromium
+      - name: Conferir bundle e nomes com o desenho real
+        run: pnpm --filter @informach/jogo-morada exec playwright test --config e2e/playwright.config.ts e2e/bundle.spec.ts e2e/rotulos.spec.ts e2e/programas.spec.ts --grep "JavaScript|quem importa|nomes na cena|ligação WebGL"
+      - name: Conferir primeira entrada e console em mundo proprio
+        env:
+          MORADA_E2E_GRUPO: entrada
+          MORADA_E2E_BUILD_PRONTO: "1"
+        run: pnpm --filter @informach/jogo-morada exec playwright test --config e2e/playwright.config.ts e2e/dois-jogadores.spec.ts --grep "as duas entram|nenhum erro no console"
+      - name: Preservar resultado sintetico
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: morada-chegada-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/morada-chegada.json
+            ${{ runner.temp }}/morada-rotulos.json
+            packages/jogo-morada/e2e/test-results/
+          if-no-files-found: warn
+          retention-days: 30

@@ -1,15 +1,19 @@
+import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import { gzipSync } from "node:zlib";
 import { jogoPorId } from "@informach/config/jogos";
 import {
   APELIDO_MAX,
   abrirFotografia,
+  conferirCatalogoDaLoja,
   conferirMetadadosDaFotografia,
   criarMundo,
+  type EdicaoDoCliente,
   type Fato,
   type Intencao,
   listar,
   type Mundo,
+  projetarEdicao,
   type RegrasDoMundo,
   restaurar,
   resumoDoTexto,
@@ -87,10 +91,14 @@ type EntradaNaCaixa =
   | { t: "encerrada"; sid: string };
 
 export type OpcoesDoAtor = {
+  pinturasDisponiveis?: import("@informach/morada-sim").CatalogoDePinturas;
+  moveisDisponiveis?: readonly import("@informach/morada-sim").MovelDisponivel[];
   catalogoDeAparencias?: import("@informach/morada-sim").CatalogoDeAparencias;
   mundoId: MundoId;
   host: ClienteDoHost;
   agora(): number;
+  /** Tempo monotônico de obra; a produção usa performance.now(). */
+  agoraDaObra?(): number;
   posseTtlMs: number;
   falhas: Falhas;
   definicao?: DefinicaoDeBairro;
@@ -156,6 +164,7 @@ const RECUSAS_DO_DIARIO = [
 type PassoPorConcluir = {
   saida: SaidaDoPasso;
   respostas: (() => void)[];
+  edicoes: Map<string, EdicaoDoCliente>;
   /** Fixada na primeira tentativa; confirmações parciais não renumeram o passo. */
   diarioBase: number | null;
 };
@@ -206,6 +215,7 @@ export class Ator {
   readonly ligacoes = new Map<string, Ligacao>();
 
   private mundo: Mundo | null = null;
+  private geracaoDaObra: string | null = null;
   private revisao = 0;
   private diarioSeq = 0;
   private fila: Promise<void> = Promise.resolve();
@@ -358,7 +368,14 @@ export class Ator {
     )
       throw new ErroDoRecreio("REVISAO_DIVERGENTE");
     conferirCatalogoDisponivel(base.estado.catalogoDeAparencias, this.op.catalogoDeAparencias);
-    this.mundo = restaurar(base, fatos);
+    if (this.op.moveisDisponiveis)
+      conferirCatalogoDaLoja(base.estado.loja, this.op.moveisDisponiveis);
+    this.mundo = restaurar(base, fatos, {
+      maxBytesPorFato: LIMITES.diarioLoteMaxBytes,
+      pinturasDisponiveis: this.op.pinturasDisponiveis,
+    });
+    this.geracaoDaObra = randomUUID();
+    this.atualizarObra();
     this.tickConfirmado = this.mundo.estado.relogio.tick;
     this.estado = "ativo";
     this.fotografadoEm = this.op.agora();
@@ -374,6 +391,12 @@ export class Ator {
     // Um mundo novo, ou um que voltou só do diário, ganha logo a sua fotografia.
     if (!guardada || fatos.length > 0 || guardada.meta.schemaVersion !== base.estado.versao)
       await this.fotografar("checkpoint");
+    // A fotografia da migração antecede a admissão. Conteúdo novo só chega ao
+    // cliente depois da confirmação do fato no diário, pelo fluxo normal.
+    if (this.op.pinturasDisponiveis && !this.mundo.estado.catalogoDePinturas) {
+      this.mundo.aplicar({ t: "admitir_pinturas", catalogo: this.op.pinturasDisponiveis });
+      await this.concluirPasso(this.mundo.avancar(0), []);
+    }
   }
 
   // --- Entrar ---
@@ -451,6 +474,7 @@ export class Ator {
         }
       }
 
+      this.atualizarObra();
       // O apelido fica na presença do mundo, que é replicada e nunca gravada.
       const apelido = apelidoParaOMundo(entrada.apelido);
       const podeFundarFamilia = entrada.papel === "steward";
@@ -537,6 +561,7 @@ export class Ator {
         case "intencao": {
           const { ligacao, intencao } = entrada;
           if (ligacao.fase !== "dentro" || !ligacao.sid) break;
+          this.atualizarObra();
           const resultado = mundo.aplicar({ t: "intencao", sessaoId: ligacao.sid, intencao });
           if (resultado.ok && intencao.acao.t === "fundar_familia") {
             for (const outra of this.ligacoes.values()) {
@@ -666,7 +691,17 @@ export class Ator {
     }
   }
 
+  private atualizarObra(): void {
+    if (!this.mundo || !this.geracaoDaObra) throw new Error("Obra sem montagem do host");
+    this.mundo.aplicar({
+      t: "obra_do_host",
+      geracao: this.geracaoDaObra,
+      agoraMs: Math.floor(this.op.agoraDaObra?.() ?? performance.now()),
+    });
+  }
+
   private acadaSegundo(agora: number): void {
+    this.atualizarObra();
     const mundo = this.mundo as Mundo;
     mundo.aplicar({ t: "expirar", agoraMs: agora });
     const dia = Math.floor(agora / 86_400_000);
@@ -707,7 +742,21 @@ export class Ator {
    * ordem. Um passo novo nunca passa na frente de um que ainda não gravou.
    */
   private concluirPasso(saida: SaidaDoPasso, respostas: (() => void)[]): Promise<boolean> {
-    this.pendentes.push({ saida, respostas, diarioBase: null });
+    const edicoes = new Map<string, EdicaoDoCliente>();
+    if (
+      this.mundo &&
+      saida.fatos.some(
+        (fato) =>
+          fato.dados.tipo === "EdicaoRegistrada" ||
+          fato.dados.tipo === "AcessoConcedido" ||
+          fato.dados.tipo === "AcessoRevogado",
+      )
+    ) {
+      for (const ligacao of this.ligacoes.values())
+        if (ligacao.fase === "dentro" && ligacao.jogadorId)
+          edicoes.set(ligacao.jogadorId, projetarEdicao(this.mundo.estado, ligacao.jogadorId));
+    }
+    this.pendentes.push({ saida, respostas, edicoes, diarioBase: null });
     return this.escoar();
   }
 
@@ -769,16 +818,18 @@ export class Ator {
       this.tickConfirmado = saida.tick;
 
       for (const responder of passo.respostas) responder();
-      if (saida.mudancas.length > 0 || saida.apresentacao.length > 0) {
+      if (saida.mudancas.length > 0 || saida.apresentacao.length > 0 || passo.edicoes.size > 0) {
         for (const ligacao of this.ligacoes.values()) {
           // Quem ainda está entrando recebe a visão inteira depois, e não este passo.
           if (ligacao.fase !== "dentro") continue;
+          const edicao = ligacao.jogadorId ? passo.edicoes.get(ligacao.jogadorId) : undefined;
           this.enviar(ligacao, {
             t: "passo",
             seq: ++ligacao.seq,
             tick: saida.tick,
             mudancas: saida.mudancas,
             eventos: saida.apresentacao,
+            ...(edicao ? { edicao } : {}),
           });
         }
       }
