@@ -41,11 +41,12 @@ F4 continua em candidata privada separada: social, denúncias e recurso próprio
 comandos/fila de moderação e demais aceites permanecem em implementação.
 `origin/main` incorporou D3 por trabalho concorrente. Portal (`204cf79c`) e
 Morada (`644b3841`, World2/protocolo1/arte D2) estão fixados para promoção
-explícita; não voltar automaticamente a seguir main. Outros oito consumidores
-de auth aguardam integração pública qualificada para retirar pins temporários.
-O migrator está fixado em F1, somente `pnpm db:migrate`, sem seed. Integração
-Git F1/guarda com a main atual em nova qualificação, sem apagar D3 ou trabalho
-concorrente. [Registro da guarda](recreio/guarda-exclusao-2026-11-17.md).
+explícita; não voltar automaticamente a seguir main. Integração pública
+`07c5d5b9` concluída após sete gates e CI compartilhado aplicável, preservando
+Edi/Morada concorrentes. Os oito outros consumidores voltaram a seguir main,
+com fonte real e prontidão 200; o migrator foi reconectado sem execução nova
+ou seed, e seu comando original foi reposto sem redeploy. 184 recibos
+reconferidos. [Evidência](recreio/evidencias/integracao-grupos-2026-11-17.json).
 Continuar F0–F11, sem anunciar fechamento.
 
 Atualizado em 13/11/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.

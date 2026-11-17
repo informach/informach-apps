@@ -56,7 +56,8 @@
   "guardaCompartilhadaPrevia": "guarda-contas-producao-2026-11-17.json",
   "restauracaoPrevia": "backup-logico-2026-11-17-pre-grupos.json",
   "fonteFixada": true,
-  "integracaoGitPublica": "pendente de qualificação da candidata que preserva as alterações concorrentes",
+  "integracaoGitPublica": "07c5d5b9537961ab987ac5a986c457ef272269c8",
+  "conferenciaPosterior": "integracao-grupos-2026-11-17.json",
   "limites": [
     "Não habilita gameplay infantil, checkpoint, social ou cobrança.",
     "Não conclui F4–F11 nem o encerramento coordenado F7.",

@@ -89,3 +89,18 @@ manutenção POST 200 com treze contagens. Famílias/checkpoint continuam `off`.
 [Evidência de F1](evidencias/grupos-producao-2026-11-17.json). Migração e portal
 usaram somente a fonte congelada já qualificada; a integração Git com a main
 concorrente e a retirada dos oito pins temporários continuam pendentes.
+
+Às 21:59 UTC, a integração pública `07c5d5b9` foi concluída após sete gates
+`44181574128`, CI compartilhado `44165661197` da fonte funcional idêntica e
+verificação nativa das mudanças EdiAula concorrentes `44170311151`, tentativa 2.
+As diferenças posteriores ao CI compartilhado ficaram apenas no EdiAula,
+incluindo uma correção de formatação, sem alterar suas funções verificadas.
+
+Os oito outros consumidores voltaram a acompanhar `main`: cada processo foi
+conferido em `07c5d5b9` com prontidão HTTP 200. Portal continua fixado em
+`204cf79c`, Morada em `644b3841`, ambos com prontidão 200. O migrator voltou a
+seguir main sem executar: a publicação foi ignorada pelos filtros de arquivos.
+Seu comando original foi reposto para a próxima implantação, sem redeploy ou
+seed nesta etapa. Leitura atual do banco: 184 recibos, dois grupos, um perfil,
+dois mundos, nenhuma sessão aberta ou tabela social. Famílias/checkpoint e
+jogo interno continuam desligados. [Evidência consolidada](evidencias/integracao-grupos-2026-11-17.json).
