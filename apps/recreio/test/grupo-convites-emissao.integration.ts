@@ -33,6 +33,17 @@ const pedido = (email = `${crypto.randomUUID()}@example.test`) => ({
 });
 
 describe("emissão nativa de convite comercial sem jogador obrigatório", () => {
+  it("fixa a conta já existente sem divulgar essa existência na resposta", async () => {
+    const a = await titular();
+    const destinatario = await novaConta();
+    const emitido = await convidarAdulto(a.autor, pedido(destinatario.email));
+    expect(Object.keys(emitido).sort()).toEqual(["conviteId", "criado", "expiraEm"]);
+    const [linha] = await db.select().from(invites).where(eq(invites.id, emitido.conviteId));
+    expect(linha).toMatchObject({
+      recipientEmail: destinatario.email,
+      recipientUserId: destinatario.id,
+    });
+  });
   it("duplicação concorrente cria um grupo e um convite sem alterar prazo ou criar perfil", async () => {
     const a = await titular();
     const entrada = pedido();

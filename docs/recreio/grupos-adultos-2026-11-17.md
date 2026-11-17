@@ -217,3 +217,12 @@ O endereço continua exigido junto do ID, e a resposta de emissão não informa
 se a conta existe. Leitores/aceite precisam provar a troca de endereço. A
 captura de cobertura entra na lista explícita de telas sintéticas do workflow;
 o artefato anterior de conta não a incluía. Inspeção visual continua pendente.
+
+0181 gerada em `44094044162`, fonte `b015c4f0`, artefato `14333575954`:
+ZIP SHA `40b99d7ca31c026b30d178640b9a0b581142199d58f7212acb0575293bac9918`.
+`0181_old_plazm.sql`, 520 bytes, SHA
+`000b6c5c98b2164ccec77fd3aaab64b42085c78fb7fab064549844496de31a17`;
+snapshot SHA `9367b60e76f486ae903946eca13a19aa5625a1e103bf88763218953516a8fd1d`;
+journal SHA `3f1821a8c6abeeee4c0fbddea7aa632405979a5eed54ac88eab175c296ffb1a3`.
+Três arquivos conferidos e copiados intactos. Somente coluna nullable, FK e
+check da tabela privada de convites; não toca concessões, identidades ou dados.

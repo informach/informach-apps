@@ -1,0 +1,3 @@
+ALTER TABLE "recreio"."group_invites" ADD COLUMN "recipient_user_id" text;--> statement-breakpoint
+ALTER TABLE "recreio"."group_invites" ADD CONSTRAINT "group_invites_recipient_user_id_users_id_fk" FOREIGN KEY ("recipient_user_id") REFERENCES "core"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "recreio"."group_invites" ADD CONSTRAINT "recreio_group_invite_binding" CHECK ("recreio"."group_invites"."state"='pending' or "recreio"."group_invites"."recipient_user_id" is null);

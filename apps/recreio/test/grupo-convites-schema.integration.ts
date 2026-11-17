@@ -3,6 +3,7 @@ import {
   recreioGroups as groups,
   recreioGroupInvites as invites,
   recreioProfiles as profiles,
+  users,
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
 import { CHECAGEM, codigoDoBanco, novoJogador, UNICO } from "./apoio";
@@ -35,6 +36,30 @@ async function preparar() {
 }
 
 describe("integridade do convite comercial e de seu recibo", () => {
+  it("excluir a conta destinatária remove só sua pendência e terminal limpa a vinculação", async () => {
+    const r = await preparar();
+    const [pendente] = await db
+      .insert(invites)
+      .values({
+        ...r.pendente,
+        recipientUserId: r.destinatario.conta.id,
+      })
+      .returning();
+    if (!pendente) throw new Error("Convite ausente");
+    expect(
+      await codigoDoBanco(
+        db.insert(invites).values({
+          ...r.aceito,
+          recipientUserId: r.destinatario.conta.id,
+        }),
+      ),
+    ).toBe(CHECAGEM);
+    await db.delete(users).where(eq(users.id, r.destinatario.conta.id));
+    expect(await db.select().from(invites).where(eq(invites.id, pendente.id))).toEqual([]);
+    expect(
+      await db.select({ id: groups.id }).from(groups).where(eq(groups.id, r.grupo.id)),
+    ).toHaveLength(1);
+  });
   it("FK de emissão exige o titular daquele grupo e a pendência é única por endereço", async () => {
     const r = await preparar();
     expect(
