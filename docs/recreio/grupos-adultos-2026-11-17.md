@@ -292,3 +292,11 @@ repetir conflito de revisão do usuário nem falha desconhecida. Provas incluem
 última vaga, quinto cadastro, aceites simultâneos, conta/endereço incorretos,
 revogação, prazo/cobertura vencendo na auditoria, rollback e reabertura do
 progresso real pelo SDK. Interfaces, expurgo e homologação ainda pendentes.
+
+O CI de `4a2faa5` identificou dois erros de tipos: a projeção do grupo não
+incluía o titular e a capacidade recebeu string sem validar `GrupoId`. A
+candidata seguinte corrige os contratos, sem casts ou supressões, e inclui
+expiração global auditada (lote de 100) e retenção dos recibos terminais por
+24 horas (lote de 500), com `SKIP LOCKED`. O cron devolve as duas contagens;
+nenhum desses passos apaga perfil, participação, dados ou auditoria. Provas de
+rollback, limites e disputa por linha rodam no PostgreSQL descartável remoto.

@@ -149,7 +149,7 @@ async function tentarAceitar(autor: AutorNativoRecente, pedido: AceiteDeGrupo) {
         "Convite não disponível.",
       );
       if (pedido.cobrir) {
-        const fatos = await lerFatosDoGrupo(atual.grupo.id, tx);
+        const fatos = await lerFatosDoGrupo(GrupoIdSchema.parse(atual.grupo.id), tx);
         assertAllowed(fatos, "GRUPO", "Grupo não disponível.");
         agora = await atual.nativa.conferirPrazo(autor.login);
         assertAllowed(

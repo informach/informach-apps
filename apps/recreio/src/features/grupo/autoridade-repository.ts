@@ -96,7 +96,7 @@ async function admitirComposicao(
     .for("share");
   const nativa = await autorizarContaNativa(tx, autor, modo);
   const [grupo] = await tx
-    .select({ id: groups.id })
+    .select({ id: groups.id, ownerUserId: groups.ownerUserId })
     .from(groups)
     .where(and(eq(groups.id, grupoId), eq(groups.ownerUserId, pistaDoGrupo.titularId)))
     .for(modo);
