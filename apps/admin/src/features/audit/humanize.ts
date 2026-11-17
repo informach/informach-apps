@@ -129,6 +129,11 @@ const PHRASES: Record<string, (ctx: Context) => SentencePart[]> = {
   ],
   "recreio.achievement_unlocked": () => [t("Registrou uma conquista no Recreio")],
   "recreio.device_session_revoked": () => [t("Desconectou um aparelho do Recreio")],
+  "recreio.device_paired": () => [t("Pareou um aparelho protegido do Recreio")],
+  "recreio.protection_pin_changed": () => [t("Alterou um PIN de proteção do Recreio")],
+  "recreio.minor_access_revoked": () => [
+    t("Revogou os aparelhos de um perfil protegido do Recreio"),
+  ],
   "recreio.entitlement_granted": () => [t("Recebeu acesso ao Recreio")],
   "recreio.entitlement_revoked": () => [t("Teve o acesso ao Recreio revogado")],
   "recreio.game_session_started": () => [t("Abriu uma sessão de jogo no Recreio")],

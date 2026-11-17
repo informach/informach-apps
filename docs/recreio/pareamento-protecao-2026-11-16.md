@@ -59,4 +59,30 @@ Referência de API consultada: [Node 24, crypto](https://nodejs.org/docs/latest-
 Usar a versão já instalada, sem atualização de dependências. O hash não elimina
 a baixa entropia do PIN; tentativas e autoridade atual fazem parte do contrato.
 
-Estado: plano do incremento, sem pareamento ou proteção infantil ativados em produção.
+## Implementação em candidata
+
+Schema gerado pela rodada `44005001991`, fonte `a9bc925d`, artefato
+`14294815119`. Os três arquivos foram conferidos por origem, tamanho e SHA-256:
+`0170_overrated_mach_iv.sql` (6.223 bytes,
+`bd5cc7bfe4c1d8c6c89e3e8caf1bc7b6d69d4a29941e33945b956a9048c92fba`),
+snapshot e journal. A geração cria as quatro tabelas antes de adicionar FKs;
+acrescenta os dois índices parciais da limpeza de intenções familiares. Nenhum
+arquivo gerado foi editado à mão, nem aplicado em produção.
+
+O backend em candidata prepara/aprova/consulta o pareamento e verifica a
+credencial atual. A resposta final é derivada do segredo aleatório do aparelho
+e do ID da sessão: a repetição recebe a mesma credencial, sem ampliar o prazo.
+O responsável não recebe esse segredo. Dispositivos não têm `userId` ou
+`authSessionId`; cada uso confere perfil, vínculo, geração, prazo e sanções.
+PIN nativo não depende de jogador; PIN infantil tem geração própria, separada
+da geração de acesso. Revogação muda a geração, revoga aparelhos e encerra
+partidas atomicamente com a auditoria. Há teto técnico de dez aparelhos vivos
+por menor, independente dos quatro jogadores do plano Família.
+
+As APIs web/cookies, seleção compartilhada e aplicação da autoridade infantil
+em todas as APIs de jogo ainda estão pendentes. Os serviços não estão expostos
+por rotas. A candidata precisa passar nos testes de hash, PostgreSQL real,
+concorrência, auditoria e revogação antes da integração seguinte.
+
+Estado: backend em verificação remota, sem pareamento ou proteção infantil
+ativados em produção. F2–F3 continuam abertos.
