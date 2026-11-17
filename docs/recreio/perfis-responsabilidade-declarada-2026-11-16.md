@@ -85,3 +85,11 @@ fixtures agora criam sessão de login real antes do jogador, reproduzindo a
 ordem do fluxo web. A rodada inicial do backend (`43994513410`) identificou um
 operador `lte` ainda não reexportado por `@informach/db`; a correção usa a
 exportação pública padrão do Drizzle, sem alterar dependências.
+
+A rodada `43995929953`, fonte `4fce11a`, passou em tipos, navegador, versões,
+cliente e simulação longa; a integração passou 358 casos e falhou em quatro do
+lote de expiração. O novo caminho nativo tomava outra conexão para conferir
+login no fallback PostgreSQL, esgotando o pool durante as criações concorrentes.
+O caminho transacional passou a exigir o reader da transação. A prova existente
+do lote e a nova prova determinística de dez escritores precisam passar sem
+aumentar pool, prazo ou retirar concorrência.

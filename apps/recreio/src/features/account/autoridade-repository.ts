@@ -47,7 +47,7 @@ export async function autorizarContaNativa(tx: Transacao, ator: IdentidadeNativa
   const authSessionId = atual.authSessionId;
   const conferirPrazo = async (prova?: ProvaDeLoginNativo): Promise<Date> => {
     assertAllowed(
-      await sessaoDeLoginViva({ authSessionId, contaId: ator.contaId }),
+      await sessaoDeLoginViva({ authSessionId, contaId: ator.contaId }, tx),
       "AUTH",
       "Entre novamente para continuar.",
     );
