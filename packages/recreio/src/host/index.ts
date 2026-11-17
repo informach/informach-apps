@@ -1,5 +1,7 @@
 export type {
+  CheckpointDoHost,
   ClienteDoHost,
+  ClienteDoHostComCheckpoint,
   EntradaDoDiario,
   EntradaPermitida,
   MetaDeFotografia,

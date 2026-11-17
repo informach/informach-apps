@@ -187,6 +187,36 @@ describe("abertura da sessão", () => {
     expect(a.pendentes()).toHaveLength(0);
     expect(await contexto.sessao.controle()).toMatchObject({ pausada: true });
   });
+  it("pedido de checkpoint suspende a renovação até o controle liberar uma tentativa não confirmada", async () => {
+    const a = ambiente();
+    const controle = {
+      agora: new Date(INICIO).toISOString(),
+      expiraEm: new Date(INICIO + QUINZE_MIN).toISOString(),
+      pausada: false,
+      tempo: null,
+      checkpoint: {
+        id: MUNDO,
+        estado: "requested",
+        modo: "server",
+        expiraEm: new Date(INICIO + 30_000).toISOString(),
+      },
+    };
+    a.responder(
+      { corpo: a.aberta() },
+      { corpo: controle },
+      { corpo: { ...controle, checkpoint: null } },
+      { corpo: a.sessao("sessao-2", INICIO + QUINZE_MIN * 2) },
+    );
+    const contexto = await criarRecreio(a.opcoes());
+    await contexto.sessao.controle();
+    expect(a.pendentes()).toHaveLength(0);
+    expect(contexto.sessao.token()).toBe("sessao-1");
+    await contexto.sessao.controle();
+    expect(a.pendentes()).toHaveLength(1);
+    await a.disparar();
+    expect(contexto.sessao.token()).toBe("sessao-2");
+    expect(a.chamadas.filter((c) => c.url.endsWith("/sessao/renovar"))).toHaveLength(1);
+  });
   it("recuperação repete só uma vez com o mesmo ingresso e prova aleatória; sem prova não repete", async () => {
     const a = ambiente();
     a.responder(new Error("resposta perdida"), { corpo: a.aberta() });

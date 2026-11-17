@@ -193,7 +193,11 @@ describe("integridade do escopo e preparação da responsabilidade", () => {
   it("o encerramento específico conserva cursor/auditoria sem mudar a participação", async () => {
     const a = await cenario();
     const sessao = await entrarNoJogo(a.dono);
-    const antes = await db.select().from(members).where(eq(members.spaceId, a.mundoId));
+    const antes = await db
+      .select()
+      .from(members)
+      .where(eq(members.spaceId, a.mundoId))
+      .orderBy(members.id);
     await db.transaction((tx) =>
       encerrarSessoesAbertas(tx, sql`${games.id} = ${sessao.sid}`, "permissions_changed", {
         porQuem: "recreio",
@@ -205,7 +209,9 @@ describe("integridade do escopo e preparação da responsabilidade", () => {
       endedAt: expect.any(Date),
       endedSeq: expect.any(Number),
     });
-    expect(await db.select().from(members).where(eq(members.spaceId, a.mundoId))).toEqual(antes);
+    expect(
+      await db.select().from(members).where(eq(members.spaceId, a.mundoId)).orderBy(members.id),
+    ).toEqual(antes);
     expect(await eventosCom("sessionId", sessao.sid)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

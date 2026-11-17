@@ -29,11 +29,16 @@ export async function conferirSessaoAdmitida(
     jogo.profileId !== sessao.perfilId ||
     jogo.deviceSessionId !== admissao.aparelho.id ||
     jogo.gameId !== sessao.jogo ||
-    jogo.endedAt !== null ||
-    jogo.expiresAt <= agora ||
     admissao.versaoDaPolitica !== sessao.versaoDaPolitica
   )
     return recusarAutoridade();
+  // A sessão pode ter terminado depois da conferência do token e antes desta
+  // trava. A mesma identidade/aparelho recebe o motivo persistido, como na rota.
+  if (jogo.endedAt !== null)
+    return recusarAutoridade(
+      new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: jogo.endReason ?? "expired" }),
+    );
+  if (jogo.expiresAt <= agora) return recusarAutoridade();
   if (jogo.checkpointFrozenAt !== null && !opcoes.permitirPausaDeCheckpoint)
     return recusarAutoridade(new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "checkpoint" }));
   if (admissao.politica) {

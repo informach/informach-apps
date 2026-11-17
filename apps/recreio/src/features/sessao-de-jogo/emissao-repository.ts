@@ -217,6 +217,7 @@ export async function abrirSessaoComIngresso(entrada: {
         .select({
           id: games.id,
           jogo: games.gameId,
+          mundoId: games.spaceId,
           expiraEm: games.expiresAt,
           congeladaEm: games.checkpointFrozenAt,
         })
@@ -224,6 +225,7 @@ export async function abrirSessaoComIngresso(entrada: {
         .where(and(eq(games.profileId, entrada.ingresso.perfilId), isNull(games.endedAt)));
       const agora = await contexto.conferirPrazo();
       let trocaConfirmada: string | null = null;
+      let trocaExpiraEm: Date | null = null;
       if (
         aberta &&
         aberta.expiraEm > agora &&
@@ -242,6 +244,7 @@ export async function abrirSessaoComIngresso(entrada: {
         const troca = await prepararTrocaDeAparelho(tx, contexto, entrada.ingresso, aberta);
         if (!troca.pronta) return recusarAutoridade(troca.erro);
         trocaConfirmada = troca.id;
+        trocaExpiraEm = troca.expiraEm;
       }
       // Leitor anterior aos escritores de troca: uma barreira nunca é aceite implícito.
       if (aberta && aberta.congeladaEm !== null && !trocaConfirmada)
@@ -359,6 +362,8 @@ export async function abrirSessaoComIngresso(entrada: {
       );
       const fim = await contexto.conferirPrazo();
       if (token.expiraEm <= fim) throw new ErroDoRecreio("INGRESSO_INVALIDO");
+      if (trocaExpiraEm && trocaExpiraEm <= fim)
+        throw new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "expired" });
       return {
         admitida: true as const,
         valor: respostaDaSessao(contexto, entrada.ingresso, token),

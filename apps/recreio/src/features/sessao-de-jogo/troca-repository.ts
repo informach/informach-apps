@@ -13,10 +13,23 @@ export async function prepararTrocaDeAparelho(
   tx: Transacao,
   admissao: Admissao,
   ingresso: IngressoVerificado,
-  anterior: { id: string; jogo: string; expiraEm: Date; congeladaEm: Date | null },
-): Promise<{ pronta: true; id: string } | { pronta: false; erro: ErroDoRecreio }> {
+  anterior: {
+    id: string;
+    jogo: string;
+    mundoId: string | null;
+    expiraEm: Date;
+    congeladaEm: Date | null;
+  },
+): Promise<{ pronta: true; id: string; expiraEm: Date } | { pronta: false; erro: ErroDoRecreio }> {
   const agora = await admissao.conferirPrazo();
-  const modo = jogoDoCatalogo(anterior.jogo).capacidades.mundos ? "server" : "profile";
+  const capacidades = jogoDoCatalogo(anterior.jogo).capacidades;
+  const modo = capacidades.mundos ? "server" : "profile";
+  if (
+    modo === "server"
+      ? capacidades.checkpoint !== "servidor" || !anterior.mundoId
+      : capacidades.checkpoint !== "perfil"
+  )
+    return { pronta: false, erro: new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "manual" }) };
   await tx
     .update(handoffs)
     .set({ status: "expired", finishedAt: agora })
@@ -38,13 +51,13 @@ export async function prepararTrocaDeAparelho(
     )
       throw new ErroDoRecreio("INGRESSO_INVALIDO");
     if (
-      modo === "profile" &&
       propria.status === "confirmed" &&
       propria.expiresAt > agora &&
       anterior.congeladaEm !== null &&
-      propria.confirmedAt?.getTime() === anterior.congeladaEm.getTime()
+      propria.confirmedAt?.getTime() === anterior.congeladaEm.getTime() &&
+      (modo === "profile" || propria.checkpointSpaceId === anterior.mundoId)
     )
-      return { pronta: true, id: propria.id };
+      return { pronta: true, id: propria.id, expiraEm: propria.expiresAt };
     return {
       pronta: false,
       erro: new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: propria.status }),
@@ -61,9 +74,6 @@ export async function prepararTrocaDeAparelho(
     );
   if (pendente || anterior.congeladaEm !== null)
     return { pronta: false, erro: new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "pending" }) };
-  // O adaptador autenticado dos mundos chega em outro incremento. Nunca aceitar ACK do navegador.
-  if (modo === "server")
-    return { pronta: false, erro: new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "manual" }) };
   const expiraEm = new Date(
     Math.min(agora.getTime() + 30_000, ingresso.expiraEm, anterior.expiraEm.getTime()),
   );

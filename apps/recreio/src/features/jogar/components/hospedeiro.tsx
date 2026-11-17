@@ -65,11 +65,13 @@ export function Hospedeiro({
   mundo,
   estante = "/estante",
   trocaCoordenada = false,
+  supervisionado = false,
 }: {
   jogo: { id: string; nome: string; origemDaArte?: string | null };
   mundo: { id: MundoId; nome: string } | null;
   estante?: "/estante" | "/aparelho";
   trocaCoordenada?: boolean;
+  supervisionado?: boolean;
 }) {
   const [estado, despachar] = useReducer(reduzir, ESTADO_INICIAL);
   /** O jogo montado tem o próprio controle de saída: a página não desenha o dela. */
@@ -174,7 +176,7 @@ export function Hospedeiro({
             return;
           }
           nova.montado = montado;
-          if (trocaCoordenada)
+          if (trocaCoordenada || supervisionado)
             nova.cancelarControle = observarTrocaDaPartida(
               contexto,
               montado,
@@ -196,7 +198,16 @@ export function Hospedeiro({
         }
       });
     },
-    [jogo.id, jogo.origemDaArte, mundo?.id, desmontar, parar, sair, trocaCoordenada],
+    [
+      jogo.id,
+      jogo.origemDaArte,
+      mundo?.id,
+      desmontar,
+      parar,
+      sair,
+      trocaCoordenada,
+      supervisionado,
+    ],
   );
 
   useEffect(() => {

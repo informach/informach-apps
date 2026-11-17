@@ -55,6 +55,8 @@ export type GameManifest = {
     mundos: { membrosMax: number } | null;
     posse: readonly LocalDaPosse[];
     dadosDePerfil: boolean;
+    /** Contrato implementado pelo título; null exige salvar/sair manualmente. */
+    checkpoint: "perfil" | "servidor" | null;
     conquistas: boolean;
     textoLivre: boolean;
     conteudoDeUsuario: boolean;
@@ -83,6 +85,7 @@ export const JOGOS = [
       mundos: { membrosMax: 8 },
       posse: ["servidor"],
       dadosDePerfil: false,
+      checkpoint: null,
       conquistas: false,
       textoLivre: false,
       conteudoDeUsuario: false,

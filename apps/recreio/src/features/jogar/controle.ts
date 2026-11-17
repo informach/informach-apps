@@ -13,6 +13,7 @@ export function observarTrocaDaPartida(
   let timer: ReturnType<typeof setTimeout> | null = null;
   let processado: string | null = null;
   let ackSemResposta = false;
+  let avisandoTempo = false;
   const avisar = (aviso: AvisoDaTroca | null) => {
     if (!cancelado) aoAvisar(aviso);
   };
@@ -26,6 +27,22 @@ export function observarTrocaDaPartida(
     try {
       const controle = await contexto.sessao.controle();
       if (cancelado) return;
+      if (!controle.pausada && controle.checkpoint === null && !ackSemResposta) {
+        const faltam = controle.tempo?.pausaEm
+          ? Date.parse(controle.tempo.pausaEm) - Date.parse(controle.agora)
+          : Infinity;
+        if (faltam > 0 && faltam <= 600_000) {
+          const minutos = Math.ceil(faltam / 60_000);
+          avisar({
+            texto: `Faltam cerca de ${minutos} ${minutos === 1 ? "minuto" : "minutos"} para a pausa. Salve pelo jogo antes do fim do tempo.`,
+            bloqueia: false,
+          });
+          avisandoTempo = true;
+        } else if (avisandoTempo) {
+          avisar(null);
+          avisandoTempo = false;
+        }
+      }
       if (controle.pausada) {
         ackSemResposta = false;
         pausada();
@@ -34,7 +51,7 @@ export function observarTrocaDaPartida(
         controle.checkpoint.id !== processado
       ) {
         const pedido = controle.checkpoint;
-        if (pedido.modo !== "profile" || !montado.checkpoint) {
+        if (!montado.checkpoint) {
           avisar({
             texto: "Para continuar no outro aparelho, salve e saia pelo jogo neste aparelho.",
             bloqueia: false,
@@ -45,14 +62,25 @@ export function observarTrocaDaPartida(
         avisar({ texto: "Salvando antes de trocar de aparelho…", bloqueia: true });
         let salvo = false;
         try {
-          salvo = await montado.checkpoint();
+          salvo = await montado.checkpoint({ id: pedido.id, modo: pedido.modo });
         } catch {
           salvo = false;
         }
         if (cancelado) return;
         ackSemResposta = true;
-        const resultado = await contexto.sessao.checkpoint(pedido.id, salvo);
+        const resultado =
+          pedido.modo === "profile"
+            ? await contexto.sessao.checkpoint(pedido.id, salvo)
+            : await contexto.sessao.controle();
         if (cancelado) return;
+        // O booleano do cliente de mundo não é recibo: só o controle servidor confirma.
+        if ("checkpoint" in resultado && !resultado.pausada && resultado.checkpoint !== null) {
+          avisar({
+            texto: "Ainda não foi possível confirmar a troca. Mantenha esta página aberta.",
+            bloqueia: true,
+          });
+          return;
+        }
         processado = pedido.id;
         if (resultado.pausada) {
           ackSemResposta = false;

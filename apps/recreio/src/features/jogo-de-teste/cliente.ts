@@ -91,6 +91,23 @@ export const jogoDeTeste: ModuloDoJogo = {
     /** Já esteve dentro do mundo: daqui em diante, queda é assunto do jogo, não da página. */
     let jaEntrou = false;
     let meuMembro: string | null = null;
+    let pausado = false;
+    let checkpointConfirmado: string | null = null;
+    let checkpointPendente: {
+      id: string;
+      promessa: Promise<boolean>;
+      resolver: (salvo: boolean) => void;
+      timer: ReturnType<typeof setTimeout>;
+    } | null = null;
+
+    function concluirCheckpoint(salvo: boolean): void {
+      const pendente = checkpointPendente;
+      checkpointPendente = null;
+      if (!pendente) return;
+      clearTimeout(pendente.timer);
+      if (salvo) checkpointConfirmado = pendente.id;
+      pendente.resolver(salvo);
+    }
 
     function enviar(quadroDoCliente: DoCliente): void {
       if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(quadroDoCliente));
@@ -109,12 +126,13 @@ export const jogoDeTeste: ModuloDoJogo = {
           ),
         ),
       );
-      somar.disabled = false;
-      aviso.textContent = "";
+      somar.disabled = pausado;
+      aviso.textContent = pausado ? "Partida pausada para conferir a troca de aparelho." : "";
     }
 
     function parar(): void {
       encerrado = true;
+      concluirCheckpoint(false);
       if (espera !== null) clearTimeout(espera);
       espera = null;
       cancelarRenovacao();
@@ -178,6 +196,17 @@ export const jogoDeTeste: ModuloDoJogo = {
           fim = recebido;
           return;
         }
+        if (recebido.t === "checkpoint") {
+          if (recebido.id === checkpointPendente?.id) concluirCheckpoint(recebido.confirmado);
+          return;
+        }
+        if (recebido.t === "retomado") {
+          pausado = false;
+          checkpointConfirmado = null;
+          somar.disabled = false;
+          aviso.textContent = "";
+          return;
+        }
         jaEntrou = true;
         tentativas = 0;
         mostrar(recebido);
@@ -185,13 +214,16 @@ export const jogoDeTeste: ModuloDoJogo = {
       atual.addEventListener("close", () => {
         if (socket !== atual) return;
         socket = null;
+        concluirCheckpoint(false);
         if (encerrado) return;
         if (fim && !FINS_PASSAGEIROS.includes(fim.codigo)) falhar(erroDoFim(fim));
         else tentarDeNovo();
       });
     }
 
-    somar.addEventListener("click", () => enviar({ t: "somar", id: crypto.randomUUID() }));
+    somar.addEventListener("click", () => {
+      if (!pausado) enviar({ t: "somar", id: crypto.randomUUID() });
+    });
     sairPeloJogo.addEventListener("click", () => {
       if (encerrado) return;
       parar();
@@ -201,6 +233,30 @@ export const jogoDeTeste: ModuloDoJogo = {
     void conectar();
 
     return {
+      checkpoint(pedido) {
+        if (pedido.modo !== "server" || encerrado) return Promise.resolve(false);
+        pausado = true;
+        somar.disabled = true;
+        if (checkpointConfirmado === pedido.id) return Promise.resolve(true);
+        if (checkpointPendente?.id === pedido.id) return checkpointPendente.promessa;
+        concluirCheckpoint(false);
+        if (socket?.readyState !== WebSocket.OPEN) return Promise.resolve(false);
+        let resolver = (_salvo: boolean) => {};
+        const promessa = new Promise<boolean>((resolve) => {
+          resolver = resolve;
+        });
+        checkpointPendente = {
+          id: pedido.id,
+          promessa,
+          resolver,
+          timer: setTimeout(() => concluirCheckpoint(false), 8000),
+        };
+        enviar({ t: "checkpoint", id: pedido.id });
+        return promessa;
+      },
+      retomar() {
+        if (!encerrado) enviar({ t: "retomar" });
+      },
       dispose() {
         parar();
         raiz.remove();

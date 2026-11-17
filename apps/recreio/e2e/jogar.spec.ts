@@ -1,26 +1,22 @@
-import { type ChildProcess, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { expect, type Page, test } from "@playwright/test";
 import { WebSocket as ConexaoDeFora } from "ws";
 import { MARCA_DO_JOGO_DE_TESTE } from "../src/features/jogo-de-teste/cliente";
 import {
-  APP,
   comecarVigia,
   conceder,
   criarMundo as criarMundoNoJogo,
-  esperarSaida,
   esquecerAparelho,
   fecharAparelhos,
   hidratado,
-  linhasDeJson,
   novaPessoa,
   origemDoJogo as origemDe,
-  saiu,
   scriptsDe,
   tela,
   vigia,
 } from "./apoio";
 import { prepararParticipacoesAfastadas } from "./participacoes-apoio";
+import { servidorDoContador } from "./servidor-apoio";
 
 /**
  * A plataforma de ponta a ponta, com navegadores de verdade, o portal em build
@@ -39,38 +35,11 @@ const criarMundo = (page: Page, nome: string) => criarMundoNoJogo(page, "Jogo de
 
 // --- O servidor do jogo de teste, como processo filho ---
 
-let servidor: ChildProcess | null = null;
-let saidaDoServidor: string[] = [];
-
-async function noAr(): Promise<boolean> {
-  try {
-    return (await fetch(`${origemDoJogo().http}/saude`)).ok;
-  } catch {
-    return false;
-  }
-}
-
-/** Sobe uma instância e espera ela se registrar no Recreio e aceitar conexões. */
-async function iniciarServidor(): Promise<void> {
-  if (servidor) throw new Error("Já existe um servidor do jogo de teste em execução");
-  const filho = spawn(process.execPath, ["--import", "tsx", "e2e/servidor/main.ts"], {
-    cwd: APP,
-    env: process.env,
-    stdio: ["ignore", "pipe", "pipe", "ipc"],
-    windowsHide: true,
-  });
-  filho.stdout?.on("data", (parte: Buffer) => saidaDoServidor.push(parte.toString()));
-  filho.stderr?.on("data", (parte: Buffer) => saidaDoServidor.push(parte.toString()));
-  servidor = filho;
-  await expect
-    .poll(noAr, { timeout: 60_000, message: "o servidor do jogo de teste não subiu" })
-    .toBe(true);
-}
-
-/** O que as instâncias desta execução registraram (uma linha de JSON por acontecimento). */
-function registrosDoServidor(mensagem: string): Record<string, unknown>[] {
-  return linhasDeJson(saidaDoServidor).filter((registro) => registro.mensagem === mensagem);
-}
+const instancia = servidorDoContador();
+const iniciarServidor = () => instancia.iniciar();
+const registrosDoServidor = (mensagem: string) => instancia.registros(mensagem);
+const matarServidor = () => instancia.matar();
+const pararServidor = () => instancia.parar();
 
 /**
  * Uma conexão com a instância feita de fora do navegador, para ver o que ela
@@ -98,29 +67,9 @@ function conectarDeFora(opcoes: { origem?: string; quadro?: unknown }): Promise<
   });
 }
 
-/** Derruba a instância sem aviso, como uma queda de verdade. No Windows é um encerramento forçado. */
-async function matarServidor(): Promise<void> {
-  const filho = servidor;
-  servidor = null;
-  if (!filho) return;
-  const fim = saiu(filho);
-  filho.kill("SIGKILL");
-  await fim;
-  await expect.poll(noAr, { timeout: 15_000 }).toBe(false);
-}
-
-/** Descida ordenada: a instância avisa o Recreio, guarda os mundos e solta as posses. */
-async function pararServidor(): Promise<void> {
-  const filho = servidor;
-  servidor = null;
-  if (!filho) return;
-  if (filho.connected) filho.send("descer");
-  await esperarSaida(filho, 15_000);
-}
-
 test.beforeEach(() => {
   comecarVigia();
-  saidaDoServidor = [];
+  instancia.limparLog();
 });
 
 test.afterEach(async () => {
@@ -128,7 +77,7 @@ test.afterEach(async () => {
   await pararServidor();
   if (test.info().status !== test.info().expectedStatus)
     await test.info().attach("servidor-do-jogo.log", {
-      body: saidaDoServidor.join(""),
+      body: instancia.log(),
       contentType: "text/plain",
     });
   expect(vigia().violacoes, "violações da política de segurança").toEqual([]);
@@ -395,7 +344,7 @@ test("um perfil joga em um lugar por vez, e sair da conta encerra o jogo", async
     await expect(daPrimeira.contador).toHaveText("1");
   });
 
-  await test.step("sem checkpoint do título, exige saída manual antes de abrir na outra aba", async () => {
+  await test.step("com troca coordenada desligada, exige saída manual antes de abrir na outra aba", async () => {
     await segunda.getByRole("button", { name: "Continuar aqui" }).click();
     await expect(
       segunda.getByRole("heading", { name: "Salve e saia no outro aparelho" }),

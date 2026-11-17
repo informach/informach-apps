@@ -4,7 +4,9 @@ import {
   CABECALHO_DO_JOGO,
   CABECALHO_DO_RESUMO,
   CAMINHO_DA_API_DO_HOST,
+  CheckpointDoHostSchema,
   type ClienteDoHost,
+  type ClienteDoHostComCheckpoint,
   DIARIO_PAGINA_MAX_BYTES,
   DIARIO_RECUPERACAO_MAX_ENTRADAS,
   DiarioConfirmadoSchema,
@@ -16,6 +18,7 @@ import {
   PosseReivindicadaSchema,
   RespostaDoBatimentoSchema,
 } from "../contrato/host";
+import { ResultadoDeCheckpointSchema } from "../contrato/sdk";
 import { ErroDoRecreio } from "../dominio/erros";
 import type { InstanciaId } from "../dominio/ids";
 import {
@@ -55,7 +58,7 @@ const TEMPO_LIMITE_MS = 10_000;
  * `X-Recreio-Instancia`. Antes de registrar, qualquer outra chamada recusa com
  * `NAO_AUTENTICADO` sem sair para a rede.
  */
-export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHost {
+export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHostComCheckpoint {
   if (!Number.isSafeInteger(opcoes.fotografiaMaxBytes) || opcoes.fotografiaMaxBytes <= 0)
     throw new Error("fotografiaMaxBytes precisa ser um inteiro positivo");
   if (!Number.isSafeInteger(opcoes.diarioMaxBytes) || opcoes.diarioMaxBytes <= 0)
@@ -248,6 +251,14 @@ export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHost
     async liberarPosse({ mundoId, cerca, motivo }) {
       eu();
       await enviarJson(`${mundo(mundoId)}/posse/liberar`, { cerca, motivo });
+    },
+    async confirmarCheckpoint({ mundoId, ...entrada }) {
+      eu();
+      const pedido = CheckpointDoHostSchema.parse(entrada);
+      return lerCorpo(
+        await enviarJson(`${mundo(mundoId)}/checkpoint`, pedido),
+        ResultadoDeCheckpointSchema,
+      );
     },
   };
 }

@@ -295,6 +295,7 @@ O teste de saída concorrente passa a observar um único pacote `sair` e o resul
 das duas chamadas, em vez da identidade do objeto Promise. A reprodução atualizada
 é `ee3cbd2`; a prova de navegador permanece idêntica à rodada negativa anterior.
 
+
 ## Implantação conferida em 17/11
 
 `668dde1fc50c8e4ed4d08ee1800165c285314b27` foi implantado no portal pelo
@@ -338,3 +339,95 @@ O expurgo técnico não pode descongelar a sessão. A tabela está vazia enquant
 a troca automática permanece desligada; retenção limitada precisa ser fechada
 antes da ativação. A API de mundo e os avisos posteriores não fazem parte desta
 fonte implantada. Famílias, venda, F3 e demais frentes continuam sem aceite final.
+
+`b173da9` passou nos sete gates `44046097619`; as 19 jornadas de navegador passaram,
+incluindo perda do ACK do Morada com recuperação da escolha e nova saída confirmada.
+A reprodução atualizada `ee3cbd2`, `44046680803`, falhou só nos dois casos esperados
+da conexão: encerramento rotulado incorretamente e dois pacotes de saída. As
+outras 127 provas do cliente passaram. A mesma asserção de pacotes segue no corretivo.
+
+`668dde1` passou nos sete gates `44047372449`. A reprodução `97d5045`,
+`44047227346`, falhou nas duas provas novas de vínculo único: a segunda entrada
+era aceita e as duas concorrentes eram admitidas; as outras 461 integrações
+passaram. Matriz reduzida permanece isolada. O CI compartilhado do recibo
+`509f872`/`44039845094` terminou aprovado; não cobre as mudanças posteriores do
+SDK/cliente. O CI compartilhado `b173da9`/`44046097629` segue em execução.
+
+### API de confirmação do servidor em candidata
+
+O manifesto passa a declarar a capacidade `checkpoint` (`perfil`, `servidor`
+ou `null`); o Morada e o contador de mundo continuam `null`, com saída manual.
+`ClienteDoHostComCheckpoint` estende a interface básica sem atribuir suporte a
+hosts antigos. O cliente HTTP oferece confirmação em `/mundos/{id}/checkpoint`.
+O SDK de navegador não pode confirmar um mundo.
+
+A API admite identidade → posse do mundo → perfil → mutex → aparelho → sessão
+em UPDATE → intenção. Valida membro e conteúdo atuais, SID fixado no mundo,
+posse/cerca/instância vigentes e fotografia posterior ao pedido com checksum
+validado pelo armazenamento, mesma cerca e todo o diário confirmado. Auditoria,
+prova e barreira são atômicas. Repetir a prova já confirmada não exige interromper
+o progresso dos demais jogadores, mas não permite mudar a prova. Posse e prazo
+da intenção são relidos depois da auditoria; esperar uma trava não admite ACK
+ou nova abertura fora do prazo. O recibo de abertura conserva o prazo da troca
+até a conferência final, sem renovar a intenção.
+
+Novos testes reais de HTTP/banco cobrem foto antiga, diário não coberto, outra
+instância/cerca/jogo, ACK de navegador e falha de auditoria. Duas provas de espera
+sincronizam a auditoria com o prazo persistido do banco, sem substituir o relógio.
+O consumidor/servidor genérico e sua jornada de navegador ainda não foram
+implementados nesta candidata; não declarar suporte automático de mundo nem
+ligar a flag por esta etapa. A rodada remota desta API ainda precisa ser executada.
+
+A redação de contexto técnico passa a ocultar também a prova de abertura, ingresso,
+PIN, código/segredo de pareamento e campos declarados em português. Corpos de
+pedido já eram removidos pelo transporte Sentry; não foi observada exposição
+em produção. O teste novo verifica a proteção recursiva desses campos.
+
+Rodada `87182f1`: a integração `44051663870` passou nas novas provas de mundo e
+prazo, mas o restante da matriz e o CI compartilhado pararam por uma importação
+de tipo faltante em `host/cliente.ts`. O tipo básico ainda era usado no leitor
+do diário; manter as duas interfaces importadas. Não considerar essa rodada aprovada.
+
+A reprodução `0d27e20`, `44051681781`, sobre `668dde1`, falhou exatamente nas duas
+esperas da auditoria: aceitava ACK e nova abertura depois do prazo. As outras
+463 integrações passaram. A mesma fixture passou no corretivo `87182f1`; a nova
+rodada completa precisa conservar essa evidência. Matriz reduzida segue isolada.
+
+A confirmação candidata também relê o SHA-256 e o tamanho dos bytes persistidos
+no PG. O teste novo corrompe somente a fotografia daquele mundo, mantendo seu
+tamanho, e exige recusa sem barreira. Armazenamento em bucket continua recusado
+até existir adapter com prova de integridade apropriada; não confiar só no
+metadado do objeto futuro. Nenhum conteúdo entra na auditoria ou no relatório.
+
+### Consumidor genérico de mundo em candidata
+
+Plano do incremento: declarar suporte somente no contador interno; serializar
+o checkpoint depois dos comandos admitidos, suspender comandos novos daquele
+SID, gravar uma fotografia e confirmar pela API autenticada da instância.
+Conservar a prova em uma resposta incerta; refazer a fotografia somente após
+recusa explícita de cobertura do diário. Retomar exige admissão atual do host.
+O cliente expõe `checkpoint({id, modo})`, mas seu booleano não confirma o mundo:
+o observador relê o controle da plataforma. Pedido pendente suspende renovação;
+fim da tentativa sem barreira permite retomá-la. Nenhuma mudança no Morada.
+
+Arquivos: protocolo e cliente do contador, servidor E2E, catálogo interno,
+observador do host e contrato/renovação do SDK. O ciclo de vida do servidor é
+compartilhado pelos dois gates de navegador em `e2e/servidor-apoio.ts`.
+A prova `checkpoint-e2e/mundo.spec.ts` atrasa o envio real do pedido, confere
+que o aparelho novo não monta antes da fotografia, injeta um comando na conexão
+antiga depois do ACK real, conserva outro membro ativo e reabre o contador.
+O teste do SDK verifica suspensão e retomada da renovação. Gates completos
+somente no GitHub; este incremento ainda não tem resultado remoto.
+
+`149ea66` passou nos sete gates `44052471827`; o CI compartilhado correspondente
+`44052471167` permanece em execução. Essa aprovação não inclui o consumidor
+genérico deste incremento nem autoriza ativar famílias ou checkpoint em produção.
+
+A rodada `4d9bd21`/`44056229374` chegou à troca real no mundo, mas a asserção
+do motivo no aparelho anterior falhou: uma consulta admitida pelo token antes
+do encerramento chegava à trava depois e perdia `replaced`, recebendo recusa
+genérica. O kernel passa a devolver o motivo persistido somente após conferir
+mesmo SID/perfil/aparelho/jogo e política atuais. Referências de outra autoridade
+continuam genéricas. A prova integrada consulta a referência anterior após
+a troca; a asserção original do navegador é preservada. Ainda sem resultado
+remoto do corretivo.
