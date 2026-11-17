@@ -236,6 +236,8 @@ export async function criarPedidoDeAmizade(referencia: AutorSocial, pedido: Novo
             guardianUserId: perfil.responsabilidade.contaId,
             profileId: perfil.id,
             requestId: criado.id,
+            requestOriginProfileId: atual.origem.id,
+            requestTargetProfileId: destino.id,
           })
           .onConflictDoNothing();
     await logAuditEventStrict(

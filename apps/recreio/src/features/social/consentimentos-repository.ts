@@ -27,6 +27,8 @@ export async function gravarAprovacaoSocial(
     .insert(consents)
     .values({
       requestId: pedidoId,
+      requestOriginProfileId: atual.origem.id,
+      requestTargetProfileId: atual.destino.id,
       profileId: atual.menor.id,
       guardianLinkId: identidade.vinculoId,
       approvedByUserId: atual.contaId,

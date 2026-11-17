@@ -94,7 +94,7 @@ export const recreioProfiles = recreio.table(
     unique("recreio_profile_login_identity").on(t.id, t.userId),
     index("recreio_profiles_group").on(t.groupId),
     check("recreio_profiles_kind", sql`${t.kind} in ('adult', 'minor')`),
-    // Perfil adulto sai em cascata com a conta, então nunca fica sem `user_id`.
+    // Perfil adulto mantém login até o encerramento coordenado; a FK restringe exclusão direta.
     check("recreio_profiles_adult_login", sql`${t.kind} = 'minor' or ${t.userId} is not null`),
     check("recreio_profiles_nickname", sql`char_length(${t.nickname}) between 2 and 20`),
     check("recreio_profiles_status", sql`${t.status} in ('active', 'suspended')`),

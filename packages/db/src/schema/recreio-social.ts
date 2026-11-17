@@ -7,6 +7,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -32,6 +33,7 @@ export const recreioFriendCodes = recreio.table(
     revokedAt: moment("revoked_at"),
   },
   (t) => [
+    unique("recreio_friend_code_identity_profile").on(t.id, t.profileId),
     uniqueIndex("recreio_friend_code_hash").on(t.codeHash),
     uniqueIndex("recreio_friend_code_open")
       .on(t.profileId)
@@ -59,6 +61,12 @@ export const recreioFriendRequests = recreio.table(
     targetProfileId: uuid("target_profile_id")
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
+    lowerProfileId: uuid("lower_profile_id")
+      .notNull()
+      .generatedAlwaysAs(sql`least("origin_profile_id","target_profile_id")`),
+    higherProfileId: uuid("higher_profile_id")
+      .notNull()
+      .generatedAlwaysAs(sql`greatest("origin_profile_id","target_profile_id")`),
     codeId: uuid("code_id").references(() => recreioFriendCodes.id, { onDelete: "set null" }),
     clientKey: uuid("client_key").notNull(),
     requestHash: text("request_hash").notNull(),
@@ -73,6 +81,17 @@ export const recreioFriendRequests = recreio.table(
   },
   (t) => [
     uniqueIndex("recreio_friend_request_retry").on(t.originProfileId, t.clientKey),
+    unique("recreio_friend_request_identity_pair_state").on(
+      t.id,
+      t.lowerProfileId,
+      t.higherProfileId,
+      t.state,
+    ),
+    unique("recreio_friend_request_identity_participants").on(
+      t.id,
+      t.originProfileId,
+      t.targetProfileId,
+    ),
     uniqueIndex("recreio_friend_request_code").on(t.codeId),
     uniqueIndex("recreio_friend_request_pair")
       .on(
@@ -123,6 +142,8 @@ export const recreioFriendConsents = recreio.table(
     requestId: uuid("request_id")
       .notNull()
       .references(() => recreioFriendRequests.id, { onDelete: "cascade" }),
+    requestOriginProfileId: uuid("request_origin_profile_id").notNull(),
+    requestTargetProfileId: uuid("request_target_profile_id").notNull(),
     profileId: uuid("profile_id")
       .notNull()
       .references(() => profiles.id, { onDelete: "cascade" }),
@@ -153,6 +174,7 @@ export const recreioFriendships = recreio.table(
     requestId: uuid("request_id").references(() => recreioFriendRequests.id, {
       onDelete: "set null",
     }),
+    requestState: text("request_state").$type<"accepted">().notNull().default("accepted"),
     state: text("state").$type<"active" | "removed">().notNull().default("active"),
     revision: integer("revision").notNull().default(1),
     createdAt: created(),
@@ -235,6 +257,8 @@ export const recreioSocialNotices = recreio.table(
     requestId: uuid("request_id")
       .notNull()
       .references(() => recreioFriendRequests.id, { onDelete: "cascade" }),
+    requestOriginProfileId: uuid("request_origin_profile_id").notNull(),
+    requestTargetProfileId: uuid("request_target_profile_id").notNull(),
     createdAt: created(),
     readAt: moment("read_at"),
   },

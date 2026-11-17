@@ -17,6 +17,7 @@ import { admitirPerfilSocial } from "./perfis-repository";
 
 export type ContextoDoResponsavelSocial = ContextoSocial & {
   contaId: string;
+  destino: NonNullable<ContextoSocial["destino"]>;
   menor: Extract<ContextoSocial["origem"], { tipo: "protegido" }>;
   versaoDoMenor: number;
 };

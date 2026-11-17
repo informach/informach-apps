@@ -244,6 +244,35 @@ e disponibilidade do resultado. Bloqueio vazio de desconhecido também exige
 relação conhecida, sem distinguir perfil existente. SDK e rotas reais entram
 nas provas, além de paginação, supervisão, revogação e reaprovação.
 
+### Integridade entre registros sociais
+
+A revisão da persistência encontrou referências simples que não amarravam a
+composição: código ao destinatário, aprovação ao perfil do vínculo e amizade
+ao par/pedido aceito. Os writers validam essas relações, mas a mesma composição
+também precisa ser recusada pelo banco quando divergente. Antes da publicação
+de F4, acrescentar chaves compostas e provas negativas no PostgreSQL.
+
+1. Gerar uma migration somente com as chaves dos pais e a representação
+   ordenada do par, calculada pelo banco; incluir as pontas do pedido em
+   aprovações/avisos e atualizar seus únicos writers.
+2. Gerar a migration seguinte com FKs compostas e checks, depois das chaves
+   estarem no snapshot anterior. Amizade referencia exatamente o par aceito;
+   gravar o aceite antes da relação na mesma transação.
+3. Retenção deve retirar explicitamente referências técnicas de códigos e
+   relações removidas antes de apagar recibos, sem nulificar perfil ou mexer
+   na autoridade de amizades ativas. Lotes e auditoria continuam obrigatórios.
+4. Provar destinatário errado, vínculo de outro menor, ponta fora do pedido,
+   pedido pendente/recusado de outro par e expurgo concorrente. F4 nunca foi
+   publicado: 0184 e os incrementos seguintes entram juntos sobre tabelas
+   novas vazias, com inventário obrigatório; dados inesperados impedem a
+   implantação até existir uma sequência de backfill revisada.
+
+Sintaxe e restrições consultadas nas fontes primárias de
+[Drizzle](https://orm.drizzle.team/docs/generated-columns) e
+[PostgreSQL 18](https://www.postgresql.org/docs/18/sql-createtable.html).
+As colunas calculadas precisam ser `STORED` no SQL gerado; a aplicação e os
+testes no PostgreSQL descartável confirmam o contrato, sem atualizar versões.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.
