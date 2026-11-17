@@ -344,14 +344,35 @@ describe("renovar e sair", () => {
     expect(fonte.aberturas).toBe(1);
   });
 
-  it("sair não fica esperando para sempre um servidor mudo", async () => {
-    const { relogio, servidor, conexao } = preparar();
+  it("perda de acesso durante a saída continua definitiva, sem reabrir", async () => {
+    const { relogio, servidor, fonte, conexao } = preparar();
     conexao.iniciar();
     await assentar();
     servidor.ultimo.surdo = true;
     const saindo = conexao.sair(1500);
+    servidor.ultimo.fechar(FECHAMENTO.semAcesso);
+    expect(await saindo).toBe(false);
+    expect(conexao.estado).toEqual({ fase: "encerrado", motivo: "sem_acesso" });
+    relogio.avancar(30_000);
+    await assentar();
+    expect(fonte.aberturas).toBe(1);
+  });
+
+  it("ACK ausente reabre para conferir, sem anunciar saída salva; pedidos em voo compartilham a tentativa", async () => {
+    const { relogio, servidor, fonte, conexao } = preparar();
+    conexao.iniciar();
+    await assentar();
+    servidor.ultimo.surdo = true;
+    const saindo = conexao.sair(1500);
+    expect(conexao.sair(1500)).toBe(saindo);
     relogio.avancar(1500);
     expect(await saindo).toBe(false);
+    expect(conexao.estado).toMatchObject({ fase: "reconectando", motivo: "rede" });
+    relogio.avancar(ESPERA_MINIMA_MS);
+    await assentar();
+    expect(fonte.aberturas).toBe(2);
+    expect(conexao.estado).toEqual({ fase: "pronto" });
+    expect(await conexao.sair()).toBe(true);
     expect(conexao.estado).toEqual({ fase: "encerrado", motivo: "saiu" });
   });
 });

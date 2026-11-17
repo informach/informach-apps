@@ -37,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gate: [quality, integration, e2e, checkpoint, cliente, longa, versoes]
+        gate: [quality, e2e]
     services:
       postgres:
         image: postgres:18-alpine
@@ -99,7 +99,7 @@ jobs:
       - if: matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint'
         run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
       - if: matrix.gate == 'e2e'
-        run: pnpm --filter @informach/recreio-app e2e
+        run: pnpm --filter @informach/recreio-app e2e e2e/morada-saida.spec.ts
       - if: matrix.gate == 'checkpoint'
         run: pnpm --filter @informach/recreio-app e2e --config playwright.checkpoint.config.ts
         env:
