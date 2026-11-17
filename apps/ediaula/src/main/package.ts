@@ -25,6 +25,7 @@ import {
   PACKAGE_PROJECT,
   type PackFile,
   type PackOptions,
+  packedLinks,
   packPlan,
   unpackPaths,
 } from "../shared/projectPackage.ts";
@@ -347,7 +348,9 @@ export async function unpackProject(
       throw new Error("Este arquivo não é um pacote de aula do EdiAula.");
     if ((await stat(projectFile)).size > MAX_PROJECT_BYTES)
       throw new Error("O projeto do pacote é grande demais.");
-    const stored = projectSchema.parse(JSON.parse(await readFile(projectFile, "utf8")));
+    const stored = projectSchema.parse(
+      packedLinks(JSON.parse(await readFile(projectFile, "utf8")), root),
+    );
     const unpacked = unpackPaths(normalizeProject(stored), root);
     const id = newId("p");
     const project: Project = {
