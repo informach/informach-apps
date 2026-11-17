@@ -435,3 +435,52 @@ passou com 518 testes/46 arquivos. A matriz completa e o CI compartilhado ainda
 estão em execução; isto não autoriza implantação. A nova restauração prévia de
 produção foi concluída e limpa conforme
 [evidência](evidencias/backup-logico-2026-11-17-pre-salvamento.json).
+
+`eae5d088d72d53b1c336fa0a7b99912b8c97dc2f` concluiu os sete gates
+`44084574092`, sem falhas, com sete jornadas de checkpoint e 518 integrações.
+O CI compartilhado `44082653527` verifica `f2bd1dc`; o único delta funcional
+até a fonte final é a correção da asserção do minuto em
+`checkpoint-e2e/tempo-menor.spec.ts`. Esse CI ainda está em execução; o anterior
+`44075500370` foi cancelado como substituído, não considerado aprovado.
+
+A integração local preparada conserva app, packages, migrations, workflows e
+IaC idênticos à fonte final qualificada. Contém somente documentação adicional.
+Nenhum código do grupo/cobertura/convites de F1 ou migration 0179/0180 entra
+neste incremento. Nenhum D3/World3 do Morada. Publicação e aplicação de 0177/0178
+ainda aguardam o CI compartilhado. Depois que recibos restritos existirem,
+o rollback precisa conservar leitores, finalização e barreira de reconexão;
+nunca retornar a uma fonte anterior que ignore esse estado.
+
+CI compartilhado `44082653527` concluído com sucesso em `f2bd1dc`, incluindo
+todos os consumidores, integrações, E2E e builds do workflow. A fonte final
+`eae5d088` tem somente a correção de asserção já coberta pelos sete gates finais.
+SQLs do índice em integração foram conferidos byte a byte contra a proveniência:
+0177/5.676 bytes e 0178/643 bytes; journal termina em 0178/179 entradas. Fonte
+integrada é preparada para o migrator sem seeds antes do push da main; operação
+e verificações de produção ainda não executadas neste registro.
+
+## Implantação conferida
+
+A integração `3f2b1239f0f8f00c28e9eac65410aba99b0f23d5` foi publicada após
+os gates acima e a aplicação prévia de 0177/0178. Fonte funcional idêntica a
+`eae5d088`; nenhum código de F1/convites ou D3/World3 entrou no incremento.
+[Evidência operacional](evidencias/salvamento-producao-2026-11-17.json).
+
+Migrator `91332c3e` concluiu com `pnpm db:migrate`, sem seeds. O script normal
+também executa seus passos existentes de backfill de tarefas/Mastra; não foi
+substituído por SQL avulso. Os 179 recibos, hashes 0177/0178, tabela, dois índices
+e coluna da margem foram conferidos antes do push. Retorno à main sem pin foi
+feito ainda com comando restrito; reset `09c185b3` terminou `SKIPPED`. Somente
+então o comando original foi restaurado, sem nova execução de seeds.
+
+Portal `4062cc6e` e Morada `f03b76b9` em `SUCCESS`; SHA integrado conferido por
+SSH nos dois processos. Ready 200 nos dois domínios; capacidade final sem Bearer,
+401. Famílias/checkpoint continuam `off`, jogo interno `0`, menores e recibos
+restritos `0`; a tabela de convites comerciais de F1 não existe em produção.
+Manutenção autenticada respondeu 200 com onze contagens: uma instância antiga
+marcada sumida e as demais zero. Mapas enviados ao Sentry e release `2098492348`
+conferida. Morada conserva World2/protocolo1/arte3, sem capacidade automática.
+
+Piso de rollback: `3f2b1239` ou fonte posterior que conserve todos os leitores,
+finalização, prazos e barreiras deste contrato. A implantação não habilita as
+funcionalidades familiares nem conclui F1–F11 ou a venda.
