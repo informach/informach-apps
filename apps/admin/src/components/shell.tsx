@@ -15,6 +15,12 @@ function navItems(staff: Staff): NavItem[] {
     items.push({ href: "/dinheiro", label: "Dinheiro", icon: "dinheiro" });
   items.push(
     { href: "/operacao", label: "Operação", icon: "operacao" },
+    {
+      href: "/recreio/seguranca",
+      label: "Segurança do Recreio",
+      icon: "operacao",
+      prefetch: false,
+    },
     { href: "/auditoria", label: "Auditoria", icon: "auditoria" },
   );
   return items;

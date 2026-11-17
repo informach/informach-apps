@@ -81,6 +81,9 @@ jobs:
           pnpm --workspace-concurrency=1 --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte test
       - if: matrix.gate == 'integration'
         run: pnpm --filter @informach/recreio-app test:integration
+      - name: Verify administration safety projection on isolated PostgreSQL
+        if: matrix.gate == 'integration'
+        run: pnpm compasso:test:integration --admin-only
       - name: Upgrade Recreio groups with preserved profiles and progress
         if: matrix.gate == 'integration'
         run: |

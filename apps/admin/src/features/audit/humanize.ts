@@ -122,6 +122,69 @@ function dateOf(payload: Record<string, unknown>, key: string): Date | null {
 const PHRASES: Record<string, (ctx: Context) => SentencePart[]> = {
   "recreio.profile_created": () => [t("Criou um perfil no Recreio")],
   "recreio.profile_updated": () => [t("Atualizou um perfil no Recreio")],
+  "recreio.group_coverage_updated": () => [t("Atualizou a cobertura de jogadores do Recreio")],
+  "recreio.group_invite_created": () => [t("Convidou um adulto para a cobertura do Recreio")],
+  "recreio.group_invite_accepted": () => [t("Aceitou um convite de cobertura do Recreio")],
+  "recreio.group_invite_revoked": () => [t("Cancelou um convite de cobertura do Recreio")],
+  "recreio.group_invite_declined": () => [t("Recusou um convite de cobertura do Recreio")],
+  "recreio.group_invite_expired": () => [t("Expirou um convite de cobertura do Recreio")],
+  "recreio.group_member_left": () => [t("Saiu de uma cobertura do Recreio, preservando o perfil")],
+  "recreio.group_member_removed": () => [t("Retirou um adulto da cobertura do Recreio")],
+  "recreio.friend_code_created": () => [t("Gerou um código de amizade no Recreio")],
+  "recreio.friend_code_revoked": () => [t("Invalidou um código de amizade no Recreio")],
+  "recreio.friend_request_created": () => [t("Pediu uma amizade no Recreio")],
+  "recreio.friend_request_expired": () => [t("Expirou um pedido de amizade no Recreio")],
+  "recreio.friend_request_accepted": () => [t("Aceitou um pedido de amizade no Recreio")],
+  "recreio.friend_request_rejected": () => [t("Recusou um pedido de amizade no Recreio")],
+  "recreio.friend_request_revoked": () => [t("Encerrou um pedido de amizade no Recreio")],
+  "recreio.friend_approval_recorded": () => [
+    t("Registrou a aprovação responsável de um contato no Recreio"),
+  ],
+  "recreio.friend_approval_renewed": () => [
+    t("Renovou a aprovação responsável de um contato no Recreio"),
+  ],
+  "recreio.friendship_started": () => [t("Confirmou uma amizade no Recreio")],
+  "recreio.friendship_removed": () => [t("Encerrou uma amizade no Recreio")],
+  "recreio.social_protection_changed": () => [
+    t("Atualizou bloqueio ou silêncio de um contato no Recreio"),
+  ],
+  "recreio.social_presence_changed": () => [t("Alterou a visibilidade da presença no Recreio")],
+  "recreio.social_notice_read": () => [t("Confirmou a leitura de um aviso de contato no Recreio")],
+  "recreio.social_records_purged": () => [t("Removeu registros sociais vencidos do Recreio")],
+  "recreio.safety_reported": () => [t("Registrou uma denúncia no Recreio, sem punição automática")],
+  "recreio.safety_reports_purged": () => [
+    t("Removeu denúncias do Recreio após o prazo de retenção"),
+  ],
+  "recreio.restriction_reconciled": () => [
+    t("Registrou a existência de uma suspensão anterior do Recreio"),
+  ],
+  "recreio.restriction_review_requested": () => [
+    t("Pediu revisão da suspensão de um perfil do Recreio"),
+  ],
+  "recreio.moderation_retention": () => [
+    t("Executou a retenção de casos e recibos de moderação do Recreio"),
+  ],
+  "recreio.moderation_command_applied": (ctx) => {
+    const operacoes: Record<string, string> = {
+      analisar: "Iniciou a análise de um caso do Recreio",
+      concluir: "Concluiu a análise de um caso do Recreio",
+      suspender_perfil: "Suspendeu um perfil do Recreio",
+      reativar_perfil: "Retirou a suspensão de um perfil do Recreio",
+      desfazer_amizade: "Desfez uma amizade por moderação no Recreio",
+      invalidar_convite: "Invalidou um convite de mundo por moderação no Recreio",
+      responder_recurso: "Respondeu a um recurso de suspensão do Recreio",
+    };
+    return [
+      t(
+        operacoes[str(ctx.payload, "operation") ?? ""] ??
+          "Confirmou um comando de moderação do Recreio",
+      ),
+    ];
+  },
+  "admin.recreio_safety_viewed": () => [t("Consultou casos da fila de segurança do Recreio")],
+  "admin.recreio_moderation_requested": () => [
+    t("Solicitou um comando de moderação ao Recreio, ainda sujeito à confirmação"),
+  ],
   "recreio.minor_policy_recalculated": () => [t("Recalculou as regras de um perfil protegido")],
   "recreio.minor_supervision_changed": () => [t("Confirmou a supervisão de um perfil protegido")],
   "recreio.profile_data_updated": () => [t("Salvou progresso pessoal no Recreio")],

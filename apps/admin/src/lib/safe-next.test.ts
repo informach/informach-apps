@@ -75,6 +75,10 @@ describe("safeNext, o caminho de volta depois da entrada", () => {
   });
 
   it("marca a ficha que chega pelo next, para a página perguntar antes de gravar", () => {
+    expect(safeNext("/recreio/seguranca")).toBe("/recreio/seguranca?confirmar=1");
+    expect(safeNext("/recreio/seguranca?protocolo=abc")).toBe(
+      "/recreio/seguranca?protocolo=abc&confirmar=1",
+    );
     expect(safeNext("/pessoas/abc")).toBe("/pessoas/abc?confirmar=1");
     expect(safeNext("/pessoas/abc/")).toBe("/pessoas/abc/?confirmar=1");
     expect(safeNext("/pessoas/abc?aba=sessoes#emails")).toBe(

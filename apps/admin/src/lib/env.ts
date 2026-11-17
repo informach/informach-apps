@@ -41,6 +41,8 @@ export const envSchema = z
     ADMIN_SERVICE_URLS: z.string().default(""),
     /** Ligar só depois do deploy fechado de Recreio e Morada. */
     ADMIN_RECREIO_ENABLED: z.enum(["0", "1"]).default("0"),
+    /** Exclusiva para provas curtas da API de moderação. Ausente desativa novos comandos. */
+    RECREIO_MODERATION_SECRET: z.union([z.literal(""), z.string().min(43).max(256)]).default(""),
     /** Select the central scheduler only after the coordinated Compasso cutover. */
     ADMIN_COMPASSO_ENABLED: z.enum(["0", "1"]).default("0"),
     /** Monta os links do Stripe para o modo certo (test ou live). */
@@ -58,6 +60,15 @@ export const envSchema = z
     SENTRY_DSN: sentryDsn,
   })
   .superRefine((env, ctx) => {
+    if (
+      env.RECREIO_MODERATION_SECRET &&
+      [env.BETTER_AUTH_SECRET, env.CRON_SECRET].includes(env.RECREIO_MODERATION_SECRET)
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["RECREIO_MODERATION_SECRET"],
+        message: "Moderation requires a separate credential",
+      });
     const origin = URL.canParse(env.NEXT_PUBLIC_APP_URL) ? new URL(env.NEXT_PUBLIC_APP_URL) : null;
     if (origin && origin.origin !== env.NEXT_PUBLIC_APP_URL)
       ctx.addIssue({

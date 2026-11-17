@@ -572,6 +572,28 @@ falha depois da limpeza auditada; não é tratado como atendido. O relógio da
 denúncia usa recebimento/recurso, sem reiniciar em movimentações da equipe.
 Quatro integrações adicionais candidatas cobrem prazo, revisão e rollback.
 
+`1060056` passou nos sete gates `44167404900`, incluindo as duas jornadas nativas
+de revisão. `913adae9` também concluiu todos os sete em `44165341339`. Capturas
+novas de revisão ainda precisam de inspeção; não confundir aprovação automática
+com revisão visual ou com a jornada da equipe.
+
+O candidato seguinte introduz a fila read-only do Bastidores, vinte casos por
+espécie, ordenação prioritária/antiga e busca exata de protocolo. Consulta
+auditada, retorno da entrada/link externo com confirmação e prefetch desativado
+para não registrar visita involuntária. Nenhum nome, nascimento, autoria da
+denúncia ou conteúdo de mundo é projetado. A amizade pode ser desfeita na sua
+revisão atual; a evidência original continua distinta da relação corrente.
+
+O emissor usa sessão real do Bastidores com duas etapas, assinatura de trinta
+segundos e confirmação explícita. Destino canônico em produção, sem redirect e
+sem retry; perda de confirmação deixa a tela pedindo conferência, nunca dizendo
+que nada mudou. O endpoint do Recreio continua sendo a autoridade final.
+Novos testes candidatos exercitam a rota com prova assinada real, recusa do
+segredo de jogo/ator em cabeçalho, corpo divergente/excessivo, retirada de 2FA,
+projeção por conexão somente de leitura e rollback da consulta sem auditoria.
+O runner isolado gera sua própria chave descartável. Nenhuma credencial real
+foi criada, nem tabela social/novo console foi implantado.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

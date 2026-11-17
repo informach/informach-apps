@@ -138,6 +138,8 @@ export type AuditEventType =
   | "recreio.restriction_review_requested"
   | "recreio.moderation_command_applied"
   | "recreio.moderation_retention"
+  | "admin.recreio_safety_viewed"
+  | "admin.recreio_moderation_requested"
   | "recreio.friendship_started"
   | "recreio.profile_data_updated"
   | "recreio.profile_data_conflict"

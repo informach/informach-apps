@@ -133,6 +133,12 @@ auditoria são atômicos; replay não duplica evento e exige autoridade atual.
 expurgo de recursos/comandos e restrições já liberadas, com ator nulo.
 Recurso que vence sem resposta é contado como pendência operacional, nunca
 como decisão favorável ou desfavorável. Nenhum ID de pessoa/caso em lote.
+`admin.recreio_safety_viewed` registra conta real da equipe, app e protocolo
+opcional consultado; não inclui resultados ou conteúdo da fila. Falha impede
+mostrar os casos. `admin.recreio_moderation_requested` registra a tentativa com
+IDs de comando/caso e operação fechada, antes do envio. Não comprova o efeito:
+somente `recreio.moderation_command_applied` confirma a transação do Recreio.
+Nenhum desses eventos recebe sessão, prova HMAC, chave ou corpo do comando.
 
 Eventos `recreio.*` registram o que aconteceu com os perfis, com o direito de jogar, com as sessões de jogo e com os mundos no app `recreio`, com payload mínimo de IDs, nomes de campo, classificadores e contagens. O perfil é o que os jogos conhecem de uma pessoa: nunca gravar apelido, avatar, e-mail, IP, nome de aparelho, ingresso, token de sessão, chave, segredo de instância, nome de mundo, código de convite (nem o resumo dele), o texto de participação que o jogo guarda no convite, o resumo do mundo publicado pelo jogo ou qualquer texto livre.
 

@@ -80,10 +80,15 @@ export async function requireStaff(): Promise<Staff> {
 
 /** Guarda das ações e das rotas: falha em vez de redirecionar. */
 export async function requireStaffForAction(): Promise<Staff> {
+  return (await requireStaffSessionForAction()).staff;
+}
+
+/** Identidade e sessão reais para emissões entre servidores, depois das duas etapas. */
+export async function requireStaffSessionForAction(): Promise<{ staff: Staff; sessionId: string }> {
   const state = await getStaffState();
   if (state.kind === "anonymous") throw new UnauthorizedError();
   if (state.kind !== "staff") throw new ForbiddenError("staff with two-factor required");
-  return state.staff;
+  return { staff: state.staff, sessionId: state.sessionId };
 }
 
 /**

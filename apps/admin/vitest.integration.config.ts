@@ -17,7 +17,10 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["src/features/people/family-metadata.integration.test.ts"],
+    include: [
+      "src/features/people/family-metadata.integration.test.ts",
+      "src/features/recreio-moderacao/seguranca.integration.test.ts",
+    ],
     environment: "node",
     fileParallelism: false,
     testTimeout: 30_000,
