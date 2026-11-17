@@ -41,7 +41,9 @@ export const recreioSafetyReports = recreio.table(
       .notNull(),
     priority: boolean("priority").notNull(),
     /** Evidência produzida pelo servidor: relacionamento existente no instante da denúncia. */
-    evidenceKind: text("evidence_kind").$type<"pedido" | "amizade" | "protecao">().notNull(),
+    evidenceKind: text("evidence_kind")
+      .$type<"pedido" | "amizade" | "protecao" | "mundo">()
+      .notNull(),
     evidenceId: uuid("evidence_id"),
     evidenceRevision: integer("evidence_revision"),
     state: text("state")
@@ -80,7 +82,7 @@ export const recreioSafetyReports = recreio.table(
     ),
     check(
       "recreio_safety_report_evidence",
-      sql`(${t.evidenceKind}='pedido' and ${t.evidenceId} is not null and ${t.evidenceRevision} is null) or (${t.evidenceKind}='amizade' and ${t.evidenceRevision} is not null and ${t.evidenceRevision}>0 and ${t.evidenceId} is null) or (${t.evidenceKind}='protecao' and ${t.evidenceId} is null and ${t.evidenceRevision} is null)`,
+      sql`(${t.evidenceKind} in ('pedido','mundo') and ${t.evidenceId} is not null and ${t.evidenceRevision} is null) or (${t.evidenceKind}='amizade' and ${t.evidenceRevision} is not null and ${t.evidenceRevision}>0 and ${t.evidenceId} is null) or (${t.evidenceKind}='protecao' and ${t.evidenceId} is null and ${t.evidenceRevision} is null)`,
     ),
     check(
       "recreio_safety_report_distinct",

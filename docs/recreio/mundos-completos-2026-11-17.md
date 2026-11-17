@@ -131,3 +131,11 @@ precisa de um fluxo de proposta com proveniência do responsável e aceite do
 destinatário; o fluxo adulto anterior não é reinterpretado como essa prova.
 Encerramento F7 continua dependendo dessa resolução. Convites, visitas,
 participantes e os demais gates F5 também permanecem abertos.
+
+O próximo incremento cobre proteção entre participantes sem amizade. O servidor
+descobre e trava um mundo comum antes dos perfis, relê as duas participações e
+registra apenas a referência opaca dessa coparticipação. Não recebe evidência
+ou conteúdo do navegador. O check de denúncias ganha a alternativa `mundo`, sem
+alterar evidências anteriores; sua migration será gerada e conferida no GitHub.
+Bloqueio não expulsa membro nem apaga progresso. A listagem exige a autoridade
+atual do mundo e não transforma esse vínculo em amizade ou presença pública.
