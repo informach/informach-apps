@@ -195,3 +195,19 @@ cobrem limites, exclusão, perfis alheios, conta sem jogador, validade durante
 espera, disputa com mudança de PIN, partida aberta e falha da auditoria. Telas
 de configuração/seleção e integração com os jogos protegidos continuam
 pendentes; verificação remota do backend ainda pendente.
+
+A candidata de telas de configuração acrescenta `/conta/protecao` para o PIN
+nativo, sem jogador obrigatório, e o PIN infantil na página de aparelhos do
+perfil. Confirmação de digitação, controles sem interatividade antes da
+hidratação, campos de senha, autenticação recente e estado lido no servidor.
+As mudanças são limitadas por conta e por destino (até cinco por destino/hora,
+trinta no conjunto), permitindo configurar quatro filhos e o adulto sem
+compartilhar um contador de cinco entre todos os perfis. A troca por PIN ainda
+não tem ação pública nesta candidata.
+
+A revisão das capturas desktop de `44010109866` conferiu o cadastro sem
+jogador e a tela pareada. O botão de aprovação passa a ter texto visual curto
+e nome acessível com o apelido, para caber no celular. A próxima prova preserva
+capturas de 390 px e exige ausência de rolagem horizontal, além de configurar
+PIN nativo/infantil pelo navegador. O texto de autenticação recente passa a
+servir também cadastro/PIN, sem falar sempre em transferência de mundo.

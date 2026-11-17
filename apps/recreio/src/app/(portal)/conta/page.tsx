@@ -108,6 +108,21 @@ export default async function Conta() {
           </Link>
         </section>
 
+        <section aria-labelledby="conta-protecao" className="painel p-5 sm:p-6">
+          <h2 id="conta-protecao" className="font-display text-xl font-bold">
+            Proteção do aparelho
+          </h2>
+          <p className="mt-2 text-tinta-suave">
+            Configure o PIN da sua área para usar aparelhos compartilhados com segurança.
+          </p>
+          <Link
+            href="/conta/protecao"
+            className="mt-4 inline-flex font-bold text-ceu underline underline-offset-4"
+          >
+            Gerenciar PIN
+          </Link>
+        </section>
+
         <section aria-labelledby="conta-aparelhos" className="painel p-5 sm:p-6">
           <h2 id="conta-aparelhos" className="font-display text-xl font-bold">
             Aparelhos

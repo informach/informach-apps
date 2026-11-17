@@ -17,10 +17,25 @@ import {
 import {
   aprovarPareamento,
   consultarPareamento,
+  definirPinDaConta,
+  definirPinDoMenor,
   desconectarUmDoMenor,
   prepararPareamento,
   sairDoAparelhoPareado,
 } from "./service";
+
+export async function definirPinNativoAction(entrada: unknown) {
+  return runAction(async () => {
+    await definirPinDaConta(await autorDaFamilia(), entrada);
+    return { salvo: true };
+  });
+}
+export async function definirPinMenorAction(entrada: unknown) {
+  return runAction(async () => {
+    await definirPinDoMenor(await autorDaFamilia(), entrada);
+    return { salvo: true };
+  });
+}
 
 export async function prepararPareamentoAction() {
   return runAction(async () => {

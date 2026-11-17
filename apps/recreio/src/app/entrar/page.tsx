@@ -53,7 +53,7 @@ export default async function Entrar({
               : encerrada
                 ? "A sessão neste aparelho foi encerrada. Entre de novo para continuar."
                 : recente
-                  ? "Entre novamente para confirmar a mudança de responsabilidade. Depois você volta à proposta."
+                  ? "Entre novamente para confirmar esta alteração. Depois você volta ao Recreio."
                   : ""
           }
         />

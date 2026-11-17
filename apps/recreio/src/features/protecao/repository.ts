@@ -45,6 +45,19 @@ export async function admitirRetornoNativo(autor: AutorNativoRecente) {
   });
 }
 
+export async function lerEstadoDoPinNativo(autor: IdentidadeNativa) {
+  return db.transaction(async (tx) => {
+    await limites(tx);
+    const nativo = await autorizarContaNativa(tx, autor);
+    const [pin] = await tx
+      .select({ updatedAt: pins.updatedAt })
+      .from(pins)
+      .where(eq(pins.userId, autor.contaId));
+    await nativo.conferirPrazo();
+    return { definido: !!pin, atualizadoEm: pin?.updatedAt.toISOString() ?? null };
+  });
+}
+
 export async function aparelhosDoMenor(autor: IdentidadeNativa, perfilId: PerfilId) {
   return db.transaction(async (tx) => {
     await limites(tx);

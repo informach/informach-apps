@@ -2,6 +2,7 @@ import { PerfilIdSchema } from "@informach/recreio";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AprovarAparelho } from "@/features/protecao/components/aprovar-aparelho";
+import { DefinirPin } from "@/features/protecao/components/definir-pin";
 import { DesconectarAparelhoDoMenor } from "@/features/protecao/components/encerrar-aparelho";
 import { listarAparelhosDoMenor } from "@/features/protecao/service";
 import { paginaDaGestao } from "@/features/sessao/ator";
@@ -31,6 +32,7 @@ export default async function AparelhosDoPerfil({ params }: { params: Promise<{ 
         momento. Datas no horário de Brasília.
       </p>
       <AprovarAparelho perfilId={pedido.data} apelido={pagina.perfil.apelido} />
+      <DefinirPin escopo={{ tipo: "menor", perfilId: pedido.data }} definido={pagina.pinDefinido} />
       <section aria-labelledby="aparelhos-perfil" className="mt-8">
         <h2 id="aparelhos-perfil" className="font-display text-xl font-bold">
           Aparelhos pareados

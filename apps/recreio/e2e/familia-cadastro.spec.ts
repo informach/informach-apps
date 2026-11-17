@@ -51,4 +51,22 @@ test("responsável sem jogador cadastra, reabre a lista e cancela outro formulá
   await expect(
     page.getByRole("link", { name: "Criar meu perfil para jogar", exact: true }),
   ).toBeVisible();
+  await page.getByRole("link", { name: "Gerenciar PIN", exact: true }).click();
+  const novoPin = page.getByLabel("Novo PIN", { exact: true });
+  await hidratado(novoPin);
+  await novoPin.fill("593871");
+  await page.getByLabel("Confirme o PIN", { exact: true }).fill("593872");
+  await page.getByRole("button", { name: "Salvar PIN", exact: true }).click();
+  await expect(page.getByText("Os dois PINs precisam ser iguais.", { exact: true })).toBeVisible();
+  await page.getByLabel("Confirme o PIN", { exact: true }).fill("593871");
+  await page.getByRole("button", { name: "Salvar PIN", exact: true }).click();
+  await expect(page.getByText("PIN configurado.", { exact: true })).toBeVisible();
+  await tela(page, "pin-nativo-sem-jogador");
+  await page.goto("/conta/perfis");
+  await page.getByRole("link", { name: "Gerenciar aparelhos de Lua da casa", exact: true }).click();
+  await hidratado(page.getByLabel("Novo PIN", { exact: true }));
+  await page.getByLabel("Novo PIN", { exact: true }).fill("396175");
+  await page.getByLabel("Confirme o PIN", { exact: true }).fill("396175");
+  await page.getByRole("button", { name: "Salvar PIN", exact: true }).click();
+  await expect(page.getByText("PIN configurado.", { exact: true })).toBeVisible();
 });

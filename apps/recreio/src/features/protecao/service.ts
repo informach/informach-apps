@@ -17,6 +17,7 @@ import {
   gravarPinNativo,
   iniciarPedidoDePareamento,
   lerAparelhoPareado,
+  lerEstadoDoPinNativo,
   revogarAcessoDoMenor,
   revogarUmAparelhoDoMenor,
 } from "./repository";
@@ -57,6 +58,11 @@ export async function definirPinDaConta(autor: AutorNativoRecente, entrada: unkn
   const { pin } = z.strictObject({ pin: PinSchema }).parse(entrada);
   await limitarTentativas({
     chave: `definir-pin:${autor.contaId}`,
+    max: 30,
+    janelaEmSegundos: 3600,
+  });
+  await limitarTentativas({
+    chave: `definir-pin-nativo:${autor.contaId}`,
     max: 5,
     janelaEmSegundos: 3600,
   });
@@ -68,10 +74,18 @@ export async function definirPinDoMenor(autor: AutorNativoRecente, entrada: unkn
     .parse(entrada);
   await limitarTentativas({
     chave: `definir-pin:${autor.contaId}`,
+    max: 30,
+    janelaEmSegundos: 3600,
+  });
+  await limitarTentativas({
+    chave: `definir-pin-menor:${autor.contaId}:${perfilId}`,
     max: 5,
     janelaEmSegundos: 3600,
   });
   return gravarPinDoMenor(autor, perfilId, await gerarHashDoPin(pin));
+}
+export function estadoDoPinNativo(autor: IdentidadeNativa) {
+  return lerEstadoDoPinNativo(autor);
 }
 
 /** O adapter passa o IP canônico da borda; sem endereço, recusar em vez de ignorar o limite. */

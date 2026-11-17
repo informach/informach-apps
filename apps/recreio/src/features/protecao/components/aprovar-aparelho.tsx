@@ -14,7 +14,7 @@ export function AprovarAparelho({ perfilId, apelido }: { perfilId: string; apeli
   const interativo = useHydrated();
   return (
     <section aria-labelledby="aprovar-aparelho" className="painel mt-6 p-5 sm:p-6">
-      <h2 id="aprovar-aparelho" className="font-display text-xl font-bold">
+      <h2 id="aprovar-aparelho" className="font-display text-xl font-bold [overflow-wrap:anywhere]">
         Parear um aparelho para {apelido}
       </h2>
       <p className="mt-2 text-tinta-suave">
@@ -56,8 +56,12 @@ export function AprovarAparelho({ perfilId, apelido }: { perfilId: string; apeli
             spellCheck={false}
             className="h-12 bg-fundo font-mono text-xl tracking-wider"
           />
-          <button type="submit" className="rb rb-sol justify-self-start">
-            {pendente ? "Confirmando…" : `Confirmar aparelho de ${apelido}`}
+          <button
+            type="submit"
+            aria-label={`Confirmar aparelho de ${apelido}`}
+            className="rb rb-sol justify-self-start"
+          >
+            {pendente ? "Confirmando…" : "Confirmar aparelho"}
           </button>
         </fieldset>
       </form>

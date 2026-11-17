@@ -69,6 +69,16 @@ test("dois aparelhos pareiam um menor, não herdam gestão e respeitam revogaç�
   expect(cookie).toMatchObject({ httpOnly: true, sameSite: "Strict", path: "/" });
   expect(await tablet.page.evaluate(() => document.cookie.includes("recreio-pareado"))).toBe(false);
   await tela(tablet.page, "aparelho-pareado-protegido");
+  await tablet.page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await tablet.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  ).toBe(true);
+  await tela(tablet.page, "aparelho-pareado-mobile");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await tela(page, "aparelhos-menor-mobile");
   await tablet.page.goto("/conta");
   await expect(tablet.page).toHaveURL(/\/entrar\?encerrada=1$/);
   await expect(tablet.page.getByRole("heading", { name: "Conta", exact: true })).toHaveCount(0);
