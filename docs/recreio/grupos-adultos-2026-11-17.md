@@ -191,3 +191,12 @@ checks, FKs e índices novos; os alvos únicos já existem pela migration prévi
 Provas de banco candidatas exigem par perfil/login, emissor/titular, datas
 terminais não nulas, endereço apagado e descarte atômico do par ao excluir perfil.
 Nada aplicado; convite utilizável e aceite ainda pendentes.
+
+Emissão de convite em candidata: titular nativo recente, declaração específica,
+grupo criado junto do primeiro convite sem criar jogador, normalização do
+destinatário sem consultar existência da conta, cinco pendências por grupo e
+vinte por endereço entre grupos. Mutex de destinatário serializa a última vaga;
+duplicação conserva ID/prazo. Mudança da pista de grupo vazio recomeça uma vez
+depois do rollback, com todos os mutexes descobertos na ordem correta. Auditoria
+e expiração que retira endereço são atômicas. Sem envio de e-mails operacionais.
+Listagem, revogação, aceite, limpeza global e telas de convite ainda pendentes.

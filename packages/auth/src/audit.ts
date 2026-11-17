@@ -111,6 +111,8 @@ export type AuditEventType =
   | "recreio.profile_created"
   | "recreio.profile_updated"
   | "recreio.group_coverage_updated"
+  | "recreio.group_invite_created"
+  | "recreio.group_invite_expired"
   | "recreio.profile_data_updated"
   | "recreio.profile_data_conflict"
   | "recreio.profile_data_conflict_discarded"
