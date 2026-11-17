@@ -124,6 +124,11 @@ fechado `legado_sem_recibo`, sem inventar autoria ou data da suspensão antiga.
 da restrição e espécie do ator (`titular`/`responsavel`), sempre com a conta
 nativa atual. Nenhum deles recebe nonce, resumo do corpo ou dados da denúncia
 original. Repetição não duplica auditoria nem reativa permissões.
+`recreio.moderation_command_applied` identifica comando, espécie e protocolo do
+caso, operação, revisão e, quando aplicável, perfil/decisão/motivo fechados.
+Ator é a conta atual da equipe, com sessão nativa e duas etapas revalidadas.
+Não inclui prova assinada, sessão, nonce ou hash do corpo. Recibo, efeito e
+auditoria são atômicos; replay não duplica evento e exige autoridade atual.
 
 Eventos `recreio.*` registram o que aconteceu com os perfis, com o direito de jogar, com as sessões de jogo e com os mundos no app `recreio`, com payload mínimo de IDs, nomes de campo, classificadores e contagens. O perfil é o que os jogos conhecem de uma pessoa: nunca gravar apelido, avatar, e-mail, IP, nome de aparelho, ingresso, token de sessão, chave, segredo de instância, nome de mundo, código de convite (nem o resumo dele), o texto de participação que o jogo guarda no convite, o resumo do mundo publicado pelo jogo ou qualquer texto livre.
 

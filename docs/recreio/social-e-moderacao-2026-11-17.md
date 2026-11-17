@@ -525,6 +525,25 @@ A defesa estática de privacidade do Bastidores passa a incluir todos os módulo
 de schema do Recreio, não apenas `recreio.ts`. Nenhuma coluna nova é liberada
 genericamente: a futura fila precisa de projeção e exceção estrutural explícitas.
 
+Comandos da equipe agora têm uma implementação candidata de transação e rota
+`POST /api/moderacao/v1/comandos`. Só aceita prova HMAC curta, vinculada ao
+corpo exato, assinada com `RECREIO_MODERATION_SECRET` exclusiva; ausência da
+chave mantém o endpoint indisponível. O segredo não foi configurado em produção.
+Sob travas ordenadas de contas, mundo quando necessário, perfis e caso, relê
+papel/2FA, sessão física, banimento, revisão e prazo. Recibo global por UUID,
+efeito, transição e auditoria são atômicos, com nova conferência do relógio ao
+final. Replay exige o mesmo corpo/ator e a autoridade atual, sem repetir efeito.
+
+A suspensão grava o fato mínimo vigente com a nova versão monotônica do perfil,
+invalida ingressos/SIDs e troca a geração dos aparelhos infantis. Reativação
+não ressuscita esses acessos. Havendo recurso aberto, a equipe deve respondê-lo:
+uma denúncia antiga não permite contorná-lo. O recurso continua independente
+da denúncia expurgada. Sete testes PostgreSQL adicionais foram preparados para
+concorrência, CAS/replay, antigo papel, sigilo/expurgo, menor, auditoria e sessão
+que vence durante a operação. Validação remota ainda pendente neste incremento;
+fila e emissor do Bastidores, retenção ampliada e superfícies próprias seguem
+em implementação. Não interpretar a rota candidata como moderação homologada.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

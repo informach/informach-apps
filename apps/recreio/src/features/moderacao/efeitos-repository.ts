@@ -1,26 +1,21 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
-import { and, eq, or, sql } from "@informach/db";
+import { and, eq, or } from "@informach/db";
 import {
   recreioFriendships as friends,
-  recreioGameSessions as games,
   recreioSpaceInvites as invites,
   recreioSpaceMembers as members,
-  recreioProfiles as profiles,
-  recreioMinorProtection as protection,
   type recreioSafetyReports as reports,
   recreioFriendRequests as requests,
 } from "@informach/db/schema";
-import { ContaIdSchema, PerfilIdSchema } from "@informach/recreio";
+import { PerfilIdSchema } from "@informach/recreio";
 import type { ComandoDeModeracao } from "@informach/recreio/contrato";
-import { revogarAparelhosDoMenorSobTrava } from "@/features/protecao/repository";
-import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/encerramento-repository";
-import { invalidarIngressosDoPerfil } from "@/features/sessao-de-jogo/ingressos-repository";
 import { parSocial } from "@/features/social/amizade-repository";
 import type { ComposicaoSocial } from "@/features/social/composicao-repository";
 import { removerContatoSobTrava } from "@/features/social/protecao-repository";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
+import { mudarRestricaoSobTrava } from "./restricao-efeito-repository";
 
 type Caso = typeof reports.$inferSelect;
 type ComandoDeCaso = Exclude<ComandoDeModeracao, { operacao: "responder_recurso" }>;
@@ -62,46 +57,19 @@ export async function aplicarEfeitoDeModeracao(
       "CONFLITO",
       "O perfil não corresponde ao alvo confirmado deste caso.",
     );
-    const perfil = composicao.perfis.find((p) => p.id === comando.perfilId);
-    const estado = comando.operacao === "suspender_perfil" ? "suspended" : "active";
-    assertAllowed(
-      perfil && perfil.policyVersion === comando.versaoDoPerfil && perfil.status !== estado,
-      "CONFLITO",
-      "O perfil mudou. Confira a situação atual antes de agir.",
+    await mudarRestricaoSobTrava(
+      tx,
+      {
+        perfilId: comando.perfilId,
+        versaoDoPerfil: comando.versaoDoPerfil,
+        estado: comando.operacao === "suspender_perfil" ? "suspended" : "active",
+        motivo: comando.motivo,
+        reportId: caso.id,
+      },
+      composicao,
+      contaId,
+      conferirPrazo,
     );
-    assertAllowed(
-      (estado === "suspended" &&
-        ["risco_confirmado", "medida_preventiva"].includes(comando.motivo)) ||
-        (estado === "active" &&
-          ["recurso_procedente", "correcao_operacional"].includes(comando.motivo)),
-      "CONFLITO",
-      "O motivo não corresponde à ação.",
-    );
-    const perfilId = PerfilIdSchema.parse(perfil.id),
-      agora = await conferirPrazo();
-    if (perfil.kind === "minor" && estado === "suspended") {
-      const [atual] = await tx
-        .select({ vinculoId: protection.guardianLinkId })
-        .from(protection)
-        .where(eq(protection.profileId, perfilId))
-        .for("update");
-      assertAllowed(
-        atual &&
-          composicao.vinculos.some((v) => v.profileId === perfilId && v.id === atual.vinculoId),
-        "CONFLITO",
-        "A responsabilidade mudou. Confira o caso novamente.",
-      );
-      await revogarAparelhosDoMenorSobTrava(tx, perfilId, agora);
-    }
-    await tx
-      .update(profiles)
-      .set({ status: estado, policyVersion: perfil.policyVersion + 1, updatedAt: agora })
-      .where(eq(profiles.id, perfilId));
-    await invalidarIngressosDoPerfil(tx, perfilId);
-    await encerrarSessoesAbertas(tx, sql`${games.profileId}=${perfilId}`, "permissions_changed", {
-      porQuem: "ator",
-      contaId: ContaIdSchema.parse(contaId),
-    });
     return { estado: "em_analise" as const, decisao: caso.decision };
   }
   if (comando.operacao === "desfazer_amizade") {

@@ -37,6 +37,22 @@ const production: NodeJS.ProcessEnv = {
   CRON_SECRET: SEGREDO,
 };
 describe("deployment environment", () => {
+  it("moderação sem chave permanece indisponível e a chave configurada precisa ser exclusiva", () => {
+    expect(validateEnvironment(base).RECREIO_MODERATION_SECRET).toBeUndefined();
+    const propria = "moderacao-exclusiva-".repeat(4);
+    expect(
+      validateEnvironment({ ...base, RECREIO_MODERATION_SECRET: propria })
+        .RECREIO_MODERATION_SECRET,
+    ).toBe(propria);
+    for (const outro of [
+      { BETTER_AUTH_SECRET: propria },
+      { CRON_SECRET: propria },
+      { RECREIO_HOST_SECRETS: JSON.stringify({ morada: propria }) },
+    ])
+      expect(() =>
+        validateEnvironment({ ...base, ...outro, RECREIO_MODERATION_SECRET: propria }),
+      ).toThrow("RECREIO_MODERATION_SECRET");
+  });
   it("mantém social desligado por padrão e recusa modo desconhecido", () => {
     expect(validateEnvironment(production).RECREIO_SOCIAL_MODE).toBe("off");
     expect(
