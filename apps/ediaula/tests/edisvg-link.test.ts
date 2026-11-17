@@ -137,3 +137,75 @@ test("a save in EdiSVG is heard: the manifest written, also when the renders fol
     watcher.close();
   }
 });
+
+test("a package's EdiSVG project gets its links back: a save there reaches the lesson again", async () => {
+  const { readManifest, rendersDir } = await import("@informach/edi-link/node");
+  const { restorePackedLinks } = await import("../src/main/edisvgLink.ts");
+  const pkg = join(root, "Pacote");
+  const media = join(pkg, "media");
+  await mkdir(media, { recursive: true });
+  const edisvg = join(media, "conceito.edisvg");
+  await writeFile(
+    edisvg,
+    JSON.stringify({ id: "project-conceito", artboards: [], motion: { animations: [] } }),
+  );
+  const played = join(media, "a1-animation-um-0123456789abcdef.webm");
+  await writeFile(played, "webm");
+  const asset = (id: string, path: string, animationId: string, hash?: string) => ({
+    id,
+    name: `Conceito ${id}`,
+    path,
+    kind: "video" as const,
+    duration: 2,
+    width: 1920,
+    height: 1080,
+    fps: 30,
+    hasVideo: true,
+    hasAudio: false,
+    size: 4,
+    proxyStatus: "none" as const,
+    alpha: true,
+    link: {
+      app: "edisvg" as const,
+      project: edisvg,
+      animationId,
+      artboardId: "artboard-cena",
+      ...(hash ? { hash } : {}),
+    },
+  });
+  const lesson = {
+    version: 1,
+    id: "aula",
+    name: "Aula",
+    createdAt: 0,
+    updatedAt: 0,
+    settings: { width: 1920, height: 1080, fps: 30 },
+    assets: [
+      asset("a1", played, "animation-um", "0123456789abcdef"),
+      // Its render did not come in the package: EdiSVG makes it at the next save.
+      asset("a2", join(media, "sumiu.webm"), "animation-dois", "fedcba9876543210"),
+    ],
+    tracks: [],
+    clips: [],
+  } as unknown as import("../src/shared/types.ts").Project;
+
+  const opened = await restorePackedLinks(lesson, pkg, 5);
+  const folder = rendersDir(edisvg);
+  const manifest = await readManifest(folder);
+  assert.equal(manifest?.projectId, "project-conceito");
+  assert.deepEqual(
+    manifest?.items.map((i) => [i.animationId, i.artboardId, i.render?.file, i.render?.frames]),
+    [
+      ["animation-um", "artboard-cena", "animation-um-0123456789abcdef.webm", 60],
+      ["animation-dois", "artboard-cena", undefined, undefined],
+    ],
+  );
+  // The render it plays is the manifest's: EdiSVG only renders what a save changes.
+  assert.equal(opened.assets[0].path, join(folder, "animation-um-0123456789abcdef.webm"));
+  assert.deepEqual((await linkState(edisvg)).items[0].renderPath, opened.assets[0].path);
+  // A manifest already there (EdiSVG's own) is never rewritten.
+  assert.equal(await restorePackedLinks(lesson, pkg, 9), lesson);
+  // A project outside the package is not the package's to touch.
+  const outside = await restorePackedLinks(lesson, join(root, "Outro"), 9);
+  assert.equal(outside, lesson);
+});
