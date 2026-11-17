@@ -253,6 +253,8 @@ export function Preview(): ReactNode {
   const flaps = useRef(new Map<string, HTMLSpanElement>());
   const areaRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  /** The playback sync of the current project (the effect below), for a stage that changed size. */
+  const syncRef = useRef<(() => void) | null>(null);
   const [fit, setFit] = useState({ w: 640, h: 360 });
   // Zoom and pan of the preview itself (not of the lesson): the stage is laid out bigger, so
   // everything drawn on it keeps using the same scale.
@@ -805,6 +807,7 @@ export function Preview(): ReactNode {
       for (const el of pool.all()) if (!used.has(el) && !el.paused) el.pause();
     };
     sync();
+    syncRef.current = sync;
     const unsub = usePlayback.subscribe(sync);
     // A slider held in the panel and the solo of a track show at once.
     const unsubLive = useLiveEdit.subscribe(sync);
@@ -816,6 +819,7 @@ export function Preview(): ReactNode {
     if (pool) pool.onSeeked = sync;
     pool?.keepOnly(new Set(lanes.lanes.keys()));
     return () => {
+      if (syncRef.current === sync) syncRef.current = null;
       unsub();
       unsubLive();
       unsubSolo();
@@ -832,6 +836,14 @@ export function Preview(): ReactNode {
     cuesVersion,
     recordingZoom,
   ]);
+
+  // The stage changed size (the preview's own zoom, the panel or the window resized, full
+  // screen): what sync placed in pixels (keyframed layers, entrances, zoom layers, Destaques,
+  // region effects) is placed again for the new size before it paints, so the scene only grows
+  // or shrinks as a whole, even paused. React already re-rendered the rest with the new scale.
+  useLayoutEffect(() => {
+    if (size.w > 0 && size.h > 0) syncRef.current?.();
+  }, [size.w, size.h]);
 
   // The pool of media elements lives as long as the preview; leaving the editor stops it all.
   useLayoutEffect(() => {
