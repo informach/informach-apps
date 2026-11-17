@@ -46,22 +46,32 @@ export async function consultarTempoDeJogo(
     pausaEm = agora.toISOString();
     motivo = atual.motivo;
   } else if (!pausaConfirmadaEm) {
-    // Horizonte fixo: aviso de até um minuto, inclusive mudança do dia e saltos IANA.
+    // Previsão de aviso, sem ampliar a concessão de até 60 s. Orçamento tem
+    // fronteira exata; calendário só muda em cada grupo de minuto local/UTC.
+    const horizonte = agora.getTime() + 10 * 60_000;
+    if (atual.permitido && atual.saldoMs !== null && agora.getTime() + atual.saldoMs <= horizonte) {
+      pausaEm = new Date(agora.getTime() + atual.saldoMs).toISOString();
+      motivo = "daily_limit";
+    }
     const instantes = await tx.execute<{
       instante: string;
       dia: string;
       semana: number;
       minuto: number;
     }>(sql`
-      select instante::text, to_char(local,'YYYY-MM-DD') as dia, extract(dow from local)::integer as semana,
-        (extract(hour from local)::integer*60+extract(minute from local)::integer) as minuto
-      from (select instante, instante at time zone 'America/Sao_Paulo' as local from generate_series(
-        date_trunc('second',${agora.toISOString()}::timestamptz)+interval '1 second',
-        date_trunc('second',${agora.toISOString()}::timestamptz)+interval '61 seconds', interval '1 second'
-      ) serie(instante)) calendario order by instante
+      with calendario as (
+        select instante, to_char(local,'YYYY-MM-DD') as dia, extract(dow from local)::integer as semana,
+          (extract(hour from local)::integer*60+extract(minute from local)::integer) as minuto
+        from (select instante, instante at time zone 'America/Sao_Paulo' as local from generate_series(
+          date_trunc('second',${agora.toISOString()}::timestamptz)+interval '1 second',
+          date_trunc('second',${agora.toISOString()}::timestamptz)+interval '601 seconds', interval '1 second', 'UTC'
+        ) serie(instante)) locais
+      ) select min(instante)::text as instante, dia, semana, minuto from calendario
+        group by date_trunc('minute',instante,'UTC'),dia,semana,minuto order by min(instante)
     `);
     for (const instante of instantes) {
       const data = new Date(instante.instante);
+      if (data.getTime() > horizonte || (pausaEm && data.getTime() > Date.parse(pausaEm))) break;
       if (instante.dia !== calendario.dia) {
         pausaEm = data.toISOString();
         motivo = "day_change";
@@ -76,8 +86,6 @@ export async function consultarTempoDeJogo(
       }
     }
   }
-  if (pausaEm)
-    pausaEm = new Date(Math.min(Date.parse(pausaEm), dia.leaseUntil.getTime())).toISOString();
   return {
     usadoHojeMs: acerto.usadoMs,
     limiteDiarioMinutos: supervisao.minutosPorDia,

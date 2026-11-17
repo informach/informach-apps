@@ -13,6 +13,7 @@ export function observarTrocaDaPartida(
   let timer: ReturnType<typeof setTimeout> | null = null;
   let processado: string | null = null;
   let ackSemResposta = false;
+  let avisandoTempo = false;
   const avisar = (aviso: AvisoDaTroca | null) => {
     if (!cancelado) aoAvisar(aviso);
   };
@@ -26,6 +27,22 @@ export function observarTrocaDaPartida(
     try {
       const controle = await contexto.sessao.controle();
       if (cancelado) return;
+      if (!controle.pausada && controle.checkpoint === null && !ackSemResposta) {
+        const faltam = controle.tempo?.pausaEm
+          ? Date.parse(controle.tempo.pausaEm) - Date.parse(controle.agora)
+          : Infinity;
+        if (faltam > 0 && faltam <= 600_000) {
+          const minutos = Math.ceil(faltam / 60_000);
+          avisar({
+            texto: `Faltam cerca de ${minutos} ${minutos === 1 ? "minuto" : "minutos"} para a pausa. Salve pelo jogo antes do fim do tempo.`,
+            bloqueia: false,
+          });
+          avisandoTempo = true;
+        } else if (avisandoTempo) {
+          avisar(null);
+          avisandoTempo = false;
+        }
+      }
       if (controle.pausada) {
         ackSemResposta = false;
         pausada();

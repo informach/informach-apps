@@ -143,6 +143,7 @@ test("responsável sem jogador cadastra, protege e supervisiona o perfil", async
     .scrollIntoViewIfNeeded();
   await tela(page, "supervisao-confirmacao-mobile");
   // A prova usa o título interno L; o Morada continua em análise e recusado.
+  await limite.fill("10");
   await page.getByLabel("Pausar o acesso aos jogos", { exact: true }).uncheck();
   await page.getByLabel("Jogar somente nos horários definidos", { exact: true }).uncheck();
   await page.getByLabel("Revisei e confirmo estas regras para o perfil.", { exact: true }).check();
@@ -178,6 +179,9 @@ test("responsável sem jogador cadastra, protege e supervisiona o perfil", async
     .getByRole("link", { name: "Jogar Prova de progresso por perfil", exact: true })
     .click();
   await expect(page.getByLabel("Pontos salvos", { exact: true })).toHaveText("0");
+  await expect(
+    page.getByRole("status").filter({ hasText: "Faltam cerca de 10 minutos para a pausa." }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Ganhar ponto", exact: true }).click();
   await expect(page.getByLabel("Pontos salvos", { exact: true })).toHaveText("1");
   await expect(page.getByRole("status", { name: "Estado do progresso", exact: true })).toHaveText(

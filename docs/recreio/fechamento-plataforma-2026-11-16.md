@@ -81,6 +81,9 @@ São bases de implementação; não declarar parecer jurídico ou homologação 
 ## Execução atual
 
 Primeiro subprojeto: [SDK e dados de perfil](dados-de-perfil-2026-11-16.md).
+Em 17/11, [checkpoint e troca](checkpoint-sessoes-2026-11-17.md) e
+[avisos de tempo](avisos-tempo-2026-11-17.md) avançam em candidatas. Os gates,
+limites e diferenças entre fonte candidata e produção ficam nesses registros.
 A reprodução inicial exige as APIs ainda ausentes no contexto retornado pelo SDK.
 Os gates seguintes precisam testar o banco, chamadas HTTP reais do app e o jogo
 sem mundos, além dessa superfície. Continuar em série até fechar as frentes;

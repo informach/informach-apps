@@ -54,6 +54,7 @@ export default async function Jogar({
       mundo={pagina.tipo === "pronto_sem_mundo" ? null : pagina.mundo}
       estante={estante}
       trocaCoordenada={env.RECREIO_CHECKPOINT_MODE === "on"}
+      supervisionado={ator.protegido}
     />
   );
 }

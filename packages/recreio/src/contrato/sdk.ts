@@ -80,6 +80,7 @@ export const ControleDaSessaoSchema = z.strictObject({
       usadoHojeMs: z.number().int().min(0).max(172800000),
       limiteDiarioMinutos: z.number().int().min(1).max(1440).nullable(),
       saldoMs: z.number().int().min(0).max(86400000).nullable(),
+      /** Previsão nos próximos dez minutos; não amplia expiraEm nem autoriza continuar. */
       pausaEm: instanteIso.nullable(),
       motivo: z.enum(["daily_limit", "schedule", "paused", "day_change"]).nullable(),
     })
