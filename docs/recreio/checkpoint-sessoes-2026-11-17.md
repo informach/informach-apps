@@ -70,5 +70,24 @@ sem anunciar que nada foi perdido durante uma indisponibilidade.
 5. Revogação atual prevalece sobre qualquer intenção/recibo antigo. Retenção
    não reativa o SID. Nenhum segredo entra em URL, DOM, auditoria ou captura.
 
-As migrations desta etapa ainda não foram geradas. Não mudar o piso de rollback
-ou habilitar famílias/checkpoint em produção com base neste desenho.
+## Preparação candidata
+
+A 0175 foi gerada no GitHub (`44030440266`, artefato `14305540498`), fonte
+`b603a019aeca4f1ce79c2f69ee868328d5e616f2`. Os três arquivos foram conferidos
+por origem/caminho/tamanho/SHA-256 antes da cópia: SQL
+`0175_complete_runaways.sql`, 5.092 bytes,
+`35b62be80dfb19a3a8d102f0dbfa45d89f7b264b44bdfe7b0d1b7a33406b2618`;
+snapshot de 754.122 bytes e journal gerado de 26.736 bytes. Nenhum arquivo
+gerado foi editado à mão. A tabela usa a identidade composta da 0172 e
+restringe prazo, ciclo, confirmação e prova de servidor. Só adições.
+
+Esta candidata acrescenta leitores da barreira: SID congelado não lê/grava
+dados, entra em mundo, renova ou substitui a partida por mero `continuarAqui`.
+A intenção técnica pode ser removida sem retirar a barreira no SID. Há uma
+resposta própria de pausa na interface, sem anunciar troca concluída. Testes
+de constraints e recusa real do token ainda precisam da rodada remota.
+
+Não há escritor de checkpoint/troca ou aviso antecipado nesta preparação.
+Não aplicar a 0175 isoladamente ou habilitar famílias/checkpoint em produção
+com base neste desenho. A publicação intermediária dos leitores familiares
+usa a fonte `ad37ca9` e termina na 0174; não inclui esta candidata.

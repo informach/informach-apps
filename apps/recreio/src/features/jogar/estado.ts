@@ -18,6 +18,7 @@ export type Parada =
   | "saiu_do_jogo"
   | "permissoes_alteradas"
   | "sessao_encerrada"
+  | "pausado_para_troca"
   | "rede"
   | "falha";
 
@@ -69,6 +70,7 @@ function motivoDe(erro: { detalhe: Readonly<Record<string, unknown>> }): string 
 
 /** Como uma sessão de jogo que acabou aparece para a pessoa. */
 function paradaDoFimDaSessao(motivo: string | null): Parada {
+  if (motivo === "checkpoint") return "pausado_para_troca";
   if (motivo === "replaced") return "outro_lugar";
   if (motivo === "signed_out") return "saiu_da_conta";
   if (motivo === "left") return "saiu_do_jogo";
@@ -98,6 +100,8 @@ export function paradaDoErro(erro: unknown): Parada {
     }
     case "SESSAO_ENCERRADA":
       return paradaDoFimDaSessao(motivoDe(erro));
+    case "CHECKPOINT_PENDENTE":
+      return "pausado_para_troca";
     case "SESSAO_INVALIDA":
     case "INGRESSO_INVALIDO":
       return "sessao_encerrada";
@@ -144,6 +148,11 @@ export type TextoDaParada = {
 };
 
 const TEXTOS: Record<Parada, TextoDaParada> = {
+  pausado_para_troca: {
+    titulo: "Jogo pausado para trocar de aparelho",
+    texto: "Esta sessão está pausada enquanto a troca de aparelho é confirmada.",
+    acao: "nada",
+  },
   sem_login: {
     titulo: "Entre de novo para jogar",
     texto: "A sua entrada no Recreio terminou neste aparelho.",

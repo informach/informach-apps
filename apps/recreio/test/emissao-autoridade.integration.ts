@@ -123,6 +123,39 @@ async function abrir(r: Awaited<ReturnType<typeof protegido>>) {
 }
 
 describe("emissão transacional da autoridade", () => {
+  it("barreira de checkpoint recusa progresso, renovação e substituição sem consumir outro ingresso", async () => {
+    const r = await protegido();
+    const aberta = await abrir(r);
+    const sessao = await sessaoDeJogoDoToken(aberta.token);
+    await db
+      .update(games)
+      .set({ checkpointFrozenAt: sql`clock_timestamp()` })
+      .where(eq(games.id, sessao.sid));
+    await expect(
+      alterarDados(sessao, { operacao: "gravar", chave: "pontos", conteudo: "MQ==", revisao: 0 }),
+    ).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA", detalhe: { motivo: "checkpoint" } });
+    await expect(renovarSessao(aberta.token)).rejects.toMatchObject({
+      codigo: "SESSAO_ENCERRADA",
+      detalhe: { motivo: "checkpoint" },
+    });
+    const ingresso = await emitirIngresso(r.ator, { jogo: JOGO });
+    await expect(
+      trocarIngresso({ ingresso: ingresso.ingresso, continuarAqui: true }),
+    ).rejects.toMatchObject({ codigo: "CHECKPOINT_PENDENTE" });
+    expect(
+      (
+        await db
+          .select()
+          .from(tickets)
+          .where(eq(tickets.jti, String(claimsDe(ingresso.ingresso).jti)))
+      )[0]?.consumedAt,
+    ).toBeNull();
+    expect((await db.select().from(games).where(eq(games.id, sessao.sid)))[0]).toMatchObject({
+      checkpointFrozenAt: expect.any(Date),
+      endedAt: null,
+      expiresAt: new Date(aberta.expiraEm),
+    });
+  });
   it("mundo infantil usa faixa própria; conteúdo adulto não aparece nem atribui posse", async () => {
     const r = await protegido();
     const autor = {

@@ -149,10 +149,12 @@ export async function abrirSessaoComIngresso(entrada: {
         .for("update");
       if (!recibo) throw new ErroDoRecreio("INGRESSO_INVALIDO");
       const [aberta] = await tx
-        .select({ id: games.id, expiraEm: games.expiresAt })
+        .select({ id: games.id, expiraEm: games.expiresAt, congeladaEm: games.checkpointFrozenAt })
         .from(games)
         .where(and(eq(games.profileId, entrada.ingresso.perfilId), isNull(games.endedAt)));
       const agora = await contexto.conferirPrazo();
+      // Leitor anterior aos escritores de troca: uma barreira nunca é aceite implícito.
+      if (aberta && aberta.congeladaEm !== null) throw new ErroDoRecreio("CHECKPOINT_PENDENTE");
       if (aberta && aberta.expiraEm > agora && !entrada.continuarAqui)
         throw new ErroDoRecreio("JA_ABERTO");
       const tempo = contexto.politica
@@ -284,6 +286,8 @@ export async function gravarRenovacao(entrada: {
       return recusarAutoridade(
         new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: atual.endReason ?? "expired" }),
       );
+    if (atual.checkpointFrozenAt !== null)
+      return recusarAutoridade(new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "checkpoint" }));
     if (atual.expiresAt <= agora || entrada.sessao.versaoDaPolitica !== contexto.versaoDaPolitica)
       return recusarAutoridade(
         new ErroDoRecreio("ACESSO_PERDIDO", {

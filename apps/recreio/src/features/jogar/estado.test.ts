@@ -16,6 +16,12 @@ function depois(...eventos: EventoDoHospedeiro[]): EstadoDoHospedeiro {
 }
 
 describe("estado da página do jogo", () => {
+  it("pausa de checkpoint não anuncia transferência concluída nem oferece retomar o SID", () => {
+    const parada = paradaDaMudanca({ codigo: "SESSAO_ENCERRADA", motivo: "checkpoint" });
+    expect(parada).toBe("pausado_para_troca");
+    expect(paradaDoErro(new ErroDoRecreio("CHECKPOINT_PENDENTE"))).toBe(parada);
+    expect(textoDaParada(parada).acao).toBe("nada");
+  });
   it("abre, monta e joga", () => {
     expect(ESTADO_INICIAL).toEqual({ fase: "carregando" });
     expect(depois({ tipo: "montado" })).toEqual({ fase: "jogando" });

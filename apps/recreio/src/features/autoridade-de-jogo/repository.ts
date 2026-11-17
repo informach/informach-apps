@@ -61,6 +61,8 @@ export async function comSessaoDeJogoAutoritativa<T>(
       admissao.versaoDaPolitica !== sessao.versaoDaPolitica
     )
       return recusarAutoridade();
+    if (jogo.checkpointFrozenAt !== null)
+      return recusarAutoridade(new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: "checkpoint" }));
     if (admissao.politica) {
       const calendario = await calendarioDeBrasilia(tx, agora);
       const [concessao] = await tx
