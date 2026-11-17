@@ -162,15 +162,15 @@ test("equipe ativa autenticador, entra com duas etapas e suspende um perfil com 
     await expect(caso).toHaveCount(1);
     await expect(page.getByText("Origem reservada", { exact: true })).toHaveCount(0);
     await expect(page.getByText("Alvo reservado", { exact: true })).toHaveCount(0);
+    await aplicar(caso, "analisar");
+    await page
+      .getByRole("link", { name: "Atualizar este caso antes de continuar", exact: true })
+      .click();
     await aplicar(caso, "suspender_perfil");
     await b.page.goto(destino);
     await expect(
       b.page.getByRole("heading", { name: "Acesso suspenso", exact: true }),
     ).toBeVisible();
-    await page
-      .getByRole("link", { name: "Atualizar este caso antes de continuar", exact: true })
-      .click();
-    await aplicar(caso, "analisar");
     await page
       .getByRole("link", { name: "Atualizar este caso antes de continuar", exact: true })
       .click();
