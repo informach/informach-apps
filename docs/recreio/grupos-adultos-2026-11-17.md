@@ -226,3 +226,19 @@ snapshot SHA `9367b60e76f486ae903946eca13a19aa5625a1e103bf88763218953516a8fd1d`;
 journal SHA `3f1821a8c6abeeee4c0fbddea7aa632405979a5eed54ac88eab175c296ffb1a3`.
 Três arquivos conferidos e copiados intactos. Somente coluna nullable, FK e
 check da tabela privada de convites; não toca concessões, identidades ou dados.
+
+`6f5a555` passou nos sete gates `44094451952`, com 545 integrações/51 arquivos;
+CI compartilhado `44096609191` em execução. Captura de cobertura a 390 px
+inspecionada no artefato `14334081597`, SHA
+`084d71b0f4309a28b16d165ce4f1cb227ce6debdc73223673d62dba0d5571910`:
+texto legível, estado atual separado da seleção e sem rolagem horizontal.
+Produção conserva somente F3 em `3f2b1239`, como documentado na main `338236d`.
+
+Nova candidata de leitura e encerramento usa e-mail atual da conta travada e
+o ID fixado na emissão. Outro dono do endereço não recebe a pendência antiga;
+sem conta na emissão, o novo acesso verificado pode recebê-la. Contexto infantil
+não lê/encerra convites. Emissor revoga e destinatário recusa com login recente;
+ambos retiram endereço/vinculação atomicamente e auditam sem conteúdo. Leituras
+têm limites de lock/transação e não retornam dados de perfil ou cobrança. A
+identificação visual do emissor, aceite, saída, expurgo global e telas de
+convite continuam pendentes. Provas negativas e rodada completa ainda necessárias.
