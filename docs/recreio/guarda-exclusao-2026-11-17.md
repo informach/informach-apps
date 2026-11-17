@@ -66,3 +66,26 @@ verificação remota. Os oito outros consumidores web não tiveram código ou
 packages compartilhados alterados por essa integração externa; ainda precisam
 receber a guarda e ter o processo real conferido antes de 0183. O migrator
 continua sem DDL novo e sem alteração de comando nesta etapa.
+
+A fonte `644b3841` foi conferida no processo de cada um dos nove consumidores,
+todos com `/api/ready` 200; Morada também responde 200 nessa fonte. A
+[evidência](evidencias/guarda-contas-producao-2026-11-17.json) registra deployments
+e fontes fixadas. Oito consumidores precisam voltar a acompanhar main depois
+da integração pública qualificada da guarda; portal e Morada mantêm promoção
+explícita para não incluir D3 por acidente.
+
+Antes de F1, [restauração atual](evidencias/backup-logico-2026-11-17-pre-grupos.json)
+aprovada às 19:16 UTC: 19.264.248 bytes, 243 tabelas/284.198 linhas,
+estrutura/conteúdo comparados idênticos, temporários e serviço removidos sem
+volume destacado. Inventário voltou a 34 serviços. O migrator foi alterado
+para somente `pnpm db:migrate` e fixado em `204cf79c`, último recibo esperado
+184/0183, sem migrations sociais. Deployment iniciado `917b452d`; conferir
+resultado e banco antes de promover o portal. Não houve seed nesta etapa.
+
+F1 foi promovida explicitamente em `204cf79c`: 184 recibos e hashes de
+0179–0183 conferidos, duas FKs `RESTRICT`, dois grupos/um perfil/dois mundos
+preservados e nenhuma tabela social. Portal `9da76a16` com fonte real/HTTP 200;
+manutenção POST 200 com treze contagens. Famílias/checkpoint continuam `off`.
+[Evidência de F1](evidencias/grupos-producao-2026-11-17.json). Migração e portal
+usaram somente a fonte congelada já qualificada; a integração Git com a main
+concorrente e a retirada dos oito pins temporários continuam pendentes.
