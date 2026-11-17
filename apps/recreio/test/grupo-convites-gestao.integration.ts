@@ -115,6 +115,7 @@ describe("convites privados, recusa e revogação", () => {
         state: "revoked",
         recipientEmail: null,
         recipientUserId: null,
+        senderLabel: null,
       });
       expect(await revogarConviteDeAdulto(r.a.autor, r.convite.conviteId)).toEqual({
         alterado: false,

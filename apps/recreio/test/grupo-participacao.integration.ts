@@ -20,6 +20,7 @@ import type { AutorNativoRecente } from "@/features/account/autoridade-repositor
 import { avaliarAcesso } from "@/features/acesso/service";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
 import {
+  consultarMinhaParticipacao,
   retirarAdultoDoGrupo,
   sairDoGrupo,
   usarCoberturaPropria,
@@ -247,6 +248,36 @@ describe("saída comercial preserva a identidade e os dados do adulto", () => {
     expect(estado.perfis.map((p) => p.perfilId)).toEqual([r.b.perfil.id]);
     expect(estado.limite).toBe(4);
     expect(await avaliarAcesso({ profileId: r.b.perfil.id })).toMatchObject({ podeJogar: true });
+  });
+
+  it("leitura do participante mostra somente seu perfil e a capacidade própria", async () => {
+    const r = await preparar();
+    const leitura = await consultarMinhaParticipacao(r.autorB);
+    expect(leitura).toMatchObject({
+      perfilId: r.b.perfil.id,
+      apelido: r.b.perfil.apelido,
+      grupoId: r.grupoId,
+      grupoProprio: false,
+      efetivo: true,
+      limiteProprio: 1,
+    });
+    expect(Object.keys(leitura ?? {}).sort()).toEqual([
+      "apelido",
+      "efetivo",
+      "grupoId",
+      "grupoProprio",
+      "limiteProprio",
+      "perfilId",
+      "selecionado",
+      "versao",
+    ]);
+    expect(JSON.stringify(leitura)).not.toContain(r.a.conta.email);
+    expect(JSON.stringify(leitura)).not.toContain(r.a.perfil.id);
+    await db
+      .update(devices)
+      .set({ minorContextGeneration: crypto.randomUUID() })
+      .where(eq(devices.id, r.autorB.sessaoDeAparelhoId));
+    await expect(consultarMinhaParticipacao(r.autorB)).rejects.toMatchObject({ code: "AUTH" });
   });
 
   it("retorno é escolha explícita, com revisão atual e vaga financiada própria", async () => {

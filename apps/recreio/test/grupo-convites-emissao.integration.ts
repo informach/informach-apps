@@ -43,6 +43,7 @@ describe("emissão nativa de convite comercial sem jogador obrigatório", () => 
     expect(linha).toMatchObject({
       recipientEmail: destinatario.email,
       recipientUserId: destinatario.id,
+      senderLabel: "Ana",
     });
   });
   it("duplicação concorrente cria um grupo e um convite sem alterar prazo ou criar perfil", async () => {
@@ -76,6 +77,7 @@ describe("emissão nativa de convite comercial sem jogador obrigatório", () => 
       { email: "pessoa@example.test" },
       { ...pedido(), declaroMaioridade: false },
       { ...pedido(), versaoDaDeclaracao: "adulto-2020-01-01" },
+      { ...pedido(), identificacao: "contato@example.test" },
     ])
       await expect(convidarAdulto(a.autor, entrada)).rejects.toHaveProperty("name", "ZodError");
     await expect(convidarAdulto(a.autor, pedido(a.conta.email))).rejects.toMatchObject({

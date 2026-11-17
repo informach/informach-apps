@@ -157,6 +157,8 @@ jobs:
             apps/recreio/tmp/telas/retorno-adulto-pin-mobile.png
             apps/recreio/tmp/telas/estante-protegida-mobile.png
             apps/recreio/tmp/telas/grupo-cobertura-celular.png
+            apps/recreio/tmp/telas/grupo-convite-celular.png
+            apps/recreio/tmp/telas/grupo-participacao-celular.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic color evidence

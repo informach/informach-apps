@@ -308,3 +308,23 @@ de que é identificação declarada. O campo nullable preserva a leitura de
 pendências legadas; expiração/aceite/recusa/revogação o retiram junto do endereço.
 Constraint limita o nome a uma pendência de 2–20 caracteres. Mudança aditiva
 de schema em geração separada; 0182 ainda não existe nem foi aplicada.
+
+0182 gerada em `44111044108`, fonte `d9a9adff`, artefato `14341771363`;
+ZIP SHA `bdafe99d2e7879589c2f01a8289cccdf431260fccb5781abf6eaac6ab585bc2c`.
+`0182_romantic_yellowjacket.sql`, 370 bytes, SHA
+`018cab16d419dd6d287ce4c8e1f3a8ed2cc8b45a7180b046aa7f304a00f1d289`;
+snapshot SHA `d5d6da88f1a1af131f95c1f7fb29cef324424f2cbdaf87670ff7e184a52808c2`;
+journal SHA `11cb7044c87d7da2a3e1d6b73dfe0d77b261dac034482bc6ce6ebe5ad9ac89bb`.
+Três arquivos conferidos e copiados intactos. Somente coluna nullable e check
+compatível com o valor ausente; nada exige normalização de linhas antigas.
+Não aplicada em produção; schema privado 0179–0182 exige qualificação conjunta.
+
+CI compartilhado `44096609191` passou na fonte `6f5a555`. A candidata `ef715b8`
+passou em integração, qualidade, cliente, versões, checkpoint e longa; navegador
+geral ainda em curso. A interface seguinte inclui convite, identificação
+declarada, aceite/criação de jogador, recusa/revogação, participação própria,
+saída/retirada e retorno explícito à cobertura própria. Tudo exige sessão
+nativa; escolher menor não abre ações, nem quando enviadas diretamente.
+Jornadas com duas/três contas reais sintéticas e capturas a 390 px entram no
+GitHub; prova visual e nova rodada continuam pendentes. Nenhum fluxo novo está
+ativado ou publicado por este registro.

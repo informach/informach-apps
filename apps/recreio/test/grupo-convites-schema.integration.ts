@@ -165,6 +165,22 @@ describe("integridade do convite comercial e de seu recibo", () => {
     expect(depois).toEqual({ ...recibo, acceptedProfileId: null, acceptedUserId: null });
   });
 
+  it("identificação declarada é curta e não pode permanecer em recibo terminal", async () => {
+    const r = await preparar();
+    for (const senderLabel of ["A", "a".repeat(21)])
+      expect(await codigoDoBanco(db.insert(invites).values({ ...r.pendente, senderLabel }))).toBe(
+        CHECAGEM,
+      );
+    expect(
+      await codigoDoBanco(db.insert(invites).values({ ...r.aceito, senderLabel: "Ana" })),
+    ).toBe(CHECAGEM);
+    const [valido] = await db
+      .insert(invites)
+      .values({ ...r.pendente, senderLabel: "Ana" })
+      .returning();
+    expect(valido?.senderLabel).toBe("Ana");
+  });
+
   it("remover o grupo não apaga a identidade adulta que estava coberta", async () => {
     const r = await preparar();
     await db

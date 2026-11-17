@@ -128,6 +128,7 @@ describe("aceite privado e atômico de adultos", () => {
       state: "accepted",
       recipientEmail: null,
       recipientUserId: null,
+      senderLabel: null,
       acceptedUserId: r.b.conta.id,
       acceptedProfileId: primeiro.perfilId,
       recipientDeclarationVersion: VERSAO_DA_DECLARACAO_ADULTA,
