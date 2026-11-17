@@ -424,6 +424,30 @@ entra na mesma lista exata com `_rsc`; erros de ação e todos os erros fora da
 troca continuam recusados. Não desabilitar prefetch, acrescentar retry ou
 afrouxar a prova de criação única entre as builds.
 
+Próximo incremento: seis comandos fechados (analisar, concluir, suspender ou
+reativar perfil, desfazer amizade, invalidar convite), com protocolo, revisão
+e UUID. O Bastidores mantém leitura restrita e autentica sua sessão com 2FA;
+seu servidor emite prova de trinta segundos, tipo/audiência/emissor exclusivos,
+vinculada ao hash do corpo e à sessão real. A chave é própria dessa ligação,
+sem reutilizar chave do jogo, da instância ou do login. Recreio ainda confere
+papel, 2FA, banimento, sessão, composição, revisão e prazo no banco antes e
+depois da ação. Prova assinada não substitui autoridade atual.
+
+Recibos ficam no Recreio com corpo resumido, ator real, operação e revisão;
+repetir o mesmo comando não aplica novamente. Nunca armazenar a prova ou
+credencial de sessão. A pessoa pode pedir uma revisão da decisão, sem texto
+livre e sem ampliar a retenção original. Análise/decisão não apagam o protocolo
+nem expõem a sanção de outra pessoa. A fila usa a data própria do recurso para
+medir seu atraso; trinta dias após uma decisão sem novo recurso encerram o
+caso, respeitando os tetos de retenção já definidos. Novas colunas são aditivas
+e nullable; recibos exigem migration gerada e provas antes de qualquer uso.
+
+A API de assinatura foi consultada na documentação primária de
+[jose 6.2.12](https://github.com/panva/jose/blob/v6.2.12/docs/jwt/verify/functions/jwtVerify.md),
+sem atualizar a biblioteca. Testes candidatos recusam corpo alterado, chave,
+tipo, audiência, emissor e prazo divergentes. Comandos e recurso ainda não
+estão implementados ou ativados por essa fundação.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

@@ -26,6 +26,11 @@ import type { PerfilId, SessaoDeAparelhoId, SessaoDeJogoId } from "../dominio/id
 import { verificarToken } from "../tokens/verificar";
 import { type DadosDoSalvamento, emitirSalvamento } from "./salvamento";
 
+export {
+  emitirProvaDeModeracao,
+  resumoDoComandoDeModeracao,
+  verificarProvaDeModeracao,
+} from "./moderacao";
 export { type DadosDoSalvamento, verificarSalvamentoEmitido } from "./salvamento";
 
 /**

@@ -1,0 +1,55 @@
+import { z } from "zod";
+import { PerfilIdSchema } from "../dominio/ids";
+
+const base = z.strictObject({
+  comandoId: z.uuid(),
+  protocolo: z.uuid(),
+  versaoDoCaso: z.int().min(1).max(2147483646),
+});
+const motivo = z.enum([
+  "risco_confirmado",
+  "medida_preventiva",
+  "recurso_procedente",
+  "correcao_operacional",
+]);
+export const ComandoDeModeracaoSchema = z.discriminatedUnion("operacao", [
+  base.extend({ operacao: z.literal("analisar") }),
+  base.extend({
+    operacao: z.literal("concluir"),
+    decisao: z.enum(["sem_elementos", "medida_aplicada", "duplicada"]),
+  }),
+  base.extend({
+    operacao: z.literal("suspender_perfil"),
+    perfilId: PerfilIdSchema,
+    versaoDoPerfil: z.int().min(1).max(2147483646),
+    motivo,
+  }),
+  base.extend({
+    operacao: z.literal("reativar_perfil"),
+    perfilId: PerfilIdSchema,
+    versaoDoPerfil: z.int().min(1).max(2147483646),
+    motivo,
+  }),
+  base.extend({
+    operacao: z.literal("desfazer_amizade"),
+    revisaoDaAmizade: z.int().min(1).max(2147483646),
+    motivo,
+  }),
+  base.extend({ operacao: z.literal("invalidar_convite"), conviteId: z.uuid(), motivo }),
+]);
+export type ComandoDeModeracao = z.infer<typeof ComandoDeModeracaoSchema>;
+export const ReciboDeModeracaoSchema = z.strictObject({
+  comandoId: z.uuid(),
+  protocolo: z.uuid(),
+  versaoDoCaso: z.int().positive(),
+  operacao: z.enum([
+    "analisar",
+    "concluir",
+    "suspender_perfil",
+    "reativar_perfil",
+    "desfazer_amizade",
+    "invalidar_convite",
+  ]),
+  repetido: z.boolean(),
+});
+export type ReciboDeModeracao = z.infer<typeof ReciboDeModeracaoSchema>;

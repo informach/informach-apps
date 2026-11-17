@@ -49,6 +49,10 @@ export const recreioSafetyReports = recreio.table(
       .notNull()
       .default("aberta"),
     revision: integer("revision").notNull().default(1),
+    decision: text("decision").$type<"sem_elementos" | "medida_aplicada" | "duplicada">(),
+    reviewRequestedAt: moment("review_requested_at"),
+    reviewClientKey: uuid("review_client_key"),
+    reviewRevision: integer("review_revision"),
     createdAt: moment("created_at").notNull().defaultNow(),
     updatedAt: moment("updated_at").notNull().defaultNow(),
     closedAt: moment("closed_at"),
@@ -79,12 +83,62 @@ export const recreioSafetyReports = recreio.table(
     check("recreio_safety_report_digest", sql`${t.requestHash} ~ '^[a-f0-9]{64}$'`),
     check("recreio_safety_report_revision", sql`${t.revision}>0`),
     check(
+      "recreio_safety_report_decision",
+      sql`${t.decision} is null or ${t.decision} in ('sem_elementos','medida_aplicada','duplicada')`,
+    ),
+    check(
+      "recreio_safety_report_review",
+      sql`(${t.reviewRequestedAt} is null and ${t.reviewClientKey} is null and ${t.reviewRevision} is null) or (${t.reviewRequestedAt} is not null and ${t.reviewClientKey} is not null and ${t.reviewRevision} is not null and ${t.reviewRevision}>1 and ${t.reviewRevision}<=${t.revision} and ${t.reviewRequestedAt}>=${t.createdAt} and ${t.reviewRequestedAt}<${t.expiresAt})`,
+    ),
+    check(
+      "recreio_safety_report_review_state",
+      sql`${t.state}<>'recurso' or ${t.reviewRequestedAt} is not null`,
+    ),
+    check(
       "recreio_safety_report_dates",
       sql`${t.updatedAt}>=${t.createdAt} and ${t.expiresAt}>${t.createdAt} and ${t.expiresAt}<=${t.createdAt}+interval '180 days' and (${t.closedAt} is null or (${t.closedAt}>=${t.createdAt} and ${t.expiresAt}<=${t.closedAt}+interval '90 days'))`,
     ),
     check(
       "recreio_safety_report_closed",
       sql`(${t.state}='encerrada')=(${t.closedAt} is not null)`,
+    ),
+  ],
+);
+
+/** Recibo do comando, separado da prova transitória e sem segredo, sessão ou texto livre. */
+export const recreioModerationCommands = recreio.table(
+  "moderation_commands",
+  {
+    id: uuid("id").primaryKey(),
+    reportId: uuid("report_id").references(() => recreioSafetyReports.id, { onDelete: "set null" }),
+    moderatorUserId: text("moderator_user_id").references(() => users.id, { onDelete: "set null" }),
+    requestHash: text("request_hash").notNull(),
+    operation: text("operation")
+      .$type<
+        | "analisar"
+        | "concluir"
+        | "suspender_perfil"
+        | "reativar_perfil"
+        | "desfazer_amizade"
+        | "invalidar_convite"
+      >()
+      .notNull(),
+    reportRevision: integer("report_revision").notNull(),
+    createdAt: moment("created_at").notNull().defaultNow(),
+    expiresAt: moment("expires_at").notNull(),
+  },
+  (t) => [
+    index("recreio_moderation_command_retention").on(t.expiresAt, t.id),
+    index("recreio_moderation_command_report").on(t.reportId, t.createdAt),
+    check(
+      "recreio_moderation_command_operation",
+      sql`${t.operation} in ('analisar','concluir','suspender_perfil','reativar_perfil','desfazer_amizade','invalidar_convite')`,
+    ),
+    check("recreio_moderation_command_digest", sql`${t.requestHash} ~ '^[a-f0-9]{64}$'`),
+    check("recreio_moderation_command_revision", sql`${t.reportRevision}>1`),
+    check(
+      "recreio_moderation_command_dates",
+      sql`${t.expiresAt}>${t.createdAt} and ${t.expiresAt}<=${t.createdAt}+interval '180 days'`,
     ),
   ],
 );
