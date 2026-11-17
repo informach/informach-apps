@@ -13,7 +13,7 @@ O nome do pacote é `@informach/recreio-app`, porque `@informach/recreio` já é
 - **Domínio e contratos:** `packages/recreio` (`decidirAcesso`, regras de mundo, posse, convite, tokens, API das instâncias). O app não repete essas regras; ele carrega os fatos e chama o package. Leia o [README do package](../../packages/recreio/README.md).
 - **Catálogo dos jogos:** `@informach/config/jogos`. O estado de publicação de um jogo não é direito de abrir. O app pergunta sempre a `features/jogos/config.ts`, que é o catálogo deste deploy (o público mais, só fora de produção e com a variável ligada, o jogo de teste).
 - **Produtos e preços:** `@informach/config/products` (`recreio_*`, ainda `price_TODO_*`). Não existe plano gratuito.
-- **Fechamento da plataforma:** [escopo vigente](../../docs/recreio/fechamento-plataforma-2026-11-16.md). O titular confirmou os quatro preços e responsabilidade declarada pelo adulto; conta pagante não precisa ocupar perfil de jogador. Estas decisões não declaram os fluxos familiares/comerciais concluídos. SDK independente em candidata, com dados opacos por perfil/jogo e conquistas; [contratos e verificação](../../docs/recreio/dados-de-perfil-2026-11-16.md). Não tratar a migração 0167 como aplicada antes da evidência operacional.
+- **Fechamento da plataforma:** [escopo vigente](../../docs/recreio/fechamento-plataforma-2026-11-16.md). O titular confirmou os quatro preços e responsabilidade declarada pelo adulto; conta pagante não precisa ocupar perfil de jogador. Estas decisões não declaram os fluxos familiares/comerciais concluídos. SDK independente com dados opacos/conflitos/conquistas implantado em `6b51dd13`; migração 0167 e 168 recibos conferidos na [evidência operacional](../../docs/recreio/dados-de-perfil-2026-11-16.md). Incrementos familiares seguintes continuam em candidata.
 - **Este app:** rotas, sessão, telas e tudo o que grava no schema `recreio` (`packages/db/src/schema/recreio.ts`). Ele é o único a gravar nesse schema; o servidor de um jogo fala com o Recreio por HTTP.
 
 ## Camadas
@@ -25,6 +25,17 @@ prazo no repository e não depende da existência ou cobertura de um jogador.
 Selecionar perfil infantil ou usar credencial pareada não concede essa gestão.
 [Estado do incremento](../../docs/recreio/gestao-sem-perfil-2026-11-16.md):
 em candidata, sem atestar cadastro infantil/pareamento ou produção.
+
+Na candidata F3, `autoridade-de-jogo` prepara a identidade antes das travas de
+domínio e relê perfil/aparelho, responsabilidade/geração, login, política e
+prazo. Dados/conquistas usam esse kernel com o mutex antes do aparelho e uma
+conferência final após esperas de chave/auditoria. Emissão carrega o emissor
+Ed25519 local antes da transação; somente criptografia local entra sob as
+travas. Versão e prazo assinados vêm dos fatos relidos nessa transação, nunca
+de uma avaliação anterior à espera. Falha reverte consumo, tempo e sessão.
+Novos escritores protegidos são desligados por padrão (`RECREIO_FAMILY_MODE`);
+desligar não elimina a restrição nativa ou a recuperação pelo adulto. Contratos,
+gates e partes ainda não integradas em [F3](../../docs/recreio/politicas-sessoes-2026-11-17.md).
 
 - `src/app`: rotas e composição. Páginas não importam o banco.
 - `src/features/<área>`: `components/` (telas), `actions.ts` (server actions), `service.ts` (sem Next), `repository.ts` (banco). Lógica pura fica em arquivo próprio, com teste (`estante/catalogo.ts`, `perfis/regras.ts`, `acesso/cobertura.ts`, `acesso/texto.ts`). O que precisa do Next sem ser ação fica em arquivo próprio da área (`sessao/ator.ts`, `sessao/http.ts`).

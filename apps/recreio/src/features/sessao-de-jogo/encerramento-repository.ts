@@ -2,8 +2,8 @@ import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
 import { and, inArray, isNull, sql } from "@informach/db";
 import {
-  recreioDeviceSessions as deviceSessions,
   recreioGameSessions as gameSessions,
+  recreioProfiles as profiles,
 } from "@informach/db/schema";
 import {
   type ContaId,
@@ -58,18 +58,18 @@ export async function encerrarSessoesAbertas(
       deviceSessionId: gameSessions.deviceSessionId,
     });
   if (encerradas.length === 0) return [];
-  const aparelhos = await tx
-    .select({ id: deviceSessions.id, userId: deviceSessions.userId })
-    .from(deviceSessions)
+  const donos = await tx
+    .select({ id: profiles.id, userId: profiles.userId })
+    .from(profiles)
     .where(
       inArray(
-        deviceSessions.id,
-        encerradas.map((sessao) => sessao.deviceSessionId),
+        profiles.id,
+        encerradas.map((sessao) => sessao.profileId),
       ),
     );
-  const contaDoAparelho = new Map(aparelhos.map((aparelho) => [aparelho.id, aparelho.userId]));
+  const contaDoPerfil = new Map(donos.map((perfil) => [perfil.id, perfil.userId]));
   for (const sessao of encerradas) {
-    const conta = contaDoAparelho.get(sessao.deviceSessionId) ?? null;
+    const conta = contaDoPerfil.get(sessao.profileId) ?? null;
     const atorId =
       opcoes.porQuem === "ator" ? opcoes.contaId : opcoes.porQuem === "conta" ? conta : null;
     await logAuditEventStrict(

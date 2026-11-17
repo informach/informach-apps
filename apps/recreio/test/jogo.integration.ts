@@ -14,6 +14,7 @@ import {
   TIPO_DA_SESSAO,
   TIPO_DO_INGRESSO,
 } from "@informach/recreio/contrato";
+import { verificarIngresso } from "@informach/recreio/emissor";
 import { criarVerificadorDeSessao } from "@informach/recreio/host";
 import { describe, expect, it, vi } from "vitest";
 import * as jogosConfig from "@/features/jogos/config";
@@ -62,19 +63,14 @@ describe("revogação atômica", () => {
   it("revalida o acesso na transação mesmo quando o ingresso foi admitido antes da revogação", async () => {
     const lia = await novoJogador();
     const ingresso = await ingressoDe(lia);
-    const { jti } = claimsDe(ingresso);
-    if (typeof jti !== "string") throw new Error("Ingresso sem jti");
+    const { emissor, chaves } = await chavesDoRecreio();
+    const verificado = await verificarIngresso(ingresso, { chaves, emissor: emissor.emissor });
     await revogar({ email: lia.conta.email, motivo: "teste" });
-    const agora = new Date();
     await expect(
       abrirSessaoComIngresso({
-        jti,
-        perfilId: lia.perfil.id,
-        sessaoDeAparelhoId: lia.ator.sessaoDeAparelhoId,
-        jogo: MORADA,
+        ingresso: verificado,
+        emissor,
         sid: SessaoDeJogoIdSchema.parse(crypto.randomUUID()),
-        agora,
-        expiraEm: new Date(agora.getTime() + 900_000),
         continuarAqui: false,
       }),
     ).rejects.toMatchObject({ codigo: "ACESSO_NEGADO" });

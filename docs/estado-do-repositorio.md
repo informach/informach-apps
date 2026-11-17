@@ -6,7 +6,13 @@ perfis sob responsabilidade declarada do adulto; conta pagante não precisa
 ocupar perfil de jogador. SDK independente com progresso/conflitos/conquistas
 implantado em `6b51dd13`, após seis gates no GitHub; migração 0167 e 168 recibos
 conferidos. [Prova e limites](recreio/dados-de-perfil-2026-11-16.md). Gestão sem
-jogador e cadastro de menores estão em candidata; F1–F11 seguem abertos. Preservar o Morada
+jogador e cadastro de menores estão em candidata; F1–F11 seguem abertos.
+**17/11:** PIN, supervisão, tempo agregado e autoridade de dados passaram nos
+seis gates remotos (419 integrações na última fonte verificada). Ingresso e
+renovação estão aderindo ao mesmo kernel; seleção/estante infantil, troca com
+checkpoint e F4–F11 continuam pendentes. Leitores de restrições têm candidata
+separada, com novos escritores desligados; implantação ainda não comprovada.
+Preservar o Morada
 World2/protocolo1 público; a main local do checkout original contém D3 e não
 pode ser enviada diretamente. Continuar F0–F11 do registro, sem anunciar fechamento.
 

@@ -331,7 +331,7 @@ export function SupervisaoDoPerfil({
               </ul>
               <button
                 type="button"
-                className="rb rb-neutra mt-4"
+                className="rb rb-vazado mt-4"
                 disabled={janelas.length >= 14}
                 onClick={() =>
                   definirJanelas([

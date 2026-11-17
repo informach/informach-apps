@@ -178,3 +178,26 @@ apaga a restrição nativa persistida e permite retorno ao adulto/gestão por PI
 saída e revogação. O executor isolado habilita `play` explicitamente; nenhum
 modo familiar foi habilitado em produção. O ingresso/renovação e o restante
 das APIs ainda precisam aderir ao mesmo contrato antes dessa ativação.
+
+Kernel inicial (`319aef6`, `44017672075`) passou nos seis gates, com 419 testes
+em 32 arquivos de integração. As capturas inferiores do formulário de supervisão
+foram inspecionadas; horários, remoção e confirmação cabem em 390 px. A publicação
+intermediária de [leitores](leitores-protegidos-2026-11-17.md), sem 0172–0173 e
+com escritores desligados, foi separada da implementação F3.
+
+A etapa seguinte separa admissão de aparelho e operação da sessão, reutilizando
+o mesmo kernel na emissão/renovação. Ingresso e sessão passam a ser assinados com
+versão/prazo relidos sob trava, por criptografia local; recibo, consumo, tempo,
+sessão e auditoria revertem juntos se a assinatura falhar. Consulta da intenção
+precede qualquer consumo, usa prazo atual do banco e conserva uso único. Renovação
+normal não toma o cursor global; uma recusa que exige encerramento o executa
+depois de liberar as linhas da tentativa. Provas de perda de login, nonce vencido
+sob espera, versão nova e falha de assinatura estão adicionadas para o próximo
+gate, ainda não comprovado neste registro.
+
+O encerramento passa a obter `targetId` do dono do perfil, em vez da conta do
+aparelho: uma partida infantil compartilhada não é atribuída ao adulto. A troca
+de ingresso admite no máximo 60 tentativas por perfil/minuto; renovação, 120.
+São tetos autoritativos anteriores à transação, sem devolver tentativas no
+rollback. Ainda faltam troca com checkpoint, avisos/tempo no cliente, estante e
+seleção infantil e os demais métodos do SDK antes de habilitar `play`.
