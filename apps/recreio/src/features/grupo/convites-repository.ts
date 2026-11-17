@@ -13,7 +13,7 @@ import {
   type NovoConviteDeGrupo,
   PRAZO_DO_CONVITE_MS,
 } from "./convites-regras";
-import { GrupoCriadoDuranteEspera, prepararGrupoParaConvite } from "./preparar-repository";
+import { GrupoCriadoDuranteEspera, prepararGrupoDoTitular } from "./preparar-repository";
 
 /** Só sob a autoridade do emissor; o expurgo global será integrado ao cron. */
 async function expirarPendentes(tx: Transacao, grupoId: string, autorId: string, agora: Date) {
@@ -56,7 +56,7 @@ async function tentarCriarConvite(autor: AutorNativoRecente, pedido: NovoConvite
       "FAMILIA_INDISPONIVEL",
       "Novos convites ainda não estão disponíveis neste acesso.",
     );
-    const atual = await prepararGrupoParaConvite(tx, autor);
+    const atual = await prepararGrupoDoTitular(tx, autor);
     const [emissor] = await tx
       .select({ email: users.email })
       .from(users)

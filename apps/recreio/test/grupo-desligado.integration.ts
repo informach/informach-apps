@@ -2,6 +2,7 @@ import { db, eq } from "@informach/db";
 import { recreioGroups as groups, sessions } from "@informach/db/schema";
 import { expect, it, vi } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import { usarCoberturaPropria } from "@/features/grupo/participacao-service";
 import { atualizarCobertura, consultarGrupo } from "@/features/grupo/service";
 import { novoJogador } from "./apoio";
 
@@ -35,6 +36,10 @@ it("desligar famílias conserva leitura e retirada, mas recusa nova cobertura", 
         cobrir: true,
       })),
     }),
+  ).rejects.toMatchObject({ code: "FAMILIA_INDISPONIVEL" });
+  expect(await consultarGrupo(autor, grupo.id)).toEqual(retirada);
+  await expect(
+    usarCoberturaPropria(autor, { versao: retirada.perfis[0]?.versao }),
   ).rejects.toMatchObject({ code: "FAMILIA_INDISPONIVEL" });
   expect(await consultarGrupo(autor, grupo.id)).toEqual(retirada);
 });

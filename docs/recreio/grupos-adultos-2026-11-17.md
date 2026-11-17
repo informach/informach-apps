@@ -256,3 +256,14 @@ e exigem igualdade dos bytes/membros/mundo após os dois tipos de saída. Inclue
 grupos recíprocos, retirada/saída simultâneas, revisão/login antigos, contexto
 infantil e rollback da auditoria. Cobertura própria depois da saída, aceite,
 identificação do emissor, expurgo e interfaces completas ainda pendentes.
+
+Saída/retirada `2d39b06` passou nos sete gates `44105556797`. O retorno à
+cobertura própria passa a ser uma escolha explícita do adulto, com identidade
+nativa recente, revisão atual e capacidade financeira relida após a auditoria.
+Não move quem ainda participa de outro grupo, não cancela contratos e não
+reativa ingressos ou sessões antigos. Reutiliza o mesmo perfil, progresso,
+conquistas e participações em mundos. Limites estruturais continuam de quatro
+perfis e comerciais de um/quatro jogadores; pagar não obriga a ocupar vaga.
+Provas candidatas incluem as duas saídas seguidas de reabertura pelo SDK,
+recusa sem cobertura/vaga, login/contexto inválidos e rollback por auditoria
+ou vencimento durante a transação. Ainda não qualificado nem publicado.

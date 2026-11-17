@@ -19,18 +19,22 @@ export class GrupoCriadoDuranteEspera extends Error {
 }
 
 /** Preparar um grupo não cadastra jogador nem inicia teste/cobrança. */
-export async function prepararGrupoParaConvite(tx: Transacao, autor: AutorNativoRecente) {
+export async function prepararGrupoDoTitular(
+  tx: Transacao,
+  autor: AutorNativoRecente,
+  modo: "share" | "update" = "share",
+) {
   const [pista] = await tx
     .select({ id: groups.id })
     .from(groups)
     .where(eq(groups.ownerUserId, autor.contaId));
   if (pista) {
-    const atual = await admitirGrupoDoTitular(tx, autor, GrupoIdSchema.parse(pista.id), "share");
+    const atual = await admitirGrupoDoTitular(tx, autor, GrupoIdSchema.parse(pista.id), modo);
     await atual.nativa.conferirPrazo(autor.login);
     return { nativa: atual.nativa, grupoId: GrupoIdSchema.parse(atual.grupo.id) };
   }
   await serializarContaNativa(tx, autor.contaId);
-  const nativa = await autorizarContaNativa(tx, autor);
+  const nativa = await autorizarContaNativa(tx, autor, modo);
   const [criadoEnquantoEsperava] = await tx
     .select({ id: groups.id })
     .from(groups)

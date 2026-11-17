@@ -19,11 +19,15 @@ import { describe, expect, it, vi } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import { avaliarAcesso } from "@/features/acesso/service";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
-import { retirarAdultoDoGrupo, sairDoGrupo } from "@/features/grupo/participacao-service";
+import {
+  retirarAdultoDoGrupo,
+  sairDoGrupo,
+  usarCoberturaPropria,
+} from "@/features/grupo/participacao-service";
 import { consultarGrupo } from "@/features/grupo/service";
-import { aceitarConvite, criarConvite } from "@/features/mundos/service";
+import { aceitarConvite, criarConvite, listarMundos } from "@/features/mundos/service";
 import { emitirIngresso, renovarSessao } from "@/features/sessao-de-jogo/service";
-import { conceder } from "../scripts/concessoes";
+import { conceder, revogar } from "../scripts/concessoes";
 import { eventosCom, type Jogador, novoJogador } from "./apoio";
 import { mundoDe } from "./jogo-apoio";
 import { despachar, ORIGEM } from "./rotas";
@@ -192,6 +196,46 @@ describe("saída comercial preserva a identidade e os dados do adulto", () => {
             (origem === "proprio" ? "recreio.group_member_left" : "recreio.group_member_removed"),
         ),
       ).toHaveLength(1);
+      expect(await usarCoberturaPropria(r.autorB, { versao: 2 })).toEqual({
+        alterado: true,
+        perfilId: r.b.perfil.id,
+        versao: 3,
+      });
+      expect(
+        (await db.select().from(profiles).where(eq(profiles.id, r.b.perfil.id)))[0],
+      ).toMatchObject({
+        id: r.b.perfil.id,
+        groupId: r.grupoProprioB,
+        coverageEnabled: true,
+        policyVersion: 3,
+      });
+      expect(await usarCoberturaPropria(r.autorB, { versao: 2 })).toEqual({ alterado: false });
+      await expect(renovarSessao(sdk.sessao.token())).rejects.toMatchObject({
+        codigo: "SESSAO_ENCERRADA",
+        detalhe: { motivo: "permissions_changed" },
+      });
+      const retomado = await criarRecreio({
+        baseUrl: ORIGEM,
+        jogo: JOGO,
+        fetch: despachar,
+        obterIngresso: async () => (await emitirIngresso(r.b.ator, { jogo: JOGO })).ingresso,
+        agendar: () => () => {},
+      });
+      expect(new TextDecoder().decode((await retomado.dados.ler("marco"))?.dados)).toBe(
+        "progresso privado",
+      );
+      expect(await memoria(r.b.perfil.id, mundoId)).toEqual(antes);
+      expect(await listarMundos({ ...quem(r.b), jogo: "morada" })).toContainEqual(
+        expect.objectContaining({ id: mundoId }),
+      );
+      expect(
+        await db
+          .select()
+          .from(entitlements)
+          .where(inArray(entitlements.groupId, [r.grupoId, r.grupoProprioB]))
+          .orderBy(entitlements.id),
+      ).toEqual(concessoesAntes);
+      await retomado.sessao.sair();
       await sdk.sessao.sair();
     },
   );
@@ -204,6 +248,130 @@ describe("saída comercial preserva a identidade e os dados do adulto", () => {
     expect(estado.limite).toBe(4);
     expect(await avaliarAcesso({ profileId: r.b.perfil.id })).toMatchObject({ podeJogar: true });
   });
+
+  it("retorno é escolha explícita, com revisão atual e vaga financiada própria", async () => {
+    const r = await preparar();
+    await expect(usarCoberturaPropria(r.autorB, { versao: 1 })).rejects.toMatchObject({
+      code: "SAIA_DO_GRUPO",
+    });
+    await sairDoGrupo(r.autorB, { grupoId: r.grupoId, versao: 1 });
+    await expect(usarCoberturaPropria(r.autorB, { versao: 1 })).rejects.toMatchObject({
+      code: "CONFLITO",
+    });
+    await expect(
+      usarCoberturaPropria(r.autorB, { versao: 2, grupoId: r.grupoId }),
+    ).rejects.toMatchObject({
+      name: "ZodError",
+    });
+    await revogar({ email: r.b.conta.email, motivo: "teste" });
+    await expect(usarCoberturaPropria(r.autorB, { versao: 2 })).rejects.toMatchObject({
+      code: "SEM_COBERTURA",
+    });
+    expect(
+      (await db.select().from(profiles).where(eq(profiles.id, r.b.perfil.id)))[0],
+    ).toMatchObject({
+      groupId: null,
+      coverageEnabled: false,
+      policyVersion: 2,
+    });
+  });
+
+  it("login antigo ou contexto infantil não recupera cobertura", async () => {
+    const r = await preparar();
+    await sairDoGrupo(r.autorB, { grupoId: r.grupoId, versao: 1 });
+    await expect(
+      usarCoberturaPropria(
+        {
+          ...r.autorB,
+          login: { ...r.autorB.login, criadoEm: new Date(Date.now() - 11 * 60_000) },
+        },
+        { versao: 2 },
+      ),
+    ).rejects.toMatchObject({ code: "LOGIN_RECENTE" });
+    await db
+      .update(devices)
+      .set({ minorContextGeneration: crypto.randomUUID() })
+      .where(eq(devices.id, r.autorB.sessaoDeAparelhoId));
+    await expect(usarCoberturaPropria(r.autorB, { versao: 2 })).rejects.toMatchObject({
+      code: "AUTH",
+    });
+    expect(
+      (await db.select().from(profiles).where(eq(profiles.id, r.b.perfil.id)))[0],
+    ).toMatchObject({
+      groupId: null,
+      coverageEnabled: false,
+      policyVersion: 2,
+    });
+  });
+
+  it("plano Individual ocupado não cede uma segunda vaga no retorno do titular", async () => {
+    const r = await preparar();
+    const outro = await novoJogador({ comAcesso: false });
+    await sairDoGrupo(r.autorB, { grupoId: r.grupoId, versao: 1 });
+    await db
+      .update(profiles)
+      .set({ groupId: r.grupoProprioB, coverageEnabled: true })
+      .where(eq(profiles.id, outro.perfil.id));
+    await expect(usarCoberturaPropria(r.autorB, { versao: 2 })).rejects.toMatchObject({
+      code: "SEM_COBERTURA",
+    });
+    expect(
+      (await db.select().from(profiles).where(eq(profiles.id, r.b.perfil.id)))[0],
+    ).toMatchObject({
+      groupId: null,
+      coverageEnabled: false,
+      policyVersion: 2,
+    });
+    expect(await avaliarAcesso({ profileId: outro.perfil.id })).toMatchObject({ podeJogar: true });
+  });
+
+  it.each(["recusa", "vencimento"] as const)(
+    "%s durante auditoria reverte o retorno",
+    async (tipo) => {
+      const r = await preparar();
+      await sairDoGrupo(r.autorB, { grupoId: r.grupoId, versao: 1 });
+      const [antes] = await db.select().from(profiles).where(eq(profiles.id, r.b.perfil.id));
+      const financeiroAntes = await db
+        .select()
+        .from(entitlements)
+        .where(eq(entitlements.groupId, r.grupoProprioB));
+      await db.execute(
+        tipo === "recusa"
+          ? sql`create function audit.recusar_retorno_grupo_teste() returns trigger language plpgsql as $$ begin
+          if new.event_type='recreio.group_coverage_updated' then raise exception 'audit unavailable'; end if;
+          return new; end $$`
+          : sql`create function audit.recusar_retorno_grupo_teste() returns trigger language plpgsql as $$ begin
+          if new.event_type='recreio.group_coverage_updated' then
+            update recreio.entitlements set ends_at=clock_timestamp()+interval '1 second'
+              where group_id=(new.payload->>'groupId')::uuid;
+            perform pg_sleep(1.1);
+          end if;
+          return new; end $$`,
+      );
+      await db.execute(sql`create trigger recusar_retorno_grupo_teste before insert on audit.events
+      for each row execute function audit.recusar_retorno_grupo_teste()`);
+      try {
+        const tentativa = usarCoberturaPropria(r.autorB, { versao: 2 });
+        if (tipo === "recusa")
+          await expect(tentativa).rejects.toBeInstanceOf(AuditPersistenceError);
+        else await expect(tentativa).rejects.toMatchObject({ code: "SEM_COBERTURA" });
+        expect((await db.select().from(profiles).where(eq(profiles.id, r.b.perfil.id)))[0]).toEqual(
+          antes,
+        );
+        expect(
+          await db.select().from(entitlements).where(eq(entitlements.groupId, r.grupoProprioB)),
+        ).toEqual(financeiroAntes);
+        expect(
+          (await eventosCom("profileId", r.b.perfil.id)).filter(
+            (e) => e.eventType === "recreio.group_coverage_updated",
+          ),
+        ).toHaveLength(0);
+      } finally {
+        await db.execute(sql`drop trigger recusar_retorno_grupo_teste on audit.events`);
+        await db.execute(sql`drop function audit.recusar_retorno_grupo_teste()`);
+      }
+    },
+  );
 
   it("adulto convidado não administra o grupo; retirada não atinge perfil de fora nem menor", async () => {
     const r = await preparar();
