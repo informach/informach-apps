@@ -37,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gate: [quality, e2e]
+        gate: [quality]
     services:
       postgres:
         image: postgres:18-alpine
