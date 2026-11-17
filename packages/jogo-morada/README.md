@@ -111,6 +111,15 @@ pnpm exec biome check packages/jogo-morada
 
 O `e2e` precisa das portas 3010 e 5173 livres e do Chromium do Playwright (`pnpm --filter @informach/jogo-morada exec playwright install chromium`). O navegador de teste desenha por software; `MORADA_E2E_GPU=1` usa a placa de vídeo. As fotos de cada passo ficam em `e2e/telas/`, fora do git.
 
+Nesta máquina, testes gráficos/builds rodam somente no GitHub. O comando completo
+inicia um servidor e um mundo por arquivo de jornada, conservando as evidências
+de cada grupo. Constrói a bancada uma vez no mesmo checkout, sem reutilizar
+servidores ou mundos entre arquivos. Seleção focada usa `pnpm --filter
+@informach/jogo-morada exec playwright test --config e2e/playwright.config.ts`.
+Provas com arte exigem `MORADA_E2E_EVIDENCIAS` existente fora do checkout;
+capturas e resultados seguem para essa pasta privada. `MORADA_E2E_REGRAS=padrao`
+permite comparar o preset normal com a prova, sem alterar o servidor publicado.
+
 ## Testes
 
 | Arquivo | O que prova |
@@ -146,3 +155,13 @@ O fallback procedural usa superfícies de uso e encostos separados para cama e s
 `Ativos.acabamento(id)` retorna um material compartilhado ou `null` enquanto baixa. `aoMudar` invalida a casa quando um recurso fica pronto. Os revestimentos são superfícies agrupadas por material, com UV em metros; uma parede é dividida onde mudam os cômodos e mantém os vãos e o corte da planta. Os modelos de portas e janelas usam os vãos existentes. Portas ficam abertas até existir estado de porta na simulação; passagens sem folha continuam abertas. Nada disso muda save, navegação ou protocolo.
 
 Apoios de assento/colchão vêm da geometria. O bebê no berço usa `dentro`, e o beliche usa alturas distintas para seus dois pontos. A arte ausente mantém o apoio procedural correspondente. A medição de depuração inclui p50/p95 de quadro, chamadas e triângulos. Ver [review do D1](../../docs/recreio/review-d1-2026-11-13.md) para evidências e limites, inclusive a meta ainda não homologada em vídeo integrado.
+
+## Validação dos programas gráficos
+
+A candidata confere LINK_STATUS uma vez por programa, após compileAsync e para
+programas novos após o desenho. Falha não é admitida como prontidão e interrompe
+a cena com o aviso de preparação. A coleta extensa de logs de sucesso do Three
+é substituída por essa validação; materiais e arte permanecem os mesmos. A
+bancada `programas.html` compila shaders válidos e inválidos com WebGL real.
+Medição privada por etapas ainda necessária antes de declarar ganho ou ativar:
+[contrato e evidência](../../docs/recreio/validacao-programas-2026-11-16.md).

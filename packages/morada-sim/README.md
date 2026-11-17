@@ -4,6 +4,12 @@ A simulação do Morada. TypeScript puro, consumido como fonte, sem build. Não 
 
 A simulação guarda a verdade; o desenho mostra; a interface pede; a rede e o banco transportam.
 
+O package declara `sideEffects: false`: importar um módulo não registra handlers,
+não executa I/O nem instala estilos ou polyfills. Isso permite excluir módulos
+não usados pelos consumidores. Validadores de persistência ficam em `formatos/`;
+os helpers do histórico usados pelo cliente não constroem esses schemas ao importar.
+Uma futura inicialização com efeito externo exige rever esse contrato.
+
 ## Uso
 
 ```ts

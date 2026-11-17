@@ -72,7 +72,10 @@ export class ClienteDeTeste {
         this.visao = mensagem.visao;
         break;
       case "passo":
-        if (this.visao) aplicarMudancas(this.visao, mensagem.tick, mensagem.mudancas);
+        if (this.visao) {
+          aplicarMudancas(this.visao, mensagem.tick, mensagem.mudancas);
+          if (mensagem.edicao) this.visao.edicao = mensagem.edicao;
+        }
         break;
       case "resultado":
         this.resultados.set(mensagem.resultado.comandoId, mensagem.resultado);
@@ -145,6 +148,7 @@ export async function criarBancada(
     regras?: Partial<RegrasDoMundo>;
     definicao?: DefinicaoDeBairro;
     checkpointMs?: number;
+    pinturasDisponiveis?: import("@informach/morada-sim").CatalogoDePinturas;
     capacidade?: number;
     diarioParaFotografarBytes?: number;
     /** Tetos do Recreio diferentes dos do manifesto, para chegar neles num teste curto. */
@@ -206,12 +210,14 @@ export async function criarBancada(
             : verificador.verificar(token),
       },
       agora: () => agoraMs,
+      agoraDaObra: () => agoraMs,
       urlPublica: url,
       versao: "teste",
       capacidade: opcoes.capacidade ?? 10,
       regras: opcoes.regras ?? REGRAS_DA_PROVA,
       definicao: opcoes.definicao,
       checkpointMs: opcoes.checkpointMs ?? 30_000,
+      pinturasDisponiveis: opcoes.pinturasDisponiveis,
       diarioParaFotografarBytes: opcoes.diarioParaFotografarBytes,
       falhas,
       registrar: (evento, dados = {}) => registros.push({ evento, dados }),

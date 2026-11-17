@@ -1,0 +1,25 @@
+{
+  "codigoCandidato": "10b5bbb3f67fc14dbf19c79b9ee11769cd1c6d77",
+  "execucao": 43772419241,
+  "job": 132991071457,
+  "fontePublicadaComparada": "7c81a68fe5786198b47b3a270402ed9f2342ed1a",
+  "casos": [
+    { "caso": "cliente novo/host anterior", "protocolo": 1, "fotografias": 1, "passou": true },
+    { "caso": "cliente novo/host atual", "protocolo": 2, "fotografias": 1, "passou": true },
+    {
+      "caso": "entrada antiga/host novo recusada antes da admissao",
+      "protocolo": 1,
+      "fotografias": 0,
+      "mundosAdmitidos": 0,
+      "fechamento": 4008,
+      "passou": true
+    }
+  ],
+  "testes": { "aprovados": 3, "falhas": 0 },
+  "escopo": "Conexao e servidor reais em processos e WebSockets reais no GitHub; plataforma e identidades sinteticas; sem arte licenciada",
+  "limites": [
+    "O caso antigo envia o quadro de entrada da aba D2; nao executa sua cena antiga",
+    "Nao modifica producao ou demonstra rollback de mundos V3",
+    "O gate de versoes aprovado nao substitui os demais gates da mesma candidata"
+  ]
+}

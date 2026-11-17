@@ -42,6 +42,162 @@ export async function medida(nome: string, dados: Record<string, unknown>): Prom
   await writeFile(path.join(TELAS, `${nome}.json`), `${JSON.stringify(dados, null, 2)}\n`);
 }
 
+declare global {
+  interface Window {
+    quadrosDaCena?: number;
+    consultasDeProgramas?: {
+      operacao: "programa" | "shader" | "ligacao";
+      duracaoMs: number;
+      recursos: string[];
+    }[];
+  }
+}
+
+const paginasComObservacaoDeProgramas = new WeakSet<Page>();
+
+/** Metadados do documento atual; nunca conserva GLSL, nomes de materiais ou arte. */
+async function observarCompilacao(page: Page): Promise<void> {
+  if (paginasComObservacaoDeProgramas.has(page)) return;
+  await page.addInitScript(() => {
+    window.consultasDeProgramas = [];
+    const recursos = new WeakMap<WebGLShader, string[]>();
+    const anexos = new WeakMap<WebGLProgram, WebGLShader[]>();
+    const prototipo = WebGL2RenderingContext.prototype;
+    const fonteOriginal = prototipo.shaderSource;
+    const anexoOriginal = prototipo.attachShader;
+    const programaOriginal = prototipo.getProgramInfoLog;
+    const shaderOriginal = prototipo.getShaderInfoLog;
+    const ligacaoOriginal = prototipo.getProgramParameter;
+    const flags = [
+      "STANDARD",
+      "PHYSICAL",
+      "LAMBERT",
+      "PHONG",
+      "USE_SKINNING",
+      "USE_MAP",
+      "USE_NORMALMAP",
+      "USE_COLOR",
+      "USE_COLOR_ALPHA",
+      "USE_ENVMAP",
+      "USE_SHADOWMAP",
+    ];
+    prototipo.shaderSource = function (shader, fonte) {
+      recursos.set(
+        shader,
+        flags.filter((flag) => new RegExp(`^#define ${flag}(?:\\s|$)`, "m").test(fonte)),
+      );
+      return fonteOriginal.call(this, shader, fonte);
+    };
+    prototipo.attachShader = function (programa, shader) {
+      const resultado = anexoOriginal.call(this, programa, shader);
+      anexos.set(programa, [...(anexos.get(programa) ?? []), shader]);
+      return resultado;
+    };
+    function registrar(
+      gl: WebGL2RenderingContext,
+      operacao: "programa" | "shader" | "ligacao",
+      inicio: number,
+      flags: string[],
+    ) {
+      const lista = window.consultasDeProgramas;
+      if (
+        lista &&
+        lista.length < 256 &&
+        gl.canvas instanceof HTMLCanvasElement &&
+        gl.canvas.classList.contains("morada-tela")
+      )
+        lista.push({ operacao, duracaoMs: performance.now() - inicio, recursos: flags });
+    }
+    prototipo.getProgramInfoLog = function (programa) {
+      const inicio = performance.now();
+      try {
+        return programaOriginal.call(this, programa);
+      } finally {
+        registrar(this, "programa", inicio, [
+          ...new Set((anexos.get(programa) ?? []).flatMap((s) => recursos.get(s) ?? [])),
+        ]);
+      }
+    };
+    prototipo.getShaderInfoLog = function (shader) {
+      const inicio = performance.now();
+      try {
+        return shaderOriginal.call(this, shader);
+      } finally {
+        registrar(this, "shader", inicio, recursos.get(shader) ?? []);
+      }
+    };
+    prototipo.getProgramParameter = function (programa, parametro) {
+      if (parametro !== this.LINK_STATUS) return ligacaoOriginal.call(this, programa, parametro);
+      const inicio = performance.now();
+      try {
+        return ligacaoOriginal.call(this, programa, parametro);
+      } finally {
+        registrar(this, "ligacao", inicio, [
+          ...new Set((anexos.get(programa) ?? []).flatMap((shader) => recursos.get(shader) ?? [])),
+        ]);
+      }
+    };
+  });
+  paginasComObservacaoDeProgramas.add(page);
+}
+
+/** Observa submissões reais de WebGL, sem alterar o desenho ou o agendador. */
+export async function observarDesenho(page: Page): Promise<void> {
+  if (!process.env.RECREIO_E2E_PRIVATE_ARTIFACTS || !process.env.MORADA_ARTE_DIR)
+    throw new Error("A observação da cena exige o executor privado de arte.");
+  await page.addInitScript(() => {
+    window.quadrosDaCena = 0;
+    const original = WebGL2RenderingContext.prototype.fenceSync;
+    WebGL2RenderingContext.prototype.fenceSync = function (condicao, flags) {
+      const resultado = original.call(this, condicao, flags);
+      if (
+        resultado &&
+        this.canvas instanceof HTMLCanvasElement &&
+        this.canvas.classList.contains("morada-tela")
+      )
+        window.quadrosDaCena = (window.quadrosDaCena ?? 0) + 1;
+      return resultado;
+    };
+  });
+}
+
+/** Compara a captura imediata àquela após o HUD participar de dois desenhos. */
+export async function telaComDesenho(page: Page, nome: string): Promise<void> {
+  const antes = await page.evaluate(() => window.quadrosDaCena);
+  if (antes === undefined) throw new Error("Observação WebGL não instalada.");
+  await tela(page, `${nome}-antes-do-quadro`);
+  await expect.poll(() => page.evaluate(() => window.quadrosDaCena)).toBeGreaterThan(antes + 1);
+  await tela(page, nome);
+  await medida(`quadros-${nome}`, {
+    antes,
+    depois: await page.evaluate(() => window.quadrosDaCena ?? 0),
+  });
+}
+
+/** Perfil numérico de CPU só no arquivo privado; não muda prazos ou asserções. */
+export async function perfilarCpu(page: Page, nome: string): Promise<() => Promise<void>> {
+  if (process.env.RECREIO_E2E_PERFIL_CPU !== "1") return async () => {};
+  if (!process.env.RECREIO_E2E_PRIVATE_ARTIFACTS || !process.env.MORADA_ARTE_DIR)
+    throw new Error("O perfil de CPU exige o executor privado de arte.");
+  await observarCompilacao(page);
+  const sessao = await page.context().newCDPSession(page);
+  await sessao.send("Profiler.enable");
+  await sessao.send("Profiler.setSamplingInterval", { interval: 1000 });
+  await sessao.send("Profiler.start");
+  return async () => {
+    try {
+      const { profile } = await sessao.send("Profiler.stop");
+      await medida(nome, { documentoAtual: true, etapa: nome, profile });
+      await medida(`${nome}-programas`, {
+        documentoAtual: true,
+        consultas: await page.evaluate(() => window.consultasDeProgramas ?? []),
+      });
+    } finally {
+      await sessao.detach();
+    }
+  };
+}
+
 /** O endereço do servidor de um jogo, como o ambiente da execução o cadastrou no Recreio. */
 export function origemDoJogo(jogo: string): { ws: string; http: string; porta: number } {
   const origens: unknown = JSON.parse(process.env.RECREIO_GAME_ORIGINS ?? "{}");

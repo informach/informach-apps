@@ -1,7 +1,14 @@
 import { CatalogoDeAparenciasSchema, conferirContinuidadeDaAparencia } from "./comandos/aparencia";
 import { type Entrada, EntradaSchema } from "./comandos/intencao";
+import { type CatalogoDaLoja, conferirContinuidadeDaLoja } from "./comandos/loja";
+import {
+  type CatalogoDePinturas,
+  conferirCatalogoDePinturas,
+  conferirDisponibilidadeDasPinturas,
+} from "./comandos/pintura";
 import { aplicarIntencao } from "./comandos/pipeline";
 import { modeloDeImovel } from "./conteudo";
+import { montarLojaInicial } from "./conteudo/loja";
 import { novoId, relacaoEntre } from "./dominio/estado";
 import type { Fato } from "./dominio/fatos";
 import type { FamiliaId, LoteId, MoradorId, MundoId, PerfilId } from "./dominio/ids";
@@ -9,7 +16,8 @@ import { verificarInvariantes } from "./dominio/invariantes";
 import { montarMoradorInicial } from "./dominio/morador-inicial";
 import { PERMISSOES_DO_FUNDADOR } from "./dominio/permissoes";
 import { reduzirFato } from "./dominio/reduzir-fato";
-import { exigir, inserir, obter, tabelaVazia } from "./dominio/tabela";
+import { CONTADOR_DE_REVISOES_DOS_OBJETOS } from "./dominio/revisao-dos-objetos";
+import { exigir, inserir, listar, obter, tabelaVazia } from "./dominio/tabela";
 import type {
   EstadoDoMundo,
   Familia,
@@ -30,7 +38,7 @@ import {
   VERSAO_DO_MUNDO,
 } from "./formatos/fotografia";
 import { andaresNoLote } from "./formatos/imovel";
-import { copiar, resumoDe } from "./nucleo/canonico";
+import { canonico, copiar, resumoDe } from "./nucleo/canonico";
 import { MS_DE_JOGO_POR_TICK, PASSO_MS } from "./nucleo/relogio";
 import { passoDasAcoes } from "./sistemas/acoes";
 import { passoDaAutonomia } from "./sistemas/autonomia";
@@ -52,6 +60,11 @@ import {
   sessaoSaiu,
   sessaoVoltou,
 } from "./sistemas/presenca";
+import {
+  criarRegistroDeTravas,
+  expirarTravas,
+  liberarTravasDoPerfil,
+} from "./sistemas/travas-de-edicao";
 import { passoDaVida } from "./sistemas/vida";
 import { passoDasVisitas } from "./sistemas/visitas";
 import {
@@ -116,12 +129,23 @@ export type Mundo = {
 };
 
 export type OpcoesDoMundo = {
+  pinturasDisponiveis?: CatalogoDePinturas;
+  /** Limite do diário entregue pelo host; não vem da intenção do jogador. */
+  maxBytesPorFato?: number;
   /** Acusa qualquer mudança visível que não foi marcada para replicação. Para testes. */
   conferirReplicacao?: boolean;
 };
 
 function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
-  const presenca: Presenca = { sessoes: [], reservas: [], voto: null };
+  const pinturasDisponiveis = opcoes.pinturasDisponiveis
+    ? conferirCatalogoDePinturas(opcoes.pinturasDisponiveis)
+    : null;
+  conferirDisponibilidadeDasPinturas(
+    listar(estado.objetos),
+    estado.catalogoDePinturas,
+    pinturasDisponiveis,
+  );
+  const presenca: Presenca = { sessoes: [], reservas: [], voto: null, obra: null };
   const navegadores = new Map<LoteId, { revisao: number; navegador: Navegador }>();
   const tocadas = new Map<TabelaReplicada, Set<string>>();
   const chavesTocadas = new Set<ChaveReplicada>();
@@ -142,7 +166,17 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
   }
 
   function contexto(): Contexto {
-    return { estado, presenca, fatos, apresentacao, tocadas, chavesTocadas, navegador };
+    return {
+      estado,
+      presenca,
+      fatos,
+      apresentacao,
+      tocadas,
+      chavesTocadas,
+      navegador,
+      maxBytesPorFato: opcoes.maxBytesPorFato,
+      pinturasDisponiveis,
+    };
   }
 
   function colher(): SaidaDoPasso {
@@ -185,6 +219,38 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
         versoes: {},
       };
       switch (entrada.t) {
+        case "obra_do_host": {
+          if (presenca.obra && presenca.obra.geracao !== entrada.geracao)
+            throw new Error("A geração de obra não muda dentro da mesma montagem");
+          const iniciando = presenca.obra === null;
+          presenca.obra ??= criarRegistroDeTravas(entrada.geracao);
+          const avancou = entrada.agoraMs !== presenca.obra.agoraMs;
+          if (
+            expirarTravas(presenca.obra, entrada.agoraMs) ||
+            iniciando ||
+            (avancou && presenca.obra.travas.length > 0)
+          )
+            tocarChave(ctx, "presenca");
+          return aceito;
+        }
+        case "admitir_pinturas": {
+          const catalogo = conferirCatalogoDePinturas(entrada.catalogo);
+          if (!pinturasDisponiveis || canonico(catalogo) !== canonico(pinturasDisponiveis))
+            throw new Error("Admissão de pintura exige o catálogo instalado pelo host");
+          if (estado.catalogoDePinturas) {
+            if (canonico(estado.catalogoDePinturas) !== canonico(catalogo))
+              throw new Error("O catálogo de pinturas admitido é imutável");
+            return aceito;
+          }
+          emitir(
+            ctx,
+            "catalogo:pinturas:1",
+            null,
+            { tipo: "PinturasAdmitidas", catalogo },
+            causaDoJogador(null, null, "pinturas_pelo_host"),
+          );
+          return aceito;
+        }
         case "intencao":
           return aplicarIntencao(ctx, entrada.sessaoId, entrada.intencao);
         case "sessao_entrou":
@@ -213,6 +279,11 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
           if (!obter(estado.familias, entrada.familiaId)) {
             return { ok: false, comandoId: "", motivo: "nao_existe" };
           }
+          if (
+            presenca.obra &&
+            liberarTravasDoPerfil(presenca.obra, entrada.perfilId, entrada.familiaId)
+          )
+            tocarChave(ctx, "presenca");
           emitir(
             ctx,
             `acesso:${entrada.perfilId}:${entrada.familiaId}:${novoId(estado, "fat")}`,
@@ -228,6 +299,11 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
           return aceito;
         }
         case "revogar_acesso": {
+          if (
+            presenca.obra &&
+            liberarTravasDoPerfil(presenca.obra, entrada.perfilId, entrada.familiaId)
+          )
+            tocarChave(ctx, "presenca");
           emitir(
             ctx,
             `revoga:${entrada.perfilId}:${entrada.familiaId}:${novoId(estado, "fat")}`,
@@ -277,8 +353,8 @@ function montar(estado: EstadoDoMundo, opcoes: OpcoesDoMundo): Mundo {
       };
     },
 
-    visao() {
-      return projetar(estado, presenca);
+    visao(perfilId) {
+      return projetar(estado, presenca, perfilId);
     },
 
     hash(escopo = "duravel") {
@@ -299,6 +375,7 @@ function criarMorador(
 }
 
 export type NovoMundo = {
+  loja?: CatalogoDaLoja;
   catalogoDeAparencias?: import("./comandos/aparencia").CatalogoDeAparencias;
   mundoId: MundoId;
   semente: number;
@@ -334,10 +411,14 @@ export function criarMundo(novo: NovoMundo, opcoes: OpcoesDoMundo = {}): Mundo {
     memorias: [],
     comandos: [],
     fundacao: null,
+    loja: conferirContinuidadeDaLoja(novo.loja ?? montarLojaInicial()),
+    edicoes: [],
+    historicoDaCasa: [],
+    catalogoDePinturas: null,
     catalogoDeAparencias: novo.catalogoDeAparencias
       ? CatalogoDeAparenciasSchema.parse(novo.catalogoDeAparencias)
       : null,
-    contadores: {},
+    contadores: { [CONTADOR_DE_REVISOES_DOS_OBJETOS]: 1 },
     avancoDoDia: { dia: 0, gastoMs: {} },
   };
 
@@ -381,10 +462,12 @@ export function criarMundo(novo: NovoMundo, opcoes: OpcoesDoMundo = {}): Mundo {
           loteId,
           catalogo: objeto.catalogo,
           versao: objeto.versao,
+          revisao: 1,
           pos: [objeto.pos[0] + dx, objeto.pos[1] + dy, objeto.pos[2]],
           andar: objeto.andar,
           giro: objeto.giro,
           cor: objeto.cor,
+          pintura: null,
           ocupacao: {},
         });
       }

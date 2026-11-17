@@ -1,4 +1,5 @@
 import type { MoradorId, PerfilId } from "../dominio/ids";
+import { revisaoDosObjetos } from "../dominio/revisao-dos-objetos";
 import type { Tabela } from "../dominio/tabela";
 import type {
   AcessoFamilia,
@@ -10,6 +11,8 @@ import type {
 } from "../dominio/tipos";
 import { canonico, copiar } from "../nucleo/canonico";
 import type { ChaveReplicada, TabelaReplicada } from "../sistemas/contexto";
+import { type PassoDaCasa, proximoPassoDaCasa } from "../sistemas/historico-da-casa";
+import { temPermissao } from "../sistemas/presenca";
 
 /**
  * O que os clientes veem do mundo e como ficam sabendo do que muda.
@@ -53,12 +56,41 @@ export type JogadorVisto = {
 };
 
 export type PresencaVista = {
+  /** Ausente no protocolo V1; presente quando o host inicializou as obras. */
+  obras?: (import("../sistemas/travas-de-edicao").ConcessaoPublicaDaObra & {
+    perfilId: PerfilId;
+  })[];
   jogadores: JogadorVisto[];
   reservas: { moradorId: MoradorId; perfilId: PerfilId }[];
   voto: { velocidade: Velocidade; aFavor: PerfilId[] } | null;
 };
 
 export type RelogioVisto = { velocidade: Velocidade; msDeJogoPorTick: number };
+
+export type EdicaoDoCliente = {
+  proximaSequencia: number | null;
+  /** Ausente no host antigo. Nunca contém a pilha completa ou passos de outro autor. */
+  historico?: { revisao: number; desfazer: PassoDaCasa | null; refazer: PassoDaCasa | null };
+};
+
+export function projetarEdicao(estado: EstadoDoMundo, perfilId?: PerfilId): EdicaoDoCliente {
+  const ultima =
+    estado.edicoes.find((registro) => registro.autor === perfilId)?.ultimaSequencia ?? 0;
+  const proximo = (sentido: "desfazer" | "refazer") => {
+    const passo = perfilId ? proximoPassoDaCasa(estado.historicoDaCasa, perfilId, sentido) : null;
+    return passo && perfilId && temPermissao(estado, perfilId, passo.familiaId, "decorar")
+      ? passo
+      : null;
+  };
+  return {
+    proximaSequencia: ultima < Number.MAX_SAFE_INTEGER ? ultima + 1 : null,
+    historico: {
+      revisao: revisaoDosObjetos(estado),
+      desfazer: proximo("desfazer"),
+      refazer: proximo("refazer"),
+    },
+  };
+}
 
 export type VisaoDoCliente = {
   mundoId: string;
@@ -69,6 +101,9 @@ export type VisaoDoCliente = {
   memorias: Memoria[];
   presenca: PresencaVista;
   catalogoDeAparencias: EstadoDoMundo["catalogoDeAparencias"];
+  loja: EstadoDoMundo["loja"];
+  catalogoDePinturas: EstadoDoMundo["catalogoDePinturas"];
+  edicao: EdicaoDoCliente;
 } & { [T in TabelaReplicada]: EstadoDoMundo[T] } & Pick<EstadoDoMundo, "bairros">;
 
 export type Mudanca =
@@ -80,7 +115,18 @@ export type Mudanca =
   | { t: "c"; chave: ChaveReplicada; valor: unknown };
 
 function presencaVista(presenca: Presenca): PresencaVista {
+  const obra = presenca.obra;
   return {
+    ...(obra
+      ? {
+          obras: obra.travas.map((trava) => ({
+            perfilId: trava.perfilId,
+            referencia: copiar(trava.referencia),
+            alvo: copiar(trava.alvo),
+            prazoMs: Math.max(0, trava.ateMs - obra.agoraMs),
+          })),
+        }
+      : {}),
     jogadores: presenca.sessoes.map((sessao) => ({
       perfilId: sessao.perfilId,
       apelido: sessao.apelido,
@@ -96,6 +142,8 @@ function presencaVista(presenca: Presenca): PresencaVista {
 
 function valorDaChave(estado: EstadoDoMundo, presenca: Presenca, chave: ChaveReplicada): unknown {
   switch (chave) {
+    case "catalogoDePinturas":
+      return estado.catalogoDePinturas;
     case "relogio":
       return {
         velocidade: estado.relogio.velocidade,
@@ -112,16 +160,30 @@ function valorDaChave(estado: EstadoDoMundo, presenca: Presenca, chave: ChaveRep
   }
 }
 
-const CHAVES: readonly ChaveReplicada[] = ["relogio", "regras", "acessos", "memorias", "presenca"];
+const CHAVES: readonly ChaveReplicada[] = [
+  "relogio",
+  "regras",
+  "acessos",
+  "memorias",
+  "presenca",
+  "catalogoDePinturas",
+];
 
 /** A visão inteira, para quem acabou de entrar ou de reconectar. */
-export function projetar(estado: EstadoDoMundo, presenca: Presenca): VisaoDoCliente {
+export function projetar(
+  estado: EstadoDoMundo,
+  presenca: Presenca,
+  perfilId?: PerfilId,
+): VisaoDoCliente {
   return copiar({
     mundoId: estado.id,
     tick: estado.relogio.tick,
     relogio: valorDaChave(estado, presenca, "relogio") as RelogioVisto,
     regras: estado.regras,
     catalogoDeAparencias: estado.catalogoDeAparencias,
+    loja: estado.loja,
+    catalogoDePinturas: estado.catalogoDePinturas,
+    edicao: projetarEdicao(estado, perfilId),
     acessos: estado.acessos,
     memorias: estado.memorias,
     presenca: presencaVista(presenca),

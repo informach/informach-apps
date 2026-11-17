@@ -32,14 +32,20 @@ import {
 import { MapControls } from "three/addons/controls/MapControls.js";
 import type { Ativos, DescricaoDoMorador, ObjetoDaCena, VisualDosObjetos } from "../ativos/ativos";
 import type { Sessao } from "../espelho/sessao";
+import type { EditorDaCasa } from "../modelo/editor-da-casa";
 import { nomeDoObjeto } from "../modelo/menu";
 import { fracaoDoDia } from "../modelo/painel";
 import { familiasDoJogador } from "../modelo/retratos";
+import type { AreaDaInterface } from "../modelo/rotulos-na-cena";
 import { montarCasa, montarTerreno } from "./casa";
 import { centroDaCelula, daCena, METROS_POR_MM, type PontoDaCena, paraCena } from "./espaco";
-import { MoradoresDaCena } from "./moradores";
+import { type MedidasDosRotulos, MoradoresDaCena } from "./moradores";
+import { ObrasDaCena } from "./obras";
 import { CORTE_DAS_PAREDES_MM } from "./planta";
+import { PreparoDaCena } from "./preparo-da-cena";
 import { type EstadoDaPrevia, PreviaDoMorador, type QuadroDaPrevia } from "./previa";
+import { PreviaDoMovel } from "./previa-do-movel";
+import { ErroDePrograma, ProgramasDaCena } from "./programas";
 import { alturaDoPiso } from "./situacao";
 
 /**
@@ -90,6 +96,7 @@ export type MedidasDaCena = {
   chamadas: number;
   triangulos: number;
   quadros: number;
+  rotulos: MedidasDosRotulos;
 };
 
 /** Mesmo uma janela lenta precisa de medidas, para a qualidade poder descer. */
@@ -107,6 +114,8 @@ export function medidasDosQuadros(intervalos: readonly number[], custos: readonl
 }
 
 export type OpcoesDaCena = {
+  areasDaInterface(): readonly AreaDaInterface[];
+  editor?: EditorDaCasa;
   sessao: Sessao;
   ativos: Ativos;
   /** Como chamar outro jogador, para o rótulo de quem ele dirige. */
@@ -135,6 +144,14 @@ function qualidadeInicial(placa: string): Qualidade {
 }
 
 export class Cena {
+  private vistaAnterior: {
+    posicao: Vector3;
+    alvo: Vector3;
+    minimo: number;
+    maximo: number;
+  } | null = null;
+  private readonly previaDoMovel: PreviaDoMovel;
+  private readonly obras = new ObrasDaCena();
   private readonly sessao: Sessao;
   private readonly ativos: Ativos;
   private readonly opcoes: OpcoesDaCena;
@@ -155,6 +172,18 @@ export class Cena {
   private readonly raio = new Raycaster();
   private readonly observador: ResizeObserver;
   private readonly cancelarAtivos: (() => void) | undefined;
+  private readonly programas = new ProgramasDaCena(
+    (programa) =>
+      programa instanceof WebGLProgram &&
+      this.gl.getProgramParameter(programa, this.gl.LINK_STATUS) === true,
+  );
+  private readonly preparo = new PreparoDaCena(
+    async () => {
+      await this.renderer.compileAsync(this.scene, this.camera);
+      this.programas.verificar(this.renderer.info.programs);
+    },
+    () => this.falharDesenho(),
+  );
 
   private moradores: MoradoresDaCena;
   private readonly previa: PreviaDoMorador;
@@ -207,12 +236,23 @@ export class Cena {
     custoMs: null,
   };
   private quadros = 0;
+  private rotulos: MedidasDosRotulos = {
+    moradores: 0,
+    comArte: 0,
+    projetados: 0,
+    foraDoQuadro: 0,
+    exibidos: 0,
+  };
 
   constructor(host: HTMLElement, opcoes: OpcoesDaCena) {
     this.host = host;
     this.opcoes = opcoes;
     this.sessao = opcoes.sessao;
     this.ativos = opcoes.ativos;
+    this.previaDoMovel = new PreviaDoMovel(this.ativos);
+    this.mundo.add(this.previaDoMovel.raiz);
+    this.mundo.add(this.obras.raiz);
+    this.camera.layers.enable(1);
     this.previa = new PreviaDoMorador(this.ativos);
     this.scene.add(this.previa.raiz);
 
@@ -223,6 +263,8 @@ export class Cena {
       throw new Error("O desenho do Morada requer WebGL2");
     }
     this.gl = gl;
+    // Validação estrita própria; evita três consultas de logs por programa válido.
+    this.renderer.debug.checkShaderErrors = false;
     this.renderer.outputColorSpace = SRGBColorSpace;
     this.renderer.shadowMap.type = PCFSoftShadowMap;
     this.placa = placaDe(this.renderer);
@@ -270,8 +312,12 @@ export class Cena {
     this.observador = new ResizeObserver(() => this.ajustarTamanho());
     this.observador.observe(host);
     this.ajustarTamanho();
-    this.cancelarAtivos = this.ativos.aoMudar?.(() => {
-      this.revisaoMontada = -1;
+    this.cancelarAtivos = this.ativos.aoMudar?.((tipo) => {
+      this.preparo.invalidar();
+      if (tipo === "ambiente") {
+        this.revisaoMontada = -1;
+        this.previaDoMovel.invalidar();
+      }
     });
     this.ligar();
   }
@@ -280,6 +326,48 @@ export class Cena {
 
   get qualidade(): Qualidade {
     return this.qualidadeAtual;
+  }
+
+  get vistaSuperior(): boolean {
+    return this.vistaAnterior !== null;
+  }
+
+  alternarVista(): void {
+    this.foco = null;
+    if (this.vistaAnterior) {
+      const anterior = this.vistaAnterior;
+      this.vistaAnterior = null;
+      this.camera.position.copy(anterior.posicao);
+      this.controles.target.copy(anterior.alvo);
+      this.controles.minPolarAngle = anterior.minimo;
+      this.controles.maxPolarAngle = anterior.maximo;
+    } else {
+      this.vistaAnterior = {
+        posicao: this.camera.position.clone(),
+        alvo: this.controles.target.clone(),
+        minimo: this.controles.minPolarAngle,
+        maximo: this.controles.maxPolarAngle,
+      };
+      const previa = this.opcoes.editor?.prever().objeto,
+        estado = this.sessao.estado();
+      const lote = estado && previa ? obter(estado.lotes, previa.loteId) : null;
+      const alvo =
+        previa && lote
+          ? new Vector3(
+              ...paraCena(
+                lote.origem[0] + previa.pos[0],
+                lote.origem[1] + previa.pos[1],
+                previa.pos[2],
+              ),
+            )
+          : this.controles.target.clone();
+      const distancia = Math.max(12, this.camera.position.distanceTo(this.controles.target));
+      this.controles.target.copy(alvo);
+      this.camera.position.copy(alvo).add(new Vector3(0, distancia, 0.001));
+      this.controles.minPolarAngle = 0.001;
+      this.controles.maxPolarAngle = 0.001;
+    }
+    this.controles.update();
   }
 
   definirPrevia(descricao: DescricaoDoMorador | null): void {
@@ -351,6 +439,7 @@ export class Cena {
       chamadas: this.renderer.info.render.calls,
       triangulos: this.renderer.info.render.triangles,
       quadros: this.quadros,
+      rotulos: { ...this.rotulos },
     };
   }
 
@@ -444,6 +533,7 @@ export class Cena {
   dispose(): void {
     if (this.descartada) return;
     this.descartada = true;
+    this.preparo.dispose();
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.limparQuadroPendente();
@@ -465,6 +555,8 @@ export class Cena {
     this.desmontar();
     this.moradores.dispose();
     this.previa.dispose();
+    this.previaDoMovel.dispose();
+    this.obras.dispose();
     if (this.destino) {
       this.destino.geometry.dispose();
       if (this.destino.material instanceof MeshBasicMaterial) this.destino.material.dispose();
@@ -514,6 +606,7 @@ export class Cena {
 
   /** Monta o terreno, as casas e os objetos a partir do espelho. Os moradores se refazem sozinhos. */
   private montar(estado: EstadoDoMundo): void {
+    this.preparo.invalidar();
     this.desmontar();
     const lotes = listar(estado.lotes);
     const bairro = listar(estado.bairros)[0];
@@ -577,6 +670,7 @@ export class Cena {
   /** Com as paredes baixas, o que fica pendurado acima do corte, e tudo o que é de teto, some. */
   private esconderOQueFlutua(estado: EstadoDoMundo, corte: number | null): void {
     this.objetos?.definirVisiveis((item) => {
+      if (item.objeto.id === this.previaDoMovel.originalOculto) return false;
       if (corte === null) return true;
       const fixacao = item.entrada?.fixacao;
       if (fixacao === "teto") return false;
@@ -614,6 +708,7 @@ export class Cena {
   // --- Qualidade ---
 
   private aplicarQualidade(): void {
+    this.preparo.invalidar();
     const nivel = QUALIDADES[this.qualidadeAtual];
     this.renderer.setPixelRatio(Math.min(nivel.dpr, window.devicePixelRatio || 1));
     this.renderer.shadowMap.enabled = nivel.sombras;
@@ -709,6 +804,14 @@ export class Cena {
     this.sessao.loja.definirContextoPerdido(true);
   }
 
+  private falharDesenho(): void {
+    this.sessao.loja.avisar(
+      "recusa",
+      "Não foi possível preparar o desenho. Saia e reabra o mundo.",
+    );
+    this.interromperDesenho();
+  }
+
   private readonly quadro = (agora: number): void => {
     this.raf = 0;
     if (this.descartada || this.perdida || document.hidden) return;
@@ -719,12 +822,29 @@ export class Cena {
     // No degrau mais baixo, pula os quadros que vêm antes da hora.
     if (limite > 0 && intervalo < limite - 2) return;
     if (!this.gpuDisponivel()) return;
-    this.ultimo = agora;
+    if (this.preparo.preparando) return;
     const dt = Math.min(100, Math.max(0, intervalo));
     const inicio = performance.now();
 
     this.atualizar(agora, dt);
+    const rotulos = this.moradores.organizarRotulos(
+      this.camera,
+      this.host.clientWidth,
+      this.host.clientHeight,
+      this.opcoes.areasDaInterface(),
+    );
+    // A interface continua recebendo quadros enquanto novos programas são preparados.
+    if (!this.preparo.pronta()) return;
+    this.ultimo = agora;
     this.renderer.render(this.scene, this.camera);
+    try {
+      this.programas.verificar(this.renderer.info.programs);
+    } catch (erro) {
+      this.falharDesenho();
+      if (!(erro instanceof ErroDePrograma)) throw erro;
+      return;
+    }
+    this.rotulos = rotulos;
     this.quadroDaPreviaPendente = this.previa.capturarQuadro();
     const gl = this.gl;
     this.quadroPendente = gl.fenceSync(gl.SYNC_GPU_COMMANDS_COMPLETE, 0);
@@ -749,6 +869,17 @@ export class Cena {
       ) {
         this.montar(estado);
       }
+      const editor = this.opcoes.editor;
+      this.obras.definir(
+        estado,
+        loja.visao?.presenca.obras,
+        loja.jogador?.jogadorId ?? null,
+        editor?.aberto ? editor.loteId : null,
+        loja.revisaoDaCasa,
+      );
+      if (!editor?.aberto && this.vistaSuperior) this.alternarVista();
+      if (this.previaDoMovel.definir(estado, editor?.aberto ? editor.prever() : null))
+        this.esconderOQueFlutua(estado, loja.paredesBaixas ? CORTE_DAS_PAREDES_MM : null);
       const reservas = loja.visao?.presenca.reservas ?? [];
       this.moradores.atualizar({
         estado,
@@ -1031,6 +1162,7 @@ export class Cena {
   private readonly aoPerder = (evento: Event): void => {
     // Sem isto o navegador não devolve o contexto.
     evento.preventDefault();
+    this.preparo.invalidar();
     // Os objetos de sincronização também deixam de existir com o contexto.
     this.quadroPendente = null;
     this.interromperDesenho();
@@ -1043,6 +1175,7 @@ export class Cena {
     // Tudo o que estava na placa se foi: a cena é refeita do espelho.
     this.desmontar();
     this.moradores.dispose();
+    this.previaDoMovel.invalidar();
     this.moradores = new MoradoresDaCena(this.mundo, this.ativos);
     this.revisaoMontada = -1;
     this.aplicarQualidade();

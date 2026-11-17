@@ -81,3 +81,8 @@ Plano IaC inicialmente previa apagar as três variáveis do upload. Declarado
 `preserve()` em cada uma, o plano contra produção respondeu que a configuração
 está atualizada, sem exclusões. Foi necessário o loader instalado `tsx` para
 resolver imports TypeScript do catálogo; instrução registrada no runbook.
+
+16/11, retenção de ingressos: portal `7f9b2b0a`, deployment `7a757f0c`,
+saúde/prontidão 200 e mesma fonte informada pelo endpoint. O build confirmou
+novo upload de mapas às 04:34:33,912 UTC e a release foi relida no Sentry;
+sem novo token, rotação de chave ou alteração das sondagens pagas.

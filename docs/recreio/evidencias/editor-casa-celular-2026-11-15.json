@@ -1,0 +1,37 @@
+{
+  "codigo": "bfcf71bc5811b2cfc28e87dc80b80c57f3d2a079",
+  "gatesPublicos": 43773401139,
+  "execucaoPrivada": 43774027587,
+  "executorPrivado": "1f340515d68b6c99d64c8f6ed7c24529d054d076",
+  "manifestoV4": "1b829c0a9e4e93f9e99f174b7fdcf66c690d2bfde1a213925bb3cd9616cb29ae",
+  "jornadas": {
+    "portalNovoServidorPublicadoArteD2": true,
+    "compraPinturaRestauracaoComputador": true,
+    "compraPinturaRestauracaoCelular": true,
+    "criacao48Previas": true,
+    "aprovadas": 4,
+    "falhas": 0
+  },
+  "celular": {
+    "viewport": { "width": 390, "height": 844 },
+    "posicaoMetros": [3.5, 5],
+    "giroGraus": 90,
+    "corRestaurada": "#000000",
+    "saldoFicticioCentavos": 490500,
+    "restauracao": "SIGTERM, checkpoint e reabertura da interface",
+    "capturasRevistas": true
+  },
+  "criacao": {
+    "combinacoes": 48,
+    "antes": { "contextos": 1, "buffers": 128, "texturas": 42 },
+    "depois": { "contextos": 1, "buffers": 128, "texturas": 42 },
+    "maximos": { "buffers": 203, "texturas": 44 }
+  },
+  "limites": [
+    "Navegador por software no GitHub; nao comprova FPS ou VRAM de hardware real",
+    "Nomes iguais sobrescreveram capturas de computador pelas de celular nesta execucao; corrigir para preservar ambos",
+    "Capturas anteriores do computador foram revistas no marco 472b3c2e",
+    "Moradores e nomes se sobrepoem na entrada inicial; tratar no lote de interacoes e apresentacao",
+    "Sem ativacao em producao; arte e capturas permanecem privadas"
+  ]
+}

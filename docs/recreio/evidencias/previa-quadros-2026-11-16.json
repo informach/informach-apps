@@ -1,0 +1,48 @@
+{
+  "fonte": "9c329ad3da64792259a48af06d78d0529f414ec7",
+  "gatesPublicos": {
+    "run": 43846477866,
+    "aprovados": 6
+  },
+  "provaPrivada": {
+    "run": 43847668849,
+    "executor": "afc246b6370bdf8228fc02a9985406e375f09031",
+    "jornadasAprovadas": 5
+  },
+  "criacao": {
+    "combinacoes": 48,
+    "viewport": [390, 844],
+    "capturaInspecionada": true,
+    "personagemVisivel": true,
+    "status": "Assim vai ficar",
+    "contextosAntesDepois": [1, 1],
+    "buffersAntesDepois": [124, 124],
+    "texturasAntesDepois": [33, 33],
+    "maximoBuffers": 199,
+    "maximoTexturas": 35,
+    "comparacaoEntreExecutoresValidaComoEconomia": false
+  },
+  "ligacao": {
+    "entrada": {
+      "consultas": 21,
+      "ms": 7924.0
+    },
+    "reconexao": {
+      "consultas": 22,
+      "ms": 11318.6
+    },
+    "restauracao": {
+      "consultas": 23,
+      "ms": 639.6
+    },
+    "historico": {
+      "consultas": 22,
+      "ms": 547.0
+    },
+    "consultasDeLogs": 0
+  },
+  "desempenhoConcluido": false,
+  "fpsEmHardwareCertificado": false,
+  "adotadoEmProducao": false,
+  "d3Ativado": false
+}

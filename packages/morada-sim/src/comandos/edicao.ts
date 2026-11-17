@@ -1,13 +1,32 @@
 import { z } from "zod";
 import { canonico } from "../nucleo/canonico";
+import {
+  AUTORES_DE_EDICAO_DO_MUNDO,
+  AutorDeEdicaoSchema as autor,
+  comandoDeEdicao,
+  RESPOSTAS_DE_EDICAO,
+  RESPOSTAS_DE_EDICAO_DO_MUNDO,
+  SequenciaDeEdicaoSchema as sequencia,
+} from "./identidade-da-edicao";
+import { ReferenciaDaTravaSchema } from "./obra";
+import { PinturaDoMovelSchema } from "./pintura";
 
-/** Independente dos 512 comandos genéricos e do histórico de desfazer. */
-export const RESPOSTAS_DE_EDICAO = 32;
+export {
+  AUTORES_DE_EDICAO_DO_MUNDO,
+  comandoDeEdicao,
+  LIMITE_DE_EDICAO_SEM_GESTAO_CENTAVOS,
+  OBJETOS_POR_LOTE,
+  RESPOSTAS_DE_EDICAO,
+  RESPOSTAS_DE_EDICAO_DO_MUNDO,
+} from "./identidade-da-edicao";
+
 const inteiro = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
-const sequencia = inteiro.positive();
-const autor = z.string().regex(/^[A-Za-z0-9_-]{1,44}$/);
-const entidade = (prefixo: string) =>
-  z.string().regex(new RegExp(`^${prefixo}_[A-Za-z0-9_-]{1,64}$`));
+const entidade = <P extends string>(prefixo: P) =>
+  z.custom<`${P}_${string}`>(
+    (valor) =>
+      typeof valor === "string" && new RegExp(`^${prefixo}_[A-Za-z0-9_-]{1,64}$`).test(valor),
+    { message: `Identidade de ${prefixo} inválida` },
+  );
 const mm = z.number().int().min(0).max(1_000_000);
 const posicao = z.strictObject({
   pos: z.tuple([mm, mm, mm]),
@@ -19,14 +38,20 @@ const versao = inteiro.positive();
 /** O cliente indica peça/posição/revisões; dinheiro e geometria são do host. */
 export const OperacaoDeEdicaoSchema = z.discriminatedUnion("t", [
   z.strictObject({
+    t: z.literal("compensar"),
+    sentido: z.enum(["desfazer", "refazer"]),
+    chave: z.string().min(1).max(64),
+    revisaoDoPasso: versao,
+    revisaoDoEspaco: versao,
+  }),
+  z.strictObject({
     t: z.literal("comprar"),
-    loteId: entidade("lote"),
     revisaoDoEspaco: versao,
     politicaDePrecos: versao,
     catalogo: z.string().regex(/^[a-z][a-z0-9_]{0,79}$/),
     versaoDoCatalogo: versao,
     colocacao: posicao,
-    cor: inteiro.max(0xffffff),
+    pintura: PinturaDoMovelSchema.nullable(),
   }),
   z.strictObject({
     t: z.literal("mover"),
@@ -39,7 +64,7 @@ export const OperacaoDeEdicaoSchema = z.discriminatedUnion("t", [
     t: z.literal("pintar"),
     objetoId: entidade("obj"),
     revisaoDoObjeto: versao,
-    cor: inteiro.max(0xffffff),
+    pintura: PinturaDoMovelSchema.nullable(),
   }),
   z.strictObject({
     t: z.literal("vender"),
@@ -51,9 +76,14 @@ export const OperacaoDeEdicaoSchema = z.discriminatedUnion("t", [
 ]);
 export type OperacaoDeEdicao = z.infer<typeof OperacaoDeEdicaoSchema>;
 
-export const PedidoDeEdicaoSchema = z.strictObject({
-  sequencia,
+export const RascunhoDeEdicaoSchema = z.strictObject({
+  familiaId: entidade("fam"),
+  loteId: entidade("lote"),
   operacao: OperacaoDeEdicaoSchema,
+});
+export const PedidoDeEdicaoSchema = RascunhoDeEdicaoSchema.extend({
+  sequencia,
+  trava: ReferenciaDaTravaSchema,
 });
 export type PedidoDeEdicao = z.infer<typeof PedidoDeEdicaoSchema>;
 
@@ -70,11 +100,18 @@ export const ResultadoDeEdicaoSchema = z.discriminatedUnion("ok", [
       "ocupado",
       "limite",
     ]),
+    detalhe: z.string().min(1).max(80).optional(),
   }),
 ]);
 
 export const ReciboDeEdicaoSchema = z.strictObject({
   autor,
+  /** Capacidades admitidas pelo host; não fazem parte do pedido do navegador. */
+  permissoes: z
+    .array(z.enum(["decorar", "gastar", "gerir_financas"]))
+    .min(1)
+    .max(3)
+    .refine((valores) => valores.includes("decorar") && new Set(valores).size === valores.length),
   pedido: PedidoDeEdicaoSchema,
   resultado: ResultadoDeEdicaoSchema,
 });
@@ -87,9 +124,9 @@ export const RegistroDeEdicoesSchema = z
     recentes: z.array(ReciboDeEdicaoSchema).max(RESPOSTAS_DE_EDICAO),
   })
   .superRefine((registro, ctx) => {
-    const quantidade = Math.min(registro.ultimaSequencia, RESPOSTAS_DE_EDICAO);
-    if (registro.recentes.length !== quantidade)
-      ctx.addIssue({ code: "custom", message: "Janela de recibos incompleta" });
+    const quantidade = registro.recentes.length;
+    if (quantidade > registro.ultimaSequencia)
+      ctx.addIssue({ code: "custom", message: "Janela maior que a sequência admitida" });
     for (const [indice, recibo] of registro.recentes.entries()) {
       if (
         recibo.autor !== registro.autor ||
@@ -100,12 +137,31 @@ export const RegistroDeEdicoesSchema = z
   });
 export type RegistroDeEdicoes = z.infer<typeof RegistroDeEdicoesSchema>;
 
-export function iniciarRegistroDeEdicoes(perfilId: string): RegistroDeEdicoes {
-  return { autor: autor.parse(perfilId), ultimaSequencia: 0, recentes: [] };
+/** Ordem de atividade: o autor da última admissão fica no fim da lista. */
+export function compactarRespostasDeEdicao(
+  registros: readonly RegistroDeEdicoes[],
+): RegistroDeEdicoes[] {
+  if (registros.length > AUTORES_DE_EDICAO_DO_MUNDO)
+    throw new Error("Limite de autores no histórico de edição");
+  let restantes = RESPOSTAS_DE_EDICAO_DO_MUNDO;
+  const saida: RegistroDeEdicoes[] = [];
+  for (let indice = registros.length - 1; indice >= 0; indice--) {
+    const registro = registros[indice];
+    if (!registro) continue;
+    const quantidade = Math.min(registro.recentes.length, restantes);
+    restantes -= quantidade;
+    saida.push(
+      RegistroDeEdicoesSchema.parse({
+        ...registro,
+        recentes: quantidade > 0 ? registro.recentes.slice(-quantidade) : [],
+      }),
+    );
+  }
+  return saida.reverse();
 }
 
-export function comandoDeEdicao(perfilId: string, numero: number): string {
-  return `obra:${sequencia.parse(numero).toString(36)}:${autor.parse(perfilId)}`;
+export function iniciarRegistroDeEdicoes(perfilId: string): RegistroDeEdicoes {
+  return { autor: autor.parse(perfilId), ultimaSequencia: 0, recentes: [] };
 }
 
 export type ConsultaDeEdicao =

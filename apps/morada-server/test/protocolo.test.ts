@@ -22,6 +22,25 @@ function conexaoCrua(instancia: Awaited<ReturnType<typeof mundoAberto>>["instanc
 }
 
 describe("entrada", () => {
+  it("aba V1 é recusada antes de abrir ator, admitir presença ou receber fotografia", async () => {
+    const bancada = await criarBancada();
+    const { instancia } = await bancada.novaInstancia();
+    const lia = bancada.jogador("Lia");
+    const mundoId = bancada.criarMundo(lia);
+    const sid = bancada.plataforma.abrirSessao(lia.perfilId);
+    const sessao = await bancada.recreio.sessao({
+      perfilId: lia.perfilId,
+      sid,
+      agora: new Date(bancada.agora()),
+    });
+    bancada.chaves.foraDoAr = true;
+    const cliente = conexaoCrua(instancia);
+    await cliente.mandar({ t: "entrar", v: 1, sessao, mundoId });
+    expect(cliente.fechamento).toBe(FECHAMENTO.protocolo);
+    expect(cliente.quadros).toEqual([]);
+    expect(instancia.medir().mundos).toBe(0);
+  });
+
   it("recusa sessão que não confere, vencida ou de outro emissor", async () => {
     const { bancada, instancia, lia, mundoId } = await mundoAberto();
 

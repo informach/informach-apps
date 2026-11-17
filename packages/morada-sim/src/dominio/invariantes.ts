@@ -1,5 +1,13 @@
 import { EdicaoDaAparenciaSchema, opcaoDeAparencia } from "../comandos/aparencia";
+import {
+  AUTORES_DE_EDICAO_DO_MUNDO,
+  RESPOSTAS_DE_EDICAO,
+  RESPOSTAS_DE_EDICAO_DO_MUNDO,
+} from "../comandos/edicao";
+import { PinturaDoMovelSchema, perfilDePintura } from "../comandos/pintura";
+import { HistoricoDaCasaSchema } from "../formatos/historico-da-casa";
 import { relacaoId } from "./ids";
+import { CONTADOR_DE_REVISOES_DOS_OBJETOS } from "./revisao-dos-objetos";
 import { listar, obter, type Tabela } from "./tabela";
 import type { EstadoDoMundo, Presenca } from "./tipos";
 
@@ -13,6 +21,46 @@ import type { EstadoDoMundo, Presenca } from "./tipos";
 export function verificarInvariantes(estado: EstadoDoMundo, presenca?: Presenca): string[] {
   const problemas: string[] = [];
   const erro = (texto: string) => problemas.push(texto);
+  const revisaoGlobal = estado.contadores[CONTADOR_DE_REVISOES_DOS_OBJETOS];
+  if (
+    typeof revisaoGlobal !== "number" ||
+    !Number.isSafeInteger(revisaoGlobal) ||
+    revisaoGlobal < 1
+  )
+    erro("Relógio de revisões dos objetos inválido");
+  if (
+    estado.edicoes.length > AUTORES_DE_EDICAO_DO_MUNDO ||
+    new Set(estado.edicoes.map((registro) => registro.autor)).size !== estado.edicoes.length ||
+    estado.edicoes.reduce((total, registro) => total + registro.recentes.length, 0) >
+      RESPOSTAS_DE_EDICAO_DO_MUNDO
+  )
+    erro("Histórico de edição repetido ou acima do limite");
+  for (const registro of estado.edicoes) {
+    if (
+      !Number.isSafeInteger(registro.ultimaSequencia) ||
+      registro.ultimaSequencia < 0 ||
+      registro.recentes.length > RESPOSTAS_DE_EDICAO ||
+      registro.recentes.length > registro.ultimaSequencia
+    )
+      erro("Sequência de edição inválida");
+  }
+  const historico = HistoricoDaCasaSchema.safeParse(estado.historicoDaCasa);
+  if (!historico.success) erro("Histórico da casa inválido");
+  else
+    for (const passo of historico.data) {
+      const registro = estado.edicoes.find((r) => r.autor === passo.autor);
+      const familia = obter(estado.familias, passo.familiaId);
+      const lote = obter(estado.lotes, passo.loteId);
+      if (
+        !registro ||
+        registro.ultimaSequencia < passo.sequencia ||
+        revisaoGlobal === undefined ||
+        passo.revisaoEsperada > revisaoGlobal ||
+        familia?.loteId !== passo.loteId ||
+        lote?.familiaId !== passo.familiaId
+      )
+        erro("Origem ou revisão do histórico divergente");
+    }
   const fundacao = estado.fundacao;
   if (
     fundacao &&
@@ -133,7 +181,8 @@ export function verificarInvariantes(estado: EstadoDoMundo, presenca?: Presenca)
 
   for (const familia of listar(estado.familias)) {
     // O fundo nunca fica negativo.
-    if (familia.fundo < 0) erro(`${familia.id}: fundo negativo`);
+    if (!Number.isSafeInteger(familia.fundo) || familia.fundo < 0)
+      erro(`${familia.id}: fundo inválido`);
     if (familia.loteId && !obter(estado.lotes, familia.loteId)) {
       erro(`${familia.id}: lote inexistente`);
     }
@@ -141,6 +190,17 @@ export function verificarInvariantes(estado: EstadoDoMundo, presenca?: Presenca)
 
   // Um ponto de uso tem um ocupante só, e o ocupante existe.
   for (const objeto of listar(estado.objetos)) {
+    const pintura = PinturaDoMovelSchema.nullable().safeParse(objeto.pintura);
+    if (
+      !pintura.success ||
+      (pintura.data &&
+        perfilDePintura(estado.catalogoDePinturas, objeto)?.perfil !== pintura.data.perfil)
+    )
+      erro(`${objeto.id}: pintura sem perfil admitido`);
+    if (!Number.isSafeInteger(objeto.revisao) || objeto.revisao < 1)
+      erro(`${objeto.id}: revisão inválida`);
+    if (typeof revisaoGlobal === "number" && objeto.revisao > revisaoGlobal)
+      erro(`${objeto.id}: revisão acima do relógio durável`);
     if (!obter(estado.lotes, objeto.loteId)) erro(`${objeto.id}: lote inexistente`);
     for (const [ponto, moradorId] of Object.entries(objeto.ocupacao)) {
       if (!obter(estado.moradores, moradorId)) erro(`${objeto.id}/${ponto}: ocupante inexistente`);

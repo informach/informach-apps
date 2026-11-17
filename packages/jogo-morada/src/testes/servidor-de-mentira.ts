@@ -1,9 +1,10 @@
-import type { Intencao, Mundo, Resultado } from "@informach/morada-sim";
+import { type Intencao, type Mundo, projetarEdicao, type Resultado } from "@informach/morada-sim";
 import {
   FECHAMENTO,
   type MensagemDoCliente,
   type MensagemDoServidor,
   VERSAO_DO_PROTOCOLO,
+  type VersaoDoProtocolo,
 } from "@informach/morada-sim/protocolo";
 import type { FonteDoMundo } from "../fonte";
 import type { ConstrutorDeSoquete, SoqueteDeRede } from "../rede/conexao";
@@ -125,6 +126,7 @@ export class SoqueteDeMentira implements SoqueteDeRede {
 }
 
 export type OpcoesDoServidorDeMentira = {
+  protocolo?: VersaoDoProtocolo;
   mundo: Mundo;
   /** Token de sessão → quem a pessoa é no mundo. Token fora da lista é recusado com 4001. */
   sessoes: Record<string, { jogadorId: string; apelido: string }>;
@@ -132,6 +134,8 @@ export type OpcoesDoServidorDeMentira = {
 };
 
 export class ServidorDeMentira {
+  private readonly geracaoDaObra = crypto.randomUUID();
+  private readonly protocolo: VersaoDoProtocolo;
   readonly soquetes: SoqueteDeMentira[] = [];
   readonly mundo: Mundo;
   /** Abre os soquetes novos na hora. Desligado, o teste abre com `abrir`. */
@@ -145,9 +149,11 @@ export class ServidorDeMentira {
   readonly Soquete: ConstrutorDeSoquete;
 
   constructor(opcoes: OpcoesDoServidorDeMentira) {
+    this.protocolo = opcoes.protocolo ?? VERSAO_DO_PROTOCOLO;
     this.mundo = opcoes.mundo;
     this.sessoes = opcoes.sessoes;
     this.relogio = opcoes.relogio;
+    this.atualizarObra();
     const servidor = this;
     this.Soquete = class extends SoqueteDeMentira {
       constructor(endereco: string, subprotocolo: string) {
@@ -190,11 +196,15 @@ export class ServidorDeMentira {
 
   receber(soquete: SoqueteDeMentira, mensagem: MensagemDoCliente): void {
     if (mensagem.t === "entrar") {
+      if (mensagem.v !== this.protocolo) {
+        soquete.fechar(FECHAMENTO.protocolo);
+        return;
+      }
       const quem = this.sessoes[mensagem.sessao];
       // Como o servidor de verdade: sessão que não confere, 4001; mundo que não é este, 4003.
       const recusa =
         this.recusarCom ??
-        (!quem || mensagem.v !== VERSAO_DO_PROTOCOLO
+        (!quem
           ? FECHAMENTO.sessao
           : mensagem.mundoId !== this.mundo.estado.id
             ? FECHAMENTO.semAcesso
@@ -226,7 +236,7 @@ export class ServidorDeMentira {
       this.difundir(this.mundo.avancar(0), soquete);
       soquete.entregar({
         t: "bem_vindo",
-        v: VERSAO_DO_PROTOCOLO,
+        v: this.protocolo,
         jogadorId: quem.jogadorId,
         apelido: quem.apelido,
         papel: "steward",
@@ -278,7 +288,13 @@ export class ServidorDeMentira {
     saida: ReturnType<Mundo["avancar"]>,
     excluir: SoqueteDeMentira | null = null,
   ): void {
-    if (saida.mudancas.length === 0 && saida.apresentacao.length === 0) return;
+    const edicaoMudou = saida.fatos.some(
+      (f) =>
+        f.dados.tipo === "EdicaoRegistrada" ||
+        f.dados.tipo === "AcessoConcedido" ||
+        f.dados.tipo === "AcessoRevogado",
+    );
+    if (saida.mudancas.length === 0 && saida.apresentacao.length === 0 && !edicaoMudou) return;
     for (const soquete of this.dentro()) {
       if (soquete === excluir) continue;
       soquete.entregar({
@@ -287,12 +303,24 @@ export class ServidorDeMentira {
         tick: saida.tick,
         mudancas: saida.mudancas,
         eventos: saida.apresentacao,
+        ...(edicaoMudou && soquete.jogadorId
+          ? { edicao: projetarEdicao(this.mundo.estado, soquete.jogadorId) }
+          : {}),
       });
     }
   }
 
+  private atualizarObra(): void {
+    this.mundo.aplicar({
+      t: "obra_do_host",
+      geracao: this.geracaoDaObra,
+      agoraMs: this.relogio.agoraMs,
+    });
+  }
+
   /** Um passo de 100 ms do servidor: aplica o que chegou, anda e conta o que mudou. */
   passo(): void {
+    this.atualizarObra();
     const respostas: { soquete: SoqueteDeMentira; resultado: Resultado }[] = [];
     for (const { soquete, intencao } of this.caixa.splice(0)) {
       if (!soquete.sessao) continue;

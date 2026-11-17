@@ -14,9 +14,10 @@ import {
 
 const TOKEN = "sessao-da-lia";
 
-function preparar() {
+function preparar(opcoes: { protocolo?: 1 | 2 } = {}) {
   const relogio = new RelogioDeTeste();
   const servidor = new ServidorDeMentira({
+    ...opcoes,
     mundo: criarMundoDaProva({ fundadores: [LIA] }),
     sessoes: { [TOKEN]: { jogadorId: LIA, apelido: "Lia" } },
     relogio,
@@ -51,6 +52,66 @@ function preparar() {
 }
 
 describe("entrada no mundo", () => {
+  it("negocia uma vez com o host anterior, preservando sessão/posse, e prefere V2 ao reabrir", async () => {
+    const { servidor, conexao, fonte, relogio, recebido } = preparar({ protocolo: 1 });
+    conexao.iniciar();
+    await assentar();
+    expect(conexao.estado.fase).toBe("pronto");
+    expect(fonte.aberturas).toBe(1);
+    expect(servidor.soquetes.map((s) => s.recebidas[0])).toEqual([
+      { t: "entrar", v: 2, sessao: TOKEN, mundoId: servidor.mundo.estado.id },
+      { t: "entrar", v: 1, sessao: TOKEN, mundoId: servidor.mundo.estado.id },
+    ]);
+    expect(recebido.bemVindos).toBe(1);
+    servidor.ultimo.fechar(1006);
+    relogio.avancar(ESPERA_MINIMA_MS);
+    await assentar();
+    expect(conexao.estado.fase).toBe("pronto");
+    expect(fonte.aberturas).toBe(2);
+    expect(servidor.soquetes.map((s) => s.recebidas[0])).toMatchObject([
+      { v: 2 },
+      { v: 1 },
+      { v: 2 },
+      { v: 1 },
+    ]);
+  });
+
+  it("segunda recusa de protocolo na entrada encerra sem laço ou outra abertura no portal", async () => {
+    const { servidor, conexao, fonte, relogio, recebido } = preparar();
+    servidor.recusarCom = FECHAMENTO.protocolo;
+    conexao.iniciar();
+    await assentar();
+    expect(conexao.estado).toEqual({ fase: "encerrado", motivo: "protocolo" });
+    relogio.avancar(60_000);
+    await assentar();
+    expect(servidor.soquetes).toHaveLength(2);
+    expect(fonte.aberturas).toBe(1);
+    expect(recebido).toEqual({ fotografias: 0, passos: 0, bemVindos: 0 });
+  });
+
+  it("bem-vindo de versão divergente encerra sem aceitar a visão ou negociar outra vez", async () => {
+    const { servidor, conexao, recebido } = preparar();
+    servidor.abrirSozinho = false;
+    conexao.iniciar();
+    await assentar();
+    const soquete = servidor.ultimo;
+    soquete.surdo = true;
+    servidor.abrir(soquete);
+    soquete.entregar({
+      t: "bem_vindo",
+      v: 1,
+      jogadorId: LIA,
+      apelido: "Lia",
+      papel: "steward",
+      tick: 0,
+      passoMs: 100,
+      janelaDeGracaMs: 30_000,
+    });
+    expect(conexao.estado).toEqual({ fase: "encerrado", motivo: "protocolo" });
+    expect(servidor.soquetes).toHaveLength(1);
+    expect(recebido.bemVindos).toBe(0);
+  });
+
   it("apresenta a sessão no primeiro quadro, nunca no endereço, e passa pelos estados na ordem", async () => {
     const { servidor, conexao, fases, recebido } = preparar();
     servidor.abrirSozinho = false;

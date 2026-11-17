@@ -1,9 +1,25 @@
-import { copiar } from "../nucleo/canonico";
+import {
+  admitirReciboDeEdicao,
+  comandoDeEdicao,
+  compactarRespostasDeEdicao,
+  iniciarRegistroDeEdicoes,
+} from "../comandos/edicao";
+import { conferirCatalogoDePinturas } from "../comandos/pintura";
+import { comContinuidadeEspacial } from "../espaco/continuidade";
+import { canonico, copiar } from "../nucleo/canonico";
+import { conferirCompensacaoDaCasa } from "../sistemas/compensacao-da-casa";
+import {
+  confirmarCompensacaoDaCasa,
+  pecaNoHistorico,
+  registrarPassoDaCasa,
+} from "../sistemas/historico-da-casa";
 import { necessidadesNaNovaFase, registrarId, relacaoEntre } from "./estado";
 import type { Fato } from "./fatos";
 import type { MemoriaId, MoradorId } from "./ids";
+import { verificarInvariantes } from "./invariantes";
 import { PERMISSOES_DO_FUNDADOR } from "./permissoes";
-import { exigir, inserir, obter, tem } from "./tabela";
+import { CONTADOR_DE_REVISOES_DOS_OBJETOS, revisaoDosObjetos } from "./revisao-dos-objetos";
+import { exigir, inserir, obter, remover, tem } from "./tabela";
 import type { EstadoDoMundo, Local, Memoria, Morador } from "./tipos";
 
 /**
@@ -49,6 +65,135 @@ export function reduzirFato(estado: EstadoDoMundo, fato: Fato): void {
   if (/^fat_\d+$/.test(sufixo)) registrarId(estado, sufixo);
   const dados = fato.dados;
   switch (dados.tipo) {
+    case "PinturasAdmitidas": {
+      if (
+        fato.id !== "catalogo:pinturas:1" ||
+        fato.familiaId !== null ||
+        fato.causa.autor !== "sim" ||
+        fato.causa.comandoId !== null
+      )
+        throw new Error("Admissão de pintura sem identidade do host");
+      const catalogo = conferirCatalogoDePinturas(dados.catalogo);
+      if (estado.catalogoDePinturas && canonico(estado.catalogoDePinturas) !== canonico(catalogo))
+        throw new Error("O catálogo de pinturas admitido é imutável");
+      estado.catalogoDePinturas = catalogo;
+      return;
+    }
+    case "EdicaoRegistrada": {
+      const recibo = dados.recibo;
+      if (
+        fato.id !== comandoDeEdicao(recibo.autor, recibo.pedido.sequencia) ||
+        fato.causa.comandoId !== fato.id ||
+        fato.causa.autor !== recibo.autor ||
+        fato.familiaId !== recibo.pedido.familiaId
+      )
+        throw new Error("Identidade divergente do fato de edição");
+      const registro =
+        estado.edicoes.find((item) => item.autor === recibo.autor) ??
+        iniciarRegistroDeEdicoes(recibo.autor);
+      const admitido = admitirReciboDeEdicao(registro, recibo);
+      if (!admitido.aplicar) return;
+      const efeito = dados.efeito;
+      if (recibo.resultado.ok !== (efeito !== null))
+        throw new Error("Efeito e recibo de edição divergentes");
+      if (
+        recibo.resultado.ok &&
+        (recibo.resultado.tick !== fato.tick || efeito?.continuidade.tick !== fato.tick)
+      )
+        throw new Error("Tick de edição divergente");
+      const novo = efeito ? comContinuidadeEspacial(estado, efeito.continuidade) : copiar(estado);
+      novo.relogio.tick = Math.max(novo.relogio.tick, fato.tick);
+      const familia = obter(novo.familias, recibo.pedido.familiaId);
+      const lote = obter(novo.lotes, recibo.pedido.loteId);
+      if (!familia || !lote || familia.loteId !== lote.id || lote.familiaId !== familia.id)
+        throw new Error("Contexto divergente do fato de edição");
+      if (efeito) {
+        const operacao = recibo.pedido.operacao;
+        const compensacao =
+          operacao.t === "compensar"
+            ? conferirCompensacaoDaCasa(novo, recibo.autor, { ...recibo.pedido, operacao })
+            : null;
+        if (
+          compensacao &&
+          (!compensacao.ok ||
+            canonico(pecaNoHistorico(efeito.anterior)) !==
+              canonico(pecaNoHistorico(compensacao.anterior)) ||
+            canonico(pecaNoHistorico(efeito.depois)) !== canonico(compensacao.depois) ||
+            efeito.saldo - efeito.saldoAnterior !== compensacao.delta ||
+            canonico(recibo.permissoes) !== canonico(compensacao.permissoes))
+        )
+          throw new Error("Compensação divergente do histórico original");
+        const id = efeito.anterior?.id ?? efeito.depois?.id;
+        const atual = id ? (obter(novo.objetos, id) ?? null) : null;
+        if (
+          !id ||
+          efeito.familiaId !== familia.id ||
+          efeito.loteId !== lote.id ||
+          efeito.saldoAnterior !== familia.fundo ||
+          efeito.versaoDaFamiliaAnterior !== familia.versao ||
+          efeito.revisaoDoEspacoAnterior !== lote.revisaoDoEspaco ||
+          efeito.revisaoDosObjetosAnterior !== revisaoDosObjetos(novo) ||
+          !Number.isSafeInteger(efeito.revisaoDosObjetos) ||
+          efeito.revisaoDosObjetos !== efeito.revisaoDosObjetosAnterior + 1 ||
+          !recibo.resultado.ok ||
+          Object.keys(recibo.resultado.revisoes).length !== 3 ||
+          recibo.resultado.revisoes[familia.id] !== efeito.versaoDaFamilia ||
+          recibo.resultado.revisoes[lote.id] !== efeito.revisaoDoEspaco ||
+          recibo.resultado.revisoes[id] !== efeito.revisaoDosObjetos ||
+          canonico(atual) !== canonico(efeito.anterior) ||
+          !Number.isSafeInteger(efeito.saldo) ||
+          efeito.saldo < 0 ||
+          !Number.isSafeInteger(efeito.versaoDaFamilia) ||
+          efeito.versaoDaFamilia < familia.versao ||
+          !Number.isSafeInteger(efeito.revisaoDoEspaco) ||
+          efeito.revisaoDoEspaco < lote.revisaoDoEspaco ||
+          (efeito.depois &&
+            (efeito.depois.id !== id ||
+              efeito.depois.loteId !== lote.id ||
+              efeito.depois.revisao !== efeito.revisaoDosObjetos))
+        )
+          throw new Error("Efeito incompatível com o estado da edição");
+        if (efeito.depois) {
+          if (atual) novo.objetos.porId[id] = copiar(efeito.depois);
+          else inserir(novo.objetos, id, copiar(efeito.depois));
+          registrarId(novo, id);
+        } else remover(novo.objetos, id);
+        familia.fundo = efeito.saldo;
+        familia.versao = efeito.versaoDaFamilia;
+        lote.revisaoDoEspaco = efeito.revisaoDoEspaco;
+        novo.contadores[CONTADOR_DE_REVISOES_DOS_OBJETOS] = efeito.revisaoDosObjetos;
+        novo.historicoDaCasa =
+          operacao.t === "compensar"
+            ? confirmarCompensacaoDaCasa(novo.historicoDaCasa, {
+                autor: recibo.autor,
+                chave: operacao.chave,
+                sentido: operacao.sentido,
+                revisaoNova: efeito.revisaoDosObjetos,
+                depois: pecaNoHistorico(efeito.depois),
+              })
+            : registrarPassoDaCasa(novo.historicoDaCasa, {
+                chave: fato.id,
+                autor: recibo.autor,
+                sequencia: recibo.pedido.sequencia,
+                ordem: efeito.revisaoDosObjetos,
+                familiaId: familia.id,
+                loteId: lote.id,
+                tipo: operacao.t,
+                antes: pecaNoHistorico(efeito.anterior),
+                depois: pecaNoHistorico(efeito.depois),
+                delta: efeito.saldo - efeito.saldoAnterior,
+                permissoes: [...recibo.permissoes],
+              });
+      }
+      novo.edicoes = compactarRespostasDeEdicao([
+        ...novo.edicoes.filter((item) => item.autor !== recibo.autor),
+        admitido.registro,
+      ]);
+      const problemas = verificarInvariantes(novo);
+      if (problemas.length) throw new Error(`Edição inválida: ${problemas.slice(0, 3).join("; ")}`);
+      Object.assign(estado, novo);
+      return;
+    }
     case "FamiliaFundada": {
       if (estado.fundacao) {
         if (

@@ -9,7 +9,7 @@ import {
 } from "@informach/recreio/host";
 import pino from "pino";
 import { carregarArte } from "./arte";
-import { catalogoDeAparenciasDaArte } from "./catalogo-de-aparencias";
+import { catalogoDeAparenciasDaArte, catalogoDePinturasDaArte } from "./catalogo-de-aparencias";
 import { lerConfiguracao } from "./config";
 import { criarPlataformaDeDesenvolvimento } from "./desenvolvimento";
 import { criarEncerramento } from "./encerramento";
@@ -122,6 +122,14 @@ async function principal(): Promise<void> {
     capacidade: config.MORADA_CAPACIDADE,
     definicao: BAIRRO_INICIAL,
     catalogoDeAparencias: arte ? catalogoDeAparenciasDaArte(arte.manifesto) : undefined,
+    pinturasDisponiveis: arte ? catalogoDePinturasDaArte(arte.manifesto) : undefined,
+    moveisDisponiveis:
+      arte && "objetos" in arte.manifesto
+        ? arte.manifesto.objetos.map((objeto) => ({
+            catalogo: objeto.id,
+            versaoDoCatalogo: objeto.versao,
+          }))
+        : undefined,
     regras: config.MORADA_REGRAS === "prova" ? REGRAS_DA_PROVA : REGRAS_PADRAO,
     registrar,
   });

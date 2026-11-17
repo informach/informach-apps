@@ -1,0 +1,88 @@
+{
+  "origem": {
+    "formato": "morada.carga-sintetica",
+    "versao": 1,
+    "codigo": "229baf7cfecc55100049d8bb83957d0ca8a2e51f",
+    "run": "43803715201",
+    "inicio": "2026-11-16T04:23:01.764Z",
+    "node": "v24.15.0",
+    "plataforma": "linux",
+    "arquitetura": "x64",
+    "cpus": [
+      {
+        "model": "Intel(R) Xeon(R) 6975P-C",
+        "speed": 0
+      },
+      {
+        "model": "Intel(R) Xeon(R) 6975P-C",
+        "speed": 0
+      },
+      {
+        "model": "Intel(R) Xeon(R) 6975P-C",
+        "speed": 0
+      },
+      {
+        "model": "Intel(R) Xeon(R) 6975P-C",
+        "speed": 0
+      }
+    ],
+    "memoriaDoExecutor": 16463405056,
+    "mundos": "20",
+    "minutosSimuladosPorCenario": "10",
+    "conexoesPorMundo": [1, 2, 4, 8],
+    "escopo": "simulacao, codificacao e persistencia em memoria no mesmo processo",
+    "semProvaDe": [
+      "rede real",
+      "PostgreSQL",
+      "Railway",
+      "custo financeiro",
+      "capacidade de producao",
+      "FPS"
+    ]
+  },
+  "resultadoArredondado": [
+    {
+      "conexoesPorMundo": 1,
+      "cpuPorMundoHoraSegundos": 4.3,
+      "cpuPorTickMs": 0.121,
+      "piorPassoMs": 12.4,
+      "trafegoKBPorMundoSegundo": 1.15,
+      "heapAposAquecimentoKBPorMundo": 538,
+      "fotografiaKB": 5.7
+    },
+    {
+      "conexoesPorMundo": 2,
+      "cpuPorMundoHoraSegundos": 3.5,
+      "cpuPorTickMs": 0.097,
+      "piorPassoMs": 10.9,
+      "trafegoKBPorMundoSegundo": 2.56,
+      "heapAposAquecimentoKBPorMundo": 513,
+      "fotografiaKB": 6.8
+    },
+    {
+      "conexoesPorMundo": 4,
+      "cpuPorMundoHoraSegundos": 1.3,
+      "cpuPorTickMs": 0.037,
+      "piorPassoMs": 8.6,
+      "trafegoKBPorMundoSegundo": 6.09,
+      "heapAposAquecimentoKBPorMundo": 674,
+      "fotografiaKB": 8.4
+    },
+    {
+      "conexoesPorMundo": 8,
+      "cpuPorMundoHoraSegundos": 1.8,
+      "cpuPorTickMs": 0.05,
+      "piorPassoMs": 11.0,
+      "trafegoKBPorMundoSegundo": 12.2,
+      "heapAposAquecimentoKBPorMundo": 1097,
+      "fotografiaKB": 10.4
+    }
+  ],
+  "limitesAdicionais": [
+    "Cenarios em sequencia no mesmo processo; JIT e ordem limitam a comparacao",
+    "Oito conexoes disputam os moradores existentes",
+    "Heap medido apos aquecimento, nao pico da execucao",
+    "CPU total inclui clientes e persistencia em memoria",
+    "Sem capacidade de producao ou custo unitario comprovado"
+  ]
+}

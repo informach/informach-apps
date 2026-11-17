@@ -41,6 +41,7 @@ import {
   SUFIXO_BROTLI,
   VERSAO_DO_MANIFESTO,
   VERSAO_DO_MANIFESTO_PARAMETRICO,
+  VERSAO_DO_MANIFESTO_PINTURA,
 } from "./manifesto";
 import { em, item, type Vec3 } from "./numeros";
 import type { Personagem } from "./personagem/esquema";
@@ -63,6 +64,8 @@ export type OpcoesDoEmpacotador = {
   personagens: readonly Personagem[];
   /** Planta cujas peças e acabamentos serão incluídos; omitida em pacotes só de personagens. */
   casa?: unknown;
+  /** Receitas homologadas na biblioteca privada, fixadas pelo SHA da origem. */
+  perfisDePintura?: unknown;
   /** Os clipes que o jogo usa; por omissão, a lista deste pacote. */
   pedidos?: readonly PedidoDeClipe[];
   tolerancia?: Tolerancia;
@@ -351,6 +354,8 @@ async function empacotarBiblioteca(
 }
 
 export async function empacotar(opcoes: OpcoesDoEmpacotador): Promise<Resultado> {
+  if (opcoes.perfisDePintura !== undefined && opcoes.casa === undefined)
+    throw new ErroDeArte("perfis-pintura", "pintura exige a seleção de peças de uma casa");
   const inicio = performance.now();
   const avisar = opcoes.aoAvancar ?? (() => {});
   const biblioteca = new Biblioteca(opcoes.arte);
@@ -491,14 +496,17 @@ export async function empacotar(opcoes: OpcoesDoEmpacotador): Promise<Resultado>
   const ambiente =
     opcoes.casa === undefined
       ? { objetos: [], acabamentos: [], aberturas: [] }
-      : await empacotarAmbiente(opcoes.arte, opcoes.saida, opcoes.casa);
+      : await empacotarAmbiente(opcoes.arte, opcoes.saida, opcoes.casa, opcoes.perfisDePintura);
   const manifesto = validar(
     ManifestoSchema,
     {
       formato: FORMATO_DO_MANIFESTO,
-      versao: montados.some((p) => p.montado.cores !== undefined)
-        ? VERSAO_DO_MANIFESTO_PARAMETRICO
-        : VERSAO_DO_MANIFESTO,
+      versao:
+        opcoes.perfisDePintura !== undefined
+          ? VERSAO_DO_MANIFESTO_PINTURA
+          : montados.some((p) => p.montado.cores !== undefined)
+            ? VERSAO_DO_MANIFESTO_PARAMETRICO
+            : VERSAO_DO_MANIFESTO,
       arte: {
         repositorio: "informach/artes-3d",
         commit: opcoes.commit === undefined ? biblioteca.commit() : opcoes.commit,

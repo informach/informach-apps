@@ -49,11 +49,21 @@ tsx src/cli.ts --arte <ARTES_3D_DIR> --saida <pasta> [opções]
   --casa <arquivo>         modelo de imóvel JSON do jogo (móveis, acabamentos e encaixes)
   --cores-parametricas    perfil V3 com canais editáveis, para cliente compatível
   --criacao              48 combinações iniciais parametrizadas e os oito personagens legados
+  --perfis-pintura <json> perfis homologados dos móveis da casa (perfil V4)
 ```
 
 Sai com código diferente de zero em qualquer falha de leitura ou de validação, com o arquivo e o campo na
 mensagem. No fim imprime a tabela de tamanhos, chamadas de desenho, triângulos, chaves de animação e o que a
 biblioteca não tem.
+
+O perfil V4 acrescenta pintura dos móveis sem modificar seus pixels, UV, posições ou
+materiais transparentes. As receitas ficam na biblioteca privada, fixam o SHA-256
+do GLB de origem e indicam materiais e pigmentos homologados. O primeiro perfil
+aceita somente atlas opaco 16×16, filtro nearest, triângulos com UV num único
+centro de texel e fator branco; entradas incompatíveis interrompem a preparação.
+A máscara e a luminância relativa são atributos float32, preservados na compressão.
+Sem `--perfis-pintura`, o escritor mantém V2/V3. Este perfil ainda exige o cliente
+compatível e a homologação visual privada antes de qualquer ativação.
 
 ## Saída
 

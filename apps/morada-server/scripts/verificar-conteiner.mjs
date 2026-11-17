@@ -6,7 +6,8 @@ import path from "node:path";
 import { setTimeout as esperar } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { MORADA_START_COMMAND } from "../../../.railway/morada-runtime.ts";
+import { FECHAMENTO, SUBPROTOCOLO, VERSAO_DO_PROTOCOLO } from "@informach/morada-sim/protocolo";
+import { MORADA_START_COMMAND } from "../../../.railway/morada-runtime.mts";
 
 // Prova de processo/contêiner somente no executor remoto, nunca nesta máquina.
 if (process.env.CI !== "true" || process.platform !== "linux" || !process.env.RUNNER_TEMP)
@@ -97,14 +98,19 @@ try {
   const entrada = await resposta.json();
   const quadros = [];
   let fechamento;
-  socket = new WebSocket(`ws://127.0.0.1:${porta}`, "morada.v1.json");
+  socket = new WebSocket(`ws://127.0.0.1:${porta}`, SUBPROTOCOLO);
   socket.addEventListener("message", (evento) => quadros.push(JSON.parse(String(evento.data))));
   socket.addEventListener("close", (evento) => {
     fechamento = evento.code;
   });
   await ate(() => socket.readyState === WebSocket.OPEN);
   socket.send(
-    JSON.stringify({ t: "entrar", v: 1, sessao: entrada.sessao, mundoId: entrada.mundoId }),
+    JSON.stringify({
+      t: "entrar",
+      v: VERSAO_DO_PROTOCOLO,
+      sessao: entrada.sessao,
+      mundoId: entrada.mundoId,
+    }),
   );
   await ate(() => quadros.some((quadro) => quadro.t === "fotografia"));
   const comandoId = "conteiner-fundacao-0001";
@@ -149,7 +155,7 @@ try {
   const encerrandoMs = performance.now() - inicio;
   assert.equal(await docker(["inspect", "--format", "{{.State.ExitCode}}", nome]), "0");
   await ate(() => fechamento !== undefined, 2000);
-  assert.equal(fechamento, 4010);
+  assert.equal(fechamento, FECHAMENTO.reiniciando);
   const logs = (await docker(["logs", nome])).split("\n").flatMap((linha) => {
     try {
       return [JSON.parse(linha)];
@@ -166,6 +172,7 @@ try {
   const prova = {
     fonte: process.env.GITHUB_SHA,
     imagem,
+    protocolo: VERSAO_DO_PROTOCOLO,
     argumentos,
     pidPrincipal: 1,
     mundoComFundacao: true,

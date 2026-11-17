@@ -1,5 +1,7 @@
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "@playwright/test";
+import { evidenciasPrivadas } from "./evidencias";
 
 /**
  * Testes de navegador do cliente do Morada. Sobem o servidor do jogo no modo
@@ -15,10 +17,17 @@ import { defineConfig } from "@playwright/test";
 const pacote = fileURLToPath(new URL("..", import.meta.url));
 const raiz = fileURLToPath(new URL("../../..", import.meta.url));
 const porSoftware = process.env.MORADA_E2E_GPU !== "1";
+const regras = process.env.MORADA_E2E_REGRAS ?? "prova";
+if (regras !== "prova" && regras !== "padrao") throw new Error("Preset de regras inválido.");
+const grupo = process.env.MORADA_E2E_GRUPO ?? "focada";
+if (!/^[a-z][a-z0-9-]{0,63}$/.test(grupo)) throw new Error("Grupo de evidências inválido.");
+const resultados = evidenciasPrivadas
+  ? join(evidenciasPrivadas, "test-results")
+  : join(pacote, "e2e/test-results");
 
 export default defineConfig({
   testDir: ".",
-  outputDir: "./test-results",
+  outputDir: join(resultados, grupo),
   fullyParallel: false,
   workers: 1,
   retries: 0,
@@ -42,13 +51,15 @@ export default defineConfig({
       command: "pnpm --filter @informach/morada-server exec tsx src/main.ts",
       cwd: raiz,
       url: "http://localhost:3010/api/ready",
-      env: { MORADA_PLATAFORMA: "falsa", MORADA_REGRAS: "prova", PORT: "3010", LOG_LEVEL: "warn" },
+      env: { MORADA_PLATAFORMA: "falsa", MORADA_REGRAS: regras, PORT: "3010", LOG_LEVEL: "warn" },
       reuseExistingServer: false,
       timeout: 60_000,
     },
     {
       command:
-        "pnpm build:bancada && pnpm exec vite preview --config bancada/vite.config.ts --strictPort",
+        process.env.MORADA_E2E_BUILD_PRONTO === "1"
+          ? "pnpm exec vite preview --config bancada/vite.config.ts --strictPort"
+          : "pnpm build:bancada && pnpm exec vite preview --config bancada/vite.config.ts --strictPort",
       cwd: pacote,
       url: "http://localhost:5173/",
       reuseExistingServer: false,

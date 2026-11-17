@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { PACKAGE_MEDIA, packedLinks, packPlan, unpackPaths } from "../src/shared/projectPackage.ts";
+import {
+  PACKAGE_MEDIA,
+  packedForArchive,
+  packedLinks,
+  packPlan,
+  unpackPaths,
+} from "../src/shared/projectPackage.ts";
 import type { Asset, Project } from "../src/shared/types.ts";
 
 /**
@@ -90,6 +96,22 @@ test("a package made before the links travelled opens without them", () => {
   const opened = unpackPaths(old, "D:\\Pacote");
   assert.equal(opened.assets[0].link, undefined);
   assert.equal(opened.assets[0].path, "D:\\Pacote\\media\\a-a.webm");
+});
+
+test("packing writes the project with the links in media/, checked as it will be read back", async () => {
+  const { projectSchema } = await import("../src/shared/project-schema.ts");
+  const plan = packPlan(lesson([linked("a", EDISVG, "C:\\Aulas\\a.webm")]));
+  // The relative link alone is refused by the schema: packing used to stop here.
+  assert.throws(() => projectSchema.parse(plan.project), /não é absoluto/);
+  const written = packedForArchive(plan.project, (raw) => projectSchema.parse(raw) as Project);
+  assert.equal(written.assets[0].link?.project, `${PACKAGE_MEDIA}conceito-1-duas-versoes.edisvg`);
+  const reopened = projectSchema.parse(
+    packedLinks(JSON.parse(JSON.stringify(written)), "D:\\Pacote"),
+  );
+  assert.equal(
+    unpackPaths(reopened as Project, "D:\\Pacote").assets[0].link?.project,
+    "D:\\Pacote\\media\\conceito-1-duas-versoes.edisvg",
+  );
 });
 
 test("opening checks the packed project with its links already in the folder", async () => {

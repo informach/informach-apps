@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>Morada</title>
+  <rect width="32" height="32" rx="8" fill="#1e2336"/>
+  <path d="M7 15 16 7l9 8v10H7Z" fill="none" stroke="#ffc233" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M13 25v-8h6v8" fill="none" stroke="#ffc233" stroke-width="2.5"/>
+</svg>

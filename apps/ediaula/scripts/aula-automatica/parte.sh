@@ -9,7 +9,8 @@
 #   montar      comandos de zoom, marcações e capa (edicao/comandos.json), com as peças .edisvg de <parte>/pecas
 #               no lugar das anotações geradas; opção: '[[ini, fim], ...]' das animações
 #   copia       copia o projeto gravado para "<projeto> · edição automática" (a edição vai na cópia)
-#   aplicar     aplica edicao/comandos.json na cópia aberta no EdiAula; opção: --sem-zoom
+#   aplicar     aplica edicao/comandos.json na cópia aberta no EdiAula e renderiza as peças .edisvg no condutor
+#               do EdiSVG; opção: --sem-zoom
 #   acabamento  animações no lugar da tela, planos da apresentadora, personagens, faixas e música
 #   revisao     limpeza final e verificação antes de exportar; escreve edicao/relatorio.md
 # O condutor do EdiAula precisa estar rodando (condutor.mts ediaula) para palco, ensaio, gravar e empacotar.
@@ -64,7 +65,15 @@ print(r.get('gerado') if isinstance(r,dict) else r); print(len(r.get('etapas',[]
     CAPA="$(python -X utf8 -c "import json,sys; c=json.loads(sys.argv[1]); print(json.dumps({'kicker': f\"AULA {c['aulaN']} · PARTE {c['parte']}\", 'title': c['titulo'], 'subtitle': c['cursoEdiAula']}, ensure_ascii=False))" "$CFG")"
     python -X utf8 "$AQUI/edicao/pecas.py" "$ED/comandos.json" "$(v pasta)/pecas" --animacoes "$ANIM" --capa "$CAPA" ;;
   aplicar)
-    "$AQUI/edicao/aplicar.sh" "$ED/comandos.json" "$(python -X utf8 -c "import sys; print(sys.argv[1][:-len('.ediaula')] + ' · edição automática.ediaula')" "$(v projeto)")" "${1:-}" ;;
+    "$AQUI/edicao/aplicar.sh" "$ED/comandos.json" "$(python -X utf8 -c "import sys; print(sys.argv[1][:-len('.ediaula')] + ' · edição automática.ediaula')" "$(v projeto)")" "${1:-}"
+    # Os pedidos de vínculo chegam juntos ao EdiSVG, e só o último vira render: as peças sem render são
+    # abertas e salvas uma de cada vez no condutor do EdiSVG.
+    PECAS="$(python -X utf8 -c "import glob,json,os,sys; print(json.dumps({'svgArquivos': sorted(p.replace(os.sep, '/') for p in glob.glob(os.path.join(sys.argv[1], '*.edisvg')))}, ensure_ascii=False))" "$(v pasta)/pecas")"
+    TIMEOUT=1800 "$C" --svg acao renderizar-pecas.mjs "$PECAS" | python -X utf8 -c "
+import json, sys
+r = json.load(sys.stdin).get('result') or {}
+print(len(r.get('renderizadas', [])), 'peças renderizadas agora |', len(r.get('ja_tinham', [])), 'já tinham render')
+[print('falhou:', f) for f in r.get('falharam', [])]" ;;
   copia)
     python -X utf8 "$AQUI/edicao/copiar_projeto.py" "$(v projeto)" ;;
   acabamento)

@@ -4,6 +4,7 @@ import {
   FECHAMENTO,
   MensagemDoClienteSchema,
   QUADRO_MAXIMO_BYTES,
+  VERSAO_DO_PROTOCOLO,
 } from "@informach/morada-sim/protocolo";
 import { BATIMENTO_MS, ehErroDoRecreio, MundoIdSchema, POSSE_TTL_MS } from "@informach/recreio";
 import type { ClienteDoHost, VerificadorDeSessao } from "@informach/recreio/host";
@@ -18,11 +19,14 @@ import { type Falhas, QuedaSimulada, semFalhas } from "./falhas";
  */
 
 export type OpcoesDaInstancia = {
+  pinturasDisponiveis?: import("@informach/morada-sim").CatalogoDePinturas;
+  moveisDisponiveis?: readonly import("@informach/morada-sim").MovelDisponivel[];
   catalogoDeAparencias?: import("@informach/morada-sim").CatalogoDeAparencias;
   host: ClienteDoHost;
   verificador: VerificadorDeSessao;
   /** Relógio real, em ms. Injetado para os testes controlarem o tempo. */
   agora(): number;
+  agoraDaObra?(): number;
   /** Endereço público do WebSocket, como o Recreio o conhece. */
   urlPublica: string;
   versao: string;
@@ -123,11 +127,14 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
       mundoId: MundoIdSchema.parse(mundoId),
       host: op.host,
       agora: op.agora,
+      agoraDaObra: op.agoraDaObra,
       posseTtlMs,
       falhas,
       definicao: op.definicao,
       regras: op.regras,
       catalogoDeAparencias: op.catalogoDeAparencias,
+      moveisDisponiveis: op.moveisDisponiveis,
+      pinturasDisponiveis: op.pinturasDisponiveis,
       checkpointMs: op.checkpointMs ?? 30_000,
       diarioParaFotografarBytes: op.diarioParaFotografarBytes,
       registrar,
@@ -228,6 +235,8 @@ export function criarInstancia(op: OpcoesDaInstancia): Instancia {
       if (ligacao.fase === "nova") {
         // O primeiro quadro é sempre a entrada, com a sessão de jogo.
         if (mensagem.t !== "entrar") return fechar(ligacao, FECHAMENTO.protocolo);
+        // Abas anteriores ao mundo V3 precisam recarregar antes de receber a visão/arte.
+        if (mensagem.v !== VERSAO_DO_PROTOCOLO) return fechar(ligacao, FECHAMENTO.protocolo);
         ligacao.fase = "entrando";
         let sessao: Awaited<ReturnType<VerificadorDeSessao["verificar"]>>;
         try {

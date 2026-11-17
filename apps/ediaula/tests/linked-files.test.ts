@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { win32 } from "node:path";
 import { test } from "node:test";
 import {
+  assetReferences,
   insideFolder,
   isDevicePath,
   LISTED,
@@ -62,4 +64,26 @@ test("nothing hides after the first files listed: every computer is named, every
 test("a lesson whose files are all in its folder says so", () => {
   const detail = linkedFilesDetail([`${folder}\\tela.mp4`, `${folder}\\voz.wav`], folder);
   assert.equal(detail, "Todos os 2 ficam na pasta da aula.");
+});
+
+test("the EdiSVG project of a linked animation is read with the lesson, beside its render", () => {
+  const render = win32.join(folder, "conceito · renders", "anim-1.webm");
+  const tela = win32.join(folder, "tela.mp4");
+  const peca = win32.join("D:", "Pecas", "conceito.edisvg");
+  const tira = [win32.join("C:", "c", "f.jpg"), win32.join("C:", "c", "f2.jpg")];
+  const refs = assetReferences([
+    { path: render, link: { project: peca, animationId: "animation-1" } },
+    { path: tela, filmstrip: { path: tira[0], sheets: [tira[1]] } },
+  ]);
+  assert.deepEqual(refs, [render, peca, tela, ...tira]);
+  // The .edisvg outside the lesson's folder is asked for, like any other file there.
+  assert.deepEqual(outsideFolder(refs, folder), [peca, ...tira]);
+});
+
+test("an asset that is not an object, or a link path that is not text, is refused", () => {
+  assert.throws(() => assetReferences([null]), /Referência de mídia inválida/);
+  assert.throws(
+    () => assetReferences([{ path: win32.join(folder, "a.mp4"), link: { project: 42 } }]),
+    /Caminho de mídia inválido/,
+  );
 });

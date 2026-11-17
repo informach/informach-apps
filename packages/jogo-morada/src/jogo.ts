@@ -15,9 +15,11 @@ import { AtivosProcedurais } from "./ativos/procedurais";
 import { type AlvoClicado, Cena, type MedidasDaCena } from "./cena/cena";
 import { Sessao } from "./espelho/sessao";
 import type { JogoMontado, OpcoesDoMorada } from "./fonte";
+import { AreasDoHud } from "./hud/areas-do-hud";
 import type { Controle } from "./hud/controle";
 import { Hud } from "./hud/Hud";
 import "./hud/hud.css";
+import { EditorDaCasa } from "./modelo/editor-da-casa";
 import { nomeDoJogador } from "./modelo/retratos";
 
 /**
@@ -79,6 +81,29 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
 
   const sessao = new Sessao({ fonte: opcoes.fonte });
   const { loja } = sessao;
+  const editor = new EditorDaCasa({
+    estado: () => sessao.estado(),
+    jogadorId: () => loja.jogador?.jogadorId ?? null,
+    pronto: () =>
+      loja.conexao.fase === "pronto" &&
+      !loja.contextoPerdido &&
+      document.visibilityState === "visible",
+    proximaSequencia: () => loja.visao?.edicao?.proximaSequencia ?? null,
+    versaoDoEspelho: loja.getSnapshot,
+    aoMudar: () => loja.tocar(),
+    enviar: (pedido) => sessao.comandar(null, { t: "editar_casa", pedido }, { silencioso: true }),
+    preparar: (rascunho) =>
+      sessao.comandar(null, { t: "preparar_obra", rascunho }, { silencioso: true }),
+    renovar: (referencia) =>
+      sessao.comandar(null, { t: "renovar_obra", referencia }, { silencioso: true }),
+    liberar: (referencia) =>
+      sessao.comandar(null, { t: "liberar_obra", referencia }, { silencioso: true }),
+    obras: () =>
+      (loja.visao?.presenca.obras ?? []).map((obra) => ({
+        ...obra,
+        apelido: loja.visao?.presenca.jogadores.find((j) => j.perfilId === obra.perfilId)?.apelido,
+      })),
+  });
   const ativos: Ativos = opcoes.origemDaArte
     ? new AtivosDeArte({
         origem: opcoes.origemDaArte.replace(/\/+$/, ""),
@@ -98,32 +123,55 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
       ? nomeDoJogador(loja.visao.presenca, jogadorId, { jogadorId: loja.jogador?.jogadorId ?? "" })
       : "outra pessoa";
 
-  const cena = new Cena(areaDaCena, {
-    sessao,
-    ativos,
-    nomeDoJogador: nome,
-    aoTocar() {
-      fechouMenu = loja.menu !== null;
-      if (fechouMenu) loja.abrirMenu(null);
-    },
-    aoClicar(alvo, x, y) {
-      if (fechouMenu || loja.conexao.fase === "encerrado") return;
-      if (alvo.t === "chao") {
-        const feito = sessao.irPara(alvo.pos);
-        if (feito !== "sem_morador") {
-          cena.marcarDestino(alvo.loteId, alvo.pos, feito !== "bloqueado");
+  const areasDaInterface = new AreasDoHud(areaDoHud, areaDaCena);
+  let cena: Cena;
+  try {
+    cena = new Cena(areaDaCena, {
+      areasDaInterface: areasDaInterface.atuais,
+      editor,
+      sessao,
+      ativos,
+      nomeDoJogador: nome,
+      aoTocar() {
+        fechouMenu = loja.menu !== null;
+        if (fechouMenu) loja.abrirMenu(null);
+      },
+      aoClicar(alvo, x, y) {
+        if (fechouMenu || loja.conexao.fase === "encerrado") return;
+        if (editor.aberto) {
+          if (alvo.t === "objeto") editor.selecionar(alvo.objetoId);
+          else if (alvo.t === "chao") editor.posicionar(alvo.loteId, alvo.pos);
+          return;
         }
-        return;
-      }
-      loja.abrirMenu({ alvo, x, y });
-    },
-  });
+        if (alvo.t === "chao") {
+          const feito = sessao.irPara(alvo.pos);
+          if (feito !== "sem_morador") {
+            cena.marcarDestino(alvo.loteId, alvo.pos, feito !== "bloqueado");
+          }
+          return;
+        }
+        loja.abrirMenu({ alvo, x, y });
+      },
+    });
+  } catch (erro) {
+    areasDaInterface.dispose();
+    editor.dispose();
+    ativos.dispose();
+    raiz.remove();
+    throw erro;
+  }
 
   const focarNaCena = () => {
     areaDaCena.querySelector("canvas")?.focus({ preventScroll: true });
   };
 
   const controle: Controle = {
+    editor,
+    vistaSuperior: () => cena.vistaSuperior,
+    alternarVista: () => {
+      cena.alternarVista();
+      loja.tocar();
+    },
     sessao,
     previa: {
       definir: (descricao) => cena.definirPrevia(descricao),
@@ -165,6 +213,12 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
 
   const aoApertar = (evento: KeyboardEvent) => {
     if (evento.code === "Escape") {
+      if (editor.aberto) {
+        if (editor.rascunho) editor.cancelarSelecao();
+        else editor.fechar();
+        focarNaCena();
+        return;
+      }
       if (loja.menu) {
         loja.abrirMenu(null);
         focarNaCena();
@@ -173,6 +227,18 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
     }
     // Dentro de um botão ou do menu, as teclas são deles.
     if (emControle(evento.target)) return;
+    if (editor.aberto && !evento.repeat) {
+      if (evento.code === "KeyR") {
+        editor.girar();
+        evento.preventDefault();
+        return;
+      }
+      if (evento.code === "Enter") {
+        void editor.confirmar();
+        evento.preventDefault();
+        return;
+      }
+    }
     if (TECLAS_DA_CAMERA.has(evento.code)) {
       cena.definirTecla(evento.code, true);
       evento.preventDefault();
@@ -229,6 +295,7 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
   let avisouDoFim = false;
   let faseAvisada = loja.conexao.fase;
   const pararDeOuvir = loja.subscribe(() => {
+    editor.sincronizar();
     const conexao = loja.conexao;
     if (conexao.fase !== faseAvisada) {
       faseAvisada = conexao.fase;
@@ -239,6 +306,8 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
     opcoes.aoEncerrar?.(conexao.motivo, conexao.detalhe);
   });
 
+  const aoMudarVisibilidade = () => editor.sincronizar();
+  document.addEventListener("visibilitychange", aoMudarVisibilidade);
   sessao.iniciar();
 
   return {
@@ -248,6 +317,9 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
       // Sai do mundo antes de soltar a tela: o servidor salva e libera a reserva na hora.
       // Quem desmonta não quer mais notícia: nem do fim que o próprio `dispose` provoca.
       pararDeOuvir();
+      editor.dispose();
+      areasDaInterface.dispose();
+      document.removeEventListener("visibilitychange", aoMudarVisibilidade);
       try {
         await sessao.sair();
       } finally {

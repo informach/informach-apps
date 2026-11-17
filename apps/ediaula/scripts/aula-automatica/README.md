@@ -77,9 +77,12 @@ $S/parte.sh farol 3 2 info
 O condutor abre o EdiAula ou o EdiSVG licenciado no perfil de trabalho e recebe comandos por HTTP local. Rode na raiz do repositório e deixe aberto num terminal:
 
 ```bash
+export npm_execpath="$(dirname "$(which pnpm)")/node_modules/pnpm/bin/pnpm.cjs"
 node apps/ediaula/scripts/aula-automatica/condutor.mts ediaula   # porta 47998
-node apps/ediaula/scripts/aula-automatica/condutor.mts edisvg    # porta 47999 (só para exportar animações)
+node apps/ediaula/scripts/aula-automatica/condutor.mts edisvg    # porta 47999 (renders das peças e conferência)
 ```
+
+O condutor usa o build de teste da suíte, que exige o pnpm fixado do repositório em `npm_execpath`. Sem essa variável, ele para com "Run native tests through the pinned pnpm workspace script". O `pnpm exec` não define a variável. Confira que o `pnpm.cjs` apontado tem a versão do `packageManager` do `package.json` da raiz.
 
 Não abra o EdiAula ou o EdiSVG pelo `edi:work` com o condutor rodando: os dois usam o mesmo `apps/<ferramenta>/out`, e o build do `edi:work` derruba o condutor (ele perde a janela e as ações falham). Se acontecer, feche e abra o condutor de novo, sem `PROVA_SKIP_BUILD`.
 
@@ -112,6 +115,7 @@ Os dois podem rodar juntos, e na edição rodam juntos: o EdiAula do condutor ma
 | `aplicar.mjs` | faixas do zoom e das marcações, os comandos do `montar.py` e as peças `.edisvg` vinculadas |
 | `acabamento.mjs` | animações na faixa da tela, planos da apresentadora, personagens, regra de voz, faixas e música |
 | `revisao-final.mjs` | limpeza final, verificação antes de exportar e `relatorio.md` |
+| `renderizar-pecas.mjs` | no EdiSVG, abre e salva uma de cada vez as peças vinculadas que ainda não têm render |
 | `limpar-anotacoes.mjs` | tira os destaques, as caixas, os balões e as peças da faixa "Marcações", para gerar de novo |
 | `empacotar.mjs` | empacota o projeto aberto |
 | `foto.mjs` | foto da janela |
@@ -167,7 +171,8 @@ A frase de instrução que abre ou fecha um trecho ("Deixe esse espaço à vista
 
 O que não vier em `.edisvg` é gerado pelo EdiAula no mesmo padrão e vai para a lista "criada sem .edisvg" do relatório.
 
-Animações de conceito que ainda não existem: uma cena por trecho, com `edicao/edisvg_cena.py`, como em `edicao/exemplos/farol-a3p2-conceitos.py`, salva em `<parte>/pecas/`.
+Animações de conceito que ainda não existem: uma cena por trecho, com `edicao/edisvg_cena.py`, como em `edicao/exemplos/farol-a3p2-conceitos.py` e `edicao/exemplos/farol-a3p5-conceitos.py`, salva em `<parte>/pecas/`.
+- **Quadros do jogo:** recortes do jogo da gravação (como na Parte 5) mostram os avisos e as cenas de verdade. Quando a fala é de antes da mudança (os avisos originais), a faixa do aviso é redesenhada por cima com o texto original.
 - **Base:** um `.edisvg` com o grupo "Jogo". Sem ele, `edicao/base_jogo.py <.edisvg com as artes> <base.edisvg>` monta a base a partir de um arquivo do curso que tem as artes do jogo como pranchetas (no Farol, o `animacao1.edisvg` da Aula 1).
 - **Trechos "[na edição: …]" do roteiro:** o que o robô não grava, como em `edicao/exemplos/farol-a3p4-versoes-e-opcoes.py`.
 - **Fontes:** só caracteres que as fontes da aula têm. Um símbolo como "▾" impede o render; desenhe-o.
@@ -189,8 +194,9 @@ Saem em `<parte>/edicao/`:
 
 **5. No EdiAula**, com os condutores rodando:
 1. Abra a cópia: `acao abrir-projeto.mjs '{"arquivo": "<cópia>"}'`.
-2. Importe as mídias pela janela de abrir: `acao importar.mjs '{"arquivos": [...]}'`.
-   - a música;
+2. Importe as mídias pela janela de abrir: `acao importar.mjs '{"arquivos": [...]}'`. Use `/` nos caminhos do JSON.
+   - a apresentadora (`Parte N - HeyGen.mp4`), posta em seguida no segundo 0 com `ia add_clip`: o acabamento espera um clipe só dela;
+   - a música. Ao importar, o EdiAula põe a música sozinho numa faixa "Voz", com o papel de professora: tire esse clipe (`ia remove_clips`), e o acabamento a distribui nas faixas de música;
    - os vídeos dos personagens. O vídeo do HeyGen vem sem som: junte antes com o `.wav` usando ffmpeg.
 3. Ponha cada personagem no seu segundo: `ia add_clip '{"media_id": "...", "at": 100.0}'`. Cada fala usa o seu clipe.
    - Recorte o personagem só na fala, sem o silêncio das pontas: `ia trim_clip '{"clip_id": "...", "start": 173.5, "end": 175.8, "revision": N}'`.
@@ -199,6 +205,7 @@ Saem em `<parte>/edicao/`:
    - Cria as faixas "Zoom", logo acima da gravação, e "Marcações", acima do zoom.
    - As peças entram por **Arquivo › Importar animação do EdiSVG…**, vinculadas: 2 cliques no clipe abrem a peça no EdiSVG.
    - Rodar de novo não duplica a capa nem as peças.
+   - Em seguida, as peças sem render são abertas e salvas uma de cada vez no condutor do EdiSVG (`acoes/renderizar-pecas.mjs`). Os pedidos de vínculo chegam juntos, e o EdiSVG só renderiza o último.
 5. Paleta "Sistema Zero": `set_palette` com `fonts` e `mode: "apply"`.
 
 **6. Acabamento.** Ainda com o projeto aberto:
@@ -299,3 +306,6 @@ O `decisoes.py` e o `montar.py` aplicam estas regras. A revisão de 17/11/2026 e
 - **Personagem no vídeo curto:** a busca automática da Edição kids pode não achar a fala no vídeo curto de um personagem. Nesse caso, ponha o clipe à mão no segundo da tabela, recortado na fala.
 - **Animações por parte:** cada parte pede uma cena escrita para os seus conceitos, com os tempos das falas e os blocos recortados. O `edisvg_cena.py` dá as peças do style guide.
 - **Leitura dos ids:** as ações de acabamento e de limpeza leem os ids no arquivo salvo e a revisão no `get_overview`. Salve antes de mexer à mão no meio do caminho.
+- **Narração sem transcrição na cópia:** a verificação antes de exportar acusa "a fala do roteiro não está na aula", e a música não abaixa com a voz. Rode `ia transcribe '{"language": "pt"}'` antes da revisão.
+- **Volume:** a aula sai perto de −25 LUFS. A normalização é uma opção da exportação ("Normalizar o volume"), marcada por quem exporta.
+- **Botão clicado depois do último contorno registrado** (Reduzir, Próxima parte): o zoom e o balão usam o ponto do gesto no registro da gravação.

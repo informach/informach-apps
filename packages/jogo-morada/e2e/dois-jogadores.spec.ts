@@ -25,7 +25,10 @@ const erros: string[] = [];
 function vigiar(pagina: Page, quem: string): void {
   pagina.on("pageerror", (erro) => erros.push(`${quem}: ${erro.message}`));
   pagina.on("console", (mensagem) => {
-    if (mensagem.type() === "error") erros.push(`${quem}: ${mensagem.text()}`);
+    if (mensagem.type() === "error") {
+      const origem = mensagem.location().url;
+      erros.push(`${quem}: ${mensagem.text()}${origem ? ` (${new URL(origem).pathname})` : ""}`);
+    }
   });
 }
 
