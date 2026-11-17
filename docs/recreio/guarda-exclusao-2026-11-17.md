@@ -27,8 +27,7 @@ A candidata completa de grupos segue separada. Não enviar a main do checkout
 original com Morada D3, nem anexar migrations privadas a esta publicação. Ambas
 as etapas exigem gates remotos e evidência operacional antes de conclusão.
 
-**Estado:** ainda sem implantação. Produção conserva
-`3f2b1239`, 179 recibos, famílias/checkpoint desligados. O coordenador completo
+**Estado:** implantação restrita em andamento, sem migration. O coordenador completo
 de encerramento e os demais aceites de F1–F11 continuam pendentes.
 
 A fonte isolada `644b3841` passou nos sete gates `44117921037` e no CI
@@ -44,3 +43,26 @@ usa o parser Windows, que reconhece ambos os separadores, somente para o nome
 exibido da imagem, sem mudar sua referência por hash ou caminhos de armazenamento.
 A prova original permanece, acrescida de caminho POSIX. A candidata corrigida
 precisa de CI remoto antes de qualquer publicação; não contém DDL.
+
+`44149210659` passou pelos testes de basename e consumidores compartilhados,
+mas parou no E2E do EdiSVG: o seletor de guia de estilo do assistente também
+usava `data-guide`, reservado às linhas geométricas. Por isso a contagem real
+era três, incluindo o select; a marcação de snapping também o alcançava.
+O corretivo usa `data-assistant-style-guide` nas duas referências do assistente;
+a prova geométrica original fica intacta, sem alterar a contagem esperada.
+
+Durante essa qualificação, `origin/main` avançou para `84907a19` e incorporou
+D3 do Morada. O deploy automático colocou essa fonte em ambos os serviços às
+18:32 UTC. A leitura operacional posterior encontrou 179 recibos, somente
+fotografias V1/V2, nenhuma partida aberta, famílias/checkpoint `off` e arte D2.
+Antes de qualquer nova gravação V3, portal e Morada foram fixados em `644b3841`,
+fonte isolada já homologada. Builds iniciados `9aab45a3` e `3cd2cb8f`, ainda
+sem prova de conclusão neste registro. Não apagar as alterações D3 do Git nem
+voltar o serviço a seguir main automaticamente: promoção seguinte deve apontar
+somente a fonte qualificada da plataforma, independente da integração do jogo.
+
+A candidata Git preserva `84907a19` e os dois corretivos do EdiSVG, para nova
+verificação remota. Os oito outros consumidores web não tiveram código ou
+packages compartilhados alterados por essa integração externa; ainda precisam
+receber a guarda e ter o processo real conferido antes de 0183. O migrator
+continua sem DDL novo e sem alteração de comando nesta etapa.
