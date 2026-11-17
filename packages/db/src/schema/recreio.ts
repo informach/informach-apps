@@ -356,6 +356,7 @@ export const recreioSpaceMembers = recreio.table(
   (t) => [
     uniqueIndex("recreio_space_members_profile").on(t.spaceId, t.profileId),
     unique("recreio_space_members_space_id").on(t.spaceId, t.id),
+    unique("recreio_space_members_identity_profile").on(t.spaceId, t.id, t.profileId),
     foreignKey({
       name: "recreio_space_members_inviter_world_fk",
       columns: [t.spaceId, t.invitedByMemberId],

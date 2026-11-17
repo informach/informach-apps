@@ -192,3 +192,9 @@ partida autorizada. As regressões conservam a recusa da gestão de terceiros e
 acrescentam a consulta por responsável atual/recusa de outro adulto. A jornada
 infantil passa pela consulta nativa, ainda sem outros participantes até os
 convites dirigidos estarem homologados.
+
+O próximo incremento tem [plano de convites dirigidos](convites-dirigidos-2026-11-17.md).
+A fundação adiciona tabelas próprias e uma chave composta de proveniência do
+emissor, sem reescrever os códigos anteriores. Gerar e conferir a migration no
+GitHub antes da implementação e dos gates desse incremento. A candidata de
+participantes fica congelada em `a59e1923` para sua qualificação independente.
