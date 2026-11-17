@@ -130,3 +130,15 @@ Individual, duas seleções disputando a vaga, grupo estrangeiro, contexto
 infantil, login antigo, suspensão de tokens, rollback da auditoria, vencimento
 do prazo durante auditoria e dois grupos recíprocos. Não há rota ou tela nova,
 convite, aceite ou saída neste incremento. F1 e a ativação continuam pendentes.
+
+A fonte `2e37353` passou nos sete gates `44086567561` para o carregador/decisão
+sem perfil fictício. Em `1030c63`/`44087921047`, integração e qualidade já
+passaram; a rodada completa do escritor ainda está em curso. Não publicado.
+
+O terceiro incremento compõe `/conta/grupo`, ação nativa e seleção com aviso de
+encerramento, confirmação explícita, limite atual e retorno para autenticação
+recente. A jornada candidata cria dois menores sem jogador administrativo,
+escolhe e troca a vaga Individual, recarrega cada confirmação e confere que os
+IDs dos menores continuam iguais. Inclui captura a 390 px e recusa de seleção
+acima do limite. Nenhuma leitura de dados dos jogos ou acesso ao financeiro do
+outro adulto é acrescentado pela tela. Gates e inspeção visual ainda pendentes.

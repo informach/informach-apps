@@ -1,11 +1,16 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
 import { db, eq, sql } from "@informach/db";
-import { recreioGameSessions as games, recreioProfiles as profiles } from "@informach/db/schema";
-import { type GrupoId, PerfilIdSchema } from "@informach/recreio";
-import type {
-  AutorNativoRecente,
-  IdentidadeNativa,
+import {
+  recreioGameSessions as games,
+  recreioGroups as groups,
+  recreioProfiles as profiles,
+} from "@informach/db/schema";
+import { type GrupoId, GrupoIdSchema, PerfilIdSchema } from "@informach/recreio";
+import {
+  type AutorNativoRecente,
+  autorizarContaNativa,
+  type IdentidadeNativa,
 } from "@/features/account/autoridade-repository";
 import { decidirPlanoLido } from "@/features/acesso/decisao";
 import { lerFatosDoGrupo } from "@/features/acesso/repository";
@@ -21,6 +26,21 @@ async function limites(tx: Transacao) {
   await tx.execute(sql`set local statement_timeout='5s'`);
   await tx.execute(sql`set local lock_timeout='2s'`);
   await tx.execute(sql`set local transaction_timeout='15s'`);
+}
+
+/** A busca é só uma pista; o leitor abaixo admite novamente a conta e o grupo. */
+export async function lerGrupoDoTitular(autor: IdentidadeNativa) {
+  const [grupo] = await db
+    .select({ id: groups.id })
+    .from(groups)
+    .where(eq(groups.ownerUserId, autor.contaId));
+  if (grupo) return lerComposicaoDoGrupo(autor, GrupoIdSchema.parse(grupo.id));
+  return db.transaction(async (tx) => {
+    await limites(tx);
+    const nativa = await autorizarContaNativa(tx, autor);
+    await nativa.conferirPrazo();
+    return null;
+  });
 }
 
 export async function lerComposicaoDoGrupo(autor: IdentidadeNativa, grupoId: GrupoId) {
@@ -42,6 +62,7 @@ export async function lerComposicaoDoGrupo(autor: IdentidadeNativa, grupoId: Gru
             ? p.nickname
             : "Perfil protegido",
         tipo: p.kind,
+        ativo: p.status === "active",
         versao: p.policyVersion,
         selecionado: p.coverageEnabled,
         efetivo:
