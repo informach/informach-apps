@@ -116,3 +116,17 @@ comercial. Não há escritor, rota, convite ou ativação por esta extração.
 As provas exigem pagante sem jogador, limites 1/4, revogação, conexão da
 transação e ausência de autoridade para um perfil sem cobertura. Gates remotos
 ainda necessários; este incremento não conclui o fluxo de F1.
+
+Segundo incremento em implementação: `features/grupo` compõe admissão nativa,
+revisão da lista e seleção explícita. Os mutexes nativos de titular, jogadores
+adultos e responsáveis precedem as contas e os perfis; a composição lida como
+pista é conferida novamente. Grupos recíprocos não podem inverter as travas de
+seus jogadores. Capacidade é conferida de novo após auditoria; retirar cobertura
+permanece possível sem plano e com a flag desligada. Novas ativações exigem a
+flag familiar e vagas atuais. Nenhuma identidade/conteúdo é transferida.
+
+As provas candidatas incluem titular sem jogador escolhendo um menor no
+Individual, duas seleções disputando a vaga, grupo estrangeiro, contexto
+infantil, login antigo, suspensão de tokens, rollback da auditoria, vencimento
+do prazo durante auditoria e dois grupos recíprocos. Não há rota ou tela nova,
+convite, aceite ou saída neste incremento. F1 e a ativação continuam pendentes.
