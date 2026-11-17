@@ -1,5 +1,15 @@
 # Ensaio de restauração do backup de produção
 
+Nova execução em **17/11/2026 às 09:09 UTC**, antes das migrations candidatas
+0175/0176: [evidência](evidencias/backup-logico-2026-11-17-pre-checkpoint.json).
+19.161.865 bytes, 241 tabelas e 282.387 linhas; backup em 2.288 ms,
+restauração/comparação em 5.743 ms e processo total em 13.216 ms.
+Conteúdo e estrutura comparada idênticos. Temporários removidos, serviço
+`77e1ca3a-5631-4ca6-84a1-97b890fc2c3b` excluído e inventário novamente com
+34 serviços, sem volume destacado. Executor homologado `6b51dd13`, origem
+somente de leitura e nenhum seed/migration executado neste ensaio. As limitações
+de snapshot agendado, PITR e comparação abaixo permanecem.
+
 Repetido em **17/11/2026 às 06:19 UTC**, antes da próxima publicação do Recreio:
 backup lógico atual restaurado em cluster isolado, conteúdo e estrutura comparada
 idênticos, temporários removidos e serviço temporário excluído, sem volumes
