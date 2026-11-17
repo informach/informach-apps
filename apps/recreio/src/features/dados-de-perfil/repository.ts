@@ -77,7 +77,9 @@ async function comAutoridade<T>(
       !aparelho.authSessionId
     )
       throw new ErroDoRecreio("SESSAO_INVALIDA");
-    if (!(await sessaoDeLoginViva({ authSessionId: aparelho.authSessionId, contaId: conta.id })))
+    if (
+      !(await sessaoDeLoginViva({ authSessionId: aparelho.authSessionId, contaId: conta.id }, tx))
+    )
       throw new ErroDoRecreio("SESSAO_INVALIDA");
     const fatos = await lerFatosDeAcesso(sessao.perfilId, tx);
     const [relogio] = await tx

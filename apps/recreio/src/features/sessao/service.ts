@@ -6,7 +6,7 @@ import {
   type SessaoDeAparelhoId,
 } from "@informach/recreio";
 import { type PerfilDoRecreio, perfisSelecionaveis } from "@/features/perfis/service";
-import { sessaoDeLoginViva } from "./login";
+import { sessaoDeLoginVivaForaDeTransacao } from "./login";
 import {
   carregarOuCriarSessaoDaConta,
   lerSessaoDeAparelho,
@@ -94,7 +94,10 @@ export async function conferirSessaoDeAparelho(entrada: {
   if (!perfil) return { viva: false, motivo: "signed_out" };
   if (
     sessao.authSessionId !== null &&
-    !(await sessaoDeLoginViva({ authSessionId: sessao.authSessionId, contaId: sessao.contaId }))
+    !(await sessaoDeLoginVivaForaDeTransacao({
+      authSessionId: sessao.authSessionId,
+      contaId: sessao.contaId,
+    }))
   )
     return { viva: false, motivo: "signed_out" };
   return { viva: true, contaId: sessao.contaId, perfil };

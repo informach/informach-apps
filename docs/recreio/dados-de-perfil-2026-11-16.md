@@ -127,6 +127,15 @@ identificados. Acrescentar título interno de prova com dados e conquistas,
 carregado sob demanda e impossível de habilitar em produção pela flag de teste.
 O cliente de prova não importa simulação, arte, servidor ou tipos do Morada.
 
+O lote familiar revelou espera circular do pool no fallback PostgreSQL: validar
+o login por uma segunda conexão, com as dez conexões ocupadas por transações,
+esperava até o timeout. A leitura transacional agora exige seu `reader`; o
+caminho fora de transação tem nome explícito e o Redis continua autoritativo
+quando configurado. O novo teste segura uma trava de tabela por conexão externa,
+confere dez escritores realmente bloqueados e libera o lote para validar os
+logins pelas próprias conexões. Não aumentar o pool ou os timeouts para ocultar
+esse problema. Esta prova está em verificação remota antes da publicação.
+
 - [ ] Testar bytes ponta a ponta, token novo na renovação, corpo excessivo,
   entrada inválida, abortos e ausência de repetição automática das mutações.
 - [ ] Com navegador GitHub: jogar, salvar, sair, reabrir e conferir progresso;
