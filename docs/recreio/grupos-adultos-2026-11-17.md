@@ -178,3 +178,16 @@ Snapshot SHA `48cca0454072f3686f9cdfb17f0d0d8482df8203739278c6ad53a688392a5808`;
 journal SHA `8656d6f46b8d63cba49122211caa0cfb9a98084b7088638abf4948038cceab91`.
 Copiar os três arquivos intactos; restaurar o schema da tabela para gerar
 0180 depois desse snapshot. As duas migrations de F1 continuam privadas.
+
+Tabela gerada em `44091007394`, fonte `07ea6ca6`, depois do snapshot 0179:
+artefato `14330589838`, ZIP SHA
+`4329a6ed590ad6ce2f576e2f682b46ca3e5d80d7c8a34aafadf81b840abfccac`.
+SQL `0180_romantic_veda.sql`, 4.709 bytes, SHA
+`795584955c1e84908586271fb0c3e623963367ea8f658499c6258daa6cfc0ac7`;
+snapshot SHA `a5693e704c975ba77308066b6aa0a202078b394a15c86ceb11a8b9b8c601a1dd`;
+journal SHA `0826fe1610385508b6774ad4ae6833b83beff5e83be23fe46a3500082acfa849`.
+Os três arquivos foram conferidos e copiados intactos. O SQL contém a tabela,
+checks, FKs e índices novos; os alvos únicos já existem pela migration prévia.
+Provas de banco candidatas exigem par perfil/login, emissor/titular, datas
+terminais não nulas, endereço apagado e descarte atômico do par ao excluir perfil.
+Nada aplicado; convite utilizável e aceite ainda pendentes.
