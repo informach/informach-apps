@@ -40,15 +40,18 @@ export async function mundosSobResponsabilidadeDoMenor(
         "Perfil indisponível para esta conta.",
       );
       const linhas = await tx
-        .select({ id: spaces.id, nome: spaces.name, estado: spaces.status })
+        .select({
+          id: spaces.id,
+          nome: spaces.name,
+          estado: spaces.status,
+          podeGerir: sql<boolean>`coalesce(${members.role}='steward' and ${spaces.stewardProfileId}=${perfilId},false)`,
+        })
         .from(members)
         .innerJoin(spaces, eq(spaces.id, members.spaceId))
         .where(
           and(
             eq(members.profileId, perfilId),
-            eq(members.role, "steward"),
             ne(members.state, "former"),
-            eq(spaces.stewardProfileId, perfilId),
             ne(spaces.status, "deleted"),
             cursor ? gt(spaces.id, cursor) : undefined,
           ),

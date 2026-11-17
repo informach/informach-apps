@@ -11,7 +11,7 @@ export async function travarMundoCompartilhado(tx: Transacao, a: PerfilId, b: Pe
     join recreio.space_members origem on origem.space_id=mundo.id
     join recreio.space_members destino on destino.space_id=mundo.id
     where origem.profile_id=${a} and destino.profile_id=${b}
-      and origem.state='active' and destino.state='active'
+      and origem.state in ('active','no_access','away') and destino.state in ('active','no_access','away')
       and mundo.status in ('active','hibernating','archived')
     order by mundo.id limit 1
   `);
@@ -41,7 +41,7 @@ export async function confirmarCoparticipacao(
       and(
         eq(members.spaceId, mundoId),
         inArray(members.profileId, [a, b]),
-        eq(members.state, "active"),
+        inArray(members.state, ["active", "no_access", "away"]),
       ),
     );
   return atuais.length === 2 ? mundoId : null;

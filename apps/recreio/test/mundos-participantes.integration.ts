@@ -77,6 +77,10 @@ it("participante sem amizade consulta o mínimo e denuncia com evidência captur
 it("bloquear e silenciar sem amizade conservam participações e funcionam com contatos novos e cobertura encerrados", async () => {
   const c = await cenario();
   await revogar({ email: c.a.conta.email, motivo: "teste_integracao" });
+  await db
+    .update(members)
+    .set({ state: "no_access" })
+    .where(and(eq(members.spaceId, c.mundoId), eq(members.profileId, c.a.perfil.id)));
   env.RECREIO_SOCIAL_MODE = "off";
   await protegerContato(ref(c.a), { perfilId: c.b.perfil.id, bloqueado: true, silenciado: true });
   expect(await participantesDoMundo(ref(c.a), { mundoId: c.mundoId })).toMatchObject({
@@ -179,6 +183,28 @@ it("responsável nativo sem jogador e aparelho infantil preservam atores distint
   await db
     .insert(members)
     .values({ spaceId: c.mundoId, profileId: familia.perfil.id, role: "member", state: "active" });
+  expect(
+    await participantesDoMundo(
+      { responsavel: familia.autor, perfilId: familia.perfil.id },
+      { mundoId: c.mundoId },
+    ),
+  ).toMatchObject({
+    participantes: expect.arrayContaining([
+      {
+        perfilId: c.b.perfil.id,
+        apelido: "Mar",
+        avatar: "padrao",
+        bloqueado: false,
+        silenciado: false,
+      },
+    ]),
+  });
+  await expect(
+    participantesDoMundo(
+      { responsavel: outra.autor, perfilId: familia.perfil.id },
+      { mundoId: c.mundoId },
+    ),
+  ).rejects.toMatchObject({ code: "PEDIDO" });
   const entrada = {
     perfilId: c.b.perfil.id,
     categoria: "assedio",

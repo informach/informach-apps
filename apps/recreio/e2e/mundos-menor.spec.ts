@@ -90,6 +90,16 @@ test("responsável sem jogador gerencia o mundo criado no aparelho infantil, sem
   await expect(
     page.getByRole("heading", { name: "Mundos de Lua dos mundos", exact: true }),
   ).toBeVisible();
+  await page
+    .getByRole("link", { name: "Participantes e proteção de Casa da Lua", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Proteção nos mundos do perfil", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Nenhum outro participante nesta página.", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Mundos do perfil", exact: true }).click();
   await page.getByRole("link", { name: "Gerenciar Casa da Lua", exact: true }).click();
   const destino = `${lista}/${mundo}/gestao`;
   await expect(page).toHaveURL(destino);

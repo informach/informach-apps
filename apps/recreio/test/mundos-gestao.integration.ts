@@ -109,7 +109,7 @@ it("participação do menor em mundo de outro adulto não transfere a gestão ao
     .values({ spaceId: c.mundoId, profileId: familia.perfil.id, role: "member", state: "active" });
   expect(
     (await mundosSobResponsabilidadeDoMenor(familia.autor, familia.perfil.id, null)).itens,
-  ).toEqual([]);
+  ).toMatchObject([{ id: c.mundoId, podeGerir: false }]);
   await expect(
     painelDeAdministracaoDoMundo(
       { responsavel: familia.autor, perfilId: familia.perfil.id },

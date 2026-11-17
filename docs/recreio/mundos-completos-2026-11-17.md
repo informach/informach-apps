@@ -180,3 +180,15 @@ teste de escopo tentou criar o segundo jogo que só existe no mock de outros
 arquivos. O corretivo prepara explicitamente os metadados de outro jogo e sua
 participação para provar a recusa do SID de Morada, sem mudar o catálogo ou a
 regra do servidor. A rodada seguinte deve executar a mesma recusa HTTP.
+
+A próxima candidata completa a consulta nativa do responsável sem jogador em
+todos os mundos em que o menor continua participante. Só o mundo cujo
+responsável é o perfil recebe “Gerenciar”; os demais oferecem proteção. A
+leitura trava o mundo antes do perfil e revalida a conta nativa e o vínculo
+parental. Ações usam o adulto real e autenticação recente, sem autoridade do
+aparelho infantil. Participações `no_access`/`away` conservam proteção gratuita;
+`former` não cria uma nova prova de coparticipação. O SDK continua exigindo a
+partida autorizada. As regressões conservam a recusa da gestão de terceiros e
+acrescentam a consulta por responsável atual/recusa de outro adulto. A jornada
+infantil passa pela consulta nativa, ainda sem outros participantes até os
+convites dirigidos estarem homologados.

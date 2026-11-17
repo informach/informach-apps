@@ -25,6 +25,7 @@ type Pontas = {
   destinoId: PerfilId | null;
   finalidade: "contato" | "protecao";
   operacao?: "leitura" | "alteracao";
+  antesDosPerfis?: (tx: Transacao) => Promise<void>;
 };
 
 async function tentar<T>(
@@ -44,6 +45,7 @@ async function tentar<T>(
       { tipo: "responsavel", contaId: autor.contaId },
       [...new Set([pontas.origemId, ...(pontas.destinoId ? [pontas.destinoId] : [])])],
       async () => {
+        await pontas.antesDosPerfis?.(tx);
         if (pontas.destinoId && pontas.finalidade === "protecao")
           pistaDeMundo = await travarMundoCompartilhado(tx, pontas.origemId, pontas.destinoId);
       },

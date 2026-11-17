@@ -37,13 +37,11 @@ export default async function MundosDoPerfil({
         Mundos de {pagina.apelido}
       </h1>
       <p className="mt-4 text-tinta-suave">
-        Mundos em que este perfil é responsável. Sua gestão depende do vínculo atual de
-        responsabilidade pelo perfil; pagar a assinatura não substitui esse vínculo.
+        Mundos em que este perfil participa. Você pode cuidar dos contatos. Gerenciar o mundo exige
+        que este perfil seja o responsável por ele; pagar a assinatura não substitui esses vínculos.
       </p>
       {pagina.itens.length === 0 ? (
-        <p className="painel mt-6 p-5">
-          Nenhum mundo sob responsabilidade deste perfil nesta página.
-        </p>
+        <p className="painel mt-6 p-5">Nenhuma participação atual deste perfil nesta página.</p>
       ) : (
         <ul className="mt-6 grid gap-4">
           {pagina.itens.map((mundo) => (
@@ -55,11 +53,19 @@ export default async function MundosDoPerfil({
                 {mundo.estado === "archived" ? "Arquivado" : "Disponível"}
               </p>
               <Link
-                href={`${destino}/${mundo.id}/gestao`}
+                href={`${destino}/${mundo.id}/participantes`}
                 className="mt-3 inline-flex min-h-11 items-center font-bold text-ceu underline"
               >
-                Gerenciar {mundo.nome}
+                Participantes e proteção de {mundo.nome}
               </Link>
+              {mundo.podeGerir && (
+                <Link
+                  href={`${destino}/${mundo.id}/gestao`}
+                  className="mt-3 inline-flex min-h-11 items-center font-bold text-ceu underline"
+                >
+                  Gerenciar {mundo.nome}
+                </Link>
+              )}
             </li>
           ))}
         </ul>

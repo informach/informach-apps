@@ -2,7 +2,7 @@
 import type { ParticipanteDoMundo } from "@informach/recreio/contrato";
 import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { AvatarDoPerfil } from "@/features/perfis/components/avatar";
-import { protegerContatoAction } from "@/features/social/actions";
+import { protegerContatoAction, protegerContatoDoMenorAction } from "@/features/social/actions";
 import { ErroSocial, useAcaoSocial } from "@/features/social/components/acao";
 import { DenunciarContato } from "@/features/social/components/denuncia";
 
@@ -10,16 +10,18 @@ export function CuidadosDeParticipante({
   perfilId,
   participante: p,
   destino,
+  responsavel = false,
 }: {
   perfilId: string;
   participante: ParticipanteDoMundo;
   destino: string;
+  responsavel?: boolean;
 }) {
   const hidratado = useHydrated(),
     acao = useAcaoSocial(destino);
   const proteger = (bloqueado: boolean, silenciado: boolean) =>
     acao.executar(() =>
-      protegerContatoAction(perfilId, {
+      (responsavel ? protegerContatoDoMenorAction : protegerContatoAction)(perfilId, {
         perfilId: p.perfilId,
         bloqueado,
         silenciado,
@@ -60,7 +62,7 @@ export function CuidadosDeParticipante({
       <DenunciarContato
         perfilId={perfilId}
         alvoId={p.perfilId}
-        responsavel={false}
+        responsavel={responsavel}
         destino={destino}
         acesso={destino}
       />
