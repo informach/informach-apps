@@ -13,14 +13,16 @@ import { verificarSalvamentoEmitido } from "@informach/recreio/emissor";
 import { criarRecreio } from "@informach/recreio/sdk";
 import { describe, expect, it, vi } from "vitest";
 import { alterarDados } from "@/features/dados-de-perfil/service";
+import { selecionarPerfil } from "@/features/perfis/service";
 import { travarEncerramentos } from "@/features/sessao-de-jogo/encerramento-repository";
 import {
   emitirIngresso,
   sessaoDeJogoDoToken,
   trocarIngresso,
 } from "@/features/sessao-de-jogo/service";
+import { env } from "@/lib/env";
 import { chavesDoRecreio } from "@/lib/tokens";
-import { eventosCom, novoJogador } from "./apoio";
+import { atorDaConta, eventosCom, novoJogador } from "./apoio";
 import { despachar, ORIGEM, pedir } from "./rotas";
 
 vi.mock("@/lib/env", async (original) => {
@@ -105,6 +107,132 @@ const salvar = (r: Awaited<ReturnType<typeof preparar>>, dados = [gravacao]) =>
   pedir("POST", "/api/sdk/v1/sessao/salvamento", { token: r.capacidade.token, corpo: { dados } });
 
 describe("persistência final com capacidade restrita", () => {
+  it("desligar o escritor não apaga a margem já emitida", async () => {
+    const r = await preparar();
+    expect((await pedir("POST", "/api/sdk/v1/sessao/sair", { token: r.aberta.token })).status).toBe(
+      200,
+    );
+    const ingresso = await emitirIngresso(r.pessoa.ator, { jogo: JOGO });
+    const anterior = env.RECREIO_CHECKPOINT_MODE;
+    env.RECREIO_CHECKPOINT_MODE = "off";
+    try {
+      await expect(trocarIngresso({ ingresso: ingresso.ingresso })).rejects.toMatchObject({
+        codigo: "CHECKPOINT_PENDENTE",
+        detalhe: { motivo: "saving" },
+      });
+    } finally {
+      env.RECREIO_CHECKPOINT_MODE = anterior;
+    }
+    expect((await salvar(r)).status).toBe(200);
+    expect((await trocarIngresso({ ingresso: ingresso.ingresso })).token).toBeTruthy();
+  });
+  it("revogação explícita do aparelho anterior não prende o perfil à sua margem", async () => {
+    const r = await preparar();
+    expect((await pedir("POST", "/api/sdk/v1/sessao/sair", { token: r.aberta.token })).status).toBe(
+      200,
+    );
+    await db
+      .update(devices)
+      .set({ revokedAt: new Date() })
+      .where(eq(devices.id, r.pessoa.ator.sessaoDeAparelhoId));
+    const aparelho = await atorDaConta(r.pessoa.conta);
+    await selecionarPerfil(aparelho, r.pessoa.perfil.id);
+    const ingresso = await emitirIngresso({ ...aparelho, perfil: r.pessoa.perfil }, { jogo: JOGO });
+    expect((await trocarIngresso({ ingresso: ingresso.ingresso })).token).toBeTruthy();
+    expect((await salvar(r)).status).toBe(401);
+  });
+  it("salvamento e reconexão concorrentes preservam a versão que o novo SID vai ler", async () => {
+    const r = await preparar();
+    expect((await pedir("POST", "/api/sdk/v1/sessao/sair", { token: r.aberta.token })).status).toBe(
+      200,
+    );
+    const ingresso = await emitirIngresso(r.pessoa.ator, { jogo: JOGO });
+    const pedido = { ingresso: ingresso.ingresso };
+    const [final, abertura] = await Promise.allSettled([salvar(r), trocarIngresso(pedido)]);
+    expect(final).toMatchObject({ status: "fulfilled", value: { status: 200 } });
+    if (abertura.status === "rejected")
+      expect(abertura.reason).toMatchObject({
+        codigo: "CHECKPOINT_PENDENTE",
+        detalhe: { motivo: "saving" },
+      });
+    const seguinte =
+      abertura.status === "fulfilled" ? abertura.value : await trocarIngresso(pedido);
+    expect(
+      await pedir("GET", "/api/sdk/v1/dados?chave=pontos", { token: seguinte.token }),
+    ).toMatchObject({
+      status: 200,
+      corpo: { versao: { revisao: 1, conteudo: "MQ==" } },
+    });
+  });
+  it("nova abertura aguarda a margem do antecessor sem consumir ingresso e lê o commit final", async () => {
+    const r = await preparar({ curta: true });
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.max(0, r.fim.getTime() - Date.now()) + 20),
+    );
+    const ingresso = await emitirIngresso(r.pessoa.ator, { jogo: JOGO });
+    const pedido = { ingresso: ingresso.ingresso, suportaSalvamento: true };
+    const antes = await db.select().from(permits).where(eq(permits.id, r.id));
+    await expect(trocarIngresso(pedido)).rejects.toMatchObject({
+      codigo: "CHECKPOINT_PENDENTE",
+      detalhe: { motivo: "saving" },
+    });
+    expect(await db.select().from(permits).where(eq(permits.id, r.id))).toEqual(antes);
+    expect(
+      (await db.select().from(games).where(eq(games.id, r.sessao.sid)))[0]?.endedAt,
+    ).toBeNull();
+    const [ticket] = await db
+      .select()
+      .from(tickets)
+      .where(and(eq(tickets.profileId, r.pessoa.perfil.id), sql`${tickets.consumedAt} is null`));
+    expect(ticket?.consumedAt).toBeNull();
+    expect((await salvar(r)).status).toBe(200);
+    const seguinte = await trocarIngresso(pedido);
+    const leitura = await pedir("GET", "/api/sdk/v1/dados?chave=pontos", { token: seguinte.token });
+    expect(leitura).toMatchObject({
+      status: 200,
+      corpo: { versao: { revisao: 1, conteudo: "MQ==" } },
+    });
+  });
+  it.each([JOGO, "morada"])(
+    "saída antecipada aguarda o recibo também ao trocar para %s",
+    async (jogo) => {
+      const r = await preparar();
+      expect(
+        (await pedir("POST", "/api/sdk/v1/sessao/sair", { token: r.aberta.token })).status,
+      ).toBe(200);
+      const ingresso = await emitirIngresso(r.pessoa.ator, { jogo });
+      await expect(
+        trocarIngresso({ ingresso: ingresso.ingresso, continuarAqui: true }),
+      ).rejects.toMatchObject({
+        codigo: "CHECKPOINT_PENDENTE",
+        detalhe: { motivo: "saving" },
+      });
+      expect((await salvar(r)).status).toBe(200);
+      expect((await trocarIngresso({ ingresso: ingresso.ingresso })).token).toBeTruthy();
+    },
+  );
+  it("margem vencida libera nova abertura sem confirmar nem prorrogar o recibo antigo", async () => {
+    const r = await preparar();
+    const fim = new Date(Date.now() - 31_000);
+    const inicio = new Date(fim.getTime() - 60_000);
+    await db
+      .update(games)
+      .set({ lastRenewedAt: inicio, expiresAt: fim })
+      .where(eq(games.id, r.sessao.sid));
+    await db
+      .update(permits)
+      .set({
+        createdAt: inicio,
+        renewedAt: inicio,
+        cutoffAt: fim,
+        expiresAt: new Date(fim.getTime() + 30_000),
+      })
+      .where(eq(permits.id, r.id));
+    const ingresso = await emitirIngresso(r.pessoa.ator, { jogo: JOGO });
+    expect((await trocarIngresso({ ingresso: ingresso.ingresso })).token).toBeTruthy();
+    expect((await db.select().from(permits).where(eq(permits.id, r.id)))[0]?.status).toBe("ready");
+    expect((await salvar(r)).status).toBe(401);
+  });
   it("SDK recupera a resposta final perdida depois do commit sem duplicar dados ou eventos", async () => {
     const pessoa = await novoJogador();
     let finais = 0;
@@ -343,11 +471,20 @@ describe("persistência final com capacidade restrita", () => {
         await db.execute(
           sql`update recreio.game_sessions set ended_at=clock_timestamp(),end_reason='expired',ended_seq=nextval('recreio.game_session_end_seq') where id=${r.sessao.sid}::uuid`,
         );
-        const ingresso = await emitirIngresso(r.pessoa.ator, { jogo: JOGO });
-        const seguinte = await trocarIngresso({ ingresso: ingresso.ingresso });
-        const novo = await sessaoDeJogoDoToken(seguinte.token);
+        // História anterior ao leitor de margem, para provar que o finalizador
+        // ainda recusa um sucessor já encerrado. A API nova impede essa corrida.
+        const [novo] = await db
+          .insert(games)
+          .values({
+            profileId: r.sessao.perfilId,
+            deviceSessionId: r.pessoa.ator.sessaoDeAparelhoId,
+            gameId: JOGO,
+            expiresAt: new Date(Date.now() + 60_000),
+          })
+          .returning();
+        if (!novo) throw new Error("Sucessor histórico ausente");
         await db.execute(
-          sql`update recreio.game_sessions set ended_at=clock_timestamp(),end_reason='left',ended_seq=nextval('recreio.game_session_end_seq') where id=${novo.sid}::uuid`,
+          sql`update recreio.game_sessions set ended_at=clock_timestamp(),end_reason='left',ended_seq=nextval('recreio.game_session_end_seq') where id=${novo.id}::uuid`,
         );
       }
       expect((await salvar(r)).status).toBe(401);

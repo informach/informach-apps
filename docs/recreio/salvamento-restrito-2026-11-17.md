@@ -191,3 +191,22 @@ reais: perde a primeira resposta depois do commit e exige uma única versão e
 um único evento de conclusão. Esse consumidor ainda aguarda gates próprios.
 O host não solicita a capacidade; pausa automática, servidor de mundo e espera
 antes do sucessor continuam pendentes. Não ativar os modos em produção.
+
+## Leitor da margem antes de nova abertura, em candidata
+
+A abertura consulta recibos pendentes do perfil sob o mesmo mutex do
+finalizador, antes de consumir ingresso, encerrar o antecessor ou emitir outro
+SID. Concessão vencida ou saída antecipada elegível conserva a margem, limitada
+ao menor prazo entre o recibo e trinta segundos do encerramento. A recusa
+`saving` não amplia prazo nem confirma persistência. Também vale ao mudar de
+jogo e ao desligar o modo depois de uma emissão. Revogação explícita, política
+divergente e recibos já sucedidos não prendem a abertura à margem histórica.
+Um recibo confirmado ou vencido libera nova admissão normal.
+
+O SDK pode aguardar essa recusa com o mesmo ingresso/prova na reconexão, sem
+solicitar substituição de outro aparelho. Mantém os tetos anteriores de espera
+e tentativas. Provas de banco cobrem consumo intacto, leitura do commit final,
+saída antecipada, prazo vencido, revogação e concorrência com o finalizador.
+A fixture de sucessor histórico é inserida diretamente: a API nova deve
+impedir justamente a corrida que aquela negativa ainda precisa recusar.
+Índices de busca e retenção entram na homologação de carga antes da ativação.

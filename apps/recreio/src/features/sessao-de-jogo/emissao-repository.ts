@@ -28,6 +28,7 @@ import {
   registrarConcessaoDeTempo,
 } from "@/features/politicas/tempo-repository";
 import { emitirPermissaoDeSalvamento } from "@/features/salvamento/emissao-repository";
+import { aguardarSalvamentoAnterior } from "@/features/salvamento/reconexao-repository";
 import { env } from "@/lib/env";
 import {
   AGORA,
@@ -263,6 +264,11 @@ export async function abrirSessaoComIngresso(entrada: {
         throw new ErroDoRecreio("CHECKPOINT_PENDENTE");
       if (aberta && aberta.expiraEm > agora && !entrada.continuarAqui)
         throw new ErroDoRecreio("JA_ABERTO");
+      await aguardarSalvamentoAnterior(tx, {
+        perfilId: entrada.ingresso.perfilId,
+        versaoDaPolitica: contexto.versaoDaPolitica,
+        agora: await contexto.conferirPrazo(),
+      });
       const tempo = contexto.politica
         ? await prepararConcessaoDeTempo(
             tx,

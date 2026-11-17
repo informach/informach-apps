@@ -150,11 +150,11 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
         }
         if (
           !chaveDeTroca ||
-          !opcoes.continuarAqui ||
           !opcoes.aguardarCheckpoint ||
           tentativa >= 20 ||
           !ehErroDoRecreio(erro, "CHECKPOINT_PENDENTE") ||
-          !["requested", "pending", "confirmed"].includes(String(erro.detalhe.motivo)) ||
+          (!opcoes.continuarAqui && erro.detalhe.motivo !== "saving") ||
+          !["requested", "pending", "confirmed", "saving"].includes(String(erro.detalhe.motivo)) ||
           agora() + 1000 >= fimDaEspera
         )
           throw erro;

@@ -269,6 +269,24 @@ describe("abertura da sessão", () => {
     expect(a.chamadas[0]?.corpo).toEqual(a.chamadas[1]?.corpo);
     expect(a.pendentes()).toHaveLength(1);
   });
+  it("aguarda salvamento anterior na reconexão sem solicitar substituição de aparelho", async () => {
+    const a = ambiente();
+    const avisar = vi.fn();
+    a.responder(
+      { status: 409, corpo: { codigo: "CHECKPOINT_PENDENTE", motivo: "saving" } },
+      { corpo: a.aberta() },
+    );
+    const promessa = criarRecreio(
+      a.opcoes({ recuperarAbertura: true, aguardarCheckpoint: true, aoAguardarCheckpoint: avisar }),
+    );
+    await vi.waitFor(() => expect(avisar).toHaveBeenCalledOnce());
+    await a.disparar();
+    const contexto = await promessa;
+    expect(a.chamadas[0]?.corpo).toEqual(a.chamadas[1]?.corpo);
+    expect(a.chamadas[0]?.corpo).not.toHaveProperty("continuarAqui");
+    a.responder({ corpo: {} });
+    await contexto.sessao.sair();
+  });
   it.each(["manual", "failed", "expired"])("não repete espera recusada por %s", async (motivo) => {
     const a = ambiente();
     a.responder({ status: 409, corpo: { codigo: "CHECKPOINT_PENDENTE", detalhe: { motivo } } });
