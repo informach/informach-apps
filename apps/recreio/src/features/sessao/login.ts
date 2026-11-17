@@ -13,13 +13,14 @@ export function sessaoDeLoginViva(
     authSessionId: string;
     contaId: string;
   },
-  reader: AuthSessionReader,
+  _reader: AuthSessionReader,
 ): Promise<boolean> {
   return isAuthSessionLive({
     sessionId: entrada.authSessionId,
     userId: entrada.contaId,
     store: authSecondaryStorage,
-    reader,
+    // Controle negativo: reproduz a consulta global que esgota o pool.
+    reader: undefined,
   });
 }
 
