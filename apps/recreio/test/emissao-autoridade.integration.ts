@@ -157,12 +157,15 @@ describe("emissão transacional da autoridade", () => {
     const instancia = await novaInstancia(jogo);
     const ticket = await emitirIngresso(r.ator, { jogo });
     const aberta = SessaoAbertaSchema.parse(await trocarIngresso({ ingresso: ticket.ingresso }));
-    expect((await abrirPelaRota(aberta, mundo.id)).status).toBe(200);
+    const sessao = await sessaoDeJogoDoToken(aberta.token);
+    expect((await abrirPelaRota({ token: aberta.token, sid: sessao.sid }, mundo.id)).status).toBe(
+      200,
+    );
     const posse = await instancia.cliente.reivindicarPosse(mundo.id);
     const entrar = () =>
       pedir("POST", `/api/interno/v1/mundos/${mundo.id}/entradas`, {
         headers: cabecalhosDoHost(jogo, instancia.instanciaId),
-        corpo: { cerca: posse.cerca, sid: aberta.sid, perfilId: r.perfil.id },
+        corpo: { cerca: posse.cerca, sid: sessao.sid, perfilId: r.perfil.id },
       });
     const admitida = await entrar();
     expect(admitida).toMatchObject({

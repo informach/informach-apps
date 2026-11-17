@@ -654,6 +654,13 @@ export type EntradaNoBanco = {
 export async function verificarEntradaNoMundo(
   pedido: PedidoComPosse & { sid: SessaoDeJogoId; perfilId: PerfilId },
 ): Promise<EntradaNoBanco> {
+  // O segredo de um jogo não distingue sessões em mundos de outro jogo.
+  // É só uma pista de escopo: a posse será relida sob trava na admissão.
+  const [escopo] = await db
+    .select({ id: spaces.id })
+    .from(spaces)
+    .where(and(eq(spaces.id, pedido.mundoId), eq(spaces.gameId, pedido.jogo)));
+  if (!escopo) throw new ErroDoRecreio("NAO_ENCONTRADO");
   const [pista] = await db
     .select({ expiraEm: gameSessions.expiresAt, versao: profiles.policyVersion })
     .from(gameSessions)
