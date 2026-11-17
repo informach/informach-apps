@@ -1,4 +1,5 @@
 "use client";
+import "@/lib/zod-sem-eval";
 import { APELIDO, VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
 import { Input } from "@informach/ui/components/input";
 import { Label } from "@informach/ui/components/label";

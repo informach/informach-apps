@@ -40,6 +40,7 @@ test("responsável sem jogador cadastra, reabre a lista e cancela outro formulá
   await hidratado(apelido);
   await apelido.fill("Sem confirmar");
   await page.getByRole("button", { name: "Cancelar cadastro", exact: true }).click();
+  await expect(apelido).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Lua da casa", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Sem confirmar", exact: true })).toHaveCount(0);
   await tela(page, "familia-cadastro-sem-jogador");

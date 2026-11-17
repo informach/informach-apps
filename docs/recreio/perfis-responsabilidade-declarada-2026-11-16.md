@@ -109,6 +109,14 @@ Integração cobre cancelamento alheio/confirmado e autoridade atual; navegador
 cobre cadastro, recarga e cancelamento com adulto sem jogador. A verificação
 remota desta interface ainda está pendente.
 
+A rodada `44003864649` aprovou os outros cinco gates e as 366 integrações,
+mas o navegador detectou a avaliação JIT do Zod ao importar o domínio no novo
+componente. O componente precisa carregar o adapter `zod-sem-eval` antes do
+domínio, como os demais clientes que o usam. A captura também precisa aguardar
+o desaparecimento do formulário após o cancelamento, pois o título da lista
+já existia no documento anterior. Não aumentar timeout de captura nem relaxar
+a CSP para ocultar essas falhas.
+
 O recibo vence para replay em 24 horas, mas sua remoção física nesta candidata
 ainda é oportunista por conta. A limpeza global agendada pertence ao próximo
 incremento, antes da ativação em produção. Seleção infantil, PIN, pareamento,
