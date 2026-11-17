@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { PerfilIdSchema } from "../dominio/ids";
+import {
+  type DenunciaDeContato,
+  DenunciaDeContatoSchema,
+  type DenunciaRecebida,
+} from "./denuncias";
 
 export const CodigoDeAmigoSchema = z
   .string()
@@ -32,6 +37,7 @@ export const MutacaoSocialSchema = z.discriminatedUnion("operacao", [
   }),
   ProtecaoDeContatoSchema.extend({ operacao: z.literal("proteger") }),
   z.strictObject({ operacao: z.literal("remover"), perfilId: PerfilIdSchema }),
+  DenunciaDeContatoSchema.extend({ operacao: z.literal("denunciar") }),
 ]);
 export const CodigoDeAmigoEmitidoSchema = z.strictObject({
   codigoId: z.uuid(),
@@ -100,4 +106,6 @@ export interface SocialDoPerfil {
   ): Promise<z.infer<typeof PedidoDeAmizadeEncerradoSchema>>;
   proteger(entrada: ProtecaoDeContato): Promise<z.infer<typeof ProtecaoSocialSalvaSchema>>;
   remover(perfilId: string): Promise<void>;
+  /** Preserve denunciaId para recuperar o protocolo após perda da resposta. */
+  denunciar(entrada: DenunciaDeContato): Promise<DenunciaRecebida>;
 }

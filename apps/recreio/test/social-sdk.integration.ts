@@ -3,6 +3,7 @@ import {
   recreioFriendCodes as codes,
   recreioFriendships as friends,
   recreioGameSessions as games,
+  recreioSafetyReports as reports,
 } from "@informach/db/schema";
 import { criarRecreio } from "@informach/recreio/sdk";
 import { afterEach, describe, expect, it } from "vitest";
@@ -34,6 +35,64 @@ async function comSocial() {
 }
 
 describe("SDK social negocia capacidade e conserva autenticação e proteção", () => {
+  it("denúncia perdida recebe um só protocolo, recuperável com modo fechado e sem repetir automaticamente", async () => {
+    let falhar = true,
+      tentativas = 0;
+    const a = await abrir(true, async (url, init) => {
+      const resposta = await despachar(url, init);
+      if (typeof init?.body === "string") {
+        const corpo: unknown = JSON.parse(init.body);
+        if (
+          corpo &&
+          typeof corpo === "object" &&
+          "operacao" in corpo &&
+          corpo.operacao === "denunciar"
+        ) {
+          tentativas++;
+          if (falhar) {
+            falhar = false;
+            throw new Error("resposta perdida depois do commit");
+          }
+        }
+      }
+      return resposta;
+    });
+    const social = a.sdk.social;
+    if (!social) throw new Error("Social ausente");
+    const b = await comSocial(),
+      codigo = await b.social.codigo();
+    await social.pedir(codigo.codigo, crypto.randomUUID());
+    const entrada = {
+      perfilId: b.jogador.perfil.id,
+      denunciaId: crypto.randomUUID(),
+      categoria: "ameaca" as const,
+    };
+    await expect(social.denunciar(entrada)).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+    expect(tentativas).toBe(1);
+    const linhas = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.reporterProfileId, a.jogador.perfil.id));
+    expect(linhas).toHaveLength(1);
+    expect(linhas[0]?.priority).toBe(true);
+    env.RECREIO_SOCIAL_MODE = "off";
+    expect(await social.denunciar(entrada)).toEqual({ protocolo: linhas[0]?.id, repetida: true });
+    expect(tentativas).toBe(2);
+    expect(
+      await pedir("POST", "/api/sdk/v1/social", {
+        token: a.sdk.sessao.token(),
+        corpo: {
+          operacao: "denunciar",
+          ...entrada,
+          actorUserId: b.jogador.conta.id,
+        },
+      }),
+    ).toMatchObject({ status: 400, corpo: { codigo: "ENTRADA_INVALIDA" } });
+    await a.sdk.sessao.sair();
+    const antes = tentativas;
+    await expect(social.denunciar(entrada)).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA" });
+    expect(tentativas).toBe(antes);
+  });
   it("duas contas em partidas reais concluem pedido, aceite e bloqueio", async () => {
     const a = await comSocial(),
       b = await comSocial();

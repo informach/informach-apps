@@ -408,6 +408,22 @@ conferiu a aprovação, o aviso e o bloqueio antes dessa divergência. `cc76fa6`
 ajusta somente a expectativa e mantém a recusa da gestão; nova verificação
 separada em andamento. Não anunciar as telas homologadas por esse resultado.
 
+`3fdd38c` passou em integração `44151664745`: 678 testes/71 arquivos, incluindo
+os treze de denúncias e retenção; atualização 179→188 conserva dois perfis,
+bytes de progresso, conquistas e repetição. Os demais gates ainda estão sendo
+acompanhados. A candidata seguinte liga denúncia ao cartão do contato e ao SDK,
+com UUID conservado e protocolo exibido, sem reenvio automático ou punição
+automática. Responsável e aparelho infantil percorrem o formulário real no
+navegador; somente o responsável recebe o link externo de suporte. Capturas
+sociais entram na lista explícita de artefatos sintéticos do workflow.
+
+O gate de versões de `cc76fa6` expôs o prefetch do novo link `/amigos` durante
+a parada proposital do servidor. O teste já separava, somente nesse intervalo,
+conexões recusadas/resetadas de prefetch de `/conta` e `/perfis`. O novo destino
+entra na mesma lista exata com `_rsc`; erros de ação e todos os erros fora da
+troca continuam recusados. Não desabilitar prefetch, acrescentar retry ou
+afrouxar a prova de criação única entre as builds.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

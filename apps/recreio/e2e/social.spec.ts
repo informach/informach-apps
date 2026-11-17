@@ -42,6 +42,18 @@ async function clicar(page: Page, nome: string) {
   await Promise.all([page.waitForEvent("load"), botao.click()]);
 }
 
+async function denunciar(page: Page) {
+  const abrir = page.getByRole("button", { name: "Denunciar contato", exact: true });
+  await hidratado(abrir);
+  await abrir.click();
+  await page.getByLabel("O que aconteceu?", { exact: true }).selectOption("contato_indesejado");
+  await page.getByRole("button", { name: "Enviar denúncia", exact: true }).click();
+  const protocolo = page.getByLabel("Protocolo da denúncia", { exact: true });
+  await expect(protocolo).toHaveText(/^[0-9a-f-]{36}$/);
+  await expect(page.getByRole("button", { name: "Enviar denúncia", exact: true })).toBeDisabled();
+  return protocolo.innerText();
+}
+
 test("duas contas fazem amizade; silêncio persiste e desbloquear não restaura a relação", async ({
   browser,
 }) => {
@@ -55,6 +67,12 @@ test("duas contas fazem amizade; silêncio persiste e desbloquear não restaura 
   await expect(b.page.getByRole("heading", { name: "Sol social", exact: true })).toBeVisible();
   await a.page.reload();
   await expect(a.page.getByRole("heading", { name: "Mar social", exact: true })).toBeVisible();
+  await denunciar(a.page);
+  await a.page.setViewportSize({ width: 390, height: 844 });
+  expect(await a.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+    true,
+  );
+  await tela(a.page, "social-denuncia-mobile");
   await clicar(a.page, "Silenciar");
   await expect(a.page.getByText("Silenciado", { exact: true })).toBeVisible();
   await a.page.reload();
@@ -147,8 +165,14 @@ test("responsável sem jogador aprova o contato do aparelho infantil e pode bloq
   await expect(page.getByText("Amizade confirmada", { exact: true })).toBeVisible();
   await clicar(page, "Marcar aviso como lido");
   await expect(page.getByText("Nenhum aviso pendente de leitura.", { exact: true })).toBeVisible();
+  const protocoloResponsavel = await denunciar(page);
   await infantil.reload();
   await expect(infantil.getByText("Amizade confirmada", { exact: true })).toBeVisible();
+  const protocoloInfantil = await denunciar(infantil);
+  expect(protocoloInfantil).not.toBe(protocoloResponsavel);
+  await expect(
+    infantil.getByRole("link", { name: "Falar com o suporte", exact: true }),
+  ).toHaveCount(0);
   await expect(infantil.getByRole("button", { name: "Salvar presença", exact: true })).toHaveCount(
     0,
   );

@@ -135,6 +135,14 @@ UUID de um pedido e pode recuperar o mesmo recibo. Nova emissão revoga o códig
 anterior. O servidor revalida SID, login/aparelho, cobertura, política e prazo;
 um token de partida encerrada não vira identidade de portal.
 
+`social.denunciar({ perfilId, denunciaId, categoria })` usa uma categoria fechada
+e um contato que o servidor já conhece. Devolve protocolo opaco; conservar o
+UUID permite recuperar a confirmação depois de resposta perdida. Não repete
+automaticamente e não recebe texto/evidência, conta ou dados do mundo. A pessoa
+pode denunciar sem abrir contato novo; o SDK ainda exige seu SID atual. No
+portal, proteção não depende de cobertura. A fila e a operação permanecem em
+qualificação; esta API não anuncia moderação habilitada em produção.
+
 `social.listar(cursor?)` percorre dez relações conhecidas por página, sem busca
 pública, conta ou conteúdo de mundo. Aprovações atuais governam nomes protegidos
 e a disponibilidade da amizade. A presença informa somente um booleano: depende

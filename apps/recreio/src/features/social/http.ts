@@ -2,6 +2,7 @@ import "server-only";
 import { ErroDoRecreio } from "@informach/recreio";
 import type { MutacaoSocialSchema } from "@informach/recreio/contrato";
 import type { z } from "zod";
+import { denunciarContato } from "@/features/moderacao/denuncias-service";
 import type { SessaoDeJogoAtiva } from "@/features/sessao-de-jogo/service";
 import { AppError } from "@/lib/errors";
 import {
@@ -43,6 +44,12 @@ export async function executarMutacaoSocial(
         });
       case "remover":
         return await removerAmizade(sessao, pedido.perfilId);
+      case "denunciar":
+        return await denunciarContato(sessao, {
+          perfilId: pedido.perfilId,
+          denunciaId: pedido.denunciaId,
+          categoria: pedido.categoria,
+        });
     }
   } catch (erro) {
     return traduzirRecusaSocial(erro);
@@ -65,6 +72,7 @@ function traduzirRecusaSocial(erro: unknown): never {
       throw new ErroDoRecreio("REVISAO_DIVERGENTE");
     if (erro.code === "AUTH") throw new ErroDoRecreio("SESSAO_INVALIDA");
     if (erro.code === "LIMITE_DE_CONTATOS") throw new ErroDoRecreio("MUITAS_TENTATIVAS");
+    if (erro.code === "MUITAS_TENTATIVAS") throw new ErroDoRecreio("MUITAS_TENTATIVAS");
     if (erro.code === "PERMISSAO") throw new ErroDoRecreio("SEM_PERMISSAO");
   }
   throw erro;

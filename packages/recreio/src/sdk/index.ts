@@ -11,6 +11,7 @@ import {
   type VersaoDeDadosHttp,
   VersoesDeDadosSchema,
 } from "../contrato/dados";
+import { DenunciaRecebidaSchema } from "../contrato/denuncias";
 import {
   EstadoDeSalvamentoSchema,
   type PedidoDeSalvamentoDePerfil,
@@ -415,6 +416,14 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
         method: "POST",
         token,
         corpo: MutacaoSocialSchema.parse({ ...entrada, operacao: "proteger" }),
+      });
+    },
+    async denunciar(entrada) {
+      exigirSessao();
+      return enviar("/social", DenunciaRecebidaSchema, {
+        method: "POST",
+        token,
+        corpo: MutacaoSocialSchema.parse({ ...entrada, operacao: "denunciar" }),
       });
     },
     async remover(perfilId) {

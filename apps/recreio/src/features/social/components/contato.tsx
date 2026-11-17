@@ -16,6 +16,7 @@ import {
 } from "../actions";
 import type { ContatoSupervisionado } from "../supervisao-repository";
 import { ErroSocial, useAcaoSocial } from "./acao";
+import { DenunciarContato } from "./denuncia";
 
 type Props = { perfilId: string; acesso: string; destino: string } & (
   | { tipo: "jogador"; contato: ContatoSocial; novosContatos: boolean }
@@ -202,6 +203,13 @@ export function CartaoDeContato(p: Props) {
         </p>
       )}
       <ErroSocial {...acao} destino={p.destino} acesso={p.acesso} />
+      <DenunciarContato
+        perfilId={p.perfilId}
+        alvoId={c.perfilId}
+        responsavel={p.tipo === "responsavel"}
+        destino={p.destino}
+        acesso={p.acesso}
+      />
     </article>
   );
 }

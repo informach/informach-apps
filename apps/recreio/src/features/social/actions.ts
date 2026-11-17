@@ -2,6 +2,7 @@
 import { PerfilIdSchema } from "@informach/recreio";
 import { jogadorDoAparelho } from "@/features/autoridade-de-jogo/http";
 import { autorDaFamilia } from "@/features/familia/autor";
+import { denunciarContato, denunciarContatoDoMenor } from "@/features/moderacao/denuncias-service";
 import { runAction } from "@/lib/action";
 import { assertAllowed } from "@/lib/errors";
 import {
@@ -66,4 +67,10 @@ export async function removerContatoDoMenorAction(perfilId: unknown, alvo: unkno
 }
 export async function lerAvisoDoMenorAction(perfilId: unknown, avisoId: unknown) {
   return runAction(async () => lerAvisoDoMenor(await autorDaFamilia(), perfilId, avisoId));
+}
+export async function denunciarContatoAction(perfilId: unknown, entrada: unknown) {
+  return runAction(async () => denunciarContato(await jogadorEsperado(perfilId), entrada));
+}
+export async function denunciarContatoDoMenorAction(perfilId: unknown, entrada: unknown) {
+  return runAction(async () => denunciarContatoDoMenor(await autorDaFamilia(), perfilId, entrada));
 }
