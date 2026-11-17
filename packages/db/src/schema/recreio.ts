@@ -276,6 +276,7 @@ export const recreioGameSessions = recreio.table(
   },
   (t) => [
     uniqueIndex("recreio_game_sessions_one_open").on(t.profileId).where(sql`${t.endedAt} is null`),
+    unique("recreio_game_session_identity_profile").on(t.id, t.profileId),
     index("recreio_game_sessions_ended_seq").on(t.endedSeq).where(sql`${t.endedSeq} is not null`),
     check(
       "recreio_game_sessions_end_reason",
