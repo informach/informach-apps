@@ -79,6 +79,8 @@ export const recreioMinorDailyUsage = recreio.table(
       .references(() => recreioMinorProfiles.profileId, { onDelete: "cascade" }),
     localDay: date("local_day", { mode: "string" }).notNull(),
     usedMilliseconds: integer("used_milliseconds").notNull().default(0),
+    /** Margem após o corte até o recibo; separada do orçamento de gameplay. */
+    savingMilliseconds: integer("saving_milliseconds").notNull().default(0),
     accountedUntil: time("accounted_until"),
     leaseUntil: moment("lease_until"),
     sessionId: uuid("session_id"),
@@ -94,6 +96,7 @@ export const recreioMinorDailyUsage = recreio.table(
     index("recreio_minor_usage_retention").on(t.localDay, t.profileId),
     // Limite técnico de saneamento; não presumir que todo dia local tem exatamente 24 h.
     check("recreio_minor_usage_bounds", sql`${t.usedMilliseconds} between 0 and 172800000`),
+    check("recreio_minor_saving_bounds", sql`${t.savingMilliseconds} between 0 and 172800000`),
     check(
       "recreio_minor_usage_interval",
       sql`${t.leaseUntil} is null or ${t.leaseUntil} >= ${t.accountedUntil}`,

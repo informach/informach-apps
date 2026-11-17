@@ -312,3 +312,19 @@ o pedido final real para verificar que o módulo continua montado e depois perde
 também a primeira resposta final. Só o recibo confirmado libera a desmontagem;
 reabrir exige uma única revisão/versão aceita. Essas mudanças do hospedeiro,
 conflitos e espera ampliada ainda aguardam seus gates.
+
+## Agregado e índices em preparação
+
+O próximo schema acrescenta `saving_milliseconds` ao agregado diário infantil,
+com zero inicial e limite técnico separado. O writer deve somar, uma vez por
+recibo, o intervalo entre o corte efetivo e o carimbo do recibo confirmado.
+Esse valor não entra no orçamento nem nas decisões de gameplay e não pretende
+medir entrega da resposta ao navegador. O dia é o da concessão original,
+inclusive se a margem atravessar meia-noite. Retenção continua trinta dias.
+Nenhum menor foi ativado na produção; a coluna não inventa duração histórica.
+
+Índices adicionais atendem recibos prontos por perfil/prazo e sucessores por
+perfil/cursor. A migration será gerada no GitHub sem edição manual. Aplicação
+depende do SQL revisado, gates, backup atual e inventário de linhas/volume para
+avaliar a construção do índice de sessões no PostgreSQL compartilhado. Rollback
+conserva coluna e índices; não desfazer recibos nem agregados já confirmados.

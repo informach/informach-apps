@@ -52,6 +52,9 @@ export const recreioSessionSavePermits = recreio.table(
     }).onDelete("cascade"),
     uniqueIndex("recreio_save_session").on(t.sessionId),
     index("recreio_save_retention").on(t.expiresAt, t.id),
+    index("recreio_save_pending_profile")
+      .on(t.profileId, t.expiresAt)
+      .where(sql`${t.status}='ready'`),
     check("recreio_save_policy", sql`${t.policyVersion} between 1 and 2147483646`),
     check("recreio_save_mode", sql`${t.mode} in ('profile','server')`),
     check("recreio_save_status", sql`${t.status} in ('ready','completed','conflicted','expired')`),
