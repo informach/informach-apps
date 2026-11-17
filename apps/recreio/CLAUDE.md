@@ -46,6 +46,12 @@ gates e partes ainda não integradas em [F3](../../docs/recreio/politicas-sessoe
 
 ## A base (lote P1)
 
+O salvamento final está em candidata privada, com 0177 ainda não aplicada:
+[contrato e evidências](../../docs/recreio/salvamento-restrito-2026-11-17.md).
+O SDK negocia uma capacidade exclusiva de persistência; mundos usam preparação
+e conclusão pela instância com posse atual, foto posterior e SHA conferido.
+Isso ainda não habilita pausa automática, famílias ou venda.
+
 - Conta Informach por `@informach/auth`: senha ou código por e-mail (OTP para confirmar, entrar e redefinir senha), sem organizations. Sessões no Redis (`recreio:auth:`) com o cache de cookie desligado, para que sair ou revogar valha na hora.
 - `/` (página pública do alfa), `/entrar`, `/estante` e `/conta` (as duas exigem conta com e-mail confirmado e perfil ativo, conferidos no layout e em cada página), `/termos` e `/privacidade` provisórios.
 - `src/proxy.ts` só entrega a CSP com nonce e o caminho de volta do login. A autenticação fica no servidor, em layouts, páginas e ações. A política é montada em `lib/csp.ts`.

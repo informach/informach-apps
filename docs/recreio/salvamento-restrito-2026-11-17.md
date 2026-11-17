@@ -216,3 +216,31 @@ esperado; 497 outros testes passaram. A primeira candidata `d5eedcd` falhou
 no remoto ao passar `Date` sem encoder em SQL interpolado. O corretivo usa
 comparadores de coluna do Drizzle e ISO com tipo explícito na expressão de
 intervalo. Não usar a rodada falha como evidência de autorização ou produção.
+
+## Finalização do mundo em duas fases, em candidata
+
+A API das instâncias acrescenta `salvarSessao`, separada do checkpoint de troca,
+no cliente estendido `ClienteDoHostComSalvamento`. O segredo/instância e a posse
+atuais autorizam apenas o SID já vinculado ao mundo daquele jogo. A capacidade
+restrita é derivada do recibo negociado no banco, sem expor token ao servidor do
+jogo. Perfil, aparelho, login/geração, política e sucessor continuam conferidos.
+
+`preparar` encerra gameplay uma vez e devolve o estado/prazo efetivo. Repetir
+não move o encerramento nem amplia a margem. A instância deve suspender comandos
+e esvaziar a fila antes de pedir a preparação. Depois persiste fotografia atual;
+`concluir` exige foto posterior ao encerramento, da cerca vigente, cobrindo o
+diário atual e com bytes/tamanho/SHA íntegros. A comparação de datas acontece
+no PostgreSQL, conservando a precisão dos carimbos. O checkpoint de troca usa
+o mesmo verificador de fotografia, conservando seu próprio início do pedido.
+
+Somente a prova, o recibo terminal e a auditoria confirmam juntos. Replay usa
+o mesmo hash/prova e não para os demais membros que continuaram após o commit.
+Posse e prazo são conferidos também depois da auditoria. A nova rota interna
+não aceita a credencial de navegador. As provas HTTP cobrem ambas as fases,
+replay, foto antiga/corrompida, cobertura do diário, instância/cerca incorretas,
+prazo, revogação e rollback de auditoria. Outra prova espera a posse vencer
+durante a auditoria e exige a execução do trigger antes da recusa/rollback.
+Consumidor genérico e pausa automática ainda não estão integrados nesta etapa.
+
+O consumidor do SDK `2ee5fa2` passou nos sete gates `44068901779`. A candidata
+de margem com comparadores corrigidos ainda aguarda sua rodada completa.

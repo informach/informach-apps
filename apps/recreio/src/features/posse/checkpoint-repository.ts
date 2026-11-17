@@ -1,16 +1,15 @@
 import "server-only";
-import { createHash } from "node:crypto";
-import { and, db, eq } from "@informach/db";
+import { and, db, eq, sql } from "@informach/db";
 import {
   recreioGameSessions as games,
   recreioSessionHandoffs as handoffs,
   recreioSpaceMembers as members,
-  recreioSpaceSnapshots as snapshots,
   recreioSpaces as spaces,
 } from "@informach/db/schema";
 import { ErroDoRecreio, type MundoId, PerfilIdSchema } from "@informach/recreio";
 import type { CheckpointDoHost } from "@informach/recreio/contrato";
 import { confirmarCheckpointDoJogo } from "@/features/sessao-de-jogo/checkpoint-repository";
+import { conferirFotografiaDeCheckpoint } from "./prova-fotografia";
 import { conferirConteudoDoMundo, conferirPosse } from "./repository";
 import type { Host } from "./service";
 
@@ -90,25 +89,11 @@ export async function confirmarCheckpointDoMundoNoBanco(
             throw new ErroDoRecreio("SEM_PERMISSAO");
           return prova;
         }
-        const [foto] = await tx
-          .select()
-          .from(snapshots)
-          .where(and(eq(snapshots.spaceId, mundoId), eq(snapshots.revision, entrada.revisao)));
-        if (
-          !foto ||
-          foto.fence !== entrada.cerca ||
-          foto.journalSeq !== entrada.diarioSeq ||
-          foto.journalSeq !== mundo.journalSeq ||
-          foto.createdAt < pedido.requestedAt
-        )
-          throw new ErroDoRecreio("CHECKPOINT_NECESSARIO");
-        if (
-          foto.storage !== "pg" ||
-          !foto.data ||
-          foto.data.byteLength !== foto.byteSize ||
-          createHash("sha256").update(foto.data).digest("hex") !== foto.sha256
-        )
-          throw new ErroDoRecreio("CHECKPOINT_NECESSARIO");
+        await conferirFotografiaDeCheckpoint(tx, {
+          ...prova,
+          diarioAtual: mundo.journalSeq,
+          criadaApos: sql`(select requested_at from recreio.session_handoffs where id=${pedido.id}::uuid)`,
+        });
         return prova;
       },
     },

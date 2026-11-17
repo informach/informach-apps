@@ -19,6 +19,10 @@ import { type Transacao, travar } from "@/lib/repository";
 
 type Recibo = typeof permits.$inferSelect;
 type ReciboAutorizado = { recibo: Recibo; expiraEm: Date };
+type IdentidadeAdmitida = Extract<
+  Awaited<ReturnType<typeof admitirAparelhoAtual>>,
+  { admitida: true }
+>;
 type ProvaFinal = Pick<
   Recibo,
   | "results"
@@ -28,12 +32,23 @@ type ProvaFinal = Pick<
   | "checkpointJournalSeq"
 > & { status: "completed" | "conflicted" };
 
-type OpcoesDeFinalizacao = {
+type OpcoesDeEscrita = {
   modo: "profile" | "server";
   antesDoPerfil?: (tx: Transacao) => Promise<void>;
   travarDominio?: (tx: Transacao) => Promise<void>;
   conferirFinal?: (tx: Transacao) => Promise<void>;
-  persistir: (tx: Transacao, contaId: string | null, recibo: Recibo) => Promise<ProvaFinal>;
+};
+type OpcoesDeFinalizacao = OpcoesDeEscrita & {
+  persistir: (
+    tx: Transacao,
+    contaId: string | null,
+    recibo: Recibo,
+    admissao: IdentidadeAdmitida,
+  ) => Promise<ProvaFinal>;
+};
+type OpcoesDePreparacao = OpcoesDeEscrita & {
+  modo: "server";
+  validar: (tx: Transacao, admissao: IdentidadeAdmitida) => Promise<void>;
 };
 
 /** Uma admissão comum; leitura não recebe callback de escrita nem trava o cursor global. */
@@ -41,6 +56,7 @@ async function executarComRecibo(
   capacidade: SalvamentoVerificado,
   opcoes:
     | { operacao: "consultar"; modo: "profile" | "server" }
+    | (OpcoesDePreparacao & { operacao: "preparar" })
     | (OpcoesDeFinalizacao & { operacao: "concluir"; hashDoPedido: string }),
 ): Promise<ReciboAutorizado> {
   const resultado = await db.transaction(async (tx) => {
@@ -64,10 +80,10 @@ async function executarComRecibo(
       expiraEm: capacidade.expiraEm,
     };
     const identidade = await prepararIdentidadeDoJogo(tx, referencia);
-    if (opcoes.operacao === "concluir") await opcoes.antesDoPerfil?.(tx);
+    if (opcoes.operacao !== "consultar") await opcoes.antesDoPerfil?.(tx);
     const admissao = await admitirAparelhoAtual(tx, referencia, identidade, async (t) => {
       await travar(t, `recreio:game_sessions:perfil:${capacidade.perfilId}`);
-      if (opcoes.operacao === "concluir") {
+      if (opcoes.operacao !== "consultar") {
         await opcoes.travarDominio?.(t);
         await travarEncerramentos(t);
       }
@@ -77,18 +93,19 @@ async function executarComRecibo(
       .select()
       .from(games)
       .where(eq(games.id, capacidade.sid))
-      .for(opcoes.operacao === "concluir" ? "update" : "share");
+      .for(opcoes.operacao === "consultar" ? "share" : "update");
     const [recibo] = await tx
       .select()
       .from(permits)
       .where(eq(permits.id, capacidade.reciboId))
-      .for(opcoes.operacao === "concluir" ? "update" : "share");
+      .for(opcoes.operacao === "consultar" ? "share" : "update");
+    let encerradaEm = jogo?.endedAt ?? null;
     const conferirPrazo = async () => {
       const agora = await admissao.conferirPrazo();
       if (
         !recibo ||
         recibo.expiresAt <= agora ||
-        (jogo?.endedAt && jogo.endedAt.getTime() + 30_000 <= agora.getTime())
+        (encerradaEm && encerradaEm.getTime() + 30_000 <= agora.getTime())
       )
         throw new ErroDoRecreio("SESSAO_INVALIDA");
       return agora;
@@ -112,7 +129,7 @@ async function executarComRecibo(
     )
       throw new ErroDoRecreio("SESSAO_INVALIDA");
     const autorizado = (atual: Recibo): ReciboAutorizado => {
-      const terminouEm = jogo.endedAt ?? atual.finishedAt;
+      const terminouEm = encerradaEm ?? atual.finishedAt;
       return {
         recibo: atual,
         expiraEm: new Date(
@@ -147,13 +164,33 @@ async function executarComRecibo(
       await conferirPrazo();
       return { admitida: true as const, valor: autorizado(recibo) };
     }
+    if (opcoes.operacao === "preparar") {
+      await opcoes.validar(tx, admissao);
+      if (recibo.status === "ready") {
+        await encerrarSessoesAbertas(
+          tx,
+          sql`${games.id}=${jogo.id}`,
+          agora >= recibo.cutoffAt ? "expired" : "left",
+          { porQuem: "recreio" },
+        );
+        const [encerrada] = await tx
+          .select({ endedAt: games.endedAt })
+          .from(games)
+          .where(eq(games.id, capacidade.sid));
+        if (!encerrada?.endedAt) throw new ErroDoRecreio("SESSAO_INVALIDA");
+        encerradaEm = encerrada.endedAt;
+      }
+      await opcoes.conferirFinal?.(tx);
+      await conferirPrazo();
+      return { admitida: true as const, valor: autorizado(recibo) };
+    }
     if (recibo.status !== "ready") {
       if (recibo.requestHash !== opcoes.hashDoPedido) throw new ErroDoRecreio("FATO_DUPLICADO");
       await opcoes.conferirFinal?.(tx);
       await conferirPrazo();
       return { admitida: true as const, valor: autorizado(recibo) };
     }
-    const prova = await opcoes.persistir(tx, admissao.contaId, recibo);
+    const prova = await opcoes.persistir(tx, admissao.contaId, recibo, admissao);
     const fim = await conferirPrazo();
     const motivo =
       jogo.endReason === "access_lost" ? "access" : agora >= recibo.cutoffAt ? "time" : "manual";
@@ -194,13 +231,13 @@ export async function concluirSalvamentoNoBanco(
   capacidade: SalvamentoVerificado,
   hashDoPedido: string,
   opcoes: OpcoesDeFinalizacao,
-): Promise<Recibo> {
+): Promise<ReciboAutorizado> {
   const resultado = await executarComRecibo(capacidade, {
     ...opcoes,
     operacao: "concluir",
     hashDoPedido,
   });
-  return resultado.recibo;
+  return resultado;
 }
 
 /** Estado técnico do próprio recibo; não devolve hashes, bytes ou conteúdo do mundo. */
@@ -209,4 +246,12 @@ export function lerReciboDeSalvamento(
   modo: "profile" | "server",
 ) {
   return executarComRecibo(capacidade, { operacao: "consultar", modo });
+}
+
+/** Encerra gameplay uma vez, fixando o início da margem e a data mínima da fotografia. */
+export function prepararSalvamentoNoBanco(
+  capacidade: SalvamentoVerificado,
+  opcoes: OpcoesDePreparacao,
+) {
+  return executarComRecibo(capacidade, { ...opcoes, operacao: "preparar" });
 }

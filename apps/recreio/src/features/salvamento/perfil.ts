@@ -37,7 +37,7 @@ export async function finalizarDadosDoPerfil(
     .update("recreio:final-save:v1\0")
     .update(JSON.stringify(pedido))
     .digest("hex");
-  const recibo = await concluirSalvamentoNoBanco(capacidade, hash, {
+  const { recibo } = await concluirSalvamentoNoBanco(capacidade, hash, {
     modo: "profile",
     travarDominio: (tx) => travar(tx, `dados-perfil:${capacidade.perfilId}:${capacidade.jogo}`),
     persistir: async (tx, contaId) => {
