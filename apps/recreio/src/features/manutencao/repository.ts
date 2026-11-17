@@ -3,6 +3,27 @@ import { db, sql } from "@informach/db";
 
 export const LOTE_DE_CONVITES_ANTIGOS = 500;
 export const LOTE_DE_INTENCOES_ANTIGAS = 500;
+export const LOTE_DE_SALVAMENTOS_ANTIGOS = 500;
+
+/** Recibos técnicos após 24 h do prazo. Não altera sessões, dados ou barreiras. */
+export async function apagarSalvamentosAntigos() {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`set local statement_timeout='5s'`);
+    await tx.execute(sql`set local lock_timeout='1s'`);
+    await tx.execute(sql`set local transaction_timeout='15s'`);
+    const [resultado] = await tx.execute<{ apagados: number }>(sql`
+      with lote as (
+        select id from recreio.session_save_permits where expires_at<=statement_timestamp()-interval '1 day'
+        order by expires_at,id limit ${LOTE_DE_SALVAMENTOS_ANTIGOS} for update skip locked
+      ), removidos as (
+        delete from recreio.session_save_permits p using lote l
+        where p.id=l.id and p.expires_at<=statement_timestamp()-interval '1 day' returning 1
+      ) select count(*)::integer as apagados from removidos
+    `);
+    if (!resultado) throw new Error("A limpeza dos recibos não devolveu sua contagem.");
+    return resultado.apagados;
+  });
+}
 
 export const SQL_LIMPAR_CADASTROS_PENDENTES = sql`
   with lote as (

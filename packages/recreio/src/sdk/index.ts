@@ -12,6 +12,14 @@ import {
   VersoesDeDadosSchema,
 } from "../contrato/dados";
 import {
+  EstadoDeSalvamentoSchema,
+  type PedidoDeSalvamentoDePerfil,
+  PedidoDeSalvamentoDePerfilSchema,
+  type ResultadoDeSalvamento,
+  ResultadoDeSalvamentoSchema,
+  type SalvamentoDaSessao,
+} from "../contrato/salvamento";
+import {
   ConfirmacaoDeCheckpointSchema,
   ControleDaSessaoSchema,
   ConviteCriadoSchema,
@@ -61,6 +69,8 @@ export type OpcoesDoRecreio = {
   continuarAqui?: boolean;
   /** Só ativar depois dos leitores do recibo no servidor. Não persiste a prova. */
   recuperarAbertura?: boolean;
+  /** Negocia a capacidade restrita; somente após implantação dos seus leitores/escritores. */
+  salvamentoRestrito?: boolean;
   /** Aguarda o ACK de outro aparelho, conservando o mesmo ingresso e prova. */
   aguardarCheckpoint?: boolean;
   aoAguardarCheckpoint?: () => void;
@@ -118,10 +128,12 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       ingresso,
       ...(opcoes.continuarAqui === undefined ? {} : { continuarAqui: opcoes.continuarAqui }),
       ...(chaveDeTroca === undefined ? {} : { chaveDeTroca }),
+      ...(opcoes.salvamentoRestrito ? { suportaSalvamento: true } : {}),
     },
   } as const;
   const aberta = await (async () => {
-    const fimDaEspera = agora() + 30_000;
+    const inicioDaEspera = agora();
+    let fimDaEspera = inicioDaEspera + 30_000;
     let recuperacaoTentada = false;
     for (let tentativa = 0; ; tentativa++) {
       try {
@@ -132,6 +144,8 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
           Math.max(1, Math.min(TEMPO_LIMITE_DO_PEDIDO_MS, fimDaEspera - agora())),
         );
       } catch (erro) {
+        if (ehErroDoRecreio(erro, "CHECKPOINT_PENDENTE") && erro.detalhe.motivo === "saving")
+          fimDaEspera = inicioDaEspera + 35_000;
         // Somente este pedido tem recibo/prova: repetir preserva ingresso e SID.
         if (chaveDeTroca && !recuperacaoTentada && ehErroDoRecreio(erro, "INDISPONIVEL")) {
           recuperacaoTentada = true;
@@ -139,11 +153,11 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
         }
         if (
           !chaveDeTroca ||
-          !opcoes.continuarAqui ||
           !opcoes.aguardarCheckpoint ||
-          tentativa >= 20 ||
+          tentativa >= 35 ||
           !ehErroDoRecreio(erro, "CHECKPOINT_PENDENTE") ||
-          !["requested", "pending", "confirmed"].includes(String(erro.detalhe.motivo)) ||
+          (!opcoes.continuarAqui && erro.detalhe.motivo !== "saving") ||
+          !["requested", "pending", "confirmed", "saving"].includes(String(erro.detalhe.motivo)) ||
           agora() + 1000 >= fimDaEspera
         )
           throw erro;
@@ -157,6 +171,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
 
   let token = aberta.token;
   let expiraEm = aberta.expiraEm;
+  let capacidadeDeSalvamento = opcoes.salvamentoRestrito ? aberta.salvamento : undefined;
   /** Depois de sair ou de perder o acesso, nada mais é renovado. */
   let encerrada = false;
   let saidaConfirmada = false;
@@ -203,9 +218,18 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
         Math.min(TEMPO_LIMITE_DO_PEDIDO_MS, restante),
       );
       if (encerrada) return;
+      const prazoAnterior = expiraEm;
       token = renovada.token;
       expiraEm = renovada.expiraEm;
-      if (!renovacaoSuspensa) agendarPelaValidade();
+      if (opcoes.salvamentoRestrito && renovada.salvamento)
+        capacidadeDeSalvamento = renovada.salvamento;
+      if (!renovacaoSuspensa) {
+        if (Date.parse(expiraEm) <= Date.parse(prazoAnterior))
+          // Um limite que não avançou encerra no prazo já confirmado. Fracionar
+          // o restante repetidamente produz uma tempestade perto do vencimento.
+          agendarRenovacao(Date.parse(expiraEm) - agora());
+        else agendarPelaValidade();
+      }
       for (const ouvinte of [...aoRenovar]) ouvinte(token);
     } catch (erro) {
       if (encerrada) return;
@@ -245,6 +269,79 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   });
   const consultaDeDados = (chave: string, historico = false) =>
     `/dados?${new URLSearchParams({ chave: ChaveDeDadosSchema.parse(chave), ...(historico ? { historico: "1" } : {}) })}`;
+
+  let finalizacao: {
+    corpo: PedidoDeSalvamentoDePerfil;
+    texto: string;
+    promessa: Promise<ResultadoDeSalvamento> | null;
+    resultado: ResultadoDeSalvamento | null;
+  } | null = null;
+  function exigirCapacidadeDeSalvamento() {
+    if (!capacidadeDeSalvamento) throw new ErroDoRecreio("SEM_PERMISSAO");
+    return capacidadeDeSalvamento;
+  }
+  const salvamento: SalvamentoDaSessao = {
+    parar,
+    async estado() {
+      const estado = await enviar("/sessao/salvamento", EstadoDeSalvamentoSchema, {
+        method: "GET",
+        token: exigirCapacidadeDeSalvamento().token,
+      });
+      if (estado.estado !== "ready") {
+        parar();
+        saidaConfirmada = true;
+      }
+      return estado;
+    },
+    async finalizarDados(dados) {
+      exigirCapacidadeDeSalvamento();
+      if (
+        dados.length > LIMITES_DOS_DADOS.chaves ||
+        dados.some((dado) => dado.dados.byteLength > LIMITES_DOS_DADOS.bytesPorVersao)
+      )
+        throw new ErroDoRecreio("TAMANHO_EXCEDIDO");
+      const corpo = PedidoDeSalvamentoDePerfilSchema.parse({
+        dados: dados.map((dado) => ({
+          operacao: "gravar",
+          chave: dado.chave,
+          revisao: dado.revisao,
+          conteudo: bytesParaBase64(dado.dados),
+        })),
+      });
+      corpo.dados.sort((a, b) => (a.chave < b.chave ? -1 : a.chave > b.chave ? 1 : 0));
+      const texto = JSON.stringify(corpo);
+      if (finalizacao && finalizacao.texto !== texto) throw new ErroDoRecreio("FATO_DUPLICADO");
+      finalizacao ??= { corpo, texto, promessa: null, resultado: null };
+      const tentativa = finalizacao;
+      if (tentativa.resultado) return ResultadoDeSalvamentoSchema.parse(tentativa.resultado);
+      if (tentativa.promessa) return tentativa.promessa;
+      parar();
+      const concluir = async () => {
+        for (let repeticao = 0; ; repeticao++) {
+          try {
+            const resultado = await enviar("/sessao/salvamento", ResultadoDeSalvamentoSchema, {
+              method: "POST",
+              token: exigirCapacidadeDeSalvamento().token,
+              corpo: tentativa.corpo,
+            });
+            tentativa.resultado = ResultadoDeSalvamentoSchema.parse(resultado);
+            saidaConfirmada = true;
+            return ResultadoDeSalvamentoSchema.parse(resultado);
+          } catch (erro) {
+            // Esta escrita tem recibo próprio: só uma recuperação com o lote idêntico.
+            if (repeticao > 0 || !ehErroDoRecreio(erro, "INDISPONIVEL")) throw erro;
+          }
+        }
+      };
+      const promessa = concluir();
+      tentativa.promessa = promessa;
+      try {
+        return await promessa;
+      } finally {
+        if (tentativa.promessa === promessa) tentativa.promessa = null;
+      }
+    },
+  };
 
   return {
     dados: {
@@ -305,6 +402,9 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
     perfil: aberta.perfil,
     politica: aberta.politica,
     sessao: {
+      get salvamento() {
+        return capacidadeDeSalvamento ? salvamento : undefined;
+      },
       async controle() {
         exigirSessao();
         const controle = await enviar("/sessao/controle", ControleDaSessaoSchema, {
@@ -392,6 +492,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
     },
     mundos: {
       async listar() {
+        exigirSessao();
         const consulta = new URLSearchParams({ jogo: opcoes.jogo });
         const lista = await enviar(`/mundos?${consulta}`, ListaDeMundosSchema, {
           method: "GET",
@@ -399,14 +500,22 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
         });
         return lista.mundos;
       },
-      criar: (novo) => enviar("/mundos", MundoRefSchema, { method: "POST", token, corpo: novo }),
-      abrir: (id) => enviar(`${mundo(id)}/abrir`, MundoAbertoSchema, { method: "POST", token }),
-      convidar: (id, convite) =>
-        enviar(`${mundo(id)}/convites`, ConviteCriadoSchema, {
+      async criar(novo) {
+        exigirSessao();
+        return enviar("/mundos", MundoRefSchema, { method: "POST", token, corpo: novo });
+      },
+      async abrir(id) {
+        exigirSessao();
+        return enviar(`${mundo(id)}/abrir`, MundoAbertoSchema, { method: "POST", token });
+      },
+      async convidar(id, convite) {
+        exigirSessao();
+        return enviar(`${mundo(id)}/convites`, ConviteCriadoSchema, {
           method: "POST",
           token,
           corpo: convite,
-        }),
+        });
+      },
     },
   };
 }

@@ -68,3 +68,47 @@ test("conflito real é preservado e a pessoa escolhe a cópia no navegador", asy
     await pessoa.contexto.close();
   }
 });
+
+test("reabrir conserva o conflito e exige escolher a versão que vai continuar", async ({
+  browser,
+}) => {
+  const pessoa = await novaPessoa(browser, "Versões ao voltar");
+  const { page } = pessoa;
+  try {
+    const leitura = page.waitForRequest(
+      (pedido) =>
+        new URL(pedido.url()).pathname === "/api/sdk/v1/dados" && pedido.method() === "GET",
+    );
+    await page.goto("/jogar/perfil-teste");
+    const autorizacao = (await leitura).headers().authorization;
+    if (!autorizacao) throw new Error("Sessão do SDK ausente");
+    await expect(page.getByRole("button", { name: "Ganhar ponto" })).toBeEnabled();
+    expect(
+      (
+        await pessoa.contexto.request.post("/api/sdk/v1/dados", {
+          headers: { authorization: autorizacao },
+          data: { operacao: "gravar", chave: "pontos", revisao: 0, conteudo: "Nw==" },
+        })
+      ).status(),
+    ).toBe(200);
+    await page.getByRole("button", { name: "Ganhar ponto" }).click();
+    await expect(page.getByRole("status", { name: "Estado do progresso" })).toContainText(
+      "Seus pontos foram preservados",
+    );
+    await page.goto("/estante");
+    await page.goto("/jogar/perfil-teste");
+    await expect(page.getByRole("button", { name: "Ganhar ponto" })).toBeDisabled();
+    await expect(page.getByLabel("Versões preservadas")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Usar versão selecionada" })).toBeDisabled();
+    await page.getByLabel("Versões preservadas").selectOption({ label: "Versão 1: 1 ponto" });
+    await page.getByRole("button", { name: "Usar versão selecionada" }).click();
+    await expect(page.getByRole("status", { name: "Estado do progresso" })).toHaveText(
+      "Versão escolhida e salva.",
+    );
+    await expect(page.getByLabel("Pontos salvos")).toHaveText("1");
+    await page.getByRole("button", { name: "Salvar e sair" }).click();
+    await expect(page).toHaveURL(/\/estante$/);
+  } finally {
+    await pessoa.contexto.close();
+  }
+});

@@ -80,6 +80,11 @@ São bases de implementação; não declarar parecer jurídico ou homologação 
 
 ## Execução atual
 
+O incremento de adultos e cobertura de F1 tem
+[plano próprio](grupos-adultos-2026-11-17.md), sem misturar sua futura migration
+à qualificação do salvamento restrito. Não há convite comercial de adultos
+homologado por esse documento.
+
 Primeiro subprojeto: [SDK e dados de perfil](dados-de-perfil-2026-11-16.md).
 Em 17/11, [checkpoint e troca](checkpoint-sessoes-2026-11-17.md) e
 [avisos de tempo](avisos-tempo-2026-11-17.md) avançam em candidatas. Os gates,

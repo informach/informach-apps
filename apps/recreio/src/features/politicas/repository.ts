@@ -24,6 +24,7 @@ import { agoraDoBanco, autoridadeDoMenor } from "@/features/protecao/autoridade-
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/encerramento-repository";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
+import { lerUsoRecente } from "./uso-repository";
 
 const calendario = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
@@ -178,9 +179,10 @@ export async function lerSupervisao(autor: IdentidadeNativa, perfilId: PerfilId)
     const nativa = await autorizarContaNativa(tx, autor);
     const menor = await autoridadeDoMenor(tx, perfilId, autor.contaId, "update");
     const atual = await atualizarPoliticaEfetiva(tx, perfilId);
+    const usoRecente = await lerUsoRecente(tx, perfilId, await agoraDoBanco(tx));
     await menor.conferirPrazo();
     await nativa.conferirPrazo();
-    return visaoDaSupervisao(atual);
+    return { ...visaoDaSupervisao(atual), usoRecente };
   });
 }
 

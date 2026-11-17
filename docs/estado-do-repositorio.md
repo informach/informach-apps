@@ -25,6 +25,11 @@ implantou a fonte funcional `f4a8a15`, após sete gates e CI compartilhado:
 API/consumidor genérico de checkpoint de mundo e aviso de dez minutos.
 Os dois modos seguem `off`; 0177 e o salvamento restrito continuam privados.
 F3 e F4–F11 ainda não concluídos.
+O salvamento restrito avançou em candidatas privadas até `2653749`, com sete
+gates (`44078037674`): capacidade própria, finalização de perfil/mundo, host
+que exige recibo, agregado separado, supervisão e retenção. 0177/0178 não
+foram aplicadas. Pausa pela previsão e ensaio infantil de um minuto real estão
+em qualificação; [registro](recreio/salvamento-restrito-2026-11-17.md).
 Preservar o Morada
 World2/protocolo1 público; a main local do checkout original contém D3 e não
 pode ser enviada diretamente. Continuar F0–F11 do registro, sem anunciar fechamento.

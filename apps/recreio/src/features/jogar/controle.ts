@@ -8,12 +8,18 @@ export function observarTrocaDaPartida(
   montado: JogoMontado,
   aoAvisar: (aviso: AvisoDaTroca | null) => void,
   aoFalhar: (erro: unknown) => void,
+  aoCortar?: (motivo: "daily_limit" | "schedule" | "day_change") => void,
 ): () => void {
   let cancelado = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let processado: string | null = null;
   let ackSemResposta = false;
   let avisandoTempo = false;
+  let pausa: ReturnType<typeof setTimeout> | null = null;
+  const cancelarPausa = () => {
+    if (pausa !== null) clearTimeout(pausa);
+    pausa = null;
+  };
   const avisar = (aviso: AvisoDaTroca | null) => {
     if (!cancelado) aoAvisar(aviso);
   };
@@ -25,8 +31,34 @@ export function observarTrocaDaPartida(
 
   async function consultar() {
     try {
+      const inicio = performance.now();
       const controle = await contexto.sessao.controle();
       if (cancelado) return;
+      cancelarPausa();
+      if (
+        !controle.pausada &&
+        controle.checkpoint === null &&
+        contexto.sessao.salvamento &&
+        montado.finalizar &&
+        aoCortar &&
+        controle.tempo?.pausaEm &&
+        controle.tempo.motivo &&
+        controle.tempo.motivo !== "paused"
+      ) {
+        const motivo = controle.tempo.motivo;
+        // A concessão assinada usa segundos inteiros; a previsão mantém a
+        // precisão do orçamento e pode ficar uma fração de segundo depois.
+        const corte = Math.floor(Date.parse(controle.tempo.pausaEm) / 1000) * 1000;
+        const faltam = corte - Date.parse(controle.agora);
+        if (faltam <= 600_000)
+          pausa = setTimeout(
+            () => {
+              pausa = null;
+              if (!cancelado) aoCortar(motivo);
+            },
+            Math.max(0, faltam - (performance.now() - inicio)),
+          );
+      }
       if (!controle.pausada && controle.checkpoint === null && !ackSemResposta) {
         const faltam = controle.tempo?.pausaEm
           ? Date.parse(controle.tempo.pausaEm) - Date.parse(controle.agora)
@@ -110,6 +142,7 @@ export function observarTrocaDaPartida(
         erro.codigo !== "MUITAS_TENTATIVAS"
       ) {
         cancelado = true;
+        cancelarPausa();
         aoFalhar(erro);
         return;
       }
@@ -129,6 +162,7 @@ export function observarTrocaDaPartida(
   void consultar();
   return () => {
     cancelado = true;
+    cancelarPausa();
     if (timer !== null) clearTimeout(timer);
   };
 }

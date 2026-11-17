@@ -75,6 +75,9 @@ describe("estado da página do jogo", () => {
 
 describe("motivo de uma parada", () => {
   it.each<[ErroDoRecreio, Parada]>([
+    [new ErroDoRecreio("ACESSO_PERDIDO", { motivo: "daily_limit" }), "fim_do_tempo"],
+    [new ErroDoRecreio("ACESSO_NEGADO", { motivo: "schedule" }), "fora_do_horario"],
+    [new ErroDoRecreio("ACESSO_PERDIDO", { motivo: "day_change" }), "novo_dia"],
     [new ErroDoRecreio("NAO_AUTENTICADO"), "sem_login"],
     [new ErroDoRecreio("SEM_PERFIL"), "sem_login"],
     [new ErroDoRecreio("ACESSO_NEGADO", { estado: "ENCERRADO" }), "sem_acesso"],

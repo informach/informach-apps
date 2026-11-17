@@ -2,6 +2,7 @@ import { PerfilIdSchema } from "@informach/recreio";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SupervisaoDoPerfil } from "@/features/politicas/components/supervisao";
+import { UsoRecenteDoPerfil } from "@/features/politicas/components/uso-recente";
 import { consultarSupervisao } from "@/features/politicas/service";
 import { paginaDaGestao } from "@/features/sessao/ator";
 import { AppError } from "@/lib/errors";
@@ -50,6 +51,7 @@ export default async function Supervisao({
         faixa={pagina.politica.faixaDaIdade}
         adolescente={pagina.politica.faixaSocial === "13_17"}
       />
+      <UsoRecenteDoPerfil dias={pagina.usoRecente} />
       <Link href="/conta/perfis" className="mt-3 inline-block font-bold text-ceu underline">
         Voltar aos perfis
       </Link>

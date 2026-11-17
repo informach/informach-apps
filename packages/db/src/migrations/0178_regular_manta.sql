@@ -1,0 +1,4 @@
+ALTER TABLE "recreio"."minor_daily_usage" ADD COLUMN "saving_milliseconds" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+CREATE INDEX "recreio_game_sessions_profile_ended" ON "recreio"."game_sessions" USING btree ("profile_id","ended_seq");--> statement-breakpoint
+CREATE INDEX "recreio_save_pending_profile" ON "recreio"."session_save_permits" USING btree ("profile_id","expires_at") WHERE "recreio"."session_save_permits"."status"='ready';--> statement-breakpoint
+ALTER TABLE "recreio"."minor_daily_usage" ADD CONSTRAINT "recreio_minor_saving_bounds" CHECK ("recreio"."minor_daily_usage"."saving_milliseconds" between 0 and 172800000);
