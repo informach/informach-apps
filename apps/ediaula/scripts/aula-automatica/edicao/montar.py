@@ -165,6 +165,9 @@ for gi, g in enumerate(gestos):
         if t0 < 3.0:
             continue  # coberto pela abertura
         alvo = regs_g[0]["alvo"] if regs_g else None
+        if not alvo and g.get("x") is not None:
+            # Botão sem contorno registrado (o clique veio depois do último registro): o ponto do gesto.
+            alvo = [g["x"] - 80, g["y"] - 22, g["x"] + 80, g["y"] + 22]
         if alvo:
             zoom(t0 - 0.3, t1 + 0.8, alvo, f"zoom no botão ({v})")
             bx, by = centro(alvo)
@@ -225,13 +228,28 @@ for gi, g in enumerate(gestos):
     if campo and v.startswith("abrir campo"):
         # Campo pequeno dentro do bloco (menu de escolha, valor, texto, variável): sem escurecer.
         destaque(ta - 0.3, 1.6, campo, f"destaque no campo ({v[:40]})", pad=6, alvo=f"campo {v}")
+        # Zoom no bloco do campo (clicar e escrever se leem de perto). Se a mão arrastou a área antes para
+        # achar o campo, as coordenadas mudaram: outro zoom. No mesmo lugar, o zoom aberto continua.
+        perto_do_campo = next((r["bloco"] for r in regs_g if r["fazer"] == "clicar" and r["tag"] == "g" and r.get("bloco")), campo)
+        rolou = any(r["fazer"] == "arrastar" for r in regs_g)
+        if (not rolou and grupo and grupo.get("tipo") == "bloco" and ta - grupo["fim"] < 2.5
+                and abs(centro(perto_do_campo)[0] - centro(grupo["caixa"])[0]) < 0.25):
+            c0 = grupo["caixa"]
+            grupo["caixa"] = [min(c0[0], perto_do_campo[0]), min(c0[1], perto_do_campo[1]),
+                              max(c0[2], perto_do_campo[2]), max(c0[3], perto_do_campo[3])]
+            grupo["fim"] = max(grupo["fim"], t1 + 1.0)
+        else:
+            grupo = {"tipo": "bloco", "ini": ta - 0.6, "fim": t1 + 1.0, "caixa": perto_do_campo}
+            cmds.append({"tool": "_zoom_bloco", "grupo": grupo})
         continue
     if v.startswith("escolher"):
-        # A lista que abre entra no enquadramento do zoom do bloco (o item escolhido não fica cortado).
+        # A lista que abre entra no enquadramento do zoom do bloco (o item escolhido não fica cortado). Num
+        # campo de texto (sem lista), o zoom fica aberto enquanto a mão escreve.
         lista = next((r["alvo"] for r in regs_g if r["tag"] == "DIV"), None)
-        if lista and grupo and grupo.get("tipo") == "bloco":
-            c0 = grupo["caixa"]
-            grupo["caixa"] = [min(c0[0], lista[0]), min(c0[1], lista[1]), max(c0[2], lista[2]), max(c0[3], lista[3])]
+        if grupo and grupo.get("tipo") == "bloco":
+            if lista:
+                c0 = grupo["caixa"]
+                grupo["caixa"] = [min(c0[0], lista[0]), min(c0[1], lista[1]), max(c0[2], lista[2]), max(c0[3], lista[3])]
             grupo["fim"] = max(grupo["fim"], t1 + 1.0)
         continue
     if caixa:
@@ -368,6 +386,13 @@ for k, c in enumerate(caixas_cat):
         i["duration"] = round(max(0.5, prox["at"] - i["at"]), 2)
     else:
         i["duration"] = 1.5
+# Nada passa do fim da aula (a última fala e o clique final): um zoom ou balão além dele esticaria a aula.
+FIM_AULA = max(t["fim"] for t in dec["trechos"]) + 1.2
+final = [c for c in final if c["input"].get("at", 0) < FIM_AULA - 0.5]
+for c in final:
+    i = c["input"]
+    if "duration" in i and i.get("at", 0) + i["duration"] > FIM_AULA:
+        i["duration"] = round(FIM_AULA - i["at"], 2)
 # Nada por cima da animação (destaques e caixas que começam nela saem; os que entram nela acabam antes).
 final = [c for c in final if not any(a - 0.05 <= c["input"].get("at", -9) < b for a, b in ANIM)]
 for c in final:

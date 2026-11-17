@@ -285,6 +285,26 @@ export function packedLinks(raw: unknown, folder: string): unknown {
   };
 }
 
+/** Where the packed project is pictured while it is checked before writing (never touched). */
+const CHECK_FOLDER = "C:\\pacote";
+
+/**
+ * The packed project as it is written into the package. The links point at media/ (a relative
+ * path, which the project's schema refuses on its own): the project is checked as it will be read
+ * back, with the links resolved inside a package folder (packedLinks), and written with them still
+ * pointing at media/. `parse` is the project's schema.
+ */
+export function packedForArchive(project: Project, parse: (raw: unknown) => Project): Project {
+  const checked = parse(packedLinks(project, CHECK_FOLDER));
+  return {
+    ...checked,
+    assets: checked.assets.map((a, i) => {
+      const link = project.assets[i]?.link;
+      return link ? { ...a, link } : a;
+    }),
+  };
+}
+
 /**
  * The packed project with its paths inside `folder` again (absolute, Windows separators). A
  * package comes from someone else: the caches it may carry are deleted (they are made again

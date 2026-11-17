@@ -122,7 +122,7 @@ import { cancelKey, detectScreenColor, grabFrame, renderKeyed } from "./keying.t
 import { getLearning, recordLearning } from "./learning.ts";
 import { lessonFile } from "./lessonFile.ts";
 import { libraryFile, listLibrary, saveLibrary } from "./library.ts";
-import { isDevicePath, linkedFilesDetail, outsideFolder } from "./linkedFiles.ts";
+import { assetReferences, isDevicePath, linkedFilesDetail, outsideFolder } from "./linkedFiles.ts";
 import { measureLoudness } from "./loudness.ts";
 import { CHECK_CLIENT } from "./mcpGuard.ts";
 import { startMcpServer } from "./mcpServer.ts";
@@ -1114,38 +1114,7 @@ function registerIpc(): void {
     const project = await openProject(path);
     if (!Array.isArray(project.assets) || project.assets.length > 5000)
       throw new Error("O projeto contém um catálogo de mídia inválido ou excessivamente grande.");
-    const references: string[] = [];
-    for (const asset of project.assets) {
-      if (!asset || typeof asset !== "object") throw new Error("Referência de mídia inválida.");
-      const fields: [object, string][] = [
-        "path",
-        "thumb",
-        "proxy",
-        "waveform",
-        "transcript",
-        "cursor",
-        "keyed",
-        "motion",
-        "guidedRun",
-      ].map((field) => [asset, field]);
-      // The treated voice (shared/voiceChain.ts) is played and exported in place of the path,
-      // and the filmstrip is drawn under the clips on the timeline.
-      for (const nested of ["treated", "filmstrip"]) {
-        const owner: unknown = Reflect.get(asset, nested);
-        if (owner && typeof owner === "object") fields.push([owner, "path"]);
-      }
-      // Every sheet of the filmstrip, not only the first.
-      const strip: unknown = Reflect.get(asset, "filmstrip");
-      const sheets: unknown = strip && typeof strip === "object" && Reflect.get(strip, "sheets");
-      if (Array.isArray(sheets)) for (const i of sheets.keys()) fields.push([sheets, String(i)]);
-      for (const [owner, field] of fields) {
-        const value: unknown = Reflect.get(owner, field);
-        if (value === undefined || value === "") continue;
-        if (typeof value !== "string" || value.length > 32768)
-          throw new Error("Caminho de mídia inválido.");
-        references.push(value);
-      }
-    }
+    const references = assetReferences(project.assets);
     // The voice files exported for the presenter's video are read again to place the MP4s that come
     // back.
     const masters: unknown = Reflect.get(project, "voiceMasters");
