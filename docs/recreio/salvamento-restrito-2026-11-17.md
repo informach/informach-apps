@@ -128,3 +128,10 @@ corpo divergente, conflito, aparelho/política/sucessor/barreira, tipo incorreto
 recibo de outro SID, falha de auditoria e espera atravessando o prazo. A prova
 de espera usa uma sequence descartável para comprovar que o trigger foi
 executado antes da recusa, mesmo após rollback. Ainda sem gates deste writer.
+
+Na rodada `3a83891`/`44063593446`, a integração passou, mas a compilação dos
+demais gates parou porque a fixture de revogação usava um campo das concessões
+na tabela de aparelhos. A fixture deve mudar somente `revokedAt`; não alterar
+o schema para acomodar o teste. A candidata também limita a margem a trinta
+segundos de um encerramento antecipado, mesmo quando a concessão assinada iria
+até mais tarde. Nova prova de HTTP cobre esse fato. Nova rodada completa pendente.

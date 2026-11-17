@@ -78,7 +78,12 @@ export async function concluirSalvamentoNoBanco(
       .for("update");
     const conferirPrazo = async () => {
       const agora = await admissao.conferirPrazo();
-      if (!recibo || recibo.expiresAt <= agora) throw new ErroDoRecreio("SESSAO_INVALIDA");
+      if (
+        !recibo ||
+        recibo.expiresAt <= agora ||
+        (jogo?.endedAt && jogo.endedAt.getTime() + 30_000 <= agora.getTime())
+      )
+        throw new ErroDoRecreio("SESSAO_INVALIDA");
       return agora;
     };
     const agora = await conferirPrazo();

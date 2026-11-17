@@ -168,7 +168,7 @@ describe("persistência final com capacidade restrita", () => {
       if (tipo === "aparelho")
         await db
           .update(devices)
-          .set({ revokedAt: new Date(), revokeReasonCode: "manual" })
+          .set({ revokedAt: new Date() })
           .where(eq(devices.id, r.pessoa.ator.sessaoDeAparelhoId));
       else if (tipo === "politica")
         await db
@@ -225,6 +225,38 @@ describe("persistência final com capacidade restrita", () => {
         .select()
         .from(versions)
         .where(and(eq(versions.profileId, outra.sessao.perfilId), eq(versions.gameId, JOGO))),
+    ).toHaveLength(0);
+  });
+  it("encerramento antecipado também limita a margem a trinta segundos", async () => {
+    const r = await preparar();
+    const agora = new Date();
+    const inicio = new Date(agora.getTime() - 60_000);
+    const fim = new Date(Math.floor(agora.getTime() / 1000) * 1000 + 30_000);
+    const { emissor } = await chavesDoRecreio();
+    const capacidade = await emissor.salvamento({
+      ...r.sessao,
+      reciboId: r.id,
+      agora: inicio,
+      fimDaConcessao: fim,
+    });
+    await db
+      .update(permits)
+      .set({ createdAt: inicio, renewedAt: inicio, cutoffAt: fim, expiresAt: capacidade.expiraEm })
+      .where(eq(permits.id, r.id));
+    await db
+      .update(games)
+      .set({
+        startedAt: inicio,
+        lastRenewedAt: inicio,
+        expiresAt: fim,
+        endedAt: new Date(agora.getTime() - 31_000),
+        endReason: "left",
+        endedSeq: sql`nextval('recreio.game_session_end_seq')`,
+      })
+      .where(eq(games.id, r.sessao.sid));
+    expect((await salvar({ ...r, capacidade })).status).toBe(401);
+    expect(
+      await db.select().from(versions).where(eq(versions.profileId, r.pessoa.perfil.id)),
     ).toHaveLength(0);
   });
   it("falha de auditoria reverte dados, recibo e encerramento", async () => {
