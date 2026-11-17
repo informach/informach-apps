@@ -68,7 +68,9 @@ test("titular sem jogador escolhe e troca a vaga Individual sem recriar os menor
   await expect(mare).toBeChecked();
   await expect(page.getByText("Na cobertura atual", { exact: true })).toHaveCount(1);
   await luar.check();
-  await expect(page.getByRole("alert")).toHaveText("Selecione até 1 perfil para confirmar.");
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Selecione até 1 perfil para confirmar." }),
+  ).toHaveText("Selecione até 1 perfil para confirmar.");
   await expect(salvar).toBeDisabled();
   await mare.uncheck();
   await reconhecer.check();

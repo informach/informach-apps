@@ -161,3 +161,20 @@ nem aplicado. Não corrigir SQL gerado à mão. Separar a geração das unicidad
 prévias (0179) da nova tabela e FKs (0180); conferir ambas no banco descartável.
 O arquivo de schema da tabela retorna somente depois da migration prévia,
 conservado na fonte `70f1944`. Nenhuma mudança de produção por esta correção.
+
+`1030c63` concluiu os sete gates `44087921047`, com 531 integrações/49 arquivos.
+Na tela `bffdc28`/`44089280856`, seis gates passaram e o E2E novo encontrou
+também o anunciador vazio de rotas do Next ao procurar um `alert` genérico.
+O aviso correto estava presente. Delimitar pelo texto exato, conservando o papel
+acessível e todas as verificações de bloqueio/recarregamento. Não alterar o
+anunciador ou o produto para acomodar a fixture; nova rodada completa pendente.
+
+Pré-requisito gerado em `44090428312`, fonte `37434fba`: 0179 contém somente
+as duas unicidades. Artefato `14330699266`, ZIP SHA
+`4dc403b7e0e951e09e19dd8e68af5059f6678cc761d6ac818f6277eea49e08a0`.
+SQL `0179_sudden_stranger.sql`, 235 bytes, SHA
+`d6667f8379cc602caf6ee1844034b42e3ab589b6eb066a7501ff1ef733b787fc`.
+Snapshot SHA `48cca0454072f3686f9cdfb17f0d0d8482df8203739278c6ad53a688392a5808`;
+journal SHA `8656d6f46b8d63cba49122211caa0cfb9a98084b7088638abf4948038cceab91`.
+Copiar os três arquivos intactos; restaurar o schema da tabela para gerar
+0180 depois desse snapshot. As duas migrations de F1 continuam privadas.
