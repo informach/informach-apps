@@ -1,4 +1,3 @@
-import { SessaoAbertaSchema } from "@informach/recreio/contrato";
 import { expect, test } from "@playwright/test";
 import { novaPessoa } from "./apoio";
 
@@ -35,17 +34,17 @@ test("conflito real é preservado e a pessoa escolhe a cópia no navegador", asy
   const pessoa = await novaPessoa(browser, "Conflito");
   const { page } = pessoa;
   try {
-    const sessaoAberta = page.waitForResponse(
-      (resposta) =>
-        new URL(resposta.url()).pathname === "/api/sdk/v1/sessao" &&
-        resposta.request().method() === "POST",
+    const primeiraLeitura = page.waitForRequest(
+      (pedido) =>
+        new URL(pedido.url()).pathname === "/api/sdk/v1/dados" && pedido.method() === "GET",
     );
     await page.goto("/jogar/perfil-teste");
-    const sessao = SessaoAbertaSchema.parse(await (await sessaoAberta).json());
+    const autorizacao = (await primeiraLeitura).headers().authorization;
+    if (!autorizacao?.startsWith("Bearer ")) throw new Error("Sessão do SDK ausente");
     await expect(page.getByRole("button", { name: "Ganhar ponto" })).toBeEnabled();
     // O navegador conserva revisão 0. Outra escrita REAL confirma revisão 1.
     const outraEscrita = await pessoa.contexto.request.post("/api/sdk/v1/dados", {
-      headers: { authorization: `Bearer ${sessao.token}` },
+      headers: { authorization: autorizacao },
       data: { operacao: "gravar", chave: "pontos", revisao: 0, conteudo: "Nw==" },
     });
     expect(outraEscrita.status()).toBe(200);
