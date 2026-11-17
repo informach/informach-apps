@@ -328,3 +328,20 @@ perfil/cursor. A migration será gerada no GitHub sem edição manual. Aplicaç�
 depende do SQL revisado, gates, backup atual e inventário de linhas/volume para
 avaliar a construção do índice de sessões no PostgreSQL compartilhado. Rollback
 conserva coluna e índices; não desfazer recibos nem agregados já confirmados.
+
+Geração `44075875535`, fonte `a320357463bdec3cc6aa4bf919e5d854107651d9`,
+artefato `14323934138`. ZIP conferido por SHA
+`eeeaa397df0d2a9956436aa32ca2882af16979a67bcb579824170093f5f72bc6`.
+Arquivos copiados sem edição, com tamanho/hash da proveniência conferidos:
+0178_regular_manta.sql (643 B,
+`725b267260e5d894c4ea8be9f7445437e02a4cffa9eb298750f6e0e5a09ea061`),
+snapshot `bf04b2b15af35d54f2dd27a7f3903be3885636758e40da8c22c5e7656e16c059`
+e journal `06082661407faa621a3794cd51bfa2d9d42d720b752dc637e0777e2854b40329`.
+Somente coluna aditiva, dois índices e check da coluna nova. Nenhuma aplicação
+em produção; o writer do agregado ainda será integrado.
+
+Na candidata `151ed0d`, a jornada de corte chegou à confirmação e desmontagem,
+mas falhou ao ler o corpo de uma resposta do Chromium após navegar. A prova
+passa a delimitar a navegação e consultar as versões com o Bearer da sessão
+reaberta. Mantém a exigência de uma revisão e uma versão, sem alterar o produto
+para acomodar o teste. Nova rodada completa pendente.
