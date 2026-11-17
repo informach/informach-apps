@@ -344,3 +344,22 @@ fornecer a identidade autenticada, com regressões para retirada pelo titular,
 saída própria, cobertura e aceite. Não alterar eventos automáticos de prazo.
 As provas de expiração também passam a criar identificação declarada real,
 para exigir sua retirada junto do endereço e rollback quando falha a auditoria.
+
+O navegador de `4577c883` concluiu as duas jornadas novas, mas o gate completo
+`44112410551` recusou violações CSP `script-src eval` na cobertura existente
+(22 testes passaram, um falhou). O formulário importava uma constante do módulo
+de schemas, levando Zod e sua detecção JIT ao navegador. A constante passa a
+um módulo puro, como os avatares já fazem. Validação continua no servidor e
+a CSP permanece estrita; não desabilitar a vigia nem permitir `unsafe-eval`.
+A próxima fonte precisa repetir o navegador completo, incluindo os hooks de
+segurança das jornadas novas.
+
+O gate de integração também passa a ensaiar a atualização da base pública
+`338236d0` (0178/179 recibos) em outro banco descartável do runner: copia SQL e
+journal históricos intactos pelo Git, cria dois perfis/grupos com progresso e
+conquistas, aplica as migrations atuais, exige igualdade dos dados e hashes
+anteriores, insere convite novo e repete a migração sem novos recibos. O
+executor exige GitHub e PostgreSQL local ao runner, usa nome aleatório validado
+e remove o banco/pasta no fim. Não usa banco ou registros de produção.
+Esta prova adicional ainda está pendente; nenhuma migration nova foi aplicada
+ao Railway, que segue em `3f2b1239`, 179 recibos e famílias/checkpoint `off`.

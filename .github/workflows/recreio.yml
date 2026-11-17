@@ -81,6 +81,12 @@ jobs:
           pnpm --workspace-concurrency=1 --filter @informach/auth --filter @informach/admin --filter @informach/recreio --filter @informach/recreio-app --filter @informach/morada-server --filter @informach/jogo-morada --filter @informach/morada-sim --filter @informach/morada-arte test
       - if: matrix.gate == 'integration'
         run: pnpm --filter @informach/recreio-app test:integration
+      - name: Upgrade Recreio groups with preserved profiles and progress
+        if: matrix.gate == 'integration'
+        run: |
+          git fetch --no-tags --depth=1 origin 338236d041d3c7be0d4fb1fbbe0373a7101f8e07
+          pnpm --filter @informach/db typecheck
+          pnpm --filter @informach/db exec tsx src/testing/recreio-group-upgrade.ts
       - name: Verify production process receives SIGTERM
         if: matrix.gate == 'quality'
         run: |

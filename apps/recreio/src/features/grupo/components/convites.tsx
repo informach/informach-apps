@@ -9,7 +9,7 @@ import {
   recusarAdultoAction,
   revogarAdultoAction,
 } from "../convites-actions";
-import { VERSAO_DA_DECLARACAO_ADULTA } from "../convites-regras";
+import { VERSAO_DA_DECLARACAO_ADULTA } from "../convites-constantes";
 import type { MinhaParticipacao } from "../participacao-consulta-repository";
 import { ErroDaAcao, useAcaoDoGrupo } from "./acao";
 

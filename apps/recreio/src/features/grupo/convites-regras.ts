@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { ApelidoSchema, NovoPerfilSchema } from "@/features/perfis/regras";
+import { VERSAO_DA_DECLARACAO_ADULTA } from "./convites-constantes";
 
-/** Declaração adulta desta operação; não é a responsabilidade por um menor. */
-export const VERSAO_DA_DECLARACAO_ADULTA = "adulto-2026-11-17";
+export { VERSAO_DA_DECLARACAO_ADULTA } from "./convites-constantes";
+
+/** A declaração adulta desta operação não é a responsabilidade por um menor. */
 export const PRAZO_DO_CONVITE_MS = 72 * 60 * 60_000;
 export const LIMITE_DE_CONVITES_PENDENTES = 5;
 export const LIMITE_DE_CONVITES_RECEBIDOS = 20;
