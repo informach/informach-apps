@@ -82,7 +82,8 @@ Geração `43986690237`, fonte `f9b89e6de76fbb6a341638fb79728ef94e1d005c`,
 artefato `14285183120`, SHA-256 do ZIP
 `5e4375cd1792fe9566bf4efdf78c411421ec75b713b751ef3604d5c03a502034`.
 Os três arquivos foram conferidos por tamanho e SHA-256 antes da cópia.
-A `0167_milky_virginia_dare.sql` é aditiva; ainda não aplicada em produção.
+A `0167_milky_virginia_dare.sql` é aditiva; foi aplicada em produção pelo migrator,
+com recibo e hash conferidos na [evidência operacional](evidencias/sdk-producao-2026-11-16.json).
 
 ## Etapa 3 — Persistência e HTTP
 
@@ -106,13 +107,13 @@ if (!conflito) throw new Error("Conflito não preservado");
 expect(await sdk.dados.resolver("progresso", conflito.id, 1)).toBe(2);
 ```
 
-- [ ] Exercitar binário, ausência, revisão, recuperação e resolução.
-- [ ] Recusar outro perfil/jogo, sessão encerrada, aparelho revogado, login
+- [x] Exercitar binário, ausência, revisão, recuperação e resolução.
+- [x] Recusar outro perfil/jogo, sessão encerrada, aparelho revogado, login
   removido, perfil suspenso, falta de acesso, política antiga e prazo vencido
   enquanto espera uma trava real do PostgreSQL.
-- [ ] Exercitar duas escritas concorrentes, repetição, cota, conflito cheio,
+- [x] Exercitar duas escritas concorrentes, repetição, cota, conflito cheio,
   auditoria indisponível e FKs; nenhuma mutação parcial confirmada.
-- [ ] Acrescentar as rotas ao despachante de integração. Auditoria só com IDs,
+- [x] Acrescentar as rotas ao despachante de integração. Auditoria só com IDs,
   revisão e códigos; sem chave de dado, bytes ou resumo do progresso.
 
 ## Etapa 4 — SDK e jogo independente
@@ -134,7 +135,9 @@ caminho fora de transação tem nome explícito e o Redis continua autoritativo
 quando configurado. O novo teste segura uma trava de tabela por conexão externa,
 confere dez escritores realmente bloqueados e libera o lote para validar os
 logins pelas próprias conexões. Não aumentar o pool ou os timeouts para ocultar
-esse problema. Esta prova está em verificação remota antes da publicação.
+esse problema. A rodada corrigida `44000485493` passou todos os 342 testes;
+o controle negativo `44000491805`, com teste idêntico, falhou exatamente nessa
+concorrência (341 demais aprovados). Os seis gates da candidata passaram.
 
 A primeira prova de barreira (`43999022859`, fonte `61ede6d`) passou nos outros
 341 casos, mas lia repetidamente o snapshot inicial de `pg_stat_activity`
@@ -142,11 +145,11 @@ dentro da transação de controle e não observava os dez escritores. Cada leitu
 agora descarta esse snapshot, conforme a [documentação do PostgreSQL](https://www.postgresql.org/docs/18/monitoring-stats.html#MONITORING-STATS-VIEWS).
 O timeout não foi ampliado. Controle negativo e correção usam o mesmo teste.
 
-- [ ] Testar bytes ponta a ponta, token novo na renovação, corpo excessivo,
+- [x] Testar bytes ponta a ponta, token novo na renovação, corpo excessivo,
   entrada inválida, abortos e ausência de repetição automática das mutações.
-- [ ] Com navegador GitHub: jogar, salvar, sair, reabrir e conferir progresso;
+- [x] Com navegador GitHub: jogar, salvar, sair, reabrir e conferir progresso;
   reproduzir conflito e escolher uma das cópias; conquista não duplica.
-- [ ] Provar que criar mundo do título sem mundos é recusado pela API.
+- [x] Provar que criar mundo do título sem mundos é recusado pela API.
 
 ## Etapa 5 — Revisão, consumidores e implantação
 
@@ -154,11 +157,35 @@ Consumidores: `apps/recreio`, `apps/morada-server`, `packages/jogo-morada`,
 `packages/morada-sim`, `packages/config`, `packages/auth`, `packages/db`,
 `apps/admin`, além dos consumidores compartilhados atingidos pelo schema.
 
-- [ ] Seis gates do Recreio e verificações compartilhadas aplicáveis no GitHub.
-- [ ] Comparar o schema gerado ao anterior; migração aditiva antes do escritor.
-- [ ] Conferir serviços e staged changes; aplicar pelo migrator existente sem
+- [x] Seis gates do Recreio e verificações compartilhadas aplicáveis no GitHub.
+- [x] Comparar o schema gerado ao anterior; migração aditiva antes do escritor.
+- [x] Conferir serviços e staged changes; aplicar pelo migrator existente sem
   cortes financeiros de Compasso nem seeds comerciais.
-- [ ] Conferir fonte, prontidão, mapas, manutenção e ausência do título interno
+- [x] Conferir fonte, prontidão, mapas, manutenção e ausência do título interno
   no catálogo de produção. Não manipular contas piloto ou dados reais.
-- [ ] Atualizar guias, estado e evidências. Prosseguir para F1; F0 não encerra
+- [x] Atualizar guias, estado e evidências. Prosseguir para F1; F0 não encerra
   o fechamento da plataforma.
+
+## Publicação conferida
+
+Fonte `6b51dd13`, portal `188855a8`, migrator `fa52d61b` e Morada `1720ebec`
+implantados com sucesso. A consulta somente de leitura de 17/11 às 02:33 UTC
+conferiu 168 recibos, hash da 0167 igual ao SQL gerado e as três tabelas novas
+vazias. Prontidão dos dois serviços 200, dados sem autenticação 401 e jogo
+interno desligado. Nenhuma conta piloto ou mundo real foi alterado.
+
+O migrator rodou somente `pnpm db:migrate` nesta publicação; o comando original
+foi restaurado e não há staged changes. O cron posterior foi aprovado com suas
+cinco contagens. A atualização dos contratos também recompilou o Morada sem
+alterar código da simulação, arte ou runtime: Mundo V2/protocolo 1 preservados.
+
+Os dois envios de mapas Sentry foram processados para a release. Há um aviso
+de script sem referência de mapa (`0cz1d0mv5g_q7.js`); não afirmar cobertura de
+mapas de todos os scripts a partir do sucesso do uploader. O CI geral
+`43989145590` passou em `bff2b1a`; packages e demais apps são idênticos à fonte
+publicada. Os seis gates atuais cobrem os ajustes finais locais ao Recreio.
+CI da main publicado ainda em execução no momento deste registro.
+
+F0 entrega o contrato de progresso/conflitos/conquistas e sua prova independente.
+Familiares, pareamento, políticas, social, cobrança, privacidade e operação do
+fechamento completo continuam em F1–F11.
