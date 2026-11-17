@@ -52,7 +52,7 @@ export type GameManifest = {
   aparelhos: readonly Aparelho[];
   capacidades: {
     /** Medido, não prometido. 1 = só sozinho. */
-    mundos: { membrosMax: number };
+    mundos: { membrosMax: number } | null;
     posse: readonly LocalDaPosse[];
     dadosDePerfil: boolean;
     conquistas: boolean;
@@ -65,6 +65,8 @@ export type GameManifest = {
     interacoes: readonly string[];
   };
   politicasDeMundo?: readonly PoliticaDeMundo[];
+  /** IDs finitos; o cliente não pode criar conquistas arbitrárias. */
+  conquistas?: readonly string[];
   limites: LimitesDoJogo;
 };
 

@@ -10,6 +10,7 @@ import { type GameManifest, JOGOS, jogoPorId } from "@informach/config/jogos";
 export type ManifestoDoJogo = Omit<GameManifest, "id"> & { id: string };
 
 export const JOGO_DE_TESTE_ID = "teste";
+export const JOGO_DE_PERFIL_ID = "perfil-teste";
 
 /**
  * O jogo de teste: um contador por mundo, com a lista de quem está presente.
@@ -46,11 +47,30 @@ export const JOGO_DE_TESTE: ManifestoDoJogo = {
 
 /** Os jogos deste deploy, na ordem do catálogo público; o de teste vem por último. */
 export function catalogoDosJogos(comJogoDeTeste: boolean): readonly ManifestoDoJogo[] {
-  return comJogoDeTeste ? [...JOGOS, JOGO_DE_TESTE] : JOGOS;
+  return comJogoDeTeste ? [...JOGOS, JOGO_DE_TESTE, JOGO_DE_PERFIL] : JOGOS;
 }
 
 /** O manifesto de um jogo deste deploy, ou `null`. Com a opção desligada, `teste` não existe. */
 export function manifestoNoCatalogo(jogo: string, comJogoDeTeste: boolean): ManifestoDoJogo | null {
   if (comJogoDeTeste && jogo === JOGO_DE_TESTE_ID) return JOGO_DE_TESTE;
+  if (comJogoDeTeste && jogo === JOGO_DE_PERFIL_ID) return JOGO_DE_PERFIL;
   return jogoPorId(jogo);
 }
+
+/** Prova de persistência privada, sem servidor de jogo nem mundos. */
+export const JOGO_DE_PERFIL: ManifestoDoJogo = {
+  ...JOGO_DE_TESTE,
+  id: JOGO_DE_PERFIL_ID,
+  nome: "Prova de progresso por perfil",
+  rota: "/jogar/perfil-teste",
+  capacidades: {
+    ...JOGO_DE_TESTE.capacidades,
+    mundos: null,
+    posse: [],
+    dadosDePerfil: true,
+    conquistas: true,
+  },
+  conquistas: ["primeiro-ponto"],
+  classificacao: { faixa: "L", descritores: [], interacoes: [] },
+  limites: { ...JOGO_DE_TESTE.limites, mundosCriadosPorPerfil: 0 },
+};

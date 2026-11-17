@@ -1,5 +1,17 @@
 import type { z } from "zod";
 import {
+  ChaveDeDadosSchema,
+  ConquistaSchema,
+  DadoLidoSchema,
+  DadosDescartadosSchema,
+  DadosGravadosSchema,
+  LIMITES_DOS_DADOS,
+  MutacaoDeDadosSchema,
+  PedidoDeConquistaSchema,
+  type VersaoDeDadosHttp,
+  VersoesDeDadosSchema,
+} from "../contrato/dados";
+import {
   ConviteCriadoSchema,
   ListaDeMundosSchema,
   type MudancaDeAcesso,
@@ -11,6 +23,7 @@ import {
 } from "../contrato/sdk";
 import { FRACAO_PARA_RENOVAR } from "../contrato/tokens";
 import { ErroDoRecreio, ehErroDoRecreio } from "../dominio/erros";
+import { base64ParaBytes, bytesParaBase64 } from "../transporte/bytes";
 import { type Buscar, erroDaResposta, lerCorpo, pedir, semBarraFinal } from "../transporte/http";
 import { comPrazoDePedido, TEMPO_LIMITE_DO_PEDIDO_MS } from "../transporte/prazo";
 
@@ -80,7 +93,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
         signal,
       });
       signal.throwIfAborted();
-      return lerCorpo(resposta, esquema);
+      return lerCorpo(resposta, esquema, LIMITES_DOS_DADOS.respostaBytes);
     }, tempoLimiteMs);
   }
 
@@ -167,8 +180,62 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   agendarPelaValidade();
 
   const mundo = (id: string) => `/mundos/${encodeURIComponent(id)}`;
+  const versaoDeDados = ({ conteudo, ...versao }: VersaoDeDadosHttp) => ({
+    ...versao,
+    dados: base64ParaBytes(conteudo),
+  });
+  const consultaDeDados = (chave: string, historico = false) =>
+    `/dados?${new URLSearchParams({ chave: ChaveDeDadosSchema.parse(chave), ...(historico ? { historico: "1" } : {}) })}`;
 
   return {
+    dados: {
+      async ler(chave) {
+        const { versao } = await enviar(consultaDeDados(chave), DadoLidoSchema, {
+          method: "GET",
+          token,
+        });
+        return versao ? versaoDeDados(versao) : null;
+      },
+      async gravar(chave, dados, revisao = 0) {
+        if (dados.byteLength > LIMITES_DOS_DADOS.bytesPorVersao)
+          throw new ErroDoRecreio("TAMANHO_EXCEDIDO");
+        const corpo = MutacaoDeDadosSchema.parse({
+          operacao: "gravar",
+          chave,
+          revisao,
+          conteudo: bytesParaBase64(dados),
+        });
+        return (await enviar("/dados", DadosGravadosSchema, { method: "POST", token, corpo }))
+          .revisao;
+      },
+      async versoes(chave) {
+        const lidas = await enviar(consultaDeDados(chave, true), VersoesDeDadosSchema, {
+          method: "GET",
+          token,
+        });
+        return { revisaoAtual: lidas.revisaoAtual, versoes: lidas.versoes.map(versaoDeDados) };
+      },
+      async resolver(chave, versaoId, revisao) {
+        const corpo = MutacaoDeDadosSchema.parse({
+          operacao: "resolver",
+          chave,
+          versaoId,
+          revisao,
+        });
+        return (await enviar("/dados", DadosGravadosSchema, { method: "POST", token, corpo }))
+          .revisao;
+      },
+      async descartar(chave, versaoId) {
+        const corpo = MutacaoDeDadosSchema.parse({ operacao: "descartar", chave, versaoId });
+        await enviar("/dados", DadosDescartadosSchema, { method: "POST", token, corpo });
+      },
+    },
+    conquista: (id, chaveIdem) =>
+      enviar("/conquistas", ConquistaSchema, {
+        method: "POST",
+        token,
+        corpo: PedidoDeConquistaSchema.parse({ id, chaveIdem }),
+      }),
     perfil: aberta.perfil,
     politica: aberta.politica,
     sessao: {

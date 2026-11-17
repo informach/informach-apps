@@ -16,6 +16,8 @@ type Modulo = Partial<Record<"GET" | "POST" | "PUT", Manipulador>>;
 const ID = "([^/]+)";
 
 const ROTAS: readonly [RegExp, () => Promise<Modulo>][] = [
+  [/^\/api\/sdk\/v1\/dados$/, () => import("@/app/api/sdk/v1/dados/route")],
+  [/^\/api\/sdk\/v1\/conquistas$/, () => import("@/app/api/sdk/v1/conquistas/route")],
   [/^\/api\/sdk\/v1\/jwks$/, () => import("@/app/api/sdk/v1/jwks/route")],
   [/^\/api\/sdk\/v1\/sessao$/, () => import("@/app/api/sdk/v1/sessao/route")],
   [/^\/api\/sdk\/v1\/sessao\/renovar$/, () => import("@/app/api/sdk/v1/sessao/renovar/route")],

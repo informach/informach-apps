@@ -85,6 +85,7 @@ export async function criarMundo(
   const novo = NovoMundoSchema.parse(entrada);
   await exigirAcesso(quem.perfilId, quem.jogo);
   const manifesto = jogoQueAbre(quem.jogo);
+  if (!manifesto.capacidades.mundos) throw new ErroDoRecreio("SEM_PERMISSAO");
   const mundo = await criarMundoDoPerfil({
     perfilId: quem.perfilId,
     jogo: manifesto.id,
@@ -119,7 +120,7 @@ export async function criarConvite(
     participacao: pedido.participacao ?? null,
     codeHash: resumoDoConvite(codigo),
     validadeMs: VALIDADE_DO_CONVITE_MS,
-    tetoDeConvites: (jogo) => jogoDoCatalogo(jogo).capacidades.mundos.membrosMax,
+    tetoDeConvites: (jogo) => jogoDoCatalogo(jogo).capacidades.mundos?.membrosMax ?? 0,
   });
   return { codigo: formatarCodigoDeConvite(codigo), expiraEm: expiraEm.toISOString() };
 }
@@ -140,7 +141,7 @@ export async function aceitarConvite(
   const aceito = await aceitarConviteDoMundo({
     codeHash: resumoDoConvite(codigo),
     perfilId: quem.perfilId,
-    tetoDeMembros: (jogo) => jogoDoCatalogo(jogo).capacidades.mundos.membrosMax,
+    tetoDeMembros: (jogo) => jogoDoCatalogo(jogo).capacidades.mundos?.membrosMax ?? 0,
   });
   return { mundoId: aceito.mundoId, nome: aceito.nome, jogo: aceito.jogo };
 }

@@ -6,7 +6,7 @@ O alfa fechado usa concessões auditadas; não precisa de cobrança. A integraç
 
 ## Catálogo a conferir e provisionar
 
-Referência vigente: [`PRODUCTS`](../../packages/config/src/products.ts), quatro entradas com `price_TODO_recreio_*`. Os valores abaixo são os do catálogo atual, não evidência de preços existentes no provedor.
+Referência vigente: [`PRODUCTS`](../../packages/config/src/products.ts), quatro entradas com `price_TODO_recreio_*`. O titular confirmou os quatro valores em 16/11/2026. A aprovação comercial não comprova a existência dos preços no provedor; provisionamento e homologação continuam pendentes.
 
 | Plano / ID interno | Valor BRL | Recorrência | Cobertura |
 | --- | ---: | --- | --- |

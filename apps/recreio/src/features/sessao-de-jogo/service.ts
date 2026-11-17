@@ -202,7 +202,14 @@ export async function trocarIngresso(entrada: unknown): Promise<SessaoAberta> {
   };
 }
 
-export type SessaoDeJogoAtiva = { perfilId: PerfilId; sid: SessaoDeJogoId; jogo: string };
+export type SessaoDeJogoAtiva = {
+  perfilId: PerfilId;
+  sid: SessaoDeJogoId;
+  jogo: string;
+  /** Prazo e política do token recebido, não de uma renovação posterior. */
+  expiraEm: number;
+  versaoDaPolitica: number;
+};
 
 type SessaoConferida = SessaoDeJogoAtiva & {
   sessaoDeAparelhoId: SessaoDeAparelhoId;
@@ -228,6 +235,8 @@ async function conferirToken(token: string | null): Promise<SessaoConferida> {
     jogo: linha.jogo,
     sessaoDeAparelhoId: linha.sessaoDeAparelhoId,
     motivoDoFim: linha.encerradaEm === null ? null : (linha.motivoDoFim ?? "expired"),
+    expiraEm: claims.expiraEm,
+    versaoDaPolitica: claims.versaoDaPolitica,
   };
 }
 
@@ -239,7 +248,8 @@ export async function sessaoDeJogoDoToken(token: string | null): Promise<SessaoD
   const sessao = await conferirToken(token);
   if (sessao.motivoDoFim !== null)
     throw new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: sessao.motivoDoFim });
-  return { perfilId: sessao.perfilId, sid: sessao.sid, jogo: sessao.jogo };
+  const { perfilId, sid, jogo, expiraEm, versaoDaPolitica } = sessao;
+  return { perfilId, sid, jogo, expiraEm, versaoDaPolitica };
 }
 
 /**

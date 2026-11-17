@@ -8,6 +8,7 @@ import {
   PARTICIPACAO_MAX,
 } from "../dominio/mundos";
 import { ESTADOS_DE_ACESSO_LISTA } from "./acesso";
+import type { DadosDoPerfil } from "./dados";
 
 /**
  * API do SDK: o que o cliente de um jogo pede ao Recreio, do navegador. O SDK
@@ -140,6 +141,9 @@ export type MudancaDeAcesso = {
 };
 
 export interface RecreioGameContext {
+  dados: DadosDoPerfil;
+  /** Conquistas declaradas pelo cliente; não concedem dinheiro nem acesso. */
+  conquista(id: string, chaveIdem: string): Promise<{ id: string; obtidaEm: string }>;
   perfil: PerfilDoJogo;
   politica: PoliticaDoPerfil;
   sessao: {
