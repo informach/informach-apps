@@ -31,7 +31,7 @@ function totp(secret: string) {
   const counter = Buffer.alloc(8);
   counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000)));
   const digest = createHmac("sha1", bytes).update(counter).digest();
-  const offset = digest[digest.length - 1] & 15;
+  const offset = digest.readUInt8(digest.length - 1) & 15;
   return ((digest.readUInt32BE(offset) & 0x7fffffff) % 1000000).toString().padStart(6, "0");
 }
 async function codigoDeAtivacao(email: string) {
@@ -109,6 +109,8 @@ test("equipe ativa autenticador, entra com duas etapas e suspende um perfil com 
     const rows =
       await db`update core.users set role='admin' where email=${staff.email} returning id`;
     expect(rows).toHaveLength(1);
+    const staffRow = rows[0];
+    if (!staffRow) throw new Error("Conta sintética da equipe não foi preparada");
     const page = await contexto.newPage();
     await page.goto("/entrar");
     const email = page.getByLabel("E-mail", { exact: true });
@@ -181,7 +183,7 @@ test("equipe ativa autenticador, entra com duas etapas e suspende um perfil com 
     ).toBeVisible();
     await expect(a.page.getByText(/A equipe registrou uma medida/)).toBeVisible();
     const audit = await db`select event_type,count(*)::int as total from audit.events
-      where actor_id=${rows[0].id} and payload->>'caseId'=${protocolo} group by event_type`;
+      where actor_id=${staffRow.id} and payload->>'caseId'=${protocolo} group by event_type`;
     expect(audit).toEqual(
       expect.arrayContaining([
         { event_type: "admin.recreio_moderation_requested", total: 3 },
