@@ -11,7 +11,9 @@ test("jogo 2D sem mundos salva, sai e recupera progresso pelo SDK", async ({ bro
     await expect(page.getByRole("button", { name: "Ganhar ponto" })).toBeEnabled();
     await page.getByRole("button", { name: "Ganhar ponto" }).click();
     await expect(page.getByLabel("Pontos salvos")).toHaveText("1");
-    await expect(page.getByRole("status")).toContainText("Progresso salvo");
+    await expect(page.getByRole("status", { name: "Estado do progresso" })).toContainText(
+      "Progresso salvo",
+    );
     await expect(page.getByRole("button", { name: "Salvar e sair" })).toBeEnabled();
     await page.getByRole("button", { name: "Salvar e sair" }).click();
     await expect(page).toHaveURL(/\/estante$/);

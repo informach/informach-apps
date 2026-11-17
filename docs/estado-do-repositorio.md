@@ -1,5 +1,14 @@
 # Estado do trabalho no repositório
 
+**16/11 — Recreio:** o titular priorizou [finalizar a plataforma web](recreio/fechamento-plataforma-2026-11-16.md)
+independente de D3–D8 do Morada. Confirmou os quatro preços e o cadastro de
+perfis sob responsabilidade declarada do adulto; conta pagante não precisa
+ocupar perfil de jogador. SDK independente com progresso/conflitos por perfil
+está em candidata, com [gates no GitHub](recreio/dados-de-perfil-2026-11-16.md),
+sem migration ou publicação desse incremento em produção. Preservar o Morada
+World2/protocolo1 público; a main local do checkout original contém D3 e não
+pode ser enviada diretamente. Continuar F0–F11 do registro, sem anunciar fechamento.
+
 Atualizado em 13/11/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
 
 **14/11 — EdiSVG:** recuperado o ensaio nativo da exportação web da branch local;

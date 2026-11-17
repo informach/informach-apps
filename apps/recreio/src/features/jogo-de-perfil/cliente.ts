@@ -13,6 +13,7 @@ export const jogoDePerfil: ModuloDoJogo = {
     pontos.setAttribute("aria-label", "Pontos salvos");
     const aviso = document.createElement("p");
     aviso.setAttribute("role", "status");
+    aviso.setAttribute("aria-label", "Estado do progresso");
     const somar = document.createElement("button");
     somar.className = "rb rb-sol";
     somar.textContent = "Ganhar ponto";

@@ -14,7 +14,7 @@ import { describe, expect, it, vi } from "vitest";
 import { alterarDados, consultarDados } from "@/features/dados-de-perfil/service";
 import { emitirIngresso, sessaoDeJogoDoToken } from "@/features/sessao-de-jogo/service";
 import { revogar } from "../scripts/concessoes";
-import { eventosCom, novoJogador, sinal } from "./apoio";
+import { CHECAGEM, codigoDoBanco, eventosCom, novoJogador, sinal } from "./apoio";
 import { entrarNoJogo } from "./jogo-apoio";
 import { despachar, ORIGEM } from "./rotas";
 
@@ -190,6 +190,53 @@ describe("SDK sem mundos: progresso privado com PostgreSQL real", () => {
     expect(
       await db.select().from(achievements).where(eq(achievements.profileId, jogador.perfil.id)),
     ).toHaveLength(1);
+  });
+
+  it("o banco recusa versão aceita sem revisão, bytes excessivos e FK de outro perfil", async () => {
+    const a = await abrir();
+    const b = await abrir();
+    await a.sdk.dados.gravar("progresso", bytes("A"));
+    const [chave] = await db.select().from(keys).where(eq(keys.profileId, a.jogador.perfil.id));
+    if (!chave) throw new Error("Chave ausente");
+    const base = {
+      dataId: chave.id,
+      profileId: a.jogador.perfil.id,
+      gameId: JOGO,
+      baseRevision: 1,
+      revision: 2,
+      kind: "accepted" as const,
+      bytes: Buffer.from("B"),
+      digest: "a".repeat(64),
+    };
+    expect(await codigoDoBanco(db.insert(versions).values({ ...base, revision: null }))).toBe(
+      CHECAGEM,
+    );
+    expect(
+      await codigoDoBanco(db.insert(versions).values({ ...base, bytes: Buffer.alloc(65537) })),
+    ).toBe(CHECAGEM);
+    expect(
+      await codigoDoBanco(db.insert(versions).values({ ...base, profileId: b.jogador.perfil.id })),
+    ).toBe("23503");
+    expect(await codigoDoBanco(db.insert(versions).values({ ...base, gameId: "outro-jogo" }))).toBe(
+      "23503",
+    );
+    expect((await a.sdk.dados.versoes("progresso")).versoes).toHaveLength(1);
+  });
+
+  it("corrupção dos bytes é recusada na leitura e não é normalizada por nova gravação", async () => {
+    const { jogador, sdk } = await abrir();
+    await sdk.dados.gravar("progresso", bytes("original"));
+    await db
+      .update(versions)
+      .set({ bytes: Buffer.from("corrompido") })
+      .where(eq(versions.profileId, jogador.perfil.id));
+    await expect(sdk.dados.ler("progresso")).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+    await expect(sdk.dados.gravar("progresso", bytes("novo"), 1)).rejects.toMatchObject({
+      codigo: "INDISPONIVEL",
+    });
+    expect(
+      (await db.select().from(keys).where(eq(keys.profileId, jogador.perfil.id)))[0]?.revision,
+    ).toBe(1);
   });
 
   it("auditoria indisponível reverte chave, versão e progresso juntos", async () => {

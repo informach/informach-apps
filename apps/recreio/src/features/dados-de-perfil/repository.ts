@@ -23,6 +23,7 @@ import { decidirFatosLidos } from "@/features/acesso/decisao";
 import { lerFatosDeAcesso } from "@/features/acesso/repository";
 import { sessaoDeLoginViva } from "@/features/sessao/login";
 import type { SessaoDeJogoAtiva } from "@/features/sessao-de-jogo/service";
+import { reportError } from "@/lib/observability";
 import { AGORA, type Transacao, travar } from "@/lib/repository";
 
 /** A ordem evita tomar o cursor de encerramento depois de travar a sessão. */
@@ -31,6 +32,8 @@ async function comAutoridade<T>(
   executar: (tx: Transacao, contaId: string) => Promise<T>,
 ): Promise<T> {
   return db.transaction(async (tx) => {
+    await tx.execute(sql`set local transaction_timeout='10s'`);
+    await tx.execute(sql`set local lock_timeout='5s'`);
     const [referencia] = await tx
       .select({ userId: profiles.userId })
       .from(profiles)
@@ -99,16 +102,25 @@ async function comAutoridade<T>(
 }
 
 const hash = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
+function conferirIntegridade(linha: typeof versions.$inferSelect): void {
+  if (hash(linha.bytes) !== linha.digest) {
+    reportError(new Error("profile_data.integrity_failed"), crypto.randomUUID());
+    throw new ErroDoRecreio("INDISPONIVEL");
+  }
+}
 const escopo = (sessao: SessaoDeJogoAtiva) =>
   and(eq(keys.profileId, sessao.perfilId), eq(keys.gameId, sessao.jogo));
-const versaoHttp = (linha: typeof versions.$inferSelect): VersaoDeDadosHttp => ({
-  id: linha.id,
-  revisaoBase: linha.baseRevision,
-  revisao: linha.revision,
-  estado: linha.kind,
-  conteudo: bytesParaBase64(linha.bytes),
-  criadoEm: linha.createdAt.toISOString(),
-});
+const versaoHttp = (linha: typeof versions.$inferSelect): VersaoDeDadosHttp => {
+  conferirIntegridade(linha);
+  return {
+    id: linha.id,
+    revisaoBase: linha.baseRevision,
+    revisao: linha.revision,
+    estado: linha.kind,
+    conteudo: bytesParaBase64(linha.bytes),
+    criadoEm: linha.createdAt.toISOString(),
+  };
+};
 
 export async function lerDados(sessao: SessaoDeJogoAtiva, chave: string, historico: boolean) {
   return comAutoridade(sessao, async (tx) => {
@@ -163,7 +175,9 @@ export async function mutarDados(
     }
     if (!key) throw new ErroDoRecreio("INDISPONIVEL");
     const dataId = key.id;
-    const linhas = await tx.select().from(versions).where(eq(versions.dataId, key.id));
+    const linhas = await tx.select().from(versions).where(eq(versions.dataId, key.id)).limit(8);
+    if (linhas.length > 7) throw new ErroDoRecreio("INDISPONIVEL");
+    for (const linha of linhas) conferirIntegridade(linha);
     const escolhida =
       pedido.operacao !== "gravar"
         ? linhas.find((linha) => linha.id === pedido.versaoId && linha.kind === "conflict")

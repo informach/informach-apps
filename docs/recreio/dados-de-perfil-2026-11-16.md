@@ -39,7 +39,7 @@ critérios de aceite; [escopo do fechamento](fechamento-plataforma-2026-11-16.md
   idempotente não libera uma segunda conquista. Não representar dinheiro,
   autorização de acesso ou premiação financeira.
 - Metadados pessoais saem com o perfil; não tocar nos mundos compartilhados.
-- Antes de tocar em dados: perfil → mutex dos dados desse perfil/jogo →
+- Antes de tocar em dados: conta nativa → perfil → mutex dos dados desse perfil/jogo →
   aparelho → sessão de jogo → chave/versões. Revalidar relógio, vínculo,
   encerramento e acesso depois das esperas. Não adquirir o cursor de
   encerramentos segurando a sessão; recusar e deixar a manutenção encerrar.
@@ -58,9 +58,12 @@ expect(contexto).toHaveProperty("dados.gravar", expect.any(Function));
 expect(contexto).toHaveProperty("conquista", expect.any(Function));
 ```
 
-- [ ] Publicar branch `verify/recreio-2026-11-16-plataforma-sdk-red`.
-- [ ] Conferir no GitHub a falha nas propriedades ausentes; não declarar essa
+- [x] Publicar branch `verify/recreio-2026-11-16-plataforma-sdk-red`.
+- [x] Conferir no GitHub a falha nas propriedades ausentes; não declarar essa
   prova como persistência, isolamento ou integração.
+
+Prova: fonte `8b2bd48`, rodada `43985084574`, quality com uma falha esperada
+em `sdk.test.ts`: propriedade `dados.ler` ausente; 127 testes passaram.
 
 ## Etapa 2 — Schema e geração
 
@@ -70,27 +73,37 @@ conserva cópias aceitas e conflitantes; `profile_achievements` guarda a obtenç
 idempotente. FKs compostas impedem relacionar versões a outro perfil/jogo.
 Índices atendem escopo e ordenação; bytes e números têm CHECKs no banco.
 
-- [ ] Implementar tabelas e constraints, sem alterar linhas existentes.
-- [ ] Disparar `Database - gerar migracao revisavel` na branch de schema.
-- [ ] Baixar e conferir `proveniencia.json`, fonte e hashes antes de incorporar
+- [x] Implementar tabelas e constraints, sem alterar linhas existentes.
+- [x] Disparar `Database - gerar migracao revisavel` na branch de schema.
+- [x] Baixar e conferir `proveniencia.json`, fonte e hashes antes de incorporar
   exclusivamente os arquivos gerados. Não editar SQL/snapshot/journal gerados.
+
+Geração `43986690237`, fonte `f9b89e6de76fbb6a341638fb79728ef94e1d005c`,
+artefato `14285183120`, SHA-256 do ZIP
+`5e4375cd1792fe9566bf4efdf78c411421ec75b713b751ef3604d5c03a502034`.
+Os três arquivos foram conferidos por tamanho e SHA-256 antes da cópia.
+A `0167_milky_virginia_dare.sql` é aditiva; ainda não aplicada em produção.
 
 ## Etapa 3 — Persistência e HTTP
 
 Criar `apps/recreio/src/features/dados-de-perfil/{service,repository}.ts` e
-`features/sessao-de-jogo/autoridade-repository.ts`; contratos em
+autoridade transacional no mesmo repository; contratos em
 `packages/recreio/src/contrato/dados.ts`. Rotas:
-`/api/sdk/v1/dados/[chave]`, `/versoes` e `/resolver`, e
+`GET /api/sdk/v1/dados?chave=...` (histórico com `historico=1`),
+`POST /api/sdk/v1/dados` (`gravar`, `resolver`, `descartar`) e
 `/api/sdk/v1/conquistas`. O serviço valida payload, capacidade, cotas e limites
 de tentativas; o repository revalida a sessão na transação.
 
 Exemplo funcional obrigatório, com jogadores sintéticos reais no banco isolado:
 
 ```ts
-// Sessões obtidas por emitirIngresso/trocarIngresso; HTTP pelo despachante real.
-// Primeira gravação -> revisão 1; base 0 com outro conteúdo -> 409.
-// A leitura atual conserva os bytes iniciais; ler a candidata devolve os outros.
-// Resolver na revisão 1 -> revisão 2; repetir uma base antiga não a substitui.
+await sdk.dados.gravar("progresso", new TextEncoder().encode("A"), 0);
+await expect(sdk.dados.gravar("progresso", new TextEncoder().encode("B"), 0))
+  .rejects.toMatchObject({ codigo: "REVISAO_DIVERGENTE" });
+const historico = await sdk.dados.versoes("progresso");
+const conflito = historico.versoes.find((versao) => versao.estado === "conflict");
+if (!conflito) throw new Error("Conflito não preservado");
+expect(await sdk.dados.resolver("progresso", conflito.id, 1)).toBe(2);
 ```
 
 - [ ] Exercitar binário, ausência, revisão, recuperação e resolução.
