@@ -104,6 +104,11 @@ export const recreioDirectedInviteWorldApprovals = recreio.table(
       onDelete: "set null",
     }),
     actorKind: text("actor_kind").$type<"jogador" | "responsavel">().notNull(),
+    guardianLinkId: uuid("guardian_link_id").references(() => guardians.id, {
+      onDelete: "cascade",
+    }),
+    accessGeneration: uuid("access_generation"),
+    policyVersion: integer("policy_version"),
     managementRevision: integer("management_revision").notNull(),
     createdAt: moment("created_at").notNull().defaultNow(),
   },
@@ -120,7 +125,7 @@ export const recreioDirectedInviteWorldApprovals = recreio.table(
     }).onDelete("restrict"),
     check(
       "recreio_directed_world_approval_actor",
-      sql`${t.actorKind} in ('jogador','responsavel')`,
+      sql`(${t.actorKind}='jogador' and ${t.guardianLinkId} is null and ${t.accessGeneration} is null and ${t.policyVersion} is null) or (${t.actorKind}='responsavel' and ${t.guardianLinkId} is not null and ${t.accessGeneration} is not null and ${t.policyVersion} is not null and ${t.policyVersion}>0)`,
     ),
     check(
       "recreio_directed_world_approval_revision",

@@ -96,3 +96,21 @@ Conferidos origem, allowlist, bytes e SHA-256 antes e depois da cópia intacta:
 SQL contém somente a restrição única composta da tabela existente, cujo volume
 de produção é pequeno. As três tabelas retornam à exportação para gerar 0194.
 Ainda não executar migration isolada ou publicar como fluxo de convite pronto.
+
+0194 foi gerada no run `44199344843`, origem
+`59f3495d71f0de3cc64adf10a795e7982009443f`, artefato `14379468637`.
+ZIP `1be7fd81fbfa2e3fbc9f8b3cd70fa4b7dd3ba53ef30b7702f258cf99839bde6d`.
+Cópia intacta conferida antes e depois por bytes e SHA-256:
+
+- SQL `0194_funny_photon.sql`, 8252 bytes,
+  `2f543ff2b6771af2143d8a120c7b1bc3ddb5b98da4bc31292b17c43b355c2977`.
+- Snapshot, 872993 bytes,
+  `3b8ec3ddb47ad47cb37d86235901a72058e6d31af1cdab396371685526259f8d`.
+- Journal, 29487 bytes,
+  `645234b6fa61df855928462b9f0998960fbf5d49af8ead76865378f8070428b6`.
+
+A revisão também exige proveniência da aprovação do mundo feita por responsável
+de um menor que detenha o mundo: vínculo, geração e versão da política ficam no
+recibo. Conferir só o adulto atual permitiria reaproveitar aprovação anterior a
+uma revogação e retorno da mesma pessoa. Esses campos entram em geração aditiva
+posterior, antes de qualquer escritor publicado; não editar 0194 gerada.
