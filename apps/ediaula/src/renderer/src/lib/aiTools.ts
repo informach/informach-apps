@@ -29,6 +29,15 @@ import {
   wordsToSource,
 } from "@shared/cleanup";
 import { clicksTrack } from "@shared/clickEvents";
+import {
+  clipOf,
+  keepRanges,
+  musicTracks,
+  placeCutaway,
+  removeClips,
+  spreadMusic,
+  trimOne,
+} from "@shared/clipEdits";
 import { type MoveRequest, planAlign, planMoves, splitOneClip } from "@shared/clipMoves";
 import {
   type Crop,
@@ -2572,6 +2581,95 @@ ${r.message}`);
     ]
       .join("\n")
       .concat(lockedNote(plan.locked));
+  },
+
+  // Steps of an automatic edit (shared/clipEdits.ts): checked on the lesson as it is now, applied
+  // in one commit; a refused call changes nothing.
+  async remove_clips({ clip_ids, revision }, { commit }) {
+    const p = requireProject();
+    requireNoStructuralDraft();
+    requireRevision(revision);
+    const r = removeClips(p, clip_ids);
+    if (!r.ok) throw new ToolError(r.error);
+    committedOrFail(commit((q) => ({ ...q, clips: r.clips })));
+    useProject.getState().select([]);
+    return `${plural(r.removed.length, "clipe tirado", "clipes tirados")}, sem empurrar nada: ${r.removed.join(", ")}.${lockedNote(r.locked)}`;
+  },
+
+  async trim_clip({ clip_id, start, end, revision }, { commit }) {
+    const p = requireProject();
+    requireNoStructuralDraft();
+    requireRevision(revision);
+    const r = trimOne(p, clip_id, { start, end });
+    if (!r.ok) throw new ToolError(r.error);
+    committedOrFail(commit((q) => ({ ...q, clips: r.clips })));
+    return `Clipe ${clip_id} agora vai de ${t(r.clip.start)} a ${t(clipEnd(r.clip))}.`;
+  },
+
+  async keep_ranges({ clip_id, ranges, fade, revision }, { commit }) {
+    const p = requireProject();
+    requireNoStructuralDraft();
+    requireRevision(revision);
+    const r = keepRanges(p, clip_id, ranges, fade);
+    if (!r.ok) throw new ToolError(r.error);
+    committedOrFail(commit((q) => ({ ...q, clips: r.clips })));
+    return [
+      `Clipe ${clip_id} mantido em ${plural(r.kept.length, "trecho", "trechos")}, o resto tirado:`,
+      ...r.kept.map((k) => `[${k.id}] ${t(k.from)}–${t(k.to)}`),
+    ].join("\n");
+  },
+
+  async place_cutaway(input, { commit }) {
+    const p = requireProject();
+    requireNoStructuralDraft();
+    requireRevision(input.revision);
+    if (!input.media_id === !input.clip_id)
+      throw new ToolError("Informe media_id (com at) ou clip_id, um dos dois. Nada foi feito.");
+    let cut: Clip;
+    if (input.clip_id) {
+      const c = p.clips.find((x) => x.id === input.clip_id);
+      if (!c) throw new ToolError(`Clipe não encontrado: ${input.clip_id}. Nada foi feito.`);
+      cut = input.duration ? { ...c, duration: Math.min(c.duration, input.duration) } : c;
+    } else {
+      const asset = p.assets.find((a) => a.id === input.media_id);
+      if (!asset)
+        throw new ToolError(`Mídia não encontrada: ${input.media_id}. Veja list_library.`);
+      if (input.at === undefined) throw new ToolError("Com media_id, informe at. Nada foi feito.");
+      cut = clipOf(asset, input.track_id, input.at, input.duration);
+    }
+    const kind = input.transition ?? "colorcircles";
+    const transition =
+      kind === "none"
+        ? undefined
+        : makeTransition(
+            kind,
+            input.transition_duration ?? 0.6,
+            input.colors?.map((x) => x.toUpperCase()),
+          );
+    const r = placeCutaway(p, cut, input.track_id, input.also_track_ids ?? [], transition);
+    if (!r.ok) throw new ToolError(r.error);
+    committedOrFail(commit((q) => ({ ...q, clips: r.clips })));
+    return `[${r.cutaway.id}] no lugar de ${t(r.cutaway.start)}–${t(clipEnd(r.cutaway))} na faixa ${input.track_id}${transition ? `, com a transição ${kind} nas duas pontas` : ""}: ${plural(r.trimmed, "clipe cortado", "clipes cortados")} em volta e ${plural(r.removed, "tirado", "tirados")}. Nada andou.`;
+  },
+
+  async spread_music({ media_id, start, end, overlap, fade, volume }, { commit }) {
+    const p = requireProject();
+    requireNoStructuralDraft();
+    const asset = p.assets.find((a) => a.id === media_id);
+    if (!asset) throw new ToolError(`Mídia não encontrada: ${media_id}. Veja list_library.`);
+    const tracks = musicTracks(p.tracks);
+    const r = spreadMusic(asset, [tracks[0].id, tracks[1].id], {
+      start: start ?? 0,
+      end: end ?? projectDuration(p),
+      overlap: overlap ?? 3,
+      fade: fade ?? 3,
+      volume: volume ?? 0.15,
+    });
+    if (!r.ok) throw new ToolError(r.error);
+    committedOrFail(
+      commit((q) => ({ ...q, tracks: [...q.tracks, ...tracks], clips: [...q.clips, ...r.clips] })),
+    );
+    return `${asset.name}: ${plural(r.clips.length, "cópia", "cópias")} de ${t(start ?? 0)} a ${t(end ?? projectDuration(p))}, alternando as faixas ${tracks[0].name} [${tracks[0].id}] e ${tracks[1].name} [${tracks[1].id}], marcadas como música (abaixam com a voz), volume ${Math.round((volume ?? 0.15) * 100)}%.`;
   },
 
   async align_track_to({ track_id, reference_track_id, revision }, { commit, draft }) {

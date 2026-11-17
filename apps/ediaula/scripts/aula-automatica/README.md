@@ -104,6 +104,8 @@ Os dois podem rodar juntos. `PROVA_SKIP_BUILD=1` pula o build quando o código n
 | `sonda-caixas.mjs` | registra os contornos dos alvos durante a gravação |
 | `importar.mjs` | importa mídias pela janela de abrir |
 | `salvar.mjs` | salva o projeto aberto |
+| `acabamento.mjs` | animações na faixa da tela, apresentadora nos trechos, personagens, caixas, faixas e música |
+| `limpar-anotacoes.mjs` | tira os destaques, as caixas e os balões, para gerar de novo |
 | `empacotar.mjs` | empacota o projeto aberto |
 | `foto.mjs` | foto da janela |
 | `quadro.mjs` | quadro composto como a exportação desenha |
@@ -164,40 +166,45 @@ $S/comando.sh --svg acao exportar-svg.mjs '{"svgArquivo": "<x>.edisvg", "svgSaid
 
 **5. No EdiAula**, com o condutor rodando:
 1. Abra a cópia: `acao abrir-projeto.mjs '{"arquivo": "<cópia>"}'`.
-2. Importe as animações (`acao importar.mjs '{"arquivos": [...]}'`) e ponha cada uma no seu segundo: `ia add_clip '{"media_id": "...", "at": 100.0}'`.
-3. Aplique o zoom e as anotações: `edicao/aplicar.sh <parte>/edicao/comandos.json`.
-4. Capa por cima dos 3 primeiros segundos, sem empurrar a aula:
+2. Importe as mídias pela janela de abrir: `acao importar.mjs '{"arquivos": [...]}'`.
+   - as animações;
+   - a música;
+   - os vídeos dos personagens. O vídeo do HeyGen vem sem som: junte antes com o `.wav` usando ffmpeg.
+3. Ponha cada animação e cada personagem no seu segundo: `ia add_clip '{"media_id": "...", "at": 100.0}'`.
+   - Recorte o personagem só na fala, sem o silêncio das pontas: `ia trim_clip '{"clip_id": "...", "start": 173.5, "end": 175.8, "revision": N}'`.
+   - A revisão aparece no fim do `ia get_overview`.
+4. Aplique o zoom e as anotações: `edicao/aplicar.sh <parte>/edicao/comandos.json`.
+5. Capa por cima dos 3 primeiros segundos, sem empurrar a aula:
 
 ```bash
 $S/comando.sh ia add_template '{"template": "opening", "over_lesson": true, "duration": 3, "fields": {"kicker": "AULA 3 · PARTE 2", "title": "<título>", "subtitle": "<curso>"}}'
 ```
 
-5. Paleta "Sistema Zero": `set_palette` com `fonts` e `mode: "apply"`.
-6. Apresentadora:
+6. Paleta "Sistema Zero": `set_palette` com `fonts` e `mode: "apply"`.
+7. Apresentadora:
    - `set_crop` com esquerda, direita e topo 0,02 e base 0,45;
    - `set_clip_layout` com x 0,857, y 1,0 e escala 1,58, do quadril para cima, sempre à direita.
-7. Música: cópias da música a cada 90,2 s, alternando as faixas "Música" e "Música 2", com fade de 3 s e volume 0,15; marque as faixas como música (`set_audio music_tracks`), para abaixar sozinha com voz.
-8. Personagens:
-   - importe o vídeo com a voz;
-   - o vídeo do HeyGen vem sem som, então junte com o `.wav` usando ffmpeg;
-   - ponha no ponto da tabela do roteiro, com o clipe recortado só na fala (sem o silêncio das pontas).
-9. Salve: `acao salvar.mjs`.
 
-**6. Acabamento.** Com o EdiAula fechado (Ctrl+C no condutor):
+**6. Acabamento.** Ainda com o projeto aberto:
 
 ```bash
-python edicao/finalizar.py "<cópia>.ediaula" "<parte>/edicao/comandos-apresentadora.json"
-python edicao/anotacoes.py acabar "<cópia>.ediaula"
+$S/comando.sh acao acabamento.mjs "{\"projeto\": \"<cópia>.ediaula\", \"intervalos\": $(cat <parte>/edicao/comandos-apresentadora.json), \"musica\": \"Lighthouse\"}"
 ```
 
-O que muda no projeto:
-- as animações passam para a faixa da tela, com a transição de círculos coloridos;
-- a apresentadora aparece nos intervalos, menos nas falas dos personagens;
-- a voz da professora fica calada enquanto um personagem fala;
-- as caixas das categorias encostam na paleta;
-- os zooms ficam numa faixa abaixo da apresentadora e acima das anotações.
+Cada passo é uma ferramenta do EdiAula e um passo de desfazer:
+- **`place_cutaway`:** as animações `conceito-*` passam para a faixa da tela, no lugar do trecho, com a transição de círculos coloridos nas duas pontas. O som da página perde o mesmo trecho.
+- **`keep_ranges`:** a apresentadora fica só nos intervalos, menos nas falas dos personagens.
+- **`set_volume`:** a voz da professora fica calada enquanto um personagem fala.
+- **`set_clip_layout`:** as caixas das categorias encostam na paleta.
+- **`move_track`:** as faixas ficam na ordem personagens, apresentadora, zoom e o resto. Assim o zoom amplia a tela e as anotações, nunca as pessoas.
+- **`spread_music`:** a música é distribuída com sobreposição de 3 s, fade e volume 0,15, em duas faixas marcadas como música, que abaixam com a voz.
 
-Para refazer só as anotações: `anotacoes.py limpar`, `aplicar.sh comandos.json --sem-zoom` e `anotacoes.py acabar`.
+Para refazer só as anotações:
+1. `acao limpar-anotacoes.mjs '{"projeto": "<cópia>.ediaula"}'`;
+2. `edicao/aplicar.sh comandos.json --sem-zoom`;
+3. o acabamento de novo.
+
+O acabamento não repete o que já foi feito: as caixas já reduzidas e as animações já na faixa da tela ficam como estão.
 
 **7. Conferir e empacotar.** Reabra a cópia e confira os quadros: `acao quadro.mjs '{"quadros": [0.05, 60, 102]}'`. Os pontos para olhar:
 - o primeiro quadro é a capa com a apresentadora;
@@ -247,16 +254,8 @@ O `decisoes.py` e o `montar.py` aplicam estas regras:
 
 ## Limites conhecidos
 
-**O que ainda é feito por script, com o EdiAula fechado:**
-- tirar clipes;
-- pôr a animação na faixa da tela com a transição;
-- encurtar as caixas;
-- calar a narração.
-
-Esses passos devem virar ferramentas do EdiAula.
-
-**Outros limites:**
-- **Importação de mídia:** o `import_media` das ferramentas recusa arquivo não escolhido na janela de abrir; por isso a importação passa pelo botão Importar.
-- **Recorte de fundo:** o EdiAula liga sozinho o recorte de fundo em vídeo de fundo liso, como as animações; o `finalizar.py` desliga. No asset, `key: null` impede o projeto de abrir; o campo tem que sair.
-- **Personagem no vídeo curto:** a busca automática da Edição kids pode não achar a fala no vídeo curto de um personagem. Nesse caso, ponha o clipe à mão no segundo da tabela.
+- **Importação de mídia:** o `import_media` das ferramentas recusa arquivo que não foi escolhido na janela de abrir. Por isso a importação passa pelo botão Importar (`importar.mjs`).
+- **Recorte de fundo:** o EdiAula liga sozinho o recorte de fundo em vídeo de fundo liso, como as animações. O acabamento desliga (`set_background_removal`).
+- **Personagem no vídeo curto:** a busca automática da Edição kids pode não achar a fala no vídeo curto de um personagem. Nesse caso, ponha o clipe à mão no segundo da tabela, recortado na fala.
 - **Animações por parte:** cada parte pede uma cena escrita para os seus conceitos, com os tempos das falas e os blocos recortados. O `edisvg_cena.py` dá as peças do style guide.
+- **Leitura dos ids:** as ações de acabamento e de limpeza leem os ids no arquivo salvo e a revisão no `get_overview`. Salve antes de mexer à mão no meio do caminho.

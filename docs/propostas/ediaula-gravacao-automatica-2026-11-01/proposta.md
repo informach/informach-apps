@@ -71,5 +71,17 @@ acabamento.
 
 Ainda não houve uma gravação nova pelo `parte.sh`.
 
-**Pendências:** ferramentas do EdiAula para tirar clipes, pôr um clipe na faixa da tela com transição,
-encurtar e calar clipes e distribuir a música, para a edição sair sem mexer no arquivo do projeto.
+**Ferramentas novas do EdiAula (16/11/2026):** `remove_clips`, `trim_clip`, `keep_ranges`, `place_cutaway` e
+`spread_music` (`src/shared/clipEdits.ts`). Com elas, o acabamento (`acoes/acabamento.mjs`) roda com o projeto
+aberto, cada passo desfazível, e os scripts que editavam o arquivo saíram.
+
+**Verificado:**
+- testes da lógica (`tests/clip-edits.test.ts`) e das ferramentas no store do editor, com o undo voltando tudo
+  (`tests/l15-ai-tools.test.ts`);
+- typecheck;
+- o acabamento rodado pelas ferramentas numa cópia da Parte 2, com os quadros iguais aos da v4.
+
+**Pendências:**
+- uma gravação nova inteira pelo `parte.sh`;
+- a busca da Edição kids que não acha a fala no vídeo curto de um personagem;
+- um `import_media` que aceite as pastas de material configuradas, para não depender da janela de abrir.

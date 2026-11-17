@@ -1317,3 +1317,63 @@ test('export_video com split "clips": uma pasta, "Parte 1" a "Parte N", todas na
     exportQueue.hold(false);
   }
 });
+
+test("edição automática: animação no lugar da tela, apresentadora em trechos, música, aparar e tirar; o undo volta tudo", async () => {
+  open(lesson("auto", { assets: [...lesson().assets, asset("anim", "video", { duration: 6 })] }));
+  const original = now().clips;
+  const cut = await call("place_cutaway", {
+    media_id: "anim",
+    at: 40,
+    track_id: "v",
+    also_track_ids: ["a"],
+    revision: revision(),
+  });
+  assert.equal(cut.ok, true, cut.text);
+  assert.deepEqual(
+    onTrack("v").map((c) => [c.assetId, c.start, Math.round((c.start + c.duration) * 10) / 10]),
+    [
+      ["screen", 0, 40],
+      ["anim", 40, 46],
+      ["screen", 46, 100],
+    ],
+  );
+  assert.equal(onTrack("v")[1].transition?.kind, "colorcircles");
+  assert.equal(onTrack("v")[2].transition?.kind, "colorcircles");
+  assert.equal(onTrack("a").length, 2);
+
+  const keep = await call("keep_ranges", {
+    clip_id: "cam",
+    ranges: [
+      [10, 14],
+      [20, 30],
+    ],
+    revision: revision(),
+  });
+  assert.equal(keep.ok, true, keep.text);
+  assert.deepEqual(
+    onTrack("v2").map((c) => [c.start, c.start + c.duration]),
+    [
+      [10, 14],
+      [20, 30],
+    ],
+  );
+
+  const trim = await call("trim_clip", { clip_id: "cam", end: 12, revision: revision() });
+  assert.equal(trim.ok, true, trim.text);
+  assert.equal(clip("cam")?.duration, 2);
+
+  const music = await call("spread_music", { media_id: "mic", volume: 0.15 });
+  assert.equal(music.ok, true, music.text);
+  const musicTracks = now().tracks.filter((t) => t.music);
+  assert.equal(musicTracks.length, 2);
+
+  const gone = await call("remove_clips", { clip_ids: ["cam"], revision: revision() });
+  assert.equal(gone.ok, true, gone.text);
+  assert.equal(clip("cam"), undefined);
+  const stale = await call("remove_clips", { clip_ids: ["s"], revision: 0 });
+  assert.equal(stale.ok, false);
+
+  const undo = await call("undo", { steps: 5 });
+  assert.equal(undo.ok, true, undo.text);
+  assert.deepEqual(now().clips, original);
+});
