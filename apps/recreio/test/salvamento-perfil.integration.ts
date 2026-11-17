@@ -105,6 +105,75 @@ const salvar = (r: Awaited<ReturnType<typeof preparar>>, dados = [gravacao]) =>
   pedir("POST", "/api/sdk/v1/sessao/salvamento", { token: r.capacidade.token, corpo: { dados } });
 
 describe("persistência final com capacidade restrita", () => {
+  it("nova abertura aguarda a margem do antecessor sem consumir ingresso e lê o commit final", async () => {
+    const r = await preparar({ curta: true });
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.max(0, r.fim.getTime() - Date.now()) + 20),
+    );
+    const ingresso = await emitirIngresso(r.pessoa.ator, { jogo: JOGO });
+    const pedido = { ingresso: ingresso.ingresso, suportaSalvamento: true };
+    const antes = await db.select().from(permits).where(eq(permits.id, r.id));
+    await expect(trocarIngresso(pedido)).rejects.toMatchObject({
+      codigo: "CHECKPOINT_PENDENTE",
+      detalhe: { motivo: "saving" },
+    });
+    expect(await db.select().from(permits).where(eq(permits.id, r.id))).toEqual(antes);
+    expect(
+      (await db.select().from(games).where(eq(games.id, r.sessao.sid)))[0]?.endedAt,
+    ).toBeNull();
+    const [ticket] = await db
+      .select()
+      .from(tickets)
+      .where(and(eq(tickets.profileId, r.pessoa.perfil.id), sql`${tickets.consumedAt} is null`));
+    expect(ticket?.consumedAt).toBeNull();
+    expect((await salvar(r)).status).toBe(200);
+    const seguinte = await trocarIngresso(pedido);
+    const leitura = await pedir("GET", "/api/sdk/v1/dados?chave=pontos", { token: seguinte.token });
+    expect(leitura).toMatchObject({
+      status: 200,
+      corpo: { versao: { revisao: 1, conteudo: "MQ==" } },
+    });
+  });
+  it.each([JOGO, "morada"])(
+    "saída antecipada aguarda o recibo também ao trocar para %s",
+    async (jogo) => {
+      const r = await preparar();
+      expect(
+        (await pedir("POST", "/api/sdk/v1/sessao/sair", { token: r.aberta.token })).status,
+      ).toBe(200);
+      const ingresso = await emitirIngresso(r.pessoa.ator, { jogo });
+      await expect(
+        trocarIngresso({ ingresso: ingresso.ingresso, continuarAqui: true }),
+      ).rejects.toMatchObject({
+        codigo: "CHECKPOINT_PENDENTE",
+        detalhe: { motivo: "saving" },
+      });
+      expect((await salvar(r)).status).toBe(200);
+      expect((await trocarIngresso({ ingresso: ingresso.ingresso })).token).toBeTruthy();
+    },
+  );
+  it("margem vencida libera nova abertura sem confirmar nem prorrogar o recibo antigo", async () => {
+    const r = await preparar();
+    const fim = new Date(Date.now() - 31_000);
+    const inicio = new Date(fim.getTime() - 60_000);
+    await db
+      .update(games)
+      .set({ lastRenewedAt: inicio, expiresAt: fim })
+      .where(eq(games.id, r.sessao.sid));
+    await db
+      .update(permits)
+      .set({
+        createdAt: inicio,
+        renewedAt: inicio,
+        cutoffAt: fim,
+        expiresAt: new Date(fim.getTime() + 30_000),
+      })
+      .where(eq(permits.id, r.id));
+    const ingresso = await emitirIngresso(r.pessoa.ator, { jogo: JOGO });
+    expect((await trocarIngresso({ ingresso: ingresso.ingresso })).token).toBeTruthy();
+    expect((await db.select().from(permits).where(eq(permits.id, r.id)))[0]?.status).toBe("ready");
+    expect((await salvar(r)).status).toBe(401);
+  });
   it("SDK recupera a resposta final perdida depois do commit sem duplicar dados ou eventos", async () => {
     const pessoa = await novoJogador();
     let finais = 0;
