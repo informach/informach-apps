@@ -1,16 +1,18 @@
 # Leitores de restrições antes de habilitar famílias
 
-Publicação intermediária do fechamento do Recreio. A base é `55dd8da`, com
-gestão sem jogador e os leitores de pareamento/PIN/restrição nativa, após os
-seis gates `44012134895`. Esta candidata acrescenta ativação em fases e mantém
-o Morada World2/protocolo1, sem mudança no jogo, arte ou runtime.
+Publicação intermediária do fechamento do Recreio, com novos fluxos familiares
+desligados. A preparação `55dd8da`/`7753bdc` passou nos seis gates, mas a revisão
+exigiu incluir a assinatura transacional e a invalidação dos ingressos antes
+da implantação. Não publicar a preparação anterior como se contivesse essas
+correções. O Morada permanece World2/protocolo1, sem mudança no jogo, arte ou runtime.
 
 ## Escopo e gates
 
-- Migrations geradas 0168–0171: identidade composta, cadastro declarado,
-  proteção/PIN/pareamento e `minor_context_generation`. Conferências de origem
-  e hashes estão nos registros de cadastro e proteção. A produção continua na
-  0167 até conferir backup, gates e executar a implantação desta candidata.
+- Migrations geradas 0168–0174: identidade composta, cadastro declarado,
+  proteção/PIN/pareamento, `minor_context_generation`, política/tempo e índices
+  de invalidação. Conferências de origem e hashes estão nos registros de
+  cadastro, proteção, F3 e revogação. A produção continua na 0167 até conferir
+  backup, gates e executar esta implantação.
 - `RECREIO_FAMILY_MODE=off` é o padrão e o valor da IaC. Bloqueia novos
   cadastros, pareamentos e entrada em perfil infantil por PIN; não bloqueia
   retorno ao adulto/gestão, revogação e saída. `setup` prepara os vínculos;
@@ -23,9 +25,12 @@ o Morada World2/protocolo1, sem mudança no jogo, arte ou runtime.
 - O executor descartável habilita os fluxos para testes no GitHub. Não rodar
   testes, builds ou cargas nesta máquina.
 
-Novos gates desta candidata e implantação ainda pendentes. O CI compartilhado
-da base (`44013449254`) está em andamento; não confundir seus testes dos outros
-apps com uma implantação desta candidata.
+O CI compartilhado `44013449254` da base passou. A verificação da emissão
+`44020586913` passou nos seis gates; a revisão encontrou e reproduziu a
+[revogação incompleta de ingressos](ingressos-revogacao-2026-11-17.md), que precisa
+da prova verde. `6b5878b` entrou em seis gates e no CI compartilhado
+`44022924176`; um ajuste adicional fecha também a sessão nativa que esteja no
+contexto infantil revogado. Nenhuma dessas candidatas foi implantada ainda.
 
 ## Implantação e retorno
 
@@ -38,5 +43,7 @@ apps com uma implantação desta candidata.
    usada para retorno; desligar fluxos não apaga essa restrição.
 4. Habilitar preparação/jogo somente com os aceites dos incrementos seguintes.
 
-Não inclui política/tempo de jogo (0172–0173), amigos/moderação, cobrança,
-privacidade integral ou ativação infantil. Não representa conclusão do plano.
+Inclui os modelos e o kernel de política/tempo já implementados, com novos
+escritores desligados. Não inclui ativação infantil, seleção pública/estante
+protegida, troca com checkpoint, social/moderação, cobrança e privacidade
+integral. Não representa conclusão do plano.

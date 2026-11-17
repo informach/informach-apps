@@ -1,6 +1,7 @@
 import { AuditPersistenceError } from "@informach/auth";
 import { and, db, eq, sql } from "@informach/db";
 import {
+  recreioDeviceSessions as devices,
   recreioGameSessions as games,
   recreioProfiles as profiles,
   sessions,
@@ -106,6 +107,31 @@ async function abrir(r: Awaited<ReturnType<typeof protegido>>) {
 }
 
 describe("emissão transacional da autoridade", () => {
+  it("revogação global encerra o contexto nativo infantil; PIN antigo não o readmite", async () => {
+    const r = await protegido(true);
+    const login = await loginReal(r.conta);
+    const contexto = await resolverAtor(login);
+    const [sessao] = await db.select().from(sessions).where(eq(sessions.id, login.authSessionId));
+    if (!contexto || !sessao) throw new Error("Login do adulto ausente");
+    const responsavel: AutorNativoRecente = {
+      ...contexto.ator,
+      login: { authSessionId: sessao.id, criadoEm: sessao.createdAt, expiraEm: sessao.expiresAt },
+    };
+    await emitirIngresso(r.ator, { jogo: JOGO });
+    await desconectarTodosDoMenor(responsavel, r.perfil.id);
+    expect(
+      (await db.select().from(devices).where(eq(devices.id, r.ator.sessaoDeAparelhoId)))[0]
+        ?.revokedAt,
+    ).toBeInstanceOf(Date);
+    await expect(
+      trocarPerfilComPin(r.autor, {
+        destino: { tipo: "perfil", perfilId: r.perfil.id },
+        pin: "396175",
+      }),
+    ).rejects.toMatchObject({ code: "AUTH" });
+    expect((await consultarSupervisao(responsavel, r.perfil.id)).perfilId).toBe(r.perfil.id);
+    expect(await db.select().from(tickets).where(eq(tickets.profileId, r.perfil.id))).toEqual([]);
+  });
   it("revogar acesso protegido invalida também ingressos ainda não usados", async () => {
     const r = await protegido();
     await emitirIngresso(r.ator, { jogo: JOGO });

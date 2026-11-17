@@ -1,7 +1,7 @@
 import "server-only";
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
-import { and, db, eq, gt, isNull, sql } from "@informach/db";
+import { and, db, eq, gt, isNotNull, isNull, or, sql } from "@informach/db";
 import {
   recreioPairedCredentials as credentials,
   recreioDeviceSessions as devices,
@@ -533,7 +533,14 @@ export async function revogarAcessoDoMenor(autor: AutorNativoRecente, perfilId: 
       .where(
         and(
           isNull(devices.revokedAt),
-          sql`${devices.id} in (select ${credentials.deviceSessionId} from ${credentials} where ${credentials.profileId}=${perfilId})`,
+          or(
+            sql`${devices.id} in (select ${credentials.deviceSessionId} from ${credentials} where ${credentials.profileId}=${perfilId})`,
+            and(
+              eq(devices.kind, "account"),
+              eq(devices.activeProfileId, perfilId),
+              isNotNull(devices.minorContextGeneration),
+            ),
+          ),
         ),
       );
     await invalidarIngressosDoPerfil(tx, perfilId);

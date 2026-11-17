@@ -32,6 +32,10 @@ do worktree com aprovação da candidata.
 - Seleção nativa revalida login/contexto sob trava desde a leitura para escrita,
   audita somente mudança real e não eleva SHARE do aparelho a UPDATE. Uma leitura
   antiga não limpa seleção posterior ou contexto infantil.
+- Revogação global protegida encerra também os aparelhos nativos que estejam
+  no contexto desse menor, sem alcançar o aparelho administrativo do responsável.
+  Conhecer o PIN infantil antigo não readmite uma sessão explicitamente revogada;
+  é necessário login nativo novo ou novo pareamento aprovado.
 - Índices parciais por perfil/aparelho e validade suportam a invalidação. A
   migration ainda será gerada pelo workflow e conferida antes de integrar.
 
