@@ -12,6 +12,7 @@ import { expect, it } from "vitest";
 import { administrarMundo } from "@/features/mundos/administracao";
 import { painelDeAdministracaoDoMundo } from "@/features/mundos/administracao-painel-repository";
 import type { AutorDaResponsabilidade } from "@/features/mundos/gestao-repository";
+import { mundosSobResponsabilidadeDoMenor } from "@/features/mundos/mundos-do-menor-repository";
 import { painelDeMembros } from "@/features/mundos/remocao";
 import { painelDaResponsabilidade, proporTransferencia } from "@/features/mundos/responsabilidade";
 import { sairDoMundo } from "@/features/mundos/saida";
@@ -21,6 +22,102 @@ import { aposentarInstancias, eventosCom, type Jogador, novoJogador, sinal } fro
 import { abrirPelaRota, entrarNoJogo, mundoDe, novaInstancia } from "./jogo-apoio";
 import { pedir } from "./rotas";
 import { familiaSocial } from "./social-apoio";
+
+async function mundoDoMenor(familia: Awaited<ReturnType<typeof familiaSocial>>) {
+  const [mundo] = await db
+    .insert(spaces)
+    .values({
+      gameId: "morada",
+      stewardProfileId: familia.perfil.id,
+      createdByProfileId: familia.perfil.id,
+      name: "Casa do perfil protegido",
+      contentPolicy: "padrao",
+      status: "hibernating",
+    })
+    .returning();
+  if (!mundo) throw new Error("Mundo da fixture ausente");
+  await db
+    .insert(members)
+    .values({ spaceId: mundo.id, profileId: familia.perfil.id, role: "steward", state: "active" });
+  return mundo;
+}
+
+it("responsável sem jogador consulta, arquiva e retoma o mundo do próprio menor", async () => {
+  const familia = await familiaSocial(),
+    mundo = await mundoDoMenor(familia);
+  const gestor = { responsavel: familia.autor, perfilId: familia.perfil.id };
+  expect(
+    await mundosSobResponsabilidadeDoMenor(familia.autor, familia.perfil.id, null),
+  ).toMatchObject({ itens: [{ id: mundo.id }] });
+  expect(await painelDeAdministracaoDoMundo(gestor, mundo.id)).toMatchObject({
+    podeAlterar: true,
+    perfilGeridoId: familia.perfil.id,
+  });
+  expect(
+    await administrarMundo(gestor, { mundoId: mundo.id, versaoDaGestao: 1, operacao: "arquivar" }),
+  ).toEqual({ alterou: true, revisao: 2 });
+  expect(
+    await administrarMundo(gestor, { mundoId: mundo.id, versaoDaGestao: 2, operacao: "retomar" }),
+  ).toEqual({ alterou: true, revisao: 3 });
+  const eventos = (await eventosCom("spaceId", mundo.id)).filter(
+    (e) => e.eventType === "recreio.space_management_changed",
+  );
+  expect(eventos).toHaveLength(2);
+  expect(
+    eventos.every(
+      (e) =>
+        e.actorId === familia.conta.id &&
+        e.payload.actorKind === "responsavel" &&
+        e.payload.profileId === familia.perfil.id,
+    ),
+  ).toBe(true);
+});
+
+it("outro responsável ou aparelho infantil não herdam a gestão do mundo", async () => {
+  const familia = await familiaSocial(),
+    outra = await familiaSocial(),
+    mundo = await mundoDoMenor(familia);
+  await expect(
+    mundosSobResponsabilidadeDoMenor(outra.autor, familia.perfil.id, null),
+  ).rejects.toMatchObject({ code: "PERFIL" });
+  await expect(
+    administrarMundo(
+      { responsavel: outra.autor, perfilId: familia.perfil.id },
+      { mundoId: mundo.id, versaoDaGestao: 1, operacao: "arquivar" },
+    ),
+  ).rejects.toMatchObject({ code: "PERFIL" });
+  await expect(
+    administrarMundo(
+      {
+        responsavel: {
+          ...familia.autor,
+          sessaoDeAparelhoId: familia.referencia.sessaoDeAparelhoId,
+        },
+        perfilId: familia.perfil.id,
+      },
+      { mundoId: mundo.id, versaoDaGestao: 1, operacao: "arquivar" },
+    ),
+  ).rejects.toMatchObject({ code: "AUTH" });
+  expect((await mundoAtual(mundo.id))?.managementRevision).toBe(1);
+});
+
+it("participação do menor em mundo de outro adulto não transfere a gestão ao responsável", async () => {
+  const familia = await familiaSocial(),
+    c = await cenario();
+  await db
+    .insert(members)
+    .values({ spaceId: c.mundoId, profileId: familia.perfil.id, role: "member", state: "active" });
+  expect(
+    (await mundosSobResponsabilidadeDoMenor(familia.autor, familia.perfil.id, null)).itens,
+  ).toEqual([]);
+  await expect(
+    painelDeAdministracaoDoMundo(
+      { responsavel: familia.autor, perfilId: familia.perfil.id },
+      c.mundoId,
+    ),
+  ).rejects.toMatchObject({ code: "RESPONSAVEL" });
+  expect((await mundoAtual(c.mundoId))?.stewardProfileId).toBe(c.a.perfil.id);
+});
 
 async function autor(p: Jogador): Promise<AutorDaResponsabilidade> {
   const [login] = await db.select().from(sessions).where(eq(sessions.id, p.login.authSessionId));

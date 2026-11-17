@@ -2,10 +2,10 @@ import "server-only";
 import { and, eq, ne } from "@informach/db";
 import { recreioSpaceMembers as members, recreioProfiles as profiles } from "@informach/db/schema";
 import { MundoIdSchema } from "@informach/recreio";
+import type { AutorDaGestaoDeMundo } from "./gestao-nativa-autor";
 import { comGestaoNativaDoMundo } from "./gestao-nativa-repository";
-import type { AutorDaResponsabilidade } from "./gestao-repository";
 
-export function painelDeAdministracaoDoMundo(autor: AutorDaResponsabilidade, mundoId: unknown) {
+export function painelDeAdministracaoDoMundo(autor: AutorDaGestaoDeMundo, mundoId: unknown) {
   const id = MundoIdSchema.parse(mundoId);
   return comGestaoNativaDoMundo(
     autor,
@@ -31,6 +31,7 @@ export function painelDeAdministracaoDoMundo(autor: AutorDaResponsabilidade, mun
         revisao: ctx.mundo.managementRevision,
         membrosConvidam: ctx.mundo.membersInvite,
         podeAlterar: ctx.responsavel,
+        perfilGeridoId: ctx.porResponsavel ? autor.perfilId : null,
         participacoes: participacoes.map((p) => ({
           id: p.id,
           apelido: p.apelido ?? "Participante sem perfil",

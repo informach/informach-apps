@@ -3,7 +3,7 @@ import { MembroIdSchema, MundoIdSchema } from "@informach/recreio";
 import { z } from "zod";
 import { limitarTentativas } from "@/lib/rate-limit";
 import { registrarGestaoDoMundo } from "./administracao-repository";
-import type { AutorDaResponsabilidade } from "./gestao-repository";
+import { type AutorDaGestaoDeMundo, identidadeDoGestor } from "./gestao-nativa-autor";
 
 const base = {
   mundoId: MundoIdSchema,
@@ -25,10 +25,10 @@ export const GestaoDoMundoSchema = z.discriminatedUnion("operacao", [
 ]);
 export type GestaoDoMundo = z.infer<typeof GestaoDoMundoSchema>;
 
-export async function administrarMundo(autor: AutorDaResponsabilidade, entrada: unknown) {
+export async function administrarMundo(autor: AutorDaGestaoDeMundo, entrada: unknown) {
   const pedido = GestaoDoMundoSchema.parse(entrada);
   await limitarTentativas({
-    chave: `gestao-mundos:${autor.contaId}`,
+    chave: `gestao-mundos:${identidadeDoGestor(autor).contaId}`,
     max: 60,
     janelaEmSegundos: 600,
   });

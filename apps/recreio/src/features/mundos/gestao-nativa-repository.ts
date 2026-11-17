@@ -9,15 +9,17 @@ import {
 } from "@/features/social/composicao-repository";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
-import { type AutorDaResponsabilidade, limitarGestao } from "./gestao-repository";
+import { type AutorDaGestaoDeMundo, identidadeDoGestor } from "./gestao-nativa-autor";
+import { limitarGestao } from "./gestao-repository";
 
 /** Contas ordenadas → mundo → perfis → aparelho → participações. Sem cobertura comercial. */
 export async function contextoNativoDoMundo(
   tx: Transacao,
-  autor: AutorDaResponsabilidade,
+  autor: AutorDaGestaoDeMundo,
   mundoId: string,
   alvoId?: string,
 ) {
+  const identidade = identidadeDoGestor(autor);
   const antes = await tx
     .select({ id: members.id, perfilId: members.profileId })
     .from(members)
@@ -36,7 +38,7 @@ export async function contextoNativoDoMundo(
     perfis.push(PerfilIdSchema.parse(alvoAntes.perfilId));
   const composicao = await travarComposicaoSocial(
     tx,
-    { tipo: "responsavel", contaId: autor.contaId },
+    { tipo: "responsavel", contaId: identidade.contaId },
     perfis,
     async () => {
       const [mundo] = await tx
@@ -47,15 +49,23 @@ export async function contextoNativoDoMundo(
       assertAllowed(mundo, "MUNDO", "Mundo indisponível.");
     },
   );
-  const nativa = await autorizarContaNativa(tx, autor);
+  const nativa = await autorizarContaNativa(tx, identidade);
   const perfil = composicao.perfis.find((p) => p.id === autor.perfilId);
-  assertAllowed(
+  const porResponsavel =
+    "responsavel" in autor &&
+    perfil?.kind === "minor" &&
+    composicao.vinculos.some(
+      (v) => v.profileId === autor.perfilId && v.guardianUserId === identidade.contaId,
+    );
+  const proprioAdulto =
+    !("responsavel" in autor) &&
     perfil?.kind === "adult" &&
-      perfil.userId === autor.contaId &&
-      perfil.status === "active" &&
-      nativa.perfilId === autor.perfilId,
-    "AUTH",
-    "Entre no seu perfil adulto para continuar.",
+    perfil.userId === identidade.contaId &&
+    nativa.perfilId === autor.perfilId;
+  assertAllowed(
+    perfil?.status === "active" && (proprioAdulto || porResponsavel),
+    "responsavel" in autor ? "PERFIL" : "AUTH",
+    "A gestão deste perfil está indisponível para esta conta.",
   );
   const [mundo] = await tx.select().from(spaces).where(eq(spaces.id, mundoId));
   assertAllowed(mundo, "MUNDO", "Mundo indisponível.");
@@ -85,11 +95,12 @@ export async function contextoNativoDoMundo(
     );
   const responsavel = proprio.role === "steward" && mundo.stewardProfileId === perfil.id;
   assertAllowed(
-    responsavel || proprio.role === "coadmin",
+    responsavel || (!porResponsavel && proprio.role === "coadmin"),
     "RESPONSAVEL",
     "A gestão deste mundo está indisponível para este perfil.",
   );
-  const conferirPrazo = (recente = true) => nativa.conferirPrazo(recente ? autor.login : undefined);
+  const conferirPrazo = (recente = true) =>
+    nativa.conferirPrazo(recente ? identidade.login : undefined);
   await conferirPrazo(false);
   return {
     mundo,
@@ -97,12 +108,14 @@ export async function contextoNativoDoMundo(
     alvo,
     perfilAlvo: composicao.perfis.find((p) => p.id === alvo?.profileId),
     responsavel,
+    porResponsavel,
+    contaId: identidade.contaId,
     conferirPrazo,
   };
 }
 
 export async function comGestaoNativaDoMundo<T>(
-  autor: AutorDaResponsabilidade,
+  autor: AutorDaGestaoDeMundo,
   mundoId: string,
   alvoId: string | undefined,
   executar: (tx: Transacao, ctx: Awaited<ReturnType<typeof contextoNativoDoMundo>>) => Promise<T>,

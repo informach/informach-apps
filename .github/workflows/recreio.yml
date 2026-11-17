@@ -183,6 +183,7 @@ jobs:
             apps/recreio/tmp/telas/host-controle-morada-mobile.png
             apps/recreio/tmp/telas/host-social-morada-mobile.png
             apps/recreio/tmp/telas/mundos-gestao-mobile.png
+            apps/recreio/tmp/telas/mundos-menor-gestao-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic staff queue screen

@@ -13,11 +13,11 @@ import { assertAllowed } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
 import type { GestaoDoMundo } from "./administracao";
 import { prepararRevogacaoDeConvites } from "./convites-revogacao-repository";
+import type { AutorDaGestaoDeMundo } from "./gestao-nativa-autor";
 import { comGestaoNativaDoMundo } from "./gestao-nativa-repository";
-import type { AutorDaResponsabilidade } from "./gestao-repository";
 import { revogarPropostasDoMembro } from "./responsabilidade-repository";
 
-export function registrarGestaoDoMundo(autor: AutorDaResponsabilidade, pedido: GestaoDoMundo) {
+export function registrarGestaoDoMundo(autor: AutorDaGestaoDeMundo, pedido: GestaoDoMundo) {
   return comGestaoNativaDoMundo(
     autor,
     pedido.mundoId,
@@ -52,12 +52,12 @@ export function registrarGestaoDoMundo(autor: AutorDaResponsabilidade, pedido: G
         if (mudou) {
           const revogar = await prepararRevogacaoDeConvites(tx, ctx.mundo.id, alvo.id);
           await tx.update(members).set({ role: pedido.papel }).where(eq(members.id, alvo.id));
-          if (pedido.papel === "member") await revogar(autor.contaId, "coadmin_removed");
+          if (pedido.papel === "member") await revogar(ctx.contaId, "coadmin_removed");
           await encerrarSessoesAbertas(
             tx,
             sql`${games.spaceId} = ${ctx.mundo.id} and ${games.profileId} = ${alvo.profileId}`,
             "permissions_changed",
-            { porQuem: "ator", contaId: autor.contaId },
+            { porQuem: "ator", contaId: ctx.contaId },
           );
         }
       } else if (pedido.operacao === "convites") {
@@ -114,9 +114,9 @@ export function registrarGestaoDoMundo(autor: AutorDaResponsabilidade, pedido: G
               .orderBy(invites.invitedByMemberId);
             for (const emissor of emissores) {
               const revogar = await prepararRevogacaoDeConvites(tx, ctx.mundo.id, emissor.membroId);
-              await revogar(autor.contaId, "world_archived");
+              await revogar(ctx.contaId, "world_archived");
             }
-            await revogarPropostasDoMembro(tx, ctx.mundo.id, ctx.proprio.id, autor.contaId);
+            await revogarPropostasDoMembro(tx, ctx.mundo.id, ctx.proprio.id, ctx.contaId);
           }
         }
       }
@@ -128,13 +128,14 @@ export function registrarGestaoDoMundo(autor: AutorDaResponsabilidade, pedido: G
         .where(eq(spaces.id, ctx.mundo.id));
       await logAuditEventStrict(
         "recreio.space_management_changed",
-        autor.contaId,
+        ctx.contaId,
         {
           app: "recreio",
           spaceId: ctx.mundo.id,
           profileId: autor.perfilId,
           operation: pedido.operacao,
           revision: revisao,
+          ...(ctx.porResponsavel ? { actorKind: "responsavel" } : {}),
           ...(pedido.operacao === "coadministracao"
             ? { memberId: pedido.membroId, role: pedido.papel }
             : {}),

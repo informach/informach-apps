@@ -115,3 +115,19 @@ responsável de um mundo criado por menor continua pendente, distinta de dar
 coadmin a um menor, que permanece recusado. Convites dirigidos/aprovações,
 visitas, proteção de participantes, operação e homologação integral continuam
 abertos. Produção permanece na fonte e nos 184 recibos de F1.
+
+A candidata seguinte estende a gestão ao responsável atual de um perfil menor,
+sem exigir jogador próprio. A identidade nativa do adulto fica separada do
+perfil gerido; grupo comercial não basta e o aparelho infantil não recebe essa
+autoridade. A gestão só alcança mundos em que o menor é responsável, não os
+mundos de terceiros em que ele participa. Lista paginada e rotas sob
+`/conta/perfis/[id]/mundos` revalidam o vínculo, e o evento registra o adulto
+como ator. Três integrações candidatas cobrem essas fronteiras; uma jornada
+real de pareamento/criação no título interno Livre exercita arquivo/retomada
+pelo responsável sem jogador. Não muda a classificação do Morada.
+
+Transferência da responsabilidade de mundo de menor para outro adulto ainda
+precisa de um fluxo de proposta com proveniência do responsável e aceite do
+destinatário; o fluxo adulto anterior não é reinterpretado como essa prova.
+Encerramento F7 continua dependendo dessa resolução. Convites, visitas,
+participantes e os demais gates F5 também permanecem abertos.

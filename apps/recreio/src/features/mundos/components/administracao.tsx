@@ -1,7 +1,7 @@
 "use client";
 import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useState, useTransition } from "react";
-import { administrarMundoAction } from "../administracao-actions";
+import { administrarMundoAction, administrarMundoDoMenorAction } from "../administracao-actions";
 import type { painelDeAdministracaoDoMundo } from "../administracao-painel-repository";
 
 type Painel = Awaited<ReturnType<typeof painelDeAdministracaoDoMundo>>;
@@ -20,10 +20,12 @@ export function AdministracaoDoMundo({ painel }: { painel: Painel }) {
   const [papel, escolherPapel] = useState("coadmin");
   const [convites, escolherConvites] = useState(painel.membrosConvidam);
   const trava = !pronto || pendente || enviado || !painel.podeAlterar;
-  const destino = `/conta/mundos/${painel.mundo.id}/gestao`;
+  const destino = painel.perfilGeridoId
+    ? `/conta/perfis/${painel.perfilGeridoId}/mundos/${painel.mundo.id}/gestao`
+    : `/conta/mundos/${painel.mundo.id}/gestao`;
   const consequencia =
     acao === "coadministracao"
-      ? "A participação escolhida passa ao papel informado. A partida desse perfil neste mundo será encerrada para atualizar as permissões. Retirar coadmin também cancela seus convites ainda não usados. A responsabilidade e o progresso continuam preservados."
+      ? "A participação escolhida passa ao papel informado. A partida desse perfil neste mundo será encerrada para atualizar as permissões. Para guardar alterações recentes, peça que a pessoa saia pelo jogo antes. Retirar coadmin também cancela seus convites ainda não usados. A responsabilidade e o progresso já confirmado ficam preservados."
       : acao === "convites"
         ? "Muda a regra para novos convites. Aprovações de proteção infantil continuam obrigatórias e amizade não concede entrada automaticamente."
         : acao === "arquivar"
@@ -32,6 +34,12 @@ export function AdministracaoDoMundo({ painel }: { painel: Painel }) {
   return (
     <>
       <section className="painel mt-8 max-w-2xl p-5 sm:p-6" aria-label="Participantes e papéis">
+        {painel.perfilGeridoId && (
+          <p className="mb-4 text-sm text-tinta-suave">
+            Você cuida deste mundo como responsável atual pelo perfil. Isso não concede
+            administração das contas dos outros participantes.
+          </p>
+        )}
         <h2 className="font-display text-2xl font-bold">Quem cuida deste mundo</h2>
         <ul className="mt-4 grid gap-3">
           {painel.participacoes.map((p) => (
@@ -76,7 +84,9 @@ export function AdministracaoDoMundo({ painel }: { painel: Painel }) {
                   : base;
             iniciar(async () => {
               try {
-                const r = await administrarMundoAction(pedido);
+                const r = painel.perfilGeridoId
+                  ? await administrarMundoDoMenorAction(painel.perfilGeridoId, pedido)
+                  : await administrarMundoAction(pedido);
                 if (r.ok)
                   definirMensagem(
                     r.data.alterou
