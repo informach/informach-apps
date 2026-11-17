@@ -34,7 +34,13 @@ vi.mock("@informach/config/jogos", async (original) => {
       id: "checkpoint-perfil",
       nome: "Checkpoint",
       rota: "/jogar/checkpoint-perfil",
-      capacidades: { ...real.JOGOS[0].capacidades, mundos: null, posse: [], dadosDePerfil: true },
+      capacidades: {
+        ...real.JOGOS[0].capacidades,
+        mundos: null,
+        posse: [],
+        dadosDePerfil: true,
+        checkpoint: "perfil",
+      },
     },
   ];
   return {
@@ -83,6 +89,57 @@ function confirmar(r: Awaited<ReturnType<typeof preparar>>, id: string, confirma
 }
 
 describe("troca coordenada por checkpoint de perfil", () => {
+  it.each(["confirmed", "completed"] as const)(
+    "espera da auditoria não pode atravessar o prazo da troca em %s",
+    async (fase) => {
+      const r = await preparar();
+      const id = await pedirTroca(r);
+      if (fase === "completed") expect(await confirmar(r, id)).toMatchObject({ status: 200 });
+      await db
+        .update(handoffs)
+        .set({ expiresAt: sql`clock_timestamp()+interval '3 seconds'` })
+        .where(eq(handoffs.id, id));
+      // A auditoria espera exatamente o prazo persistido, sem substituir o relógio do servidor.
+      await db.execute(sql`create function audit.esperar_prazo_troca_em_teste() returns trigger language plpgsql as $$
+      declare limite timestamptz;
+      begin if new.event_type in ('recreio.session_handoff_confirmed','recreio.session_handoff_completed') then
+        select expires_at into limite from recreio.session_handoffs where id=(new.payload->>'handoffId')::uuid;
+        perform pg_sleep(greatest(0,extract(epoch from (limite-clock_timestamp())))+0.01);
+      end if; return new; end $$`);
+      await db.execute(
+        sql`create trigger esperar_prazo_troca_em_teste before insert on audit.events for each row execute function audit.esperar_prazo_troca_em_teste()`,
+      );
+      try {
+        if (fase === "confirmed")
+          expect(await confirmar(r, id)).toMatchObject({
+            status: 409,
+            corpo: { codigo: "CHECKPOINT_PENDENTE", motivo: "expired" },
+          });
+        else
+          await expect(trocarIngresso(r.pedido)).rejects.toMatchObject({
+            codigo: "CHECKPOINT_PENDENTE",
+            detalhe: { motivo: "expired" },
+          });
+        const [pedido] = await db.select().from(handoffs).where(eq(handoffs.id, id));
+        expect(pedido?.status).toBe(fase === "confirmed" ? "requested" : "confirmed");
+        const [antiga] = await db.select().from(games).where(eq(games.id, r.anterior.sid));
+        expect(antiga?.endedAt).toBeNull();
+        if (fase === "confirmed") expect(antiga?.checkpointFrozenAt).toBeNull();
+        else expect(antiga?.checkpointFrozenAt).not.toBeNull();
+        expect(
+          (
+            await db
+              .select()
+              .from(tickets)
+              .where(eq(tickets.jti, String(claimsDe(r.pedido.ingresso).jti)))
+          )[0]?.consumedAt,
+        ).toBeNull();
+      } finally {
+        await db.execute(sql`drop trigger esperar_prazo_troca_em_teste on audit.events`);
+        await db.execute(sql`drop function audit.esperar_prazo_troca_em_teste()`);
+      }
+    },
+  );
   it("espera a fila, conserva o progresso, congela o SID anterior e só então abre no outro aparelho", async () => {
     const r = await preparar();
     const id = await pedirTroca(r);
