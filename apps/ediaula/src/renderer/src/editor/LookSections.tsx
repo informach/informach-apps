@@ -25,6 +25,7 @@ import {
   ScanEye,
   Smartphone,
   SquareDashed,
+  Tablet,
   Unlink,
   Volume2,
 } from "lucide-react";
@@ -117,10 +118,14 @@ export function ColorSection({ clip }: { clip: Clip }): ReactNode {
   );
 }
 
-const DEVICE_LABEL: Record<Device, string> = { laptop: "Notebook", phone: "Celular" };
-const DEVICE_ICON = { laptop: Laptop, phone: Smartphone };
+const DEVICE_LABEL: Record<Device, string> = {
+  laptop: "Notebook",
+  tablet: "Tablet",
+  phone: "Celular",
+};
+const DEVICE_ICON = { laptop: Laptop, tablet: Tablet, phone: Smartphone };
 
-/** The picture on the screen of a laptop or a phone drawn around it. */
+/** The picture on the screen of a laptop, tablet or phone drawn around it. */
 export function DeviceSection({ clip }: { clip: Clip }): ReactNode {
   const current = clip.transform?.device;
   const set = (device: Device | undefined): void => {

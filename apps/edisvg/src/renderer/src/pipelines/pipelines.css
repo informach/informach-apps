@@ -102,21 +102,6 @@ dialog.pipelines-dialog > .help-content {
   gap: 8px;
   align-items: center;
 }
-.pipeline-swatch {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.pipeline-swatch input[type="color"] {
-  width: 26px;
-  height: 22px;
-  padding: 0;
-  border: 1px solid var(--line);
-  background: none;
-}
-.pipeline-swatch code {
-  color: var(--muted);
-}
 .pipeline-steps {
   margin: 0;
   padding-left: 20px;
@@ -227,15 +212,35 @@ dialog.pipelines-dialog > .help-content {
 .scene-artboard.has-reference > .scene-artwork {
   position: relative;
 }
-.pipeline-fonts {
+/* The style guide picture of a recipe or a run (GuideField). */
+.pipeline-guide-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 16px;
+  align-items: flex-start;
+  gap: 12px;
 }
-.pipeline-fonts label {
-  display: inline-flex;
-  align-items: center;
+.pipeline-guide-row > .micro {
+  flex: 1;
+}
+.pipeline-guide-thumb {
+  flex: none;
+  width: 96px;
+  height: 128px;
+  object-fit: cover;
+  object-position: top;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--line);
+}
+.pipeline-guide-info {
+  display: flex;
+  flex-direction: column;
   gap: 6px;
+  min-width: 0;
+}
+.pipeline-guide-info strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* The lesson's script as phrases to pick (LessonPhrases). */
 .pipeline-phrases {

@@ -5,8 +5,10 @@ import {
   cursorAt,
   cursorControls,
   cursorFxId,
+  cursorListenSpan,
   cursorPathAt,
   cursorPathGeometry,
+  cursorSourceHeard,
   DEFAULT_CURSOR_FX,
   insertCursorPoint,
   nearestCursorTime,
@@ -342,4 +344,16 @@ test("Ctrl+Shift+R cuts from the pause before the flubbed passage to the pause a
     Math.abs(cuts[0][0] - 2.3) < 0.02 && Math.abs(cuts[0][1] - 5.5) < 0.02,
     `got ${cuts[0]}`,
   );
+});
+
+test("listening to the lesson from a moment of the path follows the clip's place and speed", () => {
+  // A clip at 10 s showing the source from 4 s at double speed, up to source second 14.
+  const clip = { start: 10, in: 4, speed: 2 };
+  assert.deepEqual(cursorListenSpan(clip, 14, 6), { from: 11, to: 15 });
+  // Asked at the end, it starts the clip over.
+  assert.deepEqual(cursorListenSpan(clip, 14, 13.98), { from: 10, to: 15 });
+  // What is heard at a timeline moment, kept inside the clip's stretch of the source.
+  assert.equal(cursorSourceHeard(clip, 14, 11), 6);
+  assert.equal(cursorSourceHeard(clip, 14, 9), 4);
+  assert.equal(cursorSourceHeard(clip, 14, 16), 14);
 });

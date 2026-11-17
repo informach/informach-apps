@@ -6,6 +6,11 @@ Editor de vídeo para aulas: a simplicidade do Camtasia com a timeline do Premie
 
 **Fila de exportação:** em Exportar, escolha o destino e clique em **Adicionar à fila**. Cada item guarda uma cópia do projeto e das configurações, incluindo o caminho editado do cursor. Clique em **Continuar editando** para abrir outra aula enquanto a fila processa um arquivo por vez. Acompanhe, cancele ou tente novamente pelo botão **Exportações** ou pelo menu **Arquivo → Fila de exportação**; **Tentar com a edição atual** refaz com o projeto aberto agora, em vez da cópia guardada. O fechamento normal é bloqueado enquanto há itens pendentes, mas a fila fica gravada, cada item num arquivo próprio (`export-queue/`, com a lista em `export-queue.json`), então várias aulas longas na fila cabem: se o EdiAula fechar no meio, ao abrir de novo ele oferece **Retomar** ou **Descartar**, e retomar só refaz os trechos que faltavam. Os arquivos originais precisam continuar disponíveis.
 
+Na régua da timeline, as abas verde (início) e vermelha (fim) do intervalo acompanham a agulha.
+**Duplo clique** numa delas copia o tempo dela (`00:01:23:12`) para a área de transferência. O
+**botão direito** abre um menu com três cópias: o tempo daquela aba, o intervalo (início – fim) e a
+duração.
+
 Na timeline, **Shift + arrasto da linha verde** desloca juntos os clipes que começam naquele ponto ou à direita, em todas as faixas destravadas. As distâncias entre eles são preservadas; clipes que atravessam o ponto ficam no lugar. Ao arrastar para a esquerda, o deslocamento para antes de sobrepor os clipes anteriores. **Esc** cancela o arrasto e **Ctrl + Z** desfaz o movimento aplicado.
 O design de referência está em `ediaula.pen`.
 
@@ -49,6 +54,7 @@ ativos. Esse resultado não homologa dispositivos, áudio físico ou captura de 
 - Importar vídeo, áudio e imagem (botão, Ctrl+I ou arrastar do Explorer)
 - Miniaturas, formas de onda e proxy 720p automático para vídeos 4K
 - Timeline com faixas de vídeo e áudio: mover, aparar, cortar (C), dividir (S), ímã, excluir com ripple, fechar lacunas, travar/ocultar/silenciar faixas
+- Uma imagem ou anotação (Destaque, Caixa, balão…) é a mesma em qualquer instante, então a borda esquerda dela vai para trás até o clipe vizinho ou até 0:00. Só vídeo e áudio param no começo do arquivo de origem (`sourceRoom` em `src/shared/clipTime.ts`).
 - **Fechar lacunas** (barra da timeline ou Editar) só remove os trechos vazios em todas as faixas ao mesmo tempo, então balões, avatar, camadas de zoom e voz continuam sincronizados; a música segue tocando e termina com a aula, e faixas travadas ficam exatamente como estão. Para encostar os clipes de uma faixa só, clique com o botão direito no nome dela › **Fechar lacunas desta faixa** (começa no primeiro clipe da faixa, não em 0:00)
 - Preview sincronizado com J/K/L (com som também para trás), quadro a quadro e tela cheia
 - Desfazer/refazer de tudo
@@ -76,7 +82,7 @@ ativos. Esse resultado não homologa dispositivos, áudio físico ou captura de 
 
 - Se o salvamento falhar, o aviso fica fixo na barra de cima até um salvamento dar certo, com **Tentar de novo** e **Salvar cópia…**. A cópia ganha o nome do arquivo escolhido e a edição continua nela. Voltar ao início, abrir ou criar outro projeto e fechar a janela (pelo X ou Alt+F4) esperam o texto que está sendo digitado, as anotações sendo redesenhadas e o salvamento, com o aviso "Salvando antes de fechar…" quando demora; se o salvamento falhar ou passar de 20 s, uma janela pergunta o que fazer: tentar de novo, salvar uma cópia, sair sem salvar ou cancelar. Com exportações na fila, a janela continua aberta e nada é descartado.
 - Salvar e exportar mandam o projeto ao processo principal como texto (um valor só, por maior que seja a aula), validado uma vez, com o mesmo teto de 32 MB da abertura. O arquivo é gravado compacto e o teto vale sobre ele; perto de 80% do teto, o app avisa uma vez por aula, e os desenhos feitos na tela (o que mais ocupa) têm um teto de pontos para a aula inteira, além do teto de cada take (`src/shared/projectSize.ts`). Abrir e salvar só aceitam um `.ediaula` escolhido pela pessoa (diálogo, lista de recentes, aula criada, copiada ou tirada de um pacote pelo app; `src/main/lessonFile.ts`); as posições do cursor vão como lista binária, então gravações longas (27 min ou mais) também exportam. Um projeto que não poderia ser reaberto não é salvo, e uma falha na lista de recentes não impede o salvamento.
-- Um `.ediaula` aberto de fora pergunta antes de liberar os arquivos que ele usa ("Permitir acesso aos N arquivos"). A pergunta nomeia todos os computadores da rede envolvidos (o Windows pode mandar a autenticação da pessoa a eles) e conta todos os arquivos fora da pasta da aula, listando os 20 primeiros e dizendo quantos faltam; caminhos de dispositivo (`\\.\…`) são recusados (`src/main/linkedFiles.ts`). A aula só entra nos recentes depois da permissão: os recentes liberam a miniatura sem perguntar de novo, então uma aula recusada nunca chega lá.
+- Um `.ediaula` aberto libera na hora os arquivos que ele usa dentro da própria pasta (e subpastas), sem perguntar: abrir a aula é a escolha da pessoa. Só quando o projeto aponta para arquivos fora da pasta dele, ou em outro computador da rede, ele pergunta antes ("Permitir acesso aos N arquivos que este projeto usa fora da pasta dele?"). A pergunta nomeia todos os computadores da rede envolvidos (o Windows pode mandar a autenticação da pessoa a eles) e conta todos os arquivos de fora, listando os 20 primeiros e dizendo quantos faltam; caminhos de dispositivo (`\\.\…`) são recusados (`src/main/linkedFiles.ts`). A aula só entra nos recentes depois da permissão: os recentes liberam a miniatura sem perguntar de novo, então uma aula recusada nunca chega lá.
 - Os zooms pertencem à gravação, no tempo dela, como o cursor: cada clipe mostra os do seu trecho. Cortar, aparar e desfazer o aparo pela borda nunca perde nem duplica um zoom, e um zoom tirado fica fora. Projetos antigos, com os zooms copiados em cada pedaço, são convertidos ao abrir.
 - Cada pedaço de um clipe cortado (dividir, sobrescrever, aparar, estender quadro, cortes da transcrição) mostra exatamente o mesmo movimento e a mesma vista da camada de zoom do original (`src/shared/pieces.ts`): o pedaço guarda todas as posições do movimento, então aumentá-lo pela borda traz o movimento de volta, e a camada de zoom mantém o tempo da entrada e da saída mesmo num pedaço curto. Um corte no meio tira a entrada e a saída das bordas de dentro; cortar a cabeça ou o rabo de um clipe só move aquela borda, com a transição, o fade e a animação dela.
 - Ctrl+Z desfaz também a remoção de fundo. O que o app descobre sobre a mídia (miniatura, forma de onda, proxy, transcrição, vídeo recortado, arquivo ausente, taxa de quadros e transparência do arquivo) e o tempo de edição medido não voltam com o desfazer.
@@ -1177,12 +1183,27 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
     escolhido. São os efeitos de `src/shared/soundEffects.ts` (veja **Efeitos sonoros**).
   - **Efeito por trecho:** liga ou desliga a lupa, o holofote, o halo, a onda, o som ou o próprio cursor só num
     pedaço da gravação. O trecho aparece em roxo no pé do clipe da gravação, e as pontas dele se arrastam ali.
+    Cada trecho também pode ter o **tamanho** próprio do cursor (de 30% a 400%).
+  - **Tamanho neste clipe:** abaixo de **Tamanho na gravação**, muda o cursor só no pedaço da gravação que o clipe
+    selecionado mostra (um clipe cortado com zoom deixa o cursor grande demais; os outros clipes da mesma gravação
+    ficam como estavam). É guardado como um trecho exatamente sobre o clipe (`withStretchCursorSize` em
+    `src/shared/cursor.ts`), então aparece na lista e na faixa roxa; cópias do mesmo pedaço mudam juntas, como no
+    caminho do cursor. **Usar o tamanho da gravação neste clipe** desfaz. Na exportação, o vídeo pequeno do
+    ponteiro é desenhado no tamanho do maior cursor da gravação, e cada quadro usa o tamanho do seu trecho.
   - Tudo igual na prévia e na exportação: o mesmo desenho (`src/renderer/src/lib/cursorDraw.ts`) faz a prévia e o
     vídeo pequeno do ponteiro; a exportação amplia a lupa e move a imagem do holofote com as mesmas posições.
 - **Editar caminho do cursor…** (botão direito no clipe): mostra apenas o intervalo daquele clipe,
   com tempo de zero até sua duração, respeitando a velocidade. O caminho e os pontos ficam no mesmo
   intervalo; aplicar ou restaurar preserva as edições fora dele. Escolha o tempo, clique para adicionar pontos e
-  arraste-os para ajustar a posição. Cada ponto também tem tempo e coordenadas numéricas. O movimento
+  arraste-os para ajustar a posição. Para achar o momento pelo som, **Ouvir a aula daqui** (ou Espaço) toca a
+  aula a partir desse tempo até o fim do clipe, com o som que a prévia tocaria ali (narração, música, volume e
+  mudos das faixas): o tempo e o ponteiro laranja acompanham, e qualquer escolha de tempo ou ponto para.
+  Arrastar o controle de tempo também se ouve, em grãos, como o cursor de reprodução na timeline. Com muitos
+  pontos juntos, a roda do mouse sobre a imagem aproxima (até 800%) em torno do ponteiro, sem rolar o diálogo;
+  os pontos e as linhas mantêm o tamanho na tela, então se separam. O botão do meio arrasta a vista,
+  **Ver tudo** volta a 100%, e a vista aproximada vai atrás do ponto escolhido na lista e do ponteiro laranja
+  enquanto a aula toca (`src/shared/stageView.ts`). Cada ponto
+  também tem tempo e coordenadas numéricas. O movimento
   usa curvas Bézier: selecione um ponto para mostrar as alças azuis de entrada e saída e arraste-as
   para curvar o trajeto. As alças acompanham o ponto; “Redefinir alças” restaura os controles padrão.
   O movimento
@@ -1234,6 +1255,12 @@ continua funcionando sozinho; o contrato entre eles está em `packages/edi-link`
 - **Os renders:** a pasta `Aula · renders`, ao lado do projeto. Cada animação vinculada é um WebM
   com transparência (`<animação>-<hash>.webm`), e `vinculos.json` lista o render atual de cada
   uma. O EdiSVG renderiza ao salvar, só as animações vinculadas que mudaram.
+- **No pacote da aula** (Empacotar para outra pessoa): o `.edisvg` de cada vínculo vai junto, uma
+  vez por projeto, em `media/`, além do render do clipe. Ao abrir o pacote em outro computador, o
+  vínculo aponta para essa cópia, dentro da pasta da aula: o clipe continua abrindo no EdiSVG, e um
+  salvar lá renderiza ao lado dela. Um pacote feito antes disso, com o vínculo apontando para o
+  outro computador, abre com o último render e sem o vínculo, em vez de ser recusado
+  (`packPlan`, `packedLinks` e `unpackPaths` em `src/shared/projectPackage.ts`).
 
 **Como o EdiAula atualiza o clipe** (`src/main/edisvgLink.ts`, `src/shared/linkedMedia.ts`,
 `src/renderer/src/lib/edisvgLink.ts`):
@@ -1431,6 +1458,24 @@ Nunito no texto); em outra paleta, as mesmas formas nas cores dos papéis dela.
   contra o FFmpeg nos testes (`tests/mask.test.ts`). A sombra de um clipe com forma (e do avatar recortado)
   não deixa mais um retângulo escuro fraco em volta na exportação: o `pad` do FFmpeg preenchia a
   transparência com 16, e agora preenche com 0.
+  - **Polígono com a caneta:** **Desenhar polígono** (ou o chip Polígono, quando ainda não há um) mostra a imagem
+    inteira na prévia. A caneta é a mesma do Destaque: arrastar desenha um retângulo, clicar põe os cantos de uma
+    forma livre, e cabem várias formas (até 8, 40 cantos ao todo; uma forma dentro de outra vira um furo).
+    Enter, dois cliques ou Concluir terminam; Backspace desfaz e Esc cancela sem mudar a máscara. O polígono vira a máscara: o retângulo
+    em volta dele é o corte, e os cantos ficam guardados como frações desse retângulo (`polygon` no
+    `transform`), então mover ou redimensionar a máscara leva o polígono junto. Em **Ajustar a máscara na
+    prévia**, cada canto se arrasta; os cantos ficam por cima e a caixa de um polígono só tem as alças dos quatro
+    cantos (as do meio dos lados cairiam sobre os cantos do polígono, que sempre encostam nos lados). O polígono
+    fica guardado nas direções da tela e o corte nas da imagem: num clipe espelhado, o recorte continua onde foi
+    desenhado, na prévia e na exportação (que recorta depois de espelhar), e as alças da máscara aparecem do
+    lado em que a imagem está (`mirrorCrop` em `shared/compose.ts`). Sem borda suave, a prévia recorta o
+    polígono com `clip-path` (nítido e na hora, também ao arrastar); com borda suave, com a imagem da máscara.
+    A caneta é a mesma do Destaque (`editor/PolygonPen.tsx`): enquanto está aberta, Backspace e Delete só
+    apagam pontos, nunca o clipe. Borda suave, borda colorida e sombra funcionam como nas outras formas. A
+    conta é a mesma na prévia e no FFmpeg (`polygonDistance` em `shared/compose.ts`, par/ímpar, e
+    `polygonDistanceExpr` em `shared/export/fx.ts`), conferida pixel a pixel numa estrela côncava. Na
+    exportação, a imagem da máscara é feita uma vez por forma e guardada em cache: cerca de 1 s com 8 cantos e
+    6 s com 40, numa máscara do tamanho da tela em 1080p.
 - **Contorno** de anotações: Sem contorno · Sólido · Tracejado · Pontilhado, com cor e espessura. O sólido fica
   por fora da forma; traços e pontos ficam sobre a borda.
 - **Formas** (galeria de Anotações › Formas): retângulo, círculo e triângulo cheios, linha, curva e círculo vazado,
@@ -1445,13 +1490,32 @@ Nunito no texto); em outra paleta, as mesmas formas nas cores dos papéis dela.
   mantém a proporção, **Esc** cancela. Enquanto arrasta, a forma aparece já desenhada no tamanho novo e o tamanho
   aparece embaixo; soltar é um passo de desfazer (`editor/ShapeSizeControl.tsx`, contas em
   `shared/shapeResize.ts`). Nessas formas o quadro de seleção só move; os cantos que mudavam a escala saíram
-  delas.
+  delas. O tamanho vai de 40 até o dobro da tela de 1080p (3840 × 2160), então a forma pode passar das bordas.
+  O fundo de tela cheia dos templates é marcado como fundo (`backdrop`), não pelo tamanho; num projeto antigo,
+  um painel de 1920 × 1080 ou mais continua sendo fundo e as outras formas ficam marcadas como forma na
+  primeira edição (`fillsFrame` e `editedAnnotation` em `shared/annotation.ts`).
 - **Escurecer o resto** (Destaque › Forma): escurece em volta da caixa do destaque, com a opacidade escolhida
   (10% a 95%, começa em 60%). Só as faixas abaixo da do destaque escurecem; o que está acima fica como está. O
-  recorte tem a forma do destaque (arredondada, reta, elipse ou triângulo), gira e espelha com ele, e o
+  recorte tem a forma do destaque (arredondada, reta, elipse, triângulo ou polígono), gira e espelha com ele, e o
   escurecimento entra e sai junto com a caixa. Ele fica onde o destaque está parado: um movimento por
   quadros-chave não leva o recorte junto. A prévia e a exportação usam a mesma conta (`shared/dim.ts`; na
   exportação, uma imagem da tela inteira feita uma vez pelo FFmpeg, `export/fx.ts`).
+- **Destaque em polígono** (Destaque › Forma › Polígono, ou **Desenhar polígono na tela**): a caneta cobre a
+  prévia inteira. **Arrastar desenha um retângulo**; clicar põe os cantos de uma forma livre, que fecha com um
+  clique no primeiro ponto. Cabem várias formas no mesmo destaque (até 8, e 40 cantos ao todo): **dois
+  retângulos** deixam as duas áreas claras e escurecem o resto, num escurecimento só. Enter, dois cliques ou
+  **Concluir** terminam; Backspace desfaz o último ponto ou a última forma, e Esc cancela. A caneta abre com as
+  formas que o destaque já tem, onde elas estão (`highlightPolygonOnFrame` em `shared/dim.ts`): abrir de novo e
+  desenhar acrescenta, e Backspace apaga as que já estavam, uma por vez. A máscara faz o mesmo. (Dois destaques
+  separados com Escurecer o resto não fazem isso: cada um escurece também a caixa do outro.) O destaque vai para
+  onde as formas foram desenhadas: a caixa vira o retângulo em volta dele (largura e altura em pixels de 1080p, no tamanho
+  que o clipe mostra agora), o clipe anda até lá (com os quadros-chave) e cada forma fica guardada como uma lista
+  de cantos em frações da caixa (`polygon` na anotação, uma lista de contornos; um polígono salvo com uma lista
+  só é lido como um contorno), nas direções da imagem; num destaque girado, a caixa fica nas direções dele
+  (`drawnHighlight` em `shared/dim.ts`). O contorno, o preenchimento, a sombra e o **Escurecer o resto** seguem o
+  polígono, que se estica junto quando a largura ou a altura mudam. O recorte do escurecimento é par/ímpar, como
+  a máscara (`polygonDistanceExpr` em `export/fx.ts`), conferido no FFmpeg com uma seta côncava girada
+  (`tests/highlight-dim.test.ts`). O polígono é só do Destaque: as outras formas seguem com as quatro básicas.
 - **Fontes**: 12 famílias livres (OFL) empacotadas em `resources/fonts` (baixadas por
   `node scripts/fetch-fonts.mjs`), mais todas as instaladas no Windows. Valem para anotações, templates e
   legenda gravada (o libass usa os mesmos arquivos TTF). A **fonte padrão** das anotações e dos templates, usada
@@ -1674,7 +1738,11 @@ Nunito no texto); em outra paleta, as mesmas formas nas cores dos papéis dela.
   normal" ou "Ficar no zoom até o fim". "Continuar em outro ponto" cria a etapa seguinte colada na atual: o zoom
   desliza de um ponto a outro sem voltar ao normal; "Voltar ao normal aqui" é o "Restaurar" (uma etapa em 1×).
 - A exportação aplica o zoom ao composto das faixas de baixo naquele ponto da pilha (`zoomLayerFilter`), com as
-  mesmas curvas da prévia (`shared/zoomLayer.ts`). IA: `add_zoom`.
+  mesmas curvas da prévia (`shared/zoomLayer.ts`). IA: `add_zoom`, com `track_id` para pôr a camada numa faixa
+  existente (uma faixa de zoom só, logo acima da gravação) em vez de uma faixa nova no topo. `add_annotation` também
+  aceita `track_id` (a faixa das marcações, acima do zoom), `scale` (múltiplo do tamanho natural, para casar com o
+  zoom das faixas de baixo) e, no destaque, `dim` (escurece o resto da tela). A aula automática usa os três
+  (`scripts/aula-automatica/REGRAS.md`).
 
 ## Efeitos sonoros
 
@@ -2018,6 +2086,10 @@ e por scripts em `scripts/aula-automatica/` (desde 16/11/2026). O condutor abre 
 num perfil de trabalho e recebe comandos por HTTP local; `parte.sh <curso> <aula> <parte> <etapa>` liga as
 etapas pelo `config.json` da máquina (palco, roteiros do Sistema Zero, pasta do material, música). O passo a
 passo, as regras de edição da titular e os limites estão no [README da aula automática](scripts/aula-automatica/README.md).
+As peças gráficas chegam em `.edisvg` e entram vinculadas (Arquivo › Importar animação do EdiSVG…), nunca
+achatadas; as regras revisadas em 17/11/2026 estão em [REGRAS.md](scripts/aula-automatica/REGRAS.md). Num build de
+desenvolvimento, `EDIAULA_EDISVG_USER_DATA` aponta o perfil do EdiSVG que recebe os pedidos de vínculo: o condutor o
+usa para que o EdiSVG do condutor, e não o do `%APPDATA%`, gere os renders.
 
 ### Teste de fumaça da gravação guiada
 
@@ -2122,9 +2194,14 @@ EdiAula e um verbo que a página não conhece, e uma página sem a ponte. Não m
 - **Cor, moldura e fundo:** brilho, contraste, saturação e temperatura em Propriedades › Cor (um `lutyuv`
   na faixa limitada do BT.709, de 16 a 235, que não perde a transparência, e `colortemperature`; na
   prévia, uma matriz de cor SVG com as mesmas contas: contraste e brilho só na luz, pelos pesos BT.709;
-  as duas dão a mesma cor, conferida com o FFmpeg). **Moldura de dispositivo** põe o clipe na tela de um notebook ou de um
+  as duas dão a mesma cor, conferida com o FFmpeg). **Moldura de dispositivo** põe o clipe na tela de um notebook, um tablet ou um
   celular desenhados pelo próprio app (sem imagem de produto de terceiros, então não há licença a
   conferir), com a forma do clipe preservada; a moldura toma o lugar dos cantos arredondados e da borda.
+  Celular e tablet têm aro lateral, botões e câmera. Com um clipe mais largo que alto, eles aparecem
+  deitados: o celular com a câmera à esquerda, o tablet com a câmera na borda de cima. A espessura da
+  borda segue o lado curto da tela, então o aparelho deitado não fica com borda grossa. A geometria é
+  uma lista de peças (`deviceGeometry` em `shared/look.ts`) que a prévia desenha no canvas e a
+  exportação compõe com o FFmpeg, peça por peça.
   **Fundo da aula** (Propriedades com nada selecionado): cor, degradê ou uma imagem da biblioteca no
   lugar do preto, igual na prévia e na exportação.
 - **Anotação que entra:** um balão, nota, título, cartela ou nome entra **palavra por palavra** e uma

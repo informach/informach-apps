@@ -10,7 +10,7 @@
  * verdade. Fechar o app encerra o condutor e apaga só a licença temporária.
  *
  * Variáveis: AULA_PERFIL_EDIAULA, AULA_PERFIL_EDISVG (pasta do perfil; padrão ~/EdiAula-teste/user-data e
- * ~/EdiSVG-teste/user-data), AULA_TELAS (onde as fotos vão; padrão .cache/aula-automatica/telas) e
+ * ~/EdiSVG-teste/user-data; o EdiAula manda os pedidos de vínculo para o perfil do EdiSVG), AULA_TELAS (onde as fotos vão; padrão .cache/aula-automatica/telas) e
  * PROVA_SKIP_BUILD=1 (não refaz o build).
  */
 import { mkdirSync } from "node:fs";
@@ -66,7 +66,13 @@ if (process.env.PROVA_SKIP_BUILD !== "1") {
   log(`build do ${label}`);
   await harness.build(which);
 }
-app = await harness.launch(which, { userData, suiteData: join(harness.root, "suite") });
+// Os pedidos do EdiAula ao EdiSVG (vincular, editar uma peça .edisvg) vão para o perfil do EdiSVG do
+// condutor, que gera os renders: os dois condutores abertos fazem o vínculo de verdade.
+app = await harness.launch(
+  which,
+  { userData, suiteData: join(harness.root, "suite") },
+  which === "ediaula" ? { EDIAULA_EDISVG_USER_DATA: APPS.edisvg.userData } : {},
+);
 app.process().stdout?.on("data", (c: Buffer) => process.stdout.write(c));
 app.process().stderr?.on("data", (c: Buffer) => process.stderr.write(c));
 app.once("close", () => {

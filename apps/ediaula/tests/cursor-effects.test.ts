@@ -7,6 +7,7 @@ import {
   clickSoundTimes,
   cursorAt,
   cursorFxId,
+  cursorScale,
   DEFAULT_CURSOR_FX,
   fxAt,
   fxIntervals,
@@ -15,6 +16,8 @@ import {
   magnifierSource,
   ripplesAt,
   spriteSize,
+  stretchCursorSize,
+  withStretchCursorSize,
 } from "../src/shared/cursor.ts";
 import { type CursorData, normalizeCursorData } from "../src/shared/cursorData.ts";
 import { buildAudioPlan } from "../src/shared/export/audioPlan.ts";
@@ -190,6 +193,44 @@ test("effects by stretch: the stretch wins inside it, the recording's setting ou
   // No click ring for a press made where the rings are off.
   assert.equal(ripplesAt(data, 4.6, fx).length, 0);
   assert.equal(ripplesAt(data, 1.1, fx).length, 1);
+});
+
+test("a stretch may make the pointer smaller (a zoomed clip), and the sprite holds the largest", () => {
+  const data = { width: 1920, height: 1080 };
+  const base: CursorFx = { ...DEFAULT_CURSOR_FX, size: 2 };
+  const fx: CursorFx = {
+    ...base,
+    ranges: withStretchCursorSize(
+      [{ id: "m", start: 1, end: 3, fx: { halo: true } }],
+      4,
+      8,
+      0.8,
+      "s",
+    ),
+  };
+  assert.deepEqual(fx.ranges?.at(-1), { id: "s", start: 4, end: 8, fx: { size: 0.8 } });
+  assert.equal(cursorScale(data, fxAt(fx, 5)), 0.8);
+  assert.equal(cursorScale(data, fxAt(fx, 2)), 2, "the recording's size outside the stretch");
+  assert.equal(stretchCursorSize(fx, 4, 8), 0.8);
+  assert.equal(stretchCursorSize(fx, 1, 3), undefined);
+  assert.equal(stretchCursorSize(fx, 4, 7), undefined, "only the exact stretch");
+  // The sprite is drawn once for the whole recording: as big as the largest pointer in it.
+  assert.equal(spriteSize(data, fx), spriteSize(data, base));
+  const bigger = { ...fx, ranges: withStretchCursorSize(fx.ranges ?? [], 4, 8, 3, "x") };
+  assert.equal(spriteSize(data, bigger), Math.ceil((140 * 3) / 2) * 2);
+  // A new size is a new sprite.
+  assert.notEqual(cursorFxId(bigger), cursorFxId(fx));
+  assert.notEqual(cursorFxId(fx), cursorFxId(base));
+  // Over a stretch already there, the size joins its effects; given back, only they stay.
+  const joined = withStretchCursorSize(fx.ranges ?? [], 1, 3, 1.2, "y");
+  assert.deepEqual(joined[0], { id: "m", start: 1, end: 3, fx: { halo: true, size: 1.2 } });
+  assert.equal(joined.length, 2);
+  assert.deepEqual(withStretchCursorSize(joined, 1, 3, undefined, "z")[0].fx, { halo: true });
+  // A stretch that only changed the size goes away with it.
+  assert.deepEqual(withStretchCursorSize(fx.ranges ?? [], 4, 8, undefined, "z"), [
+    { id: "m", start: 1, end: 3, fx: { halo: true } },
+  ]);
+  assert.equal(withStretchCursorSize([], 4, 8, undefined, "z").length, 0);
 });
 
 test("the magnifier enlarges a square around the pointer kept inside the frame", () => {

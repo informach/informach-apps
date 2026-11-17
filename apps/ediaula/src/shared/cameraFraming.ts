@@ -80,7 +80,14 @@ export function cameraFraming(
     width: camera.width > 0 ? camera.width : 1280,
     height: camera.height > 0 ? camera.height : 720,
   };
-  const { crop: _crop, mask: _mask, border, rotation: _rotation, ...kept } = base;
+  const {
+    crop: _crop,
+    mask: _mask,
+    polygon: _polygon,
+    border,
+    rotation: _rotation,
+    ...kept
+  } = base;
   const short = Math.min(frame.width, frame.height);
   const margin = MARGIN * short;
   const corner = (w: number, h: number) => ({

@@ -20,7 +20,7 @@ import {
   rangeHeaders,
   rangeNotSatisfiable,
 } from "@informach/edi-desktop/media-range";
-import { assetLinkSchema } from "@informach/edi-link/contract";
+import { assetLinkSchema, REQUESTS_FOLDER } from "@informach/edi-link/contract";
 import { canOpenTool, launchEnvironment, openTool, toolLauncher } from "@informach/edi-link/launch";
 import { requestsDir, writeRequest } from "@informach/edi-link/node";
 import {
@@ -122,7 +122,7 @@ import { cancelKey, detectScreenColor, grabFrame, renderKeyed } from "./keying.t
 import { getLearning, recordLearning } from "./learning.ts";
 import { lessonFile } from "./lessonFile.ts";
 import { libraryFile, listLibrary, saveLibrary } from "./library.ts";
-import { insideFolder, isDevicePath, linkedFilesDetail } from "./linkedFiles.ts";
+import { isDevicePath, linkedFilesDetail, outsideFolder } from "./linkedFiles.ts";
 import { measureLoudness } from "./loudness.ts";
 import { CHECK_CLIENT } from "./mcpGuard.ts";
 import { startMcpServer } from "./mcpServer.ts";
@@ -362,9 +362,6 @@ const queueAccess: QueueAccess = {
  * Only what is older than this run of the app, one folder at a time: a folder that cannot be
  * removed is logged and the rest goes on. Exports wait for it (export:start).
  */
-/** Lessons just taken out of a package this session, until they open (project:open). */
-const freshPackages = new Set<string>();
-
 const megabytes = (bytes: number): string =>
   bytes >= 1024 ** 3
     ? `${(bytes / 1024 ** 3).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} GB`
@@ -720,7 +717,13 @@ function registerIpc(): void {
   // The link with EdiSVG (packages/edi-link, edisvgLink.ts): a request left in EdiSVG's profile
   // and EdiSVG opened (or brought to the front); the renders of the linked projects watched,
   // each render granted for reading as the lesson takes it.
-  const edisvgRequests = () => requestsDir(app.getPath("appData"), "edisvg");
+  // A development build can name the EdiSVG profile that takes the requests (the automated lesson
+  // flow runs both tools on profiles of their own: apps/ediaula/scripts/aula-automatica).
+  const edisvgProfile = !app.isPackaged ? process.env.EDIAULA_EDISVG_USER_DATA : undefined;
+  const edisvgRequests = () =>
+    edisvgProfile
+      ? join(edisvgProfile, REQUESTS_FOLDER)
+      : requestsDir(app.getPath("appData"), "edisvg");
   const openEdisvg = async (): Promise<boolean> =>
     canOpenTool(app.isPackaged, app.getPath("userData"), app.getPath("appData"), "ediaula") &&
     (await openTool({
@@ -1160,25 +1163,26 @@ function registerIpc(): void {
       if (plan.audio) references.push(plan.audio.path);
     const linked = [...new Set(references)];
     if (linked.some(isDevicePath)) throw new Error("Caminho de mídia inválido.");
-    // A package just opened (and confirmed) points only inside its own folder: no second question.
-    const fresh = freshPackages.delete(path);
-    const allInside = linked.every((p) => insideFolder(p, dirname(path)));
+    // The files in the lesson's own folder are readable as soon as it opens: opening the lesson
+    // is the person's choice. Only a lesson that points outside its folder, or at another
+    // computer of the network, asks first.
+    const outside = outsideFolder(linked, dirname(path));
+    if (outside.length) {
+      const answer = await dialog.showMessageBox(win!, {
+        type: "question",
+        title: "Arquivos fora da pasta da aula",
+        message: `Permitir acesso aos ${outside.length} ${outside.length === 1 ? "arquivo que este projeto usa" : "arquivos que este projeto usa"} fora da pasta dele?`,
+        // Every network computer named and every file outside the folder counted: none hides
+        // behind the first ones listed (src/main/linkedFiles.ts).
+        detail: `${linkedFilesDetail(linked, dirname(path))}\n\nAutorize somente projetos confiáveis.`,
+        buttons: ["Permitir", "Cancelar"],
+        defaultId: 1,
+        cancelId: 1,
+      });
+      if (answer.response !== 0)
+        throw new Error("Abertura do projeto cancelada; nenhum arquivo foi alterado.");
+    }
     if (linked.length) {
-      if (!(fresh && allInside)) {
-        const answer = await dialog.showMessageBox(win!, {
-          type: "question",
-          title: "Arquivos vinculados ao projeto",
-          message: `Permitir acesso aos ${linked.length} arquivos usados por este projeto?`,
-          // Every network computer named and every file outside the folder counted: none hides
-          // behind the first ones listed (src/main/linkedFiles.ts).
-          detail: `${linkedFilesDetail(linked, dirname(path))}\n\nAutorize somente projetos confiáveis.`,
-          buttons: ["Permitir arquivos vinculados", "Cancelar"],
-          defaultId: 1,
-          cancelId: 1,
-        });
-        if (answer.response !== 0)
-          throw new Error("Abertura do projeto cancelada; nenhum arquivo foi alterado.");
-      }
       for (const linkedPath of linked) {
         try {
           await desktopFiles.grantRead(linkedPath);
@@ -1448,7 +1452,6 @@ function registerIpc(): void {
       await rm(folder, { recursive: true, force: true });
       throw error;
     }
-    freshPackages.add(path);
     return path;
   });
   const library = (): string => libraryFile(app.getPath("userData"));

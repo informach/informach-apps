@@ -188,6 +188,10 @@ export async function editInEdisvg(assetId: string): Promise<void> {
   const { toast } = useApp.getState();
   const asset = useProject.getState().project?.assets.find((a) => a.id === assetId);
   if (!asset?.link) return;
+  if (!asset.link.animationId) {
+    toast("A animação ainda não chegou do EdiSVG: salve lá e ela abre para editar.", "info");
+    return;
+  }
   try {
     const done = await window.api.linkEdit(asset.link);
     if (!done.opened) toast("Abra o EdiSVG: a animação abre lá para editar.", "info");

@@ -1,9 +1,11 @@
 import { win32 } from "node:path";
 
 /**
- * The files a lesson opened from elsewhere points at, as the person sees them before they are
- * allowed (index.ts, project:open). Nothing can hide in the list: every network computer is
- * named and every file outside the lesson's folder is counted, even when only some are listed.
+ * The files a lesson points at (index.ts, project:open). Those in the lesson's own folder are
+ * granted as soon as it opens; a lesson that points outside its folder, or at another computer
+ * of the network, asks first, and the person sees what it asks for. Nothing can hide in the
+ * list: every network computer is named and every file outside the folder is counted, even when
+ * only some are listed.
  */
 
 /** Files listed one by one before the rest is only counted. */
@@ -27,9 +29,13 @@ export function insideFolder(path: string, folder: string): boolean {
   return win32.resolve(path).toLowerCase().startsWith(own);
 }
 
+/** The files of a lesson that are not in its folder: the ones it has to ask for. */
+export const outsideFolder = (linked: readonly string[], folder: string): string[] =>
+  linked.filter((p) => !insideFolder(p, folder));
+
 /** The dialog's detail: the network computers, then the files outside the lesson's folder. */
 export function linkedFilesDetail(linked: readonly string[], folder: string): string {
-  const outside = linked.filter((p) => !insideFolder(p, folder));
+  const outside = outsideFolder(linked, folder);
   const hosts = [...new Set(outside.map(networkHost).filter((h): h is string => !!h))];
   const lines: string[] = [];
   if (hosts.length)

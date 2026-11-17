@@ -1,4 +1,4 @@
-import type { Motion, Shadow } from "./compose.ts";
+import type { Motion, Polygon, Shadow } from "./compose.ts";
 
 /**
  * Annotations drawn by EdiAula (arrows, speech balloons, notes, labels, titles, highlight boxes,
@@ -265,9 +265,11 @@ export interface Annotation {
   tailPoint?: { x: number; y: number };
   /** Body and tip in the generated PNG, including its transparent padding. */
   balloonGeometry?: BalloonGeometry;
-  /** Highlight box and panel size (a panel of 1920x1080 or more fills the frame). */
+  /** Highlight box and panel size. */
   boxWidth?: number;
   boxHeight?: number;
+  /** Panel: a template's background that fills the frame, whatever its size (fillsFrame). */
+  backdrop?: boolean;
   /** Opening/closing card: small line above the title (course) and line below it. */
   kicker?: string;
   subtitle?: string;
@@ -289,7 +291,12 @@ export interface Annotation {
   heads?: 0 | 1 | 2;
   curve?: number;
   /** Highlight and shapes: form, fill inside (#RRGGBB, absent = none) and its opacity. Balloon: its color inside (absent = white). */
-  shape?: "rounded" | "rect" | "ellipse" | "triangle";
+  shape?: "rounded" | "rect" | "ellipse" | "triangle" | "polygon";
+  /**
+   * Highlight drawn with the pen (shape "polygon"): its outlines (one or more), corners in
+   * drawing order, as fractions of its box, so resizing the box stretches it along.
+   */
+  polygon?: Polygon;
   fill?: string;
   fillOpacity?: number;
   /**
@@ -474,6 +481,30 @@ export function textBoxLayout(
 }
 
 /** Drawn like the kit's box: a box, or a balloon in the kit's look. */
+/**
+ * A panel that is a background filling the frame, not a shape. Panels say so in `backdrop`;
+ * projects saved before it existed meant it by a panel of at least 1920x1080 (shapes were kept
+ * smaller then).
+ */
+export function fillsFrame(
+  a: Pick<Annotation, "kind" | "backdrop" | "boxWidth" | "boxHeight">,
+): boolean {
+  if (a.kind !== "panel") return false;
+  return a.backdrop ?? ((a.boxWidth ?? 0) >= 1920 && (a.boxHeight ?? 0) >= 1080);
+}
+
+/**
+ * An edit of an annotation: a panel from an older project gets `backdrop` written down from what
+ * it was, so a shape later made bigger than the frame stays a shape (and a background stays one).
+ */
+export function editedAnnotation(before: Annotation, changes: Partial<Annotation>): Annotation {
+  const pinned =
+    before.kind === "panel" && before.backdrop === undefined
+      ? { backdrop: fillsFrame(before) }
+      : {};
+  return { ...before, ...pinned, ...changes };
+}
+
 export const kitBox = (a: Pick<Annotation, "kind" | "look">): boolean =>
   a.kind === "box" || (a.kind === "balloon" && a.look === "kit");
 
@@ -620,7 +651,14 @@ export const ANNOTATION_PRESETS: AnnotationPreset[] = [
   {
     kind: "panel",
     label: "Forma",
-    spec: { kind: "panel", color: "#3D6BFF", boxWidth: 420, boxHeight: 260, shape: "rounded" },
+    spec: {
+      kind: "panel",
+      color: "#3D6BFF",
+      boxWidth: 420,
+      boxHeight: 260,
+      shape: "rounded",
+      backdrop: false,
+    },
     duration: 4,
     enter: "grow",
     exit: "fade",

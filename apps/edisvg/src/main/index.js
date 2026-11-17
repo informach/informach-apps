@@ -56,6 +56,14 @@ import {
   pipelineWords,
 } from "./pipelineEngine.ts";
 import { pipelineFont, pipelineFonts } from "./pipelineFonts.ts";
+import {
+  pruneGuides,
+  readGuide,
+  readGuideStyle,
+  saveGuide,
+  saveGuideStyle,
+} from "./pipelineGuides.ts";
+import { notifyPipelineEnd } from "./pipelineNotify.ts";
 import { loadReferences, saveReference } from "./pipelineReferences.ts";
 import {
   pickPipelineFile,
@@ -178,6 +186,10 @@ function menu() {
           {
             label: "Importar kit de design (.zip)…",
             click: () => win.webContents.send("app:command", "import-kit"),
+          },
+          {
+            label: "Inserir kit Zero Kids",
+            click: () => win.webContents.send("app:command", "insert-kit-zero-kids"),
           },
           {
             label: "Pipelines…",
@@ -520,7 +532,25 @@ else {
         if (result.canceled) return null;
         return readDesignKit(result.filePaths[0]);
       });
-      handle("pipelines:read", () => readRecipeStore(app.getPath("userData")));
+      handle("pipelines:read", async () => {
+        const store = await readRecipeStore(app.getPath("userData"));
+        // The guide pictures no recipe names any more go (a day after they were last chosen).
+        const named = new Set(
+          store.recipes.flatMap((r) => (r.guideImage ? [r.guideImage.id] : [])),
+        );
+        await pruneGuides(app.getPath("userData"), named).catch((error) =>
+          console.warn("[edisvg] Guias de estilo antigos:", error),
+        );
+        return store;
+      });
+      handle("pipeline:guide-save", (bytes, name) =>
+        saveGuide(app.getPath("userData"), bytes, name),
+      );
+      handle("pipeline:guide-read", (id) => readGuide(app.getPath("userData"), id));
+      handle("pipeline:guide-style", (id) => readGuideStyle(app.getPath("userData"), id));
+      handle("pipeline:guide-style-save", (id, style) =>
+        saveGuideStyle(app.getPath("userData"), id, style),
+      );
       handle("pipelines:write", (value) => writeRecipeStore(app.getPath("userData"), value));
       // The lesson comes as a package someone sent (a ZIP): Downloads, like the other files.
       handle("pipeline:pick", (kind) => pickPipelineFile(win, kind, folderFor("downloads")));
@@ -556,6 +586,10 @@ else {
         pipelineVideoFrames(token, times, jobId),
       );
       handle("pipeline:lesson-script", (token) => pipelineLessonScript(token));
+      // The end of a run on the phone, when this computer set it up (EDISVG_NTFY_TOPIC).
+      handle("pipeline:notify", async (notice) => {
+        await notifyPipelineEnd(notice);
+      });
       // Other Edi tools' requests and the renders of linked animations (packages/edi-link):
       // the requests come by file (linkRequests.ts) and the window takes them one at a time;
       // a linked animation renders into `<project> · renders` at every save that changed it

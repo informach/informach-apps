@@ -12,6 +12,7 @@ import {
   squareCrop,
   squareMask,
   type Transform,
+  usablePolygon,
 } from "@shared/compose";
 import { transformAt, upsertKeyframe } from "@shared/keyframes";
 import { clipEnd } from "@shared/timeline";
@@ -23,6 +24,7 @@ import {
   FlipVertical2,
   Loader,
   Move,
+  PenTool,
   Pipette,
   RotateCcw,
   SlidersHorizontal,
@@ -184,6 +186,14 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
   const portrait = asset.height > asset.width;
   const [cropOpen, setCropOpen] = useState(false);
   const maskEditing = useApp((s) => s.maskEdit === clip.id);
+  const drawing = useApp((s) => s.maskEdit === clip.id && s.maskPen);
+  /** The mask shows on the preview, over the clip as it is on the screen (the playhead goes to it). */
+  const editMask = (pen: boolean): void => {
+    const now = usePlayback.getState().time;
+    if (now < clip.start || now >= clipEnd(clip)) playback.seek(clip.start);
+    useApp.getState().set({ maskEdit: clip.id, maskPen: pen });
+  };
+  const hasPolygon = !!usablePolygon(t.polygon);
   const active = AVATAR_PLACEMENTS.find(
     (p) =>
       Math.abs(p.transform.x - t.x) < 0.005 &&
@@ -230,24 +240,35 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
             ["rounded", "Arredondado"],
             ["circle", "Círculo"],
             ["ellipse", "Oval"],
+            ["polygon", "Polígono"],
           ] as const
         ).map(([m, label]) => (
           <button
             type="button"
             key={label}
             className={`chip ${t.mask === m ? "is-active" : ""}`}
+            title={
+              m === "polygon"
+                ? hasPolygon
+                  ? "Volta ao polígono desenhado"
+                  : "Desenhe o polígono com a caneta na prévia"
+                : undefined
+            }
             onClick={() =>
-              set({
-                mask: m,
-                // A circle is round: the mask becomes the biggest square in it, on its center.
-                ...(m === "circle"
-                  ? {
-                      crop: t.crop
-                        ? squareMask(t.crop, asset.width, asset.height)
-                        : squareCrop(asset.width, asset.height),
-                    }
-                  : {}),
-              })
+              // A polygon not drawn yet is drawn first, with the pen.
+              m === "polygon" && !hasPolygon
+                ? editMask(true)
+                : set({
+                    mask: m,
+                    // A circle is round: the mask becomes the biggest square in it, on its center.
+                    ...(m === "circle"
+                      ? {
+                          crop: t.crop
+                            ? squareMask(t.crop, asset.width, asset.height)
+                            : squareCrop(asset.width, asset.height),
+                        }
+                      : {}),
+                  })
             }
           >
             {label}
@@ -260,30 +281,37 @@ export function PlacementSection({ clip, asset }: { clip: Clip; asset: Asset }):
           className={`chip ${maskEditing ? "is-active" : ""}`}
           aria-pressed={maskEditing}
           onClick={() => {
-            if (maskEditing) {
-              useApp.getState().set({ maskEdit: null });
+            if (maskEditing && !drawing) {
+              useApp.getState().set({ maskEdit: null, maskPen: false });
               return;
             }
-            // The mask is drawn over the clip as it is on the screen: the playhead goes to it.
-            const now = usePlayback.getState().time;
-            if (now < clip.start || now >= clipEnd(clip)) playback.seek(clip.start);
-            useApp.getState().set({ maskEdit: clip.id });
+            editMask(false);
           }}
-          title="Mostra a máscara na prévia: arraste para mover, puxe os lados e os cantos para mudar o tamanho (Shift mantém a proporção). Enter ou Esc termina."
+          title="Mostra a máscara na prévia: arraste para mover, puxe os lados e os cantos para mudar o tamanho (Shift mantém a proporção); num polígono, cada canto se arrasta. Enter ou Esc termina."
         >
           <SquareDashed size={12} />{" "}
-          {maskEditing ? "Terminar a máscara" : "Ajustar a máscara na prévia"}
+          {maskEditing && !drawing ? "Terminar a máscara" : "Ajustar a máscara na prévia"}
+        </button>
+        <button
+          type="button"
+          className={`chip ${drawing ? "is-active" : ""}`}
+          aria-pressed={drawing}
+          onClick={() => (drawing ? useApp.getState().set({ maskPen: false }) : editMask(true))}
+          title="Caneta: clique na prévia para cada canto do polígono; feche clicando no primeiro ponto, com dois cliques ou Enter. Backspace desfaz o último ponto, Esc cancela."
+        >
+          <PenTool size={12} /> {drawing ? "Cancelar a caneta" : "Desenhar polígono"}
         </button>
         {(t.crop || t.mask || t.feather || t.corner !== undefined) && (
           <button
             type="button"
             className="chip"
             onClick={() => {
-              useApp.getState().set({ maskEdit: null });
+              useApp.getState().set({ maskEdit: null, maskPen: false });
               updateClip(clip.id, (c) => {
                 const {
                   crop: _c,
                   mask: _m,
+                  polygon: _p,
                   corner: _k,
                   feather: _f,
                   ...rest

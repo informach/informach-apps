@@ -10,6 +10,8 @@ import {
   balloonTail,
   CARD,
   defaultOutline,
+  editedAnnotation,
+  fillsFrame,
   freeBalloonTip,
   isDrawingKind,
   KIT,
@@ -27,6 +29,7 @@ import {
   shadowOffset,
   shadowReach,
   type Transform,
+  usablePolygon,
 } from "@shared/compose";
 import { dropSpot } from "@shared/dropSpot";
 import { fontStack } from "@shared/fonts";
@@ -732,7 +735,15 @@ export async function renderAnnotation(
   const shapePath = (x: number, y: number, w: number, h: number, rounded: number): Path2D => {
     const p = new Path2D();
     if (a.shape === "ellipse") p.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
-    else if (a.shape === "triangle") {
+    else if (a.shape === "polygon" && usablePolygon(a.polygon)) {
+      // Drawn with the pen: each outline closed, its corners fractions of the box.
+      for (const outline of usablePolygon(a.polygon) ?? []) {
+        for (const [i, [px, py]] of outline.entries())
+          if (i) p.lineTo(x + px * w, y + py * h);
+          else p.moveTo(x + px * w, y + py * h);
+        p.closePath();
+      }
+    } else if (a.shape === "triangle") {
       p.moveTo(x + w / 2, y);
       p.lineTo(x + w, y + h);
       p.lineTo(x, y + h);
@@ -1049,7 +1060,8 @@ export async function renderAnnotation(
       if (a.fill) {
         ctx.globalAlpha = a.fillOpacity ?? 0.25;
         ctx.fillStyle = a.fill;
-        ctx.fill(path);
+        // A polygon's outlines are inside by the even-odd rule, as its hole in the darkening.
+        ctx.fill(path, a.shape === "polygon" ? "evenodd" : "nonzero");
         ctx.globalAlpha = 1;
       }
       // Its usual look is a soft glow in its own color; a chosen shadow replaces it.
@@ -1125,8 +1137,8 @@ export async function renderAnnotation(
       break;
     }
     case "panel": {
-      // Background: fills the frame when it is at least the frame's size, otherwise a box.
-      if ((a.boxWidth ?? 0) >= 1920 && (a.boxHeight ?? 0) >= 1080) {
+      // Background: a template's backdrop fills the frame; any other panel is a shape.
+      if (fillsFrame(a)) {
         fullFrame = true;
         size(frameWidth * OVERSAMPLE, frameHeight * OVERSAMPLE);
         ctx.fillStyle = a.color;
@@ -1205,6 +1217,9 @@ export function naturalTransform(
   return { ...DEFAULT_TRANSFORM, x, y, scale: 1 / (OVERSAMPLE * fit) };
 }
 
+const scaledBy = (t: Transform, factor: number): Transform =>
+  factor === 1 ? t : { ...t, scale: t.scale * factor };
+
 /** A free video track above everything shown during [start, end], or a new one on top. */
 export function overlayTrack(
   p: Project,
@@ -1241,6 +1256,8 @@ export interface AddOptions {
   duration?: number;
   x?: number;
   y?: number;
+  /** Size as a multiple of the natural one (1 = as the panel draws it). */
+  scale?: number;
   enter?: Motion;
   exit?: Motion;
 }
@@ -1300,11 +1317,14 @@ export async function addAnnotation(
       duration,
       volume: 1,
       annotation: { ...spec, balloonGeometry: r.balloon },
-      transform: naturalTransform(
-        r,
-        q.settings,
-        opts.x ?? (kind === "lowerthird" ? 0.06 + r.width / 2 / 2 / q.settings.width : 0.5),
-        opts.y ?? (kind === "title" ? 0.2 : kind === "lowerthird" ? 0.68 : 0.42),
+      transform: scaledBy(
+        naturalTransform(
+          r,
+          q.settings,
+          opts.x ?? (kind === "lowerthird" ? 0.06 + r.width / 2 / 2 / q.settings.width : 0.5),
+          opts.y ?? (kind === "title" ? 0.2 : kind === "lowerthird" ? 0.68 : 0.42),
+        ),
+        opts.scale ?? 1,
       ),
       fadeIn: ANNOTATION_MOTION.enter,
       fadeOut: ANNOTATION_MOTION.exit,
@@ -1361,7 +1381,7 @@ async function redrawAnnotation(
     throw new Error(
       "O desenho feito na gravação não muda de estilo: apague-o ou corte-o como um clipe.",
     );
-  const spec: Annotation = { ...clip.annotation, ...changes };
+  const spec = editedAnnotation(clip.annotation, changes);
   const r = await renderAnnotation(spec, p.settings.height, p.settings.width);
   const path = await window.api.saveGenerated(r.bytes, "png");
   const t = clip.transform ?? DEFAULT_TRANSFORM;

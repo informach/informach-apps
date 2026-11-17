@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { suggestedNameSchema } from "../main/exportPayload";
 import { elementSvgs } from "../renderer/src/pipelines/elements";
-import { paletteFromPixels } from "../renderer/src/pipelines/imagePalette";
-import { draftRequest } from "../renderer/src/pipelines/prompt";
+import { draftRequest, guideStyleRequest, parseGuideStyle } from "../renderer/src/pipelines/prompt";
 import {
   clock,
   failureText,
@@ -35,6 +34,7 @@ import {
   salvageRecipeStore,
   saveRecipe,
   spokenScript,
+  withGuide,
 } from "./pipelines";
 
 test("the two ready recipes come first; an edit is kept over the original and Voltar brings it back", () => {
@@ -163,6 +163,7 @@ const stubDeps = (
     openNarration: async () => ({ clipId: "animation-x", fps: 30, frames: 1 }),
     activeArtboard: () => ({ id: "artboard-x", name: "Cena", width: 1440, height: 1080 }),
     designKit: () => ({ boards: [], palette: [] }),
+    styleGuide: () => null,
     markLessonClip: () => undefined,
     lessonClips: () => [],
     setPalette: () => undefined,
@@ -191,6 +192,11 @@ const stubDeps = (
     pipelineWords: async () => [],
     pipelineNarration: async () => new Uint8Array(),
     pipelineCancel: async () => undefined,
+    pipelineGuideRead: async () => {
+      throw new Error("sem guia");
+    },
+    pipelineGuideStyle: async () => null,
+    pipelineGuideStyleSave: async () => undefined,
     onPipelineProgress: () => () => undefined,
     pipelineVideoFacts: async () => ({ width: 1920, height: 1080, duration: 10, clicks: null }),
     pipelineVideoPreview: async () => new Uint8Array(),
@@ -518,6 +524,64 @@ test("the assistant gets the recipe, where to work, each sentence's frames, the 
   assert.match(text, /nas cores de texto e nas fontes acima/);
 });
 
+test("a recipe keeps its style guide picture; the assistant is told to follow the attached parts", () => {
+  const recipe = BUILT_IN_RECIPES[0];
+  if (!recipe) throw new Error("missing ready recipe");
+  const guide = { id: `guide-${"a".repeat(32)}`, name: "style guide.png" };
+  // Kept with the recipe and taken away again; a ready recipe without it is the original.
+  let store = saveRecipe(emptyRecipeStore(), withGuide(recipe, guide));
+  assert.deepEqual(listRecipes(store)[0]?.guideImage, guide);
+  store = saveRecipe(store, withGuide(listRecipes(store)[0] ?? recipe, undefined));
+  assert.deepEqual(store.recipes, []);
+  assert.equal("guideImage" in withGuide(recipe, undefined), false);
+  // Only ids of the profile's store, and a name.
+  assert.throws(() =>
+    saveRecipe(emptyRecipeStore(), { ...recipe, guideImage: { id: "x", name: "a" } }),
+  );
+  // A store of an older EdiSVG (no guide) still reads; one of a newer keeps the guide.
+  assert.equal(
+    parseRecipeStore({ version: 1, recipes: [recipe] }).recipes[0]?.guideImage,
+    undefined,
+  );
+  const facts = {
+    recipe: { name: "Cena animada do jogo", kind: "game-scene" as const, style: "" },
+    artboard: { id: "artboard-cena", name: "Cena", width: 1440, height: 1080 },
+    clip: { id: "animation-n", fps: 30, frames: 300 },
+    lines: [{ text: "Olá.", from: 0, to: 30 }],
+    images: [],
+    textPalette: ["#ffffff"],
+    fonts: null,
+    imagePalette: [],
+    lessonStart: 0,
+  };
+  const text = draftRequest({ ...facts, guideParts: 3 });
+  assert.match(text, /## Guia de estilo da receita \(imagem anexada\)/);
+  assert.match(
+    text,
+    /As 3 primeiras imagens anexadas são o guia de estilo, em partes de cima para baixo/,
+  );
+  assert.match(text, /discordarem .* vale o guia/);
+  // The guide comes before the recipe's own words.
+  assert.ok(text.indexOf("## Guia de estilo da receita") < text.indexOf("## O que a pessoa pediu"));
+  assert.match(
+    draftRequest({ ...facts, guideParts: 1 }),
+    /A primeira imagem anexada é o guia de estilo/,
+  );
+  assert.doesNotMatch(draftRequest(facts), /Guia de estilo da receita/);
+  // With a demonstration, its frames come after the guide's parts.
+  const demo = draftRequest({
+    ...facts,
+    guideParts: 2,
+    demo: {
+      video: { name: "demo.mp4", width: 1280, height: 720 },
+      clicks: null,
+      elements: [],
+      attached: [{ frame: 10, text: "Olá." }],
+    },
+  });
+  assert.match(demo, /Quadros anexados \(depois do guia de estilo\), na ordem: quadro 10/);
+});
+
 test("with a design kit in the project, the assistant gets its pieces and colours, and how to change their texts", () => {
   const facts = {
     recipe: { name: "Cena animada do jogo", kind: "game-scene" as const, style: "" },
@@ -662,23 +726,124 @@ test("each font takes the nearest weight its family has", () => {
   assert.throws(() => nearestWeight([], 400));
 });
 
-test("a picture gives its colours: lightest first, darkest second, the most vivid last", () => {
-  const pixels: number[] = [];
-  const paint = (rgb: [number, number, number], n: number, alpha = 255) => {
-    for (let i = 0; i < n; i++) pixels.push(...rgb, alpha);
-  };
-  paint([20, 30, 60], 50); // navy, the most used
-  paint([250, 250, 245], 40); // near white
-  paint([90, 140, 100], 30); // muted green
-  paint([255, 60, 40], 20); // vivid red
-  paint([252, 251, 246], 30); // the same white, a step away
-  paint([0, 255, 0], 500, 0); // transparent: never counts
-  assert.deepEqual(paletteFromPixels(pixels), ["#fbfaf5", "#141e3c", "#5a8c64", "#ff3c28"]);
-  assert.deepEqual(paletteFromPixels([10, 10, 10, 255, 240, 240, 240, 255]), [
-    "#0a0a0a",
-    "#f0f0f0",
-  ]);
-  assert.deepEqual(paletteFromPixels([0, 0, 0, 0]), []);
+test("with a style guide, its colours and fonts drive the run; the recipe's only without one", async () => {
+  const demo = BUILT_IN_RECIPES[1];
+  assert.ok(demo);
+  const guide = { id: `guide-${"b".repeat(32)}`, name: "style guide.png" };
+  assert.deepEqual(
+    stepsFor("screen-demo", true)
+      .map((s) => s.id)
+      .slice(0, 2),
+    ["guide", "find-piece"],
+  );
+  assert.ok(!stepsFor("screen-demo").some((s) => s.id === "guide"));
+  assert.equal(stepsFor("game-scene", true)[0]?.id, "guide");
+  const asked: string[] = [];
+  let palette: string[] = [];
+  let questions = 0;
+  const steps = stepsFor("screen-demo", true).filter((s) =>
+    ["guide", "palettes", "fonts"].includes(s.id),
+  );
+  const run = (guided: boolean) =>
+    runPipeline(
+      demo,
+      {
+        recipeId: demo.id,
+        files: {},
+        script: "Uma frase.",
+        textPalette: demo.textPalette,
+        fonts: DEFAULT_FONTS,
+        ...(guided ? { guideImage: guide } : {}),
+      },
+      steps,
+      stubDeps(
+        new AbortController().signal,
+        {
+          setPalette: (colors) => {
+            palette = colors;
+          },
+          askAssistant: async () => {
+            questions++;
+            return { text: "", stopped: false, edits: 0 };
+          },
+          embedFonts: async (fonts) => fonts.map((f) => `asset-${f.weight}`),
+        },
+        {
+          // Read by an earlier run: kept with the picture, nothing is asked.
+          pipelineGuideStyle: async (id) =>
+            id === guide.id
+              ? {
+                  textPalette: ["#ffffff", "#0f1a33", "#ffc02e"],
+                  fonts: { title: "Bebas Neue", body: "Nunito" },
+                }
+              : null,
+          pipelineFonts: async () => [
+            { family: "Bebas Neue", group: "Títulos", weights: [400] },
+            { family: "Baloo 2", group: "Infantil", weights: [400, 700] },
+            { family: "Nunito", group: "Arredondada", weights: [400, 700] },
+          ],
+          pipelineFont: async (family, weight) => {
+            asked.push(`${family} ${weight}`);
+            return {
+              family,
+              weight,
+              name: `${family} ${weight}`,
+              bytes: new Uint8Array(1),
+              notice: "",
+            };
+          },
+        },
+      ),
+      () => undefined,
+    );
+  const guided = await run(true);
+  assert.equal(guided.ok, true, guided.report.join(" "));
+  assert.equal(questions, 0);
+  assert.deepEqual(palette, ["#ffffff", "#0f1a33", "#ffc02e"]);
+  assert.deepEqual(asked, ["Bebas Neue 400", "Nunito 400", "Nunito 700"]);
+  assert.match(
+    guided.report[0] ?? "",
+    /Do guia de estilo: cores #ffffff, #0f1a33, #ffc02e; Bebas Neue nos títulos e Nunito no corpo\./,
+  );
+  // No guide: the recipe's colours and Baloo 2 + Nunito.
+  asked.length = 0;
+  assert.equal((await run(false)).ok, true);
+  assert.deepEqual(palette, demo.textPalette);
+  assert.deepEqual(asked, ["Baloo 2 700", "Nunito 400", "Nunito 700"]);
+});
+
+test("the guide is read as JSON only, from the fonts that come with EdiSVG", () => {
+  const families = ["Baloo 2", "Nunito", "Bebas Neue"];
+  const question = guideStyleRequest(4, families);
+  assert.match(question, /As 4 imagens anexadas são um guia de estilo/);
+  assert.match(question, /responda só com um JSON/);
+  assert.match(question, /Baloo 2, Nunito, Bebas Neue/);
+  assert.match(guideStyleRequest(1, families), /A imagem anexada é um guia de estilo/);
+  // The JSON alone or in a code block; names in any case, colours in lower case.
+  assert.deepEqual(
+    parseGuideStyle(
+      'Aqui está:\n```json\n{"textPalette": ["#FFFFFF", "#0F1A33", "#FFC02E"], "fonts": {"title": "baloo 2", "body": "Nunito"}}\n```',
+      families,
+    ),
+    { textPalette: ["#ffffff", "#0f1a33", "#ffc02e"], fonts: { title: "Baloo 2", body: "Nunito" } },
+  );
+  assert.throws(() => parseGuideStyle("Não consegui ler.", families), /não devolveu as cores/);
+  assert.throws(
+    () =>
+      parseGuideStyle(
+        '{"textPalette": ["#ffffff", "#000000"], "fonts": {"title": "Inter", "body": "Nunito"}}',
+        families,
+      ),
+    /A fonte dos títulos do guia \(Inter\) não vem com o EdiSVG/,
+  );
+  assert.throws(
+    () =>
+      parseGuideStyle(
+        '{"textPalette": ["branco"], "fonts": {"title": "Nunito", "body": "Nunito"}}',
+        families,
+      ),
+    /não são válidas/,
+  );
 });
 
 test("the fonts step embeds the title's bold and the body's regular and bold; the balloon takes the body's bold", async () => {
@@ -719,6 +884,7 @@ test("the fonts step embeds the title's bold and the body's regular and bold; th
         openNarration: async () => ({ clipId: "animation-x", fps: 30, frames: 1 }),
         activeArtboard: () => ({ id: "artboard-x", name: "D", width: 1280, height: 720 }),
         designKit: () => ({ boards: [], palette: [] }),
+        styleGuide: () => null,
         markLessonClip: () => undefined,
         lessonClips: () => [],
         setPalette: () => undefined,
@@ -754,6 +920,11 @@ test("the fonts step embeds the title's bold and the body's regular and bold; th
         pipelineWords: async () => [],
         pipelineNarration: async () => new Uint8Array(),
         pipelineCancel: async () => undefined,
+        pipelineGuideRead: async () => {
+          throw new Error("sem guia");
+        },
+        pipelineGuideStyle: async () => null,
+        pipelineGuideStyleSave: async () => undefined,
         onPipelineProgress: () => () => undefined,
         pipelineVideoFacts: async () => ({ width: 1, height: 1, duration: 1, clicks: null }),
         pipelineVideoPreview: async () => new Uint8Array(),
@@ -797,5 +968,5 @@ test("the fonts step embeds the title's bold and the body's regular and bold; th
     },
   );
   assert.equal(missing.ok, false);
-  assert.equal(asked.at(-1), "A fonte Comic Sans não vem com o EdiSVG: escolha outra.");
+  assert.equal(asked.at(-1), "A fonte Comic Sans não vem com o EdiSVG.");
 });

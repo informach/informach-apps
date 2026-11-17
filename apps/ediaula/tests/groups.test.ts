@@ -130,6 +130,43 @@ test("trimming a grouped clip moves the same edge of the others that ended with 
   assert.equal(end("late"), 12);
 });
 
+test("a picture or an annotation starts earlier when its left edge is pulled; a video stops at its start", () => {
+  const assets = new Map([
+    ["cam", asset("cam", "video")],
+    ["logo", asset("logo", "image")],
+  ]);
+  // A Destaque put at 10 s (a still picture, read from its start): pulled to 6 s, it starts there.
+  const shape = clip("d", "t1", 10, 3, { assetId: "logo" });
+  const earlier = trimClip(shape, "start", 6, assets.get("logo"));
+  assert.deepEqual([earlier.start, earlier.duration, earlier.in], [6, 7, 0]);
+  // Not before 0:00.
+  assert.equal(trimClip(shape, "start", -4, assets.get("logo")).start, 0);
+  // Grouped with another picture, both go back together, as far as the clip before them.
+  const layers = [
+    clip("d", "t1", 10, 3, { assetId: "logo", groupId: "g" }),
+    clip("e", "t2", 10, 3, { assetId: "logo", groupId: "g" }),
+    clip("v", "t2", 0, 8),
+  ];
+  const [first] = layers;
+  assert.ok(first);
+  const grouped = trimGroup(
+    layers,
+    first,
+    trimClip(first, "start", 6, assets.get("logo")),
+    "start",
+    trimClip,
+    assets,
+    1 / 30,
+  );
+  assert.deepEqual(
+    grouped.filter((c) => c.groupId === "g").map((c) => c.start),
+    [8, 8],
+  );
+  // A video still stops where its file begins.
+  const video = clip("w", "t2", 10, 3, { in: 2 });
+  assert.equal(trimClip(video, "start", 4, assets.get("cam")).start, 8);
+});
+
 test("separating the sound makes a grouped sound clip and silences the video", () => {
   const p = project([
     clip("v", "t1", 2, 8, { volume: 0.8, denoise: true, gain: [{ t: 1, db: -6 }] }),

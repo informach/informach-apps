@@ -29,7 +29,12 @@ export interface Transform {
    * Shape of the visible part: rounded corners, a circle (the webcam: rounded by half the short
    * side) or an ellipse filling the visible box (a circle when it is square).
    */
-  mask?: "rounded" | "circle" | "ellipse";
+  mask?: "rounded" | "circle" | "ellipse" | "polygon";
+  /**
+   * The polygon drawn with the pen (mask "polygon"): its outlines, corners in drawing order, as
+   * fractions of the mask's rectangle (the crop), so moving or resizing the mask carries it along.
+   */
+  polygon?: Polygon;
   /** Rounded shape: the corners' radius in pixels of a 1080p frame (absent: 28). */
   corner?: number;
   /** Soft edge of the shape, inward, in pixels of a 1080p frame (absent or 0: a sharp edge). */
@@ -46,7 +51,7 @@ export interface Transform {
   /** Mirrored left to right, or top to bottom: the visible part, before the shape and shadow. */
   flipH?: boolean;
   flipV?: boolean;
-  /** Shown on the screen of a laptop or a phone drawn around it (shared/look.ts). */
+  /** Shown on the screen of a laptop, tablet or phone drawn around it (shared/look.ts). */
   device?: Device;
 }
 
@@ -119,9 +124,40 @@ export const maskRadius = (
       ? Math.min(((t.corner ?? ROUNDED_RADIUS) * frameHeight) / 1080, Math.min(w, h) / 2)
       : 0;
 
+/** A corner of a polygon mask: x and y as fractions of the mask's rectangle. */
+export type PolygonPoint = [number, number];
+/**
+ * A polygon drawn with the pen: one or more closed outlines (two rectangles, a rectangle and a
+ * star...), each a list of corners. Inside is decided by the even-odd rule over all of them, so
+ * shapes apart are all inside and a shape inside another makes a hole.
+ */
+export type Polygon = PolygonPoint[][];
+/** Most corners a polygon may have in all (the export evaluates every side for every pixel). */
+export const POLYGON_MAX = 40;
+/** Most outlines in one polygon. */
+export const POLYGON_SHAPES_MAX = 8;
+
+/** The outlines that make a shape (three corners or more); undefined when none does. */
+export function usablePolygon(polygon: Polygon | undefined): Polygon | undefined {
+  const shapes = polygon?.filter((outline) => outline.length >= 3);
+  return shapes?.length ? shapes : undefined;
+}
+
+/** A polygon as saved before it could have several outlines (one list of corners), or as now. */
+export function polygonOutlines(value: unknown): unknown {
+  return Array.isArray(value) &&
+    value.length &&
+    Array.isArray(value[0]) &&
+    typeof value[0][0] === "number"
+    ? [value]
+    : value;
+}
+
 /** The shape that cuts a visible box of w × h, in output pixels. */
 export interface MaskShape {
   ellipse: boolean;
+  /** A polygon instead of the box (corners as fractions of it); radius and ellipse unused. */
+  polygon?: Polygon;
   /** Corner radius (not used by an ellipse). */
   radius: number;
   /** Soft edge, inward (0: sharp). */
@@ -130,18 +166,123 @@ export interface MaskShape {
 
 /** The clip's shape for a visible box of w × h (null: the plain rectangle, nothing to cut). */
 export function maskShape(
-  t: Pick<Transform, "mask" | "corner" | "feather">,
+  t: Pick<Transform, "mask" | "corner" | "feather" | "polygon">,
   w: number,
   h: number,
   frameHeight: number,
 ): MaskShape | null {
   const ellipse = t.mask === "ellipse";
+  const polygon = t.mask === "polygon" ? usablePolygon(t.polygon) : undefined;
   const radius = ellipse ? 0 : maskRadius(t, w, h, frameHeight);
   const feather = Math.min(
     Math.max(0, ((t.feather ?? 0) * frameHeight) / 1080),
     Math.min(w, h) / 2,
   );
+  if (polygon) return { ellipse: false, radius: 0, feather, polygon };
   return ellipse || radius > 0 || feather > 0 ? { ellipse, radius, feather } : null;
+}
+
+/**
+ * Signed distance from (x, y) to the nearest side of a polygon whose corners are fractions of a
+ * w × h box: negative inside (even-odd over all its outlines, so a side crossing another leaves
+ * a hole where it folds). The export's FFmpeg expression (export/fx.ts polygonDistanceExpr) is
+ * the same formula.
+ */
+export function polygonDistance(
+  polygon: readonly (readonly PolygonPoint[])[],
+  w: number,
+  h: number,
+  x: number,
+  y: number,
+): number {
+  let nearest = Number.POSITIVE_INFINITY;
+  let inside = false;
+  for (const points of polygon)
+    for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+      const ax = points[j][0] * w;
+      const ay = points[j][1] * h;
+      const dx = points[i][0] * w - ax;
+      const dy = points[i][1] * h - ay;
+      const l2 = dx * dx + dy * dy;
+      const k = l2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / l2)) : 0;
+      nearest = Math.min(nearest, Math.hypot(x - ax - k * dx, y - ay - k * dy));
+      if (ay > y !== ay + dy > y && x < ax + (dx * (y - ay)) / dy) inside = !inside;
+    }
+  return inside ? -nearest : nearest;
+}
+
+/**
+ * A polygon drawn over the whole picture (corners as fractions of it) as a mask: the rectangle
+ * around all its outlines, as the crop, and its corners as fractions of that rectangle.
+ */
+export function polygonMask(polygon: readonly (readonly PolygonPoint[])[]): {
+  crop: Crop;
+  polygon: Polygon;
+} {
+  const r = (v: number): number => Math.round(v * 1e5) / 1e5;
+  const kept = (v: number): number => Math.max(0, Math.min(1, v));
+  const all = polygon.flat();
+  const xs = all.map((p) => kept(p[0]));
+  const ys = all.map((p) => kept(p[1]));
+  const x0 = Math.min(...xs);
+  const y0 = Math.min(...ys);
+  const w = Math.max(1e-4, Math.max(...xs) - x0);
+  const h = Math.max(1e-4, Math.max(...ys) - y0);
+  return {
+    crop: { left: r(x0), top: r(y0), right: r(1 - x0 - w), bottom: r(1 - y0 - h) },
+    polygon: polygon.map((outline) =>
+      outline.map(([x, y]): PolygonPoint => [r((kept(x) - x0) / w), r((kept(y) - y0) / h)]),
+    ),
+  };
+}
+
+/**
+ * The mask's crop as it shows on the screen, where a flipped clip is mirrored: the sides swap.
+ * The same call turns it back. The polygon of a mask is kept in these screen directions (the
+ * export cuts the shape after the flip), the crop in the picture's.
+ */
+export function mirrorCrop(c: Crop, flipH?: boolean, flipV?: boolean): Crop {
+  return {
+    left: flipH ? c.right : c.left,
+    right: flipH ? c.left : c.right,
+    top: flipV ? c.bottom : c.top,
+    bottom: flipV ? c.top : c.bottom,
+  };
+}
+
+/** A polygon (fractions of its box) mirrored as a flipped picture is. */
+export function mirrorPolygon(
+  polygon: readonly (readonly PolygonPoint[])[],
+  flipH?: boolean,
+  flipV?: boolean,
+): Polygon {
+  return polygon.map((outline) =>
+    outline.map(([x, y]): PolygonPoint => [flipH ? 1 - x : x, flipV ? 1 - y : y]),
+  );
+}
+
+/** The polygon's corners as fractions of the whole picture, from the mask's crop. */
+export function polygonOnPicture(
+  polygon: readonly (readonly PolygonPoint[])[],
+  crop: Crop,
+): Polygon {
+  const w = 1 - crop.left - crop.right;
+  const h = 1 - crop.top - crop.bottom;
+  return polygon.map((outline) =>
+    outline.map(([x, y]): PolygonPoint => [crop.left + x * w, crop.top + y * h]),
+  );
+}
+
+/** The SVG path of a polygon's outlines in a box of w × h (each one closed). */
+export function polygonPath(
+  polygon: readonly (readonly PolygonPoint[])[],
+  w: number,
+  h: number,
+): string {
+  const r = (v: number): string => (Math.round(v * 100) / 100).toString();
+  return polygon
+    .map((outline) => `M${outline.map(([x, y]) => `${r(x * w)} ${r(y * h)}`).join("L")}Z`)
+    .join("");
 }
 
 /**
@@ -156,6 +297,7 @@ export function shapeDistance(
   x: number,
   y: number,
 ): number {
+  if (shape.polygon) return polygonDistance(shape.polygon, w, h, x, y);
   const px = x - w / 2;
   const py = y - h / 2;
   if (shape.ellipse) return (Math.hypot(px / (w / 2), py / (h / 2)) - 1) * (Math.min(w, h) / 2);

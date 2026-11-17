@@ -252,6 +252,8 @@
 .composer-foot {
   display: flex;
   align-items: center;
+  gap: 2px;
+  min-width: 0;
   font-size: 10.5px;
 }
 .link {
@@ -495,8 +497,34 @@
 .warn-icon {
   color: var(--amber);
 }
-.engine-label {
+.foot-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  color: var(--text-3);
   white-space: nowrap;
+}
+.foot-chip .mono {
+  font-size: 10.5px;
+}
+button.foot-chip {
+  width: 24px;
+  justify-content: center;
+  padding: 0;
+}
+button.foot-chip:hover,
+button.foot-chip:focus-visible {
+  background: var(--panel-3);
+  color: var(--text-1);
+}
+.foot-quota {
+  flex: 0 1 auto;
+}
+.foot-text {
   overflow: hidden;
   text-overflow: ellipsis;
 }
