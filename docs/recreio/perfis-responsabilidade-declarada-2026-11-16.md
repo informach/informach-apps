@@ -51,3 +51,12 @@ fazer o teste passar. O jogo interno L prova o contrato da plataforma.
 
 Estado: projeto do incremento; não comprova cadastro infantil implementado,
 verificação de idade ou liberação para menores em produção.
+
+## Sequência da geração
+
+A primeira geração (`43991804537`, fonte `0694e16`, artefato `14287502455`)
+foi rejeitada na revisão: o Drizzle colocou a FK composta de `minor_profiles`
+antes de criar a UNIQUE de `profiles(id, kind)`. O SQL não foi editado nem
+aplicado. Gerar primeiro somente a UNIQUE existente e incorporar a migration;
+depois reexportar o schema familiar e gerar a próxima migration com as tabelas.
+O PostgreSQL descartável precisa aplicar a sequência inteira antes da publicação.
