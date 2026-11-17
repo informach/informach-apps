@@ -75,15 +75,13 @@ describe("integridade dos fatos sociais", () => {
     await db.insert(requests).values(r.pedido);
     expect(
       await codigoDoBanco(
-        db
-          .insert(requests)
-          .values({
-            ...r.pedido,
-            codeId: null,
-            clientKey: crypto.randomUUID(),
-            originProfileId: r.b.perfil.id,
-            targetProfileId: r.a.perfil.id,
-          }),
+        db.insert(requests).values({
+          ...r.pedido,
+          codeId: null,
+          clientKey: crypto.randomUUID(),
+          originProfileId: r.b.perfil.id,
+          targetProfileId: r.a.perfil.id,
+        }),
       ),
     ).toBe(UNICO);
     expect(
@@ -146,14 +144,12 @@ describe("integridade dos fatos sociais", () => {
         db.insert(blocks).values({ actorProfileId: r.a.perfil.id, targetProfileId: r.b.perfil.id }),
       ),
     ).toBe(CHECAGEM);
-    await db
-      .insert(blocks)
-      .values({
-        actorProfileId: r.a.perfil.id,
-        targetProfileId: r.b.perfil.id,
-        blocked: false,
-        muted: true,
-      });
+    await db.insert(blocks).values({
+      actorProfileId: r.a.perfil.id,
+      targetProfileId: r.b.perfil.id,
+      blocked: false,
+      muted: true,
+    });
     expect(
       (await db.select().from(blocks).where(eq(blocks.actorProfileId, r.a.perfil.id)))[0],
     ).toMatchObject({ blocked: false, muted: true });

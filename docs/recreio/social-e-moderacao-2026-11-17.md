@@ -99,6 +99,31 @@ contra perfil suspenso, pedidos recíprocos e integridade das tabelas. Nenhuma
 rota social ou fluxo foi ativado por esta fundação; escritores/interfaces e
 moderação continuam pendentes.
 
+A fonte `72b8bf8e` passou em integração, navegador, versões, checkpoint,
+cliente e longa (`44121930438`). Qualidade parou em uma diferença de formatação
+do teste de schema; corrigir e conferir novamente sem escrita, sem ignorar o
+gate ou alterar estilos de outros produtos. Regras puras ainda precisam do
+gate de qualidade completo.
+
+Próxima candidata implementa emissão e pedidos: código com 12 caracteres
+base32, gerado por `crypto.randomInt` sem viés modular
+([API do Node 24](https://nodejs.org/docs/latest-v24.x/api/crypto.html#cryptorandomintmin-max-callback)),
+uso único e hash com finalidade própria; até seis emissões/hora por perfil.
+Pedido exige chave UUID própria, comparação do corpo normalizado e leitura da
+identidade antes de descobrir o destino. A transação seguinte admite as duas
+pontas desde o início, valida bloqueios/código, cotas (20 pedidos pendentes e
+100 amizades por perfil) e retira o código de uso. Avisos ficam somente dentro
+da conta; nenhum e-mail é enviado por esta implementação.
+
+Repetição devolve recibo sem ampliar prazo, criar amizade ou reativar relação.
+Pedido cruzado pendente exige aceite explícito na entrada recebida, sem aceite
+implícito pelo código. Código perdido pode ser reemitido; não há repetição
+automática de mutação com resposta perdida. Auditoria, consumo e avisos são
+atômicos. Provas cobrem uso/repetição, normalização, revogação, bloqueio nas duas
+pontas, aviso infantil/adolescente, última cota concorrente e falha/prazo na
+auditoria. Aceite, aprovação, proteção, leitores, interfaces e moderação seguem
+pendentes; ainda não há superfície social habilitada.
+
 - [ ] Mapear a política efetiva, admissão básica, supervisão e escritores de
   composição antes de adicionar autoridade social. Registrar ordem global de
   mutexes, perfis, aparelho, par de contato e auditoria.
