@@ -173,6 +173,7 @@ export const recreioRestrictionReviews = recreio.table(
   },
   (t) => [
     uniqueIndex("recreio_restriction_review_retry").on(t.profileId, t.clientKey),
+    uniqueIndex("recreio_restriction_review_actor").on(t.profileId, t.restrictionRevision, t.actorUserId),
     uniqueIndex("recreio_restriction_review_open")
       .on(t.profileId, t.restrictionRevision)
       .where(sql`${t.state}='aberto'`),
