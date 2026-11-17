@@ -10,6 +10,7 @@ import {
 } from "@informach/db/schema";
 import { SessaoRenovadaSchema } from "@informach/recreio/contrato";
 import { verificarSalvamentoEmitido } from "@informach/recreio/emissor";
+import { criarRecreio } from "@informach/recreio/sdk";
 import { describe, expect, it, vi } from "vitest";
 import { alterarDados } from "@/features/dados-de-perfil/service";
 import { travarEncerramentos } from "@/features/sessao-de-jogo/encerramento-repository";
@@ -20,7 +21,7 @@ import {
 } from "@/features/sessao-de-jogo/service";
 import { chavesDoRecreio } from "@/lib/tokens";
 import { eventosCom, novoJogador } from "./apoio";
-import { pedir } from "./rotas";
+import { despachar, ORIGEM, pedir } from "./rotas";
 
 vi.mock("@/lib/env", async (original) => {
   const real = await original<typeof import("@/lib/env")>();
@@ -104,6 +105,50 @@ const salvar = (r: Awaited<ReturnType<typeof preparar>>, dados = [gravacao]) =>
   pedir("POST", "/api/sdk/v1/sessao/salvamento", { token: r.capacidade.token, corpo: { dados } });
 
 describe("persistência final com capacidade restrita", () => {
+  it("SDK recupera a resposta final perdida depois do commit sem duplicar dados ou eventos", async () => {
+    const pessoa = await novoJogador();
+    let finais = 0;
+    const contexto = await criarRecreio({
+      baseUrl: ORIGEM,
+      jogo: JOGO,
+      salvamentoRestrito: true,
+      obterIngresso: async () => (await emitirIngresso(pessoa.ator, { jogo: JOGO })).ingresso,
+      fetch: async (url, init) => {
+        const resposta = await despachar(url, init);
+        if (url.endsWith("/sessao/salvamento") && init?.method === "POST") {
+          finais++;
+          if (finais === 1) {
+            expect(resposta.status).toBe(200);
+            await resposta.body?.cancel();
+            throw new Error("Resposta perdida depois do commit real");
+          }
+        }
+        return resposta;
+      },
+    });
+    try {
+      const saida = contexto.sessao.salvamento;
+      if (!saida) throw new Error("Capacidade ausente");
+      expect(
+        await saida.finalizarDados([{ chave: "pontos", revisao: 0, dados: new Uint8Array([49]) }]),
+      ).toMatchObject({ estado: "completed", resultados: [{ chave: "pontos", revisao: 1 }] });
+      expect(finais).toBe(2);
+      expect(await saida.estado()).toMatchObject({ estado: "completed" });
+      expect(
+        await db.select().from(versions).where(eq(versions.profileId, pessoa.perfil.id)),
+      ).toHaveLength(1);
+      const [recibo] = await db
+        .select()
+        .from(permits)
+        .where(eq(permits.profileId, pessoa.perfil.id));
+      if (!recibo) throw new Error("Recibo ausente");
+      expect(
+        (await eventosCom("savePermitId", recibo.id)).map((evento) => evento.eventType),
+      ).toEqual(["recreio.session_save_prepared", "recreio.session_save_completed"]);
+    } finally {
+      await contexto.sessao.sair().catch(() => undefined);
+    }
+  });
   it("negocia na abertura, renova o mesmo recibo e recupera sem ampliar a concessão", async () => {
     const pessoa = await novoJogador();
     const ingresso = await emitirIngresso(pessoa.ator, { jogo: JOGO });

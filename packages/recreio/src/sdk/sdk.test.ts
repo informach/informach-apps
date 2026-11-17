@@ -14,6 +14,10 @@ const MEMBRO = "9d2c7b1a-3e4f-4a5b-8c6d-7e8f9a0b1c2d";
 
 /** Quando o SDK renova uma sessão que ainda vale `ms`. */
 const fracao = (ms: number) => Math.floor(ms * FRACAO_PARA_RENOVAR);
+const capacidadeDeSalvar = (token = "somente-salvar") => ({
+  token,
+  expiraEm: new Date(INICIO + QUINZE_MIN + 30_000).toISOString(),
+});
 
 afterEach(() => vi.useRealTimers());
 
@@ -73,7 +77,11 @@ function ambiente() {
     opcoes: (
       extra: Pick<
         OpcoesDoRecreio,
-        "continuarAqui" | "recuperarAbertura" | "aguardarCheckpoint" | "aoAguardarCheckpoint"
+        | "continuarAqui"
+        | "recuperarAbertura"
+        | "aguardarCheckpoint"
+        | "aoAguardarCheckpoint"
+        | "salvamentoRestrito"
       > = {},
     ) => ({
       baseUrl: "https://recreio.test/",
@@ -94,6 +102,126 @@ function ambiente() {
 }
 
 describe("abertura da sessão", () => {
+  it("salvamento negociado usa só a capacidade própria e recupera uma resposta perdida com lote idêntico", async () => {
+    const a = ambiente();
+    const capacidade = capacidadeDeSalvar();
+    const resultado = { estado: "completed", resultados: [{ chave: "pontos", revisao: 1 }] };
+    a.responder(
+      { corpo: { ...a.aberta(), salvamento: capacidade } },
+      new Error("ACK perdido"),
+      { corpo: resultado },
+      { corpo: { estado: "completed", expiraEm: capacidade.expiraEm } },
+    );
+    const contexto = await criarRecreio(a.opcoes({ salvamentoRestrito: true }));
+    const saida = contexto.sessao.salvamento;
+    if (!saida) throw new Error("Capacidade ausente");
+    expect(a.chamadas[0]?.corpo).toEqual({ ingresso: "ingresso-1", suportaSalvamento: true });
+    expect(
+      await saida.finalizarDados([{ chave: "pontos", revisao: 0, dados: new Uint8Array([49]) }]),
+    ).toEqual(resultado);
+    const pedidos = a.chamadas.filter(
+      (pedido) => pedido.method === "POST" && pedido.url.endsWith("/sessao/salvamento"),
+    );
+    expect(pedidos).toHaveLength(2);
+    expect(pedidos[0]?.corpo).toEqual(pedidos[1]?.corpo);
+    expect(pedidos[0]?.headers.authorization).toBe("Bearer somente-salvar");
+    expect(a.pendentes()).toHaveLength(0);
+    await expect(contexto.dados.ler("pontos")).rejects.toMatchObject({
+      codigo: "SESSAO_ENCERRADA",
+    });
+    const total = a.chamadas.length;
+    await contexto.sessao.sair();
+    expect(a.chamadas).toHaveLength(total);
+    expect(await saida.estado()).toEqual({ estado: "completed", expiraEm: capacidade.expiraEm });
+  });
+  it("coalesce o lote final, conserva seus bytes e recusa conteúdo divergente", async () => {
+    const a = ambiente();
+    const opcoes = a.opcoes({ salvamentoRestrito: true });
+    a.responder({ corpo: { ...a.aberta(), salvamento: capacidadeDeSalvar() } });
+    let concluir = (_resposta: Response) => {};
+    const resposta = new Promise<Response>((resolve) => {
+      concluir = resolve;
+    });
+    const pedidos: { corpo: unknown; token: string | null }[] = [];
+    const contexto = await criarRecreio({
+      ...opcoes,
+      fetch: (url, init) => {
+        if (url.endsWith("/sessao/salvamento") && init?.method === "POST") {
+          pedidos.push({
+            corpo: JSON.parse(String(init.body)),
+            token: new Headers(init.headers).get("authorization"),
+          });
+          return resposta;
+        }
+        return opcoes.fetch(url, init);
+      },
+    });
+    const saida = contexto.sessao.salvamento;
+    if (!saida) throw new Error("Capacidade ausente");
+    const bytes = new Uint8Array([49]);
+    const dados = [{ chave: "pontos", revisao: 0, dados: bytes }];
+    const primeira = saida.finalizarDados(dados);
+    const segunda = saida.finalizarDados(dados);
+    bytes[0] = 50;
+    await expect(saida.finalizarDados(dados)).rejects.toMatchObject({ codigo: "FATO_DUPLICADO" });
+    expect(pedidos).toEqual([
+      {
+        corpo: { dados: [{ operacao: "gravar", chave: "pontos", revisao: 0, conteudo: "MQ==" }] },
+        token: "Bearer somente-salvar",
+      },
+    ]);
+    concluir(Response.json({ estado: "completed", resultados: [{ chave: "pontos", revisao: 1 }] }));
+    const recebida = await primeira;
+    expect(await segunda).toEqual(recebida);
+    if (recebida.resultados[0]) recebida.resultados[0].revisao = 900;
+    expect(
+      (await saida.finalizarDados([{ chave: "pontos", revisao: 0, dados: new Uint8Array([49]) }]))
+        .resultados[0]?.revisao,
+    ).toBe(1);
+    expect(pedidos).toHaveLength(1);
+  });
+  it("renovação atualiza a capacidade, mas cliente sem negociação conserva a interface anterior", async () => {
+    const a = ambiente();
+    a.responder(
+      { corpo: { ...a.aberta(), salvamento: capacidadeDeSalvar("s1") } },
+      {
+        corpo: {
+          ...a.sessao("sessao-2", INICIO + QUINZE_MIN * 2),
+          salvamento: capacidadeDeSalvar("s2"),
+        },
+      },
+      { corpo: { estado: "ready", expiraEm: capacidadeDeSalvar().expiraEm } },
+    );
+    const contexto = await criarRecreio(a.opcoes({ salvamentoRestrito: true }));
+    await a.disparar();
+    const saida = contexto.sessao.salvamento;
+    if (!saida) throw new Error("Capacidade ausente");
+    await saida.estado();
+    expect(a.chamadas.at(-1)?.headers.authorization).toBe("Bearer s2");
+    expect(contexto.sessao.token()).toBe("sessao-2");
+    const antiga = ambiente();
+    antiga.responder({ corpo: antiga.aberta() });
+    expect((await criarRecreio(antiga.opcoes())).sessao.salvamento).toBeUndefined();
+    expect(antiga.chamadas[0]?.corpo).toEqual({ ingresso: "ingresso-1" });
+  });
+  it("recusa definitiva não repete a persistência final e nunca declara a saída confirmada", async () => {
+    const a = ambiente();
+    a.responder(
+      { corpo: { ...a.aberta(), salvamento: capacidadeDeSalvar() } },
+      { status: 401, corpo: { codigo: "SESSAO_INVALIDA" } },
+    );
+    const contexto = await criarRecreio(a.opcoes({ salvamentoRestrito: true }));
+    const saida = contexto.sessao.salvamento;
+    if (!saida) throw new Error("Capacidade ausente");
+    await expect(saida.finalizarDados([])).rejects.toMatchObject({ codigo: "SESSAO_INVALIDA" });
+    expect(a.chamadas.filter((pedido) => pedido.url.endsWith("/sessao/salvamento"))).toHaveLength(
+      1,
+    );
+    expect(a.pendentes()).toHaveLength(0);
+    a.responder({ corpo: {} });
+    await contexto.sessao.sair();
+    expect(a.chamadas.at(-1)?.url).toBe("https://recreio.test/api/sdk/v1/sessao/sair");
+  });
   it("checkpoint envia ACK explícito com o token atual e não repete confirmação sem resposta", async () => {
     const a = ambiente();
     a.responder(

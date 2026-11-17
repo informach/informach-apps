@@ -40,3 +40,10 @@ export const EstadoDeSalvamentoSchema = z.strictObject({
   expiraEm: z.iso.datetime(),
 });
 export type EstadoDeSalvamento = z.infer<typeof EstadoDeSalvamentoSchema>;
+export interface SalvamentoDaSessao {
+  estado(): Promise<EstadoDeSalvamento>;
+  /** Congela o SDK de gameplay. Repetição conserva exatamente o lote da primeira tentativa. */
+  finalizarDados(
+    dados: readonly { chave: string; dados: Uint8Array; revisao: number }[],
+  ): Promise<ResultadoDeSalvamento>;
+}

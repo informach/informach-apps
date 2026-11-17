@@ -12,6 +12,14 @@ import {
   VersoesDeDadosSchema,
 } from "../contrato/dados";
 import {
+  EstadoDeSalvamentoSchema,
+  type PedidoDeSalvamentoDePerfil,
+  PedidoDeSalvamentoDePerfilSchema,
+  type ResultadoDeSalvamento,
+  ResultadoDeSalvamentoSchema,
+  type SalvamentoDaSessao,
+} from "../contrato/salvamento";
+import {
   ConfirmacaoDeCheckpointSchema,
   ControleDaSessaoSchema,
   ConviteCriadoSchema,
@@ -61,6 +69,8 @@ export type OpcoesDoRecreio = {
   continuarAqui?: boolean;
   /** Só ativar depois dos leitores do recibo no servidor. Não persiste a prova. */
   recuperarAbertura?: boolean;
+  /** Negocia a capacidade restrita; somente após implantação dos seus leitores/escritores. */
+  salvamentoRestrito?: boolean;
   /** Aguarda o ACK de outro aparelho, conservando o mesmo ingresso e prova. */
   aguardarCheckpoint?: boolean;
   aoAguardarCheckpoint?: () => void;
@@ -118,6 +128,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       ingresso,
       ...(opcoes.continuarAqui === undefined ? {} : { continuarAqui: opcoes.continuarAqui }),
       ...(chaveDeTroca === undefined ? {} : { chaveDeTroca }),
+      ...(opcoes.salvamentoRestrito ? { suportaSalvamento: true } : {}),
     },
   } as const;
   const aberta = await (async () => {
@@ -157,6 +168,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
 
   let token = aberta.token;
   let expiraEm = aberta.expiraEm;
+  let capacidadeDeSalvamento = opcoes.salvamentoRestrito ? aberta.salvamento : undefined;
   /** Depois de sair ou de perder o acesso, nada mais é renovado. */
   let encerrada = false;
   let saidaConfirmada = false;
@@ -205,6 +217,8 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       if (encerrada) return;
       token = renovada.token;
       expiraEm = renovada.expiraEm;
+      if (opcoes.salvamentoRestrito && renovada.salvamento)
+        capacidadeDeSalvamento = renovada.salvamento;
       if (!renovacaoSuspensa) agendarPelaValidade();
       for (const ouvinte of [...aoRenovar]) ouvinte(token);
     } catch (erro) {
@@ -245,6 +259,73 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   });
   const consultaDeDados = (chave: string, historico = false) =>
     `/dados?${new URLSearchParams({ chave: ChaveDeDadosSchema.parse(chave), ...(historico ? { historico: "1" } : {}) })}`;
+
+  let finalizacao: {
+    corpo: PedidoDeSalvamentoDePerfil;
+    texto: string;
+    promessa: Promise<ResultadoDeSalvamento> | null;
+    resultado: ResultadoDeSalvamento | null;
+  } | null = null;
+  function exigirCapacidadeDeSalvamento() {
+    if (!capacidadeDeSalvamento) throw new ErroDoRecreio("SEM_PERMISSAO");
+    return capacidadeDeSalvamento;
+  }
+  const salvamento: SalvamentoDaSessao = {
+    estado() {
+      return enviar("/sessao/salvamento", EstadoDeSalvamentoSchema, {
+        method: "GET",
+        token: exigirCapacidadeDeSalvamento().token,
+      });
+    },
+    async finalizarDados(dados) {
+      exigirCapacidadeDeSalvamento();
+      if (
+        dados.length > LIMITES_DOS_DADOS.chaves ||
+        dados.some((dado) => dado.dados.byteLength > LIMITES_DOS_DADOS.bytesPorVersao)
+      )
+        throw new ErroDoRecreio("TAMANHO_EXCEDIDO");
+      const corpo = PedidoDeSalvamentoDePerfilSchema.parse({
+        dados: dados.map((dado) => ({
+          operacao: "gravar",
+          chave: dado.chave,
+          revisao: dado.revisao,
+          conteudo: bytesParaBase64(dado.dados),
+        })),
+      });
+      corpo.dados.sort((a, b) => (a.chave < b.chave ? -1 : a.chave > b.chave ? 1 : 0));
+      const texto = JSON.stringify(corpo);
+      if (finalizacao && finalizacao.texto !== texto) throw new ErroDoRecreio("FATO_DUPLICADO");
+      finalizacao ??= { corpo, texto, promessa: null, resultado: null };
+      const tentativa = finalizacao;
+      if (tentativa.resultado) return ResultadoDeSalvamentoSchema.parse(tentativa.resultado);
+      if (tentativa.promessa) return tentativa.promessa;
+      parar();
+      const concluir = async () => {
+        for (let repeticao = 0; ; repeticao++) {
+          try {
+            const resultado = await enviar("/sessao/salvamento", ResultadoDeSalvamentoSchema, {
+              method: "POST",
+              token: exigirCapacidadeDeSalvamento().token,
+              corpo: tentativa.corpo,
+            });
+            tentativa.resultado = ResultadoDeSalvamentoSchema.parse(resultado);
+            saidaConfirmada = true;
+            return ResultadoDeSalvamentoSchema.parse(resultado);
+          } catch (erro) {
+            // Esta escrita tem recibo próprio: só uma recuperação com o lote idêntico.
+            if (repeticao > 0 || !ehErroDoRecreio(erro, "INDISPONIVEL")) throw erro;
+          }
+        }
+      };
+      const promessa = concluir();
+      tentativa.promessa = promessa;
+      try {
+        return await promessa;
+      } finally {
+        if (tentativa.promessa === promessa) tentativa.promessa = null;
+      }
+    },
+  };
 
   return {
     dados: {
@@ -305,6 +386,9 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
     perfil: aberta.perfil,
     politica: aberta.politica,
     sessao: {
+      get salvamento() {
+        return capacidadeDeSalvamento ? salvamento : undefined;
+      },
       async controle() {
         exigirSessao();
         const controle = await enviar("/sessao/controle", ControleDaSessaoSchema, {

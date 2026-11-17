@@ -9,7 +9,7 @@ import {
 } from "../dominio/mundos";
 import { ESTADOS_DE_ACESSO_LISTA } from "./acesso";
 import type { DadosDoPerfil } from "./dados";
-import { CapacidadeDeSalvamentoSchema } from "./salvamento";
+import { CapacidadeDeSalvamentoSchema, type SalvamentoDaSessao } from "./salvamento";
 
 /**
  * API do SDK: o que o cliente de um jogo pede ao Recreio, do navegador. O SDK
@@ -195,6 +195,8 @@ export interface RecreioGameContext {
   perfil: PerfilDoJogo;
   politica: PoliticaDoPerfil;
   sessao: {
+    /** Ausente em clientes/servidores sem negociação; nunca é uma sessão de gameplay. */
+    readonly salvamento?: SalvamentoDaSessao;
     /** Consulta o estado atual sem renovar nem acertar de novo o tempo concedido. */
     controle(): Promise<ControleDaSessao>;
     /** Confirma a fila já salva; não é prova de persistência de um mundo. */

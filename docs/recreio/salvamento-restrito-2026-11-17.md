@@ -173,3 +173,21 @@ e ingresso continuam incompatíveis com a rota. Consumidor do SDK ainda pendente
 rollback da emissão. Essas rodadas não incluem a consulta restrita descrita
 acima. A produção está na integração `2475661`, com 0176/177 recibos e modos
 desligados; 0177 e todos os escritores de salvamento continuam privados.
+
+## Consumidor do SDK em candidata
+
+A consulta restrita de `e5724ca` passou nos sete gates `44067205297`.
+O SDK negocia a capacidade apenas com `salvamentoRestrito: true`, conserva a
+capacidade atualizada nas renovações e expõe consulta e conclusão separadas.
+A conclusão copia e ordena o lote antes da rede, suspende a renovação e usa
+somente o token restrito, inclusive depois do corte da sessão normal.
+Chamadas simultâneas iguais compartilham um pedido; conteúdo divergente é
+recusado. Resposta indisponível admite uma repetição do lote idêntico; recusa
+definitiva não repete. Somente a confirmação positiva dispensa a saída normal.
+
+As novas provas cobrem cópia dos bytes, coalescência, perda de resposta,
+compatibilidade e atualização do token. A integração usa o SDK e handlers
+reais: perde a primeira resposta depois do commit e exige uma única versão e
+um único evento de conclusão. Esse consumidor ainda aguarda gates próprios.
+O host não solicita a capacidade; pausa automática, servidor de mundo e espera
+antes do sucessor continuam pendentes. Não ativar os modos em produção.
