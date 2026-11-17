@@ -33,6 +33,12 @@ export const recreioProfileCreationRequests = recreio.table(
   },
   (t) => [
     index("recreio_profile_creation_user").on(t.userId, t.createdAt),
+    index("recreio_profile_creation_pending_expiry")
+      .on(t.expiresAt)
+      .where(sql`${t.consumedAt} is null`),
+    index("recreio_profile_creation_consumed_retention")
+      .on(t.consumedAt)
+      .where(sql`${t.consumedAt} is not null`),
     check(
       "recreio_profile_creation_receipt",
       sql`(${t.consumedAt} is null and ${t.profileId} is null and ${t.fingerprint} is null) or (${t.consumedAt} is not null and ${t.fingerprint} is not null and ${t.fingerprint} ~ '^[a-f0-9]{64}$')`,

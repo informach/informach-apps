@@ -18,3 +18,4 @@ export * from "./ops";
 export * from "./recreio";
 export * from "./recreio-dados";
 export * from "./recreio-familia";
+export * from "./recreio-protecao";
