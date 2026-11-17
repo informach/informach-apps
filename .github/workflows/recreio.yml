@@ -8,6 +8,7 @@ on:
       - ".github/workflows/recreio.yml"
       - ".railway/railway.ts"
       - "apps/recreio/**"
+      - "apps/admin/**"
       - "apps/morada-server/**"
       - "packages/recreio/**"
       - "packages/morada-sim/**"
