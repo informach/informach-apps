@@ -89,7 +89,9 @@ test("painel social usa o SID sem sair, pausar o mundo ou retirar outros membros
   await painel.getByRole("button", { name: "Silenciar", exact: true }).click();
   await expect(painel.getByText("Silenciado", { exact: true })).toBeVisible();
   await painel.getByRole("button", { name: "Denunciar contato", exact: true }).click();
-  await painel.getByLabel("O que aconteceu?", { exact: true }).selectOption("outro");
+  await painel
+    .getByRole("combobox", { name: "O que aconteceu?", exact: true })
+    .selectOption("outro");
   await painel.getByRole("button", { name: "Enviar denúncia", exact: true }).click();
   await expect(
     painel.getByLabel("Protocolo da denúncia na partida", { exact: true }),

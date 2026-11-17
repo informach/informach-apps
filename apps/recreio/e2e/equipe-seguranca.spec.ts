@@ -51,7 +51,7 @@ async function codigoDeAtivacao(email: string) {
   return code;
 }
 async function aplicar(caso: Locator, operacao: string) {
-  const select = caso.getByLabel("Ação nesta revisão", { exact: true });
+  const select = caso.getByRole("combobox", { name: "Ação nesta revisão", exact: true });
   await hidratado(select);
   await select.selectOption(operacao);
   const botao = caso.getByRole("button", { name: "Confirmar ação da equipe", exact: true });
@@ -162,6 +162,10 @@ test("equipe ativa autenticador, entra com duas etapas e suspende um perfil com 
     await expect(caso).toHaveCount(1);
     await expect(page.getByText("Origem reservada", { exact: true })).toHaveCount(0);
     await expect(page.getByText("Alvo reservado", { exact: true })).toHaveCount(0);
+    await aplicar(caso, "analisar");
+    await page
+      .getByRole("link", { name: "Atualizar este caso antes de continuar", exact: true })
+      .click();
     await aplicar(caso, "suspender_perfil");
     await b.page.goto(destino);
     await expect(
@@ -170,12 +174,12 @@ test("equipe ativa autenticador, entra com duas etapas e suspende um perfil com 
     await page
       .getByRole("link", { name: "Atualizar este caso antes de continuar", exact: true })
       .click();
-    await aplicar(caso, "analisar");
-    await page
-      .getByRole("link", { name: "Atualizar este caso antes de continuar", exact: true })
-      .click();
-    await caso.getByLabel("Ação nesta revisão", { exact: true }).selectOption("concluir");
-    await caso.getByLabel("Decisão", { exact: true }).selectOption("medida_aplicada");
+    await caso
+      .getByRole("combobox", { name: "Ação nesta revisão", exact: true })
+      .selectOption("concluir");
+    await caso
+      .getByRole("combobox", { name: "Decisão", exact: true })
+      .selectOption("medida_aplicada");
     await aplicar(caso, "concluir");
     await a.page.goto(`/denuncias?protocolo=${protocolo}`);
     await expect(
