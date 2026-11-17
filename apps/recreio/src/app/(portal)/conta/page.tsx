@@ -4,6 +4,8 @@ import { Sair } from "@/features/account/components/sair";
 import { EstadoDoAcesso } from "@/features/acesso/components/estado-do-acesso";
 import { avaliarAcesso } from "@/features/acesso/service";
 import { descreverAcesso } from "@/features/acesso/texto";
+import { novosPerfisProtegidosDisponiveis } from "@/features/familia/disponibilidade";
+import { listarPerfisMenores } from "@/features/familia/service";
 import { AvatarDoPerfil } from "@/features/perfis/components/avatar";
 import { paginaDaGestao } from "@/features/sessao/ator";
 import { env } from "@/lib/env";
@@ -12,6 +14,8 @@ export const metadata = { title: "Conta" };
 
 export default async function Conta() {
   const { user, ator, perfis } = await paginaDaGestao();
+  const familiaVisivel =
+    novosPerfisProtegidosDisponiveis || (await listarPerfisMenores(ator)).itens.length > 0;
   const perfil = ator.perfil;
   const acesso = perfil ? await avaliarAcesso({ profileId: perfil.id }) : null;
   const texto = acesso
@@ -93,20 +97,22 @@ export default async function Conta() {
           </div>
         </section>
 
-        <section aria-labelledby="conta-familia" className="painel p-5 sm:p-6">
-          <h2 id="conta-familia" className="font-display text-xl font-bold">
-            Família
-          </h2>
-          <p className="mt-2 text-tinta-suave">
-            Cuide dos perfis de crianças e adolescentes sob sua responsabilidade.
-          </p>
-          <Link
-            href="/conta/perfis"
-            className="mt-4 inline-flex font-bold text-ceu underline underline-offset-4"
-          >
-            Gerenciar perfis
-          </Link>
-        </section>
+        {familiaVisivel && (
+          <section aria-labelledby="conta-familia" className="painel p-5 sm:p-6">
+            <h2 id="conta-familia" className="font-display text-xl font-bold">
+              Família
+            </h2>
+            <p className="mt-2 text-tinta-suave">
+              Cuide dos perfis de crianças e adolescentes sob sua responsabilidade.
+            </p>
+            <Link
+              href="/conta/perfis"
+              className="mt-4 inline-flex font-bold text-ceu underline underline-offset-4"
+            >
+              Gerenciar perfis
+            </Link>
+          </section>
+        )}
 
         <section aria-labelledby="conta-protecao" className="painel p-5 sm:p-6">
           <h2 id="conta-protecao" className="font-display text-xl font-bold">
