@@ -35,6 +35,9 @@ O motor da gravação guiada é do próprio EdiAula. Veja "Gravação guiada" no
 **Conta da equipe no palco de gravação da staging:** `https://palco-gravacao-staging.up.railway.app`.
 - O e-mail e a senha ficam num arquivo local: e-mail na 1ª linha, senha na 2ª.
 - Esse arquivo nunca entra no git.
+- Sem o arquivo, `parte.sh … palco` abre a janela do palco na tela, por cima das outras, e espera a pessoa entrar à mão (até 10 min).
+
+**Motor de transcrição no perfil do condutor.** O gravador transcreve a voz para gerar o plano. Sem o motor no perfil do condutor, o "Gerar plano do roteiro" não faz nada visível. Copie `%APPDATA%\ediaula\whisper` (binários e modelos) para `<perfil do EdiAula>\whisper`, ou instale a transcrição abrindo o EdiAula nesse perfil.
 
 **Material da parte**, numa pasta por curso: `<material>/Aula N/Parte N - <título>/`.
 
@@ -77,6 +80,8 @@ O condutor abre o EdiAula ou o EdiSVG licenciado no perfil de trabalho e recebe 
 node apps/ediaula/scripts/aula-automatica/condutor.mts ediaula   # porta 47998
 node apps/ediaula/scripts/aula-automatica/condutor.mts edisvg    # porta 47999 (só para exportar animações)
 ```
+
+Não abra o EdiAula ou o EdiSVG pelo `edi:work` com o condutor rodando: os dois usam o mesmo `apps/<ferramenta>/out`, e o build do `edi:work` derruba o condutor (ele perde a janela e as ações falham). Se acontecer, feche e abra o condutor de novo, sem `PROVA_SKIP_BUILD`.
 
 Os dois podem rodar juntos, e na edição rodam juntos: o EdiAula do condutor manda os pedidos de vínculo para o perfil do EdiSVG do condutor, que gera os renders das peças. `PROVA_SKIP_BUILD=1` pula o build quando o código não mudou.
 
@@ -163,6 +168,9 @@ A frase de instrução que abre ou fecha um trecho ("Deixe esse espaço à vista
 O que não vier em `.edisvg` é gerado pelo EdiAula no mesmo padrão e vai para a lista "criada sem .edisvg" do relatório.
 
 Animações de conceito que ainda não existem: uma cena por trecho, com `edicao/edisvg_cena.py`, como em `edicao/exemplos/farol-a3p2-conceitos.py`, salva em `<parte>/pecas/`.
+- **Base:** um `.edisvg` com o grupo "Jogo". Sem ele, `edicao/base_jogo.py <.edisvg com as artes> <base.edisvg>` monta a base a partir de um arquivo do curso que tem as artes do jogo como pranchetas (no Farol, o `animacao1.edisvg` da Aula 1).
+- **Trechos "[na edição: …]" do roteiro:** o que o robô não grava, como em `edicao/exemplos/farol-a3p4-versoes-e-opcoes.py`.
+- **Fontes:** só caracteres que as fontes da aula têm. Um símbolo como "▾" impede o render; desenhe-o.
 - **Blocos:** os blocos de verdade saem da gravação com `edicao/recortar.sh <gravação> <segundo da voz> quadro q.png`, para medir, e depois com as coordenadas.
 - **Validar:** confira com `edicao/validar_svg.py <pasta>`.
 - **Uma fonte por cena:** depois de vinculada, a cena é editada no EdiSVG. O script não reescreve um `.edisvg` que já existe (`AULA_REFAZER_CENAS=1` reescreve e apaga o que foi feito lá). Os ids saem do nome do arquivo, então reescrever mantém o vínculo.

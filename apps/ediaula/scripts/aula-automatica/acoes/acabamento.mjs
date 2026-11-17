@@ -40,7 +40,8 @@ export default async function acabamento(ctx) {
   const revisar = [];
   const { ia, revisao } = ferramentas(ctx);
   const ler = () => lerProjeto(ctx, st.projeto);
-  const apres = st.apresentadora ?? "HeyGen";
+  // O nome da mídia (o estado pode trazer o caminho do vídeo, como o config.py dá: fica o nome sem extensão).
+  const apres = st.apresentadora ? basename(st.apresentadora).replace(/\.[^.]+$/, "") : "HeyGen";
   const conceito = (proj, c) =>
     proj.nome(c).startsWith("conceito-") || pecaDe(proj.asset(c), "conceito");
 
@@ -148,7 +149,10 @@ export default async function acabamento(ctx) {
   );
   // Toda animação de conceito tem a apresentadora por cima, do começo ao fim.
   for (const [a, b] of animacoes) {
-    const cobre = pedacos.some((c) => c.start <= a + 0.05 && fimDe(c) >= b - 0.05);
+    // Pedaços seguidos contam como um (a troca de plano corta o clipe dela).
+    let ate = a + 0.05;
+    for (const c of pedacos) if (c.start <= ate + 0.05 && fimDe(c) > ate) ate = fimDe(c);
+    const cobre = ate >= b - 0.05;
     if (!cobre)
       revisar.push(
         `${a.toFixed(1)}s: a apresentadora não cobre a animação inteira (${a.toFixed(1)}–${b.toFixed(1)}s)`,

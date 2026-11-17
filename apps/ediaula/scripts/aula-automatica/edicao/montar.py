@@ -492,7 +492,8 @@ ap = []
 for a, b in sorted(PRES):
     partes = [[max(a, de), min(b, ate)]]
     if a < 0.1:
-        ap.append([0.0, 3.0])  # a capa: ela fala desde o primeiro segundo
+        # A capa: ela fala desde o primeiro segundo (e fica até o fim de uma animação que começa junto).
+        ap.append([0.0, max(3.0, min(b, ate))])
         continue
     for c0, c1 in CONFLITO:
         if any(c0 < k1 and k0 < c1 for k0, k1 in CONCEITO if k0 <= a + 0.2 and b - 0.2 <= k1):

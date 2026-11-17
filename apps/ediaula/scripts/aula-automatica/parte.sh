@@ -80,8 +80,7 @@ import json, sys
 d = json.load(sys.stdin); r = d.get('result')
 if not isinstance(r, dict): print(d.get('error') or d); sys.exit(1)
 json.dump(r, open(sys.argv[1], 'w', encoding='utf8'), ensure_ascii=False, indent=1)
-print('
-'.join(r['feito'][-4:])); [print('revisar:', x) for x in r['revisar']]" "$ED/acabamento.json" ;;
+[print(x) for x in r['feito'][-4:]]; [print('revisar:', x) for x in r['revisar']]" "$ED/acabamento.json" ;;
   revisao)
     E="$(python -X utf8 -c "import json,sys; c=json.loads(sys.argv[1]); print(json.dumps({'projeto': c['projeto'][:-len('.ediaula')] + ' · edição automática.ediaula', 'edicao': c['edicao']}, ensure_ascii=False))" "$CFG")"
     TIMEOUT=1800 "$C" acao revisao-final.mjs "$E" | python -X utf8 -c "

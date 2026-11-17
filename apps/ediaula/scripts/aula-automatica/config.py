@@ -28,7 +28,10 @@ def parte(curso, aula, n):
     cfg = carregar()
     c = cfg["cursos"][curso]
     a = c["aulas"][str(aula)]
-    material = _caminho(os.path.join(c["material"], f"Aula {aula}"))
+    # "Aula 3" ou "AULA 03" (o Windows não liga para maiúsculas).
+    nomes = [f"Aula {int(aula)}", f"Aula {int(aula):02d}"]
+    material = next((m for m in (_caminho(os.path.join(c["material"], x)) for x in nomes) if os.path.isdir(m)),
+                    _caminho(os.path.join(c["material"], nomes[0])))
     pastas = sorted(glob.glob(os.path.join(material, f"Parte {n} - *")))
     if not pastas:
         sys.exit(f"Não achei a pasta da parte: {material}/Parte {n} - <título>")
