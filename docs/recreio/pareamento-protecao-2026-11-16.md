@@ -135,3 +135,26 @@ teto técnico do perfil. O novo E2E faz pareamento com dois navegadores,
 inspeciona as flags de cookie, tenta a Conta com o login adulto antigo,
 revoga remotamente e retoma só depois de um login novo. Verificação remota
 deste adapter/telas ainda pendente.
+
+## PIN no aparelho compartilhado
+
+A restrição administrativa da sessão é um fato próprio (`minor_context_generation`),
+separado do perfil ativo e preservado mesmo quando esse perfil é suspenso,
+desvinculado ou excluído. Selecionar um menor exige PIN do destino e PIN nativo
+já configurado; voltar à conta exige o PIN nativo com login ainda válido, ou
+uma autenticação nova. Um aparelho pareado não ganha esse caminho nativo.
+
+Antes da seleção, as mutações nativas precisam compartilhar o mesmo mutex da
+conta e manter ordem explícita: mutex → identidade → perfis → proteção/PIN →
+aparelho → cursor → sessões de jogo. A criação própria toma esse mutex antes
+de sua trava de identidade; a edição própria revalida login, sanção e sessão
+na transação. Rejeitar tentativas inválidas sem perder o contador por rollback;
+limitar antes da derivação de PIN. A restrição não é limpa pela simples leitura
+do ator ou pelo desaparecimento de um perfil.
+
+A alteração aditiva da sessão precisa ser gerada e aplicada no PostgreSQL
+descartável antes de implementar os novos escritores. Permanecem pendentes a
+prova de PIN incorreto, conta/perfil alheios, revogação enquanto espera,
+exclusão do menor e preservação da trava, retorno de adulto sem jogador e
+concorrência entre seleção e gestão. Não ativar esse contrato em produção
+antes dessas provas e da autoridade infantil F3.

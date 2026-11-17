@@ -114,6 +114,8 @@ export const recreioDeviceSessions = recreio.table(
       onDelete: "set null",
     }),
     profileSelectedAt: moment("profile_selected_at"),
+    /** Trava de gestão independente do perfil/FK: excluir o menor não desbloqueia o adulto. */
+    minorContextGeneration: uuid("minor_context_generation"),
     lastSeenAt: time("last_seen_at"),
     expiresAt: moment("expires_at").notNull(),
     revokedAt: moment("revoked_at"),
