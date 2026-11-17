@@ -6,3 +6,4 @@ export * from "./dominio/menores";
 export * from "./dominio/mundos";
 export * from "./dominio/politicas";
 export * from "./dominio/posse";
+export * from "./dominio/social";

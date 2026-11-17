@@ -1,0 +1,79 @@
+import "server-only";
+import { ErroDoRecreio } from "@informach/recreio";
+import type { MutacaoSocialSchema } from "@informach/recreio/contrato";
+import type { z } from "zod";
+import { denunciarContato } from "@/features/moderacao/denuncias-service";
+import type { SessaoDeJogoAtiva } from "@/features/sessao-de-jogo/service";
+import { AppError } from "@/lib/errors";
+import {
+  aceitarAmizade,
+  alterarPresencaSocial,
+  consultarSocial,
+  emitirCodigoDeAmigo,
+  encerrarPedidoDeAmizade,
+  pedirAmizade,
+  protegerContato,
+  removerAmizade,
+} from "./service";
+
+export async function executarMutacaoSocial(
+  sessao: SessaoDeJogoAtiva,
+  pedido: z.infer<typeof MutacaoSocialSchema>,
+) {
+  try {
+    switch (pedido.operacao) {
+      case "presenca":
+        return await alterarPresencaSocial(sessao, pedido.presenca);
+      case "codigo":
+        return await emitirCodigoDeAmigo(sessao);
+      case "pedir":
+        return await pedirAmizade(sessao, { codigo: pedido.codigo, pedidoId: pedido.pedidoId });
+      case "aceitar":
+        return await aceitarAmizade(sessao, pedido.pedidoId);
+      case "encerrar":
+        return await encerrarPedidoDeAmizade(sessao, {
+          pedidoId: pedido.pedidoId,
+          acao: pedido.acao,
+        });
+      case "proteger":
+        return await protegerContato(sessao, {
+          perfilId: pedido.perfilId,
+          bloqueado: pedido.bloqueado,
+          silenciado: pedido.silenciado,
+          anterior: pedido.anterior,
+        });
+      case "remover":
+        return await removerAmizade(sessao, pedido.perfilId);
+      case "denunciar":
+        return await denunciarContato(sessao, {
+          perfilId: pedido.perfilId,
+          denunciaId: pedido.denunciaId,
+          categoria: pedido.categoria,
+        });
+    }
+  } catch (erro) {
+    return traduzirRecusaSocial(erro);
+  }
+}
+
+export async function consultarSocialPeloSdk(sessao: SessaoDeJogoAtiva, entrada: unknown) {
+  try {
+    return await consultarSocial(sessao, entrada);
+  } catch (erro) {
+    return traduzirRecusaSocial(erro);
+  }
+}
+
+function traduzirRecusaSocial(erro: unknown): never {
+  if (erro instanceof AppError) {
+    if (["CONTATO", "PEDIDO", "CONTATO_EXISTENTE"].includes(erro.code))
+      throw new ErroDoRecreio("NAO_ENCONTRADO");
+    if (["CONFLITO", "PEDIDO_PENDENTE"].includes(erro.code))
+      throw new ErroDoRecreio("REVISAO_DIVERGENTE");
+    if (erro.code === "AUTH") throw new ErroDoRecreio("SESSAO_INVALIDA");
+    if (erro.code === "LIMITE_DE_CONTATOS") throw new ErroDoRecreio("MUITAS_TENTATIVAS");
+    if (erro.code === "MUITAS_TENTATIVAS") throw new ErroDoRecreio("MUITAS_TENTATIVAS");
+    if (erro.code === "PERMISSAO") throw new ErroDoRecreio("SEM_PERMISSAO");
+  }
+  throw erro;
+}

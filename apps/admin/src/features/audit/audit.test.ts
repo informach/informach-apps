@@ -39,6 +39,37 @@ function event(
 }
 
 describe("frases da auditoria", () => {
+  it("distingue denúncia, tentativa e medida confirmada sem revelar nomes ou provas", () => {
+    const privado = {
+      nickname: "PRIVADO",
+      actorUserId: "PRIVADO",
+      token: "PRIVADO",
+      reason: "PRIVADO",
+    };
+    const denuncia = describeEvent(event("recreio.safety_reported", null, privado), people);
+    expect(sentenceText(denuncia.parts)).toContain("sem punição automática");
+    const tentativa = describeEvent(
+      event("admin.recreio_moderation_requested", "u-helena", privado),
+      people,
+    );
+    expect(sentenceText(tentativa.parts)).toContain("sujeito à confirmação");
+    const medida = describeEvent(
+      event("recreio.moderation_command_applied", "u-helena", {
+        ...privado,
+        operation: "suspender_perfil",
+      }),
+      people,
+    );
+    expect(groupOf("recreio.moderation_command_applied")).toBe("equipe");
+    expect(sentenceText(medida.parts)).toBe("Suspendeu um perfil do Recreio");
+    expect(medida.team).toBe(true);
+    const desconhecida = describeEvent(
+      event("recreio.moderation_command_applied", "u-helena", { ...privado, operation: "PRIVADO" }),
+      people,
+    );
+    for (const r of [denuncia, tentativa, medida, desconhecida])
+      expect(sentenceText(r.parts)).not.toContain("PRIVADO");
+  });
   it("traduz eventos do Recreio sem publicar conteúdo dos mundos ou credenciais", () => {
     const descrito = describeEvent(
       event("recreio.space_invite_created", "u-marina", {

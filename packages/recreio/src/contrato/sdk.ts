@@ -50,6 +50,7 @@ export type PoliticaDoPerfil = z.infer<typeof PoliticaDoPerfilSchema>;
 export const TrocaDeIngressoSchema = z.strictObject({
   /** Negociação explícita; clientes anteriores não recebem a nova capacidade. */
   suportaSalvamento: z.literal(true).optional(),
+  suportaSocial: z.literal(true).optional(),
   ingresso: z.string().min(1),
   /** Prova para recuperar a mesma abertura; nunca reabre ou renova outro SID. */
   chaveDeTroca: z
@@ -61,6 +62,7 @@ export const TrocaDeIngressoSchema = z.strictObject({
 });
 
 export const SessaoAbertaSchema = z.strictObject({
+  social: z.literal(true).optional(),
   salvamento: CapacidadeDeSalvamentoSchema.optional(),
   token: z.string().min(1),
   expiraEm: instanteIso,
@@ -189,6 +191,8 @@ export type MudancaDeAcesso = {
 };
 
 export interface RecreioGameContext {
+  /** Ausente sem negociação. Desligar novos contatos conserva leitura/proteção autorizadas. */
+  social?: import("./social").SocialDoPerfil;
   dados: DadosDoPerfil;
   /** Conquistas declaradas pelo cliente; não concedem dinheiro nem acesso. */
   conquista(id: string, chaveIdem: string): Promise<{ id: string; obtidaEm: string }>;

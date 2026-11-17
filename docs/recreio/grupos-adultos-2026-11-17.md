@@ -408,3 +408,10 @@ treze contagens. Família/checkpoint `off`, nenhuma tabela social. A
 Integração Git com a main concorrente e retirada dos pins temporários dos oito
 outros consumidores ainda em qualificação. Portal/Morada mantêm promoção
 explícita para não ativar D3 por acidente; F1–F11 e venda não estão concluídos.
+
+Às 21:59 UTC, a integração pública foi concluída em `07c5d5b9`: oito consumidores
+voltaram a seguir main e tiveram fonte real/prontidão 200 conferidas. O migrator
+foi reconectado sem executar novamente ou aplicar seed; seu comando original
+foi reposto sem redeploy. Portal/Morada mantêm promoção explícita. Banco atual
+reconferido com 184 recibos e sem tabelas sociais.
+[Evidência posterior](evidencias/integracao-grupos-2026-11-17.json).

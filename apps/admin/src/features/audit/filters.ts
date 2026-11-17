@@ -28,7 +28,10 @@ export const GROUP_MATCH: Record<
   Exclude<AuditGroupKey, "tudo">,
   { prefixes: string[]; exact?: string[]; exclude?: string[] }
 > = {
-  equipe: { prefixes: ["admin."], exact: TEAM_ACCOUNT_EVENTS },
+  equipe: {
+    prefixes: ["admin."],
+    exact: [...TEAM_ACCOUNT_EVENTS, "recreio.moderation_command_applied"],
+  },
   contas: { prefixes: ["user.", "account.", "org."], exact: ["email.verified"] },
   sessoes: { prefixes: ["session.", "auth."] },
   cobranca: { prefixes: ["billing."] },

@@ -7,9 +7,11 @@ import {
   ehErroDoRecreio,
   type JogoMontado,
   type RecreioGameContext,
+  type SocialDoPerfil,
 } from "@informach/recreio/sdk";
-import { LogOut } from "lucide-react";
+import { LogOut, Users } from "lucide-react";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { PainelSocialDaPartida } from "@/features/social/components/painel-da-partida";
 import { carregadorDoJogo } from "../carregadores";
 import { type AvisoDaTroca, observarTrocaDaPartida } from "../controle";
 import {
@@ -92,6 +94,8 @@ export function Hospedeiro({
   const [aguardandoTroca, definirAguardandoTroca] = useState(false);
   const [salvamento, definirSalvamento] = useState<"salvando" | "falhou" | null>(null);
   const [confirmacao, definirConfirmacao] = useState(false);
+  const [apiSocial, definirApiSocial] = useState<SocialDoPerfil | null>(null);
+  const [painelSocial, definirPainelSocial] = useState(false);
   const palco = useRef<HTMLDivElement>(null);
   const partida = useRef<Partida | null>(null);
   /** Cada tentativa de abrir tem um número; a que não é mais a atual desiste. */
@@ -159,6 +163,7 @@ export function Hospedeiro({
 
   const parar = useCallback(
     (parada: Parada) => {
+      definirPainelSocial(false);
       if (
         [
           "acesso_perdido",
@@ -196,6 +201,8 @@ export function Hospedeiro({
       const minha = tentativa.current;
       const atual = () => minha === tentativa.current;
       definirAvisoDaTroca(null);
+      definirPainelSocial(false);
+      definirApiSocial(null);
       definirSalvamento(null);
       definirConfirmacao(false);
       definirAguardandoTroca(false);
@@ -209,6 +216,7 @@ export function Hospedeiro({
           const contexto = await criarRecreio({
             baseUrl: "",
             jogo: jogo.id,
+            social: true,
             salvamentoRestrito: trocaCoordenada,
             obterIngresso: (signal) => pedirIngresso(jogo.id, signal),
             ...(continuarAqui ? { continuarAqui: true } : {}),
@@ -264,7 +272,10 @@ export function Hospedeiro({
               contexto,
               montado,
               (aviso) => {
-                if (partida.current === nova) definirAvisoDaTroca(aviso);
+                if (partida.current === nova) {
+                  if (aviso?.bloqueia) definirPainelSocial(false);
+                  definirAvisoDaTroca(aviso);
+                }
               },
               (erro) => {
                 if (partida.current === nova) parar(paradaDoErro(erro));
@@ -282,6 +293,7 @@ export function Hospedeiro({
             );
           definirAguardandoTroca(false);
           definirSaidaDoJogo(modulo.saidaPropria === true);
+          definirApiSocial(contexto.social ?? null);
           despachar({ tipo: "montado" });
         } catch (erro) {
           if (!atual()) return;
@@ -339,8 +351,25 @@ export function Hospedeiro({
         ref={palco}
         data-palco
         className="absolute inset-0"
-        inert={!jogando || avisoDaTroca?.bloqueia}
+        inert={!jogando || avisoDaTroca?.bloqueia || painelSocial}
       />
+
+      {jogando && apiSocial && !avisoDaTroca?.bloqueia && (
+        <>
+          <button
+            type="button"
+            aria-label="Amigos e proteção"
+            title="Amigos e proteção"
+            className="absolute top-1/2 left-3 z-10 inline-flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-controle border border-linha-forte bg-fundo/90 text-tinta shadow-lg"
+            onClick={() => definirPainelSocial(true)}
+          >
+            <Users className="size-5" aria-hidden="true" />
+          </button>
+          {painelSocial && (
+            <PainelSocialDaPartida api={apiSocial} aoFechar={() => definirPainelSocial(false)} />
+          )}
+        </>
+      )}
 
       {jogando && avisoDaTroca && (
         <div

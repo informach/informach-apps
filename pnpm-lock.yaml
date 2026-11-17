@@ -102,6 +102,9 @@ importers:
       '@informach/family':
         specifier: workspace:*
         version: link:../../packages/family
+      '@informach/recreio':
+        specifier: workspace:*
+        version: link:../../packages/recreio
       '@informach/ui':
         specifier: workspace:*
         version: link:../../packages/ui

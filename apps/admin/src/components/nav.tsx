@@ -19,6 +19,7 @@ import { BrandMark } from "./brand";
 
 export type NavItem = {
   href: Route;
+  prefetch?: false;
   label: string;
   icon: "painel" | "pessoas" | "produtos" | "dinheiro" | "operacao" | "auditoria";
 };
@@ -68,6 +69,7 @@ export function SideNav({ items }: { items: NavItem[] }) {
           <Link
             key={item.href}
             href={item.href}
+            prefetch={item.prefetch}
             aria-current={current ? "page" : undefined}
             className={`flex min-h-11 items-center gap-3 rounded-[10px] px-3 no-underline ${
               current
@@ -100,6 +102,7 @@ export function BottomNav({ items }: { items: NavItem[] }) {
           <Link
             key={item.href}
             href={item.href}
+            prefetch={item.prefetch}
             aria-current={current ? "page" : undefined}
             className={`grid min-h-14 justify-items-center gap-0.5 pt-2 pb-3 text-xs no-underline ${
               current ? "font-bold text-sphere-strong" : "font-semibold text-ink-soft"

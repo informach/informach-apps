@@ -120,6 +120,48 @@ O que o servidor do jogo precisa respeitar:
 
 ## SDK do cliente do jogo
 
+Social é uma capacidade opcional em qualificação. `criarRecreio({ social: true,
+... })` envia `suportaSocial: true`; `contexto.social` só existe quando o servidor
+também responde `social: true`. Clientes anteriores não recebem campo novo.
+A composição do Recreio mantém `RECREIO_SOCIAL_MODE=off` por padrão, até o aceite
+da frente completa. Desligar novos contatos conserva recusa, remoção e proteção
+de relações existentes para uma sessão ainda autorizada.
+
+O contrato oferece código de uso único, pedido por código/UUID de repetição,
+aceite, recusa/revogação, bloqueio/silêncio e remoção. Aprovação de responsável
+exige login nativo recente no portal e não é uma capacidade de jogo. Nenhuma
+mutação social repete automaticamente após falha de rede; o chamador conserva o
+UUID de um pedido e pode recuperar o mesmo recibo. Nova emissão revoga o código
+anterior. O servidor revalida SID, login/aparelho, cobertura, política e prazo;
+um token de partida encerrada não vira identidade de portal.
+
+`social.denunciar({ perfilId, denunciaId, categoria })` usa uma categoria fechada
+e um contato que o servidor já conhece. Devolve protocolo opaco; conservar o
+UUID permite recuperar a confirmação depois de resposta perdida. Não repete
+automaticamente e não recebe texto/evidência, conta ou dados do mundo. A pessoa
+pode denunciar sem abrir contato novo; o SDK ainda exige seu SID atual. No
+portal, proteção não depende de cobertura. A fila e a operação permanecem em
+qualificação; esta API não anuncia moderação habilitada em produção.
+
+`social.denuncias(protocolo?)` consulta até dez protocolos do próprio perfil,
+sem identidade ou conteúdo da outra pessoa. `social.reverDenuncia({ protocolo,
+versaoDoCaso, recursoId })` pede uma revisão dentro do prazo e da revisão
+atual. O UUID da tentativa permite conferir uma resposta perdida sem reenvio
+automático. Ambos exigem o SID atual, inclusive com novos contatos desligados;
+não recebem autoridade nativa ou perfil escolhido no corpo. O host oferece
+consulta e revisão dentro do painel, sem sair da partida. UUIDs tipados e os
+UUIDs destes contratos sociais são normalizados em minúsculas; IDs textuais da
+autenticação conservam a caixa.
+
+`social.listar(cursor?)` percorre dez relações conhecidas por página, sem busca
+pública, conta ou conteúdo de mundo. Aprovações atuais governam nomes protegidos
+e a disponibilidade da amizade. A presença informa somente um booleano: depende
+da opção atual, amizade autorizada, contato de partida em até noventa segundos
+e autoridade vigente do aparelho/login. `social.presenca(modo)` configura a
+preferência adulta; perfil protegido só muda presença pela supervisão nativa.
+Modo online para participantes de um mesmo mundo depende da superfície de F5.
+Denúncias e telas ainda estão sendo concluídas.
+
 ```ts
 import { criarRecreio } from "@informach/recreio/sdk";
 

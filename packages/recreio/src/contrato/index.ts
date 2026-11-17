@@ -7,7 +7,10 @@ export {
 } from "../transporte/bytes";
 export * from "./acesso";
 export * from "./dados";
+export * from "./denuncias";
 export * from "./host";
+export * from "./moderacao";
 export * from "./salvamento";
 export * from "./sdk";
+export * from "./social";
 export * from "./tokens";

@@ -20,10 +20,11 @@ const app = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = resolve(app, "../..");
 loadEnv({ path: resolve(root, ".env") });
 const mode = process.argv[2];
-if (!["integration", "e2e", "versoes"].includes(mode))
-  throw new Error("Choose integration, e2e or versoes");
+if (!["integration", "e2e", "versoes", "equipe"].includes(mode))
+  throw new Error("Choose integration, e2e, versoes or equipe");
 const versoes = mode === "versoes";
-const e2e = mode === "e2e" || versoes;
+const equipe = mode === "equipe";
+const e2e = mode === "e2e" || versoes || equipe;
 const baseUrl = process.env.DATABASE_URL;
 const pnpmCli = process.env.npm_execpath;
 if (!baseUrl || !pnpmCli)
@@ -47,6 +48,7 @@ function porta(nome, padrao) {
 const e2ePort = porta("RECREIO_E2E_PORT", "3109");
 const gamePort = porta("RECREIO_E2E_GAME_PORT", "3019");
 const moradaPort = porta("RECREIO_E2E_MORADA_PORT", "3110");
+const adminPort = porta("RECREIO_E2E_ADMIN_PORT", "3133");
 const origin = e2e ? `http://localhost:${e2ePort}` : "http://localhost:3009";
 const e2eRunId = e2e ? randomBytes(12).toString("hex") : "";
 // Opt-in local: a arte e TODAS as capturas/traces ficam fora do checkout público.
@@ -100,6 +102,8 @@ const testEnv = {
   ...(emailsPath ? { EMAIL_SANDBOX_DIR: emailsPath.replaceAll("\\", "/") } : {}),
   RECREIO_ACCESS_MODE: "fechado",
   RECREIO_FAMILY_MODE: "play",
+  RECREIO_SOCIAL_MODE: "on",
+  RECREIO_MODERATION_SECRET: randomBytes(32).toString("hex"),
   SENTRY_AUTH_TOKEN: "",
   // Segredos e origens só deste teste. `jogo-de-teste` não está no catálogo:
   // os testes de integração que precisam de um segundo jogo o acrescentam por
@@ -131,6 +135,13 @@ const testEnv = {
   RECREIO_E2E_RUN_ID: e2eRunId,
   RECREIO_E2E_PORT: e2ePort,
   RECREIO_E2E_VERSOES: versoes ? "1" : "0",
+  RECREIO_E2E_EQUIPE: equipe ? "1" : "0",
+  ...(equipe
+    ? {
+        RECREIO_E2E_ADMIN_ORIGIN: `http://localhost:${adminPort}`,
+        RECREIO_E2E_ADMIN_SECRET: randomBytes(32).toString("hex"),
+      }
+    : {}),
 };
 const childEnv = { ...process.env, ...testEnv, RECREIO_ISOLATED_TEST: "1" };
 delete childEnv.MORADA_ARTE_DIR;
@@ -170,7 +181,7 @@ try {
   console.log(`[recreio] Isolated local database created: ${name}`);
   run(["--filter", "@informach/db", "db:migrate"], root);
   if (e2e) {
-    if (!versoes) run(["--filter", "@informach/morada-server", "build"], root);
+    if (!versoes && !equipe) run(["--filter", "@informach/morada-server", "build"], root);
     run(["exec", "next", "build"], app);
     // Mesmo artefato do Railway: o standalone precisa de public/ e static/.
     const buildPath = generatedPaths[0];
@@ -196,7 +207,17 @@ try {
         recursive: true,
       });
       run(["exec", "playwright", "test", "--config", "playwright.versoes.config.ts"], app);
-    } else run(["exec", "playwright", "test", ...process.argv.slice(3)], app);
+    } else
+      run(
+        [
+          "exec",
+          "playwright",
+          "test",
+          ...(equipe ? ["--config", "playwright.equipe.config.ts"] : []),
+          ...process.argv.slice(3),
+        ],
+        app,
+      );
   } else
     run(
       [

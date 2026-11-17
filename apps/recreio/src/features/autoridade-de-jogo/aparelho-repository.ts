@@ -63,7 +63,7 @@ export async function prepararIdentidadeDoJogo(tx: Transacao, referencia: Refere
 /** Só identidade/aparelho atuais. O chamador ainda precisa autorizar a operação de domínio. */
 export async function admitirAparelhoAtual(
   tx: Transacao,
-  pedido: ReferenciaDeJogador & { jogo: string; expiraEm: number | null },
+  pedido: ReferenciaDeJogador & { expiraEm: number | null },
   identidade: Awaited<ReturnType<typeof prepararIdentidadeDoJogo>>,
   antesDoAparelho: (tx: Transacao) => Promise<void>,
 ) {

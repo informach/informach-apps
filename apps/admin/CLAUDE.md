@@ -101,3 +101,26 @@ condições em [Conta — infraestrutura](../conta/INFRAESTRUTURA.md).
 O cadastro mínimo inclui a aba Recreio com contagens estruturais (contas, perfis, mundos e sessões de jogo abertas), eventos `recreio.*` traduzidos na auditoria e revogação do prefixo `recreio:auth:` sem cache de cookie. O teste de privacidade inclui o schema `recreio`, mantendo apelidos, nomes, convites, fotografias e diário fora das consultas.
 
 Recreio e servidor do Morada só entram nas sondagens quando `ADMIN_RECREIO_ENABLED=1`, a configurar depois do deploy fechado. O padrão `0` evita avisos de queda de serviços ainda não publicados. A rotina `recreio/manutencao` fica como aguardando lançamento enquanto não houver execução registrada.
+
+### Fila de segurança do Recreio, candidata de 17/11
+
+`/recreio/seguranca` lê somente pela conexão read-only e projeta protocolos,
+categorias fechadas, prioridade, estados/revisões e referências opacas dos perfis
+necessárias à ação. É uma exceção operacional explícita à regra de apenas contar
+perfis: nomes, nascimento, conta do denunciante, segredos e conteúdo de mundos
+continuam proibidos. As exceções são por tabela em `privacy.test.ts`, sem
+liberação genérica de colunas. Consulta tem auditoria estrita; link externo ou
+retorno da entrada exige confirmação, e a navegação para a fila não faz prefetch.
+
+Comandos só saem por Server Action com sessão real, papel atual, duas etapas e
+confirmação das consequências. O servidor assina o corpo exato com chave própria
+`RECREIO_MODERATION_SECRET`, prova de trinta segundos; a API do Recreio relê
+sessão física, papel, 2FA, prazo e revisões antes do efeito/auditoria atômicos.
+Bastidores nunca escreve diretamente nas tabelas sociais ou de perfis. O destino
+em produção vem do catálogo canônico; overrides de sondagem não recebem provas.
+Sem chave há leitura, sem comandos. A chave ainda não foi configurada em produção.
+
+Não repetir HTTP automaticamente. Resposta perdida pede conferência do caso;
+não mostrar "nada foi alterado" quando o efeito remoto pode ter sido confirmado.
+Tentativa e efeito têm eventos distintos. Código, leituras, jornada completa e
+implantação continuam em qualificação; isto não anuncia a moderação concluída.

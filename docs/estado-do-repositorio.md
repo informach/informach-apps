@@ -37,8 +37,12 @@ contagens; família/checkpoint `off`, sem tabelas sociais. Convite/aceite,
 cobertura, saída/remoção têm código e provas; isto não conclui F1–F11 nem libera
 vendas. [Plano](recreio/grupos-adultos-2026-11-17.md) e
 [prova operacional](recreio/evidencias/grupos-producao-2026-11-17.json).
-F4 continua em candidata privada separada: social, denúncias e recurso próprio;
-comandos/fila de moderação e demais aceites permanecem em implementação.
+F4 foi preparada em `396fe932`: amizade, aprovação, presença, proteção,
+denúncias/revisões, fila e comandos com duas etapas e painel dentro da partida.
+Oito gates `44188574280` aprovados, incluindo resposta real de revisão segura
+após commit e fechamento do painel. CI compartilhado `44188583156` em curso;
+integração pública/implantação ainda pendentes, sem migrations sociais em
+produção. [Provas e limites](recreio/social-e-moderacao-2026-11-17.md).
 `origin/main` incorporou D3 por trabalho concorrente. Portal (`204cf79c`) e
 Morada (`644b3841`, World2/protocolo1/arte D2) estão fixados para promoção
 explícita; não voltar automaticamente a seguir main. Integração pública

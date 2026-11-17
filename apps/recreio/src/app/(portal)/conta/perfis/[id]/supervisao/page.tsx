@@ -52,6 +52,12 @@ export default async function Supervisao({
         adolescente={pagina.politica.faixaSocial === "13_17"}
       />
       <UsoRecenteDoPerfil dias={pagina.usoRecente} />
+      <Link
+        href={`/conta/perfis/${perfilId.data}/contatos`}
+        className="mt-3 mr-5 inline-flex min-h-11 items-center font-bold text-ceu underline"
+      >
+        Cuidar dos contatos e pedidos
+      </Link>
       <Link href="/conta/perfis" className="mt-3 inline-block font-bold text-ceu underline">
         Voltar aos perfis
       </Link>

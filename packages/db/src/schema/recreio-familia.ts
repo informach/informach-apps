@@ -104,6 +104,7 @@ export const recreioGuardianLinks = recreio.table(
   },
   (t) => [
     unique("recreio_guardian_profile").on(t.profileId),
+    unique("recreio_guardian_identity_profile").on(t.id, t.profileId),
     index("recreio_guardian_user").on(t.guardianUserId),
     foreignKey({
       name: "recreio_guardian_declaration",

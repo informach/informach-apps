@@ -25,6 +25,15 @@ const CONTENT_SCHEMA_FILES = [
   "dia-de-estrela.ts",
   "family.ts",
   "recreio.ts",
+  "recreio-checkpoints.ts",
+  "recreio-dados.ts",
+  "recreio-familia.ts",
+  "recreio-grupo.ts",
+  "recreio-moderacao.ts",
+  "recreio-politicas.ts",
+  "recreio-protecao.ts",
+  "recreio-salvamento.ts",
+  "recreio-social.ts",
 ];
 /** Schemas SQL desses arquivos, para pegar SQL escrito à mão. */
 const CONTENT_SQL_SCHEMAS = [
@@ -111,6 +120,24 @@ const STRUCTURAL_COLUMNS = new Set([
 
 /** Exceções por tabela, cada uma com o motivo. */
 const TABLE_ALLOW_LIST: Record<string, Set<string>> = {
+  // Fila restrita do Recreio: somente classificadores fechados e autoridade da ação.
+  // Nome, nascimento, autor da denúncia, texto e conteúdo de mundo continuam proibidos.
+  recreioProfiles: new Set(["policyVersion"]),
+  recreioFriendships: new Set(["state", "revision", "lowerProfileId", "higherProfileId"]),
+  recreioSafetyReports: new Set([
+    "reporterProfileId",
+    "targetProfileId",
+    "category",
+    "priority",
+    "state",
+    "revision",
+    "evidenceKind",
+    "evidenceRevision",
+    "decision",
+    "reviewRequestedAt",
+  ]),
+  recreioRestrictionReviews: new Set(["state", "revision", "restrictionRevision", "decision"]),
+  recreioProfileRestrictions: new Set(["revision", "reason"]),
   // Only relationship metadata; central names, colors and avatars stay private.
   familyAppProfiles: new Set(["app"]),
   familyMembers: new Set(["role"]),
@@ -228,6 +255,12 @@ describe("privacidade das consultas do Bastidores", () => {
       findViolations("recreio.ts", "readDb().select({ n: recreioSpaceJournal.bytes })"),
     ).toHaveLength(1);
     expect(findViolations("f.ts", "sql`select title from agenda.activities`")).toHaveLength(1);
+    for (const proibida of ["birthMonth", "birthYear", "actorUserId", "clientKey", "requestHash"]) {
+      const tabela = proibida.startsWith("birth") ? "recreioMinorProfiles" : "recreioSafetyReports";
+      expect(
+        findViolations("moderacao.ts", `readDb().select({ valor: ${tabela}.${proibida} })`),
+      ).toHaveLength(1);
+    }
   });
 
   it("aceita contagem, dono e datas, e ignora comentários", () => {
