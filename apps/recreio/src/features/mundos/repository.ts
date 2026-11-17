@@ -3,6 +3,7 @@ import { logAuditEventStrict } from "@informach/auth";
 import { and, db, eq, gt, inArray, ne, or, sql } from "@informach/db";
 import {
   recreioSocialBlocks as blocks,
+  recreioDirectedSpaceInvites as directed,
   recreioSpaceInvites as invites,
   recreioSpaceMembers as members,
   recreioProfiles as profiles,
@@ -212,7 +213,17 @@ export async function criarConviteDoMundo(
           gt(invites.expiresAt, AGORA),
         ),
       );
-    if ((abertos?.total ?? 0) >= entrada.tetoDeConvites(mundo.gameId))
+    const [dirigidos] = await tx
+      .select({ total: sql<number>`count(*)::int` })
+      .from(directed)
+      .where(
+        and(
+          eq(directed.spaceId, mundo.id),
+          eq(directed.state, "pending"),
+          gt(directed.expiresAt, AGORA),
+        ),
+      );
+    if ((abertos?.total ?? 0) + (dirigidos?.total ?? 0) >= entrada.tetoDeConvites(mundo.gameId))
       throw new ErroDoRecreio("LIMITE_DE_CONVITES");
     const conta = await contaDoPerfil(tx, entrada.perfilId);
     const [convite] = await tx

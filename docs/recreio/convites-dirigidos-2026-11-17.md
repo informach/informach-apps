@@ -133,3 +133,34 @@ invalida o convite anterior à desconexão de aparelhos. A geração de cada men
 é capturada na emissão e comparada antes de aprovar/aceitar. Migration aditiva
 seguinte, sem backfill inventado: raiz antiga sem geração não pode autorizar
 menor. Nenhum escritor dessas tabelas foi publicado ou ativado.
+
+0196 gerada em `44202821509`, origem
+`7b34737aa41f6d91243b52e55eda1de626b722fc`, artefato `14381368767`, ZIP
+`28797eb0a84fb78fe3db9f7d3f379872f4469071c680c9a67356473ee2b40490`.
+Somente adiciona duas colunas UUID opcionais; nada presume ou preenche uma
+geração histórica. Allowlist, bytes e hashes conferidos antes/depois da cópia:
+
+- `0196_wise_domino.sql`, 205 bytes,
+  `c259fc3ddda542fd2df2417f88d65c8c5f2ef21458eef5ea84882f58ab155e0f`.
+- Snapshot, 874983 bytes,
+  `bad2f17a20d9a0a1ce862f85365c2fd320fa05b586635130b7942a74352546ea`.
+- Journal, 29781 bytes,
+  `7172155ef53fb2aa3d527f8bef9156c5c1cd5b47f295e81c00d06965ca746ba2`.
+
+## Backend candidato, ainda sem publicação
+
+Emissão, resposta e aprovações possuem serviços separados, schemas estritos,
+limites por ator e transações com contas ordenadas → mundo → perfis. Emissão e
+aceite exigem a autoridade real de jogo; recusar/revogar funciona sem cobertura
+e com novos contatos desligados. Nenhuma rota ou tela ativa esse backend neste
+marco. Retenção e revogação são integradas aos escritores de gestão e à
+manutenção; invalidação da equipe confere as duas pontas do caso.
+
+As integrações candidatas exercitam os serviços contra PostgreSQL descartável:
+replay, corpo divergente, bloqueios, remoção de amizade, decisão de terceiro
+com papel no mundo, arquivo, saída/reingresso, rollback de auditoria e prazo,
+retenção sem exclusão de membros e duas aprovações parentais independentes em
+título interno L. Essa descrição não é prova de que os testes passaram.
+Gates, concorrência adicional, upgrade, HTTP/SDK, caixas de entrada, superfícies
+nativas e E2E dos convites dirigidos ainda precisam ser concluídos. Visitas e
+sucessão de mundo infantil continuam abertas; F5 não está pronta.

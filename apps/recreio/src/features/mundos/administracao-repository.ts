@@ -2,6 +2,7 @@ import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
 import { and, eq, inArray, isNull, sql } from "@informach/db";
 import {
+  recreioDirectedSpaceInvites as directed,
   recreioGameSessions as games,
   recreioSpaceInvites as invites,
   recreioSpaceLeases as leases,
@@ -112,8 +113,14 @@ export function registrarGestaoDoMundo(autor: AutorDaGestaoDeMundo, pedido: Gest
                 ),
               )
               .orderBy(invites.invitedByMemberId);
-            for (const emissor of emissores) {
-              const revogar = await prepararRevogacaoDeConvites(tx, ctx.mundo.id, emissor.membroId);
+            const dirigidos = await tx
+              .selectDistinct({ membroId: directed.invitedByMemberId })
+              .from(directed)
+              .where(and(eq(directed.spaceId, ctx.mundo.id), eq(directed.state, "pending")));
+            for (const membroId of [
+              ...new Set([...emissores, ...dirigidos].map((e) => e.membroId)),
+            ].sort()) {
+              const revogar = await prepararRevogacaoDeConvites(tx, ctx.mundo.id, membroId);
               await revogar(ctx.contaId, "world_archived");
             }
             await revogarPropostasDoMembro(tx, ctx.mundo.id, ctx.proprio.id, ctx.contaId);

@@ -198,3 +198,14 @@ A fundação adiciona tabelas próprias e uma chave composta de proveniência do
 emissor, sem reescrever os códigos anteriores. Gerar e conferir a migration no
 GitHub antes da implementação e dos gates desse incremento. A candidata de
 participantes fica congelada em `a59e1923` para sua qualificação independente.
+
+Qualificação encerrada: `080eee4e` passou nos oito gates `44196661859`, com a
+recusa HTTP de outro jogo preservada. A fonte `a59e1923` acrescentou consulta
+parental gratuita em todos os mundos atuais do menor e passou nos oito gates
+`44197543292`. A rodada E2E anterior `44195791990` já passou nas jornadas novas;
+as três capturas de 390 px foram inspecionadas no artefato `14380655476`, ZIP
+`b512f1fe310bca5dcd6ad71ff1b435255c29cc70d02c8ee1fa5a3847ab75a40b`.
+Gestão adulta, gestão por responsável sem jogador e proteção de participante
+sem amizade ficam legíveis. Isso não comprova implantação ou fechamento de F5.
+O backend de convites dirigidos segue em candidata própria, sem rotas públicas,
+e exige os demais aceites do plano vinculado acima.

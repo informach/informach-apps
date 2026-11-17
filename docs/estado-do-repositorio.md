@@ -1,10 +1,11 @@
 # Estado do trabalho no repositório
 
-**17/11, 23h UTC — candidata F5:** gestão adulta passou nos oito gates
-`44189574384`; a extensão ao responsável sem jogador passou nos sete demais,
-mas encontrou falta de criação na estante infantil no E2E `44191991192`.
-O corretivo e a proteção de participantes sem amizade estão em qualificação,
-com 0191/0192 geradas no GitHub e ainda ausentes de produção.
+**17/11, 23h UTC — candidata F5:** gestão, criação infantil e proteção de
+participantes sem amizade passaram nos oito gates `44196661859`; a consulta
+parental gratuita em todos os mundos atuais do menor passou nos oito gates
+`44197543292`, fonte congelada `a59e1923`. Backend dos convites dirigidos em
+candidata, sem rotas/telas ativas e ainda sem gates. Migrations 0191–0196
+geradas no GitHub, ausentes de produção neste checkout.
 [Contrato, provas e limites](recreio/mundos-completos-2026-11-17.md).
 F4 isolada e integrada passou em oito gates; seu CI compartilhado e a implantação
 seguem em curso. Este registro privado não declara F4/F5 ou a plataforma prontas.

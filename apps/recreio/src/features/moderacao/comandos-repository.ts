@@ -3,6 +3,7 @@ import { logAuditEventStrict } from "@informach/auth";
 import { db, eq, sql } from "@informach/db";
 import {
   recreioModerationCommands as commands,
+  recreioDirectedSpaceInvites as directed,
   recreioSpaceInvites as invites,
   recreioSafetyReports as reports,
   recreioProfileRestrictions as restrictions,
@@ -42,9 +43,21 @@ async function pista(tx: Transacao, prova: ProvaDeModeracao) {
           .from(invites)
           .where(eq(invites.id, c.conviteId))
       : [];
+  const [dirigido] =
+    c.operacao === "invalidar_convite"
+      ? await tx
+          .select({ mundoId: directed.spaceId })
+          .from(directed)
+          .where(eq(directed.id, c.conviteId))
+      : [];
+  assertAllowed(
+    !(convite && dirigido),
+    "CONFLITO",
+    "A referência do convite precisa de conferência.",
+  );
   return {
     perfis: [...new Set([r?.origem, r?.alvo].filter((id): id is string => !!id))].sort(),
-    mundoId: convite?.mundoId ?? null,
+    mundoId: convite?.mundoId ?? dirigido?.mundoId ?? null,
   };
 }
 

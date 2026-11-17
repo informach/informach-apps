@@ -3,6 +3,7 @@ import { logAuditEventStrict } from "@informach/auth";
 import { and, eq, inArray, or } from "@informach/db";
 import {
   recreioModerationCommands as commands,
+  recreioDirectedSpaceInvites as directed,
   recreioFriendships as friends,
   recreioSpaceInvites as invites,
   recreioSpaceMembers as members,
@@ -135,6 +136,26 @@ export async function aplicarEfeitoDeModeracao(
         { app: "recreio", profileId: a, requestId: pedido.id },
         { writer: tx },
       );
+    return { estado: "em_analise" as const, decisao: caso.decision };
+  }
+  const [dirigido] = await tx
+    .select()
+    .from(directed)
+    .where(eq(directed.id, comando.conviteId))
+    .for("update");
+  if (dirigido) {
+    assertAllowed(
+      dirigido.spaceId === mundoId &&
+        dirigido.state === "pending" &&
+        dirigido.originProfileId === caso.targetProfileId &&
+        dirigido.targetProfileId === caso.reporterProfileId,
+      "CONFLITO",
+      "O convite não corresponde às pontas atuais deste caso.",
+    );
+    await tx
+      .update(directed)
+      .set({ state: "revoked", finishedAt: await conferirPrazo() })
+      .where(eq(directed.id, dirigido.id));
     return { estado: "em_analise" as const, decisao: caso.decision };
   }
   const [convite] = await tx

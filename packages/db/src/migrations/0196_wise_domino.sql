@@ -1,0 +1,2 @@
+ALTER TABLE "recreio"."directed_space_invites" ADD COLUMN "origin_access_generation" uuid;--> statement-breakpoint
+ALTER TABLE "recreio"."directed_space_invites" ADD COLUMN "target_access_generation" uuid;

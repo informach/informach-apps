@@ -1373,6 +1373,13 @@
       "when": 1794958761245,
       "tag": "0195_workable_wendell_vaughn",
       "breakpoints": true
+    },
+    {
+      "idx": 196,
+      "version": "7",
+      "when": 1794959460526,
+      "tag": "0196_wise_domino",
+      "breakpoints": true
     }
   ]
 }

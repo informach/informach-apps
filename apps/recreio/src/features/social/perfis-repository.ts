@@ -32,7 +32,12 @@ export async function admitirPerfilSocial(
     !(conta?.banned && (!conta.banExpiresAt || conta.banExpiresAt > agora));
   if (perfil.kind === "adult") {
     const fato: PerfilSocial = { id: perfilId, tipo: "adulto", ativo };
-    return { fato, recalculou: false, conferirPrazo: (_instante: Date) => {} };
+    return {
+      fato,
+      politicaDeJogo: null,
+      recalculou: false,
+      conferirPrazo: (_instante: Date) => {},
+    };
   }
   const [protecao] = await tx
     .select()
@@ -63,6 +68,7 @@ export async function admitirPerfilSocial(
   };
   return {
     fato,
+    politicaDeJogo: politica,
     recalculou: politica.mudou,
     conferirPrazo: (instante: Date) => {
       if (!politicaConfereNoInstante(politica, instante))
