@@ -1255,6 +1255,12 @@ continua funcionando sozinho; o contrato entre eles está em `packages/edi-link`
 - **Os renders:** a pasta `Aula · renders`, ao lado do projeto. Cada animação vinculada é um WebM
   com transparência (`<animação>-<hash>.webm`), e `vinculos.json` lista o render atual de cada
   uma. O EdiSVG renderiza ao salvar, só as animações vinculadas que mudaram.
+- **No pacote da aula** (Empacotar para outra pessoa): o `.edisvg` de cada vínculo vai junto, uma
+  vez por projeto, em `media/`, além do render do clipe. Ao abrir o pacote em outro computador, o
+  vínculo aponta para essa cópia, dentro da pasta da aula: o clipe continua abrindo no EdiSVG, e um
+  salvar lá renderiza ao lado dela. Um pacote feito antes disso, com o vínculo apontando para o
+  outro computador, abre com o último render e sem o vínculo, em vez de ser recusado
+  (`packPlan`, `packedLinks` e `unpackPaths` em `src/shared/projectPackage.ts`).
 
 **Como o EdiAula atualiza o clipe** (`src/main/edisvgLink.ts`, `src/shared/linkedMedia.ts`,
 `src/renderer/src/lib/edisvgLink.ts`):

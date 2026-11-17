@@ -13,6 +13,9 @@ import { onlyUsedAssets, usedAssetIds } from "./usedAssets.ts";
  * paths back before the lesson opens (main/package.ts); nothing in it may point elsewhere. The
  * history of guided takes (`guided.runs`, the folder of each take on this computer, to resume a
  * plan where it stopped) stays out too: the takes travel as media, each with its guided run.
+ * An animation linked to EdiSVG (Asset.link) takes its .edisvg project along, once per project,
+ * as media/<name>.edisvg: the clip keeps opening in EdiSVG on the other computer, and a save there
+ * renders beside that copy. A link whose project is gone travels as its last render only.
  */
 
 export const PACKAGE_PROJECT = "aula.ediaula";
@@ -158,6 +161,8 @@ export function packPlan(
     return store(`${asset.id}-${label}`, path, blank);
   };
   const images = new Set<string>();
+  // The EdiSVG projects of linked animations, once each (several clips may share one).
+  const edisvg = new Map<string, string>();
   const assets = p.assets.map((a) => {
     const out = withoutCaches(a);
     // Pictures the editor draws are drawn again from what the project says.
@@ -165,6 +170,14 @@ export function packPlan(
     for (const field of CARRIED) {
       const value = a[field];
       if (typeof value === "string" && value) out[field] = place(a, field, value);
+    }
+    if (a.link) {
+      const key = a.link.project.toLowerCase();
+      if (!edisvg.has(key) && exists(a.link.project))
+        edisvg.set(key, store(baseOf(a.link.project), a.link.project));
+      const stored = edisvg.get(key);
+      if (stored) out.link = { ...a.link, project: stored };
+      else delete out.link;
     }
     // The pointer as the system drew it: one copy of each image, whichever take saved it.
     if (a.cursor)
@@ -229,6 +242,49 @@ export function strayPaths(value: unknown, root: string, out: string[] = []): st
   return out;
 }
 
+/** A path of the package (media/<name>) as the absolute path of that file in `root`. */
+function inPackage(rel: string, root: string): string {
+  const parts = rel.split("/");
+  if (
+    !rel.startsWith(PACKAGE_MEDIA) ||
+    parts.some((x) => x === ".." || x === "." || !x) ||
+    parts.length !== 2 ||
+    /[\\:]/.test(parts[1])
+  )
+    throw new Error(`Caminho fora do pacote: ${rel.slice(0, 200)}`);
+  return `${root}\\${parts.join("\\")}`;
+}
+
+/** Whether an absolute path is a file of the package's media folder in `root`. */
+const inMedia = (path: string, root: string): boolean =>
+  path.toLowerCase().startsWith(`${root}\\${PACKAGE_MEDIA.slice(0, -1)}\\`.toLowerCase());
+
+/**
+ * The links to EdiSVG of a packed project (its JSON, before it is checked), with absolute paths
+ * in `folder`: the project of a link is a file of the package (packPlan), and the check of a
+ * project wants it absolute. A link that points outside the package (made before the links
+ * travelled) goes: the clip opens as its last render.
+ */
+export function packedLinks(raw: unknown, folder: string): unknown {
+  const root = folder.replace(/[\\/]+$/, "");
+  if (!raw || typeof raw !== "object") return raw;
+  const assets = (raw as { assets?: unknown }).assets;
+  if (!Array.isArray(assets)) return raw;
+  return {
+    ...raw,
+    assets: assets.map((a: unknown) => {
+      if (!a || typeof a !== "object") return a;
+      const { link, ...rest } = a as { link?: unknown };
+      if (!link || typeof link !== "object") return a;
+      const project = (link as { project?: unknown }).project;
+      const path = typeof project === "string" ? project : "";
+      if (path.startsWith(PACKAGE_MEDIA))
+        return { ...rest, link: { ...link, project: inPackage(path, root) } };
+      return inMedia(path, root) ? a : rest;
+    }),
+  };
+}
+
 /**
  * The packed project with its paths inside `folder` again (absolute, Windows separators). A
  * package comes from someone else: the caches it may carry are deleted (they are made again
@@ -238,17 +294,7 @@ export function strayPaths(value: unknown, root: string, out: string[] = []): st
  */
 export function unpackPaths(p: Project, folder: string): Project {
   const root = folder.replace(/[\\/]+$/, "");
-  const inside = (rel: string): string => {
-    const parts = rel.split("/");
-    if (
-      !rel.startsWith(PACKAGE_MEDIA) ||
-      parts.some((x) => x === ".." || x === "." || !x) ||
-      parts.length !== 2 ||
-      /[\\:]/.test(parts[1])
-    )
-      throw new Error(`Caminho fora do pacote: ${rel.slice(0, 200)}`);
-    return `${root}\\${parts.join("\\")}`;
-  };
+  const inside = (rel: string): string => inPackage(rel, root);
   const project: Project = {
     ...p,
     assets: p.assets.map((a) => {
@@ -262,6 +308,13 @@ export function unpackPaths(p: Project, folder: string): Project {
         const value = a[field];
         if (typeof value !== "string" || !value) continue;
         out[field] = inside(value);
+      }
+      // The linked EdiSVG project came along (packPlan). A package made before it did points at
+      // the other computer: the clip opens as its last render, without the link.
+      if (a.link) {
+        if (a.link.project.startsWith(PACKAGE_MEDIA))
+          out.link = { ...a.link, project: inside(a.link.project) };
+        else if (!inMedia(a.link.project, root)) delete out.link;
       }
       return out;
     }),
