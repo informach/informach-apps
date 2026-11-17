@@ -89,6 +89,23 @@ function ambiente() {
 }
 
 describe("abertura da sessão", () => {
+  it("não envia dados ou conquistas depois de encerrar a sessão", async () => {
+    const a = ambiente();
+    a.responder({ corpo: a.aberta() }, { corpo: {} });
+    const contexto = await criarRecreio(a.opcoes());
+    await contexto.sessao.sair();
+    const antes = a.chamadas.length;
+    await expect(contexto.dados.ler("pontos")).rejects.toMatchObject({
+      codigo: "SESSAO_ENCERRADA",
+    });
+    await expect(contexto.dados.gravar("pontos", new Uint8Array())).rejects.toMatchObject({
+      codigo: "SESSAO_ENCERRADA",
+    });
+    await expect(contexto.conquista("primeiro-ponto", "recibo")).rejects.toMatchObject({
+      codigo: "SESSAO_ENCERRADA",
+    });
+    expect(a.chamadas).toHaveLength(antes);
+  });
   it("oferece persistência por perfil e conquistas sem exigir um mundo", async () => {
     const a = ambiente();
     a.responder({ corpo: a.aberta() });

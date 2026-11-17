@@ -180,6 +180,9 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   agendarPelaValidade();
 
   const mundo = (id: string) => `/mundos/${encodeURIComponent(id)}`;
+  function exigirSessao(): void {
+    if (encerrada) throw new ErroDoRecreio("SESSAO_ENCERRADA");
+  }
   const versaoDeDados = ({ conteudo, ...versao }: VersaoDeDadosHttp) => ({
     ...versao,
     dados: base64ParaBytes(conteudo),
@@ -190,6 +193,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   return {
     dados: {
       async ler(chave) {
+        exigirSessao();
         const { versao } = await enviar(consultaDeDados(chave), DadoLidoSchema, {
           method: "GET",
           token,
@@ -197,6 +201,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
         return versao ? versaoDeDados(versao) : null;
       },
       async gravar(chave, dados, revisao = 0) {
+        exigirSessao();
         if (dados.byteLength > LIMITES_DOS_DADOS.bytesPorVersao)
           throw new ErroDoRecreio("TAMANHO_EXCEDIDO");
         const corpo = MutacaoDeDadosSchema.parse({
@@ -209,6 +214,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
           .revisao;
       },
       async versoes(chave) {
+        exigirSessao();
         const lidas = await enviar(consultaDeDados(chave, true), VersoesDeDadosSchema, {
           method: "GET",
           token,
@@ -216,6 +222,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
         return { revisaoAtual: lidas.revisaoAtual, versoes: lidas.versoes.map(versaoDeDados) };
       },
       async resolver(chave, versaoId, revisao) {
+        exigirSessao();
         const corpo = MutacaoDeDadosSchema.parse({
           operacao: "resolver",
           chave,
@@ -226,16 +233,19 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
           .revisao;
       },
       async descartar(chave, versaoId) {
+        exigirSessao();
         const corpo = MutacaoDeDadosSchema.parse({ operacao: "descartar", chave, versaoId });
         await enviar("/dados", DadosDescartadosSchema, { method: "POST", token, corpo });
       },
     },
-    conquista: (id, chaveIdem) =>
-      enviar("/conquistas", ConquistaSchema, {
+    conquista: async (id, chaveIdem) => {
+      exigirSessao();
+      return enviar("/conquistas", ConquistaSchema, {
         method: "POST",
         token,
         corpo: PedidoDeConquistaSchema.parse({ id, chaveIdem }),
-      }),
+      });
+    },
     perfil: aberta.perfil,
     politica: aberta.politica,
     sessao: {

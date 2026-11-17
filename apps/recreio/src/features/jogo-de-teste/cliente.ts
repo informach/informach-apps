@@ -1,4 +1,4 @@
-import { CODIGOS_DE_ERRO, type CodigoDeErro } from "@informach/recreio";
+import { CODIGOS_DE_ERRO, type CodigoDeErro, MundoIdSchema } from "@informach/recreio";
 import { ErroDoRecreio, ehErroDoRecreio, type ModuloDoJogo } from "@informach/recreio/sdk";
 import {
   type DoCliente,
@@ -48,8 +48,7 @@ function erroDoFim(fim: Extract<DoServidor, { t: "fim" }>): ErroDoRecreio {
 
 export const jogoDeTeste: ModuloDoJogo = {
   montar(host, contexto, opcoes) {
-    const mundoId = opcoes.mundoId;
-    if (!mundoId) throw new ErroDoRecreio("ENTRADA_INVALIDA");
+    const mundoId = MundoIdSchema.parse(opcoes.mundoId);
     const raiz = criar(
       "section",
       "flex size-full flex-col items-center justify-center gap-6 overflow-auto p-6 text-center",
