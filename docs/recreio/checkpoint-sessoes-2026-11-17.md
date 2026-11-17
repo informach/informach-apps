@@ -294,3 +294,47 @@ de exclusão física de mundo habilitado nesta candidata.
 O teste de saída concorrente passa a observar um único pacote `sair` e o resultado
 das duas chamadas, em vez da identidade do objeto Promise. A reprodução atualizada
 é `ee3cbd2`; a prova de navegador permanece idêntica à rodada negativa anterior.
+
+## Implantação conferida em 17/11
+
+`668dde1fc50c8e4ed4d08ee1800165c285314b27` foi implantado no portal pelo
+deployment `4cb643bf-067e-4428-9a87-b0edd0ba8965`, após os sete gates
+`44047372449`. O CI compartilhado `44046097629` terminou aprovado em
+`b173da923b58a8111d1e6c2fb0c18147bb761918`; o único delta compartilhado até
+`668dde1` é a asserção de um único pacote no teste da conexão, também aprovada
+no gate final. A alteração funcional posterior do app está coberta pelos sete
+gates finais. Nenhuma evolução D3 de simulação, formato, protocolo ou arte foi
+integrada: o Morada público conserva World2/protocolo1.
+
+A [cópia lógica atual](evidencias/backup-logico-2026-11-17-pre-checkpoint.json)
+foi restaurada e comparada no Railway, com limpeza confirmada, antes do DDL.
+O migrator fixou a fonte homologada e executou somente `pnpm db:migrate`
+no deployment `6d56a577-025a-4920-a7c9-b695b02c233c`, sem seeds comerciais.
+O comando inclui os preparos técnicos existentes: backfill de tarefas informou
+que não havia tabelas antigas e o armazenamento Mastra foi inicializado.
+Conferidos 177 recibos, com os hashes exatos de 0175 e 0176 acima. Depois,
+o migrator voltou a seguir main e teve seu comando original restaurado.
+O deployment decorrente da reconexão (`fa59c69d-e886-4eec-8ccc-c564cda44a6a`)
+foi `SKIPPED`: não houve nova execução de seeds.
+
+Consulta operacional conferiu a fonte efetiva `668dde1`, `RECREIO_FAMILY_MODE=off`,
+`RECREIO_CHECKPOINT_MODE=off`, jogo interno `0`, zero menores, pareados,
+contextos restritos e intenções de troca. Portal e Morada responderam 200 em
+`/api/ready`; controle do SDK sem token respondeu 401. Manutenção autenticada
+em `/api/jobs/manutencao` respondeu 200 com dez contagens. O build confirmou
+upload dos mapas e o Sentry registrou a release `2098083222` para Recreio.
+
+As reproduções `97d5045`/`44047227346` recusaram as duas provas de mundo único
+na fonte anterior, com 461 outras integrações aprovadas; a fixture intacta
+passou em `668dde1`. `ee3cbd2`/`44046680803` falhou somente nas duas provas de
+saída/autoridade, com 127 outras provas do cliente aprovadas. As mesmas
+asserções passaram no corretivo. As 19 jornadas de navegador incluíram
+perda do ACK real do Morada, recuperação da escolha e saída confirmada.
+
+Piso operacional de retorno: conservar `668dde1` ou posterior com leitores de
+barreira/recibo, vínculo único de mundo e saída confirmada. Desligar a flag não
+autoriza ignorar barreira já persistida ou apagar recibos para reabrir o SID.
+O expurgo técnico não pode descongelar a sessão. A tabela está vazia enquanto
+a troca automática permanece desligada; retenção limitada precisa ser fechada
+antes da ativação. A API de mundo e os avisos posteriores não fazem parte desta
+fonte implantada. Famílias, venda, F3 e demais frentes continuam sem aceite final.

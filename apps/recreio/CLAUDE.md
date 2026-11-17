@@ -150,14 +150,14 @@ estivesse concluída. ACK perdido é resolvido pelo estado atual. SDK não envia
 conta, nascimento, agenda ou progresso no controle. Detalhes e limites no
 [registro de checkpoint](../../docs/recreio/checkpoint-sessoes-2026-11-17.md).
 
-Na candidata atual, `off` e títulos sem contrato autenticado de mundo exigem
+Na fonte implantada `668dde1`, `off` e títulos sem contrato autenticado de mundo exigem
 salvar/sair no aparelho anterior; `continuarAqui` não os desconecta à força.
 Sem acesso ao aparelho antigo, a gestão permite revogá-lo explicitamente, ou
 aguardar a concessão vencer. Não simular ACK nem reduzir o prazo em teste para
 anunciar uma recuperação real. Famílias, troca automática e venda continuam
 desligadas em produção; verificar gates e configuração antes de ativar.
 
-Na candidata, um SID de jogo fica vinculado ao primeiro mundo admitido pelo host.
+Na fonte implantada, um SID de jogo fica vinculado ao primeiro mundo admitido pelo host.
 Entrar em outro mundo exige encerrar a partida e emitir outra, com nova autoridade.
 Não reatribuir `game_sessions.space_id` de uma sessão aberta: isso permitiria
 conexões simultâneas fora da prova de checkpoint. A exclusão física futura de
