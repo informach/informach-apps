@@ -210,3 +210,9 @@ saída antecipada, prazo vencido, revogação e concorrência com o finalizador.
 A fixture de sucessor histórico é inserida diretamente: a API nova deve
 impedir justamente a corrida que aquela negativa ainda precisa recusar.
 Índices de busca e retenção entram na homologação de carga antes da ativação.
+
+Reprodução `ef033e3`/`44069290332`: as três aberturas indevidas falharam como
+esperado; 497 outros testes passaram. A primeira candidata `d5eedcd` falhou
+no remoto ao passar `Date` sem encoder em SQL interpolado. O corretivo usa
+comparadores de coluna do Drizzle e ISO com tipo explícito na expressão de
+intervalo. Não usar a rodada falha como evidência de autorização ou produção.

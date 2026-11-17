@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, isNull, sql } from "@informach/db";
+import { and, eq, gt, isNull, lte, sql } from "@informach/db";
 import {
   recreioDeviceSessions as devices,
   recreioGameSessions as games,
@@ -23,13 +23,13 @@ export async function aguardarSalvamentoAnterior(
         eq(permits.profileId, entrada.perfilId),
         eq(permits.policyVersion, entrada.versaoDaPolitica),
         eq(permits.status, "ready"),
-        sql`${permits.expiresAt}>${entrada.agora}`,
+        gt(permits.expiresAt, entrada.agora),
         isNull(games.checkpointFrozenAt),
         isNull(devices.revokedAt),
-        sql`${devices.expiresAt}>${entrada.agora}`,
-        sql`(${games.endedAt} is not null or ${games.expiresAt}<=${entrada.agora})`,
+        gt(devices.expiresAt, entrada.agora),
+        sql`(${games.endedAt} is not null or ${lte(games.expiresAt, entrada.agora)})`,
         sql`(${games.endReason} is null or ${games.endReason} in ('left','expired','access_lost'))`,
-        sql`(${games.endedAt} is null or ${games.endedAt}+interval '30 seconds'>${entrada.agora})`,
+        sql`(${games.endedAt} is null or ${games.endedAt}+interval '30 seconds'>${entrada.agora.toISOString()}::timestamptz)`,
         // Um recibo histórico não pode impedir o sucessor que já foi admitido.
         sql`not exists (select 1 from recreio.game_sessions posterior
           where posterior.profile_id=${games.profileId} and posterior.id<>${games.id}
