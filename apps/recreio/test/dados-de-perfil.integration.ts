@@ -14,7 +14,7 @@ import { describe, expect, it, vi } from "vitest";
 import { alterarDados, consultarDados } from "@/features/dados-de-perfil/service";
 import { emitirIngresso, sessaoDeJogoDoToken } from "@/features/sessao-de-jogo/service";
 import { revogar } from "../scripts/concessoes";
-import { eventosCom, novoJogador } from "./apoio";
+import { eventosCom, novoJogador, sinal } from "./apoio";
 import { entrarNoJogo } from "./jogo-apoio";
 import { despachar, ORIGEM } from "./rotas";
 
@@ -219,6 +219,54 @@ describe("SDK sem mundos: progresso privado com PostgreSQL real", () => {
     } finally {
       await db.execute(sql`drop trigger recusar_dados_em_teste on audit.events`);
       await db.execute(sql`drop function audit.recusar_dados_em_teste()`);
+    }
+  });
+
+  it("token que vence esperando a trava não grava mesmo com sessão renovada no banco", async () => {
+    const { jogador, sessao } = await abrir();
+    const pronto = sinal<number>();
+    const liberar = sinal<void>();
+    const trava = db.transaction(async (tx) => {
+      await tx.execute(sql`set local transaction_timeout='15s'`);
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtextextended(${`dados-perfil:${sessao.perfilId}:${sessao.jogo}`}, 0))`,
+      );
+      const [conexao] = await tx.execute<{ pid: number }>(sql`select pg_backend_pid() as pid`);
+      if (!conexao) throw new Error("Conexão ausente");
+      pronto.concluir(conexao.pid);
+      await liberar.promessa;
+    });
+    void trava.catch(pronto.recusar);
+    const pid = await pronto.promessa;
+    const expiraEm = Date.now() + 600;
+    const resultado = alterarDados(
+      { ...sessao, expiraEm },
+      { operacao: "gravar", chave: "progresso", revisao: 0, conteudo: "YQ==" },
+    ).then(
+      (valor) => ({ ok: true, valor }),
+      (erro: unknown) => ({ ok: false, erro }),
+    );
+    try {
+      await expect
+        .poll(
+          async () => {
+            const [linha] = await db.execute<{ esperando: boolean }>(
+              sql`select exists(select 1 from pg_stat_activity where ${pid}=any(pg_blocking_pids(pid))) as esperando`,
+            );
+            return linha?.esperando;
+          },
+          { interval: 20 },
+        )
+        .toBe(true);
+      await expect.poll(() => Date.now() >= expiraEm, { interval: 20 }).toBe(true);
+      liberar.concluir(undefined);
+      await trava;
+      expect(await resultado).toMatchObject({ ok: false, erro: { codigo: "SESSAO_INVALIDA" } });
+      expect(await db.select().from(keys).where(eq(keys.profileId, jogador.perfil.id))).toEqual([]);
+    } finally {
+      liberar.concluir(undefined);
+      await trava;
+      await resultado;
     }
   });
 });

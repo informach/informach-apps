@@ -46,5 +46,10 @@ export default async function Jogar({
       </TelaDoJogo>
     );
   }
-  return <Hospedeiro jogo={pagina.jogo} mundo={pagina.mundo} />;
+  return (
+    <Hospedeiro
+      jogo={pagina.jogo}
+      mundo={pagina.tipo === "pronto_sem_mundo" ? null : pagina.mundo}
+    />
+  );
 }

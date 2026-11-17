@@ -20,6 +20,7 @@ export type PaginaDoJogo =
   | { tipo: "sem_acesso" }
   /** Faltou dizer qual mundo: a estante é onde se escolhe. */
   | { tipo: "sem_mundo" }
+  | { tipo: "pronto_sem_mundo"; jogo: { id: string; nome: string; origemDaArte: string | null } }
   /** O mundo não existe, é de outro jogo ou o perfil não participa dele: a mesma resposta. */
   | { tipo: "mundo_indisponivel"; jogo: { id: string; nome: string } }
   | {
@@ -48,6 +49,16 @@ export async function prepararPaginaDoJogo(
 
   const acesso = await avaliarAcesso({ profileId: perfilId, gameId: manifesto.id });
   if (!acesso.podeJogar) return { tipo: "sem_acesso" };
+
+  if (!manifesto.capacidades.mundos)
+    return {
+      tipo: "pronto_sem_mundo",
+      jogo: {
+        id: manifesto.id,
+        nome: manifesto.nome,
+        origemDaArte: origensDoJogo(manifesto.id)?.assets ?? null,
+      },
+    };
 
   if (typeof mundoPedido !== "string" || mundoPedido === "") return { tipo: "sem_mundo" };
   const jogo = { id: manifesto.id, nome: manifesto.nome };

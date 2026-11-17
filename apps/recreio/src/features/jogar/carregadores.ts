@@ -25,8 +25,11 @@ const CLIENTES: Record<string, Carregador> = {
 // `RECREIO_JOGO_DE_TESTE=1` (o `next.config.ts` grava a escolha em
 // `RECREIO_CLIENTE_DE_TESTE`). Num build de produção a condição é falsa na
 // compilação, e o código do jogo de teste nem é empacotado.
-if (process.env.RECREIO_CLIENTE_DE_TESTE === "1")
+if (process.env.RECREIO_CLIENTE_DE_TESTE === "1") {
   CLIENTES.teste = () => import("@/features/jogo-de-teste/cliente").then((m) => m.jogoDeTeste);
+  CLIENTES["perfil-teste"] = () =>
+    import("@/features/jogo-de-perfil/cliente").then((m) => m.jogoDePerfil);
+}
 
 /** A função que baixa o cliente do jogo, ou `null` se o portal não tem cliente para ele. */
 export function carregadorDoJogo(jogo: string): Carregador | null {

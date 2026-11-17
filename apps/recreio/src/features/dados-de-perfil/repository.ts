@@ -77,7 +77,11 @@ async function comAutoridade<T>(
     if (!(await sessaoDeLoginViva({ authSessionId: aparelho.authSessionId, contaId: conta.id })))
       throw new ErroDoRecreio("SESSAO_INVALIDA");
     const fatos = await lerFatosDeAcesso(sessao.perfilId, tx);
-    const [relogio] = await tx.select({ agora: sql<Date>`${AGORA}` });
+    const [relogio] = await tx
+      .select({ agora: sql<Date>`${AGORA}`.mapWith(users.createdAt) })
+      .from(users)
+      .where(eq(users.id, conta.id));
+    if (!relogio) throw new ErroDoRecreio("SESSAO_INVALIDA");
     const agora = new Date(relogio.agora);
     if (
       (conta.banned && (!conta.banExpiresAt || conta.banExpiresAt > agora)) ||
@@ -129,8 +133,16 @@ export async function lerDados(sessao: SessaoDeJogoAtiva, chave: string, histori
 }
 
 /** Retornar o conflito permite COMMIT dos dois conteúdos antes da resposta 409. */
-export async function mutarDados(sessao: SessaoDeJogoAtiva, pedido: MutacaoDeDados) {
-  return comAutoridade(sessao, async (tx, contaId) => {
+type ResultadoDeMutacao =
+  | { revisao: number }
+  | { conflito: true; versaoId: string; revisaoAtual: number }
+  | { descartado: true };
+
+export async function mutarDados(
+  sessao: SessaoDeJogoAtiva,
+  pedido: MutacaoDeDados,
+): Promise<ResultadoDeMutacao> {
+  return comAutoridade<ResultadoDeMutacao>(sessao, async (tx, contaId) => {
     let [key] = await tx
       .select()
       .from(keys)
@@ -149,6 +161,8 @@ export async function mutarDados(sessao: SessaoDeJogoAtiva, pedido: MutacaoDeDad
         .values({ profileId: sessao.perfilId, gameId: sessao.jogo, key: pedido.chave })
         .returning();
     }
+    if (!key) throw new ErroDoRecreio("INDISPONIVEL");
+    const dataId = key.id;
     const linhas = await tx.select().from(versions).where(eq(versions.dataId, key.id));
     const escolhida =
       pedido.operacao !== "gravar"
@@ -170,7 +184,7 @@ export async function mutarDados(sessao: SessaoDeJogoAtiva, pedido: MutacaoDeDad
           app: "recreio",
           profileId: sessao.perfilId,
           gameId: sessao.jogo,
-          dataId: key.id,
+          dataId,
           versionId,
           revision: revisao,
         },
@@ -231,8 +245,10 @@ export async function mutarDados(sessao: SessaoDeJogoAtiva, pedido: MutacaoDeDad
             digest,
           })
           .returning();
+        if (!conflito) throw new ErroDoRecreio("INDISPONIVEL");
         await auditar("recreio.profile_data_conflict", conflito.id, key.revision);
       }
+      if (!conflito) throw new ErroDoRecreio("INDISPONIVEL");
       return { conflito: true as const, versaoId: conflito.id, revisaoAtual: key.revision };
     }
     if (key.revision >= 2_147_483_646) throw new ErroDoRecreio("LIMITE_DE_DADOS");
@@ -263,6 +279,7 @@ export async function mutarDados(sessao: SessaoDeJogoAtiva, pedido: MutacaoDeDad
           antigas.map((linha) => linha.id),
         ),
       );
+    if (!nova) throw new ErroDoRecreio("INDISPONIVEL");
     await auditar("recreio.profile_data_updated", nova.id, revisao);
     return { revisao };
   });
@@ -290,6 +307,7 @@ export async function registrarConquista(sessao: SessaoDeJogoAtiva, id: string, 
         .insert(achievements)
         .values({ profileId: sessao.perfilId, gameId: sessao.jogo, achievementId: id, keyHash })
         .returning();
+      if (!obtida) throw new ErroDoRecreio("INDISPONIVEL");
       await logAuditEventStrict(
         "recreio.achievement_unlocked",
         contaId,
@@ -297,6 +315,7 @@ export async function registrarConquista(sessao: SessaoDeJogoAtiva, id: string, 
         { writer: tx },
       );
     }
+    if (!obtida) throw new ErroDoRecreio("INDISPONIVEL");
     return { id: obtida.achievementId, obtidaEm: obtida.earnedAt.toISOString() };
   });
 }

@@ -48,6 +48,8 @@ function erroDoFim(fim: Extract<DoServidor, { t: "fim" }>): ErroDoRecreio {
 
 export const jogoDeTeste: ModuloDoJogo = {
   montar(host, contexto, opcoes) {
+    const mundoId = opcoes.mundoId;
+    if (!mundoId) throw new ErroDoRecreio("ENTRADA_INVALIDA");
     const raiz = criar(
       "section",
       "flex size-full flex-col items-center justify-center gap-6 overflow-auto p-6 text-center",
@@ -148,7 +150,7 @@ export const jogoDeTeste: ModuloDoJogo = {
       try {
         // A cada tentativa o Recreio diz de novo onde o mundo está: depois de
         // uma queda da instância, pode ser outra.
-        const aberto = await contexto.mundos.abrir(opcoes.mundoId);
+        const aberto = await contexto.mundos.abrir(mundoId);
         endereco = aberto.endereco;
         meuMembro = aberto.membroId;
       } catch (erro) {
@@ -167,8 +169,7 @@ export const jogoDeTeste: ModuloDoJogo = {
       let fim: Extract<DoServidor, { t: "fim" }> | null = null;
       atual.addEventListener("open", () => {
         // A sessão vai no primeiro quadro, nunca no endereço.
-        if (socket === atual)
-          enviar({ t: "entrar", token: contexto.sessao.token(), mundoId: opcoes.mundoId });
+        if (socket === atual) enviar({ t: "entrar", token: contexto.sessao.token(), mundoId });
       });
       atual.addEventListener("message", (evento) => {
         if (socket !== atual || typeof evento.data !== "string") return;

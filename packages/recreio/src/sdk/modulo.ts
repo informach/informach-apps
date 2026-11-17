@@ -14,7 +14,7 @@ import type { MundoId } from "../dominio/ids";
  */
 export type OpcoesDeMontagem = {
   /** O mundo que a pessoa escolheu no portal. O jogo o abre com `contexto.mundos.abrir`. */
-  mundoId: MundoId;
+  mundoId?: MundoId;
   /**
    * A pessoa pediu para sair por dentro do jogo, e o jogo já salvou o que
    * precisava. A página desmonta o jogo, encerra a sessão e volta à estante.

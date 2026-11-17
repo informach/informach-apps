@@ -12,7 +12,7 @@ const COM_CLIENTE: readonly string[] = [
   "morada",
   // O jogo de teste só entra num build feito com `RECREIO_JOGO_DE_TESTE=1` (o
   // `next.config.ts` grava a escolha em `RECREIO_CLIENTE_DE_TESTE`).
-  ...(process.env.RECREIO_CLIENTE_DE_TESTE === "1" ? ["teste"] : []),
+  ...(process.env.RECREIO_CLIENTE_DE_TESTE === "1" ? ["teste", "perfil-teste"] : []),
 ];
 
 /** Se a página `/jogar/<jogo>` existe para este jogo. */

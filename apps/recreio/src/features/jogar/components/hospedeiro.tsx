@@ -62,7 +62,7 @@ export function Hospedeiro({
   mundo,
 }: {
   jogo: { id: string; nome: string; origemDaArte?: string | null };
-  mundo: { id: MundoId; nome: string };
+  mundo: { id: MundoId; nome: string } | null;
 }) {
   const [estado, despachar] = useReducer(reduzir, ESTADO_INICIAL);
   /** O jogo montado tem o próprio controle de saída: a página não desenha o dela. */
@@ -142,7 +142,7 @@ export function Hospedeiro({
           const host = palco.current;
           if (!atual() || partida.current !== nova || !host) return await desistir();
           const montado = modulo.montar(host, contexto, {
-            mundoId: mundo.id,
+            mundoId: mundo?.id,
             origemDaArte: jogo.origemDaArte ?? undefined,
             aoSair: sair,
             aoFalhar: (erro) => parar(paradaDoErro(erro)),
@@ -162,7 +162,7 @@ export function Hospedeiro({
         }
       });
     },
-    [jogo.id, jogo.origemDaArte, mundo.id, desmontar, parar, sair],
+    [jogo.id, jogo.origemDaArte, mundo?.id, desmontar, parar, sair],
   );
 
   useEffect(() => {
@@ -195,7 +195,7 @@ export function Hospedeiro({
   const parada = estado.fase === "parado" ? textoDaParada(estado.parada) : null;
 
   return (
-    <TelaDoJogo titulo={`${jogo.nome}: ${mundo.nome}`}>
+    <TelaDoJogo titulo={mundo ? `${jogo.nome}: ${mundo.nome}` : jogo.nome}>
       {/* O jogo desenha aqui. Fora do jogo o elemento fica vazio e fora da leitura. */}
       <div ref={palco} data-palco className="absolute inset-0" inert={!jogando} />
 
