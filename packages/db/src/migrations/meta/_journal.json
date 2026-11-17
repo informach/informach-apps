@@ -1289,6 +1289,13 @@
       "when": 1794929905452,
       "tag": "0183_omniscient_arclight",
       "breakpoints": true
+    },
+    {
+      "idx": 184,
+      "version": "7",
+      "when": 1794930916306,
+      "tag": "0184_nappy_killmonger",
+      "breakpoints": true
     }
   ]
 }

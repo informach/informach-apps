@@ -76,6 +76,29 @@ limitada. A guarda sem migration é `644b3841`, sobre a base pública atual. Est
 frente social é posterior e não entra em nenhuma dessas duas publicações.
 Schema, regras e provas sociais ainda não foram qualificados nem ativados.
 
+0184 gerada em `44119717750`, fonte `bd2eb850`, artefato `14343674077`;
+ZIP SHA `a861c784991a1ac7e738a19526f25112b42630742a5dc69b489fd6a03730c5eb`.
+`0184_nappy_killmonger.sql`, 13.795 bytes, SHA
+`48280715c3666d521cab5c8ca8915589fb3f29a48b82a3deee55bf20f53aae1a`;
+snapshot SHA `a7f65d27a3586c822736cee3bb8ba81ba23f50092e98bd8051f20d5e4a6958a2`;
+journal SHA `4ee5fc27bb2d9d7d106787d2f257bd4642f3f936aeec7b277af6cd5bb914eb13`.
+Três arquivos conferidos e copiados intactos. Somente sete tabelas novas e
+suas constraints/índices; nenhuma alteração ou carga de dados anteriores.
+
+A admissão candidata toma todos os mutexes de contas antes de perfis e aparelho,
+conserva os contextos nativo/pareado e revalida os dois perfis e prazos. Política
+recalculada confirma a invalidação mesmo quando recusa a interação. Proteção
+contra um alvo suspenso tem caminho próprio, sem exigir que ele esteja disponível
+para novos contatos. Não há token de jogo aceito por esse adapter de cookies,
+nem concessão financeira ou criação de sessão. A integração futura do SDK
+continuará validando seu SID no kernel e não converterá Bearer em cookie.
+
+Provas candidatas: dois adultos sem cobertura, pareado/geração revogada, perfil
+forjado, prazo perdido durante a operação, supervisão recalculada, proteção
+contra perfil suspenso, pedidos recíprocos e integridade das tabelas. Nenhuma
+rota social ou fluxo foi ativado por esta fundação; escritores/interfaces e
+moderação continuam pendentes.
+
 - [ ] Mapear a política efetiva, admissão básica, supervisão e escritores de
   composição antes de adicionar autoridade social. Registrar ordem global de
   mutexes, perfis, aparelho, par de contato e auditoria.
