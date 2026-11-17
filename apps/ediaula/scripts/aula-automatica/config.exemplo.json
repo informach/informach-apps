@@ -1,0 +1,56 @@
+{
+  "_leia": "Copie para config.json (fica fora do git) e troque os caminhos desta máquina. ~ vira a pasta do usuário.",
+  "sistemaZero": "~/projects/sistema-zero",
+  "credenciaisPalco": "~/credenciais-palco-staging.txt",
+  "palco": "https://palco-gravacao-staging.up.railway.app",
+  "musica": "~/Downloads/Lighthouse Adventure.mp3",
+  "styleGuide": "~/Downloads/style guide.png",
+  "cursos": {
+    "farol": {
+      "nome": "A Chave do Farol",
+      "cursoEdiAula": "DesafioPrimeiroJogo",
+      "prefixo": "Farol",
+      "slug": "desafio-primeiro-jogo",
+      "material": "~/Downloads/A Chave do Farol",
+      "aulas": {
+        "1": {
+          "id": "38b1df5b-cd0e-4888-ae00-b319a582a567",
+          "roteiro": "docs/aulas-interativas/faisca/desafio-primeiro-jogo/desafio-dia-1.roteiro.md"
+        },
+        "2": {
+          "id": "6fe2834b-9c8b-447c-9b64-151e278ef0df",
+          "roteiro": "docs/aulas-interativas/faisca/desafio-primeiro-jogo/desafio-dia-2.roteiro.md"
+        },
+        "3": {
+          "id": "02f2f2b9-50d4-4468-9193-acb5f740225c",
+          "roteiro": "docs/aulas-interativas/faisca/desafio-primeiro-jogo/desafio-dia-3.roteiro.md"
+        },
+        "4": {
+          "id": "638a2e72-282e-4275-9209-7ccd3c8c34b0",
+          "roteiro": "docs/aulas-interativas/faisca/desafio-primeiro-jogo/desafio-certificado.roteiro.md"
+        }
+      }
+    },
+    "cade": {
+      "nome": "Cadê Todo Mundo",
+      "cursoEdiAula": "CadeTodoMundo",
+      "prefixo": "CTM",
+      "slug": "cade-todo-mundo",
+      "material": "~/Downloads/Cadê Todo Mundo",
+      "aulas": {
+        "1": {
+          "id": "f59382bb-9791-42ac-8912-7f011c2959d1",
+          "roteiro": "docs/aulas-interativas/faisca/cade-todo-mundo/cade-todo-mundo-aula-1.roteiro.md"
+        },
+        "2": {
+          "id": "51e58b39-991b-4404-a532-594abf1fd12c",
+          "roteiro": "docs/aulas-interativas/faisca/cade-todo-mundo/cade-todo-mundo-aula-2.roteiro.md"
+        },
+        "3": {
+          "id": "bd8682aa-1f42-4266-a164-b160ea77318c",
+          "roteiro": "docs/aulas-interativas/faisca/cade-todo-mundo/cade-todo-mundo-certificado.roteiro.md"
+        }
+      }
+    }
+  }
+}
