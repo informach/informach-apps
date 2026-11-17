@@ -36,9 +36,12 @@ import {
   AceiteDeAmizadeSchema,
   AmizadeRemovidaSchema,
   CodigoDeAmigoEmitidoSchema,
+  ConsultaSocialSchema,
+  ListaSocialSchema,
   MutacaoSocialSchema,
   PedidoDeAmizadeCriadoSchema,
   PedidoDeAmizadeEncerradoSchema,
+  PresencaSocialSalvaSchema,
   ProtecaoSocialSalvaSchema,
   type SocialDoPerfil,
 } from "../contrato/social";
@@ -357,6 +360,23 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   };
 
   const social: SocialDoPerfil = {
+    async listar(apos) {
+      exigirSessao();
+      const consulta = ConsultaSocialSchema.parse(apos === undefined ? {} : { apos });
+      return enviar(
+        `/social${consulta.apos ? `?apos=${encodeURIComponent(consulta.apos)}` : ""}`,
+        ListaSocialSchema,
+        { method: "GET", token },
+      );
+    },
+    async presenca(presenca) {
+      exigirSessao();
+      return enviar("/social", PresencaSocialSalvaSchema, {
+        method: "POST",
+        token,
+        corpo: MutacaoSocialSchema.parse({ operacao: "presenca", presenca }),
+      });
+    },
     async codigo() {
       exigirSessao();
       return enviar("/social", CodigoDeAmigoEmitidoSchema, {

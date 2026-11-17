@@ -133,8 +133,16 @@ exige login nativo recente no portal e não é uma capacidade de jogo. Nenhuma
 mutação social repete automaticamente após falha de rede; o chamador conserva o
 UUID de um pedido e pode recuperar o mesmo recibo. Nova emissão revoga o código
 anterior. O servidor revalida SID, login/aparelho, cobertura, política e prazo;
-um token de partida encerrada não vira identidade de portal. Presença, consulta,
-denúncias e telas ainda estão sendo concluídas.
+um token de partida encerrada não vira identidade de portal.
+
+`social.listar(cursor?)` percorre dez relações conhecidas por página, sem busca
+pública, conta ou conteúdo de mundo. Aprovações atuais governam nomes protegidos
+e a disponibilidade da amizade. A presença informa somente um booleano: depende
+da opção atual, amizade autorizada, contato de partida em até noventa segundos
+e autoridade vigente do aparelho/login. `social.presenca(modo)` configura a
+preferência adulta; perfil protegido só muda presença pela supervisão nativa.
+Modo online para participantes de um mesmo mundo depende da superfície de F5.
+Denúncias e telas ainda estão sendo concluídas.
 
 ```ts
 import { criarRecreio } from "@informach/recreio/sdk";

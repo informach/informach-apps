@@ -231,6 +231,19 @@ correção da fixture altera a supervisão pelo serviço real, confirma o increm
 e envia a versão anterior ainda válida no schema. Não houve relaxamento da
 validação nem aprovação dessa execução: `44133904635` contém a falha registrada.
 
+O SDK negociado `0ededaa` passou nos sete gates `44133249684`. A próxima
+candidata acrescenta listagem de dez relações conhecidas por página e preferência
+de presença, sem busca pública. Consulta revalida perfil, vínculo/geração,
+aprovação e bloqueio por par; não retorna contas, idade, local ou conteúdo de
+mundo. Nomes protegidos ficam ocultos sem aprovação atual. Online exige amizade
+autorizada, opção atual, contato de partida nos últimos noventa segundos e
+autoridade atual do aparelho/login/cobertura; perda dessas condições informa
+somente falso. Perfil protegido não configura presença com sua credencial.
+A preferência final do observador é relida e contato desabilitado retira nomes
+e disponibilidade do resultado. Bloqueio vazio de desconhecido também exige
+relação conhecida, sem distinguir perfil existente. SDK e rotas reais entram
+nas provas, além de paginação, supervisão, revogação e reaprovação.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

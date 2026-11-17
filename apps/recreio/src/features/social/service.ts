@@ -1,5 +1,6 @@
 import "server-only";
 import { PerfilIdSchema } from "@informach/recreio";
+import { ConsultaSocialSchema, PreferenciaDePresencaSchema } from "@informach/recreio/contrato";
 import { z } from "zod";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import { limitarTentativas } from "@/lib/rate-limit";
@@ -7,7 +8,9 @@ import { codigoDoPostgres, constraintDoPostgres } from "@/lib/repository";
 import { aceitarPedidoNoBanco, aprovarPedidoNoBanco } from "./aceite-repository";
 import type { AutorSocial } from "./autoridade-repository";
 import { gravarCodigoDeAmigo } from "./codigos-repository";
+import { listarSocialNoBanco } from "./consulta-repository";
 import { criarPedidoDeAmizade } from "./pedidos-repository";
+import { salvarPreferenciaDePresenca } from "./preferencias-repository";
 import {
   encerrarPedidoNoBanco,
   removerAmizadeNoBanco,
@@ -104,4 +107,22 @@ export async function encerrarPedidoDeAmizade(referencia: AutorSocial, entrada: 
     .parse(entrada);
   await limitarProtecao(referencia);
   return encerrarPedidoNoBanco(referencia, pedido.pedidoId, pedido.acao);
+}
+export async function consultarSocial(autor: AutorSocial, entrada: unknown = {}) {
+  const consulta = ConsultaSocialSchema.parse(entrada);
+  await limitarTentativas({
+    chave: `social-consulta:${autor.perfilId}`,
+    max: 120,
+    janelaEmSegundos: 600,
+  });
+  return listarSocialNoBanco(autor, consulta.apos ?? null);
+}
+export async function alterarPresencaSocial(autor: AutorSocial, entrada: unknown) {
+  const presenca = PreferenciaDePresencaSchema.parse(entrada);
+  await limitarTentativas({
+    chave: `social-presenca:${autor.perfilId}`,
+    max: 20,
+    janelaEmSegundos: 600,
+  });
+  return salvarPreferenciaDePresenca(autor, presenca);
 }

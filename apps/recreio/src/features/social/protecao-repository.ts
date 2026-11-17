@@ -65,11 +65,6 @@ export async function salvarProtecaoDeContato(referencia: AutorSocial, entrada: 
       .from(blocks)
       .where(and(eq(blocks.actorProfileId, a), eq(blocks.targetProfileId, b)))
       .for("update");
-    if (
-      (anterior?.blocked ?? false) === entrada.bloqueado &&
-      (anterior?.muted ?? false) === entrada.silenciado
-    )
-      return { bloqueado: entrada.bloqueado, silenciado: entrada.silenciado };
     if (!anterior) {
       const [menor, maior] = parSocial(a, b);
       const [conhecido] = await tx
@@ -82,6 +77,7 @@ export async function salvarProtecaoDeContato(referencia: AutorSocial, entrada: 
         .from(friends)
         .where(and(eq(friends.lowerProfileId, menor), eq(friends.higherProfileId, maior)));
       assertAllowed(conhecido || amizade, "CONTATO", "Contato não disponível.");
+      if (!entrada.bloqueado && !entrada.silenciado) return { bloqueado: false, silenciado: false };
       const existentes = await tx
         .select({ id: blocks.targetProfileId })
         .from(blocks)
@@ -93,6 +89,8 @@ export async function salvarProtecaoDeContato(referencia: AutorSocial, entrada: 
         "O limite de proteções foi atingido. Procure o suporte.",
       );
     }
+    if (anterior?.blocked === entrada.bloqueado && anterior.muted === entrada.silenciado)
+      return { bloqueado: entrada.bloqueado, silenciado: entrada.silenciado };
     const agora = await atual.conferirPrazo();
     if (!entrada.bloqueado && !entrada.silenciado)
       await tx

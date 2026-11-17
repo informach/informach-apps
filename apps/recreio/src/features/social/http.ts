@@ -7,6 +7,8 @@ import { env } from "@/lib/env";
 import { AppError } from "@/lib/errors";
 import {
   aceitarAmizade,
+  alterarPresencaSocial,
+  consultarSocial,
   emitirCodigoDeAmigo,
   encerrarPedidoDeAmizade,
   pedirAmizade,
@@ -25,6 +27,8 @@ export async function executarMutacaoSocial(
   try {
     if (["codigo", "pedir", "aceitar"].includes(pedido.operacao)) exigirSocialDisponivel();
     switch (pedido.operacao) {
+      case "presenca":
+        return await alterarPresencaSocial(sessao, pedido.presenca);
       case "codigo":
         return await emitirCodigoDeAmigo(sessao);
       case "pedir":
@@ -46,14 +50,27 @@ export async function executarMutacaoSocial(
         return await removerAmizade(sessao, pedido.perfilId);
     }
   } catch (erro) {
-    if (erro instanceof AppError) {
-      if (["CONTATO", "PEDIDO", "CONTATO_EXISTENTE"].includes(erro.code))
-        throw new ErroDoRecreio("NAO_ENCONTRADO");
-      if (["CONFLITO", "PEDIDO_PENDENTE"].includes(erro.code))
-        throw new ErroDoRecreio("REVISAO_DIVERGENTE");
-      if (erro.code === "AUTH") throw new ErroDoRecreio("SESSAO_INVALIDA");
-      if (erro.code === "LIMITE_DE_CONTATOS") throw new ErroDoRecreio("MUITAS_TENTATIVAS");
-    }
-    throw erro;
+    return traduzirRecusaSocial(erro);
   }
+}
+
+export async function consultarSocialPeloSdk(sessao: SessaoDeJogoAtiva, entrada: unknown) {
+  try {
+    return await consultarSocial(sessao, entrada);
+  } catch (erro) {
+    return traduzirRecusaSocial(erro);
+  }
+}
+
+function traduzirRecusaSocial(erro: unknown): never {
+  if (erro instanceof AppError) {
+    if (["CONTATO", "PEDIDO", "CONTATO_EXISTENTE"].includes(erro.code))
+      throw new ErroDoRecreio("NAO_ENCONTRADO");
+    if (["CONFLITO", "PEDIDO_PENDENTE"].includes(erro.code))
+      throw new ErroDoRecreio("REVISAO_DIVERGENTE");
+    if (erro.code === "AUTH") throw new ErroDoRecreio("SESSAO_INVALIDA");
+    if (erro.code === "LIMITE_DE_CONTATOS") throw new ErroDoRecreio("MUITAS_TENTATIVAS");
+    if (erro.code === "PERMISSAO") throw new ErroDoRecreio("SEM_PERMISSAO");
+  }
+  throw erro;
 }

@@ -107,6 +107,8 @@ que efetivamente agiu. Repetição sem mudança não cria um novo evento. A remo
 da amizade não apaga auditoria nem concede administração de mundo.
 `recreio.social_records_purged` usa somente as contagens de códigos, recibos,
 avisos e relações removidas expurgados, com ator nulo. Não inclui IDs em lote.
+`recreio.social_presence_changed` registra perfil e o classificador
+`presenceMode` (`online`, `friends`, `invisible`), com ator adulto atual.
 
 Eventos `recreio.*` registram o que aconteceu com os perfis, com o direito de jogar, com as sessões de jogo e com os mundos no app `recreio`, com payload mínimo de IDs, nomes de campo, classificadores e contagens. O perfil é o que os jogos conhecem de uma pessoa: nunca gravar apelido, avatar, e-mail, IP, nome de aparelho, ingresso, token de sessão, chave, segredo de instância, nome de mundo, código de convite (nem o resumo dele), o texto de participação que o jogo guarda no convite, o resumo do mundo publicado pelo jogo ou qualquer texto livre.
 

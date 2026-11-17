@@ -46,6 +46,11 @@ describe("SDK social negocia capacidade e conserva autenticação e proteção",
     const pedido = await a.social.pedir(codigo.codigo, chave);
     expect(await a.social.pedir(codigo.codigo, chave)).toEqual({ ...pedido, repetido: true });
     expect(await b.social.aceitar(pedido.pedidoId)).toMatchObject({ estado: "accepted" });
+    expect((await a.social.listar()).contatos).toMatchObject([
+      { perfilId: b.jogador.perfil.id, amizade: true, online: true },
+    ]);
+    await b.social.presenca("invisible");
+    expect((await a.social.listar()).contatos[0]?.online).toBe(false);
     await a.social.proteger({ perfilId: b.jogador.perfil.id, bloqueado: true, silenciado: true });
     expect(
       (await db.select().from(friends).where(eq(friends.requestId, pedido.pedidoId)))[0],
