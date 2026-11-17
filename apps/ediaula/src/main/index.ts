@@ -790,6 +790,9 @@ function registerIpc(): void {
     });
     const project = r.canceled ? undefined : r.filePaths[0];
     if (!project) return null;
+    // Chosen by the person: readable from now on, as packing takes it along with the lesson
+    // (shared/projectPackage.ts), without waiting for the lesson to be opened again.
+    await desktopFiles.grantRead(project);
     const summary = await readEdisvgSummary(project);
     const linked = await linkState(project);
     return {

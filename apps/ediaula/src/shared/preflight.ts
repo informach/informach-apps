@@ -10,7 +10,7 @@ import type { Alignment } from "./scriptAlign.ts";
 import { CROWD_COUNT, CROWD_WINDOW, crowdedEffects } from "./soundPlacement.ts";
 import { clipEnd, projectDuration } from "./timeline.ts";
 import type { Asset, Clip, Project, PublishInfo } from "./types.ts";
-import { twoVoices } from "./voiceRule.ts";
+import { hushedTeacher, twoVoices } from "./voiceRule.ts";
 
 /**
  * The check before exporting: what would make the lesson worse for a child of 9 to 14 watching
@@ -490,8 +490,10 @@ export function preflight(project: Project, ctx: PreflightContext = {}): Finding
 
   // Two voices at once.
   const voices = new Map<string, TimelineWord[]>();
+  // The teacher silenced by the rule while a character speaks is not heard there.
+  const hushed = hushedTeacher(project);
   for (const w of words) {
-    if (w.silent || w.role === "other") continue;
+    if (w.silent || w.role === "other" || hushed(w)) continue;
     const key = w.source ?? "";
     voices.set(key, [...(voices.get(key) ?? []), w]);
   }
