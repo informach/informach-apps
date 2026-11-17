@@ -203,6 +203,11 @@ vi.mock("@informach/db", () => ({
 
 vi.mock("@informach/db/schema", () => ({
   recreioProfiles: { id: "recreioProfiles.id", userId: "recreioProfiles.userId" },
+  recreioGroups: { id: "recreioGroups.id", ownerUserId: "recreioGroups.ownerUserId" },
+  recreioGuardianLinks: {
+    id: "recreioGuardianLinks.id",
+    guardianUserId: "recreioGuardianLinks.guardianUserId",
+  },
   users: { __mock: "users", id: "users.id", role: "users.role" },
   sessions: { __mock: "sessions", userId: "sessions.user_id" },
   accounts: { __mock: "accounts" },
