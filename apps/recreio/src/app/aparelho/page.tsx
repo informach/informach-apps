@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Marca } from "@/components/desenhos";
+import { jogadorDoAparelho } from "@/features/autoridade-de-jogo/http";
+import { EstanteProtegida } from "@/features/estante/components/estante-protegida";
 import { AvatarDoPerfil } from "@/features/perfis/components/avatar";
 import { SairDoAparelho } from "@/features/protecao/components/encerrar-aparelho";
 import { aparelhoPareadoAtual, temContextoPareado } from "@/features/protecao/http";
@@ -23,6 +25,7 @@ export default async function Aparelho() {
   if (escolhas && !escolhas.restrito) redirect("/perfis");
   const perfil =
     pareado?.perfil ?? escolhas?.menores.find((item) => item.id === escolhas.atualId) ?? null;
+  const jogador = perfil ? await jogadorDoAparelho() : null;
   return (
     <main id="conteudo" className="mx-auto min-h-dvh max-w-2xl px-4 py-10 sm:px-8">
       <Link href="/" aria-label="Recreio, página inicial" className="inline-flex">
@@ -37,7 +40,7 @@ export default async function Aparelho() {
           {pareado
             ? "Este aparelho está ligado ao seu perfil do Recreio."
             : perfil
-              ? "Você está jogando em um aparelho compartilhado."
+              ? "Você está usando um aparelho compartilhado."
               : "Peça ao adulto para conferir a escolha do perfil neste aparelho."}
         </p>
         <div className="mt-8">
@@ -49,6 +52,11 @@ export default async function Aparelho() {
           <SairDoAparelho tipo={pareado ? "pareado" : "compartilhado"} />
         </div>
       </section>
+      {jogador && (
+        <EstanteProtegida
+          jogador={{ perfilId: jogador.perfil.id, sessaoDeAparelhoId: jogador.sessaoDeAparelhoId }}
+        />
+      )}
     </main>
   );
 }

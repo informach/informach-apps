@@ -272,7 +272,7 @@ async function codigoDoEmail(email: string): Promise<string> {
 }
 
 /** Libera os jogos para a conta com o script da equipe, no mesmo banco do portal. */
-export function conceder(email: string): void {
+export function conceder(email: string, tier: "individual" | "family" = "individual"): void {
   const execucao = spawnSync(
     process.execPath,
     [
@@ -283,7 +283,7 @@ export function conceder(email: string): void {
       "--email",
       email,
       "--tier",
-      "individual",
+      tier,
       "--dias",
       "30",
       "--motivo",

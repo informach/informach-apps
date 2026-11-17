@@ -151,6 +151,7 @@ jobs:
             apps/recreio/tmp/telas/supervisao-confirmacao-mobile.png
             apps/recreio/tmp/telas/perfil-compartilhado-mobile.png
             apps/recreio/tmp/telas/retorno-adulto-pin-mobile.png
+            apps/recreio/tmp/telas/estante-protegida-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic color evidence

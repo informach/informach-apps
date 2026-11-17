@@ -60,9 +60,11 @@ async function encerrar(partida: Partida, comPressa = false): Promise<void> {
 export function Hospedeiro({
   jogo,
   mundo,
+  estante = "/estante",
 }: {
   jogo: { id: string; nome: string; origemDaArte?: string | null };
   mundo: { id: MundoId; nome: string } | null;
+  estante?: "/estante" | "/aparelho";
 }) {
   const [estado, despachar] = useReducer(reduzir, ESTADO_INICIAL);
   /** O jogo montado tem o próprio controle de saída: a página não desenha o dela. */
@@ -98,8 +100,8 @@ export function Hospedeiro({
   const sair = useCallback(() => {
     tentativa.current += 1;
     despachar({ tipo: "sair" });
-    void desmontar().finally(() => window.location.assign("/estante"));
-  }, [desmontar]);
+    void desmontar().finally(() => window.location.assign(estante));
+  }, [desmontar, estante]);
 
   const abrir = useCallback(
     (continuarAqui: boolean) => {
@@ -230,7 +232,7 @@ export function Hospedeiro({
             <button type="button" className="rb rb-sol" onClick={() => abrir(true)}>
               Continuar aqui
             </button>
-            <a href="/estante" className="rb rb-vazado">
+            <a href={estante} className="rb rb-vazado">
               Voltar à estante
             </a>
           </AvisoDoJogo>
@@ -247,7 +249,7 @@ export function Hospedeiro({
                 {parada.rotulo ?? "Entrar de novo"}
               </button>
             )}
-            <a href="/estante" className="rb rb-vazado">
+            <a href={estante} className="rb rb-vazado">
               Voltar à estante
             </a>
           </AvisoDoJogo>

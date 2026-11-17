@@ -1,5 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { comecarVigia, fecharAparelhos, hidratado, novaPessoa, tela, vigia } from "./apoio";
+import {
+  comecarVigia,
+  conceder,
+  fecharAparelhos,
+  hidratado,
+  novaPessoa,
+  tela,
+  vigia,
+} from "./apoio";
 
 test.beforeEach(comecarVigia);
 test.afterEach(async () => {
@@ -134,6 +142,15 @@ test("responsável sem jogador cadastra, protege e supervisiona o perfil", async
     .getByRole("heading", { name: "Confirme as regras", exact: true })
     .scrollIntoViewIfNeeded();
   await tela(page, "supervisao-confirmacao-mobile");
+  // A prova usa o título interno L; o Morada continua em análise e recusado.
+  await page.getByLabel("Pausar o acesso aos jogos", { exact: true }).uncheck();
+  await page.getByLabel("Jogar somente nos horários definidos", { exact: true }).uncheck();
+  await page.getByLabel("Revisei e confirmo estas regras para o perfil.", { exact: true }).check();
+  await page.getByRole("button", { name: "Salvar supervisão", exact: true }).click();
+  await expect(
+    page.getByText("Supervisão confirmada. Confira abaixo as regras atuais.", { exact: true }),
+  ).toBeVisible();
+  conceder(pessoa.email);
   await page.goto("/perfis");
   const protegido = page.getByRole("button", { name: "Escolher Lua da casa com PIN", exact: true });
   await hidratado(protegido);
@@ -143,6 +160,37 @@ test("responsável sem jogador cadastra, protege e supervisiona o perfil", async
   await expect(page.getByRole("heading", { name: "Olá, Lua da casa!", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Conta", exact: true })).toHaveCount(0);
   await tela(page, "perfil-compartilhado-mobile");
+  await expect(page.getByRole("link", { name: "Jogar Morada", exact: true })).toHaveCount(0);
+  await page.goto("/jogar/morada");
+  await expect(page).toHaveURL(/\/aparelho$/);
+  const ingressoMorada = await page.evaluate(async () => {
+    const resposta = await fetch("/api/sdk/v1/ingresso", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jogo: "morada" }),
+    });
+    return { status: resposta.status, corpo: await resposta.json() };
+  });
+  expect(ingressoMorada).toEqual({ status: 403, corpo: { codigo: "POLITICA_INCOMPATIVEL" } });
+  await page.getByRole("heading", { name: "Sua estante", exact: true }).scrollIntoViewIfNeeded();
+  await tela(page, "estante-protegida-mobile");
+  await page
+    .getByRole("link", { name: "Jogar Prova de progresso por perfil", exact: true })
+    .click();
+  await expect(page.getByLabel("Pontos salvos", { exact: true })).toHaveText("0");
+  await page.getByRole("button", { name: "Ganhar ponto", exact: true }).click();
+  await expect(page.getByLabel("Pontos salvos", { exact: true })).toHaveText("1");
+  await expect(page.getByRole("status", { name: "Estado do progresso", exact: true })).toHaveText(
+    "Progresso salvo.",
+  );
+  await page.getByRole("button", { name: "Salvar e sair", exact: true }).click();
+  await expect(page).toHaveURL(/\/aparelho$/);
+  await page
+    .getByRole("link", { name: "Jogar Prova de progresso por perfil", exact: true })
+    .click();
+  await expect(page.getByLabel("Pontos salvos", { exact: true })).toHaveText("1");
+  await page.getByRole("button", { name: "Salvar e sair", exact: true }).click();
+  await expect(page).toHaveURL(/\/aparelho$/);
   await page.goto("/conta");
   await expect(page).toHaveURL(/\/entrar\?encerrada=1$/);
   await page.goto("/perfis");

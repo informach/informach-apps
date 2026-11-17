@@ -12,6 +12,7 @@ import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
 import { SessaoAbertaSchema } from "@informach/recreio/contrato";
 import { describe, expect, it, vi } from "vitest";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import { conferirAberturaDoJogo } from "@/features/autoridade-de-jogo/pagina-repository";
 import { alterarDados } from "@/features/dados-de-perfil/service";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
 import { consultarSupervisao, salvarSupervisao } from "@/features/politicas/service";
@@ -107,6 +108,25 @@ async function abrir(r: Awaited<ReturnType<typeof protegido>>) {
 }
 
 describe("emissão transacional da autoridade", () => {
+  it("prévia da estante usa a autoridade atual sem iniciar sessão ou contabilizar tempo", async () => {
+    const r = await protegido();
+    const referencia = { perfilId: r.perfil.id, sessaoDeAparelhoId: r.ator.sessaoDeAparelhoId };
+    expect(await conferirAberturaDoJogo(referencia, JOGO)).toBe(true);
+    expect(await conferirAberturaDoJogo(referencia, "morada")).toBe(false);
+    expect(await db.select().from(games).where(eq(games.profileId, r.perfil.id))).toEqual([]);
+    expect(await db.select().from(usage).where(eq(usage.profileId, r.perfil.id))).toEqual([]);
+    const outro = await novoJogador();
+    await expect(
+      conferirAberturaDoJogo(
+        { ...referencia, sessaoDeAparelhoId: outro.ator.sessaoDeAparelhoId },
+        JOGO,
+      ),
+    ).rejects.toMatchObject({ codigo: "SESSAO_INVALIDA" });
+    await desconectarTodosDoMenor(r.autor, r.perfil.id);
+    await expect(conferirAberturaDoJogo(referencia, JOGO)).rejects.toMatchObject({
+      codigo: "SESSAO_INVALIDA",
+    });
+  });
   it("revogação global encerra o contexto nativo infantil; PIN antigo não o readmite", async () => {
     const r = await protegido(true);
     const login = await loginReal(r.conta);

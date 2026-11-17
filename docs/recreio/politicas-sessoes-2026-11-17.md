@@ -213,3 +213,16 @@ casos de emissão. A candidata seguinte também revoga a sessão nativa que este
 no contexto infantil encerrado; prova remota em andamento. A seleção por PIN
 está sendo exposta por referência restrita, sem reutilizar o ator de gestão;
 a estante/montagem do jogo e o checkpoint continuam pendentes.
+
+`3959c14` passou nos seis gates (`44023751748`), incluindo a revogação global
+do contexto nativo infantil. A seleção pública por PIN `5e75075` também passou
+nos seis gates (`44025076948`): criança não abre a área adulta com seu PIN;
+o responsável volta à gestão sem ocupar jogador.
+
+Próxima candidata: referência HTTP de jogador nativo/pareado separada da conta,
+estante protegida e prévia da página pelo kernel atual, antes de baixar o jogo.
+Saída retorna à estante do contexto protegido. As jornadas reais do navegador
+devem provar progresso/reabertura no título interno L, recusa do Morada em análise
+por página e ingresso direto, além da revogação de escrita durante a partida
+pareada. Essas alterações ainda não foram verificadas. Não habilitam `play` em
+produção; faltam checkpoint, avisos/tempo no cliente e as demais APIs de mundos.
