@@ -132,7 +132,8 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
     },
   } as const;
   const aberta = await (async () => {
-    const fimDaEspera = agora() + 30_000;
+    const inicioDaEspera = agora();
+    let fimDaEspera = inicioDaEspera + 30_000;
     let recuperacaoTentada = false;
     for (let tentativa = 0; ; tentativa++) {
       try {
@@ -143,6 +144,8 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
           Math.max(1, Math.min(TEMPO_LIMITE_DO_PEDIDO_MS, fimDaEspera - agora())),
         );
       } catch (erro) {
+        if (ehErroDoRecreio(erro, "CHECKPOINT_PENDENTE") && erro.detalhe.motivo === "saving")
+          fimDaEspera = inicioDaEspera + 35_000;
         // Somente este pedido tem recibo/prova: repetir preserva ingresso e SID.
         if (chaveDeTroca && !recuperacaoTentada && ehErroDoRecreio(erro, "INDISPONIVEL")) {
           recuperacaoTentada = true;
@@ -151,7 +154,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
         if (
           !chaveDeTroca ||
           !opcoes.aguardarCheckpoint ||
-          tentativa >= 20 ||
+          tentativa >= 35 ||
           !ehErroDoRecreio(erro, "CHECKPOINT_PENDENTE") ||
           (!opcoes.continuarAqui && erro.detalhe.motivo !== "saving") ||
           !["requested", "pending", "confirmed", "saving"].includes(String(erro.detalhe.motivo)) ||

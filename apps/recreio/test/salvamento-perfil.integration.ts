@@ -107,6 +107,29 @@ const salvar = (r: Awaited<ReturnType<typeof preparar>>, dados = [gravacao]) =>
   pedir("POST", "/api/sdk/v1/sessao/salvamento", { token: r.capacidade.token, corpo: { dados } });
 
 describe("persistência final com capacidade restrita", () => {
+  it("lote vazio reconhece conflitos já guardados sem sobrescrever ou duplicar as versões", async () => {
+    const r = await preparar();
+    await alterarDados(r.sessao, { ...gravacao, conteudo: "Nw==" });
+    await expect(alterarDados(r.sessao, gravacao)).rejects.toMatchObject({
+      codigo: "REVISAO_DIVERGENTE",
+    });
+    const antes = await db
+      .select()
+      .from(versions)
+      .where(eq(versions.profileId, r.pessoa.perfil.id))
+      .orderBy(versions.id);
+    expect(await salvar(r, [])).toMatchObject({
+      status: 200,
+      corpo: { estado: "conflicted", resultados: [] },
+    });
+    expect(
+      await db
+        .select()
+        .from(versions)
+        .where(eq(versions.profileId, r.pessoa.perfil.id))
+        .orderBy(versions.id),
+    ).toEqual(antes);
+  });
   it("desligar o escritor não apaga a margem já emitida", async () => {
     const r = await preparar();
     expect((await pedir("POST", "/api/sdk/v1/sessao/sair", { token: r.aberta.token })).status).toBe(

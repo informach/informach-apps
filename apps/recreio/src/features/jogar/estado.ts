@@ -21,6 +21,7 @@ export type Parada =
   | "pausado_para_troca"
   | "saida_no_outro_aparelho"
   | "troca_nao_confirmada"
+  | "conflito_preservado"
   | "rede"
   | "falha";
 
@@ -150,6 +151,13 @@ export type TextoDaParada = {
 };
 
 const TEXTOS: Record<Parada, TextoDaParada> = {
+  conflito_preservado: {
+    titulo: "Há versões diferentes do progresso",
+    texto:
+      "As versões foram preservadas. Ao abrir o jogo novamente, confira qual deseja continuar.",
+    acao: "tentar",
+    rotulo: "Conferir versões",
+  },
   saida_no_outro_aparelho: {
     titulo: "Salve e saia no outro aparelho",
     texto: "Use o botão de saída do jogo na partida anterior. Depois, tente abrir aqui novamente.",

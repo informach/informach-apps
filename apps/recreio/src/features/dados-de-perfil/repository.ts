@@ -33,6 +33,25 @@ function comAutoridade<T>(
 }
 
 const hash = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");
+
+/** Chamador conserva o mutex dos dados; conflitos anteriores também exigem escolha. */
+export async function haConflitosNaTransacao(
+  tx: Transacao,
+  sessao: Pick<SessaoDeJogoAtiva, "perfilId" | "jogo">,
+) {
+  const [conflito] = await tx
+    .select({ id: versions.id })
+    .from(versions)
+    .where(
+      and(
+        eq(versions.profileId, sessao.perfilId),
+        eq(versions.gameId, sessao.jogo),
+        eq(versions.kind, "conflict"),
+      ),
+    )
+    .limit(1);
+  return conflito !== undefined;
+}
 function conferirIntegridade(linha: typeof versions.$inferSelect): void {
   if (hash(linha.bytes) !== linha.digest) {
     reportError(new Error("profile_data.integrity_failed"), crypto.randomUUID());

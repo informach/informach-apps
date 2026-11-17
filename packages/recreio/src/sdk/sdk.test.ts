@@ -316,6 +316,20 @@ describe("abertura da sessão", () => {
     a.responder({ corpo: {} });
     await contexto.sessao.sair();
   });
+  it("a reconexão pode atravessar a margem de trinta segundos sem renovar a própria espera", async () => {
+    const a = ambiente();
+    for (let tentativa = 0; tentativa < 31; tentativa++)
+      a.responder({ status: 409, corpo: { codigo: "CHECKPOINT_PENDENTE", motivo: "saving" } });
+    a.responder({ corpo: a.aberta() });
+    const promessa = criarRecreio(a.opcoes({ recuperarAbertura: true, aguardarCheckpoint: true }));
+    await vi.waitFor(() => expect(a.pendentes()).toHaveLength(1));
+    for (let tentativa = 0; tentativa < 31; tentativa++) await a.disparar();
+    const contexto = await promessa;
+    expect(a.chamadas).toHaveLength(32);
+    expect(a.chamadas.at(-1)?.corpo).toEqual(a.chamadas[0]?.corpo);
+    a.responder({ corpo: {} });
+    await contexto.sessao.sair();
+  });
   it.each(["manual", "failed", "expired"])("não repete espera recusada por %s", async (motivo) => {
     const a = ambiente();
     a.responder({ status: 409, corpo: { codigo: "CHECKPOINT_PENDENTE", detalhe: { motivo } } });

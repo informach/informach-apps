@@ -20,6 +20,7 @@ import {
   reduzir,
   textoDaParada,
 } from "../estado";
+import { confirmarFinalizacao } from "../finalizacao";
 import { pedirIngresso } from "../ingresso";
 import { AvisoDoJogo, TelaDoJogo } from "./aviso-do-jogo";
 
@@ -29,6 +30,8 @@ type Partida = {
   montado: JogoMontado | null;
   cancelarAcesso: () => void;
   cancelarControle: () => void;
+  intencaoDeSaida: { parada: Parada | null } | null;
+  finalizacao: Promise<void> | null;
 };
 
 /**
@@ -43,6 +46,15 @@ async function encerrar(partida: Partida, comPressa = false): Promise<void> {
   const sairDaSessao = () => partida.contexto.sessao.sair().catch(() => undefined);
   const jaPedido = comPressa ? sairDaSessao() : null;
   try {
+    const capacidade = partida.contexto.sessao.salvamento;
+    const montado = partida.montado;
+    if (comPressa && capacidade && montado?.finalizar) {
+      // Melhor esforço com keepalive: o leitor da margem protege a próxima
+      // abertura se o navegador encerrar o processo antes da confirmação.
+      await confirmarFinalizacao(capacidade, montado.finalizar.bind(montado)).catch(
+        () => undefined,
+      );
+    }
     await partida.montado?.dispose();
   } catch {
     // O jogo não conseguiu se desmontar direito; a sessão é encerrada do mesmo jeito.
@@ -78,6 +90,8 @@ export function Hospedeiro({
   const [saidaDoJogo, definirSaidaDoJogo] = useState(false);
   const [avisoDaTroca, definirAvisoDaTroca] = useState<AvisoDaTroca | null>(null);
   const [aguardandoTroca, definirAguardandoTroca] = useState(false);
+  const [salvamento, definirSalvamento] = useState<"salvando" | "falhou" | null>(null);
+  const [confirmacao, definirConfirmacao] = useState(false);
   const palco = useRef<HTMLDivElement>(null);
   const partida = useRef<Partida | null>(null);
   /** Cada tentativa de abrir tem um número; a que não é mais a atual desiste. */
@@ -98,19 +112,74 @@ export function Hospedeiro({
     return fila.current;
   }, []);
 
+  const tentarFinalizar = useCallback(
+    (parada: Parada | null): boolean => {
+      const atual = partida.current;
+      const capacidade = atual?.contexto.sessao.salvamento;
+      const montado = atual?.montado;
+      if (!atual || !capacidade || !montado?.finalizar) return false;
+      atual.intencaoDeSaida ??= { parada };
+      if (atual.finalizacao) return true;
+      atual.cancelarControle();
+      atual.cancelarAcesso();
+      definirSalvamento("salvando");
+      const finalizar = montado.finalizar.bind(montado);
+      const tarefa = confirmarFinalizacao(capacidade, finalizar)
+        .then(async (resultado) => {
+          if (partida.current !== atual) return;
+          definirSalvamento(null);
+          definirConfirmacao(resultado === "completed");
+          if (resultado === "conflicted") {
+            despachar({ tipo: "parou", parada: "conflito_preservado" });
+            await desmontar();
+          } else if (atual.intencaoDeSaida?.parada === null) {
+            tentativa.current += 1;
+            despachar({ tipo: "sair" });
+            await desmontar();
+            window.location.assign(estante);
+          } else {
+            despachar({
+              tipo: "parou",
+              parada: atual.intencaoDeSaida?.parada ?? "sessao_encerrada",
+            });
+            await desmontar();
+          }
+        })
+        .catch(() => {
+          if (partida.current === atual) definirSalvamento("falhou");
+        })
+        .finally(() => {
+          if (atual.finalizacao === tarefa) atual.finalizacao = null;
+        });
+      atual.finalizacao = tarefa;
+      return true;
+    },
+    [desmontar, estante],
+  );
+
   const parar = useCallback(
     (parada: Parada) => {
+      if (
+        ["acesso_perdido", "sessao_encerrada", "saiu_do_jogo", "rede", "falha"].includes(parada) &&
+        tentarFinalizar(parada)
+      )
+        return;
+      definirSalvamento(null);
       despachar({ tipo: "parou", parada });
       void desmontar();
     },
-    [desmontar],
+    [desmontar, tentarFinalizar],
   );
 
-  const sair = useCallback(() => {
+  const sairSemConfirmar = useCallback(() => {
     tentativa.current += 1;
+    definirSalvamento(null);
     despachar({ tipo: "sair" });
     void desmontar().finally(() => window.location.assign(estante));
   }, [desmontar, estante]);
+  const sair = useCallback(() => {
+    if (!tentarFinalizar(null)) sairSemConfirmar();
+  }, [tentarFinalizar, sairSemConfirmar]);
 
   const abrir = useCallback(
     (continuarAqui: boolean) => {
@@ -118,6 +187,8 @@ export function Hospedeiro({
       const minha = tentativa.current;
       const atual = () => minha === tentativa.current;
       definirAvisoDaTroca(null);
+      definirSalvamento(null);
+      definirConfirmacao(false);
       definirAguardandoTroca(false);
       despachar({ tipo: "abrir" });
       void desmontar();
@@ -129,6 +200,7 @@ export function Hospedeiro({
           const contexto = await criarRecreio({
             baseUrl: "",
             jogo: jogo.id,
+            salvamentoRestrito: trocaCoordenada,
             obterIngresso: (signal) => pedirIngresso(jogo.id, signal),
             ...(continuarAqui ? { continuarAqui: true } : {}),
             ...(trocaCoordenada
@@ -148,6 +220,8 @@ export function Hospedeiro({
           const nova: Partida = {
             contexto,
             montado: null,
+            intencaoDeSaida: null,
+            finalizacao: null,
             cancelarControle: () => {},
             cancelarAcesso: contexto.sessao.aoMudarAcesso((mudanca) =>
               parar(paradaDaMudanca(mudanca)),
@@ -236,7 +310,7 @@ export function Hospedeiro({
     };
   }, [abrir, desmontar]);
 
-  const jogando = estado.fase === "jogando";
+  const jogando = estado.fase === "jogando" && salvamento === null;
   const parada = estado.fase === "parado" ? textoDaParada(estado.parada) : null;
 
   return (
@@ -289,7 +363,32 @@ export function Hospedeiro({
             : "absolute inset-0 z-20 flex items-center justify-center overflow-auto p-4"
         }
       >
-        {estado.fase === "carregando" && (
+        {salvamento !== null && (
+          <AvisoDoJogo
+            titulo={
+              salvamento === "salvando"
+                ? "Salvando antes de encerrar…"
+                : "O salvamento ainda não foi confirmado"
+            }
+            texto={
+              salvamento === "salvando"
+                ? "Mantenha esta página aberta enquanto conferimos seu progresso."
+                : "Seu jogo continua nesta tela. Tente confirmar de novo; sair agora pode perder alterações recentes."
+            }
+          >
+            {salvamento === "falhou" && (
+              <>
+                <button type="button" className="rb rb-sol" onClick={() => tentarFinalizar(null)}>
+                  Tentar salvar de novo
+                </button>
+                <button type="button" className="rb rb-vazado" onClick={sairSemConfirmar}>
+                  Voltar sem confirmar
+                </button>
+              </>
+            )}
+          </AvisoDoJogo>
+        )}
+        {salvamento === null && estado.fase === "carregando" && (
           <AvisoDoJogo
             titulo={
               aguardandoTroca ? "Aguardando o outro aparelho salvar…" : `Abrindo ${jogo.nome}…`
@@ -302,7 +401,7 @@ export function Hospedeiro({
           />
         )}
         {estado.fase === "saindo" && <AvisoDoJogo titulo="Saindo…" />}
-        {estado.fase === "ja_aberto" && (
+        {salvamento === null && estado.fase === "ja_aberto" && (
           <AvisoDoJogo
             titulo="Você já está jogando em outro lugar"
             texto={
@@ -319,8 +418,13 @@ export function Hospedeiro({
             </a>
           </AvisoDoJogo>
         )}
-        {parada && (
+        {salvamento === null && parada && (
           <AvisoDoJogo titulo={parada.titulo} texto={parada.texto}>
+            {confirmacao && (
+              <p role="status" className="w-full text-sm text-tinta-suave">
+                Progresso salvo e confirmado.
+              </p>
+            )}
             {parada.acao === "tentar" && (
               <button type="button" className="rb rb-sol" onClick={() => abrir(false)}>
                 {parada.rotulo ?? "Tentar de novo"}

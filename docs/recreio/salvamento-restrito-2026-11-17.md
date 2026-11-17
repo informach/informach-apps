@@ -272,3 +272,43 @@ Nova jornada remota usa o SDK real, ingresso por cookie, WebSocket/instância
 reais e outro navegador: derruba a conexão, consulta o recibo terminal e exige
 que outro morador continue avançando. Não inventa confirmação ou resposta HTTP.
 Integração da pausa no hospedeiro e finalizador do jogo sem mundos ainda pendentes.
+
+## Integração do hospedeiro em execução
+
+`features/jogar/finalizacao.ts` coordena parar o SDK, drenar/finalizar o módulo
+e consultar o recibo do servidor por no máximo trinta segundos. Confirmação do
+módulo isolada nunca basta. O hospedeiro conserva o módulo em falha e permite
+repetir o mesmo salvamento ou sair com aviso explícito de progresso incerto.
+Saída voluntária e corte compartilham a operação; eventos repetidos não criam
+outro lote. Logout/troca/permissão revogada conservam seu encerramento próprio.
+
+O jogo de perfil implementa `finalizar` com fila drenada e lote CAS; não grava
+um estado antes de concluir a leitura inicial. O hospedeiro só negocia com o
+modo ligado e jogo capaz; Morada continua manual. A prova no navegador deve
+cortar a sessão após uma escrita normal incerta, exigir o recibo final e
+reabrir os dados/conflitos. Também deve perder a resposta final real após o
+commit e recusar a afirmação de sucesso enquanto o recibo ainda estiver pronto.
+
+O consumidor `55cced7` passou nos sete gates `44073841379`. A rodada anterior
+`8ad7fbd` falhou antes de jogar porque o apelido da fixture excedia vinte
+caracteres; o contrato de cadastro permaneceu intacto.
+
+A candidata do hospedeiro conserva o módulo enquanto confirma; falha permite
+repetir ou voltar com aviso de incerteza. Fechamento abrupto tenta concluir com
+`keepalive`, sem prometer que o navegador manterá o processo. Nova abertura
+aguarda a margem do servidor por até 35 segundos, com relógio fixado na primeira
+tentativa; checkpoint de troca conserva 30 segundos. Esse tempo adicional de
+espera não renova a concessão ou a capacidade de salvar.
+
+Foi corrigida outra lacuna do cliente interno: ao reabrir, versões em conflito
+agora aparecem para escolha explícita, sem continuar silenciosamente a aceita.
+Finalização com lote vazio reconhece conflitos já duráveis e devolve
+`conflicted`, sem sobrescrever ou duplicar essas versões. A integração de banco
+confere igualdade das versões antes/depois. A jornada de reabertura exige uma
+escolha antes de continuar.
+
+A nova jornada de corte perde uma resposta normal depois do commit, bloqueia
+o pedido final real para verificar que o módulo continua montado e depois perde
+também a primeira resposta final. Só o recibo confirmado libera a desmontagem;
+reabrir exige uma única revisão/versão aceita. Essas mudanças do hospedeiro,
+conflitos e espera ampliada ainda aguardam seus gates.

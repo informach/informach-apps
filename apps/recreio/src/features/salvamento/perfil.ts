@@ -6,7 +6,10 @@ import {
   ResultadoDeSalvamentoSchema,
   type SalvamentoVerificado,
 } from "@informach/recreio/contrato";
-import { mutarDadosNaTransacao } from "@/features/dados-de-perfil/repository";
+import {
+  haConflitosNaTransacao,
+  mutarDadosNaTransacao,
+} from "@/features/dados-de-perfil/repository";
 import { jogoDoCatalogo } from "@/features/jogos/config";
 import { env } from "@/lib/env";
 import { limitarTentativas } from "@/lib/rate-limit";
@@ -55,7 +58,7 @@ export async function finalizarDadosDoPerfil(
         else throw new ErroDoRecreio("INDISPONIVEL");
       }
       return {
-        status: resultados.some((resultado) => resultado.conflitoId) ? "conflicted" : "completed",
+        status: (await haConflitosNaTransacao(tx, capacidade)) ? "conflicted" : "completed",
         results: resultados,
         checkpointSpaceId: null,
         checkpointFence: null,

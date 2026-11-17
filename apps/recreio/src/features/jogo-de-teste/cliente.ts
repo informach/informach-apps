@@ -253,6 +253,10 @@ export const jogoDeTeste: ModuloDoJogo = {
     });
     sairPeloJogo.addEventListener("click", () => {
       if (encerrado) return;
+      if (contexto.sessao.salvamento) {
+        opcoes.aoSair();
+        return;
+      }
       parar();
       opcoes.aoSair();
     });
