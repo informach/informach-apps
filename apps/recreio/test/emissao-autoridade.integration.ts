@@ -1,3 +1,4 @@
+import { AuditPersistenceError } from "@informach/auth";
 import { and, db, eq, sql } from "@informach/db";
 import {
   recreioGameSessions as games,
@@ -18,6 +19,7 @@ import {
   consultarPareamento,
   definirPinDaConta,
   definirPinDoMenor,
+  desconectarTodosDoMenor,
   prepararPareamento,
   trocarPerfilComPin,
 } from "@/features/protecao/service";
@@ -104,6 +106,36 @@ async function abrir(r: Awaited<ReturnType<typeof protegido>>) {
 }
 
 describe("emissão transacional da autoridade", () => {
+  it("revogar acesso protegido invalida também ingressos ainda não usados", async () => {
+    const r = await protegido();
+    await emitirIngresso(r.ator, { jogo: JOGO });
+    await desconectarTodosDoMenor(r.autor, r.perfil.id);
+    expect(await db.select().from(tickets).where(eq(tickets.profileId, r.perfil.id))).toEqual([]);
+  });
+  it("falha da auditoria de revogação conserva o ingresso e sua autoridade original", async () => {
+    const r = await protegido();
+    const ingresso = await emitirIngresso(r.ator, { jogo: JOGO });
+    await db.execute(
+      sql`create function audit.recusar_revogacao_de_ingresso() returns trigger language plpgsql as $$ begin if new.event_type='recreio.minor_access_revoked' then raise exception 'auditoria indisponível'; end if; return new; end $$`,
+    );
+    await db.execute(
+      sql`create trigger recusar_revogacao_de_ingresso before insert on audit.events for each row execute function audit.recusar_revogacao_de_ingresso()`,
+    );
+    try {
+      await expect(desconectarTodosDoMenor(r.autor, r.perfil.id)).rejects.toBeInstanceOf(
+        AuditPersistenceError,
+      );
+    } finally {
+      await db.execute(sql`drop trigger recusar_revogacao_de_ingresso on audit.events`);
+      await db.execute(sql`drop function audit.recusar_revogacao_de_ingresso()`);
+    }
+    expect(
+      (await db.select().from(tickets).where(eq(tickets.profileId, r.perfil.id)))[0]?.consumedAt,
+    ).toBeNull();
+    expect(await trocarIngresso({ ingresso: ingresso.ingresso })).toMatchObject({
+      perfil: { profileId: r.perfil.id },
+    });
+  });
   it.each([false, true])(
     "ingresso real inicia e renova concessão infantil sem identidade adulta; compartilhado=%s",
     async (compartilhado) => {

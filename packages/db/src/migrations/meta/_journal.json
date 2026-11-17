@@ -1219,6 +1219,13 @@
       "when": 1794888150542,
       "tag": "0173_last_stellaris",
       "breakpoints": true
+    },
+    {
+      "idx": 174,
+      "version": "7",
+      "when": 1794892450802,
+      "tag": "0174_careless_nomad",
+      "breakpoints": true
     }
   ]
 }

@@ -38,3 +38,11 @@ do worktree com aprovação da candidata.
 Prova verde e publicação ainda pendentes. Esta correção deve entrar também na
 candidata de leitores; não publicar uma versão sabendo dessa lacuna. F3 e o
 fechamento da plataforma continuam em execução.
+
+Migration gerada `0174_careless_nomad.sql`, run `44022579539`, fonte
+`8d7d2e55f4bfe4cc798889f68417ad06d2162a4d`: 377 bytes, SHA-256
+`04798851dd53d84991d4823631e0d6d224190c71152d08562c42d3d3daa2495a`.
+Os três caminhos/tamanhos/hashes e a origem foram conferidos antes da cópia,
+sem editar SQL ou metadados gerados. Somente dois índices parciais aditivos.
+Verificar quantidade de recibos e tempo de trava antes de aplicar em produção;
+o alfa fechado tem cardinalidade distinta de uma venda pública.
