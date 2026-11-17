@@ -189,16 +189,26 @@ class Cena:
             self.nos.append(b)
             self.mostra(b, ts or t0, t1_sub or t1, sobe=10)
 
-    def salvar(self, arq):
+    def salvar(self, arq, refazer=False):
+        """Salva <saida>/<arq>.edisvg. A peça já salva não é reescrita: depois de vinculada na aula ela é
+        editada no EdiSVG, e o script apagaria o que foi feito lá (refazer=True ou AULA_REFAZER_CENAS=1
+        reescreve). Os ids do projeto e da animação saem do nome do arquivo: refazer a cena mantém o vínculo
+        com o clipe da aula."""
+        os.makedirs(self.saida, exist_ok=True)
+        caminho = f"{self.saida}/{arq}.edisvg"
+        if os.path.exists(caminho) and not (refazer or os.environ.get("AULA_REFAZER_CENAS") == "1"):
+            print(caminho, "| já existe: fica como está (edite no EdiSVG; AULA_REFAZER_CENAS=1 reescreve)")
+            return caminho
+        fixo = lambda tipo: f"{tipo}-{uuid.uuid5(uuid.NAMESPACE_URL, f'edisvg-cena:{arq}:{tipo}')}"
+        self.d["id"] = fixo("project")
         self.cena["scene"]["viewBox"] = [0, 0, 1920, 1080]
         self.cena["scene"]["nodes"] = self.nos
         self.d["motion"] = {"version": self.d["motion"]["version"], "animations": [{
-            "id": f"animation-{uuid.uuid4()}", "name": self.nome, "fps": FPS, "frames": self.total,
+            "id": fixo("animation"), "name": self.nome, "fps": FPS, "frames": self.total,
             "mode": "once", "tracks": self.trilhas}]}
-        os.makedirs(self.saida, exist_ok=True)
-        caminho = f"{self.saida}/{arq}.edisvg"
         json.dump(self.d, open(caminho, "w", encoding="utf8"), ensure_ascii=False)
         print(caminho, "| nós", len(self.nos), "| trilhas", len(self.trilhas), "| quadros", self.total,
               f"| {self.ini}-{self.fim}")
+        return caminho
 
 

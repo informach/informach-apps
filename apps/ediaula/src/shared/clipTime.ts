@@ -20,19 +20,18 @@ export const sourceEnd = (c: Pick<Clip, "in" | "duration" | "speed">): number =>
   c.in + c.duration * clipSpeed(c);
 
 /**
- * Source seconds a clip of `asset` may reach on each side: the ends of the file (no end for a
- * still image), and the pauses of a take beside the clip (Asset.recording.paused), whose content
- * never goes into the lesson (shared/pausedMedia.ts).
+ * Source seconds a clip of `asset` may reach on each side: the ends of the file, and the pauses of
+ * a take beside the clip (Asset.recording.paused), whose content never goes into the lesson
+ * (shared/pausedMedia.ts). A still image (a picture, and every annotation drawn as one) shows the
+ * same at any moment, so it has no ends: its start may go back as far as the timeline lets it.
  */
 export function sourceRoom(
   c: Pick<Clip, "in" | "duration" | "speed">,
   asset: Pick<Asset, "kind" | "duration" | "recording"> | undefined,
 ): [number, number] {
-  let lo = 0;
-  let hi =
-    !asset || asset.kind === "image" || asset.duration <= 0
-      ? Number.POSITIVE_INFINITY
-      : asset.duration;
+  const still = !asset || asset.kind === "image" || asset.duration <= 0;
+  let lo = still ? Number.NEGATIVE_INFINITY : 0;
+  let hi = still ? Number.POSITIVE_INFINITY : asset.duration;
   const from = c.in;
   const to = sourceEnd(c);
   for (const [a, b] of asset?.recording?.paused ?? []) {

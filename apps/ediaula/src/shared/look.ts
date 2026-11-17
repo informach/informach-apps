@@ -99,7 +99,7 @@ export function colorSvg(c: ClipColor): {
 
 // ---- Device frames ----
 
-export const DEVICES = ["laptop", "phone"] as const;
+export const DEVICES = ["laptop", "tablet", "phone"] as const;
 export type Device = (typeof DEVICES)[number];
 
 export interface Rect {
@@ -109,18 +109,21 @@ export interface Rect {
   h: number;
 }
 
+/** A rounded box of one color. */
+export interface DevicePart {
+  rect: Rect;
+  radius: number;
+  color: string;
+}
+
 export interface DeviceGeometry {
   /** Where the picture goes, the clip's own shape (same aspect), in pixels of the w × h box. */
   screen: Rect;
   screenRadius: number;
-  /** The body: a laptop's lid or the phone. */
-  body: Rect;
-  bodyRadius: number;
-  /** A laptop's base under the lid, and the groove to open it. */
-  base?: Rect;
-  groove?: Rect;
-  /** The phone's camera notch. */
-  notch?: Rect;
+  /** Drawn in order under the picture; the screen is then cut out of them. */
+  frame: DevicePart[];
+  /** Drawn in order over the picture: a phone's camera. */
+  over: DevicePart[];
 }
 
 /** Colors of the frames, drawn by the app (no picture of a real product). */
@@ -128,69 +131,164 @@ export const DEVICE_COLORS = {
   body: "#17181B",
   base: "#C6C9CF",
   groove: "#9EA2A9",
+  /** A phone's side frame and its buttons. */
+  phoneEdge: "#4A4D55",
+  phoneButton: "#3A3D44",
+  /** A tablet's aluminium edge and its buttons. */
+  tabletEdge: "#B4B8BF",
+  tabletButton: "#9A9EA6",
+  camera: "#060607",
+  lens: "#26304A",
 };
+
+/** Every part of a frame, under and over the picture, in drawing order. */
+export function deviceParts(g: DeviceGeometry): DevicePart[] {
+  return [...g.frame, ...g.over];
+}
 
 /**
  * A device around a picture of w × h (the clip's visible box): the device fills the box as
  * far as it can and the picture goes on its screen, shrunk with its own aspect, so nothing is
- * stretched. Everything is a share of the screen's width, so it looks the same at any size.
+ * stretched. Everything is a share of the screen's size, so it looks the same at any size.
  */
 export function deviceGeometry(device: Device, w: number, h: number): DeviceGeometry {
+  return device === "laptop" ? laptopGeometry(w, h) : handheldGeometry(device, w, h);
+}
+
+function laptopGeometry(w: number, h: number): DeviceGeometry {
   const ar = h / Math.max(1, w);
-  if (device === "laptop") {
-    const bezel = 0.03;
-    const chin = 0.045;
-    const base = 0.05;
-    const overhang = 0.06;
-    // Box in units of the screen's width: lid = screen + bezels, base wider than the lid.
-    const unitW = 1 + 2 * bezel + 2 * overhang;
-    const unitH = ar + bezel + chin + base;
-    const sw = Math.min(w / unitW, h / unitH);
-    const ox = (w - sw * unitW) / 2;
-    const oy = (h - sw * unitH) / 2;
-    const body = {
-      x: ox + sw * overhang,
-      y: oy,
-      w: sw * (1 + 2 * bezel),
-      h: sw * (ar + bezel + chin),
-    };
-    const baseRect = { x: ox, y: body.y + body.h, w: sw * unitW, h: sw * base };
-    return {
-      screen: { x: body.x + sw * bezel, y: body.y + sw * bezel, w: sw, h: sw * ar },
-      screenRadius: sw * 0.006,
-      body,
-      bodyRadius: sw * 0.025,
-      base: baseRect,
-      groove: {
-        x: baseRect.x + baseRect.w * 0.42,
-        y: baseRect.y,
-        w: baseRect.w * 0.16,
-        h: baseRect.h * 0.32,
-      },
-    };
-  }
-  const bezel = 0.045;
-  const unitW = 1 + 2 * bezel;
-  const unitH = ar + 2 * bezel;
+  const bezel = 0.03;
+  const chin = 0.045;
+  const base = 0.05;
+  const overhang = 0.06;
+  // Box in units of the screen's width: lid = screen + bezels, base wider than the lid.
+  const unitW = 1 + 2 * bezel + 2 * overhang;
+  const unitH = ar + bezel + chin + base;
   const sw = Math.min(w / unitW, h / unitH);
-  const body = {
-    x: (w - sw * unitW) / 2,
-    y: (h - sw * unitH) / 2,
-    w: sw * unitW,
-    h: sw * unitH,
+  const ox = (w - sw * unitW) / 2;
+  const oy = (h - sw * unitH) / 2;
+  const lid = {
+    x: ox + sw * overhang,
+    y: oy,
+    w: sw * (1 + 2 * bezel),
+    h: sw * (ar + bezel + chin),
   };
-  const short = Math.min(body.w, body.h);
+  const baseRect = { x: ox, y: lid.y + lid.h, w: sw * unitW, h: sw * base };
   return {
-    screen: { x: body.x + sw * bezel, y: body.y + sw * bezel, w: sw, h: sw * ar },
-    screenRadius: short * 0.09,
-    body,
-    bodyRadius: short * 0.13,
-    notch: {
-      x: body.x + body.w / 2 - short * 0.14,
-      y: body.y + sw * bezel,
-      w: short * 0.28,
-      h: short * 0.05,
+    screen: { x: lid.x + sw * bezel, y: lid.y + sw * bezel, w: sw, h: sw * ar },
+    screenRadius: sw * 0.006,
+    frame: [
+      { rect: lid, radius: sw * 0.025, color: DEVICE_COLORS.body },
+      { rect: baseRect, radius: baseRect.h * 0.35, color: DEVICE_COLORS.base },
+      {
+        rect: {
+          x: baseRect.x + baseRect.w * 0.42,
+          y: baseRect.y,
+          w: baseRect.w * 0.16,
+          h: baseRect.h * 0.32,
+        },
+        radius: baseRect.h * 0.16,
+        color: DEVICE_COLORS.groove,
+      },
+    ],
+    over: [],
+  };
+}
+
+/** Proportions of the handheld devices, in units of the screen's short side. */
+const HANDHELD = {
+  phone: { bezel: 0.042, edge: 0.012, screenRadius: 0.12, button: 0.009, camera: 0.032 },
+  tablet: { bezel: 0.05, edge: 0.008, screenRadius: 0.035, button: 0.006, camera: 0.016 },
+} as const;
+
+/**
+ * A phone or a tablet. It is drawn upright (portrait) and, for a wide picture, turned a quarter to
+ * the left: the phone's camera ends on the left, the tablet's on the long top side, the buttons
+ * where the hand expects them. The bezel follows the screen's short side, so a wide picture does
+ * not get a thick frame.
+ */
+function handheldGeometry(device: "phone" | "tablet", w: number, h: number): DeviceGeometry {
+  const P = HANDHELD[device];
+  const wide = w > h;
+  // The upright box, and the picture's aspect in it (height over width, at least 1 when wide).
+  const BW = wide ? h : w;
+  const BH = wide ? w : h;
+  const ar = (wide ? w : h) / Math.max(1, wide ? h : w);
+  const unitW = 1 + 2 * P.bezel + 2 * P.button;
+  const unitH = ar + 2 * P.bezel + 2 * P.button;
+  const s = Math.min(BW / unitW, BH / unitH);
+  const body = {
+    x: (BW - s * (1 + 2 * P.bezel)) / 2,
+    y: (BH - s * (ar + 2 * P.bezel)) / 2,
+    w: s * (1 + 2 * P.bezel),
+    h: s * (ar + 2 * P.bezel),
+  };
+  const screen = { x: body.x + s * P.bezel, y: body.y + s * P.bezel, w: s, h: s * ar };
+  // Concentric corners: the body's follows the screen's at the bezel's distance.
+  const screenRadius = s * P.screenRadius;
+  const bodyRadius = screenRadius + s * P.bezel;
+  const edge = s * P.edge;
+  const inner = { x: body.x + edge, y: body.y + edge, w: body.w - 2 * edge, h: body.h - 2 * edge };
+  const d = s * P.button;
+  const phone = device === "phone";
+  const buttonColor = phone ? DEVICE_COLORS.phoneButton : DEVICE_COLORS.tabletButton;
+  // Buttons stick out of the body by d and go under it (drawn first), from the body's top.
+  const side = (left: boolean, from: number, length: number): DevicePart => ({
+    rect: {
+      x: left ? body.x - d : body.x + body.w - d,
+      y: body.y + s * from,
+      w: 2 * d,
+      h: s * length,
     },
+    radius: d,
+    color: buttonColor,
+  });
+  const top = (from: number, length: number): DevicePart => ({
+    rect: { x: body.x + body.w - s * (from + length), y: body.y - d, w: s * length, h: 2 * d },
+    radius: d,
+    color: buttonColor,
+  });
+  const buttons = phone
+    ? [side(true, 0.3, 0.14), side(true, 0.48, 0.14), side(false, 0.38, 0.22)]
+    : [top(0.1, 0.12), side(false, 0.1, 0.1), side(false, 0.23, 0.1)];
+  const frame: DevicePart[] = [
+    ...buttons,
+    {
+      rect: body,
+      radius: bodyRadius,
+      color: phone ? DEVICE_COLORS.phoneEdge : DEVICE_COLORS.tabletEdge,
+    },
+    { rect: inner, radius: bodyRadius - edge, color: DEVICE_COLORS.body },
+  ];
+  // The camera: a phone's in the screen near the top; a tablet's in the bezel, on the long side
+  // that is on top when the tablet is held as the picture is.
+  const c = s * P.camera;
+  const at = phone
+    ? { x: screen.x + screen.w / 2, y: screen.y + c * 1.1 }
+    : wide
+      ? { x: body.x + body.w - (s * P.bezel + edge) / 2, y: body.y + body.h / 2 }
+      : { x: body.x + body.w / 2, y: body.y + (s * P.bezel + edge) / 2 };
+  const dot = (size: number, color: string): DevicePart => ({
+    rect: { x: at.x - size / 2, y: at.y - size / 2, w: size, h: size },
+    radius: size / 2,
+    color,
+  });
+  const camera = [dot(c, DEVICE_COLORS.camera), dot(c * 0.45, DEVICE_COLORS.lens)];
+  const upright: DeviceGeometry = {
+    screen,
+    screenRadius,
+    frame: phone ? frame : [...frame, ...camera],
+    over: phone ? camera : [],
+  };
+  if (!wide) return upright;
+  // A quarter turn to the left: the upright top goes to the left, its right side to the top.
+  const turn = (r: Rect): Rect => ({ x: r.y, y: BW - r.x - r.w, w: r.h, h: r.w });
+  const part = (p: DevicePart): DevicePart => ({ ...p, rect: turn(p.rect) });
+  return {
+    screen: turn(upright.screen),
+    screenRadius,
+    frame: upright.frame.map(part),
+    over: upright.over.map(part),
   };
 }
 

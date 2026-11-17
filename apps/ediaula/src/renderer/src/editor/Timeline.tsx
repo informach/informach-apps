@@ -40,6 +40,8 @@ import {
   BoxSelect,
   ChevronsDownUp,
   ChevronsUpDown,
+  Clock,
+  Copy,
   Eye,
   EyeOff,
   Film,
@@ -82,6 +84,7 @@ import { createPortal } from "react-dom";
 import { actions } from "@/lib/actions";
 import { ANNOTATION_MIME, addAnnotation } from "@/lib/annotations";
 import { useClickEvents } from "@/lib/clickSounds";
+import { editInEdisvg } from "@/lib/edisvgLink";
 import { useFilmstrips } from "@/lib/filmstrip";
 import { rulerLabel, timecode } from "@/lib/format";
 import { importMedia } from "@/lib/importMedia";
@@ -111,6 +114,7 @@ import { ClipMenu } from "./ClipMenu";
 import { Filmstrip } from "./Filmstrip";
 import { addGainPoint, GainEnvelope } from "./GainEnvelope";
 import { ASSET_MIME, SOUND_MIME } from "./Library";
+import { LinkSeal, useLinkState } from "./LinkBadge";
 import { NarrationPanel } from "./NarrationPanel";
 import { RecordingBands } from "./RecordingBands";
 import { Waveform } from "./Waveform";
@@ -1834,6 +1838,14 @@ function IntervalFill({
   );
 }
 
+/** Puts a time on the clipboard and says what went. */
+function copyTime(text: string): void {
+  navigator.clipboard.writeText(text).then(
+    () => useApp.getState().toast(`Copiado: ${text}`, "success"),
+    () => useApp.getState().toast("Não deu para copiar para a área de transferência.", "error"),
+  );
+}
+
 function IntervalMarkers({
   interval,
   fps,
@@ -1847,6 +1859,7 @@ function IntervalMarkers({
 }): ReactNode {
   const time = usePlayback((s) => s.time);
   const [active, setActive] = useState<"start" | "end" | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; edge: "start" | "end" } | null>(null);
   const [position, setPosition] = useState({ left: 0, top: 0 });
   const startRef = useRef<HTMLButtonElement>(null);
   const endRef = useRef<HTMLButtonElement>(null);
@@ -1894,6 +1907,26 @@ function IntervalMarkers({
   useEffect(() => {
     if (!interval) setActive(null);
   }, [interval]);
+  const at = (edge: "start" | "end"): string => timecode(edge === "start" ? start : end, fps);
+  // Two clicks on a handle copy its time; the right button offers the other copies.
+  const handle = (edge: "start" | "end") => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      if (e.button === 0) setActive(e.shiftKey ? null : edge);
+      onDrag(e, edge);
+    },
+    onDoubleClick: (e: React.MouseEvent) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      copyTime(at(edge));
+    },
+    onContextMenu: (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setActive(null);
+      setMenu({ x: e.clientX, y: e.clientY, edge });
+    },
+  });
   return (
     <>
       <button
@@ -1902,10 +1935,8 @@ function IntervalMarkers({
         className="tl-interval-handle is-start"
         style={{ left: start * zoom }}
         aria-label="Início do intervalo"
-        onPointerDown={(e) => {
-          if (e.button === 0) setActive(e.shiftKey ? null : "start");
-          onDrag(e, "start");
-        }}
+        title="Arraste para marcar o início. Duplo clique copia o tempo; botão direito, mais opções."
+        {...handle("start")}
       />
       <button
         type="button"
@@ -1913,11 +1944,38 @@ function IntervalMarkers({
         className="tl-interval-handle is-end"
         style={{ left: end * zoom }}
         aria-label="Fim do intervalo"
-        onPointerDown={(e) => {
-          if (e.button === 0) setActive(e.shiftKey ? null : "end");
-          onDrag(e, "end");
-        }}
+        title="Arraste para marcar o fim. Duplo clique copia o tempo; botão direito, mais opções."
+        {...handle("end")}
       />
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          items={[
+            {
+              icon: Copy,
+              label: `Copiar o tempo do ${menu.edge === "start" ? "início" : "fim"}`,
+              shortcut: at(menu.edge),
+              onSelect: () => copyTime(at(menu.edge)),
+            },
+            {
+              icon: Copy,
+              label: "Copiar o intervalo",
+              hint: "Início e fim, como no rodapé da linha do tempo",
+              disabled: end <= start,
+              onSelect: () => copyTime(`${at("start")} – ${at("end")}`),
+            },
+            {
+              icon: Clock,
+              label: "Copiar a duração",
+              shortcut: timecode(end - start, fps),
+              disabled: end <= start,
+              onSelect: () => copyTime(timecode(end - start, fps)),
+            },
+          ]}
+        />
+      )}
       {active &&
         createPortal(
           <div className="tl-interval-tooltip" role="tooltip" style={position}>
@@ -2030,6 +2088,8 @@ const ClipView = memo(function ClipView({
   // The filmstrip once its sheets are known to be on disk; the thumbnail until then.
   const stripPath = asset?.filmstrip?.path;
   const stripReady = useFilmstrips((s) => !!stripPath && !!s.ready[stripPath]);
+  // An animation linked to EdiSVG: its seal, and two clicks open it there.
+  const link = useLinkState(asset?.link);
   const left = clip.start * zoom;
   const width = Math.max(2, clip.duration * zoom);
   // Skip clips far off screen.
@@ -2054,12 +2114,18 @@ const ClipView = memo(function ClipView({
       onPointerDown={(e) => onPointerDown(e, clip, "body")}
       onContextMenu={(e) => onContextMenu(e, clip)}
       onDoubleClick={(e) => {
+        // Two clicks on an animation linked to EdiSVG: it opens there to be edited.
+        if (asset?.link) {
+          e.stopPropagation();
+          void editInEdisvg(asset.id);
+          return;
+        }
         // Two clicks on a selected clip with sound: a point of its volume envelope there.
         if (!selected || !asset?.hasAudio || clip.zoomLayer || clip.regionFx) return;
         e.stopPropagation();
         addGainPoint(clip, (e.clientX - e.currentTarget.getBoundingClientRect().left) / zoom);
       }}
-      title={`${name}${clipSpeed(clip) !== 1 ? ` · velocidade ${speedLabel(clipSpeed(clip))}` : ""}`}
+      title={`${name}${clipSpeed(clip) !== 1 ? ` · velocidade ${speedLabel(clipSpeed(clip))}` : ""}${link ? `\n${link.hint}` : ""}`}
     >
       {kind === "video" && !sound && asset?.filmstrip && stripReady ? (
         <Filmstrip
@@ -2103,6 +2169,7 @@ const ClipView = memo(function ClipView({
       {width > 28 && (
         <div className="clip-label">
           {clip.groupId && <Link2 size={11} aria-label="Em um grupo" />}
+          {link && <LinkSeal state={link.state} compact={width < 110} />}
           <Icon size={11} />
           <span>
             {clip.zoomLayer

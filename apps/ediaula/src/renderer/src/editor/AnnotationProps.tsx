@@ -15,6 +15,7 @@ import {
   type Pointer,
   type Tail,
 } from "@shared/annotation";
+import { usablePolygon } from "@shared/compose";
 import { DEFAULT_DIM } from "@shared/dim";
 import {
   BOARD_COLORS,
@@ -30,7 +31,7 @@ import { plural } from "@shared/plural";
 import { SHAPE_LIMITS } from "@shared/shapeResize";
 import { clipEnd } from "@shared/timeline";
 import type { Clip } from "@shared/types";
-import { MessageSquareText, PenLine, Type, X } from "lucide-react";
+import { MessageSquareText, PenLine, PenTool, Type, X } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { ICON_COMPONENTS } from "@/lib/annotationIcons";
 import { updateAnnotation } from "@/lib/annotations";
@@ -370,6 +371,13 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
     void updateAnnotation(clip.id, c);
   };
   const hasText = TEXT_KINDS.has(a.kind);
+  const penOn = useApp((s) => s.highlightPen === clip.id);
+  /** The pen over the preview, with the playhead on the Destaque so it shows. */
+  const drawPolygon = (): void => {
+    const now = usePlayback.getState().time;
+    if (now < clip.start || now >= clipEnd(clip)) playback.seek(clip.start);
+    useApp.getState().set({ highlightPen: clip.id });
+  };
   const fullFrame = a.kind === "card" || fillsFrame(a);
   const ol = a.outline ?? defaultOutline(a);
   const setOutline = (c: Partial<Outline>): void => {
@@ -747,9 +755,29 @@ export function AnnotationSection({ clip }: { clip: Clip }): ReactNode {
               ["rect", "Reta"],
               ["ellipse", "Elipse"],
               ["triangle", "Triângulo"],
+              // The Destaque's own shape, drawn with the pen over the screen.
+              ...(a.kind === "highlight" ? [["polygon", "Polígono"] as ["polygon", string]] : []),
             ]}
-            onPick={(shape) => set({ shape })}
+            onPick={(shape) =>
+              // A polygon not drawn yet is drawn first.
+              shape === "polygon" && !usablePolygon(a.polygon) ? drawPolygon() : set({ shape })
+            }
           />
+          {a.kind === "highlight" && (
+            <div className="chip-row">
+              <button
+                type="button"
+                className={`chip ${penOn ? "is-active" : ""}`}
+                aria-pressed={penOn}
+                onClick={() =>
+                  penOn ? useApp.getState().set({ highlightPen: null }) : drawPolygon()
+                }
+                title="Caneta: clique na prévia para cada canto do polígono, em volta do que quer destacar. Feche clicando no primeiro ponto, com dois cliques ou Enter; Backspace desfaz o último ponto, Esc cancela."
+              >
+                <PenTool size={12} /> {penOn ? "Cancelar a caneta" : "Desenhar polígono na tela"}
+              </button>
+            </div>
+          )}
           <Slider
             label="Largura"
             value={a.boxWidth ?? 360}

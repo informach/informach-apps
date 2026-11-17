@@ -30,16 +30,42 @@ export type FontPair = z.infer<typeof fontPairSchema>;
 /** The fonts of a recipe that names none, and of the ready ones: Baloo 2 and Nunito. */
 export const DEFAULT_FONTS: FontPair = { title: "Baloo 2", body: "Nunito" };
 
+/**
+ * A style guide picture (PNG, JPEG or WebP) kept in EdiSVG's profile by the hash of its bytes
+ * (main/pipelineGuides.ts): the assistant gets it with every run and follows it.
+ */
+export const guideImageSchema = z.strictObject({
+  id: z.string().regex(/^guide-[0-9a-f]{32}$/),
+  name: z.string().trim().min(1).max(260),
+});
+export type GuideImage = z.infer<typeof guideImageSchema>;
+
+/**
+ * What a run takes from a style guide picture: the colours of the texts (the light one of cards
+ * and balloons first, the ink next, the accent last) and the fonts of titles and body text, from
+ * the fonts that come with EdiSVG. Read once per picture and kept with it.
+ */
+export const guideStyleSchema = z.strictObject({
+  textPalette: z.array(z.string().regex(HEX)).min(2).max(12),
+  fonts: fontPairSchema,
+});
+export type GuideStyle = z.infer<typeof guideStyleSchema>;
+
 export const recipeSchema = z.strictObject({
   id: z.string().regex(/^recipe-[\w-]{1,80}$/),
   name: z.string().trim().min(1).max(80),
   kind: z.enum(RECIPE_KINDS),
   /** What the assistant is asked to do, in the person's words. */
   style: z.string().max(4000),
-  /** Colours for the texts of the animation, in order of use (the first is the main one). */
+  /**
+   * Colours for the texts of the animation (the first is the main one) and the fonts, used only
+   * when the run has no style guide: with one, both come from the guide. Not edited on screen.
+   */
   textPalette: z.array(z.string().regex(HEX)).min(1).max(12),
   /** Fonts of the titles and of the body text (a recipe saved before them takes the defaults). */
   fonts: fontPairSchema.default(DEFAULT_FONTS),
+  /** The style guide picture of every run: its colours, fonts and rules (none: the defaults). */
+  guideImage: guideImageSchema.optional(),
 });
 export type Recipe = z.infer<typeof recipeSchema>;
 
@@ -192,6 +218,12 @@ const LESSON_AUDIO: RecipeInput = {
   accepts: ["audio", "lesson"],
 };
 
+/** A recipe or the inputs of a run with `guide` as its style guide picture (undefined: none). */
+export function withGuide<T extends { guideImage?: GuideImage }>(value: T, guide?: GuideImage): T {
+  const { guideImage: _, ...rest } = value;
+  return (guide ? { ...rest, guideImage: guide } : rest) as T;
+}
+
 /** What a recipe asks for when it runs, by kind (the palette comes from the recipe, editable). */
 export const RECIPE_INPUTS: Record<RecipeKind, readonly RecipeInput[]> = {
   "game-scene": [
@@ -220,6 +252,8 @@ export const runInputsSchema = z.strictObject({
   script: z.string().trim().min(1).max(20000),
   textPalette: z.array(z.string().regex(HEX)).min(1).max(12),
   fonts: fontPairSchema,
+  /** The style guide of this run (the recipe's, another one, or none). */
+  guideImage: guideImageSchema.optional(),
   /**
    * The EdiAula lesson the audio comes from (a package): its id, the section of its script, and
    * the phrases picked from it (empty when the roteiro was written by hand). The run records the

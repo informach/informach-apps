@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { actions } from "@/lib/actions";
+import { editInEdisvg } from "@/lib/edisvgLink";
 import { duration } from "@/lib/format";
 import { mediaUrl } from "@/lib/media";
 import { rerecordGuided } from "@/lib/recording";
@@ -45,6 +46,7 @@ import { previewSound } from "@/lib/soundPreview";
 import { type LibraryFilter, useApp } from "@/state/app";
 import { useProject } from "@/state/project";
 import { Badge, Chip } from "@/ui";
+import { LinkSeal, useLinkState } from "./LinkBadge";
 
 export const ASSET_MIME = "application/x-ediaula-assets";
 /** A sound effect of the library dragged to the timeline (its id, shared/soundEffects.ts). */
@@ -406,6 +408,7 @@ function AssetCard({
 }): ReactNode {
   const Icon = KIND_ICON[asset.kind];
   const is4k = asset.height >= 2160;
+  const link = useLinkState(asset.link);
   return (
     <fieldset
       aria-label={asset.name}
@@ -473,6 +476,20 @@ function AssetCard({
               }}
             >
               <RotateCcw size={10} /> Regravar e substituir
+            </button>
+          )}
+          {link && (
+            <button
+              type="button"
+              className="badge badge-button link-seal-button"
+              title={`${link.hint}. Clique para abrir no EdiSVG.`}
+              aria-label={`Editar ${asset.name} no EdiSVG`}
+              onClick={(e) => {
+                e.stopPropagation();
+                void editInEdisvg(asset.id);
+              }}
+            >
+              <LinkSeal state={link.state} />
             </button>
           )}
           {is4k && <Badge tone="muted">4K</Badge>}

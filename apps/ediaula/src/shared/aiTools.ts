@@ -596,6 +596,28 @@ export const AI_TOOLS = {
       icon: z.enum(ICON_IDS as [AnnotationIcon, ...AnnotationIcon[]]).optional(),
       marker: z.enum(["circle", "square", "check", "none"]).optional(),
       bare: z.boolean().optional(),
+      dim: z
+        .number()
+        .min(0)
+        .max(0.9)
+        .optional()
+        .describe(
+          "highlight: darkens everything below it outside its box at this opacity (0.5 is the editor's default; 0 = no darkening)",
+        ),
+      scale: z
+        .number()
+        .min(0.1)
+        .max(5)
+        .optional()
+        .describe(
+          "Size as a multiple of the natural size (1 = as the Anotações panel draws it), e.g. to match a zoom of the tracks below when the annotation sits above the zoom layer",
+        ),
+      track_id: z
+        .string()
+        .optional()
+        .describe(
+          "Put it on this track (from get_overview): where it fits before the next clip of the track, or the nearest free track above when the place is taken",
+        ),
     }),
   },
   add_annotations: {
@@ -647,7 +669,7 @@ export const AI_TOOLS = {
     title: "Camada de zoom",
     permission: "write",
     description:
-      "Adds a zoom layer: while it lasts, everything on the tracks BELOW it is zoomed in toward (x, y) (fractions of the frame) at `scale` (1.1–5, default 1.6), easing in and out over `ease` seconds (zoom_in / zoom_out false: start already zoomed / stay zoomed until it ends and cut back); tracks above it (annotations, captions) stay as they are. A layer starting right where a layer that stays zoomed ends (same track) continues from that view: pan to another spot, or scale 1 to go back to normal. It goes on a new top track, so at first it zooms every track. Time it with near_text (exact words from the transcript) or at; duration in seconds (default 4). Returns the clip id. Undoable.",
+      "Adds a zoom layer: while it lasts, everything on the tracks BELOW it is zoomed in toward (x, y) (fractions of the frame) at `scale` (1.1–5, default 1.6), easing in and out over `ease` seconds (zoom_in / zoom_out false: start already zoomed / stay zoomed until it ends and cut back); tracks above it (annotations, captions) stay as they are. A layer starting right where a layer that stays zoomed ends (same track) continues from that view: pan to another spot, or scale 1 to go back to normal. It goes on a new top track, so at first it zooms every track, unless track_id names one. Time it with near_text (exact words from the transcript) or at; duration in seconds (default 4). Returns the clip id. Undoable.",
     input: z.object({
       near_text: z.string().optional(),
       at: z.number().min(0).optional(),
@@ -658,6 +680,12 @@ export const AI_TOOLS = {
       ease: z.number().min(0).max(2).optional(),
       zoom_in: z.boolean().optional(),
       zoom_out: z.boolean().optional(),
+      track_id: z
+        .string()
+        .optional()
+        .describe(
+          "Put the layer on this track (from get_overview) instead of a new top track: a single zoom track right above the screen recording zooms the recording and leaves every track above it alone",
+        ),
     }),
   },
   set_palette: {

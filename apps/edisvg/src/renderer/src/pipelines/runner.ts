@@ -1,8 +1,10 @@
+import { IMAGE_LIMIT } from "@informach/edi-desktop/ai-attachments";
 import { findScriptPiece, type HeardWord, type ScriptPiece } from "@informach/edi-speech/piece";
 import type { LessonClip } from "../../../shared/lessonClips";
 import {
   type BundledFamily,
   type BundledFont,
+  type GuideStyle,
   nearestWeight,
   type PickedFile,
   type Recipe,
@@ -11,7 +13,15 @@ import {
   spokenScript,
 } from "../../../shared/pipelines";
 import { elementSvgs } from "./elements";
-import { type DraftBoard, type DraftFonts, type DraftKit, draftRequest } from "./prompt";
+import { guideParts } from "./guideImage";
+import {
+  type DraftBoard,
+  type DraftFonts,
+  type DraftKit,
+  draftRequest,
+  guideStyleRequest,
+  parseGuideStyle,
+} from "./prompt";
 
 /**
  * Runs a recipe: its steps in order, each reporting progress, all stopped by Cancelar. A step that
@@ -73,7 +83,8 @@ export interface PipelineEditor {
   askAssistant(
     text: string,
     shown: string,
-    images?: { mediaType: string; data: string }[],
+    /** Base64 images, in order; `name` labels each in the assistant panel. */
+    images?: { mediaType: string; data: string; name?: string }[],
     onActivity?: (activity: AssistantActivity) => void,
   ): Promise<{ text: string; stopped: boolean; edits: number; error?: string }>;
   /** A new artboard of this size, opened (the transparent layer of a demonstration). */
@@ -143,6 +154,11 @@ export interface PipelineBridge {
     jobId: string,
   ): Promise<Uint8Array>;
   pipelineCancel(jobId: string): Promise<void>;
+  /** A style guide picture kept in the profile (main/pipelineGuides.ts). */
+  pipelineGuideRead(id: string): Promise<{ mediaType: string; bytes: Uint8Array }>;
+  /** The colours and fonts read from a guide picture before (null: never read). */
+  pipelineGuideStyle(id: string): Promise<GuideStyle | null>;
+  pipelineGuideStyleSave(id: string, style: GuideStyle): Promise<void>;
   onPipelineProgress(callback: (event: { jobId: string; ratio: number }) => void): () => void;
 }
 
@@ -383,10 +399,10 @@ const embedFonts: PipelineStep = {
     const families = await ctx.bridge.pipelineFonts();
     const weightsOf = (family: string) => {
       const found = families.find((item) => item.family === family);
-      if (!found) throw new Error(`A fonte ${family} não vem com o EdiSVG: escolha outra.`);
+      if (!found) throw new Error(`A fonte ${family} não vem com o EdiSVG.`);
       return found.weights;
     };
-    const { title, body } = ctx.inputs.fonts;
+    const { title, body } = runStyle(ctx).fonts;
     const wanted = [
       { family: title, weight: nearestWeight(weightsOf(title), 700) },
       { family: body, weight: nearestWeight(weightsOf(body), 400) },
@@ -422,7 +438,7 @@ const addElements: PipelineStep = {
   async run(ctx) {
     const fonts = ctx.results.fonts as DraftFonts | undefined;
     ctx.results.elements = ctx.editor.addArtboards(
-      elementSvgs(ctx.inputs.textPalette),
+      elementSvgs(runStyle(ctx).textPalette),
       fonts?.bodyBold.assetId,
     );
   },
@@ -435,7 +451,7 @@ const applyPalettes: PipelineStep = {
   async run(ctx) {
     const images = (ctx.results.imagePalette as string[] | undefined) ?? [];
     const colors = [
-      ...new Set([...ctx.inputs.textPalette, ...images].map((c) => c.toLowerCase())),
+      ...new Set([...runStyle(ctx).textPalette, ...images].map((c) => c.toLowerCase())),
     ].slice(0, 64);
     ctx.editor.setPalette(colors);
     ctx.results.palette = colors;
@@ -455,19 +471,28 @@ const draftWithAssistant: PipelineStep = {
     const frame = (seconds: number) =>
       Math.max(0, Math.min(clip.frames, Math.round((seconds - lessonStart) * clip.fps)));
     const video = ctx.results.video as DemoVideo | undefined;
-    let images: { mediaType: string; data: string }[] = [];
+    // The style guide goes first, in parts the assistant can read; a demonstration keeps room for
+    // two frames of its video (a message takes IMAGE_LIMIT images).
+    let guide: Awaited<ReturnType<typeof guideParts>> = [];
+    if (ctx.inputs.guideImage) {
+      ctx.progress(0.01, "Preparando o guia de estilo");
+      const picture = await ctx.bridge.pipelineGuideRead(ctx.inputs.guideImage.id);
+      guide = await guideParts(picture, video ? IMAGE_LIMIT - 2 : IMAGE_LIMIT);
+    }
+    let frames: { mediaType: string; data: string; name: string }[] = [];
     let demo: Parameters<typeof draftRequest>[0]["demo"];
     if (video) {
-      // Up to four frames, a moment into the first sentences, for the assistant to look at.
-      const pickedLines = piece.lines.slice(0, 4);
+      // Up to four frames (two with a guide), a moment into the first sentences, to look at.
+      const pickedLines = piece.lines.slice(0, IMAGE_LIMIT - guide.length);
       const times = pickedLines.map((l) =>
         Math.max(0, Math.min(video.duration - 0.1, l.start - piece.start + 0.3)),
       );
       if (times.length) {
         ctx.progress(0.02, "Tirando quadros do vídeo");
-        images = await job(ctx, (jobId) =>
+        const taken = await job(ctx, (jobId) =>
           ctx.bridge.pipelineVideoFrames(video.token, times, jobId),
         );
+        frames = taken.map((frame, i) => ({ ...frame, name: `Quadro ${i + 1} do vídeo` }));
       }
       demo = {
         video: { name: video.name, width: video.facts.width, height: video.facts.height },
@@ -489,11 +514,13 @@ const draftWithAssistant: PipelineStep = {
       clip: { id: clip.clipId, fps: clip.fps, frames: clip.frames },
       lines: piece.lines.map((l) => ({ text: l.text, from: frame(l.start), to: frame(l.end) })),
       images: (ctx.results.images as DraftBoard[] | undefined) ?? [],
-      textPalette: ctx.inputs.textPalette,
+      textPalette: runStyle(ctx).textPalette,
       fonts: (ctx.results.fonts as DraftFonts | undefined) ?? null,
       imagePalette: (ctx.results.imagePalette as string[] | undefined) ?? [],
       kit: ctx.editor.designKit(),
-      guide: ctx.editor.styleGuide(),
+      // The recipe's guide picture stands for the guide chosen in the assistant panel.
+      guide: guide.length ? null : ctx.editor.styleGuide(),
+      guideParts: guide.length,
       lessonStart,
       ...(demo ? { demo } : {}),
     });
@@ -506,8 +533,8 @@ const draftWithAssistant: PipelineStep = {
       ctx.status("O assistente está animando");
       const turn = await ctx.editor.askAssistant(
         request,
-        `Pipeline "${ctx.recipe.name}": montar o rascunho da animação (${piece.lines.length} ${piece.lines.length === 1 ? "frase" : "frases"}, tempos e imagens enviados).`,
-        images,
+        `Pipeline "${ctx.recipe.name}": montar o rascunho da animação (${piece.lines.length} ${piece.lines.length === 1 ? "frase" : "frases"}, tempos e imagens enviados${guide.length ? ", com o guia de estilo" : ""}).`,
+        [...guide, ...frames],
         (activity) => ctx.status(assistantLine(activity)),
       );
       ctx.signal.throwIfAborted();
@@ -533,10 +560,63 @@ const draftWithAssistant: PipelineStep = {
   },
 };
 
-/** The steps of each kind of recipe, in order. */
-export function stepsFor(kind: RecipeKind): PipelineStep[] {
+/** The colours and fonts of the run: read from the style guide, or the recipe's when it has none. */
+export const runStyle = (ctx: Pick<StepContext, "inputs" | "results">): GuideStyle =>
+  (ctx.results.style as GuideStyle | undefined) ?? {
+    textPalette: ctx.inputs.textPalette,
+    fonts: ctx.inputs.fonts,
+  };
+
+/**
+ * The colours and fonts of the style guide picture, read by the assistant the first time and kept
+ * with the picture (main/pipelineGuides.ts), so later runs with the same guide go straight on.
+ */
+const readGuideStyle: PipelineStep = {
+  id: "guide",
+  label: "Ler as cores e as fontes do guia de estilo",
+  async run(ctx) {
+    const guide = ctx.inputs.guideImage;
+    if (!guide) return;
+    const kept = await ctx.bridge.pipelineGuideStyle(guide.id);
+    let style: GuideStyle;
+    if (kept) style = kept;
+    else {
+      ctx.progress(0.05, "Preparando o guia de estilo");
+      const families = (await ctx.bridge.pipelineFonts()).map((f) => f.family);
+      const parts = await guideParts(await ctx.bridge.pipelineGuideRead(guide.id), IMAGE_LIMIT);
+      ctx.signal.throwIfAborted();
+      const stop = () => ctx.editor.stopAssistant();
+      ctx.signal.addEventListener("abort", stop, { once: true });
+      try {
+        ctx.status("O assistente está lendo o guia");
+        const turn = await ctx.editor.askAssistant(
+          guideStyleRequest(parts.length, families),
+          `Pipeline "${ctx.recipe.name}": ler as cores e as fontes do guia de estilo ${guide.name}.`,
+          parts,
+          (activity) => ctx.status(assistantLine(activity)),
+        );
+        ctx.signal.throwIfAborted();
+        if (turn.stopped) throw new Error("O assistente foi interrompido antes de ler o guia.");
+        if (turn.error) throw new Error(turn.error);
+        style = parseGuideStyle(turn.text, families);
+      } finally {
+        ctx.signal.removeEventListener("abort", stop);
+      }
+      await ctx.bridge.pipelineGuideStyleSave(guide.id, style);
+    }
+    ctx.results.style = style;
+    ctx.report.push(
+      `Do guia de estilo: cores ${style.textPalette.join(", ")}; ${style.fonts.title} nos títulos e ${style.fonts.body} no corpo.`,
+    );
+  },
+};
+
+/** The steps of each kind of recipe, in order (with a style guide, reading it comes first). */
+export function stepsFor(kind: RecipeKind, guided = false): PipelineStep[] {
+  const guide = guided ? [readGuideStyle] : [];
   if (kind === "game-scene")
     return [
+      ...guide,
       importProject,
       findPiece,
       prepareNarration,
@@ -545,6 +625,7 @@ export function stepsFor(kind: RecipeKind): PipelineStep[] {
       draftWithAssistant,
     ];
   return [
+    ...guide,
     findPiece,
     prepareVideo,
     prepareNarration,

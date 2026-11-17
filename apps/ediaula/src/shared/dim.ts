@@ -1,5 +1,14 @@
 import { type Annotation, defaultOutline } from "./annotation.ts";
-import { clipLayout, shadowReach } from "./compose.ts";
+import {
+  clipLayout,
+  mirrorPolygon,
+  type Polygon,
+  type PolygonPoint,
+  polygonPath,
+  shadowReach,
+  usablePolygon,
+} from "./compose.ts";
+import { SHAPE_LIMITS } from "./shapeResize.ts";
 import type { Asset, Clip, ProjectSettings } from "./types.ts";
 
 /**
@@ -23,6 +32,11 @@ export interface DimHole {
   angle: number;
   /** A triangle flipped upside down (the clip's vertical flip). */
   flipV: boolean;
+  /**
+   * A polygon drawn with the pen: its corners as fractions of the box (before the turn), already
+   * mirrored as the clip is.
+   */
+  polygon?: Polygon;
   /** Black at this opacity around the box (the clip's own opacity included). */
   darkness: number;
 }
@@ -58,17 +72,17 @@ export function highlightBox(
   return { x: (1 - w) / 2, y: (1 - h) / 2, w, h, radius: (HIGHLIGHT_RADIUS * k) / picture.width };
 }
 
-/** The clear hole of a Destaque that darkens the rest, or null when it does not. */
-export function dimHole(
+/**
+ * Where a Destaque's box is on the frame: its center (after the clip's turn), its size in frame
+ * pixels (before the turn) and the clip's turn and flips.
+ */
+function placedBox(
   clip: Pick<Clip, "annotation" | "transform">,
+  a: Annotation,
   asset: Pick<Asset, "width" | "height">,
   frame: Pick<ProjectSettings, "width" | "height">,
-): DimHole | null {
-  const a = clip.annotation;
-  if (a?.kind !== "highlight" || !a.dim || a.dim <= 0 || !asset.width || !asset.height) return null;
+) {
   const lay = clipLayout(clip, asset, frame);
-  const opacity = lay.opacity ?? 1;
-  if (opacity <= 0) return null;
   const b = highlightBox(a, asset);
   const t = clip.transform;
   // The box's center in the picture, mirrored with it, then turned around the visible part's
@@ -82,18 +96,129 @@ export function dimHole(
   const turn = (lay.rotation * Math.PI) / 180;
   const dx = x - vx;
   const dy = y - vy;
-  const shape = a.shape ?? "rounded";
-  const w = b.w * lay.full.w;
-  const h = b.h * lay.full.h;
   return {
-    shape,
+    lay,
+    radius: b.radius * lay.full.w,
     cx: vx + dx * Math.cos(turn) - dy * Math.sin(turn),
     cy: vy + dx * Math.sin(turn) + dy * Math.cos(turn),
+    w: b.w * lay.full.w,
+    h: b.h * lay.full.h,
+    angle: lay.rotation,
+    flipH: !!t?.flipH,
+    flipV: !!t?.flipV,
+  };
+}
+
+/**
+ * A polygon drawn with the pen over the frame (corners as fractions of it) as the Destaque's
+ * shape: the box around it, in the box's own (turned) directions and in the annotation's 1080p
+ * pixels at the size the clip shows now; the corners as fractions of that box, in the picture's
+ * directions (mirrored back when the clip is flipped); and how far the clip goes (fractions of
+ * the frame) so the box lands where the polygon was drawn.
+ */
+export function drawnHighlight(
+  polygon: readonly (readonly PolygonPoint[])[],
+  clip: Pick<Clip, "annotation" | "transform">,
+  asset: Pick<Asset, "width" | "height">,
+  frame: Pick<ProjectSettings, "width" | "height">,
+): { boxWidth: number; boxHeight: number; polygon: Polygon; dx: number; dy: number } | null {
+  const a = clip.annotation;
+  const shapes = polygon.filter((outline) => outline.length >= 3);
+  if (a?.kind !== "highlight" || !shapes.length || !asset.width || !asset.height) return null;
+  const at = placedBox(clip, a, asset, frame);
+  /** Frame pixels per 1080p pixel of the box, as the clip shows it now. */
+  const unit = at.w / (a.boxWidth ?? 360);
+  if (!(unit > 0)) return null;
+  const turn = (at.angle * Math.PI) / 180;
+  const cos = Math.cos(turn);
+  const sin = Math.sin(turn);
+  const local = shapes.map((outline) =>
+    outline.map(([fx, fy]): PolygonPoint => {
+      const x = fx * frame.width - at.cx;
+      const y = fy * frame.height - at.cy;
+      return [x * cos + y * sin, -x * sin + y * cos];
+    }),
+  );
+  const xs = local.flat().map((p) => p[0]);
+  const ys = local.flat().map((p) => p[1]);
+  const x0 = Math.min(...xs);
+  const y0 = Math.min(...ys);
+  const w = Math.max(1, Math.max(...xs) - x0);
+  const h = Math.max(1, Math.max(...ys) - y0);
+  const mx = x0 + w / 2;
+  const my = y0 + h / 2;
+  const r = (v: number): number => Math.round(v * 1e5) / 1e5;
+  const L = SHAPE_LIMITS;
+  return {
+    boxWidth: Math.round(Math.min(L.maxW, Math.max(L.minW, w / unit))),
+    boxHeight: Math.round(Math.min(L.maxH, Math.max(L.minH, h / unit))),
+    polygon: mirrorPolygon(
+      local.map((outline) =>
+        outline.map(([x, y]): PolygonPoint => [r((x - x0) / w), r((y - y0) / h)]),
+      ),
+      at.flipH,
+      at.flipV,
+    ),
+    dx: (mx * cos - my * sin) / frame.width,
+    dy: (mx * sin + my * cos) / frame.height,
+  };
+}
+
+/**
+ * The shapes of a Destaque drawn with the pen where they are on the frame (fractions of it), as
+ * the pen takes them to draw more (drawnHighlight turns them back into the same Destaque).
+ */
+export function highlightPolygonOnFrame(
+  clip: Pick<Clip, "annotation" | "transform">,
+  asset: Pick<Asset, "width" | "height">,
+  frame: Pick<ProjectSettings, "width" | "height">,
+): Polygon | undefined {
+  const a = clip.annotation;
+  const drawn =
+    a?.kind === "highlight" && a.shape === "polygon" ? usablePolygon(a.polygon) : undefined;
+  if (!a || !drawn || !asset.width || !asset.height) return undefined;
+  const at = placedBox(clip, a, asset, frame);
+  const turn = (at.angle * Math.PI) / 180;
+  const cos = Math.cos(turn);
+  const sin = Math.sin(turn);
+  return mirrorPolygon(drawn, at.flipH, at.flipV).map((outline) =>
+    outline.map(([x, y]): PolygonPoint => {
+      const lx = (x - 0.5) * at.w;
+      const ly = (y - 0.5) * at.h;
+      return [
+        (at.cx + lx * cos - ly * sin) / frame.width,
+        (at.cy + lx * sin + ly * cos) / frame.height,
+      ];
+    }),
+  );
+}
+
+/** The clear hole of a Destaque that darkens the rest, or null when it does not. */
+export function dimHole(
+  clip: Pick<Clip, "annotation" | "transform">,
+  asset: Pick<Asset, "width" | "height">,
+  frame: Pick<ProjectSettings, "width" | "height">,
+): DimHole | null {
+  const a = clip.annotation;
+  if (a?.kind !== "highlight" || !a.dim || a.dim <= 0 || !asset.width || !asset.height) return null;
+  const at = placedBox(clip, a, asset, frame);
+  const opacity = at.lay.opacity ?? 1;
+  if (opacity <= 0) return null;
+  const drawn = a.shape === "polygon" ? usablePolygon(a.polygon) : undefined;
+  // A polygon not drawn yet is the rounded box, as its picture is (lib/annotations.ts).
+  const shape = a.shape === "polygon" && !drawn ? "rounded" : (a.shape ?? "rounded");
+  const { cx, cy, w, h } = at;
+  return {
+    shape,
+    cx,
+    cy,
     w,
     h,
-    radius: shape === "rounded" ? Math.min(b.radius * lay.full.w, w / 2, h / 2) : 0,
-    angle: lay.rotation,
-    flipV: !!t?.flipV,
+    radius: shape === "rounded" ? Math.min(at.radius, w / 2, h / 2) : 0,
+    angle: at.angle,
+    flipV: at.flipV,
+    // The picture shows its polygon mirrored with the clip; the hole is where it shows.
+    ...(drawn ? { polygon: mirrorPolygon(drawn, at.flipH, at.flipV) } : {}),
     darkness: Math.min(1, a.dim) * opacity,
   };
 }
@@ -105,8 +230,9 @@ export function dimHole(
 export function dimMaskSvg(hole: DimHole, W: number, H: number): string {
   const r = (v: number): string => (Math.round(v * 100) / 100).toString();
   const { cx, cy, w, h } = hole;
-  const shape =
-    hole.shape === "ellipse"
+  const shape = hole.polygon
+    ? `<path fill-rule="evenodd" transform="translate(${r(cx - w / 2)} ${r(cy - h / 2)})" d="${polygonPath(hole.polygon, w, h)}"/>`
+    : hole.shape === "ellipse"
       ? `<ellipse cx="${r(cx)}" cy="${r(cy)}" rx="${r(w / 2)}" ry="${r(h / 2)}"/>`
       : hole.shape === "triangle"
         ? `<polygon points="${triangleCorners(hole)
