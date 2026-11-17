@@ -177,6 +177,28 @@ export const meuJogo: ModuloDoJogo = {
 
 ## Testar um servidor de jogo sem o Recreio
 
+### Salvamento restrito
+
+`salvamentoRestrito: true` negocia no SDK uma capacidade distinta de gameplay.
+Quando disponível, `sessao.salvamento.estado()` consulta o próprio recibo e
+`finalizarDados(lote)` encerra o SDK normal e confirma um lote CAS imutável,
+preservando conflitos. A capacidade permite salvar depois da concessão normal,
+dentro da margem do servidor; não permite voltar a jogar ou renovar.
+
+`criarClienteDoHost` também implementa `ClienteDoHostComSalvamento`:
+`salvarSessao({ mundoId, sid, cerca, operacao: "preparar" })` fixa o encerramento;
+depois de persistir uma fotografia, a operação `"concluir"` envia `revisao` e
+`diarioSeq`. O servidor confere posse, vínculo, autoridade e bytes duráveis.
+Repetição conserva a mesma prova. O jogo deve pausar comandos e concluir a fila
+antes da preparação, mantendo os demais membros ativos.
+
+Contrato implantado em `3f2b1239`, com 0177/0178 e os modos desligados. O host
+negocia a capacidade quando a flag e o manifesto permitem; Morada mantém sua
+capacidade automática nula e saída manual confirmada. Contratos,
+gates e pendências em [salvamento restrito](../../docs/recreio/salvamento-restrito-2026-11-17.md).
+
+### Plataforma em memória
+
 ```ts
 import { criarEmissorDeTeste, criarPlataformaFalsa } from "@informach/recreio/testing";
 

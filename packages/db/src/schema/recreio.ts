@@ -309,6 +309,7 @@ export const recreioGameSessions = recreio.table(
     uniqueIndex("recreio_game_sessions_one_open").on(t.profileId).where(sql`${t.endedAt} is null`),
     unique("recreio_game_session_identity_profile").on(t.id, t.profileId),
     index("recreio_game_sessions_ended_seq").on(t.endedSeq).where(sql`${t.endedSeq} is not null`),
+    index("recreio_game_sessions_profile_ended").on(t.profileId, t.endedSeq),
     check(
       "recreio_game_sessions_end_reason",
       sql`${t.endReason} is null or ${t.endReason} in ('left', 'replaced', 'access_lost', 'signed_out', 'expired', 'permissions_changed')`,

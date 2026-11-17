@@ -1,5 +1,17 @@
 # Ensaio de restauração do backup de produção
 
+Repetido em **17/11/2026 às 12:38 UTC**, na preparação de 0177/0178:
+[evidência](evidencias/backup-logico-2026-11-17-pre-salvamento.json).
+19.202.661 bytes, 242 tabelas e 283.017 linhas; backup em 2.443 ms,
+restauração/comparação em 5.870 ms e processo total em 14.274 ms.
+Conteúdo e estrutura comparada idênticos. Temporários removidos, serviço
+`e0a2153d-fcc8-4d39-b205-41e78bfb9062` excluído, nenhum volume destacado;
+inventário novamente com 34 serviços. Executor homologado `6b51dd13`.
+Origem somente de leitura, sem migration ou seed neste ensaio. Consulta prévia
+confirmou dois mundos, dez fotos, sete sessões/81.920 bytes, 177 recibos,
+ausência da tabela de salvamento e famílias/checkpoint desligados. O índice
+regular de 0178 atua nesse volume pequeno; as migrations continuam pendentes.
+
 Nova execução em **17/11/2026 às 09:09 UTC**, antes das migrations candidatas
 0175/0176: [evidência](evidencias/backup-logico-2026-11-17-pre-checkpoint.json).
 19.161.865 bytes, 241 tabelas e 282.387 linhas; backup em 2.288 ms,

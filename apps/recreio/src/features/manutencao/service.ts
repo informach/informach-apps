@@ -4,7 +4,12 @@ import {
   apagarIngressosAntigos,
   encerrarSessoesVencidas,
 } from "@/features/sessao-de-jogo/repository";
-import { apagarConvitesAntigos, apagarIntencoesAntigas, apagarUsoAntigo } from "./repository";
+import {
+  apagarConvitesAntigos,
+  apagarIntencoesAntigas,
+  apagarSalvamentosAntigos,
+  apagarUsoAntigo,
+} from "./repository";
 
 /**
  * A rotina de manutenção do Recreio. Cada passo é idempotente e independente:
@@ -26,6 +31,7 @@ export async function executarManutencao(): Promise<{
   pareamentosApagados: number;
   aparelhosNaoConfirmadosEncerrados: number;
   diasDeUsoApagados: number;
+  recibosDeSalvamentoApagados: number;
 }> {
   const possesVencidas = await fecharPossesVencidas();
   const instanciasSumidas = await marcarInstanciasSumidas();
@@ -34,6 +40,7 @@ export async function executarManutencao(): Promise<{
   const convitesApagados = await apagarConvitesAntigos();
   const intencoes = await apagarIntencoesAntigas();
   const diasDeUsoApagados = await apagarUsoAntigo();
+  const recibosDeSalvamentoApagados = await apagarSalvamentosAntigos();
   return {
     possesVencidas,
     instanciasSumidas,
@@ -42,5 +49,6 @@ export async function executarManutencao(): Promise<{
     convitesApagados,
     ...intencoes,
     diasDeUsoApagados,
+    recibosDeSalvamentoApagados,
   };
 }

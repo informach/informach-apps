@@ -24,6 +24,9 @@ import {
 } from "../contrato/tokens";
 import type { PerfilId, SessaoDeAparelhoId, SessaoDeJogoId } from "../dominio/ids";
 import { verificarToken } from "../tokens/verificar";
+import { type DadosDoSalvamento, emitirSalvamento } from "./salvamento";
+
+export { type DadosDoSalvamento, verificarSalvamentoEmitido } from "./salvamento";
 
 /**
  * Emissão dos tokens do Recreio. Só o servidor do Recreio importa este
@@ -103,6 +106,7 @@ export type Emissor = {
   readonly kid: string;
   ingresso(dados: DadosDoIngresso): Promise<TokenEmitido>;
   sessao(dados: DadosDaSessao): Promise<TokenEmitido>;
+  salvamento(dados: DadosDoSalvamento): Promise<TokenEmitido>;
 };
 
 export function criarEmissor(opcoes: {
@@ -132,6 +136,7 @@ export function criarEmissor(opcoes: {
   return {
     emissor: opcoes.emissor,
     kid: opcoes.kid,
+    salvamento: (dados) => emitirSalvamento(opcoes, dados),
     async ingresso(dados) {
       const emitidoEm = Math.floor(dados.agora.getTime() / 1000);
       const expira = emitidoEm + VALIDADE_DO_INGRESSO_S;

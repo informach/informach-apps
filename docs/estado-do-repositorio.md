@@ -23,8 +23,18 @@ Famílias e checkpoint continuam `off`;
 [evidência](recreio/checkpoint-sessoes-2026-11-17.md). A integração `2475661`
 implantou a fonte funcional `f4a8a15`, após sete gates e CI compartilhado:
 API/consumidor genérico de checkpoint de mundo e aviso de dez minutos.
-Os dois modos seguem `off`; 0177 e o salvamento restrito continuam privados.
-F3 e F4–F11 ainda não concluídos.
+O salvamento restrito foi implantado em `3f2b1239`, após sete gates
+`44084574092`, CI compartilhado `44082653527`, restauração isolada e aplicação
+prévia de 0177/0178. 179 recibos e SHA conferidos; capacidade própria, host que
+exige recibo, agregado separado, supervisão, retenção e pausa de um minuto real
+homologados no CI. [Registro e prova operacional](recreio/salvamento-restrito-2026-11-17.md).
+Os dois modos continuam `off`, jogo interno `0`; isto não libera famílias/venda.
+F1 avança em fonte separada: capacidade sem jogador, seleção de cobertura,
+tela e emissão passaram nos sete gates `44093189247`; vínculo de destinatário
+e schema até 0181 passaram nos sete gates `44094451952`, com CI compartilhado
+ainda em curso. Nada dessa frente está em produção. Convite utilizável, aceite,
+saída e demais aceites de F1–F11 continuam abertos;
+[plano de adultos](recreio/grupos-adultos-2026-11-17.md).
 Preservar o Morada
 World2/protocolo1 público; a main local do checkout original contém D3 e não
 pode ser enviada diretamente. Continuar F0–F11 do registro, sem anunciar fechamento.

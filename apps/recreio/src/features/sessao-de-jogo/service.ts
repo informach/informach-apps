@@ -10,10 +10,12 @@ import {
 import {
   PedidoDeIngressoSchema,
   type SessaoAberta,
+  type SessaoRenovada,
   TrocaDeIngressoSchema,
 } from "@informach/recreio/contrato";
 import { verificarIngresso, verificarSessaoEmitida } from "@informach/recreio/emissor";
 import { avaliarAcesso } from "@/features/acesso/service";
+import { PrazoDaCredencialVencido } from "@/features/autoridade-de-jogo/aparelho-repository";
 import { jogoQueAbre, manifestoDoJogo } from "@/features/jogos/config";
 import { audit } from "@/lib/observability";
 import { limitarTentativas } from "@/lib/rate-limit";
@@ -102,6 +104,7 @@ export async function trocarIngresso(entrada: unknown): Promise<SessaoAberta> {
       ingresso,
       continuarAqui: pedido.continuarAqui === true,
       chaveDeTroca: pedido.chaveDeTroca,
+      suportaSalvamento: pedido.suportaSalvamento,
       sid: SessaoDeJogoIdSchema.parse(crypto.randomUUID()),
       emissor,
     });
@@ -174,9 +177,7 @@ export async function sessaoDeJogoDoToken(token: string | null): Promise<SessaoD
  * jogar. Se não, a sessão é encerrada aqui mesmo (a instância fica sabendo no
  * próximo batimento) e a resposta é `ACESSO_PERDIDO`.
  */
-export async function renovarSessao(
-  token: string | null,
-): Promise<{ token: string; expiraEm: string }> {
+export async function renovarSessao(token: string | null): Promise<SessaoRenovada> {
   const sessao = await conferirToken(token);
   if (sessao.motivoDoFim !== null)
     throw new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: sessao.motivoDoFim });
@@ -198,8 +199,9 @@ export async function renovarSessao(
   } catch (erro) {
     if (erro instanceof ErroDoRecreio) {
       if (erro.codigo === "SESSAO_INVALIDA") {
-        await encerrarSessaoDeJogo({ sid: sessao.sid, motivo: "signed_out", porQuem: "recreio" });
-        throw new ErroDoRecreio("ACESSO_PERDIDO", { motivo: "signed_out" });
+        const motivo = erro instanceof PrazoDaCredencialVencido ? "expired" : "signed_out";
+        await encerrarSessaoDeJogo({ sid: sessao.sid, motivo, porQuem: "recreio" });
+        throw new ErroDoRecreio("ACESSO_PERDIDO", { motivo });
       }
       if (erro.codigo === "ACESSO_PERDIDO" || erro.codigo === "POLITICA_INCOMPATIVEL") {
         const motivo =

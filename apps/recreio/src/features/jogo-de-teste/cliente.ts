@@ -92,6 +92,12 @@ export const jogoDeTeste: ModuloDoJogo = {
     let jaEntrou = false;
     let meuMembro: string | null = null;
     let pausado = false;
+    let finalizando: {
+      promessa: Promise<void>;
+      resolver: () => void;
+      recusar: (erro: unknown) => void;
+      timer: ReturnType<typeof setTimeout>;
+    } | null = null;
     let checkpointConfirmado: string | null = null;
     let checkpointPendente: {
       id: string;
@@ -132,6 +138,11 @@ export const jogoDeTeste: ModuloDoJogo = {
 
     function parar(): void {
       encerrado = true;
+      if (finalizando) {
+        clearTimeout(finalizando.timer);
+        finalizando.recusar(new ErroDoRecreio("INDISPONIVEL"));
+        finalizando = null;
+      }
       concluirCheckpoint(false);
       if (espera !== null) clearTimeout(espera);
       espera = null;
@@ -186,7 +197,13 @@ export const jogoDeTeste: ModuloDoJogo = {
       let fim: Extract<DoServidor, { t: "fim" }> | null = null;
       atual.addEventListener("open", () => {
         // A sessão vai no primeiro quadro, nunca no endereço.
-        if (socket === atual) enviar({ t: "entrar", token: contexto.sessao.token(), mundoId });
+        if (socket === atual)
+          enviar({
+            t: "entrar",
+            token: contexto.sessao.token(),
+            mundoId,
+            ...(contexto.sessao.salvamento ? { salvamento: true } : {}),
+          });
       });
       atual.addEventListener("message", (evento) => {
         if (socket !== atual || typeof evento.data !== "string") return;
@@ -205,6 +222,16 @@ export const jogoDeTeste: ModuloDoJogo = {
           checkpointConfirmado = null;
           somar.disabled = false;
           aviso.textContent = "";
+          return;
+        }
+        if (recebido.t === "salvamento") {
+          const pendente = finalizando;
+          finalizando = null;
+          if (pendente) {
+            clearTimeout(pendente.timer);
+            if (recebido.confirmado) pendente.resolver();
+            else pendente.recusar(new ErroDoRecreio("INDISPONIVEL"));
+          }
           return;
         }
         jaEntrou = true;
@@ -226,6 +253,10 @@ export const jogoDeTeste: ModuloDoJogo = {
     });
     sairPeloJogo.addEventListener("click", () => {
       if (encerrado) return;
+      if (contexto.sessao.salvamento) {
+        opcoes.aoSair();
+        return;
+      }
       parar();
       opcoes.aoSair();
     });
@@ -233,6 +264,35 @@ export const jogoDeTeste: ModuloDoJogo = {
     void conectar();
 
     return {
+      finalizar() {
+        if (finalizando) return finalizando.promessa;
+        if (!contexto.sessao.salvamento) return Promise.reject(new ErroDoRecreio("SEM_PERMISSAO"));
+        contexto.sessao.salvamento.parar();
+        pausado = true;
+        somar.disabled = true;
+        aviso.textContent = "Salvando antes de encerrar…";
+        // Se o transporte já caiu, a instância tem sua margem de reconexão;
+        // o host consulta o recibo e nunca aceita isto como confirmação.
+        if (socket?.readyState !== WebSocket.OPEN) return Promise.resolve();
+        let resolver = () => {};
+        let recusar = (_erro: unknown) => {};
+        const promessa = new Promise<void>((resolve, reject) => {
+          resolver = resolve;
+          recusar = reject;
+        });
+        finalizando = {
+          promessa,
+          resolver,
+          recusar,
+          timer: setTimeout(() => {
+            const pendente = finalizando;
+            finalizando = null;
+            pendente?.recusar(new ErroDoRecreio("INDISPONIVEL"));
+          }, 8000),
+        };
+        enviar({ t: "salvar" });
+        return promessa;
+      },
       checkpoint(pedido) {
         if (pedido.modo !== "server" || encerrado) return Promise.resolve(false);
         pausado = true;

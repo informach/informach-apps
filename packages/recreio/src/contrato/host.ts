@@ -8,6 +8,7 @@ import {
 } from "../dominio/ids";
 import { PAPEIS_NO_MUNDO, PARTICIPACAO_MAX } from "../dominio/mundos";
 import { TIPOS_DE_FOTOGRAFIA } from "../dominio/posse";
+import type { EstadoDeSalvamento } from "./salvamento";
 import type { ResultadoDeCheckpoint } from "./sdk";
 
 /**
@@ -239,6 +240,28 @@ export const CheckpointDoHostSchema = z.discriminatedUnion("confirmado", [
   }),
 ]);
 export type CheckpointDoHost = z.infer<typeof CheckpointDoHostSchema>;
+
+const salvamentoDoHost = {
+  sid: SessaoDeJogoIdSchema,
+  cerca: z.number().int().min(1).max(2147483647),
+};
+export const SalvamentoDoHostSchema = z.discriminatedUnion("operacao", [
+  z.strictObject({ ...salvamentoDoHost, operacao: z.literal("preparar") }),
+  z.strictObject({
+    ...salvamentoDoHost,
+    operacao: z.literal("concluir"),
+    revisao: naoNegativo.max(2147483647),
+    diarioSeq: naoNegativo.max(2147483647),
+  }),
+]);
+export type SalvamentoDoHost = z.infer<typeof SalvamentoDoHostSchema>;
+
+/** Duas fases: parar o SID antes da fotografia; confirmar somente a prova persistida. */
+export interface ClienteDoHostComSalvamento extends ClienteDoHostComCheckpoint {
+  salvarSessao(
+    pedido: SalvamentoDoHost & { mundoId: z.infer<typeof MundoIdSchema> },
+  ): Promise<EstadoDeSalvamento>;
+}
 
 /** Capacidade adicional; o host básico não promete implementar checkpoint de troca. */
 export interface ClienteDoHostComCheckpoint extends ClienteDoHost {

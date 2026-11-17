@@ -42,13 +42,14 @@ export const VersoesDeDadosSchema = z.strictObject({
 export const DadosGravadosSchema = z.strictObject({ revisao: RevisaoDeDadosSchema });
 export const DadosDescartadosSchema = z.strictObject({ descartado: z.literal(true) });
 
+export const GravacaoDeDadosSchema = z.strictObject({
+  operacao: z.literal("gravar"),
+  chave: ChaveDeDadosSchema,
+  revisao: RevisaoDeDadosSchema,
+  conteudo: Base64DeDadosSchema,
+});
 export const MutacaoDeDadosSchema = z.discriminatedUnion("operacao", [
-  z.strictObject({
-    operacao: z.literal("gravar"),
-    chave: ChaveDeDadosSchema,
-    revisao: RevisaoDeDadosSchema,
-    conteudo: Base64DeDadosSchema,
-  }),
+  GravacaoDeDadosSchema,
   z.strictObject({
     operacao: z.literal("resolver"),
     chave: ChaveDeDadosSchema,

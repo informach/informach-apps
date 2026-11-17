@@ -46,6 +46,16 @@ gates e partes ainda não integradas em [F3](../../docs/recreio/politicas-sessoe
 
 ## A base (lote P1)
 
+O salvamento final foi implantado em `3f2b1239`, com 0177/0178 e 179 recibos:
+[contrato e evidências](../../docs/recreio/salvamento-restrito-2026-11-17.md).
+O SDK negocia uma capacidade exclusiva de persistência; mundos usam preparação
+e conclusão pela instância com posse atual, foto posterior e SHA conferido.
+Sete gates e CI compartilhado passaram; famílias/checkpoint continuam desligados.
+O minuto real foi homologado com título interno no GitHub; isso não libera venda.
+O agregado separa a margem do orçamento de gameplay, e a supervisão mostra
+somente datas/durações recentes ao responsável atual. Recibos técnicos têm
+expurgo próprio de 24 horas em lotes, sem encerrar ou reativar sessões.
+
 - Conta Informach por `@informach/auth`: senha ou código por e-mail (OTP para confirmar, entrar e redefinir senha), sem organizations. Sessões no Redis (`recreio:auth:`) com o cache de cookie desligado, para que sair ou revogar valha na hora.
 - `/` (página pública do alfa), `/entrar`, `/estante` e `/conta` (as duas exigem conta com e-mail confirmado e perfil ativo, conferidos no layout e em cada página), `/termos` e `/privacidade` provisórios.
 - `src/proxy.ts` só entrega a CSP com nonce e o caminho de volta do login. A autenticação fica no servidor, em layouts, páginas e ações. A política é montada em `lib/csp.ts`.

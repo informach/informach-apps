@@ -36,7 +36,7 @@ Um teste isolado ou uma tela não encerra a linha.
 | F0 — SDK independente | Dados opacos por perfil/jogo com revisão, conflitos preservados e cotas; conquistas idempotentes; jogo interno sem mundos prova gravar, recarregar e recuperar conflito sem importar Morada | Implantado em `6b51dd13`; prova do jogo interno no CI |
 | F1 — Conta e perfis | Gestão sem perfil de jogador; criação própria/menor, convite e saída de adulto, até quatro cobertos, mesmos IDs/progresso; titularidade comercial não concede poderes sobre outros adultos | Gestão e cadastro implantados, famílias desligadas; convites/cobertura de adultos pendentes |
 | F2 — Aparelhos e proteção | Pareamento de uso único, expiração, credencial restrita, PIN seguro, gerações e revogação; perfil infantil não abre administração por chamada direta | Pareamento/PIN/contexto, seleção e estante protegida implantados com fluxo desligado; ativação depende dos aceites restantes |
-| F3 — Políticas e sessões | Faixa social e classificação separadas; regras versionadas, conteúdo de mundo, horários, tempo agregado e confirmação da troca de aparelho; autoridade atual no servidor | Fonte funcional f4a8a15 integrada em 2475661, sete gates e produção conferida, 0175/0176; API/consumidor de mundo e aviso implementados com modos desligados; salvamento no corte/0177 ainda privados |
+| F3 — Políticas e sessões | Faixa social e classificação separadas; regras versionadas, conteúdo de mundo, horários, tempo agregado e confirmação da troca de aparelho; autoridade atual no servidor | Salvamento restrito, pausa, agregado e retenção implantados em 3f2b1239, após sete gates/CI compartilhado e 0177/0178; modos desligados, ativação depende dos demais aceites |
 | F4 — Social e moderação | Amizade por código, aprovações, presença privada, convite por destinatário, bloqueio/silêncio/denúncia; fila e ações auditadas sem acesso ao conteúdo dos mundos | Pendente |
 | F5 — Mundos | Coadministração, convites de membro aprovados, visitas revogáveis com prazo e anfitrião, arquivamento/retomada; preservar membros e progresso dos demais | Parcial: saída/remoção/transferência implantadas |
 | F6 — Comercial | Teste sem cartão iniciado na primeira sessão, preços configurados por modo, Checkout/portal próprios, webhooks e reconciliação isolados, renovação, cancelamento, troca e eventos adversos homologados | Pendente |
@@ -79,6 +79,11 @@ e [orientação da ANPD de 28/10/2026](https://www.gov.br/anpd/pt-br/assuntos/no
 São bases de implementação; não declarar parecer jurídico ou homologação externa.
 
 ## Execução atual
+
+O incremento de adultos e cobertura de F1 tem
+[plano próprio](grupos-adultos-2026-11-17.md), sem misturar sua futura migration
+à qualificação do salvamento restrito. Não há convite comercial de adultos
+homologado por esse documento.
 
 Primeiro subprojeto: [SDK e dados de perfil](dados-de-perfil-2026-11-16.md).
 Em 17/11, [checkpoint e troca](checkpoint-sessoes-2026-11-17.md) e

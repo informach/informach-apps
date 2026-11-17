@@ -1,0 +1,64 @@
+{
+  "conferidoEm": "2026-11-17T13:52:44Z",
+  "fonteIntegrada": "3f2b1239f0f8f00c28e9eac65410aba99b0f23d5",
+  "fonteFuncional": "eae5d088d72d53b1c336fa0a7b99912b8c97dc2f",
+  "gatesRecreio": 44084574092,
+  "ciCompartilhado": 44082653527,
+  "fonteDoCiCompartilhado": "f2bd1dc56e7a7a9b052766607e3965b78cc3d650",
+  "deltaFuncionalDoCi": "Somente asserção do minuto real, coberta pelos sete gates finais.",
+  "portal": {
+    "deployment": "4062cc6e-acbe-4069-9c39-1f44b9d4e8df",
+    "status": "SUCCESS",
+    "shaConferidoPorSsh": true,
+    "ready": 200,
+    "salvamentoSemBearer": 401
+  },
+  "morada": {
+    "deployment": "f03b76b9-f316-4acf-a52d-abd79cc7cf80",
+    "status": "SUCCESS",
+    "shaConferidoPorSsh": true,
+    "ready": 200,
+    "world": 2,
+    "protocolo": 1,
+    "arte": 3
+  },
+  "migrator": {
+    "deployment": "91332c3e-46f1-44b9-94bf-78f7a69808eb",
+    "status": "SUCCESS",
+    "fonteFixadaDuranteAplicacao": "eae5d088d72d53b1c336fa0a7b99912b8c97dc2f",
+    "comandoDuranteAplicacao": "pnpm db:migrate",
+    "seedsExecutados": false,
+    "resetDeFonte": "09c185b3-3eff-4324-bc13-afa869ea823b",
+    "statusDoReset": "SKIPPED",
+    "fonteFinal": "main, sem commit fixado",
+    "comandoOriginalRestaurado": "pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference"
+  },
+  "banco": {
+    "recibos": 179,
+    "ultimoIndice": "0178_regular_manta",
+    "hash0177": "928c8bf90cd72c7c643485dddd383248e53295f7679e3f91d48a12f0c551760d",
+    "hash0178": "725b267260e5d894c4ea8be9f7445437e02a4cffa9eb298750f6e0e5a09ea061",
+    "tabelaSalvamentoExiste": true,
+    "indicesDeSalvamentoConferidos": 2,
+    "colunaDeMargemConferida": true,
+    "recibosDeSalvamento": 0,
+    "menores": 0,
+    "tabelaDeConvitesComerciaisExiste": false
+  },
+  "modos": { "familias": "off", "checkpoint": "off", "jogoInterno": "0" },
+  "manutencao": {
+    "status": 200,
+    "contagens": 11,
+    "instanciasSumidas": 1,
+    "demaisContagens": 0
+  },
+  "sentry": { "releaseId": "2098492348", "envioDeMapasConferido": true },
+  "backup": "backup-logico-2026-11-17-pre-salvamento.json",
+  "limites": [
+    "Não ativa famílias, checkpoint ou cobrança.",
+    "Não publica código de grupo comercial nem migrations 0179–0181.",
+    "Morada conserva salvamento manual e capacidade automática nula.",
+    "O ensaio lógico não comprova restauração do backup agendado nem RPO/RTO contratual.",
+    "Rollback precisa conservar leitores, capacidade final e barreira de reconexão."
+  ]
+}

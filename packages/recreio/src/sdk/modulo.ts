@@ -37,6 +37,8 @@ export type OpcoesDeMontagem = {
 };
 
 export type JogoMontado = {
+  /** Para comandos, esvazia a fila e solicita o recibo final. O host confere o servidor. */
+  finalizar?(): Promise<void>;
   /** Suspende comandos e confirma a fila durável. Ausência/falso não confirma a troca. */
   checkpoint?(pedido: { id: string; modo: "profile" | "server" }): Promise<boolean>;
   /** Só quando o servidor confirmou que nenhuma barreira foi aplicada. */
