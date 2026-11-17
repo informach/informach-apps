@@ -53,6 +53,12 @@ export const recreioSafetyReports = recreio.table(
     reviewRequestedAt: moment("review_requested_at"),
     reviewClientKey: uuid("review_client_key"),
     reviewRevision: integer("review_revision"),
+    /** Proveniência do recurso; não reatribui a autoria da denúncia. Nulo em recibos anteriores. */
+    reviewActorUserId: text("review_actor_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewActorKind: text("review_actor_kind").$type<"jogador" | "responsavel">(),
+    reviewRequestHash: text("review_request_hash"),
     createdAt: moment("created_at").notNull().defaultNow(),
     updatedAt: moment("updated_at").notNull().defaultNow(),
     closedAt: moment("closed_at"),
@@ -93,6 +99,10 @@ export const recreioSafetyReports = recreio.table(
     check(
       "recreio_safety_report_review_state",
       sql`${t.state}<>'recurso' or ${t.reviewRequestedAt} is not null`,
+    ),
+    check(
+      "recreio_safety_report_review_provenance",
+      sql`(${t.reviewActorUserId} is null and ${t.reviewActorKind} is null and ${t.reviewRequestHash} is null) or (${t.reviewRequestedAt} is not null and ${t.reviewActorKind} is not null and ${t.reviewActorKind} in ('jogador','responsavel') and ${t.reviewRequestHash} is not null and ${t.reviewRequestHash} ~ '^[a-f0-9]{64}$')`,
     ),
     check(
       "recreio_safety_report_dates",

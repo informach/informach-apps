@@ -30,3 +30,9 @@ export const RecursoDaRestricaoSchema = z.strictObject({
 export type RecursoDaRestricao = z.infer<typeof RecursoDaRestricaoSchema>;
 export const RecursoRecebidoSchema = z.strictObject({ protocolo: z.uuid(), repetido: z.boolean() });
 export type RecursoRecebido = z.infer<typeof RecursoRecebidoSchema>;
+export const RevisaoDeDenunciaSchema = z.strictObject({
+  protocolo: z.uuid(),
+  versaoDoCaso: z.int().min(1).max(2147483646),
+  recursoId: z.uuid(),
+});
+export type RevisaoDeDenuncia = z.infer<typeof RevisaoDeDenunciaSchema>;

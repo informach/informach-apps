@@ -594,6 +594,15 @@ projeção por conexão somente de leitura e rollback da consulta sem auditoria.
 O runner isolado gera sua própria chave descartável. Nenhuma credencial real
 foi criada, nem tabela social/novo console foi implantado.
 
+O acompanhamento da denúncia pelo próprio perfil também exige provenance do
+pedido de revisão, separada de quem registrou a denúncia. O schema candidato
+acrescenta conta/espécie do autor da revisão e hash do corpo, sem ampliar a
+retenção. Colunas nullable e check aditivo preservam recibos antigos sem essa
+prova; não inventar autoria nem aceitar replay exato de recurso antigo sem
+hash. Novos escritores devem gravar os três fatos de proveniência juntos.
+O perfil pareado nunca recebe a conta do responsável nem a identidade da outra
+pessoa; o responsável nativo só alcança perfis sob seu vínculo atual.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.
