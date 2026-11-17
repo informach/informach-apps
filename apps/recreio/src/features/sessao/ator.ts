@@ -50,6 +50,14 @@ export async function paginaDaConta(next?: string) {
   return { user, ...atual };
 }
 
+/** Gestão usa a conta nativa; um perfil infantil não herda essa autoridade. */
+export async function paginaDaGestao(next = "/conta") {
+  const pagina = await paginaDaConta(next);
+  if (pagina.ator.perfil?.tipo === "minor")
+    redirect(`/perfis?next=${encodeURIComponent(safeDestination(next))}`);
+  return pagina;
+}
+
 /** Página do portal: exige alguém jogando. Sem perfil vai criar; sem escolha vai escolher. */
 export async function paginaDoPortal(next?: string) {
   const pagina = await paginaDaConta();

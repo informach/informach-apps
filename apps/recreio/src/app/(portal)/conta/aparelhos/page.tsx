@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { DesconectarAparelho } from "@/features/aparelhos/components/desconectar-aparelho";
 import { listarAparelhos } from "@/features/aparelhos/service";
-import { type AtorComPerfil, paginaDoPortal } from "@/features/sessao/ator";
+import { type Ator, paginaDaGestao } from "@/features/sessao/ator";
 import { AppError } from "@/lib/errors";
 
 export const metadata = { title: "Aparelhos" };
@@ -12,7 +12,7 @@ const datas = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "America/Sao_Paulo",
 });
 
-async function carregar(ator: AtorComPerfil, apos: unknown) {
+async function carregar(ator: Ator, apos: unknown) {
   try {
     return await listarAparelhos(ator, apos);
   } catch (erro) {
@@ -27,7 +27,7 @@ export default async function Aparelhos({
 }: {
   searchParams: Promise<{ apos?: string | string[] }>;
 }) {
-  const { ator } = await paginaDoPortal();
+  const { ator } = await paginaDaGestao("/conta/aparelhos");
   const { apos } = await searchParams;
   const pagina = await carregar(ator, apos);
   return (

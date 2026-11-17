@@ -5,6 +5,7 @@ import {
   recreioDeviceSessions as devices,
   recreioGameSessions as games,
   recreioProfiles as profiles,
+  users,
 } from "@informach/db/schema";
 import {
   type ContaId,
@@ -12,6 +13,7 @@ import {
   type SessaoDeAparelhoId,
   SessaoDeAparelhoIdSchema,
 } from "@informach/recreio";
+import { sessaoDeLoginViva } from "@/features/sessao/login";
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao, travar } from "@/lib/repository";
@@ -41,23 +43,19 @@ async function limitarEspera(tx: Transacao) {
 }
 
 async function autorizar(tx: Transacao, ator: DonoDosAparelhos) {
+  const [conta] = await tx.select().from(users).where(eq(users.id, ator.contaId)).for("share");
+  assertAllowed(conta?.emailVerified, "AUTH", "Entre novamente para continuar.");
   const [perfil] = await tx
     .select({ id: profiles.id })
     .from(profiles)
-    .where(
-      and(
-        eq(profiles.userId, ator.contaId),
-        eq(profiles.kind, "adult"),
-        eq(profiles.status, "active"),
-      ),
-    )
+    .where(and(eq(profiles.userId, ator.contaId), eq(profiles.kind, "adult")))
     .for("share");
-  assertAllowed(perfil, "AUTH", "Entre no seu perfil adulto para continuar.");
   const [atual] = await tx
     .select({
       ...campos,
       ativo: devices.activeProfileId,
       revogado: devices.revokedAt,
+      authSessionId: devices.authSessionId,
     })
     .from(devices)
     .where(
@@ -69,16 +67,29 @@ async function autorizar(tx: Transacao, ator: DonoDosAparelhos) {
     )
     .for("share");
   assertAllowed(
-    atual && atual.ativo === perfil.id && atual.revogado === null,
+    atual &&
+      (atual.ativo === null || atual.ativo === perfil?.id) &&
+      atual.revogado === null &&
+      atual.authSessionId,
+    "AUTH",
+    "Entre novamente para continuar.",
+  );
+  assertAllowed(
+    await sessaoDeLoginViva({ authSessionId: atual.authSessionId, contaId: ator.contaId }),
     "AUTH",
     "Entre novamente para continuar.",
   );
   const [prazo] = await tx
-    .select({ valido: sql<boolean>`${devices.expiresAt} > ${AGORA}` })
+    .select({
+      valido: sql<boolean>`${devices.expiresAt} > ${AGORA} and not exists(select 1 from ${users} where ${users.id}=${ator.contaId} and ${users.banned} and (${users.banExpiresAt} is null or ${users.banExpiresAt} > ${AGORA}))`,
+    })
     .from(devices)
     .where(eq(devices.id, atual.id));
   assertAllowed(prazo?.valido, "AUTH", "Entre novamente para continuar.");
-  return { perfilId: PerfilIdSchema.parse(perfil.id), atual: aparelho(atual) };
+  return {
+    perfilId: atual.ativo && perfil ? PerfilIdSchema.parse(perfil.id) : null,
+    atual: aparelho(atual),
+  };
 }
 
 export async function listarAparelhosDaConta(
@@ -151,7 +162,7 @@ export async function revogarOutroAparelho(ator: DonoDosAparelhos, alvo: SessaoD
     await logAuditEventStrict(
       "recreio.device_session_revoked",
       ator.contaId,
-      { app: "recreio", deviceSessionId: alvo, profileId: perfilId },
+      { app: "recreio", deviceSessionId: alvo, ...(perfilId ? { profileId: perfilId } : {}) },
       { writer: tx },
     );
     return { revogado: true };

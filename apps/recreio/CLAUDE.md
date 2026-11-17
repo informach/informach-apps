@@ -18,6 +18,14 @@ O nome do pacote é `@informach/recreio-app`, porque `@informach/recreio` já é
 
 ## Camadas
 
+Gestão da conta usa `paginaDaGestao`, com sessão nativa e perfil jogador opcional;
+o layout não exige jogador. Estante, mundos e jogo continuam conferindo
+`paginaDoPortal` por página. Aparelhos revalida identidade, vínculo, login e
+prazo no repository e não depende da existência ou cobertura de um jogador.
+Selecionar perfil infantil ou usar credencial pareada não concede essa gestão.
+[Estado do incremento](../../docs/recreio/gestao-sem-perfil-2026-11-16.md):
+em candidata, sem atestar cadastro infantil/pareamento ou produção.
+
 - `src/app`: rotas e composição. Páginas não importam o banco.
 - `src/features/<área>`: `components/` (telas), `actions.ts` (server actions), `service.ts` (sem Next), `repository.ts` (banco). Lógica pura fica em arquivo próprio, com teste (`estante/catalogo.ts`, `perfis/regras.ts`, `acesso/cobertura.ts`, `acesso/texto.ts`). O que precisa do Next sem ser ação fica em arquivo próprio da área (`sessao/ator.ts`, `sessao/http.ts`).
 - `src/components`: peças visuais sem dados (marca, capa, formulário de entrada, moldura das páginas de texto).

@@ -5,58 +5,80 @@ import { EstadoDoAcesso } from "@/features/acesso/components/estado-do-acesso";
 import { avaliarAcesso } from "@/features/acesso/service";
 import { descreverAcesso } from "@/features/acesso/texto";
 import { AvatarDoPerfil } from "@/features/perfis/components/avatar";
-import { paginaDoPortal } from "@/features/sessao/ator";
+import { paginaDaGestao } from "@/features/sessao/ator";
 import { env } from "@/lib/env";
 
 export const metadata = { title: "Conta" };
 
 export default async function Conta() {
-  const { user, ator } = await paginaDoPortal();
-  const acesso = await avaliarAcesso({ profileId: ator.perfil.id });
-  const texto = descreverAcesso(acesso, { fechado: env.RECREIO_ACCESS_MODE === "fechado" });
+  const { user, ator, perfis } = await paginaDaGestao();
+  const perfil = ator.perfil;
+  const acesso = perfil ? await avaliarAcesso({ profileId: perfil.id }) : null;
+  const texto = acesso
+    ? descreverAcesso(acesso, { fechado: env.RECREIO_ACCESS_MODE === "fechado" })
+    : null;
   return (
     <>
       <h1 className="font-display text-4xl font-extrabold tracking-tight">Conta</h1>
       <div className="mt-8 grid max-w-2xl gap-5">
-        <section aria-labelledby="conta-perfil" className="painel p-5 sm:p-6">
-          <h2 id="conta-perfil" className="font-display text-xl font-bold">
-            Quem está jogando
-          </h2>
-          <div className="mt-3 flex items-center gap-4">
-            <AvatarDoPerfil avatar={ator.perfil.avatar} apelido={ator.perfil.apelido} />
-            <p className="min-w-0 flex-1 text-lg font-semibold [overflow-wrap:anywhere]">
-              {ator.perfil.apelido}
+        {!perfil && (
+          <section aria-labelledby="conta-sem-jogador" className="painel p-5 sm:p-6">
+            <h2 id="conta-sem-jogador" className="font-display text-xl font-bold">
+              Sua conta
+            </h2>
+            <p className="mt-2 text-tinta-suave">
+              Você pode administrar sua conta sem usar um perfil de jogador.
             </p>
-            <Link href="/perfis" className="rb rb-vazado">
-              Trocar de perfil
+            <Link href={perfis.length ? "/perfis" : "/comecar"} className="rb rb-vazado mt-4">
+              {perfis.length ? "Escolher quem joga" : "Criar meu perfil para jogar"}
             </Link>
-          </div>
-          <Link
-            href="/conta/perfil"
-            className="mt-4 inline-flex font-bold text-ceu underline underline-offset-4"
-          >
-            Editar perfil
-          </Link>
-        </section>
+          </section>
+        )}
+        {perfil && (
+          <section aria-labelledby="conta-perfil" className="painel p-5 sm:p-6">
+            <h2 id="conta-perfil" className="font-display text-xl font-bold">
+              Quem está jogando
+            </h2>
+            <div className="mt-3 flex items-center gap-4">
+              <AvatarDoPerfil avatar={perfil.avatar} apelido={perfil.apelido} />
+              <p className="min-w-0 flex-1 text-lg font-semibold [overflow-wrap:anywhere]">
+                {perfil.apelido}
+              </p>
+              <Link href="/perfis" className="rb rb-vazado">
+                Trocar de perfil
+              </Link>
+            </div>
+            <Link
+              href="/conta/perfil"
+              className="mt-4 inline-flex font-bold text-ceu underline underline-offset-4"
+            >
+              Editar perfil
+            </Link>
+          </section>
+        )}
 
-        <section aria-labelledby="conta-acesso" className="painel p-5 sm:p-6">
-          <EstadoDoAcesso texto={texto} id="conta-acesso" />
-        </section>
+        {texto && (
+          <section aria-labelledby="conta-acesso" className="painel p-5 sm:p-6">
+            <EstadoDoAcesso texto={texto} id="conta-acesso" />
+          </section>
+        )}
 
-        <section aria-labelledby="conta-mundos" className="painel p-5 sm:p-6">
-          <h2 id="conta-mundos" className="font-display text-xl font-bold">
-            Mundos
-          </h2>
-          <p className="mt-2 text-tinta-suave">
-            Confira seus vínculos e saia dos mundos em que não quiser continuar.
-          </p>
-          <Link
-            href="/conta/mundos"
-            className="mt-4 inline-flex font-bold text-ceu underline underline-offset-4"
-          >
-            Gerenciar participações
-          </Link>
-        </section>
+        {perfil && (
+          <section aria-labelledby="conta-mundos" className="painel p-5 sm:p-6">
+            <h2 id="conta-mundos" className="font-display text-xl font-bold">
+              Mundos
+            </h2>
+            <p className="mt-2 text-tinta-suave">
+              Confira seus vínculos e saia dos mundos em que não quiser continuar.
+            </p>
+            <Link
+              href="/conta/mundos"
+              className="mt-4 inline-flex font-bold text-ceu underline underline-offset-4"
+            >
+              Gerenciar participações
+            </Link>
+          </section>
+        )}
 
         <section aria-labelledby="conta-email" className="painel p-5 sm:p-6">
           <h2 id="conta-email" className="font-display text-xl font-bold">

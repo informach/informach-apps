@@ -34,7 +34,7 @@ Um teste isolado ou uma tela não encerra a linha.
 | Frente | Entrega e aceite | Estado |
 | --- | --- | --- |
 | F0 — SDK independente | Dados opacos por perfil/jogo com revisão, conflitos preservados e cotas; conquistas idempotentes; jogo interno sem mundos prova gravar, recarregar e recuperar conflito sem importar Morada | Em implementação |
-| F1 — Conta e perfis | Gestão sem perfil de jogador; criação própria/menor, convite e saída de adulto, até quatro cobertos, mesmos IDs/progresso; titularidade comercial não concede poderes sobre outros adultos | Pendente |
+| F1 — Conta e perfis | Gestão sem perfil de jogador; criação própria/menor, convite e saída de adulto, até quatro cobertos, mesmos IDs/progresso; titularidade comercial não concede poderes sobre outros adultos | Em implementação: gestão sem jogador em candidata; cadastro familiar ainda pendente |
 | F2 — Aparelhos e proteção | Pareamento de uso único, expiração, credencial restrita, PIN seguro, gerações e revogação; perfil infantil não abre administração por chamada direta | Pendente |
 | F3 — Políticas e sessões | Faixa social e classificação separadas; regras versionadas, conteúdo de mundo, horários, tempo agregado e confirmação da troca de aparelho; autoridade atual no servidor | Pendente |
 | F4 — Social e moderação | Amizade por código, aprovações, presença privada, convite por destinatário, bloqueio/silêncio/denúncia; fila e ações auditadas sem acesso ao conteúdo dos mundos | Pendente |

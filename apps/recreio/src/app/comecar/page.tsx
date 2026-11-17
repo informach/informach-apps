@@ -27,6 +27,13 @@ export default async function Comecar() {
       <section className="painel mt-8 p-5 sm:p-8">
         <CriarPerfil limites={{ min: APELIDO.min, max: APELIDO.max }} />
       </section>
+      <p className="mt-5 text-sm text-tinta-suave">
+        Para administrar sem jogar,{" "}
+        <Link href="/conta" className="font-bold text-ceu underline underline-offset-4">
+          abra sua conta
+        </Link>
+        .
+      </p>
       <div className="mt-8">
         <p className="text-sm font-semibold text-tinta-suave [overflow-wrap:anywhere]">
           Você entrou como {user.email}. Não é você?
