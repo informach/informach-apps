@@ -428,3 +428,10 @@ Artefato `14327802488`, SHA
 A reprodução negativa `44082281925` falhou exclusivamente na classificação
 indevida de vencimento como logout; a combinação com revogação real passou.
 Rodada completa corretiva ainda necessária, incluindo o restante do relatório.
+
+Na fonte `eae5d088`, o gate de checkpoint `44084574092` concluiu suas sete
+jornadas, incluindo o minuto real, recusa direta e supervisão. A integração
+passou com 518 testes/46 arquivos. A matriz completa e o CI compartilhado ainda
+estão em execução; isto não autoriza implantação. A nova restauração prévia de
+produção foi concluída e limpa conforme
+[evidência](evidencias/backup-logico-2026-11-17-pre-salvamento.json).
