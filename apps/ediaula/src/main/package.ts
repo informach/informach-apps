@@ -31,6 +31,7 @@ import {
   unpackPaths,
 } from "../shared/projectPackage.ts";
 import type { Project, Transcript } from "../shared/types.ts";
+import { restorePackedLinks } from "./edisvgLink.ts";
 import { writeZip, type ZipDirectoryEntry, zipDirectory } from "./zip.ts";
 
 /**
@@ -356,7 +357,8 @@ export async function unpackProject(
     const stored = projectSchema.parse(
       packedLinks(JSON.parse(await readFile(projectFile, "utf8")), root),
     );
-    const unpacked = unpackPaths(normalizeProject(stored), root);
+    // The links EdiSVG keeps beside each project it brought: its saves reach this lesson again.
+    const unpacked = await restorePackedLinks(unpackPaths(normalizeProject(stored), root), root);
     const id = newId("p");
     const project: Project = {
       ...unpacked,

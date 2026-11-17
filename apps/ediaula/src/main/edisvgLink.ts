@@ -1,13 +1,26 @@
 import { existsSync, type FSWatcher, watch } from "node:fs";
-import { readFile, stat } from "node:fs/promises";
+import { mkdir, readFile, rename, stat } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join } from "node:path";
 import {
   type EdisvgSummary,
   edisvgSummarySchema,
+  LINK_VERSION,
   type LinkedAnimation,
+  linkedAnimationSchema,
   RENDERS_SUFFIX,
+  type Render,
+  renderFileName,
+  renderSchema,
 } from "@informach/edi-link/contract";
-import { readManifest, renderPath, rendersDir } from "@informach/edi-link/node";
+import {
+  inside,
+  readManifest,
+  renderPath,
+  rendersDir,
+  writeManifest,
+} from "@informach/edi-link/node";
+import { linkedProjects } from "../shared/linkedMedia.ts";
+import type { Asset, Project } from "../shared/types.ts";
 
 /**
  * EdiAula's side of the link with EdiSVG (packages/edi-link, shared/linkedMedia.ts): where a
@@ -67,6 +80,87 @@ export async function linkState(
     items.push({ ...item, ...(path ? { renderPath: path } : {}) });
   }
   return { project, exists: existsSync(project), items };
+}
+
+/** The render a linked asset plays, as its manifest entry says it (none when it is not one). */
+function renderOfAsset(a: Asset): Render | undefined {
+  if (a.kind !== "video" || !a.link?.animationId || !a.link.hash) return undefined;
+  const parsed = renderSchema.safeParse({
+    file: renderFileName(a.link.animationId, a.link.hash),
+    width: a.width,
+    height: a.height,
+    fps: a.fps,
+    frames: Math.max(1, Math.round(a.duration * a.fps)),
+    duration: a.duration,
+    hash: a.link.hash,
+  });
+  return parsed.success ? parsed.data : undefined;
+}
+
+/**
+ * The links of the EdiSVG projects a package brought (shared/projectPackage.ts). A package
+ * carries each linked .edisvg but not its renders folder, and without the manifest there EdiSVG
+ * does not know which of its animations a lesson shows: a save in it rendered nothing and the
+ * lesson never changed. Each such project (inside `root`, with no manifest yet) gets one listing
+ * the lesson's animations of it, and the render each one plays moves into the renders folder, so
+ * EdiSVG renders only what a save changes. Returns the lesson with those assets at their new place.
+ */
+export async function restorePackedLinks(
+  p: Project,
+  root: string,
+  now = Date.now(),
+): Promise<Project> {
+  let assets = p.assets;
+  for (const edisvg of linkedProjects(p)) {
+    if (!inside(root, edisvg) || !existsSync(edisvg)) continue;
+    const folder = rendersDir(edisvg);
+    if (await readManifest(folder)) continue;
+    let projectId: string;
+    try {
+      projectId = (await readEdisvgSummary(edisvg)).id;
+    } catch {
+      continue;
+    }
+    const items: LinkedAnimation[] = [];
+    const moved = new Map<string, string>();
+    for (const a of assets) {
+      const link = a.link;
+      if (link?.project !== edisvg || !link.animationId || !link.artboardId) continue;
+      if (items.some((i) => i.animationId === link.animationId)) continue;
+      const entry = linkedAnimationSchema.safeParse({
+        animationId: link.animationId,
+        artboardId: link.artboardId,
+        name: a.name.trim().slice(0, 200) || "Animação",
+        ...(link.start !== undefined ? { start: link.start } : {}),
+        updatedAt: now,
+      });
+      if (!entry.success) continue;
+      const item = entry.data;
+      const render = renderOfAsset(a);
+      const target = render && renderPath(folder, render.file);
+      if (render && target && moved.get(a.path) === target) item.render = render;
+      else if (
+        render &&
+        target &&
+        !moved.has(a.path) &&
+        inside(root, a.path) &&
+        existsSync(a.path)
+      ) {
+        await mkdir(folder, { recursive: true });
+        await rename(a.path, target);
+        moved.set(a.path, target);
+        item.render = render;
+      }
+      items.push(item);
+    }
+    if (!items.length) continue;
+    await writeManifest(folder, { version: LINK_VERSION, projectId, items });
+    assets = assets.map((a) => {
+      const to = moved.get(a.path);
+      return to ? { ...a, path: to } : a;
+    });
+  }
+  return assets === p.assets ? p : { ...p, assets };
 }
 
 /**
