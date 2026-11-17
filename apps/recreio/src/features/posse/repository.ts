@@ -105,7 +105,7 @@ async function travarMundo(
   return mundo ?? null;
 }
 
-async function conferirConteudoDoMundo(
+export async function conferirConteudoDoMundo(
   tx: Transacao,
   mundo: MundoTravado,
   jogo: string,
@@ -162,7 +162,7 @@ export type PedidoComPosse = {
  * exige a posse aberta com esta cerca, desta instância, reivindicada e no
  * prazo.
  */
-async function conferirPosse(
+export async function conferirPosse(
   tx: Transacao,
   pedido: PedidoComPosse,
 ): Promise<{ mundo: MundoTravado; posse: PosseAberta }> {

@@ -294,3 +294,46 @@ de exclusão física de mundo habilitado nesta candidata.
 O teste de saída concorrente passa a observar um único pacote `sair` e o resultado
 das duas chamadas, em vez da identidade do objeto Promise. A reprodução atualizada
 é `ee3cbd2`; a prova de navegador permanece idêntica à rodada negativa anterior.
+
+`b173da9` passou nos sete gates `44046097619`; as 19 jornadas de navegador passaram,
+incluindo perda do ACK do Morada com recuperação da escolha e nova saída confirmada.
+A reprodução atualizada `ee3cbd2`, `44046680803`, falhou só nos dois casos esperados
+da conexão: encerramento rotulado incorretamente e dois pacotes de saída. As
+outras 127 provas do cliente passaram. A mesma asserção de pacotes segue no corretivo.
+
+`668dde1` passou nos sete gates `44047372449`. A reprodução `97d5045`,
+`44047227346`, falhou nas duas provas novas de vínculo único: a segunda entrada
+era aceita e as duas concorrentes eram admitidas; as outras 461 integrações
+passaram. Matriz reduzida permanece isolada. O CI compartilhado do recibo
+`509f872`/`44039845094` terminou aprovado; não cobre as mudanças posteriores do
+SDK/cliente. O CI compartilhado `b173da9`/`44046097629` segue em execução.
+
+### API de confirmação do servidor em candidata
+
+O manifesto passa a declarar a capacidade `checkpoint` (`perfil`, `servidor`
+ou `null`); o Morada e o contador de mundo continuam `null`, com saída manual.
+`ClienteDoHostComCheckpoint` estende a interface básica sem atribuir suporte a
+hosts antigos. O cliente HTTP oferece confirmação em `/mundos/{id}/checkpoint`.
+O SDK de navegador não pode confirmar um mundo.
+
+A API admite identidade → posse do mundo → perfil → mutex → aparelho → sessão
+em UPDATE → intenção. Valida membro e conteúdo atuais, SID fixado no mundo,
+posse/cerca/instância vigentes e fotografia posterior ao pedido com checksum
+validado pelo armazenamento, mesma cerca e todo o diário confirmado. Auditoria,
+prova e barreira são atômicas. Repetir a prova já confirmada não exige interromper
+o progresso dos demais jogadores, mas não permite mudar a prova. Posse e prazo
+da intenção são relidos depois da auditoria; esperar uma trava não admite ACK
+ou nova abertura fora do prazo. O recibo de abertura conserva o prazo da troca
+até a conferência final, sem renovar a intenção.
+
+Novos testes reais de HTTP/banco cobrem foto antiga, diário não coberto, outra
+instância/cerca/jogo, ACK de navegador e falha de auditoria. Duas provas de espera
+sincronizam a auditoria com o prazo persistido do banco, sem substituir o relógio.
+O consumidor/servidor genérico e sua jornada de navegador ainda não foram
+implementados nesta candidata; não declarar suporte automático de mundo nem
+ligar a flag por esta etapa. A rodada remota desta API ainda precisa ser executada.
+
+A redação de contexto técnico passa a ocultar também a prova de abertura, ingresso,
+PIN, código/segredo de pareamento e campos declarados em português. Corpos de
+pedido já eram removidos pelo transporte Sentry; não foi observada exposição
+em produção. O teste novo verifica a proteção recursiva desses campos.

@@ -10,7 +10,7 @@ import {
 import {
   CABECALHO_DA_INSTANCIA,
   CABECALHO_DO_JOGO,
-  type ClienteDoHost,
+  type ClienteDoHostComCheckpoint,
   SessaoAbertaSchema,
 } from "@informach/recreio/contrato";
 import { criarClienteDoHost } from "@informach/recreio/host";
@@ -79,7 +79,7 @@ export function enderecoDo(jogo: string): string {
 }
 
 /** O cliente HTTP de verdade, com as rotas chamadas no processo. */
-export function clienteDoHost(jogo = MORADA): ClienteDoHost {
+export function clienteDoHost(jogo = MORADA): ClienteDoHostComCheckpoint {
   return criarClienteDoHost({
     baseUrl: ORIGEM,
     jogo,
@@ -90,7 +90,11 @@ export function clienteDoHost(jogo = MORADA): ClienteDoHost {
   });
 }
 
-export type InstanciaDeTeste = { cliente: ClienteDoHost; instanciaId: InstanciaId; jogo: string };
+export type InstanciaDeTeste = {
+  cliente: ClienteDoHostComCheckpoint;
+  instanciaId: InstanciaId;
+  jogo: string;
+};
 
 /** Uma instância registrada no endereço configurado do jogo. */
 export async function novaInstancia(jogo = MORADA, capacidade = 10): Promise<InstanciaDeTeste> {

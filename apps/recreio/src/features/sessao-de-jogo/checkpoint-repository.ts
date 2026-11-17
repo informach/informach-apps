@@ -7,20 +7,54 @@ import {
 } from "@informach/db/schema";
 import { ErroDoRecreio } from "@informach/recreio";
 import type { ResultadoDeCheckpoint } from "@informach/recreio/contrato";
-import { comSessaoDeJogoAutoritativa } from "@/features/autoridade-de-jogo/repository";
+import {
+  type Admissao,
+  comSessaoDeJogoAutoritativa,
+} from "@/features/autoridade-de-jogo/repository";
 import { jogoDoCatalogo } from "@/features/jogos/config";
-import { travar } from "@/lib/repository";
+import { type Transacao, travar } from "@/lib/repository";
 import type { SessaoDeJogoAtiva } from "./service";
 
 export function confirmarCheckpointDePerfil(
   sessao: SessaoDeJogoAtiva,
   entrada: { id: string; confirmado: boolean },
 ): Promise<ResultadoDeCheckpoint> {
+  return confirmarCheckpointDoJogo(sessao, entrada, { modo: "profile", validar: async () => null });
+}
+
+export type ProvaDeCheckpointDeMundo = {
+  mundoId: string;
+  cerca: number;
+  revisao: number;
+  diarioSeq: number;
+};
+
+/** Composição servidor: a prova é construída por autoridade de posse, nunca pelo corpo do SDK. */
+export function confirmarCheckpointDoJogo(
+  sessao: SessaoDeJogoAtiva,
+  entrada: { id: string; confirmado: boolean },
+  autoridade: {
+    modo: "profile" | "server";
+    antesDoPerfil?: (tx: Transacao) => Promise<void>;
+    validar: (
+      tx: Transacao,
+      pedido: typeof handoffs.$inferSelect,
+      admissao: Admissao,
+    ) => Promise<ProvaDeCheckpointDeMundo | null>;
+    conferirFinal?: (tx: Transacao) => Promise<void>;
+  },
+): Promise<ResultadoDeCheckpoint> {
   return comSessaoDeJogoAutoritativa(
     sessao,
     (tx) => travar(tx, `recreio:game_sessions:perfil:${sessao.perfilId}`),
     async (tx, contaId, admissao): Promise<ResultadoDeCheckpoint> => {
-      if (jogoDoCatalogo(sessao.jogo).capacidades.mundos) throw new ErroDoRecreio("SEM_PERMISSAO");
+      const capacidades = jogoDoCatalogo(sessao.jogo).capacidades;
+      if (
+        autoridade.modo === "profile"
+          ? capacidades.mundos !== null || capacidades.checkpoint !== "perfil"
+          : capacidades.mundos === null || capacidades.checkpoint !== "servidor"
+      )
+        throw new ErroDoRecreio("SEM_PERMISSAO");
       const [pedido] = await tx
         .select()
         .from(handoffs)
@@ -36,11 +70,21 @@ export function confirmarCheckpointDePerfil(
         pedido.fromSessionId !== sessao.sid ||
         pedido.profileId !== sessao.perfilId ||
         pedido.policyVersion !== admissao.versaoDaPolitica ||
-        pedido.mode !== "profile"
+        pedido.mode !== autoridade.modo
       )
         throw new ErroDoRecreio("SEM_PERMISSAO");
-      const agora = await admissao.conferirPrazo();
+      let agora = await admissao.conferirPrazo();
+      const expirar = async (): Promise<ResultadoDeCheckpoint> => {
+        await tx
+          .update(handoffs)
+          .set({ status: "expired", finishedAt: agora })
+          .where(eq(handoffs.id, pedido.id));
+        return { estado: "expired", pausada: atual.pausa !== null };
+      };
       if (pedido.status === "confirmed") {
+        await autoridade.validar(tx, pedido, admissao);
+        await autoridade.conferirFinal?.(tx);
+        agora = await admissao.conferirPrazo();
         if (
           !atual.pausa ||
           !pedido.confirmedAt ||
@@ -54,19 +98,31 @@ export function confirmarCheckpointDePerfil(
       if (pedido.status !== "requested" && pedido.status !== "confirmed")
         throw new ErroDoRecreio("SEM_PERMISSAO");
       if (pedido.expiresAt <= agora) {
-        await tx
-          .update(handoffs)
-          .set({ status: "expired", finishedAt: agora })
-          .where(eq(handoffs.id, pedido.id));
-        return { estado: "expired", pausada: atual.pausa !== null };
+        return expirar();
       }
       if (atual.pausa !== null) throw new ErroDoRecreio("SESSAO_INVALIDA");
+      const prova = await autoridade.validar(tx, pedido, admissao);
+      agora = await admissao.conferirPrazo();
+      if (pedido.expiresAt <= agora) return expirar();
+      if (entrada.confirmado && autoridade.modo === "server" && !prova)
+        throw new ErroDoRecreio("SEM_PERMISSAO");
       if (entrada.confirmado) {
         // UPDATE da sessão foi tomado antes: gravações admitidas terminaram, futuras serão recusadas.
         await tx.update(games).set({ checkpointFrozenAt: agora }).where(eq(games.id, sessao.sid));
         await tx
           .update(handoffs)
-          .set({ status: "confirmed", confirmedAt: agora })
+          .set({
+            status: "confirmed",
+            confirmedAt: agora,
+            ...(prova
+              ? {
+                  checkpointSpaceId: prova.mundoId,
+                  checkpointFence: prova.cerca,
+                  checkpointRevision: prova.revisao,
+                  checkpointJournalSeq: prova.diarioSeq,
+                }
+              : {}),
+          })
           .where(eq(handoffs.id, pedido.id));
       } else {
         await tx
@@ -86,8 +142,15 @@ export function confirmarCheckpointDePerfil(
         },
         { writer: tx },
       );
+      await autoridade.conferirFinal?.(tx);
+      if (pedido.expiresAt <= (await admissao.conferirPrazo()))
+        throw new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "expired" });
       return { estado: entrada.confirmado ? "confirmed" : "failed", pausada: entrada.confirmado };
     },
-    { travaDaSessao: "update", permitirPausaDeCheckpoint: true },
+    {
+      travaDaSessao: "update",
+      permitirPausaDeCheckpoint: true,
+      antesDoPerfil: autoridade.antesDoPerfil,
+    },
   );
 }
