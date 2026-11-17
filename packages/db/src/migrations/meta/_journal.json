@@ -1352,6 +1352,13 @@
       "when": 1794955720722,
       "tag": "0192_peaceful_kitty_pryde",
       "breakpoints": true
+    },
+    {
+      "idx": 193,
+      "version": "7",
+      "when": 1794957824900,
+      "tag": "0193_careless_gladiator",
+      "breakpoints": true
     }
   ]
 }

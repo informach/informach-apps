@@ -80,3 +80,19 @@ encontrará a chave no schema anterior. Os arquivos desse artefato recusado não
 entram no checkout ou em produção. As tabelas ainda não têm escritores nem
 leitores publicados. Aprovação depende dos dois artefatos conferidos, banco
 descartável e upgrade com dados no GitHub.
+
+Predecessora correta gerada em `44198889651`, origem
+`e4d99d4cb26ebcde4c9b96d5c9b753a057f1ec02`, artefato `14379858339`.
+ZIP `de8d3f3811b31c70706c3060039524ab9c95d8bdd5a2b381aa2cdf8930becc12`.
+Conferidos origem, allowlist, bytes e SHA-256 antes e depois da cópia intacta:
+
+- `0193_careless_gladiator.sql`, 131 bytes,
+  `188aa8a306f70867b5ffafade098f7bc3c7937d8b85c7538ca3df4a7dc69ad3a`.
+- Snapshot, 853543 bytes,
+  `2c1faaa59095d924cddf00d1827d7853b2c8981734b0cd563198fecca3f490e2`.
+- Journal, 29345 bytes,
+  `7b62a627a8b1cdce208aef2035f95ad1f35e3802b1804722a205fdeb3ca83eee`.
+
+SQL contém somente a restrição única composta da tabela existente, cujo volume
+de produção é pequeno. As três tabelas retornam à exportação para gerar 0194.
+Ainda não executar migration isolada ou publicar como fluxo de convite pronto.
