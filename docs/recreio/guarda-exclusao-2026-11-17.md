@@ -27,6 +27,20 @@ A candidata completa de grupos segue separada. Não enviar a main do checkout
 original com Morada D3, nem anexar migrations privadas a esta publicação. Ambas
 as etapas exigem gates remotos e evidência operacional antes de conclusão.
 
-**Estado:** preparada, ainda sem qualificação ou implantação. Produção conserva
+**Estado:** ainda sem implantação. Produção conserva
 `3f2b1239`, 179 recibos, famílias/checkpoint desligados. O coordenador completo
 de encerramento e os demais aceites de F1–F11 continuam pendentes.
+
+A fonte isolada `644b3841` passou nos sete gates `44117921037` e no CI
+compartilhado `44117922539` (segunda tentativa). A primeira falhou no timeout
+de fidelidade do EdiFoto; as provas diagnósticas `44128829062` passaram, sem
+confirmar a causa daquele timeout. Nenhum timeout ou asserção foi afrouxado.
+
+Antes do push, a main pública avançou para `ed0d3762` com trabalho do EdiAula e
+EdiSVG. A integração `aa4291bb` preserva essas mudanças e passou nos sete gates
+`44146981530`. O CI completo `44146980351` falhou em um teste novo do EdiSVG:
+o basename nativo do Linux preservava um caminho Windows inteiro. O corretivo
+usa o parser Windows, que reconhece ambos os separadores, somente para o nome
+exibido da imagem, sem mudar sua referência por hash ou caminhos de armazenamento.
+A prova original permanece, acrescida de caminho POSIX. A candidata corrigida
+precisa de CI remoto antes de qualquer publicação; não contém DDL.
