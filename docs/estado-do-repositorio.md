@@ -29,12 +29,19 @@ prévia de 0177/0178. 179 recibos e SHA conferidos; capacidade própria, host qu
 exige recibo, agregado separado, supervisão, retenção e pausa de um minuto real
 homologados no CI. [Registro e prova operacional](recreio/salvamento-restrito-2026-11-17.md).
 Os dois modos continuam `off`, jogo interno `0`; isto não libera famílias/venda.
-F1 avança em fonte separada: capacidade sem jogador, seleção de cobertura,
-tela e emissão passaram nos sete gates `44093189247`; vínculo de destinatário
-e schema até 0181 passaram nos sete gates `44094451952`, com CI compartilhado
-ainda em curso. Nada dessa frente está em produção. Convite utilizável, aceite,
-saída e demais aceites de F1–F11 continuam abertos;
-[plano de adultos](recreio/grupos-adultos-2026-11-17.md).
+F1 está qualificado em `204cf79c`: convites utilizáveis, cobertura, aceite,
+saída/retorno e remoção de adultos, até 0183; sete gates `44116978747` e CI
+compartilhado `44116977836` aprovados. Publicação aguarda a guarda compartilhada
+`644b3841` em todos os consumidores de auth antes da troca de FKs. O CI da guarda
+teve timeout gráfico do EdiFoto; diagnóstico isolado/completo passou, causa não
+confirmada e nova rodada geral em curso. Nada dessa frente está em produção.
+[Plano de adultos](recreio/grupos-adultos-2026-11-17.md).
+F4 avança em fonte privada posterior: código/pedido, aceite/aprovação atual,
+proteção e retenção passaram nos sete gates. `52c73a1` passou `44131496917`,
+com 636 integrações/64 arquivos e atualização 179→185 preservando progresso.
+HTTP/SDK com negociação explícita está em qualificação; telas, presença,
+moderação e demais aceites de F4–F11 continuam abertos.
+[Plano social](recreio/social-e-moderacao-2026-11-17.md). 0184 ainda não aplicada.
 Preservar o Morada
 World2/protocolo1 público; a main local do checkout original contém D3 e não
 pode ser enviada diretamente. Continuar F0–F11 do registro, sem anunciar fechamento.

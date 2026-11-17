@@ -16,6 +16,7 @@ import { ComposicaoSocialMudou, travarComposicaoSocial } from "./composicao-repo
 import { admitirPerfilSocial } from "./perfis-repository";
 
 export type ContextoDoResponsavelSocial = ContextoSocial & {
+  contaId: string;
   menor: Extract<ContextoSocial["origem"], { tipo: "protegido" }>;
   versaoDoMenor: number;
 };

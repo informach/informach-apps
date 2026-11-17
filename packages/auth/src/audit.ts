@@ -124,6 +124,7 @@ export type AuditEventType =
   | "recreio.friend_request_expired"
   | "recreio.friend_request_accepted"
   | "recreio.friend_approval_recorded"
+  | "recreio.friend_approval_renewed"
   | "recreio.friend_request_rejected"
   | "recreio.friend_request_revoked"
   | "recreio.friendship_removed"

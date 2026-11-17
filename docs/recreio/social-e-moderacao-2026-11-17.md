@@ -217,6 +217,14 @@ encerrado. Testes com duas contas usam as rotas reais, código, recibo de repeti
 aceite e bloqueio; também cobrem autoridade inventada, corpo excessivo, falta de
 token, resposta perdida sem repetição automática e handle encerrado após saída.
 
+`52c73a1` passou nos sete gates `44131496917`: 636 integrações/64 arquivos,
+incluindo sete provas da autoridade social de partida; atualização 179→185
+preservou os dois perfis e seu progresso/conquistas e aceitou repetição.
+Também há uma nova decisão explícita de reaprovação sobre amizade ainda ativa:
+após revogar uma geração, o responsável atual precisa ler a versão do menor e
+a revisão da relação e confirmar novamente. Repetir um aceite/aprovação antigo
+não concede essa autorização. Relação removida nunca é reativada por esse caminho.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

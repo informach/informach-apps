@@ -1,16 +1,14 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
 import { and, db, eq } from "@informach/db";
-import {
-  recreioFriendConsents as consents,
-  recreioFriendRequests as requests,
-} from "@informach/db/schema";
+import { recreioFriendRequests as requests } from "@informach/db/schema";
 import { contatoDisponivel, PerfilIdSchema } from "@informach/recreio";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import { assertAllowed } from "@/lib/errors";
 import { concluirAmizade } from "./amizade-repository";
 import type { AutorSocial } from "./autoridade-repository";
 import { comJogadorSocial } from "./autoridade-repository";
+import { gravarAprovacaoSocial } from "./consentimentos-repository";
 import type { AprovacaoDeAmizade } from "./regras";
 import { comResponsavelPorPedido } from "./responsavel-repository";
 
@@ -78,43 +76,7 @@ export async function aprovarPedidoNoBanco(autor: AutorNativoRecente, entrada: A
       "CONFLITO",
       "A supervisão mudou. Reabra o pedido antes de continuar.",
     );
-    const [anterior] = await tx
-      .select()
-      .from(consents)
-      .where(and(eq(consents.requestId, pedido.id), eq(consents.profileId, entrada.perfilId)))
-      .for("update");
-    const identidade = atual.menor.responsabilidade;
-    if (
-      !anterior ||
-      anterior.approvedByUserId !== autor.contaId ||
-      anterior.guardianLinkId !== identidade.vinculoId ||
-      anterior.accessGeneration !== identidade.geracao
-    ) {
-      await tx
-        .insert(consents)
-        .values({
-          requestId: pedido.id,
-          profileId: entrada.perfilId,
-          guardianLinkId: identidade.vinculoId,
-          approvedByUserId: autor.contaId,
-          accessGeneration: identidade.geracao,
-        })
-        .onConflictDoUpdate({
-          target: [consents.requestId, consents.profileId],
-          set: {
-            guardianLinkId: identidade.vinculoId,
-            approvedByUserId: autor.contaId,
-            accessGeneration: identidade.geracao,
-            createdAt: await atual.conferirPrazo(),
-          },
-        });
-      await logAuditEventStrict(
-        "recreio.friend_approval_recorded",
-        autor.contaId,
-        { app: "recreio", requestId: pedido.id, profileId: entrada.perfilId },
-        { writer: tx },
-      );
-    }
+    await gravarAprovacaoSocial(tx, atual, pedido.id, "recreio.friend_approval_recorded");
     return concluirAmizade(tx, atual, pedido);
   });
 }

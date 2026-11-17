@@ -13,10 +13,12 @@ import {
   removerAmizadeNoBanco,
   salvarProtecaoDeContato,
 } from "./protecao-repository";
+import { renovarAprovacaoNoBanco } from "./reaprovacao-repository";
 import {
   AprovacaoDeAmizadeSchema,
   NovoPedidoDeAmizadeSchema,
   ProtecaoDeContatoSchema,
+  RenovacaoDeAmizadeSchema,
 } from "./regras";
 import { hashDoCodigoDeAmigo, novoCodigoDeAmigo } from "./segredos";
 
@@ -68,6 +70,15 @@ export async function aprovarAmizade(autor: AutorNativoRecente, entrada: unknown
     janelaEmSegundos: 600,
   });
   return aprovarPedidoNoBanco(autor, pedido);
+}
+export async function renovarAprovacaoDeAmizade(autor: AutorNativoRecente, entrada: unknown) {
+  const pedido = RenovacaoDeAmizadeSchema.parse(entrada);
+  await limitarTentativas({
+    chave: `social-reaprovacao:${autor.contaId}`,
+    max: 30,
+    janelaEmSegundos: 600,
+  });
+  return renovarAprovacaoNoBanco(autor, pedido);
 }
 
 async function limitarProtecao(referencia: AutorSocial) {

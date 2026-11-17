@@ -96,7 +96,8 @@ Finalidade: investigar mudanças na conta da família e atender suporte. O Basti
 Social usa auditoria estrita na transação da mudança. Os eventos
 `friend_code_created`/`friend_code_revoked` usam IDs de perfil/código;
 `friend_request_created`/`friend_request_expired`/`friend_request_accepted`/
-`friend_request_rejected`/`friend_request_revoked` e `friend_approval_recorded`
+`friend_request_rejected`/`friend_request_revoked`, `friend_approval_recorded`
+e `friend_approval_renewed`
 usam IDs de pedido e perfil. `friendship_started`/`friendship_removed` usam IDs
 das duas pontas e revisão. `social_protection_changed` acrescenta somente as
 flags `blocked`/`muted`. Todos recebem o prefixo `recreio.` e `app: recreio`.
