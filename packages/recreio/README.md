@@ -143,6 +143,16 @@ pode denunciar sem abrir contato novo; o SDK ainda exige seu SID atual. No
 portal, proteção não depende de cobertura. A fila e a operação permanecem em
 qualificação; esta API não anuncia moderação habilitada em produção.
 
+`social.denuncias(protocolo?)` consulta até dez protocolos do próprio perfil,
+sem identidade ou conteúdo da outra pessoa. `social.reverDenuncia({ protocolo,
+versaoDoCaso, recursoId })` pede uma revisão dentro do prazo e da revisão
+atual. O UUID da tentativa permite conferir uma resposta perdida sem reenvio
+automático. Ambos exigem o SID atual, inclusive com novos contatos desligados;
+não recebem autoridade nativa ou perfil escolhido no corpo. O host oferece
+consulta e revisão dentro do painel, sem sair da partida. UUIDs tipados e os
+UUIDs destes contratos sociais são normalizados em minúsculas; IDs textuais da
+autenticação conservam a caixa.
+
 `social.listar(cursor?)` percorre dez relações conhecidas por página, sem busca
 pública, conta ou conteúdo de mundo. Aprovações atuais governam nomes protegidos
 e a disponibilidade da amizade. A presença informa somente um booleano: depende

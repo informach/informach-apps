@@ -663,6 +663,29 @@ Essas provas ainda aguardam o GitHub; não são medição de FPS ou hardware rea
 Participantes não amigos e demais políticas de mundo continuam em F5, e a
 jornada de entrada/atendimento pela interface do Bastidores permanece pendente.
 
+### Ajustes de qualificação do host e acompanhamento no SDK
+
+`44177910361` aprovou seis gates, incluindo a integração corrigida pelo escritor
+real de encerramento. A candidata anterior fabricava `endedSeq` acima da
+sequência real em duas fixtures, contaminando o cursor da manutenção; `1f46e3c`
+removeu esses valores e usa o mesmo escritor transacional da aplicação. Não
+houve alteração ou relaxamento do cursor de produção.
+
+O E2E encontrou saída do foco dos controles no ciclo de Tab do diálogo. A
+correção candidata fecha os limites de Tab e Shift+Tab nos controles visíveis e
+habilitados, mantendo Escape e o botão de retorno. A jornada verifica ambos os
+sentidos; a partida não é desmontada ou encerrada pelo painel.
+
+A candidata seguinte acrescenta leitura mínima dos próprios protocolos e pedido
+de revisão ao SDK e ao painel, com o SID atual e sem perfil/ator fornecido no
+corpo. Três integrações cobrem resposta perdida, repetição explícita, ausência
+de retry, privacidade, SID encerrado, campos estranhos e limite do corpo. A
+jornada do host consulta o protocolo acabado de receber antes de bloquear o
+contato. IDs UUID tipados e os contratos F4 passam a normalizar a caixa, pois o
+PostgreSQL devolve minúsculas; repetição HTTP com UUID maiúsculo deve recuperar
+o mesmo recibo. Identificadores textuais da autenticação não mudam. Estas
+alterações ainda precisam dos gates remotos; não foram ativadas em produção.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

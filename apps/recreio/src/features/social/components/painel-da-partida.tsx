@@ -8,6 +8,7 @@ import type {
 import { ehErroDoRecreio } from "@informach/recreio/sdk";
 import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { CATEGORIAS_DE_DENUNCIA } from "@/features/moderacao/categorias";
+import { ProtocolosNaPartida } from "@/features/moderacao/components/protocolos-na-partida";
 import { AvatarDoPerfil } from "@/features/perfis/components/avatar";
 
 type Executar = <T>(acao: () => Promise<T>, confirmado?: (dados: T) => void) => void;
@@ -18,7 +19,7 @@ function mensagem(erro: unknown) {
     return "Muitas tentativas seguidas. Aguarde alguns minutos e confira seus contatos.";
   if (ehErroDoRecreio(erro, "REVISAO_DIVERGENTE") || ehErroDoRecreio(erro, "NAO_ENCONTRADO"))
     return "Este contato mudou. Atualize a lista antes de continuar.";
-  return "Não recebemos a confirmação. Atualize os contatos para conferir a situação antes de repetir uma ação.";
+  return "Não recebemos a confirmação. Confira os contatos e seus protocolos antes de repetir uma ação.";
 }
 
 /** Só o SID do SDK. Não navega, não desmonta o jogo e não recebe autoridade da conta. */
@@ -93,6 +94,29 @@ export function PainelSocialDaPartida({
       onCancel={(evento) => {
         evento.preventDefault();
         aoFechar();
+      }}
+      onKeyDown={(evento) => {
+        if (evento.key !== "Tab") return;
+        const controles = Array.from(
+          evento.currentTarget.querySelectorAll<HTMLElement>(
+            "button, input, select, textarea, a[href], [tabindex]",
+          ),
+        ).filter(
+          (elemento) =>
+            elemento.tabIndex >= 0 &&
+            !elemento.matches(":disabled, [inert], [hidden]") &&
+            elemento.getClientRects().length > 0,
+        );
+        const primeiro = controles[0],
+          ultimo = controles.at(-1);
+        if (!primeiro || !ultimo) return;
+        if (evento.shiftKey && document.activeElement === primeiro) {
+          evento.preventDefault();
+          ultimo.focus();
+        } else if (!evento.shiftKey && document.activeElement === ultimo) {
+          evento.preventDefault();
+          primeiro.focus();
+        }
       }}
       className="fixed inset-0 m-auto max-h-[90dvh] w-[min(42rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain rounded-controle border border-linha bg-fundo p-5 text-tinta shadow-2xl backdrop:bg-black/70 sm:p-7"
     >
@@ -229,6 +253,7 @@ export function PainelSocialDaPartida({
           </section>
         </>
       )}
+      <ProtocolosNaPartida api={api} />
     </dialog>
   );
 }
@@ -485,8 +510,7 @@ function ContatoNaPartida({
                 {protocolo}
               </output>
               <p className="mt-2 text-tinta-suave">
-                Guarde o protocolo. Depois de sair pelo jogo, acompanhe a resposta na área de
-                denúncias do Recreio.
+                Guarde o protocolo e acompanhe a resposta em “Seus protocolos”, neste painel.
               </p>
             </div>
           )}

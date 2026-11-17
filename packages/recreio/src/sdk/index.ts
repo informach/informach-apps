@@ -11,7 +11,13 @@ import {
   type VersaoDeDadosHttp,
   VersoesDeDadosSchema,
 } from "../contrato/dados";
-import { DenunciaRecebidaSchema } from "../contrato/denuncias";
+import {
+  AcompanhamentoDeDenunciasSchema,
+  ConsultaDeDenunciasSchema,
+  DenunciaRecebidaSchema,
+  RecursoRecebidoSchema,
+  RevisaoDeDenunciaSchema,
+} from "../contrato/denuncias";
 import {
   EstadoDeSalvamentoSchema,
   type PedidoDeSalvamentoDePerfil,
@@ -361,6 +367,25 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   };
 
   const social: SocialDoPerfil = {
+    async denuncias(protocolo) {
+      exigirSessao();
+      const consulta = ConsultaDeDenunciasSchema.parse(
+        protocolo === undefined ? {} : { protocolo },
+      );
+      return enviar(
+        `/denuncias${consulta.protocolo ? `?protocolo=${encodeURIComponent(consulta.protocolo)}` : ""}`,
+        AcompanhamentoDeDenunciasSchema,
+        { method: "GET", token },
+      );
+    },
+    async reverDenuncia(entrada) {
+      exigirSessao();
+      return enviar("/denuncias", RecursoRecebidoSchema, {
+        method: "POST",
+        token,
+        corpo: RevisaoDeDenunciaSchema.parse(entrada),
+      });
+    },
     async listar(apos) {
       exigirSessao();
       const consulta = ConsultaSocialSchema.parse(apos === undefined ? {} : { apos });

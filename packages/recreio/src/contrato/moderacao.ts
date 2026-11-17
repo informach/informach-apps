@@ -1,9 +1,9 @@
 import { z } from "zod";
-import { PerfilIdSchema } from "../dominio/ids";
+import { PerfilIdSchema, UuidSchema } from "../dominio/ids";
 
 const base = z.strictObject({
-  comandoId: z.uuid(),
-  protocolo: z.uuid(),
+  comandoId: UuidSchema,
+  protocolo: UuidSchema,
   versaoDoCaso: z.int().min(1).max(2147483646),
 });
 const motivo = z.enum([
@@ -35,7 +35,7 @@ export const ComandoDeModeracaoSchema = z.discriminatedUnion("operacao", [
     revisaoDaAmizade: z.int().min(1).max(2147483646),
     motivo,
   }),
-  base.extend({ operacao: z.literal("invalidar_convite"), conviteId: z.uuid(), motivo }),
+  base.extend({ operacao: z.literal("invalidar_convite"), conviteId: UuidSchema, motivo }),
   base.extend({
     operacao: z.literal("responder_recurso"),
     perfilId: PerfilIdSchema,
@@ -47,8 +47,8 @@ export const ComandoDeModeracaoSchema = z.discriminatedUnion("operacao", [
 ]);
 export type ComandoDeModeracao = z.infer<typeof ComandoDeModeracaoSchema>;
 export const ReciboDeModeracaoSchema = z.strictObject({
-  comandoId: z.uuid(),
-  protocolo: z.uuid(),
+  comandoId: UuidSchema,
+  protocolo: UuidSchema,
   versaoDoCaso: z.int().positive(),
   operacao: z.enum([
     "analisar",

@@ -2,6 +2,7 @@ import { jwtVerify, SignJWT } from "jose";
 import { z } from "zod";
 import { ComandoDeModeracaoSchema } from "../contrato/moderacao";
 import { ErroDoRecreio } from "../dominio/erros";
+import { UuidSchema } from "../dominio/ids";
 
 const EMISSOR = "informach:bastidores";
 const AUDIENCIA = "informach:recreio:moderacao";
@@ -13,7 +14,7 @@ const claims = z
     aud: z.literal(AUDIENCIA),
     sub: z.string().min(1).max(128),
     sessao: z.string().min(1).max(128),
-    jti: z.uuid(),
+    jti: UuidSchema,
     resumo: z.string().regex(/^[a-f0-9]{64}$/),
     iat: z.int().nonnegative(),
     nbf: z.int().nonnegative(),

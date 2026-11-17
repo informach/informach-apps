@@ -1,9 +1,12 @@
 import { z } from "zod";
-import { PerfilIdSchema } from "../dominio/ids";
+import { PerfilIdSchema, UuidSchema } from "../dominio/ids";
 import {
+  type AcompanhamentoDeDenuncias,
   type DenunciaDeContato,
   DenunciaDeContatoSchema,
   type DenunciaRecebida,
+  type RecursoRecebido,
+  type RevisaoDeDenuncia,
 } from "./denuncias";
 
 export const CodigoDeAmigoSchema = z
@@ -13,7 +16,7 @@ export const CodigoDeAmigoSchema = z
   .pipe(z.string().regex(/^[A-HJ-NP-Z2-9]{12}$/));
 export const NovoPedidoDeAmizadeSchema = z.strictObject({
   codigo: CodigoDeAmigoSchema,
-  pedidoId: z.uuid(),
+  pedidoId: UuidSchema,
 });
 export type NovoPedidoDeAmizade = z.infer<typeof NovoPedidoDeAmizadeSchema>;
 export const ProtecaoDeContatoSchema = z.strictObject({
@@ -29,10 +32,10 @@ export const MutacaoSocialSchema = z.discriminatedUnion("operacao", [
   z.strictObject({ operacao: z.literal("presenca"), presenca: PreferenciaDePresencaSchema }),
   z.strictObject({ operacao: z.literal("codigo") }),
   NovoPedidoDeAmizadeSchema.extend({ operacao: z.literal("pedir") }),
-  z.strictObject({ operacao: z.literal("aceitar"), pedidoId: z.uuid() }),
+  z.strictObject({ operacao: z.literal("aceitar"), pedidoId: UuidSchema }),
   z.strictObject({
     operacao: z.literal("encerrar"),
-    pedidoId: z.uuid(),
+    pedidoId: UuidSchema,
     acao: z.enum(["recusar", "revogar"]),
   }),
   ProtecaoDeContatoSchema.extend({ operacao: z.literal("proteger") }),
@@ -40,21 +43,21 @@ export const MutacaoSocialSchema = z.discriminatedUnion("operacao", [
   DenunciaDeContatoSchema.extend({ operacao: z.literal("denunciar") }),
 ]);
 export const CodigoDeAmigoEmitidoSchema = z.strictObject({
-  codigoId: z.uuid(),
+  codigoId: UuidSchema,
   codigo: CodigoDeAmigoSchema,
   expiraEm: z.iso.datetime(),
 });
 export const PedidoDeAmizadeCriadoSchema = z.strictObject({
-  pedidoId: z.uuid(),
+  pedidoId: UuidSchema,
   estado: z.enum(["pending", "accepted", "rejected", "revoked", "expired"]),
   repetido: z.boolean(),
 });
 export const AceiteDeAmizadeSchema = z.strictObject({
-  pedidoId: z.uuid(),
+  pedidoId: UuidSchema,
   estado: z.enum(["pending", "accepted"]),
 });
 export const PedidoDeAmizadeEncerradoSchema = z.strictObject({
-  pedidoId: z.uuid(),
+  pedidoId: UuidSchema,
   estado: z.enum(["rejected", "revoked"]),
 });
 export const ProtecaoSocialSalvaSchema = z.strictObject({
@@ -75,7 +78,7 @@ export const ContatoSocialSchema = z.strictObject({
   silenciado: z.boolean(),
   pedido: z
     .strictObject({
-      id: z.uuid(),
+      id: UuidSchema,
       direcao: z.enum(["enviado", "recebido"]),
       aceito: z.boolean(),
       expiraEm: z.iso.datetime(),
@@ -108,4 +111,7 @@ export interface SocialDoPerfil {
   remover(perfilId: string): Promise<void>;
   /** Preserve denunciaId para recuperar o protocolo após perda da resposta. */
   denunciar(entrada: DenunciaDeContato): Promise<DenunciaRecebida>;
+  /** Somente protocolos do perfil atual; nunca a identidade da outra ponta. */
+  denuncias(protocolo?: string): Promise<AcompanhamentoDeDenuncias>;
+  reverDenuncia(entrada: RevisaoDeDenuncia): Promise<RecursoRecebido>;
 }

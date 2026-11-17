@@ -80,6 +80,10 @@ test("painel social usa o SID sem sair, pausar o mundo ou retirar outros membros
     await a.page.keyboard.press("Tab");
     expect(await a.page.evaluate(() => !!document.activeElement?.closest("dialog"))).toBe(true);
   }
+  for (let i = 0; i < 12; i++) {
+    await a.page.keyboard.press("Shift+Tab");
+    expect(await a.page.evaluate(() => !!document.activeElement?.closest("dialog"))).toBe(true);
+  }
   await b.page.getByRole("button", { name: "Somar 1", exact: true }).click();
   await expect(valor).toHaveText("2");
   await painel.getByRole("button", { name: "Silenciar", exact: true }).click();
@@ -90,6 +94,16 @@ test("painel social usa o SID sem sair, pausar o mundo ou retirar outros membros
   await expect(
     painel.getByLabel("Protocolo da denúncia na partida", { exact: true }),
   ).toBeVisible();
+  const protocolo = await painel
+    .getByLabel("Protocolo da denúncia na partida", { exact: true })
+    .innerText();
+  await painel.getByRole("button", { name: "Consultar meus protocolos", exact: true }).click();
+  const acompanhamento = painel.getByRole("region", {
+    name: "Denúncias deste perfil na partida",
+    exact: true,
+  });
+  await expect(acompanhamento.getByText(protocolo, { exact: true })).toBeVisible();
+  await expect(acompanhamento.getByRole("heading", { name: "Recebida pela equipe" })).toBeVisible();
   await painel.getByRole("button", { name: "Bloquear", exact: true }).click();
   await expect(painel.getByText("Bloqueado por você", { exact: true })).toBeVisible();
   await b.page.getByRole("button", { name: "Somar 1", exact: true }).click();
