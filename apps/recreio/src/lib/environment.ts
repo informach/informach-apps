@@ -51,6 +51,8 @@ export const schema = z.object({
    * si é decidido no servidor, por `decidirAcesso`.
    */
   RECREIO_ACCESS_MODE: z.enum(["fechado", "aberto"]).default("fechado"),
+  /** Leitores primeiro; setup admite cadastro/pareamento, play admite jogos protegidos. */
+  RECREIO_FAMILY_MODE: z.enum(["off", "setup", "play"]).default("off"),
   /**
    * Chave privada Ed25519 (PKCS8, PEM) que assina o ingresso e a sessão de
    * jogo. Pode chegar com `\n` escapado. Fora de produção, sem ela o app gera

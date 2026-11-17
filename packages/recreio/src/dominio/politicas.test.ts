@@ -15,6 +15,7 @@ describe("supervisão efetiva", () => {
   it("separa classificação e social, sem inventar horário ou orçamento", () => {
     expect(calcularPoliticaDoMenor(nascimento, agora, supervisaoInicial())).toEqual({
       faixaSocial: "ate_12",
+      faixaDaIdade: "10",
       faixa: "10",
       precisaContaAdulta: false,
       configuracaoPrecisaRevisao: false,

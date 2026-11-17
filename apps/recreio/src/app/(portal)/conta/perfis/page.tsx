@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { CadastrarMenor } from "@/features/familia/components/cadastrar-menor";
+import { novosPerfisProtegidosDisponiveis } from "@/features/familia/disponibilidade";
 import { listarPerfisMenores } from "@/features/familia/service";
 import { AvatarDoPerfil } from "@/features/perfis/components/avatar";
 import { paginaDaGestao } from "@/features/sessao/ator";
@@ -86,7 +87,7 @@ export default async function PerfisDaFamilia({
           )}
         </nav>
       </section>
-      <CadastrarMenor anoAtual={pagina.anoAtual} />
+      {novosPerfisProtegidosDisponiveis && <CadastrarMenor anoAtual={pagina.anoAtual} />}
       <Link href="/conta" className="mt-6 inline-block font-bold text-ceu underline">
         Voltar à conta
       </Link>

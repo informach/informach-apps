@@ -62,6 +62,74 @@ async function abrir() {
 }
 
 describe("SDK sem mundos: progresso privado com PostgreSQL real", () => {
+  it.each(["prazo", "login"] as const)(
+    "%s perdido durante espera na chave reverte gravação e auditoria",
+    async (causa) => {
+      const { jogador, sessao } = await abrir();
+      await alterarDados(sessao, {
+        operacao: "gravar",
+        chave: "progresso",
+        revisao: 0,
+        conteudo: "YQ==",
+      });
+      const pronto = sinal<number>();
+      const liberar = sinal<void>();
+      const trava = db.transaction(async (tx) => {
+        await tx
+          .select()
+          .from(keys)
+          .where(and(eq(keys.profileId, jogador.perfil.id), eq(keys.key, "progresso")))
+          .for("update");
+        const [conexao] = await tx.execute<{ pid: number }>(sql`select pg_backend_pid() as pid`);
+        if (!conexao) throw new Error("Conexão ausente");
+        pronto.concluir(conexao.pid);
+        await liberar.promessa;
+      });
+      void trava.catch(pronto.recusar);
+      const pid = await pronto.promessa;
+      const expiraEm = Date.now() + 900;
+      const resultado = alterarDados(causa === "prazo" ? { ...sessao, expiraEm } : sessao, {
+        operacao: "gravar",
+        chave: "progresso",
+        revisao: 1,
+        conteudo: "Yg==",
+      }).then(
+        (valor) => ({ ok: true, valor }),
+        (erro: unknown) => ({ ok: false, erro }),
+      );
+      try {
+        await expect
+          .poll(
+            async () =>
+              (
+                await db.execute<{ esperando: boolean }>(
+                  sql`select exists(select 1 from pg_stat_activity where ${pid}=any(pg_blocking_pids(pid))) as esperando`,
+                )
+              )[0]?.esperando,
+            { interval: 20 },
+          )
+          .toBe(true);
+        if (causa === "prazo")
+          await expect.poll(() => Date.now() >= expiraEm, { interval: 20 }).toBe(true);
+        else await db.delete(sessions).where(eq(sessions.id, jogador.login.authSessionId));
+      } finally {
+        liberar.concluir(undefined);
+        await trava;
+      }
+      expect(await resultado).toMatchObject({ ok: false, erro: { codigo: "SESSAO_INVALIDA" } });
+      expect(
+        (await db.select().from(keys).where(eq(keys.profileId, jogador.perfil.id)))[0]?.revision,
+      ).toBe(1);
+      expect(
+        await db.select().from(versions).where(eq(versions.profileId, jogador.perfil.id)),
+      ).toHaveLength(1);
+      expect(
+        (await eventosCom("profileId", jogador.perfil.id)).filter(
+          (e) => e.eventType === "recreio.profile_data_updated",
+        ),
+      ).toHaveLength(1);
+    },
+  );
   it("dez escritas usam a conexão transacional para validar o login sem esgotar o pool", async () => {
     const url = process.env.DATABASE_URL;
     if (!url || process.env.RECREIO_ISOLATED_TEST !== "1") throw new Error("Banco não isolado");

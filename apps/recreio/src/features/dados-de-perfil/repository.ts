@@ -1,14 +1,10 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
-import { and, db, desc, eq, inArray, sql } from "@informach/db";
+import { and, desc, eq, inArray } from "@informach/db";
 import {
   recreioProfileAchievements as achievements,
-  recreioDeviceSessions as devices,
-  recreioGameSessions as games,
   recreioProfileDataKeys as keys,
-  recreioProfiles as profiles,
-  users,
   recreioProfileDataVersions as versions,
 } from "@informach/db/schema";
 import { ErroDoRecreio } from "@informach/recreio";
@@ -19,89 +15,21 @@ import {
   type MutacaoDeDados,
   type VersaoDeDadosHttp,
 } from "@informach/recreio/contrato";
-import { decidirFatosLidos } from "@/features/acesso/decisao";
-import { lerFatosDeAcesso } from "@/features/acesso/repository";
-import { sessaoDeLoginViva } from "@/features/sessao/login";
+import { comSessaoDeJogoAutoritativa } from "@/features/autoridade-de-jogo/repository";
 import type { SessaoDeJogoAtiva } from "@/features/sessao-de-jogo/service";
 import { reportError } from "@/lib/observability";
 import { AGORA, type Transacao, travar } from "@/lib/repository";
 
-/** A ordem evita tomar o cursor de encerramento depois de travar a sessão. */
-async function comAutoridade<T>(
+/** A mesma autoridade dos jogos, com o mutex dos dados antes do aparelho. */
+function comAutoridade<T>(
   sessao: SessaoDeJogoAtiva,
-  executar: (tx: Transacao, contaId: string) => Promise<T>,
+  executar: (tx: Transacao, contaId: string | null) => Promise<T>,
 ): Promise<T> {
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`set local transaction_timeout='10s'`);
-    await tx.execute(sql`set local lock_timeout='5s'`);
-    const [referencia] = await tx
-      .select({ userId: profiles.userId })
-      .from(profiles)
-      .where(eq(profiles.id, sessao.perfilId));
-    // O pareamento infantil tem autoridade própria; não aceitar uma linha sem credencial.
-    if (!referencia?.userId) throw new ErroDoRecreio("SESSAO_INVALIDA");
-    const [conta] = await tx
-      .select()
-      .from(users)
-      .where(eq(users.id, referencia.userId))
-      .for("share");
-    const [perfil] = await tx
-      .select()
-      .from(profiles)
-      .where(eq(profiles.id, sessao.perfilId))
-      .for("share");
-    if (!conta || !perfil || perfil.userId !== conta.id || perfil.status !== "active")
-      throw new ErroDoRecreio("SESSAO_INVALIDA");
-    await travar(tx, `dados-perfil:${sessao.perfilId}:${sessao.jogo}`);
-    const [referenciaDeJogo] = await tx
-      .select({ deviceId: games.deviceSessionId })
-      .from(games)
-      .where(eq(games.id, sessao.sid));
-    if (!referenciaDeJogo) throw new ErroDoRecreio("SESSAO_INVALIDA");
-    const [aparelho] = await tx
-      .select()
-      .from(devices)
-      .where(eq(devices.id, referenciaDeJogo.deviceId))
-      .for("share");
-    const [jogo] = await tx.select().from(games).where(eq(games.id, sessao.sid)).for("share");
-    if (
-      !aparelho ||
-      !jogo ||
-      jogo.profileId !== perfil.id ||
-      jogo.gameId !== sessao.jogo ||
-      jogo.endedAt !== null ||
-      aparelho.revokedAt !== null ||
-      aparelho.activeProfileId !== perfil.id ||
-      aparelho.kind !== "account" ||
-      aparelho.minorContextGeneration !== null ||
-      aparelho.userId !== conta.id ||
-      !aparelho.authSessionId
-    )
-      throw new ErroDoRecreio("SESSAO_INVALIDA");
-    if (
-      !(await sessaoDeLoginViva({ authSessionId: aparelho.authSessionId, contaId: conta.id }, tx))
-    )
-      throw new ErroDoRecreio("SESSAO_INVALIDA");
-    const fatos = await lerFatosDeAcesso(sessao.perfilId, tx);
-    const [relogio] = await tx
-      .select({ agora: sql<Date>`${AGORA}`.mapWith(users.createdAt) })
-      .from(users)
-      .where(eq(users.id, conta.id));
-    if (!relogio) throw new ErroDoRecreio("SESSAO_INVALIDA");
-    const agora = new Date(relogio.agora);
-    if (
-      (conta.banned && (!conta.banExpiresAt || conta.banExpiresAt > agora)) ||
-      sessao.expiraEm <= agora.getTime() ||
-      aparelho.expiresAt <= agora ||
-      jogo.expiresAt <= agora ||
-      perfil.policyVersion !== sessao.versaoDaPolitica
-    )
-      throw new ErroDoRecreio("SESSAO_INVALIDA");
-    const decisao = decidirFatosLidos(fatos, agora);
-    if (!decisao.podeJogar)
-      throw new ErroDoRecreio("ACESSO_PERDIDO", { estado: decisao.estado, motivo: decisao.motivo });
-    return executar(tx, conta.id);
-  });
+  return comSessaoDeJogoAutoritativa(
+    sessao,
+    (tx) => travar(tx, `dados-perfil:${sessao.perfilId}:${sessao.jogo}`),
+    executar,
+  );
 }
 
 const hash = (bytes: Uint8Array | string) => createHash("sha256").update(bytes).digest("hex");

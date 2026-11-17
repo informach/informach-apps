@@ -15,6 +15,7 @@ import {
   lerContaNativa,
   validarIdentidadeDaSessaoNativa,
 } from "@/features/account/autoridade-repository";
+import { exigirCadastroProtegidoDisponivel } from "@/features/familia/disponibilidade";
 import { paraPerfil } from "@/features/perfis/repository";
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/repository";
 import { assertAllowed } from "@/lib/errors";
@@ -62,6 +63,7 @@ export async function trocarContextoComPin(
       .where(eq(pins.userId, autor.contaId))
       .for("share");
     if (perfil?.kind === "minor") {
+      exigirCadastroProtegidoDisponivel();
       assertAllowed(
         vinculo && protecao?.guardianLinkId === vinculo.id,
         "PERFIL",

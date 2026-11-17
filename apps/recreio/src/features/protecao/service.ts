@@ -5,6 +5,7 @@ import type {
   AutorNativoRecente,
   IdentidadeNativa,
 } from "@/features/account/autoridade-repository";
+import { exigirCadastroProtegidoDisponivel } from "@/features/familia/disponibilidade";
 import { AppError } from "@/lib/errors";
 import { limitarTentativas } from "@/lib/rate-limit";
 import {
@@ -90,6 +91,7 @@ export function estadoDoPinNativo(autor: IdentidadeNativa) {
 
 /** O adapter passa o IP canônico da borda; sem endereço, recusar em vez de ignorar o limite. */
 export async function prepararPareamento(ip: string | null) {
+  exigirCadastroProtegidoDisponivel();
   if (!ip) throw new AppError("PAREAMENTO", "Não foi possível preparar o aparelho.");
   await limitarTentativas({
     chave: `parear-ip:${hashDoSegredo("consulta", ip)}`,
@@ -101,6 +103,7 @@ export async function prepararPareamento(ip: string | null) {
   return { ...(await iniciarPedidoDePareamento(segredo)), segredo };
 }
 export async function aprovarPareamento(autor: AutorNativoRecente, entrada: unknown) {
+  exigirCadastroProtegidoDisponivel();
   const { perfilId, codigo } = z
     .strictObject({ perfilId: PerfilIdSchema, codigo: CodigoDePareamentoSchema })
     .parse(entrada);

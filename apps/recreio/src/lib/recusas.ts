@@ -20,6 +20,8 @@ const MENSAGENS: Partial<Record<CodigoDeErro, string>> = {
   MUNDO_INDISPONIVEL: "Este mundo não está disponível.",
   MUITAS_TENTATIVAS: "Muitas tentativas. Espere alguns minutos e tente de novo.",
   ENTRADA_INVALIDA: "Confira os campos e tente novamente.",
+  POLITICA_INCOMPATIVEL:
+    "Estas regras não são compatíveis com o perfil. Confira a faixa de conteúdo e as permissões.",
 };
 
 export function mensagemDaRecusa(codigo: CodigoDeErro): string | null {

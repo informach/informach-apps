@@ -155,3 +155,26 @@ mantém um agregado por perfil/dia. Um prazo assinado menor é o prazo persistid
 Retenção global de agregados com mais de trinta dias, em lotes de 500, entrou
 na manutenção com contagem própria. Estes adapters ainda precisam ser ligados
 à admissão/renovação autoritativas; não constituem ativação infantil isolada.
+
+Os seis gates da configuração (`44015489455`, `2becdc4`) e do adapter de
+tempo (`44016168572`, `5131cec`) passaram. A captura de supervisão em celular
+foi inspecionada; foram acrescentadas capturas específicas de horários e
+confirmação para conferir também a parte inferior do formulário.
+
+Em seguida, dados/conquistas passaram a consumir um kernel transacional de
+autoridade, com identidade nativa ou pareada, responsabilidade/geração atuais,
+política reconhecida, classificação e concessão de tempo. Recalcular idade
+encerra sessões antigas e confirma a revisão mesmo quando a escrita do jogo
+é recusada; a auditoria não atribui o progresso infantil à conta do adulto.
+Uma conferência final também reverte a gravação se uma espera na chave/auditoria
+atravessar o prazo do token, login ou acesso. O cursor foi extraído para um
+repository independente, preservando leitores/imports existentes e evitando
+ciclo entre emissão e autoridade. Novas regressões seguem para o GitHub.
+
+`RECREIO_FAMILY_MODE=off` é o padrão da nova build: bloqueia novos cadastros,
+pareamentos e seleção infantil. `setup` prepara esses vínculos sem liberar
+jogos protegidos; `play` só deve ser habilitado após os aceites. Desligar não
+apaga a restrição nativa persistida e permite retorno ao adulto/gestão por PIN,
+saída e revogação. O executor isolado habilita `play` explicitamente; nenhum
+modo familiar foi habilitado em produção. O ingresso/renovação e o restante
+das APIs ainda precisam aderir ao mesmo contrato antes dessa ativação.

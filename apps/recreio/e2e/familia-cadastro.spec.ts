@@ -125,4 +125,12 @@ test("responsável sem jogador cadastra, protege e supervisiona o perfil", async
     true,
   );
   await tela(page, "supervisao-mobile");
+  await page
+    .getByRole("heading", { name: "Tempo de brincar", exact: true })
+    .scrollIntoViewIfNeeded();
+  await tela(page, "supervisao-horarios-mobile");
+  await page
+    .getByRole("heading", { name: "Confirme as regras", exact: true })
+    .scrollIntoViewIfNeeded();
+  await tela(page, "supervisao-confirmacao-mobile");
 });

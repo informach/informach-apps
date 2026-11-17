@@ -21,7 +21,7 @@ import {
   type IdentidadeNativa,
 } from "@/features/account/autoridade-repository";
 import { agoraDoBanco, autoridadeDoMenor } from "@/features/protecao/autoridade-repository";
-import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/repository";
+import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/encerramento-repository";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 
@@ -69,7 +69,7 @@ async function limites(tx: Transacao) {
 }
 
 /** Chamador trava a identidade antes; o perfil já entra em UPDATE, sem elevar SHARE. */
-export async function atualizarPoliticaEfetiva(tx: Transacao, perfilId: PerfilId) {
+export async function calcularPoliticaEfetivaSobTrava(tx: Transacao, perfilId: PerfilId) {
   const [perfil] = await tx
     .select()
     .from(profiles)
@@ -107,9 +107,6 @@ export async function atualizarPoliticaEfetiva(tx: Transacao, perfilId: PerfilId
       .update(profiles)
       .set({ policyVersion: versao, updatedAt: agora })
       .where(eq(profiles.id, perfilId));
-    await encerrarSessoesAbertas(tx, sql`${games.profileId}=${perfilId}`, "permissions_changed", {
-      porQuem: "recreio",
-    });
   }
   if (linha.effectiveProfileVersion !== versao || mudou) {
     await tx
@@ -137,7 +134,31 @@ export async function atualizarPoliticaEfetiva(tx: Transacao, perfilId: PerfilId
     versao,
     reconhecida: linha.acknowledgedVersion === versao,
     agora,
+    mudou,
   };
+}
+
+/** Gestão já admitiu o aparelho antes do perfil alvo. Jogos invalidam depois de admitir o seu. */
+export async function atualizarPoliticaEfetiva(tx: Transacao, perfilId: PerfilId) {
+  const atual = await calcularPoliticaEfetivaSobTrava(tx, perfilId);
+  if (atual.mudou)
+    await encerrarSessoesAbertas(tx, sql`${games.profileId}=${perfilId}`, "permissions_changed", {
+      porQuem: "recreio",
+    });
+  return atual;
+}
+
+/** Uma espera posterior não pode atravessar mudança etária conservando regras antigas. */
+export function politicaConfereNoInstante(
+  atual: Awaited<ReturnType<typeof calcularPoliticaEfetivaSobTrava>>,
+  instante: Date,
+) {
+  const vigente = calcularPoliticaDoMenor(atual.nascimento, mesEAno(instante), atual.configuracao);
+  return (
+    vigente.faixa === atual.politica.faixa &&
+    vigente.faixaSocial === atual.politica.faixaSocial &&
+    vigente.precisaContaAdulta === atual.politica.precisaContaAdulta
+  );
 }
 
 function visaoDaSupervisao(atual: Awaited<ReturnType<typeof atualizarPoliticaEfetiva>>) {

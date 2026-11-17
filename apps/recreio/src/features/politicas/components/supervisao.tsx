@@ -167,7 +167,7 @@ export function SupervisaoDoPerfil({
                 </small>
               </span>
             </label>
-            {adolescente && (
+            {(adolescente || regras.textoLivre) && (
               <label className="flex items-start gap-3">
                 <input
                   className="mt-1 size-5 shrink-0 accent-sol"
@@ -181,6 +181,8 @@ export function SupervisaoDoPerfil({
             {!adolescente && (
               <p className="text-sm text-tinta-suave">
                 Texto livre fica desativado para crianças de até 12 anos.
+                {regras.textoLivre &&
+                  " Esta configuração antiga precisa ser corrigida. Desmarque o texto livre para confirmar."}
               </p>
             )}
           </div>

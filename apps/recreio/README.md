@@ -99,6 +99,7 @@ O servidor do jogo (`e2e/servidor/main.ts`) lê o mesmo `.env.local` do portal. 
 | `SENDGRID_API_KEY`, `SENDGRID_FROM` | Envio dos códigos de acesso |
 | `EMAIL_SANDBOX_MODE`, `EMAIL_SANDBOX_DIR` | `live`, `sandbox` (arquivos) ou `memory`; produção exige `live` |
 | `RECREIO_ACCESS_MODE` | `fechado` (padrão) ou `aberto` |
+| `RECREIO_FAMILY_MODE` | `off` (padrão), `setup` (novos cadastros e pareamentos) ou `play` (jogos protegidos, após homologação). Desligar não remove restrições já persistidas nem bloqueia retorno do adulto por PIN. Leitores compatíveis devem preceder escritores; ver o plano F3 |
 | `RECREIO_TOKEN_PRIVATE_KEY`, `RECREIO_TOKEN_KEY_ID` | Chave Ed25519 (PKCS8 PEM) dos tokens e o `kid` dela; obrigatórias em produção |
 | `RECREIO_TOKEN_PREVIOUS_PUBLIC_KEYS` | JSON de `kid` para chave pública (SPKI PEM) das chaves anteriores, na rotação; padrão `{}` |
 | `RECREIO_HOST_SECRETS` | JSON de id do jogo para o segredo da API das instâncias, 32 caracteres ou mais cada |

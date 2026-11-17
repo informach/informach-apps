@@ -47,7 +47,7 @@ export default async function Supervisao({
         configuracao={pagina.configuracao}
         versao={pagina.versao}
         reconhecida={pagina.reconhecida}
-        faixa={pagina.politica.faixa}
+        faixa={pagina.politica.faixaDaIdade}
         adolescente={pagina.politica.faixaSocial === "13_17"}
       />
       <Link href="/conta/perfis" className="mt-3 inline-block font-bold text-ceu underline">

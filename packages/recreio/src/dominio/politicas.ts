@@ -65,6 +65,7 @@ export function calcularPoliticaDoMenor(nascimento: MesEAno, agora: MesEAno, ent
       : idade.classificacao;
   return {
     faixaSocial: idade.social,
+    faixaDaIdade: idade.classificacao,
     faixa,
     precisaContaAdulta: idade.precisaContaAdulta,
     configuracaoPrecisaRevisao:
