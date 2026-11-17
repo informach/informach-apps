@@ -3,7 +3,9 @@ import {
   type CursorPoint,
   cursorAt,
   cursorControls,
+  cursorListenSpan,
   cursorPathGeometry,
+  cursorSourceHeard,
   editedCursorAt,
   insertCursorPoint,
   nearestCursorTime,
@@ -11,7 +13,7 @@ import {
   recordedCursorPath,
 } from "@shared/cursor";
 import type { CursorData } from "@shared/cursorData";
-import { clipSpeed, sourceAt, sourceEnd } from "@shared/timeline";
+import { clipSpeed, sourceAt, sourceEnd, timelineAt } from "@shared/timeline";
 import {
   type ReactNode,
   useCallback,
@@ -22,8 +24,9 @@ import {
   useState,
 } from "react";
 import { mediaUrl, playbackPath } from "@/lib/media";
+import { scrubTo } from "@/lib/scrub";
 import { useApp } from "@/state/app";
-import { usePlayback } from "@/state/playback";
+import { playback, usePlayback } from "@/state/playback";
 import { useProject } from "@/state/project";
 import { Button, Modal } from "@/ui";
 import { cursorFxOf, loadCursorData } from "./CursorLayer";
@@ -53,9 +56,51 @@ export function CursorPathDialog(): ReactNode {
   );
   const video = useRef<HTMLVideoElement>(null);
   const drag = useRef<{ index: number; handle?: "inHandle" | "outHandle" } | null>(null);
+  /** The lesson is playing from the chosen time (its sound comes from the editor's preview). */
+  const [listening, setListening] = useState(false);
   const close = (): void => {
     useApp.getState().set({ cursorClip: null });
   };
+  const stopListening = (): void => {
+    if (!listening) return;
+    playback.pause();
+    setListening(false);
+  };
+  const toggleListening = (): void => {
+    if (!clip || !asset) return;
+    if (listening) {
+      stopListening();
+      return;
+    }
+    const span = cursorListenSpan(clip, Math.min(asset.duration, sourceEnd(clip)), time);
+    if (span.to - span.from < 0.05) return;
+    setListening(true);
+    playback.playSpan(span.from, span.to, [], () => setListening(false));
+  };
+  const keyToggleListening = useEffectEvent(() => toggleListening());
+  // While listening, the time follows the playhead and the picture plays along; the dialog's
+  // own video is only seeked when it is not playing.
+  useEffect(() => {
+    if (!listening || !clip || !asset) return;
+    const end = Math.min(asset.duration, sourceEnd(clip));
+    const el = video.current;
+    if (el) {
+      el.playbackRate = clipSpeed(clip);
+      void el.play().catch(() => undefined);
+    }
+    const unsubscribe = usePlayback.subscribe(({ time: t, playing }) => {
+      if (!playing) {
+        setListening(false);
+        return;
+      }
+      setTime(cursorSourceHeard(clip, end, t));
+    });
+    return () => {
+      unsubscribe();
+      el?.pause();
+      if (usePlayback.getState().playing) playback.pause();
+    };
+  }, [listening, clip, asset]);
   const selectInitialPoint = useEffectEvent((initial: CursorPoint[]) => {
     setSelected(
       initial.reduce(
@@ -104,9 +149,9 @@ export function CursorPathDialog(): ReactNode {
     };
   }, [asset, clip]);
   useEffect(() => {
-    if (video.current)
+    if (video.current && !listening)
       video.current.currentTime = Math.min(time, Math.max(0, (asset?.duration ?? 0) - 0.001));
-  }, [time, asset?.duration]);
+  }, [time, asset?.duration, listening]);
   const path = useMemo(
     () =>
       data && asset ? normalizeCursorPath(points, data.width, data.height, asset.duration) : [],
@@ -141,7 +186,8 @@ export function CursorPathDialog(): ReactNode {
   useEffect(() => {
     if (!asset || !clip) return;
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      const space = e.key === " ";
+      if (!space && e.key !== "Delete" && e.key !== "Backspace") return;
       if (e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return;
       const target = e.target instanceof Element ? e.target : null;
       if (
@@ -150,9 +196,13 @@ export function CursorPathDialog(): ReactNode {
         )
       )
         return;
+      // Space on a button or a list is theirs; anywhere else it plays or stops the lesson.
+      if (space && target?.closest("button, select, a")) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      if (!e.repeat) remove();
+      if (e.repeat) return;
+      if (space) keyToggleListening();
+      else remove();
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
@@ -217,7 +267,8 @@ export function CursorPathDialog(): ReactNode {
         <p className="muted">
           Dê dois cliques na linha verde para adicionar um ponto naquele trecho do caminho.
           Selecione um ponto e pressione Delete para removê-lo. Arraste os pontos e as alças azuis
-          para ajustar a curva.
+          para ajustar a curva. Ouça a aula (Espaço) ou arraste o tempo para achar o momento certo
+          pelo som.
         </p>
         {error && <p role="alert">Não foi possível carregar o cursor: {error}</p>}
         {!data && !error && <p>Carregando caminho…</p>}
@@ -282,6 +333,7 @@ export function CursorPathDialog(): ReactNode {
                   const handle = (e.target as Element).getAttribute("data-handle");
                   if (index >= 0) {
                     setSelected(index);
+                    stopListening();
                     setTime(points[index].t);
                     drag.current = {
                       index,
@@ -399,10 +451,19 @@ export function CursorPathDialog(): ReactNode {
                 max={localDuration}
                 step={1 / (project.settings.fps || 30)}
                 value={localTime(time)}
-                onChange={(e) => setTime(Math.min(end, clip.in + Number(e.target.value) * speed))}
+                onChange={(e) => {
+                  stopListening();
+                  const next = Math.min(end, clip.in + Number(e.target.value) * speed);
+                  setTime(next);
+                  // Dragging the time is heard, a grain at a time, like the playhead (lib/scrub.ts).
+                  scrubTo(timelineAt(clip, next));
+                }}
               />
             </label>
             <div className="row-6 row-wrap">
+              <Button size="sm" aria-pressed={listening} onClick={toggleListening}>
+                {listening ? "Parar (Espaço)" : "Ouvir a aula daqui (Espaço)"}
+              </Button>
               <Button
                 size="sm"
                 disabled={locked}
@@ -438,7 +499,10 @@ export function CursorPathDialog(): ReactNode {
                 onChange={(e) => {
                   const i = Number(e.target.value);
                   setSelected(i);
-                  if (points[i]) setTime(points[i].t);
+                  if (points[i]) {
+                    stopListening();
+                    setTime(points[i].t);
+                  }
                 }}
               >
                 <option value={-1}>Selecione um ponto</option>
@@ -474,7 +538,10 @@ export function CursorPathDialog(): ReactNode {
                         );
                         const n = key === "t" ? Math.min(end, clip.in + limited * speed) : limited;
                         update(selected, { [key]: n });
-                        if (key === "t") setTime(n);
+                        if (key === "t") {
+                          stopListening();
+                          setTime(n);
+                        }
                       }}
                     />
                   </label>

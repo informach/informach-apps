@@ -55,6 +55,8 @@ export interface DraftFacts {
   imagePalette: string[];
   /** The project's design kit, when one was imported. */
   kit?: DraftKit;
+  /** The style guide chosen in the assistant panel (shared/styleGuide.ts), as text. */
+  guide?: string | null;
   /** Where the narration starts in the lesson (seconds), for the report. */
   lessonStart: number;
   /** The screen demonstration under the layer (the "Demonstração passo a passo" recipe). */
@@ -114,6 +116,7 @@ export function draftRequest(f: DraftFacts): string {
   return [
     `Pipeline "${f.recipe.name}". Monte o rascunho da animação desta cena, sincronizado com a narração.`,
     "",
+    ...(f.guide ? [f.guide, ""] : []),
     "## O que a pessoa pediu para esta receita",
     f.recipe.style.trim() || "(sem instruções além das regras abaixo)",
     "",

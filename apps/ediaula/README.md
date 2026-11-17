@@ -76,7 +76,7 @@ ativos. Esse resultado não homologa dispositivos, áudio físico ou captura de 
 
 - Se o salvamento falhar, o aviso fica fixo na barra de cima até um salvamento dar certo, com **Tentar de novo** e **Salvar cópia…**. A cópia ganha o nome do arquivo escolhido e a edição continua nela. Voltar ao início, abrir ou criar outro projeto e fechar a janela (pelo X ou Alt+F4) esperam o texto que está sendo digitado, as anotações sendo redesenhadas e o salvamento, com o aviso "Salvando antes de fechar…" quando demora; se o salvamento falhar ou passar de 20 s, uma janela pergunta o que fazer: tentar de novo, salvar uma cópia, sair sem salvar ou cancelar. Com exportações na fila, a janela continua aberta e nada é descartado.
 - Salvar e exportar mandam o projeto ao processo principal como texto (um valor só, por maior que seja a aula), validado uma vez, com o mesmo teto de 32 MB da abertura. O arquivo é gravado compacto e o teto vale sobre ele; perto de 80% do teto, o app avisa uma vez por aula, e os desenhos feitos na tela (o que mais ocupa) têm um teto de pontos para a aula inteira, além do teto de cada take (`src/shared/projectSize.ts`). Abrir e salvar só aceitam um `.ediaula` escolhido pela pessoa (diálogo, lista de recentes, aula criada, copiada ou tirada de um pacote pelo app; `src/main/lessonFile.ts`); as posições do cursor vão como lista binária, então gravações longas (27 min ou mais) também exportam. Um projeto que não poderia ser reaberto não é salvo, e uma falha na lista de recentes não impede o salvamento.
-- Um `.ediaula` aberto de fora pergunta antes de liberar os arquivos que ele usa ("Permitir acesso aos N arquivos"). A pergunta nomeia todos os computadores da rede envolvidos (o Windows pode mandar a autenticação da pessoa a eles) e conta todos os arquivos fora da pasta da aula, listando os 20 primeiros e dizendo quantos faltam; caminhos de dispositivo (`\\.\…`) são recusados (`src/main/linkedFiles.ts`). A aula só entra nos recentes depois da permissão: os recentes liberam a miniatura sem perguntar de novo, então uma aula recusada nunca chega lá.
+- Um `.ediaula` aberto libera na hora os arquivos que ele usa dentro da própria pasta (e subpastas), sem perguntar: abrir a aula é a escolha da pessoa. Só quando o projeto aponta para arquivos fora da pasta dele, ou em outro computador da rede, ele pergunta antes ("Permitir acesso aos N arquivos que este projeto usa fora da pasta dele?"). A pergunta nomeia todos os computadores da rede envolvidos (o Windows pode mandar a autenticação da pessoa a eles) e conta todos os arquivos de fora, listando os 20 primeiros e dizendo quantos faltam; caminhos de dispositivo (`\\.\…`) são recusados (`src/main/linkedFiles.ts`). A aula só entra nos recentes depois da permissão: os recentes liberam a miniatura sem perguntar de novo, então uma aula recusada nunca chega lá.
 - Os zooms pertencem à gravação, no tempo dela, como o cursor: cada clipe mostra os do seu trecho. Cortar, aparar e desfazer o aparo pela borda nunca perde nem duplica um zoom, e um zoom tirado fica fora. Projetos antigos, com os zooms copiados em cada pedaço, são convertidos ao abrir.
 - Cada pedaço de um clipe cortado (dividir, sobrescrever, aparar, estender quadro, cortes da transcrição) mostra exatamente o mesmo movimento e a mesma vista da camada de zoom do original (`src/shared/pieces.ts`): o pedaço guarda todas as posições do movimento, então aumentá-lo pela borda traz o movimento de volta, e a camada de zoom mantém o tempo da entrada e da saída mesmo num pedaço curto. Um corte no meio tira a entrada e a saída das bordas de dentro; cortar a cabeça ou o rabo de um clipe só move aquela borda, com a transição, o fade e a animação dela.
 - Ctrl+Z desfaz também a remoção de fundo. O que o app descobre sobre a mídia (miniatura, forma de onda, proxy, transcrição, vídeo recortado, arquivo ausente, taxa de quadros e transparência do arquivo) e o tempo de edição medido não voltam com o desfazer.
@@ -1182,7 +1182,11 @@ Uma fala cortada da aula depois de achada fica de fora, com aviso. Precisa da tr
 - **Editar caminho do cursor…** (botão direito no clipe): mostra apenas o intervalo daquele clipe,
   com tempo de zero até sua duração, respeitando a velocidade. O caminho e os pontos ficam no mesmo
   intervalo; aplicar ou restaurar preserva as edições fora dele. Escolha o tempo, clique para adicionar pontos e
-  arraste-os para ajustar a posição. Cada ponto também tem tempo e coordenadas numéricas. O movimento
+  arraste-os para ajustar a posição. Para achar o momento pelo som, **Ouvir a aula daqui** (ou Espaço) toca a
+  aula a partir desse tempo até o fim do clipe, com o som que a prévia tocaria ali (narração, música, volume e
+  mudos das faixas): o tempo e o ponteiro laranja acompanham, e qualquer escolha de tempo ou ponto para.
+  Arrastar o controle de tempo também se ouve, em grãos, como o cursor de reprodução na timeline. Cada ponto
+  também tem tempo e coordenadas numéricas. O movimento
   usa curvas Bézier: selecione um ponto para mostrar as alças azuis de entrada e saída e arraste-as
   para curvar o trajeto. As alças acompanham o ponto; “Redefinir alças” restaura os controles padrão.
   O movimento
@@ -1445,7 +1449,10 @@ Nunito no texto); em outra paleta, as mesmas formas nas cores dos papéis dela.
   mantém a proporção, **Esc** cancela. Enquanto arrasta, a forma aparece já desenhada no tamanho novo e o tamanho
   aparece embaixo; soltar é um passo de desfazer (`editor/ShapeSizeControl.tsx`, contas em
   `shared/shapeResize.ts`). Nessas formas o quadro de seleção só move; os cantos que mudavam a escala saíram
-  delas.
+  delas. O tamanho vai de 40 até o dobro da tela de 1080p (3840 × 2160), então a forma pode passar das bordas.
+  O fundo de tela cheia dos templates é marcado como fundo (`backdrop`), não pelo tamanho; num projeto antigo,
+  um painel de 1920 × 1080 ou mais continua sendo fundo e as outras formas ficam marcadas como forma na
+  primeira edição (`fillsFrame` e `editedAnnotation` em `shared/annotation.ts`).
 - **Escurecer o resto** (Destaque › Forma): escurece em volta da caixa do destaque, com a opacidade escolhida
   (10% a 95%, começa em 60%). Só as faixas abaixo da do destaque escurecem; o que está acima fica como está. O
   recorte tem a forma do destaque (arredondada, reta, elipse ou triângulo), gira e espelha com ele, e o

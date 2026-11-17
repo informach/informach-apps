@@ -1,7 +1,9 @@
 import type { ClickKind } from "./clickEvents.ts";
+import { sourceAt, timelineAt } from "./clipTime.ts";
 import { type CursorData, shapeName } from "./cursorData.ts";
 import { CURSOR_SHAPES, type CursorShape } from "./recording.ts";
 import type { SoundEffectId } from "./soundEffects.ts";
+import type { Clip } from "./types.ts";
 
 /**
  * The pointer of an EdiAula screen recording is drawn by the editor (the video has none), so it
@@ -99,6 +101,29 @@ export interface CursorPoint {
   /** Bezier handles relative to the anchor; moving the anchor carries its handles. */
   inHandle?: { x: number; y: number };
   outHandle?: { x: number; y: number };
+}
+
+type ClipStretch = Pick<Clip, "start" | "in" | "speed">;
+
+/**
+ * Listening to the lesson while editing the cursor path (editor/CursorPathDialog.tsx): the
+ * stretch of the timeline the clip shows from source time `time` to the end of its stretch of the
+ * source (`end`, in source seconds), in timeline seconds. Asked at the very end, it starts the
+ * clip over.
+ */
+export function cursorListenSpan(
+  clip: ClipStretch,
+  end: number,
+  time: number,
+): { from: number; to: number } {
+  const to = timelineAt(clip, end);
+  const from = timelineAt(clip, time);
+  return to - from < 0.05 ? { from: timelineAt(clip, clip.in), to } : { from, to };
+}
+
+/** The source time of the clip heard at timeline time `t`, kept inside the clip's stretch. */
+export function cursorSourceHeard(clip: ClipStretch, end: number, t: number): number {
+  return Math.max(clip.in, Math.min(end, sourceAt(clip, t)));
 }
 
 export function editedCursorAt(fx: CursorFx, t: number): { x: number; y: number } | null {

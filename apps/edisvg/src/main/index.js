@@ -180,6 +180,10 @@ function menu() {
             click: () => win.webContents.send("app:command", "import-kit"),
           },
           {
+            label: "Inserir kit Zero Kids",
+            click: () => win.webContents.send("app:command", "insert-kit-zero-kids"),
+          },
+          {
             label: "Pipelines…",
             accelerator: "CmdOrCtrl+Shift+P",
             click: () => win.webContents.send("app:command", "pipelines"),

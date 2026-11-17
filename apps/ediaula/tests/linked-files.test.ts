@@ -6,6 +6,7 @@ import {
   LISTED,
   linkedFilesDetail,
   networkHost,
+  outsideFolder,
 } from "../src/main/linkedFiles.ts";
 
 const folder = "C:\\Aulas\\Farol";
@@ -31,6 +32,20 @@ test("a path that climbs out of the lesson's folder with .. is outside it", () =
   assert.equal(insideFolder("C:\\aulas\\farol\\tela.mp4", `${folder}\\`), true);
   assert.equal(insideFolder("C:\\Aulas\\Farol\\..\\..\\Users\\ana\\senhas.txt", folder), false);
   assert.equal(insideFolder("C:\\Aulas\\Farol2\\tela.mp4", folder), false);
+});
+
+test("only a lesson pointing outside its folder (or at the network) has to ask", () => {
+  assert.deepEqual(outsideFolder([`${folder}\\tela.mp4`, `${folder}\\media\\voz.wav`], folder), []);
+  assert.deepEqual(
+    outsideFolder(
+      [`${folder}\\tela.mp4`, "D:\\Gravações\\parte.mp4", "\\\\servidor\\s\\t.mp4"],
+      folder,
+    ),
+    ["D:\\Gravações\\parte.mp4", "\\\\servidor\\s\\t.mp4"],
+  );
+  assert.deepEqual(outsideFolder([`${folder}\\..\\..\\Users\\ana\\senhas.txt`], folder), [
+    `${folder}\\..\\..\\Users\\ana\\senhas.txt`,
+  ]);
 });
 
 test("nothing hides after the first files listed: every computer is named, every file counted", () => {

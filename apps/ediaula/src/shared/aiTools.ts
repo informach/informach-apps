@@ -574,8 +574,8 @@ export const AI_TOOLS = {
       tail: z
         .enum(["none", "bottom-left", "bottom-right", "top-left", "top-right", "left", "right"])
         .optional(),
-      box_width: z.number().min(20).max(1900).optional(),
-      box_height: z.number().min(20).max(1080).optional(),
+      box_width: z.number().min(20).max(3840).optional(),
+      box_height: z.number().min(20).max(2160).optional(),
       ...STYLE_FIELDS,
       arrow_style: z.enum(["solid", "line", "dashed", "dotted"]).optional(),
       two_heads: z.boolean().optional(),

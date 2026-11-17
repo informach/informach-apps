@@ -423,6 +423,37 @@ A importação é uma edição só, que Ctrl+Z desfaz inteira, e é tudo ou nada
 do palco e posições ficam dentro dos limites do editor, para o projeto não ser recusado no meio. Código em `src/renderer/src/szProjectImport.ts`. Testes em
 `tests/e2e/szproject-import.test.ts`, que confere a cena por pixels no navegador.
 
+## Guia de estilo e kit Zero Kids (sem anexar a imagem de referência)
+
+O assistente pode seguir um guia de estilo sem que a pessoa anexe a imagem dele a cada conversa.
+O primeiro guia é **Zero Kids · Kit de slides**, o kit das aulas em vídeo (o mesmo que as
+anotações e os templates do EdiAula seguem): slide 1280 × 720, fundo claro, a apresentadora sempre
+à direita (x ≥ 880), Baloo 2 para falar alto e Nunito para explicar, a paleta pelo papel de cada
+cor e as caixas de significado (Ação branca, Reação verde com texto amarelo, Pegue! amarela,
+Próxima azul-noite), os componentes (cards de objetivo e de passo, opção de quiz, etiquetas,
+balões numerados, bloco de código, lista do que aprendemos, card da próxima aula, legenda
+numerada), a sequência dos 10 slides e as regras de ouro. Tudo em `src/shared/styleGuide.ts`.
+
+- **No painel Assistente**, **Guia de estilo: Nenhum / Zero Kids · Kit de slides**. Com um guia
+  escolhido, o texto dele (`styleGuideText`, até 8000 caracteres) vai no começo de toda mensagem
+  da pessoa, antes da conversa recente, que fica com o espaço que sobra do limite de 32000. A
+  escolha fica em `localStorage` (`edisvg-style-guide`), como o provedor e o modelo.
+- **Nos pipelines**, o pedido do rascunho (`pipelines/prompt.ts`) leva o mesmo guia logo depois
+  da primeira linha, antes das instruções da receita. Na receita e na execução, o botão **Paleta e
+  fontes do guia Zero Kids** (no bloco das fontes) troca a paleta de texto pelas cores do guia na
+  ordem que as receitas usam (branco, tinta, azul, verde, amarelo) e as fontes por Baloo 2 e
+  Nunito.
+- **Arquivo › Inserir kit Zero Kids** (também na paleta de comandos) põe as peças do guia no
+  projeto como um kit de design, pelo mesmo caminho do ZIP (`styleGuideKit` →
+  `planDesignKit` → `applyDesignKit`): a folha de paleta com as 15 cores nomeadas, as caixas de
+  significado e a seta causa → efeito, os cards, as etiquetas (pílula, "Pause o vídeo", tempo,
+  balão numerado, destaque amarelo) e os três fundos (claro, capa, pause e pense), como pranchetas
+  "Kit · caixas · Ação", "Kit · cards · Card de objetivo" etc. As fontes Baloo 2 e Nunito dos
+  textos são incorporadas como num kit importado, as cores entram na paleta da prancheta aberta e
+  tudo é um passo de desfazer. Peças que já estão no projeto (pelo nome) não entram de novo. Os
+  pipelines passam a oferecer essas pranchetas ao assistente como componentes, com a instrução de
+  preferi-las a desenhar outras.
+
 ## Importar um kit de design (`.zip`)
 
 Um kit de design é um ZIP com as peças da arte das aulas: balões, etiquetas, botões, ícones e uma

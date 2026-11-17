@@ -1,15 +1,16 @@
-import type { Annotation } from "./annotation.ts";
+import { type Annotation, fillsFrame } from "./annotation.ts";
 
 /**
  * A shape annotation resized on the stage (editor/ShapeSizeControl.tsx): its box's width and
  * height (Annotation.boxWidth/boxHeight, pixels at 1080p) change, not the picture's scale, so the
- * outline and the corners keep their thickness. Same limits as the sliders of the panel.
+ * outline and the corners keep their thickness. Same limits as the sliders of the panel: up to
+ * twice a 1920x1080 frame, so a shape can overflow the screen.
  */
-export const SHAPE_LIMITS = { minW: 40, maxW: 1800, minH: 40, maxH: 1000 } as const;
+export const SHAPE_LIMITS = { minW: 40, maxW: 3840, minH: 40, maxH: 2160 } as const;
 
 /** The Destaque and the shapes (a panel that does not fill the frame) are sized on the stage. */
 export function sizedOnStage(a: Annotation | undefined): boolean {
-  return a?.kind === "highlight" || (a?.kind === "panel" && (a.boxWidth ?? 0) < 1920);
+  return a?.kind === "highlight" || (a?.kind === "panel" && !fillsFrame(a));
 }
 
 /** The box's size, with the defaults the picture is drawn with (lib/annotations.ts). */

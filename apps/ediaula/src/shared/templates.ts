@@ -109,9 +109,9 @@ const CONTENT = 1170;
 /** Content width on this frame: the kit's, or what fits between the margins. */
 const contentWidth = (f: FrameUnits): number => Math.min(CONTENT, f.w - MARGIN * 2);
 
-/** Full-frame background (only drawn when the panel is at least the frame's size). */
+/** Full-frame background. */
 const backdrop = (color: string, opacity = 1): TemplateLayer => ({
-  spec: { kind: "panel", color, boxWidth: 1920, boxHeight: 1080 },
+  spec: { kind: "panel", color, boxWidth: 1920, boxHeight: 1080, backdrop: true },
   at: 0,
   enter: "fade",
   exit: "fade",

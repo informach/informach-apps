@@ -10,6 +10,8 @@ import {
   balloonTail,
   CARD,
   defaultOutline,
+  editedAnnotation,
+  fillsFrame,
   freeBalloonTip,
   isDrawingKind,
   KIT,
@@ -1125,8 +1127,8 @@ export async function renderAnnotation(
       break;
     }
     case "panel": {
-      // Background: fills the frame when it is at least the frame's size, otherwise a box.
-      if ((a.boxWidth ?? 0) >= 1920 && (a.boxHeight ?? 0) >= 1080) {
+      // Background: a template's backdrop fills the frame; any other panel is a shape.
+      if (fillsFrame(a)) {
         fullFrame = true;
         size(frameWidth * OVERSAMPLE, frameHeight * OVERSAMPLE);
         ctx.fillStyle = a.color;
@@ -1361,7 +1363,7 @@ async function redrawAnnotation(
     throw new Error(
       "O desenho feito na gravação não muda de estilo: apague-o ou corte-o como um clipe.",
     );
-  const spec: Annotation = { ...clip.annotation, ...changes };
+  const spec = editedAnnotation(clip.annotation, changes);
   const r = await renderAnnotation(spec, p.settings.height, p.settings.width);
   const path = await window.api.saveGenerated(r.bytes, "png");
   const t = clip.transform ?? DEFAULT_TRANSFORM;
