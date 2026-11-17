@@ -1310,6 +1310,13 @@
       "when": 1794937149810,
       "tag": "0186_polite_bedlam",
       "breakpoints": true
+    },
+    {
+      "idx": 187,
+      "version": "7",
+      "when": 1794940720044,
+      "tag": "0187_yellow_giant_girl",
+      "breakpoints": true
     }
   ]
 }

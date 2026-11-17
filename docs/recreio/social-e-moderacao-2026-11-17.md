@@ -380,6 +380,34 @@ rollback por auditoria e vencimento, leitura sem vazamento, expurgo com
 SKIP LOCKED e alerta por pendência. Ações de moderação só sobre o alvo
 explicitamente confirmado, com revisão, motivo fechado e recibo atômico.
 
+0187 gerada em `44149942490`, fonte `f8b03211`, artefato `14356879917`;
+ZIP SHA `a990649fcae39c3b26d7469f73507fe1319ec11706b925ae240babb367158852`.
+`0187_yellow_giant_girl.sql`, 4.261 bytes, SHA
+`83925e6eb2fa05490c910c8681cd64eacdcb8076f3cc5f193d2f43d91364b7df`;
+snapshot SHA `d83101c5b4c509dcc3a1b2fb025b8aadc84b49cd7e9703402865d3af04583611`;
+journal SHA `18cfeb9afa9e7bbfa05aa745b58d58784b8144414d7737aa597a40e9c9eb3ab5`.
+Três arquivos conferidos e copiados intactos. Apenas tabela nova, FKs com
+retirada de referências e checks/índices; nenhuma carga ou alteração anterior.
+Ainda não aplicada em produção; F1 continua congelada em `204cf79c` sem F4.
+
+Writers candidatos recebem denúncia do jogador ou do responsável atual, sem
+cobertura e mesmo após bloquear/suspender o alvo. Recuperação compara corpo
+e ator; teto de dez protocolos novos por dez minutos é serializado no perfil,
+com limite adicional de trinta tentativas. Prioridade infantil/ameaça vem do
+servidor. Treze provas PostgreSQL cobrem autoridade, repetição, auditoria,
+prazo, integridade e retenção. Manutenção expurga até 500 com SKIP LOCKED;
+fila prioritária acima de 24 horas ou demais acima de 72 horas mantém falha
+operacional até atendimento. São tetos internos de alerta, não promessa pública
+de atendimento. Interface, SDK, leitura/recurso e comandos da equipe ainda
+precisam de implementação e prova antes de habilitar denúncias.
+
+As telas `cfc74e8` passaram em seis gates de `44149199308`. Navegador teve
+24 aprovações e uma recusa: o novo teste esperava `encerrada=1` para um aparelho
+sem sessão adulta, mas o fluxo correto preserva `next` na entrada. A prova
+conferiu a aprovação, o aviso e o bloqueio antes dessa divergência. `cc76fa6`
+ajusta somente a expectativa e mantém a recusa da gestão; nova verificação
+separada em andamento. Não anunciar as telas homologadas por esse resultado.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

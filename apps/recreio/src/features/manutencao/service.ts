@@ -1,5 +1,9 @@
 import "server-only";
 import { limparConvitesDeGrupo } from "@/features/grupo/convites-retencao-repository";
+import {
+  exigirFilaDeSegurancaEmDia,
+  limparDenuncias,
+} from "@/features/moderacao/retencao-repository";
 import { fecharPossesVencidas, marcarInstanciasSumidas } from "@/features/posse/repository";
 import {
   apagarIngressosAntigos,
@@ -43,6 +47,10 @@ export async function executarManutencao(): Promise<{
   relacoesSociaisApagadas: number;
   vinculosDeCodigoSocialLimpos: number;
   vinculosDePedidoSocialLimpos: number;
+  denunciasApagadas: number;
+  denunciasVencidasSemSolucao: number;
+  denunciasPrioritariasAtrasadas: number;
+  denunciasAtrasadas: number;
 }> {
   const possesVencidas = await fecharPossesVencidas();
   const instanciasSumidas = await marcarInstanciasSumidas();
@@ -54,6 +62,9 @@ export async function executarManutencao(): Promise<{
   const recibosDeSalvamentoApagados = await apagarSalvamentosAntigos();
   const convitesDeGrupo = await limparConvitesDeGrupo();
   const social = await limparRegistrosSociais();
+  const denuncias = await limparDenuncias();
+  // O expurgo já confirmou sua auditoria; atendimento atrasado continua sendo falha operacional.
+  exigirFilaDeSegurancaEmDia(denuncias);
   return {
     possesVencidas,
     instanciasSumidas,
@@ -65,5 +76,6 @@ export async function executarManutencao(): Promise<{
     recibosDeSalvamentoApagados,
     ...convitesDeGrupo,
     ...social,
+    ...denuncias,
   };
 }
