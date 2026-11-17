@@ -5,6 +5,7 @@ import {
   recreioGameSessions as games,
   recreioProfiles as profiles,
   sessions,
+  recreioSpaces as spaces,
   recreioGameTickets as tickets,
   recreioMinorDailyUsage as usage,
 } from "@informach/db/schema";
@@ -15,7 +16,9 @@ import type { AutorNativoRecente } from "@/features/account/autoridade-repositor
 import { conferirAberturaDoJogo } from "@/features/autoridade-de-jogo/pagina-repository";
 import { alterarDados } from "@/features/dados-de-perfil/service";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
+import { criarConvite, criarMundo, listarMundos } from "@/features/mundos/service";
 import { consultarSupervisao, salvarSupervisao } from "@/features/politicas/service";
+import { abrirMundo } from "@/features/posse/service";
 import {
   aprovarPareamento,
   consultarPareamento,
@@ -35,13 +38,25 @@ import {
 } from "@/features/sessao-de-jogo/service";
 import { chavesDoRecreio } from "@/lib/tokens";
 import { conceder } from "../scripts/concessoes";
-import { eventosCom, loginReal, novaConta, novoJogador, sinal } from "./apoio";
-import { claimsDe } from "./jogo-apoio";
+import { aposentarInstancias, eventosCom, loginReal, novaConta, novoJogador, sinal } from "./apoio";
+import { abrirPelaRota, cabecalhosDoHost, claimsDe, novaInstancia } from "./jogo-apoio";
+import { pedir } from "./rotas";
 
 vi.mock("@informach/config/jogos", async (original) => {
   const real = await original<typeof import("@informach/config/jogos")>();
   const jogos = [
     ...real.JOGOS,
+    {
+      ...real.JOGOS[0],
+      id: "jogo-de-teste",
+      nome: "Mundo protegido",
+      rota: "/jogar/jogo-de-teste",
+      classificacao: { faixa: "L", descritores: [], interacoes: [] },
+      politicasDeMundo: [
+        { id: "leve", faixaMinima: "L", padrao: true },
+        { id: "adulto", faixaMinima: "18" },
+      ],
+    },
     {
       ...real.JOGOS[0],
       id: "emissao-menor",
@@ -108,6 +123,60 @@ async function abrir(r: Awaited<ReturnType<typeof protegido>>) {
 }
 
 describe("emissão transacional da autoridade", () => {
+  it("mundo infantil usa faixa própria; conteúdo adulto não aparece nem atribui posse", async () => {
+    const r = await protegido();
+    const autor = {
+      perfilId: r.perfil.id,
+      sessaoDeAparelhoId: r.ator.sessaoDeAparelhoId,
+      jogo: "jogo-de-teste",
+    };
+    await expect(
+      criarMundo(autor, { nome: "Conteúdo adulto", politicaDeConteudo: "adulto" }),
+    ).rejects.toMatchObject({ codigo: "POLITICA_INCOMPATIVEL" });
+    const mundo = await criarMundo(autor, { nome: "Conteúdo leve" });
+    const ticket = await emitirIngresso(r.ator, { jogo: autor.jogo });
+    const aberta = await trocarIngresso({ ingresso: ticket.ingresso });
+    const sessao = await sessaoDeJogoDoToken(aberta.token);
+    expect(await listarMundos(sessao)).toMatchObject([{ id: mundo.id }]);
+    await expect(criarConvite(sessao, mundo.id, { forma: "member" })).rejects.toMatchObject({
+      codigo: "POLITICA_INCOMPATIVEL",
+    });
+    await db.update(spaces).set({ contentPolicy: "adulto" }).where(eq(spaces.id, mundo.id));
+    expect(await listarMundos(sessao)).toEqual([]);
+    await expect(abrirMundo(sessao, mundo.id)).rejects.toMatchObject({
+      codigo: "POLITICA_INCOMPATIVEL",
+    });
+  });
+
+  it("instância admite a política infantil atual e recusa aparelho vencido sem revelar o perfil", async () => {
+    await aposentarInstancias();
+    const r = await protegido();
+    const jogo = "jogo-de-teste";
+    const autor = { perfilId: r.perfil.id, sessaoDeAparelhoId: r.ator.sessaoDeAparelhoId, jogo };
+    const mundo = await criarMundo(autor, { nome: "Mundo da instância" });
+    const instancia = await novaInstancia(jogo);
+    const ticket = await emitirIngresso(r.ator, { jogo });
+    const aberta = SessaoAbertaSchema.parse(await trocarIngresso({ ingresso: ticket.ingresso }));
+    expect((await abrirPelaRota(aberta, mundo.id)).status).toBe(200);
+    const posse = await instancia.cliente.reivindicarPosse(mundo.id);
+    const entrar = () =>
+      pedir("POST", `/api/interno/v1/mundos/${mundo.id}/entradas`, {
+        headers: cabecalhosDoHost(jogo, instancia.instanciaId),
+        corpo: { cerca: posse.cerca, sid: aberta.sid, perfilId: r.perfil.id },
+      });
+    const admitida = await entrar();
+    expect(admitida).toMatchObject({
+      status: 200,
+      corpo: { apelido: "Protegido", politica: { multiplayer: true, textoLivre: false } },
+    });
+    expect(JSON.stringify(admitida.corpo)).not.toContain(r.conta.id);
+    expect(JSON.stringify(admitida.corpo)).not.toContain(r.conta.email);
+    await db
+      .update(devices)
+      .set({ expiresAt: sql`clock_timestamp()-interval '1 second'` })
+      .where(eq(devices.id, autor.sessaoDeAparelhoId));
+    expect(await entrar()).toEqual({ status: 403, corpo: { codigo: "SESSAO_ENCERRADA" } });
+  });
   it("prévia da estante usa a autoridade atual sem iniciar sessão ou contabilizar tempo", async () => {
     const r = await protegido();
     const referencia = { perfilId: r.perfil.id, sessaoDeAparelhoId: r.ator.sessaoDeAparelhoId };

@@ -226,3 +226,34 @@ devem provar progresso/reabertura no título interno L, recusa do Morada em aná
 por página e ingresso direto, além da revogação de escrita durante a partida
 pareada. Essas alterações ainda não foram verificadas. Não habilitam `play` em
 produção; faltam checkpoint, avisos/tempo no cliente e as demais APIs de mundos.
+
+Próxima revisão de mundos: os serviços devem receber aparelho nativo ou sessão
+de jogo inteira, sem reduzir a autoridade ao perfil. Identidade → mundo/trava
+de criação → perfil → aparelho → sessão → operação. Leitores/escritores de
+mundos recebem a mesma transação admitida, sem abrir conexão secundária. Convite
+aceito pelo SDK deve pertencer ao jogo do token. A API das instâncias também
+deve reler sessão, aparelho, política e prazo, antes de vincular um jogador ao
+mundo. As verificações após esperas precisam reverter efeitos e auditoria;
+recalcular política confirma a invalidação mesmo quando recusa a operação.
+
+Reprodução `558dc32`, run `44026953681`: os dois pedidos acima retornaram 200
+quando precisavam recusar; os outros 434 testes passaram. Arquivo
+`mundos-autoridade.integration.ts`, SHA-256
+`68b242aacb50a06b1139798a7b2ec955aea84c61a51d223afbbaebbfac96bfde`
+(conferir o hash integral no artefato/Git; não considerar uma rodada positiva
+sem os mesmos dois testes). A próxima candidata conserva o arquivo sem edição,
+passa aparelho/sessão inteira também pelas ações adultas e compõe os repositories
+na transação admitida. Entrada da instância toma UPDATE da sessão desde a primeira
+trava, relê prazo/aparelho/política e devolve somente política de jogo.
+
+Conteúdo de mundo exige a faixa mínima da variante, além da classificação do
+título. Multijogador desativado recusa mundo com outros participantes. Convites
+anônimos legados permanecem somente adultos: o fluxo protegido por destinatário
+e aprovação ainda pertence a F4. Listagem e prévia protegidas filtram mundos
+incompatíveis. Casos reais de criação/listagem/entrada infantil usam o manifesto
+L interno do teste, sem alterar a classificação do Morada.
+
+Na estante `3c4cda0`, cinco gates passaram; o E2E confirmou o percurso
+compartilhado, mas a asserção de revogação pareada esperava 401. O contrato
+existente devolve 403/`SESSAO_ENCERRADA`/`signed_out`; a próxima rodada exige esse
+corpo exato. Não tratar a rodada com essa falha como aprovada.

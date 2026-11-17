@@ -126,7 +126,12 @@ test("dois aparelhos pareiam um menor, não herdam gestão e respeitam revogaç�
       resposta.request().method() === "POST",
   );
   await tablet.page.getByRole("button", { name: "Ganhar ponto", exact: true }).click();
-  expect((await recusado).status()).toBe(401);
+  const respostaRecusada = await recusado;
+  expect(respostaRecusada.status()).toBe(403);
+  expect(await respostaRecusada.json()).toEqual({
+    codigo: "SESSAO_ENCERRADA",
+    motivo: "signed_out",
+  });
   await expect(
     tablet.page.getByRole("status", { name: "Estado do progresso", exact: true }),
   ).toHaveText(

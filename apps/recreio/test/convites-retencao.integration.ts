@@ -89,12 +89,23 @@ describe("retenção limitada dos convites sem aceite", () => {
     const { pessoa, mundoId } = await contexto();
     const convidado = await novoJogador();
     const { codigo } = ConviteCriadoSchema.parse(
-      await criarConvite({ perfilId: pessoa.perfil.id, jogo: null }, mundoId, {
-        forma: "member",
-        participacao: "familia:origem",
-      }),
+      await criarConvite(
+        {
+          perfilId: pessoa.perfil.id,
+          sessaoDeAparelhoId: pessoa.ator.sessaoDeAparelhoId,
+          jogo: null,
+        },
+        mundoId,
+        {
+          forma: "member",
+          participacao: "familia:origem",
+        },
+      ),
     );
-    await aceitarConvite({ perfilId: convidado.perfil.id }, { codigo });
+    await aceitarConvite(
+      { perfilId: convidado.perfil.id, sessaoDeAparelhoId: convidado.ator.sessaoDeAparelhoId },
+      { codigo },
+    );
     await db
       .update(invites)
       .set({
@@ -116,13 +127,25 @@ describe("retenção limitada dos convites sem aceite", () => {
     const { pessoa, mundoId } = await contexto();
     const convidado = await novoJogador();
     const { codigo } = ConviteCriadoSchema.parse(
-      await criarConvite({ perfilId: pessoa.perfil.id, jogo: null }, mundoId, { forma: "member" }),
+      await criarConvite(
+        {
+          perfilId: pessoa.perfil.id,
+          sessaoDeAparelhoId: pessoa.ator.sessaoDeAparelhoId,
+          jogo: null,
+        },
+        mundoId,
+        { forma: "member" },
+      ),
     );
     await db
       .update(invites)
       .set({ expiresAt: new Date(Date.now() - 25 * 3_600_000) })
       .where(eq(invites.spaceId, mundoId));
-    const aceitar = () => aceitarConvite({ perfilId: convidado.perfil.id }, { codigo });
+    const aceitar = () =>
+      aceitarConvite(
+        { perfilId: convidado.perfil.id, sessaoDeAparelhoId: convidado.ator.sessaoDeAparelhoId },
+        { codigo },
+      );
     await expect(aceitar()).rejects.toMatchObject({ codigo: "CONVITE_INVALIDO" });
     expect(await apagarConvitesAntigos()).toBe(1);
     await expect(aceitar()).rejects.toMatchObject({ codigo: "CONVITE_INVALIDO" });

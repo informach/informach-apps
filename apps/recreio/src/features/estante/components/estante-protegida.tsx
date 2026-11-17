@@ -4,7 +4,7 @@ import { conferirAberturaDoJogo } from "@/features/autoridade-de-jogo/pagina-rep
 import { temCliente } from "@/features/jogar/registro";
 import { jogoAbre, jogosDoCatalogo } from "@/features/jogos/config";
 import { ListaDeMundos } from "@/features/mundos/components/lista-de-mundos";
-import { mundosDoPerfil } from "@/features/mundos/service";
+import { listarMundos } from "@/features/mundos/service";
 
 /** Sem links de conta, cobrança ou edição das regras do responsável. */
 export async function EstanteProtegida({ jogador }: { jogador: ReferenciaDeJogador }) {
@@ -20,7 +20,9 @@ export async function EstanteProtegida({ jogador }: { jogador: ReferenciaDeJogad
         if (!ehErroDoRecreio(erro, "JOGO_INDISPONIVEL")) throw erro;
       }
       const mundos =
-        permitido && jogo.capacidades.mundos ? await mundosDoPerfil(jogador.perfilId, jogo.id) : [];
+        permitido && jogo.capacidades.mundos
+          ? await listarMundos({ ...jogador, jogo: jogo.id })
+          : [];
       if (permitido && jogo.capacidades.mundos)
         permitido = await conferirAberturaDoJogo(jogador, jogo.id);
       return { jogo, permitido, mundos: permitido ? mundos : [] };

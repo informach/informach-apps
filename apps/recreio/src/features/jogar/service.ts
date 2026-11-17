@@ -1,9 +1,9 @@
 import "server-only";
-import { ehErroDoRecreio, type MundoId } from "@informach/recreio";
+import { ehErroDoRecreio, type MundoId, MundoIdSchema } from "@informach/recreio";
 import type { ReferenciaDeJogador } from "@/features/autoridade-de-jogo/aparelho-repository";
 import { conferirAberturaDoJogo } from "@/features/autoridade-de-jogo/pagina-repository";
 import { jogoQueAbre, origensDoJogo } from "@/features/jogos/config";
-import { detalheDoMundo } from "@/features/mundos/service";
+import { detalheAtualDoMundo } from "@/features/mundos/service";
 import { temCliente } from "./registro";
 
 /**
@@ -62,10 +62,13 @@ export async function prepararPaginaDoJogo(
 
   if (typeof mundoPedido !== "string" || mundoPedido === "") return { tipo: "sem_mundo" };
   const jogo = { id: manifesto.id, nome: manifesto.nome };
-  // `detalheDoMundo` confere a forma do id com o esquema do domínio e só acha
-  // o mundo de quem é membro ativo dele.
-  const mundo = await detalheDoMundo(jogador.perfilId, mundoPedido);
-  if (!(await conferirAberturaDoJogo(jogador, manifesto.id))) return { tipo: "sem_acesso" };
+  const id = MundoIdSchema.safeParse(mundoPedido);
+  if (!id.success) return { tipo: "mundo_indisponivel", jogo };
+  const mundo = await detalheAtualDoMundo(jogador, manifesto.id, id.data).catch((erro: unknown) => {
+    if (ehErroDoRecreio(erro, "NAO_MEMBRO") || ehErroDoRecreio(erro, "POLITICA_INCOMPATIVEL"))
+      return null;
+    throw erro;
+  });
   if (!mundo || mundo.jogo !== manifesto.id) return { tipo: "mundo_indisponivel", jogo };
   return {
     tipo: "pronto",

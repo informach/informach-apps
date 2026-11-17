@@ -24,7 +24,10 @@ import { eventosCom, type Jogador, novoJogador } from "./apoio";
 import { entrarNoJogo, MORADA, mundoDe } from "./jogo-apoio";
 import { pedir } from "./rotas";
 
-const quem = (jogador: Jogador) => ({ perfilId: jogador.perfil.id });
+const quem = (jogador: Jogador) => ({
+  perfilId: jogador.perfil.id,
+  sessaoDeAparelhoId: jogador.ator.sessaoDeAparelhoId,
+});
 
 /** O código de um convite novo do responsável, como a tela dele mostra. */
 async function conviteDe(steward: Jogador, mundoId: MundoId, participacao?: string) {

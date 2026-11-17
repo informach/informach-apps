@@ -14,11 +14,20 @@ import {
   recusarAutoridade,
 } from "./aparelho-repository";
 
+export type Admissao = Extract<
+  Awaited<ReturnType<typeof admitirAparelhoDeJogo>>,
+  { admitida: true }
+>;
+
 /** Recusas após recalcular a política confirmam a invalidação antes de virar erro HTTP. */
 export async function comSessaoDeJogoAutoritativa<T>(
   sessao: SessaoDeJogoAtiva,
   antesDoAparelho: (tx: Transacao) => Promise<void>,
-  executar: (tx: Transacao, contaId: string | null) => Promise<T>,
+  executar: (tx: Transacao, contaId: string | null, admissao: Admissao) => Promise<T>,
+  opcoes: {
+    antesDoPerfil?: (tx: Transacao) => Promise<void>;
+    travaDaSessao?: "share" | "update";
+  } = {},
 ): Promise<T> {
   const resultado = await db.transaction(async (tx) => {
     await tx.execute(sql`set local transaction_timeout='10s'`);
@@ -33,9 +42,14 @@ export async function comSessaoDeJogoAutoritativa<T>(
       sessaoDeAparelhoId: SessaoDeAparelhoIdSchema.parse(pista.aparelhoId),
     };
     const identidade = await prepararIdentidadeDoJogo(tx, referencia);
+    await opcoes.antesDoPerfil?.(tx);
     const admissao = await admitirAparelhoDeJogo(tx, referencia, identidade, antesDoAparelho);
     if (!admissao.admitida) return admissao;
-    const [jogo] = await tx.select().from(games).where(eq(games.id, sessao.sid)).for("share");
+    const [jogo] = await tx
+      .select()
+      .from(games)
+      .where(eq(games.id, sessao.sid))
+      .for(opcoes.travaDaSessao ?? "share");
     const agora = await admissao.conferirPrazo();
     if (
       !jogo ||
@@ -62,7 +76,7 @@ export async function comSessaoDeJogoAutoritativa<T>(
       if (!concessao?.fim || concessao.fim <= agora || jogo.expiresAt > concessao.fim)
         return recusarAutoridade();
     }
-    const valor = await executar(tx, admissao.contaId);
+    const valor = await executar(tx, admissao.contaId, admissao);
     // Uma espera em chave ou auditoria também pode atravessar o prazo de autoridade.
     const fim = await admissao.conferirPrazo();
     if (jogo.expiresAt <= fim) throw new ErroDoRecreio("SESSAO_INVALIDA");

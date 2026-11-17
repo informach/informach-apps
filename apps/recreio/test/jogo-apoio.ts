@@ -58,7 +58,10 @@ export async function entrarNoJogo(
 
 /** Um mundo criado pelo jogador, pelo serviço que o portal e o SDK usam. */
 export async function mundoDe(jogador: Jogador, jogo = MORADA, nome = "Casa de teste") {
-  const mundo = await criarMundo({ perfilId: jogador.perfil.id, jogo }, { nome });
+  const mundo = await criarMundo(
+    { perfilId: jogador.perfil.id, sessaoDeAparelhoId: jogador.ator.sessaoDeAparelhoId, jogo },
+    { nome },
+  );
   return MundoIdSchema.parse(mundo.id);
 }
 

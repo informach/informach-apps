@@ -83,10 +83,21 @@ async function executando() {
 }
 
 async function membro(steward: Jogador, mundoId: MundoId, convidado: Jogador) {
-  const convite = await criarConvite({ perfilId: steward.perfil.id, jogo: null }, mundoId, {
-    forma: "member",
-  });
-  await aceitarConvite({ perfilId: convidado.perfil.id }, { codigo: convite.codigo });
+  const convite = await criarConvite(
+    {
+      perfilId: steward.perfil.id,
+      sessaoDeAparelhoId: steward.ator.sessaoDeAparelhoId,
+      jogo: null,
+    },
+    mundoId,
+    {
+      forma: "member",
+    },
+  );
+  await aceitarConvite(
+    { perfilId: convidado.perfil.id, sessaoDeAparelhoId: convidado.ator.sessaoDeAparelhoId },
+    { codigo: convite.codigo },
+  );
 }
 
 async function mundoNoBanco(mundoId: MundoId) {
@@ -637,11 +648,18 @@ describe("o que o navegador alcança", () => {
       status: 403,
       corpo: { codigo: "NAO_MEMBRO" },
     });
-    // O id da conta do Bruno não é o perfil dele: o serviço não o acha como membro.
+    // O id da conta não é um jogador admitido por este aparelho.
     const { abrirMundo } = await import("@/features/posse/service");
     await expect(
-      abrirMundo({ perfilId: PerfilIdSchema.parse(bruno.conta.id), jogo: MORADA }, mundoId),
-    ).rejects.toMatchObject({ codigo: "SEM_PERFIL" });
+      abrirMundo(
+        {
+          perfilId: PerfilIdSchema.parse(bruno.conta.id),
+          sessaoDeAparelhoId: bruno.ator.sessaoDeAparelhoId,
+          jogo: MORADA,
+        },
+        mundoId,
+      ),
+    ).rejects.toMatchObject({ codigo: "SESSAO_INVALIDA" });
   });
 });
 

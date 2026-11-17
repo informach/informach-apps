@@ -1,5 +1,5 @@
 import "server-only";
-import { type db, sql } from "@informach/db";
+import { db, sql } from "@informach/db";
 
 /**
  * Apoio dos repositórios do Recreio: a transação, as travas e o relógio. Só
@@ -7,6 +7,14 @@ import { type db, sql } from "@informach/db";
  */
 
 export type Transacao = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Compõe repositories sem abrir uma segunda conexão sob travas de autoridade. */
+export function emTransacao<T>(
+  existente: Transacao | undefined,
+  executar: (tx: Transacao) => Promise<T>,
+): Promise<T> {
+  return existente ? executar(existente) : db.transaction(executar);
+}
 
 /**
  * Trava de transação por nome (`pg_advisory_xact_lock`): quem pede a mesma
