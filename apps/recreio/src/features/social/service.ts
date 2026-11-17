@@ -1,10 +1,13 @@
 import "server-only";
+import { z } from "zod";
+import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import type { ReferenciaDeJogador } from "@/features/autoridade-de-jogo/aparelho-repository";
 import { limitarTentativas } from "@/lib/rate-limit";
 import { codigoDoPostgres, constraintDoPostgres } from "@/lib/repository";
+import { aceitarPedidoNoBanco, aprovarPedidoNoBanco } from "./aceite-repository";
 import { gravarCodigoDeAmigo } from "./codigos-repository";
 import { criarPedidoDeAmizade } from "./pedidos-repository";
-import { NovoPedidoDeAmizadeSchema } from "./regras";
+import { AprovacaoDeAmizadeSchema, NovoPedidoDeAmizadeSchema } from "./regras";
 import { hashDoCodigoDeAmigo, novoCodigoDeAmigo } from "./segredos";
 
 export async function emitirCodigoDeAmigo(referencia: ReferenciaDeJogador) {
@@ -36,4 +39,23 @@ export async function pedirAmizade(referencia: ReferenciaDeJogador, entrada: unk
     janelaEmSegundos: 3600,
   });
   return criarPedidoDeAmizade(referencia, pedido);
+}
+
+export async function aceitarAmizade(referencia: ReferenciaDeJogador, pedidoId: unknown) {
+  const id = z.uuid().parse(pedidoId);
+  await limitarTentativas({
+    chave: `social-aceite:${referencia.perfilId}`,
+    max: 30,
+    janelaEmSegundos: 600,
+  });
+  return aceitarPedidoNoBanco(referencia, id);
+}
+export async function aprovarAmizade(autor: AutorNativoRecente, entrada: unknown) {
+  const pedido = AprovacaoDeAmizadeSchema.parse(entrada);
+  await limitarTentativas({
+    chave: `social-aprovacao:${autor.contaId}`,
+    max: 30,
+    janelaEmSegundos: 600,
+  });
+  return aprovarPedidoNoBanco(autor, pedido);
 }

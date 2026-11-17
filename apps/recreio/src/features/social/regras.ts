@@ -1,3 +1,4 @@
+import { PerfilIdSchema } from "@informach/recreio";
 import { z } from "zod";
 
 export const PRAZO_DO_CODIGO_DE_AMIGO_MS = 30 * 60_000;
@@ -14,3 +15,9 @@ export const NovoPedidoDeAmizadeSchema = z.strictObject({
   pedidoId: z.uuid(),
 });
 export type NovoPedidoDeAmizade = z.infer<typeof NovoPedidoDeAmizadeSchema>;
+export const AprovacaoDeAmizadeSchema = z.strictObject({
+  pedidoId: z.uuid(),
+  perfilId: PerfilIdSchema,
+  versao: z.number().int().min(1).max(2147483646),
+});
+export type AprovacaoDeAmizade = z.infer<typeof AprovacaoDeAmizadeSchema>;

@@ -175,6 +175,14 @@ pendentes; ainda não há superfície social habilitada.
 
 ## 4. SDK, telas e publicação
 
+A candidata privada `8325e027` passou os sete gates do Recreio na execução
+`44124446919`: emissão e consumo de códigos, pedidos, limites concorrentes,
+autoridade atual e avisos internos. Isso ainda não habilita o recurso em produção.
+O próximo incremento separa o aceite do destinatário da aprovação do responsável:
+a aprovação vincula perfil, vínculo e geração atuais; revogar o acesso exige nova
+aprovação. Os testes cobrem responsáveis sem perfil jogador, duas crianças,
+adolescentes, login antigo, repetição após remoção e rollback por auditoria/prazo.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.
