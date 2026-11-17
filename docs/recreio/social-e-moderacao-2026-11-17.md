@@ -290,6 +290,23 @@ as chaves dos pais. As quatro colunas obrigatórias de aprovações/avisos exige
 essas tabelas novas vazias; não aplicar sobre dados sociais existentes sem
 sequência de backfill revisada. Nada dessa frente foi aplicado em produção.
 
+0186 gerada em `44139207478`, fonte `794dc9de`, artefato `14354620195`;
+ZIP SHA `f0c3ab93e822aeff144553d31932abef9366f9c7f17e3b81246e3da02a0bdfd9`.
+`0186_polite_bedlam.sql`, 2.864 bytes, SHA
+`2f63d67e1d270fc586f9ee493e0ac00ebea0a51ad08e1f11797911d008ead5d6`;
+snapshot SHA `37f76800ec6fed03db9f1a7d127818485ca960c1029f862881f77f23e98ed028`;
+journal SHA `39adeafe3f24d6cb3aa0dd2d10d10ea4e26136c08030f7680cbbd48358d90c41`.
+Arquivos conferidos e copiados intactos. O SQL troca cinco FKs simples por
+compostas e acrescenta três checks, depois das chaves de 0185. A limpeza retira
+somente referências técnicas de códigos vencidos e relações removidas com lote
+e `SKIP LOCKED`; referências ativas impedem a exclusão do recibo.
+
+A redução de bloqueio/silêncio passa a exigir a fotografia anterior das duas
+flags. Uma tela antiga não pode retirar bloqueio novo ao tentar reativar som.
+Repetição sem mudança continua sem novo evento, e aumentar proteção não exige
+uma concessão nova. Remoção sem qualquer relação também recusa desconhecidos
+de forma uniforme. Essas provas e as novas FKs ainda aguardam os gates.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

@@ -114,6 +114,7 @@ export async function consultarContatoNoBanco(
       apelido: visivel ? (perfil?.apelido ?? null) : null,
       avatar: visivel ? (perfil?.avatar ?? null) : null,
       amizade: amizadeDisponivel(atual.origem, destino, relacao),
+      podeRemover: amizade?.state === "active",
       online,
       bloqueado: propria?.blocked ?? false,
       silenciado: propria?.muted ?? false,

@@ -15,6 +15,8 @@ export const ProtecaoDeContatoSchema = z.strictObject({
   perfilId: PerfilIdSchema,
   bloqueado: z.boolean(),
   silenciado: z.boolean(),
+  /** Necessário para reduzir uma proteção; recusa uma tela que ficou antiga. */
+  anterior: z.strictObject({ bloqueado: z.boolean(), silenciado: z.boolean() }).optional(),
 });
 export type ProtecaoDeContato = z.infer<typeof ProtecaoDeContatoSchema>;
 export const PreferenciaDePresencaSchema = z.enum(["online", "friends", "invisible"]);
@@ -61,6 +63,7 @@ export const ContatoSocialSchema = z.strictObject({
   apelido: z.string().nullable(),
   avatar: z.string().nullable(),
   amizade: z.boolean(),
+  podeRemover: z.boolean(),
   online: z.boolean(),
   bloqueado: z.boolean(),
   silenciado: z.boolean(),

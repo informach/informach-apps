@@ -45,6 +45,7 @@ export async function executarMutacaoSocial(
           perfilId: pedido.perfilId,
           bloqueado: pedido.bloqueado,
           silenciado: pedido.silenciado,
+          anterior: pedido.anterior,
         });
       case "remover":
         return await removerAmizade(sessao, pedido.perfilId);

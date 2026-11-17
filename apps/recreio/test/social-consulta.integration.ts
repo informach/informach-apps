@@ -17,6 +17,7 @@ import {
   emitirCodigoDeAmigo,
   pedirAmizade,
   protegerContato,
+  removerAmizade,
   renovarAprovacaoDeAmizade,
 } from "@/features/social/service";
 import { novoJogador } from "./apoio";
@@ -161,9 +162,11 @@ describe("consulta social privada e presença autoritativa", () => {
   it("ajuste vazio de proteção não permite distinguir perfil desconhecido existente", async () => {
     const a = await novoJogador({ comAcesso: false }),
       b = await novoJogador({ comAcesso: false });
-    for (const perfilId of [b.perfil.id, crypto.randomUUID()])
+    for (const perfilId of [b.perfil.id, crypto.randomUUID()]) {
       await expect(
         protegerContato(ref(a), { perfilId, bloqueado: false, silenciado: false }),
       ).rejects.toMatchObject({ code: "CONTATO" });
+      await expect(removerAmizade(ref(a), perfilId)).rejects.toMatchObject({ code: "CONTATO" });
+    }
   });
 });

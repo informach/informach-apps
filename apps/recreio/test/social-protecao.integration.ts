@@ -48,7 +48,11 @@ describe("proteção social é autoridade própria e não reativa contato", () =
     expect(eventos.filter((e) => e.eventType === "recreio.social_protection_changed")).toHaveLength(
       1,
     );
-    await protegerContato(ref(r.a), { ...entrada, bloqueado: false });
+    await protegerContato(ref(r.a), {
+      ...entrada,
+      bloqueado: false,
+      anterior: { bloqueado: true, silenciado: false },
+    });
     expect(await pedidoAtual(r.pedido.pedidoId)).toMatchObject({ state: "revoked" });
     expect(await relacao(r.pedido.pedidoId)).toBeUndefined();
   });
@@ -66,6 +70,7 @@ describe("proteção social é autoridade própria e não reativa contato", () =
       perfilId: r.b.perfil.id,
       bloqueado: false,
       silenciado: false,
+      anterior: { bloqueado: false, silenciado: true },
     });
     await aceitarAmizade(ref(r.b), r.pedido.pedidoId);
     expect(await relacao(r.pedido.pedidoId)).toMatchObject({ state: "removed", revision: 2 });
@@ -88,6 +93,7 @@ describe("proteção social é autoridade própria e não reativa contato", () =
       perfilId: r.b.perfil.id,
       bloqueado: false,
       silenciado: false,
+      anterior: { bloqueado: true, silenciado: false },
     });
     expect(
       await db
@@ -117,6 +123,34 @@ describe("proteção social é autoridade própria e não reativa contato", () =
       expect(await relacao(r.pedido.pedidoId)).toBeUndefined();
     },
   );
+  it("uma tela antiga não desfaz bloqueio ao tentar retirar silêncio", async () => {
+    const r = await par(true);
+    await protegerContato(ref(r.a), {
+      perfilId: r.b.perfil.id,
+      bloqueado: false,
+      silenciado: true,
+    });
+    const antigo = {
+      perfilId: r.b.perfil.id,
+      bloqueado: false,
+      silenciado: false,
+      anterior: { bloqueado: false, silenciado: true },
+    };
+    await protegerContato(ref(r.a), { perfilId: r.b.perfil.id, bloqueado: true, silenciado: true });
+    await expect(protegerContato(ref(r.a), antigo)).rejects.toMatchObject({ code: "CONFLITO" });
+    await expect(
+      protegerContato(ref(r.a), { perfilId: r.b.perfil.id, bloqueado: false, silenciado: true }),
+    ).rejects.toMatchObject({ code: "CONFLITO" });
+    expect(
+      await db.select().from(blocks).where(eq(blocks.actorProfileId, r.a.perfil.id)),
+    ).toMatchObject([{ blocked: true, muted: true }]);
+    await protegerContato(ref(r.a), {
+      ...antigo,
+      silenciado: true,
+      anterior: { bloqueado: true, silenciado: true },
+    });
+    expect(await relacao(r.pedido.pedidoId)).toMatchObject({ state: "removed" });
+  });
   it("bloqueio concorrente ao aceite termina sem amizade ativa", async () => {
     const r = await par();
     const resultados = await Promise.allSettled([

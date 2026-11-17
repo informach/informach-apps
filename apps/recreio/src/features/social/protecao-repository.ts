@@ -34,7 +34,8 @@ async function removerRelacao(
     .from(friends)
     .where(and(eq(friends.lowerProfileId, menor), eq(friends.higherProfileId, maior)))
     .for("update");
-  if (amizade?.state !== "active") return false;
+  if (!amizade) return null;
+  if (amizade.state !== "active") return false;
   assertAllowed(amizade.revision < 2147483646, "CONFLITO", "Não foi possível atualizar o contato.");
   await tx
     .update(friends)
@@ -92,6 +93,17 @@ export async function salvarProtecaoDeContato(referencia: AutorSocial, entrada: 
     if (anterior?.blocked === entrada.bloqueado && anterior.muted === entrada.silenciado)
       return { bloqueado: entrada.bloqueado, silenciado: entrada.silenciado };
     const agora = await atual.conferirPrazo();
+    if (
+      anterior &&
+      ((anterior.blocked && !entrada.bloqueado) || (anterior.muted && !entrada.silenciado))
+    )
+      assertAllowed(
+        entrada.anterior &&
+          entrada.anterior.bloqueado === anterior.blocked &&
+          entrada.anterior.silenciado === anterior.muted,
+        "CONFLITO",
+        "A proteção mudou. Atualize a tela antes de diminuir uma proteção.",
+      );
     if (!entrada.bloqueado && !entrada.silenciado)
       await tx
         .delete(blocks)
@@ -155,7 +167,14 @@ export async function salvarProtecaoDeContato(referencia: AutorSocial, entrada: 
 export async function removerAmizadeNoBanco(referencia: AutorSocial, alvo: PerfilId) {
   assertAllowed(referencia.perfilId !== alvo, "CONTATO", "Contato não disponível.");
   return comProtecaoSocial(referencia, alvo, async (tx, atual) => {
-    await removerRelacao(tx, atual.perfilId, atual.alvoId, atual.contaId, atual.conferirPrazo);
+    const removida = await removerRelacao(
+      tx,
+      atual.perfilId,
+      atual.alvoId,
+      atual.contaId,
+      atual.conferirPrazo,
+    );
+    assertAllowed(removida !== null, "CONTATO", "Contato não disponível.");
     return { removida: true };
   });
 }
