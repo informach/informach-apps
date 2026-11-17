@@ -129,3 +129,12 @@ recusa nem abrir gestão para a criança.
 O pedido da troca, o ACK, os avisos no host e a capacidade restrita de salvar
 antes/depois do corte ainda não estão implementados. Não inferir que consultar
 o controle por si só proteja o progresso ou conclua F3.
+
+Rodada `b205b1a`, `44035329040`: cinco gates passaram; a integração passou nos
+novos casos de controle/tempo e em outros 444 testes, mas quatro preparações
+da expiração global falharam. A fixture apagava sessões abertas de outros
+arquivos sem limpar seus agregados dependentes; a ordem de arquivos expôs a
+FK que corretamente impede isso. A preparação passa a limpar somente esses
+agregados no mesmo banco descartável/transação, antes das sessões. Nenhuma FK,
+regra de produção ou asserção de contagem foi removida. Repetir a suíte inteira
+no GitHub, sem considerar a rodada anterior aprovada.
