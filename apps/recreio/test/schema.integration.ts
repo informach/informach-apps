@@ -63,8 +63,8 @@ async function mundoDe(perfilId: string) {
 
 const proximoFim = sql<number>`nextval('recreio.game_session_end_seq')`;
 
-describe("excluir a conta não apaga o mundo", () => {
-  it("o mundo, o membro, a posse, a fotografia e o diário ficam; o que é pessoal sai", async () => {
+describe("exclusão exige resolver os vínculos do Recreio explicitamente", () => {
+  it("conta bruta é protegida; limpeza explícita preserva mundo, membro, posse, fotografia e diário", async () => {
     const lia = await jogador("Lia");
     const bia = await jogador("Bia");
     await conceder({ email: lia.conta.email, tier: "family", dias: 30, motivo: "alfa_equipe" });
@@ -164,6 +164,15 @@ describe("excluir a conta não apaga o mundo", () => {
       .returning();
     if (!posse || !fotografia || !convite || !sessaoDeJogo) throw new Error("Fixture incompleta");
 
+    expect(RESTRICAO).toContain(
+      await codigoDoBanco(db.delete(users).where(eq(users.id, lia.conta.id))),
+    );
+    expect(
+      (await db.select().from(profiles).where(eq(profiles.id, lia.perfil.id)))[0],
+    ).toMatchObject({ userId: lia.conta.id });
+    // Ensaio de integridade, não um endpoint de encerramento autorizado.
+    await db.delete(profiles).where(eq(profiles.id, lia.perfil.id));
+    await db.delete(groups).where(eq(groups.id, lia.grupoId));
     await db.delete(users).where(eq(users.id, lia.conta.id));
 
     // O mundo fica, sem responsável e sem criador conhecidos.
@@ -207,7 +216,7 @@ describe("excluir a conta não apaga o mundo", () => {
       { state: "accepted", targetProfileId: null, acceptedByProfileId: null },
     ]);
 
-    // O que era da conta saiu em cascata.
+    // O domínio foi retirado explicitamente antes da identidade global.
     expect(await db.select().from(profiles).where(eq(profiles.id, lia.perfil.id))).toHaveLength(0);
     expect(await db.select().from(groups).where(eq(groups.ownerUserId, lia.conta.id))).toHaveLength(
       0,
@@ -226,7 +235,7 @@ describe("excluir a conta não apaga o mundo", () => {
     expect(await db.select().from(profiles).where(eq(profiles.id, bia.perfil.id))).toHaveLength(1);
   });
 
-  it("perfil sem login fica sem grupo quando o titular sai, e o mundo dele continua", async () => {
+  it("retirar o grupo explicitamente conserva o perfil sem login e o mundo dele", async () => {
     const lia = await jogador("Lia");
     const [filha] = await db
       .insert(profiles)
@@ -237,7 +246,10 @@ describe("excluir a conta não apaga o mundo", () => {
     await db
       .insert(members)
       .values({ spaceId: mundo.id, profileId: filha.id, role: "steward", state: "active" });
-    await db.delete(users).where(eq(users.id, lia.conta.id));
+    expect(RESTRICAO).toContain(
+      await codigoDoBanco(db.delete(users).where(eq(users.id, lia.conta.id))),
+    );
+    await db.delete(groups).where(eq(groups.id, lia.grupoId));
     // O perfil sem login fica órfão de grupo (sem cobertura); o mundo dele fica inteiro.
     expect(await db.select().from(profiles).where(eq(profiles.id, filha.id))).toMatchObject([
       { groupId: null, userId: null, kind: "minor" },

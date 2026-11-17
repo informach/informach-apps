@@ -6,7 +6,7 @@ import {
   users,
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
-import { CHECAGEM, codigoDoBanco, novoJogador, UNICO } from "./apoio";
+import { CHECAGEM, codigoDoBanco, novaConta, novoJogador, UNICO } from "./apoio";
 
 async function preparar() {
   const emissor = await novoJogador({ comAcesso: false });
@@ -38,11 +38,13 @@ async function preparar() {
 describe("integridade do convite comercial e de seu recibo", () => {
   it("excluir a conta destinatária remove só sua pendência e terminal limpa a vinculação", async () => {
     const r = await preparar();
+    const semVinculos = await novaConta();
     const [pendente] = await db
       .insert(invites)
       .values({
         ...r.pendente,
-        recipientUserId: r.destinatario.conta.id,
+        recipientEmail: semVinculos.email,
+        recipientUserId: semVinculos.id,
       })
       .returning();
     if (!pendente) throw new Error("Convite ausente");
@@ -54,7 +56,7 @@ describe("integridade do convite comercial e de seu recibo", () => {
         }),
       ),
     ).toBe(CHECAGEM);
-    await db.delete(users).where(eq(users.id, r.destinatario.conta.id));
+    await db.delete(users).where(eq(users.id, semVinculos.id));
     expect(await db.select().from(invites).where(eq(invites.id, pendente.id))).toEqual([]);
     expect(
       await db.select({ id: groups.id }).from(groups).where(eq(groups.id, r.grupo.id)),

@@ -363,3 +363,15 @@ executor exige GitHub e PostgreSQL local ao runner, usa nome aleatório validado
 e remove o banco/pasta no fim. Não usa banco ou registros de produção.
 Esta prova adicional ainda está pendente; nenhuma migration nova foi aplicada
 ao Railway, que segue em `3f2b1239`, 179 recibos e famílias/checkpoint `off`.
+
+Revisão da identidade compartilhada encontrou outra lacuna: a guarda de
+exclusão verificava somente jogador, omitindo titular sem perfil e responsável
+por menor. Além disso, as FKs de grupo/perfil adulto permitiam cascata, o que
+um leitor prévio não protege em concorrência. A correção amplia a guarda e
+troca essas duas FKs por `RESTRICT`; o encerramento precisa resolver o domínio
+antes de apagar a identidade global. Valores atuais já obedecem às mesmas FKs,
+sem transformação de dados. 0183 em geração; não editar SQL e não aplicar ainda.
+Testes antigos passam a distinguir exclusão global recusada de limpeza explícita
+de domínio que preserva o mundo. Provas novas cobrem titular sem jogador,
+participante sem grupo, responsabilidade sem jogador e conta sem vínculos.
+F7 continua responsável pelo encerramento completo; esta guarda não o implementa.

@@ -58,7 +58,7 @@ export const recreioGroups = recreio.table(
     id: uuid("id").primaryKey().defaultRandom(),
     ownerUserId: text("owner_user_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "restrict" }),
     createdAt: time("created_at"),
   },
   (t) => [
@@ -75,7 +75,7 @@ export const recreioProfiles = recreio.table(
   "profiles",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => users.id, { onDelete: "restrict" }),
     groupId: uuid("group_id").references(() => recreioGroups.id, { onDelete: "set null" }),
     /** O titular pode tirar um perfil da cobertura sem apagá-lo. */
     coverageEnabled: boolean("coverage_enabled").notNull().default(true),
