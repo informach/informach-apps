@@ -76,6 +76,8 @@ describe("SDK sem mundos: progresso privado com PostgreSQL real", () => {
         await expect
           .poll(
             async () => {
+              // Estatísticas consultadas dentro desta transação têm snapshot próprio.
+              await tx.unsafe("select pg_stat_clear_snapshot()");
               const [linha] =
                 await tx`select count(*)::int as esperando from pg_stat_activity where datname=current_database() and backend_type='client backend' and pg_backend_pid()=any(pg_blocking_pids(pid))`;
               return linha?.esperando;
