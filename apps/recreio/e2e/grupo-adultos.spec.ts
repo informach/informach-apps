@@ -1,5 +1,20 @@
 import { expect, test } from "@playwright/test";
-import { conceder, hidratado, novaPessoa, type Pessoa, tela } from "./apoio";
+import {
+  comecarVigia,
+  conceder,
+  fecharAparelhos,
+  hidratado,
+  novaPessoa,
+  type Pessoa,
+  tela,
+  vigia,
+} from "./apoio";
+
+test.beforeEach(comecarVigia);
+test.afterEach(async () => {
+  await fecharAparelhos();
+  expect(vigia()).toEqual({ violacoes: [], errosDePagina: [], errosDeConsole: [] });
+});
 
 async function convidar(titular: Pessoa, email: string) {
   await titular.page.goto("/conta/grupo");
@@ -56,6 +71,9 @@ test("titular sem jogador convida; adulto conserva perfil, sai, retoma cobertura
   await b.page.goto("/conta/grupo");
   await b.page.setViewportSize({ width: 390, height: 844 });
   const convite = b.page.getByRole("region", { name: "Convite de Ana", exact: true });
+  await hidratado(
+    convite.getByRole("checkbox", { name: "Declaro ter 18 anos ou mais.", exact: true }),
+  );
   await convite.scrollIntoViewIfNeeded();
   expect(
     await b.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),

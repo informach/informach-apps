@@ -18,6 +18,8 @@ describe("telemetry privacy", () => {
             pinHash: "pin-hash",
             nascimento: "birth-month",
             apelido: "player-name",
+            senderLabel: "private sender",
+            identificacao: "private declared name",
           },
         ],
       }),
@@ -34,6 +36,8 @@ describe("telemetry privacy", () => {
           pinHash: "[redacted]",
           nascimento: "[redacted]",
           apelido: "[redacted]",
+          senderLabel: "[redacted]",
+          identificacao: "[redacted]",
         },
       ],
     });

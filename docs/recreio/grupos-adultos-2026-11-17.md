@@ -328,3 +328,10 @@ nativa; escolher menor não abre ações, nem quando enviadas diretamente.
 Jornadas com duas/três contas reais sintéticas e capturas a 390 px entram no
 GitHub; prova visual e nova rodada continuam pendentes. Nenhum fluxo novo está
 ativado ou publicado por este registro.
+
+`ef715b8` concluiu os sete gates `44110794870`: 583 integrações/56 arquivos,
+incluindo aceite, retorno à cobertura e retenção, com PostgreSQL real no CI.
+A interface e 0182 estão em `4577c883`, sete gates `44112410551` e CI geral
+`44112409473` ainda em curso. Revisão de privacidade acrescenta os dois nomes
+do campo declarado à redação de contexto da telemetria; payloads SQL e eventos
+Sentry já são sanitizados. Nenhum nome declarado vai para auditoria.
