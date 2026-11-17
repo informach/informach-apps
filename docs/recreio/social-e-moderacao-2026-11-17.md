@@ -199,6 +199,15 @@ atômica e a manutenção devolve contagens; qualquer falha conserva HTTP de err
 As provas cobrem trava concorrente, repetição, limite, consentimento infantil
 preservado e reversão por falha na auditoria do vencimento ou da exclusão.
 
+`ad89c06` passou nos sete gates `44128595223`; aceite infantil e aprovação
+atual estão qualificados nessa fonte privada. O adapter de partida seguinte
+mantém o kernel autoritativo, com uma entrada anterior à trava de identidade
+para ordenar as duas pontas. Revalida SID, aparelho, login, cobertura, política
+e prazo. Uma recusa por recálculo do destinatário conserva a revisão confirmada.
+O caminho de cookie continua independente da cobrança; um SID encerrado não
+vira uma identidade de cookie. HTTP/SDK e interface ainda serão ligados a esse
+adapter depois dos testes negativos e concorrentes no GitHub.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

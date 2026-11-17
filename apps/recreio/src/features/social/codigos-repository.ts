@@ -3,13 +3,13 @@ import { logAuditEventStrict } from "@informach/auth";
 import { and, eq, isNull } from "@informach/db";
 import { recreioFriendCodes as codes } from "@informach/db/schema";
 import { contatoDisponivel } from "@informach/recreio";
-import type { ReferenciaDeJogador } from "@/features/autoridade-de-jogo/aparelho-repository";
 import { env } from "@/lib/env";
 import { assertAllowed } from "@/lib/errors";
+import type { AutorSocial } from "./autoridade-repository";
 import { comJogadorSocial } from "./autoridade-repository";
 import { PRAZO_DO_CODIGO_DE_AMIGO_MS } from "./regras";
 
-export async function gravarCodigoDeAmigo(referencia: ReferenciaDeJogador, codeHash: string) {
+export async function gravarCodigoDeAmigo(referencia: AutorSocial, codeHash: string) {
   return comJogadorSocial(referencia, null, async (tx, atual) => {
     assertAllowed(
       contatoDisponivel(atual.origem),

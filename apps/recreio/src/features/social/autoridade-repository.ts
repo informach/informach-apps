@@ -6,9 +6,11 @@ import {
   prepararIdentidadeDoJogo,
   type ReferenciaDeJogador,
 } from "@/features/autoridade-de-jogo/aparelho-repository";
+import type { SessaoDeJogoAtiva } from "@/features/sessao-de-jogo/service";
 import { AppError } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 import { ComposicaoSocialMudou, travarComposicaoSocial } from "./composicao-repository";
+import { comPartidaSocial } from "./partida-repository";
 import { admitirPerfilSocial } from "./perfis-repository";
 
 export type ContextoSocial = {
@@ -17,14 +19,16 @@ export type ContextoSocial = {
   contaId: string | null;
   conferirPrazo: () => Promise<Date>;
 };
+export type AutorSocial = ReferenciaDeJogador | SessaoDeJogoAtiva;
 
 /** Cookies nativos/pareados; este caminho não aceita token de partida como identidade. */
 async function tentar<T>(
-  referencia: ReferenciaDeJogador,
+  referencia: AutorSocial,
   alvo: PerfilId | null,
   finalidade: "contato" | "protecao",
   executar: (tx: Transacao, atual: ContextoSocial) => Promise<T>,
 ) {
+  if ("sid" in referencia) return comPartidaSocial(referencia, alvo, finalidade, executar);
   const resultado = await db.transaction(async (tx) => {
     await tx.execute(sql`set local statement_timeout='5s'`);
     await tx.execute(sql`set local lock_timeout='2s'`);
@@ -77,7 +81,7 @@ async function tentar<T>(
 }
 
 export async function comJogadorSocial<T>(
-  referencia: ReferenciaDeJogador,
+  referencia: AutorSocial,
   alvo: PerfilId | null,
   executar: (tx: Transacao, atual: ContextoSocial) => Promise<T>,
 ) {
@@ -91,7 +95,7 @@ export async function comJogadorSocial<T>(
 
 /** Bloquear/silenciar não exige política de contato ativa da pessoa alvo. */
 export async function comProtecaoSocial<T>(
-  referencia: ReferenciaDeJogador,
+  referencia: AutorSocial,
   alvoId: PerfilId,
   executar: (
     tx: Transacao,

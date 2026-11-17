@@ -7,14 +7,14 @@ import {
 } from "@informach/db/schema";
 import { contatoDisponivel, PerfilIdSchema } from "@informach/recreio";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
-import type { ReferenciaDeJogador } from "@/features/autoridade-de-jogo/aparelho-repository";
 import { assertAllowed } from "@/lib/errors";
 import { concluirAmizade } from "./amizade-repository";
+import type { AutorSocial } from "./autoridade-repository";
 import { comJogadorSocial } from "./autoridade-repository";
 import type { AprovacaoDeAmizade } from "./regras";
 import { comResponsavelPorPedido } from "./responsavel-repository";
 
-export async function aceitarPedidoNoBanco(referencia: ReferenciaDeJogador, pedidoId: string) {
+export async function aceitarPedidoNoBanco(referencia: AutorSocial, pedidoId: string) {
   const [pista] = await db
     .select({ origem: requests.originProfileId })
     .from(requests)

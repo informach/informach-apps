@@ -7,10 +7,10 @@ import {
   recreioFriendRequests as requests,
 } from "@informach/db/schema";
 import { type PerfilId, PerfilIdSchema } from "@informach/recreio";
-import type { ReferenciaDeJogador } from "@/features/autoridade-de-jogo/aparelho-repository";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 import { parSocial } from "./amizade-repository";
+import type { AutorSocial } from "./autoridade-repository";
 import { comProtecaoSocial } from "./autoridade-repository";
 import type { ProtecaoDeContato } from "./regras";
 
@@ -55,10 +55,7 @@ async function removerRelacao(
 }
 
 /** Não concede participação em mundo, nem retira dados ou titularidade de outra pessoa. */
-export async function salvarProtecaoDeContato(
-  referencia: ReferenciaDeJogador,
-  entrada: ProtecaoDeContato,
-) {
+export async function salvarProtecaoDeContato(referencia: AutorSocial, entrada: ProtecaoDeContato) {
   assertAllowed(referencia.perfilId !== entrada.perfilId, "CONTATO", "Contato não disponível.");
   return comProtecaoSocial(referencia, entrada.perfilId, async (tx, atual) => {
     const a = atual.perfilId,
@@ -157,7 +154,7 @@ export async function salvarProtecaoDeContato(
   });
 }
 
-export async function removerAmizadeNoBanco(referencia: ReferenciaDeJogador, alvo: PerfilId) {
+export async function removerAmizadeNoBanco(referencia: AutorSocial, alvo: PerfilId) {
   assertAllowed(referencia.perfilId !== alvo, "CONTATO", "Contato não disponível.");
   return comProtecaoSocial(referencia, alvo, async (tx, atual) => {
     await removerRelacao(tx, atual.perfilId, atual.alvoId, atual.contaId, atual.conferirPrazo);
@@ -166,7 +163,7 @@ export async function removerAmizadeNoBanco(referencia: ReferenciaDeJogador, alv
 }
 
 export async function encerrarPedidoNoBanco(
-  referencia: ReferenciaDeJogador,
+  referencia: AutorSocial,
   pedidoId: string,
   acao: "recusar" | "revogar",
 ) {

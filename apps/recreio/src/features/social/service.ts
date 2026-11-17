@@ -2,10 +2,10 @@ import "server-only";
 import { PerfilIdSchema } from "@informach/recreio";
 import { z } from "zod";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
-import type { ReferenciaDeJogador } from "@/features/autoridade-de-jogo/aparelho-repository";
 import { limitarTentativas } from "@/lib/rate-limit";
 import { codigoDoPostgres, constraintDoPostgres } from "@/lib/repository";
 import { aceitarPedidoNoBanco, aprovarPedidoNoBanco } from "./aceite-repository";
+import type { AutorSocial } from "./autoridade-repository";
 import { gravarCodigoDeAmigo } from "./codigos-repository";
 import { criarPedidoDeAmizade } from "./pedidos-repository";
 import {
@@ -20,7 +20,7 @@ import {
 } from "./regras";
 import { hashDoCodigoDeAmigo, novoCodigoDeAmigo } from "./segredos";
 
-export async function emitirCodigoDeAmigo(referencia: ReferenciaDeJogador) {
+export async function emitirCodigoDeAmigo(referencia: AutorSocial) {
   await limitarTentativas({
     chave: `social-codigo:${referencia.perfilId}`,
     max: 6,
@@ -41,7 +41,7 @@ export async function emitirCodigoDeAmigo(referencia: ReferenciaDeJogador) {
     return emitir();
   }
 }
-export async function pedirAmizade(referencia: ReferenciaDeJogador, entrada: unknown) {
+export async function pedirAmizade(referencia: AutorSocial, entrada: unknown) {
   const pedido = NovoPedidoDeAmizadeSchema.parse(entrada);
   await limitarTentativas({
     chave: `social-pedido:${referencia.perfilId}`,
@@ -51,7 +51,7 @@ export async function pedirAmizade(referencia: ReferenciaDeJogador, entrada: unk
   return criarPedidoDeAmizade(referencia, pedido);
 }
 
-export async function aceitarAmizade(referencia: ReferenciaDeJogador, pedidoId: unknown) {
+export async function aceitarAmizade(referencia: AutorSocial, pedidoId: unknown) {
   const id = z.uuid().parse(pedidoId);
   await limitarTentativas({
     chave: `social-aceite:${referencia.perfilId}`,
@@ -70,24 +70,24 @@ export async function aprovarAmizade(autor: AutorNativoRecente, entrada: unknown
   return aprovarPedidoNoBanco(autor, pedido);
 }
 
-async function limitarProtecao(referencia: ReferenciaDeJogador) {
+async function limitarProtecao(referencia: AutorSocial) {
   await limitarTentativas({
     chave: `social-protecao:${referencia.perfilId}`,
     max: 60,
     janelaEmSegundos: 600,
   });
 }
-export async function protegerContato(referencia: ReferenciaDeJogador, entrada: unknown) {
+export async function protegerContato(referencia: AutorSocial, entrada: unknown) {
   const pedido = ProtecaoDeContatoSchema.parse(entrada);
   await limitarProtecao(referencia);
   return salvarProtecaoDeContato(referencia, pedido);
 }
-export async function removerAmizade(referencia: ReferenciaDeJogador, entrada: unknown) {
+export async function removerAmizade(referencia: AutorSocial, entrada: unknown) {
   const perfilId = PerfilIdSchema.parse(entrada);
   await limitarProtecao(referencia);
   return removerAmizadeNoBanco(referencia, perfilId);
 }
-export async function encerrarPedidoDeAmizade(referencia: ReferenciaDeJogador, entrada: unknown) {
+export async function encerrarPedidoDeAmizade(referencia: AutorSocial, entrada: unknown) {
   const pedido = z
     .strictObject({ pedidoId: z.uuid(), acao: z.enum(["recusar", "revogar"]) })
     .parse(entrada);

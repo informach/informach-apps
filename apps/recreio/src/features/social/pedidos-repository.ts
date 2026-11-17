@@ -10,10 +10,10 @@ import {
   recreioFriendRequests as requests,
 } from "@informach/db/schema";
 import { contatoDisponivel, decidirPedidoDeAmizade, PerfilIdSchema } from "@informach/recreio";
-import type { ReferenciaDeJogador } from "@/features/autoridade-de-jogo/aparelho-repository";
 import { env } from "@/lib/env";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
+import type { AutorSocial } from "./autoridade-repository";
 import { comJogadorSocial } from "./autoridade-repository";
 import {
   LIMITE_DE_AMIGOS,
@@ -37,10 +37,7 @@ async function repeticao(tx: Transacao, perfilId: string, pedidoId: string, hash
   return { pedidoId: linha.id, estado: linha.estado, repetido: true as const };
 }
 
-export async function criarPedidoDeAmizade(
-  referencia: ReferenciaDeJogador,
-  pedido: NovoPedidoDeAmizade,
-) {
+export async function criarPedidoDeAmizade(referencia: AutorSocial, pedido: NovoPedidoDeAmizade) {
   const codeHash = hashDoCodigoDeAmigo(pedido.codigo);
   const hash = createHash("sha256")
     .update(JSON.stringify({ perfilId: referencia.perfilId, pedidoId: pedido.pedidoId, codeHash }))
