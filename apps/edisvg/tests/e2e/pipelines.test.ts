@@ -162,6 +162,25 @@ const fakeDesktop = (project: string) => `
         return new Uint8Array(${JSON.stringify(wav(9))});
       },
       pipelineCancel: async () => undefined,
+      pipelineNotify: async (notice) => {
+        window.__notices = [...(window.__notices ?? []), notice];
+      },
+      // The style guide pictures kept in the profile (main/pipelineGuides.ts), by id.
+      pipelineGuideSave: async (bytes, name) => {
+        window.__guides = window.__guides ?? {};
+        const id = "guide-" + String(Object.keys(window.__guides).length + 1).padStart(32, "0");
+        window.__guides[id] = bytes.slice();
+        return { id, name };
+      },
+      pipelineGuideStyle: async (id) => window.__guideStyles?.[id] ?? null,
+      pipelineGuideStyleSave: async (id, style) => {
+        window.__guideStyles = { ...(window.__guideStyles ?? {}), [id]: style };
+      },
+      pipelineGuideRead: async (id) => {
+        const bytes = window.__guides?.[id];
+        if (!bytes) throw new Error("O guia de estilo da receita não está mais neste computador: escolha de novo.");
+        return { mediaType: "image/png", bytes };
+      },
       pipelineVideoFacts: async (token) => {
         if (token !== "file-video-00001") throw new Error("video");
         // The demonstration starts with the stretch: a click 1 s and another 5 s into it.
@@ -248,9 +267,9 @@ test("pipelines: the ready recipes, edit and duplicate, and a run that imports t
       .fill(
         "[mostrar o farol] O personagem precisa encontrar a chave antes de chegar ao farol. [pausa]\nQuando ele pegar a chave, [a chave brilha] o aviso muda.",
       );
-    // The recipe's fonts come chosen: Baloo 2 for titles, Nunito for the body.
-    assert.equal(await dialog.getByLabel("Título").inputValue(), "Baloo 2");
-    assert.equal(await dialog.getByLabel("Corpo").inputValue(), "Nunito");
+    // No palette or fonts to choose: they come from the style guide (none here: the recipe's).
+    assert.equal(await dialog.getByLabel("Título").count(), 0);
+    assert.equal(await dialog.locator(".pipeline-swatch").count(), 0);
     await page.screenshot({ path: "test-results/pipelines-run.png" });
     const beforeRun = await page.evaluate(() => localStorage.getItem("edisvg-project"));
     await run.click();
@@ -270,6 +289,18 @@ test("pipelines: the ready recipes, edit and duplicate, and a run that imports t
       /Pedir o rascunho da animação ao assistenteFalhou: O assistente precisa do aplicativo desktop\./,
       said,
     );
+    // The end of the run goes to the main process for the phone notice: whether it worked, the
+    // recipe and how long it took, nothing of the files.
+    const notices = (await page.evaluate("window.__notices")) as {
+      ok: boolean;
+      recipe: string;
+      seconds: number;
+    }[];
+    assert.deepEqual(
+      notices.map(({ ok, recipe }) => [ok, recipe]),
+      [[false, "Cena animada do jogo"]],
+    );
+    assert.deepEqual(Object.keys(notices[0] ?? {}).sort(), ["ok", "recipe", "seconds"]);
     await dialog.getByText(/3 imagens viraram pranchetas/).waitFor();
     const project = parseProject(
       JSON.parse((await page.evaluate(() => localStorage.getItem("edisvg-project"))) ?? "null"),
@@ -380,29 +411,6 @@ test("pipelines: the screen demonstration gets its layer artboard, the video und
       .fill(
         "O personagem precisa encontrar a chave antes de chegar ao farol. Quando ele pegar a chave, o aviso muda.",
       );
-    // The palette from a picture: mostly white, then navy, a muted green and a little pure red.
-    const white = [255, 255, 255, 255];
-    const navy = [16, 32, 64, 255];
-    const green = [60, 140, 80, 255];
-    const red = [255, 0, 0, 255];
-    await dialog.getByLabel("Imagem para a paleta de texto desta vez").setInputFiles({
-      name: "referencia.png",
-      mimeType: "image/png",
-      buffer: png(4, [
-        [...white, ...white, ...white, ...white],
-        [...white, ...white, ...white, ...white],
-        [...navy, ...navy, ...navy, ...navy],
-        [...green, ...green, ...red, ...red],
-      ]),
-    });
-    await dialog.getByText("#3c8c50").waitFor();
-    assert.deepEqual(await dialog.locator(".pipeline-swatch code").allTextContents(), [
-      "#ffffff",
-      "#102040",
-      "#3c8c50",
-      "#ff0000",
-    ]);
-    await dialog.getByLabel("Título").selectOption("Bebas Neue");
     const beforeRun = await page.evaluate(() => localStorage.getItem("edisvg-project"));
     await dialog.getByRole("button", { name: "Rodar pipeline" }).click();
     await dialog.getByText(/^(Pipeline concluído\.|O pipeline parou\.)$/).waitFor();
@@ -433,17 +441,12 @@ test("pipelines: the screen demonstration gets its layer artboard, the video und
       ["Destaque", 320, 200],
       ["Clique", 120, 120],
     ]);
-    // The layer's palette is the one taken from the picture; the arrow takes its accent.
-    assert.deepEqual(project.artboards.at(-5)?.scene.palette, [
-      "#ffffff",
-      "#102040",
-      "#3c8c50",
-      "#ff0000",
-    ]);
-    assert.match(JSON.stringify(project.artboards.at(-4)?.scene), /#ff0000/);
-    // Bebas Neue has one weight: the title takes it. The balloon's text is in the body's bold.
+    // Without a style guide, the recipe's colours; the arrow takes the accent (the last one).
+    assert.deepEqual(project.artboards.at(-5)?.scene.palette, ["#ffffff", "#1f2a44", "#ffb547"]);
+    assert.match(JSON.stringify(project.artboards.at(-4)?.scene), /#ffb547/);
+    // Baloo 2 bold in the titles; the balloon's text is in the body's bold.
     assert.deepEqual(await page.evaluate("window.__fontsAsked"), [
-      "Bebas Neue 400",
+      "Baloo 2 700",
       "Nunito 400",
       "Nunito 700",
     ]);
@@ -814,6 +817,154 @@ test("pipelines: on an animation EdiAula asked for, the lesson comes chosen and 
     assert.equal(project.motion.animations.filter((a) => a.name.startsWith("Narração")).length, 0);
     const animation = project.motion.animations.find((a) => a.id === made.animationId);
     assert.ok((animation?.frames ?? 0) > 200, `${animation?.frames}`);
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await server.close();
+  }
+});
+
+test("pipelines: a style guide picture in the recipe goes to the assistant in readable parts", {
+  timeout: 90000,
+}, async () => {
+  const server = await rendererServer(),
+    channel = process.env.EDISVG_TEST_BROWSER_CHANNEL,
+    browser = await chromium.launch(channel ? { channel } : {});
+  try {
+    const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } }),
+      errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    // The assistant's bridge at the start (the panel keeps the one it found): it records what a
+    // run sends and ends the turn. A string, so tsx adds nothing to it.
+    await page.addInitScript(`
+      (() => {
+        const project = ${JSON.stringify(newProject())};
+        const status = { name: "Sem arquivo", path: null, dirty: false };
+        window.__sent = [];
+        window.desktop = {
+          projectInitialize: async () => ({ project, status, recovered: false }),
+          projectChanged: async () => status,
+          aiStatus: async () => ({ mcp: { ready: true }, clients: [{ id: "claude", installed: true }] }),
+          aiConnect: async () => ({ message: "" }),
+          aiStop: async () => {},
+          aiSend: async (request) => {
+            window.__sent.push({
+              prompt: request.prompt,
+              images: request.images.map((image) => ({ mediaType: image.mediaType, bytes: image.data.length })),
+            });
+            // Reading the guide: its colours and fonts, as the question asks (JSON only).
+            const answer = request.prompt.includes("responda só com um JSON")
+              ? '{"textPalette": ["#FFFFFF", "#0F1A33", "#0B7A54", "#FFC02E"], "fonts": {"title": "Bebas Neue", "body": "Nunito"}}'
+              : "";
+            setTimeout(() => {
+              if (answer) window.__assistantEvent({ type: "text", text: answer });
+              window.__assistantEvent({ type: "done" });
+            }, 0);
+            return { started: true };
+          },
+          onAssistantEvent: (callback) => { window.__assistantEvent = callback; return () => {}; },
+          handleAiTools: () => () => undefined,
+          onCommand: () => () => undefined,
+        };
+      })();`);
+    await page.goto(server.url);
+    await page.locator(".scene-artwork>svg").waitFor();
+    await page.evaluate(fakeDesktop(JSON.stringify(game)));
+    await page.locator('[data-action="pipelines"]').first().click();
+    const dialog = page.getByRole("dialog", { name: "Pipelines" });
+    const scene = dialog.locator("li", { hasText: "Cena animada do jogo" });
+    await scene.getByRole("button", { name: "Editar" }).click();
+
+    // A tall guide (800 × 3000, bands of colour), as a style guide page is.
+    const bands = [
+      [233, 238, 246, 255],
+      [27, 92, 243, 255],
+      [255, 192, 46, 255],
+    ];
+    const rows = Array.from({ length: 3000 }, (_, y) =>
+      Array.from({ length: 800 }, () => bands[Math.floor(y / 1000)] ?? [0, 0, 0, 255]).flat(),
+    );
+    await dialog.getByLabel("Imagem do guia de estilo").setInputFiles({
+      name: "guia.png",
+      mimeType: "image/png",
+      buffer: png(800, rows),
+    });
+    await dialog.getByRole("img", { name: "Guia de estilo guia.png" }).waitFor();
+    await dialog.getByRole("button", { name: "Salvar receita" }).click();
+    const stored = (await page.evaluate("window.desktop.pipelinesRead()")) as {
+      recipes: { id: string; guideImage?: { id: string; name: string } }[];
+    };
+    assert.deepEqual(stored.recipes.find((r) => r.id === "recipe-cena-do-jogo")?.guideImage, {
+      id: `guide-${"1".padStart(32, "0")}`,
+      name: "guia.png",
+    });
+
+    // The run takes the recipe's guide; it could be changed or left out for this time only. With
+    // a guide, reading its colours and fonts is the first step, and nothing else asks for them.
+    await scene.getByRole("button", { name: "Rodar" }).click();
+    await dialog.getByRole("img", { name: "Guia de estilo guia.png" }).waitFor();
+    assert.equal(
+      await dialog.locator(".pipeline-steps li").first().locator("span").first().textContent(),
+      "Ler as cores e as fontes do guia de estilo",
+    );
+    assert.equal(await dialog.locator(".pipeline-swatch").count(), 0);
+    await dialog.getByRole("button", { name: "Escolher…" }).click();
+    await dialog.getByRole("button", { name: "Escolher áudio…" }).click();
+    await dialog
+      .getByLabel("Roteiro do trecho (só a parte desta cena)")
+      .fill(
+        "O personagem precisa encontrar a chave antes de chegar ao farol.\nQuando ele pegar a chave, o aviso muda.",
+      );
+    await dialog.getByRole("button", { name: "Rodar pipeline" }).click();
+    await dialog.getByText(/^(Pipeline concluído\.|O pipeline parou\.)$/).waitFor();
+    const sent = (await page.evaluate("window.__sent")) as {
+      prompt: string;
+      images: { mediaType: string; bytes: number }[];
+    }[];
+    const said = (await dialog.textContent()) ?? "";
+    // First the guide is read (its parts, a question for JSON only), then the draft is asked.
+    assert.equal(sent.length, 2, said);
+    assert.match(sent[0]?.prompt ?? "", /As 3 imagens anexadas são um guia de estilo/);
+    assert.match(sent[0]?.prompt ?? "", /Baloo 2, Nunito, Bebas Neue/);
+    // 800 × 3000 reads best in three parts at full size (each within ~1.15 MP), sent as PNG.
+    for (const request of sent)
+      assert.deepEqual(
+        request.images.map((image) => image.mediaType),
+        ["image/png", "image/png", "image/png"],
+      );
+    assert.match(said, /Ler as cores e as fontes do guia de estiloPronto/, said);
+    assert.match(
+      said,
+      /Do guia de estilo: cores #ffffff, #0f1a33, #0b7a54, #ffc02e; Bebas Neue nos títulos e Nunito no corpo\./,
+      said,
+    );
+    // The steps use them: Bebas Neue's only weight in the titles, Nunito in the body.
+    assert.deepEqual(await page.evaluate("window.__fontsAsked"), [
+      "Bebas Neue 400",
+      "Nunito 400",
+      "Nunito 700",
+    ]);
+    const prompt = sent[1]?.prompt ?? "";
+    assert.match(prompt, /Textos: #ffffff, #0f1a33, #0b7a54, #ffc02e/);
+    assert.match(prompt, /## Guia de estilo da receita \(imagem anexada\)/);
+    assert.match(prompt, /As 3 primeiras imagens anexadas são o guia de estilo/);
+    assert.match(prompt, /vale o guia/);
+    // The parts are shown in the assistant panel by name.
+    const shown = page.locator(".chat-message.user .chat-images img");
+    assert.equal(await shown.count(), 3);
+    assert.equal(
+      await shown.first().getAttribute("alt"),
+      "Imagem de referência: Guia de estilo, parte 1 de 3",
+    );
+    await page.screenshot({ path: "test-results/pipelines-guide.png" });
+    // Run again: the guide was read once and kept with it, so only the draft is asked.
+    await dialog.getByRole("button", { name: "Rodar pipeline" }).click();
+    await page.waitForFunction(
+      () => (window as never as { __sent: unknown[] }).__sent.length === 3,
+    );
+    await dialog.getByRole("button", { name: "Rodar pipeline" }).waitFor();
+    const again = (await page.evaluate("window.__sent")) as { prompt: string }[];
+    assert.match(again[2]?.prompt ?? "", /Monte o rascunho da animação/);
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

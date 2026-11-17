@@ -18,9 +18,10 @@ arquivo editável; guarde-o para futuras revisões.
 
 ## Pipelines (receitas)
 
-Uma receita guarda um trabalho que se repete: o tipo, as instruções para o assistente, a paleta
-de texto e as fontes de título e de corpo. Ao rodar, você escolhe só o que muda naquela vez: os
-arquivos e o roteiro do trecho (a paleta e as fontes também podem mudar só daquela vez).
+Uma receita guarda um trabalho que se repete: o tipo, as instruções para o assistente e o guia de
+estilo em imagem, de onde saem as cores e as fontes (veja "Guia de estilo em imagem", abaixo). Ao
+rodar, você escolhe só o que muda naquela vez: os arquivos e o roteiro do trecho (o guia também
+pode mudar só daquela vez).
 Abra por **Arquivo → Pipelines…** (Ctrl+Shift+P), pelo botão **▶ Pipelines** da barra lateral ou
 pela paleta de comandos.
 
@@ -41,7 +42,7 @@ Uma receita da pessoa não volta depois de excluída, então o botão pede um se
     junto com o trecho.
   - Cria uma prancheta do tamanho do vídeo, a camada transparente, com o vídeo por baixo na
     prévia. Ele toca e para com a animação, e nunca entra na exportação.
-  - Cria os elementos prontos (seta, balão, destaque e clique) nas cores da paleta de texto.
+  - Cria os elementos prontos (seta, balão, destaque e clique) nas cores do guia de estilo.
   - Pede o rascunho ao assistente. Ele recebe a narração, os cliques gravados e até quatro quadros
     do vídeo para olhar:
     - **Pacote da aula, ou gravação do EdiAula:** os dados do cursor da tomada dão os cliques
@@ -103,15 +104,11 @@ aula (`.ediaula`). As mídias dele já estão neste computador, então nada é e
 lida como está (`lessonOf` em `src/main/pipelineEngine.ts`, `packageLesson` em
 `src/main/lessonPackage.ts`).
 
-**A paleta de texto.** **Cores de uma imagem…** troca a paleta pelas cores mais usadas de uma
-imagem (PNG, JPEG, WebP, GIF ou BMP, até 50 MB), até seis, bem distintas entre si. A ordem segue o
-uso das receitas: a mais clara primeiro (a cor principal, o fundo do balão), a mais escura em
-seguida (o contorno) e a mais viva por último (o destaque da seta). A imagem é lida na janela e não
-fica guardada; as cores podem ser ajustadas depois uma a uma.
-
-**As fontes.** O título e o corpo escolhem entre as famílias que vêm com o EdiAula (as mesmas das
-legendas e anotações das aulas, todas SIL Open Font License 1.1). O padrão é Baloo 2 no título e
-Nunito no corpo; uma receita guardada antes das fontes passa a usar esse padrão. A etapa
+**As cores e as fontes.** Não se escolhem na tela: saem do guia de estilo. A ordem das cores segue
+o uso das receitas: a clara de cards e balões primeiro, a tinta dos textos em seguida e a de
+destaque por último (a seta). As fontes de título e de corpo são famílias que vêm com o EdiAula
+(as mesmas das legendas e anotações das aulas, todas SIL Open Font License 1.1). Sem guia, a
+execução usa as cores guardadas na receita e Baloo 2 no título e Nunito no corpo. A etapa
 **Incorporar as fontes de título e corpo** põe no projeto, como fontes incorporadas com o aviso de
 licença, o título em negrito (700) e o corpo em regular (400) e negrito (700), no peso mais perto
 que a família tiver (a Bebas Neue, por exemplo, só tem 400). Assim a animação sai igual em qualquer
@@ -201,6 +198,42 @@ EdiSVG (`src/main/pipelineReferences.ts`), um arquivo por animação ou pranchet
   Assim, as etapas pesadas só abrem o que a pessoa escolheu.
 
 Plano e decisões: [pipelines no EdiSVG](../../docs/propostas/edisvg-pipelines-2026-11-08/plano.md).
+
+**Guia de estilo em imagem (PNG, JPEG ou WebP).**
+- Na receita, **Guia de estilo › Carregar guia de estilo…** escolhe uma imagem com o guia das
+  aulas (paleta, tipografia, componentes, regras). Na execução, **Guia de estilo desta vez** vem
+  com o da receita e pode ser trocado ou tirado só daquela vez.
+- A imagem fica no perfil do EdiSVG, em `pipeline-guides/<id>.img`, com o id tirado do conteúdo.
+  A receita guarda só o id e o nome do arquivo. Um guia que nenhuma receita usa mais sai um dia
+  depois da última vez que foi escolhido (`src/main/pipelineGuides.ts`). O limite é 40 MB.
+- **Ler as cores e as fontes do guia de estilo** é a primeira etapa de uma execução com guia. O
+  assistente recebe o guia e responde só um JSON: as cores de texto, na ordem acima, e as fontes de
+  título e corpo, escolhidas entre as que vêm com o EdiSVG (`guideStyleRequest` e
+  `parseGuideStyle` em `src/renderer/src/pipelines/prompt.ts`). Uma fonte fora dessa lista para a
+  execução com uma mensagem. O que foi lido fica ao lado da imagem (`pipeline-guides/<id>.json`),
+  então as próximas execuções com o mesmo guia não perguntam de novo. Paleta, fontes e elementos
+  prontos usam essas cores e fontes.
+- No pedido do rascunho, o guia vai antes de tudo e o assistente é instruído a segui-lo. Quando o
+  guia e as instruções discordarem, vale o guia. O guia escolhido no painel Assistente (Zero Kids)
+  não vai junto, para os dois não se contradizerem.
+- Um guia alto, como o de 3200×6818, enviado inteiro seria reduzido pelo assistente até as letras
+  sumirem. Por isso ele vai em faixas horizontais de cima para baixo, cada uma com até ~1,15
+  megapixel e 1568 px, que o assistente lê sem reduzir, e repetindo um pouco da anterior
+  (`cutGuide` em `src/renderer/src/pipelines/guideImage.ts`). Uma mensagem leva até 4 imagens: a
+  Cena usa até 4 partes; a Demonstração usa até 2 e deixa 2 para os quadros do vídeo.
+
+**Aviso no celular ao terminar (pessoal, ntfy).**
+- É uma configuração deste computador, não um recurso da suíte. Sem ela, nada sai do computador.
+- Com a variável de ambiente `EDISVG_NTFY_TOPIC` (letras, números, `-` e `_`), o fim de cada
+  execução vai para o [ntfy](https://ntfy.sh). Assine o mesmo tópico no app do ntfy no celular.
+- O aviso diz se o pipeline ficou pronto ou parou, o nome da receita e quanto tempo levou. Não
+  leva nome nem caminho de arquivo.
+- Execução interrompida pela própria pessoa não gera aviso.
+- `EDISVG_NTFY_SERVER` troca o servidor; só aceita https, ou http em `localhost`.
+- O tópico funciona como senha: quem souber o nome lê as mensagens. Use um nome difícil de
+  adivinhar.
+- Código em `src/main/pipelineNotify.ts`. Se o envio falhar, o erro fica só no log e o pipeline
+  segue igual.
 
 **Testes.**
 - Unitários: o modelo e o executor.
@@ -439,10 +472,8 @@ numerada), a sequência dos 10 slides e as regras de ouro. Tudo em `src/shared/s
   da pessoa, antes da conversa recente, que fica com o espaço que sobra do limite de 32000. A
   escolha fica em `localStorage` (`edisvg-style-guide`), como o provedor e o modelo.
 - **Nos pipelines**, o pedido do rascunho (`pipelines/prompt.ts`) leva o mesmo guia logo depois
-  da primeira linha, antes das instruções da receita. Na receita e na execução, o botão **Paleta e
-  fontes do guia Zero Kids** (no bloco das fontes) troca a paleta de texto pelas cores do guia na
-  ordem que as receitas usam (branco, tinta, azul, verde, amarelo) e as fontes por Baloo 2 e
-  Nunito.
+  da primeira linha, antes das instruções da receita, quando a execução não tem um guia de estilo
+  em imagem (com um, as cores, as fontes e as regras saem da imagem).
 - **Arquivo › Inserir kit Zero Kids** (também na paleta de comandos) põe as peças do guia no
   projeto como um kit de design, pelo mesmo caminho do ZIP (`styleGuideKit` →
   `planDesignKit` → `applyDesignKit`): a folha de paleta com as 15 cores nomeadas, as caixas de

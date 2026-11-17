@@ -32,6 +32,11 @@ contextBridge.exposeInMainWorld("desktop", {
   pipelineVideoFrames: (token, times, jobId) =>
     ipcRenderer.invoke("pipeline:video-frames", token, times, jobId),
   pipelineLessonScript: (token) => ipcRenderer.invoke("pipeline:lesson-script", token),
+  pipelineNotify: (notice) => ipcRenderer.invoke("pipeline:notify", notice),
+  pipelineGuideSave: (bytes, name) => ipcRenderer.invoke("pipeline:guide-save", bytes, name),
+  pipelineGuideRead: (id) => ipcRenderer.invoke("pipeline:guide-read", id),
+  pipelineGuideStyle: (id) => ipcRenderer.invoke("pipeline:guide-style", id),
+  pipelineGuideStyleSave: (id, style) => ipcRenderer.invoke("pipeline:guide-style-save", id, style),
   // Other Edi tools' requests and the renders of linked animations (packages/edi-link).
   linkNext: () => ipcRenderer.invoke("link:next"),
   linkOpenProject: (id) => ipcRenderer.invoke("link:open-project", id),

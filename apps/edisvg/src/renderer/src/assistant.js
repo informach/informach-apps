@@ -302,7 +302,7 @@ export function setupAssistant(editor) {
     // Frames to look at (a demonstration): shown like attached references, and sent as bytes,
     // as the main process takes every image (the frames come from it in base64).
     const attached = images.map((image, index) =>
-      frameAttachment(image, `Quadro ${index + 1} do vídeo`),
+      frameAttachment(image, image.name ?? `Quadro ${index + 1} do vídeo`),
     );
     await submit(text, attached, shown, true);
     return finished;
