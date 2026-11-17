@@ -8,7 +8,7 @@ import {
 import { type ContaId, PerfilIdSchema, type SessaoDeAparelhoId } from "@informach/recreio";
 import { sessaoDeLoginViva } from "@/features/sessao/login";
 import { assertAllowed } from "@/lib/errors";
-import { AGORA, type Transacao } from "@/lib/repository";
+import { AGORA, type Transacao, travar } from "@/lib/repository";
 
 export type IdentidadeNativa = { contaId: ContaId; sessaoDeAparelhoId: SessaoDeAparelhoId };
 /** Somente o adapter servidor lê essas datas do login autenticado. */
@@ -16,15 +16,24 @@ export type ProvaDeLoginNativo = { authSessionId: string; criadoEm: Date; expira
 export type AutorNativoRecente = IdentidadeNativa & { login: ProvaDeLoginNativo };
 const LOGIN_RECENTE_MS = 10 * 60_000;
 
+export async function serializarContaNativa(tx: Transacao, contaId: ContaId) {
+  await travar(tx, `recreio:autoridade-nativa:${contaId}`);
+}
+
 /** Conta → perfil próprio opcional → aparelho. Pagar ou escolher um menor não concede gestão. */
-export async function autorizarContaNativa(tx: Transacao, ator: IdentidadeNativa) {
+export async function autorizarContaNativa(
+  tx: Transacao,
+  ator: IdentidadeNativa,
+  travaDoPerfil: "share" | "update" = "share",
+) {
+  await serializarContaNativa(tx, ator.contaId);
   const [conta] = await tx.select().from(users).where(eq(users.id, ator.contaId)).for("share");
   assertAllowed(conta?.emailVerified, "AUTH", "Entre novamente para continuar.");
   const [perfil] = await tx
     .select({ id: profiles.id })
     .from(profiles)
     .where(and(eq(profiles.userId, ator.contaId), eq(profiles.kind, "adult")))
-    .for("share");
+    .for(travaDoPerfil);
   const [atual] = await tx
     .select()
     .from(devices)
@@ -38,6 +47,7 @@ export async function autorizarContaNativa(tx: Transacao, ator: IdentidadeNativa
     .for("share");
   assertAllowed(
     atual &&
+      atual.minorContextGeneration === null &&
       (atual.activeProfileId === null || atual.activeProfileId === perfil?.id) &&
       atual.revokedAt === null &&
       atual.authSessionId,

@@ -73,6 +73,7 @@ async function comAutoridade<T>(
       aparelho.revokedAt !== null ||
       aparelho.activeProfileId !== perfil.id ||
       aparelho.kind !== "account" ||
+      aparelho.minorContextGeneration !== null ||
       aparelho.userId !== conta.id ||
       !aparelho.authSessionId
     )

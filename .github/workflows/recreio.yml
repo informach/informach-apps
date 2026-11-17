@@ -141,6 +141,8 @@ jobs:
             apps/recreio/tmp/telas/responsabilidade-mobile.png
             apps/recreio/tmp/telas/responsabilidade-recebida-mobile.png
             apps/recreio/tmp/telas/remocao-membro-mobile.png
+            apps/recreio/tmp/telas/familia-cadastro-sem-jogador.png
+            apps/recreio/tmp/telas/aparelho-pareado-protegido.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic color evidence

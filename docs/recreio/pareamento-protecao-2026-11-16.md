@@ -158,3 +158,24 @@ prova de PIN incorreto, conta/perfil alheios, revogação enquanto espera,
 exclusão do menor e preservação da trava, retorno de adulto sem jogador e
 concorrência entre seleção e gestão. Não ativar esse contrato em produção
 antes dessas provas e da autoridade infantil F3.
+
+Gates conferidos: `44007755064`/`e239718e` (backend/retenção, 378 integrações)
+e `44008462903`/`c6064d8c` (adapter/telas, 380 integrações), seis aprovados em
+cada rodada. A jornada web confirmou os dois navegadores, flags do cookie,
+recusa da sessão adulta antiga e retorno após novo login. As capturas novas
+precisam entrar no allowlist do artefato sintético para revisão visual; o
+workflow passa a preservá-las explicitamente, sem incluir capturas do jogo.
+
+`0171_puzzling_gorgon.sql` gerada em `44009456883`, fonte `a32dd5a5`, artefato
+`14295882069`, 83 bytes, SHA-256
+`57b4345bd3fc096c201c1d34f79df69dfd6104150b24cd9ce9a309382f2ff4f5`.
+Somente a coluna UUID anulável da restrição de sessão; snapshot/journal
+conferidos com origem, tamanho e hash, sem edição manual ou aplicação em produção.
+
+Antes da escrita de seleção infantil, os leitores nativos recusam explicitamente
+essa restrição e a preservam se o perfil some. O caminho legado de seleção não
+pode limpá-la. A nova prova exclui o menor e tenta reabrir Conta, selecionar o
+adulto e redefinir PIN. A edição própria agora também revalida o login e a
+sanção na transação, usando a trava de perfil para escrita desde o início e
+o mutex nativo antes de qualquer linha. Não fazer upgrade concorrente de SHARE
+para UPDATE. Verificação remota deste incremento ainda pendente.

@@ -10,10 +10,13 @@ import {
   type SessaoDeAparelhoId,
   SessaoDeAparelhoIdSchema,
 } from "@informach/recreio";
-import { autorizarContaNativa } from "@/features/account/autoridade-repository";
+import {
+  autorizarContaNativa,
+  serializarContaNativa,
+} from "@/features/account/autoridade-repository";
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/repository";
 import { assertAllowed } from "@/lib/errors";
-import { AGORA, type Transacao, travar } from "@/lib/repository";
+import { AGORA, type Transacao } from "@/lib/repository";
 
 export type DonoDosAparelhos = { contaId: ContaId; sessaoDeAparelhoId: SessaoDeAparelhoId };
 export type CursorDeAparelhos = SessaoDeAparelhoId;
@@ -90,7 +93,7 @@ export async function revogarOutroAparelho(ator: DonoDosAparelhos, alvo: SessaoD
   return db.transaction(async (tx) => {
     await limitarEspera(tx);
     // Antes de travar aparelhos: dois chamadores não revogam um ao outro em círculo.
-    await travar(tx, `recreio:aparelhos:conta:${ator.contaId}`);
+    await serializarContaNativa(tx, ator.contaId);
     const { perfilId, conferirPrazo } = await autorizar(tx, ator);
     const [encontrado] = await tx
       .select({ id: devices.id, revogado: devices.revokedAt })

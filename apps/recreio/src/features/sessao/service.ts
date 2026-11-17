@@ -56,6 +56,9 @@ export async function resolverAtor(entrada: {
     agora: entrada.agora ?? new Date(),
   });
   if (!sessao || sessao.revogadaEm !== null) return null;
+  // O contrato infantil só pode ser retomado por seleção/PIN explícitos. A
+  // ausência/exclusão do perfil nunca converte esta sessão em gestão nativa.
+  if (sessao.contextoDeMenor) return null;
   const perfis = await perfisSelecionaveis(contaId);
   const perfil = perfis.find((item) => item.id === sessao.perfilAtivoId) ?? null;
   if (sessao.perfilAtivoId !== null && perfil === null) await limparPerfilAtivo(sessao.id);
@@ -96,7 +99,7 @@ export async function conferirSessaoDeAparelho(entrada: {
 }): Promise<VidaDaSessaoDeAparelho> {
   const agora = entrada.agora ?? new Date();
   const sessao = await lerSessaoDeAparelho(entrada.sessaoDeAparelhoId);
-  if (!sessao || sessao.revogadaEm !== null || sessao.contaId === null)
+  if (!sessao || sessao.contextoDeMenor || sessao.revogadaEm !== null || sessao.contaId === null)
     return { viva: false, motivo: "signed_out" };
   if (sessao.expiraEm.getTime() <= agora.getTime()) return { viva: false, motivo: "expired" };
   if (sessao.perfilAtivoId !== entrada.perfilId) return { viva: false, motivo: "signed_out" };

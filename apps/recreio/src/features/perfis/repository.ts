@@ -1,12 +1,7 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
 import { and, db, eq, sql } from "@informach/db";
-import {
-  recreioDeviceSessions as deviceSessions,
-  recreioGroups as groups,
-  recreioProfiles as profiles,
-  users,
-} from "@informach/db/schema";
+import { recreioGroups as groups, recreioProfiles as profiles, users } from "@informach/db/schema";
 import {
   type ContaId,
   type GrupoId,
@@ -19,9 +14,9 @@ import {
 import {
   autorizarContaNativa,
   type IdentidadeNativa,
+  serializarContaNativa,
 } from "@/features/account/autoridade-repository";
 import { assertAllowed } from "@/lib/errors";
-import { AGORA } from "@/lib/repository";
 import type { EdicaoDoPerfil, NovoPerfil } from "./regras";
 
 /** O perfil como o portal o conhece. Não leva a conta: o jogo só vê o `id`. */
@@ -82,38 +77,17 @@ export async function editarPerfilDaConta(
   dados: EdicaoDoPerfil,
 ): Promise<PerfilDoRecreio> {
   return db.transaction(async (tx) => {
+    await tx.execute(sql`set local transaction_timeout='15s'`);
+    await tx.execute(sql`set local lock_timeout='2s'`);
+    const contexto = await autorizarContaNativa(tx, ator, "update");
     const [perfil] = await tx
       .select(campos)
       .from(profiles)
       .where(and(eq(profiles.userId, ator.contaId), eq(profiles.kind, "adult")))
       .for("update");
     assertAllowed(perfil?.status === "active", "PERFIL", "Perfil não disponível.");
-    const [aparelho] = await tx
-      .select({
-        id: deviceSessions.id,
-        activeProfileId: deviceSessions.activeProfileId,
-        revokedAt: deviceSessions.revokedAt,
-      })
-      .from(deviceSessions)
-      .where(
-        and(
-          eq(deviceSessions.id, ator.sessaoDeAparelhoId),
-          eq(deviceSessions.userId, ator.contaId),
-          eq(deviceSessions.kind, "account"),
-        ),
-      )
-      .for("share");
-    assertAllowed(
-      aparelho && aparelho.activeProfileId === perfil.id && aparelho.revokedAt === null,
-      "AUTH",
-      "Entre novamente para continuar.",
-    );
-    // O relógio é consultado depois de adquirir as travas, inclusive após esperar.
-    const [prazo] = await tx
-      .select({ valido: sql<boolean>`${deviceSessions.expiresAt} > ${AGORA}` })
-      .from(deviceSessions)
-      .where(eq(deviceSessions.id, aparelho.id));
-    assertAllowed(prazo?.valido, "AUTH", "Entre novamente para continuar.");
+    assertAllowed(contexto.perfilId === perfil.id, "AUTH", "Entre novamente para continuar.");
+    await contexto.conferirPrazo();
     const fields: ("nickname" | "avatar")[] = [];
     if (perfil.nickname !== dados.novo.apelido) fields.push("nickname");
     if (perfil.avatar !== dados.novo.avatar) fields.push("avatar");
@@ -153,6 +127,7 @@ export async function criarPerfilDaConta(
     const contaId = ator.contaId;
     await tx.execute(sql`set local transaction_timeout='15s'`);
     await tx.execute(sql`set local lock_timeout='2s'`);
+    await serializarContaNativa(tx, contaId);
     const [conta] = await tx
       .select({ id: users.id })
       .from(users)

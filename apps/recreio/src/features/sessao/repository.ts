@@ -24,6 +24,7 @@ export type SessaoDeAparelho = {
   id: SessaoDeAparelhoId;
   perfilAtivoId: PerfilId | null;
   revogadaEm: Date | null;
+  contextoDeMenor: boolean;
 };
 
 const campos = {
@@ -33,6 +34,7 @@ const campos = {
   lastSeenAt: sessions.lastSeenAt,
   expiresAt: sessions.expiresAt,
   revokedAt: sessions.revokedAt,
+  minorContextGeneration: sessions.minorContextGeneration,
 };
 
 /**
@@ -82,6 +84,7 @@ export async function carregarOuCriarSessaoDaConta(entrada: {
     perfilAtivoId:
       linha.activeProfileId === null ? null : PerfilIdSchema.parse(linha.activeProfileId),
     revogadaEm: linha.revokedAt,
+    contextoDeMenor: linha.minorContextGeneration !== null,
   };
 }
 
@@ -104,6 +107,7 @@ export async function definirPerfilAtivo(entrada: {
         eq(sessions.id, entrada.sessaoDeAparelhoId),
         eq(sessions.userId, entrada.contaId),
         isNull(sessions.revokedAt),
+        isNull(sessions.minorContextGeneration),
         sql`exists (select 1 from ${profiles} where ${profiles.id} = ${entrada.perfilId} and ${profiles.userId} = ${entrada.contaId})`,
       ),
     )
@@ -162,6 +166,7 @@ export type SessaoDeAparelhoLida = {
   perfilAtivoId: PerfilId | null;
   expiraEm: Date;
   revogadaEm: Date | null;
+  contextoDeMenor: boolean;
 };
 
 /** A linha da sessão de aparelho, sem criar nem renovar nada. */
@@ -176,6 +181,7 @@ export async function lerSessaoDeAparelho(
       activeProfileId: sessions.activeProfileId,
       expiresAt: sessions.expiresAt,
       revokedAt: sessions.revokedAt,
+      minorContextGeneration: sessions.minorContextGeneration,
     })
     .from(sessions)
     .where(eq(sessions.id, id));
@@ -188,5 +194,6 @@ export async function lerSessaoDeAparelho(
       linha.activeProfileId === null ? null : PerfilIdSchema.parse(linha.activeProfileId),
     expiraEm: linha.expiresAt,
     revogadaEm: linha.revokedAt,
+    contextoDeMenor: linha.minorContextGeneration !== null,
   };
 }

@@ -19,6 +19,7 @@ import {
   apagarIntencoesAntigas,
   LOTE_DE_INTENCOES_ANTIGAS,
 } from "@/features/manutencao/repository";
+import { criarPerfilProprio, selecionarPerfil } from "@/features/perfis/service";
 import { aprovarPedidoDePareamento } from "@/features/protecao/repository";
 import { hashDoSegredo } from "@/features/protecao/segredos";
 import {
@@ -63,6 +64,36 @@ function preparar() {
 }
 
 describe("pareamento e proteção do menor", () => {
+  it("excluir o menor não libera a gestão ou a seleção adulta da sessão restrita", async () => {
+    const r = await familia();
+    const adulto = await criarPerfilProprio(r.autor, { apelido: "Responsável", avatar: "padrao" });
+    const generation = crypto.randomUUID();
+    await db
+      .update(devices)
+      .set({ minorContextGeneration: generation, activeProfileId: r.perfil.id })
+      .where(eq(devices.id, r.autor.sessaoDeAparelhoId));
+    await db.delete(profiles).where(eq(profiles.id, r.perfil.id));
+    expect(
+      await resolverAtor({
+        authSessionId: r.autor.login.authSessionId,
+        contaId: r.conta.id,
+        expiraEm: r.autor.login.expiraEm,
+      }),
+    ).toBeNull();
+    await expect(definirPinDaConta(r.autor, { pin: "593871" })).rejects.toMatchObject({
+      code: "AUTH",
+    });
+    await expect(confirmarRetornoNativo(r.autor)).rejects.toMatchObject({ code: "AUTH" });
+    await expect(selecionarPerfil(r.autor, adulto.perfil.id)).rejects.toMatchObject({
+      code: "PERFIL",
+    });
+    const [aparelho] = await db
+      .select()
+      .from(devices)
+      .where(eq(devices.id, r.autor.sessaoDeAparelhoId));
+    expect(aparelho).toMatchObject({ activeProfileId: null, minorContextGeneration: generation });
+  });
+
   it("dedicar navegador revoga login nativo que ainda não havia aberto o portal", async () => {
     const conta = await novaConta();
     const login = await loginReal(conta);

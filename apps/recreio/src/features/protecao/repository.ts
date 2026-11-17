@@ -24,7 +24,7 @@ import {
 } from "@/features/account/autoridade-repository";
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/repository";
 import { assertAllowed } from "@/lib/errors";
-import { type Transacao, travar } from "@/lib/repository";
+import type { Transacao } from "@/lib/repository";
 import { agoraDoBanco, autoridadeDoMenor, protecaoAtual } from "./autoridade-repository";
 import { codigoDoSegredo, credencialDoSegredo, hashDoSegredo } from "./segredos";
 
@@ -187,7 +187,6 @@ export async function gravarPinNativo(autor: AutorNativoRecente, hash: string) {
   return db.transaction(async (tx) => {
     await limites(tx);
     const nativo = await autorizarContaNativa(tx, autor);
-    await travar(tx, `recreio:pin-conta:${autor.contaId}`);
     const agora = await nativo.conferirPrazo(autor.login);
     const generation = randomUUID();
     await tx

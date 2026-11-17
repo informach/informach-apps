@@ -1,0 +1,1 @@
+ALTER TABLE "recreio"."device_sessions" ADD COLUMN "minor_context_generation" uuid;
