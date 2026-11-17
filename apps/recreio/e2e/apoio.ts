@@ -301,7 +301,7 @@ export type Pessoa = { contexto: BrowserContext; page: Page; email: string; apel
 export async function novaPessoa(
   browser: Browser,
   apelido: string,
-  opcoes: { comAcesso?: boolean } = {},
+  opcoes: { comAcesso?: boolean; semPerfil?: boolean } = {},
 ): Promise<Pessoa> {
   const contexto = await novoAparelho(browser);
   const page = await contexto.newPage();
@@ -318,6 +318,7 @@ export async function novaPessoa(
   await page.getByLabel("Código de seis dígitos").fill(await codigoDoEmail(email));
   await page.getByRole("button", { name: "Confirmar e-mail", exact: true }).click();
   await expect(page).toHaveURL(/\/comecar$/);
+  if (opcoes.semPerfil) return { contexto, page, email, apelido };
   const campoDoApelido = page.getByLabel("Apelido");
   await hidratado(campoDoApelido);
   await campoDoApelido.fill(apelido);

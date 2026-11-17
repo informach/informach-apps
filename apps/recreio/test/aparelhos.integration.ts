@@ -6,12 +6,14 @@ import {
   events,
   recreioGameSessions as games,
   recreioProfiles as profiles,
+  sessions,
+  users,
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
 import { desconectarAparelho, listarAparelhos } from "@/features/aparelhos/service";
 import { selecionarPerfil } from "@/features/perfis/service";
 import { encerrarSessaoDeAparelho, resolverAtor } from "@/features/sessao/service";
-import { type Jogador, loginReal, novoJogador } from "./apoio";
+import { type Jogador, loginReal, novaConta, novoJogador } from "./apoio";
 
 async function outroAparelho(pessoa: Jogador) {
   const login = await loginReal(pessoa.conta);
@@ -164,25 +166,22 @@ describe("aparelhos da própria conta", () => {
     expect((await estadoDoAparelho(pareado.id))?.revokedAt).toBeNull();
   });
 
-  it.each(["revogada", "vencida", "suspensa", "sem perfil"])(
+  it.each(["revogada", "vencida", "login removido", "identidade suspensa"])(
     "revalida o chamador já resolvido: %s",
     async (caso) => {
       const pessoa = await novoJogador({ comAcesso: false });
       const outro = await outroAparelho(pessoa);
-      if (caso === "suspensa")
-        await db
-          .update(profiles)
-          .set({ status: "suspended" })
-          .where(eq(profiles.id, pessoa.perfil.id));
+      if (caso === "identidade suspensa")
+        await db.update(users).set({ banned: true }).where(eq(users.id, pessoa.conta.id));
+      else if (caso === "login removido")
+        await db.delete(sessions).where(eq(sessions.id, pessoa.login.authSessionId));
       else
         await db
           .update(devices)
           .set(
             caso === "revogada"
               ? { revokedAt: new Date() }
-              : caso === "vencida"
-                ? { expiresAt: new Date(Date.now() - 60_000) }
-                : { activeProfileId: null },
+              : { expiresAt: new Date(Date.now() - 60_000) },
           )
           .where(eq(devices.id, pessoa.ator.sessaoDeAparelhoId));
       await expect(listarAparelhos(pessoa.ator)).rejects.toMatchObject({ code: "AUTH" });
@@ -192,6 +191,49 @@ describe("aparelhos da própria conta", () => {
       expect((await estadoDoAparelho(outro.ator.sessaoDeAparelhoId))?.revokedAt).toBeNull();
     },
   );
+
+  it.each(["sem seleção", "jogador suspenso"])(
+    "a conta conserva gestão dos aparelhos: %s",
+    async (caso) => {
+      const pessoa = await novoJogador({ comAcesso: false });
+      const outro = await outroAparelho(pessoa);
+      if (caso === "sem seleção")
+        await db
+          .update(devices)
+          .set({ activeProfileId: null })
+          .where(eq(devices.id, pessoa.ator.sessaoDeAparelhoId));
+      else
+        await db
+          .update(profiles)
+          .set({ status: "suspended" })
+          .where(eq(profiles.id, pessoa.perfil.id));
+      expect((await listarAparelhos(pessoa.ator)).outros.map((item) => item.id)).toContain(
+        outro.ator.sessaoDeAparelhoId,
+      );
+      expect(await desconectarAparelho(pessoa.ator, outro.ator.sessaoDeAparelhoId)).toEqual({
+        revogado: true,
+      });
+    },
+  );
+
+  it("conta sem nenhum perfil lista e revoga com auditoria sem jogador inventado", async () => {
+    const conta = await novaConta();
+    const a = await resolverAtor(await loginReal(conta));
+    const b = await resolverAtor(await loginReal(conta));
+    if (!a || !b) throw new Error("Sessão ausente");
+    expect(a.perfis).toEqual([]);
+    expect((await listarAparelhos(a.ator)).outros.map((item) => item.id)).toContain(
+      b.ator.sessaoDeAparelhoId,
+    );
+    await desconectarAparelho(a.ator, b.ator.sessaoDeAparelhoId);
+    const registros = await auditoria(conta.id, "recreio.device_session_revoked");
+    expect(registros).toHaveLength(1);
+    expect(registros[0]?.payload).toEqual({
+      app: "recreio",
+      deviceSessionId: b.ator.sessaoDeAparelhoId,
+    });
+    expect(await db.select().from(profiles).where(eq(profiles.userId, conta.id))).toEqual([]);
+  });
 
   it("revogações cruzadas não reaproveitam autoridade encerrada nem criam espera circular", async () => {
     const pessoa = await novoJogador({ comAcesso: false });
