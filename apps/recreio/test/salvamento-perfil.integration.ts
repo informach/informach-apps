@@ -12,6 +12,7 @@ import { SessaoRenovadaSchema } from "@informach/recreio/contrato";
 import { verificarSalvamentoEmitido } from "@informach/recreio/emissor";
 import { describe, expect, it, vi } from "vitest";
 import { alterarDados } from "@/features/dados-de-perfil/service";
+import { travarEncerramentos } from "@/features/sessao-de-jogo/encerramento-repository";
 import {
   emitirIngresso,
   sessaoDeJogoDoToken,
@@ -209,12 +210,24 @@ describe("persistência final com capacidade restrita", () => {
     expect(
       (await pedir("POST", "/api/sdk/v1/dados", { token: r.aberta.token, corpo: gravacao })).status,
     ).toBe(401);
+    const antes = await db.select().from(permits).where(eq(permits.id, r.id));
+    const estado = await pedir("GET", "/api/sdk/v1/sessao/salvamento", {
+      token: r.capacidade.token,
+    });
+    expect(estado).toEqual({
+      status: 200,
+      corpo: { estado: "ready", expiraEm: r.capacidade.expiraEm.toISOString() },
+    });
+    expect(await db.select().from(permits).where(eq(permits.id, r.id))).toEqual(antes);
     const primeira = await salvar(r);
     expect(primeira).toMatchObject({
       status: 200,
       corpo: { estado: "completed", resultados: [{ chave: "pontos", revisao: 1 }] },
     });
     expect(await salvar(r)).toEqual(primeira);
+    expect(
+      await pedir("GET", "/api/sdk/v1/sessao/salvamento", { token: r.capacidade.token }),
+    ).toMatchObject({ status: 200, corpo: { estado: "completed" } });
     expect((await salvar(r, [{ ...gravacao, conteudo: "Mg==" }])).status).toBe(409);
     const [recibo] = await db.select().from(permits).where(eq(permits.id, r.id));
     const [jogo] = await db.select().from(games).where(eq(games.id, r.sessao.sid));
@@ -294,6 +307,9 @@ describe("persistência final com capacidade restrita", () => {
       }
       expect((await salvar(r)).status).toBe(401);
       expect(
+        (await pedir("GET", "/api/sdk/v1/sessao/salvamento", { token: r.capacidade.token })).status,
+      ).toBe(401);
+      expect(
         await db.select().from(versions).where(eq(versions.profileId, r.pessoa.perfil.id)),
       ).toHaveLength(0);
       expect((await db.select().from(permits).where(eq(permits.id, r.id)))[0]?.status).toBe(
@@ -326,6 +342,15 @@ describe("persistência final com capacidade restrita", () => {
         .from(versions)
         .where(and(eq(versions.profileId, outra.sessao.perfilId), eq(versions.gameId, JOGO))),
     ).toHaveLength(0);
+  });
+  it("consultar o recibo não depende da trava global de encerramento", async () => {
+    const r = await preparar();
+    await db.transaction(async (tx) => {
+      await travarEncerramentos(tx);
+      expect(
+        await pedir("GET", "/api/sdk/v1/sessao/salvamento", { token: r.capacidade.token }),
+      ).toMatchObject({ status: 200, corpo: { estado: "ready" } });
+    });
   });
   it("encerramento antecipado também limita a margem a trinta segundos", async () => {
     const r = await preparar();

@@ -35,3 +35,8 @@ export const ResultadoDeSalvamentoSchema = z.strictObject({
     .max(LIMITES_DOS_DADOS.chaves),
 });
 export type ResultadoDeSalvamento = z.infer<typeof ResultadoDeSalvamentoSchema>;
+export const EstadoDeSalvamentoSchema = z.strictObject({
+  estado: z.enum(["ready", "completed", "conflicted"]),
+  expiraEm: z.iso.datetime(),
+});
+export type EstadoDeSalvamento = z.infer<typeof EstadoDeSalvamentoSchema>;

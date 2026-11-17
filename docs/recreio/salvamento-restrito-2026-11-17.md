@@ -152,3 +152,24 @@ e rollback da auditoria. Auditoria nova registra somente IDs técnicos na criaç
 sem repetir eventos em renovações. Ainda faltam a espera limitada antes de um
 sucessor, o consumidor do SDK, o finalizador do servidor de mundo e as jornadas
 de pausa automática. Não ativar a flag a partir dessa etapa isolada.
+
+## Consulta restrita em candidata
+
+`GET /api/sdk/v1/sessao/salvamento` usa o tipo próprio e a mesma admissão
+atual do finalizador; continua disponível depois que a concessão normal termina,
+dentro da margem. Responde somente estado técnico e prazo efetivo, sem hashes,
+chaves, progresso ou conteúdo. Não renova, não modifica o recibo e não toma
+a trava global dos encerramentos. Consulta e conclusão compartilham um núcleo
+privado com operações discriminadas; a leitura não recebe callback de escrita.
+Recibo ainda pendente de um SID sucedido é recusado também na leitura.
+
+Provas adicionais: leitura antes/depois do commit, igualdade do recibo antes e
+depois da consulta, recusa após revogação/política/barreira/sucessor e leitura
+enquanto outra transação conserva o cursor global. As assinaturas de sessão
+e ingresso continuam incompatíveis com a rota. Consumidor do SDK ainda pendente.
+
+`6acd97c` passou nos sete gates `44064371128`; `8dd7ae3` passou nos sete gates
+`44065394934`, incluindo emissão negociada, compatibilidade, recuperação e
+rollback da emissão. Essas rodadas não incluem a consulta restrita descrita
+acima. A produção está na integração `2475661`, com 0176/177 recibos e modos
+desligados; 0177 e todos os escritores de salvamento continuam privados.
