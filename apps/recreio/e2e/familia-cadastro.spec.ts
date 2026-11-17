@@ -81,6 +81,10 @@ test("responsável sem jogador cadastra, protege e supervisiona o perfil", async
   await expect(
     page.getByRole("heading", { name: "Supervisão de Lua da casa", exact: true }),
   ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tempo recente", exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Nenhum tempo de jogo registrado nos últimos sete dias.", { exact: true }),
+  ).toBeVisible();
   const limite = page.getByLabel("Limite diário em minutos", { exact: true });
   await hidratado(limite);
   await expect(limite).toHaveValue("");

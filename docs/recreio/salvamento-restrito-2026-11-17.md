@@ -345,3 +345,25 @@ mas falhou ao ler o corpo de uma resposta do Chromium após navegar. A prova
 passa a delimitar a navegação e consultar as versões com o Bearer da sessão
 reaberta. Mantém a exigência de uma revisão e uma versão, sem alterar o produto
 para acomodar o teste. Nova rodada completa pendente.
+
+O writer do agregado soma somente na primeira conclusão do recibo infantil,
+sob a admissão física e as mesmas travas. Replay não soma novamente; falha
+estrita da auditoria reverte também o agregado. A próxima concessão acerta
+somente gameplay e conserva a margem registrada. A correlação com o SID fixa
+o dia original sem usar o relógio do cliente. Provas com dados históricos
+cobrem a margem atravessando meia-noite sem criar uso no dia seguinte.
+
+A supervisão do responsável ganha leitura agregada dos últimos sete dias,
+com tempo de jogo e margem separados. A leitura projeta o intervalo ainda
+correlacionado, sem debitar nem modificar o ledger, e devolve somente datas e
+durações. Autorização atual do responsável precede a consulta; outra conta
+não lê o relatório. A retenção diária existente continua com seu corte no
+calendário de Brasília, sem acrescentar conteúdo das partidas.
+
+O recibo de salvamento tem FK para a sessão de jogo, não para o ingresso.
+Portanto a limpeza de ingressos não o expurga: a manutenção agora o apaga
+explicitamente após 24 horas do prazo, em lotes de 500 com `SKIP LOCKED`.
+A prova conserva uma linha travada e um recibo recente e exige igualdade das
+sessões antes/depois. A resposta do cron acrescenta somente essa contagem;
+nenhuma credencial ou conteúdo é devolvido. Esses writers/leitores ainda
+aguardam os gates completos.

@@ -16,6 +16,7 @@ import {
   travarEncerramentos,
 } from "@/features/sessao-de-jogo/encerramento-repository";
 import { type Transacao, travar } from "@/lib/repository";
+import { registrarMargemDeSalvamento } from "./tempo-repository";
 
 type Recibo = typeof permits.$inferSelect;
 type ReciboAutorizado = { recibo: Recibo; expiraEm: Date };
@@ -192,6 +193,13 @@ async function executarComRecibo(
     }
     const prova = await opcoes.persistir(tx, admissao.contaId, recibo, admissao);
     const fim = await conferirPrazo();
+    if (admissao.perfil.kind === "minor")
+      await registrarMargemDeSalvamento(tx, {
+        perfilId: capacidade.perfilId,
+        sid: capacidade.sid,
+        corteEm: new Date(Math.min(recibo.cutoffAt.getTime(), encerradaEm?.getTime() ?? Infinity)),
+        concluidaEm: fim,
+      });
     const motivo =
       jogo.endReason === "access_lost" ? "access" : agora >= recibo.cutoffAt ? "time" : "manual";
     const [concluido] = await tx
