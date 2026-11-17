@@ -118,6 +118,12 @@ fechada, prioridade e espécie do ator. Não inclui corpo/hash/nonce/evidência
 ou identificação escolhida por pessoas. Ator infantil é nulo, e o responsável
 usa sua conta real. `recreio.safety_reports_purged` registra somente contagens
 apagadas e pendências que venceram sem solução, com ator nulo e sem IDs em lote.
+`recreio.restriction_reconciled` registra perfil, revisão observada e o motivo
+fechado `legado_sem_recibo`, sem inventar autoria ou data da suspensão antiga.
+`recreio.restriction_review_requested` registra IDs de perfil/recurso, revisão
+da restrição e espécie do ator (`titular`/`responsavel`), sempre com a conta
+nativa atual. Nenhum deles recebe nonce, resumo do corpo ou dados da denúncia
+original. Repetição não duplica auditoria nem reativa permissões.
 
 Eventos `recreio.*` registram o que aconteceu com os perfis, com o direito de jogar, com as sessões de jogo e com os mundos no app `recreio`, com payload mínimo de IDs, nomes de campo, classificadores e contagens. O perfil é o que os jogos conhecem de uma pessoa: nunca gravar apelido, avatar, e-mail, IP, nome de aparelho, ingresso, token de sessão, chave, segredo de instância, nome de mundo, código de convite (nem o resumo dele), o texto de participação que o jogo guarda no convite, o resumo do mundo publicado pelo jogo ou qualquer texto livre.
 

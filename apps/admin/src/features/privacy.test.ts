@@ -25,6 +25,15 @@ const CONTENT_SCHEMA_FILES = [
   "dia-de-estrela.ts",
   "family.ts",
   "recreio.ts",
+  "recreio-checkpoints.ts",
+  "recreio-dados.ts",
+  "recreio-familia.ts",
+  "recreio-grupo.ts",
+  "recreio-moderacao.ts",
+  "recreio-politicas.ts",
+  "recreio-protecao.ts",
+  "recreio-salvamento.ts",
+  "recreio-social.ts",
 ];
 /** Schemas SQL desses arquivos, para pegar SQL escrito à mão. */
 const CONTENT_SQL_SCHEMAS = [

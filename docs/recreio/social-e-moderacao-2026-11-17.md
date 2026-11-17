@@ -499,6 +499,32 @@ restrição e recibo na mesma transação. Não restaurar por um caso antigo qua
 existe recurso aberto; a equipe deve responder ao recurso. Referências pessoais
 saem com o perfil conforme F7, sem prorrogar a denúncia original.
 
+0189 final gerada em `44161305537`, fonte `9f04cf61`, artefato `14361994614`;
+ZIP SHA `291a8241620c8a5f361ba2dd59a7674aefa40704d8dc98c47aa4d4361afbafc4`.
+`0189_third_lady_bullseye.sql`, 7.351 bytes, SHA
+`d30ad789072568cf327a781062c24ba9d7344d038391576fee1b6185f0f20a1e`;
+snapshot SHA `57a125d62ba9986ea9da077da53b0606fff956a45df38babe80bfb72740b7dc3`;
+journal SHA `f0861c090c93deabdbaa00087167a69dfc06f596d1b75403cf6813ef4fc08204`.
+Arquivos conferidos e copiados intactos; gerações anteriores `44160404508` e
+`44160775037` foram substituídas antes de adotar qualquer arquivo. Duas tabelas
+novas, referência nullable/espécie com default nos recibos e expansão do check
+de operações. A coluna física de revisão não foi alterada. Nada social foi
+aplicado ao banco real, que permanece em 184 recibos/F1.
+
+O recurso limita uma solicitação por conta atual e revisão da restrição,
+além de uma fila aberta por perfil/revisão. Nonce recupera somente corpo/ator
+iguais; novo nonce não multiplica o pedido existente. A revisão da restrição
+usa a versão monotônica do perfil ao impor/liberar, sem reiniciar depois de
+expurgar o histórico liberado. Leitura própria não exige login recente; envio
+exige a prova nativa recente, nunca cobertura, perfil jogador do responsável
+ou aparelho infantil. Sete provas PostgreSQL candidatas cobrem titular,
+responsável sem jogador, pareado/antigo responsável, concorrência, expurgo da
+denúncia, sigilo, corpo divergente, auditoria e vencimento.
+
+A defesa estática de privacidade do Bastidores passa a incluir todos os módulos
+de schema do Recreio, não apenas `recreio.ts`. Nenhuma coluna nova é liberada
+genericamente: a futura fila precisa de projeção e exceção estrutural explícitas.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

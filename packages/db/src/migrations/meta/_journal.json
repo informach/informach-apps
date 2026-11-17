@@ -1324,6 +1324,13 @@
       "when": 1794942547889,
       "tag": "0188_brave_mimic",
       "breakpoints": true
+    },
+    {
+      "idx": 189,
+      "version": "7",
+      "when": 1794944537513,
+      "tag": "0189_third_lady_bullseye",
+      "breakpoints": true
     }
   ]
 }
