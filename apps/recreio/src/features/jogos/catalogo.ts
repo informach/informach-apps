@@ -32,7 +32,7 @@ export const JOGO_DE_TESTE: ManifestoDoJogo = {
     mundos: { membrosMax: 4 },
     posse: ["servidor"],
     dadosDePerfil: false,
-    checkpoint: null,
+    checkpoint: "servidor",
     conquistas: false,
     textoLivre: false,
     conteudoDeUsuario: false,

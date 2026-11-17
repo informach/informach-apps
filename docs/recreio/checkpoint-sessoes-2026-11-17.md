@@ -353,3 +353,27 @@ no PG. O teste novo corrompe somente a fotografia daquele mundo, mantendo seu
 tamanho, e exige recusa sem barreira. Armazenamento em bucket continua recusado
 até existir adapter com prova de integridade apropriada; não confiar só no
 metadado do objeto futuro. Nenhum conteúdo entra na auditoria ou no relatório.
+
+### Consumidor genérico de mundo em candidata
+
+Plano do incremento: declarar suporte somente no contador interno; serializar
+o checkpoint depois dos comandos admitidos, suspender comandos novos daquele
+SID, gravar uma fotografia e confirmar pela API autenticada da instância.
+Conservar a prova em uma resposta incerta; refazer a fotografia somente após
+recusa explícita de cobertura do diário. Retomar exige admissão atual do host.
+O cliente expõe `checkpoint({id, modo})`, mas seu booleano não confirma o mundo:
+o observador relê o controle da plataforma. Pedido pendente suspende renovação;
+fim da tentativa sem barreira permite retomá-la. Nenhuma mudança no Morada.
+
+Arquivos: protocolo e cliente do contador, servidor E2E, catálogo interno,
+observador do host e contrato/renovação do SDK. O ciclo de vida do servidor é
+compartilhado pelos dois gates de navegador em `e2e/servidor-apoio.ts`.
+A prova `checkpoint-e2e/mundo.spec.ts` atrasa o envio real do pedido, confere
+que o aparelho novo não monta antes da fotografia, injeta um comando na conexão
+antiga depois do ACK real, conserva outro membro ativo e reabre o contador.
+O teste do SDK verifica suspensão e retomada da renovação. Gates completos
+somente no GitHub; este incremento ainda não tem resultado remoto.
+
+`149ea66` passou nos sete gates `44052471827`; o CI compartilhado correspondente
+`44052471167` permanece em execução. Essa aprovação não inclui o consumidor
+genérico deste incremento nem autoriza ativar famílias ou checkpoint em produção.

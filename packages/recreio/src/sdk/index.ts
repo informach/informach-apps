@@ -311,7 +311,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
           method: "GET",
           token,
         });
-        if (controle.pausada) {
+        if (controle.pausada || controle.checkpoint?.estado === "requested") {
           renovacaoSuspensa = true;
           cancelar?.();
           cancelar = null;

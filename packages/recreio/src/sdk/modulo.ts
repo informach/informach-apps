@@ -38,7 +38,7 @@ export type OpcoesDeMontagem = {
 
 export type JogoMontado = {
   /** Suspende comandos e confirma a fila durável. Ausência/falso não confirma a troca. */
-  checkpoint?(): Promise<boolean>;
+  checkpoint?(pedido: { id: string; modo: "profile" | "server" }): Promise<boolean>;
   /** Só quando o servidor confirmou que nenhuma barreira foi aplicada. */
   retomar?(): void;
   /** Fecha conexões, solta o que o jogo criou no elemento e não chama mais nada da página. */

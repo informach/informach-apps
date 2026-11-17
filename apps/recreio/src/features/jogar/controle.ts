@@ -34,7 +34,7 @@ export function observarTrocaDaPartida(
         controle.checkpoint.id !== processado
       ) {
         const pedido = controle.checkpoint;
-        if (pedido.modo !== "profile" || !montado.checkpoint) {
+        if (!montado.checkpoint) {
           avisar({
             texto: "Para continuar no outro aparelho, salve e saia pelo jogo neste aparelho.",
             bloqueia: false,
@@ -45,14 +45,25 @@ export function observarTrocaDaPartida(
         avisar({ texto: "Salvando antes de trocar de aparelho…", bloqueia: true });
         let salvo = false;
         try {
-          salvo = await montado.checkpoint();
+          salvo = await montado.checkpoint({ id: pedido.id, modo: pedido.modo });
         } catch {
           salvo = false;
         }
         if (cancelado) return;
         ackSemResposta = true;
-        const resultado = await contexto.sessao.checkpoint(pedido.id, salvo);
+        const resultado =
+          pedido.modo === "profile"
+            ? await contexto.sessao.checkpoint(pedido.id, salvo)
+            : await contexto.sessao.controle();
         if (cancelado) return;
+        // O booleano do cliente de mundo não é recibo: só o controle servidor confirma.
+        if ("checkpoint" in resultado && !resultado.pausada && resultado.checkpoint !== null) {
+          avisar({
+            texto: "Ainda não foi possível confirmar a troca. Mantenha esta página aberta.",
+            bloqueia: true,
+          });
+          return;
+        }
         processado = pedido.id;
         if (resultado.pausada) {
           ackSemResposta = false;
