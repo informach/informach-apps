@@ -9,8 +9,8 @@ conferidos. [Prova e limites](recreio/dados-de-perfil-2026-11-16.md). Gestão se
 jogador e cadastro de menores foram implantados com famílias desligadas;
 convites/cobertura de adultos e demais aceites de F1–F11 seguem abertos.
 **17/11:** PIN, supervisão, tempo agregado, dados e emissão/renovação passaram
-nos seis gates. Seleção pública por PIN também passou; estante protegida e
-autoridade transacional dos mundos estão em candidata. As duas recusas de
+nos seis gates. Seleção pública por PIN, estante protegida e autoridade
+transacional dos mundos foram implantadas com fluxo familiar desligado. As duas recusas de
 mundos foram reproduzidas e passaram intactas no corretivo, junto de 437 outros
 testes de integração. A fonte final `ad37ca93` passou nos seis gates
 (`44029479872`) e foi implantada com famílias desligadas, após restauração
@@ -20,8 +20,10 @@ lógica atual e 175 recibos de migração/0174 conferidos. CI compartilhado pass
 compartilhado aplicável. Migrations 0175/0176 e 177 recibos conferidos; saída
 do Morada exige ACK, troca forçada retirada e SID vinculado a um único mundo.
 Famílias e checkpoint continuam `off`;
-[evidência](recreio/checkpoint-sessoes-2026-11-17.md). API/consumidor de checkpoint
-de mundo, avisos de dez minutos e salvamento restrito avançam em candidatas;
+[evidência](recreio/checkpoint-sessoes-2026-11-17.md). A integração `2475661`
+implantou a fonte funcional `f4a8a15`, após sete gates e CI compartilhado:
+API/consumidor genérico de checkpoint de mundo e aviso de dez minutos.
+Os dois modos seguem `off`; 0177 e o salvamento restrito continuam privados.
 F3 e F4–F11 ainda não concluídos.
 Preservar o Morada
 World2/protocolo1 público; a main local do checkout original contém D3 e não

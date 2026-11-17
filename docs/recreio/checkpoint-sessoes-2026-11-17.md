@@ -296,6 +296,50 @@ das duas chamadas, em vez da identidade do objeto Promise. A reprodução atuali
 é `ee3cbd2`; a prova de navegador permanece idêntica à rodada negativa anterior.
 
 
+## Implantação conferida em 17/11
+
+`668dde1fc50c8e4ed4d08ee1800165c285314b27` foi implantado no portal pelo
+deployment `4cb643bf-067e-4428-9a87-b0edd0ba8965`, após os sete gates
+`44047372449`. O CI compartilhado `44046097629` terminou aprovado em
+`b173da923b58a8111d1e6c2fb0c18147bb761918`; o único delta compartilhado até
+`668dde1` é a asserção de um único pacote no teste da conexão, também aprovada
+no gate final. A alteração funcional posterior do app está coberta pelos sete
+gates finais. Nenhuma evolução D3 de simulação, formato, protocolo ou arte foi
+integrada: o Morada público conserva World2/protocolo1.
+
+A [cópia lógica atual](evidencias/backup-logico-2026-11-17-pre-checkpoint.json)
+foi restaurada e comparada no Railway, com limpeza confirmada, antes do DDL.
+O migrator fixou a fonte homologada e executou somente `pnpm db:migrate`
+no deployment `6d56a577-025a-4920-a7c9-b695b02c233c`, sem seeds comerciais.
+O comando inclui os preparos técnicos existentes: backfill de tarefas informou
+que não havia tabelas antigas e o armazenamento Mastra foi inicializado.
+Conferidos 177 recibos, com os hashes exatos de 0175 e 0176 acima. Depois,
+o migrator voltou a seguir main e teve seu comando original restaurado.
+O deployment decorrente da reconexão (`fa59c69d-e886-4eec-8ccc-c564cda44a6a`)
+foi `SKIPPED`: não houve nova execução de seeds.
+
+Consulta operacional conferiu a fonte efetiva `668dde1`, `RECREIO_FAMILY_MODE=off`,
+`RECREIO_CHECKPOINT_MODE=off`, jogo interno `0`, zero menores, pareados,
+contextos restritos e intenções de troca. Portal e Morada responderam 200 em
+`/api/ready`; controle do SDK sem token respondeu 401. Manutenção autenticada
+em `/api/jobs/manutencao` respondeu 200 com dez contagens. O build confirmou
+upload dos mapas e o Sentry registrou a release `2098083222` para Recreio.
+
+As reproduções `97d5045`/`44047227346` recusaram as duas provas de mundo único
+na fonte anterior, com 461 outras integrações aprovadas; a fixture intacta
+passou em `668dde1`. `ee3cbd2`/`44046680803` falhou somente nas duas provas de
+saída/autoridade, com 127 outras provas do cliente aprovadas. As mesmas
+asserções passaram no corretivo. As 19 jornadas de navegador incluíram
+perda do ACK real do Morada, recuperação da escolha e saída confirmada.
+
+Piso operacional de retorno: conservar `668dde1` ou posterior com leitores de
+barreira/recibo, vínculo único de mundo e saída confirmada. Desligar a flag não
+autoriza ignorar barreira já persistida ou apagar recibos para reabrir o SID.
+O expurgo técnico não pode descongelar a sessão. A tabela está vazia enquanto
+a troca automática permanece desligada; retenção limitada precisa ser fechada
+antes da ativação. A API de mundo e os avisos posteriores não fazem parte desta
+fonte implantada. Famílias, venda, F3 e demais frentes continuam sem aceite final.
+
 `b173da9` passou nos sete gates `44046097619`; as 19 jornadas de navegador passaram,
 incluindo perda do ACK do Morada com recuperação da escolha e nova saída confirmada.
 A reprodução atualizada `ee3cbd2`, `44046680803`, falhou só nos dois casos esperados
@@ -388,52 +432,28 @@ continuam genéricas. A prova integrada consulta a referência anterior após
 a troca; a asserção original do navegador é preservada. Ainda sem resultado
 remoto do corretivo.
 
-O corretivo `a2893d9668e34114cdfe5240ea211237e3a03380`, `44057129948`, passou
-nos sete gates. A mesma jornada de mundo chegou ao fim, inclusive o motivo
-persistido no aparelho antigo, a tentativa de comando após a barreira, o outro
-membro ativo e a reabertura do contador. Ainda não faz parte da fonte `668dde1`
-implantada abaixo; a troca automática continua desligada.
+## Segunda implantação: mundo genérico e aviso antecipado
 
-## Implantação conferida em 17/11
+O corretivo `a2893d9` passou nos sete gates `44057129948`, com a asserção
+original do motivo de encerramento e a jornada de mundo completa. A fonte
+final `f4a8a1576eb10a7c369c62e939634ca4d819eec9` passou nos sete gates
+`44058600992`. CI compartilhado `44056229698` aprovado em
+`4d9bd217f79804e15a4279d06d87de3054c85b4b`; o único delta compartilhado
+até `f4a8a15` é o comentário da previsão de tempo no contrato. Nenhuma migration
+adicional, mudança de simulação/arte/protocolo do Morada ou execução de seeds.
 
-`668dde1fc50c8e4ed4d08ee1800165c285314b27` foi implantado no portal pelo
-deployment `4cb643bf-067e-4428-9a87-b0edd0ba8965`, após os sete gates
-`44047372449`. O CI compartilhado `44046097629` terminou aprovado em
-`b173da923b58a8111d1e6c2fb0c18147bb761918`; o único delta compartilhado até
-`668dde1` é a asserção de um único pacote no teste da conexão, também aprovada
-no gate final. A alteração funcional posterior do app está coberta pelos sete
-gates finais. Nenhuma evolução D3 de simulação, formato, protocolo ou arte foi
-integrada: o Morada público conserva World2/protocolo1.
+A integração `2475661a3e552a6063fb35ac6cc5964db0b3cd5f` conserva código,
+testes, packages, workflows e IaC idênticos à fonte homologada, com somente
+registros documentais adicionais. Implantação `2fb61ccb-0a7a-4b90-8ffb-aee00f7a15a3`
+confirmada e fonte efetiva conferida por SSH no Railway. Os dois modos seguem
+`off`, jogo interno `0`, 177 recibos, zero intenções e menores; a tabela de
+salvamento restrito/0177 ainda não existe em produção. Os dois ready responderam
+200; controle sem Bearer, 401; manutenção autenticada, 200 com dez contagens.
+Mapas enviados e release Sentry `2098147499` conferida.
 
-A [cópia lógica atual](evidencias/backup-logico-2026-11-17-pre-checkpoint.json)
-foi restaurada e comparada no Railway, com limpeza confirmada, antes do DDL.
-O migrator fixou a fonte homologada e executou somente `pnpm db:migrate`
-no deployment `6d56a577-025a-4920-a7c9-b695b02c233c`, sem seeds comerciais.
-O comando inclui os preparos técnicos existentes: backfill de tarefas informou
-que não havia tabelas antigas e o armazenamento Mastra foi inicializado.
-Conferidos 177 recibos, com os hashes exatos de 0175 e 0176 acima. Depois,
-o migrator voltou a seguir main e teve seu comando original restaurado.
-O deployment decorrente da reconexão (`fa59c69d-e886-4eec-8ccc-c564cda44a6a`)
-foi `SKIPPED`: não houve nova execução de seeds.
-
-Consulta operacional conferiu a fonte efetiva `668dde1`, `RECREIO_FAMILY_MODE=off`,
-`RECREIO_CHECKPOINT_MODE=off`, jogo interno `0`, zero menores, pareados,
-contextos restritos e intenções de troca. Portal e Morada responderam 200 em
-`/api/ready`; controle do SDK sem token respondeu 401. Manutenção autenticada
-em `/api/jobs/manutencao` respondeu 200 com dez contagens. O build confirmou
-upload dos mapas e o Sentry registrou a release `2098083222` para Recreio.
-
-As reproduções `97d5045`/`44047227346` recusaram as duas provas de mundo único
-na fonte anterior, com 461 outras integrações aprovadas; a fixture intacta
-passou em `668dde1`. `ee3cbd2`/`44046680803` falhou somente nas duas provas de
-saída/autoridade, com 127 outras provas do cliente aprovadas. As mesmas
-asserções passaram no corretivo. As 19 jornadas de navegador incluíram
-perda do ACK real do Morada, recuperação da escolha e saída confirmada.
-
-Piso operacional de retorno: conservar `668dde1` ou posterior com leitores de
-barreira/recibo, vínculo único de mundo e saída confirmada. Desligar a flag não
-autoriza ignorar barreira já persistida ou apagar recibos para reabrir o SID.
-O expurgo técnico não pode descongelar a sessão. A tabela está vazia enquanto
-a troca automática permanece desligada; retenção limitada precisa ser fechada
-antes da ativação. A API de mundo e os avisos posteriores não fazem parte desta
-fonte implantada. Famílias, venda, F3 e demais frentes continuam sem aceite final.
+O contador interno comprova a fotografia e a barreira com outro membro ativo;
+não é título público. O Morada mantém saída manual confirmada e capacidade
+automática nula. O aviso não prolonga a concessão. Antes de ativar os fluxos,
+concluir salvamento no corte, espera de reconexão, retenção, consumidores e
+demais aceites familiares/operacionais. Piso de retorno deste incremento:
+`2475661` ou fonte posterior com os mesmos leitores, prazos e verificações.
