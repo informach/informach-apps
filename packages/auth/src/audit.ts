@@ -119,6 +119,8 @@ export type AuditEventType =
   | "recreio.device_context_changed"
   | "recreio.protection_pin_changed"
   | "recreio.minor_access_revoked"
+  | "recreio.minor_policy_recalculated"
+  | "recreio.minor_supervision_changed"
   | "recreio.entitlement_granted"
   | "recreio.entitlement_revoked"
   | "recreio.game_session_started"

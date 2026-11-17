@@ -498,6 +498,8 @@ function productFromId(productId: string | null): string | null {
 const SIMPLE: Record<string, string> = {
   "recreio.profile_created": "Criou um perfil no Recreio",
   "recreio.profile_updated": "Atualizou um perfil no Recreio",
+  "recreio.minor_policy_recalculated": "Recalculou as regras de um perfil protegido",
+  "recreio.minor_supervision_changed": "Confirmou a supervisão de um perfil protegido",
   "recreio.profile_data_updated": "Salvou progresso pessoal no Recreio",
   "recreio.profile_data_conflict": "Preservou um conflito de progresso no Recreio",
   "recreio.profile_data_conflict_discarded": "Descartou uma versão conflitante no Recreio",

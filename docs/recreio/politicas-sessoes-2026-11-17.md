@@ -116,3 +116,25 @@ Origem, três caminhos, tamanhos e hashes do artefato foram conferidos antes
 da cópia. SQL e metadados não foram editados. Schema de políticas reexportado
 somente depois dessa etapa, para a segunda geração. Nenhuma das migrations
 0168 em diante foi aplicada em produção neste incremento.
+
+Segunda geração: run `44014296340`, fonte
+`d7faa3ee56f52ddf3dd9501f0a7764c322a681b4`, produziu
+`0173_last_stellaris.sql` (4.059 bytes, SHA-256
+`80d086d930ebd087e51778ada24f0c577af832a750dc18506b84e3e163ad84ff`).
+Os três arquivos passaram pela mesma conferência antes da cópia; a FK composta
+agora sucede a UNIQUE da 0172. Somente adições, sem remoção de dados.
+
+## Implementação candidata em 17/11
+
+Modelo puro de supervisão, agenda e acerto de concessão implementado. O serviço
+de gestão exige responsabilidade explícita e login nativo atual; gravação pede
+login recente e revisão observada, invalida partidas com `permissions_changed`
+e confirma as regras na mesma transação da auditoria. Uma configuração antiga
+incompatível não amplia classificação nem libera texto para criança. Fazer 18
+preserva perfil protegido e gera revisão pendente. Eventos não carregam nascimento,
+horários, valores dos limites nem conteúdo do jogo.
+
+Integração, interface de supervisão, concessão de tempo na entrada/renovação,
+kernel comum do SDK e homologação infantil ainda em execução. O modelo puro
+não comprova sozinho que o servidor está aplicando o orçamento. Os novos
+testes e migrations seguem para gates remotos; não publicados neste ponto.

@@ -20,7 +20,12 @@ export async function agoraDoBanco(tx: Transacao): Promise<Date> {
 }
 
 /** A referência é só uma pista; todas as relações são relidas depois das travas. */
-export async function autoridadeDoMenor(tx: Transacao, perfilId: PerfilId, responsavelId: ContaId) {
+export async function autoridadeDoMenor(
+  tx: Transacao,
+  perfilId: PerfilId,
+  responsavelId: ContaId,
+  travaDoPerfil: "share" | "update" = "share",
+) {
   const [responsavel] = await tx
     .select()
     .from(users)
@@ -30,7 +35,7 @@ export async function autoridadeDoMenor(tx: Transacao, perfilId: PerfilId, respo
     .select()
     .from(profiles)
     .where(and(eq(profiles.id, perfilId), eq(profiles.kind, "minor")))
-    .for("share");
+    .for(travaDoPerfil);
   const [vinculo] = await tx
     .select()
     .from(guardians)

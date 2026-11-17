@@ -1212,6 +1212,13 @@
       "when": 1794887702616,
       "tag": "0172_curious_starjammers",
       "breakpoints": true
+    },
+    {
+      "idx": 173,
+      "version": "7",
+      "when": 1794888150542,
+      "tag": "0173_last_stellaris",
+      "breakpoints": true
     }
   ]
 }
