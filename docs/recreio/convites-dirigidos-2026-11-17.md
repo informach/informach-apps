@@ -68,3 +68,15 @@ nonce reutilizado com outro corpo e resposta perdida; falha real de auditoria;
 expiração durante trava e depois da auditoria; duas contas e menor pareado no
 título interno Livre. Migrations geradas no GitHub e upgrade com dados. Antes
 de produção, concluir também moderação, retenção, direitos e fontes operacionais.
+
+## Geração e revisão da fundação
+
+O artefato `14380776251`, run `44198406955`, origem `57cd67fd`, foi **recusado
+antes da cópia**. Seu SQL 0193 criava a FK de proveniência antes da restrição
+única de `space_members` referenciada por ela. Não editar o SQL para reordenar.
+Gerar primeiro somente a restrição composta, a partir do snapshot 0192; depois
+restaurar a exportação das três tabelas e gerar a migration seguinte, que já
+encontrará a chave no schema anterior. Os arquivos desse artefato recusado não
+entram no checkout ou em produção. As tabelas ainda não têm escritores nem
+leitores publicados. Aprovação depende dos dois artefatos conferidos, banco
+descartável e upgrade com dados no GitHub.

@@ -17,7 +17,6 @@ export * from "./oauth";
 export * from "./ops";
 export * from "./recreio";
 export * from "./recreio-checkpoints";
-export * from "./recreio-convites-dirigidos";
 export * from "./recreio-dados";
 export * from "./recreio-familia";
 export * from "./recreio-grupo";
