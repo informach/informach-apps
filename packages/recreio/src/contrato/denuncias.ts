@@ -22,3 +22,11 @@ export const DenunciaRecebidaSchema = z.strictObject({
   repetida: z.boolean(),
 });
 export type DenunciaRecebida = z.infer<typeof DenunciaRecebidaSchema>;
+export const RecursoDaRestricaoSchema = z.strictObject({
+  perfilId: PerfilIdSchema,
+  recursoId: z.uuid(),
+  versaoDoPerfil: z.int().min(1).max(2147483646),
+});
+export type RecursoDaRestricao = z.infer<typeof RecursoDaRestricaoSchema>;
+export const RecursoRecebidoSchema = z.strictObject({ protocolo: z.uuid(), repetido: z.boolean() });
+export type RecursoRecebido = z.infer<typeof RecursoRecebidoSchema>;

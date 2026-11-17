@@ -162,6 +162,7 @@ export const recreioRestrictionReviews = recreio.table(
       .references(() => recreioProfiles.id, { onDelete: "cascade" }),
     restrictionRevision: integer("restriction_revision").notNull(),
     clientKey: uuid("client_key").notNull(),
+    requestHash: text("request_hash").notNull(),
     actorUserId: text("actor_user_id").references(() => users.id, { onDelete: "set null" }),
     actorKind: text("actor_kind").$type<"titular" | "responsavel">().notNull(),
     state: text("state").$type<"aberto" | "resolvido">().notNull().default("aberto"),
@@ -173,7 +174,11 @@ export const recreioRestrictionReviews = recreio.table(
   },
   (t) => [
     uniqueIndex("recreio_restriction_review_retry").on(t.profileId, t.clientKey),
-    uniqueIndex("recreio_restriction_review_actor").on(t.profileId, t.restrictionRevision, t.actorUserId),
+    uniqueIndex("recreio_restriction_review_actor").on(
+      t.profileId,
+      t.restrictionRevision,
+      t.actorUserId,
+    ),
     uniqueIndex("recreio_restriction_review_open")
       .on(t.profileId, t.restrictionRevision)
       .where(sql`${t.state}='aberto'`),
@@ -184,6 +189,7 @@ export const recreioRestrictionReviews = recreio.table(
       sql`${t.revision}>0 and ${t.restrictionRevision}>0`,
     ),
     check("recreio_restriction_review_actor", sql`${t.actorKind} in ('titular','responsavel')`),
+    check("recreio_restriction_review_digest", sql`${t.requestHash} ~ '^[a-f0-9]{64}$'`),
     check("recreio_restriction_review_state", sql`${t.state} in ('aberto','resolvido')`),
     check(
       "recreio_restriction_review_decision",
@@ -191,7 +197,7 @@ export const recreioRestrictionReviews = recreio.table(
     ),
     check(
       "recreio_restriction_review_dates",
-      sql`${t.expiresAt}>${t.createdAt} and ${t.expiresAt}<=${t.createdAt}+interval '180 days' and (${t.resolvedAt} is null or (${t.resolvedAt}>=${t.createdAt} and ${t.resolvedAt}<${t.expiresAt}))`,
+      sql`${t.expiresAt}>${t.createdAt} and ${t.expiresAt}<=${t.createdAt}+interval '180 days' and (${t.resolvedAt} is null or (${t.resolvedAt}>=${t.createdAt} and ${t.resolvedAt}<${t.expiresAt} and ${t.expiresAt}<=${t.resolvedAt}+interval '90 days'))`,
     ),
   ],
 );
