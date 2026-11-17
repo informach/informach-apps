@@ -30,10 +30,22 @@ describe("jogo de teste desligado", () => {
     const lia = await novoJogador();
     const mundo = await mundoDe(lia);
     for (const jogo of [TESTE, "nao-existe"]) {
-      expect(await prepararPaginaDoJogo(lia.perfil.id, jogo, mundo)).toEqual({
+      expect(
+        await prepararPaginaDoJogo(
+          { perfilId: lia.perfil.id, sessaoDeAparelhoId: lia.ator.sessaoDeAparelhoId },
+          jogo,
+          mundo,
+        ),
+      ).toEqual({
         tipo: "inexistente",
       });
-      expect(await prepararPaginaDoJogo(lia.perfil.id, jogo, undefined)).toEqual({
+      expect(
+        await prepararPaginaDoJogo(
+          { perfilId: lia.perfil.id, sessaoDeAparelhoId: lia.ator.sessaoDeAparelhoId },
+          jogo,
+          undefined,
+        ),
+      ).toEqual({
         tipo: "inexistente",
       });
     }
@@ -43,13 +55,25 @@ describe("jogo de teste desligado", () => {
     expect(temCliente(MORADA)).toBe(true);
     const lia = await novoJogador();
     const mundo = await mundoDe(lia, MORADA, "Casa da Lia");
-    expect(await prepararPaginaDoJogo(lia.perfil.id, MORADA, mundo)).toEqual({
+    expect(
+      await prepararPaginaDoJogo(
+        { perfilId: lia.perfil.id, sessaoDeAparelhoId: lia.ator.sessaoDeAparelhoId },
+        MORADA,
+        mundo,
+      ),
+    ).toEqual({
       tipo: "pronto",
       jogo: { id: MORADA, nome: "Morada", origemDaArte: null },
       mundo: { id: mundo, nome: "Casa da Lia" },
     });
     // O mundo é do Morada: pedido pelo jogo de teste, que não existe aqui, não abre nada.
-    expect(await prepararPaginaDoJogo(lia.perfil.id, TESTE, mundo)).toEqual({
+    expect(
+      await prepararPaginaDoJogo(
+        { perfilId: lia.perfil.id, sessaoDeAparelhoId: lia.ator.sessaoDeAparelhoId },
+        TESTE,
+        mundo,
+      ),
+    ).toEqual({
       tipo: "inexistente",
     });
   });
@@ -60,7 +84,10 @@ describe("jogo de teste desligado", () => {
       codigo: "JOGO_INDISPONIVEL",
     });
     await expect(
-      criarMundo({ perfilId: lia.perfil.id, jogo: TESTE }, { nome: "Mundo de teste" }),
+      criarMundo(
+        { perfilId: lia.perfil.id, sessaoDeAparelhoId: lia.ator.sessaoDeAparelhoId, jogo: TESTE },
+        { nome: "Mundo de teste" },
+      ),
     ).rejects.toMatchObject({ codigo: "JOGO_INDISPONIVEL" });
     // Sem segredo configurado, nenhuma instância dele se registra, nem com o segredo de outro jogo.
     const registro = await pedir("POST", "/api/interno/v1/instancias", {

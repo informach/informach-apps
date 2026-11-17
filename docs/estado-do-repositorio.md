@@ -1,5 +1,44 @@
 # Estado do trabalho no repositório
 
+**16/11 — Recreio:** o titular priorizou [finalizar a plataforma web](recreio/fechamento-plataforma-2026-11-16.md)
+independente de D3–D8 do Morada. Confirmou os quatro preços e o cadastro de
+perfis sob responsabilidade declarada do adulto; conta pagante não precisa
+ocupar perfil de jogador. SDK independente com progresso/conflitos/conquistas
+implantado em `6b51dd13`, após seis gates no GitHub; migração 0167 e 168 recibos
+conferidos. [Prova e limites](recreio/dados-de-perfil-2026-11-16.md). Gestão sem
+jogador e cadastro de menores foram implantados com famílias desligadas;
+convites/cobertura de adultos e demais aceites de F1–F11 seguem abertos.
+**17/11:** PIN, supervisão, tempo agregado, dados e emissão/renovação passaram
+nos seis gates. Seleção pública por PIN, estante protegida e autoridade
+transacional dos mundos foram implantadas com fluxo familiar desligado. As duas recusas de
+mundos foram reproduzidas e passaram intactas no corretivo, junto de 437 outros
+testes de integração. A fonte final `ad37ca93` passou nos seis gates
+(`44029479872`) e foi implantada com famílias desligadas, após restauração
+lógica atual e 175 recibos de migração/0174 conferidos. CI compartilhado passou;
+[prova operacional](recreio/leitores-protegidos-2026-11-17.md).
+**17/11 — incremento de sessões:** `668dde1` implantado após sete gates e CI
+compartilhado aplicável. Migrations 0175/0176 e 177 recibos conferidos; saída
+do Morada exige ACK, troca forçada retirada e SID vinculado a um único mundo.
+Famílias e checkpoint continuam `off`;
+[evidência](recreio/checkpoint-sessoes-2026-11-17.md). A integração `2475661`
+implantou a fonte funcional `f4a8a15`, após sete gates e CI compartilhado:
+API/consumidor genérico de checkpoint de mundo e aviso de dez minutos.
+O salvamento restrito foi implantado em `3f2b1239`, após sete gates
+`44084574092`, CI compartilhado `44082653527`, restauração isolada e aplicação
+prévia de 0177/0178. 179 recibos e SHA conferidos; capacidade própria, host que
+exige recibo, agregado separado, supervisão, retenção e pausa de um minuto real
+homologados no CI. [Registro e prova operacional](recreio/salvamento-restrito-2026-11-17.md).
+Os dois modos continuam `off`, jogo interno `0`; isto não libera famílias/venda.
+F1 avança em fonte separada: capacidade sem jogador, seleção de cobertura,
+tela e emissão passaram nos sete gates `44093189247`; vínculo de destinatário
+e schema até 0181 passaram nos sete gates `44094451952`, com CI compartilhado
+ainda em curso. Nada dessa frente está em produção. Convite utilizável, aceite,
+saída e demais aceites de F1–F11 continuam abertos;
+[plano de adultos](recreio/grupos-adultos-2026-11-17.md).
+Preservar o Morada
+World2/protocolo1 público; a main local do checkout original contém D3 e não
+pode ser enviada diretamente. Continuar F0–F11 do registro, sem anunciar fechamento.
+
 Atualizado em 13/11/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
 
 **14/11 — EdiSVG:** recuperado o ensaio nativo da exportação web da branch local;
@@ -200,6 +239,8 @@ No mesmo dia, ela pediu um gravador menos engessado ("segunda proposta", na mesm
 - **Lembretes** no lugar de recados, e o Preparar aula começa por **Revisar a gravação**.
 
 Em 01/11/2026 ela pediu a gravação automatizada das aulas do Sistema Zero ([registro](propostas/ediaula-gravacao-automatica-2026-11-01/proposta.md)): o modo guiado ganhou movimento humano, esperas da plataforma aceleradas sob a fala, plano gerado dos colchetes do "Na tela" e a ponte `window.__gravacao`. No Sistema Zero, o palco de gravação (PR #233 para `staging`) aguarda a criação do serviço e o merge, que dependem dela; o piloto real com a Aula 1 do Cadê e o Lote 5 (montar o projeto) ficaram pendentes.
+
+Em 16/11/2026, a gravação automatizada ganhou a **edição automática** ([registro](propostas/ediaula-gravacao-automatica-2026-11-01/proposta.md#edição-automática-16112026)): as animações de conceito no EdiSVG e a edição no EdiAula saem dos scripts de `apps/ediaula/scripts/aula-automatica/` (condutor, `parte.sh` e `config.json` local; passo a passo no [README](../apps/ediaula/scripts/aula-automatica/README.md)). O piloto, a Farol Aula 3 Parte 2, foi entregue inteiro. O EdiAula ganhou `remove_clips`, `trim_clip`, `keep_ranges`, `place_cutaway` e `spread_music`, e o acabamento roda por elas, sem editar o arquivo do projeto. Falta uma gravação nova inteira pelo `parte.sh`.
 
 Em 01/11/2026, a pedido do titular, o EdiAula ganhou **efeitos sonoros**: 13 sons feitos pelo próprio app (cliques, wooshes e destaques), a escolha do clique do cursor, a categoria e os sons prontos na biblioteca de todas as aulas (ouvir, colocar no cursor da timeline, arrastar) e o **woosh automático** nos zooms e nas transições, igual na prévia e na exportação. Comportamento e arquivos no [README do EdiAula](../apps/ediaula/README.md#efeitos-sonoros). Typecheck e testes automáticos passaram (`tests/sound-effects.test.ts`, com o FFmpeg real); falta ouvir os sons e testar a interface no app aberto.
 

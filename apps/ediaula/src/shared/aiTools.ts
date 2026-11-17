@@ -799,6 +799,18 @@ export const AI_TOOLS = {
       near_text: z.string().optional(),
       at: z.number().min(0).optional(),
       quiz_item: z.int().min(1).max(100).optional(),
+      over_lesson: z
+        .boolean()
+        .optional()
+        .describe(
+          "opening and closing: true lays the full-screen slide over the lesson (the first or last seconds, the presenter talking in front) instead of pushing the lesson; the Sistema Zero lessons use it, the presenter speaks from the first second",
+        ),
+      duration: z
+        .number()
+        .min(1)
+        .max(15)
+        .optional()
+        .describe("Seconds the template lasts (over_lesson: 3 by default)"),
     }),
   },
   set_audio: {
@@ -886,6 +898,89 @@ export const AI_TOOLS = {
         .optional()
         .describe("Different shifts in one call, instead of clip_ids"),
       revision: z.number().int().describe("Project revision the times were read at"),
+    }),
+  },
+  remove_clips: {
+    title: "Tirar clipes",
+    permission: "write",
+    description:
+      "Removes clips from the timeline (ids from get_overview), without ripple: nothing else moves and the gap stays, as Delete in the editor. Grouped clips go with their group. Clips on locked tracks are left out and named; their media stays in the library. Every id is checked first. Requires the project revision you read the clips from (get_overview). Refused while a draft that changes the structure waits for review. One undo step.",
+    input: z.object({
+      clip_ids: z.array(z.string()).min(1),
+      revision: z.number().int().describe("Project revision the clips were read at"),
+    }),
+  },
+  trim_clip: {
+    title: "Aparar um clipe",
+    permission: "write",
+    description:
+      "Moves the edges of one clip to timeline seconds start and/or end, as dragging its edges: the footage stays where it is on the timeline, only the visible stretch changes (to keep only the words of a character's video, or to end an annotation sooner). It grows back only as far as its media allows and never over another clip of its track (refused, nothing changed). Refused on a locked track. Requires the project revision you read the times from. One undo step.",
+    input: z.object({
+      clip_id: z.string(),
+      start: z.number().min(0).optional().describe("New start, timeline seconds"),
+      end: z.number().min(0).optional().describe("New end, timeline seconds"),
+      revision: z.number().int().describe("Project revision the times were read at"),
+    }),
+  },
+  keep_ranges: {
+    title: "Manter só alguns trechos de um clipe",
+    permission: "write",
+    description:
+      "Keeps one clip only in the given stretches (timeline seconds) and removes the rest of it, each piece in its own place (the footage does not move): to show the presenter only while she talks with nothing happening on the screen, for instance. Each piece comes in and goes out with a dissolve of fade seconds (default 0.25); the clip's own entrance and exit stay where the clip starts and ends. Stretches are clipped to the clip, overlapping ones join, pieces shorter than 0.5 s are dropped. Refused on a locked track and for a grouped clip. Requires the project revision. Returns the pieces. One undo step.",
+    input: z.object({
+      clip_id: z.string(),
+      ranges: z
+        .array(z.tuple([z.number().min(0), z.number().min(0)]))
+        .min(1)
+        .describe("[[from, to], ...] in timeline seconds"),
+      fade: z.number().min(0).max(2).optional(),
+      revision: z.number().int().describe("Project revision the times were read at"),
+    }),
+  },
+  place_cutaway: {
+    title: "Pôr um clipe no lugar de um trecho",
+    permission: "write",
+    description:
+      "Puts a clip in place of a stretch of a track, typically an animation in place of a stretch of the screen recording: media_id (from list_library) starting at `at` (its whole length, or duration seconds), or clip_id of a clip already on the timeline, which moves there keeping its start. The clips of track_id, and of also_track_ids (the sound of the same recording, say), lose that stretch, split around it; nothing moves. transition (default colorcircles 0.6 s in the lesson palette, or none) goes into the cutaway and into the clip that comes back after it. Refused on locked tracks and when a grouped clip would be cut. Requires the project revision. One undo step.",
+    input: z.object({
+      media_id: z.string().optional(),
+      clip_id: z.string().optional(),
+      at: z.number().min(0).optional().describe("Start, timeline seconds (with media_id)"),
+      duration: z.number().min(0.1).optional(),
+      track_id: z.string().describe("Track whose stretch is replaced (the screen recording's)"),
+      also_track_ids: z.array(z.string()).optional(),
+      transition: z
+        .enum([
+          "colorcircles",
+          "colorpanels",
+          "colorwipe",
+          "colorbars",
+          "colorsplit",
+          "dissolve",
+          "none",
+        ])
+        .optional(),
+      transition_duration: z.number().min(0.2).max(2).optional(),
+      colors: z
+        .array(z.string().regex(/^#[0-9a-fA-F]{6}$/))
+        .min(1)
+        .max(5)
+        .optional(),
+      revision: z.number().int().describe("Project revision the times were read at"),
+    }),
+  },
+  spread_music: {
+    title: "Distribuir a música",
+    permission: "write",
+    description:
+      "Spreads a background music (media_id from list_library) over the lesson: copies from start (default 0) to end (default the end of the lesson), each one coming in overlap seconds (default 3) before the previous ends, alternating between two new tracks marked as music (lowered automatically while anyone speaks), with a fade of fade seconds (default 3) in and out of each and the last one fading out at the end. volume default 0.15, low so it never competes with the voice. One undo step.",
+    input: z.object({
+      media_id: z.string(),
+      start: z.number().min(0).optional(),
+      end: z.number().min(0).optional(),
+      overlap: z.number().min(0).max(20).optional(),
+      fade: z.number().min(0).max(10).optional(),
+      volume: z.number().min(0).max(1).optional(),
     }),
   },
   align_track_to: {
@@ -1139,7 +1234,7 @@ How editing works:
 - Tracks: get_overview starts with what the person selected ("Seleção: faixa [id] …; clipes […]") and lists every track with its id. Any track_id also takes the label the timeline shows (F1 is the bottom track) or the exact name of one track. add_track creates an empty track above or below the selected track (or track_id); move_track, rename_track, remove_track (empty ones only) and set_track (lock, mute, hide) change tracks; no clip moves.
 - Voices: never two at once. set_voice_rule (on by default) silences the teacher while a character (Dedé, Debinha…) speaks and fades her avatar away; set_voice_role fixes whose voice a media or track is; set_volume sets a clip's volume, whole or in a stretch. check_before_export flags two voices together as an error.
 - Edges of a clip: set_crop cuts a strip off any side (a line at the edge of an avatar with the background removed) without moving or resizing it; get_overview shows each clip's crop and get_frame's boxes are the part left.
-- Timing on one track: split_clip divides a single clip, move_clips moves clips in time without ripple (one shift for all, or "moves" with a shift per clip), align_track_to splits a track joined without pauses (an avatar rendered from the whole narration) and puts each piece at the start of its clip in a reference track. None of them touches other tracks; cut_ranges and cut_text cut every track together.
+- Timing on one track: split_clip divides a single clip, move_clips moves clips in time without ripple (one shift for all, or "moves" with a shift per clip), align_track_to splits a track joined without pauses (an avatar rendered from the whole narration) and puts each piece at the start of its clip in a reference track. None of them touches other tracks; cut_ranges and cut_text cut every track together. remove_clips takes clips out without ripple, trim_clip moves the edges of one clip, keep_ranges keeps a clip only in some stretches (the presenter only while she talks to the camera), place_cutaway puts a clip (an animation) in place of a stretch of the screen recording with a color transition at both ends, and spread_music spreads the background music with overlaps and fades on two music tracks.
 - Broad edits (add_annotations, add_sound_effects, auto_zoom, place_inserts, set_palette, align_track_to and apply_editing_template) write a draft by default: the person sees it in the preview, reviews it item by item and applies it as one undo step. Use mode "apply" only when the person asked to change the lesson right away. One draft waits at a time: a call is refused while a draft of someone else waits. While a draft that changes the structure of the lesson (clips split, moved, removed) waits for review, cuts, cards, inserts placed right away and speed changes are refused, as in the editor: ask the person to apply or discard it first.
 - Clips in a group (get_overview shows "grupo") move and change together: a tool given one clip of a group changes the whole group, as the editor does. Clips on locked tracks are left as they are, and the answer names them. Every clip id of a call is checked before anything changes: one wrong id and nothing is done.
 - prepare_lesson runs "Preparar aula" step by step (each step waits for the person's approval); check_before_export lists what to fix before exporting, with the time of each finding.

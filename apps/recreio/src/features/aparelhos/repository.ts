@@ -4,17 +4,20 @@ import { and, db, desc, eq, gt, isNull, ne, sql } from "@informach/db";
 import {
   recreioDeviceSessions as devices,
   recreioGameSessions as games,
-  recreioProfiles as profiles,
 } from "@informach/db/schema";
 import {
   type ContaId,
-  PerfilIdSchema,
   type SessaoDeAparelhoId,
   SessaoDeAparelhoIdSchema,
 } from "@informach/recreio";
+import {
+  autorizarContaNativa,
+  serializarContaNativa,
+} from "@/features/account/autoridade-repository";
+import { invalidarIngressosDoAparelho } from "@/features/sessao-de-jogo/ingressos-repository";
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/repository";
 import { assertAllowed } from "@/lib/errors";
-import { AGORA, type Transacao, travar } from "@/lib/repository";
+import { AGORA, type Transacao } from "@/lib/repository";
 
 export type DonoDosAparelhos = { contaId: ContaId; sessaoDeAparelhoId: SessaoDeAparelhoId };
 export type CursorDeAparelhos = SessaoDeAparelhoId;
@@ -41,44 +44,12 @@ async function limitarEspera(tx: Transacao) {
 }
 
 async function autorizar(tx: Transacao, ator: DonoDosAparelhos) {
-  const [perfil] = await tx
-    .select({ id: profiles.id })
-    .from(profiles)
-    .where(
-      and(
-        eq(profiles.userId, ator.contaId),
-        eq(profiles.kind, "adult"),
-        eq(profiles.status, "active"),
-      ),
-    )
-    .for("share");
-  assertAllowed(perfil, "AUTH", "Entre no seu perfil adulto para continuar.");
-  const [atual] = await tx
-    .select({
-      ...campos,
-      ativo: devices.activeProfileId,
-      revogado: devices.revokedAt,
-    })
-    .from(devices)
-    .where(
-      and(
-        eq(devices.id, ator.sessaoDeAparelhoId),
-        eq(devices.userId, ator.contaId),
-        eq(devices.kind, "account"),
-      ),
-    )
-    .for("share");
-  assertAllowed(
-    atual && atual.ativo === perfil.id && atual.revogado === null,
-    "AUTH",
-    "Entre novamente para continuar.",
-  );
-  const [prazo] = await tx
-    .select({ valido: sql<boolean>`${devices.expiresAt} > ${AGORA}` })
-    .from(devices)
-    .where(eq(devices.id, atual.id));
-  assertAllowed(prazo?.valido, "AUTH", "Entre novamente para continuar.");
-  return { perfilId: PerfilIdSchema.parse(perfil.id), atual: aparelho(atual) };
+  const contexto = await autorizarContaNativa(tx, ator);
+  return {
+    perfilId: contexto.perfilId,
+    atual: aparelho(contexto.aparelho),
+    conferirPrazo: contexto.conferirPrazo,
+  };
 }
 
 export async function listarAparelhosDaConta(
@@ -123,8 +94,8 @@ export async function revogarOutroAparelho(ator: DonoDosAparelhos, alvo: SessaoD
   return db.transaction(async (tx) => {
     await limitarEspera(tx);
     // Antes de travar aparelhos: dois chamadores não revogam um ao outro em círculo.
-    await travar(tx, `recreio:aparelhos:conta:${ator.contaId}`);
-    const { perfilId } = await autorizar(tx, ator);
+    await serializarContaNativa(tx, ator.contaId);
+    const { perfilId, conferirPrazo } = await autorizar(tx, ator);
     const [encontrado] = await tx
       .select({ id: devices.id, revogado: devices.revokedAt })
       .from(devices)
@@ -138,6 +109,7 @@ export async function revogarOutroAparelho(ator: DonoDosAparelhos, alvo: SessaoD
       )
       .for("update");
     assertAllowed(encontrado, "APARELHO", "Aparelho não disponível.");
+    await conferirPrazo();
     if (encontrado.revogado !== null) return { revogado: false };
     await tx
       .update(devices)
@@ -145,13 +117,14 @@ export async function revogarOutroAparelho(ator: DonoDosAparelhos, alvo: SessaoD
       .where(
         and(eq(devices.id, alvo), eq(devices.userId, ator.contaId), isNull(devices.revokedAt)),
       );
+    await invalidarIngressosDoAparelho(tx, alvo);
     await encerrarSessoesAbertas(tx, sql`${games.deviceSessionId} = ${alvo}`, "signed_out", {
       porQuem: "conta",
     });
     await logAuditEventStrict(
       "recreio.device_session_revoked",
       ator.contaId,
-      { app: "recreio", deviceSessionId: alvo, profileId: perfilId },
+      { app: "recreio", deviceSessionId: alvo, ...(perfilId ? { profileId: perfilId } : {}) },
       { writer: tx },
     );
     return { revogado: true };

@@ -14,7 +14,7 @@ import type { MundoId } from "../dominio/ids";
  */
 export type OpcoesDeMontagem = {
   /** O mundo que a pessoa escolheu no portal. O jogo o abre com `contexto.mundos.abrir`. */
-  mundoId: MundoId;
+  mundoId?: MundoId;
   /**
    * A pessoa pediu para sair por dentro do jogo, e o jogo já salvou o que
    * precisava. A página desmonta o jogo, encerra a sessão e volta à estante.
@@ -37,6 +37,12 @@ export type OpcoesDeMontagem = {
 };
 
 export type JogoMontado = {
+  /** Para comandos, esvazia a fila e solicita o recibo final. O host confere o servidor. */
+  finalizar?(): Promise<void>;
+  /** Suspende comandos e confirma a fila durável. Ausência/falso não confirma a troca. */
+  checkpoint?(pedido: { id: string; modo: "profile" | "server" }): Promise<boolean>;
+  /** Só quando o servidor confirmou que nenhuma barreira foi aplicada. */
+  retomar?(): void;
   /** Fecha conexões, solta o que o jogo criou no elemento e não chama mais nada da página. */
   dispose(): Promise<void> | void;
 };

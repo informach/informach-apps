@@ -8,6 +8,8 @@ import {
 } from "../dominio/ids";
 import { PAPEIS_NO_MUNDO, PARTICIPACAO_MAX } from "../dominio/mundos";
 import { TIPOS_DE_FOTOGRAFIA } from "../dominio/posse";
+import type { EstadoDeSalvamento } from "./salvamento";
+import type { ResultadoDeCheckpoint } from "./sdk";
 
 /**
  * API das instâncias: o que um servidor de jogo pede ao Recreio. O servidor do
@@ -222,6 +224,51 @@ export const DiarioLidoSchema = z.strictObject({
 });
 export const DiarioConfirmadoSchema = z.strictObject({ confirmadoAte: naoNegativo });
 export const FotografiaGravadaSchema = z.strictObject({ revisao: naoNegativo });
+
+const checkpointDoHost = {
+  id: z.uuid(),
+  sid: SessaoDeJogoIdSchema,
+  cerca: z.number().int().min(1).max(2147483647),
+};
+export const CheckpointDoHostSchema = z.discriminatedUnion("confirmado", [
+  z.strictObject({ ...checkpointDoHost, confirmado: z.literal(false) }),
+  z.strictObject({
+    ...checkpointDoHost,
+    confirmado: z.literal(true),
+    revisao: naoNegativo.max(2147483647),
+    diarioSeq: naoNegativo.max(Number.MAX_SAFE_INTEGER),
+  }),
+]);
+export type CheckpointDoHost = z.infer<typeof CheckpointDoHostSchema>;
+
+const salvamentoDoHost = {
+  sid: SessaoDeJogoIdSchema,
+  cerca: z.number().int().min(1).max(2147483647),
+};
+export const SalvamentoDoHostSchema = z.discriminatedUnion("operacao", [
+  z.strictObject({ ...salvamentoDoHost, operacao: z.literal("preparar") }),
+  z.strictObject({
+    ...salvamentoDoHost,
+    operacao: z.literal("concluir"),
+    revisao: naoNegativo.max(2147483647),
+    diarioSeq: naoNegativo.max(2147483647),
+  }),
+]);
+export type SalvamentoDoHost = z.infer<typeof SalvamentoDoHostSchema>;
+
+/** Duas fases: parar o SID antes da fotografia; confirmar somente a prova persistida. */
+export interface ClienteDoHostComSalvamento extends ClienteDoHostComCheckpoint {
+  salvarSessao(
+    pedido: SalvamentoDoHost & { mundoId: z.infer<typeof MundoIdSchema> },
+  ): Promise<EstadoDeSalvamento>;
+}
+
+/** Capacidade adicional; o host básico não promete implementar checkpoint de troca. */
+export interface ClienteDoHostComCheckpoint extends ClienteDoHost {
+  confirmarCheckpoint(
+    pedido: CheckpointDoHost & { mundoId: z.infer<typeof MundoIdSchema> },
+  ): Promise<ResultadoDeCheckpoint>;
+}
 
 /** Os números que acompanham a fotografia na consulta do `PUT`. */
 export const ConsultaDaFotografiaSchema = z.strictObject({

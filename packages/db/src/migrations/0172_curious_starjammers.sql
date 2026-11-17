@@ -1,0 +1,1 @@
+ALTER TABLE "recreio"."game_sessions" ADD CONSTRAINT "recreio_game_session_identity_profile" UNIQUE("id","profile_id");

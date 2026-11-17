@@ -2,6 +2,23 @@
 
 Domínio e contratos do Recreio, a plataforma de jogos. Não tem banco, React, Three.js nem WebSocket: o que grava fica em `apps/recreio`, e os jogos falam com a plataforma pelos contratos daqui.
 
+O SDK também atende jogos sem mundos: `contexto.dados` lê/grava bytes por chave,
+lista versões, resolve ou descarta conflitos; `contexto.conquista(id, chaveIdem)`
+registra somente IDs previstos no manifesto. Conquistas do cliente não concedem
+dinheiro nem acesso. `capacidades.mundos: null` dispensa mundo na montagem e
+recusa sua criação no servidor. O Morada continua exigindo mundo.
+
+Dados são privados por perfil/jogo, com 16 chaves, 64 KiB por versão, revisão
+obrigatória para atualizar (omissão = 0), quatro versões aceitas e três conflitos
+preservados. HTTP usa base64 canônico; o SDK usa `Uint8Array`, token vigente,
+prazo e nenhum cookie. Escritas não são repetidas automaticamente. Um 409
+`REVISAO_DIVERGENTE` informa `versaoId` e `revisaoAtual`; não significa perda da
+cópia enviada. Quando a cota está cheia, `LIMITE_DE_DADOS` recusa a nova cópia.
+`resolver` exige a revisão atual e `descartar` é explícito. Uma conquista obtida
+mantém a chave original; reutilizar a chave para outro ID ou trocar a chave da
+mesma obtenção é `FATO_DUPLICADO`. [Implantação e provas deste incremento](../../docs/recreio/dados-de-perfil-2026-11-16.md)
+ainda estão em verificação remota; a documentação do contrato não atesta produção.
+
 Consumido como TypeScript fonte, sem build, como os outros packages.
 
 ## Subpaths
@@ -159,6 +176,28 @@ export const meuJogo: ModuloDoJogo = {
 - O SDK confere as respostas com o Zod. Sob uma política de segurança sem `eval`, a página chama `z.config({ jitless: true })` no navegador, senão o Zod testa `new Function` e o navegador registra uma violação.
 
 ## Testar um servidor de jogo sem o Recreio
+
+### Salvamento restrito
+
+`salvamentoRestrito: true` negocia no SDK uma capacidade distinta de gameplay.
+Quando disponível, `sessao.salvamento.estado()` consulta o próprio recibo e
+`finalizarDados(lote)` encerra o SDK normal e confirma um lote CAS imutável,
+preservando conflitos. A capacidade permite salvar depois da concessão normal,
+dentro da margem do servidor; não permite voltar a jogar ou renovar.
+
+`criarClienteDoHost` também implementa `ClienteDoHostComSalvamento`:
+`salvarSessao({ mundoId, sid, cerca, operacao: "preparar" })` fixa o encerramento;
+depois de persistir uma fotografia, a operação `"concluir"` envia `revisao` e
+`diarioSeq`. O servidor confere posse, vínculo, autoridade e bytes duráveis.
+Repetição conserva a mesma prova. O jogo deve pausar comandos e concluir a fila
+antes da preparação, mantendo os demais membros ativos.
+
+Contrato implantado em `3f2b1239`, com 0177/0178 e os modos desligados. O host
+negocia a capacidade quando a flag e o manifesto permitem; Morada mantém sua
+capacidade automática nula e saída manual confirmada. Contratos,
+gates e pendências em [salvamento restrito](../../docs/recreio/salvamento-restrito-2026-11-17.md).
+
+### Plataforma em memória
 
 ```ts
 import { criarEmissorDeTeste, criarPlataformaFalsa } from "@informach/recreio/testing";

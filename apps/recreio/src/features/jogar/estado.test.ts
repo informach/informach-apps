@@ -16,6 +16,17 @@ function depois(...eventos: EventoDoHospedeiro[]): EstadoDoHospedeiro {
 }
 
 describe("estado da página do jogo", () => {
+  it("pausa de checkpoint não anuncia transferência concluída nem oferece retomar o SID", () => {
+    const parada = paradaDaMudanca({ codigo: "SESSAO_ENCERRADA", motivo: "checkpoint" });
+    expect(parada).toBe("pausado_para_troca");
+    expect(paradaDoErro(new ErroDoRecreio("CHECKPOINT_PENDENTE"))).toBe("troca_nao_confirmada");
+    expect(textoDaParada(parada).acao).toBe("nada");
+  });
+  it("pedido de saída manual não anuncia pausa ou transferência concluída", () => {
+    const parada = paradaDoErro(new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "manual" }));
+    expect(parada).toBe("saida_no_outro_aparelho");
+    expect(textoDaParada(parada).acao).toBe("tentar");
+  });
   it("abre, monta e joga", () => {
     expect(ESTADO_INICIAL).toEqual({ fase: "carregando" });
     expect(depois({ tipo: "montado" })).toEqual({ fase: "jogando" });
@@ -64,6 +75,9 @@ describe("estado da página do jogo", () => {
 
 describe("motivo de uma parada", () => {
   it.each<[ErroDoRecreio, Parada]>([
+    [new ErroDoRecreio("ACESSO_PERDIDO", { motivo: "daily_limit" }), "fim_do_tempo"],
+    [new ErroDoRecreio("ACESSO_NEGADO", { motivo: "schedule" }), "fora_do_horario"],
+    [new ErroDoRecreio("ACESSO_PERDIDO", { motivo: "day_change" }), "novo_dia"],
     [new ErroDoRecreio("NAO_AUTENTICADO"), "sem_login"],
     [new ErroDoRecreio("SEM_PERFIL"), "sem_login"],
     [new ErroDoRecreio("ACESSO_NEGADO", { estado: "ENCERRADO" }), "sem_acesso"],

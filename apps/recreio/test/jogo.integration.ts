@@ -14,6 +14,7 @@ import {
   TIPO_DA_SESSAO,
   TIPO_DO_INGRESSO,
 } from "@informach/recreio/contrato";
+import { verificarIngresso } from "@informach/recreio/emissor";
 import { criarVerificadorDeSessao } from "@informach/recreio/host";
 import { describe, expect, it, vi } from "vitest";
 import * as jogosConfig from "@/features/jogos/config";
@@ -62,19 +63,14 @@ describe("revogação atômica", () => {
   it("revalida o acesso na transação mesmo quando o ingresso foi admitido antes da revogação", async () => {
     const lia = await novoJogador();
     const ingresso = await ingressoDe(lia);
-    const { jti } = claimsDe(ingresso);
-    if (typeof jti !== "string") throw new Error("Ingresso sem jti");
+    const { emissor, chaves } = await chavesDoRecreio();
+    const verificado = await verificarIngresso(ingresso, { chaves, emissor: emissor.emissor });
     await revogar({ email: lia.conta.email, motivo: "teste" });
-    const agora = new Date();
     await expect(
       abrirSessaoComIngresso({
-        jti,
-        perfilId: lia.perfil.id,
-        sessaoDeAparelhoId: lia.ator.sessaoDeAparelhoId,
-        jogo: MORADA,
+        ingresso: verificado,
+        emissor,
         sid: SessaoDeJogoIdSchema.parse(crypto.randomUUID()),
-        agora,
-        expiraEm: new Date(agora.getTime() + 900_000),
         continuarAqui: false,
       }),
     ).rejects.toMatchObject({ codigo: "ACESSO_NEGADO" });
@@ -414,7 +410,7 @@ describe("troca do ingresso pela sessão", () => {
     });
   });
 
-  it("com um jogo aberto em outro aparelho: JA_ABERTO, e `continuarAqui` encerra o anterior", async () => {
+  it("sem checkpoint, continuar aqui exige saída anterior e conserva o ingresso", async () => {
     const lia = await novoJogador();
     const primeira = await entrarNoJogo(lia);
     const celular = await outroAparelho(lia);
@@ -424,17 +420,24 @@ describe("troca do ingresso pela sessão", () => {
     // A recusa não gastou o ingresso nem mexeu na sessão aberta.
     expect((await sessaoNoBanco(primeira.sid))?.endedAt).toBeNull();
 
-    const segunda = await trocar(ingresso, { continuarAqui: true });
+    expect(await trocar(ingresso, { continuarAqui: true })).toEqual({
+      status: 409,
+      corpo: { codigo: "CHECKPOINT_PENDENTE", motivo: "manual" },
+    });
+    expect((await sessaoNoBanco(primeira.sid))?.endedAt).toBeNull();
+    expect((await listar(primeira.token)).status).toBe(200);
+    expect((await sair(primeira.token)).status).toBe(200);
+    const segunda = await trocar(ingresso);
     expect(segunda.status).toBe(200);
     const nova = SessaoDeJogoIdSchema.parse(claimsDe(String(segunda.corpo.token)).sid);
     expect(nova).not.toBe(primeira.sid);
-    expect(await sessaoNoBanco(primeira.sid)).toMatchObject({ endReason: "replaced" });
+    expect(await sessaoNoBanco(primeira.sid)).toMatchObject({ endReason: "left" });
     expect((await abertasDe(lia)).map((linha) => linha.id)).toEqual([nova]);
 
     // O token antigo continua bem assinado, mas a sessão dele acabou.
     expect(await listar(primeira.token)).toEqual({
       status: 403,
-      corpo: { codigo: "SESSAO_ENCERRADA", motivo: "replaced" },
+      corpo: { codigo: "SESSAO_ENCERRADA", motivo: "left" },
     });
     expect(await renovar(primeira.token)).toMatchObject({
       status: 403,
@@ -443,7 +446,7 @@ describe("troca do ingresso pela sessão", () => {
     expect((await eventosCom("sessionId", primeira.sid)).at(-1)).toMatchObject({
       eventType: "recreio.game_session_ended",
       actorId: lia.conta.id,
-      payload: { reason: "replaced", targetId: lia.conta.id },
+      payload: { reason: "left", targetId: lia.conta.id },
     });
   });
 });

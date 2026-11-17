@@ -257,7 +257,8 @@ export const PRODUCTS: readonly Product[] = [
   // a cobertura vem só do Compasso (decisão de 09/11/2026).
   // Recreio: não existe plano gratuito, e nenhum destes é vendido ainda. Os IDs
   // do Stripe ficam como `price_TODO_*` até a cobrança ser provisionada (Marco 2
-  // da proposta; ver docs/recreio/implementacao.md).
+  // da proposta; ver docs/recreio/implementacao.md). Os quatro valores de
+  // listPrice foram confirmados pelo titular em 16/11/2026.
   {
     id: "recreio_individual_monthly",
     app: "recreio",

@@ -165,6 +165,7 @@ export class Conexao {
   private seq: number | null = null;
   private mundo: string | null = null;
   private saindo: ((salvo: boolean) => void) | null = null;
+  private saidaEmCurso: Promise<boolean> | null = null;
   private acessoEncerrado = false;
   private ultimoQuadroEm = 0;
   private cancelarEspera: (() => void) | null = null;
@@ -221,22 +222,36 @@ export class Conexao {
 
   /**
    * Sai de propósito: avisa o servidor, espera a confirmação por um instante
-   * e fecha. Devolve se o servidor confirmou que salvou.
+   * e fecha se confirmou. Sem confirmação, reabre para conferir o estado durável.
    */
-  async sair(prazoMs = PRAZO_PARA_SAIR_MS): Promise<boolean> {
+  sair(prazoMs = PRAZO_PARA_SAIR_MS): Promise<boolean> {
+    if (this.saidaEmCurso) return this.saidaEmCurso;
+    this.saidaEmCurso = this.tentarSair(prazoMs).finally(() => {
+      this.saidaEmCurso = null;
+    });
+    return this.saidaEmCurso;
+  }
+
+  private async tentarSair(prazoMs: number): Promise<boolean> {
     if (this.estadoAtual.fase === "encerrado") return false;
     let salvo = false;
     if (this.dentro && this.soquete) {
       salvo = await new Promise<boolean>((resolver) => {
-        const cancelar = this.agendar(() => resolver(false), prazoMs);
+        const cancelar = this.agendar(() => this.saindo?.(false), prazoMs);
         this.saindo = (confirmado) => {
           cancelar();
           resolver(confirmado);
         };
-        this.mandar({ t: "sair" });
+        try {
+          this.mandar({ t: "sair" });
+        } catch {
+          this.saindo?.(false);
+        }
       });
     }
-    this.terminar("saiu");
+    this.saindo = null;
+    if (salvo) this.terminar("saiu");
+    else this.reabrir("rede");
     return salvo;
   }
 
@@ -456,13 +471,9 @@ export class Conexao {
     this.seq = null;
     this.cancelarPrazo?.();
     this.cancelarPrazo = null;
-    if (this.saindo) {
-      // O servidor fechou depois do `sair`: quem espera a confirmação termina.
-      const saindo = this.saindo;
-      this.saindo = null;
-      saindo(false);
-      return;
-    }
+    const saindo = this.saindo;
+    this.saindo = null;
+    saindo?.(false);
     const destino = destinoDoFechamento(codigo);
     if ("fim" in destino) {
       const motivo =
@@ -470,6 +481,7 @@ export class Conexao {
       this.terminar(motivo);
       return;
     }
-    this.reabrir(destino.reabrir);
+    // Uma saída sem ACK reabre no término da tentativa; não agenda duas voltas.
+    if (!saindo) this.reabrir(destino.reabrir);
   }
 }

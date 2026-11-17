@@ -87,6 +87,7 @@ export const recreioProfiles = recreio.table(
   },
   (t) => [
     uniqueIndex("recreio_profiles_own_login").on(t.userId).where(sql`${t.userId} is not null`),
+    unique("recreio_profile_identity_kind").on(t.id, t.kind),
     index("recreio_profiles_group").on(t.groupId),
     check("recreio_profiles_kind", sql`${t.kind} in ('adult', 'minor')`),
     // Perfil adulto sai em cascata com a conta, então nunca fica sem `user_id`.
@@ -113,6 +114,8 @@ export const recreioDeviceSessions = recreio.table(
       onDelete: "set null",
     }),
     profileSelectedAt: moment("profile_selected_at"),
+    /** Trava de gestão independente do perfil/FK: excluir o menor não desbloqueia o adulto. */
+    minorContextGeneration: uuid("minor_context_generation"),
     lastSeenAt: time("last_seen_at"),
     expiresAt: moment("expires_at").notNull(),
     revokedAt: moment("revoked_at"),
@@ -244,8 +247,35 @@ export const recreioGameTickets = recreio.table(
     issuedAt: time("issued_at"),
     expiresAt: moment("expires_at").notNull(),
     consumedAt: moment("consumed_at"),
+    /** Prova opaca do pedido, somente hash; permite recuperar a mesma resposta. */
+    exchangeKeyHash: text("exchange_key_hash"),
+    openedSessionId: uuid("opened_session_id"),
   },
-  (t) => [index("recreio_game_tickets_expires").on(t.expiresAt)],
+  (t) => [
+    index("recreio_game_tickets_expires").on(t.expiresAt),
+    foreignKey({
+      name: "recreio_ticket_opened_session_profile",
+      columns: [t.openedSessionId, t.profileId],
+      foreignColumns: [recreioGameSessions.id, recreioGameSessions.profileId],
+    }).onDelete("cascade"),
+    uniqueIndex("recreio_ticket_opened_session")
+      .on(t.openedSessionId)
+      .where(sql`${t.openedSessionId} is not null`),
+    check(
+      "recreio_ticket_opened_receipt",
+      sql`${t.openedSessionId} is null or ${t.consumedAt} is not null`,
+    ),
+    check(
+      "recreio_ticket_exchange_key",
+      sql`${t.exchangeKeyHash} is null or (${t.consumedAt} is not null and ${t.openedSessionId} is not null and ${t.exchangeKeyHash} ~ '^[0-9a-f]{64}$')`,
+    ),
+    index("recreio_game_tickets_pending_profile")
+      .on(t.profileId, t.expiresAt)
+      .where(sql`${t.consumedAt} is null`),
+    index("recreio_game_tickets_pending_device")
+      .on(t.deviceSessionId, t.expiresAt)
+      .where(sql`${t.consumedAt} is null`),
+  ],
 );
 
 /** Sessão de jogo: o `id` é a claim `sid`. Um perfil joga uma coisa por vez. */
@@ -263,6 +293,10 @@ export const recreioGameSessions = recreio.table(
     spaceId: uuid("space_id").references(() => recreioSpaces.id, { onDelete: "set null" }),
     startedAt: time("started_at"),
     lastRenewedAt: time("last_renewed_at"),
+    /** Barreira do checkpoint: nunca é removida para reativar o mesmo SID. */
+    checkpointFrozenAt: moment("checkpoint_frozen_at"),
+    /** Contato de controle, separado de renovar a concessão de jogo. */
+    controlSeenAt: moment("control_seen_at"),
     expiresAt: moment("expires_at").notNull(),
     endedAt: moment("ended_at"),
     endReason: text("end_reason").$type<
@@ -273,7 +307,9 @@ export const recreioGameSessions = recreio.table(
   },
   (t) => [
     uniqueIndex("recreio_game_sessions_one_open").on(t.profileId).where(sql`${t.endedAt} is null`),
+    unique("recreio_game_session_identity_profile").on(t.id, t.profileId),
     index("recreio_game_sessions_ended_seq").on(t.endedSeq).where(sql`${t.endedSeq} is not null`),
+    index("recreio_game_sessions_profile_ended").on(t.profileId, t.endedSeq),
     check(
       "recreio_game_sessions_end_reason",
       sql`${t.endReason} is null or ${t.endReason} in ('left', 'replaced', 'access_lost', 'signed_out', 'expired', 'permissions_changed')`,

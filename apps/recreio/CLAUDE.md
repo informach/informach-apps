@@ -13,9 +13,30 @@ O nome do pacote é `@informach/recreio-app`, porque `@informach/recreio` já é
 - **Domínio e contratos:** `packages/recreio` (`decidirAcesso`, regras de mundo, posse, convite, tokens, API das instâncias). O app não repete essas regras; ele carrega os fatos e chama o package. Leia o [README do package](../../packages/recreio/README.md).
 - **Catálogo dos jogos:** `@informach/config/jogos`. O estado de publicação de um jogo não é direito de abrir. O app pergunta sempre a `features/jogos/config.ts`, que é o catálogo deste deploy (o público mais, só fora de produção e com a variável ligada, o jogo de teste).
 - **Produtos e preços:** `@informach/config/products` (`recreio_*`, ainda `price_TODO_*`). Não existe plano gratuito.
+- **Fechamento da plataforma:** [escopo vigente](../../docs/recreio/fechamento-plataforma-2026-11-16.md). O titular confirmou os quatro preços e responsabilidade declarada pelo adulto; conta pagante não precisa ocupar perfil de jogador. Estas decisões não declaram os fluxos familiares/comerciais concluídos. SDK independente com dados opacos/conflitos/conquistas implantado em `6b51dd13`; migração 0167 e 168 recibos conferidos na [evidência operacional](../../docs/recreio/dados-de-perfil-2026-11-16.md). Leitores familiares e autoridade de mundos implantados em `ad37ca93`, com famílias desligadas e 175 recibos/0174 conferidos; [prova atual](../../docs/recreio/leitores-protegidos-2026-11-17.md). Checkpoint e o restante do plano continuam em implementação.
 - **Este app:** rotas, sessão, telas e tudo o que grava no schema `recreio` (`packages/db/src/schema/recreio.ts`). Ele é o único a gravar nesse schema; o servidor de um jogo fala com o Recreio por HTTP.
 
 ## Camadas
+
+Gestão da conta usa `paginaDaGestao`, com sessão nativa e perfil jogador opcional;
+o layout não exige jogador. Estante e mundos adultos conferem `paginaDoPortal`
+por página; a página do jogo usa `paginaDoJogador`, com referência restrita
+nativa ou pareada e nova admissão no kernel. Aparelhos revalida identidade, vínculo, login e
+prazo no repository e não depende da existência ou cobertura de um jogador.
+Selecionar perfil infantil ou usar credencial pareada não concede essa gestão.
+[Estado do incremento](../../docs/recreio/gestao-sem-perfil-2026-11-16.md):
+implantado com novos fluxos familiares desligados; isso não libera menores.
+
+No núcleo F3, `autoridade-de-jogo` prepara a identidade antes das travas de
+domínio e relê perfil/aparelho, responsabilidade/geração, login, política e
+prazo. Dados/conquistas usam esse kernel com o mutex antes do aparelho e uma
+conferência final após esperas de chave/auditoria. Emissão carrega o emissor
+Ed25519 local antes da transação; somente criptografia local entra sob as
+travas. Versão e prazo assinados vêm dos fatos relidos nessa transação, nunca
+de uma avaliação anterior à espera. Falha reverte consumo, tempo e sessão.
+Novos escritores protegidos são desligados por padrão (`RECREIO_FAMILY_MODE`);
+desligar não elimina a restrição nativa ou a recuperação pelo adulto. Contratos,
+gates e partes ainda não integradas em [F3](../../docs/recreio/politicas-sessoes-2026-11-17.md).
 
 - `src/app`: rotas e composição. Páginas não importam o banco.
 - `src/features/<área>`: `components/` (telas), `actions.ts` (server actions), `service.ts` (sem Next), `repository.ts` (banco). Lógica pura fica em arquivo próprio, com teste (`estante/catalogo.ts`, `perfis/regras.ts`, `acesso/cobertura.ts`, `acesso/texto.ts`). O que precisa do Next sem ser ação fica em arquivo próprio da área (`sessao/ator.ts`, `sessao/http.ts`).
@@ -24,6 +45,16 @@ O nome do pacote é `@informach/recreio-app`, porque `@informach/recreio` já é
 - O Biome da raiz verifica as fronteiras: páginas, componentes, ações e rotas não importam `@informach/db`.
 
 ## A base (lote P1)
+
+O salvamento final foi implantado em `3f2b1239`, com 0177/0178 e 179 recibos:
+[contrato e evidências](../../docs/recreio/salvamento-restrito-2026-11-17.md).
+O SDK negocia uma capacidade exclusiva de persistência; mundos usam preparação
+e conclusão pela instância com posse atual, foto posterior e SHA conferido.
+Sete gates e CI compartilhado passaram; famílias/checkpoint continuam desligados.
+O minuto real foi homologado com título interno no GitHub; isso não libera venda.
+O agregado separa a margem do orçamento de gameplay, e a supervisão mostra
+somente datas/durações recentes ao responsável atual. Recibos técnicos têm
+expurgo próprio de 24 horas em lotes, sem encerrar ou reativar sessões.
 
 - Conta Informach por `@informach/auth`: senha ou código por e-mail (OTP para confirmar, entrar e redefinir senha), sem organizations. Sessões no Redis (`recreio:auth:`) com o cache de cookie desligado, para que sair ou revogar valha na hora.
 - `/` (página pública do alfa), `/entrar`, `/estante` e `/conta` (as duas exigem conta com e-mail confirmado e perfil ativo, conferidos no layout e em cada página), `/termos` e `/privacidade` provisórios.
@@ -102,7 +133,7 @@ O contrato é o `ClienteDoHost` do package, e a implementação é conferida pel
 
 ## Página do jogo (lote P7)
 
-- `/jogar/[jogo]?mundo=<id>` (`src/app/jogar/[jogo]/page.tsx`) fica fora de `(portal)`: o jogo ocupa a janela inteira, sem o cabeçalho do portal. Exige o mesmo que as páginas do portal (`paginaDoPortal()`). `features/jogar/service.ts` decide no servidor, nesta ordem: jogo que não existe neste deploy, não abre ou não tem cliente no portal é 404; perfil sem o direito de jogar volta para a estante, que já explica; sem `?mundo=` volta para a estante; mundo que não existe, é de outro jogo ou do qual o perfil não participa mostra o mesmo aviso ("Este mundo não está disponível").
+- `/jogar/[jogo]?mundo=<id>` (`src/app/jogar/[jogo]/page.tsx`) fica fora de `(portal)`: o jogo ocupa a janela inteira, sem o cabeçalho do portal. Recebe o jogador do aparelho nativo ou pareado (`paginaDoJogador`); a prévia relê a autoridade atual antes de entregar o cliente, sem conceder gestão da conta. `features/jogar/service.ts` decide no servidor, nesta ordem: jogo que não existe neste deploy, não abre ou não tem cliente no portal é 404; perfil sem o direito de jogar volta para a estante, que já explica; sem `?mundo=` volta para a estante; mundo que não existe, é de outro jogo ou do qual o perfil não participa mostra o mesmo aviso ("Este mundo não está disponível").
 - **Nada de quem joga é escrito na página.** O componente recebe o id do jogo, o id do mundo e os nomes dos dois. O perfil chega ao jogo pelo ingresso, que o navegador pede com o cookie (`features/jogar/ingresso.ts`).
 - `features/jogar/components/hospedeiro.tsx` pede o ingresso, chama `criarRecreio`, baixa o cliente do jogo e o monta. Os estados e os textos ficam em `features/jogar/estado.ts` (máquina pura, com teste): abrindo, "Você já está jogando em outro lugar" (`JA_ABERTO`, com "Continuar aqui"), jogando, saindo e parado com o motivo (sem acesso, jogo ou mundo indisponível, "O jogo está iniciando" para `SEM_INSTANCIA`, acesso perdido, continuou em outro lugar, saiu da conta, rede).
 - **Um perfil tem uma sessão de jogo por vez.** Tudo o que tira o jogo da tela (sair, falha, troca de página, `pagehide`) desmonta o jogo e chama `sair()` antes de qualquer nova tentativa; as tentativas correm em fila. Sem isso, "Tentar de novo" esbarraria em `JA_ABERTO` contra a própria sessão.
@@ -117,6 +148,34 @@ O contrato é o `ClienteDoHost` do package, e a implementação é conferida pel
 - E2E (`pnpm --filter @informach/recreio-app e2e`): build de produção com o jogo de teste, banco descartável, Chromium (desenho por software, para o WebGL) e o servidor de cada jogo como processo que o teste inicia, derruba com sinal e reinicia. `e2e/jogar.spec.ts` prova a plataforma com o jogo de teste; `e2e/morada.spec.ts`, o Morada de verdade. O que é comum fica em `e2e/apoio.ts`. Todo teste falha se o navegador registrar violação da CSP ou erro de página.
 
 ## Morada na página do jogo (lote X1)
+
+### Troca de aparelho em homologação (17/11)
+
+O modo `RECREIO_CHECKPOINT_MODE=on` usa intenção vinculada a ingresso/aparelho/SID
+e espera o ACK de dados de perfil ou da instância antes da nova sessão.
+`JogoMontado.checkpoint({id, modo})`
+é opcional e aguardável; ausência ou falso nunca confirma. `retomar` só vale quando
+o controle servidor confirmou ausência de barreira. A consulta continua durante
+a pausa, sem renovação; nunca desmontar a partida pausada como se a troca já
+estivesse concluída. ACK perdido é resolvido pelo estado atual. SDK não envia
+conta, nascimento, agenda ou progresso no controle. O booleano do cliente de
+mundo não basta: o host relê o controle após a confirmação da instância.
+O Morada ainda não declara esse adapter; permanece com saída manual confirmada.
+Detalhes e limites no
+[registro de checkpoint](../../docs/recreio/checkpoint-sessoes-2026-11-17.md).
+
+Na fonte implantada `2475661`, `off` e títulos sem contrato autenticado de mundo exigem
+salvar/sair no aparelho anterior; `continuarAqui` não os desconecta à força.
+Sem acesso ao aparelho antigo, a gestão permite revogá-lo explicitamente, ou
+aguardar a concessão vencer. Não simular ACK nem reduzir o prazo em teste para
+anunciar uma recuperação real. Famílias, troca automática e venda continuam
+desligadas em produção; verificar gates e configuração antes de ativar.
+
+Na fonte implantada, um SID de jogo fica vinculado ao primeiro mundo admitido pelo host.
+Entrar em outro mundo exige encerrar a partida e emitir outra, com nova autoridade.
+Não reatribuir `game_sessions.space_id` de uma sessão aberta: isso permitiria
+conexões simultâneas fora da prova de checkpoint. A exclusão física futura de
+mundos deve encerrar suas sessões antes de remover o vínculo.
 
 - `features/jogar/adaptadores/morada.ts` traduz `ModuloDoJogo` para `montarMorada`, do `@informach/jogo-morada`. É o único arquivo do portal que importa o pacote do jogo (e `morada-regra.ts`, só os tipos). O jogo de verdade (three.js, HUD, CSS) vem por um segundo `import()`, dentro de `montarMorada`. `next.config.ts` lista `@informach/jogo-morada` e `@informach/morada-sim` em `transpilePackages`.
 - O cliente é montado **sem `depurar`**, como em produção, também no E2E. Os testes conferem o jogo pelo HUD e pelos atributos `data-morada-*` (lista no README do `jogo-morada`).
@@ -139,8 +198,10 @@ Mudou a regra, mude o teste e este texto.
 
 ## O que ainda não existe
 
-PIN e aparelho pareado para menores, perfis sem login criados pelo titular,
-cobrança Stripe e webhooks e telas operacionais próprias no Bastidores. Os
+Cadastro declarado de menores, PIN, pareamento e supervisão têm código,
+com novos fluxos familiares desligados em produção. Faltam checkpoint entre
+aparelhos e avisos de tempo, social/moderação, cobrança Stripe, webhooks e
+telas operacionais próprias no Bastidores. Os
 eventos do Recreio já têm classificadores/frases no console; isso não dá acesso
 ao conteúdo dos mundos. Nos mundos, continuam pendentes visita, convite por
 membro com aprovação, coadministradores, arquivamento e

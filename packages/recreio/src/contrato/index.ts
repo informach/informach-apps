@@ -6,6 +6,8 @@ export {
   jsonParaCabecalho,
 } from "../transporte/bytes";
 export * from "./acesso";
+export * from "./dados";
 export * from "./host";
+export * from "./salvamento";
 export * from "./sdk";
 export * from "./tokens";

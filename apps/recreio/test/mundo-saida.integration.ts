@@ -26,10 +26,17 @@ const autorDe = (p: Jogador) => ({
   sessaoDeAparelhoId: p.ator.sessaoDeAparelhoId,
 });
 async function convidar(dono: Jogador, convidado: Jogador, mundoId: MundoId) {
-  const convite = await criarConvite({ perfilId: dono.perfil.id, jogo: null }, mundoId, {
-    forma: "member",
-  });
-  await aceitarConvite({ perfilId: convidado.perfil.id }, { codigo: convite.codigo });
+  const convite = await criarConvite(
+    { perfilId: dono.perfil.id, sessaoDeAparelhoId: dono.ator.sessaoDeAparelhoId, jogo: null },
+    mundoId,
+    {
+      forma: "member",
+    },
+  );
+  await aceitarConvite(
+    { perfilId: convidado.perfil.id, sessaoDeAparelhoId: convidado.ator.sessaoDeAparelhoId },
+    { codigo: convite.codigo },
+  );
 }
 async function cenario() {
   const dono = await novoJogador();

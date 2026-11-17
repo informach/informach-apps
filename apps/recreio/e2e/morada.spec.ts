@@ -1066,13 +1066,21 @@ test("duas contas jogam a mesma família; uma cai, a outra continua, e tudo volt
 
   await test.step("6. Bia volta em outro navegador, entra de novo e está na mesma família com a Ana", async () => {
     bia = await entrarDeNovo(await novoNavegadorDaBia(), bia);
+    // O aparelho antigo morreu. A conta revoga explicitamente aquele aparelho;
+    // não se finge um checkpoint nem se toma uma sessão ainda válida.
+    await bia.page.goto("/conta");
+    await bia.page.getByRole("link", { name: "Gerenciar aparelhos" }).click();
+    const outros = bia.page.getByRole("region", { name: "Outros aparelhos" });
+    const desconectar = outros.getByRole("button", { name: /Desconectar aparelho iniciado em/ });
+    await expect(desconectar).toHaveCount(1);
+    await hidratado(desconectar);
+    await desconectar.click();
+    await expect(
+      outros.getByText("Nenhum outro aparelho nesta página.", { exact: true }),
+    ).toBeVisible();
+    await bia.page.goto("/estante");
     daBia = jogoEm(bia.page);
     await bia.page.getByRole("link", { name: "Jogar em Casa da Ana" }).click();
-    // O navegador que morreu não encerrou a sessão de jogo: o Recreio pergunta antes de continuar.
-    await expect(
-      bia.page.getByRole("heading", { name: "Você já está jogando em outro lugar" }),
-    ).toBeVisible();
-    await bia.page.getByRole("button", { name: "Continuar aqui" }).click();
     await mundoNaTela(daBia);
 
     await expect(daBia.nomes).toHaveText(FAMILIA);
@@ -1126,7 +1134,7 @@ test("o Morada sem instância e com a sessão trocada de janela: quem avisa é a
     await expect(daPrimeira.retrato("Lia")).toHaveAttribute("data-estado", "voce");
   });
 
-  await test.step("a mesma conta continua em outra aba: a primeira para, com o aviso da página e sem o do jogo", async () => {
+  await test.step("a outra aba só abre depois da saída confirmada pelo jogo anterior", async () => {
     const segunda = await davi.contexto.newPage();
     const daSegunda = jogoEm(segunda);
     await segunda.goto(enderecoDoJogo(mundoId));
@@ -1134,16 +1142,19 @@ test("o Morada sem instância e com a sessão trocada de janela: quem avisa é a
       segunda.getByRole("heading", { name: "Você já está jogando em outro lugar" }),
     ).toBeVisible();
     await segunda.getByRole("button", { name: "Continuar aqui" }).click();
+    await expect(
+      segunda.getByRole("heading", { name: "Salve e saia no outro aparelho" }),
+    ).toBeVisible();
+    await expect(segunda.locator(".morada")).toHaveCount(0);
+    await expect(daPrimeira.nomes).toHaveText(FAMILIA);
+    await daPrimeira.sair.click();
+    await expect(primeira).toHaveURL(/\/estante$/);
+    await segunda.getByRole("button", { name: "Tentar de novo" }).click();
     await mundoNaTela(daSegunda);
 
-    await expect(
-      primeira.getByRole("heading", { name: "Você continuou o jogo em outro lugar" }),
-    ).toBeVisible({ timeout: 30_000 });
-    // Um aviso só: o cartão de fim do jogo não aparece junto com o da página.
     await expect(primeira.locator(".morada")).toHaveCount(0);
     await expect(primeira.getByRole("alertdialog")).toHaveCount(0);
-    await expect(primeira.getByRole("heading", { level: 2 })).toHaveCount(1);
-    await tela(primeira, "morada-continuou-em-outro-lugar");
+    await tela(primeira, "morada-saida-antes-da-troca");
     // A segunda aba segue jogando, com a família inteira.
     await expect(daSegunda.nomes).toHaveText(FAMILIA);
     await daSegunda.retrato("Lia").click();

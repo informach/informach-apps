@@ -18,6 +18,13 @@ export type Parada =
   | "saiu_do_jogo"
   | "permissoes_alteradas"
   | "sessao_encerrada"
+  | "pausado_para_troca"
+  | "saida_no_outro_aparelho"
+  | "troca_nao_confirmada"
+  | "conflito_preservado"
+  | "fim_do_tempo"
+  | "fora_do_horario"
+  | "novo_dia"
   | "rede"
   | "falha";
 
@@ -67,8 +74,16 @@ function motivoDe(erro: { detalhe: Readonly<Record<string, unknown>> }): string 
   return typeof erro.detalhe.motivo === "string" ? erro.detalhe.motivo : null;
 }
 
+function paradaDoTempo(motivo: string | null): Parada | null {
+  if (motivo === "daily_limit") return "fim_do_tempo";
+  if (motivo === "schedule") return "fora_do_horario";
+  if (motivo === "day_change") return "novo_dia";
+  return null;
+}
+
 /** Como uma sessão de jogo que acabou aparece para a pessoa. */
 function paradaDoFimDaSessao(motivo: string | null): Parada {
+  if (motivo === "checkpoint") return "pausado_para_troca";
   if (motivo === "replaced") return "outro_lugar";
   if (motivo === "signed_out") return "saiu_da_conta";
   if (motivo === "left") return "saiu_do_jogo";
@@ -88,16 +103,20 @@ export function paradaDoErro(erro: unknown): Parada {
     case "SEM_PERFIL":
       return "sem_login";
     case "ACESSO_NEGADO":
-      return "sem_acesso";
+      return paradaDoTempo(motivoDe(erro)) ?? "sem_acesso";
     case "ACESSO_PERDIDO": {
       // A renovação recusa com o motivo quando foi a sessão do aparelho que caiu.
       const motivo = motivoDe(erro);
+      const tempo = paradaDoTempo(motivo);
+      if (tempo) return tempo;
       return motivo === "signed_out" || motivo === "replaced"
         ? paradaDoFimDaSessao(motivo)
         : "acesso_perdido";
     }
     case "SESSAO_ENCERRADA":
       return paradaDoFimDaSessao(motivoDe(erro));
+    case "CHECKPOINT_PENDENTE":
+      return motivoDe(erro) === "manual" ? "saida_no_outro_aparelho" : "troca_nao_confirmada";
     case "SESSAO_INVALIDA":
     case "INGRESSO_INVALIDO":
       return "sessao_encerrada";
@@ -121,6 +140,9 @@ export function paradaDoErro(erro: unknown): Parada {
 
 /** A mudança de acesso que o SDK avisa (`aoMudarAcesso`), como motivo da página. */
 export function paradaDaMudanca(mudanca: { codigo: string; motivo?: string }): Parada {
+  const tempo = paradaDoTempo(mudanca.motivo ?? null);
+  if ((mudanca.codigo === "ACESSO_PERDIDO" || mudanca.codigo === "ACESSO_NEGADO") && tempo)
+    return tempo;
   if (mudanca.codigo === "SESSAO_ENCERRADA") return paradaDoFimDaSessao(mudanca.motivo ?? null);
   if (mudanca.codigo === "ACESSO_PERDIDO")
     return mudanca.motivo === "signed_out" || mudanca.motivo === "replaced"
@@ -144,6 +166,44 @@ export type TextoDaParada = {
 };
 
 const TEXTOS: Record<Parada, TextoDaParada> = {
+  fim_do_tempo: {
+    titulo: "Hora de fazer uma pausa",
+    texto: "O tempo de jogo de hoje terminou. Você pode voltar à estante.",
+    acao: "nada",
+  },
+  fora_do_horario: {
+    titulo: "O horário de jogo terminou",
+    texto: "Volte à estante para conferir os jogos quando seu horário permitir.",
+    acao: "nada",
+  },
+  novo_dia: {
+    titulo: "Um novo dia começou",
+    texto: "Para continuar, volte à estante e abra uma nova partida com as regras de hoje.",
+    acao: "nada",
+  },
+  conflito_preservado: {
+    titulo: "Há versões diferentes do progresso",
+    texto:
+      "As versões foram preservadas. Ao abrir o jogo novamente, confira qual deseja continuar.",
+    acao: "tentar",
+    rotulo: "Conferir versões",
+  },
+  saida_no_outro_aparelho: {
+    titulo: "Salve e saia no outro aparelho",
+    texto: "Use o botão de saída do jogo na partida anterior. Depois, tente abrir aqui novamente.",
+    acao: "tentar",
+  },
+  troca_nao_confirmada: {
+    titulo: "A troca não foi confirmada",
+    texto:
+      "A nova partida não foi aberta. Confira o progresso e a conexão do outro aparelho antes de tentar novamente.",
+    acao: "tentar",
+  },
+  pausado_para_troca: {
+    titulo: "Jogo pausado para trocar de aparelho",
+    texto: "Esta sessão está pausada enquanto a troca de aparelho é confirmada.",
+    acao: "nada",
+  },
   sem_login: {
     titulo: "Entre de novo para jogar",
     texto: "A sua entrada no Recreio terminou neste aparelho.",

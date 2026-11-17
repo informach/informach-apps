@@ -8,6 +8,8 @@ import {
   PARTICIPACAO_MAX,
 } from "../dominio/mundos";
 import { ESTADOS_DE_ACESSO_LISTA } from "./acesso";
+import type { DadosDoPerfil } from "./dados";
+import { CapacidadeDeSalvamentoSchema, type SalvamentoDaSessao } from "./salvamento";
 
 /**
  * API do SDK: o que o cliente de um jogo pede ao Recreio, do navegador. O SDK
@@ -46,12 +48,20 @@ export const PoliticaDoPerfilSchema = z.strictObject({
 export type PoliticaDoPerfil = z.infer<typeof PoliticaDoPerfilSchema>;
 
 export const TrocaDeIngressoSchema = z.strictObject({
+  /** Negociação explícita; clientes anteriores não recebem a nova capacidade. */
+  suportaSalvamento: z.literal(true).optional(),
   ingresso: z.string().min(1),
-  /** Encerra a sessão aberta em outro aparelho e continua aqui. */
+  /** Prova para recuperar a mesma abertura; nunca reabre ou renova outro SID. */
+  chaveDeTroca: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{43}$/)
+    .optional(),
+  /** Solicita a troca; a abertura depende de checkpoint ou saída no aparelho anterior. */
   continuarAqui: z.boolean().optional(),
 });
 
 export const SessaoAbertaSchema = z.strictObject({
+  salvamento: CapacidadeDeSalvamentoSchema.optional(),
   token: z.string().min(1),
   expiraEm: instanteIso,
   perfil: PerfilDoJogoSchema,
@@ -60,9 +70,48 @@ export const SessaoAbertaSchema = z.strictObject({
 export type SessaoAberta = z.infer<typeof SessaoAbertaSchema>;
 
 export const SessaoRenovadaSchema = z.strictObject({
+  salvamento: CapacidadeDeSalvamentoSchema.optional(),
   token: z.string().min(1),
   expiraEm: instanteIso,
 });
+export type SessaoRenovada = z.infer<typeof SessaoRenovadaSchema>;
+
+/** Estado de controle, sem agenda, nascimento ou identidade da conta. Não renova a sessão. */
+export const ControleDaSessaoSchema = z.strictObject({
+  agora: instanteIso,
+  expiraEm: instanteIso,
+  pausada: z.boolean(),
+  tempo: z
+    .strictObject({
+      usadoHojeMs: z.number().int().min(0).max(172800000),
+      limiteDiarioMinutos: z.number().int().min(1).max(1440).nullable(),
+      saldoMs: z.number().int().min(0).max(86400000).nullable(),
+      /** Previsão nos próximos dez minutos; não amplia expiraEm nem autoriza continuar. */
+      pausaEm: instanteIso.nullable(),
+      motivo: z.enum(["daily_limit", "schedule", "paused", "day_change"]).nullable(),
+    })
+    .nullable(),
+  checkpoint: z
+    .strictObject({
+      id: z.uuid(),
+      estado: z.enum(["requested", "confirmed"]),
+      modo: z.enum(["profile", "server"]),
+      expiraEm: instanteIso,
+    })
+    .nullable(),
+});
+export type ControleDaSessao = z.infer<typeof ControleDaSessaoSchema>;
+
+/** ACK da fila de dados de perfil. Mundos usam a API autenticada das instâncias. */
+export const ConfirmacaoDeCheckpointSchema = z.strictObject({
+  id: z.uuid(),
+  confirmado: z.boolean(),
+});
+export const ResultadoDeCheckpointSchema = z.strictObject({
+  estado: z.enum(["confirmed", "failed", "expired"]),
+  pausada: z.boolean(),
+});
+export type ResultadoDeCheckpoint = z.infer<typeof ResultadoDeCheckpointSchema>;
 
 export const RespostaDeErroSchema = z.object({
   codigo: z.string(),
@@ -140,9 +189,18 @@ export type MudancaDeAcesso = {
 };
 
 export interface RecreioGameContext {
+  dados: DadosDoPerfil;
+  /** Conquistas declaradas pelo cliente; não concedem dinheiro nem acesso. */
+  conquista(id: string, chaveIdem: string): Promise<{ id: string; obtidaEm: string }>;
   perfil: PerfilDoJogo;
   politica: PoliticaDoPerfil;
   sessao: {
+    /** Ausente em clientes/servidores sem negociação; nunca é uma sessão de gameplay. */
+    readonly salvamento?: SalvamentoDaSessao;
+    /** Consulta o estado atual sem renovar nem acertar de novo o tempo concedido. */
+    controle(): Promise<ControleDaSessao>;
+    /** Confirma a fila já salva; não é prova de persistência de um mundo. */
+    checkpoint(id: string, confirmado: boolean): Promise<ResultadoDeCheckpoint>;
     /** Prazo da sessão atual, em ISO 8601. Muda a cada renovação. */
     readonly expiraEm: string;
     /** O token vigente, para o jogo levar ao próprio servidor. Nunca vai em URL. */

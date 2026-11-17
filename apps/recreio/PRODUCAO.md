@@ -1,5 +1,12 @@
 # Recreio e Morada: operação do alfa fechado
 
+**16/11 — SDK de progresso implantado:** fonte `6b51dd13`, portal `188855a8`,
+Morada recompilado `1720ebec` sem mudança Mundo V2/protocolo 1. Migração 0167,
+168 recibos e hash conferidos, prontidão 200 nos dois serviços. Seis gates,
+342 integrações e controle negativo da concorrência do pool. Jogo interno sem
+mundos só no CI; menores e vendas continuam fechados.
+[Prova e limites](../../docs/recreio/evidencias/sdk-producao-2026-11-16.json).
+
 **16/11 — carregamento corrigido implantado:** seis gates aprovados em
 `7f3a7e2`, incluindo 13 jornadas de navegador. Os três casos com scripts suspensos
 reprovaram a base e passaram com a proteção de interatividade. Repetição na main

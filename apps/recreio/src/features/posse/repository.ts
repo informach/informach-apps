@@ -29,6 +29,14 @@ import type {
   MotivoDeSessaoEncerrada,
   MotivoParaLiberar,
 } from "@informach/recreio/contrato";
+import {
+  type AutorDeMundos,
+  comAutorDeMundos,
+} from "@/features/autoridade-de-jogo/mundos-repository";
+import { comSessaoDeJogoAutoritativa } from "@/features/autoridade-de-jogo/repository";
+import { jogoDoCatalogo } from "@/features/jogos/config";
+import { mundoCompativel } from "@/features/mundos/politica";
+import { politicaDaAdmissao } from "@/features/sessao-de-jogo/politica";
 import { AGORA, type Transacao } from "@/lib/repository";
 import type {
   ArmazenamentoDeMundos,
@@ -73,6 +81,7 @@ type MundoTravado = {
   schemaVersion: number;
   revision: number;
   journalSeq: number;
+  contentPolicy: string;
 };
 
 /** Trava a linha do mundo. Mundo de outro jogo não é encontrado, igual a um que não existe. */
@@ -88,11 +97,32 @@ async function travarMundo(
       schemaVersion: spaces.schemaVersion,
       revision: spaces.revision,
       journalSeq: spaces.journalSeq,
+      contentPolicy: spaces.contentPolicy,
     })
     .from(spaces)
     .where(and(eq(spaces.id, mundoId), eq(spaces.gameId, jogo)))
     .for("update");
   return mundo ?? null;
+}
+
+export async function conferirConteudoDoMundo(
+  tx: Transacao,
+  mundo: MundoTravado,
+  jogo: string,
+  politica: Parameters<typeof mundoCompativel>[1],
+) {
+  if (!politica) return;
+  const [contagem] = await tx
+    .select({ total: sql<number>`count(*)::integer` })
+    .from(members)
+    .where(and(eq(members.spaceId, mundo.id), eq(members.state, "active")));
+  if (
+    !mundoCompativel(jogoDoCatalogo(jogo), politica, {
+      politicaDeConteudo: mundo.contentPolicy,
+      membros: contagem?.total ?? 0,
+    })
+  )
+    throw new ErroDoRecreio("POLITICA_INCOMPATIVEL");
 }
 
 type PosseAberta = {
@@ -132,7 +162,7 @@ export type PedidoComPosse = {
  * exige a posse aberta com esta cerca, desta instância, reivindicada e no
  * prazo.
  */
-async function conferirPosse(
+export async function conferirPosse(
   tx: Transacao,
   pedido: PedidoComPosse,
 ): Promise<{ mundo: MundoTravado; posse: PosseAberta }> {
@@ -411,107 +441,127 @@ async function escolherInstancia(
  * recebe a posse nova com essa cerca. Vinte pedidos ao mesmo tempo passam um
  * de cada vez pela trava: o primeiro atribui, os outros entram.
  */
-export async function abrirMundoParaMembro(entrada: {
-  mundoId: MundoId;
-  perfilId: PerfilId;
-  jogo: string;
-}): Promise<MundoAbertoNoBanco> {
-  return db.transaction(async (tx) => {
-    const mundo = await travarMundo(tx, entrada.mundoId, entrada.jogo);
-    const [membro] = mundo
-      ? await tx
-          .select({ id: members.id, role: members.role, state: members.state })
-          .from(members)
-          .where(and(eq(members.spaceId, mundo.id), eq(members.profileId, entrada.perfilId)))
-      : [];
-    if (!mundo || membro?.state !== "active") throw new ErroDoRecreio("NAO_MEMBRO");
-    if (mundo.status === "archived" || mundo.status === "deleted")
-      throw new ErroDoRecreio("MUNDO_INDISPONIVEL");
-    const aberto = (endereco: string, cerca: number): MundoAbertoNoBanco => ({
-      endereco,
-      cerca,
-      membroId: MembroIdSchema.parse(membro.id),
-      papel: membro.role,
-      schemaVersion: mundo.schemaVersion,
-      revisao: mundo.revision,
-    });
-
-    const enderecoDa = async (instanciaId: string | null): Promise<string | null> => {
-      if (instanciaId === null) return null;
-      const [dona] = await tx
-        .select({ publicUrl: instances.publicUrl })
-        .from(instances)
-        .where(eq(instances.id, instanciaId));
-      return dona?.publicUrl ?? null;
-    };
-
-    let anterior = await lerPosseAberta(tx, entrada.mundoId);
-    if (anterior?.vigente) {
-      const endereco = await enderecoDa(anterior.instanceId);
-      if (endereco !== null) return aberto(endereco, anterior.fence);
-    }
-    if (anterior) {
-      // Fecha a posse vencida (ou a de uma instância que não existe mais). A
-      // condição do prazo é conferida de novo no comando: se um batimento
-      // renovou a posse neste instante, ela continua valendo e o pedido entra nela.
-      const semDona = anterior.instanceId === null;
-      const fechadas = await tx
-        .update(leases)
-        .set({ state: "released", releasedAt: AGORA, endReason: semDona ? "error" : "expired" })
-        .where(
-          and(
-            eq(leases.id, anterior.id),
-            isNull(leases.releasedAt),
-            semDona ? undefined : sql`${leases.expiresAt} <= ${AGORA}`,
-          ),
-        )
-        .returning({ id: leases.id });
-      if (fechadas.length === 0) {
-        anterior = await lerPosseAberta(tx, entrada.mundoId);
-        const endereco = anterior?.vigente ? await enderecoDa(anterior.instanceId) : null;
-        if (!anterior || endereco === null) throw new ErroDoRecreio("INDISPONIVEL");
-        return aberto(endereco, anterior.fence);
+export async function abrirMundoParaMembro(
+  entrada: {
+    mundoId: MundoId;
+    perfilId: PerfilId;
+    jogo: string;
+  },
+  autor: AutorDeMundos,
+): Promise<MundoAbertoNoBanco> {
+  if (entrada.perfilId !== autor.perfilId) throw new ErroDoRecreio("SESSAO_INVALIDA");
+  return comAutorDeMundos(
+    autor,
+    entrada.jogo,
+    async (tx) => {
+      await travarMundo(tx, entrada.mundoId, entrada.jogo);
+    },
+    async (tx, admissao) => {
+      const mundo = await travarMundo(tx, entrada.mundoId, entrada.jogo);
+      const [membro] = mundo
+        ? await tx
+            .select({ id: members.id, role: members.role, state: members.state })
+            .from(members)
+            .where(and(eq(members.spaceId, mundo.id), eq(members.profileId, entrada.perfilId)))
+        : [];
+      if (!mundo || membro?.state !== "active") throw new ErroDoRecreio("NAO_MEMBRO");
+      if ("sid" in autor) {
+        const [sessao] = await tx
+          .select({ mundoId: gameSessions.spaceId })
+          .from(gameSessions)
+          .where(eq(gameSessions.id, autor.sid));
+        if (sessao?.mundoId && sessao.mundoId !== entrada.mundoId)
+          throw new ErroDoRecreio("SEM_PERMISSAO");
       }
-    }
+      await conferirConteudoDoMundo(tx, mundo, entrada.jogo, admissao.politica?.politica ?? null);
+      if (mundo.status === "archived" || mundo.status === "deleted")
+        throw new ErroDoRecreio("MUNDO_INDISPONIVEL");
+      const aberto = (endereco: string, cerca: number): MundoAbertoNoBanco => ({
+        endereco,
+        cerca,
+        membroId: MembroIdSchema.parse(membro.id),
+        papel: membro.role,
+        schemaVersion: mundo.schemaVersion,
+        revisao: mundo.revision,
+      });
 
-    const escolhida = await escolherInstancia(tx, entrada.jogo);
-    if (!escolhida) throw new ErroDoRecreio("SEM_INSTANCIA");
-    const [epoca] = await tx
-      .update(spaces)
-      .set({ leaseEpoch: sql`${spaces.leaseEpoch} + 1`, updatedAt: AGORA })
-      .where(eq(spaces.id, mundo.id))
-      .returning({ leaseEpoch: spaces.leaseEpoch });
-    if (!epoca) throw new Error("A época do mundo não foi gravada.");
-    const [posse] = await tx
-      .insert(leases)
-      .values({
-        spaceId: mundo.id,
-        fence: epoca.leaseEpoch,
-        holderKind: "server",
-        instanceId: escolhida.id,
-        state: "assigned",
-        expiresAt: sql`${AGORA} + ${TTL}`,
-      })
-      .returning({ id: leases.id });
-    if (!posse) throw new Error("A posse não foi gravada.");
-    if (anterior)
-      await logAuditEventStrict(
-        "recreio.space_lease_taken_over",
-        null,
-        {
-          app: "recreio",
+      const enderecoDa = async (instanciaId: string | null): Promise<string | null> => {
+        if (instanciaId === null) return null;
+        const [dona] = await tx
+          .select({ publicUrl: instances.publicUrl })
+          .from(instances)
+          .where(eq(instances.id, instanciaId));
+        return dona?.publicUrl ?? null;
+      };
+
+      let anterior = await lerPosseAberta(tx, entrada.mundoId);
+      if (anterior?.vigente) {
+        const endereco = await enderecoDa(anterior.instanceId);
+        if (endereco !== null) return aberto(endereco, anterior.fence);
+      }
+      if (anterior) {
+        // Fecha a posse vencida (ou a de uma instância que não existe mais). A
+        // condição do prazo é conferida de novo no comando: se um batimento
+        // renovou a posse neste instante, ela continua valendo e o pedido entra nela.
+        const semDona = anterior.instanceId === null;
+        const fechadas = await tx
+          .update(leases)
+          .set({ state: "released", releasedAt: AGORA, endReason: semDona ? "error" : "expired" })
+          .where(
+            and(
+              eq(leases.id, anterior.id),
+              isNull(leases.releasedAt),
+              semDona ? undefined : sql`${leases.expiresAt} <= ${AGORA}`,
+            ),
+          )
+          .returning({ id: leases.id });
+        if (fechadas.length === 0) {
+          anterior = await lerPosseAberta(tx, entrada.mundoId);
+          const endereco = anterior?.vigente ? await enderecoDa(anterior.instanceId) : null;
+          if (!anterior || endereco === null) throw new ErroDoRecreio("INDISPONIVEL");
+          return aberto(endereco, anterior.fence);
+        }
+      }
+
+      const escolhida = await escolherInstancia(tx, entrada.jogo);
+      if (!escolhida) throw new ErroDoRecreio("SEM_INSTANCIA");
+      const [epoca] = await tx
+        .update(spaces)
+        .set({ leaseEpoch: sql`${spaces.leaseEpoch} + 1`, updatedAt: AGORA })
+        .where(eq(spaces.id, mundo.id))
+        .returning({ leaseEpoch: spaces.leaseEpoch });
+      if (!epoca) throw new Error("A época do mundo não foi gravada.");
+      const [posse] = await tx
+        .insert(leases)
+        .values({
           spaceId: mundo.id,
-          previousLeaseId: anterior.id,
-          previousFence: anterior.fence,
-          previousInstanceId: anterior.instanceId,
-          leaseId: posse.id,
           fence: epoca.leaseEpoch,
+          holderKind: "server",
           instanceId: escolhida.id,
-        },
-        { writer: tx },
-      );
-    return aberto(escolhida.publicUrl, epoca.leaseEpoch);
-  });
+          state: "assigned",
+          expiresAt: sql`${AGORA} + ${TTL}`,
+        })
+        .returning({ id: leases.id });
+      if (!posse) throw new Error("A posse não foi gravada.");
+      if (anterior)
+        await logAuditEventStrict(
+          "recreio.space_lease_taken_over",
+          null,
+          {
+            app: "recreio",
+            spaceId: mundo.id,
+            previousLeaseId: anterior.id,
+            previousFence: anterior.fence,
+            previousInstanceId: anterior.instanceId,
+            leaseId: posse.id,
+            fence: epoca.leaseEpoch,
+            instanceId: escolhida.id,
+          },
+          { writer: tx },
+        );
+      return aberto(escolhida.publicUrl, epoca.leaseEpoch);
+    },
+  );
 }
 
 // --- Operações de uma instância sobre um mundo ---
@@ -601,6 +651,7 @@ export type EntradaNoBanco = {
   avatar: string;
   tipo: "adult" | "minor";
   versaoDaPolitica: number;
+  politica: { multiplayer: boolean; textoLivre: boolean; versao: number };
 };
 
 /**
@@ -611,51 +662,102 @@ export type EntradaNoBanco = {
 export async function verificarEntradaNoMundo(
   pedido: PedidoComPosse & { sid: SessaoDeJogoId; perfilId: PerfilId },
 ): Promise<EntradaNoBanco> {
-  return db.transaction(async (tx) => {
-    await conferirPosse(tx, pedido);
-    const [sessao] = await tx
-      .select({ id: gameSessions.id })
-      .from(gameSessions)
-      .where(
-        and(
-          eq(gameSessions.id, pedido.sid),
-          eq(gameSessions.profileId, pedido.perfilId),
-          eq(gameSessions.gameId, pedido.jogo),
-          isNull(gameSessions.endedAt),
-        ),
-      );
-    if (!sessao) throw new ErroDoRecreio("SESSAO_ENCERRADA");
-    const [membro] = await tx
-      .select({
-        id: members.id,
-        role: members.role,
-        state: members.state,
-        participation: members.participation,
-        nickname: profiles.nickname,
-        avatar: profiles.avatar,
-        kind: profiles.kind,
-        policyVersion: profiles.policyVersion,
-      })
-      .from(members)
-      .innerJoin(profiles, eq(profiles.id, members.profileId))
-      .where(and(eq(members.spaceId, pedido.mundoId), eq(members.profileId, pedido.perfilId)));
-    if (membro?.state !== "active") throw new ErroDoRecreio("NAO_MEMBRO");
-    // Um comando só, que não casa com sessão encerrada: se ela acabou agora, a entrada é recusada.
-    const marcadas = await tx
-      .update(gameSessions)
-      .set({ spaceId: pedido.mundoId })
-      .where(and(eq(gameSessions.id, pedido.sid), isNull(gameSessions.endedAt)))
-      .returning({ id: gameSessions.id });
-    if (marcadas.length === 0) throw new ErroDoRecreio("SESSAO_ENCERRADA");
-    return {
-      membroId: MembroIdSchema.parse(membro.id),
-      papel: membro.role,
-      participacao: membro.participation,
-      apelido: membro.nickname,
-      avatar: membro.avatar,
-      tipo: membro.kind,
-      versaoDaPolitica: membro.policyVersion,
-    };
+  // O segredo de um jogo não distingue sessões em mundos de outro jogo.
+  // É só uma pista de escopo: a posse será relida sob trava na admissão.
+  const [escopo] = await db
+    .select({ id: spaces.id })
+    .from(spaces)
+    .where(and(eq(spaces.id, pedido.mundoId), eq(spaces.gameId, pedido.jogo)));
+  if (!escopo) throw new ErroDoRecreio("NAO_ENCONTRADO");
+  const [pista] = await db
+    .select({ expiraEm: gameSessions.expiresAt, versao: profiles.policyVersion })
+    .from(gameSessions)
+    .innerJoin(profiles, eq(profiles.id, gameSessions.profileId))
+    .where(
+      and(
+        eq(gameSessions.id, pedido.sid),
+        eq(gameSessions.profileId, pedido.perfilId),
+        eq(gameSessions.gameId, pedido.jogo),
+        isNull(gameSessions.endedAt),
+      ),
+    );
+  if (!pista) throw new ErroDoRecreio("SESSAO_ENCERRADA");
+  return comSessaoDeJogoAutoritativa(
+    {
+      perfilId: pedido.perfilId,
+      sid: pedido.sid,
+      jogo: pedido.jogo,
+      expiraEm: pista.expiraEm.getTime(),
+      versaoDaPolitica: pista.versao,
+    },
+    async () => {},
+    async (tx, _conta, admissao) => {
+      const { mundo } = await conferirPosse(tx, pedido);
+      const [sessao] = await tx
+        .select({ id: gameSessions.id, mundoId: gameSessions.spaceId })
+        .from(gameSessions)
+        .where(
+          and(
+            eq(gameSessions.id, pedido.sid),
+            eq(gameSessions.profileId, pedido.perfilId),
+            eq(gameSessions.gameId, pedido.jogo),
+            isNull(gameSessions.endedAt),
+          ),
+        );
+      if (!sessao || (sessao.mundoId !== null && sessao.mundoId !== pedido.mundoId))
+        throw new ErroDoRecreio("SESSAO_ENCERRADA");
+      const [membro] = await tx
+        .select({
+          id: members.id,
+          role: members.role,
+          state: members.state,
+          participation: members.participation,
+          nickname: profiles.nickname,
+          avatar: profiles.avatar,
+          kind: profiles.kind,
+          policyVersion: profiles.policyVersion,
+        })
+        .from(members)
+        .innerJoin(profiles, eq(profiles.id, members.profileId))
+        .where(and(eq(members.spaceId, pedido.mundoId), eq(members.profileId, pedido.perfilId)));
+      if (membro?.state !== "active") throw new ErroDoRecreio("NAO_MEMBRO");
+      await conferirConteudoDoMundo(tx, mundo, pedido.jogo, admissao.politica?.politica ?? null);
+      // Um comando só, que não casa com sessão encerrada: se ela acabou agora, a entrada é recusada.
+      const marcadas = await tx
+        .update(gameSessions)
+        .set({ spaceId: pedido.mundoId })
+        .where(
+          and(
+            eq(gameSessions.id, pedido.sid),
+            isNull(gameSessions.endedAt),
+            sql`(${gameSessions.spaceId} is null or ${gameSessions.spaceId}=${pedido.mundoId})`,
+          ),
+        )
+        .returning({ id: gameSessions.id });
+      if (marcadas.length === 0) throw new ErroDoRecreio("SESSAO_ENCERRADA");
+      return {
+        membroId: MembroIdSchema.parse(membro.id),
+        papel: membro.role,
+        participacao: membro.participation,
+        apelido: membro.nickname,
+        avatar: membro.avatar,
+        tipo: membro.kind,
+        versaoDaPolitica: membro.policyVersion,
+        politica: politicaDaAdmissao(admissao, jogoDoCatalogo(pedido.jogo)),
+      };
+    },
+    {
+      antesDoPerfil: async (tx) => {
+        await conferirPosse(tx, pedido);
+      },
+      travaDaSessao: "update",
+    },
+  ).catch((erro: unknown) => {
+    if (erro instanceof ErroDoRecreio) {
+      if (erro.codigo === "SESSAO_INVALIDA") throw new ErroDoRecreio("SESSAO_ENCERRADA");
+      if (erro.codigo === "ACESSO_PERDIDO") throw new ErroDoRecreio("ACESSO_NEGADO", erro.detalhe);
+    }
+    throw erro;
   });
 }
 

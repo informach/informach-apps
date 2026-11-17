@@ -1,15 +1,7 @@
 import "server-only";
-import { logAuditEventStrict } from "@informach/auth";
 import { and, db, eq, inArray, isNull, sql } from "@informach/db";
+import { recreioGameSessions as gameSessions } from "@informach/db/schema";
 import {
-  recreioDeviceSessions as deviceSessions,
-  recreioGameSessions as gameSessions,
-  recreioProfiles as profiles,
-  recreioGameTickets as tickets,
-} from "@informach/db/schema";
-import {
-  type ContaId,
-  ErroDoRecreio,
   type PerfilId,
   PerfilIdSchema,
   type SessaoDeAparelhoId,
@@ -18,15 +10,20 @@ import {
   SessaoDeJogoIdSchema,
 } from "@informach/recreio";
 import type { MotivoDeSessaoEncerrada } from "@informach/recreio/contrato";
-import { decidirFatosLidos } from "@/features/acesso/decisao";
-import { lerFatosDeAcesso } from "@/features/acesso/repository";
-import {
-  AGORA,
-  codigoDoPostgres,
-  type Transacao,
-  travar,
-  VIOLACAO_DE_UNICO,
-} from "@/lib/repository";
+import { AGORA } from "@/lib/repository";
+import { encerrarSessoesAbertas, travarEncerramentos } from "./encerramento-repository";
+
+export {
+  abrirSessaoComIngresso,
+  gravarRenovacao,
+  IngressoSemAparelhoValido,
+  registrarIngresso,
+} from "./emissao-repository";
+export {
+  encerrarSessoesAbertas,
+  type SessaoEncerrada,
+  travarEncerramentos,
+} from "./encerramento-repository";
 
 /**
  * Ingressos e sessões de jogo no banco.
@@ -47,83 +44,6 @@ import {
  * na trava já admitida na mesma transação não espera. A renovação e a entrada num
  * mundo mexem em uma linha com um comando só e não pedem a trava.
  */
-
-const TRAVA_DOS_ENCERRAMENTOS = "recreio:game_sessions:encerramento";
-
-/** Admite a ordem de encerramento antes de travar as sessões e reler a autoridade. */
-export async function travarEncerramentos(tx: Transacao): Promise<void> {
-  await travar(tx, TRAVA_DOS_ENCERRAMENTOS);
-}
-
-export type SessaoEncerrada = { sid: SessaoDeJogoId; perfilId: PerfilId; jogo: string };
-
-/**
- * Encerra as sessões de jogo abertas que casam com `filtro`, dentro da
- * transação de quem chama, e grava um evento de auditoria por sessão na mesma
- * transação. Repetir não faz nada: sessão já encerrada não casa mais.
- *
- * `porQuem` diz quem causou o fim: a `conta` da própria sessão (sair do jogo,
- * sair da conta, continuar em outro aparelho) ou o `recreio` (acesso perdido,
- * prazo vencido). No evento, a conta da sessão vai sempre em `targetId`, e é
- * também o ator quando foi ela. Uma ação de outra conta usa `ator` com a
- * identidade autenticada de quem agiu; não atribuir a decisão à conta afetada.
- */
-export async function encerrarSessoesAbertas(
-  tx: Transacao,
-  filtro: ReturnType<typeof sql>,
-  motivo: MotivoDeSessaoEncerrada,
-  opcoes: { porQuem: "conta" | "recreio" } | { porQuem: "ator"; contaId: ContaId },
-): Promise<SessaoEncerrada[]> {
-  await travarEncerramentos(tx);
-  const encerradas = await tx
-    .update(gameSessions)
-    .set({
-      endedAt: AGORA,
-      endReason: motivo,
-      endedSeq: sql`nextval('recreio.game_session_end_seq')`,
-    })
-    .where(and(isNull(gameSessions.endedAt), filtro))
-    .returning({
-      id: gameSessions.id,
-      profileId: gameSessions.profileId,
-      gameId: gameSessions.gameId,
-      deviceSessionId: gameSessions.deviceSessionId,
-    });
-  if (encerradas.length === 0) return [];
-  const aparelhos = await tx
-    .select({ id: deviceSessions.id, userId: deviceSessions.userId })
-    .from(deviceSessions)
-    .where(
-      inArray(
-        deviceSessions.id,
-        encerradas.map((sessao) => sessao.deviceSessionId),
-      ),
-    );
-  const contaDoAparelho = new Map(aparelhos.map((aparelho) => [aparelho.id, aparelho.userId]));
-  for (const sessao of encerradas) {
-    const conta = contaDoAparelho.get(sessao.deviceSessionId) ?? null;
-    const atorId =
-      opcoes.porQuem === "ator" ? opcoes.contaId : opcoes.porQuem === "conta" ? conta : null;
-    await logAuditEventStrict(
-      "recreio.game_session_ended",
-      atorId,
-      {
-        app: "recreio",
-        sessionId: sessao.id,
-        profileId: sessao.profileId,
-        gameId: sessao.gameId,
-        reason: motivo,
-        targetId: conta,
-      },
-      { writer: tx },
-    );
-  }
-  return encerradas.map((sessao) => ({
-    sid: SessaoDeJogoIdSchema.parse(sessao.id),
-    perfilId: PerfilIdSchema.parse(sessao.profileId),
-    jogo: sessao.gameId,
-  }));
-}
 
 /** Encerra uma sessão de jogo pelo id. Devolve se ela estava aberta. */
 export async function encerrarSessaoDeJogo(entrada: {
@@ -154,7 +74,7 @@ export async function encerrarSessoesVencidas(): Promise<number> {
     // A trava do cursor vem antes de qualquer linha de sessão, como nos
     // encerramentos interativos. SKIP LOCKED só evita esperar a renovação;
     // não substitui a ordem de confirmação dos números de encerramento.
-    await travar(tx, TRAVA_DOS_ENCERRAMENTOS);
+    await travarEncerramentos(tx);
     const lote = await tx
       .select({ id: gameSessions.id })
       .from(gameSessions)
@@ -208,143 +128,6 @@ export async function apagarIngressosAntigos(): Promise<number> {
   });
 }
 
-export async function registrarIngresso(entrada: {
-  jti: string;
-  perfilId: PerfilId;
-  sessaoDeAparelhoId: SessaoDeAparelhoId;
-  jogo: string;
-  emitidoEm: Date;
-  expiraEm: Date;
-}): Promise<void> {
-  await db.insert(tickets).values({
-    jti: entrada.jti,
-    profileId: entrada.perfilId,
-    deviceSessionId: entrada.sessaoDeAparelhoId,
-    gameId: entrada.jogo,
-    issuedAt: entrada.emitidoEm,
-    expiresAt: entrada.expiraEm,
-  });
-}
-
-/**
- * A troca do ingresso pela sessão de jogo, numa transação só:
- *
- * 1. as trocas do mesmo perfil passam uma de cada vez;
- * 2. o ingresso é consumido (`jti` ainda não usado e dentro do prazo, e do
- *    mesmo perfil, aparelho e jogo que o token diz); zero linhas é
- *    `INGRESSO_INVALIDO`;
- * 3. a sessão de aparelho é conferida de novo e fica travada para leitura até
- *    o commit, de modo que uma saída da conta ao mesmo tempo espere e depois
- *    encerre também a sessão criada aqui;
- * 4. se o perfil já tem uma sessão de jogo aberta: sem `continuarAqui`,
- *    `JA_ABERTO` (e a transação volta, o ingresso continua valendo); com ele,
- *    a anterior é encerrada como `replaced`;
- * 5. a sessão nova é inserida.
- *
- * O perfil fica travado para leitura e o direito de jogar é relido usando a
- * mesma conexão transacional. A revogação trava os perfis para escrita antes
- * de retirar cobertura e encerrar as partidas, serializando admissão e corte.
- */
-export async function abrirSessaoComIngresso(entrada: {
-  jti: string;
-  perfilId: PerfilId;
-  sessaoDeAparelhoId: SessaoDeAparelhoId;
-  jogo: string;
-  /** O `sid` que já está assinado no token da sessão. */
-  sid: SessaoDeJogoId;
-  agora: Date;
-  expiraEm: Date;
-  continuarAqui: boolean;
-}): Promise<{ substituida: SessaoDeJogoId | null }> {
-  try {
-    return await db.transaction(async (tx) => {
-      const [perfil] = await tx
-        .select({ id: profiles.id })
-        .from(profiles)
-        .where(eq(profiles.id, entrada.perfilId))
-        .for("share");
-      if (!perfil) throw new ErroDoRecreio("INGRESSO_INVALIDO");
-      const acesso = decidirFatosLidos(await lerFatosDeAcesso(entrada.perfilId, tx), new Date());
-      if (!acesso.podeJogar)
-        throw new ErroDoRecreio("ACESSO_NEGADO", { estado: acesso.estado, motivo: acesso.motivo });
-      await travar(tx, `recreio:game_sessions:perfil:${entrada.perfilId}`);
-      const [ingresso] = await tx
-        .update(tickets)
-        .set({ consumedAt: sql`now()` })
-        .where(
-          and(
-            eq(tickets.jti, entrada.jti),
-            isNull(tickets.consumedAt),
-            sql`${tickets.expiresAt} > now()`,
-            eq(tickets.profileId, entrada.perfilId),
-            eq(tickets.deviceSessionId, entrada.sessaoDeAparelhoId),
-            eq(tickets.gameId, entrada.jogo),
-          ),
-        )
-        .returning({ jti: tickets.jti });
-      if (!ingresso) throw new ErroDoRecreio("INGRESSO_INVALIDO");
-
-      const [aparelho] = await tx
-        .select({ userId: deviceSessions.userId })
-        .from(deviceSessions)
-        .where(
-          and(
-            eq(deviceSessions.id, entrada.sessaoDeAparelhoId),
-            isNull(deviceSessions.revokedAt),
-            sql`${deviceSessions.expiresAt} > now()`,
-            eq(deviceSessions.activeProfileId, entrada.perfilId),
-          ),
-        )
-        .for("share");
-      if (!aparelho) throw new ErroDoRecreio("INGRESSO_INVALIDO");
-
-      const [aberta] = await tx
-        .select({ id: gameSessions.id })
-        .from(gameSessions)
-        .where(and(eq(gameSessions.profileId, entrada.perfilId), isNull(gameSessions.endedAt)));
-      let substituida: SessaoDeJogoId | null = null;
-      if (aberta) {
-        if (!entrada.continuarAqui) throw new ErroDoRecreio("JA_ABERTO");
-        const [encerrada] = await encerrarSessoesAbertas(
-          tx,
-          sql`${gameSessions.id} = ${aberta.id}`,
-          "replaced",
-          { porQuem: "conta" },
-        );
-        substituida = encerrada?.sid ?? null;
-      }
-
-      await tx.insert(gameSessions).values({
-        id: entrada.sid,
-        profileId: entrada.perfilId,
-        deviceSessionId: entrada.sessaoDeAparelhoId,
-        gameId: entrada.jogo,
-        startedAt: entrada.agora,
-        lastRenewedAt: entrada.agora,
-        expiresAt: entrada.expiraEm,
-      });
-      await logAuditEventStrict(
-        "recreio.game_session_started",
-        aparelho.userId,
-        {
-          app: "recreio",
-          sessionId: entrada.sid,
-          profileId: entrada.perfilId,
-          gameId: entrada.jogo,
-          replacedSessionId: substituida,
-          targetId: aparelho.userId,
-        },
-        { writer: tx },
-      );
-      return { substituida };
-    });
-  } catch (erro) {
-    // O índice "uma sessão de jogo aberta por perfil" é a última palavra.
-    if (codigoDoPostgres(erro) === VIOLACAO_DE_UNICO) throw new ErroDoRecreio("JA_ABERTO");
-    throw erro;
-  }
-}
-
 export type SessaoDeJogoLida = {
   sid: SessaoDeJogoId;
   perfilId: PerfilId;
@@ -375,22 +158,4 @@ export async function lerSessaoDeJogo(sid: SessaoDeJogoId): Promise<SessaoDeJogo
     encerradaEm: linha.endedAt,
     motivoDoFim: linha.endReason,
   };
-}
-
-/**
- * Grava a renovação. Um comando só, que não casa com sessão encerrada: se a
- * sessão acabou entre a conferência e este ponto, devolve `false` e o token
- * novo não é entregue.
- */
-export async function gravarRenovacao(entrada: {
-  sid: SessaoDeJogoId;
-  agora: Date;
-  expiraEm: Date;
-}): Promise<boolean> {
-  const linhas = await db
-    .update(gameSessions)
-    .set({ lastRenewedAt: entrada.agora, expiresAt: entrada.expiraEm })
-    .where(and(eq(gameSessions.id, entrada.sid), isNull(gameSessions.endedAt)))
-    .returning({ id: gameSessions.id });
-  return linhas.length === 1;
 }

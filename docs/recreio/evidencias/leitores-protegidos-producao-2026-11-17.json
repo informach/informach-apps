@@ -1,0 +1,66 @@
+{
+  "fonte": "ad37ca93bb3096b4d6494fbc2571ec1a46dcc44a",
+  "conferidoEm": "2026-11-17T06:35:17.630Z",
+  "portalDeployment": "5259f1f0-874c-4ed5-b485-907dee807e45",
+  "migrationDeployment": "b5a78513-4104-44b1-b6f6-1f0675c4a3f4",
+  "gatesRecreio": {
+    "run": 44029479872,
+    "resultado": "success",
+    "integracoes": 439,
+    "arquivosIntegracao": 35
+  },
+  "ciCompartilhado": {
+    "run": 44022924176,
+    "fonte": "6b5878ba953ee89d34175ac9b436129f07cc431d",
+    "resultado": "success",
+    "pacotesLockfileIaCSemDiferencaAteFontePublicada": true
+  },
+  "familias": {
+    "modoEfetivo": "off",
+    "menores": 0,
+    "credenciaisPareadas": 0,
+    "politicas": 0,
+    "contextosNativosRestritos": 0
+  },
+  "jogoInterno": "0",
+  "migrations": {
+    "recibos": 175,
+    "ultima": "0174_careless_nomad",
+    "when": "1794892450802",
+    "sha256": "04798851dd53d84991d4823631e0d6d224190c71152d08562c42d3d3daa2495a"
+  },
+  "checkpoint0175Aplicado": false,
+  "saude": { "recreioReady": 200, "sdkDadosSemToken": 401, "moradaReady": 200 },
+  "manutencao": {
+    "http": 200,
+    "contagens": {
+      "possesVencidas": 0,
+      "instanciasSumidas": 1,
+      "ingressosApagados": 0,
+      "sessoesExpiradas": 0,
+      "convitesApagados": 0,
+      "cadastrosPendentesApagados": 0,
+      "recibosDeCadastroApagados": 0,
+      "pareamentosApagados": 0,
+      "aparelhosNaoConfirmadosEncerrados": 0,
+      "diasDeUsoApagados": 0
+    }
+  },
+  "migrator": {
+    "fonteMainSemPin": true,
+    "comandoOriginalRestaurado": "pnpm db:migrate && pnpm db:seed && pnpm db:seed:reference",
+    "sementesComerciaisExecutadasNestaMigracao": false
+  },
+  "sentry": {
+    "release": "ad37ca93bb3096b4d6494fbc2571ec1a46dcc44a",
+    "uploadMapasConfirmadoNoBuild": true
+  },
+  "backup": "backup-logico-2026-11-17.json",
+  "moradaWorld2Protocolo1SemDiferenca": true,
+  "limites": [
+    "Novos fluxos familiares desligados.",
+    "Não libera venda, teste comercial ou menores no Morada em análise.",
+    "Checkpoint entre aparelhos, social, cobrança e privacidade integral continuam em implementação.",
+    "Não substitui a validação humana de transferência já adiada."
+  ]
+}

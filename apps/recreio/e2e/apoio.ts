@@ -428,7 +428,7 @@ async function codigoDoEmail(email: string): Promise<string> {
 }
 
 /** Libera os jogos para a conta com o script da equipe, no mesmo banco do portal. */
-export function conceder(email: string): void {
+export function conceder(email: string, tier: "individual" | "family" = "individual"): void {
   const execucao = spawnSync(
     process.execPath,
     [
@@ -439,7 +439,7 @@ export function conceder(email: string): void {
       "--email",
       email,
       "--tier",
-      "individual",
+      tier,
       "--dias",
       "30",
       "--motivo",
@@ -457,7 +457,7 @@ export type Pessoa = { contexto: BrowserContext; page: Page; email: string; apel
 export async function novaPessoa(
   browser: Browser,
   apelido: string,
-  opcoes: { comAcesso?: boolean } = {},
+  opcoes: { comAcesso?: boolean; semPerfil?: boolean } = {},
 ): Promise<Pessoa> {
   const contexto = await novoAparelho(browser);
   const page = await contexto.newPage();
@@ -474,6 +474,7 @@ export async function novaPessoa(
   await page.getByLabel("Código de seis dígitos").fill(await codigoDoEmail(email));
   await page.getByRole("button", { name: "Confirmar e-mail", exact: true }).click();
   await expect(page).toHaveURL(/\/comecar$/);
+  if (opcoes.semPerfil) return { contexto, page, email, apelido };
   const campoDoApelido = page.getByLabel("Apelido");
   await hidratado(campoDoApelido);
   await campoDoApelido.fill(apelido);

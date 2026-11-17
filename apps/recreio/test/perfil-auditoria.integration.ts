@@ -3,14 +3,14 @@ import { and, db, eq, sql } from "@informach/db";
 import { events, recreioGroups as groups, recreioProfiles as profiles } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
 import { criarPerfilProprio } from "@/features/perfis/service";
-import { novaConta } from "./apoio";
+import { atorDaConta, novaConta } from "./apoio";
 
 describe("auditoria atômica da criação de perfil", () => {
   it("concorrência e repetição deixam exatamente um evento junto do perfil", async () => {
     const conta = await novaConta();
     const resultados = await Promise.all(
-      Array.from({ length: 8 }, () =>
-        criarPerfilProprio(conta.id, { apelido: "Nome privado", avatar: "sol" }),
+      Array.from({ length: 8 }, async () =>
+        criarPerfilProprio(await atorDaConta(conta), { apelido: "Nome privado", avatar: "sol" }),
       ),
     );
     const registros = await db
@@ -43,7 +43,7 @@ describe("auditoria atômica da criação de perfil", () => {
       for each row execute function audit.recusar_perfil_em_teste()`);
     try {
       await expect(
-        criarPerfilProprio(conta.id, { apelido: "Lia", avatar: "sol" }),
+        criarPerfilProprio(await atorDaConta(conta), { apelido: "Lia", avatar: "sol" }),
       ).rejects.toBeInstanceOf(AuditPersistenceError);
       expect(await db.select().from(profiles).where(eq(profiles.userId, conta.id))).toEqual([]);
       expect(await db.select().from(groups).where(eq(groups.ownerUserId, conta.id))).toEqual([]);
@@ -51,7 +51,9 @@ describe("auditoria atômica da criação de perfil", () => {
       await db.execute(sql`drop trigger recusar_perfil_em_teste on audit.events`);
       await db.execute(sql`drop function audit.recusar_perfil_em_teste()`);
     }
-    expect(await criarPerfilProprio(conta.id, { apelido: "Lia", avatar: "sol" })).toMatchObject({
+    expect(
+      await criarPerfilProprio(await atorDaConta(conta), { apelido: "Lia", avatar: "sol" }),
+    ).toMatchObject({
       criado: true,
     });
   });

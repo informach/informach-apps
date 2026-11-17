@@ -479,7 +479,7 @@ export function criarPlataformaFalsa(
       const mundo = obterMundo(mundoId);
       if (!perfis.has(perfilId)) throw new ErroDoRecreio("SEM_PERFIL");
       if (mundo.membros.some((m) => m.perfilId === perfilId)) throw new ErroDoRecreio("JA_MEMBRO");
-      const teto = opcoes.membrosMax ?? manifesto(mundo.jogo).capacidades.mundos.membrosMax;
+      const teto = opcoes.membrosMax ?? manifesto(mundo.jogo).capacidades.mundos?.membrosMax ?? 0;
       if (mundo.membros.filter((m) => m.estado === "active").length >= teto) {
         throw new ErroDoRecreio("MUNDO_CHEIO");
       }

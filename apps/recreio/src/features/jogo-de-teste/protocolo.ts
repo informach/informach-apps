@@ -18,11 +18,19 @@ export const PRAZO_PARA_ENTRAR_MS = 5_000;
 
 export const DoClienteSchema = z.discriminatedUnion("t", [
   /** O primeiro quadro: a sessão de jogo e o mundo. O token nunca vai no endereço. */
-  z.strictObject({ t: z.literal("entrar"), token: z.string().min(1), mundoId: z.uuid() }),
+  z.strictObject({
+    t: z.literal("entrar"),
+    token: z.string().min(1),
+    mundoId: z.uuid(),
+    salvamento: z.literal(true).optional(),
+  }),
   /** Somar 1. O `id` é do comando: repetir o mesmo comando não soma duas vezes. */
   z.strictObject({ t: z.literal("somar"), id: z.uuid() }),
   /** A sessão foi renovada: o servidor passa a valer pelo prazo do token novo. */
   z.strictObject({ t: z.literal("renovar"), token: z.string().min(1) }),
+  z.strictObject({ t: z.literal("checkpoint"), id: z.uuid() }),
+  z.strictObject({ t: z.literal("retomar") }),
+  z.strictObject({ t: z.literal("salvar") }),
 ]);
 export type DoCliente = z.infer<typeof DoClienteSchema>;
 
@@ -47,6 +55,9 @@ export const DoServidorSchema = z.discriminatedUnion("t", [
    * Recreio; `motivo` acompanha `SESSAO_ENCERRADA`.
    */
   z.strictObject({ t: z.literal("fim"), codigo: z.string(), motivo: z.string().optional() }),
+  z.strictObject({ t: z.literal("checkpoint"), id: z.uuid(), confirmado: z.boolean() }),
+  z.strictObject({ t: z.literal("retomado") }),
+  z.strictObject({ t: z.literal("salvamento"), confirmado: z.boolean() }),
 ]);
 export type DoServidor = z.infer<typeof DoServidorSchema>;
 

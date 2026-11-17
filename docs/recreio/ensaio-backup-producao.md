@@ -1,5 +1,36 @@
 # Ensaio de restauração do backup de produção
 
+Repetido em **17/11/2026 às 12:38 UTC**, na preparação de 0177/0178:
+[evidência](evidencias/backup-logico-2026-11-17-pre-salvamento.json).
+19.202.661 bytes, 242 tabelas e 283.017 linhas; backup em 2.443 ms,
+restauração/comparação em 5.870 ms e processo total em 14.274 ms.
+Conteúdo e estrutura comparada idênticos. Temporários removidos, serviço
+`e0a2153d-fcc8-4d39-b205-41e78bfb9062` excluído, nenhum volume destacado;
+inventário novamente com 34 serviços. Executor homologado `6b51dd13`.
+Origem somente de leitura, sem migration ou seed neste ensaio. Consulta prévia
+confirmou dois mundos, dez fotos, sete sessões/81.920 bytes, 177 recibos,
+ausência da tabela de salvamento e famílias/checkpoint desligados. O índice
+regular de 0178 atua nesse volume pequeno; as migrations continuam pendentes.
+
+Nova execução em **17/11/2026 às 09:09 UTC**, antes das migrations candidatas
+0175/0176: [evidência](evidencias/backup-logico-2026-11-17-pre-checkpoint.json).
+19.161.865 bytes, 241 tabelas e 282.387 linhas; backup em 2.288 ms,
+restauração/comparação em 5.743 ms e processo total em 13.216 ms.
+Conteúdo e estrutura comparada idênticos. Temporários removidos, serviço
+`77e1ca3a-5631-4ca6-84a1-97b890fc2c3b` excluído e inventário novamente com
+34 serviços, sem volume destacado. Executor homologado `6b51dd13`, origem
+somente de leitura e nenhum seed/migration executado neste ensaio. As limitações
+de snapshot agendado, PITR e comparação abaixo permanecem.
+
+Repetido em **17/11/2026 às 06:19 UTC**, antes da próxima publicação do Recreio:
+backup lógico atual restaurado em cluster isolado, conteúdo e estrutura comparada
+idênticos, temporários removidos e serviço temporário excluído, sem volumes
+destacados. [Evidência atual](evidencias/backup-logico-2026-11-17.json):
+19.077.682 bytes, 231 tabelas e 281.871 linhas; 12.617 ms de processo, excluindo
+build/provisionamento. Executor homologado `6b51dd13`, sem migration/seed nem
+escrita na origem. A restauração de snapshots agendados continua sem prova;
+este ensaio não altera PITR, agenda ou volume de produção.
+
 Executado em 15/11/2026: **backup lógico atual restaurado e comparado em destino isolado no Railway**, com origem somente para leitura, temporários removidos e serviço do ensaio excluído. [Evidência sanitizada](evidencias/backup-logico-2026-11-15.json). A restauração dos snapshots agendados do provedor continua sem prova; PITR permanece desligado. A ferramenta auditada de restauração de um mundo e este ensaio completo têm funções distintas.
 
 Metadados conferidos na origem: UTF8, `en_US.utf8`, provedor libc e versão de colação 2.41; extensões `plpgsql`, `pg_trgm` e `unaccent`. O destino conserva esses fatos. O comparador em `apps/recreio/scripts/backup/inventario.ts` passou nas quatro regressões entre bancos descartáveis e no ensaio real: ordem física diferente, corrupção de mesmo tamanho/contagem, perda de índice e concessão de permissão divergente. Ele pede hashes de linhas ao próprio PostgreSQL e não devolve linhas privadas nem fingerprints nas falhas. A comparação de estrutura cobre tabelas/colunas, proprietários, ACLs, índices, constraints e políticas; não certifica isoladamente todas as funções, gatilhos ou contadores de sequences do cluster.

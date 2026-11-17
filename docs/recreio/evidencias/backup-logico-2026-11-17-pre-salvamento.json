@@ -1,0 +1,27 @@
+{
+  "fonteDoExecutor": "6b51dd13a03ff051489e608a73dd7d57e4fd4d76",
+  "deployment": "11f2a42e-71e9-49b0-ad64-b71d3aa5a1ad",
+  "operacao": "01d38c63-2f65-44d6-97b3-5200bc0ca233",
+  "snapshotEm": "2026-11-17T12:38:12.024874Z",
+  "tipo": "backup_logico_atual_restaurado_em_cluster_isolado",
+  "origemSomenteLeitura": true,
+  "destino": "socket_unix_em_container_temporario_sem_volume_ou_dominio",
+  "versaoPostgreSQL": 180006,
+  "bytes": 19202661,
+  "tabelas": 242,
+  "linhas": 283017,
+  "backupMs": 2443,
+  "restauracaoComparacaoMs": 5870,
+  "totalProcessoMs": 14274,
+  "conteudoIdentico": true,
+  "estruturaComparadaIdentica": true,
+  "temporariosRemovidos": true,
+  "servicoTemporario": "e0a2153d-fcc8-4d39-b205-41e78bfb9062",
+  "servicoTemporarioExcluido": true,
+  "volumesDestacados": 0,
+  "limites": [
+    "Não testa restauração de snapshot agendado do provedor.",
+    "Não representa RTO contratual; o tempo exclui provisionamento e build.",
+    "A comparação de estrutura não certifica isoladamente todas as funções, gatilhos e contadores de sequences."
+  ]
+}

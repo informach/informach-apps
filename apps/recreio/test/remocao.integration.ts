@@ -39,10 +39,17 @@ async function cenario() {
   const lia = await novoJogador();
   const bruno = await novoJogador();
   const id = await mundoDe(lia);
-  const convite = await criarConvite({ perfilId: lia.perfil.id, jogo: null }, id, {
-    forma: "member",
-  });
-  await aceitarConvite({ perfilId: bruno.perfil.id }, { codigo: convite.codigo });
+  const convite = await criarConvite(
+    { perfilId: lia.perfil.id, sessaoDeAparelhoId: lia.ator.sessaoDeAparelhoId, jogo: null },
+    id,
+    {
+      forma: "member",
+    },
+  );
+  await aceitarConvite(
+    { perfilId: bruno.perfil.id, sessaoDeAparelhoId: bruno.ator.sessaoDeAparelhoId },
+    { codigo: convite.codigo },
+  );
   const vinculos = await db.select().from(members).where(eq(members.spaceId, id));
   const membroLia = vinculos.find((m) => m.profileId === lia.perfil.id);
   const membroBruno = vinculos.find((m) => m.profileId === bruno.perfil.id);
@@ -76,7 +83,14 @@ it("remove somente o vínculo, preserva mundo/autoria e audita o ator real uma v
   });
   expect(await detalheDoMundo(c.bruno.perfil.id, c.id)).toBeNull();
   await expect(
-    abrirMundo({ perfilId: c.bruno.perfil.id, jogo: "morada" }, c.id),
+    abrirMundo(
+      {
+        perfilId: c.bruno.perfil.id,
+        sessaoDeAparelhoId: c.bruno.ator.sessaoDeAparelhoId,
+        jogo: "morada",
+      },
+      c.id,
+    ),
   ).rejects.toMatchObject({ codigo: "NAO_MEMBRO" });
   const eventos = await eventosCom("memberId", c.membroBruno.id);
   expect(eventos.filter((e) => e.eventType === "recreio.space_member_removed")).toEqual([
@@ -442,18 +456,32 @@ it.each(["remocao", "saida"] as const)(
   "convite anterior a %s não readmite; um posterior conserva a identidade",
   async (operacao) => {
     const c = await cenario();
-    const velho = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
-      forma: "member",
-    });
+    const velho = await criarConvite(
+      { perfilId: c.lia.perfil.id, sessaoDeAparelhoId: c.lia.ator.sessaoDeAparelhoId, jogo: null },
+      c.id,
+      {
+        forma: "member",
+      },
+    );
     if (operacao === "remocao") await removerParticipacao(c.a, c.id, c.membroBruno.id);
     else await sairDoMundo(c.b, c.id);
     await expect(
-      aceitarConvite({ perfilId: c.bruno.perfil.id }, { codigo: velho.codigo }),
+      aceitarConvite(
+        { perfilId: c.bruno.perfil.id, sessaoDeAparelhoId: c.bruno.ator.sessaoDeAparelhoId },
+        { codigo: velho.codigo },
+      ),
     ).rejects.toMatchObject({ codigo: "CONVITE_INVALIDO" });
-    const novo = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
-      forma: "member",
-    });
-    await aceitarConvite({ perfilId: c.bruno.perfil.id }, { codigo: novo.codigo });
+    const novo = await criarConvite(
+      { perfilId: c.lia.perfil.id, sessaoDeAparelhoId: c.lia.ator.sessaoDeAparelhoId, jogo: null },
+      c.id,
+      {
+        forma: "member",
+      },
+    );
+    await aceitarConvite(
+      { perfilId: c.bruno.perfil.id, sessaoDeAparelhoId: c.bruno.ator.sessaoDeAparelhoId },
+      { codigo: novo.codigo },
+    );
     expect(
       (await db.select().from(members).where(eq(members.id, c.membroBruno.id)))[0],
     ).toMatchObject({ state: "active", profileId: c.bruno.perfil.id });
@@ -463,28 +491,46 @@ it.each(["remocao", "saida"] as const)(
 it("a transferência revoga os convites pendentes do antigo responsável sem reativá-los se o papel voltar", async () => {
   const c = await cenario();
   const terceira = await novoJogador();
-  const velho = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
-    forma: "member",
-  });
+  const velho = await criarConvite(
+    { perfilId: c.lia.perfil.id, sessaoDeAparelhoId: c.lia.ator.sessaoDeAparelhoId, jogo: null },
+    c.id,
+    {
+      forma: "member",
+    },
+  );
   const primeira = await proporResponsabilidade(c.a, c.id, c.membroBruno.id);
   await responderResponsabilidade(c.b, c.id, primeira.pedidoId, "accepted");
   const segunda = await proporResponsabilidade(c.b, c.id, c.membroLia.id);
   await responderResponsabilidade(c.a, c.id, segunda.pedidoId, "accepted");
   await expect(
-    aceitarConvite({ perfilId: terceira.perfil.id }, { codigo: velho.codigo }),
+    aceitarConvite(
+      { perfilId: terceira.perfil.id, sessaoDeAparelhoId: terceira.ator.sessaoDeAparelhoId },
+      { codigo: velho.codigo },
+    ),
   ).rejects.toMatchObject({ codigo: "CONVITE_INVALIDO" });
-  const novo = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
-    forma: "member",
-  });
-  await aceitarConvite({ perfilId: terceira.perfil.id }, { codigo: novo.codigo });
+  const novo = await criarConvite(
+    { perfilId: c.lia.perfil.id, sessaoDeAparelhoId: c.lia.ator.sessaoDeAparelhoId, jogo: null },
+    c.id,
+    {
+      forma: "member",
+    },
+  );
+  await aceitarConvite(
+    { perfilId: terceira.perfil.id, sessaoDeAparelhoId: terceira.ator.sessaoDeAparelhoId },
+    { codigo: novo.codigo },
+  );
 });
 
 it("o aceite relê a autoridade atual do emissor mesmo em um convite legado ainda marcado como enviado", async () => {
   const c = await cenario();
   const terceira = await novoJogador();
-  const velho = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
-    forma: "member",
-  });
+  const velho = await criarConvite(
+    { perfilId: c.lia.perfil.id, sessaoDeAparelhoId: c.lia.ator.sessaoDeAparelhoId, jogo: null },
+    c.id,
+    {
+      forma: "member",
+    },
+  );
   const oferta = await proporResponsabilidade(c.a, c.id, c.membroBruno.id);
   await responderResponsabilidade(c.b, c.id, oferta.pedidoId, "accepted");
   // Simula estado anterior ao novo escritor, sem depender de sua revogação.
@@ -492,15 +538,26 @@ it("o aceite relê a autoridade atual do emissor mesmo em um convite legado aind
     sql`update recreio.space_invites set state='sent' where space_id=${c.id} and invited_by_member_id=${c.membroLia.id} and state<>'accepted'`,
   );
   await expect(
-    aceitarConvite({ perfilId: terceira.perfil.id }, { codigo: velho.codigo }),
+    aceitarConvite(
+      { perfilId: terceira.perfil.id, sessaoDeAparelhoId: terceira.ator.sessaoDeAparelhoId },
+      { codigo: velho.codigo },
+    ),
   ).rejects.toMatchObject({ codigo: "CONVITE_INVALIDO" });
 });
 
 it("revogar convites por transferência conserva aceites históricos e convites de outro mundo", async () => {
   const c = await cenario();
   const outro = await mundoDe(c.lia);
-  await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, { forma: "member" });
-  await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, outro, { forma: "member" });
+  await criarConvite(
+    { perfilId: c.lia.perfil.id, sessaoDeAparelhoId: c.lia.ator.sessaoDeAparelhoId, jogo: null },
+    c.id,
+    { forma: "member" },
+  );
+  await criarConvite(
+    { perfilId: c.lia.perfil.id, sessaoDeAparelhoId: c.lia.ator.sessaoDeAparelhoId, jogo: null },
+    outro,
+    { forma: "member" },
+  );
   const antes = await db.select().from(invites).where(eq(invites.spaceId, c.id));
   const aceito = antes.find((x) => x.state === "accepted");
   if (!aceito) throw new Error("Convite aceito ausente.");
@@ -519,7 +576,11 @@ it("revogar convites por transferência conserva aceites históricos e convites 
 
 it("falha ao auditar a revogação dos convites reverte o aceite inteiro", async () => {
   const c = await cenario();
-  await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, { forma: "member" });
+  await criarConvite(
+    { perfilId: c.lia.perfil.id, sessaoDeAparelhoId: c.lia.ator.sessaoDeAparelhoId, jogo: null },
+    c.id,
+    { forma: "member" },
+  );
   const oferta = await proporResponsabilidade(c.a, c.id, c.membroBruno.id);
   await db.execute(sql`create function audit.recusar_revogacao_convites_teste() returns trigger language plpgsql as $$
     begin if new.event_type='recreio.space_invites_revoked' then raise exception 'indisponível (teste)'; end if; return new; end $$`);
@@ -553,11 +614,18 @@ it("não inventa data de saída para readmitir um vínculo histórico sem prova"
     .update(members)
     .set({ state: "former", leftAt: null })
     .where(eq(members.id, c.membroBruno.id));
-  const convite = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
-    forma: "member",
-  });
+  const convite = await criarConvite(
+    { perfilId: c.lia.perfil.id, sessaoDeAparelhoId: c.lia.ator.sessaoDeAparelhoId, jogo: null },
+    c.id,
+    {
+      forma: "member",
+    },
+  );
   await expect(
-    aceitarConvite({ perfilId: c.bruno.perfil.id }, { codigo: convite.codigo }),
+    aceitarConvite(
+      { perfilId: c.bruno.perfil.id, sessaoDeAparelhoId: c.bruno.ator.sessaoDeAparelhoId },
+      { codigo: convite.codigo },
+    ),
   ).rejects.toMatchObject({ codigo: "CONVITE_INVALIDO" });
   expect(
     (await db.select().from(members).where(eq(members.id, c.membroBruno.id)))[0]?.leftAt,

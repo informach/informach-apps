@@ -37,10 +37,17 @@ async function cenario() {
   const lia = await novoJogador();
   const bruno = await novoJogador();
   const id = await mundoDe(lia);
-  const convite = await criarConvite({ perfilId: lia.perfil.id, jogo: null }, id, {
-    forma: "member",
-  });
-  await aceitarConvite({ perfilId: bruno.perfil.id }, { codigo: convite.codigo });
+  const convite = await criarConvite(
+    { perfilId: lia.perfil.id, sessaoDeAparelhoId: lia.ator.sessaoDeAparelhoId, jogo: null },
+    id,
+    {
+      forma: "member",
+    },
+  );
+  await aceitarConvite(
+    { perfilId: bruno.perfil.id, sessaoDeAparelhoId: bruno.ator.sessaoDeAparelhoId },
+    { codigo: convite.codigo },
+  );
   const vinculos = await db.select().from(members).where(eq(members.spaceId, id));
   const membroLia = vinculos.find((membro) => membro.profileId === lia.perfil.id);
   const membroBruno = vinculos.find((membro) => membro.profileId === bruno.perfil.id);
@@ -227,10 +234,17 @@ it("o aceite encerra as duas partidas do mundo com motivo próprio e cursor", as
 it("o aceite conserva outro perfil no mundo e uma partida dos envolvidos em outro mundo", async () => {
   const c = await cenario();
   const terceiro = await novoJogador();
-  const convite = await criarConvite({ perfilId: c.lia.perfil.id, jogo: null }, c.id, {
-    forma: "member",
-  });
-  await aceitarConvite({ perfilId: terceiro.perfil.id }, { codigo: convite.codigo });
+  const convite = await criarConvite(
+    { perfilId: c.lia.perfil.id, sessaoDeAparelhoId: c.lia.ator.sessaoDeAparelhoId, jogo: null },
+    c.id,
+    {
+      forma: "member",
+    },
+  );
+  await aceitarConvite(
+    { perfilId: terceiro.perfil.id, sessaoDeAparelhoId: terceiro.ator.sessaoDeAparelhoId },
+    { codigo: convite.codigo },
+  );
   const outro = await mundoDe(c.lia);
   const preservadas = [await partida(c.lia, outro), await partida(terceiro, c.id)];
   const encerrada = await partida(c.bruno, c.id);

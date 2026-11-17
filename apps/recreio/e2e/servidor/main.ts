@@ -37,6 +37,7 @@ import {
 import { sessaoVencida } from "@informach/recreio/contrato";
 import {
   type ClienteDoHost,
+  type ClienteDoHostComSalvamento,
   criarClienteDoHost,
   criarVerificadorDeSessao,
 } from "@informach/recreio/host";
@@ -47,6 +48,7 @@ import {
   type DoCliente,
   DoClienteSchema,
   type DoServidor,
+  FINS_PASSAGEIROS,
   lerQuadro,
   PRAZO_PARA_ENTRAR_MS,
   QUADRO_MAX_BYTES,
@@ -96,7 +98,7 @@ function registrarNoLog(mensagem: string, dados: Record<string, unknown> = {}): 
   );
 }
 
-const host: ClienteDoHost = criarClienteDoHost({
+const host: ClienteDoHostComSalvamento = criarClienteDoHost({
   baseUrl: cfg.origemDoPortal,
   jogo: JOGO_DE_TESTE_ID,
   segredo: cfg.segredo,
@@ -126,6 +128,13 @@ type Jogador = {
   apelido: string;
   /** Prazo do token da sessão, em milissegundos. A renovação o empurra. */
   expiraEm: number;
+  pausado: boolean;
+  checkpoint: { id: string; revisao: number; diarioSeq: number; confirmado: boolean } | null;
+  salvamento: boolean;
+  finalizacao: Promise<boolean> | null;
+  provaFinal: { revisao: number; diarioSeq: number } | null;
+  fimDaMargem: number | null;
+  esperaDesconexao: ReturnType<typeof setTimeout> | null;
 };
 
 type Mundo = {
@@ -177,10 +186,12 @@ function difundir(mundo: Mundo): void {
   const quadro: DoServidor = {
     t: "estado",
     contador: mundo.estado.contador,
-    presentes: [...mundo.jogadores].map((jogador) => ({
-      id: jogador.membroId,
-      apelido: jogador.apelido,
-    })),
+    presentes: [...mundo.jogadores]
+      .filter((jogador) => jogador.socket.readyState === jogador.socket.OPEN)
+      .map((jogador) => ({
+        id: jogador.membroId,
+        apelido: jogador.apelido,
+      })),
   };
   for (const jogador of mundo.jogadores) enviar(jogador.socket, quadro);
 }
@@ -191,7 +202,10 @@ function pararMundo(mundo: Mundo, codigo: string): void {
   mundo.parado = true;
   if (mundos.get(mundo.id) === mundo) mundos.delete(mundo.id);
   registrarNoLog("mundo parado", { mundo: mundo.id, codigo });
-  for (const jogador of mundo.jogadores) fim(jogador.socket, codigo);
+  for (const jogador of mundo.jogadores) {
+    if (jogador.esperaDesconexao) clearTimeout(jogador.esperaDesconexao);
+    fim(jogador.socket, codigo);
+  }
   mundo.jogadores.clear();
 }
 
@@ -291,11 +305,100 @@ function codigoDe(erro: unknown): string {
   return ehErroDoRecreio(erro) ? erro.codigo : "INDISPONIVEL";
 }
 
-function tirar(mundo: Mundo, jogador: Jogador, codigo?: string, motivo?: string): void {
+function removerJogador(mundo: Mundo, jogador: Jogador): void {
   if (!mundo.jogadores.delete(jogador)) return;
-  if (codigo !== undefined) fim(jogador.socket, codigo, motivo);
+  if (jogador.esperaDesconexao) clearTimeout(jogador.esperaDesconexao);
   difundir(mundo);
   hibernarSeVazio(mundo);
+}
+
+function tirar(mundo: Mundo, jogador: Jogador, codigo?: string, motivo?: string): void {
+  if (!mundo.jogadores.has(jogador)) return;
+  const fimElegivel =
+    codigo === undefined ||
+    codigo === "SESSAO_INVALIDA" ||
+    (codigo === "SESSAO_ENCERRADA" && ["expired", "access_lost", "left"].includes(motivo ?? ""));
+  if (jogador.salvamento && fimElegivel && !mundo.parado) {
+    if (codigo !== undefined) {
+      void finalizar(mundo, jogador);
+      fim(jogador.socket, codigo, motivo);
+    } else if (!jogador.esperaDesconexao && !jogador.finalizacao) {
+      // Reconectar o mesmo SID a tempo cancela esta espera, sem outra concessão.
+      jogador.esperaDesconexao = setTimeout(() => {
+        jogador.esperaDesconexao = null;
+        if (mundo.jogadores.has(jogador)) void finalizar(mundo, jogador);
+      }, 5000);
+      difundir(mundo);
+    }
+    return;
+  }
+  if (codigo !== undefined) fim(jogador.socket, codigo, motivo);
+  removerJogador(mundo, jogador);
+}
+
+/** Congela antes de enfileirar; o prefixo admitido é persistido antes da prova final. */
+function finalizar(mundo: Mundo, jogador: Jogador): Promise<boolean> {
+  if (jogador.finalizacao) return jogador.finalizacao;
+  if (!jogador.salvamento || mundo.parado || !mundo.jogadores.has(jogador))
+    return Promise.resolve(false);
+  if (jogador.fimDaMargem !== null && Date.now() >= jogador.fimDaMargem) {
+    removerJogador(mundo, jogador);
+    return Promise.resolve(false);
+  }
+  jogador.pausado = true;
+  if (jogador.esperaDesconexao) clearTimeout(jogador.esperaDesconexao);
+  jogador.esperaDesconexao = null;
+  jogador.fimDaMargem ??= Math.min(Date.now() + 30_000, jogador.expiraEm + 30_000);
+  jogador.esperaDesconexao = setTimeout(
+    () => removerJogador(mundo, jogador),
+    Math.max(0, jogador.fimDaMargem - Date.now()),
+  );
+  const pedido = mundo.fila.then(async () => {
+    if (mundo.parado || !mundo.jogadores.has(jogador)) return false;
+    const base = { mundoId: mundo.id, sid: jogador.sid, cerca: mundo.cerca };
+    try {
+      const preparada = await host.salvarSessao({ ...base, operacao: "preparar" });
+      if (preparada.estado === "ready") {
+        if (!jogador.provaFinal) {
+          await fotografar(mundo, "checkpoint");
+          jogador.provaFinal = { revisao: mundo.revisao, diarioSeq: mundo.diarioSeq };
+        }
+        const confirmar = () => {
+          if (!jogador.provaFinal) throw new ErroDoRecreio("INDISPONIVEL");
+          return host.salvarSessao({ ...base, ...jogador.provaFinal, operacao: "concluir" });
+        };
+        try {
+          const resultado = await confirmar();
+          if (resultado.estado !== "completed") throw new ErroDoRecreio("INDISPONIVEL");
+        } catch (erro) {
+          if (ehErroDoRecreio(erro, "CHECKPOINT_NECESSARIO")) {
+            // Só uma negativa explícita permite fotografar de novo. Uma resposta
+            // incerta conserva a prova que pode já ter sido confirmada.
+            await fotografar(mundo, "checkpoint");
+            jogador.provaFinal = { revisao: mundo.revisao, diarioSeq: mundo.diarioSeq };
+          } else if (!ehErroDoRecreio(erro, "INDISPONIVEL")) throw erro;
+          const recuperada = await confirmar();
+          if (recuperada.estado !== "completed") throw new ErroDoRecreio("INDISPONIVEL");
+        }
+      } else if (preparada.estado !== "completed") throw new ErroDoRecreio("INDISPONIVEL");
+      enviar(jogador.socket, { t: "salvamento", confirmado: true });
+      removerJogador(mundo, jogador);
+      return true;
+    } catch (erro) {
+      registrarNoLog("salvamento final recusado", { mundo: mundo.id, codigo: codigoDe(erro) });
+      enviar(jogador.socket, { t: "salvamento", confirmado: false });
+      const restante = Math.max(0, (jogador.fimDaMargem ?? Date.now()) - Date.now());
+      if (jogador.esperaDesconexao) clearTimeout(jogador.esperaDesconexao);
+      jogador.esperaDesconexao = setTimeout(() => removerJogador(mundo, jogador), restante);
+      return false;
+    }
+  });
+  mundo.fila = pedido.then(() => undefined);
+  const tarefa = pedido.finally(() => {
+    if (jogador.finalizacao === tarefa) jogador.finalizacao = null;
+  });
+  jogador.finalizacao = tarefa;
+  return tarefa;
 }
 
 async function entrar(
@@ -325,6 +428,9 @@ async function entrar(
   // ainda não caiu) toma o lugar da entrada anterior.
   for (const outro of [...mundo.jogadores])
     if (outro.membroId === entrada.membroId) {
+      if (outro.finalizacao || outro.fimDaMargem !== null)
+        throw new ErroDoRecreio("CHECKPOINT_PENDENTE");
+      if (outro.esperaDesconexao) clearTimeout(outro.esperaDesconexao);
       mundo.jogadores.delete(outro);
       fim(outro.socket, "SESSAO_ENCERRADA", "replaced");
     }
@@ -335,6 +441,13 @@ async function entrar(
     membroId: entrada.membroId,
     apelido: entrada.apelido,
     expiraEm: sessao.expiraEm,
+    pausado: false,
+    checkpoint: null,
+    salvamento: quadro.salvamento === true,
+    finalizacao: null,
+    provaFinal: null,
+    fimDaMargem: null,
+    esperaDesconexao: null,
   };
   mundo.jogadores.add(jogador);
   difundir(mundo);
@@ -343,6 +456,8 @@ async function entrar(
 
 /** Soma 1: primeiro o diário, depois o estado e os clientes. */
 function somar(mundo: Mundo, jogador: Jogador, comandoId: string): void {
+  // A pausa corta comandos novos; os já admitidos terminam antes da fotografia na fila.
+  if (jogador.pausado) return;
   mundo.fila = mundo.fila.then(async () => {
     if (mundo.parado || !mundo.jogadores.has(jogador)) return;
     // O mesmo comando dá o mesmo id de fato: repetir não soma duas vezes.
@@ -364,6 +479,7 @@ function somar(mundo: Mundo, jogador: Jogador, comandoId: string): void {
         ],
       });
     try {
+      await conferirJogador(mundo, jogador);
       try {
         await anexar();
       } catch (erro) {
@@ -376,6 +492,8 @@ function somar(mundo: Mundo, jogador: Jogador, comandoId: string): void {
       const codigo = codigoDe(erro);
       if (codigo === "POSSE_PERDIDA" || codigo === "POSSE_DE_OUTRA_INSTANCIA")
         pararMundo(mundo, "POSSE_PERDIDA");
+      else if (ehErroDoRecreio(erro) && !FINS_PASSAGEIROS.includes(codigo))
+        tirar(mundo, jogador, codigo);
       // Qualquer outra falha: a soma não entrou no diário, então não aconteceu.
       else registrarNoLog("soma recusada", { mundo: mundo.id, codigo });
       return;
@@ -384,6 +502,95 @@ function somar(mundo: Mundo, jogador: Jogador, comandoId: string): void {
     mundo.diarioSeq += 1;
     aplicar(mundo.estado, fatoId);
     difundir(mundo);
+  });
+}
+
+async function conferirJogador(mundo: Mundo, jogador: Jogador): Promise<void> {
+  if (sessaoVencida(jogador.expiraEm, Date.now())) throw new ErroDoRecreio("SESSAO_INVALIDA");
+  await host.verificarEntrada({
+    mundoId: mundo.id,
+    cerca: mundo.cerca,
+    sid: jogador.sid,
+    perfilId: jogador.perfilId,
+  });
+}
+
+/** Fotografia e recibo na mesma fila dos comandos, sem confiar no booleano do navegador. */
+function checkpoint(mundo: Mundo, jogador: Jogador, id: string): void {
+  jogador.pausado = true;
+  mundo.fila = mundo.fila.then(async () => {
+    if (mundo.parado || !mundo.jogadores.has(jogador)) return;
+    try {
+      const anterior = jogador.checkpoint;
+      if (anterior?.id === id && anterior.confirmado) {
+        enviar(jogador.socket, { t: "checkpoint", id, confirmado: true });
+        return;
+      }
+      if (anterior?.id !== id) {
+        await conferirJogador(mundo, jogador);
+        await fotografar(mundo, "checkpoint");
+        jogador.checkpoint = {
+          id,
+          revisao: mundo.revisao,
+          diarioSeq: mundo.diarioSeq,
+          confirmado: false,
+        };
+      }
+      const confirmar = () => {
+        const prova = jogador.checkpoint;
+        if (!prova) throw new ErroDoRecreio("INDISPONIVEL");
+        return host.confirmarCheckpoint({
+          mundoId: mundo.id,
+          id,
+          sid: jogador.sid,
+          cerca: mundo.cerca,
+          confirmado: true,
+          revisao: prova.revisao,
+          diarioSeq: prova.diarioSeq,
+        });
+      };
+      let resultado: Awaited<ReturnType<typeof confirmar>>;
+      try {
+        resultado = await confirmar();
+      } catch (erro) {
+        if (!ehErroDoRecreio(erro, "CHECKPOINT_NECESSARIO")) throw erro;
+        // Outros moradores podem ter avançado o diário desde uma tentativa perdida.
+        // Uma recusa explícita permite atualizar a prova; uma resposta incerta, não.
+        await conferirJogador(mundo, jogador);
+        await fotografar(mundo, "checkpoint");
+        jogador.checkpoint = {
+          id,
+          revisao: mundo.revisao,
+          diarioSeq: mundo.diarioSeq,
+          confirmado: false,
+        };
+        resultado = await confirmar();
+      }
+      if (jogador.checkpoint) jogador.checkpoint.confirmado = resultado.pausada;
+      enviar(jogador.socket, { t: "checkpoint", id, confirmado: resultado.pausada });
+    } catch (erro) {
+      // A resposta pode ter se perdido depois do commit. Guardar a prova permite
+      // repetir exatamente o recibo; somente o controle do Recreio libera o cliente.
+      registrarNoLog("checkpoint recusado", { mundo: mundo.id, codigo: codigoDe(erro) });
+      enviar(jogador.socket, { t: "checkpoint", id, confirmado: false });
+    }
+  });
+}
+
+function retomar(mundo: Mundo, jogador: Jogador): void {
+  mundo.fila = mundo.fila.then(async () => {
+    if (mundo.parado || !mundo.jogadores.has(jogador)) return;
+    try {
+      // Uma mensagem do cliente nunca derruba a barreira persistida da sessão.
+      await conferirJogador(mundo, jogador);
+      jogador.pausado = false;
+      jogador.checkpoint = null;
+      enviar(jogador.socket, { t: "retomado" });
+      difundir(mundo);
+    } catch (erro) {
+      if (ehErroDoRecreio(erro) && !FINS_PASSAGEIROS.includes(erro.codigo))
+        tirar(mundo, jogador, erro.codigo);
+    }
   });
 }
 
@@ -508,6 +715,9 @@ wss.on("connection", (socket: WebSocket) => {
     }
     if (quadro.t === "somar") somar(dentro.mundo, dentro.jogador, quadro.id);
     else if (quadro.t === "renovar") void renovar(dentro.mundo, dentro.jogador, quadro.token);
+    else if (quadro.t === "checkpoint") checkpoint(dentro.mundo, dentro.jogador, quadro.id);
+    else if (quadro.t === "retomar") retomar(dentro.mundo, dentro.jogador);
+    else if (quadro.t === "salvar") void finalizar(dentro.mundo, dentro.jogador);
     else fim(socket, "ENTRADA_INVALIDA");
   });
 

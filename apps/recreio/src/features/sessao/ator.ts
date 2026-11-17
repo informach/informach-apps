@@ -3,6 +3,7 @@ import { ErroDoRecreio } from "@informach/recreio";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import { temContextoPareado } from "@/features/protecao/http";
 import { getSession, requirePageUser } from "@/lib/auth";
 import { safeDestination } from "@/lib/destination";
 import { type Ator, type AtorComPerfil, type ContextoDoAtor, resolverAtor } from "./service";
@@ -15,6 +16,7 @@ export type { Ator, AtorComPerfil } from "./service";
  * ativo vem da linha da sessão de aparelho.
  */
 const contexto = cache(async (): Promise<ContextoDoAtor | null> => {
+  if (await temContextoPareado()) return null;
   const atual = await getSession();
   if (!atual?.user.emailVerified) return null;
   return resolverAtor({
@@ -48,6 +50,14 @@ export async function paginaDaConta(next?: string) {
   const atual = await contexto();
   if (!atual) redirect("/entrar?encerrada=1");
   return { user, ...atual };
+}
+
+/** Gestão usa a conta nativa; um perfil infantil não herda essa autoridade. */
+export async function paginaDaGestao(next = "/conta") {
+  const pagina = await paginaDaConta(next);
+  if (pagina.ator.perfil?.tipo === "minor")
+    redirect(`/perfis?next=${encodeURIComponent(safeDestination(next))}`);
+  return pagina;
 }
 
 /** Página do portal: exige alguém jogando. Sem perfil vai criar; sem escolha vai escolher. */

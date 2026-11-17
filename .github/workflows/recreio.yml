@@ -37,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gate: [quality, integration, e2e, cliente, longa, versoes]
+        gate: [quality, integration, e2e, checkpoint, cliente, longa, versoes]
     services:
       postgres:
         image: postgres:18-alpine
@@ -96,10 +96,14 @@ jobs:
           path: ${{ runner.temp }}/morada-processo.json
           if-no-files-found: warn
           retention-days: 30
-      - if: matrix.gate == 'e2e' || matrix.gate == 'versoes'
+      - if: matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint'
         run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
       - if: matrix.gate == 'e2e'
         run: pnpm --filter @informach/recreio-app e2e
+      - if: matrix.gate == 'checkpoint'
+        run: pnpm --filter @informach/recreio-app e2e --config playwright.checkpoint.config.ts
+        env:
+          RECREIO_CHECKPOINT_MODE: "on"
       - if: matrix.gate == 'versoes'
         run: pnpm --filter @informach/recreio-app e2e:versoes
       - name: Ler o host publicado para a prova de protocolo
@@ -157,7 +161,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - name: Preserve synthetic browser failure evidence
-        if: failure() && (matrix.gate == 'e2e' || matrix.gate == 'versoes')
+        if: failure() && (matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint')
         uses: actions/upload-artifact@v4
         with:
           name: recreio-${{ matrix.gate }}-${{ github.run_attempt }}
@@ -179,6 +183,17 @@ jobs:
             apps/recreio/tmp/telas/responsabilidade-mobile.png
             apps/recreio/tmp/telas/responsabilidade-recebida-mobile.png
             apps/recreio/tmp/telas/remocao-membro-mobile.png
+            apps/recreio/tmp/telas/familia-cadastro-sem-jogador.png
+            apps/recreio/tmp/telas/aparelho-pareado-protegido.png
+            apps/recreio/tmp/telas/aparelho-pareado-mobile.png
+            apps/recreio/tmp/telas/aparelhos-menor-mobile.png
+            apps/recreio/tmp/telas/pin-nativo-sem-jogador.png
+            apps/recreio/tmp/telas/supervisao-mobile.png
+            apps/recreio/tmp/telas/supervisao-horarios-mobile.png
+            apps/recreio/tmp/telas/supervisao-confirmacao-mobile.png
+            apps/recreio/tmp/telas/perfil-compartilhado-mobile.png
+            apps/recreio/tmp/telas/retorno-adulto-pin-mobile.png
+            apps/recreio/tmp/telas/estante-protegida-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic color evidence

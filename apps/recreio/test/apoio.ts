@@ -100,6 +100,13 @@ export async function loginReal(conta: ContaDeTeste) {
   return login;
 }
 
+/** Contexto nativo real, inclusive quando a conta ainda não tem jogador. */
+export async function atorDaConta(conta: ContaDeTeste) {
+  const contexto = await resolverAtor(await loginReal(conta));
+  if (!contexto) throw new Error("A sessão de aparelho deveria existir");
+  return contexto.ator;
+}
+
 export type Jogador = {
   conta: ContaDeTeste;
   login: Awaited<ReturnType<typeof loginReal>>;
@@ -116,13 +123,13 @@ export async function novoJogador(
   opcoes: { apelido?: string; avatar?: string; comAcesso?: boolean } = {},
 ): Promise<Jogador> {
   const conta = await novaConta();
-  const { perfil } = await criarPerfilProprio(conta.id, {
-    apelido: opcoes.apelido ?? "Lia",
-    avatar: opcoes.avatar ?? "padrao",
-  });
   const login = await loginReal(conta);
   const contexto = await resolverAtor(login);
   if (!contexto) throw new Error("A sessão de aparelho deveria existir");
+  const { perfil } = await criarPerfilProprio(contexto.ator, {
+    apelido: opcoes.apelido ?? "Lia",
+    avatar: opcoes.avatar ?? "padrao",
+  });
   await selecionarPerfil(contexto.ator, perfil.id);
   if (opcoes.comAcesso !== false)
     await conceder({ email: conta.email, tier: "individual", dias: 30, motivo: "teste" });

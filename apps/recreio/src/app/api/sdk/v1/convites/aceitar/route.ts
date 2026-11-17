@@ -1,5 +1,6 @@
 import { ErroDoRecreio } from "@informach/recreio";
 import { AceiteDeConviteSchema } from "@informach/recreio/contrato";
+import type { AutorDeMundos } from "@/features/autoridade-de-jogo/mundos-repository";
 import { aceitarConvite } from "@/features/mundos/service";
 import { perfilAtivo } from "@/features/sessao/ator";
 import { sessaoDeJogo } from "@/features/sessao-de-jogo/http";
@@ -14,14 +15,15 @@ export const dynamic = "force-dynamic";
  */
 export function POST(request: Request) {
   return responder(async () => {
-    let perfilId: Awaited<ReturnType<typeof sessaoDeJogo>>["perfilId"];
-    if (tokenDoPedido(request) !== null) perfilId = (await sessaoDeJogo(request)).perfilId;
+    let autor: AutorDeMundos;
+    if (tokenDoPedido(request) !== null) autor = await sessaoDeJogo(request);
     else {
       if (!mesmaOrigem(request)) throw new ErroDoRecreio("ACESSO_NEGADO", { motivo: "origem" });
-      perfilId = (await perfilAtivo()).perfil.id;
+      const ator = await perfilAtivo();
+      autor = { perfilId: ator.perfil.id, sessaoDeAparelhoId: ator.sessaoDeAparelhoId };
     }
     const aceito = await aceitarConvite(
-      { perfilId },
+      autor,
       await corpoJson(request, AceiteDeConviteSchema, 1024),
     );
     return json({ id: aceito.mundoId, nome: aceito.nome });

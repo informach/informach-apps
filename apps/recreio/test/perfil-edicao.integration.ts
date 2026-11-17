@@ -4,6 +4,8 @@ import {
   recreioDeviceSessions as devices,
   events,
   recreioProfiles as profiles,
+  sessions,
+  users,
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
 import { ZodError } from "zod";
@@ -21,6 +23,32 @@ async function auditoria(contaId: string) {
 }
 
 describe("edição do perfil próprio", () => {
+  it.each(["login removido", "conta suspensa", "contexto infantil"])(
+    "a transação recusa %s mesmo após resolver o ator",
+    async (caso) => {
+      const pessoa = await novoJogador({ comAcesso: false });
+      if (caso === "conta suspensa")
+        await db.update(users).set({ banned: true }).where(eq(users.id, pessoa.conta.id));
+      else if (caso === "contexto infantil")
+        await db
+          .update(devices)
+          .set({ minorContextGeneration: crypto.randomUUID() })
+          .where(eq(devices.id, pessoa.ator.sessaoDeAparelhoId));
+      else {
+        const [aparelho] = await db
+          .select()
+          .from(devices)
+          .where(eq(devices.id, pessoa.ator.sessaoDeAparelhoId));
+        if (!aparelho?.authSessionId) throw new Error("Login ausente");
+        await db.delete(sessions).where(eq(sessions.id, aparelho.authSessionId));
+      }
+      await expect(editarPerfilProprio(pessoa.ator, { anterior, novo })).rejects.toMatchObject({
+        code: "AUTH",
+      });
+      expect(await perfisSelecionaveis(pessoa.conta.id)).toEqual([pessoa.perfil]);
+      expect(await auditoria(pessoa.conta.id)).toEqual([]);
+    },
+  );
   it("normaliza, preserva identidade/política e audita só os nomes dos campos uma vez", async () => {
     const pessoa = await novoJogador({ comAcesso: false });
     const dados = { anterior, novo: { ...novo, apelido: "  Lia  do Sol  " } };
