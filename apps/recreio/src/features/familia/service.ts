@@ -6,6 +6,7 @@ import type {
   IdentidadeNativa,
 } from "@/features/account/autoridade-repository";
 import { limitarTentativas } from "@/lib/rate-limit";
+import { exigirCadastroProtegidoDisponivel } from "./disponibilidade";
 import { CadastroDeMenorSchema } from "./regras";
 import {
   cancelarCadastroDeMenor,
@@ -29,6 +30,7 @@ export async function cancelarPerfilMenor(autor: IdentidadeNativa, intencaoId: u
 }
 
 export async function prepararPerfilMenor(autor: AutorNativoRecente) {
+  exigirCadastroProtegidoDisponivel();
   await limitarTentativas({
     chave: `preparar-menor:${autor.contaId}`,
     max: 10,
@@ -38,6 +40,7 @@ export async function prepararPerfilMenor(autor: AutorNativoRecente) {
 }
 
 export async function cadastrarPerfilMenor(autor: AutorNativoRecente, entrada: unknown) {
+  exigirCadastroProtegidoDisponivel();
   const pedido = CadastroDeMenorSchema.parse(entrada);
   await limitarTentativas({
     chave: `cadastrar-menor:${autor.contaId}`,

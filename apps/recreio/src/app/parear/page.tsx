@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Marca } from "@/components/desenhos";
+import { novosPerfisProtegidosDisponiveis } from "@/features/familia/disponibilidade";
 import { ParearAparelho } from "@/features/protecao/components/parear-aparelho";
 
 export const metadata = { title: "Parear aparelho" };
@@ -16,7 +17,13 @@ export default function Parear() {
         Sem compartilhar senha ou código de e-mail. Quem cuida do perfil confirma a entrada no
         próprio aparelho.
       </p>
-      <ParearAparelho />
+      {novosPerfisProtegidosDisponiveis ? (
+        <ParearAparelho />
+      ) : (
+        <p className="painel mt-8 p-6">
+          O pareamento de novos aparelhos ainda não está disponível neste acesso.
+        </p>
+      )}
       <p className="mt-6 text-sm text-tinta-suave">
         É o aparelho do adulto?{" "}
         <Link href="/entrar?recente=1&next=%2Fconta" className="font-bold text-ceu underline">

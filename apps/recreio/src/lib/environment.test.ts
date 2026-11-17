@@ -37,6 +37,18 @@ const production: NodeJS.ProcessEnv = {
   CRON_SECRET: SEGREDO,
 };
 describe("deployment environment", () => {
+  it("mantém novos perfis protegidos desligados por padrão e distingue preparação de jogo", () => {
+    expect(validateEnvironment(production).RECREIO_FAMILY_MODE).toBe("off");
+    expect(
+      validateEnvironment({ ...production, RECREIO_FAMILY_MODE: "setup" }).RECREIO_FAMILY_MODE,
+    ).toBe("setup");
+    expect(
+      validateEnvironment({ ...production, RECREIO_FAMILY_MODE: "play" }).RECREIO_FAMILY_MODE,
+    ).toBe("play");
+    expect(() => validateEnvironment({ ...production, RECREIO_FAMILY_MODE: "1" })).toThrow(
+      "RECREIO_FAMILY_MODE",
+    );
+  });
   it("allows local production builds without Redis, Sentry or live email", () => {
     expect(validateEnvironment(base).EMAIL_SANDBOX_MODE).toBe("memory");
   });
