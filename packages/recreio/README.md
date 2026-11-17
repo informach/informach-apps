@@ -177,7 +177,7 @@ export const meuJogo: ModuloDoJogo = {
 
 ## Testar um servidor de jogo sem o Recreio
 
-### Salvamento restrito em candidata
+### Salvamento restrito
 
 `salvamentoRestrito: true` negocia no SDK uma capacidade distinta de gameplay.
 Quando disponível, `sessao.salvamento.estado()` consulta o próprio recibo e
@@ -192,8 +192,9 @@ depois de persistir uma fotografia, a operação `"concluir"` envia `revisao` e
 Repetição conserva a mesma prova. O jogo deve pausar comandos e concluir a fila
 antes da preparação, mantendo os demais membros ativos.
 
-Recursos ainda privados e desligados em produção; 0177 precisa preceder os
-consumidores. O host do portal ainda não negocia essa capacidade. Contratos,
+Contrato implantado em `3f2b1239`, com 0177/0178 e os modos desligados. O host
+negocia a capacidade quando a flag e o manifesto permitem; Morada mantém sua
+capacidade automática nula e saída manual confirmada. Contratos,
 gates e pendências em [salvamento restrito](../../docs/recreio/salvamento-restrito-2026-11-17.md).
 
 ### Plataforma em memória
