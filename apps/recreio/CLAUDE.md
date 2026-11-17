@@ -142,15 +142,19 @@ O contrato é o `ClienteDoHost` do package, e a implementação é conferida pel
 ### Troca de aparelho em homologação (17/11)
 
 O modo `RECREIO_CHECKPOINT_MODE=on` usa intenção vinculada a ingresso/aparelho/SID
-e espera o ACK de dados de perfil antes da nova sessão. `JogoMontado.checkpoint`
+e espera o ACK de dados de perfil ou da instância antes da nova sessão.
+`JogoMontado.checkpoint({id, modo})`
 é opcional e aguardável; ausência ou falso nunca confirma. `retomar` só vale quando
 o controle servidor confirmou ausência de barreira. A consulta continua durante
 a pausa, sem renovação; nunca desmontar a partida pausada como se a troca já
 estivesse concluída. ACK perdido é resolvido pelo estado atual. SDK não envia
-conta, nascimento, agenda ou progresso no controle. Detalhes e limites no
+conta, nascimento, agenda ou progresso no controle. O booleano do cliente de
+mundo não basta: o host relê o controle após a confirmação da instância.
+O Morada ainda não declara esse adapter; permanece com saída manual confirmada.
+Detalhes e limites no
 [registro de checkpoint](../../docs/recreio/checkpoint-sessoes-2026-11-17.md).
 
-Na fonte implantada `668dde1`, `off` e títulos sem contrato autenticado de mundo exigem
+Na fonte implantada `2475661`, `off` e títulos sem contrato autenticado de mundo exigem
 salvar/sair no aparelho anterior; `continuarAqui` não os desconecta à força.
 Sem acesso ao aparelho antigo, a gestão permite revogá-lo explicitamente, ou
 aguardar a concessão vencer. Não simular ACK nem reduzir o prazo em teste para

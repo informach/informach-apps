@@ -431,3 +431,29 @@ mesmo SID/perfil/aparelho/jogo e política atuais. Referências de outra autorid
 continuam genéricas. A prova integrada consulta a referência anterior após
 a troca; a asserção original do navegador é preservada. Ainda sem resultado
 remoto do corretivo.
+
+## Segunda implantação: mundo genérico e aviso antecipado
+
+O corretivo `a2893d9` passou nos sete gates `44057129948`, com a asserção
+original do motivo de encerramento e a jornada de mundo completa. A fonte
+final `f4a8a1576eb10a7c369c62e939634ca4d819eec9` passou nos sete gates
+`44058600992`. CI compartilhado `44056229698` aprovado em
+`4d9bd217f79804e15a4279d06d87de3054c85b4b`; o único delta compartilhado
+até `f4a8a15` é o comentário da previsão de tempo no contrato. Nenhuma migration
+adicional, mudança de simulação/arte/protocolo do Morada ou execução de seeds.
+
+A integração `2475661a3e552a6063fb35ac6cc5964db0b3cd5f` conserva código,
+testes, packages, workflows e IaC idênticos à fonte homologada, com somente
+registros documentais adicionais. Implantação `2fb61ccb-0a7a-4b90-8ffb-aee00f7a15a3`
+confirmada e fonte efetiva conferida por SSH no Railway. Os dois modos seguem
+`off`, jogo interno `0`, 177 recibos, zero intenções e menores; a tabela de
+salvamento restrito/0177 ainda não existe em produção. Os dois ready responderam
+200; controle sem Bearer, 401; manutenção autenticada, 200 com dez contagens.
+Mapas enviados e release Sentry `2098147499` conferida.
+
+O contador interno comprova a fotografia e a barreira com outro membro ativo;
+não é título público. O Morada mantém saída manual confirmada e capacidade
+automática nula. O aviso não prolonga a concessão. Antes de ativar os fluxos,
+concluir salvamento no corte, espera de reconexão, retenção, consumidores e
+demais aceites familiares/operacionais. Piso de retorno deste incremento:
+`2475661` ou fonte posterior com os mesmos leitores, prazos e verificações.

@@ -49,6 +49,14 @@ O teste passa a ordenar as duas leituras pelo ID, conservando a igualdade de
 todos os campos. Não se altera escritor, autorização ou dado de produção.
 Nova rodada completa ainda necessária.
 
+A rodada corretiva `f4a8a157`/`44058600992` passou nos sete gates. O CI
+compartilhado `4d9bd217`/`44056229698` terminou aprovado; o único delta
+compartilhado até `f4a8a15` é o comentário do significado da previsão, e o
+delta funcional do app está coberto pelos gates finais. Integrada em `2475661`,
+com conteúdo funcional idêntico, e conferida no deployment
+`2fb61ccb-0a7a-4b90-8ffb-aee00f7a15a3`. Famílias e checkpoint continuam `off`;
+o aviso ainda não está disponível a perfis infantis em produção. F3 não concluído.
+
 Calendário e agrupamento conferidos na documentação do PostgreSQL 18:
 [séries temporais](https://www.postgresql.org/docs/18/functions-srf.html) e
 [conversão IANA e truncamento explícito em UTC](https://www.postgresql.org/docs/18/functions-datetime.html).
