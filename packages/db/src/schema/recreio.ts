@@ -211,6 +211,10 @@ export const recreioSpaces = recreio.table(
     journalSeq: bigint("journal_seq", { mode: "number" }).notNull().default(0),
     /** Última cerca emitida para este mundo; só cresce. */
     leaseEpoch: integer("lease_epoch").notNull().default(0),
+    /** Revisão da gestão, independente das fotografias e da posse do servidor. */
+    managementRevision: integer("management_revision").notNull().default(1),
+    /** Só o arquivamento explícito preenche; registros legados podem não ter data. */
+    archivedAt: moment("archived_at"),
     /** Resumo que o jogo publica para a tela de mundos; nunca o estado em si. */
     summary: jsonb("summary").$type<Record<string, unknown>>(),
     createdAt: time("created_at"),
@@ -232,6 +236,7 @@ export const recreioSpaces = recreio.table(
       "recreio_spaces_counters",
       sql`${t.schemaVersion} >= 1 and ${t.revision} >= 0 and ${t.journalSeq} >= 0 and ${t.leaseEpoch} >= 0`,
     ),
+    check("recreio_spaces_management_revision", sql`${t.managementRevision} >= 1`),
   ],
 );
 
