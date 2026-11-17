@@ -17,7 +17,7 @@ import { protegerContatoDoMenor } from "@/features/social/supervisao-service";
 import { env } from "@/lib/env";
 import { revogar } from "../scripts/concessoes";
 import { eventosCom, novoJogador, sinal } from "./apoio";
-import { mundoDe, OUTRO_JOGO } from "./jogo-apoio";
+import { mundoDe } from "./jogo-apoio";
 import { despachar, ORIGEM, pedir } from "./rotas";
 import { familiaSocial, referenciaSocial as ref } from "./social-apoio";
 
@@ -231,7 +231,23 @@ it("SID e jogo continuam autoritativos por HTTP e o SDK não envia conta nem ide
   });
   if (!sdk.social) throw new Error("Social não negociado");
   expect((await sdk.social.participantes(c.mundoId)).participantes).toHaveLength(1);
-  const outroMundo = await mundoDe(c.a, OUTRO_JOGO);
+  // Metadados de outro jogo como precondição de isolamento; não anuncia um título público.
+  const [outro] = await db
+    .insert(spaces)
+    .values({
+      gameId: "escopo-interno",
+      stewardProfileId: c.a.perfil.id,
+      createdByProfileId: c.a.perfil.id,
+      name: "Outro escopo",
+      contentPolicy: "padrao",
+      status: "hibernating",
+    })
+    .returning({ id: spaces.id });
+  if (!outro) throw new Error("Mundo da fixture ausente");
+  await db
+    .insert(members)
+    .values({ spaceId: outro.id, profileId: c.a.perfil.id, role: "steward", state: "active" });
+  const outroMundo = outro.id;
   expect(
     await pedir("GET", `/api/sdk/v1/mundos/${outroMundo}/participantes`, {
       token: sdk.sessao.token(),

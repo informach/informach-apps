@@ -174,3 +174,9 @@ proteção, atores nativo/infantil, rollback de auditoria e espera real da trava
 do mundo antes dos perfis. A nova jornada de navegador conserva o jogo e os
 membros após a proteção. Gates desta candidata ainda pendentes; produção não
 recebeu 0191/0192, convites dirigidos/aprovações e visitas continuam abertos.
+
+Na primeira rodada `44195791990`, 740 integrações passaram; uma precondição do
+teste de escopo tentou criar o segundo jogo que só existe no mock de outros
+arquivos. O corretivo prepara explicitamente os metadados de outro jogo e sua
+participação para provar a recusa do SID de Morada, sem mudar o catálogo ou a
+regra do servidor. A rodada seguinte deve executar a mesma recusa HTTP.
