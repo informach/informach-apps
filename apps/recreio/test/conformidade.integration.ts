@@ -152,7 +152,7 @@ async function criarAmbiente(
     // A sessão de jogo nasce como no produto: ingresso e troca.
     async abrirSessao(perfilId, jogo = JOGO_PADRAO) {
       const { ingresso } = await emitirIngresso(jogador(perfilId).ator, { jogo });
-      await trocarIngresso({ ingresso, continuarAqui: true });
+      await trocarIngresso({ ingresso });
       const [sessao] = await db
         .select({ id: gameSessions.id })
         .from(gameSessions)

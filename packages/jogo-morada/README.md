@@ -29,6 +29,15 @@ Ou, em React, `import { MoradaJogo } from "@informach/jogo-morada/react"`, que m
 
 ### O que fica à vista para os testes
 
+Na candidata de 17/11, a saída pelo jogo respeita `salvo` do servidor: somente
+ACK positivo chama `aoSair`. Confirmação ausente/negativa reabre o mundo e avisa
+que é necessário conferir antes de tentar sair novamente. Duas chamadas durante
+a mesma tentativa compartilham o pedido. Revogação durante a saída continua
+definitiva, sem reconectar. Antes da primeira visão, o botão pode desistir da
+entrada sem alegar salvamento. `dispose` sempre solta a conexão/recursos, inclusive
+se não houve confirmação; isso não é recibo de progresso. Sem alteração de World2
+ou do protocolo. Prova no registro de checkpoint do Recreio.
+
 Sem `depurar`, um teste de navegador confere o jogo pelo que a pessoa vê e por estes atributos, que são estáveis:
 
 | Onde | Atributo | O que diz |

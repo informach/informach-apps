@@ -57,7 +57,7 @@ export type OpcoesDoRecreio = {
    * portal) e devolve o token. Quem fornece é a página que hospeda o jogo.
    */
   obterIngresso: (signal: AbortSignal) => Promise<string>;
-  /** Encerra a sessão de jogo aberta em outro aparelho e continua neste. */
+  /** Solicita continuar neste aparelho, sujeito ao checkpoint ou à saída anterior. */
   continuarAqui?: boolean;
   /** Só ativar depois dos leitores do recibo no servidor. Não persiste a prova. */
   recuperarAbertura?: boolean;

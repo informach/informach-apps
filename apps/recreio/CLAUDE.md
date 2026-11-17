@@ -139,6 +139,24 @@ O contrato é o `ClienteDoHost` do package, e a implementação é conferida pel
 
 ## Morada na página do jogo (lote X1)
 
+### Troca de aparelho em homologação (17/11)
+
+O modo `RECREIO_CHECKPOINT_MODE=on` usa intenção vinculada a ingresso/aparelho/SID
+e espera o ACK de dados de perfil antes da nova sessão. `JogoMontado.checkpoint`
+é opcional e aguardável; ausência ou falso nunca confirma. `retomar` só vale quando
+o controle servidor confirmou ausência de barreira. A consulta continua durante
+a pausa, sem renovação; nunca desmontar a partida pausada como se a troca já
+estivesse concluída. ACK perdido é resolvido pelo estado atual. SDK não envia
+conta, nascimento, agenda ou progresso no controle. Detalhes e limites no
+[registro de checkpoint](../../docs/recreio/checkpoint-sessoes-2026-11-17.md).
+
+Na candidata atual, `off` e títulos sem contrato autenticado de mundo exigem
+salvar/sair no aparelho anterior; `continuarAqui` não os desconecta à força.
+Sem acesso ao aparelho antigo, a gestão permite revogá-lo explicitamente, ou
+aguardar a concessão vencer. Não simular ACK nem reduzir o prazo em teste para
+anunciar uma recuperação real. Famílias, troca automática e venda continuam
+desligadas em produção; verificar gates e configuração antes de ativar.
+
 - `features/jogar/adaptadores/morada.ts` traduz `ModuloDoJogo` para `montarMorada`, do `@informach/jogo-morada`. É o único arquivo do portal que importa o pacote do jogo (e `morada-regra.ts`, só os tipos). O jogo de verdade (three.js, HUD, CSS) vem por um segundo `import()`, dentro de `montarMorada`. `next.config.ts` lista `@informach/jogo-morada` e `@informach/morada-sim` em `transpilePackages`.
 - O cliente é montado **sem `depurar`**, como em produção, também no E2E. Os testes conferem o jogo pelo HUD e pelos atributos `data-morada-*` (lista no README do `jogo-morada`).
 - O adaptador marca o elemento do jogo com `MARCA_DO_CLIENTE` (`data-jogo`). O E2E procura a marca e um nome do three.js nos scripts de cada página: a estante não baixa nenhum dos dois; `/jogar/morada` baixa os dois.

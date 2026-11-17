@@ -226,6 +226,13 @@ export async function abrirSessaoComIngresso(entrada: {
       let trocaConfirmada: string | null = null;
       if (
         aberta &&
+        aberta.expiraEm > agora &&
+        entrada.continuarAqui &&
+        env.RECREIO_CHECKPOINT_MODE !== "on"
+      )
+        return recusarAutoridade(new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "manual" }));
+      if (
+        aberta &&
         entrada.continuarAqui &&
         env.RECREIO_CHECKPOINT_MODE === "on" &&
         (aberta.expiraEm > agora || aberta.congeladaEm !== null)

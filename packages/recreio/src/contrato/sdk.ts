@@ -53,7 +53,7 @@ export const TrocaDeIngressoSchema = z.strictObject({
     .string()
     .regex(/^[A-Za-z0-9_-]{43}$/)
     .optional(),
-  /** Encerra a sessão aberta em outro aparelho e continua aqui. */
+  /** Solicita a troca; a abertura depende de checkpoint ou saída no aparelho anterior. */
   continuarAqui: z.boolean().optional(),
 });
 

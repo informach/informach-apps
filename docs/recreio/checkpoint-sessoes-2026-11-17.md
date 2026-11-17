@@ -243,3 +243,34 @@ Exercita espera antes do ACK, conflito/negativa/retentativa e perda do ACK depoi
 do commit. Os seis gates anteriores continuam integrais. Ainda precisa da rodada
 remota; `on`, famílias e venda continuam desligados em produção. O legado `off`
 e os avisos/corte de tempo ainda precisam do incremento seguinte.
+
+`e587b10` passou nos sete gates `44043755818`. As três jornadas do gate
+`checkpoint` passaram em 43,9 s: dois contextos aguardam o ACK, conflito/negativa
+e nova tentativa, ACK perdido após commit. O CI compartilhado segue em execução.
+As rodadas gerais antigas `44036973729` e `44041597529` foram canceladas por
+substituição, não aprovadas. A rodada geral da preparação do recibo `44039845094`
+também permanece em andamento; não usar a execução em curso como evidência verde.
+
+### Retirada do legado e saída sem confirmação em candidata
+
+A candidata seguinte retira a substituição forçada de `off`: o pedido responde
+`CHECKPOINT_PENDENTE/manual`, mantém a partida anterior e conserva o ingresso.
+Depois da saída pelo jogo, o mesmo ingresso pode abrir aqui dentro do prazo.
+A reprodução isolada `42003b6`, `44044606320`, na fonte anterior `e587b10`, falhou
+exatamente nesse caso: recebia 200 em vez de 409; os outros 460 testes passaram.
+A mesma fixture segue intacta para a rodada corretiva. Nunca integrar a matriz
+reduzida dessa reprodução.
+
+As journeys de mundos passam a comprovar a saída manual. O navegador morto
+é recuperado por revogação explícita do aparelho antigo na gestão; não se inventa
+checkpoint nem se altera relógio da fixture para fingir espera real. Consultas
+de permissões reutilizam sua sessão, sem tomar partidas só para montar a fixture.
+
+O cliente World2 do Morada ignorava o booleano de saída. A candidata exige ACK
+positivo antes de voltar à estante; negativa/ausência reconecta para conferir,
+sem anunciar salvamento. Mantém a autoridade de revogação durante a espera e
+solta os recursos ao desmontar. O teste de navegador faz proxy do servidor real
+e descarta só o primeiro ACK; nenhum quadro é fabricado. A reprodução isolada
+anterior e a rodada corretiva ainda precisam ser conferidas. Nenhuma mudança
+de simulação, arte, protocolo ou formato do mundo. Ainda não é checkpoint de
+mundo vinculado à intenção de troca: esse adapter autenticado continua pendente.

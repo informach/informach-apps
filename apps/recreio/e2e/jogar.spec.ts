@@ -395,14 +395,18 @@ test("um perfil joga em um lugar por vez, e sair da conta encerra o jogo", async
     await expect(daPrimeira.contador).toHaveText("1");
   });
 
-  await test.step("continuar aqui encerra a sessão da primeira aba, com a explicação", async () => {
+  await test.step("sem checkpoint do título, exige saída manual antes de abrir na outra aba", async () => {
     await segunda.getByRole("button", { name: "Continuar aqui" }).click();
+    await expect(
+      segunda.getByRole("heading", { name: "Salve e saia no outro aparelho" }),
+    ).toBeVisible();
+    await expect(daSegunda.somar).toHaveCount(0);
+    await expect(daPrimeira.contador).toHaveText("1");
+    await primeira.getByRole("button", { name: "Sair por dentro do jogo" }).click();
+    await expect(primeira).toHaveURL(/\/estante$/);
+    await segunda.getByRole("button", { name: "Tentar de novo" }).click();
     await expect(daSegunda.presentes).toContainText("Caio (você)");
     await expect(daSegunda.contador).toHaveText("1");
-    await expect(
-      primeira.getByRole("heading", { name: "Você continuou o jogo em outro lugar" }),
-    ).toBeVisible({ timeout: 30_000 });
-    await expect(primeira.getByRole("button", { name: "Jogar aqui" })).toBeVisible();
     await expect(daPrimeira.somar).toHaveCount(0);
     // A segunda aba não foi afetada pela saída da primeira.
     await daSegunda.somar.click();

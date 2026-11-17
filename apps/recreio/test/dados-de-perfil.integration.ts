@@ -176,7 +176,8 @@ describe("SDK sem mundos: progresso privado com PostgreSQL real", () => {
     const b = await abrir();
     await a.sdk.dados.gravar("privado", bytes("segredo"));
     expect(await b.sdk.dados.ler("privado")).toBeNull();
-    const morada = await entrarNoJogo(a.jogador, "morada", { continuarAqui: true });
+    await a.sdk.sessao.sair();
+    const morada = await entrarNoJogo(a.jogador, "morada");
     await expect(
       consultarDados(await sessaoDeJogoDoToken(morada.token), "privado", false),
     ).rejects.toMatchObject({ codigo: "SEM_PERMISSAO" });

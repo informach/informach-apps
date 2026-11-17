@@ -137,7 +137,19 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
     },
     focarNaCena,
     sair() {
-      void sessao.sair().then(() => opcoes.aoSair?.());
+      if (!loja.visao) {
+        sessao.conexao.largar();
+        opcoes.aoSair?.();
+        return;
+      }
+      void sessao.sair().then((salvo) => {
+        if (salvo) opcoes.aoSair?.();
+        else
+          loja.avisar(
+            "recusa",
+            "Não foi possível confirmar o salvamento. Vamos reabrir o mundo para conferir; tente sair novamente.",
+          );
+      });
     },
     voltar: opcoes.aoSair ? () => opcoes.aoSair?.() : null,
   };
@@ -236,15 +248,19 @@ export function iniciarJogo(host: HTMLElement, opcoes: OpcoesDoMorada): JogoMont
       // Sai do mundo antes de soltar a tela: o servidor salva e libera a reserva na hora.
       // Quem desmonta não quer mais notícia: nem do fim que o próprio `dispose` provoca.
       pararDeOuvir();
-      await sessao.sair();
-      raiz.removeEventListener("keydown", aoApertar);
-      raiz.removeEventListener("keyup", aoSoltar);
-      raiz.removeEventListener("focusout", aoPerderFoco);
-      cena.dispose();
-      ativos.dispose();
-      hud.unmount();
-      raiz.remove();
-      if (opcoes.depurar) delete window.__morada;
+      try {
+        await sessao.sair();
+      } finally {
+        sessao.conexao.largar();
+        raiz.removeEventListener("keydown", aoApertar);
+        raiz.removeEventListener("keyup", aoSoltar);
+        raiz.removeEventListener("focusout", aoPerderFoco);
+        cena.dispose();
+        ativos.dispose();
+        hud.unmount();
+        raiz.remove();
+        if (opcoes.depurar) delete window.__morada;
+      }
     },
   };
 }

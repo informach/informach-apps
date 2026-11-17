@@ -273,15 +273,22 @@ describe("convites", () => {
     const mundoId = await mundoDe(lia);
     await aceitarConvite(quem(bruno), { codigo: await conviteDe(lia, mundoId) });
 
+    const tokens = new Map<string, string>();
     const pedirConvite = async (
       jogador: Jogador,
       id: string,
       corpo: unknown = { forma: "member" },
-    ) =>
-      pedir("POST", `/api/sdk/v1/mundos/${id}/convites`, {
-        token: (await entrarNoJogo(jogador, MORADA, { continuarAqui: true })).token,
+    ) => {
+      let token = tokens.get(jogador.perfil.id);
+      if (!token) {
+        token = (await entrarNoJogo(jogador, MORADA)).token;
+        tokens.set(jogador.perfil.id, token);
+      }
+      return pedir("POST", `/api/sdk/v1/mundos/${id}/convites`, {
+        token,
         corpo,
       });
+    };
 
     expect(await pedirConvite(bruno, mundoId)).toEqual({
       status: 403,

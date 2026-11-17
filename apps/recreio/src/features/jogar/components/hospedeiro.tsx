@@ -297,7 +297,7 @@ export function Hospedeiro({
             texto={
               trocaCoordenada
                 ? "Continuar aqui? Vamos pedir ao outro aparelho que salve antes de trocar."
-                : "Continuar aqui? O jogo aberto no outro lugar será desconectado."
+                : "Continuar aqui? Primeiro salve e saia pelo jogo no outro aparelho."
             }
           >
             <button type="button" className="rb rb-sol" onClick={() => abrir(true)}>
