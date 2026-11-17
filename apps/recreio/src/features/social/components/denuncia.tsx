@@ -3,17 +3,10 @@ import { INFORMACH_CONTACT } from "@informach/config/contact";
 import type { CategoriaDeDenuncia } from "@informach/recreio/contrato";
 import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useId, useRef, useState } from "react";
+import { CATEGORIAS_DE_DENUNCIA as motivos } from "@/features/moderacao/categorias";
 import { denunciarContatoAction, denunciarContatoDoMenorAction } from "../actions";
 import { ErroSocial, useAcaoSocial } from "./acao";
 
-const motivos: { valor: CategoriaDeDenuncia; rotulo: string }[] = [
-  { valor: "contato_indesejado", rotulo: "Contato que eu não quero" },
-  { valor: "assedio", rotulo: "Insistência, ofensa ou perseguição" },
-  { valor: "conteudo_inadequado", rotulo: "Algo que não deveria aparecer aqui" },
-  { valor: "dados_pessoais", rotulo: "Pedido ou exposição de dados pessoais" },
-  { valor: "ameaca", rotulo: "Ameaça ou risco à segurança" },
-  { valor: "outro", rotulo: "Outro cuidado com este contato" },
-];
 export function DenunciarContato({
   perfilId,
   alvoId,

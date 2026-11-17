@@ -176,6 +176,10 @@ jobs:
             apps/recreio/tmp/telas/recurso-titular-mobile.png
             apps/recreio/tmp/telas/recurso-responsavel-mobile.png
             apps/recreio/tmp/telas/denuncia-acompanhamento-mobile.png
+            apps/recreio/tmp/telas/host-social-mobile-topo.png
+            apps/recreio/tmp/telas/host-social-mobile-cuidados.png
+            apps/recreio/tmp/telas/host-controle-morada-mobile.png
+            apps/recreio/tmp/telas/host-social-morada-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic color evidence

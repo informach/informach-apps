@@ -631,6 +631,38 @@ identificada durante nova análise. A equipe só pode concluir como medida aplic
 se existir recibo de efeito confirmado naquele caso; teste adicional candidato
 nega a declaração sem prova. Este incremento ainda aguarda os gates remotos.
 
+`6ccda723` concluiu os sete gates `44170450100`, incluindo a projeção de
+segurança do Bastidores pela conexão read-only. `64bc05aa` concluiu os sete
+`44172641453`, com acompanhamento/revisão e a jornada HTTP da equipe sintética.
+Nenhum deles comprova o desafio TOTP na interface do Bastidores ou implantação.
+As duas capturas de revisão em `1060056`, artefato `14365919188`, foram
+inspecionadas a 390 px: estado, protocolo e orientações legíveis, sem rolagem
+horizontal. ZIP SHA `7b6cf47a8cb6100782fdf8e0cb495abc0f75103537efacff2c9a474a10c016a9`.
+
+O candidato do host acrescenta painel modal acessível durante a partida, com
+amizade por código, pedidos, presença, bloqueio/silêncio/remoção e denúncia pelo
+SID atual. Não navega nem desmonta o jogo, não oferece gestão adulta e não
+declara pausa/salvamento. Cena fica `inert`; diálogo nativo mantém o foco e
+Escape/fechar retornam à partida. Código/nonce ficam só na memória da interface;
+nada de storage, URLs externas ou retry automático. Cada atualização faz uma
+leitura, sem duplicar GETs; fechamento não dispara leitura posterior à mutação.
+
+A negociação opt-in passa a representar suporte ao protocolo, sem depender de
+`RECREIO_SOCIAL_MODE`. Desligar novos contatos continua recusando emissão/pedido
+no servidor, mas uma nova partida conserva leitura e proteção de conhecidos.
+Clientes sem opt-in continuam sem campo/métodos novos. Regressão candidata
+reabre o mesmo adulto com o modo desligado, confere a amizade e bloqueia/remove
+com o novo SID, mantendo a emissão de código recusada.
+
+Duas jornadas candidatas: contador compartilhado continua recebendo mudanças
+do outro navegador enquanto o painel está aberto, sem saída de SID, e bloqueio
+não remove membros do mundo; no Morada, digitar espaço no painel não altera o
+ritmo, o atalho volta a funcionar na cena após fechar e a saída continua pelo
+jogo com confirmação. Capturas mobile preparadas para controles e diálogo.
+Essas provas ainda aguardam o GitHub; não são medição de FPS ou hardware real.
+Participantes não amigos e demais políticas de mundo continuam em F5, e a
+jornada de entrada/atendimento pela interface do Bastidores permanece pendente.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

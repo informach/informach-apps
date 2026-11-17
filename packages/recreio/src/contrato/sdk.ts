@@ -191,7 +191,7 @@ export type MudancaDeAcesso = {
 };
 
 export interface RecreioGameContext {
-  /** Ausente sem negociação ou enquanto o servidor mantém social desligado. */
+  /** Ausente sem negociação. Desligar novos contatos conserva leitura/proteção autorizadas. */
   social?: import("./social").SocialDoPerfil;
   dados: DadosDoPerfil;
   /** Conquistas declaradas pelo cliente; não concedem dinheiro nem acesso. */

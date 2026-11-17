@@ -115,7 +115,7 @@ describe("SDK social negocia capacidade e conserva autenticação e proteção",
       codigo: "NAO_ENCONTRADO",
     });
   });
-  it("capacidade exige opt-in e configuração; desligar novos contatos conserva remoção e proteção", async () => {
+  it("capacidade exige opt-in; reabrir com novos contatos desligados conserva proteção dos conhecidos", async () => {
     expect((await abrir(false)).sdk.social).toBeUndefined();
     const a = await comSocial(),
       b = await comSocial();
@@ -123,10 +123,28 @@ describe("SDK social negocia capacidade e conserva autenticação e proteção",
     const pedido = await a.social.pedir(codigo.codigo, crypto.randomUUID());
     await b.social.aceitar(pedido.pedidoId);
     env.RECREIO_SOCIAL_MODE = "off";
-    expect((await abrir()).sdk.social).toBeUndefined();
-    await expect(a.social.codigo()).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
-    await a.social.proteger({ perfilId: b.jogador.perfil.id, bloqueado: true, silenciado: false });
-    await a.social.remover(b.jogador.perfil.id);
+    await a.sdk.sessao.sair();
+    const retomada = await criarRecreio({
+      baseUrl: ORIGEM,
+      jogo: "morada",
+      social: true,
+      obterIngresso: async () =>
+        (await emitirIngresso(a.jogador.ator, { jogo: "morada" })).ingresso,
+      fetch: despachar,
+      agendar: () => () => {},
+    });
+    if (!retomada.social) throw new Error("A proteção não foi negociada na retomada");
+    expect(await retomada.social.listar()).toMatchObject({
+      podeCriarContatos: false,
+      contatos: [{ perfilId: b.jogador.perfil.id, amizade: true }],
+    });
+    await expect(retomada.social.codigo()).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+    await retomada.social.proteger({
+      perfilId: b.jogador.perfil.id,
+      bloqueado: true,
+      silenciado: false,
+    });
+    await retomada.social.remover(b.jogador.perfil.id);
     expect(
       (await db.select().from(friends).where(eq(friends.requestId, pedido.pedidoId)))[0]?.state,
     ).toBe("removed");

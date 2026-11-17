@@ -112,7 +112,8 @@ function respostaDaSessao(
   suportaSocial = false,
 ): SessaoAberta {
   return {
-    ...(suportaSocial && env.RECREIO_SOCIAL_MODE === "on" ? { social: true as const } : {}),
+    // A capacidade negociada conserva proteção; a política atual controla novos contatos.
+    ...(suportaSocial ? { social: true as const } : {}),
     token: token.token,
     expiraEm: token.expiraEm.toISOString(),
     perfil: {
