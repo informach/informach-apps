@@ -8,14 +8,26 @@
     { "app": "recreio", "deployment": "9aab45a3-e787-413b-9f55-8a0ba391d50c", "pronto": 200 },
     { "app": "admin", "deployment": "2249b4bc-d642-41af-b633-43aa596cddad", "pronto": 200 },
     { "app": "bora-treinar", "deployment": "95395188-9230-4747-81f8-721c858ff851", "pronto": 200 },
-    { "app": "agenda-da-turma", "deployment": "235edea6-0afc-4f80-9d29-517cc9e9dc25", "pronto": 200 },
+    {
+      "app": "agenda-da-turma",
+      "deployment": "235edea6-0afc-4f80-9d29-517cc9e9dc25",
+      "pronto": 200
+    },
     { "app": "missao-saber", "deployment": "826f3f47-b3af-474c-abbb-d51cf1da54c9", "pronto": 200 },
-    { "app": "dia-de-estrela", "deployment": "bded2e7a-67f9-48ae-a20e-ebbe3f5ea3b1", "pronto": 200 },
+    {
+      "app": "dia-de-estrela",
+      "deployment": "bded2e7a-67f9-48ae-a20e-ebbe3f5ea3b1",
+      "pronto": 200
+    },
     { "app": "conta", "deployment": "3aa711cb-ffb4-4c6e-8ace-f4c58612b4fb", "pronto": 200 },
     { "app": "cozya", "deployment": "beaa67fc-e25c-401a-805d-281ff6fb0173", "pronto": 200 },
     { "app": "edi", "deployment": "30f54b90-0388-44b6-9acb-3c24c034ecca", "pronto": 200 }
   ],
-  "morada": { "deployment": "3cd2cb8f-f160-4508-9f6e-c2d196235bb5", "fonte": "644b3841cb81b24d04159f75892a4c21d4d5f094", "pronto": 200 },
+  "morada": {
+    "deployment": "3cd2cb8f-f160-4508-9f6e-c2d196235bb5",
+    "fonte": "644b3841cb81b24d04159f75892a4c21d4d5f094",
+    "pronto": 200
+  },
   "fontesFixadas": true,
   "motivo": "Separar a candidata da plataforma da integração D3 recebida na main remota.",
   "restaurarAcompanhamentoDaMain": "Oito consumidores web somente após fonte pública qualificada contendo a guarda. Recreio e Morada conservam promoção explícita enquanto D3 não for homologado.",

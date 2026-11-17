@@ -125,9 +125,14 @@ describe("pessoa suspensa conserva direito próprio de revisão, separado da den
     ).toMatchObject({ actorKind: "responsavel", actorUserId: r.conta.id });
     expect(await db.select().from(profiles).where(eq(profiles.userId, r.conta.id))).toHaveLength(0);
     // O dono comercial continua o mesmo; a responsabilidade atual é retirada.
+    const [novoResponsavel] = await db
+      .select({ declarationId: guardians.declarationId })
+      .from(guardians)
+      .where(eq(guardians.profileId, outra.perfil.id));
+    if (!novoResponsavel) throw new Error("Declaração do novo responsável ausente");
     await db
       .update(guardians)
-      .set({ guardianUserId: outra.conta.id })
+      .set({ guardianUserId: outra.conta.id, declarationId: novoResponsavel.declarationId })
       .where(eq(guardians.profileId, r.perfil.id));
     await expect(pedirRevisaoDaRestricao(r.autor, entrada)).rejects.toMatchObject({
       code: "PERFIL",

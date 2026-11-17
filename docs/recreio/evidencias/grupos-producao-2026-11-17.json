@@ -9,11 +9,26 @@
   "prontidaoDoProcesso": 200,
   "recibosDeMigracao": 184,
   "migracoes": [
-    { "tag": "0179_sudden_stranger", "sha256": "d6667f8379cc602caf6ee1844034b42e3ab589b6eb066a7501ff1ef733b787fc" },
-    { "tag": "0180_romantic_veda", "sha256": "795584955c1e84908586271fb0c3e623963367ea8f658499c6258daa6cfc0ac7" },
-    { "tag": "0181_old_plazm", "sha256": "000b6c5c98b2164ccec77fd3aaab64b42085c78fb7fab064549844496de31a17" },
-    { "tag": "0182_romantic_yellowjacket", "sha256": "018cab16d419dd6d287ce4c8e1f3a8ed2cc8b45a7180b046aa7f304a00f1d289" },
-    { "tag": "0183_omniscient_arclight", "sha256": "58f4a7c70dde8819137fa82b2512d560fb20d0140dde997b298ec6cea7f33860" }
+    {
+      "tag": "0179_sudden_stranger",
+      "sha256": "d6667f8379cc602caf6ee1844034b42e3ab589b6eb066a7501ff1ef733b787fc"
+    },
+    {
+      "tag": "0180_romantic_veda",
+      "sha256": "795584955c1e84908586271fb0c3e623963367ea8f658499c6258daa6cfc0ac7"
+    },
+    {
+      "tag": "0181_old_plazm",
+      "sha256": "000b6c5c98b2164ccec77fd3aaab64b42085c78fb7fab064549844496de31a17"
+    },
+    {
+      "tag": "0182_romantic_yellowjacket",
+      "sha256": "018cab16d419dd6d287ce4c8e1f3a8ed2cc8b45a7180b046aa7f304a00f1d289"
+    },
+    {
+      "tag": "0183_omniscient_arclight",
+      "sha256": "58f4a7c70dde8819137fa82b2512d560fb20d0140dde997b298ec6cea7f33860"
+    }
   ],
   "fksDeIdentidade": { "groups": "RESTRICT", "profiles": "RESTRICT" },
   "cardinalidadesConferidas": { "grupos": 2, "perfis": 1, "mundos": 2 },
@@ -23,11 +38,19 @@
   "manutencao": {
     "status": 200,
     "contagens": {
-      "possesVencidas": 0, "instanciasSumidas": 0, "ingressosApagados": 0,
-      "sessoesExpiradas": 0, "convitesApagados": 0, "cadastrosPendentesApagados": 0,
-      "recibosDeCadastroApagados": 0, "pareamentosApagados": 0,
-      "aparelhosNaoConfirmadosEncerrados": 0, "diasDeUsoApagados": 0,
-      "recibosDeSalvamentoApagados": 0, "convitesDeGrupoVencidos": 0, "recibosDeGrupoApagados": 0
+      "possesVencidas": 0,
+      "instanciasSumidas": 0,
+      "ingressosApagados": 0,
+      "sessoesExpiradas": 0,
+      "convitesApagados": 0,
+      "cadastrosPendentesApagados": 0,
+      "recibosDeCadastroApagados": 0,
+      "pareamentosApagados": 0,
+      "aparelhosNaoConfirmadosEncerrados": 0,
+      "diasDeUsoApagados": 0,
+      "recibosDeSalvamentoApagados": 0,
+      "convitesDeGrupoVencidos": 0,
+      "recibosDeGrupoApagados": 0
     }
   },
   "guardaCompartilhadaPrevia": "guarda-contas-producao-2026-11-17.json",
