@@ -106,3 +106,13 @@ grupo e saída; decisões vigentes em
 
 F3 restrito continua em qualificação independente. Este plano não entra na sua
 fonte funcional nem autoriza publicar migrations futuras junto de 0177/0178.
+
+## Primeiro incremento em implementação
+
+Fonte isolada de F3: extrair a decisão comercial pura sem perfil fictício e o
+carregador de fatos do grupo em `features/acesso`. O caminho de jogador conserva
+suas negativas de suspensão/cobertura e acrescenta sua revisão à mesma decisão
+comercial. Não há escritor, rota, convite ou ativação por esta extração.
+As provas exigem pagante sem jogador, limites 1/4, revogação, conexão da
+transação e ausência de autoridade para um perfil sem cobertura. Gates remotos
+ainda necessários; este incremento não conclui o fluxo de F1.
