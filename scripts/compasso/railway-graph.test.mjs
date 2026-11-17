@@ -188,6 +188,17 @@ test("Recreio launch enables only its sources and monitoring, preserving data re
   assert.equal(after.get("cron-recreio-manutencao").deploy.cronSchedule, "*/5 * * * *");
   assert.equal(before.get("@informach/admin").variables.ADMIN_RECREIO_ENABLED.value, "0");
   assert.equal(after.get("@informach/admin").variables.ADMIN_RECREIO_ENABLED.value, "1");
+  assert.equal(
+    after.get("@informach/recreio-app").source.commitSha,
+    "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a",
+  );
+  assert.equal(
+    after.get("@informach/morada-server").source.commitSha,
+    "644b3841cb81b24d04159f75892a4c21d4d5f094",
+  );
+  assert.equal(after.get("@informach/recreio-app").variables.RECREIO_SOCIAL_MODE.value, "off");
+  for (const name of ["@informach/recreio-app", "@informach/admin"])
+    assert.deepEqual(after.get(name).variables.RECREIO_MODERATION_SECRET, { type: "preserve" });
   const morada = after.get("@informach/morada-server");
   assert.equal(morada.variables.DATABASE_URL, undefined);
   assert.ok(morada.deploy.drainingSeconds > 25);

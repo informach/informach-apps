@@ -718,6 +718,33 @@ real**, fecha o painel e exige zero GET posterior; reabrir/consultar recupera o
 recurso. Só a resposta inicial do caso é fixture isolada; o pedido de revisão e
 seu transporte são reais. Estes ajustes ainda precisam da rodada seguinte.
 
+### Qualificação final e preparação operacional de F4
+
+`396fe932` passou nos oito gates `44188574280`; a integração `d7159ce0`
+preservou as fontes concorrentes públicas e passou nos oito gates `44192438764`.
+Os diretórios funcionais do portal, Bastidores, auth, db, config e SDK são
+idênticos à fonte isolada; o Morada concorrente permanece no histórico público,
+sem autorizar sua implantação. O CI compartilhado `44188583156`, da fonte
+isolada, ainda está em execução. Nenhuma migration F4 foi aplicada.
+
+Capturas finais conferidas: artefato `14376556020`, ZIP
+`94eb588f79ad30cefa1c6de5f4ebed2f1672d8f1883e085ba440caecc1b3b24a`,
+com retorno sempre acessível após rolagem; fila atualizada no artefato
+`14375158300`, ZIP
+`e3e133105ba4799f840d6022715236f03027fb6f57abfbf0b4ff246b7a78b64b`,
+mostrando o caso resolvido na revisão quatro, após três comandos reais.
+Continua sendo o ensaio TOTP em desenvolvimento no GitHub, distinto do build
+e da operação de produção.
+
+A configuração candidata passa a declarar os pins explícitos do portal em
+`396fe932` e Morada em `644b3841`, o social `off` e a preservação da credencial
+restrita nos dois serviços. Isso evita que um apply futuro recoloque D3 por
+acompanhar a main ou retire a nova credencial. Exige qualificação do grafo e
+implantação ordenada; não aplicar o projeto inteiro durante o serviço temporário
+de restauração. Às 23:03 UTC, o portal real continuava em `204cf79c`, pronto,
+com 184 recibos, social ausente, dois mundos, dez fotos e zero partidas abertas;
+famílias/checkpoint `off`, jogo interno `0`. Nova restauração isolada foi iniciada.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

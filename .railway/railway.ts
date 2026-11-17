@@ -56,6 +56,9 @@ const RECREIO_PROVISIONED = true;
 const RECREIO_DOMAINS_CONFIGURED = true;
 /** Alfa fechado autorizado em 15/11. Nunca desligar para rollback de código. */
 const RECREIO_LAUNCHED = true;
+/** F4 qualificada separadamente; D3 presente na main não autoriza trocar World2 em produção. */
+const RECREIO_PRODUCTION_COMMIT = "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a";
+const MORADA_PRODUCTION_COMMIT = "644b3841cb81b24d04159f75892a4c21d4d5f094";
 
 // Imagens dos crons sem build, fixadas por digest: uma tag trocada no registro
 // não muda o que roda com o CRON_SECRET de cada app. Para atualizar, conferir o
@@ -628,6 +631,7 @@ export default defineRailway((ctx) => {
       STRIPE_MODE: "prod",
       ADMIN_COMPASSO_ENABLED: COMPASSO_LAUNCHED ? "1" : "0",
       ADMIN_RECREIO_ENABLED: RECREIO_LAUNCHED ? "1" : "0",
+      RECREIO_MODERATION_SECRET: preserve(),
       LOG_LEVEL: "info",
       BETTER_AUTH_SECRET: preserve(),
       CRON_SECRET: preserve(),
@@ -738,7 +742,13 @@ export default defineRailway((ctx) => {
   // Recreio: alfa fechado, acesso por concessão, sem checkout. Segredos novos
   // precisam existir antes do primeiro apply; preserve() não cria um segredo.
   const recreio = service("@informach/recreio-app", {
-    source: RECREIO_LAUNCHED ? main : undefined,
+    source: RECREIO_LAUNCHED
+      ? github(REPOSITORY, {
+          branch: "main",
+          commitSha: RECREIO_PRODUCTION_COMMIT,
+          rootDirectory: "/",
+        })
+      : undefined,
     build: {
       builder: "RAILPACK",
       buildCommand: standaloneNext("recreio").buildCommand,
@@ -781,6 +791,7 @@ export default defineRailway((ctx) => {
       RECREIO_ACCESS_MODE: "fechado",
       RECREIO_FAMILY_MODE: "off",
       RECREIO_CHECKPOINT_MODE: "off",
+      RECREIO_SOCIAL_MODE: "off",
       RECREIO_JOGO_DE_TESTE: "0",
       RECREIO_GAME_ORIGINS: JSON.stringify({
         morada: {
@@ -791,6 +802,7 @@ export default defineRailway((ctx) => {
       BETTER_AUTH_SECRET: preserve(),
       CRON_SECRET: preserve(),
       RECREIO_HOST_SECRETS: preserve(),
+      RECREIO_MODERATION_SECRET: preserve(),
       RECREIO_TOKEN_PRIVATE_KEY: preserve(),
       NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: preserve(),
       RECREIO_TOKEN_KEY_ID: preserve(),
@@ -806,7 +818,13 @@ export default defineRailway((ctx) => {
   // de instalar/verificar o pacote; sem pasta o jogo usa os corpos procedurais.
   const moradaArte = volume("morada-arte", { region: REGION, sizeMB: 1000 });
   const morada = service("@informach/morada-server", {
-    source: RECREIO_LAUNCHED ? main : undefined,
+    source: RECREIO_LAUNCHED
+      ? github(REPOSITORY, {
+          branch: "main",
+          commitSha: MORADA_PRODUCTION_COMMIT,
+          rootDirectory: "/",
+        })
+      : undefined,
     build: {
       builder: "RAILPACK",
       buildCommand: "pnpm install --frozen-lockfile --prod=false && pnpm build:morada-server",
