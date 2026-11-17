@@ -85,14 +85,17 @@ test("minuto real do perfil infantil termina com recibo, recusa direta e relató
     tablet.getByRole("heading", { name: "Hora de fazer uma pausa", exact: true }),
   ).toBeVisible({ timeout: 90_000 });
   await expect(tablet.getByText("Progresso salvo e confirmado.", { exact: true })).toBeVisible();
-  expect(
-    (
-      await contexto.request.post("/api/sdk/v1/dados", {
-        headers: { authorization: autorizacao },
-        data: { operacao: "gravar", chave: "apos-corte", revisao: 0, conteudo: "MQ==" },
-      })
-    ).status(),
-  ).toBe(401);
+  const escritaAposCorte = await contexto.request.post("/api/sdk/v1/dados", {
+    headers: { authorization: autorizacao },
+    data: { operacao: "gravar", chave: "apos-corte", revisao: 0, conteudo: "MQ==" },
+  });
+  // Nos cinco segundos de tolerância da assinatura, a linha já encerrada
+  // responde 403. Depois desse prazo, a própria assinatura responde 401.
+  // Exige o par exato: um 403 por outra causa não prova o corte da sessão.
+  expect([
+    { status: 403, corpo: { codigo: "SESSAO_ENCERRADA", motivo: "expired" } },
+    { status: 401, corpo: { codigo: "SESSAO_INVALIDA" } },
+  ]).toContainEqual({ status: escritaAposCorte.status(), corpo: await escritaAposCorte.json() });
   await expect(tablet.getByRole("button", { name: "Ganhar ponto", exact: true })).toHaveCount(0);
   await tablet.getByRole("link", { name: "Voltar à estante", exact: true }).click();
   await expect(tablet).toHaveURL(/\/aparelho$/);

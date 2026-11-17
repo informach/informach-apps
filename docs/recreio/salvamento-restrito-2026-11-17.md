@@ -415,3 +415,16 @@ O SDK, ao receber prazo que não avança, agenda o vencimento já confirmado em 
 de renovar frações cada vez menores. A prova de fronteira também combina
 vencimento com revogação real. Reprodução isolada de banco em candidata de prova;
 a jornada do minuto permanece intacta para a rodada corretiva completa.
+
+Em `f2bd1dc`/`44082653144`, integração, E2E geral, cliente, qualidade, longa
+e versões passaram. O minuto real chegou à pausa e ao salvamento confirmado;
+a escrita seguinte foi recusada com `403 SESSAO_ENCERRADA`, motivo `expired`.
+O teste esperava incorretamente somente 401. A assinatura comum possui cinco
+segundos de tolerância, mas a linha já encerrada é conferida antes de escrever.
+O ajuste aceita somente os dois pares exatos do contrato: 403/encerrada/expired
+ou 401/inválida depois do prazo assinado. Nenhuma alteração de produção.
+Artefato `14327802488`, SHA
+`70d155e24abfb4529e722c18bc26c1276738fc3c4e57dee26462503fb4af93d2`.
+A reprodução negativa `44082281925` falhou exclusivamente na classificação
+indevida de vencimento como logout; a combinação com revogação real passou.
+Rodada completa corretiva ainda necessária, incluindo o restante do relatório.
