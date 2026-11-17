@@ -107,3 +107,12 @@ ignora `minor_context_generation` não é rollback seguro. O piso de rollback
 deve ser uma release com esses leitores; desligar cadastro/jogo infantil não
 apaga a trava nem impede retorno autorizado do responsável. Validar esse
 contrato de implantação antes de habilitar a escrita em produção.
+
+Primeira etapa de geração: run GitHub `44013448586`, fonte
+`0ee900b51b241480001390b32a478a055e6baf6e`, gerou somente a UNIQUE em
+`0172_curious_starjammers.sql` (119 bytes, SHA-256
+`02a9a8d1df90a1649310543923caaca4c803d16d123d6bdb76093af16d8204f4`).
+Origem, três caminhos, tamanhos e hashes do artefato foram conferidos antes
+da cópia. SQL e metadados não foram editados. Schema de políticas reexportado
+somente depois dessa etapa, para a segunda geração. Nenhuma das migrations
+0168 em diante foi aplicada em produção neste incremento.
