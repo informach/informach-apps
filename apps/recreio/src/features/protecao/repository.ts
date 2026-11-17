@@ -20,6 +20,7 @@ import {
 import {
   type AutorNativoRecente,
   autorizarContaNativa,
+  type IdentidadeNativa,
 } from "@/features/account/autoridade-repository";
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/repository";
 import { assertAllowed } from "@/lib/errors";
@@ -34,6 +35,152 @@ async function limites(tx: Transacao) {
   await tx.execute(sql`set local statement_timeout='5s'`);
   await tx.execute(sql`set local lock_timeout='2s'`);
   await tx.execute(sql`set local transaction_timeout='15s'`);
+}
+
+export async function admitirRetornoNativo(autor: AutorNativoRecente) {
+  await db.transaction(async (tx) => {
+    await limites(tx);
+    const nativo = await autorizarContaNativa(tx, autor);
+    await nativo.conferirPrazo(autor.login);
+  });
+}
+
+export async function aparelhosDoMenor(autor: IdentidadeNativa, perfilId: PerfilId) {
+  return db.transaction(async (tx) => {
+    await limites(tx);
+    const nativo = await autorizarContaNativa(tx, autor);
+    const menor = await autoridadeDoMenor(tx, perfilId, autor.contaId);
+    const [atual] = await tx
+      .select()
+      .from(protection)
+      .where(eq(protection.profileId, perfilId))
+      .for("share");
+    assertAllowed(
+      !atual || atual.guardianLinkId === menor.vinculo.id,
+      "PERFIL",
+      "Perfil não disponível.",
+    );
+    if (!atual) {
+      await nativo.conferirPrazo();
+      return { perfil: menor.perfil, pinDefinido: false, aparelhos: [] };
+    }
+    const linhas = await tx
+      .select({
+        id: devices.id,
+        criadoEm: devices.createdAt,
+        expiraEm: devices.expiresAt,
+        revogadoEm: devices.revokedAt,
+        generation: credentials.accessGeneration,
+        confirmado: sql<boolean>`${credentials.tokenHash} is not null`.mapWith(Boolean),
+      })
+      .from(credentials)
+      .innerJoin(devices, eq(devices.id, credentials.deviceSessionId))
+      .where(
+        and(
+          eq(credentials.profileId, perfilId),
+          eq(credentials.guardianUserId, autor.contaId),
+          eq(credentials.accessGeneration, atual.accessGeneration),
+          isNull(devices.revokedAt),
+          sql`${devices.expiresAt} > clock_timestamp()`,
+        ),
+      )
+      .orderBy(sql`${devices.createdAt} desc`, devices.id)
+      .limit(APARELHOS_POR_MENOR);
+    const agora = await nativo.conferirPrazo();
+    return {
+      perfil: menor.perfil,
+      pinDefinido: !!atual?.pinHash,
+      aparelhos: linhas.map((linha) => ({
+        id: linha.id,
+        criadoEm: linha.criadoEm.toISOString(),
+        expiraEm: linha.expiraEm.toISOString(),
+        estado:
+          linha.revogadoEm ||
+          linha.expiraEm <= agora ||
+          linha.generation !== atual?.accessGeneration
+            ? ("encerrado" as const)
+            : linha.confirmado
+              ? ("ativo" as const)
+              : ("aguardando" as const),
+      })),
+    };
+  });
+}
+
+export async function revogarUmAparelhoDoMenor(
+  autor: AutorNativoRecente,
+  perfilId: PerfilId,
+  aparelhoId: SessaoDeAparelhoId,
+) {
+  await db.transaction(async (tx) => {
+    await limites(tx);
+    const nativo = await autorizarContaNativa(tx, autor);
+    const menor = await autoridadeDoMenor(tx, perfilId, autor.contaId);
+    await protecaoAtual(tx, perfilId, menor.vinculo.id, "update");
+    const [aparelho] = await tx
+      .select()
+      .from(devices)
+      .where(
+        and(
+          eq(devices.id, aparelhoId),
+          eq(devices.kind, "paired_device"),
+          eq(devices.activeProfileId, perfilId),
+          sql`exists(select 1 from ${credentials} c where c.device_session_id=${devices.id} and c.profile_id=${perfilId} and c.guardian_user_id=${autor.contaId})`,
+        ),
+      )
+      .for("update");
+    const agora = await nativo.conferirPrazo(autor.login);
+    assertAllowed(aparelho, "APARELHO", "Aparelho não encontrado.");
+    if (aparelho.revokedAt) return;
+    await tx.update(devices).set({ revokedAt: agora }).where(eq(devices.id, aparelho.id));
+    await encerrarSessoesAbertas(
+      tx,
+      sql`${games.deviceSessionId}=${aparelho.id} and ${games.profileId}=${perfilId}`,
+      "signed_out",
+      { porQuem: "conta" },
+    );
+    await logAuditEventStrict(
+      "recreio.device_session_revoked",
+      autor.contaId,
+      { app: "recreio", profileId: perfilId, deviceSessionId: aparelho.id },
+      { writer: tx },
+    );
+  });
+}
+
+/** Encerrar a própria capacidade não concede acesso a outra identidade. */
+export async function encerrarAparelhoPareado(aparelhoId: SessaoDeAparelhoId, token: string) {
+  await db.transaction(async (tx) => {
+    await limites(tx);
+    const [aparelho] = await tx
+      .select()
+      .from(devices)
+      .where(
+        and(
+          eq(devices.id, aparelhoId),
+          eq(devices.kind, "paired_device"),
+          isNull(devices.userId),
+          isNull(devices.authSessionId),
+          isNull(devices.revokedAt),
+          sql`exists(select 1 from ${credentials} c where c.device_session_id=${devices.id} and c.token_hash=${hashDoSegredo("credencial", `${aparelhoId}.${token}`)})`,
+        ),
+      )
+      .for("update");
+    if (!aparelho) return;
+    await tx
+      .update(devices)
+      .set({ revokedAt: await agoraDoBanco(tx) })
+      .where(eq(devices.id, aparelho.id));
+    await encerrarSessoesAbertas(tx, sql`${games.deviceSessionId}=${aparelho.id}`, "signed_out", {
+      porQuem: "conta",
+    });
+    await logAuditEventStrict(
+      "recreio.device_session_revoked",
+      null,
+      { app: "recreio", profileId: aparelho.activeProfileId, deviceSessionId: aparelho.id },
+      { writer: tx },
+    );
+  });
 }
 
 export async function gravarPinNativo(autor: AutorNativoRecente, hash: string) {

@@ -43,6 +43,12 @@ export default async function PerfisDaFamilia({
                 <AvatarDoPerfil avatar={perfil.avatar} apelido={perfil.apelido} />
                 <div className="min-w-0">
                   <h3 className="font-bold [overflow-wrap:anywhere]">{perfil.apelido}</h3>
+                  <Link
+                    href={`/conta/perfis/${perfil.id}/aparelhos`}
+                    className="mt-2 inline-block font-bold text-ceu underline"
+                  >
+                    Gerenciar aparelhos de {perfil.apelido}
+                  </Link>
                   <p className="mt-1 text-sm text-tinta-suave">
                     {perfil.status === "active" ? "Ativo" : "Suspenso"} · Conteúdo até{" "}
                     {faixas.classificacao === "L" ? "Livre" : `${faixas.classificacao} anos`}

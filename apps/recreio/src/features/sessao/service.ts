@@ -66,6 +66,18 @@ export type VidaDaSessaoDeAparelho =
   | { viva: true; contaId: ContaId; perfil: PerfilDoRecreio }
   | { viva: false; motivo: "signed_out" | "expired" };
 
+/** Revogação durável mesmo quando o login ainda não havia aberto uma página do portal. */
+export async function dedicarAparelhoAMenor(entrada: {
+  authSessionId: string;
+  contaId: string;
+  expiraEm: Date;
+}) {
+  const contaId = ContaIdSchema.parse(entrada.contaId);
+  const agora = new Date();
+  await carregarOuCriarSessaoDaConta({ ...entrada, contaId, agora });
+  await revogarSessaoDaConta({ authSessionId: entrada.authSessionId, contaId, agora });
+}
+
 /**
  * A sessão de aparelho ainda sustenta este perfil jogando? É a conferência de
  * `resolverAtor` para quem não tem o cookie: a troca do ingresso e a renovação

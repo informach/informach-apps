@@ -1,17 +1,24 @@
 import "server-only";
 import { PerfilIdSchema, SessaoDeAparelhoIdSchema } from "@informach/recreio";
 import { z } from "zod";
-import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import type {
+  AutorNativoRecente,
+  IdentidadeNativa,
+} from "@/features/account/autoridade-repository";
 import { AppError } from "@/lib/errors";
 import { limitarTentativas } from "@/lib/rate-limit";
 import {
+  admitirRetornoNativo,
+  aparelhosDoMenor,
   aprovarPedidoDePareamento,
   consultarPedidoDePareamento,
+  encerrarAparelhoPareado,
   gravarPinDoMenor,
   gravarPinNativo,
   iniciarPedidoDePareamento,
   lerAparelhoPareado,
   revogarAcessoDoMenor,
+  revogarUmAparelhoDoMenor,
 } from "./repository";
 import {
   CodigoDePareamentoSchema,
@@ -76,7 +83,9 @@ export async function consultarPareamento(entrada: unknown) {
   return consultarPedidoDePareamento(segredo);
 }
 export async function conferirCredencialPareada(entrada: unknown) {
-  const partes = z.string().max(80).parse(entrada).split(".");
+  const recebido = z.string().max(80).safeParse(entrada);
+  if (!recebido.success) return null;
+  const partes = recebido.data.split(".");
   if (partes.length !== 2) return null;
   const aparelho = SessaoDeAparelhoIdSchema.safeParse(partes[0]);
   const token = SegredoDeAparelhoSchema.safeParse(partes[1]);
@@ -94,4 +103,31 @@ export async function desconectarTodosDoMenor(autor: AutorNativoRecente, entrada
     janelaEmSegundos: 600,
   });
   return revogarAcessoDoMenor(autor, perfilId);
+}
+
+export function listarAparelhosDoMenor(autor: IdentidadeNativa, entrada: unknown) {
+  return aparelhosDoMenor(autor, PerfilIdSchema.parse(entrada));
+}
+export async function desconectarUmDoMenor(autor: AutorNativoRecente, entrada: unknown) {
+  const pedido = z
+    .strictObject({ perfilId: PerfilIdSchema, aparelhoId: SessaoDeAparelhoIdSchema })
+    .parse(entrada);
+  await limitarTentativas({
+    chave: `desconectar-menor:${autor.contaId}`,
+    max: 10,
+    janelaEmSegundos: 600,
+  });
+  return revogarUmAparelhoDoMenor(autor, pedido.perfilId, pedido.aparelhoId);
+}
+export async function sairDoAparelhoPareado(entrada: unknown) {
+  const recebido = z.string().max(80).safeParse(entrada);
+  if (!recebido.success) return;
+  const partes = recebido.data.split(".");
+  if (partes.length !== 2) return;
+  const aparelho = SessaoDeAparelhoIdSchema.safeParse(partes[0]);
+  const token = SegredoDeAparelhoSchema.safeParse(partes[1]);
+  if (aparelho.success && token.success) await encerrarAparelhoPareado(aparelho.data, token.data);
+}
+export function confirmarRetornoNativo(autor: AutorNativoRecente) {
+  return admitirRetornoNativo(autor);
 }

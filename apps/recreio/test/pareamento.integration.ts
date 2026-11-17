@@ -24,13 +24,17 @@ import { hashDoSegredo } from "@/features/protecao/segredos";
 import {
   aprovarPareamento,
   conferirCredencialPareada,
+  confirmarRetornoNativo,
   consultarPareamento,
   definirPinDaConta,
   definirPinDoMenor,
   desconectarTodosDoMenor,
+  desconectarUmDoMenor,
+  listarAparelhosDoMenor,
   prepararPareamento,
+  sairDoAparelhoPareado,
 } from "@/features/protecao/service";
-import { resolverAtor } from "@/features/sessao/service";
+import { dedicarAparelhoAMenor, resolverAtor } from "@/features/sessao/service";
 import { eventosCom, loginReal, novaConta } from "./apoio";
 
 async function familia() {
@@ -59,6 +63,65 @@ function preparar() {
 }
 
 describe("pareamento e proteção do menor", () => {
+  it("dedicar navegador revoga login nativo que ainda não havia aberto o portal", async () => {
+    const conta = await novaConta();
+    const login = await loginReal(conta);
+    await dedicarAparelhoAMenor(login);
+    expect(await resolverAtor(login)).toBeNull();
+    const novoLogin = await loginReal(conta);
+    const novo = await resolverAtor(novoLogin);
+    const [sessao] = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.id, novoLogin.authSessionId));
+    if (!novo || !sessao) throw new Error("Login novo ausente");
+    await expect(
+      confirmarRetornoNativo({
+        ...novo.ator,
+        login: { authSessionId: sessao.id, criadoEm: sessao.createdAt, expiraEm: sessao.expiresAt },
+      }),
+    ).resolves.toBeUndefined();
+    expect(await resolverAtor(login)).toBeNull();
+  });
+
+  it("aparelho sai por sua capacidade e o responsável desconecta só um vínculo próprio", async () => {
+    const r = await familia();
+    const outro = await familia();
+    const a = await preparar();
+    const b = await preparar();
+    const primeiro = await aprovarPareamento(r.autor, { perfilId: r.perfil.id, codigo: a.codigo });
+    const segundo = await aprovarPareamento(r.autor, { perfilId: r.perfil.id, codigo: b.codigo });
+    const um = await consultarPareamento(a.segredo);
+    const dois = await consultarPareamento(b.segredo);
+    if (um.estado !== "pareado" || dois.estado !== "pareado")
+      throw new Error("Pareamentos ausentes");
+    expect((await listarAparelhosDoMenor(r.autor, r.perfil.id)).aparelhos).toHaveLength(2);
+    await expect(listarAparelhosDoMenor(outro.autor, r.perfil.id)).rejects.toMatchObject({
+      code: "PERFIL",
+    });
+    await definirPinDoMenor(outro.autor, { perfilId: outro.perfil.id, pin: "593871" });
+    await expect(
+      desconectarUmDoMenor(outro.autor, {
+        perfilId: outro.perfil.id,
+        aparelhoId: primeiro.aparelhoId,
+      }),
+    ).rejects.toMatchObject({ code: "APARELHO" });
+    await sairDoAparelhoPareado(`${primeiro.aparelhoId}.${b.segredo}`);
+    expect(await conferirCredencialPareada(um.credencial)).not.toBeNull();
+    await desconectarUmDoMenor(r.autor, { perfilId: r.perfil.id, aparelhoId: primeiro.aparelhoId });
+    expect(await conferirCredencialPareada(um.credencial)).toBeNull();
+    expect(await conferirCredencialPareada(dois.credencial)).toMatchObject({
+      sessaoDeAparelhoId: segundo.aparelhoId,
+    });
+    expect((await listarAparelhosDoMenor(r.autor, r.perfil.id)).aparelhos).toHaveLength(1);
+    await sairDoAparelhoPareado(dois.credencial);
+    await sairDoAparelhoPareado(dois.credencial);
+    expect(await conferirCredencialPareada(dois.credencial)).toBeNull();
+    expect(await conferirCredencialPareada("x".repeat(100))).toBeNull();
+    expect((await listarAparelhosDoMenor(r.autor, r.perfil.id)).aparelhos).toEqual([]);
+    expect(await db.select().from(profiles).where(eq(profiles.id, r.perfil.id))).toHaveLength(1);
+  });
+
   it("código público não é segredo de consulta; banco não guarda os dois em texto", async () => {
     const pedido = await preparar();
     expect(await consultarPareamento(pedido.segredo)).toMatchObject({ estado: "aguardando" });

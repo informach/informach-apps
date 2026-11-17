@@ -109,3 +109,29 @@ mudando a contagem esperada de 1 para 3. O isolamento agora retira todas as
 sessões abertas anteriores no banco descartável, e cada caso cria tanto as
 vencidas quanto a válida que verifica. As contagens e provas de auditoria/cursor
 continuam idênticas; não aumentar TTL, timeout ou tolerar encerramentos extras.
+
+## Adapter e telas em candidata
+
+`/parear` inicia uma intenção por ação POST e recebe somente o código público.
+O segredo de consulta e a credencial final ficam em cookies HttpOnly por host,
+SameSite Strict, Secure e prefixo `__Host-` quando o host usa HTTPS. Consultar
+retorna ao componente só o estado e o destino, nunca o segredo final.
+`/aparelho` mostra o perfil pareado e a saída própria; a estante infantil e as
+APIs de jogo ainda dependem do incremento F3, portanto esta candidata não é
+liberação infantil completa.
+
+Antes de dedicar um navegador ao menor, o servidor cria, quando necessário,
+e revoga a linha do login nativo antigo. Apenas apagar o cookie pareado não
+restaura essa autoridade. A presença de cookie pareado, inclusive inválido,
+impede resolver o ator nativo. Retomar a conta exige autenticação recente em
+uma sessão nativa não revogada e encerra a capacidade pareada do navegador.
+O responsável mantém a própria sessão no outro aparelho.
+
+Na Conta, a página de aparelhos exige vínculo atual por perfil. A revogação
+individual só alcança esse vínculo; a saída do aparelho usa sua própria
+capacidade e não concede administração. Lista sem e-mail, IP, user-agent ou
+nome do aparelho. São mostrados os aparelhos vivos da geração atual, até o
+teto técnico do perfil. O novo E2E faz pareamento com dois navegadores,
+inspeciona as flags de cookie, tenta a Conta com o login adulto antigo,
+revoga remotamente e retoma só depois de um login novo. Verificação remota
+deste adapter/telas ainda pendente.
