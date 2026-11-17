@@ -93,6 +93,18 @@ Finalidade: investigar mudanças na conta da família e atender suporte. O Basti
 
 ## Eventos do Recreio
 
+Social usa auditoria estrita na transação da mudança. Os eventos
+`friend_code_created`/`friend_code_revoked` usam IDs de perfil/código e prazo;
+`friend_request_created`/`friend_request_expired`/`friend_request_accepted`/
+`friend_request_rejected`/`friend_request_revoked` e `friend_approval_recorded`
+usam IDs de pedido e perfil. `friendship_started`/`friendship_removed` usam IDs
+das duas pontas e revisão. `social_protection_changed` acrescenta somente as
+flags `blocked`/`muted`. Todos recebem o prefixo `recreio.` e `app: recreio`.
+Não registrar código, hash, apelido, idade, nascimento, e-mail ou texto livre.
+A ação do aparelho infantil tem ator nulo; aprovação é atribuída ao responsável
+que efetivamente agiu. Repetição sem mudança não cria um novo evento. A remoção
+da amizade não apaga auditoria nem concede administração de mundo.
+
 Eventos `recreio.*` registram o que aconteceu com os perfis, com o direito de jogar, com as sessões de jogo e com os mundos no app `recreio`, com payload mínimo de IDs, nomes de campo, classificadores e contagens. O perfil é o que os jogos conhecem de uma pessoa: nunca gravar apelido, avatar, e-mail, IP, nome de aparelho, ingresso, token de sessão, chave, segredo de instância, nome de mundo, código de convite (nem o resumo dele), o texto de participação que o jogo guarda no convite, o resumo do mundo publicado pelo jogo ou qualquer texto livre.
 
 - `recreio.profile_created`: `{ profileId, kind, guardianLinkId?, declarationVersion? }`, com `kind` igual a `adult` ou `minor`. Os dois campos adicionais pertencem ao cadastro sob responsabilidade declarada; nunca incluir nascimento ou texto da declaração. O ator é a conta que criou o perfil.

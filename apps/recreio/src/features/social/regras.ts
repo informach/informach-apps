@@ -21,3 +21,9 @@ export const AprovacaoDeAmizadeSchema = z.strictObject({
   versao: z.number().int().min(1).max(2147483646),
 });
 export type AprovacaoDeAmizade = z.infer<typeof AprovacaoDeAmizadeSchema>;
+export const ProtecaoDeContatoSchema = z.strictObject({
+  perfilId: PerfilIdSchema,
+  bloqueado: z.boolean(),
+  silenciado: z.boolean(),
+});
+export type ProtecaoDeContato = z.infer<typeof ProtecaoDeContatoSchema>;

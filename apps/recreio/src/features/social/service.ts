@@ -1,4 +1,5 @@
 import "server-only";
+import { PerfilIdSchema } from "@informach/recreio";
 import { z } from "zod";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import type { ReferenciaDeJogador } from "@/features/autoridade-de-jogo/aparelho-repository";
@@ -7,7 +8,16 @@ import { codigoDoPostgres, constraintDoPostgres } from "@/lib/repository";
 import { aceitarPedidoNoBanco, aprovarPedidoNoBanco } from "./aceite-repository";
 import { gravarCodigoDeAmigo } from "./codigos-repository";
 import { criarPedidoDeAmizade } from "./pedidos-repository";
-import { AprovacaoDeAmizadeSchema, NovoPedidoDeAmizadeSchema } from "./regras";
+import {
+  encerrarPedidoNoBanco,
+  removerAmizadeNoBanco,
+  salvarProtecaoDeContato,
+} from "./protecao-repository";
+import {
+  AprovacaoDeAmizadeSchema,
+  NovoPedidoDeAmizadeSchema,
+  ProtecaoDeContatoSchema,
+} from "./regras";
 import { hashDoCodigoDeAmigo, novoCodigoDeAmigo } from "./segredos";
 
 export async function emitirCodigoDeAmigo(referencia: ReferenciaDeJogador) {
@@ -58,4 +68,29 @@ export async function aprovarAmizade(autor: AutorNativoRecente, entrada: unknown
     janelaEmSegundos: 600,
   });
   return aprovarPedidoNoBanco(autor, pedido);
+}
+
+async function limitarProtecao(referencia: ReferenciaDeJogador) {
+  await limitarTentativas({
+    chave: `social-protecao:${referencia.perfilId}`,
+    max: 60,
+    janelaEmSegundos: 600,
+  });
+}
+export async function protegerContato(referencia: ReferenciaDeJogador, entrada: unknown) {
+  const pedido = ProtecaoDeContatoSchema.parse(entrada);
+  await limitarProtecao(referencia);
+  return salvarProtecaoDeContato(referencia, pedido);
+}
+export async function removerAmizade(referencia: ReferenciaDeJogador, entrada: unknown) {
+  const perfilId = PerfilIdSchema.parse(entrada);
+  await limitarProtecao(referencia);
+  return removerAmizadeNoBanco(referencia, perfilId);
+}
+export async function encerrarPedidoDeAmizade(referencia: ReferenciaDeJogador, entrada: unknown) {
+  const pedido = z
+    .strictObject({ pedidoId: z.uuid(), acao: z.enum(["recusar", "revogar"]) })
+    .parse(entrada);
+  await limitarProtecao(referencia);
+  return encerrarPedidoNoBanco(referencia, pedido.pedidoId, pedido.acao);
 }

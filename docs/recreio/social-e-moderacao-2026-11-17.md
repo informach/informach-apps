@@ -183,6 +183,14 @@ a aprovação vincula perfil, vínculo e geração atuais; revogar o acesso exig
 aprovação. Os testes cobrem responsáveis sem perfil jogador, duas crianças,
 adolescentes, login antigo, repetição após remoção e rollback por auditoria/prazo.
 
+O incremento seguinte implementa recusa/revogação por ponta correta, remoção,
+bloqueio e silêncio. Bloquear encerra o pedido pendente e remove a relação ativa
+atomicamente; desbloquear ou retirar silêncio não refaz contato. A proteção
+conserva sua direção e funciona contra alvo suspenso, sem exigir sua política
+de contato. Novos registros exigem uma relação conhecida e têm teto por perfil.
+Concorrência com aceite e falha estrita da auditoria são casos de integração no
+PostgreSQL descartável. Telas, SDK, presença e moderação continuam pendentes.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.
