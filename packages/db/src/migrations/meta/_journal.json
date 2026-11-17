@@ -1317,6 +1317,13 @@
       "when": 1794940720044,
       "tag": "0187_yellow_giant_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 188,
+      "version": "7",
+      "when": 1794942547889,
+      "tag": "0188_brave_mimic",
+      "breakpoints": true
     }
   ]
 }

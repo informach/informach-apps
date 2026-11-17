@@ -515,6 +515,36 @@ export async function lerAparelhoPareado(aparelhoId: SessaoDeAparelhoId, token: 
   });
 }
 
+/** O chamador já admitiu sua autoridade e trava perfil/proteção. Não concede acesso novo. */
+export async function revogarAparelhosDoMenorSobTrava(
+  tx: Transacao,
+  perfilId: PerfilId,
+  agora: Date,
+) {
+  const generation = randomUUID();
+  await tx
+    .update(protection)
+    .set({ accessGeneration: generation, updatedAt: agora })
+    .where(eq(protection.profileId, perfilId));
+  await tx
+    .update(devices)
+    .set({ revokedAt: agora })
+    .where(
+      and(
+        isNull(devices.revokedAt),
+        or(
+          sql`${devices.id} in (select ${credentials.deviceSessionId} from ${credentials} where ${credentials.profileId}=${perfilId})`,
+          and(
+            eq(devices.kind, "account"),
+            eq(devices.activeProfileId, perfilId),
+            isNotNull(devices.minorContextGeneration),
+          ),
+        ),
+      ),
+    );
+  return { generation };
+}
+
 export async function revogarAcessoDoMenor(autor: AutorNativoRecente, perfilId: PerfilId) {
   return db.transaction(async (tx) => {
     await limites(tx);
@@ -522,27 +552,7 @@ export async function revogarAcessoDoMenor(autor: AutorNativoRecente, perfilId: 
     const menor = await autoridadeDoMenor(tx, perfilId, autor.contaId);
     const atual = await protecaoAtual(tx, perfilId, menor.vinculo.id, "update");
     const agora = await nativo.conferirPrazo(autor.login);
-    const generation = randomUUID();
-    await tx
-      .update(protection)
-      .set({ accessGeneration: generation, updatedAt: agora })
-      .where(eq(protection.profileId, perfilId));
-    await tx
-      .update(devices)
-      .set({ revokedAt: agora })
-      .where(
-        and(
-          isNull(devices.revokedAt),
-          or(
-            sql`${devices.id} in (select ${credentials.deviceSessionId} from ${credentials} where ${credentials.profileId}=${perfilId})`,
-            and(
-              eq(devices.kind, "account"),
-              eq(devices.activeProfileId, perfilId),
-              isNotNull(devices.minorContextGeneration),
-            ),
-          ),
-        ),
-      );
+    const { generation } = await revogarAparelhosDoMenorSobTrava(tx, perfilId, agora);
     await invalidarIngressosDoPerfil(tx, perfilId);
     await encerrarSessoesAbertas(tx, sql`${games.profileId}=${perfilId}`, "signed_out", {
       porQuem: "conta",

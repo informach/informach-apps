@@ -15,7 +15,7 @@ import type { Transacao } from "@/lib/repository";
 
 export type PistaDoAutorSocial =
   | { tipo: "jogador"; referencia: ReferenciaDeJogador }
-  | { tipo: "responsavel"; contaId: string };
+  | { tipo: "responsavel" | "equipe"; contaId: string };
 
 export class ComposicaoSocialMudou extends AppError {
   constructor() {
@@ -25,7 +25,7 @@ export class ComposicaoSocialMudou extends AppError {
 
 async function pistas(tx: Transacao, autor: PistaDoAutorSocial, ids: readonly PerfilId[]) {
   let contaDoAutor: string | null;
-  if (autor.tipo === "responsavel") contaDoAutor = autor.contaId;
+  if (autor.tipo !== "jogador") contaDoAutor = autor.contaId;
   else {
     const [aparelho] = await tx
       .select({ kind: devices.kind, userId: devices.userId })
@@ -69,8 +69,13 @@ export async function travarComposicaoSocial(
   tx: Transacao,
   autor: PistaDoAutorSocial,
   ids: readonly PerfilId[],
+  antesDosPerfis?: (tx: Transacao) => Promise<void>,
 ) {
-  assertAllowed(ids.length > 0 && ids.length <= 2, "CONTATO", "Contato não disponível.");
+  assertAllowed(
+    (ids.length > 0 || autor.tipo === "equipe") && ids.length <= 2,
+    "CONTATO",
+    "Contato não disponível.",
+  );
   const inicial = await pistas(tx, autor, ids);
   const contas = [
     ...new Set([
@@ -88,6 +93,7 @@ export async function travarComposicaoSocial(
     .orderBy(users.id)
     .for("share");
   assertAllowed(contasAtuais.length === contas.length, "CONTATO", "Contato não disponível.");
+  await antesDosPerfis?.(tx);
   const perfis = await tx
     .select()
     .from(profiles)

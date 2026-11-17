@@ -448,6 +448,40 @@ sem atualizar a biblioteca. Testes candidatos recusam corpo alterado, chave,
 tipo, audiência, emissor e prazo divergentes. Comandos e recurso ainda não
 estão implementados ou ativados por essa fundação.
 
+`714807e` passou nos sete gates `44152709064`. As quatro capturas sociais do
+artefato `14359738780` foram inspecionadas; ZIP SHA
+`7c3fc44ef5b29f528d06aa1edf2afdaf468d55b1cf29c2fc9450f5455ff6167f`.
+Sem vazamento horizontal a 390 px, mas a captura da viewport não mostrava o
+cartão/formulário inteiro. As próximas provas sociais capturam a página toda;
+os demais testes conservam o comportamento anterior do helper de captura.
+
+0188 gerada em `44155351879`, fonte `11c4cf1d`, artefato `14359534587`;
+ZIP SHA `66fefb1ba7573ee62c03efeb76ef7ca9e6de8b4864146e7b6153e5a7c5e86ddf`.
+`0188_brave_mimic.sql`, 3.532 bytes, SHA
+`5c420b1231c68a39d8a4e7c02c9db03637cffe297ed946754bf237102c169b1f`;
+snapshot SHA `d2b2b2137b24d9579535701bc1a855817a901aecd12c53cbfedc894e050db858`;
+journal SHA `d57a9168e56c9101fe9787d2c4736fa33e81ba4a18256dff61cfa94e0b5ba091`.
+Arquivos conferidos e copiados intactos. Tabela de recibos nova e quatro
+colunas nullable/checks na denúncia, sem alteração de dados anteriores.
+
+A candidata da fundação também confere papel/2FA/banimento/sessão física de
+expediente no banco e permite a composição de equipe sem jogador fictício.
+Cinco provas PostgreSQL cobrem retirada de papel, 2FA, banimento, e-mail,
+sessão apagada/do emissor web, teto de doze horas e vencimento durante espera.
+A ordem aceita mundo antes de perfis para invalidar convites, sem mudar os
+chamadores existentes. A revogação de aparelhos infantis foi extraída do writer
+existente para que suspensão não reative aparelhos ou aprovações antigas ao
+restaurar o perfil. Efeitos ainda sem rota/comando completo; não ativar a fila.
+
+Revisão adicional identificou que a restrição ativa precisa sobreviver ao
+expurgo da denúncia: o perfil afetado deve poder contestar sem receber dados
+de quem denunciou, inclusive depois de 180 dias. O próximo incremento mantém
+o fato mínimo da restrição por perfil enquanto vigente e cria recurso próprio,
+sob autoridade do titular/responsável atual. Não ampliar a retenção da denúncia
+ou fazer o alvo depender do protocolo de outra pessoa para recorrer. A decisão
+da equipe precisa atualizar restrição, recurso e recibo atomicamente; restaurar
+não recupera SID, aparelho infantil ou consentimento antigo.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

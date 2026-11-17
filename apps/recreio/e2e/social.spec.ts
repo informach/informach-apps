@@ -72,7 +72,7 @@ test("duas contas fazem amizade; silêncio persiste e desbloquear não restaura 
   expect(await a.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
     true,
   );
-  await tela(a.page, "social-denuncia-mobile");
+  await tela(a.page, "social-denuncia-mobile", { paginaInteira: true });
   await clicar(a.page, "Silenciar");
   await expect(a.page.getByText("Silenciado", { exact: true })).toBeVisible();
   await a.page.reload();
@@ -95,7 +95,7 @@ test("duas contas fazem amizade; silêncio persiste e desbloquear não restaura 
   expect(await a.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
     true,
   );
-  await tela(a.page, "social-adulto-mobile");
+  await tela(a.page, "social-adulto-mobile", { paginaInteira: true });
 });
 
 test("responsável sem jogador aprova o contato do aparelho infantil e pode bloqueá-lo", async ({
@@ -180,10 +180,10 @@ test("responsável sem jogador aprova o contato do aparelho infantil e pode bloq
   expect(await infantil.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
     true,
   );
-  await tela(infantil, "social-infantil-mobile");
+  await tela(infantil, "social-infantil-mobile", { paginaInteira: true });
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await tela(page, "social-responsavel-sem-jogador-mobile");
+  await tela(page, "social-responsavel-sem-jogador-mobile", { paginaInteira: true });
   await clicar(page, "Bloquear");
   await infantil.reload();
   await expect(infantil.getByText("Bloqueado por você", { exact: true })).toBeVisible();
