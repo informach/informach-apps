@@ -375,3 +375,24 @@ Testes antigos passam a distinguir exclusão global recusada de limpeza explíci
 de domínio que preserva o mundo. Provas novas cobrem titular sem jogador,
 participante sem grupo, responsabilidade sem jogador e conta sem vínculos.
 F7 continua responsável pelo encerramento completo; esta guarda não o implementa.
+
+`f281fdd4` passou nos sete gates `44114864787`: 585 integrações/56 arquivos,
+23 jornadas de navegador aprovadas (duas condicionais puladas) e atualização
+179→183 recibos com dois perfis, bytes/conquistas e repetição preservados.
+Capturas de convite/participação a 390 px inspecionadas no artefato
+`14343566126`, ZIP SHA
+`e069e52c9b8d4b620e63fb1bbfeaeefb380f74f76a5bbdfd86e507989c76688f`:
+controles, avisos e texto legíveis, sem rolagem horizontal. CSP permaneceu
+estrita, e as vigias de erros/CSP foram aprovadas. A guarda de exclusão é
+posterior a essa prova e ainda exige sua própria qualificação compartilhada.
+
+0183 gerada em `44116531452`, fonte `bd256d79`, artefato `14341934734`;
+ZIP SHA `806145ff3a5cf18c471eebeb2e8638680535bde617e2da40ecf2fb8d85fe436c`.
+`0183_omniscient_arclight.sql`, 595 bytes, SHA
+`58f4a7c70dde8819137fa82b2512d560fb20d0140dde997b298ec6cea7f33860`;
+snapshot SHA `8dd8531f19bf69a3611524d4e3bd4bfeacd8abcfb1180cb609ed6a061e544c4f`;
+journal SHA `a5f8beb0ef6b41a7511cee97eb9145e85cce9c9d3777679bded51d2c2b0eb6e2`.
+Três arquivos conferidos e copiados intactos. Somente substituição das duas FKs;
+nenhuma linha é transformada ou apagada. A transação do migrator mantém as
+travas durante a troca. Aplicação futura precisa conferir cardinalidades e
+restauração atual; produção continua com 179 recibos e sem convites comerciais.

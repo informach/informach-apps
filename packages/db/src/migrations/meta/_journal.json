@@ -1282,6 +1282,13 @@
       "when": 1794928201029,
       "tag": "0182_romantic_yellowjacket",
       "breakpoints": true
+    },
+    {
+      "idx": 183,
+      "version": "7",
+      "when": 1794929905452,
+      "tag": "0183_omniscient_arclight",
+      "breakpoints": true
     }
   ]
 }

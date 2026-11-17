@@ -630,3 +630,12 @@ Na central web, `createInformachAuthClient({ redirectMode: "manual" })` preserva
 ### Guarda temporária do Recreio (13/11/2026)
 
 Antes dos callbacks de exclusão de qualquer app, `account-deletion-guard.ts` consulta se a conta tem perfil no Recreio. Se tiver, interrompe com `RECREIO_ACCOUNT_DELETION_REQUIRES_SUPPORT` (409), antes de cancelar assinaturas ou apagar a conta. Falha de consulta também interrompe. A conta é compartilhada: desligar a exclusão só no app Recreio deixava o caminho pelos demais produtos aberto. A regra é temporária até a implementação da sucessão/saída de mundos; pedidos dessas contas precisam de atendimento assistido. As FKs de banco continuam preservando o conteúdo de mundos compartilhados; essa guarda não substitui a implementação futura do ciclo de vida.
+
+Incremento de 17/11, ainda em qualificação: a guarda inclui grupo do titular
+sem jogador e responsabilidade infantil, além do perfil próprio. A migration
+0183 substitui as FKs de grupo/perfil para a identidade global por `RESTRICT`,
+impedindo cascata inclusive quando a composição muda depois da prévia. Remoção
+do domínio precisa ser explícita antes da identidade; esta proteção não conclui
+o coordenador de encerramento nem cancela cobrança. Não anunciar a constraint
+implantada sem conferir recibos. Fonte, gates e publicação no
+[plano de grupos](../../docs/recreio/grupos-adultos-2026-11-17.md).
