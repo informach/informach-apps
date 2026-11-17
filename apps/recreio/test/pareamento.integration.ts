@@ -283,24 +283,20 @@ describe("pareamento e proteção do menor", () => {
       .from(profileRequests)
       .where(eq(profileRequests.profileId, r.perfil.id));
     if (!recibo) throw new Error("Recibo ausente");
-    await db
-      .insert(profileRequests)
-      .values(
-        Array.from({ length: LOTE_DE_INTENCOES_ANTIGAS + 1 }, () => ({
-          userId: r.conta.id,
-          createdAt: new Date(Date.now() - 600_000),
-          expiresAt: new Date(Date.now() - 300_000),
-        })),
-      );
-    await db
-      .insert(profileRequests)
-      .values({
+    await db.insert(profileRequests).values(
+      Array.from({ length: LOTE_DE_INTENCOES_ANTIGAS + 1 }, () => ({
         userId: r.conta.id,
-        createdAt: new Date(Date.now() - 3 * 86_400_000),
-        expiresAt: new Date(Date.now() - 3 * 86_400_000 + 300_000),
-        consumedAt: new Date(Date.now() - 2 * 86_400_000),
-        fingerprint: "a".repeat(64),
-      });
+        createdAt: new Date(Date.now() - 600_000),
+        expiresAt: new Date(Date.now() - 300_000),
+      })),
+    );
+    await db.insert(profileRequests).values({
+      userId: r.conta.id,
+      createdAt: new Date(Date.now() - 3 * 86_400_000),
+      expiresAt: new Date(Date.now() - 3 * 86_400_000 + 300_000),
+      consumedAt: new Date(Date.now() - 2 * 86_400_000),
+      fingerprint: "a".repeat(64),
+    });
     const primeira = await apagarIntencoesAntigas();
     expect(primeira).toMatchObject({
       cadastrosPendentesApagados: 500,
