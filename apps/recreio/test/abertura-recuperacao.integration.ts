@@ -4,6 +4,7 @@ import { recreioGameSessions as games, recreioGameTickets as tickets } from "@in
 import { SessaoDeJogoIdSchema } from "@informach/recreio";
 import { SessaoAbertaSchema } from "@informach/recreio/contrato";
 import { verificarIngresso } from "@informach/recreio/emissor";
+import { criarRecreio } from "@informach/recreio/sdk";
 import { describe, expect, it } from "vitest";
 import { encerrarSessaoDeAparelho } from "@/features/sessao/service";
 import { abrirSessaoComIngresso } from "@/features/sessao-de-jogo/repository";
@@ -17,7 +18,7 @@ import { codigoDoPostgres, constraintDoPostgres } from "@/lib/repository";
 import { chavesDoRecreio } from "@/lib/tokens";
 import { eventosCom, novoJogador } from "./apoio";
 import { claimsDe } from "./jogo-apoio";
-import { pedir } from "./rotas";
+import { despachar, ORIGEM, pedir } from "./rotas";
 
 async function abertura() {
   const pessoa = await novoJogador();
@@ -26,12 +27,56 @@ async function abertura() {
   const pedido = { ingresso: ingresso.ingresso, chaveDeTroca };
   const resposta = await pedir("POST", "/api/sdk/v1/sessao", { corpo: pedido });
   expect(resposta.status).toBe(200);
-  const aberta = SessaoAbertaSchema.parse(await resposta.json());
+  const aberta = SessaoAbertaSchema.parse(resposta.corpo);
   const sessao = await sessaoDeJogoDoToken(aberta.token);
   return { pessoa, pedido, aberta, sessao };
 }
 
 describe("recibo de abertura com prova do solicitante", () => {
+  it("SDK recupera a resposta perdida depois do commit real sem pedir outro ingresso", async () => {
+    const pessoa = await novoJogador();
+    const ingresso = await emitirIngresso(pessoa.ator, { jogo: "morada" });
+    let emissoes = 0;
+    let trocas = 0;
+    let primeiroSid: string | null = null;
+    const contexto = await criarRecreio({
+      baseUrl: ORIGEM,
+      jogo: "morada",
+      recuperarAbertura: true,
+      obterIngresso: async () => {
+        emissoes++;
+        return ingresso.ingresso;
+      },
+      fetch: async (url, init) => {
+        const resposta = await despachar(url, init);
+        if (new URL(url).pathname === "/api/sdk/v1/sessao") {
+          trocas++;
+          if (trocas === 1) {
+            expect(resposta.status).toBe(200);
+            const aberta = SessaoAbertaSchema.parse(await resposta.clone().json());
+            primeiroSid = (await sessaoDeJogoDoToken(aberta.token)).sid;
+            throw new Error("Resposta perdida depois de confirmar a abertura");
+          }
+        }
+        return resposta;
+      },
+    });
+    try {
+      expect(emissoes).toBe(1);
+      expect(trocas).toBe(2);
+      expect((await sessaoDeJogoDoToken(contexto.sessao.token())).sid).toBe(primeiroSid);
+      expect(
+        await db.select().from(games).where(eq(games.profileId, pessoa.perfil.id)),
+      ).toHaveLength(1);
+      expect(
+        (await eventosCom("profileId", pessoa.perfil.id)).filter(
+          (e) => e.eventType === "recreio.game_session_started",
+        ),
+      ).toHaveLength(1);
+    } finally {
+      await contexto.sessao.sair();
+    }
+  });
   it("recupera a mesma abertura concorrente sem novo prazo, consumo ou auditoria de início", async () => {
     const r = await abertura();
     const antes = await db.select().from(games).where(eq(games.id, r.sessao.sid));

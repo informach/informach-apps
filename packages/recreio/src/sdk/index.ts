@@ -57,6 +57,8 @@ export type OpcoesDoRecreio = {
   obterIngresso: (signal: AbortSignal) => Promise<string>;
   /** Encerra a sessão de jogo aberta em outro aparelho e continua neste. */
   continuarAqui?: boolean;
+  /** Só ativar depois dos leitores do recibo no servidor. Não persiste a prova. */
+  recuperarAbertura?: boolean;
   fetch?: Buscar;
   /** Relógio em milissegundos; existe para os testes. */
   agora?: () => number;
@@ -99,13 +101,29 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   }
 
   const ingresso = await comPrazoDePedido(opcoes.obterIngresso);
-  const aberta = await enviar("/sessao", SessaoAbertaSchema, {
+  const chaveDeTroca = opcoes.recuperarAbertura
+    ? bytesParaBase64(crypto.getRandomValues(new Uint8Array(32)))
+        .replaceAll("+", "-")
+        .replaceAll("/", "_")
+        .replace(/=+$/, "")
+    : undefined;
+  const pedidoDeAbertura = {
     method: "POST",
     corpo: {
       ingresso,
       ...(opcoes.continuarAqui === undefined ? {} : { continuarAqui: opcoes.continuarAqui }),
+      ...(chaveDeTroca === undefined ? {} : { chaveDeTroca }),
     },
-  });
+  } as const;
+  const aberta = await (async () => {
+    try {
+      return await enviar("/sessao", SessaoAbertaSchema, pedidoDeAbertura);
+    } catch (erro) {
+      // Somente este pedido tem recibo/prova: repetir preserva ingresso e SID.
+      if (!chaveDeTroca || !ehErroDoRecreio(erro, "INDISPONIVEL")) throw erro;
+      return enviar("/sessao", SessaoAbertaSchema, pedidoDeAbertura);
+    }
+  })();
 
   let token = aberta.token;
   let expiraEm = aberta.expiraEm;

@@ -70,7 +70,7 @@ function ambiente() {
       await new Promise((resolve) => setTimeout(resolve, 0));
     },
     pendentes: () => agendadas.filter((item) => !item.cancelada),
-    opcoes: (extra: { continuarAqui?: boolean } = {}) => ({
+    opcoes: (extra: { continuarAqui?: boolean; recuperarAbertura?: boolean } = {}) => ({
       baseUrl: "https://recreio.test/",
       jogo: "morada",
       obterIngresso: async () => "ingresso-1",
@@ -89,6 +89,41 @@ function ambiente() {
 }
 
 describe("abertura da sessão", () => {
+  it("recuperação repete só uma vez com o mesmo ingresso e prova aleatória; sem prova não repete", async () => {
+    const a = ambiente();
+    a.responder(new Error("resposta perdida"), { corpo: a.aberta() });
+    const contexto = await criarRecreio(a.opcoes({ recuperarAbertura: true }));
+    expect(contexto.sessao.token()).toBe("sessao-1");
+    expect(a.chamadas).toHaveLength(2);
+    expect(a.chamadas[0]?.corpo).toEqual(a.chamadas[1]?.corpo);
+    expect(a.chamadas[0]?.corpo).toEqual({
+      ingresso: "ingresso-1",
+      chaveDeTroca: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
+    });
+    expect(a.pendentes()).toHaveLength(1);
+    const outra = ambiente();
+    outra.responder(new Error("resposta perdida"));
+    await expect(criarRecreio(outra.opcoes())).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+    expect(outra.chamadas).toHaveLength(1);
+    expect(outra.pendentes()).toHaveLength(0);
+  });
+  it("prova é nova em outra abertura; recusa e segunda falha não geram novas tentativas", async () => {
+    const a = ambiente();
+    a.responder(new Error("rede"), new Error("rede"));
+    await expect(criarRecreio(a.opcoes({ recuperarAbertura: true }))).rejects.toMatchObject({
+      codigo: "INDISPONIVEL",
+    });
+    expect(a.chamadas).toHaveLength(2);
+    const outra = ambiente();
+    outra.responder({ status: 409, corpo: { codigo: "JA_ABERTO" } });
+    await expect(criarRecreio(outra.opcoes({ recuperarAbertura: true }))).rejects.toMatchObject({
+      codigo: "JA_ABERTO",
+    });
+    expect(outra.chamadas).toHaveLength(1);
+    expect(outra.chamadas[0]?.corpo).not.toEqual(a.chamadas[0]?.corpo);
+    expect(a.pendentes()).toHaveLength(0);
+    expect(outra.pendentes()).toHaveLength(0);
+  });
   it("controle usa o token atual e não renova o prazo; resposta extra é recusada", async () => {
     const a = ambiente();
     const estado = {

@@ -178,3 +178,13 @@ Falhas inesperadas de unicidade não são mais classificadas genericamente como
 
 Os testes novos ainda dependem da rodada remota. O SDK ainda não envia a prova;
 publicar leitores antes desse consumidor. A 0176 não foi aplicada em produção.
+
+A rodada `da8a70e` encontrou cinco falhas no mesmo preparo do novo teste:
+o auxiliar `pedir` devolve `{status, corpo}`, não `Response`. Corrigida a leitura
+para o corpo já decodificado; 449 outros testes passaram, sem aprovar a rodada.
+O consumidor candidato do SDK acrescenta `recuperarAbertura`, desligado por
+padrão. Quando ativado após os leitores, gera 256 bits com Web Crypto e repete
+uma única vez o mesmo pedido diante de indisponibilidade. Não repete recusas,
+emite outro ingresso ou persiste a prova. Um teste passa por SDK, rotas e banco
+reais e descarta a primeira resposta depois do commit. Falha da segunda tentativa
+continua visível. Nenhuma página pública habilita esse consumidor ainda.
