@@ -367,3 +367,27 @@ A prova conserva uma linha travada e um recibo recente e exige igualdade das
 sessões antes/depois. A resposta do cron acrescenta somente essa contagem;
 nenhuma credencial ou conteúdo é devolvido. Esses writers/leitores ainda
 aguardam os gates completos.
+
+`6ea7a6d` passou nos sete gates `44076515919`, incluindo a jornada de corte
+com respostas perdidas e as migrations até 0178. `2653749` passou nos sete
+gates `44078037674`, com agregado, replay/rollback, relatório autorizado e
+expurgo de 500/linha travada. Fontes ainda privadas; produção permanece em
+`2475661`, com 177 recibos/0176 e os dois modos desligados.
+
+A etapa seguinte acrescenta prova de renovação recusada para concessão de
+outro dia e nova admissão com SID/orçamento novos. A supervisão existente usa
+o mesmo relógio IANA na emissão: o novo teste não altera a tolerância dos tokens.
+O contador de retenção delimita os elegíveis globais do banco descartável
+antes de montar a prova de lote.
+
+O observador do host agora agenda o corte a partir da previsão do servidor.
+Usa o relógio monotônico e subtrai o tempo de ida/volta da consulta, pausando
+conservadoramente antes do limite; o servidor continua a autoridade para
+comandos e gravação. Nova consulta e desmontagem cancelam o timer. Checkpoint
+de troca ou revogação conserva sua própria parada. Os textos distinguem fim
+do orçamento, horário e mudança do dia de uma falha de conexão.
+
+Nova jornada de navegador configura um minuto pelo responsável, pareia um
+aparelho sem autoridade adulta, joga e espera esse minuto real. Exige recibo
+confirmado, recusa de escrita direta com a sessão anterior e relatório agregado
+somente no responsável. Esse ensaio e o novo timer ainda aguardam os gates.

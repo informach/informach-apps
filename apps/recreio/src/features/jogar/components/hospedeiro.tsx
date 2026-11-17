@@ -160,7 +160,16 @@ export function Hospedeiro({
   const parar = useCallback(
     (parada: Parada) => {
       if (
-        ["acesso_perdido", "sessao_encerrada", "saiu_do_jogo", "rede", "falha"].includes(parada) &&
+        [
+          "acesso_perdido",
+          "sessao_encerrada",
+          "saiu_do_jogo",
+          "rede",
+          "falha",
+          "fim_do_tempo",
+          "fora_do_horario",
+          "novo_dia",
+        ].includes(parada) &&
         tentarFinalizar(parada)
       )
         return;
@@ -259,6 +268,16 @@ export function Hospedeiro({
               },
               (erro) => {
                 if (partida.current === nova) parar(paradaDoErro(erro));
+              },
+              (motivo) => {
+                if (partida.current === nova)
+                  parar(
+                    motivo === "daily_limit"
+                      ? "fim_do_tempo"
+                      : motivo === "schedule"
+                        ? "fora_do_horario"
+                        : "novo_dia",
+                  );
               },
             );
           definirAguardandoTroca(false);

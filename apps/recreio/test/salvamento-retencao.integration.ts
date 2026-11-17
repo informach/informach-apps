@@ -9,6 +9,16 @@ import { novoJogador, sinal } from "./apoio";
 
 describe("retenção física dos recibos de salvamento", () => {
   it("expurga lotes de 500, pula recibo travado e conserva o recente e as sessões", async () => {
+    // A manutenção é global. Delimitar a prova sem misturar fatos históricos
+    // elegíveis produzidos por outros cenários no mesmo banco descartável.
+    let livre = false;
+    for (let lote = 0; lote < 10; lote++) {
+      if ((await apagarSalvamentosAntigos()) === 0) {
+        livre = true;
+        break;
+      }
+    }
+    expect(livre).toBe(true);
     const pessoa = await novoJogador();
     const antigo = new Date(Date.now() - 2 * 86_400_000);
     const recente = new Date();

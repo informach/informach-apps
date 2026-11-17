@@ -24,6 +24,7 @@ import { registrarMargemDeSalvamento } from "@/features/salvamento/tempo-reposit
 import { resolverAtor } from "@/features/sessao/service";
 import {
   emitirIngresso,
+  renovarSessao,
   sessaoDeJogoDoToken,
   trocarIngresso,
 } from "@/features/sessao-de-jogo/service";
@@ -109,6 +110,58 @@ async function preparar() {
 }
 
 describe("margem de salvar separada do tempo de jogo", () => {
+  it("concessão de outro dia exige nova admissão em vez de renovar o mesmo SID", async () => {
+    const r = await preparar();
+    const [datas] = await db.execute<{ corte: string; dia: string }>(sql`
+      select corte::text,((corte-interval '1 second') at time zone 'America/Sao_Paulo')::date::text as dia
+      from (select (((clock_timestamp() at time zone 'America/Sao_Paulo')::date-1)::timestamp at time zone 'America/Sao_Paulo') as corte) calendario
+    `);
+    if (!datas) throw new Error("Calendário ausente");
+    const corte = new Date(datas.corte);
+    const inicio = new Date(corte.getTime() - 30_000);
+    await db
+      .update(games)
+      .set({ startedAt: inicio, lastRenewedAt: inicio, expiresAt: corte })
+      .where(eq(games.id, r.sessao.sid));
+    await db
+      .update(permits)
+      .set({
+        createdAt: inicio,
+        renewedAt: inicio,
+        cutoffAt: corte,
+        expiresAt: new Date(corte.getTime() + 30_000),
+      })
+      .where(eq(permits.id, r.recibo.id));
+    await db
+      .update(usage)
+      .set({ localDay: datas.dia, accountedUntil: inicio, leaseUntil: corte })
+      .where(eq(usage.profileId, r.perfil.id));
+    // A assinatura normal ainda está no prazo; é o limite persistido que recusa.
+    await expect(renovarSessao(r.aberta.token)).rejects.toMatchObject({
+      codigo: "ACESSO_PERDIDO",
+      detalhe: { motivo: "expired" },
+    });
+    expect(await db.select().from(usage).where(eq(usage.profileId, r.perfil.id))).toHaveLength(1);
+    const [antiga] = await db.select().from(games).where(eq(games.id, r.sessao.sid));
+    expect(antiga).toMatchObject({ expiresAt: corte, endReason: "expired" });
+    const ingresso = await emitirIngresso(r.ator, { jogo: JOGO });
+    const nova = await trocarIngresso({ ingresso: ingresso.ingresso, suportaSalvamento: true });
+    expect((await sessaoDeJogoDoToken(nova.token)).sid).not.toBe(r.sessao.sid);
+    const dias = await db
+      .select()
+      .from(usage)
+      .where(eq(usage.profileId, r.perfil.id))
+      .orderBy(usage.localDay);
+    expect(dias).toHaveLength(2);
+    expect(dias[0]).toMatchObject({
+      localDay: datas.dia,
+      usedMilliseconds: 30_000,
+      savingMilliseconds: 0,
+      sessionId: null,
+    });
+    expect(dias[1]?.localDay).not.toBe(datas.dia);
+    expect(dias[1]).toMatchObject({ usedMilliseconds: 0, savingMilliseconds: 0 });
+  });
   it("confirma uma vez, reverte o agregado em falha de auditoria e preserva-o na próxima concessão", async () => {
     const r = await preparar();
     const corte = new Date(Math.floor(Date.now() / 1000) * 1000 - 1000);
