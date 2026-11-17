@@ -27,6 +27,7 @@ import {
   prepararConcessaoDeTempo,
   registrarConcessaoDeTempo,
 } from "@/features/politicas/tempo-repository";
+import { emitirPermissaoDeSalvamento } from "@/features/salvamento/emissao-repository";
 import { env } from "@/lib/env";
 import {
   AGORA,
@@ -160,6 +161,7 @@ export async function abrirSessaoComIngresso(entrada: {
   sid: SessaoDeJogoId;
   emissor: Emissor;
   chaveDeTroca?: string;
+  suportaSalvamento?: boolean;
 }): Promise<SessaoAberta> {
   try {
     const resultado = await db.transaction(async (tx) => {
@@ -206,11 +208,21 @@ export async function abrirSessaoComIngresso(entrada: {
           { jogo: entrada.ingresso.jogo, sid: SessaoDeJogoIdSchema.parse(conferida.jogo.id) },
           conferida.jogo.expiresAt,
         );
+        const salvamento = await emitirPermissaoDeSalvamento(tx, contexto, {
+          sid: SessaoDeJogoIdSchema.parse(conferida.jogo.id),
+          jogo: entrada.ingresso.jogo,
+          emissor: entrada.emissor,
+          token,
+          operacao: "recuperar",
+        });
         const fim = await contexto.conferirPrazo();
         if (token.expiraEm <= fim) throw new ErroDoRecreio("INGRESSO_INVALIDO");
         return {
           admitida: true as const,
-          valor: respostaDaSessao(contexto, entrada.ingresso, token),
+          valor: {
+            ...respostaDaSessao(contexto, entrada.ingresso, token),
+            ...(salvamento ? { salvamento } : {}),
+          },
         };
       }
       const [aberta] = await tx
@@ -347,6 +359,14 @@ export async function abrirSessaoComIngresso(entrada: {
           tempo,
           token.expiraEm,
         );
+      const salvamento = await emitirPermissaoDeSalvamento(tx, contexto, {
+        sid: entrada.sid,
+        jogo: entrada.ingresso.jogo,
+        emissor: entrada.emissor,
+        token,
+        operacao: "abrir",
+        suportaSalvamento: entrada.suportaSalvamento,
+      });
       await logAuditEventStrict(
         "recreio.game_session_started",
         contexto.contaId,
@@ -366,7 +386,10 @@ export async function abrirSessaoComIngresso(entrada: {
         throw new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "expired" });
       return {
         admitida: true as const,
-        valor: respostaDaSessao(contexto, entrada.ingresso, token),
+        valor: {
+          ...respostaDaSessao(contexto, entrada.ingresso, token),
+          ...(salvamento ? { salvamento } : {}),
+        },
       };
     });
     if (!resultado.admitida) throw comoRecusaDeEntrada(resultado.erro);
@@ -444,11 +467,22 @@ export async function gravarRenovacao(entrada: {
         tempo,
         token.expiraEm,
       );
+    const salvamento = await emitirPermissaoDeSalvamento(tx, contexto, {
+      sid: entrada.sessao.sid,
+      jogo: entrada.sessao.jogo,
+      emissor: entrada.emissor,
+      token,
+      operacao: "renovar",
+    });
     const fim = await contexto.conferirPrazo();
     if (token.expiraEm <= fim) throw new ErroDoRecreio("ACESSO_PERDIDO", { motivo: "expired" });
     return {
       admitida: true as const,
-      valor: { token: token.token, expiraEm: token.expiraEm.toISOString() },
+      valor: {
+        token: token.token,
+        expiraEm: token.expiraEm.toISOString(),
+        ...(salvamento ? { salvamento } : {}),
+      },
     };
   });
   if (!resultado.admitida) throw resultado.erro;

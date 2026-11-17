@@ -135,3 +135,20 @@ na tabela de aparelhos. A fixture deve mudar somente `revokedAt`; não alterar
 o schema para acomodar o teste. A candidata também limita a margem a trinta
 segundos de um encerramento antecipado, mesmo quando a concessão assinada iria
 até mais tarde. Nova prova de HTTP cobre esse fato. Nova rodada completa pendente.
+
+## Emissão negociada em candidata
+
+O campo opcional `suportaSalvamento: true` negocia a capacidade na abertura,
+somente com modo de checkpoint ligado e título que declare suporte. Sem essa
+negociação, a abertura e todas as renovações conservam a forma anterior.
+A renovação atualiza o prazo do mesmo recibo; recuperação só reassina o recibo
+do SID que já existe, sem estender seus prazos nem registrar nova emissão.
+Criação, assinatura, auditoria e concessão normal são atômicas. A margem continua
+separada do token normal. O host e SDK ainda não solicitam a nova capacidade.
+
+Arquivos: `salvamento/emissao-repository.ts`, composição na emissão/renovação,
+contratos opcionais e provas HTTP de negociação, compatibilidade, recuperação
+e rollback da auditoria. Auditoria nova registra somente IDs técnicos na criação,
+sem repetir eventos em renovações. Ainda faltam a espera limitada antes de um
+sucessor, o consumidor do SDK, o finalizador do servidor de mundo e as jornadas
+de pausa automática. Não ativar a flag a partir dessa etapa isolada.

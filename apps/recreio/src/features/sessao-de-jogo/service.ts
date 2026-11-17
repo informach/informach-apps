@@ -10,6 +10,7 @@ import {
 import {
   PedidoDeIngressoSchema,
   type SessaoAberta,
+  type SessaoRenovada,
   TrocaDeIngressoSchema,
 } from "@informach/recreio/contrato";
 import { verificarIngresso, verificarSessaoEmitida } from "@informach/recreio/emissor";
@@ -102,6 +103,7 @@ export async function trocarIngresso(entrada: unknown): Promise<SessaoAberta> {
       ingresso,
       continuarAqui: pedido.continuarAqui === true,
       chaveDeTroca: pedido.chaveDeTroca,
+      suportaSalvamento: pedido.suportaSalvamento,
       sid: SessaoDeJogoIdSchema.parse(crypto.randomUUID()),
       emissor,
     });
@@ -174,9 +176,7 @@ export async function sessaoDeJogoDoToken(token: string | null): Promise<SessaoD
  * jogar. Se não, a sessão é encerrada aqui mesmo (a instância fica sabendo no
  * próximo batimento) e a resposta é `ACESSO_PERDIDO`.
  */
-export async function renovarSessao(
-  token: string | null,
-): Promise<{ token: string; expiraEm: string }> {
+export async function renovarSessao(token: string | null): Promise<SessaoRenovada> {
   const sessao = await conferirToken(token);
   if (sessao.motivoDoFim !== null)
     throw new ErroDoRecreio("SESSAO_ENCERRADA", { motivo: sessao.motivoDoFim });

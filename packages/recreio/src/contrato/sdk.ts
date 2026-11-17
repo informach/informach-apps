@@ -9,6 +9,7 @@ import {
 } from "../dominio/mundos";
 import { ESTADOS_DE_ACESSO_LISTA } from "./acesso";
 import type { DadosDoPerfil } from "./dados";
+import { CapacidadeDeSalvamentoSchema } from "./salvamento";
 
 /**
  * API do SDK: o que o cliente de um jogo pede ao Recreio, do navegador. O SDK
@@ -47,6 +48,8 @@ export const PoliticaDoPerfilSchema = z.strictObject({
 export type PoliticaDoPerfil = z.infer<typeof PoliticaDoPerfilSchema>;
 
 export const TrocaDeIngressoSchema = z.strictObject({
+  /** Negociação explícita; clientes anteriores não recebem a nova capacidade. */
+  suportaSalvamento: z.literal(true).optional(),
   ingresso: z.string().min(1),
   /** Prova para recuperar a mesma abertura; nunca reabre ou renova outro SID. */
   chaveDeTroca: z
@@ -58,6 +61,7 @@ export const TrocaDeIngressoSchema = z.strictObject({
 });
 
 export const SessaoAbertaSchema = z.strictObject({
+  salvamento: CapacidadeDeSalvamentoSchema.optional(),
   token: z.string().min(1),
   expiraEm: instanteIso,
   perfil: PerfilDoJogoSchema,
@@ -66,9 +70,11 @@ export const SessaoAbertaSchema = z.strictObject({
 export type SessaoAberta = z.infer<typeof SessaoAbertaSchema>;
 
 export const SessaoRenovadaSchema = z.strictObject({
+  salvamento: CapacidadeDeSalvamentoSchema.optional(),
   token: z.string().min(1),
   expiraEm: instanteIso,
 });
+export type SessaoRenovada = z.infer<typeof SessaoRenovadaSchema>;
 
 /** Estado de controle, sem agenda, nascimento ou identidade da conta. Não renova a sessão. */
 export const ControleDaSessaoSchema = z.strictObject({
