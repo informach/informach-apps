@@ -214,6 +214,41 @@
   text-align: left;
   line-height: 1.3;
 }
+/* The EdiSVG seal of a linked animation (editor/LinkBadge.tsx), on clips and library cards. */
+.link-seal {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  text-shadow: none;
+  background: var(--violet);
+  color: #fff;
+}
+.link-seal.is-waiting {
+  background: #ffffff2e;
+}
+.link-seal.is-waiting svg {
+  animation: spin 1.2s linear infinite;
+}
+.link-seal.is-failed,
+.link-seal.is-missing {
+  background: var(--amber);
+  color: #1a1205;
+}
+.badge.link-seal-button {
+  padding: 0;
+  background: none;
+}
+.badge.link-seal-button:hover .link-seal,
+.badge.link-seal-button:focus-visible .link-seal {
+  filter: brightness(1.15);
+}
 .media-grid {
   flex: 1;
   min-height: 0;

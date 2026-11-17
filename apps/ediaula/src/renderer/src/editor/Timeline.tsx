@@ -82,6 +82,7 @@ import { createPortal } from "react-dom";
 import { actions } from "@/lib/actions";
 import { ANNOTATION_MIME, addAnnotation } from "@/lib/annotations";
 import { useClickEvents } from "@/lib/clickSounds";
+import { editInEdisvg } from "@/lib/edisvgLink";
 import { useFilmstrips } from "@/lib/filmstrip";
 import { rulerLabel, timecode } from "@/lib/format";
 import { importMedia } from "@/lib/importMedia";
@@ -111,6 +112,7 @@ import { ClipMenu } from "./ClipMenu";
 import { Filmstrip } from "./Filmstrip";
 import { addGainPoint, GainEnvelope } from "./GainEnvelope";
 import { ASSET_MIME, SOUND_MIME } from "./Library";
+import { LinkSeal, useLinkState } from "./LinkBadge";
 import { NarrationPanel } from "./NarrationPanel";
 import { RecordingBands } from "./RecordingBands";
 import { Waveform } from "./Waveform";
@@ -2030,6 +2032,8 @@ const ClipView = memo(function ClipView({
   // The filmstrip once its sheets are known to be on disk; the thumbnail until then.
   const stripPath = asset?.filmstrip?.path;
   const stripReady = useFilmstrips((s) => !!stripPath && !!s.ready[stripPath]);
+  // An animation linked to EdiSVG: its seal, and two clicks open it there.
+  const link = useLinkState(asset?.link);
   const left = clip.start * zoom;
   const width = Math.max(2, clip.duration * zoom);
   // Skip clips far off screen.
@@ -2054,12 +2058,18 @@ const ClipView = memo(function ClipView({
       onPointerDown={(e) => onPointerDown(e, clip, "body")}
       onContextMenu={(e) => onContextMenu(e, clip)}
       onDoubleClick={(e) => {
+        // Two clicks on an animation linked to EdiSVG: it opens there to be edited.
+        if (asset?.link) {
+          e.stopPropagation();
+          void editInEdisvg(asset.id);
+          return;
+        }
         // Two clicks on a selected clip with sound: a point of its volume envelope there.
         if (!selected || !asset?.hasAudio || clip.zoomLayer || clip.regionFx) return;
         e.stopPropagation();
         addGainPoint(clip, (e.clientX - e.currentTarget.getBoundingClientRect().left) / zoom);
       }}
-      title={`${name}${clipSpeed(clip) !== 1 ? ` · velocidade ${speedLabel(clipSpeed(clip))}` : ""}`}
+      title={`${name}${clipSpeed(clip) !== 1 ? ` · velocidade ${speedLabel(clipSpeed(clip))}` : ""}${link ? `\n${link.hint}` : ""}`}
     >
       {kind === "video" && !sound && asset?.filmstrip && stripReady ? (
         <Filmstrip
@@ -2103,6 +2113,7 @@ const ClipView = memo(function ClipView({
       {width > 28 && (
         <div className="clip-label">
           {clip.groupId && <Link2 size={11} aria-label="Em um grupo" />}
+          {link && <LinkSeal state={link.state} compact={width < 110} />}
           <Icon size={11} />
           <span>
             {clip.zoomLayer
