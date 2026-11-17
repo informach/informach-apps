@@ -58,10 +58,13 @@ export const recreioGroups = recreio.table(
     id: uuid("id").primaryKey().defaultRandom(),
     ownerUserId: text("owner_user_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => users.id, { onDelete: "restrict" }),
     createdAt: time("created_at"),
   },
-  (t) => [uniqueIndex("recreio_groups_owner").on(t.ownerUserId)],
+  (t) => [
+    uniqueIndex("recreio_groups_owner").on(t.ownerUserId),
+    unique("recreio_group_owner_identity").on(t.id, t.ownerUserId),
+  ],
 );
 
 /**
@@ -72,7 +75,7 @@ export const recreioProfiles = recreio.table(
   "profiles",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+    userId: text("user_id").references(() => users.id, { onDelete: "restrict" }),
     groupId: uuid("group_id").references(() => recreioGroups.id, { onDelete: "set null" }),
     /** O titular pode tirar um perfil da cobertura sem apagá-lo. */
     coverageEnabled: boolean("coverage_enabled").notNull().default(true),
@@ -88,6 +91,7 @@ export const recreioProfiles = recreio.table(
   (t) => [
     uniqueIndex("recreio_profiles_own_login").on(t.userId).where(sql`${t.userId} is not null`),
     unique("recreio_profile_identity_kind").on(t.id, t.kind),
+    unique("recreio_profile_login_identity").on(t.id, t.userId),
     index("recreio_profiles_group").on(t.groupId),
     check("recreio_profiles_kind", sql`${t.kind} in ('adult', 'minor')`),
     // Perfil adulto sai em cascata com a conta, então nunca fica sem `user_id`.

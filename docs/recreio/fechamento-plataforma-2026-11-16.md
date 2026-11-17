@@ -34,7 +34,7 @@ Um teste isolado ou uma tela não encerra a linha.
 | Frente | Entrega e aceite | Estado |
 | --- | --- | --- |
 | F0 — SDK independente | Dados opacos por perfil/jogo com revisão, conflitos preservados e cotas; conquistas idempotentes; jogo interno sem mundos prova gravar, recarregar e recuperar conflito sem importar Morada | Implantado em `6b51dd13`; prova do jogo interno no CI |
-| F1 — Conta e perfis | Gestão sem perfil de jogador; criação própria/menor, convite e saída de adulto, até quatro cobertos, mesmos IDs/progresso; titularidade comercial não concede poderes sobre outros adultos | Gestão e cadastro implantados, famílias desligadas; convites/cobertura de adultos pendentes |
+| F1 — Conta e perfis | Gestão sem perfil de jogador; criação própria/menor, convite e saída de adulto, até quatro cobertos, mesmos IDs/progresso; titularidade comercial não concede poderes sobre outros adultos | Incremento de adultos implantado em `204cf79c`, família desligada; integração Git e homologação integral pendentes |
 | F2 — Aparelhos e proteção | Pareamento de uso único, expiração, credencial restrita, PIN seguro, gerações e revogação; perfil infantil não abre administração por chamada direta | Pareamento/PIN/contexto, seleção e estante protegida implantados com fluxo desligado; ativação depende dos aceites restantes |
 | F3 — Políticas e sessões | Faixa social e classificação separadas; regras versionadas, conteúdo de mundo, horários, tempo agregado e confirmação da troca de aparelho; autoridade atual no servidor | Salvamento restrito, pausa, agregado e retenção implantados em 3f2b1239, após sete gates/CI compartilhado e 0177/0178; modos desligados, ativação depende dos demais aceites |
 | F4 — Social e moderação | Amizade por código, aprovações, presença privada, convite por destinatário, bloqueio/silêncio/denúncia; fila e ações auditadas sem acesso ao conteúdo dos mundos | Pendente |
@@ -81,9 +81,12 @@ São bases de implementação; não declarar parecer jurídico ou homologação 
 ## Execução atual
 
 O incremento de adultos e cobertura de F1 tem
-[plano próprio](grupos-adultos-2026-11-17.md), sem misturar sua futura migration
-à qualificação do salvamento restrito. Não há convite comercial de adultos
-homologado por esse documento.
+[plano próprio](grupos-adultos-2026-11-17.md) e foi implantado em fonte congelada
+`204cf79c` com 184 recibos/0183 e família desligada. A
+[prova operacional](evidencias/grupos-producao-2026-11-17.json) separa a promoção
+limitada da integração Git atual e do fechamento de F1–F11. Não há venda
+liberada nem social em produção; portal/Morada mantêm fontes explícitas para
+separar a plataforma da integração D3 concorrente.
 
 Primeiro subprojeto: [SDK e dados de perfil](dados-de-perfil-2026-11-16.md).
 Em 17/11, [checkpoint e troca](checkpoint-sessoes-2026-11-17.md) e

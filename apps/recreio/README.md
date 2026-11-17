@@ -42,7 +42,9 @@ pnpm --filter @informach/recreio-app gerar-chave
 
 O comando mostra `RECREIO_TOKEN_KEY_ID` e `RECREIO_TOKEN_PRIVATE_KEY` (PEM numa linha, com `\n` escapado) para copiar ao provedor. A chave pública servida em `/api/sdk/v1/jwks` sai da privada. Na rotação, a pública da chave antiga entra em `RECREIO_TOKEN_PREVIOUS_PUBLIC_KEYS` com o id dela e fica lá até as sessões assinadas por ela vencerem (15 min bastam).
 
-A manutenção (`POST /api/jobs/manutencao`, com `Authorization: Bearer $CRON_SECRET`) fecha posses vencidas, marca instâncias caladas, apaga ingressos antigos, encerra sessões de jogo sem renovação e recolhe convites sem aceite vencidos há mais de um dia. Convites aceitos são preservados. A limpeza usa lotes de até 500 e pula linhas ocupadas; zero não comprova ausência global. Responde só contagens e pode rodar a qualquer intervalo; nada do caminho de jogo espera por ela. O índice 0164 precisa estar implantado antes desse escritor; [política e homologação](../../docs/recreio/convites-retencao-2026-11-16.md).
+A manutenção (`POST /api/jobs/manutencao`, com `Authorization: Bearer $CRON_SECRET`) fecha posses vencidas, marca instâncias caladas, apaga ingressos antigos, encerra sessões de jogo sem renovação e recolhe convites de mundo sem aceite vencidos há mais de um dia. Convites aceitos de mundo são preservados. A limpeza usa lotes de até 500 e pula linhas ocupadas; zero não comprova ausência global. Responde só contagens e pode rodar a qualquer intervalo; nada do caminho de jogo espera por ela. O índice 0164 precisa estar implantado antes desse escritor; [política e homologação](../../docs/recreio/convites-retencao-2026-11-16.md).
+
+O incremento privado de grupos comerciais acrescenta expiração auditada de até 100 pendências e expurgo de até 500 recibos terminais após 24 horas por rodada. Retira endereço e identificação declarada ao encerrar, sem apagar perfil, dados ou participação. Schema 0179–0182, telas e ativação ainda dependem da qualificação e implantação registradas no [plano de adultos](../../docs/recreio/grupos-adultos-2026-11-17.md).
 
 ## Morada no portal
 

@@ -97,6 +97,21 @@ export default async function Conta() {
           </div>
         </section>
 
+        <section aria-labelledby="conta-cobertura" className="painel p-5 sm:p-6">
+          <h2 id="conta-cobertura" className="font-display text-xl font-bold">
+            Cobertura do grupo
+          </h2>
+          <p className="mt-2 text-tinta-suave">
+            Confira quais jogadores ficam na cobertura que você administra.
+          </p>
+          <Link
+            href="/conta/grupo"
+            className="mt-4 inline-flex font-bold text-ceu underline underline-offset-4"
+          >
+            Gerenciar cobertura
+          </Link>
+        </section>
+
         {familiaVisivel && (
           <section aria-labelledby="conta-familia" className="painel p-5 sm:p-6">
             <h2 id="conta-familia" className="font-display text-xl font-bold">

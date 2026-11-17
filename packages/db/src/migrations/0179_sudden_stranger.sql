@@ -1,0 +1,2 @@
+ALTER TABLE "recreio"."groups" ADD CONSTRAINT "recreio_group_owner_identity" UNIQUE("id","owner_user_id");--> statement-breakpoint
+ALTER TABLE "recreio"."profiles" ADD CONSTRAINT "recreio_profile_login_identity" UNIQUE("id","user_id");

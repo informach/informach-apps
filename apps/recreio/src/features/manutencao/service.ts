@@ -1,4 +1,5 @@
 import "server-only";
+import { limparConvitesDeGrupo } from "@/features/grupo/convites-retencao-repository";
 import { fecharPossesVencidas, marcarInstanciasSumidas } from "@/features/posse/repository";
 import {
   apagarIngressosAntigos,
@@ -32,6 +33,8 @@ export async function executarManutencao(): Promise<{
   aparelhosNaoConfirmadosEncerrados: number;
   diasDeUsoApagados: number;
   recibosDeSalvamentoApagados: number;
+  convitesDeGrupoVencidos: number;
+  recibosDeGrupoApagados: number;
 }> {
   const possesVencidas = await fecharPossesVencidas();
   const instanciasSumidas = await marcarInstanciasSumidas();
@@ -41,6 +44,7 @@ export async function executarManutencao(): Promise<{
   const intencoes = await apagarIntencoesAntigas();
   const diasDeUsoApagados = await apagarUsoAntigo();
   const recibosDeSalvamentoApagados = await apagarSalvamentosAntigos();
+  const convitesDeGrupo = await limparConvitesDeGrupo();
   return {
     possesVencidas,
     instanciasSumidas,
@@ -50,5 +54,6 @@ export async function executarManutencao(): Promise<{
     ...intencoes,
     diasDeUsoApagados,
     recibosDeSalvamentoApagados,
+    ...convitesDeGrupo,
   };
 }
