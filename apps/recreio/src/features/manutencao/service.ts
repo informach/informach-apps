@@ -41,6 +41,8 @@ export async function executarManutencao(): Promise<{
   recibosSociaisApagados: number;
   avisosSociaisApagados: number;
   relacoesSociaisApagadas: number;
+  vinculosDeCodigoSocialLimpos: number;
+  vinculosDePedidoSocialLimpos: number;
 }> {
   const possesVencidas = await fecharPossesVencidas();
   const instanciasSumidas = await marcarInstanciasSumidas();

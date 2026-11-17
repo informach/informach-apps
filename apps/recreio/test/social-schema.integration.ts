@@ -6,7 +6,7 @@ import {
   recreioFriendRequests as requests,
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
-import { CHECAGEM, codigoDoBanco, novoJogador, UNICO } from "./apoio";
+import { CHECAGEM, codigoDoBanco, novoJogador, RESTRICAO, UNICO } from "./apoio";
 
 async function preparar() {
   const a = await novoJogador({ comAcesso: false });
@@ -123,8 +123,8 @@ describe("integridade dos fatos sociais", () => {
     await db
       .insert(friends)
       .values({ lowerProfileId: menor, higherProfileId: maior, requestId: pedido.id });
-    expect(await codigoDoBanco(db.delete(requests).where(eq(requests.id, pedido.id)))).toBe(
-      CHECAGEM,
+    expect(RESTRICAO).toContain(
+      await codigoDoBanco(db.delete(requests).where(eq(requests.id, pedido.id))),
     );
     expect(
       (await db.select().from(friends).where(eq(friends.requestId, pedido.id)))[0],

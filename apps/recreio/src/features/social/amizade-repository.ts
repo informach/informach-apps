@@ -120,6 +120,10 @@ export async function concluirAmizade(
   assertAllowed(revisao < 2147483647, "CONFLITO", "Não foi possível confirmar o contato.");
   const agora = await atual.conferirPrazo();
   assertAllowed(pedido.expiresAt > agora, "PEDIDO", "O pedido venceu. Prepare um novo pedido.");
+  await tx
+    .update(requests)
+    .set({ state: "accepted", finishedAt: agora })
+    .where(eq(requests.id, pedido.id));
   if (existente)
     await tx
       .update(friends)
@@ -140,10 +144,6 @@ export async function concluirAmizade(
       createdAt: agora,
       updatedAt: agora,
     });
-  await tx
-    .update(requests)
-    .set({ state: "accepted", finishedAt: agora })
-    .where(eq(requests.id, pedido.id));
   await logAuditEventStrict(
     "recreio.friendship_started",
     atual.contaId,

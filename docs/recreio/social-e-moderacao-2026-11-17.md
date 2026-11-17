@@ -279,6 +279,17 @@ Sintaxe e restrições consultadas nas fontes primárias de
 As colunas calculadas precisam ser `STORED` no SQL gerado; a aplicação e os
 testes no PostgreSQL descartável confirmam o contrato, sem atualizar versões.
 
+0185 gerada em `44137952933`, fonte `d8775864`, artefato `14352054204`;
+ZIP SHA `6f55c004417d00a4360b835bf3a439ae1fa7f816441d072de3df0533b34a7b08`.
+`0185_flaky_cardiac.sql`, 1.588 bytes, SHA
+`2bcbcf2945f0f1d1e0ffc583f55d6d331a05909fee4f2b896ce8544b95263dbd`;
+snapshot SHA `91f2fa69dd158af4673348bc03c0bf43fc06e9e10255be706438ed49a2a45b55`;
+journal SHA `51aed2f730b49c5706a27e03deafd757988cd571ff474af53c962ed0598e4c98`.
+Três arquivos conferidos/copiados intactos. O SQL usa `STORED` e cria primeiro
+as chaves dos pais. As quatro colunas obrigatórias de aprovações/avisos exigem
+essas tabelas novas vazias; não aplicar sobre dados sociais existentes sem
+sequência de backfill revisada. Nada dessa frente foi aplicado em produção.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

@@ -107,6 +107,8 @@ que efetivamente agiu. Repetição sem mudança não cria um novo evento. A remo
 da amizade não apaga auditoria nem concede administração de mundo.
 `recreio.social_records_purged` usa somente as contagens de códigos, recibos,
 avisos e relações removidas expurgados, com ator nulo. Não inclui IDs em lote.
+Também conta referências técnicas retiradas de códigos vencidos e relações
+removidas; retirar a referência não muda a amizade nem apaga um bloqueio.
 `recreio.social_presence_changed` registra perfil e o classificador
 `presenceMode` (`online`, `friends`, `invisible`), com ator adulto atual.
 
