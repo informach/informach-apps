@@ -215,6 +215,7 @@ const PHRASES: Record<string, (ctx: Context) => SentencePart[]> = {
   "recreio.space_member_left": () => [t("Saiu de um mundo no Recreio")],
   "recreio.space_invites_revoked": () => [t("Revogou convites de entrada em um mundo no Recreio")],
   "recreio.space_member_removed": () => [t("Removeu um membro de um mundo no Recreio")],
+  "recreio.space_management_changed": () => [t("Alterou a gestão de um mundo no Recreio")],
   "recreio.space_stewardship_requested": () => [
     t("Propôs transferência de responsabilidade de um mundo no Recreio"),
   ],

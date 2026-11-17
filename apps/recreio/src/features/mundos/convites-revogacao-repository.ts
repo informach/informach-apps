@@ -22,7 +22,10 @@ export async function prepararRevogacaoDeConvites(
     )
     .orderBy(asc(invites.id))
     .for("update");
-  return async (contaId: string, motivo: "steward_changed" | "member_removed") => {
+  return async (
+    contaId: string,
+    motivo: "steward_changed" | "member_removed" | "coadmin_removed" | "world_archived",
+  ) => {
     if (linhas.length === 0) return;
     await tx
       .update(invites)

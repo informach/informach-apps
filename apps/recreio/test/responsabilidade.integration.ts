@@ -68,6 +68,7 @@ it("propor não transfere; aceitar troca os papéis sem reatribuir criação ou 
   });
   const [depois] = await db.select().from(spaces).where(eq(spaces.id, c.id));
   expect(depois?.stewardProfileId).toBe(c.bruno.perfil.id);
+  expect(depois?.managementRevision).toBe((antes[0]?.managementRevision ?? 0) + 1);
   expect(depois?.createdByProfileId).toBe(c.lia.perfil.id);
   const vinculos = await db.select().from(members).where(eq(members.spaceId, c.id));
   expect(vinculos.find((m) => m.id === c.membroLia.id)).toEqual({ ...c.membroLia, role: "member" });

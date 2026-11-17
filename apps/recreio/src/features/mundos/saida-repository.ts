@@ -12,6 +12,7 @@ import type { ContaId, MundoId, PerfilId, SessaoDeAparelhoId } from "@informach/
 import { encerrarSessoesAbertas, travarEncerramentos } from "@/features/sessao-de-jogo/repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
+import { travarMundoAntesDosPerfis } from "./ordem-de-travas-repository";
 import { revogarPropostasDoMembro } from "./responsabilidade-repository";
 
 export type AutorDaSaida = {
@@ -25,6 +26,7 @@ export async function registrarSaida(autor: AutorDaSaida, mundoId: MundoId) {
     await tx.execute(sql`set local statement_timeout = '5s'`);
     await tx.execute(sql`set local lock_timeout = '1s'`);
     await tx.execute(sql`set local transaction_timeout = '15s'`);
+    await travarMundoAntesDosPerfis(tx, autor.perfilId, mundoId, "update");
     // A autoridade fica estável; SHARE conserva as FKs e os demais leitores disponíveis.
     const [perfil] = await tx
       .select({ id: profiles.id })

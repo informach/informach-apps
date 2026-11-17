@@ -197,7 +197,10 @@ export async function responderResponsabilidade(
       await tx.update(members).set({ role: "steward" }).where(eq(members.id, ctx.proprio.id));
       await tx
         .update(spaces)
-        .set({ stewardProfileId: autor.perfilId })
+        .set({
+          stewardProfileId: autor.perfilId,
+          managementRevision: sql`${spaces.managementRevision} + 1`,
+        })
         .where(eq(spaces.id, mundoId));
       await encerrarSessoesAbertas(tx, filtro, "permissions_changed", {
         porQuem: "ator",

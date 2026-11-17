@@ -521,6 +521,7 @@ const SIMPLE: Record<string, string> = {
   "recreio.space_member_left": "Saiu de um mundo no Recreio",
   "recreio.space_invites_revoked": "Revogou convites de entrada em um mundo no Recreio",
   "recreio.space_member_removed": "Removeu um membro de um mundo no Recreio",
+  "recreio.space_management_changed": "Alterou a gestão de um mundo no Recreio",
   "recreio.space_stewardship_requested":
     "Propôs transferência de responsabilidade de um mundo no Recreio",
   "recreio.space_stewardship_accepted": "Aceitou a responsabilidade por um mundo no Recreio",

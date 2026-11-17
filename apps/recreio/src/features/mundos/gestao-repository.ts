@@ -8,6 +8,7 @@ import {
 } from "@informach/db/schema";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
+import { travarMundoAntesDosPerfis } from "./ordem-de-travas-repository";
 import type { AutorDaSaida } from "./saida-repository";
 
 /** Somente o adapter servidor preenche esta prova a partir do Better Auth. */
@@ -42,6 +43,7 @@ export async function contextoDaGestao(
     .from(members)
     .where(and(eq(members.id, outroMembroId), eq(members.spaceId, mundoId)));
   assertAllowed(outroAntes, "MUNDO", "Participação indisponível.");
+  await travarMundoAntesDosPerfis(tx, autor.perfilId, mundoId, "update");
   const perfis = await tx
     .select({
       id: profiles.id,

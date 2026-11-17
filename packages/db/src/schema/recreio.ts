@@ -22,10 +22,11 @@ import { users } from "./core";
  * Recreio, a plataforma de jogos. Só `apps/recreio` grava aqui; o servidor de
  * um jogo fala com o Recreio por HTTP e nunca lê estas tabelas.
  *
- * Duas famílias de linhas, com políticas de exclusão opostas:
+ * Fronteiras de exclusão:
  *
- * - **Pessoais** (`groups`, perfis adultos, `device_sessions`, `game_tickets`,
- *   `game_sessions`, `entitlements`): saem em cascata com `core.users`.
+ * - **Identidade** (`groups`, perfis adultos): restringe a exclusão de
+ *   `core.users` até o encerramento coordenado resolver seus vínculos.
+ *   Aparelhos, ingressos, sessões e concessões seguem as FKs próprias.
  * - **Do mundo** (`spaces`, `space_members`, `space_invites`, `space_leases`,
  *   `space_snapshots`, `space_journal`): nenhuma cascata vinda de `core.users`
  *   as alcança. A referência ao perfil vira NULL e o mundo continua para os
