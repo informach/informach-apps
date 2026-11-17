@@ -364,9 +364,11 @@ describe("renovar e sair", () => {
     await assentar();
     servidor.ultimo.surdo = true;
     const saindo = conexao.sair(1500);
-    expect(conexao.sair(1500)).toBe(saindo);
+    const outraChamada = conexao.sair(1500);
+    expect(servidor.ultimo.recebidas.filter((quadro) => quadro.t === "sair")).toHaveLength(1);
     relogio.avancar(1500);
     expect(await saindo).toBe(false);
+    expect(await outraChamada).toBe(false);
     expect(conexao.estado).toMatchObject({ fase: "reconectando", motivo: "rede" });
     relogio.avancar(ESPERA_MINIMA_MS);
     await assentar();

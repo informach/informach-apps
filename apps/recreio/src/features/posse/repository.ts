@@ -465,6 +465,14 @@ export async function abrirMundoParaMembro(
             .where(and(eq(members.spaceId, mundo.id), eq(members.profileId, entrada.perfilId)))
         : [];
       if (!mundo || membro?.state !== "active") throw new ErroDoRecreio("NAO_MEMBRO");
+      if ("sid" in autor) {
+        const [sessao] = await tx
+          .select({ mundoId: gameSessions.spaceId })
+          .from(gameSessions)
+          .where(eq(gameSessions.id, autor.sid));
+        if (sessao?.mundoId && sessao.mundoId !== entrada.mundoId)
+          throw new ErroDoRecreio("SEM_PERMISSAO");
+      }
       await conferirConteudoDoMundo(tx, mundo, entrada.jogo, admissao.politica?.politica ?? null);
       if (mundo.status === "archived" || mundo.status === "deleted")
         throw new ErroDoRecreio("MUNDO_INDISPONIVEL");
@@ -686,7 +694,7 @@ export async function verificarEntradaNoMundo(
     async (tx, _conta, admissao) => {
       const { mundo } = await conferirPosse(tx, pedido);
       const [sessao] = await tx
-        .select({ id: gameSessions.id })
+        .select({ id: gameSessions.id, mundoId: gameSessions.spaceId })
         .from(gameSessions)
         .where(
           and(
@@ -696,7 +704,8 @@ export async function verificarEntradaNoMundo(
             isNull(gameSessions.endedAt),
           ),
         );
-      if (!sessao) throw new ErroDoRecreio("SESSAO_ENCERRADA");
+      if (!sessao || (sessao.mundoId !== null && sessao.mundoId !== pedido.mundoId))
+        throw new ErroDoRecreio("SESSAO_ENCERRADA");
       const [membro] = await tx
         .select({
           id: members.id,
@@ -717,7 +726,13 @@ export async function verificarEntradaNoMundo(
       const marcadas = await tx
         .update(gameSessions)
         .set({ spaceId: pedido.mundoId })
-        .where(and(eq(gameSessions.id, pedido.sid), isNull(gameSessions.endedAt)))
+        .where(
+          and(
+            eq(gameSessions.id, pedido.sid),
+            isNull(gameSessions.endedAt),
+            sql`(${gameSessions.spaceId} is null or ${gameSessions.spaceId}=${pedido.mundoId})`,
+          ),
+        )
         .returning({ id: gameSessions.id });
       if (marcadas.length === 0) throw new ErroDoRecreio("SESSAO_ENCERRADA");
       return {

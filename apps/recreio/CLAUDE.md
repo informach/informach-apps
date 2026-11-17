@@ -157,6 +157,12 @@ aguardar a concessão vencer. Não simular ACK nem reduzir o prazo em teste para
 anunciar uma recuperação real. Famílias, troca automática e venda continuam
 desligadas em produção; verificar gates e configuração antes de ativar.
 
+Na candidata, um SID de jogo fica vinculado ao primeiro mundo admitido pelo host.
+Entrar em outro mundo exige encerrar a partida e emitir outra, com nova autoridade.
+Não reatribuir `game_sessions.space_id` de uma sessão aberta: isso permitiria
+conexões simultâneas fora da prova de checkpoint. A exclusão física futura de
+mundos deve encerrar suas sessões antes de remover o vínculo.
+
 - `features/jogar/adaptadores/morada.ts` traduz `ModuloDoJogo` para `montarMorada`, do `@informach/jogo-morada`. É o único arquivo do portal que importa o pacote do jogo (e `morada-regra.ts`, só os tipos). O jogo de verdade (three.js, HUD, CSS) vem por um segundo `import()`, dentro de `montarMorada`. `next.config.ts` lista `@informach/jogo-morada` e `@informach/morada-sim` em `transpilePackages`.
 - O cliente é montado **sem `depurar`**, como em produção, também no E2E. Os testes conferem o jogo pelo HUD e pelos atributos `data-morada-*` (lista no README do `jogo-morada`).
 - O adaptador marca o elemento do jogo com `MARCA_DO_CLIENTE` (`data-jogo`). O E2E procura a marca e um nome do three.js nos scripts de cada página: a estante não baixa nenhum dos dois; `/jogar/morada` baixa os dois.

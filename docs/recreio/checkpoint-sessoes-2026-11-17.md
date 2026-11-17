@@ -274,3 +274,23 @@ e descarta só o primeiro ACK; nenhum quadro é fabricado. A reprodução isolad
 anterior e a rodada corretiva ainda precisam ser conferidas. Nenhuma mudança
 de simulação, arte, protocolo ou formato do mundo. Ainda não é checkpoint de
 mundo vinculado à intenção de troca: esse adapter autenticado continua pendente.
+
+### Vínculo único de mundo em candidata
+
+A preparação da confirmação por servidor encontrou que o mesmo SID podia ser
+reatribuído a outro mundo do mesmo jogo, conservando conexões anteriores. Um ACK
+do último mundo não seria prova das demais conexões. A candidata vincula o SID
+ao primeiro mundo admitido pelo host; entradas concorrentes serializam na sessão
+em UPDATE e só uma pode fixar o vínculo. O SDK também recusa abrir outro mundo
+com esse SID, sem alterar a posse. Sair e obter uma nova partida permite mudar
+de mundo; listar o catálogo e os mundos permanece separado dessa autorização.
+
+As duas provas usam rotas, host autenticado e PostgreSQL reais. A reprodução
+isolada anterior `97d5045` e a rodada corretiva precisam ser conferidas. O contrato
+de exclusão futura precisa encerrar sessões vinculadas antes de apagar o mundo;
+`ON DELETE SET NULL` não é autorização para reativar uma partida. Não há escritor
+de exclusão física de mundo habilitado nesta candidata.
+
+O teste de saída concorrente passa a observar um único pacote `sair` e o resultado
+das duas chamadas, em vez da identidade do objeto Promise. A reprodução atualizada
+é `ee3cbd2`; a prova de navegador permanece idêntica à rodada negativa anterior.
