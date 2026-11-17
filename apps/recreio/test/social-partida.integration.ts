@@ -7,6 +7,7 @@ import {
   sessions,
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
+import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/encerramento-repository";
 import { sessaoDeJogoDoToken } from "@/features/sessao-de-jogo/service";
 import { comJogadorSocial } from "@/features/social/autoridade-repository";
 import { emitirCodigoDeAmigo, pedirAmizade } from "@/features/social/service";
@@ -24,10 +25,9 @@ describe("social de partida conserva toda a autoridade do SID", () => {
   it("emite por partida atual, mas uma sessão encerrada não vira identidade de portal", async () => {
     const r = await abrir();
     await emitirCodigoDeAmigo(r.sessao);
-    await db
-      .update(games)
-      .set({ endedAt: new Date(), endReason: "left", endedSeq: 900001 })
-      .where(eq(games.id, r.sessao.sid));
+    await db.transaction((tx) =>
+      encerrarSessoesAbertas(tx, sql`${games.id}=${r.sessao.sid}`, "left", { porQuem: "conta" }),
+    );
     await expect(emitirCodigoDeAmigo(r.sessao)).rejects.toMatchObject({
       codigo: "SESSAO_ENCERRADA",
     });

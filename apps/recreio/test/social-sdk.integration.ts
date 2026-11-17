@@ -1,4 +1,4 @@
-import { db, eq } from "@informach/db";
+import { db, eq, sql } from "@informach/db";
 import {
   recreioFriendCodes as codes,
   recreioFriendships as friends,
@@ -7,6 +7,7 @@ import {
 } from "@informach/db/schema";
 import { criarRecreio } from "@informach/recreio/sdk";
 import { afterEach, describe, expect, it } from "vitest";
+import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/encerramento-repository";
 import { emitirIngresso } from "@/features/sessao-de-jogo/service";
 import { env } from "@/lib/env";
 import { novoJogador } from "./apoio";
@@ -192,10 +193,11 @@ describe("SDK social negocia capacidade e conserva autenticação e proteção",
   });
   it("token de SID encerrado não escreve", async () => {
     const r = await comSocial();
-    await db
-      .update(games)
-      .set({ endedAt: new Date(), endedSeq: 900002, endReason: "left" })
-      .where(eq(games.profileId, r.jogador.perfil.id));
+    await db.transaction((tx) =>
+      encerrarSessoesAbertas(tx, sql`${games.profileId}=${r.jogador.perfil.id}`, "left", {
+        porQuem: "conta",
+      }),
+    );
     await expect(r.social.codigo()).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA" });
     expect(
       await db.select().from(codes).where(eq(codes.profileId, r.jogador.perfil.id)),
