@@ -32,7 +32,13 @@
   "maintenance": {
     "startedAt": "2026-11-17T02:30:44.434Z",
     "ok": true,
-    "summary": { "possesVencidas": 0, "convitesApagados": 0, "sessoesExpiradas": 0, "ingressosApagados": 0, "instanciasSumidas": 1 }
+    "summary": {
+      "possesVencidas": 0,
+      "convitesApagados": 0,
+      "sessoesExpiradas": 0,
+      "ingressosApagados": 0,
+      "instanciasSumidas": 1
+    }
   },
   "worldCompatibility": "No diff in Morada server, simulation, art or Railway runtime against previous public main; World2/protocol1 preserved",
   "limits": [
