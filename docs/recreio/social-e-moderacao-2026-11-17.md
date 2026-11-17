@@ -326,6 +326,27 @@ consulta e proteção existentes. O próximo gate precisa confirmar a leitura se
 login recente, a recusa na escrita, ausência de jogador fictício, avisos e
 rollback de proteção por prazo/auditoria. Telas ainda estão em implementação.
 
+`ac71feb` foi recusado em `44143554694`: a auditoria da leitura de aviso
+usava uma variável inexistente (`profileId` em vez de `perfilId`). Tipos/builds
+e dois testes transacionais expuseram a mesma causa; 663 integrações passaram.
+A correção explicita `profileId: perfilId`, sem suprimir o erro ou retirar a
+prova de rollback. O resultado anterior permanece registrado como falha.
+
+A candidata seguinte acrescenta `/amigos` para perfil próprio ou aparelho
+pareado e contatos do menor na gestão nativa do responsável, inclusive sem
+jogador. Ações conferem o perfil esperado contra o aparelho atual; a seleção
+enviada pela tela não concede autoridade. Código fica apenas na tela após a
+emissão; pedido preserva nonce por código, sem repetição automática. Aprovação
+é uma escolha explícita separada do aceite. Presença infantil fica sob as
+regras do responsável. Bloquear, silenciar, remover e ler avisos reconsultam o
+servidor após confirmação; desbloquear nunca refaz amizade.
+
+Dois novos percursos de navegador usam contas e pareamento reais no ambiente
+descartável: adultos com silêncio/bloqueio/presença e responsável sem jogador
+com criança, aprovação, aviso e recusa de gestão no aparelho infantil. Incluem
+CSP, erros e capturas a 390 px. Ainda sem resultado remoto desta candidata;
+denúncias/moderação, superfície no host e aceites seguintes continuam pendentes.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

@@ -23,6 +23,7 @@ import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 import { parSocial } from "./amizade-repository";
 import { type AutorSocial, type ContextoSocial, comJogadorSocial } from "./autoridade-repository";
+import { podeCriarContatos } from "./disponibilidade";
 import { presencaDePartidaAtual } from "./presenca-repository";
 import type { ContextoDeSupervisaoSocial } from "./responsavel-contexto-repository";
 
@@ -188,7 +189,12 @@ export async function listarSocialNoBanco(
     async (
       tx,
       atual,
-    ): Promise<{ presenca: ListaSocial["presenca"]; contatosDisponiveis: boolean }> => {
+    ): Promise<{
+      presenca: ListaSocial["presenca"];
+      contatosDisponiveis: boolean;
+      podeCriarContatos: boolean;
+      presencaEditavel: boolean;
+    }> => {
       const [preferencia] = await tx
         .select()
         .from(preferences)
@@ -199,6 +205,8 @@ export async function listarSocialNoBanco(
             ? atual.origem.politica.presenca
             : (preferencia?.presenceMode ?? "friends"),
         contatosDisponiveis: contatoDisponivel(atual.origem),
+        podeCriarContatos: podeCriarContatos(atual.origem),
+        presencaEditavel: atual.origem.tipo === "adulto",
       };
     },
   );
@@ -207,6 +215,8 @@ export async function listarSocialNoBanco(
       ? contatos
       : contatos.map((c) => ({ ...c, apelido: null, avatar: null, amizade: false, online: false })),
     presenca: final.presenca,
+    podeCriarContatos: final.podeCriarContatos,
+    presencaEditavel: final.presencaEditavel,
     proximo: pagina.length > 10 ? (pagina[9] ?? null) : null,
   };
 }

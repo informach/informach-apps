@@ -16,7 +16,7 @@ export default async function LayoutDoPortal({ children }: { children: React.Rea
             <Marca tamanho={28} />
           </Link>
           <span className="flex-1" />
-          <PortalNav />
+          <PortalNav temPerfil={Boolean(ator.perfil)} />
           {ator.perfil ? (
             <Link
               href="/perfis"

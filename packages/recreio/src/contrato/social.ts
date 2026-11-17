@@ -79,6 +79,8 @@ export const ContatoSocialSchema = z.strictObject({
 });
 export type ContatoSocial = z.infer<typeof ContatoSocialSchema>;
 export const ListaSocialSchema = z.strictObject({
+  podeCriarContatos: z.boolean(),
+  presencaEditavel: z.boolean(),
   contatos: z.array(ContatoSocialSchema).max(10),
   proximo: PerfilIdSchema.nullable(),
   presenca: PreferenciaDePresencaSchema,

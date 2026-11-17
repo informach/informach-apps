@@ -18,15 +18,16 @@ import type { AutorNativoRecente } from "@/features/account/autoridade-repositor
 import { assertAllowed } from "@/lib/errors";
 import { parSocial } from "./amizade-repository";
 import { consultarContatoParaResponsavel, idsSociaisSobTrava } from "./consulta-repository";
+import { podeCriarContatos } from "./disponibilidade";
 import { gravarProtecaoSobTrava, removerContatoSobTrava } from "./protecao-repository";
 import type { ProtecaoDeContato } from "./regras";
 import { comResponsavelSocialNativo } from "./responsavel-contexto-repository";
 
 export type ContatoSupervisionado = ContatoSocial & {
-  pedidoDeAprovacaoId: string | null;
-  revisaoDaAmizade: number | null;
-  podeAprovar: boolean;
-  podeReaprovar: boolean;
+  aprovacao:
+    | { tipo: "pedido"; pedidoId: string }
+    | { tipo: "renovar"; pedidoId: string; revisao: number }
+    | null;
   avisoId: string | null;
 };
 export type SupervisaoSocial = {
@@ -97,16 +98,19 @@ export async function lerSupervisaoSocial(
               )
           : [];
         const podeAutorizar =
-          contatoDisponivel(atual.menor) &&
+          podeCriarContatos(atual.menor) &&
           atual.destino &&
           contatoDisponivel(atual.destino) &&
           !aprovada;
+        let aprovacaoPendente: ContatoSupervisionado["aprovacao"] = null;
+        if (podeAutorizar && pedidoId) {
+          if (contato.pedido) aprovacaoPendente = { tipo: "pedido", pedidoId };
+          else if (amizade?.state === "active")
+            aprovacaoPendente = { tipo: "renovar", pedidoId, revisao: amizade.revision };
+        }
         return {
           ...contato,
-          pedidoDeAprovacaoId: pedidoId,
-          revisaoDaAmizade: amizade?.state === "active" ? amizade.revision : null,
-          podeAprovar: Boolean(podeAutorizar && contato.pedido),
-          podeReaprovar: Boolean(podeAutorizar && amizade?.state === "active"),
+          aprovacao: aprovacaoPendente,
           avisoId: aviso?.id ?? null,
         };
       },
@@ -209,7 +213,7 @@ export async function marcarAvisoSocial(
         await logAuditEventStrict(
           "recreio.social_notice_read",
           atual.contaId,
-          { app: "recreio", profileId, noticeId: aviso.id, requestId: aviso.requestId },
+          { app: "recreio", profileId: perfilId, noticeId: aviso.id, requestId: aviso.requestId },
           { writer: tx },
         );
       }

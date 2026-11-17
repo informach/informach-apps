@@ -56,6 +56,12 @@ export default async function PerfisDaFamilia({
                   >
                     Gerenciar aparelhos de {perfil.apelido}
                   </Link>
+                  <Link
+                    href={`/conta/perfis/${perfil.id}/contatos`}
+                    className="mt-2 block font-bold text-ceu underline"
+                  >
+                    Contatos e pedidos de {perfil.apelido}
+                  </Link>
                   <p className="mt-1 text-sm text-tinta-suave">
                     {perfil.status === "active" ? "Ativo" : "Suspenso"} · Conteúdo até{" "}
                     {faixas.classificacao === "L" ? "Livre" : `${faixas.classificacao} anos`}

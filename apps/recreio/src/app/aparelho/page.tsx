@@ -50,6 +50,11 @@ export default async function Aparelho() {
             </Link>
           )}
           <SairDoAparelho tipo={pareado ? "pareado" : "compartilhado"} />
+          {jogador && (
+            <Link href="/amigos" className="rb rb-vazado mt-4">
+              Amigos e pedidos
+            </Link>
+          )}
         </div>
       </section>
       {jogador && (

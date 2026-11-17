@@ -57,8 +57,7 @@ describe("responsável exerce proteção sem ocupar perfil de jogador", () => {
         {
           perfilId: r.a.perfil.id,
           apelido: r.a.perfil.apelido,
-          podeAprovar: true,
-          podeReaprovar: false,
+          aprovacao: { tipo: "pedido" },
         },
       ],
     });
