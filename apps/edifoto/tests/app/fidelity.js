@@ -13,6 +13,7 @@ globalThis.__fidelityTestRun = (async () => {
   const assert = (ok, label) => {
     if (!ok) throw new Error(label);
     results.push(label);
+    console.log("[fidelity]", label);
   };
   const fresh = () =>
     D.getState().load(E.ops.blankDoc(100, 100, "Example", null), { dirty: false });
@@ -112,10 +113,14 @@ globalThis.__fidelityTestRun = (async () => {
       c.canvas.addEventListener("webglcontextlost", resolve, { once: true }),
     );
     extension.loseContext();
+    console.log("[fidelity] waiting context lost");
     await lost;
+    console.log("[fidelity] context lost");
     await new Promise(requestAnimationFrame);
     extension.restoreContext();
+    console.log("[fidelity] waiting context restored");
     await restored;
+    console.log("[fidelity] context restored");
     assert(pixel(50, 50)[3] === 0, "GPU context restore rebuilds compositor without document loss");
   }
   const large = E.ops.blankDoc(1280, 1280, "Texture eviction", null);

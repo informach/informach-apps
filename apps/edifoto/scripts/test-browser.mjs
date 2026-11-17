@@ -13,6 +13,7 @@ const server = await createServer({
   server: { host: "127.0.0.1", port: 0 },
 });
 let browser;
+let current;
 const results = [];
 const output = resolve("../../.cache/edifoto-tests");
 try {
@@ -32,7 +33,17 @@ try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const page = await context.newPage(),
       errors = [];
+    const diagnostic = { suite, errors, console: [], requests: [] };
+    current = { page, diagnostic };
     page.on("pageerror", (error) => errors.push(error.message));
+    page.on("console", (message) => {
+      diagnostic.console.push({ type: message.type(), text: message.text().slice(0, 2000) });
+      if (diagnostic.console.length > 100) diagnostic.console.shift();
+    });
+    page.on("requestfailed", (request) => {
+      diagnostic.requests.push({ url: request.url(), error: request.failure()?.errorText });
+      if (diagnostic.requests.length > 30) diagnostic.requests.shift();
+    });
     await page.goto(
       `http://127.0.0.1:${address.port}/tests/browser/index.html${suite === "default" ? "" : `?suite=${suite}`}`,
     );
@@ -72,8 +83,19 @@ try {
     console.log(JSON.stringify(results.at(-1)));
     await context.close();
     if (status !== "passed" || errors.length) process.exitCode = 1;
+    current = null;
   }
 } catch (error) {
+  if (current) {
+    const failure = { ...current.diagnostic, status: "failed", failure: String(error) };
+    try {
+      await current.page.screenshot({ path: resolve(output, `${current.diagnostic.suite}-failed.png`), timeout: 5000 });
+    } catch (captureError) {
+      failure.captureError = String(captureError);
+    }
+    results.push(failure);
+    console.error(JSON.stringify(failure));
+  }
   console.error(error);
   process.exitCode = 1;
 } finally {
