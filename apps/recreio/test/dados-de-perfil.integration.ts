@@ -10,6 +10,7 @@ import {
 } from "@informach/db/schema";
 import { bytesParaBase64 } from "@informach/recreio/contrato";
 import { criarRecreio } from "@informach/recreio/sdk";
+import postgres from "postgres";
 import { describe, expect, it, vi } from "vitest";
 import { alterarDados, consultarDados } from "@/features/dados-de-perfil/service";
 import { emitirIngresso, sessaoDeJogoDoToken } from "@/features/sessao-de-jogo/service";
@@ -61,6 +62,34 @@ async function abrir() {
 }
 
 describe("SDK sem mundos: progresso privado com PostgreSQL real", () => {
+  it("dez escritas usam a conexão transacional para validar o login sem esgotar o pool", async () => {
+    const url = process.env.DATABASE_URL;
+    if (!url || process.env.RECREIO_ISOLATED_TEST !== "1") throw new Error("Banco não isolado");
+    const controle = postgres(url, { max: 1, prepare: false });
+    const contextos: Awaited<ReturnType<typeof abrir>>[] = [];
+    for (let i = 0; i < 10; i++) contextos.push(await abrir());
+    let operacoes: Promise<number>[] = [];
+    try {
+      await controle.begin(async (tx) => {
+        await tx.unsafe("lock table recreio.profiles in exclusive mode");
+        operacoes = contextos.map(({ sdk }) => sdk.dados.gravar("progresso", bytes("confirmado")));
+        await expect
+          .poll(
+            async () => {
+              const [linha] =
+                await tx`select count(*)::int as esperando from pg_stat_activity where datname=current_database() and backend_type='client backend' and pg_backend_pid()=any(pg_blocking_pids(pid))`;
+              return linha?.esperando;
+            },
+            { interval: 20 },
+          )
+          .toBe(10);
+      });
+      expect(await Promise.all(operacoes)).toEqual(Array(10).fill(1));
+    } finally {
+      await Promise.allSettled(operacoes);
+      await controle.end();
+    }
+  });
   it("grava, recupera a confirmação perdida e reabre sem criar mundo", async () => {
     const { sdk } = await abrir();
     expect(await sdk.dados.ler("progresso")).toBeNull();
