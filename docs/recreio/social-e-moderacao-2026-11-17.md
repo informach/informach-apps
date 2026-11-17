@@ -208,6 +208,15 @@ O caminho de cookie continua independente da cobrança; um SID encerrado não
 vira uma identidade de cookie. HTTP/SDK e interface ainda serão ligados a esse
 adapter depois dos testes negativos e concorrentes no GitHub.
 
+A candidata HTTP/SDK seguinte negocia social explicitamente na abertura e o
+mantém desligado por padrão. Só clientes que pediram a capacidade podem receber
+o campo novo, preservando leitores estritos anteriores. A rota de mutação usa
+Bearer atual, schema estrito e corpo de até 2 KiB. Desligar novos contatos ainda
+permite recusar/revogar, remover e ajustar a própria proteção; não mantém um SID
+encerrado. Testes com duas contas usam as rotas reais, código, recibo de repetição,
+aceite e bloqueio; também cobrem autoridade inventada, corpo excessivo, falta de
+token, resposta perdida sem repetição automática e handle encerrado após saída.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

@@ -86,4 +86,19 @@ describe("telemetry privacy", () => {
       error: { type: "Error", message: "Database operation failed (details withheld)" },
     });
   });
+  it("retira código social e hash sem apagar IDs ou códigos operacionais", () => {
+    expect(
+      safeContext({
+        code: "23505",
+        codeId: "opaque-id",
+        codigo: "ABCDEFGH2345",
+        nested: { friendCode: "ABCDEFGH2345", codeHash: "a".repeat(64), code_hash: "b".repeat(64) },
+      }),
+    ).toEqual({
+      code: "23505",
+      codeId: "opaque-id",
+      codigo: "[redacted]",
+      nested: { friendCode: "[redacted]", codeHash: "[redacted]", code_hash: "[redacted]" },
+    });
+  });
 });

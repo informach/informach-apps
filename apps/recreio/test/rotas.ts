@@ -16,6 +16,7 @@ type Modulo = Partial<Record<"GET" | "POST" | "PUT", Manipulador>>;
 const ID = "([^/]+)";
 
 const ROTAS: readonly [RegExp, () => Promise<Modulo>][] = [
+  [/^\/api\/sdk\/v1\/social$/, () => import("@/app/api/sdk/v1/social/route")],
   [
     new RegExp(`^/api/interno/v1/mundos/${ID}/salvamento$`),
     () => import("@/app/api/interno/v1/mundos/[id]/salvamento/route"),

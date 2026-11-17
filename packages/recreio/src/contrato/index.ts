@@ -10,4 +10,5 @@ export * from "./dados";
 export * from "./host";
 export * from "./salvamento";
 export * from "./sdk";
+export * from "./social";
 export * from "./tokens";

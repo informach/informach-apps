@@ -109,8 +109,10 @@ function respostaDaSessao(
   contexto: Admissao,
   ingresso: IngressoVerificado,
   token: TokenEmitido,
+  suportaSocial = false,
 ): SessaoAberta {
   return {
+    ...(suportaSocial && env.RECREIO_SOCIAL_MODE === "on" ? { social: true as const } : {}),
     token: token.token,
     expiraEm: token.expiraEm.toISOString(),
     perfil: {
@@ -163,6 +165,7 @@ export async function abrirSessaoComIngresso(entrada: {
   emissor: Emissor;
   chaveDeTroca?: string;
   suportaSalvamento?: boolean;
+  suportaSocial?: boolean;
 }): Promise<SessaoAberta> {
   try {
     const resultado = await db.transaction(async (tx) => {
@@ -221,7 +224,7 @@ export async function abrirSessaoComIngresso(entrada: {
         return {
           admitida: true as const,
           valor: {
-            ...respostaDaSessao(contexto, entrada.ingresso, token),
+            ...respostaDaSessao(contexto, entrada.ingresso, token, entrada.suportaSocial),
             ...(salvamento ? { salvamento } : {}),
           },
         };
@@ -393,7 +396,7 @@ export async function abrirSessaoComIngresso(entrada: {
       return {
         admitida: true as const,
         valor: {
-          ...respostaDaSessao(contexto, entrada.ingresso, token),
+          ...respostaDaSessao(contexto, entrada.ingresso, token, entrada.suportaSocial),
           ...(salvamento ? { salvamento } : {}),
         },
       };

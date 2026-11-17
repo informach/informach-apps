@@ -120,6 +120,22 @@ O que o servidor do jogo precisa respeitar:
 
 ## SDK do cliente do jogo
 
+Social é uma capacidade opcional em qualificação. `criarRecreio({ social: true,
+... })` envia `suportaSocial: true`; `contexto.social` só existe quando o servidor
+também responde `social: true`. Clientes anteriores não recebem campo novo.
+A composição do Recreio mantém `RECREIO_SOCIAL_MODE=off` por padrão, até o aceite
+da frente completa. Desligar novos contatos conserva recusa, remoção e proteção
+de relações existentes para uma sessão ainda autorizada.
+
+O contrato oferece código de uso único, pedido por código/UUID de repetição,
+aceite, recusa/revogação, bloqueio/silêncio e remoção. Aprovação de responsável
+exige login nativo recente no portal e não é uma capacidade de jogo. Nenhuma
+mutação social repete automaticamente após falha de rede; o chamador conserva o
+UUID de um pedido e pode recuperar o mesmo recibo. Nova emissão revoga o código
+anterior. O servidor revalida SID, login/aparelho, cobertura, política e prazo;
+um token de partida encerrada não vira identidade de portal. Presença, consulta,
+denúncias e telas ainda estão sendo concluídas.
+
 ```ts
 import { criarRecreio } from "@informach/recreio/sdk";
 

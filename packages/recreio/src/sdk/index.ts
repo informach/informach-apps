@@ -32,6 +32,16 @@ import {
   SessaoAbertaSchema,
   SessaoRenovadaSchema,
 } from "../contrato/sdk";
+import {
+  AceiteDeAmizadeSchema,
+  AmizadeRemovidaSchema,
+  CodigoDeAmigoEmitidoSchema,
+  MutacaoSocialSchema,
+  PedidoDeAmizadeCriadoSchema,
+  PedidoDeAmizadeEncerradoSchema,
+  ProtecaoSocialSalvaSchema,
+  type SocialDoPerfil,
+} from "../contrato/social";
 import { FRACAO_PARA_RENOVAR } from "../contrato/tokens";
 import { ErroDoRecreio, ehErroDoRecreio } from "../dominio/erros";
 import { base64ParaBytes, bytesParaBase64 } from "../transporte/bytes";
@@ -71,6 +81,8 @@ export type OpcoesDoRecreio = {
   recuperarAbertura?: boolean;
   /** Negocia a capacidade restrita; somente após implantação dos seus leitores/escritores. */
   salvamentoRestrito?: boolean;
+  /** Negociação explícita, após os leitores sociais do servidor estarem implantados. */
+  social?: boolean;
   /** Aguarda o ACK de outro aparelho, conservando o mesmo ingresso e prova. */
   aguardarCheckpoint?: boolean;
   aoAguardarCheckpoint?: () => void;
@@ -129,6 +141,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       ...(opcoes.continuarAqui === undefined ? {} : { continuarAqui: opcoes.continuarAqui }),
       ...(chaveDeTroca === undefined ? {} : { chaveDeTroca }),
       ...(opcoes.salvamentoRestrito ? { suportaSalvamento: true } : {}),
+      ...(opcoes.social ? { suportaSocial: true } : {}),
     },
   } as const;
   const aberta = await (async () => {
@@ -343,7 +356,58 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
     },
   };
 
+  const social: SocialDoPerfil = {
+    async codigo() {
+      exigirSessao();
+      return enviar("/social", CodigoDeAmigoEmitidoSchema, {
+        method: "POST",
+        token,
+        corpo: { operacao: "codigo" },
+      });
+    },
+    async pedir(codigo, pedidoId) {
+      exigirSessao();
+      return enviar("/social", PedidoDeAmizadeCriadoSchema, {
+        method: "POST",
+        token,
+        corpo: MutacaoSocialSchema.parse({ operacao: "pedir", codigo, pedidoId }),
+      });
+    },
+    async aceitar(pedidoId) {
+      exigirSessao();
+      return enviar("/social", AceiteDeAmizadeSchema, {
+        method: "POST",
+        token,
+        corpo: MutacaoSocialSchema.parse({ operacao: "aceitar", pedidoId }),
+      });
+    },
+    async encerrar(pedidoId, acao) {
+      exigirSessao();
+      return enviar("/social", PedidoDeAmizadeEncerradoSchema, {
+        method: "POST",
+        token,
+        corpo: MutacaoSocialSchema.parse({ operacao: "encerrar", pedidoId, acao }),
+      });
+    },
+    async proteger(entrada) {
+      exigirSessao();
+      return enviar("/social", ProtecaoSocialSalvaSchema, {
+        method: "POST",
+        token,
+        corpo: MutacaoSocialSchema.parse({ ...entrada, operacao: "proteger" }),
+      });
+    },
+    async remover(perfilId) {
+      exigirSessao();
+      await enviar("/social", AmizadeRemovidaSchema, {
+        method: "POST",
+        token,
+        corpo: MutacaoSocialSchema.parse({ operacao: "remover", perfilId }),
+      });
+    },
+  };
   return {
+    ...(opcoes.social && aberta.social ? { social } : {}),
     dados: {
       async ler(chave) {
         exigirSessao();
@@ -521,6 +585,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
 }
 
 export type { ControleDaSessao } from "../contrato/sdk";
+export type { ProtecaoDeContato, SocialDoPerfil } from "../contrato/social";
 export type { JogoMontado, ModuloDoJogo, OpcoesDeMontagem } from "./modulo";
 export type { MudancaDeAcesso, RecreioGameContext };
 /**

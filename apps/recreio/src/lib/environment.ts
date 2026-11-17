@@ -55,6 +55,8 @@ export const schema = z.object({
   RECREIO_FAMILY_MODE: z.enum(["off", "setup", "play"]).default("off"),
   /** Habilitar somente depois de leitores, checkpoint e jornadas homologados. */
   RECREIO_CHECKPOINT_MODE: z.enum(["off", "on"]).default("off"),
+  /** Social exige homologação própria; proteção e limpeza existentes não dependem da ativação. */
+  RECREIO_SOCIAL_MODE: z.enum(["off", "on"]).default("off"),
   /**
    * Chave privada Ed25519 (PKCS8, PEM) que assina o ingresso e a sessão de
    * jogo. Pode chegar com `\n` escapado. Fora de produção, sem ela o app gera
