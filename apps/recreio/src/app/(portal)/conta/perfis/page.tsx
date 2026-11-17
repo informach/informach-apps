@@ -44,6 +44,12 @@ export default async function PerfisDaFamilia({
                 <div className="min-w-0">
                   <h3 className="font-bold [overflow-wrap:anywhere]">{perfil.apelido}</h3>
                   <Link
+                    href={`/conta/perfis/${perfil.id}/supervisao`}
+                    className="mt-2 block font-bold text-ceu underline"
+                  >
+                    Supervisionar {perfil.apelido}
+                  </Link>
+                  <Link
                     href={`/conta/perfis/${perfil.id}/aparelhos`}
                     className="mt-2 inline-block font-bold text-ceu underline"
                   >

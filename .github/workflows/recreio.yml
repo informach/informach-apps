@@ -146,6 +146,7 @@ jobs:
             apps/recreio/tmp/telas/aparelho-pareado-mobile.png
             apps/recreio/tmp/telas/aparelhos-menor-mobile.png
             apps/recreio/tmp/telas/pin-nativo-sem-jogador.png
+            apps/recreio/tmp/telas/supervisao-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic color evidence

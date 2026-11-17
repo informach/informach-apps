@@ -8,9 +8,7 @@ test.afterEach(async () => {
   expect(vigia().errosDePagina).toEqual([]);
 });
 
-test("responsável sem jogador cadastra, reabre a lista e cancela outro formulário", async ({
-  browser,
-}) => {
+test("responsável sem jogador cadastra, protege e supervisiona o perfil", async ({ browser }) => {
   const { page } = await novaPessoa(browser, "Responsável", { semPerfil: true });
   await page.goto("/conta");
   await page.getByRole("link", { name: "Gerenciar perfis", exact: true }).click();
@@ -69,4 +67,62 @@ test("responsável sem jogador cadastra, reabre a lista e cancela outro formulá
   await page.getByLabel("Confirme o PIN", { exact: true }).fill("396175");
   await page.getByRole("button", { name: "Salvar PIN", exact: true }).click();
   await expect(page.getByText("PIN configurado.", { exact: true })).toBeVisible();
+  await page.goto("/conta/perfis");
+  await page.getByRole("link", { name: "Supervisionar Lua da casa", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Supervisão de Lua da casa", exact: true }),
+  ).toBeVisible();
+  const limite = page.getByLabel("Limite diário em minutos", { exact: true });
+  await hidratado(limite);
+  await expect(limite).toHaveValue("");
+  await expect(
+    page.getByRole("checkbox", {
+      name: "Revisei e confirmo estas regras para o perfil.",
+      exact: true,
+    }),
+  ).not.toBeChecked();
+  await expect(
+    page.getByText("Texto livre fica desativado para crianças de até 12 anos.", { exact: true }),
+  ).toBeVisible();
+  await limite.fill("30");
+  await page.getByLabel("Pausar o acesso aos jogos", { exact: true }).check();
+  await page.getByLabel("Limite de conteúdo", { exact: true }).selectOption("L");
+  await page
+    .getByLabel("Quem pode ver que está jogando", { exact: true })
+    .selectOption("invisible");
+  await page.getByLabel("Jogar somente nos horários definidos", { exact: true }).check();
+  await page.getByRole("button", { name: "Adicionar horário", exact: true }).click();
+  await page.getByRole("button", { name: "Adicionar horário", exact: true }).click();
+  await page.getByLabel("Revisei e confirmo estas regras para o perfil.", { exact: true }).check();
+  await page.getByRole("button", { name: "Salvar supervisão", exact: true }).click();
+  await expect(
+    page.getByText(/Confira os horários: o fim deve vir depois do início/),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Remover horário de Segunda-feira, 16:00 até 18:00", exact: true })
+    .last()
+    .click();
+  await page.getByRole("button", { name: "Salvar supervisão", exact: true }).click();
+  await expect(
+    page.getByText("Supervisão confirmada. Confira abaixo as regras atuais.", { exact: true }),
+  ).toBeVisible();
+  await expect(limite).toHaveValue("30");
+  await expect(page.getByLabel("Pausar o acesso aos jogos", { exact: true })).toBeChecked();
+  await expect(page.getByLabel("Limite de conteúdo", { exact: true })).toHaveValue("L");
+  await expect(page.getByLabel("Quem pode ver que está jogando", { exact: true })).toHaveValue(
+    "invisible",
+  );
+  await expect(
+    page.getByLabel("Jogar somente nos horários definidos", { exact: true }),
+  ).toBeChecked();
+  await expect(page.getByLabel("De", { exact: true })).toHaveValue("16:00");
+  await expect(page.getByLabel("Até", { exact: true })).toHaveValue("18:00");
+  await expect(
+    page.getByLabel("Revisei e confirmo estas regras para o perfil.", { exact: true }),
+  ).not.toBeChecked();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await tela(page, "supervisao-mobile");
 });
