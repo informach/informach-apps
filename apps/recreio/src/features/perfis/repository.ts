@@ -16,6 +16,10 @@ import {
   PerfilIdSchema,
   type SessaoDeAparelhoId,
 } from "@informach/recreio";
+import {
+  autorizarContaNativa,
+  type IdentidadeNativa,
+} from "@/features/account/autoridade-repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA } from "@/lib/repository";
 import type { EdicaoDoPerfil, NovoPerfil } from "./regras";
@@ -142,16 +146,20 @@ export async function editarPerfilDaConta(
  * Um grupo que a equipe já criou ao conceder acesso é reaproveitado.
  */
 export async function criarPerfilDaConta(
-  contaId: ContaId,
+  ator: IdentidadeNativa,
   dados: NovoPerfil,
 ): Promise<{ perfil: PerfilDoRecreio; criado: boolean }> {
   return db.transaction(async (tx) => {
+    const contaId = ator.contaId;
+    await tx.execute(sql`set local transaction_timeout='15s'`);
+    await tx.execute(sql`set local lock_timeout='2s'`);
     const [conta] = await tx
       .select({ id: users.id })
       .from(users)
       .where(eq(users.id, contaId))
       .for("no key update");
     assertAllowed(conta, "AUTH", "Entre novamente para continuar.");
+    const contexto = await autorizarContaNativa(tx, ator);
     const [existente] = await tx.select(campos).from(profiles).where(eq(profiles.userId, contaId));
     if (existente) return { perfil: paraPerfil(existente), criado: false };
     await tx
@@ -175,6 +183,7 @@ export async function criarPerfilDaConta(
       "LIMITE_DE_PERFIS",
       "Este grupo já tem quatro perfis. Gerencie os perfis existentes para continuar.",
     );
+    await contexto.conferirPrazo();
     const [criado] = await tx
       .insert(profiles)
       .values({

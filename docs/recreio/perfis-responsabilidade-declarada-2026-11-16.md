@@ -77,3 +77,11 @@ com a gestão de aparelhos confere login e, quando exigido, os dez minutos de
 autenticação recente. Ainda faltam a interface, a seleção infantil, os convites
 e a proteção completa F2–F3; não ativar menores ou publicar estas migrations
 isoladamente a partir da existência desse código.
+
+A criação do perfil próprio também recebe a identidade nativa completa e a
+revalida dentro da transação, inclusive em repetição idempotente. Um contexto
+infantil ou pareado não pode usar o caminho antigo para criar um adulto. As
+fixtures agora criam sessão de login real antes do jogador, reproduzindo a
+ordem do fluxo web. A rodada inicial do backend (`43994513410`) identificou um
+operador `lte` ainda não reexportado por `@informach/db`; a correção usa a
+exportação pública padrão do Drizzle, sem alterar dependências.

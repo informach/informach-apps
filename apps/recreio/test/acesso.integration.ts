@@ -16,14 +16,17 @@ import { ZodError } from "zod";
 import { avaliarAcesso } from "@/features/acesso/service";
 import { criarPerfilProprio } from "@/features/perfis/service";
 import { conceder, RecusaDeConcessao, revogar } from "../scripts/concessoes";
-import { type ContaDeTeste, novaConta, novoJogador } from "./apoio";
+import { atorDaConta, type ContaDeTeste, novaConta, novoJogador } from "./apoio";
 import { entrarNoJogo } from "./jogo-apoio";
 
 const DIA = 86_400_000;
 
 async function contaComPerfil() {
   const conta = await novaConta();
-  const { perfil } = await criarPerfilProprio(conta.id, { apelido: "Lia", avatar: "sol" });
+  const { perfil } = await criarPerfilProprio(await atorDaConta(conta), {
+    apelido: "Lia",
+    avatar: "sol",
+  });
   return { conta, perfil };
 }
 
@@ -363,7 +366,10 @@ describe("concessão e auditoria andam juntas", () => {
     }
 
     // Com a auditoria de volta, a concessão entra, e a revogação sem evento é desfeita.
-    const { perfil } = await criarPerfilProprio(conta.id, { apelido: "Lia", avatar: "sol" });
+    const { perfil } = await criarPerfilProprio(await atorDaConta(conta), {
+      apelido: "Lia",
+      avatar: "sol",
+    });
     const feita = await conceder({
       email: conta.email,
       tier: "family",

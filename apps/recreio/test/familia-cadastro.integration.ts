@@ -146,7 +146,7 @@ describe("cadastro sob responsabilidade declarada", () => {
     );
     const resultados = await Promise.allSettled([
       ...entradas.map((entrada) => cadastrarPerfilMenor(r.autor, entrada)),
-      criarPerfilProprio(r.conta.id, { apelido: "Adulto", avatar: "padrao" }),
+      criarPerfilProprio(r.autor, { apelido: "Adulto", avatar: "padrao" }),
     ]);
     expect(resultados.filter((item) => item.status === "fulfilled")).toHaveLength(4);
     expect(resultados.filter((item) => item.status === "rejected")).toHaveLength(1);
@@ -212,6 +212,9 @@ describe("cadastro sob responsabilidade declarada", () => {
         .where(eq(devices.id, r.autor.sessaoDeAparelhoId));
     }
     await expect(cadastrarPerfilMenor(r.autor, entrada)).rejects.toMatchObject({ code: "AUTH" });
+    await expect(
+      criarPerfilProprio(r.autor, { apelido: "Adulto indevido", avatar: "padrao" }),
+    ).rejects.toMatchObject({ code: "AUTH" });
     expect(
       await db.select().from(guardians).where(eq(guardians.guardianUserId, r.conta.id)),
     ).toEqual([]);
@@ -226,7 +229,7 @@ describe("cadastro sob responsabilidade declarada", () => {
       .from(declarations)
       .where(eq(declarations.userId, a.conta.id));
     if (!declaracao) throw new Error("Declaração ausente");
-    const adulto = await criarPerfilProprio(b.conta.id, { apelido: "Adulto", avatar: "padrao" });
+    const adulto = await criarPerfilProprio(b.autor, { apelido: "Adulto", avatar: "padrao" });
     expect(
       await codigoDoBanco(
         db.insert(minors).values({ profileId: adulto.perfil.id, birthYear: 2018, birthMonth: 1 }),

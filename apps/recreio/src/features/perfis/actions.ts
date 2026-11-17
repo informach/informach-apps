@@ -24,7 +24,7 @@ async function contaAtual() {
 export async function criarPerfilAction(entrada: unknown) {
   return runAction(async () => {
     const ator = await contaAtual();
-    const { perfil } = await criarPerfilProprio(ator.contaId, entrada);
+    const { perfil } = await criarPerfilProprio(ator, entrada);
     await selecionarPerfil(ator, perfil.id);
     return { destination: "/estante" };
   });
