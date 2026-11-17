@@ -12,6 +12,8 @@ export type OpcoesDeVerificacao<Claims> = {
   esquema: z.ZodType<Claims>;
   erro: Extract<CodigoDeErro, "INGRESSO_INVALIDO" | "SESSAO_INVALIDA">;
   agora?: () => Date;
+  /** Tipos restritos podem exigir prazo exato, sem mudar a tolerância da sessão. */
+  toleranciaDeRelogio?: 0;
 };
 
 /**
@@ -28,7 +30,7 @@ export async function verificarToken<Claims>(
       algorithms: [ALGORITMO_DOS_TOKENS],
       issuer: opcoes.emissor,
       typ: opcoes.tipo,
-      clockTolerance: TOLERANCIA_DE_RELOGIO_S,
+      clockTolerance: opcoes.toleranciaDeRelogio ?? TOLERANCIA_DE_RELOGIO_S,
       ...(opcoes.jogo === undefined ? {} : { audience: opcoes.jogo }),
       ...(opcoes.agora === undefined ? {} : { currentDate: opcoes.agora() }),
     });

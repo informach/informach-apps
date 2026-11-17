@@ -2,10 +2,10 @@ import { z } from "zod";
 import { PerfilIdSchema, SessaoDeAparelhoIdSchema, SessaoDeJogoIdSchema } from "../dominio/ids";
 
 /**
- * Dois tokens, dois tipos. O `typ` do cabeçalho impede que um ingresso seja
- * aceito onde se espera uma sessão de jogo, e o contrário.
+ * Ingresso, sessão e capacidade restrita têm tipos distintos. O `typ` do
+ * cabeçalho impede usar uma capacidade de salvar como autorização de jogo.
  *
- * Nenhum dos dois carrega e-mail, idade, conta, grupo ou cobrança: o jogo
+ * Nenhum deles carrega e-mail, idade, conta, grupo ou cobrança: o jogo
  * recebe o perfil e a versão da política, e só.
  */
 
@@ -13,6 +13,9 @@ export const ALGORITMO_DOS_TOKENS = "EdDSA";
 
 export const TIPO_DO_INGRESSO = "recreio-ingresso+jwt";
 export const TIPO_DA_SESSAO = "recreio-sessao+jwt";
+export const TIPO_DO_SALVAMENTO = "recreio-salvamento+jwt";
+/** Só persistência final; não amplia a autorização de gameplay. */
+export const MARGEM_DE_SALVAMENTO_S = 30;
 
 /** Ingresso de abertura: uso único, trocado por uma sessão na inicialização. */
 export const VALIDADE_DO_INGRESSO_S = 60;
@@ -67,6 +70,26 @@ export const ClaimsDaSessaoSchema = z.strictObject({
   sid: SessaoDeJogoIdSchema,
 });
 export type ClaimsDaSessao = z.infer<typeof ClaimsDaSessaoSchema>;
+
+export const ClaimsDoSalvamentoSchema = z
+  .strictObject({
+    ...comuns,
+    scp: z.tuple([z.literal("salvar")]),
+    sid: SessaoDeJogoIdSchema,
+  })
+  .refine(
+    (claims) =>
+      claims.exp > claims.iat &&
+      claims.exp - claims.iat <= VALIDADE_DA_SESSAO_S + MARGEM_DE_SALVAMENTO_S,
+  );
+export type SalvamentoVerificado = {
+  reciboId: string;
+  perfilId: z.infer<typeof PerfilIdSchema>;
+  sid: z.infer<typeof SessaoDeJogoIdSchema>;
+  jogo: string;
+  versaoDaPolitica: number;
+  expiraEm: number;
+};
 
 /** O que o servidor do jogo sabe depois de conferir uma sessão. */
 export type SessaoVerificada = {

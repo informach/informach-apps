@@ -76,3 +76,26 @@ Os consumidores compartilhados e os sete gates do Recreio precisam de evidência
 aplicável à fonte final, seguida de implantação e conferência de configuração.
 
 Este plano não é entrega. F1 e F4–F11 permanecem no registro principal.
+
+## Preparação candidata
+
+Modelo `70fb884c`, gerado no GitHub em `44060168275`, artefato `14317712495`.
+Copiados e conferidos sem edição manual:
+
+- `0177_whole_tomas.sql`: 5.676 bytes,
+  SHA-256 `928c8bf90cd72c7c643485dddd383248e53295f7679e3f91d48a12f0c551760d`.
+- `0177_snapshot.json`: 766.432 bytes,
+  SHA-256 `cf6a04e5e8bfc336ca05a40885e0f8c38429e16589f104ad07d32d1aa59f1a21`.
+- Journal: 27.022 bytes,
+  SHA-256 `ffe01215e0a48045b722867bd837e3aadeaa965f16b52d45024d6320d992d15a`.
+
+Somente tabela nova, FKs/constraints e índices sobre tabela vazia. Não há
+backfill nem mudança de constraints existentes. As seis provas do modelo
+verificam correlação, margem, ciclo terminal (inclusive NULL em CHECK), prova
+de mundo, expiração e ausência de reabertura ao remover o recibo.
+
+O primeiro incremento de contratos acrescenta tipo/escopo restritos, prazo
+criptográfico exato, emissor e verificadores, além do lote final limitado e
+sem chaves duplicadas. Ainda não emite capacidade em sessão real, não expõe
+rota e não persiste pela margem. Nenhuma configuração de produção habilita
+o modelo. Os gates da candidata ainda precisam ser executados.
