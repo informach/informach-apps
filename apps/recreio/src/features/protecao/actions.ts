@@ -2,7 +2,7 @@
 import { clientIpFromHeaders } from "@informach/auth/client-ip";
 import { headers } from "next/headers";
 import { autorDaFamilia } from "@/features/familia/autor";
-import { dedicarAparelhoAMenor } from "@/features/sessao/service";
+import { dedicarAparelhoAMenor, encerrarSessaoDeAparelho } from "@/features/sessao/service";
 import { runAction } from "@/lib/action";
 import { getSession } from "@/lib/auth";
 import { assertAllowed } from "@/lib/errors";
@@ -14,6 +14,7 @@ import {
   lerConsultaDePareamento,
   lerCredencialPareada,
 } from "./http";
+import { identidadeNativaDoAparelho } from "./nativo";
 import {
   aprovarPareamento,
   consultarPareamento,
@@ -22,7 +23,37 @@ import {
   desconectarUmDoMenor,
   prepararPareamento,
   sairDoAparelhoPareado,
+  trocarPerfilComPin,
 } from "./service";
+
+export async function trocarPerfilComPinAction(entrada: unknown) {
+  return runAction(async () => {
+    const identidade = await identidadeNativaDoAparelho();
+    assertAllowed(identidade, "AUTH", "Entre novamente para continuar.");
+    const resultado = await trocarPerfilComPin(identidade, entrada);
+    return {
+      destination:
+        resultado.tipo === "minor"
+          ? "/aparelho"
+          : resultado.tipo === "adult"
+            ? "/estante"
+            : "/conta",
+    };
+  });
+}
+export async function sairDoCompartilhadoAction() {
+  return runAction(async () => {
+    const identidade = await identidadeNativaDoAparelho();
+    const login = await getSession();
+    assertAllowed(
+      identidade && login && login.user.id === identidade.contaId,
+      "AUTH",
+      "Entre novamente para continuar.",
+    );
+    await encerrarSessaoDeAparelho({ authSessionId: login.session.id, contaId: login.user.id });
+    return { destination: "/entrar?encerrada=1" };
+  });
+}
 
 export async function definirPinNativoAction(entrada: unknown) {
   return runAction(async () => {

@@ -1,9 +1,13 @@
 "use client";
 import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useState, useTransition } from "react";
-import { desconectarPareadoAction, sairDoPareadoAction } from "../actions";
+import {
+  desconectarPareadoAction,
+  sairDoCompartilhadoAction,
+  sairDoPareadoAction,
+} from "../actions";
 
-export function SairDoAparelho() {
+export function SairDoAparelho({ tipo = "pareado" }: { tipo?: "pareado" | "compartilhado" }) {
   const [erro, setErro] = useState("");
   const [pendente, iniciar] = useTransition();
   const interativo = useHydrated();
@@ -16,7 +20,10 @@ export function SairDoAparelho() {
         onClick={() =>
           iniciar(async () => {
             try {
-              const resultado = await sairDoPareadoAction();
+              const resultado =
+                tipo === "pareado"
+                  ? await sairDoPareadoAction()
+                  : await sairDoCompartilhadoAction();
               if (resultado.ok) window.location.replace(resultado.data.destination);
               else setErro(resultado.error);
             } catch {

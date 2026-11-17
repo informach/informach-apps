@@ -206,3 +206,10 @@ Emissão/renovação `bcba605` passou nos seis gates `44020586913`. A revisão
 seguinte encontrou uma [lacuna de revogação de ingressos](ingressos-revogacao-2026-11-17.md),
 reproduzida com dois testes vermelhos e 427 verdes. Corrigir e provar o mesmo
 arquivo antes de publicar leitores ou completar este incremento.
+
+Invalidação de ingressos `6b5878b`, run `44022923742`: integração com 432 testes
+em 34 arquivos passou, incluindo o arquivo intacto da prova negativa e os dez
+casos de emissão. A candidata seguinte também revoga a sessão nativa que esteja
+no contexto infantil encerrado; prova remota em andamento. A seleção por PIN
+está sendo exposta por referência restrita, sem reutilizar o ator de gestão;
+a estante/montagem do jogo e o checkpoint continuam pendentes.

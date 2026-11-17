@@ -8,6 +8,7 @@ import type {
 import { exigirCadastroProtegidoDisponivel } from "@/features/familia/disponibilidade";
 import { AppError } from "@/lib/errors";
 import { limitarTentativas } from "@/lib/rate-limit";
+import { lerEscolhasDoAparelho } from "./escolhas-repository";
 import {
   admitirRetornoNativo,
   aparelhosDoMenor,
@@ -31,6 +32,10 @@ import {
   SegredoDeAparelhoSchema,
 } from "./segredos";
 import { trocarContextoComPin } from "./troca-repository";
+
+export function escolhasDoAparelho(autor: IdentidadeNativa) {
+  return lerEscolhasDoAparelho(autor);
+}
 
 const TrocaDeContextoSchema = z.strictObject({
   pin: PinSchema,

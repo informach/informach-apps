@@ -33,6 +33,18 @@ export type ContextoDoAtor = {
   perfis: PerfilDoRecreio[];
 };
 
+/** Referência para PIN/saída próprios; não concede gestão ou perfil de jogo. */
+export async function referenciaNativaDoLogin(entrada: {
+  authSessionId: string;
+  contaId: string;
+  expiraEm: Date;
+}) {
+  const contaId = ContaIdSchema.parse(entrada.contaId);
+  const sessao = await carregarOuCriarSessaoDaConta({ ...entrada, contaId, agora: new Date() });
+  if (!sessao || sessao.revogadaEm !== null) return null;
+  return { contaId, sessaoDeAparelhoId: sessao.id };
+}
+
 /**
  * Monta o ator a partir de uma sessão de login já conferida. Carrega ou cria a
  * sessão de aparelho e confere de novo, a cada pedido, que o perfil ativo

@@ -9,7 +9,8 @@ test.afterEach(async () => {
 });
 
 test("responsável sem jogador cadastra, protege e supervisiona o perfil", async ({ browser }) => {
-  const { page } = await novaPessoa(browser, "Responsável", { semPerfil: true });
+  const pessoa = await novaPessoa(browser, "Responsável", { semPerfil: true });
+  const { page } = pessoa;
   await page.goto("/conta");
   await page.getByRole("link", { name: "Gerenciar perfis", exact: true }).click();
   await expect(
@@ -133,4 +134,33 @@ test("responsável sem jogador cadastra, protege e supervisiona o perfil", async
     .getByRole("heading", { name: "Confirme as regras", exact: true })
     .scrollIntoViewIfNeeded();
   await tela(page, "supervisao-confirmacao-mobile");
+  await page.goto("/perfis");
+  const protegido = page.getByRole("button", { name: "Escolher Lua da casa com PIN", exact: true });
+  await hidratado(protegido);
+  await protegido.click();
+  await page.getByLabel("PIN de seis números", { exact: true }).fill("396175");
+  await page.getByRole("button", { name: "Confirmar escolha", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Olá, Lua da casa!", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Conta", exact: true })).toHaveCount(0);
+  await tela(page, "perfil-compartilhado-mobile");
+  await page.goto("/conta");
+  await expect(page).toHaveURL(/\/entrar\?encerrada=1$/);
+  await page.goto("/perfis");
+  await expect(page.getByText(/Você entrou como/)).toHaveCount(0);
+  const adulto = page.getByRole("button", { name: "Abrir área do adulto", exact: true });
+  await hidratado(adulto);
+  await adulto.click();
+  await tela(page, "retorno-adulto-pin-mobile");
+  await page.getByLabel("PIN de seis números", { exact: true }).fill("396175");
+  await page.getByRole("button", { name: "Confirmar escolha", exact: true }).click();
+  await expect(
+    page.getByText("PIN incorreto ou não configurado para este destino.", { exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("PIN de seis números", { exact: true }).fill("593871");
+  await page.getByRole("button", { name: "Confirmar escolha", exact: true }).click();
+  await expect(page).toHaveURL(/\/conta$/);
+  await expect(page.getByRole("heading", { name: "Conta", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Quem está jogando", exact: true })).toHaveCount(
+    0,
+  );
 });

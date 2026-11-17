@@ -211,3 +211,25 @@ e nome acessível com o apelido, para caber no celular. A próxima prova preserv
 capturas de 390 px e exige ausência de rolagem horizontal, além de configurar
 PIN nativo/infantil pelo navegador. O texto de autenticação recente passa a
 servir também cadastro/PIN, sem falar sempre em transferência de mundo.
+
+## Escolha pública por PIN (candidata de 17/11)
+
+`/perfis` distingue a área nativa irrestrita do contexto infantil. A lista
+restrita contém só nomes/avatares dos destinos atuais, sem e-mail, nascimento,
+conta, hashes ou segredos. A referência lida por `protecao/nativo.ts` serve
+somente a PIN/saída do próprio aparelho; não é ator administrativo. A transação
+relê login, banimento, vínculo, geração e PIN do destino.
+
+O adulto sem jogador pode abrir a gestão pelo próprio PIN. PIN infantil não
+abre essa área. A troca continua recusando partida aberta, até saída/checkpoint
+confirmados; expirar/revogar não transforma contexto protegido em gestão. Saída
+do compartilhado revoga somente a sessão Recreio desse aparelho; cookie nativo
+antigo não o readmite. Aparelho pareado não recebe escolha de outros perfis.
+
+Formulário nativo/infantil de PIN, teclado numérico e campo de senha, foco após
+escolha, interatividade protegida até hidratação e limites anteriores à derivação.
+O novo teste de navegador entra no menor, tenta área adulta com PIN infantil,
+confirma a recusa e volta pelo PIN adulto sem criar jogador para o responsável.
+Capturas de celular e lista sem identidade adulta ainda aguardam o gate desta
+candidata. A estante infantil e a montagem do jogo no navegador seguem em F3;
+não habilitar `play` por esta tela isolada.

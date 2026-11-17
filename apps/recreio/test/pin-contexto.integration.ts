@@ -15,6 +15,7 @@ import { criarPerfilProprio, selecionarPerfil } from "@/features/perfis/service"
 import {
   definirPinDaConta,
   definirPinDoMenor,
+  escolhasDoAparelho,
   trocarPerfilComPin,
 } from "@/features/protecao/service";
 import { resolverAtor } from "@/features/sessao/service";
@@ -48,6 +49,40 @@ async function familia() {
 const gestao = { tipo: "gestao" };
 
 describe("PIN e contexto do aparelho compartilhado", () => {
+  it("escolhas mostram só destinos vinculados e não expõem identidade ou segredos na área restrita", async () => {
+    const r = await familia();
+    const outro = await familia();
+    expect(await escolhasDoAparelho(r.autor)).toEqual({
+      restrito: false,
+      atualId: null,
+      pinDaContaDefinido: true,
+      adulto: null,
+      menores: [{ id: r.perfil.id, apelido: r.perfil.apelido, avatar: r.perfil.avatar }],
+    });
+    await trocarPerfilComPin(r.autor, {
+      destino: { tipo: "perfil", perfilId: r.perfil.id },
+      pin: "396175",
+    });
+    const restrito = await escolhasDoAparelho(r.autor);
+    expect(restrito).toMatchObject({ restrito: true, atualId: r.perfil.id });
+    for (const segredo of [
+      r.conta.email,
+      r.conta.id,
+      "scrypt-v1$",
+      "593871",
+      "396175",
+      "birthYear",
+      "birthMonth",
+      outro.perfil.id,
+    ])
+      expect(JSON.stringify(restrito)).not.toContain(segredo);
+    await expect(
+      escolhasDoAparelho({
+        contaId: outro.conta.id,
+        sessaoDeAparelhoId: r.autor.sessaoDeAparelhoId,
+      }),
+    ).rejects.toMatchObject({ code: "AUTH" });
+  });
   it("não troca de perfil durante a partida; só depois da saída confirmada", async () => {
     const r = await familia();
     const adulto = await criarPerfilProprio(r.autor, { apelido: "Responsável", avatar: "padrao" });
