@@ -87,6 +87,7 @@ export const recreioProfiles = recreio.table(
   },
   (t) => [
     uniqueIndex("recreio_profiles_own_login").on(t.userId).where(sql`${t.userId} is not null`),
+    unique("recreio_profile_identity_kind").on(t.id, t.kind),
     index("recreio_profiles_group").on(t.groupId),
     check("recreio_profiles_kind", sql`${t.kind} in ('adult', 'minor')`),
     // Perfil adulto sai em cascata com a conta, então nunca fica sem `user_id`.
