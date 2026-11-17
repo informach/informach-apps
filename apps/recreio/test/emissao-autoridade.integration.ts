@@ -124,6 +124,34 @@ async function abrir(r: Awaited<ReturnType<typeof protegido>>) {
 }
 
 describe("emissão transacional da autoridade", () => {
+  it("recuperar abertura infantil não prorroga sessão nem refaz reserva de tempo", async () => {
+    const r = await protegido();
+    const ingresso = await emitirIngresso(r.ator, { jogo: JOGO });
+    const chaveDeTroca = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString(
+      "base64url",
+    );
+    const pedido = { ingresso: ingresso.ingresso, chaveDeTroca };
+    const aberta = await trocarIngresso(pedido);
+    const sessao = await sessaoDeJogoDoToken(aberta.token);
+    const antes = await db.select().from(usage).where(eq(usage.profileId, r.perfil.id));
+    const jogoAntes = await db.select().from(games).where(eq(games.id, sessao.sid));
+    const recuperada = await trocarIngresso(pedido);
+    expect((await sessaoDeJogoDoToken(recuperada.token)).sid).toBe(sessao.sid);
+    expect(recuperada.expiraEm).toBe(aberta.expiraEm);
+    expect(await db.select().from(usage).where(eq(usage.profileId, r.perfil.id))).toEqual(antes);
+    expect(await db.select().from(games).where(eq(games.id, sessao.sid))).toEqual(jogoAntes);
+    const atual = await consultarSupervisao(r.autor, r.perfil.id);
+    await salvarSupervisao(r.autor, {
+      perfilId: r.perfil.id,
+      versao: atual.versao,
+      configuracao: { ...atual.configuracao, pausado: true },
+      reconheco: true,
+    });
+    await expect(trocarIngresso(pedido)).rejects.toMatchObject({ codigo: "POLITICA_INCOMPATIVEL" });
+    expect(
+      (await db.select().from(games).where(eq(games.id, sessao.sid)))[0]?.endedAt,
+    ).not.toBeNull();
+  });
   it("controle infantil projeta saldo sem gastar de novo, renovar ou revelar a conta", async () => {
     const r = await protegido();
     const supervisao = await consultarSupervisao(r.autor, r.perfil.id);

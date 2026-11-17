@@ -101,6 +101,7 @@ export async function trocarIngresso(entrada: unknown): Promise<SessaoAberta> {
     return await abrirSessaoComIngresso({
       ingresso,
       continuarAqui: pedido.continuarAqui === true,
+      chaveDeTroca: pedido.chaveDeTroca,
       sid: SessaoDeJogoIdSchema.parse(crypto.randomUUID()),
       emissor,
     });

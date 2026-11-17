@@ -1,8 +1,14 @@
 import "server-only";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
 import { and, db, eq, isNull, sql } from "@informach/db";
 import { recreioGameSessions as games, recreioGameTickets as tickets } from "@informach/db/schema";
-import { ErroDoRecreio, PerfilIdSchema, type SessaoDeJogoId } from "@informach/recreio";
+import {
+  ErroDoRecreio,
+  PerfilIdSchema,
+  type SessaoDeJogoId,
+  SessaoDeJogoIdSchema,
+} from "@informach/recreio";
 import type { IngressoVerificado, SessaoAberta } from "@informach/recreio/contrato";
 import type { Emissor, TokenEmitido } from "@informach/recreio/emissor";
 import {
@@ -11,6 +17,7 @@ import {
   type ReferenciaDeJogador,
   recusarAutoridade,
 } from "@/features/autoridade-de-jogo/aparelho-repository";
+import { conferirSessaoAdmitida } from "@/features/autoridade-de-jogo/sessao-repository";
 import { jogoQueAbre } from "@/features/jogos/config";
 import {
   prepararConcessaoDeTempo,
@@ -19,6 +26,7 @@ import {
 import {
   AGORA,
   codigoDoPostgres,
+  constraintDoPostgres,
   type Transacao,
   travar,
   VIOLACAO_DE_UNICO,
@@ -28,7 +36,10 @@ import { politicaDaAdmissao } from "./politica";
 import type { SessaoDeJogoAtiva } from "./service";
 
 type Admissao = Extract<Awaited<ReturnType<typeof admitirAparelhoDeJogo>>, { admitida: true }>;
-type TempoPreparado = Awaited<ReturnType<typeof prepararConcessaoDeTempo>>;
+
+function hashDaChaveDeTroca(chave: string) {
+  return createHash("sha256").update("recreio:ticket-exchange:v1\0").update(chave).digest("hex");
+}
 
 /** Diagnóstico da auditoria, sem acrescentar campos ao erro público. */
 export class IngressoSemAparelhoValido extends ErroDoRecreio {
@@ -61,14 +72,14 @@ async function assinarSessao(
   contexto: Admissao,
   emissor: Emissor,
   dados: { jogo: string; sid: SessaoDeJogoId },
-  tempo: TempoPreparado | null,
+  prazoAdicional: Date | null,
 ) {
   const agora = await contexto.conferirPrazo();
   const limite = new Date(
     Math.min(
       contexto.decisao.validoAte?.getTime() ?? Infinity,
       contexto.aparelho.expiresAt.getTime(),
-      tempo?.permitido ? tempo.expiraEm.getTime() : Infinity,
+      prazoAdicional?.getTime() ?? Infinity,
     ),
   );
   if (Math.floor(limite.getTime() / 1000) <= Math.floor(agora.getTime() / 1000))
@@ -84,6 +95,23 @@ async function assinarSessao(
   });
   if (token.expiraEm > limite || token.expiraEm <= agora) throw new ErroDoRecreio("INDISPONIVEL");
   return { token, agora };
+}
+
+function respostaDaSessao(
+  contexto: Admissao,
+  ingresso: IngressoVerificado,
+  token: TokenEmitido,
+): SessaoAberta {
+  return {
+    token: token.token,
+    expiraEm: token.expiraEm.toISOString(),
+    perfil: {
+      profileId: ingresso.perfilId,
+      apelido: contexto.perfil.nickname,
+      avatar: contexto.perfil.avatar,
+    },
+    politica: politicaDaAdmissao(contexto, jogoQueAbre(ingresso.jogo)),
+  };
 }
 
 /** Assinatura, recibo e autoridade atual são confirmados juntos. */
@@ -125,6 +153,7 @@ export async function abrirSessaoComIngresso(entrada: {
   continuarAqui: boolean;
   sid: SessaoDeJogoId;
   emissor: Emissor;
+  chaveDeTroca?: string;
 }): Promise<SessaoAberta> {
   try {
     const resultado = await db.transaction(async (tx) => {
@@ -134,7 +163,7 @@ export async function abrirSessaoComIngresso(entrada: {
       if (entrada.ingresso.versaoDaPolitica !== contexto.versaoDaPolitica)
         return recusarAutoridade(new ErroDoRecreio("INGRESSO_INVALIDO"));
       const [recibo] = await tx
-        .select({ id: tickets.jti })
+        .select()
         .from(tickets)
         .where(
           and(
@@ -142,12 +171,42 @@ export async function abrirSessaoComIngresso(entrada: {
             eq(tickets.profileId, entrada.ingresso.perfilId),
             eq(tickets.deviceSessionId, entrada.ingresso.sessaoDeAparelhoId),
             eq(tickets.gameId, entrada.ingresso.jogo),
-            isNull(tickets.consumedAt),
             sql`${tickets.expiresAt}>${AGORA}`,
           ),
         )
         .for("update");
       if (!recibo) throw new ErroDoRecreio("INGRESSO_INVALIDO");
+      const hashDaTroca = entrada.chaveDeTroca ? hashDaChaveDeTroca(entrada.chaveDeTroca) : null;
+      if (recibo.consumedAt !== null) {
+        if (
+          !hashDaTroca ||
+          !recibo.exchangeKeyHash ||
+          !recibo.openedSessionId ||
+          !timingSafeEqual(
+            Buffer.from(hashDaTroca, "hex"),
+            Buffer.from(recibo.exchangeKeyHash, "hex"),
+          )
+        )
+          throw new ErroDoRecreio("INGRESSO_INVALIDO");
+        const conferida = await conferirSessaoAdmitida(
+          tx,
+          { ...entrada.ingresso, sid: SessaoDeJogoIdSchema.parse(recibo.openedSessionId) },
+          contexto,
+        );
+        if (!conferida.admitida) throw new ErroDoRecreio("INGRESSO_INVALIDO");
+        const { token } = await assinarSessao(
+          contexto,
+          entrada.emissor,
+          { jogo: entrada.ingresso.jogo, sid: SessaoDeJogoIdSchema.parse(conferida.jogo.id) },
+          conferida.jogo.expiresAt,
+        );
+        const fim = await contexto.conferirPrazo();
+        if (token.expiraEm <= fim) throw new ErroDoRecreio("INGRESSO_INVALIDO");
+        return {
+          admitida: true as const,
+          valor: respostaDaSessao(contexto, entrada.ingresso, token),
+        };
+      }
       const [aberta] = await tx
         .select({ id: games.id, expiraEm: games.expiresAt, congeladaEm: games.checkpointFrozenAt })
         .from(games)
@@ -203,7 +262,7 @@ export async function abrirSessaoComIngresso(entrada: {
         contexto,
         entrada.emissor,
         { jogo: entrada.ingresso.jogo, sid: entrada.sid },
-        tempo,
+        tempo?.permitido ? tempo.expiraEm : null,
       );
       await tx.insert(games).values({
         id: entrada.sid,
@@ -214,6 +273,10 @@ export async function abrirSessaoComIngresso(entrada: {
         lastRenewedAt: emitidaEm,
         expiresAt: token.expiraEm,
       });
+      await tx
+        .update(tickets)
+        .set({ openedSessionId: entrada.sid, exchangeKeyHash: hashDaTroca })
+        .where(eq(tickets.jti, recibo.jti));
       if (tempo?.permitido)
         await registrarConcessaoDeTempo(
           tx,
@@ -239,22 +302,17 @@ export async function abrirSessaoComIngresso(entrada: {
       if (token.expiraEm <= fim) throw new ErroDoRecreio("INGRESSO_INVALIDO");
       return {
         admitida: true as const,
-        valor: {
-          token: token.token,
-          expiraEm: token.expiraEm.toISOString(),
-          perfil: {
-            profileId: entrada.ingresso.perfilId,
-            apelido: contexto.perfil.nickname,
-            avatar: contexto.perfil.avatar,
-          },
-          politica: politicaDaAdmissao(contexto, jogoQueAbre(entrada.ingresso.jogo)),
-        },
+        valor: respostaDaSessao(contexto, entrada.ingresso, token),
       };
     });
     if (!resultado.admitida) throw comoRecusaDeEntrada(resultado.erro);
     return resultado.valor;
   } catch (erro) {
-    if (codigoDoPostgres(erro) === VIOLACAO_DE_UNICO) throw new ErroDoRecreio("JA_ABERTO");
+    if (
+      codigoDoPostgres(erro) === VIOLACAO_DE_UNICO &&
+      constraintDoPostgres(erro) === "recreio_game_sessions_one_open"
+    )
+      throw new ErroDoRecreio("JA_ABERTO");
     if (erro instanceof ErroDoRecreio) throw comoRecusaDeEntrada(erro);
     throw erro;
   }
@@ -308,7 +366,7 @@ export async function gravarRenovacao(entrada: {
       contexto,
       entrada.emissor,
       { jogo: entrada.sessao.jogo, sid: entrada.sessao.sid },
-      tempo,
+      tempo?.permitido ? tempo.expiraEm : null,
     );
     await tx
       .update(games)

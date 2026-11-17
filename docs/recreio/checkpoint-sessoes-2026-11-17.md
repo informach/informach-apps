@@ -155,3 +155,26 @@ FK que corretamente impede isso. A preparação passa a limpar somente esses
 agregados no mesmo banco descartável/transação, antes das sessões. Nenhuma FK,
 regra de produção ou asserção de contagem foi removida. Repetir a suíte inteira
 no GitHub, sem considerar a rodada anterior aprovada.
+
+A correção `dc2fd24` passou nos seis gates `44036975292`. A rodada geral
+compartilhada `44036973729` ainda precisa ser concluída/conferida. Esta evidência
+cobre consulta e projeção, sem pedido/ACK de checkpoint nem consumidor automático.
+
+### Recibo de abertura em candidata
+
+A 0176 foi gerada no GitHub (`44037439007`, artefato `14307986083`), fonte
+`2bca24a904255db08206e74a5f6f099aed7bce8e`. Cópia dos três arquivos após conferir
+origem, caminhos, tamanhos e SHA-256: `0176_marvelous_skaar.sql`, 1.208 bytes,
+`98f78aa825d68787dd9756351e021ce5fd10bb43b833d95337c29bd6df9e3f37`;
+snapshot 756.072 bytes e journal 26.881 bytes. Nenhuma edição manual do gerado.
+
+O escritor candidato associa consumo, hash com domínio próprio e SID exato na
+mesma transação. Recuperação exige a prova e a autoridade atual, usa a mesma
+conferência de SID dos dados/mundos, não modifica sessão/agregado nem repete
+auditoria de início. Recibo antigo sem prova continua de uso único. SID encerrado,
+congelado ou vencido não pode ser substituído pela partida atual do perfil.
+Falhas inesperadas de unicidade não são mais classificadas genericamente como
+`JA_ABERTO`: somente o índice da partida aberta admite essa classificação.
+
+Os testes novos ainda dependem da rodada remota. O SDK ainda não envia a prova;
+publicar leitores antes desse consumidor. A 0176 não foi aplicada em produção.

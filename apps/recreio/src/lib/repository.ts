@@ -43,3 +43,18 @@ export function codigoDoPostgres(erro: unknown): string | undefined {
 }
 
 export const VIOLACAO_DE_UNICO = "23505";
+
+/** Distingue a disputa conhecida de uma violação de integridade inesperada. */
+export function constraintDoPostgres(erro: unknown): string | undefined {
+  let atual: unknown = erro;
+  for (let nivel = 0; nivel < 4 && atual; nivel++) {
+    if (
+      typeof atual === "object" &&
+      "constraint_name" in atual &&
+      typeof atual.constraint_name === "string"
+    )
+      return atual.constraint_name;
+    atual = atual instanceof Error ? atual.cause : undefined;
+  }
+  return undefined;
+}

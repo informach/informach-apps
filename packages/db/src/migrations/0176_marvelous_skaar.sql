@@ -1,0 +1,6 @@
+ALTER TABLE "recreio"."game_tickets" ADD COLUMN "exchange_key_hash" text;--> statement-breakpoint
+ALTER TABLE "recreio"."game_tickets" ADD COLUMN "opened_session_id" uuid;--> statement-breakpoint
+ALTER TABLE "recreio"."game_tickets" ADD CONSTRAINT "recreio_ticket_opened_session_profile" FOREIGN KEY ("opened_session_id","profile_id") REFERENCES "recreio"."game_sessions"("id","profile_id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "recreio_ticket_opened_session" ON "recreio"."game_tickets" USING btree ("opened_session_id") WHERE "recreio"."game_tickets"."opened_session_id" is not null;--> statement-breakpoint
+ALTER TABLE "recreio"."game_tickets" ADD CONSTRAINT "recreio_ticket_opened_receipt" CHECK ("recreio"."game_tickets"."opened_session_id" is null or "recreio"."game_tickets"."consumed_at" is not null);--> statement-breakpoint
+ALTER TABLE "recreio"."game_tickets" ADD CONSTRAINT "recreio_ticket_exchange_key" CHECK ("recreio"."game_tickets"."exchange_key_hash" is null or ("recreio"."game_tickets"."consumed_at" is not null and "recreio"."game_tickets"."opened_session_id" is not null and "recreio"."game_tickets"."exchange_key_hash" ~ '^[0-9a-f]{64}$'));
