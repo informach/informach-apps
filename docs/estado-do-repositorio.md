@@ -29,22 +29,27 @@ prévia de 0177/0178. 179 recibos e SHA conferidos; capacidade própria, host qu
 exige recibo, agregado separado, supervisão, retenção e pausa de um minuto real
 homologados no CI. [Registro e prova operacional](recreio/salvamento-restrito-2026-11-17.md).
 Os dois modos continuam `off`, jogo interno `0`; isto não libera famílias/venda.
-F1 está qualificado em `204cf79c`: convites utilizáveis, cobertura, aceite,
+F1 foi implantada em `204cf79c`: convites utilizáveis, cobertura, aceite,
 saída/retorno e remoção de adultos, até 0183; sete gates `44116978747` e CI
-compartilhado `44116977836` aprovados. Publicação aguarda a guarda compartilhada
-`644b3841` em todos os consumidores de auth antes da troca de FKs. O CI da guarda
-teve timeout gráfico do EdiFoto; diagnóstico isolado/completo passou, causa não
-confirmada e nova rodada geral em curso. Nada dessa frente está em produção.
+compartilhado `44116977836` aprovados. Guarda `644b3841` conferida nos nove
+consumidores antes de 0183; restauração isolada às 19:16 UTC e 184 recibos/hashes
+conferidos, sem seed. Portal/manutenção 200; famílias/checkpoint `off`.
+[Prova operacional](recreio/evidencias/grupos-producao-2026-11-17.json).
+Integração Git pública e retirada dos oito pins temporários ainda pendentes;
+o CI geral da candidata preserva as mudanças concorrentes do Edi e do Morada.
 [Plano de adultos](recreio/grupos-adultos-2026-11-17.md).
-F4 avança em fonte privada posterior: código/pedido, aceite/aprovação atual,
-proteção e retenção passaram nos sete gates. `52c73a1` passou `44131496917`,
-com 636 integrações/64 arquivos e atualização 179→185 preservando progresso.
-HTTP/SDK com negociação explícita está em qualificação; telas, presença,
-moderação e demais aceites de F4–F11 continuam abertos.
-[Plano social](recreio/social-e-moderacao-2026-11-17.md). 0184 ainda não aplicada.
-Preservar o Morada
-World2/protocolo1 público; a main local do checkout original contém D3 e não
-pode ser enviada diretamente. Continuar F0–F11 do registro, sem anunciar fechamento.
+F4 avança em fonte privada posterior: amizade, aprovação, presença, proteção,
+denúncia/retenção, portal e SDK passaram nos sete gates `44152709064`, fonte
+`714807e`. A fundação de denúncias teve 678 integrações/71 arquivos e atualização
+179→188 sem perda. Fundação de comandos restritos/2FA está em qualificação;
+fila, recurso, operação e superfícies no host continuam abertos, assim como
+F5–F11. [Plano social](recreio/social-e-moderacao-2026-11-17.md).
+Nenhuma migration social foi aplicada. A main remota recebeu D3 por integração
+concorrente e chegou a implantá-lo automaticamente; conferidos somente saves
+V1/V2 e nenhuma partida aberta, portal/Morada foram fixados na fonte homologada.
+Morada conserva `644b3841`, World2/protocolo1/arte3; portal usa a F1 qualificada.
+Não retirar esses pins para acompanhar a main com D3 sem homologação. Continuar
+F0–F11, sem anunciar fechamento, famílias, venda ou conclusão do Morada.
 
 Atualizado em 13/11/2026. Este é o índice de continuidade entre sessões. As regras permanentes ficam no [AGENTS.md](../AGENTS.md); resultados de testes, lotes e configuração operacional ficam nos registros específicos abaixo. Atualizar este índice quando a frente, as decisões ou o próximo passo mudarem.
 

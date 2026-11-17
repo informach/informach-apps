@@ -396,3 +396,16 @@ Três arquivos conferidos e copiados intactos. Somente substituição das duas F
 nenhuma linha é transformada ou apagada. A transação do migrator mantém as
 travas durante a troca. Aplicação futura precisa conferir cardinalidades e
 restauração atual; produção continua com 179 recibos e sem convites comerciais.
+
+**Implantação em 17/11:** a guarda `644b3841` foi conferida nos nove processos
+de auth com prontidão 200 antes de 0183. Backup lógico atual restaurado às
+19:16 UTC, idêntico, serviço temporário removido sem volume. Migrator fixado em
+`204cf79c`, somente `pnpm db:migrate`: 184 recibos, cinco hashes e duas FKs
+RESTRICT conferidos; cardinalidades dois grupos/um perfil/dois mundos preservadas.
+Portal promovido explicitamente nessa fonte, deployment `9da76a16`, fonte real
+e prontidão 200, manutenção POST 200/13 contagens. Famílias/checkpoint `off`;
+nenhuma tabela social. [Prova](evidencias/grupos-producao-2026-11-17.json).
+A integração Git da candidata preserva o trabalho concorrente; os oito pins
+temporários dos outros consumidores ainda precisam ser retirados após a main
+conter a guarda qualificada. Portal/Morada conservam promoção explícita porque
+D3 chegou à main remota sem homologação dessa frente.
