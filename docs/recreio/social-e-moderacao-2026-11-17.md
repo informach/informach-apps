@@ -347,6 +347,39 @@ com criança, aprovação, aviso e recusa de gestão no aparelho infantil. Inclu
 CSP, erros e capturas a 390 px. Ainda sem resultado remoto desta candidata;
 denúncias/moderação, superfície no host e aceites seguintes continuam pendentes.
 
+## 2. Denúncias estruturadas e ação restrita
+
+Implementação em incrementos privados; a fila só será habilitada com operação
+e aceites completos. Primeiro entram contrato fechado e tabela nova vazia.
+Depois vêm writers com autoridade nativa/pareada/SID e do responsável atual,
+interface/SDK, provas negativas e retenção. Por último, leitura operacional
+no Bastidores e comandos fechados do Recreio, sempre após 2FA e conferência
+da autoridade atual, sem sessão emprestada ou SQL genérico.
+
+O primeiro alvo é um contato já conhecido por pedido, amizade ou proteção.
+O servidor captura só a espécie do fato, referência opaca/revisão e prioridade;
+não aceita evidência, texto livre, nome, mensagem, foto ou mundo do cliente.
+Categorias: contato indesejado, assédio, conteúdo inadequado, dados pessoais,
+ameaça ou outro. Até dez tentativas novas por perfil a cada dez minutos;
+nonce próprio recupera exatamente o mesmo corpo e não amplia a retenção.
+Proteção e denúncia continuam disponíveis sem cobertura ou novos contatos
+habilitados. Denunciar não pune automaticamente nem dá acesso a dados do alvo.
+
+Finalidade: analisar risco e registrar a decisão/recurso. Retenção máxima de
+180 dias desde o recebimento e, depois de encerrada, no máximo 90 dias,
+sempre respeitando o primeiro teto. Remoção de conta retira suas referências
+pessoais conforme F7; nunca conserva conteúdo familiar. Expurgo é limitado,
+auditado e registra quantas denúncias chegaram ao teto sem análise, causando
+falha operacional que exige atendimento. Não classificar expiração como
+denúncia resolvida. Menor em qualquer ponta ou ameaça tem prioridade; medir
+idade da fila e comprovar alerta/atendimento antes da ativação.
+
+Aceites: integridade negativa no PostgreSQL, identidade/parentesco forjados,
+alvo desconhecido, repetição/corpo divergente, silêncio/bloqueio prévio,
+rollback por auditoria e vencimento, leitura sem vazamento, expurgo com
+SKIP LOCKED e alerta por pendência. Ações de moderação só sobre o alvo
+explicitamente confirmado, com revisão, motivo fechado e recibo atômico.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.
