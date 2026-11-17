@@ -164,7 +164,9 @@ test("responsável sem jogador aprova o contato do aparelho infantil e pode bloq
   await infantil.reload();
   await expect(infantil.getByText("Bloqueado por você", { exact: true })).toBeVisible();
   await infantil.goto(destinoContatos);
-  await expect(infantil).toHaveURL(/\/entrar\?encerrada=1$/);
+  await expect(infantil).toHaveURL(
+    (url) => url.pathname === "/entrar" && url.searchParams.get("next") === destinoContatos,
+  );
   await expect(infantil.getByRole("button", { name: "Aprovar amizade", exact: true })).toHaveCount(
     0,
   );
