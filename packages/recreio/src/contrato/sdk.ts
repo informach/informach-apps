@@ -95,6 +95,17 @@ export const ControleDaSessaoSchema = z.strictObject({
 });
 export type ControleDaSessao = z.infer<typeof ControleDaSessaoSchema>;
 
+/** ACK da fila de dados de perfil. Mundos usam a API autenticada das instâncias. */
+export const ConfirmacaoDeCheckpointSchema = z.strictObject({
+  id: z.uuid(),
+  confirmado: z.boolean(),
+});
+export const ResultadoDeCheckpointSchema = z.strictObject({
+  estado: z.enum(["confirmed", "failed", "expired"]),
+  pausada: z.boolean(),
+});
+export type ResultadoDeCheckpoint = z.infer<typeof ResultadoDeCheckpointSchema>;
+
 export const RespostaDeErroSchema = z.object({
   codigo: z.string(),
   estado: z.enum(ESTADOS_DE_ACESSO_LISTA).optional(),
@@ -179,6 +190,8 @@ export interface RecreioGameContext {
   sessao: {
     /** Consulta o estado atual sem renovar nem acertar de novo o tempo concedido. */
     controle(): Promise<ControleDaSessao>;
+    /** Confirma a fila já salva; não é prova de persistência de um mundo. */
+    checkpoint(id: string, confirmado: boolean): Promise<ResultadoDeCheckpoint>;
     /** Prazo da sessão atual, em ISO 8601. Muda a cada renovação. */
     readonly expiraEm: string;
     /** O token vigente, para o jogo levar ao próprio servidor. Nunca vai em URL. */

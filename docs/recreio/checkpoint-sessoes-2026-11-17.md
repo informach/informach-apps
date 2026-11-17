@@ -196,3 +196,21 @@ apenas a migration gerada, um teste HTTP e uma matriz de integração reduzida
 à fonte anterior `2bca24a`: reproduziu exatamente uma recusa 401 ao esperar a
 recuperação 200; os outros 448 testes passaram. Nunca integrar essa matriz.
 O teste HTTP idêntico segue para a rodada verde completa, sem reduzir gates.
+
+### Escritor por perfil em candidata, sem ativação
+
+No modo `on`, a candidata cria uma intenção de até 30 segundos ao pedir troca
+de uma sessão ativa sem mundo. O ingresso fica sem consumo enquanto o SID
+anterior ainda não confirmou a fila. O ACK toma UPDATE da sessão desde a admissão,
+espera as gravações admitidas, grava a barreira e a auditoria juntas. Negativa,
+prazo vencido e falha de auditoria não viram confirmação. Outro ingresso não
+captura o ACK; completar vincula o recibo exato ao novo SID. O servidor de um
+mundo ainda não participa: a candidata exige saída manual e recusa ACK de navegador.
+
+Os testes de duas sessões nativas e HTTP precisam da rodada remota. O SDK
+expõe o ACK explícito, mas o host ainda não consulta/pausa/salva automaticamente.
+`off` ainda conserva o comportamento legado de substituição, anterior à troca;
+é preparação de rollout e **não corrige esse comportamento em produção**. Antes
+de habilitar famílias, substituir esse legado pelo pedido de salvar/sair no
+aparelho anterior, completar o consumidor e a prova de servidor e homologar
+avisos, corte de tempo e gravação restrita. Não ativar `on` por este incremento.

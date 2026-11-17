@@ -12,6 +12,7 @@ import {
   VersoesDeDadosSchema,
 } from "../contrato/dados";
 import {
+  ConfirmacaoDeCheckpointSchema,
   ControleDaSessaoSchema,
   ConviteCriadoSchema,
   ListaDeMundosSchema,
@@ -19,6 +20,7 @@ import {
   MundoAbertoSchema,
   MundoRefSchema,
   type RecreioGameContext,
+  ResultadoDeCheckpointSchema,
   SessaoAbertaSchema,
   SessaoRenovadaSchema,
 } from "../contrato/sdk";
@@ -271,6 +273,14 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       async controle() {
         exigirSessao();
         return enviar("/sessao/controle", ControleDaSessaoSchema, { method: "GET", token });
+      },
+      async checkpoint(id, confirmado) {
+        exigirSessao();
+        return enviar("/sessao/checkpoint", ResultadoDeCheckpointSchema, {
+          method: "POST",
+          token,
+          corpo: ConfirmacaoDeCheckpointSchema.parse({ id, confirmado }),
+        });
       },
       get expiraEm() {
         return expiraEm;

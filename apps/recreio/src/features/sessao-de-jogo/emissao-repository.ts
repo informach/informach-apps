@@ -2,7 +2,11 @@ import "server-only";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
 import { and, db, eq, isNull, sql } from "@informach/db";
-import { recreioGameSessions as games, recreioGameTickets as tickets } from "@informach/db/schema";
+import {
+  recreioGameSessions as games,
+  recreioSessionHandoffs as handoffs,
+  recreioGameTickets as tickets,
+} from "@informach/db/schema";
 import {
   ErroDoRecreio,
   PerfilIdSchema,
@@ -23,6 +27,7 @@ import {
   prepararConcessaoDeTempo,
   registrarConcessaoDeTempo,
 } from "@/features/politicas/tempo-repository";
+import { env } from "@/lib/env";
 import {
   AGORA,
   codigoDoPostgres,
@@ -34,6 +39,7 @@ import {
 import { encerrarSessoesAbertas } from "./encerramento-repository";
 import { politicaDaAdmissao } from "./politica";
 import type { SessaoDeJogoAtiva } from "./service";
+import { prepararTrocaDeAparelho } from "./troca-repository";
 
 type Admissao = Extract<Awaited<ReturnType<typeof admitirAparelhoDeJogo>>, { admitida: true }>;
 
@@ -208,12 +214,31 @@ export async function abrirSessaoComIngresso(entrada: {
         };
       }
       const [aberta] = await tx
-        .select({ id: games.id, expiraEm: games.expiresAt, congeladaEm: games.checkpointFrozenAt })
+        .select({
+          id: games.id,
+          jogo: games.gameId,
+          expiraEm: games.expiresAt,
+          congeladaEm: games.checkpointFrozenAt,
+        })
         .from(games)
         .where(and(eq(games.profileId, entrada.ingresso.perfilId), isNull(games.endedAt)));
       const agora = await contexto.conferirPrazo();
+      let trocaConfirmada: string | null = null;
+      if (
+        aberta &&
+        entrada.continuarAqui &&
+        env.RECREIO_CHECKPOINT_MODE === "on" &&
+        (aberta.expiraEm > agora || aberta.congeladaEm !== null)
+      ) {
+        if (!hashDaTroca)
+          return recusarAutoridade(new ErroDoRecreio("CHECKPOINT_PENDENTE", { motivo: "manual" }));
+        const troca = await prepararTrocaDeAparelho(tx, contexto, entrada.ingresso, aberta);
+        if (!troca.pronta) return recusarAutoridade(troca.erro);
+        trocaConfirmada = troca.id;
+      }
       // Leitor anterior aos escritores de troca: uma barreira nunca é aceite implícito.
-      if (aberta && aberta.congeladaEm !== null) throw new ErroDoRecreio("CHECKPOINT_PENDENTE");
+      if (aberta && aberta.congeladaEm !== null && !trocaConfirmada)
+        throw new ErroDoRecreio("CHECKPOINT_PENDENTE");
       if (aberta && aberta.expiraEm > agora && !entrada.continuarAqui)
         throw new ErroDoRecreio("JA_ABERTO");
       const tempo = contexto.politica
@@ -277,6 +302,33 @@ export async function abrirSessaoComIngresso(entrada: {
         .update(tickets)
         .set({ openedSessionId: entrada.sid, exchangeKeyHash: hashDaTroca })
         .where(eq(tickets.jti, recibo.jti));
+      if (trocaConfirmada) {
+        const concluidaEm = await contexto.conferirPrazo();
+        const [concluida] = await tx
+          .update(handoffs)
+          .set({ status: "completed", finishedAt: concluidaEm })
+          .where(
+            and(
+              eq(handoffs.id, trocaConfirmada),
+              eq(handoffs.status, "confirmed"),
+              sql`${handoffs.expiresAt}>${AGORA}`,
+            ),
+          )
+          .returning({ id: handoffs.id });
+        if (!concluida) throw new ErroDoRecreio("CHECKPOINT_PENDENTE");
+        await logAuditEventStrict(
+          "recreio.session_handoff_completed",
+          contexto.contaId,
+          {
+            app: "recreio",
+            profileId: entrada.ingresso.perfilId,
+            sessionId: entrada.sid,
+            handoffId: trocaConfirmada,
+            targetId: contexto.contaId,
+          },
+          { writer: tx },
+        );
+      }
       if (tempo?.permitido)
         await registrarConcessaoDeTempo(
           tx,

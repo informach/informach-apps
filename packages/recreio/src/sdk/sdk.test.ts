@@ -89,6 +89,31 @@ function ambiente() {
 }
 
 describe("abertura da sessão", () => {
+  it("checkpoint envia ACK explícito com o token atual e não repete confirmação sem resposta", async () => {
+    const a = ambiente();
+    a.responder(
+      { corpo: a.aberta() },
+      { corpo: { estado: "confirmed", pausada: true } },
+      new Error("resposta perdida"),
+    );
+    const contexto = await criarRecreio(a.opcoes());
+    expect(await contexto.sessao.checkpoint(MUNDO, true)).toEqual({
+      estado: "confirmed",
+      pausada: true,
+    });
+    expect(a.chamadas.at(-1)).toEqual({
+      url: "https://recreio.test/api/sdk/v1/sessao/checkpoint",
+      method: "POST",
+      headers: { authorization: "Bearer sessao-1", "content-type": "application/json" },
+      corpo: { id: MUNDO, confirmado: true },
+    });
+    const antes = a.chamadas.length;
+    await expect(contexto.sessao.checkpoint(MUNDO, false)).rejects.toMatchObject({
+      codigo: "INDISPONIVEL",
+    });
+    expect(a.chamadas).toHaveLength(antes + 1);
+    expect(a.pendentes()).toHaveLength(1);
+  });
   it("recuperação repete só uma vez com o mesmo ingresso e prova aleatória; sem prova não repete", async () => {
     const a = ambiente();
     a.responder(new Error("resposta perdida"), { corpo: a.aberta() });
