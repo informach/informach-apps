@@ -224,6 +224,10 @@ interface MouseOptions {
   deltaY?: number;
 }
 
+/** Runs before the page's own scripts: no touch points, as on a computer without a touch screen. */
+export const NO_TOUCH_POINTS =
+  "try{Object.defineProperty(Navigator.prototype,'maxTouchPoints',{get:function(){return 0},configurable:true})}catch(e){}";
+
 export class CdpDriver {
   private readonly wc: WebContents;
   private readonly worlds = new Map<string, number>();
@@ -267,6 +271,11 @@ export class CdpDriver {
     debug.on("detach", this.onDetach);
     debug.on("message", this.onMessage);
     await this.send("Page.enable");
+    // The lesson is a desktop page, even on a computer with a touch screen: a page that sees
+    // touch points draws its own controls for fingers (the Estúdio's virtual gamepad over the
+    // game, on top of the game's own arrows), and they would end up in the take. From the next
+    // page on, every page of this window sees no touch points.
+    await this.send("Page.addScriptToEvaluateOnNewDocument", { source: NO_TOUCH_POINTS });
     await this.send("DOM.enable");
     if (this.routeFrames)
       await this.send("Target.setAutoAttach", {

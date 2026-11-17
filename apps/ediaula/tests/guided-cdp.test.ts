@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { WebContents } from "electron";
-import { CdpDriver, CdpTimeout, WebDriver } from "../src/main/guidedCdp.ts";
+import { CdpDriver, CdpTimeout, NO_TOUCH_POINTS, WebDriver } from "../src/main/guidedCdp.ts";
 import { FrameClock } from "../src/shared/frameClock.ts";
 import type { GuidedLogLine } from "../src/shared/guidedCursor.ts";
 import type { GuidedCondition } from "../src/shared/guidedPlan.ts";
@@ -58,6 +58,23 @@ test("a command the page does not answer gives up in time instead of hanging the
   const cdp = new CdpDriver(page.wc as unknown as WebContents);
   await assert.rejects(cdp.send("Runtime.evaluate", {}, 30), CdpTimeout);
   await assert.rejects(cdp.send("Runtime.evaluate", {}, 30), /não respondeu a tempo/);
+});
+
+test("the lesson's pages see no touch points, so no controls for fingers end up in a take", async () => {
+  const page = fakeContents(() => ({}));
+  const cdp = new CdpDriver(page.wc as unknown as WebContents);
+  await cdp.attach();
+  const script = page.sent.find((c) => c.method === "Page.addScriptToEvaluateOnNewDocument");
+  assert.equal(script?.params?.source, NO_TOUCH_POINTS);
+  // The script, run as a page would before its own: a touch screen reads as none.
+  class Navigator {
+    get maxTouchPoints(): number {
+      return 10;
+    }
+  }
+  const nav = new Navigator();
+  new Function("Navigator", NO_TOUCH_POINTS)(Navigator);
+  assert.equal(nav.maxTouchPoints, 0);
 });
 
 test("a question the page asks is refused and reported; a message is accepted", async () => {
