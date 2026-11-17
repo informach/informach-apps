@@ -89,6 +89,30 @@ function ambiente() {
 }
 
 describe("abertura da sessão", () => {
+  it("usa o token renovado para ler bytes e não repete automaticamente uma escrita sem resposta", async () => {
+    const a = ambiente();
+    a.responder(
+      { corpo: a.aberta() },
+      { corpo: a.sessao("sessao-2", INICIO + QUINZE_MIN * 2) },
+      { corpo: { versao: null } },
+      new Error("conexão perdida"),
+    );
+    const contexto = await criarRecreio(a.opcoes());
+    await a.disparar();
+    expect(await contexto.dados.ler("pontos")).toBeNull();
+    expect(a.chamadas.at(-1)?.headers.authorization).toBe("Bearer sessao-2");
+    const antes = a.chamadas.length;
+    await expect(
+      contexto.dados.gravar("pontos", new Uint8Array([0, 255]), 0),
+    ).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+    expect(a.chamadas).toHaveLength(antes + 1);
+    expect(a.chamadas.at(-1)?.corpo).toEqual({
+      operacao: "gravar",
+      chave: "pontos",
+      revisao: 0,
+      conteudo: "AP8=",
+    });
+  });
   it("não envia dados ou conquistas depois de encerrar a sessão", async () => {
     const a = ambiente();
     a.responder({ corpo: a.aberta() }, { corpo: {} });

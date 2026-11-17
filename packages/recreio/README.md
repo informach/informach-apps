@@ -2,6 +2,23 @@
 
 Domínio e contratos do Recreio, a plataforma de jogos. Não tem banco, React, Three.js nem WebSocket: o que grava fica em `apps/recreio`, e os jogos falam com a plataforma pelos contratos daqui.
 
+O SDK também atende jogos sem mundos: `contexto.dados` lê/grava bytes por chave,
+lista versões, resolve ou descarta conflitos; `contexto.conquista(id, chaveIdem)`
+registra somente IDs previstos no manifesto. Conquistas do cliente não concedem
+dinheiro nem acesso. `capacidades.mundos: null` dispensa mundo na montagem e
+recusa sua criação no servidor. O Morada continua exigindo mundo.
+
+Dados são privados por perfil/jogo, com 16 chaves, 64 KiB por versão, revisão
+obrigatória para atualizar (omissão = 0), quatro versões aceitas e três conflitos
+preservados. HTTP usa base64 canônico; o SDK usa `Uint8Array`, token vigente,
+prazo e nenhum cookie. Escritas não são repetidas automaticamente. Um 409
+`REVISAO_DIVERGENTE` informa `versaoId` e `revisaoAtual`; não significa perda da
+cópia enviada. Quando a cota está cheia, `LIMITE_DE_DADOS` recusa a nova cópia.
+`resolver` exige a revisão atual e `descartar` é explícito. Uma conquista obtida
+mantém a chave original; reutilizar a chave para outro ID ou trocar a chave da
+mesma obtenção é `FATO_DUPLICADO`. [Implantação e provas deste incremento](../../docs/recreio/dados-de-perfil-2026-11-16.md)
+ainda estão em verificação remota; a documentação do contrato não atesta produção.
+
 Consumido como TypeScript fonte, sem build, como os outros packages.
 
 ## Subpaths
