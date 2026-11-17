@@ -1366,6 +1366,13 @@
       "when": 1794958004240,
       "tag": "0194_funny_photon",
       "breakpoints": true
+    },
+    {
+      "idx": 195,
+      "version": "7",
+      "when": 1794958761245,
+      "tag": "0195_workable_wendell_vaughn",
+      "breakpoints": true
     }
   ]
 }

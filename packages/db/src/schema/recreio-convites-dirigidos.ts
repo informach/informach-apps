@@ -48,6 +48,8 @@ export const recreioDirectedSpaceInvites = recreio.table(
     friendshipRevision: integer("friendship_revision").notNull(),
     originPolicyVersion: integer("origin_policy_version").notNull(),
     targetPolicyVersion: integer("target_policy_version").notNull(),
+    originAccessGeneration: uuid("origin_access_generation"),
+    targetAccessGeneration: uuid("target_access_generation"),
     createdAt: moment("created_at").notNull().defaultNow(),
     expiresAt: moment("expires_at").notNull(),
     finishedAt: moment("finished_at"),

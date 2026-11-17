@@ -114,3 +114,22 @@ de um menor que detenha o mundo: vínculo, geração e versão da política fica
 recibo. Conferir só o adulto atual permitiria reaproveitar aprovação anterior a
 uma revogação e retorno da mesma pessoa. Esses campos entram em geração aditiva
 posterior, antes de qualquer escritor publicado; não editar 0194 gerada.
+
+0195 gerada no run `44201183378`, origem
+`11ae500e0135283b05be6addbe2ae6aa72bf5b20`, artefato `14381307675`.
+ZIP `9c209a772426fc9577c300c38caa101b46d73349a10bf5a8aa786e4e86981c1c`.
+Os três arquivos foram conferidos e copiados intactos:
+
+- SQL `0195_workable_wendell_vaughn.sql`, 1561 bytes,
+  `8489518d2804af96f0aa4c175affc84e2e665753da05053057634b0e8632277f`.
+- Snapshot, 874625 bytes,
+  `ff20c1779de4bc0b1f727c30e5c34697ff8aeb7dd7009b3288d98e05f3ae9276`.
+- Journal, 29640 bytes,
+  `9ff90f8ab2aebe6b99ba74875e4714428ccf3a0e9ff99451a520418e6fbdc94a`.
+
+A geração das duas pontas também pertence ao convite original. Renovar uma
+amizade parental não incrementa sua revisão; por isso esse número sozinho não
+invalida o convite anterior à desconexão de aparelhos. A geração de cada menor
+é capturada na emissão e comparada antes de aprovar/aceitar. Migration aditiva
+seguinte, sem backfill inventado: raiz antiga sem geração não pode autorizar
+menor. Nenhum escritor dessas tabelas foi publicado ou ativado.
