@@ -191,6 +191,14 @@ de contato. Novos registros exigem uma relação conhecida e têm teto por perfi
 Concorrência com aceite e falha estrita da auditoria são casos de integração no
 PostgreSQL descartável. Telas, SDK, presença e moderação continuam pendentes.
 
+A retenção candidata processa cem vencimentos e até quinhentas exclusões por
+categoria com `SKIP LOCKED`. Código vencido e recibo terminal sem amizade ativa
+saem após um dia; avisos e relações removidas têm teto de trinta dias. Aprovações
+de amizades ativas e bloqueios/silêncio não entram nesse expurgo. Auditoria é
+atômica e a manutenção devolve contagens; qualquer falha conserva HTTP de erro.
+As provas cobrem trava concorrente, repetição, limite, consentimento infantil
+preservado e reversão por falha na auditoria do vencimento ou da exclusão.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.

@@ -5,6 +5,7 @@ import {
   apagarIngressosAntigos,
   encerrarSessoesVencidas,
 } from "@/features/sessao-de-jogo/repository";
+import { limparRegistrosSociais } from "@/features/social/retencao-repository";
 import {
   apagarConvitesAntigos,
   apagarIntencoesAntigas,
@@ -35,6 +36,11 @@ export async function executarManutencao(): Promise<{
   recibosDeSalvamentoApagados: number;
   convitesDeGrupoVencidos: number;
   recibosDeGrupoApagados: number;
+  pedidosSociaisVencidos: number;
+  codigosSociaisApagados: number;
+  recibosSociaisApagados: number;
+  avisosSociaisApagados: number;
+  relacoesSociaisApagadas: number;
 }> {
   const possesVencidas = await fecharPossesVencidas();
   const instanciasSumidas = await marcarInstanciasSumidas();
@@ -45,6 +51,7 @@ export async function executarManutencao(): Promise<{
   const diasDeUsoApagados = await apagarUsoAntigo();
   const recibosDeSalvamentoApagados = await apagarSalvamentosAntigos();
   const convitesDeGrupo = await limparConvitesDeGrupo();
+  const social = await limparRegistrosSociais();
   return {
     possesVencidas,
     instanciasSumidas,
@@ -55,5 +62,6 @@ export async function executarManutencao(): Promise<{
     diasDeUsoApagados,
     recibosDeSalvamentoApagados,
     ...convitesDeGrupo,
+    ...social,
   };
 }
