@@ -179,3 +179,19 @@ adulto e redefinir PIN. A edição própria agora também revalida o login e a
 sanção na transação, usando a trava de perfil para escrita desde o início e
 o mutex nativo antes de qualquer linha. Não fazer upgrade concorrente de SHARE
 para UPDATE. Verificação remota deste incremento ainda pendente.
+
+O backend de troca por PIN entra em candidata sem rota pública nova. A
+validação de identidade compartilhada é distinta da autorização administrativa:
+só o PIN do destino permite retirar a trava. Para entrar no menor, PIN nativo
+precisa existir e o PIN infantil/vínculo/geração precisam ser atuais. Para
+retomar gestão sem jogador, só o PIN nativo. A seleção legada não retira a
+restrição. Uma partida ainda aberta exige saída confirmada antes da troca.
+
+Admissões de PIN são limitadas fora da transação (cinco por aparelho em quinze
+minutos e trinta por conta em uma hora), inclusive corretas; falhar e reverter
+dados não devolve a tentativa. O contador não recebe o PIN. Hash e autoridade
+são conferidos sob trava e prazo é relido depois da derivação. Oito testes novos
+cobrem limites, exclusão, perfis alheios, conta sem jogador, validade durante
+espera, disputa com mudança de PIN, partida aberta e falha da auditoria. Telas
+de configuração/seleção e integração com os jogos protegidos continuam
+pendentes; verificação remota do backend ainda pendente.

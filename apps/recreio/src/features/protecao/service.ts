@@ -28,6 +28,30 @@ import {
   PinSchema,
   SegredoDeAparelhoSchema,
 } from "./segredos";
+import { trocarContextoComPin } from "./troca-repository";
+
+const TrocaDeContextoSchema = z.strictObject({
+  pin: PinSchema,
+  destino: z.discriminatedUnion("tipo", [
+    z.strictObject({ tipo: z.literal("gestao") }),
+    z.strictObject({ tipo: z.literal("perfil"), perfilId: PerfilIdSchema }),
+  ]),
+});
+export async function trocarPerfilComPin(autor: IdentidadeNativa, entrada: unknown) {
+  const pedido = TrocaDeContextoSchema.parse(entrada);
+  // Admissão ocorre fora da transação: PIN errado não devolve a tentativa por rollback.
+  await limitarTentativas({
+    chave: `pin-troca-conta:${autor.contaId}`,
+    max: 30,
+    janelaEmSegundos: 3600,
+  });
+  await limitarTentativas({
+    chave: `pin-troca-aparelho:${autor.sessaoDeAparelhoId}`,
+    max: 5,
+    janelaEmSegundos: 900,
+  });
+  return trocarContextoComPin(autor, pedido.destino, pedido.pin);
+}
 
 export async function definirPinDaConta(autor: AutorNativoRecente, entrada: unknown) {
   const { pin } = z.strictObject({ pin: PinSchema }).parse(entrada);

@@ -504,6 +504,7 @@ const SIMPLE: Record<string, string> = {
   "recreio.achievement_unlocked": "Registrou uma conquista no Recreio",
   "recreio.device_session_revoked": "Desconectou um aparelho do Recreio",
   "recreio.device_paired": "Pareou um aparelho protegido do Recreio",
+  "recreio.device_context_changed": "Trocou o contexto de um aparelho do Recreio",
   "recreio.protection_pin_changed": "Alterou um PIN de proteção do Recreio",
   "recreio.minor_access_revoked": "Revogou os aparelhos de um perfil protegido do Recreio",
   "recreio.entitlement_granted": "Recebeu acesso ao Recreio",

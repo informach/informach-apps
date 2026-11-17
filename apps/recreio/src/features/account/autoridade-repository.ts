@@ -20,15 +20,74 @@ export async function serializarContaNativa(tx: Transacao, contaId: ContaId) {
   await travar(tx, `recreio:autoridade-nativa:${contaId}`);
 }
 
+export async function lerContaNativa(tx: Transacao, contaId: ContaId) {
+  await serializarContaNativa(tx, contaId);
+  const [conta] = await tx.select().from(users).where(eq(users.id, contaId)).for("share");
+  assertAllowed(conta?.emailVerified, "AUTH", "Entre novamente para continuar.");
+  return conta;
+}
+
+/** Somente identidade sob trava. A gestão também exige contexto irrestrito em autorizarContaNativa. */
+export async function validarIdentidadeDaSessaoNativa(
+  tx: Transacao,
+  ator: IdentidadeNativa,
+  conta: typeof users.$inferSelect,
+  atual: typeof devices.$inferSelect,
+  prova?: ProvaDeLoginNativo,
+): Promise<Date> {
+  assertAllowed(
+    conta.id === ator.contaId &&
+      conta.emailVerified &&
+      atual.id === ator.sessaoDeAparelhoId &&
+      atual.userId === ator.contaId &&
+      atual.kind === "account" &&
+      atual.revokedAt === null &&
+      atual.authSessionId,
+    "AUTH",
+    "Entre novamente para continuar.",
+  );
+  const authSessionId = atual.authSessionId;
+  assertAllowed(
+    await sessaoDeLoginViva({ authSessionId, contaId: ator.contaId }, tx),
+    "AUTH",
+    "Entre novamente para continuar.",
+  );
+  const [linha] = await tx
+    .select({ agora: sql<Date>`${AGORA}`.mapWith(users.createdAt) })
+    .from(users)
+    .where(eq(users.id, ator.contaId));
+  assertAllowed(linha, "AUTH", "Entre novamente para continuar.");
+  const agora = linha.agora;
+  assertAllowed(
+    atual.expiresAt > agora &&
+      !(conta.banned && (!conta.banExpiresAt || conta.banExpiresAt > agora)),
+    "AUTH",
+    "Entre novamente para continuar.",
+  );
+  if (prova) {
+    assertAllowed(
+      prova.authSessionId === authSessionId && prova.expiraEm > agora,
+      "AUTH",
+      "Entre novamente para continuar.",
+    );
+    assertAllowed(
+      Number.isFinite(prova.criadoEm.getTime()) &&
+        prova.criadoEm <= agora &&
+        agora.getTime() - prova.criadoEm.getTime() < LOGIN_RECENTE_MS,
+      "LOGIN_RECENTE",
+      "Entre novamente para confirmar esta alteração na família.",
+    );
+  }
+  return agora;
+}
+
 /** Conta → perfil próprio opcional → aparelho. Pagar ou escolher um menor não concede gestão. */
 export async function autorizarContaNativa(
   tx: Transacao,
   ator: IdentidadeNativa,
   travaDoPerfil: "share" | "update" = "share",
 ) {
-  await serializarContaNativa(tx, ator.contaId);
-  const [conta] = await tx.select().from(users).where(eq(users.id, ator.contaId)).for("share");
-  assertAllowed(conta?.emailVerified, "AUTH", "Entre novamente para continuar.");
+  const conta = await lerContaNativa(tx, ator.contaId);
   const [perfil] = await tx
     .select({ id: profiles.id })
     .from(profiles)
@@ -54,41 +113,8 @@ export async function autorizarContaNativa(
     "AUTH",
     "Entre novamente para continuar.",
   );
-  const authSessionId = atual.authSessionId;
-  const conferirPrazo = async (prova?: ProvaDeLoginNativo): Promise<Date> => {
-    assertAllowed(
-      await sessaoDeLoginViva({ authSessionId, contaId: ator.contaId }, tx),
-      "AUTH",
-      "Entre novamente para continuar.",
-    );
-    const [linha] = await tx
-      .select({ agora: sql<Date>`${AGORA}`.mapWith(users.createdAt) })
-      .from(users)
-      .where(eq(users.id, ator.contaId));
-    assertAllowed(linha, "AUTH", "Entre novamente para continuar.");
-    const agora = linha.agora;
-    assertAllowed(
-      atual.expiresAt > agora &&
-        !(conta.banned && (!conta.banExpiresAt || conta.banExpiresAt > agora)),
-      "AUTH",
-      "Entre novamente para continuar.",
-    );
-    if (prova) {
-      assertAllowed(
-        prova.authSessionId === authSessionId && prova.expiraEm > agora,
-        "AUTH",
-        "Entre novamente para continuar.",
-      );
-      assertAllowed(
-        Number.isFinite(prova.criadoEm.getTime()) &&
-          prova.criadoEm <= agora &&
-          agora.getTime() - prova.criadoEm.getTime() < LOGIN_RECENTE_MS,
-        "LOGIN_RECENTE",
-        "Entre novamente para confirmar esta alteração na família.",
-      );
-    }
-    return agora;
-  };
+  const conferirPrazo = (prova?: ProvaDeLoginNativo) =>
+    validarIdentidadeDaSessaoNativa(tx, ator, conta, atual, prova);
   await conferirPrazo();
   return {
     perfilId: atual.activeProfileId && perfil ? PerfilIdSchema.parse(perfil.id) : null,

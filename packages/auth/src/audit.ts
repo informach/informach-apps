@@ -116,6 +116,7 @@ export type AuditEventType =
   | "recreio.achievement_unlocked"
   | "recreio.device_session_revoked"
   | "recreio.device_paired"
+  | "recreio.device_context_changed"
   | "recreio.protection_pin_changed"
   | "recreio.minor_access_revoked"
   | "recreio.entitlement_granted"
