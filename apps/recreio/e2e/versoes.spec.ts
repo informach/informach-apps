@@ -50,7 +50,9 @@ test.describe("troca de versão do portal", () => {
         const endereco = mensagem.location().url;
         if (!endereco.startsWith(`${origem}/`)) return false;
         const url = new URL(endereco);
-        return ["/conta", "/perfis"].includes(url.pathname) && url.searchParams.has("_rsc");
+        return (
+          ["/conta", "/perfis", "/amigos"].includes(url.pathname) && url.searchParams.has("_rsc")
+        );
       };
       // O teste troca dois processos na mesma porta: só estes GETs de prefetch
       // podem encontrar o intervalo sem servidor ou a conexão encerrada pela troca.
