@@ -195,6 +195,11 @@ test("equipe ativa autenticador, entra com duas etapas e suspende um perfil com 
       ]),
     );
     await page.setViewportSize({ width: 390, height: 844 });
+    await page
+      .getByRole("link", { name: "Atualizar este caso antes de continuar", exact: true })
+      .click();
+    await expect(page.getByText("Decisão: Medida aplicada.", { exact: true })).toBeVisible();
+    await page.evaluate(() => window.scrollTo(0, 0));
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );

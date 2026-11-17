@@ -1,6 +1,6 @@
 "use client";
 import type { AcompanhamentoDeDenuncias, SocialDoPerfil } from "@informach/recreio/contrato";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 const SITUACOES: Record<string, string> = {
   aberta: "Recebida pela equipe",
@@ -19,12 +19,21 @@ export function ProtocolosNaPartida({ api }: { api: SocialDoPerfil }) {
   const [erro, definirErro] = useState(""),
     [pendente, iniciar] = useTransition();
   const tentativas = useRef(new Map<string, string>());
+  const vivo = useRef(true);
+  useEffect(() => {
+    vivo.current = true;
+    return () => {
+      vivo.current = false;
+    };
+  }, []);
   const consultar = () => {
     definirErro("");
     iniciar(async () => {
       try {
-        definirPagina(await api.denuncias());
+        const dados = await api.denuncias();
+        if (vivo.current) definirPagina(dados);
       } catch {
+        if (!vivo.current) return;
         definirErro(
           "Não foi possível confirmar seus protocolos. Aguarde e consulte novamente; nenhum pedido será reenviado automaticamente.",
         );
@@ -101,8 +110,11 @@ export function ProtocolosNaPartida({ api }: { api: SocialDoPerfil }) {
                       iniciar(async () => {
                         try {
                           await api.reverDenuncia(entrada);
-                          definirPagina(await api.denuncias());
+                          if (!vivo.current) return;
+                          const dados = await api.denuncias();
+                          if (vivo.current) definirPagina(dados);
                         } catch {
+                          if (!vivo.current) return;
                           definirErro(
                             "Não recebemos a confirmação da revisão. Consulte seus protocolos antes de tentar novamente; a resposta anterior permanece registrada.",
                           );

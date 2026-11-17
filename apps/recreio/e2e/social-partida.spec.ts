@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import postgres from "postgres";
 import {
   comecarVigia,
   convidar,
@@ -19,6 +20,33 @@ import {
 import { servidorDoContador } from "./servidor-apoio";
 
 const contador = servidorDoContador();
+function sinal() {
+  let concluir: () => void = () => {
+    throw new Error("Sinal não preparado");
+  };
+  const promessa = new Promise<void>((resolve) => {
+    concluir = resolve;
+  });
+  return { promessa, concluir: () => concluir() };
+}
+/** Caso já respondido como precondição; o atendimento real tem jornada própria com TOTP. */
+async function respostaParaRevisao(protocolo: string) {
+  const url = new URL(process.env.DATABASE_URL ?? "");
+  if (
+    process.env.RECREIO_ISOLATED_TEST !== "1" ||
+    !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
+    !/^\/recreio_review_[a-f0-9]{32}$/.test(url.pathname)
+  )
+    throw new Error("Fixture só no banco descartável");
+  const db = postgres(url.toString(), { max: 1 });
+  try {
+    const rows = await db`update recreio.safety_reports set state='resolvida',revision=revision+1,
+      decision='sem_elementos',updated_at=clock_timestamp() where id=${protocolo} returning id`;
+    expect(rows).toHaveLength(1);
+  } finally {
+    await db.end();
+  }
+}
 test.beforeEach(comecarVigia);
 test.afterEach(async () => {
   await fecharAparelhos();
@@ -123,8 +151,66 @@ test("painel social usa o SID sem sair, pausar o mundo ou retirar outros membros
   await painel.evaluate((elemento) => {
     elemento.scrollTop = elemento.scrollHeight;
   });
+  const retorno = painel.getByRole("button", { name: "Voltar à partida", exact: true });
+  const limites = await painel.boundingBox(),
+    botao = await retorno.boundingBox();
+  if (!limites || !botao) throw new Error("Controles do diálogo não apareceram");
+  expect(botao.y).toBeGreaterThanOrEqual(limites.y);
+  expect(botao.y + botao.height).toBeLessThanOrEqual(limites.y + limites.height);
   await tela(a.page, "host-social-mobile-cuidados");
-  await painel.getByRole("button", { name: "Voltar à partida", exact: true }).click();
+  await test.step(
+    "fechar durante confirmação de revisão não inicia leitura posterior",
+    async () => {
+      await respostaParaRevisao(protocolo);
+      await painel.getByRole("button", { name: "Consultar meus protocolos", exact: true }).click();
+      const rever = painel.getByRole("button", { name: "Pedir revisão da resposta", exact: true });
+      await expect(rever).toBeVisible();
+      const confirmada = sinal(),
+        liberar = sinal(),
+        entregue = sinal();
+      let leituras = 0;
+      await a.contexto.route("**/api/sdk/v1/denuncias", async (rota) => {
+        if (rota.request().method() !== "POST") {
+          leituras++;
+          await rota.fallback();
+          return;
+        }
+        const resposta = await rota.fetch({ maxRetries: 0, maxRedirects: 0 });
+        expect(resposta.status()).toBe(200);
+        confirmada.concluir();
+        await liberar.promessa;
+        await rota.fulfill({ response: resposta });
+        entregue.concluir();
+      });
+      try {
+        await rever.click();
+        await confirmada.promessa;
+        await retorno.click();
+        await expect(painel).not.toBeVisible();
+        liberar.concluir();
+        await entregue.promessa;
+        await a.page.evaluate(
+          () =>
+            new Promise<void>((resolve) =>
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+            ),
+        );
+        expect(leituras).toBe(0);
+        await a.page.getByRole("button", { name: "Amigos e proteção", exact: true }).click();
+        await painel
+          .getByRole("button", { name: "Consultar meus protocolos", exact: true })
+          .click();
+        await expect(
+          painel.getByRole("heading", { name: "Revisão recebida", exact: true }),
+        ).toBeVisible();
+        expect(leituras).toBe(1);
+        await retorno.click();
+      } finally {
+        liberar.concluir();
+      }
+    },
+    { timeout: 30000 },
+  );
   await expect(painel).not.toBeVisible();
   await expect(a.page.locator("[data-palco]")).not.toHaveAttribute("inert", "");
   await a.page.getByRole("button", { name: "Somar 1", exact: true }).click();

@@ -696,6 +696,28 @@ com recibo de medida e confere a resposta da pessoa e os dois rastros de cada
 comando. O build de produção do Bastidores e a prova operacional continuam
 gates separados. Esta jornada ainda é candidata, não evidência aprovada.
 
+`8d5cedf` passou nos oito gates em `44185397157`, incluindo a jornada real de
+senha, ativação por e-mail/TOTP, saída, novo desafio e três comandos auditados.
+O roteiro foi corrigido para iniciar análise antes da suspensão, pois suspender
+também coloca o caso em análise. `be4da3a` aprovou a jornada do host e seus seis
+outros gates; só a ordem desse roteiro da equipe permanecia incorreta.
+
+Capturas sintéticas conferidas: artefato `14374531335` do host/acompanhamento,
+ZIP SHA-256 `51b90e25635c28df2fde01bf3096fa519b4d2213bd1b0ff4f42456cde8ec7fd3`;
+e `14375370417` da fila, ZIP
+`a731c92cdc2ad9a6b268fb49781c0945f3e402192ec6de545840e206fc6f38e9`.
+Consulta e protocolo ficam legíveis em 390 px. A fila foi capturada no build de
+desenvolvimento, ainda com o caso anterior ao refresh; não confundir essa tela
+com prova do build de produção ou falta de commit do comando confirmado.
+
+A revisão visual acrescenta cabeçalho de retorno fixo dentro do diálogo para
+continuar acessível após rolagem e aguarda novas capturas. O acompanhamento
+passa a conservar uma marca de montagem: fechar durante confirmação não inicia
+outra consulta. A regressão segura a resposta HTTP de revisão **depois do commit
+real**, fecha o painel e exige zero GET posterior; reabrir/consultar recupera o
+recurso. Só a resposta inicial do caso é fixture isolada; o pedido de revisão e
+seu transporte são reais. Estes ajustes ainda precisam da rodada seguinte.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.
