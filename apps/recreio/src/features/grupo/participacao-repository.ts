@@ -53,7 +53,8 @@ async function desvincularAdulto(
   const perfilId = PerfilIdSchema.parse(perfil.id);
   await invalidarIngressosDoPerfil(tx, perfilId);
   await encerrarSessoesAbertas(tx, sql`${games.profileId}=${perfilId}`, "permissions_changed", {
-    porQuem: "recreio",
+    porQuem: "ator",
+    contaId: autor.contaId,
   });
   await logAuditEventStrict(
     origem === "proprio" ? "recreio.group_member_left" : "recreio.group_member_removed",

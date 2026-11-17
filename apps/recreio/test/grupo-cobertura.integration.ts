@@ -162,6 +162,15 @@ describe("seleção explícita da cobertura pelo titular nativo", () => {
     const jogo = await trocarIngresso({ ingresso: ingresso.ingresso });
     const antes = await consultarGrupo(autor, grupo.id);
     await atualizarCobertura(autor, selecao(antes, []));
+    const encerramentos = (await eventosCom("profileId", p.perfil.id)).filter(
+      (e) =>
+        e.eventType === "recreio.game_session_ended" && e.payload.reason === "permissions_changed",
+    );
+    expect(encerramentos).toHaveLength(1);
+    expect(encerramentos[0]).toMatchObject({
+      actorId: p.conta.id,
+      payload: { targetId: p.conta.id },
+    });
     await expect(renovarSessao(jogo.token)).rejects.toMatchObject({
       codigo: "SESSAO_ENCERRADA",
       detalhe: { motivo: "permissions_changed" },

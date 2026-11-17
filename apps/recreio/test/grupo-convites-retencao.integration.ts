@@ -25,6 +25,7 @@ async function preparar(quantos: number) {
         inviterUserId: conta.id,
         inviterDeclarationVersion: "adulto-2026-11-17",
         recipientEmail: `${crypto.randomUUID()}@example.test`,
+        senderLabel: "Ana",
         recipientUserId: conta.id,
         createdAt: new Date(Date.now() - 80_000 - n),
         expiresAt: new Date(Date.now() - 60_000 - n),
@@ -54,6 +55,7 @@ describe("retenção global dos convites comerciais", () => {
         state: "expired",
         recipientEmail: null,
         recipientUserId: null,
+        senderLabel: null,
       });
       const auditoria = (await eventosCom("inviteId", antes.id)).filter(
         (e) => e.eventType === "recreio.group_invite_expired",

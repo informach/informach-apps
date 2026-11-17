@@ -181,7 +181,8 @@ async function tentarAceitar(autor: AutorNativoRecente, pedido: AceiteDeGrupo) {
         .where(eq(profiles.id, perfilId));
       await invalidarIngressosDoPerfil(tx, perfilId);
       await encerrarSessoesAbertas(tx, sql`${games.profileId}=${perfilId}`, "permissions_changed", {
-        porQuem: "recreio",
+        porQuem: "ator",
+        contaId: autor.contaId,
       });
     } else {
       const [novo] = await tx

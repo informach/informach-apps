@@ -201,6 +201,15 @@ describe("aceite privado e atômico de adultos", () => {
       codigo: "SESSAO_ENCERRADA",
       detalhe: { motivo: "permissions_changed" },
     });
+    const encerramentos = (await eventosCom("profileId", b.perfil.id)).filter(
+      (e) =>
+        e.eventType === "recreio.game_session_ended" && e.payload.reason === "permissions_changed",
+    );
+    expect(encerramentos).toHaveLength(1);
+    expect(encerramentos[0]).toMatchObject({
+      actorId: b.conta.id,
+      payload: { targetId: b.conta.id },
+    });
     const retomado = await abrir();
     expect(new TextDecoder().decode((await retomado.dados.ler("marco"))?.dados)).toBe(
       "progresso anterior",

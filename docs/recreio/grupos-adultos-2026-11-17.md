@@ -335,3 +335,12 @@ A interface e 0182 estão em `4577c883`, sete gates `44112410551` e CI geral
 `44112409473` ainda em curso. Revisão de privacidade acrescenta os dois nomes
 do campo declarado à redação de contexto da telemetria; payloads SQL e eventos
 Sentry já são sanitizados. Nenhum nome declarado vai para auditoria.
+
+Revisão adicional encontrou encerramentos de partida das ações de grupo
+marcados como automáticos (`actorId` nulo). A alteração de grupo já tinha
+evento próprio com ator, mas cada encerramento também precisa atribuir quem
+agiu e separar a conta afetada em `targetId`. Os quatro writers passam a
+fornecer a identidade autenticada, com regressões para retirada pelo titular,
+saída própria, cobertura e aceite. Não alterar eventos automáticos de prazo.
+As provas de expiração também passam a criar identificação declarada real,
+para exigir sua retirada junto do endereço e rollback quando falha a auditoria.

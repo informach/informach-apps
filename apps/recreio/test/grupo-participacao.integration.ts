@@ -190,6 +190,16 @@ describe("saída comercial preserva a identidade e os dados do adulto", () => {
             });
       expect(repetido).toEqual({ alterado: false });
       const eventos = await eventosCom("profileId", r.b.perfil.id);
+      const encerramentos = eventos.filter(
+        (e) =>
+          e.eventType === "recreio.game_session_ended" &&
+          e.payload.reason === "permissions_changed",
+      );
+      expect(encerramentos).toHaveLength(1);
+      expect(encerramentos[0]).toMatchObject({
+        actorId: origem === "proprio" ? r.b.conta.id : r.a.conta.id,
+        payload: { targetId: r.b.conta.id },
+      });
       expect(
         eventos.filter(
           (e) =>

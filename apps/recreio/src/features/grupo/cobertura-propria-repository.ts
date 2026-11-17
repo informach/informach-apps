@@ -80,7 +80,8 @@ async function tentar(autor: AutorNativoRecente, pedido: CoberturaPropria) {
       .where(eq(profiles.id, perfil.id));
     await invalidarIngressosDoPerfil(tx, perfilId);
     await encerrarSessoesAbertas(tx, sql`${games.profileId}=${perfilId}`, "permissions_changed", {
-      porQuem: "recreio",
+      porQuem: "ator",
+      contaId: autor.contaId,
     });
     await logAuditEventStrict(
       "recreio.group_coverage_updated",
