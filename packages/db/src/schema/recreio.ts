@@ -274,6 +274,10 @@ export const recreioGameSessions = recreio.table(
     spaceId: uuid("space_id").references(() => recreioSpaces.id, { onDelete: "set null" }),
     startedAt: time("started_at"),
     lastRenewedAt: time("last_renewed_at"),
+    /** Barreira do checkpoint: nunca é removida para reativar o mesmo SID. */
+    checkpointFrozenAt: moment("checkpoint_frozen_at"),
+    /** Contato de controle, separado de renovar a concessão de jogo. */
+    controlSeenAt: moment("control_seen_at"),
     expiresAt: moment("expires_at").notNull(),
     endedAt: moment("ended_at"),
     endReason: text("end_reason").$type<
