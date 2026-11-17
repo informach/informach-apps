@@ -32,12 +32,14 @@ export const jogoDePerfil: ModuloDoJogo = {
     let valor = 0;
     let conflitoId: string | null = null;
     let operacao: Promise<void> = Promise.resolve();
+    let salvandoCheckpoint: Promise<boolean> | null = null;
+    let pausado = false;
     const atualizar = () => {
       if (!ativo) return;
       pontos.textContent = String(valor);
-      somar.disabled = ocupado || conflitoId !== null;
-      sair.disabled = ocupado || conflitoId !== null;
-      resolver.disabled = ocupado;
+      somar.disabled = ocupado || conflitoId !== null || pausado || salvandoCheckpoint !== null;
+      sair.disabled = ocupado || conflitoId !== null || salvandoCheckpoint !== null;
+      resolver.disabled = ocupado || pausado || salvandoCheckpoint !== null;
       resolver.hidden = conflitoId === null;
     };
     const mensagem = (texto: string) => {
@@ -86,10 +88,14 @@ export const jogoDePerfil: ModuloDoJogo = {
       }
     }
     const aoSomar = () => {
-      if (!ocupado && !conflitoId) operacao = jogar();
+      if (!ocupado && !conflitoId && !pausado && !salvandoCheckpoint) operacao = jogar();
     };
     const aoSair = () => {
-      if (ocupado || conflitoId) return;
+      if (ocupado || conflitoId || salvandoCheckpoint) return;
+      if (pausado) {
+        opcoes.aoSair();
+        return;
+      }
       ocupado = true;
       atualizar();
       operacao = salvar()
@@ -102,7 +108,7 @@ export const jogoDePerfil: ModuloDoJogo = {
         });
     };
     const aoResolver = () => {
-      if (ocupado || !conflitoId) return;
+      if (ocupado || !conflitoId || pausado || salvandoCheckpoint) return;
       ocupado = true;
       atualizar();
       const id = conflitoId;
@@ -139,6 +145,30 @@ export const jogoDePerfil: ModuloDoJogo = {
         if (ativo) opcoes.aoFalhar(erro);
       });
     return {
+      checkpoint() {
+        if (salvandoCheckpoint) return salvandoCheckpoint;
+        if (pausado) return Promise.resolve(true);
+        const pedido = (async () => {
+          try {
+            await inicio;
+            await operacao;
+            if (!ativo || conflitoId) return false;
+            const salvo = await salvar();
+            if (salvo) pausado = true;
+            return salvo;
+          } finally {
+            salvandoCheckpoint = null;
+            atualizar();
+          }
+        })();
+        salvandoCheckpoint = pedido;
+        atualizar();
+        return pedido;
+      },
+      retomar() {
+        pausado = false;
+        atualizar();
+      },
       async dispose() {
         ativo = false;
         somar.removeEventListener("click", aoSomar);
@@ -146,6 +176,7 @@ export const jogoDePerfil: ModuloDoJogo = {
         resolver.removeEventListener("click", aoResolver);
         await inicio;
         await operacao;
+        await salvandoCheckpoint;
         raiz.remove();
       },
     };

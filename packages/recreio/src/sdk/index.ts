@@ -61,6 +61,9 @@ export type OpcoesDoRecreio = {
   continuarAqui?: boolean;
   /** Só ativar depois dos leitores do recibo no servidor. Não persiste a prova. */
   recuperarAbertura?: boolean;
+  /** Aguarda o ACK de outro aparelho, conservando o mesmo ingresso e prova. */
+  aguardarCheckpoint?: boolean;
+  aoAguardarCheckpoint?: () => void;
   fetch?: Buscar;
   /** Relógio em milissegundos; existe para os testes. */
   agora?: () => number;
@@ -118,12 +121,37 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
     },
   } as const;
   const aberta = await (async () => {
-    try {
-      return await enviar("/sessao", SessaoAbertaSchema, pedidoDeAbertura);
-    } catch (erro) {
-      // Somente este pedido tem recibo/prova: repetir preserva ingresso e SID.
-      if (!chaveDeTroca || !ehErroDoRecreio(erro, "INDISPONIVEL")) throw erro;
-      return enviar("/sessao", SessaoAbertaSchema, pedidoDeAbertura);
+    const fimDaEspera = agora() + 30_000;
+    let recuperacaoTentada = false;
+    for (let tentativa = 0; ; tentativa++) {
+      try {
+        return await enviar(
+          "/sessao",
+          SessaoAbertaSchema,
+          pedidoDeAbertura,
+          Math.max(1, Math.min(TEMPO_LIMITE_DO_PEDIDO_MS, fimDaEspera - agora())),
+        );
+      } catch (erro) {
+        // Somente este pedido tem recibo/prova: repetir preserva ingresso e SID.
+        if (chaveDeTroca && !recuperacaoTentada && ehErroDoRecreio(erro, "INDISPONIVEL")) {
+          recuperacaoTentada = true;
+          continue;
+        }
+        if (
+          !chaveDeTroca ||
+          !opcoes.continuarAqui ||
+          !opcoes.aguardarCheckpoint ||
+          tentativa >= 20 ||
+          !ehErroDoRecreio(erro, "CHECKPOINT_PENDENTE") ||
+          !["requested", "pending", "confirmed"].includes(String(erro.detalhe.motivo)) ||
+          agora() + 1000 >= fimDaEspera
+        )
+          throw erro;
+        opcoes.aoAguardarCheckpoint?.();
+        await new Promise<void>((resolve) => {
+          agendar(resolve, 1000);
+        });
+      }
     }
   })();
 
@@ -134,6 +162,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   let saidaConfirmada = false;
   let saidaEmCurso: Promise<void> | null = null;
   let cancelar: (() => void) | null = null;
+  let renovacaoSuspensa = false;
   const aoRenovar = new Set<(token: string) => void>();
   const aoMudarAcesso = new Set<(mudanca: MudancaDeAcesso) => void>();
 
@@ -160,7 +189,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
   }
 
   async function renovar(): Promise<void> {
-    if (encerrada) return;
+    if (encerrada || renovacaoSuspensa) return;
     const restante = Date.parse(expiraEm) - agora();
     if (restante <= 0) {
       perder({ tipo: "perdido", codigo: "INDISPONIVEL" });
@@ -176,10 +205,16 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       if (encerrada) return;
       token = renovada.token;
       expiraEm = renovada.expiraEm;
-      agendarPelaValidade();
+      if (!renovacaoSuspensa) agendarPelaValidade();
       for (const ouvinte of [...aoRenovar]) ouvinte(token);
     } catch (erro) {
       if (encerrada) return;
+      if (
+        renovacaoSuspensa &&
+        ehErroDoRecreio(erro, "SESSAO_ENCERRADA") &&
+        erro.detalhe.motivo === "checkpoint"
+      )
+        return;
       if (ehErroDoRecreio(erro) && erro.codigo !== "INDISPONIVEL") {
         // O Recreio recusou: o acesso caiu, e o jogo é avisado uma vez.
         const { estado, motivo } = erro.detalhe;
@@ -194,7 +229,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       // Sem resposta do Recreio: tenta de novo enquanto a sessão não vence.
       const resta = Date.parse(expiraEm) - agora();
       if (resta <= 0) perder({ tipo: "perdido", codigo: "INDISPONIVEL" });
-      else agendarRenovacao(Math.min(REPETIR_RENOVACAO_APOS_MS, resta));
+      else if (!renovacaoSuspensa) agendarRenovacao(Math.min(REPETIR_RENOVACAO_APOS_MS, resta));
     }
   }
 
@@ -272,15 +307,42 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
     sessao: {
       async controle() {
         exigirSessao();
-        return enviar("/sessao/controle", ControleDaSessaoSchema, { method: "GET", token });
+        const controle = await enviar("/sessao/controle", ControleDaSessaoSchema, {
+          method: "GET",
+          token,
+        });
+        if (controle.pausada) {
+          renovacaoSuspensa = true;
+          cancelar?.();
+          cancelar = null;
+        } else if (renovacaoSuspensa && controle.checkpoint === null) {
+          renovacaoSuspensa = false;
+          agendarPelaValidade();
+        }
+        return controle;
       },
       async checkpoint(id, confirmado) {
         exigirSessao();
-        return enviar("/sessao/checkpoint", ResultadoDeCheckpointSchema, {
+        const corpo = ConfirmacaoDeCheckpointSchema.parse({ id, confirmado });
+        if (confirmado) {
+          renovacaoSuspensa = true;
+          cancelar?.();
+          cancelar = null;
+        }
+        const resultado = await enviar("/sessao/checkpoint", ResultadoDeCheckpointSchema, {
           method: "POST",
           token,
-          corpo: ConfirmacaoDeCheckpointSchema.parse({ id, confirmado }),
+          corpo,
         });
+        if (resultado.pausada) {
+          renovacaoSuspensa = true;
+          cancelar?.();
+          cancelar = null;
+        } else if (renovacaoSuspensa) {
+          renovacaoSuspensa = false;
+          agendarPelaValidade();
+        }
+        return resultado;
       },
       get expiraEm() {
         return expiraEm;

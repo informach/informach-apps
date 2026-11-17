@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MudancaDeAcesso } from "../contrato/sdk";
 import { FRACAO_PARA_RENOVAR } from "../contrato/tokens";
 import { TEMPO_LIMITE_DO_PEDIDO_MS } from "../transporte/prazo";
-import { criarRecreio, REPETIR_RENOVACAO_APOS_MS } from "./index";
+import { criarRecreio, type OpcoesDoRecreio, REPETIR_RENOVACAO_APOS_MS } from "./index";
 
 const INICIO = Date.UTC(2026, 10, 11, 12, 0, 0);
 const QUINZE_MIN = 15 * 60_000;
@@ -70,7 +70,12 @@ function ambiente() {
       await new Promise((resolve) => setTimeout(resolve, 0));
     },
     pendentes: () => agendadas.filter((item) => !item.cancelada),
-    opcoes: (extra: { continuarAqui?: boolean; recuperarAbertura?: boolean } = {}) => ({
+    opcoes: (
+      extra: Pick<
+        OpcoesDoRecreio,
+        "continuarAqui" | "recuperarAbertura" | "aguardarCheckpoint" | "aoAguardarCheckpoint"
+      > = {},
+    ) => ({
       baseUrl: "https://recreio.test/",
       jogo: "morada",
       obterIngresso: async () => "ingresso-1",
@@ -112,7 +117,75 @@ describe("abertura da sessão", () => {
       codigo: "INDISPONIVEL",
     });
     expect(a.chamadas).toHaveLength(antes + 1);
+    expect(a.pendentes()).toHaveLength(0);
+  });
+  it("aguarda o ACK com o mesmo pedido e informa a espera antes de abrir", async () => {
+    const a = ambiente();
+    const avisar = vi.fn();
+    a.responder(
+      { status: 409, corpo: { codigo: "CHECKPOINT_PENDENTE", detalhe: { motivo: "requested" } } },
+      { corpo: a.aberta() },
+    );
+    const promessa = criarRecreio(
+      a.opcoes({
+        continuarAqui: true,
+        recuperarAbertura: true,
+        aguardarCheckpoint: true,
+        aoAguardarCheckpoint: avisar,
+      }),
+    );
+    await vi.waitFor(() => expect(avisar).toHaveBeenCalledOnce());
+    expect(a.chamadas).toHaveLength(1);
+    await a.disparar();
+    expect((await promessa).sessao.token()).toBe("sessao-1");
+    expect(a.chamadas[0]?.corpo).toEqual(a.chamadas[1]?.corpo);
     expect(a.pendentes()).toHaveLength(1);
+  });
+  it.each(["manual", "failed", "expired"])("não repete espera recusada por %s", async (motivo) => {
+    const a = ambiente();
+    a.responder({ status: 409, corpo: { codigo: "CHECKPOINT_PENDENTE", detalhe: { motivo } } });
+    await expect(
+      criarRecreio(
+        a.opcoes({ continuarAqui: true, recuperarAbertura: true, aguardarCheckpoint: true }),
+      ),
+    ).rejects.toMatchObject({ codigo: "CHECKPOINT_PENDENTE" });
+    expect(a.chamadas).toHaveLength(1);
+    expect(a.pendentes()).toHaveLength(0);
+  });
+  it("renovação que já estava em voo não encerra o próprio checkpoint confirmado", async () => {
+    const a = ambiente();
+    let concluir = (_resposta: Response): void => {
+      throw new Error("Renovação não preparada");
+    };
+    const pendente = new Promise<Response>((resolve) => {
+      concluir = resolve;
+    });
+    const opcoes = a.opcoes();
+    const controle = {
+      agora: new Date(INICIO).toISOString(),
+      expiraEm: new Date(INICIO + QUINZE_MIN).toISOString(),
+      pausada: true,
+      tempo: null,
+      checkpoint: null,
+    };
+    a.responder(
+      { corpo: a.aberta() },
+      { corpo: { estado: "confirmed", pausada: true } },
+      { corpo: controle },
+    );
+    const contexto = await criarRecreio({
+      ...opcoes,
+      fetch: (url, init) => (url.endsWith("/sessao/renovar") ? pendente : opcoes.fetch(url, init)),
+    });
+    const perdeu = vi.fn();
+    contexto.sessao.aoMudarAcesso(perdeu);
+    await a.disparar();
+    await contexto.sessao.checkpoint(MUNDO, true);
+    concluir(Response.json({ codigo: "SESSAO_ENCERRADA", motivo: "checkpoint" }, { status: 403 }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(perdeu).not.toHaveBeenCalled();
+    expect(a.pendentes()).toHaveLength(0);
+    expect(await contexto.sessao.controle()).toMatchObject({ pausada: true });
   });
   it("recuperação repete só uma vez com o mesmo ingresso e prova aleatória; sem prova não repete", async () => {
     const a = ambiente();

@@ -214,3 +214,32 @@ expõe o ACK explícito, mas o host ainda não consulta/pausa/salva automaticame
 de habilitar famílias, substituir esse legado pelo pedido de salvar/sair no
 aparelho anterior, completar o consumidor e a prova de servidor e homologar
 avisos, corte de tempo e gravação restrita. Não ativar `on` por este incremento.
+
+`a375efc` passou nos seis gates `44041597703`: 461 integrações/39 arquivos,
+incluindo as cinco de pedido, confirmação/negativa, outro perfil, expiração,
+recusa de ACK de mundo e reversão por falha da auditoria. A prova HTTP inalterada
+passou também em `632fd4e`, seis gates `44041202916`. CI compartilhado ainda em
+execução; não confundir esses resultados com homologação do host.
+
+### Host em implementação
+
+A candidata liga o modo real `on` ao host. Mantém o ingresso/prova enquanto
+aguarda até 30 segundos, com limite adicional de tentativas; negativa, expiração
+e pedido manual não são repetidos silenciosamente. O módulo do jogo pode oferecer
+checkpoint aguardável e retomada quando o servidor confirmou ausência da barreira.
+O título 2D suspende comandos, espera a fila e confirma a gravação; conflito
+responde negativamente. O host mantém a partida montada durante a pausa e só
+anuncia salvamento depois da confirmação. ACK sem resposta é resolvido pelo
+controle atual; não remove a barreira nem inventa confirmação.
+
+O SDK suspende a renovação durante o ACK positivo e a pausa, inclusive se uma
+renovação anterior ainda estava em voo. A consulta continua; revogação permanece
+definitiva. O acompanhamento tem uma consulta por vez, a cada três segundos,
+e cancela callbacks/timers da partida desmontada. Mundos continuam com saída manual.
+
+O novo gate `checkpoint` usa outro build com a mesma flag de produção `on`, banco
+descartável e dois contextos reais do Chromium; nenhum bypass de autorização.
+Exercita espera antes do ACK, conflito/negativa/retentativa e perda do ACK depois
+do commit. Os seis gates anteriores continuam integrais. Ainda precisa da rodada
+remota; `on`, famílias e venda continuam desligados em produção. O legado `off`
+e os avisos/corte de tempo ainda precisam do incremento seguinte.

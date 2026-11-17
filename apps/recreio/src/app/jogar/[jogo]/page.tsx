@@ -4,6 +4,7 @@ import { AvisoDoJogo, TelaDoJogo } from "@/features/jogar/components/aviso-do-jo
 import { Hospedeiro } from "@/features/jogar/components/hospedeiro";
 import { textoDaParada } from "@/features/jogar/estado";
 import { prepararPaginaDoJogo } from "@/features/jogar/service";
+import { env } from "@/lib/env";
 
 export const metadata = { title: "Jogar" };
 
@@ -52,6 +53,7 @@ export default async function Jogar({
       jogo={pagina.jogo}
       mundo={pagina.tipo === "pronto_sem_mundo" ? null : pagina.mundo}
       estante={estante}
+      trocaCoordenada={env.RECREIO_CHECKPOINT_MODE === "on"}
     />
   );
 }

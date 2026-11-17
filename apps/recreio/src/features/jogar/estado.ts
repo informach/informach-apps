@@ -19,6 +19,8 @@ export type Parada =
   | "permissoes_alteradas"
   | "sessao_encerrada"
   | "pausado_para_troca"
+  | "saida_no_outro_aparelho"
+  | "troca_nao_confirmada"
   | "rede"
   | "falha";
 
@@ -101,7 +103,7 @@ export function paradaDoErro(erro: unknown): Parada {
     case "SESSAO_ENCERRADA":
       return paradaDoFimDaSessao(motivoDe(erro));
     case "CHECKPOINT_PENDENTE":
-      return "pausado_para_troca";
+      return motivoDe(erro) === "manual" ? "saida_no_outro_aparelho" : "troca_nao_confirmada";
     case "SESSAO_INVALIDA":
     case "INGRESSO_INVALIDO":
       return "sessao_encerrada";
@@ -148,6 +150,17 @@ export type TextoDaParada = {
 };
 
 const TEXTOS: Record<Parada, TextoDaParada> = {
+  saida_no_outro_aparelho: {
+    titulo: "Salve e saia no outro aparelho",
+    texto: "Use o botão de saída do jogo na partida anterior. Depois, tente abrir aqui novamente.",
+    acao: "tentar",
+  },
+  troca_nao_confirmada: {
+    titulo: "A troca não foi confirmada",
+    texto:
+      "A nova partida não foi aberta. Confira o progresso e a conexão do outro aparelho antes de tentar novamente.",
+    acao: "tentar",
+  },
   pausado_para_troca: {
     titulo: "Jogo pausado para trocar de aparelho",
     texto: "Esta sessão está pausada enquanto a troca de aparelho é confirmada.",

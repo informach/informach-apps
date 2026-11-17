@@ -11,6 +11,7 @@ import {
 import { LogOut } from "lucide-react";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { carregadorDoJogo } from "../carregadores";
+import { type AvisoDaTroca, observarTrocaDaPartida } from "../controle";
 import {
   ESTADO_INICIAL,
   type Parada,
@@ -27,6 +28,7 @@ type Partida = {
   contexto: RecreioGameContext;
   montado: JogoMontado | null;
   cancelarAcesso: () => void;
+  cancelarControle: () => void;
 };
 
 /**
@@ -35,6 +37,7 @@ type Partida = {
  * hora, sem esperar o jogo: é o caso da página que está indo embora.
  */
 async function encerrar(partida: Partida, comPressa = false): Promise<void> {
+  partida.cancelarControle();
   partida.cancelarAcesso();
   // Sem resposta do Recreio a sessão vence sozinha, e a próxima abertura pergunta.
   const sairDaSessao = () => partida.contexto.sessao.sair().catch(() => undefined);
@@ -61,14 +64,18 @@ export function Hospedeiro({
   jogo,
   mundo,
   estante = "/estante",
+  trocaCoordenada = false,
 }: {
   jogo: { id: string; nome: string; origemDaArte?: string | null };
   mundo: { id: MundoId; nome: string } | null;
   estante?: "/estante" | "/aparelho";
+  trocaCoordenada?: boolean;
 }) {
   const [estado, despachar] = useReducer(reduzir, ESTADO_INICIAL);
   /** O jogo montado tem o próprio controle de saída: a página não desenha o dela. */
   const [saidaDoJogo, definirSaidaDoJogo] = useState(false);
+  const [avisoDaTroca, definirAvisoDaTroca] = useState<AvisoDaTroca | null>(null);
+  const [aguardandoTroca, definirAguardandoTroca] = useState(false);
   const palco = useRef<HTMLDivElement>(null);
   const partida = useRef<Partida | null>(null);
   /** Cada tentativa de abrir tem um número; a que não é mais a atual desiste. */
@@ -108,6 +115,8 @@ export function Hospedeiro({
       tentativa.current += 1;
       const minha = tentativa.current;
       const atual = () => minha === tentativa.current;
+      definirAvisoDaTroca(null);
+      definirAguardandoTroca(false);
       despachar({ tipo: "abrir" });
       void desmontar();
       fila.current = fila.current.then(async () => {
@@ -120,6 +129,15 @@ export function Hospedeiro({
             jogo: jogo.id,
             obterIngresso: (signal) => pedirIngresso(jogo.id, signal),
             ...(continuarAqui ? { continuarAqui: true } : {}),
+            ...(trocaCoordenada
+              ? {
+                  recuperarAbertura: true,
+                  aguardarCheckpoint: true,
+                  aoAguardarCheckpoint: () => {
+                    if (atual()) definirAguardandoTroca(true);
+                  },
+                }
+              : {}),
             // `keepalive` deixa o pedido de encerrar a sessão terminar mesmo
             // com a página indo embora.
             fetch: (url, init) =>
@@ -128,6 +146,7 @@ export function Hospedeiro({
           const nova: Partida = {
             contexto,
             montado: null,
+            cancelarControle: () => {},
             cancelarAcesso: contexto.sessao.aoMudarAcesso((mudanca) =>
               parar(paradaDaMudanca(mudanca)),
             ),
@@ -155,16 +174,29 @@ export function Hospedeiro({
             return;
           }
           nova.montado = montado;
+          if (trocaCoordenada)
+            nova.cancelarControle = observarTrocaDaPartida(
+              contexto,
+              montado,
+              (aviso) => {
+                if (partida.current === nova) definirAvisoDaTroca(aviso);
+              },
+              (erro) => {
+                if (partida.current === nova) parar(paradaDoErro(erro));
+              },
+            );
+          definirAguardandoTroca(false);
           definirSaidaDoJogo(modulo.saidaPropria === true);
           despachar({ tipo: "montado" });
         } catch (erro) {
           if (!atual()) return;
+          definirAguardandoTroca(false);
           if (ehErroDoRecreio(erro, "JA_ABERTO")) despachar({ tipo: "ja_aberto" });
           else parar(paradaDoErro(erro));
         }
       });
     },
-    [jogo.id, jogo.origemDaArte, mundo?.id, desmontar, parar, sair],
+    [jogo.id, jogo.origemDaArte, mundo?.id, desmontar, parar, sair, trocaCoordenada],
   );
 
   useEffect(() => {
@@ -199,7 +231,31 @@ export function Hospedeiro({
   return (
     <TelaDoJogo titulo={mundo ? `${jogo.nome}: ${mundo.nome}` : jogo.nome}>
       {/* O jogo desenha aqui. Fora do jogo o elemento fica vazio e fora da leitura. */}
-      <div ref={palco} data-palco className="absolute inset-0" inert={!jogando} />
+      <div
+        ref={palco}
+        data-palco
+        className="absolute inset-0"
+        inert={!jogando || avisoDaTroca?.bloqueia}
+      />
+
+      {jogando && avisoDaTroca && (
+        <div
+          className={
+            avisoDaTroca.bloqueia
+              ? "absolute inset-0 z-20 flex items-center justify-center bg-fundo/90 p-4"
+              : "absolute inset-x-4 top-4 z-20 mx-auto max-w-lg rounded-controle bg-fundo p-4 shadow-lg"
+          }
+        >
+          <div role="status" className="text-center">
+            <p>{avisoDaTroca.texto}</p>
+            {avisoDaTroca.bloqueia && (
+              <button type="button" className="rb rb-vazado mt-4" onClick={sair}>
+                Voltar à estante
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {jogando && !saidaDoJogo && (
         <button
@@ -222,12 +278,27 @@ export function Hospedeiro({
             : "absolute inset-0 z-20 flex items-center justify-center overflow-auto p-4"
         }
       >
-        {estado.fase === "carregando" && <AvisoDoJogo titulo={`Abrindo ${jogo.nome}…`} />}
+        {estado.fase === "carregando" && (
+          <AvisoDoJogo
+            titulo={
+              aguardandoTroca ? "Aguardando o outro aparelho salvar…" : `Abrindo ${jogo.nome}…`
+            }
+            texto={
+              aguardandoTroca
+                ? "Mantenha a partida anterior aberta. O jogo começa aqui depois da confirmação."
+                : undefined
+            }
+          />
+        )}
         {estado.fase === "saindo" && <AvisoDoJogo titulo="Saindo…" />}
         {estado.fase === "ja_aberto" && (
           <AvisoDoJogo
             titulo="Você já está jogando em outro lugar"
-            texto="Continuar aqui? O jogo aberto no outro lugar será desconectado."
+            texto={
+              trocaCoordenada
+                ? "Continuar aqui? Vamos pedir ao outro aparelho que salve antes de trocar."
+                : "Continuar aqui? O jogo aberto no outro lugar será desconectado."
+            }
           >
             <button type="button" className="rb rb-sol" onClick={() => abrir(true)}>
               Continuar aqui
