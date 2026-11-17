@@ -8,6 +8,7 @@ import {
   revokeAttachments,
 } from "@informach/edi-desktop/ai-attachments";
 import { toolPermission } from "../../shared/aiTools.js";
+import { STYLE_GUIDES, styleGuideById, styleGuideText } from "../../shared/styleGuide";
 import "./fileDialog.css";
 import { clock } from "./pipelines/runner";
 
@@ -20,12 +21,23 @@ export function setupAssistant(editor) {
   const panel = document.createElement("aside");
   panel.className = "assistant-panel";
   panel.hidden = true;
-  panel.innerHTML = `<header><strong>✧ Assistente</strong><button type="button" aria-label="Fechar assistente" data-close>×</button></header><div class="assistant-settings"><label>Provedor<select aria-label="Provedor de IA"><option value="claude">Claude Code</option><option value="codex">Codex</option></select></label><label>Modelo<input aria-label="Modelo de IA" placeholder="Padrão da sua conta" maxlength="120"></label><p data-status role="status">Verificando conexão…</p><details><summary>Conectar um agente externo</summary><p>Configure a conexão autenticada apenas para esta ferramenta:</p><button type="button" data-connect="claude">Conectar Claude Code</button><button type="button" data-connect="codex">Conectar Codex</button><p>Os clientes usam seus próprios logins. A credencial local não é um token da sua assinatura.</p></details></div><div class="assistant-messages" aria-live="polite"></div><form><div class="assistant-attachments" data-attachments hidden></div><textarea aria-label="Mensagem ao assistente" placeholder="Ex.: deixe o mascote menor e selecione Pular. Cole ou arraste imagens de referência." rows="3" maxlength="8000"></textarea><input type="file" accept="${IMAGE_TYPES.join(",")}" multiple hidden data-file><div><button type="button" data-reset>Nova conversa</button><button type="button" class="assistant-attach" data-attach title="Anexar imagem de referência (também dá para colar ou arrastar)" aria-label="Anexar imagem de referência">${ATTACH_ICON}</button><button type="button" data-stop disabled>Parar</button><button class="primary" type="submit">Enviar</button></div></form>`;
+  panel.innerHTML = `<header><strong>✧ Assistente</strong><button type="button" aria-label="Fechar assistente" data-close>×</button></header><div class="assistant-settings"><label>Provedor<select aria-label="Provedor de IA"><option value="claude">Claude Code</option><option value="codex">Codex</option></select></label><label>Modelo<input aria-label="Modelo de IA" placeholder="Padrão da sua conta" maxlength="120"></label><label>Guia de estilo<select aria-label="Guia de estilo" data-assistant-style-guide><option value="">Nenhum</option>${STYLE_GUIDES.map((guide) => `<option value="${guide.id}">${guide.name}</option>`).join("")}</select></label><p data-status role="status">Verificando conexão…</p><details><summary>Conectar um agente externo</summary><p>Configure a conexão autenticada apenas para esta ferramenta:</p><button type="button" data-connect="claude">Conectar Claude Code</button><button type="button" data-connect="codex">Conectar Codex</button><p>Os clientes usam seus próprios logins. A credencial local não é um token da sua assinatura.</p></details></div><div class="assistant-messages" aria-live="polite"></div><form><div class="assistant-attachments" data-attachments hidden></div><textarea aria-label="Mensagem ao assistente" placeholder="Ex.: deixe o mascote menor e selecione Pular. Cole ou arraste imagens de referência." rows="3" maxlength="8000"></textarea><input type="file" accept="${IMAGE_TYPES.join(",")}" multiple hidden data-file><div><button type="button" data-reset>Nova conversa</button><button type="button" class="assistant-attach" data-attach title="Anexar imagem de referência (também dá para colar ou arrastar)" aria-label="Anexar imagem de referência">${ATTACH_ICON}</button><button type="button" data-stop disabled>Parar</button><button class="primary" type="submit">Enviar</button></div></form>`;
   document.body.append(panel);
   const find = (s) => panel.querySelector(s),
     messages = find(".assistant-messages"),
-    provider = find("select"),
-    model = find("input");
+    provider = find('select[aria-label="Provedor de IA"]'),
+    model = find("input"),
+    guide = find("[data-assistant-style-guide]");
+  /** The chosen style guide as the assistant reads it (shared/styleGuide.ts), or null. */
+  const guideText = () => {
+    const chosen = styleGuideById(guide.value);
+    return chosen ? styleGuideText(chosen) : null;
+  };
+  guide.onchange = () => {
+    try {
+      localStorage.setItem("edisvg-style-guide", guide.value);
+    } catch {}
+  };
   for (const client of ["claude", "codex"]) {
     const button = find(`[data-connect="${client}"]`);
     button.disabled = !bridge;
@@ -106,6 +118,7 @@ export function setupAssistant(editor) {
   try {
     provider.value = localStorage.getItem("edisvg-ai-provider") || "claude";
     model.value = localStorage.getItem("edisvg-ai-model") || "";
+    guide.value = styleGuideById(localStorage.getItem("edisvg-style-guide"))?.id ?? "";
   } catch {}
   function thumbnails(images, remove) {
     return images.map((image, index) => {
@@ -289,7 +302,7 @@ export function setupAssistant(editor) {
     // Frames to look at (a demonstration): shown like attached references, and sent as bytes,
     // as the main process takes every image (the frames come from it in base64).
     const attached = images.map((image, index) =>
-      frameAttachment(image, `Quadro ${index + 1} do vídeo`),
+      frameAttachment(image, image.name ?? `Quadro ${index + 1} do vídeo`),
     );
     await submit(text, attached, shown, true);
     return finished;
@@ -315,13 +328,18 @@ export function setupAssistant(editor) {
           : count
             ? `[${count} imagens de referência anexadas] `
             : "",
-      prompt = recent
+      // The style guide goes first in the person's messages (a pipeline's request carries its
+      // own); the conversation takes the room that is left of the message's limit.
+      style = long ? null : guideText(),
+      room = 30000 - (style ? style.length + 2 : 0),
+      talk = recent
         .map(
           (m) =>
             `${m.role === "user" ? "Usuário" : "Assistente"}: ${attached(m.images?.length ?? 0)}${m.text}`,
         )
         .join("\n\n")
-        .slice(-30000);
+        .slice(-room),
+      prompt = style ? `${style}\n\n${talk}` : talk;
     try {
       await bridge.aiSend({
         provider: provider.value,
@@ -408,6 +426,7 @@ export function setupAssistant(editor) {
       else if (command === "import-svg") void editor.importSvg();
       else if (command === "import-game") void editor.importGameProject();
       else if (command === "import-kit") void editor.importDesignKit();
+      else if (command === "insert-kit-zero-kids") void editor.insertStyleKit("zero-kids");
       else if (command === "import-boards") void editor.importBoards();
       else if (command === "fonts") void editor.openFonts();
       else if (command === "pipelines") editor.openPipelines();
@@ -527,5 +546,6 @@ export function setupAssistant(editor) {
     adoptProject,
     save: (as = false) => saveProject(as),
     isBusy: () => busy,
+    styleGuideText: guideText,
   };
 }
