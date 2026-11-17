@@ -312,6 +312,27 @@ test("check_before_export: two voices are an error with the rule off, fixed by s
   );
 });
 
+test("check_before_export: the teacher silenced by the rule is not a second voice under the character", () => {
+  // The same line said by the teacher (narration) and by Dedé, both transcribed: with the rule on
+  // only Dedé is heard there, as in the export; with it off, both are and it is an error.
+  const said = (clipId: string, source: string, role?: "avatar") =>
+    ["e", "agora", "o", "que", "acontece"].map((text, i) => ({
+      key: `${source}:${i}`,
+      clipId,
+      text,
+      start: 5 + i * 0.4,
+      end: 5.35 + i * 0.4,
+      p: 0.9,
+      source,
+      ...(role ? { role } : {}),
+    }));
+  const words = [...said("narr1", "narr"), ...said("dede1", "dede", "avatar")];
+  const kinds = (p: Project) => preflight(p, { words }).map((f) => f.kind);
+  assert.ok(!kinds(aula02()).includes("voices-overlap"));
+  assert.ok(!kinds(aula02()).includes("two-voices"));
+  assert.ok(kinds(aula02({ voiceRule: { enabled: false } })).includes("two-voices"));
+});
+
 test("place_insert with a row of the kids table: Dedé over the teacher's line, where her avatar is", () => {
   const p = aula02({
     clips: aula02().clips.filter((c) => c.id !== "dede1"),

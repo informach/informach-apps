@@ -208,6 +208,32 @@ export function teacherSilence(p: Project, ctx = roleContext(p)): [number, numbe
 }
 
 /**
+ * Whether a word of the timeline is the teacher's, silenced by the rule while a character speaks:
+ * not heard in the lesson (captions leave it out, the check before export does not count it as a
+ * second voice). Always false when the rule is off or no character plays.
+ */
+export function hushedTeacher(
+  p: Project,
+): (w: { clipId: string; start: number; end: number }) => boolean {
+  const silence = teacherSilence(p);
+  if (!silence.length) return () => false;
+  const ctx = roleContext(p);
+  const clips = new Map(p.clips.map((c) => [c.id, c]));
+  const teacher = new Map<string, boolean>();
+  return (w) => {
+    const mid = (w.start + w.end) / 2;
+    if (!silence.some(([a, b]) => mid >= a && mid <= b)) return false;
+    let known = teacher.get(w.clipId);
+    if (known === undefined) {
+      const c = clips.get(w.clipId);
+      known = !!c && voiceRoleOf(c, ctx).kind === "teacher";
+      teacher.set(w.clipId, known);
+    }
+    return known;
+  };
+}
+
+/**
  * `points` (a clip's envelope, seconds from its start) with `db` from `from` to `to`, reached by a
  * ramp of `ramp` seconds outside each edge: the level before and after stays as it was.
  */

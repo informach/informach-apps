@@ -387,7 +387,8 @@ for k, c in enumerate(caixas_cat):
     else:
         i["duration"] = 1.5
 # Nada passa do fim da aula (a última fala e o clique final): um zoom ou balão além dele esticaria a aula.
-FIM_AULA = max(t["fim"] for t in dec["trechos"]) + 1.2
+# A voz vai de 0,5 a 0,8 s além da última palavra, e a gravação tem o tamanho da voz: 0,5 s fica dentro dela.
+FIM_AULA = max(t["fim"] for t in dec["trechos"]) + 0.5
 final = [c for c in final if c["input"].get("at", 0) < FIM_AULA - 0.5]
 for c in final:
     i = c["input"]
@@ -449,6 +450,19 @@ for c in MARCA:
         na_tela_ampliada(c, z)
 final = [c for c in final if c not in saem]
 MARCA = sorted((c for c in final if c["tool"] == "add_annotation"), key=lambda c: c["input"]["at"])
+
+# Balão inteiro na tela e fora da apresentadora: na tela ampliada ele cresce com o zoom e pode passar da
+# borda (o botão Verificar projeto fica embaixo, à direita, onde ela está).
+BALAO_W, BALAO_H = 420, 130  # o balão do EdiAula em escala 1, em pixels do quadro
+for c in MARCA:
+    i = c["input"]
+    if i.get("kind") != "balloon":
+        continue
+    s_ = i.get("scale", 1)
+    hw, hh = BALAO_W * s_ / 2 / W, BALAO_H * s_ / 2 / H
+    direita = (AREA_AP / W if com_apresentadora(i["at"], i["at"] + i["duration"]) else 1.0) - 0.01
+    i["x"] = round(min(max(i["x"], hw + 0.01), direita - hw), 4)
+    i["y"] = round(min(max(i["y"], hh + 0.01), 0.99 - hh), 4)
 
 # Mesmo bloco destacado de novo em menos de 2 s: estende o anterior em vez de repetir.
 repetidos = []
