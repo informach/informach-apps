@@ -4,8 +4,10 @@
 D3–D8 do Morada. O [registro de fechamento](fechamento-plataforma-2026-11-16.md)
 é a lista vigente de entregas e pendências. Os quatro preços foram confirmados;
 o cadastro familiar seguirá responsabilidade declarada pelo adulto, sem alegar
-verificação externa inexistente. SDK sem mundos e progresso por perfil estão em
-[verificação remota](dados-de-perfil-2026-11-16.md), ainda sem implantação.
+verificação externa inexistente. SDK sem mundos e progresso por perfil foram
+[implantados em `6b51dd13`](dados-de-perfil-2026-11-16.md), com migração 0167,
+168 recibos e seis gates conferidos. Gestão familiar continua em candidata;
+F1–F11 e a homologação comercial não estão concluídos.
 
 **16/11 — etapa de leitores implantada:** [schema 167, fontes, arte e cron](leitores-producao-2026-11-16.md)
 conferidos. Transferência com aceite ainda não publicada. O comando do Morada
