@@ -1681,7 +1681,11 @@ Nunito no texto); em outra paleta, as mesmas formas nas cores dos papéis dela.
   normal" ou "Ficar no zoom até o fim". "Continuar em outro ponto" cria a etapa seguinte colada na atual: o zoom
   desliza de um ponto a outro sem voltar ao normal; "Voltar ao normal aqui" é o "Restaurar" (uma etapa em 1×).
 - A exportação aplica o zoom ao composto das faixas de baixo naquele ponto da pilha (`zoomLayerFilter`), com as
-  mesmas curvas da prévia (`shared/zoomLayer.ts`). IA: `add_zoom`.
+  mesmas curvas da prévia (`shared/zoomLayer.ts`). IA: `add_zoom`, com `track_id` para pôr a camada numa faixa
+  existente (uma faixa de zoom só, logo acima da gravação) em vez de uma faixa nova no topo. `add_annotation` também
+  aceita `track_id` (a faixa das marcações, acima do zoom), `scale` (múltiplo do tamanho natural, para casar com o
+  zoom das faixas de baixo) e, no destaque, `dim` (escurece o resto da tela). A aula automática usa os três
+  (`scripts/aula-automatica/REGRAS.md`).
 
 ## Efeitos sonoros
 
@@ -2025,6 +2029,10 @@ e por scripts em `scripts/aula-automatica/` (desde 16/11/2026). O condutor abre 
 num perfil de trabalho e recebe comandos por HTTP local; `parte.sh <curso> <aula> <parte> <etapa>` liga as
 etapas pelo `config.json` da máquina (palco, roteiros do Sistema Zero, pasta do material, música). O passo a
 passo, as regras de edição da titular e os limites estão no [README da aula automática](scripts/aula-automatica/README.md).
+As peças gráficas chegam em `.edisvg` e entram vinculadas (Arquivo › Importar animação do EdiSVG…), nunca
+achatadas; as regras revisadas em 17/11/2026 estão em [REGRAS.md](scripts/aula-automatica/REGRAS.md). Num build de
+desenvolvimento, `EDIAULA_EDISVG_USER_DATA` aponta o perfil do EdiSVG que recebe os pedidos de vínculo: o condutor o
+usa para que o EdiSVG do condutor, e não o do `%APPDATA%`, gere os renders.
 
 ### Teste de fumaça da gravação guiada
 

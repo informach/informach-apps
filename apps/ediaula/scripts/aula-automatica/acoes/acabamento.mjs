@@ -4,55 +4,55 @@
 //   intervalos     [[ini, fim], ...] em que a apresentadora aparece (montar.py: <saida>-apresentadora.json)
 //   apresentadora  trecho do nome da mídia da apresentadora (padrão "HeyGen")
 //   musica         trecho do nome da música na biblioteca (opcional; distribui se ainda não há faixa de música)
-// Faz, nesta ordem:
-//   - as animações "conceito-*" no lugar da tela, com transição (place_cutaway);
-//   - a apresentadora só nos intervalos, fora das falas dos personagens (keep_ranges);
-//   - a voz da professora calada nas falas dos personagens (set_volume);
-//   - as caixas das categorias menores, encostadas na paleta (set_clip_layout);
-//   - as faixas: personagens, apresentadora e zoom no alto (move_track);
+//   cartoes        [[ini, fim], ...] dos cartões de seção (opcional; as peças secao-*.edisvg já contam)
+//   abertura       segundos do plano da abertura (padrão 1,5)
+// Faz, nesta ordem (regras de edição, 17/11/2026):
+//   - as animações de conceito (mídia "conceito-*" ou peça conceito-*.edisvg vinculada) no lugar da tela,
+//     com transição (place_cutaway);
+//   - a apresentadora: recorte (esquerda, direita e topo 2%, base 45%), só nos intervalos e fora das falas
+//     dos personagens (keep_ranges, com dissolve), e o plano de cada trecho: abertura, demonstração, animação
+//     de conceito (do começo ao fim dela) e cartão de seção;
+//   - os personagens à esquerda, grandes, com dissolve; a regra "personagem silencia a professora" ligada;
+//   - as faixas, de baixo para cima: áudios, gravação (com as animações), zoom, capa, marcações,
+//     apresentadora e personagens;
 //   - a música distribuída (spread_music).
-// Cada passo é um passo de desfazer. Devolve o que fez.
-import { readFileSync } from "node:fs";
-import { chamar } from "./ia.mjs";
+// Cada passo é um passo de desfazer. Devolve o que fez e o que precisa de revisão.
+import { basename } from "node:path";
+import { ferramentas, fimDe, gravacao, lerProjeto } from "./comum.mjs";
 
-const PALETA = 232; // borda esquerda da caixa: a ponta cai nas linhas da paleta do Estúdio (x ~246 em 1920)
+const PLANOS = {
+  abertura: { x: 0.81, y: 1.08, scale: 1.96 },
+  demonstracao: { x: 0.86, y: 1.34, scale: 1.58 },
+  conceito: { x: 0.8, y: 1.13, scale: 1.97 },
+  secao: { x: 0.53, y: 1.67, scale: 3.36 },
+};
+const PERSONAGEM = { x: 0.24, y: 0.83, scale: 1.18, fade_in: 0.3, fade_out: 0.3 };
+const RECORTE = { left: 0.02, right: 0.02, top: 0.02, bottom: 0.45 };
+
+/** A peça vinculada de um papel (conceito-*.edisvg, secao-*.edisvg). */
+const pecaDe = (asset, papel) =>
+  !!asset?.link &&
+  new RegExp(`^${papel}(-|\\.edisvg$)`).test(basename(asset.link.project).toLowerCase());
 
 export default async function acabamento(ctx) {
   const st = ctx.state;
   const feito = [];
-  const ia = async (name, input) => {
-    const r = await chamar(ctx, name, input);
-    if (!r.ok) throw new Error(`${name}: ${r.text}`);
-    return r.text;
-  };
-  const revisao = async () => {
-    const r = await chamar(ctx, "get_overview", {});
-    const m = /Revisão do projeto: (\d+)/.exec(r.text ?? "");
-    if (!m) throw new Error("get_overview não disse a revisão");
-    return Number(m[1]);
-  };
-  const ler = async () => {
-    const e = await ctx.editor();
-    await e.keyboard.press("Control+s").catch(() => {});
-    await ctx.delay(2000);
-    const d = JSON.parse(readFileSync(st.projeto, "utf8"));
-    const A = new Map(d.assets.map((a) => [a.id, a]));
-    return { d, nome: (c) => A.get(c.assetId)?.name ?? "", asset: (c) => A.get(c.assetId) };
-  };
-  const fim = (c) => c.start + c.duration;
+  const revisar = [];
+  const { ia, revisao } = ferramentas(ctx);
+  const ler = () => lerProjeto(ctx, st.projeto);
   const apres = st.apresentadora ?? "HeyGen";
+  const conceito = (proj, c) =>
+    proj.nome(c).startsWith("conceito-") || pecaDe(proj.asset(c), "conceito");
 
   // 1. Animações no lugar da tela.
-  let { d, nome, asset } = await ler();
-  const tela = d.clips.find((c) => nome(c).startsWith("Tela"));
-  if (!tela) throw new Error("não achei a gravação da tela (mídia 'Tela …')");
+  let proj = await ler();
+  let tela = gravacao(proj);
   const somTracks = [
-    ...new Set(d.clips.filter((c) => nome(c).startsWith("som-da")).map((c) => c.trackId)),
+    ...new Set(proj.d.clips.filter((c) => proj.nome(c).startsWith("som-da")).map((c) => c.trackId)),
   ];
-  for (const c of d.clips.filter(
-    (x) => nome(x).startsWith("conceito-") && x.trackId !== tela.trackId,
-  )) {
-    if (asset(c)?.key) await ia("set_background_removal", { media: nome(c), enabled: false });
+  for (const c of proj.d.clips.filter((x) => conceito(proj, x) && x.trackId !== tela.trackId)) {
+    if (proj.asset(c)?.key)
+      await ia("set_background_removal", { media: proj.nome(c), enabled: false });
     feito.push(
       await ia("place_cutaway", {
         clip_id: c.id,
@@ -63,13 +63,14 @@ export default async function acabamento(ctx) {
     );
   }
 
-  // 2. Apresentadora nos intervalos, fora das falas dos personagens.
-  ({ d, nome, asset } = await ler());
-  const personagens = d.clips.filter(
-    (c) => asset(c)?.origin === "presenter" && !nome(c).includes(apres),
-  );
-  const falas = personagens.map((c) => [c.start, fim(c)]);
-  const pres = d.clips.filter((c) => nome(c).includes(apres));
+  // 2. Apresentadora: recorte, trechos e o plano de cada trecho.
+  proj = await ler();
+  tela = gravacao(proj);
+  const ehPersonagem = (c) =>
+    proj.asset(c)?.origin === "presenter" && !proj.nome(c).includes(apres);
+  const falas = proj.d.clips.filter(ehPersonagem).map((c) => [c.start, fimDe(c)]);
+  const pres = proj.d.clips.filter((c) => proj.nome(c).includes(apres));
+  if (pres.length) await ia("set_crop", { clip_ids: pres.map((c) => c.id), ...RECORTE });
   if (st.intervalos && pres.length === 1) {
     let trechos = st.intervalos;
     for (const [p0, p1] of falas)
@@ -87,57 +88,127 @@ export default async function acabamento(ctx) {
   } else if (st.intervalos) {
     feito.push(`apresentadora: ${pres.length} clipes, esperava 1; os trechos ficaram como estavam`);
   }
-
-  // 3. Voz da professora calada nas falas dos personagens.
-  for (const [p0, p1] of falas) {
-    const narr = d.clips.filter(
-      (c) => nome(c).startsWith("narracao") && c.start < p1 && fim(c) > p0,
+  proj = await ler();
+  const animacoes = proj.d.clips
+    .filter((c) => c.trackId === tela.trackId && conceito(proj, c))
+    .map((c) => [c.start, fimDe(c)]);
+  const cartoes = [
+    ...(st.cartoes ?? []),
+    ...proj.d.clips.filter((c) => pecaDe(proj.asset(c), "secao")).map((c) => [c.start, fimDe(c)]),
+  ];
+  const abertura = st.abertura ?? 1.5;
+  // Cada mudança de plano é um corte no clipe dela (o pedaço de cada lado fica com o seu plano).
+  const cortes = [abertura, ...animacoes.flat(), ...cartoes.flat()].sort((a, b) => a - b);
+  for (const t of cortes) {
+    proj = await ler();
+    const c = proj.d.clips.find(
+      (x) => proj.nome(x).includes(apres) && x.start + 0.3 < t && t < fimDe(x) - 0.3,
     );
-    if (narr.length)
-      feito.push(
-        await ia("set_volume", { clip_ids: narr.map((c) => c.id), volume: 0, from: p0, to: p1 }),
+    if (c)
+      await ia("split_clip", {
+        clip_id: c.id,
+        at: Math.round(t * 100) / 100,
+        revision: await revisao(),
+      });
+  }
+  proj = await ler();
+  const pedacos = proj.d.clips
+    .filter((c) => proj.nome(c).includes(apres))
+    .sort((a, b) => a.start - b.start);
+  const dentro = (c, ints) =>
+    ints.some(
+      ([a, b]) => a - 0.05 <= (c.start + fimDe(c)) / 2 && (c.start + fimDe(c)) / 2 <= b + 0.05,
+    );
+  const plano = (c) =>
+    c.start < abertura - 0.05 && fimDe(c) <= abertura + 0.05
+      ? "abertura"
+      : dentro(c, animacoes)
+        ? "conceito"
+        : dentro(c, cartoes)
+          ? "secao"
+          : "demonstracao";
+  for (const [nome, valores] of Object.entries(PLANOS)) {
+    const ids = pedacos.filter((c) => plano(c) === nome).map((c) => c.id);
+    if (ids.length) await ia("set_clip_layout", { clip_ids: ids, ...valores });
+  }
+  // Troca de plano sem sair: dissolve entre os dois pedaços.
+  const emSeguida = pedacos.filter(
+    (c, k) => k > 0 && Math.abs(fimDe(pedacos[k - 1]) - c.start) < 0.02,
+  );
+  if (emSeguida.length)
+    await ia("set_transition", {
+      clip_ids: emSeguida.map((c) => c.id),
+      kind: "dissolve",
+      duration: 0.3,
+    });
+  feito.push(
+    `apresentadora: ${pedacos.length} trechos (${Object.keys(PLANOS)
+      .map((k) => `${k} ${pedacos.filter((c) => plano(c) === k).length}`)
+      .join(", ")})`,
+  );
+  // Toda animação de conceito tem a apresentadora por cima, do começo ao fim.
+  for (const [a, b] of animacoes) {
+    const cobre = pedacos.some((c) => c.start <= a + 0.05 && fimDe(c) >= b - 0.05);
+    if (!cobre)
+      revisar.push(
+        `${a.toFixed(1)}s: a apresentadora não cobre a animação inteira (${a.toFixed(1)}–${b.toFixed(1)}s)`,
       );
   }
 
-  // 4. Caixas das categorias: 55% do tamanho padrão, ponta na paleta.
-  for (const c of d.clips.filter(
-    (x) => x.annotation?.kind === "box" && x.transform?.scale > 0.13,
-  )) {
-    const scale = Math.round(c.transform.scale * 0.55 * 10000) / 10000;
-    await ia("set_clip_layout", {
-      clip_ids: [c.id],
-      scale,
-      x: Math.round(((PALETA + (scale * 1920) / 2) / 1920) * 10000) / 10000,
-    });
-  }
+  // 3. Personagens: à esquerda, grandes, com dissolve; nunca dois ao mesmo tempo; nunca duas vozes.
+  const pers = proj.d.clips.filter(ehPersonagem).sort((a, b) => a.start - b.start);
+  if (pers.length) await ia("set_clip_layout", { clip_ids: pers.map((c) => c.id), ...PERSONAGEM });
+  for (let k = 1; k < pers.length; k++)
+    if (pers[k].start < fimDe(pers[k - 1]) - 0.01)
+      revisar.push(
+        `${pers[k].start.toFixed(1)}s: ${proj.nome(pers[k])} entra com ${proj.nome(pers[k - 1])} ainda na tela`,
+      );
+  feito.push(await ia("set_voice_rule", { enabled: true, picture: "fade" }));
 
-  // 5. Faixas: personagens no alto, a apresentadora logo abaixo, o zoom logo abaixo dela.
-  ({ d, nome, asset } = await ler());
+  // 4. Faixas, de baixo para cima: áudios, gravação, zoom, capa, marcações, apresentadora e personagens.
+  proj = await ler();
   const trackDe = (clips) => [...new Set(clips.map((c) => c.trackId))];
-  const presTrack = trackDe(d.clips.filter((c) => nome(c).includes(apres)))[0];
-  if (presTrack) {
-    const topo = d.tracks[0].id;
-    if (topo !== presTrack)
-      await ia("move_track", { track_id: presTrack, position: "above", reference_track_id: topo });
-    for (const t of trackDe(
-      d.clips.filter((c) => asset(c)?.origin === "presenter" && !nome(c).includes(apres)),
-    ))
-      if (t !== presTrack)
-        await ia("move_track", { track_id: t, position: "above", reference_track_id: presTrack });
-    let ref = presTrack;
-    for (const t of trackDe(d.clips.filter((c) => c.zoomLayer))) {
-      await ia("move_track", { track_id: t, position: "below", reference_track_id: ref });
-      ref = t;
-    }
-    feito.push("faixas: personagens, apresentadora e zoom no alto");
+  const porNome = (nome) => proj.d.tracks.find((t) => t.name === nome)?.id;
+  const zoom = porNome("Zoom") ?? trackDe(proj.d.clips.filter((c) => c.zoomLayer))[0];
+  const marcacoes = porNome("Marcações");
+  const presTrack = trackDe(proj.d.clips.filter((c) => proj.nome(c).includes(apres)))[0];
+  const persTracks = trackDe(proj.d.clips.filter(ehPersonagem)).filter((t) => t !== presTrack);
+  // A capa: as camadas do template de abertura (o grupo que começa em 0:00) e a peça capa-*.edisvg.
+  const gruposCapa = new Set(
+    proj.d.clips.filter((c) => c.annotation && c.groupId && c.start < 0.05).map((c) => c.groupId),
+  );
+  const pessoas = [presTrack, ...persTracks];
+  const clipesCapa = proj.d.clips.filter(
+    (c) => (c.groupId && gruposCapa.has(c.groupId)) || pecaDe(proj.asset(c), "capa"),
+  );
+  for (const c of clipesCapa.filter((x) => pessoas.includes(x.trackId)))
+    revisar.push(
+      `${proj.nome(c)}: camada da capa na faixa ${proj.trilha(c.trackId)?.name} (de pessoa); mova para a faixa da capa`,
+    );
+  const capa = trackDe(clipesCapa).filter(
+    (t) => ![zoom, marcacoes, tela.trackId, ...pessoas].includes(t),
+  );
+  const pilha = [zoom, ...new Set(capa), marcacoes, presTrack, ...persTracks].filter(Boolean);
+  let ref = tela.trackId;
+  for (const t of pilha) {
+    if (t === ref) continue;
+    await ia("move_track", { track_id: t, position: "above", reference_track_id: ref });
+    ref = t;
   }
+  // Os áudios ficam embaixo da gravação.
+  proj = await ler();
+  const posTela = proj.d.tracks.findIndex((t) => t.id === tela.trackId);
+  const audiosAcima = proj.d.tracks.slice(0, posTela).filter((t) => t.kind === "audio");
+  for (const t of audiosAcima.reverse())
+    await ia("move_track", { track_id: t.id, position: "below", reference_track_id: tela.trackId });
+  feito.push("faixas: áudios, gravação, zoom, capa, marcações, apresentadora e personagens");
 
-  // 6. Música distribuída.
-  if (st.musica && !d.tracks.some((t) => t.music)) {
-    const m = d.assets.find((a) => a.name.includes(st.musica));
+  // 5. Música distribuída.
+  if (st.musica && !proj.d.tracks.some((t) => t.music)) {
+    const m = proj.d.assets.find((a) => a.name.includes(st.musica));
     if (m) feito.push(await ia("spread_music", { media_id: m.id }));
     else feito.push(`música "${st.musica}" não está na biblioteca: importe antes`);
   }
   await ler();
-  return feito;
+  return { feito, revisar };
 }

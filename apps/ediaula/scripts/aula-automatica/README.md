@@ -78,7 +78,7 @@ node apps/ediaula/scripts/aula-automatica/condutor.mts ediaula   # porta 47998
 node apps/ediaula/scripts/aula-automatica/condutor.mts edisvg    # porta 47999 (só para exportar animações)
 ```
 
-Os dois podem rodar juntos. `PROVA_SKIP_BUILD=1` pula o build quando o código não mudou.
+Os dois podem rodar juntos, e na edição rodam juntos: o EdiAula do condutor manda os pedidos de vínculo para o perfil do EdiSVG do condutor, que gera os renders das peças. `PROVA_SKIP_BUILD=1` pula o build quando o código não mudou.
 
 **Diálogos nativos:** são respondidos pela fila (`ctx.answer`); sem resposta na fila, abrem de verdade na tela. Fechar o app encerra o condutor.
 
@@ -104,13 +104,15 @@ Os dois podem rodar juntos. `PROVA_SKIP_BUILD=1` pula o build quando o código n
 | `sonda-caixas.mjs` | registra os contornos dos alvos durante a gravação |
 | `importar.mjs` | importa mídias pela janela de abrir |
 | `salvar.mjs` | salva o projeto aberto |
-| `acabamento.mjs` | animações na faixa da tela, apresentadora nos trechos, personagens, caixas, faixas e música |
-| `limpar-anotacoes.mjs` | tira os destaques, as caixas e os balões, para gerar de novo |
+| `aplicar.mjs` | faixas do zoom e das marcações, os comandos do `montar.py` e as peças `.edisvg` vinculadas |
+| `acabamento.mjs` | animações na faixa da tela, planos da apresentadora, personagens, regra de voz, faixas e música |
+| `revisao-final.mjs` | limpeza final, verificação antes de exportar e `relatorio.md` |
+| `limpar-anotacoes.mjs` | tira os destaques, as caixas, os balões e as peças da faixa "Marcações", para gerar de novo |
 | `empacotar.mjs` | empacota o projeto aberto |
 | `foto.mjs` | foto da janela |
 | `quadro.mjs` | quadro composto como a exportação desenha |
 | `ia.mjs` | chama uma ferramenta do EdiAula |
-| `exportar-svg.mjs` | no EdiSVG, abre um `.edisvg` e exporta o MP4 |
+| `exportar-svg.mjs` | no EdiSVG, abre um `.edisvg` e exporta o MP4 (só para conferir quadros) |
 
 ## Gravar uma parte
 
@@ -130,7 +132,9 @@ $S/parte.sh farol 3 2 empacotar  # "Parte 2 - Projeto EdiAula.zip" na pasta da p
 
 ## Editar uma parte
 
-A edição vai numa cópia do projeto gravado.
+A edição vai numa cópia do projeto gravado. As regras estão em [REGRAS.md](REGRAS.md), com o lugar em que cada uma é aplicada.
+
+Deixe os dois condutores abertos: o do EdiAula e o do EdiSVG. O EdiSVG do condutor gera o render de cada peça `.edisvg` vinculada. Sem ele, o clipe fica no lugar, esperando o render.
 
 **1. Decisões e cópia**
 
@@ -145,80 +149,108 @@ $S/parte.sh farol 3 2 copia      # "<projeto> · edição automática.ediaula"
 
 A frase de instrução que abre ou fecha um trecho ("Deixe esse espaço à vista", "Olha aqui") fica na tela.
 
-**3. Zoom e anotações**
+**3. Peças `.edisvg`.** As peças gráficas prontas ficam em `<parte>/pecas/`. O nome diz o papel e a ordem:
+
+| Arquivo | Lugar na aula |
+| --- | --- |
+| `capa[-<nome>].edisvg` | por cima dos primeiros 3 s |
+| `caixa-01-programacao.edisvg` | a 1ª caixa das categorias |
+| `destaque-03-bloco-se.edisvg` | o 3º destaque |
+| `balao-02-<nome>.edisvg` | o 2º balão |
+| `conceito-2-a-pergunta-certa.edisvg` | o 2º trecho de animação, no lugar da tela |
+| `secao-01-<nome>.edisvg`, `encerramento[-<nome>].edisvg` | à mão: o relatório lista |
+
+O que não vier em `.edisvg` é gerado pelo EdiAula no mesmo padrão e vai para a lista "criada sem .edisvg" do relatório.
+
+Animações de conceito que ainda não existem: uma cena por trecho, com `edicao/edisvg_cena.py`, como em `edicao/exemplos/farol-a3p2-conceitos.py`, salva em `<parte>/pecas/`.
+- **Blocos:** os blocos de verdade saem da gravação com `edicao/recortar.sh <gravação> <segundo da voz> quadro q.png`, para medir, e depois com as coordenadas.
+- **Validar:** confira com `edicao/validar_svg.py <pasta>`.
+- **Uma fonte por cena:** depois de vinculada, a cena é editada no EdiSVG. O script não reescreve um `.edisvg` que já existe (`AULA_REFAZER_CENAS=1` reescreve e apaga o que foi feito lá). Os ids saem do nome do arquivo, então reescrever mantém o vínculo.
+- **Nunca achatar:** a peça entra vinculada, não como MP4 ou PNG. O `exportar-svg.mjs` serve só para conferir quadros com o ffmpeg.
+
+**4. Zoom, marcações e peças**
 
 ```bash
 $S/parte.sh farol 3 2 montar '[[13.6,39.75],[100.0,106.6],[139.0,146.6],[175.8,206.1],[241.5,249.0]]'
 ```
 
-Saem `edicao/comandos.json` e `edicao/comandos-apresentadora.json`, que traz os intervalos em que a apresentadora aparece.
+Saem em `<parte>/edicao/`:
+- `comandos.json`: o zoom, as marcações e a capa, com as peças de `pecas/` no lugar das anotações geradas;
+- `comandos-apresentadora.json`: os intervalos em que a apresentadora aparece;
+- `comandos-revisar.json` e `comandos-pecas.json`: o que vai para o relatório.
 
-**4. Animações.** Uma cena por trecho, com `edicao/edisvg_cena.py`, como em `edicao/exemplos/farol-a3p2-conceitos.py`.
-- **Blocos:** os blocos de verdade saem da gravação com `edicao/recortar.sh <gravação> <segundo da voz> quadro q.png`, para medir, e depois com as coordenadas.
-- **Validar:** confira com `edicao/validar_svg.py <pasta>`.
-- **Exportar:** com o condutor do EdiSVG rodando:
-
-```bash
-$S/comando.sh --svg acao exportar-svg.mjs '{"svgArquivo": "<x>.edisvg", "svgSaida": "<x>.mp4"}'
-```
-
-- **Conferir:** extraia quadros do MP4 com o ffmpeg antes de pôr na aula.
-
-**5. No EdiAula**, com o condutor rodando:
+**5. No EdiAula**, com os condutores rodando:
 1. Abra a cópia: `acao abrir-projeto.mjs '{"arquivo": "<cópia>"}'`.
 2. Importe as mídias pela janela de abrir: `acao importar.mjs '{"arquivos": [...]}'`.
-   - as animações;
    - a música;
    - os vídeos dos personagens. O vídeo do HeyGen vem sem som: junte antes com o `.wav` usando ffmpeg.
-3. Ponha cada animação e cada personagem no seu segundo: `ia add_clip '{"media_id": "...", "at": 100.0}'`.
+3. Ponha cada personagem no seu segundo: `ia add_clip '{"media_id": "...", "at": 100.0}'`. Cada fala usa o seu clipe.
    - Recorte o personagem só na fala, sem o silêncio das pontas: `ia trim_clip '{"clip_id": "...", "start": 173.5, "end": 175.8, "revision": N}'`.
    - A revisão aparece no fim do `ia get_overview`.
-4. Aplique o zoom e as anotações: `edicao/aplicar.sh <parte>/edicao/comandos.json`.
-5. Capa por cima dos 3 primeiros segundos, sem empurrar a aula:
-
-```bash
-$S/comando.sh ia add_template '{"template": "opening", "over_lesson": true, "duration": 3, "fields": {"kicker": "AULA 3 · PARTE 2", "title": "<título>", "subtitle": "<curso>"}}'
-```
-
-6. Paleta "Sistema Zero": `set_palette` com `fonts` e `mode: "apply"`.
-7. Apresentadora:
-   - `set_crop` com esquerda, direita e topo 0,02 e base 0,45;
-   - `set_clip_layout` com x 0,857, y 1,0 e escala 1,58, do quadril para cima, sempre à direita.
+4. Aplique o zoom, as marcações, a capa e as peças: `$S/parte.sh farol 3 2 aplicar`.
+   - Cria as faixas "Zoom", logo acima da gravação, e "Marcações", acima do zoom.
+   - As peças entram por **Arquivo › Importar animação do EdiSVG…**, vinculadas: 2 cliques no clipe abrem a peça no EdiSVG.
+   - Rodar de novo não duplica a capa nem as peças.
+5. Paleta "Sistema Zero": `set_palette` com `fonts` e `mode: "apply"`.
 
 **6. Acabamento.** Ainda com o projeto aberto:
 
 ```bash
-$S/comando.sh acao acabamento.mjs "{\"projeto\": \"<cópia>.ediaula\", \"intervalos\": $(cat <parte>/edicao/comandos-apresentadora.json), \"musica\": \"Lighthouse\"}"
+$S/parte.sh farol 3 2 acabamento
 ```
 
 Cada passo é uma ferramenta do EdiAula e um passo de desfazer:
-- **`place_cutaway`:** as animações `conceito-*` passam para a faixa da tela, no lugar do trecho, com a transição de círculos coloridos nas duas pontas. O som da página perde o mesmo trecho.
-- **`keep_ranges`:** a apresentadora fica só nos intervalos, menos nas falas dos personagens.
-- **`set_volume`:** a voz da professora fica calada enquanto um personagem fala.
-- **`set_clip_layout`:** as caixas das categorias encostam na paleta.
-- **`move_track`:** as faixas ficam na ordem personagens, apresentadora, zoom e o resto. Assim o zoom amplia a tela e as anotações, nunca as pessoas.
+- **`place_cutaway`:** as animações de conceito (peças `conceito-*.edisvg` vinculadas, ou mídias `conceito-*`) passam para a faixa da tela, no lugar do trecho, com a transição de círculos coloridos nas duas pontas. O som da página perde o mesmo trecho.
+- **`set_crop` e `keep_ranges`:** a apresentadora com o recorte (esquerda, direita e topo 2%, base 45%), só nos intervalos, com dissolve.
+- **`split_clip` e `set_clip_layout`:** o plano de cada trecho da apresentadora:
+  - abertura;
+  - demonstração;
+  - animação de conceito, do começo ao fim dela;
+  - cartão de seção.
+- **`set_clip_layout`:** os personagens à esquerda, grandes, com dissolve.
+- **`set_voice_rule`:** "personagem silencia a professora" ligada. A voz e o avatar dela saem enquanto o personagem fala.
+- **`move_track`:** as faixas de baixo para cima: áudios, gravação, zoom, capa, marcações, apresentadora e personagens.
 - **`spread_music`:** a música é distribuída com sobreposição de 3 s, fade e volume 0,15, em duas faixas marcadas como música, que abaixam com a voz.
 
-Para refazer só as anotações:
-1. `acao limpar-anotacoes.mjs '{"projeto": "<cópia>.ediaula"}'`;
-2. `edicao/aplicar.sh comandos.json --sem-zoom`;
+O acabamento não repete o que já foi feito: as animações que já estão na faixa da tela ficam como estão.
+
+Para refazer só as marcações:
+1. `acao limpar-anotacoes.mjs '{"projeto": "<cópia>.ediaula"}'`, que tira também as peças vinculadas da faixa "Marcações";
+2. `$S/parte.sh farol 3 2 aplicar --sem-zoom`;
 3. o acabamento de novo.
 
-O acabamento não repete o que já foi feito: as caixas já reduzidas e as animações já na faixa da tela ficam como estão.
+**7. Limpeza final e relatório**
 
-**7. Conferir e empacotar.** Reabra a cópia e confira os quadros: `acao quadro.mjs '{"quadros": [0.05, 60, 102]}'`. Os pontos para olhar:
-- o primeiro quadro é a capa com a apresentadora;
+```bash
+$S/parte.sh farol 3 2 revisao
+```
+
+O que a revisão faz:
+- apaga os pedaços com menos de 3 quadros;
+- troca o "Quadro estendido" pela gravação quando ela continua no trecho;
+- confere os vínculos `.edisvg`;
+- remove as faixas vazias;
+- roda a verificação antes de exportar.
+
+O resultado vai para `<parte>/edicao/relatorio.md`:
+- as peças criadas sem `.edisvg`;
+- o que precisa de revisão humana;
+- os pontos da verificação;
+- as fotos de cada marcação durante o zoom, em `edicao/conferir/`, para conferir se cada uma cai no bloco certo.
+
+**8. Conferir e empacotar.** Reabra a cópia e confira os quadros: `acao quadro.mjs '{"quadros": [0.05, 60, 102]}'`. Os pontos para olhar:
+- o primeiro quadro é a capa com a apresentadora à direita;
 - o arrasto da paleta mostra a tela inteira;
 - o zoom entra depois que o bloco cai;
-- as caixas encostam na paleta;
-- os destaques estão alinhados;
-- as animações têm a apresentadora à direita.
+- as caixas encostam na paleta, 1 e depois 2;
+- os destaques caem no bloco certo;
+- as animações têm a apresentadora por cima, do começo ao fim.
 
 Depois empacote com `acao empacotar.mjs` e mova o .zip para a pasta da parte.
 
 ## Regras da edição (Helena, 16/11/2026)
 
-O `decisoes.py` e o `montar.py` aplicam estas regras:
+O `decisoes.py` e o `montar.py` aplicam estas regras. A revisão de 17/11/2026 está em [REGRAS.md](REGRAS.md) e vale sobre estas onde as duas falam do mesmo ponto: faixas, zoom, caixas, destaques, peças `.edisvg`, planos da apresentadora, personagens e limpeza final.
 
 **Apresentadora e tela**
 - **Conceito:** ensinar ou recapitular vira animação do EdiSVG com as artes da aula, didática para criança.
@@ -233,10 +265,10 @@ O `decisoes.py` e o `montar.py` aplicam estas regras:
 **Zoom e destaques**
 - **Zoom coerente:** o mesmo lugar fica ampliado, sem zoom-relâmpago.
 - **Arrasto da paleta:** enquanto a mão pega o bloco na gaveta e leva até o lugar, a tela fica inteira. O zoom entra quando o bloco cai.
-- **Destaque:** amarelo, no bloco mexido, quando o arrasto acaba.
+- **Destaque:** amarelo, no bloco mexido, quando o arrasto acaba. Bloco inteiro na primeira vez escurece o resto da tela; o encaixe vazio é azul (REGRAS.md).
 
 **Caixas, balões e transições**
-- **Caixas das categorias:** numeradas, pequenas, com a ponta na paleta. A última sai quando a gaveta abre, para não cobrir o bloco que vai ser pego.
+- **Caixas das categorias:** numeradas (1 = categoria, 2 = item), pequenas, com a ponta na paleta. A 1 sai quando a 2 entra; a 2 fica 1,5 s (REGRAS.md).
 - **Balões:** explicam os botões clicados.
 - **Transição:** círculos coloridos quando muda o contexto, como na entrada e na saída de uma animação.
 

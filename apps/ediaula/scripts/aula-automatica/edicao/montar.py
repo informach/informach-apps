@@ -6,12 +6,19 @@ Uso: montar.py <decisoes.json> <caixas.json> <saida.json> [--animacoes '[[ini, f
   caixas.json    contornos registrados na gravação (acoes/sonda-caixas.mjs, etapa "ler"); aceita a lista de
                  uma página ou o objeto {página: registros}, de onde usa a última página (a da gravação)
   --animacoes    trechos que viram animação do EdiSVG: sem zoom nem destaque por baixo, apresentadora à vista
-Escreve <saida.json> (comandos add_zoom e add_annotation) e <saida>-apresentadora.json.
-Regras da Helena (16/11/2026) e padrões medidos nos projetos do editor; ver README.md.
+Escreve <saida.json> (comandos add_zoom e add_annotation), <saida>-apresentadora.json e <saida>-revisar.json
+(o que precisa de olho humano). Regras da Helena (16/11/2026), a revisão das regras de edição (17/11/2026) e
+padrões medidos nos projetos do editor; ver README.md.
+
+Faixas: o zoom vai numa faixa só, logo acima da gravação ("$ZOOM"), e as marcações numa faixa só, acima do
+zoom ("$MARCACOES"); acoes/aplicar.mjs troca esses nomes pelas faixas da aula. Como ficam acima do zoom, as
+marcações não crescem com ele: cada uma sai já na tela ampliada, x' = (x - cx)*s + 0,5, y' = (y - cy)*s + 0,5,
+escala*s, com (s, cx, cy) o zoom ativo.
 """
 
 import argparse
 import json
+import re
 
 ap = argparse.ArgumentParser()
 ap.add_argument("decisoes")
@@ -28,7 +35,19 @@ if isinstance(caixas, dict):  # {página: registros}: a última página aberta �
 de, ate, saida = args.de, args.ate, args.saida
 ANIM = json.loads(args.animacoes)
 W, H = 1920, 1080
-AMARELO = "#FFD60A"
+AMARELO = "#FFD60A"  # contorno dos destaques
+AZUL = "#3D6BFF"  # destaque no encaixe vazio, antes do arrasto
+XP = "#FFC02E"  # caixas das categorias (amarelo XP)
+ESCURO = 0.5  # escurecimento do resto da tela no destaque de bloco inteiro
+EASE = 0.6  # o zoom leva isso para abrir e para fechar
+ZOOM_CURTO = 4.0  # zoom mais curto que isso, sem ação dentro, não ajuda a ler: sai
+PALETA = 232  # borda esquerda das caixas: a ponta cai nas linhas da paleta do Estúdio (x ~246 em 1920)
+CAIXA_ESCALA = 0.55  # caixas das categorias: 55% do tamanho padrão
+# Onde as pessoas ficam (px do quadro): a apresentadora no plano da demonstração (canto inferior direito,
+# só busto) e o personagem à esquerda, cortado na cintura. Nenhuma marcação cobre quem está à vista.
+AREA_AP_CAIXA = (1500, 560, W, H)
+AREA_PERS_CAIXA = (0, 300, 900, H)
+REVISAR = []  # o que precisa de olho humano (vai para <saida>-revisar.json e para o relatório final)
 
 # Contorno de cada gesto: o registro do palco na ordem dos verbos (os "afastar" são internos).
 regs = [c for c in caixas if not c["verbo"].startswith("afastar")]
@@ -75,6 +94,8 @@ def com_apresentadora(ini, fim):
 
 def zoom(ini, fim, caixa, nota, maxs=1.6):
     x0, y0, x1, y1 = caixa
+    if (x1 - x0) * (y1 - y0) > 0.45 * W * H:
+        return  # a professora mostra a tela inteira: sem zoom
     # Região livre: a tela inteira, ou só à esquerda da apresentadora quando ela está à vista.
     rx0, rx1 = (40, AREA_AP) if com_apresentadora(ini, fim) else (40, W - 40)
     w, h = max(x1 - x0, 80) * 1.25, max(y1 - y0, 60) * 1.3
@@ -88,16 +109,32 @@ def zoom(ini, fim, caixa, nota, maxs=1.6):
     if rx1 == AREA_AP and not dentro:
         CONFLITO.append([ini, fim])  # não cabe à esquerda dela: ela sai nesse trecho
     add("add_zoom", {"at": round(ini, 2), "duration": round(max(1.5, fim - ini), 2), "scale": s,
-                     "x": round(cxp / W, 4), "y": round(cyp / H, 4), "ease": 0.6}, nota)
+                     "x": round(cxp / W, 4), "y": round(cyp / H, 4), "ease": EASE, "track_id": "$ZOOM"}, nota)
 
 
-def destaque(t, dur, caixa, nota, pad=10):
+def destaque(t, dur, caixa, nota, pad=10, cor=AMARELO, escurecer=False, alvo=None):
+    """Contorno de 1,5 a 3 s. escurecer: bloco inteiro apresentado pela primeira vez (o resto da tela
+    escurece; só entra com o zoom já aberto). alvo: o que é destacado, para não repetir no mesmo bloco."""
     x0, y0, x1, y1 = caixa
     x0, y0, x1, y1 = max(0, x0 - pad), max(0, y0 - pad), min(W, x1 + pad), min(H, y1 + pad)
     cx, cy = centro((x0, y0, x1, y1))
-    add("add_annotation", {"kind": "highlight", "at": round(t, 2), "duration": round(dur, 2), "x": round(cx, 4),
-                           "y": round(cy, 4), "box_width": int(x1 - x0), "box_height": int(y1 - y0),
-                           "color": AMARELO}, nota)
+    entrada = {"kind": "highlight", "at": round(t, 2), "duration": round(min(3.0, max(1.5, dur)), 2),
+               "x": round(cx, 4), "y": round(cy, 4), "box_width": int(x1 - x0), "box_height": int(y1 - y0),
+               "color": cor}
+    if escurecer:
+        entrada["dim"] = ESCURO
+    add("add_annotation", entrada, nota)
+    cmds[-1]["papel"] = "destaque"
+    cmds[-1]["alvo"] = alvo or nota
+
+
+def nome_do_bloco(v):
+    """O bloco de um gesto: o primeiro nome entre aspas do verbo ('encaixar "Quando acontecer" em ...')."""
+    m = re.search(r'"([^"]+)"', v)
+    return m.group(1).strip().lower() if m else None
+
+
+apresentados = set()  # blocos que já ganharam o destaque com escurecimento
 
 
 # 2. Gestos do trecho: zoom acompanhando, destaque no bloco, balão no botão.
@@ -134,23 +171,29 @@ for gi, g in enumerate(gestos):
             add("add_annotation", {"kind": "balloon", "text": g["balao"], "at": round(ta - 0.6, 2), "duration": 2.0,
                                    "x": round(min(max(bx - 0.12, 0.12), 0.88), 4), "y": round(min(max(by + 0.12, 0.1), 0.9), 4),
                                    "tail": "top-right", "fill": AMARELO}, f"balão ({v})")
+            cmds[-1]["papel"] = "balao"
         continue
     if g["tipo"] == "categoria":
         # A paleta: um zoom só para as categorias abertas em seguida.
         pt = (g["x"], g["y"])
+        # O zoom fica aberto enquanto a caixa da categoria está à vista (1,5 s depois do clique).
         if grupo and grupo["tipo"] == "categoria" and t0 - grupo["fim"] < 2.5:
-            grupo["fim"] = t1 + 0.6
+            grupo["fim"] = max(t1 + 0.6, ta + 1.5 + EASE)
             grupo["pts"].append(pt)
         else:
-            grupo = {"tipo": "categoria", "ini": t0 - 0.3, "fim": t1 + 0.6, "pts": [pt]}
+            grupo = {"tipo": "categoria", "ini": t0 - 0.3, "fim": max(t1 + 0.6, ta + 1.5 + EASE), "pts": [pt]}
             cmds.append({"tool": "_zoom_categoria", "grupo": grupo})
         # Caixa amarela numerada (instrução), apontando a categoria que a fala manda abrir.
         nome = v[len("abrir categoria "):]
         n = len(grupo["pts"])
-        add("add_annotation", {"kind": "box", "text": nome, "badge": str(n), "pointer": "left",
-                               "at": round(ta - 0.25, 2), "duration": round(max(1.6, grupo["fim"] - ta + 0.4), 2),
-                               "x": 0.2, "y": round(pt[1] / H, 4), "color": "#FFC02E"},
+        # 1 = a categoria, 2 = o item dentro dela. Entra no clique; a ponta encosta na paleta (a borda esquerda
+        # da caixa em PALETA, acertada pelo aplicar.mjs com a largura de verdade).
+        add("add_annotation", {"kind": "box", "text": nome, "badge": str(min(n, 2)), "pointer": "left",
+                               "at": round(ta, 2), "duration": 1.5,
+                               "x": 0.2, "y": round(pt[1] / H, 4), "color": XP, "scale": CAIXA_ESCALA},
             f"caixa numerada ({nome})")
+        cmds[-1]["papel"] = "caixa"
+        cmds[-1]["ancora_esquerda"] = round(PALETA / W, 4)
         continue
     # Blocos: destaque no bloco do gesto (o que caiu, depois de um arrasto) e zoom nele.
     caixa = None
@@ -173,13 +216,15 @@ for gi, g in enumerate(gestos):
             caixa_esp = [queda[0], queda[1], queda[0] + min(queda[2] - queda[0], 460), queda[1] + 72]
         else:
             caixa_esp = [x - 30, y - 22, x + 230, y + 22]
-        destaque(ta - 0.4, max(2.0, t1 - ta + 1.5), caixa_esp, f"destaque no espaço ({v[:40]})", pad=4)
+        destaque(ta - 0.4, max(2.0, t1 - ta + 1.5), caixa_esp, f"destaque no espaço ({v[:40]})", pad=4, cor=AZUL,
+                 alvo=f"espaço {round(caixa_esp[0], -1)},{round(caixa_esp[1], -1)}")
         if caixa:
             zoom(t0 - 0.3, t1 + 1.2, [min(caixa[0], caixa_esp[0]), min(caixa[1], caixa_esp[1]), max(caixa[2], caixa_esp[2]), max(caixa[3], caixa_esp[3])], f"zoom ({v[:40]})")
         grupo = None
         continue
     if campo and v.startswith("abrir campo"):
-        destaque(ta - 0.3, 1.6, campo, f"destaque no campo ({v[:40]})", pad=6)
+        # Campo pequeno dentro do bloco (menu de escolha, valor, texto, variável): sem escurecer.
+        destaque(ta - 0.3, 1.6, campo, f"destaque no campo ({v[:40]})", pad=6, alvo=f"campo {v}")
         continue
     if v.startswith("escolher"):
         # A lista que abre entra no enquadramento do zoom do bloco (o item escolhido não fica cortado).
@@ -208,7 +253,7 @@ for gi, g in enumerate(gestos):
             # O que vai para a lixeira (a pergunta inteira, que a mão segura pelo sinal): destacado antes
             # de a mão pegar; depois ele sai da tela.
             pega = next((r["bloco"] for r in regs_g if r["k"] == "alvo" and r.get("bloco")), caixa)
-            destaque(t0 - 1.3, 1.3, pega, f"destaque no bloco ({v[:40]})")
+            destaque(t0 - 1.5, 1.5, pega, f"destaque no bloco ({v[:40]})", alvo=nome_do_bloco(v))
             continue
         if v.startswith(("apontar mais de", 'abrir "senão')):
             # O sinal de mais e a palavra ao lado, não o bloco inteiro.
@@ -216,9 +261,17 @@ for gi, g in enumerate(gestos):
             if alvo:
                 largura = 98 if "senão se" in v else 66
                 destaque(ta - 0.3, max(1.8, t1 - ta + 1.2), [alvo[0] - 8, alvo[1] - 10, alvo[2] + largura, alvo[3] + 10],
-                         f"destaque no sinal ({v[:40]})", pad=2)
+                         f"destaque no sinal ({v[:40]})", pad=2, alvo=f"sinal {v}")
                 continue
-        destaque(t1 + 0.1 if arrasto else ta - 0.3, 2.4 if arrasto else max(2.2, t1 - ta + 1.2), caixa, f"destaque no bloco ({v[:40]})")
+        # Bloco inteiro (ou conjunto de blocos) apresentado pela primeira vez: o resto da tela escurece. Depois,
+        # o mesmo bloco ganha só o contorno.
+        bloco = nome_do_bloco(v)
+        primeira = bloco is not None and bloco not in apresentados and v.startswith(
+            ("encaixar", "soltar", "apontar bloco", "mostrar blocos", "arrastar até"))
+        if bloco:
+            apresentados.add(bloco)
+        destaque(t1 + 0.1 if arrasto else ta - 0.3, 2.4 if arrasto else max(2.2, t1 - ta + 1.2), caixa,
+                 f"destaque no bloco ({v[:40]})", escurecer=primeira, alvo=bloco)
 
 # Zooms agrupados, agora com o fim de cada grupo conhecido.
 final = []
@@ -227,13 +280,16 @@ for c in cmds:
         gz = c["grupo"]
         n = len(cmds)
         zoom(gz["ini"], gz["fim"], gz["caixa"], "zoom no bloco")
-        final.append(cmds.pop())
+        if len(cmds) > n:
+            final.append(cmds.pop())
     elif c["tool"] == "_zoom_categoria":
         gz = c["grupo"]
         xs = [p[0] for p in gz["pts"]]
         ys = [p[1] for p in gz["pts"]]
+        n = len(cmds)
         zoom(gz["ini"], gz["fim"], [20, min(ys) - 60, max(xs) + 260, max(ys) + 60], "zoom nas categorias")
-        final.append(cmds.pop())
+        if len(cmds) > n:
+            final.append(cmds.pop())
     elif not c["tool"].startswith("_"):
         final.append(c)
 # Zooms sem sobrepor (zoom sobre zoom amplia duas vezes): o mesmo lugar junta, outro lugar corta o anterior.
@@ -277,14 +333,23 @@ def recorta(zooms, buracos):
         for p0, p1 in pedacos:
             saida_z.append({**z, "input": {**z["input"], "at": round(p0, 2), "duration": round(p1 - p0, 2)}})
     return saida_z
+# A caixa da categoria fica 1,5 s à vista na tela ampliada: o arrasto que sai da gaveta logo depois só abre a
+# tela quando ela sai.
+caixas_at = [c["input"]["at"] for c in final if c["input"].get("kind") == "box"]
+ARRASTOS = [(max([b0] + [a + 1.5 + EASE for a in caixas_at if b0 - 3.0 < a < b0]), b1) for b0, b1 in ARRASTOS]
+ARRASTOS = [(b0, b1) for b0, b1 in ARRASTOS if b1 > b0]
 zs2 = recorta([c for c in final if c["tool"] == "add_zoom"], ARRASTOS + [(a, b) for a, b in ANIM])
 final = sorted([c for c in final if c["tool"] != "add_zoom"] + zs2, key=lambda c: c["input"].get("at", 0))
-# Zoom curto (menos de 2,2 s): junta ao seguinte do mesmo lugar se vier logo; sozinho, sai (zoom-relâmpago).
+# Zoom curto: menos de 2,2 s junta ao seguinte do mesmo lugar se vier logo, senão sai (zoom-relâmpago); menos
+# de ZOOM_CURTO sem nenhum clique, escolha ou arrasto dentro também sai (não ajuda a ler).
+ACOES = [g["acao"] for g in gestos if not g["verbo"].startswith(("apontar", "organizar"))]
 zs3 = sorted((c for c in final if c["tool"] == "add_zoom"), key=lambda c: c["input"]["at"])
 manter = []
 for k, z in enumerate(zs3):
     i = z["input"]
-    if i["duration"] >= 2.2:
+    # A ação de um zoom pode vir logo antes dele (o bloco caiu e o zoom entra): 1,5 s antes contam.
+    com_acao = any(i["at"] - 1.5 <= t <= i["at"] + i["duration"] for t in ACOES)
+    if i["duration"] >= ZOOM_CURTO or (i["duration"] >= 2.2 and com_acao):
         manter.append(z)
         continue
     prox = zs3[k + 1]["input"] if k + 1 < len(zs3) else None
@@ -293,16 +358,16 @@ for k, z in enumerate(zs3):
         prox["at"] = i["at"]
         prox["duration"] = round(fim - i["at"], 2)
 final = sorted([c for c in final if c["tool"] != "add_zoom"] + manter, key=lambda c: c["input"].get("at", 0))
+# Caixas das categorias: entram no clique; a 1 termina exatamente quando a 2 entra (nunca as duas juntas) e a
+# 2 (ou a que vem sozinha) fica 1,5 s.
 caixas_cat = sorted((c for c in final if c["input"].get("kind") == "box"), key=lambda c: c["input"]["at"])
 for k, c in enumerate(caixas_cat):
     i = c["input"]
-    clique = i["at"] + 0.25
-    i["at"] = round(max(clique - 1.0, i["at"] - 0.75), 2)
     prox = caixas_cat[k + 1]["input"] if k + 1 < len(caixas_cat) else None
-    if prox and prox["at"] + 0.25 - clique < 3.0:
-        i["duration"] = round(prox["at"] + 0.25 - i["at"], 2)  # até o clique seguinte
+    if prox and prox["at"] - i["at"] < 3.0:
+        i["duration"] = round(max(0.5, prox["at"] - i["at"]), 2)
     else:
-        i["duration"] = round(clique + 0.6 - i["at"], 2)  # a gaveta abre: sai
+        i["duration"] = 1.5
 # Nada por cima da animação (destaques e caixas que começam nela saem; os que entram nela acabam antes).
 final = [c for c in final if not any(a - 0.05 <= c["input"].get("at", -9) < b for a, b in ANIM)]
 for c in final:
@@ -310,6 +375,112 @@ for c in final:
     for a, b in ANIM:
         if i["at"] < a < i["at"] + i["duration"]:
             i["duration"] = round(max(0.5, a - i["at"]), 2)
+
+# Marcações acima do zoom: cada uma dentro de um estado só do zoom (nunca entra antes de ele terminar de abrir,
+# nem fica quando ele começa a fechar) e na posição da tela ampliada.
+ZOOMS = sorted((c["input"] for c in final if c["tool"] == "add_zoom"), key=lambda z: z["at"])
+MARCA = [c for c in final if c["tool"] == "add_annotation"]
+
+
+def zoom_em(t):
+    return next((z for z in ZOOMS if z["at"] <= t < z["at"] + z["duration"]), None)
+
+
+def na_tela_ampliada(c, z):
+    """(s, cx, cy) aplicado à marcação c: posição, contorno e escala."""
+    i = c["input"]
+    s_, cx, cy = z["scale"], z["x"], z["y"]
+    i["x"] = round((i["x"] - cx) * s_ + 0.5, 4)
+    i["y"] = round((i["y"] - cy) * s_ + 0.5, 4)
+    for k in ("box_width", "box_height"):
+        if k in i:
+            i[k] = int(round(i[k] * s_))
+    if i["kind"] != "highlight":
+        i["scale"] = round(i.get("scale", 1) * s_, 4)
+    if "ancora_esquerda" in c:
+        c["ancora_esquerda"] = round((c["ancora_esquerda"] - cx) * s_ + 0.5, 4)
+    c["zoom"] = [s_, cx, cy]
+
+
+saem = []
+for c in MARCA:
+    i = c["input"]
+    ini, fim = i["at"], i["at"] + i["duration"]
+    z = zoom_em(ini + 0.01) or zoom_em(ini + EASE)
+    if z:
+        aberto, fechando = z["at"] + EASE, z["at"] + z["duration"] - EASE
+        ini, fim = max(ini, aberto), min(fim, fechando)
+    else:
+        # Sem zoom: termina antes de um zoom que comece no meio dela.
+        seguinte = next((x for x in ZOOMS if ini < x["at"] < fim), None)
+        if seguinte:
+            fim = seguinte["at"]
+    if fim - ini < 0.8:
+        saem.append(c)
+        REVISAR.append(f"{c['input']['at']:.1f}s: {c['nota']} saiu (não cabe num estado só do zoom)")
+        continue
+    i["at"], i["duration"] = round(ini, 2), round(fim - ini, 2)
+    if z:
+        na_tela_ampliada(c, z)
+final = [c for c in final if c not in saem]
+MARCA = sorted((c for c in final if c["tool"] == "add_annotation"), key=lambda c: c["input"]["at"])
+
+# Mesmo bloco destacado de novo em menos de 2 s: estende o anterior em vez de repetir.
+repetidos = []
+for k, c in enumerate(MARCA):
+    if c.get("papel") != "destaque" or c in repetidos:
+        continue
+    i = c["input"]
+    for d in MARCA[k + 1:]:
+        j = d["input"]
+        if j["at"] - (i["at"] + i["duration"]) >= 2.0:
+            break
+        if d.get("papel") == "destaque" and d.get("alvo") == c.get("alvo") and c.get("zoom") == d.get("zoom"):
+            i["duration"] = round(max(i["at"] + i["duration"], j["at"] + j["duration"]) - i["at"], 2)
+            repetidos.append(d)
+final = [c for c in final if c not in repetidos]
+MARCA = [c for c in MARCA if c not in repetidos]
+
+# Uma faixa só para as marcações: nunca duas ao mesmo tempo; a anterior termina exatamente quando a seguinte
+# começa (a que sobraria com menos de 0,5 s sai).
+curtas = []
+for a, b in zip(MARCA, MARCA[1:]):
+    i, j = a["input"], b["input"]
+    if i["at"] + i["duration"] > j["at"]:
+        if j["at"] - i["at"] < 0.5:
+            curtas.append(a)
+            REVISAR.append(f"{i['at']:.1f}s: {a['nota']} saiu (sobreposta por {b['nota']})")
+        else:
+            i["duration"] = round(j["at"] - i["at"], 2)
+final = [c for c in final if c not in curtas]
+for c in final:
+    if c["tool"] == "add_annotation":
+        c["input"]["track_id"] = "$MARCACOES"
+
+
+def caixa_na_tela(i):
+    """Contorno aproximado da marcação em px do quadro (o destaque tem o tamanho; as outras, um palpite)."""
+    w = i.get("box_width", 420 * i.get("scale", 1))
+    h = i.get("box_height", 140 * i.get("scale", 1))
+    x, y = i["x"] * W, i["y"] * H
+    return (x - w / 2, y - h / 2, x + w / 2, y + h / 2)
+
+
+def cobre(a, b):
+    return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+
+# Nenhuma marcação cobre a apresentadora (ela sai nesse trecho) nem o personagem que está falando (revisar).
+for c in final:
+    if c["tool"] != "add_annotation":
+        continue
+    i = c["input"]
+    ini, fim = i["at"], i["at"] + i["duration"]
+    if com_apresentadora(ini, fim) and cobre(caixa_na_tela(i), AREA_AP_CAIXA):
+        CONFLITO.append([ini - 0.3, fim + 0.3])
+    for x in dec["insercoes"]:
+        if x["ini"] < fim and ini < x["fim"] and cobre(caixa_na_tela(i), AREA_PERS_CAIXA):
+            REVISAR.append(f"{ini:.1f}s: {c['nota']} cobre {x['personagem']} falando")
 
 # Explicação sem zoom sobre o que fica atrás da apresentadora (o jogo, à direita): ela sai.
 for g in gestos:
@@ -345,7 +516,10 @@ apresentadora = [[round(a, 2), round(b, 2)] for a, b in junt if b - a >= 2.0 or 
 json.dump(apresentadora, open(saida.replace(".json", "-apresentadora.json"), "w"), ensure_ascii=False)
 print("apresentadora:", apresentadora, "| conflitos:", [[round(a, 1), round(b, 1)] for a, b in CONFLITO])
 json.dump(final, open(saida, "w", encoding="utf8"), ensure_ascii=False, indent=1)
+json.dump(REVISAR, open(saida.replace(".json", "-revisar.json"), "w", encoding="utf8"), ensure_ascii=False, indent=1)
 for c in final:
     i = c["input"]
     print(f"{i.get('at', 0):6.1f} {c['tool']:15s} {i.get('kind', ''):10s} {c['nota']}")
 print(len(final), "comandos")
+for r in REVISAR:
+    print("revisar:", r)

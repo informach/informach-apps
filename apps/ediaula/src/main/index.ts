@@ -20,7 +20,7 @@ import {
   rangeHeaders,
   rangeNotSatisfiable,
 } from "@informach/edi-desktop/media-range";
-import { assetLinkSchema } from "@informach/edi-link/contract";
+import { assetLinkSchema, REQUESTS_FOLDER } from "@informach/edi-link/contract";
 import { canOpenTool, launchEnvironment, openTool, toolLauncher } from "@informach/edi-link/launch";
 import { requestsDir, writeRequest } from "@informach/edi-link/node";
 import {
@@ -717,7 +717,13 @@ function registerIpc(): void {
   // The link with EdiSVG (packages/edi-link, edisvgLink.ts): a request left in EdiSVG's profile
   // and EdiSVG opened (or brought to the front); the renders of the linked projects watched,
   // each render granted for reading as the lesson takes it.
-  const edisvgRequests = () => requestsDir(app.getPath("appData"), "edisvg");
+  // A development build can name the EdiSVG profile that takes the requests (the automated lesson
+  // flow runs both tools on profiles of their own: apps/ediaula/scripts/aula-automatica).
+  const edisvgProfile = !app.isPackaged ? process.env.EDIAULA_EDISVG_USER_DATA : undefined;
+  const edisvgRequests = () =>
+    edisvgProfile
+      ? join(edisvgProfile, REQUESTS_FOLDER)
+      : requestsDir(app.getPath("appData"), "edisvg");
   const openEdisvg = async (): Promise<boolean> =>
     canOpenTool(app.isPackaged, app.getPath("userData"), app.getPath("appData"), "ediaula") &&
     (await openTool({

@@ -1207,6 +1207,9 @@ export function naturalTransform(
   return { ...DEFAULT_TRANSFORM, x, y, scale: 1 / (OVERSAMPLE * fit) };
 }
 
+const scaledBy = (t: Transform, factor: number): Transform =>
+  factor === 1 ? t : { ...t, scale: t.scale * factor };
+
 /** A free video track above everything shown during [start, end], or a new one on top. */
 export function overlayTrack(
   p: Project,
@@ -1243,6 +1246,8 @@ export interface AddOptions {
   duration?: number;
   x?: number;
   y?: number;
+  /** Size as a multiple of the natural one (1 = as the panel draws it). */
+  scale?: number;
   enter?: Motion;
   exit?: Motion;
 }
@@ -1302,11 +1307,14 @@ export async function addAnnotation(
       duration,
       volume: 1,
       annotation: { ...spec, balloonGeometry: r.balloon },
-      transform: naturalTransform(
-        r,
-        q.settings,
-        opts.x ?? (kind === "lowerthird" ? 0.06 + r.width / 2 / 2 / q.settings.width : 0.5),
-        opts.y ?? (kind === "title" ? 0.2 : kind === "lowerthird" ? 0.68 : 0.42),
+      transform: scaledBy(
+        naturalTransform(
+          r,
+          q.settings,
+          opts.x ?? (kind === "lowerthird" ? 0.06 + r.width / 2 / 2 / q.settings.width : 0.5),
+          opts.y ?? (kind === "title" ? 0.2 : kind === "lowerthird" ? 0.68 : 0.42),
+        ),
+        opts.scale ?? 1,
       ),
       fadeIn: ANNOTATION_MOTION.enter,
       fadeOut: ANNOTATION_MOTION.exit,
