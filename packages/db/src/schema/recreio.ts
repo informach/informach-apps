@@ -247,9 +247,28 @@ export const recreioGameTickets = recreio.table(
     issuedAt: time("issued_at"),
     expiresAt: moment("expires_at").notNull(),
     consumedAt: moment("consumed_at"),
+    /** Prova opaca do pedido, somente hash; permite recuperar a mesma resposta. */
+    exchangeKeyHash: text("exchange_key_hash"),
+    openedSessionId: uuid("opened_session_id"),
   },
   (t) => [
     index("recreio_game_tickets_expires").on(t.expiresAt),
+    foreignKey({
+      name: "recreio_ticket_opened_session_profile",
+      columns: [t.openedSessionId, t.profileId],
+      foreignColumns: [recreioGameSessions.id, recreioGameSessions.profileId],
+    }).onDelete("cascade"),
+    uniqueIndex("recreio_ticket_opened_session")
+      .on(t.openedSessionId)
+      .where(sql`${t.openedSessionId} is not null`),
+    check(
+      "recreio_ticket_opened_receipt",
+      sql`${t.openedSessionId} is null or ${t.consumedAt} is not null`,
+    ),
+    check(
+      "recreio_ticket_exchange_key",
+      sql`${t.exchangeKeyHash} is null or (${t.consumedAt} is not null and ${t.openedSessionId} is not null and ${t.exchangeKeyHash} ~ '^[0-9a-f]{64}$')`,
+    ),
     index("recreio_game_tickets_pending_profile")
       .on(t.profileId, t.expiresAt)
       .where(sql`${t.consumedAt} is null`),

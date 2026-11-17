@@ -780,6 +780,7 @@ export default defineRailway((ctx) => {
       SENDGRID_API_KEY: cozya.env.SENDGRID_API_KEY,
       RECREIO_ACCESS_MODE: "fechado",
       RECREIO_FAMILY_MODE: "off",
+      RECREIO_CHECKPOINT_MODE: "off",
       RECREIO_JOGO_DE_TESTE: "0",
       RECREIO_GAME_ORIGINS: JSON.stringify({
         morada: {

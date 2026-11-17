@@ -48,6 +48,11 @@ export type PoliticaDoPerfil = z.infer<typeof PoliticaDoPerfilSchema>;
 
 export const TrocaDeIngressoSchema = z.strictObject({
   ingresso: z.string().min(1),
+  /** Prova para recuperar a mesma abertura; nunca reabre ou renova outro SID. */
+  chaveDeTroca: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{43}$/)
+    .optional(),
   /** Encerra a sessão aberta em outro aparelho e continua aqui. */
   continuarAqui: z.boolean().optional(),
 });

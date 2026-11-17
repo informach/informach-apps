@@ -97,6 +97,23 @@ em 36 arquivos. O CI compartilhado dessa fonte é substituído pela rodada do
 incremento seguinte, que altera o SDK; não apresentar a rodada cancelada como
 aprovação compartilhada. A 0175 continua fora da produção.
 
+### Recuperação de uma abertura sem repetir o consumo
+
+Antes do escritor de troca, preparar o recibo da abertura: vínculo exato do
+ingresso consumido ao SID criado e hash de uma prova aleatória de 256 bits
+gerada pelo SDK. A prova não é token da sessão nem chave de conta; não vai em
+URL, DOM, auditoria ou logs. Uma resposta perdida só pode recuperar a mesma
+abertura com essa prova, autoridade atual e SID ainda válido. Não amplia prazo
+nem consome tempo duas vezes. Ingresso sem prova conserva o uso único anterior.
+Não inferir SID por perfil, data ou "última sessão".
+
+Os leitores/colunas e a aceitação opcional do campo chegam antes do SDK que o
+envia e do escritor que o confirma. `RECREIO_CHECKPOINT_MODE=off` é o padrão
+da preparação; a ativação exige leitores e jornadas comprovados. O modo
+desligado não deve permitir tomar uma partida ativa sem checkpoint: deve pedir
+salvar e sair no aparelho anterior. A implementação dessa troca ainda está
+pendente; a configuração sozinha não cumpre esse contrato.
+
 ## Consulta de controle em implementação
 
 `GET /api/sdk/v1/sessao/controle` e `sessao.controle()` usam o token atual do
