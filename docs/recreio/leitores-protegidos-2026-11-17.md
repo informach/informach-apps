@@ -1,5 +1,11 @@
 # Leitores de restrições antes de habilitar famílias
 
+**Implantado em `ad37ca93` em 17/11**, com `RECREIO_FAMILY_MODE=off`.
+[Evidência sanitizada](evidencias/leitores-protegidos-producao-2026-11-17.json).
+Migrations 0168–0174 aplicadas antes do portal: 175 recibos e hash da última
+conferidos. Restauração lógica atual concluída em destino isolado antes da
+publicação. A 0175 de checkpoint permanece em candidata separada.
+
 Publicação intermediária do fechamento do Recreio, com novos fluxos familiares
 desligados. A preparação `55dd8da`/`7753bdc` passou nos seis gates, mas a revisão
 exigiu incluir a assinatura transacional e a invalidação dos ingressos antes
@@ -11,8 +17,8 @@ correções. O Morada permanece World2/protocolo1, sem mudança no jogo, arte ou
 - Migrations geradas 0168–0174: identidade composta, cadastro declarado,
   proteção/PIN/pareamento, `minor_context_generation`, política/tempo e índices
   de invalidação. Conferências de origem e hashes estão nos registros de
-  cadastro, proteção, F3 e revogação. A produção continua na 0167 até conferir
-  backup, gates e executar esta implantação.
+  cadastro, proteção, F3 e revogação. A produção está na 0174, com os novos
+  escritores familiares desligados.
 - `RECREIO_FAMILY_MODE=off` é o padrão e o valor da IaC. Bloqueia novos
   cadastros, pareamentos e entrada em perfil infantil por PIN; não bloqueia
   retorno ao adulto/gestão, revogação e saída. `setup` prepara os vínculos;
@@ -30,7 +36,12 @@ O CI compartilhado `44013449254` da base passou. A verificação da emissão
 [revogação incompleta de ingressos](ingressos-revogacao-2026-11-17.md), que precisa
 da prova verde. `6b5878b` entrou em seis gates e no CI compartilhado
 `44022924176`; um ajuste adicional fecha também a sessão nativa que esteja no
-contexto infantil revogado. Nenhuma dessas candidatas foi implantada ainda.
+contexto infantil revogado. A fonte final `ad37ca93` passou nos seis gates
+`44029479872`, com 439 integrações em 35 arquivos, incluindo as negativas
+intactas de ingressos e mundos. O CI compartilhado `44022924176` passou em
+`6b5878b`; pacotes, lockfile e IaC permanecem idênticos até `ad37ca93`, e o delta
+do app foi coberto pelos seis gates finais. A fonte foi integrada à main sem
+diferença em jogo, simulação, arte ou servidor do Morada.
 
 ## Implantação e retorno
 
@@ -43,7 +54,14 @@ contexto infantil revogado. Nenhuma dessas candidatas foi implantada ainda.
    usada para retorno; desligar fluxos não apaga essa restrição.
 4. Habilitar preparação/jogo somente com os aceites dos incrementos seguintes.
 
-Inclui os modelos e o kernel de política/tempo já implementados, com novos
-escritores desligados. Não inclui ativação infantil, seleção pública/estante
-protegida, troca com checkpoint, social/moderação, cobrança e privacidade
-integral. Não representa conclusão do plano.
+Inclui modelos, kernel de política/tempo, seleção por PIN e estante protegida,
+com novos escritores familiares desligados. Não inclui ativação infantil,
+troca com checkpoint, social/moderação, cobrança e privacidade integral.
+Não representa conclusão do plano.
+
+Conferido em produção às 06:35 UTC: fonte efetiva `ad37ca93`, modo `off`, jogo
+interno `0`, nenhum menor/pareado/contexto restrito. Portal e Morada com ready
+200; SDK sem token, 401. Manutenção autenticada respondeu 200 com dez contagens.
+Sentry confirmou a release e o build confirmou upload dos mapas. O migrator
+executou migrações sem seeds comerciais, voltou a seguir a main e teve o
+comando original restaurado, sem nova execução dessas seeds.
