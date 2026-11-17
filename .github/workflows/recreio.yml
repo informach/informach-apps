@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gate: [quality, integration, e2e, checkpoint, cliente, longa, versoes]
+        gate: [quality, integration, e2e, checkpoint, cliente, longa, versoes, equipe]
     services:
       postgres:
         image: postgres:18-alpine
@@ -106,10 +106,12 @@ jobs:
           path: ${{ runner.temp }}/morada-processo.json
           if-no-files-found: warn
           retention-days: 30
-      - if: matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint'
+      - if: matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe'
         run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
       - if: matrix.gate == 'e2e'
         run: pnpm --filter @informach/recreio-app e2e
+      - if: matrix.gate == 'equipe'
+        run: pnpm --filter @informach/recreio-app e2e:equipe
       - if: matrix.gate == 'checkpoint'
         run: pnpm --filter @informach/recreio-app e2e --config playwright.checkpoint.config.ts
         env:
@@ -133,7 +135,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - name: Preserve synthetic browser failure evidence
-        if: failure() && (matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint')
+        if: failure() && (matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe')
         uses: actions/upload-artifact@v4
         with:
           name: recreio-${{ matrix.gate }}-${{ github.run_attempt }}
@@ -180,6 +182,14 @@ jobs:
             apps/recreio/tmp/telas/host-social-mobile-cuidados.png
             apps/recreio/tmp/telas/host-controle-morada-mobile.png
             apps/recreio/tmp/telas/host-social-morada-mobile.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve synthetic staff queue screen
+        if: always() && matrix.gate == 'equipe'
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-equipe-tela-${{ github.run_attempt }}
+          path: apps/recreio/tmp/telas/equipe-seguranca-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic color evidence

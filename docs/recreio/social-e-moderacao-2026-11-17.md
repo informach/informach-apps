@@ -686,6 +686,16 @@ PostgreSQL devolve minúsculas; repetição HTTP com UUID maiúsculo deve recupe
 o mesmo recibo. Identificadores textuais da autenticação não mudam. Estas
 alterações ainda precisam dos gates remotos; não foram ativadas em produção.
 
+O gate dedicado `equipe` prepara portal compilado e Bastidores em modo de
+desenvolvimento local, com banco descartável, segredos efêmeros e e-mail em
+arquivo. Não altera validações de produção. Só o papel inicial da conta é
+fixture; senha, confirmação do e-mail para ativação, chave exibida, TOTP,
+saída e nova entrada com desafio são reais. A jornada consulta a fila sem
+nomes, exige confirmação do efeito, suspende o alvo, inicia/conclui a análise
+com recibo de medida e confere a resposta da pessoa e os dois rastros de cada
+comando. O build de produção do Bastidores e a prova operacional continuam
+gates separados. Esta jornada ainda é candidata, não evidência aprovada.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.
