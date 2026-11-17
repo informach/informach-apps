@@ -29,8 +29,9 @@ export function ListaDeMundos({ mundos, jogarEm }: { mundos: ResumoDeMundo[]; jo
           <span className="mt-auto pt-2 text-sm text-tinta-suave">
             {rotuloDoPapel(mundo.papel)}, {contagemDeMembros(mundo.membros)}
             {mundo.abertoAgora ? ", aberto agora" : ""}
+            {mundo.estado === "archived" ? ", arquivado" : ""}
           </span>
-          {jogarEm !== undefined && (
+          {jogarEm !== undefined && ["active", "hibernating"].includes(mundo.estado) && (
             <div className="mt-3">
               {/* Um `<a>` comum, não o `Link`: a página do jogo tem política de
                   segurança própria, e ela só vale num documento carregado do zero. */}

@@ -10,11 +10,13 @@ import {
 } from "@informach/db/schema";
 import { expect, it } from "vitest";
 import { administrarMundo } from "@/features/mundos/administracao";
+import { painelDeAdministracaoDoMundo } from "@/features/mundos/administracao-painel-repository";
 import type { AutorDaResponsabilidade } from "@/features/mundos/gestao-repository";
 import { painelDeMembros } from "@/features/mundos/remocao";
 import { painelDaResponsabilidade, proporTransferencia } from "@/features/mundos/responsabilidade";
 import { sairDoMundo } from "@/features/mundos/saida";
 import { aceitarConvite, criarConvite } from "@/features/mundos/service";
+import { revogar } from "../scripts/concessoes";
 import { aposentarInstancias, eventosCom, type Jogador, novoJogador, sinal } from "./apoio";
 import { abrirPelaRota, entrarNoJogo, mundoDe, novaInstancia } from "./jogo-apoio";
 import { pedir } from "./rotas";
@@ -49,6 +51,40 @@ async function cenario() {
 }
 const mundoAtual = async (id: string) =>
   (await db.select().from(spaces).where(eq(spaces.id, id)))[0];
+
+it("leitura e gestão nativa não dependem de cobertura nem expõem uma participação alheia", async () => {
+  const c = await cenario(),
+    alheio = await novoJogador({ comAcesso: false });
+  await revogar({ email: c.a.conta.email, motivo: "teste_integracao" });
+  await expect(painelDeAdministracaoDoMundo(c.autor, c.mundoId)).resolves.toMatchObject({
+    podeAlterar: true,
+    revisao: 1,
+  });
+  await expect(painelDeAdministracaoDoMundo(await autor(alheio), c.mundoId)).rejects.toMatchObject({
+    code: "MUNDO",
+  });
+  await expect(painelDeAdministracaoDoMundo(c.outroAutor, c.mundoId)).rejects.toMatchObject({
+    code: "RESPONSAVEL",
+  });
+  expect(
+    await administrarMundo(c.autor, {
+      mundoId: c.mundoId,
+      versaoDaGestao: 1,
+      operacao: "convites",
+      membrosConvidam: "no",
+    }),
+  ).toEqual({ alterou: true, revisao: 2 });
+  const antigo = {
+    ...c.autor,
+    login: { ...c.autor.login, criadoEm: new Date(Date.now() - 11 * 60000) },
+  };
+  await expect(painelDeAdministracaoDoMundo(antigo, c.mundoId)).resolves.toMatchObject({
+    revisao: 2,
+  });
+  await expect(
+    administrarMundo(antigo, { mundoId: c.mundoId, versaoDaGestao: 2, operacao: "arquivar" }),
+  ).rejects.toMatchObject({ code: "LOGIN_RECENTE" });
+});
 
 it.each(["membros", "responsabilidade", "saida", "transferencia"] as const)(
   "%s espera o mundo sem conservar a trava invertida do perfil",

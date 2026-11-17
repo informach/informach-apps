@@ -75,6 +75,14 @@ export default async function Participacoes({
                   Gerenciar membros
                 </Link>
               ) : null}
+              {(item.papel === "steward" || item.papel === "coadmin") && (
+                <Link
+                  href={`/conta/mundos/${item.mundoId}/gestao`}
+                  className="mt-3 flex w-fit font-bold text-ceu underline underline-offset-4"
+                >
+                  Gestão do mundo
+                </Link>
+              )}
               {item.estado === "active" &&
               (item.estadoDoMundo === "active" || item.estadoDoMundo === "hibernating") ? (
                 <Link

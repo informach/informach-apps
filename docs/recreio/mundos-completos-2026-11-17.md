@@ -93,3 +93,25 @@ Ainda não verificados remotamente neste registro. Leitura e telas nativas,
 convites dirigidos/aprovações, visitas e proteção de participantes continuam
 por concluir. Não publicar essa fonte como F4 pronta nem migrar automaticamente
 estas tabelas com base em gates de uma candidata anterior.
+
+`d1c2c433` em `44187554835` aprovou integração: **727 testes/79 arquivos**,
+incluindo as doze provas da gestão e ordem de travas, cinco provas de projeção
+do Bastidores e atualização **179→192**, com dois perfis, progresso e conquistas
+preservados e repetição sem mudança. Qualidade/builds recusaram o evento novo
+ausente na união `AuditEventType`; a candidata seguinte registra o tipo fechado.
+Não transformar a integração isolada em aprovação de todos os gates.
+
+A candidata de interface acrescenta `/conta/mundos/[id]/gestao`, acesso pelos
+vínculos e pelo mundo, coadmin em leitura, confirmação da consequência e um
+envio por revisão. Falha de resposta exige leitura nova; não há reenvio
+automático. Consulta não pede login recente ou cobertura, escrita conserva as
+exigências. A estante e o mundo arquivado deixam de oferecer “Jogar” ou novo
+código de convite; o servidor já recusava a entrada. Uma jornada candidata
+nomeia coadmin, confere leitura sem poder de mudança, arquiva, confere a estante
+e retoma com os mesmos participantes. Captura mobile ainda por validar.
+
+Este incremento atende à gestão nativa do próprio perfil adulto. Gestão pelo
+responsável de um mundo criado por menor continua pendente, distinta de dar
+coadmin a um menor, que permanece recusado. Convites dirigidos/aprovações,
+visitas, proteção de participantes, operação e homologação integral continuam
+abertos. Produção permanece na fonte e nos 184 recibos de F1.

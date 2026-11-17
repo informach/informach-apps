@@ -170,6 +170,7 @@ export type AuditEventType =
   | "recreio.space_member_joined"
   | "recreio.space_member_left"
   | "recreio.space_member_removed"
+  | "recreio.space_management_changed"
   | "recreio.space_invites_revoked"
   | "recreio.space_stewardship_requested"
   | "recreio.space_stewardship_accepted"

@@ -1,0 +1,48 @@
+import "server-only";
+import { and, eq, ne } from "@informach/db";
+import { recreioSpaceMembers as members, recreioProfiles as profiles } from "@informach/db/schema";
+import { MundoIdSchema } from "@informach/recreio";
+import { comGestaoNativaDoMundo } from "./gestao-nativa-repository";
+import type { AutorDaResponsabilidade } from "./gestao-repository";
+
+export function painelDeAdministracaoDoMundo(autor: AutorDaResponsabilidade, mundoId: unknown) {
+  const id = MundoIdSchema.parse(mundoId);
+  return comGestaoNativaDoMundo(
+    autor,
+    id,
+    undefined,
+    async (tx, ctx) => {
+      const participacoes = await tx
+        .select({
+          id: members.id,
+          apelido: profiles.nickname,
+          papel: members.role,
+          estado: members.state,
+          tipo: profiles.kind,
+          estadoDoPerfil: profiles.status,
+        })
+        .from(members)
+        .leftJoin(profiles, eq(profiles.id, members.profileId))
+        .where(and(eq(members.spaceId, id), ne(members.state, "former")))
+        .orderBy(members.joinedAt, members.id)
+        .limit(20);
+      return {
+        mundo: { id, nome: ctx.mundo.name, estado: ctx.mundo.status },
+        revisao: ctx.mundo.managementRevision,
+        membrosConvidam: ctx.mundo.membersInvite,
+        podeAlterar: ctx.responsavel,
+        participacoes: participacoes.map((p) => ({
+          id: p.id,
+          apelido: p.apelido ?? "Participante sem perfil",
+          papel: p.papel,
+          podeCoadministrar:
+            p.id !== ctx.proprio.id &&
+            p.papel !== "steward" &&
+            p.tipo === "adult" &&
+            p.estadoDoPerfil === "active",
+        })),
+      };
+    },
+    true,
+  );
+}

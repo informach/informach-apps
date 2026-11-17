@@ -23,7 +23,8 @@ export default async function Mundo({ params }: { params: Promise<{ id: string }
   // "Jogar" aparece como na estante: para quem tem o direito de jogar, num jogo
   // que abre e que o portal sabe hospedar.
   const acesso = await avaliarAcesso({ profileId: ator.perfil.id, gameId: mundo.jogo });
-  const jogavel = acesso.podeJogar && jogoAbre(mundo.jogo) && temCliente(mundo.jogo);
+  const disponivel = mundo.estado === "active" || mundo.estado === "hibernating";
+  const jogavel = disponivel && acesso.podeJogar && jogoAbre(mundo.jogo) && temCliente(mundo.jogo);
   return (
     <>
       <p className="text-sm font-semibold text-tinta-suave">
@@ -35,6 +36,19 @@ export default async function Mundo({ params }: { params: Promise<{ id: string }
         {mundo.nome}
       </h1>
       <p className="mt-2 text-tinta-suave">Você participa como {rotuloDoPapel(mundo.papel)}.</p>
+      {mundo.estado === "archived" && (
+        <p className="painel mt-5 max-w-2xl p-4">
+          Este mundo está arquivado. Os membros e o progresso confirmado continuam guardados.
+        </p>
+      )}
+      {ator.perfil.tipo === "adult" && (mundo.papel === "steward" || mundo.papel === "coadmin") && (
+        <Link
+          href={`/conta/mundos/${mundo.id}/gestao`}
+          className="mt-4 inline-flex min-h-11 items-center font-bold text-ceu underline"
+        >
+          Gestão do mundo
+        </Link>
+      )}
       {jogavel && (
         <p className="mt-5">
           {/* Um `<a>` comum, não o `Link`: a página do jogo tem política de
@@ -78,7 +92,7 @@ export default async function Mundo({ params }: { params: Promise<{ id: string }
           </ul>
         </section>
 
-        {mundo.papel === "steward" && (
+        {disponivel && mundo.papel === "steward" && (
           <section aria-labelledby="convidar" className="painel p-5 sm:p-6">
             <h2 id="convidar" className="font-display text-xl font-bold">
               Convidar alguém
