@@ -1,5 +1,14 @@
 # Ensaio de restauração do backup de produção
 
+Repetido em **17/11/2026 às 06:19 UTC**, antes da próxima publicação do Recreio:
+backup lógico atual restaurado em cluster isolado, conteúdo e estrutura comparada
+idênticos, temporários removidos e serviço temporário excluído, sem volumes
+destacados. [Evidência atual](evidencias/backup-logico-2026-11-17.json):
+19.077.682 bytes, 231 tabelas e 281.871 linhas; 12.617 ms de processo, excluindo
+build/provisionamento. Executor homologado `6b51dd13`, sem migration/seed nem
+escrita na origem. A restauração de snapshots agendados continua sem prova;
+este ensaio não altera PITR, agenda ou volume de produção.
+
 Executado em 15/11/2026: **backup lógico atual restaurado e comparado em destino isolado no Railway**, com origem somente para leitura, temporários removidos e serviço do ensaio excluído. [Evidência sanitizada](evidencias/backup-logico-2026-11-15.json). A restauração dos snapshots agendados do provedor continua sem prova; PITR permanece desligado. A ferramenta auditada de restauração de um mundo e este ensaio completo têm funções distintas.
 
 Metadados conferidos na origem: UTF8, `en_US.utf8`, provedor libc e versão de colação 2.41; extensões `plpgsql`, `pg_trgm` e `unaccent`. O destino conserva esses fatos. O comparador em `apps/recreio/scripts/backup/inventario.ts` passou nas quatro regressões entre bancos descartáveis e no ensaio real: ordem física diferente, corrupção de mesmo tamanho/contagem, perda de índice e concessão de permissão divergente. Ele pede hashes de linhas ao próprio PostgreSQL e não devolve linhas privadas nem fingerprints nas falhas. A comparação de estrutura cobre tabelas/colunas, proprietários, ACLs, índices, constraints e políticas; não certifica isoladamente todas as funções, gatilhos ou contadores de sequences do cluster.

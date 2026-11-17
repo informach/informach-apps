@@ -11,9 +11,11 @@ jogador e cadastro de menores estão em candidata; F1–F11 seguem abertos.
 nos seis gates. Seleção pública por PIN também passou; estante protegida e
 autoridade transacional dos mundos estão em candidata. As duas recusas de
 mundos foram reproduzidas e passaram intactas no corretivo, junto de 437 outros
-testes de integração (`44028574307`); os demais gates ainda estão em andamento.
-Troca com checkpoint e F4–F11 continuam pendentes. Leitores precisam incluir
-esses corretivos, com novos escritores desligados; implantação ainda não comprovada.
+testes de integração. A fonte final `ad37ca93` passou nos seis gates
+(`44029479872`) e foi implantada com famílias desligadas, após restauração
+lógica atual e 175 recibos de migração/0174 conferidos. CI compartilhado passou;
+[prova operacional](recreio/leitores-protegidos-2026-11-17.md). Troca com checkpoint
+e F4–F11 continuam pendentes. A candidata 0175 de checkpoint não foi publicada.
 Preservar o Morada
 World2/protocolo1 público; a main local do checkout original contém D3 e não
 pode ser enviada diretamente. Continuar F0–F11 do registro, sem anunciar fechamento.
