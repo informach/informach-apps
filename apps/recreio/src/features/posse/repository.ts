@@ -36,7 +36,7 @@ import {
 import { comSessaoDeJogoAutoritativa } from "@/features/autoridade-de-jogo/repository";
 import { jogoDoCatalogo } from "@/features/jogos/config";
 import { mundoCompativel } from "@/features/mundos/politica";
-import { politicaDoPerfil } from "@/features/sessao-de-jogo/politica";
+import { politicaDaAdmissao } from "@/features/sessao-de-jogo/politica";
 import { AGORA, type Transacao } from "@/lib/repository";
 import type {
   ArmazenamentoDeMundos,
@@ -728,13 +728,7 @@ export async function verificarEntradaNoMundo(
         avatar: membro.avatar,
         tipo: membro.kind,
         versaoDaPolitica: membro.policyVersion,
-        politica: admissao.politica
-          ? {
-              multiplayer: admissao.politica.politica.multiplayer,
-              textoLivre: admissao.politica.politica.textoLivre,
-              versao: admissao.versaoDaPolitica,
-            }
-          : politicaDoPerfil({ tipo: "adult", versaoDaPolitica: admissao.versaoDaPolitica }),
+        politica: politicaDaAdmissao(admissao, jogoDoCatalogo(pedido.jogo)),
       };
     },
     {

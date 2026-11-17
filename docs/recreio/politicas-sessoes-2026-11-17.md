@@ -182,8 +182,9 @@ das APIs ainda precisam aderir ao mesmo contrato antes dessa ativação.
 Kernel inicial (`319aef6`, `44017672075`) passou nos seis gates, com 419 testes
 em 32 arquivos de integração. As capturas inferiores do formulário de supervisão
 foram inspecionadas; horários, remoção e confirmação cabem em 390 px. A publicação
-intermediária de [leitores](leitores-protegidos-2026-11-17.md), sem 0172–0173 e
-com escritores desligados, foi separada da implementação F3.
+intermediária de [leitores](leitores-protegidos-2026-11-17.md) foi preparada com
+escritores desligados; a revisão posterior ampliou esse piso para incluir
+0172–0174 e os corretivos de assinatura/revogação antes de publicar.
 
 A etapa seguinte separa admissão de aparelho e operação da sessão, reutilizando
 o mesmo kernel na emissão/renovação. Ingresso e sessão passam a ser assinados com
@@ -257,3 +258,17 @@ Na estante `3c4cda0`, cinco gates passaram; o E2E confirmou o percurso
 compartilhado, mas a asserção de revogação pareada esperava 401. O contrato
 existente devolve 403/`SESSAO_ENCERRADA`/`signed_out`; a próxima rodada exige esse
 corpo exato. Não tratar a rodada com essa falha como aprovada.
+
+Corretivo `ba79f3e`, run `44028574307`: os 439 testes de integração em 35 arquivos
+passaram, incluindo as duas negativas intactas, classificação do mundo e entrada
+infantil real na API da instância. Os demais gates seguem em andamento. A captura
+da estante protegida em 390 px foi inspecionada. O primeiro ensaio também detectou
+uma fixture que lia SID fora do contrato público e a ordem de recusa de mundo de
+outro jogo: a fixture agora usa `sessaoDeJogoDoToken`, e a API conserva a recusa
+404 de escopo antes de localizar a sessão, revalidando a posse sob trava.
+
+A revisão seguinte unifica a política enviada no ingresso e na entrada da
+instância. Habilitar texto livre para um adolescente não habilita essa capacidade
+num título que não a oferece. A prova usa supervisão com texto ligado e exige
+texto desligado nas duas respostas do título sem essa capacidade. Ainda precisa
+da rodada remota deste ajuste; nenhum modo familiar foi habilitado em produção.

@@ -74,7 +74,7 @@ vi.mock("@informach/config/jogos", async (original) => {
 });
 const JOGO = "emissao-menor";
 let ip = 1;
-async function protegido(compartilhado = false, reconhecer = true) {
+async function protegido(compartilhado = false, reconhecer = true, idade = 8) {
   const conta = await novaConta();
   const login = await loginReal(conta);
   const contexto = await resolverAtor(login);
@@ -88,7 +88,7 @@ async function protegido(compartilhado = false, reconhecer = true) {
   const { perfil } = await cadastrarPerfilMenor(autor, {
     intencaoId: intencao.id,
     perfil: { apelido: "Protegido", avatar: "padrao" },
-    nascimento: { ano: new Date().getUTCFullYear() - 8, mes: 1 },
+    nascimento: { ano: new Date().getUTCFullYear() - idade, mes: 1 },
     assumoResponsabilidade: true,
     versaoDaDeclaracao: VERSAO_DA_RESPONSABILIDADE,
   });
@@ -150,13 +150,21 @@ describe("emissão transacional da autoridade", () => {
 
   it("instância admite a política infantil atual e recusa aparelho vencido sem revelar o perfil", async () => {
     await aposentarInstancias();
-    const r = await protegido();
+    const r = await protegido(false, true, 15);
+    const supervisao = await consultarSupervisao(r.autor, r.perfil.id);
+    await salvarSupervisao(r.autor, {
+      perfilId: r.perfil.id,
+      versao: supervisao.versao,
+      configuracao: { ...supervisao.configuracao, textoLivre: true },
+      reconheco: true,
+    });
     const jogo = "jogo-de-teste";
     const autor = { perfilId: r.perfil.id, sessaoDeAparelhoId: r.ator.sessaoDeAparelhoId, jogo };
     const mundo = await criarMundo(autor, { nome: "Mundo da instância" });
     const instancia = await novaInstancia(jogo);
     const ticket = await emitirIngresso(r.ator, { jogo });
     const aberta = SessaoAbertaSchema.parse(await trocarIngresso({ ingresso: ticket.ingresso }));
+    expect(aberta.politica.textoLivre).toBe(false);
     const sessao = await sessaoDeJogoDoToken(aberta.token);
     expect((await abrirPelaRota({ token: aberta.token, sid: sessao.sid }, mundo.id)).status).toBe(
       200,

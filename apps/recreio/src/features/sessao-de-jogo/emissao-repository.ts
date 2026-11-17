@@ -3,11 +3,7 @@ import { logAuditEventStrict } from "@informach/auth";
 import { and, db, eq, isNull, sql } from "@informach/db";
 import { recreioGameSessions as games, recreioGameTickets as tickets } from "@informach/db/schema";
 import { ErroDoRecreio, PerfilIdSchema, type SessaoDeJogoId } from "@informach/recreio";
-import type {
-  IngressoVerificado,
-  PoliticaDoPerfil,
-  SessaoAberta,
-} from "@informach/recreio/contrato";
+import type { IngressoVerificado, SessaoAberta } from "@informach/recreio/contrato";
 import type { Emissor, TokenEmitido } from "@informach/recreio/emissor";
 import {
   admitirAparelhoDeJogo,
@@ -28,6 +24,7 @@ import {
   VIOLACAO_DE_UNICO,
 } from "@/lib/repository";
 import { encerrarSessoesAbertas } from "./encerramento-repository";
+import { politicaDaAdmissao } from "./politica";
 import type { SessaoDeJogoAtiva } from "./service";
 
 type Admissao = Extract<Awaited<ReturnType<typeof admitirAparelhoDeJogo>>, { admitida: true }>;
@@ -59,16 +56,6 @@ function comoRecusaDeEntrada(erro: ErroDoRecreio) {
     return new ErroDoRecreio("ACESSO_NEGADO", { ...erro.detalhe });
   if (erro.codigo === "SESSAO_INVALIDA") return new IngressoSemAparelhoValido();
   return erro;
-}
-function politicaDaAdmissao(contexto: Admissao, jogo: string): PoliticaDoPerfil {
-  const manifesto = jogoQueAbre(jogo);
-  return {
-    multiplayer: contexto.politica?.politica.multiplayer ?? true,
-    textoLivre:
-      manifesto.capacidades.textoLivre && (contexto.politica?.politica.textoLivre ?? true),
-    faixa: contexto.politica?.politica.faixa ?? "18",
-    versao: contexto.versaoDaPolitica,
-  };
 }
 async function assinarSessao(
   contexto: Admissao,
@@ -258,7 +245,7 @@ export async function abrirSessaoComIngresso(entrada: {
             apelido: contexto.perfil.nickname,
             avatar: contexto.perfil.avatar,
           },
-          politica: politicaDaAdmissao(contexto, entrada.ingresso.jogo),
+          politica: politicaDaAdmissao(contexto, jogoQueAbre(entrada.ingresso.jogo)),
         },
       };
     });
