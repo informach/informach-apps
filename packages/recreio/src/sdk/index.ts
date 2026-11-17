@@ -271,11 +271,17 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
     return capacidadeDeSalvamento;
   }
   const salvamento: SalvamentoDaSessao = {
-    estado() {
-      return enviar("/sessao/salvamento", EstadoDeSalvamentoSchema, {
+    parar,
+    async estado() {
+      const estado = await enviar("/sessao/salvamento", EstadoDeSalvamentoSchema, {
         method: "GET",
         token: exigirCapacidadeDeSalvamento().token,
       });
+      if (estado.estado !== "ready") {
+        parar();
+        saidaConfirmada = true;
+      }
+      return estado;
     },
     async finalizarDados(dados) {
       exigirCapacidadeDeSalvamento();
@@ -476,6 +482,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
     },
     mundos: {
       async listar() {
+        exigirSessao();
         const consulta = new URLSearchParams({ jogo: opcoes.jogo });
         const lista = await enviar(`/mundos?${consulta}`, ListaDeMundosSchema, {
           method: "GET",
@@ -483,14 +490,22 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
         });
         return lista.mundos;
       },
-      criar: (novo) => enviar("/mundos", MundoRefSchema, { method: "POST", token, corpo: novo }),
-      abrir: (id) => enviar(`${mundo(id)}/abrir`, MundoAbertoSchema, { method: "POST", token }),
-      convidar: (id, convite) =>
-        enviar(`${mundo(id)}/convites`, ConviteCriadoSchema, {
+      async criar(novo) {
+        exigirSessao();
+        return enviar("/mundos", MundoRefSchema, { method: "POST", token, corpo: novo });
+      },
+      async abrir(id) {
+        exigirSessao();
+        return enviar(`${mundo(id)}/abrir`, MundoAbertoSchema, { method: "POST", token });
+      },
+      async convidar(id, convite) {
+        exigirSessao();
+        return enviar(`${mundo(id)}/convites`, ConviteCriadoSchema, {
           method: "POST",
           token,
           corpo: convite,
-        }),
+        });
+      },
     },
   };
 }

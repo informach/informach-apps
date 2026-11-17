@@ -41,6 +41,8 @@ export const EstadoDeSalvamentoSchema = z.strictObject({
 });
 export type EstadoDeSalvamento = z.infer<typeof EstadoDeSalvamentoSchema>;
 export interface SalvamentoDaSessao {
+  /** Suspende definitivamente a renovação e operações de gameplay deste SDK. */
+  parar(): void;
   estado(): Promise<EstadoDeSalvamento>;
   /** Congela o SDK de gameplay. Repetição conserva exatamente o lote da primeira tentativa. */
   finalizarDados(

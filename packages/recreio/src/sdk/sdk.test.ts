@@ -102,6 +102,35 @@ function ambiente() {
 }
 
 describe("abertura da sessão", () => {
+  it("recibo terminal encerra o SDK normal; parar não fecha nem amplia a capacidade restrita", async () => {
+    const a = ambiente();
+    a.responder(
+      { corpo: { ...a.aberta(), salvamento: capacidadeDeSalvar() } },
+      { corpo: { estado: "ready", expiraEm: capacidadeDeSalvar().expiraEm } },
+      { corpo: { estado: "completed", expiraEm: capacidadeDeSalvar().expiraEm } },
+    );
+    const contexto = await criarRecreio(a.opcoes({ salvamentoRestrito: true }));
+    const salvar = contexto.sessao.salvamento;
+    if (!salvar) throw new Error("Capacidade ausente");
+    salvar.parar();
+    expect(a.pendentes()).toHaveLength(0);
+    expect((await salvar.estado()).estado).toBe("ready");
+    const antes = a.chamadas.length;
+    await expect(contexto.mundos.listar()).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA" });
+    await expect(contexto.mundos.criar({ nome: "Outro" })).rejects.toMatchObject({
+      codigo: "SESSAO_ENCERRADA",
+    });
+    await expect(contexto.mundos.abrir(MUNDO)).rejects.toMatchObject({
+      codigo: "SESSAO_ENCERRADA",
+    });
+    await expect(contexto.mundos.convidar(MUNDO, { forma: "member" })).rejects.toMatchObject({
+      codigo: "SESSAO_ENCERRADA",
+    });
+    expect(a.chamadas).toHaveLength(antes);
+    expect((await salvar.estado()).estado).toBe("completed");
+    await contexto.sessao.sair();
+    expect(a.chamadas).toHaveLength(antes + 1);
+  });
   it("salvamento negociado usa só a capacidade própria e recupera uma resposta perdida com lote idêntico", async () => {
     const a = ambiente();
     const capacidade = capacidadeDeSalvar();

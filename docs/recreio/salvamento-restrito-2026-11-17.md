@@ -244,3 +244,31 @@ Consumidor genérico e pausa automática ainda não estão integrados nesta etap
 
 O consumidor do SDK `2ee5fa2` passou nos sete gates `44068901779`. A candidata
 de margem com comparadores corrigidos ainda aguarda sua rodada completa.
+
+## Consumidor de mundo e margem de reconexão, em candidata
+
+`a0dea7b` passou nos sete gates `44070463024`, e o finalizador de mundo
+`5eb83c7` passou nos sete gates `44071355167`. Ambos continuam privados.
+
+O contador genérico sinaliza suporte na conexão normal já autenticada, sem
+enviar outra identidade ou segredo. O servidor pausa comandos antes da fila,
+prepara o mesmo SID, fotografa e confirma pela API das instâncias. Conserva a
+prova em resposta incerta; só uma recusa explícita de cobertura permite outra
+fotografia. Falha não confirma o recibo e conserva uma margem local limitada.
+
+Queda de transporte permite cinco segundos para reconectar o mesmo SID, sujeito
+à sua autorização ainda vigente. A volta cancela a espera; sem volta, a instância
+tenta finalizar antes de liberar o mundo. Expiração/encerramento elegível corta
+comandos e inicia a finalização. Logout, revogação e troca não recebem essa
+exceção. Nenhum caminho renova o token ou a posse além da autorização existente.
+
+A extensão do cliente pode solicitar essa finalização e manter sua tela até a
+consulta do recibo. O SDK tem parada explícita da parte de gameplay; consultar
+recibo terminal também encerra a renovação. Foi identificado e corrigido outro
+leitor: as operações de mundo agora recusam localmente um SDK já encerrado,
+como dados e conquistas. A autoridade do servidor continua obrigatória.
+
+Nova jornada remota usa o SDK real, ingresso por cookie, WebSocket/instância
+reais e outro navegador: derruba a conexão, consulta o recibo terminal e exige
+que outro morador continue avançando. Não inventa confirmação ou resposta HTTP.
+Integração da pausa no hospedeiro e finalizador do jogo sem mundos ainda pendentes.

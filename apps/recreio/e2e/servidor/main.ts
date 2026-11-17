@@ -37,7 +37,7 @@ import {
 import { sessaoVencida } from "@informach/recreio/contrato";
 import {
   type ClienteDoHost,
-  type ClienteDoHostComCheckpoint,
+  type ClienteDoHostComSalvamento,
   criarClienteDoHost,
   criarVerificadorDeSessao,
 } from "@informach/recreio/host";
@@ -98,7 +98,7 @@ function registrarNoLog(mensagem: string, dados: Record<string, unknown> = {}): 
   );
 }
 
-const host: ClienteDoHostComCheckpoint = criarClienteDoHost({
+const host: ClienteDoHostComSalvamento = criarClienteDoHost({
   baseUrl: cfg.origemDoPortal,
   jogo: JOGO_DE_TESTE_ID,
   segredo: cfg.segredo,
@@ -130,6 +130,11 @@ type Jogador = {
   expiraEm: number;
   pausado: boolean;
   checkpoint: { id: string; revisao: number; diarioSeq: number; confirmado: boolean } | null;
+  salvamento: boolean;
+  finalizacao: Promise<boolean> | null;
+  provaFinal: { revisao: number; diarioSeq: number } | null;
+  fimDaMargem: number | null;
+  esperaDesconexao: ReturnType<typeof setTimeout> | null;
 };
 
 type Mundo = {
@@ -181,10 +186,12 @@ function difundir(mundo: Mundo): void {
   const quadro: DoServidor = {
     t: "estado",
     contador: mundo.estado.contador,
-    presentes: [...mundo.jogadores].map((jogador) => ({
-      id: jogador.membroId,
-      apelido: jogador.apelido,
-    })),
+    presentes: [...mundo.jogadores]
+      .filter((jogador) => jogador.socket.readyState === jogador.socket.OPEN)
+      .map((jogador) => ({
+        id: jogador.membroId,
+        apelido: jogador.apelido,
+      })),
   };
   for (const jogador of mundo.jogadores) enviar(jogador.socket, quadro);
 }
@@ -195,7 +202,10 @@ function pararMundo(mundo: Mundo, codigo: string): void {
   mundo.parado = true;
   if (mundos.get(mundo.id) === mundo) mundos.delete(mundo.id);
   registrarNoLog("mundo parado", { mundo: mundo.id, codigo });
-  for (const jogador of mundo.jogadores) fim(jogador.socket, codigo);
+  for (const jogador of mundo.jogadores) {
+    if (jogador.esperaDesconexao) clearTimeout(jogador.esperaDesconexao);
+    fim(jogador.socket, codigo);
+  }
   mundo.jogadores.clear();
 }
 
@@ -295,11 +305,100 @@ function codigoDe(erro: unknown): string {
   return ehErroDoRecreio(erro) ? erro.codigo : "INDISPONIVEL";
 }
 
-function tirar(mundo: Mundo, jogador: Jogador, codigo?: string, motivo?: string): void {
+function removerJogador(mundo: Mundo, jogador: Jogador): void {
   if (!mundo.jogadores.delete(jogador)) return;
-  if (codigo !== undefined) fim(jogador.socket, codigo, motivo);
+  if (jogador.esperaDesconexao) clearTimeout(jogador.esperaDesconexao);
   difundir(mundo);
   hibernarSeVazio(mundo);
+}
+
+function tirar(mundo: Mundo, jogador: Jogador, codigo?: string, motivo?: string): void {
+  if (!mundo.jogadores.has(jogador)) return;
+  const fimElegivel =
+    codigo === undefined ||
+    codigo === "SESSAO_INVALIDA" ||
+    (codigo === "SESSAO_ENCERRADA" && ["expired", "access_lost", "left"].includes(motivo ?? ""));
+  if (jogador.salvamento && fimElegivel && !mundo.parado) {
+    if (codigo !== undefined) {
+      void finalizar(mundo, jogador);
+      fim(jogador.socket, codigo, motivo);
+    } else if (!jogador.esperaDesconexao && !jogador.finalizacao) {
+      // Reconectar o mesmo SID a tempo cancela esta espera, sem outra concessão.
+      jogador.esperaDesconexao = setTimeout(() => {
+        jogador.esperaDesconexao = null;
+        if (mundo.jogadores.has(jogador)) void finalizar(mundo, jogador);
+      }, 5000);
+      difundir(mundo);
+    }
+    return;
+  }
+  if (codigo !== undefined) fim(jogador.socket, codigo, motivo);
+  removerJogador(mundo, jogador);
+}
+
+/** Congela antes de enfileirar; o prefixo admitido é persistido antes da prova final. */
+function finalizar(mundo: Mundo, jogador: Jogador): Promise<boolean> {
+  if (jogador.finalizacao) return jogador.finalizacao;
+  if (!jogador.salvamento || mundo.parado || !mundo.jogadores.has(jogador))
+    return Promise.resolve(false);
+  if (jogador.fimDaMargem !== null && Date.now() >= jogador.fimDaMargem) {
+    removerJogador(mundo, jogador);
+    return Promise.resolve(false);
+  }
+  jogador.pausado = true;
+  if (jogador.esperaDesconexao) clearTimeout(jogador.esperaDesconexao);
+  jogador.esperaDesconexao = null;
+  jogador.fimDaMargem ??= Math.min(Date.now() + 30_000, jogador.expiraEm + 30_000);
+  jogador.esperaDesconexao = setTimeout(
+    () => removerJogador(mundo, jogador),
+    Math.max(0, jogador.fimDaMargem - Date.now()),
+  );
+  const pedido = mundo.fila.then(async () => {
+    if (mundo.parado || !mundo.jogadores.has(jogador)) return false;
+    const base = { mundoId: mundo.id, sid: jogador.sid, cerca: mundo.cerca };
+    try {
+      const preparada = await host.salvarSessao({ ...base, operacao: "preparar" });
+      if (preparada.estado === "ready") {
+        if (!jogador.provaFinal) {
+          await fotografar(mundo, "checkpoint");
+          jogador.provaFinal = { revisao: mundo.revisao, diarioSeq: mundo.diarioSeq };
+        }
+        const confirmar = () => {
+          if (!jogador.provaFinal) throw new ErroDoRecreio("INDISPONIVEL");
+          return host.salvarSessao({ ...base, ...jogador.provaFinal, operacao: "concluir" });
+        };
+        try {
+          const resultado = await confirmar();
+          if (resultado.estado !== "completed") throw new ErroDoRecreio("INDISPONIVEL");
+        } catch (erro) {
+          if (ehErroDoRecreio(erro, "CHECKPOINT_NECESSARIO")) {
+            // Só uma negativa explícita permite fotografar de novo. Uma resposta
+            // incerta conserva a prova que pode já ter sido confirmada.
+            await fotografar(mundo, "checkpoint");
+            jogador.provaFinal = { revisao: mundo.revisao, diarioSeq: mundo.diarioSeq };
+          } else if (!ehErroDoRecreio(erro, "INDISPONIVEL")) throw erro;
+          const recuperada = await confirmar();
+          if (recuperada.estado !== "completed") throw new ErroDoRecreio("INDISPONIVEL");
+        }
+      } else if (preparada.estado !== "completed") throw new ErroDoRecreio("INDISPONIVEL");
+      enviar(jogador.socket, { t: "salvamento", confirmado: true });
+      removerJogador(mundo, jogador);
+      return true;
+    } catch (erro) {
+      registrarNoLog("salvamento final recusado", { mundo: mundo.id, codigo: codigoDe(erro) });
+      enviar(jogador.socket, { t: "salvamento", confirmado: false });
+      const restante = Math.max(0, (jogador.fimDaMargem ?? Date.now()) - Date.now());
+      if (jogador.esperaDesconexao) clearTimeout(jogador.esperaDesconexao);
+      jogador.esperaDesconexao = setTimeout(() => removerJogador(mundo, jogador), restante);
+      return false;
+    }
+  });
+  mundo.fila = pedido.then(() => undefined);
+  const tarefa = pedido.finally(() => {
+    if (jogador.finalizacao === tarefa) jogador.finalizacao = null;
+  });
+  jogador.finalizacao = tarefa;
+  return tarefa;
 }
 
 async function entrar(
@@ -329,6 +428,9 @@ async function entrar(
   // ainda não caiu) toma o lugar da entrada anterior.
   for (const outro of [...mundo.jogadores])
     if (outro.membroId === entrada.membroId) {
+      if (outro.finalizacao || outro.fimDaMargem !== null)
+        throw new ErroDoRecreio("CHECKPOINT_PENDENTE");
+      if (outro.esperaDesconexao) clearTimeout(outro.esperaDesconexao);
       mundo.jogadores.delete(outro);
       fim(outro.socket, "SESSAO_ENCERRADA", "replaced");
     }
@@ -341,6 +443,11 @@ async function entrar(
     expiraEm: sessao.expiraEm,
     pausado: false,
     checkpoint: null,
+    salvamento: quadro.salvamento === true,
+    finalizacao: null,
+    provaFinal: null,
+    fimDaMargem: null,
+    esperaDesconexao: null,
   };
   mundo.jogadores.add(jogador);
   difundir(mundo);
@@ -610,6 +717,7 @@ wss.on("connection", (socket: WebSocket) => {
     else if (quadro.t === "renovar") void renovar(dentro.mundo, dentro.jogador, quadro.token);
     else if (quadro.t === "checkpoint") checkpoint(dentro.mundo, dentro.jogador, quadro.id);
     else if (quadro.t === "retomar") retomar(dentro.mundo, dentro.jogador);
+    else if (quadro.t === "salvar") void finalizar(dentro.mundo, dentro.jogador);
     else fim(socket, "ENTRADA_INVALIDA");
   });
 
