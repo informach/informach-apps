@@ -100,7 +100,7 @@ async function conectar(contexto: RecreioGameContext, mundoId: string, origem: s
 test("SDK e instância concluem após queda real de conexão e outro morador continua", async ({
   browser,
 }) => {
-  const pessoa = await novaPessoa(browser, "Salvamento da instância");
+  const pessoa = await novaPessoa(browser, "Salvamento");
   const visita = await novaPessoa(browser, "Morador que continua");
   const mundo = await criarMundo(pessoa.page, "Jogo de teste", "Mundo da margem");
   await convidar(pessoa.page, visita.page, mundo);
