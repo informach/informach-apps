@@ -1,0 +1,1 @@
+ALTER TABLE "recreio"."profiles" ADD CONSTRAINT "recreio_profile_identity_kind" UNIQUE("id","kind");
