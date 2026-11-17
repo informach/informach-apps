@@ -35,6 +35,7 @@ import {
   prepararPareamento,
   sairDoAparelhoPareado,
 } from "@/features/protecao/service";
+import { limparPerfilAtivo } from "@/features/sessao/repository";
 import { dedicarAparelhoAMenor, resolverAtor } from "@/features/sessao/service";
 import { eventosCom, loginReal, novaConta } from "./apoio";
 
@@ -72,6 +73,12 @@ describe("pareamento e proteção do menor", () => {
       .update(devices)
       .set({ minorContextGeneration: generation, activeProfileId: r.perfil.id })
       .where(eq(devices.id, r.autor.sessaoDeAparelhoId));
+    // Uma leitura antiga não limpa uma seleção posterior nem a restrição infantil.
+    await limparPerfilAtivo(r.autor.sessaoDeAparelhoId, adulto.perfil.id);
+    expect(
+      (await db.select().from(devices).where(eq(devices.id, r.autor.sessaoDeAparelhoId)))[0]
+        ?.activeProfileId,
+    ).toBe(r.perfil.id);
     await db.delete(profiles).where(eq(profiles.id, r.perfil.id));
     expect(
       await resolverAtor({

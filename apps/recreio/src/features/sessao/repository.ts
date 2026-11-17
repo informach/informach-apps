@@ -1,4 +1,5 @@
 import "server-only";
+import { logAuditEventStrict } from "@informach/auth";
 import { and, db, eq, isNull, sql } from "@informach/db";
 import {
   recreioGameSessions as gameSessions,
@@ -13,7 +14,11 @@ import {
   type SessaoDeAparelhoId,
   SessaoDeAparelhoIdSchema,
 } from "@informach/recreio";
+import { autorizarContaNativa } from "@/features/account/autoridade-repository";
+import { invalidarIngressosDoAparelho } from "@/features/sessao-de-jogo/ingressos-repository";
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/repository";
+import { AppError } from "@/lib/errors";
+import { AGORA } from "@/lib/repository";
 
 /** De quanto em quanto tempo uma sessão viva regrava "visto por último". */
 const RENOVAR_APOS_MS = 5 * 60_000;
@@ -97,30 +102,83 @@ export async function definirPerfilAtivo(entrada: {
   sessaoDeAparelhoId: SessaoDeAparelhoId;
   contaId: ContaId;
   perfilId: PerfilId;
-  agora?: Date;
 }): Promise<boolean> {
-  const linhas = await db
-    .update(sessions)
-    .set({ activeProfileId: entrada.perfilId, profileSelectedAt: entrada.agora ?? new Date() })
-    .where(
-      and(
-        eq(sessions.id, entrada.sessaoDeAparelhoId),
-        eq(sessions.userId, entrada.contaId),
-        isNull(sessions.revokedAt),
-        isNull(sessions.minorContextGeneration),
-        sql`exists (select 1 from ${profiles} where ${profiles.id} = ${entrada.perfilId} and ${profiles.userId} = ${entrada.contaId})`,
-      ),
-    )
-    .returning({ id: sessions.id });
-  return linhas.length === 1;
+  return db
+    .transaction(async (tx) => {
+      // UPDATE desde a primeira leitura; a serialização nativa precede o aparelho.
+      const nativo = await autorizarContaNativa(tx, entrada, "share", "update");
+      const [perfil] = await tx
+        .select({ id: profiles.id })
+        .from(profiles)
+        .where(
+          and(
+            eq(profiles.id, entrada.perfilId),
+            eq(profiles.userId, entrada.contaId),
+            eq(profiles.kind, "adult"),
+            eq(profiles.status, "active"),
+          ),
+        );
+      if (!perfil) return false;
+      await nativo.conferirPrazo();
+      if (nativo.perfilId === entrada.perfilId) return true;
+      await tx
+        .update(sessions)
+        .set({ activeProfileId: entrada.perfilId, profileSelectedAt: AGORA })
+        .where(eq(sessions.id, entrada.sessaoDeAparelhoId));
+      await invalidarIngressosDoAparelho(tx, entrada.sessaoDeAparelhoId);
+      await logAuditEventStrict(
+        "recreio.device_context_changed",
+        entrada.contaId,
+        {
+          app: "recreio",
+          deviceSessionId: entrada.sessaoDeAparelhoId,
+          profileId: entrada.perfilId,
+          scope: "adult",
+        },
+        { writer: tx },
+      );
+      await nativo.conferirPrazo();
+      return true;
+    })
+    .catch((erro: unknown) => {
+      // Este contrato legado retorna false para uma seleção sem autoridade atual.
+      if (erro instanceof AppError && erro.code === "AUTH") return false;
+      throw erro;
+    });
 }
 
 /** O perfil ativo deixou de poder ser escolhido: a sessão volta a não ter perfil. */
-export async function limparPerfilAtivo(sessaoDeAparelhoId: SessaoDeAparelhoId): Promise<void> {
-  await db
-    .update(sessions)
-    .set({ activeProfileId: null, profileSelectedAt: null })
-    .where(eq(sessions.id, sessaoDeAparelhoId));
+export async function limparPerfilAtivo(
+  sessaoDeAparelhoId: SessaoDeAparelhoId,
+  perfilEsperado: PerfilId,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const [mudou] = await tx
+      .update(sessions)
+      .set({ activeProfileId: null, profileSelectedAt: null })
+      .where(
+        and(
+          eq(sessions.id, sessaoDeAparelhoId),
+          eq(sessions.activeProfileId, perfilEsperado),
+          isNull(sessions.minorContextGeneration),
+        ),
+      )
+      .returning({ id: sessions.id });
+    if (!mudou) return;
+    await invalidarIngressosDoAparelho(tx, sessaoDeAparelhoId);
+    await encerrarSessoesAbertas(
+      tx,
+      sql`${gameSessions.deviceSessionId}=${sessaoDeAparelhoId}`,
+      "signed_out",
+      { porQuem: "recreio" },
+    );
+    await logAuditEventStrict(
+      "recreio.device_context_changed",
+      null,
+      { app: "recreio", deviceSessionId: sessaoDeAparelhoId, scope: "management" },
+      { writer: tx },
+    );
+  });
 }
 
 /**
@@ -148,6 +206,7 @@ export async function revogarSessaoDaConta(entrada: {
       )
       .returning({ id: sessions.id });
     if (!linha) return null;
+    await invalidarIngressosDoAparelho(tx, SessaoDeAparelhoIdSchema.parse(linha.id));
     await encerrarSessoesAbertas(
       tx,
       sql`${gameSessions.deviceSessionId} = ${linha.id}`,

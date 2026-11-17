@@ -14,6 +14,7 @@ import {
   autorizarContaNativa,
   serializarContaNativa,
 } from "@/features/account/autoridade-repository";
+import { invalidarIngressosDoAparelho } from "@/features/sessao-de-jogo/ingressos-repository";
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
@@ -116,6 +117,7 @@ export async function revogarOutroAparelho(ator: DonoDosAparelhos, alvo: SessaoD
       .where(
         and(eq(devices.id, alvo), eq(devices.userId, ator.contaId), isNull(devices.revokedAt)),
       );
+    await invalidarIngressosDoAparelho(tx, alvo);
     await encerrarSessoesAbertas(tx, sql`${games.deviceSessionId} = ${alvo}`, "signed_out", {
       porQuem: "conta",
     });

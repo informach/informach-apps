@@ -22,6 +22,10 @@ import {
   autorizarContaNativa,
   type IdentidadeNativa,
 } from "@/features/account/autoridade-repository";
+import {
+  invalidarIngressosDoAparelho,
+  invalidarIngressosDoPerfil,
+} from "@/features/sessao-de-jogo/ingressos-repository";
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/repository";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
@@ -146,6 +150,7 @@ export async function revogarUmAparelhoDoMenor(
     assertAllowed(aparelho, "APARELHO", "Aparelho não encontrado.");
     if (aparelho.revokedAt) return;
     await tx.update(devices).set({ revokedAt: agora }).where(eq(devices.id, aparelho.id));
+    await invalidarIngressosDoAparelho(tx, aparelhoId);
     await encerrarSessoesAbertas(
       tx,
       sql`${games.deviceSessionId}=${aparelho.id} and ${games.profileId}=${perfilId}`,
@@ -184,6 +189,7 @@ export async function encerrarAparelhoPareado(aparelhoId: SessaoDeAparelhoId, to
       .update(devices)
       .set({ revokedAt: await agoraDoBanco(tx) })
       .where(eq(devices.id, aparelho.id));
+    await invalidarIngressosDoAparelho(tx, aparelhoId);
     await encerrarSessoesAbertas(tx, sql`${games.deviceSessionId}=${aparelho.id}`, "signed_out", {
       porQuem: "conta",
     });
@@ -530,6 +536,7 @@ export async function revogarAcessoDoMenor(autor: AutorNativoRecente, perfilId: 
           sql`${devices.id} in (select ${credentials.deviceSessionId} from ${credentials} where ${credentials.profileId}=${perfilId})`,
         ),
       );
+    await invalidarIngressosDoPerfil(tx, perfilId);
     await encerrarSessoesAbertas(tx, sql`${games.profileId}=${perfilId}`, "signed_out", {
       porQuem: "conta",
     });

@@ -4,6 +4,7 @@ import {
   recreioDeviceSessions as deviceSessions,
   recreioGroups as groups,
   recreioProfiles as profiles,
+  sessions,
 } from "@informach/db/schema";
 import {
   type ContaId,
@@ -25,9 +26,9 @@ import { definirPerfilAtivo } from "@/features/sessao/repository";
 import { encerrarSessaoDeAparelho, resolverAtor } from "@/features/sessao/service";
 import { AppError } from "@/lib/errors";
 import { conceder } from "../scripts/concessoes";
-import { atorDaConta, CHECAGEM, codigoDoBanco, loginDe, novaConta, UNICO } from "./apoio";
+import { atorDaConta, CHECAGEM, codigoDoBanco, loginReal, novaConta, UNICO } from "./apoio";
 
-async function atorDe(login: ReturnType<typeof loginDe>) {
+async function atorDe(login: Awaited<ReturnType<typeof loginReal>>) {
   const contexto = await resolverAtor(login);
   if (!contexto) throw new Error("A sessão de aparelho deveria existir");
   return contexto.ator;
@@ -167,7 +168,7 @@ describe("perfil da própria conta", () => {
 describe("ids trocados", () => {
   it("o que não tem a forma de um id de perfil não passa da fronteira", async () => {
     const conta = await novaConta();
-    const ator = await atorDe(loginDe(conta));
+    const ator = await atorDe(await loginReal(conta));
     for (const entrada of [conta.email, "", "1", `${randomUUID()}x`, null, { id: conta.id }]) {
       expect(PerfilIdSchema.safeParse(entrada).success).toBe(false);
       await expect(selecionarPerfil(ator, entrada)).rejects.toBeInstanceOf(ZodError);
@@ -195,7 +196,7 @@ describe("ids trocados", () => {
       apelido: "Lia",
       avatar: "sol",
     });
-    const ator = await atorDe(loginDe(conta));
+    const ator = await atorDe(await loginReal(conta));
     await expect(selecionarPerfil(ator, conta.id)).rejects.toMatchObject({ code: "PERFIL" });
     const erro = await avaliarAcesso({ profileId: PerfilIdSchema.parse(conta.id) }).catch(
       (motivo: unknown) => motivo,
@@ -213,7 +214,7 @@ describe("ids trocados", () => {
     const perfilDaBia = (
       await criarPerfilProprio(await atorDaConta(bia), { apelido: "Bia", avatar: "mar" })
     ).perfil;
-    const ator = await atorDe(loginDe(lia));
+    const ator = await atorDe(await loginReal(lia));
 
     const deOutraConta = await recusa(selecionarPerfil(ator, perfilDaBia.id));
     const inexistente = await recusa(selecionarPerfil(ator, randomUUID()));
@@ -245,7 +246,7 @@ describe("ids trocados", () => {
     const perfilDaBia = (
       await criarPerfilProprio(await atorDaConta(bia), { apelido: "Bia", avatar: "mar" })
     ).perfil;
-    const atorDaLia = await atorDe(loginDe(lia));
+    const atorDaLia = await atorDe(await loginReal(lia));
     // Bia tenta gravar o próprio perfil na sessão de aparelho da Lia.
     await expect(
       selecionarPerfil(
@@ -262,9 +263,22 @@ describe("ids trocados", () => {
 });
 
 describe("sessão de aparelho e perfil ativo", () => {
+  it("login retirado não seleciona perfil pela API legada", async () => {
+    const conta = await novaConta();
+    const login = await loginReal(conta);
+    const ator = await atorDe(login);
+    const { perfil } = await criarPerfilProprio(ator, { apelido: "Protegido", avatar: "padrao" });
+    await db.delete(sessions).where(eq(sessions.id, login.authSessionId));
+    await expect(selecionarPerfil(ator, perfil.id)).rejects.toMatchObject({ code: "PERFIL" });
+    expect(
+      (
+        await db.select().from(deviceSessions).where(eq(deviceSessions.id, ator.sessaoDeAparelhoId))
+      )[0]?.activeProfileId,
+    ).toBeNull();
+  });
   it("a mesma sessão de login tem uma sessão de aparelho só, mesmo em paralelo", async () => {
     const conta = await novaConta();
-    const login = loginDe(conta);
+    const login = await loginReal(conta);
     const contextos = await Promise.all(Array.from({ length: 6 }, () => resolverAtor(login)));
     const ids = new Set(contextos.map((contexto) => contexto?.ator.sessaoDeAparelhoId));
     expect(ids.size).toBe(1);
@@ -275,12 +289,12 @@ describe("sessão de aparelho e perfil ativo", () => {
         .where(eq(deviceSessions.authSessionId, login.authSessionId)),
     ).toHaveLength(1);
     // Outro login da mesma conta é outro aparelho.
-    expect((await atorDe(loginDe(conta))).sessaoDeAparelhoId).not.toBe([...ids][0]);
+    expect((await atorDe(await loginReal(conta))).sessaoDeAparelhoId).not.toBe([...ids][0]);
   });
 
   it("sem perfil o ator não tem perfil; depois de escolher, tem", async () => {
     const conta = await novaConta();
-    const login = loginDe(conta);
+    const login = await loginReal(conta);
     expect(await resolverAtor(login)).toMatchObject({ ator: { perfil: null }, perfis: [] });
     const { perfil } = await criarPerfilProprio(await atorDaConta(conta), {
       apelido: "Lia",
@@ -291,7 +305,7 @@ describe("sessão de aparelho e perfil ativo", () => {
     await selecionarPerfil(await atorDe(login), perfil.id);
     expect((await atorDe(login)).perfil).toEqual(perfil);
     // A escolha é do aparelho: outro login da conta começa sem perfil.
-    expect((await atorDe(loginDe(conta))).perfil).toBeNull();
+    expect((await atorDe(await loginReal(conta))).perfil).toBeNull();
   });
 
   it("larga o perfil ativo que deixou de estar na lista da conta", async () => {
@@ -302,7 +316,7 @@ describe("sessão de aparelho e perfil ativo", () => {
     const perfilDaBia = (
       await criarPerfilProprio(await atorDaConta(bia), { apelido: "Bia", avatar: "mar" })
     ).perfil;
-    const login = loginDe(lia);
+    const login = await loginReal(lia);
     const ator = await atorDe(login);
     await selecionarPerfil(ator, perfilDaLia.id);
     // A linha passa a apontar para um perfil que a conta não pode escolher,
@@ -324,7 +338,7 @@ describe("sessão de aparelho e perfil ativo", () => {
 
   it("perfil apagado deixa a sessão sem perfil ativo", async () => {
     const conta = await novaConta();
-    const login = loginDe(conta);
+    const login = await loginReal(conta);
     const { perfil } = await criarPerfilProprio(await atorDaConta(conta), {
       apelido: "Lia",
       avatar: "sol",
@@ -336,7 +350,7 @@ describe("sessão de aparelho e perfil ativo", () => {
 
   it("sair encerra a sessão de aparelho, e ela não volta", async () => {
     const conta = await novaConta();
-    const login = loginDe(conta);
+    const login = await loginReal(conta);
     const { perfil } = await criarPerfilProprio(await atorDaConta(conta), {
       apelido: "Lia",
       avatar: "sol",
@@ -358,14 +372,14 @@ describe("sessão de aparelho e perfil ativo", () => {
     // Encerrar de novo não encontra linha viva.
     expect(await encerrarSessaoDeAparelho(login)).toBeNull();
     // Um novo login cria outra sessão de aparelho, sem perfil escolhido.
-    const novo = await atorDe(loginDe(conta));
+    const novo = await atorDe(await loginReal(conta));
     expect(novo.sessaoDeAparelhoId).not.toBe(ator.sessaoDeAparelhoId);
     expect(novo.perfil).toBeNull();
   });
 
   it("uma conta não encerra nem recebe a sessão de aparelho de outra", async () => {
     const [lia, bia] = await Promise.all([novaConta(), novaConta()]);
-    const login = loginDe(lia);
+    const login = await loginReal(lia);
     const ator = await atorDe(login);
     expect(await encerrarSessaoDeAparelho({ ...login, contaId: bia.id })).toBeNull();
     expect(await resolverAtor({ ...login, contaId: bia.id })).toBeNull();
@@ -374,7 +388,7 @@ describe("sessão de aparelho e perfil ativo", () => {
 
   it("os ids que saem do ator têm a forma e a marca dos esquemas do domínio", async () => {
     const conta = await novaConta();
-    const ator = await atorDe(loginDe(conta));
+    const ator = await atorDe(await loginReal(conta));
     expect(SessaoDeAparelhoIdSchema.parse(ator.sessaoDeAparelhoId)).toBe(ator.sessaoDeAparelhoId);
     expect(ator.contaId).toBe(conta.id);
   });

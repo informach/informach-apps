@@ -86,6 +86,7 @@ export async function autorizarContaNativa(
   tx: Transacao,
   ator: IdentidadeNativa,
   travaDoPerfil: "share" | "update" = "share",
+  travaDoAparelho: "share" | "update" = "share",
 ) {
   const conta = await lerContaNativa(tx, ator.contaId);
   const [perfil] = await tx
@@ -103,7 +104,7 @@ export async function autorizarContaNativa(
         eq(devices.kind, "account"),
       ),
     )
-    .for("share");
+    .for(travaDoAparelho);
   assertAllowed(
     atual &&
       atual.minorContextGeneration === null &&

@@ -61,7 +61,8 @@ export async function resolverAtor(entrada: {
   if (sessao.contextoDeMenor) return null;
   const perfis = await perfisSelecionaveis(contaId);
   const perfil = perfis.find((item) => item.id === sessao.perfilAtivoId) ?? null;
-  if (sessao.perfilAtivoId !== null && perfil === null) await limparPerfilAtivo(sessao.id);
+  if (sessao.perfilAtivoId !== null && perfil === null)
+    await limparPerfilAtivo(sessao.id, sessao.perfilAtivoId);
   return { ator: { contaId, sessaoDeAparelhoId: sessao.id, perfil }, perfis };
 }
 

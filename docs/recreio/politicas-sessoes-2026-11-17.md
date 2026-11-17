@@ -201,3 +201,8 @@ de ingresso admite no máximo 60 tentativas por perfil/minuto; renovação, 120.
 São tetos autoritativos anteriores à transação, sem devolver tentativas no
 rollback. Ainda faltam troca com checkpoint, avisos/tempo no cliente, estante e
 seleção infantil e os demais métodos do SDK antes de habilitar `play`.
+
+Emissão/renovação `bcba605` passou nos seis gates `44020586913`. A revisão
+seguinte encontrou uma [lacuna de revogação de ingressos](ingressos-revogacao-2026-11-17.md),
+reproduzida com dois testes vermelhos e 427 verdes. Corrigir e provar o mesmo
+arquivo antes de publicar leitores ou completar este incremento.

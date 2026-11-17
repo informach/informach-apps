@@ -248,7 +248,15 @@ export const recreioGameTickets = recreio.table(
     expiresAt: moment("expires_at").notNull(),
     consumedAt: moment("consumed_at"),
   },
-  (t) => [index("recreio_game_tickets_expires").on(t.expiresAt)],
+  (t) => [
+    index("recreio_game_tickets_expires").on(t.expiresAt),
+    index("recreio_game_tickets_pending_profile")
+      .on(t.profileId, t.expiresAt)
+      .where(sql`${t.consumedAt} is null`),
+    index("recreio_game_tickets_pending_device")
+      .on(t.deviceSessionId, t.expiresAt)
+      .where(sql`${t.consumedAt} is null`),
+  ],
 );
 
 /** Sessão de jogo: o `id` é a claim `sid`. Um perfil joga uma coisa por vez. */

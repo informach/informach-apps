@@ -17,6 +17,7 @@ import {
 } from "@/features/account/autoridade-repository";
 import { exigirCadastroProtegidoDisponivel } from "@/features/familia/disponibilidade";
 import { paraPerfil } from "@/features/perfis/repository";
+import { invalidarIngressosDoAparelho } from "@/features/sessao-de-jogo/ingressos-repository";
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/repository";
 import { assertAllowed } from "@/lib/errors";
 import { conferirPin } from "./segredos";
@@ -121,6 +122,7 @@ export async function trocarContextoComPin(
           profileSelectedAt: perfil ? agora : null,
         })
         .where(eq(devices.id, aparelho.id));
+      await invalidarIngressosDoAparelho(tx, autor.sessaoDeAparelhoId);
       await encerrarSessoesAbertas(tx, sql`${games.deviceSessionId}=${aparelho.id}`, "signed_out", {
         porQuem: "conta",
       });

@@ -23,6 +23,7 @@ import { PerfilIdSchema } from "@informach/recreio";
 import { z } from "zod";
 import { decidirFatosLidos } from "../src/features/acesso/decisao";
 import { lerFatosDeAcesso } from "../src/features/acesso/repository";
+import { invalidarIngressosDoPerfil } from "../src/features/sessao-de-jogo/ingressos-repository";
 import { encerrarSessoesAbertas } from "../src/features/sessao-de-jogo/repository";
 
 /** Código curto, sem texto livre: é ele que vai para a auditoria. */
@@ -213,13 +214,15 @@ export async function revogar(
       const perfilId = PerfilIdSchema.parse(perfil.id);
       const decisao = decidirFatosLidos(await lerFatosDeAcesso(perfilId, tx), revogadaEm);
       // Uma cortesia retirada não interrompe outra cobertura ainda válida.
-      if (!decisao.podeJogar)
+      if (!decisao.podeJogar) {
+        await invalidarIngressosDoPerfil(tx, perfilId);
         await encerrarSessoesAbertas(
           tx,
           sql`${gameSessions.profileId} = ${perfilId}`,
           "access_lost",
           { porQuem: "recreio" },
         );
+      }
     }
     return {
       concessaoIds: abertas.map((concessao) => concessao.id),
