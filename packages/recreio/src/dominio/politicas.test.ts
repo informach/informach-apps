@@ -96,7 +96,7 @@ describe("tempo autoritativo", () => {
   it("distingue agenda ausente de agenda vazia e respeita pausa", () => {
     expect(
       decidirTempoDoMenor({ supervisao: supervisaoInicial(), instanteLocal: local, usadoMs: 0 }),
-    ).toEqual({ permitido: true, saldoMs: null, ateMinutoLocal: 1440 });
+    ).toEqual({ permitido: true, saldoMs: null, desdeMinutoLocal: 0, ateMinutoLocal: 1440 });
     expect(
       decidirTempoDoMenor({
         supervisao: { ...supervisaoInicial(), horarios: [] },
@@ -121,6 +121,7 @@ describe("tempo autoritativo", () => {
     expect(decidirTempoDoMenor({ supervisao, instanteLocal: local, usadoMs: 1_799_000 })).toEqual({
       permitido: true,
       saldoMs: 1000,
+      desdeMinutoLocal: 600,
       ateMinutoLocal: 660,
     });
     expect(decidirTempoDoMenor({ supervisao, instanteLocal: local, usadoMs: 1_800_000 })).toEqual({

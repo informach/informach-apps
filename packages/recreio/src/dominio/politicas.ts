@@ -108,7 +108,7 @@ export function decidirTempoDoMenor(entrada: {
   usadoMs: number;
 }):
   | { permitido: false; motivo: "paused" | "schedule" | "daily_limit" }
-  | { permitido: true; saldoMs: number | null; ateMinutoLocal: number } {
+  | { permitido: true; saldoMs: number | null; desdeMinutoLocal: number; ateMinutoLocal: number } {
   const supervisao = SupervisaoSchema.parse(entrada.supervisao);
   const local = InstanteLocalSchema.parse(entrada.instanteLocal);
   const usadoMs = z.number().int().min(0).max(172800000).parse(entrada.usadoMs);
@@ -125,7 +125,12 @@ export function decidirTempoDoMenor(entrada: {
       ? null
       : Math.max(0, supervisao.minutosPorDia * 60_000 - usadoMs);
   if (saldoMs === 0) return { permitido: false, motivo: "daily_limit" };
-  return { permitido: true, saldoMs, ateMinutoLocal: janela?.fimMinuto ?? 1440 };
+  return {
+    permitido: true,
+    saldoMs,
+    desdeMinutoLocal: janela?.inicioMinuto ?? 0,
+    ateMinutoLocal: janela?.fimMinuto ?? 1440,
+  };
 }
 
 const UsoDeConcessaoSchema = z

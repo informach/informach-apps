@@ -138,3 +138,20 @@ Integração, interface de supervisão, concessão de tempo na entrada/renovaç�
 kernel comum do SDK e homologação infantil ainda em execução. O modelo puro
 não comprova sozinho que o servidor está aplicando o orçamento. Os novos
 testes e migrations seguem para gates remotos; não publicados neste ponto.
+
+Primeira prova PostgreSQL: fonte `0afdec7`, run `44015067476`, integração
+com 400 testes em 30 arquivos, incluindo oito da supervisão e a regressão de
+dez escritores sem conexão adicional. Qualidade, cliente, longa e versões
+também passaram; navegador ainda em execução quando este registro foi escrito.
+A tela foi acrescentada em `2becdc4`, com prova de persistência, recusa de
+horários sobrepostos e captura de celular, em outra rodada ainda em execução.
+
+O adapter de tempo agora prepara concessões de no máximo 60 segundos, cortadas
+no saldo diário, fim da janela e virada do dia de Brasília. A busca pela próxima
+fronteira examina no máximo 61 segundos pelo calendário IANA do PostgreSQL,
+incluindo salto/retorno do relógio; não presume UTC−3 nem dia físico de 24 h.
+O acerto usa o fim confirmado da sessão, limita silêncio ao prazo concedido e
+mantém um agregado por perfil/dia. Um prazo assinado menor é o prazo persistido.
+Retenção global de agregados com mais de trinta dias, em lotes de 500, entrou
+na manutenção com contagem própria. Estes adapters ainda precisam ser ligados
+à admissão/renovação autoritativas; não constituem ativação infantil isolada.

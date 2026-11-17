@@ -68,6 +68,29 @@ export async function apagarIntencoesAntigas() {
   });
 }
 
+export const LOTE_DE_USO_ANTIGO = 500;
+/** Agregado de tempo não conserva histórico além de trinta dias; nenhuma sessão é apagada aqui. */
+export async function apagarUsoAntigo() {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`set local statement_timeout='5s'`);
+    await tx.execute(sql`set local lock_timeout='1s'`);
+    await tx.execute(sql`set local transaction_timeout='15s'`);
+    const [resultado] = await tx.execute<{ apagados: number }>(sql`
+      with lote as (
+        select profile_id,local_day from recreio.minor_daily_usage
+        where local_day < (clock_timestamp() at time zone 'America/Sao_Paulo')::date-30
+          and (lease_until is null or lease_until <= clock_timestamp())
+        order by local_day,profile_id limit ${LOTE_DE_USO_ANTIGO} for update skip locked
+      ), removidos as (
+        delete from recreio.minor_daily_usage u using lote l
+        where u.profile_id=l.profile_id and u.local_day=l.local_day returning 1
+      ) select count(*)::integer as apagados from removidos
+    `);
+    if (!resultado) throw new Error("A limpeza de tempo não devolveu sua contagem.");
+    return resultado.apagados;
+  });
+}
+
 /** A mesma consulta é conferida com EXPLAIN no banco descartável de capacidade. */
 export const SQL_LIMPAR_CONVITES_ANTIGOS = sql`
   with lote as (
