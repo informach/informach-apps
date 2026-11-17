@@ -244,6 +244,12 @@ e disponibilidade do resultado. Bloqueio vazio de desconhecido também exige
 relação conhecida, sem distinguir perfil existente. SDK e rotas reais entram
 nas provas, além de paginação, supervisão, revogação e reaprovação.
 
+`874140e` aprovou 652 integrações, incluindo as consultas novas; a execução
+`44136944910` falhou em outra fixture porque arquivos distintos reutilizavam
+`198.18.2.1` e atingiram o limite real de pareamento. O helper passa a representar
+cada família por um IPv6 de documentação próprio, derivado de sua identidade.
+Limites, contadores e regras de produção não são alterados ou desativados.
+
 ### Integridade entre registros sociais
 
 A revisão da persistência encontrou referências simples que não amarravam a

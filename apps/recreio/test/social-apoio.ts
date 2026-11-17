@@ -16,7 +16,6 @@ export const referenciaSocial = (p: Jogador) => ({
   perfilId: p.perfil.id,
   sessaoDeAparelhoId: p.ator.sessaoDeAparelhoId,
 });
-let ip = 1;
 export async function familiaSocial(idade = 8) {
   const conta = await novaConta();
   const login = await loginReal(conta);
@@ -42,7 +41,11 @@ export async function familiaSocial(idade = 8) {
     configuracao: supervisao.configuracao,
     reconheco: true,
   });
-  const pedido = await prepararPareamento(`198.18.2.${ip++}`);
+  // Cada família de teste representa uma origem própria. O contador no banco
+  // é compartilhado entre arquivos; um contador de módulo reutilizava o IP.
+  const endereco = conta.id.replaceAll("-", "").slice(8);
+  const ip = `2001:db8:${[0, 4, 8, 12, 16, 20].map((n) => endereco.slice(n, n + 4)).join(":")}`;
+  const pedido = await prepararPareamento(ip);
   const aprovado = await aprovarPareamento(autor, { perfilId: perfil.id, codigo: pedido.codigo });
   await consultarPareamento(pedido.segredo);
   return {
