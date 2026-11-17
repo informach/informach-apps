@@ -25,6 +25,7 @@ import {
   PACKAGE_PROJECT,
   type PackFile,
   type PackOptions,
+  packedForArchive,
   packedLinks,
   packPlan,
   unpackPaths,
@@ -117,7 +118,11 @@ export async function packProject(
       } else stored.push({ name: f.name, path: source });
     }
     // Compact, as the lesson file is saved (main/projects.ts): opening reads at most 32 MB of it.
-    const text = Buffer.from(JSON.stringify(projectSchema.parse(plan.project)), "utf8");
+    // The links point at media/ inside the package: checked as they will be read back.
+    const text = Buffer.from(
+      JSON.stringify(packedForArchive(plan.project, (raw) => projectSchema.parse(raw))),
+      "utf8",
+    );
     let bytes = text.length;
     for (const f of stored) bytes += (await stat(f.path)).size;
     const head = blanks ? 0.5 : 0;

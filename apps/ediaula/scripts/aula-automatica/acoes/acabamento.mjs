@@ -5,7 +5,7 @@
 //   apresentadora  trecho do nome da mídia da apresentadora (padrão "HeyGen")
 //   musica         trecho do nome da música na biblioteca (opcional; distribui se ainda não há faixa de música)
 //   cartoes        [[ini, fim], ...] dos cartões de seção (opcional; as peças secao-*.edisvg já contam)
-//   abertura       segundos do plano da abertura (padrão 1,5)
+//   abertura       segundos do plano da abertura (padrão: até o fim da capa; sem capa, 1,5)
 // Faz, nesta ordem (regras de edição, 17/11/2026):
 //   - as animações de conceito (mídia "conceito-*" ou peça conceito-*.edisvg vinculada) no lugar da tela,
 //     com transição (place_cutaway);
@@ -97,7 +97,13 @@ export default async function acabamento(ctx) {
     ...(st.cartoes ?? []),
     ...proj.d.clips.filter((c) => pecaDe(proj.asset(c), "secao")).map((c) => [c.start, fimDe(c)]),
   ];
-  const abertura = st.abertura ?? 1.5;
+  // O plano da abertura dura o que a capa dura: trocar de plano com a capa ainda na tela pula a apresentadora
+  // do lado da capa para o canto.
+  const fimCapa = Math.max(
+    0,
+    ...proj.d.clips.filter((c) => proj.nome(c).startsWith("Capa ·")).map((c) => fimDe(c)),
+  );
+  const abertura = st.abertura ?? (fimCapa > 0.5 ? fimCapa : 1.5);
   // Cada mudança de plano é um corte no clipe dela (o pedaço de cada lado fica com o seu plano).
   const cortes = [abertura, ...animacoes.flat(), ...cartoes.flat()].sort((a, b) => a - b);
   for (const t of cortes) {
@@ -132,6 +138,10 @@ export default async function acabamento(ctx) {
     const ids = pedacos.filter((c) => plano(c) === nome).map((c) => c.id);
     if (ids.length) await ia("set_clip_layout", { clip_ids: ids, ...valores });
   }
+  // A capa é o primeiro quadro, com a apresentadora inteira já no segundo 0: o pedaço que abre a aula entra
+  // sem esmaecer (o avatar chega com dissolve quando é posto na linha do tempo).
+  const primeiro = pedacos.filter((c) => c.start < 0.05).map((c) => c.id);
+  if (primeiro.length) await ia("set_clip_layout", { clip_ids: primeiro, fade_in: 0 });
   // Troca de plano sem sair: dissolve entre os dois pedaços.
   const emSeguida = pedacos.filter(
     (c, k) => k > 0 && Math.abs(fimDe(pedacos[k - 1]) - c.start) < 0.02,

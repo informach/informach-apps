@@ -38,6 +38,8 @@ As marcações ficam acima do zoom, por isso não crescem com ele. Cada uma é p
 
 - Zoom nos cliques, nas escolhas de menu e nos arrastos de bloco. Nunca enquanto a professora explica a tela inteira (alvo com mais de 45% do quadro).
 - Zooms seguidos no mesmo lugar viram um só.
+- Campo de texto (escrever um aviso, um número): o zoom abre no clique do campo e fica enquanto a mão escreve. Campos seguidos no mesmo lugar ficam no mesmo zoom; um campo achado depois de arrastar a área abre outro.
+- Nada passa do fim da aula: zoom e balão do último clique acabam com ela.
 - Nenhum zoom curto e isolado que não ajude a ler: menos de 4 s sem ação sai.
 - O zoom leva 0,6 s para abrir ou fechar. Nenhuma marcação entra antes de o zoom terminar de abrir, nem fica depois de ele começar a fechar.
 
