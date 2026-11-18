@@ -90,11 +90,12 @@ test("Checkout real, webhook encaminhado, pagamento conciliado e SDK sem Morada"
       where c.app='recreio' and c.subject_type='user' and c.provider='stripe' and u.email=${a.email}`;
     if (!cliente || typeof cliente.provider_customer_id !== "string")
       throw new Error("Native Checkout customer absent");
-    clienteId = cliente.provider_customer_id;
-    const remoto = await stripe.customers.retrieve(clienteId);
+    const clienteDoCheckout = cliente.provider_customer_id;
+    clienteId = clienteDoCheckout;
+    const remoto = await stripe.customers.retrieve(clienteDoCheckout);
     if (remoto.deleted || remoto.livemode)
       throw new Error("Payment customer is not the isolated test customer");
-    await stripe.customers.update(clienteId, {
+    await stripe.customers.update(clienteDoCheckout, {
       metadata: { recreio_homologacao_run: process.env.GITHUB_RUN_ID ?? "unknown" },
     });
     await preencher(
@@ -125,7 +126,7 @@ test("Checkout real, webhook encaminhado, pagamento conciliado e SDK sem Morada"
       .poll(
         async () => {
           const [recibo] = await banco`select count(*)::integer as total from billing.webhook_events
-        where app='recreio' and provider_customer_id=${clienteId} and provider_event_id like 'recreio-native:dev:%'
+        where app='recreio' and provider_customer_id=${clienteDoCheckout} and provider_event_id like 'recreio-native:dev:%'
           and event_type in ('invoice.paid','checkout.session.completed') and processed_at is not null`;
           return recibo?.total ?? 0;
         },
