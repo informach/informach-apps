@@ -117,6 +117,12 @@ o pagante nativo real no ator. `purchase_authorization_closed` registra `app`,
 segredos ou corpo do pedido; o valor aceito fica no recibo de compra próprio.
 Esses eventos não comprovam pagamento ou concessão de gameplay.
 
+`recreio.purchase_checkout_observed` registra `app`, `groupId`, `authorizationId`
+e `status` (`open`, `complete`, `expired` ou `unknown`). É fato técnico do
+executor, com ator nulo: captura a resposta da operação admitida mesmo quando
+o login foi encerrado durante a rede. Não registra URL nem dados do customer;
+capturar o fato não autoriza devolvê-lo ao aparelho e não comprova pagamento.
+
 Social usa auditoria estrita na transação da mudança. Os eventos
 `friend_code_created`/`friend_code_revoked` usam IDs de perfil/código;
 `friend_request_created`/`friend_request_expired`/`friend_request_accepted`/

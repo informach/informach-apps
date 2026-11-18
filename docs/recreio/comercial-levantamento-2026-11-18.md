@@ -7,6 +7,20 @@ ensaio pago ou venda. F5 foi implantado com recursos desligados em `d014bd90`,
 
 ## Incremento de teste gratuito, em qualificação
 
+`146b0932` concluiu os treze gates `44299049292`, incluindo as quatro provas
+de Checkout vinculado ao UUID do aceite e validade absoluta. O gate comercial
+usa PostgreSQL e SDK Stripe por transporte HTTP fechado; não é pagamento real.
+
+A candidata seguinte compõe o executor nativo em modo exclusivo `sandbox`:
+conferência somente de leitura do catálogo antes da marca, tentativa durável,
+captura técnica da resposta e nova autorização nativa antes de devolver qualquer
+resultado financeiro. Falta de resposta mantém revisão; sessão concluída não
+concede acesso. Destinos Stripe HTTPS são conferidos pelo package compartilhado.
+Um gate adicional cobre perda de resposta, indisponibilidade após criação,
+logout em resultados abertos/concluídos/expirados, troca real para PIN infantil,
+catálogo divergente e isolamento entre contas. Ainda não executado nesta fonte;
+modos e variáveis comerciais de produção continuam inalterados.
+
 `2a8fa076` passou nos nove gates `44285538484`, incluindo consentimento nativo
 e retirada, modos reais `off`/`setup`, integridade SQL e regressões. A interface
 `0523217f`, `44289414523`, acrescenta página própria sem exigir jogador e passou
@@ -293,7 +307,7 @@ Upgrade dessa rodada foi interrompido pela falha; nova prova remota obrigatória
   quatro perfis e tentativas por aparelho infantil. Não confundir assinatura
   sintética ou assinatura local de webhook com comunicação real com o provedor.
 
-Migrations F5 0191–0203 foram aplicadas e conferidas; 0204/0205 comerciais
+Migrations F5 0191–0203 foram aplicadas e conferidas; 0204–0206 comerciais
 continuam ausentes de produção. Mudança comercial
 adicional exige geração própria no GitHub e seu histórico de upgrade. Antes de
 publicar código que acione o migrator, controlar o comando para migração sem

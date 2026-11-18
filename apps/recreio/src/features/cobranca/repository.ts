@@ -1,5 +1,7 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
+import type { inspectUserCheckoutAuthorization } from "@informach/billing/checkout-authorizations";
+import { stripeDestination } from "@informach/billing/destinations";
 import { and, db, desc, eq, isNull, sql } from "@informach/db";
 import {
   recreioGroups as groups,
@@ -19,7 +21,7 @@ import {
   prepararGrupoDoTitular,
 } from "@/features/grupo/preparar-repository";
 import { AppError, assertAllowed } from "@/lib/errors";
-import { codigoDoPostgres, constraintDoPostgres, type Transacao } from "@/lib/repository";
+import { AGORA, codigoDoPostgres, constraintDoPostgres, type Transacao } from "@/lib/repository";
 import { PRAZO_PARA_INICIAR_COMPRA_MS, VERSAO_DA_COMPRA } from "./constantes";
 import { comCicloDeCobranca } from "./lifecycle";
 import { type AceiteDaCompra, conferirOfertaDaCompra, type OfertaAceita } from "./regras";
@@ -249,10 +251,12 @@ export async function encerrarCompraNaoEnviadaNoBanco(autor: IdentidadeNativa, i
   });
 }
 
-/** Primitiva interna: o chamador já conserva comCicloDeCobranca durante todo I/O.
- * Não cria customer nem retorna URL. A mesma marca não renova o prazo de aceite.
- */
-export async function iniciarTentativaDeCompraLocked(autor: AutorNativoRecente, id: string) {
+/** Todas as primitivas Locked conservam o ciclo financeiro no chamador. */
+async function comCompraParaEnvio<T>(
+  autor: AutorNativoRecente,
+  id: string,
+  executar: (tx: Transacao, linha: Compra, agora: Date) => Promise<T>,
+) {
   const [pista] = await db
     .select({ id: groups.id })
     .from(groups)
@@ -288,30 +292,210 @@ export async function iniciarTentativaDeCompraLocked(autor: AutorNativoRecente, 
       intervalo: linha.interval,
     });
     const agora = await atual.nativa.conferirPrazo(autor.login);
-    if (linha.requestStartedAt !== null) return recibo(linha);
+    const resultado = await executar(tx, linha, agora);
+    await atual.nativa.conferirPrazo(autor.login);
+    return resultado;
+  });
+}
+
+async function iniciarLinha(tx: Transacao, linha: Compra, agora: Date) {
+  if (linha.requestStartedAt !== null) return linha;
+  assertAllowed(
+    agora.getTime() < linha.acceptedAt.getTime() + PRAZO_PARA_INICIAR_COMPRA_MS,
+    "OFERTA",
+    "Esta autorização venceu antes do envio. Encerre-a e confira a oferta atual.",
+  );
+  const [iniciada] = await tx
+    .update(purchases)
+    .set({ requestStartedAt: agora })
+    .where(eq(purchases.id, linha.id))
+    .returning();
+  assertAllowed(iniciada, "COBRANCA", "Não foi possível registrar a tentativa.");
+  await logAuditEventStrict(
+    "recreio.purchase_attempt_started",
+    linha.payerUserId,
+    {
+      app: "recreio",
+      groupId: linha.groupId,
+      authorizationId: linha.id,
+      productId: linha.productId,
+    },
+    { writer: tx },
+  );
+  return iniciada;
+}
+
+/** Não faz I/O externo; usada antes da conferência somente de leitura do catálogo. */
+export function conferirCompraParaEnvioLocked(autor: AutorNativoRecente, id: string) {
+  return comCompraParaEnvio(autor, id, async (_tx, linha, agora) => {
     assertAllowed(
-      agora.getTime() < linha.acceptedAt.getTime() + PRAZO_PARA_INICIAR_COMPRA_MS,
+      linha.requestStartedAt !== null ||
+        agora.getTime() < linha.acceptedAt.getTime() + PRAZO_PARA_INICIAR_COMPRA_MS,
       "OFERTA",
       "Esta autorização venceu antes do envio. Encerre-a e confira a oferta atual.",
     );
-    const [iniciada] = await tx
+    return recibo(linha);
+  });
+}
+
+/** Não cria customer nem retorna URL. A mesma marca não renova o prazo de aceite. */
+export function iniciarTentativaDeCompraLocked(autor: AutorNativoRecente, id: string) {
+  return comCompraParaEnvio(autor, id, async (tx, linha, agora) =>
+    recibo(await iniciarLinha(tx, linha, agora)),
+  );
+}
+
+const COMPRA_ADMITIDA = Symbol("recreio.compra.admitida");
+export type CompraEmCurso = {
+  readonly [COMPRA_ADMITIDA]: true;
+  readonly id: string;
+  readonly payerId: string;
+  readonly groupId: string;
+  readonly productId: string;
+  readonly startedAt: Date;
+  readonly expiresAt: number;
+};
+
+/** Capacidade interna, nunca serializada. O resultado externo continua gravável
+ * se o login/aparelho for revogado durante o I/O de uma operação já admitida.
+ */
+export function admitirCompraEmCursoLocked(
+  autor: AutorNativoRecente,
+  id: string,
+): Promise<CompraEmCurso> {
+  return comCompraParaEnvio<CompraEmCurso>(autor, id, async (tx, linha, agora) => {
+    const iniciada = await iniciarLinha(tx, linha, agora);
+    assertAllowed(iniciada.requestStartedAt, "COBRANCA", "Tentativa não admitida.");
+    return {
+      [COMPRA_ADMITIDA]: true,
+      id: iniciada.id,
+      payerId: iniciada.payerUserId,
+      groupId: iniciada.groupId,
+      productId: iniciada.productId,
+      startedAt: iniciada.requestStartedAt,
+      expiresAt: Math.floor(iniciada.acceptedAt.getTime() / 1000) + 3600,
+    };
+  });
+}
+
+/** Conferência recente depois do I/O e antes de devolver uma URL financeira. */
+export function conferirDevolucaoDaCompraLocked(
+  autor: AutorNativoRecente,
+  id: string,
+  sessaoId: string,
+) {
+  return comCompraParaEnvio(autor, id, async (_tx, linha) => {
+    assertAllowed(
+      !linha.reviewRequired && linha.providerSessionId === sessaoId,
+      "COBRANCA",
+      "Confira o estado da compra antes de continuar.",
+    );
+    return recibo(linha);
+  });
+}
+
+/** Dados financeiros só voltam ao aparelho nativo atual, inclusive em resultado
+ * terminal. Registrar o fato externo e autorizar sua devolução são atos distintos.
+ */
+export async function conferirResultadoDaCompraLocked(autor: AutorNativoRecente, id: string) {
+  const [pista] = await db
+    .select({ id: groups.id })
+    .from(groups)
+    .where(eq(groups.ownerUserId, autor.contaId));
+  assertAllowed(pista, "COBRANCA", "Pedido não disponível.");
+  const grupoId = GrupoIdSchema.parse(pista.id);
+  return db.transaction(async (tx) => {
+    await limites(tx);
+    const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "share");
+    const [linha] = await tx
+      .select()
+      .from(purchases)
+      .where(
+        and(
+          eq(purchases.id, id),
+          eq(purchases.payerUserId, autor.contaId),
+          eq(purchases.groupId, grupoId),
+        ),
+      );
+    assertAllowed(linha, "COBRANCA", "Pedido não disponível.");
+    await atual.nativa.conferirPrazo(autor.login);
+    return recibo(linha);
+  });
+}
+
+/** Apenas fatos da tentativa admitida, sob o ciclo financeiro. Ausência é revisão;
+ * Checkout concluído permanece pendente de conciliação de pagamento.
+ */
+export function capturarEstadoDaCompraLocked(
+  prova: CompraEmCurso,
+  observado: Awaited<ReturnType<typeof inspectUserCheckoutAuthorization>>,
+) {
+  assertAllowed(prova[COMPRA_ADMITIDA] === true, "COBRANCA", "Tentativa não admitida.");
+  return db.transaction(async (tx) => {
+    await limites(tx);
+    const [linha] = await tx
+      .select()
+      .from(purchases)
+      .where(
+        and(
+          eq(purchases.id, prova.id),
+          eq(purchases.payerUserId, prova.payerId),
+          eq(purchases.groupId, prova.groupId),
+          eq(purchases.productId, prova.productId),
+          eq(purchases.requestStartedAt, prova.startedAt),
+        ),
+      )
+      .for("update");
+    assertAllowed(linha, "COBRANCA", "Tentativa não disponível.");
+    if (observado)
+      assertAllowed(
+        observado.productId === prova.productId && observado.expiresAt === prova.expiresAt,
+        "COBRANCA",
+        "O resultado não corresponde à oferta autorizada.",
+      );
+    const estado = observado?.state ?? null;
+    if (estado)
+      assertAllowed(
+        linha.providerSessionId === null || linha.providerSessionId === estado.id,
+        "COBRANCA",
+        "A tentativa exige conferência.",
+      );
+    if (linha.resolvedAt) return recibo(linha);
+    const expirada = estado?.status === "expired" && estado.subscriptionId === null;
+    let linkValido = false;
+    if (estado?.status === "open" && estado.url) {
+      try {
+        stripeDestination(estado.url);
+        linkValido = true;
+      } catch {
+        /* mantém revisão */
+      }
+    }
+    const revisao = !linkValido;
+    const sessaoId = estado?.id ?? linha.providerSessionId;
+    if (!expirada && linha.providerSessionId === sessaoId && linha.reviewRequired === revisao)
+      return recibo(linha);
+    const [atualizada] = await tx
       .update(purchases)
-      .set({ requestStartedAt: agora })
-      .where(eq(purchases.id, id))
+      .set({
+        providerSessionId: sessaoId,
+        reviewRequired: expirada ? false : revisao,
+        ...(expirada ? { resolvedAt: AGORA, resolution: "expired_unpaid" as const } : {}),
+      })
+      .where(eq(purchases.id, prova.id))
       .returning();
-    assertAllowed(iniciada, "COBRANCA", "Não foi possível registrar a tentativa.");
+    assertAllowed(atualizada, "COBRANCA", "Não foi possível registrar o resultado.");
     await logAuditEventStrict(
-      "recreio.purchase_attempt_started",
-      autor.contaId,
+      "recreio.purchase_checkout_observed",
+      null,
       {
         app: "recreio",
-        groupId: grupoId,
-        authorizationId: id,
-        productId: iniciada.productId,
+        groupId: prova.groupId,
+        authorizationId: prova.id,
+        status: estado?.status ?? "unknown",
       },
       { writer: tx },
     );
-    await atual.nativa.conferirPrazo(autor.login);
-    return recibo(iniciada);
+    return recibo(atualizada);
   });
 }

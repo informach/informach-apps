@@ -51,6 +51,9 @@ export async function inspectUserCheckoutAuthorization(
       );
   return {
     productId: row.intent.productId,
+    priceId: row.intent.request.priceId,
+    successUrl: row.intent.request.successUrl,
+    cancelUrl: row.intent.request.cancelUrl,
     expiresAt: row.intent.request.expiresAt,
     requestStarted: row.intent.requestStarted,
     state,

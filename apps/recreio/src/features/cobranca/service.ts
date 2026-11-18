@@ -18,7 +18,7 @@ import {
 export async function prepararMinhaCompra(autor: AutorNativoRecente, entrada: unknown) {
   const pedido = AceiteDaCompraSchema.parse(entrada);
   assertAllowed(
-    env.RECREIO_BILLING_MODE === "setup",
+    env.RECREIO_BILLING_MODE !== "off",
     "INDISPONIVEL",
     "A compra ainda não está disponível.",
   );

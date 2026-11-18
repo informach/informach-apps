@@ -10,6 +10,7 @@
     "./access": "./src/access.ts",
     "./checkout": "./src/checkout.ts",
     "./checkout-authorizations": "./src/checkout-authorizations.ts",
+    "./destinations": "./src/destinations.ts",
     "./credits": "./src/credits/index.ts",
     "./credit-migration": "./src/credits/wallet-migration.ts",
     "./compasso": "./src/compasso.ts",

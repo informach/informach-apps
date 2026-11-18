@@ -161,6 +161,7 @@ export type AuditEventType =
   | "recreio.purchase_authorization_recorded"
   | "recreio.purchase_authorization_closed"
   | "recreio.purchase_attempt_started"
+  | "recreio.purchase_checkout_observed"
   | "recreio.game_session_started"
   | "recreio.game_session_ended"
   | "recreio.session_handoff_requested"

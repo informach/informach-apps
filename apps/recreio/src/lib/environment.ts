@@ -1,4 +1,5 @@
 import { createPrivateKey, createPublicKey } from "node:crypto";
+import { getConfiguredProducts, isStripePriceIdConfigured } from "@informach/config";
 import { z } from "zod";
 
 /** Um mapa em JSON numa variável de ambiente; ausente ou vazio vale `{}`. */
@@ -53,8 +54,16 @@ export const schema = z.object({
   RECREIO_ACCESS_MODE: z.enum(["fechado", "aberto"]).default("fechado"),
   /** Setup prepara consentimento; só experiment pode iniciar teste na primeira SID. */
   RECREIO_TRIAL_MODE: z.enum(["off", "setup", "experiment"]).default("off"),
-  /** Somente preparação nativa; nenhuma chamada de cobrança está habilitada neste estágio. */
-  RECREIO_BILLING_MODE: z.enum(["off", "setup"]).default("off"),
+  /** Sandbox só aceita Stripe test; live não é admitido antes da homologação. */
+  RECREIO_BILLING_MODE: z.enum(["off", "setup", "sandbox"]).default("off"),
+  STRIPE_MODE: z.enum(["dev", "prod"]).default("dev"),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PORTAL_CONFIGURATION_ID: z.string().optional(),
+  RECREIO_INDIVIDUAL_MONTHLY_PRICE: z.string().optional(),
+  RECREIO_INDIVIDUAL_ANNUAL_PRICE: z.string().optional(),
+  RECREIO_FAMILY_MONTHLY_PRICE: z.string().optional(),
+  RECREIO_FAMILY_ANNUAL_PRICE: z.string().optional(),
   /** Leitores primeiro; setup admite cadastro/pareamento, play admite jogos protegidos. */
   RECREIO_FAMILY_MODE: z.enum(["off", "setup", "play"]).default("off"),
   /** Habilitar somente depois de leitores, checkpoint e jornadas homologados. */
@@ -143,6 +152,20 @@ export function validateEnvironment(input: NodeJS.ProcessEnv): Environment {
       `Invalid environment: ${parsed.error.issues.map((issue) => issue.path.join(".")).join(", ")}`,
     );
   const value = parsed.data;
+  if (value.RECREIO_BILLING_MODE === "sandbox") {
+    if (
+      value.STRIPE_MODE !== "dev" ||
+      !/^(sk|rk)_test_[A-Za-z0-9_]{8,}$/.test(value.STRIPE_SECRET_KEY ?? "") ||
+      !/^whsec_[A-Za-z0-9_]{8,}$/.test(value.STRIPE_WEBHOOK_SECRET ?? "") ||
+      !/^bpc_[A-Za-z0-9_]+$/.test(value.STRIPE_PORTAL_CONFIGURATION_ID ?? "")
+    )
+      throw new Error(
+        "Invalid sandbox billing environment: STRIPE_MODE, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PORTAL_CONFIGURATION_ID",
+      );
+    const produtos = getConfiguredProducts("recreio", "dev", value);
+    if (produtos.some((p) => !isStripePriceIdConfigured(p.stripePriceId.dev)))
+      throw new Error("Invalid sandbox billing environment: Recreio catalog prices");
+  }
   if (
     value.RECREIO_MODERATION_SECRET &&
     [

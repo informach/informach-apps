@@ -146,6 +146,7 @@ jobs:
       - run: pnpm --filter @informach/recreio-app test:trial-setup
       - run: pnpm --filter @informach/recreio-app test:trial-experiment
       - run: pnpm --filter @informach/recreio-app test:commercial-setup
+      - run: pnpm --filter @informach/recreio-app test:commercial-checkout
         env:
           DATABASE_URL: postgres://ci:ci@localhost:5433/ci
 
