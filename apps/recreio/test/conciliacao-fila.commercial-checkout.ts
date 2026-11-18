@@ -29,16 +29,14 @@ async function fixture(comCliente = true) {
   const [grupo] = await db.select().from(groups).where(eq(groups.ownerUserId, p.conta.id));
   if (!grupo) throw new Error("Fixture group absent");
   if (comCliente)
-    await db
-      .insert(customers)
-      .values({
-        provider: "stripe",
-        app: "recreio",
-        subjectType: "user",
-        subjectId: p.conta.id,
-        email: p.conta.email,
-        providerCustomerId: `cus_fixture_${randomUUID().replaceAll("-", "")}`,
-      });
+    await db.insert(customers).values({
+      provider: "stripe",
+      app: "recreio",
+      subjectType: "user",
+      subjectId: p.conta.id,
+      email: p.conta.email,
+      providerCustomerId: `cus_fixture_${randomUUID().replaceAll("-", "")}`,
+    });
   await db
     .insert(jobs)
     .values({ payerUserId: p.conta.id, groupId: grupo.id, providerMode: "prod" });

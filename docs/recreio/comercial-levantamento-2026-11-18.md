@@ -39,6 +39,10 @@ A jornada `commercial-ui` cobre dois adultos sem jogador, escolha/recarga,
 encerramento e ausência de customer/concessão/envio, com capturas de 390 px.
 Interface e jornada ainda aguardam execução remota nesta candidata.
 
+`4f735856`/`44303875582` concluiu os quinze gates. A recuperação somente por
+consulta `352de48b`/`44304898360` também concluiu os quinze gates, com onze
+cenários no executor e a mesma jornada nativa de assinatura.
+
 Em `4f735856`/`44303875582`, a jornada `commercial-ui` passou; as duas capturas
 foram baixadas e inspecionadas em 390 px. Artefato `14427695847`, 155414 bytes,
 SHA-256 `e8171480b66019bc463763723469f68bb5fff08452140d11fa8161717abc9e73`.
@@ -75,6 +79,12 @@ cobrem concorrência, atendimento após falha, ausência de customer, logout,
 confirmação anterior, retomada e rollback. Ainda não é o leitor de pagamentos,
 o webhook, o cron ou a nova admissão por fatura conciliada; esses passos seguem
 abaixo, antes de ativar qualquer venda. Esta implementação aguarda gates remotos.
+
+`5967c347`/`44307131750` passou os dezenove cenários comerciais (sete da fila),
+mas o gate de qualidade encontrou formatação ainda não estabilizada da nova
+fixture. A saída de `check --write` foi seguida por conferência sem escrita;
+o corretivo preserva comportamento e exige nova execução. Não tratar a execução
+com essa falha como fonte integralmente aprovada.
 
 - Criar estado comercial próprio por pagante/grupo exatos, com fila recuperável,
   próxima tentativa, última tentativa e última confirmação distintas. Falha não
