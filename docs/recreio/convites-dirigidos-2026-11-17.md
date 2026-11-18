@@ -302,3 +302,22 @@ Nesta última, um trigger de auditoria e uma trava exclusiva do ensaio permitem
 observar a cadeia real de espera das duas operações antes de liberar o commit.
 Os limites de produção não foram ampliados. O ensaio de upgrade novo não chegou
 a executar no run que falhou a integração; permanece pendente.
+
+O E2E `44215413930` terminou com 35 jornadas aprovadas e uma falha. A nova
+jornada concluiu envio/aceite, mas buscava um heading onde a estante publica
+um link; o seletor já foi corrigido na candidata seguinte. A vigia também
+capturou duas violações CSP `script-src eval` ao carregar as telas nativas.
+O painel compartilhado importava o SDK inteiro só para reconhecer recusas,
+levando o grafo de schemas ao portal fora do hospedeiro que configura o Zod.
+O subpath puro `@informach/recreio/erros` permite compartilhar as recusas sem
+carregar SDK/Zod nessa interface. A política CSP e sua vigia são preservadas.
+O corretivo ainda precisa de nova prova remota; o resultado anterior não
+autoriza implantação.
+
+Integração da correção de serialização `4af5832f`, run `44216938602`, aprovada:
+774 testes/83 arquivos e cinco testes da projeção administrativa. Os dois
+ensaios de upgrade passaram: 179→197 e 191→197 recibos. O segundo preservou os
+dois mundos, três membros, dois convites antigos, duas fotografias, quatro
+fatos e cerca 7, além de perfis, progresso e conquistas; repetição sem mudança.
+O E2E desse source ainda contém a importação corrigida no incremento de CSP,
+portanto essa evidência de backend não representa aprovação do portal inteiro.

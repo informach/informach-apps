@@ -28,6 +28,7 @@ Consumido como TypeScript fonte, sem build, como os outros packages.
 | `.` | Ids com marca, `decidirAcesso`, regras de mundo, posse, código de convite, erros | Todos |
 | `./contrato` | Esquemas Zod e tipos de tudo que atravessa a rede: claims dos tokens, API do SDK, API das instâncias, `RecreioGameContext`, `ClienteDoHost` | Todos |
 | `./emissor` | Assinatura dos tokens, montagem do JWKS e conferência dos tokens que o próprio Recreio emitiu. Precisa da chave privada | Só `apps/recreio` |
+| `./erros` | Códigos e reconhecimento de recusas, sem SDK, Zod ou transporte | Interfaces que só precisam reconhecer uma recusa |
 | `./host` | `criarVerificadorDeSessao` e `criarClienteDoHost` (o `ClienteDoHost` por HTTP) para o servidor de um jogo | Servidores de jogo |
 | `./sdk` | `criarRecreio`: o `RecreioGameContext` para o cliente de um jogo. Só `fetch` e temporizadores. Também `ModuloDoJogo`, o contrato entre a página que hospeda o jogo e o cliente dele | Clientes de jogo e a página que hospeda o jogo |
 | `./testing` | `criarPlataformaFalsa` e `criarEmissorDeTeste` | Testes e desenvolvimento dos jogos |

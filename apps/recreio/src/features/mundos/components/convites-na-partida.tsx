@@ -5,7 +5,7 @@ import type {
   ConvitesDirigidosDoPerfil,
   DetalheDeConviteDirigido,
 } from "@informach/recreio/contrato";
-import { ehErroDoRecreio } from "@informach/recreio/sdk";
+import { ehErroDoRecreio } from "@informach/recreio/erros";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { RecusaDeConviteNaInterface } from "../convites-interface";
 
