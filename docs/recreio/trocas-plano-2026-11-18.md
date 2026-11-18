@@ -206,3 +206,13 @@ de jogador, autoridade alheia, mudança concorrente de perfil com lock_timeout,
 logout durante a rede, fatura inconsistente e rollback de auditoria. Elas ainda
 precisam passar remotamente. A composição pública/telas e o executor nativo de
 aumento não estão ligados por este incremento; a venda continua desligada.
+
+`a7583043`/`44393292425`: os gates de tipos/build encontraram duas leituras de
+uma linha possivelmente ausente dentro da função de pedido da fixture nova.
+A preparação já conferia a existência, mas a função capturava o binding com
+tipo opcional. A fixture passa a capturar explicitamente a origem admitida,
+sem casts ou mudança nas validações de produção. Exige nova verificação.
+
+O gate de conciliação do mesmo run passou, incluindo os seis cenários da nova
+cotação e a constraint do item/saldo; a falha de tipos impede considerar a
+rodada aprovada. O corretivo precisa repetir os gates na sua própria fonte.

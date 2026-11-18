@@ -1,0 +1,22 @@
+{
+  "source": "ace8a1d8b34ca89eeb0b58e869d6b72b00819c74",
+  "runId": "44388863891",
+  "artifactId": "14468785277",
+  "zipBytes": 566199,
+  "zipSha256": "f3bc4730e408aad5939557347c286003123cea0771b0244f9a3d57ae5b4a2285",
+  "files": [
+    "compra-conferencia-mobile.png",
+    "compra-ofertas-mobile.png",
+    "compra-paga-mobile.png",
+    "compra-perfis-individual-mobile.png",
+    "compra-recibo-mobile.png",
+    "troca-selecao-confirmada-mobile.png",
+    "troca-selecao-mobile.png"
+  ],
+  "boundary": "native_ui_with_closed_http_and_presentation_fixture",
+  "viewportWidth": 390,
+  "visuallyInspected": ["compra-perfis-individual-mobile.png", "compra-recibo-mobile.png"],
+  "selectionPersistenceAssertedByBrowser": true,
+  "providerPaymentProven": false,
+  "nativePlanUpgradeProven": false
+}

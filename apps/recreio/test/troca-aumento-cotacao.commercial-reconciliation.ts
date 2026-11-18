@@ -80,6 +80,7 @@ async function fixture(comJogador = false) {
   expect(falhas).toEqual([]);
   const [origem] = await db.select().from(purchases).where(eq(purchases.id, f.recibo.id));
   if (!origem) throw new Error("Native purchase absent");
+  const origemAdmitida = origem;
   const runtime = {
     modo: "dev" as const,
     produtos: f.products,
@@ -88,10 +89,13 @@ async function fixture(comJogador = false) {
   };
   const cotar = criarPreparacaoDeAumento(() => runtime);
   async function pedido() {
-    const atuais = await db.select().from(profiles).where(eq(profiles.groupId, origem.groupId));
+    const atuais = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.groupId, origemAdmitida.groupId));
     return {
       pedidoId: randomUUID(),
-      grupoId: origem.groupId,
+      grupoId: origemAdmitida.groupId,
       produtoDestino: "recreio_family_monthly",
       revisaoContrato: 1,
       perfis: atuais.map((p) => ({
