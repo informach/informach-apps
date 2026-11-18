@@ -1,5 +1,13 @@
 # Estado do trabalho no repositório
 
+**18/11 — caixa na partida/transição de visita em candidata:** consultas e
+decisões do SDK integradas; `Salvar e visitar` exige capacidade real, módulo
+finalizável e recibo `completed`. Conflito/falha não navegam. Jornada remota
+retém resposta HTTP real para provar ausência de nova sessão antes da entrega
+e depois confere o progresso anterior. `70f85381` tem sete gates aprovados,
+E2E pendente; gestão `031c689c` também em verificação. Nova rodada completa
+obrigatória. Sem implantação de F5. [Registro](recreio/visitas-temporarias-2026-11-17.md).
+
 **18/11 — gestão das visitas em candidata:** fila nativa paginada e aprovação
 nas rotas do mundo adulto/do menor, com cinco integrações e nova jornada de
 três adultos. `70f85381` (jornada familiar) está na rodada `44266657089`;

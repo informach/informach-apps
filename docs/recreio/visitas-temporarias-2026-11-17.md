@@ -1,5 +1,33 @@
 # Recreio: visitas temporárias com anfitrião
 
+## Atualização — caixa na partida e salvar para visitar em candidata
+
+O painel social negocia a caixa de visitas do SDK: páginas, consulta técnica,
+conferência atual, aceite e redução. Consultas e decisões não desmontam a
+partida. Resposta desconhecida bloqueia nova decisão até consulta atual, sem
+retry de escrita. Gerações locais impedem resposta tardia de atualizar painel
+desmontado ou de outra API. Nenhum link navega diretamente de uma partida viva.
+
+O hospedeiro só oferece `Salvar e visitar` quando o SDK possui capacidade de
+salvamento e o módulo montado implementa `finalizar`. Conserva uma intenção de
+destino feita de IDs, sem URL livre. Usa `confirmarFinalizacao`, encerra a
+partida anterior e navega somente após recibo `completed`; conflito preservado
+não navega. Falha mantém a intenção para nova tentativa de confirmação. Voltar
+sem confirmar conserva o caminho da estante, não a visita. Jogos de saída
+manual continuam orientados a salvar pelo próprio jogo e usar o portal.
+
+A jornada candidata da gestão agora começa com progresso no mundo próprio do
+visitante, aceita na partida e transita para visita após confirmação. Retém a
+resposta HTTP real da primeira consulta de salvamento por uma barreira explícita,
+confere que URL e número de novas sessões continuam intactos e libera os mesmos
+bytes/status sem retry ou atraso arbitrário. Depois da visita, reabre o mundo
+anterior para conferir seu progresso. Essa retenção não mede latência normal.
+Captura de 390 px da caixa na partida ainda precisa de inspeção remota.
+
+`70f85381` tem sete gates aprovados, incluindo integração; E2E segue em curso
+na rodada `44266657089`. Gestão `031c689c` está em `44267435863`. A caixa e a
+transição acima exigem nova rodada completa. Sem migration ou produção.
+
 ## Atualização — fila e decisão da gestão do mundo em candidata
 
 As páginas de gestão agora apontam para uma fila própria de visitas, com

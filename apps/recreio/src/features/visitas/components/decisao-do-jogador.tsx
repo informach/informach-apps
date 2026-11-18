@@ -6,6 +6,7 @@ import type {
 import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import { useState, useTransition } from "react";
 import { responderVisitaAction } from "../actions";
+import { caminhoDaVisita } from "../navegacao";
 
 export function DecisaoDaVisita({
   perfilId,
@@ -117,7 +118,11 @@ export function DecisaoDaVisita({
         {podeConferirEntrada && recibo.visita && (
           <a
             className="rb rb-sol"
-            href={`/jogar/${encodeURIComponent(recibo.convite.jogo)}?${new URLSearchParams({ mundo: recibo.convite.mundoId, visita: recibo.visita.visitaId })}`}
+            href={caminhoDaVisita({
+              jogo: recibo.convite.jogo,
+              mundoId: recibo.convite.mundoId,
+              visitaId: recibo.visita.visitaId,
+            })}
           >
             Conferir entrada no mundo
           </a>

@@ -17,6 +17,8 @@ import {
 } from "@/features/mundos/components/convites-na-partida";
 import { AvatarDoPerfil } from "@/features/perfis/components/avatar";
 import { ConvidarParaVisita } from "@/features/visitas/components/convidar-na-partida";
+import { VisitasNaPartida } from "@/features/visitas/components/visitas-na-partida";
+import type { DestinoDeVisita } from "@/features/visitas/navegacao";
 
 type Executar = <T>(acao: () => Promise<T>, confirmado?: (dados: T) => void) => void;
 const CAMPO =
@@ -34,10 +36,12 @@ export function PainelSocialDaPartida({
   api,
   aoFechar,
   mundoId,
+  aoVisitar,
 }: {
   api: SocialDoPerfil;
   aoFechar: () => void;
   mundoId?: string;
+  aoVisitar?: (destino: DestinoDeVisita) => void;
 }) {
   const dialogo = useRef<HTMLDialogElement>(null),
     vivo = useRef(true),
@@ -272,6 +276,7 @@ export function PainelSocialDaPartida({
       )}
       <ProtocolosNaPartida api={api} />
       {api.convitesDeMundo && <ConvitesNaPartida api={api.convitesDeMundo} />}
+      {api.visitas && <VisitasNaPartida api={api.visitas} aoVisitar={aoVisitar} />}
     </dialog>
   );
 }

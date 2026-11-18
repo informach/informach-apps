@@ -119,6 +119,7 @@ type CapturaJson = {
   metodo: "GET" | "POST";
   concluir: (resposta: JsonHttpCapturado) => void;
   falhar: (erro: unknown) => void;
+  antesDeEntregar?: () => Promise<void>;
 };
 const capturasJson = new WeakMap<BrowserContext, CapturaJson>();
 
@@ -131,11 +132,12 @@ export function capturarJsonDoPortal(
   contexto: BrowserContext,
   caminho: string,
   metodo: "GET" | "POST" = "GET",
+  antesDeEntregar?: () => Promise<void>,
 ): Promise<JsonHttpCapturado> {
   if (!contextos.includes(contexto) || capturasJson.has(contexto) || !caminho.startsWith("/api/"))
     throw new Error("Captura exige um aparelho do teste e uma única API explícita");
   return new Promise((concluir, falhar) => {
-    capturasJson.set(contexto, { caminho, metodo, concluir, falhar });
+    capturasJson.set(contexto, { caminho, metodo, concluir, falhar, antesDeEntregar });
   });
 }
 
@@ -236,6 +238,7 @@ export async function novoAparelho(browser: Browser): Promise<BrowserContext> {
             }),
             bytes = await resposta.body();
           const corpo: unknown = JSON.parse(bytes.toString("utf8"));
+          await captura.antesDeEntregar?.();
           await rota.fulfill({ response: resposta, body: bytes });
           captura.concluir({ status: resposta.status(), corpo });
         } finally {

@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import {
+  capturarJsonDoPortal,
   comecarVigia,
   convidar,
   criarMundo,
@@ -26,6 +27,15 @@ async function clicarComRecarga(page: Page, nome: string) {
   const botao = page.getByRole("button", { name: nome, exact: true });
   await hidratado(botao);
   await Promise.all([page.waitForEvent("load"), botao.click()]);
+}
+function sinal() {
+  let concluir: () => void = () => {
+    throw new Error("Sinal não preparado");
+  };
+  const promessa = new Promise<void>((resolve) => {
+    concluir = resolve;
+  });
+  return { promessa, concluir: () => concluir() };
 }
 
 test("gestão nativa aprova visita de um membro sem confundir anfitrião com responsável pelo mundo", async ({
@@ -55,9 +65,18 @@ test("gestão nativa aprova visita de um membro sem confundir anfitrião com res
   await hidratado(aceitarAmizade);
   await aceitarAmizade.click();
   await expect(visitante.page.getByText("Amizade confirmada", { exact: true })).toBeVisible();
+  const mundoAnterior = await criarMundo(visitante.page, "Jogo de teste", "Casa guardada do Rio");
   await contador.iniciar();
   await anfitriao.page.goto(`/jogar/teste?mundo=${mundo}`);
   await expect(anfitriao.page.getByLabel("Valor do contador", { exact: true })).toHaveText("0");
+  await visitante.page.goto(`/jogar/teste?mundo=${mundoAnterior}`);
+  await expect(visitante.page.getByLabel("Valor do contador", { exact: true })).toHaveText("0");
+  for (let soma = 1; soma <= 2; soma++) {
+    await visitante.page.getByRole("button", { name: "Somar 1", exact: true }).click();
+    await expect(visitante.page.getByLabel("Valor do contador", { exact: true })).toHaveText(
+      String(soma),
+    );
+  }
   await expect.poll(() => observarPresencas(mundo)).toMatchObject({ ativas: 1, membros: 2 });
   await anfitriao.page.getByRole("button", { name: "Amigos e proteção", exact: true }).click();
   const painel = anfitriao.page.getByRole("dialog", { name: "Amigos e proteção", exact: true });
@@ -66,12 +85,17 @@ test("gestão nativa aprova visita de um membro sem confundir anfitrião com res
     painel.getByRole("button", { name: "Convite de visita registrado", exact: true }),
   ).toBeVisible();
   await painel.getByRole("button", { name: "Voltar à partida", exact: true }).click();
-  await visitante.page.goto("/visitas");
-  await visitante.page.getByRole("link", { name: "Conferir visita", exact: true }).click();
-  const paginaDoConvite = new URL(visitante.page.url()).pathname;
-  await expect(
-    visitante.page.getByRole("button", { name: "Aceitar visita", exact: true }),
-  ).toBeDisabled();
+  await visitante.page.getByRole("button", { name: "Amigos e proteção", exact: true }).click();
+  const painelVisitante = visitante.page.getByRole("dialog", {
+      name: "Amigos e proteção",
+      exact: true,
+    }),
+    caixa = painelVisitante.getByRole("region", {
+      name: "Visitas com amigos na partida",
+      exact: true,
+    });
+  await caixa.getByRole("button", { name: "Conferir visita", exact: true }).click();
+  await expect(caixa.getByRole("button", { name: "Aceitar visita", exact: true })).toBeDisabled();
   await dono.page.goto(`/conta/mundos/${mundo}/gestao`);
   await dono.page.getByRole("link", { name: "Conferir visitas ao mundo", exact: true }).click();
   await dono.page.getByRole("link", { name: "Conferir convite de visita", exact: true }).click();
@@ -95,14 +119,55 @@ test("gestão nativa aprova visita de um membro sem confundir anfitrião com res
   await expect(
     dono.page.getByText("Nenhuma visita aguarda sua decisão nesta página.", { exact: true }),
   ).toBeVisible();
-  await visitante.page.goto(paginaDoConvite);
-  const aceitar = visitante.page.getByRole("button", { name: "Aceitar visita", exact: true });
-  await hidratado(aceitar);
-  await aceitar.click();
-  await expect(visitante.page.getByRole("status")).toContainText("Convite aceito");
-  await visitante.page
-    .getByRole("link", { name: "Conferir entrada no mundo", exact: true })
-    .click();
+  await caixa.getByRole("button", { name: "Atualizar visitas", exact: true }).click();
+  await caixa.getByRole("button", { name: "Conferir visita", exact: true }).click();
+  await caixa.getByRole("button", { name: "Aceitar visita", exact: true }).click();
+  await expect(caixa.getByRole("status")).toContainText("Convite aceito");
+  await caixa.getByRole("button", { name: "Conferir visita", exact: true }).click();
+  const visitar = caixa.getByRole("button", { name: "Salvar e visitar", exact: true });
+  await expect(visitar).toBeEnabled();
+  await visitante.page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await visitante.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+  ).toBe(true);
+  await tela(visitante.page, "visitas-partida-mobile", { paginaInteira: true });
+  const chegou = sinal(),
+    liberar = sinal();
+  let novasSessoes = 0;
+  visitante.page.on("request", (r) => {
+    if (new URL(r.url()).pathname === "/api/sdk/v1/sessao" && r.method() === "POST") novasSessoes++;
+  });
+  // Retém os bytes reais da primeira consulta do recibo, sem alterar corpo/status
+  // ou repetir pedidos. A barreira é liberada por fato, sem espera arbitrária.
+  const recibo = capturarJsonDoPortal(
+    visitante.page.context(),
+    "/api/sdk/v1/sessao/salvamento",
+    "GET",
+    async () => {
+      chegou.concluir();
+      await liberar.promessa;
+    },
+  );
+  const respostaPendente = Promise.race([
+    chegou.promessa,
+    recibo.then(() => {
+      throw new Error("Recibo entregue antes da barreira");
+    }),
+  ]);
+  try {
+    await visitar.click();
+    await respostaPendente;
+    expect(new URL(visitante.page.url()).pathname + new URL(visitante.page.url()).search).toBe(
+      `/jogar/teste?mundo=${mundoAnterior}`,
+    );
+    expect(novasSessoes).toBe(0);
+  } finally {
+    liberar.concluir();
+  }
+  expect((await recibo).status).toBe(200);
+  await expect(visitante.page).toHaveURL(
+    new RegExp(`/jogar/teste\\?mundo=${mundo}&visita=[0-9a-f-]{36}$`),
+  );
   await expect(visitante.page.getByLabel("Valor do contador", { exact: true })).toHaveText("0");
   await expect
     .poll(() => observarPresencas(mundo))
@@ -123,6 +188,12 @@ test("gestão nativa aprova visita de um membro sem confundir anfitrião com res
       visitantes_admitidos: 0,
       visitas_encerradas: 1,
     });
+  await visitante.page.goto(`/jogar/teste?mundo=${mundoAnterior}`);
+  await expect(visitante.page.getByLabel("Valor do contador", { exact: true })).toHaveText("2");
+  await visitante.page
+    .getByRole("button", { name: "Sair por dentro do jogo", exact: true })
+    .click();
+  await expect(visitante.page).toHaveURL(/\/estante$/);
 });
 
 test("visita infantil exige os dois responsáveis, não cria membro e termina ao sair ou perder o anfitrião", async ({

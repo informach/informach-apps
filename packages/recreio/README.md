@@ -321,6 +321,12 @@ presença, direito atual, entrada ou salvamento. Endpoints e SDK ainda são
 candidatos; telas e jornada completa continuam
 em implementação no [registro](../../docs/recreio/visitas-temporarias-2026-11-17.md).
 
+A candidata do portal oferece caixa fora/dentro da partida e aprovações nativas.
+Na partida, a transição só é oferecida com capacidade de salvamento e módulo
+finalizável: o hospedeiro exige o recibo confirmado antes da navegação. Conflito
+ou confirmação desconhecida conservam o tratamento de progresso. Homologação
+remota e implantação integral seguem pendentes; Morada não ganha visitas.
+
 ## Preparação da responsabilidade com aceite
 
 O contrato de encerramento também reconhece `permissions_changed`. O host
