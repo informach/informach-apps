@@ -14,7 +14,8 @@ async function main() {
   if (
     !key ||
     !key.startsWith("sk_test_") ||
-    !expectedAccount?.startsWith("acct_") ||
+    !expectedAccount ||
+    !expectedAccount.startsWith("acct_") ||
     !output ||
     appUrl.username ||
     appUrl.password ||
@@ -30,7 +31,7 @@ async function main() {
     timeout: 10_000,
     maxNetworkRetries: 0,
   });
-  const account = await stripe.accounts.retrieve();
+  const account = await stripe.accounts.retrieve(expectedAccount);
   if (account.id !== expectedAccount)
     throw new Error("Stripe account differs from the admitted sandbox account");
   const products: Stripe.Product[] = [];

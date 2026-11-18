@@ -111,6 +111,23 @@ idempotência, preços imutáveis do catálogo comum e recibo sem segredos.
 Operação externa ainda não executada nessa fonte; não representa homologação
 de Checkout, liquidação, webhook ou cancelamento no provedor.
 
+Catálogo real criado/conferido no workflow `44326443256`, fonte `85a42bad`,
+em 18/11 às 14:38:53 UTC. Recibo e integridade do artefato em
+[evidência própria](evidencias/catalogo-stripe-sandbox-2026-11-18.json).
+São dois produtos de teste, quatro preços BRL aprovados e portal restrito;
+nenhum cliente, contrato ou cobrança foi criado por essa operação. IDs são
+configuração do ambiente de teste e não foram aplicados ao Railway de produção.
+O dry-run anterior `44326137355` confirmou os cinco objetos de configuração
+ausentes. A operação real passou, mas o gate de tipos dessa fonte encontrou
+uma chamada de conta sem argumento no SDK 22.1.0; ela passa a usar o ID esperado,
+cuja leitura externa também foi conferida. Nova qualificação integral é obrigatória.
+
+A especificação privada foi relida para as próximas trocas: subir de plano vale
+na hora, com proporcional calculado pelo Stripe; reduzir vale no fim do período
+pago e exige selecionar os perfis que continuam. Cancelar preserva o período e
+os mesmos IDs/progresso. Não substituir essas regras por troca imediata sem
+consentimento, nem programar todos os aumentos para a renovação.
+
 `146b0932` concluiu os treze gates `44299049292`, incluindo as quatro provas
 de Checkout vinculado ao UUID do aceite e validade absoluta. O gate comercial
 usa PostgreSQL e SDK Stripe por transporte HTTP fechado; não é pagamento real.
