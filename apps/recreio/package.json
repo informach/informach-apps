@@ -15,6 +15,7 @@
     "test:commercial-setup": "node scripts/isolated.mjs commercial-setup",
     "test:commercial-checkout": "node scripts/isolated.mjs commercial-checkout",
     "test:commercial-reconciliation": "node scripts/isolated.mjs commercial-reconciliation",
+    "homologar:stripe": "tsx scripts/sandbox-jornada.ts",
     "e2e": "node scripts/isolated.mjs e2e",
     "e2e:trial-setup": "node scripts/isolated.mjs e2e-trial-setup",
     "e2e:commercial-setup": "node scripts/isolated.mjs e2e-commercial-setup",

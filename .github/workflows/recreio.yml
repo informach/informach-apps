@@ -131,7 +131,7 @@ jobs:
           echo "$stripe_tool_dir" >> "$GITHUB_PATH"
       - run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
       - name: Homologar pelo portal e pelo SDK com webhook real encaminhado
-        run: pnpm --filter @informach/recreio-app exec tsx scripts/sandbox-jornada.ts
+        run: pnpm --filter @informach/recreio-app homologar:stripe
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -27,7 +27,17 @@ async function main() {
     !pnpm ||
     !temporary
   )
-    throw new Error("Real Stripe journey runs only on the admitted GitHub test executor");
+    throw new Error(
+      `Invalid Stripe journey executor: ${[
+        process.env.GITHUB_ACTIONS !== "true" ? "GITHUB_ACTIONS" : null,
+        process.env.CI !== "true" ? "CI" : null,
+        !isStripeTestSecret(key) ? "STRIPE_SECRET_KEY" : null,
+        !pnpm ? "npm_execpath" : null,
+        !temporary ? "RUNNER_TEMP" : null,
+      ]
+        .filter(Boolean)
+        .join(", ")}`,
+    );
   const port = "3109",
     origin = `http://localhost:${port}`;
   const catalog = resolve(temporary, "recreio-stripe-local-catalog.json");
