@@ -50,11 +50,13 @@ export default async function GrupoDaConta({
       {grupo ? (
         <>
           <p className="mt-6 text-lg font-semibold">
-            {grupo.limite > 0
-              ? `A cobertura atual permite ${grupo.limite} ${grupo.limite === 1 ? "jogador" : "jogadores"}.`
-              : "Sem cobertura para jogar neste momento. Os perfis continuam guardados."}
+            {grupo.revisaoDaSelecao !== null
+              ? `Confirme até ${grupo.limite} ${grupo.limite === 1 ? "jogador" : "jogadores"} para este plano.`
+              : grupo.limite > 0
+                ? `A cobertura atual permite ${grupo.limite} ${grupo.limite === 1 ? "jogador" : "jogadores"}.`
+                : "Sem cobertura para jogar neste momento. Os perfis continuam guardados."}
           </p>
-          {grupo.perfis.length > 0 ? (
+          {grupo.perfis.length > 0 || grupo.revisaoDaSelecao !== null ? (
             <CoberturaDoGrupo grupo={grupo} novasCoberturas={novosPerfisProtegidosDisponiveis} />
           ) : (
             <p className="painel mt-6 p-5">Nenhum jogador cadastrado neste grupo.</p>

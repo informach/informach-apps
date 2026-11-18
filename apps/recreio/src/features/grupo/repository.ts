@@ -1,7 +1,8 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
-import { db, eq, sql } from "@informach/db";
+import { and, db, eq, sql } from "@informach/db";
 import {
+  recreioBillingContracts as contracts,
   recreioGameSessions as games,
   recreioGroups as groups,
   recreioProfiles as profiles,
@@ -13,14 +14,51 @@ import {
   type IdentidadeNativa,
 } from "@/features/account/autoridade-repository";
 import { decidirPlanoLido } from "@/features/acesso/decisao";
-import { lerFatosDoGrupo } from "@/features/acesso/repository";
+import { lerFatosDoGrupo, lerOrigemDaAssinaturaParaTroca } from "@/features/acesso/repository";
+import { ofertasParaOAdulto } from "@/features/cobranca/regras";
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/encerramento-repository";
 import { invalidarIngressosDoPerfil } from "@/features/sessao-de-jogo/ingressos-repository";
 import { env } from "@/lib/env";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 import { admitirGrupoDoTitular } from "./autoridade-repository";
-import type { CoberturaDoGrupo } from "./regras";
+import type { ConfirmacaoCoberturaDoGrupo } from "./regras";
+
+async function lerRevisaoDaSelecao(
+  tx: Transacao,
+  grupoId: GrupoId,
+  paganteId: string,
+  trava: "share" | "update",
+) {
+  const pendentes = await tx
+    .select()
+    .from(contracts)
+    .where(
+      and(
+        eq(contracts.groupId, grupoId),
+        eq(contracts.payerUserId, paganteId),
+        eq(contracts.providerMode, env.STRIPE_MODE),
+        eq(contracts.coverageReviewRequired, true),
+      ),
+    )
+    .limit(2)
+    .for(trava);
+  assertAllowed(pendentes.length <= 1, "CONFLITO", "A cobertura comercial exige conferência.");
+  const contrato = pendentes[0];
+  if (!contrato) return null;
+  const oferta = ofertasParaOAdulto().find((p) => p.productId === contrato.currentProductId);
+  const origem = await lerOrigemDaAssinaturaParaTroca(tx, contrato.subscriptionId, paganteId);
+  assertAllowed(
+    oferta &&
+      origem &&
+      contrato.currentPlanChangeId &&
+      contrato.currentPlanAppliedAt &&
+      contrato.revision > 1,
+    "CONFLITO",
+    "A oferta atual exige conferência.",
+  );
+  return { contrato, limite: oferta.perfis };
+}
 
 async function limites(tx: Transacao) {
   await tx.execute(sql`set local statement_timeout='5s'`);
@@ -50,9 +88,11 @@ export async function lerComposicaoDoGrupo(autor: IdentidadeNativa, grupoId: Gru
     const fatos = await lerFatosDoGrupo(grupoId, tx);
     assertAllowed(fatos, "GRUPO", "Grupo não disponível.");
     const plano = decidirPlanoLido(fatos, await atual.nativa.conferirPrazo());
+    const revisao = await lerRevisaoDaSelecao(tx, grupoId, autor.contaId, "share");
     return {
       grupoId,
-      limite: plano.limiteDePerfis,
+      limite: revisao?.limite ?? plano.limiteDePerfis,
+      revisaoDaSelecao: revisao?.contrato.revision ?? null,
       estado: plano.estado,
       perfis: atual.perfis.map((p) => ({
         perfilId: PerfilIdSchema.parse(p.id),
@@ -76,10 +116,21 @@ export async function lerComposicaoDoGrupo(autor: IdentidadeNativa, grupoId: Gru
 }
 
 /** A seleção muda cobertura e revisão, nunca identidade, responsabilidade ou conteúdo. */
-export async function gravarCoberturaDoGrupo(autor: AutorNativoRecente, pedido: CoberturaDoGrupo) {
+export async function gravarCoberturaDoGrupo(
+  autor: AutorNativoRecente,
+  pedido: ConfirmacaoCoberturaDoGrupo,
+) {
   return db.transaction(async (tx) => {
     await limites(tx);
     const atual = await admitirGrupoDoTitular(tx, autor, pedido.grupoId, "update");
+    const revisao = await lerRevisaoDaSelecao(tx, pedido.grupoId, autor.contaId, "update");
+    assertAllowed(
+      revisao
+        ? pedido.revisaoDoContrato === revisao.contrato.revision
+        : pedido.revisaoDoContrato === undefined,
+      "CONFLITO",
+      "A oferta mudou. Reabra a cobertura antes de confirmar.",
+    );
     const conferirSelecao = async () => {
       const fatos = await lerFatosDoGrupo(pedido.grupoId, tx);
       assertAllowed(fatos, "GRUPO", "Grupo não disponível.");
@@ -95,7 +146,9 @@ export async function gravarCoberturaDoGrupo(autor: AutorNativoRecente, pedido: 
         "Novas coberturas ainda não estão disponíveis neste acesso.",
       );
       assertAllowed(
-        !aumenta || pedido.perfis.filter((p) => p.cobrir).length <= plano.limiteDePerfis,
+        revisao
+          ? pedido.perfis.filter((p) => p.cobrir).length <= revisao.limite
+          : !aumenta || pedido.perfis.filter((p) => p.cobrir).length <= plano.limiteDePerfis,
         "LIMITE_DE_PERFIS",
         "A seleção excede a cobertura atual do plano.",
       );
@@ -116,6 +169,12 @@ export async function gravarCoberturaDoGrupo(autor: AutorNativoRecente, pedido: 
         "PERFIL",
         "Perfil não disponível.",
       );
+      if (revisao && pedidoDoPerfil.cobrir)
+        assertAllowed(
+          perfil.kind === "adult" || atual.vinculos.some((v) => v.perfilId === perfil.id),
+          "PERFIL",
+          "Confira a responsabilidade do perfil antes de selecionar.",
+        );
     }
     await conferirSelecao();
     const mudancas = atual.perfis.filter((p) =>
@@ -155,6 +214,34 @@ export async function gravarCoberturaDoGrupo(autor: AutorNativoRecente, pedido: 
     }
     // Inclui espera do cursor/auditoria e vencimento de cortesia no próprio commit.
     await conferirSelecao();
+    if (revisao) {
+      const [confirmada] = await tx
+        .update(contracts)
+        .set({ coverageReviewRequired: false })
+        .where(
+          and(
+            eq(contracts.subscriptionId, revisao.contrato.subscriptionId),
+            eq(contracts.revision, revisao.contrato.revision),
+            eq(contracts.coverageReviewRequired, true),
+          ),
+        )
+        .returning({ id: contracts.subscriptionId });
+      assertAllowed(confirmada, "CONFLITO", "A revisão da seleção mudou. Reabra a cobertura.");
+      await logAuditEventStrict(
+        "recreio.plan_change_selection_confirmed",
+        autor.contaId,
+        {
+          app: "recreio",
+          groupId: pedido.grupoId,
+          planChangeId: revisao.contrato.currentPlanChangeId,
+          subscriptionId: revisao.contrato.subscriptionId,
+          revision: revisao.contrato.revision,
+          state: "confirmed",
+        },
+        { writer: tx },
+      );
+      await atual.nativa.conferirPrazo(autor.login);
+    }
     return { alterados: mudancas.length };
   });
 }

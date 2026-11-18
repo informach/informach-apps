@@ -175,3 +175,29 @@ pendentes dos gates; não comprovam uma jornada nativa no Stripe externo.
 Resolução nativa da revisão da seleção, cancelamento após envio, upgrades,
 créditos anuais, telas e homologação comercial integral continuam pendentes.
 Nenhum serviço ou fluxo comercial foi ativado em produção.
+
+## Candidata de confirmação da seleção atual
+
+O gate financeiro de `75622649`/`44378474167` concluiu 64 testes em quatro
+arquivos, incluindo 28 casos da cotação/aceite/envio/aplicação. O gate inteiro
+ainda precisa concluir; não equivale a implantação ou pagamento externo.
+
+A gestão existente da cobertura passa a apresentar a revisão pendente da
+seleção. O limite apresentado para essa confirmação vem da oferta comercial
+atual admitida, independentemente da cobertura de jogo temporariamente recusada.
+O servidor exige a revisão do contrato vista pelo adulto, a composição e as
+versões atuais, login recente e o teto inteiro da seleção, inclusive quando
+nenhuma vaga está sendo acrescentada. Não altera o recibo de aceite antigo.
+
+Seleção, políticas/revogação e encerramento da revisão entram com auditoria
+na mesma transação. Confirmar uma seleção não quita fatura nem transforma uma
+renovação não paga em acesso. O adulto sem jogador continua podendo confirmar;
+um grupo sem perfis também pode concluir a confirmação vazia. A interface
+conserva os estilos do portal, com aviso de revisão, confirmação explícita e
+recusa visível acima da capacidade.
+
+A candidata acrescenta prova PostgreSQL de revisão ausente/divergente e excesso
+de perfis, confirmação válida e manutenção da negativa de pagamento. A jornada
+de navegador de 390 px usa uma fixture SQL explicitamente de apresentação;
+capturas antes/depois, recarga e seleção persistida não são prova de Stripe.
+Precisa dos gates remotos e inspeção das capturas antes de qualificar.

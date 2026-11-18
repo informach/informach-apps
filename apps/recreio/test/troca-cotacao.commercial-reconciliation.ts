@@ -29,6 +29,7 @@ import {
   criarRecuperacaoDeReducao,
 } from "@/features/cobranca/troca-execucao-service";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
+import { atualizarCobertura, consultarGrupo } from "@/features/grupo/service";
 import { env } from "@/lib/env";
 import { transporteDeAgenda } from "./agenda-stripe-apoio";
 import { fixtureDePagamento } from "./pagamento-stripe-apoio";
@@ -721,10 +722,54 @@ describe("aplicação da redução pela conciliação financeira completa", () =
     if (!fatos) throw new Error("Native financial facts absent");
     expect(fatos.assinaturaAtiva?.financeiro.emConferencia).toBe(true);
     expect(decidirPlanoLido(fatos, new Date()).podeJogar).toBe(false);
+    const grupo = await consultarGrupo(f.adulto.autor, f.origem.groupId);
+    expect(grupo).toMatchObject({ limite: 1, revisaoDaSelecao: 2 });
+    const escolhas = grupo.perfis.map((p, i) => ({
+      perfilId: p.perfilId,
+      versao: p.versao,
+      cobrir: i === 0,
+    }));
+    const pedido = {
+      grupoId: grupo.grupoId,
+      revisaoDoContrato: grupo.revisaoDaSelecao,
+      perfis: escolhas,
+    };
+    await expect(
+      atualizarCobertura(f.adulto.autor, { ...pedido, revisaoDoContrato: undefined }),
+    ).rejects.toMatchObject({ code: "CONFLITO" });
+    await expect(
+      atualizarCobertura(f.adulto.autor, { ...pedido, revisaoDoContrato: 3 }),
+    ).rejects.toMatchObject({ code: "CONFLITO" });
+    await expect(
+      atualizarCobertura(f.adulto.autor, {
+        ...pedido,
+        perfis: escolhas.map((p) => ({ ...p, cobrir: true })),
+      }),
+    ).rejects.toMatchObject({ code: "LIMITE_DE_PERFIS" });
+    expect((await contrato(f)).coverageReviewRequired).toBe(true);
+    await atualizarCobertura(f.adulto.autor, pedido);
+    expect((await contrato(f)).coverageReviewRequired).toBe(false);
+    const depois = await lerFatosDoGrupo(GrupoIdSchema.parse(f.origem.groupId));
+    if (!depois) throw new Error("Native financial facts absent after selection");
+    expect(decidirPlanoLido(depois, new Date())).toMatchObject({
+      podeJogar: true,
+      limiteDePerfis: 1,
+    });
+    const audits = await db
+      .select()
+      .from(auditEvents)
+      .where(eq(auditEvents.actorId, f.adulto.conta.id));
+    expect(
+      audits.filter((e) => e.eventType === "recreio.plan_change_selection_confirmed"),
+    ).toHaveLength(1);
   });
 
   it("fase nova sem renovação paga muda o contrato comercial e continua sem acesso pago", async () => {
     const f = caso(2);
+    await db
+      .update(profiles)
+      .set({ policyVersion: sql`${profiles.policyVersion}+1` })
+      .where(eq(profiles.groupId, f.origem.groupId));
     expect((await aplicar(f, false)).conciliadas).toBe(1);
     expect(await contrato(f)).toMatchObject({
       revision: 2,
@@ -733,6 +778,21 @@ describe("aplicação da redução pela conciliação financeira completa", () =
     const fatos = await lerFatosDoGrupo(GrupoIdSchema.parse(f.origem.groupId));
     if (!fatos) throw new Error("Native financial facts absent");
     expect(decidirPlanoLido(fatos, new Date()).podeJogar).toBe(false);
+    const grupo = await consultarGrupo(f.adulto.autor, f.origem.groupId);
+    expect(grupo.revisaoDaSelecao).toBe(2);
+    await atualizarCobertura(f.adulto.autor, {
+      grupoId: grupo.grupoId,
+      revisaoDoContrato: grupo.revisaoDaSelecao,
+      perfis: grupo.perfis.map((p, i) => ({
+        perfilId: p.perfilId,
+        versao: p.versao,
+        cobrir: i === 0,
+      })),
+    });
+    expect((await contrato(f)).coverageReviewRequired).toBe(false);
+    const depois = await lerFatosDoGrupo(GrupoIdSchema.parse(f.origem.groupId));
+    if (!depois) throw new Error("Native unpaid financial facts absent");
+    expect(decidirPlanoLido(depois, new Date()).podeJogar).toBe(false);
   });
 
   it("falha de auditoria reverte oferta, seleção, aplicação e confirmação financeira juntas", async () => {
