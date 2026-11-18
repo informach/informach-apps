@@ -1,0 +1,32 @@
+{
+  "runId": "44350625433",
+  "artifactId": "14447508263",
+  "artifactBytes": 68560,
+  "artifactSha256": "c2cd6209d8b2fbc35dbff3de83aff2a195aa54cc536cd4d8ed0327cfd05c2e3a",
+  "provenance": {
+    "source": "b0db958fd767ef9eae04a8ab6bdad52b26ecbf76",
+    "files": [
+      {
+        "path": "packages/db/src/migrations/0211_volatile_smasher.sql",
+        "bytes": 3208,
+        "sha256": "6fe60ad4f5fd4d6864ca73a7308906ce19c9a9539cb8aea4773a3724a3bea038"
+      },
+      {
+        "path": "packages/db/src/migrations/meta/0211_snapshot.json",
+        "bytes": 984228,
+        "sha256": "e3981c3b7bb185f948f4ff614eadbea7fe7dab3b923070a75a0b5f504b318bfe"
+      },
+      {
+        "path": "packages/db/src/migrations/meta/_journal.json",
+        "bytes": 31986,
+        "sha256": "7830dab359ecdb9e925b8808f82da51215cd523bef3048973c927de7ead40215"
+      }
+    ]
+  },
+  "snapshotId": "c933c2ec-9fb0-4a2a-8dfb-38f815f5e7e5",
+  "previousId": "8d46705c-e460-431c-bb87-bdec727b981b",
+  "journalEntries": 212,
+  "adoptedUnmodified": true,
+  "deploymentPrecondition": "plan_changes_empty_and_commercial_writers_off",
+  "productionApplied": false
+}

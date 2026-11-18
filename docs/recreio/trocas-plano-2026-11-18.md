@@ -138,5 +138,19 @@ Mensal/anual com saldo credor depende de rastrear a origem financeira: uma
 fatura de valor zero isolada não comprova liquidação. Os casos anuais ainda
 precisam de implementação e prova, sem alterar a regra de upgrade imediato.
 
+`0211_volatile_smasher.sql` foi gerada em `44350625433`/`b0db958f`, revisada e
+adotada sem editar os três arquivos. Os hashes, predecessor e prefixo do
+journal foram conferidos; [proveniência](evidencias/migracao-trocas-termos-0211.json).
+O journal candidato passa a 212 entradas. A condição de tabela vazia acima
+é obrigatória para a implantação; nenhum zero foi usado como backfill.
+
+`troca-entrada.ts` prepara o vínculo dos termos de aceite: cobrança atual,
+subtotal/crédito/total, renovação, intervalo, revisão, vigência e versão devem
+coincidir com a cotação persistida. O prazo é exclusivo, de cinco minutos; um
+replay de aceite válido não inventa outro instante nem prorroga a cotação.
+A validação conserva seleção sem duplicações/campos extras. Ela é pura:
+autorização, persistência do aceite e operações de provedor ainda precisam
+ser ligadas e comprovadas nos escritores nativos.
+
 O catálogo de teste já possui evidência própria; isso não comprova trocas ou
 pagamentos. Nenhuma DDL F6 ou alteração comercial foi implantada em produção.

@@ -1,0 +1,17 @@
+ALTER TABLE "recreio"."plan_changes" DROP CONSTRAINT "recreio_plan_change_offer";--> statement-breakpoint
+ALTER TABLE "recreio"."plan_changes" DROP CONSTRAINT "recreio_plan_change_effect";--> statement-breakpoint
+ALTER TABLE "recreio"."billing_contracts" ADD COLUMN "coverage_review_required" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "recreio"."plan_changes" ADD COLUMN "to_amount_cents" integer NOT NULL;--> statement-breakpoint
+ALTER TABLE "recreio"."plan_changes" ADD COLUMN "to_interval" text NOT NULL;--> statement-breakpoint
+ALTER TABLE "recreio"."plan_changes" ADD COLUMN "quoted_subtotal_cents" integer NOT NULL;--> statement-breakpoint
+ALTER TABLE "recreio"."plan_changes" ADD COLUMN "quoted_credit_cents" integer NOT NULL;--> statement-breakpoint
+ALTER TABLE "recreio"."plan_changes" ADD COLUMN "quoted_total_cents" integer NOT NULL;--> statement-breakpoint
+ALTER TABLE "recreio"."billing_contracts" ADD CONSTRAINT "recreio_billing_contract_selection_review" CHECK (not "recreio"."billing_contracts"."coverage_review_required" or "recreio"."billing_contracts"."current_plan_change_id" is not null);--> statement-breakpoint
+ALTER TABLE "recreio"."plan_changes" ADD CONSTRAINT "recreio_plan_change_offer" CHECK ("recreio"."plan_changes"."from_product_id" <> "recreio"."plan_changes"."to_product_id" and "recreio"."plan_changes"."from_price_id" <> "recreio"."plan_changes"."to_price_id" and
+    length("recreio"."plan_changes"."origin_product_id") between 2 and 80 and length("recreio"."plan_changes"."from_product_id") between 2 and 80 and length("recreio"."plan_changes"."to_product_id") between 2 and 80 and
+    length("recreio"."plan_changes"."from_price_id") between 8 and 256 and length("recreio"."plan_changes"."to_price_id") between 8 and 256 and "recreio"."plan_changes"."expected_contract_revision" >= 1 and
+    "recreio"."plan_changes"."to_amount_cents">0 and "recreio"."plan_changes"."to_interval" in ('month','year') and
+    "recreio"."plan_changes"."quoted_amount_cents" >= 0 and "recreio"."plan_changes"."quoted_subtotal_cents">=0 and "recreio"."plan_changes"."quoted_credit_cents"<=0 and "recreio"."plan_changes"."currency"='BRL' and length("recreio"."plan_changes"."policy_version") between 2 and 64);--> statement-breakpoint
+ALTER TABLE "recreio"."plan_changes" ADD CONSTRAINT "recreio_plan_change_effect" CHECK ("recreio"."plan_changes"."period_end" > "recreio"."plan_changes"."period_start" and
+    (("recreio"."plan_changes"."kind"='upgrade' and "recreio"."plan_changes"."proration_at" is not null and "recreio"."plan_changes"."effective_at"="recreio"."plan_changes"."proration_at" and "recreio"."plan_changes"."effective_at">="recreio"."plan_changes"."period_start" and "recreio"."plan_changes"."effective_at"<"recreio"."plan_changes"."period_end") or
+     ("recreio"."plan_changes"."kind"='downgrade' and "recreio"."plan_changes"."proration_at" is null and "recreio"."plan_changes"."effective_at"="recreio"."plan_changes"."period_end" and "recreio"."plan_changes"."quoted_amount_cents"=0 and "recreio"."plan_changes"."quoted_subtotal_cents"=0 and "recreio"."plan_changes"."quoted_credit_cents"=0 and "recreio"."plan_changes"."quoted_total_cents"=0)));
