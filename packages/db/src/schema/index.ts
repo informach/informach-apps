@@ -26,3 +26,4 @@ export * from "./recreio-politicas";
 export * from "./recreio-protecao";
 export * from "./recreio-salvamento";
 export * from "./recreio-social";
+export * from "./recreio-sucessao";
