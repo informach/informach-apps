@@ -137,17 +137,21 @@ export function encerrarSessaoDeVisitaNoBanco(
           and g.ended_at is null limit 1
       `)
         : [];
+    const desistiuDaEntrada = pedido.motivo === "entrada_nao_concluida";
+    const preservarTentativa =
+      desistiuDaEntrada && vinculo.admittedAt === null && visita.expiresAt > agora;
+    const saiu = pedido.motivo === "sair" || desistiuDaEntrada;
     if (sessao.endedAt === null)
       await encerrarSessoesAbertas(
         tx,
         sql`${games.id}=${pedido.sid}`,
-        sessao.expiresAt <= agora ? "expired" : pedido.motivo === "sair" ? "left" : "access_lost",
+        sessao.expiresAt <= agora ? "expired" : saiu ? "left" : "access_lost",
         { porQuem: "recreio" },
       );
     let visitaEncerrada = visita.endedAt !== null;
-    if (!substituida && !outra && !visitaEncerrada) {
+    if (!substituida && !outra && !preservarTentativa && !visitaEncerrada) {
       const expirada = visita.expiresAt <= agora,
-        motivo = expirada ? "expired" : pedido.motivo === "sair" ? "left" : "revoked";
+        motivo = expirada ? "expired" : saiu ? "left" : "revoked";
       await tx
         .update(visits)
         .set({
@@ -177,7 +181,7 @@ export function encerrarSessaoDeVisitaNoBanco(
         ? "replaced"
         : outra
           ? "session_ended"
-          : pedido.motivo === "sair"
+          : saiu
             ? "left"
             : "visit_ended";
       await tx

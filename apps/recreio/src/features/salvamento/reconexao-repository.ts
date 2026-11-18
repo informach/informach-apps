@@ -23,6 +23,9 @@ export async function aguardarSalvamentoAnterior(
         eq(permits.profileId, entrada.perfilId),
         eq(permits.policyVersion, entrada.versaoDaPolitica),
         eq(permits.status, "ready"),
+        // Sem admissão autoritativa no primeiro mundo, não há fila de mundo
+        // deste SID a persistir. Isso não vale para dados de perfil.
+        sql`(${permits.mode}<>'server' or ${games.spaceId} is not null)`,
         gt(permits.expiresAt, entrada.agora),
         isNull(games.checkpointFrozenAt),
         isNull(devices.revokedAt),

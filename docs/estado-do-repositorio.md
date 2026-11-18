@@ -37,8 +37,12 @@ Integração ao servidor de referência `18eb95bd` passou nos oito gates
 `44251506767`, com 39 E2E incluindo presença física/renovação/saída.
 Vínculo preparado e guarda local `238610bd` passou nos oito gates
 `44252742292`, com 1007 integrações. Runtime de visitante `516a6d65` passou
-nos oito gates `44254851686`. Prévia nativa da entrada é a candidata atual;
-UI, jornada completa e operação F5 permanecem pendentes. Migrations 0191–0203 geradas no
+nos oito gates `44254851686`, com 1010 integrações. Prévia `e8e7a38b` teve
+1016 integrações aprovadas e uma falha de fixture (`falha` em vez de `erro`
+na liberação de posse), também barrando tipos/builds. Corrigida na candidata
+atual junto à desistência antes de admissão por prova persistida, sem consumir
+a concessão ou inventar ACK. UI, jornada completa e operação F5 permanecem
+pendentes. Migrations 0191–0203 geradas no
 GitHub, ausentes de produção.
 [Sucessão infantil](recreio/sucessao-infantil-2026-11-17.md).
 [Contrato, provas e limites](recreio/mundos-completos-2026-11-17.md).

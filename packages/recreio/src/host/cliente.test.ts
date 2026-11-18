@@ -673,6 +673,21 @@ describe("encerramento da sessão visitante", () => {
     sessaoDeVisitaId: "bff99a1f-9c9d-477c-aa83-a264caa7fab3",
     motivo: "sair" as const,
   };
+  it("encaminha desistência sem inferir que a visita ou o salvamento terminaram", async () => {
+    const a = ambiente();
+    await a.registrado();
+    const recibo = {
+      sessaoDeVisitaId: pedido.sessaoDeVisitaId,
+      estado: "closed",
+      sidEncerrado: true,
+      visitaEncerrada: false,
+    };
+    a.responder(Response.json(recibo));
+    expect(
+      await a.cliente.encerrarSessaoDeVisita({ ...pedido, motivo: "entrada_nao_concluida" }),
+    ).toEqual(recibo);
+    expect(a.chamadas[1]?.corpo).toMatchObject({ motivo: "entrada_nao_concluida" });
+  });
   it("conserva a prova e lê fatos de encerramento sem anunciar salvamento", async () => {
     const a = ambiente();
     await a.registrado();

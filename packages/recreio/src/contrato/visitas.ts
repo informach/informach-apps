@@ -142,7 +142,7 @@ export const RespostaDaRenovacaoDeVisitasSchema = z.strictObject({
 });
 
 export const EncerramentoDeSessaoDeVisitaSchema = PedidoDeEntradaDeVisitaSchema.extend({
-  motivo: z.enum(["sair", "autoridade_perdida"]),
+  motivo: z.enum(["sair", "autoridade_perdida", "entrada_nao_concluida"]),
 });
 export type EncerramentoDeSessaoDeVisita = z.infer<typeof EncerramentoDeSessaoDeVisitaSchema>;
 /** Só fatos de encerramento; não é ACK de salvamento. */

@@ -526,7 +526,7 @@ async function entrar(
     if (pedidoDeVisita) sessoesVisitantes.admitir(pedidoDeVisita.sessaoDeVisitaId);
   } catch (erro) {
     if (pedidoDeVisita)
-      sessoesVisitantes.encerrar(pedidoDeVisita.sessaoDeVisitaId, "autoridade_perdida");
+      sessoesVisitantes.encerrar(pedidoDeVisita.sessaoDeVisitaId, "entrada_nao_concluida");
     if (ehErroDoRecreio(erro, "POSSE_PERDIDA")) pararMundo(mundo, "POSSE_PERDIDA");
     else hibernarSeVazio(mundo);
     throw erro;

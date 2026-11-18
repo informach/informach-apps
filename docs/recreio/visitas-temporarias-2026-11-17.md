@@ -983,3 +983,34 @@ persistida (`admitted_at` nulo), preservando a concessão e encerrando o SID
 exato. Admissão efetiva, inclusive resposta perdida após commit, mantém a
 regra de não reabrir a visita após sair. Não usar ausência de resposta como
 prova de que a admissão não aconteceu.
+
+## Desistência antes da admissão, candidata
+
+A API negativa aceita `entrada_nao_concluida`. Conserva a concessão somente
+se `admitted_at` continua nulo e o prazo original ainda está vigente, sob as
+mesmas travas de mundo/perfil/raiz/concessão/vínculo/cursor/SID. Encerra o SID
+exato e seu vínculo; não prolonga, recria ou reaprova a visita. Resposta de
+admissão perdida após commit tem `admitted_at` preenchido e continua encerrando
+a concessão. O host usa essa intenção para a entrada que não chegou a concluir
+localmente. A fila negativa conserva esse pedido em vez de inferir ausência
+de admissão pelo erro da rede.
+
+O leitor da margem anterior considera a espera de mundo somente para SID que
+chegou a ser vinculado a um mundo pelo servidor. Assim, entrada nunca admitida
+pode tentar novamente, preservando o recibo de salvamento em `ready`; nenhum
+ACK é inventado. O caminho de dados de perfil continua aguardando a própria
+prova, e partida já admitida conserva a barreira normal de salvamento.
+
+Quatro integrações candidatas provam primeira entrada posterior com a mesma
+concessão e prazo; resposta perdida após admissão com concessão encerrada e
+barreira de salvamento; corrida real entre admissão/desistência resolvida pela
+evidência persistida; e concessão vencida que não se reabre. O replay da
+tentativa antiga preserva o SID posterior e o anfitrião. Transporte cobre o
+novo motivo sem inferir encerramento da visita ou do salvamento.
+
+A candidata anterior da prévia `e8e7a38b`, em `44256546805`, teve 1016
+integrações aprovadas e uma falha: a fixture enviou motivo `falha` à liberação
+de posse, cujo contrato é `erro`. Isso também bloqueou tipos/builds dos gates
+de navegador. A fixture foi corrigida no incremento atual; não foi alterado
+o contrato para acomodar o teste. Toda a candidata exige nova qualificação.
+Sem migração adicional ou implantação de produção.

@@ -1,12 +1,12 @@
 import { ErroDoRecreio, ehErroDoRecreio, type MundoId } from "@informach/recreio";
-import type { RenovacaoDeVisita } from "@informach/recreio/contrato";
+import type { EncerramentoDeSessaoDeVisita, RenovacaoDeVisita } from "@informach/recreio/contrato";
 import type { ClienteDoHostComVisitas } from "@informach/recreio/host";
 
 type Registro = {
   pedido: RenovacaoDeVisita;
   cliente: ClienteDoHostComVisitas;
   estado: "admitindo" | "ativa" | "fechando";
-  motivo: "sair" | "autoridade_perdida";
+  motivo: EncerramentoDeSessaoDeVisita["motivo"];
 };
 
 /** Inclui admissões em voo, jogadores ativos e fechamentos incertos. Não limita um mundo. */
