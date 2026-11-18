@@ -86,6 +86,15 @@ fixture. A saída de `check --write` foi seguida por conferência sem escrita;
 o corretivo preserva comportamento e exige nova execução. Não tratar a execução
 com essa falha como fonte integralmente aprovada.
 
+O próximo incremento expõe `@informach/billing/user-payment-snapshots`, que grava
+a observação completa do customer dentro de um savepoint: confere app/pagante,
+recusa assinatura de outra conta antes de alterá-la, exige todos os contratos
+conhecidos e usa o motor comum de períodos. Observações antigas/contraditórias,
+fatura ausente e mudança de identidade imutável revertem o lote inteiro; nenhum
+histórico é apagado para acomodar divergência. Nove provas PostgreSQL usam
+snapshots declaradamente sintéticos, incluindo duas faturas e isolamento entre
+contas. Não representam comunicação real nem pagamento sandbox. Gates pendentes.
+
 - Criar estado comercial próprio por pagante/grupo exatos, com fila recuperável,
   próxima tentativa, última tentativa e última confirmação distintas. Falha não
   atualiza confirmação. A fila precisa atender outros pagantes após uma falha.

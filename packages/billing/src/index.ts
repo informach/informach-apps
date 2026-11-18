@@ -118,6 +118,7 @@ export {
   LegacySubscriptionPendingError,
   NotImplementedError,
   OrganizationsDisabledError,
+  PaymentEvidenceMismatchError,
   ReservationAlreadyResolvedError,
   ReservationExpiredError,
   ReservationNotFoundError,

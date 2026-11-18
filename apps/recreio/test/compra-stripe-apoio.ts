@@ -229,6 +229,7 @@ export async function fixtureDeCheckout() {
     runtime,
     requests,
     prices,
+    products,
     aposPersistir: (callback: () => Promise<void>) => {
       depoisDePersistir = callback;
     },
