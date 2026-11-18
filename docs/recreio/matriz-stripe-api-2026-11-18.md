@@ -47,3 +47,8 @@ segredos, cartões, contatos ou URLs financeiras. Status, quantidade de direçõ
 comprovadas e limpeza são fatos distintos. Apenas doze casos aprovados fecham
 a matriz de API. Continuam necessários o gate remoto desta candidata, a rodada
 integral da fonte final e as jornadas comerciais nativas restantes.
+
+Primeira candidata `c91d481d`/`44423417693`: recusada no typecheck, antes de
+criar recursos. O ensaio usava `null` onde o adapter recebe ID opcional e
+omitia `mode` na fábrica de agendas; corrigido o chamador, sem afrouxar os
+tipos do provider. A prova de API ainda precisa executar.

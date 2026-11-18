@@ -232,7 +232,6 @@ export async function conferirMatrizNaApi(config: {
             ...escopo,
             quote: cotacao,
             requestStartedAt: agora(),
-            providerInvoiceId: null,
           };
           const aplicada = await aumentos.apply(tentativa),
             repetida = await aumentos.apply(tentativa);
@@ -255,6 +254,7 @@ export async function conferirMatrizNaApi(config: {
           const agendas = createStripeRecreioPlanSchedules({
             secretKey: "unused",
             client: stripe,
+            mode: "dev",
             now: agora,
           });
           const entrada = {

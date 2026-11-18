@@ -104,7 +104,10 @@ export function GerirTroca({ estado, pedidoId }: { estado: Estado; pedidoId: str
         }
         if (!resposta) return;
         if (resposta.ok) {
-          window.location.assign("/conta/assinatura#troca-de-plano");
+          // A fragment navigation alone does not fetch the committed receipt.
+          // Reload also reinitializes the complete current profile inventory.
+          window.location.hash = "troca-de-plano";
+          window.location.reload();
           return;
         }
         definirErro(resposta.error);

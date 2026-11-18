@@ -320,7 +320,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
       - name: Preserve synthetic browser failure evidence
-        if: failure() && (matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe')
+        if: failure() && (matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe' || matrix.gate == 'trial-ui' || matrix.gate == 'trial-play' || matrix.gate == 'commercial-ui')
         uses: actions/upload-artifact@v4
         with:
           name: recreio-${{ matrix.gate }}-${{ github.run_attempt }}

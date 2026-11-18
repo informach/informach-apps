@@ -76,6 +76,14 @@ passa a fixar criação/atualização no mesmo relógio dos fatos, sem alterar a
 constraint nem declarar sucesso financeiro. Quality `44420599976` aprovada;
 repetir a jornada de navegador depois da correção.
 
+`7cc84423`/`44422965154`: a preparação temporal passou; a página não relia as
+fixtures alteradas porque a navegação mudava apenas a âncora. O fluxo real
+tinha o mesmo risco depois de uma action bem-sucedida. A tela passa a recarregar
+o recibo e o inventário completos, mantendo a âncora; as fixtures também exigem
+reload depois da preparação SQL. Traces de falhas dos gates comerciais/teste
+passam a ser preservados junto dos demais navegadores sintéticos. Os gates
+continuam obrigatórios e nenhum serviço foi implantado.
+
 ## Comportamento obrigatório
 
 - Aumento: imediato, com proporcional calculado pelo Stripe e apresentado antes

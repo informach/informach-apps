@@ -87,6 +87,7 @@ async function prepararContrato(
       values (${pedido.payer_user_id},${pedido.group_id},'dev',${agora},${agora},1,false,null,${new Date(agora.getTime() + 300_000)},${agora},${agora})`;
     await tx`update recreio.profiles set coverage_enabled=true where group_id=${pedido.group_id} and status='active'`;
   });
+  await page.reload();
   await page.goto("/conta/assinatura#troca-de-plano");
   return pedido;
 }
@@ -183,6 +184,7 @@ test("crédito anual exibe total negativo e cobrança zero sem enviar; pagante n
       values (${cotacaoId},${c.subscription_id},${origem.id},${origem.group_id},${origem.payer_user_id},'dev',${c.origin_product_id},1,'recreio_individual_annual',${c.current_price_id},'recreio_family_monthly','price_recreio_family_monthly',12790,'month','upgrade',${c.current_period_start},${c.current_period_end},${proporcional},${proporcional},'si_annual_ui_fixture',0,12790,-59900,-47110,0,'BRL',${VERSAO_DA_TROCA},${agora},${new Date(agora.getTime() + 300_000)},'quoted')`;
   });
   await a.page.setViewportSize({ width: 390, height: 844 });
+  await a.page.reload();
   await a.page.goto("/conta/assinatura#troca-de-plano");
   const recibo = a.page.getByRole("region", { name: "Pedido de troca", exact: true });
   await expect(recibo.getByText("Cotação pronta para conferir", { exact: true })).toBeVisible();
