@@ -42,9 +42,17 @@ não restaura revogações. 0209/0210 foram geradas em duas etapas e adotadas
 intactas; a primeira geração foi recusada por ordenar FKs antes da chave.
 A API externa de agenda/renovação/cancelamento/estorno passou em
 `44346637491`/`63bebd25`, com recursos sintéticos e limpeza confirmada. Essa
-prova não conclui Checkout ou aceite nativo. A extensão com proporcional fixo
-e pagamento recusado ainda está em qualificação. Nenhuma candidata F6 foi
-implantada nem cobrança habilitada. Trocas completas, endpoint público,
+prova não conclui Checkout ou aceite nativo. Compra com seleção inicial e trocas
+nativas avançaram: `03fa9ee6` concluiu os dezesseis gates `44396550083`, incluindo
+94 testes financeiros. APIs reais mensal/anual do adapter próprio passaram em
+`44394357376` e `44391555451`, com limpeza confirmada; não são Checkout nativo.
+0211–0213 permanecem candidatas, geradas e adotadas intactas. O CI compartilhado
+encontrou dois casos da fixture Cozya sem quantidade; correção em qualificação,
+sem afrouxar o leitor. A origem dos créditos está em implementação: núcleo
+puro com doze testes aprovado em quality `44400593264`, ainda sem persistência
+ou uso no acesso. [Contrato e limites](recreio/financiamento-creditos-2026-11-18.md).
+Nenhuma candidata F6 foi implantada nem cobrança habilitada. Trocas completas,
+endpoint público,
 agendamento operacional e homologação comercial seguem abertos. [Levantamento
 comercial](recreio/comercial-levantamento-2026-11-18.md). Cobrança, privacidade,
 objetos/backup agendado com restauração do objeto, catálogo/acessibilidade,

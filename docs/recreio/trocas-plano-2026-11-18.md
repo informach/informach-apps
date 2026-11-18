@@ -265,3 +265,12 @@ arquivos, quinze no arquivo de cotação/execução do aumento. Tipos/unidade do
 gate quality também passaram. A rodada completa ainda precisa terminar; o CI
 dos consumidores compartilhados foi solicitado para a mesma fonte. Nenhuma
 dessas provas encerra a origem financeira dos créditos descrita acima.
+
+Os dezesseis gates de `03fa9ee6` concluíram em `44396550083`. O CI compartilhado
+`44397466397` identificou duas falhas de compatibilidade na fixture de pagamentos
+do Cozya: quantidade ausente no item retornado ao leitor comum. A fixture passa
+a declarar um item completo com `quantity=1` e `has_more=false`, preservando as
+asserções de Checkout, concessão de créditos, renovação, cancelamento e teste.
+O guard de produção permanece. A correção exige novo CI de consumidores antes
+de integrar a candidata; mensagens de falha provocada nos testes Edi não eram
+os gates reprovados. Nenhuma implantação foi feita.

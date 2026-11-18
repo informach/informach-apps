@@ -41,6 +41,12 @@ A fixture passa a somar o consumo e subtrair a captura nova; as asserções de
 saldo zerado, origens e estorno permanecem. Nenhuma regra do núcleo foi
 afrouxada. O corretivo exige nova rodada remota.
 
+O corretivo `47a17f88bd4d808053196aa1d50030a60ab4dc04` passou no gate quality
+em [44400593264](https://github.com/informach/informach-apps/actions/runs/44400593264),
+incluindo os doze testes do núcleo, tipos e regressões das áreas selecionadas.
+Essa rodada é auxiliar e não substitui os dezesseis gates nem prova integração
+com o Stripe/banco/acesso.
+
 ## Integração necessária
 
 Este núcleo ainda não recebe o leitor do Stripe nem é usado para conceder
@@ -60,3 +66,19 @@ Concluir provas com SDK/HTTP, PostgreSQL, fonte adversa durante a troca e depois
 da aplicação, retorno a preço anterior e API real usando o núcleo. Só então
 integrar as telas/ações completas e a homologação das doze transições. Venda,
 trial e demais recursos comerciais de produção continuam desligados.
+
+## Coleta normalizada em implementação
+
+O leitor comum recebe `readWithFunding`, opcional e separado de `read`.
+Reutiliza a mesma passagem por assinaturas, faturas, alocações e capturas, sem
+duplicar chamadas. Coleta também as linhas de faturas zeradas, mantendo esses
+períodos fora do snapshot comum até a comprovação explícita do app. Retém só
+IDs, valores e referências de crédito, sem contato, descrições ou URLs.
+
+A coleta exige modo explícito, cliente/assinatura/fatura/linha/alocação coerentes,
+captura e PaymentIntent associados, moeda BRL, preço aprovado e totais completos.
+Suas páginas renovam o prazo em cada request e recusam duplicação, cursor
+vazio e falta de sinal de completude. O modo legado conserva a mesma interface
+e sua paginação existente. Os oito cenários novos usam o SDK real em HTTP
+fechado; ainda precisam de verificação remota. Coletar os fatos não valida o
+ledger nem persiste a comprovação nativa; essas integrações permanecem abertas.
