@@ -2,7 +2,7 @@ import { z } from "zod";
 import { CoberturaDoGrupoSchema } from "@/features/grupo/regras";
 import { AppError } from "@/lib/errors";
 
-export const VERSAO_DA_TROCA = "troca-2026-11-18-v1";
+export const VERSAO_DA_TROCA = "troca-2026-11-18-v2";
 export const PRAZO_DA_COTACAO_MS = 5 * 60_000;
 
 /** Extends the native complete selection, preserving its duplicate-ID rule. */
@@ -21,6 +21,7 @@ export const AceitarTrocaSchema = z.strictObject({
   subtotalCentavos: z.int().min(0).max(2147483647),
   creditoCentavos: z.int().min(-2147483648).max(0),
   totalCentavos: z.int().min(-2147483648).max(2147483647),
+  saldoAnteriorCentavos: z.int().min(-2147483648).max(2147483647),
   valorRenovacaoCentavos: z.int().positive().max(2147483647),
   intervalo: z.enum(["month", "year"]),
   moeda: z.literal("BRL"),
@@ -38,6 +39,7 @@ export type CotacaoParaAceite = {
   quotedSubtotalCents: number;
   quotedCreditCents: number;
   quotedTotalCents: number;
+  quotedStartingBalanceCents: number;
   toAmountCents: number;
   toInterval: "month" | "year";
   currency: "BRL";
@@ -76,6 +78,7 @@ export function conferirAceiteDaTroca(
     pedido.subtotalCentavos !== cotacao.quotedSubtotalCents ||
     pedido.creditoCentavos !== cotacao.quotedCreditCents ||
     pedido.totalCentavos !== cotacao.quotedTotalCents ||
+    pedido.saldoAnteriorCentavos !== cotacao.quotedStartingBalanceCents ||
     pedido.valorRenovacaoCentavos !== cotacao.toAmountCents ||
     pedido.intervalo !== cotacao.toInterval ||
     pedido.moeda !== cotacao.currency ||

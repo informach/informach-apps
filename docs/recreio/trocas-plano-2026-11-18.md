@@ -169,3 +169,23 @@ ser ligadas e comprovadas nos escritores nativos.
 
 O catálogo de teste já possui evidência própria; isso não comprova trocas ou
 pagamentos. Nenhuma DDL F6 ou alteração comercial foi implantada em produção.
+
+## Termos próprios do aumento imediato
+
+A extensão seguinte congela o `provider_item_id` e o saldo anterior da fatura.
+Sem o item, uma recuperação poderia reconstruir outro corpo de POST depois de
+uma substituição remota; sem o saldo, valores iguais de linhas não representam
+necessariamente a mesma cobrança. O aceite v2 vincula também esse saldo. O item
+é privado, preso ao recibo/assinatura e nunca vem do navegador.
+
+O schema exige item `si_` não nulo em aumentos, item nulo/saldo zero nas
+reduções, soma exata subtotal + crédito = total e valor devido coerente com
+total + saldo. A conferência é em bigint para evitar overflow na soma. Uma
+expressão SQL desconhecida por NULL não substitui a prova do item.
+
+Esta DDL ainda precisa ser gerada no GitHub e adotada intacta. O campo de saldo
+é obrigatório, sem default/backfill fictício. Implantar somente após comprovar
+`plan_changes` vazia e escritores comerciais desligados. Se houver recibos,
+parar e preparar transformação com proveniência. O adapter externo não
+autoriza, por si só, gravar um upgrade ou liberar cobertura; cotação nativa,
+tentativa/recuperação e financiamento anual continuam em implementação.

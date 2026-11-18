@@ -88,3 +88,10 @@ para PIN também criava o menor depois do aceite; a nova proteção recusou a
 seleção vencida antes do POST, como deve. A fixture passa a cadastrar/configurar
 o perfil antes do aceite, preservando a troca real para PIN durante a rede;
 nenhuma validação de produção foi afrouxada. Exige nova rodada remota.
+
+`ace8a1d8b34ca89eeb0b58e869d6b72b00819c74` concluiu os dezesseis gates em
+[44388863891](https://github.com/informach/informach-apps/actions/runs/44388863891),
+incluindo Checkout, conciliação, seleção apresentada, integração e jornadas
+comuns. Também conserva a correção do leitor que recusa linha positiva sem
+captura e as fixtures legadas com quantidade real. Essa qualificação não
+implanta a candidata nem conclui as trocas/financiamento anual restantes.

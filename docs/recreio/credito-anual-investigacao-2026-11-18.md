@@ -65,10 +65,14 @@ eles não existem. Fatura desconhecida, cursor repetido, assinatura divergente e
 janela de idempotência vencida não autorizam outra cobrança. Metadata original
 não é reescrita. Uma observação `applied` do provedor não concede cobertura.
 
-O ensaio anual passa a consumir esse adapter na próxima fonte, antes de sua
-integração com cotação/aceite/transação nativos. Essa extensão ainda precisa de
-tipos, regressões e prova externa próprios; o run acima certifica o adapter
-genérico usado naquela fonte. Origem financeira do saldo e F6 continuam abertos.
+O [run 44391555451](https://github.com/informach/informach-apps/actions/runs/44391555451),
+fonte `8f6a4dfa03b077e85ed99fcfcdcbe05194055ba7`, executou tipos, regressões
+do SDK fechado e o ensaio anual consumindo esse adapter. Passou; o replay
+recuperou a fatura pelo evento de chave exata. Artefato 14469051528, 1.794 bytes,
+hash e escopo no [recibo próprio](evidencias/credito-anual-adapter-44391555451.json),
+baixado e inspecionado; estorno detectado e limpeza confirmada. Os dezesseis
+gates dessa fonte ainda precisam concluir. Integração com cotação/aceite/transação
+nativos e origem financeira do saldo continuam abertas, assim como F6.
 
 Referências oficiais consultadas: [Stripe Node, recursos da API](https://github.com/stripe/stripe-node),
 [saldo do cliente](https://docs.stripe.com/billing/customer/balance) e tipos

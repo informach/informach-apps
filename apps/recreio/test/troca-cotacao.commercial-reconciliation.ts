@@ -101,6 +101,7 @@ function aceite(cotacao: ReturnType<typeof reciboDaTroca>) {
     subtotalCentavos: cotacao.subtotalCentavos,
     creditoCentavos: cotacao.creditoCentavos,
     totalCentavos: cotacao.totalCentavos,
+    saldoAnteriorCentavos: cotacao.saldoAnteriorCentavos,
     valorRenovacaoCentavos: cotacao.valorRenovacaoCentavos,
     intervalo: cotacao.intervalo,
     moeda: cotacao.moeda,

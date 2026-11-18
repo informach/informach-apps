@@ -82,10 +82,12 @@ async function fixture() {
     periodEnd: subscription.currentPeriodEnd,
     effectiveAt: now,
     prorationAt: now,
+    providerItemId: "si_native_schema_fixture",
     quotedAmountCents: 6800,
     quotedSubtotalCents: 12790,
     quotedCreditCents: -5990,
     quotedTotalCents: 6800,
+    quotedStartingBalanceCents: 0,
     currency: "BRL",
     policyVersion: "troca-fixture-v1",
     quotedAt: now,
@@ -383,6 +385,8 @@ describe("recibos e autoridade atual das trocas no PostgreSQL", () => {
       quotedSubtotalCents: 0,
       quotedCreditCents: 0,
       quotedTotalCents: 0,
+      providerItemId: null,
+      quotedStartingBalanceCents: 0,
       effectiveAt: f.quote.periodEnd,
     };
     const update = (patch: Partial<typeof changes.$inferInsert>) =>
@@ -396,6 +400,26 @@ describe("recibos e autoridade atual das trocas no PostgreSQL", () => {
         update({ ...f.applied, providerInvoiceId: null, providerScheduleId: "sub_sched_fixture" }),
       ),
     ).toBe("23514");
+  });
+
+  it("upgrade exige item congelado e os totais completos, sem aceitar NULL como prova", async () => {
+    const f = await fixture();
+    const update = (patch: Partial<typeof changes.$inferInsert>) =>
+      db.update(changes).set(patch).where(eq(changes.id, f.quote.id));
+    for (const patch of [
+      { providerItemId: null },
+      { providerItemId: "foreign_item" },
+      { quotedTotalCents: 6801 },
+      { quotedStartingBalanceCents: -1 },
+      { quotedAmountCents: 6801 },
+    ])
+      expect(await codigoDoBanco(update(patch))).toBe("23514");
+    await update({ quotedStartingBalanceCents: -6800, quotedAmountCents: 0 });
+    expect((await db.select().from(changes).where(eq(changes.id, f.quote.id)))[0]).toMatchObject({
+      providerItemId: "si_native_schema_fixture",
+      quotedStartingBalanceCents: -6800,
+      quotedAmountCents: 0,
+    });
   });
 
   it("apagamento de perfil invalida seleção sem apagar o recibo da troca", async () => {

@@ -41,10 +41,13 @@ export const recreioPlanChanges = recreio.table(
     periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
     effectiveAt: timestamp("effective_at", { withTimezone: true }).notNull(),
     prorationAt: timestamp("proration_at", { withTimezone: true }),
+    /** Frozen recurring item for replaying the exact accepted upgrade body. */
+    providerItemId: text("provider_item_id"),
     quotedAmountCents: integer("quoted_amount_cents").notNull(),
     quotedSubtotalCents: integer("quoted_subtotal_cents").notNull(),
     quotedCreditCents: integer("quoted_credit_cents").notNull(),
     quotedTotalCents: integer("quoted_total_cents").notNull(),
+    quotedStartingBalanceCents: integer("quoted_starting_balance_cents").notNull(),
     currency: text("currency").$type<"BRL">().notNull(),
     policyVersion: text("policy_version").notNull(),
     quotedAt: timestamp("quoted_at", { withTimezone: true }).notNull(),
@@ -108,6 +111,13 @@ export const recreioPlanChanges = recreio.table(
       sql`${t.periodEnd} > ${t.periodStart} and
     ((${t.kind}='upgrade' and ${t.prorationAt} is not null and ${t.effectiveAt}=${t.prorationAt} and ${t.effectiveAt}>=${t.periodStart} and ${t.effectiveAt}<${t.periodEnd}) or
      (${t.kind}='downgrade' and ${t.prorationAt} is null and ${t.effectiveAt}=${t.periodEnd} and ${t.quotedAmountCents}=0 and ${t.quotedSubtotalCents}=0 and ${t.quotedCreditCents}=0 and ${t.quotedTotalCents}=0))`,
+    ),
+    check(
+      "recreio_plan_change_upgrade_terms",
+      sql`${t.quotedTotalCents}::bigint=${t.quotedSubtotalCents}::bigint+${t.quotedCreditCents}::bigint and
+    ((${t.kind}='upgrade' and ${t.providerItemId} is not null and left(${t.providerItemId},3)='si_' and length(${t.providerItemId}) between 8 and 256 and
+       ${t.quotedAmountCents}::bigint=greatest(0,${t.quotedTotalCents}::bigint+${t.quotedStartingBalanceCents}::bigint)) or
+     (${t.kind}='downgrade' and ${t.providerItemId} is null and ${t.quotedStartingBalanceCents}=0))`,
     ),
     check(
       "recreio_plan_change_quote",
