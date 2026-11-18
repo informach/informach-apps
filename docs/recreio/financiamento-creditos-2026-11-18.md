@@ -268,3 +268,11 @@ antiga e bloquear observações futuras para sempre. O teste anterior de recusa
 é substituído por uma exigência mais forte: revisão dois factual, prova revogada,
 negação de ingresso e corte da SID. Ainda depende dos gates desta alteração;
 não usar essa mudança isoladamente sem a leitura obrigatória de financiamento.
+
+Na rodada integral `472c79b5`/`44415248464`, o gate financeiro passou em 107
+de 108 casos, incluindo crédito anual, estorno/contestação da origem e corte
+de SID. A falha restante era a preparação de um teste SQL que apagava o
+contrato inicial: a FK da prova agora impede essa remoção. O cenário passa a
+preparar uma assinatura SQL distinta, sem autoridade, preservando o histórico
+original e a mesma recusa de bootstrap com oferta divergente. Demais gates
+ainda em andamento; repetir o financeiro e a rodada da fonte final.

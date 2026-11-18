@@ -160,11 +160,28 @@ describe("recibos e autoridade atual das trocas no PostgreSQL", () => {
 
   it("oferta diferente da compra não cria revisão inicial quando não há autoridade atual", async () => {
     const f = await fixture();
-    await db.delete(contracts).where(eq(contracts.subscriptionId, f.origin.subscriptionId));
+    // Funding history now retains the original contract. Prepare a distinct
+    // unadmitted SQL subscription instead of erasing that authority/history.
+    const [original] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.id, f.origin.subscriptionId));
+    if (!original) throw new Error("Native subscription fixture absent");
+    const [semAutoridade] = await db
+      .insert(subscriptions)
+      .values({
+        ...original,
+        id: randomUUID(),
+        providerSubscriptionId: `sub_bootstrap_${randomUUID().replaceAll("-", "")}`,
+        providerObservedAt: null,
+        confirmedAt: null,
+      })
+      .returning();
+    if (!semAutoridade) throw new Error("Unadmitted subscription fixture absent");
     await expect(
       db.transaction((tx) =>
         conferirOfertaAtualLocked(tx, {
-          subscriptionId: f.origin.subscriptionId,
+          subscriptionId: semAutoridade.id,
           purchaseId: f.origin.purchaseId,
           groupId: f.origin.groupId,
           payerUserId: f.origin.payerUserId,
@@ -176,10 +193,7 @@ describe("recibos e autoridade atual das trocas no PostgreSQL", () => {
       ),
     ).rejects.toMatchObject({ code: "ORIGEM_FINANCEIRA" });
     expect(
-      await db
-        .select()
-        .from(contracts)
-        .where(eq(contracts.subscriptionId, f.origin.subscriptionId)),
+      await db.select().from(contracts).where(eq(contracts.subscriptionId, semAutoridade.id)),
     ).toEqual([]);
   });
 
