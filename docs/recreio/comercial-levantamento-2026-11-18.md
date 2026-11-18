@@ -137,6 +137,40 @@ revogação permitida e impedimento de apagar/estender uma concessão já usada.
 São fixtures SQL de integridade, ainda em qualificação; não comprovam ação
 nativa, consentimento de uma pessoa ou início atômico pela primeira SID.
 
+### Consentimento servidor em preparação para qualificação
+
+`features/teste` prepara/consulta/retira o consentimento do próprio pagante,
+sem jogador obrigatório. Preparação exige login recente, contexto nativo
+irrestrito, as duas declarações e versões atuais; não aceita identidade no
+formulário. Consulta e redução revalidam contexto atual, sem exigir plano.
+Pedido repetido devolve o recibo existente, inclusive se já retirado; não
+reabre o consentimento. Falha real de auditoria reverte grupo/recibo.
+
+`RECREIO_TRIAL_MODE` fica `off` por padrão; `setup` só admite consentimento,
+e `experiment` será usado para a primeira SID. Nenhum destes foi ativado no
+Railway. O novo gate `trial-setup` usa banco descartável e o modo real `setup`,
+com config própria; a integração comum continua `off`. Todos os oito gates
+anteriores permanecem, acrescidos desse nono, sem pular casos.
+
+A retirada revoga somente a concessão de teste ligada ao recibo e conserva a
+marca de uso. Reavalia os quatro perfis sob as travas do grupo: sem acesso,
+encerra a SID; com fallback de prazo menor que a credencial antiga, também a
+encerra para exigir credencial limitada. Plano válido com prazo compatível
+continua vigente. Não fabrica salvamento nem apaga progresso ou assinatura.
+
+As provas candidatas incluem duas contas, pagante sem jogador, replay e
+concorrência, PIN infantil compartilhado, aparelho pareado real, login antigo/
+encerrado, escopo de cliente comercial, rollback de auditoria e retirada com
+fallback. Espelho financeiro sintético não comprova pagamento no Stripe;
+concessão de fixture não comprova início pela primeira SID. A superfície
+nativa/HTTP e a admissão automática do experimento ainda precisam ser concluídas.
+
+`3a2f8196`/`44283018962` executou 1074 integrações aprovadas e uma expectativa
+incorreta: no PG 18, `ON DELETE RESTRICT` devolve `23001`, não `23503`. A negativa
+ocorreu corretamente e a linha foi preservada. O teste passa a usar o contrato
+`RESTRICAO` já existente para PG 18/anteriores; a constraint não foi alterada.
+Upgrade dessa rodada foi interrompido pela falha; nova prova remota obrigatória.
+
 1. Prazo finito: candidata `4a46a3dd`, oito gates de Recreio aprovados em
    `44276622593`; o CI compartilhado do catálogo seguinte também cobre os
    testes puros. Não implantada.

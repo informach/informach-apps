@@ -143,6 +143,10 @@ jobs:
         env:
           DATABASE_URL: postgres://ci:ci@localhost:5433/ci
 
+      - run: pnpm --filter @informach/recreio-app test:trial-setup
+        env:
+          DATABASE_URL: postgres://ci:ci@localhost:5433/ci
+
       - run: pnpm --filter @informach/cozya eval
         env:
           EVAL_PREFLIGHT: "1"

@@ -20,8 +20,9 @@ const app = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = resolve(app, "../..");
 loadEnv({ path: resolve(root, ".env") });
 const mode = process.argv[2];
-if (!["integration", "e2e", "versoes", "equipe"].includes(mode))
-  throw new Error("Choose integration, e2e, versoes or equipe");
+if (!["integration", "trial-setup", "e2e", "versoes", "equipe"].includes(mode))
+  throw new Error("Choose integration, trial-setup, e2e, versoes or equipe");
+const trialSetup = mode === "trial-setup";
 const versoes = mode === "versoes";
 const equipe = mode === "equipe";
 const e2e = mode === "e2e" || versoes || equipe;
@@ -100,6 +101,7 @@ const testEnv = {
   EMAIL_SANDBOX_MODE: e2e ? "sandbox" : "memory",
   ...(emailsPath ? { EMAIL_SANDBOX_DIR: emailsPath.replaceAll("\\", "/") } : {}),
   RECREIO_ACCESS_MODE: "fechado",
+  RECREIO_TRIAL_MODE: trialSetup ? "setup" : "off",
   RECREIO_FAMILY_MODE: "play",
   RECREIO_SOCIAL_MODE: "on",
   RECREIO_VISITS_MODE: "on",
@@ -225,7 +227,7 @@ try {
         "vitest",
         "run",
         "--config",
-        "vitest.integration.config.ts",
+        trialSetup ? "vitest.trial-setup.config.ts" : "vitest.integration.config.ts",
         ...process.argv.slice(3),
       ],
       app,

@@ -18,8 +18,8 @@ import {
 } from "@informach/recreio";
 
 /**
- * Leitura dos fatos do direito de jogar. Este arquivo e o `service.ts` ao lado
- * são o único lugar do app que lê assinaturas e concessões para decidir acesso
+ * Leitura dos fatos do direito de jogar. A área `features/acesso` é o único
+ * lugar do app que lê assinaturas e concessões para decidir acesso
  * (`fronteira.test.ts` confere). Aqui não há regra: só o que está no banco.
  */
 

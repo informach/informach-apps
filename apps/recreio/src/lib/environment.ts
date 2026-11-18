@@ -51,6 +51,8 @@ export const schema = z.object({
    * si é decidido no servidor, por `decidirAcesso`.
    */
   RECREIO_ACCESS_MODE: z.enum(["fechado", "aberto"]).default("fechado"),
+  /** Setup prepara consentimento; só experiment pode iniciar teste na primeira SID. */
+  RECREIO_TRIAL_MODE: z.enum(["off", "setup", "experiment"]).default("off"),
   /** Leitores primeiro; setup admite cadastro/pareamento, play admite jogos protegidos. */
   RECREIO_FAMILY_MODE: z.enum(["off", "setup", "play"]).default("off"),
   /** Habilitar somente depois de leitores, checkpoint e jornadas homologados. */

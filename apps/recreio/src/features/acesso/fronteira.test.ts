@@ -9,7 +9,11 @@ import { describe, expect, it } from "vitest";
  * `src`: eles gravam concessões, não decidem acesso.
  */
 const src = path.resolve(__dirname, "../..");
-const PERMITIDOS = new Set(["features/acesso/repository.ts", "features/acesso/service.ts"]);
+const PERMITIDOS = new Set([
+  "features/acesso/repository.ts",
+  "features/acesso/service.ts",
+  "features/acesso/teste-repository.ts",
+]);
 /** Este arquivo cita os nomes para testar o próprio varredor. */
 const ESTE_TESTE = "features/acesso/fronteira.test.ts";
 

@@ -37,6 +37,16 @@ const production: NodeJS.ProcessEnv = {
   CRON_SECRET: SEGREDO,
 };
 describe("deployment environment", () => {
+  it("mantém teste desligado e distingue consentimento de início do experimento", () => {
+    expect(validateEnvironment(production).RECREIO_TRIAL_MODE).toBe("off");
+    for (const modo of ["setup", "experiment"] as const)
+      expect(
+        validateEnvironment({ ...production, RECREIO_TRIAL_MODE: modo }).RECREIO_TRIAL_MODE,
+      ).toBe(modo);
+    expect(() => validateEnvironment({ ...production, RECREIO_TRIAL_MODE: "on" })).toThrow(
+      "RECREIO_TRIAL_MODE",
+    );
+  });
   it("moderação sem chave permanece indisponível e a chave configurada precisa ser exclusiva", () => {
     expect(validateEnvironment(base).RECREIO_MODERATION_SECRET).toBeUndefined();
     const propria = "moderacao-exclusiva-".repeat(4);

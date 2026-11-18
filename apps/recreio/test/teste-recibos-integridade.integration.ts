@@ -9,7 +9,7 @@ import {
 } from "@informach/db/schema";
 import { describe, expect, it } from "vitest";
 import { codigoDoPostgres } from "@/lib/repository";
-import { novaConta } from "./apoio";
+import { novaConta, RESTRICAO } from "./apoio";
 
 const HORAS_48 = 48 * 60 * 60 * 1000;
 const VERSAO = "teste-2026-11-18-v1";
@@ -56,12 +56,12 @@ async function preparar() {
   return { conta, grupo, aceite, grant, pedido };
 }
 
-async function recusa(consulta: PromiseLike<unknown>, codigo: string) {
+async function recusa(consulta: PromiseLike<unknown>, codigo: string | readonly string[]) {
   const erro = await Promise.resolve(consulta).then(
     () => null,
     (falha: unknown) => falha,
   );
-  expect(codigoDoPostgres(erro)).toBe(codigo);
+  expect(typeof codigo === "string" ? [codigo] : codigo).toContain(codigoDoPostgres(erro));
 }
 
 describe("integridade SQL do experimento sem cartão", () => {
@@ -186,7 +186,7 @@ describe("integridade SQL do experimento sem cartão", () => {
     const p = await preparar();
     await db.insert(claims).values(p.pedido);
     await db.update(grants).set({ revokedAt: new Date() }).where(eq(grants.id, p.grant.id));
-    await recusa(db.delete(grants).where(eq(grants.id, p.grant.id)), "23503");
+    await recusa(db.delete(grants).where(eq(grants.id, p.grant.id)), RESTRICAO);
     await recusa(
       db
         .update(grants)

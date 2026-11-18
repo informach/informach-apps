@@ -155,6 +155,8 @@ export type AuditEventType =
   | "recreio.minor_supervision_changed"
   | "recreio.entitlement_granted"
   | "recreio.entitlement_revoked"
+  | "recreio.trial_enrollment_recorded"
+  | "recreio.trial_enrollment_withdrawn"
   | "recreio.game_session_started"
   | "recreio.game_session_ended"
   | "recreio.session_handoff_requested"

@@ -93,6 +93,14 @@ Finalidade: investigar mudanças na conta da família e atender suporte. O Basti
 
 ## Eventos do Recreio
 
+`recreio.trial_enrollment_recorded` registra `app`, `groupId`, `enrollmentId`,
+`policyVersion` e `declarationVersion`, com o adulto nativo no campo do ator,
+na transação do consentimento. `trial_enrollment_withdrawn` registra somente
+`app`, `groupId` e `enrollmentId`. São declaração/retirada, nunca verificação
+externa de idade ou início de teste. Não incluir nome, nascimento, e-mail,
+aparelho, login, cartão ou corpo do pedido. Revogação de uma concessão real
+usa o evento existente `entitlement_revoked`, na mesma transação.
+
 Social usa auditoria estrita na transação da mudança. Os eventos
 `friend_code_created`/`friend_code_revoked` usam IDs de perfil/código;
 `friend_request_created`/`friend_request_expired`/`friend_request_accepted`/
