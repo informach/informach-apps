@@ -43,6 +43,27 @@ export default async function revisaoFinal(ctx) {
     feito.push(
       `apagados ${migalhas.length} pedaços com menos de 3 quadros: ${migalhas.map((c) => `${proj.nome(c)} em ${tempo(c.start)}`).join("; ")}`,
     );
+    // O pedaço apagado deixa um buraco (na faixa da tela, quadros pretos entre a animação e a gravação):
+    // o clipe que vem logo depois na mesma faixa volta a começar onde o pedaço começava.
+    for (const m of migalhas) {
+      const depois = proj.d.clips.find(
+        (c) =>
+          c.trackId === m.trackId && !migalhas.includes(c) && Math.abs(c.start - fimDe(m)) < 0.02,
+      );
+      if (!depois) continue;
+      try {
+        await ia("trim_clip", {
+          clip_id: depois.id,
+          start: Math.round(m.start * 1000) / 1000,
+          revision: await revisao(),
+        });
+        feito.push(`${tempo(m.start)}: ${proj.nome(depois)} esticado sobre o pedaço apagado`);
+      } catch (e) {
+        revisar.push(
+          `${tempo(m.start)}: buraco de ${m.duration.toFixed(2)} s na faixa de ${proj.nome(depois)} (${e.message})`,
+        );
+      }
+    }
   }
 
   // 2. Quadro estendido -> a gravação estendida, quando ela continua no trecho.
