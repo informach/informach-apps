@@ -312,7 +312,7 @@ it("dois aceites concorrentes disputam a última vaga sem ultrapassar o limite d
   expect(recibos.filter((r) => r.state === "pending")).toHaveLength(1);
 });
 
-it("aceite aguardando o mundo não segura perfis e relê bloqueio confirmado durante a espera", async () => {
+it("aceite aguardando o mundo não conserva as travas dos perfis", async () => {
   const c = await cenario(),
     criado = await emitirConviteDirigido(ref(c.a), c.pedido),
     pronto = sinal<number>(),
@@ -346,16 +346,94 @@ it("aceite aguardando o mundo não segura perfis e relê bloqueio confirmado dur
         sql`select id from recreio.profiles where id in (${c.a.perfil.id},${c.b.perfil.id}) order by id for update nowait`,
       );
     });
-    await protegerContato(ref(c.b), {
-      perfilId: c.a.perfil.id,
-      bloqueado: true,
-      silenciado: false,
-      anterior: { bloqueado: false, silenciado: false },
-    });
   } finally {
     soltar.concluir();
     await segurando;
   }
+  expect(await resultado).toMatchObject({ ok: true, valor: { estado: "accepted" } });
+  expect((await db.select().from(invites).where(eq(invites.id, criado.conviteId)))[0]?.state).toBe(
+    "accepted",
+  );
+  expect(
+    await db
+      .select()
+      .from(members)
+      .where(and(eq(members.spaceId, c.mundoId), eq(members.profileId, c.b.perfil.id))),
+  ).toHaveLength(1);
+  expect(
+    (await eventosCom("inviteId", criado.conviteId)).filter(
+      (e) => e.eventType === "recreio.space_invite_accepted",
+    ),
+  ).toHaveLength(1);
+});
+
+it("bloqueio admitido antes do aceite conserva a serialização de contas e impede a entrada", async () => {
+  const c = await cenario(),
+    criado = await emitirConviteDirigido(ref(c.a), c.pedido),
+    pronto = sinal<number>(),
+    soltar = sinal<void>();
+  await db.execute(
+    sql`create function audit.bloqueio_convite_concorrente() returns trigger language plpgsql as $$ begin if new.event_type='recreio.social_protection_changed' then perform pg_advisory_xact_lock(712,624); end if; return new; end $$`,
+  );
+  await db.execute(
+    sql`create trigger bloqueio_convite_concorrente before insert on audit.events for each row execute function audit.bloqueio_convite_concorrente()`,
+  );
+  const segurando = db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(712,624)`);
+    const [p] = await tx.execute<{ pid: number }>(sql`select pg_backend_pid() as pid`);
+    if (!p) throw new Error("PID ausente");
+    pronto.concluir(p.pid);
+    await soltar.promessa;
+  });
+  const pid = await pronto.promessa;
+  const bloqueio = protegerContato(ref(c.b), {
+    perfilId: c.a.perfil.id,
+    bloqueado: true,
+    silenciado: false,
+    anterior: { bloqueado: false, silenciado: false },
+  }).then(
+    (valor) => ({ ok: true, valor }),
+    (erro) => ({ ok: false, erro }),
+  );
+  let aceite: ReturnType<typeof responder> | undefined;
+  let resultado: Promise<unknown> | undefined;
+  try {
+    await expect
+      .poll(
+        async () => {
+          const [linha] = await db.execute<{ aguardando: boolean }>(
+            sql`select exists(select 1 from pg_stat_activity where ${pid}=any(pg_blocking_pids(pid))) as aguardando`,
+          );
+          return linha?.aguardando;
+        },
+        { timeout: 700, interval: 10 },
+      )
+      .toBe(true);
+    aceite = responder(c.b, criado.conviteId);
+    resultado = aceite.then(
+      (valor) => ({ ok: true, valor }),
+      (erro) => ({ ok: false, erro }),
+    );
+    await expect
+      .poll(
+        async () => {
+          const [linha] = await db.execute<{ aguardando: boolean }>(
+            sql`select exists(select 1 from pg_stat_activity a join pg_stat_activity b on b.pid=any(pg_blocking_pids(a.pid)) where ${pid}=any(pg_blocking_pids(b.pid))) as aguardando`,
+          );
+          return linha?.aguardando;
+        },
+        { timeout: 700, interval: 10 },
+      )
+      .toBe(true);
+  } finally {
+    soltar.concluir();
+    await segurando;
+    await bloqueio;
+    await resultado;
+    await db.execute(sql`drop trigger bloqueio_convite_concorrente on audit.events`);
+    await db.execute(sql`drop function audit.bloqueio_convite_concorrente()`);
+  }
+  expect(await bloqueio).toMatchObject({ ok: true, valor: { bloqueado: true } });
   expect(await resultado).toMatchObject({ ok: false, erro: { code: "PEDIDO" } });
   expect((await db.select().from(invites).where(eq(invites.id, criado.conviteId)))[0]?.state).toBe(
     "pending",
@@ -365,11 +443,6 @@ it("aceite aguardando o mundo não segura perfis e relê bloqueio confirmado dur
       .select()
       .from(members)
       .where(and(eq(members.spaceId, c.mundoId), eq(members.profileId, c.b.perfil.id))),
-  ).toHaveLength(0);
-  expect(
-    (await eventosCom("inviteId", criado.conviteId)).filter(
-      (e) => e.eventType === "recreio.space_invite_accepted",
-    ),
   ).toHaveLength(0);
 });
 

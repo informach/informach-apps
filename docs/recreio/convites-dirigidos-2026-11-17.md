@@ -282,12 +282,23 @@ testes candidatos exercitam leitura gratuita versus aceite pago, escopo dos
 mundos, bloqueio e envio/aceite pelo portal. Gates, capturas, decisão de terceiro,
 concorrência adicional, upgrade, visitas e sucessão infantil ainda pendentes.
 
-A candidata seguinte acrescenta disputa simultânea pela última vaga, observação
-do bloqueio real em `pg_stat_activity` e bloqueio de contato confirmado enquanto
-o aceite espera o mundo, sem conservar as travas dos perfis nessa espera.
+A candidata seguinte acrescenta disputa simultânea pela última vaga e observação
+do bloqueio real em `pg_stat_activity`, sem conservar as travas dos perfis
+enquanto o aceite espera o mundo.
 Outra jornada de navegador exercita o participante emitindo e o responsável
 pelo mundo decidindo pela interface nativa. O ensaio de upgrade `--mundos`
 parte da fonte implantada `396fe932`/0190 com dois mundos, três membros, dois
 convites antigos, duas fotografias, quatro fatos e cercas 7. Confere bytes,
 IDs, revisões e recibos antes/depois e na repetição. Essas provas estão escritas
 para o GitHub; ainda não há resultado desse incremento.
+
+`4f7644c6` passou na qualidade e em 771 integrações no run `44215413930`.
+`28b20437` comprovou a disputa pela última vaga (772 testes passaram), mas o
+novo teste que esperava um bloqueio da mesma conta durante a espera pelo mundo
+falhou por `lock_timeout`. A composição conserva a serialização de contas antes
+de esperar o mundo; esse bloqueio não pode ultrapassá-la. A correção separa a
+prova de perfis livres durante a espera e a prova de bloqueio admitido primeiro.
+Nesta última, um trigger de auditoria e uma trava exclusiva do ensaio permitem
+observar a cadeia real de espera das duas operações antes de liberar o commit.
+Os limites de produção não foram ampliados. O ensaio de upgrade novo não chegou
+a executar no run que falhou a integração; permanece pendente.
