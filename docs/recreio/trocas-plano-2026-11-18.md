@@ -46,6 +46,16 @@ proporcional, aceite, agenda, persistência ou disponibilidade em produção.
 
 ## Verificação e implantação
 
+O adapter compartilhado ganha a composição explícita
+`createStripeRecreioPlanSchedules`: namespace de idempotência próprio,
+modo/customer/aceite/pagante originais conferidos antes da escrita e metadata
+do Checkout preservada na fase futura. Agenda anexada sem correlação exata
+não pode ser adotada; a fase é relida antes de admitir a aplicação. A fábrica
+Compasso mantém o namespace e o comportamento comercial anteriores. O novo
+adapter ainda não está ligado ao app, não persiste aceite nativo nem concede
+cobertura. Sua prova com SDK e transporte HTTP fechado não equivale a uma
+agenda executada pelo Stripe externo.
+
 Gerar eventual DDL no GitHub e adotar SQL/snapshot/journal intactos com hashes e
 predecessor. Provar upgrade/replay e integridade de pagante/modo/origem. Gates
 com SDK/HTTP fechado e PostgreSQL cobrem concorrência, aceite divergente,

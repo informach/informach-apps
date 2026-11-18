@@ -2,6 +2,18 @@
 
 > Documentação primária do package para humanos e agentes. Para checklist de produção (Stripe Dashboard, webhooks, cron jobs no Railway, NF-e/PCI), ver [`PRODUCTION.md`](./PRODUCTION.md). Para integração com email transacional, ver [`@informach/emails/CLAUDE.md`](../emails/CLAUDE.md). Para audit/permission integration, ver [`@informach/auth/CLAUDE.md`](../auth/CLAUDE.md).
 
+## Recreio: adapter de agenda em candidata (18/11/2026)
+
+`providers/stripe-plans` expõe `createStripeRecreioPlanSchedules`, separado da
+composição Compasso existente. Exige modo explícito e origem imutável do
+Checkout (pagante, aceite e produto inicial); suas chaves e recibos usam
+`recreio:plan`/`recreio_plan_intent`. Uma redução altera o mesmo contrato com
+fase futura sem proporcional; conserva `product_id` da compra original e não
+adota agenda anexada sem correlação exata. A fábrica Compasso conserva seus
+defaults. Este adapter não concede acesso, não substitui consentimento nativo
+e ainda não está composto no Recreio nem implantado. Qualificação no
+[incremento de trocas](../../docs/recreio/trocas-plano-2026-11-18.md).
+
 ## Compasso em implementação (10/11/2026)
 
 Para operação solicitada expressamente pela titular do negócio, o módulo interno

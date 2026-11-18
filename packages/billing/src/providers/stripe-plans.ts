@@ -11,15 +11,19 @@ export type PlanScheduleInput = {
   interval: "month" | "year";
   effectiveAt: Date;
   requestStartedAt: Date;
+  /** Required by the native Recreio adapter; original Checkout facts never change. */
+  origin?: { authorizationId: string; productId: string; payerId: string };
+};
+export type RecreioPlanScheduleInput = PlanScheduleInput & {
+  origin: NonNullable<PlanScheduleInput["origin"]>;
 };
 export type PlanScheduleOutcome = "scheduled" | "applied" | "canceled" | "failed";
-export interface PlanScheduleProvider {
-  create(input: PlanScheduleInput): Promise<string>;
-  reconcile(
-    input: PlanScheduleInput & { scheduleId: string; cancel: boolean },
-  ): Promise<PlanScheduleOutcome>;
+export interface PlanScheduleProvider<Input extends PlanScheduleInput = PlanScheduleInput> {
+  create(input: Input): Promise<string>;
+  reconcile(input: Input & { scheduleId: string; cancel: boolean }): Promise<PlanScheduleOutcome>;
 }
-export const planScheduleKey = (id: string) => `compasso:plan:${id}:create`;
+export const planScheduleKey = (id: string, namespace: "compasso" | "recreio" = "compasso") =>
+  `${namespace}:plan:${id}:create`;
 const id = (value: unknown): string | undefined =>
   typeof value === "string"
     ? value
@@ -135,21 +139,42 @@ function phaseInput(phase: Phase, sub: Stripe.Subscription): PhaseInput {
   };
 }
 
-export function createStripePlanSchedules(config: {
+type ScheduleConfig = {
   secretKey: string;
   client?: Stripe;
   now?: () => Date;
-}): PlanScheduleProvider {
+};
+type ScheduleScope = { app: "compasso" } | { app: "recreio"; mode: "dev" | "prod" };
+
+export function createStripePlanSchedules(config: ScheduleConfig): PlanScheduleProvider {
+  return createSchedules(config, { app: "compasso" });
+}
+
+/** Independent idempotency and original purchase scope; no access/payment projection. */
+export function createStripeRecreioPlanSchedules(
+  config: ScheduleConfig & { mode: "dev" | "prod" },
+): PlanScheduleProvider<RecreioPlanScheduleInput> {
+  return createSchedules(config, { app: "recreio", mode: config.mode });
+}
+
+function createSchedules(config: ScheduleConfig, scope: ScheduleScope): PlanScheduleProvider {
+  const marker = `${scope.app}_plan_intent`;
+  const foreignMarker = scope.app === "compasso" ? "recreio_plan_intent" : "compasso_plan_intent";
   const stripe =
     config.client ??
     new Stripe(config.secretKey, {
       apiVersion: "2026-04-22.dahlia",
-      timeout: 30_000,
-      maxNetworkRetries: 2,
-      appInfo: { name: "informach-platform/compasso-plans" },
+      timeout: scope.app === "recreio" ? 10_000 : 30_000,
+      maxNetworkRetries: scope.app === "recreio" ? 0 : 2,
+      appInfo: { name: `informach-platform/${scope.app}-plans` },
     });
   const now = () => (config.now?.() ?? new Date()).getTime();
   async function subscription(input: PlanScheduleInput) {
+    if (
+      scope.app === "recreio" &&
+      (!input.origin?.authorizationId || !input.origin.productId || !input.origin.payerId)
+    )
+      throw new BillingError("Native plan change has no original purchase scope");
     const sub = await stripe.subscriptions.retrieve(input.subscriptionId, {
       expand: ["discounts", "items.data.discounts"],
     });
@@ -160,6 +185,15 @@ export function createStripePlanSchedules(config: {
       sub.items.data[0]?.quantity !== 1
     )
       throw new BillingError("Plan change subscription scope is invalid");
+    if (
+      scope.app === "recreio" &&
+      (sub.livemode !== (scope.mode === "prod") ||
+        sub.metadata.subject_type !== "user" ||
+        sub.metadata.subject_id !== input.origin?.payerId ||
+        sub.metadata.checkout_intent_id !== input.origin?.authorizationId ||
+        sub.metadata.product_id !== input.origin?.productId)
+    )
+      throw new BillingError("Native plan change original purchase is invalid");
     return sub;
   }
   function validateSchedule(schedule: Stripe.SubscriptionSchedule, input: PlanScheduleInput) {
@@ -168,10 +202,35 @@ export function createStripePlanSchedules(config: {
       ![id(schedule.subscription), id(schedule.released_subscription)].includes(
         input.subscriptionId,
       ) ||
-      (schedule.metadata?.compasso_plan_intent &&
-        schedule.metadata.compasso_plan_intent !== input.intentId)
+      schedule.metadata?.[foreignMarker] ||
+      (schedule.metadata?.[marker] && schedule.metadata[marker] !== input.intentId) ||
+      (scope.app === "recreio" && schedule.livemode !== (scope.mode === "prod"))
     )
       throw new BillingError("Plan change schedule belongs to another request");
+  }
+  function nativeFuture(schedule: Stripe.SubscriptionSchedule, input: PlanScheduleInput) {
+    if (scope.app !== "recreio") return;
+    const phase = schedule.phases.find((p) => p.start_date * 1000 === input.effectiveAt.getTime());
+    if (
+      !phase ||
+      phase.items.length !== 1 ||
+      id(phase.items[0]?.price) !== input.toPriceId ||
+      phase.items[0]?.quantity !== 1 ||
+      phase.proration_behavior !== "none" ||
+      phase.metadata?.product_id !== input.origin?.productId ||
+      phase.metadata?.[marker] !== input.intentId ||
+      schedule.end_behavior !== "release"
+    )
+      throw new BillingError("Native scheduled plan differs from the accepted change");
+  }
+  function futureMetadata(current: Phase, input: PlanScheduleInput) {
+    if (scope.app === "compasso") return { ...current.metadata, product_id: input.toProductId };
+    if (!input.origin) throw new BillingError("Native plan change has no original purchase scope");
+    return {
+      ...current.metadata,
+      product_id: input.origin.productId,
+      [marker]: input.intentId,
+    };
   }
   async function release(schedule: Stripe.SubscriptionSchedule) {
     if (schedule.status === "active" || schedule.status === "not_started")
@@ -184,7 +243,7 @@ export function createStripePlanSchedules(config: {
       if (attached) {
         const schedule = await stripe.subscriptionSchedules.retrieve(attached);
         validateSchedule(schedule, input);
-        if (schedule.metadata?.compasso_plan_intent === input.intentId) return schedule.id;
+        if (schedule.metadata?.[marker] === input.intentId) return schedule.id;
       }
       // Recover the exact request, including a schedule released before our response arrived.
       // A customer/similar phase alone is not evidence that this request created the schedule.
@@ -196,13 +255,15 @@ export function createStripePlanSchedules(config: {
       })) {
         if (++count > 1000)
           throw new BillingError("Schedule recovery event history exceeded its bound");
-        if (event.request?.idempotency_key !== planScheduleKey(input.intentId)) continue;
+        if (event.request?.idempotency_key !== planScheduleKey(input.intentId, scope.app)) continue;
         const scheduleId = id(event.data.object);
         if (!scheduleId) throw new BillingError("Schedule recovery event has no resource identity");
         const schedule = await stripe.subscriptionSchedules.retrieve(scheduleId);
         validateSchedule(schedule, input);
         return schedule.id;
       }
+      if (scope.app === "recreio" && attached)
+        throw new BillingError("Attached schedule has no exact native creation receipt");
       // Never recreate an uncertain request after Stripe's minimum idempotency retention.
       if (now() - input.requestStartedAt.getTime() >= 23 * 60 * 60 * 1000)
         throw new BillingError(
@@ -223,7 +284,7 @@ export function createStripePlanSchedules(config: {
         throw new BillingError("The paid subscription changed before scheduling");
       const schedule = await stripe.subscriptionSchedules.create(
         { from_subscription: input.subscriptionId },
-        { idempotencyKey: planScheduleKey(input.intentId) },
+        { idempotencyKey: planScheduleKey(input.intentId, scope.app) },
       );
       validateSchedule(schedule, input);
       return schedule.id;
@@ -237,8 +298,9 @@ export function createStripePlanSchedules(config: {
         item?.price.id === input.toPriceId &&
         item.current_period_start * 1000 >= input.effectiveAt.getTime();
       if (applied) {
-        if (schedule.metadata?.compasso_plan_intent !== input.intentId)
+        if (schedule.metadata?.[marker] !== input.intentId)
           throw new BillingError("Changed price has no matching schedule receipt");
+        nativeFuture(schedule, input);
         // Keep the new price; remove the completed scheduling envelope so future changes are possible.
         await release(schedule);
         return "applied";
@@ -254,7 +316,7 @@ export function createStripePlanSchedules(config: {
         return "canceled";
       }
       const end = Math.floor(input.effectiveAt.getTime() / 1000);
-      const configured = schedule.metadata?.compasso_plan_intent === input.intentId;
+      const configured = schedule.metadata?.[marker] === input.intentId;
       if (configured) {
         const future = schedule.phases.find((phase) => phase.start_date === end);
         if (
@@ -268,6 +330,7 @@ export function createStripePlanSchedules(config: {
           schedule.end_behavior !== "release"
         )
           throw new BillingError("Scheduled plan drifted from the accepted change");
+        nativeFuture(schedule, input);
         return "scheduled";
       }
       if (input.effectiveAt.getTime() <= now() + 60_000 || item?.current_period_end !== end) {
@@ -285,6 +348,11 @@ export function createStripePlanSchedules(config: {
       )
         throw new BillingError("Unconfigured schedule no longer matches the original period");
       const preserved = phaseInput(current, sub);
+      if (scope.app === "recreio") {
+        for (const key of ["subject_type", "subject_id", "checkout_intent_id", "product_id"])
+          if (current.metadata?.[key] !== undefined && current.metadata[key] !== sub.metadata[key])
+            throw new BillingError("Schedule phase would overwrite the original purchase");
+      }
       const durations = new Map<string, Stripe.Coupon.Duration>();
       for (const redemption of [...sub.discounts, ...(item.discounts ?? [])]) {
         if (typeof redemption === "string") throw new BillingError("Discount expansion is missing");
@@ -303,7 +371,7 @@ export function createStripePlanSchedules(config: {
       schedule = await stripe.subscriptionSchedules.update(schedule.id, {
         end_behavior: "release",
         proration_behavior: "none",
-        metadata: { compasso_plan_intent: input.intentId },
+        metadata: { [marker]: input.intentId },
         phases: [
           preserved,
           {
@@ -325,18 +393,19 @@ export function createStripePlanSchedules(config: {
                 ),
               },
             ],
-            metadata: { ...current.metadata, product_id: input.toProductId },
+            metadata: futureMetadata(current, input),
           },
         ],
       });
       validateSchedule(schedule, input);
       const future = schedule.phases.find((phase) => phase.start_date === end);
       if (
-        schedule.metadata?.compasso_plan_intent !== input.intentId ||
+        schedule.metadata?.[marker] !== input.intentId ||
         id(future?.items[0]?.price) !== input.toPriceId ||
         schedule.end_behavior !== "release"
       )
         throw new BillingError("Provider did not confirm the scheduled plan");
+      nativeFuture(schedule, input);
       return "scheduled";
     },
   };
