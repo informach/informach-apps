@@ -10,6 +10,23 @@ imediato; redução de cobertura aguarda o fim do período. Mantida a cobertura,
 mensal → anual é aumento e anual → mensal é redução. Essa decisão não comprova
 proporcional, aceite, agenda, persistência ou disponibilidade em produção.
 
+Estado atual da candidata: cotação, aceite, envio/recuperação e aplicação de
+aumento/redução têm escritores nativos. A origem financeira do saldo e sua
+integração no acesso estão em qualificação no
+[registro de financiamento](financiamento-creditos-2026-11-18.md). O histórico
+abaixo conserva a sequência dos incrementos e seus limites; não é autorização
+para ativar cobrança ou considerar as doze jornadas homologadas.
+
+A próxima candidata acrescenta consulta própria de revisão/recibo/seleção,
+sem IDs do provedor e com autoridade nativa atual mesmo para leitura. As
+Server Actions compõem as capacidades existentes: preparar, aceitar, enviar,
+conferir, encerrar cotação não enviada e cancelar redução futura. Tipo enviado
+pelo navegador apenas escolhe uma capacidade; cada escritor relê o tipo e o
+escopo reais. Recuperação de tentativa admitida conserva o contrato com vendas
+desligadas. Quatro testes novos cobrem pagante sem jogador, isolamento de conta/
+modo, recibo encerrado e aparelho revogado. Telas e prova de navegador ainda
+precisam ser concluídas; este incremento não altera preços, migrations ou flags.
+
 ## Comportamento obrigatório
 
 - Aumento: imediato, com proporcional calculado pelo Stripe e apresentado antes

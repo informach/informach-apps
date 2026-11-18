@@ -16,6 +16,8 @@ import type { RuntimeDeConciliacao } from "@/features/cobranca/conciliacao-runti
 import { criarConferenciaDeFinanciamento } from "@/features/cobranca/financiamento-stripe";
 import type { RuntimeDoPortal } from "@/features/cobranca/portal-service";
 import type { RuntimeDeCompra } from "@/features/cobranca/runtime";
+import type { RuntimeDeEnvioDoAumento } from "@/features/cobranca/troca-aumento-execucao-service";
+import type { RuntimeDeEnvioDaTroca } from "@/features/cobranca/troca-execucao-runtime";
 import type { RuntimeDoWebhook } from "@/features/cobranca/webhook-service";
 import { env } from "./env";
 import { isStripeTestSecret } from "./environment";
@@ -179,5 +181,24 @@ export function getRuntimeDoPortal(): RuntimeDoPortal {
         subject: { type: "user", id: paganteId },
         returnUrl: `${new URL(env.NEXT_PUBLIC_APP_URL).origin}/conta/assinatura`,
       }),
+  };
+}
+
+export function getRuntimeDoAumento(): RuntimeDeEnvioDoAumento {
+  const c = getComposicao();
+  return {
+    modo: "dev",
+    produtos: c.produtos,
+    conferirCatalogo: c.conferirCatalogo,
+    aumentos: c.aumentosAdmitidos,
+  };
+}
+export function getRuntimeDaReducao(): RuntimeDeEnvioDaTroca {
+  const c = getComposicao();
+  return {
+    modo: "dev",
+    produtos: c.produtos,
+    conferirCatalogo: c.conferirCatalogo,
+    agendas: c.agendasAdmitidas,
   };
 }

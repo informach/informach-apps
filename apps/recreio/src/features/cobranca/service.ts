@@ -16,6 +16,7 @@ import {
   encerrarCompraNaoEnviadaNoBanco,
   prepararCompraNoBanco,
 } from "./repository";
+import { consultarMinhasTrocasNoBanco } from "./troca-consulta-repository";
 
 /** Somente aceite; não chama Stripe nem concede acesso. */
 export async function prepararMinhaCompra(autor: AutorNativoRecente, entrada: unknown) {
@@ -44,6 +45,7 @@ export async function consultarMinhaCobranca(autor: IdentidadeNativa) {
   const compra = await consultarMinhaCompra(autor);
   const financeiro = await consultarSituacaoFinanceiraNoBanco(autor);
   const grupo = await consultarMeuGrupo(autor);
+  const trocas = await consultarMinhasTrocasNoBanco(autor, env.STRIPE_MODE);
   const configuracaoDeGestao =
     env.STRIPE_MODE === "dev" &&
     Boolean(
@@ -55,6 +57,7 @@ export async function consultarMinhaCobranca(autor: IdentidadeNativa) {
     modo: env.RECREIO_BILLING_MODE,
     compra,
     financeiro,
+    trocas,
     ofertas: ofertasParaOAdulto(),
     perfis: grupo?.perfis ?? [],
     conferenciaDisponivel: configuracaoDeGestao,
