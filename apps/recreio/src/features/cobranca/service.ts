@@ -5,6 +5,7 @@ import type {
   IdentidadeNativa,
 } from "@/features/account/autoridade-repository";
 import { env } from "@/lib/env";
+import { isStripeTestSecret } from "@/lib/environment";
 import { assertAllowed } from "@/lib/errors";
 import { limitarTentativas } from "@/lib/rate-limit";
 import { AceiteDaCompraSchema, ofertasParaOAdulto } from "./regras";
@@ -50,7 +51,7 @@ export async function consultarMinhaCobranca(autor: IdentidadeNativa) {
       financeiro.temCliente &&
       env.STRIPE_MODE === "dev" &&
       Boolean(
-        env.STRIPE_SECRET_KEY?.startsWith("sk_test_") &&
+        isStripeTestSecret(env.STRIPE_SECRET_KEY) &&
           env.STRIPE_PORTAL_CONFIGURATION_ID?.startsWith("bpc_") &&
           env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_"),
       ),

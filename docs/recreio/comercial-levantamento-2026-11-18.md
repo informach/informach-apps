@@ -128,6 +128,26 @@ pago e exige selecionar os perfis que continuam. Cancelar preserva o período e
 os mesmos IDs/progresso. Não substituir essas regras por troca imediata sem
 consentimento, nem programar todos os aumentos para a renovação.
 
+`65c9f89b` concluiu os dezesseis gates `44323395024`, incluindo webhook nativo e
+rotina com falha parcial. O portal/telas seguintes ainda têm rodada integral em
+curso. Replay real do catálogo `1ffc1758`/`44326976657` passou após checar tipos
+e conservou os cinco IDs de configuração; [recibo](evidencias/catalogo-stripe-sandbox-replay-2026-11-18.json).
+As quatro capturas da jornada `commercial-ui` em `44326976575` foram baixadas,
+hash conferido e inspecionadas em 390 px; [evidência](evidencias/telas-financeiras-2026-11-18.json).
+Valores, recibo e estados pago/em conferência estão legíveis, com rolagem vertical
+sem transbordamento. O preparo financeiro dessa jornada é SQL sintético.
+
+A candidata seguinte separa manutenção financeira de abertura de vendas:
+`RECREIO_FINANCIAL_JOBS_MODE=on` exige configuração de teste válida e pode
+continuar conciliando quando `RECREIO_BILLING_MODE=off`. Ambos começam `off`.
+Não suspender a conferência de contratos existentes apenas por fechar novas
+compras. A configuração e a composição usam o mesmo validador de chaves test,
+incluindo chaves restritas. Isolamento força a rotina desligada nos ensaios
+comuns; casos negativos verificam ausência de chave/catálogo e mistura de modo.
+Nenhuma variável ou serviço de produção foi alterado por essa candidata.
+
+O desenho das próximas trocas está em [plano próprio](trocas-plano-2026-11-18.md).
+
 `146b0932` concluiu os treze gates `44299049292`, incluindo as quatro provas
 de Checkout vinculado ao UUID do aceite e validade absoluta. O gate comercial
 usa PostgreSQL e SDK Stripe por transporte HTTP fechado; não é pagamento real.

@@ -130,6 +130,7 @@ const testEnv = {
   EMAIL_SANDBOX_MODE: e2e ? "sandbox" : "memory",
   ...(emailsPath ? { EMAIL_SANDBOX_DIR: emailsPath.replaceAll("\\", "/") } : {}),
   RECREIO_ACCESS_MODE: "fechado",
+  RECREIO_FINANCIAL_JOBS_MODE: "off",
   RECREIO_TRIAL_MODE:
     trialExperiment || jornadaDoInicio || commercialSetup || commercialCheckout
       ? "experiment"

@@ -35,7 +35,7 @@ export function criarRotinaDeConciliacao(deps: {
 }
 
 export const executarConciliacao = criarRotinaDeConciliacao({
-  habilitada: () => env.RECREIO_BILLING_MODE === "sandbox",
+  habilitada: () => env.RECREIO_FINANCIAL_JOBS_MODE === "on",
   processar: criarProcessadorDeConciliacao({
     modo: env.STRIPE_MODE,
     obterRuntime: getRuntimeDaConciliacao,

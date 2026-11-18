@@ -3,6 +3,7 @@ import { writeFile } from "node:fs/promises";
 import { createStripePaymentFactReader } from "@informach/billing/payment-facts";
 import { PRODUCTS } from "@informach/config";
 import Stripe from "stripe";
+import { isStripeTestSecret } from "../src/lib/environment";
 
 /** Explicit operations workflow only. Never reads or accepts a live key. */
 async function main() {
@@ -12,8 +13,7 @@ async function main() {
   const apply = process.env.RECREIO_SANDBOX_APPLY === "true";
   const output = process.env.RECREIO_SANDBOX_RECEIPT_PATH;
   if (
-    !key ||
-    !key.startsWith("sk_test_") ||
+    !isStripeTestSecret(key) ||
     !expectedAccount ||
     !expectedAccount.startsWith("acct_") ||
     !output ||

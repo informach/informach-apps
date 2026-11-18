@@ -13,6 +13,7 @@ describe("fronteira operacional da conciliação financeira", () => {
   });
   it("modo desligado é explícito e não inicia a composição Stripe", async () => {
     expect(env.RECREIO_BILLING_MODE).toBe("off");
+    expect(env.RECREIO_FINANCIAL_JOBS_MODE).toBe("off");
     expect(
       await pedir("POST", "/api/jobs/conciliacao", {
         headers: { authorization: `Bearer ${env.CRON_SECRET}` },

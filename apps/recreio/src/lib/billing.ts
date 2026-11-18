@@ -14,6 +14,7 @@ import type { RuntimeDoPortal } from "@/features/cobranca/portal-service";
 import type { RuntimeDeCompra } from "@/features/cobranca/runtime";
 import type { RuntimeDoWebhook } from "@/features/cobranca/webhook-service";
 import { env } from "./env";
+import { isStripeTestSecret } from "./environment";
 import { assertAllowed } from "./errors";
 import { packageLogger } from "./observability";
 
@@ -29,7 +30,7 @@ function criarComposicao() {
       chave &&
       segredo &&
       portalId &&
-      chave.startsWith("sk_test_") &&
+      isStripeTestSecret(chave) &&
       segredo.startsWith("whsec_") &&
       portalId.startsWith("bpc_"),
     "INDISPONIVEL",

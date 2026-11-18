@@ -114,7 +114,9 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
     <>
       {estado.modo === "off" && (
         <p className="painel mt-6 p-5">
-          As assinaturas ainda não estão disponíveis. O alfa continua por convite.
+          {estado.financeiro.temCliente
+            ? "Novas assinaturas não estão disponíveis neste momento. Você pode acompanhar seu contrato e seus pedidos abaixo."
+            : "As assinaturas ainda não estão disponíveis. O alfa continua por convite."}
         </p>
       )}
       {estado.modo === "setup" && (

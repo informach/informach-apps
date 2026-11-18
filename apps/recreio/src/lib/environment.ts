@@ -2,6 +2,10 @@ import { createPrivateKey, createPublicKey } from "node:crypto";
 import { getConfiguredProducts, isStripePriceIdConfigured } from "@informach/config";
 import { z } from "zod";
 
+export function isStripeTestSecret(value: unknown): value is string {
+  return typeof value === "string" && /^(sk|rk)_test_[A-Za-z0-9_]{8,}$/.test(value);
+}
+
 /** Um mapa em JSON numa variável de ambiente; ausente ou vazio vale `{}`. */
 function mapaJson<Valor>(valor: z.ZodType<Valor>) {
   return z
@@ -56,6 +60,8 @@ export const schema = z.object({
   RECREIO_TRIAL_MODE: z.enum(["off", "setup", "experiment"]).default("off"),
   /** Sandbox só aceita Stripe test; live não é admitido antes da homologação. */
   RECREIO_BILLING_MODE: z.enum(["off", "setup", "sandbox"]).default("off"),
+  /** Existing contracts keep reconciling independently from admitting new sales. */
+  RECREIO_FINANCIAL_JOBS_MODE: z.enum(["off", "on"]).default("off"),
   STRIPE_MODE: z.enum(["dev", "prod"]).default("dev"),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
@@ -152,10 +158,10 @@ export function validateEnvironment(input: NodeJS.ProcessEnv): Environment {
       `Invalid environment: ${parsed.error.issues.map((issue) => issue.path.join(".")).join(", ")}`,
     );
   const value = parsed.data;
-  if (value.RECREIO_BILLING_MODE === "sandbox") {
+  if (value.RECREIO_BILLING_MODE === "sandbox" || value.RECREIO_FINANCIAL_JOBS_MODE === "on") {
     if (
       value.STRIPE_MODE !== "dev" ||
-      !/^(sk|rk)_test_[A-Za-z0-9_]{8,}$/.test(value.STRIPE_SECRET_KEY ?? "") ||
+      !isStripeTestSecret(value.STRIPE_SECRET_KEY) ||
       !/^whsec_[A-Za-z0-9_]{8,}$/.test(value.STRIPE_WEBHOOK_SECRET ?? "") ||
       !/^bpc_[A-Za-z0-9_]+$/.test(value.STRIPE_PORTAL_CONFIGURATION_ID ?? "")
     )
