@@ -41,8 +41,9 @@ export function limparPresencasDeAnfitriao() {
       );
     const [apagadas] = await tx.execute<{ total: number }>(sql`
       with lote as (
-        select id from recreio.world_host_presences where closed_at is not null and retain_until<=statement_timestamp()
-        order by retain_until,id limit ${LOTE_DE_PRESENCAS} for update skip locked
+        select p.id from recreio.world_host_presences p where p.closed_at is not null and p.retain_until<=statement_timestamp()
+          and not exists (select 1 from recreio.space_visit_invites c where c.host_presence_id=p.id)
+        order by p.retain_until,p.id limit ${LOTE_DE_PRESENCAS} for update of p skip locked
       ), removidas as (delete from recreio.world_host_presences p using lote l where p.id=l.id returning 1)
       select count(*)::integer as total from removidas
     `);

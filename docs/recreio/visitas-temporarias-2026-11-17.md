@@ -317,3 +317,44 @@ exige o par exato de sessão encerrada por `left`/`expired`, ou assinatura
 inválida após a tolerância; continua exigindo orçamento real, progresso
 confirmado, escrita recusada e relatório privado. Não muda timer, prazo,
 auditoria ou autorização no produto. Evidência integral corretiva pendente.
+
+## Retenção candidata de visitas
+
+Manutenção expira convites pendentes e concessões pelo próprio prazo, em
+lotes de até 500 com `SKIP LOCKED`, sem alterar membros, SID, mundos ou dados.
+Estado terminal, relógio e auditoria estrita são confirmados juntos. Expurgo
+trava no máximo 500 recibos terminais depois da retenção e recusa apagar
+qualquer concessão ainda ativa. Apaga primeiro concessões encerradas e depois
+convites (aprovações em cascata), atomicamente com o evento de contagens.
+Uma falha de auditoria reverte também as remoções.
+
+A manutenção executa essa limpeza antes da presença. Expurgo de presença
+agora também exclui da seleção qualquer prova referenciada por um convite,
+inclusive quando ainda faltam lotes de retenção. FKs continuam restritivas;
+não se contorna referência com `CASCADE` nem se apaga participação. Seis novas
+integrações candidatas: expiração idempotente, dois rollbacks reais de
+auditoria, 500+101 recibos/concessões históricos, presença referenciada e
+concessão ativa preservada. As 601 linhas são histórico sintético por SQL,
+sem alegar 601 jogadores ou admissões de visita.
+
+Migration 0201 acrescenta quatro índices para consulta reversa da presença,
+vínculo parental e membro aprovador. Não basta o índice parcial de convites
+pendentes para expurgar uma presença referenciada por recibos encerrados.
+Geração `44230815797`, fonte `84e66b632afaefc920eac3dbab8cac0b64fa7216`,
+artefato `14394208647`, ZIP SHA-256
+`780df1f9dacce9a8bbf63bd4ce1cfc248a7c5430c55ccc1dcb7b41f97bb559b7`.
+Origem, allowlist, prefixo de 201 entradas, predecessor, quatro `CREATE INDEX`
+e cópia intacta conferidos:
+
+- `0201_messy_owl.sql`: 590 bytes,
+  `c2b3367837c8852fb1566a6f30503fda5330dc3046ebd839fed8d7b036f2b2e7`.
+- Snapshot: 921763 bytes,
+  `571f6e81b7f0a89c93aa82a4fbe33a909c4b798532ab70c3e0559838227d2608`.
+- Journal: 30518 bytes,
+  `4c978f2ecbd3d49552f0d6d0a47446b263e00a46c24963ffaa0441fb608f9974`.
+
+Fundação/corretivos `e30cdbc8` já passaram em qualidade, 858 integrações/87
+arquivos, cinco do Bastidores, upgrades 179→201/191→201 e no checkpoint do
+minuto real. E2E ainda em execução nesta leitura. Retenção e índices acima
+ainda não fazem parte desse resultado. Journal candidato atual: 202; produção
+conserva 191 recibos/0190 e nenhuma admissão de visitante está habilitada.
