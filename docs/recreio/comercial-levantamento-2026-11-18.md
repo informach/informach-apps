@@ -114,6 +114,29 @@ snapshot e prefixo inteiro do journal:
 volta ao schema para gerar 0205 sobre esse predecessor. Ainda exige os gates
 de upgrade e execução; sem migration ou concessão de teste em produção.
 
+0205 foi gerada com consentimento nativo separado em `44281864958`, fonte
+`157a69d6`, artefato `14417042111`: ZIP 65079 bytes/SHA-256
+`fea5d28fe2197ab9d9993363062061cd9cc2bc6db6281166b8701cf23fcbad2c`.
+A UNIQUE da tabela nova é inline e as FKs vêm depois das duas criações; a
+referência da concessão já encontra 0204 aplicada. SQL sem DML, copiado intacto
+após verificar todos os tamanhos/hashes, predecessor e prefixo do journal:
+
+- `0205_young_newton_destine.sql`: 3535 bytes,
+  `61adc4a9542c525ed67968e8b39c6997bc3ccfc6a14d5092dc4d09789e2f4838`.
+- `0205_snapshot.json`: 940188 bytes,
+  `20cd0a61e8a2b2650859be59f31840147943ab48f59aba1586a98a3cd20d391c`.
+- `_journal.json`: 31116 bytes,
+  `f81ea9f4fbf24613bfeb607dc6ec8f38d50a0593f53c5a78c72b1fab19cf71c6`.
+
+O schema candidato passa a 206 recibos. Produção continua em 191/0190, e a
+candidata de implantação F5 permanece em 204/0203, sem incluir este schema F6.
+
+Doze casos PostgreSQL novos exercitam consentimento ativo único, escopo de
+pagante/grupo/versão, tipo/tier/período exatos da concessão, coorte/duração,
+revogação permitida e impedimento de apagar/estender uma concessão já usada.
+São fixtures SQL de integridade, ainda em qualificação; não comprovam ação
+nativa, consentimento de uma pessoa ou início atômico pela primeira SID.
+
 1. Prazo finito: candidata `4a46a3dd`, oito gates de Recreio aprovados em
    `44276622593`; o CI compartilhado do catálogo seguinte também cobre os
    testes puros. Não implantada.
