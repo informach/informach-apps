@@ -1,135 +1,39 @@
 # Estado do trabalho no repositório
 
-**18/11 — visita familiar comprovada:** `f21630ea` concluiu sete gates e
-40 E2E, incluindo a jornada física infantil completa em 32,5 s. Capturas de
-390 px do responsável e do aceite inspecionadas. A tela agora permite desistir
-após aceite confirmado sem recarga, mantendo a trava em resposta incerta;
-essa alteração exige nova rodada. `af148638` corrige o único E2E restante de
-apelido inválido, ainda em verificação. Gestão/transição e operação F5 seguem
-abertas no [registro](recreio/visitas-temporarias-2026-11-17.md).
+**18/11 — Recreio/F5 em qualificação:** gestão/coadministração, convites dirigidos,
+sucessão parental, presença física, visitas temporárias, SDK e telas nativas estão
+em candidatas; a plataforma ainda não está concluída. O último incremento
+inteiramente qualificado anterior é `143fa822` (oito gates/1025 integrações).
+A base seguinte chegou a 1054 integrações aprovadas, preservando 179→204/191→204.
+`f21630ea` e `af148638` passaram nos sete gates técnicos e em 40 E2E, incluindo a
+jornada física infantil completa: dois responsáveis, nenhum membro fabricado,
+saída sem reuso, corte pelo anfitrião e progresso preservado. Capturas parentais
+e de aceite de 390 px foram inspecionadas.
 
-**18/11 — levantamento comercial F6:** preços confirmados e motor recuperável
-existente mapeados; teste sem cartão da proposta é 48 h × sete dias, começando
-na primeira sessão autorizada. O adapter atual ainda não leva período
-financeiro finito à decisão de acesso; corrigir antes de habilitar cobrança.
-Inspeção e documentação não homologam Stripe ou autorizam venda. [Achados e
-provas exigidas](recreio/comercial-levantamento-2026-11-18.md).
+A candidata atual acrescenta provas separadas de saída manual no gate comum e
+`Salvar e visitar` no gate de checkpoint com a capacidade real; o ensaio anterior exigia
+esse botão no modo desligado. As jornadas compartilham apoio, sem pular casos
+ou ativar produção. Oito gates/capturas atuais e CI compartilhado continuam
+necessários; CI anterior `44272436756` usa `adfe3971`. Histórico, falhas de
+fixtures e proveniência estão no [registro de visitas](recreio/visitas-temporarias-2026-11-17.md),
+[plano de mundos](recreio/mundos-completos-2026-11-17.md) e
+[sucessão infantil](recreio/sucessao-infantil-2026-11-17.md).
 
-**18/11 — fixture de gestão corrigida:** `031c689c` parou em `/comecar`
-porque os dois apelidos de teste tinham 21 caracteres, acima do máximo 20.
-Nomes agora respeitam o contrato. Limites e produto preservados. O corretivo
-de endereço `f21630ea` está em `44269499310`; a candidata com ambos os ajustes
-exige nova rodada completa. Sem implantação de F5.
+Produção continua no portal `396fe932` e Morada `644b3841`, conferidos no Railway
+com prontidão HTTP 200 em 18/11; famílias/social/checkpoint continuam desligados.
+As migrations F5 0191–0203 estão ausentes de produção. Antes da integração
+pública, preservar a main concorrente e os pins, controlar o migrator sem seeds
+e obter restauração atual e compatibilidade dos consumidores. D3–D8 do Morada
+continuam separados. F5 e a plataforma não estão prontos para venda.
 
-**18/11 — jornada familiar corrigida:** `70f85381` teve sete gates e 39 E2E
-aprovados; a nova jornada guardou `/visitas` antes de terminar a navegação do
-Link e voltou à lista após as aprovações. Captura/trace conferidos no artefato
-`14411596454`. O teste confirma o endereço do detalhe antes de guardá-lo,
-sem aumentar espera ou alterar produto. Fonte `745e5faf` e novo corretivo
-exigem qualificação completa. Sem implantação de F5.
-
-**18/11 — correção da fixture de fila:** a gestão `031c689c` passou em
-1053/1054 integrações; uma fixture duplicava pendências da mesma ponta/presença,
-corretamente recusadas pelo índice 23505. Destinatários distintos corrigem o
-preparo sem alterar integridade ou escritor. Transição `d2ad24f5` em
-`44268230251`; corretivo exige nova rodada completa. Produção inalterada.
-
-**18/11 — caixa na partida/transição de visita em candidata:** consultas e
-decisões do SDK integradas; `Salvar e visitar` exige capacidade real, módulo
-finalizável e recibo `completed`. Conflito/falha não navegam. Jornada remota
-retém resposta HTTP real para provar ausência de nova sessão antes da entrega
-e depois confere o progresso anterior. `70f85381` tem sete gates aprovados,
-E2E pendente; gestão `031c689c` também em verificação. Nova rodada completa
-obrigatória. Sem implantação de F5. [Registro](recreio/visitas-temporarias-2026-11-17.md).
-
-**18/11 — gestão das visitas em candidata:** fila nativa paginada e aprovação
-nas rotas do mundo adulto/do menor, com cinco integrações e nova jornada de
-três adultos. `70f85381` (jornada familiar) está na rodada `44266657089`;
-fila e jornada da gestão exigem nova rodada completa. UI de caixa na partida,
-troca direta e implantação F5 permanecem pendentes. Evidências no
-[registro das visitas](recreio/visitas-temporarias-2026-11-17.md).
-
-**18/11 — UI de visitas em candidata:** convites na partida, caixa/detalhe
-do jogador e supervisão parental com aprovação/encerramento estão preparados.
-Jornada remota nova prevê dois responsáveis/aparelhos, visita sem membro,
-saída sem reentrada, novo convite, perda do host e progresso preservado.
-`13ad8954` passou na qualidade; 1048/1049 integrações aprovadas, com única
-expectativa de perda de posse corrigida para ausência de presença. Rodada
-completa e capturas novas ainda pendentes. Sem implantação. UI de gestão do
-mundo e troca direta entre partidas permanecem pendentes no
-[registro](recreio/visitas-temporarias-2026-11-17.md).
-
-**18/11 — decisões nativas de visitas em candidata:** painel gratuito do
-responsável e da gestão relê presença/amizade/conteúdo e mantém aprovações
-separadas; ações nativas vinculam o perfil esperado e conservam login recente
-para decisões. O leitor de presença `0441e077` revelou `TS2345` em
-`44264500845`: a projeção social não contém a política completa de jogo.
-A composição agora propaga a política admitida já calculada, sem cast ou
-nova avaliação avulsa. Painéis, correção e testes exigem nova rodada completa.
-UI e jornada física do visitante continuam pendentes; produção inalterada.
-
-**18/11 — consulta própria de presença F5 em candidata:** a caixa `fccf5097`
-teve falha de tipos no helper de transporte do SDK (`social` ausente no Pick)
-na rodada `44263841636`. Correção sem supressão e leitura da presença do próprio
-SID exigem nova rodada completa; telas e jornada física do visitante seguem
-pendentes. Sem migração ou implantação deste incremento. Detalhes no
-[registro das visitas](recreio/visitas-temporarias-2026-11-17.md).
-
-**18/11 — candidata F5:** gestão, criação infantil e proteção de
-participantes sem amizade passaram nos oito gates `44196661859`; a consulta
-parental gratuita em todos os mundos atuais do menor passou nos oito gates
-`44197543292`, fonte congelada `a59e1923`. Backend dos convites dirigidos
-`622be7d1` passou nos oito gates `44203618156`, com 757 integrações. HTTP/SDK
-`8fffef03` passou nos oito gates `44206115029`, com 762 integrações. Decisões
-nativas do responsável e da gestão do mundo `68cf29c9` passaram nos oito gates
-`44209217588`, com 768 integrações. Host `39c618a0` passou nos oito gates
-`44211978937`, com 769 integrações e 35 E2E, incluindo duas jornadas novas.
-A lista de artefatos foi corrigida e as três capturas novas foram conferidas.
-Convites fora da partida e decisão do mundo `36dc4846` passaram nos oito gates
-`44217620284`, com 37 E2E, sem violação CSP; concorrência/upgrade passaram em
-774 integrações. Backend da sucessão infantil `e19de9ef` passou na qualidade
-e em 782 integrações, incluindo upgrade 191→198. Jornada parental `3680d2f1`
-passou nos oito gates `44220010016`, com 785 integrações e 38 E2E; captura de
-390 px conferida. Fundação de presença/0198 `a1729003` passou nos oito gates
-`44222402220`, com 801 integrações. Atestado técnico/limpeza corrigidos em
-`6daed18f` passaram em 814 integrações e upgrades 179→200/191→200; E2E falhou
-por esperar dez minutos mesmo próximo da virada do dia (aviso real de seis).
-Correções de expectativa/formatação e fundação de visitas `e30cdbc8` passaram
-nos oito gates `44230126377`, com 858 integrações e upgrades 179→201/191→201.
-Negociação anterior `92c2010b` também passou nos oito gates. Retenção e índices
-`566c1d3a` passaram nos oito gates `44231363456`, com 864 integrações e upgrades
-179→202/191→202. Contexto `468008de` passou nos oito gates `44232334360`, com
-873 integrações. Emissão `fb75f103` concluiu os oito gates `44233704383`, com
-892 integrações; aprovações `42900ed9` concluíram os oito gates `44235115992`.
-Aceite/concessão `79202b31` passou nos oito gates `44237514615`. Finalidade,
-entrada, checkpoint, encerramento e limpeza de SID visitante estão nas candidatas
-seguintes. Prazo monotônico `d3b07a4c` passou nos oito gates `44247255726`;
-consulta sem atestado `7cfcae2c`, nos oito `44248428950`. Captura HTTP real do
-controle `139aa64f` passou nos oito `44249166071`, com 1003 integrações,
-preservação dos upgrades 179→204/191→204 e E2E. O produtor por conexão
-`de8e1ea6` concluiu os oito gates `44250374730`, com 1005 integrações.
-Integração ao servidor de referência `18eb95bd` passou nos oito gates
-`44251506767`, com 39 E2E incluindo presença física/renovação/saída.
-Vínculo preparado e guarda local `238610bd` passou nos oito gates
-`44252742292`, com 1007 integrações. Runtime de visitante `516a6d65` passou
-nos oito gates `44254851686`, com 1010 integrações. Prévia `e8e7a38b` teve
-1016 integrações aprovadas e uma falha de fixture (`falha` em vez de `erro`
-na liberação de posse), também barrando tipos/builds. Corrigida na candidata
-`065212cd` junto à desistência antes de admissão por prova persistida, sem
-consumir a concessão ou inventar ACK. Qualidade e 1021 integrações com upgrades
-179→204/191→204 aprovados em `44257846279`, E2E ainda em curso na consulta.
-Escopo do bearer `143fa822` passou nos oito gates `44259707474`, com 1025
-integrações; `065212cd` concluiu os oito gates com 1021. Caixa técnica,
-conferência de dados atuais e HTTP/SDK de visitas são a candidata atual.
-UI, jornada completa e operação F5 permanecem
-pendentes. Migrations 0191–0203 geradas no
-GitHub, ausentes de produção.
-[Sucessão infantil](recreio/sucessao-infantil-2026-11-17.md).
-[Contrato, provas e limites](recreio/mundos-completos-2026-11-17.md).
-F4 passou nos gates/CI compartilhado e foi implantada em `396fe932`, com social
-desligado, 191 recibos/0190 e integração pública `86d9b05e`. Seus registros
-operacionais estão na main pública. Este registro privado não declara F4/F5 ou
-a plataforma prontas.
+**18/11 — F6–F11 restantes:** os quatro preços foram confirmados; o teste sem
+cartão da proposta compara 48 h e sete dias, começando na primeira sessão
+autorizada. O adapter comercial ainda precisa levar período financeiro finito
+à admissão; status antigo não deve produzir acesso ilimitado. [Levantamento
+comercial](recreio/comercial-levantamento-2026-11-18.md). Cobrança, privacidade,
+objetos/backup agendado com restauração do objeto, catálogo/acessibilidade,
+custo/carga remota e homologação final permanecem abertos no
+[fechamento da plataforma](recreio/fechamento-plataforma-2026-11-16.md).
 
 **16/11 — Recreio:** o titular priorizou [finalizar a plataforma web](recreio/fechamento-plataforma-2026-11-16.md)
 independente de D3–D8 do Morada. Confirmou os quatro preços e o cadastro de

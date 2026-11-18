@@ -111,8 +111,8 @@ export function VisitasNaPartida({
     <section className="painel mt-7 p-4 sm:p-5" aria-label="Visitas com amigos na partida">
       <h3 className="font-display text-xl font-bold">Visitas com amigos</h3>
       <p className="mt-2 text-sm text-tinta-suave">
-        Conferir ou aceitar mantém sua partida aberta. Para visitar, primeiro precisamos confirmar o
-        salvamento; a presença do anfitrião e as permissões serão conferidas de novo.
+        Confira as companhias sem sair da sua partida. A visita depende da presença do anfitrião e
+        das permissões atuais de cada perfil. Salve seu progresso antes de visitar.
       </p>
       {mensagem && (
         <p role="status" className="mt-4 rounded-controle border border-linha bg-fundo p-3 text-sm">

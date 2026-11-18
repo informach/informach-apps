@@ -1,5 +1,30 @@
 # Recreio: visitas temporárias com anfitrião
 
+## Provas de saída manual e salvamento coordenado, candidatas
+
+`af148638`/`44270231113` concluiu sete gates e 40 E2E. A gestão nativa aprovou
+o convite e o visitante aceitou na partida; o ensaio seguinte procurou `Salvar
+e visitar` no gate comum, cujo `RECREIO_CHECKPOINT_MODE` é `off`. A capacidade
+restrita não foi negociada, e a UI mostrou a orientação de saída manual.
+Não se trata de habilitar a capacidade por suposição do frontend.
+
+A jornada comum agora confere a ausência desse botão, sai pelo próprio jogo,
+abre a visita pelo portal e depois comprova o progresso do mundo anterior.
+O novo `checkpoint-e2e/visitas.spec.ts` executa a jornada de transição no gate
+que exige o modo real `on`, incluindo a barreira da resposta HTTP de salvamento.
+As duas usam `e2e/visitas-gestao-apoio.ts`; cada entrada confere seu modo antes
+do cadastro. Nenhum caso é pulado, nenhum modo de produção é ligado e os oito
+gates permanecem obrigatórios. Capturas manual/coordenada têm artefatos próprios.
+
+Artefato da recusa esperada do botão: `14413246354`, fonte `af148638`,
+5930396 bytes, SHA-256
+`36165d3b54fff54472b9c749622ff5e19aec1db1c7096d9837830bba454c0504`,
+conferido antes de extrair. Captura inspecionada; a concessão estava aceita e
+nenhuma entrada foi fabricada pelo teste. CI compartilhado anterior, fonte
+`adfe3971`, foi solicitado em `44272436756`; ainda não declara êxito desta
+correção. Nova rodada integral e capturas atuais são obrigatórias. Sem migration
+ou implantação em produção.
+
 ## Jornada familiar comprovada e desistência na tela, candidata
 
 `f21630ea`/`44269499310` concluiu sete gates e 40 jornadas, incluindo a visita

@@ -148,7 +148,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Preserve synthetic account screens
-        # Somente telas de conta sintéticas; nenhuma captura do jogo.
+        # Somente telas sintéticas explicitadas; sem traces ou conteúdo real de famílias.
         if: always() && matrix.gate == 'e2e'
         uses: actions/upload-artifact@v4
         with:
@@ -196,6 +196,16 @@ jobs:
             apps/recreio/tmp/telas/sucessao-menor-mobile.png
             apps/recreio/tmp/telas/visitas-responsavel-mobile.png
             apps/recreio/tmp/telas/visitas-aceite-mobile.png
+            apps/recreio/tmp/telas/visitas-gestao-mobile.png
+            apps/recreio/tmp/telas/visitas-partida-manual-mobile.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve synthetic visit transition screens
+        if: always() && matrix.gate == 'checkpoint'
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-visitas-checkpoint-${{ github.run_attempt }}
+          path: |
             apps/recreio/tmp/telas/visitas-gestao-mobile.png
             apps/recreio/tmp/telas/visitas-partida-mobile.png
           if-no-files-found: warn
