@@ -1,7 +1,7 @@
 # Recreio: visitas temporárias com anfitrião
 
-Incremento F5 autorizado, em desenho e fundação de schema. Ainda sem serviço,
-contrato negociado, interface ou implantação. Requisitos e demais aceites no
+Incremento F5 autorizado, com fundação de schema e atestado em verificação.
+Negociação candidata; convites, concessões, interface e implantação pendentes. Requisitos e demais aceites no
 [plano de mundos](mundos-completos-2026-11-17.md).
 
 ## Separação e autoridade
@@ -192,3 +192,12 @@ O corretivo `6daed18f` já passou no job de integração `134540065185` do run
 e 191→200, preservando perfis, progresso, mundos, membros, fotos, diário,
 convites e cerca. Os demais gates ainda estavam em execução nesta leitura.
 Essa evidência não cobre o código de negociação acrescentado depois.
+
+Extensão candidata `ClienteDoHostComPresencas`: `atestarPresenca` usa a rota
+autenticada da instância e valida a resposta com o contrato compartilhado. O
+host básico/memória não passa a prometer visitas. Falha de rede não gera retry
+ou confirmação inventada; quem chama precisa repetir explicitamente a mesma
+chave, sem readmitir visitantes enquanto a situação não for conhecida.
+Quatro testes de transporte e uma integração HTTP real cobrem entrada/saída,
+escopo, resposta inválida, posse perdida e recuperação de recibo fechado com
+modo desligado. Ainda pendentes de execução remota; não integra o Morada.

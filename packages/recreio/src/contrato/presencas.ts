@@ -20,6 +20,7 @@ export const AtestadoDePresencaSchema = z.discriminatedUnion("operacao", [
   AtestadoDeEntradaSchema,
   AtestadoDeSaidaSchema,
 ]);
+export type AtestadoDePresenca = z.infer<typeof AtestadoDePresencaSchema>;
 export type AtestadoDeEntrada = z.infer<typeof AtestadoDeEntradaSchema>;
 export type AtestadoDeSaida = z.infer<typeof AtestadoDeSaidaSchema>;
 /** Recibo técnico; o prazo da posse e a autoridade atual continuam obrigatórios para visitas. */

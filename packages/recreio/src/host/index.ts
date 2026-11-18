@@ -2,6 +2,7 @@ export type {
   CheckpointDoHost,
   ClienteDoHost,
   ClienteDoHostComCheckpoint,
+  ClienteDoHostComPresencas,
   ClienteDoHostComSalvamento,
   EntradaDoDiario,
   EntradaPermitida,

@@ -10,7 +10,7 @@ import {
 import {
   CABECALHO_DA_INSTANCIA,
   CABECALHO_DO_JOGO,
-  type ClienteDoHostComSalvamento,
+  type ClienteDoHostComPresencas,
   SessaoAbertaSchema,
 } from "@informach/recreio/contrato";
 import { criarClienteDoHost } from "@informach/recreio/host";
@@ -79,7 +79,7 @@ export function enderecoDo(jogo: string): string {
 }
 
 /** O cliente HTTP de verdade, com as rotas chamadas no processo. */
-export function clienteDoHost(jogo = MORADA): ClienteDoHostComSalvamento {
+export function clienteDoHost(jogo = MORADA): ClienteDoHostComPresencas {
   return criarClienteDoHost({
     baseUrl: ORIGEM,
     jogo,
@@ -91,7 +91,7 @@ export function clienteDoHost(jogo = MORADA): ClienteDoHostComSalvamento {
 }
 
 export type InstanciaDeTeste = {
-  cliente: ClienteDoHostComSalvamento;
+  cliente: ClienteDoHostComPresencas;
   instanciaId: InstanciaId;
   jogo: string;
 };

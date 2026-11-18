@@ -64,6 +64,99 @@ function ambiente(opcoes: { diarioMaxBytes?: number } = {}) {
 const recusa = (status: number, corpo: unknown) => Response.json(corpo, { status });
 
 describe("cliente HTTP das instâncias", () => {
+  const presenca = {
+    presencaId: "4417ceab-f10e-4311-bbd7-84826a097b00",
+    estado: "active" as const,
+    expiraEm: "2026-11-18T01:00:30.000Z",
+    janelaAte: "2026-11-19T01:00:00.000Z",
+  };
+
+  it("atestado exige registro e usa somente a instância do cliente", async () => {
+    const a = ambiente(),
+      pedido = {
+        mundoId: MUNDO,
+        operacao: "entrar" as const,
+        cerca: 2,
+        sid: SID,
+        perfilId: PERFIL,
+        chaveDeEntrada: "14de4b5a-bdf4-463a-bbd4-3cf344c84426",
+      };
+    await expect(a.cliente.atestarPresenca(pedido)).rejects.toMatchObject({
+      codigo: "NAO_AUTENTICADO",
+    });
+    expect(a.chamadas).toHaveLength(0);
+    await a.registrado();
+    a.responder(Response.json(presenca), Response.json({ ...presenca, estado: "closed" }));
+    expect(await a.cliente.atestarPresenca(pedido)).toEqual(presenca);
+    expect(a.chamadas.at(-1)).toMatchObject({
+      url: `https://recreio.test/api/interno/v1/mundos/${MUNDO}/presencas`,
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${SEGREDO}`,
+        "x-recreio-instancia": INSTANCIA,
+        "x-recreio-jogo": "morada",
+      },
+      corpo: {
+        operacao: "entrar",
+        cerca: 2,
+        sid: SID,
+        perfilId: PERFIL,
+        chaveDeEntrada: pedido.chaveDeEntrada,
+      },
+    });
+    expect(
+      await a.cliente.atestarPresenca({
+        mundoId: MUNDO,
+        operacao: "sair",
+        cerca: 2,
+        presencaId: presenca.presencaId,
+      }),
+    ).toMatchObject({ estado: "closed" });
+    expect(a.chamadas.at(-1)?.corpo).toEqual({
+      operacao: "sair",
+      cerca: 2,
+      presencaId: presenca.presencaId,
+    });
+  });
+
+  it("perder resposta de presença não provoca retry automático nem inventa confirmação", async () => {
+    const a = ambiente();
+    await a.registrado();
+    a.responder(new TypeError("resposta perdida"));
+    const pedido = {
+      mundoId: MUNDO,
+      operacao: "sair" as const,
+      cerca: 2,
+      presencaId: presenca.presencaId,
+    };
+    await expect(a.cliente.atestarPresenca(pedido)).rejects.toMatchObject({
+      codigo: "INDISPONIVEL",
+    });
+    expect(a.chamadas).toHaveLength(2);
+    a.responder(Response.json({ ...presenca, estado: "closed" }));
+    expect(await a.cliente.atestarPresenca(pedido)).toMatchObject({ estado: "closed" });
+    expect(a.chamadas).toHaveLength(3);
+  });
+
+  it.each([Response.json({ presencaId: "id-invalido" }), recusa(409, { codigo: "POSSE_PERDIDA" })])(
+    "atestado recusa corpo inválido ou posse perdida",
+    async (resposta) => {
+      const a = ambiente();
+      await a.registrado();
+      a.responder(resposta);
+      await expect(
+        a.cliente.atestarPresenca({
+          mundoId: MUNDO,
+          operacao: "sair",
+          cerca: 2,
+          presencaId: presenca.presencaId,
+        }),
+      ).rejects.toMatchObject({
+        codigo: resposta.status === 409 ? "POSSE_PERDIDA" : "INDISPONIVEL",
+      });
+    },
+  );
+
   const entrada = (seq: number) => ({ seq, tick: seq, fatoId: `f:${seq}`, bytes: "AA==" });
 
   it("percorre páginas pela última sequência e conserva os bytes de todas", async () => {

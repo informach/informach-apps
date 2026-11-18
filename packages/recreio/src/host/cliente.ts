@@ -6,7 +6,7 @@ import {
   CAMINHO_DA_API_DO_HOST,
   CheckpointDoHostSchema,
   type ClienteDoHost,
-  type ClienteDoHostComSalvamento,
+  type ClienteDoHostComPresencas,
   DIARIO_PAGINA_MAX_BYTES,
   DIARIO_RECUPERACAO_MAX_ENTRADAS,
   DiarioConfirmadoSchema,
@@ -19,6 +19,7 @@ import {
   RespostaDoBatimentoSchema,
   SalvamentoDoHostSchema,
 } from "../contrato/host";
+import { AtestadoDePresencaSchema, ReciboDePresencaSchema } from "../contrato/presencas";
 import { EstadoDeSalvamentoSchema } from "../contrato/salvamento";
 import { ResultadoDeCheckpointSchema } from "../contrato/sdk";
 import { ErroDoRecreio } from "../dominio/erros";
@@ -60,7 +61,7 @@ const TEMPO_LIMITE_MS = 10_000;
  * `X-Recreio-Instancia`. Antes de registrar, qualquer outra chamada recusa com
  * `NAO_AUTENTICADO` sem sair para a rede.
  */
-export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHostComSalvamento {
+export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHostComPresencas {
   if (!Number.isSafeInteger(opcoes.fotografiaMaxBytes) || opcoes.fotografiaMaxBytes <= 0)
     throw new Error("fotografiaMaxBytes precisa ser um inteiro positivo");
   if (!Number.isSafeInteger(opcoes.diarioMaxBytes) || opcoes.diarioMaxBytes <= 0)
@@ -107,6 +108,15 @@ export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHost
       const registrada = await lerCorpo(resposta, InstanciaRegistradaSchema);
       instanciaId = registrada.instanciaId;
       return registrada;
+    },
+
+    async atestarPresenca({ mundoId, ...pedido }) {
+      eu();
+      const resposta = await enviarJson(
+        `${mundo(mundoId)}/presencas`,
+        AtestadoDePresencaSchema.parse(pedido),
+      );
+      return lerCorpo(resposta, ReciboDePresencaSchema);
     },
 
     async batimento(batimento) {

@@ -191,6 +191,31 @@ const saida = (c: Cenario, presencaId: string) => ({
   presencaId,
 });
 
+it("cliente HTTP atesta entrada e saída reais, com replay fechado e modo desligado", async () => {
+  const c = await cenario(),
+    cliente = c.instancia.cliente,
+    entrada = { mundoId: c.mundoId, ...c.pedido },
+    criada = await cliente.atestarPresenca(entrada);
+  expect(criada.estado).toBe("active");
+  env.RECREIO_VISITS_MODE = "off";
+  const fechada = await cliente.atestarPresenca({
+    mundoId: c.mundoId,
+    operacao: "sair",
+    cerca: c.pedido.cerca,
+    presencaId: criada.presencaId,
+  });
+  expect(fechada.estado).toBe("closed");
+  expect(await cliente.atestarPresenca(entrada)).toEqual(fechada);
+  expect(
+    (await eventosCom("presenceId", criada.presencaId)).filter(
+      (e) => e.eventType === "recreio.host_presence_closed",
+    ),
+  ).toHaveLength(1);
+  expect(
+    (await db.select().from(sessions).where(eq(sessions.id, c.sessao.sid)))[0]?.endedAt,
+  ).toBeNull();
+});
+
 it("dois HTTP concorrentes recuperam o mesmo atestado sem duplicar presença ou auditoria", async () => {
   const c = await cenario(),
     antes = await db.select().from(members).where(eq(members.spaceId, c.mundoId));

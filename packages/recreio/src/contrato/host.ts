@@ -8,6 +8,7 @@ import {
 } from "../dominio/ids";
 import { PAPEIS_NO_MUNDO, PARTICIPACAO_MAX } from "../dominio/mundos";
 import { TIPOS_DE_FOTOGRAFIA } from "../dominio/posse";
+import type { AtestadoDePresenca, ReciboDePresenca } from "./presencas";
 import type { EstadoDeSalvamento } from "./salvamento";
 import type { ResultadoDeCheckpoint } from "./sdk";
 
@@ -264,6 +265,20 @@ export interface ClienteDoHostComSalvamento extends ClienteDoHostComCheckpoint {
   salvarSessao(
     pedido: SalvamentoDoHost & { mundoId: z.infer<typeof MundoIdSchema> },
   ): Promise<EstadoDeSalvamento>;
+}
+
+/** Extensão explícita: o host básico e seus adapters não prometem oferecer visitas. */
+export interface ClienteDoHostComPresencas extends ClienteDoHostComSalvamento {
+  /**
+   * Entrada somente após a conexão real do membro; saída ao desconectar.
+   * Resposta é recibo técnico. Perder a resposta não autoriza repetir a conexão
+   * ou admitir visitantes; recuperação exige repetir explicitamente a mesma chave.
+   */
+  atestarPresenca(
+    pedido: AtestadoDePresenca & {
+      mundoId: z.infer<typeof MundoIdSchema>;
+    },
+  ): Promise<ReciboDePresenca>;
 }
 
 /** Capacidade adicional; o host básico não promete implementar checkpoint de troca. */
