@@ -26,9 +26,12 @@ function criarComposicao() {
     portalId = env.STRIPE_PORTAL_CONFIGURATION_ID;
   assertAllowed(
     env.STRIPE_MODE === "dev" &&
-      chave?.startsWith("sk_test_") &&
-      segredo?.startsWith("whsec_") &&
-      portalId?.startsWith("bpc_"),
+      chave &&
+      segredo &&
+      portalId &&
+      chave.startsWith("sk_test_") &&
+      segredo.startsWith("whsec_") &&
+      portalId.startsWith("bpc_"),
     "INDISPONIVEL",
     "A compra ainda não está disponível.",
   );

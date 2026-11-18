@@ -96,6 +96,21 @@ assinatura. Gestão de contrato existente fica separada da admissão de compra;
 o fechamento de vendas não remove essa recuperação quando a composição estiver
 configurada. Sete casos com SDK/PG/HTTP fechado e auditoria estrita aguardam gates.
 
+`28b9404a` encontrou um identificador `groupId` em lugar da variável `grupoId`
+na admissão do portal e quatro erros de estreitamento de tipos das credenciais.
+Corrigidos sem casts ou relaxamento da autenticação; nenhum deploy foi realizado.
+
+Primeira comunicação externa desta frente: leitura autenticada em modo de teste
+em 18/11 confirmou a conta `acct_1LnO7zCvOctqao30` (BR) e inventariou 37 produtos,
+sem produto Recreio. Não houve cliente, assinatura, cobrança ou mudança no Stripe.
+A credencial de teste já configurada localmente foi preparada no segredo GitHub
+`RECREIO_STRIPE_SANDBOX_SECRET_KEY`, sem exposição do valor. Nenhuma chave live
+foi usada. A candidata adiciona uma operação manual explícita ao workflow para
+conferir/provisionar apenas catálogo e portal, com conta esperada, chaves de
+idempotência, preços imutáveis do catálogo comum e recibo sem segredos.
+Operação externa ainda não executada nessa fonte; não representa homologação
+de Checkout, liquidação, webhook ou cancelamento no provedor.
+
 `146b0932` concluiu os treze gates `44299049292`, incluindo as quatro provas
 de Checkout vinculado ao UUID do aceite e validade absoluta. O gate comercial
 usa PostgreSQL e SDK Stripe por transporte HTTP fechado; não é pagamento real.

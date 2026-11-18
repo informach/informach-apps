@@ -62,10 +62,10 @@ export async function admitirPortalLocked(
       await logAuditEventStrict(
         fase === "requested" ? "recreio.billing_portal_requested" : "recreio.billing_portal_opened",
         autor.contaId,
-        { app: "recreio", groupId },
+        { app: "recreio", groupId: grupoId },
         { writer: tx },
       );
     await atual.nativa.conferirPrazo(autor.login);
-    return { [PORTAL]: true, groupId, payerId: autor.contaId, customerId: cliente.id };
+    return { [PORTAL]: true, groupId: grupoId, payerId: autor.contaId, customerId: cliente.id };
   });
 }

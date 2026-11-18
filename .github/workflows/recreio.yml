@@ -2,6 +2,23 @@ name: Recreio
 
 on:
   workflow_dispatch:
+    inputs:
+      sandbox_catalog:
+        description: Conferir catálogo real no Stripe Sandbox (sem clientes ou cobranças)
+        type: boolean
+        default: false
+      sandbox_apply:
+        description: Criar somente produtos/preços/portal Sandbox ausentes
+        type: boolean
+        default: false
+      sandbox_account:
+        description: ID da conta Stripe de teste esperada
+        type: string
+        default: ""
+      sandbox_app_url:
+        description: Origem da aplicação de homologação
+        type: string
+        default: "https://recreio.informach.com.br"
   push:
     branches: [main, "verify/recreio-*"]
     paths:
@@ -31,6 +48,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  sandbox-catalog:
+    if: github.event_name == 'workflow_dispatch' && inputs.sandbox_catalog
+    name: Recreio / catálogo Stripe Sandbox real
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: postgres://ci:ci@127.0.0.1:9/metadata_only
+      STRIPE_SECRET_KEY: ${{ secrets.RECREIO_STRIPE_SANDBOX_SECRET_KEY }}
+      STRIPE_EXPECTED_ACCOUNT: ${{ inputs.sandbox_account }}
+      RECREIO_SANDBOX_APP_URL: ${{ inputs.sandbox_app_url }}
+      RECREIO_SANDBOX_APPLY: ${{ inputs.sandbox_apply }}
+      RECREIO_SANDBOX_RECEIPT_PATH: ${{ runner.temp }}/recreio-stripe-sandbox.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @informach/recreio-app exec tsx scripts/sandbox-catalogo.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: recreio-stripe-sandbox-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/recreio-stripe-sandbox.json
+          if-no-files-found: error
+          retention-days: 7
   verify:
     name: Recreio / ${{ matrix.gate }}
     runs-on: ubuntu-latest
