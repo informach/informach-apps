@@ -1,6 +1,6 @@
 # Recreio: transferência do mundo de um perfil menor
 
-Incremento F5, ainda sem implementação de serviço, tela ou implantação.
+Incremento F5, com backend candidato, ainda sem gates, tela ou implantação.
 Reaproveita a proposta de responsabilidade existente, com prazo de 24 horas e
 aceite independente do destinatário adulto. O titular autorizou finalizar a
 plataforma sem depender de D3–D8 do Morada.
@@ -52,3 +52,26 @@ cópia: SQL aditivo, mas duas FKs tinham nomes automáticos acima do limite de
 63 bytes do PostgreSQL. O artefato `14387714774` não foi aplicado ou copiado.
 A candidata seguinte atribui nomes explícitos curtos às três FKs e solicita
 nova geração a partir do mesmo prefixo 0196.
+
+Geração corrigida `44218177439`, fonte `0c787f81e951c0741993deb9a6a03663dac608cb`,
+artefato `14388634721`, ZIP SHA-256
+`caf5016679a059e205fec06ee06c5c9f050f1ee3b8c6a9d86b46171375c3699b`.
+Allowlist, prefixo do journal, predecessor do snapshot, bytes e SHA conferidos
+antes/depois da cópia intacta:
+
+- `0197_loving_swordsman.sql`: 1334 bytes,
+  `bec02fd7fe8bebabda2226fbf5a48f1db2bcdd294be51890a8045e6f1cbef43b`.
+- Snapshot: 878327 bytes,
+  `3ed9fe442b2a5e11bafd618f315a264cb6006fa657fff8cf487066a39a96c00c`.
+- Journal: 29927 bytes,
+  `a13ddb1950da1df4a03babe583102eaec853f0598948db56fad78a659ac6d7f8`.
+
+A candidata de backend propõe/cancela pelo adulto atual e encaminha o aceite
+próprio do destinatário para a nova prova, mantendo a transferência adulta.
+A admissão de participante nativo tem entrada separada da gestão: não exige
+ser administrador antes de aceitar, mas não empresta essa autoridade aos
+chamadores de gestão. Oito testes candidatos cobrem adulto sem jogador e sem
+plano, recuperação, identidade, login, revisão, vínculo/geração/política,
+ausência de administração prévia, cancelamento e rollback da auditoria.
+As provas ainda precisam executar no GitHub. Journal candidato com 198 entradas;
+produção conserva 191/0190. A tela parental e a jornada E2E continuam pendentes.

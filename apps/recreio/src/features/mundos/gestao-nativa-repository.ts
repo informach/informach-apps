@@ -10,10 +10,10 @@ import {
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 import { type AutorDaGestaoDeMundo, identidadeDoGestor } from "./gestao-nativa-autor";
-import { limitarGestao } from "./gestao-repository";
+import { type AutorDaResponsabilidade, limitarGestao } from "./gestao-repository";
 
 /** Contas ordenadas → mundo → perfis → aparelho → participações. Sem cobertura comercial. */
-export async function contextoNativoDoMundo(
+async function contextoNativoDaParticipacao(
   tx: Transacao,
   autor: AutorDaGestaoDeMundo,
   mundoId: string,
@@ -94,11 +94,6 @@ export async function contextoNativoDoMundo(
       "A participação mudou. Atualize a página antes de continuar.",
     );
   const responsavel = proprio.role === "steward" && mundo.stewardProfileId === perfil.id;
-  assertAllowed(
-    responsavel || (!porResponsavel && proprio.role === "coadmin"),
-    "RESPONSAVEL",
-    "A gestão deste mundo está indisponível para este perfil.",
-  );
   const conferirPrazo = (recente = true) =>
     nativa.conferirPrazo(recente ? identidade.login : undefined);
   await conferirPrazo(false);
@@ -109,22 +104,45 @@ export async function contextoNativoDoMundo(
     perfilAlvo: composicao.perfis.find((p) => p.id === alvo?.profileId),
     responsavel,
     porResponsavel,
+    perfilGerido: perfil,
+    composicao,
     contaId: identidade.contaId,
     conferirPrazo,
   };
 }
 
-export async function comGestaoNativaDoMundo<T>(
+export async function contextoNativoDoMundo(
+  tx: Transacao,
+  autor: AutorDaGestaoDeMundo,
+  mundoId: string,
+  alvoId?: string,
+) {
+  const ctx = await contextoNativoDaParticipacao(tx, autor, mundoId, alvoId);
+  assertAllowed(
+    ctx.responsavel || (!ctx.porResponsavel && ctx.proprio.role === "coadmin"),
+    "RESPONSAVEL",
+    "A gestão deste mundo está indisponível para este perfil.",
+  );
+  return ctx;
+}
+
+async function comContextoNativoDoMundo<T>(
   autor: AutorDaGestaoDeMundo,
   mundoId: string,
   alvoId: string | undefined,
   executar: (tx: Transacao, ctx: Awaited<ReturnType<typeof contextoNativoDoMundo>>) => Promise<T>,
   leitura = false,
+  gestao = true,
 ) {
   const tentar = () =>
     db.transaction(async (tx) => {
       await limitarGestao(tx);
-      const ctx = await contextoNativoDoMundo(tx, autor, mundoId, alvoId);
+      const ctx = await (gestao ? contextoNativoDoMundo : contextoNativoDaParticipacao)(
+        tx,
+        autor,
+        mundoId,
+        alvoId,
+      );
       const resultado = await executar(tx, ctx);
       await ctx.conferirPrazo(!leitura);
       return resultado;
@@ -135,4 +153,25 @@ export async function comGestaoNativaDoMundo<T>(
     if (!(erro instanceof ComposicaoSocialMudou)) throw erro;
     return tentar();
   }
+}
+
+export function comGestaoNativaDoMundo<T>(
+  autor: AutorDaGestaoDeMundo,
+  mundoId: string,
+  alvoId: string | undefined,
+  executar: (tx: Transacao, ctx: Awaited<ReturnType<typeof contextoNativoDoMundo>>) => Promise<T>,
+  leitura = false,
+) {
+  return comContextoNativoDoMundo(autor, mundoId, alvoId, executar, leitura, true);
+}
+
+/** Aceitar uma proposta própria não exige ser administrador do mundo antes do aceite. */
+export function comParticipacaoNativaDoMundo<T>(
+  autor: AutorDaResponsabilidade,
+  mundoId: string,
+  alvoId: string,
+  executar: (tx: Transacao, ctx: Awaited<ReturnType<typeof contextoNativoDoMundo>>) => Promise<T>,
+  leitura = false,
+) {
+  return comContextoNativoDoMundo(autor, mundoId, alvoId, executar, leitura, false);
 }
