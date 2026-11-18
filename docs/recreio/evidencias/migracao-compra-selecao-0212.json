@@ -1,0 +1,35 @@
+{
+  "runId": "44382246885",
+  "artifactId": "14463098917",
+  "artifactBytes": 68711,
+  "artifactSha256": "b6e7dc1868ab77d3e414a98693d312ece2700a5ccf1e1951ef56b506c197c29f",
+  "provenance": {
+    "source": "d0217c69b747d92179ea59c8cd2a4b0ddd835ba8",
+    "files": [
+      {
+        "path": "packages/db/src/migrations/0212_recreio_compra_selecao.sql",
+        "bytes": 1585,
+        "sha256": "c137235b09d4fe30e333edbe489818ef3a70378816d77c1405d9d73c24dc864f"
+      },
+      {
+        "path": "packages/db/src/migrations/meta/0212_snapshot.json",
+        "bytes": 987747,
+        "sha256": "578c06b14b15fb4961449f095e5236f712611d51f8de97ac97a53ae52c5d866f"
+      },
+      {
+        "path": "packages/db/src/migrations/meta/_journal.json",
+        "bytes": 32138,
+        "sha256": "e65d842c98e8ab1fdb8600dd78ff58d7fe795120522c8d1a84e717ef2e9aec89"
+      }
+    ]
+  },
+  "snapshotId": "4b2adb32-43a8-4de9-9769-79a5556539df",
+  "previousId": "c933c2ec-9fb0-4a2a-8dfb-38f815f5e7e5",
+  "journalEntries": 213,
+  "adoptedUnmodified": true,
+  "deploymentPrecondition": "purchase_authorizations_and_billing_contracts_empty_and_commercial_writers_off",
+  "productionApplied": false,
+  "supersededGenerationRunId": "44381956396",
+  "supersededSource": "2cd340ec94d5fedae649ad8a50238f747077db43",
+  "supersededReason": "missing_once_only_initial_selection_marker_not_adopted"
+}

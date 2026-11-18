@@ -1,0 +1,53 @@
+{
+  "workflowRunId": "44380976374",
+  "source": "d71fb1c149e774c2af193886854407815820298b",
+  "artifactId": "14464615692",
+  "artifactBytes": 483393,
+  "artifactSha256": "6adb44f45dfcb92f89d7f7913ea9223dffc9314b8417bc1910f6a3217480067d",
+  "files": [
+    {
+      "file": "compra-ofertas-mobile.png",
+      "bytes": 77037,
+      "sha256": "b1266578887dc9993ec4a899caf7ba6368f2a15c3e1f62538b11eb4f0965fe52"
+    },
+    {
+      "file": "compra-paga-mobile.png",
+      "bytes": 91112,
+      "sha256": "70d0e0bc5d6c7fee54f2457f3b5f7b7c9f71f177fa22e7e03fc21acfbda79629"
+    },
+    {
+      "file": "compra-recibo-mobile.png",
+      "bytes": 86013,
+      "sha256": "c8ad926c89cca6cf2edf6f33d07d36674ceb936cb34d36d38a662fd55cf298d7"
+    },
+    {
+      "file": "compra-conferencia-mobile.png",
+      "bytes": 88082,
+      "sha256": "e5b2231e97cd7a39d22ebdcdb6649845ebe259a555833b963d73a0082e297ea2"
+    },
+    {
+      "file": "troca-selecao-mobile.png",
+      "bytes": 69267,
+      "sha256": "4067497e325562d60fc9f12111bb92ebcfde797400fd6df45a074912acc51c42"
+    },
+    {
+      "file": "troca-selecao-confirmada-mobile.png",
+      "bytes": 88591,
+      "sha256": "77f40e567014b2bf3eee3db6c2bc1f811f1d6f8fcc08f24c652aa8ecfe4bd450"
+    }
+  ],
+  "artifactIntegrityVerified": true,
+  "presentationBoundary": "synthetic_sql_fixture",
+  "actualStripePaymentProven": false,
+  "nativePlanProviderJourneyProven": false,
+  "inspectedScreens": [
+    "troca-selecao-mobile.png",
+    "troca-selecao-confirmada-mobile.png"
+  ],
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "layoutInspected": true,
+  "productionActivated": false
+}
