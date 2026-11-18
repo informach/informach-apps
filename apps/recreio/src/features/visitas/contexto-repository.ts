@@ -31,7 +31,11 @@ import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 
 /** Contas, mundo e perfis já travados pela composição; o recibo técnico não basta. */
-async function admitirAnfitriao(tx: Transacao, ctx: ContextoDeConvite, presencaId: string) {
+export async function admitirAnfitriaoNoContexto(
+  tx: Transacao,
+  ctx: ContextoDeConvite,
+  presencaId: string,
+) {
   const [pista] = await tx
     .select()
     .from(presences)
@@ -162,7 +166,7 @@ async function admitirAnfitriao(tx: Transacao, ctx: ContextoDeConvite, presencaI
   await conferirPrazo();
   return { presenca, membro, conferirPrazo };
 }
-export type AnfitriaoAdmitido = Awaited<ReturnType<typeof admitirAnfitriao>>;
+export type AnfitriaoAdmitido = Awaited<ReturnType<typeof admitirAnfitriaoNoContexto>>;
 
 /** Escrita positiva relê o anfitrião e seu prazo até depois do efeito/auditoria. */
 export async function comJogadorEAnfitriaoNaVisita<T>(
@@ -187,7 +191,7 @@ export async function comJogadorEAnfitriaoNaVisita<T>(
         "A visita não corresponde à presença original.",
       );
     }
-    const anfitriao = await admitirAnfitriao(tx, ctx, presencaId),
+    const anfitriao = await admitirAnfitriaoNoContexto(tx, ctx, presencaId),
       valor = await executar(tx, ctx, anfitriao);
     await anfitriao.conferirPrazo();
     return valor;

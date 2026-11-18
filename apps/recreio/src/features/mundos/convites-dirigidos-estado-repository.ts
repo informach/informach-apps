@@ -15,9 +15,21 @@ import type { Transacao } from "@/lib/repository";
 import type { ContextoDeConvite } from "./convites-dirigidos-contexto-repository";
 
 export type ConviteDoMundo = typeof invites.$inferSelect;
+type ConviteComRevisoes = Pick<
+  ConviteDoMundo,
+  | "spaceId"
+  | "originProfileId"
+  | "targetProfileId"
+  | "managementRevision"
+  | "friendshipRevision"
+  | "originAccessGeneration"
+  | "targetAccessGeneration"
+  | "originPolicyVersion"
+  | "targetPolicyVersion"
+>;
 export function conferirRevisoesDoConvite(
   ctx: ContextoDeConvite,
-  convite: ConviteDoMundo,
+  convite: ConviteComRevisoes,
   revisaoDaAmizade: number,
 ) {
   assertAllowed(

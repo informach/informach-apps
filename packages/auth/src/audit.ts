@@ -177,6 +177,8 @@ export type AuditEventType =
   | "recreio.host_presences_purged"
   | "recreio.visit_invite_closed"
   | "recreio.visit_invite_created"
+  | "recreio.visit_invite_guardian_approved"
+  | "recreio.visit_invite_world_approved"
   | "recreio.visit_closed"
   | "recreio.visit_receipts_purged"
   | "recreio.space_member_left"

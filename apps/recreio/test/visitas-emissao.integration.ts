@@ -2,9 +2,12 @@ import { AuditPersistenceError } from "@informach/auth";
 import { db, eq, sql } from "@informach/db";
 import {
   recreioVisitInviteWorldApprovals as approvals,
+  recreioVisitInviteGuardianApprovals as guardianApprovals,
   recreioSpaceVisitInvites as invites,
   recreioSpaceMembers as members,
   recreioWorldHostPresences as presences,
+  recreioProfiles as profiles,
+  sessions,
   recreioSpaces as spaces,
   recreioWorldVisits as visits,
 } from "@informach/db/schema";
@@ -13,18 +16,24 @@ import {
   ReciboDeConviteDeVisitaSchema,
 } from "@informach/recreio/contrato";
 import { afterEach, expect, it, vi } from "vitest";
+import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import {
   aceitarAmizade,
+  aprovarAmizade,
   emitirCodigoDeAmigo,
   pedirAmizade,
   protegerContato,
 } from "@/features/social/service";
-import { emitirConviteDeVisita } from "@/features/visitas/service";
+import {
+  aprovarVisitaDoMenor,
+  aprovarVisitaDoMundo,
+  emitirConviteDeVisita,
+} from "@/features/visitas/service";
 import { env } from "@/lib/env";
-import { aposentarInstancias, eventosCom, novoJogador } from "./apoio";
+import { aposentarInstancias, eventosCom, type Jogador, novoJogador } from "./apoio";
 import { abrirPelaRota, entrarNoJogo, mundoDe, novaInstancia, OUTRO_JOGO } from "./jogo-apoio";
 import { pedir } from "./rotas";
-import { referenciaSocial } from "./social-apoio";
+import { familiaSocial, referenciaSocial } from "./social-apoio";
 
 vi.mock("@informach/config/jogos", async (original) => {
   const real = await original<typeof import("@informach/config/jogos")>(),
@@ -98,6 +107,247 @@ async function cenario(amigos = true) {
     pedido,
   };
 }
+
+async function nativo(p: Jogador): Promise<AutorNativoRecente> {
+  const [login] = await db.select().from(sessions).where(eq(sessions.id, p.login.authSessionId));
+  if (!login) throw new Error("Login ausente");
+  return {
+    contaId: p.conta.id,
+    sessaoDeAparelhoId: p.ator.sessaoDeAparelhoId,
+    login: { authSessionId: login.id, criadoEm: login.createdAt, expiraEm: login.expiresAt },
+  };
+}
+async function versaoDoPerfil(id: string) {
+  const [p] = await db.select().from(profiles).where(eq(profiles.id, id));
+  if (!p) throw new Error("Perfil ausente");
+  return p.policyVersion;
+}
+async function definirGestor(c: Awaited<ReturnType<typeof cenario>>) {
+  const gestor = await novoJogador({ comAcesso: false });
+  await db.update(members).set({ role: "member" }).where(eq(members.id, c.prova.hostMemberId));
+  await db
+    .insert(members)
+    .values({ spaceId: c.mundoId, profileId: gestor.perfil.id, role: "steward", state: "active" });
+  await db
+    .update(spaces)
+    .set({ stewardProfileId: gestor.perfil.id, membersInvite: "with_approval" })
+    .where(eq(spaces.id, c.mundoId));
+  return { gestor, nativo: await nativo(gestor) };
+}
+async function mundoPendente() {
+  const c = await cenario(),
+    dono = await definirGestor(c),
+    recibo = await emitirConviteDeVisita(c.autor, c.pedido),
+    pedido = { conviteId: recibo.conviteId, versaoDaGestao: 1, confirmo: true };
+  return { c, dono, recibo, pedido };
+}
+async function menorConvidado(aguardaMundo = false) {
+  const c = await cenario(false),
+    familia = await familiaSocial(),
+    dono = aguardaMundo ? await definirGestor(c) : null,
+    codigo = await emitirCodigoDeAmigo(familia.referencia),
+    amizade = await pedirAmizade(c.autor, { codigo: codigo.codigo, pedidoId: crypto.randomUUID() });
+  await aprovarAmizade(familia.autor, {
+    pedidoId: amizade.pedidoId,
+    perfilId: familia.perfil.id,
+    versao: await versaoDoPerfil(familia.perfil.id),
+  });
+  await aceitarAmizade(familia.referencia, amizade.pedidoId);
+  const recibo = await emitirConviteDeVisita(c.autor, { ...c.pedido, perfilId: familia.perfil.id }),
+    pedido = {
+      conviteId: recibo.conviteId,
+      perfilId: familia.perfil.id,
+      versaoDaPolitica: await versaoDoPerfil(familia.perfil.id),
+      confirmo: true,
+    };
+  return { c, familia, dono, recibo, pedido };
+}
+
+it("gestor sem plano aprova visita pendente com login próprio recente e um só evento", async () => {
+  const r = await mundoPendente(),
+    decidir = () => aprovarVisitaDoMundo(r.dono.nativo, r.dono.gestor.perfil.id, r.pedido);
+  expect(await decidir()).toEqual({ confirmado: true });
+  expect(await decidir()).toEqual({ confirmado: true });
+  expect(
+    await db.select().from(approvals).where(eq(approvals.inviteId, r.recibo.conviteId)),
+  ).toHaveLength(1);
+  expect(
+    await db
+      .select()
+      .from(guardianApprovals)
+      .where(eq(guardianApprovals.inviteId, r.recibo.conviteId)),
+  ).toHaveLength(0);
+  expect(
+    (await eventosCom("inviteId", r.recibo.conviteId)).filter(
+      (e) => e.eventType === "recreio.visit_invite_world_approved",
+    ),
+  ).toHaveLength(1);
+});
+
+it("destinatário não aprova o mundo e não recebe poder por ter plano", async () => {
+  const r = await mundoPendente();
+  await expect(
+    aprovarVisitaDoMundo(await nativo(r.c.destino), r.c.destino.perfil.id, r.pedido),
+  ).rejects.toMatchObject({ code: "RESPONSAVEL" });
+});
+
+it.each(["login", "gestao", "anfitriao"] as const)(
+  "aprovação do mundo recusa %s antigo ou perdido",
+  async (tipo) => {
+    const r = await mundoPendente();
+    if (tipo === "login")
+      await db
+        .update(sessions)
+        .set({ createdAt: new Date(Date.now() - 11 * 60_000) })
+        .where(eq(sessions.id, r.dono.gestor.login.authSessionId));
+    if (tipo === "gestao")
+      await db.update(spaces).set({ managementRevision: 2 }).where(eq(spaces.id, r.c.mundoId));
+    if (tipo === "anfitriao")
+      await pedir("POST", "/api/sdk/v1/sessao/sair", { token: r.c.sessao.token });
+    const esperado =
+      tipo === "login"
+        ? { code: "LOGIN_RECENTE" }
+        : tipo === "gestao"
+          ? { code: "CONFLITO" }
+          : { codigo: "SESSAO_ENCERRADA" };
+    await expect(
+      aprovarVisitaDoMundo(await nativo(r.dono.gestor), r.dono.gestor.perfil.id, r.pedido),
+    ).rejects.toMatchObject(esperado);
+    expect(
+      await db.select().from(approvals).where(eq(approvals.inviteId, r.recibo.conviteId)),
+    ).toHaveLength(0);
+  },
+);
+
+it("responsável sem jogador/plano aprova o menor; decisão do mundo continua independente", async () => {
+  const r = await menorConvidado(true);
+  if (!r.dono) throw new Error("Gestor ausente");
+  expect(
+    await db.select().from(profiles).where(eq(profiles.userId, r.familia.conta.id)),
+  ).toHaveLength(0);
+  expect(await aprovarVisitaDoMenor(r.familia.autor, r.pedido)).toEqual({ confirmado: true });
+  expect(await aprovarVisitaDoMenor(r.familia.autor, r.pedido)).toEqual({ confirmado: true });
+  expect(
+    await db
+      .select()
+      .from(guardianApprovals)
+      .where(eq(guardianApprovals.inviteId, r.recibo.conviteId)),
+  ).toHaveLength(1);
+  expect(
+    await db.select().from(approvals).where(eq(approvals.inviteId, r.recibo.conviteId)),
+  ).toHaveLength(0);
+  await aprovarVisitaDoMundo(r.dono.nativo, r.dono.gestor.perfil.id, {
+    conviteId: r.recibo.conviteId,
+    versaoDaGestao: 1,
+    confirmo: true,
+  });
+  expect(
+    await db.select().from(approvals).where(eq(approvals.inviteId, r.recibo.conviteId)),
+  ).toHaveLength(1);
+  expect(
+    await db.select().from(visits).where(eq(visits.inviteId, r.recibo.conviteId)),
+  ).toHaveLength(0);
+  expect(
+    (await eventosCom("inviteId", r.recibo.conviteId)).filter(
+      (e) => e.eventType === "recreio.visit_invite_guardian_approved",
+    ),
+  ).toHaveLength(1);
+});
+
+it("responsável sem jogador decide pelo mundo do menor sem usar seu aparelho ou plano", async () => {
+  const c = await cenario(),
+    familia = await familiaSocial();
+  await db.update(members).set({ role: "member" }).where(eq(members.id, c.prova.hostMemberId));
+  await db
+    .insert(members)
+    .values({ spaceId: c.mundoId, profileId: familia.perfil.id, role: "steward", state: "active" });
+  await db
+    .update(spaces)
+    .set({ stewardProfileId: familia.perfil.id, membersInvite: "with_approval" })
+    .where(eq(spaces.id, c.mundoId));
+  const recibo = await emitirConviteDeVisita(c.autor, c.pedido);
+  await aprovarVisitaDoMundo(familia.autor, familia.perfil.id, {
+    conviteId: recibo.conviteId,
+    versaoDaGestao: 1,
+    confirmo: true,
+  });
+  expect(
+    (await db.select().from(approvals).where(eq(approvals.inviteId, recibo.conviteId)))[0],
+  ).toMatchObject({
+    approvedByUserId: familia.conta.id,
+    actorKind: "responsavel",
+    guardianLinkId: expect.any(String),
+    accessGeneration: expect.any(String),
+  });
+  expect(
+    await db.select().from(profiles).where(eq(profiles.userId, familia.conta.id)),
+  ).toHaveLength(0);
+});
+
+it.each(["outro_adulto", "versao", "sem_confirmacao"] as const)(
+  "decisão parental não aceita %s",
+  async (tipo) => {
+    const r = await menorConvidado();
+    const entrada =
+        tipo === "versao"
+          ? { ...r.pedido, versaoDaPolitica: r.pedido.versaoDaPolitica + 1 }
+          : tipo === "sem_confirmacao"
+            ? { ...r.pedido, confirmo: false }
+            : r.pedido,
+      autor = tipo === "outro_adulto" ? await nativo(r.c.origem) : r.familia.autor,
+      esperado =
+        tipo === "outro_adulto"
+          ? { code: "PEDIDO" }
+          : tipo === "versao"
+            ? { code: "CONFLITO" }
+            : { name: "ZodError" };
+    await expect(aprovarVisitaDoMenor(autor, entrada)).rejects.toMatchObject(esperado);
+    expect(
+      await db
+        .select()
+        .from(guardianApprovals)
+        .where(eq(guardianApprovals.inviteId, r.recibo.conviteId)),
+    ).toHaveLength(0);
+  },
+);
+
+it.each(["mundo", "responsavel"] as const)(
+  "auditoria recusada reverte aprovação de %s",
+  async (tipo) => {
+    const mundo = tipo === "mundo" ? await mundoPendente() : null,
+      menor = tipo === "responsavel" ? await menorConvidado() : null;
+    await db.execute(
+      sql`create function audit.aprovacao_visita_teste() returns trigger language plpgsql as $$ begin if new.event_type in ('recreio.visit_invite_world_approved','recreio.visit_invite_guardian_approved') then raise exception 'audit unavailable'; end if; return new; end $$`,
+    );
+    await db.execute(
+      sql`create trigger aprovacao_visita_teste before insert on audit.events for each row execute function audit.aprovacao_visita_teste()`,
+    );
+    try {
+      if (mundo)
+        await expect(
+          aprovarVisitaDoMundo(mundo.dono.nativo, mundo.dono.gestor.perfil.id, mundo.pedido),
+        ).rejects.toBeInstanceOf(AuditPersistenceError);
+      if (menor)
+        await expect(
+          aprovarVisitaDoMenor(menor.familia.autor, menor.pedido),
+        ).rejects.toBeInstanceOf(AuditPersistenceError);
+    } finally {
+      await db.execute(sql`drop trigger aprovacao_visita_teste on audit.events`);
+      await db.execute(sql`drop function audit.aprovacao_visita_teste()`);
+    }
+    if (mundo)
+      expect(
+        await db.select().from(approvals).where(eq(approvals.inviteId, mundo.recibo.conviteId)),
+      ).toHaveLength(0);
+    if (menor)
+      expect(
+        await db
+          .select()
+          .from(guardianApprovals)
+          .where(eq(guardianApprovals.inviteId, menor.recibo.conviteId)),
+      ).toHaveLength(0);
+  },
+);
 
 it("dois envios concorrentes criam um convite auditado, limitado à presença, sem concessão ou membro", async () => {
   const c = await cenario(),

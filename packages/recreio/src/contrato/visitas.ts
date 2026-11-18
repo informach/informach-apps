@@ -20,3 +20,16 @@ export const ReciboDeConviteDeVisitaSchema = z.strictObject({
   expiraEm: z.iso.datetime(),
 });
 export type ReciboDeConviteDeVisita = z.infer<typeof ReciboDeConviteDeVisitaSchema>;
+export const AprovacaoParentalDeVisitaSchema = z.strictObject({
+  conviteId: UuidSchema,
+  perfilId: PerfilIdSchema,
+  versaoDaPolitica: z.int().min(1).max(2147483646),
+  confirmo: z.literal(true),
+});
+export type AprovacaoParentalDeVisita = z.infer<typeof AprovacaoParentalDeVisitaSchema>;
+export const AprovacaoDoMundoParaVisitaSchema = z.strictObject({
+  conviteId: UuidSchema,
+  versaoDaGestao: z.int().min(1).max(2147483646),
+  confirmo: z.literal(true),
+});
+export type AprovacaoDoMundoParaVisita = z.infer<typeof AprovacaoDoMundoParaVisitaSchema>;

@@ -1,10 +1,12 @@
 import "server-only";
 import { and, db, eq } from "@informach/db";
 import {
-  recreioDirectedInviteWorldApprovals as approvals,
-  recreioDirectedSpaceInvites as invites,
+  recreioDirectedInviteWorldApprovals as memberApprovals,
+  recreioDirectedSpaceInvites as memberInvites,
   recreioSpaceMembers as members,
   recreioSpaces as spaces,
+  recreioVisitInviteWorldApprovals as visitApprovals,
+  recreioSpaceVisitInvites as visitInvites,
 } from "@informach/db/schema";
 import { MundoIdSchema, type PerfilId, PerfilIdSchema } from "@informach/recreio";
 import {
@@ -25,28 +27,49 @@ import {
 import type { ConviteDoMundo } from "./convites-dirigidos-estado-repository";
 import { limitarGestao } from "./gestao-repository";
 
-type DecisaoNativa = { tipo: "responsavel" | "mundo"; perfilId: PerfilId };
-type Decisor = {
+export type DecisaoNativa = { tipo: "responsavel" | "mundo"; perfilId: PerfilId };
+export type Decisor = {
   perfil: Awaited<ReturnType<typeof admitirPerfilSocial>>;
   membro: typeof members.$inferSelect | null;
   porResponsavel: boolean;
 };
 
+type PartesDoConvite = {
+  id: string;
+  spaceId: string;
+  originProfileId: string;
+  targetProfileId: string;
+};
+type ConviteDeVisita = typeof visitInvites.$inferSelect;
+type Carregador<C extends PartesDoConvite> = (
+  conexao: typeof db | Transacao,
+  id: string,
+  travar: boolean,
+) => Promise<C | undefined>;
+const carregarMembro: Carregador<ConviteDoMundo> = async (conexao, id, travar) => {
+  const consulta = conexao.select().from(memberInvites).where(eq(memberInvites.id, id)),
+    [convite] = await (travar ? consulta.for("update") : consulta);
+  return convite;
+};
+const carregarVisita: Carregador<ConviteDeVisita> = async (conexao, id, travar) => {
+  const consulta = conexao.select().from(visitInvites).where(eq(visitInvites.id, id)),
+    [convite] = await (travar ? consulta.for("update") : consulta);
+  return convite;
+};
+
 /** Login nativo recente, sem emprestar a sessão de um jogador nem exigir cobertura comercial. */
-export async function comDecisorNativoDoConvite<T>(
+async function comDecisorNativo<C extends PartesDoConvite, T>(
   autor: AutorNativoRecente,
   conviteId: string,
   decisao: DecisaoNativa,
-  executar: (
-    tx: Transacao,
-    ctx: ContextoDeConvite,
-    convite: ConviteDoMundo,
-    decisor: Decisor,
-  ) => Promise<T>,
-  leitura = false,
+  executar: (tx: Transacao, ctx: ContextoDeConvite, convite: C, decisor: Decisor) => Promise<T>,
+  leitura: boolean,
+  carregar: Carregador<C>,
+  finalidade: "membro" | "visita",
 ) {
+  const approvals = finalidade === "membro" ? memberApprovals : visitApprovals;
   const tentar = async () => {
-    const [pista] = await db.select().from(invites).where(eq(invites.id, conviteId));
+    const pista = await carregar(db, conviteId, false);
     assertAllowed(pista, "PEDIDO", "Convite não disponível.");
     const pontas = {
       mundoId: MundoIdSchema.parse(pista.spaceId),
@@ -103,11 +126,7 @@ export async function comDecisorNativoDoConvite<T>(
         "Esta decisão não está disponível para esta conta.",
       );
       const [mundo] = await tx.select().from(spaces).where(eq(spaces.id, pontas.mundoId));
-      const [convite] = await tx
-        .select()
-        .from(invites)
-        .where(eq(invites.id, conviteId))
-        .for("update");
+      const convite = await carregar(tx, conviteId, true);
       assertAllowed(
         mundo &&
           convite &&
@@ -177,4 +196,35 @@ export async function comDecisorNativoDoConvite<T>(
     if (!(erro instanceof ComposicaoSocialMudou)) throw erro;
     return tentar();
   }
+}
+
+/** Namespace de membro preservado: visita nunca é interpretada como participação. */
+export function comDecisorNativoDoConvite<T>(
+  autor: AutorNativoRecente,
+  conviteId: string,
+  decisao: DecisaoNativa,
+  executar: (
+    tx: Transacao,
+    ctx: ContextoDeConvite,
+    convite: ConviteDoMundo,
+    decisor: Decisor,
+  ) => Promise<T>,
+  leitura = false,
+) {
+  return comDecisorNativo(autor, conviteId, decisao, executar, leitura, carregarMembro, "membro");
+}
+/** A mesma autenticação/ordem de travas, com recibos e decisões de visita separados. */
+export function comDecisorNativoDeVisita<T>(
+  autor: AutorNativoRecente,
+  conviteId: string,
+  decisao: DecisaoNativa,
+  executar: (
+    tx: Transacao,
+    ctx: ContextoDeConvite,
+    convite: ConviteDeVisita,
+    decisor: Decisor,
+  ) => Promise<T>,
+  leitura = false,
+) {
+  return comDecisorNativo(autor, conviteId, decisao, executar, leitura, carregarVisita, "visita");
 }

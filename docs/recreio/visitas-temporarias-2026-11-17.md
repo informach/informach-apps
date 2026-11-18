@@ -429,3 +429,32 @@ Releitura da proposta privada `paginas/recreio.html` v2.2 confirma: visitas
 não são membros, terminam com a saída do anfitrião ou em 24 h e exigem convite
 novo para voltar. `membrosMax` deve ser medido; o teto de filas acima não é
 prova de capacidade de jogo. Mantém-se a medição remota do F10/F11.
+
+Contexto `468008de` concluiu os oito gates `44232334360`, com 873 integrações.
+Emissão `fb75f103` passou nas 892 integrações/88 arquivos, cinco do Bastidores,
+upgrades 179→202/191→202 e sete gates fora do navegador; E2E ainda em execução.
+
+## Aprovações nativas candidatas
+
+O mesmo coordenador nativo de identidade e travas atende os dois namespaces
+por carregadores tipados separados. Chamadas antigas continuam consultando
+somente convites de membro; não há campo de namespace aceito do navegador.
+Aprovação de visita relê amizade, conteúdo, versões, responsável e anfitrião
+atuais, com login nativo recente do decisor e confirmação explícita.
+
+Decisão parental grava vínculo, geração de acesso e versão da política de
+cada menor; a conta precisa ser sua responsável atual. Decisão do mundo grava
+membro aprovador e revisão da gestão; se o mundo é cuidado por menor, o adulto
+responsável decide com a própria conta, sem usar o aparelho infantil. Pagamento
+não concede nenhum desses poderes. Decisor nativo não precisa de plano ou
+perfil próprio de jogador; a presença do anfitrião continua exigindo cobertura.
+Recuperação de prova exige igualdade atual e não atualiza silenciosamente uma
+aprovação antiga. Alteração relevante exige convite novo.
+
+Doze integrações candidatas cobrem gestor sem plano, replay/auditoria únicos,
+destinatário sem gestão, login/gestão/anfitrião perdidos, responsável sem
+jogador nem plano, decisões parental e de mundo independentes, gestão de
+mundo infantil, adulto alheio, versão/consentimento divergentes e dois
+rollbacks de auditoria. Amizade e aprovação social usam os serviços reais;
+papéis de gestão no mundo são fixtures SQL explícitas. Ainda sem concessão,
+entrada de visitante, interface ou rota pública. Gates desta candidata pendentes.
