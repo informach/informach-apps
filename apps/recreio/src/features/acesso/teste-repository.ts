@@ -20,7 +20,7 @@ import type { admitirGrupoDoTitular } from "@/features/grupo/autoridade-reposito
 import { VERSAO_DA_DECLARACAO_ADULTA } from "@/features/grupo/convites-constantes";
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/encerramento-repository";
 import { invalidarIngressosDoPerfil } from "@/features/sessao-de-jogo/ingressos-repository";
-import { DURACAO_DO_TESTE_MS, VERSAO_DO_TESTE } from "@/features/teste/constantes";
+import { type CoorteDoTeste, DURACAO_DO_TESTE_MS, VERSAO_DO_TESTE } from "@/features/teste/constantes";
 import type { Transacao } from "@/lib/repository";
 import { decidirFatosLidos } from "./decisao";
 import { lerFatosDoGrupo } from "./repository";
@@ -84,7 +84,7 @@ export async function prepararConcessaoDoTeste(
   tx: Transacao,
   consentimento: typeof enrollments.$inferSelect,
   agora: Date,
-) {
+): Promise<{ id: string; coorte: CoorteDoTeste; inicio: Date; fim: Date }> {
   const coorte = randomInt(2) === 0 ? "48h" : "7d";
   const fim = new Date(agora.getTime() + DURACAO_DO_TESTE_MS[coorte]);
   const [concessao] = await tx
