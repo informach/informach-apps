@@ -104,6 +104,7 @@ export const recreioPurchaseAuthorizations = recreio.table(
     acceptedAt: timestamp("accepted_at", { withTimezone: true }).notNull(),
     requestStartedAt: timestamp("request_started_at", { withTimezone: true }),
     providerSessionId: text("provider_session_id"),
+    providerSubscriptionId: text("provider_subscription_id"),
     reviewRequired: boolean("review_required").notNull().default(false),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
     resolution: text("resolution").$type<"not_started" | "checkout_completed" | "expired_unpaid">(),
@@ -115,12 +116,20 @@ export const recreioPurchaseAuthorizations = recreio.table(
     uniqueIndex("recreio_purchase_authorization_session")
       .on(t.providerSessionId)
       .where(sql`${t.providerSessionId} is not null`),
+    uniqueIndex("recreio_purchase_authorization_subscription")
+      .on(t.providerSubscriptionId)
+      .where(sql`${t.providerSubscriptionId} is not null`),
     foreignKey({
       name: "recreio_purchase_authorization_payer",
       columns: [t.groupId, t.payerUserId],
       foreignColumns: [recreioGroups.id, recreioGroups.ownerUserId],
     }).onDelete("restrict"),
     check("recreio_purchase_authorization_mode", sql`${t.providerMode} in ('dev','prod')`),
+    check(
+      "recreio_purchase_authorization_subscription_link",
+      sql`${t.providerSubscriptionId} is null or
+      (${t.requestStartedAt} is not null and ${t.providerSessionId} is not null and length(${t.providerSubscriptionId}) between 8 and 256)`,
+    ),
     check(
       "recreio_purchase_authorization_offer",
       sql`${t.tier} in ('individual','family') and ${t.interval} in ('month','year') and ${t.currency}='BRL' and ${t.amountCents}>0 and length(${t.productId}) between 2 and 80`,
