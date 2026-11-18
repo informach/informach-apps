@@ -43,7 +43,9 @@ na liberação de posse), também barrando tipos/builds. Corrigida na candidata
 `065212cd` junto à desistência antes de admissão por prova persistida, sem
 consumir a concessão ou inventar ACK. Qualidade e 1021 integrações com upgrades
 179→204/191→204 aprovados em `44257846279`, E2E ainda em curso na consulta.
-Escopo do jogo do bearer na recuperação/redução de visitas é a candidata atual.
+Escopo do bearer `143fa822` passou nos oito gates `44259707474`, com 1025
+integrações; `065212cd` concluiu os oito gates com 1021. Caixa técnica,
+conferência de dados atuais e HTTP/SDK de visitas são a candidata atual.
 UI, jornada completa e operação F5 permanecem
 pendentes. Migrations 0191–0203 geradas no
 GitHub, ausentes de produção.

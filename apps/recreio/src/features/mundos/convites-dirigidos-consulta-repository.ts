@@ -11,8 +11,7 @@ import {
 } from "@informach/recreio/contrato";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import type { AutorDeMundos } from "@/features/autoridade-de-jogo/mundos-repository";
-import { comJogadorSocial } from "@/features/social/autoridade-repository";
-import { comResponsavelSocialNativo } from "@/features/social/responsavel-contexto-repository";
+import { comLeitorDeRecibosSociais } from "@/features/social/leitura-de-recibos-repository";
 import { assertAllowed } from "@/lib/errors";
 import { limitarTentativas } from "@/lib/rate-limit";
 import type { Transacao } from "@/lib/repository";
@@ -100,14 +99,7 @@ export async function caixaDeConvitesDirigidos(
         linhas.length > 10 && ultimo ? { em: ultimo.createdAt.toISOString(), id: ultimo.id } : null,
     };
   };
-  return "responsavel" in autor
-    ? comResponsavelSocialNativo(
-        autor.responsavel,
-        autor.perfilId,
-        { origemId: autor.perfilId, destinoId: null, finalidade: "protecao", operacao: "leitura" },
-        (tx, ctx) => ler(tx, ctx.conferirPrazo),
-      )
-    : comJogadorSocial(autor, null, (tx, ctx) => ler(tx, ctx.conferirPrazo));
+  return comLeitorDeRecibosSociais(autor, ler);
 }
 
 async function comReciboDoPerfil<T>(

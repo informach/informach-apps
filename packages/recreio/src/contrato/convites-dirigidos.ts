@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MundoIdSchema, PerfilIdSchema, UuidSchema } from "../dominio/ids";
+import { ConsultaCronologicaSchema, CursorCronologicoSchema } from "./paginacao";
 
 export const NovoConviteDirigidoSchema = z.strictObject({
   mundoId: MundoIdSchema,
@@ -24,12 +25,7 @@ export const ConviteDirigidoSchema = z.strictObject({
   aguardaDestino: z.boolean(),
 });
 export type ConviteDirigido = z.infer<typeof ConviteDirigidoSchema>;
-export const ConsultaDeConvitesDirigidosSchema = z
-  .strictObject({
-    aposEm: z.iso.datetime().optional(),
-    aposId: UuidSchema.optional(),
-  })
-  .refine((p) => (p.aposEm === undefined) === (p.aposId === undefined));
+export const ConsultaDeConvitesDirigidosSchema = ConsultaCronologicaSchema;
 export const CaixaDeConvitesDirigidosSchema = z.strictObject({
   convites: z
     .array(
@@ -46,7 +42,7 @@ export const CaixaDeConvitesDirigidosSchema = z.strictObject({
       }),
     )
     .max(10),
-  proximo: z.strictObject({ em: z.iso.datetime(), id: UuidSchema }).nullable(),
+  proximo: CursorCronologicoSchema.nullable(),
 });
 export type CaixaDeConvitesDirigidos = z.infer<typeof CaixaDeConvitesDirigidosSchema>;
 export const DetalheDeConviteDirigidoSchema = z.strictObject({

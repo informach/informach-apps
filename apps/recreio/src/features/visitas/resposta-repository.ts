@@ -22,7 +22,7 @@ import { comJogadorSocial } from "@/features/social/autoridade-repository";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 import { comJogadorEAnfitriaoNaVisita } from "./contexto-repository";
-import { reciboDaVisita, reciboDoConviteDeVisita } from "./recibos";
+import { decisaoDaVisita, reciboDaVisita, reciboDoConviteDeVisita } from "./recibos";
 
 export type ConviteDeVisita = typeof invites.$inferSelect;
 /** O chamador conserva SHARE/UPDATE no convite para não ler metade de um expurgo. */
@@ -32,12 +32,7 @@ export async function decisaoDaVisitaSobTrava(
   jogo: string,
 ): Promise<ResultadoDaDecisaoDeVisita> {
   const [visita] = await tx.select().from(visits).where(eq(visits.inviteId, convite.id));
-  if ((convite.state === "accepted") !== Boolean(visita))
-    throw new Error("Convite de visita e concessão não correspondem ao mesmo aceite.");
-  return {
-    convite: reciboDoConviteDeVisita(convite, jogo),
-    visita: visita ? reciboDaVisita(visita) : null,
-  };
+  return decisaoDaVisita(convite, jogo, visita ?? null);
 }
 
 /** Fato anterior do destinatário, sem conceder ou reativar entrada; identidade nativa não exige plano. */

@@ -34,6 +34,8 @@ import {
   pedirAmizade,
   protegerContato,
 } from "@/features/social/service";
+import { caixaDeVisitas, consultarReciboDeVisita } from "@/features/visitas/consulta-repository";
+import { conferirConviteDeVisita } from "@/features/visitas/detalhe-repository";
 import { traduzirRecusaDeVisita } from "@/features/visitas/http";
 import { limparSessoesVisitantesOrfas } from "@/features/visitas/orfas-repository";
 import { mundoAtualDaVisita } from "@/features/visitas/pagina-repository";
@@ -128,6 +130,217 @@ function foto(c: Cenario, revisaoEsperada: number) {
     bytes: new TextEncoder().encode(JSON.stringify({ contador: 9 })),
   });
 }
+
+it("SDK consulta caixa, confere dados atuais e reduz visita sem admitir mundo ou fabricar membro", async () => {
+  const c = await cenario();
+  const [emitido] = await db.select().from(invites).where(eq(invites.id, c.convite.conviteId));
+  if (!emitido) throw new Error("Emissão ausente");
+  expect(
+    await pedir("POST", "/api/sdk/v1/visitas", {
+      token: c.host.token,
+      corpo: {
+        operacao: "emitir",
+        mundoId: c.mundoId,
+        perfilId: c.destino.perfil.id,
+        presencaId: c.presenca.presencaId,
+        pedidoId: emitido.clientKey,
+      },
+    }),
+  ).toMatchObject({ status: 200, corpo: { conviteId: c.convite.conviteId, estado: "accepted" } });
+  const contexto = await criarRecreio({
+    baseUrl: ORIGEM,
+    jogo: OUTRO_JOGO,
+    social: true,
+    visitas: true,
+    obterIngresso: async () => c.pedido.ingresso,
+    fetch: despachar,
+    agendar: () => () => {},
+  });
+  const api = contexto.social?.visitas;
+  if (!api) throw new Error("API de visitas não negociada");
+  const caixa = await api.listar();
+  expect(caixa.convites).toHaveLength(1);
+  expect(caixa.convites[0]).toMatchObject({
+    conviteId: c.convite.conviteId,
+    mundoId: c.mundoId,
+    perfilId: c.origem.perfil.id,
+    direcao: "recebido",
+    visita: { visitaId: c.visitaId },
+  });
+  expect(Object.keys(caixa.convites[0] ?? {}).sort()).toEqual([
+    "conviteId",
+    "criadoEm",
+    "direcao",
+    "estado",
+    "expiraEm",
+    "jogo",
+    "mundoId",
+    "perfilId",
+    "visita",
+  ]);
+  expect((await api.consultar(c.convite.conviteId)).visita?.visitaId).toBe(c.visitaId);
+  const detalhe = await api.conferir(c.convite.conviteId);
+  expect(detalhe).toMatchObject({
+    convite: {
+      estado: "accepted",
+      aguardaMundo: false,
+      aguardaOrigem: false,
+      aguardaDestino: false,
+    },
+    origem: { apelido: c.origem.perfil.apelido },
+    destino: { apelido: c.destino.perfil.apelido },
+  });
+  const sid = SessaoDeJogoIdSchema.parse(claimsDe(contexto.sessao.token()).sid);
+  expect((await db.select().from(games).where(eq(games.id, sid)))[0]?.spaceId).toBeNull();
+  expect(
+    await db.select().from(visitSessions).where(eq(visitSessions.sessionId, sid)),
+  ).toHaveLength(0);
+  expect(await db.select().from(members).where(eq(members.spaceId, c.mundoId))).toHaveLength(1);
+  expect((await api.responder(c.convite.conviteId, "recusar")).visita?.estado).toBe("revoked");
+  expect((await api.consultar(c.convite.conviteId)).visita?.estado).toBe("revoked");
+  await expect(api.conferir(c.convite.conviteId)).rejects.toMatchObject({
+    codigo: "SEM_PERMISSAO",
+  });
+  expect((await db.select().from(games).where(eq(games.id, sid)))[0]?.endedAt).toBeNull();
+  await contexto.sessao.sair();
+});
+
+it("caixa HTTP exige bearer e não revela recibos de outro jogo do mesmo perfil", async () => {
+  const c = await cenario(),
+    outra = await entrarNoJogo(c.destino, MORADA);
+  expect((await pedir("GET", "/api/sdk/v1/visitas")).status).toBe(401);
+  expect(await pedir("GET", "/api/sdk/v1/visitas", { token: outra.token })).toMatchObject({
+    status: 200,
+    corpo: { convites: [], proximo: null },
+  });
+  for (const operacao of ["consultar", "conferir"]) {
+    const resposta = await pedir("POST", "/api/sdk/v1/visitas", {
+      token: outra.token,
+      corpo: { operacao, conviteId: c.convite.conviteId },
+    });
+    expect(resposta).toMatchObject({ status: 403, corpo: { codigo: "SEM_PERMISSAO" } });
+  }
+  expect(
+    (await pedir("GET", "/api/sdk/v1/visitas?aposId=nao-e-uuid", { token: outra.token })).status,
+  ).toBe(400);
+  expect(
+    (
+      await pedir("POST", "/api/sdk/v1/visitas", {
+        token: outra.token,
+        corpo: { operacao: "aprovar", conviteId: c.convite.conviteId },
+      })
+    ).status,
+  ).toBe(400);
+  await sairDaSessao(outra.token);
+});
+
+it("histórico técnico nativo continua gratuito sem plano, anfitrião ou novos contatos", async () => {
+  const c = await cenario();
+  await sairDaSessao(c.host.token);
+  await revogar({ email: c.destino.conta.email, motivo: "teste_historico_visita" });
+  env.RECREIO_SOCIAL_MODE = "off";
+  env.RECREIO_VISITS_MODE = "off";
+  const caixa = await caixaDeVisitas(c.alvo, {});
+  expect(caixa.convites).toHaveLength(1);
+  expect((await consultarReciboDeVisita(c.alvo, c.convite.conviteId)).convite.conviteId).toBe(
+    c.convite.conviteId,
+  );
+  expect(caixa.convites[0]).not.toHaveProperty("nomeDoMundo");
+  expect(caixa.convites[0]).not.toHaveProperty("hostPresenceId");
+  expect(caixa.convites[0]).not.toHaveProperty("hostSessionId");
+});
+
+it.each(["bloqueio", "host", "gestao", "visita"] as const)(
+  "detalhe atual recusa perda de %s e preserva recibo próprio",
+  async (tipo) => {
+    const c = await cenario();
+    if (tipo === "bloqueio")
+      await protegerContato(c.alvo, {
+        perfilId: c.origem.perfil.id,
+        bloqueado: true,
+        silenciado: false,
+      });
+    if (tipo === "host") await sairDaSessao(c.host.token);
+    if (tipo === "gestao")
+      await db.execute(
+        sql`update recreio.spaces set management_revision=management_revision+1 where id=${c.mundoId}::uuid`,
+      );
+    if (tipo === "visita")
+      await responderConviteDeVisita(c.autor, { conviteId: c.convite.conviteId, acao: "revogar" });
+    await expect(
+      conferirConviteDeVisita(c.alvo, c.convite.conviteId).catch(traduzirRecusaDeVisita),
+    ).rejects.toMatchObject({
+      codigo:
+        tipo === "host"
+          ? "SESSAO_ENCERRADA"
+          : tipo === "gestao"
+            ? "REVISAO_DIVERGENTE"
+            : "SEM_PERMISSAO",
+    });
+    expect((await caixaDeVisitas(c.alvo, {})).convites).toHaveLength(1);
+    expect((await consultarReciboDeVisita(c.alvo, c.convite.conviteId)).convite.conviteId).toBe(
+      c.convite.conviteId,
+    );
+  },
+);
+
+it("caixa pagina sem duplicar datas iguais e exclui retenção vencida ou outro perfil", async () => {
+  const c = await cenario(),
+    [base] = await db.select().from(invites).where(eq(invites.id, c.convite.conviteId));
+  if (!base) throw new Error("Recibo base ausente");
+  const fechados = Array.from({ length: 12 }, () => ({
+    ...base,
+    id: crypto.randomUUID(),
+    clientKey: crypto.randomUUID(),
+    state: "declined" as const,
+    finishedAt: new Date(base.createdAt.getTime() + 1),
+  }));
+  const antiga = new Date(base.createdAt.getTime() - 31 * 86_400_000);
+  await db.insert(invites).values([
+    ...fechados,
+    {
+      ...base,
+      id: crypto.randomUUID(),
+      clientKey: crypto.randomUUID(),
+      state: "declined",
+      createdAt: antiga,
+      expiresAt: new Date(antiga.getTime() + 3600_000),
+      retainUntil: new Date(antiga.getTime() + 30 * 86_400_000),
+      finishedAt: new Date(antiga.getTime() + 1),
+    },
+  ]);
+  const primeira = await caixaDeVisitas(c.alvo, {});
+  expect(primeira.convites).toHaveLength(10);
+  if (!primeira.proximo) throw new Error("Cursor ausente");
+  const segunda = await caixaDeVisitas(c.alvo, {
+    aposEm: primeira.proximo.em,
+    aposId: primeira.proximo.id,
+  });
+  expect(segunda.convites).toHaveLength(3);
+  expect(segunda.proximo).toBeNull();
+  const ids = [...primeira.convites, ...segunda.convites].map((r) => r.conviteId);
+  expect(new Set(ids).size).toBe(13);
+  expect(ids).toEqual([base.id, ...fechados.map((r) => r.id)].sort().reverse());
+  const estranho = await novoJogador();
+  expect((await caixaDeVisitas(referenciaSocial(estranho), {})).convites).toEqual([]);
+  await expect(
+    consultarReciboDeVisita(referenciaSocial(estranho), base.id).catch(traduzirRecusaDeVisita),
+  ).rejects.toMatchObject({ codigo: "SEM_PERMISSAO" });
+});
+
+it("leitor técnico não fabrica concessão ou recibo vazio para aceite inconsistente", async () => {
+  const c = await cenario(),
+    [base] = await db.select().from(invites).where(eq(invites.id, c.convite.conviteId));
+  if (!base) throw new Error("Recibo base ausente");
+  const id = crypto.randomUUID();
+  await db.insert(invites).values({ ...base, id, clientKey: crypto.randomUUID() });
+  try {
+    await expect(caixaDeVisitas(c.alvo, {})).rejects.toThrow("mesmo aceite");
+    await expect(consultarReciboDeVisita(c.alvo, id)).rejects.toThrow("mesmo aceite");
+  } finally {
+    await db.delete(invites).where(eq(invites.id, id));
+  }
+});
 
 it.each(["emitir", "aceitar", "recusar", "revogar"] as const)(
   "SDK de outro jogo não executa %s nem recupera recibo da visita",

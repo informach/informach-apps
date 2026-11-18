@@ -949,6 +949,48 @@ integrações, upgrades preservados e 39 E2E; a nova jornada física do anfitri�
 durou 11,7 s. `238610bd` passou nos oito gates `44252742292`, com 1007
 integrações e upgrades 179→204/191→204. O runtime acima exige nova rodada.
 
+## Caixa de visitas, conferência e SDK, candidatos
+
+`GET/POST /api/sdk/v1/visitas` e `social.visitas` separam listar/consultar
+recibos próprios de conferir dados atuais. A lista é paginada em dez por
+data/ID, sem nomes, presença, SID ou conta da outra ponta; inclui a concessão
+histórica, sem prometer disponibilidade. Consulta por ID e lista mantêm
+perfil, retenção e jogo do bearer. Autoridade nativa e responsabilidade atual
+usam o mesmo compositor de leitura dos convites permanentes, sem herdar
+administração comercial e sem exigir plano do leitor nativo.
+
+Raiz e concessão são lidas em uma única consulta MVCC, sem N+1 ou trava de
+mundo depois do perfil. O mapeador exige correspondência entre aceite e
+concessão; inconsistência continua erro operacional. Cursor foi compartilhado
+como primitiva de contrato, mantendo os namespaces de visitas/membros
+separados. O contrato também recusa concessão de outro mundo.
+
+`conferir` só fornece nomes/apelidos/avatares depois da composição atual,
+presença original, amizade, revisões, conteúdo e aprovações pertinentes.
+Recibo aceito requer concessão atualmente válida. Fim/bloqueio/alteração
+retira esse detalhe sem apagar o próprio histórico técnico. Todas as leituras
+terminam com conferência dos prazos; não abrem SID, vínculo ou membro.
+
+O SDK negocia social e visitas, mantém o jogo original da sessão e confere
+identidade/escopo nos recibos. Não repete envios automaticamente; depois de
+sair, o objeto retido não autoriza novas consultas. Não expõe aprovação
+parental ou de gestão pelo bearer. A emissão continua exigindo presença
+atestada e pedido estável; sua obtenção pelo cliente e as telas ainda precisam
+ser integradas. A operação de responder não é prova de que o visitante entrou.
+
+Testes candidatos usam SDK/rotas/PostgreSQL reais para caixa, detalhe, replay
+de emissão e redução, mantendo SID sem mundo e sem participação fabricada;
+recusa de outro jogo; leitura nativa sem plano/modos/host; perda de detalhe com
+histórico preservado; paginação de datas iguais, retenção e perfil alheio; e
+aceite inconsistente que não vira lista vazia. Os testes de transporte cobrem
+negociação, cursor, IDs/jogo divergentes, concessão ausente, resposta de membro,
+rede e sessão encerrada. Não certificam a jornada física completa ou a UI.
+
+Evidência anterior: `143fa822` concluiu os oito gates `44259707474`, com 1025
+integrações e upgrades preservados. `065212cd` também concluiu os oito gates
+`44257846279`, com 1021 integrações. A caixa acima exige nova rodada completa.
+Sem migração adicional ou implantação de produção.
+
 ## Prévia nativa da entrada, candidata
 
 `/jogar/[jogo]?mundo=...&visita=...` mantém a finalidade de visita desde a
@@ -1032,7 +1074,7 @@ revogação com recibo/concessão intactos. Conferem também recuperação nativ
 operação válida com token do mesmo jogo; nenhuma negativa é tomada como
 sucesso operacional. Esses endpoints de visita ainda não foram publicados.
 
-Desistência/prévia corrigidas `065212cd` têm qualidade e 1021 integrações
-aprovadas em `44257846279`, incluindo preservação 179→204/191→204. E2E ainda
-em curso na última consulta. A correção de escopo exige nova rodada completa.
+Desistência/prévia corrigidas `065212cd` concluíram os oito gates
+`44257846279`, com 1021 integrações e preservação 179→204/191→204. A correção
+de escopo `143fa822` concluiu os oito gates `44259707474`, com 1025 integrações.
 Sem migração adicional ou implantação de produção.

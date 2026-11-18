@@ -303,6 +303,22 @@ ou negativa explícita é terminal. Esse helper não confirma persistência nem
 encerra o SID: o jogo ainda precisa congelar, persistir e usar a API negativa.
 O runtime de visitante está em implementação.
 
+## Convites de visita em homologação
+
+Com `social: true` e `visitas: true`, a negociação aceita oferece
+`contexto.social.visitas`. `listar`/`consultar` devolvem recibos próprios;
+`conferir` exige autorização atual para revelar nomes e contexto. `emitir`
+recebe mundo/perfil/presença atestada e `pedidoId`; conservar esse pedido após
+resposta perdida. `responder` aceita/recusa/revoga uma concessão temporária,
+sem criar membro ou confirmar admissão. Nenhum envio tem retry automático.
+O SDK confere o jogo/ID do recibo e a correspondência entre mundo e concessão.
+
+Esses métodos não aprovam menores ou decisões de gestão. Aprovações dependem
+da autoridade nativa recente correspondente. O histórico técnico não comprova
+presença, direito atual, entrada ou salvamento. Endpoints e SDK ainda são
+candidatos; obtenção da presença no cliente, telas e jornada completa continuam
+em implementação no [registro](../../docs/recreio/visitas-temporarias-2026-11-17.md).
+
 ## Preparação da responsabilidade com aceite
 
 O contrato de encerramento também reconhece `permissions_changed`. O host

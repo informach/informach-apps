@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MundoIdSchema, PerfilIdSchema, SessaoDeJogoIdSchema, UuidSchema } from "../dominio/ids";
+import { ConsultaCronologicaSchema, CursorCronologicoSchema } from "./paginacao";
 
 export const CONVITES_DE_VISITA_PENDENTES_MAX = 64;
 export const RECIBOS_DE_VISITA_POR_PERFIL_MAX = 1000;
@@ -45,11 +46,72 @@ export const ReciboDeVisitaSchema = z.strictObject({
   expiraEm: z.iso.datetime(),
 });
 export type ReciboDeVisita = z.infer<typeof ReciboDeVisitaSchema>;
-export const ResultadoDaDecisaoDeVisitaSchema = z.strictObject({
-  convite: ReciboDeConviteDeVisitaSchema,
-  visita: ReciboDeVisitaSchema.nullable(),
-});
+function concessaoCorrespondeAoRecibo(pedido: {
+  convite: { estado: string; mundoId: string };
+  visita: { mundoId: string } | null;
+}): boolean {
+  return (
+    (pedido.convite.estado === "accepted") === (pedido.visita !== null) &&
+    (pedido.visita === null || pedido.visita.mundoId === pedido.convite.mundoId)
+  );
+}
+export const ResultadoDaDecisaoDeVisitaSchema = z
+  .strictObject({
+    convite: ReciboDeConviteDeVisitaSchema,
+    visita: ReciboDeVisitaSchema.nullable(),
+  })
+  .refine(concessaoCorrespondeAoRecibo, "Recibo e concessão não correspondem ao mesmo aceite");
 export type ResultadoDaDecisaoDeVisita = z.infer<typeof ResultadoDaDecisaoDeVisitaSchema>;
+export const ConsultaDeVisitasSchema = ConsultaCronologicaSchema;
+export const CaixaDeVisitasSchema = z.strictObject({
+  convites: z
+    .array(
+      ReciboDeConviteDeVisitaSchema.extend({
+        perfilId: PerfilIdSchema,
+        direcao: z.enum(["enviado", "recebido"]),
+        visita: ReciboDeVisitaSchema.nullable(),
+      }).refine((item) => concessaoCorrespondeAoRecibo({ convite: item, visita: item.visita })),
+    )
+    .max(10),
+  proximo: CursorCronologicoSchema.nullable(),
+});
+export type CaixaDeVisitas = z.infer<typeof CaixaDeVisitasSchema>;
+const PessoaNaVisitaSchema = z.strictObject({
+  apelido: z.string().min(1).max(80),
+  avatar: z.string().min(1).max(64),
+});
+export const DetalheDeConviteDeVisitaSchema = z
+  .strictObject({
+    convite: ReciboDeConviteDeVisitaSchema.extend({
+      aguardaMundo: z.boolean(),
+      aguardaOrigem: z.boolean(),
+      aguardaDestino: z.boolean(),
+    }),
+    visita: ReciboDeVisitaSchema.nullable(),
+    nomeDoMundo: z.string().min(1).max(128),
+    origem: PessoaNaVisitaSchema,
+    destino: PessoaNaVisitaSchema,
+  })
+  .refine(concessaoCorrespondeAoRecibo, "Recibo e concessão não correspondem ao mesmo aceite");
+export type DetalheDeConviteDeVisita = z.infer<typeof DetalheDeConviteDeVisitaSchema>;
+export const MutacaoDeVisitaSchema = z.discriminatedUnion("operacao", [
+  NovoConviteDeVisitaSchema.extend({ operacao: z.literal("emitir") }),
+  RespostaAConviteDeVisitaSchema.extend({ operacao: z.literal("responder") }),
+  z.strictObject({ operacao: z.literal("consultar"), conviteId: UuidSchema }),
+  z.strictObject({ operacao: z.literal("conferir"), conviteId: UuidSchema }),
+]);
+export interface VisitasDoPerfil {
+  listar(apos?: { em: string; id: string }): Promise<CaixaDeVisitas>;
+  consultar(conviteId: string): Promise<ResultadoDaDecisaoDeVisita>;
+  /** Nomes só sob autorização, amizade, conteúdo e anfitrião atuais. */
+  conferir(conviteId: string): Promise<DetalheDeConviteDeVisita>;
+  /** Conservar pedido/presença após resposta perdida; não há retry automático. */
+  emitir(pedido: z.input<typeof NovoConviteDeVisitaSchema>): Promise<ReciboDeConviteDeVisita>;
+  responder(
+    conviteId: string,
+    acao: "aceitar" | "recusar" | "revogar",
+  ): Promise<ResultadoDaDecisaoDeVisita>;
+}
 export const EncerramentoParentalDeVisitaSchema = z.strictObject({
   conviteId: UuidSchema,
   perfilId: PerfilIdSchema,
