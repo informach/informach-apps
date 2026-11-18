@@ -155,3 +155,9 @@ compor todos os seus contratos nativos antes de usá-lo, para tratar crédito de
 uma assinatura encerrada consumido em outra. A conferência de API atual cobre
 um único contrato e não certifica essa composição. Nenhuma prova de acesso ou
 de persistência foi declarada a partir dela.
+
+`30858f41`/`44406477539` gerou a primeira candidata 0215. Ela não foi adotada:
+o nome automático da PK de fontes ultrapassou o limite de identificadores do
+PostgreSQL. O schema passa a nomear explicitamente as PKs, sem editar a SQL
+gerada. A geração substituta deve conservar predecessor/prefixo e passar nos
+gates SQL antes de qualquer implantação.

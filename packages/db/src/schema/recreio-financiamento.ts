@@ -117,7 +117,10 @@ export const recreioFundingCaptures = recreio.table(
     disputed: boolean("disputed").notNull(),
   },
   (t) => [
-    primaryKey({ columns: [t.observationId, t.providerChargeId] }),
+    primaryKey({
+      name: "recreio_funding_capture_pk",
+      columns: [t.observationId, t.providerChargeId],
+    }),
     check(
       "recreio_funding_capture_identity",
       sql`left(${t.providerChargeId},3)='ch_' and length(${t.providerChargeId}) between 8 and 256`,
@@ -147,7 +150,10 @@ export const recreioFundingSourcePeriods = recreio.table(
     providerMode: text("provider_mode").$type<"dev" | "prod">().notNull(),
   },
   (t) => [
-    primaryKey({ columns: [t.observationId, t.providerChargeId, t.sourcePaymentPeriodId] }),
+    primaryKey({
+      name: "recreio_funding_source_period_pk",
+      columns: [t.observationId, t.providerChargeId, t.sourcePaymentPeriodId],
+    }),
     foreignKey({
       name: "recreio_funding_source_capture",
       columns: [t.observationId, t.providerChargeId],
