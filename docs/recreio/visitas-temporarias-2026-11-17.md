@@ -201,3 +201,14 @@ chave, sem readmitir visitantes enquanto a situação não for conhecida.
 Quatro testes de transporte e uma integração HTTP real cobrem entrada/saída,
 escopo, resposta inválida, posse perdida e recuperação de recibo fechado com
 modo desligado. Ainda pendentes de execução remota; não integra o Morada.
+
+O run `44226267662` terminou com sete gates aprovados e E2E reprovado: 37
+jornadas aprovadas, uma falha em `familia-cadastro` por exigir aviso fixo de dez
+minutos. Artefato `14393781425`, fonte `6daed18f`, ZIP SHA-256
+`370c02236a75c0ddcd2e5650e099b31aa62fa7a6fe4cb3b25e09fcbcc3c3acb7`,
+conferido após download: o contexto registra aviso de **seis minutos**, às
+02h54 UTC/23h54 em Brasília. A projeção limita a sessão na virada do dia;
+integrações de tempo já exercitam `day_change`, inclusive horário de verão.
+O E2E candidato captura a resposta real de controle, exige limite de dez
+minutos, motivo diário/virada e prazo positivo de no máximo dez minutos, e
+confere o texto correspondente. Não altera orçamento, relógio ou autorização.
