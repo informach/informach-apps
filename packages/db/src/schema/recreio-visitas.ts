@@ -304,6 +304,7 @@ export const recreioWorldVisitSessions = recreio.table(
     uniqueIndex("recreio_visit_session_one_active").on(t.visitId).where(sql`${t.state}='active'`),
     index("recreio_visit_session_grant").on(t.visitId, t.id),
     index("recreio_visit_session_profile").on(t.profileId, t.createdAt, t.id),
+    index("recreio_visit_session_open").on(t.createdAt, t.id).where(sql`${t.state}<>'closed'`),
     index("recreio_visit_session_deadline")
       .on(t.permissionUntil, t.id)
       .where(sql`${t.state}='active'`),

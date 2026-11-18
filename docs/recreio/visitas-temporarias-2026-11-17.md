@@ -646,3 +646,10 @@ inventado e rede perdida, sem repetição automática. Gates pendentes.
 
 Ainda faltam manutenção das sessões visitantes órfãs, integração no
 SDK/runtime/interface e jornadas familiares. Não foi habilitado em produção.
+
+A manutenção das órfãs está em preparação: leitura limitada aos vínculos
+ainda não encerrados, com índice parcial próprio, seguida do mesmo fechamento
+restrito por mundo/perfil/cursor. Prazos/encerramentos do SID, concessão,
+anfitrião ou posse são fatos de perda; somente o cache local vencido não deve
+revogar uma visita válida que pode ser revalidada. Geração da migration e
+provas da rotina ainda pendentes.
