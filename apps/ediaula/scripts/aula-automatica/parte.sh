@@ -84,6 +84,8 @@ c = json.loads(sys.argv[1]); ed = sys.argv[2]
 musica = os.path.splitext(os.path.basename(c['musica']))[0] if c.get('musica') else None
 print(json.dumps({'projeto': c['projeto'][:-len('.ediaula')] + ' · edição automática.ediaula',
                   'intervalos': json.load(open(os.path.join(ed, 'comandos-apresentadora.json'))),
+                  # O vídeo da apresentadora DESTA parte: o estado do condutor guarda o do último ensaio.
+                  'apresentadora': c['apresentadora'],
                   **({'musica': musica} if musica else {})}, ensure_ascii=False))" "$CFG" "$ED")"
     TIMEOUT=1800 "$C" acao acabamento.mjs "$E" | python -X utf8 -c "
 import json, sys

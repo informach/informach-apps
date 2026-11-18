@@ -198,6 +198,12 @@ for gi, g in enumerate(gestos):
         cmds[-1]["papel"] = "caixa"
         cmds[-1]["ancora_esquerda"] = round(PALETA / W, 4)
         continue
+    if v.startswith("clicar fora"):
+        continue  # clicar no espaço vazio não é um bloco: o contorno seria a área inteira
+    if v.startswith("mostrar blocos"):
+        # Arrasto do espaço vazio: o contorno registrado é o do bloco sob o ponto de pegar, antes de a área
+        # andar, e não o dos blocos que ficam à vista. O gesto seguinte (apontar) destaca o que importa.
+        continue
     # Blocos: destaque no bloco do gesto (o que caiu, depois de um arrasto) e zoom nele.
     caixa = None
     for r in regs_g:
@@ -441,6 +447,9 @@ for c in MARCA:
         seguinte = next((x for x in ZOOMS if ini < x["at"] < fim), None)
         if seguinte:
             fim = seguinte["at"]
+    if fim - ini < 0.8 and z and i.get("kind") == "balloon":
+        # O balão explica o botão antes do clique: se não cabe depois, entra assim que o zoom abre.
+        ini, fim = aberto, min(fechando, aberto + 2.0)
     if fim - ini < 0.8:
         saem.append(c)
         REVISAR.append(f"{c['input']['at']:.1f}s: {c['nota']} saiu (não cabe num estado só do zoom)")
