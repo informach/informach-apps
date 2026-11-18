@@ -5,22 +5,36 @@ import { recreioPlanChanges as changes } from "@informach/db/schema";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 import type { TentativaDeConciliacao } from "./conciliacao-fila-repository";
+import {
+  type ConferenciaFinanceiraDoCliente,
+  conferirMarcaFinanceira,
+} from "./financiamento-stripe";
 import { aplicarOfertaDaTrocaLocked } from "./troca-aplicacao-repository";
 import {
   type AumentoObservado,
   conferirAumentoObservado,
 } from "./troca-aumento-execucao-repository";
 
-/** Provider application is insufficient: require this exact upgrade invoice's
- * captured, non-adverse coverage in the complete authoritative read. Credit
- * funding without provenance stays in review until its reader is implemented. */
+/** Records a factual commercial application, including a later adverse payment.
+ * The exact paid invoice and native funding proof remain mandatory. Game access
+ * separately requires verified funding; a refund must not leave the old offer
+ * falsely current or permanently block future complete observations. */
 export async function aplicarAumentosObservadosLocked(
   tx: Transacao,
   prova: TentativaDeConciliacao,
   observacoes: readonly AumentoObservado[],
   snapshots: readonly SubscriptionPaymentSnapshot[],
   agora: Date,
+  financiamento: ConferenciaFinanceiraDoCliente,
 ) {
+  conferirMarcaFinanceira(financiamento);
+  assertAllowed(
+    financiamento.paganteId === prova.payerUserId &&
+      financiamento.modo === prova.providerMode &&
+      financiamento.clienteId === prova.customer?.providerCustomerId,
+    "ORIGEM_FINANCEIRA",
+    "A origem financeira do aumento exige conferência.",
+  );
   assertAllowed(
     observacoes.length <= 1,
     "ORIGEM_FINANCEIRA",
@@ -73,8 +87,14 @@ export async function aplicarAumentosObservadosLocked(
             p.end >= snapshot.end &&
             p.start <= agora &&
             p.paidAt <= agora &&
-            !p.fullyRefunded &&
-            !p.disputed,
+            financiamento.financiamento.periodos.some(
+              (f) =>
+                f.faturaId === p.invoiceId &&
+                f.linhaId === p.lineId &&
+                f.precoId === p.priceId &&
+                f.inicio * 1000 === p.start.getTime() &&
+                f.fimOriginal * 1000 === p.end.getTime(),
+            ),
         ),
       "ORIGEM_FINANCEIRA",
       "A fatura do aumento ainda exige comprovação financeira.",

@@ -180,6 +180,7 @@ export async function persistirFatosDaConciliacao(
     entrada.aumentos ?? [],
     entrada.snapshots,
     entrada.agora,
+    entrada.financiamento,
   );
   const ids = await persistUserPaymentSnapshots(tx, {
     app: "recreio",

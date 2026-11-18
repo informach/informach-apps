@@ -259,3 +259,12 @@ fatura sem captura própria. Os dezesseis gates da fonte composta ainda precisam
 rodar. O aumento estornado antes de sua primeira aplicação continua exigindo
 revisão; a recuperação comercial desse caso e as doze transições/telas ainda
 precisam ser concluídas. Sem implantação ou ativação.
+
+Na etapa seguinte, a aplicação comercial passa a exigir a conferência privada
+completa e a prova da fatura exata, mas registra o fato aplicado mesmo se um
+estorno posterior já estiver presente. O acesso continua exigindo financiamento
+`verified`, na mesma transação que fecha a SID. Isso evita manter a revisão
+antiga e bloquear observações futuras para sempre. O teste anterior de recusa
+é substituído por uma exigência mais forte: revisão dois factual, prova revogada,
+negação de ingresso e corte da SID. Ainda depende dos gates desta alteração;
+não usar essa mudança isoladamente sem a leitura obrigatória de financiamento.

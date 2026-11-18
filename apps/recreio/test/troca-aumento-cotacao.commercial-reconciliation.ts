@@ -608,18 +608,40 @@ describe("tentativa e conciliação nativas do aumento", () => {
       expect(f.escritas).toHaveLength(1);
     },
   );
-  it("fatura própria estornada não aplica revisão nem confirmação financeira falsa", async () => {
-    const f = await fixtureDeEnvio();
+  it("estorno antes da captura registra a oferta aplicada, revoga financiamento e corta a SID", async () => {
+    const f = await fixtureDeEnvio(true);
+    const jogador = f.adulto.jogador;
+    if (!jogador) throw new Error("Native player absent");
+    const aberta = await entrarNoJogo(jogador);
     await f.enviar(f.adulto.autor, f.cotacao.id);
     f.estornar();
-    expect((await f.processar()).emConferencia).toBeGreaterThanOrEqual(1);
-    expect(f.falhas).toHaveLength(1);
+    expect((await f.processar()).conciliadas).toBe(1);
+    expect(f.falhas).toEqual([]);
     expect(
       (await db.select().from(contracts).where(eq(contracts.purchaseId, f.recibo.id)))[0]?.revision,
-    ).toBe(1);
+    ).toBe(2);
     expect(
       (await db.select().from(changes).where(eq(changes.id, f.cotacao.id)))[0]?.appliedAt,
-    ).toBeNull();
+    ).toBeInstanceOf(Date);
+    expect(await avaliarAcesso({ profileId: jogador.perfil.id })).toMatchObject({
+      podeJogar: false,
+    });
+    await expect(ingressoDe(jogador)).rejects.toMatchObject({ codigo: "ACESSO_NEGADO" });
+    expect(
+      (await db.select().from(gameSessions).where(eq(gameSessions.id, aberta.sid)))[0]?.endReason,
+    ).toBe("access_lost");
+    const [observada] = await db
+      .select({ estado: fundingObservations.fundingStatus })
+      .from(fundingProofs)
+      .innerJoin(fundingObservations, eq(fundingObservations.id, fundingProofs.observationId))
+      .innerJoin(paidPeriods, eq(paidPeriods.id, fundingProofs.paymentPeriodId))
+      .where(
+        and(
+          eq(paidPeriods.providerPriceId, "price_recreio_family_monthly"),
+          eq(fundingObservations.payerUserId, f.adulto.conta.id),
+        ),
+      );
+    expect(observada?.estado).toBe("revoked");
   });
   it("falha de auditoria da tentativa impede qualquer POST", async () => {
     const f = await fixtureDeEnvio();
