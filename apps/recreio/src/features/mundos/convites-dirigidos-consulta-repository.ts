@@ -22,7 +22,7 @@ import {
 } from "./convites-dirigidos-amizade-repository";
 import {
   type ContextoDeConvite,
-  comJogadorNoConvite,
+  comLeitorDoConvite,
 } from "./convites-dirigidos-contexto-repository";
 import {
   aprovacoesDoConvite,
@@ -134,7 +134,7 @@ async function comReciboDoPerfil<T>(
       ),
     );
   assertAllowed(pista, "PEDIDO", "Convite não disponível.");
-  return comJogadorNoConvite(
+  return comLeitorDoConvite(
     autor,
     {
       mundoId: MundoIdSchema.parse(pista.spaceId),

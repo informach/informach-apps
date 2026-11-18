@@ -1,5 +1,5 @@
 import "server-only";
-import { and, db, eq, ne } from "@informach/db";
+import { and, db, eq, ne, sql } from "@informach/db";
 import {
   recreioDirectedInviteWorldApprovals as approvals,
   recreioDirectedSpaceInvites as invites,
@@ -7,6 +7,11 @@ import {
   recreioSpaces as spaces,
 } from "@informach/db/schema";
 import { ErroDoRecreio, type MundoId, type PerfilId, PerfilIdSchema } from "@informach/recreio";
+import {
+  admitirAparelhoAtual,
+  prepararIdentidadeDoJogo,
+  type ReferenciaDeJogador,
+} from "@/features/autoridade-de-jogo/aparelho-repository";
 import {
   type AutorDeMundos,
   comAutorDeMundos,
@@ -48,11 +53,45 @@ export async function travarMundoDoConvite(tx: Transacao, pontas: PontasDeConvit
   return mundo;
 }
 
-/** Contas das duas pontas → mundo → perfis; a admissão real de jogo permanece no mesmo commit. */
-export async function comJogadorNoConvite<T>(
+type AutoridadeDoConvite = { contaId: string | null; conferirPrazo: () => Promise<Date> };
+async function comAutorAdmitido<T>(
+  autor: AutorDeMundos,
+  jogo: string,
+  antesDoPerfil: (tx: Transacao) => Promise<void>,
+  executar: (tx: Transacao, admissao: AutoridadeDoConvite) => Promise<T>,
+  opcoes: { antesDaIdentidade: (tx: Transacao, referencia: ReferenciaDeJogador) => Promise<void> },
+  leitura: boolean,
+): Promise<T> {
+  if (!leitura || "sid" in autor)
+    return comAutorDeMundos(autor, jogo, antesDoPerfil, executar, opcoes);
+  const resultado = await db.transaction(async (tx) => {
+    await tx.execute(sql`set local transaction_timeout='15s'`);
+    await tx.execute(sql`set local statement_timeout='5s'`);
+    await tx.execute(sql`set local lock_timeout='2s'`);
+    await opcoes.antesDaIdentidade(tx, autor);
+    const identidade = await prepararIdentidadeDoJogo(tx, autor);
+    await antesDoPerfil(tx);
+    const admissao = await admitirAparelhoAtual(
+      tx,
+      { ...autor, expiraEm: null },
+      identidade,
+      async () => {},
+    );
+    if (!admissao.admitida) return admissao;
+    const valor = await executar(tx, admissao);
+    await admissao.conferirPrazo();
+    return { admitida: true as const, valor };
+  });
+  if (!resultado.admitida) throw resultado.erro;
+  return resultado.valor;
+}
+
+/** Contas das pontas → mundo → perfis. As duas finalidades têm entradas explícitas abaixo. */
+async function comContextoDeConvite<T>(
   autor: AutorDeMundos,
   pontas: PontasDeConvite,
   executar: (tx: Transacao, ctx: ContextoDeConvite) => Promise<T>,
+  leitura: boolean,
 ) {
   assertAllowed(
     pontas.origemId !== pontas.destinoId &&
@@ -97,7 +136,7 @@ export async function comJogadorNoConvite<T>(
     .from(spaces)
     .where(eq(spaces.id, pontas.mundoId));
   if (!pista) throw new ErroDoRecreio("CONVITE_INVALIDO");
-  jogoQueAbre(pista.jogo);
+  if (!leitura || "sid" in autor) jogoQueAbre(pista.jogo);
   const tentar = async () => {
     let composicao: ComposicaoSocial | undefined;
     const [anterior] =
@@ -129,7 +168,7 @@ export async function comJogadorNoConvite<T>(
           .where(eq(approvals.inviteId, conviteId))
       : [];
     const perfilGestor = gestor?.perfilId ? PerfilIdSchema.parse(gestor.perfilId) : null;
-    const resultado = await comAutorDeMundos(
+    const resultado = await comAutorAdmitido(
       autor,
       pista.jogo,
       async () => {},
@@ -192,6 +231,7 @@ export async function comJogadorNoConvite<T>(
           );
         },
       },
+      leitura,
     );
     if (!resultado.executou) throw resultado.erro;
     return resultado.valor;
@@ -202,4 +242,21 @@ export async function comJogadorNoConvite<T>(
     if (!(erro instanceof ComposicaoSocialMudou)) throw erro;
     return tentar();
   }
+}
+
+/** Emissão e aceite mantêm admissão de jogo e cobertura na transação. */
+export function comJogadorNoConvite<T>(
+  autor: AutorDeMundos,
+  pontas: PontasDeConvite,
+  executar: (tx: Transacao, ctx: ContextoDeConvite) => Promise<T>,
+) {
+  return comContextoDeConvite(autor, pontas, executar, false);
+}
+/** Leitura nativa não exige assinatura; bearer continua preso à autoridade do SID atual. */
+export function comLeitorDoConvite<T>(
+  autor: AutorDeMundos,
+  pontas: PontasDeConvite,
+  executar: (tx: Transacao, ctx: ContextoDeConvite) => Promise<T>,
+) {
+  return comContextoDeConvite(autor, pontas, executar, true);
 }

@@ -75,6 +75,60 @@ async function amizade(a: Page, b: Page) {
   await expect(b.getByText("Amizade confirmada", { exact: true })).toBeVisible();
 }
 
+test("convite pelo portal é conferido e aceito fora da partida sem abrir uma sessão de jogo", async ({
+  browser,
+}) => {
+  const a = await novaPessoa(browser, "Sol convite portal"),
+    b = await novaPessoa(browser, "Mar convite portal");
+  await amizade(a.page, b.page);
+  const mundo = await criarMundo(a.page, "Jogo de teste", "Casa convidada pelo portal");
+  let sessoes = 0;
+  for (const p of [a.page, b.page])
+    p.on("request", (r) => {
+      if (new URL(r.url()).pathname === "/api/sdk/v1/sessao" && r.method() === "POST") sessoes++;
+    });
+  await a.page.goto("/amigos");
+  await a.page.getByRole("link", { name: "Convidar para um mundo", exact: true }).click();
+  await expect(
+    a.page.getByRole("heading", { name: "Convite para Mar convite portal", exact: true }),
+  ).toBeVisible();
+  const escolher = a.page.getByRole("combobox", { name: "Escolha um mundo", exact: true });
+  await hidratado(escolher);
+  await escolher.selectOption(mundo);
+  await a.page.getByRole("button", { name: "Convidar para este mundo", exact: true }).click();
+  await expect(
+    a.page.getByText("Convite registrado. Confira as confirmações em Convites de mundos.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(escolher).toBeDisabled();
+  await b.page.goto("/amigos");
+  await b.page.getByRole("link", { name: "Convites de mundos", exact: true }).click();
+  const caixa = b.page.getByRole("region", { name: "Convites de mundos", exact: true });
+  await expect(caixa.getByText("Convite recebido", { exact: true })).toBeVisible();
+  await caixa.getByRole("button", { name: "Conferir convite", exact: true }).click();
+  const detalhe = caixa.getByRole("region", { name: "Participação a confirmar", exact: true });
+  await expect(
+    detalhe.getByRole("heading", { name: "Casa convidada pelo portal", exact: true }),
+  ).toBeVisible();
+  await b.page.setViewportSize({ width: 390, height: 844 });
+  await detalhe.scrollIntoViewIfNeeded();
+  expect(
+    await b.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  ).toBe(true);
+  await tela(b.page, "convites-portal-mobile", { paginaInteira: true });
+  await detalhe.getByRole("button", { name: "Aceitar participação", exact: true }).click();
+  await expect(
+    caixa.getByText("Participação confirmada. O mundo está na sua estante.", { exact: true }),
+  ).toBeVisible();
+  await expect(b.page).toHaveURL(/\/convites$/);
+  expect(sessoes).toBe(0);
+  await b.page.getByRole("link", { name: "Voltar para jogar", exact: true }).click();
+  await expect(
+    b.page.getByRole("heading", { name: "Casa convidada pelo portal", exact: true }),
+  ).toBeVisible();
+});
+
 test("convite dirigido atravessa dois mundos sem sair da partida e recupera o ACK com painel fechado", async ({
   browser,
 }) => {

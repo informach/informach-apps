@@ -257,3 +257,27 @@ fixture insere convites, aprovações ou membros nessas jornadas. As capturas
 mobile e os resultados dos gates ainda precisam ser conferidos. Portal fora
 da partida, decisão de terceiro pela interface, concorrência adicional,
 upgrade, visitas e sucessão infantil continuam pendentes.
+
+O host `39c618a09c6842e1eb77e43570f8c69e1d4bc17c` passou nos oito gates
+`44211978937`: 769 integrações/83 arquivos e 35 E2E. Os logs confirmam as duas
+jornadas novas executadas (28,3 s famílias; 13,5 s adultos/ACK). O artefato
+`14387815016`, ZIP SHA-256
+`737b0b0712bef86fd126a439807e83cd04463536047b4b50211c3e20c06cc41f`, não
+contém as duas imagens novas porque o workflow tinha uma lista explícita sem
+esses nomes. Não houve revisão visual dessas imagens. A candidata seguinte
+acrescenta os nomes à lista e exige nova coleta remota.
+
+## Candidata de convites fora da partida
+
+`/convites` oferece caixa, detalhe atual, aceite, recusa e cancelamento para o
+perfil real do aparelho nativo ou pareado. `/amigos/[id]/convidar` revalida a
+amizade antes de mostrar o contato e até dez mundos próprios por página. A
+consulta não concede jogo nem participação; emissão e aceite mantêm cobertura,
+política e permissões na transação autoritativa. Nenhuma dessas telas abre SID.
+
+A leitura nativa de recibo/detalhe deixa de exigir cobertura comercial, mas
+mantém identidade atual, contas → mundo → perfis, amizade/revisões e conteúdo
+para a projeção pendente. Bearer do SDK continua exigindo SID admitido. Novos
+testes candidatos exercitam leitura gratuita versus aceite pago, escopo dos
+mundos, bloqueio e envio/aceite pelo portal. Gates, capturas, decisão de terceiro,
+concorrência adicional, upgrade, visitas e sucessão infantil ainda pendentes.

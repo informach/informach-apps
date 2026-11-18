@@ -12,6 +12,7 @@ import {
   amizadeDisponivel,
   ContaIdSchema,
   type PerfilId,
+  type PerfilSocial,
 } from "@informach/recreio";
 import { jogoQueAbre } from "@/features/jogos/config";
 import { env } from "@/lib/env";
@@ -22,9 +23,11 @@ import { mundoCompativel } from "./politica";
 
 /** Perfis das duas pontas já estão travados; leitura não vira busca pública. */
 export async function amizadeAtualDoConvite(tx: Transacao, ctx: ContextoDeConvite) {
-  const a = ctx.origem.fato,
-    b = ctx.destino.fato,
-    menor = a.id < b.id ? a.id : b.id,
+  return amizadeAtualEntre(tx, ctx.origem.fato, ctx.destino.fato);
+}
+
+export async function amizadeAtualEntre(tx: Transacao, a: PerfilSocial, b: PerfilSocial) {
+  const menor = a.id < b.id ? a.id : b.id,
     maior = a.id < b.id ? b.id : a.id;
   const [amizade] = await tx
     .select()

@@ -5,6 +5,7 @@ import { autorDaFamilia } from "@/features/familia/autor";
 import { runAction } from "@/lib/action";
 import { assertAllowed } from "@/lib/errors";
 import {
+  caixaDeConvitesDirigidos,
   conferirConviteDirigido,
   consultarConviteDirigido,
 } from "./convites-dirigidos-consulta-repository";
@@ -29,6 +30,9 @@ async function jogadorEsperado(perfilId: unknown) {
 }
 export async function emitirConviteDirigidoAction(perfilId: unknown, entrada: unknown) {
   return runAction(async () => emitirConviteDirigido(await jogadorEsperado(perfilId), entrada));
+}
+export async function listarConvitesDoJogadorAction(perfilId: unknown, consulta: unknown) {
+  return runAction(async () => caixaDeConvitesDirigidos(await jogadorEsperado(perfilId), consulta));
 }
 export async function responderConviteDirigidoAction(perfilId: unknown, entrada: unknown) {
   return runAction(async () => responderConviteDirigido(await jogadorEsperado(perfilId), entrada));

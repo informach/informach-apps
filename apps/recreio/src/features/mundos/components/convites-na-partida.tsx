@@ -7,6 +7,7 @@ import type {
 } from "@informach/recreio/contrato";
 import { ehErroDoRecreio } from "@informach/recreio/sdk";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { RecusaDeConviteNaInterface } from "../convites-interface";
 
 const ESTADOS = {
   pending: "Aguardando confirmações",
@@ -18,39 +19,63 @@ const ESTADOS = {
 function prazo(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
+function erroPublico(erro: unknown, alternativa: string) {
+  return erro instanceof RecusaDeConviteNaInterface ? erro.message : alternativa;
+}
 
 /** Continua no mesmo jogo. Fechar o painel impede consultas e atualizações posteriores. */
 export function ConvitesNaPartida({ api }: { api: ConvitesDirigidosDoPerfil }) {
+  return <PainelDeConvites api={api} naPartida />;
+}
+export function PainelDeConvites({
+  api,
+  naPartida = false,
+  inicial,
+}: {
+  api: ConvitesDirigidosDoPerfil;
+  naPartida?: boolean;
+  inicial?: CaixaDeConvitesDirigidos;
+}) {
   const vivo = useRef(true);
   const [pagina, definirPagina] = useState<{ em: string; id: string } | undefined>(undefined),
-    [carregando, marcarCarregando] = useState(true);
-  const [caixa, guardarCaixa] = useState<CaixaDeConvitesDirigidos | null>(null),
+    [carregando, marcarCarregando] = useState(!inicial);
+  const [caixa, guardarCaixa] = useState<CaixaDeConvitesDirigidos | null>(inicial ?? null),
     [detalhe, conferir] = useState<DetalheDeConviteDirigido | null>(null),
     [mensagem, avisar] = useState("");
   const [pendente, iniciar] = useTransition();
   useEffect(() => {
     vivo.current = true;
     let cancelado = false;
-    marcarCarregando(true);
-    api
-      .listar()
-      .then(
-        (c) => {
-          if (!cancelado && vivo.current) guardarCaixa(c);
-        },
-        () => {
-          if (!cancelado && vivo.current)
-            avisar("Não foi possível consultar os convites. Você pode atualizar a lista.");
-        },
-      )
-      .finally(() => {
-        if (!cancelado && vivo.current) marcarCarregando(false);
-      });
+    if (inicial) {
+      guardarCaixa(inicial);
+      marcarCarregando(false);
+    } else {
+      marcarCarregando(true);
+      api
+        .listar()
+        .then(
+          (c) => {
+            if (!cancelado && vivo.current) guardarCaixa(c);
+          },
+          (erro) => {
+            if (!cancelado && vivo.current)
+              avisar(
+                erroPublico(
+                  erro,
+                  "Não foi possível consultar os convites. Você pode atualizar a lista.",
+                ),
+              );
+          },
+        )
+        .finally(() => {
+          if (!cancelado && vivo.current) marcarCarregando(false);
+        });
+    }
     return () => {
       cancelado = true;
       vivo.current = false;
     };
-  }, [api]);
+  }, [api, inicial]);
   const carregar = (cursor?: { em: string; id: string }) => {
     if (!vivo.current || pendente) return;
     iniciar(async () => {
@@ -62,9 +87,11 @@ export function ConvitesNaPartida({ api }: { api: ConvitesDirigidosDoPerfil }) {
           conferir(null);
           avisar("");
         }
-      } catch {
+      } catch (erro) {
         if (vivo.current)
-          avisar("Não foi possível atualizar. Tente consultar os convites novamente.");
+          avisar(
+            erroPublico(erro, "Não foi possível atualizar. Tente consultar os convites novamente."),
+          );
       }
     });
   };
@@ -77,10 +104,13 @@ export function ConvitesNaPartida({ api }: { api: ConvitesDirigidosDoPerfil }) {
           conferir(c);
           avisar("");
         }
-      } catch {
+      } catch (erro) {
         if (vivo.current)
           avisar(
-            "Este convite pode ter mudado ou vencido. Atualize a lista para conferir o recibo.",
+            erroPublico(
+              erro,
+              "Este convite pode ter mudado ou vencido. Atualize a lista para conferir o recibo.",
+            ),
           );
       }
     });
@@ -104,14 +134,19 @@ export function ConvitesNaPartida({ api }: { api: ConvitesDirigidosDoPerfil }) {
           );
           avisar(
             r.estado === "accepted"
-              ? "Participação confirmada. Você pode continuar esta partida e abrir o mundo pela estante depois."
+              ? naPartida
+                ? "Participação confirmada. Você pode continuar esta partida e abrir o mundo pela estante depois."
+                : "Participação confirmada. O mundo está na sua estante."
               : "Situação do convite confirmada. O progresso e as participações já aceitas continuam guardados.",
           );
         }
-      } catch {
+      } catch (erro) {
         if (vivo.current)
           avisar(
-            "Não recebemos a confirmação. Atualize os convites e confira o recibo antes de repetir.",
+            erroPublico(
+              erro,
+              "Não recebemos a confirmação. Atualize os convites e confira o recibo antes de repetir.",
+            ),
           );
       }
     });
@@ -121,11 +156,18 @@ export function ConvitesNaPartida({ api }: { api: ConvitesDirigidosDoPerfil }) {
     (detalhe.convite.aguardaMundo ||
       detalhe.convite.aguardaOrigem ||
       detalhe.convite.aguardaDestino);
+  const Titulo = naPartida ? "h3" : "h2",
+    Subtitulo = naPartida ? "h4" : "h3";
   return (
-    <section className="painel mt-7 p-4 sm:p-5" aria-label="Convites de mundos na partida">
-      <h3 className="font-display text-xl font-bold">Convites de mundos</h3>
+    <section
+      className="painel mt-7 p-4 sm:p-5"
+      aria-label={naPartida ? "Convites de mundos na partida" : "Convites de mundos"}
+    >
+      <Titulo className="font-display text-xl font-bold">Convites de mundos</Titulo>
       <p className="mt-2 text-sm text-tinta-suave">
-        Conferir ou aceitar um convite mantém esta partida aberta. O novo mundo fica na estante.
+        {naPartida
+          ? "Conferir ou aceitar um convite mantém esta partida aberta. O novo mundo fica na estante."
+          : "Confira as companhias e o mundo antes de aceitar. Recusar ou cancelar um convite permanece disponível sem assinatura."}
       </p>
       {mensagem && (
         <p role="status" className="mt-4 rounded-controle border border-linha bg-fundo p-3 text-sm">
@@ -174,9 +216,9 @@ export function ConvitesNaPartida({ api }: { api: ConvitesDirigidosDoPerfil }) {
           className="mt-5 rounded-controle border border-linha bg-fundo p-4"
           aria-label="Participação a confirmar"
         >
-          <h4 className="font-display text-lg font-bold [overflow-wrap:anywhere]">
+          <Subtitulo className="font-display text-lg font-bold [overflow-wrap:anywhere]">
             {detalhe.nomeDoMundo}
-          </h4>
+          </Subtitulo>
           <p className="mt-2 text-sm [overflow-wrap:anywhere]">
             <strong>{detalhe.origem.apelido}</strong> convidou{" "}
             <strong>{detalhe.destino.apelido}</strong>.
@@ -256,11 +298,13 @@ export function EmitirConviteNaPartida({
   mundoId,
   perfilId,
   disabled = false,
+  aoIniciar,
 }: {
   api: ConvitesDirigidosDoPerfil;
   mundoId: string;
   perfilId: string;
   disabled?: boolean;
+  aoIniciar?: () => void;
 }) {
   const vivo = useRef(true),
     tentativa = useRef<string | null>(null);
@@ -282,6 +326,7 @@ export function EmitirConviteNaPartida({
         disabled={disabled || pendente || !!recibo}
         onClick={() => {
           if (!vivo.current || disabled || pendente || recibo) return;
+          aoIniciar?.();
           tentativa.current ??= crypto.randomUUID();
           const pedidoId = tentativa.current;
           marcarEnviado(true);
@@ -297,7 +342,10 @@ export function EmitirConviteNaPartida({
                 avisar(
                   ehErroDoRecreio(erro, "JA_MEMBRO")
                     ? "Este amigo já participa deste mundo."
-                    : "Não recebemos a confirmação. Confira os convites. Se precisar repetir, este botão conserva a mesma tentativa.",
+                    : erroPublico(
+                        erro,
+                        "Não recebemos a confirmação. Confira os convites. Se precisar repetir, este botão conserva a mesma tentativa.",
+                      ),
                 );
             }
           });

@@ -9,6 +9,12 @@ import {
 } from "@informach/db/schema";
 import { afterEach, expect, it } from "vitest";
 import { administrarMundo } from "@/features/mundos/administracao";
+import {
+  caixaDeConvitesDirigidos,
+  conferirConviteDirigido,
+  consultarConviteDirigido,
+} from "@/features/mundos/convites-dirigidos-consulta-repository";
+import { opcoesParaConvidarAmigo } from "@/features/mundos/convites-dirigidos-opcoes-repository";
 import { painelDoConviteNoMundo } from "@/features/mundos/convites-dirigidos-painel-repository";
 import { limparConvitesDirigidos } from "@/features/mundos/convites-dirigidos-retencao-repository";
 import {
@@ -66,6 +72,53 @@ async function cenario() {
 }
 const responder = (p: Jogador, id: string, acao: "aceitar" | "recusar" | "revogar" = "aceitar") =>
   responderConviteDirigido(ref(p), { conviteId: id, acao });
+
+it("consulta nativa sem cobertura confere convite atual sem conceder o aceite pago", async () => {
+  const c = await cenario(),
+    criado = await emitirConviteDirigido(ref(c.a), c.pedido);
+  await revogar({ email: c.b.conta.email, motivo: "teste_integracao" });
+  expect((await caixaDeConvitesDirigidos(ref(c.b), {})).convites.map((r) => r.conviteId)).toContain(
+    criado.conviteId,
+  );
+  expect((await consultarConviteDirigido(ref(c.b), criado.conviteId)).estado).toBe("pending");
+  expect(await conferirConviteDirigido(ref(c.b), criado.conviteId)).toMatchObject({
+    convite: { conviteId: criado.conviteId },
+    origem: { apelido: c.a.perfil.apelido },
+  });
+  await expect(responder(c.b, criado.conviteId)).rejects.toThrow();
+  expect(
+    await db
+      .select()
+      .from(members)
+      .where(and(eq(members.spaceId, c.mundoId), eq(members.profileId, c.b.perfil.id))),
+  ).toHaveLength(0);
+  expect((await responder(c.b, criado.conviteId, "recusar")).estado).toBe("declined");
+});
+
+it("opções de convite mostram só mundos próprios e amizade atual, sem exigir cobertura na consulta", async () => {
+  const c = await cenario(),
+    estranho = await novoJogador();
+  await mundoDe(estranho);
+  await revogar({ email: c.a.conta.email, motivo: "teste_integracao" });
+  const lista = await opcoesParaConvidarAmigo(ref(c.a), c.b.perfil.id);
+  expect(lista.contato.apelido).toBe(c.b.perfil.apelido);
+  expect(lista.mundos.map((m) => m.id)).toEqual([c.mundoId]);
+  expect((await opcoesParaConvidarAmigo(ref(c.a), c.b.perfil.id, c.mundoId)).mundos).toHaveLength(
+    0,
+  );
+  await expect(opcoesParaConvidarAmigo(ref(c.a), estranho.perfil.id)).rejects.toMatchObject({
+    code: "PEDIDO",
+  });
+  await protegerContato(ref(c.b), {
+    perfilId: c.a.perfil.id,
+    bloqueado: true,
+    silenciado: false,
+    anterior: { bloqueado: false, silenciado: false },
+  });
+  await expect(opcoesParaConvidarAmigo(ref(c.a), c.b.perfil.id)).rejects.toMatchObject({
+    code: "PEDIDO",
+  });
+});
 
 it("emissão e aceite guardam um recibo por tentativa, sem repetir participação ou eventos", async () => {
   const c = await cenario(),
