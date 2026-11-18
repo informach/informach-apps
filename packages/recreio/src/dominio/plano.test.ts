@@ -42,7 +42,15 @@ describe("plano do grupo sem perfil fictício do pagante", () => {
     expect(
       decidirPlanoDoGrupo({
         ...base,
-        assinatura: { id: "sub", status: "active", tier: "individual", cancelaEm: fim },
+        assinatura: {
+          id: "sub",
+          status: "active",
+          tier: "individual",
+          cancelaEm: fim,
+          inicioDoPeriodo: cortesia.inicio,
+          fimDoPeriodo: fim,
+          fimDoTeste: null,
+        },
         concessoes: [cortesia],
       }),
     ).toMatchObject({
@@ -55,7 +63,15 @@ describe("plano do grupo sem perfil fictício do pagante", () => {
   });
 
   it.each(STATUS_PENDENTES)("%s não concede vaga sem outra origem vigente", (status) => {
-    const assinatura = { id: "sub", status, tier: "family" as const, cancelaEm: null };
+    const assinatura = {
+      id: "sub",
+      status,
+      tier: "family" as const,
+      cancelaEm: null,
+      inicioDoPeriodo: cortesia.inicio,
+      fimDoPeriodo: fim,
+      fimDoTeste: null,
+    };
     expect(decidirPlanoDoGrupo({ ...base, assinatura })).toMatchObject({
       podeJogar: false,
       estado: "PAGAMENTO_PENDENTE",

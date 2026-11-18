@@ -17,7 +17,8 @@ import { avaliarAcesso } from "@/features/acesso/service";
 import { criarPerfilProprio } from "@/features/perfis/service";
 import { conceder, RecusaDeConcessao, revogar } from "../scripts/concessoes";
 import { atorDaConta, type ContaDeTeste, novaConta, novoJogador } from "./apoio";
-import { entrarNoJogo } from "./jogo-apoio";
+import { claimsDe, entrarNoJogo, ingressoDe } from "./jogo-apoio";
+import { pedir } from "./rotas";
 
 const DIA = 86_400_000;
 
@@ -52,7 +53,12 @@ async function assinatura(
   conta: ContaDeTeste,
   status: "active" | "trialing" | "past_due" | "canceled",
   productId: string,
-  extra: { cancelaEm?: Date } = {},
+  extra: {
+    cancelaEm?: Date;
+    inicioDoPeriodo?: Date;
+    fimDoPeriodo?: Date;
+    fimDoTeste?: Date | null;
+  } = {},
 ) {
   const [cliente] = await db
     .insert(customers)
@@ -73,17 +79,29 @@ async function assinatura(
         .from(customers)
         .where(and(eq(customers.subjectId, conta.id), eq(customers.app, "recreio")));
   if (!existente) throw new Error("Cliente de teste não criado");
-  await db.insert(subscriptions).values({
-    customerId: existente.id,
-    provider: "stripe",
-    providerSubscriptionId: `sub_recreio_${randomUUID()}`,
-    productId,
-    providerPriceId: "price_recreio_fixture",
-    status,
-    currentPeriodStart: new Date(Date.now() - DIA),
-    currentPeriodEnd: new Date(Date.now() + 29 * DIA),
-    cancelAtPeriodEnd: extra.cancelaEm ?? null,
-  });
+  const fimDoPeriodo = extra.fimDoPeriodo ?? new Date(Date.now() + 29 * DIA);
+  const [gravada] = await db
+    .insert(subscriptions)
+    .values({
+      customerId: existente.id,
+      provider: "stripe",
+      providerSubscriptionId: `sub_recreio_${randomUUID()}`,
+      productId,
+      providerPriceId: "price_recreio_fixture",
+      status,
+      currentPeriodStart: extra.inicioDoPeriodo ?? new Date(Date.now() - DIA),
+      currentPeriodEnd: fimDoPeriodo,
+      trialEnd:
+        extra.fimDoTeste === undefined
+          ? status === "trialing"
+            ? fimDoPeriodo
+            : null
+          : extra.fimDoTeste,
+      cancelAtPeriodEnd: extra.cancelaEm ?? null,
+    })
+    .returning();
+  if (!gravada) throw new Error("Assinatura de teste não criada");
+  return gravada;
 }
 
 describe("direito de jogar por concessão", () => {
@@ -422,13 +440,13 @@ describe("concessão e auditoria andam juntas", () => {
 describe("direito de jogar por assinatura", () => {
   it("assinatura ativa do titular dá ATIVO pelo plano do produto", async () => {
     const { conta, perfil } = await contaComPerfil();
-    await assinatura(conta, "active", "recreio_family_monthly");
+    const gravada = await assinatura(conta, "active", "recreio_family_monthly");
     expect(await avaliarAcesso({ profileId: perfil.id })).toMatchObject({
       estado: "ATIVO",
       podeJogar: true,
       origem: "assinatura",
       limiteDePerfis: 4,
-      validoAte: null,
+      validoAte: gravada.currentPeriodEnd,
     });
   });
 
@@ -442,6 +460,76 @@ describe("direito de jogar por assinatura", () => {
       limiteDePerfis: 1,
       validoAte: cancelaEm,
     });
+  });
+
+  it.each([
+    ["período vencido", { fimDoPeriodo: new Date(Date.now() - DIA) }],
+    ["período futuro", { inicioDoPeriodo: new Date(Date.now() + DIA) }],
+    ["cancelamento vencido", { cancelaEm: new Date(Date.now() - DIA) }],
+  ] as const)("status antigo não libera %s nem emite ingresso", async (_nome, extra) => {
+    const jogador = await novoJogador({ comAcesso: false });
+    await assinatura(jogador.conta, "active", "recreio_family_monthly", extra);
+    expect(await avaliarAcesso({ profileId: jogador.perfil.id })).toMatchObject({
+      podeJogar: false,
+      estado: "ENCERRADO",
+      limiteDePerfis: 0,
+    });
+    await expect(ingressoDe(jogador)).rejects.toMatchObject({ codigo: "ACESSO_NEGADO" });
+  });
+
+  it.each([null, new Date(Date.now() - DIA)])(
+    "trialing sem prazo vigente não libera: %s",
+    async (fimDoTeste) => {
+      const { conta, perfil } = await contaComPerfil();
+      await assinatura(conta, "trialing", "recreio_individual_monthly", { fimDoTeste });
+      expect(await avaliarAcesso({ profileId: perfil.id })).toMatchObject({
+        podeJogar: false,
+        estado: "ENCERRADO",
+      });
+    },
+  );
+
+  it.each(["active", "trialing"] as const)(
+    "sessão %s não ultrapassa o prazo financeiro relido",
+    async (status) => {
+      const jogador = await novoJogador({ comAcesso: false });
+      const fimDoPeriodo = new Date(Date.now() + 90_000);
+      const fimDoTeste = new Date(fimDoPeriodo.getTime() - 30_000);
+      await assinatura(jogador.conta, status, "recreio_individual_monthly", {
+        fimDoPeriodo,
+        fimDoTeste,
+      });
+      const aberta = await entrarNoJogo(jogador);
+      const prazo = status === "trialing" ? fimDoTeste : fimDoPeriodo;
+      expect(claimsDe(aberta.token).exp).toBeLessThanOrEqual(Math.floor(prazo.getTime() / 1000));
+      const [sessao] = await db.select().from(gameSessions).where(eq(gameSessions.id, aberta.sid));
+      if (!sessao) throw new Error("Sessão não persistida");
+      expect(sessao.expiresAt.getTime()).toBeLessThanOrEqual(prazo.getTime());
+    },
+  );
+
+  it("o ingresso também termina no prazo de acesso, antes do teto de sessenta segundos", async () => {
+    const jogador = await novoJogador({ comAcesso: false });
+    const fimDoPeriodo = new Date(Date.now() + 30_000);
+    await assinatura(jogador.conta, "active", "recreio_individual_monthly", { fimDoPeriodo });
+    const token = await ingressoDe(jogador);
+    expect(claimsDe(token).exp).toBe(Math.floor(fimDoPeriodo.getTime() / 1000));
+  });
+
+  it("período vencido depois da emissão recusa renovação e encerra o SID", async () => {
+    const jogador = await novoJogador({ comAcesso: false });
+    const gravada = await assinatura(jogador.conta, "active", "recreio_family_monthly");
+    const aberta = await entrarNoJogo(jogador);
+    await db
+      .update(subscriptions)
+      .set({ currentPeriodEnd: new Date(Date.now() - 1000) })
+      .where(eq(subscriptions.id, gravada.id));
+    const renovacao = await pedir("POST", "/api/sdk/v1/sessao/renovar", { token: aberta.token });
+    expect(renovacao).toMatchObject({ status: 403, corpo: { codigo: "ACESSO_PERDIDO" } });
+    const [sessao] = await db.select().from(gameSessions).where(eq(gameSessions.id, aberta.sid));
+    expect(sessao).toMatchObject({ endReason: "access_lost" });
+    expect(sessao?.endedAt).toBeInstanceOf(Date);
+    expect(sessao?.endedSeq).toBeGreaterThan(0);
   });
 
   it("pagamento atrasado não joga; com cortesia vigente, joga pela cortesia", async () => {

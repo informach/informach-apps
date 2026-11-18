@@ -13,7 +13,17 @@ function assinaturaDoGrupo(lida: AssinaturaLida | null): AssinaturaDoGrupo | nul
   if (!lida) return null;
   const produto = PRODUCTS.find((item) => item.app === "recreio" && item.id === lida.productId);
   const tier = tierDoProduto(produto?.tier);
-  return tier && { id: lida.id, status: lida.status, tier, cancelaEm: lida.cancelaEm };
+  return (
+    tier && {
+      id: lida.id,
+      status: lida.status,
+      tier,
+      inicioDoPeriodo: lida.inicioDoPeriodo,
+      fimDoPeriodo: lida.fimDoPeriodo,
+      fimDoTeste: lida.fimDoTeste,
+      cancelaEm: lida.cancelaEm,
+    }
+  );
 }
 
 /** Capacidade atual do contrato; o chamador ainda admite titular e composição. */

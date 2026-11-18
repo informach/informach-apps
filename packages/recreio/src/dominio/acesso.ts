@@ -50,6 +50,10 @@ export type AssinaturaDoGrupo = {
   id: string;
   status: StatusDaAssinatura;
   tier: TierDoPlano;
+  inicioDoPeriodo: Date;
+  fimDoPeriodo: Date;
+  /** Obrigatório para um status trialing conceder acesso. */
+  fimDoTeste: Date | null;
   /** Data em que o acesso termina por cancelamento agendado, se houver. */
   cancelaEm: Date | null;
 };
@@ -139,6 +143,21 @@ function maisRecente(concessoes: readonly Concessao[]): Concessao | null {
   return ultima;
 }
 
+/** Um status espelhado não estende o período quando o próximo evento atrasa. */
+function prazoDaAssinatura(assinatura: AssinaturaDoGrupo, agora: Date): Date | null {
+  const inicio = assinatura.inicioDoPeriodo.getTime();
+  const fim = assinatura.fimDoPeriodo.getTime();
+  if (!Number.isFinite(inicio) || !Number.isFinite(fim) || inicio > agora.getTime()) return null;
+  const limites = [fim];
+  if (assinatura.cancelaEm !== null) limites.push(assinatura.cancelaEm.getTime());
+  if (assinatura.status === "trialing") {
+    if (assinatura.fimDoTeste === null) return null;
+    limites.push(assinatura.fimDoTeste.getTime());
+  }
+  const limite = Math.min(...limites);
+  return Number.isFinite(limite) && agora.getTime() < limite ? new Date(limite) : null;
+}
+
 export function decidirAcesso(fatos: FatosDeAcesso): DecisaoDeAcesso {
   const versaoDaPolitica = fatos.perfil.versaoDaPolitica;
   const recusa = (estado: EstadoDeAcesso, motivo: MotivoDeRecusa): DecisaoDeAcesso => ({
@@ -173,7 +192,8 @@ export function decidirPlanoDoGrupo(fatos: FatosDoPlano): DecisaoDoPlano {
   });
 
   const assinatura = fatos.assinatura;
-  if (assinatura !== null && STATUS_QUE_JOGAM.includes(assinatura.status)) {
+  const prazo = assinatura !== null ? prazoDaAssinatura(assinatura, fatos.agora) : null;
+  if (assinatura !== null && STATUS_QUE_JOGAM.includes(assinatura.status) && prazo !== null) {
     return {
       estado: assinatura.cancelaEm === null ? "ATIVO" : "CANCELAMENTO_AGENDADO",
       podeJogar: true,
@@ -181,7 +201,7 @@ export function decidirPlanoDoGrupo(fatos: FatosDoPlano): DecisaoDoPlano {
       origem: "assinatura",
       origemId: assinatura.id,
       limiteDePerfis: limiteDePerfisDoTier(assinatura.tier),
-      validoAte: assinatura.cancelaEm,
+      validoAte: prazo,
     };
   }
 

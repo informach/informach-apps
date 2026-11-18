@@ -146,6 +146,14 @@ export async function registrarIngresso(
     if (!contexto.admitida) return contexto;
     const agora = await contexto.conferirPrazo();
     const jti = crypto.randomUUID();
+    const validoAte = new Date(
+      Math.min(
+        contexto.decisao.validoAte?.getTime() ?? Infinity,
+        contexto.aparelho.expiresAt.getTime(),
+      ),
+    );
+    if (Math.floor(validoAte.getTime() / 1000) <= Math.floor(agora.getTime() / 1000))
+      throw new ErroDoRecreio("ACESSO_PERDIDO", { motivo: "expired" });
     const emitido = await entrada.emissor.ingresso({
       jogo: entrada.jogo,
       perfilId: entrada.perfilId,
@@ -153,7 +161,10 @@ export async function registrarIngresso(
       versaoDaPolitica: contexto.versaoDaPolitica,
       jti,
       agora,
+      validoAte,
     });
+    if (emitido.expiraEm > validoAte || emitido.expiraEm <= agora)
+      throw new ErroDoRecreio("INDISPONIVEL");
     await tx.insert(tickets).values({
       jti,
       profileId: entrada.perfilId,

@@ -91,6 +91,8 @@ export type DadosDoIngresso = {
   versaoDaPolitica: number;
   jti: string;
   agora: Date;
+  /** Limite de acesso/aparelho relido na admissão do servidor. */
+  validoAte?: Date | null;
 };
 
 export type DadosDaSessao = {
@@ -144,7 +146,11 @@ export function criarEmissor(opcoes: {
     salvamento: (dados) => emitirSalvamento(opcoes, dados),
     async ingresso(dados) {
       const emitidoEm = Math.floor(dados.agora.getTime() / 1000);
-      const expira = emitidoEm + VALIDADE_DO_INGRESSO_S;
+      const teto = emitidoEm + VALIDADE_DO_INGRESSO_S;
+      const limite = dados.validoAte ? Math.floor(dados.validoAte.getTime() / 1000) : teto;
+      const expira = Math.min(teto, limite);
+      if (!Number.isFinite(expira) || expira <= emitidoEm)
+        throw new Error("O acesso já terminou; não há ingresso a emitir");
       const token = await assinar(
         TIPO_DO_INGRESSO,
         { ...dados, sid: dados.sessaoDeAparelhoId },

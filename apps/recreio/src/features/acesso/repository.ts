@@ -39,6 +39,9 @@ export type AssinaturaLida = {
   id: string;
   status: StatusDaAssinatura;
   productId: string;
+  inicioDoPeriodo: Date;
+  fimDoPeriodo: Date;
+  fimDoTeste: Date | null;
   /** Data em que a assinatura termina por cancelamento agendado. */
   cancelaEm: Date | null;
 };
@@ -73,6 +76,9 @@ async function assinaturaInativaMaisRecente(
       id: subscriptions.id,
       status: subscriptions.status,
       productId: subscriptions.productId,
+      inicioDoPeriodo: subscriptions.currentPeriodStart,
+      fimDoPeriodo: subscriptions.currentPeriodEnd,
+      fimDoTeste: subscriptions.trialEnd,
       cancelaEm: subscriptions.cancelAtPeriodEnd,
     })
     .from(subscriptions)
@@ -161,6 +167,9 @@ export async function lerFatosDoGrupo(
       id: ativa.id,
       status: ativa.status,
       productId: ativa.productId,
+      inicioDoPeriodo: ativa.currentPeriodStart,
+      fimDoPeriodo: ativa.currentPeriodEnd,
+      fimDoTeste: ativa.trialEnd,
       cancelaEm: ativa.cancelAtPeriodEnd,
     },
     assinaturaInativa: inativa,

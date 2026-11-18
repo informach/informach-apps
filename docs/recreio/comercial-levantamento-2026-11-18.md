@@ -42,6 +42,26 @@ Versão instalada no package: Stripe Node 22.1.0; adapter fixado na API
 
 ## Achado que deve ser resolvido antes da cobrança
 
+### Primeiro incremento em qualificação: prazo finito
+
+A candidata passa a carregar começo/fim do período e fim do teste ao domínio.
+Status ativo só concede capacidade no período vigente, com fim exclusivo;
+cancelamento e teste reduzem esse prazo. `trialing` sem fim do teste não
+concede acesso. Cortesia vigente continua sendo uma origem separada.
+
+Ingresso também recebe o limite relido sob trava (acesso/aparelho), sem alterar
+o teto de sessenta segundos. SID e renovação já usam o limite da mesma decisão
+do kernel; o incremento acrescenta provas de prazo e de renovação recusada
+quando o período persistido vence. Nenhum teste pesado foi executado localmente.
+Qualidade e testes serão executados no GitHub antes de integrar esta mudança.
+
+Isso fecha somente a lacuna temporal quando qualificado: o status espelhado
+ainda não substitui prova financeira, tratamento de estorno/contestação,
+conciliação e homologação real do Recreio com Stripe. Cobrança permanece
+desligada; nenhum preço, customer, assinatura ou charge foi criado.
+
+### Diagnóstico de origem
+
 O carregador do Recreio conserva status/produto/cancelamento, mas ainda não
 leva o começo/fim do período financeiro ao contrato de domínio. A decisão em
 `packages/recreio/src/dominio/acesso.ts` aceita status ativo e usa somente a
