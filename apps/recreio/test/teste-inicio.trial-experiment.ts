@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { AuditPersistenceError } from "@informach/auth";
 import { db, eq, sql } from "@informach/db";
 import {
@@ -36,18 +36,20 @@ import { adultoDoTeste, pedidoDeTeste } from "./teste-apoio";
 // chaves, sessões, tempo, PostgreSQL e ciclo financeiro são reais.
 vi.mock("@informach/config/jogos", async (original) => {
   const real = await original<typeof import("@informach/config/jogos")>();
+  const jogos = [
+    ...real.JOGOS,
+    {
+      ...real.JOGOS[0],
+      id: "jogo-de-teste",
+      nome: "Teste de admissão",
+      rota: "/jogar/jogo-de-teste",
+      classificacao: { faixa: "L", descritores: [], interacoes: [] },
+    },
+  ];
   return {
     ...real,
-    JOGOS: [
-      ...real.JOGOS,
-      {
-        ...real.JOGOS[0],
-        id: "jogo-de-teste",
-        nome: "Teste de admissão",
-        rota: "/jogar/jogo-de-teste",
-        classificacao: { faixa: "L", descritores: [], interacoes: [] },
-      },
-    ],
+    JOGOS: jogos,
+    jogoPorId: (id: string) => jogos.find((j) => j.id === id) ?? null,
   };
 });
 
@@ -75,7 +77,7 @@ describe("início real, único e atômico do teste", () => {
       podeJogar: false,
     });
     const ingresso = await ingressoDe(p.jogador),
-      chaveDeTroca = randomUUID();
+      chaveDeTroca = randomBytes(32).toString("base64url");
     expect(await estado(p)).toEqual({ claims: [], grants: [] });
     const primeira = await trocarIngresso({ ingresso, chaveDeTroca });
     const depois = await estado(p),
