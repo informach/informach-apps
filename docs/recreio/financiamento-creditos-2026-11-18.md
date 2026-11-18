@@ -223,3 +223,8 @@ Novos testes remotos verificam projeção, escrita, refresh, estorno, relógios,
 isolamento e rollback de auditoria. Os períodos core dessa prova do escritor
 são pré-condições sintéticas: a composição financeira raiz e a leitura de
 acesso ainda não usam o escritor. Nenhum serviço foi ativado ou implantado.
+
+`d890ec0e`: `44412938591` recusou tipos das fixtures (captura de contrato,
+nome `actorId` na auditoria e parâmetro HTTP ocultando o cliente). No gate
+`44412944839`, os 98 testes anteriores passaram e os seis novos pararam no
+endpoint sintético do cliente. Correção restrita às fixtures; repetir os gates.

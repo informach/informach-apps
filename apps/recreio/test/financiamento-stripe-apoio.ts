@@ -268,7 +268,7 @@ export function fixtureDeFinanciamento(
     else if (path === "/v1/disputes") body = list([{ id: "dp_funding", status: "needs_response" }]);
     else if (/^\/v1\/invoices\/[^/]+\/lines$/.test(path))
       body = list(lines.get(path.split("/")[3] ?? "") ?? []);
-    else if (path === `/v1/customers/${input.clienteId}`) {
+    else if (path === `/v1/customers/${escopo.clienteId ?? "cus_funding"}`) {
       balanceReads++;
       body = {
         id: escopo.clienteId ?? "cus_funding",
@@ -278,7 +278,7 @@ export function fixtureDeFinanciamento(
         invoice_credit_balance: { brl: -balance },
         email: "not-returned@example.test",
       };
-    } else if (path === `/v1/customers/${input.clienteId}/balance_transactions`) {
+    } else if (path === `/v1/customers/${escopo.clienteId ?? "cus_funding"}/balance_transactions`) {
       if (url.searchParams.get("limit") === "1") {
         const first = ledger[0];
         if (!first) throw new Error("Missing closed ledger head");

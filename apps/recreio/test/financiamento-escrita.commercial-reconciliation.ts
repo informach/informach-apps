@@ -36,8 +36,12 @@ async function fixture() {
     relatarFalha: () => {},
   });
   expect((await processar()).conciliadas).toBe(1);
-  const [contrato] = await db.select().from(contracts).where(eq(contracts.purchaseId, f.recibo.id));
-  if (!contrato) throw new Error("Native contract absent");
+  const [encontrado] = await db
+    .select()
+    .from(contracts)
+    .where(eq(contracts.purchaseId, f.recibo.id));
+  if (!encontrado) throw new Error("Native contract absent");
+  const contrato = encontrado;
   const financeiro = fixtureDeFinanciamento({
     paganteId: f.adulto.conta.id,
     autorizacaoId: f.recibo.id,
@@ -149,7 +153,7 @@ describe("escrita nativa das provas de financiamento", () => {
       .from(events)
       .where(
         and(
-          eq(events.userId, f.adulto.conta.id),
+          eq(events.actorId, f.adulto.conta.id),
           eq(events.eventType, "recreio.payment_funding_observed"),
         ),
       );
@@ -187,7 +191,7 @@ describe("escrita nativa das provas de financiamento", () => {
         .from(events)
         .where(
           and(
-            eq(events.userId, f.adulto.conta.id),
+            eq(events.actorId, f.adulto.conta.id),
             eq(events.eventType, "recreio.payment_funding_observed"),
           ),
         ),
