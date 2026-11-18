@@ -57,6 +57,7 @@ export async function admitirNotificacaoFinanceira(entrada: {
         eventType: entrada.eventType,
         objectId: entrada.objectId,
         created: entrada.created,
+        adverse: entrada.adverso,
       });
       if (!recibo.admitted) return { status: "duplicate" as const };
       await agendarConciliacaoDaCompra(tx, {
@@ -93,8 +94,7 @@ export async function admitirNotificacaoFinanceira(entrada: {
           eventType: entrada.eventType,
           adverse: entrada.adverso,
         },
-        undefined,
-        tx,
+        { writer: tx },
       );
       return { status: "scheduled" as const };
     }),

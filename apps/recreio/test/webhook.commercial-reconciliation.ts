@@ -103,6 +103,7 @@ describe("webhook nativo assinado e reconciliação financeira", () => {
       created: evento.created,
       livemode: false,
       objectId: f.pago.fatura.id,
+      adverse: false,
     });
     expect((await f.processar()).conciliadas).toBe(1);
   });

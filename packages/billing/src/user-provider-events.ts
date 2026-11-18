@@ -21,6 +21,7 @@ export async function recordUserProviderNotification(
     eventType: string;
     objectId: string;
     created: number;
+    adverse: boolean;
   },
 ) {
   if (
@@ -54,6 +55,7 @@ export async function recordUserProviderNotification(
     objectId: input.objectId,
     created: input.created,
     livemode: input.mode === "prod",
+    adverse: input.adverse,
   };
   const [inserted] = await tx
     .insert(webhookEvents)
