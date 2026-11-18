@@ -16,6 +16,7 @@ import {
   MARGEM_DE_SALVAMENTO_S,
   VisitaAbertaSchema,
 } from "@informach/recreio/contrato";
+import { criarRecreio } from "@informach/recreio/sdk";
 import { afterEach, expect, it, vi } from "vitest";
 import { selecionarPerfil } from "@/features/perfis/service";
 import { resolverAtor } from "@/features/sessao/service";
@@ -55,7 +56,7 @@ import {
   novaInstancia,
   OUTRO_JOGO,
 } from "./jogo-apoio";
-import { pedir } from "./rotas";
+import { despachar, ORIGEM, pedir } from "./rotas";
 import { referenciaSocial } from "./social-apoio";
 
 type Cenario = Awaited<ReturnType<typeof cenario>>;
@@ -109,6 +110,46 @@ function foto(c: Cenario, revisaoEsperada: number) {
     bytes: new TextEncoder().encode(JSON.stringify({ contador: 9 })),
   });
 }
+
+it("SDK real abre a finalidade de visita e a instância confirma/encerra o SID sem participação permanente", async () => {
+  const c = await cenario();
+  const contexto = await criarRecreio({
+    baseUrl: ORIGEM,
+    jogo: OUTRO_JOGO,
+    visitas: true,
+    visitaId: c.visitaId,
+    obterIngresso: async () => c.pedido.ingresso,
+    fetch: despachar,
+    agendar: () => () => {},
+  });
+  if (!contexto.visita) throw new Error("Finalidade de visita ausente no SDK");
+  const aberta = await contexto.visita.abrir(),
+    sid = SessaoDeJogoIdSchema.parse(claimsDe(contexto.sessao.token()).sid);
+  expect(aberta.mundoId).toBe(c.mundoId);
+  expect((await db.select().from(games).where(eq(games.id, sid)))[0]?.spaceId).toBeNull();
+  const entrada = await c.instancia.cliente.verificarEntradaDeVisita({
+    mundoId: aberta.mundoId,
+    cerca: c.posse.cerca,
+    sid,
+    perfilId: contexto.perfil.profileId,
+    visitaId: contexto.visita.id,
+  });
+  expect(entrada.visitaId).toBe(c.visitaId);
+  await expect(contexto.mundos.abrir(c.mundoId)).rejects.toMatchObject({ codigo: "SEM_PERMISSAO" });
+  await contexto.sessao.sair();
+  expect(
+    await c.instancia.cliente.encerrarSessaoDeVisita({
+      mundoId: c.mundoId,
+      cerca: c.posse.cerca,
+      sid,
+      perfilId: contexto.perfil.profileId,
+      visitaId: c.visitaId,
+      sessaoDeVisitaId: entrada.sessaoDeVisitaId,
+      motivo: "sair",
+    }),
+  ).toMatchObject({ sidEncerrado: true, visitaEncerrada: true });
+  expect(await db.select().from(members).where(eq(members.spaceId, c.mundoId))).toHaveLength(1);
+});
 
 it.each(["host", "concessao", "sid", "posse", "mundo"] as const)(
   "manutenção recolhe perda de %s sem depender da instância",

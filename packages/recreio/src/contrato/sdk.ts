@@ -198,6 +198,8 @@ export type MudancaDeAcesso = {
 };
 
 export interface RecreioGameContext {
+  /** Finalidade fixa; ausência não autoriza abrir uma visita pelo protocolo de membro. */
+  visita?: import("./visitas").VisitaDoJogador;
   /** Ausente sem negociação. Desligar novos contatos conserva leitura/proteção autorizadas. */
   social?: import("./social").SocialDoPerfil;
   dados: DadosDoPerfil;

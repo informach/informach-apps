@@ -87,6 +87,13 @@ export const VisitaAbertaSchema = z.strictObject({
 });
 export type VisitaAberta = z.infer<typeof VisitaAbertaSchema>;
 
+/** Disponível apenas no contexto criado com finalidade de visita confirmada pelo servidor. */
+export interface VisitaDoJogador {
+  readonly id: string;
+  /** Encontra a posse original, sem criar participação permanente ou alocar outra instância. */
+  abrir(): Promise<VisitaAberta>;
+}
+
 export const VISITAS_POR_RENOVACAO_MAX = 64;
 export const RenovacaoDeVisitaSchema = PedidoDeEntradaDeVisitaSchema.extend({
   mundoId: MundoIdSchema,

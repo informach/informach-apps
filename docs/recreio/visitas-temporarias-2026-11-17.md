@@ -705,3 +705,30 @@ com cancelamento/erro original; permanecem as provas de timeout e corpo
 pendurado. Novo ensaio remoto precisa confirmar a correção no navegador.
 Sem fallback de leitura, atraso, retry ou afrouxamento do teste.
 Referência: [Fetch, abortar uma operação](https://fetch.spec.whatwg.org/#abort-fetch).
+
+Órfãs `d89fa2c1` terminou `44244955296` com sete gates aprovados, incluindo
+E2E. Integração teve 992 aprovações e somente as duas fixtures de `false`
+já identificadas; o incremento não fica homologado por isso. Correção
+`abcce468` segue em qualificação remota (`44246163559`).
+
+## Finalidade no SDK candidata
+
+`criarRecreio` negocia visitas explicitamente e recebe `visitaId` antes da
+troca de ingresso. UUID/capacidade inválidos são recusados antes de qualquer
+pedido; servidor sem confirmação exata da finalidade não cria contexto ou
+agenda renovação. `contexto.visita` só existe no SID de visitante confirmado,
+com ID fixo e `abrir()` para a API própria. Resposta divergente ou de membro
+é recusada, sem fallback de autoridade ou repetição do pedido. Contexto de
+anfitrião/cliente anterior não ganha uma finalidade de visitante.
+
+O SDK usa o token atual após renovar e bloqueia chamadas depois de sair.
+`mundos.abrir` não é o caminho de visita, mesmo que a participação tenha
+mudado depois; os leitores do servidor também mantêm essa barreira. Esta
+capacidade não cria membro, aprova convite ou admite na instância por si só.
+
+Regressões candidatas cobrem negociação, IDs, versões, respostas divergentes,
+rede, token renovado e saída. Uma integração usa SDK e transporte reais até
+as rotas, admissão/encerramento autenticados da instância e a prova de que
+continua havendo só o membro original. Sem temporizador de renovação em
+segundo plano nessa fixture; não é ensaio de tempo/desempenho. Gates pendentes.
+O runtime, portal e interface de convites ainda não consomem esta finalidade.

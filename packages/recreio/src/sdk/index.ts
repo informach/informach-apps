@@ -65,7 +65,9 @@ import {
   type SocialDoPerfil,
 } from "../contrato/social";
 import { FRACAO_PARA_RENOVAR } from "../contrato/tokens";
+import { VisitaAbertaSchema, type VisitaDoJogador } from "../contrato/visitas";
 import { ErroDoRecreio, ehErroDoRecreio } from "../dominio/erros";
+import { UuidSchema } from "../dominio/ids";
 import { base64ParaBytes, bytesParaBase64 } from "../transporte/bytes";
 import { type Buscar, erroDaResposta, lerCorpo, pedir, semBarraFinal } from "../transporte/http";
 import { comPrazoDePedido, TEMPO_LIMITE_DO_PEDIDO_MS } from "../transporte/prazo";
@@ -107,6 +109,10 @@ export type OpcoesDoRecreio = {
   social?: boolean;
   /** Requer social; publicar depois dos endpoints e leitores dos convites dirigidos. */
   convitesDirigidos?: boolean;
+  /** Negociação explícita; publicar após admissão/renovação/encerramento da instância. */
+  visitas?: boolean;
+  /** Finalidade do próximo SID. Não é uma credencial ou prova de entrada. */
+  visitaId?: string;
   /** Aguarda o ACK de outro aparelho, conservando o mesmo ingresso e prova. */
   aguardarCheckpoint?: boolean;
   aoAguardarCheckpoint?: () => void;
@@ -123,6 +129,10 @@ const agendarComTimeout: Agendar = (chamar, emMs) => {
 };
 
 export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGameContext> {
+  const finalidade = opcoes.visitaId === undefined ? null : UuidSchema.safeParse(opcoes.visitaId);
+  if (finalidade && (!finalidade.success || opcoes.visitas !== true))
+    throw new ErroDoRecreio("ENTRADA_INVALIDA");
+  const visitaId = finalidade?.success ? finalidade.data : undefined;
   const buscar: Buscar = opcoes.fetch ?? ((url, init) => fetch(url, init));
   const agora = opcoes.agora ?? (() => Date.now());
   const agendar = opcoes.agendar ?? agendarComTimeout;
@@ -167,6 +177,8 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       ...(opcoes.salvamentoRestrito ? { suportaSalvamento: true } : {}),
       ...(opcoes.social ? { suportaSocial: true } : {}),
       ...(opcoes.social && opcoes.convitesDirigidos ? { suportaConvitesDirigidos: true } : {}),
+      ...(opcoes.visitas ? { suportaVisitas: true } : {}),
+      ...(visitaId === undefined ? {} : { visitaId }),
     },
   } as const;
   const aberta = await (async () => {
@@ -206,6 +218,8 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       }
     }
   })();
+  if (aberta.visitaId !== visitaId || (visitaId !== undefined && aberta.visitas !== true))
+    throw new ErroDoRecreio("INDISPONIVEL");
 
   let token = aberta.token;
   let expiraEm = aberta.expiraEm;
@@ -539,7 +553,24 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       });
     },
   };
+  const visita: VisitaDoJogador | undefined =
+    visitaId === undefined
+      ? undefined
+      : {
+          id: visitaId,
+          async abrir() {
+            exigirSessao();
+            const aberta = await enviar("/visitas/abrir", VisitaAbertaSchema, {
+              method: "POST",
+              token,
+              corpo: { visitaId },
+            });
+            if (aberta.visitaId !== visitaId) throw new ErroDoRecreio("INDISPONIVEL");
+            return aberta;
+          },
+        };
   return {
+    ...(visita ? { visita } : {}),
     ...(opcoes.social && aberta.social ? { social } : {}),
     dados: {
       async ler(chave) {
@@ -703,6 +734,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       },
       async abrir(id) {
         exigirSessao();
+        if (visita) throw new ErroDoRecreio("SEM_PERMISSAO");
         return enviar(`${mundo(id)}/abrir`, MundoAbertoSchema, { method: "POST", token });
       },
       async convidar(id, convite) {
@@ -719,6 +751,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
 
 export type { ControleDaSessao } from "../contrato/sdk";
 export type { ProtecaoDeContato, SocialDoPerfil } from "../contrato/social";
+export type { VisitaAberta, VisitaDoJogador } from "../contrato/visitas";
 export type { JogoMontado, ModuloDoJogo, OpcoesDeMontagem } from "./modulo";
 export type { MudancaDeAcesso, RecreioGameContext };
 /**
