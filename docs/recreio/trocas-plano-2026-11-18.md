@@ -75,5 +75,14 @@ adicionada à compra inclui sua chave primária. A geração e a prova das
 restrições precisam terminar antes de compor qualquer escritor ou habilitar
 trocas. Não alterar SQL/snapshot/journal gerados manualmente.
 
+A geração `44341859833`, fonte `014687cf`, foi inspecionada e recusada sem
+adoção: o Drizzle posicionou as FKs novas antes da `UNIQUE` composta na compra.
+O artefato permanece arquivado com hashes; não foi aplicado nem copiado para o
+journal. A geração fica dividida: primeiro exportar somente a nova chave da
+compra; depois, com a migração preparatória adotada, exportar as tabelas de
+troca e gerar a migração seguinte. O arquivo `recreio-planos.ts` fica fora da
+exportação do schema apenas durante essa preparação. Nenhum escritor depende
+dele nesta candidata intermediária.
+
 O catálogo de teste já possui evidência própria; isso não comprova trocas ou
 pagamentos. Nenhuma DDL F6 ou alteração comercial foi implantada em produção.
