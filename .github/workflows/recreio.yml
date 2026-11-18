@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gate: [quality, integration, trial-setup, e2e, checkpoint, cliente, longa, versoes, equipe]
+        gate: [quality, integration, trial-setup, trial-ui, e2e, checkpoint, cliente, longa, versoes, equipe]
     services:
       postgres:
         image: postgres:18-alpine
@@ -113,12 +113,14 @@ jobs:
           path: ${{ runner.temp }}/morada-processo.json
           if-no-files-found: warn
           retention-days: 30
-      - if: matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe'
+      - if: matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe' || matrix.gate == 'trial-ui'
         run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
       - if: matrix.gate == 'e2e'
         run: pnpm --filter @informach/recreio-app e2e
       - if: matrix.gate == 'equipe'
         run: pnpm --filter @informach/recreio-app e2e:equipe
+      - if: matrix.gate == 'trial-ui'
+        run: pnpm --filter @informach/recreio-app e2e:trial-setup
       - if: matrix.gate == 'checkpoint'
         run: pnpm --filter @informach/recreio-app e2e --config playwright.checkpoint.config.ts
         env:
@@ -210,6 +212,16 @@ jobs:
           path: |
             apps/recreio/tmp/telas/visitas-gestao-mobile.png
             apps/recreio/tmp/telas/visitas-partida-mobile.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve synthetic trial consent screens
+        if: always() && matrix.gate == 'trial-ui'
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-teste-telas-${{ github.run_attempt }}
+          path: |
+            apps/recreio/tmp/telas/teste-consentimento-mobile.png
+            apps/recreio/tmp/telas/teste-recibo-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic staff queue screen

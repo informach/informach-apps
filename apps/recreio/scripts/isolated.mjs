@@ -20,12 +20,13 @@ const app = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = resolve(app, "../..");
 loadEnv({ path: resolve(root, ".env") });
 const mode = process.argv[2];
-if (!["integration", "trial-setup", "e2e", "versoes", "equipe"].includes(mode))
-  throw new Error("Choose integration, trial-setup, e2e, versoes or equipe");
+if (!["integration", "trial-setup", "e2e-trial-setup", "e2e", "versoes", "equipe"].includes(mode))
+  throw new Error("Choose integration, trial-setup, e2e-trial-setup, e2e, versoes or equipe");
 const trialSetup = mode === "trial-setup";
+const jornadaDoTeste = mode === "e2e-trial-setup";
 const versoes = mode === "versoes";
 const equipe = mode === "equipe";
-const e2e = mode === "e2e" || versoes || equipe;
+const e2e = mode === "e2e" || versoes || equipe || jornadaDoTeste;
 const baseUrl = process.env.DATABASE_URL;
 const pnpmCli = process.env.npm_execpath;
 if (!baseUrl || !pnpmCli)
@@ -101,7 +102,7 @@ const testEnv = {
   EMAIL_SANDBOX_MODE: e2e ? "sandbox" : "memory",
   ...(emailsPath ? { EMAIL_SANDBOX_DIR: emailsPath.replaceAll("\\", "/") } : {}),
   RECREIO_ACCESS_MODE: "fechado",
-  RECREIO_TRIAL_MODE: trialSetup ? "setup" : "off",
+  RECREIO_TRIAL_MODE: trialSetup || jornadaDoTeste ? "setup" : "off",
   RECREIO_FAMILY_MODE: "play",
   RECREIO_SOCIAL_MODE: "on",
   RECREIO_VISITS_MODE: "on",
@@ -183,7 +184,8 @@ try {
   console.log(`[recreio] Isolated local database created: ${name}`);
   run(["--filter", "@informach/db", "db:migrate"], root);
   if (e2e) {
-    if (!versoes && !equipe) run(["--filter", "@informach/morada-server", "build"], root);
+    if (!versoes && !equipe && !jornadaDoTeste)
+      run(["--filter", "@informach/morada-server", "build"], root);
     run(["exec", "next", "build"], app);
     // Mesmo artefato do Railway: o standalone precisa de public/ e static/.
     const buildPath = generatedPaths[0];
@@ -216,6 +218,7 @@ try {
           "playwright",
           "test",
           ...(equipe ? ["--config", "playwright.equipe.config.ts"] : []),
+          ...(jornadaDoTeste ? ["--config", "playwright.teste.config.ts"] : []),
           ...process.argv.slice(3),
         ],
         app,

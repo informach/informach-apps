@@ -12,6 +12,7 @@
     "test:integration": "node scripts/isolated.mjs integration",
     "test:trial-setup": "node scripts/isolated.mjs trial-setup",
     "e2e": "node scripts/isolated.mjs e2e",
+    "e2e:trial-setup": "node scripts/isolated.mjs e2e-trial-setup",
     "e2e:versoes": "node scripts/isolated.mjs versoes",
     "e2e:equipe": "node scripts/isolated.mjs equipe",
     "jogo-de-teste": "node --import tsx e2e/servidor/main.ts",
