@@ -141,3 +141,37 @@ atual aplicada recusa e reverte a captura; nunca reinicializa a origem. Isso
 prepara a integração da aplicação atômica, sem acrescentar por si só um writer
 de aplicação ou conceder acesso. Os novos cenários de PostgreSQL ainda precisam
 de verificação remota.
+
+## Candidata de aplicação pela conciliação
+
+`674108a4`/`44375962598` e `d3be3e81`/`44376709321` encontraram a mesma
+violação da fronteira de leitura: o repository do envio importava a tabela
+comum de assinaturas. O gate financeiro da primeira fonte passou, mas isso
+não qualifica a fonte inteira. A consulta foi movida para a porta centralizada
+`features/acesso/repository`, com escopo explícito por contrato e pagante;
+nenhuma exceção foi acrescentada ao teste da fronteira.
+
+A nova candidata compõe uma capacidade de recuperação no worker financeiro.
+Somente tentativas de redução anteriormente admitidas podem chamar o adapter;
+cotação ou aceite sem envio não autorizam POST. Sem a capacidade configurada,
+uma tentativa pendente continua sendo falha operacional. A identidade do pagante
+vem da reserva/lease, sem fabricar uma sessão de navegador.
+
+Uma agenda observada como aplicada ainda precisa corresponder à assinatura,
+compra original, modo, revisão e fase presentes na leitura financeira completa.
+A transação captura o recibo aplicado, oferta atual, seleção/revisão e todos os
+fatos financeiros; o mesmo commit confirma a fila e revalida as sessões usando
+os perfis após a captura. Uma renovação não paga altera o contrato comercial,
+mas continua sem acesso pago. Perfil alterado conserva os dados e os fatos,
+mantendo `coverageReviewRequired` até uma nova seleção nativa.
+
+Os novos casos PostgreSQL/SDK fechado atravessam o fim real do período usando
+o relógio do próprio PostgreSQL no GitHub. Não alteram termos aceitos nem datas
+de faturas já persistidas para simular a aplicação. Cobrem seleção válida,
+seleção divergente, renovação sem pagamento e rollback integral por auditoria
+ou histórico financeiro divergente. São provas em transporte fechado, ainda
+pendentes dos gates; não comprovam uma jornada nativa no Stripe externo.
+
+Resolução nativa da revisão da seleção, cancelamento após envio, upgrades,
+créditos anuais, telas e homologação comercial integral continuam pendentes.
+Nenhum serviço ou fluxo comercial foi ativado em produção.

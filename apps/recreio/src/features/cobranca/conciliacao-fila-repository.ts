@@ -3,7 +3,11 @@ import { randomUUID } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
 import type { StripeMode } from "@informach/config";
 import { and, db, eq, isNull, lte, or, sql } from "@informach/db";
-import { customers, recreioBillingReconciliations as jobs } from "@informach/db/schema";
+import {
+  customers,
+  recreioBillingReconciliations as jobs,
+  recreioProfiles as profiles,
+} from "@informach/db/schema";
 import { ContaIdSchema, GrupoIdSchema } from "@informach/recreio";
 import { revalidarSessoesDoGrupo } from "@/features/acesso/teste-repository";
 import {
@@ -203,6 +207,23 @@ function conferirTentativa(prova: TentativaDeConciliacao, linha: Linha) {
   );
 }
 
+/** Narrow admission for recovery of already persisted commercial attempts.
+ * The reader cannot renew a lease or fabricate the payer's browser session. */
+export function lerDadosDaConciliacaoLocked<T>(
+  prova: TentativaDeConciliacao,
+  ler: (tx: Transacao) => Promise<T>,
+) {
+  return comTrabalho(prova, async (tx, linha, _grupo, agora) => {
+    conferirTentativa(prova, linha);
+    assertAllowed(
+      linha.leaseUntil && linha.leaseUntil > agora,
+      "CONFLITO",
+      "A reserva da conciliação venceu.",
+    );
+    return ler(tx);
+  });
+}
+
 /** Keeps the last payment confirmation unchanged. Review and SID cuts commit together. */
 export function registrarFalhaDaConciliacaoLocked(
   prova: TentativaDeConciliacao,
@@ -286,7 +307,15 @@ export function confirmarConciliacaoLocked(
       .where(
         and(eq(jobs.payerUserId, prova.payerUserId), eq(jobs.providerMode, prova.providerMode)),
       );
-    await revalidarSessoesDoGrupo(tx, grupo, agora);
+    // Application may change coverage/revisions inside persistir. Revalidate
+    // using the rows now held by this transaction, never the pre-capture copy.
+    const perfisAtuais = await tx
+      .select()
+      .from(profiles)
+      .where(eq(profiles.groupId, grupo.grupo.id))
+      .orderBy(profiles.id)
+      .for("update");
+    await revalidarSessoesDoGrupo(tx, { ...grupo, perfis: perfisAtuais }, agora);
     await logAuditEventStrict(
       "recreio.billing_reconciled",
       null,

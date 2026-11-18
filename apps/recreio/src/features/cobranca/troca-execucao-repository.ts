@@ -6,15 +6,14 @@ import type {
   RecreioPlanScheduleInput,
 } from "@informach/billing/providers/stripe-plans";
 import type { Product, StripeMode } from "@informach/config";
-import { and, db, eq, sql } from "@informach/db";
+import { and, db, eq, isNotNull, isNull, sql } from "@informach/db";
 import {
   recreioPlanChanges as changes,
-  customers,
   recreioPlanChangeProfiles as selections,
-  subscriptions,
 } from "@informach/db/schema";
 import { ContaIdSchema, GrupoIdSchema } from "@informach/recreio";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
+import { lerOrigemDaAssinaturaParaTroca } from "@/features/acesso/repository";
 import {
   admitirGrupoDaConciliacao,
   admitirGrupoDoTitular,
@@ -22,7 +21,11 @@ import {
 } from "@/features/grupo/autoridade-repository";
 import { assertAllowed } from "@/lib/errors";
 import { AGORA, type Transacao } from "@/lib/repository";
-import { agendarConciliacaoDaCompra } from "./conciliacao-fila-repository";
+import {
+  agendarConciliacaoDaCompra,
+  lerDadosDaConciliacaoLocked,
+  type TentativaDeConciliacao,
+} from "./conciliacao-fila-repository";
 import { lerContratoParaTrocaLocked } from "./troca-contexto-repository";
 import { reciboDaTroca } from "./troca-cotacao-repository";
 import { conferirSelecaoDaTroca, perfisParaSelecionarNaTroca } from "./troca-selecao";
@@ -40,6 +43,100 @@ export type TentativaDeTroca = {
   readonly scheduleId: string | null;
   readonly entrada: RecreioPlanScheduleInput;
 };
+const OBSERVADA = Symbol("recreio.plan-change.observed");
+export type AgendaDaTrocaObservada = {
+  readonly [OBSERVADA]: true;
+  readonly tentativa: TentativaDeTroca;
+  readonly scheduleId: string;
+  readonly estado: PlanScheduleOutcome;
+};
+
+export function conferirAgendaObservada(observacao: AgendaDaTrocaObservada, linha: Linha) {
+  assertAllowed(
+    observacao[OBSERVADA] === true &&
+      observacao.tentativa[ADMITIDA] === true &&
+      observacao.tentativa.id === linha.id &&
+      observacao.tentativa.termos === termos(linha) &&
+      observacao.scheduleId === linha.providerScheduleId,
+    "ORIGEM_FINANCEIRA",
+    "A observação da troca não corresponde ao recibo admitido.",
+  );
+}
+
+function provaDaLinha(linha: Linha, customerId: string, subscriptionId: string): TentativaDeTroca {
+  assertAllowed(linha.requestStartedAt, "COBRANCA", "Tentativa não admitida.");
+  return {
+    [ADMITIDA]: true,
+    id: linha.id,
+    paganteId: linha.payerUserId,
+    grupoId: linha.groupId,
+    modo: linha.providerMode,
+    assinatura: subscriptionId,
+    termos: termos(linha),
+    scheduleId: linha.providerScheduleId,
+    entrada: {
+      intentId: linha.id,
+      customerId,
+      subscriptionId,
+      fromPriceId: linha.fromPriceId,
+      toPriceId: linha.toPriceId,
+      toProductId: linha.toProductId,
+      interval: linha.toInterval,
+      effectiveAt: linha.effectiveAt,
+      requestStartedAt: linha.requestStartedAt,
+      origin: {
+        authorizationId: linha.purchaseId,
+        productId: linha.originProductId,
+        payerId: linha.payerUserId,
+      },
+    },
+  };
+}
+
+/** Only a leased financial attempt can recover an already admitted reduction.
+ * Quoted/accepted rows are not authority for a technical provider mutation. */
+export function lerTrocaDaConciliacaoLocked(prova: TentativaDeConciliacao) {
+  return lerDadosDaConciliacaoLocked(prova, async (tx) => {
+    assertAllowed(prova.customer, "COBRANCA", "Cliente financeiro não confirmado.");
+    const linhas = await tx
+      .select()
+      .from(changes)
+      .where(
+        and(
+          eq(changes.payerUserId, prova.payerUserId),
+          eq(changes.groupId, prova.groupId),
+          eq(changes.providerMode, prova.providerMode),
+          isNull(changes.resolvedAt),
+          isNotNull(changes.requestStartedAt),
+        ),
+      )
+      .limit(2)
+      .for("update");
+    assertAllowed(
+      linhas.length <= 1,
+      "ORIGEM_FINANCEIRA",
+      "Há trocas simultâneas que exigem conferência.",
+    );
+    const atual = linhas[0];
+    if (!atual) return null;
+    const origem = await lerOrigemDaAssinaturaParaTroca(
+      tx,
+      atual.subscriptionId,
+      prova.payerUserId,
+    );
+    assertAllowed(
+      origem &&
+        origem.customerId === prova.customer.id &&
+        origem.providerCustomerId === prova.customer.providerCustomerId &&
+        atual.kind === "downgrade" &&
+        atual.acceptedAt &&
+        ["sent", "scheduled"].includes(atual.status),
+      "ORIGEM_FINANCEIRA",
+      "A tentativa comercial exige conferência.",
+    );
+    return provaDaLinha(atual, origem.providerCustomerId, origem.providerSubscriptionId);
+  });
+}
 
 function termos(linha: Linha) {
   return createHash("sha256")
@@ -168,29 +265,12 @@ async function comEnvio<T>(
         perfisParaSelecionarNaTroca(atual.perfis, atual.vinculos),
       );
     }
-    const [origem] = await tx
-      .select({
-        customerId: customers.providerCustomerId,
-        providerSubscriptionId: subscriptions.providerSubscriptionId,
-      })
-      .from(subscriptions)
-      .innerJoin(customers, eq(subscriptions.customerId, customers.id))
-      .where(
-        and(
-          eq(subscriptions.id, linha.subscriptionId),
-          eq(subscriptions.provider, "stripe"),
-          eq(customers.provider, "stripe"),
-          eq(customers.app, "recreio"),
-          eq(customers.subjectType, "user"),
-          eq(customers.subjectId, autor.contaId),
-        ),
-      )
-      .for("share");
+    const origem = await lerOrigemDaAssinaturaParaTroca(tx, linha.subscriptionId, autor.contaId);
     assertAllowed(origem, "COBRANCA", "A origem financeira da troca exige conferência.");
     const resultado = await executar(
       tx,
       linha,
-      origem.customerId,
+      origem.providerCustomerId,
       origem.providerSubscriptionId,
       agora,
     );
@@ -276,33 +356,7 @@ export function admitirTentativaDaTrocaLocked(
       grupoId: linha.groupId,
       modo,
     });
-    const prova: TentativaDeTroca = {
-      [ADMITIDA]: true,
-      id: linha.id,
-      paganteId: linha.payerUserId,
-      grupoId: linha.groupId,
-      modo,
-      assinatura: subscriptionId,
-      termos: termos(linha),
-      scheduleId: linha.providerScheduleId,
-      entrada: {
-        intentId: linha.id,
-        customerId,
-        subscriptionId,
-        fromPriceId: linha.fromPriceId,
-        toPriceId: linha.toPriceId,
-        toProductId: linha.toProductId,
-        interval: linha.toInterval,
-        effectiveAt: linha.effectiveAt,
-        requestStartedAt: linha.requestStartedAt,
-        origin: {
-          authorizationId: linha.purchaseId,
-          productId: linha.originProductId,
-          payerId: linha.payerUserId,
-        },
-      },
-    };
-    return prova;
+    return provaDaLinha(linha, customerId, subscriptionId);
   });
 }
 
@@ -310,7 +364,7 @@ export async function capturarAgendaDaTrocaLocked(
   prova: TentativaDeTroca,
   scheduleId: string | null,
   observado: PlanScheduleOutcome | "identified" | "unconfirmed",
-) {
+): Promise<AgendaDaTrocaObservada | undefined> {
   assertAllowed(prova[ADMITIDA], "COBRANCA", "Tentativa não admitida.");
   if (scheduleId !== null)
     assertAllowed(
@@ -392,6 +446,15 @@ export async function capturarAgendaDaTrocaLocked(
           },
           { writer: tx },
         );
+        if (scheduleId && observado !== "identified" && observado !== "unconfirmed") {
+          const observacao: AgendaDaTrocaObservada = {
+            [OBSERVADA]: true,
+            tentativa: prova,
+            scheduleId,
+            estado: observado,
+          };
+          return observacao;
+        }
       });
     } catch (error) {
       if (error instanceof ComposicaoDoGrupoMudou && repeticao === 0) continue;

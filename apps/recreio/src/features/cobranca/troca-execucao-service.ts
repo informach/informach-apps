@@ -7,11 +7,11 @@ import { limitarTentativas } from "@/lib/rate-limit";
 import { comCicloDeCobranca } from "./lifecycle";
 import {
   admitirTentativaDaTrocaLocked,
-  capturarAgendaDaTrocaLocked,
   conferirResultadoDaTrocaNoBanco,
   conferirTrocaParaEnvioLocked,
 } from "./troca-execucao-repository";
 import type { RuntimeDeEnvioDaTroca } from "./troca-execucao-runtime";
+import { recuperarAgendaAdmitida } from "./troca-recuperacao-service";
 
 function criarOperacao(obterRuntime: () => RuntimeDeEnvioDaTroca, somenteRecuperacao: boolean) {
   return async (autor: AutorNativoRecente, entrada: unknown) => {
@@ -48,40 +48,9 @@ function criarOperacao(obterRuntime: () => RuntimeDeEnvioDaTroca, somenteRecuper
         runtime.produtos,
         somenteRecuperacao,
       );
-      const entrada = { ...prova.entrada, budget };
-      let agenda = prova.scheduleId;
-      const conferirPrazo = () =>
-        assertAllowed(
-          Date.now() < budget.deadlineMs,
-          "COBRANCA_EM_CONFERENCIA",
-          "A confirmação da troca excedeu o prazo de leitura.",
-        );
-      let falha: unknown;
-      try {
-        conferirPrazo();
-        agenda ??= await runtime.agendas.create(entrada);
-        conferirPrazo();
-        await capturarAgendaDaTrocaLocked(prova, agenda, "identified");
-        const estado = await runtime.agendas.reconcile({
-          ...entrada,
-          scheduleId: agenda,
-          cancel: false,
-        });
-        conferirPrazo();
-        await capturarAgendaDaTrocaLocked(prova, agenda, estado);
-      } catch (error) {
-        falha = error;
-        try {
-          await capturarAgendaDaTrocaLocked(prova, agenda, "unconfirmed");
-        } catch (captura) {
-          throw new AggregateError(
-            [error, captura],
-            "A operação externa e seu registro exigem conferência.",
-          );
-        }
-      }
+      const { falhou } = await recuperarAgendaAdmitida(prova, runtime.agendas, budget);
       const resultado = await conferirResultadoDaTrocaNoBanco(autor, id, runtime.modo);
-      if (falha)
+      if (falhou)
         throw new AppError(
           "COBRANCA_EM_CONFERENCIA",
           "Não foi possível confirmar a troca. Confira o pedido antes de tentar novamente.",

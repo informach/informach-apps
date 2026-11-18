@@ -103,6 +103,7 @@ export async function fixtureDePagamento(
   extensao?: (request: Request) => Promise<Response | null>,
 ) {
   let financeiro: ReturnType<typeof dados> | null = null;
+  const renovacoes: ReturnType<typeof dados>[] = [];
   let indisponivel = false;
   const list = (data: unknown[]) => ({ object: "list", data, has_more: false, url: "/fixture" });
   const f: Checkout = await fixtureDeCheckout(
@@ -121,15 +122,27 @@ export async function fixtureDePagamento(
         resposta = financeiro.assinatura;
       } else if (financeiro && url.pathname === "/v1/invoices") {
         expect(url.searchParams.get("subscription")).toBe(financeiro.assinatura.id);
-        resposta = list(financeiro.pago ? [financeiro.fatura] : []);
+        resposta = list([financeiro, ...renovacoes].filter((f) => f.pago).map((f) => f.fatura));
       } else if (financeiro && url.pathname === "/v1/invoice_payments") {
-        expect(url.searchParams.get("invoice")).toBe(financeiro.fatura.id);
-        resposta = list([financeiro.alocacao]);
-      } else if (financeiro && url.pathname === `/v1/payment_intents/${financeiro.pagamento.id}`)
-        resposta = financeiro.pagamento;
-      else if (financeiro && url.pathname === `/v1/invoices/${financeiro.fatura.id}/lines`)
-        resposta = list([financeiro.linha]);
-      else if (financeiro && url.pathname === "/v1/disputes") resposta = list(financeiro.disputas);
+        const fatura = [financeiro, ...renovacoes].find(
+          (f) => f.fatura.id === url.searchParams.get("invoice"),
+        );
+        if (!fatura) throw new Error("Closed invoice outside fixture scope");
+        resposta = list([fatura.alocacao]);
+      } else if (financeiro && url.pathname.startsWith("/v1/payment_intents/")) {
+        const fatura = [financeiro, ...renovacoes].find(
+          (f) => url.pathname === `/v1/payment_intents/${f.pagamento.id}`,
+        );
+        if (!fatura) return null;
+        resposta = fatura.pagamento;
+      } else if (financeiro && /^\/v1\/invoices\/[^/]+\/lines$/.test(url.pathname)) {
+        const fatura = [financeiro, ...renovacoes].find(
+          (f) => url.pathname === `/v1/invoices/${f.fatura.id}/lines`,
+        );
+        if (!fatura) return null;
+        resposta = list([fatura.linha]);
+      } else if (financeiro && url.pathname === "/v1/disputes")
+        resposta = list(financeiro.disputas);
       else return null;
       return Response.json(resposta, { headers: { "request-id": "req_financial_fixture" } });
     },
@@ -161,6 +174,15 @@ export async function fixtureDePagamento(
       session.status = "complete";
       session.subscription = financeiro.assinatura.id;
       return financeiro;
+    },
+    registrarRenovacao(produtoId: string, inicio: number, fim: number) {
+      if (!financeiro) throw new Error("Closed original subscription absent");
+      const renovacao = dados({ ...f, entrada: { ...f.entrada, productId: produtoId } });
+      renovacao.linha.parent.subscription_item_details.subscription = financeiro.assinatura.id;
+      renovacao.linha.period = { start: inicio, end: fim };
+      renovacao.fatura.status_transitions.paid_at = inicio + 1;
+      renovacoes.push(renovacao);
+      return renovacao;
     },
     indisponibilizar: () => {
       indisponivel = true;

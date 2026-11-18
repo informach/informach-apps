@@ -9,6 +9,8 @@ import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 import type { TentativaDeConciliacao } from "./conciliacao-fila-repository";
 import { conferirOfertaAtualLocked } from "./contratos-repository";
+import { aplicarReducoesObservadasLocked } from "./troca-aplicacao-repository";
+import type { AgendaDaTrocaObservada } from "./troca-execucao-repository";
 
 export type VinculoDoCheckout = {
   authorizationId: string;
@@ -50,6 +52,7 @@ export async function persistirFatosDaConciliacao(
     produtos: readonly Product[];
     vinculos: readonly VinculoDoCheckout[];
     agora: Date;
+    trocas?: readonly AgendaDaTrocaObservada[];
   },
 ) {
   assertAllowed(prova.customer, "COBRANCA", "Cliente financeiro não confirmado.");
@@ -144,6 +147,13 @@ export async function persistirFatosDaConciliacao(
       );
     aceites.set(snapshot.subscriptionId, { id: aceite.id, productId: aceite.productId });
   }
+  await aplicarReducoesObservadasLocked(
+    tx,
+    prova,
+    entrada.trocas ?? [],
+    entrada.snapshots,
+    entrada.agora,
+  );
   const ids = await persistUserPaymentSnapshots(tx, {
     app: "recreio",
     payerId: prova.payerUserId,

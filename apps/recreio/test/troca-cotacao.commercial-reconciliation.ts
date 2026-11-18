@@ -11,8 +11,10 @@ import {
   recreioPurchaseAuthorizations as purchases,
   recreioPlanChangeProfiles as selections,
 } from "@informach/db/schema";
-import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
-import { describe, expect, it } from "vitest";
+import { GrupoIdSchema, VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
+import { beforeAll, describe, expect, it } from "vitest";
+import { decidirPlanoLido } from "@/features/acesso/decisao";
+import { lerFatosDoGrupo } from "@/features/acesso/repository";
 import { criarProcessadorDeConciliacao } from "@/features/cobranca/conciliacao-service";
 import { criarExecutorDeCompra } from "@/features/cobranca/execucao-service";
 import {
@@ -35,10 +37,17 @@ import { adultoDoTeste } from "./teste-apoio";
 async function fixture(
   comJogador = false,
   extensao?: (request: Request) => Promise<Response | null>,
+  fimCurto?: number,
 ) {
   const f = await fixtureDePagamento(comJogador, "recreio_family_monthly", extensao);
   await criarExecutorDeCompra(() => f.runtime)(f.adulto.autor, f.recibo.id);
   const financeiro = f.concluirCheckout();
+  if (fimCurto !== undefined) {
+    const item = financeiro.assinatura.items.data[0];
+    if (!item) throw new Error("Closed subscription item absent");
+    item.current_period_end = fimCurto;
+    financeiro.linha.period.end = fimCurto;
+  }
   const falhas: string[] = [];
   const processar = criarProcessadorDeConciliacao({
     modo: "dev",
@@ -78,7 +87,7 @@ async function fixture(
       })),
     };
   }
-  return { ...f, origem, cotar, pedido, financeiro };
+  return { ...f, origem, cotar, pedido, financeiro, processar, falhas };
 }
 
 function aceite(cotacao: ReturnType<typeof reciboDaTroca>) {
@@ -105,11 +114,19 @@ function operacoes(f: Awaited<ReturnType<typeof fixture>>) {
   };
 }
 
-async function fixtureDeEnvio(comJogador = false) {
+async function fixtureDeEnvio(
+  comJogador = false,
+  fimCurto?: number,
+  prepararSelecao?: (f: Awaited<ReturnType<typeof fixture>>) => Promise<void>,
+) {
   const remoto = transporteDeAgenda();
-  const f = await fixture(comJogador, remoto.http);
+  const f = await fixture(comJogador, remoto.http, fimCurto);
+  await prepararSelecao?.(f);
   remoto.abrir(f.financeiro);
-  const cotacao = await f.cotar(f.adulto.autor, await f.pedido());
+  const pedido = await f.pedido();
+  // Application scenarios deliberately keep exactly the first profile covered.
+  if (prepararSelecao) pedido.perfis = pedido.perfis.map((p, i) => ({ ...p, cobrir: i === 0 }));
+  const cotacao = await f.cotar(f.adulto.autor, pedido);
   await operacoes(f).aceitar(f.adulto.autor, aceite(cotacao));
   const runtime: RuntimeDeEnvioDaTroca = {
     modo: "dev",
@@ -601,5 +618,164 @@ describe("envio nativo da redução com PostgreSQL e SDK fechado", () => {
       await db.execute(sql`drop trigger recusar_envio_audit_fixture on audit.events`);
       await db.execute(sql`drop function recreio.recusar_envio_audit_fixture()`);
     }
+  });
+});
+
+describe("aplicação da redução pela conciliação financeira completa", () => {
+  const preparados: Awaited<ReturnType<typeof fixtureDeEnvio>>[] = [];
+  beforeAll(async () => {
+    // These gates run only in GitHub. Real PG time crosses the admitted paid
+    // period: do not change immutable receipts, mock clocks, or backdate facts.
+    const fim = Math.floor(Date.now() / 1000) + 110;
+    for (let i = 0; i < 5; i++) {
+      const f = await fixtureDeEnvio(true, fim, async (f) => {
+        const intencao = await prepararPerfilMenor(f.adulto.autor);
+        await cadastrarPerfilMenor(f.adulto.autor, {
+          intencaoId: intencao.id,
+          perfil: { apelido: "Jogador sintético", avatar: "padrao" },
+          nascimento: { ano: new Date().getUTCFullYear() - 8, mes: 1 },
+          assumoResponsabilidade: true,
+          versaoDaDeclaracao: VERSAO_DA_RESPONSABILIDADE,
+        });
+      });
+      await f.enviar(f.adulto.autor, f.cotacao.id);
+      f.runtimeFinanceiro.agendasAdmitidas = f.runtime.agendas;
+      preparados.push(f);
+    }
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.max(0, fim * 1000 + 1500 - Date.now())),
+    );
+  }, 180_000);
+
+  function caso(indice: number) {
+    const f = preparados[indice];
+    if (!f) throw new Error("Native application fixture absent");
+    return f;
+  }
+  async function aplicar(f: ReturnType<typeof caso>, pago = true) {
+    f.remoto.aplicar();
+    const item = f.financeiro.assinatura.items.data[0];
+    if (!item) throw new Error("Closed effective phase absent");
+    if (pago)
+      f.registrarRenovacao(
+        f.cotacao.produtoDestino,
+        item.current_period_start,
+        item.current_period_end,
+      );
+    else f.financeiro.assinatura.status = "past_due";
+    await db
+      .update(jobs)
+      .set({ nextAttemptAt: new Date() })
+      .where(eq(jobs.payerUserId, f.adulto.conta.id));
+    return f.processar();
+  }
+  async function contrato(f: ReturnType<typeof caso>) {
+    const [atual] = await db.select().from(contracts).where(eq(contracts.purchaseId, f.recibo.id));
+    if (!atual) throw new Error("Native current contract absent");
+    return atual;
+  }
+
+  it("captura fase paga, oferta atual e seleção sem reinicializar a origem", async () => {
+    const f = caso(0);
+    expect((await aplicar(f)).conciliadas).toBe(1);
+    expect(f.falhas).toEqual([]);
+    expect(await contrato(f)).toMatchObject({
+      revision: 2,
+      currentProductId: "recreio_individual_monthly",
+      currentPlanChangeId: f.cotacao.id,
+      coverageReviewRequired: false,
+      originProductId: "recreio_family_monthly",
+    });
+    const [recibo] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+    expect(recibo).toMatchObject({ status: "applied", appliedRevision: 2, reviewRequired: false });
+    expect(recibo?.appliedAt).toBeInstanceOf(Date);
+    const perfis = await db.select().from(profiles).where(eq(profiles.groupId, f.origem.groupId));
+    expect(perfis).toHaveLength(2);
+    expect(perfis.filter((p) => p.coverageEnabled)).toHaveLength(1);
+    const fatos = await lerFatosDoGrupo(GrupoIdSchema.parse(f.origem.groupId));
+    if (!fatos) throw new Error("Native financial facts absent");
+    expect(decidirPlanoLido(fatos, new Date())).toMatchObject({
+      podeJogar: true,
+      limiteDePerfis: 1,
+    });
+    expect(fatos.assinaturaAtiva?.financeiro.origemAdmitida).toBe(true);
+    const [origem] = await db.select().from(purchases).where(eq(purchases.id, f.recibo.id));
+    expect(origem?.productId).toBe("recreio_family_monthly");
+  });
+
+  it("mudança de perfil conserva o fato financeiro e exige nova seleção sem reativar cobertura", async () => {
+    const f = caso(1);
+    await db
+      .update(profiles)
+      .set({ policyVersion: sql`${profiles.policyVersion}+1` })
+      .where(eq(profiles.groupId, f.origem.groupId));
+    expect((await aplicar(f)).conciliadas).toBe(1);
+    expect(await contrato(f)).toMatchObject({
+      revision: 2,
+      currentPlanChangeId: f.cotacao.id,
+      coverageReviewRequired: true,
+    });
+    const perfis = await db.select().from(profiles).where(eq(profiles.groupId, f.origem.groupId));
+    expect(perfis.filter((p) => p.coverageEnabled)).toHaveLength(2);
+    const fatos = await lerFatosDoGrupo(GrupoIdSchema.parse(f.origem.groupId));
+    if (!fatos) throw new Error("Native financial facts absent");
+    expect(fatos.assinaturaAtiva?.financeiro.emConferencia).toBe(true);
+    expect(decidirPlanoLido(fatos, new Date()).podeJogar).toBe(false);
+  });
+
+  it("fase nova sem renovação paga muda o contrato comercial e continua sem acesso pago", async () => {
+    const f = caso(2);
+    expect((await aplicar(f, false)).conciliadas).toBe(1);
+    expect(await contrato(f)).toMatchObject({
+      revision: 2,
+      currentProductId: "recreio_individual_monthly",
+    });
+    const fatos = await lerFatosDoGrupo(GrupoIdSchema.parse(f.origem.groupId));
+    if (!fatos) throw new Error("Native financial facts absent");
+    expect(decidirPlanoLido(fatos, new Date()).podeJogar).toBe(false);
+  });
+
+  it("falha de auditoria reverte oferta, seleção, aplicação e confirmação financeira juntas", async () => {
+    const f = caso(3);
+    const [antes] = await db.select().from(jobs).where(eq(jobs.payerUserId, f.adulto.conta.id));
+    await db.execute(
+      sql`create function recreio.recusar_aplicacao_audit_fixture() returns trigger language plpgsql as $$ begin if NEW.event_type='recreio.plan_change_applied' then raise exception 'fixture application audit failure'; end if; return NEW; end $$`,
+    );
+    await db.execute(
+      sql`create trigger recusar_aplicacao_audit_fixture before insert on audit.events for each row execute function recreio.recusar_aplicacao_audit_fixture()`,
+    );
+    try {
+      await aplicar(f);
+      expect(f.falhas).toHaveLength(1);
+      expect(await contrato(f)).toMatchObject({
+        revision: 1,
+        currentProductId: "recreio_family_monthly",
+      });
+      const [recibo] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+      expect(recibo).toMatchObject({ status: "scheduled", appliedAt: null, resolvedAt: null });
+      const perfis = await db.select().from(profiles).where(eq(profiles.groupId, f.origem.groupId));
+      expect(perfis.filter((p) => p.coverageEnabled)).toHaveLength(2);
+      const [depois] = await db.select().from(jobs).where(eq(jobs.payerUserId, f.adulto.conta.id));
+      expect(depois?.lastConfirmedAt).toEqual(antes?.lastConfirmedAt);
+      expect(depois?.reviewRequired).toBe(true);
+    } finally {
+      await db.execute(sql`drop trigger recusar_aplicacao_audit_fixture on audit.events`);
+      await db.execute(sql`drop function recreio.recusar_aplicacao_audit_fixture()`);
+    }
+  });
+
+  it("histórico financeiro divergente também reverte a aplicação comercial e a seleção", async () => {
+    const f = caso(4);
+    f.financeiro.fatura.status_transitions.paid_at++;
+    await aplicar(f);
+    expect(f.falhas).toHaveLength(1);
+    expect(await contrato(f)).toMatchObject({
+      revision: 1,
+      currentProductId: "recreio_family_monthly",
+    });
+    const [recibo] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+    expect(recibo?.appliedAt).toBeNull();
+    const perfis = await db.select().from(profiles).where(eq(profiles.groupId, f.origem.groupId));
+    expect(perfis.filter((p) => p.coverageEnabled)).toHaveLength(2);
   });
 });

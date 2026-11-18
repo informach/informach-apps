@@ -3,13 +3,19 @@ import type {
   createStripePaymentFactReader,
   PaymentReadBudget,
 } from "@informach/billing/payment-facts";
+import type {
+  PlanScheduleProvider,
+  RecreioPlanScheduleInput,
+} from "@informach/billing/providers/stripe-plans";
 import type { Product, StripeMode } from "@informach/config";
 
-/** Narrow read-only ports; reconciliation cannot create customers or Checkout. */
+/** Financial reads plus an optional capability for previously admitted native
+ * reductions. No customer creation, Checkout or arbitrary subscription update. */
 export type RuntimeDeConciliacao = {
   modo: StripeMode;
   produtos: readonly Product[];
   conferirCatalogo: (budget?: PaymentReadBudget) => Promise<void>;
   leitor: Pick<ReturnType<typeof createStripePaymentFactReader>, "listSubscriptionIds" | "read">;
   lerCheckout: NonNullable<BillingProviderClient["findCheckoutSession"]>;
+  agendasAdmitidas?: PlanScheduleProvider<RecreioPlanScheduleInput>;
 };

@@ -19,6 +19,11 @@ import {
 } from "./conciliacao-origens-repository";
 import type { RuntimeDeConciliacao } from "./conciliacao-runtime";
 import { comCicloDeCobranca } from "./lifecycle";
+import {
+  type AgendaDaTrocaObservada,
+  lerTrocaDaConciliacaoLocked,
+} from "./troca-execucao-repository";
+import { recuperarAgendaAdmitida } from "./troca-recuperacao-service";
 
 function motivoDaFalha(erro: unknown): MotivoDaConferencia {
   if (erro instanceof PaymentEvidenceMismatchError) return "evidence_mismatch";
@@ -27,7 +32,8 @@ function motivoDaFalha(erro: unknown): MotivoDaConferencia {
   return "provider_unavailable";
 }
 
-/** A technical worker, not a browser admission. Ports only allow provider GETs.
+/** A technical worker, not a browser admission. Native attempts alone can
+ * authorize scoped schedule recovery; financial reads never authorize a POST.
  * Each payer keeps its lifecycle across I/O, outside database transactions.
  */
 export function criarProcessadorDeConciliacao(deps: {
@@ -76,6 +82,26 @@ export function criarProcessadorDeConciliacao(deps: {
               "ORIGEM_FINANCEIRA",
               "O ambiente financeiro exige conferência.",
             );
+            const trocas: AgendaDaTrocaObservada[] = [];
+            const troca = await lerTrocaDaConciliacaoLocked(tentativa);
+            if (troca) {
+              assertAllowed(
+                runtime.agendasAdmitidas,
+                "ORIGEM_FINANCEIRA",
+                "A recuperação comercial ainda não está configurada.",
+              );
+              const recuperada = await recuperarAgendaAdmitida(
+                troca,
+                runtime.agendasAdmitidas,
+                budget,
+              );
+              assertAllowed(
+                !recuperada.falhou && recuperada.observacao,
+                "COBRANCA",
+                "A operação comercial exige conferência.",
+              );
+              trocas.push(recuperada.observacao);
+            }
             catalogo ??= runtime.conferirCatalogo(budget);
             await catalogo;
             conferirPrazo();
@@ -182,7 +208,13 @@ export function criarProcessadorDeConciliacao(deps: {
             const produtos = runtime.produtos;
             conferirPrazo();
             await confirmarConciliacaoLocked(admitida, async (tx, agora) =>
-              persistirFatosDaConciliacao(tx, admitida, { snapshots, produtos, vinculos, agora }),
+              persistirFatosDaConciliacao(tx, admitida, {
+                snapshots,
+                produtos,
+                vinculos,
+                agora,
+                trocas,
+              }),
             );
             resultado.conciliadas++;
           } catch (erro) {

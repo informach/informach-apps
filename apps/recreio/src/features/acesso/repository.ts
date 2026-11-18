@@ -22,6 +22,7 @@ import {
   type StatusDaAssinatura,
 } from "@informach/recreio";
 import { schema as EnvironmentSchema } from "@/lib/environment";
+import type { Transacao } from "@/lib/repository";
 
 /**
  * Leitura dos fatos do direito de jogar. A área `features/acesso` é o único
@@ -30,6 +31,35 @@ import { schema as EnvironmentSchema } from "@/lib/environment";
  */
 
 const APP = "recreio";
+
+/** Scoped financial identity for an admitted native plan attempt. This does
+ * not decide access or expose a generic subscription query to callers. */
+export async function lerOrigemDaAssinaturaParaTroca(
+  tx: Transacao,
+  subscriptionId: string,
+  payerId: string,
+) {
+  const [origem] = await tx
+    .select({
+      customerId: customers.id,
+      providerCustomerId: customers.providerCustomerId,
+      providerSubscriptionId: subscriptions.providerSubscriptionId,
+    })
+    .from(subscriptions)
+    .innerJoin(customers, eq(subscriptions.customerId, customers.id))
+    .where(
+      and(
+        eq(subscriptions.id, subscriptionId),
+        eq(subscriptions.provider, "stripe"),
+        eq(customers.provider, "stripe"),
+        eq(customers.app, APP),
+        eq(customers.subjectType, "user"),
+        eq(customers.subjectId, payerId),
+      ),
+    )
+    .for("share");
+  return origem ?? null;
+}
 
 /** Situações que não dão acesso; `getProSubscription` cobre as que dão. */
 const SEM_ACESSO: StatusDaAssinatura[] = [
