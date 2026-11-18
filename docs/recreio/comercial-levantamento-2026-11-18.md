@@ -148,6 +148,22 @@ Nenhuma variável ou serviço de produção foi alterado por essa candidata.
 
 O desenho das próximas trocas está em [plano próprio](trocas-plano-2026-11-18.md).
 
+`1ffc1758` concluiu os dezesseis gates `44326976575`, incluindo portal nativo e
+as duas jornadas visuais de assinatura. A separação operacional `11669408`
+passou em quinze gates, mas a integração `44328482363` encontrou uma disputa
+temporal antiga: a fixture retinha uma trava até o Node observar 800 ms de
+vencimento, disputando o timeout de um segundo da aplicação. Foram 1128 casos
+aprovados e um timeout. A barreira passa a observar espera e vencimento no
+PostgreSQL, liberando sua transação implícita sem depender do retorno do Node;
+mantém todos os limites de produção e a exigência de AUTH, sem aceitar timeout
+como prova de expiração. Nova execução integral é obrigatória.
+
+A candidata seguinte prepara [jornada externa](homologacao-stripe-real-2026-11-18.md)
+por Checkout real e webhook encaminhado pelo CLI, em GitHub/PG descartável.
+Modos comuns continuam com credenciais sintéticas; a exceção exige executor,
+conta, origem e catálogo de teste explícitos. A jornada ainda não foi executada
+e não demonstra pagamento, recorrência ou venda em produção.
+
 `146b0932` concluiu os treze gates `44299049292`, incluindo as quatro provas
 de Checkout vinculado ao UUID do aceite e validade absoluta. O gate comercial
 usa PostgreSQL e SDK Stripe por transporte HTTP fechado; não é pagamento real.

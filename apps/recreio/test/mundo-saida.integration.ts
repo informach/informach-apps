@@ -10,11 +10,10 @@ import {
   recreioSpaces as spaces,
 } from "@informach/db/schema";
 import { type MundoId, MundoIdSchema, SessaoDeJogoIdSchema } from "@informach/recreio";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { sairDoMundo } from "@/features/mundos/saida";
 import { aceitarConvite, criarConvite, detalheDoMundo } from "@/features/mundos/service";
 import { verificarEntradaNoMundo } from "@/features/posse/repository";
-import { travarEncerramentos } from "@/features/sessao-de-jogo/repository";
 import { AppError } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
 import { aposentarInstancias, codigoDoBanco, type Jogador, novoJogador, sinal } from "./apoio";
@@ -126,6 +125,44 @@ async function temEspera(pid: number) {
     where ${pid} = any(pg_blocking_pids(pid))) as esperando`);
   return linha?.esperando === true;
 }
+
+// This disposable-database fixture releases its implicit transaction INSIDE
+// PostgreSQL after a real wait/expiry. A Node polling delay must not hold the
+// row past the application's one-second lock timeout and mask the AUTH check.
+beforeAll(async () => {
+  await db.execute(sql`create function recreio.segurar_saida_ate_vencer_fixture(
+    tipo text, mundo uuid, partida uuid, aparelho uuid, etiqueta text
+  ) returns boolean language plpgsql as $$
+  declare iniciou timestamptz := clock_timestamp(); prazo timestamptz;
+  begin
+    if tipo='mundo' then
+      perform id from recreio.spaces where id=mundo for update;
+    elsif tipo='encerramentos' then
+      perform pg_advisory_xact_lock(hashtextextended('recreio:game_sessions:encerramento',0));
+    elsif tipo='partida' then
+      perform id from recreio.game_sessions where id=partida for update;
+    else raise exception 'Unknown expiry fixture gate'; end if;
+    perform set_config('application_name',etiqueta,true);
+    loop
+      perform pg_stat_clear_snapshot();
+      exit when exists(select 1 from pg_stat_activity a where a.datname=current_database()
+        and pg_backend_pid()=any(pg_blocking_pids(a.pid)));
+      if clock_timestamp()>iniciou+interval '10 seconds' then
+        raise exception 'No actual waiter reached the expiry fixture';
+      end if;
+      perform pg_sleep(0.005);
+    end loop;
+    select expires_at into prazo from recreio.device_sessions where id=aparelho;
+    if prazo is null then raise exception 'Expiry fixture device absent'; end if;
+    perform pg_sleep_until(prazo+interval '1 millisecond');
+    return clock_timestamp()>prazo;
+  end $$`);
+});
+afterAll(async () => {
+  await db.execute(
+    sql`drop function recreio.segurar_saida_ate_vencer_fixture(text,uuid,uuid,uuid,text)`,
+  );
+});
 
 describe("saída voluntária de um mundo", () => {
   it("encerra só a partida do convidado, conserva o mundo e o responsável e audita uma vez", async () => {
@@ -330,45 +367,50 @@ describe("saída voluntária de um mundo", () => {
     async (caso) => {
       const { convidado, mundoId } = await cenario();
       const sid = await partida(convidado, mundoId);
-      const trava =
-        caso === "mundo"
-          ? await travarMundo(mundoId)
-          : caso === "encerramentos"
-            ? await segurar(travarEncerramentos)
-            : await segurar(async (tx) => {
-                await tx.execute(
-                  sql`select id from recreio.game_sessions where id=${sid} for update`,
-                );
-              });
-      await db
-        .update(devices)
-        .set({ expiresAt: sql`clock_timestamp() + interval '800ms'` })
-        .where(eq(devices.id, convidado.ator.sessaoDeAparelhoId));
-      const resultado = sairDoMundo(autorDe(convidado), mundoId).then(
-        (valor) => ({ ok: true, valor }),
-        (erro: unknown) => ({ ok: false, erro }),
-      );
+      const etiqueta = `expiry-fixture-${randomUUID()}`;
+      // No explicit transaction: PostgreSQL commits/releases at statement end,
+      // independently from when the Node event loop resumes this promise.
+      const barreira = db
+        .execute<{ venceu: boolean }>(sql`
+        select recreio.segurar_saida_ate_vencer_fixture(${caso},${mundoId},${sid},${convidado.ator.sessaoDeAparelhoId},${etiqueta}) as venceu
+      `)
+        .then(
+          (valor) => ({ ok: true as const, valor }),
+          (erro: unknown) => ({ ok: false as const, erro }),
+        );
+      let resultado: Promise<unknown> | undefined;
       try {
-        await expect.poll(() => temEspera(trava.pid), { interval: 20 }).toBe(true);
-        // Esperar a condição temporal real, sem relógio falso nem atraso fixo.
         await expect
           .poll(
             async () => {
-              const [prazo] = await db.execute<{ venceu: boolean }>(sql`
-            select expires_at <= clock_timestamp() as venceu from recreio.device_sessions
-            where id=${convidado.ator.sessaoDeAparelhoId}`);
-              return prazo?.venceu;
+              const [linha] = await db.execute<{ pronta: boolean }>(sql`
+          select exists(select 1 from pg_stat_activity where datname=current_database()
+            and application_name=${etiqueta} and state='active') as pronta`);
+              return linha?.pronta;
             },
             { interval: 20 },
           )
           .toBe(true);
-        await trava.liberar();
+        await db
+          .update(devices)
+          .set({ expiresAt: sql`clock_timestamp() + interval '800ms'` })
+          .where(eq(devices.id, convidado.ator.sessaoDeAparelhoId));
+        resultado = sairDoMundo(autorDe(convidado), mundoId).then(
+          (valor) => ({ ok: true, valor }),
+          (erro: unknown) => ({ ok: false, erro }),
+        );
+        const liberada = await barreira;
+        expect(liberada.ok).toBe(true);
+        if (!liberada.ok) throw liberada.erro;
+        expect(liberada.valor[0]?.venceu).toBe(true);
         expect(await resultado).toMatchObject({ ok: false, erro: { code: "AUTH" } });
         expect((await membro(convidado, mundoId)).state).toBe("active");
         expect((await sessao(sid))?.endedAt).toBeNull();
         expect(await auditoria(convidado)).toEqual([]);
       } finally {
-        await trava.liberar();
+        await db.execute(sql`select pg_cancel_backend(pid) from pg_stat_activity
+          where datname=current_database() and application_name=${etiqueta} and state='active'`);
+        await barreira;
         await resultado;
       }
     },
