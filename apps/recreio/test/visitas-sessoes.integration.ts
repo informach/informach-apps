@@ -870,7 +870,11 @@ async function cenario() {
   };
 }
 async function abrir(c: Awaited<ReturnType<typeof cenario>>) {
-  const aberta = await trocarIngresso(c.pedido),
+  const { suportaSalvamento, ...pedido } = c.pedido;
+  const aberta = await trocarIngresso({
+      ...pedido,
+      ...(suportaSalvamento ? { suportaSalvamento: true } : {}),
+    }),
     sid = SessaoDeJogoIdSchema.parse(claimsDe(aberta.token).sid),
     [finalidade] = await db.select().from(visitSessions).where(eq(visitSessions.sessionId, sid));
   if (!finalidade) throw new Error("Finalidade ausente");

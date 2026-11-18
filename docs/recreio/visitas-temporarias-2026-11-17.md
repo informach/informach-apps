@@ -681,3 +681,27 @@ Gates pendentes; SDK/runtime/interface e jornadas ainda não concluídos.
 Coletor de controle `a61b5b91` concluiu os oito gates `44242614129`, incluindo
 o navegador. A renovação `abb2a47e` passou nos sete gates fora do navegador;
 seu E2E e o encerramento `224f6586` ainda estão em andamento nesta conferência.
+
+### Cancelamento HTTP e fixtures de negociação
+
+`abb2a47e` concluiu os oito gates `44243218276`. O encerramento `224f6586`
+falhou em `44244085538`: 985 integrações passaram e duas fixtures enviaram
+`suportaSalvamento=false`, apesar do contrato ser `true` ou ausente. O helper
+passa a omitir a capacidade desativada, como o SDK real; o contrato não muda.
+
+Nesse mesmo run, 37 E2E passaram e a leitura CDP do controle voltou a falhar.
+Artefato `14401850952`, ZIP SHA-256
+`87a53a3f0a72f9e0989ee29b2ee50ec148bf41d81b53036248b142333434f5d3`,
+fonte `224f6586`, conferido antes da inspeção local leve. Captura mostra a
+partida pronta com aviso real de dez minutos; rede registra controle 200,
+sem nova navegação e sem corpo recuperável no CDP. A atribuição anterior à
+navegação era incompleta. Headers/tokens do rastreamento não foram impressos.
+
+O helper `comPrazoDePedido` abortava incondicionalmente no `finally`, inclusive
+depois de consumir com sucesso o corpo. A candidata conserva somente a limpeza
+do timer no sucesso e aborta em falha/prazo, sem alterar duração, repetição ou
+admissão. Duas regressões verificam sucesso sem cancelamento tardio e falha
+com cancelamento/erro original; permanecem as provas de timeout e corpo
+pendurado. Novo ensaio remoto precisa confirmar a correção no navegador.
+Sem fallback de leitura, atraso, retry ou afrouxamento do teste.
+Referência: [Fetch, abortar uma operação](https://fetch.spec.whatwg.org/#abort-fetch).

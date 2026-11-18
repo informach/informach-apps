@@ -22,8 +22,10 @@ export async function comPrazoDePedido<T>(
       Promise.resolve().then(() => executar(controlador.signal)),
       vencimento,
     ]);
+  } catch (erro) {
+    controlador.abort();
+    throw erro;
   } finally {
     clearTimeout(temporizador);
-    controlador.abort();
   }
 }
