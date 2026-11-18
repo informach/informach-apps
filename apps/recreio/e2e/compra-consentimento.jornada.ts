@@ -252,7 +252,9 @@ test("adulto sem jogador confirma a seleção atual depois da redução do plano
     "os perfis foram alterados desde a escolha anterior",
   );
   await expect(salvar).toBeDisabled();
-  await expect(a.page.getByRole("alert")).toHaveText("Selecione até 1 perfil para confirmar.");
+  await expect(
+    a.page.getByRole("alert").filter({ hasText: "Selecione até 1 perfil para confirmar." }),
+  ).toHaveText("Selecione até 1 perfil para confirmar.");
   await a.page.getByRole("checkbox", { name: /^Luar / }).uncheck();
   await a.page.getByRole("checkbox", { name: /^Conferi a seleção/ }).check();
   await expect(salvar).toBeEnabled();

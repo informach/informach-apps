@@ -201,3 +201,9 @@ de perfis, confirmação válida e manutenção da negativa de pagamento. A jorn
 de navegador de 390 px usa uma fixture SQL explicitamente de apresentação;
 capturas antes/depois, recarga e seleção persistida não são prova de Stripe.
 Precisa dos gates remotos e inspeção das capturas antes de qualificar.
+
+`245a727a`/`44379726161`: o gate financeiro concluiu os casos novos, mas o
+E2E encontrou dois elementos `role=alert`: o aviso de capacidade e o anunciador
+de rotas do Next. O seletor passa a identificar o aviso pelo texto do contrato,
+como a jornada já existente da cobertura. Nenhum alerta do produto ou do
+framework foi removido; a jornada precisa ser executada novamente.
