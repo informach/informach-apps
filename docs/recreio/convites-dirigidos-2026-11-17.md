@@ -321,3 +321,16 @@ dois mundos, três membros, dois convites antigos, duas fotografias, quatro
 fatos e cerca 7, além de perfis, progresso e conquistas; repetição sem mudança.
 O E2E desse source ainda contém a importação corrigida no incremento de CSP,
 portanto essa evidência de backend não representa aprovação do portal inteiro.
+
+Corretivo `36dc48467add7f726428b05ab37b7e4b3d2edc8b` aprovado nos oito gates
+`44217620284`. O E2E terminou com 37 jornadas aprovadas/9,5 min, vigia CSP sem
+violações. Logs confirmam envio/aceite fora da partida (11,7 s), decisão do
+responsável do mundo (16,8 s), host/ACK (15 s) e duas famílias (29,1 s). Não há
+CI compartilhado, implantação ou ativação F5 decorrente desse resultado.
+
+As três capturas faltantes foram recuperadas no artefato `14389535490` do source
+anterior `4f7644c6`, ZIP
+`6bc492334a9e3414770aafbd17c52511953a28ed6a1466fe7f47cc6127eeba0d`.
+Conferidas visualmente em 390 px: aprovação do responsável, painel na partida
+e caixa no portal, sem corte horizontal. Essa revisão visual não altera a
+falha registrada do E2E anterior; a correção de CSP foi provada no run seguinte.

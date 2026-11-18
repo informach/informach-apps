@@ -75,3 +75,25 @@ plano, recuperação, identidade, login, revisão, vínculo/geração/política,
 ausência de administração prévia, cancelamento e rollback da auditoria.
 As provas ainda precisam executar no GitHub. Journal candidato com 198 entradas;
 produção conserva 191/0190. A tela parental e a jornada E2E continuam pendentes.
+
+Backend `e19de9ef804d3c2a4c1d8b12ff0ea1352103aea9` passou na qualidade e na
+integração `44219056739`: 782 testes/84 arquivos, incluindo os oito novos, e
+cinco testes administrativos. Upgrades 179→198 e 191→198 preservaram os dados
+e passaram na repetição. Os demais gates ainda estavam em andamento ao
+registrar esse resultado; não é uma aprovação integral do incremento.
+
+A candidata seguinte inclui a tela parental em gestão do mundo, com seleção
+de adulto já participante, declaração explícita, envio único até atualização,
+cancelamento e recuperação por recibo. A consulta não exige login recente nem
+plano e mostra a invalidação da prova sem recriá-la. O destinatário continua
+usando o aceite nativo existente, agora com texto independente de um jogo.
+
+Três integrações adicionais candidatas verificam leitura/paginação gratuita,
+invalidação sem nova aprovação, rollback da proposta e prazo real até depois
+da auditoria; a transferência também conserva o terceiro participante e o
+criador original. A jornada nova cadastra e pareia o menor, aprova amizade e
+convite pelas interfaces, salva um contador, propõe/aceita a transferência e
+reabre o mesmo mundo pelos dois jogadores. Não insere membros, convites ou
+aprovações por SQL. Captura mobile está na allowlist do workflow. Os gates
+dessa candidata ainda precisam executar; visitas e homologação F5 permanecem
+abertas.

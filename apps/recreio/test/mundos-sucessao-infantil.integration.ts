@@ -16,6 +16,7 @@ import { painelDeAdministracaoDoMundo } from "@/features/mundos/administracao-pa
 import { responderTransferencia } from "@/features/mundos/responsabilidade";
 import {
   cancelarTransferenciaDoMenor,
+  painelDaTransferenciaDoMenor,
   proporTransferenciaDoMenor,
 } from "@/features/mundos/responsabilidade-infantil";
 import { desconectarTodosDoMenor } from "@/features/protecao/service";
@@ -86,6 +87,16 @@ const propor = (c: Awaited<ReturnType<typeof cenario>>) =>
 it("responsável sem jogador propõe e o adulto destinatário aceita sem cobertura, preservando mundo e membros", async () => {
   const c = await cenario(),
     proposta = await propor(c);
+  const terceiro = await novoJogador({ comAcesso: false });
+  const [participacao] = await db
+    .insert(members)
+    .values({
+      spaceId: c.mundo.id,
+      profileId: terceiro.perfil.id,
+      role: "coadmin",
+      state: "no_access",
+    })
+    .returning();
   expect(await propor(c)).toEqual(proposta);
   expect(
     (await db.select().from(spaces).where(eq(spaces.id, c.mundo.id)))[0]?.stewardProfileId,
@@ -103,6 +114,7 @@ it("responsável sem jogador propõe e o adulto destinatário aceita sem cobertu
   );
   expect((await db.select().from(spaces).where(eq(spaces.id, c.mundo.id)))[0]).toMatchObject({
     stewardProfileId: c.adulto.perfil.id,
+    createdByProfileId: c.familia.perfil.id,
     managementRevision: 2,
     revision: 3,
     leaseEpoch: 7,
@@ -115,6 +127,9 @@ it("responsável sem jogador propõe e o adulto destinatário aceita sem cobertu
   expect((await db.select().from(members).where(eq(members.id, c.destino.id)))[0]?.role).toBe(
     "steward",
   );
+  expect(
+    (await db.select().from(members).where(eq(members.profileId, terceiro.perfil.id)))[0],
+  ).toEqual(participacao);
   expect(
     (
       await db.select().from(snapshots).where(eq(snapshots.spaceId, c.mundo.id))
@@ -144,6 +159,83 @@ it("responsável sem jogador propõe e o adulto destinatário aceita sem cobertu
       c.mundo.id,
     ),
   ).rejects.toMatchObject({ code: "RESPONSAVEL" });
+});
+
+it("consulta parental gratuita aceita login antigo, pagina adultos e mostra prova invalidada sem renová-la", async () => {
+  const c = await cenario(),
+    antigo = {
+      ...c.familia.autor,
+      login: { ...c.familia.autor.login, criadoEm: new Date(Date.now() - 11 * 60000) },
+    };
+  expect(await painelDaTransferenciaDoMenor(antigo, c.familia.perfil.id, c.mundo.id)).toMatchObject(
+    { candidatos: [{ id: c.destino.id, apelido: c.adulto.perfil.apelido }], proposta: null },
+  );
+  expect(
+    (await painelDaTransferenciaDoMenor(antigo, c.familia.perfil.id, c.mundo.id, c.destino.id))
+      .candidatos,
+  ).toHaveLength(0);
+  const proposta = await propor(c);
+  expect(
+    (await painelDaTransferenciaDoMenor(antigo, c.familia.perfil.id, c.mundo.id)).proposta,
+  ).toMatchObject({ id: proposta.pedidoId, autorizacaoAtual: true });
+  await desconectarTodosDoMenor(c.familia.autor, c.familia.perfil.id);
+  expect(
+    (await painelDaTransferenciaDoMenor(antigo, c.familia.perfil.id, c.mundo.id)).proposta,
+  ).toMatchObject({ id: proposta.pedidoId, autorizacaoAtual: false });
+  await expect(propor(c)).rejects.toMatchObject({ code: "PEDIDO_PENDENTE" });
+  expect(await db.select().from(requests).where(eq(requests.spaceId, c.mundo.id))).toHaveLength(1);
+});
+
+it("falha da auditoria na proposta reverte também a prova parental", async () => {
+  const c = await cenario();
+  await db.execute(
+    sql`create function audit.proposta_menor_teste() returns trigger language plpgsql as $$ begin if new.event_type='recreio.space_stewardship_requested' then raise exception 'audit unavailable'; end if; return new; end $$`,
+  );
+  await db.execute(
+    sql`create trigger proposta_menor_teste before insert on audit.events for each row execute function audit.proposta_menor_teste()`,
+  );
+  try {
+    await expect(propor(c)).rejects.toBeInstanceOf(AuditPersistenceError);
+  } finally {
+    await db.execute(sql`drop trigger proposta_menor_teste on audit.events`);
+    await db.execute(sql`drop function audit.proposta_menor_teste()`);
+  }
+  expect(await db.select().from(requests).where(eq(requests.spaceId, c.mundo.id))).toHaveLength(0);
+  expect(
+    await db.select().from(proofs).where(eq(proofs.profileId, c.familia.perfil.id)),
+  ).toHaveLength(0);
+});
+
+it("prazo vencido durante a auditoria reverte o aceite e as mudanças de autoridade", async () => {
+  const c = await cenario(),
+    proposta = await propor(c);
+  await db
+    .update(requests)
+    .set({ expiresAt: new Date(Date.now() + 1100) })
+    .where(eq(requests.id, proposta.pedidoId));
+  await db.execute(
+    sql`create function audit.prazo_sucessao_teste() returns trigger language plpgsql as $$ begin if new.event_type='recreio.space_stewardship_accepted' then perform pg_sleep(1.3); end if; return new; end $$`,
+  );
+  await db.execute(
+    sql`create trigger prazo_sucessao_teste before insert on audit.events for each row execute function audit.prazo_sucessao_teste()`,
+  );
+  try {
+    await expect(
+      responderTransferencia(c.autor, c.mundo.id, proposta.pedidoId, "accepted"),
+    ).rejects.toMatchObject({ code: "CONFLITO" });
+  } finally {
+    await db.execute(sql`drop trigger prazo_sucessao_teste on audit.events`);
+    await db.execute(sql`drop function audit.prazo_sucessao_teste()`);
+  }
+  expect(
+    (await db.select().from(requests).where(eq(requests.id, proposta.pedidoId)))[0]?.state,
+  ).toBe("pending");
+  expect((await db.select().from(spaces).where(eq(spaces.id, c.mundo.id)))[0]).toMatchObject({
+    stewardProfileId: c.familia.perfil.id,
+    managementRevision: 1,
+    revision: 3,
+    leaseEpoch: 7,
+  });
 });
 
 it("outro responsável, aparelho pareado, login antigo, revisão velha e campos de identidade não propõem", async () => {

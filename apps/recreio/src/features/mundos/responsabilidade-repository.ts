@@ -1,10 +1,11 @@
 import "server-only";
 import { logAuditEventStrict } from "@informach/auth";
-import { and, asc, db, eq, isNull, or, sql } from "@informach/db";
+import { and, asc, db, eq, gt, isNull, ne, or, sql } from "@informach/db";
 import {
   recreioGameSessions as games,
   recreioStewardshipGuardianApprovals as guardianApprovals,
   recreioSpaceMembers as members,
+  recreioProfiles as profiles,
   recreioMinorProtection as protection,
   recreioSpaceStewardshipRequests as requests,
   recreioSpaces as spaces,
@@ -290,6 +291,92 @@ export async function revogarPropostasDoMembro(
 
 type GestaoNativa = Awaited<ReturnType<typeof contextoNativoDoMundo>>;
 type AutorParental = { responsavel: AutorNativoRecente; perfilId: PerfilId };
+
+export function lerTransferenciaDoMenor(
+  autor: AutorParental,
+  mundoId: string,
+  apos: string | null,
+) {
+  return comGestaoNativaDoMundo(
+    autor,
+    mundoId,
+    undefined,
+    async (tx, ctx) => {
+      assertAllowed(
+        ctx.porResponsavel && ctx.responsavel,
+        "RESPONSAVEL",
+        "A responsabilidade pelo mundo mudou.",
+      );
+      const candidatos = await tx
+        .select({ id: members.id, apelido: profiles.nickname })
+        .from(members)
+        .innerJoin(profiles, eq(profiles.id, members.profileId))
+        .where(
+          and(
+            eq(members.spaceId, mundoId),
+            ne(members.id, ctx.proprio.id),
+            ne(members.state, "former"),
+            eq(profiles.kind, "adult"),
+            eq(profiles.status, "active"),
+            apos ? gt(members.id, apos) : undefined,
+          ),
+        )
+        .orderBy(asc(members.id))
+        .limit(11);
+      const [pedido] = await tx
+        .select()
+        .from(requests)
+        .where(
+          and(
+            eq(requests.spaceId, mundoId),
+            eq(requests.fromMemberId, ctx.proprio.id),
+            eq(requests.state, "pending"),
+          ),
+        )
+        .limit(1);
+      const [destino] = pedido
+        ? await tx
+            .select({ apelido: profiles.nickname })
+            .from(members)
+            .innerJoin(profiles, eq(profiles.id, members.profileId))
+            .where(
+              and(
+                eq(members.spaceId, mundoId),
+                eq(members.id, pedido.toMemberId),
+                ne(members.state, "former"),
+                eq(profiles.kind, "adult"),
+                eq(profiles.status, "active"),
+              ),
+            )
+        : [];
+      const [prova] = pedido
+        ? await tx
+            .select()
+            .from(guardianApprovals)
+            .where(eq(guardianApprovals.requestId, pedido.id))
+        : [];
+      const atual = pedido ? await provaParentalAtual(tx, ctx, autor.perfilId) : null;
+      const agora = await ctx.conferirPrazo(false);
+      return {
+        mundo: { id: ctx.mundo.id, nome: ctx.mundo.name },
+        revisao: ctx.mundo.managementRevision,
+        podePropor: ["active", "hibernating"].includes(ctx.mundo.status),
+        candidatos: candidatos.slice(0, 10),
+        proximo: candidatos.length > 10 ? (candidatos[9]?.id ?? null) : null,
+        proposta: pedido
+          ? {
+              id: pedido.id,
+              destinatario: destino?.apelido ?? null,
+              expiraEm: pedido.expiresAt.toISOString(),
+              vigente: pedido.expiresAt > agora,
+              autorizacaoAtual: Boolean(prova && atual && mesmaProva(prova, atual)),
+            }
+          : null,
+      };
+    },
+    true,
+  );
+}
 
 /** O vínculo da prova é relido; a linha sozinha nunca comprova cuidado atual. */
 async function provaParentalAtual(tx: Transacao, ctx: GestaoNativa, perfilId: string) {

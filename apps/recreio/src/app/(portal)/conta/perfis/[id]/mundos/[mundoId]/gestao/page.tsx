@@ -50,6 +50,12 @@ export default async function GestaoDoMundoDoPerfil({
         Gestão do mundo · {painel.mundo.estado === "archived" ? "Arquivado" : "Disponível"}
       </p>
       <AdministracaoDoMundo painel={painel} />
+      <Link
+        href={`/conta/perfis/${perfil.data}/mundos/${mundo.data}/responsabilidade`}
+        className="mt-5 inline-flex min-h-11 items-center font-bold text-ceu underline"
+      >
+        Transferir responsabilidade pelo mundo
+      </Link>
       <FilaDeConvitesDoMundo
         fila={painel.filaDeConvites}
         baseDoConvite={`/conta/perfis/${perfil.data}/mundos/${mundo.data}/convites`}

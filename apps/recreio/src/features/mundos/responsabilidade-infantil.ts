@@ -5,8 +5,22 @@ import type { AutorNativoRecente } from "@/features/account/autoridade-repositor
 import { limitarTentativas } from "@/lib/rate-limit";
 import {
   cancelarResponsabilidadeDoMenor,
+  lerTransferenciaDoMenor,
   proporResponsabilidadeDoMenor,
 } from "./responsabilidade-repository";
+
+export function painelDaTransferenciaDoMenor(
+  autor: AutorNativoRecente,
+  perfilId: unknown,
+  mundoId: unknown,
+  apos?: unknown,
+) {
+  return lerTransferenciaDoMenor(
+    { responsavel: autor, perfilId: PerfilIdSchema.parse(perfilId) },
+    MundoIdSchema.parse(mundoId),
+    MembroIdSchema.nullish().parse(apos) ?? null,
+  );
+}
 
 const PropostaSchema = z.strictObject({
   mundoId: MundoIdSchema,

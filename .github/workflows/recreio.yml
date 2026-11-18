@@ -193,6 +193,7 @@ jobs:
             apps/recreio/tmp/telas/convites-dirigidos-partida-mobile.png
             apps/recreio/tmp/telas/convites-responsavel-mobile.png
             apps/recreio/tmp/telas/convites-portal-mobile.png
+            apps/recreio/tmp/telas/sucessao-menor-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic staff queue screen

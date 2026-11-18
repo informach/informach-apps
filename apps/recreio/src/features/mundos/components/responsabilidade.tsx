@@ -85,10 +85,9 @@ export function Responsabilidade({
               <p id={avisoId} className="mt-4 text-tinta-suave">
                 Ao aceitar, os convites de entrada ainda não usados do antigo responsável serão
                 cancelados. Você passa a responder pelo mundo. O responsável atual continua como
-                membro. Os personagens, o progresso e os direitos próprios da família do Morada
-                ficam preservados. As partidas dos dois neste mundo serão encerradas para atualizar
-                as permissões. A assinatura e a cota de criação de mundos de cada pessoa continuam
-                como estão.
+                membro. Os dados e o progresso dos participantes ficam preservados. As partidas dos
+                dois neste mundo serão encerradas para atualizar as permissões. A assinatura e a
+                cota de criação de mundos de cada pessoa continuam como estão.
               </p>
               <fieldset disabled={!interativo || pendente} className="mt-4 flex flex-wrap gap-3">
                 <legend className="sr-only">Decidir sobre a responsabilidade</legend>
