@@ -10,6 +10,7 @@ import { db } from "@informach/db";
 import { conferirCatalogoDoRecreio, produtosDoRecreio } from "@/features/cobranca/catalogo";
 import { emailDoPagante } from "@/features/cobranca/clientes-repository";
 import type { RuntimeDeConciliacao } from "@/features/cobranca/conciliacao-runtime";
+import type { RuntimeDoPortal } from "@/features/cobranca/portal-service";
 import type { RuntimeDeCompra } from "@/features/cobranca/runtime";
 import type { RuntimeDoWebhook } from "@/features/cobranca/webhook-service";
 import { env } from "./env";
@@ -24,11 +25,10 @@ function criarComposicao() {
     segredo = env.STRIPE_WEBHOOK_SECRET,
     portalId = env.STRIPE_PORTAL_CONFIGURATION_ID;
   assertAllowed(
-    env.RECREIO_BILLING_MODE === "sandbox" &&
-      env.STRIPE_MODE === "dev" &&
-      chave &&
-      segredo &&
-      portalId,
+    env.STRIPE_MODE === "dev" &&
+      chave?.startsWith("sk_test_") &&
+      segredo?.startsWith("whsec_") &&
+      portalId?.startsWith("bpc_"),
     "INDISPONIVEL",
     "A compra ainda não está disponível.",
   );
@@ -84,6 +84,11 @@ function getComposicao() {
   return composicao;
 }
 export function getRuntimeDaCompra(): RuntimeDeCompra {
+  assertAllowed(
+    env.RECREIO_BILLING_MODE === "sandbox",
+    "INDISPONIVEL",
+    "A compra ainda não está disponível.",
+  );
   if (runtime) return runtime;
   const { produtos, provider, billing, conferirCatalogo } = getComposicao();
   runtime = {
@@ -119,5 +124,17 @@ export function getRuntimeDoWebhook(): RuntimeDoWebhook {
     modo: "dev",
     verificar: provider.verifyWebhookSignature,
     clienteDoEvento: leitor.eventCustomerId,
+  };
+}
+
+export function getRuntimeDoPortal(): RuntimeDoPortal {
+  const { billing, conferirCatalogo } = getComposicao();
+  return {
+    conferirCatalogo,
+    criarPortal: (paganteId) =>
+      billing.createPortalSession({
+        subject: { type: "user", id: paganteId },
+        returnUrl: `${new URL(env.NEXT_PUBLIC_APP_URL).origin}/conta/assinatura`,
+      }),
   };
 }

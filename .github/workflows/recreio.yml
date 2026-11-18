@@ -244,6 +244,8 @@ jobs:
           path: |
             apps/recreio/tmp/telas/compra-ofertas-mobile.png
             apps/recreio/tmp/telas/compra-recibo-mobile.png
+            apps/recreio/tmp/telas/compra-paga-mobile.png
+            apps/recreio/tmp/telas/compra-conferencia-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic first-session screens

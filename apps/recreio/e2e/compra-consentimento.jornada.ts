@@ -102,7 +102,7 @@ test("situação paga e revisão financeira aparecem ao pagante sem jogador", as
   await a.page.goto("/conta/assinatura");
   await a.page.setViewportSize({ width: 390, height: 844 });
   const form = a.page.getByRole("form", { name: "Conferir e autorizar uma oferta", exact: true });
-  await form.getByRole("radio", { name: /Recreio Individual mensal/ }).check();
+  await form.locator('input[type="radio"][value="recreio_individual_monthly"]').check();
   await form.getByRole("checkbox", { name: /Declaro ter 18 anos/ }).check();
   await form.getByRole("checkbox", { name: /Conferi o plano, o valor e o período/ }).check();
   const registrar = form.getByRole("button", {

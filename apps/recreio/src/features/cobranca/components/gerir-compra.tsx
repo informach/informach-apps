@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { VERSAO_DA_DECLARACAO_ADULTA } from "@/features/grupo/convites-constantes";
 import {
+  abrirPortalAction,
   conferirCompraAction,
   encerrarCompraAction,
   enviarCompraAction,
@@ -43,12 +44,18 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
     oferta = estado.ofertas.find((o) => o.productId === produtoId);
   const ativa = compra && !compra.resolvidoEm;
 
-  function executar(acao: "preparar" | "encerrar" | "enviar" | "conferir") {
+  function executar(acao: "preparar" | "encerrar" | "enviar" | "conferir" | "portal") {
     if (pendente || conferir) return;
     setErro("");
     setRecente(false);
     iniciar(async () => {
       try {
+        if (acao === "portal") {
+          const resposta = await abrirPortalAction();
+          if (resposta.ok) window.location.assign(resposta.data.destino);
+          else tratar(resposta);
+          return;
+        }
         if ((acao === "enviar" || acao === "conferir") && compra) {
           const resposta =
             acao === "conferir"
@@ -142,6 +149,25 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
             </time>
             .
           </p>
+        </section>
+      )}
+      {estado.portalDisponivel && (
+        <section aria-labelledby="pagamento-e-cancelamento" className="painel mt-6 p-5 sm:p-6">
+          <h2 id="pagamento-e-cancelamento" className="font-display text-xl font-bold">
+            Pagamento e cancelamento
+          </h2>
+          <p className="mt-3 text-tinta-suave">
+            Consulte suas faturas, atualize o pagamento ou cancele a renovação. O cancelamento
+            mantém o período já pago e o progresso dos jogadores.
+          </p>
+          <button
+            type="button"
+            className="rb rb-vazado mt-4"
+            disabled={bloqueado}
+            onClick={() => executar("portal")}
+          >
+            Abrir gestão de pagamento
+          </button>
         </section>
       )}
       {compra && (

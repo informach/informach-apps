@@ -138,6 +138,11 @@ billing usa chave `recreio-native:<modo>:<evento>`, sem corpo bruto, assinatura,
 dados fiscais ou contato. Notificação positiva agenda leitura completa; não
 confirma pagamento. Replay admitido não suspende uma conta já recuperada.
 
+`recreio.billing_portal_requested` e `recreio.billing_portal_opened` registram
+`app` e `groupId`, com ator adulto atual e auditoria estrita. O primeiro admite
+a solicitação antes da rede; o segundo exige nova autorização após a resposta.
+Nenhuma URL do portal, customer, dados fiscais ou cartões entram na auditoria.
+
 Social usa auditoria estrita na transação da mudança. Os eventos
 `friend_code_created`/`friend_code_revoked` usam IDs de perfil/código;
 `friend_request_created`/`friend_request_expired`/`friend_request_accepted`/

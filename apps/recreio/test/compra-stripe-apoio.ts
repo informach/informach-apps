@@ -40,6 +40,8 @@ export async function fixtureDeCheckout(
   let perderResposta = false;
   let inspecaoIndisponivel = false;
   let depoisDePersistir: (() => Promise<void>) | undefined;
+  let depoisDoPortal: (() => Promise<void>) | undefined;
+  const portais: { customer: string; configuration: string | null; url: string }[] = [];
   const products = PRODUCTS.filter((p) => p.app === "recreio").map((p) => ({
     ...p,
     stripePriceId: { dev: `price_${p.id}`, prod: "" },
@@ -107,6 +109,22 @@ export async function fixtureDeCheckout(
         email: body.get("email"),
         metadata: {},
       };
+    } else if (request.method === "POST" && url.pathname === "/v1/billing_portal/sessions") {
+      const body = new URLSearchParams(await request.text());
+      expect(body.get("customer")).toBe(remoteCustomerId);
+      expect(body.get("configuration")).toBe(portal.id);
+      const criada = {
+        customer: remoteCustomerId,
+        configuration: body.get("configuration"),
+        url: `https://billing.stripe.com/p/session/${randomUUID()}`,
+      };
+      portais.push(criada);
+      await depoisDoPortal?.();
+      resposta = {
+        id: `bps_fixture_${portais.length}`,
+        object: "billing_portal.session",
+        ...criada,
+      };
     } else if (request.method === "GET" && url.pathname === "/v1/subscriptions") {
       resposta = list([]);
     } else if (request.method === "GET" && url.pathname === "/v1/checkout/sessions") {
@@ -169,6 +187,7 @@ export async function fixtureDeCheckout(
     stripeMode: "dev",
     publicAppUrl: "https://recreio.example.test",
     managedCheckout: true,
+    portalConfigurationId: portal.id,
     products,
     resolveSubjectEmail: async () => adulto.conta.email,
   });
@@ -237,6 +256,10 @@ export async function fixtureDeCheckout(
     runtime,
     requests,
     prices,
+    portais,
+    aposCriarPortal: (callback: () => Promise<void>) => {
+      depoisDoPortal = callback;
+    },
     products,
     aposPersistir: (callback: () => Promise<void>) => {
       depoisDePersistir = callback;

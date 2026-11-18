@@ -41,7 +41,20 @@ export async function consultarMinhaCompra(autor: IdentidadeNativa) {
 export async function consultarMinhaCobranca(autor: IdentidadeNativa) {
   const compra = await consultarMinhaCompra(autor);
   const financeiro = await consultarSituacaoFinanceiraNoBanco(autor);
-  return { modo: env.RECREIO_BILLING_MODE, compra, financeiro, ofertas: ofertasParaOAdulto() };
+  return {
+    modo: env.RECREIO_BILLING_MODE,
+    compra,
+    financeiro,
+    ofertas: ofertasParaOAdulto(),
+    portalDisponivel:
+      financeiro.temCliente &&
+      env.STRIPE_MODE === "dev" &&
+      Boolean(
+        env.STRIPE_SECRET_KEY?.startsWith("sk_test_") &&
+          env.STRIPE_PORTAL_CONFIGURATION_ID?.startsWith("bpc_") &&
+          env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_"),
+      ),
+  };
 }
 export async function encerrarCompraNaoEnviada(autor: IdentidadeNativa, entrada: unknown) {
   const id = z.uuid().parse(entrada);

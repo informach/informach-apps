@@ -83,6 +83,19 @@ cobre leitura e isolamento; jornada de navegador prepara fatos SQL explicitament
 sintéticos para inspecionar telas paga/em conferência em 390 px, separada da
 prova SDK de liquidação. Ainda em qualificação, sem implantação.
 
+O gate financeiro de `7eae1843` passou, mas a nova jornada visual procurou
+“Individual mensal”; o catálogo nomeia a oferta mensal “Recreio Individual”.
+O seletor passa a usar o valor real do controle. As novas capturas paga/em
+conferência entram na preservação do workflow. A execução integral é repetida.
+
+A candidata do portal financeiro exige adulto nativo atual, titular comercial,
+login recente e o mesmo customer antes e depois do I/O. Catálogo restrito é
+conferido antes de abrir faturas/pagamento/cancelamento; trocar para PIN infantil
+ou sair durante a rede impede devolver o link. Sessão do Stripe não altera
+assinatura. Gestão de contrato existente fica separada da admissão de compra;
+o fechamento de vendas não remove essa recuperação quando a composição estiver
+configurada. Sete casos com SDK/PG/HTTP fechado e auditoria estrita aguardam gates.
+
 `146b0932` concluiu os treze gates `44299049292`, incluindo as quatro provas
 de Checkout vinculado ao UUID do aceite e validade absoluta. O gate comercial
 usa PostgreSQL e SDK Stripe por transporte HTTP fechado; não é pagamento real.
