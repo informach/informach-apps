@@ -1,5 +1,28 @@
 # Recreio: visitas temporárias com anfitrião
 
+## Jornada familiar comprovada e desistência na tela, candidata
+
+`f21630ea`/`44269499310` concluiu sete gates e 40 jornadas, incluindo a visita
+infantil completa (32,5 s): duas aprovações nativas, entrada física sem membro,
+saída voluntária sem reuso, outro convite, corte ao sair o anfitrião e progresso
+conservado. O único E2E reprovado foi o apelido longo da fixture de gestão,
+corrigido em `af148638`, rodada `44270231113` ainda em curso.
+
+Na inspeção visual, a tela de aceite mantinha a trava de envio inclusive após
+receber o aceite confirmado, exigindo recarga para desistir. A candidata libera
+`Encerrar visita` após resposta positiva do aceite; envio pendente, resposta
+desconhecida e conclusão terminal conservam a trava. O E2E agora confere essa
+possibilidade antes da entrada. Não muda a concessão ou admissão do servidor.
+
+Capturas parentais e do aceite de 390 px foram inspecionadas: sem corte de
+texto/controles ou rolagem horizontal. Prova inicial parental: artefato
+`14410778481`, fonte `70f85381`, 3822625 bytes, SHA-256
+`31fa01bd8b9e8db91c69482a6777a2944b5f2cc20d4de694e6ad1d328fb7ef24`.
+Prova de aceite: artefato `14413380495`, fonte `f21630ea`, 3904416 bytes,
+SHA-256 `d18debbcd892c9c409b9058066b9fc6b19917c8772abdd8bce487d2ed0db3977`.
+Ambos conferidos antes de extrair. A nova trava de tela e gestão/transição
+exigem rodada completa e capturas atuais antes da implantação. Sem migration.
+
 ## Correção dos apelidos da prova de gestão, candidata
 
 Em `031c689c`/`44267435863`, a jornada da gestão parou no cadastro do primeiro

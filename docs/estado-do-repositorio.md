@@ -1,5 +1,13 @@
 # Estado do trabalho no repositório
 
+**18/11 — visita familiar comprovada:** `f21630ea` concluiu sete gates e
+40 E2E, incluindo a jornada física infantil completa em 32,5 s. Capturas de
+390 px do responsável e do aceite inspecionadas. A tela agora permite desistir
+após aceite confirmado sem recarga, mantendo a trava em resposta incerta;
+essa alteração exige nova rodada. `af148638` corrige o único E2E restante de
+apelido inválido, ainda em verificação. Gestão/transição e operação F5 seguem
+abertas no [registro](recreio/visitas-temporarias-2026-11-17.md).
+
 **18/11 — levantamento comercial F6:** preços confirmados e motor recuperável
 existente mapeados; teste sem cartão da proposta é 48 h × sete dias, começando
 na primeira sessão autorizada. O adapter atual ainda não leva período

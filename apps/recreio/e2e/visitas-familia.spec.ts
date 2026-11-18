@@ -280,6 +280,9 @@ test("visita infantil exige os dois responsáveis, não cria membro e termina ao
     await hidratado(aceitar);
     await aceitar.click();
     await expect(b.infantil.getByRole("status")).toContainText("Convite aceito");
+    await expect(
+      b.infantil.getByRole("button", { name: "Encerrar visita", exact: true }),
+    ).toBeEnabled();
     const entrar = b.infantil.getByRole("link", { name: "Conferir entrada no mundo", exact: true }),
       destino = await entrar.getAttribute("href");
     if (!destino) throw new Error("Finalidade de visita ausente");

@@ -35,6 +35,9 @@ export function DecisaoDaVisita({
         });
         if (resposta.ok) {
           guardar(resposta.data);
+          // Aceite confirmado permite desistir da concessão sem exigir recarga.
+          // Resposta desconhecida continua bloqueada até conferir o recibo.
+          marcarEnviado(acao !== "aceitar");
           avisar(
             acao === "aceitar"
               ? "Convite aceito. Confira a entrada enquanto seu amigo estiver neste mundo."
