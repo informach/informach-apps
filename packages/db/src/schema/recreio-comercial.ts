@@ -110,6 +110,13 @@ export const recreioPurchaseAuthorizations = recreio.table(
     resolution: text("resolution").$type<"not_started" | "checkout_completed" | "expired_unpaid">(),
   },
   (t) => [
+    unique("recreio_purchase_authorization_scope").on(
+      t.id,
+      t.groupId,
+      t.payerUserId,
+      t.providerMode,
+      t.productId,
+    ),
     uniqueIndex("recreio_purchase_authorization_active")
       .on(t.payerUserId)
       .where(sql`${t.resolvedAt} is null`),

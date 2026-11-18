@@ -23,6 +23,7 @@ export * from "./recreio-dados";
 export * from "./recreio-familia";
 export * from "./recreio-grupo";
 export * from "./recreio-moderacao";
+export * from "./recreio-planos";
 export * from "./recreio-politicas";
 export * from "./recreio-presencas";
 export * from "./recreio-protecao";

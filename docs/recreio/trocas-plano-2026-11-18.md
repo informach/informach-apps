@@ -64,5 +64,16 @@ Homologação externa no Stripe de teste cobre fatura proporcional, inadimplênc
 renovação e execução da agenda, sem clientes ou chaves live. Fluxo familiar e
 capturas de navegador integram o aceite; testes pesados somente no GitHub.
 
+Schema aditivo em preparação: `plan_changes` conserva cotação/aceite/tentativa e
+resultado distintos; `plan_change_profiles` conserva a seleção completa e a
+revisão de cada perfil. `billing_contracts` aponta somente para a oferta atual:
+a referência composta exige o mesmo contrato, compra, pagante, grupo, modo,
+destino, aplicação e revisão. Um recibo histórico isolado não autoriza retornar
+a um plano anterior. A primeira revisão fica presa à compra original. Não há
+backfill nem mudança de assinaturas existentes nesta DDL; a restrição única
+adicionada à compra inclui sua chave primária. A geração e a prova das
+restrições precisam terminar antes de compor qualquer escritor ou habilitar
+trocas. Não alterar SQL/snapshot/journal gerados manualmente.
+
 O catálogo de teste já possui evidência própria; isso não comprova trocas ou
 pagamentos. Nenhuma DDL F6 ou alteração comercial foi implantada em produção.
