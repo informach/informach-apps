@@ -95,7 +95,7 @@ function fixture() {
   let lose: "create" | "update" | null = null;
   const remoteSchedule = () => ({
     ...schedule,
-    subscription: attached,
+    subscription: attached ? sub.id : null,
     released_subscription: schedule.status === "released" ? sub.id : null,
   });
   const transport: typeof fetch = async (url, init) => {
