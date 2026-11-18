@@ -1,10 +1,12 @@
 import "server-only";
 import { and, db, eq, ne, sql } from "@informach/db";
 import {
-  recreioDirectedInviteWorldApprovals as approvals,
-  recreioDirectedSpaceInvites as invites,
+  recreioDirectedInviteWorldApprovals as memberApprovals,
+  recreioDirectedSpaceInvites as memberInvites,
   recreioSpaceMembers as members,
   recreioSpaces as spaces,
+  recreioVisitInviteWorldApprovals as visitApprovals,
+  recreioSpaceVisitInvites as visitInvites,
 } from "@informach/db/schema";
 import { ErroDoRecreio, type MundoId, type PerfilId, PerfilIdSchema } from "@informach/recreio";
 import {
@@ -92,7 +94,11 @@ async function comContextoDeConvite<T>(
   pontas: PontasDeConvite,
   executar: (tx: Transacao, ctx: ContextoDeConvite) => Promise<T>,
   leitura: boolean,
+  finalidade: "membro" | "visita" = "membro",
 ) {
+  // Compartilha a composição de identidade, nunca o recibo ou o efeito concedido.
+  const invites = finalidade === "membro" ? memberInvites : visitInvites,
+    approvals = finalidade === "membro" ? memberApprovals : visitApprovals;
   assertAllowed(
     pontas.origemId !== pontas.destinoId &&
       (autor.perfilId === pontas.origemId || autor.perfilId === pontas.destinoId),
@@ -259,4 +265,20 @@ export function comLeitorDoConvite<T>(
   executar: (tx: Transacao, ctx: ContextoDeConvite) => Promise<T>,
 ) {
   return comContextoDeConvite(autor, pontas, executar, true);
+}
+
+/** Somente o namespace de visitas; não cria ou aceita participação permanente. */
+export function comJogadorNoConviteDeVisita<T>(
+  autor: AutorDeMundos,
+  pontas: PontasDeConvite,
+  executar: (tx: Transacao, ctx: ContextoDeConvite) => Promise<T>,
+) {
+  return comContextoDeConvite(autor, pontas, executar, false, "visita");
+}
+export function comLeitorDoConviteDeVisita<T>(
+  autor: AutorDeMundos,
+  pontas: PontasDeConvite,
+  executar: (tx: Transacao, ctx: ContextoDeConvite) => Promise<T>,
+) {
+  return comContextoDeConvite(autor, pontas, executar, true, "visita");
 }

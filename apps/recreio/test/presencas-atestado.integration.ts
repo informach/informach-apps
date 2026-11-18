@@ -1,11 +1,13 @@
 import { AuditPersistenceError } from "@informach/auth";
 import { db, eq, sql } from "@informach/db";
 import {
+  recreioDeviceSessions as devices,
   recreioGameInstances as instances,
   recreioSpaceLeases as leases,
   recreioSpaceMembers as members,
   recreioWorldHostPresences as presences,
   recreioGameSessions as sessions,
+  recreioSpaceVisitInvites as visitInvites,
 } from "@informach/db/schema";
 import { SessaoDeJogoIdSchema } from "@informach/recreio";
 import {
@@ -16,8 +18,10 @@ import {
   SessaoAbertaSchema,
 } from "@informach/recreio/contrato";
 import { afterEach, expect, it, vi } from "vitest";
+import { comJogadorNoConvite } from "@/features/mundos/convites-dirigidos-contexto-repository";
 import { limparPresencasDeAnfitriao } from "@/features/presencas/retencao-repository";
 import { atestarPresenca } from "@/features/presencas/service";
+import { comJogadorEAnfitriaoNaVisita } from "@/features/visitas/contexto-repository";
 import { env } from "@/lib/env";
 import { aposentarInstancias, eventosCom, novoJogador } from "./apoio";
 import {
@@ -197,6 +201,151 @@ const renovar = (c: Cenario, presencaId: string): RenovacaoDePresenca => ({
   sid: c.sessao.sid,
   perfilId: c.jogador.perfil.id,
   presencaId,
+});
+
+// Fundação do contexto, sem serviço de convite/aceite ou admissão de visitante.
+async function contextoDaVisita() {
+  const c = await cenario(),
+    presenca = await entrar(c),
+    destino = await novoJogador(),
+    agora = new Date(),
+    [prova] = await db.select().from(presences).where(eq(presences.id, presenca.presencaId));
+  if (!prova) throw new Error("Presença ausente");
+  const [convite] = await db
+    .insert(visitInvites)
+    .values({
+      spaceId: c.mundoId,
+      hostPresenceId: presenca.presencaId,
+      hostSessionId: c.sessao.sid,
+      hostMemberId: prova.hostMemberId,
+      originProfileId: c.jogador.perfil.id,
+      targetProfileId: destino.perfil.id,
+      clientKey: crypto.randomUUID(),
+      requestHash: "c".repeat(64),
+      managementRevision: 1,
+      friendshipRevision: 1,
+      originPolicyVersion: 1,
+      targetPolicyVersion: 1,
+      createdAt: agora,
+      expiresAt: new Date(agora.getTime() + 600_000),
+      retainUntil: new Date(agora.getTime() + 30 * 86_400_000),
+    })
+    .returning();
+  if (!convite) throw new Error("Convite fixture ausente");
+  const autor = {
+      perfilId: destino.perfil.id,
+      sessaoDeAparelhoId: destino.ator.sessaoDeAparelhoId,
+    },
+    pontas = {
+      mundoId: c.mundoId,
+      origemId: c.jogador.perfil.id,
+      destinoId: destino.perfil.id,
+      conviteId: convite.id,
+    };
+  return { c, presenca, destino, convite, autor, pontas };
+}
+
+it("contexto revalida anfitrião sem inserir membro ou concessão e mantém namespaces separados", async () => {
+  const r = await contextoDaVisita(),
+    antes = await db.select().from(members).where(eq(members.spaceId, r.c.mundoId));
+  expect(
+    await comJogadorEAnfitriaoNaVisita(
+      r.autor,
+      r.pontas,
+      r.presenca.presencaId,
+      async (_tx, _ctx, host) => host.presenca.hostSessionId,
+    ),
+  ).toBe(r.c.sessao.sid);
+  await expect(comJogadorNoConvite(r.autor, r.pontas, async () => true)).rejects.toMatchObject({
+    code: "PEDIDO",
+  });
+  expect(await db.select().from(members).where(eq(members.spaceId, r.c.mundoId))).toEqual(antes);
+});
+
+it.each([
+  { tipo: "sessao", esperado: { codigo: "SESSAO_ENCERRADA" } },
+  { tipo: "aparelho", esperado: { codigo: "SESSAO_INVALIDA" } },
+  { tipo: "cobertura", esperado: { codigo: "ACESSO_NEGADO" } },
+  { tipo: "posse", esperado: { codigo: "POSSE_PERDIDA" } },
+  { tipo: "presenca", esperado: { code: "PEDIDO" } },
+] as const)(
+  "perder $tipo do anfitrião recusa escrita positiva sem depender da conta destinatária",
+  async ({ tipo, esperado }) => {
+    const r = await contextoDaVisita();
+    if (tipo === "sessao")
+      await pedir("POST", "/api/sdk/v1/sessao/sair", { token: r.c.sessao.token });
+    else if (tipo === "aparelho")
+      await db
+        .update(devices)
+        .set({ revokedAt: new Date() })
+        .where(eq(devices.id, r.c.jogador.ator.sessaoDeAparelhoId));
+    else if (tipo === "cobertura")
+      await db.execute(
+        sql`update recreio.entitlements set starts_at=clock_timestamp()-interval '1 hour',ends_at=clock_timestamp()-interval '1 minute' where group_id=(select group_id from recreio.profiles where id=${r.c.jogador.perfil.id})`,
+      );
+    else if (tipo === "posse")
+      await db
+        .update(leases)
+        .set({ expiresAt: new Date(Date.now() - 1) })
+        .where(eq(leases.spaceId, r.c.mundoId));
+    else
+      await r.c.instancia.cliente.atestarPresenca({
+        mundoId: r.c.mundoId,
+        operacao: "sair",
+        cerca: r.c.pedido.cerca,
+        presencaId: r.presenca.presencaId,
+      });
+    await expect(
+      comJogadorEAnfitriaoNaVisita(r.autor, r.pontas, r.presenca.presencaId, async () => true),
+    ).rejects.toMatchObject(esperado);
+  },
+);
+
+it("presença nova não substitui a prova original de um convite", async () => {
+  const r = await contextoDaVisita();
+  await r.c.instancia.cliente.atestarPresenca({
+    mundoId: r.c.mundoId,
+    operacao: "sair",
+    cerca: r.c.pedido.cerca,
+    presencaId: r.presenca.presencaId,
+  });
+  const nova = await r.c.instancia.cliente.atestarPresenca({
+    mundoId: r.c.mundoId,
+    ...r.c.pedido,
+    chaveDeEntrada: crypto.randomUUID(),
+  });
+  await expect(
+    comJogadorEAnfitriaoNaVisita(r.autor, r.pontas, nova.presencaId, async () => true),
+  ).rejects.toMatchObject({ code: "PEDIDO" });
+});
+
+it("expiração da presença durante o efeito reverte o efeito antes do commit", async () => {
+  const r = await contextoDaVisita();
+  await db
+    .update(presences)
+    .set({ expiresAt: new Date(Date.now() + 1100) })
+    .where(eq(presences.id, r.presenca.presencaId));
+  await expect(
+    comJogadorEAnfitriaoNaVisita(r.autor, r.pontas, r.presenca.presencaId, async (tx) => {
+      await tx
+        .update(visitInvites)
+        .set({ state: "revoked", finishedAt: new Date() })
+        .where(eq(visitInvites.id, r.convite.id));
+      await tx.execute(sql`select pg_sleep(1.3)`);
+      return true;
+    }),
+  ).rejects.toMatchObject({ code: "PEDIDO" });
+  expect(
+    (await db.select().from(visitInvites).where(eq(visitInvites.id, r.convite.id)))[0]?.state,
+  ).toBe("pending");
+});
+
+it("modo desligado recusa o contexto positivo mesmo com presença e capacidades antigas", async () => {
+  const r = await contextoDaVisita();
+  env.RECREIO_VISITS_MODE = "off";
+  await expect(
+    comJogadorEAnfitriaoNaVisita(r.autor, r.pontas, r.presenca.presencaId, async () => true),
+  ).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
 });
 
 it("renovação HTTP em lote conserva janela/identidade e distingue prova alheia sem encerrar SID", async () => {

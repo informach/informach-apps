@@ -19,14 +19,12 @@ passou nos oito gates `44220010016`, com 785 integrações e 38 E2E; captura de
 `44222402220`, com 801 integrações. Atestado técnico/limpeza corrigidos em
 `6daed18f` passaram em 814 integrações e upgrades 179→200/191→200; E2E falhou
 por esperar dez minutos mesmo próximo da virada do dia (aviso real de seis).
-Correção da expectativa está na candidata `3bbcc907`. Negociação persistida
-`92c2010b` passou nos oito gates `44227206576`, com 823 integrações e 38 E2E.
-Renovação `0a7c0af2` passou em 836 integrações e upgrades, mas qualidade recusou
-formatação do E2E e checkpoint recusou motivo `left` de parada antecipada para
-salvar. Correções em candidata, sem aprovação integral. Schema separado de
-convites/concessões foi gerado no GitHub; 22 testes de integridade candidatos.
-Visitas e operação F5 permanecem pendentes. Migrations 0191–0200 geradas no
-GitHub, ausentes de produção.
+Correções de expectativa/formatação e fundação de visitas `e30cdbc8` passaram
+nos oito gates `44230126377`, com 858 integrações e upgrades 179→201/191→201.
+Negociação anterior `92c2010b` também passou nos oito gates. Retenção e índices
+`566c1d3a` estão em verificação; contexto do anfitrião atual na candidata
+seguinte. Visitas e operação F5 permanecem pendentes. Migrations 0191–0201
+geradas no GitHub, ausentes de produção.
 [Sucessão infantil](recreio/sucessao-infantil-2026-11-17.md).
 [Contrato, provas e limites](recreio/mundos-completos-2026-11-17.md).
 F4 passou nos gates/CI compartilhado e foi implantada em `396fe932`, com social

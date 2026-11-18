@@ -358,3 +358,32 @@ arquivos, cinco do Bastidores, upgrades 179→201/191→201 e no checkpoint do
 minuto real. E2E ainda em execução nesta leitura. Retenção e índices acima
 ainda não fazem parte desse resultado. Journal candidato atual: 202; produção
 conserva 191 recibos/0190 e nenhuma admissão de visitante está habilitada.
+
+## Contexto candidato do anfitrião atual
+
+A composição de contas → mundo → perfis pode consultar o namespace explícito
+de visitas. Entradas legadas continuam presas ao namespace de membro; não
+existe seletor de namespace na API. Compartilha-se a composição de identidade,
+sem compartilhar recibos, aprovações ou efeito de participação.
+
+Nova escrita positiva interna exige social/visitas habilitados, manifesto,
+instância e SID com suporte persistido. Relê presença, SID, aparelho, conta,
+cobertura e política do anfitrião pelo kernel existente. Usa a conta já
+travada da composição, sem inferir autoridade do recibo técnico ou tomar nova
+conta fora da ordem. Também confere membro permanente ativo, responsável ou
+coadmin coerente, posse/cerca atuais, instância ativa e prazos da sessão e da
+presença. Confere novamente o prazo após o callback; espera que o atravessa
+reverte o efeito. Presença nova não substitui a identidade original do convite.
+
+Nove integrações candidatas exercitam contexto positivo, separação de
+namespace, fim de SID/aparelho/cobertura/posse/presença, nova presença, prazo
+durante o efeito e modo desligado. Convites desses testes são fixtures SQL;
+isso não representa envio, aprovações, aceite, concessão ou entrada de visita.
+Os futuros serviços ainda precisam conferir amizade, conteúdo, revisões,
+aprovações, prazo do convite e limites do mundo. Nenhum endpoint de visitante
+foi publicado por este contexto.
+
+Fundação `e30cdbc8` concluiu os oito gates `44230126377`, com 858 integrações,
+upgrades com dados e checkpoint real aprovados. Retenção `566c1d3a` continua
+em verificação no run `44231363456`. Esse resultado ainda não cobre os nove
+testes e o contexto acrescentados depois dessas fontes.
