@@ -1,5 +1,12 @@
 # Estado do trabalho no repositório
 
+**18/11 — gestão das visitas em candidata:** fila nativa paginada e aprovação
+nas rotas do mundo adulto/do menor, com cinco integrações e nova jornada de
+três adultos. `70f85381` (jornada familiar) está na rodada `44266657089`;
+fila e jornada da gestão exigem nova rodada completa. UI de caixa na partida,
+troca direta e implantação F5 permanecem pendentes. Evidências no
+[registro das visitas](recreio/visitas-temporarias-2026-11-17.md).
+
 **18/11 — UI de visitas em candidata:** convites na partida, caixa/detalhe
 do jogador e supervisão parental com aprovação/encerramento estão preparados.
 Jornada remota nova prevê dois responsáveis/aparelhos, visita sem membro,

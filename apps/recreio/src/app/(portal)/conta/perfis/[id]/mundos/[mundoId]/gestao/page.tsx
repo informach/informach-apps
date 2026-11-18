@@ -51,6 +51,12 @@ export default async function GestaoDoMundoDoPerfil({
       </p>
       <AdministracaoDoMundo painel={painel} />
       <Link
+        className="mt-5 inline-flex min-h-11 items-center font-bold text-ceu underline"
+        href={`/conta/perfis/${perfil.data}/mundos/${mundo.data}/visitas`}
+      >
+        Conferir visitas ao mundo do perfil
+      </Link>
+      <Link
         href={`/conta/perfis/${perfil.data}/mundos/${mundo.data}/responsabilidade`}
         className="mt-5 inline-flex min-h-11 items-center font-bold text-ceu underline"
       >

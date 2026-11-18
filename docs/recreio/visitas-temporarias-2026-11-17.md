@@ -1,5 +1,30 @@
 # Recreio: visitas temporárias com anfitrião
 
+## Atualização — fila e decisão da gestão do mundo em candidata
+
+As páginas de gestão agora apontam para uma fila própria de visitas, com
+paginação independente dos convites permanentes. A consulta nativa relê o
+papel e a responsabilidade pelo perfil sob contas → mundo → perfis, sem
+cobertura comercial. Seleciona somente IDs/datas de pedidos pendentes, vigentes,
+da revisão atual e sem aprovação do mundo. Não fornece nomes, SID ou presença.
+Conferir um item passa pelo painel completo com amizade/conteúdo/anfitrião
+atuais. A decisão continua exigindo login recente e confirmação explícita.
+
+Mundo adulto e mundo de menor têm rotas distintas. O alvo infantil é um perfil
+gerido pela conta nativa atual, não identidade emprestada do aparelho pareado.
+Cinco integrações candidatas cobrem leitura sem plano, recusa de membro sem
+gestão, retirada da fila após aprovação, cursor estável, mundo cruzado e
+exclusão por revisão/recusa/vencimento. Uma jornada adicional de navegador usa
+três adultos: membro anfitrião convida amigo, o responsável diferente aprova,
+visitante entra sem membro, e saída do anfitrião encerra a visita preservando
+as duas participações permanentes. Captura de gestão de 390 px ainda candidata.
+
+Fonte anterior `13ad8954` concluiu sete gates; a única falha foi a expectativa
+de ausência de presença corrigida em `70f85381`, cuja rodada `44266657089`
+continua em execução. Esta fila exige nova rodada completa. Caixa na partida,
+transição direta entre jogos e implantação integral F5 continuam pendentes.
+Sem migration ou implantação em produção.
+
 ## Atualização — telas e jornada familiar em candidata
 
 A partida oferece convite de visita a um amigo usando a presença do próprio

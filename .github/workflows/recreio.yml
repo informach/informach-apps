@@ -196,6 +196,7 @@ jobs:
             apps/recreio/tmp/telas/sucessao-menor-mobile.png
             apps/recreio/tmp/telas/visitas-responsavel-mobile.png
             apps/recreio/tmp/telas/visitas-aceite-mobile.png
+            apps/recreio/tmp/telas/visitas-gestao-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic staff queue screen

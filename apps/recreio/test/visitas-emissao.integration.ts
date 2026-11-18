@@ -27,6 +27,7 @@ import {
   protegerContato,
 } from "@/features/social/service";
 import { caixaDeVisitas } from "@/features/visitas/consulta-repository";
+import { visitasAguardandoOMundo } from "@/features/visitas/fila-nativa-repository";
 import {
   painelDaVisitaDoMenor,
   painelDaVisitaNoMundo,
@@ -173,6 +174,74 @@ async function menorConvidado(aguardaMundo = false) {
     };
   return { c, familia, dono, recibo, pedido };
 }
+
+it("fila nativa do mundo sem plano lista só recibos pendentes e some após aprovação", async () => {
+  const r = await mundoPendente(),
+    autor = { ...r.dono.nativo, perfilId: r.dono.gestor.perfil.id };
+  const fila = await visitasAguardandoOMundo(autor, r.c.mundoId, {});
+  expect(fila.convites).toEqual([
+    { id: r.recibo.conviteId, criadoEm: r.recibo.criadoEm, expiraEm: r.recibo.expiraEm },
+  ]);
+  expect(fila.proximo).toBeNull();
+  expect(Object.keys(fila.convites[0] ?? {}).sort()).toEqual(["criadoEm", "expiraEm", "id"]);
+  await expect(
+    visitasAguardandoOMundo(
+      { ...(await nativo(r.c.origem)), perfilId: r.c.origem.perfil.id },
+      r.c.mundoId,
+      {},
+    ),
+  ).rejects.toMatchObject({ code: "RESPONSAVEL" });
+  await aprovarVisitaDoMundo(r.dono.nativo, r.dono.gestor.perfil.id, r.pedido);
+  expect((await visitasAguardandoOMundo(autor, r.c.mundoId, {})).convites).toEqual([]);
+});
+
+it("fila de visitas pagina datas iguais sem carregar nomes ou recibos de outro mundo", async () => {
+  const r = await mundoPendente(),
+    autor = { ...r.dono.nativo, perfilId: r.dono.gestor.perfil.id },
+    [base] = await db.select().from(invites).where(eq(invites.id, r.recibo.conviteId));
+  if (!base) throw new Error("Recibo ausente");
+  const copias = Array.from({ length: 12 }, () => ({
+    ...base,
+    id: crypto.randomUUID(),
+    clientKey: crypto.randomUUID(),
+  }));
+  await db.insert(invites).values(copias);
+  const primeira = await visitasAguardandoOMundo(autor, r.c.mundoId, {});
+  expect(primeira.convites).toHaveLength(10);
+  if (!primeira.proximo) throw new Error("Cursor ausente");
+  const segunda = await visitasAguardandoOMundo(autor, r.c.mundoId, {
+    aposEm: primeira.proximo.em,
+    aposId: primeira.proximo.id,
+  });
+  expect(segunda.convites).toHaveLength(3);
+  expect(segunda.proximo).toBeNull();
+  expect([...primeira.convites, ...segunda.convites].map((c) => c.id)).toEqual(
+    [base.id, ...copias.map((c) => c.id)].sort().reverse(),
+  );
+  await expect(visitasAguardandoOMundo(autor, crypto.randomUUID(), {})).rejects.toMatchObject({
+    code: "MUNDO",
+  });
+});
+
+it.each(["revisao", "recusado", "vencido"] as const)(
+  "fila de visitas exclui convite %s",
+  async (tipo) => {
+    const r = await mundoPendente(),
+      autor = { ...r.dono.nativo, perfilId: r.dono.gestor.perfil.id };
+    if (tipo === "revisao")
+      await db.execute(
+        sql`update recreio.spaces set management_revision=management_revision+1 where id=${r.c.mundoId}::uuid`,
+      );
+    if (tipo === "recusado")
+      await responderConviteDeVisita(r.c.alvo, { conviteId: r.recibo.conviteId, acao: "recusar" });
+    if (tipo === "vencido")
+      await db
+        .update(invites)
+        .set({ expiresAt: new Date(Date.now() - 1) })
+        .where(eq(invites.id, r.recibo.conviteId));
+    expect((await visitasAguardandoOMundo(autor, r.c.mundoId, {})).convites).toEqual([]);
+  },
+);
 
 it("painel parental sem jogador/plano mostra só decisão própria sem aprovar ou admitir", async () => {
   const r = await menorConvidado(true);

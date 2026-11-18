@@ -48,6 +48,12 @@ export default async function GestaoDoMundo({
         Gestão do mundo · {painel.mundo.estado === "archived" ? "Arquivado" : "Disponível"}
       </p>
       <AdministracaoDoMundo painel={painel} />
+      <Link
+        className="mt-5 inline-flex min-h-11 items-center font-bold text-ceu underline"
+        href={`/conta/mundos/${id.data}/visitas`}
+      >
+        Conferir visitas ao mundo
+      </Link>
       <FilaDeConvitesDoMundo
         fila={painel.filaDeConvites}
         baseDoConvite={`/conta/mundos/${id.data}/convites`}
