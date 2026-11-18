@@ -170,6 +170,8 @@ export type ProviderPreviewInvoiceInput = {
 };
 
 export type ProviderInvoicePreview = {
+  /** Provider invoice total, before customer balance. Native receipts require it. */
+  totalCents?: number;
   /**
    * Sum of POSITIVE line items in cents — the gross price of the new plan
    * (typically the full annual subscription, plus any add-ons). The UI shows

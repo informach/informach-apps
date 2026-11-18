@@ -34,12 +34,17 @@ export const recreioPlanChanges = recreio.table(
     fromPriceId: text("from_price_id").notNull(),
     toProductId: text("to_product_id").notNull(),
     toPriceId: text("to_price_id").notNull(),
+    toAmountCents: integer("to_amount_cents").notNull(),
+    toInterval: text("to_interval").$type<"month" | "year">().notNull(),
     kind: text("kind").$type<"upgrade" | "downgrade">().notNull(),
     periodStart: timestamp("period_start", { withTimezone: true }).notNull(),
     periodEnd: timestamp("period_end", { withTimezone: true }).notNull(),
     effectiveAt: timestamp("effective_at", { withTimezone: true }).notNull(),
     prorationAt: timestamp("proration_at", { withTimezone: true }),
     quotedAmountCents: integer("quoted_amount_cents").notNull(),
+    quotedSubtotalCents: integer("quoted_subtotal_cents").notNull(),
+    quotedCreditCents: integer("quoted_credit_cents").notNull(),
+    quotedTotalCents: integer("quoted_total_cents").notNull(),
     currency: text("currency").$type<"BRL">().notNull(),
     policyVersion: text("policy_version").notNull(),
     quotedAt: timestamp("quoted_at", { withTimezone: true }).notNull(),
@@ -95,13 +100,14 @@ export const recreioPlanChanges = recreio.table(
       sql`${t.fromProductId} <> ${t.toProductId} and ${t.fromPriceId} <> ${t.toPriceId} and
     length(${t.originProductId}) between 2 and 80 and length(${t.fromProductId}) between 2 and 80 and length(${t.toProductId}) between 2 and 80 and
     length(${t.fromPriceId}) between 8 and 256 and length(${t.toPriceId}) between 8 and 256 and ${t.expectedContractRevision} >= 1 and
-    ${t.quotedAmountCents} >= 0 and ${t.currency}='BRL' and length(${t.policyVersion}) between 2 and 64`,
+    ${t.toAmountCents}>0 and ${t.toInterval} in ('month','year') and
+    ${t.quotedAmountCents} >= 0 and ${t.quotedSubtotalCents}>=0 and ${t.quotedCreditCents}<=0 and ${t.currency}='BRL' and length(${t.policyVersion}) between 2 and 64`,
     ),
     check(
       "recreio_plan_change_effect",
       sql`${t.periodEnd} > ${t.periodStart} and
     ((${t.kind}='upgrade' and ${t.prorationAt} is not null and ${t.effectiveAt}=${t.prorationAt} and ${t.effectiveAt}>=${t.periodStart} and ${t.effectiveAt}<${t.periodEnd}) or
-     (${t.kind}='downgrade' and ${t.prorationAt} is null and ${t.effectiveAt}=${t.periodEnd} and ${t.quotedAmountCents}=0))`,
+     (${t.kind}='downgrade' and ${t.prorationAt} is null and ${t.effectiveAt}=${t.periodEnd} and ${t.quotedAmountCents}=0 and ${t.quotedSubtotalCents}=0 and ${t.quotedCreditCents}=0 and ${t.quotedTotalCents}=0))`,
     ),
     check(
       "recreio_plan_change_quote",
@@ -154,6 +160,7 @@ export const recreioBillingContracts = recreio.table(
     revision: integer("revision").notNull().default(1),
     currentPlanChangeId: uuid("current_plan_change_id"),
     currentPlanAppliedAt: timestamp("current_plan_applied_at", { withTimezone: true }),
+    coverageReviewRequired: boolean("coverage_review_required").notNull().default(false),
   },
   (t) => [
     foreignKey({
@@ -196,6 +203,10 @@ export const recreioBillingContracts = recreio.table(
     }).onDelete("restrict"),
     index("recreio_billing_contract_payer").on(t.payerUserId, t.providerMode),
     check("recreio_billing_contract_mode", sql`${t.providerMode} in ('dev','prod')`),
+    check(
+      "recreio_billing_contract_selection_review",
+      sql`not ${t.coverageReviewRequired} or ${t.currentPlanChangeId} is not null`,
+    ),
     check(
       "recreio_billing_contract_offer",
       sql`length(${t.originPriceId}) between 8 and 256 and length(${t.currentPriceId}) between 8 and 256 and length(${t.currentProductId}) between 2 and 80`,

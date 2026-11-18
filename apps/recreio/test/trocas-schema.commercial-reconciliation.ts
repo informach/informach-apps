@@ -74,12 +74,17 @@ async function fixture() {
     fromPriceId: subscription.providerPriceId,
     toProductId: "recreio_family_monthly",
     toPriceId: "price_recreio_family_monthly",
+    toAmountCents: 12790,
+    toInterval: "month",
     kind: "upgrade",
     periodStart: subscription.currentPeriodStart,
     periodEnd: subscription.currentPeriodEnd,
     effectiveAt: now,
     prorationAt: now,
     quotedAmountCents: 6800,
+    quotedSubtotalCents: 12790,
+    quotedCreditCents: -5990,
+    quotedTotalCents: 6800,
     currency: "BRL",
     policyVersion: "troca-fixture-v1",
     quotedAt: now,
@@ -110,6 +115,43 @@ async function fixture() {
 }
 
 describe("recibos e autoridade atual das trocas no PostgreSQL", () => {
+  it("preserva os valores aceitos e recusa oferta futura ou parcelas inválidas", async () => {
+    const f = await fixture();
+    for (const patch of [
+      { toAmountCents: 0 },
+      { quotedSubtotalCents: -1 },
+      { quotedCreditCents: 1 },
+    ])
+      expect(
+        await codigoDoBanco(db.update(changes).set(patch).where(eq(changes.id, f.quote.id))),
+      ).toBe("23514");
+    const [saved] = await db.select().from(changes).where(eq(changes.id, f.quote.id));
+    expect(saved).toMatchObject({
+      toAmountCents: 12790,
+      toInterval: "month",
+      quotedSubtotalCents: 12790,
+      quotedCreditCents: -5990,
+      quotedTotalCents: 6800,
+    });
+  });
+  it("revisão de seleção exige troca aplicada e aparece no leitor financeiro", async () => {
+    const f = await fixture();
+    expect(
+      await codigoDoBanco(
+        db
+          .update(contracts)
+          .set({ coverageReviewRequired: true })
+          .where(eq(contracts.subscriptionId, f.origin.subscriptionId)),
+      ),
+    ).toBe("23514");
+    await db.update(changes).set(f.applied).where(eq(changes.id, f.quote.id));
+    await db
+      .update(contracts)
+      .set({ ...f.current, coverageReviewRequired: true })
+      .where(eq(contracts.subscriptionId, f.origin.subscriptionId));
+    const facts = await lerFatosDoGrupo(GrupoIdSchema.parse(f.origin.groupId));
+    expect(facts?.assinaturaAtiva?.financeiro.emConferencia).toBe(true);
+  });
   it("o leitor não volta à compra original quando a autoridade atual já mudou", async () => {
     const f = await fixture();
     const ler = () => lerFatosDoGrupo(GrupoIdSchema.parse(f.origin.groupId));
@@ -257,6 +299,9 @@ describe("recibos e autoridade atual das trocas no PostgreSQL", () => {
       kind: "downgrade" as const,
       prorationAt: null,
       quotedAmountCents: 0,
+      quotedSubtotalCents: 0,
+      quotedCreditCents: 0,
+      quotedTotalCents: 0,
       effectiveAt: f.quote.periodEnd,
     };
     const update = (patch: Partial<typeof changes.$inferInsert>) =>

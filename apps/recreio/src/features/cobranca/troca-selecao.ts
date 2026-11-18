@@ -5,6 +5,7 @@ export type PerfilParaTroca = {
   id: string;
   groupId: string | null;
   policyVersion: number;
+  coverageEnabled: boolean;
   status: "active" | "suspended";
   /** Computed by current native responsibility/participation, never client input. */
   podeCobrir: boolean;
@@ -43,7 +44,8 @@ export function conferirSelecaoDaTroca(
         !Number.isSafeInteger(s.policyVersion) ||
         s.policyVersion < 1 ||
         s.policyVersion >= 2147483646 ||
-        (s.coverageEnabled && (perfil.status !== "active" || !perfil.podeCobrir))
+        (s.coverageEnabled &&
+          (!perfil.coverageEnabled || perfil.status !== "active" || !perfil.podeCobrir))
       );
     })
   )

@@ -116,8 +116,27 @@ atual e da seleção, SDK/HTTP fechado e regressões do portal/jogo. A API exter
 de agenda, renovação, cancelamento e estorno passou separadamente em
 `44346637491`/`63bebd25`; [escopo exato](homologacao-stripe-api-2026-11-18.md).
 O incremento seguinte fixa o segundo do proporcional e a chave de tentativa no
-provider comum; sua extensão externa com pagamento recusado ainda está em
-preparação. Isso não conclui os escritores/telas nativos nem habilita cobrança.
+provider comum. A extensão externa com recusa e quitação do upgrade mensal
+passou em `44348172426`/`3f725d4f`; o proporcional foi R$ 68,00 e o preço antigo
+permaneceu até a quitação. [Prova](evidencias/stripe-api-upgrade-44348172426.json).
+Isso não conclui os escritores/telas nativos nem habilita cobrança.
+
+O próximo schema conserva também valor/intervalo da renovação e subtotal,
+crédito e total da cotação; não recompõe esses termos aceitos a partir de um
+catálogo futuro. Acrescenta revisão de seleção ao contrato atual para um
+efeito remoto confirmado cujo inventário familiar tenha mudado. Esse sinal
+bloqueia acesso até confirmação nativa própria, sem impedir registro dos fatos
+financeiros nem restaurar perfis. A seleção automática só conserva ou reduz
+cobertura atualmente ligada, mesmo diante de uma revisão inconsistente.
+
+Esta nova DDL é anterior a qualquer escritor nativo de cotação em produção.
+Os campos financeiros são obrigatórios e não recebem defaults inventados:
+a implantação deve comprovar `plan_changes` vazia e conservar a cobrança
+desligada durante a migração. Se houver recibos, interromper e preparar um
+backfill com evidência; não preencher valores financeiros com zero.
+Mensal/anual com saldo credor depende de rastrear a origem financeira: uma
+fatura de valor zero isolada não comprova liquidação. Os casos anuais ainda
+precisam de implementação e prova, sem alterar a regra de upgrade imediato.
 
 O catálogo de teste já possui evidência própria; isso não comprova trocas ou
 pagamentos. Nenhuma DDL F6 ou alteração comercial foi implantada em produção.

@@ -141,7 +141,7 @@ async function lerPagamentoDaAssinatura(
         ativa.providerObservedAt <= conferencia.confirmedAt,
     ),
     conferidoEm: conferencia?.confirmedAt ?? null,
-    emConferencia: conferencia?.review ?? true,
+    emConferencia: (conferencia?.review ?? true) || (contrato?.coverageReviewRequired ?? false),
     periodos,
   };
 }

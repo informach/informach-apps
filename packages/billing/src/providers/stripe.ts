@@ -559,6 +559,7 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
           : null;
       return {
         subtotalCents,
+        totalCents: preview.total,
         prorationCreditCents,
         amountDueCents: typeof preview.amount_due === "number" ? preview.amount_due : 0,
         currency: (preview.currency ?? "brl").toUpperCase(),

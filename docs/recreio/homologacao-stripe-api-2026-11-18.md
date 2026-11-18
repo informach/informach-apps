@@ -23,8 +23,14 @@ A candidata seguinte começa em Individual e acrescenta upgrade proporcional
 com `pending_if_incomplete`: `tok_chargeCustomerFail` provoca falha de cobrança,
 o preço antigo precisa permanecer, e o replay deve apontar à mesma fatura.
 Depois quita a fatura com o método de teste válido e exige aplicação/pagamento
-compatíveis com a prévia no mesmo segundo de proporcional. Essa extensão ainda
-precisa de nova execução externa.
+compatíveis com a prévia no mesmo segundo de proporcional. Essa extensão passou
+em `44348172426`/`3f725d4f`: Individual inicial R$ 59,90, proporcional quitado
+de R$ 68,00 depois da recusa, replay na mesma fatura, redução/renovação posterior,
+cancelamento efetivo, estorno inicial detectado e limpeza confirmada. Artefato
+de 1.404 bytes baixado com SHA-256 conferido e recibo inspecionado:
+[evidência do upgrade](evidencias/stripe-api-upgrade-44348172426.json).
+Trocas que mudam periodicidade, créditos remanescentes de anual e suas origens
+financeiras ainda exigem casos e conciliação próprios. Esta prova é mensal.
 
 O ensaio configura a redução para Individual no
 mesmo contrato com `createStripeRecreioPlanSchedules`, verifica replays e

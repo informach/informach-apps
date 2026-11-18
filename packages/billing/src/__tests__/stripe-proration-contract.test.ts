@@ -39,6 +39,7 @@ function fixture() {
         id: "upcoming_in_fixture",
         object: "invoice",
         amount_due: 6800,
+        total: 6800,
         currency: "brl",
         lines: { data: [{ amount: -5990 }, { amount: 12790 }] },
       });
@@ -72,6 +73,7 @@ describe("proporcional fixado entre prévia e tentativa", () => {
     });
     expect(preview).toMatchObject({
       amountDueCents: 6800,
+      totalCents: 6800,
       subtotalCents: 12790,
       prorationCreditCents: -5990,
       currency: "BRL",

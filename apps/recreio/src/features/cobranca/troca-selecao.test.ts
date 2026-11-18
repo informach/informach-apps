@@ -6,6 +6,7 @@ function fixture() {
     id,
     groupId: "grupo",
     policyVersion: 3,
+    coverageEnabled: true,
     status: "active",
     podeCobrir: true,
   }));
@@ -41,6 +42,13 @@ describe("seleção completa de perfis na troca de plano", () => {
     const perfil = f.atuais[0];
     if (!perfil) throw new Error("Fixture absent");
     perfil.policyVersion++;
+    expect(f.conferir).toThrow("perfis mudaram");
+  });
+  it("nunca reativa cobertura desabilitada mesmo com revisão inconsistente", () => {
+    const f = fixture();
+    const perfil = f.atuais[0];
+    if (!perfil) throw new Error("Fixture absent");
+    perfil.coverageEnabled = false;
     expect(f.conferir).toThrow("perfis mudaram");
   });
   it("perda de responsabilidade e suspensão impedem cobertura sem apagar o perfil", () => {
