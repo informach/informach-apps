@@ -135,13 +135,13 @@ export function travarComposicaoSocial(
   return comporPerfisSociais(tx, autor, ids, antesDosPerfis);
 }
 
-/** Emissor, destinatário e gestor do mundo. Social comum conserva o teto de duas pontas. */
+/** Emissor, destinatário, gestor atual e aprovador anterior. Social comum conserva duas pontas. */
 export function travarComposicaoDeConvite(
   tx: Transacao,
   autor: PistaDoAutorSocial,
   ids: readonly PerfilId[],
   antesDosPerfis: (tx: Transacao) => Promise<void>,
 ) {
-  return comporPerfisSociais(tx, autor, ids, antesDosPerfis, 3);
+  return comporPerfisSociais(tx, autor, ids, antesDosPerfis, 4);
 }
 export type ComposicaoSocial = Awaited<ReturnType<typeof travarComposicaoSocial>>;

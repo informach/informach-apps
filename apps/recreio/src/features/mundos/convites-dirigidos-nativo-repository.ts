@@ -1,6 +1,7 @@
 import "server-only";
 import { and, db, eq } from "@informach/db";
 import {
+  recreioDirectedInviteWorldApprovals as approvals,
   recreioDirectedSpaceInvites as invites,
   recreioSpaceMembers as members,
   recreioSpaces as spaces,
@@ -42,6 +43,7 @@ export async function comDecisorNativoDoConvite<T>(
     convite: ConviteDoMundo,
     decisor: Decisor,
   ) => Promise<T>,
+  leitura = false,
 ) {
   const tentar = async () => {
     const [pista] = await db.select().from(invites).where(eq(invites.id, conviteId));
@@ -51,18 +53,39 @@ export async function comDecisorNativoDoConvite<T>(
       origemId: PerfilIdSchema.parse(pista.originProfileId),
       destinoId: PerfilIdSchema.parse(pista.targetProfileId),
     };
+    const [anterior] = leitura
+      ? await db
+          .select({ perfilId: members.profileId })
+          .from(approvals)
+          .innerJoin(
+            members,
+            and(
+              eq(members.spaceId, approvals.spaceId),
+              eq(members.id, approvals.approvedByMemberId),
+            ),
+          )
+          .where(eq(approvals.inviteId, conviteId))
+      : [];
     const resultado = await db.transaction(async (tx) => {
       await limitarGestao(tx);
       const composicao = await travarComposicaoDeConvite(
         tx,
         { tipo: "responsavel", contaId: autor.contaId },
-        [...new Set([pontas.origemId, pontas.destinoId, decisao.perfilId])],
+        [
+          ...new Set([
+            pontas.origemId,
+            pontas.destinoId,
+            decisao.perfilId,
+            ...(anterior?.perfilId ? [PerfilIdSchema.parse(anterior.perfilId)] : []),
+          ]),
+        ],
         async () => {
           await travarMundoDoConvite(tx, pontas);
         },
       );
       const nativa = await autorizarContaNativa(tx, autor);
-      const agora = await nativa.conferirPrazo(autor.login);
+      const prova = leitura ? undefined : autor.login;
+      const agora = await nativa.conferirPrazo(prova);
       const perfil = composicao.perfis.find((p) => p.id === decisao.perfilId);
       const porResponsavel =
         perfil?.kind === "minor" &&
@@ -111,7 +134,8 @@ export async function comDecisorNativoDoConvite<T>(
         );
       else
         assertAllowed(
-          membro?.state === "active" &&
+          membro &&
+            membro.state !== "former" &&
             ((membro.role === "steward" && mundo.stewardProfileId === perfil.id) ||
               (!porResponsavel && membro.role === "coadmin")),
           "RESPONSAVEL",
@@ -128,7 +152,7 @@ export async function comDecisorNativoDoConvite<T>(
       if (origem.recalculou || destino.recalculou || perfilDoDecisor.recalculou)
         return { executou: false as const };
       const conferirPrazo = async () => {
-        const instante = await nativa.conferirPrazo(autor.login);
+        const instante = await nativa.conferirPrazo(prova);
         origem.conferirPrazo(instante);
         destino.conferirPrazo(instante);
         perfilDoDecisor.conferirPrazo(instante);

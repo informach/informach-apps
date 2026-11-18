@@ -67,6 +67,11 @@ export const AprovacaoParentalDeConviteSchema = z.strictObject({
   versaoDaPolitica: z.int().min(1).max(2147483646),
   confirmo: z.literal(true),
 });
+export const EncerramentoParentalDeConviteSchema = z.strictObject({
+  conviteId: UuidSchema,
+  perfilId: PerfilIdSchema,
+  confirmo: z.literal(true),
+});
 export const AprovacaoDoMundoParaConviteSchema = z.strictObject({
   conviteId: UuidSchema,
   versaoDaGestao: z.int().min(1).max(2147483646),

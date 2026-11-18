@@ -1,20 +1,34 @@
 import { MundoIdSchema } from "@informach/recreio";
+import { ConsultaDeConvitesDirigidosSchema } from "@informach/recreio/contrato";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { painelDeAdministracaoDoMundo } from "@/features/mundos/administracao-painel-repository";
+import { painelDeGestaoComConvites } from "@/features/mundos/administracao-painel-repository";
 import { AdministracaoDoMundo } from "@/features/mundos/components/administracao";
+import { FilaDeConvitesDoMundo } from "@/features/mundos/components/fila-de-convites";
 import { autorDaResponsabilidade } from "@/features/mundos/responsabilidade-autor";
 import { paginaDoPortal } from "@/features/sessao/ator";
 import { AppError } from "@/lib/errors";
 
 export const metadata = { title: "Gestão do mundo" };
-export default async function GestaoDoMundo({ params }: { params: Promise<{ id: string }> }) {
+export default async function GestaoDoMundo({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ aposEm?: string; aposId?: string }>;
+}) {
   const id = MundoIdSchema.safeParse((await params).id);
   if (!id.success) notFound();
+  const consulta = ConsultaDeConvitesDirigidosSchema.safeParse(await searchParams);
+  if (!consulta.success) notFound();
   await paginaDoPortal(`/conta/mundos/${id.data}/gestao`);
   const painel = await (async () => {
     try {
-      return await painelDeAdministracaoDoMundo(await autorDaResponsabilidade(), id.data);
+      return await painelDeGestaoComConvites(
+        await autorDaResponsabilidade(),
+        id.data,
+        consulta.data,
+      );
     } catch (erro) {
       if (erro instanceof AppError && ["MUNDO", "RESPONSAVEL", "CONTATO"].includes(erro.code))
         notFound();
@@ -34,6 +48,11 @@ export default async function GestaoDoMundo({ params }: { params: Promise<{ id: 
         Gestão do mundo · {painel.mundo.estado === "archived" ? "Arquivado" : "Disponível"}
       </p>
       <AdministracaoDoMundo painel={painel} />
+      <FilaDeConvitesDoMundo
+        fila={painel.filaDeConvites}
+        baseDoConvite={`/conta/mundos/${id.data}/convites`}
+        gestao={`/conta/mundos/${id.data}/gestao`}
+      />
     </>
   );
 }

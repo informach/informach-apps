@@ -1,14 +1,19 @@
-import { db, eq } from "@informach/db";
+import { AuditPersistenceError } from "@informach/auth";
+import { db, eq, sql } from "@informach/db";
 import {
   recreioDirectedInviteGuardianApprovals as guardians,
+  recreioDirectedSpaceInvites as invites,
   recreioSpaceMembers as members,
   recreioProfiles as profiles,
+  sessions,
 } from "@informach/db/schema";
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
+import { painelDoConviteDoMenor } from "@/features/mundos/convites-dirigidos-painel-repository";
 import {
   aprovarConviteDoMenor,
   aprovarEntradaNoMundo,
   emitirConviteDirigido,
+  encerrarConviteDoMenor,
   responderConviteDirigido,
 } from "@/features/mundos/convites-dirigidos-service";
 import { criarMundo } from "@/features/mundos/service";
@@ -18,7 +23,8 @@ import {
   emitirCodigoDeAmigo,
   pedirAmizade,
 } from "@/features/social/service";
-import { conceder } from "../scripts/concessoes";
+import { env } from "@/lib/env";
+import { conceder, revogar } from "../scripts/concessoes";
 import { eventosCom, novoJogador } from "./apoio";
 import { familiaSocial, referenciaSocial } from "./social-apoio";
 
@@ -43,6 +49,9 @@ vi.mock("@informach/config/jogos", async (original) => {
   };
 });
 type Familia = Awaited<ReturnType<typeof familiaSocial>>;
+afterEach(() => {
+  env.RECREIO_SOCIAL_MODE = "on";
+});
 async function versao(perfilId: string) {
   const [p] = await db.select().from(profiles).where(eq(profiles.id, perfilId));
   if (!p) throw new Error("Perfil ausente");
@@ -184,4 +193,100 @@ it("a conta responsável pelo destinatário não ganha papel administrativo no m
   await expect(
     emitirConviteDirigido(referenciaSocial(adulto), { ...c.pedido, perfilId: c.a.perfil.id }),
   ).rejects.toThrow();
+});
+
+it("painel nativo lê sem jogador, cobertura ou login recente; aprovação conserva a exigência recente", async () => {
+  const c = await preparar(),
+    antiga = new Date(Date.now() - 11 * 60000);
+  await revogar({ email: c.a.conta.email, motivo: "teste_integracao" });
+  await db
+    .update(sessions)
+    .set({ createdAt: antiga })
+    .where(eq(sessions.id, c.a.autor.login.authSessionId));
+  const autor = { ...c.a.autor, login: { ...c.a.autor.login, criadoEm: antiga } };
+  expect(await painelDoConviteDoMenor(autor, c.a.perfil.id, c.convite.conviteId)).toMatchObject({
+    nomeDoMundo: "Mundo de teste",
+    aguardaSuaAprovacao: true,
+    origem: { apelido: "Protegido" },
+    destino: { apelido: "Protegido" },
+  });
+  await expect(
+    aprovarConviteDoMenor(autor, {
+      conviteId: c.convite.conviteId,
+      perfilId: c.a.perfil.id,
+      versaoDaPolitica: await versao(c.a.perfil.id),
+      confirmo: true,
+    }),
+  ).rejects.toMatchObject({ code: "LOGIN_RECENTE" });
+  expect(await db.select().from(profiles).where(eq(profiles.userId, c.a.conta.id))).toHaveLength(0);
+});
+
+it("painel distingue a própria confirmação da aprovação que cabe ao outro responsável", async () => {
+  const c = await preparar();
+  await aprovar(c.a, c.convite.conviteId);
+  expect(await painelDoConviteDoMenor(c.a.autor, c.a.perfil.id, c.convite.conviteId)).toMatchObject(
+    { aguardaSuaAprovacao: false, convite: { aguardaOrigem: false, aguardaDestino: true } },
+  );
+  expect(await painelDoConviteDoMenor(c.b.autor, c.b.perfil.id, c.convite.conviteId)).toMatchObject(
+    { aguardaSuaAprovacao: true },
+  );
+});
+
+it("responsável encerra gratuitamente com novos contatos desligados e a outra ponta suspensa", async () => {
+  const c = await preparar();
+  await revogar({ email: c.b.conta.email, motivo: "teste_integracao" });
+  await db.update(profiles).set({ status: "suspended" }).where(eq(profiles.id, c.a.perfil.id));
+  env.RECREIO_SOCIAL_MODE = "off";
+  const pedido = { conviteId: c.convite.conviteId, perfilId: c.b.perfil.id, confirmo: true };
+  expect(await encerrarConviteDoMenor(c.b.autor, pedido)).toEqual({ estado: "declined" });
+  expect(await encerrarConviteDoMenor(c.b.autor, pedido)).toEqual({ estado: "declined" });
+  const eventos = (await eventosCom("inviteId", c.convite.conviteId)).filter(
+    (e) => e.eventType === "recreio.directed_invite_closed",
+  );
+  expect(eventos).toHaveLength(1);
+  expect(eventos[0]).toMatchObject({
+    actorId: c.b.conta.id,
+    payload: { profileId: c.b.perfil.id, actorKind: "responsavel" },
+  });
+});
+
+it("encerramento parental recusa outro responsável e não apaga participação já aceita", async () => {
+  const c = await preparar(),
+    pedido = { conviteId: c.convite.conviteId, perfilId: c.b.perfil.id, confirmo: true };
+  await expect(encerrarConviteDoMenor(c.a.autor, pedido)).rejects.toMatchObject({ code: "PEDIDO" });
+  await aprovar(c.a, c.convite.conviteId);
+  await aprovar(c.b, c.convite.conviteId);
+  await aceitar(c.b, c.convite.conviteId);
+  expect(await encerrarConviteDoMenor(c.b.autor, pedido)).toEqual({ estado: "accepted" });
+  expect(await db.select().from(members).where(eq(members.spaceId, c.mundo.id))).toHaveLength(2);
+  expect(
+    (await eventosCom("inviteId", c.convite.conviteId)).filter(
+      (e) => e.eventType === "recreio.directed_invite_closed",
+    ),
+  ).toHaveLength(0);
+});
+
+it("falha real da auditoria reverte o encerramento parental", async () => {
+  const c = await preparar();
+  await db.execute(
+    sql`create function audit.convite_responsavel_teste() returns trigger language plpgsql as $$ begin if new.event_type='recreio.directed_invite_closed' then raise exception 'audit unavailable'; end if; return new; end $$`,
+  );
+  await db.execute(
+    sql`create trigger convite_responsavel_teste before insert on audit.events for each row execute function audit.convite_responsavel_teste()`,
+  );
+  try {
+    await expect(
+      encerrarConviteDoMenor(c.b.autor, {
+        conviteId: c.convite.conviteId,
+        perfilId: c.b.perfil.id,
+        confirmo: true,
+      }),
+    ).rejects.toBeInstanceOf(AuditPersistenceError);
+    expect(
+      (await db.select().from(invites).where(eq(invites.id, c.convite.conviteId)))[0]?.state,
+    ).toBe("pending");
+  } finally {
+    await db.execute(sql`drop trigger convite_responsavel_teste on audit.events`);
+    await db.execute(sql`drop function audit.convite_responsavel_teste()`);
+  }
 });

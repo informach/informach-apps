@@ -193,3 +193,39 @@ estranhos, rejeição de aprovação parental pelo SDK, SID encerrado, outro jog
 e paginação. Ainda sem resultado dos gates deste incremento. Nenhum componente
 do host ou tela nativa oferece os novos botões neste marco. Faltam superfícies,
 aprovações nativas utilizáveis, concorrência adicional, upgrade e E2E completo.
+
+HTTP/SDK `8fffef03` aprovado nos oito gates `44206115029`, com 762 integrações
+em 83 arquivos. A capacidade foi negociada por SIDs reais; o teste de outro
+jogo conserva seu convite pendente, sem conceder entrada. Isso não comprova
+as telas introduzidas no incremento seguinte.
+
+## Candidata de decisões nativas
+
+O responsável encontra os recibos do próprio menor na supervisão, sem precisar
+de jogador ou cobertura. A consulta de detalhes não exige login recente; a
+aprovação exige login nativo recente, geração e versão atuais. Nomes e mundo
+só aparecem após revalidar amizade, conteúdo e responsabilidade. A tela
+identifica a confirmação que cabe àquela pessoa, sem confundi-la com a do outro
+responsável. Cada envio é explícito e não se repete automaticamente.
+
+O painel de gestão do mundo lista convites aguardando sua decisão. Coadmin ou
+responsável atual do mundo aprova pelo próprio login; no mundo de um menor,
+atua seu responsável atual. A aprovação conserva a autoridade do papel mesmo
+com participação `no_access`, sem emprestar cobertura ao convidado. Leitura
+nativa compõe também o aprovador anterior antes do mundo/perfis: no máximo
+quatro perfis de domínio, mais o perfil próprio opcional já exigido pela
+autoridade nativa, sem ampliar o social comum de duas pontas.
+
+O responsável também pode encerrar convite pendente de seu menor, com contato
+novo desligado, sem assinatura e com a outra ponta suspensa. Esse caminho só
+admite o próprio perfil cuidado, trava o mundo antes dele e não depende da
+política ou aparelho da outra ponta. Recusa/revogação e auditoria são atômicas.
+Se o convite já foi aceito, devolve esse fato sem remover membros/progresso.
+
+Seis integrações adicionais candidatas verificam leitura versus login recente,
+aprovações independentes na projeção, encerramento parental e sua auditoria,
+ausência de remoção após aceite e composição nativa com quatro perfis. A
+regressão de aprovação do mundo passa a provar a autoridade sem cobertura.
+Gates desse incremento, E2E novo, emissão/caixa utilizável no host e portal,
+concorrência adicional, upgrade e visitas ainda pendem. Nenhuma ativação ou
+migration F5 foi feita em produção.

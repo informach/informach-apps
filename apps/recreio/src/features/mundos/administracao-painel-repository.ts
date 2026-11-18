@@ -2,8 +2,19 @@ import "server-only";
 import { and, eq, ne } from "@informach/db";
 import { recreioSpaceMembers as members, recreioProfiles as profiles } from "@informach/db/schema";
 import { MundoIdSchema } from "@informach/recreio";
+import { convitesAguardandoOMundo } from "./convites-dirigidos-gestao-repository";
 import type { AutorDaGestaoDeMundo } from "./gestao-nativa-autor";
 import { comGestaoNativaDoMundo } from "./gestao-nativa-repository";
+
+export async function painelDeGestaoComConvites(
+  autor: AutorDaGestaoDeMundo,
+  mundoId: unknown,
+  consulta: unknown,
+) {
+  const painel = await painelDeAdministracaoDoMundo(autor, mundoId);
+  const filaDeConvites = await convitesAguardandoOMundo(autor, mundoId, consulta);
+  return { ...painel, filaDeConvites };
+}
 
 export function painelDeAdministracaoDoMundo(autor: AutorDaGestaoDeMundo, mundoId: unknown) {
   const id = MundoIdSchema.parse(mundoId);

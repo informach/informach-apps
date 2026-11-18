@@ -9,6 +9,7 @@ import {
 } from "@informach/db/schema";
 import { afterEach, expect, it } from "vitest";
 import { administrarMundo } from "@/features/mundos/administracao";
+import { painelDoConviteNoMundo } from "@/features/mundos/convites-dirigidos-painel-repository";
 import { limparConvitesDirigidos } from "@/features/mundos/convites-dirigidos-retencao-repository";
 import {
   aprovarEntradaNoMundo,
@@ -207,6 +208,11 @@ it("membro precisa da decisão nativa do mundo para indicar participação alhei
       confirmo: true,
     }),
   ).rejects.toMatchObject({ code: "RESPONSAVEL" });
+  await revogar({ email: anfitriao.conta.email, motivo: "teste_integracao" });
+  await db
+    .update(members)
+    .set({ state: "no_access" })
+    .where(and(eq(members.spaceId, mundoId), eq(members.profileId, anfitriao.perfil.id)));
   await aprovarEntradaNoMundo(await nativo(anfitriao), anfitriao.perfil.id, {
     conviteId: criado.conviteId,
     versaoDaGestao: 2,
@@ -294,4 +300,44 @@ it("expiração e retenção removem aprovações técnicas sem apagar a partici
         .where(and(eq(members.spaceId, c.mundoId), eq(members.profileId, c.b.perfil.id)))
     )[0]?.state,
   ).toBe("active");
+});
+
+it("gestor atual consulta decisão de outro coadmin com quatro perfis compostos", async () => {
+  const c = await cenario(),
+    titular = await novoJogador(),
+    coadmin = await novoJogador(),
+    mundoId = await mundoDe(titular);
+  for (const p of [c.a, coadmin]) {
+    const codigo = await criarConvite({ ...ref(titular), jogo: null }, mundoId, {
+      forma: "member",
+    });
+    await aceitarConvite(ref(p), { codigo: codigo.codigo });
+  }
+  const [membro] = await db
+    .select()
+    .from(members)
+    .where(and(eq(members.spaceId, mundoId), eq(members.profileId, coadmin.perfil.id)));
+  if (!membro) throw new Error("Coadmin ausente");
+  const autor = await nativo(titular);
+  await administrarMundo(autor, {
+    mundoId,
+    versaoDaGestao: 1,
+    operacao: "coadministracao",
+    membroId: membro.id,
+    papel: "coadmin",
+  });
+  const criado = await emitirConviteDirigido(ref(c.a), { ...c.pedido, mundoId });
+  expect(criado.aguardaMundo).toBe(true);
+  await aprovarEntradaNoMundo(await nativo(coadmin), coadmin.perfil.id, {
+    conviteId: criado.conviteId,
+    versaoDaGestao: 2,
+    confirmo: true,
+  });
+  expect(await painelDoConviteNoMundo(autor, mundoId, criado.conviteId)).toMatchObject({
+    aguardaSuaAprovacao: false,
+    convite: { aguardaMundo: false },
+  });
+  await expect(painelDoConviteNoMundo(autor, c.mundoId, criado.conviteId)).rejects.toMatchObject({
+    code: "PEDIDO",
+  });
 });

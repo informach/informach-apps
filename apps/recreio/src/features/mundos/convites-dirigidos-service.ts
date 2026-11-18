@@ -3,6 +3,7 @@ import type { PerfilId } from "@informach/recreio";
 import {
   AprovacaoDoMundoParaConviteSchema,
   AprovacaoParentalDeConviteSchema,
+  EncerramentoParentalDeConviteSchema,
   NovoConviteDirigidoSchema,
   RespostaAConviteDirigidoSchema,
 } from "@informach/recreio/contrato";
@@ -15,6 +16,7 @@ import {
   aprovarConvitePeloResponsavel,
 } from "./convites-dirigidos-aprovacoes-repository";
 import { gravarConviteDirigido } from "./convites-dirigidos-emissao-repository";
+import { encerrarConvitePeloResponsavel } from "./convites-dirigidos-reducao-nativa-repository";
 import {
   aceitarConviteDirigidoNoBanco,
   encerrarConviteDirigidoNoBanco,
@@ -51,6 +53,15 @@ export async function aprovarConviteDoMenor(autor: AutorNativoRecente, entrada: 
     janelaEmSegundos: 600,
   });
   return aprovarConvitePeloResponsavel(autor, pedido);
+}
+export async function encerrarConviteDoMenor(autor: AutorNativoRecente, entrada: unknown) {
+  const pedido = EncerramentoParentalDeConviteSchema.parse(entrada);
+  await limitarTentativas({
+    chave: `convite-dirigido-reducao:${autor.contaId}`,
+    max: 30,
+    janelaEmSegundos: 600,
+  });
+  return encerrarConvitePeloResponsavel(autor, pedido);
 }
 export async function aprovarEntradaNoMundo(
   autor: AutorNativoRecente,

@@ -72,7 +72,7 @@ export async function aprovacoesDoConvite(
   if (
     decisao &&
     decisao.recibo.managementRevision === ctx.mundo.managementRevision &&
-    decisao.membro.state === "active" &&
+    decisao.membro.state !== "former" &&
     decisao.membro.profileId
   ) {
     const perfil = ctx.composicao.perfis.find((p) => p.id === decisao.membro.profileId);
@@ -81,6 +81,7 @@ export async function aprovacoesDoConvite(
       (decisao.membro.role === "steward" && ctx.mundo.stewardProfileId === perfil.id) ||
       (decisao.membro.role === "coadmin" && perfil.kind === "adult");
     const propriaParticipacao =
+      decisao.membro.state === "active" &&
       decisao.membro.id === convite.invitedByMemberId &&
       decisao.membro.role === "member" &&
       ctx.mundo.membersInvite === "yes" &&
