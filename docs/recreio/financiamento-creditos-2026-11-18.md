@@ -198,3 +198,28 @@ pró-rata, abrir uma segunda usando o saldo e verificar a propagação do estorn
 para as duas. Recursos conservam a etiqueta do mesmo relógio/run para limpeza;
 continua apenas Stripe de teste, sem compra/aceite/jogo nativos. A extensão ainda
 precisa de prova externa própria; o recibo `44404065298` cobre um contrato.
+
+`b53f6a25`: qualidade `44409969520` aprovada; `44409975899` comprovou na API
+de teste o saldo entre dois contratos e o estorno revogando as quatro provas.
+Artefato de 2.071 bytes conferido e limpeza confirmada no
+[recibo](evidencias/credito-contratos-api-44409975899.json). Esse resultado
+substitui a pendência externa acima, sem qualificar aceite/Checkout/jogo nativos.
+`27401026`/`44409536092` aprovou os 98 testes financeiros, inclusive os quatro
+cenários SQL da 0215 com a correção de identidade da fixture.
+
+## Escritor nativo — candidata em verificação
+
+O escritor exige a marca privada da conferência do cliente e uma tentativa
+nativa, relê identidade financeira e contratos, e exige períodos core com os
+mesmos fatos e relógio. Datas e flags originais são preservadas; a projeção
+inclui linhas positivas sem captura própria só após conferir a prova completa.
+O ponteiro recusa leituras anteriores e conteúdo diferente no mesmo relógio.
+Hash semântico reutiliza observações, capturas e fontes quando só o relógio
+muda; mudança de estado conserva a observação anterior e registra auditoria
+com IDs/estado. Referências são limitadas a 9.600 por captura nativa e gravadas
+em lotes de até 250 linhas. Exceder o limite exige revisão, sem truncamento.
+
+Novos testes remotos verificam projeção, escrita, refresh, estorno, relógios,
+isolamento e rollback de auditoria. Os períodos core dessa prova do escritor
+são pré-condições sintéticas: a composição financeira raiz e a leitura de
+acesso ainda não usam o escritor. Nenhum serviço foi ativado ou implantado.

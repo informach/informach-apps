@@ -166,6 +166,7 @@ export type AuditEventType =
   | "recreio.purchase_checkout_observed"
   | "recreio.billing_reconciliation_failed"
   | "recreio.billing_reconciled"
+  | "recreio.payment_funding_observed"
   | "recreio.billing_provider_event_received"
   | "recreio.billing_portal_requested"
   | "recreio.billing_portal_opened"

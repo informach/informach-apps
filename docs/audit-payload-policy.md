@@ -32,6 +32,12 @@ registram apenas `app`, `groupId`, `authorizationId`, `subscriptionId` interno,
 `revision` e `state`, com ator no campo próprio. Seleção e política ficam no
 recibo; processamento pode exigir revisão e não equivale a acesso confirmado.
 
+`recreio.payment_funding_observed` registra apenas `app`, `groupId`,
+`subscriptionId`, `paymentPeriodId`, `observationId` internos e `state`, na
+transação da prova e com ator no campo próprio. Valores, capturas, referências
+Stripe e hashes permanecem nas tabelas financeiras. Refresh idêntico não
+duplica o evento. A observação financeira sozinha não concede acesso ao jogo.
+
 - IDs internos: `userId`, `organizationId`, `sessionId`, `subscriptionId`, `invoiceId`, `deliveryId`, `messageKey`.
 - Classificadores: `category`, `status`, `role`, `reason`, `classification`, `providerEvent`, `source`.
 - Chaves de correlação de provider quando não forem secretas: `providerMessageId`, `stripeEventId`, `checkoutSessionId`.
