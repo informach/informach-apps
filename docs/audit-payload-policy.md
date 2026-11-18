@@ -101,6 +101,13 @@ externa de idade ou início de teste. Não incluir nome, nascimento, e-mail,
 aparelho, login, cartão ou corpo do pedido. Revogação de uma concessão real
 usa o evento existente `entitlement_revoked`, na mesma transação.
 
+`recreio.trial_started` só é gravado junto da primeira SID e do recibo único:
+`app`, `groupId`, `enrollmentId`, `entitlementId`, `profileId`, `sessionId`,
+`cohort` (`48h`/`7d`) e `policyVersion`. O ator é a conta real que admitiu o
+aparelho, inclusive o responsável de um perfil pareado; não se fabrica sessão
+ou ação nativa do pagante. Nenhum token, segredo de pareamento ou dado pessoal
+entra no payload. Cadastro, autorização e ingresso não produzem esse evento.
+
 Social usa auditoria estrita na transação da mudança. Os eventos
 `friend_code_created`/`friend_code_revoked` usam IDs de perfil/código;
 `friend_request_created`/`friend_request_expired`/`friend_request_accepted`/

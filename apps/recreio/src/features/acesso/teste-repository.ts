@@ -1,16 +1,26 @@
 import "server-only";
+import { randomInt } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
 import { and, eq, inArray, isNull } from "@informach/db";
 import {
   recreioTrialClaims as claims,
   customers,
+  recreioTrialEnrollments as enrollments,
   recreioGameSessions as games,
   recreioEntitlements as grants,
 } from "@informach/db/schema";
-import { type GrupoId, GrupoIdSchema, PerfilIdSchema } from "@informach/recreio";
+import {
+  ErroDoRecreio,
+  type GrupoId,
+  GrupoIdSchema,
+  PerfilIdSchema,
+  type SessaoDeJogoId,
+} from "@informach/recreio";
 import type { admitirGrupoDoTitular } from "@/features/grupo/autoridade-repository";
+import { VERSAO_DA_DECLARACAO_ADULTA } from "@/features/grupo/convites-constantes";
 import { encerrarSessoesAbertas } from "@/features/sessao-de-jogo/encerramento-repository";
 import { invalidarIngressosDoPerfil } from "@/features/sessao-de-jogo/ingressos-repository";
+import { DURACAO_DO_TESTE_MS, VERSAO_DO_TESTE } from "@/features/teste/constantes";
 import type { Transacao } from "@/lib/repository";
 import { decidirFatosLidos } from "./decisao";
 import { lerFatosDoGrupo } from "./repository";
@@ -43,6 +53,87 @@ export async function elegivelParaTeste(tx: Transacao, grupoId: GrupoId | null, 
       .limit(1),
   ]);
   return concessao.length === 0 && cliente.length === 0 && marca.length === 0;
+}
+
+/** Sob o ciclo financeiro e a trava do grupo. Ainda não inicia o prazo. */
+export async function consentimentoElegivelParaTeste(
+  tx: Transacao,
+  grupoId: GrupoId,
+  paganteId: string,
+  agora: Date,
+) {
+  if (!(await elegivelParaTeste(tx, grupoId, paganteId))) return null;
+  const [linha] = await tx
+    .select()
+    .from(enrollments)
+    .where(
+      and(
+        eq(enrollments.groupId, grupoId),
+        eq(enrollments.payerUserId, paganteId),
+        eq(enrollments.policyVersion, VERSAO_DO_TESTE),
+        eq(enrollments.adultDeclarationVersion, VERSAO_DA_DECLARACAO_ADULTA),
+        isNull(enrollments.withdrawnAt),
+      ),
+    )
+    .for("share");
+  return linha && linha.acceptedAt <= agora ? linha : null;
+}
+
+/** Só dentro do savepoint da primeira SID: qualquer recusa posterior reverte. */
+export async function prepararConcessaoDoTeste(
+  tx: Transacao,
+  consentimento: typeof enrollments.$inferSelect,
+  agora: Date,
+) {
+  const coorte = randomInt(2) === 0 ? "48h" : "7d";
+  const fim = new Date(agora.getTime() + DURACAO_DO_TESTE_MS[coorte]);
+  const [concessao] = await tx
+    .insert(grants)
+    .values({
+      groupId: consentimento.groupId,
+      kind: "trial",
+      tier: "family",
+      startsAt: agora,
+      endsAt: fim,
+      reasonCode: "trial_experiment",
+    })
+    .returning({ id: grants.id });
+  if (!concessao) throw new ErroDoRecreio("INDISPONIVEL");
+  return { id: concessao.id, coorte, inicio: agora, fim };
+}
+
+/** Chamado somente depois de comprovar a SID real, na mesma transação. */
+export async function confirmarInicioDoTeste(
+  tx: Transacao,
+  consentimento: typeof enrollments.$inferSelect,
+  concessao: Awaited<ReturnType<typeof prepararConcessaoDoTeste>>,
+  origem: { contaId: string; perfilId: string; sid: SessaoDeJogoId },
+) {
+  await tx.insert(claims).values({
+    payerUserId: consentimento.payerUserId,
+    groupId: consentimento.groupId,
+    enrollmentId: consentimento.id,
+    entitlementId: concessao.id,
+    cohort: concessao.coorte,
+    policyVersion: consentimento.policyVersion,
+    startsAt: concessao.inicio,
+    endsAt: concessao.fim,
+  });
+  await logAuditEventStrict(
+    "recreio.trial_started",
+    origem.contaId,
+    {
+      app: "recreio",
+      groupId: consentimento.groupId,
+      enrollmentId: consentimento.id,
+      entitlementId: concessao.id,
+      profileId: origem.perfilId,
+      sessionId: origem.sid,
+      cohort: concessao.coorte,
+      policyVersion: consentimento.policyVersion,
+    },
+    { writer: tx },
+  );
 }
 
 export async function revogarTesteDoConsentimento(

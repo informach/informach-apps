@@ -2,7 +2,25 @@
 
 F6 do [fechamento da plataforma](fechamento-plataforma-2026-11-16.md), autorizada
 pelo titular. Este registro organiza fatos e pendências; não habilita cobrança,
-ensaio pago ou venda. A qualificação de F5 continua em paralelo no GitHub.
+ensaio pago ou venda. F5 foi implantado com recursos desligados em `d014bd90`,
+204 recibos/0203 e evidências próprias, integrado publicamente em `337dc630`.
+
+## Incremento de teste gratuito, em qualificação
+
+`2a8fa076` passou nos nove gates `44285538484`, incluindo consentimento nativo
+e retirada, modos reais `off`/`setup`, integridade SQL e regressões. A interface
+`0523217f`, `44289414523`, acrescenta página própria sem exigir jogador; seu
+gate `trial-ui` passou com duas contas, recarga, retirada e ausência de perfil,
+concessão, SID ou claim. Outros gates dessa fonte ainda em andamento.
+
+A candidata seguinte acrescenta ingresso elegível distinto de gameplay e
+início da concessão apenas na abertura transacional da primeira SID. O ciclo
+financeiro precede contas → grupo → perfil → aparelho; não se autentica o
+pagante por representação. O savepoint reverte a concessão também nas recusas
+retornadas pelo kernel. Recibo/auditoria só são inseridos depois da SID real.
+Gate próprio `trial-experiment` cobre o modo real, sem ligar teste nos testes
+antigos de falta de acesso. As novas provas ainda precisam ser executadas.
+F6 não foi implantado; não houve teste gratuito ou cobrança em produção.
 
 ## Contratos confirmados
 
@@ -228,7 +246,8 @@ Upgrade dessa rodada foi interrompido pela falha; nova prova remota obrigatória
   quatro perfis e tentativas por aparelho infantil. Não confundir assinatura
   sintética ou assinatura local de webhook com comunicação real com o provedor.
 
-Migrations F5 0191–0203 continuam ausentes de produção. Mudança comercial
+Migrations F5 0191–0203 foram aplicadas e conferidas; 0204/0205 comerciais
+continuam ausentes de produção. Mudança comercial
 adicional exige geração própria no GitHub e seu histórico de upgrade. Antes de
 publicar código que acione o migrator, controlar o comando para migração sem
 seeds e conferir backup/restauração e consumidores compartilhados.

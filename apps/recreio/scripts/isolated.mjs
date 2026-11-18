@@ -20,9 +20,22 @@ const app = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const root = resolve(app, "../..");
 loadEnv({ path: resolve(root, ".env") });
 const mode = process.argv[2];
-if (!["integration", "trial-setup", "e2e-trial-setup", "e2e", "versoes", "equipe"].includes(mode))
-  throw new Error("Choose integration, trial-setup, e2e-trial-setup, e2e, versoes or equipe");
+if (
+  ![
+    "integration",
+    "trial-setup",
+    "trial-experiment",
+    "e2e-trial-setup",
+    "e2e",
+    "versoes",
+    "equipe",
+  ].includes(mode)
+)
+  throw new Error(
+    "Choose integration, trial-setup, trial-experiment, e2e-trial-setup, e2e, versoes or equipe",
+  );
 const trialSetup = mode === "trial-setup";
+const trialExperiment = mode === "trial-experiment";
 const jornadaDoTeste = mode === "e2e-trial-setup";
 const versoes = mode === "versoes";
 const equipe = mode === "equipe";
@@ -102,7 +115,11 @@ const testEnv = {
   EMAIL_SANDBOX_MODE: e2e ? "sandbox" : "memory",
   ...(emailsPath ? { EMAIL_SANDBOX_DIR: emailsPath.replaceAll("\\", "/") } : {}),
   RECREIO_ACCESS_MODE: "fechado",
-  RECREIO_TRIAL_MODE: trialSetup || jornadaDoTeste ? "setup" : "off",
+  RECREIO_TRIAL_MODE: trialExperiment
+    ? "experiment"
+    : trialSetup || jornadaDoTeste
+      ? "setup"
+      : "off",
   RECREIO_FAMILY_MODE: "play",
   RECREIO_SOCIAL_MODE: "on",
   RECREIO_VISITS_MODE: "on",
@@ -230,7 +247,11 @@ try {
         "vitest",
         "run",
         "--config",
-        trialSetup ? "vitest.trial-setup.config.ts" : "vitest.integration.config.ts",
+        trialExperiment
+          ? "vitest.trial-experiment.config.ts"
+          : trialSetup
+            ? "vitest.trial-setup.config.ts"
+            : "vitest.integration.config.ts",
         ...process.argv.slice(3),
       ],
       app,
