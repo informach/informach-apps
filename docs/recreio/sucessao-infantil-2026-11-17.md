@@ -46,3 +46,9 @@ plataforma sem depender de D3–D8 do Morada.
 
 A definição inicial do schema não concede autoridade e não comprova nenhum
 dos serviços ou fluxos acima. Produção permanece no marco F4/0190.
+
+A geração inicial `44217811527`/fonte `2db88122` foi inspecionada antes da
+cópia: SQL aditivo, mas duas FKs tinham nomes automáticos acima do limite de
+63 bytes do PostgreSQL. O artefato `14387714774` não foi aplicado ou copiado.
+A candidata seguinte atribui nomes explícitos curtos às três FKs e solicita
+nova geração a partir do mesmo prefixo 0196.

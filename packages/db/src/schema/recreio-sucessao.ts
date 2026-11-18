@@ -8,20 +8,26 @@ import { recreioGuardianLinks as guardians } from "./recreio-familia";
 export const recreioStewardshipGuardianApprovals = recreio.table(
   "stewardship_guardian_approvals",
   {
-    requestId: uuid("request_id")
-      .primaryKey()
-      .references(() => requests.id, { onDelete: "cascade" }),
+    requestId: uuid("request_id").primaryKey(),
     profileId: uuid("profile_id").notNull(),
     guardianLinkId: uuid("guardian_link_id").notNull(),
-    approvedByUserId: text("approved_by_user_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
+    approvedByUserId: text("approved_by_user_id"),
     accessGeneration: uuid("access_generation").notNull(),
     policyVersion: integer("policy_version").notNull(),
     managementRevision: integer("management_revision").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    foreignKey({
+      name: "recreio_stewardship_guardian_request",
+      columns: [t.requestId],
+      foreignColumns: [requests.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "recreio_stewardship_guardian_actor",
+      columns: [t.approvedByUserId],
+      foreignColumns: [users.id],
+    }).onDelete("set null"),
     foreignKey({
       name: "recreio_stewardship_guardian_profile",
       columns: [t.guardianLinkId, t.profileId],
