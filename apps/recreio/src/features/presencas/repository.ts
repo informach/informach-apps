@@ -8,7 +8,7 @@ import {
   recreioGameSessions as sessions,
   recreioSpaces as spaces,
 } from "@informach/db/schema";
-import { ErroDoRecreio, type MundoId } from "@informach/recreio";
+import { ErroDoRecreio, type MundoId, type SessaoDeJogoId } from "@informach/recreio";
 import {
   type AtestadoDeEntrada,
   type AtestadoDeSaida,
@@ -99,17 +99,32 @@ async function encerrarSobTrava(tx: Transacao, p: Presenca, agora: Date, motivo:
   );
   return recibo(fechada);
 }
+/** Capacidade imutável de ambos os processos; não substitui a admissão atual do kernel. */
+export async function sessaoComSuporteDePresenca(tx: Transacao, host: Host, sid: SessaoDeJogoId) {
+  const [sessao] = await tx
+    .select({ expiraEm: sessions.expiresAt })
+    .from(sessions)
+    .innerJoin(
+      instances,
+      and(
+        eq(instances.id, host.instanciaId),
+        eq(instances.gameId, host.jogo),
+        eq(instances.supportsVisits, true),
+      ),
+    )
+    .where(
+      and(eq(sessions.id, sid), eq(sessions.gameId, host.jogo), eq(sessions.supportsVisits, true)),
+    );
+  return sessao ?? null;
+}
 export function publicarPresencaNoBanco(host: Host, mundoId: MundoId, pedido: AtestadoDeEntrada) {
   const escopo = { ...host, mundoId, cerca: pedido.cerca },
     hash = hashDoPedido(host, mundoId, pedido);
   return comEntradaAtualDeMembro(
     { ...escopo, sid: pedido.sid, perfilId: pedido.perfilId },
     async (tx, entrada, conferirPrazo) => {
-      const [instancia] = await tx
-        .select({ visitas: instances.supportsVisits })
-        .from(instances)
-        .where(and(eq(instances.id, host.instanciaId), eq(instances.gameId, host.jogo)));
-      if (!instancia?.visitas) throw new ErroDoRecreio("INDISPONIVEL");
+      const sessao = await sessaoComSuporteDePresenca(tx, host, pedido.sid);
+      if (!sessao) throw new ErroDoRecreio("INDISPONIVEL");
       const [anterior] = await tx
         .select()
         .from(presences)
@@ -164,12 +179,6 @@ export function publicarPresencaNoBanco(host: Host, mundoId: MundoId, pedido: At
         "CONFLITO",
         "Não é possível oferecer visitas neste momento.",
       );
-      const [sessao] = await tx
-        .select({ expiraEm: sessions.expiresAt, visitas: sessions.supportsVisits })
-        .from(sessions)
-        .where(and(eq(sessions.id, pedido.sid), eq(sessions.profileId, pedido.perfilId)));
-      assertAllowed(sessao, "CONFLITO", "A sessão mudou antes da confirmação.");
-      if (!sessao.visitas) throw new ErroDoRecreio("INDISPONIVEL");
       const janela = new Date(agora.getTime() + JANELA_DA_PRESENCA_MS),
         expiraEm = new Date(
           Math.min(

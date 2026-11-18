@@ -19,7 +19,12 @@ import {
   RespostaDoBatimentoSchema,
   SalvamentoDoHostSchema,
 } from "../contrato/host";
-import { AtestadoDePresencaSchema, ReciboDePresencaSchema } from "../contrato/presencas";
+import {
+  AtestadoDePresencaSchema,
+  ReciboDePresencaSchema,
+  RenovacaoDePresencasSchema,
+  RespostaDaRenovacaoDePresencasSchema,
+} from "../contrato/presencas";
 import { EstadoDeSalvamentoSchema } from "../contrato/salvamento";
 import { ResultadoDeCheckpointSchema } from "../contrato/sdk";
 import { ErroDoRecreio } from "../dominio/erros";
@@ -108,6 +113,19 @@ export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHost
       const registrada = await lerCorpo(resposta, InstanciaRegistradaSchema);
       instanciaId = registrada.instanciaId;
       return registrada;
+    },
+
+    async renovarPresencas(presencas) {
+      eu();
+      const pedido = RenovacaoDePresencasSchema.parse({ presencas }),
+        resposta = await enviarJson("/presencas/renovar", pedido),
+        renovadas = await lerCorpo(resposta, RespostaDaRenovacaoDePresencasSchema);
+      if (
+        renovadas.presencas.length !== pedido.presencas.length ||
+        renovadas.presencas.some((r, i) => r.presencaId !== pedido.presencas[i]?.presencaId)
+      )
+        throw new ErroDoRecreio("INDISPONIVEL");
+      return renovadas;
     },
 
     async atestarPresenca({ mundoId, ...pedido }) {

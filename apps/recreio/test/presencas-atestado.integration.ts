@@ -12,6 +12,7 @@ import {
   type AtestadoDeEntrada,
   InstanciaRegistradaSchema,
   ReciboDePresencaSchema,
+  type RenovacaoDePresenca,
   SessaoAbertaSchema,
 } from "@informach/recreio/contrato";
 import { afterEach, expect, it, vi } from "vitest";
@@ -190,6 +191,195 @@ const saida = (c: Cenario, presencaId: string) => ({
   cerca: c.pedido.cerca,
   presencaId,
 });
+const renovar = (c: Cenario, presencaId: string): RenovacaoDePresenca => ({
+  mundoId: c.mundoId,
+  cerca: c.pedido.cerca,
+  sid: c.sessao.sid,
+  perfilId: c.jogador.perfil.id,
+  presencaId,
+});
+
+it("renovação HTTP em lote conserva janela/identidade e distingue prova alheia sem encerrar SID", async () => {
+  const c = await cenario(),
+    criada = await entrar(c),
+    [antes] = await db.select().from(presences).where(eq(presences.id, criada.presencaId));
+  await c.instancia.cliente.batimento({
+    mundos: [{ mundoId: c.mundoId, cerca: c.pedido.cerca, jogadores: 1, tick: 0 }],
+    cursor: null,
+  });
+  const desconhecida = crypto.randomUUID(),
+    resposta = await c.instancia.cliente.renovarPresencas([
+      renovar(c, criada.presencaId),
+      renovar(c, desconhecida),
+    ]);
+  expect(resposta.presencas[0]).toMatchObject({ presencaId: criada.presencaId, estado: "ok" });
+  expect(resposta.presencas[1]).toEqual({ presencaId: desconhecida, estado: "perdida" });
+  const [depois] = await db.select().from(presences).where(eq(presences.id, criada.presencaId));
+  expect(depois).toMatchObject({
+    id: antes?.id,
+    createdAt: antes?.createdAt,
+    validUntil: antes?.validUntil,
+    retainUntil: antes?.retainUntil,
+    requestHash: antes?.requestHash,
+    clientKey: antes?.clientKey,
+    state: "active",
+  });
+  expect(depois?.expiresAt.getTime()).toBeGreaterThan(antes?.expiresAt.getTime() ?? Infinity);
+  expect(depois?.expiresAt.getTime()).toBeLessThanOrEqual(
+    (await db.select().from(leases).where(eq(leases.spaceId, c.mundoId)))[0]?.expiresAt.getTime() ??
+      0,
+  );
+  expect(
+    (await db.select().from(sessions).where(eq(sessions.id, c.sessao.sid)))[0]?.endedAt,
+  ).toBeNull();
+});
+
+it("encerramento concorrente com renovação nunca reabre a presença", async () => {
+  const c = await cenario(),
+    criada = await entrar(c);
+  await Promise.all([
+    c.instancia.cliente.atestarPresenca({
+      mundoId: c.mundoId,
+      operacao: "sair",
+      cerca: c.pedido.cerca,
+      presencaId: criada.presencaId,
+    }),
+    c.instancia.cliente.renovarPresencas([renovar(c, criada.presencaId)]),
+  ]);
+  expect(
+    (await c.instancia.cliente.renovarPresencas([renovar(c, criada.presencaId)])).presencas,
+  ).toEqual([{ presencaId: criada.presencaId, estado: "perdida" }]);
+  expect(
+    (await db.select().from(presences).where(eq(presences.id, criada.presencaId)))[0]?.state,
+  ).toBe("closed");
+});
+
+it.each([1, 25])("prova vencida há %s horas não renova nem reabre", async (horas) => {
+  const c = await cenario(),
+    criada = await entrar(c);
+  await db.execute(
+    sql`update recreio.world_host_presences set created_at=created_at-make_interval(hours=>${horas}), updated_at=updated_at-make_interval(hours=>${horas}),expires_at=expires_at-make_interval(hours=>${horas}),valid_until=valid_until-make_interval(hours=>${horas}),retain_until=retain_until-make_interval(hours=>${horas}) where id=${criada.presencaId}`,
+  );
+  const [antes] = await db.select().from(presences).where(eq(presences.id, criada.presencaId));
+  expect(
+    (await c.instancia.cliente.renovarPresencas([renovar(c, criada.presencaId)])).presencas,
+  ).toEqual([{ presencaId: criada.presencaId, estado: "perdida" }]);
+  expect((await db.select().from(presences).where(eq(presences.id, criada.presencaId)))[0]).toEqual(
+    antes,
+  );
+});
+
+it("fim do SID impede renovar e modo desligado conserva a redução gratuita", async () => {
+  const c = await cenario(),
+    criada = await entrar(c);
+  expect((await pedir("POST", "/api/sdk/v1/sessao/sair", { token: c.sessao.token })).status).toBe(
+    200,
+  );
+  expect(
+    (await c.instancia.cliente.renovarPresencas([renovar(c, criada.presencaId)])).presencas,
+  ).toEqual([{ presencaId: criada.presencaId, estado: "perdida" }]);
+  env.RECREIO_VISITS_MODE = "off";
+  await expect(
+    c.instancia.cliente.renovarPresencas([renovar(c, criada.presencaId)]),
+  ).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+  expect(
+    (
+      await c.instancia.cliente.atestarPresenca({
+        mundoId: c.mundoId,
+        operacao: "sair",
+        cerca: c.pedido.cerca,
+        presencaId: criada.presencaId,
+      })
+    ).estado,
+  ).toBe("closed");
+});
+
+it("lote exige autenticação, não repete presença, limita itens/corpo e não aceita identidade da conta", async () => {
+  const c = await cenario(),
+    criada = await entrar(c),
+    p = renovar(c, criada.presencaId),
+    caminho = "/api/interno/v1/presencas/renovar";
+  expect((await pedir("POST", caminho, { corpo: { presencas: [p] } })).status).toBe(401);
+  for (const presencas of [
+    [],
+    [p, p],
+    Array.from({ length: 65 }, () => ({ ...p, presencaId: crypto.randomUUID() })),
+    [{ ...p, contaId: c.jogador.conta.id }],
+  ])
+    expect(
+      (await pedir("POST", caminho, { headers: c.headers, corpo: { presencas } })).status,
+    ).toBe(400);
+  expect(
+    (
+      await pedir("POST", caminho, {
+        headers: c.headers,
+        corpo: { presencas: [p], extra: "x".repeat(33000) },
+      })
+    ).status,
+  ).toBe(413);
+});
+
+it.each(["cerca", "perfil", "instancia"] as const)(
+  "renovação não aceita %s cruzada",
+  async (tipo) => {
+    const c = await cenario(),
+      criada = await entrar(c),
+      p = renovar(c, criada.presencaId),
+      cliente =
+        tipo === "instancia"
+          ? (await novaInstancia(c.host.jogo, 10, { suportaVisitas: true })).cliente
+          : c.instancia.cliente;
+    if (tipo === "cerca") p.cerca++;
+    if (tipo === "perfil") p.perfilId = (await novoJogador()).perfil.id;
+    expect((await cliente.renovarPresencas([p])).presencas).toEqual([
+      { presencaId: criada.presencaId, estado: "perdida" },
+    ]);
+  },
+);
+
+it.each(["banco", "posse", "sessao"] as const)(
+  "falha de %s durante renovação não confirma prazo novo",
+  async (tipo) => {
+    const c = await cenario(),
+      criada = await entrar(c),
+      [antes] = await db.select().from(presences).where(eq(presences.id, criada.presencaId));
+    await db.execute(
+      tipo === "banco"
+        ? sql`create function recreio.renovacao_presenca_teste() returns trigger language plpgsql as $$ begin raise exception 'presence unavailable'; end $$`
+        : sql`create function recreio.renovacao_presenca_teste() returns trigger language plpgsql as $$ begin perform pg_sleep(1.3); return new; end $$`,
+    );
+    await db.execute(
+      sql`create trigger renovacao_presenca_teste before update on recreio.world_host_presences for each row execute function recreio.renovacao_presenca_teste()`,
+    );
+    try {
+      if (tipo === "posse")
+        await db
+          .update(leases)
+          .set({ expiresAt: new Date(Date.now() + 1100) })
+          .where(eq(leases.spaceId, c.mundoId));
+      if (tipo === "sessao")
+        await db
+          .update(sessions)
+          .set({ expiresAt: new Date(Date.now() + 1100) })
+          .where(eq(sessions.id, c.sessao.sid));
+      const r = await pedir("POST", "/api/interno/v1/presencas/renovar", {
+        headers: c.headers,
+        corpo: { presencas: [renovar(c, criada.presencaId)] },
+      });
+      expect(r.status).toBe(tipo === "banco" ? 503 : 200);
+      if (tipo !== "banco")
+        expect(r.corpo).toEqual({
+          presencas: [{ presencaId: criada.presencaId, estado: "perdida" }],
+        });
+    } finally {
+      await db.execute(sql`drop trigger renovacao_presenca_teste on recreio.world_host_presences`);
+      await db.execute(sql`drop function recreio.renovacao_presenca_teste()`);
+    }
+    expect(
+      (await db.select().from(presences).where(eq(presences.id, criada.presencaId)))[0],
+    ).toEqual(antes);
+  },
+);
 
 it("cliente HTTP atesta entrada e saída reais, com replay fechado e modo desligado", async () => {
   const c = await cenario(),

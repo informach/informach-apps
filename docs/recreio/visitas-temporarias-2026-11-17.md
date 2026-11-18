@@ -212,3 +212,44 @@ integrações de tempo já exercitam `day_change`, inclusive horário de verão.
 O E2E candidato captura a resposta real de controle, exige limite de dez
 minutos, motivo diário/virada e prazo positivo de no máximo dez minutos, e
 confere o texto correspondente. Não altera orçamento, relógio ou autorização.
+
+Negociação `92c2010b` passou no job `134543207183` do run `44227206576`, com
+823 integrações/86 arquivos, cinco do Bastidores e upgrades 179→200/191→200.
+Os sete gates fora de E2E estavam aprovados na última leitura; não se declara
+aprovação integral enquanto a jornada de navegador não terminar.
+
+## Renovação candidata de presença
+
+`POST /api/interno/v1/presencas/renovar` recebe de 1 a 64 provas distintas e
+até 32768 bytes. Compartilha o teto de 240 pedidos por minuto por instância
+com o atestado; segredo/registro do jogo são obrigatórios. Só admite modo e
+manifesto habilitados. O contrato antigo de batimento não é alterado: o host
+renova primeiro as posses e depois informa somente conexões ainda presentes.
+
+Cada prova usa a admissão atual do membro, na ordem de travas do kernel,
+conservando capacidade persistida de sessão/instância, mundo, cerca, SID,
+perfil e membro. Processamento em grupos de quatro transações independentes,
+aguardadas inclusive em falha, evita inverter travas entre contas. Todas as
+consultas de autoridade de cada item continuam obrigatórias; esse limite não
+substitui a medição de consultas, latência e custo do F10.
+
+Presença encerrada, vencida ou de outra autoridade retorna somente `perdida`.
+Renovação aceita conserva identidade, chave, início, janela e retenção e limita
+a nova validade ao menor prazo entre 30 segundos, posse, SID e janela original.
+O prazo é reconferido após esperas até o commit. Não há reabertura nem extensão
+da janela de 24 horas. Manutenção/encerramento continuam separados. Assim como
+o batimento da posse, a atualização periódica não emite evento de auditoria a
+cada tick; criação, encerramento e expurgo mantêm seus eventos estritos.
+
+Um lote não é atômico entre itens. Falha operacional devolve HTTP de falha,
+mesmo que outro item já tenha renovado; o runtime precisa suspender admissões
+e respeitar seus prazos locais, sem presumir confirmação. Não converte falha
+de banco em `perdida`, nem emite recibo de encerramento de SID. O cliente HTTP
+valida quantidade, ordem e IDs da resposta e nunca repete automaticamente.
+
+Doze integrações candidatas cobrem lote misto, concorrência com saída,
+expiração/janela, SID encerrado, ativação desligada, corpo/tamanho/duplicação,
+identidade/cerca/instância e falha de banco ou prazo no commit. Cinco testes
+de transporte cobrem registro, recusas, correlação e resposta perdida.
+Ainda sem execução remota deste incremento; runtime, visitas e medição F10
+continuam pendentes. Nenhuma migration ou configuração foi ativada.

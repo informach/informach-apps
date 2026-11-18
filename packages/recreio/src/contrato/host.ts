@@ -8,7 +8,12 @@ import {
 } from "../dominio/ids";
 import { PAPEIS_NO_MUNDO, PARTICIPACAO_MAX } from "../dominio/mundos";
 import { TIPOS_DE_FOTOGRAFIA } from "../dominio/posse";
-import type { AtestadoDePresenca, ReciboDePresenca } from "./presencas";
+import type {
+  AtestadoDePresenca,
+  PresencaRenovada,
+  ReciboDePresenca,
+  RenovacaoDePresenca,
+} from "./presencas";
 import type { EstadoDeSalvamento } from "./salvamento";
 import type { ResultadoDeCheckpoint } from "./sdk";
 
@@ -269,6 +274,10 @@ export interface ClienteDoHostComSalvamento extends ClienteDoHostComCheckpoint {
 
 /** Extensão explícita: o host básico e seus adapters não prometem oferecer visitas. */
 export interface ClienteDoHostComPresencas extends ClienteDoHostComSalvamento {
+  /** Após renovar as posses; somente conexões que continuam ativas na instância. */
+  renovarPresencas(
+    presencas: readonly RenovacaoDePresenca[],
+  ): Promise<{ presencas: PresencaRenovada[] }>;
   /**
    * Entrada somente após a conexão real do membro; saída ao desconectar.
    * Resposta é recibo técnico. Perder a resposta não autoriza repetir a conexão

@@ -17,9 +17,12 @@ e em 782 integrações, incluindo upgrade 191→198. Jornada parental `3680d2f1`
 passou nos oito gates `44220010016`, com 785 integrações e 38 E2E; captura de
 390 px conferida. Fundação de presença/0198 `a1729003` passou nos oito gates
 `44222402220`, com 801 integrações. Atestado técnico/limpeza corrigidos em
-`6daed18f` passaram em 814 integrações e upgrades 179→200/191→200; gates
-restantes em execução. Negociação persistida por sessão/instância está na
-candidata seguinte, sem prova remota. Visitas e operação F5 permanecem
+`6daed18f` passaram em 814 integrações e upgrades 179→200/191→200; E2E falhou
+por esperar dez minutos mesmo próximo da virada do dia (aviso real de seis).
+Correção da expectativa está na candidata `3bbcc907`. Negociação persistida
+`92c2010b` passou em 823 integrações e nos sete gates fora de E2E; jornada ainda
+em execução. Cliente HTTP e renovação limitada estão em candidatas seguintes,
+sem aprovação integral. Visitas e operação F5 permanecem
 pendentes. Migrations 0191–0199 geradas no GitHub, ausentes de produção.
 [Sucessão infantil](recreio/sucessao-infantil-2026-11-17.md).
 [Contrato, provas e limites](recreio/mundos-completos-2026-11-17.md).

@@ -70,6 +70,61 @@ describe("cliente HTTP das instâncias", () => {
     expiraEm: "2026-11-18T01:00:30.000Z",
     janelaAte: "2026-11-19T01:00:00.000Z",
   };
+  const renovar = {
+    mundoId: MUNDO,
+    cerca: 2,
+    sid: SID,
+    perfilId: PERFIL,
+    presencaId: presenca.presencaId,
+  };
+
+  it("renovação em lote exige registro e não transforma prova perdida em sessão encerrada", async () => {
+    const a = ambiente();
+    await expect(a.cliente.renovarPresencas([renovar])).rejects.toMatchObject({
+      codigo: "NAO_AUTENTICADO",
+    });
+    expect(a.chamadas).toHaveLength(0);
+    await a.registrado();
+    a.responder(
+      Response.json({ presencas: [{ presencaId: presenca.presencaId, estado: "perdida" }] }),
+    );
+    expect(await a.cliente.renovarPresencas([renovar])).toEqual({
+      presencas: [{ presencaId: presenca.presencaId, estado: "perdida" }],
+    });
+    expect(a.chamadas.at(-1)).toMatchObject({
+      url: "https://recreio.test/api/interno/v1/presencas/renovar",
+      method: "POST",
+      corpo: { presencas: [renovar] },
+    });
+  });
+
+  it.each([
+    { presencas: [] },
+    { presencas: [{ presencaId: "35a7463c-3860-49ef-85db-374bb93b5520", estado: "perdida" }] },
+    {
+      presencas: [
+        { presencaId: presenca.presencaId, estado: "perdida" },
+        { presencaId: presenca.presencaId, estado: "perdida" },
+      ],
+    },
+  ])("renovação recusa resposta ausente, cruzada ou duplicada: %j", async (resposta) => {
+    const a = ambiente();
+    await a.registrado();
+    a.responder(Response.json(resposta));
+    await expect(a.cliente.renovarPresencas([renovar])).rejects.toMatchObject({
+      codigo: "INDISPONIVEL",
+    });
+  });
+
+  it("resposta de renovação perdida não gera retry automático", async () => {
+    const a = ambiente();
+    await a.registrado();
+    a.responder(new TypeError("resposta perdida"));
+    await expect(a.cliente.renovarPresencas([renovar])).rejects.toMatchObject({
+      codigo: "INDISPONIVEL",
+    });
+    expect(a.chamadas).toHaveLength(2);
+  });
 
   it("atestado exige registro e usa somente a instância do cliente", async () => {
     const a = ambiente(),
