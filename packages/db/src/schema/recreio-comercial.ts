@@ -3,7 +3,9 @@ import {
   boolean,
   check,
   foreignKey,
+  index,
   integer,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -11,6 +13,75 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { recreio, recreioEntitlements, recreioGroups } from "./recreio";
+
+/** Fila e autoridade financeira por pagante/modo. Uma tentativa falha nunca
+ * avança a última confirmação; revisão bloqueia cobertura até conciliação.
+ * Leases agendam trabalho, sem conservar transação durante I/O do provedor.
+ */
+export const recreioBillingReconciliations = recreio.table(
+  "billing_reconciliations",
+  {
+    payerUserId: text("payer_user_id").notNull(),
+    groupId: uuid("group_id").notNull(),
+    providerMode: text("provider_mode").$type<"dev" | "prod">().notNull(),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    lastConfirmedAt: timestamp("last_confirmed_at", { withTimezone: true }),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    reviewRequired: boolean("review_required").notNull().default(true),
+    reviewReason: text("review_reason")
+      .$type<
+        | "awaiting_provider"
+        | "customer_unconfirmed"
+        | "provider_unavailable"
+        | "evidence_mismatch"
+        | "adverse_event"
+        | "foreign_contract"
+      >()
+      .default("awaiting_provider"),
+    leaseToken: uuid("lease_token"),
+    leaseUntil: timestamp("lease_until", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.payerUserId, t.providerMode] }),
+    unique("recreio_billing_reconciliation_group_mode").on(t.groupId, t.providerMode),
+    foreignKey({
+      name: "recreio_billing_reconciliation_payer",
+      columns: [t.groupId, t.payerUserId],
+      foreignColumns: [recreioGroups.id, recreioGroups.ownerUserId],
+    }).onDelete("restrict"),
+    index("recreio_billing_reconciliation_due").on(t.providerMode, t.nextAttemptAt, t.payerUserId),
+    check("recreio_billing_reconciliation_mode", sql`${t.providerMode} in ('dev','prod')`),
+    check(
+      "recreio_billing_reconciliation_attempt",
+      sql`${t.attemptCount} >= 0 and
+      ((${t.lastAttemptAt} is null and ${t.attemptCount}=0) or (${t.lastAttemptAt} is not null and ${t.attemptCount}>0))`,
+    ),
+    check(
+      "recreio_billing_reconciliation_confirmation",
+      sql`${t.lastConfirmedAt} is null or ${t.lastAttemptAt} is not null`,
+    ),
+    check(
+      "recreio_billing_reconciliation_review",
+      sql`
+      (${t.reviewRequired} and ${t.reviewReason} is not null and ${t.reviewReason} in ('awaiting_provider','customer_unconfirmed','provider_unavailable','evidence_mismatch','adverse_event','foreign_contract')) or
+      (not ${t.reviewRequired} and ${t.reviewReason} is null and ${t.lastConfirmedAt} is not null)`,
+    ),
+    check(
+      "recreio_billing_reconciliation_lease",
+      sql`(${t.leaseToken} is null) = (${t.leaseUntil} is null)`,
+    ),
+    check(
+      "recreio_billing_reconciliation_order",
+      sql`${t.updatedAt} >= ${t.createdAt} and
+      (${t.lastAttemptAt} is null or ${t.lastAttemptAt} >= ${t.createdAt}) and
+      (${t.lastConfirmedAt} is null or ${t.lastConfirmedAt} >= ${t.createdAt}) and
+      (${t.leaseUntil} is null or ${t.leaseUntil} > ${t.createdAt})`,
+    ),
+  ],
+);
 
 /** Aceite nativo anterior a qualquer I/O de compra, inclusive criar customer.
  * Preserva a identidade enquanto uma operação externa pode existir. O resultado
@@ -22,6 +93,7 @@ export const recreioPurchaseAuthorizations = recreio.table(
     id: uuid("id").primaryKey(),
     payerUserId: text("payer_user_id").notNull(),
     groupId: uuid("group_id").notNull(),
+    providerMode: text("provider_mode").$type<"dev" | "prod">().notNull().default("dev"),
     productId: text("product_id").notNull(),
     tier: text("tier").$type<"individual" | "family">().notNull(),
     interval: text("interval").$type<"month" | "year">().notNull(),
@@ -48,6 +120,7 @@ export const recreioPurchaseAuthorizations = recreio.table(
       columns: [t.groupId, t.payerUserId],
       foreignColumns: [recreioGroups.id, recreioGroups.ownerUserId],
     }).onDelete("restrict"),
+    check("recreio_purchase_authorization_mode", sql`${t.providerMode} in ('dev','prod')`),
     check(
       "recreio_purchase_authorization_offer",
       sql`${t.tier} in ('individual','family') and ${t.interval} in ('month','year') and ${t.currency}='BRL' and ${t.amountCents}>0 and length(${t.productId}) between 2 and 80`,
