@@ -2,6 +2,7 @@ import "server-only";
 import { getProSubscription } from "@informach/billing";
 import { and, type Database, db, desc, eq, inArray, isNotNull } from "@informach/db";
 import {
+  recreioBillingContracts as contracts,
   customers,
   recreioEntitlements as entitlements,
   recreioBillingReconciliations as financialJobs,
@@ -71,6 +72,20 @@ async function lerPagamentoDaAssinatura(
 ): Promise<AssinaturaLida["financeiro"]> {
   const modo = ModoFinanceiroSchema.safeParse({ STRIPE_MODE: process.env.STRIPE_MODE });
   if (!modo.success) throw new Error("Invalid environment: STRIPE_MODE");
+  const [contrato] = await conexao
+    .select()
+    .from(contracts)
+    .where(eq(contracts.subscriptionId, ativa.id))
+    .limit(1);
+  // A current authority always takes precedence. A mismatched row must not
+  // fall back to the original purchase or another historical applied change.
+  const ofertaAtualConferida =
+    !contrato ||
+    (contrato.payerUserId === donoId &&
+      contrato.groupId === grupoId &&
+      contrato.providerMode === modo.data.STRIPE_MODE &&
+      contrato.currentProductId === ativa.productId &&
+      contrato.currentPriceId === ativa.providerPriceId);
   const [[conferencia], [origem], periodos] = await Promise.all([
     conexao
       .select({ confirmedAt: financialJobs.lastConfirmedAt, review: financialJobs.reviewRequired })
@@ -92,7 +107,8 @@ async function lerPagamentoDaAssinatura(
           eq(purchases.groupId, grupoId),
           eq(purchases.providerMode, modo.data.STRIPE_MODE),
           eq(purchases.providerSubscriptionId, ativa.providerSubscriptionId),
-          eq(purchases.productId, ativa.productId),
+          eq(purchases.productId, contrato?.originProductId ?? ativa.productId),
+          ...(contrato ? [eq(purchases.id, contrato.purchaseId)] : []),
           eq(purchases.resolution, "checkout_completed"),
           eq(purchases.reviewRequired, false),
           isNotNull(purchases.requestStartedAt),
@@ -117,8 +133,11 @@ async function lerPagamentoDaAssinatura(
     precoId: ativa.providerPriceId,
     origemAdmitida: Boolean(
       origem &&
+        ofertaAtualConferida &&
         ativa.providerObservedAt &&
         conferencia?.confirmedAt &&
+        (!contrato?.currentPlanAppliedAt ||
+          contrato.currentPlanAppliedAt <= conferencia.confirmedAt) &&
         ativa.providerObservedAt <= conferencia.confirmedAt,
     ),
     conferidoEm: conferencia?.confirmedAt ?? null,

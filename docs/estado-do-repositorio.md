@@ -30,13 +30,20 @@ temporários removidos, 34 serviços. D3–D8 e F6–F11 continuam separados.
 
 **18/11 — F6–F11 restantes:** os quatro preços foram confirmados; o teste sem
 cartão da proposta compara 48 h e sete dias, começando na primeira sessão
-autorizada. A candidata `33a64ab5` concluiu os dezesseis gates `44314786583`,
-incluindo conciliação nativa completa por GET e onze cenários financeiros.
-Checkout/consentimento/telas e primeira sessão de teste têm provas próprias.
-A alteração seguinte exige fatura, origem e conferência recente também na
-admissão e renovação, com regressões ainda em qualificação. Nenhuma candidata
-F6 foi implantada nem cobrança habilitada; comunicação real com o Sandbox,
-webhook e operação comercial ainda estão pendentes. [Levantamento
+autorizada. A candidata `a57da736` concluiu os dezesseis gates `44339836958`,
+incluindo prova financeira obrigatória na admissão/renovação, webhook nativo,
+job autenticado e gestão financeira do próprio pagante. Catálogo/preços/portal
+de teste foram conferidos no Stripe real, com replay idempotente; isso não é
+pagamento. A jornada hospedada `44337220466` chegou ao desafio hCaptcha,
+encerrou sua sessão aberta e não criou assinatura: falta homologação humana
+do Checkout. A candidata seguinte acrescenta agendas nativas e recibos de
+troca, com revisão comercial atual e seleção que não restaura revogações.
+0209/0210 foram geradas em duas etapas e adotadas intactas, ainda em gates:
+a primeira geração foi recusada por ordenar FKs antes da chave referenciada.
+As primeiras falhas de qualificação apontaram erros de fixtures/tipagem, em
+correção; não há aprovação deste incremento. Nenhuma candidata F6 foi
+implantada nem cobrança habilitada. Trocas completas, endpoint público,
+agendamento operacional e homologação comercial seguem abertos. [Levantamento
 comercial](recreio/comercial-levantamento-2026-11-18.md). Cobrança, privacidade,
 objetos/backup agendado com restauração do objeto, catálogo/acessibilidade,
 custo/carga remota e homologação final permanecem abertos no

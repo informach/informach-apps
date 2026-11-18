@@ -3,12 +3,15 @@ import { db, eq, sql } from "@informach/db";
 import {
   recreioPlanChanges as changes,
   recreioBillingContracts as contracts,
+  recreioBillingReconciliations as financialJobs,
   recreioProfiles as profiles,
   recreioPurchaseAuthorizations as purchases,
   recreioPlanChangeProfiles as selections,
   subscriptions,
 } from "@informach/db/schema";
+import { GrupoIdSchema } from "@informach/recreio";
 import { describe, expect, it } from "vitest";
+import { lerFatosDoGrupo } from "@/features/acesso/repository";
 import { criarProcessadorDeConciliacao } from "@/features/cobranca/conciliacao-service";
 import { criarExecutorDeCompra } from "@/features/cobranca/execucao-service";
 import { codigoDoBanco } from "./apoio";
@@ -20,9 +23,13 @@ async function fixture() {
   const f = await fixtureDePagamento();
   await criarExecutorDeCompra(() => f.runtime)(f.adulto.autor, f.recibo.id);
   const remoto = f.concluirCheckout();
+  const falhas: string[] = [];
   const processar = criarProcessadorDeConciliacao({
     modo: "dev",
     obterRuntime: () => f.runtimeFinanceiro,
+    relatarFalha: (entrada) => {
+      falhas.push(entrada.reasonCode);
+    },
   });
   expect((await processar()).conciliadas).toBe(1);
   const [purchase] = await db.select().from(purchases).where(eq(purchases.id, f.recibo.id));
@@ -47,7 +54,13 @@ async function fixture() {
     .from(contracts)
     .where(eq(contracts.subscriptionId, subscription.id));
   expect(contract).toMatchObject({ ...origin, revision: 1, currentPlanChangeId: null });
-  const now = new Date(Math.floor(Date.now() / 1000) * 1000);
+  const [confirmed] = await db
+    .select()
+    .from(financialJobs)
+    .where(eq(financialJobs.payerUserId, origin.payerUserId));
+  if (!confirmed?.lastConfirmedAt) throw new Error("Native synthetic confirmation absent");
+  // Logical SQL receipt times follow the actual confirmation; no provider clock claim.
+  const now = new Date(confirmed.lastConfirmedAt.getTime() + 1000);
   const quote: typeof changes.$inferInsert = {
     id: randomUUID(),
     subscriptionId: subscription.id,
@@ -93,10 +106,27 @@ async function fixture() {
     currentPlanChangeId: quote.id,
     currentPlanAppliedAt: appliedAt,
   };
-  return { origin, quote, applied, current, now, processar };
+  return { origin, quote, applied, current, now, processar, falhas };
 }
 
 describe("recibos e autoridade atual das trocas no PostgreSQL", () => {
+  it("o leitor não volta à compra original quando a autoridade atual já mudou", async () => {
+    const f = await fixture();
+    const ler = () => lerFatosDoGrupo(GrupoIdSchema.parse(f.origin.groupId));
+    expect((await ler())?.assinaturaAtiva?.financeiro.origemAdmitida).toBe(true);
+    await db.update(changes).set(f.applied).where(eq(changes.id, f.quote.id));
+    await db
+      .update(contracts)
+      .set(f.current)
+      .where(eq(contracts.subscriptionId, f.origin.subscriptionId));
+    expect((await ler())?.assinaturaAtiva?.financeiro.origemAdmitida).toBe(false);
+    // Changing a projection alone cannot refresh the financial confirmation.
+    await db
+      .update(subscriptions)
+      .set({ productId: f.quote.toProductId, providerPriceId: f.quote.toPriceId })
+      .where(eq(subscriptions.id, f.origin.subscriptionId));
+    expect((await ler())?.assinaturaAtiva?.financeiro.origemAdmitida).toBe(false);
+  });
   it("uma conciliação da oferta original não sobrescreve contrato que já aponta para outra revisão", async () => {
     const f = await fixture();
     await db.update(changes).set(f.applied).where(eq(changes.id, f.quote.id));
@@ -112,6 +142,7 @@ describe("recibos e autoridade atual das trocas no PostgreSQL", () => {
       emConferencia: 1,
       falhasTecnicas: 0,
     });
+    expect(f.falhas).toEqual(["foreign_contract"]);
     const [saved] = await db
       .select()
       .from(contracts)
@@ -173,7 +204,11 @@ describe("recibos e autoridade atual das trocas no PostgreSQL", () => {
         await codigoDoBanco(
           db
             .update(contracts)
-            .set(mismatch)
+            .set(
+              mismatch.originProductId
+                ? { ...mismatch, currentProductId: mismatch.originProductId }
+                : mismatch,
+            )
             .where(eq(contracts.subscriptionId, f.origin.subscriptionId)),
         ),
       ).toBe("23503");

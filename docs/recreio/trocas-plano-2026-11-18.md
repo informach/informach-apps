@@ -102,8 +102,13 @@ releem o contrato e não sobrescrevem outro destino/revisão. Isso ainda não
 implementa aplicação de trocas: observação divergente continua em conferência.
 As regras puras da seleção conferem inventário completo, IDs, grupo, revisão,
 situação atual e autoridade de cobertura; exclusão ou revogação posterior exige
-nova seleção. Ainda faltam os escritores de cotação/aceite/aplicação, a ligação
-do leitor de acesso à revisão atual, o upgrade proporcional e as telas.
+nova seleção. O leitor financeiro consulta a autoridade atual antes da compra
+original: havendo contrato nativo, escopo/destino divergentes não recorrem ao
+aceite antigo. Uma aplicação posterior à última conciliação não pode reutilizar
+a confirmação anterior. Sem contrato nativo, permanece a prova inicial estrita
+da compra, para os fatos anteriores a esta composição; isso não admite preço
+alterado. Ainda faltam os escritores de cotação/aceite/aplicação, o upgrade
+proporcional e as telas.
 
 O catálogo de teste já possui evidência própria; isso não comprova trocas ou
 pagamentos. Nenhuma DDL F6 ou alteração comercial foi implantada em produção.

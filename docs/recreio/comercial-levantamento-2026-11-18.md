@@ -7,6 +7,23 @@ ensaio pago ou venda. F5 foi implantado com recursos desligados em `d014bd90`,
 
 ## Incremento de teste gratuito, em qualificação
 
+Atualização: `a57da736` concluiu os dezesseis gates `44339836958`. O catálogo
+Stripe de teste já possui conferência externa e replay idempotente, descritos
+nos recibos desta frente. A jornada de Checkout `44337220466` não concluiu:
+o diagnóstico mostrou hCaptcha depois da confirmação; a sessão foi expirada,
+sem assinatura criada. [Evidência e limite da automação](homologacao-stripe-real-2026-11-18.md).
+
+O incremento seguinte prepara agendas nativas, seleção de perfis, recibos de
+aceite e autoridade da oferta atual. A geração única `44341859833` foi recusada
+por ordenar referências antes da chave composta. 0209/0210 foram geradas
+separadamente, conferidas e adotadas intactas. `11371f08` falhou em dez testes
+novos porque o transporte da fixture devolvia o ID da agenda no campo da
+assinatura; a correção preserva a validação de produção. `c9d169e9` ainda não
+qualificou: faltava o callback obrigatório de relato na fixture e uma asserção
+de FK encontrava antes a checagem da revisão inicial. Os testes foram ajustados
+para isolar a FK e registrar as falhas; a nova execução é obrigatória. Isso não
+implementa nem habilita as trocas completas. [Contrato e pendências](trocas-plano-2026-11-18.md).
+
 ### Evidência mais recente e candidata de admissão
 
 `33a64ab5` concluiu os dezesseis gates `44314786583`, incluindo onze cenários
