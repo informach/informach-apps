@@ -91,6 +91,11 @@ jobs:
           git fetch --no-tags --depth=1 origin 338236d041d3c7be0d4fb1fbbe0373a7101f8e07
           pnpm --filter @informach/db typecheck
           pnpm --filter @informach/db exec tsx src/testing/recreio-group-upgrade.ts
+      - name: Upgrade Recreio worlds from deployed schema with retained bytes and members
+        if: matrix.gate == 'integration'
+        run: |
+          git fetch --no-tags --depth=1 origin 396fe9326e3b1fac28a2b1bb86d9664c5b74e18a
+          pnpm --filter @informach/db exec tsx src/testing/recreio-group-upgrade.ts --mundos
       - name: Verify production process receives SIGTERM
         if: matrix.gate == 'quality'
         run: |

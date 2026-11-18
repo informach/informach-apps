@@ -125,7 +125,57 @@ test("convite pelo portal é conferido e aceito fora da partida sem abrir uma se
   expect(sessoes).toBe(0);
   await b.page.getByRole("link", { name: "Voltar para jogar", exact: true }).click();
   await expect(
-    b.page.getByRole("heading", { name: "Casa convidada pelo portal", exact: true }),
+    b.page.getByRole("link", { name: "Casa convidada pelo portal", exact: true }),
+  ).toBeVisible();
+});
+
+test("convite de participante aguarda decisão nativa do responsável pelo mundo", async ({
+  browser,
+}) => {
+  const dono = await novaPessoa(browser, "Responsável da casa"),
+    emissor = await novaPessoa(browser, "Amigo que convida"),
+    convidado = await novaPessoa(browser, "Amigo que chega");
+  await amizade(emissor.page, convidado.page);
+  const mundo = await criarMundo(dono.page, "Jogo de teste", "Casa com decisão do responsável");
+  await convidar(dono.page, emissor.page, mundo);
+  await emissor.page.goto("/amigos");
+  await emissor.page.getByRole("link", { name: "Convidar para um mundo", exact: true }).click();
+  const escolher = emissor.page.getByRole("combobox", { name: "Escolha um mundo", exact: true });
+  await hidratado(escolher);
+  await escolher.selectOption(mundo);
+  await emissor.page.getByRole("button", { name: "Convidar para este mundo", exact: true }).click();
+  await expect(
+    emissor.page.getByText("Convite registrado. Confira as confirmações em Convites de mundos.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await convidado.page.goto("/convites");
+  const caixa = convidado.page.getByRole("region", { name: "Convites de mundos", exact: true });
+  await caixa.getByRole("button", { name: "Conferir convite", exact: true }).click();
+  const detalhe = caixa.getByRole("region", { name: "Participação a confirmar", exact: true });
+  await expect(detalhe.getByText("Mundo: aguardando decisão", { exact: true })).toBeVisible();
+  await expect(
+    detalhe.getByRole("button", { name: "Aceitar participação", exact: true }),
+  ).toBeDisabled();
+  await dono.page.goto(`/conta/mundos/${mundo}/gestao`);
+  await dono.page
+    .getByRole("region", { name: "Convites aguardando o mundo", exact: true })
+    .getByRole("link", { name: "Conferir quem foi convidado", exact: true })
+    .click();
+  const confirmacao = dono.page.getByRole("checkbox", {
+    name: "Li o convite e autorizo a entrada neste mundo.",
+    exact: true,
+  });
+  await hidratado(confirmacao);
+  await confirmacao.check();
+  await dono.page.getByRole("button", { name: "Registrar aprovação", exact: true }).click();
+  await expect(dono.page.getByRole("status")).toContainText("Sua aprovação foi registrada");
+  await convidado.page.reload();
+  await caixa.getByRole("button", { name: "Conferir convite", exact: true }).click();
+  await expect(detalhe.getByText("Mundo: confirmado", { exact: true })).toBeVisible();
+  await detalhe.getByRole("button", { name: "Aceitar participação", exact: true }).click();
+  await expect(
+    caixa.getByText("Participação confirmada. O mundo está na sua estante.", { exact: true }),
   ).toBeVisible();
 });
 

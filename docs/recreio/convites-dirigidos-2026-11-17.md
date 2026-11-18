@@ -281,3 +281,13 @@ para a projeção pendente. Bearer do SDK continua exigindo SID admitido. Novos
 testes candidatos exercitam leitura gratuita versus aceite pago, escopo dos
 mundos, bloqueio e envio/aceite pelo portal. Gates, capturas, decisão de terceiro,
 concorrência adicional, upgrade, visitas e sucessão infantil ainda pendentes.
+
+A candidata seguinte acrescenta disputa simultânea pela última vaga, observação
+do bloqueio real em `pg_stat_activity` e bloqueio de contato confirmado enquanto
+o aceite espera o mundo, sem conservar as travas dos perfis nessa espera.
+Outra jornada de navegador exercita o participante emitindo e o responsável
+pelo mundo decidindo pela interface nativa. O ensaio de upgrade `--mundos`
+parte da fonte implantada `396fe932`/0190 com dois mundos, três membros, dois
+convites antigos, duas fotografias, quatro fatos e cercas 7. Confere bytes,
+IDs, revisões e recibos antes/depois e na repetição. Essas provas estão escritas
+para o GitHub; ainda não há resultado desse incremento.

@@ -33,7 +33,7 @@ import {
 } from "@/features/social/service";
 import { env } from "@/lib/env";
 import { revogar } from "../scripts/concessoes";
-import { eventosCom, type Jogador, novoJogador } from "./apoio";
+import { eventosCom, type Jogador, novoJogador, sinal } from "./apoio";
 import { mundoDe } from "./jogo-apoio";
 import { referenciaSocial as ref } from "./social-apoio";
 
@@ -273,6 +273,104 @@ it("membro precisa da decisão nativa do mundo para indicar participação alhei
   });
   expect((await emitirConviteDirigido(ref(c.a), pedido)).aguardaMundo).toBe(false);
   expect((await responder(c.b, criado.conviteId)).estado).toBe("accepted");
+});
+
+it("dois aceites concorrentes disputam a última vaga sem ultrapassar o limite do mundo", async () => {
+  const c = await cenario(),
+    outro = await novoJogador();
+  await amizade(c.a, outro);
+  // Seis participações preexistentes: o Morada comporta oito, incluindo o anfitrião.
+  for (let i = 0; i < 6; i++) {
+    const p = await novoJogador();
+    await db
+      .insert(members)
+      .values({ spaceId: c.mundoId, profileId: p.perfil.id, role: "member", state: "active" });
+  }
+  const primeiro = await emitirConviteDirigido(ref(c.a), c.pedido),
+    segundo = await emitirConviteDirigido(ref(c.a), {
+      ...c.pedido,
+      perfilId: outro.perfil.id,
+      pedidoId: crypto.randomUUID(),
+    });
+  const resultados = await Promise.allSettled([
+    responder(c.b, primeiro.conviteId),
+    responder(outro, segundo.conviteId),
+  ]);
+  expect(resultados.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+  expect(resultados.filter((r) => r.status === "rejected")).toHaveLength(1);
+  const falha = resultados.find((r) => r.status === "rejected");
+  if (falha?.status !== "rejected") throw new Error("Disputa sem recusa");
+  expect(falha.reason).toMatchObject({ codigo: "MUNDO_CHEIO" });
+  expect(
+    await db
+      .select()
+      .from(members)
+      .where(and(eq(members.spaceId, c.mundoId), eq(members.state, "active"))),
+  ).toHaveLength(8);
+  const recibos = await db.select().from(invites).where(eq(invites.spaceId, c.mundoId));
+  expect(recibos.filter((r) => r.state === "accepted")).toHaveLength(1);
+  expect(recibos.filter((r) => r.state === "pending")).toHaveLength(1);
+});
+
+it("aceite aguardando o mundo não segura perfis e relê bloqueio confirmado durante a espera", async () => {
+  const c = await cenario(),
+    criado = await emitirConviteDirigido(ref(c.a), c.pedido),
+    pronto = sinal<number>(),
+    soltar = sinal<void>();
+  const segurando = db.transaction(async (tx) => {
+    await tx.select({ id: spaces.id }).from(spaces).where(eq(spaces.id, c.mundoId)).for("update");
+    const [linha] = await tx.execute<{ pid: number }>(sql`select pg_backend_pid() as pid`);
+    if (!linha) throw new Error("PID ausente");
+    pronto.concluir(linha.pid);
+    await soltar.promessa;
+  });
+  const pid = await pronto.promessa,
+    resultado = responder(c.b, criado.conviteId).then(
+      (valor) => ({ ok: true, valor }),
+      (erro) => ({ ok: false, erro }),
+    );
+  try {
+    await expect
+      .poll(
+        async () => {
+          const [linha] = await db.execute<{ aguardando: boolean }>(
+            sql`select exists(select 1 from pg_stat_activity where ${pid}=any(pg_blocking_pids(pid))) as aguardando`,
+          );
+          return linha?.aguardando;
+        },
+        { timeout: 700, interval: 10 },
+      )
+      .toBe(true);
+    await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`select id from recreio.profiles where id in (${c.a.perfil.id},${c.b.perfil.id}) order by id for update nowait`,
+      );
+    });
+    await protegerContato(ref(c.b), {
+      perfilId: c.a.perfil.id,
+      bloqueado: true,
+      silenciado: false,
+      anterior: { bloqueado: false, silenciado: false },
+    });
+  } finally {
+    soltar.concluir();
+    await segurando;
+  }
+  expect(await resultado).toMatchObject({ ok: false, erro: { code: "PEDIDO" } });
+  expect((await db.select().from(invites).where(eq(invites.id, criado.conviteId)))[0]?.state).toBe(
+    "pending",
+  );
+  expect(
+    await db
+      .select()
+      .from(members)
+      .where(and(eq(members.spaceId, c.mundoId), eq(members.profileId, c.b.perfil.id))),
+  ).toHaveLength(0);
+  expect(
+    (await eventosCom("inviteId", criado.conviteId)).filter(
+      (e) => e.eventType === "recreio.space_invite_accepted",
+    ),
+  ).toHaveLength(0);
 });
 
 it("arquivar o mundo revoga convites sem remover progresso ou outros membros", async () => {
