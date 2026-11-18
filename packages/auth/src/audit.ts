@@ -159,6 +159,8 @@ export type AuditEventType =
   | "recreio.trial_enrollment_withdrawn"
   | "recreio.trial_started"
   | "recreio.purchase_authorization_recorded"
+  | "recreio.purchase_selection_processed"
+  | "recreio.purchase_selection_confirmed"
   | "recreio.purchase_authorization_closed"
   | "recreio.purchase_attempt_started"
   | "recreio.purchase_checkout_observed"

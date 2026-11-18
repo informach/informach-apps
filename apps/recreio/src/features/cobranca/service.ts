@@ -4,6 +4,7 @@ import type {
   AutorNativoRecente,
   IdentidadeNativa,
 } from "@/features/account/autoridade-repository";
+import { consultarMeuGrupo } from "@/features/grupo/service";
 import { env } from "@/lib/env";
 import { isStripeTestSecret } from "@/lib/environment";
 import { assertAllowed } from "@/lib/errors";
@@ -42,19 +43,22 @@ export async function consultarMinhaCompra(autor: IdentidadeNativa) {
 export async function consultarMinhaCobranca(autor: IdentidadeNativa) {
   const compra = await consultarMinhaCompra(autor);
   const financeiro = await consultarSituacaoFinanceiraNoBanco(autor);
+  const grupo = await consultarMeuGrupo(autor);
+  const configuracaoDeGestao =
+    env.STRIPE_MODE === "dev" &&
+    Boolean(
+      isStripeTestSecret(env.STRIPE_SECRET_KEY) &&
+        env.STRIPE_PORTAL_CONFIGURATION_ID?.startsWith("bpc_") &&
+        env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_"),
+    );
   return {
     modo: env.RECREIO_BILLING_MODE,
     compra,
     financeiro,
     ofertas: ofertasParaOAdulto(),
-    portalDisponivel:
-      financeiro.temCliente &&
-      env.STRIPE_MODE === "dev" &&
-      Boolean(
-        isStripeTestSecret(env.STRIPE_SECRET_KEY) &&
-          env.STRIPE_PORTAL_CONFIGURATION_ID?.startsWith("bpc_") &&
-          env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_"),
-      ),
+    perfis: grupo?.perfis ?? [],
+    conferenciaDisponivel: configuracaoDeGestao,
+    portalDisponivel: financeiro.temCliente && configuracaoDeGestao,
   };
 }
 export async function encerrarCompraNaoEnviada(autor: IdentidadeNativa, entrada: unknown) {

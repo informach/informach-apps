@@ -2,20 +2,24 @@ import { PRODUCTS } from "@informach/config";
 import { limiteDePerfisDoTier } from "@informach/recreio";
 import { z } from "zod";
 import { VERSAO_DA_DECLARACAO_ADULTA } from "@/features/grupo/convites-constantes";
+import { CoberturaDoGrupoSchema } from "@/features/grupo/regras";
 import { AppError } from "@/lib/errors";
 import { VERSAO_DA_COMPRA } from "./constantes";
 
-export const AceiteDaCompraSchema = z.strictObject({
-  pedidoId: z.uuid(),
-  produtoId: z.string().min(2).max(80),
-  valorCentavos: z.int().positive(),
-  moeda: z.literal("BRL"),
-  intervalo: z.enum(["month", "year"]),
-  souAdulto: z.literal(true),
-  aceitoCobrancaRecorrente: z.literal(true),
-  versaoDaDeclaracao: z.literal(VERSAO_DA_DECLARACAO_ADULTA),
-  versaoDasCondicoes: z.literal(VERSAO_DA_COMPRA),
-});
+export const AceiteDaCompraSchema = z
+  .strictObject({
+    pedidoId: z.uuid(),
+    produtoId: z.string().min(2).max(80),
+    valorCentavos: z.int().positive(),
+    moeda: z.literal("BRL"),
+    intervalo: z.enum(["month", "year"]),
+    souAdulto: z.literal(true),
+    aceitoCobrancaRecorrente: z.literal(true),
+    versaoDaDeclaracao: z.literal(VERSAO_DA_DECLARACAO_ADULTA),
+    versaoDasCondicoes: z.literal(VERSAO_DA_COMPRA),
+    perfis: CoberturaDoGrupoSchema.shape.perfis,
+  })
+  .refine((p) => new Set(p.perfis.map((s) => s.perfilId)).size === p.perfis.length);
 export type AceiteDaCompra = z.infer<typeof AceiteDaCompraSchema>;
 export type OfertaAceita = {
   productId: string;

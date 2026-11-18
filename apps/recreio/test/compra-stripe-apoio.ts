@@ -12,7 +12,7 @@ import { comCicloDeCobranca } from "@/features/cobranca/lifecycle";
 import { iniciarTentativaDeCompraLocked } from "@/features/cobranca/repository";
 import type { RuntimeDeCompra } from "@/features/cobranca/runtime";
 import { prepararMinhaCompra } from "@/features/cobranca/service";
-import { pedidoDaCompra } from "./compra-apoio";
+import { pedidoDaCompraDoGrupo } from "./compra-grupo-apoio";
 import { adultoDoTeste } from "./teste-apoio";
 
 /** Native admission and PostgreSQL are real. Stripe SDK uses only fixture HTTP;
@@ -22,9 +22,15 @@ export async function fixtureDeCheckout(
   extensao?: (request: Request) => Promise<Response | null>,
   comJogador = false,
   produtoId = "recreio_individual_monthly",
+  preparar?: (
+    adulto: Awaited<ReturnType<typeof adultoDoTeste>>,
+  ) => Promise<readonly string[] | undefined>,
 ) {
   const adulto = await adultoDoTeste(comJogador);
-  const pedido = pedidoDaCompra(produtoId);
+  const escolhidos = await preparar?.(adulto);
+  const pedido = await pedidoDaCompraDoGrupo(adulto.autor, produtoId);
+  if (escolhidos)
+    pedido.perfis = pedido.perfis.map((p) => ({ ...p, cobrir: escolhidos.includes(p.perfilId) }));
   const recibo = await prepararMinhaCompra(adulto.autor, pedido);
   const sessions: {
     id: string;

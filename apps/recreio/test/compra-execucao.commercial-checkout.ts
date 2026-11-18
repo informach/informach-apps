@@ -15,10 +15,30 @@ import {
   definirPinDoMenor,
   trocarPerfilComPin,
 } from "@/features/protecao/service";
+import { env } from "@/lib/env";
 import { fixtureDeCheckout } from "./compra-stripe-apoio";
 import { adultoDoTeste } from "./teste-apoio";
 
 describe("executor financeiro nativo com PostgreSQL e SDK Stripe por transporte fechado", () => {
+  it("desligar novas vendas preserva consulta de tentativa anterior sem qualquer POST", async () => {
+    const f = await fixtureDeCheckout();
+    await criarExecutorDeCompra(() => f.runtime)(f.adulto.autor, f.recibo.id);
+    const modo = env.RECREIO_BILLING_MODE,
+      antes = f.requests.length;
+    env.RECREIO_BILLING_MODE = "off";
+    try {
+      expect((await criarConsultaDeCompra(() => f.runtime)(f.adulto.autor, f.recibo.id)).tipo).toBe(
+        "checkout",
+      );
+      expect(f.requests.slice(antes).every((r) => r.method === "GET")).toBe(true);
+      await expect(
+        criarExecutorDeCompra(() => f.runtime)(f.adulto.autor, f.recibo.id),
+      ).rejects.toMatchObject({ code: "INDISPONIVEL" });
+    } finally {
+      env.RECREIO_BILLING_MODE = modo;
+    }
+    expect(f.sessions).toHaveLength(1);
+  });
   it("registra a sessão externa e devolve o destino sem conceder acesso", async () => {
     const f = await fixtureDeCheckout();
     const executar = criarExecutorDeCompra(() => f.runtime);

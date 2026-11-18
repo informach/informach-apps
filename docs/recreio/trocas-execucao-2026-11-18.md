@@ -229,6 +229,13 @@ isolamento, vendas desligadas, logout, auditoria e corrida na fronteira da fase.
 Esses cenários e a correção do seletor E2E ainda precisam dos gates remotos.
 Não há Server Actions/telas das trocas ligadas nem ativação comercial em produção.
 
+`d71fb1c1` concluiu os dezesseis gates `44380976374`, sem falhas. O gate
+financeiro tem 73 casos em quatro arquivos, incluindo 37 de cotação, aceite,
+envio, cancelamento e aplicação. A jornada de seleção passou no navegador;
+as duas capturas de 390 px foram inspecionadas após conferir o ZIP/arquivos.
+[Registro da inspeção](evidencias/troca-selecao-telas-44380976374.json).
+Essa prova usa SDK/HTTP fechado e fixture SQL de apresentação, não Stripe real.
+
 O próximo achado é a [seleção da primeira compra](compras-selecao-2026-11-18.md),
 incluindo a passagem do teste para Individual. A tabela/checagem da nova candidata
 preparam o recibo explícito; ainda não implementam o novo aceite nem mudam o

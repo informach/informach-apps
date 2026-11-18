@@ -101,6 +101,7 @@ export async function fixtureDePagamento(
   comJogador = false,
   produtoId = "recreio_individual_monthly",
   extensao?: (request: Request) => Promise<Response | null>,
+  preparar?: Parameters<typeof fixtureDeCheckout>[3],
 ) {
   let financeiro: ReturnType<typeof dados> | null = null;
   const renovacoes: ReturnType<typeof dados>[] = [];
@@ -148,6 +149,7 @@ export async function fixtureDePagamento(
     },
     comJogador,
     produtoId,
+    preparar,
   );
   const find = f.provider.findCheckoutSession;
   if (!find) throw new Error("Fixture Stripe provider lacks Checkout reads");

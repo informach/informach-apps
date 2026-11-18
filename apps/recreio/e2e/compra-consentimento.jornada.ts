@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
 import { comecarVigia, fecharAparelhos, hidratado, novaPessoa, tela, vigia } from "./apoio";
 
@@ -20,6 +20,24 @@ async function fatos(email: string) {
     (select count(*)::integer from recreio.purchase_authorizations p where p.payer_user_id=u.id and p.request_started_at is not null) as envios
     from core.users u left join recreio.groups g on g.owner_user_id=u.id where u.email=${email}`;
   return linha;
+}
+
+async function cadastrarDoisMenores(page: Page) {
+  await page.goto("/conta/perfis");
+  for (const apelido of ["Luar", "Maré"]) {
+    const adicionar = page.getByRole("button", { name: "Adicionar perfil", exact: true });
+    await hidratado(adicionar);
+    await adicionar.click();
+    await hidratado(page.getByLabel("Apelido", { exact: true }));
+    await page.getByLabel("Apelido", { exact: true }).fill(apelido);
+    await page.getByLabel("Mês de nascimento", { exact: true }).selectOption("1");
+    await page
+      .getByLabel("Ano de nascimento", { exact: true })
+      .fill(String(new Date().getUTCFullYear() - 8));
+    await page.getByRole("checkbox", { name: /Declaro que tenho 18/ }).check();
+    await page.getByRole("button", { name: "Confirmar cadastro", exact: true }).click();
+    await expect(page.getByRole("heading", { name: apelido, exact: true })).toBeVisible();
+  }
 }
 
 test("adulto sem jogador confere quatro ofertas, autoriza, relê e encerra; outra conta não herda pedido", async ({
@@ -275,4 +293,45 @@ test("adulto sem jogador confirma a seleção atual depois da redução do plano
   const [estado] =
     await banco`select revision,coverage_review_required from recreio.billing_contracts where current_plan_change_id=${trocaId}`;
   expect(estado).toEqual({ revision: 2, coverage_review_required: false });
+});
+
+test("primeira compra Individual conserva a escolha explícita entre dois perfis", async ({
+  browser,
+}) => {
+  const a = await novaPessoa(browser, "Titular", { semPerfil: true, comAcesso: false });
+  await cadastrarDoisMenores(a.page);
+  await a.page.goto("/conta/assinatura");
+  await a.page.setViewportSize({ width: 390, height: 844 });
+  const form = a.page.getByRole("form", { name: "Conferir e autorizar uma oferta", exact: true });
+  await form.locator('input[type="radio"][value="recreio_individual_monthly"]').check();
+  const autorizar = form.getByRole("button", {
+    name: "Registrar autorização de compra",
+    exact: true,
+  });
+  await hidratado(autorizar);
+  await expect(
+    form.getByRole("alert").filter({ hasText: "Escolha até 1 perfil para esta oferta." }),
+  ).toBeVisible();
+  await expect(autorizar).toBeDisabled();
+  await form.getByRole("checkbox", { name: "Luar", exact: true }).uncheck();
+  await form.getByRole("checkbox", { name: /Declaro ter 18 anos/ }).check();
+  await form.getByRole("checkbox", { name: /Conferi o plano, o valor e o período/ }).check();
+  await expect(autorizar).toBeEnabled();
+  expect(
+    await a.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  ).toBe(true);
+  await tela(a.page, "compra-perfis-individual-mobile");
+  await Promise.all([a.page.waitForEvent("domcontentloaded"), autorizar.click()]);
+  const recibo = a.page.getByRole("region", { name: "Seu pedido", exact: true });
+  await expect(recibo.getByText("Seleção registrada", { exact: true })).toBeVisible();
+  await expect(recibo.getByRole("listitem")).toHaveText(["Maré"]);
+  await a.page.reload();
+  await expect(recibo.getByRole("listitem")).toHaveText(["Maré"]);
+  const escolhas =
+    await banco`select s.coverage_enabled,p.nickname from recreio.purchase_profiles s join recreio.profiles p on p.id=s.profile_id join core.users u on u.id=s.payer_user_id where u.email=${a.email} order by p.nickname`;
+  expect(escolhas).toEqual([
+    { coverage_enabled: false, nickname: "Luar" },
+    { coverage_enabled: true, nickname: "Maré" },
+  ]);
+  expect((await fatos(a.email))?.clientes).toBe(0);
 });

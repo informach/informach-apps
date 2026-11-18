@@ -1,14 +1,20 @@
 import "server-only";
+import { logAuditEventStrict } from "@informach/auth";
 import type { SubscriptionPaymentSnapshot } from "@informach/billing/payment-facts";
 import { persistUserPaymentSnapshots } from "@informach/billing/user-payment-snapshots";
 import type { Product } from "@informach/config";
 import { and, db, eq, inArray, isNotNull, isNull, or } from "@informach/db";
-import { recreioPurchaseAuthorizations as purchases } from "@informach/db/schema";
+import {
+  recreioBillingContracts as contracts,
+  recreioPurchaseAuthorizations as purchases,
+} from "@informach/db/schema";
 import { limiteDoPagamentoConciliado } from "@informach/recreio";
 import { assertAllowed } from "@/lib/errors";
 import type { Transacao } from "@/lib/repository";
+import { lerSelecaoDaCompraLocked } from "./compra-selecao-repository";
 import type { TentativaDeConciliacao } from "./conciliacao-fila-repository";
 import { conferirOfertaAtualLocked } from "./contratos-repository";
+import { aplicarSelecaoAdmitidaLocked } from "./selecao-aplicacao-repository";
 import { aplicarReducoesObservadasLocked } from "./troca-aplicacao-repository";
 import type { AgendaDaTrocaObservada } from "./troca-execucao-repository";
 
@@ -56,7 +62,8 @@ export async function persistirFatosDaConciliacao(
   },
 ) {
   assertAllowed(prova.customer, "COBRANCA", "Cliente financeiro não confirmado.");
-  const aceites = new Map<string, { id: string; productId: string }>();
+  const aceites = new Map<string, typeof purchases.$inferSelect>();
+  const pagos = new Set<string>();
   for (const snapshot of entrada.snapshots) {
     const origem = snapshot.origin;
     assertAllowed(
@@ -145,7 +152,8 @@ export async function persistirFatosDaConciliacao(
           eq(purchases.providerMode, prova.providerMode),
         ),
       );
-    aceites.set(snapshot.subscriptionId, { id: aceite.id, productId: aceite.productId });
+    aceites.set(snapshot.subscriptionId, aceite);
+    if (pagoAte) pagos.add(snapshot.subscriptionId);
   }
   await aplicarReducoesObservadasLocked(
     tx,
@@ -174,7 +182,7 @@ export async function persistirFatosDaConciliacao(
         p.stripePriceId[prova.providerMode] === snapshot.priceId,
     );
     assertAllowed(produto, "ORIGEM_FINANCEIRA", "Oferta financeira não reconhecida.");
-    await conferirOfertaAtualLocked(tx, {
+    const contrato = await conferirOfertaAtualLocked(tx, {
       subscriptionId,
       purchaseId: aceite.id,
       groupId: prova.groupId,
@@ -184,5 +192,39 @@ export async function persistirFatosDaConciliacao(
       observedProductId: produto.id,
       observedPriceId: snapshot.priceId,
     });
+    if (
+      contrato.revision === 1 &&
+      contrato.purchaseSelectionProcessedAt === null &&
+      pagos.has(snapshot.subscriptionId)
+    ) {
+      const selecao = await lerSelecaoDaCompraLocked(tx, aceite);
+      const resultado = await aplicarSelecaoAdmitidaLocked(tx, {
+        grupoId: prova.groupId,
+        paganteId: prova.payerUserId,
+        produtoId: contrato.currentProductId,
+        selecao,
+        agora: entrada.agora,
+      });
+      await tx
+        .update(contracts)
+        .set({
+          purchaseSelectionProcessedAt: entrada.agora,
+          coverageReviewRequired: resultado.emConferencia,
+        })
+        .where(eq(contracts.subscriptionId, contrato.subscriptionId));
+      await logAuditEventStrict(
+        "recreio.purchase_selection_processed",
+        prova.payerUserId,
+        {
+          app: "recreio",
+          groupId: prova.groupId,
+          authorizationId: aceite.id,
+          subscriptionId: contrato.subscriptionId,
+          revision: contrato.revision,
+          state: resultado.emConferencia ? "selection_review" : "applied",
+        },
+        { writer: tx },
+      );
+    }
   }
 }

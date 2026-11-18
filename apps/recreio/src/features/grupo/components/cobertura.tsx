@@ -71,9 +71,9 @@ export function CoberturaDoGrupo({
         <legend className="font-display text-xl font-bold">Quem fica na cobertura</legend>
         {grupo.revisaoDaSelecao !== null && (
           <p role="status" className="painel mt-4 p-4 text-sm text-tinta-suave">
-            Seu plano mudou e os perfis foram alterados desde a escolha anterior. Confira até{" "}
-            {grupo.limite} {grupo.limite === 1 ? "perfil" : "perfis"} para continuar. O progresso
-            permanece guardado. O acesso também depende do pagamento confirmado.
+            A seleção precisa ser conferida: os perfis foram alterados desde a escolha anterior.
+            Confira até {grupo.limite} {grupo.limite === 1 ? "perfil" : "perfis"} para continuar. O
+            progresso permanece guardado. O acesso também depende do pagamento confirmado.
           </p>
         )}
         <div className="mt-4 grid gap-3">

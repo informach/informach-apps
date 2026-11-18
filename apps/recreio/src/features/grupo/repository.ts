@@ -51,9 +51,8 @@ async function lerRevisaoDaSelecao(
   assertAllowed(
     oferta &&
       origem &&
-      contrato.currentPlanChangeId &&
-      contrato.currentPlanAppliedAt &&
-      contrato.revision > 1,
+      ((contrato.revision === 1 && contrato.purchaseSelectionProcessedAt !== null) ||
+        (contrato.revision > 1 && contrato.currentPlanChangeId && contrato.currentPlanAppliedAt)),
     "CONFLITO",
     "A oferta atual exige conferência.",
   );
@@ -227,19 +226,27 @@ export async function gravarCoberturaDoGrupo(
         )
         .returning({ id: contracts.subscriptionId });
       assertAllowed(confirmada, "CONFLITO", "A revisão da seleção mudou. Reabra a cobertura.");
-      await logAuditEventStrict(
-        "recreio.plan_change_selection_confirmed",
-        autor.contaId,
-        {
-          app: "recreio",
-          groupId: pedido.grupoId,
-          planChangeId: revisao.contrato.currentPlanChangeId,
-          subscriptionId: revisao.contrato.subscriptionId,
-          revision: revisao.contrato.revision,
-          state: "confirmed",
-        },
-        { writer: tx },
-      );
+      const comum = {
+        app: "recreio",
+        groupId: pedido.grupoId,
+        subscriptionId: revisao.contrato.subscriptionId,
+        revision: revisao.contrato.revision,
+        state: "confirmed",
+      };
+      if (revisao.contrato.currentPlanChangeId)
+        await logAuditEventStrict(
+          "recreio.plan_change_selection_confirmed",
+          autor.contaId,
+          { ...comum, planChangeId: revisao.contrato.currentPlanChangeId },
+          { writer: tx },
+        );
+      else
+        await logAuditEventStrict(
+          "recreio.purchase_selection_confirmed",
+          autor.contaId,
+          { ...comum, authorizationId: revisao.contrato.purchaseId },
+          { writer: tx },
+        );
       await atual.nativa.conferirPrazo(autor.login);
     }
     return { alterados: mudancas.length };

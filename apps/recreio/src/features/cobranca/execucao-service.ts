@@ -24,7 +24,7 @@ function criarOperacaoDeCompra(obterRuntime: () => RuntimeDeCompra, somenteLeitu
   return async (autor: AutorNativoRecente, entrada: unknown) => {
     const id = z.uuid().parse(entrada);
     assertAllowed(
-      env.RECREIO_BILLING_MODE === "sandbox",
+      somenteLeitura || env.RECREIO_BILLING_MODE === "sandbox",
       "INDISPONIVEL",
       "O envio da compra ainda não está disponível.",
     );

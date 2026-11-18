@@ -39,13 +39,21 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
   const [recente, setRecente] = useState(false);
   const [conferir, setConferir] = useState(false);
   const [pendente, iniciar] = useTransition();
+  const [escolhas, definirEscolhas] = useState(() =>
+    estado.perfis.map((p) => ({
+      perfilId: p.perfilId,
+      versao: p.versao,
+      cobrir: p.selecionado && p.ativo,
+    })),
+  );
   const hidratado = useHydrated();
   const compra = estado.compra,
     oferta = estado.ofertas.find((o) => o.productId === produtoId);
   const ativa = compra && !compra.resolvidoEm;
+  const excede = Boolean(oferta && escolhas.filter((p) => p.cobrir).length > oferta.perfis);
 
   function executar(acao: "preparar" | "encerrar" | "enviar" | "conferir" | "portal") {
-    if (pendente || conferir) return;
+    if (pendente || conferir || (acao === "preparar" && excede)) return;
     setErro("");
     setRecente(false);
     iniciar(async () => {
@@ -84,6 +92,7 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
                   aceitoCobrancaRecorrente: aceito,
                   versaoDasCondicoes: VERSAO_DA_COMPRA,
                   versaoDaDeclaracao: VERSAO_DA_DECLARACAO_ADULTA,
+                  perfis: escolhas,
                 })
               : null;
         if (!resposta) return;
@@ -201,6 +210,26 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
             Registrar este pedido ou voltar da página de pagamento não libera jogos. Você pode
             administrar a conta sem ocupar um perfil de jogador.
           </p>
+          <div className="mt-4 text-sm text-tinta-suave">
+            <p className="font-bold">Seleção registrada</p>
+            {compra.perfis.some((p) => p.cobrir) ? (
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                {compra.perfis
+                  .filter((p) => p.cobrir)
+                  .map((p) => (
+                    <li key={p.perfilId}>
+                      {estado.perfis.find((atual) => atual.perfilId === p.perfilId)?.apelido ??
+                        "Perfil que deixou o grupo"}
+                    </li>
+                  ))}
+              </ul>
+            ) : (
+              <p className="mt-2">
+                Nenhum jogador incluído neste pedido. Você poderá escolher ou cadastrar perfis
+                depois do pagamento.
+              </p>
+            )}
+          </div>
           {ativa && !compra.tentativaIniciadaEm && (
             <button
               type="button"
@@ -211,18 +240,20 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
               Encerrar pedido não enviado
             </button>
           )}
-          {ativa && estado.modo === "sandbox" && (
-            <button
-              type="button"
-              className="rb rb-sol mt-4"
-              disabled={bloqueado}
-              onClick={() => executar(compra.tentativaIniciadaEm ? "conferir" : "enviar")}
-            >
-              {compra.tentativaIniciadaEm
-                ? "Conferir envio no ambiente de teste"
-                : "Continuar no ambiente de teste"}
-            </button>
-          )}
+          {ativa &&
+            (estado.modo === "sandbox" ||
+              (compra.tentativaIniciadaEm && estado.conferenciaDisponivel)) && (
+              <button
+                type="button"
+                className="rb rb-sol mt-4"
+                disabled={bloqueado}
+                onClick={() => executar(compra.tentativaIniciadaEm ? "conferir" : "enviar")}
+              >
+                {compra.tentativaIniciadaEm
+                  ? "Conferir envio no ambiente de teste"
+                  : "Continuar no ambiente de teste"}
+              </button>
+            )}
         </section>
       )}
       {!ativa && estado.financeiro.podeContratar && estado.modo !== "off" && (
@@ -276,6 +307,50 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
               , cobrado a cada {oferta.interval === "month" ? "mês" : "ano"} até o cancelamento.
             </p>
           )}
+          {oferta && estado.perfis.length > 0 && (
+            <fieldset className="mt-5 grid gap-3">
+              <legend className="mb-3 font-bold">Quem ficará na cobertura</legend>
+              {estado.perfis.map((p) => (
+                <label
+                  key={p.perfilId}
+                  className="flex min-h-11 items-start gap-3 rounded-2xl border border-current/20 p-4"
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-1 size-5 shrink-0"
+                    checked={escolhas.some((e) => e.perfilId === p.perfilId && e.cobrir)}
+                    disabled={!p.ativo || !p.selecionado}
+                    onChange={(e) => {
+                      const cobrir = e.target.checked;
+                      definirEscolhas((anteriores) =>
+                        anteriores.map((a) => (a.perfilId === p.perfilId ? { ...a, cobrir } : a)),
+                      );
+                      aceitar(false);
+                    }}
+                  />
+                  <span>
+                    <span className="block font-bold">{p.apelido}</span>
+                    {!p.ativo || !p.selecionado ? (
+                      <span className="mt-1 block text-sm text-tinta-suave">
+                        Fora da cobertura deste pedido.
+                      </span>
+                    ) : null}
+                  </span>
+                </label>
+              ))}
+              <p className="text-sm text-tinta-suave">
+                O plano cobre até {oferta.perfis} {oferta.perfis === 1 ? "jogador" : "jogadores"}.
+                Os demais perfis e o progresso ficam guardados. Perfis fora da cobertura podem ser
+                incluídos depois do pagamento, na gestão do grupo.
+              </p>
+            </fieldset>
+          )}
+          {excede && (
+            <p role="alert" className="mt-4 font-semibold text-erro">
+              Escolha até {oferta?.perfis} {oferta?.perfis === 1 ? "perfil" : "perfis"} para esta
+              oferta.
+            </p>
+          )}
           <label className="mt-5 flex min-h-11 items-start gap-3">
             <input
               type="checkbox"
@@ -315,7 +390,7 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
           <button
             type="submit"
             className="rb rb-sol mt-5"
-            disabled={bloqueado || !oferta || !adulto || !aceito}
+            disabled={bloqueado || !oferta || !adulto || !aceito || excede}
           >
             {pendente ? "Confirmando…" : "Registrar autorização de compra"}
           </button>

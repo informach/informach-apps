@@ -95,6 +95,12 @@ export function getRuntimeDaCompra(): RuntimeDeCompra {
     "INDISPONIVEL",
     "A compra ainda não está disponível.",
   );
+  return getRuntimeCompartilhadoDaCompra();
+}
+export function getRuntimeDaConsultaDaCompra(): RuntimeDeCompra {
+  return getRuntimeCompartilhadoDaCompra();
+}
+function getRuntimeCompartilhadoDaCompra(): RuntimeDeCompra {
   if (runtime) return runtime;
   const { produtos, provider, billing, conferirCatalogo } = getComposicao();
   runtime = {

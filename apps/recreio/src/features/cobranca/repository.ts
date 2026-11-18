@@ -26,6 +26,12 @@ import {
 import { env } from "@/lib/env";
 import { AppError, assertAllowed } from "@/lib/errors";
 import { AGORA, codigoDoPostgres, constraintDoPostgres, type Transacao } from "@/lib/repository";
+import {
+  conferirReplayDaSelecaoDaCompra,
+  conferirSelecaoDaCompraNoEnvioLocked,
+  lerSelecaoDaCompraLocked,
+  registrarSelecaoDaCompraLocked,
+} from "./compra-selecao-repository";
 import { agendarConciliacaoDaCompra } from "./conciliacao-fila-repository";
 import { PRAZO_PARA_INICIAR_COMPRA_MS, VERSAO_DA_COMPRA } from "./constantes";
 import { comCicloDeCobranca } from "./lifecycle";
@@ -45,7 +51,9 @@ async function limites(tx: Transacao) {
   await tx.execute(sql`set local statement_timeout='5s'`);
   await tx.execute(sql`set local lock_timeout='2s'`);
 }
-function recibo(linha: Compra) {
+async function recibo(tx: Transacao, linha: Compra, conferir?: () => Promise<unknown>) {
+  const selecao = await lerSelecaoDaCompraLocked(tx, linha);
+  await conferir?.();
   return {
     id: linha.id,
     produtoId: linha.productId,
@@ -61,6 +69,11 @@ function recibo(linha: Compra) {
     resolvidoEm: linha.resolvedAt?.toISOString() ?? null,
     resolucao: linha.resolution,
     emConferencia: linha.reviewRequired,
+    perfis: selecao.map((s) => ({
+      perfilId: s.profileReference,
+      versao: s.policyVersion,
+      cobrir: s.coverageEnabled,
+    })),
   };
 }
 function ofertaConfere(
@@ -113,7 +126,8 @@ export async function prepararCompraNoBanco(
               "Confira o pedido já registrado antes de autorizar outra oferta.",
             );
             await atual.nativa.conferirPrazo(autor.login);
-            return recibo(existente);
+            await conferirReplayDaSelecaoDaCompra(tx, existente, pedido);
+            return recibo(tx, existente, () => atual.nativa.conferirPrazo(autor.login));
           }
           const [ativa] = await tx
             .select()
@@ -127,7 +141,8 @@ export async function prepararCompraNoBanco(
               "Confira ou encerre o pedido anterior antes de escolher outra oferta.",
             );
             await atual.nativa.conferirPrazo(autor.login);
-            return recibo(ativa);
+            await conferirReplayDaSelecaoDaCompra(tx, ativa, pedido);
+            return recibo(tx, ativa, () => atual.nativa.conferirPrazo(autor.login));
           }
           const fatos = await lerFatosDoGrupo(atual.grupoId, tx);
           const agoraDaOferta = await atual.nativa.conferirPrazo(autor.login);
@@ -151,6 +166,8 @@ export async function prepararCompraNoBanco(
             })
             .returning();
           assertAllowed(criada, "COBRANCA", "Não foi possível registrar a autorização.");
+          const composicao = await admitirGrupoDoTitular(tx, autor, atual.grupoId, "update");
+          await registrarSelecaoDaCompraLocked(tx, criada, pedido, composicao);
           await logAuditEventStrict(
             "recreio.purchase_authorization_recorded",
             autor.contaId,
@@ -165,7 +182,7 @@ export async function prepararCompraNoBanco(
             { writer: tx },
           );
           await atual.nativa.conferirPrazo(autor.login);
-          return recibo(criada);
+          return recibo(tx, criada, () => atual.nativa.conferirPrazo(autor.login));
         });
       } catch (erro) {
         if (erro instanceof GrupoCriadoDuranteEspera && tentativa === 0) continue;
@@ -205,7 +222,7 @@ export async function consultarMinhaCompraNoBanco(autor: IdentidadeNativa) {
       .orderBy(desc(purchases.acceptedAt), desc(purchases.id))
       .limit(1);
     await atual.nativa.conferirPrazo();
-    return linha ? recibo(linha) : null;
+    return linha ? recibo(tx, linha, () => atual.nativa.conferirPrazo()) : null;
   });
 }
 
@@ -288,7 +305,7 @@ export async function encerrarCompraNaoEnviadaNoBanco(autor: IdentidadeNativa, i
           "Confira o resultado da compra antes de continuar.",
         );
         await atual.nativa.conferirPrazo();
-        return recibo(linha);
+        return recibo(tx, linha, () => atual.nativa.conferirPrazo());
       }
       assertAllowed(
         linha.requestStartedAt === null,
@@ -314,7 +331,7 @@ export async function encerrarCompraNaoEnviadaNoBanco(autor: IdentidadeNativa, i
         { writer: tx },
       );
       await atual.nativa.conferirPrazo();
-      return recibo(encerrada);
+      return recibo(tx, encerrada, () => atual.nativa.conferirPrazo());
     });
   });
 }
@@ -366,6 +383,8 @@ async function comCompraParaEnvio<T>(
         moeda: linha.currency,
         intervalo: linha.interval,
       });
+      if (linha.requestStartedAt === null)
+        await conferirSelecaoDaCompraNoEnvioLocked(tx, linha, atual);
     }
     const agora = await atual.nativa.conferirPrazo(autor.login);
     const resultado = await executar(tx, linha, agora);
@@ -415,7 +434,7 @@ export function conferirCompraParaEnvioLocked(
   return comCompraParaEnvio(
     autor,
     id,
-    async (_tx, linha, agora) => {
+    async (tx, linha, agora) => {
       assertAllowed(
         somenteLeitura ||
           linha.requestStartedAt !== null ||
@@ -423,7 +442,7 @@ export function conferirCompraParaEnvioLocked(
         "OFERTA",
         "Esta autorização venceu antes do envio. Encerre-a e confira a oferta atual.",
       );
-      return recibo(linha);
+      return recibo(tx, linha);
     },
     somenteLeitura,
   );
@@ -432,7 +451,7 @@ export function conferirCompraParaEnvioLocked(
 /** Não cria customer nem retorna URL. A mesma marca não renova o prazo de aceite. */
 export function iniciarTentativaDeCompraLocked(autor: AutorNativoRecente, id: string) {
   return comCompraParaEnvio(autor, id, async (tx, linha, agora) =>
-    recibo(await iniciarLinha(tx, linha, agora)),
+    recibo(tx, await iniciarLinha(tx, linha, agora)),
   );
 }
 
@@ -502,13 +521,13 @@ export function conferirDevolucaoDaCompraLocked(
   id: string,
   sessaoId: string,
 ) {
-  return comCompraParaEnvio(autor, id, async (_tx, linha) => {
+  return comCompraParaEnvio(autor, id, async (tx, linha) => {
     assertAllowed(
       !linha.reviewRequired && linha.providerSessionId === sessaoId,
       "COBRANCA",
       "Confira o estado da compra antes de continuar.",
     );
-    return recibo(linha);
+    return recibo(tx, linha);
   });
 }
 
@@ -537,7 +556,7 @@ export async function conferirResultadoDaCompraLocked(autor: AutorNativoRecente,
       );
     assertAllowed(linha, "COBRANCA", "Pedido não disponível.");
     await atual.nativa.conferirPrazo(autor.login);
-    return recibo(linha);
+    return recibo(tx, linha, () => atual.nativa.conferirPrazo(autor.login));
   });
 }
 
@@ -579,7 +598,7 @@ export function capturarEstadoDaCompraLocked(
         "COBRANCA",
         "A tentativa exige conferência.",
       );
-    if (linha.resolvedAt) return recibo(linha);
+    if (linha.resolvedAt) return recibo(tx, linha);
     if (estado?.subscriptionId)
       assertAllowed(
         linha.providerSubscriptionId === null ||
@@ -614,7 +633,7 @@ export function capturarEstadoDaCompraLocked(
       linha.providerSubscriptionId === assinaturaId &&
       linha.reviewRequired === revisao
     )
-      return recibo(linha);
+      return recibo(tx, linha);
     const [atualizada] = await tx
       .update(purchases)
       .set({
@@ -637,6 +656,6 @@ export function capturarEstadoDaCompraLocked(
       },
       { writer: tx },
     );
-    return recibo(atualizada);
+    return recibo(tx, atualizada);
   });
 }

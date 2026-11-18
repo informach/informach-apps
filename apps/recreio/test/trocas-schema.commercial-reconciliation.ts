@@ -217,16 +217,14 @@ describe("recibos e autoridade atual das trocas no PostgreSQL", () => {
       quotedTotalCents: 6800,
     });
   });
-  it("revisão de seleção exige troca aplicada e aparece no leitor financeiro", async () => {
+  it("revisão de seleção inicial ou de troca aparece no leitor financeiro sem conceder acesso", async () => {
     const f = await fixture();
-    expect(
-      await codigoDoBanco(
-        db
-          .update(contracts)
-          .set({ coverageReviewRequired: true })
-          .where(eq(contracts.subscriptionId, f.origin.subscriptionId)),
-      ),
-    ).toBe("23514");
+    await db
+      .update(contracts)
+      .set({ coverageReviewRequired: true })
+      .where(eq(contracts.subscriptionId, f.origin.subscriptionId));
+    const inicial = await lerFatosDoGrupo(GrupoIdSchema.parse(f.origin.groupId));
+    expect(inicial?.assinaturaAtiva?.financeiro.emConferencia).toBe(true);
     await db.update(changes).set(f.applied).where(eq(changes.id, f.quote.id));
     await db
       .update(contracts)

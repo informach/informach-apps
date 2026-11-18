@@ -27,6 +27,11 @@ no recibo comercial; não duplicar nomes, datas de nascimento, dados de cartão,
 respostas do provedor ou URLs financeiras na auditoria. Fechar uma cotação
 sem tentativa não comprova cancelamento de uma operação enviada.
 
+`recreio.purchase_selection_processed` e `recreio.purchase_selection_confirmed`
+registram apenas `app`, `groupId`, `authorizationId`, `subscriptionId` interno,
+`revision` e `state`, com ator no campo próprio. Seleção e política ficam no
+recibo; processamento pode exigir revisão e não equivale a acesso confirmado.
+
 - IDs internos: `userId`, `organizationId`, `sessionId`, `subscriptionId`, `invoiceId`, `deliveryId`, `messageKey`.
 - Classificadores: `category`, `status`, `role`, `reason`, `classification`, `providerEvent`, `source`.
 - Chaves de correlação de provider quando não forem secretas: `providerMessageId`, `stripeEventId`, `checkoutSessionId`.

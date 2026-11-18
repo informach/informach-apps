@@ -55,3 +55,29 @@ vazio e não fabricar escolhas. Produção continua em F5 com cobrança desligad
 
 Esta frente não conclui upgrades, crédito anual, Checkout humano, F7–F11 nem
 a homologação comercial completa.
+
+## Candidata de implementação
+
+0212 foi gerada em `44382246885`, fonte `d0217c69`, e adotada intacta após
+conferir hashes, snapshot anterior e journal 212→213. A geração anterior de
+`2cd340ec` não foi adotada: faltava o marcador de processamento único. A
+[evidência](evidencias/migracao-compra-selecao-0212.json) registra a cadeia e a
+condição de implantação. Produção continua em 204 recibos/0203.
+
+O aceite v2 recebe seleção completa e conserva replay/recibo. A composição
+nativa relê a escolha antes de admitir tentativa; pagamento aplica retenção ou
+redução uma única vez na transação financeira. Divergência marca revisão um,
+confirmada pelo adulto sem jogador com a oferta atual, sem inventar troca.
+Cadastrar um perfil depois de ocupar a vaga de um contrato nativo não desloca
+a escolha anterior; o novo perfil fica fora da cobertura até gestão explícita.
+
+A prova nova atravessa o primeiro SID real do teste, conserva quatro perfis,
+escolhe um que não é o primeiro e verifica a sessão anterior encerrada. Os
+demais cenários cobrem revogação durante o pagamento, revisão inicial, marca
+única, novo perfil e rollback por auditoria. A jornada de navegador conserva a
+escolha na compra Individual e no recibo, antes de qualquer customer/Stripe.
+Todos ainda precisam dos gates remotos desta candidata.
+
+A consulta de um Checkout admitido também foi separada da abertura de novas
+vendas: desligar vendas não impede GETs de recuperação nem habilita novo POST.
+Mantém configuração de gestão, login recente, escopo e devolução autorizada.

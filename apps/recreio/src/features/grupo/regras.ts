@@ -20,6 +20,6 @@ export type CoberturaDoGrupo = z.infer<typeof CoberturaDoGrupoSchema>;
 /** Versioned confirmation of an applied commercial change. Keep this field
  * out of the reusable base used by quote preparation. */
 export const ConfirmacaoCoberturaDoGrupoSchema = CoberturaDoGrupoSchema.safeExtend({
-  revisaoDoContrato: z.int().min(2).max(2147483646).optional(),
+  revisaoDoContrato: z.int().min(1).max(2147483646).optional(),
 });
 export type ConfirmacaoCoberturaDoGrupo = z.infer<typeof ConfirmacaoCoberturaDoGrupoSchema>;

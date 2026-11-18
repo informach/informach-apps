@@ -395,6 +395,7 @@ jobs:
             apps/recreio/tmp/telas/compra-conferencia-mobile.png
             apps/recreio/tmp/telas/troca-selecao-mobile.png
             apps/recreio/tmp/telas/troca-selecao-confirmada-mobile.png
+            apps/recreio/tmp/telas/compra-perfis-individual-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic first-session screens

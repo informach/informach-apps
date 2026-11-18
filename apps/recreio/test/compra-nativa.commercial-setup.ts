@@ -17,6 +17,7 @@ import {
   prepararMinhaCompra,
 } from "@/features/cobranca/service";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
+import { atualizarCobertura, consultarMeuGrupo } from "@/features/grupo/service";
 import {
   aprovarPareamento,
   consultarPareamento,
@@ -28,10 +29,60 @@ import {
 import { autorizarExperimento, consultarMeuTeste } from "@/features/teste/service";
 import { eventosCom } from "./apoio";
 import { pedidoDaCompra } from "./compra-apoio";
+import { pedidoDaCompraDoGrupo } from "./compra-grupo-apoio";
 import { ingressoDe } from "./jogo-apoio";
 import { adultoDoTeste, pedidoDeTeste } from "./teste-apoio";
 
 describe("aceite financeiro nativo sem jogador ou Stripe", () => {
+  it("Individual exige escolha explícita e replay conserva a seleção aceita", async () => {
+    const p = await adultoDoTeste(true),
+      intencao = await prepararPerfilMenor(p.autor);
+    const { perfil } = await cadastrarPerfilMenor(p.autor, {
+      intencaoId: intencao.id,
+      perfil: { apelido: "Escolhido", avatar: "padrao" },
+      nascimento: { ano: new Date().getUTCFullYear() - 8, mes: 1 },
+      assumoResponsabilidade: true,
+      versaoDaDeclaracao: VERSAO_DA_RESPONSABILIDADE,
+    });
+    const pedido = await pedidoDaCompraDoGrupo(p.autor);
+    await expect(prepararMinhaCompra(p.autor, pedido)).rejects.toMatchObject({
+      code: "LIMITE_DE_PERFIS",
+    });
+    expect(await db.select().from(purchases).where(eq(purchases.payerUserId, p.conta.id))).toEqual(
+      [],
+    );
+    const escolhido = {
+      ...pedido,
+      perfis: pedido.perfis.map((a) => ({ ...a, cobrir: a.perfilId === perfil.id })),
+    };
+    const recibo = await prepararMinhaCompra(p.autor, escolhido);
+    expect(recibo.perfis.filter((a) => a.cobrir).map((a) => a.perfilId)).toEqual([perfil.id]);
+    expect(await prepararMinhaCompra(p.autor, escolhido)).toEqual(recibo);
+    await expect(
+      prepararMinhaCompra(p.autor, {
+        ...escolhido,
+        perfis: escolhido.perfis.map((a) => ({ ...a, cobrir: !a.cobrir })),
+      }),
+    ).rejects.toMatchObject({ code: "CONFLITO" });
+  });
+  it("alteração nativa da cobertura depois do aceite impede a primeira tentativa", async () => {
+    const p = await adultoDoTeste(true),
+      pedido = await pedidoDaCompraDoGrupo(p.autor);
+    const recibo = await prepararMinhaCompra(p.autor, pedido),
+      grupo = await consultarMeuGrupo(p.autor);
+    if (!grupo) throw new Error("Native group absent");
+    await atualizarCobertura(p.autor, {
+      grupoId: grupo.grupoId,
+      perfis: grupo.perfis.map((a) => ({ perfilId: a.perfilId, versao: a.versao, cobrir: false })),
+    });
+    await expect(
+      comCicloDeCobranca(p.conta.id, () => iniciarTentativaDeCompraLocked(p.autor, recibo.id)),
+    ).rejects.toMatchObject({ code: "CONFLITO" });
+    expect((await consultarMinhaCompra(p.autor))?.tentativaIniciadaEm).toBeNull();
+    expect(await db.select().from(customers).where(eq(customers.subjectId, p.conta.id))).toEqual(
+      [],
+    );
+  });
   it("prepara uma oferta sem criar jogador, customer, concessão ou teste", async () => {
     const p = await adultoDoTeste(),
       pedido = pedidoDaCompra();
@@ -163,7 +214,7 @@ describe("aceite financeiro nativo sem jogador ou Stripe", () => {
     const p = await adultoDoTeste(true);
     if (!p.jogador) throw new Error("Jogador ausente");
     await autorizarExperimento(p.autor, pedidoDeTeste());
-    const compra = await prepararMinhaCompra(p.autor, pedidoDaCompra());
+    const compra = await prepararMinhaCompra(p.autor, await pedidoDaCompraDoGrupo(p.autor));
     await expect(ingressoDe(p.jogador)).rejects.toMatchObject({ codigo: "ACESSO_NEGADO" });
     expect((await consultarMeuTeste(p.autor)).teste).toBeNull();
     await encerrarCompraNaoEnviada(p.autor, compra.id);
