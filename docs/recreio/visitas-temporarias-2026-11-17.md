@@ -253,3 +253,30 @@ identidade/cerca/instância e falha de banco ou prazo no commit. Cinco testes
 de transporte cobrem registro, recusas, correlação e resposta perdida.
 Ainda sem execução remota deste incremento; runtime, visitas e medição F10
 continuam pendentes. Nenhuma migration ou configuração foi ativada.
+
+## Fundação candidata de convite/concessão
+
+Quatro novas tabelas: `space_visit_invites`, decisões de mundo e responsáveis,
+e `world_visits`. Não se reutiliza `directed_space_invites` nem se acrescenta
+papel temporário a `space_members`. FK composta prende origem, mundo, SID e
+membro à presença original; outra FK prende a concessão ao convite, mundo,
+destinatário e presença. Aprovação parental só pode corresponder a uma das
+pontas e ao vínculo do próprio perfil. Gestão do mundo conserva sua revisão.
+
+Chave de repetição por origem, um pedido pendente por presença/destinatário,
+uma concessão por convite e uma concessão ativa por visitante/mundo. Prazo de
+convite/concessão de até 24 horas; retenção do convite em 720 horas exatas,
+sem aritmética por dia local. Estados terminais exigem datas/motivos não NULL.
+Índices cobrem caixas, presença, mundo, vencimento e retenção; FKs com nomes
+explícitos curtos. A retenção precisará remover concessões antes de convites
+e estes antes da presença referenciada, incluindo F7.
+
+Schema não comprova aceite, política atual, prazo da presença, classificação,
+amizade ou aprovação atual: serão conferidos juntos sob trava pelo serviço.
+Também não garante sozinho que uma concessão venha de convite aceito. Ainda
+sem escritor de concessões, API, admissão de visitante ou runtime. Geração
+aditiva será feita no GitHub; nenhum SQL/snapshot/journal escrito à mão.
+
+A negociação `92c2010b` concluiu os oito gates `44227206576`, com 823
+integrações e 38 E2E. A prova não cobre o cliente HTTP de presença ou a
+renovação acrescentados nas fontes posteriores. Produção permanece na 0190.
