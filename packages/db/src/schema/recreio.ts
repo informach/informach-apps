@@ -301,6 +301,8 @@ export const recreioGameSessions = recreio.table(
       .references(() => recreioDeviceSessions.id, { onDelete: "cascade" }),
     gameId: text("game_id").notNull(),
     spaceId: uuid("space_id").references(() => recreioSpaces.id, { onDelete: "set null" }),
+    /** Negociação inicial do cliente; um SID legado nunca ganha visitas por atualização. */
+    supportsVisits: boolean("supports_visits").notNull().default(false),
     startedAt: time("started_at"),
     lastRenewedAt: time("last_renewed_at"),
     /** Barreira do checkpoint: nunca é removida para reativar o mesmo SID. */
@@ -493,6 +495,8 @@ export const recreioGameInstances = recreio.table(
     gameId: text("game_id").notNull(),
     publicUrl: text("public_url").notNull(),
     version: text("version").notNull(),
+    /** Capacidade declarada no registro; instâncias legadas permanecem sem visitas. */
+    supportsVisits: boolean("supports_visits").notNull().default(false),
     state: text("state").$type<"active" | "draining" | "gone">().notNull().default("active"),
     /** Quantos mundos a instância aceita ao mesmo tempo. */
     capacity: integer("capacity").notNull(),

@@ -135,3 +135,14 @@ schema, e upgrades 179→199/191→199. Isso não prova a API do atestado acresc
 depois desse source. Consumidores diretos de manifesto/contratos desta candidata
 são Recreio, servidor/cliente do Morada e Bastidores; seus tipos e gates fazem
 parte da matriz Recreio. Os objetos do catálogo público não ativam visitas.
+
+## Fundação da negociação
+
+A próxima migration aditiva prepara `supports_visits=false` em sessões de jogo
+e instâncias. Clientes e instâncias existentes ficam sem capacidade. O primeiro
+aceite da sessão precisa conservar o resultado da negociação, inclusive na
+recuperação de resposta: um retry ou mudança de modo não pode promover o SID.
+Respostas antigas não recebem campos novos sem solicitação explícita. A
+presença positiva também precisará conferir a capacidade registrada da instância.
+Esta definição inicial de schema ainda não implementa a negociação nem cria
+convite, concessão ou transporte de visitante.
