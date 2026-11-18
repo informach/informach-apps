@@ -14,6 +14,7 @@ export type {
   InvoiceFundingFacts,
   InvoiceFundingLine,
 } from "./payment-funding-facts";
+export { cancelsAtPeriodEnd } from "./providers/stripe-cancellation";
 
 export type PaidPeriodFact = {
   invoiceId: string;

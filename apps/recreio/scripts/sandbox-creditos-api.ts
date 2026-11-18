@@ -6,6 +6,7 @@ import {
   recreioUpgradeKey,
 } from "@informach/billing/providers/stripe-recreio-upgrades";
 import type Stripe from "stripe";
+import { criarConferenciaDeFinanciamento } from "../src/features/cobranca/financiamento-stripe";
 
 type Oferta = { productId: string; priceId: string; amountCents: number };
 const id = (value: string | { id: string } | null | undefined) =>
@@ -192,6 +193,26 @@ export async function observarCreditoAnual(entrada: {
     firstRead && !firstRead.periods.some((p) => p.invoiceId === upgradeInvoiceId),
     "annual_untraced_credit_created_paid_period",
   );
+  const conferencia = criarConferenciaDeFinanciamento({
+    modo: "dev",
+    cliente: stripe,
+    leitor: reader,
+  });
+  const conferirOrigem = () =>
+    conferencia.conferir(
+      { clienteId: customerId, assinaturaId: sub.id, precosAceitos: prices },
+      { deadlineMs: Date.now() + 90_000 },
+    );
+  const financiada = await conferirOrigem();
+  verify(
+    financiada?.financiamento.periodos.some(
+      (p) => p.faturaId === upgradeInvoiceId && p.estado === "comprovado",
+    ) &&
+      financiada.financiamento.periodos.some(
+        (p) => p.faturaId === initialInvoiceId && p.cobertoAte === prorationDate,
+      ),
+    "annual_upgrade_funding_or_credit_cutoff_missing",
+  );
   const events: { id: string; invoiceId: string | undefined; pendingUpdate: boolean }[] = [];
   let seen = 0;
   for await (const event of stripe.events.list({
@@ -239,6 +260,13 @@ export async function observarCreditoAnual(entrada: {
     renewedRead && !renewedRead.periods.some((p) => p.invoiceId === renewalId),
     "annual_renewal_credit_created_untraced_period",
   );
+  const renovada = await conferirOrigem();
+  verify(
+    renovada?.financiamento.periodos.some(
+      (p) => p.faturaId === renewalId && p.estado === "comprovado",
+    ),
+    "annual_renewal_funding_not_traced",
+  );
   let paymentIntentId: string | undefined;
   for await (const allocation of stripe.invoicePayments.list({
     invoice: initialInvoiceId,
@@ -274,6 +302,16 @@ export async function observarCreditoAnual(entrada: {
     refunded?.periods.some((p) => p.invoiceId === initialInvoiceId && p.fullyRefunded),
     "annual_source_refund_not_detected",
   );
+  const revogada = await conferirOrigem();
+  verify(
+    revogada &&
+      [upgradeInvoiceId, renewalId].every((invoiceId) =>
+        revogada.financiamento.periodos.some(
+          (p) => p.faturaId === invoiceId && p.estado === "revogado",
+        ),
+      ),
+    "annual_source_refund_did_not_revoke_dependencies",
+  );
   Object.assign(proof, {
     initialInvoiceId,
     initialAmountPaid: individual.amountCents,
@@ -283,6 +321,16 @@ export async function observarCreditoAnual(entrada: {
     initialProductPreserved: true,
     creditLedgerObserved: true,
     untracedCreditCoverageWithheld: true,
+    creditFundingGraphApiVerified: true,
+    sourceRefundPropagationVerified: true,
+    originalCreditedPeriodLimited: true,
+    creditFundingPeriods: revogada.financiamento.periodos.map((p) => ({
+      invoiceId: p.faturaId,
+      lineId: p.linhaId,
+      sourceCaptureCount: p.capturasDeOrigem.length,
+      state: p.estado,
+      coveredUntil: p.cobertoAte,
+    })),
     nativeAnnualCreditFundingImplemented: false,
   });
 }

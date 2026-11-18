@@ -82,3 +82,28 @@ vazio e falta de sinal de completude. O modo legado conserva a mesma interface
 e sua paginação existente. Os oito cenários novos usam o SDK real em HTTP
 fechado; ainda precisam de verificação remota. Coletar os fatos não valida o
 ledger nem persiste a comprovação nativa; essas integrações permanecem abertas.
+
+A coleta opcional passou em `afcdbd0d`/`44401841957` (quality, incluindo seus
+oito casos novos) e preservou os 94 testes financeiros em `44401849575`.
+O CI compartilhado dessa fonte ainda precisa terminar; a correção da fixture
+Cozya está nela. A rodada completa anterior de execução continua em `03fa9ee6`.
+
+## Conferência de ledger em qualificação
+
+`financiamento-stripe.ts` compõe a coleta e o núcleo sem alterar o snapshot
+comum ou conceder acesso. Confere cliente/modo/moeda de cada movimento, preserva
+a ordem do provedor e exige que saldo e topo do ledger continuem iguais após
+a paginação. Relê a assinatura no fim e recusa mudança de preço, período,
+cancelamento, estado ou origem durante a leitura. Tempo e quantidade de páginas
+são limitados; o resultado permanece privado e sem dados de contato.
+
+Oito cenários SDK/HTTP verificam os valores anuais, dependência do estorno,
+mudança de saldo/topo/contrato, paginação repetida, escopo e prazo vencido. O
+ensaio anual externo passa a usar também esse núcleo antes e depois da
+renovação/estorno. Ambos ainda precisam de execução nesta nova fonte.
+
+O CLI usa a mesma condição Node `react-server` dos comandos administrativos
+existentes, preservando o marcador `server-only`. O workflow roda tipos e os
+testes fechados do coletor/núcleo/conferência antes de criar recursos no Stripe.
+Comprovação da API não implementa persistência, acesso ou aceite nativos;
+`nativeAnnualCreditFundingImplemented` permanece falso no recibo externo.
