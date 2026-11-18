@@ -170,6 +170,8 @@ export type AuditEventType =
   | "recreio.plan_change_quoted"
   | "recreio.plan_change_accepted"
   | "recreio.plan_change_closed"
+  | "recreio.plan_change_attempt_started"
+  | "recreio.plan_change_provider_observed"
   | "recreio.game_session_started"
   | "recreio.game_session_ended"
   | "recreio.session_handoff_requested"

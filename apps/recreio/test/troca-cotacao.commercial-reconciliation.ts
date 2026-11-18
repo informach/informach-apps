@@ -1,9 +1,11 @@
 import { randomUUID } from "node:crypto";
+import { createStripeRecreioPlanSchedules } from "@informach/billing/providers/stripe-plans";
 import { and, db, eq, sql } from "@informach/db";
 import {
   events as auditEvents,
   recreioPlanChanges as changes,
   recreioBillingContracts as contracts,
+  recreioDeviceSessions as devices,
   recreioBillingReconciliations as jobs,
   recreioProfiles as profiles,
   recreioPurchaseAuthorizations as purchases,
@@ -19,14 +21,24 @@ import {
 } from "@/features/cobranca/troca-aceite-service";
 import type { reciboDaTroca } from "@/features/cobranca/troca-cotacao-repository";
 import { criarPreparacaoDeReducao } from "@/features/cobranca/troca-cotacao-service";
+import type { RuntimeDeEnvioDaTroca } from "@/features/cobranca/troca-execucao-runtime";
+import {
+  criarEnvioDeReducao,
+  criarRecuperacaoDeReducao,
+} from "@/features/cobranca/troca-execucao-service";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
+import { env } from "@/lib/env";
+import { transporteDeAgenda } from "./agenda-stripe-apoio";
 import { fixtureDePagamento } from "./pagamento-stripe-apoio";
 import { adultoDoTeste } from "./teste-apoio";
 
-async function fixture(comJogador = false) {
-  const f = await fixtureDePagamento(comJogador, "recreio_family_monthly");
+async function fixture(
+  comJogador = false,
+  extensao?: (request: Request) => Promise<Response | null>,
+) {
+  const f = await fixtureDePagamento(comJogador, "recreio_family_monthly", extensao);
   await criarExecutorDeCompra(() => f.runtime)(f.adulto.autor, f.recibo.id);
-  f.concluirCheckout();
+  const financeiro = f.concluirCheckout();
   const falhas: string[] = [];
   const processar = criarProcessadorDeConciliacao({
     modo: "dev",
@@ -66,7 +78,7 @@ async function fixture(comJogador = false) {
       })),
     };
   }
-  return { ...f, origem, cotar, pedido };
+  return { ...f, origem, cotar, pedido, financeiro };
 }
 
 function aceite(cotacao: ReturnType<typeof reciboDaTroca>) {
@@ -90,6 +102,32 @@ function operacoes(f: Awaited<ReturnType<typeof fixture>>) {
   return {
     aceitar: criarAceiteDeTroca(() => ({ modo: "dev", produtos: f.products })),
     encerrar: criarEncerramentoDeTroca(() => "dev"),
+  };
+}
+
+async function fixtureDeEnvio(comJogador = false) {
+  const remoto = transporteDeAgenda();
+  const f = await fixture(comJogador, remoto.http);
+  remoto.abrir(f.financeiro);
+  const cotacao = await f.cotar(f.adulto.autor, await f.pedido());
+  await operacoes(f).aceitar(f.adulto.autor, aceite(cotacao));
+  const runtime: RuntimeDeEnvioDaTroca = {
+    modo: "dev",
+    produtos: f.products,
+    conferirCatalogo: f.runtime.conferirCatalogo,
+    agendas: createStripeRecreioPlanSchedules({
+      secretKey: "unused",
+      mode: "dev",
+      client: f.stripe,
+    }),
+  };
+  return {
+    ...f,
+    cotacao,
+    remoto,
+    runtime,
+    enviar: criarEnvioDeReducao(() => runtime),
+    recuperar: criarRecuperacaoDeReducao(() => runtime),
   };
 }
 
@@ -360,6 +398,208 @@ describe("aceite nativo da cotação e encerramento sem envio", () => {
     } finally {
       await db.execute(sql`drop trigger recusar_aceite_audit_fixture on audit.events`);
       await db.execute(sql`drop function recreio.recusar_aceite_audit_fixture()`);
+    }
+  });
+});
+
+describe("envio nativo da redução com PostgreSQL e SDK fechado", () => {
+  it("admite a tentativa antes do primeiro POST e conserva oferta/cobertura até a vigência", async () => {
+    const f = await fixtureDeEnvio(true);
+    f.remoto.antesDeEnviar(async () => {
+      const [linha] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+      expect(linha?.requestStartedAt).toBeInstanceOf(Date);
+      expect(linha?.acceptedAt).toBeInstanceOf(Date);
+      expect(linha?.reviewRequired).toBe(true);
+    });
+    const recibo = await f.enviar(f.adulto.autor, f.cotacao.id);
+    expect(recibo).toMatchObject({
+      estado: "scheduled",
+      emConferencia: false,
+      produtoAtual: "recreio_family_monthly",
+    });
+    expect(f.remoto.escritas).toHaveLength(2);
+    expect(f.remoto.escritas[0]?.key).toBe(`recreio:plan:${f.cotacao.id}:create`);
+    expect(JSON.stringify(recibo)).not.toContain(f.remoto.agendaId);
+    const [contrato] = await db
+      .select()
+      .from(contracts)
+      .where(eq(contracts.purchaseId, f.recibo.id));
+    expect(contrato).toMatchObject({
+      revision: 1,
+      currentProductId: "recreio_family_monthly",
+      currentPlanChangeId: null,
+    });
+    const [perfil] = await db.select().from(profiles).where(eq(profiles.groupId, f.origem.groupId));
+    expect(perfil?.coverageEnabled).toBe(true);
+    const [linha] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+    expect(linha).toMatchObject({
+      providerScheduleId: f.remoto.agendaId,
+      appliedAt: null,
+      resolvedAt: null,
+    });
+  });
+
+  it.each(["create", "update"] as const)(
+    "recupera resposta perdida de %s sem nova agenda ou aceite",
+    async (operacao) => {
+      const f = await fixtureDeEnvio();
+      f.remoto.perderResposta(operacao);
+      await expect(f.enviar(f.adulto.autor, f.cotacao.id)).rejects.toMatchObject({
+        code: "COBRANCA_EM_CONFERENCIA",
+      });
+      const [antes] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+      expect(antes?.reviewRequired).toBe(true);
+      f.runtime.conferirCatalogo = async () => {
+        throw new Error("Recovery must not read catalog");
+      };
+      const recibo = await f.recuperar(f.adulto.autor, f.cotacao.id);
+      expect(recibo).toMatchObject({
+        estado: "scheduled",
+        emConferencia: false,
+        tentativaEm: antes?.requestStartedAt?.toISOString(),
+        aceitoEm: antes?.acceptedAt?.toISOString(),
+      });
+      expect(f.remoto.escritas).toHaveLength(2);
+      const audits = await db
+        .select()
+        .from(auditEvents)
+        .where(eq(auditEvents.actorId, f.adulto.conta.id));
+      expect(
+        audits.filter((e) => e.eventType === "recreio.plan_change_attempt_started"),
+      ).toHaveLength(1);
+      expect(audits.filter((e) => e.eventType === "recreio.plan_change_accepted")).toHaveLength(1);
+    },
+  );
+
+  it("UUID alheio e login antigo recusam antes de ler catálogo ou escrever no provedor", async () => {
+    const f = await fixtureDeEnvio(),
+      outro = await adultoDoTeste(),
+      antes = f.requests.length;
+    await expect(f.enviar(outro.autor, f.cotacao.id)).rejects.toMatchObject({ code: "COBRANCA" });
+    await expect(
+      f.enviar(
+        {
+          ...f.adulto.autor,
+          login: { ...f.adulto.autor.login, criadoEm: new Date(Date.now() - 11 * 60_000) },
+        },
+        f.cotacao.id,
+      ),
+    ).rejects.toMatchObject({ code: "LOGIN_RECENTE" });
+    expect(f.requests).toHaveLength(antes);
+    expect(f.remoto.escritas).toEqual([]);
+  });
+
+  it("perfil alterado depois do aceite impede o primeiro envio", async () => {
+    const f = await fixtureDeEnvio(true);
+    await db
+      .update(profiles)
+      .set({ policyVersion: sql`${profiles.policyVersion}+1` })
+      .where(eq(profiles.groupId, f.origem.groupId));
+    const antes = f.requests.length;
+    await expect(f.enviar(f.adulto.autor, f.cotacao.id)).rejects.toMatchObject({
+      code: "CONFLITO",
+    });
+    expect(f.requests).toHaveLength(antes);
+    const [linha] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+    expect(linha?.requestStartedAt).toBeNull();
+  });
+
+  it("mudança de preço configurado não envia o preço antigo mesmo com catálogo válido", async () => {
+    const f = await fixtureDeEnvio();
+    f.runtime.produtos = f.products.map((p) =>
+      p.id === f.cotacao.produtoDestino
+        ? { ...p, stripePriceId: { ...p.stripePriceId, dev: "price_new_configuration" } }
+        : p,
+    );
+    await expect(f.enviar(f.adulto.autor, f.cotacao.id)).rejects.toMatchObject({ code: "OFERTA" });
+    const [linha] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+    expect(linha?.requestStartedAt).toBeNull();
+    expect(f.remoto.escritas).toEqual([]);
+  });
+
+  it("catálogo indisponível e recuperação de pedido não enviado não admitem tentativa", async () => {
+    const f = await fixtureDeEnvio();
+    f.runtime.conferirCatalogo = async () => {
+      throw new Error("Closed catalog unavailable");
+    };
+    await expect(f.enviar(f.adulto.autor, f.cotacao.id)).rejects.toThrow(
+      "Closed catalog unavailable",
+    );
+    await expect(f.recuperar(f.adulto.autor, f.cotacao.id)).rejects.toMatchObject({
+      code: "OPERACAO_EM_CONFERENCIA",
+    });
+    const [linha] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+    expect(linha?.requestStartedAt).toBeNull();
+    expect(f.remoto.escritas).toEqual([]);
+  });
+
+  it("recuperação de tentativa continua com novas vendas desligadas", async () => {
+    const f = await fixtureDeEnvio();
+    f.remoto.perderResposta("create");
+    await expect(f.enviar(f.adulto.autor, f.cotacao.id)).rejects.toThrow();
+    const modo = env.RECREIO_BILLING_MODE;
+    env.RECREIO_BILLING_MODE = "off";
+    try {
+      expect((await f.recuperar(f.adulto.autor, f.cotacao.id)).estado).toBe("scheduled");
+    } finally {
+      env.RECREIO_BILLING_MODE = modo;
+    }
+    expect(f.remoto.escritas).toHaveLength(2);
+  });
+
+  it("logout durante o POST conserva fatos externos e recusa devolver o recibo", async () => {
+    const f = await fixtureDeEnvio();
+    f.remoto.aposPersistir(async () => {
+      await db
+        .update(devices)
+        .set({ revokedAt: new Date() })
+        .where(eq(devices.id, f.adulto.autor.sessaoDeAparelhoId));
+    });
+    await expect(f.enviar(f.adulto.autor, f.cotacao.id)).rejects.toMatchObject({ code: "AUTH" });
+    const [linha] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+    expect(linha).toMatchObject({
+      providerScheduleId: f.remoto.agendaId,
+      status: "scheduled",
+      reviewRequired: false,
+    });
+    expect(f.remoto.escritas).toHaveLength(2);
+  });
+
+  it("fase efetiva não declara aplicação local nem concede oferta sem conciliação atômica", async () => {
+    const f = await fixtureDeEnvio();
+    await f.enviar(f.adulto.autor, f.cotacao.id);
+    f.remoto.aplicar();
+    const recibo = await f.recuperar(f.adulto.autor, f.cotacao.id);
+    expect(recibo).toMatchObject({ estado: "scheduled", emConferencia: true });
+    const [contrato] = await db
+      .select()
+      .from(contracts)
+      .where(eq(contracts.purchaseId, f.recibo.id));
+    expect(contrato).toMatchObject({ revision: 1, currentProductId: "recreio_family_monthly" });
+    const [linha] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+    expect(linha?.appliedAt).toBeNull();
+  });
+
+  it("recusa de auditoria reverte a admissão antes de qualquer POST", async () => {
+    const f = await fixtureDeEnvio();
+    await db.execute(
+      sql`create function recreio.recusar_envio_audit_fixture() returns trigger language plpgsql as $$ begin if NEW.event_type='recreio.plan_change_attempt_started' then raise exception 'fixture plan attempt audit failure'; end if; return NEW; end $$`,
+    );
+    await db.execute(
+      sql`create trigger recusar_envio_audit_fixture before insert on audit.events for each row execute function recreio.recusar_envio_audit_fixture()`,
+    );
+    try {
+      await expect(f.enviar(f.adulto.autor, f.cotacao.id)).rejects.toThrow();
+      const [linha] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+      expect(linha).toMatchObject({
+        status: "accepted",
+        requestStartedAt: null,
+        providerScheduleId: null,
+      });
+      expect(f.remoto.escritas).toEqual([]);
+    } finally {
+      await db.execute(sql`drop trigger recusar_envio_audit_fixture on audit.events`);
+      await db.execute(sql`drop function recreio.recusar_envio_audit_fixture()`);
     }
   });
 });

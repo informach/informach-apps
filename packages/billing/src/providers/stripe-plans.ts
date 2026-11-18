@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { BillingError } from "../errors";
+import type { PaymentReadBudget } from "../payment-facts";
 
 export type PlanScheduleInput = {
   intentId: string;
@@ -11,6 +12,8 @@ export type PlanScheduleInput = {
   interval: "month" | "year";
   effectiveAt: Date;
   requestStartedAt: Date;
+  /** Bounds every native request, including each recovery page. */
+  budget?: PaymentReadBudget;
   /** Required by the native Recreio adapter; original Checkout facts never change. */
   origin?: { authorizationId: string; productId: string; payerId: string };
 };
@@ -169,16 +172,28 @@ function createSchedules(config: ScheduleConfig, scope: ScheduleScope): PlanSche
       appInfo: { name: `informach-platform/${scope.app}-plans` },
     });
   const now = () => (config.now?.() ?? new Date()).getTime();
+  function options(input: PlanScheduleInput): Stripe.RequestOptions | undefined {
+    if (!input.budget) return undefined;
+    const remaining = input.budget.deadlineMs - Date.now();
+    if (!Number.isFinite(remaining) || remaining <= 0)
+      throw new BillingError("Plan change request deadline exceeded");
+    return { timeout: Math.max(1, Math.min(10_000, remaining)), maxNetworkRetries: 0 };
+  }
   async function subscription(input: PlanScheduleInput) {
     if (
       scope.app === "recreio" &&
       (!input.origin?.authorizationId || !input.origin.productId || !input.origin.payerId)
     )
       throw new BillingError("Native plan change has no original purchase scope");
-    const sub = await stripe.subscriptions.retrieve(input.subscriptionId, {
-      expand: ["discounts", "items.data.discounts"],
-    });
+    const sub = await stripe.subscriptions.retrieve(
+      input.subscriptionId,
+      {
+        expand: ["discounts", "items.data.discounts"],
+      },
+      options(input),
+    );
     if (
+      sub.id !== input.subscriptionId ||
       id(sub.customer) !== input.customerId ||
       sub.items.has_more ||
       sub.items.data.length !== 1 ||
@@ -232,33 +247,63 @@ function createSchedules(config: ScheduleConfig, scope: ScheduleScope): PlanSche
       [marker]: input.intentId,
     };
   }
-  async function release(schedule: Stripe.SubscriptionSchedule) {
+  async function release(schedule: Stripe.SubscriptionSchedule, input: PlanScheduleInput) {
     if (schedule.status === "active" || schedule.status === "not_started")
-      await stripe.subscriptionSchedules.release(schedule.id, { preserve_cancel_date: true });
+      await stripe.subscriptionSchedules.release(
+        schedule.id,
+        { preserve_cancel_date: true },
+        options(input),
+      );
+  }
+  async function* creationEvents(input: PlanScheduleInput) {
+    const params = {
+      type: "subscription_schedule.created",
+      limit: 100,
+      created: { gte: Math.floor(input.requestStartedAt.getTime() / 1000) - 60 },
+    };
+    if (scope.app === "compasso") {
+      yield* stripe.events.list(params);
+      return;
+    }
+    let cursor: string | undefined;
+    const seen = new Set<string>();
+    for (;;) {
+      const page = await stripe.events.list(
+        { ...params, ...(cursor ? { starting_after: cursor } : {}) },
+        options(input),
+      );
+      yield* page.data;
+      if (!page.has_more) return;
+      const next = page.data.at(-1)?.id;
+      if (!next || seen.has(next))
+        throw new BillingError("Schedule recovery event cursor is invalid");
+      seen.add(next);
+      cursor = next;
+    }
   }
   return {
     async create(input) {
       const sub = await subscription(input);
       const attached = id(sub.schedule);
       if (attached) {
-        const schedule = await stripe.subscriptionSchedules.retrieve(attached);
+        const schedule = await stripe.subscriptionSchedules.retrieve(attached, {}, options(input));
         validateSchedule(schedule, input);
         if (schedule.metadata?.[marker] === input.intentId) return schedule.id;
       }
       // Recover the exact request, including a schedule released before our response arrived.
       // A customer/similar phase alone is not evidence that this request created the schedule.
       let count = 0;
-      for await (const event of stripe.events.list({
-        type: "subscription_schedule.created",
-        limit: 100,
-        created: { gte: Math.floor(input.requestStartedAt.getTime() / 1000) - 60 },
-      })) {
+      for await (const event of creationEvents(input)) {
         if (++count > 1000)
           throw new BillingError("Schedule recovery event history exceeded its bound");
         if (event.request?.idempotency_key !== planScheduleKey(input.intentId, scope.app)) continue;
         const scheduleId = id(event.data.object);
         if (!scheduleId) throw new BillingError("Schedule recovery event has no resource identity");
-        const schedule = await stripe.subscriptionSchedules.retrieve(scheduleId);
+        const schedule = await stripe.subscriptionSchedules.retrieve(
+          scheduleId,
+          {},
+          options(input),
+        );
         validateSchedule(schedule, input);
         return schedule.id;
       }
@@ -284,13 +329,17 @@ function createSchedules(config: ScheduleConfig, scope: ScheduleScope): PlanSche
         throw new BillingError("The paid subscription changed before scheduling");
       const schedule = await stripe.subscriptionSchedules.create(
         { from_subscription: input.subscriptionId },
-        { idempotencyKey: planScheduleKey(input.intentId, scope.app) },
+        { ...options(input), idempotencyKey: planScheduleKey(input.intentId, scope.app) },
       );
       validateSchedule(schedule, input);
       return schedule.id;
     },
     async reconcile(input) {
-      let schedule = await stripe.subscriptionSchedules.retrieve(input.scheduleId);
+      let schedule = await stripe.subscriptionSchedules.retrieve(
+        input.scheduleId,
+        {},
+        options(input),
+      );
       validateSchedule(schedule, input);
       const sub = await subscription(input);
       const item = sub.items.data[0];
@@ -302,7 +351,7 @@ function createSchedules(config: ScheduleConfig, scope: ScheduleScope): PlanSche
           throw new BillingError("Changed price has no matching schedule receipt");
         nativeFuture(schedule, input);
         // Keep the new price; remove the completed scheduling envelope so future changes are possible.
-        await release(schedule);
+        await release(schedule, input);
         return "applied";
       }
       if (
@@ -312,7 +361,7 @@ function createSchedules(config: ScheduleConfig, scope: ScheduleScope): PlanSche
         return "canceled";
       if (id(sub.schedule) !== schedule.id) throw new BillingError("Subscription schedule changed");
       if (input.cancel || sub.cancel_at_period_end || sub.cancel_at) {
-        await release(schedule);
+        await release(schedule, input);
         return "canceled";
       }
       const end = Math.floor(input.effectiveAt.getTime() / 1000);
@@ -334,7 +383,7 @@ function createSchedules(config: ScheduleConfig, scope: ScheduleScope): PlanSche
         return "scheduled";
       }
       if (input.effectiveAt.getTime() <= now() + 60_000 || item?.current_period_end !== end) {
-        await release(schedule);
+        await release(schedule, input);
         return "failed"; // Never apply a late request to a new paid period.
       }
       const current = schedule.phases[0];
@@ -362,41 +411,45 @@ function createSchedules(config: ScheduleConfig, scope: ScheduleScope): PlanSche
           const coupon =
             typeof redemption.source.coupon === "object" && redemption.source.coupon
               ? redemption.source.coupon
-              : await stripe.coupons.retrieve(couponId);
+              : await stripe.coupons.retrieve(couponId, {}, options(input));
           durations.set(couponId, coupon.duration);
         }
       }
       const futureDiscounts = { startsAt: end, durations };
       const { end_date: _end, ...next } = preserved;
-      schedule = await stripe.subscriptionSchedules.update(schedule.id, {
-        end_behavior: "release",
-        proration_behavior: "none",
-        metadata: { [marker]: input.intentId },
-        phases: [
-          preserved,
-          {
-            ...next,
-            start_date: end,
-            duration: { interval: input.interval, interval_count: 1 },
-            billing_cycle_anchor: "phase_start",
-            proration_behavior: "none",
-            discounts: discounts(current.discounts, sub.discounts, futureDiscounts),
-            items: [
-              {
-                ...preserved.items[0],
-                price: input.toPriceId,
-                quantity: 1,
-                discounts: discounts(
-                  current.items[0]?.discounts ?? [],
-                  item.discounts,
-                  futureDiscounts,
-                ),
-              },
-            ],
-            metadata: futureMetadata(current, input),
-          },
-        ],
-      });
+      schedule = await stripe.subscriptionSchedules.update(
+        schedule.id,
+        {
+          end_behavior: "release",
+          proration_behavior: "none",
+          metadata: { [marker]: input.intentId },
+          phases: [
+            preserved,
+            {
+              ...next,
+              start_date: end,
+              duration: { interval: input.interval, interval_count: 1 },
+              billing_cycle_anchor: "phase_start",
+              proration_behavior: "none",
+              discounts: discounts(current.discounts, sub.discounts, futureDiscounts),
+              items: [
+                {
+                  ...preserved.items[0],
+                  price: input.toPriceId,
+                  quantity: 1,
+                  discounts: discounts(
+                    current.items[0]?.discounts ?? [],
+                    item.discounts,
+                    futureDiscounts,
+                  ),
+                },
+              ],
+              metadata: futureMetadata(current, input),
+            },
+          ],
+        },
+        options(input),
+      );
       validateSchedule(schedule, input);
       const future = schedule.phases.find((phase) => phase.start_date === end);
       if (

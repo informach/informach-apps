@@ -16,8 +16,9 @@
 
 Preferir sempre identificadores e estado transacional:
 
-`recreio.plan_change_quoted`, `recreio.plan_change_accepted` e
-`recreio.plan_change_closed` registram apenas `app`, `groupId`, `planChangeId`,
+`recreio.plan_change_quoted`, `recreio.plan_change_accepted`,
+`recreio.plan_change_closed`, `recreio.plan_change_attempt_started` e
+`recreio.plan_change_provider_observed` registram apenas `app`, `groupId`, `planChangeId`,
 `subscriptionId` interno quando necessário, `revision` e `state`. O ator fica
 no campo próprio. Valores, seleção de perfis e termos financeiros permanecem
 no recibo comercial; não duplicar nomes, datas de nascimento, dados de cartão,

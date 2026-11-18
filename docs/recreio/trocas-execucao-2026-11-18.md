@@ -76,7 +76,7 @@ alterar cobertura, assinatura, aceite ou provedor. Repetição conserva o recibo
 cotação vencida sem tentativa pode ser encerrada para preparar outra.
 
 Ainda não há Server Action, tela, aceite persistido, execução externa ou cron
-ligados a esse preparo. A fábrica recebe catálogo exclusivamente da composição
+ligados a esse preparo naquela candidata inicial. A fábrica recebe catálogo exclusivamente da composição
 servidor. A prova em PostgreSQL/SDK fechado cobre pagante sem jogador,
 isolamento, revisão, seleção, vencimento e rollback por auditoria recusada;
 precisa concluir no GitHub antes de anunciar aprovação.
@@ -103,3 +103,32 @@ continua incerta e não é declarada cancelada. Operação enviada precisa do fl
 de confirmação do provedor, ainda pendente. Os testes remotos acrescentam
 aceite, replay, isolamento, termos/perfil alterados, encerramento, tentativa
 incerta e rollback de auditoria. Não há Server Action ou tela ligada ainda.
+
+As fontes `13b31497` e `63b69792` concluíram, respectivamente, os dezesseis
+gates `44371478415` e `44372327644`. A segunda inclui aceite e encerramento,
+com os testes PostgreSQL/SDK fechado; não prova pagamento externo ou implantação.
+
+## Candidata de envio e recuperação da redução
+
+O executor persiste tentativa, correlação e auditoria antes de qualquer POST.
+Confere os valores/preço/intervalo aceitos contra o catálogo servidor novamente
+na admissão, revalida seleção e período e conserva a chave da operação.
+Criação/configuração com resposta perdida mantém revisão; recuperar usa o
+mesmo recibo, sem aceitar termos novos ou criar outra autorização. Recuperação
+de tentativa admitida independe de novas vendas e da disponibilidade do catálogo.
+
+Cada chamada do adapter nativo e cada página de recuperação recebe o orçamento
+restante, sem repetição automática do SDK. Há teto de histórico e recusa de cursor
+repetido. O contrato comum mantém a política anterior quando não há orçamento.
+O adapter também confere a identidade da assinatura retornada, além do cliente
+e dos metadados de compra. Referências: documentação oficial do
+[stripe-node](https://github.com/stripe/stripe-node/blob/master/README.md) e
+[opções por chamada](https://github.com/stripe/stripe-node/wiki/Passing-Options).
+
+A captura posterior usa a autoridade técnica da tentativa; logout não apaga
+fatos externos e a devolução do recibo exige nova admissão nativa. O executor
+ainda não aplica oferta/cobertura: observar a fase efetiva deixa revisão até
+a captura financeira atômica do próximo incremento. Não há telas ou cron de
+recuperação ligados, nem execução em produção. Os novos casos PostgreSQL/SDK
+fechado precisam concluir os gates remotos desta candidata antes de qualquer
+declaração de aprovação.

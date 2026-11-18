@@ -92,6 +92,8 @@ function fixture() {
     data: { object: { id: string } };
   }> = [];
   const writes: Array<{ path: string; params: URLSearchParams; key: string | null }> = [];
+  const reads: string[] = [];
+  let afterEventPage: (() => void) | undefined;
   let lose: "create" | "update" | null = null;
   const remoteSchedule = () => ({
     ...schedule,
@@ -103,10 +105,13 @@ function fixture() {
     const path = new URL(request.url).pathname;
     let data: unknown;
     if (request.method === "GET") {
-      if (path === `/v1/subscriptions/${sub.id}`) data = { ...sub, schedule: attached };
-      else if (path === "/v1/events")
+      reads.push(path);
+      if (path === `/v1/subscriptions/${input.subscriptionId}`)
+        data = { ...sub, schedule: attached };
+      else if (path === "/v1/events") {
         data = { object: "list", data: events, has_more: false, url: "/v1/events" };
-      else if (path === `/v1/subscription_schedules/${schedule.id}`) data = remoteSchedule();
+        afterEventPage?.();
+      } else if (path === `/v1/subscription_schedules/${schedule.id}`) data = remoteSchedule();
       else throw new Error(`Unexpected closed GET ${path}`);
     } else if (request.method === "POST") {
       const params = new URLSearchParams(await request.text());
@@ -177,6 +182,10 @@ function fixture() {
     schedule,
     events,
     writes,
+    reads,
+    afterEventPage: (callback: () => void) => {
+      afterEventPage = callback;
+    },
     setNow: (date: Date) => {
       now = date;
     },
@@ -191,6 +200,25 @@ function fixture() {
 }
 
 describe("agendamento Stripe nativo do Recreio", () => {
+  it("recusa assinatura de identidade divergente mesmo com os mesmos metadados", async () => {
+    const f = fixture();
+    f.sub.id = "sub_foreign";
+    await expect(f.adapter.create(f.input)).rejects.toThrow("scope");
+    expect(f.writes).toEqual([]);
+  });
+  it("orçamento vencido recusa antes da rede e depois da página de recuperação", async () => {
+    const f = fixture();
+    const budget = { deadlineMs: Date.now() - 1 };
+    await expect(f.adapter.create({ ...f.input, budget })).rejects.toThrow("deadline");
+    expect(f.reads).toEqual([]);
+    budget.deadlineMs = Date.now() + 90_000;
+    f.afterEventPage(() => {
+      budget.deadlineMs = Date.now() - 1;
+    });
+    await expect(f.adapter.create({ ...f.input, budget })).rejects.toThrow("deadline");
+    expect(f.reads).toHaveLength(2);
+    expect(f.writes).toEqual([]);
+  });
   it("conserva a origem do Checkout e altera o mesmo contrato apenas no fim pago", async () => {
     const f = fixture();
     expect(await f.adapter.create(f.input)).toBe(f.schedule.id);

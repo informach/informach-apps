@@ -21,6 +21,9 @@ function dados(f: Checkout) {
     cancel_at: null,
     trial_end: null,
     canceled_at: null,
+    pending_update: null,
+    pause_collection: null,
+    discounts: [],
     metadata: {
       checkout_intent_id: f.recibo.id,
       subject_type: "user",
@@ -28,9 +31,12 @@ function dados(f: Checkout) {
       product_id: produto.id,
     },
     items: {
+      has_more: false,
       data: [
         {
           id: `si_${sufixo}`,
+          quantity: 1,
+          discounts: [],
           price: { id: produto.stripePriceId.dev },
           current_period_start: inicio,
           current_period_end: fim,
@@ -94,12 +100,15 @@ function dados(f: Checkout) {
 export async function fixtureDePagamento(
   comJogador = false,
   produtoId = "recreio_individual_monthly",
+  extensao?: (request: Request) => Promise<Response | null>,
 ) {
   let financeiro: ReturnType<typeof dados> | null = null;
   let indisponivel = false;
   const list = (data: unknown[]) => ({ object: "list", data, has_more: false, url: "/fixture" });
   const f: Checkout = await fixtureDeCheckout(
     async (request) => {
+      const estendida = await extensao?.(request.clone());
+      if (estendida) return estendida;
       if (request.method !== "GET") return null;
       const url = new URL(request.url);
       let resposta: unknown;
