@@ -215,7 +215,7 @@ export function createStripePaymentFactReader(config: { secretKey: string; clien
         if (
           !portal.active ||
           portal.livemode !== (mode === "prod") ||
-          portal.metadata.app !== nativePolicy.app ||
+          portal.metadata?.app !== nativePolicy.app ||
           portal.default_return_url !== nativePolicy.returnUrl ||
           portal.business_profile.terms_of_service_url !== nativePolicy.termsUrl ||
           portal.business_profile.privacy_policy_url !== nativePolicy.privacyUrl ||
