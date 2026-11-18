@@ -1,6 +1,83 @@
 import { sql } from "drizzle-orm";
-import { check, foreignKey, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  check,
+  foreignKey,
+  integer,
+  text,
+  timestamp,
+  unique,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { recreio, recreioEntitlements, recreioGroups } from "./recreio";
+
+/** Aceite nativo anterior a qualquer I/O de compra, inclusive criar customer.
+ * Preserva a identidade enquanto uma operação externa pode existir. O resultado
+ * do Checkout é distinto de pagamento conciliado ou direito de jogar.
+ */
+export const recreioPurchaseAuthorizations = recreio.table(
+  "purchase_authorizations",
+  {
+    id: uuid("id").primaryKey(),
+    payerUserId: text("payer_user_id").notNull(),
+    groupId: uuid("group_id").notNull(),
+    productId: text("product_id").notNull(),
+    tier: text("tier").$type<"individual" | "family">().notNull(),
+    interval: text("interval").$type<"month" | "year">().notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").$type<"BRL">().notNull().default("BRL"),
+    policyVersion: text("policy_version").notNull(),
+    adultDeclarationVersion: text("adult_declaration_version").notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }).notNull(),
+    requestStartedAt: timestamp("request_started_at", { withTimezone: true }),
+    providerSessionId: text("provider_session_id"),
+    reviewRequired: boolean("review_required").notNull().default(false),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolution: text("resolution").$type<"not_started" | "checkout_completed" | "expired_unpaid">(),
+  },
+  (t) => [
+    uniqueIndex("recreio_purchase_authorization_active")
+      .on(t.payerUserId)
+      .where(sql`${t.resolvedAt} is null`),
+    uniqueIndex("recreio_purchase_authorization_session")
+      .on(t.providerSessionId)
+      .where(sql`${t.providerSessionId} is not null`),
+    foreignKey({
+      name: "recreio_purchase_authorization_payer",
+      columns: [t.groupId, t.payerUserId],
+      foreignColumns: [recreioGroups.id, recreioGroups.ownerUserId],
+    }).onDelete("restrict"),
+    check(
+      "recreio_purchase_authorization_offer",
+      sql`${t.tier} in ('individual','family') and ${t.interval} in ('month','year') and ${t.currency}='BRL' and ${t.amountCents}>0 and length(${t.productId}) between 2 and 80`,
+    ),
+    check(
+      "recreio_purchase_authorization_versions",
+      sql`length(${t.policyVersion}) between 2 and 64 and length(${t.adultDeclarationVersion}) between 2 and 64`,
+    ),
+    check(
+      "recreio_purchase_authorization_resolution",
+      sql`
+    (${t.resolvedAt} is null and ${t.resolution} is null) or
+    (${t.resolvedAt} is not null and ${t.resolution} is not null and ${t.resolution} in ('not_started','checkout_completed','expired_unpaid'))`,
+    ),
+    check(
+      "recreio_purchase_authorization_order",
+      sql`
+    (${t.requestStartedAt} is null or ${t.requestStartedAt}>=${t.acceptedAt}) and
+    (${t.resolvedAt} is null or ${t.resolvedAt}>=coalesce(${t.requestStartedAt},${t.acceptedAt}))`,
+    ),
+    check(
+      "recreio_purchase_authorization_attempt",
+      sql`
+    (${t.resolution} is distinct from 'not_started' or (${t.requestStartedAt} is null and ${t.providerSessionId} is null)) and
+    (${t.resolution} is null or ${t.resolution}='not_started' or (${t.requestStartedAt} is not null and ${t.providerSessionId} is not null)) and
+    (${t.providerSessionId} is null or (${t.requestStartedAt} is not null and length(${t.providerSessionId}) between 8 and 256)) and
+    (not ${t.reviewRequired} or (${t.requestStartedAt} is not null and ${t.resolvedAt} is null))`,
+    ),
+  ],
+);
 
 /** Consentimento nativo do pagante; ainda não inicia relógio, concessão ou SID. */
 export const recreioTrialEnrollments = recreio.table(
