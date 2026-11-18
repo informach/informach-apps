@@ -30,6 +30,8 @@ export type PoliticaDeMundo = {
 };
 
 export type LimitesDoJogo = {
+  /** Orçamento total de SIDs de jogadores, incluindo visitantes; exige medição antes de publicar visitas. */
+  jogadoresSimultaneosMax?: number;
   /** Mundos criados por perfil, sem contar os de outras pessoas em que ele é membro. */
   mundosCriadosPorPerfil: number;
   /** Tamanho máximo de uma fotografia comprimida, em bytes. */

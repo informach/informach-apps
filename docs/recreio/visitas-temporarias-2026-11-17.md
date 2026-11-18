@@ -538,3 +538,43 @@ atomicamente com a auditoria. Não apaga SID ou prova de salvamento. Integraçõ
 candidatas cobrem o protocolo real de abertura/renovação e fixtures explícitas
 para restrições/retencão; gates pendentes. Entrada, troca entre SIDs com prova
 de checkpoint, runtime, interface e ativação continuam abertos.
+
+Sessão `4f4a772e` passou nas 947 integrações/89 arquivos, cinco do Bastidores,
+upgrades 179→203/191→203 e sete gates fora do navegador (`44240677665`).
+E2E ainda não concluído na conferência deste registro.
+
+## Admissão e checkpoint candidatos
+
+`POST /api/sdk/v1/visitas/abrir` confere o SID com finalidade de visita e
+orienta somente à instância/posse originais. Não aloca instância, reatribui
+cerca, admite SID ou devolve membro/papel. A API autenticada da instância
+`/mundos/{id}/visitas/entrada` compõe contas → mundo → perfis, relê amizade,
+versões, aprovações, cobertura das duas pontas, presença/SID do anfitrião,
+posse e finalidade do visitante. Admissão vincula o SID a esse mundo e emite
+permissão de até 30 segundos, limitada por todas as concessões envolvidas.
+Reconexão do mesmo SID repete o vínculo; não renova sessão ou janela da visita.
+
+Membros e visitantes disputam o mesmo teto de SIDs em `jogadoresSimultaneosMax`.
+Visitas exigem o teto declarado e válido no manifesto; leitores de membro
+também o aplicam sob a trava do mundo. O valor oito é somente orçamento da
+fixture interna; não comprova carga, hardware ou capacidade de um jogo público.
+Morada continua sem `visitas`, sem alteração de catálogo/pin de produção.
+
+Sucessor precisa do checkpoint F3 confirmado, fotografia posterior com hash,
+ingresso consumido para aquele SID/aparelho e antecessor realmente encerrado
+como `replaced`, no mesmo mundo/cerca/política/concessão. Conserva as duas
+linhas e um único vínculo ativo; saída comum não é prova de continuidade.
+Checkpoint e salvamento de saída aceitam somente admissão anterior daquele
+SID/mundo, inclusive após perda da visita; intenção preparada não autoriza
+salvar mundo. Esse leitor só reduz/conclui a sessão e não concede gameplay.
+
+Integrações candidatas usam rotas, transporte real, concorrência, decisões
+atuais, capacidade compartilhada, rollback de auditoria, salvamento após
+revogação e troca real com fotografia/checkpoint. Papéis de membros no ensaio
+de orçamento são fixtures SQL; não é medição F10 ou homologação humana.
+Testes do transporte recusam resposta de membro, concessão divergente e rede
+perdida sem repetição automática. Gates pendentes desta candidata.
+
+Ainda faltam heartbeat em lote de visitantes, encerramento técnico com cursor,
+integração no SDK/runtime/interface, jornadas familiares e homologação remota.
+Nenhuma visita foi habilitada em produção e F5/F6–F11 continuam abertos.

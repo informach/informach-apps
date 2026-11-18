@@ -542,6 +542,57 @@ describe("cliente HTTP das instâncias", () => {
   });
 });
 
+describe("entrada temporária de visitante", () => {
+  const visitaId = "f9579968-a053-494b-b9db-908c407ba86e",
+    pedido = { mundoId: MUNDO, sid: SID, perfilId: PERFIL, cerca: 4, visitaId },
+    permitida = {
+      visitaId,
+      sessaoDeVisitaId: "bff99a1f-9c9d-477c-aa83-a264caa7fab3",
+      permissaoAte: "2026-11-18T06:00:30.000Z",
+      apelido: "Visitante",
+      avatar: "sol",
+      politica: { multiplayer: true, textoLivre: false, versao: 1 },
+    };
+  it("exige instância registrada antes de enviar o pedido", async () => {
+    const a = ambiente();
+    await expect(a.cliente.verificarEntradaDeVisita(pedido)).rejects.toMatchObject({
+      codigo: "NAO_AUTENTICADO",
+    });
+    expect(a.chamadas).toHaveLength(0);
+  });
+  it("envia escopo e valida o recibo separado do protocolo de membro", async () => {
+    const a = ambiente();
+    await a.registrado();
+    a.responder(Response.json(permitida));
+    expect(await a.cliente.verificarEntradaDeVisita(pedido)).toEqual(permitida);
+    expect(a.chamadas[1]).toMatchObject({
+      url: `https://recreio.test/api/interno/v1/mundos/${MUNDO}/visitas/entrada`,
+      method: "POST",
+      corpo: { visitaId, sid: SID, perfilId: PERFIL, cerca: 4 },
+      headers: { "x-recreio-instancia": INSTANCIA, authorization: `Bearer ${SEGREDO}` },
+    });
+  });
+  it.each(["membro", "outra_visita", "rede"] as const)(
+    "recusa %s sem repetir a admissão automaticamente",
+    async (tipo) => {
+      const a = ambiente();
+      await a.registrado();
+      a.responder(
+        tipo === "rede"
+          ? new TypeError("fetch failed")
+          : Response.json({
+              ...permitida,
+              ...(tipo === "membro" ? { membroId: SID, papel: "member" } : { visitaId: SID }),
+            }),
+      );
+      await expect(a.cliente.verificarEntradaDeVisita(pedido)).rejects.toMatchObject({
+        codigo: "INDISPONIVEL",
+      });
+      expect(a.chamadas).toHaveLength(2);
+    },
+  );
+});
+
 describe("JSON em cabeçalho", () => {
   it("vai e volta com acentos e recusa o que não é base64url de JSON", () => {
     const valor = { titulo: "Família Ipê", subtitulo: "Verão 🌞" };

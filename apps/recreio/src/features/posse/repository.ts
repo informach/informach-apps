@@ -37,6 +37,7 @@ import { comSessaoDeJogoAutoritativa } from "@/features/autoridade-de-jogo/repos
 import { jogoDoCatalogo } from "@/features/jogos/config";
 import { mundoCompativel } from "@/features/mundos/politica";
 import { politicaDaAdmissao } from "@/features/sessao-de-jogo/politica";
+import { conferirCapacidadeDeJogadores } from "@/features/visitas/capacidade-repository";
 import { exigirSessaoSemVisita } from "@/features/visitas/sessao-repository";
 import { AGORA, type Transacao } from "@/lib/repository";
 import type {
@@ -739,6 +740,7 @@ export async function comEntradaAtualDeMembro<T>(
         .where(and(eq(members.spaceId, pedido.mundoId), eq(members.profileId, pedido.perfilId)));
       if (membro?.state !== "active") throw new ErroDoRecreio("NAO_MEMBRO");
       await conferirConteudoDoMundo(tx, mundo, pedido.jogo, admissao.politica?.politica ?? null);
+      await conferirCapacidadeDeJogadores(tx, pedido);
       // Um comando só, que não casa com sessão encerrada: se ela acabou agora, a entrada é recusada.
       const marcadas = await tx
         .update(gameSessions)

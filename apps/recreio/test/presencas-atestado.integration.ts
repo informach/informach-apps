@@ -49,6 +49,7 @@ vi.mock("@informach/config/jogos", async (original) => {
       nome: "Atestado interno",
       rota: "/jogar/jogo-de-teste",
       capacidades: { ...real.JOGOS[0].capacidades, visitas: true },
+      limites: { ...real.JOGOS[0].limites, jogadoresSimultaneosMax: 8 },
       classificacao: { faixa: "L", descritores: [], interacoes: [] },
     },
   ];

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MundoIdSchema, PerfilIdSchema, UuidSchema } from "../dominio/ids";
+import { MundoIdSchema, PerfilIdSchema, SessaoDeJogoIdSchema, UuidSchema } from "../dominio/ids";
 
 export const CONVITES_DE_VISITA_PENDENTES_MAX = 64;
 export const RECIBOS_DE_VISITA_POR_PERFIL_MAX = 1000;
@@ -55,3 +55,34 @@ export const EncerramentoParentalDeVisitaSchema = z.strictObject({
   perfilId: PerfilIdSchema,
   confirmo: z.literal(true),
 });
+
+/** Nunca contém membroId, papel ou participação permanente. */
+export const EntradaDeVisitanteSchema = z.strictObject({
+  visitaId: UuidSchema,
+  sessaoDeVisitaId: UuidSchema,
+  permissaoAte: z.iso.datetime(),
+  apelido: z.string(),
+  avatar: z.string(),
+  politica: z.strictObject({
+    multiplayer: z.boolean(),
+    textoLivre: z.boolean(),
+    versao: z.int().nonnegative(),
+  }),
+});
+export type EntradaDeVisitante = z.infer<typeof EntradaDeVisitanteSchema>;
+export const PedidoDeEntradaDeVisitaSchema = z.strictObject({
+  visitaId: UuidSchema,
+  sid: SessaoDeJogoIdSchema,
+  perfilId: PerfilIdSchema,
+  cerca: z.int().positive(),
+});
+export const PedidoDeAberturaDeVisitaSchema = z.strictObject({ visitaId: UuidSchema });
+export const VisitaAbertaSchema = z.strictObject({
+  visitaId: UuidSchema,
+  mundoId: MundoIdSchema,
+  onde: z.literal("servidor"),
+  endereco: z.url(),
+  schemaVersion: z.int().positive(),
+  revisao: z.int().nonnegative(),
+});
+export type VisitaAberta = z.infer<typeof VisitaAbertaSchema>;

@@ -16,6 +16,7 @@ import type {
 } from "./presencas";
 import type { EstadoDeSalvamento } from "./salvamento";
 import type { ResultadoDeCheckpoint } from "./sdk";
+import type { EntradaDeVisitante, PedidoDeEntradaDeVisitaSchema } from "./visitas";
 
 /**
  * API das instâncias: o que um servidor de jogo pede ao Recreio. O servidor do
@@ -273,6 +274,15 @@ export interface ClienteDoHostComSalvamento extends ClienteDoHostComCheckpoint {
 }
 
 /** Extensão explícita: o host básico e seus adapters não prometem oferecer visitas. */
+export interface ClienteDoHostComVisitas extends ClienteDoHostComPresencas {
+  /** Entrada temporária sem membro/papel, com prazo local obrigatório. Não repetir automaticamente. */
+  verificarEntradaDeVisita(
+    pedido: z.infer<typeof PedidoDeEntradaDeVisitaSchema> & {
+      mundoId: z.infer<typeof MundoIdSchema>;
+    },
+  ): Promise<EntradaDeVisitante>;
+}
+
 export interface ClienteDoHostComPresencas extends ClienteDoHostComSalvamento {
   /** Após renovar as posses; somente conexões que continuam ativas na instância. */
   renovarPresencas(

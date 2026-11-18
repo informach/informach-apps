@@ -10,15 +10,27 @@ import {
   recreioWorldVisits as visits,
 } from "@informach/db/schema";
 import { SessaoDeJogoIdSchema } from "@informach/recreio";
-import { MARGEM_DE_SALVAMENTO_S } from "@informach/recreio/contrato";
+import {
+  ControleDaSessaoSchema,
+  EntradaDeVisitanteSchema,
+  MARGEM_DE_SALVAMENTO_S,
+  VisitaAbertaSchema,
+} from "@informach/recreio/contrato";
 import { afterEach, expect, it, vi } from "vitest";
+import { selecionarPerfil } from "@/features/perfis/service";
+import { resolverAtor } from "@/features/sessao/service";
 import {
   emitirIngresso,
   renovarSessao,
   sairDaSessao,
   trocarIngresso,
 } from "@/features/sessao-de-jogo/service";
-import { aceitarAmizade, emitirCodigoDeAmigo, pedirAmizade } from "@/features/social/service";
+import {
+  aceitarAmizade,
+  emitirCodigoDeAmigo,
+  pedirAmizade,
+  protegerContato,
+} from "@/features/social/service";
 import { limparRecibosDeVisita } from "@/features/visitas/retencao-repository";
 import { emitirConviteDeVisita, responderConviteDeVisita } from "@/features/visitas/service";
 import { env } from "@/lib/env";
@@ -27,19 +39,321 @@ import {
   CHECAGEM,
   codigoDoBanco,
   eventosCom,
+  loginReal,
   novoJogador,
   RESTRICAO,
   UNICO,
 } from "./apoio";
 import {
   abrirPelaRota,
+  cabecalhosDoHost,
   claimsDe,
   entrarNoJogo,
   mundoDe,
   novaInstancia,
   OUTRO_JOGO,
 } from "./jogo-apoio";
+import { pedir } from "./rotas";
 import { referenciaSocial } from "./social-apoio";
+
+type Cenario = Awaited<ReturnType<typeof cenario>>;
+type Sessao = Awaited<ReturnType<typeof abrir>>;
+function entrada(c: Cenario, s: Sessao) {
+  return {
+    mundoId: c.mundoId,
+    cerca: c.posse.cerca,
+    sid: s.sid,
+    perfilId: c.destino.perfil.id,
+    visitaId: c.visitaId,
+  };
+}
+function admitir(c: Cenario, s: Sessao) {
+  return c.instancia.cliente.verificarEntradaDeVisita(entrada(c, s));
+}
+function foto(c: Cenario, revisaoEsperada: number) {
+  return c.instancia.cliente.gravarFotografia({
+    mundoId: c.mundoId,
+    cerca: c.posse.cerca,
+    revisaoEsperada,
+    diarioSeq: 0,
+    tick: 0,
+    schemaVersion: 1,
+    tipo: "checkpoint",
+    bytes: new TextEncoder().encode(JSON.stringify({ contador: 9 })),
+  });
+}
+
+it("abertura pública só aponta à posse original e entrada autenticada admite sem membro", async () => {
+  const c = await cenario(),
+    s = await abrir(c),
+    resposta = await pedir("POST", "/api/sdk/v1/visitas/abrir", {
+      token: s.aberta.token,
+      corpo: { visitaId: c.visitaId },
+    });
+  expect(resposta.status).toBe(200);
+  expect(VisitaAbertaSchema.parse(resposta.corpo)).toMatchObject({
+    visitaId: c.visitaId,
+    mundoId: c.mundoId,
+  });
+  expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.spaceId).toBeNull();
+  const permitida = EntradaDeVisitanteSchema.parse(await admitir(c, s));
+  expect(Object.keys(permitida).sort()).toEqual([
+    "apelido",
+    "avatar",
+    "permissaoAte",
+    "politica",
+    "sessaoDeVisitaId",
+    "visitaId",
+  ]);
+  expect(permitida.sessaoDeVisitaId).toBe(s.finalidade.id);
+  expect(new Date(permitida.permissaoAte).getTime()).toBeGreaterThan(Date.now());
+  expect(new Date(permitida.permissaoAte).getTime()).toBeLessThanOrEqual(Date.now() + 30_000);
+  expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.spaceId).toBe(c.mundoId);
+  expect(
+    (await db.select().from(visitSessions).where(eq(visitSessions.id, s.finalidade.id)))[0]?.state,
+  ).toBe("active");
+  expect(await db.select().from(members).where(eq(members.spaceId, c.mundoId))).toHaveLength(1);
+});
+
+it("entradas concorrentes/reconexão mantêm o mesmo vínculo e um evento de admissão", async () => {
+  const c = await cenario(),
+    s = await abrir(c),
+    [a, b] = await Promise.all([admitir(c, s), admitir(c, s)]);
+  expect(a.sessaoDeVisitaId).toBe(b.sessaoDeVisitaId);
+  expect(
+    (await eventosCom("sessionId", s.sid)).filter(
+      (e) => e.eventType === "recreio.visit_session_admitted",
+    ),
+  ).toHaveLength(1);
+});
+
+it.each(["instancia", "cerca", "perfil", "mundo"] as const)(
+  "entrada recusa %s alheio sem vincular o SID",
+  async (tipo) => {
+    const c = await cenario(),
+      s = await abrir(c),
+      outro =
+        tipo === "instancia"
+          ? await novaInstancia(OUTRO_JOGO, 10, { suportaVisitas: true })
+          : c.instancia,
+      pedido = {
+        ...entrada(c, s),
+        ...(tipo === "cerca" ? { cerca: c.posse.cerca + 1 } : {}),
+        ...(tipo === "perfil" ? { perfilId: c.origem.perfil.id } : {}),
+        ...(tipo === "mundo" ? { mundoId: await mundoDe(c.origem, OUTRO_JOGO) } : {}),
+      };
+    await expect(outro.cliente.verificarEntradaDeVisita(pedido)).rejects.toMatchObject({
+      codigo: expect.stringMatching(/POSSE_PERDIDA|SESSAO_ENCERRADA/),
+    });
+    expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.spaceId).toBeNull();
+  },
+);
+
+it.each(["bloqueio", "gestao", "host", "revogacao", "modo"] as const)(
+  "revalidação recusa %s mesmo após primeira entrada",
+  async (tipo) => {
+    const c = await cenario(),
+      s = await abrir(c);
+    await admitir(c, s);
+    if (tipo === "bloqueio")
+      await protegerContato(c.alvo, {
+        perfilId: c.origem.perfil.id,
+        bloqueado: true,
+        silenciado: false,
+      });
+    if (tipo === "gestao")
+      await db.execute(
+        sql`update recreio.spaces set management_revision=management_revision+1 where id=${c.mundoId}::uuid`,
+      );
+    if (tipo === "host") await sairDaSessao(c.host.token);
+    if (tipo === "revogacao")
+      await responderConviteDeVisita(c.autor, { conviteId: c.convite.conviteId, acao: "revogar" });
+    if (tipo === "modo") env.RECREIO_VISITS_MODE = "off";
+    await expect(admitir(c, s)).rejects.toMatchObject({
+      codigo:
+        tipo === "host"
+          ? "SESSAO_ENCERRADA"
+          : tipo === "gestao"
+            ? "REVISAO_DIVERGENTE"
+            : tipo === "modo"
+              ? "INDISPONIVEL"
+              : "SEM_PERMISSAO",
+    });
+    expect(
+      (await eventosCom("sessionId", s.sid)).filter(
+        (e) => e.eventType === "recreio.visit_session_admitted",
+      ),
+    ).toHaveLength(1);
+  },
+);
+
+it("cliente sem intenção e corpo com papel de membro não passam pela nova entrada", async () => {
+  const c = await cenario(),
+    { visitaId: _visita, ...legado } = c.pedido,
+    aberta = await trocarIngresso(legado),
+    sid = SessaoDeJogoIdSchema.parse(claimsDe(aberta.token).sid),
+    corpo = { visitaId: c.visitaId, cerca: c.posse.cerca, perfilId: c.destino.perfil.id, sid };
+  const resposta = await pedir("POST", `/api/interno/v1/mundos/${c.mundoId}/visitas/entrada`, {
+    headers: cabecalhosDoHost(OUTRO_JOGO, c.instancia.instanciaId),
+    corpo,
+  });
+  expect(resposta).toMatchObject({ status: 403, corpo: { codigo: "SEM_PERMISSAO" } });
+  const divergente = await pedir("POST", `/api/interno/v1/mundos/${c.mundoId}/visitas/entrada`, {
+    headers: cabecalhosDoHost(OUTRO_JOGO, c.instancia.instanciaId),
+    corpo: { ...corpo, papel: "steward" },
+  });
+  expect(divergente.status).toBe(400);
+  expect((await db.select().from(games).where(eq(games.id, sid)))[0]?.spaceId).toBeNull();
+});
+
+it("orçamento de oito inclui membros e visitante e libera vaga só após saída real", async () => {
+  const c = await cenario(),
+    s = await abrir(c),
+    outros = [];
+  for (let i = 0; i < 7; i++) {
+    const pessoa = await novoJogador();
+    // Só papéis são fixtures; cada SID entra pelo protocolo real de membro.
+    await db
+      .insert(members)
+      .values({ spaceId: c.mundoId, profileId: pessoa.perfil.id, state: "active", role: "member" });
+    const sessao = await entrarNoJogo(pessoa, OUTRO_JOGO);
+    await c.instancia.cliente.verificarEntrada({
+      mundoId: c.mundoId,
+      cerca: c.posse.cerca,
+      sid: sessao.sid,
+      perfilId: pessoa.perfil.id,
+    });
+    outros.push({ pessoa, sessao });
+  }
+  await expect(admitir(c, s)).rejects.toMatchObject({ codigo: "MUNDO_CHEIO" });
+  const primeiro = outros[0];
+  if (!primeiro) throw new Error("Membro fixture ausente");
+  await sairDaSessao(primeiro.sessao.token);
+  await admitir(c, s);
+  const volta = await entrarNoJogo(primeiro.pessoa, OUTRO_JOGO);
+  await expect(
+    c.instancia.cliente.verificarEntrada({
+      mundoId: c.mundoId,
+      cerca: c.posse.cerca,
+      sid: volta.sid,
+      perfilId: primeiro.pessoa.perfil.id,
+    }),
+  ).rejects.toMatchObject({ codigo: "MUNDO_CHEIO" });
+});
+
+it("auditoria de admissão recusada reverte vínculo e mundo do SID", async () => {
+  const c = await cenario(),
+    s = await abrir(c);
+  await db.execute(
+    sql`create function audit.visita_entrada_falha() returns trigger language plpgsql as $$ begin if new.event_type='recreio.visit_session_admitted' then raise exception 'audit unavailable'; end if; return new; end $$`,
+  );
+  await db.execute(
+    sql`create trigger visita_entrada_falha before insert on audit.events for each row execute function audit.visita_entrada_falha()`,
+  );
+  try {
+    await expect(admitir(c, s)).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+  } finally {
+    await db.execute(sql`drop trigger visita_entrada_falha on audit.events`);
+    await db.execute(sql`drop function audit.visita_entrada_falha()`);
+  }
+  expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.spaceId).toBeNull();
+  expect(
+    (await db.select().from(visitSessions).where(eq(visitSessions.id, s.finalidade.id)))[0]?.state,
+  ).toBe("prepared");
+  await admitir(c, s);
+});
+
+it("visitante revogado ainda conclui apenas o salvamento do próprio SID já admitido", async () => {
+  const c = await cenario(),
+    s = await abrir(c);
+  await admitir(c, s);
+  await responderConviteDeVisita(c.autor, { conviteId: c.convite.conviteId, acao: "revogar" });
+  const base = { mundoId: c.mundoId, cerca: c.posse.cerca, sid: s.sid };
+  expect(await c.instancia.cliente.salvarSessao({ ...base, operacao: "preparar" })).toMatchObject({
+    estado: "ready",
+  });
+  const fotografia = await foto(c, c.posse.revisao);
+  expect(
+    await c.instancia.cliente.salvarSessao({
+      ...base,
+      operacao: "concluir",
+      revisao: fotografia.revisao,
+      diarioSeq: 0,
+    }),
+  ).toMatchObject({ estado: "completed" });
+  expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.endedSeq).not.toBeNull();
+  expect((await db.select().from(games).where(eq(games.id, c.host.sid)))[0]?.endedAt).toBeNull();
+  await expect(admitir(c, s)).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA" });
+});
+
+it("intenção preparada nunca usa o contrato de salvamento de mundo como admissão", async () => {
+  const c = await cenario(),
+    s = await abrir(c);
+  await expect(
+    c.instancia.cliente.salvarSessao({
+      mundoId: c.mundoId,
+      cerca: c.posse.cerca,
+      sid: s.sid,
+      operacao: "preparar",
+    }),
+  ).rejects.toMatchObject({ codigo: "SESSAO_INVALIDA" });
+  expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.endedAt).toBeNull();
+});
+
+it("checkpoint real permite sucessor da mesma visita e conserva os dois SIDs sem novo membro", async () => {
+  const c = await cenario(),
+    s = await abrir(c);
+  await admitir(c, s);
+  const login = await loginReal(c.destino.conta),
+    ator = await resolverAtor(login);
+  if (!ator) throw new Error("Aparelho ausente");
+  await selecionarPerfil(ator.ator, c.destino.perfil.id);
+  const ingresso = await emitirIngresso(
+      { ...ator.ator, perfil: c.destino.perfil },
+      { jogo: OUTRO_JOGO },
+    ),
+    pedido = {
+      ...c.pedido,
+      ingresso: ingresso.ingresso,
+      continuarAqui: true,
+      chaveDeTroca: "b".repeat(43),
+    };
+  await expect(trocarIngresso(pedido)).rejects.toMatchObject({
+    codigo: "CHECKPOINT_PENDENTE",
+    detalhe: { motivo: "requested" },
+  });
+  const controle = await pedir("GET", "/api/sdk/v1/sessao/controle", { token: s.aberta.token }),
+    estado = ControleDaSessaoSchema.parse(controle.corpo);
+  if (!estado.checkpoint) throw new Error("Checkpoint ausente");
+  const fotografia = await foto(c, c.posse.revisao);
+  expect(
+    await c.instancia.cliente.confirmarCheckpoint({
+      mundoId: c.mundoId,
+      cerca: c.posse.cerca,
+      sid: s.sid,
+      id: estado.checkpoint.id,
+      confirmado: true,
+      revisao: fotografia.revisao,
+      diarioSeq: 0,
+    }),
+  ).toMatchObject({ estado: "confirmed" });
+  const nova = await trocarIngresso(pedido),
+    novoSid = SessaoDeJogoIdSchema.parse(claimsDe(nova.token).sid),
+    permitida = await c.instancia.cliente.verificarEntradaDeVisita({
+      ...entrada(c, s),
+      sid: novoSid,
+    });
+  expect(permitida.visitaId).toBe(c.visitaId);
+  expect(
+    (await db.select().from(visitSessions).where(eq(visitSessions.sessionId, s.sid)))[0],
+  ).toMatchObject({ state: "closed", closeReason: "replaced" });
+  expect(
+    (await db.select().from(visitSessions).where(eq(visitSessions.sessionId, novoSid)))[0]?.state,
+  ).toBe("active");
+  expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.endReason).toBe("replaced");
+  expect(await db.select().from(members).where(eq(members.spaceId, c.mundoId))).toHaveLength(1);
+  await expect(admitir(c, s)).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA" });
+});
 
 vi.mock("@informach/config/jogos", async (original) => {
   const real = await original<typeof import("@informach/config/jogos")>();
@@ -51,6 +365,7 @@ vi.mock("@informach/config/jogos", async (original) => {
       nome: "Sessão visitante interna",
       rota: "/jogar/jogo-de-teste",
       capacidades: { ...real.JOGOS[0].capacidades, visitas: true, checkpoint: "servidor" },
+      limites: { ...real.JOGOS[0].limites, jogadoresSimultaneosMax: 8 },
       classificacao: { faixa: "L", descritores: [], interacoes: [] },
     },
   ];

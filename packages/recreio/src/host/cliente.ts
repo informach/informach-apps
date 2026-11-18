@@ -6,7 +6,7 @@ import {
   CAMINHO_DA_API_DO_HOST,
   CheckpointDoHostSchema,
   type ClienteDoHost,
-  type ClienteDoHostComPresencas,
+  type ClienteDoHostComVisitas,
   DIARIO_PAGINA_MAX_BYTES,
   DIARIO_RECUPERACAO_MAX_ENTRADAS,
   DiarioConfirmadoSchema,
@@ -27,6 +27,7 @@ import {
 } from "../contrato/presencas";
 import { EstadoDeSalvamentoSchema } from "../contrato/salvamento";
 import { ResultadoDeCheckpointSchema } from "../contrato/sdk";
+import { EntradaDeVisitanteSchema, PedidoDeEntradaDeVisitaSchema } from "../contrato/visitas";
 import { ErroDoRecreio } from "../dominio/erros";
 import type { InstanciaId } from "../dominio/ids";
 import {
@@ -66,7 +67,7 @@ const TEMPO_LIMITE_MS = 10_000;
  * `X-Recreio-Instancia`. Antes de registrar, qualquer outra chamada recusa com
  * `NAO_AUTENTICADO` sem sair para a rede.
  */
-export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHostComPresencas {
+export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHostComVisitas {
   if (!Number.isSafeInteger(opcoes.fotografiaMaxBytes) || opcoes.fotografiaMaxBytes <= 0)
     throw new Error("fotografiaMaxBytes precisa ser um inteiro positivo");
   if (!Number.isSafeInteger(opcoes.diarioMaxBytes) || opcoes.diarioMaxBytes <= 0)
@@ -126,6 +127,17 @@ export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHost
       )
         throw new ErroDoRecreio("INDISPONIVEL");
       return renovadas;
+    },
+
+    async verificarEntradaDeVisita({ mundoId, ...pedido }) {
+      eu();
+      const resposta = await enviarJson(
+          `${mundo(mundoId)}/visitas/entrada`,
+          PedidoDeEntradaDeVisitaSchema.parse(pedido),
+        ),
+        entrada = await lerCorpo(resposta, EntradaDeVisitanteSchema);
+      if (entrada.visitaId !== pedido.visitaId) throw new ErroDoRecreio("INDISPONIVEL");
+      return entrada;
     },
 
     async atestarPresenca({ mundoId, ...pedido }) {

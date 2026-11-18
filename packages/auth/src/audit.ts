@@ -178,6 +178,7 @@ export type AuditEventType =
   | "recreio.visit_invite_closed"
   | "recreio.visit_invite_created"
   | "recreio.visit_invite_accepted"
+  | "recreio.visit_session_admitted"
   | "recreio.visit_invite_guardian_approved"
   | "recreio.visit_invite_world_approved"
   | "recreio.visit_closed"

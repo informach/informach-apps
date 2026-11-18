@@ -164,7 +164,7 @@ export async function admitirAnfitriaoNoContexto(
     return agora;
   };
   await conferirPrazo();
-  return { presenca, membro, conferirPrazo };
+  return { presenca, membro, instancia, posse, sessao: conferida.jogo, conferirPrazo };
 }
 export type AnfitriaoAdmitido = Awaited<ReturnType<typeof admitirAnfitriaoNoContexto>>;
 
