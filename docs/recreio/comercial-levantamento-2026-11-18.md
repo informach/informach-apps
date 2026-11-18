@@ -35,9 +35,8 @@ do SDK permanecem no kernel completo. As travas de mundo/criador continuam antes
 do perfil. A estante distingue essa preparação do acesso já concedido.
 Uma prova adicional de servidor e a jornada `trial-play` com o contador físico
 cobrem preparar → abrir SID → jogar → salvar → reabrir, sem reiniciar o teste.
-`77510596`, `44292518300`, passou em `trial-play` e nas dez provas de
-`trial-experiment`, além de qualidade, consentimento, checkpoint, versões,
-cliente e equipe. Integração, longa e E2E comum ainda em curso. A jornada
+`77510596`, `44292518300`, concluiu os doze gates, incluindo `trial-play` e as
+dez provas de `trial-experiment`. A jornada
 física usa o contador da plataforma; não comprova diversão do Morada.
 
 A política seguinte de catálogo reutiliza o leitor Stripe do billing, com
@@ -47,7 +46,27 @@ No Recreio, os quatro preços vêm do catálogo comum, podendo pertencer a dois
 produtos; o portal precisa manter troca desligada, cancelamento no fim sem
 pró-rata, faturas/pagamento, URLs e app próprios e login público desligado.
 O SDK Stripe real é usado nas provas com transporte HTTP de fixture, sem casts
-de cliente e sem rede externa. Não é homologação com Stripe sandbox.
+de cliente e sem rede externa. `65f7115b`, `44293925035`, concluiu os doze gates,
+com a recusa explícita de metadados ausentes (`null`) apontados pela tipagem.
+Isso não é homologação com Stripe sandbox.
+
+As capturas de consentimento/recibo de 390 px de `0523217f` foram inspecionadas,
+artefato `14420742446`, 178962 bytes, SHA-256
+`11419ed3ae027f8722419213feb878544ca14a86cb7765e53af69166b74c252c`.
+
+O schema seguinte fixa aceite financeiro nativo antes do I/O, separado do teste.
+0206 foi gerada por `44294538450`/`37ac9cfe`, artefato `14422234936`, 65793 bytes,
+SHA-256 `67a4fb7d5460c0da819a7ec7ba132311afc9270fb8fc824461005f0d80084745`.
+SQL `0206_mixed_shiver_man.sql`: 3887 bytes,
+`db68ce397d3e0c5d16065fafd3aca4f0e320bf69e3e235e56d80c48bc6301635`.
+Snapshot `ca3febaf-efde-4d6c-83af-0bb636064bd9` segue
+`8a65327a-2288-4884-81c9-8c735453b5c6`; três arquivos/hashes e todas as 206
+entradas anteriores conferidos, adotados intactos. Nenhuma geração local.
+O backend nativo prepara/lê/encerra pedido nunca enviado e registra a tentativa
+antes de rede; a marca impede afirmar ausência de efeito após resposta perdida.
+Modo comercial só aceita `off`/`setup`; não existe caminho de cobrança ligado.
+Integridade, modos reais, autoridade infantil, unicidade/recuperação e bloqueio
+do primeiro teste durante preparo financeiro aguardam os novos gates.
 F6 não foi implantado; não houve teste gratuito ou cobrança em produção.
 
 ## Contratos confirmados

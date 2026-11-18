@@ -25,6 +25,7 @@ if (
     "integration",
     "trial-setup",
     "trial-experiment",
+    "commercial-setup",
     "e2e-trial-setup",
     "e2e-trial-experiment",
     "e2e",
@@ -33,10 +34,11 @@ if (
   ].includes(mode)
 )
   throw new Error(
-    "Choose integration, trial-setup, trial-experiment, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
+    "Choose integration, trial-setup, trial-experiment, commercial-setup, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
   );
 const trialSetup = mode === "trial-setup";
 const trialExperiment = mode === "trial-experiment";
+const commercialSetup = mode === "commercial-setup";
 const jornadaDoTeste = mode === "e2e-trial-setup";
 const jornadaDoInicio = mode === "e2e-trial-experiment";
 const versoes = mode === "versoes";
@@ -118,11 +120,12 @@ const testEnv = {
   ...(emailsPath ? { EMAIL_SANDBOX_DIR: emailsPath.replaceAll("\\", "/") } : {}),
   RECREIO_ACCESS_MODE: "fechado",
   RECREIO_TRIAL_MODE:
-    trialExperiment || jornadaDoInicio
+    trialExperiment || jornadaDoInicio || commercialSetup
       ? "experiment"
       : trialSetup || jornadaDoTeste
         ? "setup"
         : "off",
+  RECREIO_BILLING_MODE: commercialSetup ? "setup" : "off",
   RECREIO_FAMILY_MODE: "play",
   RECREIO_SOCIAL_MODE: "on",
   RECREIO_VISITS_MODE: "on",
@@ -251,11 +254,13 @@ try {
         "vitest",
         "run",
         "--config",
-        trialExperiment
-          ? "vitest.trial-experiment.config.ts"
-          : trialSetup
-            ? "vitest.trial-setup.config.ts"
-            : "vitest.integration.config.ts",
+        commercialSetup
+          ? "vitest.commercial-setup.config.ts"
+          : trialExperiment
+            ? "vitest.trial-experiment.config.ts"
+            : trialSetup
+              ? "vitest.trial-setup.config.ts"
+              : "vitest.integration.config.ts",
         ...process.argv.slice(3),
       ],
       app,

@@ -108,6 +108,15 @@ aparelho, inclusive o responsável de um perfil pareado; não se fabrica sessão
 ou ação nativa do pagante. Nenhum token, segredo de pareamento ou dado pessoal
 entra no payload. Cadastro, autorização e ingresso não produzem esse evento.
 
+`recreio.purchase_authorization_recorded` registra `app`, `groupId`,
+`authorizationId`, `productId`, `policyVersion` e `declarationVersion`, com
+o pagante nativo real no ator. `purchase_authorization_closed` registra `app`,
+`groupId`, `authorizationId` e a resolução fechada `not_started`.
+`purchase_attempt_started` registra `app`, `groupId`, `authorizationId` e
+`productId`, antes do I/O. Não incluir URL, e-mail, cartão, dados fiscais,
+segredos ou corpo do pedido; o valor aceito fica no recibo de compra próprio.
+Esses eventos não comprovam pagamento ou concessão de gameplay.
+
 Social usa auditoria estrita na transação da mudança. Os eventos
 `friend_code_created`/`friend_code_revoked` usam IDs de perfil/código;
 `friend_request_created`/`friend_request_expired`/`friend_request_accepted`/

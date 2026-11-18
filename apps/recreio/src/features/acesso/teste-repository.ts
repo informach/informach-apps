@@ -1,13 +1,14 @@
 import "server-only";
 import { randomInt } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
-import { and, eq, inArray, isNull } from "@informach/db";
+import { and, eq, inArray, isNotNull, isNull, or } from "@informach/db";
 import {
   recreioTrialClaims as claims,
   customers,
   recreioTrialEnrollments as enrollments,
   recreioGameSessions as games,
   recreioEntitlements as grants,
+  recreioPurchaseAuthorizations as purchases,
 } from "@informach/db/schema";
 import {
   ErroDoRecreio,
@@ -34,7 +35,7 @@ import { lerFatosDoGrupo } from "./repository";
  * e primeiro teste precisam tomar o mesmo ciclo por pagante antes da TX.
  */
 export async function elegivelParaTeste(tx: Transacao, grupoId: GrupoId | null, paganteId: string) {
-  const [concessao, cliente, marca] = await Promise.all([
+  const [concessao, cliente, marca, compra] = await Promise.all([
     grupoId === null
       ? Promise.resolve([])
       : tx.select({ id: grants.id }).from(grants).where(eq(grants.groupId, grupoId)).limit(1),
@@ -55,8 +56,20 @@ export async function elegivelParaTeste(tx: Transacao, grupoId: GrupoId | null, 
       .from(claims)
       .where(eq(claims.payerUserId, paganteId))
       .limit(1),
+    tx
+      .select({ id: purchases.id })
+      .from(purchases)
+      .where(
+        and(
+          eq(purchases.payerUserId, paganteId),
+          or(isNull(purchases.resolvedAt), isNotNull(purchases.requestStartedAt)),
+        ),
+      )
+      .limit(1),
   ]);
-  return concessao.length === 0 && cliente.length === 0 && marca.length === 0;
+  return (
+    concessao.length === 0 && cliente.length === 0 && marca.length === 0 && compra.length === 0
+  );
 }
 
 /** Sob o ciclo financeiro e a trava do grupo. Ainda não inicia o prazo. */
