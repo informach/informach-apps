@@ -948,3 +948,38 @@ Evidências anteriores: `18eb95bd` passou nos oito gates `44251506767`, 1005
 integrações, upgrades preservados e 39 E2E; a nova jornada física do anfitrião
 durou 11,7 s. `238610bd` passou nos oito gates `44252742292`, com 1007
 integrações e upgrades 179→204/191→204. O runtime acima exige nova rodada.
+
+## Prévia nativa da entrada, candidata
+
+`/jogar/[jogo]?mundo=...&visita=...` mantém a finalidade de visita desde a
+prévia até a emissão do SID e o WebSocket. UUID inválido, título sem suporte,
+modo desligado e jogo sem mundos não caem na entrada de membro ou de progresso
+individual. A prévia usa o perfil selecionado/pareado atual, restringe a pista
+à concessão desse perfil/mundo/jogo e relê a composição inteira antes de
+devolver somente ID e nome do mundo. Não entrega presença, perfis, tokens ou
+contas do anfitrião. Falha operacional continua erro, sem virar falsa recusa.
+
+`concessao-atual-repository.ts` compartilha os mesmos fatos atuais entre prévia
+e admissão: recibo aceito, concessão ativa, presença original, amizade/revisões,
+conteúdo, aprovações e ausência de participação permanente atual. Mantém a
+ordem raiz/concessão antes de intenção/SID; a admissão conserva suas exigências
+adicionais de vínculo, sessão e prazos. A prévia não emite SID, cria vínculo,
+aloca posse ou adiciona membro. Tem limite próprio por perfil.
+
+Seis integrações candidatas conferem leitura autorizada sem efeitos e recusa
+após saída do host, redução da concessão, bloqueio, liberação da posse e aparelho
+cruzado. Outra prova impede fallback de finalidade mesmo para quem já é membro
+do mundo. Consulta pública segue os contratos locais do Next 16.4.2, com
+`params`/`searchParams` aguardados e props mínimas para o cliente.
+
+Runtime anterior `516a6d65` passou nos oito gates `44254851686`. Esta prévia
+exige nova rodada; caixa/decisões de visita, telas e jornada física completa
+continuam pendentes. Sem migração ou implantação de produção.
+
+Achado a resolver em seguida: uma tentativa encerrada antes da primeira
+admissão não deve consumir a concessão como se o visitante tivesse entrado e
+saído. A API negativa precisa distinguir essa desistência técnica por prova
+persistida (`admitted_at` nulo), preservando a concessão e encerrando o SID
+exato. Admissão efetiva, inclusive resposta perdida após commit, mantém a
+regra de não reabrir a visita após sair. Não usar ausência de resposta como
+prova de que a admissão não aconteceu.

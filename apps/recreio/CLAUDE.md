@@ -178,6 +178,13 @@ com reserva limitada e recuperação por lote. Checkpoint/finalização não dã
 autoridade de gameplay. A UI/preflight e a jornada física completa do visitante
 ainda precisam ser integradas/qualificadas; o Morada não declara essa capacidade.
 
+A candidata seguinte trata `?visita=` como finalidade fixa e usa a mesma
+conferência da concessão atual na prévia nativa, sem abrir SID/vínculo ou
+alocar mundo. Somente após essa composição entrega o nome do mundo e o UUID
+da concessão ao hospedeiro. Não há fallback silencioso para membro quando
+o título/modo não aceita visitas. Caixa, decisões e jornada completa seguem
+em implementação no registro.
+
 ## Morada na página do jogo (lote X1)
 
 ### Troca de aparelho em homologação (17/11)

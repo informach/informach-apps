@@ -34,6 +34,7 @@ import {
   protegerContato,
 } from "@/features/social/service";
 import { limparSessoesVisitantesOrfas } from "@/features/visitas/orfas-repository";
+import { mundoAtualDaVisita } from "@/features/visitas/pagina-repository";
 import { limparRecibosDeVisita } from "@/features/visitas/retencao-repository";
 import { emitirConviteDeVisita, responderConviteDeVisita } from "@/features/visitas/service";
 import { env } from "@/lib/env";
@@ -124,6 +125,50 @@ function foto(c: Cenario, revisaoEsperada: number) {
     bytes: new TextEncoder().encode(JSON.stringify({ contador: 9 })),
   });
 }
+
+it("prévia nativa confere concessão sem emitir SID, vínculo ou membro e sem revelar o anfitrião", async () => {
+  const c = await cenario();
+  const antes = await db
+    .select()
+    .from(visitSessions)
+    .where(eq(visitSessions.profileId, c.destino.perfil.id));
+  const mundo = await mundoAtualDaVisita(c.alvo, OUTRO_JOGO, c.mundoId, c.visitaId);
+  expect(mundo).toEqual({ id: c.mundoId, nome: expect.any(String) });
+  expect(
+    await db.select().from(visitSessions).where(eq(visitSessions.profileId, c.destino.perfil.id)),
+  ).toEqual(antes);
+  expect(
+    await db.select().from(games).where(eq(games.profileId, c.destino.perfil.id)),
+  ).toHaveLength(0);
+  expect(await db.select().from(members).where(eq(members.spaceId, c.mundoId))).toHaveLength(1);
+  expect(await mundoAtualDaVisita(c.autor, OUTRO_JOGO, c.mundoId, c.visitaId)).toBeNull();
+  expect(await mundoAtualDaVisita(c.alvo, "morada", c.mundoId, c.visitaId)).toBeNull();
+});
+
+it.each(["host", "concessao", "bloqueio", "posse", "aparelho"] as const)(
+  "prévia não entrega nome após perda de %s",
+  async (tipo) => {
+    const c = await cenario();
+    if (tipo === "host") await sairDaSessao(c.host.token);
+    if (tipo === "concessao")
+      await responderConviteDeVisita(c.autor, { conviteId: c.convite.conviteId, acao: "revogar" });
+    if (tipo === "bloqueio")
+      await protegerContato(c.alvo, {
+        perfilId: c.origem.perfil.id,
+        bloqueado: true,
+        silenciado: false,
+      });
+    if (tipo === "posse")
+      await c.instancia.cliente.liberarPosse({
+        mundoId: c.mundoId,
+        cerca: c.posse.cerca,
+        motivo: "falha",
+      });
+    const autor =
+      tipo === "aparelho" ? { ...c.alvo, sessaoDeAparelhoId: c.autor.sessaoDeAparelhoId } : c.alvo;
+    expect(await mundoAtualDaVisita(autor, OUTRO_JOGO, c.mundoId, c.visitaId)).toBeNull();
+  },
+);
 
 it("consulta só recupera recibo conhecido sem renovar ou atestar presença", async () => {
   const c = await cenario(),

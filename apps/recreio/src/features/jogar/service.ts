@@ -1,9 +1,11 @@
 import "server-only";
-import { ehErroDoRecreio, type MundoId, MundoIdSchema } from "@informach/recreio";
+import { ehErroDoRecreio, type MundoId, MundoIdSchema, UuidSchema } from "@informach/recreio";
 import type { ReferenciaDeJogador } from "@/features/autoridade-de-jogo/aparelho-repository";
 import { conferirAberturaDoJogo } from "@/features/autoridade-de-jogo/pagina-repository";
 import { jogoQueAbre, origensDoJogo } from "@/features/jogos/config";
 import { detalheAtualDoMundo } from "@/features/mundos/service";
+import { mundoAtualDaVisita } from "@/features/visitas/pagina-repository";
+import { env } from "@/lib/env";
 import { temCliente } from "./registro";
 
 /**
@@ -35,12 +37,14 @@ export type PaginaDoJogo =
        */
       jogo: { id: string; nome: string; origemDaArte: string | null; visitas?: true };
       mundo: { id: MundoId; nome: string };
+      visitaId?: string;
     };
 
 export async function prepararPaginaDoJogo(
   jogador: ReferenciaDeJogador,
   jogoId: string,
   mundoPedido: string | string[] | undefined,
+  visitaPedida?: string | string[],
 ): Promise<PaginaDoJogo> {
   let manifesto: ReturnType<typeof jogoQueAbre>;
   try {
@@ -53,7 +57,9 @@ export async function prepararPaginaDoJogo(
 
   if (!(await conferirAberturaDoJogo(jogador, manifesto.id))) return { tipo: "sem_acesso" };
 
-  if (!manifesto.capacidades.mundos)
+  if (!manifesto.capacidades.mundos) {
+    if (visitaPedida !== undefined)
+      return { tipo: "mundo_indisponivel", jogo: { id: manifesto.id, nome: manifesto.nome } };
     return {
       tipo: "pronto_sem_mundo",
       jogo: {
@@ -63,11 +69,30 @@ export async function prepararPaginaDoJogo(
         ...(manifesto.capacidades.visitas ? { visitas: true } : {}),
       },
     };
+  }
 
   if (typeof mundoPedido !== "string" || mundoPedido === "") return { tipo: "sem_mundo" };
   const jogo = { id: manifesto.id, nome: manifesto.nome };
   const id = MundoIdSchema.safeParse(mundoPedido);
   if (!id.success) return { tipo: "mundo_indisponivel", jogo };
+  if (visitaPedida !== undefined) {
+    const visita = UuidSchema.safeParse(visitaPedida);
+    if (
+      !visita.success ||
+      !manifesto.capacidades.visitas ||
+      env.RECREIO_VISITS_MODE !== "on" ||
+      env.RECREIO_SOCIAL_MODE !== "on"
+    )
+      return { tipo: "mundo_indisponivel", jogo };
+    const mundo = await mundoAtualDaVisita(jogador, manifesto.id, id.data, visita.data);
+    if (!mundo) return { tipo: "mundo_indisponivel", jogo };
+    return {
+      tipo: "pronto",
+      jogo: { ...jogo, origemDaArte: origensDoJogo(manifesto.id)?.assets ?? null, visitas: true },
+      mundo,
+      visitaId: visita.data,
+    };
+  }
   const mundo = await detalheAtualDoMundo(jogador, manifesto.id, id.data).catch((erro: unknown) => {
     if (ehErroDoRecreio(erro, "NAO_MEMBRO") || ehErroDoRecreio(erro, "POLITICA_INCOMPATIVEL"))
       return null;

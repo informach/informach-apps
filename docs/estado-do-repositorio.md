@@ -36,8 +36,9 @@ preservação dos upgrades 179→204/191→204 e E2E. O produtor por conexão
 Integração ao servidor de referência `18eb95bd` passou nos oito gates
 `44251506767`, com 39 E2E incluindo presença física/renovação/saída.
 Vínculo preparado e guarda local `238610bd` passou nos oito gates
-`44252742292`, com 1007 integrações. Runtime de visitante está na candidata
-atual; UI, jornada completa e operação F5 permanecem pendentes. Migrations 0191–0203 geradas no
+`44252742292`, com 1007 integrações. Runtime de visitante `516a6d65` passou
+nos oito gates `44254851686`. Prévia nativa da entrada é a candidata atual;
+UI, jornada completa e operação F5 permanecem pendentes. Migrations 0191–0203 geradas no
 GitHub, ausentes de produção.
 [Sucessão infantil](recreio/sucessao-infantil-2026-11-17.md).
 [Contrato, provas e limites](recreio/mundos-completos-2026-11-17.md).
