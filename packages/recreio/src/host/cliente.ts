@@ -170,7 +170,11 @@ export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHost
           PedidoDeEntradaDeVisitaSchema.parse(pedido),
         ),
         entrada = await lerCorpo(resposta, EntradaDeVisitanteSchema);
-      if (entrada.visitaId !== pedido.visitaId) throw new ErroDoRecreio("INDISPONIVEL");
+      if (
+        entrada.visitaId !== pedido.visitaId ||
+        entrada.sessaoDeVisitaId !== pedido.sessaoDeVisitaId
+      )
+        throw new ErroDoRecreio("INDISPONIVEL");
       return entrada;
     },
 

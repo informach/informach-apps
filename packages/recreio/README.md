@@ -290,6 +290,19 @@ outro para uma conexão ainda real. O jogo não deve remover uma pendência
 incerta só porque o transporte falhou. Runtime e jornadas continuam em
 implementação; esse helper não ativa visitas no Morada.
 
+## Guarda local de visitante em homologação
+
+`VisitaAberta.sessaoDeVisitaId` fixa o vínculo preparado para o SID e deve ser
+levado à admissão privada. O host recebe também `presencaDoAnfitriaoId`, só na
+resposta privada, e confere a conexão original localmente. No `/host`,
+`criarPermissaoDeVisita` combina esse fato com `performance.now()` e o prazo
+curto do servidor. Conferir `podeJogar()` ao receber e ao executar cada comando.
+`suspender()` é obrigatório após resultado de renovação desconhecido; renovar
+exige resposta integral nova, medida desde o envio. Perda do anfitrião original
+ou negativa explícita é terminal. Esse helper não confirma persistência nem
+encerra o SID: o jogo ainda precisa congelar, persistir e usar a API negativa.
+O runtime de visitante está em implementação.
+
 ## Preparação da responsabilidade com aceite
 
 O contrato de encerramento também reconhece `permissions_changed`. O host

@@ -544,10 +544,18 @@ describe("cliente HTTP das instâncias", () => {
 
 describe("entrada temporária de visitante", () => {
   const visitaId = "f9579968-a053-494b-b9db-908c407ba86e",
-    pedido = { mundoId: MUNDO, sid: SID, perfilId: PERFIL, cerca: 4, visitaId },
+    pedido = {
+      mundoId: MUNDO,
+      sid: SID,
+      perfilId: PERFIL,
+      cerca: 4,
+      visitaId,
+      sessaoDeVisitaId: "bff99a1f-9c9d-477c-aa83-a264caa7fab3",
+    },
     permitida = {
       visitaId,
       sessaoDeVisitaId: "bff99a1f-9c9d-477c-aa83-a264caa7fab3",
+      presencaDoAnfitriaoId: "c07fbe33-f2df-4148-95fb-f5f243244777",
       permissaoAte: "2026-11-18T06:00:30.000Z",
       agora: "2026-11-18T06:00:00.000Z",
       apelido: "Visitante",
@@ -569,11 +577,17 @@ describe("entrada temporária de visitante", () => {
     expect(a.chamadas[1]).toMatchObject({
       url: `https://recreio.test/api/interno/v1/mundos/${MUNDO}/visitas/entrada`,
       method: "POST",
-      corpo: { visitaId, sid: SID, perfilId: PERFIL, cerca: 4 },
+      corpo: {
+        visitaId,
+        sessaoDeVisitaId: pedido.sessaoDeVisitaId,
+        sid: SID,
+        perfilId: PERFIL,
+        cerca: 4,
+      },
       headers: { "x-recreio-instancia": INSTANCIA, authorization: `Bearer ${SEGREDO}` },
     });
   });
-  it.each(["membro", "outra_visita", "prazo_longo", "rede"] as const)(
+  it.each(["membro", "outra_visita", "outro_vinculo", "prazo_longo", "rede"] as const)(
     "recusa %s sem repetir a admissão automaticamente",
     async (tipo) => {
       const a = ambiente();
@@ -587,7 +601,9 @@ describe("entrada temporária de visitante", () => {
                 ? { membroId: SID, papel: "member" }
                 : tipo === "outra_visita"
                   ? { visitaId: SID }
-                  : { permissaoAte: "2026-11-18T06:01:00.000Z" }),
+                  : tipo === "outro_vinculo"
+                    ? { sessaoDeVisitaId: SID }
+                    : { permissaoAte: "2026-11-18T06:01:00.000Z" }),
             }),
       );
       await expect(a.cliente.verificarEntradaDeVisita(pedido)).rejects.toMatchObject({

@@ -871,3 +871,33 @@ Evidência anterior consultada em 18/11: `139aa64f` concluiu os oito gates
 `7cfcae2c` também concluiu os oito gates `44248428950`. Produtor `de8e1ea6`
 tem qualidade e 1005 integrações aprovadas em `44250374730`; pipeline ainda
 em curso na consulta. Esta ligação ao runtime exige nova rodada completa.
+
+## Vínculo preparado e guarda local, candidatos
+
+A abertura autenticada entrega `sessaoDeVisitaId`, já preparado para o SID
+atual. O SDK conserva esse vínculo nas reconexões e recusa substituição
+silenciosa. A admissão privada exige esse ID e o confere antes de qualquer
+escrita de entrada. O recibo privado acrescenta `presencaDoAnfitriaoId`, que
+não sai na abertura do navegador e identifica a conexão original a observar.
+Não há membro, papel ou novo direito nesses identificadores. A API negativa
+existente pode encerrar uma admissão cuja resposta se perdeu usando o vínculo
+da abertura, ainda exigindo SID/perfil/mundo/instância/cerca originais.
+
+`criarPermissaoDeVisita` no `/host` prepara a guarda local da admissão: usa
+tempo monotônico conservador e a conexão original do anfitrião. Prazo vencido
+ou resposta incerta suspende; somente renovação integral nova libera de novo.
+Anfitrião ausente/trocado ou negativa explícita encerra de forma terminal.
+Resposta de outro vínculo, repetida, antiga ou com prazo inválido não mantém
+o cache positivo. O jogo deverá conferir ao receber o comando e novamente
+antes de aplicá-lo na fila; o helper sozinho não comprova esse uso no runtime.
+
+As regressões candidatas cobrem comando que vence na fila, corte físico,
+renovação após falha, resposta velha e vínculo divergente sem admitir o SID.
+Uma integração descarta a resposta de admissão e encerra pelo recibo anterior,
+conservando host/membro e a permissão de salvamento em `ready`, sem ACK.
+A troca de aparelho obtém o vínculo da sucessora pela própria API pública.
+Esses contratos ainda não foram implantados; não há migração adicional.
+
+Produtor `de8e1ea6` concluiu os oito gates `44250374730`; a ligação ao servidor
+`18eb95bd` segue em `44251506767`. Runtime e jornadas de visitante continuam
+em implementação.

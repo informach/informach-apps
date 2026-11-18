@@ -67,6 +67,8 @@ export const EntradaDeVisitanteSchema = z
   .strictObject({
     visitaId: UuidSchema,
     sessaoDeVisitaId: UuidSchema,
+    /** Só a instância recebe o vínculo à conexão original do anfitrião. */
+    presencaDoAnfitriaoId: UuidSchema,
     permissaoAte: z.iso.datetime(),
     agora: z.iso.datetime(),
     apelido: z.string(),
@@ -81,6 +83,7 @@ export const EntradaDeVisitanteSchema = z
 export type EntradaDeVisitante = z.infer<typeof EntradaDeVisitanteSchema>;
 export const PedidoDeEntradaDeVisitaSchema = z.strictObject({
   visitaId: UuidSchema,
+  sessaoDeVisitaId: UuidSchema,
   sid: SessaoDeJogoIdSchema,
   perfilId: PerfilIdSchema,
   cerca: z.int().positive(),
@@ -88,6 +91,8 @@ export const PedidoDeEntradaDeVisitaSchema = z.strictObject({
 export const PedidoDeAberturaDeVisitaSchema = z.strictObject({ visitaId: UuidSchema });
 export const VisitaAbertaSchema = z.strictObject({
   visitaId: UuidSchema,
+  /** Vínculo já preparado deste SID; permite encerrar uma admissão de resposta incerta. */
+  sessaoDeVisitaId: UuidSchema,
   mundoId: MundoIdSchema,
   onde: z.literal("servidor"),
   endereco: z.url(),
@@ -106,7 +111,6 @@ export interface VisitaDoJogador {
 export const VISITAS_POR_RENOVACAO_MAX = 64;
 export const RenovacaoDeVisitaSchema = PedidoDeEntradaDeVisitaSchema.extend({
   mundoId: MundoIdSchema,
-  sessaoDeVisitaId: UuidSchema,
 });
 export type RenovacaoDeVisita = z.infer<typeof RenovacaoDeVisitaSchema>;
 export const RenovacaoDeVisitasSchema = z.strictObject({
@@ -138,7 +142,6 @@ export const RespostaDaRenovacaoDeVisitasSchema = z.strictObject({
 });
 
 export const EncerramentoDeSessaoDeVisitaSchema = PedidoDeEntradaDeVisitaSchema.extend({
-  sessaoDeVisitaId: UuidSchema,
   motivo: z.enum(["sair", "autoridade_perdida"]),
 });
 export type EncerramentoDeSessaoDeVisita = z.infer<typeof EncerramentoDeSessaoDeVisitaSchema>;

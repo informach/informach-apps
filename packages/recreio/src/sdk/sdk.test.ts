@@ -107,6 +107,7 @@ describe("finalidade de visita no SDK", () => {
   const visitaId = "f9579968-a053-494b-b9db-908c407ba86e";
   const mundoDaVisita = {
     visitaId,
+    sessaoDeVisitaId: "bff99a1f-9c9d-477c-aa83-a264caa7fab3",
     mundoId: MUNDO,
     onde: "servidor",
     endereco: "wss://jogo.test/",
@@ -141,6 +142,21 @@ describe("finalidade de visita no SDK", () => {
     expect(contexto.visita).toBeUndefined();
     expect(contexto.sessao.visitas).toBe(true);
     expect(a.chamadas[0]?.corpo).toEqual({ ingresso: "ingresso-1", suportaVisitas: true });
+  });
+  it("uma reconexão conserva o vínculo do mesmo SID e recusa substituição silenciosa", async () => {
+    const a = ambiente();
+    a.responder(
+      { corpo: { ...a.aberta(), visitas: true, visitaId } },
+      { corpo: mundoDaVisita },
+      { corpo: mundoDaVisita },
+      { corpo: { ...mundoDaVisita, sessaoDeVisitaId: MUNDO } },
+    );
+    const contexto = await criarRecreio(a.opcoes({ visitas: true, visitaId }));
+    if (!contexto.visita) throw new Error("Finalidade não oferecida");
+    expect((await contexto.visita.abrir()).sessaoDeVisitaId).toBe(mundoDaVisita.sessaoDeVisitaId);
+    expect((await contexto.visita.abrir()).sessaoDeVisitaId).toBe(mundoDaVisita.sessaoDeVisitaId);
+    await expect(contexto.visita.abrir()).rejects.toMatchObject({ codigo: "INDISPONIVEL" });
+    expect(a.chamadas).toHaveLength(4);
   });
   it("conserva o fato negociado mesmo se o objeto de opções for alterado depois", async () => {
     const a = ambiente(),

@@ -554,6 +554,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       });
     },
   };
+  let vinculoDaVisita: string | undefined;
   const visita: VisitaDoJogador | undefined =
     visitaId === undefined
       ? undefined
@@ -566,7 +567,12 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
               token,
               corpo: { visitaId },
             });
-            if (aberta.visitaId !== visitaId) throw new ErroDoRecreio("INDISPONIVEL");
+            if (
+              aberta.visitaId !== visitaId ||
+              (vinculoDaVisita !== undefined && aberta.sessaoDeVisitaId !== vinculoDaVisita)
+            )
+              throw new ErroDoRecreio("INDISPONIVEL");
+            vinculoDaVisita = aberta.sessaoDeVisitaId;
             return aberta;
           },
         };

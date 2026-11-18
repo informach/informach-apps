@@ -105,6 +105,7 @@ function entrada(c: Cenario, s: Sessao) {
     sid: s.sid,
     perfilId: c.destino.perfil.id,
     visitaId: c.visitaId,
+    sessaoDeVisitaId: s.finalidade.id,
   };
 }
 function admitir(c: Cenario, s: Sessao) {
@@ -228,6 +229,7 @@ it("SDK real abre a finalidade de visita e a instância confirma/encerra o SID s
     sid,
     perfilId: contexto.perfil.profileId,
     visitaId: contexto.visita.id,
+    sessaoDeVisitaId: aberta.sessaoDeVisitaId,
   });
   expect(entrada.visitaId).toBe(c.visitaId);
   await expect(contexto.mundos.abrir(c.mundoId)).rejects.toMatchObject({ codigo: "SEM_PERMISSAO" });
@@ -642,6 +644,7 @@ it("abertura pública só aponta à posse original e entrada autenticada admite 
   expect(resposta.status).toBe(200);
   expect(VisitaAbertaSchema.parse(resposta.corpo)).toMatchObject({
     visitaId: c.visitaId,
+    sessaoDeVisitaId: s.finalidade.id,
     mundoId: c.mundoId,
   });
   expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.spaceId).toBeNull();
@@ -652,10 +655,13 @@ it("abertura pública só aponta à posse original e entrada autenticada admite 
     "avatar",
     "permissaoAte",
     "politica",
+    "presencaDoAnfitriaoId",
     "sessaoDeVisitaId",
     "visitaId",
   ]);
   expect(permitida.sessaoDeVisitaId).toBe(s.finalidade.id);
+  expect(permitida.presencaDoAnfitriaoId).toBe(c.presenca.presencaId);
+  expect(resposta.corpo).not.toHaveProperty("presencaDoAnfitriaoId");
   expect(new Date(permitida.permissaoAte).getTime()).toBeGreaterThan(Date.now());
   expect(new Date(permitida.permissaoAte).getTime()).toBeLessThanOrEqual(Date.now() + 30_000);
   expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.spaceId).toBe(c.mundoId);
@@ -737,12 +743,72 @@ it.each(["bloqueio", "gestao", "host", "revogacao", "modo"] as const)(
   },
 );
 
+it("vínculo divergente não admite o SID nem altera a intenção preparada", async () => {
+  const c = await cenario(),
+    s = await abrir(c);
+  await expect(
+    c.instancia.cliente.verificarEntradaDeVisita({
+      ...entrada(c, s),
+      sessaoDeVisitaId: crypto.randomUUID(),
+    }),
+  ).rejects.toMatchObject({ codigo: "SEM_PERMISSAO" });
+  expect((await db.select().from(games).where(eq(games.id, s.sid)))[0]?.spaceId).toBeNull();
+  expect(
+    (await db.select().from(visitSessions).where(eq(visitSessions.id, s.finalidade.id)))[0],
+  ).toMatchObject({
+    state: "prepared",
+    admittedAt: null,
+  });
+  expect(
+    (await eventosCom("sessionId", s.sid)).filter(
+      (e) => e.eventType === "recreio.visit_session_admitted",
+    ),
+  ).toHaveLength(0);
+});
+
+it("vínculo da abertura encerra uma admissão de resposta descartada, sem fabricar ACK", async () => {
+  const c = await cenario(),
+    s = await abrir(c);
+  const resposta = await pedir("POST", "/api/sdk/v1/visitas/abrir", {
+    token: s.aberta.token,
+    corpo: { visitaId: c.visitaId },
+  });
+  expect(resposta.status).toBe(200);
+  const abertura = VisitaAbertaSchema.parse(resposta.corpo);
+  // A resposta da admissão é descartada. O encerramento usa só a abertura anterior.
+  await admitir(c, s);
+  env.RECREIO_VISITS_MODE = "off";
+  expect(
+    await c.instancia.cliente.encerrarSessaoDeVisita({
+      ...entrada(c, s),
+      sessaoDeVisitaId: abertura.sessaoDeVisitaId,
+      motivo: "sair",
+    }),
+  ).toEqual({
+    sessaoDeVisitaId: abertura.sessaoDeVisitaId,
+    estado: "closed",
+    sidEncerrado: true,
+    visitaEncerrada: true,
+  });
+  expect((await db.select().from(games).where(eq(games.id, c.host.sid)))[0]?.endedAt).toBeNull();
+  expect((await db.select().from(permits).where(eq(permits.sessionId, s.sid)))[0]?.status).toBe(
+    "ready",
+  );
+  expect(await db.select().from(members).where(eq(members.spaceId, c.mundoId))).toHaveLength(1);
+});
+
 it("cliente sem intenção e corpo com papel de membro não passam pela nova entrada", async () => {
   const c = await cenario(),
     { visitaId: _visita, ...legado } = c.pedido,
     aberta = await trocarIngresso(legado),
     sid = SessaoDeJogoIdSchema.parse(claimsDe(aberta.token).sid),
-    corpo = { visitaId: c.visitaId, cerca: c.posse.cerca, perfilId: c.destino.perfil.id, sid };
+    corpo = {
+      visitaId: c.visitaId,
+      sessaoDeVisitaId: crypto.randomUUID(),
+      cerca: c.posse.cerca,
+      perfilId: c.destino.perfil.id,
+      sid,
+    };
   const resposta = await pedir("POST", `/api/interno/v1/mundos/${c.mundoId}/visitas/entrada`, {
     headers: cabecalhosDoHost(OUTRO_JOGO, c.instancia.instanciaId),
     corpo,
@@ -895,9 +961,17 @@ it("checkpoint real permite sucessor da mesma visita e conserva os dois SIDs sem
     .select()
     .from(visitSessions)
     .where(eq(visitSessions.sessionId, s.sid));
+  const aberturaDaSucessora = await pedir("POST", "/api/sdk/v1/visitas/abrir", {
+    token: nova.token,
+    corpo: { visitaId: c.visitaId },
+  });
+  expect(aberturaDaSucessora.status).toBe(200);
+  const vinculoDaSucessora = VisitaAbertaSchema.parse(aberturaDaSucessora.corpo);
+  expect(vinculoDaSucessora.sessaoDeVisitaId).not.toBe(s.finalidade.id);
   const permitida = await c.instancia.cliente.verificarEntradaDeVisita({
     ...entrada(c, s),
     sid: novoSid,
+    sessaoDeVisitaId: vinculoDaSucessora.sessaoDeVisitaId,
   });
   expect(permitida.visitaId).toBe(c.visitaId);
   expect(

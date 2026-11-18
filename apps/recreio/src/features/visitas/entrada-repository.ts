@@ -37,6 +37,7 @@ export function abrirVisitaNoBanco(
     visitaId,
     async (_tx, entrada): Promise<VisitaAberta> => ({
       visitaId: entrada.visita.id,
+      sessaoDeVisitaId: entrada.intencao.id,
       mundoId: MundoIdSchema.parse(entrada.ctx.mundo.id),
       onde: "servidor",
       endereco: entrada.anfitriao.instancia.publicUrl,
@@ -118,6 +119,7 @@ export async function admitirEntradaDeVisitaNoBanco(
     pedido.visitaId,
     async (tx, entrada) => {
       const { ctx, anfitriao, visita, intencao, sessao, perfil } = entrada;
+      if (intencao.id !== pedido.sessaoDeVisitaId) throw new ErroDoRecreio("SEM_PERMISSAO");
       if (
         sessaoDeVisitaId !== undefined &&
         (intencao.id !== sessaoDeVisitaId || intencao.state !== "active")
@@ -203,6 +205,7 @@ export async function admitirEntradaDeVisitaNoBanco(
       return {
         visitaId: visita.id,
         sessaoDeVisitaId: intencao.id,
+        presencaDoAnfitriaoId: anfitriao.presenca.id,
         permissaoAte: permissaoAte.toISOString(),
         agora: fim.toISOString(),
         apelido: perfil.nickname,
