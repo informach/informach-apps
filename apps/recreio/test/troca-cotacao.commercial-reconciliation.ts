@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { db, eq, sql } from "@informach/db";
+import { and, db, eq, sql } from "@informach/db";
 import {
+  events as auditEvents,
   recreioPlanChanges as changes,
   recreioBillingContracts as contracts,
   recreioBillingReconciliations as jobs,
@@ -12,6 +13,11 @@ import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
 import { describe, expect, it } from "vitest";
 import { criarProcessadorDeConciliacao } from "@/features/cobranca/conciliacao-service";
 import { criarExecutorDeCompra } from "@/features/cobranca/execucao-service";
+import {
+  criarAceiteDeTroca,
+  criarEncerramentoDeTroca,
+} from "@/features/cobranca/troca-aceite-service";
+import type { reciboDaTroca } from "@/features/cobranca/troca-cotacao-repository";
 import { criarPreparacaoDeReducao } from "@/features/cobranca/troca-cotacao-service";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
 import { fixtureDePagamento } from "./pagamento-stripe-apoio";
@@ -33,7 +39,10 @@ async function fixture(comJogador = false) {
   expect(falhas).toEqual([]);
   // Other fixtures may leave deliberately failed jobs; inspect this payer's
   // durable confirmation, rather than assuming the shared queue is empty.
-  const [job] = await db.select().from(jobs).where(eq(jobs.payerUserId, f.adulto.conta.id));
+  const [job] = await db
+    .select()
+    .from(jobs)
+    .where(and(eq(jobs.payerUserId, f.adulto.conta.id), eq(jobs.providerMode, "dev")));
   expect(job?.reviewRequired).toBe(false);
   expect(job?.lastConfirmedAt).toBeInstanceOf(Date);
   const [origem] = await db.select().from(purchases).where(eq(purchases.id, f.recibo.id));
@@ -58,6 +67,30 @@ async function fixture(comJogador = false) {
     };
   }
   return { ...f, origem, cotar, pedido };
+}
+
+function aceite(cotacao: ReturnType<typeof reciboDaTroca>) {
+  return {
+    pedidoId: cotacao.id,
+    produtoDestino: cotacao.produtoDestino,
+    revisaoContrato: cotacao.revisaoContrato,
+    valorAgoraCentavos: cotacao.valorAgoraCentavos,
+    subtotalCentavos: cotacao.subtotalCentavos,
+    creditoCentavos: cotacao.creditoCentavos,
+    totalCentavos: cotacao.totalCentavos,
+    valorRenovacaoCentavos: cotacao.valorRenovacaoCentavos,
+    intervalo: cotacao.intervalo,
+    moeda: cotacao.moeda,
+    vigencia: cotacao.vigencia,
+    versaoDasCondicoes: cotacao.versaoDasCondicoes,
+    aceitoTrocaECobrancaRecorrente: true,
+  };
+}
+function operacoes(f: Awaited<ReturnType<typeof fixture>>) {
+  return {
+    aceitar: criarAceiteDeTroca(() => ({ modo: "dev", produtos: f.products })),
+    encerrar: criarEncerramentoDeTroca(() => "dev"),
+  };
 }
 
 describe("cotação nativa de redução sem efeito externo", () => {
@@ -205,6 +238,128 @@ describe("cotação nativa de redução sem efeito externo", () => {
     } finally {
       await db.execute(sql`drop trigger recusar_cotacao_audit_fixture on audit.events`);
       await db.execute(sql`drop function recreio.recusar_cotacao_audit_fixture()`);
+    }
+  });
+});
+
+describe("aceite nativo da cotação e encerramento sem envio", () => {
+  it("registra somente o aceite, com replay, sem iniciar efeito externo ou mudar cobertura", async () => {
+    const f = await fixture(),
+      { aceitar } = operacoes(f),
+      pedido = await f.pedido();
+    const cotacao = await f.cotar(f.adulto.autor, pedido),
+      entrada = aceite(cotacao),
+      antes = f.requests.length;
+    const aceita = await aceitar(f.adulto.autor, entrada);
+    expect(aceita).toMatchObject({
+      estado: "accepted",
+      tentativaEm: null,
+      valorAgoraCentavos: 0,
+      valorRenovacaoCentavos: 5990,
+    });
+    expect(aceita.aceitoEm).not.toBeNull();
+    expect(await aceitar(f.adulto.autor, entrada)).toEqual(aceita);
+    expect(f.requests).toHaveLength(antes);
+    const audits = await db
+      .select()
+      .from(auditEvents)
+      .where(eq(auditEvents.actorId, f.adulto.conta.id));
+    expect(audits.filter((e) => e.eventType === "recreio.plan_change_accepted")).toHaveLength(1);
+    const [saved] = await db.select().from(changes).where(eq(changes.id, cotacao.id));
+    expect(saved).toMatchObject({
+      status: "accepted",
+      requestStartedAt: null,
+      providerScheduleId: null,
+      providerInvoiceId: null,
+    });
+  });
+  it("termos divergentes e outro adulto não aceitam a cotação", async () => {
+    const f = await fixture(),
+      { aceitar } = operacoes(f),
+      cotacao = await f.cotar(f.adulto.autor, await f.pedido()),
+      entrada = aceite(cotacao),
+      outro = await adultoDoTeste();
+    await expect(aceitar(outro.autor, entrada)).rejects.toMatchObject({ code: "COBRANCA" });
+    await expect(
+      aceitar(f.adulto.autor, { ...entrada, valorRenovacaoCentavos: 5991 }),
+    ).rejects.toMatchObject({ code: "CONFLITO" });
+    await expect(
+      aceitar(
+        {
+          ...f.adulto.autor,
+          login: { ...f.adulto.autor.login, criadoEm: new Date(Date.now() - 11 * 60_000) },
+        },
+        entrada,
+      ),
+    ).rejects.toMatchObject({ code: "LOGIN_RECENTE" });
+    const [saved] = await db.select().from(changes).where(eq(changes.id, cotacao.id));
+    expect(saved).toMatchObject({ status: "quoted", acceptedAt: null });
+  });
+  it("alteração de perfil depois da cotação impede o aceite antigo", async () => {
+    const f = await fixture(true),
+      { aceitar } = operacoes(f),
+      pedido = await f.pedido(),
+      cotacao = await f.cotar(f.adulto.autor, pedido),
+      perfil = pedido.perfis[0];
+    if (!perfil) throw new Error("Native profile absent");
+    await db
+      .update(profiles)
+      .set({ policyVersion: perfil.versao + 1 })
+      .where(eq(profiles.id, perfil.perfilId));
+    await expect(aceitar(f.adulto.autor, aceite(cotacao))).rejects.toMatchObject({
+      code: "CONFLITO",
+    });
+    const [saved] = await db.select().from(changes).where(eq(changes.id, cotacao.id));
+    expect(saved?.acceptedAt).toBeNull();
+  });
+  it("aceite ainda não enviado pode ser encerrado, sem ser reaberto por replay", async () => {
+    const f = await fixture(),
+      { aceitar, encerrar } = operacoes(f),
+      cotacao = await f.cotar(f.adulto.autor, await f.pedido()),
+      entrada = aceite(cotacao);
+    await aceitar(f.adulto.autor, entrada);
+    const encerrada = await encerrar(f.adulto.autor, cotacao.id);
+    expect(encerrada).toMatchObject({ estado: "canceled", tentativaEm: null });
+    expect(await encerrar(f.adulto.autor, cotacao.id)).toEqual(encerrada);
+    expect((await aceitar(f.adulto.autor, entrada)).estado).toBe("canceled");
+  });
+  it("tentativa admitida sem ID remoto continua incerta e não é declarada cancelada", async () => {
+    const f = await fixture(),
+      { aceitar, encerrar } = operacoes(f),
+      cotacao = await f.cotar(f.adulto.autor, await f.pedido());
+    await aceitar(f.adulto.autor, aceite(cotacao));
+    // Simulated admitted attempt; no provider call is claimed by this SQL fixture.
+    await db.execute(
+      sql`update recreio.plan_changes set status='sent', request_started_at=clock_timestamp() where id=${cotacao.id}`,
+    );
+    await expect(encerrar(f.adulto.autor, cotacao.id)).rejects.toMatchObject({
+      code: "OPERACAO_EM_CONFERENCIA",
+    });
+    const [saved] = await db.select().from(changes).where(eq(changes.id, cotacao.id));
+    expect(saved).toMatchObject({
+      status: "sent",
+      resolvedAt: null,
+      providerScheduleId: null,
+      providerInvoiceId: null,
+    });
+  });
+  it("recusa de auditoria reverte o aceite e conserva a cotação original", async () => {
+    const f = await fixture(),
+      { aceitar } = operacoes(f),
+      cotacao = await f.cotar(f.adulto.autor, await f.pedido());
+    await db.execute(
+      sql`create function recreio.recusar_aceite_audit_fixture() returns trigger language plpgsql as $$ begin if NEW.event_type='recreio.plan_change_accepted' then raise exception 'fixture acceptance audit failure'; end if; return NEW; end $$`,
+    );
+    await db.execute(
+      sql`create trigger recusar_aceite_audit_fixture before insert on audit.events for each row execute function recreio.recusar_aceite_audit_fixture()`,
+    );
+    try {
+      await expect(aceitar(f.adulto.autor, aceite(cotacao))).rejects.toThrow();
+      const [saved] = await db.select().from(changes).where(eq(changes.id, cotacao.id));
+      expect(saved).toMatchObject({ status: "quoted", acceptedAt: null, requestStartedAt: null });
+    } finally {
+      await db.execute(sql`drop trigger recusar_aceite_audit_fixture on audit.events`);
+      await db.execute(sql`drop function recreio.recusar_aceite_audit_fixture()`);
     }
   });
 });

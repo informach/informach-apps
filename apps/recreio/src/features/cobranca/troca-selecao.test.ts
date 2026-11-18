@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { conferirSelecaoDaTroca, type PerfilParaTroca, type SelecaoDaTroca } from "./troca-selecao";
+import {
+  conferirSelecaoDaTroca,
+  type PerfilParaTroca,
+  perfisParaSelecionarNaTroca,
+  type SelecaoDaTroca,
+} from "./troca-selecao";
 
 function fixture() {
   const atuais: PerfilParaTroca[] = ["perfil_b", "perfil_a"].map((id) => ({
@@ -25,6 +30,21 @@ function fixture() {
 }
 
 describe("seleção completa de perfis na troca de plano", () => {
+  it("perfil menor precisa conservar vínculo de responsabilidade para ser selecionável", () => {
+    const perfil = fixture().atuais[0];
+    if (!perfil) throw new Error("Fixture absent");
+    const menor = { ...perfil, kind: "minor" as const };
+    expect(perfisParaSelecionarNaTroca([menor], [])[0]?.podeCobrir).toBe(false);
+    expect(perfisParaSelecionarNaTroca([menor], [{ perfilId: "outro" }])[0]?.podeCobrir).toBe(
+      false,
+    );
+    expect(perfisParaSelecionarNaTroca([menor], [{ perfilId: perfil.id }])[0]?.podeCobrir).toBe(
+      true,
+    );
+    expect(perfisParaSelecionarNaTroca([{ ...perfil, kind: "adult" }], [])[0]?.podeCobrir).toBe(
+      true,
+    );
+  });
   it("reduz cobertura conservando os IDs de todos, inclusive de quem fica guardado", () => {
     const f = fixture();
     const antes = structuredClone(f.selecao);

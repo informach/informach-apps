@@ -4,18 +4,17 @@ import { isStripePriceIdConfigured, type Product, type StripeMode } from "@infor
 import { and, db, eq, isNull, sql } from "@informach/db";
 import {
   recreioPlanChanges as changes,
-  recreioBillingContracts as contracts,
   recreioPlanChangeProfiles as selections,
 } from "@informach/db/schema";
 import type { AutorNativoRecente } from "@/features/account/autoridade-repository";
 import { limiteFinanceiroDaAssinatura } from "@/features/acesso/decisao";
-import { lerFatosDoGrupo } from "@/features/acesso/repository";
 import { admitirGrupoDoTitular } from "@/features/grupo/autoridade-repository";
 import { assertAllowed } from "@/lib/errors";
 import { comCicloDeCobranca } from "./lifecycle";
+import { lerContratoParaTrocaLocked } from "./troca-contexto-repository";
 import { PRAZO_DA_COTACAO_MS, type PrepararTroca, VERSAO_DA_TROCA } from "./troca-entrada";
 import { classificarTrocaDePlano } from "./troca-regras";
-import { conferirSelecaoDaTroca } from "./troca-selecao";
+import { conferirSelecaoDaTroca, perfisParaSelecionarNaTroca } from "./troca-selecao";
 
 export function reciboDaTroca(linha: typeof changes.$inferSelect) {
   return {
@@ -92,32 +91,13 @@ export function prepararCotacaoDeReducaoNoBanco(
         await atual.nativa.conferirPrazo(autor.login);
         return reciboDaTroca(existente);
       }
-      const fatos = await lerFatosDoGrupo(pedido.grupoId, tx);
-      const assinatura = fatos?.assinaturaAtiva;
-      assertAllowed(
-        assinatura &&
-          assinatura.cancelaEm === null &&
-          limiteFinanceiroDaAssinatura(assinatura, agora),
-        "PLANO",
-        "Confirme o pagamento e a situação atual do contrato antes de trocar.",
-      );
-      const [contrato] = await tx
-        .select()
-        .from(contracts)
-        .where(eq(contracts.subscriptionId, assinatura.id))
-        .for("update");
-      assertAllowed(
-        contrato &&
-          contrato.groupId === pedido.grupoId &&
-          contrato.payerUserId === autor.contaId &&
-          contrato.providerMode === catalogo.modo &&
-          contrato.revision === pedido.revisaoContrato &&
-          contrato.currentProductId === assinatura.productId &&
-          contrato.currentPriceId === assinatura.financeiro.precoId &&
-          !contrato.coverageReviewRequired,
-        "CONFLITO",
-        "O contrato mudou. Confira a oferta atual novamente.",
-      );
+      const { contrato, assinatura } = await lerContratoParaTrocaLocked(tx, {
+        grupoId: pedido.grupoId,
+        paganteId: autor.contaId,
+        modo: catalogo.modo,
+        revisao: pedido.revisaoContrato,
+        agora,
+      });
       const troca = classificarTrocaDePlano(contrato.currentProductId, pedido.produtoDestino);
       assertAllowed(
         troca.tipo === "downgrade",
@@ -154,10 +134,7 @@ export function prepararCotacaoDeReducaoNoBanco(
         pedido.grupoId,
         pedido.produtoDestino,
         selecao,
-        atual.perfis.map((p) => ({
-          ...p,
-          podeCobrir: p.kind === "adult" || atual.vinculos.some((v) => v.perfilId === p.id),
-        })),
+        perfisParaSelecionarNaTroca(atual.perfis, atual.vinculos),
       );
       const [pendente] = await tx
         .select()

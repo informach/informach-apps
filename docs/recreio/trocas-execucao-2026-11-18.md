@@ -88,3 +88,18 @@ durável do próprio pagante, pois a fila compartilhada conserva falhas
 intencionais de outros cenários. Nenhuma validação de produção foi relaxada.
 A fundação anterior `9ee466fa` concluiu os dezesseis gates `44351670813`,
 incluindo 0211 e os termos puros do aceite.
+
+## Candidata de aceite e encerramento sem envio
+
+`troca-aceite-service`/`troca-aceite-repository` registram aceite dos termos
+persistidos sob o mesmo ciclo financeiro e autoridade nativa recente. Relêem
+período, oferta, revisão e seleção atuais. Replay conserva o instante e o estado
+do recibo, inclusive se já encerrado; não reabre uma operação. Auditoria e aceite
+são atômicos. Nenhuma assinatura, cobertura ou recurso externo é alterado.
+
+O encerramento local fica disponível independentemente da abertura de novas
+vendas, somente para cotação sem tentativa admitida. Tentativa sem ID remoto
+continua incerta e não é declarada cancelada. Operação enviada precisa do fluxo
+de confirmação do provedor, ainda pendente. Os testes remotos acrescentam
+aceite, replay, isolamento, termos/perfil alterados, encerramento, tentativa
+incerta e rollback de auditoria. Não há Server Action ou tela ligada ainda.

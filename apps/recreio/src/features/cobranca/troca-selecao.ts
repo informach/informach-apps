@@ -7,7 +7,8 @@ export type PerfilParaTroca = {
   policyVersion: number;
   coverageEnabled: boolean;
   status: "active" | "suspended";
-  /** Computed by current native responsibility/participation, never client input. */
+  /** Minimum native participation check, never client input. The game kernel
+   * still validates account eligibility and the complete current authority. */
   podeCobrir: boolean;
 };
 export type SelecaoDaTroca = {
@@ -17,6 +18,16 @@ export type SelecaoDaTroca = {
   policyVersion: number;
   coverageEnabled: boolean;
 };
+
+export function perfisParaSelecionarNaTroca(
+  perfis: readonly (Omit<PerfilParaTroca, "podeCobrir"> & { kind: "adult" | "minor" })[],
+  vinculos: readonly { perfilId: string }[],
+): PerfilParaTroca[] {
+  return perfis.map((p) => ({
+    ...p,
+    podeCobrir: p.kind === "adult" || vinculos.some((v) => v.perfilId === p.id),
+  }));
+}
 
 /** Validate the entire selection again when a deferred change takes effect.
  * Returns data only; callers still need the native transaction and SID cut.
