@@ -31,6 +31,15 @@ describe("integridade do estado de conciliação", () => {
       lastConfirmedAt: null,
       attemptCount: 0,
     });
+    // A partição prod ainda está livre: esta recusa prova a FK, sem colidir
+    // antes com a unicidade de grupo/modo exercitada separadamente abaixo.
+    expect(
+      await codigoDoBanco(
+        db
+          .insert(jobs)
+          .values({ payerUserId: outro.id, groupId: f.grupo.id, providerMode: "prod" }),
+      ),
+    ).toBe("23503");
     await db
       .insert(jobs)
       .values({ payerUserId: f.conta.id, groupId: f.grupo.id, providerMode: "prod" });
@@ -41,11 +50,6 @@ describe("integridade do estado de conciliação", () => {
           .values({ payerUserId: f.conta.id, groupId: f.grupo.id, providerMode: "dev" }),
       ),
     ).toBe("23505");
-    expect(
-      await codigoDoBanco(
-        db.insert(jobs).values({ payerUserId: outro.id, groupId: f.grupo.id, providerMode: "dev" }),
-      ),
-    ).toBe("23503");
     expect(
       await codigoDoBanco(
         db.update(groups).set({ ownerUserId: outro.id }).where(eq(groups.id, f.grupo.id)),

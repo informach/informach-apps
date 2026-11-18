@@ -95,6 +95,12 @@ histórico é apagado para acomodar divergência. Nove provas PostgreSQL usam
 snapshots declaradamente sintéticos, incluindo duas faturas e isolamento entre
 contas. Não representam comunicação real nem pagamento sandbox. Gates pendentes.
 
+O gate SQL de `9587ac13`/`44305718341` encontrou uma fixture que violava duas
+restrições simultaneamente: esperava FK `23503`, mas colidia antes na unicidade
+`23505`. As 1113 outras provas passaram. O corretivo testa pagante estrangeiro
+na partição de modo ainda livre e testa a unicidade à parte, preservando ambas
+as constraints e a expectativa exata da FK; exige nova execução integral.
+
 - Criar estado comercial próprio por pagante/grupo exatos, com fila recuperável,
   próxima tentativa, última tentativa e última confirmação distintas. Falha não
   atualiza confirmação. A fila precisa atender outros pagantes após uma falha.
