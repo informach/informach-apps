@@ -12,7 +12,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { recreio, recreioEntitlements, recreioGroups } from "./recreio";
+import { recreio, recreioEntitlements, recreioGroups, recreioProfiles } from "./recreio";
 
 /** Fila e autoridade financeira por pagante/modo. Uma tentativa falha nunca
  * avança a última confirmação; revisão bloqueia cobertura até conciliação.
@@ -164,6 +164,42 @@ export const recreioPurchaseAuthorizations = recreio.table(
     (${t.resolution} is null or ${t.resolution}='not_started' or (${t.requestStartedAt} is not null and ${t.providerSessionId} is not null)) and
     (${t.providerSessionId} is null or (${t.requestStartedAt} is not null and length(${t.providerSessionId}) between 8 and 256)) and
     (not ${t.reviewRequired} or (${t.requestStartedAt} is not null and ${t.resolvedAt} is null))`,
+    ),
+  ],
+);
+
+/** Complete initial purchase selection. Metadata and mutable family content
+ * never enter this financial receipt. Deletion invalidates a stored choice. */
+export const recreioPurchaseProfiles = recreio.table(
+  "purchase_profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    purchaseId: uuid("purchase_id").notNull(),
+    groupId: uuid("group_id").notNull(),
+    payerUserId: text("payer_user_id").notNull(),
+    providerMode: text("provider_mode").$type<"dev" | "prod">().notNull(),
+    productId: text("product_id").notNull(),
+    profileReference: uuid("profile_reference").notNull(),
+    profileId: uuid("profile_id").references(() => recreioProfiles.id, { onDelete: "set null" }),
+    policyVersion: integer("policy_version").notNull(),
+    coverageEnabled: boolean("coverage_enabled").notNull(),
+  },
+  (t) => [
+    foreignKey({
+      name: "recreio_purchase_selection_scope",
+      columns: [t.purchaseId, t.groupId, t.payerUserId, t.providerMode, t.productId],
+      foreignColumns: [
+        recreioPurchaseAuthorizations.id,
+        recreioPurchaseAuthorizations.groupId,
+        recreioPurchaseAuthorizations.payerUserId,
+        recreioPurchaseAuthorizations.providerMode,
+        recreioPurchaseAuthorizations.productId,
+      ],
+    }).onDelete("restrict"),
+    unique("recreio_purchase_selection_profile").on(t.purchaseId, t.profileReference),
+    check(
+      "recreio_purchase_selection_identity",
+      sql`${t.policyVersion}>=1 and (${t.profileId} is null or ${t.profileId}=${t.profileReference})`,
     ),
   ],
 );

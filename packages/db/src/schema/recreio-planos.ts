@@ -204,10 +204,6 @@ export const recreioBillingContracts = recreio.table(
     index("recreio_billing_contract_payer").on(t.payerUserId, t.providerMode),
     check("recreio_billing_contract_mode", sql`${t.providerMode} in ('dev','prod')`),
     check(
-      "recreio_billing_contract_selection_review",
-      sql`not ${t.coverageReviewRequired} or ${t.currentPlanChangeId} is not null`,
-    ),
-    check(
       "recreio_billing_contract_offer",
       sql`length(${t.originPriceId}) between 8 and 256 and length(${t.currentPriceId}) between 8 and 256 and length(${t.currentProductId}) between 2 and 80`,
     ),

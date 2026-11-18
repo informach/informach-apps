@@ -228,3 +228,9 @@ da liberação, criação anterior perdida recuperada por GET, ausência incerta
 isolamento, vendas desligadas, logout, auditoria e corrida na fronteira da fase.
 Esses cenários e a correção do seletor E2E ainda precisam dos gates remotos.
 Não há Server Actions/telas das trocas ligadas nem ativação comercial em produção.
+
+O próximo achado é a [seleção da primeira compra](compras-selecao-2026-11-18.md),
+incluindo a passagem do teste para Individual. A tabela/checagem da nova candidata
+preparam o recibo explícito; ainda não implementam o novo aceite nem mudam o
+comportamento de compra. Exigem geração/adopção de DDL e novos gates antes de
+qualquer integração ou ativação.
