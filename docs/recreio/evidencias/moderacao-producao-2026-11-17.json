@@ -53,6 +53,13 @@
       "mundos": 2,
       "fotos": 10,
       "sessoesAbertas": 0
+    },
+    "reconexao": {
+      "main": true,
+      "deployment": "1049fc8c-a532-4583-ad25-e5c6c8d8b5a7",
+      "status": "SKIPPED",
+      "comandoOriginalRestauradoSemDeploy": true,
+      "ultimaExecucao": "7bf20817-5278-45c9-9463-b7913a546bc6"
     }
   },
   "portal": {
@@ -117,7 +124,76 @@
   "limites": [
     "Social, famílias e checkpoint desligados; jogo interno ausente de produção.",
     "Sem prova operacional TOTP de comando real no Bastidores em produção; jornada remota usa TOTP real com Bastidores em desenvolvimento.",
-    "Não representa fechamento de F4/F5 ou F6–F11, nem liberação de menores ou venda.",
-    "A integração Git pública e a reconexão dos demais consumidores ainda precisam ser registradas após sua execução."
-  ]
+    "Não representa fechamento de F4/F5 ou F6–F11, nem liberação de menores ou venda."
+  ],
+  "integracaoPublicada": "86d9b05e1a0006e06959da03ae77c976ca82687c",
+  "consumidores": [
+    {
+      "servico": "67f2d87b-02cb-422a-b019-aa57cd584d14",
+      "nome": "admin",
+      "em": "2026-11-18T00:12:36.068Z",
+      "fonte": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a",
+      "ready": 200
+    },
+    {
+      "servico": "706dd7f0-6225-4cec-b35e-2206141e7591",
+      "nome": "bora",
+      "em": "2026-11-18T00:12:26.636Z",
+      "fonte": "86d9b05e1a0006e06959da03ae77c976ca82687c",
+      "ready": 200
+    },
+    {
+      "servico": "7ba41b19-aba8-48d1-928a-f616ec743c76",
+      "nome": "agenda",
+      "em": "2026-11-18T00:12:27.076Z",
+      "fonte": "86d9b05e1a0006e06959da03ae77c976ca82687c",
+      "ready": 200
+    },
+    {
+      "servico": "91f572ad-b55c-4938-9967-0650c90e49c6",
+      "nome": "missao",
+      "em": "2026-11-18T00:12:26.522Z",
+      "fonte": "86d9b05e1a0006e06959da03ae77c976ca82687c",
+      "ready": 200
+    },
+    {
+      "servico": "476b6975-37cb-4831-83d8-2a7f48be51d4",
+      "nome": "dia",
+      "em": "2026-11-18T00:12:36.720Z",
+      "fonte": "86d9b05e1a0006e06959da03ae77c976ca82687c",
+      "ready": 200
+    },
+    {
+      "servico": "28f3d697-96a9-41ac-b7d0-bbc600c61d13",
+      "nome": "conta",
+      "em": "2026-11-18T00:12:37.096Z",
+      "fonte": "86d9b05e1a0006e06959da03ae77c976ca82687c",
+      "ready": 200
+    },
+    {
+      "servico": "8e5a3012-8ebd-479d-b4da-592ef19ae8e8",
+      "nome": "cozya",
+      "em": "2026-11-18T00:12:37.168Z",
+      "fonte": "86d9b05e1a0006e06959da03ae77c976ca82687c",
+      "ready": 200
+    },
+    {
+      "servico": "da22f05d-2044-445b-bcb2-8e2d0d0c73ce",
+      "nome": "edi",
+      "em": "2026-11-18T00:12:37.116Z",
+      "fonte": "86d9b05e1a0006e06959da03ae77c976ca82687c",
+      "ready": 200
+    }
+  ],
+  "fontesDosServicos": {
+    "portal": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a",
+    "morada": "644b3841cb81b24d04159f75892a4c21d4d5f094",
+    "demaisConsumidores": "main",
+    "adminAtual": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a"
+  },
+  "mapasDeCodigo": {
+    "uploadConfirmadoNoBuild": true,
+    "deployment": "974bcc7c-f715-44c0-8a99-9e2c4b27d831",
+    "release": "396fe9326e3b1fac28a2b1bb86d9664c5b74e18a"
+  }
 }

@@ -780,6 +780,21 @@ F5, comercial, privacidade e fechamento integral continuam pendentes. A
 [evidência operacional](evidencias/moderacao-producao-2026-11-17.json) separa
 essas verificações da integração pública e dos aceites restantes.
 
+Integração pública concluída em `86d9b05e`. Às 00:12 UTC de 18/11, os sete
+demais consumidores — Agenda, Bora, Cozya, Dia, Missão, Conta e Edi — executavam
+essa fonte, com prontidão 200. Bastidores continuava na fonte funcional
+qualificada `396fe932`, pronto, e voltou a acompanhar a main; o deploy da
+reconexão foi corretamente omitido por não haver diferença nos caminhos
+observados. O migrator também voltou à main; `1049fc8c` foi `SKIPPED`, sua
+última execução permaneceu a migração limitada acima. O comando original foi
+restaurado somente para o próximo deploy, sem executar seeds. Portal e Morada
+conservam os pins, conferidos novamente por leitura da configuração.
+
+O build real `974bcc7c` confirmou upload dos mapas de código ao Sentry, além da
+release localizada por API. Isso não comprova ausência de erros futuros nem
+substitui o atendimento da fila. A qualificação de produção interativa TOTP
+e a ativação social permanecem distintas desses fatos operacionais.
+
 - [ ] Acrescentar métodos/eventos portáteis do SDK e superfícies sociais no
   portal/host. Tela infantil não herda gestão adulta; schema servidor não entra
   no bundle da interface para obter constantes.
