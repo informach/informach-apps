@@ -38,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gate: [quality, integration, trial-setup, trial-experiment, trial-ui, trial-play, commercial-setup, commercial-checkout, e2e, checkpoint, cliente, longa, versoes, equipe]
+        gate: [quality, integration, trial-setup, trial-experiment, trial-ui, trial-play, commercial-setup, commercial-checkout, commercial-ui, e2e, checkpoint, cliente, longa, versoes, equipe]
     services:
       postgres:
         image: postgres:18-alpine
@@ -119,7 +119,7 @@ jobs:
           path: ${{ runner.temp }}/morada-processo.json
           if-no-files-found: warn
           retention-days: 30
-      - if: matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe' || matrix.gate == 'trial-ui' || matrix.gate == 'trial-play'
+      - if: matrix.gate == 'e2e' || matrix.gate == 'versoes' || matrix.gate == 'checkpoint' || matrix.gate == 'equipe' || matrix.gate == 'trial-ui' || matrix.gate == 'trial-play' || matrix.gate == 'commercial-ui'
         run: pnpm --filter @informach/recreio-app exec playwright install --with-deps chromium
       - if: matrix.gate == 'e2e'
         run: pnpm --filter @informach/recreio-app e2e
@@ -127,6 +127,8 @@ jobs:
         run: pnpm --filter @informach/recreio-app e2e:equipe
       - if: matrix.gate == 'trial-ui'
         run: pnpm --filter @informach/recreio-app e2e:trial-setup
+      - if: matrix.gate == 'commercial-ui'
+        run: pnpm --filter @informach/recreio-app e2e:commercial-setup
       - if: matrix.gate == 'trial-play'
         run: pnpm --filter @informach/recreio-app e2e:trial-experiment
       - if: matrix.gate == 'checkpoint'
@@ -230,6 +232,16 @@ jobs:
           path: |
             apps/recreio/tmp/telas/teste-consentimento-mobile.png
             apps/recreio/tmp/telas/teste-recibo-mobile.png
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Preserve synthetic purchase consent screens
+        if: always() && matrix.gate == 'commercial-ui'
+        uses: actions/upload-artifact@v4
+        with:
+          name: recreio-compra-telas-${{ github.run_attempt }}
+          path: |
+            apps/recreio/tmp/telas/compra-ofertas-mobile.png
+            apps/recreio/tmp/telas/compra-recibo-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic first-session screens

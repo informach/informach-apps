@@ -7,7 +7,7 @@ import type {
 import { env } from "@/lib/env";
 import { assertAllowed } from "@/lib/errors";
 import { limitarTentativas } from "@/lib/rate-limit";
-import { AceiteDaCompraSchema } from "./regras";
+import { AceiteDaCompraSchema, ofertasParaOAdulto } from "./regras";
 import {
   consultarMinhaCompraNoBanco,
   encerrarCompraNaoEnviadaNoBanco,
@@ -36,6 +36,10 @@ export async function consultarMinhaCompra(autor: IdentidadeNativa) {
     janelaEmSegundos: 60,
   });
   return consultarMinhaCompraNoBanco(autor);
+}
+export async function consultarMinhaCobranca(autor: IdentidadeNativa) {
+  const compra = await consultarMinhaCompra(autor);
+  return { modo: env.RECREIO_BILLING_MODE, compra, ofertas: ofertasParaOAdulto() };
 }
 export async function encerrarCompraNaoEnviada(autor: IdentidadeNativa, entrada: unknown) {
   const id = z.uuid().parse(entrada);

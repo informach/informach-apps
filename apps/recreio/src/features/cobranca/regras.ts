@@ -1,4 +1,5 @@
 import { PRODUCTS } from "@informach/config";
+import { limiteDePerfisDoTier } from "@informach/recreio";
 import { z } from "zod";
 import { VERSAO_DA_DECLARACAO_ADULTA } from "@/features/grupo/convites-constantes";
 import { AppError } from "@/lib/errors";
@@ -49,4 +50,19 @@ export function conferirOfertaDaCompra(
     amountCents: entrada.valorCentavos,
     currency: entrada.moeda,
   };
+}
+
+/** Apenas dados de apresentação; não envia IDs de preço/configuração ao navegador. */
+export function ofertasParaOAdulto() {
+  return PRODUCTS.filter((p) => p.app === "recreio" && p.kind === "subscription").map((produto) => {
+    if (produto.listPrice?.currency !== "BRL" || !produto.interval)
+      throw new Error("Oferta Recreio incompleta no catálogo");
+    const oferta = conferirOfertaDaCompra({
+      produtoId: produto.id,
+      valorCentavos: produto.listPrice.amountCents,
+      moeda: "BRL",
+      intervalo: produto.interval,
+    });
+    return { ...oferta, nome: produto.name, perfis: limiteDePerfisDoTier(oferta.tier) };
+  });
 }

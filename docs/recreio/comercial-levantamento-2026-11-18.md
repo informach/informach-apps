@@ -21,6 +21,22 @@ logout em resultados abertos/concluídos/expirados, troca real para PIN infantil
 catálogo divergente e isolamento entre contas. Ainda não executado nesta fonte;
 modos e variáveis comerciais de produção continuam inalterados.
 
+O primeiro executor `6a0eeb66`/`44302958581` encontrou colisão da identidade
+externa sintética (`cs_test_1_native`) entre cenários; a constraint de unicidade
+foi preservada. A fixture passou a usar o UUID próprio de cada autorização em
+`3b8995f4`. O gate `commercial-checkout` de `44303284384` passou os dez cenários;
+demais gates ainda em execução nesta leitura. A execução anterior foi substituída
+e cancelada; não representa aprovação integral.
+
+A interface seguinte usa sessão nativa, apresenta quatro ofertas do catálogo
+comum e cobertura do domínio, guarda aceite explícito de recorrência e permite
+reler/encerrar pedido nunca enviado. Alterar a oferta desmarca o aceite. Checkout
+só aparece no modo de homologação, em ação separada; retorno do navegador não
+ativa assinatura. Resposta desconhecida exige consulta antes de outro envio.
+A jornada `commercial-ui` cobre dois adultos sem jogador, escolha/recarga,
+encerramento e ausência de customer/concessão/envio, com capturas de 390 px.
+Interface e jornada ainda aguardam execução remota nesta candidata.
+
 `2a8fa076` passou nos nove gates `44285538484`, incluindo consentimento nativo
 e retirada, modos reais `off`/`setup`, integridade SQL e regressões. A interface
 `0523217f`, `44289414523`, acrescenta página própria sem exigir jogador e passou

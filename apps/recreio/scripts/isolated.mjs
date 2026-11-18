@@ -27,6 +27,7 @@ if (
     "trial-experiment",
     "commercial-setup",
     "commercial-checkout",
+    "e2e-commercial-setup",
     "e2e-trial-setup",
     "e2e-trial-experiment",
     "e2e",
@@ -35,17 +36,19 @@ if (
   ].includes(mode)
 )
   throw new Error(
-    "Choose integration, trial-setup, trial-experiment, commercial-setup, commercial-checkout, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
+    "Choose integration, trial-setup, trial-experiment, commercial-setup, commercial-checkout, e2e-commercial-setup, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
   );
 const trialSetup = mode === "trial-setup";
 const trialExperiment = mode === "trial-experiment";
 const commercialSetup = mode === "commercial-setup";
 const commercialCheckout = mode === "commercial-checkout";
+const jornadaDaCompra = mode === "e2e-commercial-setup";
 const jornadaDoTeste = mode === "e2e-trial-setup";
 const jornadaDoInicio = mode === "e2e-trial-experiment";
 const versoes = mode === "versoes";
 const equipe = mode === "equipe";
-const e2e = mode === "e2e" || versoes || equipe || jornadaDoTeste || jornadaDoInicio;
+const e2e =
+  mode === "e2e" || versoes || equipe || jornadaDoTeste || jornadaDoInicio || jornadaDaCompra;
 const baseUrl = process.env.DATABASE_URL;
 const pnpmCli = process.env.npm_execpath;
 if (!baseUrl || !pnpmCli)
@@ -127,7 +130,11 @@ const testEnv = {
       : trialSetup || jornadaDoTeste
         ? "setup"
         : "off",
-  RECREIO_BILLING_MODE: commercialCheckout ? "sandbox" : commercialSetup ? "setup" : "off",
+  RECREIO_BILLING_MODE: commercialCheckout
+    ? "sandbox"
+    : commercialSetup || jornadaDaCompra
+      ? "setup"
+      : "off",
   ...(commercialCheckout
     ? {
         STRIPE_MODE: "dev",
@@ -221,7 +228,7 @@ try {
   console.log(`[recreio] Isolated local database created: ${name}`);
   run(["--filter", "@informach/db", "db:migrate"], root);
   if (e2e) {
-    if (!versoes && !equipe && !jornadaDoTeste && !jornadaDoInicio)
+    if (!versoes && !equipe && !jornadaDoTeste && !jornadaDoInicio && !jornadaDaCompra)
       run(["--filter", "@informach/morada-server", "build"], root);
     run(["exec", "next", "build"], app);
     // Mesmo artefato do Railway: o standalone precisa de public/ e static/.
@@ -257,6 +264,7 @@ try {
           ...(equipe ? ["--config", "playwright.equipe.config.ts"] : []),
           ...(jornadaDoTeste ? ["--config", "playwright.teste.config.ts"] : []),
           ...(jornadaDoInicio ? ["--config", "playwright.teste-inicio.config.ts"] : []),
+          ...(jornadaDaCompra ? ["--config", "playwright.compra.config.ts"] : []),
           ...process.argv.slice(3),
         ],
         app,
