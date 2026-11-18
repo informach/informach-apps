@@ -82,7 +82,14 @@ journal. A geração fica dividida: primeiro exportar somente a nova chave da
 compra; depois, com a migração preparatória adotada, exportar as tabelas de
 troca e gerar a migração seguinte. O arquivo `recreio-planos.ts` fica fora da
 exportação do schema apenas durante essa preparação. Nenhum escritor depende
-dele nesta candidata intermediária.
+dele nessa candidata intermediária.
+
+A migração preparatória `0209_true_gabe_jones.sql` foi gerada em
+`44342573592`/`0770ed21` e adotada intacta depois de conferir os três hashes,
+o predecessor e todo o prefixo do journal. Contém somente a chave única da
+compra. [Proveniência](evidencias/migracao-trocas-chave-0209.json).
+O schema das novas tabelas volta a ser exportado para gerar a etapa seguinte.
+Essa adoção não é aplicação em banco nem comprovação das restrições.
 
 O catálogo de teste já possui evidência própria; isso não comprova trocas ou
 pagamentos. Nenhuma DDL F6 ou alteração comercial foi implantada em produção.
