@@ -48,6 +48,9 @@ export type CheckoutResult = {
   sessionId: string;
 };
 
+/** Durable app authorization, issued by its server before external I/O. */
+export type ManagedCheckoutAuthorization = { id: string; expiresAt: number };
+
 export type SubscriptionCheckoutInput = {
   subject: SubjectRef;
   actorId?: string | null;
@@ -55,6 +58,7 @@ export type SubscriptionCheckoutInput = {
   successUrl: string;
   cancelUrl: string;
   trialDays?: number;
+  managedAuthorization?: ManagedCheckoutAuthorization;
 };
 
 export type CreditPackCheckoutInput = {

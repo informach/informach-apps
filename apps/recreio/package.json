@@ -57,6 +57,7 @@
     "@types/ws": "8.18.2",
     "dotenv": "^16.6.1",
     "postgres": "^3.4.9",
+    "stripe": "22.1.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",

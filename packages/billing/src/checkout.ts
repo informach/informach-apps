@@ -10,7 +10,10 @@ import {
 } from "@informach/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { getProSubscription } from "./access";
-import { managedSubscriptionCheckout } from "./checkout-lifecycle";
+import {
+  managedSubscriptionCheckout,
+  validateManagedCheckoutAuthorization,
+} from "./checkout-lifecycle";
 import { getOrCreateCustomer } from "./customers";
 import { AlreadySubscribedError, InvalidProductError, SubscriptionRequiredError } from "./errors";
 import { type Logger, safeLog } from "./logger";
@@ -50,6 +53,16 @@ export async function createSubscriptionCheckout(
   deps: CheckoutDeps,
   input: SubscriptionCheckoutInput & { idempotencyNonce?: string },
 ): Promise<CheckoutResult> {
+  if (input.managedAuthorization) {
+    if (!deps.managedCheckout)
+      throw new InvalidProductError(input.productId, "managed checkout is required");
+    if (input.subject.type !== "user" || input.actorId !== input.subject.id)
+      throw new InvalidProductError(
+        input.productId,
+        "managed authorization requires its own payer",
+      );
+    validateManagedCheckoutAuthorization(input.managedAuthorization);
+  }
   const product = resolveProduct(deps.products, input.productId);
   if (product.kind !== "subscription") {
     throw new InvalidProductError(
@@ -126,6 +139,7 @@ export async function createSubscriptionCheckout(
           trialDays: input.trialDays,
         },
         input.actorId,
+        input.managedAuthorization,
       )
     : await deps.providerClient.createCheckoutSession({
         mode: "subscription",

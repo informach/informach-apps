@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { BillingError, CheckoutPendingError } from "./errors";
 import type { BillingProviderClient } from "./providers";
 import type { ProviderCheckoutInput } from "./providers/types";
+import type { ManagedCheckoutAuthorization } from "./types";
 
 type Deps = { db: Database; providerClient: BillingProviderClient; app: string };
 type Intent = typeof checkoutIntents.$inferSelect;
@@ -11,6 +12,19 @@ type Customer = Pick<
   typeof customers.$inferSelect,
   "id" | "providerCustomerId" | "subjectType" | "subjectId"
 >;
+
+export function validateManagedCheckoutAuthorization(authorization: ManagedCheckoutAuthorization) {
+  const now = Math.floor(Date.now() / 1000);
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      authorization.id,
+    ) ||
+    !Number.isSafeInteger(authorization.expiresAt) ||
+    authorization.expiresAt <= now ||
+    authorization.expiresAt > now + 86400
+  )
+    throw new BillingError("Invalid managed checkout authorization");
+}
 
 /** The caller holds the subject lifecycle lock for the entire operation. */
 export async function recoverCheckout(deps: Deps, customer: Customer, intent: Intent) {
@@ -48,7 +62,9 @@ export async function managedSubscriptionCheckout(
   productId: string,
   input: Pick<ProviderCheckoutInput, "priceId" | "successUrl" | "cancelUrl" | "trialDays">,
   actorId?: string | null,
+  authorization?: ManagedCheckoutAuthorization,
 ) {
+  if (authorization) validateManagedCheckoutAuthorization(authorization);
   const prepare = deps.providerClient.prepareSubscriptionCheckout;
   if (
     !prepare ||
@@ -62,6 +78,18 @@ export async function managedSubscriptionCheckout(
     .select()
     .from(checkoutIntents)
     .where(eq(checkoutIntents.customerId, customer.id));
+  if (
+    authorization &&
+    intent &&
+    (intent.id !== authorization.id ||
+      intent.productId !== productId ||
+      intent.request.priceId !== input.priceId ||
+      intent.request.successUrl !== input.successUrl ||
+      intent.request.cancelUrl !== input.cancelUrl ||
+      intent.request.trialDays !== input.trialDays ||
+      intent.request.expiresAt !== authorization.expiresAt)
+  )
+    throw new CheckoutPendingError();
   if (intent?.requestStarted) {
     const state = await recoverCheckout(deps, customer, intent);
     if (state?.status === "complete" && !state.subscriptionId) throw new CheckoutPendingError();
@@ -75,12 +103,19 @@ export async function managedSubscriptionCheckout(
       await prepare(customer.providerCustomerId, state.id);
       return { id: state.id, url: state.url };
     }
+    // An app authorization is one attempt. Recovery must not replace or extend it.
+    if (authorization) throw new CheckoutPendingError();
     // Refuse completed payments and invalidate old links before replacing intent.
     await prepare(customer.providerCustomerId);
     await deps.db.delete(checkoutIntents).where(eq(checkoutIntents.id, intent.id));
     intent = undefined;
   }
-  const request = { ...input, expiresAt: Math.floor(Date.now() / 1000) + 3600 };
+  const request = {
+    ...input,
+    expiresAt: authorization?.expiresAt ?? Math.floor(Date.now() / 1000) + 3600,
+  };
+  if (authorization && !intent && request.expiresAt < Math.floor(Date.now() / 1000) + 1800)
+    throw new CheckoutPendingError();
   if (intent) {
     [intent] = await deps.db
       .update(checkoutIntents)
@@ -91,6 +126,7 @@ export async function managedSubscriptionCheckout(
     [intent] = await deps.db
       .insert(checkoutIntents)
       .values({
+        ...(authorization ? { id: authorization.id } : {}),
         customerId: customer.id,
         userId: payerId,
         productId,

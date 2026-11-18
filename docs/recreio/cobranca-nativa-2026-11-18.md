@@ -58,3 +58,25 @@ somente no GitHub. Depois, homologar no Stripe sandbox real, com catálogo,
 webhook/reconciliação, cancelamento, renovação e eventos adversos, sem venda.
 
 Este documento e o schema inicial não implementam esses fluxos por si sós.
+
+## Marcos de código e qualificação
+
+`fe00fc73` concluiu os treze gates `44296539656`: aceite nativo, proibição
+em contexto infantil compartilhado/pareado, modo desligado, integridade SQL,
+preparação financeira bloqueando teste, e regressões da plataforma. 0206 foi
+adotada intacta de geração remota; produção continua em 204 recibos/0203.
+O CI compartilhado `44285537993` da base `2a8fa076` concluiu com sucesso;
+ele não cobre as mudanças comerciais posteriores.
+
+A próxima candidata vincula o Checkout compartilhado ao UUID do aceite e a
+um prazo absoluto do servidor. Recuperação mantém ambos; sessão terminal ou
+outro aceite não provocam substituição automática. O comportamento legado
+sem esse parâmetro permanece separado. A inspeção do recibo existente só lê
+o provedor, sem recriar, prolongar ou remover a proteção. Resultado ausente
+continua desconhecido. As novas provas usam PostgreSQL e o SDK Stripe real
+com transporte HTTP de fixture, incluindo resposta perdida após persistência.
+Não são comunicação com sandbox nem liquidação financeira real.
+
+O app acrescenta apenas a dependência de teste `stripe@22.1.0`, a mesma
+versão já fixada no billing e no lockfile. Nenhuma instalação ou build local;
+o gate remoto confere o importer com `--frozen-lockfile`.

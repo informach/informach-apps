@@ -1464,6 +1464,9 @@ importers:
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
+      stripe:
+        specifier: 22.1.0
+        version: 22.1.0(@types/node@24.19.2)
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
