@@ -269,6 +269,8 @@ it.each(["auditoria", "posse", "sessao"] as const)(
           .where(eq(sessions.id, c.sessao.sid));
       if (tipo === "auditoria")
         await expect(entrar(c)).rejects.toBeInstanceOf(AuditPersistenceError);
+      else if (tipo === "sessao")
+        await expect(entrar(c)).rejects.toMatchObject({ codigo: "SESSAO_ENCERRADA" });
       else await expect(entrar(c)).rejects.toMatchObject({ code: "CONFLITO" });
     } finally {
       await db.execute(sql`drop trigger presenca_teste on audit.events`);

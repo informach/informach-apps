@@ -146,3 +146,26 @@ Respostas antigas não recebem campos novos sem solicitação explícita. A
 presença positiva também precisará conferir a capacidade registrada da instância.
 Esta definição inicial de schema ainda não implementa a negociação nem cria
 convite, concessão ou transporte de visitante.
+
+Geração `44225521585`, fonte `3b7c321f0b511768016b624b917356692c024c99`, artefato
+`14391989348`, ZIP SHA-256
+`fa0d64b74d9e0227933b63a9b69c9416eb827bfb3b2d3ed6553dc8f4267255bb`.
+SQL contém somente os dois `ADD COLUMN boolean DEFAULT false NOT NULL`.
+Origem, allowlist, prefixo do journal, predecessor e cópia intacta conferidos:
+
+- `0199_worthless_gertrude_yorkes.sql`: 222 bytes,
+  `94536b8577dc956f0d5c8ead875cde3703ec4e13180de1ec341c074b2d2055f0`.
+- Snapshot: 889332 bytes,
+  `9df9c06dbcbd9bbb4c3828a649330e31d8a4bab1d2902eb73596522039789b93`.
+- Journal: 30234 bytes,
+  `ee1269e9353b373baa2b35ce1ddddad0ef1745cc462d6623e139555bfff54a21`.
+
+O run de atestado `44225075209`/`d67b7cb9` falhou. Qualidade/builds apontaram
+os três eventos ainda ausentes do catálogo tipado de auditoria. A integração
+teve 809 aprovações e cinco falhas: a expiração do SID devolvia corretamente
+`SESSAO_ENCERRADA` em vez do conflito esperado no teste, e quatro casos antigos
+tentavam apagar sessões de outras fixtures agora referenciadas por presenças.
+A correção registra os eventos, conserva a recusa própria da sessão e encerra
+as autoridades anteriores no setup, preservando histórico, referências e cursor.
+Não afrouxa FKs ou limites. Journal candidato com 200 entradas; negociação e
+corretivo ainda exigem evidência remota. Produção continua sem essas migrations.
