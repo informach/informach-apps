@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { expect, type Page, test } from "@playwright/test";
 import postgres from "postgres";
 import { VERSAO_DO_FINANCIAMENTO } from "../src/features/cobranca/financiamento-regras";
+import { VERSAO_DA_TROCA } from "../src/features/cobranca/troca-entrada";
 import { comecarVigia, fecharAparelhos, hidratado, novaPessoa, tela, vigia } from "./apoio";
 
 const banco = postgres(process.env.DATABASE_URL ?? "", { max: 1 });
@@ -32,13 +33,23 @@ async function cadastrarMenores(page: Page) {
 
 /** Existing paid authority is a declared SQL fixture, not a provider payment.
  * The browser performs native quote/accept/close; it never sends a Stripe call. */
-async function prepararContrato(page: Page, email: string) {
+async function prepararContrato(
+  page: Page,
+  email: string,
+  plano: "family_monthly" | "individual_annual" = "family_monthly",
+) {
+  const produtoId = `recreio_${plano}`,
+    preco = `price_${produtoId}`;
   await page.goto("/conta/assinatura");
   const form = page.getByRole("form", { name: "Conferir e autorizar uma oferta", exact: true });
   await hidratado(
     form.getByRole("button", { name: "Registrar autorização de compra", exact: true }),
   );
-  await form.getByRole("radio", { name: /Recreio Família mensal/ }).check();
+  await form
+    .getByRole("radio", {
+      name: plano === "family_monthly" ? /Recreio Família.*por mês/ : /Recreio Individual anual/,
+    })
+    .check();
   await form.getByRole("checkbox", { name: /Declaro ter 18 anos/ }).check();
   await form.getByRole("checkbox", { name: /Conferi o plano, o valor e o período/ }).check();
   await form.getByRole("button", { name: "Registrar autorização de compra", exact: true }).click();
@@ -58,18 +69,18 @@ async function prepararContrato(page: Page, email: string) {
     if (!cliente) throw new Error("Synthetic customer absent");
     const [sub] =
       await tx`insert into billing.subscriptions (customer_id,provider,provider_subscription_id,provider_price_id,product_id,status,current_period_start,current_period_end,provider_observed_at)
-      values (${cliente.id},'stripe',${`sub_plans_ui_${sufixo}`},'price_recreio_family_monthly','recreio_family_monthly','active',${inicio},${fim},${agora}) returning id`;
+      values (${cliente.id},'stripe',${`sub_plans_ui_${sufixo}`},${preco},${produtoId},'active',${inicio},${fim},${agora}) returning id`;
     if (!sub) throw new Error("Synthetic subscription absent");
     await tx`update recreio.purchase_authorizations set request_started_at=accepted_at,provider_session_id=${`cs_plans_ui_${sufixo}`},provider_subscription_id=${`sub_plans_ui_${sufixo}`},resolved_at=${agora},resolution='checkout_completed',review_required=false where id=${pedido.id}`;
     await tx`insert into recreio.billing_contracts (subscription_id,purchase_id,group_id,payer_user_id,provider_mode,origin_product_id,origin_price_id,current_product_id,current_price_id,purchase_selection_processed_at)
-      values (${sub.id},${pedido.id},${pedido.group_id},${pedido.payer_user_id},'dev','recreio_family_monthly','price_recreio_family_monthly','recreio_family_monthly','price_recreio_family_monthly',${agora})`;
+      values (${sub.id},${pedido.id},${pedido.group_id},${pedido.payer_user_id},'dev',${produtoId},${preco},${produtoId},${preco},${agora})`;
     const [periodo] =
       await tx`insert into billing.subscription_payment_periods (subscription_id,provider,provider_invoice_id,provider_line_id,provider_price_id,period_start,period_end,paid_at,reconciled_at)
-      values (${sub.id},'stripe',${`in_plans_ui_${sufixo}`},${`il_plans_ui_${sufixo}`},'price_recreio_family_monthly',${inicio},${fim},${new Date(agora.getTime() - 60_000)},${agora}) returning id`;
+      values (${sub.id},'stripe',${`in_plans_ui_${sufixo}`},${`il_plans_ui_${sufixo}`},${preco},${inicio},${fim},${new Date(agora.getTime() - 60_000)},${agora}) returning id`;
     if (!periodo) throw new Error("Synthetic payment period absent");
     const [prova] =
       await tx`insert into recreio.funding_observations (payment_period_id,subscription_id,provider,purchase_id,group_id,payer_user_id,provider_mode,origin_product_id,funding_status,funded_until,policy_version,evidence_hash,first_observed_at)
-      values (${periodo.id},${sub.id},'stripe',${pedido.id},${pedido.group_id},${pedido.payer_user_id},'dev','recreio_family_monthly','verified',${fim},${VERSAO_DO_FINANCIAMENTO},${"0".repeat(64)},${agora}) returning id`;
+      values (${periodo.id},${sub.id},'stripe',${pedido.id},${pedido.group_id},${pedido.payer_user_id},'dev',${produtoId},'verified',${fim},${VERSAO_DO_FINANCIAMENTO},${"0".repeat(64)},${agora}) returning id`;
     if (!prova) throw new Error("Synthetic funding authority absent");
     await tx`insert into recreio.payment_funding (payment_period_id,observation_id,observed_at) values (${periodo.id},${prova.id},${agora})`;
     await tx`insert into recreio.billing_reconciliations (payer_user_id,group_id,provider_mode,last_attempt_at,last_confirmed_at,attempt_count,review_required,review_reason,next_attempt_at)
@@ -91,7 +102,7 @@ test("redução preserva seleção não inicial, mostra cotação e exige aceite
   const conferir = form.getByRole("button", { name: "Conferir condições da troca", exact: true });
   await hidratado(conferir);
   await expect(form.getByRole("radio")).toHaveCount(3);
-  await form.getByRole("radio", { name: /Recreio Individual mensal/ }).check();
+  await form.getByRole("radio", { name: /Recreio Individual.*por mês/ }).check();
   await expect(conferir).toBeDisabled();
   await form.getByRole("checkbox", { name: "Luar", exact: true }).uncheck();
   await expect(form.getByRole("checkbox", { name: "Maré", exact: true })).toBeChecked();
@@ -152,4 +163,69 @@ test("redução preserva seleção não inicial, mostra cotação e exige aceite
   await b.page.goto("/conta/assinatura");
   await expect(b.page.getByRole("heading", { name: "Troca de plano", exact: true })).toHaveCount(0);
   await expect(b.page.getByText("Maré", { exact: true })).toHaveCount(0);
+});
+
+test("crédito anual exibe total negativo e cobrança zero sem enviar; pagante não precisa de jogador", async ({
+  browser,
+}) => {
+  const a = await novaPessoa(browser, "Ana", { semPerfil: true });
+  const origem = await prepararContrato(a.page, a.email, "individual_annual");
+  const cotacaoId = randomUUID();
+  // Presentation-only quote fixture. Native preview/financial provenance and
+  // external API money have their own gates; this tests displayed/accepted terms.
+  await banco.begin(async (tx) => {
+    const [c] =
+      await tx`select c.subscription_id,c.origin_product_id,c.current_price_id,s.current_period_start,s.current_period_end from recreio.billing_contracts c join billing.subscriptions s on s.id=c.subscription_id where c.purchase_id=${origem.id}`;
+    if (!c) throw new Error("Synthetic annual contract absent");
+    const agora = new Date(),
+      proporcional = new Date(Math.floor(agora.getTime() / 1000) * 1000);
+    await tx`insert into recreio.plan_changes (id,subscription_id,purchase_id,group_id,payer_user_id,provider_mode,origin_product_id,expected_contract_revision,from_product_id,from_price_id,to_product_id,to_price_id,to_amount_cents,to_interval,kind,period_start,period_end,effective_at,proration_at,provider_item_id,quoted_amount_cents,quoted_subtotal_cents,quoted_credit_cents,quoted_total_cents,quoted_starting_balance_cents,currency,policy_version,quoted_at,quote_expires_at,status)
+      values (${cotacaoId},${c.subscription_id},${origem.id},${origem.group_id},${origem.payer_user_id},'dev',${c.origin_product_id},1,'recreio_individual_annual',${c.current_price_id},'recreio_family_monthly','price_recreio_family_monthly',12790,'month','upgrade',${c.current_period_start},${c.current_period_end},${proporcional},${proporcional},'si_annual_ui_fixture',0,12790,-59900,-47110,0,'BRL',${VERSAO_DA_TROCA},${agora},${new Date(agora.getTime() + 300_000)},'quoted')`;
+  });
+  await a.page.setViewportSize({ width: 390, height: 844 });
+  await a.page.goto("/conta/assinatura#troca-de-plano");
+  const recibo = a.page.getByRole("region", { name: "Pedido de troca", exact: true });
+  await expect(recibo.getByText("Cotação pronta para conferir", { exact: true })).toBeVisible();
+  await expect(recibo.getByText(/-.*599,00/)).toBeVisible();
+  await expect(recibo.getByText(/-.*471,10/)).toBeVisible();
+  await expect(
+    recibo.getByText("Cobrança agora", { exact: true }).locator("xpath=following-sibling::dd[1]"),
+  ).toHaveText(/0,00/);
+  await expect(
+    recibo.getByText(/Nenhum jogador. O pagante pode administrar sem jogar/),
+  ).toBeVisible();
+  await tela(a.page, "troca-credito-mobile", { paginaInteira: true });
+  const aceitar = recibo.getByRole("button", {
+    name: "Registrar autorização da troca",
+    exact: true,
+  });
+  await hidratado(aceitar);
+  await expect(aceitar).toBeDisabled();
+  await recibo
+    .getByRole("checkbox", { name: /Conferi os valores, a vigência e os jogadores/ })
+    .check();
+  await aceitar.click();
+  await expect(
+    recibo.getByText("Troca autorizada e ainda não enviada", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    recibo.getByRole("button", { name: "Enviar aumento agora", exact: true }),
+  ).toBeEnabled();
+  const [aceita] =
+    await banco`select status,accepted_at,request_started_at,quoted_amount_cents,quoted_total_cents from recreio.plan_changes where id=${cotacaoId}`;
+  expect(aceita).toMatchObject({
+    status: "accepted",
+    request_started_at: null,
+    quoted_amount_cents: 0,
+    quoted_total_cents: -47110,
+  });
+  expect(aceita?.accepted_at).toBeInstanceOf(Date);
+  const [perfis] =
+    await banco`select count(*)::integer as total from recreio.profiles where group_id=${origem.group_id}`;
+  expect(perfis?.total).toBe(0);
+  const largura = await a.page.evaluate(() => ({
+    tela: innerWidth,
+    pagina: document.documentElement.scrollWidth,
+  }));
+  expect(largura.pagina).toBeLessThanOrEqual(largura.tela);
 });

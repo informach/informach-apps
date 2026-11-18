@@ -58,6 +58,17 @@ tipo/vigência e preservação da oferta atual, inclusive totais negativos e
 pagante sem jogador. Não substitui execução/liquidação das doze direções no
 provedor nem a homologação do Checkout. Precisa de gate remoto próprio.
 
+`68b8fb6d`/`44419586441`: financeiro aprovado com a matriz nativa das doze
+cotações/aceites. No navegador `44419577727`, as quatro jornadas anteriores
+passaram sem CSP; a nova jornada parou no seletor sintético que procurava
+“mensal” no nome da oferta, enquanto o catálogo exibe o período como “por mês”.
+O teste mantém a escolha do período mensal e passa a usar esse rótulo real.
+
+A extensão da UI cobre também crédito anual, total negativo e cobrança agora
+zero, com pagante sem jogador. Cotação/contrato desse caso são fixtures SQL
+explícitas; o aceite é nativo e nenhum envio é feito. Capturas permanecem
+sintéticas, sem arte licenciada. Repetir navegador e tipos da fonte composta.
+
 ## Comportamento obrigatório
 
 - Aumento: imediato, com proporcional calculado pelo Stripe e apresentado antes
