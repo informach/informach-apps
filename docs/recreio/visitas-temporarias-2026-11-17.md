@@ -1,5 +1,17 @@
 # Recreio: visitas temporárias com anfitrião
 
+## Correção dos apelidos da prova de gestão, candidata
+
+Em `031c689c`/`44267435863`, a jornada da gestão parou no cadastro do primeiro
+jogador: `Sol que cuida do mundo` tem 21 caracteres, acima do contrato
+`APELIDO.max = 20`. O segundo apelido também tinha 21. O formulário permaneceu
+corretamente em `/comecar`; a fixture esperava `/estante`. Os nomes de teste
+foram reduzidos a `Sol da visita`, `Mar recebe visita` e `Rio visita`.
+Não foi ampliado o limite para acomodar o ensaio. A falha familiar daquela
+rodada é a captura de endereço corrigida em `f21630ea`, não uma falha de
+hidratação. Ambos os corretivos exigem qualificação completa no GitHub.
+Sem migration ou produção.
+
 ## Correção da navegação na prova familiar, candidata
 
 `70f85381`/`44266657089` concluiu sete gates e 39 jornadas de navegador.

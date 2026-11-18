@@ -41,9 +41,9 @@ function sinal() {
 test("gestão nativa aprova visita de um membro sem confundir anfitrião com responsável pelo mundo", async ({
   browser,
 }) => {
-  const dono = await novaPessoa(browser, "Sol que cuida do mundo"),
-    anfitriao = await novaPessoa(browser, "Mar que recebe visita"),
-    visitante = await novaPessoa(browser, "Rio que visita");
+  const dono = await novaPessoa(browser, "Sol da visita"),
+    anfitriao = await novaPessoa(browser, "Mar recebe visita"),
+    visitante = await novaPessoa(browser, "Rio visita");
   const mundo = await criarMundo(dono.page, "Jogo de teste", "Casa de encontros do Sol");
   await convidar(dono.page, anfitriao.page, mundo);
   await visitante.page.goto("/amigos");

@@ -1,5 +1,11 @@
 # Estado do trabalho no repositório
 
+**18/11 — fixture de gestão corrigida:** `031c689c` parou em `/comecar`
+porque os dois apelidos de teste tinham 21 caracteres, acima do máximo 20.
+Nomes agora respeitam o contrato. Limites e produto preservados. O corretivo
+de endereço `f21630ea` está em `44269499310`; a candidata com ambos os ajustes
+exige nova rodada completa. Sem implantação de F5.
+
 **18/11 — jornada familiar corrigida:** `70f85381` teve sete gates e 39 E2E
 aprovados; a nova jornada guardou `/visitas` antes de terminar a navegação do
 Link e voltou à lista após as aprovações. Captura/trace conferidos no artefato
