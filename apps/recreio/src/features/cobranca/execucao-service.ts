@@ -9,6 +9,7 @@ import { limitarTentativas } from "@/lib/rate-limit";
 import { comCicloDeCobranca } from "./lifecycle";
 import {
   admitirCompraEmCursoLocked,
+  admitirConsultaDaCompraLocked,
   capturarEstadoDaCompraLocked,
   conferirCompraParaEnvioLocked,
   conferirDevolucaoDaCompraLocked,
@@ -19,7 +20,7 @@ import type { RuntimeDeCompra } from "./runtime";
 /** O factory permite compor o mesmo executor com transporte real ou de ensaio,
  * mantendo os modos, a autoridade nativa e a persistência no caminho único.
  */
-export function criarExecutorDeCompra(obterRuntime: () => RuntimeDeCompra) {
+function criarOperacaoDeCompra(obterRuntime: () => RuntimeDeCompra, somenteLeitura: boolean) {
   return async (autor: AutorNativoRecente, entrada: unknown) => {
     const id = z.uuid().parse(entrada);
     assertAllowed(
@@ -33,24 +34,27 @@ export function criarExecutorDeCompra(obterRuntime: () => RuntimeDeCompra) {
       janelaEmSegundos: 600,
     });
     return comCicloDeCobranca(autor.contaId, async () => {
-      await conferirCompraParaEnvioLocked(autor, id);
+      await conferirCompraParaEnvioLocked(autor, id, somenteLeitura);
       const runtime = obterRuntime();
-      // Leitura externa antes da marca; uma falha de catálogo não inicia compra.
-      await runtime.conferirCatalogo();
-      const prova = await admitirCompraEmCursoLocked(autor, id);
+      // Recuperar uma operação admitida não depende da disponibilidade do catálogo.
+      if (!somenteLeitura) await runtime.conferirCatalogo();
+      const prova = somenteLeitura
+        ? await admitirConsultaDaCompraLocked(autor, id)
+        : await admitirCompraEmCursoLocked(autor, id);
       let falhou = false;
-      try {
-        await runtime.criarCheckout({
-          subject: { type: "user", id: prova.payerId },
-          actorId: prova.payerId,
-          productId: prova.productId,
-          successUrl: runtime.urlDeRetorno,
-          cancelUrl: runtime.urlDeRetorno,
-          managedAuthorization: { id: prova.id, expiresAt: prova.expiresAt },
-        });
-      } catch {
-        falhou = true;
-      }
+      if (!somenteLeitura)
+        try {
+          await runtime.criarCheckout({
+            subject: { type: "user", id: prova.payerId },
+            actorId: prova.payerId,
+            productId: prova.productId,
+            successUrl: runtime.urlDeRetorno,
+            cancelUrl: runtime.urlDeRetorno,
+            managedAuthorization: { id: prova.id, expiresAt: prova.expiresAt },
+          });
+        } catch {
+          falhou = true;
+        }
       let observado: Awaited<ReturnType<RuntimeDeCompra["inspecionar"]>> = null;
       try {
         observado = await runtime.inspecionar(prova.payerId, prova.id);
@@ -90,4 +94,11 @@ export function criarExecutorDeCompra(obterRuntime: () => RuntimeDeCompra) {
       return { tipo: "checkout" as const, destino, recibo };
     });
   };
+}
+
+export function criarExecutorDeCompra(obterRuntime: () => RuntimeDeCompra) {
+  return criarOperacaoDeCompra(obterRuntime, false);
+}
+export function criarConsultaDeCompra(obterRuntime: () => RuntimeDeCompra) {
+  return criarOperacaoDeCompra(obterRuntime, true);
 }

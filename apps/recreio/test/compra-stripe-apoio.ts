@@ -79,9 +79,11 @@ export async function fixtureDeCheckout() {
     },
   };
   const list = (data: unknown[]) => ({ object: "list", data, has_more: false, url: "/fixture" });
+  const requests: { method: string; path: string }[] = [];
   const transport: typeof fetch = async (input, init) => {
     const request = new Request(input, init),
       url = new URL(request.url);
+    requests.push({ method: request.method, path: url.pathname });
     let resposta: unknown;
     if (request.method === "GET" && url.pathname.startsWith("/v1/prices/")) {
       resposta = prices.find((p) => p.id === url.pathname.split("/").pop());
@@ -225,6 +227,7 @@ export async function fixtureDeCheckout() {
     enviar,
     inspect,
     runtime,
+    requests,
     prices,
     aposPersistir: (callback: () => Promise<void>) => {
       depoisDePersistir = callback;

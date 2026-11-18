@@ -37,6 +37,39 @@ A jornada `commercial-ui` cobre dois adultos sem jogador, escolha/recarga,
 encerramento e ausência de customer/concessão/envio, com capturas de 390 px.
 Interface e jornada ainda aguardam execução remota nesta candidata.
 
+Em `4f735856`/`44303875582`, a jornada `commercial-ui` passou; as duas capturas
+foram baixadas e inspecionadas em 390 px. Artefato `14427695847`, 155414 bytes,
+SHA-256 `e8171480b66019bc463763723469f68bb5fff08452140d11fa8161717abc9e73`.
+Preços, seleção, recorrência e recibo cabem na largura; a lista de ofertas usa
+rolagem vertical. CI compartilhado `44303897143` e demais gates ainda em curso.
+
+O incremento de recuperação seguinte separa consultar a tentativa já iniciada
+de criar Checkout. Consulta não chama catálogo nem POST do provedor e nunca
+marca como enviado um pedido novo. Mantém revisão diante de ausência de resposta,
+revalida o contexto nativo e conserva o UUID/prazo. O botão de pedido enviado
+passa a usar exclusivamente essa leitura. Aguarda verificação remota.
+
+### Próximo incremento: conciliação e prova financeira
+
+- Criar estado comercial próprio por pagante/grupo exatos, com fila recuperável,
+  próxima tentativa, última tentativa e última confirmação distintas. Falha não
+  atualiza confirmação. A fila precisa atender outros pagantes após uma falha.
+- Toda leitura do provedor ocorre sob o ciclo financeiro e fora da transação.
+  Persistir espelhos e períodos pelo motor comum, sem aceitar desaparecimento ou
+  mudança da identidade imutável de fatura/linha. Divergência preserva histórico e
+  exige revisão explícita. Cobrança concluída não equivale a fatura liquidada.
+- Na admissão, assinatura paga exige período conciliado vigente, preço correto,
+  ausência de estorno total/contestação e conferência recente e sem revisão.
+  Intersectar esse prazo com assinatura, cancelamento e aparelho. O teste gratuito
+  nativo continua sendo concessão própria; não fabricar fatura para autorizá-lo.
+- Webhook assinado apenas admite fatos do customer Recreio/modo corretos e
+  agenda conciliação idempotente. Evento adverso bloqueia prontamente a cobertura;
+  não apagar progresso. Recibo financeiro e invalidação das SIDs são atômicos.
+- Gerar DDL no GitHub, adotar os arquivos intactos com hashes e predecessores,
+  provar upgrade/replay e os consumidores. Testes sintéticos devem registrar
+  explicitamente os fatos financeiros que desejam provar; não reduzir o contrato
+  novo para conservar fixtures baseadas apenas em status.
+
 `2a8fa076` passou nos nove gates `44285538484`, incluindo consentimento nativo
 e retirada, modos reais `off`/`setup`, integridade SQL e regressões. A interface
 `0523217f`, `44289414523`, acrescenta página própria sem exigir jogador e passou

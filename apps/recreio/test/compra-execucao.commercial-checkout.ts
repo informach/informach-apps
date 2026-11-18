@@ -7,7 +7,7 @@ import {
 } from "@informach/db/schema";
 import { VERSAO_DA_RESPONSABILIDADE } from "@informach/recreio";
 import { describe, expect, it } from "vitest";
-import { criarExecutorDeCompra } from "@/features/cobranca/execucao-service";
+import { criarConsultaDeCompra, criarExecutorDeCompra } from "@/features/cobranca/execucao-service";
 import { consultarMinhaCompra } from "@/features/cobranca/service";
 import { cadastrarPerfilMenor, prepararPerfilMenor } from "@/features/familia/service";
 import {
@@ -63,9 +63,27 @@ describe("executor financeiro nativo com PostgreSQL e SDK Stripe por transporte 
     });
     expect(f.sessions).toHaveLength(1);
     f.restaurarInspecao();
-    expect((await executar(f.adulto.autor, f.recibo.id)).tipo).toBe("checkout");
+    for (const preco of f.prices) preco.unit_amount = 1;
+    const anteriores = f.requests.length;
+    expect((await criarConsultaDeCompra(() => f.runtime)(f.adulto.autor, f.recibo.id)).tipo).toBe(
+      "checkout",
+    );
+    expect(f.requests.slice(anteriores).every((r) => r.method === "GET")).toBe(true);
+    expect(
+      f.requests
+        .slice(anteriores)
+        .some((r) => r.path.includes("/prices/") || r.path.includes("/configurations/")),
+    ).toBe(false);
     expect(f.sessions).toHaveLength(1);
     expect(f.sessions[0]?.expires_at).toBe(f.authorization.expiresAt);
+  });
+  it("consultar pedido nunca enviado não inicia tentativa nem chama o provedor", async () => {
+    const f = await fixtureDeCheckout();
+    await expect(
+      criarConsultaDeCompra(() => f.runtime)(f.adulto.autor, f.recibo.id),
+    ).rejects.toMatchObject({ code: "COBRANCA" });
+    expect(f.requests).toEqual([]);
+    expect((await consultarMinhaCompra(f.adulto.autor))?.tentativaIniciadaEm).toBeNull();
   });
   it.each(["open", "complete", "expired"])(
     "logout durante I/O captura %s sem devolver dados financeiros",

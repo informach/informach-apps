@@ -256,6 +256,7 @@ async function comCompraParaEnvio<T>(
   autor: AutorNativoRecente,
   id: string,
   executar: (tx: Transacao, linha: Compra, agora: Date) => Promise<T>,
+  somenteLeitura = false,
 ) {
   const [pista] = await db
     .select({ id: groups.id })
@@ -277,20 +278,22 @@ async function comCompraParaEnvio<T>(
         ),
       )
       .for("update");
-    assertAllowed(
-      linha &&
+    assertAllowed(linha, "COBRANCA", "Pedido não disponível.");
+    if (!somenteLeitura) {
+      assertAllowed(
         !linha.resolvedAt &&
-        linha.policyVersion === VERSAO_DA_COMPRA &&
-        linha.adultDeclarationVersion === VERSAO_DA_DECLARACAO_ADULTA,
-      "COBRANCA",
-      "Confira a autorização atual antes de continuar.",
-    );
-    conferirOfertaDaCompra({
-      produtoId: linha.productId,
-      valorCentavos: linha.amountCents,
-      moeda: linha.currency,
-      intervalo: linha.interval,
-    });
+          linha.policyVersion === VERSAO_DA_COMPRA &&
+          linha.adultDeclarationVersion === VERSAO_DA_DECLARACAO_ADULTA,
+        "COBRANCA",
+        "Confira a autorização atual antes de continuar.",
+      );
+      conferirOfertaDaCompra({
+        produtoId: linha.productId,
+        valorCentavos: linha.amountCents,
+        moeda: linha.currency,
+        intervalo: linha.interval,
+      });
+    }
     const agora = await atual.nativa.conferirPrazo(autor.login);
     const resultado = await executar(tx, linha, agora);
     await atual.nativa.conferirPrazo(autor.login);
@@ -326,16 +329,26 @@ async function iniciarLinha(tx: Transacao, linha: Compra, agora: Date) {
 }
 
 /** Não faz I/O externo; usada antes da conferência somente de leitura do catálogo. */
-export function conferirCompraParaEnvioLocked(autor: AutorNativoRecente, id: string) {
-  return comCompraParaEnvio(autor, id, async (_tx, linha, agora) => {
-    assertAllowed(
-      linha.requestStartedAt !== null ||
-        agora.getTime() < linha.acceptedAt.getTime() + PRAZO_PARA_INICIAR_COMPRA_MS,
-      "OFERTA",
-      "Esta autorização venceu antes do envio. Encerre-a e confira a oferta atual.",
-    );
-    return recibo(linha);
-  });
+export function conferirCompraParaEnvioLocked(
+  autor: AutorNativoRecente,
+  id: string,
+  somenteLeitura = false,
+) {
+  return comCompraParaEnvio(
+    autor,
+    id,
+    async (_tx, linha, agora) => {
+      assertAllowed(
+        somenteLeitura ||
+          linha.requestStartedAt !== null ||
+          agora.getTime() < linha.acceptedAt.getTime() + PRAZO_PARA_INICIAR_COMPRA_MS,
+        "OFERTA",
+        "Esta autorização venceu antes do envio. Encerre-a e confira a oferta atual.",
+      );
+      return recibo(linha);
+    },
+    somenteLeitura,
+  );
 }
 
 /** Não cria customer nem retorna URL. A mesma marca não renova o prazo de aceite. */
@@ -376,6 +389,30 @@ export function admitirCompraEmCursoLocked(
       expiresAt: Math.floor(iniciada.acceptedAt.getTime() / 1000) + 3600,
     };
   });
+}
+
+/** Consulta uma tentativa já admitida, sem iniciar outra e sem renovar prazos. */
+export function admitirConsultaDaCompraLocked(
+  autor: AutorNativoRecente,
+  id: string,
+): Promise<CompraEmCurso> {
+  return comCompraParaEnvio<CompraEmCurso>(
+    autor,
+    id,
+    async (_tx, linha) => {
+      assertAllowed(linha.requestStartedAt, "COBRANCA", "Este pedido ainda não foi enviado.");
+      return {
+        [COMPRA_ADMITIDA]: true,
+        id: linha.id,
+        payerId: linha.payerUserId,
+        groupId: linha.groupId,
+        productId: linha.productId,
+        startedAt: linha.requestStartedAt,
+        expiresAt: Math.floor(linha.acceptedAt.getTime() / 1000) + 3600,
+      };
+    },
+    true,
+  );
 }
 
 /** Conferência recente depois do I/O e antes de devolver uma URL financeira. */

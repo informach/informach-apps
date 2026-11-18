@@ -3,7 +3,12 @@ import { useHydrated } from "@informach/ui/hooks/use-hydrated";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { VERSAO_DA_DECLARACAO_ADULTA } from "@/features/grupo/convites-constantes";
-import { encerrarCompraAction, enviarCompraAction, prepararCompraAction } from "../actions";
+import {
+  conferirCompraAction,
+  encerrarCompraAction,
+  enviarCompraAction,
+  prepararCompraAction,
+} from "../actions";
 import { VERSAO_DA_COMPRA } from "../constantes";
 import type { consultarMinhaCobranca } from "../service";
 
@@ -25,14 +30,17 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
     oferta = estado.ofertas.find((o) => o.productId === produtoId);
   const ativa = compra && !compra.resolvidoEm;
 
-  function executar(acao: "preparar" | "encerrar" | "enviar") {
+  function executar(acao: "preparar" | "encerrar" | "enviar" | "conferir") {
     if (pendente || conferir) return;
     setErro("");
     setRecente(false);
     iniciar(async () => {
       try {
-        if (acao === "enviar" && compra) {
-          const resposta = await enviarCompraAction(compra.id);
+        if ((acao === "enviar" || acao === "conferir") && compra) {
+          const resposta =
+            acao === "conferir"
+              ? await conferirCompraAction(compra.id)
+              : await enviarCompraAction(compra.id);
           if (resposta.ok) {
             window.location.assign(
               resposta.data.tipo === "checkout" ? resposta.data.destino : "/conta/assinatura",
@@ -142,10 +150,10 @@ export function GerirCompra({ estado, pedidoId }: { estado: Estado; pedidoId: st
               type="button"
               className="rb rb-sol mt-4"
               disabled={bloqueado}
-              onClick={() => executar("enviar")}
+              onClick={() => executar(compra.tentativaIniciadaEm ? "conferir" : "enviar")}
             >
               {compra.tentativaIniciadaEm
-                ? "Recuperar envio no ambiente de teste"
+                ? "Conferir envio no ambiente de teste"
                 : "Continuar no ambiente de teste"}
             </button>
           )}
