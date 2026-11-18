@@ -20,6 +20,7 @@
     "e2e": "node scripts/isolated.mjs e2e",
     "e2e:trial-setup": "node scripts/isolated.mjs e2e-trial-setup",
     "e2e:commercial-setup": "node scripts/isolated.mjs e2e-commercial-setup",
+    "e2e:commercial-plans": "node scripts/isolated.mjs e2e-commercial-plans",
     "e2e:trial-experiment": "node scripts/isolated.mjs e2e-trial-experiment",
     "e2e:versoes": "node scripts/isolated.mjs versoes",
     "e2e:equipe": "node scripts/isolated.mjs equipe",

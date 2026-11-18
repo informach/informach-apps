@@ -6,7 +6,7 @@ on:
       verification_gate:
         description: Verificação auxiliar; somente all qualifica a rodada completa
         type: choice
-        options: [all, quality, commercial-reconciliation]
+        options: [all, quality, commercial-reconciliation, commercial-ui]
         default: all
       sandbox_catalog:
         description: Conferir catálogo real no Stripe Sandbox (sem clientes ou cobranças)
@@ -197,7 +197,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        gate: ${{ fromJSON(inputs.verification_gate == 'quality' && '["quality"]' || inputs.verification_gate == 'commercial-reconciliation' && '["commercial-reconciliation"]' || '["quality","integration","trial-setup","trial-experiment","trial-ui","trial-play","commercial-setup","commercial-checkout","commercial-ui","commercial-reconciliation","e2e","checkpoint","cliente","longa","versoes","equipe"]') }}
+        gate: ${{ fromJSON(inputs.verification_gate == 'quality' && '["quality"]' || inputs.verification_gate == 'commercial-reconciliation' && '["commercial-reconciliation"]' || inputs.verification_gate == 'commercial-ui' && '["commercial-ui"]' || '["quality","integration","trial-setup","trial-experiment","trial-ui","trial-play","commercial-setup","commercial-checkout","commercial-ui","commercial-reconciliation","e2e","checkpoint","cliente","longa","versoes","equipe"]') }}
     services:
       postgres:
         image: postgres:18-alpine
@@ -290,6 +290,11 @@ jobs:
         run: pnpm --filter @informach/recreio-app e2e:trial-setup
       - if: matrix.gate == 'commercial-ui'
         run: pnpm --filter @informach/recreio-app e2e:commercial-setup
+      - name: Block external Stripe for synthetic plan UI
+        if: matrix.gate == 'commercial-ui'
+        run: echo '127.0.0.1 api.stripe.com' | sudo tee -a /etc/hosts
+      - if: matrix.gate == 'commercial-ui'
+        run: pnpm --filter @informach/recreio-app e2e:commercial-plans
       - if: matrix.gate == 'trial-play'
         run: pnpm --filter @informach/recreio-app e2e:trial-experiment
       - if: matrix.gate == 'checkpoint'
@@ -408,6 +413,8 @@ jobs:
             apps/recreio/tmp/telas/troca-selecao-mobile.png
             apps/recreio/tmp/telas/troca-selecao-confirmada-mobile.png
             apps/recreio/tmp/telas/compra-perfis-individual-mobile.png
+            apps/recreio/tmp/telas/troca-cotacao-mobile.png
+            apps/recreio/tmp/telas/troca-autorizada-mobile.png
           if-no-files-found: warn
           retention-days: 7
       - name: Preserve synthetic first-session screens

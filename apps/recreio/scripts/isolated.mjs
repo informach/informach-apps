@@ -31,6 +31,7 @@ if (
     "commercial-checkout",
     "commercial-reconciliation",
     "e2e-commercial-setup",
+    "e2e-commercial-plans",
     "e2e-stripe-sandbox",
     "e2e-trial-setup",
     "e2e-trial-experiment",
@@ -40,13 +41,15 @@ if (
   ].includes(mode)
 )
   throw new Error(
-    "Choose integration, trial-setup, trial-experiment, commercial-setup, commercial-checkout, commercial-reconciliation, e2e-commercial-setup, e2e-stripe-sandbox, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
+    "Choose integration, trial-setup, trial-experiment, commercial-setup, commercial-checkout, commercial-reconciliation, e2e-commercial-setup, e2e-commercial-plans, e2e-stripe-sandbox, e2e-trial-setup, e2e-trial-experiment, e2e, versoes or equipe",
   );
 const trialSetup = mode === "trial-setup";
 const trialExperiment = mode === "trial-experiment";
 const commercialSetup = mode === "commercial-setup";
 const commercialReconciliation = mode === "commercial-reconciliation";
-const commercialCheckout = mode === "commercial-checkout" || commercialReconciliation;
+const jornadaDasTrocas = mode === "e2e-commercial-plans";
+const commercialCheckout =
+  mode === "commercial-checkout" || commercialReconciliation || jornadaDasTrocas;
 const jornadaDaCompra = mode === "e2e-commercial-setup";
 const jornadaStripe = mode === "e2e-stripe-sandbox";
 const jornadaDoTeste = mode === "e2e-trial-setup";
@@ -60,6 +63,7 @@ const e2e =
   jornadaDoTeste ||
   jornadaDoInicio ||
   jornadaDaCompra ||
+  jornadaDasTrocas ||
   jornadaStripe;
 const baseUrl = process.env.DATABASE_URL;
 const pnpmCli = process.env.npm_execpath;
@@ -335,6 +339,7 @@ try {
           ...(jornadaDoTeste ? ["--config", "playwright.teste.config.ts"] : []),
           ...(jornadaDoInicio ? ["--config", "playwright.teste-inicio.config.ts"] : []),
           ...(jornadaDaCompra ? ["--config", "playwright.compra.config.ts"] : []),
+          ...(jornadaDasTrocas ? ["--config", "playwright.trocas.config.ts"] : []),
           ...(jornadaStripe ? ["--config", "playwright.stripe-sandbox.config.ts"] : []),
           ...process.argv.slice(3),
         ],

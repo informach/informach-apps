@@ -46,11 +46,17 @@ prova não conclui Checkout ou aceite nativo. Compra com seleção inicial e tro
 nativas avançaram: `03fa9ee6` concluiu os dezesseis gates `44396550083`, incluindo
 94 testes financeiros. APIs reais mensal/anual do adapter próprio passaram em
 `44394357376` e `44391555451`, com limpeza confirmada; não são Checkout nativo.
-0211–0213 permanecem candidatas, geradas e adotadas intactas. O CI compartilhado
+0211–0215 permanecem candidatas, geradas e adotadas intactas. O CI compartilhado
 encontrou dois casos da fixture Cozya sem quantidade; correção em qualificação,
-sem afrouxar o leitor. A origem dos créditos está em implementação: núcleo
-puro com doze testes aprovado em quality `44400593264`, ainda sem persistência
-ou uso no acesso. [Contrato e limites](recreio/financiamento-creditos-2026-11-18.md).
+sem afrouxar o leitor. A origem dos créditos avançou para composição por cliente,
+provas nativas e leitura obrigatória no acesso: financeiro `44416128033` aprovou
+108 casos, com corte de SID por eventos adversos na origem e crédito anual.
+Consulta/actions de trocas em `8d0e7f46`: quality `44416858086` e 112 casos em
+`44416863303` aprovados. API de teste entre dois contratos comprovada com limpeza
+em `44409975899`. Rodada integral `44415248464`: quinze gates aprovados, uma
+fixture de retenção recusada e corrigida; falta rodada integral da fonte final.
+Telas de cotação/aceite/envio em candidata para prova de navegador.
+[Contrato e limites](recreio/financiamento-creditos-2026-11-18.md).
 Nenhuma candidata F6 foi implantada nem cobrança habilitada. Trocas completas,
 endpoint público,
 agendamento operacional e homologação comercial seguem abertos. [Levantamento

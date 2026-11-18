@@ -27,6 +27,23 @@ desligadas. Quatro testes novos cobrem pagante sem jogador, isolamento de conta/
 modo, recibo encerrado e aparelho revogado. Telas e prova de navegador ainda
 precisam ser concluídas; este incremento não altera preços, migrations ou flags.
 
+`8d0e7f46`: consulta/actions aprovadas em quality `44416858086` e financeiro
+`44416863303` (112 casos). A etapa de financiamento anterior, com recuperação
+comercial após estorno, passou nos 108 casos em `dc68534a`/`44416128033`.
+Rodada integral `472c79b5`/`44415248464`: quinze gates aprovados; o financeiro
+recusou a fixture que apagava contrato retido, corrigida na fonte seguinte.
+Isso ainda exige rodada integral da fonte final, sem extrapolar passes parciais.
+
+A tela seguinte separa cotação, aceite e envio, apresenta todos os termos
+congelados e a seleção registrada, limita a escolha da redução e conserva
+consulta/recuperação de tentativa admitida quando novas vendas estão desligadas.
+Resposta desconhecida bloqueia outro envio até reler o pedido. A prova de UI
+usa contrato financeiro SQL explicitamente sintético, cadastro e ações nativas
+reais para redução, aceite e encerramento sem envio; não certifica pagamento
+ou execução de agenda no Stripe. `e2e:commercial-plans` usa somente a chave
+placeholder do isolamento e o CI bloqueia `api.stripe.com`. Integra o gate
+obrigatório `commercial-ui`, com opção auxiliar própria para depuração.
+
 ## Comportamento obrigatório
 
 - Aumento: imediato, com proporcional calculado pelo Stripe e apresentado antes
