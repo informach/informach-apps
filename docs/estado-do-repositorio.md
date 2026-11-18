@@ -1,5 +1,12 @@
 # Estado do trabalho no repositório
 
+**18/11 — levantamento comercial F6:** preços confirmados e motor recuperável
+existente mapeados; teste sem cartão da proposta é 48 h × sete dias, começando
+na primeira sessão autorizada. O adapter atual ainda não leva período
+financeiro finito à decisão de acesso; corrigir antes de habilitar cobrança.
+Inspeção e documentação não homologam Stripe ou autorizam venda. [Achados e
+provas exigidas](recreio/comercial-levantamento-2026-11-18.md).
+
 **18/11 — fixture de gestão corrigida:** `031c689c` parou em `/comecar`
 porque os dois apelidos de teste tinham 21 caracteres, acima do máximo 20.
 Nomes agora respeitam o contrato. Limites e produto preservados. O corretivo
