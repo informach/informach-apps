@@ -1,5 +1,17 @@
 # Recreio: visitas temporárias com anfitrião
 
+## Correção da fixture de paginação, candidata
+
+A rodada da gestão `031c689c`/`44267435863` teve 1053 integrações aprovadas
+e uma falha no preparo da paginação: a fixture tentou inserir doze convites
+pendentes para a mesma combinação mundo/origem/destino/presença. O índice
+`recreio_visit_invite_one_pending` recusou corretamente a duplicação (23505).
+A fixture agora cria destinatários reais distintos, conservando datas iguais
+para testar o cursor. Esses recibos são somente para leitura/ordenação da fila;
+não provam emissão ou aprovação. O índice e o escritor permanecem intactos.
+Caixa/transição `d2ad24f5` está em `44268230251`; a correção exige nova rodada
+completa. Sem migração ou produção.
+
 ## Atualização — caixa na partida e salvar para visitar em candidata
 
 O painel social negocia a caixa de visitas do SDK: páginas, consulta técnica,

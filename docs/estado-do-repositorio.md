@@ -1,5 +1,11 @@
 # Estado do trabalho no repositório
 
+**18/11 — correção da fixture de fila:** a gestão `031c689c` passou em
+1053/1054 integrações; uma fixture duplicava pendências da mesma ponta/presença,
+corretamente recusadas pelo índice 23505. Destinatários distintos corrigem o
+preparo sem alterar integridade ou escritor. Transição `d2ad24f5` em
+`44268230251`; corretivo exige nova rodada completa. Produção inalterada.
+
 **18/11 — caixa na partida/transição de visita em candidata:** consultas e
 decisões do SDK integradas; `Salvar e visitar` exige capacidade real, módulo
 finalizável e recibo `completed`. Conflito/falha não navegam. Jornada remota

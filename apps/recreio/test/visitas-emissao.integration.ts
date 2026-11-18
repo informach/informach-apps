@@ -200,10 +200,14 @@ it("fila de visitas pagina datas iguais sem carregar nomes ou recibos de outro m
     autor = { ...r.dono.nativo, perfilId: r.dono.gestor.perfil.id },
     [base] = await db.select().from(invites).where(eq(invites.id, r.recibo.conviteId));
   if (!base) throw new Error("Recibo ausente");
-  const copias = Array.from({ length: 12 }, () => ({
+  // Recibos só para ordenar a fila técnica, nunca para provar emissão/aprovação.
+  // Cada pendência precisa de destinatário real distinto pelo índice de integridade.
+  const destinatarios = await Promise.all(Array.from({ length: 12 }, () => novoJogador()));
+  const copias = destinatarios.map((destinatario) => ({
     ...base,
     id: crypto.randomUUID(),
     clientKey: crypto.randomUUID(),
+    targetProfileId: destinatario.perfil.id,
   }));
   await db.insert(invites).values(copias);
   const primeira = await visitasAguardandoOMundo(autor, r.c.mundoId, {});
