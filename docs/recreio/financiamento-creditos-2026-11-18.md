@@ -1,0 +1,56 @@
+# Recreio — financiamento dos créditos
+
+Os ensaios [anuais](credito-anual-investigacao-2026-11-18.md) comprovaram os
+fatos do provedor; a concessão nativa ainda precisa rastrear a origem monetária.
+O problema inclui proporcionais mensais: pagamento próprio e crédito de uma
+fatura antiga podem financiar juntos a linha nova. Estorno da origem precisa
+afetar seus dependentes, e uma linha já creditada não pode voltar a conceder
+todo o período antigo quando o mesmo preço for contratado novamente.
+
+## Núcleo em qualificação
+
+`financiamento-regras.ts` recebe fatos privados já isolados por cliente, modo,
+contrato e moeda. Não consulta rede, relógio ou banco. Confere alocações das
+capturas, soma das linhas, saldo e ledger completo em ordem do provedor. Não
+inventa ordem por IDs quando timestamps empatam. Cada crédito refere exatamente
+uma linha positiva anterior, mesmo preço e sufixo do período; créditos acima
+do valor original, captura reutilizada e ciclos recusam prova.
+
+A origem atravessa fatura negativa, saldo e consumo na renovação, inclusive
+consumo final parcial combinado com nova captura. O ledger não atribui cada
+centavo a uma captura. Por isso um saldo parcialmente consumido conserva,
+de modo conservador, todas as origens até zerar. Nenhum rateio monetário por
+captura é inventado. Um período posterior pago integralmente com dinheiro novo,
+após saldo zerado, conserva sua origem independente.
+
+O resultado separa `comprovado`, `revogado` e `em_conferencia`. Estorno total
+ou contestação da origem revoga os dependentes; estorno parcial exige revisão.
+Isso não altera os flags históricos de estorno/contestação da fatura própria.
+O fim financiado é separado do fim original imutável: o sufixo devolvido em
+crédito limita a cobertura antiga sem apagar ou reescrever o recibo financeiro.
+Ajuste manual/credit note desconhecido não é promovido a captura.
+
+Os testes incluem os valores externos observados, mensal com duas origens,
+renovação de valor zero, saldo esgotado parcialmente, estorno/contestação,
+independência de período posterior, ordem/paginação lógica, ciclos, limites e
+duplicação. Precisam de execução remota antes de afirmar aprovação.
+
+## Integração necessária
+
+Este núcleo ainda não recebe o leitor do Stripe nem é usado para conceder
+acesso. O próximo adapter precisa validar recursos e ler todas as páginas com
+prazo, limites e prova de completude, conferindo novamente a fronteira do saldo
+para detectar mutações durante a leitura. Scope externo não é inferido pelo
+núcleo. Os fixtures de HTTP precisam conter os campos reais usados nessa prova.
+
+Persistir no domínio Recreio as origens e a comprovação por período, junto da
+confirmação financeira e oferta/seleção. Os períodos comuns conservam IDs,
+datas e fatos originais; uma nova coluna não pode declarar históricos antigos
+comprovados por default. Leitores de acesso devem exigir essa prova e limitar
+o fim financiado. Replay precisa manter conflito da mesma observação e não
+permitir que uma captura tardia mais antiga restaure um bloqueio mais recente.
+
+Concluir provas com SDK/HTTP, PostgreSQL, fonte adversa durante a troca e depois
+da aplicação, retorno a preço anterior e API real usando o núcleo. Só então
+integrar as telas/ações completas e a homologação das doze transições. Venda,
+trial e demais recursos comerciais de produção continuam desligados.
