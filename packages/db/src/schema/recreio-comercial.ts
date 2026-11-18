@@ -128,7 +128,7 @@ export const recreioPurchaseAuthorizations = recreio.table(
     check(
       "recreio_purchase_authorization_subscription_link",
       sql`${t.providerSubscriptionId} is null or
-      (${t.requestStartedAt} is not null and ${t.providerSessionId} is not null and length(${t.providerSubscriptionId}) between 8 and 256)`,
+      (${t.requestStartedAt} is not null and ${t.providerSessionId} is not null and ${t.resolution} is distinct from 'expired_unpaid' and length(${t.providerSubscriptionId}) between 8 and 256)`,
     ),
     check(
       "recreio_purchase_authorization_offer",
