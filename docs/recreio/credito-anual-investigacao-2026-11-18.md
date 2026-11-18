@@ -6,7 +6,7 @@ sem débito novo. O plano não pode tratar o simples status `paid` ou uma linha
 positiva como captura. A liberação precisa rastrear a fatura inicial quitada,
 as linhas creditadas, o consumo do saldo e estornos/contestações dessa origem.
 
-## Ensaio de API preparado
+## Ensaio de API executado
 
 O workflow `Recreio`, operação `sandbox_plans`, recebe o cenário opcional
 `annual_credit`. O padrão `monthly_upgrade` conserva o ensaio mensal anterior.
@@ -23,6 +23,18 @@ O cenário anual prepara somente customer/relógio próprios e pagamento de test
 4. Confirmar que o leitor ainda retém cobertura sem origem rastreada.
 5. Estornar a captura anual de origem, reler a prova e encerrar somente os
    recursos do próprio relógio. Limpeza é verificada mesmo na falha.
+
+O [run 44388863046](https://github.com/informach/informach-apps/actions/runs/44388863046),
+fonte `ace8a1d8b34ca89eeb0b58e869d6b72b00819c74`, passou. Artefato 14466554355,
+1.773 bytes, SHA-256 e limites no [recibo](evidencias/credito-anual-api-44388863046.json).
+ZIP baixado e seus dois JSONs inspecionados. A captura anual foi 59.900 centavos;
+a troca gerou linha positiva 12.790, crédito -59.900 e total -47.110, sem captura.
+A linha negativa referencia a fatura/linha anual original. O ledger registrou
+`applied_to_invoice` negativo nessa fatura e positivo na renovação: consumo de
+12.790, saldo passando de -47.110 para -34.320, sem novo pagamento.
+O estorno da origem anual foi detectado, o leitor reteve os períodos sem origem
+rastreada e a limpeza dos recursos próprios foi confirmada. Isso demonstra por
+que o tipo do ledger, sozinho, não distingue criação e consumo do saldo.
 
 O artefato contém apenas IDs de teste, valores, tipos do ledger e correlações;
 não contém nomes, contato, cartão, segredos, URLs financeiras ou respostas brutas.
@@ -42,7 +54,23 @@ A cotação, tentativa recuperável, fatura própria do upgrade, seleção/contr
 atuais e captura financeira precisam da mesma homologação nativa das reduções.
 F6 e a venda continuam pendentes enquanto essa cadeia não estiver concluída.
 
+## Adapter de aumento em qualificação
+
+`providers/stripe-recreio-upgrades` separa o aumento do adapter genérico. A prévia
+confere modo, cliente, assinatura, compra original, item único, período e todas
+as linhas/valores. Relê a assinatura após o I/O; o envio fixa o item e o segundo
+aceitos, reconfere o proporcional e usa chave exclusiva por pedido. Recuperação
+somente de leitura procura eventos pela chave exata e mantém incerteza quando
+eles não existem. Fatura desconhecida, cursor repetido, assinatura divergente e
+janela de idempotência vencida não autorizam outra cobrança. Metadata original
+não é reescrita. Uma observação `applied` do provedor não concede cobertura.
+
+O ensaio anual passa a consumir esse adapter na próxima fonte, antes de sua
+integração com cotação/aceite/transação nativos. Essa extensão ainda precisa de
+tipos, regressões e prova externa próprios; o run acima certifica o adapter
+genérico usado naquela fonte. Origem financeira do saldo e F6 continuam abertos.
+
 Referências oficiais consultadas: [Stripe Node, recursos da API](https://github.com/stripe/stripe-node),
 [saldo do cliente](https://docs.stripe.com/billing/customer/balance) e tipos
-locais do SDK Stripe 22.1.0 fixado no lockfile. O ensaio externo ainda precisa
-ser executado e seu artefato inspecionado antes de registrar resultados.
+locais do SDK Stripe 22.1.0 fixado no lockfile. API estável
+`2026-04-22.dahlia`, sem adoção de endpoints de preview novos.

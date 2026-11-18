@@ -28,6 +28,7 @@
     "./collection-jobs": "./src/collection-jobs.ts",
     "./providers/stripe": "./src/providers/stripe.ts",
     "./providers/stripe-plans": "./src/providers/stripe-plans.ts",
+    "./providers/stripe-recreio-upgrades": "./src/providers/stripe-recreio-upgrades.ts",
     "./providers/stripe-future-contract": "./src/providers/stripe-future-contract.ts",
     "./providers/stripe-legacy-deferral": "./src/providers/stripe-legacy-deferral.ts",
     "./collection-accounts": "./src/collection-accounts.ts",

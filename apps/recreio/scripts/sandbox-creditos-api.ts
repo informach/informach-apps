@@ -1,5 +1,10 @@
+import { randomUUID } from "node:crypto";
 import type { createStripePaymentFactReader } from "@informach/billing/payment-facts";
-import { createStripeProvider } from "@informach/billing/providers/stripe";
+import {
+  createStripeRecreioUpgrades,
+  type RecreioUpgradeScope,
+  recreioUpgradeKey,
+} from "@informach/billing/providers/stripe-recreio-upgrades";
 import type Stripe from "stripe";
 
 type Oferta = { productId: string; priceId: string; amountCents: number };
@@ -111,47 +116,46 @@ export async function observarCreditoAnual(entrada: {
     }
     return result;
   }
-  const provider = createStripeProvider({
+  const provider = createStripeRecreioUpgrades({
     secretKey: "unused",
-    webhookSecret: "unused",
-    appName: "Recreio annual credit API fixture",
+    mode: "dev",
     client: stripe,
   });
-  verify(provider.previewInvoice, "annual_preview_api_missing");
   const prorationDate = item.current_period_start;
-  const quote = await provider.previewInvoice({
+  const scope: RecreioUpgradeScope = {
+    intentId: randomUUID(),
     customerId,
-    providerSubscriptionId: sub.id,
-    newPriceId: family.priceId,
-    prorationBehavior: "always_invoice",
-    prorationDate,
-  });
+    subscriptionId: sub.id,
+    fromPriceId: individual.priceId,
+    toPriceId: family.priceId,
+    periodStart: new Date(item.current_period_start * 1000),
+    periodEnd: new Date(item.current_period_end * 1000),
+    prorationAt: new Date(prorationDate * 1000),
+    origin: {
+      authorizationId: sub.metadata.checkout_intent_id ?? "",
+      productId: sub.metadata.product_id ?? "",
+      payerId: sub.metadata.subject_id ?? "",
+    },
+    budget: { deadlineMs: Date.now() + 90_000 },
+  };
+  const quote = await provider.preview(scope);
   verify(
-    quote.currency === "BRL" &&
-      quote.totalCents !== undefined &&
-      quote.totalCents < 0 &&
-      quote.amountDueCents === 0,
+    quote.currency === "BRL" && quote.totalCents < 0 && quote.amountDueCents === 0,
     "annual_credit_quote_differs",
   );
   proof.creditQuote = {
     subtotal: quote.subtotalCents,
-    credit: quote.prorationCreditCents,
+    credit: quote.creditCents,
     total: quote.totalCents,
     due: quote.amountDueCents,
     prorationDate,
   };
-  const updateKey = `${prefix}:annual-credit-upgrade`;
-  const update = await provider.updateSubscription({
-    providerSubscriptionId: sub.id,
-    newPriceId: family.priceId,
-    prorationBehavior: "always_invoice",
-    prorationDate,
-    paymentBehavior: "pending_if_incomplete",
-    idempotencyKey: updateKey,
-  });
-  const upgradeInvoiceId = update.latestInvoice?.id;
+  const attempt = { ...scope, quote, requestStartedAt: new Date() };
+  const updateKey = recreioUpgradeKey(scope.intentId);
+  const update = await provider.apply(attempt);
+  const upgradeInvoiceId = update.invoiceId;
   verify(
-    upgradeInvoiceId && upgradeInvoiceId !== initialInvoiceId,
+    update.outcome === "applied" && upgradeInvoiceId !== initialInvoiceId,
     "annual_upgrade_invoice_missing",
   );
   const credit = await invoiceFacts(upgradeInvoiceId);
@@ -169,15 +173,9 @@ export async function observarCreditoAnual(entrada: {
     ),
     "annual_credit_origin_line_missing",
   );
-  const replay = await provider.updateSubscription({
-    providerSubscriptionId: sub.id,
-    newPriceId: family.priceId,
-    prorationBehavior: "always_invoice",
-    prorationDate,
-    paymentBehavior: "pending_if_incomplete",
-    idempotencyKey: updateKey,
-  });
-  verify(replay.latestInvoice?.id === upgradeInvoiceId, "annual_upgrade_replay_differs");
+  const replay = await provider.apply(attempt);
+  verify(replay.invoiceId === upgradeInvoiceId, "annual_upgrade_replay_differs");
+  proof.upgradeAdapter = "recreio_scoped_v1";
   const changed = await stripe.subscriptions.retrieve(sub.id);
   const currentItem = changed.items.data[0];
   verify(
