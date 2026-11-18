@@ -526,9 +526,18 @@ export function capturarEstadoDaCompraLocked(
         "A tentativa exige conferência.",
       );
     if (linha.resolvedAt) return recibo(linha);
-    const expirada = estado?.status === "expired" && estado.subscriptionId === null;
+    if (estado?.subscriptionId)
+      assertAllowed(
+        linha.providerSubscriptionId === null ||
+          linha.providerSubscriptionId === estado.subscriptionId,
+        "COBRANCA",
+        "A assinatura informada exige conferência.",
+      );
+    const assinaturaId = estado?.subscriptionId ?? linha.providerSubscriptionId;
+    const expirada =
+      estado?.status === "expired" && estado.subscriptionId === null && assinaturaId === null;
     let linkValido = false;
-    if (estado?.status === "open" && estado.url) {
+    if (estado?.status === "open" && estado.url && assinaturaId === null) {
       try {
         stripeDestination(estado.url);
         linkValido = true;
@@ -538,12 +547,18 @@ export function capturarEstadoDaCompraLocked(
     }
     const revisao = !linkValido;
     const sessaoId = estado?.id ?? linha.providerSessionId;
-    if (!expirada && linha.providerSessionId === sessaoId && linha.reviewRequired === revisao)
+    if (
+      !expirada &&
+      linha.providerSessionId === sessaoId &&
+      linha.providerSubscriptionId === assinaturaId &&
+      linha.reviewRequired === revisao
+    )
       return recibo(linha);
     const [atualizada] = await tx
       .update(purchases)
       .set({
         providerSessionId: sessaoId,
+        providerSubscriptionId: assinaturaId,
         reviewRequired: expirada ? false : revisao,
         ...(expirada ? { resolvedAt: AGORA, resolution: "expired_unpaid" as const } : {}),
       })

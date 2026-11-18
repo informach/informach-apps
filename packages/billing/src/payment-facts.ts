@@ -29,6 +29,13 @@ export type SubscriptionPaymentSnapshot = {
   cancelAtPeriodEnd: boolean;
   periods: PaidPeriodFact[];
   observedAt: Date;
+  /** Optional for legacy readers; native purchases require this exact origin. */
+  origin?: {
+    authorizationId: string;
+    subjectType: string | null;
+    subjectId: string | null;
+    productId: string | null;
+  };
 };
 const MAX_HISTORY = 600;
 
@@ -43,7 +50,11 @@ export type NativePlanPortalPolicy = {
   privacyUrl: string;
 };
 
-export function createStripePaymentFactReader(config: { secretKey: string; client?: Stripe }) {
+export function createStripePaymentFactReader(config: {
+  secretKey: string;
+  client?: Stripe;
+  expectedMode?: StripeMode;
+}) {
   const stripe =
     config.client ??
     new Stripe(config.secretKey, {
@@ -51,6 +62,10 @@ export function createStripePaymentFactReader(config: { secretKey: string; clien
       timeout: 30000,
       maxNetworkRetries: 2,
     });
+  function conferirModo(resource: { livemode: boolean }) {
+    if (config.expectedMode !== undefined && resource.livemode !== (config.expectedMode === "prod"))
+      throw new Error("Financial resource belongs to another Stripe mode");
+  }
   async function chargeForPayment(payment: Stripe.InvoicePayment): Promise<Stripe.Charge> {
     if (payment.payment.type === "payment_intent" && payment.payment.payment_intent) {
       const intent =
@@ -281,6 +296,7 @@ export function createStripePaymentFactReader(config: { secretKey: string; clien
         status: "all",
         limit: 100,
       })) {
+        conferirModo(subscription);
         if (ids.length >= MAX_HISTORY)
           throw new Error("Subscription history exceeds reconciliation limit");
         ids.push(subscription.id);
@@ -293,6 +309,7 @@ export function createStripePaymentFactReader(config: { secretKey: string; clien
     ): Promise<SubscriptionPaymentSnapshot | null> {
       const observedAt = new Date();
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      conferirModo(subscription);
       if (subscription.items.data.length !== 1)
         throw new Error("Suite subscriptions require exactly one recurring item");
       const item = subscription.items.data[0];
@@ -308,6 +325,7 @@ export function createStripePaymentFactReader(config: { secretKey: string; clien
         status: "paid",
         limit: 100,
       })) {
+        conferirModo(invoice);
         if (++invoices > MAX_HISTORY)
           throw new Error("Invoice history exceeds reconciliation limit");
         const paidAt = invoice.status_transitions?.paid_at;
@@ -336,6 +354,7 @@ export function createStripePaymentFactReader(config: { secretKey: string; clien
             throw new Error("Paid invoice settlement has no valid amount");
           if (amount === 0) continue;
           const charge = await chargeForPayment(payment);
+          conferirModo(charge);
           const chargeCustomerId =
             typeof charge.customer === "string" ? charge.customer : charge.customer?.id;
           if (
@@ -410,6 +429,16 @@ export function createStripePaymentFactReader(config: { secretKey: string; clien
         cancelAtPeriodEnd: cancelsAtPeriodEnd(subscription, item.current_period_end),
         periods,
         observedAt,
+        ...(subscription.metadata?.checkout_intent_id
+          ? {
+              origin: {
+                authorizationId: subscription.metadata.checkout_intent_id,
+                subjectType: subscription.metadata.subject_type ?? null,
+                subjectId: subscription.metadata.subject_id ?? null,
+                productId: subscription.metadata.product_id ?? null,
+              },
+            }
+          : {}),
       };
     },
   };

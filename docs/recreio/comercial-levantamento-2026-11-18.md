@@ -101,6 +101,26 @@ restrições simultaneamente: esperava FK `23503`, mas colidia antes na unicidad
 na partição de modo ainda livre e testa a unicidade à parte, preservando ambas
 as constraints e a expectativa exata da FK; exige nova execução integral.
 
+0208 acrescenta vínculo único opcional da assinatura ao aceite já vinculado ao
+Checkout. Geração `44309018134`/`dc4c77e4`, artefato `14430150678`, 65990 bytes,
+SHA-256 `8d11602ed478a53522007412db2936d316f647af871db1fb99c1f0772b85dd55`.
+SQL `0208_tan_menace.sql`: 895 bytes/
+`c32731130be82b7a53e8df7158b1d5542506736cfd212a416a634c370ba6ea43`;
+snapshot: 956847 bytes/`42403e05464aa93fcd4494de22586996ecef6e62ea73b2a8ccb2eab56177f56c`;
+journal: 31547 bytes/`4a6991f8b9728825d60327a0e0bcc92eab044d6d07f2a19a7662e4b9b2d6ad33`.
+Snapshot `dea623ef-8a6b-4f5a-a4cf-130199c85867` segue `200ff4f3-07e9-4014-ae64-dbd641acdc3c`;
+três hashes e prefixo de 208 entradas conferidos, arquivos adotados intactos.
+Geração anterior substituída não foi adotada. Campo aditivo conserva registros
+antigos sem inventar vínculo; o adapter novo exige origem conhecida para acesso.
+
+A candidata captura o ID de assinatura recebido pelo Checkout sem tratá-lo como
+pagamento. O leitor comum passa a fornecer a proveniência selecionada dos
+metadados e admite conferência explícita do modo, mantendo o contrato dos
+consumidores antigos. Quatro provas do SDK com HTTP fechado cobrem origem,
+metadados ausentes e modo alheio em contrato/fatura. Três provas SQL adicionais
+cobrem vínculo sem tentativa, expiração incompatível e duplicidade de assinatura.
+Ainda aguardam gates; webhook, conciliação e admissão por pagamento seguem abertos.
+
 - Criar estado comercial próprio por pagante/grupo exatos, com fila recuperável,
   próxima tentativa, última tentativa e última confirmação distintas. Falha não
   atualiza confirmação. A fila precisa atender outros pagantes após uma falha.

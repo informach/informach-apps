@@ -1,0 +1,4 @@
+ALTER TABLE "recreio"."purchase_authorizations" ADD COLUMN "provider_subscription_id" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "recreio_purchase_authorization_subscription" ON "recreio"."purchase_authorizations" USING btree ("provider_subscription_id") WHERE "recreio"."purchase_authorizations"."provider_subscription_id" is not null;--> statement-breakpoint
+ALTER TABLE "recreio"."purchase_authorizations" ADD CONSTRAINT "recreio_purchase_authorization_subscription_link" CHECK ("recreio"."purchase_authorizations"."provider_subscription_id" is null or
+      ("recreio"."purchase_authorizations"."request_started_at" is not null and "recreio"."purchase_authorizations"."provider_session_id" is not null and "recreio"."purchase_authorizations"."resolution" is distinct from 'expired_unpaid' and length("recreio"."purchase_authorizations"."provider_subscription_id") between 8 and 256));

@@ -110,6 +110,7 @@ describe("executor financeiro nativo com PostgreSQL e SDK Stripe por transporte 
       ).rejects.toMatchObject({ code: "AUTH" });
       const [linha] = await db.select().from(purchases).where(eq(purchases.id, f.recibo.id));
       expect(linha?.providerSessionId).toBe(f.sessions[0]?.id);
+      expect(linha?.providerSubscriptionId).toBe(f.sessions[0]?.subscription);
       expect(linha?.resolution).toBe(status === "expired" ? "expired_unpaid" : null);
       expect(linha?.reviewRequired).toBe(status === "complete");
     },

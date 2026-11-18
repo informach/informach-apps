@@ -68,6 +68,11 @@ describe("integridade da autorização financeira", () => {
     ["resultado desconhecido", sql`resolved_at=accepted_at, resolution='inventado'`],
     ["revisão sem tentativa", sql`review_required=true`],
     ["sessão sem tentativa", sql`provider_session_id='cs_test_sem_tentativa'`],
+    ["assinatura sem tentativa", sql`provider_subscription_id='sub_test_sem_tentativa'`],
+    [
+      "assinatura em Checkout expirado sem contrato",
+      sql`request_started_at=accepted_at,provider_session_id='cs_test_expirado',provider_subscription_id='sub_test_expirado',resolved_at=accepted_at,resolution='expired_unpaid'`,
+    ],
     ["envio antes do aceite", sql`request_started_at=accepted_at-interval '1 second'`],
     [
       "fechamento antes do aceite",
@@ -113,6 +118,19 @@ describe("integridade da autorização financeira", () => {
       await codigoDoBanco(
         db.execute(sql`update recreio.purchase_authorizations set request_started_at=accepted_at,
       provider_session_id='cs_test_compartilhada' where id=${b.linha.id}`),
+      ),
+    ).toBe("23505");
+  });
+  it("a mesma assinatura externa não pode pertencer a dois aceites", async () => {
+    const a = await fixture(),
+      b = await fixture();
+    const assinatura = `sub_test_${randomUUID()}`;
+    await db.execute(sql`update recreio.purchase_authorizations set request_started_at=accepted_at,
+      provider_session_id='cs_test_'||id::text,provider_subscription_id=${assinatura} where id=${a.linha.id}`);
+    expect(
+      await codigoDoBanco(
+        db.execute(sql`update recreio.purchase_authorizations set request_started_at=accepted_at,
+      provider_session_id='cs_test_'||id::text,provider_subscription_id=${assinatura} where id=${b.linha.id}`),
       ),
     ).toBe("23505");
   });
