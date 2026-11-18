@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { env } from "@/lib/env";
-import { pedir } from "./rotas";
+import { despachar, ORIGEM, pedir } from "./rotas";
 
 describe("fronteira operacional da conciliação financeira", () => {
   it("recusa chamadas sem o segredo do agendador", async () => {
     for (const headers of [undefined, { authorization: "Bearer incorreto" }])
-      expect(await pedir("POST", "/api/jobs/conciliacao", { headers })).toMatchObject({
+      expect(
+        await despachar(`${ORIGEM}/api/jobs/conciliacao`, { method: "POST", headers }),
+      ).toMatchObject({
         status: 401,
       });
   });
