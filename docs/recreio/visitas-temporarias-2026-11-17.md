@@ -1,5 +1,43 @@
 # Recreio: visitas temporárias com anfitrião
 
+## Qualificação das duas jornadas e preparação operacional — 18/11
+
+Fonte congelada `d014bd90a895df452b83b9a2e6e683ac5749e0cb`, workflow
+`44273574563`: **oito gates aprovados**, 1054 integrações/89 arquivos, cinco
+provas da projeção do Bastidores, 41 E2E comuns e oito E2E de checkpoint.
+Upgrade preservou 179→204 e 191→204, incluindo perfis, progresso, conquistas,
+mundos, membros, fotos, diário, convites antigos e cerca; repetição sem mudança.
+
+A jornada manual de gestão nativa passou em 31,9 s; a infantil, com dois
+responsáveis e duas entradas físicas separadas, em 44,2 s. A jornada coordenada
+passou em 22 s, aguardando os bytes reais do recibo de salvamento antes de criar
+outra sessão. Não houve mudança dos modos de produção, ACK sintético ou membro
+temporário fabricado.
+
+Capturas atuais de 390 px inspecionadas: responsável, aceite com encerramento
+habilitado, gestão do mundo e saída manual/coordenada. Artefatos conferidos por
+fonte, tamanho e SHA-256 antes de extrair:
+
+- `14415405456`, 4052658 bytes,
+  `ba4f89be1b577c6caf16550995b1df2e790ee315bae0401c8e866c28f98f93c7`.
+- `14414480721`, 144420 bytes,
+  `afbaa99373f5cadef5947b4bbf7fb890b2513618d95005387533d3ce289807a8`.
+
+Integração local `04ab6be5` preserva a main pública `4ba44d73`, os fontes do
+Edi/Morada e os pins de produção. Oito gates `44274913293` aprovados; CI
+compartilhado `44274912833` ainda em curso. Não é publicação em origin/main.
+CI anterior `44272436756` (`adfe3971`) foi cancelado por estar substituído pela
+qualificação da integração atual; não é prova de êxito integral dessa fonte.
+O migrator foi configurado e relido com `startCommand=pnpm db:migrate`, sem
+acionar deployment. Restauração prévia concluída com o executor já homologado
+`6b51dd13`: snapshot às 09:33:53 UTC, 19485531 bytes, 255 tabelas e 286703 linhas,
+conteúdo e estrutura comparada idênticos; origem somente de leitura. Temporários
+e serviço removidos, 34 serviços e nenhum volume destacado. [Evidência](evidencias/backup-logico-2026-11-18-pre-mundos.json).
+Leitura SQL somente de leitura às 09:35:48 UTC confirmou 191 recibos, ausência
+de presença/visitas F5, dois mundos, dez fotos e nenhuma sessão aberta.
+Produção permanece portal `396fe932`, Morada `644b3841`, 191/0190. F5 não está
+implantado e esta qualificação não encerra F6–F11 ou libera venda.
+
 ## Provas de saída manual e salvamento coordenado, candidatas
 
 `af148638`/`44270231113` concluiu sete gates e 40 E2E. A gestão nativa aprovou
