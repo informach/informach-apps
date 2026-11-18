@@ -1,0 +1,6 @@
+ALTER TABLE "recreio"."plan_changes" ADD COLUMN "provider_item_id" text;--> statement-breakpoint
+ALTER TABLE "recreio"."plan_changes" ADD COLUMN "quoted_starting_balance_cents" integer NOT NULL;--> statement-breakpoint
+ALTER TABLE "recreio"."plan_changes" ADD CONSTRAINT "recreio_plan_change_upgrade_terms" CHECK ("recreio"."plan_changes"."quoted_total_cents"::bigint="recreio"."plan_changes"."quoted_subtotal_cents"::bigint+"recreio"."plan_changes"."quoted_credit_cents"::bigint and
+    (("recreio"."plan_changes"."kind"='upgrade' and "recreio"."plan_changes"."provider_item_id" is not null and left("recreio"."plan_changes"."provider_item_id",3)='si_' and length("recreio"."plan_changes"."provider_item_id") between 8 and 256 and
+       "recreio"."plan_changes"."quoted_amount_cents"::bigint=greatest(0,"recreio"."plan_changes"."quoted_total_cents"::bigint+"recreio"."plan_changes"."quoted_starting_balance_cents"::bigint)) or
+     ("recreio"."plan_changes"."kind"='downgrade' and "recreio"."plan_changes"."provider_item_id" is null and "recreio"."plan_changes"."quoted_starting_balance_cents"=0)));

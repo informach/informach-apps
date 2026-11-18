@@ -183,9 +183,26 @@ reduções, soma exata subtotal + crédito = total e valor devido coerente com
 total + saldo. A conferência é em bigint para evitar overflow na soma. Uma
 expressão SQL desconhecida por NULL não substitui a prova do item.
 
-Esta DDL ainda precisa ser gerada no GitHub e adotada intacta. O campo de saldo
-é obrigatório, sem default/backfill fictício. Implantar somente após comprovar
+0213 foi gerada no GitHub em `44392273559`, fonte `835b92ec`, e adotada intacta:
+três hashes, prefixo 213→214 e predecessor conferidos no
+[recibo](evidencias/migracao-upgrade-termos-0213.json). O campo de saldo é
+obrigatório, sem default/backfill fictício. Implantar somente após comprovar
 `plan_changes` vazia e escritores comerciais desligados. Se houver recibos,
 parar e preparar transformação com proveniência. O adapter externo não
 autoriza, por si só, gravar um upgrade ou liberar cobertura; cotação nativa,
 tentativa/recuperação e financiamento anual continuam em implementação.
+
+A candidata de cotação nativa usa duas admissões do adulto/grupo/contrato:
+antes do catálogo/prévia externos e novamente depois. O mutex do ciclo de
+cobrança permanece, mas as transações e travas de perfil terminam antes do I/O.
+O segundo escritor exige contrato, seleção e período idênticos, conserva a
+data proporcional inicial, registra os valores retornados e audita tudo na
+mesma transação. Replay retorna o recibo persistido sem outra prévia. Não
+existe aceite fictício ou cotação provisória quando a resposta se perde.
+
+As novas regressões percorrem compra e pagamento sintéticos nativos no
+PostgreSQL, prévia pelo SDK em HTTP fechado, aceite vinculado ao saldo, ausência
+de jogador, autoridade alheia, mudança concorrente de perfil com lock_timeout,
+logout durante a rede, fatura inconsistente e rollback de auditoria. Elas ainda
+precisam passar remotamente. A composição pública/telas e o executor nativo de
+aumento não estão ligados por este incremento; a venda continua desligada.

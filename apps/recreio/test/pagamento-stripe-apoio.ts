@@ -17,6 +17,7 @@ function dados(f: Checkout) {
     customer: f.providerCustomerId,
     livemode: false,
     status: "active",
+    collection_method: "charge_automatically",
     cancel_at_period_end: false,
     cancel_at: null,
     trial_end: null,

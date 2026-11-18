@@ -1,0 +1,34 @@
+{
+  "source": "835b92ec0ebec026beb0f355c5b04f61748f674f",
+  "runId": "44392273559",
+  "artifactId": "14467732758",
+  "zipBytes": 68687,
+  "zipSha256": "fc58ffff7c227d8ba735e121aa02f4f2c324f88165cc38b039622a2cdbe54945",
+  "files": [
+    {
+      "path": "packages/db/src/migrations/0213_parallel_excalibur.sql",
+      "bytes": 1101,
+      "sha256": "0d7f7f97e51f82fb939a0a35883baaa2847e3042b4c8d880facef1449ea07b97"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/0213_snapshot.json",
+      "bytes": 989102,
+      "sha256": "f730b3bcc6bb58a9adb7e981233ed4cf2e3632b95e920a38c6e9140af1100787"
+    },
+    {
+      "path": "packages/db/src/migrations/meta/_journal.json",
+      "bytes": 32286,
+      "sha256": "42fa57328790471868da560c46d380e0f0505c2b5fd7be7d9150802da773cd94"
+    }
+  ],
+  "entriesBefore": 213,
+  "entriesAfter": 214,
+  "snapshotId": "7670fab6-6d00-4f32-b7e3-cc7739efb5f8",
+  "previousSnapshotId": "4b2adb32-43a8-4de9-9769-79a5556539df",
+  "deploymentPrecondition": {
+    "planChangesEmpty": true,
+    "commercialWritersOff": true,
+    "stopIfHistoricalReceiptsExist": true,
+    "fabricatedBackfill": false
+  }
+}
