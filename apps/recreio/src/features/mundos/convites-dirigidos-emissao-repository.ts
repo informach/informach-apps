@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { logAuditEventStrict } from "@informach/auth";
-import { and, eq, gt, inArray, sql } from "@informach/db";
+import { and, eq, gt, inArray, or, sql } from "@informach/db";
 import {
   recreioDirectedInviteWorldApprovals as approvals,
   recreioSpaceInvites as codes,
@@ -100,7 +100,12 @@ export function gravarConviteDirigido(autor: AutorDeMundos, pedido: NovoConviteD
       const [retidos] = await tx
         .select({ total: sql<number>`count(*)::int` })
         .from(invites)
-        .where(eq(invites.originProfileId, autor.perfilId));
+        .where(
+          or(
+            eq(invites.originProfileId, autor.perfilId),
+            eq(invites.targetProfileId, pedido.perfilId),
+          ),
+        );
       const [codigos] = await tx
         .select({ total: sql<number>`count(*)::int` })
         .from(codes)

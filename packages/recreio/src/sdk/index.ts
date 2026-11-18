@@ -1,5 +1,12 @@
 import type { z } from "zod";
 import {
+  CaixaDeConvitesDirigidosSchema,
+  ConsultaDeConvitesDirigidosSchema,
+  ConviteDirigidoSchema,
+  type ConvitesDirigidosDoPerfil,
+  MutacaoDeConviteDirigidoSchema,
+} from "../contrato/convites-dirigidos";
+import {
   ChaveDeDadosSchema,
   ConquistaSchema,
   DadoLidoSchema,
@@ -97,6 +104,8 @@ export type OpcoesDoRecreio = {
   salvamentoRestrito?: boolean;
   /** Negociação explícita, após os leitores sociais do servidor estarem implantados. */
   social?: boolean;
+  /** Requer social; publicar depois dos endpoints e leitores dos convites dirigidos. */
+  convitesDirigidos?: boolean;
   /** Aguarda o ACK de outro aparelho, conservando o mesmo ingresso e prova. */
   aguardarCheckpoint?: boolean;
   aoAguardarCheckpoint?: () => void;
@@ -156,6 +165,7 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
       ...(chaveDeTroca === undefined ? {} : { chaveDeTroca }),
       ...(opcoes.salvamentoRestrito ? { suportaSalvamento: true } : {}),
       ...(opcoes.social ? { suportaSocial: true } : {}),
+      ...(opcoes.social && opcoes.convitesDirigidos ? { suportaConvitesDirigidos: true } : {}),
     },
   } as const;
   const aberta = await (async () => {
@@ -370,7 +380,51 @@ export async function criarRecreio(opcoes: OpcoesDoRecreio): Promise<RecreioGame
     },
   };
 
+  const convites: ConvitesDirigidosDoPerfil = {
+    async listar(apos) {
+      exigirSessao();
+      const consulta = ConsultaDeConvitesDirigidosSchema.parse(
+        apos ? { aposEm: apos.em, aposId: apos.id } : {},
+      );
+      const parametros = new URLSearchParams();
+      if (consulta.aposEm && consulta.aposId) {
+        parametros.set("aposEm", consulta.aposEm);
+        parametros.set("aposId", consulta.aposId);
+      }
+      const query = parametros.toString();
+      return enviar(
+        `/convites-dirigidos${query ? `?${query}` : ""}`,
+        CaixaDeConvitesDirigidosSchema,
+        { method: "GET", token },
+      );
+    },
+    async consultar(conviteId) {
+      exigirSessao();
+      return enviar("/convites-dirigidos", ConviteDirigidoSchema, {
+        method: "POST",
+        token,
+        corpo: MutacaoDeConviteDirigidoSchema.parse({ operacao: "consultar", conviteId }),
+      });
+    },
+    async emitir(pedido) {
+      exigirSessao();
+      return enviar("/convites-dirigidos", ConviteDirigidoSchema, {
+        method: "POST",
+        token,
+        corpo: MutacaoDeConviteDirigidoSchema.parse({ ...pedido, operacao: "emitir" }),
+      });
+    },
+    async responder(conviteId, acao) {
+      exigirSessao();
+      return enviar("/convites-dirigidos", ConviteDirigidoSchema, {
+        method: "POST",
+        token,
+        corpo: MutacaoDeConviteDirigidoSchema.parse({ operacao: "responder", conviteId, acao }),
+      });
+    },
+  };
   const social: SocialDoPerfil = {
+    ...(opcoes.convitesDirigidos && aberta.convitesDirigidos ? { convitesDeMundo: convites } : {}),
     async participantes(mundoId, apos) {
       exigirSessao();
       const consulta = ConsultaDeParticipantesSchema.parse({

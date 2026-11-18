@@ -164,3 +164,32 @@ título interno L. Essa descrição não é prova de que os testes passaram.
 Gates, concorrência adicional, upgrade, HTTP/SDK, caixas de entrada, superfícies
 nativas e E2E dos convites dirigidos ainda precisam ser concluídos. Visitas e
 sucessão de mundo infantil continuam abertas; F5 não está pronta.
+
+Backend `622be7d1` aprovado nos oito gates `44203618156`: 757 integrações em
+82 arquivos, além dos gates de qualidade, navegador, checkpoint, cliente,
+simulação longa, versões e equipe. Dezesseis testes novos exercitam os serviços
+dirigidos; não são prova de jornada de convites pela interface. Não houve
+implantação de 0191–0196.
+
+## Candidata HTTP e SDK
+
+O próximo incremento adiciona `GET/POST /api/sdk/v1/convites-dirigidos`, corpo
+estrito de até 4096 bytes e SID atual. A caixa mostra dez recibos próprios,
+com cursor por data/UUID, jogo, direção, estado, prazo e perfil opaco da outra
+ponta; sem nomes, conta, geração, política, presença ou conteúdo. SID filtra o
+próprio jogo. Consulta nativa da caixa e consulta do responsável atual não
+exigem cobertura. Leitura detalhada pelo jogo ainda exige sua autoridade atual.
+
+SDK oferece `social.convitesDeMundo` somente com opção explícita
+`convitesDirigidos: true` junto de `social: true` e resposta negociada do
+servidor. Clientes anteriores não recebem campo novo na abertura. Recibos são
+emitidos, consultados e respondidos manualmente, sem retry automático. O teto
+de convites pendentes do mundo é compartilhado com os códigos adultos; a
+retenção por emissor/destinatário também é limitada sob as travas dos perfis.
+
+Cinco integrações novas candidatas provam capacidade, dois SIDs reais,
+resposta perdida depois do commit, recuperação explícita, identidade/campos
+estranhos, rejeição de aprovação parental pelo SDK, SID encerrado, outro jogo
+e paginação. Ainda sem resultado dos gates deste incremento. Nenhum componente
+do host ou tela nativa oferece os novos botões neste marco. Faltam superfícies,
+aprovações nativas utilizáveis, concorrência adicional, upgrade e E2E completo.

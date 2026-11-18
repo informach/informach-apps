@@ -3,12 +3,15 @@
 **17/11, 23h UTC — candidata F5:** gestão, criação infantil e proteção de
 participantes sem amizade passaram nos oito gates `44196661859`; a consulta
 parental gratuita em todos os mundos atuais do menor passou nos oito gates
-`44197543292`, fonte congelada `a59e1923`. Backend dos convites dirigidos em
-candidata, sem rotas/telas ativas e ainda sem gates. Migrations 0191–0196
+`44197543292`, fonte congelada `a59e1923`. Backend dos convites dirigidos
+`622be7d1` passou nos oito gates `44203618156`, com 757 integrações. HTTP/SDK
+em candidata seguinte, sem botões ou novas telas. Migrations 0191–0196
 geradas no GitHub, ausentes de produção neste checkout.
 [Contrato, provas e limites](recreio/mundos-completos-2026-11-17.md).
-F4 isolada e integrada passou em oito gates; seu CI compartilhado e a implantação
-seguem em curso. Este registro privado não declara F4/F5 ou a plataforma prontas.
+F4 passou nos gates/CI compartilhado e foi implantada em `396fe932`, com social
+desligado, 191 recibos/0190 e integração pública `86d9b05e`. Seus registros
+operacionais estão na main pública. Este registro privado não declara F4/F5 ou
+a plataforma prontas.
 
 **16/11 — Recreio:** o titular priorizou [finalizar a plataforma web](recreio/fechamento-plataforma-2026-11-16.md)
 independente de D3–D8 do Morada. Confirmou os quatro preços e o cadastro de

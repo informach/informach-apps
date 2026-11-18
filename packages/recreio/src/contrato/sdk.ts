@@ -51,6 +51,7 @@ export const TrocaDeIngressoSchema = z.strictObject({
   /** Negociação explícita; clientes anteriores não recebem a nova capacidade. */
   suportaSalvamento: z.literal(true).optional(),
   suportaSocial: z.literal(true).optional(),
+  suportaConvitesDirigidos: z.literal(true).optional(),
   ingresso: z.string().min(1),
   /** Prova para recuperar a mesma abertura; nunca reabre ou renova outro SID. */
   chaveDeTroca: z
@@ -62,6 +63,7 @@ export const TrocaDeIngressoSchema = z.strictObject({
 });
 
 export const SessaoAbertaSchema = z.strictObject({
+  convitesDirigidos: z.literal(true).optional(),
   social: z.literal(true).optional(),
   salvamento: CapacidadeDeSalvamentoSchema.optional(),
   token: z.string().min(1),

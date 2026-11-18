@@ -97,6 +97,8 @@ export const ListaSocialSchema = z.strictObject({
 });
 export type ListaSocial = z.infer<typeof ListaSocialSchema>;
 export interface SocialDoPerfil {
+  /** Presente apenas quando cliente e servidor negociaram os novos recibos. */
+  convitesDeMundo?: import("./convites-dirigidos").ConvitesDirigidosDoPerfil;
   /** Apenas participantes atuais de um mundo do próprio perfil e do jogo da sessão. */
   participantes(mundoId: string, apos?: string): Promise<ParticipantesDoMundo>;
   listar(apos?: string): Promise<ListaSocial>;
