@@ -74,6 +74,13 @@ baixado e inspecionado; estorno detectado e limpeza confirmada. Os dezesseis
 gates dessa fonte ainda precisam concluir. Integração com cotação/aceite/transação
 nativos e origem financeira do saldo continuam abertas, assim como F6.
 
+O cenário mensal seguinte passa a consumir o mesmo adapter próprio: valor
+proporcional fixo, cartão de teste recusado, replay da fatura pendente, pagamento
+explícito dessa fatura, recuperação somente de leitura e depois a agenda de
+redução já existente. Essa extensão requer nova execução antes de atribuir ao
+adapter próprio a prova mensal anterior do adapter genérico. Continua sendo
+somente API externa, sem Checkout/aceite/cobertura nativos.
+
 Referências oficiais consultadas: [Stripe Node, recursos da API](https://github.com/stripe/stripe-node),
 [saldo do cliente](https://docs.stripe.com/billing/customer/balance) e tipos
 locais do SDK Stripe 22.1.0 fixado no lockfile. API estável

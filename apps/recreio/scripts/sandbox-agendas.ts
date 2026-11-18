@@ -4,8 +4,12 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { createStripePaymentFactReader } from "@informach/billing/payment-facts";
-import { createStripeProvider } from "@informach/billing/providers/stripe";
 import { createStripeRecreioPlanSchedules } from "@informach/billing/providers/stripe-plans";
+import {
+  createStripeRecreioUpgrades,
+  type RecreioUpgradeAttempt,
+  type RecreioUpgradeScope,
+} from "@informach/billing/providers/stripe-recreio-upgrades";
 import { PRODUCTS } from "@informach/config";
 import Stripe from "stripe";
 import { z } from "zod";
@@ -225,21 +229,25 @@ async function main() {
         verify,
       });
     } else {
-      const billing = createStripeProvider({
+      const billing = createStripeRecreioUpgrades({
         secretKey: "unused",
-        webhookSecret: "unused",
-        appName: "Recreio provider API fixture",
+        mode: "dev",
         client: stripe,
       });
-      verify(billing.previewInvoice, "preview_api_missing");
       const prorationDate = clock.frozen_time;
-      const preview = await billing.previewInvoice({
+      const upgradeScope: RecreioUpgradeScope = {
+        intentId: randomUUID(),
         customerId: customer.id,
-        providerSubscriptionId: sub.id,
-        newPriceId: family.priceId,
-        prorationBehavior: "always_invoice",
-        prorationDate,
-      });
+        subscriptionId: sub.id,
+        fromPriceId: individual.priceId,
+        toPriceId: family.priceId,
+        periodStart: new Date(item.current_period_start * 1000),
+        periodEnd: new Date(item.current_period_end * 1000),
+        prorationAt: new Date(prorationDate * 1000),
+        origin,
+        budget: { deadlineMs: Date.now() + 90_000 },
+      };
+      const preview = await billing.preview(upgradeScope);
       verify(
         preview.currency === "BRL" &&
           preview.amountDueCents === family.amountCents - individual.amountCents,
@@ -260,24 +268,22 @@ async function main() {
         { default_payment_method: declined.id },
         { idempotencyKey: `${prefix}:use-declined` },
       );
-      const upgradeRequest: Parameters<typeof billing.updateSubscription>[0] = {
-        providerSubscriptionId: sub.id,
-        newPriceId: family.priceId,
-        prorationBehavior: "always_invoice",
-        prorationDate,
-        paymentBehavior: "pending_if_incomplete",
-        idempotencyKey: `${prefix}:upgrade`,
+      const upgradeRequest: RecreioUpgradeAttempt = {
+        ...upgradeScope,
+        quote: preview,
+        requestStartedAt: new Date(),
       };
-      const update = await billing.updateSubscription(upgradeRequest);
-      const upgradeInvoiceId = update.latestInvoice?.id;
+      const update = await billing.apply(upgradeRequest);
+      const upgradeInvoiceId = update.invoiceId;
       verify(
-        upgradeInvoiceId &&
-          upgradeInvoiceId !== firstInvoiceId &&
-          update.latestInvoice?.status === "open",
+        upgradeInvoiceId !== firstInvoiceId && update.outcome === "pending",
         "upgrade_payment_not_pending",
       );
-      const replay = await billing.updateSubscription(upgradeRequest);
-      verify(replay.latestInvoice?.id === upgradeInvoiceId, "upgrade_replay_created_other_invoice");
+      const replay = await billing.apply(upgradeRequest);
+      verify(
+        replay.invoiceId === upgradeInvoiceId && replay.outcome === "pending",
+        "upgrade_replay_created_other_invoice",
+      );
       const pending = await stripe.subscriptions.retrieve(sub.id);
       verify(
         !pending.livemode &&
@@ -317,6 +323,14 @@ async function main() {
           upgraded.items.data[0]?.current_period_end === item.current_period_end,
         "upgrade_scope_or_period_differs",
       );
+      const confirmed = await billing.find({
+        ...upgradeRequest,
+        providerInvoiceId: upgradeInvoiceId,
+      });
+      verify(
+        confirmed?.invoiceId === upgradeInvoiceId && confirmed.outcome === "applied",
+        "paid_upgrade_receipt_not_recovered",
+      );
       const fundedUpgrade = await reader.read(sub.id, acceptedPrices);
       verify(
         fundedUpgrade?.periods.some(
@@ -334,6 +348,7 @@ async function main() {
         { idempotencyKey: `${prefix}:restore-method` },
       );
       Object.assign(proof, {
+        upgradeAdapter: "recreio_scoped_v1",
         upgradeInvoiceId,
         upgradeAmountPaid: paidUpgrade.amount_paid,
         fixedProrationDate: prorationDate,
