@@ -34,6 +34,16 @@ export type StripeProviderConfig = {
   maxNetworkRetries?: number;
 };
 
+function validateProrationDate(value: number | undefined) {
+  if (
+    value !== undefined &&
+    (!Number.isSafeInteger(value) ||
+      value <= 0 ||
+      !Number.isFinite(new Date(value * 1000).getTime()))
+  )
+    throw new BillingError("Proration date must be a valid positive Unix second");
+}
+
 export function createStripeProvider(config: StripeProviderConfig): BillingProviderClient {
   // Pin API version so behavior is reproducible across stripe-node patch upgrades.
   // Must match the LatestApiVersion literal exposed by the installed SDK
@@ -453,6 +463,7 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
     async updateSubscription(
       input: ProviderUpdateSubscriptionInput,
     ): Promise<ProviderSubscriptionSummary> {
+      validateProrationDate(input.prorationDate);
       // Stripe requires the existing item id to swap its price. Fetch first to get it.
       const current = await stripe.subscriptions.retrieve(input.providerSubscriptionId);
       const firstItem = current.items.data[0];
@@ -472,7 +483,12 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
       if (input.paymentBehavior) {
         params.payment_behavior = input.paymentBehavior;
       }
-      const updated = await stripe.subscriptions.update(input.providerSubscriptionId, params);
+      if (input.prorationDate !== undefined) params.proration_date = input.prorationDate;
+      const updated = await stripe.subscriptions.update(
+        input.providerSubscriptionId,
+        params,
+        input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined,
+      );
       return summarizeSubscription(updated);
     },
 
@@ -507,6 +523,7 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
     },
 
     async previewInvoice(input: ProviderPreviewInvoiceInput): Promise<ProviderInvoicePreview> {
+      validateProrationDate(input.prorationDate);
       // Dahlia/Basil migrated retrieveUpcoming → createPreview. Caller passes the
       // existing subscription id and the new price; Stripe returns the invoice
       // that would be generated as if we had called updateSubscription.
@@ -523,6 +540,7 @@ export function createStripeProvider(config: StripeProviderConfig): BillingProvi
         subscription_details: {
           items: [{ id: firstItem.id, price: input.newPriceId }],
           proration_behavior: input.prorationBehavior ?? "always_invoice",
+          ...(input.prorationDate === undefined ? {} : { proration_date: input.prorationDate }),
         },
       });
       const lines = preview.lines?.data ?? [];

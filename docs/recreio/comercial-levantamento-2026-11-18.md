@@ -24,6 +24,16 @@ de FK encontrava antes a checagem da revisão inicial. Os testes foram ajustados
 para isolar a FK e registrar as falhas; a nova execução é obrigatória. Isso não
 implementa nem habilita as trocas completas. [Contrato e pendências](trocas-plano-2026-11-18.md).
 
+As falhas acima foram corrigidas: `e9433c97` concluiu os dezesseis gates
+`44344445323`. 0209/0210 aplicaram na ordem em banco descartável; revisão atual,
+seleção e leitores protegidos têm provas próprias. A API externa passou em
+`44346637491`/`63bebd25`: faturas de teste R$ 127,90 e R$ 59,90, mesma assinatura,
+agenda com replay, cancelamento efetivo e estorno detectado pelo leitor comum.
+O artefato foi inspecionado após conferência de tamanho/SHA e a limpeza foi
+confirmada. [Escopo e evidência](homologacao-stripe-api-2026-11-18.md).
+Checkout e aceite nativo continuam ausentes dessa prova. A candidata seguinte
+acrescenta data/chave estáveis de proporcional e ensaio de pagamento recusado.
+
 ### Evidência mais recente e candidata de admissão
 
 `33a64ab5` concluiu os dezesseis gates `44314786583`, incluindo onze cenários

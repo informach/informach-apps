@@ -4,6 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { createStripePaymentFactReader } from "@informach/billing/payment-facts";
+import { createStripeProvider } from "@informach/billing/providers/stripe";
 import { createStripeRecreioPlanSchedules } from "@informach/billing/providers/stripe-plans";
 import { PRODUCTS } from "@informach/config";
 import Stripe from "stripe";
@@ -159,13 +160,13 @@ async function main() {
     );
     const origin = {
       authorizationId: `provider_fixture_${randomUUID()}`,
-      productId: family.productId,
+      productId: individual.productId,
       payerId: `provider_fixture_${runId}`,
     };
     const sub = await stripe.subscriptions.create(
       {
         customer: customer.id,
-        items: [{ price: family.priceId, quantity: 1 }],
+        items: [{ price: individual.priceId, quantity: 1 }],
         payment_behavior: "error_if_incomplete",
         metadata: {
           subject_type: "user",
@@ -187,7 +188,9 @@ async function main() {
     const first = await reader.read(sub.id, acceptedPrices);
     verify(
       first?.customerId === customer.id &&
-        first.periods.some((p) => p.priceId === family.priceId && !p.fullyRefunded && !p.disputed),
+        first.periods.some(
+          (p) => p.priceId === individual.priceId && !p.fullyRefunded && !p.disputed,
+        ),
       "initial_payment_not_proven",
     );
     const firstInvoiceId = id(sub.latest_invoice);
@@ -196,10 +199,125 @@ async function main() {
     verify(
       !initialInvoice.livemode &&
         initialInvoice.status === "paid" &&
-        initialInvoice.amount_paid === family.amountCents &&
+        initialInvoice.amount_paid === individual.amountCents &&
         initialInvoice.currency === "brl",
       "initial_invoice_differs",
     );
+    const billing = createStripeProvider({
+      secretKey: "unused",
+      webhookSecret: "unused",
+      appName: "Recreio provider API fixture",
+      client: stripe,
+    });
+    verify(billing.previewInvoice, "preview_api_missing");
+    const prorationDate = clock.frozen_time;
+    const preview = await billing.previewInvoice({
+      customerId: customer.id,
+      providerSubscriptionId: sub.id,
+      newPriceId: family.priceId,
+      prorationBehavior: "always_invoice",
+      prorationDate,
+    });
+    verify(
+      preview.currency === "BRL" &&
+        preview.amountDueCents === family.amountCents - individual.amountCents,
+      "upgrade_quote_differs",
+    );
+    const declined = await stripe.paymentMethods.create(
+      { type: "card", card: { token: "tok_chargeCustomerFail" } },
+      { idempotencyKey: `${prefix}:declined-method` },
+    );
+    verify(!declined.livemode, "declined_method_not_test");
+    await stripe.paymentMethods.attach(
+      declined.id,
+      { customer: customer.id },
+      { idempotencyKey: `${prefix}:attach-declined` },
+    );
+    await stripe.subscriptions.update(
+      sub.id,
+      { default_payment_method: declined.id },
+      { idempotencyKey: `${prefix}:use-declined` },
+    );
+    const upgradeRequest: Parameters<typeof billing.updateSubscription>[0] = {
+      providerSubscriptionId: sub.id,
+      newPriceId: family.priceId,
+      prorationBehavior: "always_invoice",
+      prorationDate,
+      paymentBehavior: "pending_if_incomplete",
+      idempotencyKey: `${prefix}:upgrade`,
+    };
+    const update = await billing.updateSubscription(upgradeRequest);
+    const upgradeInvoiceId = update.latestInvoice?.id;
+    verify(
+      upgradeInvoiceId &&
+        upgradeInvoiceId !== firstInvoiceId &&
+        update.latestInvoice?.status === "open",
+      "upgrade_payment_not_pending",
+    );
+    const replay = await billing.updateSubscription(upgradeRequest);
+    verify(replay.latestInvoice?.id === upgradeInvoiceId, "upgrade_replay_created_other_invoice");
+    const pending = await stripe.subscriptions.retrieve(sub.id);
+    verify(
+      !pending.livemode &&
+        pending.pending_update &&
+        pending.items.data[0]?.price.id === individual.priceId &&
+        pending.metadata.product_id === origin.productId,
+      "unpaid_upgrade_changed_contract",
+    );
+    const unpaid = await reader.read(sub.id, acceptedPrices);
+    verify(
+      unpaid?.priceId === individual.priceId &&
+        !unpaid.periods.some((p) => p.priceId === family.priceId),
+      "unpaid_upgrade_created_paid_period",
+    );
+    const paidUpgrade = await stripe.invoices.pay(
+      upgradeInvoiceId,
+      { payment_method: payment.id },
+      { idempotencyKey: `${prefix}:pay-upgrade` },
+    );
+    verify(
+      paidUpgrade.status === "paid" &&
+        paidUpgrade.amount_paid === preview.amountDueCents &&
+        !paidUpgrade.livemode,
+      "upgrade_invoice_differs",
+    );
+    let upgraded = await stripe.subscriptions.retrieve(sub.id);
+    const upgradeDeadline = Date.now() + 60_000;
+    while (upgraded.pending_update || upgraded.items.data[0]?.price.id !== family.priceId) {
+      verify(Date.now() < upgradeDeadline, "paid_upgrade_not_effective");
+      await setTimeout(2000);
+      upgraded = await stripe.subscriptions.retrieve(sub.id);
+    }
+    verify(
+      !upgraded.livemode &&
+        id(upgraded.customer) === customer.id &&
+        upgraded.metadata.product_id === origin.productId &&
+        upgraded.items.data[0]?.current_period_end === item.current_period_end,
+      "upgrade_scope_or_period_differs",
+    );
+    const fundedUpgrade = await reader.read(sub.id, acceptedPrices);
+    verify(
+      fundedUpgrade?.periods.some(
+        (p) =>
+          p.invoiceId === paidUpgrade.id &&
+          p.priceId === family.priceId &&
+          !p.fullyRefunded &&
+          !p.disputed,
+      ),
+      "upgrade_paid_period_not_proven",
+    );
+    await stripe.subscriptions.update(
+      sub.id,
+      { default_payment_method: payment.id },
+      { idempotencyKey: `${prefix}:restore-method` },
+    );
+    Object.assign(proof, {
+      upgradeInvoiceId,
+      upgradeAmountPaid: paidUpgrade.amount_paid,
+      fixedProrationDate: prorationDate,
+      pendingUpgradeKeptOriginalPrice: true,
+      upgradePaymentApplied: true,
+    });
     const adapter = createStripeRecreioPlanSchedules({
       secretKey: "unused",
       client: stripe,
@@ -273,7 +391,10 @@ async function main() {
       limit: 100,
     })) {
       verify(!paymentIntentId, "initial_invoice_payment_ambiguous");
-      verify(allocation.amount_paid === family.amountCents, "initial_invoice_allocation_differs");
+      verify(
+        allocation.amount_paid === individual.amountCents,
+        "initial_invoice_allocation_differs",
+      );
       if (allocation.payment.type === "payment_intent")
         paymentIntentId = id(allocation.payment.payment_intent);
     }
@@ -289,14 +410,17 @@ async function main() {
     );
     verify(
       refund.status === "succeeded" &&
-        refund.amount === family.amountCents &&
+        refund.amount === individual.amountCents &&
         id(refund.payment_intent) === paid.id &&
         refund.currency === "brl",
       "refund_not_confirmed",
     );
     const refunded = await reader.read(sub.id, acceptedPrices);
     verify(
-      refunded?.periods.some((p) => p.priceId === family.priceId && p.fullyRefunded),
+      refunded?.periods.some(
+        (p) =>
+          p.invoiceId === firstInvoiceId && p.priceId === individual.priceId && p.fullyRefunded,
+      ),
       "refund_fact_not_detected",
     );
     Object.assign(proof, {

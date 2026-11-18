@@ -165,7 +165,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @informach/recreio-app typecheck
-      - run: pnpm --filter @informach/billing test -- src/__tests__/stripe-plans.test.ts src/__tests__/stripe-recreio-plans.test.ts
+      - run: pnpm --filter @informach/billing test -- src/__tests__/stripe-plans.test.ts src/__tests__/stripe-recreio-plans.test.ts src/__tests__/stripe-proration-contract.test.ts
       - name: Provar APIs e limpar apenas os recursos do próprio relógio
         run: pnpm --filter @informach/recreio-app homologar:stripe-agendas
       - uses: actions/upload-artifact@v4

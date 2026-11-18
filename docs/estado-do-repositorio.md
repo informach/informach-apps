@@ -36,12 +36,14 @@ job autenticado e gestão financeira do próprio pagante. Catálogo/preços/port
 de teste foram conferidos no Stripe real, com replay idempotente; isso não é
 pagamento. A jornada hospedada `44337220466` chegou ao desafio hCaptcha,
 encerrou sua sessão aberta e não criou assinatura: falta homologação humana
-do Checkout. A candidata seguinte acrescenta agendas nativas e recibos de
-troca, com revisão comercial atual e seleção que não restaura revogações.
-0209/0210 foram geradas em duas etapas e adotadas intactas, ainda em gates:
-a primeira geração foi recusada por ordenar FKs antes da chave referenciada.
-As primeiras falhas de qualificação apontaram erros de fixtures/tipagem, em
-correção; não há aprovação deste incremento. Nenhuma candidata F6 foi
+do Checkout. A fundação seguinte `e9433c97` concluiu os dezesseis gates
+`44344445323`: agendas nativas, recibos, revisão comercial atual e seleção que
+não restaura revogações. 0209/0210 foram geradas em duas etapas e adotadas
+intactas; a primeira geração foi recusada por ordenar FKs antes da chave.
+A API externa de agenda/renovação/cancelamento/estorno passou em
+`44346637491`/`63bebd25`, com recursos sintéticos e limpeza confirmada. Essa
+prova não conclui Checkout ou aceite nativo. A extensão com proporcional fixo
+e pagamento recusado ainda está em qualificação. Nenhuma candidata F6 foi
 implantada nem cobrança habilitada. Trocas completas, endpoint público,
 agendamento operacional e homologação comercial seguem abertos. [Levantamento
 comercial](recreio/comercial-levantamento-2026-11-18.md). Cobrança, privacidade,

@@ -14,6 +14,12 @@ defaults. Este adapter não concede acesso, não substitui consentimento nativo
 e ainda não está composto no Recreio nem implantado. Qualificação no
 [incremento de trocas](../../docs/recreio/trocas-plano-2026-11-18.md).
 
+O provider Stripe comum recebe `prorationDate` opcional na prévia e na aplicação
+e `idempotencyKey` opcional na aplicação. A mesma data fixa o proporcional já
+apresentado; segundos inválidos são recusados antes da rede. Os defaults dos
+consumidores existentes permanecem. Esses parâmetros não substituem escopo,
+aceite persistido, recuperação ou confirmação financeira no domínio consumidor.
+
 ## Compasso em implementação (10/11/2026)
 
 Para operação solicitada expressamente pela titular do negócio, o módulo interno

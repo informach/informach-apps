@@ -110,5 +110,14 @@ da compra, para os fatos anteriores a esta composição; isso não admite preço
 alterado. Ainda faltam os escritores de cotação/aceite/aplicação, o upgrade
 proporcional e as telas.
 
+Fundação `e9433c97` aprovada nos dezesseis gates `44344445323`: inclui a
+aplicação das duas migrations em PostgreSQL descartável, provas da autoridade
+atual e da seleção, SDK/HTTP fechado e regressões do portal/jogo. A API externa
+de agenda, renovação, cancelamento e estorno passou separadamente em
+`44346637491`/`63bebd25`; [escopo exato](homologacao-stripe-api-2026-11-18.md).
+O incremento seguinte fixa o segundo do proporcional e a chave de tentativa no
+provider comum; sua extensão externa com pagamento recusado ainda está em
+preparação. Isso não conclui os escritores/telas nativos nem habilita cobrança.
+
 O catálogo de teste já possui evidência própria; isso não comprova trocas ou
 pagamentos. Nenhuma DDL F6 ou alteração comercial foi implantada em produção.
