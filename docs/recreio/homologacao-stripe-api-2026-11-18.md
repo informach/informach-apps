@@ -1,6 +1,9 @@
 # Recreio — ensaio externo das APIs de cobrança
 
-Candidata operacional, sem prova de execução. `sandbox_plans=true` no workflow
+Candidata operacional, ainda sem prova externa aprovada. A primeira execução
+`44346183437`/`20943598` parou na tipagem, antes de criar qualquer recurso:
+a validação do ID de preço foi explicitada para retirar `undefined` do tipo.
+`sandbox_plans=true` no workflow
 Recreio executa `homologar:stripe-agendas` somente no GitHub, com a chave de
 teste existente e conta esperada. Antes de criar recursos, confere novamente
 o catálogo comum e executa tipos e testes dos adapters de agenda. Não conecta

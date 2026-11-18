@@ -76,11 +76,15 @@ async function main() {
     })
     .parse(JSON.parse(await readFile(catalogPath, "utf8")));
   const products = PRODUCTS.filter((p) => p.app === "recreio" && p.kind === "subscription");
-  function offer(tier: "family" | "individual") {
+  function offer(tier: "family" | "individual"): {
+    productId: string;
+    priceId: string;
+    amountCents: number;
+  } {
     const product = products.find((p) => p.tier === tier && p.interval === "month");
     verify(product?.listPrice && product.stripePriceEnvironmentVariable, "approved_offer_missing");
     const priceId = catalog.variables[product.stripePriceEnvironmentVariable];
-    verify(priceId?.startsWith("price_"), "verified_price_missing");
+    verify(typeof priceId === "string" && priceId.startsWith("price_"), "verified_price_missing");
     return { productId: product.id, priceId, amountCents: product.listPrice.amountCents };
   }
   const family = offer("family"),
