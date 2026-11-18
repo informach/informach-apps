@@ -25,7 +25,7 @@ fonte servida, prontidão, upload dos mapas Sentry/release e manutenção
 autenticada 200 conferidos. Morada continua `644b3841`.
 Famílias/social/checkpoint/visitas preparados como `off`; não houve ativação
 de menores ou de venda. Pins `9a9d1f87` aprovados nos oito gates `44286280768`;
-publicação em origin/main preparada. Restauração atualizada às 10:31 UTC concluída,
+integrados em origin/main `337dc630`. Restauração atualizada às 10:31 UTC concluída,
 temporários removidos, 34 serviços. D3–D8 e F6–F11 continuam separados.
 
 **18/11 — F6–F11 restantes:** os quatro preços foram confirmados; o teste sem

@@ -20,7 +20,12 @@ zero, incluindo os novos expurgos de presença/visitas. O build confirmou upload
 dos mapas; Sentry confirmou a release `d014bd90` no projeto Recreio, criada às
 10:39:35 UTC. Isso não simula um novo erro nem certifica entrega de alerta.
 Morada permanece `644b3841`. Pins `9a9d1f87` passaram nos oito gates `44286280768`,
-incluindo o grafo Railway; publicação em origin/main preparada. Os registros abaixo
+incluindo o grafo Railway; integração publicada em origin/main `337dc630`.
+Bastidores/migrator voltaram a seguir main; ambos geraram deployments `SKIPPED`
+para `337dc630`, conservando as execuções qualificadas `d014bd90`. O comando
+futuro original do migrator foi reposto após a operação controlada; nenhuma seed
+foi executada nessa entrega. Portal e Morada conservam seus pins explícitos.
+Os registros abaixo
 preservam os marcos anteriores. F6–F11 e venda continuam abertos.
 
 ## Qualificação das duas jornadas e preparação operacional — 18/11
