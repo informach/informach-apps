@@ -27,6 +27,13 @@ Os IDs Stripe de dev/prod ainda são placeholders. A composição precisa usar
 `getConfiguredProducts` e as variáveis registradas no catálogo, sem mapa de preços
 paralelo ou inferência pelo valor cobrado. Não provisionado por este levantamento.
 
+A inspeção seguinte encontrou ausente o campo `stripePriceEnvironmentVariable`
+nos quatro produtos. A candidata registra `RECREIO_INDIVIDUAL_MONTHLY_PRICE`,
+`RECREIO_INDIVIDUAL_ANNUAL_PRICE`, `RECREIO_FAMILY_MONTHLY_PRICE` e
+`RECREIO_FAMILY_ANNUAL_PRICE` no próprio catálogo. A resolução existente muda
+somente o modo pedido, preservando valores/intervalos e IDs do outro modo.
+Não altera preços no Stripe, não cria variáveis no Railway e não habilita venda.
+
 `apps/recreio/src/features/acesso/repository.ts` lê assinaturas do pagante do
 grupo com `provider=stripe`, `app=recreio`, `subjectType=user`. A mesma leitura
 atende pagante sem perfil. Cortesias e testes são concessões distintas.

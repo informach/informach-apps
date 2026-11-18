@@ -261,6 +261,7 @@ export const PRODUCTS: readonly Product[] = [
   // listPrice foram confirmados pelo titular em 16/11/2026.
   {
     id: "recreio_individual_monthly",
+    stripePriceEnvironmentVariable: "RECREIO_INDIVIDUAL_MONTHLY_PRICE",
     app: "recreio",
     kind: "subscription",
     name: "Recreio Individual",
@@ -275,6 +276,7 @@ export const PRODUCTS: readonly Product[] = [
   },
   {
     id: "recreio_individual_annual",
+    stripePriceEnvironmentVariable: "RECREIO_INDIVIDUAL_ANNUAL_PRICE",
     app: "recreio",
     kind: "subscription",
     name: "Recreio Individual anual",
@@ -289,6 +291,7 @@ export const PRODUCTS: readonly Product[] = [
   },
   {
     id: "recreio_family_monthly",
+    stripePriceEnvironmentVariable: "RECREIO_FAMILY_MONTHLY_PRICE",
     app: "recreio",
     kind: "subscription",
     name: "Recreio Família",
@@ -304,6 +307,7 @@ export const PRODUCTS: readonly Product[] = [
   },
   {
     id: "recreio_family_annual",
+    stripePriceEnvironmentVariable: "RECREIO_FAMILY_ANNUAL_PRICE",
     app: "recreio",
     kind: "subscription",
     name: "Recreio Família anual",
