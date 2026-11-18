@@ -698,6 +698,56 @@ describe("encerramento da sessão visitante", () => {
   );
 });
 
+describe("consulta técnica de presença", () => {
+  const pedido = {
+    mundoId: MUNDO,
+    cerca: 4,
+    sid: SID,
+    perfilId: PERFIL,
+    chaveDeEntrada: "f9579968-a053-494b-b9db-908c407ba86e",
+  };
+  it("envia somente consulta e aceita ausência sem atestar presença", async () => {
+    const a = ambiente();
+    await a.registrado();
+    a.responder(Response.json({ presenca: null }));
+    expect(await a.cliente.consultarPresenca(pedido)).toEqual({ presenca: null });
+    const { mundoId: _mundo, ...corpo } = pedido;
+    expect(a.chamadas[1]).toMatchObject({
+      url: `https://recreio.test/api/interno/v1/mundos/${MUNDO}/presencas/consultar`,
+      method: "POST",
+      corpo,
+    });
+  });
+  it("devolve recibo encerrado sem promover o fato a presença atual", async () => {
+    const a = ambiente();
+    await a.registrado();
+    const presenca = {
+      presencaId: SID,
+      estado: "closed",
+      expiraEm: "2026-11-18T06:00:30.000Z",
+      janelaAte: "2026-11-19T06:00:00.000Z",
+    };
+    a.responder(Response.json({ presenca }));
+    expect(await a.cliente.consultarPresenca(pedido)).toEqual({ presenca });
+  });
+  it("erro de rede permanece desconhecido sem repetir uma escrita", async () => {
+    const a = ambiente();
+    await a.registrado();
+    a.responder(new TypeError("fetch failed"));
+    await expect(a.cliente.consultarPresenca(pedido)).rejects.toMatchObject({
+      codigo: "INDISPONIVEL",
+    });
+    expect(a.chamadas).toHaveLength(2);
+  });
+  it("exige instância registrada", async () => {
+    const a = ambiente();
+    await expect(a.cliente.consultarPresenca(pedido)).rejects.toMatchObject({
+      codigo: "NAO_AUTENTICADO",
+    });
+    expect(a.chamadas).toHaveLength(0);
+  });
+});
+
 describe("JSON em cabeçalho", () => {
   it("vai e volta com acentos e recusa o que não é base64url de JSON", () => {
     const valor = { titulo: "Família Ipê", subtitulo: "Verão 🌞" };

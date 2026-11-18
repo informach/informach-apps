@@ -2,6 +2,8 @@ import "server-only";
 import { ErroDoRecreio, MundoIdSchema } from "@informach/recreio";
 import {
   AtestadoDePresencaSchema,
+  ConsultaDePresencaSchema,
+  PresencaConsultadaSchema,
   type PresencaRenovada,
   RenovacaoDePresencasSchema,
 } from "@informach/recreio/contrato";
@@ -16,6 +18,20 @@ import {
   publicarPresencaNoBanco,
   recuperarReciboDePresenca,
 } from "./repository";
+
+/** Consulta técnica pura. Ausência agora não prova que uma escrita em voo nunca possa confirmar. */
+export async function consultarPresenca(host: Host, mundoId: unknown, entrada: unknown) {
+  const mundo = MundoIdSchema.parse(mundoId),
+    pedido = ConsultaDePresencaSchema.parse(entrada);
+  await limitarTentativas({
+    chave: `presenca-instancia:${host.instanciaId}`,
+    max: 240,
+    janelaEmSegundos: 60,
+  });
+  return PresencaConsultadaSchema.parse({
+    presenca: await recuperarReciboDePresenca(host, mundo, { ...pedido, operacao: "entrar" }),
+  });
+}
 
 export async function atestarPresenca(host: Host, mundoId: unknown, entrada: unknown) {
   const mundo = MundoIdSchema.parse(mundoId),

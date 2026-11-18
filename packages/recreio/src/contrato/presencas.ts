@@ -31,6 +31,12 @@ export const ReciboDePresencaSchema = z.strictObject({
   janelaAte: z.iso.datetime(),
 });
 export type ReciboDePresenca = z.infer<typeof ReciboDePresencaSchema>;
+export const ConsultaDePresencaSchema = AtestadoDeEntradaSchema.omit({ operacao: true });
+export const PresencaConsultadaSchema = z.strictObject({
+  presenca: ReciboDePresencaSchema.nullable(),
+});
+export type ConsultaDePresenca = z.infer<typeof ConsultaDePresencaSchema>;
+export type PresencaConsultada = z.infer<typeof PresencaConsultadaSchema>;
 
 export const PRESENCAS_POR_RENOVACAO_MAX = 64;
 export const RenovacaoDePresencaSchema = z.strictObject({

@@ -5,6 +5,7 @@ import {
   recreioSpaceVisitInvites as invites,
   recreioSpaceMembers as members,
   recreioSessionSavePermits as permits,
+  recreioWorldHostPresences as presences,
   recreioGameTickets as tickets,
   recreioWorldVisitSessions as visitSessions,
   recreioWorldVisits as visits,
@@ -61,6 +62,17 @@ import { referenciaSocial } from "./social-apoio";
 
 type Cenario = Awaited<ReturnType<typeof cenario>>;
 type Sessao = Awaited<ReturnType<typeof abrir>>;
+async function consultaDaPresenca(c: Cenario) {
+  const [p] = await db.select().from(presences).where(eq(presences.id, c.presenca.presencaId));
+  if (!p) throw new Error("Atestado fixture ausente");
+  return {
+    mundoId: c.mundoId,
+    cerca: c.posse.cerca,
+    sid: c.host.sid,
+    perfilId: c.origem.perfil.id,
+    chaveDeEntrada: p.clientKey,
+  };
+}
 function renovar(c: Cenario, s: Sessao) {
   return c.instancia.cliente.renovarVisitas([
     { ...entrada(c, s), sessaoDeVisitaId: s.finalidade.id },
@@ -110,6 +122,89 @@ function foto(c: Cenario, revisaoEsperada: number) {
     bytes: new TextEncoder().encode(JSON.stringify({ contador: 9 })),
   });
 }
+
+it("consulta só recupera recibo conhecido sem renovar ou atestar presença", async () => {
+  const c = await cenario(),
+    pedido = await consultaDaPresenca(c),
+    antes = await db.select().from(presences).where(eq(presences.id, c.presenca.presencaId)),
+    eventos = await eventosCom("presenceId", c.presenca.presencaId);
+  expect(await c.instancia.cliente.consultarPresenca(pedido)).toEqual({ presenca: c.presenca });
+  expect(await db.select().from(presences).where(eq(presences.id, c.presenca.presencaId))).toEqual(
+    antes,
+  );
+  expect(await eventosCom("presenceId", c.presenca.presencaId)).toEqual(eventos);
+});
+
+it("consulta desconhecida não cria atestado mesmo com SID, membro e posse atuais", async () => {
+  const c = await cenario(),
+    pedido = await consultaDaPresenca(c);
+  await c.instancia.cliente.atestarPresenca({
+    mundoId: c.mundoId,
+    cerca: c.posse.cerca,
+    presencaId: c.presenca.presencaId,
+    operacao: "sair",
+  });
+  const antes = await db.select().from(presences).where(eq(presences.spaceId, c.mundoId));
+  expect(
+    await c.instancia.cliente.consultarPresenca({ ...pedido, chaveDeEntrada: crypto.randomUUID() }),
+  ).toEqual({ presenca: null });
+  expect(await db.select().from(presences).where(eq(presences.spaceId, c.mundoId))).toEqual(antes);
+});
+
+it("consulta própria continua gratuita após SID/cobertura encerrados e modo desligado", async () => {
+  const c = await cenario(),
+    pedido = await consultaDaPresenca(c);
+  await revogar({ email: c.origem.conta.email, motivo: "teste_visita" });
+  env.RECREIO_VISITS_MODE = "off";
+  env.RECREIO_SOCIAL_MODE = "off";
+  expect(await c.instancia.cliente.consultarPresenca(pedido)).toEqual({ presenca: c.presenca });
+  await c.instancia.cliente.atestarPresenca({
+    mundoId: c.mundoId,
+    cerca: c.posse.cerca,
+    presencaId: c.presenca.presencaId,
+    operacao: "sair",
+  });
+  expect((await c.instancia.cliente.consultarPresenca(pedido)).presenca?.estado).toBe("closed");
+});
+
+it.each(["sid", "perfil", "cerca"] as const)(
+  "consulta recusa chave conhecida com %s divergente",
+  async (tipo) => {
+    const c = await cenario(),
+      pedido = await consultaDaPresenca(c);
+    await expect(
+      c.instancia.cliente.consultarPresenca({
+        ...pedido,
+        ...(tipo === "sid" ? { sid: SessaoDeJogoIdSchema.parse(crypto.randomUUID()) } : {}),
+        ...(tipo === "perfil" ? { perfilId: c.destino.perfil.id } : {}),
+        ...(tipo === "cerca" ? { cerca: c.posse.cerca + 1 } : {}),
+      }),
+    ).rejects.toMatchObject({ codigo: "REVISAO_DIVERGENTE" });
+  },
+);
+
+it("consulta de outra instância não alcança recibo alheio", async () => {
+  const c = await cenario(),
+    pedido = await consultaDaPresenca(c),
+    outra = await novaInstancia(OUTRO_JOGO);
+  expect(await outra.cliente.consultarPresenca(pedido)).toEqual({ presenca: null });
+});
+
+it("consulta exige autenticação e corpo sem operação de escrita", async () => {
+  const c = await cenario(),
+    { mundoId, ...pedido } = await consultaDaPresenca(c),
+    caminho = `/api/interno/v1/mundos/${mundoId}/presencas/consultar`;
+  expect(await pedir("POST", caminho, { corpo: pedido })).toMatchObject({
+    status: 401,
+    corpo: { codigo: "NAO_AUTENTICADO" },
+  });
+  expect(
+    await pedir("POST", caminho, {
+      headers: cabecalhosDoHost(OUTRO_JOGO, c.instancia.instanciaId),
+      corpo: { ...pedido, operacao: "entrar" },
+    }),
+  ).toMatchObject({ status: 400, corpo: { codigo: "ENTRADA_INVALIDA" } });
+});
 
 it("SDK real abre a finalidade de visita e a instância confirma/encerra o SID sem participação permanente", async () => {
   const c = await cenario();

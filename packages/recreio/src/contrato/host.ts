@@ -10,6 +10,8 @@ import { PAPEIS_NO_MUNDO, PARTICIPACAO_MAX } from "../dominio/mundos";
 import { TIPOS_DE_FOTOGRAFIA } from "../dominio/posse";
 import type {
   AtestadoDePresenca,
+  ConsultaDePresenca,
+  PresencaConsultada,
   PresencaRenovada,
   ReciboDePresenca,
   RenovacaoDePresenca,
@@ -299,6 +301,10 @@ export interface ClienteDoHostComVisitas extends ClienteDoHostComPresencas {
 }
 
 export interface ClienteDoHostComPresencas extends ClienteDoHostComSalvamento {
+  /** Só recibo próprio; nunca cria/renova. `null` não resolve uma escrita ainda em voo. */
+  consultarPresenca(
+    pedido: ConsultaDePresenca & { mundoId: z.infer<typeof MundoIdSchema> },
+  ): Promise<PresencaConsultada>;
   /** Após renovar as posses; somente conexões que continuam ativas na instância. */
   renovarPresencas(
     presencas: readonly RenovacaoDePresenca[],

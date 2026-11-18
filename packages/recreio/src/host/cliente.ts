@@ -21,6 +21,8 @@ import {
 } from "../contrato/host";
 import {
   AtestadoDePresencaSchema,
+  ConsultaDePresencaSchema,
+  PresencaConsultadaSchema,
   ReciboDePresencaSchema,
   RenovacaoDePresencasSchema,
   RespostaDaRenovacaoDePresencasSchema,
@@ -170,6 +172,15 @@ export function criarClienteDoHost(opcoes: OpcoesDoClienteDoHost): ClienteDoHost
         entrada = await lerCorpo(resposta, EntradaDeVisitanteSchema);
       if (entrada.visitaId !== pedido.visitaId) throw new ErroDoRecreio("INDISPONIVEL");
       return entrada;
+    },
+
+    async consultarPresenca({ mundoId, ...pedido }) {
+      eu();
+      const resposta = await enviarJson(
+        `${mundo(mundoId)}/presencas/consultar`,
+        ConsultaDePresencaSchema.parse(pedido),
+      );
+      return lerCorpo(resposta, PresencaConsultadaSchema);
     },
 
     async atestarPresenca({ mundoId, ...pedido }) {

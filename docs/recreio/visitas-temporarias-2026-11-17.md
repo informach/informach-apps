@@ -757,3 +757,27 @@ Gates pendentes; isso ainda não representa integração do runtime ou prova F10
 Correção `abcce468` passou nas 994 integrações/89 arquivos, cinco do Bastidores
 e upgrades 179→204/191→204 em `44246163559`; sete gates aprovados, navegador
 ainda em execução na conferência deste registro.
+
+## Consulta de recibo sem atestar presença
+
+A recuperação por repetição de `entrar` é adequada enquanto há uma conexão
+real. Para limpar uma conexão já fechada com resposta perdida, o produtor
+precisa de consulta pura: `/mundos/{id}/presencas/consultar`, corpo sem operação
+de escrita, nonce e fatos originais; retorna `{ presenca: recibo | null }`.
+Instância/jogo/chave e hash do pedido delimitam o recibo. Não cria, renova,
+encerra, emite nova autoridade ou registra nome/conteúdo.
+
+Consulta própria continua possível após fim de SID/cobertura e modo desligado.
+Um recibo `active` é histórico técnico e não prova presença/autoridade atuais;
+o produtor deve usar admissão/renovação reais para jogar. `null` só significa
+ausência no instante da leitura: escrita já enviada pode ainda confirmar.
+O produtor precisa conservar nonce/pendência até resolver o recibo e encerrar
+a presença original ou observar o SID encerrado; nunca emitir novo atestado
+depois de saber que a conexão fechou apenas para descobrir se o primeiro
+pedido confirmou. Falhas permanecem desconhecidas, sem repetição automática.
+
+Oito integrações candidatas cobrem leitura sem mudança/auditoria, ausência
+com membro/SID/posse ainda válidos, recuperação gratuita, três divergências
+de corpo, outra instância e autenticação/corpo estrito. Quatro regressões do
+transporte cobrem nulidade, recibo fechado, rede e instância registrada.
+Gates pendentes; produtor de presença/visitas no título interno ainda aberto.
