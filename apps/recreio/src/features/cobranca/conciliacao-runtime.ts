@@ -3,10 +3,7 @@ import type {
   createStripePaymentFactReader,
   PaymentReadBudget,
 } from "@informach/billing/payment-facts";
-import type {
-  PlanScheduleProvider,
-  RecreioPlanScheduleInput,
-} from "@informach/billing/providers/stripe-plans";
+import type { RecreioPlanScheduleProvider } from "@informach/billing/providers/stripe-plans";
 import type { Product, StripeMode } from "@informach/config";
 
 /** Financial reads plus an optional capability for previously admitted native
@@ -17,5 +14,5 @@ export type RuntimeDeConciliacao = {
   conferirCatalogo: (budget?: PaymentReadBudget) => Promise<void>;
   leitor: Pick<ReturnType<typeof createStripePaymentFactReader>, "listSubscriptionIds" | "read">;
   lerCheckout: NonNullable<BillingProviderClient["findCheckoutSession"]>;
-  agendasAdmitidas?: PlanScheduleProvider<RecreioPlanScheduleInput>;
+  agendasAdmitidas?: RecreioPlanScheduleProvider;
 };

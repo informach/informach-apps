@@ -14,7 +14,7 @@ export function transporteDeAgenda() {
   let liberada = false;
   let destino = "";
   let pedidoId = "";
-  let perda: "create" | "update" | null = null;
+  let perda: "create" | "update" | "release" | null = null;
   let antes: (() => Promise<void>) | undefined;
   let depois: (() => Promise<void>) | undefined;
   const eventos: {
@@ -75,7 +75,7 @@ export function transporteDeAgenda() {
       inicio = item.current_period_start;
       fim = item.current_period_end;
     },
-    perderResposta(operacao: "create" | "update") {
+    perderResposta(operacao: "create" | "update" | "release") {
       perda = operacao;
     },
     antesDeEnviar(callback: () => Promise<void>) {

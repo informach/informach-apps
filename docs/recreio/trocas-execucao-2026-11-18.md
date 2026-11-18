@@ -180,7 +180,7 @@ Nenhum serviço ou fluxo comercial foi ativado em produção.
 
 O gate financeiro de `75622649`/`44378474167` concluiu 64 testes em quatro
 arquivos, incluindo 28 casos da cotação/aceite/envio/aplicação. O gate inteiro
-ainda precisa concluir; não equivale a implantação ou pagamento externo.
+concluiu os dezesseis gates, sem falhas; não equivale a implantação ou pagamento externo.
 
 A gestão existente da cobertura passa a apresentar a revisão pendente da
 seleção. O limite apresentado para essa confirmação vem da oferta comercial
@@ -207,3 +207,24 @@ E2E encontrou dois elementos `role=alert`: o aviso de capacidade e o anunciador
 de rotas do Next. O seletor passa a identificar o aviso pelo texto do contrato,
 como a jornada já existente da cobertura. Nenhum alerta do produto ou do
 framework foi removido; a jornada precisa ser executada novamente.
+
+## Candidata de cancelamento após envio
+
+O pedido nativo de cancelamento exige login recente do próprio pagante e
+registra intenção/auditoria antes de liberar a agenda. Independe de jogador,
+catálogo disponível, novas vendas ou pagamento atual. Repetição terminal apenas
+relê o recibo. A recuperação técnica usa a intenção persistida; logout retém
+a devolução, preservando o fato externo confirmado.
+
+Sem ID remoto local, a porta `find` busca somente a correlação exata por GET.
+Se não identificar a operação, conserva a revisão sem criar uma agenda para
+depois cancelá-la. A porta legada do Compasso mantém o contrato anterior.
+Após liberar, o adapter nativo relê a assinatura: uma fase que se efetivou
+durante a chamada é tratada como aplicada, nunca falsamente cancelada. A fase
+futura também não pode substituir metadados do pagante/compra original.
+
+Novos cenários SDK/PG fechado cobrem pedido anterior ao POST, resposta perdida
+da liberação, criação anterior perdida recuperada por GET, ausência incerta,
+isolamento, vendas desligadas, logout, auditoria e corrida na fronteira da fase.
+Esses cenários e a correção do seletor E2E ainda precisam dos gates remotos.
+Não há Server Actions/telas das trocas ligadas nem ativação comercial em produção.

@@ -41,6 +41,7 @@ export type TentativaDeTroca = {
   readonly assinatura: string;
   readonly termos: string;
   readonly scheduleId: string | null;
+  readonly cancelar: boolean;
   readonly entrada: RecreioPlanScheduleInput;
 };
 const OBSERVADA = Symbol("recreio.plan-change.observed");
@@ -74,6 +75,7 @@ function provaDaLinha(linha: Linha, customerId: string, subscriptionId: string):
     assinatura: subscriptionId,
     termos: termos(linha),
     scheduleId: linha.providerScheduleId,
+    cancelar: linha.cancelRequestedAt !== null,
     entrada: {
       intentId: linha.id,
       customerId,
@@ -171,6 +173,7 @@ function termos(linha: Linha) {
         expiresAt: linha.quoteExpiresAt,
         acceptedAt: linha.acceptedAt,
         startedAt: linha.requestStartedAt,
+        cancelRequestedAt: linha.cancelRequestedAt,
       }),
     )
     .digest("hex");
@@ -357,6 +360,74 @@ export function admitirTentativaDaTrocaLocked(
       modo,
     });
     return provaDaLinha(linha, customerId, subscriptionId);
+  });
+}
+
+/** Native explicit cancellation intent. Existing financial facts/management
+ * remain available without new sales, a current paid period or a player. */
+export async function admitirCancelamentoDaTrocaLocked(
+  autor: AutorNativoRecente,
+  id: string,
+  modo: StripeMode,
+): Promise<TentativaDeTroca | null> {
+  const grupoId = await grupoDaTroca(autor, id, modo);
+  return db.transaction(async (tx) => {
+    await limites(tx);
+    const atual = await admitirGrupoDoTitular(tx, autor, grupoId, "update");
+    const agora = await atual.nativa.conferirPrazo(autor.login);
+    const [anterior] = await tx
+      .select()
+      .from(changes)
+      .where(
+        and(
+          eq(changes.id, id),
+          eq(changes.groupId, grupoId),
+          eq(changes.payerUserId, autor.contaId),
+          eq(changes.providerMode, modo),
+        ),
+      )
+      .for("update");
+    assertAllowed(anterior, "COBRANCA", "Troca não disponível.");
+    if (anterior.resolvedAt !== null) {
+      await atual.nativa.conferirPrazo(autor.login);
+      return null;
+    }
+    assertAllowed(
+      anterior.kind === "downgrade" &&
+        anterior.acceptedAt &&
+        anterior.requestStartedAt &&
+        ["sent", "scheduled"].includes(anterior.status),
+      "CONFLITO",
+      "Use o encerramento de pedido não enviado para uma cotação sem tentativa.",
+    );
+    const origem = await lerOrigemDaAssinaturaParaTroca(tx, anterior.subscriptionId, autor.contaId);
+    assertAllowed(origem, "ORIGEM_FINANCEIRA", "A origem financeira exige conferência.");
+    let linha = anterior;
+    if (linha.cancelRequestedAt === null) {
+      const [cancelando] = await tx
+        .update(changes)
+        .set({ cancelRequestedAt: agora, reviewRequired: true })
+        .where(eq(changes.id, linha.id))
+        .returning();
+      assertAllowed(cancelando, "COBRANCA", "Não foi possível registrar o pedido de cancelamento.");
+      linha = cancelando;
+      await logAuditEventStrict(
+        "recreio.plan_change_cancel_requested",
+        autor.contaId,
+        {
+          app: "recreio",
+          groupId: linha.groupId,
+          planChangeId: linha.id,
+          subscriptionId: linha.subscriptionId,
+          revision: linha.expectedContractRevision,
+          state: "requested",
+        },
+        { writer: tx },
+      );
+    }
+    await agendarConciliacaoDaCompra(tx, { paganteId: autor.contaId, grupoId, modo });
+    await atual.nativa.conferirPrazo(autor.login);
+    return provaDaLinha(linha, origem.providerCustomerId, origem.providerSubscriptionId);
   });
 }
 

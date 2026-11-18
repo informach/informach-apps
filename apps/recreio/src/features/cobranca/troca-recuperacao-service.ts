@@ -1,9 +1,6 @@
 import "server-only";
 import type { PaymentReadBudget } from "@informach/billing/payment-facts";
-import type {
-  PlanScheduleProvider,
-  RecreioPlanScheduleInput,
-} from "@informach/billing/providers/stripe-plans";
+import type { RecreioPlanScheduleProvider } from "@informach/billing/providers/stripe-plans";
 import { assertAllowed } from "@/lib/errors";
 import { capturarAgendaDaTrocaLocked, type TentativaDeTroca } from "./troca-execucao-repository";
 
@@ -11,7 +8,7 @@ import { capturarAgendaDaTrocaLocked, type TentativaDeTroca } from "./troca-exec
  * financial price observation, authorizes these narrowly scoped mutations. */
 export async function recuperarAgendaAdmitida(
   prova: TentativaDeTroca,
-  agendas: PlanScheduleProvider<RecreioPlanScheduleInput>,
+  agendas: RecreioPlanScheduleProvider,
   budget: PaymentReadBudget,
 ) {
   let agenda = prova.scheduleId;
@@ -24,10 +21,19 @@ export async function recuperarAgendaAdmitida(
     );
   try {
     conferirPrazo();
-    agenda ??= await agendas.create(entrada);
+    agenda ??= prova.cancelar ? await agendas.find(entrada) : await agendas.create(entrada);
+    assertAllowed(
+      agenda,
+      "COBRANCA_EM_CONFERENCIA",
+      "O cancelamento aguarda a identificação exata da operação anterior.",
+    );
     conferirPrazo();
     await capturarAgendaDaTrocaLocked(prova, agenda, "identified");
-    const estado = await agendas.reconcile({ ...entrada, scheduleId: agenda, cancel: false });
+    const estado = await agendas.reconcile({
+      ...entrada,
+      scheduleId: agenda,
+      cancel: prova.cancelar,
+    });
     conferirPrazo();
     const observacao = await capturarAgendaDaTrocaLocked(prova, agenda, estado);
     assertAllowed(observacao, "COBRANCA", "A confirmação externa não foi registrada.");

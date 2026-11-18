@@ -25,6 +25,10 @@ export interface PlanScheduleProvider<Input extends PlanScheduleInput = PlanSche
   create(input: Input): Promise<string>;
   reconcile(input: Input & { scheduleId: string; cancel: boolean }): Promise<PlanScheduleOutcome>;
 }
+export type RecreioPlanScheduleProvider = PlanScheduleProvider<RecreioPlanScheduleInput> & {
+  /** Exact read-only recovery. Absence is uncertainty, never cancellation proof. */
+  find(input: RecreioPlanScheduleInput): Promise<string | null>;
+};
 export const planScheduleKey = (id: string, namespace: "compasso" | "recreio" = "compasso") =>
   `${namespace}:plan:${id}:create`;
 const id = (value: unknown): string | undefined =>
@@ -156,11 +160,14 @@ export function createStripePlanSchedules(config: ScheduleConfig): PlanScheduleP
 /** Independent idempotency and original purchase scope; no access/payment projection. */
 export function createStripeRecreioPlanSchedules(
   config: ScheduleConfig & { mode: "dev" | "prod" },
-): PlanScheduleProvider<RecreioPlanScheduleInput> {
+): RecreioPlanScheduleProvider {
   return createSchedules(config, { app: "recreio", mode: config.mode });
 }
 
-function createSchedules(config: ScheduleConfig, scope: ScheduleScope): PlanScheduleProvider {
+function createSchedules(
+  config: ScheduleConfig,
+  scope: ScheduleScope,
+): PlanScheduleProvider & { find(input: PlanScheduleInput): Promise<string | null> } {
   const marker = `${scope.app}_plan_intent`;
   const foreignMarker = scope.app === "compasso" ? "recreio_plan_intent" : "compasso_plan_intent";
   const stripe =
@@ -237,6 +244,17 @@ function createSchedules(config: ScheduleConfig, scope: ScheduleScope): PlanSche
       schedule.end_behavior !== "release"
     )
       throw new BillingError("Native scheduled plan differs from the accepted change");
+    const origin = input.origin;
+    if (!origin) throw new BillingError("Native future phase has no purchase scope");
+    const expected: Record<string, string> = {
+      subject_type: "user",
+      subject_id: origin.payerId,
+      checkout_intent_id: origin.authorizationId,
+      product_id: origin.productId,
+    };
+    for (const [key, value] of Object.entries(expected))
+      if (phase.metadata?.[key] !== undefined && phase.metadata[key] !== value)
+        throw new BillingError("Native future phase would overwrite the original purchase");
   }
   function futureMetadata(current: Phase, input: PlanScheduleInput) {
     if (scope.app === "compasso") return { ...current.metadata, product_id: input.toProductId };
@@ -281,34 +299,39 @@ function createSchedules(config: ScheduleConfig, scope: ScheduleScope): PlanSche
       cursor = next;
     }
   }
+  async function findExisting(input: PlanScheduleInput, sub: Stripe.Subscription) {
+    const attached = id(sub.schedule);
+    if (attached) {
+      const schedule = await stripe.subscriptionSchedules.retrieve(attached, {}, options(input));
+      validateSchedule(schedule, input);
+      if (schedule.metadata?.[marker] === input.intentId) return schedule.id;
+    }
+    // Recover the exact request, including a schedule released before our response arrived.
+    // A customer/similar phase alone is not evidence that this request created the schedule.
+    let count = 0;
+    for await (const event of creationEvents(input)) {
+      if (++count > 1000)
+        throw new BillingError("Schedule recovery event history exceeded its bound");
+      if (event.request?.idempotency_key !== planScheduleKey(input.intentId, scope.app)) continue;
+      const scheduleId = id(event.data.object);
+      if (!scheduleId) throw new BillingError("Schedule recovery event has no resource identity");
+      const schedule = await stripe.subscriptionSchedules.retrieve(scheduleId, {}, options(input));
+      validateSchedule(schedule, input);
+      return schedule.id;
+    }
+    if (scope.app === "recreio" && attached)
+      throw new BillingError("Attached schedule has no exact native creation receipt");
+    return null;
+  }
   return {
+    async find(input) {
+      return findExisting(input, await subscription(input));
+    },
     async create(input) {
       const sub = await subscription(input);
+      const found = await findExisting(input, sub);
+      if (found) return found;
       const attached = id(sub.schedule);
-      if (attached) {
-        const schedule = await stripe.subscriptionSchedules.retrieve(attached, {}, options(input));
-        validateSchedule(schedule, input);
-        if (schedule.metadata?.[marker] === input.intentId) return schedule.id;
-      }
-      // Recover the exact request, including a schedule released before our response arrived.
-      // A customer/similar phase alone is not evidence that this request created the schedule.
-      let count = 0;
-      for await (const event of creationEvents(input)) {
-        if (++count > 1000)
-          throw new BillingError("Schedule recovery event history exceeded its bound");
-        if (event.request?.idempotency_key !== planScheduleKey(input.intentId, scope.app)) continue;
-        const scheduleId = id(event.data.object);
-        if (!scheduleId) throw new BillingError("Schedule recovery event has no resource identity");
-        const schedule = await stripe.subscriptionSchedules.retrieve(
-          scheduleId,
-          {},
-          options(input),
-        );
-        validateSchedule(schedule, input);
-        return schedule.id;
-      }
-      if (scope.app === "recreio" && attached)
-        throw new BillingError("Attached schedule has no exact native creation receipt");
       // Never recreate an uncertain request after Stripe's minimum idempotency retention.
       if (now() - input.requestStartedAt.getTime() >= 23 * 60 * 60 * 1000)
         throw new BillingError(
@@ -362,6 +385,23 @@ function createSchedules(config: ScheduleConfig, scope: ScheduleScope): PlanSche
       if (id(sub.schedule) !== schedule.id) throw new BillingError("Subscription schedule changed");
       if (input.cancel || sub.cancel_at_period_end || sub.cancel_at) {
         await release(schedule, input);
+        if (scope.app === "recreio") {
+          // Releasing at the phase boundary can preserve a price that just
+          // took effect. Never call that completed change "canceled".
+          const current = await subscription(input);
+          const currentItem = current.items.data[0];
+          if (
+            currentItem?.price.id === input.toPriceId &&
+            currentItem.current_period_start * 1000 >= input.effectiveAt.getTime()
+          ) {
+            if (schedule.metadata?.[marker] !== input.intentId)
+              throw new BillingError("Released applied price has no matching schedule receipt");
+            nativeFuture(schedule, input);
+            return "applied";
+          }
+          if (currentItem?.price.id !== input.fromPriceId)
+            throw new BillingError("Released schedule price still needs reconciliation");
+        }
         return "canceled";
       }
       const end = Math.floor(input.effectiveAt.getTime() / 1000);

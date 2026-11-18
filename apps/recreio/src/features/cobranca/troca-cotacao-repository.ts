@@ -36,6 +36,7 @@ export function reciboDaTroca(linha: typeof changes.$inferSelect) {
     aceitarAte: linha.quoteExpiresAt.toISOString(),
     aceitoEm: linha.acceptedAt?.toISOString() ?? null,
     tentativaEm: linha.requestStartedAt?.toISOString() ?? null,
+    cancelamentoPedidoEm: linha.cancelRequestedAt?.toISOString() ?? null,
     resolvidoEm: linha.resolvedAt?.toISOString() ?? null,
     estado: linha.status,
     emConferencia: linha.reviewRequired,

@@ -21,6 +21,7 @@ import {
   criarAceiteDeTroca,
   criarEncerramentoDeTroca,
 } from "@/features/cobranca/troca-aceite-service";
+import { criarCancelamentoDeReducao } from "@/features/cobranca/troca-cancelamento-service";
 import type { reciboDaTroca } from "@/features/cobranca/troca-cotacao-repository";
 import { criarPreparacaoDeReducao } from "@/features/cobranca/troca-cotacao-service";
 import type { RuntimeDeEnvioDaTroca } from "@/features/cobranca/troca-execucao-runtime";
@@ -146,6 +147,7 @@ async function fixtureDeEnvio(
     runtime,
     enviar: criarEnvioDeReducao(() => runtime),
     recuperar: criarRecuperacaoDeReducao(() => runtime),
+    cancelar: criarCancelamentoDeReducao(() => runtime),
   };
 }
 
@@ -618,6 +620,164 @@ describe("envio nativo da redução com PostgreSQL e SDK fechado", () => {
     } finally {
       await db.execute(sql`drop trigger recusar_envio_audit_fixture on audit.events`);
       await db.execute(sql`drop function recreio.recusar_envio_audit_fixture()`);
+    }
+  });
+});
+
+describe("cancelamento nativo da redução já enviada", () => {
+  it("registra a intenção antes de liberar a agenda e replay não repete a operação", async () => {
+    const f = await fixtureDeEnvio();
+    await f.enviar(f.adulto.autor, f.cotacao.id);
+    f.remoto.antesDeEnviar(async () => {
+      const [linha] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+      expect(linha?.cancelRequestedAt).toBeInstanceOf(Date);
+      expect(linha?.reviewRequired).toBe(true);
+    });
+    const cancelada = await f.cancelar(f.adulto.autor, f.cotacao.id);
+    expect(cancelada).toMatchObject({ estado: "canceled", emConferencia: false });
+    expect(f.remoto.escritas).toHaveLength(3);
+    const antes = f.requests.length;
+    expect(await f.cancelar(f.adulto.autor, f.cotacao.id)).toEqual(cancelada);
+    expect(f.requests).toHaveLength(antes);
+    const [contrato] = await db
+      .select()
+      .from(contracts)
+      .where(eq(contracts.purchaseId, f.recibo.id));
+    expect(contrato).toMatchObject({ revision: 1, currentProductId: "recreio_family_monthly" });
+    const audits = await db
+      .select()
+      .from(auditEvents)
+      .where(eq(auditEvents.actorId, f.adulto.conta.id));
+    expect(
+      audits.filter((e) => e.eventType === "recreio.plan_change_cancel_requested"),
+    ).toHaveLength(1);
+  });
+  it("resposta perdida da liberação conserva a intenção e se recupera sem outra escrita", async () => {
+    const f = await fixtureDeEnvio();
+    await f.enviar(f.adulto.autor, f.cotacao.id);
+    f.remoto.perderResposta("release");
+    await expect(f.cancelar(f.adulto.autor, f.cotacao.id)).rejects.toMatchObject({
+      code: "COBRANCA_EM_CONFERENCIA",
+    });
+    const [antes] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+    expect(antes?.cancelRequestedAt).toBeInstanceOf(Date);
+    expect(antes?.resolvedAt).toBeNull();
+    expect((await f.recuperar(f.adulto.autor, f.cotacao.id)).estado).toBe("canceled");
+    expect(f.remoto.escritas).toHaveLength(3);
+  });
+  it("sem ID local recupera a criação exata e cancela sem configurar uma nova fase", async () => {
+    const f = await fixtureDeEnvio();
+    f.remoto.perderResposta("create");
+    await expect(f.enviar(f.adulto.autor, f.cotacao.id)).rejects.toThrow();
+    expect((await f.cancelar(f.adulto.autor, f.cotacao.id)).estado).toBe("canceled");
+    expect(f.remoto.escritas).toHaveLength(2);
+    expect(f.remoto.escritas[1]?.path).toBe(
+      `/v1/subscription_schedules/${f.remoto.agendaId}/release`,
+    );
+  });
+  it("ausência de operação identificada mantém revisão sem criar agenda para cancelá-la", async () => {
+    const f = await fixtureDeEnvio();
+    // Durable crash-recovery fixture only: admission is uncertain and no POST
+    // is claimed. A cancellation request must never create the missing schedule.
+    await db.execute(
+      sql`update recreio.plan_changes set status='sent',request_started_at=clock_timestamp(),review_required=true where id=${f.cotacao.id}`,
+    );
+    await expect(f.cancelar(f.adulto.autor, f.cotacao.id)).rejects.toMatchObject({
+      code: "COBRANCA_EM_CONFERENCIA",
+    });
+    expect(f.remoto.escritas).toEqual([]);
+    const [linha] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+    expect(linha).toMatchObject({
+      resolvedAt: null,
+      providerScheduleId: null,
+      reviewRequired: true,
+    });
+    expect(linha?.cancelRequestedAt).toBeInstanceOf(Date);
+  });
+  it("outro adulto e login antigo não registram intenção nem acessam o provedor", async () => {
+    const f = await fixtureDeEnvio(),
+      outro = await adultoDoTeste();
+    await f.enviar(f.adulto.autor, f.cotacao.id);
+    const antes = f.requests.length;
+    await expect(f.cancelar(outro.autor, f.cotacao.id)).rejects.toMatchObject({ code: "COBRANCA" });
+    await expect(
+      f.cancelar(
+        {
+          ...f.adulto.autor,
+          login: { ...f.adulto.autor.login, criadoEm: new Date(Date.now() - 11 * 60_000) },
+        },
+        f.cotacao.id,
+      ),
+    ).rejects.toMatchObject({ code: "LOGIN_RECENTE" });
+    expect(f.requests).toHaveLength(antes);
+  });
+  it("cancelamento continua com novas vendas desligadas e sem catálogo disponível", async () => {
+    const f = await fixtureDeEnvio();
+    await f.enviar(f.adulto.autor, f.cotacao.id);
+    f.runtime.conferirCatalogo = async () => {
+      throw new Error("Cancellation must not require catalog");
+    };
+    const modo = env.RECREIO_BILLING_MODE;
+    env.RECREIO_BILLING_MODE = "off";
+    try {
+      expect((await f.cancelar(f.adulto.autor, f.cotacao.id)).estado).toBe("canceled");
+    } finally {
+      env.RECREIO_BILLING_MODE = modo;
+    }
+  });
+  it("logout depois da liberação captura cancelamento e retém o recibo", async () => {
+    const f = await fixtureDeEnvio();
+    await f.enviar(f.adulto.autor, f.cotacao.id);
+    f.remoto.aposPersistir(async () => {
+      await db
+        .update(devices)
+        .set({ revokedAt: new Date() })
+        .where(eq(devices.id, f.adulto.autor.sessaoDeAparelhoId));
+    });
+    await expect(f.cancelar(f.adulto.autor, f.cotacao.id)).rejects.toMatchObject({ code: "AUTH" });
+    const [linha] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+    expect(linha).toMatchObject({ status: "canceled", reviewRequired: false });
+    expect(linha?.resolvedAt).toBeInstanceOf(Date);
+  });
+  it("fase efetiva durante a liberação não é anunciada como cancelada", async () => {
+    const f = await fixtureDeEnvio();
+    await f.enviar(f.adulto.autor, f.cotacao.id);
+    f.remoto.aposPersistir(async () => {
+      f.remoto.aplicar();
+    });
+    const resultado = await f.cancelar(f.adulto.autor, f.cotacao.id);
+    expect(resultado).toMatchObject({
+      estado: "scheduled",
+      emConferencia: true,
+      resolvidoEm: null,
+    });
+    const [contrato] = await db
+      .select()
+      .from(contracts)
+      .where(eq(contracts.purchaseId, f.recibo.id));
+    expect(contrato?.revision).toBe(1);
+  });
+  it("auditoria recusada reverte a intenção antes de liberar a agenda", async () => {
+    const f = await fixtureDeEnvio();
+    await f.enviar(f.adulto.autor, f.cotacao.id);
+    await db.execute(
+      sql`create function recreio.recusar_cancelamento_audit_fixture() returns trigger language plpgsql as $$ begin if NEW.event_type='recreio.plan_change_cancel_requested' then raise exception 'fixture cancellation audit failure'; end if; return NEW; end $$`,
+    );
+    await db.execute(
+      sql`create trigger recusar_cancelamento_audit_fixture before insert on audit.events for each row execute function recreio.recusar_cancelamento_audit_fixture()`,
+    );
+    try {
+      await expect(f.cancelar(f.adulto.autor, f.cotacao.id)).rejects.toThrow();
+      const [linha] = await db.select().from(changes).where(eq(changes.id, f.cotacao.id));
+      expect(linha).toMatchObject({
+        status: "scheduled",
+        cancelRequestedAt: null,
+        reviewRequired: false,
+      });
+      expect(f.remoto.escritas).toHaveLength(2);
+    } finally {
+      await db.execute(sql`drop trigger recusar_cancelamento_audit_fixture on audit.events`);
+      await db.execute(sql`drop function recreio.recusar_cancelamento_audit_fixture()`);
     }
   });
 });

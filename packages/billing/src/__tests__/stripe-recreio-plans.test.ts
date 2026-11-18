@@ -94,7 +94,8 @@ function fixture() {
   const writes: Array<{ path: string; params: URLSearchParams; key: string | null }> = [];
   const reads: string[] = [];
   let afterEventPage: (() => void) | undefined;
-  let lose: "create" | "update" | null = null;
+  let afterRelease: (() => void) | undefined;
+  let lose: "create" | "update" | "release" | null = null;
   const remoteSchedule = () => ({
     ...schedule,
     subscription: attached ? sub.id : null,
@@ -159,6 +160,11 @@ function fixture() {
         expect(params.get("preserve_cancel_date")).toBe("true");
         attached = null;
         schedule.status = "released";
+        afterRelease?.();
+        if (lose === "release") {
+          lose = null;
+          throw new TypeError("Release response lost");
+        }
       } else throw new Error(`Unexpected closed POST ${path}`);
       data = remoteSchedule();
     } else throw new Error("Unexpected closed HTTP method");
@@ -186,10 +192,13 @@ function fixture() {
     afterEventPage: (callback: () => void) => {
       afterEventPage = callback;
     },
+    afterRelease: (callback: () => void) => {
+      afterRelease = callback;
+    },
     setNow: (date: Date) => {
       now = date;
     },
-    loseResponse: (operation: "create" | "update") => {
+    loseResponse: (operation: "create" | "update" | "release") => {
       lose = operation;
     },
     attach: () => {
@@ -200,6 +209,48 @@ function fixture() {
 }
 
 describe("agendamento Stripe nativo do Recreio", () => {
+  it("buscar operação ausente é somente leitura e não cria a agenda", async () => {
+    const f = fixture();
+    expect(await f.adapter.find(f.input)).toBeNull();
+    expect(f.writes).toEqual([]);
+    f.loseResponse("create");
+    await expect(f.adapter.create(f.input)).rejects.toThrow();
+    expect(await f.adapter.find(f.input)).toBe(f.schedule.id);
+    expect(f.writes).toHaveLength(1);
+  });
+  it("cancelamento com resposta perdida confirma o envelope liberado sem outra mutação", async () => {
+    const f = fixture();
+    await f.adapter.create(f.input);
+    await f.reconcile();
+    f.loseResponse("release");
+    await expect(f.reconcile(true)).rejects.toThrow();
+    expect(await f.reconcile(true)).toBe("canceled");
+    expect(f.writes).toHaveLength(3);
+    expect(f.sub.items.data[0]?.price.id).toBe(f.input.fromPriceId);
+  });
+  it("fase que se efetiva durante a liberação é aplicada, não cancelada", async () => {
+    const f = fixture();
+    await f.adapter.create(f.input);
+    await f.reconcile();
+    f.afterRelease(() => {
+      const item = f.sub.items.data[0];
+      if (!item) throw new Error("Closed phase item absent");
+      item.price.id = f.input.toPriceId;
+      item.current_period_start = f.input.effectiveAt.getTime() / 1000;
+    });
+    expect(await f.reconcile(true)).toBe("applied");
+    expect(f.writes).toHaveLength(3);
+  });
+  it("fase futura não pode substituir o pagante original mesmo mantendo produto e marcador", async () => {
+    const f = fixture();
+    await f.adapter.create(f.input);
+    await f.reconcile();
+    const future = f.schedule.phases[1];
+    if (!future) throw new Error("Closed future phase absent");
+    future.metadata.subject_id = "foreign_payer";
+    await expect(f.reconcile()).rejects.toThrow("original purchase");
+    expect(f.writes).toHaveLength(2);
+  });
   it("recusa assinatura de identidade divergente mesmo com os mesmos metadados", async () => {
     const f = fixture();
     f.sub.id = "sub_foreign";

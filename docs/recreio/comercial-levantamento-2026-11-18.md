@@ -8,10 +8,14 @@ ensaio pago ou venda. F5 foi implantado com recursos desligados em `d014bd90`,
 ## Incremento de teste gratuito, em qualificação
 
 Atualização das trocas: preparação `13b31497` e aceite/encerramento `63b69792`
-concluíram os dezesseis gates `44371478415` e `44372327644`. Envio recuperável
-da redução está em nova candidata, ainda sem qualificação, tela, cron ou
-implantação. Aplicação financeira/seleção atômicas e crédito anual continuam
-pendentes; [execução nativa](trocas-execucao-2026-11-18.md).
+concluíram os dezesseis gates `44371478415` e `44372327644`. Envio recuperável,
+recuperação técnica e aplicação atômica da redução concluíram os dezesseis
+gates `44378474167` em `75622649`, incluindo 64 casos financeiros. Confirmação
+da seleção atual e cancelamento após envio estão em nova candidata. O E2E de
+seleção `245a727a` encontrou ambiguidade entre o alerta de capacidade e o
+anunciador de rotas do Next; o seletor foi corrigido e precisa de nova prova.
+Upgrades, crédito anual, telas completas e homologação continuam pendentes;
+[execução nativa](trocas-execucao-2026-11-18.md). Nada foi ativado em produção.
 
 Atualização: `a57da736` concluiu os dezesseis gates `44339836958`. O catálogo
 Stripe de teste já possui conferência externa e replay idempotente, descritos
